@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.45 1995/05/21 01:56:01 phk Exp $
+ * $Id: install.c,v 1.46 1995/05/21 15:40:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,6 +56,69 @@ static void	cpio_extract(void);
 static void	install_configuration_files(void);
 static void	do_final_setup(void);
 
+static Disk *rootdisk;
+static Chunk *rootdev;
+
+static Boolean
+checkLabels(void)
+{
+    Device **devs;
+    Disk *disk;
+    Chunk *c1, *c2, *swapdev = NULL;
+    int i;
+
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    /* First verify that we have a root device */
+    for (i = 0; devs[i]; i++) {
+	if (!devs[i]->enabled)
+	    continue;
+	disk = (Disk *)devs[i]->private;
+	msgDebug("Scanning disk %s for root filesystem\n", disk->name);
+	if (!disk->chunks)
+	    msgFatal("No chunk list found for %s!", disk->name);
+	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
+		    if (c2->type == part && c2->subtype != FS_SWAP &&
+			c2->private && c2->flags & CHUNK_IS_ROOT) {
+			rootdisk = disk;
+			rootdev = c2;
+			break;
+		    }
+		}
+	    }
+	}
+    }
+
+    /* Now register the swap devices */
+    for (i = 0; devs[i]; i++) {
+	disk = (Disk *)devs[i]->private;
+	msgDebug("Scanning disk %s for swap partitions\n", disk->name);
+	if (!disk->chunks)
+	    msgFatal("No chunk list found for %s!", disk->name);
+	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
+		    if (c2->type == part && c2->subtype == FS_SWAP) {
+			swapdev = c2;
+			break;
+		    }
+		}
+	    }
+	}
+    }
+
+    if (!rootdev) {
+	msgConfirm("No root device found - you must label a partition as /\n in the label editor.");
+	return FALSE;
+    }
+    if (!swapdev) {
+	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
+	return FALSE;
+    }
+    return TRUE;
+}
+
 static void
 installInitial(void)
 {
@@ -78,6 +141,8 @@ installInitial(void)
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return;
     }
+    if (!checkLabels())
+	return;
 
     /* Figure out what kind of MBR the user wants */
     dmenuOpenSimple(&MenuMBRType);
@@ -96,8 +161,8 @@ installInitial(void)
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     for (i = 0; devs[i]; i++) {
-	Disk *d = (Disk *)devs[i]->private;
 	Chunk *c1;
+	Disk *d = (Disk *)devs[i]->private;
 
 	if (!devs[i]->enabled)
 	    continue;
@@ -178,63 +243,45 @@ make_filesystems(void)
     Disk *disk;
     Chunk *c1, *c2;
     Device **devs;
+    char dname[40];
+    PartInfo *p = (PartInfo *)rootdev->private;
 
     command_clear();
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 
-    /* First look for the root device and mount it */
-    for (i = 0; devs[i]; i++) {
-	disk = (Disk *)devs[i]->private;
-	msgDebug("Scanning disk %s for root filesystem\n", disk->name);
-	if (!disk->chunks)
-	    msgFatal("No chunk list found for %s!", disk->name);
-	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == freebsd) {
-		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype != FS_SWAP &&
-			c2->private && c2->flags & CHUNK_IS_ROOT) {
-			char dname[40];
-			PartInfo *p = (PartInfo *)c2->private;
+    /* First, create and mount the root device */
+    if (strcmp(p->mountpoint, "/"))
+	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, p->mountpoint);
 
-			if (strcmp(p->mountpoint, "/")) {
-			    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", c2->name, p->mountpoint);
-			    continue;
-			}
-			if (p->newfs) {
-			    int i;
+    if (p->newfs) {
+	int i;
 
-			    sprintf(dname, "/dev/r%sa", disk->name);
-			    msgNotify("Making a new root filesystem on %s", dname);
-			    i = vsystem("%s %s", p->newfs_cmd,dname);
-			    if (i) {
-				msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
-				return;
-			    }
-			}
-			else
-			    msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
-			sprintf(dname, "/dev/%sa", disk->name);
-			if (Mount("/mnt", dname)) {
-			    msgConfirm("Unable to mount the root file system!  Giving up.");
-			    return;
-			}
-			else {
-			    extern int makedevs(void);
-
-			    msgNotify("Making device files");
-			    if (Mkdir("/mnt/dev", NULL)
-				|| chdir("/mnt/dev")
-				|| makedevs())
-				msgConfirm("Failed to make some of the devices in /mnt!");
-			    if (Mkdir("/mnt/stand", NULL))
-				msgConfirm("Unable to make /mnt/stand directory!");
-			    chdir("/");
-			    break;
-			}
-		    }
-		}
-	    }
+	sprintf(dname, "/dev/r%sa", rootdisk->name);
+	msgNotify("Making a new root filesystem on %s", dname);
+	i = vsystem("%s %s", p->newfs_cmd, dname);
+	if (i) {
+	    msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
+	    return;
 	}
+    }
+    else
+	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
+    sprintf(dname, "/dev/%sa", rootdisk->name);
+    if (Mount("/mnt", dname)) {
+	msgConfirm("Unable to mount the root file system!  Giving up.");
+	return;
+    }
+    else {
+	extern int makedevs(void);
+
+	msgNotify("Making device files");
+	if (Mkdir("/mnt/dev", NULL) || chdir("/mnt/dev") || makedevs())
+	    msgConfirm("Failed to make some of the devices in /mnt!");
+	if (Mkdir("/mnt/stand", NULL)) {
+	    msgConfirm("Unable to make /mnt/stand directory!");
+	    return;
+	}
+	chdir("/");
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -256,9 +303,19 @@ make_filesystems(void)
 			    continue;
 
 			if (tmp->newfs)
-			    command_shell_add(tmp->mountpoint,
-					      "%s /mnt/dev/r%s", tmp->newfs_cmd, c2->name);
+			    command_shell_add(tmp->mountpoint, "%s /mnt/dev/r%s", tmp->newfs_cmd, c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
+		    }
+		    else if (c2->type == part && c2->subtype == FS_SWAP) {
+			char fname[80];
+			int i;
+
+			sprintf(fname, "/mnt/dev/%s", c2->name);
+			i = swapon(fname);
+			if (!i)
+			    msgNotify("Added %s as a swap device", fname);
+			else
+			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
 		    }
 		}
 	    }
@@ -285,10 +342,21 @@ cpio_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
 
+#if 0
+    if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM) {
+	if (mediaDevice->init) {
+	    if ((*mediaDevice->init)(mediaDevice)) {
+		CpioFD = open("/cdrom/floppies/cpio.flp", O_RDONLY);
+		if (CpioFD != -1)
+		    msgNotify("Loading CPIO floppy from CDROM");
+	    }
+	}
+    }
+#endif
  tryagain:
     while (CpioFD == -1) {
 	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
-	CpioFD = open("/dev/rfd0", O_RDWR);
+	CpioFD = open("/dev/rfd0", O_RDONLY);
 	if (CpioFD >= 0)
 	    break;
 	msgDebug("Error on open of cpio floppy: %s (%d)\n", strerror(errno), errno);
@@ -302,6 +370,8 @@ cpio_extract(void)
 	if (!zpid) {
 	    dup2(CpioFD, 0); close(CpioFD);
 	    dup2(pfd[1], 1); close(pfd[1]);
+	    if (DebugFD != -1)
+		dup2(DebugFD, 2);
 	    close(pfd[0]);
 	    i = execl("/stand/gunzip", "/stand/gunzip", 0);
 	    msgDebug("/stand/gunzip command returns %d status\n", i);

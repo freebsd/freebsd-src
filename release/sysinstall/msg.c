@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.20 1995/05/20 14:05:31 jkh Exp $
+ * $Id: msg.c,v 1.21 1995/05/20 19:12:12 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,9 @@
 #include "sysinstall.h"
 #include <stdarg.h>
 
+#define VTY_STATLINE	24
+#define TTY_STATLINE	23
+
 /* Whack up an informational message on the status line, in stand-out */
 void
 msgYap(char *fmt, ...)
@@ -58,7 +61,7 @@ msgYap(char *fmt, ...)
     va_end(args);
     attrs = getattrs(stdscr);
     attrset(A_REVERSE);
-    mvaddstr(23, 0, errstr);
+    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
     free(errstr);
@@ -74,7 +77,7 @@ msgInfo(char *fmt, ...)
 
     /* NULL is a special convention meaning "erase the old stuff" */
     if (!fmt) {
-	move(23, 0);
+	move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0);
 	clrtoeol();
 	return;
     }
@@ -84,7 +87,7 @@ msgInfo(char *fmt, ...)
     va_end(args);
     attrs = getattrs(stdscr);
     attrset(A_NORMAL);
-    mvaddstr(23, 0, errstr);
+    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY) {
@@ -110,7 +113,7 @@ msgWarn(char *fmt, ...)
     attrs = getattrs(stdscr);
     beep();
     attrset(A_REVERSE);
-    mvaddstr(23, 0, errstr);
+    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY)
@@ -134,7 +137,7 @@ msgError(char *fmt, ...)
     beep();
     attrs = getattrs(stdscr);
     attrset(A_REVERSE);
-    mvaddstr(23, 0, errstr);
+    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY)
@@ -158,7 +161,7 @@ msgFatal(char *fmt, ...)
     beep();
     attrs = getattrs(stdscr);
     attrset(A_REVERSE);
-    mvaddstr(23, 0, errstr);
+    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");
     if (getpid() == 1)
