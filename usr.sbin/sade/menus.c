@@ -1418,7 +1418,7 @@ DMenu MenuInstallCustom = {
       { NULL } },
 };
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 #ifdef PC98
 /* IPL type menu */
 DMenu MenuIPLType = {
