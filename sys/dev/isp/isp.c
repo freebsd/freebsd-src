@@ -63,6 +63,7 @@
 /*
  * Local static data
  */
+#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
 static const char tgtiqd[36] = {
 	0x03, 0x00, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00,
 	0x51, 0x4C, 0x4F, 0x47, 0x49, 0x43, 0x20, 0x20,
@@ -81,6 +82,7 @@ static const char tgtiqd[36] = {
 	0x54, 0x41, 0x52, 0x47, 0x45, 0x54, 0x20, 0x20,
 	0x20, 0x20, 0x20, 0x31
 };
+#endif
 
 
 /*
@@ -827,16 +829,16 @@ isp_fibre_init(isp)
 		PRINTF("%s: Loop ID 0x%x, ALPA 0x%x\n", isp->isp_name,
 		    fcp->isp_loopid, fcp->isp_alpa);
 		isp->isp_state = ISP_INITSTATE;
+#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
 		DISABLE_INTS(isp);
 		if (isp->isp_fwrev >= ISP_FW_REV(1, 13)) {
-#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
 			if (isp_modify_lun(isp, 0, 1, 1)) {
 				PRINTF("%s: failed to establish target mode\n",
 				    isp->isp_name);
 			}
-#endif
 		}
 		ENABLE_INTS(isp);
+#endif
 	} else {
 		PRINTF("%s: failed to go to FW READY state- will not attach\n",
 		    isp->isp_name);
