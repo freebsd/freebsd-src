@@ -63,10 +63,8 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
-# Similarly, you can specify make flags for make readmes via PORTREADMES_FLAGS.
 #WORLD_FLAGS=-j4
 #KERNEL_FLAGS=-j4
-#PORTREADMES_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
@@ -130,9 +128,9 @@ RELEASEPORTSMODULE=	${MINIMALDOCPORTS}
 .endif
 
 # Make changing names of disc1/disc2 CD's possible.
-DISC1_LABEL?=	fbsd_miniinst
-DISC1_NAME?=	miniinst
-DISC2_LABEL?=	fbsd_livefs
+DISC1_LABEL?=	FreeBSD_Install
+DISC1_NAME?=	disc1
+DISC2_LABEL?=	FreeBSD_LiveFS
 DISC2_NAME?=	disc2
 
 # Helper variable
@@ -251,15 +249,13 @@ CD=			${_R}/cdrom
 CD_BOOT=		${CD}/bootonly
 .endif
 CD_DISC1=		${CD}/disc1
+.if defined(SEPARATE_LIVEFS)
 CD_DISC2=		${CD}/disc2
-_MK?=			${CHROOTDIR}/mk
-
-# Some architectures may not have space for the ports tree on disc2.
-# For these architectures there is no sense building the README.html
-# files no matter what.
-.if ${TARGET_ARCH} == "ia64"
-NOPORTREADMES=		yes
+CD_LIVEFS=		${CD_DISC2}
+.else
+CD_LIVEFS=		${CD_DISC1}
 .endif
+_MK?=			${CHROOTDIR}/mk
 
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
@@ -287,7 +283,7 @@ EXTRAS+= floppies.3
 .endif
 EXTRAS+= ftp.1
 .if !defined(NOCDROM)
-EXTRAS+= cdrom.1
+EXTRAS+= cdrom.1 cdrom.2 cdrom.3
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .endif
@@ -423,8 +419,7 @@ release rerelease:
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
 	    update ${CVSCMDARGS} -P -d
-	rm -f ${CHROOTDIR}/tmp/.skip_ports_index \
-	    ${CHROOTDIR}/tmp/.skip_ports_readmes
+	rm -f ${CHROOTDIR}/tmp/.skip_ports_index
 .endif
 .if defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
 	for i in ${MINIMALDOCPORTS}; do \
@@ -480,6 +475,7 @@ release rerelease:
 	NO_SENDMAIL \
 	RELEASETAG \
 	RELNOTES_LANG \
+	SEPARATE_LIVEFS \
 	TARGET \
 	TARGET_ARCH \
 	WORLD_FLAGS
@@ -519,13 +515,6 @@ release rerelease:
 	echo "	touch /tmp/.skip_ports_index"	>> ${_MK}
 	echo "	echo \">>> make index finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
 	echo "fi"				>> ${_MK}
-	echo "if [ ! -f /tmp/.skip_ports_readmes ]; then" >> ${_MK}
-	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
-	echo "	cd /usr/ports"			>> ${_MK}
-	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${_MK}
-	echo "	touch /tmp/.skip_ports_readmes"	>> ${_MK}
-	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
-	echo "fi"				>> ${_MK}
 	echo "cd /usr/src/release"		>> ${_MK}
 	echo "make obj"				>> ${_MK}
 	echo "make \$${_RELTARGET}"		>> ${_MK}
@@ -533,9 +522,6 @@ release rerelease:
 	chmod 755 ${_MK}
 .if defined(NOPORTS)
 	touch ${CHROOTDIR}/tmp/.skip_ports_index
-.endif
-.if defined(NOPORTS) || defined(NOPORTREADMES)
-	touch ${CHROOTDIR}/tmp/.skip_ports_readmes
 .endif
 	# Ensure md.ko is loaded if md(4) is not statically compiled into 
 	# the kernel
@@ -669,7 +655,7 @@ release.6:
 	@mkdir -p ${RD}/dists/ports
 	@echo rolling ports/ports tarball
 	@tar --exclude CVS --exclude 'ports/distfiles/*' \
-	  --exclude README.html -czf ${RD}/dists/ports/ports.tgz -C /usr ports
+	  -czf ${RD}/dists/ports/ports.tgz -C /usr ports
 	@cp ${.CURDIR}/scripts/ports-install.sh ${RD}/dists/ports/install.sh
 	@(cd ${RD}/dists/ports; \
 	  rm -f CHECKSUM.MD5; \
@@ -904,33 +890,47 @@ ftp.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 	touch ${.TARGET}
 
-#
-# --==## Setup a suitable cdrom-area ##==--
-#
+# Build a live filesystem cdrom image
 cdrom.1:
-	@echo "Setting up CDROM distribution area"
-	@mkdir -p ${CD_BOOT} ${CD_DISC1} ${CD_DISC2}
-	-@ln -s . ${CD_DISC1}/${BUILDNAME}
-.if defined(MAKE_FLOPPIES)
-	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
-.endif
-	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
+	@echo "Building CDROM live filesystem image"
+	@mkdir -p ${CD_LIVEFS}
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			chflags -R noschg ${RD}/trees/$${i} || true ; \
 			( cd ${RD}/trees/$${i} && \
-			    find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
+			    find . -depth -print | cpio -dumpl ${CD_LIVEFS} ) ; \
 		fi \
 	done
-	@rm -f ${CD_DISC2}/.profile
-	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
-	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
-	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-.if !defined(NOPORTS) && !defined(NOPORTREADMES)
-	@tar --exclude CVS --exclude 'ports/distfiles/*' -czf - \
-	  -C /usr ports | (cd ${CD_DISC2}/usr; tar -xpBf -)
+	@rm -f ${CD_LIVEFS}/.profile
+	@cp ${.CURDIR}/fixit.profile ${CD_LIVEFS}/.profile
+.if ${TARGET} != "pc98"
+	@echo "Setting up CDROM boot area"
+	@rm -f ${CD_LIVEFS}/boot/loader.conf
+	@cp ${RD}/mfsroot/mfsroot.gz ${CD_LIVEFS}/boot/mfsroot.gz
+	@echo 'mfsroot_load="YES"' > ${CD_LIVEFS}/boot/loader.conf
+	@echo 'mfsroot_type="mfs_root"' >> ${CD_LIVEFS}/boot/loader.conf
+	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_LIVEFS}/boot/loader.conf
+.if exists(${RD}/trees/base/boot/device.hints)
+	# Break the link to device.hints so we can modify it
+	@rm -f ${CD_LIVEFS}/boot/device.hints
+	@cp ${RD}/trees/base/boot/device.hints ${CD_LIVEFS}/boot/device.hints
+.if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
+	@echo 'hint.atkbd.0.flags="0x1"' >> ${CD_LIVEFS}/boot/device.hints
 .endif
+.endif
+.endif
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
+	touch ${.TARGET}
+
+# Build disc1 cdrom image
+cdrom.2:
+	@echo "Building CDROM disc1 filesystem image"
+	@mkdir -p ${CD_DISC1}/${BUILDNAME}
+.if defined(MAKE_FLOPPIES)
+	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
+.endif
+	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}/${BUILDNAME}
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
 	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt \
@@ -950,31 +950,27 @@ cdrom.1:
 	@mv ${CD_DISC1}/EARLY-ADOPTER.TXT ${CD_DISC1}/MIGRATE5.TXT
 	@mv ${CD_DISC1}/EARLY-ADOPTER.HTM ${CD_DISC1}/MIGRATE5.HTM
 .endif
-.if ${TARGET} != "pc98"
-	@echo "Setting up boot area"
-	@rm -f ${CD_DISC2}/boot/loader.conf
-	@cp ${RD}/mfsroot/mfsroot.gz ${CD_DISC2}/boot/mfsroot.gz
-	@echo 'mfsroot_load="YES"' > ${CD_DISC2}/boot/loader.conf
-	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC2}/boot/loader.conf
-	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
-.if exists(${RD}/trees/base/boot/device.hints)
-	# Break the link to device.hints so we can modify it
-	@rm -f ${CD_DISC2}/boot/device.hints
-	@cp ${RD}/trees/base/boot/device.hints ${CD_DISC2}/boot/device.hints
-.if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
-	@echo 'hint.atkbd.0.flags="0x1"' >> ${CD_DISC2}/boot/device.hints
+.if defined(SEPARATE_LIVEFS)
+	@cp -Rp ${CD_LIVEFS}/boot ${CD_DISC1}
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 .endif
-.endif
+	touch ${.TARGET}
+
+#
+# --==## Setup a suitable cdrom-area ##==--
+#
+cdrom.3:
 .if defined(CD_BOOT)
-	@cp -Rp ${CD_DISC2}/boot ${CD_BOOT}
+	@echo "Building bootonly CDROM filesystem image"
+	@mkdir -p ${CD_BOOT}
+	@cp -Rp ${CD_LIVEFS}/boot ${CD_BOOT}
 .if defined(MINIROOT)
+	@echo "Building bootonly UFS filesystem image"
 	@mkdir -p ${FD}/miniroot
 	@sh -e ${DOFS_SH} ${FD}/miniroot/miniroot.ufs \
 	    ${RD} ${MNT} 0 ${CD_BOOT} 8192 auto
 	@gzip -9v ${FD}/miniroot/miniroot.ufs
 .endif
-.endif
-	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 .endif
 	touch ${.TARGET}
 
@@ -988,16 +984,12 @@ iso.1:
 .endif
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    ${DISC1_LABEL} \
-	    ${CD}/${BUILDNAME}-${TARGET}-${DISC1_NAME}.iso ${CD_DISC1}
+	    ${CD}/${BUILDNAME}-${TARGET}-${DISC1_NAME}.iso ${CD_DISC1} \
+	    ${CD_EXTRA_BITS}
+.if defined(SEPARATE_LIVEFS)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    ${DISC2_LABEL} \
 	    ${CD}/${BUILDNAME}-${TARGET}-${DISC2_NAME}.iso ${CD_DISC2}
-.if defined(CD_EXTRA_BITS)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-	    fbsd_boot \
-	    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
-	    ${CD_EXTRA_BITS} \
-	    && false
 .endif
 	@(cd ${CD} && md5 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
 	touch ${.TARGET}
