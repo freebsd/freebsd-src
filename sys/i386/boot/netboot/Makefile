@@ -1,8 +1,9 @@
-#	$Id: Makefile,v 1.16 1998/03/07 10:48:13 eivind Exp $
+#	$Id: Makefile,v 1.17 1998/06/29 18:52:33 bde Exp $
 #
 # Makefile for NETBOOT
 #
 # Basic Options:
+#	-DSECURE_BOOT	- Disable 'boot>' prompt completely
 #	-DASK_BOOT	- Ask "Boot from Network (Y/N) ?" at startup
 #	-DROMSIZE	- Size of EPROM - Must be set (even for .COM files)
 #	-DRELOC		- Relocation address (usually 0x90000)
