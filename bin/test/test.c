@@ -163,8 +163,13 @@ main(argc, argv)
 	char **argv;
 {
 	int	res;
+	char	*p;
 
-	if (strcmp(argv[0], "[") == 0) {
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		p++;
+	if (strcmp(p, "[") == 0) {
 		if (strcmp(argv[--argc], "]"))
 			errx(2, "missing ]");
 		argv[argc] = NULL;
