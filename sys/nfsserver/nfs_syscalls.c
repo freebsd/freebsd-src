@@ -263,10 +263,14 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 		val = 1;
 		sosetopt(so, &sopt);
 	}
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags &= ~SB_NOINTR;
 	so->so_rcv.sb_timeo = 0;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags &= ~SB_NOINTR;
 	so->so_snd.sb_timeo = 0;
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 	slp = (struct nfssvc_sock *)
 		malloc(sizeof (struct nfssvc_sock), M_NFSSVC,
@@ -285,7 +289,9 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	s = splnet();
 	so->so_upcallarg = (caddr_t)slp;
 	so->so_upcall = nfsrv_rcv;
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_UPCALL;
+	SOCKBUF_UNLOCK(&so->so_rcv);
 	slp->ns_flag = (SLP_VALID | SLP_NEEDQ);
 	nfsrv_wakenfsd(slp);
 	splx(s);
@@ -601,7 +607,9 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		NFSD_UNLOCK();
 		slp->ns_fp = NULL;
 		so = slp->ns_so;
+		SOCKBUF_LOCK(&so->so_rcv);
 		so->so_rcv.sb_flags &= ~SB_UPCALL;
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		so->so_upcall = NULL;
 		so->so_upcallarg = NULL;
 		soshutdown(so, SHUT_RDWR);

@@ -431,8 +431,10 @@ fifo_kqfilter(ap)
 
 	ap->a_kn->kn_hook = (caddr_t)so;
 
+	SOCKBUF_LOCK(sb);
 	SLIST_INSERT_HEAD(&sb->sb_sel.si_note, ap->a_kn, kn_selnext);
 	sb->sb_flags |= SB_KNOTE;
+	SOCKBUF_UNLOCK(sb);
 
 	return (0);
 }
