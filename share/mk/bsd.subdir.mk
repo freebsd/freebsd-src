@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.20 1998/03/12 20:02:17 eivind Exp $
+#	$Id: bsd.subdir.mk,v 1.21 1998/03/23 14:58:29 eivind Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. It has the same seven targets
@@ -28,7 +28,7 @@
 #
 #	afterdistribute, afterinstall, all, beforeinstall, checkdpadd,
 #	clean, cleandepend, cleandir, depend, install, lint, maninstall,
-#	obj, objlink, realinstall, tags
+#	obj, objlink, realinstall, regress, tags
 #
 
 
@@ -57,34 +57,12 @@ ${SUBDIR}::
 	${MAKE} all
 
 
-.for __target in all checkdpadd clean cleandir depend lint \
-		 maninstall obj objlink regress
+.for __target in all checkdpadd clean cleandepend cleandir depend lint \
+		 maninstall obj objlink regress tags
 .if !target(${__target})
 ${__target}: _SUBDIRUSE
 .endif
 .endfor
-
-.if !target(tags)
-.if defined(TAGS)
-tags:
-	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
-.if defined(HTML)
-	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
-.endif
-.else
-tags:	_SUBDIRUSE
-.endif
-.endif
-
-.if !defined(cleandepend)
-cleandepend:	_SUBDIRUSE
-.if defined(TAGS)
-	@rm -f ${.OBJDIR}/GTAGS ${.OBJDIR}/GRTAGS ${.OBJDIR}/GSYMS
-.if defined(HTML)
-	@rm -rf ${.OBJDIR}/HTML
-.endif
-.endif
-.endif
 
 .if !target(install)
 .if !target(beforeinstall)
