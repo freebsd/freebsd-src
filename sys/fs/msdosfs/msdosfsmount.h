@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.14 1998/02/22 15:09:54 ache Exp $ */
+/*	$Id: msdosfsmount.h,v 1.15 1998/02/23 09:39:29 ache Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.17 1997/11/17 15:37:07 ws Exp $	*/
 
 /*-
@@ -95,6 +95,9 @@ struct msdosfsmount {
 	struct netexport pm_export;	/* export information */
 	u_int16_t pm_u2w[128];  /* Local->Unicode table */
 	u_int8_t  pm_ul[128];   /* Local upper->lower table */
+	u_int8_t  pm_lu[128];   /* Local lower->upper table */
+	u_int8_t  pm_d2u[128];  /* DOS->local table */
+	u_int8_t  pm_u2d[128];  /* Local->DOS table */
 };
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	((cn) * (pmp)->pm_fatmult / (pmp)->pm_fatdiv)
@@ -206,6 +209,9 @@ struct msdosfs_args {
 	int magic;		/* version number */
 	u_int16_t u2w[128];     /* Local->Unicode table */
 	u_int8_t  ul[128];      /* Local upper->lower table */
+	u_int8_t  lu[128];      /* Local lower->upper table */
+	u_int8_t  d2u[128];     /* DOS->local table */
+	u_int8_t  u2d[128];     /* Local->DOS table */
 };
 
 /*
@@ -217,8 +223,9 @@ struct msdosfs_args {
 #ifndef __FreeBSD__
 #define	MSDOSFSMNT_GEMDOSFS	8	/* This is a gemdos-flavour */
 #endif
-#define MSDOSFSMNT_U2WTABLE     0x10    /* Local->Unicode table is loaded */
-#define MSDOSFSMNT_ULTABLE      0x20    /* Local upper->lower table is loaded */
+#define MSDOSFSMNT_U2WTABLE     0x10    /* Local->Unicode and local<->DOS   */
+					/* tables loaded                    */
+#define MSDOSFSMNT_ULTABLE      0x20    /* Local upper<->lower table loaded */
 /* All flags above: */
 #define	MSDOSFSMNT_MNTOPT \
 	(MSDOSFSMNT_SHORTNAME|MSDOSFSMNT_LONGNAME|MSDOSFSMNT_NOWIN95 \

@@ -1,4 +1,4 @@
-/*	$Id: direntry.h,v 1.8 1998/02/22 18:00:47 ache Exp $ */
+/*	$Id: direntry.h,v 1.9 1998/02/23 09:39:23 ache Exp $ */
 /*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-
@@ -130,11 +130,11 @@ struct dirent;
 void unix2dostime __P((struct timespec *tsp, u_int16_t *ddp, 
 	     u_int16_t *dtp, u_int8_t *dhp));
 void dos2unixtime __P((u_int dd, u_int dt, u_int dh, struct timespec *tsp));
-int dos2unixfn __P((u_char dn[11], u_char *un, int lower, u_int8_t *ul));
-int unix2dosfn __P((const u_char *un, u_char dn[12], int unlen, u_int gen));
-int unix2winfn __P((const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum, u_int16_t *u2w));
-int winChkName __P((const u_char *un, int unlen, struct winentry *wep, int chksum, u_int16_t *u2w, u_int8_t *ul));
-int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum, u_int16_t *u2w));
+int dos2unixfn __P((u_char dn[11], u_char *un, int d2u_loaded, u_int8_t *d2u, int ul_loaded, u_int8_t *ul));
+int unix2dosfn __P((const u_char *un, u_char dn[12], int unlen, u_int gen, int u2d_loaded, u_int8_t *u2d, int lu_loaded, u_int8_t *lu));
+int unix2winfn __P((const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum, int table_loaded, u_int16_t *u2w));
+int winChkName __P((const u_char *un, int unlen, struct winentry *wep, int chksum, int u2w_loaded, u_int16_t *u2w, int lu_loaded, u_int8_t *lu));
+int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum, int table_loaded, u_int16_t *u2w));
 u_int8_t winChksum __P((u_int8_t *name));
 int winSlotCnt __P((const u_char *un, int unlen));
 #endif	/* KERNEL */
