@@ -39,20 +39,28 @@
 #define	_SIGNAL_H_
 
 #include <sys/cdefs.h>
-#include <sys/_posix.h>
 #include <sys/_types.h>
 #include <sys/signal.h>
-#include <sys/time.h>
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#if __BSD_VISIBLE
 extern __const char *__const sys_signame[NSIG];
 extern __const char *__const sys_siglist[NSIG];
 extern __const int sys_nsig;
 #endif
 
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+#endif
+
 __BEGIN_DECLS
+struct timespec;
+
 int	raise(int);
-#ifndef	_ANSI_SOURCE
+
+#if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
 int	kill(__pid_t, int);
 int	sigaction(int, const struct sigaction * __restrict,
 	    struct sigaction * __restrict);
@@ -64,31 +72,32 @@ int	sigismember(const sigset_t *, int);
 int	sigpending(sigset_t *);
 int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict);
 int	sigsuspend(const sigset_t *);
+/* XXX missing restrict qualifier. */
 int	sigwait(const sigset_t *, int *);
-
-#ifdef _P1003_1B_VISIBLE
-
-__BEGIN_DECLS
-int sigqueue(__pid_t, int, const union sigval);
-int sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
-	    const struct timespec * __restrict);
-int sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
-__END_DECLS
-
 #endif
-#ifndef _POSIX_SOURCE
+
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
+int	sigqueue(__pid_t, int, const union sigval);
+int	sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
+	    const struct timespec * __restrict);
+int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
+#endif
+
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 int	killpg(__pid_t, int);
 int	sigaltstack(const stack_t * __restrict, stack_t * __restrict); 
-int	sigblock(int);
 int	siginterrupt(int, int);
 int	sigpause(int);
+#endif
+
+#if __BSD_VISIBLE
+int	sigblock(int);
 int	sigreturn(const struct __ucontext *);
 int	sigsetmask(int);
 int	sigstack(const struct sigstack *, struct sigstack *);
 int	sigvec(int, struct sigvec *, struct sigvec *);
 void	psignal(unsigned int, const char *);
-#endif /* !_POSIX_SOURCE */
-#endif /* !_ANSI_SOURCE */
+#endif
 __END_DECLS
 
 #endif /* !_SIGNAL_H_ */
