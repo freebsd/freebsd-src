@@ -1,17 +1,13 @@
 $FreeBSD$
 
-cvs -d :pserver:anoncvs@anoncvs.cygnus.com:/cvs/gcc login
-#	password is "anoncvs"
+tar -xvjf gcc-3.0.2.tar.bz2 -X FREEBSD-Xlist
 
-cvs -d :pserver:anoncvs@anoncvs.cygnus.com:/cvs/gcc co -D '7/11/2000 11:43'
-	egcs/gcc egcs/libiberty
+cd gcc-3.0.2/gcc
+sh FREEBSD-libiberty
 
-for F in `cat FREEBSD-deletelist` ; do rm -rfv "$F" ; done
-for F in `cat FREEBSD-deletelist` ; do find . -name "$F" -exec rm -rfv {} \; ; done
+cvs import src/contrib/gcc FSF gcc_3_0_2
 
-cd egcs/gcc
-mv -iv config/i386/freebsd.h config/i386/freebsd-aout.h
-mv -iv config/i386/freebsd-elf.h config/i386/freebsd.h
-cp -pv config/i386/freebsd.h config/i386/freebsd.h.fixed
-
-cvs import src/contrib/gcc FSF gcc_cvs_20000711_1143
+If you decide to bring in more of the files, import them -- don't
+use ``cvs add''.  And please remember to adjust the contents of
+"FREEBSD-Xlist" so that it reflects what is really imported from
+the vendor.
