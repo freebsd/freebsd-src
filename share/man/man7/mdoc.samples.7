@@ -458,8 +458,9 @@ in
 \&.Sh SYNOPSIS
 \&.Sh DESCRIPTION
 \&.\e" The following requests should be uncommented and
-\&.\e" used where appropriate.  This next request is
-\&.\e" for sections 2, 3 and 9 function return values only.
+\&.\e" used where appropriate.
+\&.\e" .Sh IMPLEMENTATION NOTES
+\&.\e" This next request is for sections 2, 3 and 9 function return values only.
 \&.\e" .Sh RETURN VALUES
 \&.\e" This next request is for sections 1, 6, 7, 8 & 9 only
 \&.\e" .Sh ENVIRONMENT
@@ -469,6 +470,7 @@ in
 \&.\e"     (command return values (to shell) and
 \&.\e"	  fprintf/stderr type diagnostics)
 \&.\e" .Sh DIAGNOSTICS
+\&.\e" .Sh COMPATIBILITY
 \&.\e" The next request is for sections 2, 3 and 9 error
 \&.\e" and signal handling only.
 \&.\e" .Sh ERRORS
@@ -2274,10 +2276,10 @@ end-display macros.
 (D-one) Display one line of indented text.
 This macro is parsed, but it is not callable.
 .Pp
-.Dl Fl ldghfstru
+.D1 Fl ldghfstru
 .Pp
 The above was produced by:
-.Li \&.Dl Fl ldghfstru .
+.Li \&.D1 \&Fl ldghfstru .
 .It Li \&.Dl
 (D-ell)
 Display one line of indented
