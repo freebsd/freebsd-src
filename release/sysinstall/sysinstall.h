@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42 1995/06/11 19:30:09 rgrimes Exp $
+ * $Id: sysinstall.h,v 1.42.2.1 1995/07/21 10:54:06 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,7 +111,7 @@
 #define VAR_INTERFACES		"network_interfaces"
 
 /* The help file for the TCP/IP setup screen */
-#define TCP_HELPFILE		"tcp.hlp"
+#define TCP_HELPFILE		"tcp"
 
 /*** Types ***/
 typedef unsigned int Boolean;

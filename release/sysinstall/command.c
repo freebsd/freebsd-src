@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.11.2.1 1995/07/11 10:00:12 jkh Exp $
+ * $Id: command.c,v 1.11.4.1 1995/07/21 11:45:35 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,8 +81,7 @@ addit(char *key, int type, void *cmd, void *data)
     for (i = 0; i < numCommands; i++) {
 	if (!strcmp(commandStack[i]->key, key)) {
 	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
-		msgFatal("More than %d commands stacked up behind %s??",
-			 MAX_NUM_COMMANDS, key);
+		msgFatal("More than %d commands stacked up behind %s??", MAX_NUM_COMMANDS, key);
 	    commandStack[i]->cmds[commandStack[i]->ncmds].type = type;
 	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = cmd;
 	    commandStack[i]->cmds[commandStack[i]->ncmds].data = data;
