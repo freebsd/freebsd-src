@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2004
+.Dd March 16, 2005
 .Dt FENV 3
 .Os
 .Sh NAME
@@ -38,7 +38,10 @@
 .Nm fegetenv ,
 .Nm feholdexcept ,
 .Nm fesetenv ,
-.Nm feupdateenv
+.Nm feupdateenv ,
+.Nm feenableexcept ,
+.Nm fedisableexcept ,
+.Nm fegetexcept
 .Nd floating-point environment control
 .Sh LIBRARY
 .Lb libm
@@ -67,6 +70,12 @@
 .Fn fesetenv "const fenv_t *envp"
 .Ft int
 .Fn feupdateenv "const fenv_t *envp"
+.Ft int
+.Fn feenableexcept "int excepts"
+.Ft int
+.Fn fedisableexcept "int excepts"
+.Ft int
+.Fn fegetexcept "void"
 .Sh DESCRIPTION
 The
 .In fenv.h
@@ -115,6 +124,17 @@ and
 .Fn fetestexcept
 functions to clear, save, raise, restore, and examine the
 processor's floating-point exception flags, respectively.
+.Pp
+Exceptions may be
+.Em unmasked
+with
+.Fn feenableexcept
+and masked with
+.Fn fedisableexcept .
+Unmasked exceptions cause a trap when they are produced, and
+all exceptions are masked by default.
+The current mask can be tested with
+.Fn fegetexcept .
 .Ss Rounding Modes
 .St -ieee754
 specifies four rounding modes.
@@ -219,7 +239,10 @@ double sqrt(double n) {
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr feclearexcept 3 ,
+.Xr fedisableexcept 3 ,
+.Xr feenableexcept 3 ,
 .Xr fegetenv 3 ,
+.Xr fegetexcept 3 ,
 .Xr fegetexceptflag 3 ,
 .Xr fegetround 3 ,
 .Xr feholdexcept 3 ,
@@ -229,19 +252,19 @@ double sqrt(double n) {
 .Xr fesetround 3 ,
 .Xr fetestexcept 3 ,
 .Xr feupdateenv 3 ,
-.Xr fpgetmask 3 ,
 .Xr fpgetprec 3 ,
-.Xr fpgetround 3 ,
-.Xr fpgetsticky 3 ,
-.Xr fpresetsticky 3 ,
-.Xr fpsetmask 3 ,
-.Xr fpsetprec 3 ,
-.Xr fpsetround 3
+.Xr fpsetprec 3
 .Sh STANDARDS
 Except as noted below,
 .In fenv.h
 conforms to
 .St -isoC-99 .
+The
+.Fn feenableexcept ,
+.Fn fedisableexcept ,
+and
+.Fn fegetexcept
+routines are extensions.
 .Sh HISTORY
 The
 .In fenv.h
