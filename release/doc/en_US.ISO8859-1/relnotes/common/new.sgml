@@ -209,6 +209,11 @@
       degraded throughput under certain circumstances, has been
       fixed.</para>
 
+      <para>TCP's default buffer sizes, controlled by the
+      <varname>net.inet.tcp.sendspace</varname> and 
+      <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
+      been increased to 32K and 64K respectively.  Previously, the
+      default for both buffer sizes was 16K.</para>
     </sect3>
 
     <sect3>
@@ -353,6 +358,10 @@
 
     <para>&man.route.8; can now create <quote>proxy only</quote>
     published ARP entries.</para>
+
+    <para>&man.send-pr.1; now takes a <option>-a</option> option to
+    include a file into the <literal>Fix:</literal> section of a
+    problem report.</para>
 
     <para>&man.sysinstall.8; now has the ability to load KLDs as a
     part of the installation.</para>
