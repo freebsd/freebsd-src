@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.5 1995/10/07 11:55:37 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.6 1995/10/19 15:55:44 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -474,6 +474,10 @@ tcpDeviceSelect(void)
     Device **devs;
     int cnt;
     int status;
+
+    /* If we're running in user mode, assume network already up */
+    if (!RunningAsInit)
+	return TRUE;
 
     devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
     cnt = deviceCount(devs);

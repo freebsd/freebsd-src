@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.13 1995/10/18 00:12:10 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.14 1995/10/19 18:37:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@
 #include <netdb.h>
 #include "ftp.h"
 
-Boolean ftpInitted;
+Boolean ftpInitted = FALSE;
 static FTP_t ftp;
 extern int FtpPort;
 
@@ -97,16 +97,18 @@ mediaInitFTP(Device *dev)
     if (netDevice && !netDevice->init(netDevice))
 	return FALSE;
 
-    if ((ftp = FtpInit()) == NULL) {
+    if (!ftp && (ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
-	goto punt;
+	return FALSE;
     }
     if (isDebug())
 	msgDebug("Initialized FTP library.\n");
 
     cp = variable_get(FTP_PATH);
-    if (!cp)
-	goto punt;
+    if (!cp) {
+	msgConfirm("%s is not set!", FTP_PATH);
+	return FALSE;
+    }
     if (isDebug())
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.11 1995/10/18 00:12:20 jkh Exp $
+ * $Id: media.c,v 1.25.2.12 1995/10/19 18:37:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -254,31 +254,33 @@ mediaSetFTP(char *str)
 
     if (!dmenuOpenSimple(&MenuMediaFTP))
 	return RET_FAIL;
-    if (!strcmp(cp = variable_get(FTP_PATH), "other")) {
+    cp = variable_get(FTP_PATH);
+    if (!cp) {
+	msgConfirm("%s not set!  Please try again.", FTP_PATH);
+	return RET_FAIL;
+    }
+    if (!strcmp(cp, "other")) {
 	variable_set2(FTP_PATH, "ftp://");
-	if (variable_get_value(FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
-			       "remote ftp site.  This site must accept either anonymous\n"
-			       "ftp or you should have set an ftp username and password\n"
-			       "in the Options screen.\n\n"
-			       "A URL looks like this:  ftp://<hostname>/<path>\n"
-			       "Where <path> is relative to the anonymous ftp directory or the\n"
-			       "home directory of the user being logged in as.") == RET_SUCCESS)
-	    cp = variable_get(FTP_PATH);
-	else
+	cp = variable_get_value(FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
+				"remote ftp site.  This site must accept either anonymous\n"
+				"ftp or you should have set an ftp username and password\n"
+				"in the Options screen.\n\n"
+				"A URL looks like this:  ftp://<hostname>/<path>\n"
+				"Where <path> is relative to the anonymous ftp directory or the\n"
+				"home directory of the user being logged in as.");
+	if (!cp || !*cp)
 	    return RET_FAIL;
     }
     if (!cp || strncmp("ftp://", cp, 6))
 	return RET_FAIL;
     strcpy(ftpDevice.name, cp);
+
     /* XXX hack: if str == NULL, we were called by an ftp strategy routine and don't need to reinit all */
     if (!str)
 	return RET_DONE;
-    if (RunningAsInit) {
-	if (!tcpDeviceSelect())
-	    return RET_FAIL;
-    }
-    else
-	mediaDevice = NULL;
+    if (!tcpDeviceSelect())
+	return RET_FAIL;
+
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
@@ -292,14 +294,14 @@ mediaSetFTP(char *str)
 int
 mediaSetFTPActive(char *str)
 {
-    OptFlags &= OPT_FTP_ACTIVE;
+    OptFlags |= OPT_FTP_ACTIVE;
     return mediaSetFTP(str);
 }
 
 int
 mediaSetFTPPassive(char *str)
 {
-    OptFlags &= OPT_FTP_PASSIVE;
+    OptFlags |= OPT_FTP_PASSIVE;
     return mediaSetFTP(str);
 }
 
@@ -328,13 +330,14 @@ int
 mediaSetNFS(char *str)
 {
     static Device nfsDevice;
-    char *val;
+    char *cp;
 
-    if (variable_get_value(NFS_PATH, "Please enter the full NFS file specification for the remote\n"
-			   "host and directory containing the FreeBSD distribution files.\n"
-			   "This should be in the format:  hostname:/some/freebsd/dir") != RET_SUCCESS)
+    cp = variable_get_value(NFS_PATH, "Please enter the full NFS file specification for the remote\n"
+			    "host and directory containing the FreeBSD distribution files.\n"
+			    "This should be in the format:  hostname:/some/freebsd/dir");
+    if (!cp)
 	return RET_FAIL;
-    strncpy(nfsDevice.name, variable_get(NFS_PATH), DEV_NAME_MAX);
+    strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
     if (!tcpDeviceSelect())
 	return RET_FAIL;
     nfsDevice.type = DEVICE_TYPE_NFS;
@@ -512,15 +515,15 @@ mediaVerify(void)
 int
 mediaSetFtpUserPass(char *str)
 {
-    int i;
+    char *pass;
 
     dialog_clear();
-    if (variable_get_value(FTP_USER, "Please enter the username you wish to login as:") == RET_SUCCESS)
-	i = variable_get_value(FTP_PASS, "Please enter the password for this user:");
+    if (variable_get_value(FTP_USER, "Please enter the username you wish to login as:"))
+	pass = variable_get_value(FTP_PASS, "Please enter the password for this user:");
     else
-	i = RET_FAIL;
+	pass = NULL;
     dialog_clear();
-    return i;
+    return pass ? RET_SUCCESS : RET_FAIL;
 }
 
 /* Set CPIO verbosity level */

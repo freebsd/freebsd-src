@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.2 1995/10/07 11:55:32 jkh Exp $
+ * $Id: msg.c,v 1.29.2.3 1995/10/18 00:12:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@
 Boolean
 isDebug(void)
 {
-    return optionIsSet(OPT_DEBUG);
+    return optionIsSet(OPT_DEBUG) || variable_get("debug");
 }
 
 /* Whack up an informational message on the status line, in stand-out */

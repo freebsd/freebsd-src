@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.39 1995/10/19 15:55:03 jkh Exp $
+ * $Id: install.c,v 1.71.2.40 1995/10/19 18:37:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -272,7 +272,6 @@ installFixit(char *str)
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
     if (!(child = fork())) {
-	int i, fd;
 	struct termios foo;
 
 	signal(SIGTTOU, SIG_IGN);
@@ -611,6 +610,7 @@ installPreconfig(char *str)
     struct msdosfs_args	m_args;
     int fd, i;
     char buf[128];
+    char *cfg_file;
 
     memset(&u_args, 0, sizeof(u_args));
     u_args.fspec = "/dev/fd0";
@@ -623,10 +623,10 @@ installPreconfig(char *str)
 
     i = RET_FAIL;
     while (1) {
-	char *cp;
 	
-	if (variable_get_value(CONFIG_FILE, "Please insert the floppy containing this configuration file\n"
-			       "into drive A now and press [ENTER].") != RET_SUCCESS)
+	if (!(cfg_file = variable_get_value(CONFIG_FILE,
+					    "Please insert the floppy containing this configuration file\n"
+					    "into drive A now and press [ENTER].")))
 	    break;
 
 	if (mount(MOUNT_UFS, "/mnt2", MNT_RDONLY, (caddr_t)&u_args) == -1) {
@@ -639,10 +639,9 @@ installPreconfig(char *str)
 	}
 
     fnord:
-	cp = variable_get(CONFIG_FILE);
-	if (!cp)
+	if (!cfg_file)
 	    break;
-	sprintf(buf, "/mnt2/%s", cp);
+	sprintf(buf, "/mnt2/%s", cfg_file);
 	msgDebug("Attempting to open configuration file: %s\n", buf);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
@@ -659,13 +658,13 @@ installPreconfig(char *str)
 	    int i, j;
 
 	    if (attr_parse(cattr, fd) == RET_FAIL)
-		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cp);
+		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cfg_file);
 	    else {
 		for (j = 0; cattr[j].name[0]; j++)
 		    variable_set2(cattr[j].name, cattr[j].value);
 		i = RET_SUCCESS;
 		msgConfirm("Configuration file %s loaded successfully!\n"
-			   "Some parameters may now have new default values.", cp);
+			   "Some parameters may now have new default values.", cfg_file);
 	    }
 	    close(fd);
 	    safe_free(cattr);
