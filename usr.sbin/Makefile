@@ -1,12 +1,12 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.62.4.8 1996/06/25 20:39:37 markm Exp $
+#	$Id: Makefile,v 1.62.4.9 1996/08/01 12:17:16 jkh Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot cron \
 	crunch ctm dev_mkdb diskpart edquota inetd kernbb kgmon \
 	kvm_mkdb lpr lsdev manctl mrouted mtree named nslookup \
 	pcvt pkg_install portmap ppp pppd pppstats \
-	pstat pwd_mkdb quot quotaon rarpd repquota rndcontrol \
+	pstat pw pwd_mkdb quot quotaon rarpd repquota rndcontrol \
 	routed rmt rwhod sa sendmail sliplogin slstat sup sysctl \
 	syslogd tcpdump timed traceroute trpt tzsetup vipw vnconfig \
 	watch wormcontrol xntpd xten ypbind yppoll ypset zic
