@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.5 1995/11/09 07:14:11 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.6 1995/11/09 22:43:25 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,7 +45,7 @@ struct kern_devconf kdc_eisa0 = {
 	&kdc_cpu0,              /* parent is the CPU */
 	0,                      /* no parentdata */
 	DC_BUSY,                /* busses are always busy */
-	"EISA bus",        
+	NULL,        
 	DC_CLS_BUS              /* class */
 };
 
@@ -67,6 +67,13 @@ static struct eisa_driver mainboard_drv = {
 				     NULL,
 				     &eisa_unit
 				   };
+
+/*
+ * Add the mainboard_drv to the eisa driver linkerset so that it is
+ * defined even if no EISA drivers are linked into the kernel.
+ */
+DATA_SET (eisadriver_set, mainboard_drv);
+
 /*
 ** probe for EISA devices
 */
@@ -156,7 +163,15 @@ eisa_configure()
 		       e_dev->full_name);
 
 		/* Should set the iosize, but I don't have a spec handy */
-		kdc_eisa0.kdc_parentdata = e_dev;
+		kdc_eisa0.kdc_description = 
+			(char *)malloc(strlen(e_dev->full_name)
+				       + sizeof("EISA bus <>")
+				       + 1, M_DEVBUF, M_NOWAIT);
+		if (!kdc_eisa0.kdc_description) {
+			panic("Eisa probe unable to malloc");
+		}
+		sprintf((char *)kdc_eisa0.kdc_description, "EISA bus <%s>",
+			e_dev->full_name);
 		dev_attach(&kdc_eisa0);
 		printf("Probing for devices on the EISA bus\n");
 		dev_node = dev_node->next;
@@ -172,7 +187,8 @@ eisa_configure()
 	 * See what devices we recognize.
 	 */
 	while((e_drv = *e_drvp++)) {
-		(*e_drv->probe)();
+		if (e_drv->probe)
+			(*e_drv->probe)();
 	}
 
 	/*
@@ -448,16 +464,16 @@ eisa_registerdev(e_dev, driver, kdc_template)
  * hw.devconf interface.
  */
 int
-eisa_externalize(id, userp, maxlen)
-	struct eisa_device *id;
+eisa_externalize(e_dev, userp, maxlen)
+	struct eisa_device *e_dev;
 	void *userp;
 	size_t *maxlen;
 {
-	if (*maxlen < (sizeof *id)) {
+	if (*maxlen < sizeof *e_dev) {
 		return ENOMEM;
 	}
-	*maxlen -= (sizeof *id);
-	return (copyout(id, userp, sizeof *id));
+	*maxlen -= sizeof *e_dev;
+	return (copyout(e_dev, userp, sizeof *e_dev));
 }
 
 
