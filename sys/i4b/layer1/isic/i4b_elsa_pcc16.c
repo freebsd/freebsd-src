@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 24 09:26:33 2001]
+ *      last edit-date: [Wed Oct 24 16:15:26 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -277,7 +277,7 @@ isic_probe_Epcc16(device_t dev)
 
 	/* setup card type */
 	
-	sc->sc_cardtyp = CARD_TYPEP_ELSAQS1ISA;
+	sc->sc_cardtyp = CARD_TYPEP_PCC16;
 
 	/* setup IOM bus type */
 	
