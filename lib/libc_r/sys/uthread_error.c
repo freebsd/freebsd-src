@@ -33,7 +33,6 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 extern	int	errno;
@@ -48,4 +47,3 @@ int * __error()
 	}
 	return(p_errno);
 }
-#endif
