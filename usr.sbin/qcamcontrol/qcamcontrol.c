@@ -6,13 +6,14 @@
 
 void print_data(struct qcam *data)
 {
-	fprintf(stderr, "version=%d, (%d,%d) at (%d,%d) @%dbpp,"
-		        "zoom=%d, b/w/c=%d/%d/%d\n",
+	fprintf(stderr, "version=%d, (%d,%d) at (%d,%d) @%dbpp "
+		        "zoom=%d, exp=%d, b/w/c=%d/%d/%d\n",
 			data->qc_version,
 			data->qc_xsize, data->qc_ysize,
 			data->qc_xorigin, data->qc_yorigin,
 			data->qc_bpp,
 			data->qc_zoom,
+			data->qc_exposure,
 			data->qc_brightness,
 			data->qc_whitebalance,
 			data->qc_contrast);
@@ -23,7 +24,7 @@ usage(void)
 	fprintf(stderr, "usage: qcamcontrol [-p port] [-x xsize] [-y ysize] "
 			"[-z zoom] [-d depth]\n"
 			"                   [-b brightness] [-w whitebal] "
-			"[-c contrast]\n");
+			"[-c contrast] [-e exposure]\n");
 	exit(2);
 }
 
@@ -37,15 +38,16 @@ main(int argc, char **argv)
 	static char buffer[QC_MAX_XSIZE*QC_MAX_YSIZE];
 
 	char *port = "/dev/qcam0";
-	int x_size, y_size, zoom, depth, brightness, whitebalance, contrast;
+	int x_size, y_size, zoom, depth, brightness, whitebalance, contrast,
+	    exposure;
 
 	/*
 	 * Default everything to unset.
 	 */
 	x_size = y_size = zoom = depth = brightness = whitebalance =
-	         contrast = -1;
+	         contrast = exposure = -1;
 
-	while ((opt = getopt(argc, argv, "p:x:y:z:d:b;w:c:")) != EOF) {
+	while ((opt = getopt(argc, argv, "p:x:y:z:d:b;w:c:e:")) != EOF) {
 	    switch (opt) {
 	    case 'p':
 		port = optarg;
@@ -109,6 +111,14 @@ main(int argc, char **argv)
 		}
 		break;
 
+	    case 'e':
+		exposure = atoi(optarg);
+		if (exposure < 100) {
+		    fprintf(stderr, "bad exposure (min 100)\n");
+		    exit(2);
+		}
+		break;
+
 	    default:
 		usage();
 	    }
@@ -143,6 +153,8 @@ main(int argc, char **argv)
 		info.qc_whitebalance = whitebalance;
 	if (contrast > -1)
 		info.qc_contrast = contrast;
+	if (exposure > -1)
+		info.qc_exposure = exposure;
 
 	/*
 	 * make sure we're in sync with the kernel version of the driver
