@@ -919,7 +919,8 @@ struct atapires atapi_request_wait (struct atapi *ata, int unit,
 			ac->cmd[13], ac->cmd[14], ac->cmd[15], count);
 	atapi_enqueue (ata, ac);
 	wdstart (ata->ctrlr);
-	tsleep ((caddr_t)ac, PRIBIO, "atareq", 0);
+	if (ata->tail == ac)
+		tsleep ((caddr_t)ac, PRIBIO, "atareq", 0);
 
 	result = ac->result;
 	atapi_free (ata, ac);
