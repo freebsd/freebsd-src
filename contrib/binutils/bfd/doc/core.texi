@@ -8,7 +8,7 @@ These are functions pertaining to core files.
 @subsubsection @code{bfd_core_file_failing_command}
 @strong{Synopsis}
 @example
-CONST char *bfd_core_file_failing_command(bfd *abfd);
+const char *bfd_core_file_failing_command(bfd *abfd);
 @end example
 @strong{Description}@*
 Return a read-only string explaining which program was running

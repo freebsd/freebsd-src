@@ -1,3 +1,83 @@
+2002-03-19  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-mips.c (md_estimate_size_before_relax): Do not modify
+	the EXTENDED bit here; report the estimate according to the
+	current size.
+
+2002-03-17  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* config/tc-mmix.c (md_estimate_size_before_relax): Don't consider
+	a weak symbol in same section to be within reach.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* doc/as.texinfo: Wrap @menu in @ifnottex, not @ifinfo.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* NEWS: Mark version 2.12.
+
+2002-02-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/tc-alpha.c (s_alpha_text): Use obj_elf_text for OBJ_ELF, not
+	s_text.
+	(s_alpha_data): Use obj_elf_data for OBJ_ELF, not s_data.
+
+2002-02-26  Chris Demetriou  <cgd@broadcom.com>
+
+	* config/tc-mips.c (mips_need_elf_addend_fixup): For embedded-PIC
+	only, undo the changes made on 2001-06-08, with the
+	effect being that common or extern symbols are
+	adjusted for embedded-PIC, but weak symbols are not.
+	(md_estimate_size_before_relax: Likewise, with the effect
+	that extern symbols are treated the same as weak symbols
+	only if not embedded-PIC.
+	(mips_fix_adjustable) Likewise, with the effect that
+	weak or extern symbols are not adjusted for embedded-PIC.
+	(md_apply_fix3): Tweak so that the case where value is zero
+	is handled more correctly for embedded-PIC code.
+
+2002-02-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (LINGUAS): Add es.po.
+	* configure: Regenerate.
+	* po/es.po: New file.
+
+2002-02-25  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* config/tc-mips.c (set_at): Fix handling of 64bit register loads.
+	(macro): Likewise. Fix la/dla address expansions for EMBEDDED_PIC
+	and NO_PIC cases. Code cleanup.
+	(macro2): Fix handling of 64bit register loads.
+
+2002-02-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* doc/c-ppc.texi (PowerPC-Opts): Add -mpower4, -maltivec and -m7400.
+	Remove references to chip manufacturers.
+	* config/tc-ppc.c (md_parse_option): Handle -mpower4 option.
+	Correct comments.
+	(md_show_usage): Remove references to chip manufacturers.  Mention
+	-mpower4.
+	(md_begin): Test power4 opcode flag bits.
+
+2002-02-22  David Mosberger  <davidm@hpl.hp.com>
+
+	* config/tc-ia64.c (dot_restore): Issue error message of epilogue
+	count exceeds prologue count.
+	(md_show_usage): Describe -mconstant-gp and -mauto-pic.
+	(unwind.label_prologue_count): New member.
+
+	Based on a patch by Hans Boehm <hboehm@hpl.hp.com>:
+
+	(get_saved_prologue_count): New function.
+	(save_prologue_count): New function.
+	(free_saved_prologue_count): New function.
+	(dot_label_state): Record state label by calling save_prologue_count().
+	(dot_copy_state): Restore prologue count by calling
+	get_saved_prologue_count().
+	(generate_unwind_image): Free up list of saved prologue
+	counts by calling free_saved_prologue_counts().
+
 2002-02-21  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
 
 	* config/tc-mips.c (md_parse_option): Complain about invalid -mabi

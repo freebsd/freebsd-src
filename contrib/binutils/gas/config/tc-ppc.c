@@ -1,5 +1,5 @@
 /* tc-ppc.c -- Assemble for the PowerPC or POWER (RS/6000)
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -876,18 +876,18 @@ md_parse_option (c, arg)
       /* -mpwr means to assemble for the IBM POWER (RIOS1).  */
       else if (strcmp (arg, "pwr") == 0)
 	ppc_cpu = PPC_OPCODE_POWER;
-      /* -m601 means to assemble for the Motorola PowerPC 601, which includes
+      /* -m601 means to assemble for the PowerPC 601, which includes
 	 instructions that are holdovers from the Power.  */
       else if (strcmp (arg, "601") == 0)
 	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_601;
       /* -mppc, -mppc32, -m603, and -m604 mean to assemble for the
-	 Motorola PowerPC 603/604.  */
+	 PowerPC 603/604.  */
       else if (strcmp (arg, "ppc") == 0
 	       || strcmp (arg, "ppc32") == 0
 	       || strcmp (arg, "603") == 0
 	       || strcmp (arg, "604") == 0)
 	ppc_cpu = PPC_OPCODE_PPC;
-      /* -m403 and -m405 mean to assemble for the Motorola PowerPC 403/405.  */
+      /* -m403 and -m405 mean to assemble for the PowerPC 403/405.  */
       else if (strcmp (arg, "403") == 0
                || strcmp (arg, "405") == 0)
 	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_403;
@@ -923,6 +923,11 @@ md_parse_option (c, arg)
 	{
 	  ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_BOOKE | 
 		    PPC_OPCODE_BOOKE64 | PPC_OPCODE_64;
+	  ppc_size = PPC_OPCODE_64;
+	}
+      else if (strcmp (arg, "power4") == 0)
+	{
+	  ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_64 | PPC_OPCODE_POWER4;
 	  ppc_size = PPC_OPCODE_64;
 	}
       /* -mcom means assemble for the common intersection between Power
@@ -1027,18 +1032,19 @@ md_show_usage (stream)
   fprintf (stream, _("\
 PowerPC options:\n\
 -u			ignored\n\
--mpwrx, -mpwr2		generate code for IBM POWER/2 (RIOS2)\n\
--mpwr			generate code for IBM POWER (RIOS1)\n\
--m601			generate code for Motorola PowerPC 601\n\
+-mpwrx, -mpwr2		generate code for POWER/2 (RIOS2)\n\
+-mpwr			generate code for POWER (RIOS1)\n\
+-m601			generate code for PowerPC 601\n\
 -mppc, -mppc32, -m603, -m604\n\
-			generate code for Motorola PowerPC 603/604\n\
--m403, -m405            generate code for Motorola PowerPC 403/405\n\
+			generate code for PowerPC 603/604\n\
+-m403, -m405            generate code for PowerPC 403/405\n\
 -m7400, -m7410, -m7450, -m7455\n\
-			generate code For Motorola PowerPC 7400/7410/7450/7455\n\
--mppc64, -m620		generate code for Motorola PowerPC 620\n\
+			generate code For PowerPC 7400/7410/7450/7455\n\
+-mppc64, -m620		generate code for PowerPC 620/625/630\n\
 -mppc64bridge		generate code for PowerPC 64, including bridge insns\n\
 -mbooke64		generate code for 64-bit PowerPC BookE\n\
 -mbooke, mbooke32	generate code for 32-bit PowerPC BookE\n\
+-mpower4		generate code for Power4 architecture\n\
 -maltivec		generate code for AltiVec\n\
 -mcom			generate code Power/PowerPC common instructions\n\
 -many			generate code for any architecture (PWR/PWRX/PPC)\n\
@@ -1175,7 +1181,10 @@ md_begin ()
       if ((op->flags & ppc_cpu) != 0
 	  && ((op->flags & (PPC_OPCODE_32 | PPC_OPCODE_64)) == 0
 	      || (op->flags & (PPC_OPCODE_32 | PPC_OPCODE_64)) == ppc_size
-	      || (ppc_cpu & PPC_OPCODE_64_BRIDGE) != 0))
+	      || (ppc_cpu & PPC_OPCODE_64_BRIDGE) != 0)
+	  && ((op->flags & (PPC_OPCODE_POWER4 | PPC_OPCODE_NOPOWER4)) == 0
+	      || ((op->flags & PPC_OPCODE_POWER4)
+		  == (ppc_cpu & PPC_OPCODE_POWER4))))
 	{
 	  const char *retval;
 
@@ -5165,7 +5174,7 @@ md_apply_fix3 (fixP, valP, seg)
       if ((operand->flags & PPC_OPERAND_PARENS) != 0
 	  && operand->bits == 16
 	  && operand->shift == 0
- 	  && (operand->insert == NULL || ppc_xcoff64)
+	  && (operand->insert == NULL || ppc_xcoff64)
 	  && fixP->fx_addsy != NULL
 	  && symbol_get_tc (fixP->fx_addsy)->subseg != 0
 	  && symbol_get_tc (fixP->fx_addsy)->class != XMC_TC
