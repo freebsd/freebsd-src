@@ -321,7 +321,7 @@ If this is the case for your site, you might want to consider another
 batch system, such as
 .Em nqs .
 .Pp
-Specificing a date past 2038 may not work on some systems.
+Specifying a date past 2038 may not work on some systems.
 .Sh AUTHORS
 At was mostly written by
 .An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
