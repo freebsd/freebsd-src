@@ -915,7 +915,7 @@ ext2_vget(mp, ino, flags, vpp)
 	int i, error;
 	int used_blocks;
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -942,7 +942,7 @@ ext2_vget(mp, ino, flags, vpp)
 	ip->i_e2fs = fs = ump->um_e2fs;
 	ip->i_number = ino;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 

@@ -1172,7 +1172,7 @@ ffs_vget(mp, ino, flags, vpp)
 	struct cdev *dev;
 	int error;
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -1225,7 +1225,7 @@ ffs_vget(mp, ino, flags, vpp)
 	}
 #endif
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
