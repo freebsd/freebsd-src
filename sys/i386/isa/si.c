@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.53 1996/09/27 13:50:59 peter Exp $
+ *	$Id: si.c,v 1.53.2.1 1998/03/02 05:54:02 peter Exp $
  */
 
 #ifndef lint
@@ -115,6 +115,7 @@ static int	siparam __P((struct tty *, struct termios *));
 static	int	siprobe __P((struct isa_device *id));
 static	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
+static	void	si_intr __P((int unit));
 
 struct isa_driver sidriver =
 	{ siprobe, siattach, "si" };
@@ -313,7 +314,8 @@ pcidi_t deviceid;
 			else
 				return NULL;
 			break;
-		default: return NULL;
+		default:
+			return NULL;
 	}
 	/*NOTREACHED*/
 }
@@ -325,7 +327,7 @@ int unit;
 {
 	struct isa_device id;
 	vm_offset_t vaddr,paddr;
-	u_long mapval;
+	u_long mapval = 0;	/* shut up gcc, should not be needed */
 
 	switch ( pci_conf_read(configid, 0) >> 16 )
 	{
@@ -349,7 +351,7 @@ int unit;
 	 * PCI interrupt handler is a void *, but we're simply going
 	 * to be lazy and hand it the unit number.
 	 */
-	if (!pci_map_int(configid, (pci_inthand_t *) siintr, (void *)unit, &tty_imask)) {
+	if (!pci_map_int(configid, (pci_inthand_t *) si_intr, (void *)unit, &tty_imask)) {
 		printf("si%d: couldn't map interrupt\n", unit);
 	}
 	si_softc[unit].sc_typename = si_type[si_softc[unit].sc_type];
@@ -612,6 +614,7 @@ bad_irq:
 		printf("si%d: %s not supported\n", id->id_unit, si_type[type]);
 		return(0);
 	}
+	id->id_intr = (inthand2_t *)si_intr;
 	si_softc[id->id_unit].sc_type = type;
 	si_softc[id->id_unit].sc_typename = si_type[type];
 	return(-1);	/* -1 == found */
@@ -1931,7 +1934,7 @@ si_poll(void *nothing)
 		}
 	}
 	if (lost || si_realpoll)
-		siintr(-1);	/* call intr with fake vector */
+		si_intr(-1);	/* call intr with fake vector */
 out:
 	splx(oldspl);
 
@@ -1946,8 +1949,8 @@ out:
 
 static BYTE si_rxbuf[SI_BUFFERSIZE];	/* input staging area */
 
-void
-siintr(int unit)
+static void
+si_intr(int unit)
 {
 	register struct si_softc *sc;
 
@@ -1960,7 +1963,7 @@ siintr(int unit)
 	volatile BYTE *z;
 	BYTE c;
 
-	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "siintr(%d)\n", unit));
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "si_intr(%d)\n", unit));
 	if (in_intr) {
 		if (unit < 0)	/* should never happen */
 			return;
@@ -2034,7 +2037,7 @@ siintr(int unit)
 			 */
 			if (ccbp->hi_stat != pp->sp_pend) {
 				DPRINT((pp, DBG_INTR,
-					"siintr hi_stat = 0x%x, pend = %d\n",
+					"si_intr hi_stat = 0x%x, pend = %d\n",
 					ccbp->hi_stat, pp->sp_pend));
 				switch(pp->sp_pend) {
 				case LOPEN:
@@ -2234,7 +2237,7 @@ siintr(int unit)
 	} /* end of for (all controllers) */
 
 	in_intr = 0;
-	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "end siintr(%d)\n", unit));
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "end si_intr(%d)\n", unit));
 }
 
 /*
