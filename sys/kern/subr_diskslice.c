@@ -43,11 +43,15 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.16 1996/01/07 22:39:06 phk Exp $
+ *	$Id: subr_diskslice.c,v 1.17 1996/01/16 18:11:24 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/buf.h>
+#undef DEVFS /* XXX */
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/dkbad.h>
@@ -70,12 +74,17 @@ static volatile bool_t ds_debug;
 static void dsiodone __P((struct buf *bp));
 static char *fixlabel __P((char *sname, struct diskslice *sp,
 			   struct disklabel *lp, int writeflag));
+static void free_label __P((struct diskslices *ssp, int	slice));
 static void partition_info __P((char *sname, int part, struct partition *pp));
 static void slice_info __P((char *sname, struct diskslice *sp));
 static void set_ds_bad __P((struct diskslices *ssp, int slice,
 			    struct dkbad_intern *btp));
 static void set_ds_label __P((struct diskslices *ssp, int slice,
 			      struct disklabel *lp));
+#ifdef DEVFS
+static void set_ds_labeldevs __P((char *dname, dev_t dev,
+				  struct diskslices *ssp));
+#endif
 static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
 			       int wlabel));
 
@@ -253,6 +262,9 @@ void
 dsgone(sspp)
 	struct diskslices **sspp;
 {
+#ifdef DEVFS
+	int	part;
+#endif
 	int	slice;
 	struct diskslice *sp;
 	struct diskslices *ssp;
@@ -263,10 +275,13 @@ dsgone(sspp)
 			free(sp->ds_bad, M_DEVBUF);
 			set_ds_bad(ssp, slice, (struct dkbad_intern *)NULL);
 		}
-		if (sp->ds_label != NULL) {
-			free(sp->ds_label, M_DEVBUF);
-			set_ds_label(ssp, slice, (struct disklabel *)NULL);
-		}
+#ifdef DEVFS
+		if (sp->ds_bdev != NULL)
+			devfs_remove_dev(sp->ds_bdev);
+		if (sp->ds_cdev != NULL)
+			devfs_remove_dev(sp->ds_cdev);
+#endif
+		free_label(ssp, slice);
 	}
 	free(ssp, M_DEVBUF);
 	*sspp = NULL;
@@ -362,9 +377,11 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 			free(lp, M_DEVBUF);
 			return (error);
 		}
-		if (sp->ds_label != NULL)
-			free(sp->ds_label, M_DEVBUF);
+		free_label(ssp, slice);
 		set_ds_label(ssp, slice, lp);
+#ifdef DEVFS
+		set_ds_labeldevs(dname, dev, ssp);
+#endif
 		return (0);
 
 	case DIOCSYNCSLICEINFO:
@@ -393,7 +410,8 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		error = dsopen(dname, dev,
 			       ssp->dss_slices[WHOLE_DISK_SLICE].ds_copenmask
 			       & (1 << RAW_PART) ? S_IFCHR : S_IFBLK,
-			       sspp, lp, strat, setgeom);
+			       sspp, lp, strat, setgeom, ssp->dss_bdevsw,
+			       ssp->dss_cdevsw);
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			*sspp = ssp;
@@ -417,9 +435,12 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 					       dkmodslice(dkmodpart(dev, part),
 							  slice),
 					       S_IFBLK, sspp, lp, strat,
-					       setgeom);
+					       setgeom, ssp->dss_bdevsw,
+					       ssp->dss_cdevsw);
 				if (error != 0) {
+					/* XXX should free devfs toks. */
 					free(lp, M_DEVBUF);
+					/* XXX should restore devfs toks. */
 					*sspp = ssp;
 					return (EBUSY);
 				}
@@ -432,15 +453,19 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 					       dkmodslice(dkmodpart(dev, part),
 							  slice),
 					       S_IFCHR, sspp, lp, strat,
-					       setgeom);
+					       setgeom, ssp->dss_bdevsw,
+					       ssp->dss_cdevsw);
 				if (error != 0) {
+					/* XXX should free devfs toks. */
 					free(lp, M_DEVBUF);
+					/* XXX should restore devfs toks. */
 					*sspp = ssp;
 					return (EBUSY);
 				}
 			}
 		}
 
+		/* XXX devfs tokens? */
 		free(lp, M_DEVBUF);
 		dsgone(&ssp);
 		return (0);
@@ -542,7 +567,7 @@ dsname(dname, unit, slice, part, partname)
  * strategy routine must be special to allow activity.
  */
 int
-dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
+dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	char	*dname;
 	dev_t	dev;
 	int	mode;
@@ -550,11 +575,19 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	struct disklabel *lp;
 	d_strategy_t *strat;
 	ds_setgeom_t *setgeom;
+	struct bdevsw *bdevsw;
+	struct cdevsw *cdevsw;
 {
+#ifdef DEVFS
+	char	devname[64];
+#endif
 	int	error;
 	struct disklabel *lp1;
 	char	*msg;
 	u_char	mask;
+#ifdef DEVFS
+	int	mynor;
+#endif
 	bool_t	need_init;
 	int	part;
 	char	partname[2];
@@ -582,6 +615,10 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 		lp->d_npartitions = RAW_PART + 1;
 		lp->d_partitions[RAW_PART].p_size = lp->d_secperunit;
 		ssp = *sspp;
+#ifdef DEVFS
+		ssp->dss_bdevsw = bdevsw;
+		ssp->dss_cdevsw = cdevsw;
+#endif
 
 		/*
 		 * If there are no real slices, then make the compatiblity
@@ -624,6 +661,17 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	sp = &ssp->dss_slices[slice];
 	part = dkpart(dev);
 	unit = dkunit(dev);
+#ifdef DEVFS
+	if (slice >= BASE_SLICE && sp->ds_bdev == NULL && sp->ds_size != 0) {
+		mynor = minor(dkmodpart(dev, RAW_PART));
+		sprintf(devname, "r%s",
+			dsname(dname, unit, slice, RAW_PART, partname));
+		sp->ds_bdev = devfs_add_devsw("/", devname + 1, bdevsw,
+					      mynor, DV_BLK, 0, 0, 0640);
+		sp->ds_cdev = devfs_add_devsw("/", devname, cdevsw,
+					      mynor, DV_CHR, 0, 0, 0640);
+	}
+#endif
 	if (sp->ds_label == NULL) {
 		set_ds_wlabel(ssp, slice, TRUE);	/* XXX invert */
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
@@ -673,6 +721,9 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 			}
 		}
 		set_ds_label(ssp, slice, lp);
+#ifdef DEVFS
+		set_ds_labeldevs(dname, dev, ssp);
+#endif
 		set_ds_wlabel(ssp, slice, FALSE);
 	}
 	if (part != RAW_PART
@@ -718,6 +769,31 @@ dssize(dev, sspp, dopen, dclose)
 	if (lp == NULL)
 		return (-1);
 	return ((int)lp->d_partitions[part].p_size);
+}
+
+static void
+free_label(ssp, slice)
+	struct diskslices *ssp;
+	int	slice;
+{
+	struct disklabel *lp;
+	int	part;
+	struct diskslice *sp;
+
+	sp = &ssp->dss_slices[slice];
+	if (sp->ds_label == NULL)
+		return;
+	lp = sp->ds_label;
+#ifdef DEVFS
+	for (part = 0; part < lp->d_npartitions; part++) {
+		if (sp->ds_bdevs[part] != NULL)
+			devfs_remove_dev(sp->ds_bdevs[part]);
+		if (sp->ds_cdevs[part] != NULL)
+			devfs_remove_dev(sp->ds_cdevs[part]);
+	}
+#endif
+	free(lp, M_DEVBUF);
+	set_ds_label(ssp, slice, (struct disklabel *)NULL);
 }
 
 static char *
@@ -857,6 +933,52 @@ set_ds_label(ssp, slice, lp)
 	else if (slice == ssp->dss_first_bsd_slice)
 		ssp->dss_slices[COMPATIBILITY_SLICE].ds_label = lp;
 }
+
+#ifdef DEVFS
+static void
+set_ds_labeldevs(dname, dev, ssp)
+	char	*dname;
+	dev_t	dev;
+	struct diskslices *ssp;
+{
+	char	devname[64];
+	struct disklabel *lp;
+	int	mynor;
+	int	part;
+	char	partname[2];
+	struct partition *pp;
+	int	slice;
+	struct diskslice *sp;
+ 
+	slice = dkslice(dev);
+	sp = &ssp->dss_slices[slice];
+	if (sp->ds_size == 0)
+		return;
+	lp = sp->ds_label;
+	for (part = 0; part < lp->d_npartitions; part++) {
+		pp = &lp->d_partitions[part];
+		if (pp->p_size == 0)
+			continue;
+		sprintf(devname, "r%s%s",
+			dsname(dname, dkunit(dev), slice, part, partname),
+			partname);
+		if (part == RAW_PART && sp->ds_bdev != NULL) {
+			sp->ds_bdevs[part] =
+				dev_link("/", devname + 1, sp->ds_bdev);
+			sp->ds_cdevs[part] =
+				dev_link("/", devname, sp->ds_cdev);
+		} else {
+			mynor = minor(dkmodpart(dev, part));
+			sp->ds_bdevs[part] =
+				devfs_add_devsw("/", devname+1, ssp->dss_bdevsw,
+						mynor, DV_BLK, 0, 0, 0640);
+			sp->ds_cdevs[part] =
+				devfs_add_devsw("/", devname, ssp->dss_cdevsw,
+						mynor, DV_CHR, 0, 0, 0640);
+		}
+	}
+}
+#endif /* DEVFS */
 
 static void
 set_ds_wlabel(ssp, slice, wlabel)
