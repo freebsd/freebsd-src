@@ -54,6 +54,7 @@
 #define	RTLD_NEXT	((void *) -1)	/* Search subsequent objects. */
 #define	RTLD_DEFAULT	((void *) -2)	/* Use default search algorithm. */
 
+#if __BSD_VISIBLE
 /*
  * Structure filled in by dladdr().
  */
@@ -79,17 +80,19 @@ struct __dlfunc_arg {
 
 typedef	void (*dlfunc_t)(struct __dlfunc_arg);
 
+#endif /* __BSD_VISIBLE */
+
 __BEGIN_DECLS
 /* XSI functions first. */
 int	 dlclose(void *);
 const char *
 	 dlerror(void);
 void	*dlopen(const char *, int);
-void	*dlsym(void * /* __restrict */, const char * /* __restrict */);
+void	*dlsym(void * __restrict, const char * __restrict);
 
 #if __BSD_VISIBLE
 int	 dladdr(const void *, Dl_info *);
-dlfunc_t dlfunc(void * /* __restrict */, const char * /* __restrict */);
+dlfunc_t dlfunc(void * __restrict, const char * __restrict);
 void	 dllockinit(void *_context,
 	    void *(*_lock_create)(void *_context),
 	    void (*_rlock_acquire)(void *_lock),
