@@ -107,12 +107,12 @@ dev/dpt/dpt_scsi.c	optional dpt
 dev/dpt/dpt_eisa.c	optional dpt eisa
 dev/dpt/dpt_pci.c	optional dpt pci
 dev/ed/if_ed_pci.c	optional ed pci
-dev/en/midway.c		optional en
 dev/ep/if_ep.c		optional ep
 dev/ep/if_ep_isa.c	optional ep isa
 dev/ep/if_ep_eisa.c	optional ep eisa
 dev/ep/if_ep_mca.c	optional ep mca
 dev/ep/if_ep_pccard.c	optional ep card
+dev/en/midway.c		optional en
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
@@ -641,6 +641,7 @@ nwfs/nwfs_vnops.c	optional nwfs
 pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
+pccard/pccard_compat.c	optional card
 pccard/pcic.c		optional pcic
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci
