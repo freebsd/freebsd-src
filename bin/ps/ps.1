@@ -99,7 +99,7 @@ Repeat the information header as often as necessary to guarantee one
 header per page of information.
 .It Fl j
 Print information associated with the following keywords:
-user, pid, ppid, pgid, sess, jobc, state, tt, time and command.
+user, pid, ppid, pgid, jobc, state, tt, time and command.
 .It Fl L
 List the set of available keywords.
 .It Fl l
@@ -367,8 +367,6 @@ total blocks read (alias inblock)
 job control count
 .It ktrace
 tracing flags
-.It ktracep
-tracing vnode
 .It lim
 memoryuse limit
 .It logname
@@ -400,8 +398,6 @@ total voluntary context switches
 wait channel (as an address)
 .It oublk
 total blocks written (alias oublock)
-.It p_ru
-resource usage (valid only for zombie)
 .It paddr
 swap address
 .It pagein
@@ -427,8 +423,6 @@ real group
 reverse link on run queue, or 0
 .It rss
 resident set size
-.It rsz
-resident set size + (text size / text use count) (alias rssize)
 .It rtprio
 realtime priority (101 = not a realtime process)
 .It ruid
@@ -436,8 +430,6 @@ real user
 .Tn ID
 .It ruser
 user name (from ruid)
-.It sess
-session pointer
 .It sig
 pending signals (alias pending)
 .It sigcatch
