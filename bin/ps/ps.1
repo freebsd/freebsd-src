@@ -182,7 +182,7 @@ Display information about processes without controlling terminals.
 .Pp
 A complete list of the available keywords are listed below.
 Some of these keywords are further specified as follows:
-.Bl -tag -width indent
+.Bl -tag -width mtxname
 .It %cpu
 The cpu utilization of the process; this is a decaying average over up to
 a minute of previous (real) time.
@@ -221,6 +221,13 @@ The soft limit on memory used, specified via a call to
 .It lstart
 The exact time the command started, using the ``%c'' format described in
 .Xr strftime 3 .
+.It mtxname
+The name of the
+.Xr mutex 9
+that the process is currently blocked on.
+If the name is invalid or unknown, then
+.Dq ???
+is displayed.
 .It nice
 The process scheduling increment (see
 .Xr setpriority 2 ) .
@@ -375,6 +382,9 @@ total page reclaims
 total messages received (reads from pipes/sockets)
 .It msgsnd
 total messages sent (writes on pipes/sockets)
+.It mtxname
+.Xr mutex 9
+currently blocked on (as a symbolic name)
 .It nice
 nice value (alias ni)
 .It nivcsw
@@ -504,7 +514,8 @@ the mount point of
 .Xr kvm 3 ,
 .Xr strftime 3 ,
 .Xr procfs 5 ,
-.Xr pstat 8
+.Xr pstat 8 ,
+.Xr mutex 9
 .Sh BUGS
 Since
 .Nm
