@@ -66,52 +66,49 @@ unsigned long	ntohl __P((unsigned long));
 unsigned short	ntohs __P((unsigned short));
 __END_DECLS
 
-#define __word_swap_long(x) \
-__extension__ ({ register u_long __X = (x); \
-   __asm ("rorl $16, %1" \
-	: "=r" (__X) \
-	: "0" (__X)); \
-   __X; })
+static __inline uint32_t
+__uint16_swap_uint32(uint32_t x)
+{
+	__asm ("rorl $16, %1" : "=r" (x) : "0" (x));
 
+	return x;
+}
+
+static __inline uint32_t
+__uint8_swap_uint32(uint32_t x)
+{
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
-
-#define __byte_swap_long(x) \
-__extension__ ({ register u_long __X = (x); \
-   __asm ("bswap %0" \
-	: "=r" (__X) \
-	: "0" (__X)); \
-   __X; })
+	__asm ("bswap %0" : "=r" (x) : "0" (x));
 #else
-
-#define __byte_swap_long(x) \
-__extension__ ({ register u_long __X = (x); \
-   __asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1" \
-	: "=q" (__X) \
-	: "0" (__X)); \
-   __X; })
+	__asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1"
+	    : "=q" (x) : "0" (x));
 #endif
+	return x;
+}
 
-#define __byte_swap_word(x) \
-__extension__ ({ register u_short __X = (x); \
-   __asm ("xchgb %h1, %b1" \
-	: "=q" (__X) \
-	: "0" (__X)); \
-   __X; })
+static __inline uint16_t
+__uint8_swap_uint16(uint16_t x)
+{
+	__asm ("xchgb %h1, %b1" : "=q" (x) : "0" (x));
+
+	return x;
+}
 
 /*
  * Macros for network/external number representation conversion.
  */
 #ifdef __GNUC__
-#define	ntohl	__byte_swap_long
-#define	ntohs	__byte_swap_word
-#define	htonl	__byte_swap_long
-#define	htons	__byte_swap_word
+#define	ntohl	__uint8_swap_uint32
+#define	ntohs	__uint8_swap_uint16
+#define	htonl	__uint8_swap_uint32
+#define	htons	__uint8_swap_uint16
 #endif
 
-#define	NTOHL(x)	((x) = ntohl((u_long)(x)))
-#define	NTOHS(x)	((x) = ntohs((u_short)(x)))
-#define	HTONL(x)	((x) = htonl((u_long)(x)))
-#define	HTONS(x)	((x) = htons((u_short)(x)))
+#define	NTOHL(x)	((x) = ntohl(x))
+#define	NTOHS(x)	((x) = ntohs(x))
+#define	HTONL(x)	((x) = htonl(x))
+#define	HTONS(x)	((x) = htons(x))
+
 
 #endif /* ! _POSIX_SOURCE */
 
