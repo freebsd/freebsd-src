@@ -54,9 +54,9 @@
 #define NCP_IDLE_TIMEOUT 180	/* Drop all links */
 #define CHOKED_TIMEOUT 120	/* Delete queued packets w/ blocked tun */
 
-#define MIN_LQRPERIOD 2		/* Minimum LQR frequency */
+#define MIN_LQRPERIOD 1		/* Minimum LQR frequency */
 #define DEF_LQRPERIOD 30	/* Default LQR frequency */
-#define MIN_FSMRETRY 3		/* Minimum FSM retry frequency */
+#define MIN_FSMRETRY 1		/* Minimum FSM retry frequency */
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
 #define DEF_FSMTRIES 5		/* Default max retries */
 #define DEF_FSMAUTHTRIES 3	/* Default max auth retries */
