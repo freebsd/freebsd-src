@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.16 1996/12/14 18:12:17 joerg Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.17 1996/12/21 00:11:58 jkh Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1996/12/14 18:12:17 $
+<date>$Date: 1996/12/21 00:11:58 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -383,7 +383,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           Greg Lehey's book ``Installing and Running FreeBSD'' is available
           from Walnut Creek and ships with the 2.1.5 CDROM.  There is also
           a larger book entitled ``The Complete FreeBSD'', which comes with
-          additional printed manpages amd includes the 2.1.5 CDROM set.  It
+          additional printed manpages and includes the 2.1.5 CDROM set.  It
           should be available in most good bookshops now.
  
           There is a FreeBSD Documentation Project which you may contact (or
