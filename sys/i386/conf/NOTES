@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.456 1998/08/27 02:37:11 jkh Exp $
+#	$Id: LINT,v 1.457 1998/09/03 20:58:34 nsouch Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1432,6 +1432,9 @@ options         OVERRIDE_TUNER=NO_TUNER
 controller	card0
 device		pcic0 at card?
 device		pcic1 at card?
+
+# You may need to reset all pccards after resuming
+options		PCIC_RESUME_RESET	# reset after resume
 
 #
 # Laptop/Notebook options:

@@ -28,10 +28,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.63 1998/08/16 01:21:52 bde Exp $
+ *	$Id: pccard.c,v 1.64 1998/08/26 07:09:58 imp Exp $
  */
 
 #include "opt_devfs.h"
+#include "opt_pcic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,7 +75,7 @@
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
 static int pcic_resume_reset =
-#ifdef PCIC_RESUME_RESET
+#ifdef PCIC_RESUME_RESET	/* opt_pcic.h */
 	1;
 #else
 	0;
@@ -187,7 +188,7 @@ pccard_add_driver(struct pccard_device *drv)
 /*
  *	pccard_remove_driver - called to unlink driver
  *	from devices. Usually called when drivers are
- *	are unloaded from kernel.
+ *	unloaded from kernel.
  */
 void
 pccard_remove_driver(struct pccard_device *drv)
