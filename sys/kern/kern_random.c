@@ -194,8 +194,10 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	int		delta, delta2;
 	u_int		nbits;
 	u_int32_t	time;
+	struct timecounter *tc;
 
-	num ^= timecounter->tc_get_timecount(timecounter) << 16;
+	tc = timecounter;
+	num ^= tc->tc_get_timecount(tc) << 16;
 	r->entropy_count += 2;
 		
 	time = ticks;
