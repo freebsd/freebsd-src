@@ -15,7 +15,7 @@ DPADD = ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 makedevs.c:	dev2c.sh
 	mkdir -p dev
 	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
-	( cd dev; ./MAKEDEV all )
+	( cd dev; sh ./MAKEDEV all )
 	sh ${.CURDIR}/dev2c.sh dev > makedevs.c
 	rm -rf dev
 
