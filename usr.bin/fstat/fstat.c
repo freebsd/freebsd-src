@@ -876,7 +876,8 @@ dev2udev(struct cdev *dev)
 	struct cdev si;
 
 	if (KVM_READ(dev, &si, sizeof si)) {
-		return si.si_udev;
+		/* XXX: FIXME! */
+		return 0;
 	} else {
 		dprintf(stderr, "can't convert cdev *%p to a dev_t\n", dev);
 		return -1;
