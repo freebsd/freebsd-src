@@ -1219,7 +1219,7 @@ dounmount(mp, flags, td)
  * Find and mount the root filesystem
  */
 void
-vfs_mountroot(void *foo __unused)
+vfs_mountroot(void)
 {
 	char		*cp;
 	int		i, error;
