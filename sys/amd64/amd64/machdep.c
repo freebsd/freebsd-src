@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.77 1994/10/19 00:05:59 wollman Exp $
+ *	$Id: machdep.c,v 1.78 1994/10/20 00:07:49 phk Exp $
  */
 
 #include "npx.h"
@@ -258,16 +258,15 @@ again:
 	 * We allocate 1/2 as many swap buffer headers as file i/o buffers.
 	 */
 	if (bufpages == 0)
-		bufpages = ((physmem << PGSHIFT) - 2048*1024) / NBPG / 5;
+		bufpages = ((physmem << PGSHIFT) - 2048*1024) / NBPG / 6;
 	if (bufpages < 64)
 		bufpages = 64;
 
 	/*
 	 * We must still limit the maximum number of buffers to be no
-	 * more than 2/5's of the size of the kernal malloc region, this
-	 * will only take effect for machines with lots of memory
+	 * more than 750 because we'll run out of kernel VM otherwise.
 	 */
-	bufpages = min(bufpages, (VM_KMEM_SIZE / NBPG) * 2 / 5);
+	bufpages = min(bufpages, 1500);
 	if (nbuf == 0) {
 		nbuf = bufpages / 2;
 		if (nbuf < 32)
