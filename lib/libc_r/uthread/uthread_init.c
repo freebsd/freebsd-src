@@ -226,6 +226,12 @@ _thread_init(void)
 		/* Initialize the thread stack cache: */
 		SLIST_INIT(&_stackq);
 
+		/* Find the stack top */
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_USRSTACK;
+		len = sizeof (int);
+		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
+			_usrstack = USRSTACK;
 		/*
 		 * Create a red zone below the main stack.  All other stacks are
 		 * constrained to a maximum size by the paramters passed to
@@ -233,14 +239,13 @@ _thread_init(void)
 		 * this stack needs an explicitly mapped red zone to protect the
 		 * thread stack that is just beyond.
 		 */
-		if (mmap((void *) USRSTACK - PTHREAD_STACK_INITIAL -
+		if (mmap(_usrstack - PTHREAD_STACK_INITIAL -
 		    PTHREAD_STACK_GUARD, PTHREAD_STACK_GUARD, 0, MAP_ANON,
 		    -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
 
 		/* Set the main thread stack pointer. */
-		_thread_initial->stack = (void *) USRSTACK -
-		    PTHREAD_STACK_INITIAL;
+		_thread_initial->stack = _usrstack - PTHREAD_STACK_INITIAL;
 
 		/* Set the stack attributes: */
 		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
