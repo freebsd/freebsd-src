@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.2 1999/11/21 09:36:49 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.11 2000/12/22 22:45:10 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,59 +34,52 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #include <stdio.h>
 #include <pcap.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "ethertype.h"
+#include "ether.h"
 
 const u_char *packetp;
 const u_char *snapend;
 
-#define RFC1483LLC_LEN 8 
+#define RFC1483LLC_LEN	8 
 
 static unsigned char rfcllc[] = {
-  0xaa,   /* DSAP: non-ISO */
-  0xaa,   /* SSAP: non-ISO */
-  0x03,   /* Ctrl: Unnumbered Information Command PDU */
-  0x00,   /* OUI: EtherType */
-  0x00,
-  0x00 };
+	0xaa,	/* DSAP: non-ISO */
+	0xaa,	/* SSAP: non-ISO */
+	0x03,	/* Ctrl: Unnumbered Information Command PDU */
+	0x00,	/* OUI: EtherType */
+	0x00,
+	0x00 };
 
 static inline void
 cip_print(register const u_char *bp, int length)
 {
-  int i;
+	int i;
 
-  if (memcmp(rfcllc, bp, sizeof(rfcllc))) {
-    if (qflag) {
-      for(i=0;i<RFC1483LLC_LEN;i++)
-	(void)printf("%2.2x ",bp[i]);
-    } else {
-      for(i=0;i<RFC1483LLC_LEN-2;i++)
-	(void)printf("%2.2x ",bp[i]);
-      etherproto_string(((u_short*)bp)[3]);
-    } 
-  } else {
-    if (qflag)
-      (void)printf("(null encapsulation)");
-    else {
-      (void)printf("(null encap)");
-      etherproto_string(ETHERTYPE_IP);
-    }
-  }
+	if (memcmp(rfcllc, bp, sizeof(rfcllc))) {
+		if (qflag) {
+			for (i = 0;i < RFC1483LLC_LEN; i++)
+			(void)printf("%2.2x ",bp[i]);
+		} else {
+			for (i = 0;i < RFC1483LLC_LEN - 2; i++)
+				(void)printf("%2.2x ",bp[i]);
+			etherproto_string(((u_short*)bp)[3]);
+		} 
+	} else {
+		if (qflag)
+			(void)printf("(null encapsulation)");
+		else {
+			(void)printf("(null encap)");
+			etherproto_string(ETHERTYPE_IP);
+		}
+	}
 }
 
 /*
@@ -112,7 +105,7 @@ cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	}
 
 	if (eflag)
-	  cip_print(p, length);
+		cip_print(p, length);
 
 	/*
 	 * Some printers want to get back at the ethernet addresses,
@@ -123,13 +116,15 @@ cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	snapend = p + caplen;
 
 	if (memcmp(rfcllc, p, sizeof(rfcllc))==0) {
-	  length -= RFC1483LLC_LEN;
-	  caplen -= RFC1483LLC_LEN;
-	  bp = (u_short*)p;
-	  p += RFC1483LLC_LEN;
-	  ether_type = ntohs(bp[3]);
-	} else
-	  ether_type = ETHERTYPE_IP;
+		length -= RFC1483LLC_LEN;
+		caplen -= RFC1483LLC_LEN;
+		bp = (u_short *)p;
+		p += RFC1483LLC_LEN;
+		ether_type = ntohs(bp[3]);
+	} else {
+		ether_type = ETHERTYPE_IP;
+		bp = (u_short *)p;
+	}
 
 	/*
 	 * Is it (gag) an 802.3 encapsulation?
@@ -137,10 +132,11 @@ cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	extracted_ethertype = 0;
 	if (ether_type < ETHERMTU) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, NULL, NULL)==0) {
+		if (llc_print(p, length, caplen, NULL, NULL,
+		    &extracted_ethertype)==0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)
-				cip_print((u_char *)bp, length);
+				cip_print((u_char *)bp, length + RFC1483LLC_LEN);
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
 			       etherproto_string(htons(extracted_ethertype)));
@@ -148,7 +144,8 @@ cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 			if (!xflag && !qflag)
 				default_print(p, caplen);
 		}
-	} else if (ether_encap_print(ether_type, p, length, caplen) == 0) {
+	} else if (ether_encap_print(ether_type, p, length, caplen,
+	    &extracted_ethertype) == 0) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
 			cip_print((u_char *)bp, length + RFC1483LLC_LEN);

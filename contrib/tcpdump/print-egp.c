@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.24 1999/11/21 09:36:51 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.26 2000/09/29 04:58:36 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,14 +33,14 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <netdb.h>
 #include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+
+#include "ip.h"
 
 struct egp_packet {
 	u_char  egp_version;

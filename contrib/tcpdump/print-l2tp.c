@@ -18,12 +18,12 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * L2TP support contributed by Motonori Shindo (mshindo@ascend.co.jp)
+ * L2TP support contributed by Motonori Shindo (mshindo@mshindo.net)
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.6 1999/12/22 06:27:21 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.8 2000/08/18 07:44:46 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -303,7 +303,7 @@ l2tp_bearer_cap_print(const u_char *dat, u_int length)
 static void
 l2tp_tie_breaker_print(const u_char *dat, u_int length)
 {
-	printf("%lx", *(u_long *)dat);	/* XXX */
+	print_octets(dat, 8);	/* Tie Break Value is 64bits long */
 }
 
 static void
@@ -592,23 +592,30 @@ l2tp_avp_print(const u_char *dat, u_int length)
 		}
 		ptr++;
 
-		if (ntohs(*ptr)) {	/* IETF == 0 */
-			printf("vendor=%04x", ntohs(*ptr));
-		}
-		ptr++;
-
-		if (ntohs(*ptr) < L2TP_MAX_AVP_INDEX) {
-			printf("%s", l2tp_avp[ntohs(*ptr)].name);
+		if (ntohs(*ptr)) {
+			/* Vendor Specific Attribute */
+			printf("VENDOR%04x:", ntohs(*ptr));
+			ptr++;
+			printf("ATTR%04x", ntohs(*ptr));
 			printf("(");
-			if (!hidden) {
-				(l2tp_avp[ntohs(*ptr)].print)
-					((u_char *)ptr+2, len-6);
-			} else {
-				printf("???");
-			}
+			print_octets((u_char *)ptr+2, len-6);
 			printf(")");
 		} else {
-			printf(" invalid AVP %u", ntohs(*ptr));
+			/* IETF-defined Attribute */ 
+			ptr++;
+			if (ntohs(*ptr) < L2TP_MAX_AVP_INDEX) {
+				printf("%s", l2tp_avp[ntohs(*ptr)].name);
+				printf("(");
+				if (!hidden) {
+					(l2tp_avp[ntohs(*ptr)].print)
+						((u_char *)ptr+2, len-6);
+				} else {
+					printf("???");
+				}
+				printf(")");
+			} else {
+				printf(" invalid AVP %u", ntohs(*ptr));
+			}
 		}
 
 		l2tp_avp_print(dat + len, length - len);
@@ -705,12 +712,8 @@ l2tp_print(const u_char *dat, u_int length)
 			l2tp_avp_print((u_char *)ptr, length - cnt);
 		}
 	} else {
-#if 0
 		printf(" {");
-		ppp_hdlc_print((u_char *)ptr, length - cnt);
+		ppp_print((u_char *)ptr, length - cnt);
 		printf("}");
-#else
-		printf("[hdlc|]");
-#endif
 	}
 }	

@@ -11,7 +11,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.3.2.1 2000/01/11 06:58:27 fenner Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.7 2000/12/05 06:42:47 guy Exp $";
 #endif
 
 #include <stdio.h>
@@ -719,6 +719,8 @@ void nbt_tcp_print(const uchar *data,int length)
     printf("flags=0x%x\n", flags);
   case 0:    
     data = fdata(data,"NBT Session Packet\nFlags=[rw]\nLength=[rd]\n",data+4);
+    if (data == NULL)
+      break;
     if (memcmp(data,"\377SMB",4)==0) {
       if (nbt_len>PTR_DIFF(maxbuf,data))
 	printf("WARNING: Short packet. Try increasing the snap length (%ld)\n",
@@ -789,15 +791,14 @@ void nbt_udp137_print(const uchar *data, int length)
   int ancount = RSVAL(data,6);
   int nscount = RSVAL(data,8);
   int arcount = RSVAL(data,10);
-  char des[1024];
-  char *opcodestr="OPUNKNOWN";  
+  char *opcodestr;  
   const char *p;
 
   startbuf = data;
 
   if (maxbuf <= data) return;
 
-  strcpy(des,"\n>>> NBT UDP PACKET(137): ");
+  printf("\n>>> NBT UDP PACKET(137): ");
 
   switch (opcode) {
   case 0: opcodestr = "QUERY"; break;
@@ -806,27 +807,26 @@ void nbt_udp137_print(const uchar *data, int length)
   case 7: opcodestr = "WACK"; break;
   case 8: opcodestr = "REFRESH(8)"; break;
   case 9: opcodestr = "REFRESH"; break;
+  default: opcodestr = "OPUNKNOWN"; break;
   }
-  strcat(des,opcodestr);
+  printf("%s", opcodestr);
   if (response) {
     if (rcode)
-      strcat(des,"; NEGATIVE");
+      printf("; NEGATIVE");
     else
-      strcat(des,"; POSITIVE");
+      printf("; POSITIVE");
   }
     
   if (response) 
-    strcat(des,"; RESPONSE");
+    printf("; RESPONSE");
   else
-    strcat(des,"; REQUEST");
+    printf("; REQUEST");
 
   if (nm_flags&1)
-    strcat(des,"; BROADCAST");
+    printf("; BROADCAST");
   else
-    strcat(des,"; UNICAST");
+    printf("; UNICAST");
   
-  printf("%s", des);
-
   if (vflag == 0) return;
 
   printf("\nTrnID=0x%X\nOpCode=%d\nNmFlags=0x%X\nRcode=%d\nQueryCount=%d\nAnswerCount=%d\nAuthorityCount=%d\nAddressRecCount=%d\n",
@@ -847,6 +847,8 @@ void nbt_udp137_print(const uchar *data, int length)
       printf("QuestionRecords:\n");
       for (i=0;i<qdcount;i++)
 	p = fdata(p,"|Name=[n1]\nQuestionType=[rw]\nQuestionClass=[rw]\n#",maxbuf);
+	if (p == NULL)
+	  goto out;
     }
 
     if (total) {
@@ -855,30 +857,39 @@ void nbt_udp137_print(const uchar *data, int length)
 	int rdlen;
 	int restype;
 	p = fdata(p,"Name=[n1]\n#",maxbuf);
+	if (p == NULL)
+	  goto out;
 	restype = RSVAL(p,0);
 	p = fdata(p,"ResType=[rw]\nResClass=[rw]\nTTL=[rD]\n",p+8);
+	if (p == NULL)
+	  goto out;
 	rdlen = RSVAL(p,0);
 	printf("ResourceLength=%d\nResourceData=\n",rdlen);
 	p += 2;
 	if (rdlen == 6) {
 	  p = fdata(p,"AddrType=[rw]\nAddress=[b.b.b.b]\n",p+rdlen);
+	  if (p == NULL)
+	    goto out;
 	} else {
 	  if (restype == 0x21) {
 	    int numnames = CVAL(p,0);
 	    p = fdata(p,"NumNames=[B]\n",p+1);
+	    if (p == NULL)
+	      goto out;
 	    while (numnames--) {
-	      char flags[128]="";
 	      p = fdata(p,"Name=[n2]\t#",maxbuf);
-	      if (p[0] & 0x80) strcat(flags,"<GROUP> ");
-	      if ((p[0] & 0x60) == 0x00) strcat(flags,"B ");
-	      if ((p[0] & 0x60) == 0x20) strcat(flags,"P ");
-	      if ((p[0] & 0x60) == 0x40) strcat(flags,"M ");
-	      if ((p[0] & 0x60) == 0x60) strcat(flags,"_ ");
-	      if (p[0] & 0x10) strcat(flags,"<DEREGISTERING> ");
-	      if (p[0] & 0x08) strcat(flags,"<CONFLICT> ");
-	      if (p[0] & 0x04) strcat(flags,"<ACTIVE> ");
-	      if (p[0] & 0x02) strcat(flags,"<PERMANENT> ");
-	      printf("%s\n",flags);
+	      if (p[0] & 0x80) printf("<GROUP> ");
+	      switch (p[0] & 0x60) {
+	      case 0x00: printf("B "); break;
+	      case 0x20: printf("P "); break;
+	      case 0x40: printf("M "); break;
+	      case 0x60: printf("_ "); break;
+	      }
+	      if (p[0] & 0x10) printf("<DEREGISTERING> ");
+	      if (p[0] & 0x08) printf("<CONFLICT> ");
+	      if (p[0] & 0x04) printf("<ACTIVE> ");
+	      if (p[0] & 0x02) printf("<PERMANENT> ");
+	      printf("\n");
 	      p += 2;
 	    }
 	  } else {
@@ -894,6 +905,7 @@ void nbt_udp137_print(const uchar *data, int length)
     fdata(p,"AdditionalData:\n",maxbuf);    
   }      
   
+out:
   printf("\n");
   fflush(stdout);
 }
@@ -911,7 +923,8 @@ void nbt_udp138_print(const uchar *data, int length)
 
   data = fdata(data,"\n>>> NBT UDP PACKET(138) Res=[rw] ID=[rw] IP=[b.b.b.b] Port=[rd] Length=[rd] Res2=[rw]\nSourceName=[n1]\nDestName=[n1]\n#",maxbuf);
 
-  print_smb(data,maxbuf);
+  if (data != NULL)
+    print_smb(data,maxbuf);
   
   printf("\n");
   fflush(stdout);
@@ -922,15 +935,24 @@ void nbt_udp138_print(const uchar *data, int length)
 /*
    print netbeui frames 
 */
-void netbeui_print(const uchar *data, const uchar *maxbuf)
+void netbeui_print(u_short control, const uchar *data, const uchar *maxbuf)
 {
-  int len = SVAL(data,1);
-  int command = CVAL(data,5);
-  const uchar *data2 = data + 1 + len;
+  int len = SVAL(data,0);
+  int command = CVAL(data,4);
+  const uchar *data2 = data + len;
+  int is_truncated = 0;
+
+  if (data2 >= maxbuf) {
+    data2 = maxbuf;
+    is_truncated = 1;
+  }
 
   startbuf = data;
 
-  data = fdata(data,"\n>>> NetBeui Packet\nType=[B] Length=[d] Signature=[w] Command=[B]\n#",maxbuf);
+  printf("\n>>> NetBeui Packet\nType=0x%X ", control);
+  data = fdata(data,"Length=[d] Signature=[w] Command=[B]\n#",maxbuf);
+  if (data == NULL)
+    goto out;
 
   switch (command) {
   case 0xA: 
@@ -965,9 +987,20 @@ void netbeui_print(const uchar *data, const uchar *maxbuf)
     data = fdata(data,"SessionEnd:\n[P1]Data2=[w][P4]\nRemoteSessionNumber=[B]\nLocalSessionNumber=[B]\n",data2);
     break;
 
+  case 0x1f:
+    data = fdata(data,"SessionAlive\n",data2);
+    break;
+
   default:
     data = fdata(data,"Unknown Netbios Command ",data2);
     break;
+  }
+  if (data == NULL)
+    goto out;
+
+  if (is_truncated) {
+    /* data2 was past the end of the buffer */
+    goto out;
   }
 
   if (memcmp(data2,"\377SMB",4)==0) {
@@ -975,6 +1008,8 @@ void netbeui_print(const uchar *data, const uchar *maxbuf)
   } else {
     int i;
     for (i=0;i<128;i++) {
+      if (&data2[i] >= maxbuf)
+        break;
       if (memcmp(&data2[i],"\377SMB",4)==0) {
 	printf("found SMB packet at %d\n", i);
 	print_smb(&data2[i],maxbuf);
@@ -983,6 +1018,7 @@ void netbeui_print(const uchar *data, const uchar *maxbuf)
     }
   }
 
+out:
   printf("\n");
 }
 
@@ -998,7 +1034,8 @@ void ipx_netbios_print(const uchar *data, const uchar *maxbuf)
   for (i=0;i<128;i++)
     if (memcmp(&data[i],"\377SMB",4)==0) {
       fdata(data,"\n>>> IPX transport ",&data[i]);
-      print_smb(&data[i],maxbuf);
+      if (data != NULL)
+	print_smb(&data[i],maxbuf);
       printf("\n");
       fflush(stdout);
       break;

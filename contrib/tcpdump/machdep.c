@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/machdep.c,v 1.5 1999/11/21 09:36:47 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/machdep.c,v 1.6 2000/01/17 06:24:23 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -37,13 +37,13 @@ static const char rcsid[] =
 #include "machdep.h"
 
 int
-abort_on_misalignment(char *ebuf)
+abort_on_misalignment(char *ebuf, size_t ebufsiz)
 {
 #ifdef __osf__
 	static int buf[2] = { SSIN_UACPROC, UAC_SIGBUS };
 
 	if (setsysinfo(SSI_NVPAIRS, (caddr_t)buf, 1, 0, 0) < 0) {
-		(void)sprintf(ebuf, "setsysinfo: errno %d", errno);
+		(void)snprintf(ebuf, ebufsiz, "setsysinfo: errno %d", errno);
 		return (-1);
 	}
 #endif
