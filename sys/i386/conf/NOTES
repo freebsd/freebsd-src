@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.158 1995/03/18 08:12:48 rgrimes Exp $
+#	$Id: LINT,v 1.159 1995/03/28 08:14:55 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -220,12 +220,17 @@ options		ARP_PROXYALL		# global proxy ARP
 # They are included here as an incentive for some enterprising soul to
 # sit down and fix them.
 #
+# Note: 4.4BSD NQNFS lease checking has relatively high cost for
+# _local_ I/O as well as remote I/O. Don't use it unless you will
+# using NQNFS.
+#
 
 # One of these is mandatory:
 options		FFS			#Fast filesystem
 options		NFS			#Network File System
 
 # The rest are optional:
+options		NQNFS			#Enable NQNFS lease checking
 options		"CD9660"		#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
