@@ -160,8 +160,7 @@ socreate(dom, aso, type, proto, td)
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	so->so_cred = td->td_proc->p_ucred;
-	crhold(so->so_cred);
+	so->so_cred = crhold(td->td_proc->p_ucred);
 	so->so_proto = prp;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {

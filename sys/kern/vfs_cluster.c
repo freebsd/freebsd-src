@@ -774,10 +774,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_op = tbp->b_op;
 		bp->b_bufsize = 0;
 		bp->b_npages = 0;
-		if (tbp->b_wcred != NOCRED) {
-		    bp->b_wcred = tbp->b_wcred;
-		    crhold(bp->b_wcred);
-		}
+		if (tbp->b_wcred != NOCRED)
+			bp->b_wcred = crhold(tbp->b_wcred);
 
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;

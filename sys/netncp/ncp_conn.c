@@ -230,10 +230,8 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct proc *p, struct ucred *cred,
 	if (cap->owner != NCP_DEFAULT_OWNER) {
 		owner = crget();
 		owner->cr_uid = cap->owner;
-	} else {
-		owner = cred;
-		crhold(owner);
-	}
+	} else
+		owner = crhold(cred);
 	MALLOC(ncp, struct ncp_conn *, sizeof(struct ncp_conn), 
 	    M_NCPDATA, M_WAITOK | M_ZERO);
 	error = 0;

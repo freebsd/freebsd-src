@@ -434,11 +434,10 @@ vnode_pager_input_smlfs(object, m)
 			/* build a minimal buffer header */
 			bp->b_iocmd = BIO_READ;
 			bp->b_iodone = vnode_pager_iodone;
-			bp->b_rcred = bp->b_wcred = curthread->td_proc->p_ucred;
-			if (bp->b_rcred != NOCRED)
-				crhold(bp->b_rcred);
-			if (bp->b_wcred != NOCRED)
-				crhold(bp->b_wcred);
+			KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
+			KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
+			bp->b_rcred = crhold(curthread->td_proc->p_ucred);
+			bp->b_wcred = crhold(curthread->td_proc->p_ucred);
 			bp->b_data = (caddr_t) kva + i * bsize;
 			bp->b_blkno = fileaddr;
 			pbgetvp(dp, bp);
@@ -754,11 +753,10 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = vnode_pager_iodone;
 	/* B_PHYS is not set, but it is nice to fill this in */
-	bp->b_rcred = bp->b_wcred = curthread->td_proc->p_ucred;
-	if (bp->b_rcred != NOCRED)
-		crhold(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crhold(bp->b_wcred);
+	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
+	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
+	bp->b_rcred = crhold(curthread->td_proc->p_ucred);
+	bp->b_wcred = crhold(curthread->td_proc->p_ucred);
 	bp->b_blkno = firstaddr;
 	pbgetvp(dp, bp);
 	bp->b_bcount = size;

@@ -240,8 +240,10 @@ sonewconn3(head, connstatus, td)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	so->so_cred = td ? td->td_proc->p_ucred : head->so_cred;
-	crhold(so->so_cred);
+	if (td != NULL)
+		so->so_cred = crhold(td->td_proc->p_ucred);
+	else
+		so->so_cred = crhold(head->so_cred);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sodealloc(so);
