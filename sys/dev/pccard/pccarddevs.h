@@ -6,7 +6,7 @@
  * generated from:
  *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.3 1999/11/29 20:53:36 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.60 1999/11/29 02:28:19 jun Exp $ */
+/* $NetBSD: pcmciadevs,v 1.85 2000/03/22 21:39:57 mycroft Exp $
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -49,6 +49,7 @@
  */
 
 #define	PCCARD_VENDOR_FUJITSU	0x0004	/* Fujitsu Corporation */
+#define	PCCARD_VENDOR_PANASONIC	0x0032	/* Matsushita Electric Industrial Co. */
 #define	PCCARD_VENDOR_SANDISK	0x0045	/* Sandisk Corporation */
 #define	PCCARD_VENDOR_NEWMEDIA	0x0057	/* NewMedia Corporation */
 #define	PCCARD_VENDOR_INTEL	0x0089	/* Intel Corporation */
@@ -58,19 +59,26 @@
 #define	PCCARD_VENDOR_MEGAHERTZ	0x0102	/* Megahertz Corporation */
 #define	PCCARD_VENDOR_SOCKET	0x0104	/* Socket Communications */
 #define	PCCARD_VENDOR_TDK	0x0105	/* TDK Corporation */
+#define	PCCARD_VENDOR_XIRCOM	0x0105	/* Xircom */
 #define	PCCARD_VENDOR_SMC	0x0108	/* Standard Microsystems Corporation */
 #define	PCCARD_VENDOR_USROBOTICS	0x0115	/* US Robotics Corporation */
 #define	PCCARD_VENDOR_MEGAHERTZ2	0x0128	/* Megahertz Corporation */
 #define	PCCARD_VENDOR_ADAPTEC	0x012f	/* Adaptec Corporation */
-#define	PCCARD_VENDOR_COMPAQ1	0x0138	/* Compaq Corporation (1) */
+#define	PCCARD_VENDOR_COMPAQ	0x0138	/* Compaq */
 #define	PCCARD_VENDOR_LINKSYS	0x0149	/* Linksys Corporation */
 #define	PCCARD_VENDOR_SIMPLETECH	0x014d	/* Simple Technology */
 #define	PCCARD_VENDOR_LUCENT	0x0156	/* Lucent Technologies */
-#define	PCCARD_VENDOR_COMPAQ2	0x0183	/* Compaq Corporation (2) */
+#define	PCCARD_VENDOR_AIRONET	0x015f	/* Aironet Wireless Communications */
+#define	PCCARD_VENDOR_COMPAQ2	0x0183	/* Compaq */
 #define	PCCARD_VENDOR_DAYNA	0x0194	/* Dayna Corporation */
+#define	PCCARD_VENDOR_RAYTHEON	0x01a6	/* Raytheon */
 #define	PCCARD_VENDOR_IODATA	0x01bf	/* I-O DATA */
 #define	PCCARD_VENDOR_BAY	0x01eb	/* Bay Networks */
+#define	PCCARD_VENDOR_NOKIA	0x023d	/* Nokia Communications */
+#define	PCCARD_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
+#define	PCCARD_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
 #define	PCCARD_VENDOR_COMPEX	0x8a01	/* Compex Corporation */
+#define	PCCARD_VENDOR_MELCO	0x8a01	/* Melco Corporation */
 #define	PCCARD_VENDOR_CONTEC	0xc001	/* Contec */
 #define	PCCARD_VENDOR_COREGA	0xc00f	/* Corega K.K. */
 #define	PCCARD_VENDOR_ALLIEDTELESIS	0xc00f	/* Allied Telesis K.K. */
@@ -90,6 +98,9 @@
 #define	PCCARD_STR_ADAPTEC_APA1460_2	"Adaptec APA-1460/B SCSI Host Adapter"
 
 /* 3COM Products */
+#define	PCCARD_CIS_3COM_3C1	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_3COM_3C1	0x0cf1
+#define	PCCARD_STR_3COM_3C1	"3Com Megahertz 3C1 10Mbps LAN CF+ Card"
 #define	PCCARD_CIS_3COM_3C562	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_3COM_3C562	0x0562
 #define	PCCARD_STR_3COM_3C562	"3Com 3c562 33.6 Modem/10Mbps Ethernet"
@@ -187,7 +198,15 @@
 #define	PCCARD_PRODUCT_IODATA_PCLATE	0x2216
 #define	PCCARD_STR_IODATA_PCLATE	"I-O DATA PCLA/TE"
 
+/* Lexar Media */
+#define	PCCARD_CIS_LEXARMEDIA_COMPATFLASH	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_LEXARMEDIA_COMPATFLASH	0x0100
+#define	PCCARD_STR_LEXARMEDIA_COMPATFLASH	"Lexar Media CompactFlash"
+
 /* Linksys corporation */
+#define	PCCARD_CIS_LINKSYS_ETHERFAST	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_LINKSYS_ETHERFAST	0x0230
+#define	PCCARD_STR_LINKSYS_ETHERFAST	"Linksys Etherfast 10/100 Ethernet"
 #define	PCCARD_CIS_LINKSYS_ECARD_1	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_LINKSYS_ECARD_1	0x0265
 #define	PCCARD_STR_LINKSYS_ECARD_1	"Linksys EthernetCard or D-Link DE-650"
@@ -214,6 +233,21 @@
 #define	PCCARD_CIS_MEGAHERTZ_XJEM3336	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_MEGAHERTZ_XJEM3336	0x0006
 #define	PCCARD_STR_MEGAHERTZ_XJEM3336	"Megahertz X-JACK Ethernet Modem"
+
+/* Melco Products */
+#define	PCCARD_CIS_MELCO_LPC3_TX	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_MELCO_LPC3_TX	0xc1ab
+#define	PCCARD_STR_MELCO_LPC3_TX	"Melco LPC3-TX"
+
+/* Nokia Products */
+#define	PCCARD_CIS_NOKIA_C020_WLAN	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_NOKIA_C020_WLAN	0x20c0
+#define	PCCARD_STR_NOKIA_C020_WLAN	"Nokia C020 WLAN Card"
+
+/* Panasonic Products */
+#define	PCCARD_CIS_PANASONIC_KXLC002	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_PANASONIC_KXLC002	0x0304
+#define	PCCARD_STR_PANASONIC_KXLC002	"Panasonic 4X CD-ROM Interface Card"
 
 /* US Robotics Products */
 #define	PCCARD_CIS_USROBOTICS_WORLDPORT144	{ NULL, NULL, NULL, NULL }
@@ -272,9 +306,15 @@
 #define	PCCARD_CIS_TDK_XIR_CE3_10_100	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_TDK_XIR_CE3_10_100	0x010a
 #define	PCCARD_STR_TDK_XIR_CE3_10_100	"Xircom CreditCard CE3 10/100 Ethernet"
-#define	PCCARD_CIS_TDK_XIR_CNW	{ NULL, NULL, NULL, NULL }
-#define	PCCARD_PRODUCT_TDK_XIR_CNW	0x0802
-#define	PCCARD_STR_TDK_XIR_CNW	"Xircom CreditCard Netwave"
+/* conflicts with above
+ * product TDK XIR_CFE_10	0x010a Xircom CompactCard CFE-10
+ */
+#define	PCCARD_CIS_TDK_XIR_CNW_801	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_TDK_XIR_CNW_801	0x0801
+#define	PCCARD_STR_TDK_XIR_CNW_801	"Xircom CreditCard Netwave (Canada)"
+#define	PCCARD_CIS_TDK_XIR_CNW_802	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_TDK_XIR_CNW_802	0x0802
+#define	PCCARD_STR_TDK_XIR_CNW_802	"Xircom CreditCard Netwave (US)"
 
 /* New Media Products */
 #define	PCCARD_CIS_NEWMEDIA_BASICS	{ NULL, NULL, NULL, NULL }
@@ -290,7 +330,7 @@
 #define	PCCARD_STR_SMC_8016	"SMC 8016 EtherCard"
 #define	PCCARD_CIS_SMC_EZCARD	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_SMC_EZCARD	0x8022
-#define	PCCARD_STR_SMC_EZCARD	"SMC EXCard 10 PCMCIA"
+#define	PCCARD_STR_SMC_EZCARD	"SMC EZCard 10 PCMCIA"
 
 /* Contec C-NET(PC) */
 #define	PCCARD_CIS_CONTEC_CNETPC	{ NULL, NULL, NULL, NULL }
@@ -312,9 +352,29 @@
 #define	PCCARD_PRODUCT_LUCENT_WAVELAN_IEEE	0x0002
 #define	PCCARD_STR_LUCENT_WAVELAN_IEEE	"WaveLAN/IEEE"
 
+/* Aironet */
+#define	PCCARD_CIS_AIRONET_PC4500	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_AIRONET_PC4500	0x0005
+#define	PCCARD_STR_AIRONET_PC4500	"Aironet PC4500 Wireless LAN Adapter"
+#define	PCCARD_CIS_AIRONET_PC4800	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_AIRONET_PC4800	0x0007
+#define	PCCARD_STR_AIRONET_PC4800	"Aironet PC4800 Wireless LAN Adapter"
+
+/* Bay Networks */
 #define	PCCARD_CIS_BAY_STACK_650	{ NULL, NULL, NULL, NULL }
-#define	PCCARD_PRODUCT_BAY_STACK_650	0x804
+#define	PCCARD_PRODUCT_BAY_STACK_650	0x0804
 #define	PCCARD_STR_BAY_STACK_650	"BayStack 650 Wireless LAN"
+#define	PCCARD_CIS_BAY_SURFER_PRO	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_BAY_SURFER_PRO	0x0806
+#define	PCCARD_STR_BAY_SURFER_PRO	"AirSurfer Pro Wireless LAN"
+#define	PCCARD_CIS_BAY_STACK_660	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_BAY_STACK_660	0x0807
+#define	PCCARD_STR_BAY_STACK_660	"BayStack 660 Wireless LAN"
+
+/* Raylink/WebGear */
+#define	PCCARD_CIS_RAYTHEON_WLAN	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_RAYTHEON_WLAN	0x0000
+#define	PCCARD_STR_RAYTHEON_WLAN	"WLAN Adapter"
 
 /* Cards we know only by their cis */
 #define	PCCARD_VENDOR_PREMAX	-1	/* Premax */
@@ -329,6 +389,11 @@
 #define	PCCARD_VENDOR_SVEC	-1	/* SVEC/Hawking Technology */
 #define	PCCARD_VENDOR_NAKAGAWAMETAL	-1	/* NAKAGAWA METAL */
 #define	PCCARD_VENDOR_AMBICOM	-1	/* AmbiCom Inc */
+#define	PCCARD_VENDOR_EPSON	-1	/* Seiko Epson Corporation */
+#define	PCCARD_VENDOR_EXP	-1	/* EXP Computer Inc */
+#define	PCCARD_VENDOR_ICOM	-1	/* ICOM Inc */
+#define	PCCARD_VENDOR_BILLIONTON	-1	/* Billionton Systems Inc. */
+#define	PCCARD_VENDOR_AMD	-1	/* AMD */
 
 #define	PCCARD_CIS_MEGAHERTZ_XJ2288	{ "MEGAHERTZ", "MODEM XJ2288", NULL, NULL }
 #define	PCCARD_PRODUCT_MEGAHERTZ_XJ2288	-1
@@ -340,18 +405,24 @@
 #define	PCCARD_PRODUCT_PLANET_SMARTCOM2000	-1
 #define	PCCARD_STR_PLANET_SMARTCOM2000	"Planet SmartCOM 2000"
 /*
- * vendor ID of FNW-3600-T is LINKSYS(0x0149) and product ID is 0xc1ab, but
- * it conflicts with LINKSYS Combo EhternetCard.
+ * vendor ID of both FNW-3600-T and FNW-3700-T is LINKSYS (0x0149) and
+ * product ID is 0xc1ab, but it conflicts with LINKSYS Combo EthernetCard.
  */
-#define	PCCARD_CIS_PLANEX_FNW3600T	{ "Fast Ethernet", "Adapter", "1.0", NULL }
+#define	PCCARD_CIS_PLANEX_FNW3600T	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_PLANEX_FNW3600T	-1
 #define	PCCARD_STR_PLANEX_FNW3600T	"Planex FNW-3600-T"
+#define	PCCARD_CIS_PLANEX_FNW3700T	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_PLANEX_FNW3700T	-1
+#define	PCCARD_STR_PLANEX_FNW3700T	"Planex FNW-3700-T"
 #define	PCCARD_CIS_DLINK_DE650	{ "D-Link", "DE-650", NULL, NULL }
 #define	PCCARD_PRODUCT_DLINK_DE650	-1
 #define	PCCARD_STR_DLINK_DE650	"D-Link DE-650"
 #define	PCCARD_CIS_DLINK_DE660	{ "D-Link", "DE-660", NULL, NULL }
 #define	PCCARD_PRODUCT_DLINK_DE660	-1
 #define	PCCARD_STR_DLINK_DE660	"D-Link DE-660"
+#define	PCCARD_CIS_RPTI_EP400	{ "RPTI LTD.", "EP400", "CISV100", NULL }
+#define	PCCARD_PRODUCT_RPTI_EP400	-1
+#define	PCCARD_STR_RPTI_EP400	"RPTI EP400"
 #define	PCCARD_CIS_RPTI_EP401	{ "RPTI", "EP401 Ethernet NE2000 Compatible", NULL, NULL }
 #define	PCCARD_PRODUCT_RPTI_EP401	-1
 #define	PCCARD_STR_RPTI_EP401	"RPTI EP401"
@@ -372,23 +443,48 @@
 #define	PCCARD_STR_LINKSYS_ECARD_2	"Linksys E-Card"
 #define	PCCARD_CIS_COREGA_ETHER_PCC_T	{ "corega K.K.", "corega Ether PCC-T", NULL, NULL }
 #define	PCCARD_PRODUCT_COREGA_ETHER_PCC_T	-1
-#define	PCCARD_STR_COREGA_ETHER_PCC_T	"Corega"
+#define	PCCARD_STR_COREGA_ETHER_PCC_T	"Corega Ether PCC-T"
 #define	PCCARD_CIS_COREGA_ETHER_II_PCC_T	{ "corega K.K.", "corega EtherII PCC-T", NULL, NULL }
 #define	PCCARD_PRODUCT_COREGA_ETHER_II_PCC_T	-1
-#define	PCCARD_STR_COREGA_ETHER_II_PCC_T	"Corega"
+#define	PCCARD_STR_COREGA_ETHER_II_PCC_T	"Corega EtherII PCC-T"
 #define	PCCARD_CIS_COREGA_FAST_ETHER_PCC_TX	{ "corega K.K.", "corega FastEther PCC-TX", NULL, NULL }
 #define	PCCARD_PRODUCT_COREGA_FAST_ETHER_PCC_TX	-1
-#define	PCCARD_STR_COREGA_FAST_ETHER_PCC_TX	"Corega"
+#define	PCCARD_STR_COREGA_FAST_ETHER_PCC_TX	"Corega FastEther PCC-TX"
 #define	PCCARD_CIS_SVEC_COMBOCARD	{ "Ethernet", "Adapter", NULL, NULL }
 #define	PCCARD_PRODUCT_SVEC_COMBOCARD	-1
 #define	PCCARD_STR_SVEC_COMBOCARD	"SVEC/Hawking Tech. Combo Card"
 #define	PCCARD_CIS_SVEC_LANCARD	{ "SVEC", "FD605 PCMCIA EtherNet Card", "V1-1", NULL }
 #define	PCCARD_PRODUCT_SVEC_LANCARD	-1
 #define	PCCARD_STR_SVEC_LANCARD	"SVEC PCMCIA Lan Card"
+/*
+ * vendor ID of PN650TX is LINKSYS (0x0149) and product ID is 0xc1ab, but
+ * it conflicts with LINKSYS Combo EthernetCard.
+ */
+#define	PCCARD_CIS_SVEC_PN650TX	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_SVEC_PN650TX	-1
+#define	PCCARD_STR_SVEC_PN650TX	"SVEC PN650TX 10/100 Dual Speed Fast Ethernet PC Card"
 
 #define	PCCARD_CIS_NAKAGAWAMETAL_LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL }
 #define	PCCARD_PRODUCT_NAKAGAWAMETAL_LNT10TN	-1
 #define	PCCARD_STR_NAKAGAWAMETAL_LNT10TN	"NAKAGAWA METAL LNT-10TN NE2000 Compatible Card"
+#define	PCCARD_CIS_EPSON_EEN10B	{ "Seiko Epson Corp.", "Ethernet", "P/N: EEN10B Rev. 00", NULL }
+#define	PCCARD_PRODUCT_EPSON_EEN10B	-1
+#define	PCCARD_STR_EPSON_EEN10B	"Epson EEN10B"
+#define	PCCARD_CIS_EXP_EXPMULTIMEDIA	{ "EXP   ", "PnPIDE", "F1", NULL }
+#define	PCCARD_PRODUCT_EXP_EXPMULTIMEDIA	-1
+#define	PCCARD_STR_EXP_EXPMULTIMEDIA	"EXP IDE/ATAPI DVD Card"
+#define	PCCARD_CIS_AMD_AM79C930	{ "AMD", "Am79C930", NULL, NULL }
+#define	PCCARD_PRODUCT_AMD_AM79C930	-1
+#define	PCCARD_STR_AMD_AM79C930	"AMD Am79C930"
+#define	PCCARD_CIS_ICOM_SL200	{ "Icom", "SL-200", NULL, NULL }
+#define	PCCARD_PRODUCT_ICOM_SL200	-1
+#define	PCCARD_STR_ICOM_SL200	"Icom SL-200"
+#define	PCCARD_CIS_XIRCOM_CFE_10	{ "Xircom", "CompactCard Ethernet", "CFE-10", "1.00" }
+#define	PCCARD_PRODUCT_XIRCOM_CFE_10	-1
+#define	PCCARD_STR_XIRCOM_CFE_10	"Xircom CompactCard CFE-10"
+#define	PCCARD_CIS_BILLIONTON_LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL }
+#define	PCCARD_PRODUCT_BILLIONTON_LNT10TN	-1
+#define	PCCARD_STR_BILLIONTON_LNT10TN	"Billionton Systems Inc. LNT-10TN NE2000 Compatible Card"
 
 #define	PCCARD_CIS_AMBICOM_AMB8002T	{ "AmbiCom Inc", "AMB8002T", NULL, NULL }
 #define	PCCARD_PRODUCT_AMBICOM_AMB8002T	-1

@@ -223,6 +223,48 @@ power_if.h		optional pccard					\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/power_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"power_if.h"
+power_if.o		optional card					\
+	dependency	"power_if.c power_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+power_if.c		optional card					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/power_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"power_if.c"
+power_if.h		optional card					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/power_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"power_if.h"
+card_if.o		optional pccard					\
+	dependency	"card_if.c card_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+card_if.c		optional pccard					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/card_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"card_if.c"
+card_if.h		optional pccard					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/card_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"card_if.h"
+card_if.o		optional card					\
+	dependency	"card_if.c card_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+card_if.c		optional card					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/card_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"card_if.c"
+card_if.h		optional card					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/card_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/card_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"card_if.h"
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/if_fea.c	optional fea eisa

@@ -44,10 +44,10 @@
 #include <machine/resource.h>
 
 #include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardchip.h>
 #include <dev/pccard/pccardvar.h>
 
 #include "power_if.h"
+#include "card_if.h"
 
 #define PCCARDDEBUG
 
@@ -55,14 +55,9 @@
 int	pccard_debug = 1;
 #define	DPRINTF(arg) if (pccard_debug) printf arg
 #define	DEVPRINTF(arg) if (pccard_debug) device_printf arg
-int	pccardintr_debug = 0;
-/* this is done this way to avoid doing lots of conditionals
-   at interrupt level.  */
-#define PCCARD_CARD_INTR (pccardintr_debug?pccard_card_intrdebug:pccard_card_intr)
 #else
 #define	DPRINTF(arg)
 #define	DEVPRINTF(arg)
-#define PCCARD_CARD_INTR (pccard_card_intr)
 #endif
 
 #ifdef PCCARDVERBOSE
@@ -72,11 +67,6 @@ int	pccard_verbose = 0;
 #endif
 
 int	pccard_print(void *, const char *);
-
-int pccard_card_intr(void *);
-#ifdef PCCARDDEBUG
-int pccard_card_intrdebug(void *);
-#endif
 
 int
 pccard_ccr_read(pf, ccr)
@@ -100,8 +90,8 @@ pccard_ccr_write(pf, ccr, val)
 	}
 }
 
-int
-pccard_card_attach(device_t dev)
+static int
+pccard_attach_card(device_t dev)
 {
 	struct pccard_softc *sc = (struct pccard_softc *) 
 	    device_get_softc(dev);
@@ -146,16 +136,7 @@ pccard_card_attach(device_t dev)
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
 
-#ifdef DIAGNOSTIC
-		if (pf->child != NULL) {
-			device_printf(sc->dev,
-			    "%s still attached to function %d!\n",
-			    device_get_name(pf->child), pf->number);
-			panic("pccard_card_attach");
-		}
-#endif
 		pf->sc = sc;
-		pf->child = NULL;
 		pf->cfe = NULL;
 		pf->ih_fct = NULL;
 		pf->ih_arg = NULL;
@@ -184,8 +165,8 @@ pccard_card_attach(device_t dev)
 	return (attached ? 0 : 1);
 }
 
-void
-pccard_card_detach(device_t dev, int flags)
+static int
+pccard_detach_card(device_t dev, int flags)
 {
 	struct pccard_softc *sc = (struct pccard_softc *) 
 	    device_get_softc(dev);
@@ -201,11 +182,9 @@ pccard_card_detach(device_t dev, int flags)
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_FIRST(&pf->cfe_head) == NULL)
 			continue;
-		if (pf->child == NULL)
-			continue;
+#if XXX
 		DEVPRINTF((sc->dev, "detaching %s (function %d)\n",
 		    device_get_name(pf->child), pf->number));
-#if XXX
 		if ((error = config_detach(pf->child, flags)) != 0) {
 			device_printf(sc->dev, 
 			    "error %d detaching %s (function %d)\n",
@@ -214,35 +193,11 @@ pccard_card_detach(device_t dev, int flags)
 			pf->child = NULL;
 #endif
 	}
+	return 0;
 }
 
-void
-pccard_card_deactivate(device_t dev)
-{
-	struct pccard_softc *sc = (struct pccard_softc *) 
-	    device_get_softc(dev);
-	struct pccard_function *pf;
-
-	/*
-	 * We're in the chip's card removal interrupt handler.
-	 * Deactivate the child driver.  The PCCARD socket's
-	 * event thread will run later to finish the detach.
-	 */
-	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		if (STAILQ_FIRST(&pf->cfe_head) == NULL)
-			continue;
-		if (pf->child == NULL)
-			continue;
-		DEVPRINTF((sc->dev, "deactivating %s (function %d)\n",
-		    device_get_name(pf->child), pf->number));
-#if XXX
-		config_deactivate(pf->child);
-#endif
-	}
-}
-
-int 
-pccard_card_gettype(device_t dev)
+static int 
+pccard_card_gettype(device_t dev, int *type)
 {
 	struct pccard_softc *sc = (struct pccard_softc *)
 	    device_get_softc(dev);
@@ -257,9 +212,10 @@ pccard_card_gettype(device_t dev)
 	if (pf == NULL ||
 	    (STAILQ_NEXT(pf, pf_list) == NULL &&
 	    (pf->cfe == NULL || pf->cfe->iftype == PCCARD_IFTYPE_MEMORY)))
-		return (PCCARD_IFTYPE_MEMORY);
+		*type = PCCARD_IFTYPE_MEMORY;
 	else
-		return (PCCARD_IFTYPE_IO);
+		*type = PCCARD_IFTYPE_IO;
+	return 0;
 }
 
 /*
@@ -334,7 +290,8 @@ pccard_function_enable(struct pccard_function *pf)
 		pf->ccr_rid = 0;
 		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 		    &pf->ccr_rid, pf->ccr_base, pf->ccr_base + PCCARD_CCR_SIZE,
-		    PCCARD_CCR_SIZE, RF_ACTIVE | RF_PCCARD_ATTR);
+		    PCCARD_CCR_SIZE, RF_ACTIVE);
+		/* XXX SET MEM_ATTR */
 		if (!pf->ccr_res)
 			goto bad;
 		pf->pf_ccrt = rman_get_bustag(pf->ccr_res);
@@ -530,74 +487,6 @@ pccard_io_unmap(struct pccard_function *pf, int window)
 }
 #endif
 
-/* I don't think FreeBSD needs the next two functions at all */
-/* XXX */
-int 
-pccard_card_intr(void *arg)
-{
-	struct pccard_softc *sc = arg;
-	struct pccard_function *pf;
-	int reg, ret, ret2;
-
-	ret = 0;
-
-	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		if (pf->ih_fct != NULL &&
-		    (pf->ccr_mask & (1 << (PCCARD_CCR_STATUS / 2)))) {
-			reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-			if (reg & PCCARD_CCR_STATUS_INTR) {
-				ret2 = (*pf->ih_fct)(pf->ih_arg);
-				if (ret2 != 0 && ret == 0)
-					ret = ret2;
-				reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-				pccard_ccr_write(pf, PCCARD_CCR_STATUS,
-				    reg & ~PCCARD_CCR_STATUS_INTR);
-			}
-		}
-	}
-
-	return (ret);
-}
-
-#ifdef PCCARDDEBUG
-int 
-pccard_card_intrdebug(arg)
-	void *arg;
-{
-	struct pccard_softc *sc = arg;
-	struct pccard_function *pf;
-	int reg, ret, ret2;
-
-	ret = 0;
-
-	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		device_printf(sc->dev, 
-		    "intr flags=%x fct=%d cor=%02x csr=%02x pin=%02x",
-		    pf->pf_flags, pf->number, 
-		    pccard_ccr_read(pf, PCCARD_CCR_OPTION),
-		    pccard_ccr_read(pf, PCCARD_CCR_STATUS),
-		    pccard_ccr_read(pf, PCCARD_CCR_PIN));
-		if (pf->ih_fct != NULL &&
-		    (pf->ccr_mask & (1 << (PCCARD_CCR_STATUS / 2)))) {
-			reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-			if (reg & PCCARD_CCR_STATUS_INTR) {
-				ret2 = (*pf->ih_fct)(pf->ih_arg);
-				if (ret2 != 0 && ret == 0)
-					ret = ret2;
-				reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-				printf("; csr %02x->%02x",
-				    reg, reg & ~PCCARD_CCR_STATUS_INTR);
-				pccard_ccr_write(pf, PCCARD_CCR_STATUS,
-				    reg & ~PCCARD_CCR_STATUS_INTR);
-			}
-		}
-		printf("\n");
-	}
-
-	return (ret);
-}
-#endif
-
 #define PCCARD_NPORT	2
 #define PCCARD_NMEM	5
 #define PCCARD_NIRQ	1
@@ -606,6 +495,7 @@ pccard_card_intrdebug(arg)
 static int
 pccard_add_children(device_t dev, int busno)
 {
+	/* Call parent to scan for any current children */
 	return 0;
 }
 
@@ -614,6 +504,17 @@ pccard_probe(device_t dev)
 {
 	device_set_desc(dev, "PC Card bus -- newconfig version");
 	return pccard_add_children(dev, device_get_unit(dev));
+}
+
+static int
+pccard_attach(device_t dev)
+{
+	struct pccard_softc *sc;
+	
+	sc = (struct pccard_softc *) device_get_softc(dev);
+	sc->dev = dev;
+
+	return bus_generic_attach(dev);
 }
 
 static void
@@ -726,10 +627,26 @@ pccard_delete_resource(device_t dev, device_t child, int type, int rid)
 	resource_list_delete(rl, type, rid);
 }
 
+static int
+pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
+    u_int32_t flags)
+{
+	return CARD_SET_RES_FLAGS(device_get_parent(dev), child, type,
+	    rid, flags);
+}
+
+static int
+pccard_set_memory_offset(device_t dev, device_t child, int rid,
+     u_int32_t offset)
+{
+	return CARD_SET_MEMORY_OFFSET(device_get_parent(dev), child, rid,
+	    offset);
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	pccard_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -746,6 +663,13 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
+
+	/* Card Interface */
+	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
+	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
+	DEVMETHOD(card_get_type,	pccard_card_gettype),
+	DEVMETHOD(card_attach_card,	pccard_attach_card),
+	DEVMETHOD(card_detach_card,	pccard_detach_card),
 
 	{ 0, 0 }
 };

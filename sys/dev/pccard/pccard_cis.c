@@ -44,11 +44,13 @@
 #include <machine/resource.h>
 
 #include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardchip.h>
 #include <dev/pccard/pccardvar.h>
 
+#include "card_if.h"
+
+#define PCCARDCISDEBUG
 #ifdef PCCARDCISDEBUG
-int	pccardcis_debug = 0;
+int	pccardcis_debug = 1;
 #define	DPRINTF(arg) if (pccardcis_debug) printf arg
 #define	DEVPRINTF(arg) if (pccardcis_debug) device_printf arg
 #else
@@ -92,7 +94,9 @@ pccard_read_cis(struct pccard_softc *sc)
 
 	state.pf = NULL;
 
-	if (pccard_scan_cis((struct device *)sc, pccard_parse_cis_tuple,
+printf("Calling scan_cis\n");
+
+	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple,
 	    &state) == -1)
 		state.card->error++;
 }
@@ -121,15 +125,16 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 
-	    PCCARD_CIS_SIZE, RF_ACTIVE | RF_PCCARD_ATTR);
+	    PCCARD_CIS_SIZE, RF_ACTIVE);
 	if (res == NULL) {
-#ifdef DIAGNOSTIC
 		device_printf(dev, "can't alloc memory to read attributes\n");
-#endif
 		return -1;
 	}
+	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
+	    rid, PCCARD_A_MEM_ATTR);
 	tuple.memt = rman_get_bustag(res);
 	tuple.memh = rman_get_bushandle(res);
+	tuple.ptr = 0;
 
 	DPRINTF(("cis mem map %x\n", (unsigned int) tuple.memh));
 
@@ -164,6 +169,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					ret = 1;
 					goto done;
 				}
+				ret = 1; goto done; /* XXX IMP XXX */
 				tuple.ptr++;
 				break;
 			}
