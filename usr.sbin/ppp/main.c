@@ -519,6 +519,7 @@ DoLoop(struct bundle *bundle)
     /* All our prompts and the diagnostic socket */
     descriptor_UpdateSet(&server.desc, &rfds, NULL, NULL, &nfds);
 
+    bundle_CleanDatalinks(bundle);
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
       break;
