@@ -38,7 +38,8 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)lpf.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "From: @(#)lpf.c	8.1 (Berkeley) 6/6/93";
+static char id[] = "$Id$";
 #endif /* not lint */
 
 /*
@@ -79,7 +80,8 @@ main(argc, argv)
 	register int i, col;
 	register char *cp;
 	int done, linedone, maxrep;
-	char ch, *limit;
+	char *limit;
+	int ch;
 
 	while (--argc) {
 		if (*(cp = *++argv) == '-') {
