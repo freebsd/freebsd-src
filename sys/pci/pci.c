@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.74 1997/05/27 19:24:36 fsmp Exp $
+ * $Id: pci.c,v 1.75 1997/05/28 10:01:03 se Exp $
  *
  */
 
@@ -426,11 +426,22 @@ pci_probebus(int bus)
 			if (cfg != NULL) {
 				if (cfg->mfdev)
 					pcifunchigh = 7;
+				/*
+				 * XXX: Temporarily move pci_addcfg() up before
+				 * the use of cfg->subordinatebus. This is 
+				 * necessary, since pci_addcfg() calls the 
+				 * device's probe(), which may read the bus#
+				 * from some device dependent register of
+				 * some host to PCI bridges. The probe will 
+				 * eventually be moved to pci_readcfg(), and 
+				 * pci_addcfg() will then be moved back down
+				 * below the conditional statement ...
+				 */
+				pci_addcfg(cfg);
 
 				if (bushigh < cfg->subordinatebus)
 					bushigh = cfg->subordinatebus;
 
-				pci_addcfg(cfg);
 				cfg = NULL; /* we don't own this anymore ... */
 			}
 		}
