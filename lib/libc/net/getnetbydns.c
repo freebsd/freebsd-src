@@ -60,7 +60,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: getnetbydns.c,v 1.5 1996/01/13 09:03:51 peter Exp $";
+static char rcsid[] = "$Id: getnetbydns.c,v 1.6 1996/07/12 18:54:37 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -156,7 +156,7 @@ static	char *net_aliases[MAXALIASES], netbuf[BUFSIZ+1];
 	haveanswer = 0;
 	while (--ancount >= 0 && cp < eom) {
 		n = dn_expand(answer->buf, eom, cp, bp, buflen);
-		if (n < 0)
+		if ((n < 0) || !res_dnok(bp))
 			break;
 		cp += n;
 		ans[0] = '\0';
@@ -167,7 +167,7 @@ static	char *net_aliases[MAXALIASES], netbuf[BUFSIZ+1];
 		GETSHORT(n, cp);
 		if (class == C_IN && type == T_PTR) {
 			n = dn_expand(answer->buf, eom, cp, bp, buflen);
-			if (n < 0) {
+			if ((n < 0) || !res_hnok(bp)) {
 				cp += n;
 				return (NULL);
 			}
@@ -219,7 +219,7 @@ static	char *net_aliases[MAXALIASES], netbuf[BUFSIZ+1];
 
 struct netent *
 _getnetbydnsaddr(net, net_type)
-	register long net;
+	register unsigned long net;
 	register int net_type;
 {
 	unsigned int netbr[4];

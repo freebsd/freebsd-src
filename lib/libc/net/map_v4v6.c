@@ -1,7 +1,7 @@
 /*
- * ++Copyright++ 1995
+ * ++Copyright++ 1985, 1988, 1993
  * -
- * Copyright (c) 1995
+ * Copyright (c) 1985, 1988, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -54,61 +54,74 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: res_data.c,v 8.1 1995/12/22 10:21:29 vixie Exp $";
+static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
+static char rcsid[] = "$Id: gethnamaddr.c,v 8.17 1996/08/05 08:31:35 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
 #include <stdio.h>
-#include <ctype.h>
+#include <netdb.h>
 #include <resolv.h>
-#if defined(BSD) && (BSD >= 199103)
-# include <unistd.h>
-# include <stdlib.h>
-# include <string.h>
-#else
-# include "../conf/portability.h"
-#endif
+#include <ctype.h>
+#include <errno.h>
+#include <syslog.h>
 
-const char *_res_opcodes[] = {
-	"QUERY",
-	"IQUERY",
-	"CQUERYM",
-	"CQUERYU",	/* experimental */
-	"NOTIFY",	/* experimental */
-	"5",
-	"6",
-	"7",
-	"8",
-	"UPDATEA",
-	"UPDATED",
-	"UPDATEDA",
-	"UPDATEM",
-	"UPDATEMA",
-	"ZONEINIT",
-	"ZONEREF",
-};
+typedef union {
+	int32_t al;
+	char ac;
+} align;
 
-const char *_res_resultcodes[] = {
-	"NOERROR",
-	"FORMERR",
-	"SERVFAIL",
-	"NXDOMAIN",
-	"NOTIMP",
-	"REFUSED",
-	"6",
-	"7",
-	"8",
-	"9",
-	"10",
-	"11",
-	"12",
-	"13",
-	"14",
-	"NOCHANGE",
-};
+void
+_map_v4v6_address(src, dst)
+	const char *src;
+	char *dst;
+{
+	u_char *p = (u_char *)dst;
+	char tmp[INADDRSZ];
+	int i;
+
+	/* Stash a temporary copy so our caller can update in place. */
+	bcopy(src, tmp, INADDRSZ);
+	/* Mark this ipv6 addr as a mapped ipv4. */
+	for (i = 0; i < 10; i++)
+		*p++ = 0x00;
+	*p++ = 0xff;
+	*p++ = 0xff;
+	/* Retrieve the saved copy and we're done. */
+	bcopy(tmp, (void*)p, INADDRSZ);
+}
+
+void
+_map_v4v6_hostent(hp, bpp, lenp)
+	struct hostent *hp;
+	char **bpp;
+	int *lenp;
+{
+	char **ap;
+
+	if (hp->h_addrtype != AF_INET || hp->h_length != INADDRSZ)
+		return;
+	hp->h_addrtype = AF_INET6;
+	hp->h_length = IN6ADDRSZ;
+	for (ap = hp->h_addr_list; *ap; ap++) {
+		int i = sizeof(align) - ((u_long)*bpp % sizeof(align));
+
+		if (*lenp < (i + IN6ADDRSZ)) {
+			/* Out of memory.  Truncate address list here.  XXX */
+			*ap = NULL;
+			return;
+		}
+		*bpp += i;
+		*lenp -= i;
+		_map_v4v6_address(*ap, *bpp);
+		*ap = *bpp;
+		*bpp += IN6ADDRSZ;
+		*lenp -= IN6ADDRSZ;
+	}
+}

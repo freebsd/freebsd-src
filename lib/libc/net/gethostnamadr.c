@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.8 1996/07/12 18:54:36 jkh Exp $";
-static char rcsid[] = "$Id: gethostnamadr.c,v 1.8 1996/07/12 18:54:36 jkh Exp $";
+static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.9 1996/08/20 08:20:21 julian Exp $";
+static char rcsid[] = "$Id: gethostnamadr.c,v 1.9 1996/08/20 08:20:21 julian Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -37,18 +37,8 @@ static char rcsid[] = "$Id: gethostnamadr.c,v 1.8 1996/07/12 18:54:36 jkh Exp $"
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
-
-extern void _sethosthtent __P(( int ));
-extern void _endhosthtent __P(( void ));
-extern void _sethostdnsent __P(( int ));
-extern void _endhostdnsent __P(( void ));
-
-extern struct hostent * _gethostbyhtname  __P((const char *));
-extern struct hostent * _gethostbydnsname __P((const char *));
-extern struct hostent * _gethostbynisname __P((const char *));
-extern struct hostent * _gethostbyhtaddr  __P((const char *, int, int));
-extern struct hostent * _gethostbydnsaddr __P((const char *, int, int));
-extern struct hostent * _gethostbynisaddr __P((const char *, int, int));
+#include <arpa/nameser.h>		/* XXX hack for _res */
+#include <resolv.h>			/* XXX hack for _res */
 
 #define _PATH_HOSTCONF	"/etc/host.conf"
 
@@ -131,6 +121,19 @@ init_services()
 struct hostent *
 gethostbyname(const char *name)
 {
+	struct hostent *hp;
+
+	if (_res.options & RES_USE_INET6) {		/* XXX */
+		hp = gethostbyname2(name, AF_INET6);	/* XXX */
+		if (hp)					/* XXX */
+			return (hp);			/* XXX */
+	}						/* XXX */
+	return (gethostbyname2(name, AF_INET));
+}
+
+struct hostent *
+gethostbyname2(const char *name, int type)
+{
 	struct hostent *hp = 0;
 	int nserv = 0;
 
@@ -142,13 +145,13 @@ gethostbyname(const char *name)
 		      case SERVICE_NONE:
 			return NULL;
 		      case SERVICE_HOSTS:
-			hp = _gethostbyhtname(name);
+			hp = _gethostbyhtname(name, type);
 			break;
 		      case SERVICE_BIND:
-			hp = _gethostbydnsname(name);
+			hp = _gethostbydnsname(name, type);
 			break;
 		      case SERVICE_NIS:
-			hp = _gethostbynisname(name);
+			hp = _gethostbynisname(name, type);
 			break;
 		}
 		nserv++;
