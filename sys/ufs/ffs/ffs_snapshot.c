@@ -290,8 +290,7 @@ restart:
 	 * the suspension period.
 	 */
 	len = howmany(fs->fs_ncg, NBBY);
-	MALLOC(space, void *, len, M_DEVBUF, M_WAITOK);
-	bzero(space, len);
+	MALLOC(space, void *, len, M_DEVBUF, M_WAITOK|M_ZERO);
 	UFS_LOCK(ump);
 	fs->fs_active = space;
 	UFS_UNLOCK(ump);
@@ -525,10 +524,12 @@ loop:
 		    LK_CANRECURSE | LK_NOSHARE);
 		VI_LOCK(vp);
 		vp->v_vnlock = &sn->sn_lock;
+		mp_fixme("si_snapdata setting is racey.");
 		devvp->v_rdev->si_snapdata = sn;
 		xp = NULL;
 	}
-	vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
+	lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
+	    VI_MTX(vp), td);
 	transferlockers(&vp->v_lock, vp->v_vnlock);
 	lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
 	/*
@@ -1455,9 +1456,7 @@ ffs_snapremove(vp)
 	 * Clear copy-on-write flag if last snapshot.
 	 */
 	if (ip->i_nextsnap.tqe_prev != 0) {
-		VI_LOCK(devvp);
-		lockmgr(&vp->v_lock, LK_INTERLOCK | LK_EXCLUSIVE,
-		    VI_MTX(devvp), td);
+		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL, td);
 		VI_LOCK(devvp);
 		TAILQ_REMOVE(&sn->sn_head, ip, i_nextsnap);
 		ip->i_nextsnap.tqe_prev = 0;
@@ -1693,7 +1692,7 @@ retry:
 			}
 			DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(size));
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			VOP_UNLOCK(vp, 0, td);
+			lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
 			return (1);
 		}
 		if (lbn >= NDADDR)
@@ -1760,7 +1759,7 @@ retry:
 	 * will stay consistent.
 	 */
 	if (snapshot_locked)
-		VOP_UNLOCK(vp, 0, td);
+		lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
 	else
 		VI_UNLOCK(devvp);
 	return (error);
@@ -1851,7 +1850,8 @@ ffs_snapshot_mount(mp)
 			vp->v_vnlock = &sn->sn_lock;
 			devvp->v_rdev->si_snapdata = sn;
 		}
-		vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
+		lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
+		    VI_MTX(vp), td);
 		transferlockers(&vp->v_lock, vp->v_vnlock);
 		lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
 		/*
@@ -1939,6 +1939,9 @@ ffs_snapshot_unmount(mp)
 			VI_LOCK(devvp);
 		}
 	}
+	devvp->v_rdev->si_snapdata = NULL;
+	devvp->v_vflag &= ~VV_COPYONWRITE;
+	VI_UNLOCK(devvp);
 	if (sn->sn_blklist != NULL) {
 		FREE(sn->sn_blklist, M_UFSMNT);
 		sn->sn_blklist = NULL;
@@ -1947,9 +1950,6 @@ ffs_snapshot_unmount(mp)
 	lockdestroy(&sn->sn_lock);
 	free(sn, M_UFSMNT);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_unmount");
-	devvp->v_rdev->si_snapdata = NULL;
-	devvp->v_vflag &= ~VV_COPYONWRITE;
-	VI_UNLOCK(devvp);
 }
 
 /*
@@ -2121,7 +2121,7 @@ retry:
 			(void) ffs_syncvnode(vp, MNT_WAIT);
 	}
 	if (snapshot_locked)
-		VOP_UNLOCK(vp, 0, td);
+		lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
 	else
 		VI_UNLOCK(devvp);
 	return (error);
