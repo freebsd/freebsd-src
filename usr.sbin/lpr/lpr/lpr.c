@@ -92,7 +92,7 @@ static const char *jobname;	/* job name on header page */
 static int	 mailflg;	/* send mail */
 static int	 nact;		/* number of jobs to act on */
 static int	 ncopies = 1;	/* # of copies to make */
-static char	*person;	/* user name */
+static char	*lpr_username;  /* person sending the print job(s) */
 static int	 qflag;		/* q job, but don't exec daemon */
 static int	 rflag;		/* remove files upon completion */
 static int	 sflag;		/* symbolic link flag */
@@ -285,13 +285,13 @@ main(int argc, char *argv[])
 	if (Uflag) {
 		if (userid != 0 && userid != pp->daemon_user)
 			errx(1, "only privileged users may use the `-U' flag");
-		person = Uflag;
+		lpr_username = Uflag;		/* -U person doing 'lpr' */
 	} else {
-		person = getlogin();
-		if (userid != pp->daemon_user || person == 0) {
+		lpr_username = getlogin();	/* person doing 'lpr' */
+		if (userid != pp->daemon_user || lpr_username == 0) {
 			if ((pw = getpwuid(userid)) == NULL)
 				errx(1, "Who are you?");
-			person = pw->pw_name;
+			lpr_username = pw->pw_name;
 		}
 	}
 
@@ -303,7 +303,7 @@ main(int argc, char *argv[])
 			errx(1, "Restricted group specified incorrectly");
 		if (gptr->gr_gid != getgid()) {
 			while (*gptr->gr_mem != NULL) {
-				if ((strcmp(person, *gptr->gr_mem)) == 0)
+				if ((strcmp(lpr_username, *gptr->gr_mem)) == 0)
 					break;
 				gptr->gr_mem++;
 			}
@@ -327,7 +327,7 @@ main(int argc, char *argv[])
 	/* owned by daemon for protection */
 	seteuid(uid);
 	card('H', local_host);
-	card('P', person);
+	card('P', lpr_username);
 	card('C', class);
 	if (hdr && !pp->no_header) {
 		if (jobname == NULL) {
@@ -338,14 +338,14 @@ main(int argc, char *argv[])
 					   ? arg + 1 : argv[0]);
 		}
 		card('J', jobname);
-		card('L', person);
+		card('L', lpr_username);
 	}
 	if (format != 'p' && Zflag != 0)
 		card('Z', Zflag);
 	if (iflag)
 		card('I', itoa(indent));
 	if (mailflg)
-		card('M', person);
+		card('M', lpr_username);
 	if (format == 't' || format == 'n' || format == 'd')
 		for (i = 0; i < 4; i++)
 			if (fonts[i] != NULL)
