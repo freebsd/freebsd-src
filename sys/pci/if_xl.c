@@ -370,9 +370,7 @@ xl_mii_sync(sc)
 
 	for (i = 0; i < 32; i++) {
 		MII_SET(XL_MII_CLK);
-		DELAY(1);
 		MII_CLR(XL_MII_CLK);
-		DELAY(1);
 	}
 
 	return;
@@ -398,9 +396,7 @@ xl_mii_send(sc, bits, cnt)
                 } else {
 			MII_CLR(XL_MII_DATA);
                 }
-		DELAY(1);
 		MII_CLR(XL_MII_CLK);
-		DELAY(1);
 		MII_SET(XL_MII_CLK);
 	}
 }
@@ -450,18 +446,14 @@ xl_mii_readreg(sc, frame)
 
 	/* Idle bit */
 	MII_CLR((XL_MII_CLK|XL_MII_DATA));
-	DELAY(1);
 	MII_SET(XL_MII_CLK);
-	DELAY(1);
 
 	/* Turn off xmit. */
 	MII_CLR(XL_MII_DIR);
 
 	/* Check for ack */
 	MII_CLR(XL_MII_CLK);
-	DELAY(1);
 	MII_SET(XL_MII_CLK);
-	DELAY(1);
 	ack = CSR_READ_2(sc, XL_W4_PHY_MGMT) & XL_MII_DATA;
 
 	/*
@@ -471,31 +463,24 @@ xl_mii_readreg(sc, frame)
 	if (ack) {
 		for(i = 0; i < 16; i++) {
 			MII_CLR(XL_MII_CLK);
-			DELAY(1);
 			MII_SET(XL_MII_CLK);
-			DELAY(1);
 		}
 		goto fail;
 	}
 
 	for (i = 0x8000; i; i >>= 1) {
 		MII_CLR(XL_MII_CLK);
-		DELAY(1);
 		if (!ack) {
 			if (CSR_READ_2(sc, XL_W4_PHY_MGMT) & XL_MII_DATA)
 				frame->mii_data |= i;
-			DELAY(1);
 		}
 		MII_SET(XL_MII_CLK);
-		DELAY(1);
 	}
 
 fail:
 
 	MII_CLR(XL_MII_CLK);
-	DELAY(1);
 	MII_SET(XL_MII_CLK);
-	DELAY(1);
 
 	XL_UNLOCK(sc);
 
@@ -544,9 +529,7 @@ xl_mii_writereg(sc, frame)
 
 	/* Idle bit. */
 	MII_SET(XL_MII_CLK);
-	DELAY(1);
 	MII_CLR(XL_MII_CLK);
-	DELAY(1);
 
 	/*
 	 * Turn off xmit.
