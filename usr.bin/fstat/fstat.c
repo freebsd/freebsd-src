@@ -51,7 +51,6 @@ static const char rcsid[] =
 #include <sys/user.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
-#include <net/radix.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/domain.h>

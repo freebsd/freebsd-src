@@ -74,8 +74,6 @@
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>

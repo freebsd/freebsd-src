@@ -76,8 +76,6 @@
 #include <sys/namei.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
