@@ -35,6 +35,7 @@
 #include <sys/malloc.h> 
 #include <sys/unistd.h>
 #include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/selinfo.h>
 #include <sys/queue.h>
