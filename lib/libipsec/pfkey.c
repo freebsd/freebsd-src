@@ -1,4 +1,4 @@
-/*	$KAME: pfkey.c,v 1.39 2001/03/05 18:22:17 thorpej Exp $	*/
+/*	$KAME: pfkey.c,v 1.46 2003/08/26 03:37:06 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <stdio.h>
 
 #include "ipsec_strerror.h"
 #include "libpfkey.h"
@@ -706,11 +705,14 @@ pfkey_recv_register(so)
 	int error = -1;
 
 	/* receive message */
-	do {
+	for (;;) {
 		if ((newmsg = pfkey_recv(so)) == NULL)
 			return -1;
-	} while (newmsg->sadb_msg_type != SADB_REGISTER
-	    || newmsg->sadb_msg_pid != pid);
+		if (newmsg->sadb_msg_type == SADB_REGISTER &&
+		    newmsg->sadb_msg_pid == pid)
+			break;
+		free(newmsg);
+	}
 
 	/* check and fix */
 	newmsg->sadb_msg_len = PFKEY_UNUNIT64(newmsg->sadb_msg_len);
@@ -1540,7 +1542,7 @@ pfkey_send_x5(so, type, spid)
 		return -1;
 	}
 	memset(&xpl, 0, sizeof(xpl));
-	xpl.sadb_x_policy_len = PFKEY_UNUNIT64(sizeof(xpl));
+	xpl.sadb_x_policy_len = PFKEY_UNIT64(sizeof(xpl));
 	xpl.sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 	xpl.sadb_x_policy_id = spid;
 	memcpy(p, &xpl, sizeof(xpl));
