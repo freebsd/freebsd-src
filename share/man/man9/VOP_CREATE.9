@@ -88,7 +88,7 @@ flag is specified in
 .Sh LOCKS
 The directory,
 .Fa dvp
-should be locked on entry and will be unlocked and released on exit.
+will be locked on entry and must remain locked on return.
 If the call is successful, the new object will be returned locked,
 unless the call is
 .Xr VOP_MKNOD 9
