@@ -222,6 +222,10 @@ The kernel configuration file for a NoName kernel must contain:
 Note: Multia can be either Intel or Alpha CPU based. We assume Alpha based
       ones here for obvious reasons.
 
+Multia is a small desktop box intended as a sort of personal workstation.
+They come in a considerable number of variations, check closely what you
+get.
+
 Features:
 - 21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
 - memory bus: 64 bits 
@@ -245,11 +249,12 @@ Expansion:
 Multia has only one 32 bit PCI slot for expansion, and it is only 
 suitable for a small form factor PCI card too. In sacrificing the PCI slot
 space you can mount a 3.5" hard disk drive. Mounting stuff may have come
-with your Multia. 
+with your Multia. There are also models that do have the riser card, but
+lack the actual PCI connector.
 
 CPU:
 The CPU might or might not be socketed, check before considering CPU upgrade 
-hacks. 
+hacks. The low end Multia has a soldered-in CPU.
 
 Graphics: 
 It comes with a TGA based graphics on-board. Which is not suitable for
@@ -266,7 +271,10 @@ SCSI:
 In case you want to change the internal hard drive: the internal flat cable
 running from the PCI riser board to the 2.5" (!!) hard drive has a finer pitch
 than the standard SCSI flat cables. Otherwise it would not fit on the 2.5"
-drives. I recommend against trying to cram replacement hard disk inside. Use the
+drives. There are also riser cards that have a standard-pitch SCSI cable
+attached to it, which will fit an ordinary SCSI disk.
+
+I recommend against trying to cram a replacement hard disk inside. Use the
 external SCSI connector and put your disk in an external enclosure. Multias run
 hot enough as-is. In most cases you will have the external high density 
 50pin SCSI connector but some Multia models came without disk and may lack
@@ -311,7 +319,7 @@ Features:
   - MiataGL has a 21143 chip)
   the bulkhead can be 10/100 UTP, or 10 UTP/BNC.
 - 2x on-board [E]IDE based on:
-  - MX5: CMD 646
+  - MX5: CMD646
   - MiataGL: Cypress 82C693
 - 1x Ultra-Wide SCSI Qlogic 1040 [MiataGL only]
 - expansion: 2 64-bit PCI slots
@@ -370,10 +378,9 @@ bug. The SRM does not know about the ECO and will complain about unknown cards
 just like before. The same applies to the FreeBSD kernel by the way.
 
 EIDE:
-The Miata SRM can boot from IDE CDROM drives. It is also known to work for
-MiataGL with hard disks, so you can root FreeBSD from an IDE disk. DMA is
-not currently working so speed is not optimal. Boot-ability of EIDE on MX5 is
-currently unknown.
+The Miata SRM can boot from IDE CDROM drives. Harddisk boot is known to work for
+both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
+on MX5 are around 14 Mb/sec assuming a suitable drive.
 
 PCI-PCI bridge:
 The MiataGL has a faster PCI-PCI bridge chip on the PCI riser card than 
@@ -471,6 +478,11 @@ DEC3000/300 has 5Mbytes/sec SCSI on-board. This bus is used for both internal
 and external devices. DEC3000/500 has 2 SCSI buses. One is for internal 
 devices only, the other one is for external devices only.
 
+Expansion:
+The 3000/300 series has a half-speed TurboChannel compared to the other
+3000 machines. Some TC expansion cards have troubles with the half-speed
+bus. Caveat empor.
+
 ISDN interface:
 does not work on FreeBSD (to be honest I don't think there is any 
 operating system, including Tru64 Unix, that can use it). 
@@ -482,6 +494,33 @@ For 32Mbyte SIMMs to work on the DEC3000/300-class the presence detect
 bits/pins of the SIMM must correspond to what the machine expects. If they
 don't, the SIMM is 'seen' as a 8 Mbyte SIMM. 8 Mbyte and 32 Mbyte SIMMs can 
 be mixed, as long as the pairs themselves are identical.
+
+When you find yourself in need of fixing 32Mbyte SIMMs that lack correct
+presence bits the following info might be of use:
+
+There are four presence detection bits on PS/2 simms.  Two of       
+the bits indicate the access time.  The other two indicate the memory size.
+
+At one end of the simm there are two rows of four solder pads.  One
+row is connected to Vss (GND) and the other is connected to pins
+67 (PRD1), 68 (PRD2), 69 (PRD3), 70 (PRD4).                         
+
+If you bridge a pair of pads with a small resistor or a drop of  
+solder you ground that particular bit.
+
+PRD1    PRD2    mem. size
+---------------------------------------------
+GND     GND     4 or 64 Mbyte
+Open    GND     2 or 32 Mbyte
+GND     Open    1 or 16 Mbyte
+Open    Open    8 Mbyte
+
+PRD3    PRD4    access time
+-------------------------------------------------
+GND     GND     50 or 100 nsec
+Open    GND     80 nsec
+GND     Open    70 nsec
+Open    Open    60 nsec
 
 DEC3000/500-class can use 2, 4, 8, 16 and 32Mbyte 100pin SIMMs. 
 Note that the maximum memory size varies from system to system, 
@@ -629,7 +668,9 @@ Whether FreeBSD/alpha runs on this board is unknown. Please let me know if
 it does.
 
 Power:
-EB164 needs a power supply that supplies 3.3 Volts.
+EB164 needs a power supply that supplies 3.3 Volts. PC164 does not implement
+the PS_ON signal that ATX power supplies need to switch on. A simple switch
+pulling this signal to ground fixes this.
 
 For the EB164 class machines the kernel config file must contain:
         options         DEC_EB164
@@ -1075,3 +1116,4 @@ People who kindly helped me with creating this document:
 - Chuck Robey <chuckr@picnic.mat.net>
 - Mike Smith <msmith@FreeBSD.ORG>
 - Peter Jeremy <peter.jeremy@alcatel.com.au>
+- Dolf de Waal <l.j.de.waal@kader.hobby.nl>
