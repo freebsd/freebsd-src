@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id$
+ * $Id: uipc_domain.c,v 1.3 1994/08/02 07:43:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -76,6 +76,9 @@ domaininit()
 #endif
 #ifdef CCITT
 	ADDDOMAIN(ccitt);
+#endif
+#ifdef ISDN
+	ADDDOMAIN(isdn);
 #endif
 #include "imp.h"
 #if NIMP > 0
