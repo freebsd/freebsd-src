@@ -11,7 +11,7 @@ SRCS+=	call.c class.c cvt.c decl.c decl2.c errfn.c error.c except.c expr.c \
 	search.c semantics.c sig.c spew.c tree.c typeck.c typeck2.c xref.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED=yes
+NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/cp -I.
 
