@@ -484,7 +484,6 @@ sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 	 */
 	clkinfo.hz = hz;
 	clkinfo.tick = tick;
-	clkinfo.tickadj = tickadj;
 	clkinfo.profhz = profhz;
 	clkinfo.stathz = stathz ? stathz : hz;
 	return (sysctl_handle_opaque(oidp, &clkinfo, sizeof clkinfo, req));
