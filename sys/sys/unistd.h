@@ -59,6 +59,7 @@
 #define	_POSIX_CLOCK_SELECTION		-1
 #define	_POSIX_CPUTIME			-1
 #define	_POSIX_FSYNC			200112L
+#define	_POSIX_IPV6			0
 #define	_POSIX_JOB_CONTROL		1
 #define	_POSIX_MAPPED_FILES		200112L
 #define	_POSIX_MEMLOCK			-1
@@ -142,6 +143,7 @@
 #define	_PC_REC_MAX_XFER_SIZE	15
 #define	_PC_REC_MIN_XFER_SIZE	16
 #define	_PC_REC_XFER_ALIGN	17
+#define	_PC_SYMLINK_MAX		18
 #endif
 
 #if __BSD_VISIBLE

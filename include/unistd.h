@@ -260,6 +260,9 @@ typedef	__uid_t_	uid_t;
 #define	_SC_V6_ILP32_OFFBIG	104 /* user */
 #define	_SC_V6_LP64_OFF64	105 /* user */
 #define	_SC_V6_LPBIG_OFFBIG	106 /* user */
+#define	_SC_IPV6		118
+#define	_SC_RAW_SOCKETS		119
+#define	_SC_SYMLOOP_MAX		120
 #endif
 
 #if __XSI_VISIBLE
