@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.13.4.1 1996/01/31 12:06:48 davidg Exp $
+ * $Id: vm_kern.c,v 1.13.4.2 1996/05/26 18:35:22 davidg Exp $
  */
 
 /*
@@ -383,7 +383,9 @@ kmem_malloc(map, size, waitflag)
 		vm_object_lock(kmem_object);
 		m = vm_page_lookup(kmem_object, offset + i);
 		vm_object_unlock(kmem_object);
-		pmap_kenter(addr + i, VM_PAGE_TO_PHYS(m));
+		pmap_enter(vm_map_pmap(map), addr + i, VM_PAGE_TO_PHYS(m),
+		    VM_PROT_ALL, TRUE);
+		m->flags |= PG_MAPPED;
 	}
 	vm_map_unlock(map);
 
