@@ -1,6 +1,0 @@
-README file for directory ./xntpd of the NTP Version 3 distribution
-
-This directory contains the sources for the xntpd daemon for Unix. See
-the README and RELNOTES files in the parent directory for directions on
-how to make and install this program. The current version number of this
-program is in the version.c file.

@@ -1,7 +1,0 @@
-PROG=tbl
-MAN1=tbl.n
-XLIBS=$(LIBGROFF)
-OBJS=main.o table.o
-CCSRCS=main.cc table.cc
-HDRS=table.h
-NAMEPREFIX=$(g)

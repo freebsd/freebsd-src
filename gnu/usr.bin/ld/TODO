@@ -1,4 +1,0 @@
--	Make C++ shared libs work (properly resolve ctor and dtor lists)
--	Make -r and -X work together for PIC .o files.
-
--	Avoid duplicatating shared library specifications in link_objects
