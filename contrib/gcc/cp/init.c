@@ -1,6 +1,6 @@
 /* Handle initialization things in C++.
    Copyright (C) 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -176,6 +176,44 @@ initialize_vtbl_ptrs (addr)
 	    dfs_marked_real_bases_queue_p, type);
 }
 
+/* Types containing pointers to data members cannot be
+   zero-initialized with zeros, because the NULL value for such
+   pointers is -1.
+
+   TYPE is a type that requires such zero initialization.  The
+   returned value is the initializer.  */
+
+tree
+build_forced_zero_init (type)
+     tree type;
+{
+  tree init = NULL;
+
+  if (AGGREGATE_TYPE_P (type) && !TYPE_PTRMEMFUNC_P (type))
+    {
+      /* This is a default initialization of an aggregate, but not one of
+	 non-POD class type.  We cleverly notice that the initialization
+	 rules in such a case are the same as for initialization with an
+	 empty brace-initialization list.  */
+      init = build (CONSTRUCTOR, NULL_TREE, NULL_TREE, NULL_TREE);
+    }
+  else if (TREE_CODE (type) == REFERENCE_TYPE)
+    /*   --if T is a reference type, no initialization is performed.  */
+    return NULL_TREE;
+  else
+    {
+      init = integer_zero_node;
+      
+      if (TREE_CODE (type) == ENUMERAL_TYPE)
+        /* We must make enumeral types the right type. */
+        init = fold (build1 (NOP_EXPR, type, init));
+    }
+
+  init = digest_init (type, init, 0);
+
+  return init;
+}
+
 /* [dcl.init]:
 
   To default-initialize an object of type T means:
@@ -202,28 +240,8 @@ build_default_init (type)
        anything with a CONSTRUCTOR for arrays here, as that would imply
        copy-initialization.  */
     return NULL_TREE;
-  else if (AGGREGATE_TYPE_P (type) && !TYPE_PTRMEMFUNC_P (type))
-    {
-      /* This is a default initialization of an aggregate, but not one of
-	 non-POD class type.  We cleverly notice that the initialization
-	 rules in such a case are the same as for initialization with an
-	 empty brace-initialization list.  */
-      init = build (CONSTRUCTOR, NULL_TREE, NULL_TREE, NULL_TREE);
-    }
-  else if (TREE_CODE (type) == REFERENCE_TYPE)
-    /*   --if T is a reference type, no initialization is performed.  */
-    return NULL_TREE;
-  else
-    {
-      init = integer_zero_node;
-      
-      if (TREE_CODE (type) == ENUMERAL_TYPE)
-        /* We must make enumeral types the right type. */
-        init = fold (build1 (NOP_EXPR, type, init));
-    }
 
-  init = digest_init (type, init, 0);
-  return init;
+  return build_forced_zero_init (type);
 }
 
 /* Subroutine of emit_base_init.  */
@@ -1165,11 +1183,9 @@ build_aggr_init (exp, init, flags)
 	  return error_mark_node;
 	}
       if (cp_type_quals (type) != TYPE_UNQUALIFIED)
-	{
-	  TREE_TYPE (exp) = TYPE_MAIN_VARIANT (type);
-	  if (init)
-	    TREE_TYPE (init) = TYPE_MAIN_VARIANT (itype);
-	}
+	TREE_TYPE (exp) = TYPE_MAIN_VARIANT (type);
+      if (itype && cp_type_quals (itype) != TYPE_UNQUALIFIED)
+	TREE_TYPE (init) = TYPE_MAIN_VARIANT (itype);
       stmt_expr = build_vec_init (exp, init,
 				  init && same_type_p (TREE_TYPE (init),
 						       TREE_TYPE (exp)));
@@ -2575,6 +2591,10 @@ build_vec_delete_1 (base, maxindex, type, auto_delete_vec, use_global_delete)
      This is also the containing expression returned by this function.  */
   tree controller = NULL_TREE;
 
+  /* We should only have 1-D arrays here.  */
+  if (TREE_CODE (type) == ARRAY_TYPE)
+    abort ();
+
   if (! IS_AGGR_TYPE (type) || TYPE_HAS_TRIVIAL_DESTRUCTOR (type))
     {
       loop = integer_zero_node;
@@ -2988,12 +3008,20 @@ build_vec_init (base, init, from_array)
       && from_array != 2)
     {
       tree e;
+      tree m = cp_build_binary_op (MINUS_EXPR, maxindex, iterator);
+
+      /* Flatten multi-dimensional array since build_vec_delete only
+	 expects one-dimensional array.  */
+      if (TREE_CODE (type) == ARRAY_TYPE)
+	{
+	  m = cp_build_binary_op (MULT_EXPR, m,
+				  array_type_nelts_total (type));
+	  type = strip_array_types (type);
+	}
 
       finish_compound_stmt (/*has_no_scope=*/1, try_body);
       finish_cleanup_try_block (try_block);
-      e = build_vec_delete_1 (rval,
-			      cp_build_binary_op (MINUS_EXPR, maxindex, 
-						  iterator),
+      e = build_vec_delete_1 (rval, m,
 			      type,
 			      sfk_base_destructor,
 			      /*use_global_delete=*/0);

@@ -417,16 +417,17 @@ expand_builtin_init_dwarf_reg_sizes (address)
   rtx addr = expand_expr (address, NULL_RTX, VOIDmode, 0);
   rtx mem = gen_rtx_MEM (BLKmode, addr);
 
-  for (i = 0; i < DWARF_FRAME_REGISTERS; i++)
-    {
-      HOST_WIDE_INT offset = DWARF_FRAME_REGNUM (i) * GET_MODE_SIZE (mode);
-      HOST_WIDE_INT size = GET_MODE_SIZE (reg_raw_mode[i]);
+  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+    if (DWARF_FRAME_REGNUM (i) < DWARF_FRAME_REGISTERS)
+      {
+	HOST_WIDE_INT offset = DWARF_FRAME_REGNUM (i) * GET_MODE_SIZE (mode);
+	HOST_WIDE_INT size = GET_MODE_SIZE (reg_raw_mode[i]);
 
-      if (offset < 0)
-	continue;
+	if (offset < 0)
+	  continue;
 
-      emit_move_insn (adjust_address (mem, mode, offset), GEN_INT (size));
-    }
+	emit_move_insn (adjust_address (mem, mode, offset), GEN_INT (size));
+      }
 }
 
 /* Convert a DWARF call frame info. operation to its string name */
@@ -1943,7 +1944,8 @@ output_call_frame_info (for_eh)
       fde = &fde_table[i];
 
       /* Don't emit EH unwind info for leaf functions that don't need it.  */
-      if (for_eh && fde->nothrow && ! fde->uses_eh_lsda)
+      if (!flag_asynchronous_unwind_tables && for_eh && fde->nothrow
+	  && !  fde->uses_eh_lsda)
 	continue;
 
       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, FDE_LABEL, for_eh + i * 2);
@@ -7571,11 +7573,11 @@ modified_type_die (type, is_const_type, is_volatile_type, context_die)
 	}
 
       /* We want to equate the qualified type to the die below.  */
-      if (qualified_type)
-	type = qualified_type;
+      type = qualified_type;
     }
 
-  equate_type_number_to_die (type, mod_type_die);
+  if (type)
+    equate_type_number_to_die (type, mod_type_die);
   if (item_type)
     /* We must do this after the equate_type_number_to_die call, in case
        this is a recursive type.  This ensures that the modified_type_die
@@ -8941,21 +8943,18 @@ rtl_for_decl_location (decl)
 		  == strlen (TREE_STRING_POINTER (init)) + 1))
 	    rtl = gen_rtx_CONST_STRING (VOIDmode, TREE_STRING_POINTER (init));
 	}
-
-#if 0
-      /* We mustn't actually emit anything here, as we might not get a
-         chance to emit any symbols we refer to.  For the release, don't
-         try to get this right.  */
-      if (rtl == NULL)
+      /* If the initializer is something that we know will expand into an
+	 immediate RTL constant, expand it now.  Expanding anything else
+	 tends to produce unresolved symbols; see debug/5770 and c++/6381.  */
+      else if (TREE_CODE (DECL_INITIAL (decl)) == INTEGER_CST
+	       || TREE_CODE (DECL_INITIAL (decl)) == REAL_CST)
 	{
 	  rtl = expand_expr (DECL_INITIAL (decl), NULL_RTX, VOIDmode,
 			     EXPAND_INITIALIZER);
-	  /* If expand_expr returned a MEM, we cannot use it, since
-	     it won't be output, leading to unresolved symbol.  */
+	  /* If expand_expr returns a MEM, it wasn't immediate.  */
 	  if (rtl && GET_CODE (rtl) == MEM)
-	    rtl = NULL;
+	    abort ();
 	}
-#endif
     }
 
 #ifdef ASM_SIMPLIFY_DWARF_ADDR

@@ -134,6 +134,7 @@ static tree build_template_decl PARAMS ((tree, tree));
 static int mark_template_parm PARAMS ((tree, void *));
 static tree tsubst_friend_function PARAMS ((tree, tree));
 static tree tsubst_friend_class PARAMS ((tree, tree));
+static int can_complete_type_without_circularity PARAMS ((tree));
 static tree get_bindings_real PARAMS ((tree, tree, tree, int, int, int));
 static int template_decl_level PARAMS ((tree));
 static tree maybe_get_template_decl_from_type_decl PARAMS ((tree));
@@ -3942,10 +3943,16 @@ lookup_template_class (d1, arglist, in_decl, context, entering_scope, complain)
 	 The template parameter level of T and U are one level larger than 
 	 of TT.  To proper process the default argument of U, say when an 
 	 instantiation `TT<int>' is seen, we need to build the full
-	 arguments containing {int} as the innermost level.  Outer levels
-	 can be obtained from `current_template_args ()'.  */
+	 arguments containing {int} as the innermost level.  Outer levels,
+	 available when not appearing as default template argument, can be
+	 obtained from `current_template_args ()'.
 
-      if (processing_template_decl)
+	 Suppose that TT is later substituted with std::vector.  The above
+	 instantiation is `TT<int, std::allocator<T> >' with TT at
+	 level 1, and T at level 2, while the template arguments at level 1
+	 becomes {std::vector} and the inner level 2 is {int}.  */
+
+      if (current_template_parms)
 	arglist = add_to_template_args (current_template_args (), arglist);
 
       arglist2 = coerce_template_parms (parmlist, arglist, template,
@@ -4805,7 +4812,7 @@ tsubst_friend_class (friend_tmpl, args)
       if (TREE_CODE (context) == NAMESPACE_DECL)
 	push_nested_namespace (context);
       else
-	push_nested_class (context, 2);
+	push_nested_class (tsubst (context, args, tf_none, NULL_TREE), 2);
     }
 
   /* First, we look for a class template.  */
@@ -4875,6 +4882,25 @@ tsubst_friend_class (friend_tmpl, args)
     }
 
   return friend_type;
+}
+
+/* Returns zero if TYPE cannot be completed later due to circularity.
+   Otherwise returns one.  */
+
+static int
+can_complete_type_without_circularity (type)
+     tree type;
+{
+  if (type == NULL_TREE || type == error_mark_node)
+    return 0;
+  else if (COMPLETE_TYPE_P (type))
+    return 1;
+  else if (TREE_CODE (type) == ARRAY_TYPE && TYPE_DOMAIN (type))
+    return can_complete_type_without_circularity (TREE_TYPE (type));
+  else if (CLASS_TYPE_P (type) && TYPE_BEING_DEFINED (TYPE_MAIN_VARIANT (type)))
+    return 0;
+  else
+    return 1;
 }
 
 tree
@@ -5197,7 +5223,20 @@ instantiate_class_template (type)
 	    if (DECL_INITIALIZED_IN_CLASS_P (r))
 	      check_static_variable_definition (r, TREE_TYPE (r));
 	  }
-	
+	else if (TREE_CODE (r) == FIELD_DECL)
+	  {
+	    /* Determine whether R has a valid type and can be
+	       completed later.  If R is invalid, then it is replaced
+	       by error_mark_node so that it will not be added to
+	       TYPE_FIELDS.  */
+	    tree rtype = TREE_TYPE (r);
+	    if (!can_complete_type_without_circularity (rtype))
+	      {
+		incomplete_type_error (r, rtype);
+		r = error_mark_node;
+	      }
+	  }
+
 	/* R will have a TREE_CHAIN if and only if it has already been
 	   processed by finish_member_declaration.  This can happen
 	   if, for example, it is a TYPE_DECL for a class-scoped
@@ -5278,6 +5317,8 @@ instantiate_class_template (type)
 	--processing_template_decl;
     }
 
+  /* Now that TYPE_FIELDS and TYPE_METHODS are set up.  We can
+     instantiate templates used by this class.  */
   for (t = TYPE_FIELDS (type); t; t = TREE_CHAIN (t))
     if (TREE_CODE (t) == FIELD_DECL)
       {
@@ -7487,6 +7528,11 @@ tsubst_expr (t, args, complain, in_decl)
       finish_label_stmt (DECL_NAME (LABEL_STMT_LABEL (t)));
       break;
 
+    case FILE_STMT:
+      input_filename = FILE_STMT_FILENAME (t);
+      add_stmt (build_nt (FILE_STMT, FILE_STMT_FILENAME_NODE (t)));
+      break;
+
     case GOTO_STMT:
       prep_stmt (t);
       tmp = GOTO_DESTINATION (t);
@@ -7502,12 +7548,13 @@ tsubst_expr (t, args, complain, in_decl)
 
     case ASM_STMT:
       prep_stmt (t);
-      finish_asm_stmt (ASM_CV_QUAL (t),
-		       tsubst_expr (ASM_STRING (t), args, complain, in_decl),
-		       tsubst_expr (ASM_OUTPUTS (t), args, complain, in_decl),
-		       tsubst_expr (ASM_INPUTS (t), args, complain, in_decl), 
-		       tsubst_expr (ASM_CLOBBERS (t), args, complain,
-				    in_decl));
+      tmp = finish_asm_stmt
+	(ASM_CV_QUAL (t),
+	 tsubst_expr (ASM_STRING (t), args, complain, in_decl),
+	 tsubst_expr (ASM_OUTPUTS (t), args, complain, in_decl),
+	 tsubst_expr (ASM_INPUTS (t), args, complain, in_decl), 
+	 tsubst_expr (ASM_CLOBBERS (t), args, complain, in_decl));
+      ASM_INPUT_P (tmp) = ASM_INPUT_P (t);
       break;
 
     case TRY_BLOCK:
@@ -9501,12 +9548,16 @@ do_decl_instantiation (declspecs, declarator, storage)
 
   if (DECL_TEMPLATE_SPECIALIZATION (result))
     {
-      /* [temp.spec]
+      /* DR 259 [temp.spec].
 
-	 No program shall both explicitly instantiate and explicitly
-	 specialize a template.  */
-      pedwarn ("explicit instantiation of `%#D' after", result);
-      cp_pedwarn_at ("explicit specialization here", result);
+	 Both an explicit instantiation and a declaration of an explicit
+	 specialization shall not appear in a program unless the explicit
+	 instantiation follows a declaration of the explicit specialization.
+
+	 For a given set of template parameters, if an explicit
+	 instantiation of a template appears after a declaration of an
+	 explicit specialization for that template, the explicit
+	 instantiation has no effect.  */
       return;
     }
   else if (DECL_EXPLICIT_INSTANTIATION (result))
@@ -9636,15 +9687,16 @@ do_type_instantiation (t, storage, complain)
 
   if (CLASSTYPE_TEMPLATE_SPECIALIZATION (t))
     {
-      /* [temp.spec]
+      /* DR 259 [temp.spec].
 
-	 No program shall both explicitly instantiate and explicitly
-	 specialize a template.  */
-      if (complain & tf_error)
-	{
-	  error ("explicit instantiation of `%#T' after", t);
-	  cp_error_at ("explicit specialization here", t);
-	}
+	 Both an explicit instantiation and a declaration of an explicit
+	 specialization shall not appear in a program unless the explicit
+	 instantiation follows a declaration of the explicit specialization.
+
+	 For a given set of template parameters, if an explicit
+	 instantiation of a template appears after a declaration of an
+	 explicit specialization for that template, the explicit
+	 instantiation has no effect.  */
       return;
     }
   else if (CLASSTYPE_EXPLICIT_INSTANTIATION (t))
