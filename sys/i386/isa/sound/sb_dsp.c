@@ -52,7 +52,6 @@ int             sb_dsp_highspeed = 0;
 static int      major = 1, minor = 0;	/* DSP version */
 static int      dsp_stereo = 0;
 static int      dsp_current_speed = DSP_DEFAULT_SPEED;
-static int      user_speed = DSP_DEFAULT_SPEED;
 static int      sb16 = 0;
 static int      irq_verified = 0;
 
@@ -257,8 +256,6 @@ dsp_speed (int speed)
       speed = 22050;
     }
 
-  user_speed = speed;
-
   if (dsp_stereo)
     speed *= 2;
 
@@ -300,7 +297,7 @@ dsp_speed (int speed)
     speed /= 2;
 
   dsp_current_speed = speed;
-  return user_speed;
+  return speed;
 }
 
 static int
@@ -435,7 +432,7 @@ sb_dsp_prepare_for_input (int dev, int bsize, int bcount)
       else
 	sb_dsp_command (0xa0);
 
-      dsp_speed (user_speed);    /* Speed must be recalculated if #channels
+      dsp_speed (dsp_current_speed);	/* Speed must be recalculated if #channels
 					   * changes */
     }
   return 0;
@@ -451,7 +448,7 @@ sb_dsp_prepare_for_output (int dev, int bsize, int bcount)
   if (major == 3)		/* SB Pro */
     {
       sb_mixer_set_stereo (dsp_stereo);
-      dsp_speed (user_speed);    /* Speed must be recalculated if #channels
+      dsp_speed (dsp_current_speed);	/* Speed must be recalculated if #channels
 					   * changes */
     }
 #endif
@@ -565,8 +562,8 @@ sb_dsp_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 
     case SOUND_PCM_READ_RATE:
       if (local)
-	return user_speed;
-      return IOCTL_OUT (arg, user_speed);
+	return dsp_current_speed;
+      return IOCTL_OUT (arg, dsp_current_speed);
       break;
 
     case SOUND_PCM_WRITE_CHANNELS:

@@ -73,11 +73,12 @@ get_time()
 {
 extern struct timeval time;
 struct timeval timecopy;
-int x = splclock();
- 
+int x;
+
+   x = splclock();
    timecopy = time;
    splx(x);
-   return ((unsigned long)timecopy.tv_usec*HZ)/1000000 +
+   return timecopy.tv_usec/(1000000/HZ) +
 	  (unsigned long)timecopy.tv_sec*HZ;
 }
  
