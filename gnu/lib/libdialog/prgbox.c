@@ -130,7 +130,7 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
     for (i = 0; i < width-2; i++)
     waddch(dialog, ' ');
     display_helpline(dialog, height-1, width);
-    print_button(dialog, "  OK  ", height-2, width/2-4, TRUE);
+    print_button(dialog, "  OK  ", height-2, width/2-6, TRUE);
     wrefresh(dialog);
     while (key != ESC && key != '\n' && key != ' ' && key != '\r')
       key = wgetch(dialog);
