@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.15 1994/08/18 05:09:21 davidg Exp $
+ *	$Id: clock.c,v 1.16 1994/08/18 22:34:50 wollman Exp $
  */
 
 /*
@@ -58,10 +58,12 @@
 #define	TIMER_FREQ	1193182	/* XXX - should be in isa.h */
 #endif
 #define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
+#define	LEAPYEAR(y) (!((y)%4) && ((y)%100) || !((y)%400))
 
 static 	int beeping;
 int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
 u_int 	timer0_prescale;
+int	adjkerntz = 0;	/* offset from CMOS clock */
 static 	char timer0_state = 0, timer2_state = 0;
 static 	char timer0_reprogram = 0;
 static 	void (*timer_func)() = hardclock;
@@ -455,7 +457,7 @@ inittodr(time_t base)
 	if (sec < 1970)
 		sec += 100;
 
-	leap = !(sec % 4); sec = ytos(sec); 			/* year    */
+	leap = LEAPYEAR(sec); sec = ytos(sec);			/* year	   */
 	yd = mtos(bcd(rtcin(RTC_MONTH)),leap); sec+=yd;		/* month   */
 	t = (bcd(rtcin(RTC_DAY))-1) * 24*60*60; sec+=t; yd+=t;	/* date    */
 	day_week = rtcin(RTC_WDAY);				/* day     */
