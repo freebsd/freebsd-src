@@ -415,7 +415,7 @@ esac
 
 case ${sendmail_enable} in
 [Yy][Ee][Ss])
-	if [ -r /etc/sendmail.cf ]; then
+	if [ -r /etc/mail/sendmail.cf ]; then
 		echo -n ' sendmail';	/usr/sbin/sendmail ${sendmail_flags}
 	fi
 	;;
