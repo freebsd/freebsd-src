@@ -37,12 +37,10 @@ acpi_machdep_init(device_t dev)
 {
 	struct	acpi_softc *sc;
 
-        if ((sc = device_get_softc(dev)) == NULL) {
+        if ((sc = device_get_softc(dev)) == NULL)
                 return (ENXIO);
-        }
 
 	acpi_install_wakeup_handler(sc);
 
 	return (0);
 }
-

@@ -35,7 +35,6 @@
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-
 	return (0);
 }
 
@@ -43,4 +42,3 @@ void
 acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
 }
-

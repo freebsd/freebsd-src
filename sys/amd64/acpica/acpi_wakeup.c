@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-
 	return (0);
 }
 
