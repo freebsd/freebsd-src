@@ -244,7 +244,7 @@ configAnonFTP(dialogMenuItem *self __unused)
 		 "FTP server, if FTP service is enabled.  Anonymous users are\n"
 		 "restricted to a specific subset of the file system, and the default\n"
 		 "configuration provides a drop-box incoming directory to which uploads\n"
-		 "are permitted.  You must seperately enable both inetd(8), and enable\n"
+		 "are permitted.  You must separately enable both inetd(8), and enable\n"
 		 "ftpd(8) in inetd.conf(5) for FTP services to be available.  If you\n"
 		 "did not do so earlier, you will have the opportunity to enable inetd(8)\n"
 		 "again later.\n\n"
