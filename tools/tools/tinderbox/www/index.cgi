@@ -68,8 +68,10 @@ MAIN:{
 	$| = 1;
 	print "Content-Type: text/html\n\n";
     } else {
-	my $fn = $0;
-	$fn =~ s/cgi$/html/;
+	my $fn = "index.html";
+	if ($0 =~ m|^(/[\w/._-]+)/[^/]+$|) {
+	    $fn = "$1/$fn";
+	}
 	open(STDOUT, ">", $fn)
 	    or die("index.html: $!\n");
     }
