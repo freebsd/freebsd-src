@@ -280,7 +280,7 @@ umountfs(name, typelist)
 		memset(&saddr, 0, sizeof(saddr));
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = 0;
-		memmove(&saddr.sin_addr, hp->h_addr, hp->h_length);
+		memmove(&saddr.sin_addr, hp->h_addr, MIN(hp->h_length, sizeof(saddr.sin_addr)));
 		pertry.tv_sec = 3;
 		pertry.tv_usec = 0;
 		so = RPC_ANYSOCK;
