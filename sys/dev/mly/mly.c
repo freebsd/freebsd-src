@@ -121,6 +121,7 @@ static void	mly_print_packet(struct mly_command *mc);
 static void	mly_panic(struct mly_softc *sc, char *reason);
 #endif
 void		mly_print_controller(int controller);
+static int	mly_timeout(struct mly_softc *sc);
 
 
 static d_open_t		mly_user_open;
@@ -129,6 +130,7 @@ static d_ioctl_t	mly_user_ioctl;
 static int	mly_user_command(struct mly_softc *sc, struct mly_user_command *uc);
 static int	mly_user_health(struct mly_softc *sc, struct mly_user_health *uh);
 
+#define MLY_CMD_TIMEOUT		20
 
 static device_method_t mly_methods[] = {
     /* Device interface */
@@ -329,6 +331,10 @@ mly_attach(device_t dev)
 
     /* enable interrupts now */
     MLY_UNMASK_INTERRUPTS(sc);
+
+#ifdef MLY_DEBUG
+    timeout((timeout_t *)mly_timeout, sc, MLY_CMD_TIMEOUT * hz);
+#endif
 
  out:
     if (error != 0)
@@ -1473,6 +1479,10 @@ mly_start(struct mly_command *mc)
     mly_map_command(mc);
     mc->mc_packet->generic.command_id = mc->mc_slot;
 
+#ifdef MLY_DEBUG
+    mc->mc_timestamp = time_second;
+#endif
+
     s = splcam();
 
     /*
@@ -2173,6 +2183,7 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     struct mly_command_scsi_small	*ss;
     int					bus, target;
     int					error;
+    int					s;
 
     bus = cam_sim_bus(sim);
     target = csio->ccb_h.target_id;
@@ -2231,8 +2242,11 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      * Get a command, or push the ccb back to CAM and freeze the queue.
      */
     if ((error = mly_alloc_command(sc, &mc))) {
+	s = splcam();
 	xpt_freeze_simq(sim, 1);
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
+	sc->mly_qfrzn_cnt++;
+	splx(s);
 	return(error);
     }
     
@@ -2276,8 +2290,11 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 
     /* give the command to the controller */
     if ((error = mly_start(mc))) {
+	s = splcam();
 	xpt_freeze_simq(sim, 1);
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
+	sc->mly_qfrzn_cnt++;
+	splx(s);
 	return(error);
     }
 
@@ -2309,6 +2326,7 @@ mly_cam_complete(struct mly_command *mc)
     struct mly_btl		*btl;
     u_int8_t			cmd;
     int				bus, target;
+    int				s;
 
     debug_called(2);
 
@@ -2360,6 +2378,14 @@ mly_cam_complete(struct mly_command *mc)
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
 	break;
     }
+
+    s = splcam();
+    if (sc->mly_qfrzn_cnt) {
+	csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+	sc->mly_qfrzn_cnt--;
+    }
+    splx(s);
+
     xpt_done((union ccb *)csio);
     mly_release_command(mc);
 }
@@ -2944,4 +2970,24 @@ mly_user_health(struct mly_softc *sc, struct mly_user_health *uh)
     error = copyout(&sc->mly_mmbox->mmm_health.status, uh->HealthStatusBuffer, 
 		    sizeof(uh->HealthStatusBuffer));
     return(error);
+}
+
+static int
+mly_timeout(struct mly_softc *sc)
+{
+	struct mly_command *mc;
+	int deadline;
+
+	deadline = time_second - MLY_CMD_TIMEOUT;
+	TAILQ_FOREACH(mc, &sc->mly_busy, mc_link) {
+		if ((mc->mc_timestamp < deadline)) {
+			device_printf(sc->mly_dev,
+			    "COMMAND %p TIMEOUT AFTER %d SECONDS\n", mc,
+			    (int)(time_second - mc->mc_timestamp));
+		}
+	}
+
+	timeout((timeout_t *)mly_timeout, sc, MLY_CMD_TIMEOUT * hz);
+
+	return (0);
 }
