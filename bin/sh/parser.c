@@ -1457,7 +1457,7 @@ noexpand(text)
 			continue;
 		if (c == CTLESC)
 			p++;
-		else if (BASESYNTAX[c] == CCTL)
+		else if (BASESYNTAX[(int)c] == CCTL)
 			return 0;
 	}
 	return 1;
