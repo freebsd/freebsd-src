@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
@@ -63,6 +64,7 @@ static int argtoi __P((int flag, char *req, char *str, int base));
 static int docheck __P((struct fstab *fsp));
 static int checkfilesys __P((char *filesys, char *mntpt, long auxdata,
 		int child));
+static struct statfs *getmntpt __P((const char *));
 int main __P((int argc, char *argv[]));
 
 int
@@ -201,7 +203,8 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	ufs_daddr_t n_ffree, n_bfree;
 	struct dups *dp;
 	struct zlncnt *zlnp;
-	int cylno, flags;
+	struct statfs *mntbuf;
+	int cylno;
 
 	if (preen && child)
 		(void)signal(SIGQUIT, voidquit);
@@ -223,6 +226,12 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	}
 
 	/*
+	 * get the mount point information of the filesystem, if
+	 * it is available.
+	 */
+	mntbuf = getmntpt(filesys);
+	
+	/*
 	 * Cleared if any questions answered no. Used to decide if
 	 * the superblock should be marked clean.
 	 */
@@ -232,7 +241,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	 */
 	if (preen == 0) {
 		printf("** Last Mounted on %s\n", sblock.fs_fsmnt);
-		if (hotroot)
+		if (mntbuf != NULL && mntbuf->f_flags & MNT_ROOTFS)
 			printf("** Root file system\n");
 		printf("** Phase 1 - Check Blocks and Sizes\n");
 	}
@@ -326,17 +335,10 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	}
 	if (rerun)
 		resolved = 0;
-	flags = 0;
-	if (hotroot) {
-		struct statfs stfs_buf;
-		/*
-		 * Check to see if root is mounted read-write.
-		 */
-		if (statfs("/", &stfs_buf) == 0)
-			flags = stfs_buf.f_flags;
-		if ((flags & MNT_RDONLY) == 0)
-			resolved = 0;
-	}
+
+	/* Check to see if the filesystem if mounted read-write */
+	if (mntbuf != NULL && (mntbuf->f_flags & MNT_RDONLY) == 0)
+		resolved = 0;
 	ckfini(resolved);
 
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
@@ -348,22 +350,24 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
-	if (hotroot) {
+
+	/*
+	 * Always do a mount update if the current filesystem
+	 * is mounted read-only.
+	 */
+	if (mntbuf != NULL && mntbuf->f_flags & MNT_RDONLY) {
 		struct ufs_args args;
 		int ret;
-		/*
-		 * We modified the root.  Do a mount update on
-		 * it, unless it is read-write, so we can continue.
-		 */
-		if (flags & MNT_RDONLY) {
-			args.fspec = 0;
-			args.export.ex_flags = 0;
-			args.export.ex_root = 0;
-			flags |= MNT_UPDATE | MNT_RELOAD;
-			ret = mount("ufs", "/", flags, &args);
-			if (ret == 0)
-				return (0);
-		}
+
+		args.fspec = 0;
+		args.export.ex_flags = 0;
+		args.export.ex_root = 0;
+		mntbuf->f_flags |= MNT_UPDATE | MNT_RELOAD;
+		ret = mount("ufs", mntbuf->f_mntonname , mntbuf->f_flags, &args);
+		if (ret < 0)
+			perror("mount");
+		if (ret == 0)
+			return 0;
 		if (!fsmodified)
 			return (0);
 		if (!preen)
@@ -372,4 +376,36 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		return (4);
 	}
 	return (0);
+}
+
+/*
+ * get the directory the device is mounted on.
+ */
+static struct statfs *
+getmntpt(name)
+	const char *name;
+{
+	struct statfs *mntbuf;
+	struct stat devstat, mntdevstat;
+	char device[MAXPATHLEN];
+	int i, mntsize;
+
+	if (realpath(name, device) == NULL)
+		return (NULL);
+
+	if (stat(device, &devstat) != 0 ||
+	    !(S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode)))
+		return (NULL);
+
+	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	for (i = 0; i < mntsize; i++) {
+		if (realpath(mntbuf[i].f_mntfromname, device) == NULL ||
+		    stat(device, &mntdevstat) != 0 ||
+		    !(S_ISCHR(mntdevstat.st_mode) ||
+		      S_ISBLK(mntdevstat.st_mode)))
+			continue;
+		if (mntdevstat.st_rdev == devstat.st_rdev)
+			return (&mntbuf[i]);
+	}
+	return (NULL);
 }
