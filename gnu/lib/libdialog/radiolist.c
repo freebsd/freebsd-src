@@ -78,6 +78,10 @@ int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, in
 	width = MAX(width,check_x+4)+4;
   }
 
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;

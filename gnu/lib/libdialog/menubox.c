@@ -60,6 +60,10 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 	width = MAX(width,tag_x+4)+4;
   }
 
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
