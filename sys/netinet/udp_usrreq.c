@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.3 1994/08/02 07:49:24 davidg Exp $
+ * $Id: udp_usrreq.c,v 1.4 1994/10/02 17:48:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,6 +65,9 @@ int	udpcksum = 1;
 #else
 int	udpcksum = 0;		/* XXX */
 #endif
+
+struct	inpcb udb;		/* from udp_var.h */
+struct	udpstat udpstat;	/* from udp_var.h */
 
 struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 struct	inpcb *udp_last_inpcb = &udb;
@@ -637,6 +640,15 @@ udp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	switch (name[0]) {
 	case UDPCTL_CHECKSUM:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &udpcksum));
+	case UDPCTL_STATS:
+		return (sysctl_rdstruct(oldp, oldlenp, newp, &udpstat,
+					sizeof udpstat));
+	case UDPCTL_MAXDGRAM:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+				   (int *)&udp_sendspace)); /* XXX */
+	case UDPCTL_RECVSPACE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+				   (int *)&udp_recvspace)); /* XXX */
 	default:
 		return (ENOPROTOOPT);
 	}

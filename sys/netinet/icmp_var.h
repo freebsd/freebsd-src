@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)icmp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: icmp_var.h,v 1.2 1994/08/02 07:47:56 davidg Exp $
+ * $Id: icmp_var.h,v 1.3 1994/08/21 05:27:23 paul Exp $
  */
 
 #ifndef _NETINET_ICMP_VAR_H_
@@ -60,15 +60,17 @@ struct	icmpstat {
  * Names for ICMP sysctl objects
  */
 #define	ICMPCTL_MASKREPL	1	/* allow replies to netmask requests */
-#define ICMPCTL_MAXID		2
+#define	ICMPCTL_STATS		2	/* statistics (read-only) */
+#define ICMPCTL_MAXID		3
 
 #define ICMPCTL_NAMES { \
 	{ 0, 0 }, \
 	{ "maskrepl", CTLTYPE_INT }, \
+	{ "stats", CTLTYPE_STRUCT }, \
 }
 
 #ifdef KERNEL
-struct	icmpstat icmpstat;
+extern struct	icmpstat icmpstat;
 #endif
 
 #endif

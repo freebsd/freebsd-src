@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- * $Id: tcp_usrreq.c,v 1.6 1994/12/15 20:39:34 wollman Exp $
+ * $Id: tcp_usrreq.c,v 1.7 1995/02/09 23:13:27 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -590,13 +590,8 @@ tcp_ctloutput(op, so, level, optname, mp)
  * sizes, respectively.  These are obsolescent (this information should
  * be set by the route).
  */
-#ifdef TCP_SMALLSPACE
-u_long	tcp_sendspace = 1024*4;
-u_long	tcp_recvspace = 1024*4;
-#else
 u_long	tcp_sendspace = 1024*16;
 u_long	tcp_recvspace = 1024*16;
-#endif
 
 /*
  * Attach TCP protocol to socket, allocating
@@ -721,11 +716,12 @@ tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	void *newp;
 	size_t newlen;
 {
-	extern	int tcp_do_rfc1323;
+	extern	int tcp_do_rfc1323; /* XXX */
 #ifdef TTCP
-	extern	int tcp_do_rfc1644;
+	extern	int tcp_do_rfc1644; /* XXX */
 #endif
-	extern	int tcp_mssdflt;
+	extern	int tcp_mssdflt; /* XXX */
+	extern	int tcp_rttdflt; /* XXX */
 
 	/* All sysctl names at this level are terminal. */
 	if (namelen != 1)
@@ -743,6 +739,23 @@ tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	case TCPCTL_MSSDFLT:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,
 		    &tcp_mssdflt));
+	case TCPCTL_STATS:
+		return (sysctl_rdstruct(oldp, oldlenp, newp, &tcpstat,
+					sizeof tcpstat));
+	case TCPCTL_RTTDFLT:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &tcp_rttdflt));
+	case TCPCTL_KEEPIDLE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+				   &tcp_keepidle));
+	case TCPCTL_KEEPINTVL:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+				   &tcp_keepintvl));
+	case TCPCTL_SENDSPACE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+				   (int *)&tcp_sendspace)); /* XXX */
+	case TCPCTL_RECVSPACE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+				   (int *)&tcp_recvspace)); /* XXX */
 	default:
 		return (ENOPROTOOPT);
 	}
