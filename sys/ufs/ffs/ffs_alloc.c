@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.56 1999/01/07 16:14:16 bde Exp $
+ * $Id: ffs_alloc.c,v 1.57 1999/05/06 18:13:11 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -1465,8 +1465,8 @@ ffs_vfree( pvp, ino, mode)
 	pip = VTOI(pvp);
 	fs = pip->i_fs;
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
-		panic("ffs_vfree: range: dev = 0x%x, ino = %d, fs = %s",
-		    pip->i_dev, ino, fs->fs_fsmnt);
+		panic("ffs_vfree: range: dev = (%d,%d), ino = %d, fs = %s",
+		    major(pip->i_dev), minor(pip->i_dev), ino, fs->fs_fsmnt);
 	cg = ino_to_cg(fs, ino);
 	error = bread(pip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
 		(int)fs->fs_cgsize, NOCRED, &bp);
