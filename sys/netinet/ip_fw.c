@@ -124,25 +124,50 @@ int range_flag;
  */
 
 #ifdef IPFIREWALL
-int ip_fw_chk(ip,chain)
-struct ip *ip;
-struct ip_fw *chain;
+int ip_fw_chk(ip,rif,chain)
+struct ip 	*ip;
+struct ifnet	*rif;
+struct ip_fw 	*chain;
 {
-    struct in_addr 		src, dst;
-    char			notcpsyn=1;
-    int 			frwl_proto=0, proto;
-    struct mbuf 		*m;
     register struct ip_fw 	*f;
-    u_short 			src_port=0, dst_port=0;
     struct tcphdr 		*tcp=(struct tcphdr *)((u_long *)ip+ip->ip_hl);
     struct udphdr 		*udp=(struct udphdr *)((u_long *)ip+ip->ip_hl);
     struct icmp 		*icmp=(struct icmp  *)((u_long *)ip+ip->ip_hl);
+    struct ifaddr               *ia=NULL, *ia_p;
+    struct in_addr 		src, dst, ia_i;
+    struct mbuf 		*m;
+    u_short 			src_port=0, dst_port=0;
+    u_short 			f_prt=0, prt;
+    char			notcpsyn=1;
 
+		/*
+		 * If the chain is empty
+		 * allow any packet-this is equal 
+		 * to disabling firewall.
+		 */
     if (!chain) 
-	return(1);     /* If no chain , always say Ok to packet */
+	return(1);    
+
+		/* 
+		 * This way we handle fragmented packets.
+		 * we ignore all fragments but the first one
+		 * so the whole packet can't be reassembled.
+		 * This way we relay on the full info which
+		 * stored only in first packet.
+		 */
+    if (ip->ip_off&IP_OFFMASK)
+	return(1);
 
     src = ip->ip_src;
     dst = ip->ip_dst;
+
+		/*
+		 * If we got interface from
+		 * which packet came-store
+		 * pointer to it's first adress
+		 */
+    if (rif)
+	ia=rif->if_addrlist;
 
 	dprintf1("Packet ");
 	switch(ip->ip_p) {
@@ -152,21 +177,21 @@ struct ip_fw *chain;
 			dst_port=ntohs(tcp->th_dport);
 			if (tcp->th_flags&TH_SYN)
 				notcpsyn=0; /* We *DO* have SYN ,value FALSE */
-			proto=IP_FW_F_TCP;
+			prt=IP_FW_F_TCP;
 			break;
 		case IPPROTO_UDP:
 			dprintf1("UDP ");
 			src_port=ntohs(udp->uh_sport);
 			dst_port=ntohs(udp->uh_dport);
-			proto=IP_FW_F_UDP;
+			prt=IP_FW_F_UDP;
 			break;
 		case IPPROTO_ICMP:
 			dprintf2("ICMP:%u ",icmp->icmp_type);
-			proto=IP_FW_F_ICMP;
+			prt=IP_FW_F_ICMP;
 			break;
 		default:
 			dprintf2("p=%d ",ip->ip_p);
-			proto=IP_FW_F_ALL;
+			prt=IP_FW_F_ALL;
 			break;
 	}
 	dprint_ip(ip->ip_src);
@@ -183,8 +208,43 @@ struct ip_fw *chain;
     for (f=chain;f;f=f->next) 
 		if ((src.s_addr&f->src_mask.s_addr)==f->src.s_addr
 		&&  (dst.s_addr&f->dst_mask.s_addr)==f->dst.s_addr) {
-			frwl_proto=f->flags&IP_FW_F_KIND;
-			if (frwl_proto==IP_FW_F_ALL) {
+       		if (f->via.s_addr && rif) {
+                        for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
+                                if (!ia_p->ifa_addr ||
+                                     ia_p->ifa_addr->sa_family!=AF_INET)
+					/*
+					 * Next interface adress.
+					 * This is continue for 
+					 * local "for"
+					 */
+                                        continue; 
+                                ia_i.s_addr=(((struct sockaddr_in *)\
+                                            (ia_p->ifa_addr))->sin_addr.s_addr);
+                                if (ia_i.s_addr==f->via.s_addr)
+                                        goto via_match;
+                        }
+			/*
+			 * Next interface adress.
+			 * This is continue for 
+			 * local "for"
+			 */
+                        continue; 
+                } else {
+			/*
+			 * No special "via" adress set
+			 * or interface from which packet
+			 * came unknown so match anyway
+			 */
+                        goto via_match; 
+                }
+		/*	
+		 * Skip to next firewall entry - via 
+		 * address did not matched.
+		 */
+                continue; 
+via_match:
+			f_prt=f->flags&IP_FW_F_KIND;
+			if (f_prt==IP_FW_F_ALL) {
 				/* Universal frwl - we've got a match! */
 			goto got_match;
 	    } else {
@@ -201,9 +261,9 @@ struct ip_fw *chain;
 	 * Specific firewall - packet's
 	 * protocol must match firewall's
 	 */
-    if (proto==frwl_proto) {
+    if (prt==f_prt) {
 
-    if (proto==IP_FW_F_ICMP ||
+    if (prt==IP_FW_F_ICMP ||
        (port_match(&f->ports[0],f->n_src_p,src_port,
 					f->flags&IP_FW_F_SRNG) &&
         port_match(&f->ports[f->n_src_p],f->n_dst_p,dst_port,
@@ -273,7 +333,7 @@ bad_packet:
 			 * Do not ICMP reply to icmp
 			 * packets....:)
 			 */
-		if (frwl_proto==IP_FW_F_ICMP)
+		if (f_prt==IP_FW_F_ICMP)
 			return 0;
 			/*
 			 * Reply to packets rejected
@@ -292,7 +352,7 @@ bad_packet:
 			return 0;
    		m->m_len = sizeof(struct ip)+64;
    		bcopy((caddr_t)ip,mtod(m, caddr_t),(unsigned)m->m_len);
-		if (frwl_proto=IP_FW_F_ALL)
+		if (f_prt==IP_FW_F_ALL)
    			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0L, 0);
 		else
    			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0L, 0);
@@ -313,41 +373,49 @@ good_packet:
 
 
 #ifdef IPACCT
-void ip_acct_cnt(ip,chain,nh_conv)
-struct ip *ip;
-struct ip_fw *chain;
+void ip_acct_cnt(ip,rif,chain,nh_conv)
+struct ip 	*ip;
+struct ifnet	*rif;
+struct ip_fw 	*chain;
 int nh_conv;
 {
-    struct in_addr 		src, dst;
-    char 			rev=0;
-    int 			frwl_proto, proto=0;
     register struct ip_fw 	*f;
-    u_short 			src_port=0, dst_port=0;
     struct tcphdr 		*tcp=(struct tcphdr *)((u_long *)ip+ip->ip_hl);
     struct udphdr 		*udp=(struct udphdr *)((u_long *)ip+ip->ip_hl);
+    struct ifaddr               *ia=NULL, *ia_p;
+    struct in_addr 		src, dst, ia_i;
+    u_short 			src_port=0, dst_port=0;
+    u_short 			f_prt, prt=0;
+    char 			rev=0;
 
     if (!chain) 
 		return;     
 
+    if (ip->ip_off&IP_OFFMASK)
+		return;
+
     src = ip->ip_src;
     dst = ip->ip_dst;
+
+    if (rif)
+	ia=rif->if_addrlist;
 
 	switch(ip->ip_p) {
 		case IPPROTO_TCP:
 			src_port=ntohs(tcp->th_sport);
 			dst_port=ntohs(tcp->th_dport);
-			proto=IP_FW_F_TCP;
+			prt=IP_FW_F_TCP;
 			break;
 		case IPPROTO_UDP:
 			src_port=ntohs(udp->uh_sport);
 			dst_port=ntohs(udp->uh_dport);
-			proto=IP_FW_F_UDP;
+			prt=IP_FW_F_UDP;
 			break;
 		case IPPROTO_ICMP:
-			proto=IP_FW_F_ICMP;
+			prt=IP_FW_F_ICMP;
 			break;
 		default:
-			proto=IP_FW_F_ALL;
+			prt=IP_FW_F_ALL;
 			break;
 	}
 
@@ -365,8 +433,24 @@ int nh_conv;
 		}
 		continue;
 addr_match:
-			frwl_proto=f->flags&IP_FW_F_KIND;
-			if (frwl_proto==IP_FW_F_ALL) {
+       		if (f->via.s_addr && rif) {
+                        for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
+                                if (!ia_p->ifa_addr ||
+                                     ia_p->ifa_addr->sa_family!=AF_INET)
+                                        continue; 
+                                ia_i.s_addr=(((struct sockaddr_in *)\
+                                            (ia_p->ifa_addr))->sin_addr.s_addr);
+                                if (ia_i.s_addr==f->via.s_addr)
+                                        goto via_match;
+                        }
+                        continue; 
+                } else {
+                        goto via_match; 
+                }
+                continue; 
+via_match:
+			f_prt=f->flags&IP_FW_F_KIND;
+			if (f_prt==IP_FW_F_ALL) {
 				/* Universal frwl - we've got a match! */
 
      			f->p_cnt++;                 /* Rise packet count */
@@ -386,9 +470,9 @@ addr_match:
 	 * Specific firewall - packet's
 	 * protocol must match firewall's
 	 */
-    if (proto==frwl_proto) {
+    if (prt==f_prt) {
 
-    if ((proto==IP_FW_F_ICMP ||
+    if ((prt==IP_FW_F_ICMP ||
        (port_match(&f->ports[0],f->n_src_p,src_port,
 					f->flags&IP_FW_F_SRNG) &&
         port_match(&f->ports[f->n_src_p],f->n_dst_p,dst_port,
@@ -812,34 +896,6 @@ if ( stage == IP_FW_POLICY )
 	ip_fw_policy=*tmp_policy_ptr;
 	return 0;
       }
-
-if ( stage == IP_FW_CHK_BLK 
-  || stage == IP_FW_CHK_FWD ) {
-
-	    struct ip *ip;
-
-	    if ( m->m_len < sizeof(struct ip) + 2 * sizeof(u_short) )	{
-		dprintf3("ip_fw_ctl: mbuf len=%d, want at least %d\n",
-			m->m_len,sizeof(struct ip) + 2 * sizeof(u_short));
-		return( EINVAL );
-            }
-
-	    ip = mtod(m,struct ip *);
-
-	    if ( ip->ip_hl != sizeof(struct ip) / sizeof(int) )	{
-		dprintf3("ip_fw_ctl: ip->ip_hl=%d, want %d\n",ip->ip_hl,
-					sizeof(struct ip)/sizeof(int));
-		return(EINVAL);
-	    }
-
-	    if ( ip_fw_chk(ip,
-		stage == IP_FW_CHK_BLK ?
-                ip_fw_blk_chain : ip_fw_fwd_chain )
-	       ) 
-			return(0);
-	    	else	
-			return(EACCES);
- }
 
 /*
  * Here we really working hard-adding new elements
