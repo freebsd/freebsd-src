@@ -56,7 +56,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
-                                        # output.  Adds ~215k to driver.
+					# output.  Adds ~215k to driver.
 
 # Debugging for use in -current
 options 	DDB			#Enable the kernel debugger
