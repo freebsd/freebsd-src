@@ -120,17 +120,12 @@ acpi_lid_attach(device_t dev)
 static int
 acpi_lid_suspend(device_t dev)
 {
-    struct acpi_softc		*acpi_sc;
-
-    acpi_sc = acpi_device_get_parent_softc(dev);
-    acpi_wake_sleep_prep(dev, acpi_sc->acpi_sstate);
     return (0);
 }
 
 static int
 acpi_lid_resume(device_t dev)
 {
-    acpi_wake_run_prep(dev);
     return (0);
 }
 
