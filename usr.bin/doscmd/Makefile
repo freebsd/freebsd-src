@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.10 1998/03/21 12:51:44 bde Exp $
+# $Id: Makefile,v 1.11 1998/05/26 20:12:55 sos Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -23,7 +23,7 @@ DPADD= ${X11BASE}/lib/libX11.a
 .else
 CFLAGS+= -I. -DDISASSEMBLER -DNO_X
 .endif
-LDADD+= -L${DESTDIR}/${LIBDIR} -lgcc -lc
+LDADD+= -L${DESTDIR}${LIBDIR} -lgcc -lc
 DPADD+= ${LIBGCC} ${LIBC}
 
 beforeinstall:
@@ -34,7 +34,7 @@ beforeinstall:
 
 doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
 	ld -e start -dc -dp ${LDFLAGS:M-static:S/-static/-Bstatic/} \
-	    -o doscmd ${LIBCRT0} doscmd_loader.o -L${DESTDIR}/${LIBDIR} -lgcc -lc
+	    -o doscmd ${LIBCRT0} doscmd_loader.o -L${DESTDIR}${LIBDIR} -lgcc -lc
 
 # Bogusly generated dependency to get doscmd_loader.c looked at by mkdep.
 .depend: doscmd_loader.c
