@@ -59,14 +59,6 @@
 #endif
 #define MAXKPT		(PAGE_SIZE/sizeof(vm_offset_t))
 
-/*
- *	Routine:	pmap_kextract
- *	Function:
- *		Extract the physical page address associated
- *		kernel virtual address.
- */
-#define	pmap_kextract	ia64_tpa
-
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 #endif /* _KERNEL */
@@ -127,6 +119,7 @@ extern vm_offset_t virtual_end;
 vm_offset_t pmap_steal_memory(vm_size_t);
 void	pmap_bootstrap(void);
 void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
 int	pmap_uses_prom_console(void);
