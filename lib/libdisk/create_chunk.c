@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.24 1996/04/29 05:03:01 jkh Exp $
+ * $Id: create_chunk.c,v 1.24.2.1 1996/12/14 11:56:42 joerg Exp $
  *
  */
 
@@ -260,6 +260,7 @@ MakeDev(struct chunk *c1, const char *path)
     else if (!strncmp(p, "od", 2))
 	bmaj = 20, cmaj = 70;
     else {
+	msgDebug("MakeDev: Unknown major/minor for devtype %s\n", p);
 	return 0;
     }
     p += 2;
