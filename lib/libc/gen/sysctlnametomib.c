@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <string.h>
 
 /*
  * This function uses a presently undocumented interface to the kernel
