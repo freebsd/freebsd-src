@@ -258,7 +258,7 @@ npx_probe(dev)
 		npx_irq = 13;
 #endif
 	npx_intrno = NRSVIDT + npx_irq;
-	savecrit = critcal_enter();
+	savecrit = critical_enter();
 #ifdef PC98
 	save_icu1_mask = inb(IO_ICU1 + 2);
 	save_icu2_mask = inb(IO_ICU2 + 2);
@@ -286,7 +286,7 @@ npx_probe(dev)
 	 */
 	critical_exit(savecrit);
 	result = npx_probe1(dev);
-	savecrit = critcal_enter();
+	savecrit = critical_enter();
 #ifdef PC98
 	outb(IO_ICU1 + 2, save_icu1_mask);
 	outb(IO_ICU2 + 2, save_icu2_mask);
@@ -914,7 +914,7 @@ npxsave(addr)
 	u_char	old_icu2_mask;
 	struct gate_descriptor	save_idt_npxintr;
 
-	savecrit = critcal_enter();
+	savecrit = critical_enter();
 #ifdef PC98
 	old_icu1_mask = inb(IO_ICU1 + 2);
 	old_icu2_mask = inb(IO_ICU2 + 2);
@@ -937,7 +937,7 @@ npxsave(addr)
 	fnop();
 	start_emulating();
 	PCPU_SET(npxproc, NULL);
-	savecrit = critcal_enter();
+	savecrit = critical_enter();
 #ifdef PC98
 	icu1_mask = inb(IO_ICU1 + 2);	/* masks may have changed */
 	icu2_mask = inb(IO_ICU2 + 2);
