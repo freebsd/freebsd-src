@@ -450,6 +450,7 @@ apm_default_resume(void *arg)
 
 	/* modified for adjkerntz */
 	pl = splsoftclock();
+	i8254_restore();		/* restore timer_freq and hz */
 	inittodr(0);			/* adjust time to RTC */
 	microtime(&resume_time);
 	getmicrotime(&tmp_time);
