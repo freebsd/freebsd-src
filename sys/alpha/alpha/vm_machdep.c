@@ -422,7 +422,7 @@ vm_page_zero_idle()
 		zero_state = 0;
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
 			vm_page_queues[m->queue].lcnt--;
-			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
 			splx(s);
 #if 0
@@ -436,7 +436,7 @@ vm_page_zero_idle()
 			vm_page_flag_set(m, PG_ZERO);
 			m->queue = PQ_FREE + m->pc;
 			vm_page_queues[m->queue].lcnt++;
-			TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m,
+			TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m,
 			    pageq);
 			++vm_page_zero_count;
 			++cnt_prezero;
