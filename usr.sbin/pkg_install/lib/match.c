@@ -41,7 +41,7 @@ struct store {
 };
 
 static int rex_match(char *, char *);
-static void storeappend(struct store *, const char *);
+static int storeappend(struct store *, const char *);
 static int fname_cmp(const FTSENT **, const FTSENT **);
 
 /*
@@ -58,8 +58,8 @@ static int fname_cmp(const FTSENT **, const FTSENT **);
 char **
 matchinstalled(match_t MatchType, char **patterns, int *retval)
 {
-    int i, matched, errcode;
-    char *tmp;
+    int i, errcode;
+    char *tmp, *matched;
     char *paths[2];
     static struct store *store = NULL;
     FTS *ftsp;
@@ -67,15 +67,19 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 
     if (store == NULL) {
 	store = malloc(sizeof *store);
+	if (store == NULL) {
+	    warnx("%s(): malloc() failed", __FUNCTION__);
+	    if (retval != NULL)
+		*retval = 1;
+	    return NULL;
+	}
 	store->currlen = 0;
 	store->store = NULL;
-    } else {
-	if (store->store != NULL) {
+    } else
+	if (store->store != NULL)
 	    /* Free previously allocated memory */
 	    for (i = 0; store->store[i] != NULL; i++)
 		free(store->store[i]);
-	}
-    }
     store->used = 0;
 
     if (retval != NULL)
@@ -98,36 +102,37 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 	while ((f = fts_read(ftsp)) != NULL) {
 	    if (f->fts_info == FTS_D && f->fts_level == 1) {
 		fts_set(ftsp, f, FTS_SKIP);
-		if (MatchType == MATCH_ALL) {
-		    storeappend(store, f->fts_name);
-		    continue;
-		}
-		for (i = 0; patterns[i]; i++) {
-		    matched = 0;
-		    switch (MatchType) {
-		    case MATCH_REGEX:
-			errcode = rex_match(patterns[i], f->fts_name);
-			if (errcode == 1) {
-			    storeappend(store, f->fts_name);
-			    matched = 1;
-			} else if (errcode == -1) {
-			    if (retval != NULL)
-				*retval = 1;
-			    return NULL;
-			    /* Not reached */
+		matched = NULL;
+		errcode = 0;
+		if (MatchType == MATCH_ALL)
+		    matched = f->fts_name;
+		else 
+		    for (i = 0; patterns[i]; i++) {
+			switch (MatchType) {
+			case MATCH_REGEX:
+			    errcode = rex_match(patterns[i], f->fts_name);
+			    if (errcode == 1) {
+				matched = f->fts_name;
+				errcode = 0;
+			    }
+			    break;
+			case MATCH_GLOB:
+			    if (fnmatch(patterns[i], f->fts_name, 0) == 0)
+				matched = f->fts_name;
+			    break;
+			default:
+			    break;
 			}
-			break;
-		    case MATCH_GLOB:
-			if (fnmatch(patterns[i], f->fts_name, 0) == 0) {
-			    storeappend(store, f->fts_name);
-			    matched = 1;
-			}
-			break;
-		    default:
-			break;
+			if (matched != NULL || errcode != 0)
+			    break;
 		    }
-		    if (matched == 1)
-			break;
+		if (errcode == 0 && matched != NULL)
+		    errcode = storeappend(store, matched);
+		if (errcode != 0) {
+		    if (retval != NULL)
+			*retval = 1;
+		    return NULL;
+		    /* Not reached */
 		}
 	    }
 	}
@@ -172,7 +177,7 @@ rex_match(char *pattern, char *pkgname)
     return retval;
 }
 
-static void
+static int
 storeappend(struct store *store, const char *item)
 {
     char **tmp;
@@ -181,13 +186,23 @@ storeappend(struct store *store, const char *item)
 	tmp = store->store;
 	store->currlen += 16;
 	store->store = malloc(store->currlen * sizeof(*(store->store)));
+	if (store->store == NULL) {
+	    warnx("%s(): malloc() failed", __FUNCTION__);
+	    return 1;
+	}
 	memcpy(store->store, tmp, store->used * sizeof(*(store->store)));
 	free(tmp);
     }
 
     asprintf(&(store->store[store->used]), "%s", item);
+    if (store->store[store->used] == NULL) {
+	warnx("%s(): malloc() failed", __FUNCTION__);
+	return 1;
+    }
     store->used++;
     store->store[store->used] = NULL;
+
+    return 0;
 }
 
 static int
