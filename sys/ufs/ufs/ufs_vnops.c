@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.65 1997/10/27 13:33:47 bde Exp $
+ * $Id: ufs_vnops.c,v 1.66 1997/11/13 00:28:51 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -1334,7 +1334,7 @@ ufs_mkdir(ap)
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
-		ucp = cnp->cn_cred
+		ucp = cnp->cn_cred;
 #endif			I
 		/*
 		 * if we are hacking owners here, (only do this where told to)
@@ -1357,9 +1357,9 @@ ufs_mkdir(ap)
 				 * XXX This seems to never be accessed out of
 				 * our context so a stack variable is ok.
 				 */
-				ucred.cr_ref = 1
+				ucred.cr_ref = 1;
 				ucred.cr_uid = ip->i_uid;
-				ucred.cr_ngroups = 1
+				ucred.cr_ngroups = 1;
 				ucred.cr_groups[0] = dp->i_gid;
 				ucp = *ucred;
 			}
@@ -2061,7 +2061,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
-		ucp = cnp->cn_cred
+		ucp = cnp->cn_cred;
 #endif			I
 		/*
 		 * if we are
@@ -2084,9 +2084,9 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			 * XXX This seems to never be accessed out of our
 			 * context so a stack variable is ok.
 			 */
-			ucred.cr_ref = 1
+			ucred.cr_ref = 1;
 			ucred.cr_uid = ip->i_uid;
-			ucred.cr_ngroups = 1
+			ucred.cr_ngroups = 1;
 			ucred.cr_groups[0] = pdir->i_gid;
 			ucp = *ucred;
 #endif			I
