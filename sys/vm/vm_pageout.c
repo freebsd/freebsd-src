@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.50 1995/05/21 21:39:31 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51 1995/05/30 08:16:18 rgrimes Exp $
  */
 
 /*
@@ -886,7 +886,7 @@ vm_daemon()
 	while (TRUE) {
 		tsleep((caddr_t) &vm_daemon_needed, PUSER, "psleep", 0);
 		if( vm_pageout_req_swapout) {
-			swapout_threads();
+			swapout_procs();
 			vm_pageout_req_swapout = 0;
 		}
 		/*
