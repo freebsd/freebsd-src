@@ -32,13 +32,8 @@
 .Nd kill processes by name
 .Sh SYNOPSIS
 .Nm
-.Op Fl d | v
-.Op Fl h | ?\&
+.Op Fl dlmsvz
 .Op Fl help
-.Op Fl l
-.Op Fl m
-.Op Fl s
-.Op Fl z
 .Op Fl j Ar jid
 .Op Fl u Ar user
 .Op Fl t Ar tty
@@ -68,7 +63,6 @@ Be more verbose about what will be done.  For a single
 option, a list of the processes that will be sent the signal will be
 printed, or a message indicating that no matching processes have been
 found.
-.It Fl h | ?\&
 .It Fl help
 Give a help on the command usage and exit.
 .It Fl l
