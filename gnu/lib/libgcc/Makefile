@@ -1,182 +1,94 @@
 # $FreeBSD$
-# ex:ts=8
+
+TARGET_ARCH?=	${MACHINE_ARCH}
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
-
-.PATH: ${GCCDIR}/cp ${GCCDIR}
+.PATH: ${GCCDIR}/config/${TARGET_ARCH} ${GCCDIR}
 
 # allow to be overridden for the a.out case
 .if !defined(LIB) || ${LIB} != "gcc_r"
 LIB=	gcc
 .endif
 
+SHLIB_MAJOR=	3.1
+SHLIB_MINOR=	0
+
 .if ${OBJFORMAT} == aout
 # Install libgcc_pic.a, since ld.so uses it.
 INSTALL_PIC_ARCHIVE=  yes
 .endif
 
+#
+# XXX This is a hack, but it seems to work.
+# libgcc2.a is meant to be compiled by *this* version of gcc.
+#
+# Normally, this does not make any difference, since we only have gcc, but
+# when bootstrapping from gcc-2.6.3, we have to use the freshly built 2.7.2
+# compiler for some of the libgcc2.c __attribute__ stuff.
+#
+# We now depend on a bootstrap pass (normally in `make world') to build
+# and install the new version of gcc before we get here.  This makes
+# finding the new version (XCC) easy but may break finding the old version
+# (CC).
+#
+XCC=	${CC}
+XCXX=	${CXX}
+
+
 CFLAGS+=	-fexceptions
-CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED
+CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
+		-DFINE_GRAINED_LIBRARIES
 .if ${OBJFORMAT} != aout
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 .endif
+CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
+		-I${GCCDIR}/config -I${GCCDIR} -I.
 
-all: lib${LIB}.a
-
-CLEANFILES+=	lib${LIB}.a
-lib${LIB}.a: libgcc_build.a
-	cp -p ${.ALLSRC} ${.TARGET}
-
-#
-#	fake out to semi-follow what is done in GCC's Makefile.in
-#
-srcdir=		${GCCDIR}
-GCC_FOR_TARGET=	${CC}
-LIBGCC2_CFLAGS=	${CFLAGS}
-INCLUDES=	-I${GCCDIR}/config \
-		-I${GCCDIR} \
-		-I. \
-		-I${.CURDIR}/../../usr.bin/cc/cc_tools
-
-COMMONHDRS=	config.h tconfig.h tm.h
-CLEANFILES+=	${COMMONHDRS}
-SRCS+=		${COMMONHDRS}
-
-config.h:
-	echo '#include "auto-host.h"'				> ${.TARGET}
-	echo '#include "gansidecl.h"'				>> ${.TARGET}
-	echo '#include <${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h>'	>> ${.TARGET}
-	echo '#include <xm-freebsd.h>'				>> ${.TARGET}
-	echo '#include "defaults.h"'			>> ${.TARGET}
-	echo '#include "hwint.h"'			>> ${.TARGET}
-	echo '#ifndef POSIX'				>> ${.TARGET}
-	echo '# define POSIX'				>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-
-
-tconfig.h:
-	echo '#include "gansidecl.h"'			> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	>> ${.TARGET}
-	echo '#include "defaults.h"'			>> ${.TARGET}
-
-
-#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
-tm.h:
-	echo '#include "gansidecl.h"'				> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	>> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
+# Remove any objects from LIB2FUNCS and LIB2_DIVMOD_FUNCS that are
+# defined as optimized assembly code in LIB1ASMFUNCS.
+.if defined(LIB1ASMFUNCS)
+.for sym in ${LIB1ASMFUNCS}
+LIB2FUNCS_1=	${LIB2FUNCS_1:S/${sym}//g}
+LIB2FUNCS_2=	${LIB2FUNCS_2:S/${sym}//g}
+LIB2_DIVMOD_FUNCS= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
+.endfor
 .endif
-	echo '#include <freebsd-native.h>'		>> ${.TARGET}
-	echo '#include <freebsd.h>'				>> ${.TARGET}
-.if exists(${MACHINE_ARCH}/config/${MACHINE_ARCH}/elf.h)
-	echo '#include "${MACHINE_ARCH}/elf.h"'		>> ${.TARGET}
+
+SYMS=		${LIB1ASMFUNCS}		\
+		${LIB2FUNCS_1}		\
+		${LIB2FUNCS_2}		\
+		${LIB2_DIVMOD_FUNCS}
+.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
+SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
 .endif
-	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
-.endif
-	echo '#include "defaults.h"'			>> ${.TARGET}
+SYMS_ST=	${LIB2FUNCS_ST}		\
+		${LIB2ADD_ST}
+OBJS_T=		${SYMS:S/$/.o/}  ${SYMS_ST:S/$/.o/}
+OBJS_P=		${SYMS:S/$/.po/} ${SYMS_ST:S/$/.po/}
+OBJS_S=		${SYMS:S/$/.So/}
+OBJS=		${SYMS:S/$/.o/}
+STATICOBJS=	${SYMS_ST:S/$/.o/}
+SRCS=		${LIB2ADD} ${LIB2ADDEH}
 
 
+
+#---------------------------------------------------------------------------
 #
-# XXX Make sure changes in GCC's Makefile.in are synced here !!
-#
-
-libgcc_build.a: ${COMMONHDRS} libgcc.mk
-	$(MAKE) GCC_FOR_TARGET="$(GCC_FOR_TARGET)" \
-	  AR_FOR_TARGET="ar" \
-	  AR_CREATE_FOR_TARGET="ar rc" \
-	  AR_FLAGS_FOR_TARGET="" \
-	  OLDCC="${CC}" CCLIBFLAGS="-O" \
-	  CFLAGS="$(CFLAGS) $(WARN_CFLAGS)" \
-	  RANLIB_FOR_TARGET="ranlib" \
-	  RANLIB_TEST_FOR_TARGET="true" \
-	  NM_FOR_TARGET="nm" AWK="awk" \
-	  LIBGCC2_CFLAGS="$(LIBGCC2_CFLAGS)" \
-	  INCLUDES="$(INCLUDES)" MAYBE_USE_COLLECT2="$(MAYBE_USE_COLLECT2)" \
-	  CONFIG_H="${COMMONHDRS}" MACHMODE_H="$(MACHMODE_H)" \
-	  LIB1ASMSRC='$(LIB1ASMSRC)' \
-	  -f libgcc.mk ./libgcc_build.a
-
-#
-# XXX Make sure changes in GCC's Makefile.in are synced here !!
-#
-
-libgcc.mk: mklibgcc
-	objext='.o' \
-	OLDCC='${CC}' \
-	LIBGCC1='libgcc1.a' \
-	LIB1FUNCS='$(LIB1FUNCS)' \
-	LIB1ASMFUNCS='$(LIB1ASMFUNCS)' \
-	LIB1FUNCS_EXTRA='$(LIB1FUNCS_EXTRA)' \
-	LIB2FUNCS='$(LIB2FUNCS)' \
-	LIB2FUNCS_ST='$(LIB2FUNCS_ST)' \
-	LIB2ADD='$(LIB2ADD)' \
-	LIB2ADDEH='$(LIB2ADDEH)' \
-	LIB2ADDEHDEP='$(LIB2ADDEHDEP)' \
-	LIB2ADD_ST='$(LIB2ADD_ST)' \
-	FPBIT='$(FPBIT)' \
-	FPBIT_FUNCS='$(FPBIT_FUNCS)' \
-	DPBIT='$(DPBIT)' \
-	DPBIT_FUNCS='$(DPBIT_FUNCS)' \
-	MULTILIBS='.;' \
-	EXTRA_MULTILIB_PARTS='$(EXTRA_MULTILIB_PARTS)' \
-	SHLIB_LINK='$(SHLIB_LINK)' \
-	SHLIB_INSTALL='$(SHLIB_INSTALL)' \
-	SHLIB_EXT='$(SHLIB_EXT)' \
-	SHLIB_MULTILIB='$(SHLIB_MULTILIB)' \
-	SHLIB_MKMAP='$(SHLIB_MKMAP)' \
-	SHLIB_MAPFILES='$(SHLIB_MAPFILES)' \
-	SHLIB_NM_FLAGS='$(SHLIB_NM_FLAGS)' \
-	  $(SHELL) mklibgcc > tmp-libgcc.mk
-	echo ".PATH: ${GCCDIR}" > ${.TARGET}
-	sed -e 's|libgcc/\./||g' tmp-libgcc.mk >> ${.TARGET}
-	rm tmp-libgcc.mk
-	touch config.status stmp-int-hdrs
-
-mklibgcc: mklibgcc.in
-	sed								\
-	    -e 's|libgcc\.a|libgcc_build.a|g'				\
-	    -e 's|@srcdir@|${GCCDIR}|g'					\
-	    -e 's|@build_canonical@|${MACHINE_ARCH}-deo-freebsd5.0|g'	\
-	    -e 's|@target@|${MACHINE_ARCH}-deo-freebsd5.0|g'		\
-	    -e 's|@enable_shared@|no|g'					\
-	    -e 's|@NO_MINUS_C_MINUS_O@||g'				\
-	    ${.ALLSRC} > ${.TARGET}
-
-CLEANFILES+=	mklibgcc libgcc.mk config.status \
-		stmp-int-hdrs tmp-libgcc.mk stmp-dirs \
-		libgcc_build.a
-
-#
-# XXX This is a hack, but it seems to work.
 # When upgrading GCC, get the following defintions straight from Makefile.in
 #
 
-# Members of libgcc1.a.
-LIB1FUNCS = _mulsi3 _udivsi3 _divsi3 _umodsi3 _modsi3 \
-   _lshrsi3 _ashrsi3 _ashlsi3 \
-   _divdf3 _muldf3 _negdf2 _adddf3 _subdf3 \
-   _fixdfsi _fixsfsi _floatsidf _floatsisf _truncdfsf2 _extendsfdf2 \
-   _addsf3 _negsf2 _subsf3 _mulsf3 _divsf3 \
-   _eqdf2 _nedf2 _gtdf2 _gedf2 _ltdf2 _ledf2 \
-   _eqsf2 _nesf2 _gtsf2 _gesf2 _ltsf2 _lesf2
-
 # Library members defined in libgcc2.c.
-LIB2FUNCS = _muldi3 _divdi3 _moddi3 _udivdi3 _umoddi3 _negdi2 \
-     _lshrdi3 _ashldi3 _ashrdi3 _ffsdi2 _clz \
-    _udiv_w_sdiv _udivmoddi4 _cmpdi2 _ucmpdi2 _floatdidf _floatdisf \
-    _fixunsdfsi _fixunssfsi _fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi \
-    _fixxfdi _fixunsxfdi _floatdixf _fixunsxfsi \
-    _fixtfdi _fixunstfdi _floatditf \
-    _clear_cache _trampoline __main _exit \
-    _absvsi2 _absvdi2 _addvsi3 _addvdi3 _subvsi3 _subvdi3 \
-    _mulvsi3 _mulvdi3 _negvsi2 _negvdi2 \
-    _ctors
+# Variable length limited to 255 charactes when passed to a shell script.
+LIB2FUNCS_1 = _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 _ffsdi2 _clz \
+    _cmpdi2 _ucmpdi2 _floatdidf _floatdisf _fixunsdfsi _fixunssfsi \
+    _fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi _fixxfdi _fixunsxfdi
+
+LIB2FUNCS_2 = _floatdixf _fixunsxfsi _fixtfdi _fixunstfdi _floatditf \
+    _clear_cache _trampoline __main _exit _absvsi2 _absvdi2 _addvsi3 \
+    _addvdi3 _subvsi3 _subvdi3 _mulvsi3 _mulvdi3 _negvsi2 _negvdi2 _ctors
 
 # Defined in libgcc2.c, included only in the static library.
-LIB2FUNCS_ST = _eprintf _bb __gcc_bcmp 
+LIB2FUNCS_ST = _eprintf _bb __gcc_bcmp
 
 FPBIT_FUNCS = _pack_sf _unpack_sf _addsub_sf _mul_sf _div_sf \
     _fpcmp_parts_sf _compare_sf _eq_sf _ne_sf _gt_sf _ge_sf \
@@ -188,41 +100,116 @@ DPBIT_FUNCS = _pack_df _unpack_df _addsub_df _mul_df _div_df \
     _lt_df _le_df _unord_df _si_to_df _df_to_si _negate_df _make_df \
     _df_to_sf _thenan_df _df_to_usi _usi_to_df
 
-# Build libgcc.a.
+# These might cause a divide overflow trap and so are compiled with
+# unwinder info.
+LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
+
+MACHMODE_H = machmode.h machmode.def
+
 LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
 
 # Additional sources to handle exceptions; overridden on ia64.
-LIB2ADDEH = $(srcdir)/unwind-dw2.c $(srcdir)/unwind-dw2-fde.c \
-  $(srcdir)/unwind-sjlj.c
-LIB2ADDEHDEP = unwind.inc unwind-dw2-fde.h
+LIB2ADDEH = unwind-dw2.c unwind-dw2-fde.c unwind-sjlj.c
 
-MACHMODE_H = machmode.h machmode.def
-
-# nm flags to list global symbols in libgcc object files.
-SHLIB_NM_FLAGS = -pg
-
+#-----------------------------------------------------------------------
 #
-#	Bmake'ed tweaks for the GCC Makefile.in barrowed bits.
+#	Platform specific bits.
+#	When upgrading GCC, get the following defintions from config/<cpu>/t-*
 #
 
-.for objfile in ${LIB1FUNCS} ${LIB2FUNCS} ${LIB2FUNCS_ST} ${FPBIT_FUNCS} \
-    ${DPBIT_FUNCS}
-CLEANFILES+=	${objfile}.o
-.endfor
+.if ${TARGET_ARCH} == "alpha"
+#	from config/alpha/t-alpha
+LIB2FUNCS_EXTRA = qrnnd.asm
+.endif
 
-CLEANFILES+=	${LIB2ADDEH:S/.c/.o/g:S/$(srcdir)\///g}
+.if ${TARGET_ARCH} == "arm"
+#	from config/arm/t-strongarm-elf
+LIB1ASMSRC = arm/lib1funcs.asm
+LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+XXX fix this
+NEED_FP_EMULATION set to "yes" with different rules per platform
+.endif
 
-CLEANDIRS+=	libgcc
+.if ${TARGET_ARCH} == "ia64"
+#	from config/ia64/t-ia64
+LIB1ASMSRC    = ia64/lib1funcs.asm
+LIB1ASMFUNCS  = __divtf3 __divdf3 __divsf3 \
+	__divdi3 __moddi3 __udivdi3 __umoddi3 \
+	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
+	__nonlocal_goto __restore_stack_nonlocal __trampoline
+LIB2ADDEH = unwind-ia64.c unwind-sjlj.c
+.endif
 
-#
-#	Need to supply an `install' target as we aren't using bsd.lib.mk.
-#
+.if ${TARGET_ARCH} == "powerpc"
+#	from config/rs6000/t-ppccomm
+LIB2FUNCS_EXTRA = tramp.S
+# This one can't end up in shared libgcc
+LIB2FUNCS_STATIC_EXTRA = eabi.S
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+XXX fix this
+NEED_FP_EMULATION set to "yes" with different rules per platform
+OBJS+=	dp-bit.o fp-bit.o
+.endif
 
-install:
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+.if ${TARGET_ARCH} == "sparc64"
+#	from config/sparc/t-elf
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+LIB1ASMSRC = sparc/lb1spc.asm
+LIB1ASMFUNCS = _mulsi3 _divsi3 _modsi3
+OBJS+=	dp-bit.o fp-bit.o
+.endif
 
-.include <bsd.dep.mk>
-.include <bsd.obj.mk>
-.include <bsd.sys.mk>
+dp-bit.o: config/fp-bit.c
+	${XCC} -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+dp-bit.So: config/fp-bit.c
+	${XCC} ${PICFLAG} -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+dp-bit.po: config/fp-bit.c
+	${XCC} -p -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+fp-bit.o: config/fp-bit.c
+	${XCC} -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+fp-bit.So: config/fp-bit.c
+	${XCC} ${PICFLAG} -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+fp-bit.po: config/fp-bit.c
+	${XCC} -p -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+#-----------------------------------------------------------------------
+
+COMMONHDRS=	tconfig.h
+SRCS+=		${COMMONHDRS}
+CLEANFILES+=	${COMMONHDRS}
+
+tconfig.h: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+
+${OBJS} beforedepend: ${COMMONHDRS}
+
+${OBJS_T}: libgcc2.c
+	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+
+.if !defined(NOPIC)
+${OBJS_S}: libgcc2.c
+	${XCC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+.endif
+
+.if !defined(NOPROFILE)
+${OBJS_P}: libgcc2.c
+	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
+.endif
+
+.include <bsd.lib.mk>
