@@ -25,19 +25,15 @@
 #include "dialog.priv.h"
 #include <ncurses.h>
 
-static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected,
-		       dialogMenuItem *me);
+static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me, int menu_width, int tag_x, int item_x);
 
 #define DREF(di, item)		((di) ? &((di)[(item)]) : NULL)
-
-static int menu_width, tag_x, item_x;
 
 /*
  * Display a menu for choosing among a number of options
  */
 int
-dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
-	    int cnt, void *it, unsigned char *result, int *ch, int *sc)
+dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int cnt, void *it, unsigned char *result, int *ch, int *sc)
 {
     int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button, choice,
 	l, k, scroll, max_choice, item_no, redraw_menu = FALSE;
@@ -46,6 +42,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     WINDOW *dialog, *menu;
     unsigned char **items = NULL;
     dialogMenuItem *ditems;
+    int menu_width, tag_x, item_x;
     
 draw:
     choice = ch ? *ch : 0;
@@ -161,8 +158,7 @@ draw:
     
     /* Print the menu */
     for (i = 0; i < max_choice; i++)
-	print_item(menu, items[(scroll + i) * 2], items[(scroll + i) * 2 + 1], i,
-		   i == choice, DREF(ditems, scroll + i));
+	print_item(menu, items[(scroll + i) * 2], items[(scroll + i) * 2 + 1], i, i == choice, DREF(ditems, scroll + i), menu_width, tag_x, item_x);
     wnoutrefresh(menu);
     print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
     
@@ -247,13 +243,13 @@ draw:
 			getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 			if (menu_height > 1) {
 			    /* De-highlight current first item before scrolling down */
-			    print_item(menu, items[scroll * 2], items[scroll * 2 + 1], 0, FALSE, DREF(ditems, scroll));
+			    print_item(menu, items[scroll * 2], items[scroll * 2 + 1], 0, FALSE, DREF(ditems, scroll), menu_width, tag_x, item_x);
 			    scrollok(menu, TRUE);
 			    wscrl(menu, -1);
 			    scrollok(menu, FALSE);
 			}
 			scroll--;
-			print_item(menu, items[scroll * 2], items[scroll * 2 + 1], 0, TRUE, DREF(ditems, scroll));
+			print_item(menu, items[scroll * 2], items[scroll * 2 + 1], 0, TRUE, DREF(ditems, scroll), menu_width, tag_x, item_x);
 			wnoutrefresh(menu);
 			print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 			wrefresh(dialog);
@@ -272,7 +268,7 @@ draw:
 			    /* De-highlight current last item before scrolling up */
 			    print_item(menu, items[(scroll + max_choice - 1) * 2],
 				       items[(scroll + max_choice - 1) * 2 + 1],
-				       max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1));
+				       max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1), menu_width, tag_x, item_x);
 			    scrollok(menu, TRUE);
 			    scroll(menu);
 			    scrollok(menu, FALSE);
@@ -280,7 +276,7 @@ draw:
 			scroll++;
 			print_item(menu, items[(scroll + max_choice - 1) * 2],
 				   items[(scroll + max_choice - 1) * 2 + 1],
-				   max_choice - 1, TRUE, DREF(ditems, scroll + max_choice - 1));
+				   max_choice - 1, TRUE, DREF(ditems, scroll + max_choice - 1), menu_width, tag_x, item_x);
 			wnoutrefresh(menu);
 			print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 			wrefresh(dialog);
@@ -293,13 +289,11 @@ draw:
 	    if (i != choice) {
 		/* De-highlight current item */
 		getyx(dialog, cur_y, cur_x);    /* Save cursor position */
-		print_item(menu, items[(scroll + choice) * 2], items[(scroll + choice) * 2 + 1], choice, FALSE,
-			   DREF(ditems, scroll + choice));
+		print_item(menu, items[(scroll + choice) * 2], items[(scroll + choice) * 2 + 1], choice, FALSE, DREF(ditems, scroll + choice), menu_width, tag_x, item_x);
 		
 		/* Highlight new item */
 		choice = i;
-		print_item(menu, items[(scroll + choice) * 2], items[(scroll + choice) * 2 + 1], choice, TRUE,
-			   DREF(ditems, scroll + choice));
+		print_item(menu, items[(scroll + choice) * 2], items[(scroll + choice) * 2 + 1], choice, TRUE, DREF(ditems, scroll + choice), menu_width, tag_x, item_x);
 		wnoutrefresh(menu);
 		wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 		wrefresh(dialog);
@@ -418,8 +412,7 @@ draw:
 	
 	if (redraw_menu) {
 	    for (i = 0; i < max_choice; i++) {
-		print_item(menu, items[(scroll + i) * 2], items[(scroll + i) * 2 + 1], i, i == choice,
-			   DREF(ditems, scroll + i));
+		print_item(menu, items[(scroll + i) * 2], items[(scroll + i) * 2 + 1], i, i == choice, DREF(ditems, scroll + i), menu_width, tag_x, item_x);
 	    }
 	    wnoutrefresh(menu);
 	    getyx(dialog, cur_y, cur_x);    /* Save cursor position */
@@ -439,7 +432,7 @@ draw:
  * Print menu item
  */
 static void
-print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me)
+print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me, int menu_width, int tag_x, int item_x)
 {
     int i;
     
