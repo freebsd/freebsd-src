@@ -560,8 +560,8 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 		return (EINVAL);
 	if ((error = suser_td(td)) != 0)
 		return (error);
-	if (securelevel > 0)
-		return (EPERM);
+	if ((error = securelevel_gt(td->td_proc->p_ucred, 0)) != 0)
+		return (error);
 	td->td_frame->tf_eflags = (td->td_frame->tf_eflags & ~PSL_IOPL) |
 	    (args->level * (PSL_IOPL / 3));
 	return (0);
