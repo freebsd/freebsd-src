@@ -34,6 +34,9 @@ SRCS+=	print-ip6.c print-ip6opts.c print-ripng.c print-icmp6.c \
 	print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c
 CFLAGS+=	-DINET6
 .endif
+.if ${MACHINE_ARCH} != "i386"
+CFLAGS+=	-DLBL_ALIGN
+.endif
 
 DPADD=	${LIBL} ${LIBPCAP}
 LDADD=	-ll -lpcap
