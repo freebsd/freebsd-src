@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.63 1997/04/14 13:20:16 jkh Exp $ -->
+<!-- $Id: authors.sgml,v 1.64 1997/04/30 09:05:32 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -263,6 +263,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.kelly "Sean Kelly
   <tt><htmlurl url='mailto:kelly@fsl.noaa.gov'
   name='&lt;kelly@fsl.noaa.gov&gt;'></tt>">
+
+<!ENTITY a.kjc "Kenjiro Cho
+  <tt><htmlurl url='mailto:kjc@FreeBSD.ORG'
+  name='&lt;kjc@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.lars  "Lars Fredriksen
   <tt><htmlurl url='mailto:lars@FreeBSD.ORG'
