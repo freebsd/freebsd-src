@@ -20,6 +20,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
+/* XXX lost declaration of this and isnan() in math.h but still have funcs. */
+int	(isnanf)(float x);
+
 #ifdef _SCALB_INT
 float
 __ieee754_scalbf(float x, int fn)
@@ -31,7 +34,7 @@ __ieee754_scalbf(float x, float fn)
 #ifdef _SCALB_INT
 	return scalbnf(x,fn);
 #else
-	if (isnanf(x)||isnanf(fn)) return x*fn;
+	if ((isnanf)(x)||(isnanf)(fn)) return x*fn;
 	if (!finitef(fn)) {
 	    if(fn>(float)0.0) return x*fn;
 	    else       return x/(-fn);
