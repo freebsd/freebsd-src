@@ -170,27 +170,27 @@
  * Startup reporting stucture
  */
 struct ray_ecf_startup_v4 {
-	u_int8_t	e_status;
-	u_int8_t	e_station_addr[ETHER_ADDR_LEN];
-	u_int8_t	e_prg_cksum;
-	u_int8_t	e_cis_cksum;
-	u_int8_t	e_resv0[7];
-	u_int8_t	e_japan_callsign[12];
+    u_int8_t	e_status;
+    u_int8_t	e_station_addr[ETHER_ADDR_LEN];
+    u_int8_t	e_prg_cksum;
+    u_int8_t	e_cis_cksum;
+    u_int8_t	e_resv0[7];
+    u_int8_t	e_japan_callsign[12];
 };
 struct ray_ecf_startup_v5 {
-	u_int8_t	e_status;
-	u_int8_t	e_station_addr[ETHER_ADDR_LEN];
-	u_int8_t	e_resv0;
-	u_int8_t	e_rates[8];
-	u_int8_t	e_japan_callsign[12];
-	u_int8_t	e_prg_cksum;
-	u_int8_t	e_cis_cksum;
-	u_int8_t	e_fw_build_string;
-	u_int8_t	e_fw_build;
-	u_int8_t	e_fw_resv;
-	u_int8_t	e_asic_version;
-	u_int8_t	e_tibsize;
-	u_int8_t	e_resv1[29];
+    u_int8_t	e_status;
+    u_int8_t	e_station_addr[ETHER_ADDR_LEN];
+    u_int8_t	e_resv0;
+    u_int8_t	e_rates[8];
+    u_int8_t	e_japan_callsign[12];
+    u_int8_t	e_prg_cksum;
+    u_int8_t	e_cis_cksum;
+    u_int8_t	e_fw_build_string;
+    u_int8_t	e_fw_build;
+    u_int8_t	e_fw_resv;
+    u_int8_t	e_asic_version;
+    u_int8_t	e_tibsize;
+    u_int8_t	e_resv1[29];
 };
 
 /*
@@ -276,63 +276,69 @@ struct ray_ecf_startup_v5 {
  * CCS commands
  */
 struct ray_cmd {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
 };
 
 #define	RAY_CCS_STATUS_FREE		0x0
 #define	RAY_CCS_STATUS_BUSY		0x1
 #define	RAY_CCS_STATUS_COMPLETE		0x2
 #define	RAY_CCS_STATUS_FAIL		0x3
+#define RAY_CCS_STATUS_STRINGS {	\
+    "free",				\
+    "busy",				\
+    "complete",				\
+    "fail"				\
+}
 
 /* RAY_CMD_UPDATE_PARAMS */
 struct ray_cmd_update {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_paramid;
-	u_int8_t	c_nparam;
-	u_int8_t	c_failcause;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_paramid;
+    u_int8_t	c_nparam;
+    u_int8_t	c_failcause;
 };
 
 /* RAY_CMD_REPORT_PARAMS */
 struct ray_cmd_report {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_paramid;
-	u_int8_t	c_nparam;
-	u_int8_t	c_failcause;
-	u_int8_t	c_len;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_paramid;
+    u_int8_t	c_nparam;
+    u_int8_t	c_failcause;
+    u_int8_t	c_len;
 };
 
 /* RAY_CMD_UPDATE_MCAST */
 struct ray_cmd_update_mcast {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_nmcast;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_nmcast;
 };
 
 /* RAY_CMD_UPDATE_APM */
 struct ray_cmd_udpate_apm {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_mode;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_mode;
 };
 
 /* RAY_CMD_START_NET and RAY_CMD_JOIN_NET */
 struct ray_cmd_net {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_upd_param;
-	u_int8_t	c_bss_id[ETHER_ADDR_LEN];
-	u_int8_t	c_inited;
-	u_int8_t	c_def_txrate;
-	u_int8_t	c_encrypt;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_upd_param;
+    u_int8_t	c_bss_id[ETHER_ADDR_LEN];
+    u_int8_t	c_inited;
+    u_int8_t	c_def_txrate;
+    u_int8_t	c_encrypt;
 };
 
 /*
@@ -340,76 +346,110 @@ struct ray_cmd_net {
  * ray_cmd_net.
  */
 struct ray_net_params {
-	u_int8_t	p_net_type;
-	u_int8_t	p_ssid[32];
-	u_int8_t	p_privacy_must_start;
-	u_int8_t	p_privacy_can_join;
+    u_int8_t	p_net_type;
+    u_int8_t	p_ssid[32];
+    u_int8_t	p_privacy_must_start;
+    u_int8_t	p_privacy_can_join;
 };
 
 /* RAY_CMD_UPDATE_ASSOC */
 struct ray_cmd_update_assoc {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_astatus;
-	u_int8_t	c_aid[2];
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_astatus;
+    u_int8_t	c_aid[2];
 };
 
 /* RAY_CMD_TX_REQ */
 struct ray_cmd_tx {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_bufp[2];
-	u_int8_t	c_len[2];
-	u_int8_t	c_resv[5];
-	u_int8_t	c_tx_rate;
-	u_int8_t	c_apm_mode;
-	u_int8_t	c_nretry;
-	u_int8_t	c_antenna;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_bufp[2];
+    u_int8_t	c_len[2];
+    u_int8_t	c_resv[5];
+    u_int8_t	c_tx_rate;
+    u_int8_t	c_apm_mode;
+    u_int8_t	c_nretry;
+    u_int8_t	c_antenna;
 };
 
-/* RAY_CMD_TX_REQ (for bulid 4) */
 struct ray_cmd_tx_4 {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_bufp[2];
-	u_int8_t	c_len[2];
-	u_int8_t	c_addr[ETHER_ADDR_LEN];
-	u_int8_t	c_apm_mode;
-	u_int8_t	c_nretry;
-	u_int8_t	c_antenna;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_bufp[2];
+    u_int8_t	c_len[2];
+    u_int8_t	c_addr[ETHER_ADDR_LEN];
+    u_int8_t	c_apm_mode;
+    u_int8_t	c_nretry;
+    u_int8_t	c_antenna;
 };
 
 /* RAY_CMD_DUMP_MEM */
 struct ray_cmd_dump_mem {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_memtype;
-	u_int8_t	c_memp[2];
-	u_int8_t	c_len;
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_memtype;
+    u_int8_t	c_memp[2];
+    u_int8_t	c_len;
 };
 
 /* RAY_CMD_START_TIMER */
 struct ray_cmd_start_timer {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_duration[2];
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_duration[2];
 };
 
+/* RAY_ECMD_RX_DONE */
 struct ray_cmd_rx {
-	u_int8_t	c_status;		/* ccs generic header */
-	u_int8_t	c_cmd;			/* " */
-	u_int8_t	c_link;			/* " */
-	u_int8_t	c_bufp[2];	/* buffer pointer */
-	u_int8_t	c_len[2];	/* length */
-	u_int8_t	c_siglev;	/* signal level */
-	u_int8_t	c_nextfrag;	/* next fragment in packet */
-	u_int8_t	c_pktlen[2];	/* total packet length */
-	u_int8_t	c_antenna;	/* antenna with best reception */
-	u_int8_t	c_updbss;	/* only 1 for beacon messages */
+    u_int8_t	c_status;		/* ccs generic header */
+    u_int8_t	c_cmd;			/* " */
+    u_int8_t	c_link;			/* " */
+    u_int8_t	c_bufp[2];		/* buffer pointer */
+    u_int8_t	c_len[2];		/* length */
+    u_int8_t	c_siglev;		/* signal level */
+    u_int8_t	c_nextfrag;		/* next fragment in packet */
+    u_int8_t	c_pktlen[2];		/* total packet length */
+    u_int8_t	c_antenna;		/* ant. with best reception */
+    u_int8_t	c_updbss;		/* only 1 for beacon messages */
 };
 
+/*
+ * Transmit scratch space and phy header structures
+ */
+struct ray_tx_tib {
+    u_int8_t	t_ccs_index;
+    u_int8_t	t_psm;
+    u_int8_t	t_pass_fail;
+    u_int8_t	t_retry_count;
+    u_int8_t	t_max_retries;
+    u_int8_t	t_frags_remaining;
+    u_int8_t	t_no_rb;
+    u_int8_t	t_rts_reqd;
+    u_int8_t	t_csma_tx_cntrl_2;
+    u_int8_t	t_sifs_tx_cntrl_2;
+    u_int8_t	t_tx_dma_addr_1[2];
+    u_int8_t	t_tx_dma_addr_2[2];
+    u_int8_t	t_var_dur_2mhz[2];
+    u_int8_t	t_var_dur_1mhz[2];
+    u_int8_t	t_max_dur_2mhz[2];
+    u_int8_t	t_max_dur_1mhz[2];
+    u_int8_t	t_hdr_len;
+    u_int8_t	t_max_frag_len[2];
+    u_int8_t	t_var_len[2];
+    u_int8_t	t_phy_hdr_4;
+    u_int8_t	t_mac_hdr_1;
+    u_int8_t	t_mac_hdr_2;
+    u_int8_t	t_sid[2];
+};
+
+struct ray_tx_phy_header {
+    u_int8_t	t_sfd[2];
+    u_int8_t	t_hdr_3;
+    u_int8_t	t_hdr_4;
+};
