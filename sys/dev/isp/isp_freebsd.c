@@ -1352,7 +1352,6 @@ isp_target_putback_atio(union ccb *ccb)
 static void
 isp_complete_ctio(union ccb *ccb)
 {
-	struct ispsoftc *isp = XS_ISP(ccb);
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 	}
