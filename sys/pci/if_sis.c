@@ -2095,6 +2095,28 @@ sis_init(xsc)
 	sis_list_tx_init(sc);
 
 	/*
+	 * Page 78 of the DP83815 data sheet (september 2002 version)
+	 * recommends the following register settings "for optimum
+	 * performance." for rev 15C.  The driver from NS also sets
+	 * the PHY_CR register for later versions.
+	 */
+	if (sc->sis_type == SIS_TYPE_83815) {
+		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
+		/* DC speed = 01 */
+		CSR_WRITE_4(sc, NS_PHY_CR, 0x189C);
+		if (sc->sis_srr == NS_SRR_15C) {
+			/* set val for c2 */
+			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x0000);
+			/* load/kill c2 */
+			CSR_WRITE_4(sc, NS_PHY_DSPCFG, 0x5040);
+			/* rais SD off, from 4 to c */
+			CSR_WRITE_4(sc, NS_PHY_SDCFG, 0x008C);
+		}
+		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
+	}
+
+
+	/*
 	 * For the NatSemi chip, we have to explicitly enable the
 	 * reception of ARP frames, as well as turn on the 'perfect
 	 * match' filter where we store the station address, otherwise
@@ -2148,7 +2170,6 @@ sis_init(xsc)
 		CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG256);
 	}
 
-
 	/* Accept Long Packets for VLAN support */
 	SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_JABBER);
 
@@ -2183,12 +2204,15 @@ sis_init(xsc)
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
 
 		reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
+		/* Allow coefficient to be read */
 		CSR_WRITE_4(sc, NS_PHY_DSPCFG, (reg & 0xfff) | 0x1000);
 		DELAY(100);
 		reg = CSR_READ_4(sc, NS_PHY_TDATA);
-		if ((reg & 0x0080) == 0 || (reg & 0xff) >= 0xd8) {
+		if ((reg & 0x0080) == 0 ||
+		     (reg > 0xd8 && reg <= 0xff)) {
 			device_printf(sc->sis_self, "Applying short cable fix (reg=%x)\n", reg);
 			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
+			/* Adjust coefficient and prevent change */
 			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
 		}
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
@@ -2216,21 +2240,6 @@ sis_init(xsc)
 #ifdef notdef
 	mii_mediachg(mii);
 #endif
-
-	/*
-	 * Page 75 of the DP83815 manual recommends the
-	 * following register settings "for optimum
-	 * performance." Note however that at least three
-	 * of the registers are listed as "reserved" in
-	 * the register map, so who knows what they do.
-	 */
-	if (sc->sis_type == SIS_TYPE_83815) {
-		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
-		CSR_WRITE_4(sc, NS_PHY_CR, 0x189C);
-		CSR_WRITE_4(sc, NS_PHY_TDATA, 0x0000);
-		CSR_WRITE_4(sc, NS_PHY_DSPCFG, 0x5040);
-		CSR_WRITE_4(sc, NS_PHY_SDCFG, 0x008C);
-	}
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
