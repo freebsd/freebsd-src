@@ -111,7 +111,7 @@ main(argc, argv)
 	rval = cmdloop();
 	sblock.fs_clean = 0;		/* mark it dirty */
 	sbdirty();
-	ckfini();
+	ckfini(0);
 	printf("*** FILE SYSTEM MARKED DIRTY\n");
 	printf("*** BE SURE TO RUN FSCK TO CLEAN UP ANY DAMAGE\n");
 	printf("*** IF IT WAS MOUNTED, RE-MOUNT WITH -u -o reload\n");
