@@ -140,15 +140,14 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
-ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 
-ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
+ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 
-ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
-ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
+ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
+ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));

@@ -105,8 +105,8 @@ struct thread;
 struct kse;
 struct proc;
 
-void	 addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks);
-void	 addupc_task(struct kse *ke, uintptr_t pc, u_int ticks);
+void	 addupc_intr(struct thread *td, uintptr_t pc, u_int ticks);
+void	 addupc_task(struct thread *td, uintptr_t pc, u_int ticks);
 void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp,
 	    struct timeval *ip);
 int	 chgproccnt(struct uidinfo *uip, int diff, int max);

@@ -280,8 +280,7 @@ doreti_ast:
 	 */
 	cli
 	movl	PCPU(CURTHREAD),%eax
-	movl	TD_KSE(%eax), %eax
-	testl	$KEF_ASTPENDING | KEF_NEEDRESCHED,KE_FLAGS(%eax)
+	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%eax)
 	je	doreti_exit
 	sti
 	pushl	%esp			/* pass a pointer to the trapframe */

@@ -165,7 +165,7 @@ i386_extend_pcb(struct thread *td)
 	td->td_pcb->pcb_ext = ext;
 	
 	/* switch to the new TSS after syscall completes */
-	td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+	td->td_flags |= TDF_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 
 	return 0;

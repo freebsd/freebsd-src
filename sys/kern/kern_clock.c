@@ -174,12 +174,12 @@ hardclock_process(frame)
 		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
 			p->p_sflag |= PS_ALRMPEND;
-			td->td_kse->ke_flags |= KEF_ASTPENDING;
+			td->td_flags |= TDF_ASTPENDING;
 		}
 		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
 			p->p_sflag |= PS_PROFPEND;
-			td->td_kse->ke_flags |= KEF_ASTPENDING;
+			td->td_flags |= TDF_ASTPENDING;
 		}
 	}
 	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
@@ -435,6 +435,7 @@ profclock(frame)
 	int i;
 #endif
 
+	td = curthread;
 	if (CLKF_USERMODE(frame)) {
 		/*
 		 * Came from user mode; CPU was in user state.
@@ -445,7 +446,7 @@ profclock(frame)
 		td = curthread;
 		if ((td->td_proc->p_sflag & PS_PROFIL) &&
 		    !(td->td_flags & TDF_UPCALLING))
-			addupc_intr(td->td_kse, CLKF_PC(frame), 1);
+			addupc_intr(td, CLKF_PC(frame), 1);
 	}
 #ifdef GPROF
 	else {
