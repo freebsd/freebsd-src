@@ -268,6 +268,13 @@ and
 were specified and the file exists.
 .It Bq Er EOPNOTSUPP
 An attempt was made to open a socket (not currently implemented).
+.It Bq Er EINVAL
+An attempt was made to open a descriptor with an illegal combination
+of
+.Dv O_RDONLY ,
+.Dv O_WRONLY ,
+and
+.Dv O_RDWR .
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
