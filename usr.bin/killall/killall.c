@@ -314,7 +314,7 @@ main(int ac, char **av)
 					matched = 0;
 				regfree(&rgx);
 			} else {
-				if (strcmp(thiscmd, cmd) != 0)
+				if (strncmp(thiscmd, cmd, MAXCOMLEN) != 0)
 					matched = 0;
 			}
 		}
