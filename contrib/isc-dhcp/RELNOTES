@@ -1,6 +1,6 @@
 	      Internet Systems Consortium DHCP Distribution
-			   Version 3.0.1rc14
-			     June 09, 2004
+			     Version 3.0.1
+			     July 14, 2004
 
 			     Release Notes
 
@@ -42,6 +42,25 @@ Measurement Systems, Igor Sharfmesser at Kazakh Telecom, and Brian
 Murrell at BC Tel Advanced Communications.  I'd like to express my
 thanks to all of these good people here, both for working on the code
 and for prodding me into improving it.
+
+			Changes since 3.0.1rc14
+
+- The global variable 'cur_time' was centralized and is now uniformly of a
+  type #defined in system-dependent headers.  It had previously been defined
+  in one of many places as a 32-bit value, and this causes mayhem on 64-bit
+  big endian systems.  It probably wasn't too healthy on little endian
+  systems either.
+
+- A printf format string error introduced in rc14 was repaired.
+
+- AIX system-dependent header file was altered to only define NO_SNPRINTF
+  if the condition used to #ifdef in vsnprintf in AIX' header files
+  is false.
+
+- The Alpha/OSF system-dependent header file was altered to define
+  NO_SNPRINTF on OS revisions older than 4.0G.
+
+- omapip/test.c had string.h added to its includes.
 
 			Changes since 3.0.1rc13
 
