@@ -23,71 +23,73 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #ifndef _SYS_TASKQUEUE_H_
 #define _SYS_TASKQUEUE_H_
 
-#ifdef _KERNEL
+#ifndef _KERNEL
+#error "no user-servicable parts inside"
+#endif
+
+#include <sys/queue.h>
 
 struct taskqueue;
 
 /*
  * Each task includes a function which is called from
- * taskqueue_run(). The first argument is taken from the 'ta_context'
+ * taskqueue_run().  The first argument is taken from the 'ta_context'
  * field of struct task and the second argument is a count of how many
  * times the task was enqueued before the call to taskqueue_run().
  */
-typedef void (*task_fn)(void *context, int pending);
+typedef void task_fn_t(void *context, int pending);
 
 /*
  * A notification callback function which is called from
- * taskqueue_enqueue(). The context argument is given in the call to
- * taskqueue_create(). This function would normally be used to allow the
- * queue to arrange to run itself later (e.g. by scheduling a software
+ * taskqueue_enqueue().  The context argument is given in the call to
+ * taskqueue_create().  This function would normally be used to allow the
+ * queue to arrange to run itself later (e.g., by scheduling a software
  * interrupt or waking a kernel thread).
  */
 typedef void (*taskqueue_enqueue_fn)(void *context);
 
 struct task {
-	STAILQ_ENTRY(task)	ta_link;	/* link for queue */
-	int			ta_pending;	/* count times queued */
-	int			ta_priority;	/* priority of task in queue */
-	task_fn			ta_func;	/* task handler */
-	void			*ta_context;	/* argument for handler */
+	STAILQ_ENTRY(task) ta_link;	/* link for queue */
+	int	ta_pending;		/* count times queued */
+	int	ta_priority;		/* priority of task in queue */
+	task_fn_t *ta_func;		/* task handler */
+	void	*ta_context;		/* argument for handler */
 };
 
-struct taskqueue	*taskqueue_create(const char *name, int mflags,
-					  taskqueue_enqueue_fn enqueue,
-					  void *context);
-void			taskqueue_free(struct taskqueue *queue);
-struct taskqueue	*taskqueue_find(const char *name);
-int			taskqueue_enqueue(struct taskqueue *queue,
-					  struct task *task);
-void			taskqueue_run(struct taskqueue *queue);
+struct taskqueue *taskqueue_create(const char *name, int mflags,
+				    taskqueue_enqueue_fn enqueue,
+				    void *context);
+int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
+struct taskqueue *taskqueue_find(const char *name);
+void	taskqueue_free(struct taskqueue *queue);
+void	taskqueue_run(struct taskqueue *queue);
 
 /*
  * Initialise a task structure.
  */
 #define TASK_INIT(task, priority, func, context) do {	\
-    task->ta_pending = 0;				\
-    task->ta_priority = priority;			\
-    task->ta_func = func;				\
-    task->ta_context = context;				\
+	(task)->ta_pending = 0;				\
+	(task)->ta_priority = (priority);		\
+	(task)->ta_func = (func);			\
+	(task)->ta_context = (context);			\
 } while (0)
 
 /*
  * Declare a reference to a taskqueue.
  */
 #define TASKQUEUE_DECLARE(name)			\
-						\
 extern struct taskqueue *taskqueue_##name
 
 /*
  * Define and initialise a taskqueue.
  */
-#define TASKQUEUE_DEFINE(name, enqueue, context, init)		\
+#define TASKQUEUE_DEFINE(name, enqueue, context, init)			\
 									\
 struct taskqueue *taskqueue_##name;					\
 									\
@@ -95,19 +97,19 @@ static void								\
 taskqueue_define_##name(void *arg)					\
 {									\
 	taskqueue_##name =						\
-		taskqueue_create(#name, M_NOWAIT, enqueue, context);	\
+	    taskqueue_create(#name, M_NOWAIT, (enqueue), (context));	\
 	init;								\
 }									\
 									\
 SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
-	taskqueue_define_##name, NULL);
+	taskqueue_define_##name, NULL)					\
+									\
+struct __hack
 
 /*
- * This queue is serviced by a software interrupt handler. To enqueue
+ * This queue is serviced by a software interrupt handler.  To enqueue
  * a task, call taskqueue_enqueue(&taskqueue_swi, &task).
  */
 TASKQUEUE_DECLARE(swi);
-
-#endif /* _KERNEL */
 
 #endif /* !_SYS_TASKQUEUE_H_ */
