@@ -170,6 +170,15 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 		if (TD_AWAITING_INTR(td)) {
 			db_printf("[IWAIT]");
 		}
+		if (TD_LENDER(td)) {
+			db_printf("[LOAN]");
+		}
+		if (TD_IS_IDLE(td)) {
+			db_printf("[IDLE]");
+		}
+		if (TD_IS_EXITING(td)) {
+			db_printf("[EXIT]");
+		}
 		break;
 	case TDS_CAN_RUN:
 		db_printf("[Can run]");
