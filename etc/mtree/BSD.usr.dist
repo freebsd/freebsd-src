@@ -820,6 +820,8 @@
                 ..
             ..
         ..
+        sendmail
+        ..
         skel
         ..
         syscons
