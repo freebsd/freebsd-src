@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: create.c,v 1.9 1997/10/01 06:30:00 charnier Exp $";
+	"$Id: create.c,v 1.10 1998/06/05 14:43:39 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -285,7 +285,7 @@ statd(t, parent, puid, pgid, pmode)
 				"line %d: could not get uname for uid=%u",
 				lineno, saveuid);
 		if (keys & F_UID)
-			(void)printf(" uid=%lu", saveuid);
+			(void)printf(" uid=%lu", (u_long)saveuid);
 		if (keys & F_GNAME)
 			if ((gr = getgrgid(savegid)) != NULL)
 				(void)printf(" gname=%s", gr->gr_name);
@@ -294,7 +294,7 @@ statd(t, parent, puid, pgid, pmode)
 				"line %d: could not get gname for gid=%u",
 				lineno, savegid);
 		if (keys & F_GID)
-			(void)printf(" gid=%lu", savegid);
+			(void)printf(" gid=%lu", (u_long)savegid);
 		if (keys & F_MODE)
 			(void)printf(" mode=%#o", savemode);
 		if (keys & F_NLINK)
