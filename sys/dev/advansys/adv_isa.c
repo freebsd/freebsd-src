@@ -142,6 +142,7 @@ adv_isa_probe(device_t dev)
 		bus_size_t maxsize;
 		bus_addr_t lowaddr;
 		int error;
+		struct adv_softc *adv;
 
 		if (port_addr == 0)
 			/* Already been attached */
@@ -157,164 +158,172 @@ adv_isa_probe(device_t dev)
 			continue;
 
 		if (adv_find_signature(rman_get_bustag(iores),
-				       rman_get_bushandle(iores))) {
-			/*
-			 * Got one.  Now allocate our softc
-			 * and see if we can initialize the card.
-			 */
-			struct adv_softc *adv;
-			adv = adv_alloc(dev, rman_get_bustag(iores),
-					rman_get_bushandle(iores));
-			if (adv == NULL)
-				return ENXIO;
+				       rman_get_bushandle(iores)) == 0) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			continue;
+		}
 
-			/*
-			 * Stop the chip.
-			 */
-			ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_HALT);
-			ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
-			/*
-			 * Determine the chip version.
-			 */
-			adv->chip_version = ADV_INB(adv,
-						    ADV_NONEISA_CHIP_REVISION);
-			if ((adv->chip_version >= ADV_CHIP_MIN_VER_VL)
-			 && (adv->chip_version <= ADV_CHIP_MAX_VER_VL)) {
-				adv->type = ADV_VL;
-				maxsegsz = ADV_VL_MAX_DMA_COUNT;
-				maxsize = BUS_SPACE_MAXSIZE_32BIT;
-				lowaddr = ADV_VL_MAX_DMA_ADDR;
-				bus_delete_resource(dev, SYS_RES_DRQ, 0);
-			} else if ((adv->chip_version >= ADV_CHIP_MIN_VER_ISA)
-				&& (adv->chip_version <= ADV_CHIP_MAX_VER_ISA)) {
-				if (adv->chip_version >= ADV_CHIP_MIN_VER_ISA_PNP) {
-					adv->type = ADV_ISAPNP;
-					ADV_OUTB(adv, ADV_REG_IFC,
-						 ADV_IFC_INIT_DEFAULT);
-				} else {
-					adv->type = ADV_ISA;
-				}
-				maxsegsz = ADV_ISA_MAX_DMA_COUNT;
-				maxsize = BUS_SPACE_MAXSIZE_24BIT;
-				lowaddr = ADV_ISA_MAX_DMA_ADDR;
-				adv->isa_dma_speed = ADV_DEF_ISA_DMA_SPEED;
-				adv->isa_dma_channel =
-				    adv_get_isa_dma_channel(adv);
-				bus_set_resource(dev, SYS_RES_DRQ, 0,
-						 adv->isa_dma_channel, 1);
+		/*
+		 * Got one.  Now allocate our softc
+		 * and see if we can initialize the card.
+		 */
+		adv = adv_alloc(dev, rman_get_bustag(iores),
+				rman_get_bushandle(iores));
+		if (adv == NULL) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
+		}
+
+		/*
+		 * Stop the chip.
+		 */
+		ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_HALT);
+		ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
+		/*
+		 * Determine the chip version.
+		 */
+		adv->chip_version = ADV_INB(adv, ADV_NONEISA_CHIP_REVISION);
+		if ((adv->chip_version >= ADV_CHIP_MIN_VER_VL)
+		    && (adv->chip_version <= ADV_CHIP_MAX_VER_VL)) {
+			adv->type = ADV_VL;
+			maxsegsz = ADV_VL_MAX_DMA_COUNT;
+			maxsize = BUS_SPACE_MAXSIZE_32BIT;
+			lowaddr = ADV_VL_MAX_DMA_ADDR;
+			bus_delete_resource(dev, SYS_RES_DRQ, 0);
+		} else if ((adv->chip_version >= ADV_CHIP_MIN_VER_ISA)
+			   && (adv->chip_version <= ADV_CHIP_MAX_VER_ISA)) {
+			if (adv->chip_version >= ADV_CHIP_MIN_VER_ISA_PNP) {
+				adv->type = ADV_ISAPNP;
+				ADV_OUTB(adv, ADV_REG_IFC,
+					 ADV_IFC_INIT_DEFAULT);
 			} else {
-				panic("advisaprobe: Unknown card revision\n");
+				adv->type = ADV_ISA;
 			}
+			maxsegsz = ADV_ISA_MAX_DMA_COUNT;
+			maxsize = BUS_SPACE_MAXSIZE_24BIT;
+			lowaddr = ADV_ISA_MAX_DMA_ADDR;
+			adv->isa_dma_speed = ADV_DEF_ISA_DMA_SPEED;
+			adv->isa_dma_channel = adv_get_isa_dma_channel(adv);
+			bus_set_resource(dev, SYS_RES_DRQ, 0,
+					 adv->isa_dma_channel, 1);
+		} else {
+			panic("advisaprobe: Unknown card revision\n");
+		}
 
-			/*
-			 * Allocate a parent dmatag for all tags created
-			 * by the MI portions of the advansys driver
-			 */
-			/* XXX Should be a child of the ISA bus dma tag */ 
-			error =
-			    bus_dma_tag_create(/*parent*/NULL,
-					       /*alignemnt*/1,
+		/*
+		 * Allocate a parent dmatag for all tags created
+		 * by the MI portions of the advansys driver
+		 */
+		/* XXX Should be a child of the ISA bus dma tag */ 
+		error = bus_dma_tag_create(/*parent*/NULL,
+					   /*alignemnt*/1,
+					   /*boundary*/0,
+					   lowaddr,
+					   /*highaddr*/BUS_SPACE_MAXADDR,
+					   /*filter*/NULL,
+					   /*filterarg*/NULL,
+					   maxsize,
+					   /*nsegs*/BUS_SPACE_UNRESTRICTED,
+					   maxsegsz,
+					   /*flags*/0,
+					   &adv->parent_dmat); 
+
+		if (error != 0) {
+			printf("%s: Could not allocate DMA tag - error %d\n",
+			       adv_name(adv), error); 
+			adv_free(adv); 
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO; 
+		}
+
+		adv->init_level++;
+
+		if (overrun_buf == NULL) {
+			/* Need to allocate our overrun buffer */
+			if (bus_dma_tag_create(adv->parent_dmat,
+					       /*alignment*/8,
 					       /*boundary*/0,
-					       lowaddr,
-					       /*highaddr*/BUS_SPACE_MAXADDR,
+					       ADV_ISA_MAX_DMA_ADDR,
+					       BUS_SPACE_MAXADDR,
 					       /*filter*/NULL,
 					       /*filterarg*/NULL,
-					       maxsize,
-					       /*nsegs*/BUS_SPACE_UNRESTRICTED,
-					       maxsegsz,
+					       ADV_OVERRUN_BSIZE,
+					       /*nsegments*/1,
+					       BUS_SPACE_MAXSIZE_32BIT,
 					       /*flags*/0,
-					       &adv->parent_dmat); 
- 
-			if (error != 0) {
-				printf("%s: Could not allocate DMA tag - error %d\n",
-				       adv_name(adv), error); 
-				adv_free(adv); 
-				return ENXIO; 
-			}
-
-			adv->init_level++;
-
-			if (overrun_buf == NULL) {
-				/* Need to allocate our overrun buffer */
-				if (bus_dma_tag_create(adv->parent_dmat,
-						       /*alignment*/8,
-						       /*boundary*/0,
-						       ADV_ISA_MAX_DMA_ADDR,
-						       BUS_SPACE_MAXADDR,
-						       /*filter*/NULL,
-						       /*filterarg*/NULL,
-						       ADV_OVERRUN_BSIZE,
-						       /*nsegments*/1,
-						       BUS_SPACE_MAXSIZE_32BIT,
-						       /*flags*/0,
-						       &overrun_dmat) != 0) {
-					adv_free(adv);
-					return ENXIO;
-        			}
-				if (bus_dmamem_alloc(overrun_dmat,
-						     (void **)&overrun_buf,
-						     BUS_DMA_NOWAIT,
-						     &overrun_dmamap) != 0) {
-					bus_dma_tag_destroy(overrun_dmat);
-					adv_free(adv);
-					return ENXIO;
-				}
-				/* And permanently map it in */  
-				bus_dmamap_load(overrun_dmat, overrun_dmamap,
-						overrun_buf, ADV_OVERRUN_BSIZE,
-                        			adv_map, &overrun_physbase,
-						/*flags*/0);
-			}
-
-			adv->overrun_physbase = overrun_physbase;
-			
-			if (adv_init(adv) != 0) {
+					       &overrun_dmat) != 0) {
 				adv_free(adv);
+				bus_release_resource(dev, SYS_RES_IOPORT, 0,
+						     iores);
 				return ENXIO;
 			}
-
-			switch (adv->type) {
-			case ADV_ISAPNP:
-				if (adv->chip_version == ADV_CHIP_VER_ASYN_BUG){
-					adv->bug_fix_control
-					    |= ADV_BUG_FIX_ASYN_USE_SYN;
-					adv->fix_asyn_xfer = ~0;
-				}
-				/* Fall Through */
-			case ADV_ISA:
-				adv->max_dma_count = ADV_ISA_MAX_DMA_COUNT;
-				adv->max_dma_addr = ADV_ISA_MAX_DMA_ADDR;
-				adv_set_isa_dma_settings(adv);
-				break;
-
-			case ADV_VL:
-				adv->max_dma_count = ADV_VL_MAX_DMA_COUNT;
-				adv->max_dma_addr = ADV_VL_MAX_DMA_ADDR;
-				break;
-			default:
-				panic("advisaprobe: Invalid card type\n");
-			}
-			
-			/* Determine our IRQ */
-			if (bus_get_resource(dev, SYS_RES_IRQ, 0, &irq, NULL))
-				bus_set_resource(dev, SYS_RES_IRQ, 0,
-						 adv_get_chip_irq(adv), 1);
-			else
-				adv_set_chip_irq(adv, irq);
-
-			irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-						    0, ~0, 1, RF_ACTIVE);
-			if (irqres == NULL ||
-			    bus_setup_intr(dev, irqres, INTR_TYPE_CAM,
-					   adv_intr, adv, &ih)) {
+			if (bus_dmamem_alloc(overrun_dmat,
+					     (void **)&overrun_buf,
+					     BUS_DMA_NOWAIT,
+					     &overrun_dmamap) != 0) {
+				bus_dma_tag_destroy(overrun_dmat);
 				adv_free(adv);
+				bus_release_resource(dev, SYS_RES_IOPORT, 0,
+						     iores);
 				return ENXIO;
 			}
-
-			/* Mark as probed */
-			adv_isa_ioports[port_index] = 0;
-			return 0;
+			/* And permanently map it in */  
+			bus_dmamap_load(overrun_dmat, overrun_dmamap,
+					overrun_buf, ADV_OVERRUN_BSIZE,
+					adv_map, &overrun_physbase,
+					/*flags*/0);
 		}
+
+		adv->overrun_physbase = overrun_physbase;
+
+		if (adv_init(adv) != 0) {
+			adv_free(adv);
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
+		}
+
+		switch (adv->type) {
+		case ADV_ISAPNP:
+			if (adv->chip_version == ADV_CHIP_VER_ASYN_BUG) {
+				adv->bug_fix_control
+				    |= ADV_BUG_FIX_ASYN_USE_SYN;
+				adv->fix_asyn_xfer = ~0;
+			}
+			/* Fall Through */
+		case ADV_ISA:
+			adv->max_dma_count = ADV_ISA_MAX_DMA_COUNT;
+			adv->max_dma_addr = ADV_ISA_MAX_DMA_ADDR;
+			adv_set_isa_dma_settings(adv);
+			break;
+
+		case ADV_VL:
+			adv->max_dma_count = ADV_VL_MAX_DMA_COUNT;
+			adv->max_dma_addr = ADV_VL_MAX_DMA_ADDR;
+			break;
+		default:
+			panic("advisaprobe: Invalid card type\n");
+		}
+			
+		/* Determine our IRQ */
+		if (bus_get_resource(dev, SYS_RES_IRQ, 0, &irq, NULL))
+			bus_set_resource(dev, SYS_RES_IRQ, 0,
+					 adv_get_chip_irq(adv), 1);
+		else
+			adv_set_chip_irq(adv, irq);
+
+		irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					    RF_ACTIVE);
+		if (irqres == NULL ||
+		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM, adv_intr, adv,
+				   &ih)) {
+			adv_free(adv);
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
+			return ENXIO;
+		}
+
+		/* Mark as probed */
+		adv_isa_ioports[port_index] = 0;
+		return 0;
 	}
 
 	return ENXIO;
