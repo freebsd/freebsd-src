@@ -915,8 +915,12 @@ ni6_addrs(ni6, m, ifpp)
 					       &ifa6->ia_addr.sin6_addr))
 				iffound = 1;
 
-			if (ifa6->ia6_flags & IN6_IFF_ANYCAST)
+			if (ifa6->ia6_flags & IN6_IFF_ANYCAST) {
+				if ((ni6->ni_flags & NI_NODEADDR_FLAG_ANYCAST)
+				    != 0)
+					addrsofif++;
 				continue; /* we need only unicast addresses */
+			}
 
 			if ((ni6->ni_flags & (NI_NODEADDR_FLAG_LINKLOCAL |
 					      NI_NODEADDR_FLAG_SITELOCAL |
@@ -986,8 +990,6 @@ ni6_store_addrs(ni6, nni6, ifp0, resid)
 			} else {	/* unicast address */
 				if (ni6->ni_flags & NI_NODEADDR_FLAG_ANYCAST)
 					continue;
-				else
-					docopy = 1;
 			}
 
 			/* What do we have to do about ::1? */
