@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	markm@FreeBSD.org
-
 .PATH: ${.CURDIR}/../../contrib/tcp_wrappers
 
 PROG=	tcpdchk
