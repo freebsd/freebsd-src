@@ -226,6 +226,13 @@
       GCC was a <emphasis>pre-release</emphasis> GCC 3.3.3
       snapshot.</para>
 
+    <para>(13 Jan 2004) The <filename
+      role="package">sysutils/kdeadmin3</filename> port/package has a
+      bug in the <application>KUser</application> component that can
+      cause deletion of the <username>root</username> user from the
+      system password file.  Users are strongly urged to upgrade to
+      version 3.1.4_1 of this port/package.</para>
+
 ]]>
 
   </sect1>
