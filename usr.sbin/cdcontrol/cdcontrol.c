@@ -1228,6 +1228,7 @@ char *parse (char *buf, int *cmd)
 int open_cd ()
 {
 	char devbuf[MAXPATHLEN];
+	const char *dev;
 
 	if (fd > -1)
 		return (1);
@@ -1238,13 +1239,13 @@ int open_cd ()
 	    } else {
 		    snprintf (devbuf, MAXPATHLEN, "%s%s", _PATH_DEV, cdname);
 	    }
-	    fd = open (devbuf, O_RDONLY);
+	    fd = open (dev = devbuf, O_RDONLY);
 	} else {
-	    fd = open("/dev/cdrom", O_RDONLY);
+	    fd = open(dev = "/dev/cdrom", O_RDONLY);
 	    if (fd < 0 && errno == ENOENT)
-		fd = open("/dev/cd0", O_RDONLY);
+		fd = open(dev = "/dev/cd0", O_RDONLY);
 	    if (fd < 0 && errno == ENOENT)
-		fd = open("/dev/acd0", O_RDONLY);
+		fd = open(dev = "/dev/acd0", O_RDONLY);
 	}
 
 	if (fd < 0) {
@@ -1252,10 +1253,10 @@ int open_cd ()
 			/*  ENXIO has an overloaded meaning here.
 			 *  The original "Device not configured" should
 			 *  be interpreted as "No disc in drive %s". */
-			warnx("no disc in drive %s", devbuf);
+			warnx("no disc in drive %s", dev);
 			return (0);
 		}
-		err(1, "%s", devbuf);
+		err(1, "%s", dev);
 	}
 	return (1);
 }
