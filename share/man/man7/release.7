@@ -206,6 +206,13 @@ This path name is in reference to the real system root,
 the root of the
 .Xr chroot 8
 directory tree.
+.It Va WORLDDIR
+The directory where
+.Dq Li "make buildworld"
+was run; defaults to
+.Pa ${.CURDIR}/..
+which usually points to
+.Pa /usr/src .
 .El
 .Pp
 Optional variables:
