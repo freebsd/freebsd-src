@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.41 1998/05/31 20:08:55 peter Exp $
+ * $Id: nfs_syscalls.c,v 1.42 1998/08/23 03:07:16 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -721,7 +721,8 @@ nfssvc_nfsd(nsd, argp, p)
 			if (nfsrtton)
 				nfsd_rt(sotype, nd, cacherep);
 			m_freem(nd->nd_mrep);
-			FREE(nd->nd_nam2, M_SONAME);
+			if (nd->nd_nam2)
+				FREE(nd->nd_nam2, M_SONAME);
 			break;
 		    };
 		    if (nd) {
