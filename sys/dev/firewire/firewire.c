@@ -65,6 +65,8 @@ SYSCTL_NODE(_hw, OID_AUTO, firewire, CTLFLAG_RD, 0, "FireWire Subsystem");
 SYSCTL_INT(_hw_firewire, OID_AUTO, try_bmr, CTLFLAG_RW, &try_bmr, 0,
 	"Try to be a bus manager");
 
+MALLOC_DEFINE(M_FW, "firewire", "FireWire");
+
 #define FW_MAXASYRTY 4
 #define FW_MAXDEVRCNT 4
 
@@ -434,8 +436,8 @@ firewire_detach( device_t dev )
 	callout_stop(&sc->fc->bmr_callout);
 	callout_stop(&sc->fc->retry_probe_callout);
 	callout_stop(&sc->fc->busprobe_callout);
-	free(sc->fc->topology_map, M_DEVBUF);
-	free(sc->fc->speed_map, M_DEVBUF);
+	free(sc->fc->topology_map, M_FW);
+	free(sc->fc->speed_map, M_FW);
 	bus_generic_detach(dev);
 	return(0);
 }
@@ -610,10 +612,10 @@ void fw_init(struct firewire_comm *fc)
 /* Initialize csr registers */
 	fc->topology_map = (struct fw_topology_map *)malloc(
 				sizeof(struct fw_topology_map),
-				M_DEVBUF, M_NOWAIT | M_ZERO);
+				M_FW, M_NOWAIT | M_ZERO);
 	fc->speed_map = (struct fw_speed_map *)malloc(
 				sizeof(struct fw_speed_map),
-				M_DEVBUF, M_NOWAIT | M_ZERO);
+				M_FW, M_NOWAIT | M_ZERO);
 	CSRARC(fc, TOPO_MAP) = 0x3f1 << 16;
 	CSRARC(fc, TOPO_MAP + 4) = 1;
 	CSRARC(fc, SPED_MAP) = 0x3f1 << 16;
@@ -626,7 +628,7 @@ void fw_init(struct firewire_comm *fc)
 	SLIST_INIT(&fc->ongocsr);
 	SLIST_INIT(&fc->csrfree);
 	for( i = 0 ; i < FWMAXCSRDIR ; i++){
-		csrd = (struct csrdir *) malloc(sizeof(struct csrdir), M_DEVBUF,M_NOWAIT);
+		csrd = (struct csrdir *) malloc(sizeof(struct csrdir), M_FW,M_NOWAIT);
 		if(csrd == NULL) break;
 		SLIST_INSERT_HEAD(&fc->csrfree, csrd, link);
 	}
@@ -657,7 +659,7 @@ void fw_init(struct firewire_comm *fc)
 	xfer = fw_xfer_alloc();
 	if(xfer == NULL) return;
 
-	fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_DEVBUF, M_NOWAIT);
+	fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_FW, M_NOWAIT);
 	if(fwb == NULL){
 		fw_xfer_free(xfer);
 	}
@@ -772,7 +774,7 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		tl = STAILQ_NEXT(tl, link)){
 		if(tl->xfer == xfer){
 			STAILQ_REMOVE(&fc->tlabels[xfer->tl], tl, tlabel, link);
-			free(tl, M_DEVBUF);
+			free(tl, M_FW);
 			splx(s);
 			return;
 		}
@@ -811,7 +813,7 @@ fw_xfer_alloc()
 {
 	struct fw_xfer *xfer;
 
-	xfer = malloc(sizeof(struct fw_xfer), M_DEVBUF, M_NOWAIT | M_ZERO);
+	xfer = malloc(sizeof(struct fw_xfer), M_FW, M_NOWAIT | M_ZERO);
 	if (xfer == NULL)
 		return xfer;
 
@@ -871,15 +873,15 @@ fw_xfer_free( struct fw_xfer* xfer)
 		}
 	}
 	if(xfer->send.buf != NULL){
-		free(xfer->send.buf, M_DEVBUF);
+		free(xfer->send.buf, M_FW);
 	}
 	if(xfer->recv.buf != NULL){
-		free(xfer->recv.buf, M_DEVBUF);
+		free(xfer->recv.buf, M_FW);
 	}
 	if(xfer->fc != NULL){
 		fw_tl_free(xfer->fc, xfer);
 	}
-	free(xfer, M_DEVBUF);
+	free(xfer, M_FW);
 }
 
 static void
@@ -914,7 +916,7 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 	xfer->act.hand = fw_asy_callback_free;
 
 	xfer->send.buf = malloc(sizeof(u_int32_t),
-					M_DEVBUF, M_NOWAIT | M_ZERO);
+					M_FW, M_NOWAIT | M_ZERO);
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.ld[1] = 0;
 	if (root_node >= 0)
@@ -1066,7 +1068,7 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 				CSRARC(fc, BUS_MGR_ID));
 #endif
 	}
-	free(buf, M_DEVBUF);
+	free(buf, M_FW);
 	if(fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)){
 		/* I am BMGR */
 		fw_bmr(fc);
@@ -1101,7 +1103,7 @@ fw_bus_probe(struct firewire_comm *fc)
 			fwdev->rcnt ++;
 		} else {
 			STAILQ_REMOVE(&fc->devices, fwdev, fw_device, link);
-			free(fwdev, M_DEVBUF);
+			free(fwdev, M_FW);
 		}
 	}
 	fc->ongonode = 0;
@@ -1165,7 +1167,7 @@ loop:
 			fc->ongoeui.hi = 0xffffffff; fc->ongoeui.lo = 0xffffffff;
 			goto loop;
 		}
-		fwdev = malloc(sizeof(struct fw_device), M_DEVBUF, M_NOWAIT);
+		fwdev = malloc(sizeof(struct fw_device), M_FW, M_NOWAIT);
 		if(fwdev == NULL)
 			return;
 		fwdev->fc = fc;
@@ -1215,7 +1217,7 @@ loop:
 	}
 	xfer->send.len = 16;
 	xfer->spd = 0;
-	xfer->send.buf = malloc(16, M_DEVBUF, M_NOWAIT);
+	xfer->send.buf = malloc(16, M_FW, M_NOWAIT);
 	if(xfer->send.buf == NULL){
 		fw_xfer_free( xfer);
 		return;
@@ -1266,7 +1268,7 @@ asyreqq(struct firewire_comm *fc, u_int8_t spd, u_int8_t tl, u_int8_t rt,
 	}
 	xfer->send.len = 16;
 	xfer->spd = spd; /* XXX:min(spd, fc->spd) */
-	xfer->send.buf = malloc(16, M_DEVBUF, M_NOWAIT);
+	xfer->send.buf = malloc(16, M_FW, M_NOWAIT);
 	if(xfer->send.buf == NULL){
 		fw_xfer_free( xfer);
 		return NULL;
@@ -1595,7 +1597,7 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 			if(tmptl->xfer->dst == xfer->dst) break;
 		}
 		if(tmptl == NULL) {
-			tl = malloc(sizeof(struct tlabel),M_DEVBUF,M_NOWAIT);
+			tl = malloc(sizeof(struct tlabel),M_FW,M_NOWAIT);
 			if (tl == NULL) {
 				splx(s);
 				return (-1);
@@ -1710,7 +1712,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 				return;
 			}
 			xfer->spd = spd;
-			xfer->send.buf = malloc(16, M_DEVBUF, M_NOWAIT);
+			xfer->send.buf = malloc(16, M_FW, M_NOWAIT);
 			resfp = (struct fw_pkt *)xfer->send.buf;
 			switch(fp->mode.common.tcode){
 			case FWTCODE_WREQQ:
@@ -1838,7 +1840,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 		break;
 	}
 err:
-	free(buf, M_DEVBUF);
+	free(buf, M_FW);
 }
 
 /*
@@ -1898,7 +1900,7 @@ fw_try_bmr(void *arg)
 	}
 	xfer->send.len = 24;
 	xfer->spd = 0;
-	xfer->send.buf = malloc(24, M_DEVBUF, M_NOWAIT);
+	xfer->send.buf = malloc(24, M_FW, M_NOWAIT);
 	if(xfer->send.buf == NULL){
 		fw_xfer_free( xfer);
 		return;
@@ -1956,7 +1958,7 @@ fw_vmaccess(struct fw_xfer *xfer){
 	switch(rfp->mode.hdr.tcode){
 		/* XXX need fix for 64bit arch */
 		case FWTCODE_WREQB:
-			xfer->send.buf = malloc(12, M_DEVBUF, M_NOWAIT);
+			xfer->send.buf = malloc(12, M_FW, M_NOWAIT);
 			xfer->send.len = 12;
 			sfp = (struct fw_pkt *)xfer->send.buf;
 			bcopy(rfp->mode.wreqb.payload,
@@ -1965,14 +1967,14 @@ fw_vmaccess(struct fw_xfer *xfer){
 			sfp->mode.wres.rtcode = 0;
 			break;
 		case FWTCODE_WREQQ:
-			xfer->send.buf = malloc(12, M_DEVBUF, M_NOWAIT);
+			xfer->send.buf = malloc(12, M_FW, M_NOWAIT);
 			xfer->send.len = 12;
 			sfp->mode.wres.tcode = FWTCODE_WRES;
 			*((u_int32_t *)(ntohl(rfp->mode.wreqb.dest_lo))) = rfp->mode.wreqq.data;
 			sfp->mode.wres.rtcode = 0;
 			break;
 		case FWTCODE_RREQB:
-			xfer->send.buf = malloc(16 + rfp->mode.rreqb.len, M_DEVBUF, M_NOWAIT);
+			xfer->send.buf = malloc(16 + rfp->mode.rreqb.len, M_FW, M_NOWAIT);
 			xfer->send.len = 16 + ntohs(rfp->mode.rreqb.len);
 			sfp = (struct fw_pkt *)xfer->send.buf;
 			bcopy((caddr_t)ntohl(rfp->mode.rreqb.dest_lo),
@@ -1983,7 +1985,7 @@ fw_vmaccess(struct fw_xfer *xfer){
 			sfp->mode.rresb.extcode = 0;
 			break;
 		case FWTCODE_RREQQ:
-			xfer->send.buf = malloc(16, M_DEVBUF, M_NOWAIT);
+			xfer->send.buf = malloc(16, M_FW, M_NOWAIT);
 			xfer->send.len = 16;
 			sfp = (struct fw_pkt *)xfer->send.buf;
 			sfp->mode.rresq.data = *(u_int32_t *)(ntohl(rfp->mode.rreqq.dest_lo));
