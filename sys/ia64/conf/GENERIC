@@ -138,10 +138,10 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		gif		# IPv6 and IPv4 tunneling
 device		loop		# Network loopback
 device		md		# Memory "disks"
+device		mem		# Memory and kernel memory devices
+device		null		# Null and zero devices
 device		pty		# Pseudo-ttys (telnet etc)
 device		puc		# Multi I/O cards and multi-channel UARTs
-device		null		# Null and zero devices
-device		mem		# Memory and kernel memory devices
 device		random		# Entropy device
 device		tun		# Packet tunnel.
 device		uart		# Serial port (UART)
