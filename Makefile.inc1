@@ -467,7 +467,8 @@ _strfile=	games/fortune/strfile
 .endif
 
 bootstrap-tools:
-.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config
+.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
+    gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
@@ -530,8 +531,7 @@ _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 
 cross-tools:
 .for _tool in ${_aout_tools} ${_btxld} ${_elf2exe} usr.bin/genassym \
-    usr.bin/gensetdefs gnu/usr.bin/binutils gnu/usr.bin/texinfo \
-    usr.bin/objformat gnu/usr.bin/cc
+    usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
