@@ -1238,6 +1238,11 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 		return error;
 	}
+	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL &&
+	    !_SIG_VALID(aiocbe->uaiocb.aio_sigevent.sigev_signo)) {
+		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		return EINVAL;
+	}
 
 	/* Save userspace address of the job info. */
 	aiocbe->uuaiocb = job;
@@ -2070,7 +2075,6 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 	lj->lioj_queue_count = 0;
 	lj->lioj_queue_finished_count = 0;
 	lj->lioj_ki = ki;
-	TAILQ_INSERT_TAIL(&ki->kaio_liojoblist, lj, lioj_list);
 
 	/*
 	 * Setup signal.
@@ -2078,13 +2082,20 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
 		error = copyin(uap->sig, &lj->lioj_signal,
 		    sizeof(lj->lioj_signal));
-		if (error)
+		if (error) {
+			zfree(aiolio_zone, lj);
 			return error;
+		}
+		if (!_SIG_VALID(lj->lioj_signal.sigev_signo)) {
+			zfree(aiolio_zone, lj);
+			return EINVAL;
+		}
 		lj->lioj_flags |= LIOJ_SIGNAL;
 		lj->lioj_flags &= ~LIOJ_SIGNAL_POSTED;
 	} else
 		lj->lioj_flags &= ~LIOJ_SIGNAL;
 
+	TAILQ_INSERT_TAIL(&ki->kaio_liojoblist, lj, lioj_list);
 	/*
 	 * Get pointers to the list of I/O requests.
 	 */
