@@ -1819,6 +1819,7 @@ pmap_activate(struct thread *td)
 	context = pmap_context_alloc();
 	pm->pm_context[PCPU_GET(cpuid)] = context;
 	pm->pm_active |= PCPU_GET(cpumask);
+	PCPU_SET(vmspace, vm);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
 	membar(Sync);
 	mtx_unlock_spin(&sched_lock);

@@ -119,11 +119,11 @@ ENTRY(cpu_switch)
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	/*
-	 * Point to the vmspaces of the new and old processes.
+	 * Point to the vmspaces of the new process, and of the last non-kernel
+	 * process to run.
 	 */
-2:	ldx	[%l0 + TD_PROC], %l2
 	ldx	[%o0 + TD_PROC], %o2
-	ldx	[%l2 + P_VMSPACE], %l2
+	ldx	[PCPU(VMSPACE)], %l2
 	ldx	[%o2 + P_VMSPACE], %o2
 
 #if KTR_COMPILE & KTR_PROC
@@ -141,24 +141,33 @@ ENTRY(cpu_switch)
 	be,a,pn %xcc, 4f
 	 nop
 
+	/*
+	 * If the new process has nucleus context we are done.
+	 */
 	lduw	[PCPU(CPUID)], %o3
 	sllx	%o3, INT_SHIFT, %o3
 	add	%o2, VM_PMAP + PM_CONTEXT, %o4
+	lduw	[%o3 + %o4], %o5
 
-	lduw	[PCPU(CPUID)], %l3
-	sllx	%l3, INT_SHIFT, %l3
-	add	%l2, VM_PMAP + PM_CONTEXT, %l4
+#if KTR_COMPILE & KTR_PROC
+	CATR(KTR_PROC, "cpu_switch: ctx=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	stx	%o5, [%g1 + KTR_PARM1]
+9:
+#endif
 
-	/*
-	 * If the old process has nucleus context we don't want to deactivate
-	 * its pmap on this cpu.
-	 */
-	lduw	[%l3 + %l4], %l5
-	brz,a	%l5, 2f
+	brz,a,pn %o5, 4f
 	 nop
 
 	/*
-	 * Mark the pmap no longer active on this cpu.
+	 * If there was no non-kernel vmspace, don't try to deactivate it.
+	 */
+	brz,a,pn %l2, 2f
+	 nop
+
+	/*
+	 * Mark the pmap of the last non-kernel vmspace to run as no longer
+	 * active on this cpu.
 	 */
 	lduw	[%l2 + VM_PMAP + PM_ACTIVE], %l3
 	lduw	[PCPU(CPUMASK)], %l4
@@ -175,25 +184,10 @@ ENTRY(cpu_switch)
 	stw	%l5, [%l3 + %l4]
 
 	/*
-	 * If the new process has nucleus context we are done.
-	 */
-2:	lduw	[%o3 + %o4], %o5
-
-#if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: ctx=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o5, [%g1 + KTR_PARM1]
-9:
-#endif
-
-	brz,a,pn %o5, 4f
-	 nop
-
-	/*
 	 * Find the current free tlb context for this cpu and install it as
 	 * the new primary context.
 	 */
-	lduw	[PCPU(TLB_CTX)], %o5
+2:	lduw	[PCPU(TLB_CTX)], %o5
 	stw	%o5, [%o3 + %o4]
 	mov	AA_DMMU_PCXR, %o4
 	stxa	%o5, [%o4] ASI_DMMU
@@ -242,6 +236,11 @@ ENTRY(cpu_switch)
 	lduw	[PCPU(CPUMASK)], %o4
 	or	%o3, %o4, %o3
 	stw	%o3, [%o2 + VM_PMAP + PM_ACTIVE]
+
+	/*
+	 * Make note of the change in vmspace.
+	 */
+	stx	%o2, [PCPU(VMSPACE)]
 
 	/*
 	 * Load the address of the tsb, switch to mmu globals, and install
