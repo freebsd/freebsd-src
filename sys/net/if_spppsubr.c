@@ -210,14 +210,14 @@ struct ppp_header {
 	u_char address;
 	u_char control;
 	u_short protocol;
-};
+} __attribute__((__packed__));
 #define PPP_HEADER_LEN          sizeof (struct ppp_header)
 
 struct lcp_header {
 	u_char type;
 	u_char ident;
 	u_short len;
-};
+} __attribute__((__packed__));
 #define LCP_HEADER_LEN          sizeof (struct lcp_header)
 
 struct cisco_packet {
@@ -227,8 +227,8 @@ struct cisco_packet {
 	u_short rel;
 	u_short time0;
 	u_short time1;
-};
-#define CISCO_PACKET_LEN 18
+} __attribute__((__packed__));
+#define CISCO_PACKET_LEN	sizeof (struct cisco_packet)
 
 /*
  * We follow the spelling and capitalization of RFC 1661 here, to make
