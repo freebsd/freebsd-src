@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkstat.h	8.2 (Berkeley) 1/21/94
- * $Id: dkstat.h,v 1.3 1994/08/18 22:35:42 wollman Exp $
+ * $Id: dkstat.h,v 1.5 1994/10/16 05:03:05 wollman Exp $
  */
 
 #ifndef _SYS_DKSTAT_H_
@@ -54,9 +54,9 @@
 #ifdef KERNEL
 extern long cp_time[CPUSTATES];
 extern long dk_seek[DK_NDRIVE];	/* # seeks */
-extern long dk_time[DK_NDRIVE];	/* time busy */
-extern long dk_wds[DK_NDRIVE];	/* # 16-bit words transferred */
-extern long dk_wpms[DK_NDRIVE];	/* 16-bit words per msec */
+extern long dk_time[DK_NDRIVE];	/* time busy (in statclock ticks) */
+extern long dk_wds[DK_NDRIVE];	/* # blocks of 32*16-bit words transferred */
+extern long dk_wpms[DK_NDRIVE];	/* transfer rate in 16-bit words per second */
 extern long dk_xfer[DK_NDRIVE];	/* # transfers */
 extern char dk_names[DK_NDRIVE][DK_NAMELEN]; /* name of drive */
 
