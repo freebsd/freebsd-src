@@ -65,6 +65,8 @@ char *calendarFile = "calendar";  /* default calendar file */
 char *calendarHome = ".calendar"; /* HOME */
 char *calendarNoMail = "nomail";  /* don't sent mail if this file exist */
 
+struct fixs neaster, npaskha;
+
 struct iovec header[] = {
 	{"From: ", 6},
 	{NULL, 0},
@@ -105,6 +107,20 @@ cal()
 		if (strncmp(buf, "LANG=", 5) == 0) {
 			(void) setlocale(LC_ALL, buf + 5);
 			setnnames();
+			continue;
+		}
+		if (strncasecmp(buf, "Easter=", 7) == 0 && buf[7]) {
+			if (neaster.name != NULL)
+				free(neaster.name);
+			neaster.name = strdup(buf + 7);
+			neaster.len = strlen(buf + 7);
+			continue;
+		}
+		if (strncasecmp(buf, "Paskha=", 7) == 0 && buf[7]) {
+			if (npaskha.name != NULL)
+				free(npaskha.name);
+			npaskha.name = strdup(buf + 7);
+			npaskha.len = strlen(buf + 7);
 			continue;
 		}
 		if (buf[0] != '\t') {
