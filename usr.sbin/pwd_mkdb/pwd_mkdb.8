@@ -42,6 +42,7 @@
 .Op Fl c
 .Op Fl p
 .Op Fl d Ar directory
+.Op Fl u Ar username
 .Ar file
 .Sh DESCRIPTION
 .Nm Pwd_mkdb
@@ -68,9 +69,13 @@ change, add, or remove any files.
 .It Fl p
 Create a Version 7 style password file and install it into
 .Dq Pa /etc/passwd .
-.It Fl d
+.It Fl d Ar directory
 Store databases into specified destination directory instead of
 .Dq Pa /etc .
+.It Fl u Ar username
+Only update the record for the specified user.  Utilities that
+operate on a single user can use this option to avoid the
+overhead of rebuilding the entire database.
 .El
 .Pp
 The two databases differ in that the secure version contains the user's 
