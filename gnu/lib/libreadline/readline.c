@@ -59,8 +59,8 @@ extern int errno;
 #include "rldefs.h"
 
 /* Some standard library routines. */
-#include "readline.h"
-#include "history.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 /* NOTE: Functions and variables prefixed with `_rl_' are
    pseudo-global: they are global so they can be shared
