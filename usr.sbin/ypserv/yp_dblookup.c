@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp wpaul $
  *
  */
 #include <stdio.h>
@@ -47,7 +47,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp wpaul $";
 #endif
 
 int ypdb_debug = 0;
@@ -77,6 +77,7 @@ struct dbent {
 	char *name;
 	char *key;
 	int size;
+	int flags;
 };
 
 static CIRCLEQ_HEAD(circlehead, circleq_entry) qhead;
@@ -193,6 +194,65 @@ void yp_flush_all()
 	return;
 }
 
+static char *inter_string = "YP_INTERDOMAIN";
+static char *secure_string = "YP_SECURE";
+static int inter_sz = sizeof("YP_INTERDOMAIN") - 1;
+static int secure_sz = sizeof("YP_SECURE") - 1;
+
+static int yp_setflags(dbp)
+	DB *dbp;
+{
+	DBT key = { NULL, 0 }, data = { NULL, 0 };
+	int flags = 0;
+
+	key.data = inter_string;
+	key.size = inter_sz;
+
+	if (!(dbp->get)(dbp, &key, &data, 0))
+		flags |= YP_INTERDOMAIN;
+
+	key.data = secure_string;
+	key.size = secure_sz;
+
+	if (!(dbp->get)(dbp, &key, &data, 0))
+		flags |= YP_SECURE;
+
+	return(flags);
+}
+
+int yp_testflag(map, domain, flag)
+	char *map;
+	char *domain;
+	int flag;
+{
+	char buf[MAXPATHLEN + 2];
+	register struct circleq_entry *qptr;
+
+	if (map == NULL || domain == NULL)
+		return(0);
+
+	strcpy(buf, domain);
+	strcat(buf, "/");
+	strcat(buf, map);
+
+	for (qptr = qhead.cqh_first; qptr != (void *)&qhead;
+						qptr = qptr->links.cqe_next) {
+		if (!strcmp(qptr->dbptr->name, buf)) {
+			if (qptr->dbptr->flags & flag)
+				return(1);
+			else
+				return(0);
+		}
+	}
+
+	if (yp_open_db_cache(domain, map, NULL, 0) == NULL)
+		return(0);
+
+	if (qhead.cqh_first->dbptr->flags & flag)
+		return(1);
+
+	return(0);
+}
 
 /*
  * Add a DB handle and database name to the cache. We only maintain
@@ -226,6 +286,8 @@ static int yp_cache_db(dbp, name, size)
 	qptr->dbptr->name = strdup(name);
 	qptr->dbptr->size = size;
 	qptr->dbptr->key = NULL;
+
+	qptr->dbptr->flags = yp_setflags(dbp);
 
 	CIRCLEQ_INSERT_HEAD(&qhead, qptr, links);
 	numdbs++;
