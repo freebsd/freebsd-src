@@ -717,7 +717,11 @@
 .    \" replacing argument with result
 .    ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Lb]
 .
+.    if \n[doc-in-library-section] \
+.      br
 .    doc-print-recursive
+.    if \n[doc-in-library-section] \
+.      br
 .  \}
 .  el \{\
 .    tm Usage: .Lb library_name ... (#\n[.c])

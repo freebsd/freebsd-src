@@ -786,7 +786,7 @@ In the following examples, the left (which is identical to the right) and
 the middle part of the manual page header strings are shown.
 Note how
 .Ql \e&
-prevents the digit\~1 from being a valid numeric expression.
+prevents the digit\~7 from being a valid numeric expression.
 .
 .Bd -ragged
 .Bl -tag -width ".Li .Dt\ FOO\ 2\ i386" -compact -offset indent
@@ -1108,6 +1108,15 @@ distinguishing it from the argument strings.
 To remove the special meaning from a punctuation character escape it with
 .Ql \e& .
 .Pp
+The following punctuation characters are recognized by
+.Nm \-mdoc :
+.
+.Bl -column -offset indent-two XXXXXX XXXXXX XXXXXX XXXXXX
+.It Li .\& Ta Li ,\& Ta Li :\& Ta Li ;\& Ta Li (\&
+.It Li )\& Ta Li [\& Ta Li ]\& Ta Li ?\& Ta Li !\&
+.El
+.Pp
+.
 .Xr Troff
 is limited as a macro language, and has difficulty when presented with a
 string containing a member of the mathematical, logical or quotation set:
@@ -1693,6 +1702,13 @@ look for strings named
 then denotes the keyword to be used with the
 .Ql .Lb
 macro.
+.Pp
+In the
+.Sx LIBRARY
+section an
+.Ql .Lb
+command causes a line break before and after its arguments are printed.
+.Pp
 .
 .Ss Literals
 .

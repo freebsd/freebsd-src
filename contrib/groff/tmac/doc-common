@@ -340,12 +340,18 @@
 ..
 .
 .
-.\" NS doc-operating-system global string
-.\" NS   the exact version of the operating system
+.\" NS doc-default-operating-system global string
+.\" NS   the exact (default) version of the operating system
 .\" NS
 .\" NS override this in `mdoc.local', if necessary
 .
-.ds doc-operating-system BSD
+.ds doc-default-operating-system BSD
+.
+.
+.\" NS doc-operating-system global string
+.\" NS   the exact version of the operating system
+.
+.ds doc-operating-system
 .
 .
 .\" NS Os user macro (not parsed, not callable)
@@ -435,10 +441,9 @@
 .ds doc-operating-system-FreeBSD-5.0     5.0
 .
 .de Os
-.  if "\$1"" \
-.    return
-.
-.  ie        "\$1"ATT" \{\
+.  ie "\$1"" \
+.    ds doc-operating-system "\*[doc-default-operating-system]
+.  el \{ .ie "\$1"ATT" \{\
 .    ds doc-operating-system AT&T
 .    if \A\$2 \{\
 .      ie d doc-operating-system-ATT-\$2 \
@@ -473,7 +478,7 @@
 .    ds doc-operating-system \$1
 .    if !"\$2"" \
 .      as doc-operating-system " \$2
-.  \}\}\}\}
+.  \}\}\}\}\}
 ..
 .
 .
@@ -697,6 +702,12 @@
 .nr doc-in-synopsis-section 0
 .
 .
+.\" NS doc-in-library-section global register (bool)
+.\" NS   whether we are in the `library' section
+.
+.nr doc-in-library-section 0
+.
+.
 .\" NS doc-in-see-also-section global register (bool)
 .\" NS   whether we are in the `see also' section
 .
@@ -734,6 +745,7 @@
 .\" NS   doc-func-count
 .\" NS   doc-in-authors-section
 .\" NS   doc-in-files-section
+.\" NS   doc-in-library-section
 .\" NS   doc-in-see-also-section
 .\" NS   doc-in-synopsis-section
 .\" NS   doc-indent-synopsis
@@ -750,6 +762,7 @@
 .
 .ds doc-section-name        NAME
 .ds doc-section-synopsis    SYNOPSIS
+.ds doc-section-library     LIBRARY
 .ds doc-section-description DESCRIPTION
 .ds doc-section-see-also    SEE
 .ds doc-section-files       FILES
@@ -796,6 +809,7 @@
 .    \}
 .    el \{\
 .      nr doc-in-synopsis-section 0
+.      nr doc-in-library-section 0
 .      nr doc-in-see-also-section 0
 .      nr doc-in-files-section 0
 .      nr doc-in-authors-section 0
@@ -806,6 +820,9 @@
 .        nr doc-in-synopsis-section 1
 .        nr doc-indent-synopsis 0
 .        nr doc-indent-synopsis-active 0
+.      \}
+.      el \{ .ie "\*[doc-str-dfp]"\*[doc-section-library]" \{\
+.        nr doc-in-library-section 1
 .      \}
 .      el \{ .ie "\*[doc-str-dfp]"\*[doc-section-description]" \{\
 .        nr doc-is-func 0
@@ -822,7 +839,7 @@
 .        nr doc-in-files-section 1
 .      el .if    "\*[doc-str-dfp]"\*[doc-section-authors]" \
 .        nr doc-in-authors-section 1
-.      \}\}\}
+.      \}\}\}\}
 .
 .      in 0
 .      nr doc-have-author 0
@@ -1059,6 +1076,7 @@
 .  tm doc-display-vertical == \n[doc-display-vertical]
 .  tm doc-header-string == `\*[doc-header-string]'
 .  tm doc-in-synopsis-section == \n[doc-in-synopsis-section]
+.  tm doc-in-library-section == \n[doc-in-library-section]
 .  tm doc-in-see-also-section == \n[doc-in-see-also-section]
 .  tm doc-in-files-section == \n[doc-in-files-section]
 .  tm doc-in-authors-section == \n[doc-in-authors-section]

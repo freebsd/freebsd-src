@@ -3321,6 +3321,7 @@
 .  nr doc-curr-font-saved \n[doc-curr-font]
 .  nr doc-curr-size-saved \n[doc-curr-size]
 .  nr doc-in-synopsis-section-saved \n[doc-in-synopsis-section]
+.  nr doc-in-library-section-saved \n[doc-in-library-section]
 .  nr doc-indent-synopsis-saved \n[doc-indent-synopsis]
 .  nr doc-indent-synopsis-active-saved \n[doc-indent-synopsis-active]
 .  nr doc-have-decl-saved \n[doc-have-decl]
@@ -3460,6 +3461,7 @@
 .  nr doc-curr-font \n[doc-curr-font-saved]
 .  nr doc-curr-size \n[doc-curr-size-saved]
 .  nr doc-in-synopsis-section \n[doc-in-synopsis-section-saved]
+.  nr doc-in-library-section \n[doc-in-library-section-saved]
 .  nr doc-indent-synopsis \n[doc-indent-synopsis-saved]
 .  nr doc-indent-synopsis-active \n[doc-indent-synopsis-active-saved]
 .  nr doc-have-decl \n[doc-have-decl-saved]
@@ -5164,11 +5166,14 @@
 .\" NS   doc-issue-count
 .\" NS   doc-issue-name
 .\" NS   doc-journal-count
-.\" NS   doc-journam-name
+.\" NS   doc-journal-name
 .\" NS   doc-optional-count
 .\" NS   doc-optional-string
 .\" NS   doc-page-number-count
 .\" NS   doc-page-number-string
+.\" NS   doc-publisher-count
+.\" NS   doc-publisher-name
+.\" NS   doc-reference-count
 .\" NS   doc-reference-title-count
 .\" NS   doc-reference-title-name
 .\" NS   doc-reference-title-name-for-book
@@ -5192,6 +5197,8 @@
 .  nr doc-date-count 0
 .  nr doc-page-number-count 0
 .  nr doc-book-count 0
+.  nr doc-publisher-count 0
+.  nr doc-reference-count 0
 .
 .  ds doc-journal-name
 .  ds doc-issue-name
@@ -5204,6 +5211,7 @@
 .  ds doc-date
 .  ds doc-page-number-string
 .  ds doc-book-name
+.  ds doc-publisher-name
 ..
 .
 .

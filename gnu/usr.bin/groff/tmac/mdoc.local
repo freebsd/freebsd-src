@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001 Ruslan Ermilov <ru@FreeBSD.org>.
+.\" Copyright (c) 2001-2004 Ruslan Ermilov <ru@FreeBSD.org>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -52,12 +52,15 @@
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
 .\" Default .Os value
-.ds doc-operating-system FreeBSD\~4.9
+.ds doc-default-operating-system FreeBSD\~4.10
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-4.9    4.9
+.ds doc-operating-system-FreeBSD-4.10   4.10
 .ds doc-operating-system-FreeBSD-5.1    5.1
 .ds doc-operating-system-FreeBSD-5.2    5.2
+.ds doc-operating-system-FreeBSD-5.2.1  5.2.1
+.ds doc-operating-system-FreeBSD-5.3    5.3
 .
 .ec
 .
