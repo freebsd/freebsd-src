@@ -153,7 +153,7 @@ Fatal errors, such as calling
 with incorrect arguments, or with non-existent
 .Ar login Ns Ar s ,
 are logged in the system log file, using
-.Xr syslog 8 .
+.Xr syslog 3 .
 .Sh FILES
 .Bl -tag -width "vacation.dirxxx" -compact
 .It Pa ~/.vacation.db
@@ -162,8 +162,9 @@ database file
 message to send
 .El
 .Sh SEE ALSO
+.Xr syslog 3 ,
 .Xr sendmail 8 ,
-.Xr syslog 8
+.Xr syslogd 8
 .Sh HISTORY
 The
 .Nm vacation

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)getsockopt.2	8.3 (Berkeley) 4/19/94
-.\"	$Id: getsockopt.2,v 1.2 1995/11/03 18:34:36 wollman Exp $
+.\"	$Id: getsockopt.2,v 1.3 1996/01/22 00:01:59 julian Exp $
 .\"
 .Dd November 3, 1995
 .Dt GETSOCKOPT 2
@@ -382,12 +382,12 @@ this error may also be returned if
 is not in a valid part of the process address space.
 .El
 .Sh SEE ALSO
-.Xr sysctl 1 ,
 .Xr ioctl 2 ,
 .Xr socket 2 ,
 .Xr getprotoent 3 ,
 .Xr sysctl 3 ,
-.Xr protocols 5
+.Xr protocols 5 ,
+.Xr sysctl 8
 .Sh BUGS
 Several of the socket options should be handled at lower levels of the system.
 .Sh HISTORY
