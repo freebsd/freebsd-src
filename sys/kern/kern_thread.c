@@ -213,7 +213,7 @@ thread_stash(struct thread *td)
 }
 
 /* 
- * reap any  zombie threads for this Processor.
+ * reap any  zombie threads.
  */
 void
 thread_reap(void)
