@@ -3,7 +3,7 @@
 
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/string ${.CURDIR}/../libc/string
 
-CFLAGS += -I${.CURDIR}/../libc/locale
+CFLAGS+= -I${.CURDIR}/../libc/locale
 
 # machine-independent string sources
 MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
@@ -13,7 +13,7 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
 	strpbrk.c strrchr.c strsep.c strsignal.c strspn.c strstr.c strtok.c \
 	strxfrm.c swab.c wcscat.c wcschr.c wcscmp.c wcscpy.c wcscspn.c \
 	wcslcat.c wcslcpy.c wcslen.c wcsncat.c wcsncmp.c wcsncpy.c wcspbrk.c \
-	wcsrchr.c wcsspn.c wcsstr.c           wmemchr.c wmemcmp.c wmemcpy.c \
+	wcsrchr.c wcsspn.c wcsstr.c wmemchr.c wmemcmp.c wmemcpy.c \
 	wmemmove.c wmemset.c
 
 
