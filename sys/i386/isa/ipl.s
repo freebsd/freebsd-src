@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.2 1997/05/31 09:03:52 peter Exp $
+ *	$Id: ipl.s,v 1.2 1997/07/23 18:41:25 smp Exp smp $
  */
 
 
@@ -52,9 +52,11 @@
 	.globl	_cpl
 _cpl:	.long	HWI_MASK | SWI_MASK
 
+#ifndef APIC_IO
 /* interrupt mask enable (all h/w off) */
 	.globl	_imen
 _imen:	.long	HWI_MASK
+#endif /* APIC_IO */
 
 	.globl	_tty_imask
 _tty_imask:	.long	0

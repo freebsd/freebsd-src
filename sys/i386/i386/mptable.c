@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.18 1997/07/20 18:13:01 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.20 1997/07/23 20:20:21 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -248,6 +248,7 @@ static void	mp_enable(u_int boot_addr);
 static int	mptable_pass1(void);
 static int	mptable_pass2(void);
 static void	default_mp_table(int type);
+static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
@@ -497,6 +498,9 @@ mp_enable(u_int boot_addr)
 #endif  /** TEST_TEST1 */
 
 #endif	/* APIC_IO */
+
+	/* initialize all SMP locks */
+	init_locks();
 
 	/* start each Application Processor */
 	start_all_aps(boot_addr);
@@ -1415,6 +1419,23 @@ default_mp_table(int type)
 
 
 /*
+ * initialize all the SMP locks
+ */
+static void
+init_locks(void)
+{
+	/*
+	 * Get the initial mp_lock with a count of 1 for the BSP.
+	 * This uses a LOGICAL cpu ID, ie BSP == 0.
+	 */
+	mp_lock = 0x00000001;
+
+	/* locks the IO APIC and apic_imen accesses */
+	s_lock_init(&imen_lock);
+}
+
+
+/*
  * start each AP in our list
  */
 static int
@@ -1428,15 +1449,6 @@ start_all_aps(u_int boot_addr)
 	int *newpp;
 
 	POSTCODE(START_ALL_APS_POST);
-
-	/**
-         * NOTE: this needs further thought:
-         *        where does it get released?
-         *        should it be set to empy?
-         *
-         * get the initial mp_lock with a count of 1 for the BSP
-         */
-	mp_lock = 1;	/* this uses a LOGICAL cpu ID, ie BSP == 0 */
 
 	/* initialize BSP's local APIC */
 	apic_initialize();
