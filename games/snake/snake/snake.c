@@ -58,6 +58,8 @@ static char sccsid[] = "@(#)snake.c	8.2 (Berkeley) 1/7/94";
 #include <fcntl.h>
 #include <pwd.h>
 #include <time.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "snake.h"
 #include "pathnames.h"
@@ -103,18 +105,16 @@ char **argv;
 	extern char *optarg;
 	extern int optind;
 	int ch, i, j, k;
-	long atol();
 	void stop();
 
-	rawscores = open(_PATH_RAWSCORES, O_RDWR|O_CREAT, 0644);
+	rawscores = open(_PATH_RAWSCORES, O_RDWR|O_CREAT, 0664);
 	logfile = fopen(_PATH_LOGFILE, "a");
 
 	/* revoke privs */
 	setegid(getgid());
 	setgid(getgid());
 
-	(void)time(&tv);
-	srandom((int)tv);
+	srandomdev();
 
 	while ((ch = getopt(argc, argv, "l:w:")) != EOF)
 		switch((char)ch) {
@@ -494,14 +494,14 @@ int	iscore, flag;
 	/* Figure out what happened in the past */
 	read(rawscores, &allbscore, sizeof(short));
 	read(rawscores, &allbwho, sizeof(short));
-	lseek(rawscores, ((long)uid)*sizeof(short), 0);
+	lseek(rawscores, ((off_t)uid)*sizeof(short), 0);
 	read(rawscores, &oldbest, sizeof(short));
 	if (!flag)
 		return (score > oldbest ? 1 : 0);
 
 	/* Update this jokers best */
 	if (score > oldbest) {
-		lseek(rawscores, ((long)uid)*sizeof(short), 0);
+		lseek(rawscores, ((off_t)uid)*sizeof(short), 0);
 		write(rawscores, &score, sizeof(short));
 		pr("You bettered your previous best of $%d\n", oldbest);
 	} else
@@ -510,7 +510,7 @@ int	iscore, flag;
 	/* See if we have a new champ */
 	p = getpwuid(allbwho);
 	if (p == NULL || score > allbscore) {
-		lseek(rawscores, (long)0, 0);
+		lseek(rawscores, (off_t)0, 0);
 		write(rawscores, &score, sizeof(short));
 		write(rawscores, &uid, sizeof(short));
 		if (allbwho)
