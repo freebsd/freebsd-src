@@ -99,9 +99,10 @@ all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 fd0 fd1 wt0 sd0 sd1 as0 as1 st0 cd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 tty2 tty3 pc0 lpt0 lpt1 lpt2	# cdev
-	sh MAKEDEV ch0 tw0 bpf0 vty04 dcf0 lpa0 lpa1 lpa2	# cdev
+	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2	# cdev
 	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
-	# NOTE: co0 is not done by a sh MAKEDEV all, rgrimes
+	# NOTE: co0 and vty04 is not done by a sh MAKEDEV all, rgrimes
+	#       these are for codrv and interfear with other stuff!
 	;;
 std)
 	rm -f console drum mem kmem null tty klog stdin stdout stderr
