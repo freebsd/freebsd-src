@@ -385,10 +385,15 @@ devfs_lookupx(ap)
 	devfs_populate(dmp);
 
 	dde = devfs_itode(dmp, cdev->si_inode);
-	if (dde != NULL && *dde != DE_DELETED && *dde != NULL) {
-		de = *dde;
-		goto found;
-	}
+
+	if (dde == NULL || *dde == NULL || *dde == DE_DELETED)
+		goto notfound;
+
+	if ((*dde)->de_flags & DE_WHITEOUT)
+		goto notfound;
+
+	de = *dde;
+	goto found;
 
 notfound:
 
