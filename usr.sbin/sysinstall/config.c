@@ -677,7 +677,7 @@ int
 configResolv(dialogMenuItem *ditem)
 {
     FILE *fp;
-    char *cp, *dp, *hp;
+    char *cp, *c6p, *dp, *hp;
 
     cp = variable_get(VAR_NAMESERVER);
     if (!cp || !*cp)
@@ -696,18 +696,25 @@ configResolv(dialogMenuItem *ditem)
 skip:
     dp = variable_get(VAR_DOMAINNAME);
     cp = variable_get(VAR_IPADDR);
+    c6p = variable_get(VAR_IPV6ADDR);
     hp = variable_get(VAR_HOSTNAME);
     /* Tack ourselves into /etc/hosts */
     fp = fopen("/etc/hosts", "w");
     if (!fp)
 	return DITEM_FAILURE;
     /* Add an entry for localhost */
+    if (!variable_cmp(VAR_IPV6_ENABLE, "YES")) {
+	if (dp)
+	    fprintf(fp, "::1\t\t\tlocalhost.%s localhost\n", dp);
+	else
+	    fprintf(fp, "::1\t\t\tlocalhost\n");
+    }
     if (dp)
 	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp);
     else
 	fprintf(fp, "127.0.0.1\t\tlocalhost\n");
     /* Now the host entries, if applicable */
-    if (cp && cp[0] != '0' && hp) {
+    if (((cp && cp[0] != '0') || (c6p && c6p[0] != '0')) && hp) {
 	char cp2[255];
 
 	if (!index(hp, '.'))
@@ -716,8 +723,14 @@ skip:
 	    SAFE_STRCPY(cp2, hp);
 	    *(index(cp2, '.')) = '\0';
 	}
-	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
-	fprintf(fp, "%s\t\t%s.\n", cp, hp);
+	if (c6p && c6p[0] != '0') {
+	    fprintf(fp, "%s\t%s %s\n", c6p, hp, cp2);
+	    fprintf(fp, "%s\t%s.\n", c6p, hp);
+	}
+	if (cp && cp[0] != '0') {
+	    fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
+	    fprintf(fp, "%s\t\t%s.\n", cp, hp);
+	}
     }
     fclose(fp);
     if (isDebug())

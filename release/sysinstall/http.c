@@ -5,8 +5,6 @@
 #include <sys/param.h>
 #include <netdb.h>
 
-int HttpPort;
-
 Boolean
 mediaInitHTTP(Device *dev)
 {
@@ -19,32 +17,33 @@ mediaInitHTTP(Device *dev)
  * is reverted in distExtract().
  */
 
-    extern int h_errno;
-    int rv,s;
+    int rv, s, af;
     bool el;		    /* end of header line */
     char *cp, buf[PATH_MAX], req[BUFSIZ];
-    struct sockaddr_in peer;
-    struct hostent *peer_in;
+    struct addrinfo hints, *res, *res0;
 
-    s=socket(PF_INET, SOCK_STREAM, 6);    /* tcp */
+    af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = af;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+    if ((rv = getaddrinfo(variable_get(VAR_HTTP_HOST),
+			  variable_get(VAR_HTTP_PORT), &hints, &res0)) != 0) {
+	msgConfirm("%s", gai_strerror(rv));
+	return FALSE;
+    }
+    s = -1;
+    for (res = res0; res; res = res->ai_next) {
+	if ((s = socket(res->ai_family, res->ai_socktype,
+			res->ai_protocol)) < 0)
+	    continue;
+	if (connect(s, res->ai_addr, res->ai_addrlen) >= 0)
+	    break;
+	close(s);
+	s = -1;
+    }
+    freeaddrinfo(res0);
     if (s == -1) {
-	msgConfirm("Network error");
-	return FALSE;
-    }
-
-    peer_in=gethostbyname(variable_get(VAR_HTTP_HOST));
-    if (peer_in == NULL) {
-	msgConfirm("%s",hstrerror(h_errno));
-	return FALSE;
-    }
-
-    peer.sin_len=peer_in->h_length;
-    peer.sin_family=peer_in->h_addrtype;
-    peer.sin_port=htons((u_short) HttpPort);
-    bcopy(peer_in->h_addr_list[0], &peer.sin_addr, peer_in->h_length);
-
-    rv=connect(s,(struct sockaddr *)&peer,sizeof(peer));
-    if (rv == -1) {
 	msgConfirm("Couldn't connect to proxy %s:%s",
 		    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
 	return FALSE;
@@ -94,28 +93,35 @@ FILE *
 mediaGetHTTP(Device *dev, char *file, Boolean probe)
 {
     FILE *fp;
-    int rv,s;
+    int rv, s, af;
     bool el;			/* end of header line */
     char *cp, buf[PATH_MAX], req[BUFSIZ];
-    struct sockaddr_in peer;
-    struct hostent *peer_in;
+    struct addrinfo hints, *res, *res0;
 
-    s=socket(PF_INET, SOCK_STREAM, 6);    /* tcp */
-    if (s == -1) {
-	msgConfirm("Network error");
+    af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = af;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+    if ((rv = getaddrinfo(variable_get(VAR_HTTP_HOST),
+			  variable_get(VAR_HTTP_PORT), &hints, &res0)) != 0) {
+	msgConfirm("%s", gai_strerror(rv));
 	return NULL;
     }
-      
-    peer_in=gethostbyname(variable_get(VAR_HTTP_HOST));
-    peer.sin_len=peer_in->h_length;
-    peer.sin_family=peer_in->h_addrtype;
-    peer.sin_port=htons((u_short) HttpPort);
-    bcopy(peer_in->h_addr_list[0], &peer.sin_addr, peer_in->h_length);
-
-    rv=connect(s,(struct sockaddr *)&peer,sizeof(peer));
-    if (rv == -1) {
+    s = -1;
+    for (res = res0; res; res = res->ai_next) {
+	if ((s = socket(res->ai_family, res->ai_socktype,
+			res->ai_protocol)) < 0)
+	    continue;
+	if (connect(s, res->ai_addr, res->ai_addrlen) >= 0)
+	    break;
+	close(s);
+	s = -1;
+    }
+    freeaddrinfo(res0);
+    if (s == -1) {
 	msgConfirm("Couldn't connect to proxy %s:%s",
-		    variable_get(VAR_HTTP_HOST),variable_get(VAR_FTP_PORT));
+		    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
 	return NULL;
     }
 						   
