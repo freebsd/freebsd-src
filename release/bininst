@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.44 1994/11/18 13:58:25 jkh Exp $
+# $Id: bininst,v 1.45 1994/11/18 13:59:49 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -53,14 +53,13 @@ welcome()
 {
 	dialog --title "Welcome to FreeBSD!" $clear \
 	--msgbox \
-"We're now ready to install one or more packed distribution sets onto
-your machine.  Installation may be done from tape, CDROM, a network
-(NFS or ftp over ethernet, SLIP or parallel port) or DOS (existing
-hard disk partition or floppies).  If you're installing over a network,
-make sure your cables are plugged in and ready to go.  If you're
-installing from tape, CD or floppies, now would be a good time to
-remember where you put the distribution media! :-)  If you're set and
-ready to go, please remove the cpio floppy from the drive and press return!" -1 -1
+"Installation may now proceed from tape, CDROM, a network (NFS or ftp
+over ethernet, SLIP or parallel port) or DOS (existing hard disk
+partition or floppies).  If you're installing over a network, make
+sure your cables are plugged in and ready to go.  If you're installing
+from tape, CDROM or floppies, now would be a good time to remember
+where you put the distribution media! :-)  If you're set and ready
+to go, please remove the cpio floppy from the drive and press return!" -1 -1
 }
 
 do_last_config()
