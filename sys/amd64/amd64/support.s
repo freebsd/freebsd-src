@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.59 1998/05/11 02:13:43 dyson Exp $
+ *	$Id: support.s,v 1.60 1999/01/09 17:29:38 bde Exp $
  */
 
 #include "npx.h"
@@ -1615,9 +1615,17 @@ ENTRY(longjmp)
 
 /*
  * Here for doing BB-profiling (gcc -a).
- * We rely on the "bbset" instead, but need a dummy function.
  */
+
+	.data
+	.globl bbhead
+bbhead:
+	.long 0
+	.text
 NON_GPROF_ENTRY(__bb_init_func)
 	movl	4(%esp),%eax
 	movl	$1,(%eax)
+	movl	bbhead,%edx
+	movl	%edx,16(%eax)
+	movl	%eax,bbhead
 	.byte	0xc3				/* avoid macro for `ret' */
