@@ -41,8 +41,8 @@
 		(literal " should subscribe to the ")
                 (literal "<")
                 (make element gi: "a"
-                      attributes: (list (list "href" "mailto:freebsd-current@FreeBSD.org"))
-                  (literal "freebsd-current@FreeBSD.org"))
+                      attributes: (list (list "href" "mailto:freebsd-stable@FreeBSD.org"))
+                  (literal "freebsd-stable@FreeBSD.org"))
                 (literal "> mailing list.")))
 
             (make element gi: "p"

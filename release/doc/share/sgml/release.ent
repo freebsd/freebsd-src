@@ -6,21 +6,21 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "5.0-CURRENT">
+<!ENTITY release.current "4.3-STABLE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "4.0-RELEASE">
+<!ENTITY release.prev "4.3-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "5.0-RELEASE">
+<!ENTITY release.next "4.4-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "5-CURRENT">
+<!ENTITY release.branch "4-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "ftp://current.FreeBSD.org/pub/FreeBSD/">
+<!ENTITY release.url "ftp://stable.FreeBSD.org/pub/FreeBSD/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->

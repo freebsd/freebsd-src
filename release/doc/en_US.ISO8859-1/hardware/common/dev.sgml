@@ -942,24 +942,6 @@
       </itemizedlist>
     </para>
 
-    <para>National Semiconductor DP83820 and DP83821 Gigabit Ethernet
-    NICs (&man.nge.4 driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Addtron AEG320T</para>
-        </listitem>
-        <listitem>
-	  <para>Asante FriendlyNet GigaNIC 1000TA and 1000TPC</para>
-        </listitem>
-        <listitem>
-	  <para>D-Link DGE-500T</para>
-        </listitem>
-        <listitem>
-	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
     <para>Sundance Technologies ST201 PCI Fast Ethernet NICs
     (&man.ste.4; driver)
       <itemizedlist>
@@ -1305,9 +1287,6 @@
 	  <para>3C556/556B MiniPCI (&man.xl.4; driver)</para>
         </listitem>
         <listitem>
-	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
-        </listitem>
-        <listitem>
 	  <para>EISA (Fast) Etherlink III / (Fast) Etherlink XL</para>
         </listitem>
         <listitem>
@@ -1414,27 +1393,6 @@
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (sn
     driver)</para>
 
-    <para arch="i386">Xircom X3201 (Cardbus) based Ethernet cards, including the following:
-      <itemizedlist>
-	<listitem>
-	  <para>IBM EtherJet Cardbus Adapter</para>
-        </listitem>
-	<listitem>
-	  <para>Intel PRO/100 Mobile Cardbus (versions that use the
-	  X3201 chipset)</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Cardbus Realport</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Cardbus Ethernet 10/100</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Cardbus Ethernet II 10/100</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
     <para arch="i386">Xircom CreditCard adapters (16 bit) and
     workalikes (xe driver)
       <itemizedlist>
@@ -1477,18 +1435,6 @@
         <listitem>
 	  <para>NEC PC-9801N-25 and -J02R</para>
         </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">Gigabit Ethernet cards based on the Level 1
-    LXT1001 NetCellerator controller (&man.lge.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>D-Link DGE=500SX</para>
-	</listitem>
-        <listitem>
-	  <para>SMC TigerCard 1000 (SMC9462SX)</para>
-	</listitem>
       </itemizedlist>
     </para>
 
