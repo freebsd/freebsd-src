@@ -27,8 +27,9 @@
 .Op Fl OUGdk
 .Op Ar file
 .Sh DESCRIPTION
-.Nm Tconv
-converts between the three terminal descriptions,
+The
+.Nm
+utility converts between the three terminal descriptions,
 termcap, terminfo source, and terminfo binary,
 that the
 .Em tinfo
@@ -98,8 +99,9 @@ but not of much use in most cases, as
 fields will be followed and incorporated into the output terminal
 description.
 .Pp
-.Nm Tconv
-should be able translate all standard termcap parameterized strings
+The
+.Nm
+utility should be able translate all standard termcap parameterized strings
 terminfo format, but complex strings using GNU's %a code may be
 too hard to translate.
 If
@@ -161,7 +163,8 @@ may refer to the last line of an entry instead of the line in the entry
 that generated the warning.
 .Sh BUGS
 More warning messages could be generated.
-.Nm Tconv
-can't translate to termcap.  Binaries generated will have canceled
+The
+.Nm
+utility can't translate to termcap.  Binaries generated will have canceled
 capabilities marked as canceled, which is incompatible with
 System V Release 2.0 terminfo.

@@ -49,8 +49,9 @@
 .Op Fl h Ar host
 .Op Fl o
 .Sh DESCRIPTION
-.Nm Passwd
-changes the user's local, Kerberos, or NIS password.
+The
+.Nm
+utility changes the user's local, Kerberos, or NIS password.
 If the user is not the super-user,
 .Nm
 first prompts for the current password and will not continue unless the correct
@@ -58,8 +59,9 @@ password is entered.
 .Pp
 When entering the new password, the characters entered do not echo, in order to
 avoid the password being seen by a passer-by.
+The
 .Nm
-prompts for the new password twice in order to detect typing errors.
+utility prompts for the new password twice in order to detect typing errors.
 .Pp
 The new password should be at least six characters long (which
 may be overridden using the
@@ -106,8 +108,9 @@ followed by
 The super-user is not required to provide a user's current password
 if only the local password is modified.
 .Sh NIS INTERACTION
-.Nm Passwd
-has built-in support for NIS.
+The
+.Nm
+utility has built-in support for NIS.
 If a user exists in the NIS password
 database but does not exist locally,
 .Nm

@@ -44,8 +44,9 @@
 .Ar messagefile
 .Ar prefix Ar
 .Sh DESCRIPTION
-.Nm Mkstr
-creates files containing error messages extracted from C source,
+The
+.Nm
+utility creates files containing error messages extracted from C source,
 and restructures the same C source, to utilize the created error message
 file.
 The intent of
@@ -55,8 +56,9 @@ reduce swapping (see
 .Sx BUGS
 section below).
 .Pp
-.Nm Mkstr
-processes each of the specified
+The
+.Nm
+utility processes each of the specified
 .Ar files ,
 placing a restructured version of the input in a file whose name
 consists of the specified
@@ -81,13 +83,13 @@ Options:
 .It Fl
 Error messages are placed at the end of the specified
 message file for recompiling part of a large
-.Nm
-ed
+.Nm Ns ed
 program.
 .El
 .Pp
-.Nm Mkstr
-finds error messages in the source by
+The
+.Nm
+utility finds error messages in the source by
 searching for the string
 .Li \&`error("'
 in the input stream.
@@ -121,12 +123,14 @@ error(a1, a2, a3, a4)
 .Xr xstr 1 ,
 .Xr lseek 2
 .Sh HISTORY
-.Nm Mkstr
-appeared in
+A
+.Nm
+utility appeared in
 .Bx 3.0 .
 .Sh BUGS
-.Nm Mkstr
-was intended for the limited architecture of the PDP 11 family.
+The
+.Nm
+utility was intended for the limited architecture of the PDP 11 family.
 Very few programs actually use it.
 The Pascal interpreter,
 .Xr \&pi 1

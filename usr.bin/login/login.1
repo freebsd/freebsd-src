@@ -105,15 +105,17 @@ If the file
 exists in the user's home directory, all of these messages are suppressed.
 This is to simplify logins for non-human users, such as
 .Xr uucp 1 .
-.Nm Login
-then records an entry in the
+The
+.Nm
+utility then records an entry in the
 .Xr wtmp 5
 and
 .Xr utmp 5
 files and executes the user's command interpreter.
 .Pp
-.Nm Login
-enters information into the environment (see
+The
+.Nm
+utility enters information into the environment (see
 .Xr environ 7 )
 specifying the user's home directory (HOME), command interpreter (SHELL),
 search path (PATH), terminal type (TERM) and user name (both LOGNAME and
