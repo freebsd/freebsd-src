@@ -20,6 +20,14 @@ DPADD+=		${RELTOP}/libiberty/libiberty.a
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h
 
+# If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
+# binutils release. FreeBSD only distributes the bits that are required to
+# build native architectures. BINUTILSDISTDIR is needed to build cross tools.
+.if	defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
+.PATH:		${BINUTILSDISTDIR}/ld
+CFLAGS+=	-I${BINUTILSDISTDIR}/ld
+.endif
+
 EMXFR=
 EMLST=
 .for _e in ${EMS}
