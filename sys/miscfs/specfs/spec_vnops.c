@@ -73,6 +73,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
+	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
 	{ &vop_close_desc,		(vop_t *) spec_close },
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
