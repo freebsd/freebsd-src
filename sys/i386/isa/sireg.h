@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: sireg.h,v 1.1 1995/08/09 13:13:47 peter Exp $
+ *	$Id: sireg.h,v 1.2 1995/11/28 02:07:36 peter Exp $
  */
 
 /*
@@ -56,10 +56,31 @@
 #define SIINTCL		0xA000			/* Clear host int */
 #define SIINTCL_CL 	0xE000			/* Clear host int */
 
+/* SI old PCI */
+#define SIPCIBADR	0x10			/* Which BADR to map in RAM */
+#define SIPCI_MEMSIZE	0x100000		/* Mapping size */
+#define SIPCIRESET	0xc0001			/* 0 = Reset */
+#define SIPCIINTCL	0x40001			/* 0 = clear int */
+
+/* SI Jet PCI */
+#define SIJETSSIDREG	0x2c			/* Is it a SI/XIO or RIO? */
+#define SIJETBADR	0x18			/* Which BADR to map in RAM */
+/* SI Jet PCI & ISA */
+#define SIJETIDBASE	0x7c00			/* ID ROM base */
+#define SISPLXID	0x984d			/* Specialix ID */
+#define SIUNIQID	0x7c0e			/* & 0xf0 = 0x20 for Si/XIO */
+#define SIJETRESET	0x7d00
+#define SIJETINTCL	0x7d80
+#define SIJETCONFIG	0x7c00			/* for ISA, top nibble = IRQ */
+#define SIJETBUSEN	0x2
+#define SIJETIRQEN	0x4
+
 /*
  * MEMSIZE is the total shared mem region
  * RAMSIZE is value to use when probing
  */
+#define SIJET_MEMSIZE		0x10000
+#define SIJET_RAMSIZE		0x7000
 #define	SIHOST_MEMSIZE		0x10000
 #define	SIHOST_RAMSIZE		0x8000
 #define	SIHOST2_MEMSIZE		0x8000
