@@ -32,7 +32,9 @@
 #ident	"@(#)rpc_scan.c	1.13	93/07/05 SMI"
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_scan.c 1.11 89/02/22 (C) 1987 SMI";
+#endif
 #endif
 
 /*

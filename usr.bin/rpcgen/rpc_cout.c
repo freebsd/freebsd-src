@@ -99,6 +99,7 @@ emit(def)
 		break;
 		/* DEF_CONST and DEF_PROGRAM have already been handled */
 	default: 
+		break;
 	}
 	print_trailer();
 }
@@ -415,6 +416,7 @@ int flag;
 	char ptemp[256];
 	int indent = 1;
 
+	cur = NULL;
 	if (flag == PUT)
 		f_print(fout, "\n\tif (xdrs->x_op == XDR_ENCODE) {\n");
 	else
@@ -523,7 +525,7 @@ int flag;
 		}
 	}
 
-	if (i > 0)
+	if (i > 0) {
 		if (sizestr == NULL && size < inline){
 			/* don't expand into inline code if size < inline */
 			while (cur != dl){
@@ -560,6 +562,7 @@ int flag;
 			}
 			f_print(fout, "\t\t}\n");
 		}
+	}
 }
 
 static void
@@ -691,7 +694,9 @@ int flag;
 		f_print(fout, "}\n");
 		tabify(fout, indent);
 		f_print(fout, "}\n");
+		break;
 	default:
+		break;
 	}
 }
 

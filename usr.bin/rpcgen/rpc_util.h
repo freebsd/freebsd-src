@@ -1,4 +1,7 @@
 /*
+ * $FreeBSD$
+ */
+/*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -26,7 +29,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
-#pragma ident   "@(#)rpc_util.h 1.16     94/05/15 SMI"
+/* #pragma ident   "@(#)rpc_util.h 1.16     94/05/15 SMI" */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved  	*/
