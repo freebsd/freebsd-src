@@ -38,6 +38,7 @@
 .Dt STRING 3
 .Os
 .Sh NAME
+.Nm stpcpy ,
 .Nm strcat ,
 .Nm strncat ,
 .Nm strchr ,
@@ -63,6 +64,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
+.Ft char *
+.Fn stpcpy "char *dst" "const char *src"
 .Ft char *
 .Fn strcat "char *s" "const char * append"
 .Ft char *
@@ -120,6 +123,7 @@ for size limitations.
 .Xr bstring 3 ,
 .Xr index 3 ,
 .Xr rindex 3 ,
+.Xr stpcpy 3 ,
 .Xr strcasecmp 3 ,
 .Xr strcat 3 ,
 .Xr strchr 3 ,
