@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#197 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#198 $
  *
  * $FreeBSD$
  */
@@ -2199,7 +2199,7 @@ ahd_clear_critical_section(struct ahd_softc *ahd)
 			ahd_outb(ahd, LQOMODE1, 0);
 			ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
   			simode1 = ahd_inb(ahd, SIMODE1);
-  			ahd_outb(ahd, SIMODE1, ENBUSFREE);
+  			ahd_outb(ahd, SIMODE1, simode1 & ENBUSFREE);
 			ahd_outb(ahd, SEQCTL0, ahd_inb(ahd, SEQCTL0) | STEP);
 			stepping = TRUE;
 		}
