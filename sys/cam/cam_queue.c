@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_queue.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_queue.c,v 1.2 1999/04/07 22:57:48 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,6 +72,11 @@ camq_init(struct camq *camq, int size)
 			printf("camq_init: - cannot malloc array!\n");
 			return (1);
 		}
+		/*
+		 * Heap algorithms like everything numbered from 1, so
+		 * offset our pointer into the heap array by one element.
+		 */
+		camq->queue_array--;
 	}
 	return (0);
 }
@@ -95,6 +100,11 @@ void
 camq_fini(struct camq *queue)
 {
 	if (queue->queue_array != NULL) {
+		/*
+		 * Heap algorithms like everything numbered from 1, so
+		 * our pointer into the heap array is offset by one element.
+		 */
+		queue->queue_array++;
 		free(queue->queue_array, M_DEVBUF);
 	}
 }
@@ -115,20 +125,26 @@ camq_resize(struct camq *queue, int new_size)
 		/* Couldn't satisfy request */
 		return (CAM_RESRC_UNAVAIL);
 	}
+	/*
+	 * Heap algorithms like everything numbered from 1, so
+	 * remember that our pointer into the heap array is offset
+	 * by one element.
+	 */
 	if (queue->queue_array != NULL) {
+		queue->queue_array++;
 		bcopy(queue->queue_array, new_array,
 		      queue->entries * sizeof(cam_pinfo *));
 		free(queue->queue_array, M_DEVBUF);
 	}
-	queue->queue_array = new_array;
+	queue->queue_array = new_array-1;
 	queue->array_size = new_size;
 	return (CAM_REQ_CMP);
 }
 
 /*
  * camq_insert: Given an array of cam_pinfo* elememnts with
- * the Heap(0, num_elements) property and array_size - num_elements >= 1,
- * output Heap(0, num_elements+1) including new_entry in the array.
+ * the Heap(1, num_elements) property and array_size - num_elements >= 1,
+ * output Heap(1, num_elements+1) including new_entry in the array.
  */
 void
 camq_insert(struct camq *queue, cam_pinfo *new_entry)
@@ -137,17 +153,17 @@ camq_insert(struct camq *queue, cam_pinfo *new_entry)
 	if (queue->entries >= queue->array_size)
 		panic("camq_insert: Attempt to insert into a full queue");
 #endif
+	queue->entries++;
 	queue->queue_array[queue->entries] = new_entry;
 	new_entry->index = queue->entries;
 	if (queue->entries != 0)
 		heap_up(queue->queue_array, queue->entries);
-	queue->entries++;
 }
 
 /*
  * camq_remove:  Given an array of cam_pinfo* elevements with the
- * Heap(0, num_elements) property and an index such that 0 <= index <=
- * num_elements, remove that entry and restore the Heap(0, num_elements-1)
+ * Heap(1, num_elements) property and an index such that 1 <= index <=
+ * num_elements, remove that entry and restore the Heap(1, num_elements-1)
  * property.
  */
 cam_pinfo *
@@ -155,22 +171,22 @@ camq_remove(struct camq *queue, int index)
 {
 	cam_pinfo *removed_entry;
 
-	if ((queue->entries - index) <= 0)
+	if (index == 0 || index > queue->entries)
 		return (NULL);
 	removed_entry = queue->queue_array[index];
-	queue->entries--;
 	if (queue->entries != index) {
 		queue->queue_array[index] = queue->queue_array[queue->entries];
 		queue->queue_array[index]->index = index;
-		heap_down(queue->queue_array, index, queue->entries);
+		heap_down(queue->queue_array, index, queue->entries - 1);
 	}
 	removed_entry->index = CAM_UNQUEUED_INDEX;
+	queue->entries--;
 	return (removed_entry);
 }
 
 /*
  * camq_change_priority:  Given an array of cam_pinfo* elements with the
- * Heap(0, num_entries) property, an index such that 0 <= index <= num_elements,
+ * Heap(1, num_entries) property, an index such that 1 <= index <= num_elements,
  * and an new priority for the element at index, change the priority of
  * element index and restore the Heap(0, num_elements) property.
  */
@@ -352,8 +368,8 @@ swap(cam_pinfo **queue_array, int i, int j)
 
 /*
  * heap_up:  Given an array of cam_pinfo* elements with the
- * Heap(0, new_index-1) property and a new element in location
- * new_index, output Heap(0, new_index).
+ * Heap(1, new_index-1) property and a new element in location
+ * new_index, output Heap(1, new_index).
  */
 static void
 heap_up(cam_pinfo **queue_array, int new_index)
@@ -363,9 +379,9 @@ heap_up(cam_pinfo **queue_array, int new_index)
 
 	child = new_index;
 
-	while (child != 0) {
+	while (child != 1) {
 
-		parent = (child - 1) >> 1;
+		parent = child >> 1;
 		if (queue_cmp(queue_array, parent, child) <= 0)
 			break;
 		swap(queue_array, parent, child);
@@ -375,8 +391,8 @@ heap_up(cam_pinfo **queue_array, int new_index)
 
 /*
  * heap_down:  Given an array of cam_pinfo* elements with the
- * Heap(index + 1, num_entries - 1) property with index containing
- * an unsorted entry, output Heap(0, num_entries - 1).
+ * Heap(index + 1, num_entries) property with index containing
+ * an unsorted entry, output Heap(index, num_entries).
  */
 static void
 heap_down(cam_pinfo **queue_array, int index, int num_entries)
@@ -385,10 +401,10 @@ heap_down(cam_pinfo **queue_array, int index, int num_entries)
 	int parent;
 	
 	parent = index;
-	child = (parent << 1) + 1;
-	for (; child < num_entries; child = (parent << 1) + 1) {
+	child = parent << 1;
+	for (; child <= num_entries; child = parent << 1) {
 
-		if (child + 1 < num_entries) {
+		if (child < num_entries) {
 			/* child+1 is the right child of parent */
 			if (queue_cmp(queue_array, child + 1, child) < 0)
 				child++;
@@ -400,4 +416,3 @@ heap_down(cam_pinfo **queue_array, int index, int num_entries)
 		parent = child;
 	}
 }
-
