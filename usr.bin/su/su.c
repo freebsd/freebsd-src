@@ -63,10 +63,6 @@ static const char rcsid[] =
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
-#ifdef LOGIN_CAP_AUTH
-#undef SKEY
-#undef KERBEROS
-#endif
 #endif
 
 #ifdef	SKEY
@@ -121,9 +117,6 @@ main(argc, argv)
 	login_cap_t *lc;
 	char *class=NULL;
 	int setwhat;
-#ifdef LOGIN_CAP_AUTH
-	char *style, *approvep, *auth_method = NULL;
-#endif
 #endif
 #ifdef KERBEROS
 	char *k;
@@ -221,15 +214,6 @@ main(argc, argv)
 		}
 	}
 
-#ifdef LOGIN_CAP_AUTH
-	if (auth_method = strchr(user, ':')) {
-		*auth_method = '\0';
-		auth_method++;
-		if (*auth_method == '\0')
-			auth_method = NULL;
-	}
-#endif /* !LOGIN_CAP_AUTH */
-
 	/* get target login information, default to root */
 	if ((pwd = getpwnam(user)) == NULL) {
 		errx(1, "unknown login: %s", user);
@@ -284,40 +268,6 @@ main(argc, argv)
 		}
 		/* if target requires a password, verify it */
 		if (*pwd->pw_passwd) {
-#ifdef LOGIN_CAP_AUTH
-		/*
-		 * This hands off authorisation to an authorisation program,
-		 * depending on the styles available for the "auth-su",
-		 * authorisation styles.
-		 */
-		if ((style = login_getstyle(lc, auth_method, "su")) == NULL)
-			errx(1, "auth method available for su.\n");
-		if (authenticate(user, lc ? lc->lc_class : "default", style, "su") != 0) {
-#ifdef WHEELSU
-			if (!iswheelsu || authenticate(username, lc ? lc->lc_class : "default", style, "su") != 0) {
-#endif /* WHEELSU */
-			{
-			fprintf(stderr, "Sorry\n");
-			syslog(LOG_AUTH|LOG_WARNING,"BAD SU %s to %s%s", username, user, ontty());
-			exit(1);
-			}
-		}
-
-		/*
-		 * If authentication succeeds, run any approval
-		 * program, if applicable for this class.
-		 */
-		approvep = login_getcapstr(lc, "approve", NULL, NULL);
-		if (approvep==NULL || auth_script(approvep, approvep, username, lc->lc_class, 0) == 0) {
-			int     r = auth_scan(AUTH_OKAY);
-			/* See what the authorise program says */
-			if (!(r & AUTH_ROOTOKAY) && pwd->pw_uid == 0) {
-				fprintf(stderr, "Sorry\n");
-				syslog(LOG_AUTH|LOG_WARNING,"UNAPPROVED ROOT SU %s%s", user, ontty());
-				exit(1);
-			}
-		}
-#else /* !LOGIN_CAP_AUTH */
 #ifdef	SKEY
 #ifdef WHEELSU
 			if (iswheelsu) {
@@ -348,7 +298,6 @@ main(argc, argv)
 				pwd = getpwnam(user);
 			}
 #endif /* WHEELSU */
-#endif /* LOGIN_CAP_AUTH */
 		}
 		if (pwd->pw_expire && time(NULL) >= pwd->pw_expire) {
 			fprintf(stderr, "Sorry - account expired\n");
