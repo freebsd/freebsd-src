@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.514 1998/12/27 12:44:54 phk Exp $
+#	$Id: LINT,v 1.515 1998/12/27 12:52:45 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -886,7 +886,7 @@ device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 #
 
 #
-# SCSI host adapters: `aha', `aic', `bt', `nca'
+# SCSI host adapters: `aha', `aic', `bt'
 #
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
@@ -894,10 +894,6 @@ device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 # ahc: Adaptec 274x/284x/294x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
-# nca: ProAudioSpectrum cards using the NCR 5380 or Trantor T130
-# uha: UltraStor ULTRA 14F/24F/34F
-# sea: Seagate ST01/02 8 bit controller (slow!)
-# wds: Western Digital WD7000 controller (no scatter/gather!).
 #
 # Note that the order is important in order for Buslogic cards to be
 # probed correctly.
@@ -907,17 +903,9 @@ controller	bt0	at isa? port "IO_BT0" cam irq ?
 controller	adv0	at isa? port ? cam irq ?
 controller	adw0
 controller      aha0    at isa? port ? cam irq ?
-#!CAM# controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5
 
 #!CAM# controller      aic0    at isa? port 0x340 bio irq 11
-#!CAM# controller	nca0	at isa? port 0x1f88 bio irq 10
-#!CAM# controller	nca1	at isa? port 0x1f84
-#!CAM# controller	nca2	at isa? port 0x1f8c
-#!CAM# controller	nca3	at isa? port 0x1e88
-#!CAM# controller	nca4	at isa? port 0x350 bio irq 5
 
-#!CAM# controller	sea0	at isa? bio irq 5 iomem 0xdc000 iosiz 0x2000
-#!CAM# controller	wds0	at isa? port 0x350 bio irq 15 drq 6
 
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
