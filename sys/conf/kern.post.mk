@@ -178,6 +178,7 @@ cleandir:  modules-cleandir
 clobber:  modules-clobber
 depend: modules-depend
 install: modules-install
+.ORDER: kernel-install modules-install
 reinstall: modules-reinstall
 tags:  modules-tags
 .endif
