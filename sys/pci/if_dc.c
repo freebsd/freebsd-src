@@ -143,6 +143,8 @@ static const char rcsid[] =
 static struct dc_type dc_devs[] = {
 	{ DC_VENDORID_DEC, DC_DEVICEID_21143,
 		"Intel 21143 10/100BaseTX" },
+	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009,
+		"Davicom DM9009 10/100BaseTX" },
 	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9100,
 		"Davicom DM9100 10/100BaseTX" },
 	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102,
@@ -1759,6 +1761,7 @@ static int dc_attach(dev)
 		/* Save EEPROM contents so we can parse them later. */
 		dc_read_eeprom(sc, (caddr_t)&sc->dc_srom, 0, 512, 0);
 		break;
+	case DC_DEVICEID_DM9009:
 	case DC_DEVICEID_DM9100:
 	case DC_DEVICEID_DM9102:
 		sc->dc_type = DC_TYPE_DM9102;
