@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sh.1	8.4 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: sh.1,v 1.2 1994/09/24 02:58:13 davidg Exp $
 .\"
 .na
 .TH SH 1
@@ -661,7 +661,8 @@ value and exported and readonly flags from the variable
 with the same name in the surrounding scope, if there is
 one.  Otherwise, the variable is initially unset.   The shell
 uses dynamic scoping, so that if you make the variable x
-local to function f, which then calls function g, references to the variable x made inside g will refer to the
+local to function f, which then calls function g, references
+to the variable x made inside g will refer to the
 variable x declared inside f, not to the global variable
 named x.
 .LP
@@ -996,9 +997,10 @@ Pathname Expansion and the case(1) command.
 .B Shell Patterns
 .sp
 .LP
-A pattern consists of normal characters, which match themselves, and meta-characters.   The meta-characters are
+A pattern consists of normal characters, which match themselves,
+and meta-characters.   The meta-characters are
 ``!'', ``*'', ``?'', and ``[''.  These  characters lose
-there special meanings if they are quoted.  When command
+their special meanings if they are quoted.  When command
 or variable substitution is performed and the dollar sign
 or back quotes are not double quoted, the value of the
 variable or the output of the command is scanned for these
@@ -1026,7 +1028,8 @@ minus sign, make it the first or last character listed
 .LP
 This section lists the builtin commands which
 are builtin because they need to perform some  operation
-that can't be performed by a separate process. In addition to these, there are several other commands that may
+that can't be performed by a separate process. In addition
+to these, there are several other commands that may
 be builtin for efficiency (e.g. printf(1), echo(1), test(1),
 etc).
 .TP
@@ -1042,7 +1045,8 @@ Continue the specified jobs (or the current job if no
 jobs are given) in the background.
 .TP
 command command arg...
-Execute the specified builtin command.  (This is useful when you have a shell function with the same name
+Execute the specified builtin command.  (This is useful
+when you have a shell function with the same name
 as a builtin command.)
 .TP
 cd [ directory ]
@@ -1207,15 +1211,18 @@ read from the standard input.  The trailing newline
 is deleted from the line and the line is split as
 described in the section on word splitting above, and
 the pieces are assigned to the variables in order.
-If there are more pieces than variables, the remaining pieces (along with the characters in IFS that
+If there are more pieces than variables, the remaining
+pieces (along with the characters in IFS that
 separated them) are assigned to the last variable.
-If there are more variables than pieces, the remaining variables are assigned the null string.
+If there are more variables than pieces, the remaining
+variables are assigned the null string.
 .sp
 The -e option causes any backslashes in the input to
 be treated specially.  If a backslash is followed by
 a newline, the backslash and the newline will be
 deleted.   If a backslash is followed by any other
-character, the backslash will be deleted and the following character will be treated as though it were
+character, the backslash will be deleted and the following
+character will be treated as though it were
 not in IFS, even if it is.
 .TP
 readonly name...
