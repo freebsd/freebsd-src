@@ -1225,7 +1225,7 @@ lookup_gname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
 
 	errno = 0;
 	grent = getgrgid((gid_t)id);
-	if (grent == NULL  && errno != 0) {
+	if (grent == NULL) {
 		*name = NULL;
 		if (errno != 0)
 			bsdtar_warnc(bsdtar, errno, "getgrgid(%d) failed", id);
