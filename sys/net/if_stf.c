@@ -488,7 +488,6 @@ stf_output(ifp, m, dst, rt)
 	}
 	bcopy(ptr, &in4, sizeof(in4));
 
-#if NBPFILTER > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -500,7 +499,6 @@ stf_output(ifp, m, dst, rt)
 		u_int32_t af = AF_INET6;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
-#endif /*NBPFILTER > 0*/
 
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip))
