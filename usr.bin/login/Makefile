@@ -6,11 +6,11 @@ SRCS=	login.c login_access.c login_fbtab.c
 MAN=	login.1 login.access.5
 
 CFLAGS+=-DLOGIN_ACCESS -DLOGALL
+WARNS?=	2
+NO_WERROR=
 
 DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBPAM}
 LDADD=	-lutil -lcrypt ${MINUSLPAM}
-
-WARNS?=	2
 
 BINOWN=	root
 BINMODE=4555
