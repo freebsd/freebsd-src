@@ -1550,6 +1550,8 @@ utopia_mod_init(module_t mod, int what, void *arg)
 			UTP_WUNLOCK_LIST();
 		mtx_destroy(&utopia_list_mtx);
 		break;
+	  default:
+		return (EOPNOTSUPP);
 	}
 	return (0);
 }

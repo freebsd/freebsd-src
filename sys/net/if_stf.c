@@ -301,6 +301,8 @@ stfmodevent(mod, type, data)
 		mtx_unlock(&stf_mtx);
 		mtx_destroy(&stf_mtx);
 		break;
+	default:
+		return (EOPNOTSUPP);
 	}
 
 	return (0);

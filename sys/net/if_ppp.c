@@ -294,6 +294,8 @@ ppp_modevent(module_t mod, int type, void *data)
 		}
 		PPP_LIST_LOCK_DESTROY();
 		break; 
+	default:
+		return EOPNOTSUPP;
 	} 
 	return 0; 
 } 

@@ -1663,6 +1663,7 @@ static int
 ahc_modevent(module_t mod, int type, void *data)
 {
 	/* XXX Deal with busy status on unload. */
+	/* XXX Deal with unknown events */
 	return 0;
 }
   

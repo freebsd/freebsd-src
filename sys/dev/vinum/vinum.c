@@ -318,6 +318,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	EVENTHANDLER_DEREGISTER(dev_clone, dev_clone_tag);
 	return 0;
     default:
+	return EOPNOTSUPP;
 	break;
     }
     return 0;

@@ -521,9 +521,9 @@ static const short *nfsrv_v3errmap[] = {
 static int
 nfsrv_modevent(module_t mod, int type, void *data)
 {
+	int error = 0;
 
 	NET_LOCK_GIANT();
-
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&nfsd_mtx, "nfsd_mtx", NULL, MTX_DEF);
@@ -556,10 +556,10 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
 		break;
 
-		case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		if (nfsrv_numnfsd != 0) {
-			NET_UNLOCK_GIANT();
-			return EBUSY;
+			error = EBUSY;
+			break;
 		}
 
 		callout_stop(&nfsrv_callout);
@@ -567,9 +567,12 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
 		mtx_destroy(&nfsd_mtx);
 		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
 	}
 	NET_UNLOCK_GIANT();
-	return 0;
+	return error;
 }
 static moduledata_t nfsserver_mod = {
 	"nfsserver",

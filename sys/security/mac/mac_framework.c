@@ -359,6 +359,7 @@ mac_policy_modevent(module_t mod, int type, void *data)
 			error = 0;
 		break;
 	default:
+		error = EOPNOTSUPP;
 		break;
 	}
 

@@ -584,7 +584,7 @@ if_ef_modevent(module_t mod, int type, void *data)
 	    case MOD_UNLOAD:
 		return ef_unload();
 	    default:
-		break;
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

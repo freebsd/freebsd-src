@@ -88,6 +88,7 @@ bktr_mem_modevent(module_t mod, int type, void *unused){
 		printf("bktr_mem: memory holder cannot be unloaded\n");
 		return EBUSY;
 	default:
+		return EOPNOTSUPP;
 		break;
 	}
 	return (0);

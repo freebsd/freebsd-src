@@ -451,6 +451,7 @@ hfa_modevent (module_t mod, int type, void *data)
 
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 

@@ -255,6 +255,8 @@ gifmodevent(mod, type, data)
 		ip6_gif_hlim = 0;
 #endif
 		break;
+	default:
+		return EOPNOTSUPP;
 	}
 	return 0;
 }

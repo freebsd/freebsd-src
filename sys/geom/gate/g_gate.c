@@ -635,6 +635,7 @@ g_gate_modevent(module_t mod, int type, void *data)
 			destroy_dev(status_dev);
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 

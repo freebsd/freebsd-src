@@ -411,6 +411,7 @@ svr4_elf_modevent(module_t mod, int type, void *data)
 			printf("svr4 ELF exec handler removed\n");
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return error;
