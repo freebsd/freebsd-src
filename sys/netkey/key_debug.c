@@ -59,8 +59,6 @@
 #include <stdlib.h>
 #endif /* !_KERNEL */
 
-#if !defined(_KERNEL) || (defined(_KERNEL) && defined(IPSEC_DEBUG))
-
 static void kdebug_sadb_prop __P((struct sadb_ext *));
 static void kdebug_sadb_identity __P((struct sadb_ext *));
 static void kdebug_sadb_supported __P((struct sadb_ext *));
@@ -747,5 +745,3 @@ ipsec_hexdump(buf, len)
 
 	return;
 }
-
-#endif /* !defined(_KERNEL) || (defined(_KERNEL) && defined(IPSEC_DEBUG)) */
