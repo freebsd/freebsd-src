@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.6 1995/06/11 19:32:39 rgrimes Exp $";
+	"$Id: inetd.c,v 1.7 1995/10/12 16:43:26 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -1006,6 +1006,7 @@ skip(cpp)
 {
 	char *cp = *cpp;
 	char *start;
+	char quote = '\0';
 
 again:
 	while (*cp == ' ' || *cp == '\t')
@@ -1021,9 +1022,15 @@ again:
 		*cpp = (char *)0;
 		return ((char *)0);
 	}
+	if (*cp == '"' || *cp == '\'')
+		quote = *cp++;
 	start = cp;
-	while (*cp && *cp != ' ' && *cp != '\t')
-		cp++;
+	if (quote)
+		while (*cp && *cp != quote)
+			cp++;
+	else
+		while (*cp && *cp != ' ' && *cp != '\t')
+			cp++;
 	if (*cp != '\0')
 		*cp++ = '\0';
 	*cpp = cp;
