@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.32 1999/01/09 06:03:54 obrien Exp $";
+	"$Id: vmstat.c,v 1.33 1999/02/08 02:11:52 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -352,8 +352,9 @@ labelkre()
 		 * room for extended VM stats
 		 */
 		mvprintw(VMSTATROW + 11, VMSTATCOL - 6, "zfod");
-		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "%%slo-z");
-		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "tfree");
+		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "ofod");
+		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "%%slo-z");
+		mvprintw(VMSTATROW + 14, VMSTATCOL - 6, "tfree");
 		extended_vm_stats = 1;
 	} else {
 		extended_vm_stats = 0;
@@ -488,19 +489,18 @@ showkre()
 	PUTRATE(Cnt.v_intrans, VMSTATROW + 12, VMSTATCOL, 9);
 
 	if (extended_vm_stats) {
-	    Y(Cnt.v_ozfod);
-
 	    PUTRATE(Cnt.v_zfod, VMSTATROW + 11, VMSTATCOL - 16, 9);
+	    PUTRATE(Cnt.v_ozfod, VMSTATROW + 12, VMSTATCOL - 16, 9);
 	    putint(
 		((s.Cnt.v_ozfod < s.Cnt.v_zfod) ?
 		    s.Cnt.v_ozfod * 100 / s.Cnt.v_zfod : 
 		    0
 		),
-		VMSTATROW + 12, 
+		VMSTATROW + 13, 
 		VMSTATCOL - 16,
 		9
 	    );
-	    PUTRATE(Cnt.v_tfree, VMSTATROW + 13, VMSTATCOL - 16, 9);
+	    PUTRATE(Cnt.v_tfree, VMSTATROW + 14, VMSTATCOL - 16, 9);
 	}
 
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
