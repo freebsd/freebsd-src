@@ -184,7 +184,7 @@ void
 putfile()
 {
 	register char **ep;
-	register int i, j;
+	register int i, j, k;
 
 	ep = elem;
 	if (flags & TRANSPOSE)
@@ -194,9 +194,10 @@ putfile()
 			putchar('\n');
 		}
 	else
-		for (i = 0; i < orows; i++) {
-			for (j = 0; j < ocols; j++)
-				prints(*ep++, j);
+		for (i = k = 0; i < orows; i++) {
+			for (j = 0; j < ocols; j++, k++)
+				if (k < nelem)
+					prints(ep[k], j);
 			putchar('\n');
 		}
 }
