@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.6 1996/08/30 02:02:09 peter Exp $
+#	$Id: Makefile,v 1.10 1997/05/28 04:53:07 wpaul Exp $
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 
@@ -21,7 +21,7 @@ CFLAGS+= -DYP ${INCDIRS}
 GENSRCS= ${RPCSRCS:R:S/$/_xdr.c/g}
 SRCS+= ${GENSRCS} ${OTHERSRCS} ${SECRPCSRCS}
 
-CLEANFILES+= ${GENSRCS} ${RPCSRCS}
+CLEANFILES+= ${GENSRCS}
 
 NOMAN= noman
 
