@@ -44,7 +44,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver when loaded attaches to all netgraph ATM interface in the system and for
+driver, when loaded, attaches to all netgraph ATM interfaces in the system and for
 each of these interfaces presents a physical interface to the HARP stack.
 The name of the harp physical interface is the same as the name of the
 netgraph interface (they are in different namespaces).
@@ -57,8 +57,8 @@ netgraph interface (they are in different namespaces).
 .Sh CAVEATS
 When
 .Xr fatm 4
-is used it must be started before
+is used, it must be started before
 .Nm
-is loaded to get the correct configuration for the HARP physical interface.
+is loaded, to get the correct configuration for the HARP physical interface.
 .Sh AUTHORS
 .An Harti Brandt Aq harti@freebsd.org .
