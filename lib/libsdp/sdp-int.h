@@ -34,25 +34,22 @@
 
 __BEGIN_DECLS
 
-#define	SDP_UNSOCK_PATH		"/var/run/sdp"
-#define SDP_UNSOCK_MTU		2048
-
 /*
  * SDP session
  */
 
 struct sdp_session {
-	u_int16_t	 flags;
+	uint16_t	 flags;
 #define SDP_SESSION_LOCAL	(1 << 0)
-	u_int16_t	 tid;   /* current session transaction ID (tid) */
-	u_int16_t	 omtu;  /* outgoing MTU (req buffer size) */
-	u_int16_t	 imtu;  /* incoming MTU (rsp buffer size) */
-	u_int8_t	*req;	/* request buffer (start) */
-	u_int8_t	*req_e;	/* request buffer (end) */
-	u_int8_t	*rsp;	/* response buffer (start) */
-	u_int8_t	*rsp_e;	/* response buffer (end) */
-	u_int32_t	 cslen; /* continuation state length */
-	u_int8_t	 cs[16];/* continuation state */
+	uint16_t	 tid;   /* current session transaction ID (tid) */
+	uint16_t	 omtu;  /* outgoing MTU (req buffer size) */
+	uint16_t	 imtu;  /* incoming MTU (rsp buffer size) */
+	uint8_t		*req;	/* request buffer (start) */
+	uint8_t		*req_e;	/* request buffer (end) */
+	uint8_t		*rsp;	/* response buffer (start) */
+	uint8_t		*rsp_e;	/* response buffer (end) */
+	uint32_t	 cslen; /* continuation state length */
+	uint8_t		 cs[16];/* continuation state */
 	int32_t		 s;     /* L2CAP socket */
 	int32_t		 error;	/* last error code */
 };
