@@ -348,3 +348,24 @@ LEAF(alpha_pal_swpctx,1)
 	call_pal PAL_OSF1_swpctx
 	RET
 	END(alpha_pal_swpctx)
+
+
+/*
+ * alpha_pal_wrperfmon:	  Write perf monitor [PRIVILEGED]
+ *
+ * Enables / disables performance monitoring hardware
+ *
+ * Arguments:
+ *	a0	function type
+ *
+ *	a1	function parameter
+ *
+ * Returns:
+ *	v0	0 (failure) or 1 (success)
+ */
+LEAF(alpha_pal_wrperfmon,2)
+	call_pal PAL_OSF1_wrperfmon
+	RET
+	END(alpha_pal_wrperfmon)
+
+	

@@ -1,4 +1,4 @@
-/* $Id: alpha_cpu.h,v 1.3 1998/06/14 13:45:10 dfr Exp $ */
+/* $Id: alpha_cpu.h,v 1.4 1998/12/23 11:50:50 dfr Exp $ */
 /* From: NetBSD: alpha_cpu.h,v 1.15 1997/09/20 19:02:34 mjacob Exp */
 
 /*
@@ -326,5 +326,6 @@ void		alpha_pal_wrusp __P((unsigned long));
 void		alpha_pal_wrvptptr __P((unsigned long));
 void		alpha_pal_wrmces __P((unsigned long));
 void		alpha_pal_wrval __P((unsigned long));
+unsigned long	alpha_pal_wrperfmon __P((unsigned long, unsigned long));
 
 #endif /* __ALPHA_ALPHA_CPU_H__ */

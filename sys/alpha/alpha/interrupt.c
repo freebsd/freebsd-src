@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.7 1998/11/18 23:51:40 dfr Exp $ */
+/* $Id: interrupt.c,v 1.8 1998/11/28 09:55:15 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -59,6 +59,15 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 
 volatile int mc_expected, mc_received;
 
+static void 
+dummy_perf(unsigned long vector, struct trapframe *framep)  
+{
+	printf("performance interrupt!\n");
+}
+
+void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
+
+
 void
 interrupt(a0, a1, a2, framep)
 	unsigned long a0, a1, a2;
@@ -106,7 +115,7 @@ interrupt(a0, a1, a2, framep)
 		break;
 
 	case ALPHA_INTR_PERF:	/* interprocessor interrupt */
-		printf("performance interrupt!\n");
+		perf_irq(a1, framep);
 		break;
 
 	case ALPHA_INTR_PASSIVE:
