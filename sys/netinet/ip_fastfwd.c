@@ -428,6 +428,12 @@ passin:
 	ifp = ro.ro_rt->rt_ifp;
 
 	/*
+	 * Immediately drop blackholed traffic.
+	 */
+	if (ro.ro_rt->rt_flags & RTF_BLACKHOLE)
+		goto drop;
+
+	/*
 	 * Step 5: outgoing firewall packet processing
 	 */
 
