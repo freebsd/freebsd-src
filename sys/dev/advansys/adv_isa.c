@@ -124,7 +124,7 @@ adv_isa_probe(device_t dev)
 		if ((port_index > max_port_index)
 		 || (iobase != adv_isa_ioports[port_index])) {
 			printf("adv%d: Invalid baseport of 0x%lx specified. "
-				"Neerest valid baseport is 0x%x.  Failing "
+				"Nearest valid baseport is 0x%x.  Failing "
 				"probe.\n", device_get_unit(dev), iobase,
 				(port_index <= max_port_index) ?
 					adv_isa_ioports[port_index] :
