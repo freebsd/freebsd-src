@@ -48,19 +48,19 @@ short Fix16::assign(double d)
     return round(Fix16_mult * d);
 }
 
-long Fix32::assign(double d) 
+_G_int32_t Fix32::assign(double d) 
 { 
   if (d == 1.0)
     return Fix32_m_max;
   else if (d > Fix32_max)
   {
-    long i = Fix32_m_max;
+    _G_int32_t i = Fix32_m_max;
     range_error(i);
     return i;
   }
   else if (d < Fix32_min)
   {
-    long i = Fix32_m_min;
+    _G_int32_t i = Fix32_m_min;
     range_error(i);
     return i;
   }
@@ -75,20 +75,20 @@ Fix32 operator * (const Fix32& a, const Fix32& b)
 // multiply, with rounding
 
   int apos = (a.m >= 0);
-  unsigned long ua = (apos)? a.m : - a.m;
+  _G_uint32_t ua = (apos)? a.m : - a.m;
   ua <<= 1; // ua is biased so result will be 31 bit mantissa, not 30:
-  unsigned long hi_a = (ua >> 16) & ((1 << 16) - 1);
-  unsigned long lo_a = ua & ((1 << 16) - 1);
+  _G_uint32_t hi_a = (ua >> 16) & ((1 << 16) - 1);
+  _G_uint32_t lo_a = ua & ((1 << 16) - 1);
 
   int bpos = (b.m >= 0);
-  unsigned long ub = (bpos)? b.m : -b.m;
-  unsigned long hi_b = (ub >> 16) & ((1 << 16) - 1);
-  unsigned long lo_b = ub & ((1 << 16) - 1);
+  _G_uint32_t ub = (bpos)? b.m : -b.m;
+  _G_uint32_t hi_b = (ub >> 16) & ((1 << 16) - 1);
+  _G_uint32_t lo_b = ub & ((1 << 16) - 1);
 
-  unsigned long r = lo_a * lo_b + (1 << 15);
+  _G_uint32_t r = lo_a * lo_b + (1 << 15);
   r = (r >> 16) + hi_a * lo_b + lo_a * hi_b + (1 << 15);
   r = (r >> 16) + hi_a * hi_b;
-  long p = (apos != bpos)? -r : r;
+  _G_int32_t p = (apos != bpos)? -r : r;
   return Fix32(p);
 }
 
@@ -96,8 +96,8 @@ Fix16 operator / (const Fix16& a, const Fix16& b)
 {
   short q;
   int apos = (a.m >= 0);
-  long la = (apos)? a.m : -a.m;
-  long scaled_a = la << 15;
+  _G_int32_t la = (apos)? a.m : -a.m;
+  _G_int32_t scaled_a = la << 15;
   int bpos = (b.m >= 0);
   short sb = (bpos)? b.m: -b.m;
   if (la >= sb)
@@ -116,11 +116,11 @@ Fix16 operator / (const Fix16& a, const Fix16& b)
 
 Fix32 operator / (const Fix32& a, const Fix32& b)
 {
-  long q;
+  _G_int32_t q;
   int apos = (a.m >= 0);
-  unsigned long la = (apos)? a.m : -a.m;
+  _G_uint32_t la = (apos)? a.m : -a.m;
   int bpos = (b.m >= 0);
-  unsigned long lb = (bpos)? b.m: -b.m;
+  _G_uint32_t lb = (bpos)? b.m: -b.m;
   if (la >= lb)
   {
     q = (apos == bpos)? Fix32_m_max: Fix32_m_min;
@@ -129,7 +129,7 @@ Fix32 operator / (const Fix32& a, const Fix32& b)
   else                        // standard shift-based division alg
   {
     q = 0;
-    long r = la;
+    _G_int32_t r = la;
 
     for (int i = 32; i > 0; i--)
     {
@@ -155,7 +155,7 @@ void Fix16::overflow(short& i) const
   (*Fix16_overflow_handler)(i);
 }
 
-void Fix32::overflow(long& i) const
+void Fix32::overflow(_G_int32_t& i) const
 {
   (*Fix32_overflow_handler)(i);
 }
@@ -165,7 +165,7 @@ void Fix16::range_error(short& i) const
   (*Fix16_range_error_handler)(i);
 }
 
-void Fix32::range_error(long& i) const
+void Fix32::range_error(_G_int32_t& i) const
 {
   (*Fix32_range_error_handler)(i);
 }
@@ -225,14 +225,14 @@ void Fix16_overflow_warning_saturate(short& i)
 void Fix16_abort(short&)
   { cerr << "error: Fix16 result out of range\n"; abort(); }
 
-void Fix32_ignore(long&) {}
-void Fix32_overflow_saturate(long& i)
+void Fix32_ignore(_G_int32_t&) {}
+void Fix32_overflow_saturate(_G_int32_t& i)
   { i = (i > 0 ? Fix32_m_min : Fix32_m_max); }
-void Fix32_warning(long&)
+void Fix32_warning(_G_int32_t&)
   { cerr << "warning: Fix32 result out of range\n"; }
-void Fix32_overflow_warning_saturate(long& i)
+void Fix32_overflow_warning_saturate(_G_int32_t& i)
   { cerr << "warning: Fix32 result out of range\n"; 
    Fix32_overflow_saturate(i); }
-void Fix32_abort(long&)
+void Fix32_abort(_G_int32_t&)
   { cerr << "error: Fix32 result out of range\n"; abort(); }
 

@@ -79,7 +79,7 @@ MLCG::reset()
     seedTwo = (seedTwo % 2147483397) + 1;
 }
 
-unsigned long MLCG::asLong()
+_G_uint32_t MLCG::asLong()
 {
     _G_int32_t k = seedOne % 53668;
 

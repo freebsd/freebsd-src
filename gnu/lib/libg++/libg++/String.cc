@@ -29,10 +29,6 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <new.h>
 #include <builtin.h>
 
-// extern "C" {
-#include <regex.h>
-// }
-
 void String::error(const char* msg) const
 {
   (*lib_error_handler)("String", msg);
@@ -171,7 +167,8 @@ StrRep* Salloc(StrRep* old, const char* src, int srclen, int newlen)
 // generally be faster in the long run to get new space & copy
 // than to call realloc
 
-StrRep* Sresize(StrRep* old, int newlen)
+static StrRep*
+Sresize(StrRep* old, int newlen)
 {
   if (old == &_nilStrRep) old = 0;
   StrRep* rep;
@@ -189,6 +186,14 @@ StrRep* Sresize(StrRep* old, int newlen)
   rep->len = newlen;
 
   return rep;
+}
+
+void
+String::alloc (int newsize)
+{
+  unsigned short old_len = rep->len;
+  rep = Sresize(rep, newsize);
+  rep->len = old_len;
 }
 
 // like allocate, but we know that src is a StrRep
@@ -960,56 +965,38 @@ int split(const String& src, String results[], int n, const Regex& r)
 
 
 #if defined(__GNUG__) && !defined(_G_NO_NRV)
-
-String join(String src[], int n, const String& separator) return x;
-{
-  String sep = separator;
-  int xlen = 0;
-  for (int i = 0; i < n; ++i)
-    xlen += src[i].length();
-  xlen += (n - 1) * sep.length();
-
-  x.alloc(xlen);
-
-  int j = 0;
-  
-  for (i = 0; i < n - 1; ++i)
-  {
-    ncopy(src[i].chars(), &(x.rep->s[j]), src[i].length());
-    j += src[i].length();
-    ncopy(sep.chars(), &(x.rep->s[j]), sep.length());
-    j += sep.length();
-  }
-  ncopy0(src[i].chars(), &(x.rep->s[j]), src[i].length());
-}
-
-#else
-
-String join(String src[], int n, const String& separator)
-{
-  String x;
-  String sep = separator;
-  int xlen = 0;
-  for (int i = 0; i < n; ++i)
-    xlen += src[i].length();
-  xlen += (n - 1) * sep.length();
-
-  x.alloc(xlen);
-
-  int j = 0;
-  
-  for (i = 0; i < n - 1; ++i)
-  {
-    ncopy(src[i].chars(), &(x.rep->s[j]), src[i].length());
-    j += src[i].length();
-    ncopy(sep.chars(), &(x.rep->s[j]), sep.length());
-    j += sep.length();
-  }
-  ncopy0(src[i].chars(), &(x.rep->s[j]), src[i].length());
-  return x;
-}
-
+#define RETURN(r) return
+#define RETURNS(r) return r;
+#define RETURN_OBJECT(TYPE, NAME) /* nothing */
+#else /* _G_NO_NRV */
+#define RETURN(r) return r
+#define RETURNS(r) /* nothing */
+#define RETURN_OBJECT(TYPE, NAME) TYPE NAME;
 #endif
+
+String join(String src[], int n, const String& separator) RETURNS(x)
+{
+  RETURN_OBJECT(String,x)
+  String sep = separator;
+  int xlen = 0;
+  for (int i = 0; i < n; ++i)
+    xlen += src[i].length();
+  xlen += (n - 1) * sep.length();
+
+  x.rep = Sresize (x.rep, xlen);
+
+  int j = 0;
+  
+  for (i = 0; i < n - 1; ++i)
+  {
+    ncopy(src[i].chars(), &(x.rep->s[j]), src[i].length());
+    j += src[i].length();
+    ncopy(sep.chars(), &(x.rep->s[j]), sep.length());
+    j += sep.length();
+  }
+  ncopy0(src[i].chars(), &(x.rep->s[j]), src[i].length());
+  RETURN(x);
+}
   
 /*
  misc

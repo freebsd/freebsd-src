@@ -37,6 +37,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #if !_G_HAVE_SYS_RESOURCE || !defined(RUSAGE_SELF)
 #define USE_TIMES
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/times.h>
 #if !defined (HZ) && defined(CLK_TCK)
 #define HZ CLK_TCK

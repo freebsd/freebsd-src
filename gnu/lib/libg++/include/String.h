@@ -39,7 +39,6 @@ struct StrRep                     // internal String representations
 
 StrRep*     Salloc(StrRep*, const char*, int, int);
 StrRep*     Scopy(StrRep*, const StrRep*);
-StrRep*     Sresize(StrRep*, int);
 StrRep*     Scat(StrRep*, const char*, int, const char*, int);
 StrRep*     Scat(StrRep*, const char*, int,const char*,int, const char*,int);
 StrRep*     Sprepend(StrRep*, const char*, int);
@@ -155,50 +154,50 @@ public:
 // procedural versions:
 // concatenate first 2 args, store result in last arg
 
-  friend void     cat(const String&, const String&, String&);
-  friend void     cat(const String&, const SubString&, String&);
-  friend void     cat(const String&, const char*, String&);
-  friend void     cat(const String&, char, String&);
+  friend inline void     cat(const String&, const String&, String&);
+  friend inline void     cat(const String&, const SubString&, String&);
+  friend inline void     cat(const String&, const char*, String&);
+  friend inline void     cat(const String&, char, String&);
 
-  friend void     cat(const SubString&, const String&, String&);
-  friend void     cat(const SubString&, const SubString&, String&);
-  friend void     cat(const SubString&, const char*, String&);
-  friend void     cat(const SubString&, char, String&);
+  friend inline void     cat(const SubString&, const String&, String&);
+  friend inline void     cat(const SubString&, const SubString&, String&);
+  friend inline void     cat(const SubString&, const char*, String&);
+  friend inline void     cat(const SubString&, char, String&);
 
-  friend void     cat(const char*, const String&, String&);
-  friend void     cat(const char*, const SubString&, String&);
-  friend void     cat(const char*, const char*, String&);
-  friend void     cat(const char*, char, String&);
+  friend inline void     cat(const char*, const String&, String&);
+  friend inline void     cat(const char*, const SubString&, String&);
+  friend inline void     cat(const char*, const char*, String&);
+  friend inline void     cat(const char*, char, String&);
 
 // double concatenation, by request. (yes, there are too many versions, 
 // but if one is supported, then the others should be too...)
 // Concatenate first 3 args, store in last arg
 
-  friend void     cat(const String&,const String&, const String&,String&);
-  friend void     cat(const String&,const String&,const SubString&,String&);
-  friend void     cat(const String&,const String&, const char*, String&);
-  friend void     cat(const String&,const String&, char, String&);
-  friend void     cat(const String&,const SubString&,const String&,String&);
-  friend void     cat(const String&,const SubString&,const SubString&,String&);
-  friend void     cat(const String&,const SubString&, const char*, String&);
-  friend void     cat(const String&,const SubString&, char, String&);
-  friend void     cat(const String&,const char*, const String&,    String&);
-  friend void     cat(const String&,const char*, const SubString&, String&);
-  friend void     cat(const String&,const char*, const char*, String&);
-  friend void     cat(const String&,const char*, char, String&);
+  friend inline void     cat(const String&,const String&, const String&,String&);
+  friend inline void     cat(const String&,const String&,const SubString&,String&);
+  friend inline void     cat(const String&,const String&, const char*, String&);
+  friend inline void     cat(const String&,const String&, char, String&);
+  friend inline void     cat(const String&,const SubString&,const String&,String&);
+  inline friend void     cat(const String&,const SubString&,const SubString&,String&);
+  friend inline void     cat(const String&,const SubString&, const char*, String&);
+  friend inline void     cat(const String&,const SubString&, char, String&);
+  friend inline void     cat(const String&,const char*, const String&,    String&);
+  friend inline void     cat(const String&,const char*, const SubString&, String&);
+  friend inline void     cat(const String&,const char*, const char*, String&);
+  friend inline void     cat(const String&,const char*, char, String&);
 
-  friend void     cat(const char*, const String&, const String&,String&);
-  friend void     cat(const char*,const String&,const SubString&,String&);
-  friend void     cat(const char*,const String&, const char*, String&);
-  friend void     cat(const char*,const String&, char, String&);
-  friend void     cat(const char*,const SubString&,const String&,String&);
-  friend void     cat(const char*,const SubString&,const SubString&,String&);
-  friend void     cat(const char*,const SubString&, const char*, String&);
-  friend void     cat(const char*,const SubString&, char, String&);
-  friend void     cat(const char*,const char*, const String&,    String&);
-  friend void     cat(const char*,const char*, const SubString&, String&);
-  friend void     cat(const char*,const char*, const char*, String&);
-  friend void     cat(const char*,const char*, char, String&);
+  friend inline void     cat(const char*, const String&, const String&,String&);
+  friend inline void     cat(const char*,const String&,const SubString&,String&);
+  friend inline void     cat(const char*,const String&, const char*, String&);
+  friend inline void     cat(const char*,const String&, char, String&);
+  friend inline void     cat(const char*,const SubString&,const String&,String&);
+  friend inline void     cat(const char*,const SubString&,const SubString&,String&);
+  friend inline void     cat(const char*,const SubString&, const char*, String&);
+  friend inline void     cat(const char*,const SubString&, char, String&);
+  friend inline void     cat(const char*,const char*, const String&,    String&);
+  friend inline void     cat(const char*,const char*, const SubString&, String&);
+  friend inline void     cat(const char*,const char*, const char*, String&);
+  friend inline void     cat(const char*,const char*, char, String&);
 
 
 // searching & matching
@@ -327,10 +326,10 @@ public:
 
 // simple builtin transformations
 
-  friend String     reverse(const String& x);
-  friend String     upcase(const String& x);
-  friend String     downcase(const String& x);
-  friend String     capitalize(const String& x);
+  friend inline String     reverse(const String& x);
+  friend inline String     upcase(const String& x);
+  friend inline String     downcase(const String& x);
+  friend inline String     capitalize(const String& x);
 
 // in-place versions of above
 
@@ -342,6 +341,7 @@ public:
 // element extraction
 
   char&             operator [] (int i);
+  const char&       operator [] (int i) const;
   char              elem(int i) const;
   char              firstchar() const;
   char              lastchar() const;
@@ -354,7 +354,7 @@ public:
 
 // IO
 
-  friend ostream&   operator<<(ostream& s, const String& x);
+  friend inline ostream&   operator<<(ostream& s, const String& x);
   friend ostream&   operator<<(ostream& s, const SubString& x);
   friend istream&   operator>>(istream& s, String& x);
 
@@ -395,64 +395,12 @@ int        fcompare(const String&   x, const String&     y); // ignore case
 extern StrRep  _nilStrRep;
 extern String _nilString;
 
-// other inlines
-
-String operator + (const String& x, const String& y);
-String operator + (const String& x, const SubString& y);
-String operator + (const String& x, const char* y);
-String operator + (const String& x, char y);
-String operator + (const SubString& x, const String& y);
-String operator + (const SubString& x, const SubString& y);
-String operator + (const SubString& x, const char* y);
-String operator + (const SubString& x, char y);
-String operator + (const char* x, const String& y);
-String operator + (const char* x, const SubString& y);
-
-int operator==(const String& x, const String& y); 
-int operator!=(const String& x, const String& y);
-int operator> (const String& x, const String& y);
-int operator>=(const String& x, const String& y);
-int operator< (const String& x, const String& y);
-int operator<=(const String& x, const String& y);
-int operator==(const String& x, const SubString&  y);
-int operator!=(const String& x, const SubString&  y);
-int operator> (const String& x, const SubString&  y);
-int operator>=(const String& x, const SubString&  y);
-int operator< (const String& x, const SubString&  y);
-int operator<=(const String& x, const SubString&  y);
-int operator==(const String& x, const char* t);
-int operator!=(const String& x, const char* t);
-int operator> (const String& x, const char* t);
-int operator>=(const String& x, const char* t);
-int operator< (const String& x, const char* t);
-int operator<=(const String& x, const char* t);
-int operator==(const SubString& x, const String& y);
-int operator!=(const SubString& x, const String& y);
-int operator> (const SubString& x, const String& y);
-int operator>=(const SubString& x, const String& y);
-int operator< (const SubString& x, const String& y);
-int operator<=(const SubString& x, const String& y);
-int operator==(const SubString& x, const SubString&  y);
-int operator!=(const SubString& x, const SubString&  y);
-int operator> (const SubString& x, const SubString&  y);
-int operator>=(const SubString& x, const SubString&  y);
-int operator< (const SubString& x, const SubString&  y);
-int operator<=(const SubString& x, const SubString&  y);
-int operator==(const SubString& x, const char* t);
-int operator!=(const SubString& x, const char* t);
-int operator> (const SubString& x, const char* t);
-int operator>=(const SubString& x, const char* t);
-int operator< (const SubString& x, const char* t);
-int operator<=(const SubString& x, const char* t);
-
-
 // status reports, needed before defining other things
 
 inline unsigned int String::length() const {  return rep->len; }
 inline int         String::empty() const { return rep->len == 0; }
 inline const char* String::chars() const { return &(rep->s[0]); }
 inline int         String::allocation() const { return rep->sz; }
-inline void        String::alloc(int newsize) { rep = Sresize(rep, newsize); }
 
 inline unsigned int SubString::length() const { return len; }
 inline int         SubString::empty() const { return len == 0; }
@@ -943,6 +891,12 @@ inline void String::capitalize()
 // element extraction
 
 inline char&  String::operator [] (int i) 
+{ 
+  if (((unsigned)i) >= length()) error("invalid index");
+  return rep->s[i];
+}
+
+inline const char&  String::operator [] (int i) const
 { 
   if (((unsigned)i) >= length()) error("invalid index");
   return rep->s[i];

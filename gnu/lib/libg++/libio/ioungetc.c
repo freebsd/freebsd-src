@@ -29,7 +29,7 @@ _IO_ungetc(c, fp)
      int c;
      _IO_FILE *fp;
 {
-  COERCE_FILE(fp);
+  CHECK_FILE(fp, EOF);
   if (c == EOF)
     return EOF;
   return _IO_sputbackc(fp, (unsigned char)c);

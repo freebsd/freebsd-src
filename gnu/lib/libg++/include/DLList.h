@@ -66,9 +66,9 @@ class BaseDLList {
     int                   empty() const { return h == 0; }
     int                   length() const;
     void                  clear();
-    void                  error(const char* msg);
-    int                   owns(Pix p);
-    int                   OK();
+    void                  error(const char* msg) const;
+    int                   owns(Pix p) const;
+    int                   OK() const;
     void                  del(Pix& p, int dir = 1);
     void                  del_after(Pix& p);
     void                  del_front();
@@ -104,6 +104,13 @@ class DLList : public BaseDLList {
 	if (h == 0) error("rear: empty list");
 	return ((DLNode<T>*)h->bk)->hd;
     }
+    const T& front() const {
+	if (h == 0) error("front: empty list");
+	return ((DLNode<T>*)h)->hd; }
+    const T& rear() const {
+	if (h == 0) error("rear: empty list");
+	return ((DLNode<T>*)h->bk)->hd;
+    }
     T remove_front() { T dst; BaseDLList::remove_front(&dst); return dst; }
     T remove_rear() { T dst; BaseDLList::remove_rear(&dst); return dst; }
 
@@ -111,11 +118,15 @@ class DLList : public BaseDLList {
 	if (p == 0) error("null Pix");
 	return ((DLNode<T>*)p)->hd;
     }
-    Pix                   first() {  return Pix(h); }
-    Pix                   last() { return (h == 0)? 0 : Pix(h->bk); }
-    void                  next(Pix& p)
+    const T&              operator () (Pix p) const {
+	if (p == 0) error("null Pix");
+	return ((DLNode<T>*)p)->hd;
+    }
+    Pix                   first() const { return Pix(h); }
+    Pix                   last()  const { return (h == 0) ? 0 : Pix(h->bk); }
+    void                  next(Pix& p) const
 	{ p = (p == 0 || p == h->bk)? 0 : Pix(((DLNode<T>*)p)->fd); }
-    void                  prev(Pix& p)
+    void                  prev(Pix& p) const
 	{ p = (p == 0 || p == h)? 0 : Pix(((DLNode<T>*)p)->bk); }
     Pix ins_after(Pix p, const T& item)
       {return BaseDLList::ins_after(p, &item); }

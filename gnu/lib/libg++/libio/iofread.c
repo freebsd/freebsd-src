@@ -33,7 +33,7 @@ _IO_fread(buf, size, count, fp)
 {
   _IO_size_t bytes_requested = size*count;
   _IO_size_t bytes_read;
-  COERCE_FILE(fp);
+  CHECK_FILE(fp, 0);
   if (bytes_requested == 0)
     return 0;
   bytes_read = _IO_sgetn(fp, (char *)buf, bytes_requested);
