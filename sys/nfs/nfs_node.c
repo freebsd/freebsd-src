@@ -115,7 +115,7 @@ loop:
 		    bcmp((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize))
 			continue;
 		vp = NFSTOV(np);
-		if (vget(vp, LK_EXCLUSIVE, p))
+		if (vget(vp, LK_EXCLUSIVE|LK_SLEEPFAIL, p))
 			goto loop;
 		*npp = np;
 		return(0);
