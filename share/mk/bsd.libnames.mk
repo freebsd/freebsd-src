@@ -48,6 +48,7 @@ LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBMYTINFO?=	${DESTDIR}${LIBDIR}/libmytinfo.a
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
+LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
