@@ -1120,7 +1120,7 @@ fmtvalid(u_int32_t fmt, u_int32_t *fmtlist)
 int
 chn_reset(pcm_channel *c, u_int32_t fmt)
 {
-	int r = 0;
+	int hwspd, r;
 
 	chn_abort(c);
 	c->flags &= CHN_F_RESET;
@@ -1128,10 +1128,13 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 	if (r)
 		return r;
 	if (fmt) {
-		c->speed = DSP_DEFAULT_SPEED;
+		hwspd = DSP_DEFAULT_SPEED;
+		RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
+		c->speed = hwspd;
+
 		r = chn_setformat(c, fmt);
 		if (r == 0)
-			r = chn_setspeed(c, DSP_DEFAULT_SPEED);
+			r = chn_setspeed(c, hwspd);
 		if (r == 0)
 			r = chn_setvolume(c, 100, 100);
 	}
