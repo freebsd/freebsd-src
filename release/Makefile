@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.83 1998/03/24 10:22:16 jkh Exp $
+#	$Id: Makefile,v 1.246.2.84 1998/03/24 11:00:03 jkh Exp $
 #
 # How to roll a release:
 #
@@ -132,7 +132,7 @@ rerelease release:
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports && cd ports && make readmes
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 .endif
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
