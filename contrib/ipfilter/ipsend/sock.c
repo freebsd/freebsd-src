@@ -28,9 +28,6 @@
 # undef	LOCORE
 # include <sys/smp_lock.h>
 #endif
-#if (__FreeBSD_version >= 500028)
-#include <sys/queue.h>
-#endif
 #include <sys/file.h>
 #undef  _KERNEL
 #undef  KERNEL
