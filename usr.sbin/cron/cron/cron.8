@@ -25,6 +25,8 @@
 .Nd daemon to execute scheduled commands (Vixie Cron)
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ar jitter
+.Op Fl J Ar rootjitter
 .Op Fl s
 .Op Fl o
 .Op Fl x Ar debugflag Ns Op , Ns Ar ...
@@ -78,6 +80,27 @@ changes a crontab.
 .Pp
 Available options:
 .Bl -tag -width indent
+.It Fl j Ar jitter
+Enable time jitter.
+Prior to executing commands,
+.Nm
+will sleep a random number of seconds in the range from 0 to
+.Ar jitter .
+This won't affect superuser jobs (see
+.Fl J ) .
+A value for
+.Ar jitter
+must be between 0 and 60 inclusive.
+Default is 0, which effectively disables time jitter.
+.Pp
+This option can help to smooth down system load spikes during
+moments when a lot of jobs are likely to start at once, e.g.,
+at the beginning of the first minute of each hour.
+.It Fl J Ar rootjitter
+Enable time jitter for superuser jobs.
+The same as
+.Fl j
+except that it will affect jobs run by the superuser only.
 .It Fl s
 Enable special handling of situations when the GMT offset of the local
 timezone changes, such as the switches between the standard time and
