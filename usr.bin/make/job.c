@@ -253,14 +253,14 @@ STATIC char    	*targFmt;   	/* Format string to use to head output from a
 	(void) fprintf(fp, targFmt, gn->name);
 
 /*
- * When JobStart attempts to run a job remotely but can't, and isn't allowed
- * to run the job locally, or when Job_CatchChildren detects a job that has
- * been migrated home, the job is placed on the stoppedJobs queue to be run
+ * When JobStart attempts to run a job but isn't allowed to
+ * or when Job_CatchChildren detects a job that has
+ * been stopped somehow, the job is placed on the stoppedJobs queue to be run
  * when the next job finishes.
  */
 STATIC Lst	stoppedJobs;	/* Lst of Job structures describing
 				 * jobs that were stopped due to concurrency
-				 * limits or migration home */
+				 * limits or externally */
 
 
 #if defined(USE_PGRP) && defined(SYSV)
@@ -313,8 +313,7 @@ static void JobRestartJobs(void);
 /*-
  *-----------------------------------------------------------------------
  * JobCondPassSig --
- *	Pass a signal to a job if the job is remote or if USE_PGRP
- *	is defined.
+ *	Pass a signal to a job if USE_PGRP is defined.
  *
  * Results:
  *	=== 0
@@ -330,11 +329,8 @@ JobCondPassSig(void *jobp, void *signop)
     Job	*job = (Job *) jobp;
     int	signo = *(int *) signop;
 
-    /*
-     * Assume that sending the signal to job->pid will signal any remote
-     * job as well.
-     */
-    DEBUGF(JOB, ("JobCondPassSig passing signal %d to child %d.\n", signo, job->pid));
+    DEBUGF(JOB, ("JobCondPassSig passing signal %d to child %d.\n",
+	signo, job->pid));
     KILL(job->pid, signo);
     return 0;
 }
@@ -342,7 +338,7 @@ JobCondPassSig(void *jobp, void *signop)
 /*-
  *-----------------------------------------------------------------------
  * JobPassSig --
- *	Pass a signal on to all remote jobs and to all local jobs if
+ *	Pass a signal on to all local jobs if
  *	USE_PGRP is defined, then die ourselves.
  *
  * Results:
@@ -785,10 +781,8 @@ JobFinish(Job *job, int *status)
 		MESSAGE(out, job->node);
 		lastNode = job->node;
 	    }
-	    if (!(job->flags & JOB_REMIGRATE)) {
-		(void) fprintf(out, "*** Stopped -- signal %d\n",
-		    WSTOPSIG(*status));
-	    }
+	    (void) fprintf(out, "*** Stopped -- signal %d\n",
+		WSTOPSIG(*status));
 	    job->flags |= JOB_RESUME;
 	    (void)Lst_AtEnd(stoppedJobs, (void *)job);
 	    (void) fflush(out);
@@ -799,7 +793,7 @@ JobFinish(Job *job, int *status)
 	     * list to the running one (or re-stop it if concurrency is
 	     * exceeded) and go and get another child.
 	     */
-	    if (job->flags & (JOB_RESUME|JOB_REMIGRATE|JOB_RESTART)) {
+	    if (job->flags & (JOB_RESUME|JOB_RESTART)) {
 		if (usePipes && job->node != lastNode) {
 		    MESSAGE(out, job->node);
 		    lastNode = job->node;
@@ -821,10 +815,8 @@ JobFinish(Job *job, int *status)
 	    job->flags &= ~JOB_CONTINUING;
  	    Lst_AtEnd(jobs, (void *)job);
 	    nJobs += 1;
-	    if (!(job->flags & JOB_REMOTE)) {
-		DEBUGF(JOB, ("Process %d is continuing locally.\n", job->pid));
-		nLocal += 1;
-	    }
+	    DEBUGF(JOB, ("Process %d is continuing locally.\n", job->pid));
+	    nLocal += 1;
 	    if (nJobs == maxJobs) {
 		jobFull = TRUE;
 		DEBUGF(JOB, ("Job queue is full.\n"));
@@ -1080,8 +1072,7 @@ JobExec(Job *job, char **argv)
     if (DEBUG(JOB)) {
 	int 	  i;
 
-	DEBUGF(JOB, ("Running %s %sly\n", job->node->name,
-	       job->flags&JOB_REMOTE?"remote":"local"));
+	DEBUGF(JOB, ("Running %s\n", job->node->name));
 	DEBUGF(JOB, ("\tCommand: "));
 	for (i = 0; argv[i] != NULL; i++) {
 	    DEBUGF(JOB, ("%s ", argv[i]));
@@ -1187,17 +1178,10 @@ JobExec(Job *job, char **argv)
 #endif /* USE_KQUEUE */
 	}
 
-	if (job->flags & JOB_REMOTE) {
-	    job->rmtID = 0;
-	} else {
-	    nLocal += 1;
-	    /*
-	     * XXX: Used to not happen if REMOTE. Why?
-	     */
-	    if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
-		(void) fclose(job->cmdFILE);
-		job->cmdFILE = NULL;
-	    }
+	nLocal += 1;
+	if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
+	    (void) fclose(job->cmdFILE);
+	    job->cmdFILE = NULL;
 	}
     }
 
@@ -1281,48 +1265,7 @@ static void
 JobRestart(Job *job)
 {
 
-    if (job->flags & JOB_REMIGRATE) {
-	if (DEBUG(JOB)) {
-	   (void) fprintf(stdout, "*** remigrating %x(%s)\n",
-			   job->pid, job->node->name);
-	   (void) fflush(stdout);
-	}
-
-	if (nLocal != maxLocal) {
-	    /*
-	     * Job cannot be remigrated, but there's room on the local
-	     * machine, so resume the job and note that another
-	     * local job has started.
-	     */
-	    if (DEBUG(JOB)) {
-		(void) fprintf(stdout, "*** resuming on local machine\n");
-		(void) fflush(stdout);
-	    }
-	    KILL(job->pid, SIGCONT);
-	    nLocal +=1;
-	    job->flags &= ~(JOB_REMIGRATE|JOB_RESUME);
-	} else {
-	    /*
-	     * Job cannot be restarted. Mark the table as full and
-	     * place the job back on the list of stopped jobs.
-	     */
-	    if (DEBUG(JOB)) {
-	       (void) fprintf(stdout, "*** holding\n");
-	       (void) fflush(stdout);
-  	    }
-	    (void)Lst_AtFront(stoppedJobs, (void *)job);
-	    jobFull = TRUE;
-	    DEBUGF(JOB, ("Job queue is full.\n"));
-	    return;
-	}
-
-	(void)Lst_AtEnd(jobs, (void *)job);
-	nJobs += 1;
-	if (nJobs == maxJobs) {
-	    jobFull = TRUE;
-	    DEBUGF(JOB, ("Job queue is full.\n"));
-	}
-    } else if (job->flags & JOB_RESTART) {
+    if (job->flags & JOB_RESTART) {
 	/*
 	 * Set up the control arguments to the shell. This is based on the
 	 * flags set earlier for this job. If the JOB_IGNERR flag is clear,
@@ -1351,7 +1294,6 @@ JobRestart(Job *job)
 	     * Job may be run locally.
 	     */
 	    DEBUGF(JOB, ("running locally\n"));
-	    job->flags &= ~JOB_REMOTE;
 	}
 	JobExec(job, argv);
     } else {
@@ -1360,18 +1302,14 @@ JobRestart(Job *job)
 	 * we don't know...
 	 */
 	DEBUGF(JOB, ("Resuming %s...", job->node->name));
-	if (((job->flags & JOB_REMOTE) ||
-	    (nLocal < maxLocal) ||
+	if (((nLocal < maxLocal) ||
 	    ((job->flags & JOB_SPECIAL) &&
 	     (maxLocal == 0))) &&
 	   (nJobs != maxJobs))
 	{
 	    /*
-	     * If the job is remote, it's ok to resume it as long as the
-	     * maximum concurrency won't be exceeded. If it's local and
-	     * we haven't reached the local concurrency limit already (or the
-	     * job must be run locally and maxLocal is 0), it's also ok to
-	     * resume it.
+	     * If we haven't reached the concurrency limit already (or the
+	     * job must be run and maxLocal is 0), it's ok to resume it.
 	     */
 	    Boolean error;
 	    int status;
@@ -1431,12 +1369,11 @@ JobStart(GNode *gn, int flags, Job *previous)
     Job	  	  *job;       /* new job descriptor */
     char	  *argv[4];   /* Argument vector to shell */
     Boolean	  cmdsOK;     /* true if the nodes commands were all right */
-    Boolean 	  local;      /* Set true if the job was run locally */
     Boolean 	  noExec;     /* Set true if we decide not to run the job */
     int		  tfd;	      /* File descriptor for temp file */
 
     if (previous != NULL) {
-	previous->flags &= ~(JOB_FIRST|JOB_IGNERR|JOB_SILENT|JOB_REMOTE);
+	previous->flags &= ~(JOB_FIRST|JOB_IGNERR|JOB_SILENT);
 	job = previous;
     } else {
 	job = (Job *) emalloc(sizeof(Job));
@@ -1658,21 +1595,13 @@ JobStart(GNode *gn, int flags, Job *previous)
 	}
     }
 
-    local = TRUE;
-
-    if (local && (((nLocal >= maxLocal) &&
-	!(job->flags & JOB_SPECIAL) &&
-	(maxLocal != 0)
-	)))
-    {
+    if ((nLocal >= maxLocal) && !(job->flags & JOB_SPECIAL) &&
+	(maxLocal != 0)) {
 	/*
-	 * The job can only be run locally, but we've hit the limit of
-	 * local concurrency, so put the job on hold until some other job
-	 * finishes. Note that the special jobs (.BEGIN, .INTERRUPT and .END)
-	 * may be run locally even when the local limit has been reached
-	 * (e.g. when maxLocal == 0), though they will be exported if at
-	 * all possible. In addition, any target marked with .NOEXPORT will
-	 * be run locally if maxLocal is 0.
+	 * We've hit the limit of concurrency, so put the job on hold until
+	 * some other job finishes. Note that the special jobs (.BEGIN,
+	 * .INTERRUPT and .END) may be run even when the limit has been reached
+	 * (e.g. when maxLocal == 0).
 	 */
 	jobFull = TRUE;
 
@@ -1680,7 +1609,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	job->flags |= JOB_RESTART;
 	(void) Lst_AtEnd(stoppedJobs, (void *)job);
     } else {
-	if ((nLocal >= maxLocal) && local) {
+	if (nLocal >= maxLocal) {
 	    /*
 	     * If we're running this job locally as a special case (see above),
 	     * at least say the table is full.
@@ -2527,8 +2456,6 @@ JobInterrupt(int runINTERRUPT, int signo)
 	    KILL(job->pid, signo);
 	}
     }
-
-    Lst_Close(stoppedJobs);
 
     if (runINTERRUPT && !touchFlag) {
 	interrupt = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
