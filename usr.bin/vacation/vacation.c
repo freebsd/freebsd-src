@@ -397,7 +397,7 @@ sendmessage(myname)
 		close(pvect[0]);
 		close(pvect[1]);
 		fclose(mfp);
-		execl(_PATH_SENDMAIL, "sendmail", "-f", myname, from, NULL);
+		execl(_PATH_SENDMAIL, "sendmail", "-f", myname, "--", from, NULL);
 		syslog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, strerror(errno));
 		exit(1);
