@@ -2714,13 +2714,13 @@ isp_start(XS_T *xs)
 		else
 			reqp->req_header.rqs_entry_type = RQSTYPE_REQUEST;
 	}
-	reqp->req_header.rqs_flags = 0;
-	reqp->req_header.rqs_seqno = 0;
+	/* reqp->req_header.rqs_flags = 0; */
+	/* reqp->req_header.rqs_seqno = 0; */
 	if (IS_FC(isp)) {
 		/*
 		 * See comment in isp_intr
 		 */
-		XS_RESID(xs) = 0;
+		/* XS_RESID(xs) = 0; */
 
 		/*
 		 * Fibre Channel always requires some kind of tag.
@@ -2771,7 +2771,7 @@ isp_start(XS_T *xs)
 		reqp->req_time = 5;
 	}
 	if (isp_save_xs(isp, xs, &handle)) {
-		isp_prt(isp, ISP_LOGDEBUG1, "out of xflist pointers");
+		isp_prt(isp, ISP_LOGDEBUG0, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	}
@@ -3283,6 +3283,11 @@ isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
 				*XS_STSP(xs) = SCSI_QFULL;
 				XS_SETERR(xs, HBA_NOERROR);
 			} else if (XS_NOERR(xs)) {
+				/*
+				 * ????
+				 */
+				isp_prt(isp, ISP_LOGDEBUG0,
+				    "Request Queue Entry bounced back");
 				XS_SETERR(xs, HBA_BOTCH);
 			}
 			XS_RESID(xs) = XS_XFRLEN(xs);
@@ -3902,18 +3907,30 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		break;
 
 	case RQCS_QUEUE_FULL:
-		isp_prt(isp, ISP_LOGDEBUG1,
+		isp_prt(isp, ISP_LOGDEBUG0,
 		    "internal queues full for %d.%d.%d status 0x%x", XS_TGT(xs),
 		    XS_LUN(xs), XS_CHANNEL(xs), *XS_STSP(xs));
+
 		/*
 		 * If QFULL or some other status byte is set, then this
 		 * isn't an error, per se.
-		 */
+		 *
+		 * Unfortunately, some QLogic f/w writers have, in
+		 * some cases, ommitted to *set* status to QFULL.
+		 *
+
 		if (*XS_STSP(xs) != SCSI_GOOD && XS_NOERR(xs)) {
 			XS_SETERR(xs, HBA_NOERROR);
 			return;
 		}
-		break;
+
+		 *
+		 *
+		 */
+
+		*XS_STSP(xs) = SCSI_QFULL;
+		XS_SETERR(xs, HBA_NOERROR);
+		return;
 
 	case RQCS_PHASE_SKIPPED:
 		isp_prt(isp, ISP_LOGERR, pskip, XS_CHANNEL(xs),
@@ -4131,7 +4148,7 @@ static u_int16_t mbpscsi[] = {
 	ISPOPMAP(0xdf, 0xdf),	/* 0x51: DUMP RAM A64 */
 	ISPOPMAP(0xdf, 0xdf),	/* 0x52: INITIALIZE REQUEST QUEUE A64 */
 	ISPOPMAP(0xff, 0xff),	/* 0x53: INITIALIZE RESPONSE QUEUE A64 */
-	ISPOPMAP(0xcf, 0xff),	/* 0x54: EXECUTE IOCB A64 */
+	ISPOPMAP(0xcf, 0x01),	/* 0x54: EXECUTE IOCB A64 */
 	ISPOPMAP(0x07, 0x01),	/* 0x55: ENABLE TARGET MODE */
 	ISPOPMAP(0x03, 0x0f),	/* 0x56: GET TARGET STATUS */
 	ISPOPMAP(0x00, 0x00),	/* 0x57: */
