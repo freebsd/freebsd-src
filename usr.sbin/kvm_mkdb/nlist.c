@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static char sccsid[] = "from: @(#)nlist.c	8.1 (Berkeley) 6/6/93";
+#else
+static char *rcsid = "$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,16 +60,21 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 
+#ifdef DO_ELF
+#include <elf.h>
+#endif
+
 typedef struct nlist NLIST;
 #define	_strx	n_un.n_strx
 #define	_name	n_un.n_name
 
 #define	badfmt(str)	errx(1, "%s: %s: %s", kfile, str, strerror(EFTYPE))
-
 static char *kfile;
 
-void
-create_knlist(name, db)
+#if defined(DO_AOUT)
+
+int
+__aout_knlist(name, db)
 	char *name;
 	DB *db;
 {
@@ -162,5 +171,167 @@ create_knlist(name, db)
 			/* Restore to original values. */
 			data.size = sizeof(NLIST);
 		}
+	}
+}
+
+
+#endif /* DO_AOUT */
+
+#ifdef DO_ELF
+int
+__elf_knlist(name, db)
+	char *name;
+	DB *db;
+{
+	register caddr_t strtab;
+	register off_t symstroff, symoff;
+	register u_long symsize;
+	register u_long kernvma, kernoffs;
+	register int i;
+	Elf32_Sym *sbuf;
+	size_t symstrsize;
+	char *shstr, buf[1024];
+	Elf32_Ehdr *eh;
+	Elf32_Shdr *sh = NULL;
+	DBT data, key;
+	NLIST nbuf;
+	int fd;
+	u_char *filep;
+	struct stat sst;
+
+	kfile = name;
+	if ((fd = open(name, O_RDONLY, 0)) < 0)
+		err(1, "%s", name);
+
+	fstat(fd, &sst);
+
+	/* Check for files too large to mmap. */
+	/* XXX is this really possible? */
+	if (sst.st_size > SIZE_T_MAX) {
+		badfmt("corrupt file");
+	}
+	filep = (u_char*)mmap(0, sst.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+	if (filep == (u_char*)MAP_FAILED)
+		err(1, "mmap failed");
+
+	/* Read in exec structure. */
+	eh = (Elf32_Ehdr *) filep;
+
+	if (!IS_ELF(*eh))
+		return(-1);
+
+	sh = (Elf32_Shdr *)&filep[eh->e_shoff];
+
+	shstr = (char *)&filep[sh[eh->e_shstrndx].sh_offset];
+
+	for (i = 0; i < eh->e_shnum; i++) {
+		if (strcmp (shstr + sh[i].sh_name, ".strtab") == 0) {
+			symstroff = sh[i].sh_offset;
+			symstrsize = sh[i].sh_size;
+		}
+		else if (strcmp (shstr + sh[i].sh_name, ".symtab") == 0) {
+			symoff = sh[i].sh_offset;
+			symsize = sh[i].sh_size;
+		}
+		else if (strcmp (shstr + sh[i].sh_name, ".text") == 0) {
+			kernvma = sh[i].sh_addr;
+			kernoffs = sh[i].sh_offset;
+		}
+	}
+
+	strtab = (char *)&filep[symstroff];
+
+	data.data = (u_char *)&nbuf;
+	data.size = sizeof(NLIST);
+
+	/* Read each symbol and enter it into the database. */
+	for (i = 0; symsize > 0; i++, symsize -= sizeof(Elf32_Sym)) {
+
+		sbuf = (Elf32_Sym *)&filep[symoff + i * sizeof(*sbuf)];
+		if (!sbuf->st_name)
+			continue;
+
+		nbuf.n_value = sbuf->st_value;
+
+		/*XXX type conversion is pretty rude... */
+		switch (ELF32_ST_TYPE(sbuf->st_info)) {
+		case STT_NOTYPE:
+			nbuf.n_type = N_UNDF;
+			break;
+		case STT_FUNC:
+			nbuf.n_type = N_TEXT;
+			break;
+		case STT_OBJECT:
+			nbuf.n_type = N_DATA;
+			break;
+		}
+		if (ELF32_ST_BIND(sbuf->st_info) == STB_LOCAL)
+			nbuf.n_type = N_EXT;
+
+		key.data = (u_char *)(strtab + sbuf->st_name);
+		key.size = strlen((char *)key.data);
+		if (db->put(db, &key, &data, 0))
+			err(1, "record enter");
+
+		/* also put in name prefixed with _ */
+		*buf = '_';
+		strcpy(buf + 1, strtab + sbuf->st_name);
+		key.data = (u_char *)buf;
+		key.size = strlen((char *)key.data);
+		if (db->put(db, &key, &data, 0))
+			err(1, "record enter");
+
+		/* Special processing for "_version" (depends on above) */
+		if (strcmp((char *)key.data, VRS_SYM) == 0) {
+			char *vp;
+
+			key.data = (u_char *)VRS_KEY;
+			key.size = sizeof(VRS_KEY) - 1;
+			/* Find the version string, relative to its section */
+			data.data = strdup(&filep[nbuf.n_value -
+			    sh[sbuf->st_shndx].sh_addr +
+			    sh[sbuf->st_shndx].sh_offset]);
+			/* assumes newline terminates version. */
+			if ((vp = strchr(data.data, '\n')) != NULL)
+				*vp = '\0';
+			data.size = strlen((char *)data.data);
+
+			if (db->put(db, &key, &data, 0))
+				err(1, "record enter");
+
+			/* Restore to original values. */
+			data.data = (u_char *)&nbuf;
+			data.size = sizeof(NLIST);
+		}
+	}
+	munmap(filep, sst.st_size);
+	(void)close(fd);
+	return(0);
+}
+#endif /* DO_ELF */
+
+static struct knlist_handlers {
+	int	(*fn) __P((char *name, DB *db));
+} nlist_fn[] = {
+#ifdef DO_ELF
+	{ __elf_knlist },
+#endif
+#ifdef DO_AOUT
+	{ __aout_knlist },
+#endif
+};
+
+void
+create_knlist(name, db)
+	char *name;
+	DB *db;
+{
+	int n, i;
+
+	for (i = 0; i < sizeof(nlist_fn)/sizeof(nlist_fn[0]); i++) {
+		n = (nlist_fn[i].fn)(name, db);
+		if (n != -1)
+			break;
 	}
 }
