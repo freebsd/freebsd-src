@@ -605,29 +605,10 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 		if (dirs[i] & CAM_DIR_OUT) {
 			flags[i] = BIO_WRITE;
-			if (!useracc(*data_ptrs[i], lengths[i], 
-				     VM_PROT_READ)) {
-				printf("cam_periph_mapmem: error, "
-					"address %p, length %lu isn't "
-					"user accessible for READ\n",
-					(void *)*data_ptrs[i],
-					(u_long)lengths[i]);
-				return(EACCES);
-			}
 		}
 
 		if (dirs[i] & CAM_DIR_IN) {
 			flags[i] = BIO_READ;
-			if (!useracc(*data_ptrs[i], lengths[i], 
-				     VM_PROT_WRITE)) {
-				printf("cam_periph_mapmem: error, "
-					"address %p, length %lu isn't "
-					"user accessible for WRITE\n",
-					(void *)*data_ptrs[i],
-					(u_long)lengths[i]);
-
-				return(EACCES);
-			}
 		}
 
 	}
