@@ -650,7 +650,7 @@ vlrureclaim(struct mount *mp, int count)
 
 /*
  * Attempt to recycle vnodes in a context that is always safe to block.
- * Calling vlrurecycle() from the bowels of file system code has some
+ * Calling vlrurecycle() from the bowels of filesystem code has some
  * interesting deadlock problems.
  */
 static struct proc *vnlruproc;
@@ -1576,7 +1576,7 @@ reassignbuf(bp, newvp)
 
 /*
  * Create a vnode for a device.
- * Used for mounting the root file system.
+ * Used for mounting the root filesystem.
  */
 int
 bdevvp(dev, vpp)
@@ -1685,7 +1685,7 @@ addalias(nvp, dev)
  * vnode is being eliminated in vgone. The process is awakened
  * when the transition is completed, and an error returned to
  * indicate that the vnode is no longer usable (possibly having
- * been changed to a new file system type).
+ * been changed to a new filesystem type).
  */
 int
 vget(vp, flags, td)
@@ -2051,7 +2051,7 @@ vlruvp(struct vnode *vp)
 }
 
 /*
- * Disassociate the underlying file system from a vnode.
+ * Disassociate the underlying filesystem from a vnode.
  */
 static void
 vclean(vp, flags, td)
@@ -3110,7 +3110,7 @@ NDFREE(ndp, flags)
 }
 
 /*
- * Common file system object access control check routine.  Accepts a
+ * Common filesystem object access control check routine.  Accepts a
  * vnode's type, "mode", uid and gid, requested access mode, credentials,
  * and optional call-by-reference privused argument allowing vaccess()
  * to indicate to the caller whether privilege was used to satisfy the

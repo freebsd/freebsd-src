@@ -292,7 +292,7 @@ sysarch(struct thread *td, struct sysarch_args *uap) {
 extern int lomac_mmap(struct proc *, struct mmap_args *);
 
 /*
- * Mount a file system.
+ * Mount a filesystem.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct mount_args {
@@ -344,7 +344,7 @@ finish:
 }
 
 /*
- * Unmount a file system.
+ * Unmount a filesystem.
  *
  * Note: unmount takes a path to the vnode mounted on as argument,
  * not special file (as before).
@@ -390,7 +390,7 @@ unmount(td, uap)
 	}
 
 	/*
-	 * Don't allow unmounting the root file system.
+	 * Don't allow unmounting the root filesystem.
 	 */
 	if (mp->mnt_flag & MNT_ROOTFS) {
 		vput(vp);

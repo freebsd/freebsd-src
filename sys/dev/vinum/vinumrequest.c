@@ -833,8 +833,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
     bp->b_resid = bp->b_bcount;				    /* and it's still all waiting */
     bp->b_bufsize = bp->b_bcount;			    /* and buffer size */
-    bp->b_rcred = FSCRED;				    /* we have the file system credentials */
-    bp->b_wcred = FSCRED;				    /* we have the file system credentials */
+    bp->b_rcred = FSCRED;				    /* we have the filesystem credentials */
+    bp->b_wcred = FSCRED;				    /* we have the filesystem credentials */
 
     if (rqe->flags & XFR_MALLOCED) {			    /* this operation requires a malloced buffer */
 	bp->b_data = Malloc(bp->b_bcount);		    /* get a buffer to put it in */

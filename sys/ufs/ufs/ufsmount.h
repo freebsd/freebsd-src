@@ -111,7 +111,7 @@ struct ufsmount {
 #define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
 
 /*
- * Macros to access file system parameters in the ufsmount structure.
+ * Macros to access filesystem parameters in the ufsmount structure.
  * Used by ufs_bmap.
  */
 #define MNINDIR(ump)			((ump)->um_nindir)

@@ -40,7 +40,7 @@
  */
 
 /*
- * This code was written for the Coda file system at Carnegie Mellon University.
+ * This code was written for the Coda filesystem at Carnegie Mellon University.
  * Contributers include David Steere, James Kistler, and M. Satyanarayanan.
  */
 
@@ -147,7 +147,7 @@ struct coda_clstat {
 extern struct coda_clstat coda_clstat;
 
 /*
- * CODA structure to hold mount/file system information
+ * CODA structure to hold mount/filesystem information
  */
 struct coda_mntinfo {
     struct vnode	*mi_rootvp;

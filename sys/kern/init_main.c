@@ -413,7 +413,7 @@ proc0_post(void *dummy __unused)
 
 	/*
 	 * Now we can look at the time, having had a chance to verify the
-	 * time from the file system.  Pretend that proc0 started now.
+	 * time from the filesystem.  Pretend that proc0 started now.
 	 */
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {

@@ -482,7 +482,7 @@ inittodr(base)
 	struct timespec ts;
 
 	if (base < 5*SECYR) {
-		printf("WARNING: preposterous time in file system");
+		printf("WARNING: preposterous time in filesystem");
 		/* read the system clock anyway */
 		base = 6*SECYR + 186*SECDAY + SECDAY/2;
 		badbase = 1;
@@ -509,7 +509,7 @@ inittodr(base)
 	if (ct.year < 70 || ct.mon < 1 || ct.mon > 12 || ct.day < 1 ||
 	    ct.day > 31 || ct.hour > 23 || ct.min > 59 || ct.sec > 59) {
 		/*
-		 * Believe the time in the file system for lack of
+		 * Believe the time in the filesystem for lack of
 		 * anything better, resetting the TODR.
 		 */
 		s = splclock();

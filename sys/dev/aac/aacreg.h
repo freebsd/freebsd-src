@@ -679,7 +679,7 @@ struct aac_AifContainers {
 
 union aac_AifJobClient {
 	struct aac_AifContainers	container;	/* For Container and
-							 * file system progress
+							 * filesystem progress
 							 * ops; */
 	int32_t				scsi_dh;	/* For SCSI progress
 							 * ops */

@@ -29,7 +29,7 @@
  */
 /*
  * Developed by the TrustedBSD Project.
- * Support for extended file system attributes.
+ * Support for extended filesystem attributes.
  */
 
 #ifndef _SYS_EXTATTR_H_

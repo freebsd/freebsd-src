@@ -48,19 +48,19 @@
  *
  * (See mount_nullfs(8) for more information.)
  *
- * The null layer duplicates a portion of the file system
+ * The null layer duplicates a portion of the filesystem
  * name space under a new name.  In this respect, it is
- * similar to the loopback file system.  It differs from
+ * similar to the loopback filesystem.  It differs from
  * the loopback fs in two respects:  it is implemented using
  * a stackable layers techniques, and its "null-node"s stack above
  * all lower-layer vnodes, not just over directory vnodes.
  *
  * The null layer has two purposes.  First, it serves as a demonstration
  * of layering by proving a layer which does nothing.  (It actually
- * does everything the loopback file system does, which is slightly
+ * does everything the loopback filesystem does, which is slightly
  * more than nothing.)  Second, the null layer can serve as a prototype
  * layer.  Since it provides all necessary layer framework,
- * new file system layers can be created very easily be starting
+ * new filesystem layers can be created very easily be starting
  * with a null layer.
  *
  * The remainder of this man page examines the null layer as a basis
@@ -79,7 +79,7 @@
  *
  * OPERATION OF A NULL LAYER
  *
- * The null layer is the minimum file system layer,
+ * The null layer is the minimum filesystem layer,
  * simply bypassing all possible operations to the lower layer
  * for processing there.  The majority of its activity centers
  * on the bypass routine, through which nearly all vnode operations
@@ -141,7 +141,7 @@
  *
  * CREATING OTHER FILE SYSTEM LAYERS
  *
- * One of the easiest ways to construct new file system layers is to make
+ * One of the easiest ways to construct new filesystem layers is to make
  * a copy of the null layer, rename all files and variables, and
  * then begin modifing the copy.  Sed can be used to easily rename
  * all variables.
@@ -494,7 +494,7 @@ null_access(ap)
 	/*
 	 * Disallow write attempts on read-only layers;
 	 * unless the file is a socket, fifo, or a block or
-	 * character device resident on the file system.
+	 * character device resident on the filesystem.
 	 */
 	if (mode & VWRITE) {
 		switch (vp->v_type) {

@@ -501,7 +501,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		VTONFS(vp)->n_size = VTONFS(vp)->n_vattr.va_size =
 				nd->swap_nblks * DEV_BSIZE ;
 		/*
-		 * Since the swap file is not the root dir of a file system,
+		 * Since the swap file is not the root dir of a filesystem,
 		 * hack it to a regular file.
 		 */
 		vp->v_type = VREG;
@@ -907,7 +907,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nmp = VFSTONFS(mp);
 	/*
 	 * Goes something like this..
-	 * - Call vflush() to clear out vnodes for this file system
+	 * - Call vflush() to clear out vnodes for this filesystem
 	 * - Close the socket
 	 * - Free up the data structures
 	 */

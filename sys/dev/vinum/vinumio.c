@@ -63,7 +63,7 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
 
     /*
      * Yes, Bruce, I know this is horrible, but we
-     * don't have a root file system when we first
+     * don't have a root filesystem when we first
      * try to do this.  If you can come up with a
      * better solution, I'd really like it.  I'm
      * just putting it in now to add ammuntion to

@@ -362,7 +362,7 @@ error:
 }
 
 /*
- * For the purposes of file systems maintaining the _OBJ entries in an
+ * For the purposes of filesystems maintaining the _OBJ entries in an
  * inode with a mode_t field, this routine converts a mode_t entry
  * to an acl_perm_t.
  */
@@ -471,7 +471,7 @@ acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
 
 /*
  * Perform a syntactic check of the ACL, sufficient to allow an
- * implementing file system to determine if it should accept this and
+ * implementing filesystem to determine if it should accept this and
  * rely on the POSIX.1e ACL properties.
  */
 int

@@ -111,7 +111,7 @@ CAPABILITIES	opt_cap.h
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h
 
-# Options for static file systems.  These should only be used at config
+# Options for static filesystems.  These should only be used at config
 # time, since the corresponding lkms cannot work if there are any static
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
@@ -155,8 +155,8 @@ SOFTUPDATES	opt_ffs.h
 UFS_ACL		opt_ufs.h
 
 # Enabling this option turns on support for extended attributes in UFS-based
-# file systems, which can be used to support high security configurations
-# as well as new file system features.
+# filesystems, which can be used to support high security configurations
+# as well as new filesystem features.
 UFS_EXTATTR	opt_ufs.h
 UFS_EXTATTR_AUTOSTART	opt_ufs.h
 
