@@ -555,7 +555,7 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH _AS("=ftp://releng4.freebsd.org/pub/FreeBSD/snapshots/") },
       { " IPv6 Ready", "ftp7.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AP("=ftp://ftp7.jp.freebsd.org") },
-      { " Periodic SNAPs at ftp.freebsd.org, "ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
+      { " Periodic SNAPs at ftp.freebsd.org", "ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AS("=ftp://ftp.freebsd.org/pub/FreeBSD/snapshots/") },
       { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AP("=ftp://ftp.ar.freebsd.org") },
