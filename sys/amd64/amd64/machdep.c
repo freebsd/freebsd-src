@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.275 1997/12/03 02:45:46 sef Exp $
+ *	$Id: machdep.c,v 1.276 1997/12/03 16:27:33 sef Exp $
  */
 
 #include "apm.h"
@@ -866,7 +866,7 @@ u_int my_tr;				/* which task register setting */
 #endif /* VM86 */
 #endif
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
@@ -1539,7 +1539,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 }
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 void f00f_hack(void);
 SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
 
@@ -1571,7 +1571,7 @@ f00f_hack(void) {
 		panic("vm_map_protect failed");
 	return;
 }
-#endif /* NO_F00F_HACK */
+#endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
 int
 ptrace_set_pc(p, addr)
