@@ -23,6 +23,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041213:
+	The behaviour of ppp(8) has changed slightly.  If lqr is enabled
+	(``enable lqr''), older versions would revert to LCP ECHO mode on
+	negotiation failure.  Now, ``enable echo'' is required for this
+	behaviour.  The ppp version number has been bumped to 3.4.2 to
+	reflect the change.
+
 20041201:
 	The wlan support has been updated to split the crypto support
 	into separate modules.  For static WEP you must configure the
