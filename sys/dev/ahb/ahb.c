@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.8 1999/04/11 03:06:05 eivind Exp $
+ *	$Id: ahb.c,v 1.9 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "eisa.h"
@@ -93,7 +93,7 @@ static void			 ahbaction(struct cam_sim *sim, union ccb *ccb);
 static void			 ahbpoll(struct cam_sim *sim);
 
 /* Our timeout handler */
-timeout_t ahbtimeout;
+static timeout_t ahbtimeout;
 
 static __inline struct ecb*	ahbecbget(struct ahb_softc *ahb);
 static __inline void	 	ahbecbfree(struct ahb_softc* ahb,
@@ -395,7 +395,7 @@ ahballoc(u_long unit,  u_int iobase)
 	/*
 	 * Allocate a storage area for us
 	 */
-	ahb = malloc(sizeof(struct ahb_softc), M_TEMP, M_NOWAIT);
+	ahb = malloc(sizeof(struct ahb_softc), M_DEVBUF, M_NOWAIT);
 	if (!ahb) {
 		printf("ahb%ld: cannot malloc!\n", unit);
 		return (NULL);
