@@ -251,12 +251,14 @@ eqrel()
 		vr = shift();
 
 		switch (eqrelval) {
+
 		case EQL:
 			vl = (vl == vr);
 			break;
 		case NEQ:
 			vl = (vl != vr);
 			break;
+
 		case LEQ:
 			vl = (vl <= vr);
 			break;
