@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.291
+    Original revision: 1.292
 -->
 
 <articleinfo>
@@ -516,6 +516,11 @@
         SSE 対応をカーネルに組み込むかどうかの制御は
         <literal>CPU_ENABLE_SSE</literal>
 	カーネルオプションで行なうことができます.</para>
+
+      <para arch="i386"><literal>CPU_ATHLON_SSE_HACK</literal>
+	カーネルオプションが追加されました.
+	これは最近の Athlon CPU で BIOS が SSE 機能ビットをセットするのを
+	忘れている場合に, セットするようにするものです.</para>
     </sect3>
 
     <sect3>
@@ -1392,6 +1397,9 @@ hw.pcic.irq="0"</programlisting>
         また, 新たに Hauppauge モデル 44xxx WinTV カード
         (音声多重が搭載されていないもの) に対応しています. &merged;</para>
 
+      <para arch="i386">D-Link DSB-R100 USB ラジオに対応する ufm ドライバ
+	が追加されました. &merged;</para>
+
       <para>サウンドモジュールを構築している場合
         <command>kldload snd</command>
         とするだけでドライバ等の必要なものすべてをロードすることが
@@ -1877,6 +1885,11 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.ata.4; ドライバの動作を制御するコマンド
       &man.atacontrol.8; が追加されました.</para>
 
+    <para arch="sparc64">&arch; プラットフォーム上で, システムの &man.awk.1;
+      は <application>BWK awk</application> を指すようになりました.
+      他のプラットフォームでは <application>GNU awk</application> が
+      そのまま使われています.</para>
+
     <para arch="i386">PC-98
       ブートマネージャのインストール・設定用ユーティリティである
       &man.boot98cfg.8; が新たに追加されました.
@@ -1978,6 +1991,10 @@ hw.pcic.irq="0"</programlisting>
       バッファオーバフロー問題が修正されました.
       &merged;</para>
 
+    <para>ソースファイルで C++ 風の <literal>//</literal> コメント
+      が使われている場合でも, &man.ctags.1; が壊れたタグを
+      作成しないようになりました. &merged;</para>
+
     <para>&man.daemon.3; へのコマンドラインインターフェイスを提供する
       &man.daemon.8; プログラムが新しく追加されました.
       &man.daemon.8; は自身を制御端末から切り離し,
@@ -2023,6 +2040,9 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.dump.8; は自動的なバックアップを監視する際に便利なように,
       進行状況をプロセスタイトルに表示するようになりました. &merged;</para>
+
+    <para>&man.dump.8; にダンプサイズの予測を出力し終了するだけの
+      <option>-S</option> オプションが追加されました.</para>
 
     <para>&man.edquota.8; に新しいオプション <option>-f</option>
       が追加されました. これは (オプション <option>-p</option>
@@ -2275,6 +2295,9 @@ hw.pcic.irq="0"</programlisting>
       オプションフラグが追加されました.
       これは, ある特定の日時・時刻にログインしていたユーザの
       <quote>スナップショット</quote> を表示します.</para>
+
+    <para>&man.last.1; に, セッションの開始時間に年を含めるようにする
+      <option>-y</option> フラグが追加されました.</para>
 
     <para>各ユーザのログイン時間を表示する
       &man.lastlogin.8; ユーティリティが NetBSD から移植されました.
@@ -3061,6 +3084,13 @@ hw.pcic.irq="0"</programlisting>
       <para><application>am-utils</application> がバージョン
         6.0.7 に更新されました.</para>
 
+      <para>Bell Labs の <application>awk</application>
+	( <quote>BWK awk</quote> や <quote>The One True	AWK</quote>
+	として知られています ) がインポートされました.
+	sparc64 アーキテクチャでは <command>awk</command> として,
+	それ以外のプラットフォームでは <command>nawk</command>
+	としてインストールされます.</para>
+
       <para><application>bc</application>
         がバージョン 1.04 から 1.06 に更新されました.
         &merged;</para>
@@ -3119,7 +3149,10 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
       
       <para><application>GNU awk</application> がバージョン
-	3.1.0 に更新されました.</para>
+	3.1.0 に更新されました.
+	sparc64 アーキテクチャでは <command>gawk</command>
+	として, 他のアーキテクチャでは <command>awk</command>
+	としてインストールされます.</para>
 
       <para><application>gperf</application> がバージョン
         2.7.2 に更新されました.</para>
@@ -3163,6 +3196,9 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>libreadline</application> がバージョン
         4.2 に更新されました.</para>
+
+      <para><application>lint</application> は NetBSD &man.lint.1; の
+	2002/03/03 版スナップショットに更新されました.</para>
 
       <para><application>Linux-PAM</application> がバージョン
         0.75 に更新されました.
