@@ -1,4 +1,4 @@
-/* $Header: ntp.h,v 1.1 90/08/07 11:08:27 mogul Exp $ */
+/* $Header: ntp.h,v 1.2 93/11/12 21:43:36 mccanne Exp $ */
 
 /*
  * Based on ntp.h from the U of MD implementation
@@ -28,8 +28,8 @@
  *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 struct l_fixedpt {
-	u_long int_part;
-	u_long fraction;
+	u_int32 int_part;
+	u_int32 fraction;
 };
 
 struct s_fixedpt {
@@ -74,7 +74,7 @@ struct ntpdata {
 	int precision:8;
 	struct s_fixedpt distance;
 	struct s_fixedpt dispersion;
-	u_long refid;
+	u_int32 refid;
 	struct l_fixedpt reftime;
 	struct l_fixedpt org;
 	struct l_fixedpt rec;

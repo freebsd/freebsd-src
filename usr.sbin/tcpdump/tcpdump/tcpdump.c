@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1987-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -20,9 +20,9 @@
  */
 #ifndef lint
 char copyright[] =
-    "@(#) Copyright (c) 1987-1990 The Regents of the University of California.\nAll rights reserved.\n";
+    "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994\nThe Regents of the University of California.  All rights reserved.\n";
 static  char rcsid[] =
-    "@(#)$Header: tcpdump.c,v 1.68 92/06/02 17:57:41 mccanne Exp $ (LBL)";
+    "@(#)$Header: tcpdump.c,v 1.93 94/06/10 17:01:44 mccanne Exp $ (LBL)";
 #endif
 
 /*
@@ -33,17 +33,21 @@ static  char rcsid[] =
  * combined efforts of Van, Steve McCanne and Craig Leres of LBL.
  */
 
-#include <stdio.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/timeb.h>
+
 #include <netinet/in.h>
 
-#include <net/bpf.h>
+#include <pcap.h>
+#include <signal.h>
+#include <stdio.h>
+#ifdef __STDC__
+#include <stdlib.h>
+#endif
+#include <unistd.h>
+#include <string.h>
 
 #include "interface.h"
-#include "savefile.h"
 #include "addrtoname.h"
 
 int fflag;			/* don't translate "foreign" IP address */
@@ -57,37 +61,36 @@ int vflag;			/* verbose */
 int xflag;			/* print packet in hex */
 int Oflag = 1;			/* run filter code optimizer */
 int Sflag;			/* print raw TCP sequence numbers */
+int packettype;
 
 int dflag;			/* print filter code */
 
 char *program_name;
 
-long thiszone;			/* gmt to local correction */
+int thiszone;
 
-static void cleanup();
+SIGRET cleanup(int);
+extern void bpf_dump(struct bpf_program *, int);
 
 /* Length of saved portion of packet. */
 int snaplen = DEFAULT_SNAPLEN;
 
-static int if_fd = -1;
-
 struct printer {
-	void (*f)();
+	pcap_handler f;
 	int type;
 };
 
 static struct printer printers[] = {
-	{ ether_if_print, DLT_EN10MB },
-	{ sl_if_print, DLT_SLIP },
-	{ ppp_if_print, DLT_PPP },
-	{ fddi_if_print, DLT_FDDI },
-	{ null_if_print, DLT_NULL },
-	{ 0, 0 },
+	{ ether_if_print,	DLT_EN10MB },
+	{ sl_if_print,		DLT_SLIP },
+	{ ppp_if_print,		DLT_PPP },
+	{ fddi_if_print,	DLT_FDDI },
+	{ null_if_print,	DLT_NULL },
+	{ NULL,			0 },
 };
 
-void
-(*lookup_printer(type))()
-	int type;
+static pcap_handler
+lookup_printer(int type)
 {
 	struct printer *p;
 
@@ -99,40 +102,56 @@ void
 	/* NOTREACHED */
 }
 
+static pcap_t *pd;
+
+#ifdef __osf__
+#include <sys/sysinfo.h>
+#include <sys/proc.h>
 void
-main(argc, argv)
-	int argc;
-	char **argv;
+abort_on_misalignment()
 {
-	struct bpf_program *parse();
-	void bpf_dump();
+	int buf[2];
+	
+	buf[0] = SSIN_UACPROC;
+	buf[1] = UAC_SIGBUS;
+	if (setsysinfo(SSI_NVPAIRS, buf, 1, 0, 0) < 0) {
+		perror("setsysinfo");
+		exit(1);
+	}
+}
 
-	int cnt = -1, i;
-	struct timeb zt;
-	struct bpf_program *fcode;
-	int op;
-	void (*printit)();
-	char *infile = 0;
-	char *cmdbuf;
-	int linktype;
-	int err;
-	u_long localnet;
-	u_long netmask;
+#endif
 
-	char *RFileName = 0;	/* -r argument */
-	char *WFileName = 0;	/* -w argument */
-
-	char *device = 0;
-
-	int precision = clock_sigfigs();
+int
+main(int argc, char **argv)
+{
+	register int cnt, op;
+	u_long localnet, netmask;
+	register char *cp, *infile, *cmdbuf, *device, *RFileName, *WFileName;
+	pcap_handler printer;
+	struct bpf_program fcode;
+	u_char *pcap_userdata;
+	char errbuf[PCAP_ERRBUF_SIZE];
 
 	extern char *optarg;
 	extern int optind, opterr;
 
-	program_name = argv[0];
+#ifdef __osf__
+	abort_on_misalignment();
+#endif
+
+	cnt = -1;
+	device = NULL;
+	infile = NULL;
+	RFileName = NULL;
+	WFileName = NULL;
+	if ((cp = strrchr(argv[0], '/')) != NULL)
+		program_name = cp + 1;
+	else
+		program_name = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "c:defF:i:lnNOpqr:s:Stvw:xY")) != EOF)
+	while ((op = getopt(argc, argv, "c:defF:i:lnNOpqr:s:StT:vw:xY")) != EOF)
 		switch (op) {
 		case 'c':
 			cnt = atoi(optarg);
@@ -183,8 +202,8 @@ main(argc, argv)
 			break;
 
 		case 'r':
- 			RFileName = optarg;
- 			break;
+			RFileName = optarg;
+			break;
 
 		case 's':
 			snaplen = atoi(optarg);
@@ -198,13 +217,26 @@ main(argc, argv)
 			--tflag;
 			break;
 
+		case 'T':
+			if (strcasecmp(optarg, "vat") == 0)
+				packettype = 1;
+			else if (strcasecmp(optarg, "wb") == 0)
+				packettype = 2;
+			else if (strcasecmp(optarg, "rpc") == 0)
+				packettype = 3;
+			else if (strcasecmp(optarg, "rtp") == 0)
+				packettype = 4;
+			else
+				error("unknown packet type `%s'", optarg);
+			break;
+
 		case 'v':
 			++vflag;
 			break;
 
 		case 'w':
- 			WFileName = optarg;
- 			break;
+			WFileName = optarg;
+			break;
 #ifdef YYDEBUG
 		case 'Y':
 			{
@@ -222,20 +254,10 @@ main(argc, argv)
 			/* NOTREACHED */
 		}
 
-	if (tflag > 0) {
-		struct timeval now;
-		struct timezone tz;
+	if (tflag > 0)
+		thiszone = gmt2local();
 
-		if (gettimeofday(&now, &tz) < 0) {
-			perror("tcpdump: gettimeofday");
-			exit(1);
-		}
-		thiszone = tz.tz_minuteswest * -60;
-		if (localtime((time_t *)&now.tv_sec)->tm_isdst)
-			thiszone += 3600;
-	}
-
-	if (RFileName) {
+	if (RFileName != NULL) {
 		/*
 		 * We don't need network access, so set it back to the user id.
 		 * Also, this prevents the user from reading anyone's
@@ -243,36 +265,40 @@ main(argc, argv)
 		 */
 		setuid(getuid());
 
-		err = sf_read_init(RFileName, &linktype, &thiszone, &snaplen,
-			&precision);
-		if (err)
-			sf_err(err);
+		pd = pcap_open_offline(RFileName, errbuf);
+		if (pd == NULL)
+			error(errbuf);
+		/* use the snaplen stored in the file */
+		snaplen = pcap_snapshot(pd);
 		localnet = 0;
 		netmask = 0;
 		if (fflag != 0)
 			error("-f and -r options are incompatible");
 	} else {
-		if (device == 0) {
-			device = lookup_device();
-			if (device == 0)
-				error("can't find any interfaces");
+		if (device == NULL) {
+			device = pcap_lookupdev(errbuf);
+			if (device == NULL)
+				error(errbuf);
 		}
-		if_fd = initdevice(device, pflag, &linktype);
-		lookup_net(device, &localnet, &netmask);
+		pd = pcap_open_live(device, snaplen, !pflag, 1000, errbuf);
+		if (pd == NULL)
+			error(errbuf);
+		if (pcap_lookupnet(device, &localnet, &netmask, errbuf) < 0)
+			error(errbuf);
 		/*
 		 * Let user own process after socket has been opened.
 		 */
 		setuid(getuid());
 	}
-
-	if (infile) 
+	if (infile)
 		cmdbuf = read_infile(infile);
 	else
 		cmdbuf = copy_argv(&argv[optind]);
 
-	fcode = parse(cmdbuf, Oflag, linktype, netmask);
+	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
+		error(pcap_geterr(pd));
 	if (dflag) {
-		bpf_dump(fcode, dflag);
+		bpf_dump(&fcode, dflag);
 		exit(0);
 	}
 	init_addrtoname(fflag, localnet, netmask);
@@ -281,45 +307,85 @@ main(argc, argv)
 	(void)signal(SIGINT, cleanup);
 	(void)signal(SIGHUP, cleanup);
 
-	printit = lookup_printer(linktype);
-
+	if (pcap_setfilter(pd, &fcode) < 0)
+		error(pcap_geterr(pd));
 	if (WFileName) {
-		sf_write_init(WFileName, linktype, thiszone, snaplen, 
-			      precision);
-		printit = sf_write;
-	}
-	if (RFileName) {
-		err = sf_read(fcode, cnt, snaplen, printit);
-		if (err)
-			sf_err(err);
+		pcap_dumper_t *p = pcap_dump_open(pd, WFileName);
+		if (p == NULL)
+			error(pcap_geterr(pd));
+		printer = pcap_dump;
+		pcap_userdata = (u_char *)p;
 	} else {
+		printer = lookup_printer(pcap_datalink(pd));
+		pcap_userdata = 0;
+	}
+	if (RFileName == NULL) {
 		fprintf(stderr, "%s: listening on %s\n", program_name, device);
 		fflush(stderr);
-		readloop(cnt, if_fd, fcode, printit);
 	}
+	pcap_loop(pd, cnt, printer, pcap_userdata);
+	pcap_close(pd);
 	exit(0);
 }
 
 /* make a clean exit on interrupts */
-static void
-cleanup()
+SIGRET
+cleanup(int signo)
 {
-	if (if_fd >= 0) {
+	struct pcap_stat stat;
+
+	/* Can't print the summary if reading from a savefile */
+	if (pd != NULL && pcap_file(pd) == NULL) {
+		(void)fflush(stdout);
 		putc('\n', stderr);
-		wrapup(if_fd);
+		if (pcap_stats(pd, &stat) < 0)
+			(void)fprintf(stderr, "pcap_stats: %s\n",
+			    pcap_geterr(pd));
+		else {
+			(void)fprintf(stderr, "%d packets received by filter\n",
+			    stat.ps_recv);
+			(void)fprintf(stderr, "%d packets dropped by kernel\n",
+			    stat.ps_drop);
+		}
 	}
 	exit(0);
 }
 
+/* Like default_print() but data need not be aligned */
 void
-default_print(sp, length)
-	register u_short *sp;
-	register int length;
+default_print_unaligned(register const u_char *cp, register int length)
 {
+	register u_int i, s;
+	register int nshorts;
+
+	nshorts = (u_int) length / sizeof(u_short);
+	i = 0;
+	while (--nshorts >= 0) {
+		if ((i++ % 8) == 0)
+			(void)printf("\n\t\t\t");
+		s = *cp++;
+		(void)printf(" %02x%02x", s, *cp++);
+	}
+	if (length & 1) {
+		if ((i % 8) == 0)
+			(void)printf("\n\t\t\t");
+		(void)printf(" %02x", *cp);
+	}
+}
+
+void
+default_print(register const u_char *bp, register int length)
+{
+	register const u_short *sp;
 	register u_int i;
 	register int nshorts;
 
-	nshorts = (unsigned) length / sizeof(u_short);
+	if ((int)bp & 1) {
+		default_print_unaligned(bp, length);
+		return;
+	}
+	sp = (u_short *)bp;
+	nshorts = (u_int) length / sizeof(u_short);
 	i = 0;
 	while (--nshorts >= 0) {
 		if ((i++ % 8) == 0)

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -25,44 +25,52 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-ntp.c,v 1.7 92/01/04 01:45:16 leres Exp $ (LBL)";
+    "@(#) $Header: print-ntp.c,v 1.14 94/06/14 20:18:46 leres Exp $ (LBL)";
 #endif
 
-#include <stdio.h>
-
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <net/if.h>
+
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <strings.h>
+
 #include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#undef MODEMASK					/* Solaris sucks */
 #include "ntp.h"
+
+static void p_sfix(const struct s_fixedpt *);
+static void p_ntp_time(const struct l_fixedpt *);
+static void p_ntp_delta(const struct l_fixedpt *, const struct l_fixedpt *);
 
 /*
  * Print ntp requests
  */
 void
-ntp_print(bp, length)
-	register struct ntpdata *bp;
-	int length;
+ntp_print(register const u_char *cp, int length)
 {
-	u_char *ep;
+	register const struct ntpdata *bp;
+	register const u_char *ep;
 	int mode, version, leapind;
 	static char rclock[5];
 
 #define TCHECK(var, l) if ((u_char *)&(var) > ep - l) goto trunc
 
+	bp = (struct ntpdata *)cp;
 	/* Note funny sized packets */
 	if (length != sizeof(struct ntpdata))
 		(void)printf(" [len=%d]", length);
 
 	/* 'ep' points to the end of avaible data. */
-	ep = (u_char *)snapend;
+	ep = snapend;
 
 	TCHECK(bp->status, sizeof(bp->status));
 
@@ -192,8 +200,8 @@ trunc:
 #undef TCHECK
 }
 
-p_sfix(sfp)
-	register struct s_fixedpt *sfp;
+static void
+p_sfix(register const struct s_fixedpt *sfp)
 {
 	register int i;
 	register int f;
@@ -208,12 +216,12 @@ p_sfix(sfp)
 
 #define	FMAXINT	(4294967296.0)	/* floating point rep. of MAXINT */
 
-p_ntp_time(lfp)
-	register struct l_fixedpt *lfp;
+static void
+p_ntp_time(register const struct l_fixedpt *lfp)
 {
-	register long i;
-	register unsigned long uf;
-	register unsigned long f;
+	register int32 i;
+	register u_int32 uf;
+	register u_int32 f;
 	register float ff;
 
 	i = ntohl(lfp->int_part);
@@ -227,14 +235,14 @@ p_ntp_time(lfp)
 }
 
 /* Prints time difference between *lfp and *olfp */
-p_ntp_delta(olfp, lfp)
-	register struct l_fixedpt *olfp;
-	register struct l_fixedpt *lfp;
+static void
+p_ntp_delta(register const struct l_fixedpt *olfp,
+	    register const struct l_fixedpt *lfp)
 {
-	register long i;
-	register unsigned long uf;
-	register unsigned long ouf;
-	register unsigned long f;
+	register int32 i;
+	register u_int32 uf;
+	register u_int32 ouf;
+	register u_int32 f;
 	register float ff;
 	int signbit;
 

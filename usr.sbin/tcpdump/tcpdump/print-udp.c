@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,12 +21,14 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-udp.c,v 1.1.1.1 1993/06/12 14:42:06 rgrimes Exp $ (LBL)";
+    "@(#) $Header: print-udp.c,v 1.37 94/06/10 17:01:42 mccanne Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -34,24 +36,94 @@ static char rcsid[] =
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#undef NOERROR					/* Solaris sucks */
 #include <arpa/nameser.h>
 #include <arpa/tftp.h>
+
+#ifdef SOLARIS
+#include <tiuser.h>
+#endif
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <rpc/auth.h>
+#include <rpc/auth_unix.h>
+#include <rpc/svc.h>
+#include <rpc/rpc_msg.h>
+
 #include <errno.h>
-#include <sys/time.h>
-#include <rpc/rpc.h>
+#include <stdio.h>
 
 #include "interface.h"
-/* These must come after interface.h for BSD. */
-#if BSD >= 199006
-#include <sys/ucred.h>
-#include <nfs/nfsv2.h>
-#endif
-#include <nfs/nfs.h>
-
 #include "addrtoname.h"
 #include "appletalk.h"
 
+#include "nfsv2.h"
 #include "bootp.h"
+
+extern int packettype;
+
+static void
+vat_print(const void *hdr, int len, register const struct udphdr *up)
+{
+	/* vat/vt audio */
+	u_int ts = *(u_short *)hdr;
+	if ((ts & 0xf060) != 0) {
+		/* probably vt */
+		(void)printf(" udp/vt %d %d / %d",
+			     ntohs(up->uh_ulen) - sizeof(*up),
+			     ts & 0x3ff, ts >> 10);
+	} else {
+		/* probably vat */
+		u_int i0 = ((u_int *)hdr)[0];
+		u_int i1 = ((u_int *)hdr)[1];
+		printf(" udp/vat %d c%d %u%s",
+			ntohs(up->uh_ulen) - sizeof(*up) - 8,
+			i0 & 0xffff,
+			i1, i0 & 0x800000? "*" : "");
+		/* audio format */
+		if (i0 & 0x1f0000)
+			printf(" f%d", (i0 >> 16) & 0x1f);
+		if (i0 & 0x3f000000)
+			printf(" s%d", (i0 >> 24) & 0x3f);
+	}
+}
+
+static void
+rtp_print(const void *hdr, int len, register const struct udphdr *up)
+{
+	/* rtp v1 video */
+	u_int *ip = (u_int *)hdr;
+	u_int i0 = ((u_int *)hdr)[0];
+	u_int i1 = ((u_int *)hdr)[1];
+	u_int hasopt = i0 & 0x800000;
+	u_int contype = (i0 >> 16) & 0x3f;
+	printf(" udp/rtp %d c%d %s%s %d",
+		ntohs(up->uh_ulen) - sizeof(*up) - 8,
+		contype,
+		hasopt? "+" : "",
+		i0 & 0x400000? "*" : "",
+		i0 & 0xffff);
+	if (contype == 31) {
+		ip += 2;
+		len >>= 2;
+		len -= 2;
+		if (hasopt) {
+			u_int i2, optlen;
+			do {
+				i2 = ip[0];
+				optlen = (i2 >> 16) & 0xff;
+				if (optlen == 0 || optlen > len) {
+					printf(" !opt");
+					return;
+				}
+				ip += optlen;
+			} while ((int)i2 >= 0);
+		}
+		printf(" 0x%04x", ip[0] >> 16);
+	}
+	if (vflag)
+		printf(" %u", i1);
+}
 
 /* XXX probably should use getservbyname() and cache answers */
 #define TFTP_PORT 69		/*XXX*/
@@ -62,13 +134,16 @@ static char rcsid[] =
 #define RIP_PORT 520		/*XXX*/
 
 void
-udp_print(up, length, ip)
-	register struct udphdr *up;
-	int length;
-	register struct ip *ip;
+udp_print(register const u_char *bp, int length, register const u_char *bp2)
 {
-	register u_char  *cp = (u_char *)(up + 1);
+	register const struct udphdr *up;
+	register const struct ip *ip;
+	register const u_char *cp;
+	u_short sport, dport, ulen;
 
+	up = (struct udphdr *)bp;
+	ip = (struct ip *)bp2;
+	cp = (u_char *)(up + 1);
 	if (cp > snapend) {
 		printf("[|udp]");
 		return;
@@ -79,9 +154,51 @@ udp_print(up, length, ip)
 	}
 	length -= sizeof(struct udphdr);
 
-	NTOHS(up->uh_sport);
-	NTOHS(up->uh_dport);
-	NTOHS(up->uh_ulen);
+	sport = ntohs(up->uh_sport);
+	dport = ntohs(up->uh_dport);
+	ulen = ntohs(up->uh_ulen);
+	if (packettype) {
+		register struct rpc_msg *rp;
+		enum msg_type direction;
+
+		switch (packettype) {
+		case 1:
+			(void)printf("%s.%s > %s.%s:",
+				ipaddr_string(&ip->ip_src),
+				udpport_string(sport),
+				ipaddr_string(&ip->ip_dst),
+				udpport_string(dport));
+			vat_print((void *)(up + 1), length, up);
+			break;
+		case 2:
+			(void)printf("%s.%s > %s.%s:",
+				ipaddr_string(&ip->ip_src),
+				udpport_string(sport),
+				ipaddr_string(&ip->ip_dst),
+				udpport_string(dport));
+			wb_print((void *)(up + 1), length);
+			break;
+		case 3:
+			rp = (struct rpc_msg *)(up + 1);
+			direction = (enum msg_type)ntohl(rp->rm_direction);
+			if (direction == CALL)
+				sunrpcrequest_print((u_char *)rp, length,
+				    (u_char *)ip);
+			else
+				nfsreply_print((u_char *)rp, length,
+				    (u_char *)ip);			/*XXX*/
+			break;
+		case 4:
+			(void)printf("%s.%s > %s.%s:",
+				ipaddr_string(&ip->ip_src),
+				udpport_string(sport),
+				ipaddr_string(&ip->ip_dst),
+				udpport_string(dport));
+			rtp_print((void *)(up + 1), length, up);
+			break;
+		}
+		return;
+	}
 
 	if (! qflag) {
 		register struct rpc_msg *rp;
@@ -89,48 +206,57 @@ udp_print(up, length, ip)
 
 		rp = (struct rpc_msg *)(up + 1);
 		direction = (enum msg_type)ntohl(rp->rm_direction);
-		if (up->uh_dport == NFS_PORT && direction == CALL) {
-			nfsreq_print(rp, length, ip);
+		if (dport == NFS_PORT && direction == CALL) {
+			nfsreq_print((u_char *)rp, length, (u_char *)ip);
 			return;
 		}
-		else if (up->uh_sport == NFS_PORT && direction == REPLY) {
-			nfsreply_print(rp, length, ip);
+		else if (sport == NFS_PORT && direction == REPLY) {
+			nfsreply_print((u_char *)rp, length, (u_char *)ip);
 			return;
 		}
 #ifdef notdef
-		else if (up->uh_dport == SUNRPC_PORT && direction == CALL) {
-			sunrpcrequest_print(rp, length, ip);
+		else if (dport == SUNRPC_PORT && direction == CALL) {
+			sunrpcrequest_print((u_char *)rp, length, (u_char *)ip);
 			return;
 		}
 #endif
-		else if (cp[2] == 2 && (atalk_port(up->uh_sport) ||
-			 atalk_port(up->uh_dport))) {
-			ddp_print((struct atDDP *)(&cp[3]), length - 3);
+		else if (((struct LAP *)cp)->type == lapDDP &&
+		    (atalk_port(sport) || atalk_port(dport))) {
+			if (vflag)
+				fputs("kip ", stdout);
+			atalk_print(cp, length);
 			return;
 		}
 	}
 	(void)printf("%s.%s > %s.%s:",
-		ipaddr_string(&ip->ip_src), udpport_string(up->uh_sport),
-		ipaddr_string(&ip->ip_dst), udpport_string(up->uh_dport));
+		ipaddr_string(&ip->ip_src), udpport_string(sport),
+		ipaddr_string(&ip->ip_dst), udpport_string(dport));
 
 	if (!qflag) {
-#define ISPORT(p) (up->uh_dport == (p) || up->uh_sport == (p))
+#define ISPORT(p) (dport == (p) || sport == (p))
 		if (ISPORT(NAMESERVER_PORT))
-			ns_print((HEADER *)(up + 1), length);
+			ns_print((const u_char *)(up + 1), length);
 		else if (ISPORT(TFTP_PORT))
-			tftp_print((struct tftphdr *)(up + 1), length);
+			tftp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(IPPORT_BOOTPC) || ISPORT(IPPORT_BOOTPS))
-			bootp_print((struct bootp *)(up + 1), length,
-			    up->uh_sport, up->uh_dport);
-		else if (up->uh_dport == RIP_PORT)
-			rip_print((u_char *)(up + 1), length);
+			bootp_print((const u_char *)(up + 1), length,
+			    sport, dport);
+		else if (dport == RIP_PORT)
+			rip_print((const u_char *)(up + 1), length);
 		else if (ISPORT(SNMP_PORT) || ISPORT(SNMPTRAP_PORT))
-			snmp_print((u_char *)(up + 1), length);
+			snmp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(NTP_PORT))
-			ntp_print((struct ntpdata *)(up + 1), length);
+			ntp_print((const u_char *)(up + 1), length);
+		else if (dport == 3456)
+			vat_print((const void *)(up + 1), length, up);
+		/*
+		 * Kludge in test for whiteboard packets.
+		 */
+		else if (dport == 4567)
+			wb_print((const void *)(up + 1), length);
 		else
-			(void)printf(" udp %d", up->uh_ulen - sizeof(*up));
+			(void)printf(" udp %d", ulen - sizeof(*up));
 #undef ISPORT
 	} else
-		(void)printf(" udp %d", up->uh_ulen - sizeof(*up));
+		(void)printf(" udp %d", ulen - sizeof(*up));
 }
