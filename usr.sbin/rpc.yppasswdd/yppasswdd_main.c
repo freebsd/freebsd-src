@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpc/pmap_clnt.h> /* for pmap_unset */
 #include <rpcsvc/yp.h>
 struct dom_binding {};
@@ -171,6 +172,7 @@ main(int argc, char *argv[])
 	int ch;
 	char *mastername;
 	char myname[MAXHOSTNAMELEN + 2];
+	int maxrec = RPC_MAXDATASIZE;
 
 	extern int debug;
 
@@ -272,6 +274,8 @@ the %s domain -- aborting", yppasswd_domain);
 
 	rpcb_unset(YPPASSWDPROG, YPPASSWDVERS, NULL);
 	rpcb_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, NULL);
+
+	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
 	if (svc_create(yppasswdprog_1, YPPASSWDPROG, YPPASSWDVERS, "netpath") == 0) {
 		yp_error("cannot create yppasswd service.");
