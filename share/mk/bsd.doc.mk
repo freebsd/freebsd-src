@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.4 1994/11/13 21:05:18 phk Exp $
+#	$Id: bsd.doc.mk,v 1.5 1994/12/28 03:50:39 ache Exp $
 
 PRINTER?=	ps
 
@@ -56,10 +56,9 @@ obj:
 .endif
 
 clean:
-	rm -f ${DOC}.* [eE]rrs mklog ${CLEANFILES}
+	rm -f ${DOC}.${PRINTER} [eE]rrs mklog ${CLEANFILES}
 
-cleandir:
-	rm -f ${DOC}.* [eE]rrs mklog ${CLEANFILES}
+cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
 
 FILES?=	${SRCS}
