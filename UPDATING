@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040929:
+	The pfil API has gained an additional argument to pass an inpcb.
+	You should rebuild all pfil consuming modules: ipfw, ipfilter
+	and pf.
+
 20040928:
 	If enabled, the default is now to run named in a chroot
 	"sandbox." For users with existing configurations in

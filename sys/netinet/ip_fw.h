@@ -425,6 +425,7 @@ struct ip_fw_args {
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
 	u_int32_t	retval;
+	struct inpcb	*inp;
 };
 
 /*
@@ -435,8 +436,8 @@ struct ip_fw_args {
 struct sockopt;
 struct dn_flow_set;
 
-int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int);
-int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int);
+int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
+int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
 
 int ipfw_chk(struct ip_fw_args *);
 
