@@ -753,7 +753,7 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 				ret = (*mutex)->m_owner == NULL ? EINVAL : EPERM;
 			}
 			else if (((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
-			    ((*mutex)->m_data.m_count > 1)) {
+			    ((*mutex)->m_data.m_count > 0)) {
 				/* Decrement the count: */
 				(*mutex)->m_data.m_count--;
 			} else {
@@ -821,7 +821,7 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 				ret = (*mutex)->m_owner == NULL ? EINVAL : EPERM;
 			}
 			else if (((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
-			    ((*mutex)->m_data.m_count > 1)) {
+			    ((*mutex)->m_data.m_count > 0)) {
 				/* Decrement the count: */
 				(*mutex)->m_data.m_count--;
 			} else {
@@ -939,7 +939,7 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 				ret = (*mutex)->m_owner == NULL ? EINVAL : EPERM;
 			}
 			else if (((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
-			    ((*mutex)->m_data.m_count > 1)) {
+			    ((*mutex)->m_data.m_count > 0)) {
 				/* Decrement the count: */
 				(*mutex)->m_data.m_count--;
 			} else {
