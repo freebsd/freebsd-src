@@ -16,10 +16,10 @@
  * $FreeBSD$
  */
 
-#ifndef _de_DE_ISO_8859_1_geschichte_
-#define _de_DE_ISO_8859_1_geschichte_
+#ifndef _de_DE_ISO8859_1_geschichte_
+#define _de_DE_ISO8859_1_geschichte_
 
-LANG=de_DE.ISO_8859-1
+LANG=de_DE.ISO8859-1
 
 /* 1800-1933 */
 07/11 	Gründung der Rheinbundes, 1806
@@ -194,4 +194,4 @@ LANG=de_DE.ISO_8859-1
 10/12   Chruschtschow schlägt während einer Rede in der UNO mit den
 	Schuhen auf den Tisch, 1960
 
-#endif /* _de_DE_ISO_8859_1_geschichte_ */
+#endif /* _de_DE_ISO8859_1_geschichte_ */

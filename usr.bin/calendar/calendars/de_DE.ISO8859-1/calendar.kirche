@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _de_DE_ISO_8859_1_kirche_
-#define _de_DE_ISO_8859_1_kirche_
+#ifndef _de_DE_ISO8859_1_kirche_
+#define _de_DE_ISO8859_1_kirche_
 
-LANG=de_DE.ISO_8859-1
+LANG=de_DE.ISO8859-1
 
 Easter-46	Aschermittwoch
 Easter-48	Rosenmontag
@@ -29,4 +29,4 @@ Easter-7	Palmsonntag
 11/10   Martin Luther geboren in Eisleben, 1483
 10/31   95 Thesen von Luther, Wittenberg, 1517
 
-#endif /* !_de_DE_ISO_8859_1_kirche_ */
+#endif /* !_de_DE_ISO8859_1_kirche_ */
