@@ -110,10 +110,16 @@ void	softdep_releasefile(struct inode *);
 int	softdep_slowdown(struct vnode *);
 
 /*
- * Flags to low-level allocation routines.
- * The low 16-bits are reserved for IO_ flags from vnode.h.
+ * Flags to low-level allocation routines.  The low 16-bits are reserved
+ * for IO_ flags from vnode.h.
+ *
+ * Note: The general vfs code typically limits the sequential heuristic
+ * count to 127.  See sequential_heuristic() in kern/vfs_vnops.c
  */
-#define BA_CLRBUF	0x00010000	/* Request alloced buffer be cleared. */
+#define BA_CLRBUF	0x00010000	/* Clear invalid areas of buffer. */
 #define BA_METAONLY	0x00020000	/* Return indirect block buffer. */
+#define BA_SEQMASK	0x7F000000	/* Bits holding seq heuristic. */
+#define BA_SEQSHIFT	24
+#define BA_SEQMAX	0x7F
 
 #endif /* !_UFS_UFS_EXTERN_H_ */
