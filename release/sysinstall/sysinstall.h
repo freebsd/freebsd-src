@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.153.2.7 1999/04/06 08:27:48 jkh Exp $
+ * $Id: sysinstall.h,v 1.153.2.8 1999/04/24 02:02:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,6 +88,7 @@
 #define VAR_BROWSER_PACKAGE		"browserPackage"
 #define VAR_CPIO_VERBOSITY		"cpioVerbose"
 #define VAR_DEBUG			"debug"
+#define VAR_DESKSTYLE			"_deskStyle"
 #define VAR_DISK			"disk"
 #define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
@@ -109,7 +110,6 @@
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
 #define VAR_FTP_HOST			"ftpHost"
-#define VAR_GATED_PKG			"gated_pkg"
 #define VAR_GATEWAY			"defaultrouter"
 #define VAR_GEOMETRY			"geometry"
 #define VAR_HOSTNAME			"hostname"
@@ -144,7 +144,6 @@
 #define VAR_PACKAGE			"package"
 #define VAR_PARTITION			"partition"
 #define VAR_PCNFSD			"pcnfsd"
-#define VAR_PCNFSD_PKG			"pcnfsd_pkg"
 #define VAR_PKG_TMPDIR			"PKG_TMPDIR"
 #define VAR_PORTS_PATH			"ports"
 #define VAR_RELNAME			"releaseName"
@@ -367,6 +366,7 @@ extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
+extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
 extern DMenu		MenuDESDistributions;	/* DES distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
@@ -376,7 +376,8 @@ extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
 extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectPC98Server; /* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
-extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
+extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
+extern DMenu		MenuXDesktops;		/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
@@ -415,7 +416,8 @@ extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
-extern int	configXEnvironment(dialogMenuItem *self);
+extern int	configXSetup(dialogMenuItem *self);
+extern int	configXDesktop(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
