@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.6 1998/02/02 19:33:38 brian Exp $
+ * $Id: main.c,v 1.121.2.7 1998/02/06 02:22:17 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -202,6 +202,7 @@ Cleanup(int excode)
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   TtyOldMode();
+  link_Destroy(physical2link(pppVars.physical));
   LogClose();
 
   exit(excode);
@@ -370,6 +371,12 @@ main(int argc, char **argv)
   VarTerm = 0;
   name = strrchr(argv[0], '/');
   LogOpen(name ? name + 1 : argv[0]);
+
+  pppVars.physical = modem_Create("modem");
+  if (pppVars.physical == NULL) {
+    LogPrintf(LogERROR, "Cannot create modem device: %s\n", strerror(errno));
+    return 1;
+  }
 
   tcgetattr(STDIN_FILENO, &oldtio);	/* Save original tty mode */
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.4 1998/02/02 19:33:38 brian Exp $
+ * $Id: modem.c,v 1.77.2.5 1998/02/06 02:22:21 brian Exp $
  *
  *  TODO:
  */
@@ -77,24 +77,27 @@
 static void modem_StartOutput(struct link *);
 static int modem_IsActive(struct link *);
 static void modem_Hangup(struct link *, int);
+static void modem_Destroy(struct link *);
 
-struct physical phys_modem = {
-  {
-    PHYSICAL_LINK,
-    "modem",
-    sizeof(struct physical),
-    { 0 },                      /* throughput */
-    { 0 },                      /* timer */
-    { { 0 } },                  /* queues */
-    { 0 },                      /* proto_in */
-    { 0 },                      /* proto_out */
-    modem_StartOutput,
-    modem_IsActive,
-    modem_Hangup
-  },
-  { 0 },
-  -1
-};
+struct physical *
+modem_Create(const char *name)
+{
+  struct physical *p;
+
+  p = (struct physical *)malloc(sizeof(struct physical));
+  if (!p)
+    return NULL;
+  memset(p, '\0', sizeof *p);
+  p->link.type = PHYSICAL_LINK;
+  p->link.name = strdup(name);
+  p->link.len = sizeof *p;
+  p->link.StartOutput = modem_StartOutput;
+  p->link.IsActive = modem_IsActive;
+  p->link.Close = modem_Hangup;
+  p->link.Destroy = modem_Destroy;
+  p->fd = -1;
+  return p;
+}
 
 /* XXX-ML this should probably change when we add support for other
    types of devices */
@@ -771,6 +774,18 @@ modem_Hangup(struct link *l, int dedicated_force)
       DoChat(modem, ScriptBuffer);
     }
   }
+}
+
+static void
+modem_Destroy(struct link *l)
+{
+  struct physical *p;
+
+  p = link2physical(l);
+  if (p->fd != -1)
+    modem_Hangup(l, 1);
+  free(l->name);
+  free(p);
 }
 
 static void

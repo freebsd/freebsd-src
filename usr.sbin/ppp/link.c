@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: link.c,v 1.1.2.1 1998/01/30 19:45:49 brian Exp $
  *
  */
 
@@ -144,6 +144,12 @@ void
 link_Close(struct link *l, int dedicated_force)
 {
   (*l->Close)(l, dedicated_force);
+}
+
+void
+link_Destroy(struct link *l)
+{
+  (*l->Destroy)(l);
 }
 
 static struct protostatheader {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: link.h,v 1.1.2.1 1998/01/30 19:45:50 brian Exp $
  *
  */
 
@@ -36,7 +36,7 @@
 
 struct link {
   int type;                               /* _LINK type */
-  const char *name;                       /* unique id per link type */
+  char *name;                             /* unique id per link type */
   int len;                                /* full size of parent struct */
   struct pppThroughput throughput;        /* Link throughput statistics */
   struct pppTimer Timer;                  /* inactivity timeout */
@@ -49,6 +49,7 @@ struct link {
   void (*StartOutput)(struct link *);     /* send the queued data */
   int (*IsActive)(struct link *);         /* Are we active ? */
   void (*Close)(struct link *, int);      /* Close the link */
+  void (*Destroy)(struct link *);         /* Destructor */
 };
 
 extern void link_AddInOctets(struct link *, int);
@@ -68,3 +69,4 @@ extern void link_ReportProtocolStatus(struct link *);
 
 extern int link_IsActive(struct link *);
 extern void link_Close(struct link *, int);
+extern void link_Destroy(struct link *);
