@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_HCI_CMDS_H_
-#define _NETGRAPH_HCI_CMDS_H_ 1
+#define _NETGRAPH_HCI_CMDS_H_
 
 /* 
  * HCI command return parameters processing routines
