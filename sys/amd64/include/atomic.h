@@ -46,11 +46,13 @@
  * atomic_clear_int(P, V)	(*(u_int*)(P) &= ~(V))
  * atomic_add_int(P, V)		(*(u_int*)(P) += (V))
  * atomic_subtract_int(P, V)	(*(u_int*)(P) -= (V))
+ * atomic_readandclear_int(P)	(return  *(u_int*)P; *(u_int*)P = 0;)
  *
  * atomic_set_long(P, V)	(*(u_long*)(P) |= (V))
  * atomic_clear_long(P, V)	(*(u_long*)(P) &= ~(V))
  * atomic_add_long(P, V)	(*(u_long*)(P) += (V))
  * atomic_subtract_long(P, V)	(*(u_long*)(P) -= (V))
+ * atomic_readandclear_long(P)	(return  *(u_long*)P; *(u_long*)P = 0;)
  */
 
 /*
@@ -63,9 +65,9 @@
  */
 #if defined(KLD_MODULE)
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
-	extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+	void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
-extern int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
+int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 
 #else /* !KLD_MODULE */
 #if defined(SMP)
@@ -217,6 +219,36 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 
 	return (
 	    atomic_cmpset_int((volatile u_int *)dst, (u_int)exp, (u_int)src));
+}
+
+static __inline u_int
+atomic_readandclear_int(volatile u_int *addr)
+{
+	u_int result;
+
+	__asm __volatile (
+	"	xorl	%0,%0 ;		"
+	"	xchgl	%1,%0 ;		"
+	"# atomic_readandclear_int"
+	: "=&r" (result)		/* 0 (result) */
+	: "m" (*addr));			/* 1 (addr) */
+
+	return (result);
+}
+
+static __inline u_long
+atomic_readandclear_long(volatile u_long *addr)
+{
+	u_long result;
+
+	__asm __volatile (
+	"	xorl	%0,%0 ;		"
+	"	xchgl	%1,%0 ;		"
+	"# atomic_readandclear_int"
+	: "=&r" (result)		/* 0 (result) */
+	: "m" (*addr));			/* 1 (addr) */
+
+	return (result);
 }
 #endif
 

@@ -116,6 +116,26 @@ static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 		: "memory");
 }
 
+static __inline u_int32_t atomic_readandclear_32(volatile u_int32_t *addr)
+{
+	u_int32_t result,temp;
+
+	__asm __volatile (
+		"wmb\n"			/* ensure pending writes have drained */
+		"1:\tldl_l %0,%3\n\t"	/* load current value, asserting lock */
+		"ldiq %1,0\n\t"		/* value to store */
+		"stl_c %1,%2\n\t"	/* attempt to store */
+		"beq %1,2f\n\t"		/* if the store failed, spin */
+		"br 3f\n"		/* it worked, exit */
+		"2:\tbr 1b\n"		/* *addr not updated, loop */
+		"3:\tmb\n"		/* it worked */
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "m"(*addr)
+		: "memory");
+
+	return result;
+}
+
 static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
 {
 	u_int64_t temp;
@@ -188,6 +208,26 @@ static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 		: "memory");
 }
 
+static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
+{
+	u_int64_t result,temp;
+
+	__asm __volatile (
+		"wmb\n"			/* ensure pending writes have drained */
+		"1:\tldq_l %0,%3\n\t"	/* load current value, asserting lock */
+		"ldiq %1,0\n\t"		/* value to store */
+		"stq_c %1,%2\n\t"	/* attempt to store */
+		"beq %1,2f\n\t"		/* if the store failed, spin */
+		"br 3f\n"		/* it worked, exit */
+		"2:\tbr 1b\n"		/* *addr not updated, loop */
+		"3:\tmb\n"		/* it worked */
+		: "=&r"(result), "=&r"(temp), "=m" (*addr)
+		: "m"(*addr)
+		: "memory");
+
+	return result;
+}
+
 #define atomic_set_char		atomic_set_8
 #define atomic_clear_char	atomic_clear_8
 #define atomic_add_char		atomic_add_8
@@ -202,11 +242,13 @@ static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 #define atomic_clear_int	atomic_clear_32
 #define atomic_add_int		atomic_add_32
 #define atomic_subtract_int	atomic_subtract_32
+#define atomic_readandclear_int	atomic_readandclear_32
 
 #define atomic_set_long		atomic_set_64
 #define atomic_clear_long	atomic_clear_64
 #define atomic_add_long		atomic_add_64
 #define atomic_subtract_long	atomic_subtract_64
+#define atomic_readandclear_long	atomic_readandclear_64
 
 /*
  * Atomically compare the value stored at *p with cmpval and if the
