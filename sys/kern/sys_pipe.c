@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.45 1998/11/11 10:03:55 truckman Exp $
+ * $Id: sys_pipe.c,v 1.46 1998/12/07 21:58:29 archie Exp $
  */
 
 /*
@@ -380,31 +380,14 @@ pipe_read(fp, uio, cred)
 #endif
 		} else {
 			/*
-			 * detect EOF condition
-			 */
-			if (rpipe->pipe_state & PIPE_EOF) {
-				/* XXX error = ? */
-				break;
-			}
-			/*
-			 * If the "write-side" has been blocked, wake it up now.
-			 */
-			if (rpipe->pipe_state & PIPE_WANTW) {
-				rpipe->pipe_state &= ~PIPE_WANTW;
-				wakeup(rpipe);
-			}
-			if (nread > 0)
-				break;
-
-			if (fp->f_flag & FNONBLOCK) {
-				error = EAGAIN;
-				break;
-			}
-
-			/*
 			 * If there is no more to read in the pipe, reset
 			 * its pointers to the beginning.  This improves
 			 * cache hit stats.
+			 *
+			 * We get this over with now because it may block
+			 * and cause the state to change out from under us,
+			 * rather then have to re-test the state both before
+			 * and after this fragment.
 			 */
 		
 			if ((error = pipelock(rpipe,1)) == 0) {
@@ -413,14 +396,50 @@ pipe_read(fp, uio, cred)
 					rpipe->pipe_buffer.out = 0;
 				}
 				pipeunlock(rpipe);
-			} else {
+
+				/*
+				 * If pipe filled up due to pipelock
+				 * blocking, loop back up.
+				 */
+				if (rpipe->pipe_buffer.cnt > 0)
+					continue;
+			}
+
+			/*
+			 * detect EOF condition
+			 */
+			if (rpipe->pipe_state & PIPE_EOF) {
+				/* XXX error = ? */
 				break;
 			}
 
+			/*
+			 * If the "write-side" has been blocked, wake it up now.
+			 */
 			if (rpipe->pipe_state & PIPE_WANTW) {
 				rpipe->pipe_state &= ~PIPE_WANTW;
 				wakeup(rpipe);
 			}
+
+			/*
+			 * break if error (signal via pipelock), or if some 
+			 * data was read
+			 */
+			if (error || nread > 0)
+				break;
+
+			/*
+			 * Handle non-blocking mode operation
+			 */
+
+			if (fp->f_flag & FNONBLOCK) {
+				error = EAGAIN;
+				break;
+			}
+
+			/*
+			 * Wait for more data
+			 */
 
 			rpipe->pipe_state |= PIPE_WANTR;
 			if (error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) {
