@@ -2,9 +2,9 @@
  * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  * 'C' definitions for Specialix serial multiplex driver.
  *
- * Copyright (C) 1990, 1992 Specialix International,
+ * Copyright (C) 1990, 1992, 1998 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
- * Copyright (C) 1995, Peter Wemm <peter@haywire.dialix.com>
+ * Copyright (C) 1995, Peter Wemm <peter@netplex.com.au>
  *
  * Derived from:	SunOS 4.x version
  *
@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.6 1995/11/28 02:07:31 peter Exp $
+ *	$Id: si.h,v 1.6.4.1 1998/03/02 05:54:12 peter Exp $
  */
 
 /*
@@ -86,7 +86,7 @@
 /* Adapter types */
 #define	SIEMPTY		0
 #define	SIHOST		1
-#define	SI2		2
+#define	SIMCA		2
 #define	SIHOST2		3
 #define	SIEISA		4
 #define SIPCI		5
@@ -111,8 +111,8 @@ struct si_reg	{
 	BYTE	memsize;
 	WORD	int_count;
 	WORD	revision;
-	BYTE	rx_int_count;
-	BYTE	spare;
+	BYTE	rx_int_count;		/* isr_count on Jet */	
+	BYTE	main_count;		/* spare on Z-280 */
 	WORD	int_pending;
 	WORD	int_counter;
 	BYTE	int_scounter;
@@ -135,26 +135,13 @@ struct si_module {
  *	the address of the next module block if fitted. (else 0)
  *	Note that next points to the TX buffer so 0x60 must be
  *	subtracted to find the true base.
- *
- *	Type is a bit field as follows:  The bottom 5 bits are the
- *	number of channels  on this module,  the top 3 bits are
- *	as the module type thus:
- *
- *	000	2698 RS232 module (4 port or 8 port)
- *	001	Reserved for 2698 RS422 module
- *	010	Reserved for 8530 based sync module
- *	011	Reserved for parallel printer module
- *	100	Reserved for network module
- *	101-111	Reserved for expansion.
- *
- *	The number field is the cable position of the module.
  */
-#define	M232	0x00
-#define M422	0x20	/* not supported */
-#define MSYNC	0x40	/* this is the Telebit Netblazer module */
-#define MCENT	0x60	/* not supported */
-#define MNET	0x80	/* not supported */
-#define MMASK	0x1F
+#define TA4		0x00
+#define TA8		0x08
+#define TA4_ASIC	0x0A
+#define TA8_ASIC	0x0B
+#define MTA		0x28
+#define SXDC		0x48
 
 /*
  *	Per channel(port) control structure, stored in shared memory.
