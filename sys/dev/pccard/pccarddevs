@@ -448,6 +448,7 @@ product USROBOTICS WORLDPORT144	0x3330 US Robotics WorldPort 14.4 Modem
 product WORKBIT ULTRA_NINJA_16	0x8006 WORKBIT Ultra Ninja-16 (16bit mode)
 
 /* Xircom Products */
+product XIRCOM CWE1130		0x0007 Xircom Wireless Ethernet Adapter 
 product XIRCOM CE		0x0108 Xircom CreditCard Ethernet
 product XIRCOM CE3		0x010a Xircom CreditCard 10/100 Ethernet
 product XIRCOM CE2		0x010b Xircom CreditCard Ethernet II
