@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.h,v 1.2 1994/08/02 07:51:21 davidg Exp $
+ * $Id: tp_pcb.h,v 1.3 1994/08/21 06:14:27 paul Exp $
  */
 
 #ifndef _NETISO_TP_PCB_H_
@@ -66,7 +66,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.2 1994/08/02 07:51:21 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.3 1994/08/21 06:14:27 paul Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.h,v $
  *
  * 
@@ -298,7 +298,9 @@ struct tp_pcb {
 	u_int			 	tp_timer[TM_NTIMERS]; /* C timers */
 
 	struct sockbuf		tp_Xsnd;		/* for expedited data */
-/*	struct sockbuf		tp_Xrcv;		/* for expedited data */
+#ifdef notused
+	struct sockbuf		tp_Xrcv;		/* for expedited data */
+#endif
 #define tp_Xrcv tp_sock->so_rcv
 	SeqNum				tp_Xsndnxt;	/* next XPD seq # to send */
 	SeqNum				tp_Xuna;		/* seq # of unacked XPD */
