@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.59 2002/06/19 18:01:00 markus Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.60 2002/06/23 03:26:52 deraadt Exp $");
 
 #include "xmalloc.h"
 #include "log.h"
@@ -95,11 +95,13 @@ cipher_blocksize(Cipher *c)
 {
 	return (c->block_size);
 }
+
 u_int
 cipher_keylen(Cipher *c)
 {
 	return (c->key_len);
 }
+
 u_int
 cipher_get_number(Cipher *c)
 {
@@ -314,6 +316,7 @@ struct ssh1_3des_ctx
 {
 	EVP_CIPHER_CTX	k1, k2, k3;
 };
+
 static int
 ssh1_3des_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
     int enc)
@@ -356,6 +359,7 @@ ssh1_3des_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
 #endif
 	return (1);
 }
+
 static int
 ssh1_3des_cbc(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src, u_int len)
 {
@@ -377,6 +381,7 @@ ssh1_3des_cbc(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src, u_int len)
 #endif
 	return (1);
 }
+
 static int
 ssh1_3des_cleanup(EVP_CIPHER_CTX *ctx)
 {
@@ -389,6 +394,7 @@ ssh1_3des_cleanup(EVP_CIPHER_CTX *ctx)
 	}
 	return (1);
 }
+
 static const EVP_CIPHER *
 evp_ssh1_3des(void)
 {
@@ -430,7 +436,9 @@ swap_bytes(const u_char *src, u_char *dst, int n)
 		*dst++ = c[3];
 	}
 }
+
 static int (*orig_bf)(EVP_CIPHER_CTX *, u_char *, const u_char *, u_int) = NULL;
+
 static int
 bf_ssh1_cipher(EVP_CIPHER_CTX *ctx, u_char *out, const u_char *in, u_int len)
 {
@@ -441,6 +449,7 @@ bf_ssh1_cipher(EVP_CIPHER_CTX *ctx, u_char *out, const u_char *in, u_int len)
 	swap_bytes(out, out, len);
 	return (ret);
 }
+
 static const EVP_CIPHER *
 evp_ssh1_bf(void)
 {
@@ -483,6 +492,7 @@ ssh_rijndael_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
 		memcpy(c->r_iv, iv, RIJNDAEL_BLOCKSIZE);
 	return (1);
 }
+
 static int
 ssh_rijndael_cbc(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src,
     u_int len)
@@ -528,6 +538,7 @@ ssh_rijndael_cbc(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src,
 	}
 	return (1);
 }
+
 static int
 ssh_rijndael_cleanup(EVP_CIPHER_CTX *ctx)
 {
@@ -540,6 +551,7 @@ ssh_rijndael_cleanup(EVP_CIPHER_CTX *ctx)
 	}
 	return (1);
 }
+
 static const EVP_CIPHER *
 evp_rijndael(void)
 {

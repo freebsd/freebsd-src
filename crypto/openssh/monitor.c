@@ -25,7 +25,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor.c,v 1.16 2002/06/21 05:50:51 djm Exp $");
+RCSID("$OpenBSD: monitor.c,v 1.18 2002/06/26 13:20:57 deraadt Exp $");
 
 #include <openssl/dh.h>
 
@@ -188,9 +188,6 @@ struct mon_table mon_dispatch_proto15[] = {
     {MONITOR_REQ_KEYALLOWED, MON_ISAUTH, mm_answer_keyallowed},
     {MONITOR_REQ_RSACHALLENGE, MON_ONCE, mm_answer_rsa_challenge},
     {MONITOR_REQ_RSARESPONSE, MON_ONCE|MON_AUTHDECIDE, mm_answer_rsa_response},
-#ifdef USE_PAM
-    {MONITOR_REQ_PAM_START, MON_ONCE, mm_answer_pam_start},
-#endif
 #ifdef BSD_AUTH
     {MONITOR_REQ_BSDAUTHQUERY, MON_ISAUTH, mm_answer_bsdauthquery},
     {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH,mm_answer_bsdauthrespond},
@@ -982,13 +979,13 @@ mm_answer_keyverify(int socket, Buffer *m)
 	xfree(signature);
 	xfree(data);
 
+	auth_method = key_blobtype == MM_USERKEY ? "publickey" : "hostbased";
+
 	monitor_reset_key_state();
 
 	buffer_clear(m);
 	buffer_put_int(m, verified);
 	mm_request_send(socket, MONITOR_ANS_KEYVERIFY, m);
-
-	auth_method = key_blobtype == MM_USERKEY ? "publickey" : "hostbased";
 
 	return (verified);
 }
@@ -1456,9 +1453,13 @@ mm_get_keystate(struct monitor *pmonitor)
 void *
 mm_zalloc(struct mm_master *mm, u_int ncount, u_int size)
 {
+	int len = size * ncount;
 	void *address;
 
-	address = mm_malloc(mm, size * ncount);
+	if (len <= 0)
+		fatal("%s: mm_zalloc(%u, %u)", __func__, ncount, size);
+
+	address = mm_malloc(mm, len);
 
 	return (address);
 }

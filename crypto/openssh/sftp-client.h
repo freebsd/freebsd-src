@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.9 2002/02/13 00:59:23 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.10 2002/06/23 09:30:14 deraadt Exp $ */
 
 /*
  * Copyright (c) 2001,2002 Damien Miller.  All rights reserved.
@@ -41,11 +41,9 @@ struct SFTP_DIRENT {
  * Initialiase a SSH filexfer connection. Returns -1 on error or
  * protocol version on success.
  */
-struct sftp_conn *
-do_init(int, int, u_int, u_int);
+struct sftp_conn *do_init(int, int, u_int, u_int);
 
-u_int
-sftp_proto_version(struct sftp_conn *);
+u_int sftp_proto_version(struct sftp_conn *);
 
 /* Close file referred to by 'handle' */
 int do_close(struct sftp_conn *, char *, u_int);

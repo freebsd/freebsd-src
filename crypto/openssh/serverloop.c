@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: serverloop.c,v 1.102 2002/06/11 05:46:20 mpech Exp $");
+RCSID("$OpenBSD: serverloop.c,v 1.103 2002/06/24 14:33:27 markus Exp $");
 
 #include "xmalloc.h"
 #include "packet.h"
@@ -902,10 +902,8 @@ server_input_channel_open(int type, u_int32_t seq, void *ctxt)
 {
 	Channel *c = NULL;
 	char *ctype;
-	u_int len;
 	int rchan;
-	int rmaxpack;
-	int rwindow;
+	u_int rmaxpack, rwindow, len;
 
 	ctype = packet_get_string(&len);
 	rchan = packet_get_int();

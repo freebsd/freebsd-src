@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.104 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$OpenBSD: sshconnect2.c,v 1.105 2002/06/23 03:30:17 deraadt Exp $");
 
 #include "ssh.h"
 #include "ssh2.h"
@@ -299,12 +299,14 @@ userauth(Authctxt *authctxt, char *authlist)
 		}
 	}
 }
+
 void
 input_userauth_error(int type, u_int32_t seq, void *ctxt)
 {
 	fatal("input_userauth_error: bad message during authentication: "
 	   "type %d", type);
 }
+
 void
 input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 {
@@ -316,6 +318,7 @@ input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 	xfree(msg);
 	xfree(lang);
 }
+
 void
 input_userauth_success(int type, u_int32_t seq, void *ctxt)
 {
@@ -327,6 +330,7 @@ input_userauth_success(int type, u_int32_t seq, void *ctxt)
 	clear_auth_state(authctxt);
 	authctxt->success = 1;			/* break out */
 }
+
 void
 input_userauth_failure(int type, u_int32_t seq, void *ctxt)
 {
@@ -375,7 +379,7 @@ input_userauth_pk_ok(int type, u_int32_t seq, void *ctxt)
 	}
 	packet_check_eom();
 
-	debug("input_userauth_pk_ok: pkalg %s blen %d lastkey %p hint %d",
+	debug("input_userauth_pk_ok: pkalg %s blen %u lastkey %p hint %d",
 	    pkalg, blen, authctxt->last_key, authctxt->last_key_hint);
 
 	do {
@@ -894,9 +898,7 @@ input_userauth_info_req(int type, u_int32_t seq, void *ctxt)
 }
 
 static int
-ssh_keysign(
-    Key *key,
-    u_char **sigp, u_int *lenp,
+ssh_keysign(Key *key, u_char **sigp, u_int *lenp,
     u_char *data, u_int datalen)
 {
 	Buffer b;
@@ -1098,6 +1100,7 @@ authmethod_lookup(const char *name)
 static Authmethod *current = NULL;
 static char *supported = NULL;
 static char *preferred = NULL;
+
 /*
  * Given the authentication method list sent by the server, return the
  * next method we should try.  If the server initially sends a nil list,

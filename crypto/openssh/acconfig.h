@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.138 2002/06/12 16:57:15 mouring Exp $ */
+/* $Id: acconfig.h,v 1.141 2002/06/25 22:35:16 tim Exp $ */
 
 #ifndef _CONFIG_H
 #define _CONFIG_H
@@ -228,9 +228,6 @@
 /* Define if xauth is found in your path */
 #undef XAUTH_PATH
 
-/* Define if rsh is found in your path */
-#undef RSH_PATH
-
 /* Define if you want to allow MD5 passwords */
 #undef HAVE_MD5_PASSWORDS
 
@@ -357,6 +354,12 @@
 
 /* Path that unprivileged child will chroot() to in privep mode */
 #undef PRIVSEP_PATH
+
+/* Define if you have the `mmap' function that supports MAP_ANON|SHARED */
+#undef HAVE_MMAP_ANON_SHARED
+
+/* Define if sendmsg()/recvmsg() has problems passing file descriptors */
+#undef BROKEN_FD_PASSING
 
 @BOTTOM@
 
