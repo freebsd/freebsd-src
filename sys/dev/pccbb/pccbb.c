@@ -175,6 +175,10 @@ struct yenta_chipinfo {
 	{PCI_DEVICE_ID_PCIC_CLPD6833, "CLPD6833 PCI-CardBus Bridge",
 		CB_CIRRUS, PCCBB_PCIC_MEM_32},
 
+	/* 02Micro */
+	{PCI_DEVICE_ID_PCIC_OZ6872, "O2Mirco OZ6872 PCI-CardBus Bridge",
+		CB_CIRRUS, PCCBB_PCIC_MEM_32},
+
 	/* sentinel */
 	{0 /* null id */, "unknown",
 		CB_UNKNOWN, 0},
