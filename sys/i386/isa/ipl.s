@@ -67,7 +67,6 @@ doreti_next:
 	je	doreti_exit		/* no, defer */
 
 doreti_ast:
-	movl	$T_ASTFLT,TF_TRAPNO(%esp)
 	call	_ast
 
 	/*

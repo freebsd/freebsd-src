@@ -48,7 +48,6 @@
 #define	T_PRIVINFLT	1	/* privileged instruction */
 #define	T_BPTFLT	3	/* breakpoint instruction */
 #define	T_ARITHTRAP	6	/* arithmetic trap */
-#define	T_ASTFLT	7	/* system forced exception */
 #define	T_PROTFLT	9	/* protection fault */
 #define	T_TRCTRAP	10	/* debug exception (sic) */
 #define	T_PAGEFLT	12	/* page fault */
