@@ -461,6 +461,20 @@ pcn_chip_id (device_t dev)
 	return (chip_id);
 }
 
+static struct pcn_type *
+pcn_match (u_int16_t vid, u_int16_t did)
+{
+	struct pcn_type		*t;
+	t = pcn_devs;
+
+	while(t->pcn_name != NULL) {
+		if ((vid == t->pcn_vid) && (did == t->pcn_did))
+			return (t);
+		t++;
+	}
+	return (NULL);
+}
+
 /*
  * Probe for an AMD chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
@@ -474,55 +488,40 @@ pcn_probe(dev)
 	int			rid;
 	u_int32_t		chip_id;
 
-	t = pcn_devs;
+	t = pcn_match(pci_get_vendor(dev), pci_get_device(dev));
+	if (t == NULL)
+		return (ENXIO);
 	sc = device_get_softc(dev);
 
-	while(t->pcn_name != NULL) {
-		if ((pci_get_vendor(dev) == t->pcn_vid) &&
-		    (pci_get_device(dev) == t->pcn_did)) {
-			/*
-			 * Temporarily map the I/O space
-			 * so we can read the chip ID register.
-			 */
-			rid = PCN_RID;
-			sc->pcn_res = bus_alloc_resource_any(dev, PCN_RES, &rid,
-			    RF_ACTIVE);
-			if (sc->pcn_res == NULL) {
-				device_printf(dev,
-				    "couldn't map ports/memory\n");
-				return(ENXIO);
-			}
-			sc->pcn_btag = rman_get_bustag(sc->pcn_res);
-			sc->pcn_bhandle = rman_get_bushandle(sc->pcn_res);
-			mtx_init(&sc->pcn_mtx,
-			    device_get_nameunit(dev), MTX_NETWORK_LOCK,
-			    MTX_DEF);
-			PCN_LOCK(sc);
-			chip_id = pcn_chip_id(dev);
-			bus_release_resource(dev, PCN_RES,
-			    PCN_RID, sc->pcn_res);
-			PCN_UNLOCK(sc);
-			mtx_destroy(&sc->pcn_mtx);
-			chip_id >>= 12;
-			sc->pcn_type = chip_id & PART_MASK;
-			switch(sc->pcn_type) {
-			case Am79C971:
-			case Am79C972:
-			case Am79C973:
-			case Am79C975:
-			case Am79C976:
-			case Am79C978:
-				break;
-			default:
-				return(ENXIO);
-			}
-			device_set_desc(dev, t->pcn_name);
-			return(0);
-		}
-		t++;
+	/*
+	 * Temporarily map the I/O space so we can read the chip ID register.
+	 */
+	rid = PCN_RID;
+	sc->pcn_res = bus_alloc_resource_any(dev, PCN_RES, &rid, RF_ACTIVE);
+	if (sc->pcn_res == NULL) {
+		device_printf(dev, "couldn't map ports/memory\n");
+		return(ENXIO);
 	}
+	sc->pcn_btag = rman_get_bustag(sc->pcn_res);
+	sc->pcn_bhandle = rman_get_bushandle(sc->pcn_res);
 
-	return(ENXIO);
+	chip_id = pcn_chip_id(dev);
+
+	bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
+
+	switch((chip_id >> 12) & PART_MASK) {
+	case Am79C971:
+	case Am79C972:
+	case Am79C973:
+	case Am79C975:
+	case Am79C976:
+	case Am79C978:
+		break;
+	default:
+		return(ENXIO);
+	}
+	device_set_desc(dev, t->pcn_name);
+	return(0);
 }
 
 /*
