@@ -63,6 +63,9 @@ extern FILE	*ftpGetURL(char	*url, char *user, char *passwd,	int *retcode);
 extern FILE	*ftpPutURL(char	*url, char *user, char *passwd,	int *retcode);
 extern time_t	ftpGetModtime(FILE *fp, char *s);
 extern const	char *ftpErrString(int error);
+extern FILE	*ftpLoginAf(char *host, int af, char *user, char *passwd,	int port, int verbose, int *retcode);
+extern FILE	*ftpGetURLAf(char *url, int af, char *user, char *passwd, int *retcode);
+extern FILE	*ftpPutURLAf(char *url, int af, char *user, char *passwd, int *retcode);
 __END_DECLS
 
 #endif	/* _FTP_H_INCLUDE */
