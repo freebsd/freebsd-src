@@ -88,6 +88,8 @@ int	digittoint __P((int));
 #endif
 __END_DECLS
 
+#define	__istype(c,f)	(__runeflags((c)) & (f))
+
 #define	isalnum(c)      __istype((c), (_A|_D))
 #define	isalpha(c)      __istype((c),     _A)
 #define	iscntrl(c)      __istype((c),     _C)
@@ -106,7 +108,7 @@ __END_DECLS
 #define	isascii(c)	(((c) & ~0x7F) == 0)
 #define	isblank(c)	__istype((c), _B)
 #define	toascii(c)	((c) & 0x7F)
-#define	digittoint(c)	(__maskrune((c), 0xFF))
+#define	digittoint(c)	__runeflags((c))
 
 /* XXX the following macros are not backed up by functions. */
 #define	ishexnumber(c)	__istype((c), _X)
@@ -140,17 +142,17 @@ __END_DECLS
 #if !defined(_DONT_USE_CTYPE_INLINE_) && \
     (defined(_USE_CTYPE_INLINE_) || defined(__GNUC__) || defined(__cplusplus))
 static __inline int
-__istype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
+__runeflags(_BSD_CT_RUNE_T_ _c)
 {
-	return (_c < 0 || _c >= _CACHED_RUNES) ? !!(___runetype(_c) & _f) :
-	       !!(_CurrentRuneLocale->runetype[_c] & _f);
+	return (_c < 0 || _c >= _CACHED_RUNES) ? ___runetype(_c) :
+	       _CurrentRuneLocale->runetype[_c];
 }
 
 static __inline int
 __isctype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? 0 :
-	       !!(_DefaultRuneLocale.runetype[_c] & _f);
+	       (_DefaultRuneLocale.runetype[_c]	& _f);
 }
 
 static __inline _BSD_CT_RUNE_T_
@@ -167,19 +169,11 @@ __tolower(_BSD_CT_RUNE_T_ _c)
 	       _CurrentRuneLocale->maplower[_c];
 }
 
-static __inline int
-__maskrune(_BSD_CT_RUNE_T_ _c, unsigned long f)
-{
-	return(((_c & _CRMASK)
-		? ___runetype(_c) : _CurrentRuneLocale->runetype[_c]) & f);
-}
-
 #else /* not using inlines */
 
 __BEGIN_DECLS
-int		__istype __P((_BSD_CT_RUNE_T_, unsigned long));
+int		__runeflags __P((_BSD_CT_RUNE_T_));
 int		__isctype __P((_BSD_CT_RUNE_T_, unsigned long));
-int		__maskrune __P((_BSD_CT_RUNE_T_, unsigned long));
 _BSD_CT_RUNE_T_	__toupper __P((_BSD_CT_RUNE_T_));
 _BSD_CT_RUNE_T_	__tolower __P((_BSD_CT_RUNE_T_));
 __END_DECLS
