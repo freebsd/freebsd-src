@@ -41,6 +41,9 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+#define FLAGS_IN_SCHEDQ	\
+	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
+
 void __exit(int status)
 {
 	int		flags;
@@ -138,7 +141,7 @@ _thread_exit_cleanup(void)
 void
 pthread_exit(void *status)
 {
-	pthread_t pthread;
+	int	frame;
 
 	/* Check if this thread is already in the process of exiting: */
 	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
@@ -172,25 +175,24 @@ pthread_exit(void *status)
 		_thread_run->poll_data.fds = NULL;
 	}
 
-	/*
-	 * Defer signals to protect the scheduling queues from access
-	 * by the signal handler:
-	 */
-	_thread_kern_sig_defer();
-
-	/* Check if there are any threads joined to this one: */
-	while ((pthread = TAILQ_FIRST(&(_thread_run->join_queue))) != NULL) {
-		/* Remove the thread from the queue: */
-		TAILQ_REMOVE(&_thread_run->join_queue, pthread, qe);
-
-		/* Wake the joined thread and let it detach this thread: */
-		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+	if ((frame = _thread_run->sigframe_count) == 0)
+		_thread_exit_finish();
+	else {
+		/*
+		 * Jump back and unwind the signal frames to gracefully
+		 * cleanup.
+		 */
+		___longjmp(*_thread_run->sigframes[frame]->sig_jb, 1);
 	}
 
-	/*
-	 * Undefer and handle pending signals, yielding if necessary:
-	 */
-	_thread_kern_sig_undefer();
+	/* This point should not be reached. */
+	PANIC("Dead thread has resumed");
+}
+
+void
+_thread_exit_finish(void)
+{
+	pthread_t	pthread;
 
 	/*
 	 * Lock the garbage collector mutex to ensure that the garbage
@@ -203,20 +205,6 @@ pthread_exit(void *status)
 	TAILQ_INSERT_HEAD(&_dead_list, _thread_run, dle);
 
 	/*
-	 * Defer signals to protect the scheduling queues from access
-	 * by the signal handler:
-	 */
-	_thread_kern_sig_defer();
-
-	/* Remove this thread from the thread list: */
-	TAILQ_REMOVE(&_thread_list, _thread_run, tle);
-
-	/*
-	 * Undefer and handle pending signals, yielding if necessary:
-	 */
-	_thread_kern_sig_undefer();
-
-	/*
 	 * Signal the garbage collector thread that there is something
 	 * to clean up.
 	 */
@@ -224,19 +212,33 @@ pthread_exit(void *status)
 		PANIC("Cannot signal gc cond");
 
 	/*
-	 * Mark the thread as dead so it will not return if it
-	 * gets context switched out when the mutex is unlocked.
+	 * Avoid a race condition where a scheduling signal can occur
+	 * causing the garbage collector thread to run.  If this happens,
+	 * the current thread can be cleaned out from under us.
 	 */
-	PTHREAD_SET_STATE(_thread_run, PS_DEAD);
+	_thread_kern_sig_defer();
 
 	/* Unlock the garbage collector mutex: */
 	if (pthread_mutex_unlock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
-	/* This this thread will never be re-scheduled. */
-	_thread_kern_sched(NULL);
+	/* Check if there are any threads joined to this one: */
+	while ((pthread = TAILQ_FIRST(&(_thread_run->join_queue))) != NULL) {
+		/* Remove the thread from the queue: */
+		TAILQ_REMOVE(&_thread_run->join_queue, pthread, sqe);
+		pthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
 
-	/* This point should not be reached. */
-	PANIC("Dead thread has resumed");
+		/*
+		 * Wake the joined thread and let it
+		 * detach this thread:
+		 */
+		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+	}
+
+	/* Remove this thread from the thread list: */
+	TAILQ_REMOVE(&_thread_list, _thread_run, tle);
+
+	/* This thread will never be re-scheduled. */
+	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
 }
 #endif

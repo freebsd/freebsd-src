@@ -40,7 +40,6 @@ int
 pthread_join(pthread_t pthread, void **thread_return)
 {
 	int ret = 0;
-	pthread_t pthread1 = NULL;
  
 	_thread_enter_cancellation_point();
 
@@ -62,11 +61,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 	 * Find the thread in the list of active threads or in the
 	 * list of dead threads:
 	 */
-	if (_find_thread(pthread) == 0 ||
-	    _find_dead_thread(pthread) == 0)
-		pthread1  = pthread;
-
-	if (pthread1 == NULL)
+	if ((_find_thread(pthread) != 0) && (_find_dead_thread(pthread) != 0))
 		/* Return an error: */
 		ret = ESRCH;
 
@@ -77,6 +72,8 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
+		PTHREAD_ASSERT_NOT_IN_SYNCQ(_thread_run);
+
 		/* Clear the interrupted flag: */
 		_thread_run->interrupted = 0;
 
@@ -87,13 +84,18 @@ pthread_join(pthread_t pthread, void **thread_return)
 		_thread_kern_sig_defer();
 
 		/* Add the running thread to the join queue: */
-		TAILQ_INSERT_TAIL(&(pthread->join_queue), _thread_run, qe);
+		TAILQ_INSERT_TAIL(&(pthread->join_queue), _thread_run, sqe);
+		_thread_run->flags |= PTHREAD_FLAGS_IN_JOINQ;
+		_thread_run->data.thread = pthread;
 
 		/* Schedule the next thread: */
 		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
-		if (_thread_run->interrupted != 0)
-			TAILQ_REMOVE(&(pthread->join_queue), _thread_run, qe);
+		if (_thread_run->interrupted != 0) {
+			TAILQ_REMOVE(&(pthread->join_queue), _thread_run, sqe);
+			_thread_run->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+		}
+		_thread_run->data.thread = NULL;
 
 		_thread_kern_sig_undefer();
 
@@ -121,5 +123,16 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Return the completion status: */
 	return (ret);
+}
+
+void
+_join_backout(pthread_t pthread)
+{
+	_thread_kern_sig_defer();
+	if (pthread->state == PS_JOIN) {
+		TAILQ_REMOVE(&pthread->data.thread->join_queue, pthread, sqe);
+		_thread_run->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+	}
+	_thread_kern_sig_undefer();
 }
 #endif
