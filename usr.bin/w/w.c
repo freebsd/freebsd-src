@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
+static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * w - print system status (who and what)
@@ -64,6 +64,7 @@ static const char rcsid[] =
 #include <machine/cpu.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <arpa/nameser.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -77,15 +78,13 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <nlist.h>
 #include <paths.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <utmp.h>
 #include <vis.h>
-
-#include <arpa/nameser.h>
-#include <resolv.h>
 
 #include "extern.h"
 
@@ -137,13 +136,12 @@ main(argc, argv)
 {
 	struct kinfo_proc *kp;
 	struct kinfo_proc *dkp;
-	struct hostent *hp;
 	struct stat *stp;
 	FILE *ut;
-	u_long l;
 	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
-	char *memf, *nlistf, *p, *x_suffix;
+	const char *memf, *nlistf, *p;
+	char *x_suffix;
 	char buf[MAXHOSTNAMELEN], errbuf[_POSIX2_LINE_MAX];
 	char fn[MAXHOSTNAMELEN];
 	char *dot;
@@ -329,7 +327,7 @@ main(argc, argv)
 		argwidth = 8;
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		if (ep->kp == NULL) {
-			ep->args = "-";
+			ep->args = strdup("-");
 			continue;
 		}
 		ep->args = fmt_argv(kvm_getargv(kd, ep->kp, argwidth),
@@ -359,8 +357,8 @@ main(argc, argv)
 		char host_buf[UT_HOSTSIZE + 1];
 		struct sockaddr_storage ss;
 		struct sockaddr *sa = (struct sockaddr *)&ss;
-		struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ss;
+		struct sockaddr_in *lsin = (struct sockaddr_in *)&ss;
+		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)&ss;
 		int isaddr;
 
 		host_buf[UT_HOSTSIZE] = '\0';
@@ -377,13 +375,13 @@ main(argc, argv)
 			/* Attempt to change an IP address into a name */
 			isaddr = 0;
 			memset(&ss, '\0', sizeof(ss));
-			if (inet_pton(AF_INET6, p, &sin6->sin6_addr) == 1) {
-				sin6->sin6_len = sizeof(*sin6);
-				sin6->sin6_family = AF_INET6;
+			if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
+				lsin6->sin6_len = sizeof(*lsin6);
+				lsin6->sin6_family = AF_INET6;
 				isaddr = 1;
-			} else if (inet_pton(AF_INET, p, &sin->sin_addr) == 1) {
-				sin->sin_len = sizeof(*sin);
-				sin->sin_family = AF_INET;
+			} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
+				lsin->sin_len = sizeof(*lsin);
+				lsin->sin_family = AF_INET;
 				isaddr = 1;
 			}
 			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
@@ -396,7 +394,7 @@ main(argc, argv)
 		}
 		if (dflag) {
 			for (dkp = ep->dkp; dkp != NULL; dkp = debugproc(dkp)) {
-				char *ptr;
+				const char *ptr;
 
 				ptr = fmt_argv(kvm_getargv(kd, dkp, argwidth),
 				    dkp->ki_comm, MAXCOMLEN);
@@ -427,7 +425,7 @@ pr_header(nowp, nusers)
 	int nusers;
 {
 	double avenrun[3];
-	time_t uptime;
+	time_t luptime;
 	int days, hrs, i, mins, secs;
 	int mib[2];
 	size_t size;
@@ -450,15 +448,15 @@ pr_header(nowp, nusers)
 	size = sizeof(boottime);
 	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
 	    boottime.tv_sec != 0) {
-		uptime = now - boottime.tv_sec;
-		if (uptime > 60)
-			uptime += 30;
-		days = uptime / 86400;
-		uptime %= 86400;
-		hrs = uptime / 3600;
-		uptime %= 3600;
-		mins = uptime / 60;
-		secs = uptime % 60;
+		luptime = now - boottime.tv_sec;
+		if (luptime > 60)
+			luptime += 30;
+		days = luptime / 86400;
+		luptime %= 86400;
+		hrs = luptime / 3600;
+		luptime %= 3600;
+		mins = luptime / 60;
+		secs = luptime % 60;
 		(void)printf(" up");
 		if (days > 0)
 			(void)printf(" %d day%s,", days, days > 1 ? "s" : "");
@@ -482,7 +480,7 @@ pr_header(nowp, nusers)
 		(void)printf(", no load average information available\n");
 	else {
 		(void)printf(", load averages:");
-		for (i = 0; i < (sizeof(avenrun) / sizeof(avenrun[0])); i++) {
+		for (i = 0; i < (int)(sizeof(avenrun) / sizeof(avenrun[0])); i++) {
 			if (use_comma && i > 0)
 				(void)printf(",");
 			(void)printf(" %.2f", avenrun[i]);

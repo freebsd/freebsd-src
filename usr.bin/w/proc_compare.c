@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
+static const char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -63,6 +63,10 @@ static const char rcsid[] =
  *
  * TODO - consider whether pctcpu should be used.
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #define ISRUN(p)	(((p)->ki_stat == SRUN) || ((p)->ki_stat == SIDL))
 #define TESTAB(a, b)    ((a)<<1 | (b))
@@ -120,5 +124,5 @@ proc_compare(p1, p2)
 		return (1);
 	if (p2->ki_tdflags & TDF_SINTR && (p1->ki_tdflags & TDF_SINTR) == 0)
 		return (0);
-	return (p2->ki_pid > p1->ki_pid);		/* tie - return highest pid */
+	return (p2->ki_pid > p1->ki_pid);	/* tie - return highest pid */
 }
