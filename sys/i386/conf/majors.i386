@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.37 1998/04/17 20:26:43 julian Exp $
+$Id: majors.i386,v 1.38 1998/04/22 03:57:07 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -40,6 +40,7 @@ blkdev	name		comments
 24	wstb		ATAPI tape client of "ata"
 25	vinum		RAID fs
 26	sw		VM internal swap device
+27	myx		Mylex RAID (ulf@alameda.net)
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
