@@ -15,8 +15,8 @@ to experiment with.
 
 To get more information on Coda, I would like to refer people to
         http://www.coda.cs.cmu.edu
-There is a wealth of documents, papers, theses there.  There is also a
-good introduction to the Coda File System in
+There is a wealth of documents, papers, and theses there.  There is
+also a good introduction to the Coda File System in
         http://www.coda.cs.cmu.edu/ljpaper/lj.html
 
 Coda was originally developed as an academic prototype/testbed.  It is
@@ -45,11 +45,11 @@ The relevant sources, binaries, and docs can be found in
         ftp://ftp.coda.cs.cmu.edu/pub/coda/
 
 We intend to come out with new Coda releases often, not daily.  We
-don't wish to slight any OS/platform not mentioned above.  We are just
+don't want to slight any OS/platform not mentioned above.  We are just
 limited in our resources as to what we can support internally.  We
 will be happy to integrate OpenBSD support as well as other OS
-support.  Also, adding platform support is relatively easy and we can
-discuss this.  The only problem is that Coda has a light weight
+support.  Also, adding platform support should be relatively easy and
+we can discuss this.  The only difficulty is that Coda has a light weight
 process package.  It does some manipulations in assembler which would
 have to be redone for a different platform.
 

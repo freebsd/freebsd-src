@@ -1,33 +1,35 @@
 /*
-
-            Coda: an Experimental Distributed File System
-                             Release 3.1
-
-          Copyright (c) 1987-1998 Carnegie Mellon University
-                         All Rights Reserved
-
-Permission  to  use, copy, modify and distribute this software and its
-documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
-software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
-that credit is given to Carnegie Mellon University  in  all  documents
-and publicity pertaining to direct or indirect use of this code or its
-derivatives.
-
-CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
-SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
-FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
-DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
-RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
-ANY DERIVATIVE WORK.
-
-Carnegie  Mellon  encourages  users  of  this  software  to return any
-improvements or extensions that  they  make,  and  to  grant  Carnegie
-Mellon the rights to redistribute these changes without encumbrance.
-*/
-
-/* $Header: /afs/cs/project/coda-src/cvs/coda/kernel-src/vfs/freebsd/cfs/cfs_vnodeops.h,v 1.7 1998/08/28 18:12:24 rvb Exp $ */
+ * 
+ *             Coda: an Experimental Distributed File System
+ *                              Release 3.1
+ * 
+ *           Copyright (c) 1987-1998 Carnegie Mellon University
+ *                          All Rights Reserved
+ * 
+ * Permission  to  use, copy, modify and distribute this software and its
+ * documentation is hereby granted,  provided  that  both  the  copyright
+ * notice  and  this  permission  notice  appear  in  all  copies  of the
+ * software, derivative works or  modified  versions,  and  any  portions
+ * thereof, and that both notices appear in supporting documentation, and
+ * that credit is given to Carnegie Mellon University  in  all  documents
+ * and publicity pertaining to direct or indirect use of this code or its
+ * derivatives.
+ * 
+ * CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
+ * SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
+ * FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
+ * DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
+ * RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
+ * ANY DERIVATIVE WORK.
+ * 
+ * Carnegie  Mellon  encourages  users  of  this  software  to return any
+ * improvements or extensions that  they  make,  and  to  grant  Carnegie
+ * Mellon the rights to redistribute these changes without encumbrance.
+ * 
+ * 	@(#) src/sys/cfs/cfs_vnodeops.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
+ *  $Id: $
+ * 
+  */
 
 /* 
  * Mach Operating System
@@ -46,6 +48,9 @@ Mellon the rights to redistribute these changes without encumbrance.
 /*
  * HISTORY
  * $Log: cfs_vnodeops.h,v $
+ * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
+ * Very Preliminary Coda
+ *
  * Revision 1.7  1998/08/28 18:12:24  rvb
  * Now it also works on FreeBSD -current.  This code will be
  * committed to the FreeBSD -current and NetBSD -current
@@ -87,7 +92,6 @@ Mellon the rights to redistribute these changes without encumbrance.
  *
  */
 
-
 /* NetBSD interfaces to the vnodeops */
 int cfs_open      __P((void *));
 int cfs_close     __P((void *));
@@ -117,22 +121,15 @@ int cfs_reclaim   __P((void *));
 int cfs_lock      __P((void *));
 int cfs_unlock    __P((void *));
 int cfs_islocked  __P((void *));
-int nbsd_vop_error   __P((void *));
-int nbsd_vop_nop     __P((void *));
-#ifdef __FreeBSD__
-int fbsd_vnotsup  __P((void *ap));
-#ifdef	__FreeBSD_version
+int cfs_vop_error   __P((void *));
+int cfs_vop_nop     __P((void *));
 int cfs_fbsd_getpages	__P((void *));
 int cfs_fbsd_putpages	__P((void *));
-#endif
-#endif
 
 int (**cfs_vnodeop_p)(void *);
+
 int cfs_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw,
     int ioflag, struct ucred *cred, struct proc *p);
-
-
-
 int cfs_grab_vnode(dev_t dev, ino_t ino, struct vnode **vpp);
 void print_vattr(struct vattr *attr);
 void print_cred(struct ucred *cred);
