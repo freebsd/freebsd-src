@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.24 1999/01/09 02:38:40 msmith Exp $
+# $Id: Makefile,v 1.25 1999/01/09 20:14:46 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -71,8 +71,8 @@ vers.o:
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
 		${BASE}.bin
-	/usr/bin/kzip ${.TARGET}
-	mv ${.TARGET}.kz ${.TARGET}
+#	/usr/bin/kzip ${.TARGET}
+#	mv ${.TARGET}.kz ${.TARGET}
 
 ${BASE}.bin: ${BASE}.sym
 	cp ${.ALLSRC} ${.TARGET}
