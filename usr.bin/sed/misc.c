@@ -55,36 +55,6 @@ static const char rcsid[] =
 #include "extern.h"
 
 /*
- * malloc with result test
- */
-void *
-xmalloc(size)
-	u_int size;
-{
-	void *p;
-
-	if ((p = malloc(size)) == NULL)
-		err(1, "malloc");
-	return (p);
-}
-
-/*
- * realloc with result test
- */
-void *
-xrealloc(p, size)
-	void *p;
-	u_int size;
-{
-	if (p == NULL)			/* Compatibility hack. */
-		return (xmalloc(size));
-
-	if ((p = realloc(p, size)) == NULL)
-		err(1, "realloc");
-	return (p);
-}
-
-/*
  * Return a string for a regular expression error passed.  This is a overkill,
  * because of the silly semantics of regerror (we can never know the size of
  * the buffer).
@@ -100,7 +70,8 @@ strregerror(errcode, preg)
 	if (oe != NULL)
 		free(oe);
 	s = regerror(errcode, preg, "", 0);
-	oe = xmalloc(s);
+	if ((oe = malloc(s)) == NULL)
+		err(1, "malloc");
 	(void)regerror(errcode, preg, oe, s);
 	return (oe);
 }

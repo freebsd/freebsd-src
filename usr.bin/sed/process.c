@@ -113,9 +113,10 @@ redirect:
 				goto redirect;
 			case 'a':
 				if (appendx >= appendnum)
-					appends = xrealloc(appends,
+					if ((appends = realloc(appends,
 					    sizeof(struct s_appends) *
-					    (appendnum *= 2));
+					    (appendnum *= 2))) == NULL)
+						err(1, "realloc");
 				appends[appendx].type = AP_STRING;
 				appends[appendx].s = cp->t;
 				appends[appendx].len = strlen(cp->t);
@@ -201,9 +202,10 @@ redirect:
 				exit(0);
 			case 'r':
 				if (appendx >= appendnum)
-					appends = xrealloc(appends,
+					if ((appends = realloc(appends,
 					    sizeof(struct s_appends) *
-					    (appendnum *= 2));
+					    (appendnum *= 2))) == NULL)
+						err(1, "realloc");
 				appends[appendx].type = AP_FILE;
 				appends[appendx].s = cp->t;
 				appends[appendx].len = strlen(cp->t);
@@ -548,7 +550,9 @@ regsub(sp, string, src)
 #define	NEEDSP(reqlen)							\
 	if (sp->len >= sp->blen - (reqlen) - 1) {			\
 		sp->blen += (reqlen) + 1024;				\
-		sp->space = sp->back = xrealloc(sp->back, sp->blen);	\
+		if ((sp->space = sp->back = realloc(sp->back, sp->blen)) \
+		    == NULL)						\
+			err(1, "realloc");				\
 		dst = sp->space + sp->len;				\
 	}
 
@@ -596,7 +600,9 @@ cspace(sp, p, len, spflag)
 	tlen = sp->len + len + 1;
 	if (tlen > sp->blen) {
 		sp->blen = tlen + 1024;
-		sp->space = sp->back = xrealloc(sp->back, sp->blen);
+		if ((sp->space = sp->back = realloc(sp->back, sp->blen)) ==
+		    NULL)
+			err(1, "realloc");
 	}
 
 	if (spflag == REPLACE)

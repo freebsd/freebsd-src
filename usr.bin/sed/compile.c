@@ -138,8 +138,13 @@ compile()
 	*compile_stream(&prog) = NULL;
 	fixuplabel(prog, NULL);
 	uselabel();
-	appends = xmalloc(sizeof(struct s_appends) * appendnum);
-	match = xmalloc((maxnsub + 1) * sizeof(regmatch_t));
+	if (appendnum == 0)
+		appends = NULL;
+	else if ((appends = malloc(sizeof(struct s_appends) * appendnum)) ==
+	    NULL)
+		err(1, "malloc");
+	if ((match = malloc((maxnsub + 1) * sizeof(regmatch_t))) == NULL)
+		err(1, "malloc");
 }
 
 #define EATSPACE() do {							\
@@ -170,7 +175,8 @@ compile_stream(link)
 semicolon:	EATSPACE();
 		if (p && (*p == '#' || *p == '\0'))
 			continue;
-		*link = cmd = xmalloc(sizeof(struct s_command));
+		if ((*link = cmd = malloc(sizeof(struct s_command))) == NULL)
+			err(1, "malloc");
 		link = &cmd->next;
 		cmd->nonsel = cmd->inrange = 0;
 		/* First parse the addresses */
@@ -180,14 +186,17 @@ semicolon:	EATSPACE();
 #define	addrchar(c)	(strchr("0123456789/\\$", (c)))
 		if (addrchar(*p)) {
 			naddr++;
-			cmd->a1 = xmalloc(sizeof(struct s_addr));
+			if ((cmd->a1 = malloc(sizeof(struct s_addr))) == NULL)
+				err(1, "malloc");
 			p = compile_addr(p, cmd->a1);
 			EATSPACE();				/* EXTENSION */
 			if (*p == ',') {
 				p++;
 				EATSPACE();			/* EXTENSION */
 				naddr++;
-				cmd->a2 = xmalloc(sizeof(struct s_addr));
+				if ((cmd->a2 = malloc(sizeof(struct s_addr)))
+				    == NULL)
+					err(1, "malloc");
 				p = compile_addr(p, cmd->a2);
 				EATSPACE();
 			} else
@@ -306,7 +315,8 @@ nonsel:		/* Now parse the command */
 				errx(1,
 "%lu: %s: substitute pattern can not be delimited by newline or backslash", 
 					linenum, fname);
-			cmd->u.s = xmalloc(sizeof(struct s_subst));
+			if ((cmd->u.s = malloc(sizeof(struct s_subst))) == NULL)
+				err(1, "malloc");
 			p = compile_re(p, &cmd->u.s->re);
 			if (p == NULL)
 				errx(1,
@@ -434,7 +444,8 @@ compile_re(p, repp)
 		*repp = NULL;
 		return (p);
 	}
-	*repp = xmalloc(sizeof(regex_t));
+	if ((*repp = malloc(sizeof(regex_t))) == NULL)
+		err(1, "malloc");
 	if (p && (eval = regcomp(*repp, re, rflags)) != 0)
 		errx(1, "%lu: %s: RE error: %s",
 				linenum, fname, strregerror(eval, *repp));
@@ -465,7 +476,8 @@ compile_subst(p, s)
 	s->maxbref = 0;
 	s->linenum = linenum;
 	asize = 2 * _POSIX2_LINE_MAX + 1;
-	text = xmalloc(asize);
+	if ((text = malloc(asize)) == NULL)
+		err(1, "malloc");
 	size = 0;
 	do {
 		op = sp = text + size;
@@ -490,7 +502,8 @@ compile_subst(p, s)
 				}
 				*sp++ = '\0';
 				size += sp - op;
-				s->new = xrealloc(text, size);
+				if ((s->new = realloc(text, size)) == NULL)
+					err(1, "realloc");
 				return (p);
 			} else if (*p == '\n') {
 				errx(1,
@@ -502,7 +515,8 @@ compile_subst(p, s)
 		size += sp - op;
 		if (asize - size < _POSIX2_LINE_MAX + 1) {
 			asize *= 2;
-			text = xrealloc(text, asize);
+			if ((text = realloc(text, asize)) == NULL)
+				err(1, "realloc");
 		}
 	} while (cu_fgets(p = lbuf, sizeof(lbuf), &more));
 	errx(1, "%lu: %s: unterminated substitute in regular expression",
@@ -615,7 +629,8 @@ compile_tr(p, transtab)
 		errx(1, "%lu: %s: transform strings are not the same length",
 				linenum, fname);
 	/* We assume characters are 8 bits */
-	lt = xmalloc(UCHAR_MAX);
+	if ((lt = malloc(UCHAR_MAX)) == NULL)
+		err(1, "malloc");
 	for (i = 0; i <= UCHAR_MAX; i++)
 		lt[i] = (char)i;
 	for (op = old, np = new; *op; op++, np++)
@@ -635,7 +650,8 @@ compile_text()
 	char lbuf[_POSIX2_LINE_MAX + 1];
 
 	asize = 2 * _POSIX2_LINE_MAX + 1;
-	text = xmalloc(asize);
+	if ((text = malloc(asize)) == NULL)
+		err(1, "malloc");
 	size = 0;
 	while (cu_fgets(lbuf, sizeof(lbuf), NULL)) {
 		op = s = text + size;
@@ -653,11 +669,14 @@ compile_text()
 		}
 		if (asize - size < _POSIX2_LINE_MAX + 1) {
 			asize *= 2;
-			text = xrealloc(text, asize);
+			if ((text = realloc(text, asize)) == NULL)
+				err(1, "realloc");
 		}
 	}
 	text[size] = '\0';
-	return (xrealloc(text, size + 1));
+	if ((p = realloc(text, size + 1)) == NULL)
+		err(1, "realloc");
+	return (p);
 }
 
 /*
@@ -708,7 +727,7 @@ duptoeol(s, ctype)
 {
 	size_t len;
 	int ws;
-	char *start;
+	char *p, *start;
 
 	ws = 0;
 	for (start = s; *s != '\0' && *s != '\n'; ++s)
@@ -717,7 +736,9 @@ duptoeol(s, ctype)
 	if (ws)
 		warnx("%lu: %s: whitespace after %s", linenum, fname, ctype);
 	len = s - start + 1;
-	return (memmove(xmalloc(len), start, len));
+	if ((p = malloc(len)) == NULL)
+		err(1, "malloc");
+	return (memmove(p, start, len));
 }
 
 /*
@@ -773,7 +794,8 @@ enterlabel(cp)
 	for (lh = *lhp; lh != NULL; lh = lh->lh_next)
 		if (lh->lh_hash == h && strcmp(cp->t, lh->lh_cmd->t) == 0)
 			errx(1, "%lu: %s: duplicate label '%s'", linenum, fname, cp->t);
-	lh = xmalloc(sizeof *lh);
+	if ((lh = malloc(sizeof *lh)) == NULL)
+		err(1, "malloc");
 	lh->lh_next = *lhp;
 	lh->lh_hash = h;
 	lh->lh_cmd = cp;

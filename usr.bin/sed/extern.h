@@ -56,5 +56,3 @@ char	*cu_fgets __P((char *, int, int *));
 int	 mf_fgets __P((SPACE *, enum e_spflag));
 void	 process __P((void));
 char	*strregerror __P((int, regex_t *));
-void	*xmalloc __P((u_int));
-void	*xrealloc __P((void *, u_int));
