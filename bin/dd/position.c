@@ -68,7 +68,7 @@ pos_in()
 	size_t bcnt;
 
 	/* If not a character, pipe or tape device, try to seek on it. */
-	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE)) || in.flags & ISDISK) {
+	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE)) || in.flags & ISSEEK) {
 		errno = 0;
 		if (lseek(in.fd, in.offset * in.dbsz, SEEK_CUR) == -1 &&
 		    errno != 0)
@@ -126,7 +126,7 @@ pos_out()
 	ssize_t n;
 
 	/* If not a character, pipe or tape device, try to seek on it. */
-	if (!(out.flags & (ISCHR|ISPIPE|ISTAPE)) || out.flags & ISDISK) {
+	if (!(out.flags & (ISCHR|ISPIPE|ISTAPE)) || out.flags & ISSEEK) {
 		errno = 0;
 		if (lseek(out.fd, out.offset * out.dbsz, SEEK_SET) == -1 &&
 		    errno != 0)
