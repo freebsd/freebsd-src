@@ -71,7 +71,7 @@ int	debug = 0;
 void	timeout();
 long	lastmsgtime;
 
-char    hostname[MAXHOSTNAMELEN];
+char    hostname[MAXHOSTNAMELEN + 1];
 
 #define TIMEOUT 30
 #define MAXIDLE 120
@@ -112,6 +112,7 @@ main(argc, argv)
 		lastmsgtime = time(0);
 		process_request(mp, &response);
 		/* can block here, is this what I want? */
+		mp->ctl_addr.sa_family = htons(mp->ctl_addr.sa_family);
 		cc = sendto(sockt, (char *)&response,
 		    sizeof (response), 0, (struct sockaddr *)&mp->ctl_addr,
 		    sizeof (mp->ctl_addr));
