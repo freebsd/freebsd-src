@@ -31,13 +31,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)float.h	7.1 (Berkeley) 5/8/90
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00086
- * --------------------         -----   ----------------------
- *
- * 27 Feb 93    Handel/da Silva/Poirot  Adjust value for MAX_DOUBLE
  */
 
 #define FLT_RADIX	2		/* b */
@@ -57,10 +50,10 @@
 #define DBL_EPSILON	2.2204460492503131E-16
 #define DBL_DIG		15
 #define DBL_MIN_EXP	-1021
-#define DBL_MIN		2.225073858507201E-308
+#define DBL_MIN		2.2250738585072014E-308
 #define DBL_MIN_10_EXP	-307
 #define DBL_MAX_EXP	1024
-#define DBL_MAX		1.797693134862315E+308
+#define DBL_MAX		1.7976931348623157E+308
 #define DBL_MAX_10_EXP	308
 
 #define LDBL_MANT_DIG	DBL_MANT_DIG
