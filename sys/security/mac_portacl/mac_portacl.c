@@ -76,6 +76,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stdint.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <netinet/in.h>
