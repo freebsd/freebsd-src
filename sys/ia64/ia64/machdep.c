@@ -90,7 +90,11 @@ u_int64_t processor_frequency;
 u_int64_t bus_frequency;
 u_int64_t itc_frequency;
 int cold = 1;
+
+u_int64_t pa_bootinfo;
+u_int64_t va_bootinfo;
 struct bootinfo bootinfo;
+int bootinfo_error; /* XXX temporary ad-hoc error mask to help debugging */
 
 struct mtx sched_lock;
 struct mtx Giant;
@@ -401,10 +405,25 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	/*
 	 * Gross and disgusting hack. The bootinfo is written into
 	 * memory at a fixed address.
+	 * To help transitioning to a non-fixed bootinfo block, we
+	 * temporarily have to make this more gross and disgusting:
+	 * o  pa_bootinfo is the physical address of the bootinfo block
+	 *    as passed to us by the loader (initialized in locore.s)
+	 *    (EFI loader version 0.3 and up). We only check this value.
+	 *    We don't actively use it yet.
+	 * o  va_bootinfo is the hardwired virtual (RR7) address of
+	 *    the bootinfo block (old loaders). We still use it for the
+	 *    moment.
 	 */
-	bootinfo = *(struct bootinfo *) 0xe000000000508000;
-	if (bootinfo.bi_magic != BOOTINFO_MAGIC
-	    || bootinfo.bi_version != 1) {
+	va_bootinfo = 0xe000000000508000; 	/* the fixed RR7 address */
+	if (IA64_PHYS_TO_RR7(pa_bootinfo) != va_bootinfo)
+		bootinfo_error |= 1;		/* XXX loader did not set r8 */
+
+	/* copy the bootinfo block */
+	bootinfo = *(struct bootinfo *)va_bootinfo;
+
+	if (bootinfo.bi_magic != BOOTINFO_MAGIC || bootinfo.bi_version != 1) {
+		bootinfo_error |= 2;		/* XXX bogus block */
 		bzero(&bootinfo, sizeof(bootinfo));
 		bootinfo.bi_kernend = (vm_offset_t) round_page(_end);
 	}
@@ -477,6 +496,14 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	cninit();
 
 	/* OUTPUT NOW ALLOWED */
+
+	if (bootinfo_error & 1)
+		printf("bootinfo: the loader did not not pass the address "
+		    "of the block in r8.\n");
+
+	if (bootinfo_error & 2)
+		printf("bootinfo: block not valid; possibly not at hardwired "
+		    "address.\n");
 
 	if (ia64_pal_base != 0) {
 		ia64_pal_base &= ~((1 << 28) - 1);
