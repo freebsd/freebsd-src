@@ -75,6 +75,7 @@ AcpiOsReadPort (
         break;
     default:
         /* debug trap goes here */
+	break;
     }
 
     return(AE_OK);
@@ -98,6 +99,7 @@ AcpiOsWritePort (
         break;
     default:
         /* debug trap goes here */
+	break;
     }
 
     return(AE_OK);
@@ -129,6 +131,7 @@ AcpiOsReadPciConfiguration (
 	break;
     default:
 	/* debug trap goes here */
+	break;
     }
     
 

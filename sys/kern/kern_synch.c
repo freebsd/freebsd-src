@@ -878,6 +878,7 @@ loadav(void *arg)
 				nrun++;
 			}
 nextproc:
+			continue;
 		}
 	}
 	sx_sunlock(&allproc_lock);
