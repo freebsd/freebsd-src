@@ -64,16 +64,7 @@ _pthread_cancel(pthread_t pthread)
 				break;
 
 			case PS_JOIN:
-				/*
-				 * Disconnect the thread from the joinee:
-				 */
-				if (pthread->join_status.thread != NULL) {
-					pthread->join_status.thread->joiner
-					    = NULL;
-					pthread->join_status.thread = NULL;
-				}
 				pthread->cancelflags |= THR_CANCELLING;
-				_thr_setrunnable_unlocked(pthread);
 				break;
 
 			case PS_SUSPENDED:
