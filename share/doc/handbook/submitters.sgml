@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.20 1996/02/06 03:35:16 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.21 1996/02/27 15:57:50 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -345,7 +345,7 @@ diff -c -r olddir newdir
    <em>very busy</em> and so you should only send mail to them
    in cases where mailing to hackers is truly impractical.
 
-<sect1><heading>Contributions of new code</heading>
+<sect1><heading>New code or major value-added packages</heading>
 
 <p>In the case of a significant contribution of a large body
    work, or the addition of an important new feature to FreeBSD,
@@ -418,14 +418,14 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.20 1996/02/06 03:35:16 jkh Exp $
+	$Id: submitters.sgml,v 1.21 1996/02/27 15:57:50 jfieber Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
 		      
         &porting;
 
-<sect1><heading>Contributions of money, hardware or Internet access</heading>
+<sect1><heading>Money, Hardware or Internet access</heading>
 <p>We're always very happy to accept donations to further the cause of
 the FreeBSD Project and, in a volunteer effort like ours, a little can go
 a long way!  Donations of hardware are also very important to expanding
