@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.14 1999/01/16 17:44:09 dfr Exp $
+ *	$Id: subr_bus.c,v 1.15 1999/01/27 21:49:57 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -31,6 +31,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/bus_private.h>
 #include <sys/systm.h>
 #include <machine/stdarg.h>	/* for device_printf() */
@@ -84,6 +85,10 @@ void print_devclass_list(void);
 #define print_devclass_list()		/* nop */
 #endif
 
+#ifdef DEVICE_SYSCTLS
+static void device_register_oids(device_t dev);
+static void device_unregister_oids(device_t dev);
+#endif
 
 /*
  * Method table handling
@@ -227,7 +232,14 @@ devclass_find(const char *classname)
 int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
+    driverlink_t dl;
+
     PDEBUG(("%s", DRIVERNAME(driver)));
+
+    dl = malloc(sizeof *dl, M_DEVBUF, M_NOWAIT);
+    if (!dl)
+	return ENOMEM;
+
     /*
      * Compile the drivers methods.
      */
@@ -238,7 +250,8 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
      */
     devclass_find_internal(driver->name, TRUE);
 
-    TAILQ_INSERT_TAIL(&dc->drivers, driver, link);
+    dl->driver = driver;
+    TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
 
     return 0;
 }
@@ -247,6 +260,7 @@ int
 devclass_delete_driver(devclass_t busclass, driver_t *driver)
 {
     devclass_t dc = devclass_find(driver->name);
+    driverlink_t dl;
     device_t dev;
     int i;
     int error;
@@ -257,14 +271,34 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	return 0;
 
     /*
+     * Find the link structure in the bus' list of drivers.
+     */
+    for (dl = TAILQ_FIRST(&busclass->drivers); dl;
+	 dl = TAILQ_NEXT(dl, link)) {
+	if (dl->driver == driver)
+	    break;
+    }
+
+    if (!dl) {
+	PDEBUG(("%s not found in %s list", driver->name, busclass->name));
+	return ENOENT;
+    }
+
+    /*
      * Disassociate from any devices.  We iterate through all the
      * devices in the devclass of the driver and detach any which are
-     * using the driver.
+     * using the driver and which have a parent in the devclass which
+     * we are deleting from.
+     *
+     * Note that since a driver can be in multiple devclasses, we
+     * should not detach devices which are not children of devices in
+     * the affected devclass.
      */
     for (i = 0; i < dc->maxunit; i++) {
 	if (dc->devices[i]) {
 	    dev = dc->devices[i];
-	    if (dev->driver == driver) {
+	    if (dev->driver == driver
+		&& dev->parent && dev->parent->devclass == busclass) {
 		if ((error = device_detach(dev)) != 0)
 		    return error;
 		device_set_driver(dev, NULL);
@@ -272,25 +306,38 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	}
     }
 
-    TAILQ_REMOVE(&busclass->drivers, driver, link);
+    TAILQ_REMOVE(&busclass->drivers, dl, link);
+    free(dl, M_DEVBUF);
+
     return 0;
+}
+
+static driverlink_t
+devclass_find_driver_internal(devclass_t dc, const char *classname)
+{
+    driverlink_t dl;
+
+    PDEBUG(("%s in devclass %s", classname, DEVCLANAME(dc)));
+
+    for (dl = TAILQ_FIRST(&dc->drivers); dl; dl = TAILQ_NEXT(dl, link)) {
+	if (!strcmp(dl->driver->name, classname))
+	    return dl;
+    }
+
+    PDEBUG(("not found"));
+    return NULL;
 }
 
 driver_t *
 devclass_find_driver(devclass_t dc, const char *classname)
 {
-    driver_t *driver;
+    driverlink_t dl;
 
-    PDEBUG(("%s in devclass %s", classname, DEVCLANAME(dc)));
-
-    for (driver = TAILQ_FIRST(&dc->drivers); driver;
-	 driver = TAILQ_NEXT(driver, link)) {
-	if (!strcmp(driver->name, classname))
-	    return driver;
-    }
-
-    PDEBUG(("not found"));
-    return NULL;
+    dl = devclass_find_driver_internal(dc, classname);
+    if (dl)
+	return dl->driver;
+    else
+	return NULL;
 }
 
 const char *
@@ -407,14 +454,28 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 static int
 devclass_add_device(devclass_t dc, device_t dev)
 {
-    int error;
+    int buflen, error;
 
     PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
-    if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0)
+    buflen = strlen(dc->name) + 5;
+    dev->nameunit = malloc(buflen, M_DEVBUF, M_NOWAIT);
+    if (!dev->nameunit)
+	return ENOMEM;
+
+    if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0) {
+	free(dev->nameunit, M_DEVBUF);
+	dev->nameunit = NULL;
 	return error;
+    }
     dc->devices[dev->unit] = dev;
     dev->devclass = dc;
+    snprintf(dev->nameunit, buflen, "%s%d", dc->name, dev->unit);
+
+#ifdef DEVICE_SYSCTLS
+    device_register_oids(dev);
+#endif
+
     return 0;
 }
 
@@ -433,8 +494,15 @@ devclass_delete_device(devclass_t dc, device_t dev)
     if (dev->flags & DF_WILDCARD)
 	dev->unit = -1;
     dev->devclass = NULL;
+    free(dev->nameunit, M_DEVBUF);
+    dev->nameunit = NULL;
     while (dc->nextunit > 0 && dc->devices[dc->nextunit - 1] == NULL)
 	dc->nextunit--;
+
+#ifdef DEVICE_SYSCTLS
+    device_unregister_oids(dev);
+#endif
+
     return 0;
 }
 
@@ -444,7 +512,6 @@ make_device(device_t parent, const char *name,
 {
     device_t dev;
     devclass_t dc;
-    int error;
 
     PDEBUG(("%s at %s as unit %d with%s ivars",
     	    name, DEVICENAME(parent), unit, (ivars? "":"out")));
@@ -455,9 +522,6 @@ make_device(device_t parent, const char *name,
 	    printf("make_device: can't find device class %s\n", name);
 	    return NULL;
 	}
-
-	if ((error = devclass_alloc_unit(dc, &unit)) != 0)
-	    return NULL;
     } else
 	dc = NULL;
 
@@ -469,20 +533,20 @@ make_device(device_t parent, const char *name,
     TAILQ_INIT(&dev->children);
     dev->ops = &null_ops;
     dev->driver = NULL;
-    dev->devclass = dc;
+    dev->devclass = NULL;
     dev->unit = unit;
+    dev->nameunit = NULL;
     dev->desc = NULL;
     dev->busy = 0;
     dev->flags = DF_ENABLED;
     if (unit == -1)
 	dev->flags |= DF_WILDCARD;
-    if (name)
+    if (name) {
 	dev->flags |= DF_FIXEDCLASS;
+	devclass_add_device(dc, dev);
+    }
     dev->ivars = ivars;
     dev->softc = NULL;
-
-    if (dc)
-	dc->devices[unit] = dev;
 
     dev->state = DS_NOTPRESENT;
 
@@ -560,6 +624,7 @@ device_delete_child(device_t dev, device_t child)
     if (child->devclass)
 	devclass_delete_device(child->devclass, child);
     TAILQ_REMOVE(&dev->children, child, link);
+    device_set_desc(child, NULL);
     free(child, M_DEVBUF);
 
     return 0;
@@ -584,24 +649,23 @@ device_find_child(device_t dev, const char *classname, int unit)
     return NULL;
 }
 
-static driver_t *
+static driverlink_t
 first_matching_driver(devclass_t dc, device_t dev)
 {
     if (dev->devclass)
-	return devclass_find_driver(dc, dev->devclass->name);
+	return devclass_find_driver_internal(dc, dev->devclass->name);
     else
 	return TAILQ_FIRST(&dc->drivers);
 }
 
-static driver_t *
-next_matching_driver(devclass_t dc, device_t dev, driver_t *last)
+static driverlink_t
+next_matching_driver(devclass_t dc, device_t dev, driverlink_t last)
 {
     if (dev->devclass) {
-	driver_t *driver;
-	for (driver = TAILQ_NEXT(last, link); driver;
-	     driver = TAILQ_NEXT(driver, link))
-	    if (!strcmp(dev->devclass->name, driver->name))
-		return driver;
+	driverlink_t dl;
+	for (dl = TAILQ_NEXT(last, link); dl; dl = TAILQ_NEXT(dl, link))
+	    if (!strcmp(dev->devclass->name, dl->driver->name))
+		return dl;
 	return NULL;
     } else
 	return TAILQ_NEXT(last, link);
@@ -611,7 +675,7 @@ static int
 device_probe_child(device_t dev, device_t child)
 {
     devclass_t dc;
-    driver_t *driver;
+    driverlink_t dl;
 
     dc = dev->devclass;
     if (dc == NULL)
@@ -620,14 +684,14 @@ device_probe_child(device_t dev, device_t child)
     if (child->state == DS_ALIVE)
 	return 0;
 
-    for (driver = first_matching_driver(dc, child);
-	 driver;
-	 driver = next_matching_driver(dc, child, driver)) {
-	PDEBUG(("Trying %s", DRIVERNAME(driver)));
-	device_set_driver(child, driver);
+    for (dl = first_matching_driver(dc, child);
+	 dl;
+	 dl = next_matching_driver(dc, child, dl)) {
+	PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
+	device_set_driver(child, dl->driver);
 	if (DEVICE_PROBE(child) == 0) {
 	    if (!child->devclass)
-		device_set_devclass(child, driver->name);
+		device_set_devclass(child, dl->driver->name);
 	    child->state = DS_ALIVE;
 	    return 0;
 	}
@@ -691,6 +755,12 @@ device_get_name(device_t dev)
     return NULL;
 }
 
+const char *
+device_get_nameunit(device_t dev)
+{
+    return dev->nameunit;
+}
+
 int
 device_get_unit(device_t dev)
 {
@@ -724,10 +794,44 @@ device_printf(device_t dev, const char * fmt, ...)
 	va_end(ap);
 }
 
+static void
+device_set_desc_internal(device_t dev, const char* desc, int copy)
+{
+    if (dev->desc && (dev->flags & DF_DESCMALLOCED)) {
+	free(dev->desc, M_DEVBUF);
+	dev->flags &= ~DF_DESCMALLOCED;
+	dev->desc = NULL;
+    }
+
+    if (copy && desc) {
+	dev->desc = malloc(strlen(desc) + 1, M_DEVBUF, M_NOWAIT);
+	if (dev->desc) {
+	    strcpy(dev->desc, desc);
+	    dev->flags |= DF_DESCMALLOCED;
+	}
+    } else
+	/* Avoid a -Wcast-qual warning */
+	dev->desc = (char *)(uintptr_t) desc;
+
+#ifdef DEVICE_SYSCTLS
+    {
+	struct sysctl_oid *oid = &dev->oid[1];
+	oid->oid_arg1 = dev->desc ? dev->desc : "";
+	oid->oid_arg2 = dev->desc ? strlen(dev->desc) : 0;
+    }
+#endif
+}
+
 void
 device_set_desc(device_t dev, const char* desc)
 {
-    dev->desc = desc;
+    device_set_desc_internal(dev, desc, FALSE);
+}
+
+void
+device_set_desc_copy(device_t dev, const char* desc)
+{
+    device_set_desc_internal(dev, desc, TRUE);
 }
 
 void *
@@ -782,6 +886,24 @@ device_unbusy(device_t dev)
 	    device_unbusy(dev->parent);
 	dev->state = DS_ATTACHED;
     }
+}
+
+void
+device_quiet(device_t dev)
+{
+    dev->flags |= DF_QUIET;
+}
+
+void
+device_verbose(device_t dev)
+{
+    dev->flags &= ~DF_QUIET;
+}
+
+int
+device_is_quiet(device_t dev)
+{
+    return (dev->flags & DF_QUIET) != 0;
 }
 
 int
@@ -853,7 +975,8 @@ device_probe_and_attach(device_t dev)
     if (dev->flags & DF_ENABLED) {
 	error = device_probe_child(bus, dev);
 	if (!error) {
-	    device_print_child(bus, dev);
+	    if (!device_is_quiet(dev))
+		device_print_child(bus, dev);
 	    error = DEVICE_ATTACH(dev);
 	    if (!error)
 		dev->state = DS_ATTACHED;
@@ -884,7 +1007,9 @@ device_detach(device_t dev)
 	return 0;
 
     if ((error = DEVICE_DETACH(dev)) != 0)
-	    return error;
+	return error;
+    if (dev->parent)
+	BUS_CHILD_DETACHED(dev->parent, dev);
 
     if (!(dev->flags & DF_FIXEDCLASS))
 	devclass_delete_device(dev->devclass, dev);
@@ -902,6 +1027,124 @@ device_shutdown(device_t dev)
 	return 0;
     return DEVICE_SHUTDOWN(dev);
 }
+
+#ifdef DEVICE_SYSCTLS
+
+/*
+ * Sysctl nodes for devices.
+ */
+
+SYSCTL_NODE(_hw, OID_AUTO, devices, CTLFLAG_RW, 0, "A list of all devices");
+
+static int
+sysctl_handle_children SYSCTL_HANDLER_ARGS
+{
+    device_t dev = arg1;
+    device_t child;
+    int first = 1, error = 0;
+
+    for (child = TAILQ_FIRST(&dev->children); child;
+	 child = TAILQ_NEXT(child, link)) {
+	if (child->nameunit) {
+	    if (!first) {
+		error = SYSCTL_OUT(req, ",", 1);
+		if (error) return error;
+	    } else {
+		first = 0;
+	    }
+	    error = SYSCTL_OUT(req, child->nameunit, strlen(child->nameunit));
+	    if (error) return error;
+	}
+    }
+
+    error = SYSCTL_OUT(req, "", 1);
+
+    return error;
+}
+
+static int
+sysctl_handle_state SYSCTL_HANDLER_ARGS
+{
+    device_t dev = arg1;
+
+    switch (dev->state) {
+    case DS_NOTPRESENT:
+	return SYSCTL_OUT(req, "notpresent", sizeof("notpresent"));
+    case DS_ALIVE:
+	return SYSCTL_OUT(req, "alive", sizeof("alive"));
+    case DS_ATTACHED:
+	return SYSCTL_OUT(req, "attached", sizeof("attached"));
+    case DS_BUSY:
+	return SYSCTL_OUT(req, "busy", sizeof("busy"));
+    }
+
+    return 0;
+}
+
+static void
+device_register_oids(device_t dev)
+{
+    struct sysctl_oid* oid;
+
+    oid = &dev->oid[0];
+    bzero(oid, sizeof(*oid));
+    oid->oid_parent = &sysctl__hw_devices_children;
+    oid->oid_number = OID_AUTO;
+    oid->oid_kind = CTLTYPE_NODE | CTLFLAG_RW;
+    oid->oid_arg1 = &dev->oidlist[0];
+    oid->oid_arg2 = 0;
+    oid->oid_name = dev->nameunit;
+    oid->oid_handler = 0;
+    oid->oid_fmt = "N";
+    SLIST_INIT(&dev->oidlist[0]);
+    sysctl_register_oid(oid);
+
+    oid = &dev->oid[1];
+    bzero(oid, sizeof(*oid));
+    oid->oid_parent = &dev->oidlist[0];
+    oid->oid_number = OID_AUTO;
+    oid->oid_kind = CTLTYPE_STRING | CTLFLAG_RD;
+    oid->oid_arg1 = dev->desc ? dev->desc : "";
+    oid->oid_arg2 = dev->desc ? strlen(dev->desc) : 0;
+    oid->oid_name = "desc";
+    oid->oid_handler = sysctl_handle_string;
+    oid->oid_fmt = "A";
+    sysctl_register_oid(oid);
+
+    oid = &dev->oid[2];
+    bzero(oid, sizeof(*oid));
+    oid->oid_parent = &dev->oidlist[0];
+    oid->oid_number = OID_AUTO;
+    oid->oid_kind = CTLTYPE_INT | CTLFLAG_RD;
+    oid->oid_arg1 = dev;
+    oid->oid_arg2 = 0;
+    oid->oid_name = "children";
+    oid->oid_handler = sysctl_handle_children;
+    oid->oid_fmt = "A";
+    sysctl_register_oid(oid);
+
+    oid = &dev->oid[3];
+    bzero(oid, sizeof(*oid));
+    oid->oid_parent = &dev->oidlist[0];
+    oid->oid_number = OID_AUTO;
+    oid->oid_kind = CTLTYPE_INT | CTLFLAG_RD;
+    oid->oid_arg1 = dev;
+    oid->oid_arg2 = 0;
+    oid->oid_name = "state";
+    oid->oid_handler = sysctl_handle_state;
+    oid->oid_fmt = "A";
+    sysctl_register_oid(oid);
+}
+
+static void
+device_unregister_oids(device_t dev)
+{
+    sysctl_unregister_oid(&dev->oid[0]);
+    sysctl_unregister_oid(&dev->oid[1]);
+    sysctl_unregister_oid(&dev->oid[2]);
+}
+
+#endif
 
 /*
  * Access functions for device resources.
@@ -1236,6 +1479,23 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 				     type, rid, r));
 }
 
+int
+bus_setup_intr(device_t dev, struct resource *r,
+	       driver_intr_t handler, void *arg, void **cookiep)
+{
+	if (dev->parent == 0)
+		return (EINVAL);
+	return (BUS_SETUP_INTR(dev->parent, dev, r, handler, arg, cookiep));
+}
+
+int
+bus_teardown_intr(device_t dev, struct resource *r, void *cookie)
+{
+	if (dev->parent == 0)
+		return (EINVAL);
+	return (BUS_TEARDOWN_INTR(dev->parent, dev, r, cookie));
+}
+
 static void
 root_print_child(device_t dev, device_t child)
 {
@@ -1423,6 +1683,7 @@ print_device_short(device_t dev, int indent)
 		(dev->flags&DF_ENABLED? "enabled,":"disabled,"),
 		(dev->flags&DF_FIXEDCLASS? "fixed,":""),
 		(dev->flags&DF_WILDCARD? "wildcard,":""),
+		(dev->flags&DF_DESCMALLOCED? "descmalloced,":""),
 		(dev->ivars? "":"no "),
 		(dev->softc? "":"no "),
 		dev->busy));
