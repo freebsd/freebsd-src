@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.3.2.2 1999/02/07 03:03:28 yokota Exp $
+ * $Id: splash_bmp.c,v 1.3.2.3 1999/03/29 15:15:21 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -73,8 +73,10 @@ bmp_start(video_adapter_t *adp)
     video_info_t 	info;
     int			i;
 
-    if ((bmp_decoder.data == NULL) || (bmp_decoder.data_size <= 0))
+    if ((bmp_decoder.data == NULL) || (bmp_decoder.data_size <= 0)) {
+	printf("splash_bmp: No bitmap file found\n");
 	return ENODEV;
+    }
     for (i = 0; modes[i] >= 0; ++i) {
 	if (((*vidsw[adp->va_index]->get_info)(adp, modes[i], &info) == 0)
 	    && (bmp_Init((u_char *)bmp_decoder.data,
@@ -82,6 +84,8 @@ bmp_start(video_adapter_t *adp)
 	    break;
     }
     splash_mode = modes[i];
+    if (splash_mode < 0)
+	printf("splash_bmp: No appropriate video mode found\n");
     if (bootverbose)
 	printf("bmp_start(): splash_mode:%d\n", splash_mode);
     return ((splash_mode < 0) ? ENODEV : 0);
@@ -482,7 +486,15 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
 
     /* check file ID */
     if (bmf->bmfh.bfType != 0x4d42) {
+	printf("splash_bmp: not a BMP file\n");
 	return(1);		/* XXX check word ordering for big-endian ports? */
+    }
+
+    /* do we understand this bitmap format? */
+    if (bmf->bmfi.bmiHeader.biSize > sizeof(bmf->bmfi.bmiHeader)) {
+	printf("splash_bmp: unsupported BMP format (size=%d)\n",
+		bmf->bmfi.bmiHeader.biSize);
+	return(1);
     }
 
     /* save what we know about the screen */
@@ -504,6 +516,7 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
     case BI_RLE8:
 	break;
     default:
+	printf("splash_bmp: unsupported compression format\n");
 	return(1);		/* unsupported compression format */
     }
     
@@ -512,6 +525,12 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
     bzero(bmp_info.palette,sizeof(bmp_info.palette));
     if (bmp_info.ncols == 0) {	/* uses all of them */
 	bmp_info.ncols = 1 << bmf->bmfi.bmiHeader.biBitCount;
+    }
+    if ((bmf->bmfi.bmiHeader.biBitCount != sdepth)
+	|| (bmp_info.ncols > (1 << sdepth))) {
+	printf("splash_bmp: unsupported color depth (%d bits, %d colors)\n",
+		bmf->bmfi.bmiHeader.biBitCount, bmp_info.ncols);
+	return(1);
     }
     if ((bmp_info.height > bmp_info.sheight) ||
 	(bmp_info.width > bmp_info.swidth) ||
