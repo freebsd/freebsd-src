@@ -1,5 +1,7 @@
 /*
  * LOCALE_CTYPE for Russian Alternative character set (CP866)
+ *
+ * $FreeBSD$
  */
 ENCODING	"NONE"
 VARIABLE        Russian Alternative charset (CP866) by ache@astral.msk.su
