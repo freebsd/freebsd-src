@@ -1,5 +1,5 @@
 /*	$NetBSD: ugen.c,v 1.11 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: ugen.c,v 1.4 1999/01/07 23:31:32 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -68,7 +68,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (ugendebug) printf x
 #define DPRINTFN(n,x)	if (ugendebug>(n)) printf x
-int	ugendebug = 0;
+int	ugendebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -112,6 +112,8 @@ int ugenpoll __P((dev_t, int, struct proc *));
 void ugenintr __P((usbd_request_handle reqh, usbd_private_handle addr, 
 		   usbd_status status));
 void ugen_disco __P((void *));
+
+#define UGEN_CDEV_MAJOR	114
 
 int ugen_set_config __P((struct ugen_softc *sc, int configno));
 usb_config_descriptor_t *ugen_get_cdesc __P((struct ugen_softc *sc, int index,
