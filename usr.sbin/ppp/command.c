@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.146 1998/06/16 19:40:35 brian Exp $
+ * $Id: command.c,v 1.147 1998/06/16 23:23:54 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/16 19:40:35 $";
+const char VersionDate[] = "$Date: 1998/06/16 23:23:54 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -916,8 +916,7 @@ DownCommand(struct cmdargs const *arg)
     } else if (!strcasecmp(arg->argv[arg->argn], "ccp")) {
       struct fsm *fp = arg->cx ? &arg->cx->physical->link.ccp.fsm :
                                  &arg->bundle->ncp.mp.link.ccp.fsm;
-      fsm_Down(fp);
-      fsm_Close(fp);
+      fsm2initial(fp);
     } else
       return -1;
   } else
