@@ -2549,7 +2549,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.rc.conf.5;. &merged;</para>
 
       <para>The <application>ISC DHCP</application> client has been
-      updated to 2.0pl5. &merged;</para>
+      updated to 3.0.1RC6.</para>
 
       <para><application>Kerberos IV</application> has been updated to
       1.0.5. &merged;</para>
