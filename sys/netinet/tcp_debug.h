@@ -42,8 +42,21 @@ struct	tcp_debug {
 	short	td_act;
 	short	td_ostate;
 	caddr_t	td_tcb;
-	u_char	td_ipgen[40]; /* the size must be of max ip header, now IPv6 */
-	struct	tcphdr td_th;
+	int	td_family;
+	/*
+	 * Co-existense of td_ti and td_ti6 below is ugly, but it is necessary
+	 * to achieve backword compatibility to some extent.
+	 */
+	struct	tcpiphdr td_ti;
+	struct {
+#if !defined(_KERNEL) && defined(INET6)
+		struct	ip6_hdr ip6;
+#else
+		u_char	ip6buf[40]; /* sizeof(struct ip6_hdr) */
+#endif
+		struct	tcphdr th;
+	} td_ti6;
+#define	td_ip6buf	td_ti6.ip6buf
 	short	td_req;
 	struct	tcpcb td_cb;
 };
