@@ -134,16 +134,20 @@ socket(td, uap)
 	fhold(fp);
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_proc->p_ucred, td);
+	FILEDESC_LOCK(fdp);
 	if (error) {
 		if (fdp->fd_ofiles[fd] == fp) {
 			fdp->fd_ofiles[fd] = NULL;
+			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
-		}
+		} else
+			FILEDESC_UNLOCK(fdp);
 	} else {
 		fp->f_data = (caddr_t)so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
+		FILEDESC_UNLOCK(fdp);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
@@ -306,11 +310,13 @@ accept1(td, uap, compat)
 	if (head->so_sigio != NULL)
 		fsetown(fgetown(head->so_sigio), &so->so_sigio);
 
+	FILE_LOCK(nfp);
 	soref(so);			/* file descriptor reference */
 	nfp->f_data = (caddr_t)so;	/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
+	FILE_UNLOCK(nfp);
 	sa = 0;
 	error = soaccept(so, &sa);
 	if (error) {
@@ -357,9 +363,13 @@ noconnection:
 	 * out from under us.
 	 */
 	if (error) {
+		FILEDESC_LOCK(fdp);
 		if (fdp->fd_ofiles[fd] == nfp) {
 			fdp->fd_ofiles[fd] = NULL;
+			FILEDESC_UNLOCK(fdp);
 			fdrop(nfp, td);
+		} else {
+			FILEDESC_UNLOCK(fdp);
 		}
 	}
 	splx(s);
@@ -510,24 +520,37 @@ socketpair(td, uap)
 		 if (error)
 			goto free4;
 	}
-	fp1->f_flag = fp2->f_flag = FREAD|FWRITE;
-	fp1->f_ops = fp2->f_ops = &socketops;
-	fp1->f_type = fp2->f_type = DTYPE_SOCKET;
+	FILE_LOCK(fp1);
+	fp1->f_flag = FREAD|FWRITE;
+	fp1->f_ops = &socketops;
+	fp1->f_type = DTYPE_SOCKET;
+	FILE_UNLOCK(fp1);
+	FILE_LOCK(fp2);
+	fp2->f_flag = FREAD|FWRITE;
+	fp2->f_ops = &socketops;
+	fp2->f_type = DTYPE_SOCKET;
+	FILE_UNLOCK(fp2);
 	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
 	fdrop(fp1, td);
 	fdrop(fp2, td);
 	goto done2;
 free4:
+	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[sv[1]] == fp2) {
 		fdp->fd_ofiles[sv[1]] = NULL;
+		FILEDESC_UNLOCK(fdp);
 		fdrop(fp2, td);
-	}
+	} else
+		FILEDESC_UNLOCK(fdp);
 	fdrop(fp2, td);
 free3:
+	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[sv[0]] == fp1) {
 		fdp->fd_ofiles[sv[0]] = NULL;
+		FILEDESC_UNLOCK(fdp);
 		fdrop(fp1, td);
-	}
+	} else
+		FILEDESC_UNLOCK(fdp);
 	fdrop(fp1, td);
 free2:
 	(void)soclose(so2);
@@ -1932,4 +1955,3 @@ done:
 	mtx_unlock(&Giant);
 	return (error);
 }
-

@@ -394,10 +394,15 @@ nsmb_getfp(struct filedesc* fdp, int fd, int flag)
 {
 	struct file* fp;
 
+	FILEDESC_LOCK(fdp);
 	if (((u_int)fd) >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    (fp->f_flag & flag) == 0)
+	    (fp->f_flag & flag) == 0) {
+		FILEDESC_UNLOCK(fdp);
 		return (NULL);
+	}
+	fhold(fp);
+	FILEDESC_UNLOCK(fdp);
 	return (fp);
 }
 
@@ -416,19 +421,25 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	if (fp == NULL)
 		return EBADF;
 	vp = (struct vnode*)fp->f_data;
-	if (vp == NULL)
+	if (vp == NULL) {
+		fdrop(fp, curthread);
 		return EBADF;
+	}
 	dev = vn_todev(vp);
-	if (dev == NODEV)
+	if (dev == NODEV) {
+		fdrop(fp, curthread);
 		return EBADF;
+	}
 	SMB_CHECKMINOR(dev);
 	ssp = sdp->sd_share;
-	if (ssp == NULL)
+	if (ssp == NULL) {
+		fdrop(fp, curthread);
 		return ENOTCONN;
+	}
 	error = smb_share_get(ssp, LK_EXCLUSIVE, scred);
-	if (error)
-		return error;
-	*sspp = ssp;
-	return 0;
+	if (error == 0) 
+		*sspp = ssp;
+	fdrop(fp, curthread);
+	return error;
 }
 

@@ -197,10 +197,11 @@ soo_close(fp, td)
 	int error = 0;
 	struct socket *so;
 
+	so = (struct socket *)fp->f_data;
 	fp->f_ops = &badfileops;
-	if ((so = (struct socket *)fp->f_data) != NULL) {
-		fp->f_data = NULL;
+	fp->f_data = 0;
+
+	if (so)
 		error = soclose(so);
-	}
 	return (error);
 }

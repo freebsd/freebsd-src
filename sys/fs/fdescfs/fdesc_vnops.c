@@ -174,8 +174,8 @@ fdesc_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	char *pname = cnp->cn_nameptr;
 	struct thread *td = cnp->cn_thread;
+	struct file *fp;
 	int nlen = cnp->cn_namelen;
-	int nfiles = td->td_proc->p_fd->fd_nfiles;
 	u_int fd;
 	int error;
 	struct vnode *fvp;
@@ -212,12 +212,14 @@ fdesc_lookup(ap)
 		fd = 10 * fd + *pname++ - '0';
 	}
 
-	if (fd >= nfiles || td->td_proc->p_fd->fd_ofiles[fd] == NULL) {
+	fp = ffind_hold(td, fd);
+	if (fp == NULL) {
 		error = EBADF;
 		goto bad;
 	}
 
 	error = fdesc_allocvp(Fdesc, FD_DESC+fd, dvp->v_mount, &fvp, td);
+	fdrop(fp, td);
 	if (error)
 		goto bad;
 	VTOFDESC(fvp)->fd_fd = fd;
@@ -268,7 +270,6 @@ fdesc_getattr(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	struct filedesc *fdp = ap->a_td->td_proc->p_fd;
 	struct file *fp;
 	struct stat stb;
 	u_int fd;
@@ -299,11 +300,13 @@ fdesc_getattr(ap)
 	case Fdesc:
 		fd = VTOFDESC(vp)->fd_fd;
 
-		if (fd >= fdp->fd_nfiles || (fp = fdp->fd_ofiles[fd]) == NULL)
+		fp = ffind_hold(ap->a_td, fd);
+		if (fp == NULL)
 			return (EBADF);
 
 		bzero(&stb, sizeof(stb));
 		error = fo_stat(fp, &stb, ap->a_td);
+		fdrop(fp, ap->a_td);
 		if (error == 0) {
 			VATTR_NULL(vap);
 			vap->va_type = IFTOVT(stb.st_mode);
@@ -396,10 +399,13 @@ fdesc_setattr(ap)
 		return (error);
 	}
 	vp = (struct vnode *)fp->f_data;
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
+		fdrop(fp, ap->a_td);
 		return (error);
+	}
 	error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
 	vn_finished_write(mp);
+	fdrop(fp, ap->a_td);
 	return (error);
 }
 
@@ -442,6 +448,7 @@ fdesc_readdir(ap)
 
 	fcnt = i - 2;		/* The first two nodes are `.' and `..' */
 
+	FILEDESC_LOCK(fdp);
 	while (i < fdp->fd_nfiles + 2 && uio->uio_resid >= UIO_MX) {
 		switch (i) {
 		case 0:	/* `.' */
@@ -456,8 +463,10 @@ fdesc_readdir(ap)
 			dp->d_type = DT_DIR;
 			break;
 		default:
-			if (fdp->fd_ofiles[fcnt] == NULL)
+			if (fdp->fd_ofiles[fcnt] == NULL) {
+				FILEDESC_UNLOCK(fdp);
 				goto done;
+			}
 
 			bzero((caddr_t) dp, UIO_MX);
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
@@ -469,12 +478,15 @@ fdesc_readdir(ap)
 		/*
 		 * And ship to userland
 		 */
+		FILEDESC_UNLOCK(fdp);
 		error = uiomove((caddr_t) dp, UIO_MX, uio);
 		if (error)
-			break;
+			goto done;
+		FILEDESC_LOCK(fdp);
 		i++;
 		fcnt++;
 	}
+	FILEDESC_UNLOCK(fdp);
 
 done:
 	uio->uio_offset = i * UIO_MX;

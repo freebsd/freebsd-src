@@ -667,18 +667,17 @@ osf1_fstat(td, uap)
 	struct thread *td;
 	register struct osf1_fstat_args *uap;
 {
-	register struct filedesc *fdp;
 	register struct file *fp;
 	struct stat ub;
 	struct osf1_stat oub;
 	int error;
 
-	fdp = td->td_proc->p_fd;
-	if ((unsigned)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
+	fp = ffind_hold(td, uap->fd);
+	if (fp == NULL)
 		return (EBADF);
 
 	error = fo_stat(fp, &ub, td);
+	fdrop(fp, td);
 	cvtstat2osf1(&ub, &oub);
 	if (error == 0)
 		error = copyout((caddr_t)&oub, (caddr_t)SCARG(uap, sb),

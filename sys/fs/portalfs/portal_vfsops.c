@@ -132,7 +132,8 @@ portal_mount(mp, path, data, ndp, td)
 	VTOPORTAL(rvp)->pt_size = 0;
 	VTOPORTAL(rvp)->pt_fileid = PORTAL_ROOTFILEID;
 	fmp->pm_root = rvp;
-	fmp->pm_server = fp; fp->f_count++;
+	fhold(fp);
+	fmp->pm_server = fp;
 
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = (qaddr_t) fmp;
@@ -159,6 +160,7 @@ portal_unmount(mp, mntflags, td)
 	struct thread *td;
 {
 	int error, flags = 0;
+	struct socket *so;
 
 
 	if (mntflags & MNT_FORCE)

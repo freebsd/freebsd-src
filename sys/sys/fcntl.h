@@ -90,8 +90,9 @@
 #define	O_TRUNC		0x0400		/* truncate to zero length */
 #define	O_EXCL		0x0800		/* error if already exists */
 #ifdef _KERNEL
-#define	FMARK		0x1000		/* mark during gc() */
-#define	FDEFER		0x2000		/* defer for next gc pass */
+/* FMARK/FDEFER kept in f_gcflags */
+#define	FMARK		0x1		/* mark during gc() */
+#define	FDEFER		0x2		/* defer for next gc pass */
 #define	FHASLOCK	0x4000		/* descriptor holds advisory lock */
 #endif
 
