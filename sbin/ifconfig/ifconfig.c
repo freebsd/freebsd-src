@@ -31,6 +31,11 @@
  * SUCH DAMAGE.
  */
 
+/*
+ *  951109 - Andrew@pubnix.net - Changed to iterative buffer growing mechanism
+ *				 for ifconfig -a so all interfaces are queried.
+ *
+ */
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
@@ -216,22 +221,33 @@ main(argc, argv)
 		exit(1);
 	}
 	if (strstr(name, "-a")) {
+		char *buffer;
 		struct ifconf ifc;
-#define MAX_INTERFACES 50	/* Yeah right. */
-		char buffer[MAX_INTERFACES * sizeof(struct ifreq)];
 		struct ifreq *ifptr, *end;
 		int ifflags, selectflag = -1;
+		int oldbufsize, bufsize = sizeof(struct ifreq);	
 
 		if (strstr(name, "-au"))
 			selectflag = 1;
 		if (strstr(name, "-ad"))
 			selectflag = 0;
-		ifc.ifc_len = sizeof(buffer);
-		ifc.ifc_buf = buffer;
-		if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
-			perror("ifconfig (SIOCGIFCONF)");
-			exit (1);
-		}
+		buffer = malloc(bufsize);	/* allocate first buffer */
+		ifc.ifc_len = bufsize;		/* Initial setting */
+		/*
+		 * Itterate through here until we don't get any more data
+		 */
+		do {
+			oldbufsize = ifc.ifc_len;
+			bufsize += 1+sizeof(struct ifreq);
+			buffer = realloc((void *)buffer, bufsize);
+			ifc.ifc_len = bufsize;
+			ifc.ifc_buf = buffer;
+			if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
+				perror("ifconfig (SIOCGIFCONF)");
+				exit (1);
+			}
+		} while (ifc.ifc_len > oldbufsize);
+		
 		ifflags = ifc.ifc_req->ifr_flags;
 		end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
 		ifptr = ifc.ifc_req;
@@ -243,7 +259,7 @@ main(argc, argv)
 				perror("ifconfig: socket");
 				exit(1);
 			}
-			if (ifptr->ifr_flags == ifflags)
+			if (ifptr->ifr_flags == ifflags) 
 				ifconfig(argc,argv,af,rafp,selectflag);
 			if(ifptr->ifr_addr.sa_len)	/* Dohw! */
 				ifptr = (struct ifreq *) ((caddr_t) ifptr +
@@ -251,6 +267,7 @@ main(argc, argv)
 				sizeof(struct sockaddr));
 			ifptr++;
 		}
+		free(buffer);
 	} else
 		ifconfig(argc,argv,af,rafp, -1);
 
