@@ -151,7 +151,7 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 
 	/* Some signals need special handling: */
 	handle_special_signals(curkse, sig);
-	stderr_debug("dispatch sig:%d\n", sig);
+	DBG_MSG("dispatch sig:%d\n", sig);
 	while ((thread = thr_sig_find(curkse, sig, info)) != NULL) {
 		/*
 		 * Setup the target thread to receive the signal:
@@ -163,7 +163,12 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 		    THR_IS_EXITING(thread) || THR_IS_SUSPENDED(thread)) {
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
-		} else {
+		} else if (sigismember(&thread->tmbx.tm_context.uc_sigmask,
+		    sig)) {
+			KSE_SCHED_UNLOCK(curkse, thread->kseg);
+			_thr_ref_delete(NULL, thread);
+		}
+		else {
 			_thr_sig_add(thread, sig, info);
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
@@ -894,7 +899,7 @@ thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
 {
 	/* This has to initialize all members of the sigframe. */
 	psf->psf_flags =
-		 thread->flags & (THR_FLAGS_PRIVATE|THR_FLAGS_IN_TDLIST);
+	    thread->flags & (THR_FLAGS_PRIVATE | THR_FLAGS_IN_TDLIST);
 	psf->psf_interrupted = thread->interrupted;
 	psf->psf_signo = thread->signo;
 	psf->psf_state = thread->state;
