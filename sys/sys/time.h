@@ -302,6 +302,8 @@ void	getmicrotime(struct timeval *tvp);
 /* Other functions */
 int	itimerdecr(struct itimerval *itp, int usec);
 int	itimerfix(struct timeval *tv);
+int	ppsratecheck(struct timeval *, int *, int);
+int	ratecheck(struct timeval *, const struct timeval *);
 void	timevaladd(struct timeval *t1, struct timeval *t2);
 void	timevalsub(struct timeval *t1, struct timeval *t2);
 int	tvtohz(struct timeval *tv);
