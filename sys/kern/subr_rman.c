@@ -128,9 +128,9 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r->r_rm = rm;
 
 	simple_lock(rm->rm_slock);
-	for (s = rm->rm_list.cqh_first;	
+	for (s = CIRCLEQ_FIRST(&rm->rm_list);	
 	     !CIRCLEQ_TERMCOND(s, rm->rm_list) && s->r_end < r->r_start;
-	     s = s->r_link.cqe_next)
+	     s = CIRCLEQ_NEXT(s, r_link))
 		;
 
 	if (CIRCLEQ_TERMCOND(s, rm->rm_list)) {
@@ -149,8 +149,7 @@ rman_fini(struct rman *rm)
 	struct resource *r;
 
 	simple_lock(rm->rm_slock);
-	for (r = rm->rm_list.cqh_first;	!CIRCLEQ_TERMCOND(r, rm->rm_list);
-	     r = r->r_link.cqe_next) {
+	CIRCLEQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (r->r_flags & RF_ALLOCATED) {
 			simple_unlock(rm->rm_slock);
 			return EBUSY;
@@ -161,8 +160,8 @@ rman_fini(struct rman *rm)
 	 * There really should only be one of these if we are in this
 	 * state and the code is working properly, but it can't hurt.
 	 */
-	for (r = rm->rm_list.cqh_first;	!CIRCLEQ_TERMCOND(r, rm->rm_list);
-	     r = rm->rm_list.cqh_first) {
+	while (!CIRCLEQ_EMPTY(&rm->rm_list)) {
+		r = CIRCLEQ_FIRST(&rm->rm_list);
 		CIRCLEQ_REMOVE(&rm->rm_list, r, r_link);
 		free(r, M_RMAN);
 	}
@@ -195,9 +194,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 
 	simple_lock(rm->rm_slock);
 
-	for (r = rm->rm_list.cqh_first; 
+	for (r = CIRCLEQ_FIRST(&rm->rm_list); 
 	     !CIRCLEQ_TERMCOND(r, rm->rm_list) && r->r_end < start;
-	     r = r->r_link.cqe_next)
+	     r = CIRCLEQ_NEXT(r, r_link))
 		;
 
 	if (CIRCLEQ_TERMCOND(r, rm->rm_list)) {
@@ -211,7 +210,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	 * First try to find an acceptable totally-unshared region.
 	 */
 	for (s = r; !CIRCLEQ_TERMCOND(s, rm->rm_list);
-	     s = s->r_link.cqe_next) {
+	     s = CIRCLEQ_NEXT(s, r_link)) {
 #ifdef RMAN_DEBUG
 		printf("considering [%#lx, %#lx]\n", s->r_start, s->r_end);
 #endif /* RMAN_DEBUG */
@@ -339,7 +338,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 		goto out;
 
 	for (s = r; !CIRCLEQ_TERMCOND(s, rm->rm_list);
-	     s = s->r_link.cqe_next) {
+	     s = CIRCLEQ_NEXT(s, r_link)) {
 		if (s->r_start > end)
 			break;
 		if ((s->r_flags & flags) != flags)
@@ -422,8 +421,8 @@ int_rman_activate_resource(struct rman *rm, struct resource *r,
 	}
 
 	ok = 1;
-	for (s = r->r_sharehead->lh_first; s && ok;
-	     s = s->r_sharelink.le_next) {
+	for (s = LIST_FIRST(r->r_sharehead); s && ok;
+	     s = LIST_NEXT(s, r_sharelink)) {
 		if ((s->r_flags & RF_ACTIVE) != 0) {
 			ok = 0;
 			*whohas = s;
@@ -531,7 +530,7 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		 * If we are in the main circleq, appoint someone else.
 		 */
 		LIST_REMOVE(r, r_sharelink);
-		s = r->r_sharehead->lh_first;
+		s = LIST_FIRST(r->r_sharehead);
 		if (r->r_flags & RF_FIRSTSHARE) {
 			s->r_flags |= RF_FIRSTSHARE;
 			CIRCLEQ_INSERT_BEFORE(&rm->rm_list, r, s, r_link);
@@ -542,7 +541,7 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		 * Make sure that the sharing list goes away completely
 		 * if the resource is no longer being shared at all.
 		 */
-		if (s->r_sharelink.le_next == 0) {
+		if (LIST_NEXT(s, r_sharelink) == 0) {
 			free(s->r_sharehead, M_RMAN);
 			s->r_sharehead = 0;
 			s->r_flags &= ~RF_FIRSTSHARE;
@@ -554,8 +553,8 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 	 * Look at the adjacent resources in the list and see if our
 	 * segment can be merged with any of them.
 	 */
-	s = r->r_link.cqe_prev;
-	t = r->r_link.cqe_next;
+	s = CIRCLEQ_PREV(r, r_link);
+	t = CIRCLEQ_NEXT(r, r_link);
 
 	if (s != (void *)&rm->rm_list && (s->r_flags & RF_ALLOCATED) == 0
 	    && t != (void *)&rm->rm_list && (t->r_flags & RF_ALLOCATED) == 0) {

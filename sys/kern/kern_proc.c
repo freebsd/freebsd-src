@@ -111,7 +111,7 @@ chgproccnt(uid, diff)
 	register struct uihashhead *uipp;
 
 	uipp = UIHASH(uid);
-	for (uip = uipp->lh_first; uip != 0; uip = uip->ui_hash.le_next)
+	LIST_FOREACH(uip, uipp, ui_hash)
 		if (uip->ui_uid == uid)
 			break;
 	if (uip) {
@@ -149,7 +149,7 @@ chgsbsize(uid, diff)
 	register struct uihashhead *uipp;
 
 	uipp = UIHASH(uid);
-	for (uip = uipp->lh_first; uip != 0; uip = uip->ui_hash.le_next)
+	LIST_FOREACH(uip, uipp, ui_hash)
 		if (uip->ui_uid == uid)
 			break;
 	if (diff <= 0) {
@@ -197,7 +197,7 @@ pfind(pid)
 {
 	register struct proc *p;
 
-	for (p = PIDHASH(pid)->lh_first; p != 0; p = p->p_hash.le_next)
+	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid)
 			return (p);
 	return (NULL);
@@ -212,8 +212,7 @@ pgfind(pgid)
 {
 	register struct pgrp *pgrp;
 
-	for (pgrp = PGRPHASH(pgid)->lh_first; pgrp != 0;
-	     pgrp = pgrp->pg_hash.le_next)
+	LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash)
 		if (pgrp->pg_id == pgid)
 			return (pgrp);
 	return (NULL);
@@ -287,7 +286,7 @@ enterpgrp(p, pgid, mksess)
 	fixjobc(p, p->p_pgrp, 0);
 
 	LIST_REMOVE(p, p_pglist);
-	if (p->p_pgrp->pg_members.lh_first == 0)
+	if (LIST_EMPTY(&p->p_pgrp->pg_members))
 		pgdelete(p->p_pgrp);
 	p->p_pgrp = pgrp;
 	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
@@ -303,7 +302,7 @@ leavepgrp(p)
 {
 
 	LIST_REMOVE(p, p_pglist);
-	if (p->p_pgrp->pg_members.lh_first == 0)
+	if (LIST_EMPTY(&p->p_pgrp->pg_members))
 		pgdelete(p->p_pgrp);
 	p->p_pgrp = 0;
 	return (0);
@@ -368,7 +367,7 @@ fixjobc(p, pgrp, entering)
 	 * their process groups; if so, adjust counts for children's
 	 * process groups.
 	 */
-	for (p = p->p_children.lh_first; p != 0; p = p->p_sibling.le_next)
+	LIST_FOREACH(p, &p->p_children, p_sibling)
 		if ((hispgrp = p->p_pgrp) != pgrp &&
 		    hispgrp->pg_session == mysession &&
 		    p->p_stat != SZOMB) {
@@ -390,10 +389,9 @@ orphanpg(pg)
 {
 	register struct proc *p;
 
-	for (p = pg->pg_members.lh_first; p != 0; p = p->p_pglist.le_next) {
+	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 		if (p->p_stat == SSTOP) {
-			for (p = pg->pg_members.lh_first; p != 0;
-			    p = p->p_pglist.le_next) {
+			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				psignal(p, SIGHUP);
 				psignal(p, SIGCONT);
 			}
@@ -413,17 +411,16 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 	register int i;
 
 	for (i = 0; i <= pgrphash; i++) {
-		if ((pgrp = pgrphashtbl[i].lh_first) != NULL) {
+		if (!LIST_EMPTY(&pgrphashtbl[i])) {
 			printf("\tindx %d\n", i);
-			for (; pgrp != 0; pgrp = pgrp->pg_hash.le_next) {
+			LIST_FOREACH(pgrp, &pgrphashtbl[i], pg_hash) {
 				printf(
 			"\tpgrp %p, pgid %ld, sess %p, sesscnt %d, mem %p\n",
 				    (void *)pgrp, (long)pgrp->pg_id,
 				    (void *)pgrp->pg_session,
 				    pgrp->pg_session->s_count,
-				    (void *)pgrp->pg_members.lh_first);
-				for (p = pgrp->pg_members.lh_first; p != 0;
-				    p = p->p_pglist.le_next) {
+				    (void *)LIST_FIRST(&pgrp->pg_members));
+				LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 					printf("\t\tpid %ld addr %p pgrp %p\n", 
 					    (long)p->p_pid, (void *)p,
 					    (void *)p->p_pgrp);
@@ -494,7 +491,7 @@ zpfind(pid_t pid)
 {
 	struct proc *p;
 
-	for (p = zombproc.lh_first; p != 0; p = p->p_list.le_next)
+	LIST_FOREACH(p, &zombproc, p_list)
 		if (p->p_pid == pid)
 			return (p);
 	return (NULL);
@@ -557,10 +554,10 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 	}
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
-			p = allproc.lh_first;
+			p = LIST_FIRST(&allproc);
 		else
-			p = zombproc.lh_first;
-		for (; p != 0; p = p->p_list.le_next) {
+			p = LIST_FIRST(&zombproc);
+		for (; p != 0; p = LIST_NEXT(p, p_list)) {
 			/*
 			 * Skip embryonic processes.
 			 */
