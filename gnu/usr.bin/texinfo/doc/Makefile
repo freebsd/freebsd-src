@@ -1,8 +1,8 @@
-INFO = info makeinfo texi info-stnd
+INFO=		info info-stnd makeinfo texi
 .if exists(../makeinfo/obj)
-MAKEINFO=      ../makeinfo/obj/makeinfo
+MAKEINFO=	${.CURDIR}/../makeinfo/obj/makeinfo
 .else
-MAKEINFO=      ../makeinfo/makeinfo
+MAKEINFO=      	${.CURDIR}/../makeinfo/makeinfo
 .endif
 
 .include <bsd.info.mk>
