@@ -662,7 +662,7 @@ pt_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
 }
 
 static td_err_e
-pt_thr_setgregs(const td_thrhandle_t *th, prgregset_t gregs)
+pt_thr_setgregs(const td_thrhandle_t *th, const prgregset_t gregs)
 {
 	struct kse_thr_mailbox tmbx;
 	pt_thragent_t *ta = (pt_thragent_t *)th->th_ta_p;

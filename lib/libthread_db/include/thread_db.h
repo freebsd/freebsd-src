@@ -267,7 +267,7 @@ td_err_e td_thr_getgregs(const td_thrhandle_t *, prgregset_t);
 td_err_e td_thr_getxregs(const td_thrhandle_t *, void *);
 td_err_e td_thr_getxregsize(const td_thrhandle_t *, int *);
 td_err_e td_thr_setfpregs(const td_thrhandle_t *, const prfpregset_t *);
-td_err_e td_thr_setgregs(const td_thrhandle_t *, prgregset_t);
+td_err_e td_thr_setgregs(const td_thrhandle_t *, const prgregset_t);
 td_err_e td_thr_setxregs(const td_thrhandle_t *, const void *);
 td_err_e td_thr_event_enable(const td_thrhandle_t *, int);
 td_err_e td_thr_set_event(const td_thrhandle_t *, td_thr_events_t *);
