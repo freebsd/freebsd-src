@@ -154,6 +154,9 @@ achieve zero-copy receive.  This driver is also machine-independent,
 so it will work on both the i386 and alpha platforms.  The lnc driver
 is still needed to support non-PCI cards. [MERGED]
 
+A bug in the ed(4) driver that could cause panics with very short
+packets and BPF or bridging active has been fixed. [MERGED]
+
 The i386 boot loader now has support for a "nullconsole" console type,
 for use on systems with neither a video console nor a serial
 port. [MERGED]
@@ -693,6 +696,9 @@ indent(1) has gained some new formatting options. [MERGED]
 sysinstall now uses some more intuitive defaults thanks to some new
 dialog support functions.  [MERGED]
 
+The default root partition in sysinstall is now 100MB on the i386 and
+110MB on the alpha.
+
 gcc has been updated to 2.95.3.
 
 Shortly after the receipt of a SIGINFO signal (normally control-T from
@@ -714,6 +720,10 @@ enhancements. [MERGED]
 
 pkg_update(1), a utility to update installed packages and update their
 dependencies, has been added.
+
+pkg_info(1) now supports globbing against names of installed packages.
+The -G option disables this behavior, and the -x option causes regular
+expression matching instead of shell globbing.
 
 If the first argument fo ancontrol(8) or wicontrol(8) doesn't start
 with a "-", it is assumed to be an interface.
@@ -799,11 +809,15 @@ chroot(2) based on the IP address of the connecting client.  tftp(1)
 and tftpd(8) can now transfer files larger than 65535 blocks.
 
 vidcontrol(1) now accepts a -g parameter to select custom text
-geometry in the VESA_800x600 raster text mode.
+geometry in the VESA_800x600 raster text mode. [MERGED]
 
 ldconfig(8) now checks directory ownerships and permissions for
 greater security; these checks can be disabled with the -i
 flag. [MERGED]
+
+The rfork_thread(3) library call has been added as a helper function
+to rfork(2).  Using this function should avoid the need to implement
+complex stack swap code. [MERGED]
 
 
 2. Supported Configurations
