@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.92 1996/06/14 18:35:08 jkh Exp $
+ * $Id: install.c,v 1.71.2.93 1996/06/26 09:31:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -798,7 +798,7 @@ installVarDefaults(dialogMenuItem *self)
     	variable_set2(VAR_EDITOR,		cp);
     }
     variable_set2(VAR_FTP_USER,			"ftp");
-    variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4fm");
+    variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.5FM");
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
     variable_set2(VAR_CONFIG_FILE,		"freebsd.cfg");
     variable_set2(VAR_FTP_STATE,		"passive");
