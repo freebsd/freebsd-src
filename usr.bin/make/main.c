@@ -188,6 +188,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		case 'B':
 			compatMake = TRUE;
 			MFLAGS_append("-B", NULL);
+			unsetenv("MAKE_JOBS_FIFO");
 			break;
 		case 'P':
 			usePipes = FALSE;
