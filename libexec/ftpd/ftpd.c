@@ -51,11 +51,12 @@ static const char rcsid[] =
  * FTP server.
  */
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -147,6 +148,8 @@ int	stru;			/* avoid C keyword */
 int	mode;
 int	usedefault = 1;		/* for data transfers */
 int	pdata = -1;		/* for passive mode */
+int	readonly=0;		/* Server is in readonly mode.	*/
+int	noepsv=0;		/* EPSV command is disabled.	*/
 sig_atomic_t transflag;
 off_t	file_size;
 off_t	byte_count;
@@ -289,7 +292,7 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "AdlDSURt:T:u:va:p:46")) != -1) {
+	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:va:p:46")) != -1) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
@@ -299,8 +302,16 @@ main(argc, argv, envp)
 			debug++;
 			break;
 
+		case 'E':
+			noepsv = 1;
+			break;
+
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'r':
+			readonly = 1;
 			break;
 
 		case 'R':
@@ -1687,9 +1698,10 @@ send_data(instr, outstr, blksize, filesize, isreg)
 	off_t filesize;
 	int isreg;
 {
-	int c, cnt, filefd, netfd;
-	char *buf, *bp;
+	int c, filefd, netfd;
+	char *buf;
 	size_t len;
+	off_t cnt;
 
 	transflag++;
 	if (setjmp(urgcatch)) {
@@ -1726,27 +1738,28 @@ send_data(instr, outstr, blksize, filesize, isreg)
 		netfd = fileno(outstr);
 		filefd = fileno(instr);
 
-		if (isreg && filesize < (off_t)16 * 1024 * 1024) {
-			buf = mmap(0, filesize, PROT_READ, MAP_SHARED, filefd,
-				   (off_t)0);
-			if (buf == MAP_FAILED) {
-				syslog(LOG_WARNING, "mmap(%lu): %m",
-				       (unsigned long)filesize);
-				goto oldway;
-			}
-			bp = buf;
-			len = filesize;
-			do {
-				cnt = write(netfd, bp, len);
-				len -= cnt;
-				bp += cnt;
-				if (cnt > 0) byte_count += cnt;
-			} while(cnt > 0 && len > 0);
+		if (isreg) {
 
-			transflag = 0;
-			munmap(buf, (size_t)filesize);
-			if (cnt < 0)
-				goto data_err;
+			off_t offset;
+			int err;
+
+			len = filesize;
+			err = cnt = offset = 0;
+
+			while (err != -1 && cnt < filesize) {
+				err = sendfile(filefd, netfd, offset, len,
+					(struct sf_hdtr *) NULL, &cnt, 0);
+				offset += cnt;
+				len -= cnt;
+
+				if (err == -1) {
+					if (!cnt)
+						goto oldway;
+
+					goto data_err;
+				}
+			}
+
 			reply(226, "Transfer complete.");
 			return;
 		}
@@ -2364,6 +2377,16 @@ passive()
 		    goto pasv_error;
 	}
 #endif
+#ifdef IPV6_PORTRANGE
+	if (ctrl_addr.su_family == AF_INET6) {
+	    int on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
+					   : IPV6_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
+	}
+#endif
 
 	pasv_addr = ctrl_addr;
 	pasv_addr.su_port = 0;
@@ -2456,6 +2479,27 @@ long_passive(cmd, pf)
 	pasv_addr = ctrl_addr;
 	pasv_addr.su_port = 0;
 	len = pasv_addr.su_len;
+
+#ifdef IP_PORTRANGE
+	if (ctrl_addr.su_family == AF_INET) {
+	    int on = restricted_data_ports ? IP_PORTRANGE_HIGH
+					   : IP_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
+	}
+#endif
+#ifdef IPV6_PORTRANGE
+	if (ctrl_addr.su_family == AF_INET6) {
+	    int on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
+					   : IPV6_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
+	}
+#endif
 
 #ifdef IP_PORTRANGE
 	if (ctrl_addr.su_family == AF_INET) {
