@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.3 (Berkeley) 1/4/94
- * $Id: rtsock.c,v 1.5 1994/10/05 20:11:28 wollman Exp $
+ * $Id: rtsock.c,v 1.6 1994/10/08 22:38:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -253,6 +253,17 @@ route_output(m, so)
 		case RTM_CHANGE:
 			if (gate && rt_setgate(rt, rt_key(rt), gate))
 				senderr(EDQUOT);
+
+			/*
+			 * If they tried to change things but didn't specify
+			 * the required gateway, then just use the old one.
+			 * This can happen if the user tries to change the
+			 * flags on the default route without changing the
+			 * default gateway.  Changing flags still doesn't work.
+			 */
+			if ((rt->rt_flags & RTF_GATEWAY) && !gate)
+				gate = rt->rt_gateway;
+
 			/* new gateway could require new ifaddr, ifp;
 			   flags may also be different; ifp may be specified
 			   by ll sockaddr when protocol address is ambiguous */
