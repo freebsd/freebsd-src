@@ -5,7 +5,7 @@ BINDIR=/stand
 NOSHARED=YES
 
 CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
-CLEANFILES+=	keymap.tmp keymap.h pccard_conf.h
+CLEANFILES+=	keymap.tmp keymap.h
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
@@ -15,22 +15,13 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	label.c lndir.c main.c makedevs.c media.c menus.c misc.c mouse.c \
 	msg.c network.c nfs.c options.c package.c pccard.c \
 	system.c tape.c tcpip.c termcap.c ufs.c user.c variable.c wizard.c \
-	keymap.h pccard_conf.h
+	keymap.h
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -I${.CURDIR}/../../sys
 
-PCCARD?= NO
-
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
-
-pccard_conf.h:
-.if ${PCCARD} == "YES"
-	echo "#define PCCARD 1" > pccard_conf.h
-.else
-	echo "#undef PCCARD" > pccard_conf.h
-.endif
 
 makedevs.c:	Makefile rtermcap keymap.h
 	rm -f makedevs.tmp
