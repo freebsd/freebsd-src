@@ -622,7 +622,7 @@ readrest:
 			 * Zero the page if necessary and mark it valid.
 			 */
 			if ((fs.m->flags & PG_ZERO) == 0) {
-				vm_page_zero_fill(fs.m);
+				pmap_zero_page(fs.m);
 			} else {
 				cnt.v_ozfod++;
 			}

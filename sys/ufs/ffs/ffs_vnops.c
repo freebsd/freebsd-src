@@ -930,7 +930,7 @@ ffs_getpages(ap)
 		vm_page_unlock_queues();
 		if (reqblkno == -1) {
 			if ((mreq->flags & PG_ZERO) == 0)
-				vm_page_zero_fill(mreq);
+				pmap_zero_page(mreq);
 			vm_page_undirty(mreq);
 			mreq->valid = VM_PAGE_BITS_ALL;
 			return VM_PAGER_OK;
