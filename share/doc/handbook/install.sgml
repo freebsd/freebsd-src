@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.12 1995/09/27 00:46:20 jmz Exp $ -->
+<!-- $Id: install.sgml,v 1.13 1995/10/07 04:31:28 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -288,11 +288,10 @@ Boot:
 	  time:
 
 	  <itemize>
-	    <item>SCSI (also includes ProAudio Spectrum and
-	      SoundBlaster SCSI) (cd)
-	    <item>Mitsumi proprietary interface (mcd)   
-	    <item>Matsushita/Panasonic (Creative) proprietary
-	      interface (matcd) 
+	    <item>Soundblaster SCSI and ProAudio Spectrum SCSI (cd)
+	    <item>Mitsumi (all models) proprietary interface (mcd)
+	    <item>Matsushita/Panasonic (Creative)
+	      CR-562/CR-563 proprietary interface (matcd) 
 	    <item>Sony proprietary interface (scd)
 	  </itemize>
 
@@ -371,15 +370,7 @@ Boot:
 
 	    <item>STB 4 port card using shared IRQ.
 
-	    <item>Mitsumi (all models) CDROM interface and drive.
-
 	    <item>SDL Communications Riscom/8 Serial Board.
-
-	    <item>Soundblaster SCSI and ProAudio Spectrum SCSI
-	      CDROM interface and drive.
-
-	    <item>Matsushita/Panasonic (Creative SoundBlaster)
-	      CDROM interface and drive.
 
 	    <item>Adlib, SoundBlaster, SoundBlaster Pro,
 	      ProAudioSpectrum, Gravis UltraSound and Roland
