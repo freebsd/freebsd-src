@@ -445,6 +445,48 @@ usbd_bulk_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 	return (err);
 }
 
+Static void usbd_intr_transfer_cb(usbd_xfer_handle xfer, 
+				  usbd_private_handle priv, usbd_status status);
+Static void
+usbd_intr_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
+		      usbd_status status)
+{
+	wakeup(xfer);
+}
+
+usbd_status
+usbd_intr_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
+		   u_int16_t flags, u_int32_t timeout, void *buf,
+		   u_int32_t *size, char *lbl)
+{
+	usbd_status err;
+	int s, error;
+
+	usbd_setup_xfer(xfer, pipe, 0, buf, *size,
+			flags, timeout, usbd_intr_transfer_cb);
+	DPRINTFN(1, ("usbd_intr_transfer: start transfer %d bytes\n", *size));
+	s = splusb();		/* don't want callback until tsleep() */
+	err = usbd_transfer(xfer);
+	if (err != USBD_IN_PROGRESS) {
+		splx(s);
+		return (err);
+	}
+	error = tsleep((caddr_t)xfer, PZERO | PCATCH, lbl, 0);
+	splx(s);
+	if (error) {
+		DPRINTF(("usbd_intr_transfer: tsleep=%d\n", error));
+		usbd_abort_pipe(pipe);
+		return (USBD_INTERRUPTED);
+	}
+	usbd_get_xfer_status(xfer, NULL, NULL, size, &err);
+	DPRINTFN(1,("usbd_intr_transfer: transferred %d\n", *size));
+	if (err) {
+		DPRINTF(("usbd_intr_transfer: error=%d\n", err));
+		usbd_clear_endpoint_stall(pipe);
+	}
+	return (err);
+}
+
 void
 usb_detach_wait(device_ptr_t dv)
 {
