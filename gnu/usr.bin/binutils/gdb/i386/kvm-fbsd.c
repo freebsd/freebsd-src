@@ -385,6 +385,24 @@ kcore_files_info (t)
   printf ("\t`%s'\n", core_file);
 }
 
+static CORE_ADDR
+ksym_maxuseraddr()
+{
+  static CORE_ADDR maxuseraddr;
+  struct minimal_symbol *sym;
+
+  if (maxuseraddr == 0)
+    {
+      sym = lookup_minimal_symbol ("PTmap", NULL, NULL);
+      if (sym == NULL) {
+	maxuseraddr = VM_MAXUSER_ADDRESS;
+      } else {
+	maxuseraddr = SYMBOL_VALUE_ADDRESS (sym);
+      }
+    }
+  return maxuseraddr;
+}
+
 static int
 kcore_xfer_kmem (memaddr, myaddr, len, write, target)
      CORE_ADDR memaddr;
@@ -396,7 +414,7 @@ kcore_xfer_kmem (memaddr, myaddr, len, write, target)
   int ns;
   int nu;
 
-  if (memaddr >= (CORE_ADDR)VM_MAXUSER_ADDRESS)
+  if (memaddr >= ksym_maxuseraddr())
     nu = 0;
   else
     {
@@ -406,7 +424,7 @@ kcore_xfer_kmem (memaddr, myaddr, len, write, target)
       if (nu == len)
 	return (nu);
       memaddr += nu;
-      if (memaddr != (CORE_ADDR)VM_MAXUSER_ADDRESS)
+      if (memaddr != ksym_maxuseraddr())
 	return (nu);
       myaddr += nu;
       len -= nu;
@@ -578,7 +596,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
   cpuid = 0;
 
   physrd (cfd, ksym_lookup ("IdlePTD") - KERNOFF, (char*)&sbr, sizeof sbr);
-  printf ("IdlePTD %lu\n", (unsigned long)sbr);
+  printf ("IdlePTD at phsyical address 0x%08lx\n", (unsigned long)sbr);
   curpcb = kvtophys(cfd, ksym_lookup ("gd_curpcb") + prv_start);
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
 
@@ -588,7 +606,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
   else
     paddr = kvtophys (cfd, curpcb);
   read_pcb (cfd, paddr);
-  printf ("initial pcb at %lx\n", (unsigned long)paddr);
+  printf ("initial pcb at physical address 0x%08lx\n", (unsigned long)paddr);
 
   return (cfd);
 }
