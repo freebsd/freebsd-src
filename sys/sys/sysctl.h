@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.34 1995/11/16 19:00:27 phk Exp $
+ * $Id: sysctl.h,v 1.35 1995/11/20 12:42:39 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -75,6 +75,8 @@ struct ctlname {
 #define CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
 #define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
 #define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
+
+#define OID_AUTO	(-1)
 
 #ifdef KERNEL
 #define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2, \
