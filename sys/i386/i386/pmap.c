@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.58.4.4 1996/06/09 08:54:57 davidg Exp $
+ *	$Id: pmap.c,v 1.58.4.5 1996/06/14 04:34:35 davidg Exp $
  */
 
 /*
@@ -1470,6 +1470,9 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 	}
 	if (!vm_object_lock_try(object))
 		return;
+
+	if ((size + offset) > object->size)
+		size = object->size - offset;
 
 	/*
 	 * if we are processing a major portion of the object, then scan the
