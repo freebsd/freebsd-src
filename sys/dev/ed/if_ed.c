@@ -1744,10 +1744,10 @@ ed_attach(dev)
 	 */
 	if (device_get_flags(dev) & ED_FLAGS_DISABLE_TRANCEIVER)
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | 
-		    IFF_MULTICAST | IFF_ALTPHYS);
+		    IFF_MULTICAST | IFF_ALTPHYS | IFF_NEEDSGIANT);
 	else
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX |
-		    IFF_MULTICAST);
+		    IFF_MULTICAST | IFF_NEEDSGIANT);
 
 	/*
 	 * Attach the interface
