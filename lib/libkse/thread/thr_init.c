@@ -449,6 +449,35 @@ init_private(void)
 		_thr_page_size = getpagesize();
 		_thr_guard_default = _thr_page_size;
 
+		/* Enter a loop to get the existing signal status: */
+		for (i = 1; i < NSIG; i++) {
+			/* Check for signals which cannot be trapped: */
+			if (i == SIGKILL || i == SIGSTOP) {
+			}
+
+			/* Get the signal handler details: */
+			else if (__sys_sigaction(i, NULL,
+			    &_thread_sigact[i - 1]) != 0) {
+				/*
+				 * Abort this process if signal
+				 * initialisation fails:
+				 */
+				PANIC("Cannot read signal handler info");
+			}
+		}
+		/*
+		 * Install the signal handler for SIGINFO.  It isn't
+		 * really needed, but it is nice to have for debugging
+		 * purposes.
+		 */
+		if (__sys_sigaction(SIGINFO, &act, NULL) != 0) {
+			/*
+			 * Abort this process if signal initialisation fails:
+			 */
+			PANIC("Cannot initialize signal handler");
+		}
+		_thread_sigact[SIGINFO - 1].sa_flags = SA_SIGINFO | SA_RESTART;
+
 		init_once = 1;	/* Don't do this again. */
 	} else {
 		/*
@@ -462,43 +491,14 @@ init_private(void)
 		_lock_destroy(&_keytable_lock);
 	}
 
-
 	/* Initialize everything else. */
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&_thread_gc_list);
 
 	/* Enter a loop to get the existing signal status: */
-	for (i = 1; i < NSIG; i++) {
-		/* Check for signals which cannot be trapped: */
-		if (i == SIGKILL || i == SIGSTOP) {
-		}
 
-		/* Get the signal handler details: */
-		else if (__sys_sigaction(i, NULL,
-		    &_thread_sigact[i - 1]) != 0) {
-			/*
-			 * Abort this process if signal
-			 * initialisation fails:
-			 */
-			PANIC("Cannot read signal handler info");
-		}
-
-		/* Initialize the SIG_DFL dummy handler count. */
-		_thread_dfl_count[i] = 0;
-	}
-
-	/*
-	 * Install the signal handler for SIGINFO.  It isn't
-	 * really needed, but it is nice to have for debugging
-	 * purposes.
-	 */
-	if (__sys_sigaction(SIGINFO, &act, NULL) != 0) {
-		/*
-		 * Abort this process if signal initialisation fails:
-		 */
-		PANIC("Cannot initialize signal handler");
-	}
-	_thread_sigact[SIGINFO - 1].sa_flags = SA_SIGINFO | SA_RESTART;
+	/* Initialize the SIG_DFL dummy handler count. */
+	bzero(_thread_dfl_count, sizeof(_thread_dfl_count));
 
 	/*
 	 * Initialize the lock for temporary installation of signal
