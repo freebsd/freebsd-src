@@ -896,15 +896,18 @@ vm_wait(void)
 	int s;
 
 	s = splvm();
+	vm_page_lock_queues();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		tsleep(&vm_pageout_pages_needed, PSWP, "VMWait", 0);
+		msleep(&vm_pageout_pages_needed, &vm_page_queue_mtx,
+		    PDROP | PSWP, "VMWait", 0);
 	} else {
 		if (!vm_pages_needed) {
 			vm_pages_needed = 1;
 			wakeup(&vm_pages_needed);
 		}
-		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
+		msleep(&cnt.v_free_count, &vm_page_queue_mtx, PDROP | PVM,
+		    "vmwait", 0);
 	}
 	splx(s);
 }
@@ -925,11 +928,13 @@ vm_waitpfault(void)
 	int s;
 
 	s = splvm();
+	vm_page_lock_queues();
 	if (!vm_pages_needed) {
 		vm_pages_needed = 1;
 		wakeup(&vm_pages_needed);
 	}
-	tsleep(&cnt.v_free_count, PUSER, "pfault", 0);
+	msleep(&cnt.v_free_count, &vm_page_queue_mtx, PDROP | PUSER,
+	    "pfault", 0);
 	splx(s);
 }
 
@@ -979,6 +984,8 @@ vm_page_activate(vm_page_t m)
 static __inline void
 vm_page_free_wakeup(void)
 {
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * if pageout daemon needs pages, then tell it that there are
 	 * some free.
