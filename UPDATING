@@ -5,6 +5,11 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011229:
+	If anyone here is already using the new rc.conf(5) variable
+	networkfs_types, please note that it has changed
+http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<9744.1009655556@axl.seasidesoftware.co.za>
+
 20011209:
 	The bugs in procfs' debugging support code have been fixed,
 	and truss(1) now works again.
@@ -807,13 +812,11 @@ COMMON ITEMS:
 	To just build a kernel when you know that it won't mess you up
 	--------------------------------------------------------------
 	cd src/sys/{i386,alpha}/conf
-	config KERNEL_NAME_HERE			[1]
+	config KERNEL_NAME_HERE
 	cd ../../compile/KERNEL_NAME_HERE
 	make depend
 	make
 	make install	
-	
-	[1] If in doubt, -r might help here.
 
 	If this fails, go to the "To build a kernel" section.
 
@@ -859,7 +862,7 @@ COMMON ITEMS:
 		mount -u /
 		mount -a
 		cd /usr/src
-		adjkerntz -i		# if COMS is wall time
+		adjkerntz -i		# if CMOS is wall time
 
 	[4] Note: This step is non-optional.  Failure to do this step
 	can result in a significant reduction in the functionality of the
