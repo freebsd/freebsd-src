@@ -79,11 +79,6 @@ extern struct stg_softc *stgdata[];
 #define	STG_HOSTID	7
 
 /* pccard support */
-#include "apm.h"
-#if NAPM > 0
-#include	<machine/apm_bios.h>
-#endif
-
 #include	"card.h"
 #if NCARD > 0
 #include	<sys/kernel.h>
