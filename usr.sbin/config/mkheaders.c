@@ -64,10 +64,10 @@ headers(void)
 	int errors;
 
 	errors = 0;
-	for (fl = ftab; fl != 0; fl = fl->f_next) {
+	STAILQ_FOREACH(fl, &ftab, f_next) {
 		if (fl->f_needs != 0) {
 			match = 0;
-			for (dp = dtab; dp != 0; dp = dp->d_next) {
+			STAILQ_FOREACH(dp, &dtab, d_next) {
 				if (eq(dp->d_name, fl->f_needs)) {
 					match++;
 					dp->d_done |= DEVDONE;
@@ -77,7 +77,7 @@ headers(void)
 				errors += do_header(fl->f_needs, match);
 		}
 	}
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
+	STAILQ_FOREACH(dp, &dtab, d_next) {
 		if (!(dp->d_done & DEVDONE)) {
 			warnx("Error: device \"%s\" is unknown",
 			       dp->d_name);
@@ -86,7 +86,7 @@ headers(void)
 		if (dp->d_count == UNKNOWN)
 			continue;
 		match = 0;
-		for (fl = ftab; fl != 0; fl = fl->f_next) {
+		STAILQ_FOREACH(fl, &ftab, f_next) {
 			if (fl->f_needs == 0)
 				continue;
 			if ((fl->f_flags & NEED_COUNT) == 0)
@@ -110,7 +110,8 @@ static int
 do_header(char *dev, int match)
 {
 	char *file, *name, *inw;
-	struct file_list *fl, *fl_head, *tflp;
+	struct file_list *fl, *tflp;
+	struct file_list_head fl_head;
 	struct device *dp;
 	FILE *inf, *outf;
 	int inc, oldcount;
@@ -123,7 +124,8 @@ do_header(char *dev, int match)
 	 * must use this higher of these values.
 	 */
 	errors = 0;
-	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
+	hicount = count = 0;
+	STAILQ_FOREACH(dp, &dtab, d_next) {
 		if (eq(dp->d_name, dev)) {
 			if (dp->d_count == UNKNOWN) {
 				warnx("Device \"%s\" requires a count", dev);
@@ -148,7 +150,7 @@ do_header(char *dev, int match)
 		(void) fclose(outf);
 		return 0;
 	}
-	fl_head = NULL;
+	STAILQ_INIT(&fl_head);
 	for (;;) {
 		char *cp;
 		if ((inw = get_word(inf)) == 0 || inw == (char *)EOF)
@@ -171,13 +173,12 @@ do_header(char *dev, int match)
 		bzero(fl, sizeof(*fl));
 		fl->f_fn = inw;		/* malloced */
 		fl->f_type = inc;
-		fl->f_next = fl_head;
-		fl_head = fl;
+		STAILQ_INSERT_HEAD(&fl_head, fl, f_next);
 	}
 	(void) fclose(inf);
 	if (count == oldcount) {
-		for (fl = fl_head; fl != NULL; fl = tflp) {
-			tflp = fl->f_next;
+		for (fl = STAILQ_FIRST(&fl_head); fl != NULL; fl = tflp) {
+			tflp = STAILQ_NEXT(fl, f_next);
 			free(fl->f_fn);
 			free(fl);
 		}
@@ -188,16 +189,15 @@ do_header(char *dev, int match)
 		bzero(fl, sizeof(*fl));
 		fl->f_fn = ns(name);
 		fl->f_type = count;
-		fl->f_next = fl_head;
-		fl_head = fl;
+		STAILQ_INSERT_HEAD(&fl_head, fl, f_next);
 	}
 	outf = fopen(file, "w");
 	if (outf == 0)
 		err(1, "%s", file);
-	for (fl = fl_head; fl != NULL; fl = tflp) {
+	for (fl = STAILQ_FIRST(&fl_head); fl != NULL; fl = tflp) {
 		fprintf(outf,
 		    "#define %s %u\n", fl->f_fn, count ? fl->f_type : 0);
-		tflp = fl->f_next;
+		tflp = STAILQ_NEXT(fl, f_next);
 		free(fl->f_fn);
 		free(fl);
 	}

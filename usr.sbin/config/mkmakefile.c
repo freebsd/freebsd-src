@@ -69,8 +69,6 @@ static const char rcsid[] =
 		wd = word; \
 	}
 
-static struct file_list *fcur;
-
 static char *tail(char *);
 static void do_clean(FILE *);
 static void do_rules(FILE *);
@@ -88,7 +86,7 @@ fl_lookup(char *file)
 {
 	struct file_list *fp;
 
-	for (fp = ftab ; fp != 0; fp = fp->f_next) {
+	STAILQ_FOREACH(fp, &ftab, f_next) {
 		if (eq(fp->f_fn, file))
 			return (fp);
 	}
@@ -105,11 +103,7 @@ new_fent(void)
 
 	fp = (struct file_list *) malloc(sizeof *fp);
 	bzero(fp, sizeof *fp);
-	if (fcur == 0)
-		fcur = ftab = fp;
-	else
-		fcur->f_next = fp;
-	fcur = fp;
+	STAILQ_INSERT_TAIL(&ftab, fp, f_next);
 	return (fp);
 }
 
@@ -136,7 +130,7 @@ makefile(void)
 		err(1, "%s", line);
 
 	/* XXX this check seems to be misplaced. */
-	if (cputype == 0) {
+	if (SLIST_EMPTY(&cputype)) {
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
@@ -145,7 +139,7 @@ makefile(void)
 	if (ofp == 0)
 		err(1, "%s", path("Makefile.new"));
 	fprintf(ofp, "KERN_IDENT=%s\n", raisestr(ident));
-	for (op = mkopt; op; op = op->op_next)
+	SLIST_FOREACH(op, &mkopt, op_next)
 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
 	if (debugging)
 		fprintf(ofp, "DEBUG=-g\n");
@@ -315,7 +309,7 @@ read_files(void)
 	int nreqs, first = 1, isdup, std, filetype,
 	    imp_rule, no_obj, needcount, before_depend, mandatory, nowerror;
 
-	ftab = 0;
+	STAILQ_INIT(&ftab);
 	if (ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
@@ -480,7 +474,7 @@ nextparam:
 		needs = ns(wd);
 	if (isdup)
 		goto invis;
-	for (dp = dtab; dp != 0; dp = dp->d_next)
+	STAILQ_FOREACH(dp, &dtab, d_next)
 		if (eq(dp->d_name, wd)) {
 			if (std && dp->d_count <= 0)
 				dp->d_count = 1;
@@ -496,7 +490,7 @@ nextparam:
 		       this, wd);
 		exit(1);
 	}
-	for (op = opt; op != 0; op = op->op_next)
+	SLIST_FOREACH(op, &opt, op_next)
 		if (op->op_value == 0 && opteq(op->op_name, wd)) {
 			if (nreqs == 1) {
 				free(needs);
@@ -585,7 +579,7 @@ do_before_depend(FILE *fp)
 
 	fputs("BEFORE_DEPEND=", fp);
 	lpos = 15;
-	for (tp = ftab; tp; tp = tp->f_next)
+	STAILQ_FOREACH(tp, &ftab, f_next)
 		if (tp->f_flags & BEFORE_DEPEND) {
 			len = strlen(tp->f_fn);
 			if ((len = 3 + len) + lpos > 72) {
@@ -611,7 +605,7 @@ do_objs(FILE *fp)
 
 	fprintf(fp, "OBJS=");
 	lpos = 6;
-	for (tp = ftab; tp != 0; tp = tp->f_next) {
+	STAILQ_FOREACH(tp, &ftab, f_next) {
 		if (tp->f_type == INVISIBLE || tp->f_flags & NO_OBJ)
 			continue;
 		sp = tail(tp->f_fn);
@@ -647,7 +641,7 @@ do_xxfiles(char *tag, FILE *fp)
 
 	fprintf(fp, "%sFILES=", SUFF);
 	lpos = 8;
-	for (tp = ftab; tp; tp = tp->f_next)
+	STAILQ_FOREACH(tp, &ftab, f_next)
 		if (tp->f_type != INVISIBLE && tp->f_type != NODEPEND) {
 			len = strlen(tp->f_fn);
 			if (tp->f_fn[len - slen - 1] != '.')
@@ -690,7 +684,7 @@ do_rules(FILE *f)
 	struct file_list *ftp;
 	char *compilewith;
 
-	for (ftp = ftab; ftp != 0; ftp = ftp->f_next) {
+	STAILQ_FOREACH(ftp, &ftab, f_next) {
 		if (ftp->f_type == INVISIBLE)
 			continue;
 		if (ftp->f_warn)
@@ -757,7 +751,7 @@ do_clean(FILE *fp)
 
 	fputs("CLEAN=", fp);
 	lpos = 7;
-	for (tp = ftab; tp; tp = tp->f_next)
+	STAILQ_FOREACH(tp, &ftab, f_next)
 		if (tp->f_clean) {
 			len = strlen(tp->f_clean);
 			if (len + lpos > 72) {

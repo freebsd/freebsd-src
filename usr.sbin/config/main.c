@@ -144,7 +144,8 @@ main(int argc, char **argv)
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR)
 		errx(2, "%s isn't a directory", p);
 
-	dtab = NULL;
+	STAILQ_INIT(&dtab);
+	SLIST_INIT(&cputype);
 	yyfile = *argv;
 	if (yyparse())
 		exit(3);
@@ -420,7 +421,7 @@ cleanheaders(char *p)
 
 	remember("y.tab.h");
 	remember("setdefs.h");
-	for (fl = ftab; fl != NULL; fl = fl->f_next)
+	STAILQ_FOREACH(fl, &ftab, f_next)
 		remember(fl->f_fn);
 
 	/*

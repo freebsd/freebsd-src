@@ -72,9 +72,7 @@
 
 #include "config.h"
 
-static struct	device *curp = 0;
-
-struct  device *dtab;
+struct	device_head dtab;
 char	*ident;
 char	*env;
 int	envmode;
@@ -82,7 +80,7 @@ char	*hints;
 int	hintmode;
 int	yyline;
 const	char *yyfile;
-struct  file_list *ftab;
+struct  file_list_head ftab;
 char	errbuf[80];
 int	maxusers;
 
@@ -133,8 +131,7 @@ Config_spec:
 		    (struct cputype *)malloc(sizeof (struct cputype));
 		memset(cp, 0, sizeof(*cp));
 		cp->cpu_name = $2;
-		cp->cpu_next = cputype;
-		cputype = cp;
+		SLIST_INSERT_HEAD(&cputype, cp, cpu_next);
 	      } |
 	OPTIONS Opt_list
 		|
@@ -268,16 +265,11 @@ newdev(char *name, int count)
 	memset(np, 0, sizeof(*np));
 	np->d_name = name;
 	np->d_count = count;
-	np->d_next = 0;
-	if (curp == 0)
-		dtab = np;
-	else
-		curp->d_next = np;
-	curp = np;
+	STAILQ_INSERT_TAIL(&dtab, np, d_next);
 }
 
 static void
-newopt(struct opt **list, char *name, char *value)
+newopt(struct opt_head *list, char *name, char *value)
 {
 	struct opt *op;
 
@@ -286,6 +278,5 @@ newopt(struct opt **list, char *name, char *value)
 	op->op_name = name;
 	op->op_ownfile = 0;
 	op->op_value = value;
-	op->op_next = *list;
-	*list = op;
+	SLIST_INSERT_HEAD(list, op, op_next);
 }
