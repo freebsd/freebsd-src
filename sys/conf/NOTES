@@ -1670,7 +1670,7 @@ device		miibus
 #       Compaq Netelligent 10/100 cards and the built-in ethernet controllers
 #       in several Compaq Prosignia, Proliant and Deskpro systems.  It also
 #       supports several Olicom 10Mbps and 10/100 boards.
-# tx:   SMC 9432 TX, BTX and TX_2 cards. (SMC EtherPower II serie)
+# tx:   SMC 9432 TX, BTX and FTX cards. (SMC EtherPower II serie)
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
 #       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
