@@ -404,13 +404,6 @@ esac
 
 echo '.'
 
-# Configure implementation specific stuff
-#
-arch=`uname -m`
-if [ -r /etc/rc.${arch} ]; then
-	. /etc/rc.${arch}
-fi
-
 # Recover vi editor files.
 find /var/tmp/vi.recover ! -type f -a ! -type d -delete
 vibackup=`echo /var/tmp/vi.recover/vi.*`
@@ -459,28 +452,6 @@ if [ -d /var/msgs -a ! -f /var/msgs/bounds ]; then
 	echo 0 > /var/msgs/bounds
 fi
 
-# For each valid dir in $local_startup, search for init scripts matching *.sh
-#
-case ${local_startup} in
-[Nn][Oo] | '')
-	;;
-*)
-	echo -n 'Local package initialization:'
-	for dir in ${local_startup}; do
-		if [ -d "${dir}" ]; then
-			for script in ${dir}/*.sh; do
-				if [ -x "${script}" ]; then
-					(set -T
-					 trap 'exit 1' 2
-					 ${script} start)
-				fi
-			done
-		fi
-	done
-	echo .
-	;;
-esac
-
 case ${update_motd} in
 [Nn][Oo] | '')
 	;;
@@ -496,6 +467,13 @@ case ${update_motd} in
 	fi
 	;;
 esac
+
+# Configure implementation specific stuff
+#
+arch=`uname -m`
+if [ -r /etc/rc.${arch} ]; then
+	. /etc/rc.${arch}
+fi
 
 # Run rc.devfs if readable to customize devfs
 #
@@ -522,6 +500,28 @@ if [ -r /etc/rc.local ]; then
 	sh /etc/rc.local
 	echo '.'
 fi
+
+# For each valid dir in $local_startup, search for init scripts matching *.sh
+#
+case ${local_startup} in
+[Nn][Oo] | '')
+	;;
+*)
+	echo -n 'Local package initialization:'
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for script in ${dir}/*.sh; do
+				if [ -x "${script}" ]; then
+					(set -T
+					 trap 'exit 1' 2
+					 ${script} start)
+				fi
+			done
+		fi
+	done
+	echo .
+	;;
+esac
 
 # Raise kernel security level.  This should be done only after `fsck' has
 # repaired local file systems if you want the securelevel to be greater than 1.
