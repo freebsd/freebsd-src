@@ -79,27 +79,6 @@
     Support for monitoring changes in sockets, pipes, fifos, and files
     are present, as well as for signals and processes. &merged;</para>
 
-    <para arch="i386">Support for Intel's Wired for Management 2.0 (PXE)
-    was added to the &os; boot loader.  Due to API differences, the
-    older PXE versions are not supported.  This allow network booting
-    using DHCP. &merged;</para>
-
-    <para arch="i386">The &os; boot loader now contains a workaround
-    to support CDROM booting on certain IBM BIOSs that expect the
-    first sector of the emulated floppy to contain a valid MS-DOS BPB
-    that they can modify. &merged;</para>
-
-    <para arch="i386">The &os; boot loader now supports a
-    <option>-p</option> flag to force the kernel to pause after each
-    line of output during the probing phase. &merged;</para>
-
-    <para arch="i386">The &os; boot loader is now capable of
-    booting from filesystems with 16K disk blocks (the old limit was
-    8K). &merged;</para>
-
-    <para arch="alpha">The &os; boot loader is now capable of
-    booting from filesystems with block sizes larger than 8K. &merged;</para>
-
     <para>Support for USB devices was added to the
     <filename>GENERIC</filename> kernel and to the installation
     programs to support USB devices out of the box.  Note that SRM
@@ -111,16 +90,6 @@
     MAP_NOSYNC flag when they are &man.mmap.2;-ed. &merged;</para>
 
     <para>The &man.agp.4; driver for AGP devices has been added. &merged;</para>
-
-    <para>The kernel and modules have been moved to the directory
-    <filename>/boot/kernel</filename>, so they can be easily
-    manipulated together.  The boot loader has been updated to make
-    this change as seamless as possible.</para>
-
-    <para arch="i386">The i386 boot loader now has support for a 
-    <literal>nullconsole</literal>
-    console type, for use on systems with neither a video console nor
-    a serial port. &merged;</para>
 
     <para>Replaced the <literal>PQ_*CACHE</literal> options with a
     single <literal>PQ_CACHESIZE</literal> option to be set to
@@ -323,24 +292,12 @@
     smaller units of scheduling than a process (but only one thread
     per process is allowed at this time).</para>
 
-    <para arch="i386">The &man.loader.8; now has optional support
-    (enabled at compile-time, off by default) for loading
-    <application>bzip2</application>-compressed kernels and
-    modules. &merged;</para>
-
     <para>The kernel now has support for multiple low-level console
     devices.  The new &man.conscontrol.8; utility helps to manage the
     different consoles.</para>
 
     <para arch="alpha">The console driver has gained support for TGA-based
     display adapters.</para>
-
-    <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
-    better compatability with some BIOS implementations that do not
-    completely implement the El Torito bootable CDROM standard.  This
-    boot loader supports <quote>no emulation</quote> mode booting,
-    thus eliminating the need for an emulated floppy disk image on
-    a bootable CDROM. &merged;</para>
 
     <para>The kernel on the installation CDs is now separated from the
     <filename>mfsroot</filename> image.  This permits the use of a
@@ -453,6 +410,55 @@
       Extensions (<acronym>SSE</acronym>) has been introduced.  The
       <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
       support is compiled into the kernel. &merged;</para>
+    </sect3>
+
+    <sect3>
+      <title>Bootloader Changes</title>
+
+      <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
+      better compatability with some BIOS implementations that do not
+      completely implement the El Torito bootable CDROM standard.  This
+      boot loader supports <quote>no emulation</quote> mode booting,
+      thus eliminating the need for an emulated floppy disk image on
+      a bootable CDROM. &merged;</para>
+
+      <para arch="i386">The i386 boot loader now has support for a 
+      <literal>nullconsole</literal>
+      console type, for use on systems with neither a video console nor
+      a serial port. &merged;</para>
+
+      <para arch="i386">The &man.loader.8; now has optional support
+      (enabled at compile-time, off by default) for loading
+      <application>bzip2</application>-compressed kernels and
+      modules. &merged;</para>
+
+      <para arch="i386">Support for Intel's Wired for Management 2.0 (PXE)
+      was added to the &os; boot loader.  Due to API differences, the
+      older PXE versions are not supported.  This allow network booting
+      using DHCP. &merged;</para>
+
+      <!-- Above this line, order bootloader changes by keyword-->
+
+      <para arch="i386">The &os; boot loader now contains a workaround
+      to support CDROM booting on certain IBM BIOSs that expect the
+      first sector of the emulated floppy to contain a valid MS-DOS BPB
+      that they can modify. &merged;</para>
+
+      <para arch="i386">The &os; boot loader now supports a
+      <option>-p</option> flag to force the kernel to pause after each
+      line of output during the probing phase. &merged;</para>
+
+      <para arch="i386">The &os; boot loader is now capable of
+      booting from filesystems with 16K disk blocks (the old limit was
+      8K). &merged;</para>
+
+      <para arch="alpha">The &os; boot loader is now capable of
+      booting from filesystems with block sizes larger than 8K. &merged;</para>
+
+      <para>The kernel and modules have been moved to the directory
+      <filename>/boot/kernel</filename>, so they can be easily
+      manipulated together.  The boot loader has been updated to make
+      this change as seamless as possible.</para>
     </sect3>
 
     <sect3>
