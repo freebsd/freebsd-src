@@ -74,6 +74,10 @@ command_load(int argc, char *argv[])
     optind = 1;
     optreset = 1;
     typestr = NULL;
+    if (argc == 1) {
+	command_errmsg = "no filename specified";
+	return(CMD_ERROR);
+    }
     while ((ch = getopt(argc, argv, "t:")) != -1) {
 	switch(ch) {
 	case 't':
