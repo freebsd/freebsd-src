@@ -72,7 +72,7 @@ main(int argc, char **argv)
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
 	int nogap = 0, speed = 4, test_write = 0;
 	int block_size = 0, block_type = 0, cdopen = 0;
-	char *devname = "/dev/acd0c";
+	const char *dev = "/dev/acd0c";
 
 	while ((ch = getopt(argc, argv, "def:lmnpqs:tv")) != -1) {
 		switch (ch) {
@@ -85,7 +85,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'f':
-			devname = optarg;
+			dev = optarg;
 			break;
 
 		case 'l':
@@ -132,8 +132,8 @@ main(int argc, char **argv)
 	if (argc == 0)
 		usage();
 
-	if ((fd = open(devname, O_RDWR, 0)) < 0)
-		err(EX_NOINPUT, "open(%s)", devname);
+	if ((fd = open(dev, O_RDWR, 0)) < 0)
+		err(EX_NOINPUT, "open(%s)", dev);
 
 	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
@@ -281,7 +281,7 @@ main(int argc, char **argv)
 void
 add_track(char *name, int block_size, int block_type, int nogap)
 {
-	struct stat stat;
+	struct stat sb;
 	int file;
 	static int done_stdin = 0;
 
@@ -295,11 +295,11 @@ add_track(char *name, int block_size, int block_type, int nogap)
 	}
 	else if ((file = open(name, O_RDONLY, 0)) < 0)
 		err(EX_NOINPUT, "open(%s)", name);
-	if (fstat(file, &stat) < 0)
+	if (fstat(file, &sb) < 0)
 		err(EX_IOERR, "fstat(%s)", name);
 	tracks[notracks].file = file;
 	tracks[notracks].file_name = name;
-	tracks[notracks].file_size = stat.st_size;
+	tracks[notracks].file_size = sb.st_size;
 	tracks[notracks].block_size = block_size;
 	tracks[notracks].block_type = block_type;
 
@@ -319,9 +319,10 @@ add_track(char *name, int block_size, int block_type, int nogap)
 		    roundup_blocks(&tracks[notracks]))
 			pad = 1;
 		fprintf(stderr, 
-			"adding type 0x%02x file %s size %qd KB %d blocks %s\n",
+			"adding type 0x%02x file %s size %jd KB %d blocks %s\n",
 			tracks[notracks].block_type, name,
-			stat.st_size / 1024, roundup_blocks(&tracks[notracks]),
+			(intmax_t)sb.st_size / 1024,
+			roundup_blocks(&tracks[notracks]),
 			pad ? "(0 padded)" : "");
 	}
 	notracks++;
@@ -530,13 +531,13 @@ roundup_blocks(struct track_info *track)
 }
 
 void
-cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int index,
+cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int ind,
 	int dataform, int scms, int lba)
 {
 	cue->adr = adr;
 	cue->ctl = ctl;
 	cue->track = track;
-	cue->index = index;
+	cue->index = ind;
 	cue->dataform = dataform;
 	cue->scms = scms;
 	lba += 150;
@@ -546,7 +547,7 @@ cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int index,
 }
 
 void
-cleanup(int dummy)
+cleanup(int dummy __unused)
 {
 	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
 		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
