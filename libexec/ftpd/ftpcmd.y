@@ -500,8 +500,12 @@ cmd
 		}
 	| CWD check_login CRLF
 		{
-			if ($2)
-				cwd(pw->pw_dir);
+			if ($2) {
+				if (guest)
+					cwd("/");
+				else
+					cwd(pw->pw_dir);
+			}
 		}
 	| CWD check_login SP pathname CRLF
 		{
