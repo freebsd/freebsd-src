@@ -23,6 +23,7 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+publisher="The FreeBSD Project.  http://www.freebsd.org/"
 set -e
 
 # The hackery function is to help with the development of the release
@@ -91,6 +92,6 @@ if [ $bootable = yes ]; then
     BOOTOPTS="-b $EFIPART -no-emul-boot"
 fi
 
-mkisofs $BOOTOPTS -r -J -V $LABEL -o $NAME $BASE $*
+mkisofs $BOOTOPTS -r -J -V $LABEL -P "$publisher" -o $NAME $BASE $*
 rm -f $BASE/$EFIPART
 exit 0

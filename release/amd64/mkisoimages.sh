@@ -23,6 +23,7 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+publisher="The FreeBSD Project.  http://www.freebsd.org/"
 if [ "x$1" = "x-b" ]; then
 	# This is highly x86-centric and will be used directly below.
 	bootable="-b boot/cdboot -no-emul-boot"
@@ -53,4 +54,4 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
-mkisofs $bootable -r -J -V $LABEL -o $NAME $*
+mkisofs $bootable -r -J -V $LABEL -P "$publisher" -o $NAME $*
