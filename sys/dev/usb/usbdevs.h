@@ -527,7 +527,7 @@
 #define	USB_PRODUCT_CYPRESS_FMRADIO	0x1002		/* FM Radio */
 
 /* Daisy Technology products */
-#define	USB_PRODUCT_DAISY_DMC	0x6901		/* PhotoClip Camera */
+#define	USB_PRODUCT_DAISY_DMC	0x6901		/* PhotoClip USBMediaReader */
 
 /* Dallas Semiconductor products */
 #define	USB_PRODUCT_DALLAS_J6502	0x4201		/* J-6502 speakers */
