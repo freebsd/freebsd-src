@@ -192,6 +192,14 @@ ffs_mount(mp, path, data, ndp, p)
 				vn_finished_write(mp);
 				return (error);
 			}
+			if (fs->fs_pendingblocks != 0 ||
+			    fs->fs_pendinginodes != 0) {
+				printf("%s: update error: blocks %d files %d\n",
+				    fs->fs_fsmnt, fs->fs_pendingblocks,
+				    fs->fs_pendinginodes);
+				fs->fs_pendingblocks = 0;
+				fs->fs_pendinginodes = 0;
+			}
 			fs->fs_ronly = 1;
 			if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 				fs->fs_clean = 1;
@@ -433,6 +441,12 @@ ffs_reload(mp, cred, p)
 		fs->fs_avgfilesize = AVFILESIZ;	/* XXX */
 	if (fs->fs_avgfpdir <= 0)		/* XXX */
 		fs->fs_avgfpdir = AFPDIR;	/* XXX */
+	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
+		printf("%s: reload pending error: blocks %d files %d\n",
+		    fs->fs_fsmnt, fs->fs_pendingblocks, fs->fs_pendinginodes);
+		fs->fs_pendingblocks = 0;
+		fs->fs_pendinginodes = 0;
+	}
 
 	/*
 	 * Step 3: re-read summary information from disk.
@@ -609,6 +623,18 @@ ffs_mountfs(devvp, mp, p, malloctype)
 			error = EPERM;
 			goto out;
 		}
+		if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
+			printf("%s: lost blocks %d files %d\n", fs->fs_fsmnt,
+			    fs->fs_pendingblocks, fs->fs_pendinginodes);
+			fs->fs_pendingblocks = 0;
+			fs->fs_pendinginodes = 0;
+		}
+	}
+	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
+		printf("%s: mount pending error: blocks %d files %d\n",
+		    fs->fs_fsmnt, fs->fs_pendingblocks, fs->fs_pendinginodes);
+		fs->fs_pendingblocks = 0;
+		fs->fs_pendinginodes = 0;
 	}
 	/* XXX updating 4.2 FFS superblocks trashes rotational layout tables */
 	if (fs->fs_postblformat == FS_42POSTBLFMT && !ronly) {
@@ -826,6 +852,12 @@ ffs_unmount(mp, mntflags, p)
 		fs->fs_cgsize = fs->fs_sparecon[0];
 		fs->fs_sparecon[0] = 0;
 	}
+	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
+		printf("%s: unmount pending error: blocks %d files %d\n",
+		    fs->fs_fsmnt, fs->fs_pendingblocks, fs->fs_pendinginodes);
+		fs->fs_pendingblocks = 0;
+		fs->fs_pendinginodes = 0;
+	}
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT);
@@ -923,10 +955,11 @@ ffs_statfs(mp, sbp, p)
 	sbp->f_iosize = fs->fs_bsize;
 	sbp->f_blocks = fs->fs_dsize;
 	sbp->f_bfree = fs->fs_cstotal.cs_nbfree * fs->fs_frag +
-		fs->fs_cstotal.cs_nffree;
-	sbp->f_bavail = freespace(fs, fs->fs_minfree);
+	    fs->fs_cstotal.cs_nffree + dbtofsb(fs, fs->fs_pendingblocks);
+	sbp->f_bavail = freespace(fs, fs->fs_minfree) +
+	    dbtofsb(fs, fs->fs_pendingblocks);
 	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - ROOTINO;
-	sbp->f_ffree = fs->fs_cstotal.cs_nifree;
+	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
 	if (sbp != &mp->mnt_stat) {
 		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
