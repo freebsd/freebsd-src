@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
-.\"	$Id: dump.8,v 1.13 1997/03/11 12:09:31 peter Exp $
+.\"	$Id: dump.8,v 1.14 1997/03/15 06:23:57 peter Exp $
 .\"
 .Dd May 1, 1995
 .Dt DUMP 8
@@ -41,7 +41,7 @@
 .Nd filesystem backup
 .Sh SYNOPSIS
 .Nm dump
-.Op Fl 0123456789acnu
+.Op Fl 0123456789acknu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
 .Op Fl d Ar density
@@ -164,6 +164,11 @@ program is
 .Pa /etc/rmt ;
 this can be overridden by the environment variable
 .Ev RMT .
+.It Fl k
+Use Kerberos authentication to talk to remote tape servers.  (Only
+available if this option was enabled when
+.Nm dump
+was compiled.)
 .It Fl n
 Whenever
 .Nm dump
