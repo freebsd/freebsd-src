@@ -31,10 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id$
+ * $Id: fifo.h,v 1.2 1994/08/02 07:44:54 davidg Exp $
  */
 
-#ifdef FIFO
 /*
  * Prototypes for fifo operations on vnodes.
  */
@@ -83,4 +82,3 @@ int	fifo_advlock __P((struct vop_advlock_args *));
 #define fifo_truncate ((int (*) __P((struct  vop_truncate_args *)))nullop)
 #define fifo_update ((int (*) __P((struct  vop_update_args *)))nullop)
 #define fifo_bwrite ((int (*) __P((struct  vop_bwrite_args *)))nullop)
-#endif /* FIFO */

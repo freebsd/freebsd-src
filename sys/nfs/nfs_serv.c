@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.3 1994/08/02 07:52:09 davidg Exp $
+ * $Id: nfs_serv.c,v 1.4 1994/08/29 06:09:06 davidg Exp $
  */
 
 /*
@@ -736,12 +736,6 @@ nfsrv_create(nfsd, mrep, md, dpos, cred, nam, mrq)
 			if (vap->va_type == VCHR && rdev == 0xffffffff)
 				vap->va_type = VFIFO;
 			if (vap->va_type == VFIFO) {
-#ifndef FIFO
-				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-				vput(nd.ni_dvp);
-				error = ENXIO;
-				goto out;
-#endif /* FIFO */
 			} else if (error = suser(cred, (u_short *)0)) {
 				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 				vput(nd.ni_dvp);

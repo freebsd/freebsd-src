@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.6 1994/09/02 10:23:43 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.7 1994/09/21 03:46:49 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -768,9 +768,6 @@ mkfifo(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
-#ifndef FIFO
-	return (EOPNOTSUPP);
-#else
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->path, p);
 	if (error = namei(&nd))
 		return (error);
@@ -788,7 +785,6 @@ mkfifo(p, uap, retval)
 	vattr.va_mode = (uap->mode & ALLPERMS) &~ p->p_fd->fd_cmask;
 	LEASE_CHECK(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	return (VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr));
-#endif /* FIFO */
 }
 
 /*

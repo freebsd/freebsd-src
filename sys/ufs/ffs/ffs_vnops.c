@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.3 1994/08/08 17:30:59 davidg Exp $
+ * $Id: ffs_vnops.c,v 1.4 1994/09/21 03:47:38 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -160,7 +160,6 @@ struct vnodeopv_entry_desc ffs_specop_entries[] = {
 struct vnodeopv_desc ffs_specop_opv_desc =
 	{ &ffs_specop_p, ffs_specop_entries };
 
-#ifdef FIFO
 int (**ffs_fifoop_p)();
 struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
@@ -209,13 +208,10 @@ struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 };
 struct vnodeopv_desc ffs_fifoop_opv_desc =
 	{ &ffs_fifoop_p, ffs_fifoop_entries };
-#endif /* FIFO */
 
 VNODEOP_SET(ffs_vnodeop_opv_desc);
 VNODEOP_SET(ffs_specop_opv_desc);
-#ifdef FIFO
 VNODEOP_SET(ffs_fifoop_opv_desc);
-#endif
 
 #ifdef DEBUG
 /*

@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.80 1994/09/16 10:23:30 jkh Exp $
+#	$Id: LINT,v 1.81 1994/09/19 15:45:02 dfr Exp $
 #
 
 machine		"i386"
@@ -90,7 +90,6 @@ device		ch0
 options		DDB			#Kernel debugger
 options		EON
 pseudo-device	ether
-options		FIFO
 #pseudo-device	imp
 options		INET			#Internet communications protocols
 options		ISO
