@@ -248,7 +248,7 @@ i386/isa/ithread.c		standard
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatibility shims present."
-i386/isa/istallion.c		optional	stli
+i386/isa/istallion.c		optional	stli nowerror
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		optional	mca
