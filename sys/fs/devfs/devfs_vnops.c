@@ -120,6 +120,21 @@ static int	devfs_write(struct vop_write_args *ap);
 static vop_t **devfs_vnodeop_p;
 vop_t **devfs_specop_p;
 
+static int
+devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
+{
+
+	*devp = fp->f_vnode->v_rdev;
+	if (*devp != fp->f_data)
+		return (ENXIO);
+	KASSERT((*devp)->si_refcount > 0,
+	    ("devfs: un-referenced struct cdev *(%s)", devtoname(*devp)));
+	*dswp = dev_refthread(*devp);
+	if (*dswp == NULL)
+		return (ENXIO);
+	return (0);
+}
+
 /*
  * Construct the fully qualified path name relative to the mountpoint
  */
@@ -342,12 +357,7 @@ devfs_close(ap)
 static int
 devfs_close_f(struct file *fp, struct thread *td)
 {
-	struct cdev *dev;
 
-	dev = fp->f_data;
-#if 0
-	printf("devfs_close_f(%s)\n", devtoname(dev));
-#endif
 	return (vnops.fo_close(fp, td));
 }
 
@@ -481,20 +491,13 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 {
 	struct cdev *dev;
 	struct cdevsw *dsw;
-	struct vnode *vp = fp->f_vnode;
+	struct vnode *vp;
 	struct vnode *vpold;
 	int error;
 
-	dev = fp->f_data;
-#if 0
-	printf("devfs_ioctl_f(%s)\n", devtoname(dev));
-#endif
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_ioctl() on un-referenced struct cdev *(%s)",
-	    devtoname(dev)));
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (ENXIO);
+	error = devfs_fp_check(fp, &dev, &dsw);
+	if (error)
+		return (error);
 
 	if (com == FIODTYPE) {
 		*(int *)data = dsw->d_flags & D_TYPEMASK;
@@ -510,6 +513,7 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	if (error == 0 && com == TIOCSCTTY) {
+		vp = fp->f_vnode;
 
 		/* Do nothing if reassigning same control tty */
 		sx_slock(&proctree_lock);
@@ -572,16 +576,9 @@ devfs_kqfilter_f(struct file *fp, struct knote *kn)
 	struct cdevsw *dsw;
 	int error;
 
-	dev = fp->f_data;
-#if 0
-	printf("devfs_kqfilter_f(%s)\n", devtoname(dev));
-#endif
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_kqfilter() on un-referenced struct cdev *(%s)",
-	    devtoname(dev)));
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return(0);
+	error = devfs_fp_check(fp, &dev, &dsw);
+	if (error)
+		return (error);
 	if (dsw->d_flags & D_NEEDGIANT)
 		mtx_lock(&Giant);
 	error = dsw->d_kqfilter(dev, kn);
@@ -816,6 +813,7 @@ devfs_open(ap)
 		int  a_mode;
 		struct ucred *a_cred;
 		struct thread *a_td;
+		int a_fdidx;
 	} */ *ap;
 {
 	struct thread *td = ap->a_td;
@@ -974,16 +972,9 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	struct cdevsw *dsw;
 	int error;
 
-	dev = fp->f_data;
-#if 0
-	printf("devfs_poll_f(%s)\n", devtoname(dev));
-#endif
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (0);
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_poll() on un-referenced struct cdev *(%s)",
-	    devtoname(dev)));
+	error = devfs_fp_check(fp, &dev, &dsw);
+	if (error)
+		return (error);
 	if (dsw->d_flags & D_NEEDGIANT)
 		mtx_lock(&Giant);
 	error = dsw->d_poll(dev, events, td);
@@ -1061,25 +1052,11 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	struct cdev *dev;
 	int ioflag, error, resid;
 	struct cdevsw *dsw;
-	struct vnode *vp;
 
-	dev = fp->f_data;
-#if 0
-	/*
-	 * Enabling this one is dangerous, syslog will log once for each
-	 * read from /dev/klog so...
-	 */
-	printf("devfs_read_f(%s)\n", devtoname(dev));
-#endif
-	KASSERT(dev->si_refcount > 0,
-	    ("specread() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (ENXIO);
-
-	vp = fp->f_vnode;
+	error = devfs_fp_check(fp, &dev, &dsw);
+	if (error)
+		return (error);
 	resid = uio->uio_resid;
-
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
@@ -1210,7 +1187,7 @@ devfs_reclaim(ap)
 	if (de != NULL)
 		de->de_vnode = NULL;
 	vp->v_data = NULL;
-	if (vp->v_rdev != NULL && vp->v_rdev != NULL) {
+	if (vp->v_rdev != NULL) {
 		i = vcount(vp);
 		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0 &&
 		    (vp->v_rdev->si_flags & SI_NAMED))
@@ -1426,12 +1403,7 @@ devfs_setlabel(ap)
 static int
 devfs_stat_f(struct file *fp, struct stat *sb, struct ucred *cred, struct thread *td)
 {
-	struct cdev *dev;
 
-	dev = fp->f_data;
-#if 0
-	printf("devfs_stat_f(%s)\n", devtoname(dev));
-#endif
 	return (vnops.fo_stat(fp, sb, cred, td));
 }
 
@@ -1533,17 +1505,9 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	int error, ioflag, resid;
 	struct cdevsw *dsw;
 
-	dev = fp->f_data;
-#if 0
-	printf("devfs_write_f(%s)\n", devtoname(dev));
-#endif
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_write() on un-referenced struct cdev *(%s)",
-	    devtoname(dev)));
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (ENXIO);
-
+	error = devfs_fp_check(fp, &dev, &dsw);
+	if (error)
+		return (error);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
 	vp = fp->f_vnode;
 	ioflag = IO_UNIT;
