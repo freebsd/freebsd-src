@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.64.2.4 1996/12/07 22:48:42 joerg Exp $
+ *      $Id: scsiconf.c,v 1.64.2.5 1996/12/13 00:06:59 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -248,7 +248,6 @@ static st_modes mode_unktape =
 
 static struct scsidevs knowndevs[] =
 {
-/* od's must be probed before sd's since some of them identify as T_DIRECT */
 #if NOD > 0
 	{
 		T_OPTICAL, T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-100*", "*",
@@ -260,6 +259,10 @@ static struct scsidevs knowndevs[] =
 	},
 	{
 		T_DIRECT, T_OPTICAL, T_REMOV, "MOST", "RMD-5200-S", "*",
+		"od", SC_ONE_LU
+	},
+	{
+		T_DIRECT, T_OPTICAL, T_REMOV, "RICOH", "RO-*", "*",
 		"od", SC_ONE_LU
 	},
 	{
