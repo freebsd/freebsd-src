@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.15 1998/09/20 07:19:53 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.16 1998/09/22 04:55:07 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -835,7 +835,6 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 						 */
 						xpt_freeze_simq(sim, 1);
 						dccb->state |= CAM_RELEASE_SIMQ;
-						    CAM_RELEASE_SIMQ;
 					}
 					splx(s);
 				} else {
@@ -851,18 +850,17 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 				struct bus_dma_segment *segs;
 
 				if ((ccbh->flags & CAM_DATA_PHYS) != 0)
-					panic("btaction - Physical "
+					panic("dpt_action - Physical "
 					      "segment pointers "
 					      "unsupported");
 
 				if ((ccbh->flags&CAM_SG_LIST_PHYS)==0)
-					panic("btaction - Virtual "
+					panic("dpt_action - Virtual "
 					      "segment addresses "
 					      "unsupported");
 
 				/* Just use the segments provided */
-				segs = (struct bus_dma_segment *)
-				    csio->data_ptr;
+				segs = (struct bus_dma_segment *)csio->data_ptr;
 				dptexecuteccb(dccb, segs, csio->sglist_cnt, 0);
 			}
 		} else {
