@@ -278,14 +278,14 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		vm_object_reference(object);
 		vm_map_lookup_done(tmap, out_entry);
 
-		pmap_qenter(kva, &m, 1);
+		pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
 
 		/*
 		 * Now do the i/o move.
 		 */
 		error = uiomove((caddr_t)(kva + page_offset), len, uio);
 
-		pmap_qremove(kva, 1);
+		pmap_kremove(kva);
 
 		/*
 		 * release the page and the object
