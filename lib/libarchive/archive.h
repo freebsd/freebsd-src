@@ -166,6 +166,14 @@ int64_t		 archive_read_header_position(struct archive *);
 
 /* Read data from the body of an entry.  Similar to read(2). */
 ssize_t		 archive_read_data(struct archive *, void *, size_t);
+/*
+ * A zero-copy version of archive_read_data that also exposes the file offset
+ * of each returned block.  Note that the client has no way to specify
+ * the desired size of the block.  The API does gaurantee that offsets will
+ * be strictly increasing and that returned blocks will not overlap.
+ */
+int		 archive_read_data_block(struct archive *a,
+		    const void **buff, size_t *size, off_t *offset);
 
 /*-
  * Some convenience functions that are built on archive_read_data:

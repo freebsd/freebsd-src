@@ -319,42 +319,61 @@ archive_read_header_position(struct archive *a)
 }
 
 /*
- * Read data from an archive entry.
+ * Read data from an archive entry, using a read(2)-style interface.
+ * This is a convenience routine that just calls
+ * archive_read_data_block and copies the results into the client
+ * buffer, filling any gaps with zero bytes.  Clients using this
+ * API can be completely ignorant of sparse-file issues; sparse files
+ * will simply be padded with nulls.
  */
 ssize_t
 archive_read_data(struct archive *a, void *buff, size_t s)
 {
-	const void *data;
-	ssize_t bytes_read;
+	off_t	 remaining;
+	char	*dest;
+	size_t	 bytes_read;
+	size_t	 len;
+	int	 r;
 
-	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
-	/*
-	 * off_t is generally at least as wide as size_t, so widen for
-	 * comparison and narrow for the assignment.  Otherwise, on
-	 * platforms with 32-bit size_t and 64-bit off_t, we won't be
-	 * able to correctly read archives with entries larger than
-	 * 4gig.
-	 */
-	if ((off_t)s > a->entry_bytes_remaining)
-		s = (size_t)a->entry_bytes_remaining;
-	if (s > 0) {
-		bytes_read = (a->compression_read_ahead)(a, &data, 1);
-		if (bytes_read < 0) {
-			a->state = ARCHIVE_STATE_FATAL;
-			return (bytes_read);
+	bytes_read = 0;
+	dest = buff;
+
+	while (s > 0) {
+		if (a->read_data_remaining <= 0) {
+			r = archive_read_data_block(a,
+			    (const void **)&a->read_data_block,
+			    &a->read_data_remaining,
+			    &a->read_data_offset);
+			if (r == ARCHIVE_EOF)
+				return (bytes_read);
+			if (r != ARCHIVE_OK)
+				return (r);
 		}
-		if ((size_t)bytes_read > s)
-			bytes_read = s;
-	} else
-		bytes_read = 0;
 
-	if (bytes_read > 0) {
-		memcpy(buff, data, bytes_read);
-		(a->compression_read_consume)(a, bytes_read);
+		if (a->read_data_offset < a->read_data_output_offset) {
+			remaining =
+			    a->read_data_output_offset - a->read_data_offset;
+			if (remaining > (off_t)s)
+				remaining = (off_t)s;
+			len = (size_t)remaining;
+			memset(dest, 0, len);
+			a->read_data_output_offset += len;
+			s -= len;
+			bytes_read += len;
+		} else {
+			len = a->read_data_remaining;
+			if (len > s)
+				len = s;
+			memcpy(dest, a->read_data_block, len);
+			s -= len;
+			a->read_data_remaining -= len;
+			a->read_data_output_offset += len;
+			a->read_data_offset += len;
+			dest += len;
+			bytes_read += len;
+		}
 	}
-
-	a->entry_bytes_remaining -= bytes_read;
-	return (bytes_read);
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -363,33 +382,46 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 int
 archive_read_data_skip(struct archive *a)
 {
+	int r;
 	const void *buff;
-	ssize_t bytes_read, to_skip;
+	ssize_t size;
+	off_t offset;
 
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
 
-	to_skip = a->entry_bytes_remaining + a->entry_padding;
-	a->entry_bytes_remaining = 0;
+	while ((r = archive_read_data_block(a, &buff, &size, &offset)) ==
+	    ARCHIVE_OK)
+		;
 
-	for (; to_skip > 0; to_skip -= bytes_read) {
-		/* TODO: Optimize skip in compression layer. */
-		bytes_read = (a->compression_read_ahead)(a, &buff, to_skip);
-		if (bytes_read < 0) {
-			a->entry_padding = to_skip;
-			return (ARCHIVE_FATAL);
-		}
-		if (bytes_read == 0) {
-			archive_set_error(a, EIO,
-			    "Premature end of archive entry");
-			return (ARCHIVE_FATAL);
-		}
-		if (bytes_read > to_skip)
-			bytes_read = to_skip;
-		(a->compression_read_consume)(a, bytes_read);
-	}
-	a->entry_padding = 0;
+	if (r == ARCHIVE_EOF)
+		r = ARCHIVE_OK;
+
 	a->state = ARCHIVE_STATE_HEADER;
-	return (ARCHIVE_OK);
+	return (r);
+}
+
+/*
+ * Read the next block of entry data from the archive.
+ * This is a zero-copy interface; the client receives a pointer,
+ * size, and file offset of the next available block of data.
+ *
+ * Returns ARCHIVE_OK if the operation is successful, ARCHIVE_EOF if
+ * the end of entry is encountered.
+ */
+int
+archive_read_data_block(struct archive *a,
+    const void **buff, size_t *size, off_t *offset)
+{
+	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
+
+	if (a->format->read_data == NULL) {
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+		    "Internal error: "
+		    "No format_read_data_block function registered");
+		return (ARCHIVE_FATAL);
+	}
+
+	return (a->format->read_data)(a, buff, size, offset);
 }
 
 /*
@@ -445,6 +477,7 @@ __archive_read_register_format(struct archive *a,
     void *format_data,
     int (*bid)(struct archive *),
     int (*read_header)(struct archive *, struct archive_entry *),
+    int (*read_data)(struct archive *, const void **, size_t *, off_t *),
     int (*cleanup)(struct archive *))
 {
 	int i, number_slots;
@@ -459,6 +492,7 @@ __archive_read_register_format(struct archive *a,
 		if (a->formats[i].bid == NULL) {
 			a->formats[i].bid = bid;
 			a->formats[i].read_header = read_header;
+			a->formats[i].read_data = read_data;
 			a->formats[i].cleanup = cleanup;
 			a->formats[i].format_data = format_data;
 			return (ARCHIVE_OK);
