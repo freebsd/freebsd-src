@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.23 1993/11/03 20:02:23 ats Exp $
+#	$Id: LINT,v 1.24 1993/11/07 05:26:17 wollman Exp $
 #
 
 machine		"i386"
@@ -24,7 +24,7 @@ config		"386bsd"	at 0xFE100000 root on wd0 swap on wd0 and sd0
 options		"COM_BIDIR"		#Bidirectional support in sys/isa/sio.c
 options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=102613"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=102795"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 options		"NCONS=8"		#number of syscons virtual consoles
@@ -32,8 +32,18 @@ options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"STAR_SAVER"		#syscons "stars" screen saver
 options		"SNAKE_SAVER"		#syscons "snake" screen saver
 options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
+					# ^^^ NOT RECOMMENDED FOR NORMAL USE
 options		UCONSOLE		#x console support
 options		XSERVER			#xserver
+options		DECBIT			#here because clnp.h wanted it here
+					#support for CLNP ``congestion 
+					#experienced'' bit in ISO-TP
+options		TROLL			#CLNP network error simulator
+options		ICMPPRINTFS		#ICMP packet dump by printf()
+options		NSERRPRINTFS		#ditto for XNS Error protocol
+					#^^above two NOT RECOMMENTED
+options		SCSIDUMP		#support for crash dumps on sd disks
+options		FASTLINKS		#support for fast symbolic links
 
 #
 # options that are in sys/conf/files
