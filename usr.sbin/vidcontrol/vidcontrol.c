@@ -324,7 +324,7 @@ set_cursor_type(char *appearence)
 	ioctl(0, CONS_CURSORTYPE, &type);
 }
 
-void
+int
 video_mode(int argc, char **argv, int *index)
 {
 	static struct {
@@ -379,9 +379,11 @@ video_mode(int argc, char **argv, int *index)
 			}
 		}
 		if (modes[i].name == NULL)
-			return;
-		if (ioctl(0, mode, NULL) < 0)
+			return EXIT_FAILURE;
+		if (ioctl(0, mode, NULL) < 0) {
 			warn("cannot set videomode");
+			return EXIT_FAILURE;
+		}
 		if (mode == SW_VESA_800x600) {
 			/* columns */
 			if ((vesa_cols * 8 > 800) || (vesa_cols <= 0)) {
@@ -411,11 +413,12 @@ video_mode(int argc, char **argv, int *index)
 				else
 					ioctl(0, _IO('S', cur_mode), NULL);
 				warnc(ioerr, "cannot activate raster display");
+				return EXIT_FAILURE;
 			}
 		}
 		(*index)++;
 	}
-	return;
+	return EXIT_SUCCESS;
 }
 
 int
@@ -767,7 +770,7 @@ main(int argc, char **argv)
 {
 	char	*font, *type;
 	int	dumpmod, dumpopt, opt;
-
+	int	reterr;
 
 	info.size = sizeof(info);
 	if (argc == 1)
@@ -854,7 +857,7 @@ main(int argc, char **argv)
 		}
 	if (dumpmod != 0)
 		dump_screen(dumpmod, dumpopt);
-	video_mode(argc, argv, &optind);
+	reterr = video_mode(argc, argv, &optind);
 	set_normal_colors(argc, argv, &optind);
 	if (optind < argc && !strcmp(argv[optind], "show")) {
 		test_frame();
@@ -862,6 +865,6 @@ main(int argc, char **argv)
 	}
 	if ((optind != argc) || (argc == 1))
 		usage();
-	return 0;
+	return reterr;
 }
 
