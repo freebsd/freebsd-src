@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.10 1994/11/01 10:10:24 phk Exp $
+ * $Id: main.c,v 1.11 1994/11/06 04:05:45 phk Exp $
  *
  */
 
@@ -72,6 +72,8 @@ main(int argc, char **argv)
 	if (getpid() != 1) {
 		stage0();
 		stage1();
+		end_dialog();
+		dialog_active=0;
 	} else if (!access("/this_is_boot_flp",R_OK)) {
 		stage0();
 		stage1();
