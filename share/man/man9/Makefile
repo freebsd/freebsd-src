@@ -57,7 +57,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mtx_pool.9 mutex.9 \
 	namei.9 \
-	panic.9 pbuf.9 pfil.9 pfind.9 pgfind.9 \
+	panic.9 pbuf.9 pci.9 pfil.9 pfind.9 pgfind.9 \
 	physio.9 printf.9 pseudofs.9 psignal.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9  random_harvest.9 rijndael.9 \
@@ -195,6 +195,11 @@ MLINKS+=mi_switch.9 cpu_switch.9 mi_switch.9 cpu_throw.9
 MLINKS+=namei.9 NDINIT.9
 MLINKS+=namei.9 NDFREE.9
 MLINKS+=pbuf.9 getpbuf.9 pbuf.9 trypbuf.9 pbuf.9 relpbuf.9
+MLINKS+=pci.9 pci_read_config.9 pci.9 pci_write_config.9
+MLINKS+=pci.9 pci_enable_busmaster.9 pci.9 pci_disable_busmaster.9
+MLINKS+=pci.9 pci_enable_io.9 pci.9 pci_disable_io.9
+MLINKS+=pci.9 pci_get_powerstate.9 pci.9 pci_set_powerstate.9
+MLINKS+=pci.9 pci_find_bsf.9 pci.9 pci_find_device.9
 MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
