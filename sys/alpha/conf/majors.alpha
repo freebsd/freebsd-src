@@ -16,7 +16,7 @@ blkdev	name		comments
 0	wd		ST506 disk controller (with IDE extensions)
 1	wfd		ATAPI Floppy client of "ata"
 2	fd		floppy disk
-3	wt		QIC-02/36 tape
+3	was:wt		QIC-02/36 tape
 4	sd		SCSI "disk" type
 5	was:st		SCSI "tape" type
 6	cd		SCSI "cdrom" type
@@ -37,7 +37,7 @@ blkdev	name		comments
 21	ccd		concatenated disk
 22	was:gd		Geometry disk.
 23	worm		SCSI "worm type"
-24	wstb		ATAPI tape client of "ata"
+24	was:wstb	ATAPI tape client of "ata"
 25	vinum		RAID fs
 26	sw		VM internal swap device
 chrdev	name		comments
