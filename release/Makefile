@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.414 1998/10/13 02:32:43 jdp Exp $
+#	$Id: Makefile,v 1.415 1998/10/13 21:09:42 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -85,7 +85,7 @@ FIXITSIZE=		2880
 BOOTINODE=		1000000
 MFSINODE=		40000
 FIXITINODE=		2000
-BOOTLABEL=		fd1440
+BOOTLABEL=		minimum2
 BOOTMFSLABEL=		minimum2
 FIXITLABEL=		minimum2
 .endif
@@ -711,7 +711,7 @@ doMFSKERN:
 .endif
 .if defined(_MFSKERN)
 	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
-	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
+	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
 .endif
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/boot.${FSIMAGE}
@@ -744,11 +744,16 @@ doMFSKERN:
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 .endif
+.if ${MACHINE_ARCH} == "i386"
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 .if ${MACHINE_ARCH} == "i386"
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
+.else
+	@cp ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
+	gzip -v ${RD}/boot.${FSIMAGE}/kernel
+	@mv ${RD}/boot.${FSIMAGE}/kernel.gz ${RD}/boot.${FSIMAGE}/kernel.gz
 .endif
 	@printf \\a\\a\\a >> ${RD}/boot.${FSIMAGE}/boot.help
 	@touch ${RD}/boot.${FSIMAGE}/boot.config
