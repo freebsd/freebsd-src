@@ -1,11 +1,12 @@
-#	$Id: Makefile,v 1.1 2002/12/27 20:34:35 taku Exp $
 #	$FreeBSD$
+
+.PATH:	${.CURDIR}/../../../dev/acpica
+
 KMOD=	acpi_video
+WARNS?=	2
+CFLAGS+= -I@/contrib/dev/acpica
 SRCS=	acpi_video.c
 SRCS+=	opt_acpi.h acpi_if.h bus_if.h device_if.h
 NOMAN=
-
-.PATH: ${.CURDIR}/../../../dev/acpica
-CFLAGS+= -I@/contrib/dev/acpica
 
 .include <bsd.kmod.mk>
