@@ -46,11 +46,6 @@
  * 80386 we must use simple test-and-set exclusive locks instead.  We
  * determine which kind of lock to use by trying to execute a "cmpxchg"
  * instruction and catching the SIGILL which results on the 80386.
- *
- * These are spinlocks.  When spinning we call nanosleep() for 1
- * microsecond each time around the loop.  This will most likely yield
- * the CPU to other threads (including, we hope, the lockholder) allowing
- * them to make some progress.
  */
 
 #include <setjmp.h>
@@ -71,7 +66,6 @@ typedef struct Struct_Lock {
 	void *base;
 } Lock;
 
-static const struct timespec usec = { 0, 1000 };	/* 1 usec. */
 static sigset_t fullsigmask, oldsigmask;
 
 static inline int
@@ -153,7 +147,7 @@ lock80386_acquire(void *lock)
 	    break;
 	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
 	while (l->lock != 0)
-	    nanosleep(&usec, NULL);
+	    ;	/* Spin */
     }
     oldsigmask = tmp_oldsigmask;
 }
@@ -177,7 +171,7 @@ rlock_acquire(void *lock)
 
     atomic_add_int(&l->lock, RC_INCR);
     while (l->lock & WAFLAG)
-	    nanosleep(&usec, NULL);
+	    ;	/* Spin */
 }
 
 static void
@@ -191,7 +185,6 @@ wlock_acquire(void *lock)
 	if (cmpxchgl(0, WAFLAG, &l->lock) == 0)
 	    break;
 	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
-	nanosleep(&usec, NULL);
     }
     oldsigmask = tmp_oldsigmask;
 }
