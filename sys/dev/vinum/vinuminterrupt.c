@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.9 2000/02/16 01:59:02 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.11 2000/05/10 22:32:51 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -105,7 +105,7 @@ complete_rqe(struct buf *bp)
 	}
     }
     /* Now update the statistics */
-    if (bp->b_iocmd == BIO_READ) {				    /* read operation */
+    if (bp->b_iocmd == BIO_READ) {			    /* read operation */
 	DRIVE[rqe->driveno].reads++;
 	DRIVE[rqe->driveno].bytes_read += bp->b_bcount;
 	SD[rqe->sdno].reads++;
@@ -126,7 +126,7 @@ complete_rqe(struct buf *bp)
 	if (PLEX[rqe->rqg->plexno].volno >= 0) {	    /* volume I/O, not plex */
 	    VOL[PLEX[rqe->rqg->plexno].volno].writes++;
 	    VOL[PLEX[rqe->rqg->plexno].volno].bytes_written += bp->b_bcount;
-    }
+	}
     }
     if (rqg->flags & XFR_RECOVERY_READ) {		    /* recovery read, */
 	int *sdata;					    /* source */
@@ -236,7 +236,7 @@ sdio_done(struct buf *bp)
 #endif
     sbp->bp->b_resid = sbp->b.b_resid;			    /* copy the resid field */
     /* Now update the statistics */
-    if (bp->b_iocmd == BIO_READ) {				    /* read operation */
+    if (bp->b_iocmd == BIO_READ) {			    /* read operation */
 	DRIVE[sbp->driveno].reads++;
 	DRIVE[sbp->driveno].bytes_read += sbp->b.b_bcount;
 	SD[sbp->sdno].reads++;
@@ -344,9 +344,9 @@ complete_raid5_write(struct rqelement *rqe)
 		} else
 		    panic("complete_raid5_write: malloc conflict");
 
-		if ((rqe->b.b_iocmd == BIO_READ)		    /* this was a read */
+		if ((rqe->b.b_iocmd == BIO_READ)	    /* this was a read */
 		&&((rqe->flags & XFR_BAD_SUBDISK) == 0)) {  /* and we can write this block */
-		    rqe->b.b_flags &= ~B_DONE;		    /* we're not done */
+		    rqe->b.b_flags &= ~B_DONE;		    /* start a new request */
 		    rqe->b.b_iocmd = BIO_WRITE;		    /* we're writing now */
 		    rqe->b.b_iodone = complete_rqe;	    /* call us here when done */
 		    rqe->flags &= ~XFR_PARITYOP;	    /* reset flags that brought us here */
