@@ -187,7 +187,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	ret = thr_create(&new_thread->ctx, &new_thread->thr_id, flags);
 	    
 	if (ret != 0) {
-		_thread_printf("thr_create() == %d\n", ret);
+		_thread_printf(STDERR_FILENO, "thr_create() == %d\n", ret);
 		PANIC("thr_create");
 	}
 
