@@ -1162,12 +1162,10 @@ rl_allocmemcplus(dev, sc)
 	/* Allocate DMA'able memory for the TX ring */
 
         error = bus_dmamem_alloc(sc->rl_ldata.rl_tx_list_tag,
-	    (void **)&sc->rl_ldata.rl_tx_list, BUS_DMA_NOWAIT,
+	    (void **)&sc->rl_ldata.rl_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
             &sc->rl_ldata.rl_tx_list_map);
         if (error)
                 return (ENOMEM);
-
-	bzero((char *)sc->rl_ldata.rl_tx_list, RL_TX_LIST_SZ);
 
 	/* Load the map for the TX ring. */
 
@@ -1202,12 +1200,10 @@ rl_allocmemcplus(dev, sc)
 	/* Allocate DMA'able memory for the RX ring */
 
         error = bus_dmamem_alloc(sc->rl_ldata.rl_rx_list_tag,
-	    (void **)&sc->rl_ldata.rl_rx_list, BUS_DMA_NOWAIT,
+	    (void **)&sc->rl_ldata.rl_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
             &sc->rl_ldata.rl_rx_list_map);
         if (error)
                 return (ENOMEM);
-
-	bzero((char *)sc->rl_ldata.rl_rx_list, RL_RX_LIST_SZ);
 
 	/* Load the map for the RX ring. */
 

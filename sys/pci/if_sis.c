@@ -1270,7 +1270,7 @@ sis_attach(dev)
 		goto fail;
 
 	error = bus_dmamem_alloc(sc->sis_ldata.sis_rx_tag,
-	    (void **)&sc->sis_ldata.sis_rx_list, BUS_DMA_NOWAIT,
+	    (void **)&sc->sis_ldata.sis_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 	    &sc->sis_ldata.sis_rx_dmamap);
 
 	if (error) {
@@ -1309,7 +1309,7 @@ sis_attach(dev)
 		goto fail;
 
 	error = bus_dmamem_alloc(sc->sis_ldata.sis_tx_tag,
-	    (void **)&sc->sis_ldata.sis_tx_list, BUS_DMA_NOWAIT,
+	    (void **)&sc->sis_ldata.sis_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
 	    &sc->sis_ldata.sis_tx_dmamap);
 
 	if (error) {
@@ -1346,9 +1346,6 @@ sis_attach(dev)
 			&sc->sis_tag);
 	if (error)
 		goto fail;
-
-	bzero(sc->sis_ldata.sis_tx_list, SIS_TX_LIST_SZ);
-	bzero(sc->sis_ldata.sis_rx_list, SIS_RX_LIST_SZ);
 
 	/*
 	 * Obtain the physical addresses of the RX and TX
@@ -1426,7 +1423,7 @@ sis_detach(dev)
 	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	/* These should only be active if attach succeeded */
+	/* These should only be active if attach succeeded. */
 	if (device_is_attached(dev)) {
 		sis_reset(sc);
 		sis_stop(sc);
