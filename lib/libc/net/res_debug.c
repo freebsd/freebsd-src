@@ -577,14 +577,14 @@ precsize_aton(strptr)
 
 	cp = *strptr;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		mval = mval * 10 + (*cp++ - '0');
 
 	if (*cp == '.') {		/* centimeters */
 		cp++;
-		if (isdigit(*cp)) {
+		if (isdigit((unsigned char)*cp)) {
 			cmval = (*cp++ - '0') * 10;
-			if (isdigit(*cp)) {
+			if (isdigit((unsigned char)*cp)) {
 				cmval += (*cp++ - '0');
 			}
 		}
@@ -618,44 +618,44 @@ latlon2ul(latlonstrptr,which)
 
 	cp = *latlonstrptr;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		deg = deg * 10 + (*cp++ - '0');
 
-	while (isspace(*cp))
+	while (isspace((unsigned char)*cp))
 		cp++;
 
-	if (!(isdigit(*cp)))
+	if (!(isdigit((unsigned char)*cp)))
 		goto fndhemi;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		min = min * 10 + (*cp++ - '0');
 
-	while (isspace(*cp))
+	while (isspace((unsigned char)*cp))
 		cp++;
 
-	if (!(isdigit(*cp)))
+	if (!(isdigit((unsigned char)*cp)))
 		goto fndhemi;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		secs = secs * 10 + (*cp++ - '0');
 
 	if (*cp == '.') {		/* decimal seconds */
 		cp++;
-		if (isdigit(*cp)) {
+		if (isdigit((unsigned char)*cp)) {
 			secsfrac = (*cp++ - '0') * 100;
-			if (isdigit(*cp)) {
+			if (isdigit((unsigned char)*cp)) {
 				secsfrac += (*cp++ - '0') * 10;
-				if (isdigit(*cp)) {
+				if (isdigit((unsigned char)*cp)) {
 					secsfrac += (*cp++ - '0');
 				}
 			}
 		}
 	}
 
-	while (!isspace(*cp))	/* if any trailing garbage */
+	while (!isspace((unsigned char)*cp))   /* if any trailing garbage */
 		cp++;
 
-	while (isspace(*cp))
+	while (isspace((unsigned char)*cp))
 		cp++;
 
  fndhemi:
@@ -693,10 +693,10 @@ latlon2ul(latlonstrptr,which)
 
 	cp++;			/* skip the hemisphere */
 
-	while (!isspace(*cp))	/* if any trailing garbage */
+	while (!isspace((unsigned char)*cp))   /* if any trailing garbage */
 		cp++;
 
-	while (isspace(*cp))	/* move to next field */
+	while (isspace((unsigned char)*cp))    /* move to next field */
 		cp++;
 
 	*latlonstrptr = cp;
@@ -754,14 +754,14 @@ loc_aton(ascii, binary)
 	if (*cp == '+')
 		cp++;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		altmeters = altmeters * 10 + (*cp++ - '0');
 
 	if (*cp == '.') {		/* decimal meters */
 		cp++;
-		if (isdigit(*cp)) {
+		if (isdigit((unsigned char)*cp)) {
 			altfrac = (*cp++ - '0') * 10;
-			if (isdigit(*cp)) {
+			if (isdigit((unsigned char)*cp)) {
 				altfrac += (*cp++ - '0');
 			}
 		}
@@ -769,10 +769,10 @@ loc_aton(ascii, binary)
 
 	alt = (10000000 + (altsign * (altmeters * 100 + altfrac)));
 
-	while (!isspace(*cp) && (cp < maxcp)) /* if trailing garbage or m */
+	while (!isspace((unsigned char)*cp) && (cp < maxcp)) /* if trailing garbage or m */
 		cp++;
 
-	while (isspace(*cp) && (cp < maxcp))
+	while (isspace((unsigned char)*cp) && (cp < maxcp))
 		cp++;
 
 	if (cp >= maxcp)
@@ -780,10 +780,10 @@ loc_aton(ascii, binary)
 
 	siz = precsize_aton(&cp);
 	
-	while (!isspace(*cp) && (cp < maxcp))	/* if trailing garbage or m */
+	while (!isspace((unsigned char)*cp) && (cp < maxcp))   /* if trailing garbage or m */
 		cp++;
 
-	while (isspace(*cp) && (cp < maxcp))
+	while (isspace((unsigned char)*cp) && (cp < maxcp))
 		cp++;
 
 	if (cp >= maxcp)
@@ -791,10 +791,10 @@ loc_aton(ascii, binary)
 
 	hp = precsize_aton(&cp);
 
-	while (!isspace(*cp) && (cp < maxcp))	/* if trailing garbage or m */
+	while (!isspace((unsigned char)*cp) && (cp < maxcp))   /* if trailing garbage or m */
 		cp++;
 
-	while (isspace(*cp) && (cp < maxcp))
+	while (isspace((unsigned char)*cp) && (cp < maxcp))
 		cp++;
 
 	if (cp >= maxcp)
