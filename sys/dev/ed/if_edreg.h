@@ -578,6 +578,7 @@ struct ed_ring	{
 #define ED_VENDOR_PCCARD	0x03		/* PCMCIA/PCCARD */
 #define ED_VENDOR_HP		0x04		/* Hewlett Packard */
 #define ED_VENDOR_LINKSYS	0x05		/* Linksys (Dlink) */
+#define ED_VENDOR_SIC		0x06		/* Allied-Telesis SIC */
 
 /*
  * Compile-time config flags
@@ -1099,6 +1100,14 @@ struct ed_ring	{
  */
 
 #define ED_TYPE_HP_PCLANPLUS	0x00
+
+/*
+ *			Definitions for Allied-Telesis SIC
+ */
+#define ED_SIC_NIC_OFFSET	0
+#define ED_SIC_ASIC_OFFSET	0x10		/* offset to nic i/o regs */
+
+#define ED_SIC_IO_PORTS		17		/* # of i/o addresses used */
 
 /*
  * Chip types.

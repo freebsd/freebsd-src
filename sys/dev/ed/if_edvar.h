@@ -199,6 +199,7 @@ int	ed_probe_generic8390	(struct ed_softc *);
 int	ed_probe_WD80x3		(device_t, int, int);
 int	ed_probe_WD80x3_generic	(device_t, int, unsigned short *[]);
 int	ed_probe_3Com		(device_t, int, int);
+int	ed_probe_SIC		(device_t, int, int);
 int	ed_probe_Novell		(device_t, int, int);
 int	ed_probe_Novell_generic	(device_t, int);
 int	ed_probe_HP_pclanp	(device_t, int, int);
