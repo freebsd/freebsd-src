@@ -71,6 +71,7 @@ struct tr_rchinfo {
 /* device private data */
 struct tr_info {
 	u_int32_t type;
+	u_int32_t rev;
 
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
@@ -167,6 +168,12 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 		trw=SPA_CDC_RWSTAT;
 		break;
 	case ALI_PCI_ID:
+		if (tr->rev > 0x01)
+		  treg=TDX_REG_CODECWR;
+		else
+		  treg=TDX_REG_CODECRD;
+		trw=TDX_CDC_RWSTAT;
+		break;
 	case TDX_PCI_ID:
 		treg=TDX_REG_CODECRD;
 		trw=TDX_CDC_RWSTAT;
@@ -182,9 +189,25 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 
 	regno &= 0x7f;
 	snd_mtxlock(tr->lock);
-	tr_wr(tr, treg, regno | trw, 4);
-	j=trw;
-	for (i=TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--) j=tr_rd(tr, treg, 4);
+	if (tr->type == ALI_PCI_ID) {
+		u_int32_t chk1, chk2;
+		j = trw;
+		for (i = TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
+			j = tr_rd(tr, treg, 4);
+		if (i > 0) {
+			chk1 = tr_rd(tr, 0xc8, 4);
+			chk2 = tr_rd(tr, 0xc8, 4);
+			for (i = TR_TIMEOUT_CDC; (i > 0) && (chk1 == chk2);
+					i--)
+				chk2 = tr_rd(tr, 0xc8, 4);
+		}
+	}
+	if (tr->type != ALI_PCI_ID || i > 0) {
+		tr_wr(tr, treg, regno | trw, 4);
+		j=trw;
+		for (i=TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
+		       	j=tr_rd(tr, treg, 4);
+	}
 	snd_mtxunlock(tr->lock);
 	if (i == 0) printf("codec timeout during read of register %x\n", regno);
 	return (j >> TR_CDC_DATA) & 0xffff;
@@ -221,8 +244,26 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 #endif
 	j=trw;
 	snd_mtxlock(tr->lock);
-	for (i=TR_TIMEOUT_CDC; (i>0) && (j & trw); i--) j=tr_rd(tr, treg, 4);
-	tr_wr(tr, treg, (data << TR_CDC_DATA) | regno | trw, 4);
+	if (tr->type == ALI_PCI_ID) {
+		j = trw;
+		for (i = TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
+			j = tr_rd(tr, treg, 4);
+		if (i > 0) {
+			u_int32_t chk1, chk2;
+			chk1 = tr_rd(tr, 0xc8, 4);
+			chk2 = tr_rd(tr, 0xc8, 4);
+			for (i = TR_TIMEOUT_CDC; (i > 0) && (chk1 == chk2);
+					i--)
+				chk2 = tr_rd(tr, 0xc8, 4);
+		}
+	}
+	if (tr->type != ALI_PCI_ID || i > 0) {
+		for (i=TR_TIMEOUT_CDC; (i>0) && (j & trw); i--) 
+			j=tr_rd(tr, treg, 4);
+		if (tr->type == ALI_PCI_ID && tr->rev > 0x01)
+		      	trw |= 0x0100;
+		tr_wr(tr, treg, (data << TR_CDC_DATA) | regno | trw, 4);
+	}
 #if 0
 	printf(" - wrote %x, now %x\n", data, tr_rdcd(devinfo, regno));
 #endif
@@ -765,6 +806,7 @@ tr_pci_attach(device_t dev)
 	}
 
 	tr->type = pci_get_devid(dev);
+	tr->rev = pci_get_revid(dev);
 	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
