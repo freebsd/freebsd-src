@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.70 1996/05/13 04:29:13 nate Exp $
+#	$Id: GENERIC,v 1.71 1996/06/16 20:04:44 joerg Exp $
 #
 
 machine		"i386"
@@ -143,5 +143,10 @@ pseudo-device	sl	1
 #pseudo-device	ppp	1
 pseudo-device	tun	1
 pseudo-device	pty	16
-# keep this if you want to be able to continue to use /stand/sysinstall
 pseudo-device	gzip		# Exec gzipped a.out's
+
+# KTRACE enables the system-call tracing facility ktrace(2).
+# This adds 4 KB bloat to your kernel, and slightly increases
+# the costs of each syscall.
+options		KTRACE		#kernel tracing
+
