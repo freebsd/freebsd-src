@@ -39,7 +39,6 @@ sed	\
 	-e '/	sf	/d' \
 	-e '/	sis	/d' \
 	-e '/	ste	/d' \
-	-e '/	wx	/d' \
 	-e '/gzip/d' \
 	-e '/	sl	/d' \
 	-e '/ppp/d' \
