@@ -70,7 +70,7 @@ READ(ap)
 	ufs_daddr_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error;
+	int error, orig_resid;
 	u_short mode;
 	int seqcount;
 	int ioflag;
@@ -97,10 +97,16 @@ READ(ap)
 	if ((u_int64_t)uio->uio_offset > fs->fs_maxfilesize)
 		return (EFBIG);
 
+	orig_resid = uio->uio_resid;
+	if (orig_resid <= 0)
+		return (0);
+
 	object = vp->v_object;
 
 	bytesinfile = ip->i_size - uio->uio_offset;
 	if (bytesinfile <= 0) {
+		if ((vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
+			ip->i_flag |= IN_ACCESS;
 		return 0;
 	}
 
@@ -130,7 +136,9 @@ READ(ap)
 				 * If we finished or there was an error
 				 * then finish up.
 				 */
-				if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+				if ((error == 0 ||
+				    uio->uio_resid != orig_resid) &&
+				    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 					ip->i_flag |= IN_ACCESS;
 				if (object)
 					/*
@@ -169,7 +177,10 @@ READ(ap)
 			if (toread >= PAGE_SIZE) {
 				error = uioread(toread, uio, object, &nread);
 				if ((uio->uio_resid == 0) || (error != 0)) {
-					if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+					if ((error == 0 ||
+					    uio->uio_resid != orig_resid) &&
+					    (vp->v_mount->mnt_flag &
+					    MNT_NOATIME) == 0)
 						ip->i_flag |= IN_ACCESS;
 					if (object)
 						vm_object_vndeallocate(object);
@@ -332,7 +343,8 @@ READ(ap)
 
 	if (object)
 		vm_object_vndeallocate(object);
-	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+	if ((error == 0 || uio->uio_resid != orig_resid) &&
+	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
