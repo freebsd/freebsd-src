@@ -36,16 +36,13 @@
 .Nd mount NFSv4 file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl NPTUbcdiLls
+.Op Fl biNPsTU
+.Op Fl a Ar maxreadahead
 .Op Fl D Ar deadthresh
 .Op Fl I Ar readdirsize
-.Op Fl R Ar retrycnt
-.Op Fl a Ar maxreadahead
-.Op Fl g Ar maxgroups
 .Op Fl o Ar options
-.Op Fl r Ar readsize
+.Op Fl R Ar retrycnt
 .Op Fl t Ar timeout
-.Op Fl w Ar writesize
 .Op Fl x Ar retrans
 .Ar rhost : Ns Ar path node
 .Sh DESCRIPTION

@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dfimnUv
-.Op Fl S Ar name
+.Op Fl S Ar sysctlname
 .Op Ar path ...
 .Nm
 .Fl r
@@ -73,7 +73,7 @@ Do not actually change the module search path.
 .It Fl r
 Display the current search path.
 This option cannot be used if any paths are also specified.
-.It Fl S Ar name
+.It Fl S Ar sysctlname
 Specify the sysctl name to use instead of the default
 .Va kern.module_path .
 .It Fl U

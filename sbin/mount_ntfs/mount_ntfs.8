@@ -40,8 +40,8 @@
 .Nm
 .Op Fl a
 .Op Fl i
-.Op Fl u Ar uid
-.Op Fl g Ar gid
+.Op Fl u Ar user
+.Op Fl g Ar group
 .Op Fl m Ar mask
 .Op Fl C Ar charset
 .Op Fl W Ar u2wtable
@@ -69,14 +69,14 @@ Force behaviour to return MS-DOS 8.3 names also on
 .Fn readdir .
 .It Fl i
 Make name lookup case insensitive for all names except POSIX names.
-.It Fl u Ar uid
+.It Fl u Ar user
 Set the owner of the files in the file system to
-.Ar uid .
+.Ar user .
 The default owner is the owner of the directory
 on which the file system is being mounted.
-.It Fl g Ar gid
+.It Fl g Ar group
 Set the group of the files in the file system to
-.Ar gid .
+.Ar group .
 The default group is the group of the directory
 on which the file system is being mounted.
 .It Fl m Ar mask

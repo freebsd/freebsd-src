@@ -289,7 +289,7 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "a:bcdD:I:iNo:PR:sTt:x:U")) != -1)
+	    "a:bD:I:iNo:PR:sTt:x:U")) != -1)
 		switch (c) {
 		case 'a':
 			num = strtol(optarg, &p, 10);
@@ -727,10 +727,9 @@ getnetconf_cached(const char *netid) {
 void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: mount_nfs [-KNPTUbiqs] [-D deadthresh] [-I readdirsize]",
-"                 [-R retrycnt] [-a maxreadahead]",
-"                 [-m realm] [-o options]",
-"                 [-t timeout] [-x retrans] rhost:path node");
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+"usage: mount_nfs4 [-biNPsTU] [-a maxreadahead] [-D deadthresh] [-I readdirsize]",
+"                  [-o options] [-R retrycnt] [-t timeout] [-x retrans]",
+"                  rhost:path node");
 	exit(1);
 }

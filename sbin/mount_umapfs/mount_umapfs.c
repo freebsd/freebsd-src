@@ -230,6 +230,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mount_umapfs [-o options] -u usermap -g groupmap target_fs mount_point\n");
+"usage: mount_umapfs [-o options] -u uid-mapfile -g gid-mapfile target mount-point\n");
 	exit(EX_USAGE);
 }

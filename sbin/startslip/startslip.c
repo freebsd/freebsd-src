@@ -590,6 +590,6 @@ usage(void)
 "usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-h] [-l]",
 "                 [-L] [-A annexname] [-U upscript] [-D downscript]",
 "                 [-t script_timeout] [-W maxtries] [-w retry_pause]",
-"                 [-K keepalive] [-O outfill] [-S unit] device user passwd");
+"                 [-K keepalive] [-O outfill] [-S unit] device user password");
 	exit(1);
 }
