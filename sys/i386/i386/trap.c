@@ -105,7 +105,7 @@ int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
-extern void syscall2 __P((struct trapframe frame));
+extern void syscall __P((struct trapframe frame));
 extern void ast __P((struct trapframe frame));
 
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
@@ -212,7 +212,7 @@ userret(p, frame, oticks)
 		if (!mtx_owned(&Giant))
 			mtx_lock(&Giant);
 		mtx_lock_spin(&sched_lock);
-		addupc_task(p, frame->tf_eip,
+		addupc_task(p, TRAPF_PC(frame),
 			    (u_int)(p->p_sticks - oticks) * psratio);
 	}
 	curpriority = p->p_priority;
@@ -1075,7 +1075,7 @@ int trapwrite(addr)
 }
 
 /*
- *	syscall2 -	MP aware system call request C handler
+ *	syscall -	MP aware system call request C handler
  *
  *	A system call is essentially treated as a trap except that the
  *	MP lock is not held on entry or return.  We are responsible for
@@ -1086,7 +1086,7 @@ int trapwrite(addr)
  *	the current stack is allowed without having to hold MP lock.
  */
 void
-syscall2(frame)
+syscall(frame)
 	struct trapframe frame;
 {
 	caddr_t params;
@@ -1278,10 +1278,22 @@ ast(frame)
 	struct proc *p = CURPROC;
 	u_quad_t sticks;
 
+	KASSERT(TRAPF_USERMODE(&frame), ("ast in kernel mode"));
+
+	/*
+	 * We check for a pending AST here rather than in the assembly as
+	 * acquiring and releasing mutexes in assembly is not fun.
+	 */
 	mtx_lock_spin(&sched_lock);
+	if (!(astpending() || resched_wanted())) {
+		mtx_unlock_spin(&sched_lock);
+		return;
+	}
+
 	sticks = p->p_sticks;
-	
+
 	astoff();
+	mtx_intr_enable(&sched_lock);
 	atomic_add_int(&cnt.v_soft, 1);
 	if (p->p_sflag & PS_OWEUPC) {
 		p->p_sflag &= ~PS_OWEUPC;

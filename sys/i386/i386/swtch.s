@@ -180,9 +180,6 @@ sw1a:
 sw1b:
 	movl	%eax,%ecx
 
-	xorl	%eax,%eax
-	andl	$~AST_RESCHED,PCPU(ASTPENDING)
-
 #ifdef	INVARIANTS
 	cmpb	$SRUN,P_STAT(%ecx)
 	jne	badsw2

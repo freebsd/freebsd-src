@@ -63,7 +63,6 @@ struct globaldata {
 	int		gd_currentldt;		/* only used for USER_LDT */
 	u_int		gd_cpuid;
 	u_int		gd_other_cpus;
-	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	int		gd_witness_spin_check;
 #ifdef KTR_PERCPU

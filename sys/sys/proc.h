@@ -329,6 +329,8 @@ struct	proc {
 #define	PS_CVWAITQ	0x00080 /* Proces is on a cv_waitq (not slpq). */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
+#define	PS_ASTPENDING	0x00400	/* Process has a pending ast. */
+#define	PS_NEEDRESCHED	0x00800	/* Process needs to yield. */
 
 #define	P_MAGIC		0xbeefface
 
@@ -377,6 +379,39 @@ sigonstack(size_t sp)
 #endif
 	    : 0);
 }
+
+/*
+ * Preempt the current process if in interrupt from user mode,
+ * or after the current trap/syscall if in system mode.
+ */
+#define	need_resched() do {						\
+	mtx_assert(&sched_lock, MA_OWNED);				\
+	curproc->p_sflag |= PS_NEEDRESCHED;				\
+} while (0)
+
+#define	resched_wanted()	(curproc->p_sflag & PS_NEEDRESCHED)
+
+#define	clear_resched() do {						\
+	mtx_assert(&sched_lock, MA_OWNED);				\
+	curproc->p_sflag &= ~PS_NEEDRESCHED;				\
+} while (0)
+
+/*
+ * Notify the current process (p) that it has a signal pending,
+ * process as soon as possible.
+ */
+#define	aston()		signotify(CURPROC)
+#define	signotify(p) do {						\
+	mtx_assert(&sched_lock, MA_OWNED);				\
+	(p)->p_sflag |= PS_ASTPENDING;					\
+} while (0)
+
+#define	astpending()	(curproc->p_sflag & PS_ASTPENDING)
+
+#define astoff() do {							\
+	mtx_assert(&sched_lock, MA_OWNED);				\
+	CURPROC->p_sflag &= ~PS_ASTPENDING;				\
+} while (0)
 
 /* Handy macro to determine if p1 can mangle p2. */
 #define	PRISON_CHECK(p1, p2) \

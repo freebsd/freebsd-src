@@ -304,10 +304,9 @@ _Xcpuast:
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	orl	$AST_PENDING, PCPU(ASTPENDING)	/* XXX */
+	MTX_LOCK_SPIN(sched_lock, 0)
 	movl	PCPU(CURPROC),%ebx
-	incl	P_INTR_NESTING_LEVEL(%ebx)
-	sti
+	orl	$PS_ASTPENDING, P_SFLAG(%ebx)
 	
 	movl	PCPU(CPUID), %eax
 	lock	
@@ -315,13 +314,13 @@ _Xcpuast:
 	lock	
 	btrl	%eax, CNAME(resched_cpus)
 	jnc	2f
-	orl	$AST_PENDING+AST_RESCHED, PCPU(ASTPENDING)
+	orl	$PS_NEEDRESCHED, P_SFLAG(%ebx)
 	lock
 	incl	CNAME(want_resched_cnt)
 2:		
+	MTX_UNLOCK_SPIN(sched_lock)
 	lock
 	incl	CNAME(cpuast_cnt)
-	decl	P_INTR_NESTING_LEVEL(%ebx)
 	MEXITCOUNT
 	jmp	_doreti
 1:
