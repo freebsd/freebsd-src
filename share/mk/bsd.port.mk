@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.175 1995/08/18 10:06:28 asami Exp $
+# $Id: bsd.port.mk,v 1.177 1995/08/29 11:57:40 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -538,15 +538,29 @@ do-patch:
 	@if [ -d ${PATCHDIR} ]; then \
 		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
-			${ECHO_MSG} "===>   Applying FreeBSD patch $$i" ; \
-			${PATCH} ${PATCH_ARGS} < $$i; \
+			case $$i in \
+				*.orig|*~) \
+					${ECHO_MSG} "===>   Ignoring patchfile $$i" ; \
+					;; \
+				*) \
+					${ECHO_MSG} "===>   Applying FreeBSD patch $$i" ; \
+					${PATCH} ${PATCH_ARGS} < $$i; \
+					;; \
+			esac; \
 		done; \
 	fi
 .else
 	@if [ -d ${PATCHDIR} ]; then \
 		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; \
-			do ${PATCH} ${PATCH_ARGS} < $$i; \
+		for i in ${PATCHDIR}/patch-*; do \
+			case $$i in \
+				*.orig|*~) \
+					${ECHO_MSG} "===>   Ignoring patchfile $$i" ; \
+					;; \
+				*) \
+					${PATCH} ${PATCH_ARGS} < $$i; \
+					;; \
+			esac; \
 		done;\
 	fi
 .endif
