@@ -500,7 +500,7 @@ ntfs_unmount(
 		printf("ntfs_unmount: vflush failed(sysnodes): %d\n",error);
 
 	/* Check if the type of device node isn't VBAD before
-	 * touching v_specinfo.  If the device vnode is revoked, the
+	 * touching v_cdev.  If the device vnode is revoked, the
 	 * field is NULL and touching it causes null pointer derefercence.
 	 */
 	if (ntmp->ntm_devvp->v_type != VBAD)
