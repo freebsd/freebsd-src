@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id$
+ * $Id: kzip.c,v 1.1 1995/04/15 08:18:20 phk Exp $
  *
  */
 
@@ -21,6 +21,11 @@
 #include <sys/wait.h>
 #include <a.out.h>
 #include <string.h>
+
+#define MAXIMAGE	(2*1024*1024)
+	/* This is the limit because a kzip'ed kernel loads at 3Mb and
+	 * ends up at 1Mb
+	 */
 
 int
 main(int argc, char **argv)
@@ -206,7 +211,7 @@ piggyback(char *file)
 {
 	int n, len;
 	struct exec hdr;                        /* object header */
-	char image[1024*1024];                   /* kernel image buffer */
+	char image[MAXIMAGE];                   /* kernel image buffer */
 
 	len = 0;
 	while ((n = read (0, &image[len], sizeof(image)-len+1)) > 0)
