@@ -28,6 +28,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -64,13 +66,6 @@
 #include <dev/wi/wi_hostap.h>
 #include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
-
-#include "card_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int wi_pci_probe(device_t);
 static int wi_pci_attach(device_t);
