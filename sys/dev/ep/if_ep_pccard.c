@@ -212,7 +212,7 @@ bad:
 	return (error);
 }
 
-static void
+static int
 ep_pccard_detach(device_t dev)
 {
 	struct ep_softc *sc = device_get_softc(dev);
@@ -221,14 +221,15 @@ ep_pccard_detach(device_t dev)
 
 	if (sc->gone) {
 		device_printf(dev, "already unloaded\n");
-		return;
+		return (0);
 	}
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	if_down(&sc->arpcom.ac_if);
+	if_detach(&sc->arpcom.ac_if);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
 	ep_free(dev);
 	device_printf(dev, "unload\n");
+	return (0);
 }
 
 static device_method_t ep_pccard_methods[] = {
