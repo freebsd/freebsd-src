@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.10 1994/04/20 22:06:24 phk Exp $
+ *	$Id: boot.c,v 1.11 1994/05/01 03:53:29 martin Exp $
  */
 
 
@@ -60,8 +60,7 @@ struct exec head;
 int argv[10], esym;
 char *name;
 char *names[] = {
-	"/386bsd", "/o386bsd", "/386bsd.old",
-	"/vmunix", "/ovmunix", "/vmunix.old"
+	"/386bsd", "/o386bsd", "/386bsd.old"
 };
 #define NUMNAMES	(sizeof(names)/sizeof(char *))
 
@@ -76,7 +75,7 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.10 $");
+		"$Revision: 1.11 $");
 	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
@@ -143,8 +142,8 @@ loadprog(howto)
 		}
 		if((addr + head.a_text + head.a_data + head.a_bss) > 0xa0000)
 		{
-			printf("kernel too big, won't fit in 640K with bss\n");
-			printf("Only hope is to link the kernel for > 1MB\n");
+			printf("kernel won't fit in 640K with bss\n");
+			printf("only hope is to link it for > 1MB\n");
 			return;
 		}
 	}
