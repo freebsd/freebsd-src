@@ -92,8 +92,9 @@ extern int bdg_ports ;
 	*((unsigned int *)(a)) == 0xffffffff && \
 	((unsigned short *)(a))[2] == 0xffff )
 #else
-#warning... must complete these for the alpha etc.
-#define BDG_MATCH(a,b) (!bcmp(a, b, ETHER_ADDR_LEN) )
+/* Unaligned access versions. */
+#define BDG_MATCH(a,b)		(!bcmp(a, b, ETHER_ADDR_LEN) )
+#define	IS_ETHER_BROADCAST(a)	(!bcmp(a, "\377\377\377\377\377\377", 6))
 #endif
 /*
  * The following constants are not legal ifnet pointers, and are used
@@ -127,7 +128,7 @@ struct bdg_stats {
 } ;
 
 
-#define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(int)type]++ 
+#define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(long)type]++ 
  
 #ifdef _KERNEL
 typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
