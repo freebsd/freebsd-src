@@ -3,3 +3,4 @@
 
 SRCS+=	_setjmp.S alloca.S fabs.S frexp.c infinity.c isinf.c ldexp.c modf.S \
 	rfork_thread.S setjmp.S sigsetjmp.S
+SRCS+=	_ctx_start.S getcontext.S makecontext.c
