@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.3 1999/02/05 12:58:32 yokota Exp $
+ * $Id: vga_isa.c,v 1.4 1999/04/16 21:22:35 peter Exp $
  */
 
 #include "vga.h"
@@ -465,8 +465,10 @@ static video_info_t bios_vmode[] = {
 };
 
 static int		init_done = FALSE;
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
 static u_char		*video_mode_ptr = NULL;		/* EGA/VGA */
 static u_char		*video_mode_ptr2 = NULL;	/* CGA/MDA */
+#endif
 static u_char		*mode_map[V_MODE_MAP_SIZE];
 static adp_state_t	adpstate;
 static adp_state_t	adpstate2;
@@ -499,9 +501,11 @@ static int comp_adpregs(u_char *buf1, u_char *buf2);
 #endif
 static int probe_adapters(void);
 
+#ifndef VGA_NO_FONT_LOADING
 #define PARAM_BUFSIZE	6
 static void set_font_mode(video_adapter_t *adp, u_char *buf);
 static void set_normal_mode(video_adapter_t *adp, u_char *buf);
+#endif
 
 static void dump_buffer(u_char *buf, size_t len);
 
@@ -1975,6 +1979,7 @@ vga_load_state(video_adapter_t *adp, void *p)
     inb(crtc_addr + 6);				/* reset flip-flop */
     outb(ATC, 0x20);				/* enable palette */
 
+#if notyet /* a temporary workaround for kernel panic, XXX */
 #ifndef VGA_NO_BIOS
     if (adp->va_unit == V_ADP_PRIMARY) {
 	writeb(BIOS_PADDRTOVADDR(0x44a), buf[0]);	/* COLS */
@@ -1986,6 +1991,7 @@ vga_load_state(video_adapter_t *adp, void *p)
 #endif
     }
 #endif /* VGA_NO_BIOS */
+#endif /* notyet */
 
     splx(s);
     return 0;
@@ -2187,8 +2193,10 @@ vga_diag(video_adapter_t *adp, int level)
 	   readb(BIOS_PADDRTOVADDR(0x484)) + 1,
 	   readb(BIOS_PADDRTOVADDR(0x485)));
 #endif /* VGA_NO_BIOS */
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
     printf("vga: param table EGA/VGA:%p", video_mode_ptr);
     printf(", CGA/MDA:%p\n", video_mode_ptr2);
+#endif
     printf("vga: rows_offset:%d\n", rows_offset);
 #endif /* FB_DEBUG > 1 */
 
