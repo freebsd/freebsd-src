@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.222 1996/06/12 16:32:15 jkh Exp $
+#	$Id: Makefile,v 1.223 1996/06/13 01:57:48 jkh Exp $
 #
 # How to roll a release:
 #
@@ -291,7 +291,6 @@ release.6:
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				SD=${RD}/trees/$${i} \
 				TN=$$i TD=$$i ARG="." && \
-				cp -p scripts/$${i}-install.sh ${RD}/dists/install.sh && \
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
@@ -455,6 +454,9 @@ doTARBALL:
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
 		${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf && \
+		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
+		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
+		fi && \
 		  if [ "${SD}" != "/usr/src" ]; then \
 			mtree -c -i -p ${SD}/${ARG} \
 			  -k gname,md5digest,mode,nlink,uname,size,link,type \
