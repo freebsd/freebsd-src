@@ -35,6 +35,7 @@
 #include <netinet/igmp.h>
 #include <netinet/ip_mroute.h>
 #include <netinet/udp.h>
+#include <machine/in_cksum.h>
 
 #ifndef NTOHL
 #if BYTE_ORDER != BIG_ENDIAN
