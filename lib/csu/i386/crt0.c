@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: crt0.c,v 1.29 1997/02/22 14:57:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,8 @@ int			errno;
 static char		empty[1];
 char			*__progname = empty;
 char			**environ;
+
+static int		ldso_version;
 
 extern	unsigned char	etext;
 extern	unsigned char	eprol asm ("eprol");
@@ -194,7 +196,6 @@ __do_dynamic_link ()
 	struct exec	hdr;
 	char		*ldso;
 	int		(*entry)();
-	int		ret;
 
 #ifdef DEBUG
 	/* Provision for alternate ld.so - security risk! */
@@ -254,14 +255,14 @@ __do_dynamic_link ()
 	crt.crt_ldentry = NULL;
 
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
-	ret = (*entry)(CRT_VERSION_BSD_4, &crt);
+	ldso_version = (*entry)(CRT_VERSION_BSD_4, &crt);
 	ld_entry = crt.crt_ldentry;
-	if (ret == -1 && ld_entry == NULL) {
+	if (ldso_version == -1 && ld_entry == NULL) {
 		/* if version 4 not recognised, try version 3 */
-		ret = (*entry)(CRT_VERSION_BSD_3, &crt);
+		ldso_version = (*entry)(CRT_VERSION_BSD_3, &crt);
 		ld_entry = _DYNAMIC.d_entry;
 	}
-	if (ret == -1) {
+	if (ldso_version == -1) {
 		_PUTMSG("ld.so failed");
 		if (ld_entry != NULL) {
 			char *msg = (ld_entry->dlerror)();
@@ -277,7 +278,7 @@ __do_dynamic_link ()
 	}
 
 
-	if (ret >= LDSO_VERSION_HAS_DLEXIT)
+	if (ldso_version >= LDSO_VERSION_HAS_DLEXIT)
 		atexit(ld_entry->dlexit);
 
 	return;
@@ -316,7 +317,11 @@ char	*name;
 	if (ld_entry == NULL)
 		return NULL;
 
-	return (ld_entry->dlsym)(fd, name);
+	if (ldso_version >= LDSO_VERSION_HAS_DLSYM3) {
+		void *retaddr = *(&fd - 1);  /* XXX - ABI/machine dependent */
+		return (ld_entry->dlsym3)(fd, name, retaddr);
+	} else
+		return (ld_entry->dlsym)(fd, name);
 }
 
 
