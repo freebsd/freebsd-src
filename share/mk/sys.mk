@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.34 1998/06/03 08:07:31 jb Exp $
+#	$Id: sys.mk,v 1.35 1998/06/03 08:51:39 jb Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -107,7 +107,6 @@ MACHINE_ARCH?=	i386
 # Default executable format
 .if ${MACHINE_ARCH} == "alpha"
 BINFORMAT	?=	elf
-CFLAGS		+=  -D__NETBSD_SYSCALLS
 .else
 BINFORMAT	?=	aout
 .endif
@@ -252,5 +251,5 @@ HTAGSFLAGS=
 
 # Architectures that use NetBSD syscalls:
 .if ${MACHINE_ARCH} == "alpha"
-CFLAGS+=  -D__NETBSD_SYSCALLS
+CFLAGS	+=	-D__NETBSD_SYSCALLS
 .endif
