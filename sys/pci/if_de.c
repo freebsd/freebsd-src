@@ -3196,7 +3196,7 @@ tulip_reset(
     TULIP_CSR_WRITE(sc, csr_rxlist, TULIP_KVATOPHYS(sc, &sc->tulip_rxinfo.ri_first[0]));
 #endif
     TULIP_CSR_WRITE(sc, csr_busmode,
-		    (1 << (pci_max_burst_len + 8))
+		    (1 << (3 /*pci_max_burst_len*/ + 8))
 		    |TULIP_BUSMODE_CACHE_ALIGN8
 		    |TULIP_BUSMODE_READMULTIPLE
 		    |(BYTE_ORDER != LITTLE_ENDIAN ?
@@ -3712,8 +3712,6 @@ tulip_tx_intr(
 		    TULIP_TXMAP_POSTSYNC(sc, map);
 		    sc->tulip_txmaps[sc->tulip_txmaps_free++] = map;
 #endif /* TULIP_BUS_DMA */
-		    if (sc->tulip_if.if_bpf != NULL)
-			bpf_mtap(&sc->tulip_if, m);
 		    m_freem(m);
 #if defined(TULIP_DEBUG)
 		} else {
@@ -4337,6 +4335,12 @@ tulip_txput(
 	}
     } while ((m0 = m0->m_next) != NULL);
 #endif /* TULIP_BUS_DMA */
+
+    /*
+     * bounce a copy to the bpf listener, if any.
+     */
+    if (sc->tulip_if.if_bpf != NULL)
+	bpf_mtap(&sc->tulip_if, m);
 
     /*
      * The descriptors have been filled in.  Now get ready
@@ -5057,6 +5061,13 @@ tulip_pci_probe(device_t dev)
     if (pci_get_vendor(dev) != DEC_VENDORID)
 	return ENXIO;
 
+    /*
+     * Some LanMedia WAN cards use the Tulip chip, but they have
+     * their own driver, and we should not recognize them
+     */
+    if (pci_get_subvendor(dev) == 0x1376)
+	return ENXIO;
+
     switch (pci_get_device(dev)) {
     case CHIPID_21040:
 	name = "Digital 21040 Ethernet";
@@ -5122,12 +5133,12 @@ tulip_pci_attach(device_t dev)
 
     revinfo  = pci_get_revid(dev);
     cfdainfo = pci_read_config(dev, PCI_CFDA, 4);
-    cfcsinfo = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+    cfcsinfo = pci_read_config(dev, PCIR_COMMAND, 4);
 
     /* turn busmaster on in case BIOS doesn't set it */
     if(!(cfcsinfo & PCIM_CMD_BUSMASTEREN)) {
 	 cfcsinfo |= PCIM_CMD_BUSMASTEREN;
-	 pci_write_config(dev, PCI_COMMAND_STATUS_REG, cfcsinfo, 4);
+	 pci_write_config(dev, PCIR_COMMAND, cfcsinfo, 4);
     }
 
     if (pci_get_vendor(dev) == DEC_VENDORID) {
@@ -5209,17 +5220,17 @@ tulip_pci_attach(device_t dev)
     rid = PCI_CBIO;
     res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 			     0, ~0, 1, RF_ACTIVE);
-    if (!res)
-	return ENXIO;
-    csr_base = rman_get_start(res);
 #else
     rid = PCI_CBMA;
     res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 			     0, ~0, 1, RF_ACTIVE);
+#endif
     if (!res)
 	return ENXIO;
-    csr_base = (vm_offset_t) rman_get_virtual(res);
-#endif
+    sc->tulip_csrs_bst = rman_get_bustag(res);
+    sc->tulip_csrs_bsh = rman_get_bushandle(res);
+    csr_base = 0;
+
     tulips[unit] = sc;
 
     tulip_initcsrs(sc, csr_base + csroffset, csrsize);

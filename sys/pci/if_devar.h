@@ -31,48 +31,28 @@
 #if !defined(_DEVAR_H)
 #define _DEVAR_H
 
-#ifdef TULIP_IOMAPPED
-#define	TULIP_PCI_CSRSIZE	8
-#define	TULIP_PCI_CSROFFSET	0
-
-typedef pci_port_t tulip_csrptr_t;
-
-#define	TULIP_CSR_READ(sc, csr)			(inl((sc)->tulip_csrs.csr))
-#define	TULIP_CSR_WRITE(sc, csr, val)   	outl((sc)->tulip_csrs.csr, val)
-
-#define	TULIP_CSR_READBYTE(sc, csr)		(inb((sc)->tulip_csrs.csr))
-#define	TULIP_CSR_WRITEBYTE(sc, csr, val)	outb((sc)->tulip_csrs.csr, val)
-
-#else /* TULIP_IOMAPPED */
+typedef bus_addr_t tulip_csrptr_t;
 
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
-#if defined(__alpha__)
+#define TULIP_CSR_READ(sc, csr)			\
+	bus_space_read_4((sc)->tulip_csrs_bst,	\
+			 (sc)->tulip_csrs_bsh,	\
+			 (sc)->tulip_csrs.csr)
+#define TULIP_CSR_WRITE(sc, csr, val)			\
+	bus_space_write_4((sc)->tulip_csrs_bst,		\
+			  (sc)->tulip_csrs_bsh,		\
+			  (sc)->tulip_csrs.csr, val)
 
-typedef u_int32_t tulip_csrptr_t;
-
-#define	TULIP_CSR_READ(sc, csr)			(readl((sc)->tulip_csrs.csr))
-#define	TULIP_CSR_WRITE(sc, csr, val)   	writel((sc)->tulip_csrs.csr, val)
-
-#define	TULIP_CSR_READBYTE(sc, csr)		(readb((sc)->tulip_csrs.csr))
-#define	TULIP_CSR_WRITEBYTE(sc, csr, val)	writeb((sc)->tulip_csrs.csr, val)
-
-#else /* __alpha__ */
-
-typedef volatile u_int32_t *tulip_csrptr_t;
-
-/*
- * macros to read and write CSRs.  Note that the "0 +" in
- * READ_CSR is to prevent the macro from being an lvalue
- * and WRITE_CSR shouldn't be assigned from.
- */
-#define	TULIP_CSR_READ(sc, csr)		(0 + *(sc)->tulip_csrs.csr)
-#define	TULIP_CSR_WRITE(sc, csr, val)	((void)(*(sc)->tulip_csrs.csr = (val)))
-
-#endif /* __alpha__ */
-
-#endif /* TULIP_IOMAPPED */
+#define TULIP_CSR_READBYTE(sc, csr)		\
+	bus_space_read_1((sc)->tulip_csrs_bst,	\
+			 (sc)->tulip_csrs_bsh,	\
+			 (sc)->tulip_csrs.csr)
+#define TULIP_CSR_WRITEBYTE(sc, csr, val)		\
+	bus_space_write_1((sc)->tulip_csrs_bst,		\
+			  (sc)->tulip_csrs_bsh,		\
+			  (sc)->tulip_csrs.csr, val)
 
 /*
  * This structure contains "pointers" for the registers on
@@ -466,6 +446,8 @@ struct _tulip_softc_t {
 #endif
 #endif
     struct arpcom tulip_ac;
+    bus_space_tag_t tulip_csrs_bst;
+    bus_space_handle_t tulip_csrs_bsh;
     tulip_regfile_t tulip_csrs;
     u_int32_t tulip_flags;
 #define	TULIP_WANTSETUP		0x00000001
