@@ -585,6 +585,8 @@ munmap(td, uap)
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
+	if (size == 0)
+		return (EINVAL);
 
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -593,23 +595,23 @@ munmap(td, uap)
 	if (addr + size < addr)
 		return (EINVAL);
 
-	if (size == 0)
-		return (0);
-
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap...
 	 */
 	map = &td->td_proc->p_vmspace->vm_map;
 	if (addr < vm_map_min(map) || addr + size > vm_map_max(map))
 		return (EINVAL);
+	vm_map_lock(map);
 	/*
 	 * Make sure entire range is allocated.
 	 */
-	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE))
+	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
+		vm_map_unlock(map);
 		return (EINVAL);
-
+	}
 	/* returns nothing but KERN_SUCCESS anyway */
-	(void) vm_map_remove(map, addr, addr + size);
+	vm_map_delete(map, addr, addr + size);
+	vm_map_unlock(map);
 	return (0);
 }
 
