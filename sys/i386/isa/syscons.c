@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.173 1996/09/30 23:10:35 sos Exp $
+ *  $Id: syscons.c,v 1.174 1996/10/01 07:38:14 jkh Exp $
  */
 
 #include "sc.h"
@@ -77,7 +77,6 @@
 
 #define COLD 0
 #define WARM 1
-#define RUNNING 2
 
 /* this may break on older VGA's but is usefull on real 32 bit systems */
 #define bcopyw  bcopy
@@ -103,6 +102,7 @@ static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 static  int     	flags = 0;
 static  char        	init_done = COLD;
+static  short		sc_buffer[ROW*COL];
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
 static  char        	blink_in_progress = FALSE;
@@ -414,7 +414,7 @@ scattach(struct isa_device *dev)
     scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 				     M_DEVBUF, M_NOWAIT);
     /* copy screen to buffer */
-    bcopyw(Crtat, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+    bcopyw(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
     scp->cursor_pos = scp->cursor_oldpos =
 	scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
     scp->mouse_pos = scp->mouse_oldpos = scp->scr_buf;
@@ -426,9 +426,11 @@ scattach(struct isa_device *dev)
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
 
     /* initialize cursor stuff */
-    draw_cursor_image(scp);
-    if (crtc_vga && (flags & CHAR_CURSOR))
-	set_destructive_cursor(scp);
+    if (!(scp->status & UNKNOWN_MODE)) {
+    	draw_cursor_image(scp);
+    	if (crtc_vga && (flags & CHAR_CURSOR))
+	    set_destructive_cursor(scp);
+    }
 
     /* get screen update going */
     scrn_timer();
@@ -447,15 +449,6 @@ scattach(struct isa_device *dev)
 	else
 	    printf("CGA/EGA");
     printf(" <%d virtual consoles, flags=0x%x>\n", MAXCONS, flags);
-
-#ifdef SC_SPLASH_SCREEN
-    /* 
-     * Now put up a graphics image, and maybe cycle a
-     * couble of palette entries for simple animation.
-     * XXX should be in scinit, but but but....
-     */
-    toggle_splash_screen(cur_console);
-#endif
 
 #if NAPM > 0
     scp->r_hook.ah_fun = scresume;
@@ -540,11 +533,12 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	    return(EBUSY);
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();
-#ifdef SC_SPLASH_SCREEN
-	toggle_splash_screen(cur_console);
-#endif
     }
-    return((*linesw[tp->t_line].l_open)(dev, tp));
+#ifdef SC_SPLASH_SCREEN
+    if (minor(dev) == 0) 
+	toggle_splash_screen(cur_console); /* SOS XXX */
+#endif
+    return ((*linesw[tp->t_line].l_open)(dev, tp));
 }
 
 int
@@ -1403,7 +1397,7 @@ sccnputc(dev_t dev, int c)
 
     scp->term = kernel_console;
     current_default = &kernel_default;
-    if (scp->scr_buf == Crtat) {
+    if (scp->scr_buf == Crtat && !(scp->status & UNKNOWN_MODE)) {
 	remove_cursor_image(scp);
     }
     buf[0] = c;
@@ -1449,6 +1443,7 @@ static void
 scrn_timer()
 {
     scr_stat *scp = cur_console;
+    int s = spltty();
 
     /* should we just return ? */
     if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
@@ -1490,8 +1485,12 @@ scrn_timer()
 	    /* did cursor move since last time ? */
 	    if (scp->cursor_pos != scp->cursor_oldpos) {
 		/* do we need to remove old cursor image ? */
-		if ((scp->cursor_oldpos - scp->scr_buf) < scp->start ||
-		    ((scp->cursor_oldpos - scp->scr_buf) > scp->end)) {
+		if (((scp->cursor_oldpos - scp->scr_buf) < scp->start ||
+		    ((scp->cursor_oldpos - scp->scr_buf) > scp->end)) &&
+		    scp->cursor_pos != scp->mouse_oldpos &&
+		    scp->cursor_pos != scp->mouse_oldpos+1 &&
+		    scp->cursor_pos != scp->mouse_oldpos+scp->xsize &&
+		    scp->cursor_pos != scp->mouse_oldpos+scp->xsize+1) {
 		    remove_cursor_image(scp);
 		}
     		scp->cursor_oldpos = scp->cursor_pos;
@@ -1499,8 +1498,12 @@ scrn_timer()
 	    }
 	    else {
 		/* cursor didn't move, has it been overwritten ? */
-		if (scp->cursor_pos - scp->scr_buf >= scp->start &&
-		    scp->cursor_pos - scp->scr_buf <= scp->end) {
+		if ((scp->cursor_pos - scp->scr_buf >= scp->start &&
+		    scp->cursor_pos - scp->scr_buf <= scp->end) ||
+		    scp->cursor_pos == scp->mouse_pos ||
+		    scp->cursor_pos == scp->mouse_pos+1 ||
+		    scp->cursor_pos == scp->mouse_pos+scp->xsize ||
+		    scp->cursor_pos == scp->mouse_pos+scp->xsize+1) {
 		    	draw_cursor_image(scp);
 		} else {
 		    /* if its a blinking cursor, we may have to update it */
@@ -1520,6 +1523,7 @@ scrn_timer()
     if (scrn_blank_time && (time.tv_sec>scrn_time_stamp+scrn_blank_time))
 	(*current_saver)(TRUE);
     timeout((timeout_func_t)scrn_timer, 0, hz/25);
+    splx(s);
 }
 
 static void
@@ -2308,8 +2312,8 @@ scinit(void)
     current_default = &user_default;
     console[0] = &main_console;
     init_scp(console[0]);
-    console[0]->scr_buf = console[0]->mouse_pos =  Crtat;
-    console[0]->cursor_pos = console[0]->cursor_oldpos = Crtat + hw_cursor;
+    console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
+    console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
     console[0]->xpos = hw_cursor % COL;
     console[0]->ypos = hw_cursor / COL;
     cur_console = console[0];
@@ -2325,6 +2329,14 @@ scinit(void)
     for (i=0; i<sizeof(scr_map); i++) {
 	scr_map[i] = scr_rmap[i] = i;
     }
+
+#ifdef SC_SPLASH_SCREEN
+    /* 
+     * Now put up a graphics image, and maybe cycle a
+     * couble of palette entries for simple animation.
+     */
+    toggle_splash_screen(cur_console);
+#endif
 }
 
 static scr_stat
@@ -3424,8 +3436,6 @@ draw_mouse_image(scr_stat *scp)
     	*(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
     	*(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
     }
-    mark_for_update(scp, scp->mouse_pos - scp->scr_buf);
-    mark_for_update(scp, scp->mouse_pos + scp->xsize + 1 - scp->scr_buf);
 }
 
 static void
@@ -3437,8 +3447,6 @@ remove_mouse_image(scr_stat *scp)
     *(crt_pos+1) = *(scp->mouse_oldpos+1);
     *(crt_pos+scp->xsize) = *(scp->mouse_oldpos+scp->xsize);
     *(crt_pos+scp->xsize+1) = *(scp->mouse_oldpos+scp->xsize+1);
-    mark_for_update(scp, scp->mouse_oldpos - scp->scr_buf);
-    mark_for_update(scp, scp->mouse_oldpos + scp->xsize + 1 - scp->scr_buf);
 }
 
 static void
