@@ -125,6 +125,290 @@ gettimeofday(
 }
 #endif /* SYS_PTX */
 
+#ifdef MPE
+/* This is a substitute for bind() that if called for an AF_INET socket
+port less than 1024, GETPRIVMODE() and GETUSERMODE() calls will be done. */
+
+#undef bind
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+
+extern void GETPRIVMODE(void);
+extern void GETUSERMODE(void);
+
+int __ntp_mpe_bind(int s, void *addr, int addrlen);
+
+int __ntp_mpe_bind(int s, void *addr, int addrlen) {
+	int priv = 0;
+	int result;
+
+if (addrlen == sizeof(struct sockaddr_in)) { /* AF_INET */
+	if (((struct sockaddr_in *)addr)->sin_port > 0 &&
+	    ((struct sockaddr_in *)addr)->sin_port < 1024) {
+		priv = 1;
+		GETPRIVMODE();
+	}
+/*	((struct sockaddr_in *)addr)->sin_addr.s_addr = 0; */
+	result = bind(s,addr,addrlen);
+	if (priv == 1) GETUSERMODE();
+} else /* AF_UNIX */
+	result = bind(s,addr,addrlen);
+
+return result;
+}
+
+/*
+ * MPE stupidly requires sfcntl() to be used on sockets instead of fcntl(),
+ * so we define a wrapper to analyze the file descriptor and call the correct
+ * function.
+ */
+
+#undef fcntl
+#include <errno.h>
+#include <fcntl.h>
+
+int __ntp_mpe_fcntl(int fd, int cmd, int arg);
+
+int __ntp_mpe_fcntl(int fd, int cmd, int arg) {
+	int len;
+	struct sockaddr sa;
+
+	extern int sfcntl(int, int, int);
+
+	len = sizeof sa;
+	if (getsockname(fd, &sa, &len) == -1) {
+		if (errno == EAFNOSUPPORT) /* AF_UNIX socket */
+			return sfcntl(fd, cmd, arg);
+		if (errno == ENOTSOCK) /* file or pipe */
+			return fcntl(fd, cmd, arg);
+		return (-1); /* unknown getsockname() failure */
+	} else /* AF_INET socket */
+		return sfcntl(fd, cmd, arg);
+}
+
+/*
+ * Setitimer emulation support.  Note that we implement this using alarm(),
+ * and since alarm() only delivers one signal, we must re-enable the alarm
+ * by enabling our own SIGALRM setitimer_mpe_handler routine to be called
+ * before the real handler routine and re-enable the alarm at that time.
+ *
+ * Note that this solution assumes that sigaction(SIGALRM) is called before
+ * calling setitimer().  If it should ever to become necessary to support
+ * sigaction(SIGALRM) after calling setitimer(), it will be necessary to trap
+ * those sigaction() calls.
+ */
+
+#include <limits.h>
+#include <signal.h>
+
+/*
+ * Some global data that needs to be shared between setitimer() and
+ * setitimer_mpe_handler().
+ */
+
+struct {
+	unsigned long current_msec;	/* current alarm() value in effect */
+	unsigned long interval_msec;	/* next alarm() value from setitimer */
+	unsigned long value_msec;	/* first alarm() value from setitimer */
+	struct itimerval current_itimerval; /* current itimerval in effect */
+	struct sigaction oldact;	/* SIGALRM state saved by setitimer */
+} setitimer_mpe_ctx = { 0, 0, 0 };
+
+/*
+ * Undocumented, unsupported function to do alarm() in milliseconds.
+ */
+
+extern unsigned int px_alarm(unsigned long, int *);
+
+/*
+ * The SIGALRM handler routine enabled by setitimer().  Re-enable the alarm or
+ * restore the original SIGALRM setting if no more alarms are needed.  Then
+ * call the original SIGALRM handler (if any).
+ */
+
+static RETSIGTYPE setitimer_mpe_handler(int sig)
+{
+int alarm_hpe_status;
+
+/* Update the new current alarm value */
+
+setitimer_mpe_ctx.current_msec = setitimer_mpe_ctx.interval_msec;
+
+if (setitimer_mpe_ctx.interval_msec > 0) {
+  /* Additional intervals needed; re-arm the alarm timer */
+  px_alarm(setitimer_mpe_ctx.interval_msec,&alarm_hpe_status);
+} else {
+  /* No more intervals, so restore previous original SIGALRM handler */
+  sigaction(SIGALRM, &setitimer_mpe_ctx.oldact, NULL);
+}
+
+/* Call the original SIGALRM handler if it is a function and not just a flag */
+
+if (setitimer_mpe_ctx.oldact.sa_handler != SIG_DFL &&
+    setitimer_mpe_ctx.oldact.sa_handler != SIG_ERR &&
+    setitimer_mpe_ctx.oldact.sa_handler != SIG_IGN)
+  (*setitimer_mpe_ctx.oldact.sa_handler)(SIGALRM);
+
+}
+
+/*
+ * Our implementation of setitimer().
+ */
+
+int
+setitimer(int which, struct itimerval *value,
+	    struct itimerval *ovalue)
+{
+
+int alarm_hpe_status;
+unsigned long remaining_msec, value_msec, interval_msec;
+struct sigaction newact;
+
+/* 
+ * Convert the initial interval to milliseconds
+ */
+
+if (value->it_value.tv_sec > (UINT_MAX / 1000))
+  value_msec = UINT_MAX;
+else
+  value_msec = value->it_value.tv_sec * 1000;
+
+value_msec += value->it_value.tv_usec / 1000;
+
+/*
+ * Convert the reset interval to milliseconds
+ */
+
+if (value->it_interval.tv_sec > (UINT_MAX / 1000))
+  interval_msec = UINT_MAX;
+else
+  interval_msec = value->it_interval.tv_sec * 1000;
+
+interval_msec += value->it_interval.tv_usec / 1000;
+
+if (value_msec > 0 && interval_msec > 0) {
+  /*
+   * We'll be starting an interval timer that will be repeating, so we need to
+   * insert our own SIGALRM signal handler to schedule the repeats.
+   */
+
+  /* Read the current SIGALRM action */
+
+  if (sigaction(SIGALRM, NULL, &setitimer_mpe_ctx.oldact) < 0) {
+    fprintf(stderr,"MPE setitimer old handler failed, errno=%d\n",errno);
+    return -1;
+  }
+
+  /* Initialize the new action to call our SIGALRM handler instead */
+
+  newact.sa_handler = &setitimer_mpe_handler;
+  newact.sa_mask = setitimer_mpe_ctx.oldact.sa_mask;
+  newact.sa_flags = setitimer_mpe_ctx.oldact.sa_flags;
+ 
+  if (sigaction(SIGALRM, &newact, NULL) < 0) {
+    fprintf(stderr,"MPE setitimer new handler failed, errno=%d\n",errno);
+    return -1;
+  }
+}
+
+/*
+ * Return previous itimerval if desired
+ */
+
+if (ovalue != NULL) *ovalue = setitimer_mpe_ctx.current_itimerval;
+
+/*
+ * Save current parameters for later usage
+ */
+
+setitimer_mpe_ctx.current_itimerval = *value;
+setitimer_mpe_ctx.current_msec = value_msec;
+setitimer_mpe_ctx.value_msec = value_msec;
+setitimer_mpe_ctx.interval_msec = interval_msec;
+
+/*
+ * Schedule the first alarm
+ */
+
+remaining_msec = px_alarm(value_msec, &alarm_hpe_status);
+if (alarm_hpe_status == 0)
+  return (0);
+else
+  return (-1);
+}
+
+/* 
+ * MPE lacks gettimeofday(), so we define our own.
+ */
+
+int gettimeofday(struct timeval *tvp)
+
+{
+/* Documented, supported MPE functions. */
+extern void GETPRIVMODE(void);
+extern void GETUSERMODE(void);
+
+/* Undocumented, unsupported MPE functions. */
+extern long long get_time(void);
+extern void get_time_change_info(long long *, char *, char *);
+extern long long ticks_to_micro(long long);
+
+char pwf_since_boot, recover_pwf_time;
+long long mpetime, offset_ticks, offset_usec;
+
+GETPRIVMODE();
+mpetime = get_time(); /* MPE local time usecs since Jan 1 1970 */
+get_time_change_info(&offset_ticks, &pwf_since_boot, &recover_pwf_time);
+offset_usec = ticks_to_micro(offset_ticks);  /* UTC offset usecs */
+GETUSERMODE();
+
+mpetime = mpetime - offset_usec;  /* Convert from local time to UTC */
+tvp->tv_sec = mpetime / 1000000LL;
+tvp->tv_usec = mpetime % 1000000LL;
+
+return 0;
+}
+
+/* 
+ * MPE lacks settimeofday(), so we define our own.
+ */
+
+#define HAVE_SETTIMEOFDAY
+
+int settimeofday(struct timeval *tvp)
+
+{
+/* Documented, supported MPE functions. */
+extern void GETPRIVMODE(void);
+extern void GETUSERMODE(void);
+
+/* Undocumented, unsupported MPE functions. */
+extern void get_time_change_info(long long *, char *, char *);
+extern void initialize_system_time(long long, int);
+extern void set_time_correction(long long, int, int);
+extern long long ticks_to_micro(long long);
+
+char pwf_since_boot, recover_pwf_time;
+long long big_sec, big_usec, mpetime, offset_ticks, offset_usec;
+
+big_sec = tvp->tv_sec;
+big_usec = tvp->tv_usec;
+mpetime = (big_sec * 1000000LL) + big_usec;  /* Desired UTC microseconds */
+
+GETPRIVMODE();
+set_time_correction(0LL,0,0); /* Cancel previous time correction, if any */
+get_time_change_info(&offset_ticks, &pwf_since_boot, &recover_pwf_time);
+offset_usec = ticks_to_micro(offset_ticks); /* UTC offset microseconds */
+mpetime = mpetime + offset_usec; /* Convert from UTC to local time */
+initialize_system_time(mpetime,1);
+GETUSERMODE();
+
+return 0;
+}
+#endif /* MPE */
+
 const char *set_tod_using = "UNKNOWN";
 
 int
@@ -133,53 +417,72 @@ ntp_set_tod(
 	void *tzp
 	)
 {
-	int rc;
+	int rc = -1;
+
+#ifdef DEBUG
+	if (debug)
+	    printf("In ntp_set_tod\n");
+#endif
 
 #ifdef HAVE_CLOCK_SETTIME
-	{
+	if (rc) {
 		struct timespec ts;
 
+		set_tod_using = "clock_settime";
 		/* Convert timeval to timespec */
 		ts.tv_sec = tvp->tv_sec;
 		ts.tv_nsec = 1000 *  tvp->tv_usec;
 
+		errno = 0;
 		rc = clock_settime(CLOCK_REALTIME, &ts);
-		if (!rc)
-		{
-			set_tod_using = "clock_settime";
-			return rc;
+#ifdef DEBUG
+		if (debug) {
+			printf("ntp_set_tod: %s: %d: %s\n",
+			       set_tod_using, rc, strerror(errno));
 		}
+#endif
 	}
 #endif /* HAVE_CLOCK_SETTIME */
 #ifdef HAVE_SETTIMEOFDAY
-	{
+	if (rc) {
+		set_tod_using = "settimeofday";
 		rc = SETTIMEOFDAY(tvp, tzp);
-		if (!rc)
-		{
-			set_tod_using = "settimeofday";
-			return rc;
+#ifdef DEBUG
+		if (debug) {
+			printf("ntp_set_tod: %s: %d: %s\n",
+			       set_tod_using, rc, strerror(errno));
 		}
+#endif
 	}
 #endif /* HAVE_SETTIMEOFDAY */
 #ifdef HAVE_STIME
-	{
+	if (rc) {
 		long tp = tvp->tv_sec;
 
+		set_tod_using = "stime";
 		rc = stime(&tp); /* lie as bad as SysVR4 */
-		if (!rc)
-		{
-			set_tod_using = "stime";
-			return rc;
+#ifdef DEBUG
+		if (debug) {
+			printf("ntp_set_tod: %s: %d: %s\n",
+			       set_tod_using, rc, strerror(errno));
 		}
+#endif
 	}
 #endif /* HAVE_STIME */
-	set_tod_using = "Failed!";
-	return -1;
+	if (rc)
+	    set_tod_using = "Failed!";
+#ifdef DEBUG
+	if (debug) {
+		printf("ntp_set_tod: Final result: %s: %d: %s\n",
+			set_tod_using, rc, strerror(errno));
+	}
+#endif
+	return rc;
 }
 
 #endif /* not SYS_WINNT */
 
-#if defined (SYS_WINNT) || defined (SYS_VXWORKS)
+#if defined (SYS_WINNT) || defined (SYS_VXWORKS) || defined(MPE)
 /* getpass is used in ntpq.c and ntpdc.c */
 
 char *

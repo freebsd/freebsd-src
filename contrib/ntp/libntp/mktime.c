@@ -62,6 +62,8 @@
 
 #include "ntp_machine.h"
 
+#if !HAVE_MKTIME
+
 #ifndef DSTMINUTES
 #define DSTMINUTES 60
 #endif
@@ -272,3 +274,6 @@ mktime(
 {
 	return time1(tmp);
 }
+#else
+int mktime_bs;
+#endif

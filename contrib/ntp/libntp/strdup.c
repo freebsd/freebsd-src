@@ -1,5 +1,10 @@
+#include "ntp_malloc.h"
+
+#if !HAVE_STRDUP
 
 #define NULL 0
+
+char *strdup(const char *s);
 
 char *
 strdup(
@@ -18,3 +23,6 @@ strdup(
 	}
         return(cp);
 }
+#else
+int strdup_bs;
+#endif

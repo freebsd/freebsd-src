@@ -379,6 +379,7 @@ process_private(
 	)
 {
 	struct req_pkt *inpkt;
+	struct req_pkt_tail *tailinpkt;
 	struct sockaddr_in *srcadr;
 	struct interface *inter;
 	struct req_proc *proc;
@@ -410,7 +411,7 @@ process_private(
 	    || (++ec, INFO_ERR(inpkt->err_nitems) != 0)
 	    || (++ec, INFO_MBZ(inpkt->mbz_itemsize) != 0)
 	    || (++ec, rbufp->recv_length > REQ_LEN_MAC)
-	    || (++ec, rbufp->recv_length < REQ_LEN_NOMAC)
+	    || (++ec, rbufp->recv_length < REQ_LEN_HDR)
 		) {
 		msyslog(LOG_ERR, "process_private: INFO_ERR_FMT: test %d failed", ec);
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
@@ -462,18 +463,27 @@ process_private(
 		l_fp ftmp;
 		double dtemp;
 	
+		if (rbufp->recv_length < (REQ_LEN_HDR +
+		    (INFO_ITEMSIZE(inpkt->mbz_itemsize) *
+		    INFO_NITEMS(inpkt->err_nitems))
+		    + sizeof(struct req_pkt_tail))) {
+			req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
+		}
+		tailinpkt = (struct req_pkt_tail *)((char *)&rbufp->recv_pkt +
+		    rbufp->recv_length - sizeof(struct req_pkt_tail));
+
 		/*
 		 * If this guy is restricted from doing this, don't let him
 		 * If wrong key was used, or packet doesn't have mac, return.
 		 */
 		if (!INFO_IS_AUTH(inpkt->auth_seq) || info_auth_keyid == 0
-		    || ntohl(inpkt->keyid) != info_auth_keyid) {
+		    || ntohl(tailinpkt->keyid) != info_auth_keyid) {
 #ifdef DEBUG
 			if (debug > 4)
 			    printf("failed auth %d info_auth_keyid %lu pkt keyid %lu\n",
 				    INFO_IS_AUTH(inpkt->auth_seq),
 				    (u_long)info_auth_keyid,
-				    (u_long)ntohl(inpkt->keyid));
+				    (u_long)ntohl(tailinpkt->keyid));
 #endif
 			req_ack(srcadr, inter, inpkt, INFO_ERR_AUTH);
 			return;
@@ -502,7 +512,7 @@ process_private(
 		 * calculate absolute time difference between xmit time stamp
 		 * and receive time stamp.  If too large, too bad.
 		 */
-		NTOHL_FP(&inpkt->tstamp, &ftmp);
+		NTOHL_FP(&tailinpkt->tstamp, &ftmp);
 		L_SUB(&ftmp, &rbufp->recv_time);
 		LFPTOD(&ftmp, dtemp);
 		if (fabs(dtemp) >= INFO_TS_MAXSKEW) {
@@ -517,7 +527,8 @@ process_private(
 		 * So far so good.  See if decryption works out okay.
 		 */
 		if (!authdecrypt(info_auth_keyid, (u_int32 *)inpkt,
-		    REQ_LEN_NOMAC, (int)(rbufp->recv_length - REQ_LEN_NOMAC))) {
+		    rbufp->recv_length - sizeof(struct req_pkt_tail) +
+		    REQ_LEN_HDR, sizeof(struct req_pkt_tail) - REQ_LEN_HDR)) {
 			req_ack(srcadr, inter, inpkt, INFO_ERR_AUTH);
 			return;
 		}
@@ -526,8 +537,13 @@ process_private(
 	/*
 	 * If we need data, check to see if we have some.  If we
 	 * don't, check to see that there is none (picky, picky).
+	 *
+	 * Handle the exception of REQ_CONFIG. It can have two data sizes.
 	 */
-	if (INFO_ITEMSIZE(inpkt->mbz_itemsize) != proc->sizeofitem) {
+	if (INFO_ITEMSIZE(inpkt->mbz_itemsize) != proc->sizeofitem &&
+	    !(inpkt->implementation == IMPL_XNTPD &&
+	    inpkt->request == REQ_CONFIG &&
+	    INFO_ITEMSIZE(inpkt->mbz_itemsize) == sizeof(struct old_conf_peer))) {
                 msyslog(LOG_ERR, "INFO_ITEMSIZE(inpkt->mbz_itemsize) != proc->sizeofitem: %d != %d",
 			INFO_ITEMSIZE(inpkt->mbz_itemsize), proc->sizeofitem);
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
@@ -903,22 +919,24 @@ sys_info(
 	is->poll = sys_poll;
 	
 	is->flags = 0;
-	if (sys_bclient)
-	    is->flags |= INFO_FLAG_BCLIENT;
 	if (sys_authenticate)
-	    is->flags |= INFO_FLAG_AUTHENTICATE;
+		is->flags |= INFO_FLAG_AUTHENTICATE;
+	if (sys_bclient)
+		is->flags |= INFO_FLAG_BCLIENT;
+#ifdef REFCLOCK
+	if (cal_enable)
+		is->flags |= INFO_FLAG_CAL;
+#endif /* REFCLOCK */
 	if (kern_enable)
-	    is->flags |= INFO_FLAG_KERNEL;
-	if (ntp_enable)
-	    is->flags |= INFO_FLAG_NTP;
-	if (pll_control)
-	    is->flags |= INFO_FLAG_PLL_SYNC;
-	if (pps_control)
-	    is->flags |= INFO_FLAG_PPS_SYNC;
+		is->flags |= INFO_FLAG_KERNEL;
 	if (mon_enabled != MON_OFF)
-	    is->flags |= INFO_FLAG_MONITOR;
+		is->flags |= INFO_FLAG_MONITOR;
+	if (ntp_enable)
+		is->flags |= INFO_FLAG_NTP;
+	if (pps_enable)
+		is->flags |= INFO_FLAG_PPS_SYNC;
 	if (stats_control)
-	    is->flags |= INFO_FLAG_FILEGEN;
+		is->flags |= INFO_FLAG_FILEGEN;
 	is->bdelay = HTONS_FP(DTOFP(sys_bdelay));
 	HTONL_UF(sys_authdelay.l_f, &is->authdelay);
 
@@ -1133,8 +1151,9 @@ do_conf(
 	)
 {
 	u_int fl;
-	register struct conf_peer *cp;
-	register int items;
+	struct conf_peer *cp;
+	struct old_conf_peer *ocp;
+	int items;
 	struct sockaddr_in peeraddr;
 
 	/*
@@ -1142,6 +1161,9 @@ do_conf(
 	 * okay.  If not, complain about it.  Note we are
 	 * very picky here.
 	 */
+	ocp = NULL;
+	if (INFO_ITEMSIZE(inpkt->mbz_itemsize) == sizeof(struct old_conf_peer))
+		ocp = (struct old_conf_peer *)inpkt->data;
 	items = INFO_NITEMS(inpkt->err_nitems);
 	cp = (struct conf_peer *)inpkt->data;
 
@@ -1158,7 +1180,11 @@ do_conf(
 		    CONF_FLAG_NOSELECT | CONF_FLAG_BURST | CONF_FLAG_IBURST |
 		    CONF_FLAG_SKEY))
 		    fl = 1;
-		cp++;
+		if (ocp) {
+			ocp++;
+			cp = (struct conf_peer *)ocp;
+		} else
+			cp++;
 	}
 
 	if (fl) {
@@ -1172,6 +1198,8 @@ do_conf(
 	 */
 	items = INFO_NITEMS(inpkt->err_nitems);
 	cp = (struct conf_peer *)inpkt->data;
+	if (ocp)
+		ocp = (struct old_conf_peer *)inpkt->data;
 	memset((char *)&peeraddr, 0, sizeof(struct sockaddr_in));
 	peeraddr.sin_family = AF_INET;
 	peeraddr.sin_port = htons(NTP_PORT);
@@ -1211,11 +1239,15 @@ do_conf(
 		/* XXX W2DO? minpoll/maxpoll arguments ??? */
 		if (peer_config(&peeraddr, any_interface, cp->hmode,
 		    cp->version, cp->minpoll, cp->maxpoll, fl, cp->ttl,
-		    cp->keyid, cp->keystr) == 0) {
+		    cp->keyid, NULL) == 0) {
 			req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 			return;
 		}
-		cp++;
+		if (ocp) {
+			ocp++;
+			cp = (struct conf_peer *)ocp;
+		} else
+			cp++;
 	}
 
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
@@ -1433,27 +1465,32 @@ setclr_flags(
 
 	if (flags & ~(SYS_FLAG_BCLIENT | SYS_FLAG_PPS |
 		      SYS_FLAG_NTP | SYS_FLAG_KERNEL | SYS_FLAG_MONITOR |
-		      SYS_FLAG_FILEGEN)) {
+		      SYS_FLAG_FILEGEN | SYS_FLAG_AUTH | SYS_FLAG_CAL)) {
 		msyslog(LOG_ERR, "setclr_flags: extra flags: %#x",
 			flags & ~(SYS_FLAG_BCLIENT | SYS_FLAG_PPS | 
 				  SYS_FLAG_NTP | SYS_FLAG_KERNEL |
-				  SYS_FLAG_MONITOR | SYS_FLAG_FILEGEN));
+				  SYS_FLAG_MONITOR | SYS_FLAG_FILEGEN |
+				  SYS_FLAG_AUTH | SYS_FLAG_CAL));
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 
 	if (flags & SYS_FLAG_BCLIENT)
-	    proto_config(PROTO_BROADCLIENT, set, 0.);
+		proto_config(PROTO_BROADCLIENT, set, 0.);
 	if (flags & SYS_FLAG_PPS)
-	    proto_config(PROTO_PPS, set, 0.);
+		proto_config(PROTO_PPS, set, 0.);
 	if (flags & SYS_FLAG_NTP)
-	    proto_config(PROTO_NTP, set, 0.);
+		proto_config(PROTO_NTP, set, 0.);
 	if (flags & SYS_FLAG_KERNEL)
-	    proto_config(PROTO_KERNEL, set, 0.);
+		proto_config(PROTO_KERNEL, set, 0.);
 	if (flags & SYS_FLAG_MONITOR)
-	    proto_config(PROTO_MONITOR, set, 0.);
+		proto_config(PROTO_MONITOR, set, 0.);
 	if (flags & SYS_FLAG_FILEGEN)
-	    proto_config(PROTO_FILEGEN, set, 0.);
+		proto_config(PROTO_FILEGEN, set, 0.);
+	if (flags & SYS_FLAG_AUTH)
+		proto_config(PROTO_AUTHENTICATE, set, 0.);
+	if (flags & SYS_FLAG_CAL)
+		proto_config(PROTO_CAL, set, 0.);
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 

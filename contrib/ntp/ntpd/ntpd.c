@@ -6,6 +6,7 @@
 # include <config.h>
 #endif
 
+#include "ntp_machine.h"
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
@@ -19,9 +20,15 @@
 #include <stdio.h>
 #ifndef SYS_WINNT
 # if !defined(VMS)	/*wjm*/
-#  include <sys/param.h>
+#  ifdef HAVE_SYS_PARAM_H
+#   include <sys/param.h>
+#  endif
 # endif /* VMS */
-# include <sys/signal.h>
+# ifdef HAVE_SYS_SIGNAL_H
+#  include <sys/signal.h>
+# else
+#  include <signal.h>
+# endif
 # ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>
 # endif /* HAVE_SYS_IOCTL_H */
@@ -118,7 +125,7 @@ HANDLE ResolverThreadHandle = NULL;
 /* variables used to inform the Service Control Manager of our current state */
 SERVICE_STATUS ssStatus;
 SERVICE_STATUS_HANDLE	sshStatusHandle;
-HANDLE WaitHandles[2] = { NULL, NULL };
+HANDLE WaitHandles[3] = { NULL, NULL, NULL };
 char szMsgPath[255];
 static BOOL WINAPI OnConsoleEvent(DWORD dwCtrlType);
 #endif /* SYS_WINNT */
@@ -354,7 +361,7 @@ ntpdmain(
 	}
 #endif
 
-#ifdef HAVE_GETUID
+#if defined(HAVE_GETUID) && !defined(MPE) /* MPE lacks the concept of root */
 	{
 		uid_t uid;
 
@@ -790,6 +797,7 @@ service_main(
 #if defined(HAVE_IO_COMPLETION_PORT)
 		WaitHandles[0] = CreateEvent(NULL, FALSE, FALSE, NULL); /* exit reques */
 		WaitHandles[1] = get_timer_handle();
+	    WaitHandles[2] = get_io_event();
 
 		for (;;) {
 			DWORD Index = WaitForMultipleObjectsEx(sizeof(WaitHandles)/sizeof(WaitHandles[0]), WaitHandles, FALSE, 1000, MWMO_ALERTABLE);
@@ -801,16 +809,36 @@ service_main(
 				case WAIT_OBJECT_0 + 1 : /* timer */
 					timer();
 				break;
-				case WAIT_OBJECT_0 + 2 : { /* Windows message */
+
+				case WAIT_OBJECT_0 + 2 : /* Io event */
+# ifdef DEBUG
+					if ( debug > 3 )
+					{
+						printf( "IoEvent occurred\n" );
+					}
+# endif
+				break;
+
+# if 1
+				/*
+				 * FIXME: According to the documentation for WaitForMultipleObjectsEx
+				 *        this is not possible. This may be a vestigial from when this was
+				 *        MsgWaitForMultipleObjects, maybe it should be removed?
+				 */
+				case WAIT_OBJECT_0 + 3 : /* windows message */
+				{
 					MSG msg;
-					while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-						if (msg.message == WM_QUIT) {
-							exit(0);
+					while ( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) )
+					{
+						if ( msg.message == WM_QUIT )
+						{
+							exit( 0 );
 						}
-						DispatchMessage(&msg);
+						DispatchMessage( &msg );
 					}
 				}
 				break;
+# endif
 
 				case WAIT_IO_COMPLETION : /* loop */
 				case WAIT_TIMEOUT :

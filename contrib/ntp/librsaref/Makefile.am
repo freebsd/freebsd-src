@@ -7,6 +7,9 @@ CLEANFILES = $(EXTRA_LIBRARIES)
 # NOTES:
 # don't use RSAREF's global.h - we use ours.
 
+@isRSAREF_TRUE@foo = digit.c digit.h
+@isRSAEURO_TRUE@foo = md4c.c shsc.c
+
 nodist_librsaref_a_SOURCES = \
 	desc.c \
 	md2c.c \
@@ -27,7 +30,7 @@ nodist_librsaref_a_SOURCES = \
 	prime.h \
 	r_random.h \
 	rsa.h \
-	rsaref.h @RSASRCS@
+	rsaref.h $(foo)
 
 librsaref_a_LIBADD = @RSAOBJS@
 librsaref_a_DEPENDENCIES = $(librsaref_a_LIBADD)

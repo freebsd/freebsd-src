@@ -1,4 +1,4 @@
-# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+# Makefile.in generated automatically by automake 1.5 from Makefile.am.
 
 # Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 # Free Software Foundation, Inc.
@@ -10,6 +10,10 @@
 # but WITHOUT ANY WARRANTY, to the extent permitted by law; without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
+#AUTOMAKE_OPTIONS = ../ansi2knr no-dependencies
 
 SHELL = @SHELL@
 
@@ -31,11 +35,9 @@ infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
-
 top_builddir = ..
 
 ACLOCAL = @ACLOCAL@
@@ -49,23 +51,18 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
-
 NORMAL_INSTALL = :
 PRE_INSTALL = :
 POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-
 build_alias = @build_alias@
 build_triplet = @build@
 host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
-
-@SET_MAKE@
-AMDEP = @AMDEP@
 AMTAR = @AMTAR@
 AUTOKEY = @AUTOKEY@
 AWK = @AWK@
@@ -78,13 +75,12 @@ DCFD = @DCFD@
 DEPDIR = @DEPDIR@
 EF_LIBS = @EF_LIBS@
 EF_PROGS = @EF_PROGS@
+EXEEXT = @EXEEXT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
-INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
 LN_S = @LN_S@
-MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@
 MAKE_CHECK_Y2K = @MAKE_CHECK_Y2K@
 MAKE_LIBPARSE = @MAKE_LIBPARSE@
@@ -95,6 +91,7 @@ MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
 MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
 MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OBJEXT = @OBJEXT@
 OPENSSL = @OPENSSL@
 OPENSSL_INC = @OPENSSL_INC@
 OPENSSL_LIB = @OPENSSL_LIB@
@@ -107,310 +104,390 @@ RSADIR = @RSADIR@
 RSAOBJS = @RSAOBJS@
 RSAREF = @RSAREF@
 RSASRCS = @RSASRCS@
-STRIP = @STRIP@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
-_am_include = @_am_include@
+am__include = @am__include@
+am__quote = @am__quote@
 install_sh = @install_sh@
-
-#AUTOMAKE_OPTIONS = ../ansi2knr no-dependencies
-
 
 AUTOMAKE_OPTIONS = ../util/ansi2knr
 noinst_LIBRARIES = libntp.a
 libntp_a_SOURCES = a_md5encrypt.c adjtime.c atoint.c atolfp.c atouint.c \
-	authencrypt.c authkeys.c authparity.c authreadkeys.c authusekey.c \
-	buftvtots.c caljulian.c calleapwhen.c caltontp.c calyearstart.c \
-	clocktime.c clocktypes.c decodenetnum.c dofptoa.c dolfptoa.c \
-	emalloc.c findconfig.c fptoa.c fptoms.c getopt.c hextoint.c \
-	hextolfp.c humandate.c inttoa.c lib_strbuf.c machines.c md5c.c \
-	memmove.c mfptoa.c mfptoms.c modetoa.c mstolfp.c msutotsf.c \
+	audio.c authencrypt.c authkeys.c authparity.c authreadkeys.c \
+	authusekey.c binio.c buftvtots.c caljulian.c calleapwhen.c caltontp.c \
+	calyearstart.c clocktime.c clocktypes.c decodenetnum.c dofptoa.c \
+	dolfptoa.c emalloc.c findconfig.c fptoa.c fptoms.c getopt.c \
+	gpstolfp.c hextoint.c hextolfp.c humandate.c icom.c ieee754io.c \
+	inttoa.c iosignal.c lib_strbuf.c machines.c md5c.c memmove.c \
+	mfp_mul.c mfptoa.c mfptoms.c mktime.c modetoa.c mstolfp.c msutotsf.c \
 	msyslog.c netof.c numtoa.c numtohost.c octtoint.c prettydate.c \
-	ranny.c refnumtoa.c statestr.c syssignal.c systime.c tsftomsu.c \
-	tstotv.c tvtoa.c tvtots.c uglydate.c uinttoa.c utvtoa.c ymd2yd.c \
-	mfp_mul.c binio.c ieee754io.c gpstolfp.c recvbuff.c iosignal.c \
-	icom.c audio.c
+	ranny.c recvbuff.c refnumtoa.c snprintf.c statestr.c strdup.c \
+	strerror.c syssignal.c systime.c tsftomsu.c tstotv.c tvtoa.c tvtots.c \
+	uglydate.c uinttoa.c utvtoa.c ymd2yd.c
 
-EXTRA_libntp_a_SOURCES = adjtimex.c log.c mktime.c random.c snprintf.c \
-	strdup.c strerror.c
-
-libntp_a_LIBADD = @LIBOBJS@
-libntp_a_DEPENDENCIES = @LIBOBJS@
+EXTRA_libntp_a_SOURCES = adjtimex.c log.c random.c
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/librsaref
 ETAGS_ARGS = Makefile.am
 
 noinst_HEADERS = lib_strbuf.h log.h
 
 EXTRA_DIST = README
-EXEEXT =
-OBJEXT = o
 subdir = libntp
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 
-
-DEFS = @DEFS@ -I. -I$(srcdir) -I$(top_builddir)
-CPPFLAGS = @CPPFLAGS@
-LIBS = @LIBS@
-ANSI2KNR = ../util/ansi2knr
 libntp_a_AR = $(AR) cru
+libntp_a_LIBADD =
 am_libntp_a_OBJECTS = a_md5encrypt$U.$(OBJEXT) adjtime$U.$(OBJEXT) \
-atoint$U.$(OBJEXT) atolfp$U.$(OBJEXT) atouint$U.$(OBJEXT) \
-authencrypt$U.$(OBJEXT) authkeys$U.$(OBJEXT) authparity$U.$(OBJEXT) \
-authreadkeys$U.$(OBJEXT) authusekey$U.$(OBJEXT) buftvtots$U.$(OBJEXT) \
-caljulian$U.$(OBJEXT) calleapwhen$U.$(OBJEXT) caltontp$U.$(OBJEXT) \
-calyearstart$U.$(OBJEXT) clocktime$U.$(OBJEXT) clocktypes$U.$(OBJEXT) \
-decodenetnum$U.$(OBJEXT) dofptoa$U.$(OBJEXT) dolfptoa$U.$(OBJEXT) \
-emalloc$U.$(OBJEXT) findconfig$U.$(OBJEXT) fptoa$U.$(OBJEXT) \
-fptoms$U.$(OBJEXT) getopt$U.$(OBJEXT) hextoint$U.$(OBJEXT) \
-hextolfp$U.$(OBJEXT) humandate$U.$(OBJEXT) inttoa$U.$(OBJEXT) \
-lib_strbuf$U.$(OBJEXT) machines$U.$(OBJEXT) md5c$U.$(OBJEXT) \
-memmove$U.$(OBJEXT) mfptoa$U.$(OBJEXT) mfptoms$U.$(OBJEXT) \
-modetoa$U.$(OBJEXT) mstolfp$U.$(OBJEXT) msutotsf$U.$(OBJEXT) \
-msyslog$U.$(OBJEXT) netof$U.$(OBJEXT) numtoa$U.$(OBJEXT) \
-numtohost$U.$(OBJEXT) octtoint$U.$(OBJEXT) prettydate$U.$(OBJEXT) \
-ranny$U.$(OBJEXT) refnumtoa$U.$(OBJEXT) statestr$U.$(OBJEXT) \
-syssignal$U.$(OBJEXT) systime$U.$(OBJEXT) tsftomsu$U.$(OBJEXT) \
-tstotv$U.$(OBJEXT) tvtoa$U.$(OBJEXT) tvtots$U.$(OBJEXT) \
-uglydate$U.$(OBJEXT) uinttoa$U.$(OBJEXT) utvtoa$U.$(OBJEXT) \
-ymd2yd$U.$(OBJEXT) mfp_mul$U.$(OBJEXT) binio$U.$(OBJEXT) \
-ieee754io$U.$(OBJEXT) gpstolfp$U.$(OBJEXT) recvbuff$U.$(OBJEXT) \
-iosignal$U.$(OBJEXT) icom$U.$(OBJEXT) audio$U.$(OBJEXT)
+	atoint$U.$(OBJEXT) atolfp$U.$(OBJEXT) atouint$U.$(OBJEXT) \
+	audio$U.$(OBJEXT) authencrypt$U.$(OBJEXT) authkeys$U.$(OBJEXT) \
+	authparity$U.$(OBJEXT) authreadkeys$U.$(OBJEXT) \
+	authusekey$U.$(OBJEXT) binio$U.$(OBJEXT) buftvtots$U.$(OBJEXT) \
+	caljulian$U.$(OBJEXT) calleapwhen$U.$(OBJEXT) \
+	caltontp$U.$(OBJEXT) calyearstart$U.$(OBJEXT) \
+	clocktime$U.$(OBJEXT) clocktypes$U.$(OBJEXT) \
+	decodenetnum$U.$(OBJEXT) dofptoa$U.$(OBJEXT) \
+	dolfptoa$U.$(OBJEXT) emalloc$U.$(OBJEXT) findconfig$U.$(OBJEXT) \
+	fptoa$U.$(OBJEXT) fptoms$U.$(OBJEXT) getopt$U.$(OBJEXT) \
+	gpstolfp$U.$(OBJEXT) hextoint$U.$(OBJEXT) hextolfp$U.$(OBJEXT) \
+	humandate$U.$(OBJEXT) icom$U.$(OBJEXT) ieee754io$U.$(OBJEXT) \
+	inttoa$U.$(OBJEXT) iosignal$U.$(OBJEXT) lib_strbuf$U.$(OBJEXT) \
+	machines$U.$(OBJEXT) md5c$U.$(OBJEXT) memmove$U.$(OBJEXT) \
+	mfp_mul$U.$(OBJEXT) mfptoa$U.$(OBJEXT) mfptoms$U.$(OBJEXT) \
+	mktime$U.$(OBJEXT) modetoa$U.$(OBJEXT) mstolfp$U.$(OBJEXT) \
+	msutotsf$U.$(OBJEXT) msyslog$U.$(OBJEXT) netof$U.$(OBJEXT) \
+	numtoa$U.$(OBJEXT) numtohost$U.$(OBJEXT) octtoint$U.$(OBJEXT) \
+	prettydate$U.$(OBJEXT) ranny$U.$(OBJEXT) recvbuff$U.$(OBJEXT) \
+	refnumtoa$U.$(OBJEXT) snprintf$U.$(OBJEXT) statestr$U.$(OBJEXT) \
+	strdup$U.$(OBJEXT) strerror$U.$(OBJEXT) syssignal$U.$(OBJEXT) \
+	systime$U.$(OBJEXT) tsftomsu$U.$(OBJEXT) tstotv$U.$(OBJEXT) \
+	tvtoa$U.$(OBJEXT) tvtots$U.$(OBJEXT) uglydate$U.$(OBJEXT) \
+	uinttoa$U.$(OBJEXT) utvtoa$U.$(OBJEXT) ymd2yd$U.$(OBJEXT)
 libntp_a_OBJECTS = $(am_libntp_a_OBJECTS)
-AR = ar
-COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+
+DEFS = @DEFS@
+DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+@AMDEP_TRUE@DEP_FILES = $(DEPDIR)/a_md5encrypt$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/adjtime$U.Po $(DEPDIR)/adjtimex$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/atoint$U.Po $(DEPDIR)/atolfp$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/atouint$U.Po $(DEPDIR)/audio$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/authencrypt$U.Po $(DEPDIR)/authkeys$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/authparity$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/authreadkeys$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/authusekey$U.Po $(DEPDIR)/binio$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/buftvtots$U.Po $(DEPDIR)/caljulian$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/calleapwhen$U.Po $(DEPDIR)/caltontp$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/calyearstart$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/clocktime$U.Po $(DEPDIR)/clocktypes$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/decodenetnum$U.Po $(DEPDIR)/dofptoa$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/dolfptoa$U.Po $(DEPDIR)/emalloc$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/findconfig$U.Po $(DEPDIR)/fptoa$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/fptoms$U.Po $(DEPDIR)/getopt$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/gpstolfp$U.Po $(DEPDIR)/hextoint$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/hextolfp$U.Po $(DEPDIR)/humandate$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/icom$U.Po $(DEPDIR)/ieee754io$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/inttoa$U.Po $(DEPDIR)/iosignal$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/lib_strbuf$U.Po $(DEPDIR)/log$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/machines$U.Po $(DEPDIR)/md5c$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/memmove$U.Po $(DEPDIR)/mfp_mul$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mfptoa$U.Po $(DEPDIR)/mfptoms$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mktime$U.Po $(DEPDIR)/modetoa$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/mstolfp$U.Po $(DEPDIR)/msutotsf$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/msyslog$U.Po $(DEPDIR)/netof$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/numtoa$U.Po $(DEPDIR)/numtohost$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/octtoint$U.Po $(DEPDIR)/prettydate$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/random$U.Po $(DEPDIR)/ranny$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/recvbuff$U.Po $(DEPDIR)/refnumtoa$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/snprintf$U.Po $(DEPDIR)/statestr$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/strdup$U.Po $(DEPDIR)/strerror$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/syssignal$U.Po $(DEPDIR)/systime$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/tsftomsu$U.Po $(DEPDIR)/tstotv$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/tvtoa$U.Po $(DEPDIR)/tvtots$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/uglydate$U.Po $(DEPDIR)/uinttoa$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/utvtoa$U.Po $(DEPDIR)/ymd2yd$U.Po
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 DIST_SOURCES = $(libntp_a_SOURCES) $(EXTRA_libntp_a_SOURCES)
 HEADERS = $(noinst_HEADERS)
 
-depcomp = $(SHELL) $(top_srcdir)/depcomp
-@AMDEP@DEP_FILES = $(DEPDIR)/*.Po $(DEPDIR)/a_md5encrypt$U.Po \
-@AMDEP@ $(DEPDIR)/adjtime$U.Po $(DEPDIR)/adjtimex$U.Po \
-@AMDEP@ $(DEPDIR)/atoint$U.Po $(DEPDIR)/atolfp$U.Po \
-@AMDEP@ $(DEPDIR)/atouint$U.Po $(DEPDIR)/audio$U.Po \
-@AMDEP@ $(DEPDIR)/authencrypt$U.Po $(DEPDIR)/authkeys$U.Po \
-@AMDEP@ $(DEPDIR)/authparity$U.Po $(DEPDIR)/authreadkeys$U.Po \
-@AMDEP@ $(DEPDIR)/authusekey$U.Po $(DEPDIR)/binio$U.Po \
-@AMDEP@ $(DEPDIR)/buftvtots$U.Po $(DEPDIR)/caljulian$U.Po \
-@AMDEP@ $(DEPDIR)/calleapwhen$U.Po $(DEPDIR)/caltontp$U.Po \
-@AMDEP@ $(DEPDIR)/calyearstart$U.Po $(DEPDIR)/clocktime$U.Po \
-@AMDEP@ $(DEPDIR)/clocktypes$U.Po $(DEPDIR)/decodenetnum$U.Po \
-@AMDEP@ $(DEPDIR)/dofptoa$U.Po $(DEPDIR)/dolfptoa$U.Po \
-@AMDEP@ $(DEPDIR)/emalloc$U.Po $(DEPDIR)/findconfig$U.Po \
-@AMDEP@ $(DEPDIR)/fptoa$U.Po $(DEPDIR)/fptoms$U.Po $(DEPDIR)/getopt$U.Po \
-@AMDEP@ $(DEPDIR)/gpstolfp$U.Po $(DEPDIR)/hextoint$U.Po \
-@AMDEP@ $(DEPDIR)/hextolfp$U.Po $(DEPDIR)/humandate$U.Po \
-@AMDEP@ $(DEPDIR)/icom$U.Po $(DEPDIR)/ieee754io$U.Po \
-@AMDEP@ $(DEPDIR)/inttoa$U.Po $(DEPDIR)/iosignal$U.Po \
-@AMDEP@ $(DEPDIR)/lib_strbuf$U.Po $(DEPDIR)/log$U.Po \
-@AMDEP@ $(DEPDIR)/machines$U.Po $(DEPDIR)/md5c$U.Po \
-@AMDEP@ $(DEPDIR)/memmove$U.Po $(DEPDIR)/mfp_mul$U.Po \
-@AMDEP@ $(DEPDIR)/mfptoa$U.Po $(DEPDIR)/mfptoms$U.Po \
-@AMDEP@ $(DEPDIR)/mktime$U.Po $(DEPDIR)/mktime.Po $(DEPDIR)/modetoa$U.Po \
-@AMDEP@ $(DEPDIR)/mstolfp$U.Po $(DEPDIR)/msutotsf$U.Po \
-@AMDEP@ $(DEPDIR)/msyslog$U.Po $(DEPDIR)/netof$U.Po \
-@AMDEP@ $(DEPDIR)/numtoa$U.Po $(DEPDIR)/numtohost$U.Po \
-@AMDEP@ $(DEPDIR)/octtoint$U.Po $(DEPDIR)/prettydate$U.Po \
-@AMDEP@ $(DEPDIR)/random$U.Po $(DEPDIR)/ranny$U.Po \
-@AMDEP@ $(DEPDIR)/recvbuff$U.Po $(DEPDIR)/refnumtoa$U.Po \
-@AMDEP@ $(DEPDIR)/snprintf$U.Po $(DEPDIR)/snprintf.Po \
-@AMDEP@ $(DEPDIR)/statestr$U.Po $(DEPDIR)/strdup$U.Po \
-@AMDEP@ $(DEPDIR)/strdup.Po $(DEPDIR)/strerror$U.Po \
-@AMDEP@ $(DEPDIR)/strerror.Po $(DEPDIR)/syssignal$U.Po \
-@AMDEP@ $(DEPDIR)/systime$U.Po $(DEPDIR)/tsftomsu$U.Po \
-@AMDEP@ $(DEPDIR)/tstotv$U.Po $(DEPDIR)/tvtoa$U.Po $(DEPDIR)/tvtots$U.Po \
-@AMDEP@ $(DEPDIR)/uglydate$U.Po $(DEPDIR)/uinttoa$U.Po \
-@AMDEP@ $(DEPDIR)/utvtoa$U.Po $(DEPDIR)/ymd2yd$U.Po
-DIST_COMMON = README $(noinst_HEADERS) Makefile.am Makefile.in mktime.c \
-snprintf.c strdup.c strerror.c
-
+DIST_COMMON = README $(noinst_HEADERS) Makefile.am Makefile.in
 SOURCES = $(libntp_a_SOURCES) $(EXTRA_libntp_a_SOURCES)
-OBJECTS = $(am_libntp_a_OBJECTS)
 
 all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .o .obj
-
-$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+$(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --gnu  libntp/Makefile
-
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && \
 	  CONFIG_HEADERS= CONFIG_LINKS= \
 	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 
+AR = ar
+
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+libntp.a: $(libntp_a_OBJECTS) $(libntp_a_DEPENDENCIES) 
+	-rm -f libntp.a
+	$(libntp_a_AR) libntp.a $(libntp_a_OBJECTS) $(libntp_a_LIBADD)
+	$(RANLIB) libntp.a
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT) core *.core
 
 distclean-compile:
 	-rm -f *.tab.c
-../util/ansi2knr: ../util/ansi2knr.$(OBJEXT)
+
+ANSI2KNR = ../util/ansi2knr
+../util/ansi2knr:
 	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr
-
-../util/ansi2knr.$(OBJEXT):
-	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.$(OBJEXT)
-
 
 mostlyclean-kr:
 	-rm -f *_.c
 
-libntp.a: $(libntp_a_OBJECTS) $(libntp_a_DEPENDENCIES)
-	-rm -f libntp.a
-	$(libntp_a_AR) libntp.a $(libntp_a_OBJECTS) $(libntp_a_LIBADD)
-	$(RANLIB) libntp.a
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/a_md5encrypt$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/adjtime$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/adjtimex$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/atoint$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/atolfp$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/atouint$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/audio$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/authencrypt$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/authkeys$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/authparity$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/authreadkeys$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/authusekey$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/binio$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/buftvtots$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/caljulian$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/calleapwhen$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/caltontp$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/calyearstart$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/clocktime$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/clocktypes$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/decodenetnum$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/dofptoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/dolfptoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/emalloc$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/findconfig$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/fptoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/fptoms$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/getopt$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/gpstolfp$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/hextoint$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/hextolfp$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/humandate$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/icom$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/ieee754io$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/inttoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/iosignal$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/lib_strbuf$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/log$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/machines$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/md5c$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/memmove$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/mfp_mul$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/mfptoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/mfptoms$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/mktime$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/modetoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/mstolfp$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/msutotsf$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/msyslog$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/netof$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/numtoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/numtohost$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/octtoint$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/prettydate$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/random$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/ranny$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/recvbuff$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refnumtoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/snprintf$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/statestr$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/strdup$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/strerror$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/syssignal$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/systime$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/tsftomsu$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/tstotv$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/tvtoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/tvtots$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/uglydate$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/uinttoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/utvtoa$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/ymd2yd$U.Po@am__quote@
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+.c.o:
+@AMDEP_TRUE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP_TRUE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c `test -f $< || echo '$(srcdir)/'`$<
+
+.c.obj:
+@AMDEP_TRUE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP_TRUE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c `cygpath -w $<`
+CCDEPMODE = @CCDEPMODE@
 a_md5encrypt_.c: a_md5encrypt.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/a_md5encrypt.c; then echo $(srcdir)/a_md5encrypt.c; else echo a_md5encrypt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > a_md5encrypt_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/a_md5encrypt.c; then echo $(srcdir)/a_md5encrypt.c; else echo a_md5encrypt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > a_md5encrypt_.c || rm -f a_md5encrypt_.c
 adjtime_.c: adjtime.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/adjtime.c; then echo $(srcdir)/adjtime.c; else echo adjtime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > adjtime_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/adjtime.c; then echo $(srcdir)/adjtime.c; else echo adjtime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > adjtime_.c || rm -f adjtime_.c
 adjtimex_.c: adjtimex.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/adjtimex.c; then echo $(srcdir)/adjtimex.c; else echo adjtimex.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > adjtimex_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/adjtimex.c; then echo $(srcdir)/adjtimex.c; else echo adjtimex.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > adjtimex_.c || rm -f adjtimex_.c
 atoint_.c: atoint.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atoint.c; then echo $(srcdir)/atoint.c; else echo atoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atoint_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atoint.c; then echo $(srcdir)/atoint.c; else echo atoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atoint_.c || rm -f atoint_.c
 atolfp_.c: atolfp.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atolfp.c; then echo $(srcdir)/atolfp.c; else echo atolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atolfp_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atolfp.c; then echo $(srcdir)/atolfp.c; else echo atolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atolfp_.c || rm -f atolfp_.c
 atouint_.c: atouint.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atouint.c; then echo $(srcdir)/atouint.c; else echo atouint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atouint_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atouint.c; then echo $(srcdir)/atouint.c; else echo atouint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atouint_.c || rm -f atouint_.c
 audio_.c: audio.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/audio.c; then echo $(srcdir)/audio.c; else echo audio.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > audio_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/audio.c; then echo $(srcdir)/audio.c; else echo audio.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > audio_.c || rm -f audio_.c
 authencrypt_.c: authencrypt.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authencrypt.c; then echo $(srcdir)/authencrypt.c; else echo authencrypt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authencrypt_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authencrypt.c; then echo $(srcdir)/authencrypt.c; else echo authencrypt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authencrypt_.c || rm -f authencrypt_.c
 authkeys_.c: authkeys.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authkeys.c; then echo $(srcdir)/authkeys.c; else echo authkeys.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authkeys_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authkeys.c; then echo $(srcdir)/authkeys.c; else echo authkeys.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authkeys_.c || rm -f authkeys_.c
 authparity_.c: authparity.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authparity.c; then echo $(srcdir)/authparity.c; else echo authparity.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authparity_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authparity.c; then echo $(srcdir)/authparity.c; else echo authparity.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authparity_.c || rm -f authparity_.c
 authreadkeys_.c: authreadkeys.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authreadkeys.c; then echo $(srcdir)/authreadkeys.c; else echo authreadkeys.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authreadkeys_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authreadkeys.c; then echo $(srcdir)/authreadkeys.c; else echo authreadkeys.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authreadkeys_.c || rm -f authreadkeys_.c
 authusekey_.c: authusekey.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authusekey.c; then echo $(srcdir)/authusekey.c; else echo authusekey.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authusekey_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/authusekey.c; then echo $(srcdir)/authusekey.c; else echo authusekey.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > authusekey_.c || rm -f authusekey_.c
 binio_.c: binio.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/binio.c; then echo $(srcdir)/binio.c; else echo binio.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > binio_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/binio.c; then echo $(srcdir)/binio.c; else echo binio.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > binio_.c || rm -f binio_.c
 buftvtots_.c: buftvtots.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/buftvtots.c; then echo $(srcdir)/buftvtots.c; else echo buftvtots.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > buftvtots_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/buftvtots.c; then echo $(srcdir)/buftvtots.c; else echo buftvtots.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > buftvtots_.c || rm -f buftvtots_.c
 caljulian_.c: caljulian.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/caljulian.c; then echo $(srcdir)/caljulian.c; else echo caljulian.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > caljulian_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/caljulian.c; then echo $(srcdir)/caljulian.c; else echo caljulian.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > caljulian_.c || rm -f caljulian_.c
 calleapwhen_.c: calleapwhen.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/calleapwhen.c; then echo $(srcdir)/calleapwhen.c; else echo calleapwhen.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > calleapwhen_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/calleapwhen.c; then echo $(srcdir)/calleapwhen.c; else echo calleapwhen.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > calleapwhen_.c || rm -f calleapwhen_.c
 caltontp_.c: caltontp.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/caltontp.c; then echo $(srcdir)/caltontp.c; else echo caltontp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > caltontp_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/caltontp.c; then echo $(srcdir)/caltontp.c; else echo caltontp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > caltontp_.c || rm -f caltontp_.c
 calyearstart_.c: calyearstart.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/calyearstart.c; then echo $(srcdir)/calyearstart.c; else echo calyearstart.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > calyearstart_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/calyearstart.c; then echo $(srcdir)/calyearstart.c; else echo calyearstart.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > calyearstart_.c || rm -f calyearstart_.c
 clocktime_.c: clocktime.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/clocktime.c; then echo $(srcdir)/clocktime.c; else echo clocktime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > clocktime_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/clocktime.c; then echo $(srcdir)/clocktime.c; else echo clocktime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > clocktime_.c || rm -f clocktime_.c
 clocktypes_.c: clocktypes.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/clocktypes.c; then echo $(srcdir)/clocktypes.c; else echo clocktypes.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > clocktypes_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/clocktypes.c; then echo $(srcdir)/clocktypes.c; else echo clocktypes.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > clocktypes_.c || rm -f clocktypes_.c
 decodenetnum_.c: decodenetnum.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/decodenetnum.c; then echo $(srcdir)/decodenetnum.c; else echo decodenetnum.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > decodenetnum_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/decodenetnum.c; then echo $(srcdir)/decodenetnum.c; else echo decodenetnum.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > decodenetnum_.c || rm -f decodenetnum_.c
 dofptoa_.c: dofptoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dofptoa.c; then echo $(srcdir)/dofptoa.c; else echo dofptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dofptoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dofptoa.c; then echo $(srcdir)/dofptoa.c; else echo dofptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dofptoa_.c || rm -f dofptoa_.c
 dolfptoa_.c: dolfptoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dolfptoa.c; then echo $(srcdir)/dolfptoa.c; else echo dolfptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dolfptoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dolfptoa.c; then echo $(srcdir)/dolfptoa.c; else echo dolfptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dolfptoa_.c || rm -f dolfptoa_.c
 emalloc_.c: emalloc.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/emalloc.c; then echo $(srcdir)/emalloc.c; else echo emalloc.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > emalloc_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/emalloc.c; then echo $(srcdir)/emalloc.c; else echo emalloc.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > emalloc_.c || rm -f emalloc_.c
 findconfig_.c: findconfig.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/findconfig.c; then echo $(srcdir)/findconfig.c; else echo findconfig.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > findconfig_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/findconfig.c; then echo $(srcdir)/findconfig.c; else echo findconfig.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > findconfig_.c || rm -f findconfig_.c
 fptoa_.c: fptoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/fptoa.c; then echo $(srcdir)/fptoa.c; else echo fptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > fptoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/fptoa.c; then echo $(srcdir)/fptoa.c; else echo fptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > fptoa_.c || rm -f fptoa_.c
 fptoms_.c: fptoms.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/fptoms.c; then echo $(srcdir)/fptoms.c; else echo fptoms.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > fptoms_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/fptoms.c; then echo $(srcdir)/fptoms.c; else echo fptoms.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > fptoms_.c || rm -f fptoms_.c
 getopt_.c: getopt.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/getopt.c; then echo $(srcdir)/getopt.c; else echo getopt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > getopt_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/getopt.c; then echo $(srcdir)/getopt.c; else echo getopt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > getopt_.c || rm -f getopt_.c
 gpstolfp_.c: gpstolfp.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/gpstolfp.c; then echo $(srcdir)/gpstolfp.c; else echo gpstolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > gpstolfp_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/gpstolfp.c; then echo $(srcdir)/gpstolfp.c; else echo gpstolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > gpstolfp_.c || rm -f gpstolfp_.c
 hextoint_.c: hextoint.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/hextoint.c; then echo $(srcdir)/hextoint.c; else echo hextoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > hextoint_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/hextoint.c; then echo $(srcdir)/hextoint.c; else echo hextoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > hextoint_.c || rm -f hextoint_.c
 hextolfp_.c: hextolfp.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/hextolfp.c; then echo $(srcdir)/hextolfp.c; else echo hextolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > hextolfp_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/hextolfp.c; then echo $(srcdir)/hextolfp.c; else echo hextolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > hextolfp_.c || rm -f hextolfp_.c
 humandate_.c: humandate.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/humandate.c; then echo $(srcdir)/humandate.c; else echo humandate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > humandate_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/humandate.c; then echo $(srcdir)/humandate.c; else echo humandate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > humandate_.c || rm -f humandate_.c
 icom_.c: icom.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/icom.c; then echo $(srcdir)/icom.c; else echo icom.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > icom_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/icom.c; then echo $(srcdir)/icom.c; else echo icom.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > icom_.c || rm -f icom_.c
 ieee754io_.c: ieee754io.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ieee754io.c; then echo $(srcdir)/ieee754io.c; else echo ieee754io.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ieee754io_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ieee754io.c; then echo $(srcdir)/ieee754io.c; else echo ieee754io.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ieee754io_.c || rm -f ieee754io_.c
 inttoa_.c: inttoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/inttoa.c; then echo $(srcdir)/inttoa.c; else echo inttoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > inttoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/inttoa.c; then echo $(srcdir)/inttoa.c; else echo inttoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > inttoa_.c || rm -f inttoa_.c
 iosignal_.c: iosignal.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/iosignal.c; then echo $(srcdir)/iosignal.c; else echo iosignal.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > iosignal_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/iosignal.c; then echo $(srcdir)/iosignal.c; else echo iosignal.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > iosignal_.c || rm -f iosignal_.c
 lib_strbuf_.c: lib_strbuf.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/lib_strbuf.c; then echo $(srcdir)/lib_strbuf.c; else echo lib_strbuf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > lib_strbuf_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/lib_strbuf.c; then echo $(srcdir)/lib_strbuf.c; else echo lib_strbuf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > lib_strbuf_.c || rm -f lib_strbuf_.c
 log_.c: log.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/log.c; then echo $(srcdir)/log.c; else echo log.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > log_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/log.c; then echo $(srcdir)/log.c; else echo log.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > log_.c || rm -f log_.c
 machines_.c: machines.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/machines.c; then echo $(srcdir)/machines.c; else echo machines.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > machines_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/machines.c; then echo $(srcdir)/machines.c; else echo machines.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > machines_.c || rm -f machines_.c
 md5c_.c: md5c.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/md5c.c; then echo $(srcdir)/md5c.c; else echo md5c.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > md5c_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/md5c.c; then echo $(srcdir)/md5c.c; else echo md5c.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > md5c_.c || rm -f md5c_.c
 memmove_.c: memmove.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/memmove.c; then echo $(srcdir)/memmove.c; else echo memmove.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > memmove_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/memmove.c; then echo $(srcdir)/memmove.c; else echo memmove.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > memmove_.c || rm -f memmove_.c
 mfp_mul_.c: mfp_mul.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mfp_mul.c; then echo $(srcdir)/mfp_mul.c; else echo mfp_mul.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mfp_mul_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mfp_mul.c; then echo $(srcdir)/mfp_mul.c; else echo mfp_mul.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mfp_mul_.c || rm -f mfp_mul_.c
 mfptoa_.c: mfptoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mfptoa.c; then echo $(srcdir)/mfptoa.c; else echo mfptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mfptoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mfptoa.c; then echo $(srcdir)/mfptoa.c; else echo mfptoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mfptoa_.c || rm -f mfptoa_.c
 mfptoms_.c: mfptoms.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mfptoms.c; then echo $(srcdir)/mfptoms.c; else echo mfptoms.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mfptoms_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mfptoms.c; then echo $(srcdir)/mfptoms.c; else echo mfptoms.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mfptoms_.c || rm -f mfptoms_.c
 mktime_.c: mktime.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mktime.c; then echo $(srcdir)/mktime.c; else echo mktime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mktime_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mktime.c; then echo $(srcdir)/mktime.c; else echo mktime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mktime_.c || rm -f mktime_.c
 modetoa_.c: modetoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/modetoa.c; then echo $(srcdir)/modetoa.c; else echo modetoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > modetoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/modetoa.c; then echo $(srcdir)/modetoa.c; else echo modetoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > modetoa_.c || rm -f modetoa_.c
 mstolfp_.c: mstolfp.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mstolfp.c; then echo $(srcdir)/mstolfp.c; else echo mstolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mstolfp_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/mstolfp.c; then echo $(srcdir)/mstolfp.c; else echo mstolfp.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > mstolfp_.c || rm -f mstolfp_.c
 msutotsf_.c: msutotsf.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/msutotsf.c; then echo $(srcdir)/msutotsf.c; else echo msutotsf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > msutotsf_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/msutotsf.c; then echo $(srcdir)/msutotsf.c; else echo msutotsf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > msutotsf_.c || rm -f msutotsf_.c
 msyslog_.c: msyslog.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/msyslog.c; then echo $(srcdir)/msyslog.c; else echo msyslog.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > msyslog_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/msyslog.c; then echo $(srcdir)/msyslog.c; else echo msyslog.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > msyslog_.c || rm -f msyslog_.c
 netof_.c: netof.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/netof.c; then echo $(srcdir)/netof.c; else echo netof.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > netof_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/netof.c; then echo $(srcdir)/netof.c; else echo netof.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > netof_.c || rm -f netof_.c
 numtoa_.c: numtoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/numtoa.c; then echo $(srcdir)/numtoa.c; else echo numtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > numtoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/numtoa.c; then echo $(srcdir)/numtoa.c; else echo numtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > numtoa_.c || rm -f numtoa_.c
 numtohost_.c: numtohost.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/numtohost.c; then echo $(srcdir)/numtohost.c; else echo numtohost.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > numtohost_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/numtohost.c; then echo $(srcdir)/numtohost.c; else echo numtohost.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > numtohost_.c || rm -f numtohost_.c
 octtoint_.c: octtoint.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/octtoint.c; then echo $(srcdir)/octtoint.c; else echo octtoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > octtoint_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/octtoint.c; then echo $(srcdir)/octtoint.c; else echo octtoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > octtoint_.c || rm -f octtoint_.c
 prettydate_.c: prettydate.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/prettydate.c; then echo $(srcdir)/prettydate.c; else echo prettydate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > prettydate_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/prettydate.c; then echo $(srcdir)/prettydate.c; else echo prettydate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > prettydate_.c || rm -f prettydate_.c
 random_.c: random.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/random.c; then echo $(srcdir)/random.c; else echo random.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > random_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/random.c; then echo $(srcdir)/random.c; else echo random.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > random_.c || rm -f random_.c
 ranny_.c: ranny.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ranny.c; then echo $(srcdir)/ranny.c; else echo ranny.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ranny_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ranny.c; then echo $(srcdir)/ranny.c; else echo ranny.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ranny_.c || rm -f ranny_.c
 recvbuff_.c: recvbuff.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/recvbuff.c; then echo $(srcdir)/recvbuff.c; else echo recvbuff.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > recvbuff_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/recvbuff.c; then echo $(srcdir)/recvbuff.c; else echo recvbuff.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > recvbuff_.c || rm -f recvbuff_.c
 refnumtoa_.c: refnumtoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refnumtoa.c; then echo $(srcdir)/refnumtoa.c; else echo refnumtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refnumtoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refnumtoa.c; then echo $(srcdir)/refnumtoa.c; else echo refnumtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refnumtoa_.c || rm -f refnumtoa_.c
 snprintf_.c: snprintf.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/snprintf.c; then echo $(srcdir)/snprintf.c; else echo snprintf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > snprintf_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/snprintf.c; then echo $(srcdir)/snprintf.c; else echo snprintf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > snprintf_.c || rm -f snprintf_.c
 statestr_.c: statestr.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/statestr.c; then echo $(srcdir)/statestr.c; else echo statestr.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > statestr_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/statestr.c; then echo $(srcdir)/statestr.c; else echo statestr.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > statestr_.c || rm -f statestr_.c
 strdup_.c: strdup.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/strdup.c; then echo $(srcdir)/strdup.c; else echo strdup.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > strdup_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/strdup.c; then echo $(srcdir)/strdup.c; else echo strdup.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > strdup_.c || rm -f strdup_.c
 strerror_.c: strerror.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/strerror.c; then echo $(srcdir)/strerror.c; else echo strerror.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > strerror_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/strerror.c; then echo $(srcdir)/strerror.c; else echo strerror.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > strerror_.c || rm -f strerror_.c
 syssignal_.c: syssignal.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/syssignal.c; then echo $(srcdir)/syssignal.c; else echo syssignal.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > syssignal_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/syssignal.c; then echo $(srcdir)/syssignal.c; else echo syssignal.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > syssignal_.c || rm -f syssignal_.c
 systime_.c: systime.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/systime.c; then echo $(srcdir)/systime.c; else echo systime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > systime_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/systime.c; then echo $(srcdir)/systime.c; else echo systime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > systime_.c || rm -f systime_.c
 tsftomsu_.c: tsftomsu.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tsftomsu.c; then echo $(srcdir)/tsftomsu.c; else echo tsftomsu.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tsftomsu_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tsftomsu.c; then echo $(srcdir)/tsftomsu.c; else echo tsftomsu.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tsftomsu_.c || rm -f tsftomsu_.c
 tstotv_.c: tstotv.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tstotv.c; then echo $(srcdir)/tstotv.c; else echo tstotv.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tstotv_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tstotv.c; then echo $(srcdir)/tstotv.c; else echo tstotv.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tstotv_.c || rm -f tstotv_.c
 tvtoa_.c: tvtoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tvtoa.c; then echo $(srcdir)/tvtoa.c; else echo tvtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tvtoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tvtoa.c; then echo $(srcdir)/tvtoa.c; else echo tvtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tvtoa_.c || rm -f tvtoa_.c
 tvtots_.c: tvtots.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tvtots.c; then echo $(srcdir)/tvtots.c; else echo tvtots.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tvtots_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/tvtots.c; then echo $(srcdir)/tvtots.c; else echo tvtots.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > tvtots_.c || rm -f tvtots_.c
 uglydate_.c: uglydate.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/uglydate.c; then echo $(srcdir)/uglydate.c; else echo uglydate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > uglydate_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/uglydate.c; then echo $(srcdir)/uglydate.c; else echo uglydate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > uglydate_.c || rm -f uglydate_.c
 uinttoa_.c: uinttoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/uinttoa.c; then echo $(srcdir)/uinttoa.c; else echo uinttoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > uinttoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/uinttoa.c; then echo $(srcdir)/uinttoa.c; else echo uinttoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > uinttoa_.c || rm -f uinttoa_.c
 utvtoa_.c: utvtoa.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/utvtoa.c; then echo $(srcdir)/utvtoa.c; else echo utvtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > utvtoa_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/utvtoa.c; then echo $(srcdir)/utvtoa.c; else echo utvtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > utvtoa_.c || rm -f utvtoa_.c
 ymd2yd_.c: ymd2yd.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ymd2yd.c; then echo $(srcdir)/ymd2yd.c; else echo ymd2yd.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ymd2yd_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ymd2yd.c; then echo $(srcdir)/ymd2yd.c; else echo ymd2yd.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ymd2yd_.c || rm -f ymd2yd_.c
 a_md5encrypt_.$(OBJEXT) adjtime_.$(OBJEXT) adjtimex_.$(OBJEXT) \
 atoint_.$(OBJEXT) atolfp_.$(OBJEXT) atouint_.$(OBJEXT) audio_.$(OBJEXT) \
 authencrypt_.$(OBJEXT) authkeys_.$(OBJEXT) authparity_.$(OBJEXT) \
@@ -435,6 +512,7 @@ syssignal_.$(OBJEXT) systime_.$(OBJEXT) tsftomsu_.$(OBJEXT) \
 tstotv_.$(OBJEXT) tvtoa_.$(OBJEXT) tvtots_.$(OBJEXT) \
 uglydate_.$(OBJEXT) uinttoa_.$(OBJEXT) utvtoa_.$(OBJEXT) \
 ymd2yd_.$(OBJEXT) : $(ANSI2KNR)
+uninstall-info-am:
 
 tags: TAGS
 
@@ -447,7 +525,7 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	       END { for (i in files) print i; }'`; \
 	mkid -fID $$unique $(LISP)
 
-TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -463,106 +541,10 @@ TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 GTAGS:
 	here=`CDPATH=: && cd $(top_builddir) && pwd` \
 	  && cd $(top_srcdir) \
-	  && gtags -i $$here
+	  && gtags -i $(GTAGS_ARGS) $$here
 
 distclean-tags:
-	-rm -f TAGS ID
-
-@AMDEP@@_am_include@ $(DEPDIR)/*.Po
-@AMDEP@@_am_include@ $(DEPDIR)/a_md5encrypt$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/adjtime$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/adjtimex$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/atoint$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/atolfp$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/atouint$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/audio$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/authencrypt$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/authkeys$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/authparity$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/authreadkeys$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/authusekey$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/binio$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/buftvtots$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/caljulian$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/calleapwhen$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/caltontp$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/calyearstart$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/clocktime$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/clocktypes$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/decodenetnum$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/dofptoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/dolfptoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/emalloc$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/findconfig$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/fptoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/fptoms$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/getopt$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/gpstolfp$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/hextoint$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/hextolfp$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/humandate$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/icom$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/ieee754io$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/inttoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/iosignal$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/lib_strbuf$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/log$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/machines$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/md5c$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/memmove$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/mfp_mul$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/mfptoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/mfptoms$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/mktime$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/mktime.Po
-@AMDEP@@_am_include@ $(DEPDIR)/modetoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/mstolfp$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/msutotsf$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/msyslog$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/netof$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/numtoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/numtohost$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/octtoint$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/prettydate$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/random$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/ranny$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/recvbuff$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/refnumtoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/snprintf$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/snprintf.Po
-@AMDEP@@_am_include@ $(DEPDIR)/statestr$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/strdup$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/strdup.Po
-@AMDEP@@_am_include@ $(DEPDIR)/strerror$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/strerror.Po
-@AMDEP@@_am_include@ $(DEPDIR)/syssignal$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/systime$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/tsftomsu$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/tstotv$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/tvtoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/tvtots$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/uglydate$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/uinttoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/utvtoa$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/ymd2yd$U.Po
-
-distclean-depend:
-	-rm -rf $(DEPDIR)
-
-@AMDEP@CCDEPMODE = @CCDEPMODE@
-
-.c.o:
-@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
-@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
-
-.c.obj:
-@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
-@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ `cygpath -w $<`
-
+	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH
 
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
@@ -571,7 +553,11 @@ distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    $(mkinstalldirs) "$(distdir)/$$dir"; \
+	  fi; \
 	  if test -d $$d/$$file; then \
 	    cp -pR $$d/$$file $(distdir) \
 	    || exit 1; \
@@ -596,23 +582,20 @@ install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
 installcheck: installcheck-am
-
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
-	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
-
+	  `test -z '$(STRIP)' || \
+	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
 mostlyclean-generic:
 
 clean-generic:
 
 distclean-generic:
-	-rm -f Makefile $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-rm -f Makefile $(CONFIG_CLEAN_FILES) stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-rm -f Makefile.in
 clean: clean-am
 
 clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
@@ -622,11 +605,11 @@ distclean: distclean-am
 distclean-am: clean-am distclean-compile distclean-depend \
 	distclean-generic distclean-tags
 
-dvi:
+dvi: dvi-am
 
 dvi-am:
 
-info:
+info: info-am
 
 info-am:
 
@@ -634,7 +617,7 @@ install-data-am:
 
 install-exec-am:
 
-install-info:
+install-info: install-info-am
 
 install-man:
 
@@ -648,15 +631,18 @@ mostlyclean: mostlyclean-am
 
 mostlyclean-am: mostlyclean-compile mostlyclean-generic mostlyclean-kr
 
-.PHONY: all all-am check check-am clean clean-generic \
+uninstall-am: uninstall-info-am
+
+.PHONY: GTAGS all all-am check check-am clean clean-generic \
 	clean-noinstLIBRARIES distclean distclean-compile \
 	distclean-depend distclean-generic distclean-tags distdir dvi \
 	dvi-am info info-am install install-am install-data \
 	install-data-am install-exec install-exec-am install-info \
-	install-man install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-kr tags uninstall uninstall-am
+	install-info-am install-man install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-kr tags uninstall uninstall-am \
+	uninstall-info-am
 
 
 ../include/des.h:
@@ -667,7 +653,6 @@ mostlyclean-am: mostlyclean-compile mostlyclean-generic mostlyclean-kr
 
 #strerror_.c: strerror.c $(ANSI2KNR)
 #	$(ANSI2KNR) $< strerror_.c
-
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
