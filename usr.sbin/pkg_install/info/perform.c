@@ -214,6 +214,8 @@ pkg_do(char *pkg)
 	    show_cksum("Mismatched Checksums:\n", &plist);
 	if (Flags & SHOW_ORIGIN)
 	    show_origin("Origin:\n", &plist);
+	if (Flags & SHOW_FMTREV)
+	    show_fmtrev("Packing list format revision:\n", &plist);
 	if (!Quiet)
 	    puts(InfoPrefix);
     }

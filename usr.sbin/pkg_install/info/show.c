@@ -307,3 +307,12 @@ show_origin(const char *title, Package *plist)
 	    break;
 	}
 }
+
+/* Show revision number of the packing list */
+void
+show_fmtrev(const char *title, Package *plist)
+{
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
+    printf("%d.%d\n", plist->fmtver_maj, plist->fmtver_mnr);
+}

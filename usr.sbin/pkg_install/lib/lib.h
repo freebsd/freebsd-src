@@ -82,6 +82,10 @@
 /* The name of the "prefix" environment variable given to scripts */
 #define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
+/* Version numbers to assist with changes in package file format */
+#define PLIST_FMT_VER_MAJOR	1
+#define PLIST_FMT_VER_MINOR	1
+
 enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT, PLIST_IGNORE,
@@ -109,6 +113,7 @@ typedef struct _plist *PackingList;
 
 struct _pack {
     struct _plist *head, *tail;
+    int fmtver_maj, fmtver_mnr;
 };
 typedef struct _pack Package;
 
@@ -193,6 +198,9 @@ char		**matchinstalled(match_t, char **, int *);
 int		sortdeps(char **);
 int		chkifdepends(const char *, const char *);
 int		requiredby(const char *, struct reqr_by_head **, Boolean, Boolean);
+
+/* Version */
+int		verscmp(Package *, int, int);
 
 /* Externs */
 extern Boolean	Verbose;
