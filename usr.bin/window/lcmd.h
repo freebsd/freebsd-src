@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lcmd.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #define LCMD_NARG 20			/* maximum number of arguments */
