@@ -2,6 +2,9 @@
 
 PROG=	morse
 NOMAN=	noman
+
+.if ${MACHINE_ARCH} == "i386"
 CFLAGS += -DSPEAKER=\"/dev/speaker\"
+.endif
 
 .include <bsd.prog.mk>
