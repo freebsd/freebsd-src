@@ -86,7 +86,6 @@ int	 ufs_readdir(struct vop_readdir_args *);
 int	 ufs_reclaim(struct vop_reclaim_args *);
 void	 ffs_snapgone(struct inode *);
 vfs_root_t ufs_root;
-vfs_start_t ufs_start;
 int	 ufs_uninit(struct vfsconf *);
 int	 ufs_vinit(struct mount *, vop_t **, struct vnode **);
 
