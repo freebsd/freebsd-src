@@ -1413,6 +1413,7 @@ netgraph/ng_bridge.c	optional netgraph_bridge
 netgraph/ng_cisco.c	optional netgraph_cisco
 netgraph/ng_device.c	optional netgraph_device
 netgraph/ng_echo.c	optional netgraph_echo
+netgraph/ng_eiface.c	optional netgraph_eiface
 netgraph/ng_ether.c	optional netgraph_ether
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
 netgraph/ng_gif.c	optional netgraph_gif
