@@ -266,8 +266,8 @@ restart:
 	 * touch up the few cylinder groups that changed during
 	 * the suspension period.
 	 */
-	len = howmany(fs->fs_ncg, NBBY);
-	MALLOC(fs->fs_active, char *, len, M_DEVBUF, M_WAITOK);
+	len = howmany(fs->fs_ncg, (NBBY * sizeof(int)));
+	MALLOC(fs->fs_active, int *, len, M_DEVBUF, M_WAITOK);
 	bzero(fs->fs_active, len);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
 		error = bread(vp, fragstoblks(fs, cgtod(fs, cg)), fs->fs_bsize,
@@ -314,7 +314,7 @@ restart:
 	if (collectsnapstats)
 		nanotime(&starttime);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		if ((fs->fs_active[cg / NBBY] & (1 << (cg % NBBY))) != 0)
+		if ((ACTIVECGNUM(fs, cg) & ACTIVECGOFF(cg)) != 0)
 			continue;
 		redo++;
 		error = bread(vp, fragstoblks(fs, cgtod(fs, cg)), fs->fs_bsize,
@@ -504,7 +504,7 @@ cgaccount(cg, vp, nbp, passno)
 		brelse(bp);
 		return (EIO);
 	}
-	atomic_set_char(&fs->fs_active[cg / NBBY], 1 << (cg % NBBY));
+	atomic_set_int(&ACTIVECGNUM(fs, cg), ACTIVECGOFF(cg));
 	bcopy(bp->b_data, nbp->b_data, fs->fs_cgsize);
 	if (fs->fs_cgsize < fs->fs_bsize)
 		bzero(&nbp->b_data[fs->fs_cgsize],
