@@ -103,8 +103,7 @@ struct smbmount {
 
 int smbfs_ioctl(struct vop_ioctl_args *ap);
 int smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td);
-int smbfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred, 
-	struct thread *td, int intrflg);
+int smbfs_vinvalbuf(struct vnode *vp, struct thread *td);
 #endif	/* KERNEL */
 
 #endif /* _SMBFS_SMBFS_H_ */
