@@ -791,6 +791,10 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		}
 		PCPU_SET(witness_spin_check, i | w->w_level);
 		mtx_exit(&w_mtx, MTX_SPIN);
+		w->w_file = file;
+		w->w_line = line;
+		m->mtx_line = line;
+		m->mtx_file = file;
 		return;
 	}
 	if (w->w_spin)
@@ -942,6 +946,10 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 		mtx_enter(&w_mtx, MTX_SPIN);
 		PCPU_SET(witness_spin_check, witness_spin_check | w->w_level);
 		mtx_exit(&w_mtx, MTX_SPIN);
+		w->w_file = file;
+		w->w_line = line;
+		m->mtx_line = line;
+		m->mtx_file = file;
 		return;
 	}
 
