@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	lib add create delete info update version
+SUBDIR=	lib add create delete info version
 
 .if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 DISTRIBUTION=	crypto
