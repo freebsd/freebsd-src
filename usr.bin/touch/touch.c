@@ -343,7 +343,6 @@ err:			rval = 1;
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: touch [-acfm] [-r file]"
-	    " [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
+	(void)fprintf(stderr, "usage: touch [-acfm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
 	exit(1);
 }
