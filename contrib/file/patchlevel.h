@@ -1,11 +1,17 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		40
+#define	patchlevel		41
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.40 2003/02/08 18:33:53 christos Exp $
+ * $Id: patchlevel.h,v 1.41 2003/02/27 20:53:45 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.41  2003/02/27 20:53:45  christos
+ * - fix memory allocation problem (Jeff Johnson)
+ * - fix stack overflow corruption (David Endler)
+ * - fixes from NetBSD source (Antti Kantee)
+ * - magic fixes
+ *
  * Revision 1.40  2003/02/08 18:33:53  christos
  * - detect inttypes.h too (Dave Love <d.love@dl.ac.uk>)
  * - eliminate unsigned char warnings (Petter Reinholdtsen <pere@hungry.com>)
@@ -238,4 +244,3 @@
  * Fix a tiny null-pointer bug in previous fix for tar archive + uncompress.
  * 
  */
-

@@ -167,6 +167,10 @@
 >8320	lelong		1		SPACE optimization
 
 9564	belong		0x00011954	Unix Fast File system (big-endian),
+>7168   long		0x4c41424c	Apple UFS Volume
+>>7186  string		x		named %s,
+>>7176  belong		x		volume label version %d,
+>>7180  bedate		x		created on %s,
 >8404	string		x		last mounted on %s,
 #>9504	bedate		x		last checked at %s,
 >8224	bedate		x		last written at %s,
