@@ -304,7 +304,9 @@ getclnthandle(host, nconf, targaddr)
 	client = NULL;
 	addr_to_delete.len = 0;
 	rwlock_rdlock(&rpcbaddr_cache_lock);
-	ad_cache = check_cache(host, nconf->nc_netid);
+	ad_cache = NULL;
+	if (host != NULL)
+		ad_cache = check_cache(host, nconf->nc_netid);
 	if (ad_cache != NULL) {
 		addr = ad_cache->ac_taddr;
 		client = clnt_tli_create(RPC_ANYFD, nconf, addr,
@@ -349,9 +351,26 @@ getclnthandle(host, nconf, targaddr)
 	    nconf->nc_netid, si.si_af, si.si_proto, si.si_socktype);
 #endif
 
-	if (getaddrinfo(host, "sunrpc", &hints, &res) != 0) {
-		rpc_createerr.cf_stat = RPC_UNKNOWNHOST;
-		return NULL;
+	if (nconf->nc_protofmly != NULL && strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0) {
+		client = local_rpcb();
+		if (! client) {
+#ifdef ND_DEBUG
+			clnt_pcreateerror("rpcbind clnt interface");
+#endif
+			return (NULL);
+		} else {
+			struct sockaddr_un sun;
+
+			*targaddr = malloc(sizeof(sun.sun_path));
+			strncpy(*targaddr, _PATH_RPCBINDSOCK,
+			    sizeof(sun.sun_path));
+			return (client);
+		}
+	} else {
+		if (getaddrinfo(host, "sunrpc", &hints, &res) != 0) {
+			rpc_createerr.cf_stat = RPC_UNKNOWNHOST;
+			return NULL;
+		}
 	}
 
 	for (tres = res; tres != NULL; tres = tres->ai_next) {
@@ -396,7 +415,8 @@ getclnthandle(host, nconf, targaddr)
 			break;
 		}
 	}
-	freeaddrinfo(res);
+	if (res)
+		freeaddrinfo(res);
 	return (client);
 }
 
