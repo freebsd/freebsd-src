@@ -45,6 +45,7 @@ int	 printname(const char *);
 void	 printscol(const DISPLAY *);
 void	 printstream(const DISPLAY *);
 void	 usage(void);
+int	 prn_normal(const char *);
 size_t	 len_octal(const char *, int);
 int	 prn_octal(const char *);
 int	 prn_printable(const char *);
