@@ -48,6 +48,8 @@ void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
  * Not sure whether boot itself should be implementation dependent instead.	XXX
  */
 void	ppc_exit(void);
+void	OF_halt(void);
+void	OF_reboot(void);
 void	ppc_boot(char *bootspec);
 
 int	dk_match(char *name);
