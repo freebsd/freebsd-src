@@ -28,16 +28,16 @@
 
 	.file	"crtn.S"
 
-	.section .init
+	.section .init,"ax",@progbits
 	.regstk 0,2,0,0
-	mov b0 = loc0			/* Recover return addr */
-	mov ar.pfs = loc1
+	mov	b0=loc0			/* Recover return addr */
+	mov	ar.pfs=loc1
 	br.ret.sptk.many b0
-	.endp _init#
+	.endp	_init#
 
-	.section .fini
+	.section .fini,"ax",@progbits
 	.regstk 0,2,0,0
-	mov b0 = loc0			/* Recover return addr */
-	mov ar.pfs = loc1
+	mov	b0=loc0			/* Recover return addr */
+	mov	ar.pfs=loc1
 	br.ret.sptk.many b0
-	.endp _fini#
+	.endp	_fini#
