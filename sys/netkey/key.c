@@ -157,6 +157,8 @@ u_long maxacquiretime = MAXACQUIRETIME;
 
 extern struct sockaddr key_addr;
 
+extern struct pr_usrreqs raw_usrreqs;
+
 #define ROUNDUP(a) \
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) \
@@ -180,8 +182,8 @@ static int key_sendup __P((struct socket *, struct key_msghdr *));
 static void key_init __P((void));
 static int my_addr __P((struct sockaddr *));
 static int key_output __P((struct mbuf *, struct socket *));
-static int key_usrreq __P((struct socket *, int, struct mbuf *, struct mbuf *,
-	struct mbuf *));
+static int key_attach __P((struct socket *, int, struct proc *));
+static int key_detach __P((struct socket *));
 static void key_cbinit __P((void));
 
 /*----------------------------------------------------------------------
@@ -2367,46 +2369,30 @@ flush:
  * key_usrreq():
  *      Handles PRU_* for pf_key sockets.
  ----------------------------------------------------------------------*/
+
 static int
-key_usrreq(so, req, m, nam, control)
-  struct socket *so;
-  int req;
-  struct mbuf *m;
-  struct mbuf *nam;
-  struct mbuf *control;
+key_attach(struct socket *so, int proto, struct proc *p)
 {
   register int error = 0;
-  register struct rawcb *rp = sotorawcb(so);
+  register struct rawcb *rp;
   int s;
 
-  DPRINTF(IDL_EVENT,("Entering key_usrreq, req = %d.\n",req));
+  DPRINTF(IDL_EVENT,("Entering key_attach\n"));
 
-  if (req == PRU_ATTACH) {
-    MALLOC(rp, struct rawcb *, sizeof(*rp), M_PCB, M_WAITOK);
-    if (so->so_pcb = (caddr_t)rp)
-      bzero(so->so_pcb, sizeof(*rp));
-  }
-
-  if (req == PRU_DETACH && rp) {
-    int af = rp->rcb_proto.sp_protocol;
-    if (af == AF_INET)
-      keyso_cb.ip4_count--;
-#ifdef INET6
-    else if (af == AF_INET6)
-      keyso_cb.ip6_count--;
-#endif /* INET6 */
-    keyso_cb.any_count--;
+  MALLOC(rp, struct rawcb *, sizeof(*rp), M_PCB, M_WAITOK);
+  if (rp) {
+    bzero(rp, sizeof(*rp));
+    so->so_pcb = (caddr_t)rp;
   }
   s = splnet();
-#if 0
-  error = raw_usrreq(so, req, m, nam, control);
-#else
-	panic("FIXME!");
-#endif
-  if (!so) return error;
-  rp = sotorawcb(so);
+  error = (raw_usrreqs.pru_attach)(so, proto, p);
+  if (!error) {			/* XXX was: if (!so) which didn't make sense */
+    splx(s);
+    return error;
+  }
 
-  if (req == PRU_ATTACH && rp) {
+  rp = sotorawcb(so);		/* isn't this redundant? */
+  if (rp) {
     int af = rp->rcb_proto.sp_protocol;
     if (error) {
       free((caddr_t)rp, M_PCB);
@@ -2423,15 +2409,15 @@ key_usrreq(so, req, m, nam, control)
 #if 0 /*itojun*/
     rp->rcb_faddr = &key_addr;
 #else
-  {
-    struct mbuf *m;
-    MGET(m, M_DONTWAIT, MT_DATA);
-    if (m) {
-      rp->rcb_faddr = mtod(m, struct sockaddr *);
-      bcopy(&key_addr, rp->rcb_faddr, sizeof(struct sockaddr));
-    } else
-      rp->rcb_faddr = NULL;
-  }
+    {
+      struct mbuf *m;
+      MGET(m, M_DONTWAIT, MT_DATA);
+      if (m) {			/* XXX but what about sin_len here? -PW */
+	rp->rcb_faddr = mtod(m, struct sockaddr *);
+	bcopy(&key_addr, rp->rcb_faddr, sizeof(struct sockaddr));
+      } else
+	rp->rcb_faddr = NULL;
+    }
 #endif
     soisconnected(so);   /* Key socket, like routing socket, must be
 			    connected. */
@@ -2442,6 +2428,33 @@ key_usrreq(so, req, m, nam, control)
   }
   splx(s);
   return error;
+}
+
+static int
+key_detach(struct socket *so)
+{
+  register int error = 0;
+  register struct rawcb *rp;
+  int s;
+
+  DPRINTF(IDL_EVENT,("Entering key_detach\n"));
+
+  rp = sotorawcb(so);
+  if (rp) {
+    int af = rp->rcb_proto.sp_protocol;
+    if (af == AF_INET)
+      keyso_cb.ip4_count--;
+#ifdef INET6
+    else if (af == AF_INET6)
+      keyso_cb.ip6_count--;
+#endif /* INET6 */
+    keyso_cb.any_count--;
+  }
+  s = splnet();
+  error = (raw_usrreqs.pru_detach)(so);
+  splx(s);
+  return error;
+
 }
 
 /*----------------------------------------------------------------------
@@ -2465,12 +2478,23 @@ key_cbinit()
 
 extern struct domain keydomain;		/* or at least forward */
 
+struct pr_usrreqs key_usrreqs = {
+  raw_usrreqs.pru_abort, pru_accept_notsupp, key_attach, raw_usrreqs.pru_bind,
+  raw_usrreqs.pru_connect,
+  pru_connect2_notsupp, in_control, key_detach, raw_usrreqs.pru_disconnect,
+  pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
+  pru_rcvoob_notsupp, raw_usrreqs.pru_send, pru_sense_null,
+  raw_usrreqs.pru_shutdown, 
+  in_setsockaddr, sosend, soreceive, sopoll
+};
+
+
 struct protosw keysw[] = {
 { SOCK_RAW,	&keydomain,	0,		PR_ATOMIC|PR_ADDR,
   raw_input,	key_output,	raw_ctlinput,	0,
-  key_usrreq,
-  key_cbinit,	0,		0,		0,
   0,
+  key_cbinit,	0,		0,		0,
+  key_usrreqs,
 },
 };
 
