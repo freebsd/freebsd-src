@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.4 1997/02/22 13:00:37 peter Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.5 1997/03/06 03:06:51 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.17 -->
 
@@ -162,7 +162,7 @@
 		Hall, 1995.  <newline>ISBN 0-13-326224-3
                 <newline>(訳注: 邦訳は以下のものが出版されています.
                 <newline>斎藤信男監訳.
-                <em>新・詳説C言語リファレンス[H&Sリファレンス]</em>.
+                <em>新・詳説C言語リファレンス[H&amp;Sリファレンス]</em>.
                 ソフトバンク, 1994.
                 <newline>ISBN 4-89052-506-8
                 <newline>原本は第4版だが、訳出は第3版のみ。)
