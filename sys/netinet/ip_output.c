@@ -132,7 +132,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct route iproute;
+#ifdef PFIL_HOOKS
 	struct in_addr odst;
+#endif
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
 #endif
@@ -185,7 +187,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	}
 
 	dst = (struct sockaddr_in *)&ro->ro_dst;
+#ifdef PFIL_HOOKS
 again:
+#endif
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
