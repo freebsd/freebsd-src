@@ -1193,7 +1193,7 @@ char *parse (char *buf, int *cmd)
 
 	for (buf = p; *p && ! isspace (*p); p++)
 		continue;
-  
+ 
 	len = p - buf;
 	if (! len)
 		return (0);
