@@ -154,7 +154,8 @@ struct fxp_cb_config {
 				save_bf:1;
 	volatile u_int		disc_short_rx:1,
 				underrun_retry:2,
-				:3,
+				:2,
+				ext_rfa:1,			/* 550 */
 				two_frames:1,			/* 8,9 */
 				dyn_tbd:1;			/* 8,9 */
 	volatile u_int		mediatype:1,			/* 7 */
@@ -208,6 +209,8 @@ struct fxp_cb_config {
 	volatile u_int		:3,
 				mc_all:1,
 				:4;
+	volatile u_int8_t	gamla_rx:1;			/* 550 */
+	volatile u_int8_t	pad[9];				/* 550 */
 };
 
 #define MAXMCADDR 80
@@ -243,6 +246,27 @@ struct fxp_tbd {
 	volatile u_int32_t tb_addr;
 	volatile u_int32_t tb_size;
 };
+
+struct fxp_ipcb {
+	/*
+	 * The following fields are valid only when
+	 * using the IPCB command block for TX checksum offload
+	 * (and TCP large send, VLANs, and (I think) IPsec). To use
+	 * them, you must enable extended TxCBs (available only
+	 * on the 82559 and later) and use the IPCBXMIT command.
+	 * Note that Intel defines the IPCB to be 32 bytes long,
+	 * the last 8 bytes of which comprise the first entry
+	 * in the TBD array (see note below). This means we only
+	 * have to define 8 extra bytes here.
+         */
+	volatile u_int16_t ipcb_schedule_low;
+	volatile u_int8_t ipcb_ip_schedule;
+	volatile u_int8_t ipcb_ip_activation_high;
+	volatile u_int16_t ipcb_vlan_id;
+	volatile u_int8_t ipcb_ip_header_offset;
+	volatile u_int8_t ipcb_tcp_header_offset;
+};
+
 struct fxp_cb_tx {
 	struct fxp_cb_tx *next;
 	struct mbuf *mb_head;
@@ -253,14 +277,36 @@ struct fxp_cb_tx {
 	volatile u_int16_t byte_count;
 	volatile u_int8_t tx_threshold;
 	volatile u_int8_t tbd_number;
+
 	/*
 	 * The following structure isn't actually part of the TxCB,
 	 * unless the extended TxCB feature is being used.  In this
 	 * case, the first two elements of the structure below are 
 	 * fetched along with the TxCB.
 	 */
-	volatile struct fxp_tbd tbd[FXP_NTXSEG];
+	union {
+		volatile struct fxp_ipcb;
+		volatile struct fxp_tbd tbd[FXP_NTXSEG];
+	} tx_cb_u;
 };
+
+#define tbd			tx_cb_u.tbd
+#define ipcb_schedule_low	tx_cb_u.ipcb_schedule_low
+#define ipcb_ip_schedule	tx_cb_u.ipcb_ip_schedule
+#define ipcb_ip_activation_high tx_cb_u.ipcb_ip_activation_high
+#define ipcb_vlan_id		tx_cb_u.ipcb_vlan_id
+#define ipcb_ip_header_offset	tx_cb_u.ipcb_ip_header_offset
+#define ipcb_tcp_header_offset	tx_cb_u.ipcb_tcp_header_offset
+
+/*
+ * IPCB field definitions
+ */
+#define FXP_IPCB_IP_CHECKSUM_ENABLE	0x10
+#define FXP_IPCB_TCPUDP_CHECKSUM_ENABLE	0x20
+#define FXP_IPCB_TCP_PACKET		0x40
+#define FXP_IPCB_LARGESEND_ENABLE	0x80
+#define FXP_IPCB_HARDWAREPARSING_ENABLE	0x01
+#define FXP_IPCB_INSERTVLAN_ENABLE	0x02
 
 /*
  * Control Block (CB) definitions
@@ -278,6 +324,9 @@ struct fxp_cb_tx {
 #define FXP_CB_COMMAND_UCODE	0x5
 #define FXP_CB_COMMAND_DUMP	0x6
 #define FXP_CB_COMMAND_DIAG	0x7
+#define FXP_CB_COMMAND_LOADFILT	0x8
+#define FXP_CB_COMMAND_IPCBXMIT 0x9
+
 /* command flags */
 #define FXP_CB_COMMAND_SF	0x0008	/* simple/flexible mode */
 #define FXP_CB_COMMAND_I	0x2000	/* generate interrupt on completion */
@@ -295,9 +344,25 @@ struct fxp_rfa {
         volatile u_int8_t rbd_addr[4];
 	volatile u_int16_t actual_size;
 	volatile u_int16_t size;
+
+	/*
+	 * The following fields are only available when using
+	 * extended receive mode on an 82550/82551 chipset.
+	 */
+	volatile u_int16_t rfax_vlan_id;
+	volatile u_int8_t rfax_rx_parser_sts;
+	volatile u_int8_t rfax_rsvd0;
+	volatile u_int16_t rfax_security_sts;
+	volatile u_int8_t rfax_csum_sts;
+	volatile u_int8_t rfax_zerocopy_sts;
+	volatile u_int8_t rfax_pad[8];
 };
+#define FXP_RFAX_LEN 16
+
 #define FXP_RFA_STATUS_RCOL	0x0001	/* receive collision */
 #define FXP_RFA_STATUS_IAMATCH	0x0002	/* 0 = matches station address */
+#define FXP_RFA_STATUS_NOAMATCH	0x0004	/* 1 = doesn't match anything */
+#define FXP_RFA_STATUS_PARSE	0x0008	/* pkt parse ok (82550/1 only) */
 #define FXP_RFA_STATUS_S4	0x0010	/* receive error from PHY */
 #define FXP_RFA_STATUS_TL	0x0020	/* type/length */
 #define FXP_RFA_STATUS_FTS	0x0080	/* frame too short */
@@ -311,6 +376,19 @@ struct fxp_rfa {
 #define FXP_RFA_CONTROL_H	0x10	/* header RFD */
 #define FXP_RFA_CONTROL_S	0x4000	/* suspend after reception */
 #define FXP_RFA_CONTROL_EL	0x8000	/* end of list */
+
+/* Bits in the 'csum_sts' byte */
+#define FXP_RFDX_CS_TCPUDP_CSUM_BIT_VALID	0x10
+#define FXP_RFDX_CS_TCPUDP_CSUM_VALID		0x20
+#define FXP_RFDX_CS_IP_CSUM_BIT_VALID		0x01
+#define FXP_RFDX_CS_IP_CSUM_VALID		0x02
+
+/* Bits in the 'packet parser' byte */
+#define FXP_RFDX_P_PARSE_BIT			0x08
+#define FXP_RFDX_P_CSUM_PROTOCOL_MASK		0x03
+#define FXP_RFDX_P_TCP_PACKET			0x00
+#define FXP_RFDX_P_UDP_PACKET			0x01
+#define FXP_RFDX_P_IP_PACKET			0x03
 
 /*
  * Statistics dump area definitions
