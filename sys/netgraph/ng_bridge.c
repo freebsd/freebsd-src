@@ -518,7 +518,8 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	struct ng_bridge_link *link;
 	struct ether_header *eh;
 	int error = 0, linkNum;
-	int i, manycast;
+	int manycast;
+	struct ng_bridge_link *firstLink;
 
 	/* Get link number */
 	linkNum = LINK_NUM(hook);
@@ -657,20 +658,43 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	}
 
 	/* Distribute unknown, multicast, broadcast pkts to all other links */
-	for (linkNum = i = 0; i < priv->numLinks - 1; linkNum++) {
-		struct ng_bridge_link *const destLink = priv->links[linkNum];
+	firstLink = NULL;
+	for (linkNum = 0; linkNum <= priv->numLinks; linkNum++) {
+		struct ng_bridge_link *destLink;
 		meta_p meta2 = NULL;
-		struct mbuf *m2;
+		struct mbuf *m2 = NULL;
 
-		/* Skip incoming link and disconnected links */
-		if (destLink == NULL || destLink == link)
-			continue;
+		/*
+		 * If we have checked all the links then now
+		 * send the original on its reserved link
+		 */
+		if (linkNum == priv->numLinks) {
+			/* If we never saw a good link, leave. */
+			if (firstLink == NULL) {
+				NG_FREE_DATA(m, meta);
+				return (0);
+			}	
+			destLink = firstLink;
+		} else {
+			destLink = priv->links[linkNum];
+			/* Skip incoming link and disconnected links */
+			if (destLink == NULL || destLink == link) {
+				continue;
+			}
+			if (firstLink == NULL) {
+				/*
+				 * This is the first usable link we have found.
+				 * Reserve it for the originals.
+				 * If we never find another we save a copy.
+				 */
+				firstLink = destLink;
+				continue;
+			}
 
-		/* Copy mbuf and meta info */
-		if (++i == priv->numLinks - 1) {		/* last link */
-			m2 = m;
-			meta2 = meta;
-		}  else {
+			/*
+			 * It's usable link but not the reserved (first) one.
+			 * Copy mbuf and meta info for sending.
+			 */
 			m2 = m_dup(m, M_NOWAIT);	/* XXX m_copypacket() */
 			if (m2 == NULL) {
 				link->stats.memoryFailures++;
@@ -701,7 +725,16 @@ ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		}
 
 		/* Send packet */
-		NG_SEND_DATA(error, destLink->hook, m2, meta2);
+		if (destLink == firstLink) { 
+			/*
+			 * If we've sent all the others, send the original
+			 * on the first link we found.
+			 */
+			NG_SEND_DATA(error, destLink->hook, m, meta);
+			break; /* always done last - not really needed. */
+		} else {
+			NG_SEND_DATA(error, destLink->hook, m2, meta2);
+		}
 	}
 	return (error);
 }
