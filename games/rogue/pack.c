@@ -264,6 +264,8 @@ next_avail_ichar()
 
 wait_for_ack()
 {
+	if (!isatty(0) || !isatty(1))
+	    return;
 	while (rgetchar() != ' ') ;
 }
 
