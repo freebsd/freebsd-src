@@ -29,7 +29,8 @@ FILES=	INDEX.keymaps \
 	norwegian.iso.kbd norwegian.dvorak.kbd \
 	pl_PL.ISO8859-2.kbd  \
 	pt.iso.kbd pt.iso.acc.kbd \
-	ru.koi8-r.kbd ru.koi8-r.shift.kbd ru.cp866.kbd ru.iso5.kbd \
+	ru.koi8-r.kbd ru.koi8-r.shift.kbd ru.koi8-r.win.kbd \
+	ru.cp866.kbd ru.iso5.kbd \
 	si.iso.kbd \
 	sk.iso2.kbd \
 	spanish.iso.kbd spanish.iso.acc.kbd spanish.iso15.acc.kbd \
