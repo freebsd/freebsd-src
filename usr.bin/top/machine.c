@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.4 1997/07/12 10:51:54 peter Exp $
+ * $Id: machine.c,v 1.5 1997/07/14 09:06:46 peter Exp $
  */
 
 
@@ -236,7 +236,8 @@ struct statics *statics;
     struct passwd *pw;
 
     modelen = sizeof(smpmode);
-    if (sysctlbyname("kern.smp_active", &smpmode, &modelen, NULL, 0) < 0 ||
+    if ((sysctlbyname("machdep.smp_active", &smpmode, &modelen, NULL, 0) < 0 &&
+         sysctlbyname("smp.smp_active", &smpmode, &modelen, NULL, 0) < 0) ||
 	modelen != sizeof(smpmode))
 	    smpmode = 0;
 
