@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: pt.4,v 1.5 1997/03/07 02:49:30 jmg Exp $
 .\"
 .Dd March 2, 1995
 .Dt PT 4
@@ -32,7 +32,8 @@
 .Nm pt
 .Nd SCSI processor type driver
 .Sh SYNOPSIS
-.Cd device pt0 at scbus?
+.Cd device pt0
+.Cd device pt1 at scbus0 target 3 unit 0
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,42 +50,31 @@ A
 adapter must be separately configured into the system
 before this driver can be used.
 .Pp
-This device only supports
+This device supports
 .Xr read 2
 and
 .Xr write 2 ,
-and the generic
-.Tn SCSI
+and the
 .Xr ioctl 2
-calls.
-The
-.Sq Li at scbus?
-is required in the config file for the configuration
-system to know this is a SCSI device and generate the appropriate
-tables.
-.Pp
-The
-.Sq Li 0
-in 
-.Sq Li pt0
-in the configuration is required.
-This is a deficiency in 
-.Xr config 8 .
+calls described below.
 .Sh IOCTLS
-The 
+.Bl -tag -width 012345678901234
+The following
+.Xr ioctl 2
+calls are supported by the
 .Nm
-driver has no
-.Fn ioctl
-commands of its own but rather acts as a medium for the
-generic 
-.Xr scsi 4
-commands. These are described in
-.Aq Pa sys/scsiio.h .
-All
-.Xr scsi 4
-debug ioctls work on 
+driver.  They are defined in the header file
+.Aq Pa sys/ptio.h .
+.Pp
+.It PTIOCGETTIMEOUT
+This ioctl allows userland applications to fetch the current
 .Nm
-devices.
+driver read and write timeout.  The value returned is in seconds.
+.It PTIOCSETTIMEOUT
+This ioctl allows userland applications to set the current
+.Nm
+driver read and write timeouts.  The value should be in seconds.
+.El
 .Sh FILES
 .Bl -tag -width /dev/ptQQQ -compact
 .It Pa /dev/pt Ns Ar N
