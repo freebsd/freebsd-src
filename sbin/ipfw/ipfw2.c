@@ -2804,7 +2804,7 @@ add(int ac, char *av[])
 			cmd = next_cmd(cmd);
 		}
 	} else if (first_cmd != cmd) {
-		errx(EX_DATAERR, "invalid protocol ``%s''", av);
+		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
 	} else
 		goto read_options;
     OR_BLOCK(get_proto);
@@ -3137,7 +3137,8 @@ read_options:
 				proto = cmd->arg1;
 				ac--; av++;
 			} else
-				errx(EX_DATAERR, "invalid protocol ``%s''", av);
+				errx(EX_DATAERR, "invalid protocol ``%s''",
+				    *av);
 			break;
 
 		case TOK_SRCIP:
@@ -3184,7 +3185,7 @@ read_options:
 		case TOK_MACTYPE:
 			NEED1("missing mac type");
 			if (!add_mactype(cmd, ac, *av))
-				errx(EX_DATAERR, "invalid mac type %s", av);
+				errx(EX_DATAERR, "invalid mac type %s", *av);
 			ac--; av++;
 			break;
 
