@@ -187,7 +187,8 @@ main (argc, argv)
 	    gripe_not_found (nextarg, section);
 	}
     }
-  return status;
+  return (status==0);         /* status==1 --> exit(0),
+                                 status==0 --> exit(1) */
 }
 
 void
