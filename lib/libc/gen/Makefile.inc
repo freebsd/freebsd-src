@@ -28,9 +28,10 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	setproctitle.c setprogname.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
-	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
-	ttyslot.c ualarm.c ulimit.c uname.c unvis.c usleep.c utime.c \
-	valloc.c vis.c wait.c wait3.c waitpid.c wordexp.c
+	syslog.c telldir.c termios.c time.c times.c timezone.c tls.c \
+	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
+	usleep.c utime.c valloc.c vis.c wait.c wait3.c waitpid.c \
+	wordexp.c
 
 # machine-dependent gen sources
 .if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
