@@ -2506,6 +2506,11 @@ pf_socket_lookup(uid_t *uid, gid_t *gid, int direction, struct pf_pdesc *pd)
 	}
 #ifdef __FreeBSD__
 	INP_LOCK(inp);
+	if ((inp->inp_socket == NULL) || (inp->inp_socket->so_cred == NULL)) {
+		INP_UNLOCK(inp);
+		INP_INFO_RUNLOCK(pi);
+		return (0);
+	}
 	*uid = inp->inp_socket->so_cred->cr_uid;
 	*gid = inp->inp_socket->so_cred->cr_groups[0];
 	INP_UNLOCK(inp);
