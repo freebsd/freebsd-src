@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/mac.h>
@@ -678,6 +679,10 @@ vfs_domount(
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
+	/* mount(2) is not permitted inside the jail. */
+	if (jailed(td->td_ucred))
+		return (EPERM);
+
 	if (usermount == 0) {
 		error = suser(td);
 		if (error)
@@ -1013,6 +1018,15 @@ unmount(td, uap)
 	struct mount *mp;
 	char *pathbuf;
 	int error, id0, id1;
+
+	/* unmount(2) is not permitted inside the jail. */
+	if (jailed(td->td_ucred))
+		return (EPERM);
+
+	if (usermount == 0) {
+		if ((error = suser(td)) != 0)
+			return (error);
+	}
 
 	pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->path, pathbuf, MNAMELEN, NULL);

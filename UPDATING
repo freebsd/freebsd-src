@@ -13,6 +13,12 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040210:
+	Fixed bugs in vfs_mount(9) that could allow jailed processes
+	to mount or unmount file systems outside of the jail and
+	in some cases allow a normal user to unmount a file system
+	when usermounts have been changed from enabled to disabled.
+
 20040205:	p2	FreeBSD-SA-04:02.shmat
 	Correct a reference counting bug in shmat(2).
 
