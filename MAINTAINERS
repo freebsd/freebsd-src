@@ -7,7 +7,7 @@ binutils	obrien	Insists to keep BU blocked from other's unapproved
 			commits
 gcc		obrien	Do not commit w/o approval until Gcc 3.1 WIP completed
 libc/posix1e	rwatson	Would like to review patches
-ATA/IDE		sos	Prefers to pre-approve commits
+ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Prefers to pre-approve commits
 NEWCARD		imp	Pre-commit review strongly requested
 OLDCARD		imp	Pre-commit review preferred
