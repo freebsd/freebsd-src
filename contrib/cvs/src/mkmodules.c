@@ -204,15 +204,15 @@ static const char *const checkoutlist_contents[] = {
 };
 
 static const char *const cvswrappers_contents[] = {
-    "# This file describes wrappers and other binary files to CVS.\n",
+    "# This file affects handling of files based on their names.\n",
     "#\n",
-    "# Wrappers are the concept where directories of files are to be\n",
-    "# treated as a single file.  The intended use is to wrap up a wrapper\n",
-    "# into a single tar such that the tar archive can be treated as a\n",
-    "# single binary file in CVS.\n",
+    "# The -t/-f options allow one to treat directories of files\n",
+    "# as a single file, or to transform a file in other ways on\n",
+    "# its way in and out of CVS.\n",
     "#\n",
-    "# To solve the problem effectively, it was also necessary to be able to\n",
-    "# prevent rcsmerge from merging these files.\n",
+    "# The -m option specifies whether CVS attempts to merge files.\n",
+    "#\n",
+    "# The -k option specifies keyword expansion (e.g. -kb for binary).\n",
     "#\n",
     "# Format of wrapper file ($CVSROOT/CVSROOT/cvswrappers or .cvswrappers)\n",
     "#\n",
@@ -222,10 +222,11 @@ static const char *const cvswrappers_contents[] = {
     "#  -f		from cvs filter		value: path to filter\n",
     "#  -t		to cvs filter		value: path to filter\n",
     "#  -m		update methodology	value: MERGE or COPY\n",
+    "#  -k		expansion mode		value: b, o, kkv, &c\n",
     "#\n",
     "#  and value is a single-quote delimited value.\n",
-    "#\n",
     "# For example:\n",
+    "#*.gif -k 'b'\n",
     NULL
 };
 

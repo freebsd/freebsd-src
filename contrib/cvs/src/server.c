@@ -3780,6 +3780,38 @@ serve_gzip_stream (arg)
 					       buf_from_net->memory_error);
 }
 
+/* Tell the client about RCS options set in CVSROOT/cvswrappers. */
+static void
+serve_wrapper_sendme_rcs_options (arg)
+     char *arg;
+{
+    /* Actually, this is kind of sdrawkcab-ssa: the client wants
+     * verbatim lines from a cvswrappers file, but the server has
+     * already parsed the cvswrappers file into the wrap_list struct.
+     * Therefore, the server loops over wrap_list, unparsing each
+     * entry before sending it.
+     */
+    char *wrapper_line = NULL;
+
+    wrap_setup ();
+
+    for (wrap_unparse_rcs_options (&wrapper_line, 1);
+         wrapper_line;
+         wrap_unparse_rcs_options (&wrapper_line, 0))
+    {
+	buf_output0 (buf_to_net, "Wrapper-rcsOption ");
+	buf_output0 (buf_to_net, wrapper_line);
+	buf_output0 (buf_to_net, "\012");;
+	free (wrapper_line);
+    }
+
+    buf_output0 (buf_to_net, "ok\012");
+
+    /* The client is waiting for us, so we better send the data now.  */
+    buf_flush (buf_to_net, 1);
+}
+
+
 static void
 serve_ignore (arg)
     char *arg;
@@ -4049,6 +4081,9 @@ struct request requests[] =
   REQ_LINE("Argumentx", serve_argumentx, rq_essential),
   REQ_LINE("Global_option", serve_global_option, rq_optional),
   REQ_LINE("Gzip-stream", serve_gzip_stream, rq_optional),
+  REQ_LINE("wrapper-sendme-rcsOptions",
+           serve_wrapper_sendme_rcs_options,
+           rq_optional),
   REQ_LINE("Set", serve_set, rq_optional),
 #ifdef ENCRYPTION
 #  ifdef HAVE_KERBEROS

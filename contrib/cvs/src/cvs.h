@@ -794,6 +794,9 @@ void wrap_fromcvs_process_file PROTO ((const char *fileName));
 void wrap_add_file PROTO((const char *file,int temp));
 void wrap_add PROTO((char *line,int temp));
 void wrap_send PROTO ((void));
+#if defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT)
+void wrap_unparse_rcs_options PROTO ((char **, int));
+#endif /* SERVER_SUPPORT || CLIENT_SUPPORT */
 
 /* Pathname expansion */
 char *expand_path PROTO((char *name, char *file, int line));

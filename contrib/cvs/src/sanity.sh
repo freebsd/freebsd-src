@@ -552,7 +552,8 @@ if test x"$*" = x; then
 	tests="${tests} rdiff death death2 branches"
 	tests="${tests} rcslib multibranch import importb join join2 join3"
 	tests="${tests} new newb conflicts conflicts2 conflicts3"
-	tests="${tests} modules modules2 modules3 mflag editor errmsg1 errmsg2"
+	tests="${tests} modules modules2 modules3 modules4"
+	tests="${tests} mflag editor errmsg1 errmsg2"
 	tests="${tests} devcom devcom2 devcom3 watch4"
 	tests="${tests} ignore binfiles binfiles2 mcopy binwrap binwrap2"
 	tests="${tests} binwrap3 mwrap info config"
@@ -3670,7 +3671,7 @@ add
 	  #     \----->branch
 	  #
 	  #     /----->branch1
-	  # --->bp---->trunk          multibranch
+	  # --->bp---->trunk          multibranch, multibranch2
 	  #     \----->branch2
 	  #
 	  # --->bp1----->bp2---->trunk   join3
@@ -5702,6 +5703,106 @@ done"
 
 	  rm -rf ${CVSROOT_DIRNAME}/first-dir
 	  rm -rf ${CVSROOT_DIRNAME}/second-dir
+	  ;;
+
+	modules4)
+	  # Some tests using the modules file with aliases that
+	  # exclude particular directories.
+
+	  mkdir 1; cd 1
+
+	  dotest modules4-1 "${testcvs} -q co -l ." ''
+	  mkdir first-dir
+	  dotest modules4-2 "${testcvs} add first-dir" \
+"Directory ${TESTDIR}/cvsroot/first-dir added to the repository"
+
+	  cd first-dir
+          mkdir subdir
+          dotest modules4-3 "${testcvs} add subdir" \
+"Directory ${TESTDIR}/cvsroot/first-dir/subdir added to the repository"
+
+	  echo file1 > file1
+	  dotest modules4-4 "${testcvs} add file1" \
+"${PROG}"' [a-z]*: scheduling file `file1'\'' for addition
+'"${PROG}"' [a-z]*: use .'"${PROG}"' commit. to add this file permanently'
+
+	  echo file2 > subdir/file2
+	  dotest modules4-5 "${testcvs} add subdir/file2" \
+"${PROG}"' [a-z]*: scheduling file `subdir/file2'\'' for addition
+'"${PROG}"' [a-z]*: use .'"${PROG}"' commit. to add this file permanently'
+
+	  dotest modules4-6 "${testcvs} -q ci -m add-it" \
+"RCS file: ${TESTDIR}/cvsroot/first-dir/file1,v
+done
+Checking in file1;
+${TESTDIR}/cvsroot/first-dir/file1,v  <--  file1
+initial revision: 1\.1
+done
+RCS file: ${TESTDIR}/cvsroot/first-dir/subdir/file2,v
+done
+Checking in subdir/file2;
+${TESTDIR}/cvsroot/first-dir/subdir/file2,v  <--  file2
+initial revision: 1\.1
+done"
+
+	  cd ..
+
+	  dotest modules4-7 "${testcvs} -q update -d CVSROOT" \
+"U CVSROOT${DOTSTAR}"
+	  cd CVSROOT
+	  cat >modules <<EOF
+all -a first-dir
+some -a !first-dir/subdir first-dir
+EOF
+	  dotest modules4-8 "${testcvs} -q ci -m add-modules" \
+"Checking in modules;
+${TESTDIR}/cvsroot/CVSROOT/modules,v  <--  modules
+new revision: 1\.[0-9]*; previous revision: 1\.[0-9]*
+done
+${PROG} [a-z]*: Rebuilding administrative file database"
+	  cd ..
+
+	  cd ..
+	  mkdir 2; cd 2
+
+	  dotest modules4-9 "${testcvs} -q co all" \
+"U first-dir/file1
+U first-dir/subdir/file2"
+	  rm -r first-dir
+
+	  dotest modules4-10 "${testcvs} -q co some" "U first-dir/file1"
+	  dotest_fail modules4-11 "test -d first-dir/subdir" ''
+	  rm -r first-dir
+
+	  cd ..
+	  rm -r 2
+
+	  dotest modules4-12 "${testcvs} rtag tag some" \
+"${PROG} [a-z]*: Tagging first-dir
+${PROG} [a-z]*: Ignoring first-dir/subdir"
+
+	  cd 1/first-dir/subdir
+	  dotest modules4-13 "${testcvs} log file2" "
+RCS file: ${TESTDIR}/cvsroot/first-dir/subdir/file2,v
+Working file: file2
+head: 1\.1
+branch:
+locks: strict
+access list:
+symbolic names:
+keyword substitution: kv
+total revisions: 1;	selected revisions: 1
+description:
+----------------------------
+revision 1\.1
+date: [0-9/]* [0-9:]*;  author: ${username};  state: Exp;
+add-it
+============================================================================="
+
+	  cd ../../..
+	  rm -r 1
+
+	  rm -rf ${CVSROOT_DIRNAME}/first-dir
 	  ;;
 
 	mflag)
@@ -10214,28 +10315,44 @@ done"
 	  cd first-dir
 
 	  echo trunk-1 >file1
-	  dotest multibranch2-3 "${testcvs} add file1" \
+	  echo trunk-1 >file2
+	  dotest multibranch2-3 "${testcvs} add file1 file2" \
 "${PROG} [a-z]*: scheduling file .file1. for addition
-${PROG} [a-z]*: use .${PROG} commit. to add this file permanently"
+${PROG} [a-z]*: scheduling file .file2. for addition
+${PROG} [a-z]*: use .${PROG} commit. to add these files permanently"
 	  dotest multibranch2-4 "${testcvs} -q ci -m add" \
 "RCS file: ${TESTDIR}/cvsroot/first-dir/file1,v
 done
 Checking in file1;
 ${TESTDIR}/cvsroot/first-dir/file1,v  <--  file1
 initial revision: 1\.1
+done
+RCS file: ${TESTDIR}/cvsroot/first-dir/file2,v
+done
+Checking in file2;
+${TESTDIR}/cvsroot/first-dir/file2,v  <--  file2
+initial revision: 1\.1
 done"
-	  dotest multibranch2-5 "${testcvs} -q tag -b A" "T file1"
-	  dotest multibranch2-6 "${testcvs} -q tag -b B" "T file1"
+	  dotest multibranch2-5 "${testcvs} -q tag -b A" "T file1
+T file2"
+	  dotest multibranch2-6 "${testcvs} -q tag -b B" "T file1
+T file2"
 
 	  dotest multibranch2-7 "${testcvs} -q update -r B" ''
 	  echo branch-B >file1
+	  echo branch-B >file2
 	  dotest multibranch2-8 "${testcvs} -q ci -m modify-on-B" \
 "Checking in file1;
 ${TESTDIR}/cvsroot/first-dir/file1,v  <--  file1
 new revision: 1\.1\.4\.1; previous revision: 1\.1
+done
+Checking in file2;
+${TESTDIR}/cvsroot/first-dir/file2,v  <--  file2
+new revision: 1\.1\.4\.1; previous revision: 1\.1
 done"
 
-	  dotest multibranch2-9 "${testcvs} -q update -r A" '[UP] file1'
+	  dotest multibranch2-9 "${testcvs} -q update -r A" '[UP] file1
+[UP] file2'
 	  echo branch-A >file1
 	  # When using cvs-1.9.20, this commit gets a failed assertion in rcs.c.
 	  dotest multibranch2-10 "${testcvs} -q ci -m modify-on-A" \
@@ -10244,7 +10361,7 @@ ${TESTDIR}/cvsroot/first-dir/file1,v  <--  file1
 new revision: 1\.1\.2\.1; previous revision: 1\.1
 done"
 
-	  dotest multibranch2-11 "${testcvs} -q log" \
+	  dotest multibranch2-11 "${testcvs} -q log file1" \
 "
 RCS file: ${TESTDIR}/cvsroot/first-dir/file1,v
 Working file: file1
@@ -10274,7 +10391,7 @@ modify-on-A
 ============================================================================="
 
 	  # This one is more concise.
-	  dotest multibranch2-12 "${testcvs} -q log -r1.1" \
+	  dotest multibranch2-12 "${testcvs} -q log -r1.1 file1" \
 "
 RCS file: ${TESTDIR}/cvsroot/first-dir/file1,v
 Working file: file1
@@ -10295,6 +10412,23 @@ branches:  1\.1\.2;  1\.1\.4;
 add
 ============================================================================="
 
+	  # OK, try very much the same thing except we run update -j to
+	  # bring the changes from B to A.  Probably tests many of the
+	  # same code paths but might as well keep it separate, I guess.
+
+	  dotest multibranch2-13 "${testcvs} -q update -r B" "[UP] file1
+[UP] file2"
+	  dotest multibranch2-14 "${testcvs} -q update -r A -j B file2" \
+"[UP] file2
+RCS file: ${TESTDIR}/cvsroot/first-dir/file2,v
+retrieving revision 1.1
+retrieving revision 1.1.4.1
+Merging differences between 1.1 and 1.1.4.1 into file2"
+	  dotest multibranch2-15 "${testcvs} -q ci -m commit-on-A file2" \
+"Checking in file2;
+${TESTDIR}/cvsroot/first-dir/file2,v  <--  file2
+new revision: 1\.1\.2\.1; previous revision: 1\.1
+done"
 	  cd ../..
 	  rm -r 1
 	  rm -rf ${CVSROOT_DIRNAME}/first-dir
