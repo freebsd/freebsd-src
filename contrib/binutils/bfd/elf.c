@@ -4499,17 +4499,12 @@ _bfd_elf_slurp_version_tables (abfd)
       Elf_Internal_Shdr *hdr;
       Elf_External_Verdef *everdef;
       Elf_Internal_Verdef *iverdef;
+      Elf_Internal_Verdef *iverdefarr;
+      Elf_Internal_Verdef iverdefmem;
       unsigned int i;
+      unsigned int maxidx;
 
       hdr = &elf_tdata (abfd)->dynverdef_hdr;
-
-      elf_tdata (abfd)->verdef =
-	((Elf_Internal_Verdef *)
-	 bfd_zalloc (abfd, hdr->sh_info * sizeof (Elf_Internal_Verdef)));
-      if (elf_tdata (abfd)->verdef == NULL)
-	goto error_return;
-
-      elf_tdata (abfd)->cverdefs = hdr->sh_info;
 
       contents = (bfd_byte *) bfd_malloc (hdr->sh_size);
       if (contents == NULL)
@@ -4518,15 +4513,42 @@ _bfd_elf_slurp_version_tables (abfd)
 	  || bfd_read ((PTR) contents, 1, hdr->sh_size, abfd) != hdr->sh_size)
 	goto error_return;
 
+      /* We know the number of entries in the section but not the maximum
+	 index.  Therefore we have to run through all entries and find
+	 the maximum.  */
       everdef = (Elf_External_Verdef *) contents;
-      iverdef = elf_tdata (abfd)->verdef;
-      for (i = 0; i < hdr->sh_info; i++, iverdef++)
+      maxidx = 0;
+      for (i = 0; i < hdr->sh_info; ++i)
+	{
+	  _bfd_elf_swap_verdef_in (abfd, everdef, &iverdefmem);
+
+	  if ((iverdefmem.vd_ndx & VERSYM_VERSION) > maxidx)
+	    maxidx = iverdefmem.vd_ndx & VERSYM_VERSION;
+
+	  everdef = ((Elf_External_Verdef *)
+		     ((bfd_byte *) everdef + iverdefmem.vd_next));
+	}
+
+      elf_tdata (abfd)->verdef =
+	((Elf_Internal_Verdef *)
+	 bfd_zalloc (abfd, maxidx * sizeof (Elf_Internal_Verdef)));
+      if (elf_tdata (abfd)->verdef == NULL)
+	goto error_return;
+
+      elf_tdata (abfd)->cverdefs = maxidx;
+
+      everdef = (Elf_External_Verdef *) contents;
+      iverdefarr = elf_tdata (abfd)->verdef;
+      for (i = 0; i < hdr->sh_info; i++)
 	{
 	  Elf_External_Verdaux *everdaux;
 	  Elf_Internal_Verdaux *iverdaux;
 	  unsigned int j;
 
-	  _bfd_elf_swap_verdef_in (abfd, everdef, iverdef);
+	  _bfd_elf_swap_verdef_in (abfd, everdef, &iverdefmem);
+
+	  iverdef = &iverdefarr[(iverdefmem.vd_ndx & VERSYM_VERSION) - 1];
+	  memcpy (iverdef, &iverdefmem, sizeof (Elf_Internal_Verdef));
 
 	  iverdef->vd_bfd = abfd;
 
