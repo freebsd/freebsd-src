@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -75,6 +76,7 @@ int	 t_flag;	/*!   -t: workaround TCP bug */
 int	 U_flag;	/*    -U: do not use high ports */
 int	 v_level = 1;	/*    -v: verbosity level */
 int	 v_tty;		/*        stdout is a tty */
+pid_t	 pgrp;		/*        our process group */
 u_int	 w_secs;	/*    -w: retry delay */
 int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
@@ -123,10 +125,16 @@ static void
 stat_display(struct xferstat *xs, int force)
 {
 	struct timeval now;
+	int ctty_pgrp;
 
 	if (!v_tty || !v_level)
 		return;
 
+	/* check if we're the foreground process */
+	if (ioctl(STDERR_FILENO, TIOCGPGRP, &ctty_pgrp) == -1 ||
+	    (pid_t)ctty_pgrp != pgrp)
+		return;
+	
 	gettimeofday(&now, NULL);
 	if (!force && now.tv_sec <= xs->last.tv_sec)
 		return;
@@ -827,6 +835,9 @@ main(int argc, char *argv[])
 
 	/* check if output is to a tty (for progress report) */
 	v_tty = isatty(STDERR_FILENO);
+	if (v_tty)
+		pgrp = getpgrp();
+	
 	r = 0;
 	
 	/* authentication */
