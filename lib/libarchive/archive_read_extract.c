@@ -87,26 +87,31 @@ static int	set_acl(struct archive *, struct archive_entry *,
 static int	set_acls(struct archive *, struct archive_entry *);
 static int	set_extended_perm(struct archive *, struct archive_entry *,
 		    int flags);
-static int	set_fflags(struct archive *, struct archive_entry *);
+static int	set_fflags(struct archive *, const char *name, mode_t mode,
+		    unsigned long fflags_set, unsigned long fflags_clear);
 static int	set_ownership(struct archive *, struct archive_entry *, int);
 static int	set_perm(struct archive *, struct archive_entry *, int mode,
 		    int flags);
 static int	set_time(struct archive *, struct archive_entry *, int);
-static struct archive_extract_dir_entry *
-		sort_dir_list(struct archive_extract_dir_entry *p);
+static struct archive_extract_fixup *
+		sort_dir_list(struct archive_extract_fixup *p);
 
 
-struct archive_extract_dir_entry {
-	struct archive_extract_dir_entry	*next;
+struct archive_extract_fixup {
+	struct archive_extract_fixup	*next;
 	mode_t		 mode;
 	int64_t		 mtime;
 	int64_t		 atime;
 	unsigned long	 mtime_nanos;
 	unsigned long	 atime_nanos;
-	/* Note: ctime cannot be restored, so don't bother */
+	unsigned long	 fflags_set;
+	int		 fixup; /* bitmask of what needs fixing */
 	char		*name;
 };
 
+#define	FIXUP_MODE	1
+#define	FIXUP_TIMES	2
+#define	FIXUP_FFLAGS	4
 
 /*
  * Extract this entry to disk.
@@ -119,7 +124,7 @@ int
 archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 {
 	mode_t writable_mode;
-	struct archive_extract_dir_entry *le;
+	struct archive_extract_fixup *le;
 	const struct stat *st;
 	int ret;
 	int restore_pwd;
@@ -140,18 +145,27 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		 */
 		if (st->st_mode != writable_mode ||
 		    flags & ARCHIVE_EXTRACT_TIME) {
-			le = malloc(sizeof(struct archive_extract_dir_entry));
-			le->next = a->archive_extract_dir_list;
-			a->archive_extract_dir_list = le;
-			le->mode = st->st_mode;
-			le->mtime = st->st_mtime;
-			le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(st);
-			le->atime = st->st_atime;
-			le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(st);
+			le = malloc(sizeof(struct archive_extract_fixup));
+			le->fixup = 0;
+			le->next = a->archive_extract_fixup;
+			a->archive_extract_fixup = le;
 			le->name = strdup(archive_entry_pathname(entry));
 			a->cleanup_archive_extract = archive_extract_cleanup;
-			/* Make sure I can write to this directory. */
-			archive_entry_set_mode(entry, writable_mode);
+
+			if (st->st_mode != writable_mode) {
+				le->mode = st->st_mode;
+				le->fixup |= FIXUP_MODE;
+				/* Make sure I can write to this directory. */
+				archive_entry_set_mode(entry, writable_mode);
+			}
+			if (flags & ARCHIVE_EXTRACT_TIME) {
+				le->mtime = st->st_mtime;
+				le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(st);
+				le->atime = st->st_atime;
+				le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(st);
+				le->fixup |= FIXUP_TIMES;
+			}
+
 		}
 	}
 
@@ -221,40 +235,45 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 static
 void archive_extract_cleanup(struct archive *a)
 {
-	struct archive_extract_dir_entry *next, *p;
+	struct archive_extract_fixup *next, *p;
 
 	/* Sort dir list so directories are fixed up in depth-first order. */
-	p = sort_dir_list(a->archive_extract_dir_list);
+	p = sort_dir_list(a->archive_extract_fixup);
 
 	while (p != NULL) {
-		struct timeval times[2];
+		if (p->fixup & FIXUP_TIMES) {
+			struct timeval times[2];
+			times[1].tv_sec = p->mtime;
+			times[1].tv_usec = p->mtime_nanos / 1000;
+			times[0].tv_sec = p->atime;
+			times[0].tv_usec = p->atime_nanos / 1000;
+			utimes(p->name, times);
+		}
+		if (p->fixup & FIXUP_MODE)
+			chmod(p->name, p->mode);
 
-		times[1].tv_sec = p->mtime;
-		times[1].tv_usec = p->mtime_nanos / 1000;
-		times[0].tv_sec = p->atime;
-		times[0].tv_usec = p->atime_nanos / 1000;
-
-		chmod(p->name, p->mode);
-		utimes(p->name, times);
+		if (p->fixup & FIXUP_FFLAGS)
+			set_fflags(a, p->name, p->mode, p->fflags_set, 0);
 
 		next = p->next;
 		free(p->name);
 		free(p);
 		p = next;
 	}
-	a->archive_extract_dir_list = NULL;
+	a->archive_extract_fixup = NULL;
 }
 
 /*
- * Simple O(n log n) merge sort to order the directories prior to fix-up.
+ * Simple O(n log n) merge sort to order the fixup list.  In
+ * particular, we want to restore dir timestamps depth-first.
  */
-static struct archive_extract_dir_entry *
-sort_dir_list(struct archive_extract_dir_entry *p)
+static struct archive_extract_fixup *
+sort_dir_list(struct archive_extract_fixup *p)
 {
-	struct archive_extract_dir_entry *a, *b, *t;
+	struct archive_extract_fixup *a, *b, *t;
 
 	if (p == NULL)
-		return NULL;
+		return (NULL);
 	/* A one-item list is already sorted. */
 	if (p->next == NULL)
 		return (p);
@@ -318,8 +337,7 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
 
 	r = ARCHIVE_OK;
 	fd = archive_read_extract_regular_open(a,
-	    archive_entry_pathname(entry), archive_entry_stat(entry)->st_mode,
-	    flags);
+	    archive_entry_pathname(entry), archive_entry_mode(entry), flags);
 	if (fd < 0) {
 		archive_set_error(a, errno, "Can't open");
 		return (ARCHIVE_WARN);
@@ -332,7 +350,7 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
 	}
 	set_ownership(a, entry, flags);
 	set_time(a, entry, flags);
-	/* set_perm(a, entry, mode, flags); */ /* Handled implicitly by open.*/
+	set_perm(a, entry, archive_entry_mode(entry), flags);
 	set_extended_perm(a, entry, flags);
 	close(fd);
 	return (r);
@@ -423,61 +441,51 @@ static int
 archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
     int flags)
 {
+	struct stat st;
+
 	/* Don't try to create '.' */
 	if (name[0] == '.' && name[1] == 0)
 		return (ARCHIVE_OK);
 	if (mkdir(name, mode) == 0)
 		return (ARCHIVE_OK);
-	if (errno == ENOENT) {	/* Missing parent directory. */
+
+	/*
+	 * Do "unlink first" after.  The preceding syscall will always
+	 * fail if something already exists, so we save a little time
+	 * in the common case by not trying to unlink until we know
+	 * something is there.
+	 */
+	if ((flags & ARCHIVE_EXTRACT_UNLINK))
+		unlink(name);
+
+	/*
+	 * Note stat() and not lstat() here.  This is deliberate, and
+	 * yes, it does permit trojan archives.  Clients who don't
+	 * want this should specify ARCHIVE_EXTRACT_UNLINK so that
+	 * existing symlinks will be removed.
+	 */
+	if (stat(name, &st) == 0) {
+		/* Already exists! */
+		if (S_ISDIR(st.st_mode))
+			return (ARCHIVE_OK);
+		if ((flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
+			archive_set_error(a, EEXIST, "Can't create directory");
+			return (ARCHIVE_WARN);
+		}
+		/* Not a dir: remove it and create a directory. */
+		if (unlink(name) == 0 &&
+		    mkdir(name, mode) == 0)
+			return (ARCHIVE_OK);
+	} else if (errno == ENOENT) {
+		/* Doesn't exist: missing parent dir? */
 		mkdirpath(a, name);
 		if (mkdir(name, mode) == 0)
 			return (ARCHIVE_OK);
-	}
-
-	if (errno != EEXIST)
-		return (ARCHIVE_WARN);
-	if ((flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
-		archive_set_error(a, EEXIST, "Can't create directory");
+	} else {
+		/* Stat failed? */
+		archive_set_error(a, errno, "Can't test directory");
 		return (ARCHIVE_WARN);
 	}
-
-	/* Could be a file; try unlinking. */
-	if (unlink(name) == 0 &&
-	    mkdir(name, mode) == 0)
-		return (ARCHIVE_OK);
-
-	/*
-	 * XXX TODO: If we get here, just stat() the file on disk and
-	 * figure out what's really going on, rather than depending on
-	 * such platform vagaries as the precise return value from
-	 * unlink().  That would make the following a lot more
-	 * straightforward. XXX
-	 */
-
-	/* Unlink failed. It's okay if it failed because it's already a dir. */
-	/*
-	 * BSD returns EPERM for unlink on an dir,
-	 * Linux returns EISDIR
-	 */
-	if (errno != EPERM && errno != EISDIR) {
-		archive_set_error(a, errno, "Couldn't create dir");
-		return (ARCHIVE_WARN);
-	}
-
-	/* Try removing the directory and recreating it from scratch. */
-	if (rmdir(name)) {
-		/* Failure to remove a non-empty directory is not a problem. */
-		if (errno == ENOTEMPTY)
-			return (ARCHIVE_OK);
-		/* Any other failure is a problem. */
-		archive_set_error(a, errno,
-		    "Error attempting to remove existing directory");
-		return (ARCHIVE_WARN);
-	}
-
-	/* We successfully removed the directory; now recreate it. */
-	if (mkdir(name, mode) == 0)
-		return (ARCHIVE_OK);
 
 	archive_set_error(a, errno, "Failed to create dir");
 	return (ARCHIVE_WARN);
@@ -848,38 +856,92 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 static int
 set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 {
+	struct archive_extract_fixup *le;
+	unsigned long	 set, clear;
 	int		 ret, ret2;
+	int		 critical_flags;
+
+	/*
+	 * Make 'critical_flags' hold all file flags that can't be
+	 * immediately restored.  For example, on BSD systems,
+	 * SF_IMMUTABLE prevents hardlinks from being created, so
+	 * should not be set until after any hardlinks are created.  To
+	 * preserve some semblance of portability, this uses #ifdef
+	 * extensively.  Ugly, but it works.
+	 *
+	 * Yes, Virginia, this does create a barn-door-sized security
+	 * race.  If you see any way to avoid it, please let me know.
+	 * People restoring critical file systems should be wary of
+	 * other programs that might try to muck with files as they're
+	 * being restored.
+	 */
+	/* Hopefully, the compiler will optimize this mess into a constant. */
+	critical_flags = 0;
+#ifdef SF_IMMUTABLE
+	critical_flags |= SF_IMMUTABLE;
+#endif
+#ifdef UF_IMMUTABLE
+	critical_flags |= UF_IMMUTABLE;
+#endif
+#ifdef SF_APPEND
+	critical_flags |= SF_APPEND;
+#endif
+#ifdef UF_APPEND
+	critical_flags |= UF_APPEND;
+#endif
+#ifdef EXT2_APPEND_FL
+	critical_flags |= EXT2_APPEND_FL;
+#endif
+#ifdef EXT2_IMMUTABLE_FL
+	critical_flags |= EXT2_IMMUTABLE_FL;
+#endif
 
 	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
 		return (ARCHIVE_OK);
 
-	ret = set_fflags(a, entry);
+	archive_entry_fflags(entry, &set, &clear);
+
+	/*
+	 * The first test encourages the compiler to eliminate all of
+	 * this if it's not necessary.
+	 */
+	if ((critical_flags != 0)  &&  (set & critical_flags)) {
+		le = malloc(sizeof(struct archive_extract_fixup));
+		le->fixup = FIXUP_FFLAGS;
+		le->next = a->archive_extract_fixup;
+		a->archive_extract_fixup = le;
+		le->name = strdup(archive_entry_pathname(entry));
+		a->cleanup_archive_extract = archive_extract_cleanup;
+		le->mode = archive_entry_mode(entry);
+		le->fflags_set = set;
+		ret = ARCHIVE_OK;
+	} else
+		ret = set_fflags(a, archive_entry_pathname(entry),
+		    archive_entry_mode(entry), set, clear);
+
 	ret2 = set_acls(a, entry);
 
 	return (err_combine(ret,ret2));
 }
 
 static int
-set_fflags(struct archive *a, struct archive_entry *entry)
+set_fflags(struct archive *a, const char *name, mode_t mode,
+    unsigned long set, unsigned long clear)
 {
-	const char	*name;
 	int		 ret;
-	unsigned long	 set, clear;
 	struct stat	 st;
 #ifdef LINUX
-	struct stat	 *stp;
 	int		 fd;
 	int		 err;
 	unsigned long newflags, oldflags;
 #endif
 
-	name = archive_entry_pathname(entry);
 	ret = ARCHIVE_OK;
-	archive_entry_fflags(entry, &set, &clear);
 	if (set == 0  && clear == 0)
 		return (ret);
 
 #ifdef HAVE_CHFLAGS
+	(void)mode; /* UNUSED */
 	/*
 	 * XXX Is the stat here really necessary?  Or can I just use
 	 * the 'set' flags directly?  In particular, I'm not sure
@@ -908,8 +970,7 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 	 * XXX As above, this would be way simpler if we didn't have
 	 * to read the current flags from disk. XXX
 	 */
-	stp = archive_entry_stat(entry);
-	if ((S_ISREG(stp->st_mode) || S_ISDIR(stp->st_mode)) &&
+	if ((S_ISREG(mode) || S_ISDIR(mode)) &&
 	    ((fd = open(name, O_RDONLY|O_NONBLOCK)) >= 0)) {
 		err = 1;
 		if (fd >= 0 && (ioctl(fd, EXT2_IOC_GETFLAGS, &oldflags) >= 0)) {
