@@ -70,7 +70,7 @@ set_termcap()
 		if (access("/etc/termcap.small",R_OK)) {
 			no_termcap = 1;
 		} else if (setenv("TERMCAP", "/etc/termcap.small", 1) < 0)
-			return -1;
+			no_termcap = 1;
 
 		if (ioctl(STDERR_FILENO, GIO_COLOR, &color_display) < 0) {
 			char            buf[64];

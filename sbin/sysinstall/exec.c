@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.2 1994/10/21 05:36:42 phk Exp $
+ * $Id: exec.c,v 1.4 1994/10/26 05:40:59 phk Exp $
  *
  */
 
@@ -52,14 +52,17 @@ exec(int magic, char *cmd, char *args, ...)
 	if ((pid = fork()) == 0) {
 		switch (magic) {
 		case 0:
-			close(0); open("/dev/null",O_RDONLY);
-			close(1); open("/dev/null",O_WRONLY);
-			close(2); open("/dev/null",O_WRONLY);
+			close(0); dup(debug_fd);
+			close(1); dup(debug_fd);
+			close(2); dup(debug_fd);
+			close(debug_fd);
 			break;
 		case 1:
-			close(2); open("/dev/null",O_WRONLY);
+			close(2); dup(debug_fd);
+			close(debug_fd);
 			break;
 		case 2:
+			close(debug_fd);
 		default:
 			break;
 		}
