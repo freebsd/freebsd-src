@@ -47,9 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
+#include <machine/intr_machdep.h>
 #include <machine/segments.h>
-
-#include <i386/isa/intr_machdep.h>
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
@@ -222,6 +221,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	ret_addr = 0;
 	if (acpi_savecpu()) {
 		/* Execute Sleep */
+		intr_suspend();
+
 		p_gdt = (struct region_descriptor *)
 				(sc->acpi_wakeaddr + physical_gdt);
 		p_gdt->rd_limit = r_gdt.rd_limit;
@@ -271,7 +272,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #if 0
 		initializecpu();
 #endif
-		icu_reinit();
+		intr_resume();
 
 		if (acpi_get_verbose(sc)) {
 			acpi_savecpu();
