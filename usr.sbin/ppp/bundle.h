@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.21 1998/03/25 18:38:40 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.22 1998/04/03 19:21:07 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -54,6 +54,10 @@ struct bundle {
 
   struct {
     int idle_timeout;         /* NCP Idle timeout value */
+    struct {
+      char name[50];          /* PAP/CHAP system name */
+      char key[50];           /* PAP/CHAP key */
+    } auth;
   } cfg;
 
   struct {

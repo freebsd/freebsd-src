@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.18 1998/03/16 22:53:34 brian Exp $
+ * $Id: chap.c,v 1.28.2.19 1998/04/03 19:21:10 brian Exp $
  *
  *	TODO:
  */
@@ -110,8 +110,8 @@ SendChapChallenge(struct authinfo *auth, int chapid, struct physical *physical)
   *cp++ = chap->challenge_len = random() % 32 + 16;
   for (i = 0; i < chap->challenge_len; i++)
     *cp++ = random() & 0xff;
-  len = strlen(VarAuthName);
-  memcpy(cp, VarAuthName, len);
+  len = strlen(physical->dl->bundle->cfg.auth.name);
+  memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
   cp += len;
   ChapOutput(physical, CHAP_CHALLENGE, chapid, chap->challenge_data,
 	     cp - chap->challenge_data);
@@ -146,10 +146,10 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 
   switch (chp->code) {
   case CHAP_CHALLENGE:
-    keyp = VarAuthKey;
-    keylen = strlen(VarAuthKey);
-    name = VarAuthName;
-    namelen = strlen(VarAuthName);
+    keyp = bundle->cfg.auth.key;
+    keylen = strlen(bundle->cfg.auth.key);
+    name = bundle->cfg.auth.name;
+    namelen = strlen(bundle->cfg.auth.name);
 
 #ifdef HAVE_DES
     if (VarMSChap)

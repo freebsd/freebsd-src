@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.17 1998/04/03 19:24:23 brian Exp $
+ * $Id: vars.h,v 1.42.2.18 1998/04/03 19:24:36 brian Exp $
  *
  *	TODO:
  */
@@ -65,8 +65,6 @@ struct pppvars {
   u_char lauth;			/* Local Authorized status */
 
   /* The rest are just default initialized in vars.c */
-  char auth_key[50];		/* PAP/CHAP key */
-  char auth_name[50];		/* PAP/CHAP system name */
   char local_auth_key[50];	/* Local auth passwd */
   int have_local_auth_key;	/* Local auth passwd specified ? */
   int use_MSChap;		/* Use MSCHAP encryption */
@@ -76,8 +74,6 @@ struct pppvars {
 
 #define	VarLocalAuth		pppVars.lauth
 
-#define	VarAuthKey		pppVars.auth_key
-#define	VarAuthName		pppVars.auth_name
 #define	VarLocalAuthKey		pppVars.local_auth_key
 #define	VarHaveLocalAuthKey	pppVars.have_local_auth_key
 #define	VarMSChap		pppVars.use_MSChap

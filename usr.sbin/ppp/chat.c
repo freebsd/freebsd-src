@@ -23,11 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.17 1998/03/20 19:47:47 brian Exp $
+ *	$Id: chat.c,v 1.44.2.18 1998/04/03 19:21:11 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -62,6 +64,16 @@
 #include "physical.h"
 #include "chat.h"
 #include "prompt.h"
+#include "mp.h"
+#include "auth.h"
+#include "pap.h"
+#include "chap.h"
+#include "slcompress.h"
+#include "iplist.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "datalink.h"
+#include "bundle.h"
 
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
 #define	issep(c)	((c) == '\t' || (c) == ' ')
@@ -621,7 +633,7 @@ MakeArgs(char *script, char **pvect, int maxargs)
  *  \t  Tab character
  *  \U  Auth User
  */
-char *
+static char *
 ExpandString(struct chat *c, const char *str, char *result, int reslen,
                   int sendmode)
 {
@@ -662,7 +674,7 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	reslen--;
 	break;
       case 'P':
-	strncpy(result, VarAuthKey, reslen);
+	strncpy(result, c->physical->dl->bundle->cfg.auth.key, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);
 	break;
@@ -672,7 +684,7 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
         result += strlen(result);
 	break;
       case 'U':
-	strncpy(result, VarAuthName, reslen);
+	strncpy(result, c->physical->dl->bundle->cfg.auth.name, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);
 	break;

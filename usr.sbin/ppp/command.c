@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.46 1998/04/03 19:24:15 brian Exp $
+ * $Id: command.c,v 1.131.2.47 1998/04/03 19:24:29 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -456,7 +456,7 @@ ShowStopped(struct cmdargs const *arg)
 static int
 ShowAuthKey(struct cmdargs const *arg)
 {
-  prompt_Printf(&prompt, "AuthName = %s\n", VarAuthName);
+  prompt_Printf(&prompt, "AuthName = %s\n", arg->bundle->cfg.auth.name);
   prompt_Printf(&prompt, "AuthKey  = %s\n", HIDDEN);
 #ifdef HAVE_DES
   prompt_Printf(&prompt, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
@@ -1208,12 +1208,24 @@ SetVariable(struct cmdargs const *arg)
 
   switch (param) {
   case VAR_AUTHKEY:
-    strncpy(VarAuthKey, argp, sizeof VarAuthKey - 1);
-    VarAuthKey[sizeof VarAuthKey - 1] = '\0';
+    if (bundle_Phase(arg->bundle) == PHASE_DEAD) {
+      strncpy(arg->bundle->cfg.auth.key, argp,
+              sizeof arg->bundle->cfg.auth.key - 1);
+      arg->bundle->cfg.auth.key[sizeof arg->bundle->cfg.auth.key - 1] = '\0';
+    } else {
+      err = "set authkey: Only available at phase DEAD\n";
+      LogPrintf(LogWARN, err);
+    }
     break;
   case VAR_AUTHNAME:
-    strncpy(VarAuthName, argp, sizeof VarAuthName - 1);
-    VarAuthName[sizeof VarAuthName - 1] = '\0';
+    if (bundle_Phase(arg->bundle) == PHASE_DEAD) {
+      strncpy(arg->bundle->cfg.auth.name, argp,
+              sizeof arg->bundle->cfg.auth.name - 1);
+      arg->bundle->cfg.auth.name[sizeof arg->bundle->cfg.auth.name - 1] = '\0';
+    } else {
+      err = "set authname: Only available at phase DEAD\n";
+      LogPrintf(LogWARN, err);
+    }
     break;
   case VAR_DIAL:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {

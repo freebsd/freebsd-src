@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.19 1998/03/16 22:54:16 brian Exp $
+ * $Id: pap.c,v 1.20.2.20 1998/04/03 19:21:47 brian Exp $
  *
  *	TODO:
  */
@@ -79,15 +79,12 @@ SendPapChallenge(struct authinfo *auth, int papid, struct physical *physical)
   u_char *cp;
   int namelen, keylen, plen;
 
-  namelen = strlen(VarAuthName);
-  keylen = strlen(VarAuthKey);
+  namelen = strlen(physical->dl->bundle->cfg.auth.name);
+  keylen = strlen(physical->dl->bundle->cfg.auth.key);
   plen = namelen + keylen + 2;
   LogPrintf(LogDEBUG, "SendPapChallenge: namelen = %d, keylen = %d\n",
 	    namelen, keylen);
-  if (LogIsKept(LogDEBUG))
-    LogPrintf(LogPHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
-  else
-    LogPrintf(LogPHASE, "PAP: %s\n", VarAuthName);
+  LogPrintf(LogPHASE, "PAP: %s\n", physical->dl->bundle->cfg.auth.name);
   lh.code = PAP_REQUEST;
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
@@ -95,10 +92,11 @@ SendPapChallenge(struct authinfo *auth, int papid, struct physical *physical)
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
-  memcpy(cp, VarAuthName, namelen);
+  memcpy(cp, physical->dl->bundle->cfg.auth.name, namelen);
   cp += namelen;
   *cp++ = keylen;
-  memcpy(cp, VarAuthKey, keylen);
+  memcpy(cp, physical->dl->bundle->cfg.auth.key, keylen);
+  
 
   HdlcOutput(physical2link(physical), PRI_LINK, PROTO_PAP, bp);
 }
