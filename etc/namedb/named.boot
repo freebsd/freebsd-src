@@ -1,4 +1,4 @@
-;	$Id$
+;	$Id: named.boot,v 1.2 1993/11/07 00:58:34 wollman Exp $
 ;	From: @(#)named.boot	5.1 (Berkeley) 6/30/90
 
 ; boot file for secondary name server
@@ -11,7 +11,7 @@ directory	/etc/namedb
 
 ; type    domain		source host/file		backup file
 
-cache     .							root.cache
+cache     .							named.root
 primary   0.0.127.IN-ADDR.ARPA	localhost.rev
 
 ; example secondary server config:
