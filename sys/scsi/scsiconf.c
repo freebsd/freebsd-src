@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.33 1995/08/16 16:13:53 bde Exp $
+ *      $Id: scsiconf.c,v 1.34 1995/08/23 23:03:33 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -36,6 +36,7 @@
 #include "st.h"
 #include "cd.h"
 #include "ch.h"
+#include "worm.h"
 
 #include "su.h"
 #include "sctarg.h"
@@ -278,13 +279,23 @@ static struct scsidevs knowndevs[] =
 		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
 		"cd", SC_ONE_LU
 	},
-#endif
+#endif /* !UKTEST */
 #endif	/* NCD */
+#if NWORM > 0
+	{
+		T_WORM, T_REMOV, "YAMAHA", "CDR100", "*",
+		"worm", SC_ONE_LU
+	},
+	{
+		T_WORM, T_REMOV, "*", "*", "*",
+		"worm", SC_ONE_LU
+	},
+#endif /* NWORM */
 	{
 		0
 	}
 };
-#else
+#else /* !NEW_SCSICONF */
 {
 #if NSD > 0
 	{
@@ -326,8 +337,14 @@ static struct scsidevs knowndevs[] =
 		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535"
 		    ,"any", "cd", SC_ONE_LU
 	},
-#endif
+#endif /* !UKTEST */
 #endif	/* NCD */
+#if NWORM > 0
+	{
+		T_WORM, T_REMOV, "YAMAHA", "CDR100"
+		    ,"any", "worm", SC_ONE_LU
+	},
+#endif /* NWORM */
 	{
 		0
 	}
