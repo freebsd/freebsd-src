@@ -48,11 +48,18 @@ Turns on verbose output.
 .B \-p
 Show the installation prefix for each package.
 .TP
+.B \-q
+Be "quiet" in emitting report headers and such, just dump the
+raw info (basically, assume a non-human reading).
+.TP
 .B \-c
 Show the comment (one liner) field for each package.
 .TP
 .B \-d
 Show the long description field for each package.
+.TP
+.B \-f
+Show the packing list instructions for each package.
 .TP
 .B \-i
 Show the install script (if any) for each package.
@@ -63,6 +70,11 @@ Show the de-install script (if any) for each package.
 .B \-r
 Show the requirements script (if any) for each package.
 .TP
+.B \-L
+Show the files within each package.  This is different from just
+viewing the packing list, since full pathnames for everything
+are generated.
+.TP
 .BI "\-e\ " pkg-name
 If the package identified by
 .I pkg-name
@@ -71,13 +83,16 @@ allows you to easily test for the presence of another (perhaps
 prerequisite) package from a script.
 .TP
 .BI "\-l\ " str
-Prefix each catagory of information shown with
+Prefix each information catagory header (see
+.I \-q)
+shown with
 .I str.
 This is primarily of use to front-end programs who want to request a
 lot of different information fields at once for a package, but don't
 necessary want the output intermingled in such a way that they can't
 organize it.  This lets you add a special token to the start of
 each field.
+.TP
 .BI "\-t\ " template
 Use
 .I template
