@@ -121,8 +121,8 @@ lf_advlock(ap, head, size)
 		break;
 
 	case SEEK_END:
-		if ((fl->l_start > 0 && size > OFF_MAX - fl->l_start) ||
-		    (fl->l_start < 0 && size + fl->l_start > OFF_MAX))
+		if (size > OFF_MAX ||
+		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start))
 			return (EOVERFLOW);
 		start = size + fl->l_start;
 		break;
