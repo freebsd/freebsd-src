@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 int
 mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
@@ -45,7 +46,7 @@ mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
 		mbs = initial;
 		return (0);
 	}
-	rval = mbrtowc(pwc, s, n, &mbs);
+	rval = __mbrtowc(pwc, s, n, &mbs);
 	if (rval == (size_t)-1 || rval == (size_t)-2)
 		return (-1);
 	if (rval > INT_MAX) {
