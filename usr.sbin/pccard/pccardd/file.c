@@ -292,7 +292,7 @@ readfile(char *name)
 			last_card->next = genericp;
 			last_card = tail_gp;
 		}
-generic_done:
+generic_done:;
 	}
 
 	/* save the initial state of resource pool */
@@ -573,6 +573,7 @@ new_driver(char *name)
 	drivers = drvp;
 	drvp->name = newstr(name);
 	drvp->kernel = newstr(name);
+	drvp->unit = -1;
 	p = drvp->kernel;
 	while (*p++)
 		if (*p >= '0' && *p <= '9') {

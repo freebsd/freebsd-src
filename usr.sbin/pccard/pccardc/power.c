@@ -68,7 +68,7 @@ power_main(argc, argv)
 		}
 	}
 	if (!valid)
-		errx(1, "Usage: %s power slot newstat", argv[0]);
+		errx(1, "usage: %s power slot newstat", argv[0]);
 
 	sscanf(argv[2], "%d", &newstat);
 	sprintf(name, CARD_DEVICE, atoi(argv[1]));

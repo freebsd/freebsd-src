@@ -49,6 +49,7 @@ static const char rcsid[] =
 #ifdef RATOCLAN
 static int	rex5588 = 0;
 #endif
+int isdumpcisfile = 0;
 
 static int read_attr(int, char *, int);
 static int ck_linktarget(int, off_t, int);
@@ -56,6 +57,7 @@ static void cis_info(struct cis *, unsigned char *, int);
 static void device_desc(unsigned char *, int, struct dev_mem *);
 static void config_map(struct cis *, unsigned char *, int);
 static void cis_config(struct cis *, unsigned char *, int);
+static void cis_manuf_id(struct cis *, unsigned char *, int);
 static void cis_func_id(struct cis *, unsigned char *, int);
 static void cis_network_ext(struct cis *, unsigned char *, int);
 static struct tuple_list *read_one_tuplelist(int, int, off_t);
@@ -140,6 +142,9 @@ readcis(int fd)
 			case CIS_CONFIG:	/* 0x1B */
 				cis_config(cp, tp->data, tp->length);
 				break;
+			case CIS_MANUF_ID:	/* 0x20 */
+				cis_manuf_id(cp, tp->data, tp->length);
+				break;
 			case CIS_FUNC_ID:	/* 0x21 */
 				cis_func_id(cp, tp->data, tp->length);
 				break;
@@ -203,7 +208,8 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff) {
 		cp->manuf = strdup(p);
-		while (*p++ && --len > 0);
+		len -= strlen(p) + 1;
+		p += strlen(p) + 1;
 	}
 	if (cp->vers) {
 		free(cp->vers);
@@ -211,9 +217,10 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff) {
 		cp->vers = strdup(p);
-		while (*p++ && --len > 0);
+		len -= strlen(p) + 1;
+		p += strlen(p) + 1;
 	} else {
-		cp->vers = strdup("?");
+		cp->vers = strdup("[none]");
 	}
 	if (cp->add_info1) {
 		free(cp->add_info1);
@@ -221,7 +228,10 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff) {
 		cp->add_info1 = strdup(p);
-		while (*p++ && --len > 0);
+		len -= strlen(p) + 1;
+		p += strlen(p) + 1;
+	} else {
+		cp->add_info1 = strdup("[none]");
 	}
 	if (cp->add_info2) {
 		free(cp->add_info2);
@@ -229,8 +239,24 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff)
 		cp->add_info2 = strdup(p);
+	else
+		cp->add_info2 = strdup("[none]");
 }
 
+static void
+cis_manuf_id(struct cis *cp, unsigned char *p, int len)
+{
+	if (len >= 4) {
+		cp->manufacturer = tpl16(p);
+		cp->product = tpl16(p+2);
+		if (len == 5)
+			cp->prodext = *(p+4); /* For xe driver */
+	} else {
+		cp->manufacturer=0;
+		cp->product=0;
+		cp->prodext=0;
+	}
+}
 /*
  *	Fills in CIS function ID.
  */
@@ -666,7 +692,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 			hss = hss_check(tp->data);
 #endif	/* HSSYNTH */
 		}
-		if (tinfo == NULL || (tinfo->length != 255 && tinfo->length > length)) {
+		if (tinfo != NULL && (tinfo->length != 255 && tinfo->length > length)) {
 			printf("code %s ignored\n", tuple_name(code));
 			tp->code = CIS_NULL;
 		}
@@ -720,7 +746,9 @@ read_attr(int fd, char *bp, int len)
 {
 	char    blk[1024], *p = blk;
 	int     i, l;
-
+	
+	if (isdumpcisfile)
+		return (read(fd, bp, len));
 	if (len > sizeof(blk) / 2)
 		len = sizeof(blk) / 2;
 	l = i = read(fd, blk, len * 2);
@@ -747,7 +775,6 @@ get_tuple_info(unsigned char code)
 	for (tp = tuple_info; tp->name; tp++)
 		if (tp->code == code)
 			return (tp);
-	printf("Code %d not found\n", code);
 	return (0);
 }
 

@@ -347,12 +347,36 @@ escape:
 			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
+
+	/*
+	 * Copy CIS_MANUF_ID and CIS_FUNC_EXT from "struct cis"
+	 * to "struct slot" 
+	 */
 	if (sp->cis->lan_nid && sp->cis->lan_nid[0] == sizeof(sp->eaddr)) {
 		bcopy(sp->cis->lan_nid + 1, sp->eaddr, sizeof(sp->eaddr));
 		sp->flags |= EADDR_CONFIGED;
 	} else {
 		bzero(sp->eaddr, sizeof(sp->eaddr));
 	}
+	if (sp->cis->manufacturer && sp->cis->product) {
+		sp->manufacturer = sp->cis->manufacturer;
+		sp->product = sp->cis->product;
+		sp->prodext = sp->cis->prodext; /* For xe driver */
+	} else {
+		sp->manufacturer = 0;
+		sp->product = 0;
+		sp->prodext = 0;
+	}
+	if (sp->cis->manuf)
+		strlcpy(sp->manufstr, sp->cis->manuf, sizeof(sp->manufstr));
+	if (sp->cis->vers)
+		strlcpy(sp->versstr, sp->cis->vers, sizeof(sp->versstr));
+#if 0
+	if (sp->cis->add_info1)
+		strlcpy(sp->cis3str, sp->cis->add_info1, sizeof(sp->cis3str));
+	if (sp->cis->add_info2)
+		strlcpy(sp->cis4str, sp->cis->add_info2, sizeof(sp->cis4str));
+#endif
 
 	if (cp->ether) {
 		struct ether *e = 0;
@@ -562,7 +586,7 @@ assign_driver(struct slot *sp, struct card *cp)
 				break;
 			}
 			/*
-			 * Ask the kernel if we have an free irq.
+			 * Ask the kernel if we have a free irq.
 			 */
 			res.min = i;
 			res.max = i;
@@ -624,7 +648,7 @@ assign_card_index(struct slot *sp, struct cis * cis)
 					goto next;
 		}
 		return cp;	/* found */
-	next:
+	next:;
 	}
 	return cis->def_config;
 }
@@ -648,7 +672,8 @@ assign_io(struct slot *sp)
 		break;
 	case AUTO_INDEX:	/* auto */
 		cisconf = assign_card_index(sp, cis);
-		sp->config->index = cisconf->id;
+		if (cisconf)
+			sp->config->index = cisconf->id;
 		break;
 	default:		/* normal, use index value */
 		for (cisconf = cis->conf; cisconf; cisconf = cisconf->next)
@@ -958,15 +983,26 @@ setup_slot(struct slot *sp)
 		drv.iobase = sp->io.addr;
 	else
 		drv.iobase = 0;
-#ifdef DEV_DESC_HAS_SIZE
 	drv.iosize = sp->io.size;
-#endif
 	if (debug_level > 0) {
 		logmsg("Assign %s%d, io 0x%x-0x%x, mem 0x%lx, %d bytes, "
 		    "irq %d, flags %x\n", drv.name, drv.unit, drv.iobase, 
 		    drv.iobase + sp->io.size - 1, drv.mem, drv.memsize, 
 		    sp->irq, drv.flags);
 	}
+	/*
+	 * Copy CIS_MANUF_ID from "struct slot" to "struct dev_desc"
+	 * This means moving CIS_MANUF_ID to kernel driver area.
+	 */
+	drv.manufacturer = sp->manufacturer;
+	drv.product = sp->product;
+	drv.prodext = sp->prodext;
+	strlcpy(drv.manufstr, sp->manufstr, sizeof(drv.manufstr));
+	strlcpy(drv.versstr, sp->versstr, sizeof(drv.versstr));
+#if 0
+	strlcpy(drv.cis3str, sp->cis3str, sizeof(drv.cis3str));
+	strlcpy(drv.cis4str, sp->cis4str, sizeof(drv.cis4str));
+#endif
 	/*
 	 * If the driver fails to be connected to the device,
 	 * then it may mean that the driver did not recognise it.

@@ -35,13 +35,15 @@
 .Nm
 .Op Fl d
 .Op Fl v
+.Op Fl x
 .Op Fl z
 .Op Fl i Ar IRQ
 .Op Fl I
 .Op Fl f Ar configfile
 .Sh DESCRIPTION
-.Nm Pccardd
-is normally started at boot time, and manages the insertion
+The
+.Nm
+utility is normally started at boot time, and manages the insertion
 and removal of PC-CARD cards.
 .Pp
 When started,
@@ -52,8 +54,9 @@ which includes
 .Pa /etc/pccard.conf
 as the user configuration file)
 and scans the available PC-CARD slots for cards.
-.Nm Pccardd
-then waits for
+The
+.Nm
+utility then waits for
 .Em "card events" ,
 such as the insertion of a new card or the removal
 of a card.
@@ -65,8 +68,9 @@ actions are taken:
 The kernel driver detects the card insertion and applies
 power to the card.
 .It
-.Nm Pccardd
-reads the
+The
+.Nm
+utility reads the
 .Em CIS
 data from the attribute memory of the card, and uses
 the manufacturer name and card version to match
@@ -107,18 +111,11 @@ The PC-CARD slot resources are freed.
 Once a card/driver instance is configured, the resources
 bound to that instance are remembered, and if the card is removed
 and reinserted, the same driver is allocated.
-The primary reason
-is that once a driver is associated with a card, the
-driver's
-.Fn probe
-routine has been called, and this usually causes driver specific
-data areas to be initialized with the I/O ports or memory resources
-allocated to the card.
-Most drivers are not designed to be
-disassociated from the hardware and then reassociated with different
-parameters.
-This will change significantly when loadable kernel
-modules are supported.
+The reasons are mostly historical.
+.Pp
+SIGHUP causes
+.Nm
+to reload the configuration files.
 .Pp
 SIGHUP causes
 .Nm
@@ -134,6 +131,14 @@ display error messages.
 .It Fl v
 After reading the configuration file, print out a summary
 of it.
+.It Fl x
+Exits immediately after the cards have been probed and attached.
+This is primarily useful in embedded applications where it is
+desirable to use
+.Nm
+to start PC-CARD devices but prohibitive memory-wise to leave the
+.Nm
+process running.
 .It Fl z
 Delays running as a daemon until after the cards have been probed and attached.
 .It Fl I
@@ -171,10 +176,11 @@ process id of the currently running
 Developed by
 .An Andrew McRae Aq andrew@mega.com.au .
 .Sh BUGS
-.Nm Pccardd
-can set up card parameters, but cannot guarantee that
+The
+.Nm
+utility can set up card parameters, but cannot guarantee that
 particular drivers can work with the card.
 .Pp
 Removing cards may cause problems if system resources
 have been associated with the card, such as network
-mounted filesystems.
+mounted file systems.

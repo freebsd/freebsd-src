@@ -64,7 +64,7 @@ beep_main(argc, argv)
 		}
 	}
 	if (!valid)
-		errx(1, "Usage: %s beep newstat", argv[0]);
+		errx(1, "usage: %s beep newstat", argv[0]);
 
 	sscanf(argv[1], "%d", &newstat);
 	sprintf(name, CARD_DEVICE, 0);

@@ -39,16 +39,18 @@
 .Ar subcommand
 .Op Ar arg ...
 .Sh DESCRIPTION
+The
 .Nm
-controls PC-CARD slots and configures and displays information about PCMCIA cards.
-.Nm
-understands the following subcommands:
+utility controls PC-CARD slots and configures and displays information
+about PCMCIA cards.  It understands the following subcommands:
 .Pp
-.Bl -tag -width pccardmem -compact
+.Bl -tag -width dumpcisfile -compact
 .It Ic beep
 Set beep type
 .It Ic dumpcis
 Print card CIS(s)
+.It Ic dumpcisfile
+Print card CIS(s) from files
 .It Ic enabler
 Device driver enabler
 .It Ic help
@@ -56,7 +58,7 @@ Print command summary
 .It Ic pccardmem
 Allocate memory for pccard driver
 .It Ic power
-Power on/off slots
+Power on/off slots and leaves them disabled
 .It Ic rdattr
 Read attribute memory
 .It Ic rdmap
@@ -100,6 +102,15 @@ Displays
 specifies which slot to read.
 When no option is supplied, it displays
 the CIS of all of the available cards.
+.It
+.Ic dumpcisfile
+.Ar
+.Pp
+Displays CIS(s) in the same format as
+.Ic dumpcis ,
+but does so using
+one or more files
+as the input CIS data instead of physical PC-CARD cards.
 .It
 .Ic enabler Ar slot driver
 .Op Fl m Ar card addr size
@@ -154,8 +165,9 @@ Prints help for
 .Pp
 Specifies the host address using PC-CARD controller(PCIC)
 will use to map cards to.
-Because the PCIC needs a contiguous 16KB memory,
-you can only use the following four addresses:
+Because the PCIC needs a contiguous 16KB memory, and most machines
+have other ROMs or devices at other places in the ISA I/O memory
+address range, generally you can only use the following four addresses:
 .Pp
 .Bl -tag -width 0xd0000 -compact
 .It Ar 0xd0000
@@ -185,9 +197,15 @@ Turn off a power supply.
 If a card becomes unstable when it is removed at
 activate state,
 this can force it into inactive state first and remove it safely.
+The slot will remain disabled until you eject the card with the system
+running or reenable the card with another
+.Ic pccardc power
+power command.
+The slot will even remain disabled when you suspend and resume the
+computer.
 .It Li 1
 Turn on a power supply and set it into active state
-(similar to a card insertion).
+(the system treats the card as if it was just inserted).
 .El
 .Pp
 .It

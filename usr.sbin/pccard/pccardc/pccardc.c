@@ -32,12 +32,14 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef int (*main_t)(int, char **);
 
 #define DECL(foo) int foo(int, char**);
 DECL(beep_main);
 DECL(dumpcis_main);
+DECL(dumpcisfile_main);
 DECL(enabler_main);
 DECL(help_main);
 DECL(pccardmem_main);
@@ -55,6 +57,7 @@ struct {
 } subcommands[] = {
 	{ "beep", beep_main, "Beep type" },
 	{ "dumpcis", dumpcis_main, "Prints CIS for all cards" },
+	{ "dumpcisfile", dumpcisfile_main, "Prints CIS from a file" },
 	{ "enabler", enabler_main, "Device driver enabler" },
 	{ "help", help_main, "Prints command summary" },
 	{ "pccardmem", pccardmem_main, "Allocate memory for pccard driver" },

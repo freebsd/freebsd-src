@@ -118,6 +118,9 @@ struct cis {
 	unsigned char last_config;
 	unsigned char ccrs;
 	unsigned long reg_addr;
+	u_int manufacturer;
+	u_int product;
+	u_int prodext;
 	unsigned char func_id1, func_id2;
 	struct dev_mem attr_mem;
 	struct dev_mem common_mem;
@@ -141,3 +144,5 @@ struct cis *readcis(int);
 
 char   *tuple_name(unsigned char);
 u_int   parse_num(int, u_char *, u_char **, int);
+
+int isdumpcisfile;
