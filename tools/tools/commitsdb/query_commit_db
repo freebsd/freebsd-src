@@ -1,0 +1,61 @@
+#!/usr/bin/perl -w
+
+# $FreeBSD$
+
+# This script takes a filename and revision number as arguments
+# and spits out a list of other files and their revisions that share
+# the same log message.  This is done by referring to the database
+# previously written by running make_commit_db.
+
+use strict;
+use Digest::MD5 qw(md5_hex);
+
+my $dbname = "commitsdb";
+
+# Take the filename and revision number from the command line.
+my ($file, $revision) = (shift, shift);
+
+# Find the checksum of the named revision.
+my %possible_files;
+open DB, "< $dbname" or die "$!\n";
+my $cksum;
+while (<DB>) {
+	chomp;
+	my ($name, $rev, $hash) = split;
+	$name =~ s/^\.\///g;
+
+	$possible_files{$name} = 1 if $file !~ /\// && $name =~ /^.*\/$file/;
+
+	next unless $name eq $file and $rev eq $revision;
+	$cksum = $hash;
+}
+close DB;
+
+# Handle the fall-out if the file/revision wasn't matched.
+unless ($cksum) {
+	if (%possible_files) {
+		print "Couldn't find the file. Maybe you meant:\n";
+		foreach (sort keys %possible_files) {
+			print "\t$_\n";
+		}
+	}
+	die "Can't find $file rev $revision in database\n";
+}
+
+
+# Look for similar revisions.
+my @results;
+open DB, "< $dbname" or die "$!\n";
+while (<DB>) {
+	chomp;
+	my ($name, $rev, $hash) = split;
+
+	next unless $hash eq $cksum;
+
+	push @results, "$name $rev";
+}
+close DB;
+
+print map { "$_\n" } sort @results;
+
+#end
