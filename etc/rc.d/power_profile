@@ -71,9 +71,9 @@ esac
 
 # Set the various sysctls based on the profile's values.
 node="hw.acpi.cpu.cx_lowest"
-highest_value=0
+highest_value="C1"
 lowest_value="$(sysctl -n hw.acpi.cpu.cx_supported | \
-	awk '{ print split($0, a) - 1 }' - 2> /dev/null)"
+	awk '{ print "C" split($0, a) }' - 2> /dev/null)"
 eval value=\$${profile}_cx_lowest
 sysctl_set
 

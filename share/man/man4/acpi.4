@@ -366,19 +366,21 @@ The counters are reset when
 .Va hw.acpi.cpu.cx_lowest
 is modified.
 .It Va hw.acpi.cpu.cx_lowest
-Zero-based index of the lowest CPU idle state to use.
-A scheduling algorithm will select between 0...index for the state
-to use during the next sleep.
+Lowest Cx state to use for idling the CPU.
+A scheduling algorithm will select states between C1 and this setting
+as system load dictates.
 To enable ACPI CPU idling control,
 .Va machdep.cpu_idle_hlt
 must be set to 1.
 .It Va hw.acpi.cpu.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.
-Each state has a type, C1-3.
+Each state has a type (e.g., C2.)
 C1 is equivalent to the ia32 HLT instruction, C2 provides a deeper
 sleep with the same semantics, and C3 provides the deepest sleep
 but additionally requires bus mastering to be disabled.
+States greater than C3 provide even more power savings with the same
+semantics as the C3 state.
 Deeper sleeps provide more power savings but increased transition
 latency when an interrupt occurs.
 .El
