@@ -68,7 +68,7 @@ READ(ap)
 	daddr_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error;
+	int error, orig_resid;
 	u_short mode;
 
 	vp = ap->a_vp;
@@ -92,6 +92,7 @@ READ(ap)
 		return (EFBIG);
 #endif
 
+	orig_resid = uio->uio_resid;
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
@@ -147,7 +148,8 @@ READ(ap)
 	}
 	if (bp != NULL)
 		bqrelse(bp);
-	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+	if (orig_resid > 0 && (error == 0 || uio->uio_resid != orig_resid) &&
+	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
