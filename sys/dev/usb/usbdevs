@@ -325,6 +325,7 @@ vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
 vendor DLINK		0x2001	D-Link Corp
+vendor DAISY		0x3579	Daisy Technology
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett-Packard
 
@@ -490,6 +491,9 @@ product DLINK DSB650C		0x4000	10Mbps ethernet adapter
 product DLINK DSB650TX		0x4002	10/100 ethernet adapter
 product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
 product DLINK DSB650		0xABC1	10/100 ethernet adapter
+
+/* Daisy Technology products */
+product DAISY DMC		0x6901	PhotoClip Camera
 
 /* Dallas Semiconductor products */
 product DALLAS J6502		0x4201	J-6502 speakers

@@ -532,6 +532,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "10/100 ethernet adapter",
 	},
 	{
+	    USB_VENDOR_DAISY, USB_PRODUCT_DAISY_DMC,
+	    0,
+	    "Daisy Technology",
+	    "PhotoClip Camera",
+	},
+	{
 	    USB_VENDOR_DALLAS, USB_PRODUCT_DALLAS_J6502,
 	    0,
 	    "Dallas Semiconductor",
@@ -3835,6 +3841,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_DLINK, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "D-Link Corp",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_DAISY, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Daisy Technology",
 	    NULL,
 	},
 	{
