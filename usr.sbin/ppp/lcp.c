@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.14 1998/02/10 03:23:22 brian Exp $
+ * $Id: lcp.c,v 1.55.2.15 1998/02/16 00:00:15 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -225,7 +225,6 @@ LcpInit(struct bundle *bundle, struct physical *physical)
 
   LcpInfo.his_reject = LcpInfo.my_reject = 0;
   LcpInfo.auth_iwait = LcpInfo.auth_ineed = 0;
-  LcpInfo.LcpFailedMagic = 0;
   memset(&LcpInfo.ReportTimer, '\0', sizeof LcpInfo.ReportTimer);
   LcpInfo.fsm.maxconfig = 10;
 }
@@ -413,10 +412,7 @@ static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  struct lcp *lcp = fsm2lcp(fp);
-
   LogPrintf(LogLCP, "LcpLayerFinish\n");
-  lcp->LcpFailedMagic = 0;
   StopAllTimers();
   LogPrintf(LogPHASE, "%s disconnected!\n", fp->link->name);
 }
@@ -449,15 +445,6 @@ LcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
   LogPrintf(LogLCP, "LcpLayerDown\n");
-}
-
-void
-LcpOpen(int open_mode)
-{
-  /* Start LCP please (with the given open_mode) */
-  LcpInfo.fsm.open_mode = open_mode;
-  LcpInfo.LcpFailedMagic = 0;
-  FsmOpen(&LcpInfo.fsm);
 }
 
 static void

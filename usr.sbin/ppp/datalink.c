@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.8 1998/02/17 19:28:27 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.9 1998/02/17 19:28:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -137,17 +137,14 @@ datalink_LoginDone(struct datalink *dl)
   } else {
     dl->dial_tries = -1;
     if (dl->script.packetmode) {
-      int openmode;
-
-      openmode = dl->state == DATALINK_READY ? 0 : VarOpenMode;
-
       LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
       dl->state = DATALINK_OPEN;
 
       LcpInit(dl->bundle, dl->physical);
       CcpInit(dl->bundle, &dl->physical->link);
       FsmUp(&LcpInfo.fsm);
-      LcpOpen(openmode);
+      LcpInfo.fsm.open_mode = dl->state == DATALINK_READY ? 0 : VarOpenMode;
+      FsmOpen(&LcpInfo.fsm);
     } else {
       LogPrintf(LogPHASE, "%s: Entering READY state\n", dl->name);
       dl->state = DATALINK_READY;
