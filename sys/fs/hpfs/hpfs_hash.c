@@ -174,10 +174,6 @@ hpfs_hphashrem(hp)
 	if (hp->h_flag & H_HASHED) {
 		hp->h_flag &= ~H_HASHED;
 		LIST_REMOVE(hp, h_hash);
-#ifdef DIAGNOSTIC
-		hp->h_hash.le_next = NULL;
-		hp->h_hash.le_prev = NULL;
-#endif
 	}
 	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
 }
