@@ -41,7 +41,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.6 1993/08/28 03:02:49 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.7 1993/09/08 17:38:05 rgrimes Exp $";
 
 #include "sio.h"
 #if NSIO > 0
@@ -270,6 +270,7 @@ static	int	sioprobe	__P((struct isa_device *dev));
 static	void	compoll		__P((void));
 static	int	comstart	__P((struct tty *tp));
 static	void	comwakeup	__P((void));
+static	int	tiocm2mcr	__P((int));
 
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
@@ -975,6 +976,15 @@ comintr1(struct com_s *com)
 	}
 }
 
+static int
+tiocm2mcr(data)
+	int data;
+{
+	register m = 0;
+	if (data & TIOCM_DTR) m |= MCR_DTR;
+	if (data & TIOCM_RTS) m |= MCR_RTS;
+	return m;
+}
 int
 sioioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
@@ -1014,16 +1024,28 @@ sioioctl(dev, cmd, data, flag, p)
 		(void) commctl(com, MCR_DTR | MCR_RTS, DMBIC);
 		break;
 	case TIOCMSET:
-		(void) commctl(com, *(int *)data, DMSET);
+		(void) commctl(com, tiocm2mcr(*(int *)data), DMSET);
 		break;
 	case TIOCMBIS:
-		(void) commctl(com, *(int *)data, DMBIS);
+		(void) commctl(com, tiocm2mcr(*(int *)data), DMBIS);
 		break;
 	case TIOCMBIC:
-		(void) commctl(com, *(int *)data, DMBIC);
+		(void) commctl(com, tiocm2mcr(*(int *)data), DMBIC);
 		break;
 	case TIOCMGET:
-		*(int *)data = commctl(com, 0, DMGET);
+		{
+			register int bits = 0, mode;
+
+			mode = commctl(com, 0, DMGET);
+			if (inb(com->iobase+com_ier)) bits |= TIOCM_LE; /* XXX */
+			if (mode & MSR_DCD) bits |= TIOCM_CD;
+			if (mode & MSR_CTS) bits |= TIOCM_CTS;
+			if (mode & MSR_DSR) bits |= TIOCM_DSR;
+			if (mode & (MCR_DTR<<8)) bits |= TIOCM_DTR;
+			if (mode & (MCR_RTS<<8)) bits |= TIOCM_RTS;
+			if (mode & (MSR_RI|MSR_TERI)) bits |= TIOCM_RI;
+			*(int *)data = bits;
+		}
 		break;
 #ifdef COM_BIDIR
 	case TIOCMSBIDIR:
@@ -1493,7 +1515,7 @@ commctl(com, bits, how)
 			     com->mcr_image &= ~(bits & ~MCR_IENABLE));
 		break;
 	case DMGET:
-		bits = com->prev_modem_status;
+		bits = com->prev_modem_status | (com->mcr_image << 8);
 		break;
 	}
 	enable_intr();
