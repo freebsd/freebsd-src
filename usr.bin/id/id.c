@@ -401,7 +401,7 @@ usage(void)
 	else if (iswhoami)
 		(void)fprintf(stderr, "usage: whoami\n");
 	else
-		(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+		(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		    "usage: id [user]",
 		    "       id -G [-n] [user]",
 		    "       id -M",
