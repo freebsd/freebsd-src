@@ -67,7 +67,7 @@ struct socket {
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
 	short	so_state;		/* internal state flags SS_*, below */
-	caddr_t	so_pcb;			/* protocol control block */
+	void	*so_pcb;		/* protocol control block */
 	struct	protosw *so_proto;	/* protocol handle */
 /*
  * Variables for connection queuing.
