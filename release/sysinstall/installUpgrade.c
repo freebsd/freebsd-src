@@ -159,7 +159,7 @@ traverseHitlist(HitList *h)
 	if (!file_readable(h->name)) {
 	    if (!h->optional)
 		msgConfirm("Unable to find an old /etc/%s file!  That is decidedly non-standard and\n"
-			   "your upgraded system may function a little strangely as a result.");
+			   "your upgraded system may function a little strangely as a result.", h->name);
 	}
 	else {
 	    if (h->action == JUST_COPY) {
@@ -363,7 +363,7 @@ media:
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"
-		   "important customizations you wanted to keep in there.. :(");
+		   "important customizations you wanted to keep in there.. :(", saved_etc);
     }
     else {
 	/* Now try to resurrect the /etc files */
