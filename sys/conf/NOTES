@@ -1093,20 +1093,6 @@ device		md		#Memory/malloc disk
 device		snp		#Snoop device - to look at pty/vty/etc..
 device		ccd		#Concatenated disk driver
 
-# Configuring Vinum into the kernel is not necessary, since the kld
-# module gets started automatically when vinum(8) starts.  This
-# device is also untested.  Use at your own risk.
-#
-# The option VINUMDEBUG must match the value set in CFLAGS
-# in src/sbin/vinum/Makefile.  Failure to do so will result in
-# the following message from vinum(8):
-#
-# Can't get vinum config: Invalid argument
-#
-# see vinum(4) for more reasons not to use these options.
-device		vinum		#Vinum concat/mirror/raid driver
-options 	VINUMDEBUG	#enable Vinum debugging hooks
-
 # Kernel side iconv library
 options 	LIBICONV
 
