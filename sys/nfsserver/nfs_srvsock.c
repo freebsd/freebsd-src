@@ -433,16 +433,18 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 	/* XXXRW: Unlocked read. */
 	if ((slp->ns_flag & SLP_VALID) == 0)
 		return;
-#ifdef notdef
+
 	/*
-	 * Define this to test for nfsds handling this under heavy load.
+	 * We can't do this in the context of a socket callback
+	 * because we're called with locks held.
+	 * XXX: SMP
 	 */
 	if (waitflag == M_DONTWAIT) {
 		NFSD_LOCK();
 		slp->ns_flag |= SLP_NEEDQ;
 		goto dorecs;
 	}
-#endif
+
 
 	NFSD_LOCK();
 	auio.uio_td = NULL;
