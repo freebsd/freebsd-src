@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2004
+.Dd November 4, 2004
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2605,13 +2605,6 @@ see
 .Xr lomac 4
 for a complete description of the LOMAC model, as well as its impact
 on system operation.
-.It Va start_vinum
-.Pq Vt bool
-Set to
-.Dq Li YES
-to start
-.Xr vinum 8
-at system boot time.
 .It Va sshd_program
 .Pq Vt str
 Path to the SSH server program
@@ -3142,7 +3135,6 @@ device and the mount point will be changed.
 .Xr syslogd 8 ,
 .Xr timed 8 ,
 .Xr usbd 8 ,
-.Xr vinum 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
 .Xr ypserv 8 ,
