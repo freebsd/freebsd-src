@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.5.2.1 1999/03/07 00:40:47 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.5.2.2 1999/05/16 00:08:46 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -228,7 +228,7 @@ struct hardware_scb {
 					 * Address of command store for
 					 * 32byte SCB adapters
 					 */
-/*48*/	u_int8_t  spare_64[12];	/*
+/*48*/	u_int8_t  spare_64[12];		/*
 					 * Pad to 64 bytes.
 					 */
 };
