@@ -11,8 +11,7 @@ CLEANFILES= bktr.h smbus.h
 
 bktr.h:
 	echo "#define NBKTR 1" > bktr.h
-# Uncomment the next line to make the bktr driver use the bktr_mem module
-#	echo "#define BKTR_FREEBSD_MODULE 1" >> bktr.h
+	echo "#define BKTR_FREEBSD_MODULE 1" >> bktr.h
 
 # Does not use SMBUS/IICBUS. Uses the old i2c code self contained in
 # the bt848 driver.
