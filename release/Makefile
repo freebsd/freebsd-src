@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.70 1995/01/07 11:09:48 jkh Exp $
+#	$Id: Makefile,v 1.71 1995/01/12 10:34:34 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -97,7 +97,7 @@ boot.flp:
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/fsck
 .if !defined(EVIL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
-	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
+	install -m 400 -c ${.CURDIR}/../share/FAQ/diskspace.FAQ \
 		${MNT}/DISKSPACE.FAQ
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
 		${MNT}/RELNOTES.FreeBSD
@@ -222,7 +222,7 @@ beforetarballs:
 tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
 	mkdir ${RELEASEDIR}/tarballs
-	for i in ${DISTRIBUTIONS} ; \
+	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		mkdir ${RELEASEDIR}/tarballs/$${i} ; \
 		( cd ${RELEASEDIR}/$${i}; \
@@ -230,6 +230,7 @@ tarballs:
 			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}.) ; \
 	( cd ${RELEASEDIR}/tarballs/$${i}; sh -e ${.CURDIR}/mkchecksums.sh ) ; \
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/$${i} ;\
+	echo "$${i} distribution is finished."; \
 	done
 
 .include <bsd.prog.mk>
