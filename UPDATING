@@ -1,10 +1,13 @@
-Updating Information for FreeBSD current users
+Updating Information for FreeBSD STABLE users
 
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.  A reverse
 chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
+
+20000724:
+	FreeBSD 4.1 Released on or about this date.
 
 20000711:
 	If you use CVSUP or CTM to get CVS trees, AND you used to get 
@@ -37,8 +40,8 @@ prior to 4.0 Release.
 	versa.
 
 20000315:
-	FreeBSD 4.0 RELEASE.  The rest of this file is historical
-	and will be removed in the future.
+	FreeBSD 4.0 RELEASE.  Historical entries follow the common
+	items.
 
 ****************************** 4.0 RELEASE ******************************
 
