@@ -17,10 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
-	In addition, IDE write caching is currently disabled by default
-	due to on-going concerns about disk write order and file system
-	integrity.  Re-enabling write caching can substantially improve
-	performance.
+20021024:
+	Old, compatibility slices have been removed in GEOM kernels.  This
+	means that you will have to update your /etc/fstab to not use
+	disk devices of the form /dev/ad0a.  Instead, you now must
+	specify /dev/ad0s1a, or whatever slice your FreeBSD partition
+	really is on.  The old device names have gone away, so if you
+	use them anywhere else, you must also adjust those uses.
 
 20021023:
 	Alphas with kernels from between 20020830 and 20021023 and/or
@@ -1003,16 +1006,18 @@ COMMON ITEMS:
 
 	To upgrade from 4.x-stable to current
 	-------------------------------------
+	<maybe fix /etc/fstab>				[7]
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
-	reboot in single user [3]
-	mergemaster -p		[5]
+	cd src/sys/boot ; make install			[6]
+							[1]
+	<reboot in single user>				[3]
+	mergemaster -p					[5]
 	rm -rf /usr/include/g++
 	make installworld
-	mergemaster		[4]
-	[1]
+	mergemaster					[4]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
@@ -1057,6 +1062,23 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
+
+	[6] 4.x boot blocks can be used to boot a 5.x system, however
+	it is difficult to do that at best.  If you are concerned
+	about being able to boot 4.x if the reboot to single user
+	fails, then you should do something like
+		mv /boot /boot-4x
+		mkdir /boot
+	before this step.  You may be able to then boot the 4.x boot
+	blocks if you catch boot2, and enter /boot-4x/loader rather than
+	/boot/loader.  However, this step hasn't been torture tested.
+
+	[7] Before you upgrade, please make sure that you are not using
+	compatibility slices.  These are device names of the form, on i386
+	and other architectures that use MBR slicing, /dev/ad0a without the
+	actual slice name.  Chances are excellent that these will break.
+	You generally must update these entries to use the post FreeBSD
+	2.x form of /dev/ad0s1a.
 
 FORMAT:
 
