@@ -309,7 +309,7 @@ fwmem_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 	if (fwmem_debug)
 		printf("%s: refcount=%d\n", __func__, fms->refcount);
 	if (fms->refcount < 1) {
-		free(dev->si_drv1, M_FW);
+		free(dev->si_drv1, M_FWMEM);
 		dev->si_drv1 = NULL;
 	}
 
