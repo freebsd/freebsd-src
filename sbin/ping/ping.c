@@ -201,7 +201,7 @@ main(argc, argv)
 	struct hostent *hp;
 	struct sockaddr_in *to, sin;
 	struct termios ts;
-	register int i;
+	int i;
 	int ch, hold, packlen, preload, sockerrno, almost_done = 0, ttl;
 	struct in_addr ifaddr;
 	unsigned char mttl, loop;
@@ -639,7 +639,7 @@ main(argc, argv)
 	}
 
 	while (!finish_up) {
-		register int cc;
+		int cc;
 		int n;
 		struct timeval timeout, now;
 		fd_set rfds;
@@ -747,8 +747,8 @@ stopit(sig)
 static void
 pinger(void)
 {
-	register struct icmp *icp;
-	register int cc;
+	struct icmp *icp;
+	int cc;
 	int i;
 
 	icp = (struct icmp *)outpack;
@@ -803,10 +803,10 @@ pr_pack(buf, cc, from, tv)
 	struct sockaddr_in *from;
 	struct timeval *tv;
 {
-	register struct icmp *icp;
-	register u_long l;
-	register int i, j;
-	register u_char *cp,*dp;
+	struct icmp *icp;
+	u_long l;
+	int i, j;
+	u_char *cp,*dp;
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
 	struct ip *ip;
@@ -1041,9 +1041,9 @@ in_cksum(addr, len)
 	u_short *addr;
 	int len;
 {
-	register int nleft = len;
-	register u_short *w = addr;
-	register int sum = 0;
+	int nleft = len;
+	u_short *w = addr;
+	int sum = 0;
 	union {
 		u_short	us;
 		u_char	uc[2];
@@ -1081,7 +1081,7 @@ in_cksum(addr, len)
  */
 static void
 tvsub(out, in)
-	register struct timeval *out, *in;
+	struct timeval *out, *in;
 {
 	if ((out->tv_usec -= in->tv_usec) < 0) {
 		--out->tv_sec;
@@ -1406,7 +1406,7 @@ static void
 fill(bp, patp)
 	char *bp, *patp;
 {
-	register int ii, jj, kk;
+	int ii, jj, kk;
 	int pat[16];
 	char *cp;
 

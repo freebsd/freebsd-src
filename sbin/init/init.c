@@ -210,8 +210,8 @@ main(argc, argv)
 		/* So give them what they want */
 		if (argc > 1) {
 			if (strlen(argv[1]) == 1) {
-				register char runlevel = *argv[1];
-				register int sig;
+				char runlevel = *argv[1];
+				int sig;
 
 				switch (runlevel) {
 					case '0': /* halt + poweroff */
@@ -944,8 +944,8 @@ construct_argv(command)
 	char *command;
 {
 	char *strk (char *);
-	register int argc = 0;
-	register char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
+	int argc = 0;
+	char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
 
 	if ((argv[argc++] = strk(command)) == 0) {
@@ -962,7 +962,7 @@ construct_argv(command)
  */
 void
 free_session(sp)
-	register session_t *sp;
+	session_t *sp;
 {
 	free(sp->se_device);
 	if (sp->se_getty) {
@@ -988,9 +988,9 @@ session_t *
 new_session(sprev, session_index, typ)
 	session_t *sprev;
 	int session_index;
-	register struct ttyent *typ;
+	struct ttyent *typ;
 {
-	register session_t *sp;
+	session_t *sp;
 	int fd;
 
 	if ((typ->ty_status & TTY_ON) == 0 ||
@@ -1093,8 +1093,8 @@ state_func_t
 read_ttys()
 {
 	int session_index = 0;
-	register session_t *sp, *snext;
-	register struct ttyent *typ;
+	session_t *sp, *snext;
+	struct ttyent *typ;
 
 	/*
 	 * Destroy any previous session state.
@@ -1245,7 +1245,7 @@ collect_child(pid)
 	pid_t pid;
 #endif
 {
-	register session_t *sp, *sprev, *snext;
+	session_t *sp, *sprev, *snext;
 
 	if (! sessions)
 		return;
@@ -1316,7 +1316,7 @@ state_func_t
 multi_user()
 {
 	pid_t pid;
-	register session_t *sp;
+	session_t *sp;
 
 	requested_transition = 0;
 
@@ -1355,10 +1355,10 @@ multi_user()
 state_func_t
 clean_ttys()
 {
-	register session_t *sp, *sprev;
-	register struct ttyent *typ;
-	register int session_index = 0;
-	register int devlen;
+	session_t *sp, *sprev;
+	struct ttyent *typ;
+	int session_index = 0;
+	int devlen;
 	char *old_getty, *old_window, *old_type;
 
 	if (! sessions)
@@ -1453,7 +1453,7 @@ clean_ttys()
 state_func_t
 catatonia()
 {
-	register session_t *sp;
+	session_t *sp;
 
 	for (sp = sessions; sp; sp = sp->se_next)
 		sp->se_flags |= SE_SHUTDOWN;
@@ -1478,8 +1478,8 @@ alrm_handler(sig)
 state_func_t
 death()
 {
-	register session_t *sp;
-	register int i;
+	session_t *sp;
+	int i;
 	pid_t pid;
 	static const int death_sigs[2] = { SIGTERM, SIGKILL };
 

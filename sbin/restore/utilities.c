@@ -61,7 +61,7 @@ void
 pathcheck(name)
 	char *name;
 {
-	register char *cp;
+	char *cp;
 	struct entry *ep;
 	char *start;
 
@@ -88,7 +88,7 @@ pathcheck(name)
  */
 void
 mktempname(ep)
-	register struct entry *ep;
+	struct entry *ep;
 {
 	char oldname[MAXPATHLEN];
 
@@ -162,7 +162,7 @@ newnode(np)
  */
 void
 removenode(ep)
-	register struct entry *ep;
+	struct entry *ep;
 {
 	char *cp;
 
@@ -185,7 +185,7 @@ removenode(ep)
  */
 void
 removeleaf(ep)
-	register struct entry *ep;
+	struct entry *ep;
 {
 	char *cp;
 
@@ -274,7 +274,7 @@ addwhiteout(name)
  */
 void
 delwhiteout(ep)
-	register struct entry *ep;
+	struct entry *ep;
 {
 	char *name;
 
@@ -298,7 +298,7 @@ ino_t
 lowerbnd(start)
 	ino_t start;
 {
-	register struct entry *ep;
+	struct entry *ep;
 
 	for ( ; start < maxino; start++) {
 		ep = lookupino(start);
@@ -317,7 +317,7 @@ ino_t
 upperbnd(start)
 	ino_t start;
 {
-	register struct entry *ep;
+	struct entry *ep;
 
 	for ( ; start > ROOTINO; start--) {
 		ep = lookupino(start);
@@ -334,7 +334,7 @@ upperbnd(start)
  */
 void
 badentry(ep, msg)
-	register struct entry *ep;
+	struct entry *ep;
 	char *msg;
 {
 
@@ -361,7 +361,7 @@ badentry(ep, msg)
  */
 char *
 flagvalues(ep)
-	register struct entry *ep;
+	struct entry *ep;
 {
 	static char flagbuf[BUFSIZ];
 

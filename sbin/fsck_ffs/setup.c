@@ -510,11 +510,11 @@ static int
 calcsb(dev, devfd, fs)
 	char *dev;
 	int devfd;
-	register struct fs *fs;
+	struct fs *fs;
 {
-	register struct disklabel *lp;
-	register struct partition *pp;
-	register char *cp;
+	struct disklabel *lp;
+	struct partition *pp;
+	char *cp;
 	int i;
 
 	cp = strchr(dev, '\0') - 1;

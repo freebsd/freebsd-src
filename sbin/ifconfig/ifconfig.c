@@ -651,7 +651,7 @@ ifconfig(argc, argv, afp)
 		err(1, "socket");
 
 	while (argc > 0) {
-		register const struct cmd *p;
+		const struct cmd *p;
 
 		for (p = cmds; p->c_name; p++)
 			if (strcmp(*argv, p->c_name) == 0)
@@ -1590,7 +1590,7 @@ in_getaddr(s, which)
 	const char *s;
 	int which;
 {
-	register struct sockaddr_in *sin = sintab[which];
+	struct sockaddr_in *sin = sintab[which];
 	struct hostent *hp;
 	struct netent *np;
 
@@ -1640,7 +1640,7 @@ in6_getaddr(s, which)
 	const char *s;
 	int which;
 {
-	register struct sockaddr_in6 *sin = sin6tab[which];
+	struct sockaddr_in6 *sin = sin6tab[which];
 	struct addrinfo hints, *res;
 	int error = -1;
 
@@ -1676,8 +1676,8 @@ in6_getprefix(plen, which)
 	const char *plen;
 	int which;
 {
-	register struct sockaddr_in6 *sin = sin6tab[which];
-	register u_char *cp;
+	struct sockaddr_in6 *sin = sin6tab[which];
+	u_char *cp;
 	int len = atoi(plen);
 
 	if ((len < 0) || (len > 128))
@@ -1702,11 +1702,11 @@ in6_getprefix(plen, which)
 void
 printb(s, v, bits)
 	const char *s;
-	register unsigned v;
-	register const char *bits;
+	unsigned v;
+	const char *bits;
 {
-	register int i, any = 0;
-	register char c;
+	int i, any = 0;
+	char c;
 
 	if (bits && *bits == 8)
 		printf("%s=%o", s, v);
@@ -1867,8 +1867,8 @@ prefix(val, size)
         void *val;
         int size;
 {
-        register u_char *name = (u_char *)val;
-        register int byte, bit, plen = 0;
+        u_char *name = (u_char *)val;
+        int byte, bit, plen = 0;
 
         for (byte = 0; byte < size; byte++, plen += 8)
                 if (name[byte] != 0xff)

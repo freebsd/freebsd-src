@@ -1273,7 +1273,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	u_int32_t returned_length = 0;
 	u_int32_t num_returned = 0;
 	u_int8_t returned_format;
-	register int i;
+	int i;
 	int c, error = 0;
 	int lists_specified = 0;
 

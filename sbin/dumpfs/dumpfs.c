@@ -81,7 +81,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct fstab *fs;
+	struct fstab *fs;
 	int ch, eval;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
@@ -312,11 +312,11 @@ dumpcg(name, fd, c)
 
 void
 pbits(vp, max)
-	register void *vp;
+	void *vp;
 	int max;
 {
-	register int i;
-	register char *p;
+	int i;
+	char *p;
 	int count, j;
 
 	for (count = i = 0, p = vp; i < max; i++)

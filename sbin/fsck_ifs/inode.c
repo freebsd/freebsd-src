@@ -59,7 +59,7 @@ static int iblock __P((struct inodesc *, long ilevel, quad_t isize));
 int
 ckinode(dp, idesc)
 	struct dinode *dp;
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 {
 	ufs_daddr_t *ap;
 	int ret;
@@ -243,7 +243,7 @@ chkrange(blk, cnt)
 	ufs_daddr_t blk;
 	int cnt;
 {
-	register int c;
+	int c;
 
 	if (cnt <= 0 || blk <= 0 || blk > maxfsblock ||
 	    cnt - 1 > maxfsblock - blk)
@@ -388,10 +388,10 @@ freeinodebuf()
  */
 void
 cacheino(dp, inumber)
-	register struct dinode *dp;
+	struct dinode *dp;
 	ino_t inumber;
 {
-	register struct inoinfo *inp;
+	struct inoinfo *inp;
 	struct inoinfo **inpp;
 	int blks;
 
@@ -428,7 +428,7 @@ struct inoinfo *
 getinoinfo(inumber)
 	ino_t inumber;
 {
-	register struct inoinfo *inp;
+	struct inoinfo *inp;
 
 	for (inp = inphead[inumber % dirhash]; inp; inp = inp->i_nexthash) {
 		if (inp->i_number != inumber)
@@ -445,7 +445,7 @@ getinoinfo(inumber)
 void
 inocleanup()
 {
-	register struct inoinfo **inpp;
+	struct inoinfo **inpp;
 
 	if (inphead == NULL)
 		return;
@@ -465,11 +465,11 @@ inodirty()
 
 void
 clri(idesc, type, flag)
-	register struct inodesc *idesc;
+	struct inodesc *idesc;
 	char *type;
 	int flag;
 {
-	register struct dinode *dp;
+	struct dinode *dp;
 
 	dp = ginode(idesc->id_number);
 	if (flag == 1) {
@@ -492,7 +492,7 @@ int
 findname(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 
 	if (dirp->d_ino != idesc->id_parent || idesc->id_entryno < 2) {
 		idesc->id_entryno++;
@@ -506,7 +506,7 @@ int
 findino(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 
 	if (dirp->d_ino == 0)
 		return (KEEPON);
@@ -522,7 +522,7 @@ int
 clearentry(idesc)
 	struct inodesc *idesc;
 {
-	register struct direct *dirp = idesc->id_dirp;
+	struct direct *dirp = idesc->id_dirp;
 
 	if (dirp->d_ino != idesc->id_parent || idesc->id_entryno < 2) {
 		idesc->id_entryno++;
@@ -536,8 +536,8 @@ void
 pinode(ino)
 	ino_t ino;
 {
-	register struct dinode *dp;
-	register char *p;
+	struct dinode *dp;
+	char *p;
 	struct passwd *pw;
 	time_t t;
 
@@ -596,8 +596,8 @@ allocino(request, type)
 	ino_t request;
 	int type;
 {
-	register ino_t ino;
-	register struct dinode *dp;
+	ino_t ino;
+	struct dinode *dp;
 	struct cg *cgp = &cgrp;
 	int cg;
 
