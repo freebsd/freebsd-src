@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-/*
-static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 /*
  * netstat
@@ -70,20 +70,21 @@ static const char rcsid[] =
 #include <netinet/udp_var.h>
 
 #include <netdb.h>
-#include <stdlib.h>
-#include <string.h>
 #include <nlist.h>
 #include <paths.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "systat.h"
 #include "extern.h"
 
-static struct netinfo *enter __P((struct inpcb *, int, char *));
-static void enter_kvm __P((struct inpcb *, struct socket *, int, char *));
-static void enter_sysctl __P((struct inpcb *, struct xsocket *, int, char *));
+static struct netinfo *enter __P((struct inpcb *, int, const char *));
+static void enter_kvm __P((struct inpcb *, struct socket *, int, const char *));
+static void enter_sysctl __P((struct inpcb *, struct xsocket *, int, const char *));
 static void fetchnetstat_kvm __P((void));
 static void fetchnetstat_sysctl __P((void));
 static char *inetname __P((struct in_addr));
-static void inetprint __P((struct in_addr *, int, char *));
+static void inetprint __P((struct in_addr *, int, const char *));
 
 #define	streq(a,b)	(strcmp(a,b)==0)
 #define	YMAX(w)		((w)->_maxy-1)
@@ -104,7 +105,7 @@ struct netinfo {
 #define	NIF_LACHG	0x1		/* local address changed */
 #define	NIF_FACHG	0x2		/* foreign address changed */
 	short	ni_state;		/* tcp state */
-	char	*ni_proto;		/* protocol */
+	const char	*ni_proto;		/* protocol */
 	struct	in_addr ni_laddr;	/* local address */
 	long	ni_lport;		/* local port */
 	struct	in_addr	ni_faddr;	/* foreign address */
@@ -118,13 +119,12 @@ TAILQ_HEAD(netinfohead, netinfo) netcb = TAILQ_HEAD_INITIALIZER(netcb);
 static	int aflag = 0;
 static	int nflag = 0;
 static	int lastrow = 1;
-static	char *inetname();
 
 void
 closenetstat(w)
         WINDOW *w;
 {
-	register struct netinfo *p;
+	struct netinfo *p;
 
 	endhostent();
 	endnetent();
@@ -140,7 +140,7 @@ closenetstat(w)
 	}
 }
 
-static char *miblist[] = {
+static const char *miblist[] = {
 	"net.inet.tcp.pcblist",
 	"net.inet.udp.pcblist" 
 };
@@ -172,8 +172,8 @@ fetchnetstat()
 static void
 fetchnetstat_kvm()
 {
-	register struct inpcb *next;
-	register struct netinfo *p;
+	struct inpcb *next;
+	struct netinfo *p;
 	struct inpcbhead head;
 	struct inpcb inpcb;
 	struct socket sockb;
@@ -225,7 +225,7 @@ again:
 static void
 fetchnetstat_sysctl()
 {
-	register struct netinfo *p;
+	struct netinfo *p;
 	int idx;
 	struct xinpgen *inpg;
 	char *cur, *end;
@@ -301,12 +301,12 @@ fetchnetstat_sysctl()
 
 static void
 enter_kvm(inp, so, state, proto)
-	register struct inpcb *inp;
-	register struct socket *so;
+	struct inpcb *inp;
+	struct socket *so;
 	int state;
-	char *proto;
+	const char *proto;
 {
-	register struct netinfo *p;
+	struct netinfo *p;
 
 	if ((p = enter(inp, state, proto)) != NULL) {
 		p->ni_rcvcc = so->so_rcv.sb_cc;
@@ -316,12 +316,12 @@ enter_kvm(inp, so, state, proto)
 
 static void
 enter_sysctl(inp, so, state, proto)
-	register struct inpcb *inp;
-	register struct xsocket *so;
+	struct inpcb *inp;
+	struct xsocket *so;
 	int state;
-	char *proto;
+	const char *proto;
 {
-	register struct netinfo *p;
+	struct netinfo *p;
 
 	if ((p = enter(inp, state, proto)) != NULL) {
 		p->ni_rcvcc = so->so_rcv.sb_cc;
@@ -332,11 +332,11 @@ enter_sysctl(inp, so, state, proto)
 
 static struct netinfo *
 enter(inp, state, proto)
-	register struct inpcb *inp;
+	struct inpcb *inp;
 	int state;
-	char *proto;
+	const char *proto;
 {
-	register struct netinfo *p;
+	struct netinfo *p;
 
 	/*
 	 * Only take exact matches, any sockets with
@@ -366,7 +366,7 @@ enter(inp, state, proto)
 		p->ni_lport = inp->inp_lport;
 		p->ni_faddr = inp->inp_faddr;
 		p->ni_fport = inp->inp_fport;
-		p->ni_proto = proto;
+		p->ni_proto = strdup(proto);
 		p->ni_flags = NIF_LACHG|NIF_FACHG;
 	}
 	p->ni_state = state;
@@ -400,7 +400,7 @@ labelnetstat()
 void
 shownetstat()
 {
-	register struct netinfo *p, *q;
+	struct netinfo *p, *q;
 
 	/*
 	 * First, delete any connections that have gone
@@ -452,13 +452,14 @@ shownetstat()
 		mvwaddstr(wnd, p->ni_line, PROTO, p->ni_proto);
 		mvwprintw(wnd, p->ni_line, RCVCC, "%6d", p->ni_rcvcc);
 		mvwprintw(wnd, p->ni_line, SNDCC, "%6d", p->ni_sndcc);
-		if (streq(p->ni_proto, "tcp"))
+		if (streq(p->ni_proto, "tcp")) {
 			if (p->ni_state < 0 || p->ni_state >= TCP_NSTATES)
 				mvwprintw(wnd, p->ni_line, STATE, "%d",
 				    p->ni_state);
 			else
 				mvwaddstr(wnd, p->ni_line, STATE,
 				    tcpstates[p->ni_state]);
+		}
 		wclrtoeol(wnd);
 	}
 	if (lastrow < YMAX(wnd)) {
@@ -473,12 +474,12 @@ shownetstat()
  */
 static void
 inetprint(in, port, proto)
-	register struct in_addr *in;
+	struct in_addr *in;
 	int port;
-	char *proto;
+	const char *proto;
 {
 	struct servent *sp = 0;
-	char line[80], *cp, *index();
+	char line[80], *cp;
 
 	snprintf(line, sizeof(line), "%.*s.", 16, inetname(*in));
 	cp = index(line, '\0');
@@ -542,7 +543,7 @@ inetname(in)
 
 int
 cmdnetstat(cmd, args)
-	char *cmd, *args;
+	const char *cmd, *args;
 {
 	if (prefix(cmd, "all")) {
 		aflag = !aflag;

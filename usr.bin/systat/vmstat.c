@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * Cursed vmstat -- from Robert Elz.
@@ -134,7 +134,7 @@ static void allocinfo __P((struct Info *));
 static void copyinfo __P((struct Info *, struct Info *));
 static float cputime __P((int));
 static void dinfo __P((int, int, struct statinfo *, struct statinfo *));
-static void getinfo __P((struct Info *, enum state));
+static void getinfo __P((struct Info *));
 static void putint __P((int, int, int, int));
 static void putfloat __P((double, int, int, int, int, int));
 static void putlongdouble __P((long double, int, int, int, int, int));
@@ -258,7 +258,7 @@ initkre()
 		allocinfo(&s2);
 		allocinfo(&z);
 	}
-	getinfo(&s2, RUN);
+	getinfo(&s2);
 	copyinfo(&s2, &s1);
 	return(1);
 }
@@ -277,13 +277,13 @@ fetchkre()
 	tp = localtime(&now);
 	(void) strftime(buf, sizeof(buf),
 			d_first ? "%e %b %R" : "%b %e %R", tp);
-	getinfo(&s, state);
+	getinfo(&s);
 }
 
 void
 labelkre()
 {
-	register int i, j;
+	int i, j;
 
 	clear();
 	mvprintw(STATROW, STATCOL + 4, "users    Load");
@@ -394,7 +394,7 @@ showkre()
 {
 	float f1, f2;
 	int psiz, inttotal;
-	int i, j, k, l, c;
+	int i, j, k, l, lc;
 	static int failcnt = 0;
 	char intrbuffer[10];
 
@@ -429,7 +429,7 @@ showkre()
 				continue;
 			intrloc[i] = nextintsrow++;
 			k = 0;
-			for (j = 0; j < sizeof(intrbuffer); j++) {
+			for (j = 0; j < (int)sizeof(intrbuffer); j++) {
 				if (strncmp(&intrname[i][j], "irq", 3) == 0)
 					j += 3;
 				intrbuffer[k++] = intrname[i][j];
@@ -453,18 +453,18 @@ showkre()
 
 	psiz = 0;
 	f2 = 0.0;
-	for (c = 0; c < CPUSTATES; c++) {
-		i = cpuorder[c];
+	for (lc = 0; lc < CPUSTATES; lc++) {
+		i = cpuorder[lc];
 		f1 = cputime(i);
 		f2 += f1;
 		l = (int) ((f2 + 1.0) / 2.0) - psiz;
 		if (f1 > 99.9)
 			f1 = 99.9;	/* no room to display 100.0 */
-		putfloat(f1, GRAPHROW, GRAPHCOL + 10 * c, 4, 1, 0);
+		putfloat(f1, GRAPHROW, GRAPHCOL + 10 * lc, 4, 1, 0);
 		move(GRAPHROW + 2, psiz);
 		psiz += l;
 		while (l-- > 0)
-			addch(cpuchar[c]);
+			addch(cpuchar[lc]);
 	}
 
 	putint(ucount(), STATROW, STATCOL, 3);
@@ -538,22 +538,22 @@ showkre()
 	PUTRATE(v_soft, GENSTATROW + 1, GENSTATCOL + 20, 5);
 	PUTRATE(v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
 	mvprintw(DISKROW, DISKCOL + 5, "                              ");
-	for (i = 0, c = 0; i < num_devices && c < MAXDRIVES; i++)
+	for (i = 0, lc = 0; i < num_devices && lc < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
 			char tmpstr[80];
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
-			mvprintw(DISKROW, DISKCOL + 5 + 6 * c,
+			mvprintw(DISKROW, DISKCOL + 5 + 6 * lc,
 				" %5.5s", tmpstr);
 			switch(state) {
 			case TIME:
-				dinfo(i, ++c, &cur, &last);
+				dinfo(i, ++lc, &cur, &last);
 				break;
 			case RUN:
-				dinfo(i, ++c, &cur, &run);
+				dinfo(i, ++lc, &cur, &run);
 				break;
 			case BOOT:
-				dinfo(i, ++c, &cur, NULL);
+				dinfo(i, ++lc, &cur, NULL);
 				break;
 			}
 		}
@@ -572,7 +572,7 @@ showkre()
 
 int
 cmdkre(cmd, args)
-	char *cmd, *args;
+	const char *cmd, *args;
 {
 	int retval;
 
@@ -608,7 +608,7 @@ cmdkre(cmd, args)
 	if (prefix(cmd, "zero")) {
 		retval = 1;
 		if (state == RUN) {
-			getinfo(&s1, RUN);
+			getinfo(&s1);
 			switch (devstat_getdevs(NULL, &run)) {
 			case -1:
 				errx(1, "%s", devstat_errbuf);
@@ -638,7 +638,7 @@ cmdkre(cmd, args)
 static int
 ucount()
 {
-	register int nusers = 0;
+	int nusers = 0;
 
 	if (ut < 0)
 		return (0);
@@ -654,31 +654,31 @@ static float
 cputime(indx)
 	int indx;
 {
-	double t;
-	register int i;
+	double lt;
+	int i;
 
-	t = 0;
+	lt = 0;
 	for (i = 0; i < CPUSTATES; i++)
-		t += s.time[i];
-	if (t == 0.0)
-		t = 1.0;
-	return (s.time[indx] * 100.0 / t);
+		lt += s.time[i];
+	if (lt == 0.0)
+		lt = 1.0;
+	return (s.time[indx] * 100.0 / lt);
 }
 
 static void
-putint(n, l, c, w)
-	int n, l, c, w;
+putint(n, l, lc, w)
+	int n, l, lc, w;
 {
 	char b[128];
 
-	move(l, c);
+	move(l, lc);
 	if (n == 0) {
 		while (w-- > 0)
 			addch(' ');
 		return;
 	}
 	snprintf(b, sizeof(b), "%*d", w, n);
-	if (strlen(b) > w) {
+	if ((int)strlen(b) > w) {
 		while (w-- > 0)
 			addch('*');
 		return;
@@ -687,22 +687,22 @@ putint(n, l, c, w)
 }
 
 static void
-putfloat(f, l, c, w, d, nz)
+putfloat(f, l, lc, w, d, nz)
 	double f;
-	int l, c, w, d, nz;
+	int l, lc, w, d, nz;
 {
 	char b[128];
 
-	move(l, c);
+	move(l, lc);
 	if (nz && f == 0.0) {
 		while (--w >= 0)
 			addch(' ');
 		return;
 	}
 	snprintf(b, sizeof(b), "%*.*f", w, d, f);
-	if (strlen(b) > w)
+	if ((int)strlen(b) > w)
 		snprintf(b, sizeof(b), "%*.0f", w, f);
-	if (strlen(b) > w) {
+	if ((int)strlen(b) > w) {
 		while (--w >= 0)
 			addch('*');
 		return;
@@ -711,22 +711,22 @@ putfloat(f, l, c, w, d, nz)
 }
 
 static void
-putlongdouble(f, l, c, w, d, nz)
+putlongdouble(f, l, lc, w, d, nz)
 	long double f;
-	int l, c, w, d, nz;
+	int l, lc, w, d, nz;
 {
 	char b[128];
 
-	move(l, c);
+	move(l, lc);
 	if (nz && f == 0.0) {
 		while (--w >= 0)
 			addch(' ');
 		return;
 	}
 	sprintf(b, "%*.*Lf", w, d, f);
-	if (strlen(b) > w)
+	if ((int)strlen(b) > w)
 		sprintf(b, "%*.0Lf", w, f);
-	if (strlen(b) > w) {
+	if ((int)strlen(b) > w) {
 		while (--w >= 0)
 			addch('*');
 		return;
@@ -735,60 +735,59 @@ putlongdouble(f, l, c, w, d, nz)
 }
 
 static void
-getinfo(s, st)
-	struct Info *s;
-	enum state st;
+getinfo(ls)
+	struct Info *ls;
 {
 	struct devinfo *tmp_dinfo;
 	size_t size;
 	int mib[2];
 
-	GETSYSCTL("kern.cp_time", s->time);
+	GETSYSCTL("kern.cp_time", ls->time);
 	GETSYSCTL("kern.cp_time", cur.cp_time);
-	GETSYSCTL("vm.stats.sys.v_swtch", s->v_swtch);
-	GETSYSCTL("vm.stats.sys.v_trap", s->v_trap);
-	GETSYSCTL("vm.stats.sys.v_syscall", s->v_syscall);
-	GETSYSCTL("vm.stats.sys.v_intr", s->v_intr);
-	GETSYSCTL("vm.stats.sys.v_soft", s->v_soft);
-	GETSYSCTL("vm.stats.vm.v_vm_faults", s->v_vm_faults);
-	GETSYSCTL("vm.stats.vm.v_cow_faults", s->v_cow_faults);
-	GETSYSCTL("vm.stats.vm.v_zfod", s->v_zfod);
-	GETSYSCTL("vm.stats.vm.v_ozfod", s->v_ozfod);
-	GETSYSCTL("vm.stats.vm.v_swapin", s->v_swapin);
-	GETSYSCTL("vm.stats.vm.v_swapout", s->v_swapout);
-	GETSYSCTL("vm.stats.vm.v_swappgsin", s->v_swappgsin);
-	GETSYSCTL("vm.stats.vm.v_swappgsout", s->v_swappgsout);
-	GETSYSCTL("vm.stats.vm.v_vnodein", s->v_vnodein);
-	GETSYSCTL("vm.stats.vm.v_vnodeout", s->v_vnodeout);
-	GETSYSCTL("vm.stats.vm.v_vnodepgsin", s->v_vnodepgsin);
-	GETSYSCTL("vm.stats.vm.v_vnodepgsout", s->v_vnodepgsout);
-	GETSYSCTL("vm.stats.vm.v_intrans", s->v_intrans);
-	GETSYSCTL("vm.stats.vm.v_reactivated", s->v_reactivated);
-	GETSYSCTL("vm.stats.vm.v_pdwakeups", s->v_pdwakeups);
-	GETSYSCTL("vm.stats.vm.v_pdpages", s->v_pdpages);
-	GETSYSCTL("vm.stats.vm.v_dfree", s->v_dfree);
-	GETSYSCTL("vm.stats.vm.v_pfree", s->v_pfree);
-	GETSYSCTL("vm.stats.vm.v_tfree", s->v_tfree);
-	GETSYSCTL("vm.stats.vm.v_page_size", s->v_page_size);
-	GETSYSCTL("vm.stats.vm.v_free_count", s->v_free_count);
-	GETSYSCTL("vm.stats.vm.v_wire_count", s->v_wire_count);
-	GETSYSCTL("vm.stats.vm.v_active_count", s->v_active_count);
-	GETSYSCTL("vm.stats.vm.v_inactive_count", s->v_inactive_count);
-	GETSYSCTL("vm.stats.vm.v_cache_count", s->v_cache_count);
-	GETSYSCTL("vfs.bufspace", s->bufspace);
-	GETSYSCTL("kern.maxvnodes", s->desiredvnodes);
-	GETSYSCTL("debug.numvnodes", s->numvnodes);
-	GETSYSCTL("debug.freevnodes", s->freevnodes);
-	GETSYSCTL("vfs.cache.nchstats", s->nchstats);
-	GETSYSCTL("vfs.numdirtybuffers", s->numdirtybuffers);
-	getsysctl("hw.intrcnt", s->intrcnt, nintr * sizeof(u_long));
+	GETSYSCTL("vm.stats.sys.v_swtch", ls->v_swtch);
+	GETSYSCTL("vm.stats.sys.v_trap", ls->v_trap);
+	GETSYSCTL("vm.stats.sys.v_syscall", ls->v_syscall);
+	GETSYSCTL("vm.stats.sys.v_intr", ls->v_intr);
+	GETSYSCTL("vm.stats.sys.v_soft", ls->v_soft);
+	GETSYSCTL("vm.stats.vm.v_vm_faults", ls->v_vm_faults);
+	GETSYSCTL("vm.stats.vm.v_cow_faults", ls->v_cow_faults);
+	GETSYSCTL("vm.stats.vm.v_zfod", ls->v_zfod);
+	GETSYSCTL("vm.stats.vm.v_ozfod", ls->v_ozfod);
+	GETSYSCTL("vm.stats.vm.v_swapin", ls->v_swapin);
+	GETSYSCTL("vm.stats.vm.v_swapout", ls->v_swapout);
+	GETSYSCTL("vm.stats.vm.v_swappgsin", ls->v_swappgsin);
+	GETSYSCTL("vm.stats.vm.v_swappgsout", ls->v_swappgsout);
+	GETSYSCTL("vm.stats.vm.v_vnodein", ls->v_vnodein);
+	GETSYSCTL("vm.stats.vm.v_vnodeout", ls->v_vnodeout);
+	GETSYSCTL("vm.stats.vm.v_vnodepgsin", ls->v_vnodepgsin);
+	GETSYSCTL("vm.stats.vm.v_vnodepgsout", ls->v_vnodepgsout);
+	GETSYSCTL("vm.stats.vm.v_intrans", ls->v_intrans);
+	GETSYSCTL("vm.stats.vm.v_reactivated", ls->v_reactivated);
+	GETSYSCTL("vm.stats.vm.v_pdwakeups", ls->v_pdwakeups);
+	GETSYSCTL("vm.stats.vm.v_pdpages", ls->v_pdpages);
+	GETSYSCTL("vm.stats.vm.v_dfree", ls->v_dfree);
+	GETSYSCTL("vm.stats.vm.v_pfree", ls->v_pfree);
+	GETSYSCTL("vm.stats.vm.v_tfree", ls->v_tfree);
+	GETSYSCTL("vm.stats.vm.v_page_size", ls->v_page_size);
+	GETSYSCTL("vm.stats.vm.v_free_count", ls->v_free_count);
+	GETSYSCTL("vm.stats.vm.v_wire_count", ls->v_wire_count);
+	GETSYSCTL("vm.stats.vm.v_active_count", ls->v_active_count);
+	GETSYSCTL("vm.stats.vm.v_inactive_count", ls->v_inactive_count);
+	GETSYSCTL("vm.stats.vm.v_cache_count", ls->v_cache_count);
+	GETSYSCTL("vfs.bufspace", ls->bufspace);
+	GETSYSCTL("kern.maxvnodes", ls->desiredvnodes);
+	GETSYSCTL("debug.numvnodes", ls->numvnodes);
+	GETSYSCTL("debug.freevnodes", ls->freevnodes);
+	GETSYSCTL("vfs.cache.nchstats", ls->nchstats);
+	GETSYSCTL("vfs.numdirtybuffers", ls->numdirtybuffers);
+	getsysctl("hw.intrcnt", ls->intrcnt, nintr * sizeof(u_long));
 
-	size = sizeof(s->Total);
+	size = sizeof(ls->Total);
 	mib[0] = CTL_VM;
 	mib[1] = VM_METER;
-	if (sysctl(mib, 2, &s->Total, &size, NULL, 0) < 0) {
+	if (sysctl(mib, 2, &ls->Total, &size, NULL, 0) < 0) {
 		error("Can't get kernel info: %s\n", strerror(errno));
-		bzero(&s->Total, sizeof(s->Total));
+		bzero(&ls->Total, sizeof(ls->Total));
 	}
 	size = sizeof(ncpu);
 	if (sysctlbyname("hw.ncpu", &ncpu, &size, NULL, 0) < 0 ||
@@ -815,18 +814,18 @@ getinfo(s, st)
 }
 
 static void
-allocinfo(s)
-	struct Info *s;
+allocinfo(ls)
+	struct Info *ls;
 {
 
-	s->intrcnt = (long *) calloc(nintr, sizeof(long));
-	if (s->intrcnt == NULL)
+	ls->intrcnt = (long *) calloc(nintr, sizeof(long));
+	if (ls->intrcnt == NULL)
 		errx(2, "out of memory");
 }
 
 static void
 copyinfo(from, to)
-	register struct Info *from, *to;
+	struct Info *from, *to;
 {
 	long *intrcnt;
 
@@ -842,8 +841,8 @@ copyinfo(from, to)
 }
 
 static void
-dinfo(dn, c, now, then)
-	int dn, c;
+dinfo(dn, lc, now, then)
+	int dn, lc;
 	struct statinfo *now, *then;
 {
 	long double transfers_per_second;
@@ -877,9 +876,9 @@ dinfo(dn, c, now, then)
 		 * where the device has been 100% busy, correct it */
 		device_busy = elapsed_time;
 
-	c = DISKCOL + c * 6;
-	putlongdouble(kb_per_transfer, DISKROW + 1, c, 5, 2, 0);
-	putlongdouble(transfers_per_second, DISKROW + 2, c, 5, 0, 0);
-	putlongdouble(mb_per_second, DISKROW + 3, c, 5, 2, 0);
-	putlongdouble(device_busy * 100 / elapsed_time, DISKROW + 4, c, 5, 0, 0);
+	lc = DISKCOL + lc * 6;
+	putlongdouble(kb_per_transfer, DISKROW + 1, lc, 5, 2, 0);
+	putlongdouble(transfers_per_second, DISKROW + 2, lc, 5, 0, 0);
+	putlongdouble(mb_per_second, DISKROW + 3, lc, 5, 2, 0);
+	putlongdouble(device_busy * 100 / elapsed_time, DISKROW + 4, lc, 5, 0, 0);
 }

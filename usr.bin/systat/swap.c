@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * swapinfo - based on a program of the same name by Kevin Lahey
@@ -147,7 +147,7 @@ showswap()
 #define CONVERT(v)      ((int)((quad_t)(v) * pagesize / blocksize))
 
 	for (i = 0; i <= kvnsw; ++i) {
-		int col = 5;
+		int lcol = 5;
 		int count;
 
 		if (i == kvnsw) {
@@ -156,17 +156,17 @@ showswap()
 			mvwprintw(
 			    wnd,
 			    i + 1,
-			    col,
+			    lcol,
 			    "%-5s",
 			    "Total"
 			);
-			col += 5;
+			lcol += 5;
 		}
 		if (kvmsw[i].ksw_total == 0) {
 			mvwprintw(
 			    wnd,
 			    i + 1,
-			    col + 5,
+			    lcol + 5,
 			    "(swap not configured)"
 			);
 			continue;
@@ -175,17 +175,17 @@ showswap()
 		mvwprintw(
 		    wnd, 
 		    i + 1, 
-		    col,
+		    lcol,
 		    "%*d",
 		    hlen, 
 		    CONVERT(kvmsw[i].ksw_total)
 		);
-		col += hlen;
+		lcol += hlen;
 
 		mvwprintw(
 		    wnd,
 		    i + 1,
-		    col, 
+		    lcol, 
 		    "%9d  ",
 		    CONVERT(kvmsw[i].ksw_used)
 		);

@@ -24,8 +24,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  * Copyright (c) 1980, 1992, 1993
@@ -60,20 +58,25 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
-#endif not lint
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 #include <sys/param.h>
 #include <sys/dkstat.h>
 #include <sys/sysctl.h>
 
-#include <string.h>
-#include <stdlib.h>
-#include <nlist.h>
-#include <paths.h>
 #include <devstat.h>
 #include <err.h>
+#include <nlist.h>
+#include <paths.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "systat.h"
 #include "extern.h"
 #include "devs.h"
@@ -134,11 +137,10 @@ fetchiostat()
 {
 	struct devinfo *tmp_dinfo;
 	size_t len;
-	int err;
 
 	len = sizeof(cur.cp_time);
-	err = sysctlbyname("kern.cp_time", &cur.cp_time, &len, NULL, 0);
-	if (err || len != sizeof(cur.cp_time)) {
+	if (sysctlbyname("kern.cp_time", &cur.cp_time, &len, NULL, 0)
+	    || len != sizeof(cur.cp_time)) {
 		perror("kern.cp_time");
 		exit (1);
 	}
@@ -196,7 +198,7 @@ static int
 numlabels(row)
 	int row;
 {
-	int i, col, regions, ndrives;
+	int i, _col, regions, ndrives;
 	char tmpstr[10];
 
 #define COLWIDTH	17
@@ -215,21 +217,21 @@ numlabels(row)
 	 */
 	if (linesperregion < 3)
 		linesperregion = 3;
-	col = INSET;
+	_col = INSET;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (col + COLWIDTH >= wnd->_maxx - INSET) {
-				col = INSET, row += linesperregion + 1;
+			if (_col + COLWIDTH >= wnd->_maxx - INSET) {
+				_col = INSET, row += linesperregion + 1;
 				if (row > wnd->_maxy - (linesperregion + 1))
 					break;
 			}
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
-			mvwaddstr(wnd, row, col + 4, tmpstr);
-			mvwaddstr(wnd, row + 1, col, "  KB/t tps  MB/s ");
-			col += COLWIDTH;
+			mvwaddstr(wnd, row, _col + 4, tmpstr);
+			mvwaddstr(wnd, row + 1, _col, "  KB/t tps  MB/s ");
+			_col += COLWIDTH;
 		}
-	if (col)
+	if (_col)
 		row += linesperregion + 1;
 	return (row);
 }
@@ -263,8 +265,8 @@ barlabels(row)
 void
 showiostat()
 {
-	register long t;
-	register int i, row, col;
+	long t;
+	int i, row, _col;
 
 #define X(fld)	t = cur.fld[i]; cur.fld[i] -= last.fld[i]; last.fld[i] = t
 	etime = 0;
@@ -288,15 +290,15 @@ showiostat()
 			}
 		return;
 	}
-	col = INSET;
+	_col = INSET;
 	wmove(wnd, row + linesperregion, 0);
 	wdeleteln(wnd);
 	wmove(wnd, row + 3, 0);
 	winsertln(wnd);
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (col + COLWIDTH >= wnd->_maxx - INSET) {
-				col = INSET, row += linesperregion + 1;
+			if (_col + COLWIDTH >= wnd->_maxx - INSET) {
+				_col = INSET, row += linesperregion + 1;
 				if (row > wnd->_maxy - (linesperregion + 1))
 					break;
 				wmove(wnd, row + linesperregion, 0);
@@ -304,14 +306,14 @@ showiostat()
 				wmove(wnd, row + 3, 0);
 				winsertln(wnd);
 			}
-			(void) devstats(row + 3, col, i);
-			col += COLWIDTH;
+			(void) devstats(row + 3, _col, i);
+			_col += COLWIDTH;
 		}
 }
 
 static int
-devstats(row, col, dn)
-	int row, col, dn;
+devstats(row, _col, dn)
+	int row, _col, dn;
 {
 	long double transfers_per_second;
 	long double kb_per_transfer, mb_per_second;
@@ -330,17 +332,17 @@ devstats(row, col, dn)
 		errx(1, "%s", devstat_errbuf);
 
 	if (numbers) {
-		mvwprintw(wnd, row, col, " %5.2Lf %3.0Lf %5.2Lf ",
+		mvwprintw(wnd, row, _col, " %5.2Lf %3.0Lf %5.2Lf ",
 			 kb_per_transfer, transfers_per_second,
 			 mb_per_second);
 		return(row);
 	}
-	wmove(wnd, row++, col);
+	wmove(wnd, row++, _col);
 	histogram(mb_per_second, 50, .5);
-	wmove(wnd, row++, col);
+	wmove(wnd, row++, _col);
 	histogram(transfers_per_second, 50, .5);
 	if (kbpt) {
-		wmove(wnd, row++, col);
+		wmove(wnd, row++, _col);
 		histogram(kb_per_transfer, 50, .5);
 	}
 
@@ -352,17 +354,17 @@ static void
 stat1(row, o)
 	int row, o;
 {
-	register int i;
-	double time;
+	int i;
+	double dtime;
 
-	time = 0;
+	dtime = 0.0;
 	for (i = 0; i < CPUSTATES; i++)
-		time += cur.cp_time[i];
-	if (time == 0.0)
-		time = 1.0;
+		dtime += cur.cp_time[i];
+	if (dtime == 0.0)
+		dtime = 1.0;
 	wmove(wnd, row, INSET);
 #define CPUSCALE	0.5
-	histogram(100.0 * cur.cp_time[o] / time, 50, CPUSCALE);
+	histogram(100.0 * cur.cp_time[o] / dtime, 50, CPUSCALE);
 }
 
 static void
@@ -372,8 +374,8 @@ histogram(val, colwidth, scale)
 	double scale;
 {
 	char buf[10];
-	register int k;
-	register int v = (int)(val * scale) + 0.5;
+	int k;
+	int v = (int)(val * scale) + 0.5;
 
 	k = MIN(v, colwidth);
 	if (v > colwidth) {
@@ -391,7 +393,7 @@ histogram(val, colwidth, scale)
 
 int
 cmdiostat(cmd, args)
-	char *cmd, *args;
+	const char *cmd, *args;
 {
 
 	if (prefix(cmd, "kbpt"))

@@ -25,8 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -58,6 +56,10 @@
  * mode in the command line.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 
 #include "systat.h"
@@ -69,7 +71,7 @@ enum mode currentmode = display_RATE;
 static const char *const modes[] = { "rate", "delta", "since", "absolute" };
 
 int
-cmdmode(char *cmd, char *args)
+cmdmode(const char *cmd, const char *args)
 {
 	if (prefix(cmd, "mode")) {
 		if (args[0] == '\0') {
