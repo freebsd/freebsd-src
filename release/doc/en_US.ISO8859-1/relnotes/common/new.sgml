@@ -537,7 +537,7 @@
     execute commands based on percentage or minutes of battery life
     remaining via the <literal>apm_battery</literal> configuration
     directive.  See the commented out examples in
-    <filename>/etc/apmd.conf<filename> for the syntax.</para>
+    <filename>/etc/apmd.conf</filename> for the syntax.</para>
 
     <sect3>
       <title>Contributed Software</title>
