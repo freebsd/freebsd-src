@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.6 1998/08/10 07:53:59 dfr Exp $
+ *	$Id: cia.c,v 1.7 1998/08/11 08:51:09 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -475,7 +475,7 @@ cia_swiz_maxdevs(u_int b)
 	int ipl = 0;							\
 	u_int32_t old_cfg = 0;						\
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(CIA_PCI_CONF, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(CIA_PCI_CONF), off); \
 	alpha_mb();							\
 	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
@@ -488,7 +488,7 @@ cia_swiz_maxdevs(u_int b)
 	int ipl = 0;							\
 	u_int32_t old_cfg = 0;						\
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(CIA_PCI_CONF, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(CIA_PCI_CONF), off); \
 	alpha_mb();							\
 	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
