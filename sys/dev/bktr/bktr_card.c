@@ -974,6 +974,14 @@ checkTuner:
 			tuner_make, tuner_format);
 	    }
 	    break;
+	case CARD_LEADTEK:
+#if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
+	    select_tuner( bktr, PHILIPS_FR1216_PAL );
+#else
+	    select_tuner( bktr, PHILIPS_FR1236_NTSC );
+#endif
+            goto checkDBX;
+	    break;
 
 	} /* end switch(card) */
 
