@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.6 1998/09/29 09:11:49 peter Exp $
+ *	$Id: aout_freebsd.c,v 1.7 1998/09/30 19:42:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -54,33 +54,45 @@ static int
 aout_exec(struct loaded_module *mp)
 {
     struct loaded_module	*xp;
-    struct i386_devdesc		*currdev;
+    struct i386_devdesc		*rootdev;
     struct module_metadata	*md;
     struct exec			*ehdr;
     u_int32_t			argv[6];	/* kernel arguments */
     int				major, bootdevnr;
     vm_offset_t			addr, entry;
     u_int			pad;
+    char			*rootdevname;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_AOUTEXEC)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (struct exec *)&(md->md_data);
 
-    /* Boot from whatever the current device is */
-    i386_getdev((void **)(&currdev), NULL, NULL);
-    switch(currdev->d_type) {
-    case DEVT_DISK:	    
-	major = 0;			/* XXX work out the best possible major here */
-	bootdevnr = MAKEBOOTDEV(major, 
-				currdev->d_kind.biosdisk.slice >> 4, 
-				currdev->d_kind.biosdisk.slice & 0xf, 
-				currdev->d_kind.biosdisk.unit,
-				currdev->d_kind.biosdisk.partition);
-	break;
-    default:
-	printf("aout_exec: WARNING - don't know how to boot from device type %d\n", currdev->d_type);
+    /* 
+     * Allow the environment variable 'rootdev' to override the supplied device 
+     * This should perhaps go to MI code and/or have $rootdev tested/set by
+     * MI code before launching the kernel.
+     */
+    rootdevname = getenv("rootdev");
+    i386_getdev((void **)(&rootdev), rootdevname, NULL);
+    if (rootdev == NULL) {		/* bad $rootdev/$currdev */
+	printf("can't determine root device\n");
+	return(EINVAL);
     }
-    free(currdev);
+    
+    /* Boot from whatever the current device is */
+    i386_getdev((void **)(&rootdev), NULL, NULL);
+    switch(rootdev->d_type) {
+    case DEVT_DISK:
+	/* pass in the BIOS device number of the current disk */
+	bi.bi_bios_dev = bd_unit2bios(rootdev->d_kind.biosdisk.unit);
+	bootdevnr = bd_getdev(rootdev);
+	break;
+
+    default:
+	printf("aout_exec: WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
+    }
+    free(rootdev);
+    
 
     /* legacy bootinfo structure */
     bi.bi_version = BOOTINFO_VERSION;
