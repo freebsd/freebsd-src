@@ -781,17 +781,15 @@ main(int argc, char *argv[])
 	/* timeouts */
 	if ((s = getenv("FTP_TIMEOUT")) != NULL) {
 		ftp_timeout = strtol(s, &end, 10);
-		if (*optarg == '\0' || *end != '\0' || ftp_timeout < 0) {
-			warnx("FTP_TIMEOUT (%s) is not a positive integer",
-			    optarg);
+		if (*s == '\0' || *end != '\0' || ftp_timeout < 0) {
+			warnx("FTP_TIMEOUT (%s) is not a positive integer", s);
 			ftp_timeout = 0;
 		}
 	}
 	if ((s = getenv("HTTP_TIMEOUT")) != NULL) {
 		http_timeout = strtol(s, &end, 10);
-		if (*optarg == '\0' || *end != '\0' || http_timeout < 0) {
-			warnx("HTTP_TIMEOUT (%s) is not a positive integer",
-			    optarg);
+		if (*s == '\0' || *end != '\0' || http_timeout < 0) {
+			warnx("HTTP_TIMEOUT (%s) is not a positive integer", s);
 			http_timeout = 0;
 		}
 	}
