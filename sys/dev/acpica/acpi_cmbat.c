@@ -73,6 +73,7 @@ struct acpi_cmbat_softc {
     int		    min;
     int		    full_charge_time;
     int		    initializing;
+    int		    phys_unit;
 };
 
 static struct timespec	acpi_cmbat_info_lastupdated;
@@ -87,6 +88,7 @@ static void		acpi_cmbat_get_bif(void *);
 static void		acpi_cmbat_notify_handler(ACPI_HANDLE, UINT32, void *);
 static int		acpi_cmbat_probe(device_t);
 static int		acpi_cmbat_attach(device_t);
+static int		acpi_cmbat_detach(device_t);
 static int		acpi_cmbat_resume(device_t);
 static int		acpi_cmbat_ioctl(u_long, caddr_t, void *);
 static int		acpi_cmbat_is_bst_valid(struct acpi_bst*);
@@ -98,6 +100,7 @@ static device_method_t acpi_cmbat_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_cmbat_probe),
     DEVMETHOD(device_attach,	acpi_cmbat_attach),
+    DEVMETHOD(device_detach,	acpi_cmbat_detach),
     DEVMETHOD(device_resume,	acpi_cmbat_resume),
 
     {0, 0}
@@ -339,7 +342,8 @@ acpi_cmbat_attach(device_t dev)
 		return (error);
     }
 
-    error = acpi_battery_register(ACPI_BATT_TYPE_CMBAT, acpi_cmbat_units);
+    sc->phys_unit = acpi_cmbat_units;
+    error = acpi_battery_register(ACPI_BATT_TYPE_CMBAT, sc->phys_unit);
     if (error != 0)
 	return (error);
 
@@ -348,6 +352,17 @@ acpi_cmbat_attach(device_t dev)
     sc->initializing = 0;
     AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_init_battery, dev);
 
+    return (0);
+}
+
+static int
+acpi_cmbat_detach(device_t dev)
+{
+    struct acpi_cmbat_softc *sc;
+
+    sc = device_get_softc(dev);
+    acpi_battery_remove(ACPI_BATT_TYPE_CMBAT, sc->phys_unit);
+    acpi_cmbat_units--;
     return (0);
 }
 

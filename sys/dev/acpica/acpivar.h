@@ -338,6 +338,7 @@ struct acpi_battinfo;
 struct acpi_battdesc;
 
 int		acpi_battery_register(int, int);
+int		acpi_battery_remove(int, int);
 int		acpi_battery_get_battinfo(int, struct acpi_battinfo *);
 int		acpi_battery_get_units(void);
 int		acpi_battery_get_info_expire(void);
