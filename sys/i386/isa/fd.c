@@ -35,36 +35,40 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.17 1993/12/19 00:50:33 wollman Exp $
+ *	$from: fd.c,v 1.18 1993/12/21 05:09:21 ache Exp $
  *
  */
 
+#include "ft.h"
+#if NFT < 1
+#undef NFDC
+#endif
 #include "fd.h"
-#if NFD > 0
 
-#include "param.h"
-#include "dkbad.h"
-#include "systm.h"
-#include "kernel.h"
-#include "conf.h"
-#include "file.h"
-#include "ioctl.h"
-#include "machine/ioctl_fd.h"
-#include "disklabel.h"
-#include "buf.h"
-#include "uio.h"
-#include "malloc.h"
-#include "syslog.h"
+#if NFDC > 0
+
+#include <sys/param.h>
+#include <sys/dkbad.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <machine/ioctl_fd.h>
+#include <sys/disklabel.h>
+#include <sys/buf.h>
+#include <sys/uio.h>
+#include <sys/malloc.h>
+#include <sys/syslog.h>
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/fdreg.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/rtc.h"
-#undef NFD
-#define NFD 2
 
-#define FDUNIT(s)       (((s)>>6)&03)
-#define FDTYPE(s)       ((s)&077)
+#if NFT > 0
+extern int ftopen(), ftintr(), ftattach(), ftclose(), ftioctl();
+#endif
 
 #define b_cylin b_resid
 #define FDBLK 512
@@ -75,22 +79,25 @@
 #define NUMTYPES 14
 #define NUMDENS  (NUMTYPES - 6)
 
-/* This defines must match fd_types */
-#define FD_1720         0
-#define FD_1480         1
-#define FD_1440         2
-#define FD_1200         3
-#define FD_820          4
-#define FD_800          5
-#define FD_720          6
-#define FD_360          7
+/* This defines (-1) must match index for fd_types */
+#define F_TAPE_TYPE	0x020	/* bit for fd_types to indicate tape */
+#define NO_TYPE		0	/* must match NO_TYPE in ft.c */
+#define FD_1720         1
+#define FD_1480         2
+#define FD_1440         3
+#define FD_1200         4
+#define FD_820          5
+#define FD_800          6
+#define FD_720          7
+#define FD_360          8
 
-#define FD_1480in5_25   8
-#define FD_1440in5_25   9
-#define FD_820in5_25    10
-#define FD_800in5_25    11
-#define FD_720in5_25    12
-#define FD_360in5_25    13
+#define FD_1480in5_25   9
+#define FD_1440in5_25   10
+#define FD_820in5_25    11
+#define FD_800in5_25    12
+#define FD_720in5_25    13
+#define FD_360in5_25    14
+
 
 struct fd_type fd_types[NUMTYPES] =
 {
@@ -111,33 +118,18 @@ struct fd_type fd_types[NUMTYPES] =
 {  9,2,0xFF,0x23,40, 720,2,FDC_300KBPS,2,0x50,1 }, /*  360K in HD 5.25in */
 };
 
-#define DRVS_PER_CTLR 2
+#define DRVS_PER_CTLR 2		/* 2 floppies */
 /***********************************************************************\
 * Per controller structure.						*
 \***********************************************************************/
-struct fdc_data
-{
-	int	fdcu;		/* our unit number */
-	int	baseport;
-	int	dmachan;
-	int	flags;
-#define FDC_ATTACHED	0x01
-	struct	fd_data *fd;
-	int fdu;		/* the active drive	*/
-	struct buf head;	/* Head of buf chain      */
-	struct buf rhead;	/* Raw head of buf chain  */
-	int state;
-	int retry;
-	int status[7];		/* copy of the registers */
-}fdc_data[(NFD+1)/DRVS_PER_CTLR];
+struct fdc_data fdc_data[NFDC];
 
 /***********************************************************************\
 * Per drive structure.							*
-* N per controller (presently 2) (DRVS_PER_CTLR)			*
+* N per controller  (DRVS_PER_CTLR)					*
 \***********************************************************************/
 struct fd_data {
-	struct	fdc_data *fdc;
-	int	fdu;		/* this unit number */
+	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	fdsu;		/* this units number on this controller */
 	int	type;		/* Drive type (HD, DD     */
 	struct	fd_type *ft;	/* pointer to the type descriptor */
@@ -159,11 +151,9 @@ struct fd_data {
 * fdcu is the floppy controller unit number				*
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
-typedef int	fdu_t;
-typedef int	fdcu_t;
-typedef int	fdsu_t;
-typedef	struct fd_data *fd_p;
-typedef struct fdc_data *fdc_p;
+
+#define	id_physid id_scsiid	/* this biotab field doubles as a field */
+				/* for the physical unit number on the controller */
 
 static int retrier(fdcu_t);
 
@@ -216,8 +206,8 @@ static void fd_turnoff(caddr_t, int);
 static int fdprobe(struct isa_device *);
 static int fdattach(struct isa_device *);
 
-struct	isa_driver fddriver = {
-	fdprobe, fdattach, "fd",
+struct	isa_driver fdcdriver = {
+	fdprobe, fdattach, "fdc",
 };
 
 /*
@@ -266,24 +256,48 @@ fdattach(dev)
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
 	int	fdsu;
+	struct isa_device *fdup;
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
 	fdc->dmachan = dev->id_drq;
 	fdc->state = DEVIDLE;
-
-	fdt = rtcin(RTC_FDISKETTE);
 	hdr = 0;
+	printf("fdc%d:", fdcu);
 
 	/* check for each floppy drive */
-	for (fdu = (fdcu * DRVS_PER_CTLR),fdsu = 0;
-	   ((fdu < NFD) && (fdsu < DRVS_PER_CTLR));
-	   fdu++,fdsu++)
-	{
+	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
+		if (fdup->id_iobase != dev->id_iobase)
+			continue;
+		fdu = fdup->id_unit;
+		fd = &fd_data[fdu];
+		if (fdu >= (NFD+NFT))
+			continue;
+		fdsu = fdup->id_physid;
+				/* look up what bios thinks we have */
+		switch (fdu) {
+			case 0: fdt = (rtcin(RTC_FDISKETTE) & 0xf0);
+				break;
+			case 1: fdt = ((rtcin(RTC_FDISKETTE) << 4) & 0xf0);
+				break;
+			default: fdt = RTCFDT_NONE;
+				break;
+		}
 		/* is there a unit? */
-		if ((fdt & 0xf0) == RTCFDT_NONE) {
-#define NO_TYPE NUMTYPES
-			fd_data[fdu].type = NO_TYPE;
+		if ((fdt == RTCFDT_NONE)
+#if NFT > 0
+		|| (fdsu >= DRVS_PER_CTLR)) {
+#else
+		) {
+#endif
+#if NFT > 0
+				/* If BIOS says no floppy, or > 2nd device */
+				/* Probe for and attach a floppy tape.     */
+			if (ftattach(dev, fdup))
+				continue;
+			
+#endif
+			fd->type = NO_TYPE;
 			continue;
 		}
 
@@ -303,38 +317,38 @@ fdattach(dev)
 			continue;
 
 #endif
-		fd_data[fdu].track = -2;
-		fd_data[fdu].fdc = fdc;
-		fd_data[fdu].fdsu = fdsu;
-		printf("fd%d: unit %d type ", fdcu, fdu);
+		fd->track = -2;
+		fd->fdc = fdc;
+		fd->fdsu = fdsu;
+		printf(" [%d: fd%d: ", fdsu, fdu);
 		
-		switch (fdt & 0xf0) {
+		switch (fdt) {
 		case RTCFDT_12M:
-			printf("1.2MB 5.25in\n");
-			fd_data[fdu].type = FD_1200;
+			printf("1.2MB 5.25in]");
+			fd->type = FD_1200;
 			break;
 		case RTCFDT_144M:
-			printf("1.44MB 3.5in\n");
-			fd_data[fdu].type = FD_1440;
+			printf("1.44MB 3.5in]");
+			fd->type = FD_1440;
 			break;
 		case RTCFDT_360K:
-			printf("360KB 5.25in\n");
-			fd_data[fdu].type = FD_360;
+			printf("360KB 5.25in]");
+			fd->type = FD_360;
 			break;
 		case RTCFDT_720K:
-			printf("720KB 3.5in\n");
-			fd_data[fdu].type = FD_720;
+			printf("720KB 3.5in]");
+			fd->type = FD_720;
 			break;
 		default:
-			printf("unknown\n");
-			fd_data[fdu].type = NO_TYPE;
+			printf("unknown]");
+			fd->type = NO_TYPE;
 			break;
 		}
 
-		fdt <<= 4;
 		fd_turnoff((caddr_t)fdu, 0);
 		hdr = 1;
 	}
+	printf("\n");
 
 	/* Set transfer to 500kbps */
 	outb(fdc->baseport+fdctl,0); /*XXX*/
@@ -365,9 +379,16 @@ void fdstrategy(struct buf *bp)
 	fd = &fd_data[fdu];
 	fdc = fd->fdc;
 	fdcu = fdc->fdcu;
- 	/*type = FDTYPE(minor(bp->b_dev));*/
 
-	if ((fdu >= NFD) || (bp->b_blkno < 0)) {
+#if NFT > 0
+	/* check for controller already busy with tape */
+	if (fdc->flags & FDC_TAPE_BUSY) {
+		bp->b_error = EBUSY;
+		bp->b_flags |= B_ERROR;
+		return; 
+		}
+#endif
+	if ((fdu >= (NFD+NFT)) || (bp->b_blkno < 0)) {
 		printf("fdstrat: fdu = %d, blkno = %d, bcount = %d\n",
 			fdu, bp->b_blkno, bp->b_bcount);
 		pg("fd:error in fdstrategy");
@@ -547,16 +568,24 @@ Fdopen(dev, flags)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
-	int s;
+	fdc_p	fdc;
 
+#if NFT > 0
+	/* check for a tape open */
+	if (type & F_TAPE_TYPE)
+		return(ftopen(dev, flags));
+#endif
 	/* check bounds */
-	if (fdu >= NFD || fd_data[fdu].fdc == NULL
-		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
-	if (type > NUMDENS) return(ENXIO);
+	if (fdu >= NFD) 
+		return(ENXIO);
+	fdc = fd_data[fdu].fdc;
+	if ((fdc == NULL) || (fd_data[fdu].type == NO_TYPE))
+		return(ENXIO);
+	if (type > NUMDENS)
+		return(ENXIO);
 	if (type == 0)
 		type = fd_data[fdu].type;
 	else {
-		type--;
 		if (type != fd_data[fdu].type) {
 			switch (fd_data[fdu].type) {
 			case FD_360:
@@ -604,7 +633,7 @@ Fdopen(dev, flags)
 			}
 		}
 	}
-	fd_data[fdu].ft = fd_types + type;
+	fd_data[fdu].ft = fd_types + type - 1;
 	fd_data[fdu].flags |= FD_OPEN;
 
 	return 0;
@@ -616,6 +645,12 @@ fdclose(dev, flags)
 	int flags;
 {
  	fdu_t fdu = FDUNIT(minor(dev));
+	int type = FDTYPE(minor(dev));
+
+#if NFT > 0
+	if (type & F_TAPE_TYPE)
+		return ftclose(0);
+#endif
 	fd_data[fdu].flags &= ~FD_OPEN;
 	return(0);
 }
@@ -712,6 +747,13 @@ void
 fdintr(fdcu_t fdcu)
 {
 	fdc_p fdc = fdc_data + fdcu;
+#if NFT > 0
+	fdu_t fdu = fdc->fdu;
+
+	if (fdc->flags & FDC_TAPE_BUSY)
+		(ftintr(fdu));
+	else
+#endif
 	while(fdstate(fdcu, fdc))
 	  ;
 }
@@ -829,8 +871,8 @@ fdstate(fdcu, fdc)
 			cyl = in_fdc(fdcu);
 			if (cyl != descyl)
 			{
-				printf("fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n", fdu,
-				descyl, cyl, i, NE7_ST0BITS);
+				printf("fd%d: Seek to cyl %d failed; am at cyl %d (ST0 = 0x%x)\n",
+				fdu, descyl, cyl, i, NE7_ST0BITS);
 				return(retrier(fdcu));
 			}
 		}
@@ -1129,6 +1171,11 @@ fdioctl (dev, cmd, addr, flag, p)
 	struct disklabel *dl;
 	char buffer[DEV_BSIZE];
 	int error;
+
+#if NFT > 0
+	if (fd_data[FDUNIT(minor(dev))].fdc->flags & FDC_TAPE_BUSY)
+		return ftioctl(dev, cmd, addr, flag, p);
+#endif
 
 	error = 0;
 
