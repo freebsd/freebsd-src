@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.14 1995/05/30 08:07:13 rgrimes Exp $
+ *	$Id: procfs_vnops.c,v 1.16 1995/09/02 18:28:48 mpp Exp $
  */
 
 /*
@@ -536,14 +536,17 @@ procfs_lookup(ap)
 	pfstype pfs_type;
 	int i;
 
+	*vpp = NULL;
+
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+		return (EROFS);
+
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
 		VREF(dvp);
 		/*VOP_LOCK(dvp);*/
 		return (0);
 	}
-
-	*vpp = NULL;
 
 	pfs = VTOPFS(dvp);
 	switch (pfs->pfs_type) {
