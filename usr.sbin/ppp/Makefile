@@ -59,7 +59,7 @@ CFLAGS+=-DNOI4B
 SRCS+=	i4b.c
 .endif
 
-.if defined(NONETGRAPH)
+.if defined(NONETGRAPH) || defined(RELEASE_CRUNCH)
 CFLAGS+=-DNONETGRAPH
 .else
 SRCS+=	ether.c
