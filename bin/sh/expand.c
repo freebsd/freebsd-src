@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -1520,4 +1521,25 @@ cvtnum(int num, char *buf)
 	while (*p)
 		STPUTC(*p++, buf);
 	return buf;
+}
+
+/*
+ * Do most of the work for wordexp(3).
+ */
+
+int
+wordexpcmd(int argc, char **argv)
+{
+	size_t len;
+	int i;
+
+	out1fmt("%08x", argc - 1);
+	for (i = 1, len = 0; i < argc; i++)
+		len += strlen(argv[i]);
+	out1fmt("%08x", (int)len);
+	for (i = 1; i < argc; i++) {
+		out1str(argv[i]);
+		out1c('\0');
+	}
+        return (0);
 }
