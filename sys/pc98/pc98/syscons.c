@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.33 1997/04/04 15:23:55 kato Exp $
+ *  $Id: syscons.c,v 1.34 1997/04/11 07:41:22 kato Exp $
  */
 
 #include "sc.h"
@@ -222,7 +222,7 @@ static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
 static int get_scr_num(void);
-static void scrn_timer(void);
+static timeout_t scrn_timer;
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
@@ -252,7 +252,7 @@ static void draw_cutmarking(scr_stat *scp);
 static void remove_cutmarking(scr_stat *scp); 
 static void save_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
-static void blink_screen(scr_stat *scp);
+static timeout_t blink_screen;
 #ifdef SC_SPLASH_SCREEN
 static void toggle_splash_screen(scr_stat *scp);
 #endif
@@ -608,7 +608,7 @@ scattach(struct isa_device *dev)
     }
 
     /* get screen update going */
-    scrn_timer();
+    scrn_timer(NULL);
 
     update_leds(scp->status);
 
@@ -1763,7 +1763,7 @@ get_scr_num()
 }
 
 static void
-scrn_timer()
+scrn_timer(void *arg)
 {
     scr_stat *scp = cur_console;
     int s = spltty();
@@ -1793,7 +1793,7 @@ scrn_timer()
 
     /* should we just return ? */
     if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
-	timeout((timeout_func_t)scrn_timer, 0, hz/10);
+	timeout(scrn_timer, NULL, hz / 10);
 	splx(s);
 	return;
     }
@@ -1865,7 +1865,7 @@ scrn_timer()
     }
     if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
 	(*current_saver)(TRUE);
-    timeout((timeout_func_t)scrn_timer, 0, hz/25);
+    timeout(scrn_timer, NULL, hz / 25);
     splx(s);
 }
 
@@ -4762,7 +4762,7 @@ do_bell(scr_stat *scp, int pitch, int duration)
 	if (scp != cur_console)
 	    blink_in_progress += 2;
 	blink_screen(cur_console);
-	timeout((timeout_func_t)blink_screen, cur_console, hz/10);
+	timeout(blink_screen, cur_console, hz / 10);
     } else {
 	if (scp != cur_console)
 	    pitch *= 2;
@@ -4786,8 +4786,10 @@ do_bell(scr_stat *scp, int pitch, int duration)
 }
 
 static void
-blink_screen(scr_stat *scp)
+blink_screen(void *arg)
 {
+    scr_stat *scp = arg;
+
     if (blink_in_progress > 1) {
 #ifdef PC98
 	if (blink_in_progress & 1){
@@ -4810,7 +4812,7 @@ blink_screen(scr_stat *scp)
 		  Crtat, scp->xsize * scp->ysize);
 #endif
 	blink_in_progress--;
-	timeout((timeout_func_t)blink_screen, scp, hz/10);
+	timeout(blink_screen, scp, hz / 10);
     }
     else {
 	blink_in_progress = FALSE;
