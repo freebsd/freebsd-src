@@ -86,6 +86,10 @@ struct clktype clktypes[] = {
 	  "WWV_AUDIO"},
 	{ REFCLK_FG,	"Forum Graphic GPS Dating Station (37)",
 	  "GPS_FG"},
+	{ REFCLK_HOPF_SERIAL,	"hopf Elektronic serial line receiver (38)",
+	  "HOPF_S"},
+	{ REFCLK_HOPF_PCI,	"hopf Elektronic PCI receiver (39)",
+	  "HOPF_P"},
 	{ -1,			"", "" }
 };
 

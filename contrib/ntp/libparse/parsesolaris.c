@@ -585,7 +585,7 @@ rdchar(
 			freeb(mmp);
 		}
 	}
-	return (unsigned)~0;
+	return (unsigned long)~0;
 }
 
 /*

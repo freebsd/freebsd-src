@@ -1,4 +1,4 @@
-#!/local/bin/perl
+#!/usr/bin/perl -w
 ;#
 ;# ntp.pl,v 3.1 1993/07/06 01:09:09 jbj Exp
 ;#
@@ -43,7 +43,7 @@ $keyid=0;
     ;#  N  key
     ;#  N2 checksum
     
-;# first bye of packet
+;# first byte of packet
 sub pkt_LI   { return ($_[$[] >> 6) & 0x3; }
 sub pkt_VN   { return ($_[$[] >> 3) & 0x7; }
 sub pkt_MODE { return ($_[$[]     ) & 0x7; }
@@ -223,6 +223,7 @@ sub PeerSelection
 {
     &getval(&psw_PSel($_[$[]),*PeerSelection);
 }
+
 sub PeerEvent
 {
     &getval(&psw_PCode($_[$[]),*PeerEvent);
@@ -394,14 +395,14 @@ sub handle_packet
 	$lastseen = 1 if !&pkt_M($r_e_m_op);
 	if (!defined(%FRAGS))
 	{
-	    # (&pkt_M($r_e_m_op) ? " more" : "")."\n";
+	    print((&pkt_M($r_e_m_op) ? " more" : "")."\n");
 	    $FRAGS{$offset} = $data;
 	    ;# save other info
 	    @FRAGS = ($status,$associd,&pkt_OP($r_e_m_op),$seq,$auth_keyid,$r_e_m_op);
 	}
 	else
 	{
-	    # (&pkt_M($r_e_m_op) ? " more" : "")."\n";
+	    print((&pkt_M($r_e_m_op) ? " more" : "")."\n");
 	    ;# add frag to previous - combine on the fly
 	    if (defined($FRAGS{$offset}))
 	    {

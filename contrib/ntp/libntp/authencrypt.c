@@ -67,7 +67,7 @@ int
 DESauthdecrypt(
 	u_char *key,		/* key pointer */
 	u_int32 *pkt,		/* packet pointer */
-	int length, 	/* packet length */
+	int length, 		/* packet length */
 	int size		/* size of MAC field */
 	)
 {

@@ -65,5 +65,9 @@ typedef unsigned int u_int;
 # include "Bletch: what's 32 bits on this machine?"
 #endif /* not sizeof(int) == 4 */
 
+typedef unsigned short associd_t; /* association ID */
+typedef u_int32 keyid_t;	/* cryptographic key ID */
+typedef u_int32 tstamp_t;	/* NTP seconds timestamp */
+
 #endif /* _NTP_TYPES_ */
 

@@ -20,8 +20,8 @@
 
 #include "ntp_types.h"
 #include "ntp_string.h"
-#include "ntp_stdlib.h"
 #include "ntp_syslog.h"
+#include "ntp_stdlib.h"
 
 #ifdef SYS_WINNT
 # include "..\ports\winnt\libntp\log.h"
@@ -60,16 +60,12 @@ void msyslog(int level, const char *fmt, ...)
 #endif
 	va_list ap;
 	char buf[1025], nfmt[256];
-#if !defined(VMS)
+#if defined(SYS_WINNT)
 	char xerr[50];
 #endif
 	register int c;
 	register char *n, *prog;
 	register const char *f;
-#ifdef CHAR_SYS_ERRLIST
-	extern int sys_nerr;
-	extern char *sys_errlist[];
-#endif
 	int olderrno;
 	char *err;
 
@@ -96,12 +92,7 @@ void msyslog(int level, const char *fmt, ...)
 			continue;
 		}
 		err = 0;
-#if !defined(VMS) && !defined(SYS_WINNT) && !defined (SYS_VXWORKS)
-		if ((unsigned)olderrno > sys_nerr)
-		    sprintf((char *)(err = xerr), "error %d", olderrno);
-		else
-		    err = (char*)sys_errlist[olderrno];
-#elif defined(VMS) || defined (SYS_VXWORKS)
+#if !defined(SYS_WINNT)
 		err = strerror(olderrno);
 #else  /* SYS_WINNT */
 		err = xerr;
@@ -114,7 +105,7 @@ void msyslog(int level, const char *fmt, ...)
 			sizeof(xerr),
 			NULL);
 
-#endif /* VMS && SYS_WINNT */
+#endif /* SYS_WINNT */
 		if ((n + strlen(err)) < &nfmt[254]) {
 			strcpy(n, err);
 			n += strlen(err);

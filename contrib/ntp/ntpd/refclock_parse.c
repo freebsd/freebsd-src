@@ -767,8 +767,6 @@ static poll_info_t rcc8000_pollinfo = { RCC_POLLRATE, RCC_POLLCMD, RCC_CMDSIZE }
 #define COMPUTIME_SAMPLES     5
 #define COMPUTIME_KEEP        3
 
-static poll_info_t we400a_pollinfo = { 60, "T", 1 };
-
 /*
  * Varitext Radio Clock Receiver
  */
@@ -1169,18 +1167,18 @@ static struct parse_clockinfo
 	},
 	{				/* mode 15 */
 		0,				/* operation flags (io modes) */
-  		poll_dpoll,			/* active poll routine */
-		poll_init,			/* active poll init routine */
+  		NO_POLL,			/* active poll routine */
+		NO_INIT,			/* active poll init routine */
   		NO_EVENT,		        /* special event handling (e.g. reset clock) */
   		NO_END,				/* active poll end routine */
   		NO_MESSAGE,			/* process a lower layer message */
-		((void *)(&we400a_pollinfo)),   /* local data area for "poll" mechanism */
+		NO_DATA,			/* local data area for "poll" mechanism */
 		0,				/* rootdelay */
-		1.0 / 960,			/* current offset by which the RS232
+		11.0 /* bits */ / 9600,		/* current offset by which the RS232
 				           	time code is delayed from the actual time */
 		DCF_ID,				/* ID code */
 		"WHARTON 400A Series clock",	/* device name */
-		"WHARTON 400A Series clock Output Format 5",	/* fixed format */
+		"WHARTON 400A Series clock Output Format 1",	/* fixed format */
 			/* Must match a format-name in a libparse/clk_xxx.c file */
 		DCF_TYPE,			/* clock type (ntp control) */
 		(1*60*60),		        /* time to trust oscillator after loosing synch */
@@ -1242,10 +1240,10 @@ static struct parse_clockinfo
 
 static int ncltypes = sizeof(parse_clockinfo) / sizeof(struct parse_clockinfo);
 
-#define CLK_REALTYPE(x) ((int)(((x)->ttl) & 0x7F))
+#define CLK_REALTYPE(x) ((int)(((x)->ttlmax) & 0x7F))
 #define CLK_TYPE(x)	((CLK_REALTYPE(x) >= ncltypes) ? ~0 : CLK_REALTYPE(x))
 #define CLK_UNIT(x)	((int)REFCLOCKUNIT(&(x)->srcadr))
-#define CLK_PPS(x)	(((x)->ttl) & 0x80)
+#define CLK_PPS(x)	(((x)->ttlmax) & 0x80)
 
 /*
  * Other constant stuff
@@ -5150,16 +5148,24 @@ rawdcf_init_1(
 	struct parseunit *parse
 	)
 {
+	/* fixed 2000 for using with Linux by Wolfram Pienkoss <wp@bszh.de> */
 	/*
 	 * You can use the RS232 to supply the power for a DCF77 receiver.
 	 * Here a voltage between the DTR and the RTS line is used. Unfortunately
 	 * the name has changed from CIOCM_DTR to TIOCM_DTR recently.
 	 */
-	
+	int sl232;
+
+	if (ioctl(parse->generic->io.fd, TIOCMGET, (caddr_t)&sl232) == -1)
+	{
+		msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init_1: WARNING: ioctl(fd, TIOCMGET, [C|T]IOCM_DTR): %m", CLK_UNIT(parse->peer));
+		return 0;
+	}
+
 #ifdef TIOCM_DTR
-	int sl232 = TIOCM_DTR;	/* turn on DTR for power supply */
+	sl232 = (sl232 & ~TIOCM_RTS) | TIOCM_DTR;	/* turn on DTR, clear RTS for power supply */
 #else
-	int sl232 = CIOCM_DTR;	/* turn on DTR for power supply */
+	sl232 = (sl232 & ~CIOCM_RTS) | CIOCM_DTR;	/* turn on DTR, clear RTS for power supply */
 #endif
 
 	if (ioctl(parse->generic->io.fd, TIOCMSET, (caddr_t)&sl232) == -1)
@@ -5189,16 +5195,24 @@ rawdcf_init_2(
 	struct parseunit *parse
 	)
 {
+	/* fixed 2000 for using with Linux by Wolfram Pienkoss <wp@bszh.de> */
 	/*
 	 * You can use the RS232 to supply the power for a DCF77 receiver.
 	 * Here a voltage between the DTR and the RTS line is used. Unfortunately
 	 * the name has changed from CIOCM_DTR to TIOCM_DTR recently.
 	 */
-	
+	int sl232;
+
+	if (ioctl(parse->generic->io.fd, TIOCMGET, (caddr_t)&sl232) == -1)
+	{
+		msyslog(LOG_NOTICE, "PARSE receiver #%d: rawdcf_init_2: WARNING: ioctl(fd, TIOCMGET, [C|T]IOCM_RTS): %m", CLK_UNIT(parse->peer));
+		return 0;
+	}
+
 #ifdef TIOCM_RTS
-	int sl232 = TIOCM_RTS;	/* turn on RTS, clear DTR for power supply */
+	sl232 = (sl232 & ~TIOCM_DTR) | TIOCM_RTS;	/* turn on RTS, clear DTR for power supply */
 #else
-	int sl232 = CIOCM_RTS;	/* turn on DTR for power supply */
+	sl232 = (sl232 & ~CIOCM_DTR) | CIOCM_RTS;	/* turn on RTS, clear DTR for power supply */
 #endif
 
 	if (ioctl(parse->generic->io.fd, TIOCMSET, (caddr_t)&sl232) == -1)

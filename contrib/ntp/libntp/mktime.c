@@ -60,9 +60,7 @@
  * by hand.  Sorry about that.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include "ntp_machine.h"
 
 #ifndef DSTMINUTES
 #define DSTMINUTES 60
@@ -83,12 +81,6 @@
 #define MONSPERYEAR     12
 #define TM_YEAR_BASE    1900
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
-
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
-
-#include <time.h>
 
 extern time_t	time();
 
