@@ -1,19 +1,4 @@
-/* $FreeBSD$ */
-/*
- * This is part of the Driver for Video Capture Cards (Frame grabbers)
- * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
- * chipset.
- * Copyright Roger Hardiman and Amancio Hasty.
- *
- * bktr_audio : This deals with controlling the audio on TV cards,
- *                controlling the Audio Multiplexer (audio source selector).
- *                controlling any MSP34xx stereo audio decoders.
- *                controlling any DPL35xx dolby surroud sound audio decoders.    
- *                initialising TDA98xx audio devices.
- *
- */
-
-/*
+/*-
  * 1. Redistributions of source code must retain the
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -44,6 +29,23 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * This is part of the Driver for Video Capture Cards (Frame grabbers)
+ * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
+ * chipset.
+ * Copyright Roger Hardiman and Amancio Hasty.
+ *
+ * bktr_audio : This deals with controlling the audio on TV cards,
+ *                controlling the Audio Multiplexer (audio source selector).
+ *                controlling any MSP34xx stereo audio decoders.
+ *                controlling any DPL35xx dolby surroud sound audio decoders.
+ *                initialising TDA98xx audio devices.
+ *
  */
 
 #include "opt_bktr.h"               /* Include any kernel config options */

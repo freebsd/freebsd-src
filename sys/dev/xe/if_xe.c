@@ -24,8 +24,10 @@
  * SUCH DAMAGE.
  *
  *	$Id: if_xe.c,v 1.20 1999/06/13 19:17:40 scott Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * XXX TODO XXX

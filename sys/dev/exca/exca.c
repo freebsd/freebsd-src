@@ -1,5 +1,7 @@
-/* $FreeBSD$ */
 
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*
  * Copyright (c) 2002 M Warner Losh.  All rights reserved.
  *

@@ -34,9 +34,10 @@
  * Copyright (c) 1997, Aaron C. Smith
  *
  * See if_ie.c for applicable license.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -34,8 +34,10 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumparser.c,v 1.25 2003/05/07 03:33:28 grog Exp grog $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This file contains the parser for the configuration routines.  It's used

@@ -1,10 +1,12 @@
-/* $FreeBSD$ */
-/*
+/*-
  * PCI specific probe and attach routines for LSI Fusion Adapters
  * FreeBSD Version.
  *
- * Copyright (c)  2000, 2001 by Greg Ansley
+ * Copyright (c) 2000, 2001 by Greg Ansley
  * Partially derived from Matt Jacob's ISP driver.
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002 by Matthew Jacob
+ * Feral Software
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +29,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
- * Additional Copyright (c) 2002 by Matthew Jacob under same license.
- */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

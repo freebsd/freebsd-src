@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$OpenBSD: ubsec.c,v 1.115 2002/09/24 18:33:26 jason Exp $	*/
 
 /*
@@ -37,8 +36,10 @@
  * Effort sponsored in part by the Defense Advanced Research Projects
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * uBsec 5[56]01, 58xx hardware crypto accelerator

@@ -34,9 +34,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: mk48txx.c,v 1.7 2001/04/08 17:05:10 tsutsui Exp $
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Mostek MK48T02, MK48T08, MK48T59 time-of-day chip subroutines.

@@ -1,5 +1,7 @@
-/* $FreeBSD$ */
 /*
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
  * ISP Firmware Helper Pseudo Device for FreeBSD
  *
  * Copyright (c) 2000, 2001, by Matthew Jacob

@@ -1,9 +1,11 @@
 /*	$NetBSD: uhid.c,v 1.46 2001/11/13 06:24:55 lukem Exp $	*/
-/*	$FreeBSD$	*/
 
 /* Also already merged from NetBSD:
  *	$NetBSD: uhid.c,v 1.54 2002/09/23 05:51:21 simonb Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

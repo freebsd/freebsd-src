@@ -31,6 +31,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Level 1 LXT1001 gigabit ethernet driver for FreeBSD. Public
  * documentation not available, but ask me nicely.

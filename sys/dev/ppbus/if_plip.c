@@ -24,8 +24,10 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Parallel port TCP/IP interfaces added.  I looked at the driver from

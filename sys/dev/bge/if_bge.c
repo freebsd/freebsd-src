@@ -31,6 +31,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Broadcom BCM570x family gigabit ethernet driver for FreeBSD.
  *

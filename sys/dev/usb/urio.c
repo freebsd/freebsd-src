@@ -28,7 +28,9 @@
  * its contributors.
  */
 
-/* $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 /*
  * 2000/3/24  added NetBSD/OpenBSD support (from Alex Nemirovsky)

@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Callbacks in the USB code operate at splusb() (actually splbio()
  * in FreeBSD). However adding packets to the input queues has to be

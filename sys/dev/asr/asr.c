@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
  * Copyright (c) 2000-2001 Adaptec Corporation
  * All rights reserved.
@@ -102,9 +102,10 @@
  *			stopped using fordriver for holding on to the TID
  *			use proprietary packet creation instead of scsi_inquire
  *			CAM layer sends synchronize commands.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define	ASR_VERSION	1
 #define	ASR_REVISION	'0'

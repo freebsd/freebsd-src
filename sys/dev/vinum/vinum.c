@@ -36,8 +36,10 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinum.c,v 1.44 2003/05/23 00:50:55 grog Exp grog $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define STATIC static					    /* nothing while we're testing */
 

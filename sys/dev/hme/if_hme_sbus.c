@@ -34,9 +34,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: NetBSD: if_hme_sbus.c,v 1.9 2001/11/13 06:58:17 lukem Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * SBus front-end device driver for the HME ethernet device.

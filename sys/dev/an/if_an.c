@@ -29,7 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 /*
  * Aironet 4500/4800 802.11 PCMCIA/ISA/PCI driver for FreeBSD.
  *
@@ -37,6 +36,9 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * The Aironet 4500/4800 series cards come in PCMCIA, ISA and PCI form.
@@ -78,9 +80,6 @@
  * to do it itself. This driver doesn't program the card that way: the
  * driver handles all of the encapsulation/decapsulation itself.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 

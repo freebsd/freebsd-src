@@ -39,8 +39,10 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumraid5.c,v 1.23 2003/02/08 03:32:45 grog Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <sys/resourcevar.h>

@@ -35,9 +35,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: NetBSD: hme.c,v 1.20 2000/12/14 06:27:25 thorpej Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * HME Ethernet module driver.

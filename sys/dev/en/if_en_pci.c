@@ -32,6 +32,9 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * i f _ e n _ p c i . c  
  *
