@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.19 1995/10/25 15:38:34 jkh Exp $ */
+/* $Id: lib.h,v 1.20 1996/06/08 00:46:32 alex Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -123,6 +123,8 @@ char		*strconcat(char *, char *);
 /* File */
 Boolean		fexists(char *);
 Boolean		isdir(char *);
+Boolean		isemptydir(char *fname);
+Boolean		isemptyfile(char *fname);
 Boolean         isfile(char *);
 Boolean		isempty(char *);
 Boolean		isURL(char *);
@@ -156,6 +158,7 @@ void		mark_plist(Package *);
 void		csum_plist_entry(char *, PackingList);
 void		add_plist(Package *, plist_t, char *);
 void		add_plist_top(Package *, plist_t, char *);
+void		delete_plist(Package *pkg, Boolean all, plist_t type, char *name);
 void		write_plist(Package *, FILE *);
 void		read_plist(Package *, FILE *);
 int		plist_cmd(char *, char **);
