@@ -47,7 +47,7 @@
 #include <pc98/pc98/pc98_machdep.h>
 #endif
 
-static char	*message;
+static u_char	*message;
 static int	*messagep;
 static int	messagelen;
 static int	blanked;
