@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/mbuf.h>
 #include <sys/uio.h>
 
