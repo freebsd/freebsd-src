@@ -152,8 +152,7 @@ fsirand(char *device)
 		}
 		if ((sblock->fs_magic == FS_UFS1_MAGIC ||
 		     (sblock->fs_magic == FS_UFS2_MAGIC &&
-		      sblock->fs_sblockloc ==
-			  numfrags(sblock, sblock_try[i]))) &&
+		      sblock->fs_sblockloc == sblock_try[i])) &&
 		    sblock->fs_bsize <= MAXBSIZE &&
 		    sblock->fs_bsize >= sizeof(struct fs))
 			break;

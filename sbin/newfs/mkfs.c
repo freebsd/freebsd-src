@@ -149,6 +149,7 @@ mkfs(struct partition *pp, char *fsys)
 		exit(38);
 	}
 	bzero(iobuf, iobufsize);
+	sblock.fs_old_flags = FS_FLAGS_UPDATED;
 	sblock.fs_flags = 0;
 	if (Uflag)
 		sblock.fs_flags |= FS_DOSOFTDEP;
@@ -243,7 +244,7 @@ mkfs(struct partition *pp, char *fsys)
 	sblock.fs_size = fssize = dbtofsb(&sblock, fssize);
 	if (Oflag == 1) {
 		sblock.fs_magic = FS_UFS1_MAGIC;
-		sblock.fs_sblockloc = numfrags(&sblock, SBLOCK_UFS1);
+		sblock.fs_sblockloc = SBLOCK_UFS1;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs1_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs1_dinode);
 		sblock.fs_maxsymlinklen = ((NDADDR + NIADDR) *
@@ -263,15 +264,15 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_nrpos = 1;
 	} else {
 		sblock.fs_magic = FS_UFS2_MAGIC;
-		sblock.fs_sblockloc = numfrags(&sblock, SBLOCK_UFS2);
+		sblock.fs_sblockloc = SBLOCK_UFS2;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs2_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
 		sblock.fs_maxsymlinklen = ((NDADDR + NIADDR) *
 		    sizeof(ufs2_daddr_t));
 	}
 	sblock.fs_sblkno =
-	    roundup(howmany(lfragtosize(&sblock, sblock.fs_sblockloc) +
-		SBLOCKSIZE, sblock.fs_fsize), sblock.fs_frag);
+	    roundup(howmany(sblock.fs_sblockloc + SBLOCKSIZE, sblock.fs_fsize),
+		sblock.fs_frag);
 	sblock.fs_cblkno = sblock.fs_sblkno +
 	    roundup(howmany(SBLOCKSIZE, sblock.fs_fsize), sblock.fs_frag);
 	sblock.fs_iblkno = sblock.fs_cblkno + sblock.fs_frag;
@@ -476,8 +477,7 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_cstotal.cs_nifree = sblock.fs_cstotal.cs_nifree;
 		sblock.fs_old_cstotal.cs_nffree = sblock.fs_cstotal.cs_nffree;
 	}
-	wtfs(lfragtosize(&sblock, sblock.fs_sblockloc) / sectorsize,
-	    SBLOCKSIZE, (char *)&sblock);
+	wtfs(sblock.fs_sblockloc / sectorsize, SBLOCKSIZE, (char *)&sblock);
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
 		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
 			sblock.fs_cssize - i < sblock.fs_bsize ?

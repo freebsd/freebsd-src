@@ -130,7 +130,7 @@ dumpfs(const char *name)
 		time = afs.fs_time;
 		printf("magic\t%x (UFS2)\ttime\t%s",
 		    afs.fs_magic, ctime(&time));
-		printf("offset\t%qd\tid\t[ %x %x ]\n",
+		printf("superblock location\t%qd\tid\t[ %x %x ]\n",
 		    afs.fs_sblockloc, afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%qd\tblocks\t%d\n",
 		    afs.fs_ncg, fssize, afs.fs_dsize);

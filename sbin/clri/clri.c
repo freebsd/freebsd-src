@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 		sbp = (struct fs *)sblock;
 		if ((sbp->fs_magic == FS_UFS1_MAGIC ||
 		     (sbp->fs_magic == FS_UFS2_MAGIC &&
-		      sbp->fs_sblockloc == numfrags(sbp, sblock_try[i]))) &&
+		      sbp->fs_sblockloc == sblock_try[i])) &&
 		    sbp->fs_bsize <= MAXBSIZE &&
 		    sbp->fs_bsize >= (int)sizeof(struct fs))
 			break;

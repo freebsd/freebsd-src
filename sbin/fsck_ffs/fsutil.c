@@ -296,9 +296,9 @@ ckfini(int markclean)
 	}
 	flush(fswritefd, &sblk);
 	if (havesb && cursnapshot == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
-	    sblk.b_bno != fsbtodb(&sblock, sblock.fs_sblockloc) &&
+	    sblk.b_bno != sblock.fs_sblockloc / dev_bsize &&
 	    !preen && reply("UPDATE STANDARD SUPERBLOCK")) {
-		sblk.b_bno = fsbtodb(&sblock, sblock.fs_sblockloc);
+		sblk.b_bno = sblock.fs_sblockloc / dev_bsize;
 		sbdirty();
 		flush(fswritefd, &sblk);
 	}

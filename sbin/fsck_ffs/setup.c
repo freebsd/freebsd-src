@@ -313,8 +313,7 @@ readsb(int listerr)
 				return (0);
 			if ((sblock.fs_magic == FS_UFS1_MAGIC ||
 			     (sblock.fs_magic == FS_UFS2_MAGIC &&
-			      sblock.fs_sblockloc ==
-				  numfrags(&sblock, sblock_try[i]))) &&
+			      sblock.fs_sblockloc == sblock_try[i])) &&
 			    sblock.fs_ncg >= 1 &&
 			    sblock.fs_bsize >= MINBSIZE &&
 			    sblock.fs_bsize >= sizeof(struct fs))
