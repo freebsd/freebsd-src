@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.138 1998/03/08 09:57:15 julian Exp $
+ * $Id: vfs_subr.c,v 1.139 1998/03/14 02:55:01 tegge Exp $
  */
 
 /*
@@ -112,7 +112,9 @@ static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
 int vfs_ioopt = 0;
+#ifdef REALLYBADBUG
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
+#endif
 
 struct mntlist mountlist;	/* mounted filesystem list */
 struct simplelock mountlist_slock;
