@@ -166,8 +166,8 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	 * argument for counting hardware interrupts when they're
 	 * processed too.
 	 */
-	atomic_add_long(isrc->is_count, 1);
-	atomic_add_int(&cnt.v_intr, 1);
+	(*isrc->is_count)++;
+	cnt.v_intr++;
 
 	it = isrc->is_ithread;
 	if (it == NULL)
@@ -219,7 +219,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 			error = ithread_schedule(it);
 	}
 	if (error == EINVAL) {
-		atomic_add_long(isrc->is_straycount, 1);
+		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < MAX_STRAY_LOG)
 			log(LOG_ERR, "stray irq%d\n", vector);
 		else if (*isrc->is_straycount == MAX_STRAY_LOG)
