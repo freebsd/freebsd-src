@@ -8,12 +8,10 @@ SUBDIR+= libgcc_r
 .endif
 .endif
 
-.if ${CXX:T} == "c++"
-NO_CXX=	yes
-.endif
-
+.if notyet
 .if !defined(NO_CXX)
 SUBDIR+= libsupc++ libstdc++
+.endif
 .endif
 
 .if !defined(NO_OBJC)

@@ -3,7 +3,7 @@
 SUBDIR= awk bc binutils cc cpio dc dialog diff diff3 \
 	grep gzip man patch ptx rcs sdiff send-pr sort tar texinfo
 
-.if ${CXX:T} != "c++"
+.if ${CXX} != "c++"
 SUBDIR+=gperf groff
 .endif
 
