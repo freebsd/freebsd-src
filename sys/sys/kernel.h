@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.7 1995/03/16 18:16:18 bde Exp $
+ * $Id: kernel.h,v 1.8 1995/03/17 22:02:05 wollman Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -91,7 +91,7 @@ extern long timedelta;
 
 #define PSEUDO_SET(init, name) \
 	extern struct linker_set MODVNOPS; \
-	MOD_MISC(#fsname); \
+	MOD_MISC(#name); \
         int name ## _load(struct lkm_table *lkmtp, int cmd) \
 		{ init(); return 0; } \
 	int name ## _unload(struct lkm_table *lkmtp, int cmd) \
@@ -102,7 +102,7 @@ extern long timedelta;
 			 nosys); }
 #else /* PSEUDO_LKM */
 
-#define PSEUDO_SET(sym)	   TEXT_SET(pseudo_set, sym)
+#define PSEUDO_SET(sym, name)	   TEXT_SET(pseudo_set, sym)
 
 #endif /* PSEUDO_LKM */
 

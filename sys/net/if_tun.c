@@ -76,13 +76,12 @@ int	tunwrite __P((dev_t, struct uio *));
 int	tunioctl __P((dev_t, int, caddr_t, int, struct proc *));
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
 int	tunselect __P((dev_t, int));
-void	tunattach __P((int));
+void	tunattach __P((void));
 
 static int tuninit __P((int));
 
 void
-tunattach(unused)
-	int unused;
+tunattach()
 {
 	register int i;
 	struct ifnet *ifp;
@@ -112,7 +111,7 @@ tunattach(unused)
 }
 
 #ifdef __FreeBSD__
-PSEUDO_SET(tunattach);
+PSEUDO_SET(tunattach, if_tun);
 #endif
 
 /*
