@@ -304,8 +304,6 @@ IDTVEC(int0x80_syscall)
 
 ENTRY(fork_trampoline)
  	MTX_EXIT(_sched_lock, %ecx)
-	sti
-	call	_spl0
 
 #ifdef SMP
 	cmpl	$0,_switchtime
