@@ -41,18 +41,15 @@ static char rcsid[] =
 #endif /* not lint */
 
 #include "ww.h"
-#include <varargs.h>
+#include <stdarg.h>
 
-/*VARARGS2*/
-wwprintf(w, fmt, va_alist)
-struct ww *w;
-char *fmt;
-va_dcl
+void
+wwprintf(struct ww *w, char *fmt, ...)
 {
 	char buf[1024];
 	va_list ap;
 
-	va_start(ap);
+	va_start(ap, fmt);
 	/* buffer can overflow */
 	(void) wwwrite(w, buf, vsprintf(buf, fmt, ap));
 	va_end(ap);
