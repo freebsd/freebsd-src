@@ -114,7 +114,7 @@ static struct periph_driver ptdriver =
 	TAILQ_HEAD_INITIALIZER(ptdriver.units), /* generation */ 0
 };
 
-DATA_SET(periphdriver_set, ptdriver);
+PERIPHDRIVER_DECLARE(pt, ptdriver);
 
 #define PT_CDEV_MAJOR 61
 
