@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: sysctl.8,v 1.15 1998/07/21 18:16:16 joerg Exp $
+.\"	$Id: sysctl.8,v 1.16 1998/07/29 08:30:37 joerg Exp $
 .\"
 .Dd September 23, 1994
 .Dt SYSCTL 8
@@ -122,7 +122,7 @@ privilege can change the value.
 .It kern.osrevision	integer	no
 .It kern.version	string	no
 .It kern.maxvnodes	integer	yes
-.It kern.maxproc	integer	yes
+.It kern.maxproc	integer	no
 .It kern.maxprocperuid	integer	yes
 .It kern.maxfiles	integer	yes
 .It kern.maxfilesperproc	integer	yes
@@ -184,9 +184,9 @@ sysctl kern.maxproc
 .Ed
 .Pp
 To set the maximum number of processes allowed
-in the system to 1000, one would use the follow request:
+per uid to 1000, one would use the follow request:
 .Bd -literal -offset indent -compact
-sysctl -w kern.maxproc=1000
+sysctl -w kern.maxprocperuid=1000
 .Ed
 .Pp
 Information about the system clock rate may be obtained with:
