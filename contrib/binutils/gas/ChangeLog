@@ -1,3 +1,112 @@
+2002-04-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* as.c (parse_args <OPTION_VERSION>): Use VERSION is
+	BFD_VERSION_STRING unavailable.
+	* config/tc-i386.c (INLINE): Define (for non-BFD assembler).
+
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-04-01  Jessica Han  <jessica@cup.hp.com>
+
+	* config/tc-ia64.c (ia64_cons_fix_new): Handle 8 byte iplt reloc
+	in 32-bit mode.
+
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* doc/Makefile.in: Regenerate.
+
+	Merge from mainline.
+	2002-03-12  Andreas Schwab  <schwab@suse.de>
+	* config/tc-ia64.c (fixup_unw_records): Clear region when seeing a
+	body record so that an error is given for misplaced .save
+	pseudo-ops.
+
+	2002-03-09  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.h (REX_OPCODE): Define.
+	(REX_MODE64, REX_EXTX, REX_EXTY, REX_EXTZ): Define.
+	(rex_byte): typedef to int.
+	* config/tc-i386.c: Group prototypes and vars together.
+	Formatting fixes.  Remove occurrences of "register" keyword.
+	(true): Delete.
+	(false): Delete.
+	(mode_from_disp_size): Add INLINE keyword to prototype.
+	(fits_in_signed_byte): Likewise.
+	(fits_in_unsigned_byte): Likewise.
+	(fits_in_unsigned_word): Likewise.
+	(fits_in_signed_word): Likewise.
+	(fits_in_unsigned_long): Likewise.
+	(fits_in_signed_long): Likewise.
+	(type_names): Constify.
+	(intel_float_operand): Constify param.
+	(add_prefix): Use REX_OPCODE.
+	(md_assemble): Likewise.  Modify for changed rex_byte.
+	(parse_insn): Split out of md_assemble.
+	(parse_operands): Likewise.
+	(swap_operands): Likewise.
+	(optimize_imm): Likewise.
+	(optimize_disp): Likewise.
+	(match_template): Likewise.
+	(check_string): Likewise.
+	(process_suffix): Likewise.
+	(check_byte_reg): Likewise.
+	(check_long_reg): Likewise.
+	(check_qword_reg): Likewise.
+	(check_word_reg): Likewise.
+	(finalize_imm): Likewise.
+	(process_operands): Likewise.
+	(build_modrm_byte): Likewise.
+	(output_insn): Likewise.
+	(output_branch): Likewise.
+	(output_jump): Likewise.
+	(output_interseg_jump): Likewise.
+	(output_disp): Likewise.
+	(output_imm): Likewise.
+
+	2002-03-06  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.c (tc_gen_reloc): Don't attempt to handle 8 byte
+	relocs except when BFD64.
+	* write.c (number_to_chars_bigendian): Don't abort when N is
+	larger than sizeof (VAL).
+	(number_to_chars_littleendian): Likewise.
+
+	2002-03-05  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+	* config/tc-hppa.c (md_apply_fix3): Add cast.
+	(hppa_fix_adjustable): Adjust list of selectors using e_lrsel and
+	e_rrsel.
+
+	2002-03-04  H.J. Lu <hjl@gnu.org>
+	* config/obj-elf.c (special_section): Add .init_array,
+	.fini_array and .preinit_array.
+	* config/tc-ia64.h (ELF_TC_SPECIAL_SECTIONS): Remove
+	.init_array and .fini_array.
+
+	2002-03-01  Jakub Jelinek  <jakub@redhat.com>
+	* config/obj-elf.c (elf_copy_symbol_attributes): Don't copy
+	visibility.
+	(obj_frob_symbol): Copy visibility.
+
+2002-03-27  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-i386.c (md_assemble): Set fx_pcrel_adjust to size of
+	field for pc-relative fixups.
+	(md_estimate_size_before_relax): Likewise.
+	(tc_gen_reloc): Subtract fx_pcrel_adjust instead of fx_size for
+	pc-relative fixups in 64bit mode.
+
+2002-03-20  Albert Chin-A-Young  <china@thewrittenword.com>
+
+	* config/tc-arm.c (vfp_dp_reg_required_here): Fix typo
+	(vfp_sp_reg_pos -> vfp_dp_reg_pos).
+
 2002-03-19  Alexandre Oliva  <aoliva@redhat.com>
 
 	* config/tc-mips.c (md_estimate_size_before_relax): Do not modify
@@ -146,7 +255,7 @@ Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 2002-02-11  Tom Rix  <trix@redhat.com>
 
-	* config/tc-ppc.c (md_apply_fix3): Check for insert fop invalid for 
+	* config/tc-ppc.c (md_apply_fix3): Check for insert fop invalid for
 	xcoff64.
 
 2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
@@ -364,7 +473,7 @@ Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
 	BFD_RELOC_SH_PT_16>: Set lowest bit in field to be relocated to 1.
 	(shmedia_md_convert_frag) <case C (SH64PCREL16_32, SH64PCREL16) et
 	al>: Set lowest bit of field to relocate to 1 and rest to empty,
-	if reloc is emitted. 
+	if reloc is emitted.
 	2000-12-31  Hans-Peter Nilsson	<hpn@cygnus.com>
 	New options plus bugfixes.
 	* config/tc-sh.c (md_longopts): New options "-no-expand" and
@@ -673,7 +782,7 @@ Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 	* config/tc-sh.c (parse_at): Install the correct version of
 	2002-02-04's patch.
-	
+
 	* config/tc-sh.c (md_apply_fix3) <BFD_RELOC_32_PLT_PCREL>: Don't
 	assume fixP->fx_subsy is non-NULL.
 
@@ -730,7 +839,7 @@ Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
 	Support on-demand global register allocation by passing on
 	base-plus-offset relocs to the linker.
 	* config/tc-mmix.c: Tweak and fix typos in comments.
- 	(allocate_undefined_gregs_in_linker): New variable.
+	(allocate_undefined_gregs_in_linker): New variable.
 	(OPTION_LINKER_ALLOCATED_GREGS): New option macro.
 	(md_longopts): Add --linker-allocated-gregs.
 	(md_parse_option) <case 'x'>: Imply --linker-allocated-gregs.
@@ -846,7 +955,7 @@ Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
 2002-01-21  Jason Thorpe  <thorpej@wasabisystems.com>
 
 	* configure.in (ia64-*-netbsd*): New target.
-	* configure: Regenerate. 
+	* configure: Regenerate.
 
 2002-01-21  Hans-Peter Nilsson  <hp@bitrange.com>
 
@@ -885,7 +994,7 @@ Fri Feb 15 15:18:51 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 	* NEWS: Mention new ARM command-line options and VFP support.
 
-	* config/tc-arm.c (ARM_CEXT_XSCALE): Replaces ARM_EXT_XSCALE.  All 
+	* config/tc-arm.c (ARM_CEXT_XSCALE): Replaces ARM_EXT_XSCALE.  All
 	uses changed.
 	(ARM_CEXT_MAVERICK): Similarly.
 	(ARM_ANY): Now means any core instruction.

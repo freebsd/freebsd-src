@@ -593,7 +593,7 @@ INTERNAL_FUNCTION
 	bfd_write_bigendian_4byte_int
 
 SYNOPSIS
-	void bfd_write_bigendian_4byte_int (bfd *, unsigned int);
+	boolean bfd_write_bigendian_4byte_int (bfd *, unsigned int);
 
 DESCRIPTION
 	Write a 4 byte integer @var{i} to the output BFD @var{abfd}, in big
@@ -601,15 +601,14 @@ DESCRIPTION
 	archives.
 
 */
-void
+boolean
 bfd_write_bigendian_4byte_int (abfd, i)
      bfd *abfd;
      unsigned int i;
 {
   bfd_byte buffer[4];
   bfd_putb32 ((bfd_vma) i, buffer);
-  if (bfd_bwrite ((PTR) buffer, (bfd_size_type) 4, abfd) != 4)
-    abort ();
+  return bfd_bwrite ((PTR) buffer, (bfd_size_type) 4, abfd) == 4;
 }
 
 bfd_vma

@@ -2501,9 +2501,11 @@ func_desc_adjust (h, inf)
   struct bfd_link_info *info;
   struct ppc_link_hash_table *htab;
 
-  if (h->root.type == bfd_link_hash_indirect
-      || h->root.type == bfd_link_hash_warning)
+  if (h->root.type == bfd_link_hash_indirect)
     return true;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   info = (struct bfd_link_info *) inf;
   htab = ppc_hash_table (info);
@@ -2875,9 +2877,11 @@ allocate_dynrelocs (h, inf)
   struct ppc_link_hash_entry *eh;
   struct ppc_dyn_relocs *p;
 
-  if (h->root.type == bfd_link_hash_indirect
-      || h->root.type == bfd_link_hash_warning)
+  if (h->root.type == bfd_link_hash_indirect)
     return true;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   info = (struct bfd_link_info *) inf;
   htab = ppc_hash_table (info);
@@ -3033,6 +3037,9 @@ readonly_dynrelocs (h, inf)
 {
   struct ppc_link_hash_entry *eh;
   struct ppc_dyn_relocs *p;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   eh = (struct ppc_link_hash_entry *) h;
   for (p = eh->dyn_relocs; p != NULL; p = p->next)

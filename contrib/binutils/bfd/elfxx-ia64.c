@@ -1016,9 +1016,6 @@ elfNN_ia64_section_from_shdr (abfd, hdr, name)
   switch (hdr->sh_type)
     {
     case SHT_IA_64_UNWIND:
-    case SHT_INIT_ARRAY:
-    case SHT_FINI_ARRAY:
-    case SHT_PREINIT_ARRAY:
     case SHT_IA_64_HP_OPT_ANOT:
       break;
 
@@ -1076,12 +1073,6 @@ elfNN_ia64_fake_sections (abfd, hdr, sec)
     }
   else if (strcmp (name, ELF_STRING_ia64_archext) == 0)
     hdr->sh_type = SHT_IA_64_EXT;
-  else if (strcmp (name, ".init_array") == 0)
-    hdr->sh_type = SHT_INIT_ARRAY;
-  else if (strcmp (name, ".fini_array") == 0)
-    hdr->sh_type = SHT_FINI_ARRAY;
-  else if (strcmp (name, ".preinit_array") == 0)
-    hdr->sh_type = SHT_PREINIT_ARRAY;
   else if (strcmp (name, ".HP.opt_annot") == 0)
     hdr->sh_type = SHT_IA_64_HP_OPT_ANOT;
   else if (strcmp (name, ".reloc") == 0)
@@ -1718,6 +1709,9 @@ elfNN_ia64_global_dyn_sym_thunk (xentry, xdata)
   struct elfNN_ia64_dyn_sym_traverse_data *data
     = (struct elfNN_ia64_dyn_sym_traverse_data *) xdata;
   struct elfNN_ia64_dyn_sym_info *dyn_i;
+
+  if (entry->root.root.type == bfd_link_hash_warning)
+    entry = (struct elfNN_ia64_link_hash_entry *) entry->root.root.u.i.link;
 
   for (dyn_i = entry->info; dyn_i; dyn_i = dyn_i->next)
     if (! (*data->func) (dyn_i, data->data))

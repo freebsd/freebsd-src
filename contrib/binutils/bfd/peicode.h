@@ -139,7 +139,7 @@ static void               pe_ILF_make_a_reloc     PARAMS ((pe_ILF_vars *, bfd_vm
 static void               pe_ILF_make_a_symbol    PARAMS ((pe_ILF_vars *, const char *, const char *, asection_ptr, flagword));
 static void               pe_ILF_save_relocs      PARAMS ((pe_ILF_vars *, asection_ptr));
 static void		  pe_ILF_make_a_symbol_reloc  PARAMS ((pe_ILF_vars *, bfd_vma, bfd_reloc_code_real_type, struct symbol_cache_entry **, unsigned int));
-static boolean            pe_ILF_build_a_bfd      PARAMS ((bfd *, unsigned short, bfd_byte *, bfd_byte *, unsigned int, unsigned int));
+static boolean            pe_ILF_build_a_bfd      PARAMS ((bfd *, unsigned int, bfd_byte *, bfd_byte *, unsigned int, unsigned int));
 static const bfd_target * pe_ILF_object_p         PARAMS ((bfd *));
 static const bfd_target * pe_bfd_object_p 	  PARAMS ((bfd *));
 #endif /* COFF_IMAGE_WITH_PE */
@@ -156,14 +156,13 @@ coff_swap_reloc_in (abfd, src, dst)
   RELOC *reloc_src = (RELOC *) src;
   struct internal_reloc *reloc_dst = (struct internal_reloc *) dst;
 
-  reloc_dst->r_vaddr = bfd_h_get_32(abfd, (bfd_byte *)reloc_src->r_vaddr);
-  reloc_dst->r_symndx = bfd_h_get_signed_32(abfd, (bfd_byte *) reloc_src->r_symndx);
+  reloc_dst->r_vaddr = H_GET_32 (abfd, reloc_src->r_vaddr);
+  reloc_dst->r_symndx = H_GET_S32 (abfd, reloc_src->r_symndx);
 
-  reloc_dst->r_type = bfd_h_get_16(abfd, (bfd_byte *) reloc_src->r_type);
+  reloc_dst->r_type = H_GET_16 (abfd, reloc_src->r_type);
 
 #ifdef SWAP_IN_RELOC_OFFSET
-  reloc_dst->r_offset = SWAP_IN_RELOC_OFFSET(abfd,
-					     (bfd_byte *) reloc_src->r_offset);
+  reloc_dst->r_offset = SWAP_IN_RELOC_OFFSET (abfd, reloc_src->r_offset);
 #endif
 }
 
@@ -175,19 +174,16 @@ coff_swap_reloc_out (abfd, src, dst)
 {
   struct internal_reloc *reloc_src = (struct internal_reloc *)src;
   struct external_reloc *reloc_dst = (struct external_reloc *)dst;
-  bfd_h_put_32(abfd, reloc_src->r_vaddr, (bfd_byte *) reloc_dst->r_vaddr);
-  bfd_h_put_32(abfd, reloc_src->r_symndx, (bfd_byte *) reloc_dst->r_symndx);
+  H_PUT_32 (abfd, reloc_src->r_vaddr, reloc_dst->r_vaddr);
+  H_PUT_32 (abfd, reloc_src->r_symndx, reloc_dst->r_symndx);
 
-  bfd_h_put_16(abfd, reloc_src->r_type, (bfd_byte *)
-	       reloc_dst->r_type);
+  H_PUT_16 (abfd, reloc_src->r_type, reloc_dst->r_type);
 
 #ifdef SWAP_OUT_RELOC_OFFSET
-  SWAP_OUT_RELOC_OFFSET(abfd,
-			reloc_src->r_offset,
-			(bfd_byte *) reloc_dst->r_offset);
+  SWAP_OUT_RELOC_OFFSET (abfd, reloc_src->r_offset, reloc_dst->r_offset);
 #endif
 #ifdef SWAP_OUT_RELOC_EXTRA
-  SWAP_OUT_RELOC_EXTRA(abfd,reloc_src, reloc_dst);
+  SWAP_OUT_RELOC_EXTRA(abfd, reloc_src, reloc_dst);
 #endif
   return RELSZ;
 }
@@ -201,13 +197,13 @@ coff_swap_filehdr_in (abfd, src, dst)
 {
   FILHDR *filehdr_src = (FILHDR *) src;
   struct internal_filehdr *filehdr_dst = (struct internal_filehdr *) dst;
-  filehdr_dst->f_magic = bfd_h_get_16(abfd, (bfd_byte *) filehdr_src->f_magic);
-  filehdr_dst->f_nscns = bfd_h_get_16(abfd, (bfd_byte *)filehdr_src-> f_nscns);
-  filehdr_dst->f_timdat = bfd_h_get_32(abfd, (bfd_byte *)filehdr_src-> f_timdat);
+  filehdr_dst->f_magic = H_GET_16 (abfd, filehdr_src->f_magic);
+  filehdr_dst->f_nscns = H_GET_16 (abfd, filehdr_src-> f_nscns);
+  filehdr_dst->f_timdat = H_GET_32 (abfd, filehdr_src-> f_timdat);
 
-  filehdr_dst->f_nsyms = bfd_h_get_32(abfd, (bfd_byte *)filehdr_src-> f_nsyms);
-  filehdr_dst->f_flags = bfd_h_get_16(abfd, (bfd_byte *)filehdr_src-> f_flags);
-  filehdr_dst->f_symptr = bfd_h_get_32 (abfd, (bfd_byte *) filehdr_src->f_symptr);
+  filehdr_dst->f_nsyms = H_GET_32 (abfd, filehdr_src-> f_nsyms);
+  filehdr_dst->f_flags = H_GET_16 (abfd, filehdr_src-> f_flags);
+  filehdr_dst->f_symptr = H_GET_32 (abfd, filehdr_src->f_symptr);
 
   /* Other people's tools sometimes generate headers with an nsyms but
      a zero symptr.  */
@@ -217,8 +213,7 @@ coff_swap_filehdr_in (abfd, src, dst)
       filehdr_dst->f_flags |= F_LSYMS;
     }
 
-  filehdr_dst->f_opthdr = bfd_h_get_16(abfd,
-				       (bfd_byte *)filehdr_src-> f_opthdr);
+  filehdr_dst->f_opthdr = H_GET_16 (abfd, filehdr_src-> f_opthdr);
 }
 
 #ifdef COFF_IMAGE_WITH_PE
@@ -237,33 +232,24 @@ coff_swap_scnhdr_in (abfd, ext, in)
   struct internal_scnhdr *scnhdr_int = (struct internal_scnhdr *) in;
 
   memcpy(scnhdr_int->s_name, scnhdr_ext->s_name, sizeof (scnhdr_int->s_name));
-  scnhdr_int->s_vaddr =
-    GET_SCNHDR_VADDR (abfd, (bfd_byte *) scnhdr_ext->s_vaddr);
-  scnhdr_int->s_paddr =
-    GET_SCNHDR_PADDR (abfd, (bfd_byte *) scnhdr_ext->s_paddr);
-  scnhdr_int->s_size =
-    GET_SCNHDR_SIZE (abfd, (bfd_byte *) scnhdr_ext->s_size);
-  scnhdr_int->s_scnptr =
-    GET_SCNHDR_SCNPTR (abfd, (bfd_byte *) scnhdr_ext->s_scnptr);
-  scnhdr_int->s_relptr =
-    GET_SCNHDR_RELPTR (abfd, (bfd_byte *) scnhdr_ext->s_relptr);
-  scnhdr_int->s_lnnoptr =
-    GET_SCNHDR_LNNOPTR (abfd, (bfd_byte *) scnhdr_ext->s_lnnoptr);
-  scnhdr_int->s_flags = bfd_h_get_32(abfd, (bfd_byte *) scnhdr_ext->s_flags);
+  scnhdr_int->s_vaddr = GET_SCNHDR_VADDR (abfd, scnhdr_ext->s_vaddr);
+  scnhdr_int->s_paddr = GET_SCNHDR_PADDR (abfd, scnhdr_ext->s_paddr);
+  scnhdr_int->s_size = GET_SCNHDR_SIZE (abfd, scnhdr_ext->s_size);
+  scnhdr_int->s_scnptr = GET_SCNHDR_SCNPTR (abfd, scnhdr_ext->s_scnptr);
+  scnhdr_int->s_relptr = GET_SCNHDR_RELPTR (abfd, scnhdr_ext->s_relptr);
+  scnhdr_int->s_lnnoptr = GET_SCNHDR_LNNOPTR (abfd, scnhdr_ext->s_lnnoptr);
+  scnhdr_int->s_flags = H_GET_32 (abfd, scnhdr_ext->s_flags);
 
   /* MS handles overflow of line numbers by carrying into the reloc
      field (it appears).  Since it's supposed to be zero for PE
      *IMAGE* format, that's safe.  This is still a bit iffy.  */
 #ifdef COFF_IMAGE_WITH_PE
-  scnhdr_int->s_nlnno =
-    (bfd_h_get_16 (abfd, (bfd_byte *) scnhdr_ext->s_nlnno)
-     + (bfd_h_get_16 (abfd, (bfd_byte *) scnhdr_ext->s_nreloc) << 16));
+  scnhdr_int->s_nlnno = (H_GET_16 (abfd, scnhdr_ext->s_nlnno)
+			 + (H_GET_16 (abfd, scnhdr_ext->s_nreloc) << 16));
   scnhdr_int->s_nreloc = 0;
 #else
-  scnhdr_int->s_nreloc = bfd_h_get_16 (abfd,
-				       (bfd_byte *) scnhdr_ext->s_nreloc);
-  scnhdr_int->s_nlnno = bfd_h_get_16 (abfd,
-				      (bfd_byte *) scnhdr_ext->s_nlnno);
+  scnhdr_int->s_nreloc = H_GET_16 (abfd, scnhdr_ext->s_nreloc);
+  scnhdr_int->s_nlnno = H_GET_16 (abfd, scnhdr_ext->s_nlnno);
 #endif
 
   if (scnhdr_int->s_vaddr != 0)
@@ -292,8 +278,9 @@ pe_mkobject (abfd)
      bfd * abfd;
 {
   pe_data_type *pe;
-  abfd->tdata.pe_obj_data =
-    (struct pe_tdata *) bfd_zalloc (abfd, sizeof (pe_data_type));
+  bfd_size_type amt = sizeof (pe_data_type);
+
+  abfd->tdata.pe_obj_data = (struct pe_tdata *) bfd_zalloc (abfd, amt);
 
   if (abfd->tdata.pe_obj_data == 0)
     return false;
@@ -541,7 +528,7 @@ pe_ILF_save_relocs (pe_ILF_vars * vars,
   vars->int_reltab += vars->relcount;
   vars->relcount   = 0;
 
-  BFD_ASSERT ((bfd_byte *)vars->int_reltab < (bfd_byte *)vars->string_table);
+  BFD_ASSERT ((bfd_byte *) vars->int_reltab < (bfd_byte *) vars->string_table);
 }
 
 /* Create a global symbol and add it to the relevant tables.  */
@@ -587,8 +574,9 @@ pe_ILF_make_a_symbol (pe_ILF_vars *  vars,
     section = (asection_ptr) & bfd_und_section;
 
   /* Initialise the external symbol.  */
-  bfd_h_put_32 (vars->abfd, vars->string_ptr - vars->string_table, (bfd_byte *) esym->e.e.e_offset);
-  bfd_h_put_16 (vars->abfd, section->target_index, (bfd_byte *) esym->e_scnum);
+  H_PUT_32 (vars->abfd, vars->string_ptr - vars->string_table,
+	    esym->e.e.e_offset);
+  H_PUT_16 (vars->abfd, section->target_index, esym->e_scnum);
   esym->e_sclass[0] = sclass;
 
   /* The following initialisations are unnecessary - the memory is
@@ -666,7 +654,7 @@ pe_ILF_make_a_section (pe_ILF_vars * vars,
 
   /* Set the section size and contents.  The actual
      contents are filled in by our parent.  */
-  bfd_set_section_size (vars->abfd, sec, size);
+  bfd_set_section_size (vars->abfd, sec, (bfd_size_type) size);
   sec->contents = vars->data;
   sec->target_index = vars->sec_index ++;
 
@@ -767,7 +755,7 @@ static jump_table jtab[] =
 /* Build a full BFD from the information supplied in a ILF object.  */
 static boolean
 pe_ILF_build_a_bfd (bfd *           abfd,
-		    unsigned short  magic,
+		    unsigned int    magic,
 		    bfd_byte *      symbol_name,
 		    bfd_byte *      source_dll,
 		    unsigned int    ordinal,
@@ -795,12 +783,12 @@ pe_ILF_build_a_bfd (bfd *           abfd,
     case IMPORT_CONST:
       /* XXX code yet to be written.  */
       _bfd_error_handler (_("%s: Unhandled import type; %x"),
-			  bfd_get_filename (abfd), import_type);
+			  bfd_archive_filename (abfd), import_type);
       return false;
 
     default:
       _bfd_error_handler (_("%s: Unrecognised import type; %x"),
-			  bfd_get_filename (abfd), import_type);
+			  bfd_archive_filename (abfd), import_type);
       return false;
     }
 
@@ -814,7 +802,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
     default:
       _bfd_error_handler (_("%s: Unrecognised import name type; %x"),
-			  bfd_get_filename (abfd), import_name_type);
+			  bfd_archive_filename (abfd), import_name_type);
       return false;
     }
 
@@ -825,7 +813,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
      We are going to construct the contents of the BFD in memory,
      so allocate all the space that we will need right now.  */
-  ptr = bfd_zalloc (abfd, ILF_DATA_SIZE);
+  ptr = bfd_zalloc (abfd, (bfd_size_type) ILF_DATA_SIZE);
   if (ptr == NULL)
     return false;
 
@@ -933,11 +921,11 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
   if (import_name_type != IMPORT_ORDINAL)
     {
-      pe_ILF_make_a_reloc (& vars, 0, BFD_RELOC_RVA, id6);
-      pe_ILF_save_relocs (& vars, id4);
+      pe_ILF_make_a_reloc (&vars, (bfd_vma) 0, BFD_RELOC_RVA, id6);
+      pe_ILF_save_relocs (&vars, id4);
 
-      pe_ILF_make_a_reloc (& vars, 0, BFD_RELOC_RVA, id6);
-      pe_ILF_save_relocs (& vars, id5);
+      pe_ILF_make_a_reloc (&vars, (bfd_vma) 0, BFD_RELOC_RVA, id6);
+      pe_ILF_save_relocs (&vars, id5);
     }
 
   /* Create extra sections depending upon the type of import we are dealing with.  */
@@ -976,16 +964,19 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 #ifdef MIPS_ARCH_MAGIC_WINCE
       if (magic == MIPS_ARCH_MAGIC_WINCE)
 	{
-	  pe_ILF_make_a_symbol_reloc (& vars, 0, BFD_RELOC_HI16_S,
-				      (struct symbol_cache_entry **) imp_sym, imp_index);
-	  pe_ILF_make_a_reloc (& vars, 0, BFD_RELOC_LO16, text);
-	  pe_ILF_make_a_symbol_reloc (& vars, 4, BFD_RELOC_LO16,
-				      (struct symbol_cache_entry **) imp_sym, imp_index);
+	  pe_ILF_make_a_symbol_reloc (&vars, (bfd_vma) 0, BFD_RELOC_HI16_S,
+				      (struct symbol_cache_entry **) imp_sym,
+				      imp_index);
+	  pe_ILF_make_a_reloc (&vars, (bfd_vma) 0, BFD_RELOC_LO16, text);
+	  pe_ILF_make_a_symbol_reloc (&vars, (bfd_vma) 4, BFD_RELOC_LO16,
+				      (struct symbol_cache_entry **) imp_sym,
+				      imp_index);
 	}
       else
 #endif
-	pe_ILF_make_a_symbol_reloc (& vars, jtab[i].offset, BFD_RELOC_32,
-				    (asymbol **) imp_sym, imp_index);
+	pe_ILF_make_a_symbol_reloc (&vars, (bfd_vma) jtab[i].offset,
+				    BFD_RELOC_32, (asymbol **) imp_sym,
+				    imp_index);
 
       pe_ILF_save_relocs (& vars, text);
       break;
@@ -1006,7 +997,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
   internal_f.f_nsyms  = 0;
   internal_f.f_flags  = F_AR32WR | F_LNNO; /* XXX is this correct ?  */
 
-  if (   ! bfd_set_start_address (abfd, 0)
+  if (   ! bfd_set_start_address (abfd, (bfd_vma) 0)
       || ! bfd_coff_set_arch_mach_hook (abfd, & internal_f))
     return false;
 
@@ -1031,8 +1022,6 @@ pe_ILF_build_a_bfd (bfd *           abfd,
   /* Now create a symbol describing the imported value.  */
   switch (import_type)
     {
-      bfd_byte * ptr;
-
     case IMPORT_CODE:
       pe_ILF_make_a_symbol (& vars, "", symbol_name, text,
 			    BSF_NOT_AT_END | BSF_FUNCTION);
@@ -1087,23 +1076,23 @@ pe_ILF_object_p (bfd * abfd)
   bfd_byte *      symbol_name;
   bfd_byte *      source_dll;
   unsigned int    machine;
-  unsigned long   size;
+  bfd_size_type   size;
   unsigned int    ordinal;
   unsigned int    types;
-  unsigned short  magic;
+  unsigned int    magic;
 
   /* Upon entry the first four buyes of the ILF header have
       already been read.  Now read the rest of the header.  */
-  if (bfd_read (buffer, 1, 16, abfd) != 16)
+  if (bfd_bread (buffer, (bfd_size_type) 16, abfd) != 16)
     return NULL;
 
   ptr = buffer;
 
   /*  We do not bother to check the version number.
-      version = bfd_h_get_16 (abfd, ptr);  */
+      version = H_GET_16 (abfd, ptr);  */
   ptr += 2;
 
-  machine = bfd_h_get_16 (abfd, ptr);
+  machine = H_GET_16 (abfd, ptr);
   ptr += 2;
 
   /* Check that the machine type is recognised.  */
@@ -1171,7 +1160,7 @@ pe_ILF_object_p (bfd * abfd)
       _bfd_error_handler
 	(
 _("%s: Unrecognised machine type (0x%x) in Import Library Format archive"),
-         bfd_get_filename (abfd), machine);
+         bfd_archive_filename (abfd), machine);
       bfd_set_error (bfd_error_malformed_archive);
 
       return NULL;
@@ -1183,33 +1172,33 @@ _("%s: Unrecognised machine type (0x%x) in Import Library Format archive"),
       _bfd_error_handler
 	(
 _("%s: Recognised but unhandled machine type (0x%x) in Import Library Format archive"),
-	 bfd_get_filename (abfd), machine);
+	 bfd_archive_filename (abfd), machine);
       bfd_set_error (bfd_error_wrong_format);
 
       return NULL;
     }
 
   /* We do not bother to check the date.
-     date = bfd_h_get_32 (abfd, ptr);  */
+     date = H_GET_32 (abfd, ptr);  */
   ptr += 4;
 
-  size = bfd_h_get_32 (abfd, ptr);
+  size = H_GET_32 (abfd, ptr);
   ptr += 4;
 
   if (size == 0)
     {
       _bfd_error_handler
 	(_("%s: size field is zero in Import Library Format header"),
-	 bfd_get_filename (abfd));
+	 bfd_archive_filename (abfd));
       bfd_set_error (bfd_error_malformed_archive);
 
       return NULL;
     }
 
-  ordinal = bfd_h_get_16 (abfd, ptr);
+  ordinal = H_GET_16 (abfd, ptr);
   ptr += 2;
 
-  types = bfd_h_get_16 (abfd, ptr);
+  types = H_GET_16 (abfd, ptr);
   /* ptr += 2; */
 
   /* Now read in the two strings that follow.  */
@@ -1217,7 +1206,7 @@ _("%s: Recognised but unhandled machine type (0x%x) in Import Library Format arc
   if (ptr == NULL)
     return NULL;
 
-  if (bfd_read (ptr, 1, size, abfd) != size)
+  if (bfd_bread (ptr, size, abfd) != size)
     return NULL;
 
   symbol_name = ptr;
@@ -1228,7 +1217,7 @@ _("%s: Recognised but unhandled machine type (0x%x) in Import Library Format arc
     {
       _bfd_error_handler
 	(_("%s: string not null terminated in ILF object file."),
-	 bfd_get_filename (abfd));
+	 bfd_archive_filename (abfd));
       bfd_set_error (bfd_error_malformed_archive);
 
       return NULL;
@@ -1251,19 +1240,19 @@ pe_bfd_object_p (bfd * abfd)
   file_ptr offset;
 
   /* Detect if this a Microsoft Import Library Format element.  */
-  if (bfd_seek (abfd, 0x00, SEEK_SET) != 0
-      || bfd_read (buffer, 1, 4, abfd) != 4)
+  if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
+      || bfd_bread (buffer, (bfd_size_type) 4, abfd) != 4)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  if (bfd_h_get_32 (abfd, buffer) == 0xffff0000)
+  if (H_GET_32 (abfd, buffer) == 0xffff0000)
     return pe_ILF_object_p (abfd);
 
-  if (bfd_seek (abfd, 0x00, SEEK_SET) != 0
-      || bfd_read (&dos_hdr, 1, sizeof (dos_hdr), abfd)
+  if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
+      || bfd_bread (&dos_hdr, (bfd_size_type) sizeof (dos_hdr), abfd)
 	 != sizeof (dos_hdr))
     {
       if (bfd_get_error () != bfd_error_system_call)
@@ -1281,24 +1270,23 @@ pe_bfd_object_p (bfd * abfd)
      correctly for a PEI file, check the e_magic number here, and, if
      it doesn't match, clobber the f_magic number so that we don't get
      a false match.  */
-  if (bfd_h_get_16 (abfd, (bfd_byte *) dos_hdr.e_magic) != DOSMAGIC)
+  if (H_GET_16 (abfd, dos_hdr.e_magic) != DOSMAGIC)
     {
       bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  offset = bfd_h_get_32 (abfd, (bfd_byte *) dos_hdr.e_lfanew);
-  if (bfd_seek (abfd, (file_ptr) offset, SEEK_SET) != 0
-      || bfd_read (&image_hdr, 1, sizeof (image_hdr), abfd)
-	 != sizeof (image_hdr))
+  offset = H_GET_32 (abfd, dos_hdr.e_lfanew);
+  if (bfd_seek (abfd, offset, SEEK_SET) != 0
+      || (bfd_bread (&image_hdr, (bfd_size_type) sizeof (image_hdr), abfd)
+	  != sizeof (image_hdr)))
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  if (bfd_h_get_32 (abfd, (bfd_byte *) image_hdr.nt_signature)
-      != 0x4550)
+  if (H_GET_32 (abfd, image_hdr.nt_signature) != 0x4550)
     {
       bfd_set_error (bfd_error_wrong_format);
       return NULL;
@@ -1307,10 +1295,7 @@ pe_bfd_object_p (bfd * abfd)
   /* Here is the hack.  coff_object_p wants to read filhsz bytes to
      pick up the COFF header for PE, see "struct external_PEI_filehdr"
      in include/coff/pe.h.  We adjust so that that will work. */
-  if (bfd_seek (abfd,
-		(file_ptr) (offset - sizeof (dos_hdr)),
-		SEEK_SET)
-      != 0)
+  if (bfd_seek (abfd, (file_ptr) (offset - sizeof (dos_hdr)), SEEK_SET) != 0)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);

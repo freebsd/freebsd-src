@@ -1,6 +1,6 @@
 /* BFD semi-generic back-end for a.out binaries.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -4577,6 +4577,13 @@ aout_link_write_other_symbol (h, data)
   bfd_size_type indx;
   bfd_size_type amt;
 
+  if (h->root.type == bfd_link_hash_warning)
+    {
+      h = (struct aout_link_hash_entry *) h->root.u.i.link;
+      if (h->root.type == bfd_link_hash_new)
+	return true;
+    }
+
   output_bfd = finfo->output_bfd;
 
   if (aout_backend_info (output_bfd)->write_dynamic_symbol != NULL)
@@ -4605,6 +4612,7 @@ aout_link_write_other_symbol (h, data)
   switch (h->root.type)
     {
     default:
+    case bfd_link_hash_warning:
       abort ();
       /* Avoid variable not initialized warnings.  */
       return true;
@@ -4646,9 +4654,8 @@ aout_link_write_other_symbol (h, data)
       type = N_WEAKU;
       val = 0;
     case bfd_link_hash_indirect:
-    case bfd_link_hash_warning:
-      /* FIXME: Ignore these for now.  The circumstances under which
-	 they should be written out are not clear to me.  */
+      /* We ignore these symbols, since the indirected symbol is
+	 already in the hash table.  */
       return true;
     }
 

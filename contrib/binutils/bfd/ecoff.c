@@ -1,5 +1,5 @@
 /* Generic ECOFF (Extended-COFF) routines.
-   Copyright 1990, 1991, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
+   Copyright 1990, 1991, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Original version by Per Bothner.
    Full support added by Ian Lance Taylor, ian@cygnus.com.
@@ -4393,6 +4393,13 @@ ecoff_link_write_external (h, data)
   bfd *output_bfd = einfo->abfd;
   boolean strip;
 
+  if (h->root.type == bfd_link_hash_warning)
+    {
+      h = (struct ecoff_link_hash_entry *) h->root.u.i.link;
+      if (h->root.type == bfd_link_hash_new)
+	return true;
+    }
+
   /* We need to check if this symbol is being stripped.  */
   if (h->root.type == bfd_link_hash_undefined
       || h->root.type == bfd_link_hash_undefweak)
@@ -4474,6 +4481,7 @@ ecoff_link_write_external (h, data)
   switch (h->root.type)
     {
     default:
+    case bfd_link_hash_warning:
     case bfd_link_hash_new:
       abort ();
     case bfd_link_hash_undefined:
@@ -4502,9 +4510,8 @@ ecoff_link_write_external (h, data)
       h->esym.asym.value = h->root.u.c.size;
       break;
     case bfd_link_hash_indirect:
-    case bfd_link_hash_warning:
-      /* FIXME: Ignore these for now.  The circumstances under which
-	 they should be written out are not clear to me.  */
+      /* We ignore these symbols, since the indirected symbol is
+	 already in the hash table.  */
       return true;
     }
 

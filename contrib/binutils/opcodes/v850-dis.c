@@ -1,5 +1,5 @@
 /* Disassemble V850 instructions.
-   Copyright 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ static const char *const v850_sreg_names[] =
 static const char *const v850_cc_names[] =
 { "v", "c/l", "z", "nh", "s/n", "t", "lt", "le", 
   "nv", "nc/nl", "nz", "h", "ns/p", "sa", "ge", "gt" };
+
+static int disassemble
+  PARAMS ((bfd_vma, struct disassemble_info *, unsigned long));
 
 static int
 disassemble (memaddr, info, insn)

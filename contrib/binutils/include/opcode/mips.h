@@ -1,5 +1,6 @@
 /* mips.h.  Mips opcode list for GDB, the GNU debugger.
-   Copyright 1993, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Ralph Campbell and OSF
    Commented and modified by Ian Lance Taylor, Cygnus Support
 
@@ -30,9 +31,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 	i = (i &~ (OP_MASK_X << OP_SH_X)) | (j << OP_SH_X)
 
    Make sure you use fields that are appropriate for the instruction,
-   of course.  
+   of course.
 
-   The 'i' format uses OP, RS, RT and IMMEDIATE.  
+   The 'i' format uses OP, RS, RT and IMMEDIATE.
 
    The 'j' format uses OP and TARGET.
 
@@ -48,9 +49,11 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
    breakpoint instruction are not defined; Kane says the breakpoint
    code field in BREAK is 20 bits; yet MIPS assemblers and debuggers
    only use ten bits).  An optional two-operand form of break/sdbbp
-   allows the lower ten bits to be set too.
+   allows the lower ten bits to be set too, and MIPS32 and later
+   architectures allow 20 bits to be set with a signal operand
+   (using CODE20).
 
-   The syscall instruction uses SYSCALL.
+   The syscall instruction uses CODE20.
 
    The general coprocessor instructions use COPZ.  */
 
@@ -82,8 +85,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 #define OP_SH_PREFX		11
 #define OP_MASK_CCC		0x7
 #define OP_SH_CCC		8
-#define OP_MASK_SYSCALL		0xfffff
-#define OP_SH_SYSCALL		6
+#define OP_MASK_CODE20		0xfffff /* 20 bit syscall/breakpoint code.  */
+#define OP_SH_CODE20		6
 #define OP_MASK_SHAMT		0x1f
 #define OP_SH_SHAMT		6
 #define OP_MASK_FD		0x1f
@@ -100,17 +103,17 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 #define OP_SH_FUNCT		0
 #define OP_MASK_SPEC		0x3f
 #define OP_SH_SPEC		0
-#define OP_SH_LOCC              8       /* FP condition code */
-#define OP_SH_HICC              18      /* FP condition code */
+#define OP_SH_LOCC              8       /* FP condition code.  */
+#define OP_SH_HICC              18      /* FP condition code.  */
 #define OP_MASK_CC              0x7
-#define OP_SH_COP1NORM          25      /* Normal COP1 encoding */
-#define OP_MASK_COP1NORM        0x1     /* a single bit */
-#define OP_SH_COP1SPEC          21      /* COP1 encodings */
+#define OP_SH_COP1NORM          25      /* Normal COP1 encoding.  */
+#define OP_MASK_COP1NORM        0x1     /* a single bit.  */
+#define OP_SH_COP1SPEC          21      /* COP1 encodings.  */
 #define OP_MASK_COP1SPEC        0xf
 #define OP_MASK_COP1SCLR        0x4
 #define OP_MASK_COP1CMP         0x3
 #define OP_SH_COP1CMP           4
-#define OP_SH_FORMAT            21      /* FP short format field */
+#define OP_SH_FORMAT            21      /* FP short format field.  */
 #define OP_MASK_FORMAT          0x7
 #define OP_SH_TRUE              16
 #define OP_MASK_TRUE            0x1
@@ -120,12 +123,16 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 #define OP_MASK_UNSIGNED        0x1
 #define OP_SH_HINT              16
 #define OP_MASK_HINT            0x1f
-#define OP_SH_MMI               0       /* Multimedia (parallel) op */
-#define OP_MASK_MMI             0x3f 
+#define OP_SH_MMI               0       /* Multimedia (parallel) op.  */
+#define OP_MASK_MMI             0x3f
 #define OP_SH_MMISUB            6
 #define OP_MASK_MMISUB          0x1f
-#define OP_MASK_PERFREG		0x1f	/* Performance monitoring */
+#define OP_MASK_PERFREG		0x1f	/* Performance monitoring.  */
 #define OP_SH_PERFREG		1
+#define OP_SH_SEL		0	/* Coprocessor select field.  */
+#define OP_MASK_SEL		0x7	/* The sel field of mfcZ and mtcZ.  */
+#define OP_SH_CODE19		6       /* 19 bit wait code.  */
+#define OP_MASK_CODE19		0x7ffff
 
 /* This structure holds information for a particular instruction.  */
 
@@ -181,8 +188,11 @@ struct mips_opcode
    "u" 16 bit upper 16 bits of address (OP_*_IMMEDIATE)
    "v" 5 bit same register used as both source and destination (OP_*_RS)
    "w" 5 bit same register used as both target and destination (OP_*_RT)
+   "U" 5 bit same destination register in both OP_*_RD and OP_*_RT
+       (used by clo and clz)
    "C" 25 bit coprocessor function code (OP_*_COPZ)
-   "B" 20 bit syscall function code (OP_*_SYSCALL)
+   "B" 20 bit syscall/breakpoint function code (OP_*_CODE20)
+   "J" 19 bit wait function code (OP_*_CODE19)
    "x" accept and ignore register name
    "z" must be zero register
 
@@ -199,6 +209,7 @@ struct mips_opcode
    Coprocessor instructions:
    "E" 5 bit target register (OP_*_RT)
    "G" 5 bit destination register (OP_*_RD)
+   "H" 3 bit sel field for (d)mtc* and (d)mfc* (OP_*_SEL)
    "P" 5 bit performance-monitor register (OP_*_PERFREG)
 
    Macro instructions:
@@ -215,7 +226,7 @@ struct mips_opcode
 
    Characters used so far, for quick reference when adding more:
    "<>(),"
-   "ABCDEFGILMNSTRVW"
+   "ABCDEFGHIJLMNPRSTUVW"
    "abcdfhijklopqrstuvwxz"
 */
 
@@ -291,281 +302,310 @@ struct mips_opcode
    disassembler, and requires special treatment by the assembler.  */
 #define INSN_MACRO                  0xffffffff
 
+/* Masks used to mark instructions to indicate which MIPS ISA level
+   they were introduced in.  ISAs, as defined below, are logical
+   ORs of these bits, indicatingthat they support the instructions
+   defined at the given level.  */
 
-
-
-
-/* MIPS ISA field--CPU level at which insn is supported.  */
-#define INSN_ISA		    0x0000000F
-/* An instruction which is not part of any basic MIPS ISA.
-   (ie it is a chip specific instruction)  */
-#define INSN_NO_ISA		    0x00000000
-/* MIPS ISA 1 instruction.  */
-#define INSN_ISA1		    0x00000001
-/* MIPS ISA 2 instruction (R6000 or R4000).  */
-#define INSN_ISA2		    0x00000002
-/* MIPS ISA 3 instruction (R4000).  */
-#define INSN_ISA3		    0x00000003
-/* MIPS ISA 4 instruction (R8000).  */
-#define INSN_ISA4		    0x00000004
-#define INSN_ISA5		    0x00000005
+#define INSN_ISA_MASK		  0x00000fff
+#define INSN_ISA1                 0x00000010
+#define INSN_ISA2                 0x00000020
+#define INSN_ISA3                 0x00000040
+#define INSN_ISA4                 0x00000080
+#define INSN_ISA5                 0x00000100
+#define INSN_ISA32                0x00000200
+#define INSN_ISA64                0x00000400
 
 /* Chip specific instructions.  These are bitmasks.  */
-/* MIPS R4650 instruction.  */
-#define INSN_4650		    0x00000010
-/* LSI R4010 instruction.  */
-#define INSN_4010		    0x00000020
-/* NEC VR4100 instruction. */
-#define INSN_4100                   0x00000040
-/* Toshiba R3900 instruction.  */
-#define INSN_3900                   0x00000080
 
-/* 32-bit code running on a ISA3+ CPU. */
-#define INSN_GP32                   0x00001000
+/* MIPS R4650 instruction.  */
+#define INSN_4650                 0x00010000
+/* LSI R4010 instruction.  */
+#define INSN_4010                 0x00020000
+/* NEC VR4100 instruction.  */
+#define INSN_4100                 0x00040000
+/* Toshiba R3900 instruction.  */
+#define INSN_3900                 0x00080000
+/* MIPS R10000 instruction.  */
+#define INSN_10000                0x00100000
+/* Broadcom SB-1 instruction.  */
+#define INSN_SB1                  0x00200000
+
+/* MIPS ISA defines, use instead of hardcoding ISA level.  */
+
+#define       ISA_UNKNOWN     0               /* Gas internal use.  */
+#define       ISA_MIPS1       (INSN_ISA1)
+#define       ISA_MIPS2       (ISA_MIPS1 | INSN_ISA2)
+#define       ISA_MIPS3       (ISA_MIPS2 | INSN_ISA3)
+#define       ISA_MIPS4       (ISA_MIPS3 | INSN_ISA4)
+#define       ISA_MIPS5       (ISA_MIPS4 | INSN_ISA5)
+#define       ISA_MIPS32      (ISA_MIPS2 | INSN_ISA32)
+#define       ISA_MIPS64      (ISA_MIPS5 | INSN_ISA32 | INSN_ISA64)
+
+/* CPU defines, use instead of hardcoding processor number. Keep this
+   in sync with bfd/archures.c in order for machine selection to work.  */
+#define CPU_UNKNOWN	0               /* Gas internal use.  */
+#define CPU_R2000	2000
+#define CPU_R3000	3000
+#define CPU_R3900	3900
+#define CPU_R4000	4000
+#define CPU_R4010	4010
+#define CPU_VR4100	4100
+#define CPU_R4111	4111
+#define CPU_R4300	4300
+#define CPU_R4400	4400
+#define CPU_R4600	4600
+#define CPU_R4650	4650
+#define CPU_R5000	5000
+#define CPU_R6000	6000
+#define CPU_R8000	8000
+#define CPU_R10000	10000
+#define CPU_R12000	12000
+#define CPU_MIPS16	16
+#define CPU_MIPS32	32
+#define CPU_MIPS5       5
+#define CPU_MIPS64      64
+#define CPU_SB1         12310201        /* octal 'SB', 01.  */
 
 /* Test for membership in an ISA including chip specific ISAs.
    INSN is pointer to an element of the opcode table; ISA is the
    specified ISA to test against; and CPU is the CPU specific ISA
-   to test, or zero if no CPU specific ISA test is desired.  
-   The gp32 arg is set when you need to force 32-bit register usage on
-   a machine with 64-bit registers; see the documentation under -mgp32
-   in the MIPS gas docs. */
+   to test, or zero if no CPU specific ISA test is desired.  */
 
-#define OPCODE_IS_MEMBER(insn,isa,cpu,gp32) 	       		\
-    ((((insn)->membership & INSN_ISA) != 0			\
-      && ((insn)->membership & INSN_ISA) <= isa			\
-      && ((insn)->membership & INSN_GP32 ? gp32 : 1))		\
-     || (cpu == 4650						\
-	 && ((insn)->membership & INSN_4650) != 0)		\
-     || (cpu == 4010						\
-	 && ((insn)->membership & INSN_4010) != 0)		\
-     || ((cpu == 4100						\
-	  || cpu == 4111					\
-	  )							\
-	 && ((insn)->membership & INSN_4100) != 0)		\
-     || (cpu == 3900						\
-	 && ((insn)->membership & INSN_3900) != 0))
+#define OPCODE_IS_MEMBER(insn, isa, cpu)				\
+    (((insn)->membership & isa) != 0					\
+     || (cpu == CPU_R4650 && ((insn)->membership & INSN_4650) != 0)	\
+     || (cpu == CPU_R4010 && ((insn)->membership & INSN_4010) != 0)	\
+     || ((cpu == CPU_VR4100 || cpu == CPU_R4111)			\
+	 && ((insn)->membership & INSN_4100) != 0)			\
+     || (cpu == CPU_R3900 && ((insn)->membership & INSN_3900) != 0)	\
+     || ((cpu == CPU_R10000 || cpu == CPU_R12000)			\
+	 && ((insn)->membership & INSN_10000) != 0)			\
+     || (cpu == CPU_SB1 && ((insn)->membership & INSN_SB1) != 0)	\
+     || 0)	/* Please keep this term for easier source merging.  */
 
 /* This is a list of macro expanded instructions.
- *
- * _I appended means immediate
- * _A appended means address
- * _AB appended means address with base register
- * _D appended means 64 bit floating point constant
- * _S appended means 32 bit floating point constant
- */
-enum {
-    M_ABS,
-    M_ADD_I,
-    M_ADDU_I,
-    M_AND_I,
-    M_BEQ,
-    M_BEQ_I,
-    M_BEQL_I,
-    M_BGE,
-    M_BGEL,
-    M_BGE_I,
-    M_BGEL_I,
-    M_BGEU,
-    M_BGEUL,
-    M_BGEU_I,
-    M_BGEUL_I,
-    M_BGT,
-    M_BGTL,
-    M_BGT_I,
-    M_BGTL_I,
-    M_BGTU,
-    M_BGTUL,
-    M_BGTU_I,
-    M_BGTUL_I,
-    M_BLE,
-    M_BLEL,
-    M_BLE_I,
-    M_BLEL_I,
-    M_BLEU,
-    M_BLEUL,
-    M_BLEU_I,
-    M_BLEUL_I,
-    M_BLT,
-    M_BLTL,
-    M_BLT_I,
-    M_BLTL_I,
-    M_BLTU,
-    M_BLTUL,
-    M_BLTU_I,
-    M_BLTUL_I,
-    M_BNE,
-    M_BNE_I,
-    M_BNEL_I,
-    M_DABS,
-    M_DADD_I,
-    M_DADDU_I,
-    M_DDIV_3,
-    M_DDIV_3I,
-    M_DDIVU_3,
-    M_DDIVU_3I,
-    M_DIV_3,
-    M_DIV_3I,
-    M_DIVU_3,
-    M_DIVU_3I,
-    M_DLA_AB,
-    M_DLI,
-    M_DMUL,
-    M_DMUL_I, 
-    M_DMULO,
-    M_DMULO_I, 
-    M_DMULOU,
-    M_DMULOU_I, 
-    M_DREM_3,
-    M_DREM_3I,
-    M_DREMU_3,
-    M_DREMU_3I,
-    M_DSUB_I,
-    M_DSUBU_I,
-    M_DSUBU_I_2,
-    M_J_A,
-    M_JAL_1,
-    M_JAL_2,
-    M_JAL_A,
-    M_L_DOB,
-    M_L_DAB,
-    M_LA_AB,
-    M_LB_A,
-    M_LB_AB,
-    M_LBU_A,
-    M_LBU_AB,
-    M_LD_A,
-    M_LD_OB,
-    M_LD_AB,
-    M_LDC1_AB,
-    M_LDC2_AB,
-    M_LDC3_AB,
-    M_LDL_AB,
-    M_LDR_AB,
-    M_LH_A,
-    M_LH_AB,
-    M_LHU_A,
-    M_LHU_AB,
-    M_LI,
-    M_LI_D,
-    M_LI_DD,
-    M_LI_S,
-    M_LI_SS,
-    M_LL_AB,
-    M_LLD_AB,
-    M_LS_A,
-    M_LW_A,
-    M_LW_AB,
-    M_LWC0_A,
-    M_LWC0_AB,
-    M_LWC1_A,
-    M_LWC1_AB,
-    M_LWC2_A,
-    M_LWC2_AB,
-    M_LWC3_A,
-    M_LWC3_AB,
-    M_LWL_A,
-    M_LWL_AB,
-    M_LWR_A,
-    M_LWR_AB,
-    M_LWU_AB,
-    M_MUL,
-    M_MUL_I, 
-    M_MULO,
-    M_MULO_I, 
-    M_MULOU,
-    M_MULOU_I, 
-    M_NOR_I,
-    M_OR_I,
-    M_REM_3,
-    M_REM_3I,
-    M_REMU_3,
-    M_REMU_3I,
-    M_ROL,
-    M_ROL_I,
-    M_ROR,
-    M_ROR_I,
-    M_S_DA,
-    M_S_DOB,
-    M_S_DAB,
-    M_S_S,
-    M_SC_AB,
-    M_SCD_AB,
-    M_SD_A,
-    M_SD_OB,
-    M_SD_AB,
-    M_SDC1_AB,
-    M_SDC2_AB,
-    M_SDC3_AB,
-    M_SDL_AB,
-    M_SDR_AB,
-    M_SEQ,
-    M_SEQ_I,
-    M_SGE,
-    M_SGE_I,
-    M_SGEU,
-    M_SGEU_I,
-    M_SGT,
-    M_SGT_I,
-    M_SGTU,
-    M_SGTU_I,
-    M_SLE,
-    M_SLE_I,
-    M_SLEU,
-    M_SLEU_I,
-    M_SLT_I,
-    M_SLTU_I,
-    M_SNE,
-    M_SNE_I,
-    M_SB_A,
-    M_SB_AB,
-    M_SH_A,
-    M_SH_AB,
-    M_SW_A,
-    M_SW_AB,
-    M_SWC0_A,
-    M_SWC0_AB,
-    M_SWC1_A,
-    M_SWC1_AB,
-    M_SWC2_A,
-    M_SWC2_AB,
-    M_SWC3_A,
-    M_SWC3_AB,
-    M_SWL_A,
-    M_SWL_AB,
-    M_SWR_A,
-    M_SWR_AB,
-    M_SUB_I,
-    M_SUBU_I,
-    M_SUBU_I_2,
-    M_TEQ_I,
-    M_TGE_I,
-    M_TGEU_I,
-    M_TLT_I,
-    M_TLTU_I,
-    M_TNE_I,
-    M_TRUNCWD,
-    M_TRUNCWS,
-    M_ULD,
-    M_ULD_A,
-    M_ULH,
-    M_ULH_A,
-    M_ULHU,
-    M_ULHU_A,
-    M_ULW,
-    M_ULW_A,
-    M_USH,
-    M_USH_A,
-    M_USW,
-    M_USW_A,
-    M_USD,
-    M_USD_A,
-    M_XOR_I,
-    M_COP0,
-    M_COP1,
-    M_COP2,
-    M_COP3,
-    M_NUM_MACROS
+
+   _I appended means immediate
+   _A appended means address
+   _AB appended means address with base register
+   _D appended means 64 bit floating point constant
+   _S appended means 32 bit floating point constant.  */
+
+enum
+{
+  M_ABS,
+  M_ADD_I,
+  M_ADDU_I,
+  M_AND_I,
+  M_BEQ,
+  M_BEQ_I,
+  M_BEQL_I,
+  M_BGE,
+  M_BGEL,
+  M_BGE_I,
+  M_BGEL_I,
+  M_BGEU,
+  M_BGEUL,
+  M_BGEU_I,
+  M_BGEUL_I,
+  M_BGT,
+  M_BGTL,
+  M_BGT_I,
+  M_BGTL_I,
+  M_BGTU,
+  M_BGTUL,
+  M_BGTU_I,
+  M_BGTUL_I,
+  M_BLE,
+  M_BLEL,
+  M_BLE_I,
+  M_BLEL_I,
+  M_BLEU,
+  M_BLEUL,
+  M_BLEU_I,
+  M_BLEUL_I,
+  M_BLT,
+  M_BLTL,
+  M_BLT_I,
+  M_BLTL_I,
+  M_BLTU,
+  M_BLTUL,
+  M_BLTU_I,
+  M_BLTUL_I,
+  M_BNE,
+  M_BNE_I,
+  M_BNEL_I,
+  M_DABS,
+  M_DADD_I,
+  M_DADDU_I,
+  M_DDIV_3,
+  M_DDIV_3I,
+  M_DDIVU_3,
+  M_DDIVU_3I,
+  M_DIV_3,
+  M_DIV_3I,
+  M_DIVU_3,
+  M_DIVU_3I,
+  M_DLA_AB,
+  M_DLI,
+  M_DMUL,
+  M_DMUL_I,
+  M_DMULO,
+  M_DMULO_I,
+  M_DMULOU,
+  M_DMULOU_I,
+  M_DREM_3,
+  M_DREM_3I,
+  M_DREMU_3,
+  M_DREMU_3I,
+  M_DSUB_I,
+  M_DSUBU_I,
+  M_DSUBU_I_2,
+  M_J_A,
+  M_JAL_1,
+  M_JAL_2,
+  M_JAL_A,
+  M_L_DOB,
+  M_L_DAB,
+  M_LA_AB,
+  M_LB_A,
+  M_LB_AB,
+  M_LBU_A,
+  M_LBU_AB,
+  M_LD_A,
+  M_LD_OB,
+  M_LD_AB,
+  M_LDC1_AB,
+  M_LDC2_AB,
+  M_LDC3_AB,
+  M_LDL_AB,
+  M_LDR_AB,
+  M_LH_A,
+  M_LH_AB,
+  M_LHU_A,
+  M_LHU_AB,
+  M_LI,
+  M_LI_D,
+  M_LI_DD,
+  M_LI_S,
+  M_LI_SS,
+  M_LL_AB,
+  M_LLD_AB,
+  M_LS_A,
+  M_LW_A,
+  M_LW_AB,
+  M_LWC0_A,
+  M_LWC0_AB,
+  M_LWC1_A,
+  M_LWC1_AB,
+  M_LWC2_A,
+  M_LWC2_AB,
+  M_LWC3_A,
+  M_LWC3_AB,
+  M_LWL_A,
+  M_LWL_AB,
+  M_LWR_A,
+  M_LWR_AB,
+  M_LWU_AB,
+  M_MOVE,
+  M_MUL,
+  M_MUL_I,
+  M_MULO,
+  M_MULO_I,
+  M_MULOU,
+  M_MULOU_I,
+  M_NOR_I,
+  M_OR_I,
+  M_REM_3,
+  M_REM_3I,
+  M_REMU_3,
+  M_REMU_3I,
+  M_ROL,
+  M_ROL_I,
+  M_ROR,
+  M_ROR_I,
+  M_S_DA,
+  M_S_DOB,
+  M_S_DAB,
+  M_S_S,
+  M_SC_AB,
+  M_SCD_AB,
+  M_SD_A,
+  M_SD_OB,
+  M_SD_AB,
+  M_SDC1_AB,
+  M_SDC2_AB,
+  M_SDC3_AB,
+  M_SDL_AB,
+  M_SDR_AB,
+  M_SEQ,
+  M_SEQ_I,
+  M_SGE,
+  M_SGE_I,
+  M_SGEU,
+  M_SGEU_I,
+  M_SGT,
+  M_SGT_I,
+  M_SGTU,
+  M_SGTU_I,
+  M_SLE,
+  M_SLE_I,
+  M_SLEU,
+  M_SLEU_I,
+  M_SLT_I,
+  M_SLTU_I,
+  M_SNE,
+  M_SNE_I,
+  M_SB_A,
+  M_SB_AB,
+  M_SH_A,
+  M_SH_AB,
+  M_SW_A,
+  M_SW_AB,
+  M_SWC0_A,
+  M_SWC0_AB,
+  M_SWC1_A,
+  M_SWC1_AB,
+  M_SWC2_A,
+  M_SWC2_AB,
+  M_SWC3_A,
+  M_SWC3_AB,
+  M_SWL_A,
+  M_SWL_AB,
+  M_SWR_A,
+  M_SWR_AB,
+  M_SUB_I,
+  M_SUBU_I,
+  M_SUBU_I_2,
+  M_TEQ_I,
+  M_TGE_I,
+  M_TGEU_I,
+  M_TLT_I,
+  M_TLTU_I,
+  M_TNE_I,
+  M_TRUNCWD,
+  M_TRUNCWS,
+  M_ULD,
+  M_ULD_A,
+  M_ULH,
+  M_ULH_A,
+  M_ULHU,
+  M_ULHU_A,
+  M_ULW,
+  M_ULW_A,
+  M_USH,
+  M_USH_A,
+  M_USW,
+  M_USW_A,
+  M_USD,
+  M_USD_A,
+  M_XOR_I,
+  M_COP0,
+  M_COP1,
+  M_COP2,
+  M_COP3,
+  M_NUM_MACROS
 };
 
 
