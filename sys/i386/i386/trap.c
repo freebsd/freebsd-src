@@ -224,7 +224,8 @@ trap(frame)
 			 * and we shouldn't enable interrupts while holding a
 			 * spin lock.
 			 */
-			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL)
+			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL &&
+			    frame.tf_eip != (int)cpu_switch_load_gs)
 				enable_intr();
 		}
 	}
@@ -483,9 +484,14 @@ trap(frame)
 			 */
 			if (frame.tf_eip == (int)cpu_switch_load_gs) {
 				PCPU_GET(curpcb)->pcb_gs = 0;
+				printf(
+				 "Process %d has bad %%gs, reset to zero\n",
+				 p->p_pid);
+#if 0				
 				PROC_LOCK(p);
 				psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
+#endif				
 				goto out;
 			}
 
