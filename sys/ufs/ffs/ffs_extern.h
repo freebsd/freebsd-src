@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.20 1997/10/16 20:32:34 phk Exp $
+ * $Id: ffs_extern.h,v 1.21 1997/11/22 08:35:45 bde Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -56,10 +56,15 @@ struct buf;
 struct fid;
 struct fs;
 struct inode;
+struct malloc_type;
 struct mount;
+struct proc;
 struct sockaddr;
 struct statfs;
+struct ucred;
 struct vnode;
+struct vop_bmap_args;
+struct vop_reallocblks_args;
 
 int	ffs_alloc __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *));

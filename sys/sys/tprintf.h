@@ -31,13 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)tprintf.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: tprintf.h,v 1.5 1997/02/22 09:46:12 peter Exp $
  */
 
 #ifndef _SYS_TPRINTF_H_
 #define _SYS_TPRINTF_H_
 
 typedef struct session *tpr_t;
+
+struct proc;
 
 tpr_t	tprintf_open __P((struct proc *));
 void	tprintf_close __P((tpr_t));
