@@ -96,6 +96,7 @@ enum keyword {
     kw_r,
     kw_s,
     kw_v,
+    kw_w,
     kw_round,						    /* round robin */
     kw_prefer,						    /* prefer plex */
     kw_device,

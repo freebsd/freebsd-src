@@ -168,7 +168,8 @@ struct _keywords flag_keywords[] =
     flagkeypair(d),
     flagkeypair(v),
     flagkeypair(s),
-    flagkeypair(r)
+    flagkeypair(r),
+    flagkeypair(w)
 };
 struct keywordset flag_set = KEYWORDSET(flag_keywords);
 
