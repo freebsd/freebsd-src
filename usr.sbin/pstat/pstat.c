@@ -82,7 +82,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-struct nlist nl[] = {
+static struct nlist nl[] = {
 #define NLMANDATORYBEG	0
 #define	V_MOUNTLIST	0
 	{ "_mountlist" },	/* address of head of mount list. */
@@ -127,16 +127,16 @@ struct nlist nl[] = {
 	{ "" }
 };
 
-int	usenumflag;
-int	totalflag;
-int	swapflag;
-char	*nlistf	= NULL;
-char	*memf	= NULL;
-kvm_t	*kd;
+static int	usenumflag;
+static int	totalflag;
+static int	swapflag;
+static char	*nlistf	= NULL;
+static char	*memf	= NULL;
+static kvm_t	*kd;
 
-char	*usagestr;
+static char	*usagestr;
 
-struct {
+static struct {
 	int m_flag;
 	const char *m_name;
 } mnt_flags[] = {
@@ -193,29 +193,29 @@ struct {
 		return (0);						\
 	}
 
-void	filemode __P((void));
-int	getfiles __P((char **, int *));
-struct mount *
+static void	filemode __P((void));
+static int	getfiles __P((char **, int *));
+static struct mount *
 	getmnt __P((struct mount *));
-struct e_vnode *
+static struct e_vnode *
 	kinfo_vnodes __P((int *));
-struct e_vnode *
+static struct e_vnode *
 	loadvnodes __P((int *));
-void	mount_print __P((struct mount *));
-void	nfs_header __P((void));
-int	nfs_print __P((struct vnode *));
-void	swapmode __P((void));
-void	ttymode __P((void));
-void	ttyprt __P((struct tty *, int));
-void	ttytype __P((struct tty *, char *, int, int, int));
-void	ufs_header __P((void));
-int	ufs_print __P((struct vnode *));
-void	union_header __P((void));
-int	union_print __P((struct vnode *));
-static void usage __P((void));
-void	vnode_header __P((void));
-void	vnode_print __P((struct vnode *, struct vnode *));
-void	vnodemode __P((void));
+static void	mount_print __P((struct mount *));
+static void	nfs_header __P((void));
+static int	nfs_print __P((struct vnode *));
+static void	swapmode __P((void));
+static void	ttymode __P((void));
+static void	ttyprt __P((struct tty *, int));
+static void	ttytype __P((struct tty *, char *, int, int, int));
+static void	ufs_header __P((void));
+static int	ufs_print __P((struct vnode *));
+static void	union_header __P((void));
+static int	union_print __P((struct vnode *));
+static void	usage __P((void));
+static void	vnode_header __P((void));
+static void	vnode_print __P((struct vnode *, struct vnode *));
+static void	vnodemode __P((void));
 
 int
 main(argc, argv)
@@ -328,7 +328,7 @@ struct e_vnode {
 	struct vnode vnode;
 };
 
-void
+static void
 vnodemode()
 {
 	struct e_vnode *e_vnodebase, *endvnode, *evp;
@@ -378,13 +378,13 @@ vnodemode()
 	free(e_vnodebase);
 }
 
-void
+static void
 vnode_header()
 {
 	(void)printf("ADDR     TYP VFLAG  USE HOLD");
 }
 
-void
+static void
 vnode_print(avnode, vp)
 	struct vnode *avnode;
 	struct vnode *vp;
@@ -462,13 +462,13 @@ vnode_print(avnode, vp)
 	    (u_long)(void *)avnode, type, flags, vp->v_usecount, vp->v_holdcnt);
 }
 
-void
+static void
 ufs_header()
 {
 	(void)printf(" FILEID IFLAG RDEV|SZ");
 }
 
-int
+static int
 ufs_print(vp)
 	struct vnode *vp;
 {
@@ -511,13 +511,13 @@ ufs_print(vp)
 	return (0);
 }
 
-void
+static void
 nfs_header()
 {
 	(void)printf(" FILEID NFLAG RDEV|SZ");
 }
 
-int
+static int
 nfs_print(vp)
 	struct vnode *vp;
 {
@@ -561,13 +561,13 @@ nfs_print(vp)
 	return (0);
 }
 
-void
+static void
 union_header()
 {
 	(void)printf("    UPPER    LOWER");
 }
 
-int
+static int
 union_print(vp)
 	struct vnode *vp;
 {
@@ -584,7 +584,7 @@ union_print(vp)
  * Given a pointer to a mount structure in kernel space,
  * read it in and return a usable pointer to it.
  */
-struct mount *
+static struct mount *
 getmnt(maddr)
 	struct mount *maddr;
 {
@@ -607,7 +607,7 @@ getmnt(maddr)
 	return (&mt->mount);
 }
 
-void
+static void
 mount_print(mp)
 	struct mount *mp;
 {
@@ -635,7 +635,7 @@ mount_print(mp)
 #undef ST
 }
 
-struct e_vnode *
+static struct e_vnode *
 loadvnodes(avnodes)
 	int *avnodes;
 {
@@ -667,7 +667,7 @@ loadvnodes(avnodes)
 /*
  * simulate what a running kernel does in in kinfo_vnode
  */
-struct e_vnode *
+static struct e_vnode *
 kinfo_vnodes(avnodes)
 	int *avnodes;
 {
@@ -709,11 +709,11 @@ kinfo_vnodes(avnodes)
 	return ((struct e_vnode *)vbuf);
 }
 
-const char hdr[] =
+static const char hdr[] =
 "  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
 int ttyspace = 128;
 
-void
+static void
 ttymode()
 {
 	struct tty *tty;
@@ -753,7 +753,7 @@ ttymode()
 		ttytype(tty, "pty", SPTY, SNPTY, 0);
 }
 
-void
+static void
 ttytype(tty, name, type, number, indir)
 	struct tty *tty;
 	char *name;
@@ -783,7 +783,7 @@ ttytype(tty, name, type, number, indir)
 		ttyprt(tp, tp - tty);
 }
 
-struct {
+static struct {
 	int flag;
 	char val;
 } ttystates[] = {
@@ -837,7 +837,7 @@ struct {
 	{ 0,	       '\0'},
 };
 
-void
+static void
 ttyprt(tp, line)
 	struct tty *tp;
 	int line;
@@ -885,7 +885,7 @@ ttyprt(tp, line)
 	}
 }
 
-void
+static void
 filemode()
 {
 	struct file *fp;
@@ -939,7 +939,7 @@ filemode()
 	free(buf);
 }
 
-int
+static int
 getfiles(abuf, alen)
 	char **abuf;
 	int *alen;
@@ -976,7 +976,7 @@ getfiles(abuf, alen)
  * swapmode is based on a program called swapinfo written
  * by Kevin Lahey <kml@rokkaku.atl.ga.us>.
  */
-void
+static void
 swapmode(void)
 {
 	struct kvm_swap kswap[16];
