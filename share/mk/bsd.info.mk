@@ -207,7 +207,12 @@ install: ${INSTALLINFODIRS} _SUBDIR
 		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
 .endif
 .else
-install:
+# The indirection in the following is to avoid the null install rule
+# "install:" from being overridden by the implicit .sh rule if there
+# happens to be a source file named install.sh.  This assumes that there
+# is no source file named __null_install.sh.
+install: __null_install
+__null_install:
 .endif
 
 .if !target(maninstall)
