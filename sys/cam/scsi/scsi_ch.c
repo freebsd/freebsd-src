@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.13 1999/05/30 16:51:01 phk Exp $
+ *      $Id: scsi_ch.c,v 1.14 1999/05/31 11:24:00 phk Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -1136,7 +1136,7 @@ chgetelemstatus(struct cam_periph *periph,
 		goto done;
 
 	st_hdr = (struct read_element_status_header *)data;
-	pg_hdr = (struct read_element_status_page_header *)((u_long)st_hdr +
+	pg_hdr = (struct read_element_status_page_header *)((uintptr_t)st_hdr +
 		  sizeof(struct read_element_status_header));
 	desclen = scsi_2btoul(pg_hdr->edl);
 
@@ -1187,7 +1187,7 @@ chgetelemstatus(struct cam_periph *periph,
 		       M_DEVBUF, M_WAITOK);
 	bzero(user_data, avail * sizeof(struct changer_element_status));
 
-	desc = (struct read_element_status_descriptor *)((u_long)data +
+	desc = (struct read_element_status_descriptor *)((uintptr_t)data +
 		sizeof(struct read_element_status_header) +
 		sizeof(struct read_element_status_page_header));
 	/*
@@ -1198,7 +1198,8 @@ chgetelemstatus(struct cam_periph *periph,
 
 		copy_element_status(softc, pg_hdr->flags, desc, ces);
 
-		(u_long)desc += desclen;
+		desc = (struct read_element_status_descriptor *)
+		       ((uintptr_t)desc + desclen);
 	}
 
 	/* Copy element status structures out to userspace. */
