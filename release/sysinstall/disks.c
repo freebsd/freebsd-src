@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.64 1996/09/22 00:48:55 jkh Exp $
+ * $Id: disks.c,v 1.65 1996/10/01 04:56:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,12 +48,13 @@ static int current_chunk;
 static void
 record_chunks(Disk *d)
 {
-    struct chunk *c1;
+    struct chunk *c1 = NULL;
     int i = 0;
     int last_free = 0;
+
     if (!d->chunks)
 	msgFatal("No chunk list found for %s!", d->name);
-    current_chunk = 0;
+
     for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	if (c1->type == unused && c1->size > last_free) {
 	    last_free = c1->size;
@@ -167,19 +168,24 @@ void
 diskPartition(Device *dev, Disk *d)
 {
     char *p;
-    int key = 0;
+    int rv, key = 0;
     Boolean chunking;
     char *msg = NULL;
     u_char *mbrContents;
-    WINDOW *w;
+    WINDOW *w = savescr();
 
     chunking = TRUE;
     keypad(stdscr, TRUE);
 
-    w = savescr();
-    clear();
-    record_chunks(d);
+    /* Flush both the dialog and curses library views of the screen
+       since we don't always know who called us */
+    dialog_clear_norefresh(), clear();
+
     while (chunking) {
+	/* Set up the chunk array */
+	record_chunks(d);
+
+	/* Now print our overall state */
 	print_chunks(d);
 	print_command_summary();
 	if (msg) {
@@ -187,14 +193,20 @@ diskPartition(Device *dev, Disk *d)
 	    beep();
 	    msg = NULL;
 	}
+	else {
+	    move(23, 0);
+	    clrtoeol();
+	}
 
+	/* Get command character */
 	key = getch();
 	switch (toupper(key)) {
 
+	    /* redraw */
 	case '\014':	/* ^L */
 	    clear();
-	    print_command_summary();
-	    continue;
+	    msg = NULL;
+	    break;
 
 	case KEY_UP:
 	case '-':
@@ -225,9 +237,7 @@ diskPartition(Device *dev, Disk *d)
 	    clear();
 	    break;
 
-	case 'A': {
-	    int rv;
-
+	case 'A':
 	    rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			  "so as to remain cooperative with any future possible\n"
 			  "operating systems on the drive(s)?");
@@ -249,10 +259,8 @@ diskPartition(Device *dev, Disk *d)
 	    if (rv)
 		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
 	    variable_set2(DISK_PARTITIONED, "yes");
-	    record_chunks(d);
-	}
-	clear();
-	break;
+	    clear();
+	    break;
 
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
@@ -301,10 +309,9 @@ diskPartition(Device *dev, Disk *d)
 		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    variable_set2(DISK_PARTITIONED, "yes");
-		    record_chunks(d);
-	    	    clear();
 		    }
 		}
+		clear();
 	    }
 	    break;
 
@@ -315,7 +322,6 @@ diskPartition(Device *dev, Disk *d)
 	    else {
 		Delete_Chunk(d, chunk_info[current_chunk]);
 		variable_set2(DISK_PARTITIONED, "yes");
-		record_chunks(d);
 	    }
 	    break;
 
@@ -355,7 +361,6 @@ diskPartition(Device *dev, Disk *d)
 	    dev->private = d;
 	    variable_unset(DISK_PARTITIONED);
 	    variable_unset(DISK_LABELLED);
-	    record_chunks(d);
 	    clear();
 	    break;
 
@@ -387,26 +392,18 @@ diskPartition(Device *dev, Disk *d)
 	case '|':
 	    if (!msgYesNo("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
-		WINDOW *w;
-
-		w = savescr();
-		dialog_clear();
-		end_dialog();
-		DialogActive = FALSE;
+		clear();
+		refresh();
 		slice_wizard(d);
 		variable_set2(DISK_PARTITIONED, "yes");
-		dialog_clear_norefresh();
-		DialogActive = TRUE;
-		record_chunks(d);
-		restorescr(w);
 	    }
 	    else
 		msg = "Wise choice!";
+	    clear();
 	    break;
 
 	case 'Q':
 	    chunking = FALSE;
-	    clear();
 	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 	     * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.122 1996/10/02 08:25:09 jkh Exp $
+ * $Id: install.c,v 1.123 1996/10/02 10:44:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include "uc_main.h"
 #include <ctype.h>
 #include <sys/disklabel.h>
 #include <sys/errno.h>
@@ -380,12 +381,8 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
-    dialog_clear_norefresh();
-    msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
-	       "canned distribution sets, ranging from minimal installation sets to full\n"
-	       "X11 developer oriented configurations.  You can also select a custom set\n"
-	       "of distributions if none of the provided ones are suitable.");
     while (1) {
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	
@@ -397,27 +394,24 @@ installNovice(dialogMenuItem *self)
 	return DITEM_FAILURE | DITEM_RECREATE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
-	dialog_clear();
+	dialog_clear_norefresh();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
-	mediaDevice->shutdown(mediaDevice);
-	if (mediaDevice->type == DEVICE_TYPE_FTP)
-	    variable_unset(VAR_FTP_PATH);
 	return i | DITEM_RECREATE;
 
     }
-    else
-	dialog_clear();
+    else {
+	dialog_clear_norefresh();
 	msgConfirm("Congratulations!  You now have FreeBSD installed on your system.\n\n"
 		   "We will now move on to the final configuration questions.\n"
 		   "For any option you do not wish to configure, simply select\n"
 		   "No.\n\n"
 		   "If you wish to re-enter this utility after the system is up, you\n"
 		   "may do so by typing: /stand/sysinstall.");
-
+    }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
 	if (!msgYesNo("Would you like to configure any SLIP/PPP or network interface devices?")) {
 	    Device *save = mediaDevice;
@@ -430,6 +424,7 @@ installNovice(dialogMenuItem *self)
 	}
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
 		  "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
 		  "machines can use NETBUI transport for disk and printer sharing."))
@@ -573,17 +568,6 @@ installCommit(dialogMenuItem *self)
     else if (!(Dists & DIST_BIN))
 	(void)installFixup(self);
 
-    /* Don't print this if we're express or novice installing - they have their own error reporting */
-    if (strcmp(str, "express") && strcmp(str, "novice")) {
-	if (Dists || DITEM_STATUS(i) == DITEM_FAILURE)
-	    msgConfirm("Installation completed with some errors.  You may wish to\n"
-		       "scroll through the debugging messages on VTY1 with the\n"
-		       "scroll-lock feature.");
-	else
-	    msgConfirm("Installation completed successfully.\n\n"
-		       "If you have any network devices you have not yet configured,\n"
-		       "see the Interfaces configuration item on the Configuration menu.");
-    }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RECREATE;
 }
@@ -911,8 +895,57 @@ create_termcap(void)
     }
 }
 
+static char *isa_list[] = {
+  "device",
+  "ioport",
+  "irq",
+  "drq",
+  "iomem",
+  "iosize",
+  "flags",
+  "alive",
+  "enabled",
+};
+
 static void
 save_userconfig_to_kernel(char *kern)
 {
-	/* place-holder for now */
+    struct kernel *core, *boot;
+    struct list *c_isa, *c_dev, *b_dev;
+    int i, d;
+
+    core = uc_open("-incore");
+    if (!core) {
+	msgDebug("Can't read in-core information for kernel.\n");
+	return;
+    }
+
+    boot = uc_open(kern);
+    if (!boot) {
+	msgDebug("Can't read device information for kernel image %s\n", kern);
+	return;
+    }
+    msgDebug("Kernel open, getting core ISA devices\n");
+    c_isa = uc_getdev(core, "-isa");
+    for (d = 0; d < c_isa->ac; d++) {
+	msgDebug("Outer loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
+	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which
+					       mucks with its id_irq member */
+	    c_dev = uc_getdev(core, c_isa->av[d]);
+	    b_dev = uc_getdev(boot, c_isa->av[d]);
+	    for (i = 0; i < c_dev->ac; i++) {
+		msgDebug("Inner loop, c_dev->av[%d] = %s\n", i, c_dev->av[i]);
+		if (strcmp(c_dev->av[i], b_dev->av[i])) {
+		    msgDebug("%s %s changed: %s (boot) -> %s (core)\n",
+			     c_dev->av[0], isa_list[i], b_dev->av[i], c_dev->av[i]);
+		    isa_setdev(boot, c_dev);
+		}
+	    }
+	}
+	else
+	    msgDebug("skipping npx0\n");
+    }
+    msgDebug("Closing kernels\n");
+    uc_close(core, 0);
+    uc_close(boot, 1);
 }
