@@ -37,6 +37,8 @@
 #ifndef _SYS_UCRED_H_
 #define	_SYS_UCRED_H_
 
+#include <sys/mutex.h>
+
 /*
  * Credentials.
  *
@@ -44,7 +46,8 @@
  * Only the suser()/suser_xxx() function should be used for this.
  */
 struct ucred {
-	u_short	cr_ref;			/* reference count */
+	struct	mtx cr_mtx;		/* protect refcount */
+	u_int	cr_ref;			/* reference count */
 	uid_t	cr_uid;			/* effective user id */
 	short	cr_ngroups;		/* number of groups */
 	gid_t	cr_groups[NGROUPS];	/* groups */
@@ -55,7 +58,12 @@ struct ucred {
 #define FSCRED ((struct ucred *)-1)	/* filesystem credential */
 
 #ifdef _KERNEL
-#define	crhold(cr)	(cr)->cr_ref++
+#define	crhold(cr) \
+	do {						\
+		mtx_enter(&(cr)->cr_mtx, MTX_DEF);	\
+		(cr)->cr_ref++;				\
+		mtx_exit(&(cr)->cr_mtx, MTX_DEF);	\
+	} while (0)
 
 struct proc;
 
