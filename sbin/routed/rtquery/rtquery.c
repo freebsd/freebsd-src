@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.1 $"
+#ident "$Revision: 1.1.1.1.2.1 $"
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -65,6 +65,7 @@ static char rcsid[] = "$NetBSD$";
 #define _HAVE_SIN_LEN
 #endif
 
+#include <md5.h>
 #define	WTIME	15		/* Time to wait for all responses */
 #define	STIME	(250*1000)	/* usec to wait for another response */
 
@@ -88,8 +89,10 @@ int	pflag;				/* play the `gated` game */
 int	ripv2 = 1;			/* use RIP version 2 */
 int	wtime = WTIME;
 int	rflag;				/* 1=ask about a particular route */
-int	trace;
-int	not_trace;
+int	trace, not_trace;		/* send trace command or not */
+int	auth_type = RIP_AUTH_NONE;
+char	passwd[RIP_AUTH_PW_LEN];
+u_long	keyid;
 
 struct timeval sent;			/* when query sent */
 
@@ -99,20 +102,21 @@ static void trace_loop(char *argv[]);
 static void query_loop(char *argv[], int);
 static int getnet(char *, struct netinfo *);
 static u_int std_mask(u_int);
+static int parse_quote(char **, char *, char *, char *, int);
 
 
-int
+void
 main(int argc,
      char *argv[])
 {
 	int ch, bsize;
-	char *p, *options, *value;
+	char *p, *options, *value, delim;
 
 	OMSG.rip_nets[0].n_dst = RIP_DEFAULT;
 	OMSG.rip_nets[0].n_family = RIP_AF_UNSPEC;
 	OMSG.rip_nets[0].n_metric = htonl(HOPCNT_INFINITY);
 
-	while ((ch = getopt(argc, argv, "np1w:r:t:")) != EOF)
+	while ((ch = getopt(argc, argv, "np1w:r:t:a:")) != -1)
 		switch (ch) {
 		case 'n':
 			not_trace = 1;
@@ -204,14 +208,39 @@ main(int argc,
 			}
 			break;
 
+		case 'a':
+			not_trace = 1;
+			p = strchr(optarg,'=');
+			if (!p)
+				goto usage;
+			*p++ = '\0';
+			if (!strcasecmp("passwd",optarg))
+				auth_type = RIP_AUTH_PW;
+			else if (!strcasecmp("md5_passwd",optarg))
+				auth_type = RIP_AUTH_MD5;
+			else
+				goto usage;
+			if (0 > parse_quote(&p,"|",&delim,
+					    passwd,sizeof(passwd)))
+				goto usage;
+			if (auth_type == RIP_AUTH_MD5
+			    && delim == '|') {
+				keyid = strtoul(p+1,&p,0);
+				if (keyid > 255 || *p != '\0')
+					goto usage;
+			} else if (delim != '\0') {
+				goto usage;
+			}
+			break;
+
 		default:
 			goto usage;
 	}
 	argv += optind;
 	argc -= optind;
 	if ((not_trace && trace) || argc == 0) {
-usage:			fprintf(stderr, "%s\n%s\n",
-		"usage: rtquery [-np1] [-r addr] [-w timeout] host ...",
+usage:		fprintf(stderr, "%s\n%s\n",
+		"usage: rtquery [-np1v] [-r addr] [-w timeout] [-a secret] host ...",
 		"       rtquery [-t op] host ...");
 		exit(1);
 	}
@@ -289,6 +318,8 @@ trace_loop(char *argv[])
 static void
 query_loop(char *argv[], int argc)
 {
+#	define NA0 (OMSG.rip_auths[0])
+#	define NA2 (OMSG.rip_auths[2])
 	struct seen {
 		struct seen *next;
 		struct in_addr addr;
@@ -299,11 +330,38 @@ query_loop(char *argv[], int argc)
 	struct timeval now, delay;
 	struct sockaddr_in from;
 	int fromlen;
+	MD5_CTX md5_ctx;
 
 
 	OMSG.rip_cmd = (pflag) ? RIPCMD_POLL : RIPCMD_REQUEST;
 	if (ripv2) {
 		OMSG.rip_vers = RIPv2;
+		if (auth_type == RIP_AUTH_PW) {
+			OMSG.rip_nets[1] = OMSG.rip_nets[0];
+			NA0.a_family = RIP_AF_AUTH;
+			NA0.a_type = RIP_AUTH_PW;
+			bcopy(passwd, NA0.au.au_pw,
+			      RIP_AUTH_PW_LEN);
+			omsg_len += sizeof(OMSG.rip_nets[0]);
+
+		} else if (auth_type == RIP_AUTH_MD5) {
+			OMSG.rip_nets[1] = OMSG.rip_nets[0];
+			NA0.a_family = RIP_AF_AUTH;
+			NA0.a_type = RIP_AUTH_MD5;
+			NA0.au.a_md5.md5_keyid = (int8_t)keyid;
+			NA0.au.a_md5.md5_auth_len = RIP_AUTH_PW_LEN;
+			NA0.au.a_md5.md5_seqno = 0;
+			NA0.au.a_md5.md5_pkt_len = sizeof(OMSG.rip_nets[1]);
+			NA2.a_family = RIP_AF_AUTH;
+			NA2.a_type = 1;
+			bcopy(passwd, NA2.au.au_pw, sizeof(NA2.au.au_pw));
+			MD5Init(&md5_ctx);
+			MD5Update(&md5_ctx, (u_char *)&NA0,
+				  (char *)(&NA2+1) - (char *)&NA0);
+			MD5Final(NA2.au.au_pw, &md5_ctx);
+			omsg_len += 2*sizeof(OMSG.rip_nets[0]);
+		}
+
 	} else {
 		OMSG.rip_vers = RIPv1;
 		OMSG.rip_nets[0].n_mask = 0;
@@ -388,7 +446,7 @@ query_loop(char *argv[], int argc)
 }
 
 
-/* sent do one host
+/* send to one host
  */
 static int
 out(char *host)
@@ -427,6 +485,60 @@ out(char *host)
 
 
 /*
+ * Convert string to printable characters
+ */
+static char *
+qstring(u_char *s, int len)
+{
+	static char buf[8*20+1];
+	char *p;
+	u_char *s2, c;
+
+
+	for (p = buf; len != 0 && p < &buf[sizeof(buf)-1]; len--) {
+		c = *s++;
+		if (c == '\0') {
+			for (s2 = s+1; s2 < &s[len]; s2++) {
+				if (*s2 != '\0')
+					break;
+			}
+			if (s2 >= &s[len])
+			    goto exit;
+		}
+
+		if (c >= ' ' && c < 0x7f && c != '\\') {
+			*p++ = c;
+			continue;
+		}
+		*p++ = '\\';
+		switch (c) {
+		case '\\':
+			*p++ = '\\';
+			break;
+		case '\n':
+			*p++= 'n';
+			break;
+		case '\r':
+			*p++= 'r';
+			break;
+		case '\t':
+			*p++ = 't';
+			break;
+		case '\b':
+			*p++ = 'b';
+			break;
+		default:
+			p += sprintf(p,"%o",c);
+			break;
+		}
+	}
+exit:
+	*p = '\0';
+	return buf;
+}
+
+
+/*
  * Handle an incoming RIP packet.
  */
 static void
@@ -442,7 +554,7 @@ rip_input(struct sockaddr_in *from,
 	int i;
 	struct hostent *hp;
 	struct netent *np;
-	struct netauth *a;
+	struct netauth *na;
 
 
 	if (nflag) {
@@ -539,11 +651,33 @@ rip_input(struct sockaddr_in *from,
 			}
 
 		} else if (n->n_family == RIP_AF_AUTH) {
-			a = (struct netauth*)n;
-			(void)printf("    authentication type %d: ",
-				     a->a_type);
-			for (i = 0; i < sizeof(a->au.au_pw); i++)
-				(void)printf("%02x ", a->au.au_pw[i]);
+			na = (struct netauth*)n;
+			if (na->a_type == RIP_AUTH_PW
+			    && n == IMSG.rip_nets) {
+				(void)printf("  Password Authentication:"
+					     " \"%s\"\n",
+					     qstring(na->au.au_pw,
+						     RIP_AUTH_PW_LEN));
+				continue;
+			}
+
+			if (na->a_type == RIP_AUTH_MD5
+			    && n == IMSG.rip_nets) {
+				(void)printf("  MD5 Authentication"
+					     " len=%d KeyID=%d"
+					     " seqno=%d"
+					     " rsvd=%#x,%#x\n",
+					     na->au.a_md5.md5_pkt_len,
+					     na->au.a_md5.md5_keyid,
+					     na->au.a_md5.md5_seqno,
+					     na->au.a_md5.rsvd[0],
+					     na->au.a_md5.rsvd[1]);
+				continue;
+			}
+			(void)printf("  Authentication type %d: ",
+				     ntohs(na->a_type));
+			for (i = 0; i < sizeof(na->au.au_pw); i++)
+				(void)printf("%02x ", na->au.au_pw[i]);
 			putc('\n', stdout);
 			continue;
 
@@ -646,4 +780,65 @@ getnet(char *name,
 	rt->n_family = RIP_AF_INET;
 	rt->n_mask = htonl(mask);
 	return 1;
+}
+
+
+/* strtok(), but honoring backslash
+ */
+static int				/* -1=bad */
+parse_quote(char **linep,
+	    char *delims,
+	    char *delimp,
+	    char *buf,
+	    int	lim)
+{
+	char c, *pc, *p;
+
+
+	pc = *linep;
+	if (*pc == '\0')
+		return -1;
+
+	for (;;) {
+		if (lim == 0)
+			return -1;
+		c = *pc++;
+		if (c == '\0')
+			break;
+
+		if (c == '\\' && pc != '\0') {
+			if ((c = *pc++) == 'n') {
+				c = '\n';
+			} else if (c == 'r') {
+				c = '\r';
+			} else if (c == 't') {
+				c = '\t';
+			} else if (c == 'b') {
+				c = '\b';
+			} else if (c >= '0' && c <= '7') {
+				c -= '0';
+				if (*pc >= '0' && *pc <= '7') {
+					c = (c<<3)+(*pc++ - '0');
+					if (*pc >= '0' && *pc <= '7')
+					    c = (c<<3)+(*pc++ - '0');
+				}
+			}
+
+		} else {
+			for (p = delims; *p != '\0'; ++p) {
+				if (*p == c)
+					goto exit;
+			}
+		}
+
+		*buf++ = c;
+		--lim;
+	}
+exit:
+	if (delimp != 0)
+		*delimp = c;
+	*linep = pc-1;
+	if (lim != 0)
+		*buf = '\0';
+	return 0;
 }

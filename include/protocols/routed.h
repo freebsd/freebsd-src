@@ -40,7 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ident "$Revision: 1.9 $"
+#ident "$Revision: 1.10 $"
 
 /*
  * Routing Information Protocol
@@ -85,11 +85,22 @@ struct netinfo {
 
 /* RIPv2 authentication */
 struct netauth {
+	u_int16_t   a_family;		/* always RIP_AF_AUTH */
 	u_int16_t   a_type;
+#define	    RIP_AUTH_NONE   0
 #define	    RIP_AUTH_PW	    htons(2)	/* password type */
+#define	    RIP_AUTH_MD5    htons(3)	/* Keyed MD5 */
 	union {
 #define	    RIP_AUTH_PW_LEN 16
-	    int8_t    au_pw[RIP_AUTH_PW_LEN];
+	    u_int8_t    au_pw[RIP_AUTH_PW_LEN];
+	    struct a_md5 {
+		int16_t	md5_pkt_len;	/* RIP-II packet length */
+		int8_t	md5_keyid;	/* key ID and auth data len */
+		int8_t	md5_auth_len;	/* 16 */
+		u_int32_t md5_seqno;	/* sequence number */
+		u_int32_t rsvd[2];	/* must be 0 */
+#define	    RIP_AUTH_MD5_LEN RIP_AUTH_PW_LEN
+	    } a_md5;
 	} au;
 };
 
@@ -103,6 +114,7 @@ struct rip {
 	    struct netauth ru_auth[1];
 	} ripun;
 #define	rip_nets	ripun.ru_nets
+#define rip_auths	ripun.ru_auth
 #define	rip_tracefile	ripun.ru_tracefile
 };
 
