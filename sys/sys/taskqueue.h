@@ -120,4 +120,13 @@ TASKQUEUE_DECLARE(swi);
  */
 TASKQUEUE_DECLARE(thread);
 
+/*
+ * Queue for swi handlers dispatched from fast interrupt handlers.
+ * These are necessarily different from the above because the queue
+ * must be locked with spinlocks since sleep mutex's cannot be used
+ * from a fast interrupt handler context.
+ */
+TASKQUEUE_DECLARE(fast);
+int	taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task);
+
 #endif /* !_SYS_TASKQUEUE_H_ */
