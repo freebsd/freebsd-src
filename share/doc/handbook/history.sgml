@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.3 1995/07/07 22:25:51 jfieber Exp $ -->
+<!-- $Id: history.sgml,v 1.4 1995/07/28 23:09:28 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -24,9 +24,7 @@ we were in unanimous agreement that something had to be done and
 decided to try and assist Bill by providing this interim "cleanup"
 snapshot.  Those plans came to a rude halt when Bill Jolitz suddenly
 decided to withdraw his sanction from the project and without any
-clear indication of what would be done instead (and it was, in fact,
-to be another full year before he was even heard from in public
-again!).
+clear indication of what would be done instead.
 
 It didn't take us long to decide that the goal remained worthwhile
 even without Bill's support, and so we adopted the name "FreeBSD",
@@ -81,14 +79,13 @@ easier to install FreeBSD 2.0.5 release in June of 1995.
 Where to from here?  Well, we intend to release FreeBSD 2.1 sometime
 in September of 1995 and have reasonable expectations that it will
 meet or exceed all of the standards for quality we set with FreeBSD
-1.1.5.1 back in July of 1994.  From there, we'll probably go to a
-two-track scheme with a "stable" branch of FreeBSD and an
-"experimental" branch, where development can continue at its usually
-rapid pace without penalizing those who just want a stable, working
-system without too much excitement.  We also intend to focus on any
-remaining areas of weakness, like documentation or missing drivers,
-and steadily increase the overall quality and feature set of the
-system well into 1996 and beyond.
+1.1.5.1 back in July of 1994.  From there, we'll probably continue our now
+two-track scheme of a "stable" branch of FreeBSD and an "experimental"
+branch, where development can continue at its usually rapid pace without
+penalizing those who just want a working system without too much excitement.
+We also intend to focus on any remaining areas of weakness, like documentation
+or missing drivers, and steadily increase the overall quality and feature set
+of the system well into 1996 and beyond.
 
 					Jordan
 
