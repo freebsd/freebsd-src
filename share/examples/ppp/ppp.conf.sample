@@ -270,10 +270,10 @@ dodgy:
     set filter alive 3 deny udp src eq 525         # timed
     set filter alive 4 deny udp src eq 137         # NetBIOS name service
     set filter alive 5 deny udp src eq 138         # NetBIOS datagram service
-    set filter alive 6 deny udp src eq 139         # NetBIOS session service
+    set filter alive 6 deny tcp src eq 139         # NetBIOS session service
     set filter alive 7 deny udp dst eq 137         # NetBIOS name service
     set filter alive 8 deny udp dst eq 138         # NetBIOS datagram service
-    set filter alive 9 deny udp dst eq 139         # NetBIOS session service
+    set filter alive 9 deny tcp dst eq 139         # NetBIOS session service
     set filter alive 10 deny 0/0 MYADDR icmp       # Ping to us from outside
     set filter alive 11 permit 0/0 0/0
 #
@@ -283,10 +283,10 @@ dodgy:
     set filter dial 1 deny udp src eq 525          # timed
     set filter dial 2 deny udp src eq 137          # NetBIOS name service
     set filter dial 3 deny udp src eq 138          # NetBIOS datagram service
-    set filter dial 4 deny udp src eq 139          # NetBIOS session service
+    set filter dial 4 deny tcp src eq 139          # NetBIOS session service
     set filter dial 5 deny udp dst eq 137          # NetBIOS name service
     set filter dial 6 deny udp dst eq 138          # NetBIOS datagram service
-    set filter dial 7 deny udp dst eq 139          # NetBIOS session service
+    set filter dial 7 deny tcp dst eq 139          # NetBIOS session service
     set filter dial 8 deny tcp finrst              # Badly closed TCP channels
     set filter dial 9 permit 0 0
 #
