@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.41 1996/03/31 03:19:09 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.42 1996/06/14 11:02:18 asami Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -473,6 +473,7 @@ void sc_print_addr __P((struct scsi_link *));
 void sc_print_start __P((struct scsi_link *));
 void sc_print_finish __P((void));
 
+struct sysctl_req;
 int	scsi_externalize __P((struct scsi_link *, struct sysctl_req *));
 
 void	scsi_device_register __P((struct scsi_device *sd));
