@@ -473,9 +473,6 @@ dumpsys(void)
 	int	error;
 
 	savectx(&dumppcb);
-#ifdef __i386__
-	dumppcb.pcb_cr3 = rcr3();
-#endif
 	if (dumping++) {
 		printf("Dump already in progress, bailing...\n");
 		return;
