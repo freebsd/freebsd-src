@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cputypes.h,v 1.10 1997/10/28 11:43:50 bde Exp $
+ *	$Id: cputypes.h,v 1.11 1998/05/22 00:03:23 des Exp $
  */
 
 #ifndef _MACHINE_CPUTYPES_H_
@@ -57,6 +57,7 @@
 #define	CPU_NX586	12	/* NexGen (now AMD) 586 */
 #define	CPU_CY486DX	13	/* Cyrix 486S/DX/DX2/DX4 */
 #define CPU_PII		14	/* Intel Pentium II */
+#define CPU_PIII	15	/* Intel Pentium III */
 
 #ifndef LOCORE
 struct cpu_nameclass {
