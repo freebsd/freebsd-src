@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.12 1995/10/19 19:15:23 swallace Exp $
+ * $Id: kern_sig.c,v 1.13 1995/11/12 06:43:00 bde Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -64,8 +64,9 @@
 #include <vm/vm.h>
 #include <sys/user.h>		/* for coredump */
 
-void setsigvec	__P((struct proc *, int, struct sigaction *));
-void stop	__P((struct proc *));
+extern int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
+extern void killproc	__P((struct proc *p, char *why));
+extern void stop	__P((struct proc *));
 
 /*
  * Can process p, with pcred pc, send the signal signum to process q?
@@ -683,9 +684,8 @@ trapsignal(p, signum, code)
 				p->p_sigmask, code);
 #endif
 		sendsig(ps->ps_sigact[signum], signum, p->p_sigmask, code);
-		p->p_sigmask |= ps->ps_catchmask[signum];
 		p->p_sigmask |= ps->ps_catchmask[signum] |
-			(mask & ~ps->ps_nodefer);
+				(mask & ~ps->ps_nodefer);
 	} else {
 		ps->ps_code = code;	/* XXX for core dump/debugger */
 		psignal(p, signum);
@@ -1120,7 +1120,7 @@ postsig(signum)
 		} else
 			returnmask = p->p_sigmask;
 		p->p_sigmask |= ps->ps_catchmask[signum] |
-			(mask & ~ps->ps_nodefer);
+				(mask & ~ps->ps_nodefer);
 		(void) spl0();
 		p->p_stats->p_ru.ru_nsignals++;
 		if (ps->ps_sig != signum) {
