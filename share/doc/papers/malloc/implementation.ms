@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: implementation.ms,v 1.1 1996/04/13 08:30:13 phk Exp $
+.\" $Id: implementation.ms,v 1.2 1996/09/29 18:36:11 phk Exp $
 .\"
 .ds RH Implementation
 .NH
@@ -119,7 +119,7 @@ It's not that surprising after all, it's the difference between
 following the crowd or actively directing where it can go, in both
 ways you can end up in the middle of it all.
 .PP
-The sideffect of this compromise is that it also uses less storage,
+The side effect of this compromise is that it also uses less storage,
 and the list never has to be reordered, all the ordering happens when
 pages are added or deleted.
 .PP
