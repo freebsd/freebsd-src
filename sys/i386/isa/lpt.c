@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.50 1996/03/04 15:58:25 phk Exp $
+ *	$Id: lpt.c,v 1.51 1996/03/28 14:28:44 scrappy Exp $
  */
 
 /*
@@ -226,9 +226,10 @@ static struct lpt_softc {
 	struct  ifnet	sc_if;
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
-#endif /* ENDIF */
-#ifdef	DEVFS
+#endif
+#ifdef DEVFS
 	void	*devfs_token;
+	void	*devfs_token_ctl;
 #endif
 } lpt_sc[NLPT] ;
 
@@ -477,10 +478,13 @@ lptattach(struct isa_device *isdp)
 	kdc_lpt[unit].kdc_state = DC_IDLE;
 
 #ifdef DEVFS
-/* XXX */ /* what to do about the flags in the minor number? */
-	sc->devfs_token = 
-		devfs_add_devswf(&lpt_cdevsw, unit, DV_CHR, 0, 0, 0600, 
-				 "lpt%d", unit);
+	/* XXX what to do about the flags in the minor number? */
+	sc->devfs_token = devfs_add_devswf(&lpt_cdevsw,
+		unit, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
+	sc->devfs_token_ctl = devfs_add_devswf(&lpt_cdevsw,
+		unit | LP_BYPASS, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
 #endif
 	return (1);
 }
@@ -932,7 +936,6 @@ lpinittables (void)
  * Process an ioctl request.
  */
 
-/* ARGSUSED */
 static int
 lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 {
