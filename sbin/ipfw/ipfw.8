@@ -463,14 +463,14 @@ If no socket is bound to the destination port, or if the kernel
 wasn't compiled with divert socket support, diverted packets are dropped.
 .Sh EXAMPLES
 This command adds an entry which denies all tcp packets from
-.Em hacker.evil.org
+.Em cracker.evil.org
 to the telnet port of
 .Em wolf.tambov.su
 from being forwarded by the host:
 .Pp
-.Dl ipfw add deny tcp from hacker.evil.org to wolf.tambov.su 23
+.Dl ipfw add deny tcp from cracker.evil.org to wolf.tambov.su 23
 .Pp 
-This one disallows any connection from the entire hackers network to
+This one disallows any connection from the entire crackers network to
 my host:
 .Pp
 .Dl ipfw addf deny all from 123.45.67.0/24 to my.host.org
