@@ -548,27 +548,16 @@
       when accepting and reading new connections on listening sockets,
       has been added. &merged;</para>
 
-      <para>The &man.ng.mppc.4; and &man.ng.bridge.4; node types have
-      been added to the &man.netgraph.4; subsystem.  The &man.ng.ether.4; node
-      is now dynamically loadable.  Miscellaneous bug fixes and
-      enhancements have also been made. &merged;</para>
+      <para>The <literal>proxy</literal> modifier to &man.arp.8;'s
+      <option>-d</option> option has been renamed to
+      <literal>pub</literal>, for consistency with the
+      <option>-s</option> option.  The <literal>only</literal> keyword
+      has been added to the <option>-s</option> and
+      <option>-S</option> flags, to be used in creating
+      <quote>proxy-only</quote> published entries.</para>
 
-      <para>&man.netgraph.4; has received some updates and bugfixes.</para>
-
-      <para>A new netgraph node type &man.ng.one2many.4; for multiplexing
-      and demultiplexing packets over multiple links has been added.
-      &merged;</para>
-
-      <para>The &man.ng.gif.4; and &man.ng.gif.demux.4; netgraph
-      nodes, for operating on &man.gif.4; devices, have been
-      added.</para>
-
-      <para>The &man.ng.ip.input.4; netgraph node, for queueing IP
-      packets into the main IP input processing code, has been
-      added.</para>
-
-      <para arch="alpha">SLIP has been removed from the
-      <filename>mfsroot</filename> floppy image.</para>
+      <para>&man.bridge.4; and &man.dummynet.4; have received some
+      enhancements and bug fixes.</para>
 
       <para>ICMP ECHO and TSTAMP replies are now rate limited.  TCP RSTs
       generated due to packets sent to open and unopen ports are now
@@ -580,6 +569,50 @@
       if the correct sequence numbers are sent back, as controlled by the
       <varname>net.inet.tcp.icmp_may_rst</varname>
       sysctl.</para>
+
+      <para>IP multicast now works on VLAN devices.  Several other
+      bugs in the VLAN code have also been fixed.</para>
+      <para>&man.ipfw.4; now filters correctly in the presence of ECN bits in TCP
+      segments. &merged;</para>
+
+      <para>&man.netgraph.4; has received some updates and bugfixes.</para>
+
+      <para>The &man.ng.gif.4; and &man.ng.gif.demux.4; netgraph
+      nodes, for operating on &man.gif.4; devices, have been
+      added.</para>
+
+      <para>The &man.ng.ip.input.4; netgraph node, for queueing IP
+      packets into the main IP input processing code, has been
+      added.</para>
+
+      <para>The &man.ng.mppc.4; and &man.ng.bridge.4; node types have
+      been added to the &man.netgraph.4; subsystem.  The &man.ng.ether.4; node
+      is now dynamically loadable.  Miscellaneous bug fixes and
+      enhancements have also been made. &merged;</para>
+
+      <para>A new netgraph node type &man.ng.one2many.4; for multiplexing
+      and demultiplexing packets over multiple links has been added.
+      &merged;</para>
+
+      <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
+      which is on by default, causes IP to verify that an incoming
+      packet arrives on an interface that has an address matching the
+      packet's destination address. &merged;</para>
+
+      <para>A new sysctl
+      <varname>net.link.ether.inet.log_arp_wrong_iface</varname> has
+      been added to control the suppression of logging when ARP replies
+      arrive on the wrong interface. &merged;</para>
+
+      <para>A new <literal>options RANDOM_IP_ID</literal> kernel
+      option causes the ID field of IP packets to be randomized.  This
+      closes a minor information leak which allows a remote observer
+      to determine the rate at which the machine is generating
+      packets, since the default behavior is to increment a counter
+      for each packet sent. &merged;</para>
+
+      <para arch="alpha">SLIP has been removed from the
+      <filename>mfsroot</filename> floppy image.</para>
 
       <para>TCP has received some bug fixes for its delayed ACK
       behavior. &merged;</para>
@@ -624,52 +657,6 @@
       <varname>net.inet.tcp.strict_rfc1948</varname> and
       <varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
       variables. &merged;</para>
-
-      <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
-      which is on by default, causes IP to verify that an incoming
-      packet arrives on an interface that has an address matching the
-      packet's destination address. &merged;</para>
-
-      <para>A new sysctl
-      <varname>net.link.ether.inet.log_arp_wrong_iface</varname> has
-      been added to control the suppression of logging when ARP replies
-      arrive on the wrong interface. &merged;</para>
-
-      <para>The <literal>proxy</literal> modifier to &man.arp.8;'s
-      <option>-d</option> option has been renamed to
-      <literal>pub</literal>, for consistency with the
-      <option>-s</option> option.  The <literal>only</literal> keyword
-      has been added to the <option>-s</option> and
-      <option>-S</option> flags, to be used in creating
-      <quote>proxy-only</quote> published entries.</para>
-
-      <para>&man.ipfw.4; now filters correctly in the presence of ECN bits in TCP
-      segments. &merged;</para>
-
-      <para>&man.ipfw.8; will now avoid the display of dynamic
-      firewall rules unless the <option>-d</option> flag is passed to
-      it.  The <option>-e</option> lists expired dynamic rules.</para>
-
-      <para>&man.bridge.4; and &man.dummynet.4; have received some
-      enhancements and bug fixes.</para>
-
-      <para>&man.ipfw.8; has a new feature (<literal>me</literal>) that
-      allows for packet matching on interfaces with dynamically-changing
-      IP addresses. &merged;</para>
-
-      <para>&man.ip6fw.8; now has the ability to use a preprocessor
-      and use the <option>-q</option> (quiet) flag when reading from a
-      file. &merged;</para>
-
-      <para>A new <literal>options RANDOM_IP_ID</literal> kernel
-      option causes the ID field of IP packets to be randomized.  This
-      closes a minor information leak which allows a remote observer
-      to determine the rate at which the machine is generating
-      packets, since the default behavior is to increment a counter
-      for each packet sent. &merged;</para>
-
-      <para>IP multicast now works on VLAN devices.  Several other
-      bugs in the VLAN code have also been fixed.</para>
     </sect3>
 
     <sect3>
@@ -1554,6 +1541,18 @@
 
     <para>&man.ipfstat.8; now supports the <option>-t</option> option
     to turn on a &man.top.1;-like display. &merged;</para>
+
+    <para>&man.ipfw.8; will now avoid the display of dynamic
+    firewall rules unless the <option>-d</option> flag is passed to
+    it.  The <option>-e</option> lists expired dynamic rules.</para>
+
+    <para>&man.ipfw.8; has a new feature (<literal>me</literal>) that
+    allows for packet matching on interfaces with dynamically-changing
+    IP addresses. &merged;</para>
+
+    <para>&man.ip6fw.8; now has the ability to use a preprocessor
+    and use the <option>-q</option> (quiet) flag when reading from a
+    file. &merged;</para>
 
     <para>&man.kenv.1;, a command to dump the kernel environment, has
     been added. &merged;</para>
