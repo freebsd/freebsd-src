@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.259
+    Original revision: 1.260
 -->
 
 <articleinfo>
@@ -794,6 +794,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <literal>only</literal> キーワードが追加されました.
         これは <quote>proxy 専用</quote>
         の公開エントリを作成するために使います.</para>
+
+      <para>pthread を使うことにより, &man.select.2;/&man.poll.2;
+	を使った場合の &man.bpf.4; の読み出しタイムアウトの機能が
+	より正しく動作するようになりました. &merged;</para>
 
       <para>&man.bridge.4; および &man.dummynet.4;
         に細かな改良とバグ修正が加えられ, ローダブルモジュールに
@@ -2315,6 +2319,11 @@ hw.pcic.irq="0"</programlisting>
       への応用を容易にするため,
       &man.mtree.8; において
       プロトタイプの作成・検証時に除外するパス名を列挙したファイルが利用できるようになりました.
+      &merged;</para>
+
+    <para>&man.natd.8; に &man.ipfw.8; のルールにより遮断された
+      ために再評価できないパケットを記録する
+      <option>-log_ipfw_denied</option> オプションが追加されました.
       &merged;</para>
 
     <para>&man.netstat.1; の <quote>使用中 (in use)</quote>
