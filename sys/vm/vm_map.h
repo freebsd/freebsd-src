@@ -133,6 +133,14 @@ struct vm_map_entry {
 
 #define MAP_ENTRY_NOCOREDUMP		0x0400	/* don't include in a core */
 
+#ifdef	_KERNEL
+static __inline u_char   
+vm_map_entry_behavior(vm_map_entry_t entry)
+{                  
+	return (entry->eflags & MAP_ENTRY_BEHAV_MASK);
+}
+#endif	/* _KERNEL */
+
 /*
  *	Maps are doubly-linked lists of map entries, kept sorted
  *	by address.  A single hint is provided to start
@@ -210,9 +218,6 @@ struct vmspace {
 };
 
 #ifdef	_KERNEL
-u_char vm_map_entry_behavior(struct vm_map_entry *entry);
-void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
-
 /*
  *	Macros:		vm_map_lock, etc.
  *	Function:

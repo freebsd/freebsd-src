@@ -356,19 +356,6 @@ vmspace_swap_count(struct vmspace *vmspace)
 	return (count);
 }
 
-u_char   
-vm_map_entry_behavior(struct vm_map_entry *entry)
-{                  
-	return entry->eflags & MAP_ENTRY_BEHAV_MASK;
-}
-
-void
-vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior)
-{              
-	entry->eflags = (entry->eflags & ~MAP_ENTRY_BEHAV_MASK) |
-		(behavior & MAP_ENTRY_BEHAV_MASK);
-}                       
-
 void
 _vm_map_lock(vm_map_t map, const char *file, int line)
 {
@@ -528,6 +515,19 @@ vm_map_entry_create(vm_map_t map)
 }
 
 /*
+ *	vm_map_entry_set_behavior:
+ *
+ *	Set the expected access behavior, either normal, random, or
+ *	sequential.
+ */
+static __inline void
+vm_map_entry_set_behavior(vm_map_entry_t entry, u_char behavior)
+{
+	entry->eflags = (entry->eflags & ~MAP_ENTRY_BEHAV_MASK) |
+	    (behavior & MAP_ENTRY_BEHAV_MASK);
+}
+
+/*
  *	vm_map_entry_splay:
  *
  *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
@@ -543,7 +543,6 @@ vm_map_entry_splay(vm_offset_t address, vm_map_entry_t root)
 
 	if (root == NULL)
 		return (root);
-	dummy.left = dummy.right = NULL;
 	lefttreemax = righttreemin = &dummy;
 	for (;;) {
 		if (address < root->start) {
