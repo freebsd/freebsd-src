@@ -125,6 +125,7 @@ pc98/isa/istallion.c		optional	stli	device-driver
 pc98/isa/joy.c			optional        joy     device-driver
 i386/isa/kbdio.c		optional        psm     device-driver
 i386/isa/kbdio.c		optional        sc      device-driver
+i386/isa/kbdio.c		optional        vt      device-driver
 pc98/pc98/labpc.c		optional	labpc	device-driver
 pc98/pc98/lpt.c			optional	lpt	device-driver
 pc98/pc98/mcd.c			optional	mcd	device-driver
