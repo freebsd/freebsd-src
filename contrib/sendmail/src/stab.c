@@ -11,11 +11,9 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: stab.c,v 8.40.16.7 2001/05/07 22:06:41 gshapiro Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
+
+SM_RCSID("@(#)$Id: stab.c,v 8.86 2001/12/29 04:27:56 ca Exp $")
 
 /*
 **  STAB -- manage the symbol table
@@ -24,8 +22,7 @@ static char id[] = "@(#)$Id: stab.c,v 8.40.16.7 2001/05/07 22:06:41 gshapiro Exp
 **		name -- the name to be looked up or inserted.
 **		type -- the type of symbol.
 **		op -- what to do:
-**			ST_ENTER -- enter the name if not
-**				already present.
+**			ST_ENTER -- enter the name if not already present.
 **			ST_FIND -- find it only.
 **
 **	Returns:
@@ -37,6 +34,7 @@ static char id[] = "@(#)$Id: stab.c,v 8.40.16.7 2001/05/07 22:06:41 gshapiro Exp
 */
 
 #define STABSIZE	2003
+#define SM_LOWER(c)	((isascii(c) && isupper(c)) ? tolower(c) : (c))
 
 static STAB	*SymTab[STABSIZE];
 
@@ -53,7 +51,7 @@ stab(name, type, op)
 	int len;
 
 	if (tTd(36, 5))
-		dprintf("STAB: %s %d ", name, type);
+		sm_dprintf("STAB: %s %d ", name, type);
 
 	/*
 	**  Compute the hashing function
@@ -61,22 +59,22 @@ stab(name, type, op)
 
 	hfunc = type;
 	for (p = name; *p != '\0'; p++)
-		hfunc = ((hfunc << 1) ^ (lower(*p) & 0377)) % STABSIZE;
+		hfunc = ((hfunc << 1) ^ (SM_LOWER(*p) & 0377)) % STABSIZE;
 
 	if (tTd(36, 9))
-		dprintf("(hfunc=%d) ", hfunc);
+		sm_dprintf("(hfunc=%d) ", hfunc);
 
 	ps = &SymTab[hfunc];
 	if (type == ST_MACRO || type == ST_RULESET)
 	{
 		while ((s = *ps) != NULL &&
-		       (s->s_type != type || strcmp(name, s->s_name)))
+		       (s->s_symtype != type || strcmp(name, s->s_name)))
 			ps = &s->s_next;
 	}
 	else
 	{
 		while ((s = *ps) != NULL &&
-		       (s->s_type != type || strcasecmp(name, s->s_name)))
+		       (s->s_symtype != type || sm_strcasecmp(name, s->s_name)))
 			ps = &s->s_next;
 	}
 
@@ -89,13 +87,13 @@ stab(name, type, op)
 		if (tTd(36, 5))
 		{
 			if (s == NULL)
-				dprintf("not found\n");
+				sm_dprintf("not found\n");
 			else
 			{
 				long *lp = (long *) s->s_class;
 
-				dprintf("type %d val %lx %lx %lx %lx\n",
-					s->s_type, lp[0], lp[1], lp[2], lp[3]);
+				sm_dprintf("type %d val %lx %lx %lx %lx\n",
+					s->s_symtype, lp[0], lp[1], lp[2], lp[3]);
 			}
 		}
 		return s;
@@ -106,7 +104,7 @@ stab(name, type, op)
 	*/
 
 	if (tTd(36, 5))
-		dprintf("entered\n");
+		sm_dprintf("entered\n");
 
 	/* determine size of new entry */
 	switch (type)
@@ -159,21 +157,25 @@ stab(name, type, op)
 		len = sizeof s->s_service;
 		break;
 
-#ifdef LDAPMAP
+#if LDAPMAP
 	  case ST_LMAP:
 		len = sizeof s->s_lmap;
 		break;
 #endif /* LDAPMAP */
 
-#if _FFR_MILTER
+#if MILTER
 	  case ST_MILTER:
 		len = sizeof s->s_milter;
 		break;
-#endif /* _FFR_MILTER */
+#endif /* MILTER */
+
+	  case ST_QUEUE:
+		len = sizeof s->s_quegrp;
+		break;
 
 	  default:
 		/*
-		**  Each mailer has it's own MCI stab entry:
+		**  Each mailer has its own MCI stab entry:
 		**
 		**  s = stab(host, ST_MCI + m->m_mno, ST_ENTER);
 		**
@@ -192,14 +194,13 @@ stab(name, type, op)
 	len += sizeof *s - sizeof s->s_value;
 
 	if (tTd(36, 15))
-		dprintf("size of stab entry: %d\n", len);
+		sm_dprintf("size of stab entry: %d\n", len);
 
 	/* make new entry */
-	s = (STAB *) xalloc(len);
+	s = (STAB *) sm_pmalloc_x(len);
 	memset((char *) s, '\0', len);
-	s->s_name = newstr(name);
-	s->s_type = type;
-	s->s_len = len;
+	s->s_name = sm_pstrdup_x(name);
+	s->s_symtype = type;
 
 	/* link it in */
 	*ps = s;
@@ -210,12 +211,12 @@ stab(name, type, op)
 
 	return s;
 }
-/*
+/*
 **  STABAPPLY -- apply function to all stab entries
 **
 **	Parameters:
-**		func -- the function to apply.  It will be given one
-**			parameter (the stab entry).
+**		func -- the function to apply.  It will be given two
+**			parameters (the stab entry and the arg).
 **		arg -- an arbitrary argument, passed to func.
 **
 **	Returns:
@@ -235,13 +236,13 @@ stabapply(func, arg)
 		for (s = *shead; s != NULL; s = s->s_next)
 		{
 			if (tTd(36, 90))
-				dprintf("stabapply: trying %d/%s\n",
-					s->s_type, s->s_name);
+				sm_dprintf("stabapply: trying %d/%s\n",
+					s->s_symtype, s->s_name);
 			func(s, arg);
 		}
 	}
 }
-/*
+/*
 **  QUEUEUP_MACROS -- queueup the macros in a class
 **
 **	Write the macros listed in the specified class into the
@@ -249,7 +250,7 @@ stabapply(func, arg)
 **
 **	Parameters:
 **		class -- class ID.
-**		qfp -- file pointer to the qf file.
+**		qfp -- file pointer to the queue file.
 **		e -- the envelope.
 **
 **	Returns:
@@ -259,7 +260,7 @@ stabapply(func, arg)
 void
 queueup_macros(class, qfp, e)
 	int class;
-	FILE *qfp;
+	SM_FILE_T *qfp;
 	ENVELOPE *e;
 {
 	register STAB **shead;
@@ -276,39 +277,21 @@ queueup_macros(class, qfp, e)
 			int m;
 			char *p;
 
-			if (s->s_type == ST_CLASS &&
-			    bitnset(class, s->s_class) &&
-			    (m = macid(s->s_name, NULL)) != '\0' &&
+			if (s->s_symtype == ST_CLASS &&
+			    bitnset(bitidx(class), s->s_class) &&
+			    (m = macid(s->s_name)) != '\0' &&
 			    (p = macvalue(m, e)) != NULL)
 			{
-				/*
-				**  HACK ALERT: Unfortunately, 8.10 and
-				**  8.11 reused the ${if_addr} and
-				**  ${if_family} macros for both the incoming
-				**  interface address/family (getrequests())
-				**  and the outgoing interface address/family
-				**  (makeconnection()).  In order for D_BINDIF
-				**  to work properly, have to preserve the
-				**  incoming information in the queue file for
-				**  later delivery attempts.  The original
-				**  information is stored in the envelope
-				**  in readqf() so it can be stored in
-				**  queueup_macros().  This should be fixed
-				**  in 8.12.
-				*/
-
-				if (e->e_if_macros[EIF_ADDR] != NULL &&
-				    strcmp(s->s_name, "{if_addr}") == 0)
-					p = e->e_if_macros[EIF_ADDR];
-
-				fprintf(qfp, "$%s%s\n",
-					s->s_name,
-					denlstring(p, TRUE, FALSE));
+				(void) sm_io_fprintf(qfp, SM_TIME_DEFAULT,
+						      "$%s%s\n",
+						      s->s_name,
+						      denlstring(p, true,
+								 false));
 			}
 		}
 	}
 }
-/*
+/*
 **  COPY_CLASS -- copy class members from one class to another
 **
 **	Parameters:
@@ -333,9 +316,154 @@ copy_class(src, dst)
 	{
 		for (s = *shead; s != NULL; s = s->s_next)
 		{
-			if (s->s_type == ST_CLASS &&
+			if (s->s_symtype == ST_CLASS &&
 			    bitnset(src, s->s_class))
 				setbitn(dst, s->s_class);
 		}
 	}
 }
+
+/*
+**  RMEXPSTAB -- remove expired entries from SymTab.
+**
+**	These entries need to be removed in long-running processes,
+**	e.g., persistent queue runners, to avoid consuming memory.
+**
+**	XXX It might be useful to restrict the maximum TTL to avoid
+**		caching data very long.
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		can remove entries from the symbol table.
+*/
+
+#define SM_STAB_FREE(x)	\
+	do \
+	{ \
+		char *o = (x); \
+		(x) = NULL; \
+		if (o != NULL) \
+			sm_free(o); \
+	} while (0)
+
+void
+rmexpstab()
+{
+	int i;
+	STAB *s, *p, *f;
+	time_t now;
+
+	now = curtime();
+	for (i = 0; i < STABSIZE; i++)
+	{
+		p = NULL;
+		s = SymTab[i];
+		while (s != NULL)
+		{
+			switch (s->s_symtype)
+			{
+			  case ST_HOSTSIG:
+				if (s->s_hostsig.hs_exp >= now)
+					goto next;	/* not expired */
+				SM_STAB_FREE(s->s_hostsig.hs_sig); /* XXX */
+				break;
+
+			  case ST_NAMECANON:
+				if (s->s_namecanon.nc_exp >= now)
+					goto next;	/* not expired */
+				SM_STAB_FREE(s->s_namecanon.nc_cname); /* XXX */
+				break;
+
+			  default:
+				if (s->s_symtype >= ST_MCI)
+				{
+					/* call mci_uncache? */
+					SM_STAB_FREE(s->s_mci.mci_status);
+					SM_STAB_FREE(s->s_mci.mci_rstatus);
+					SM_STAB_FREE(s->s_mci.mci_heloname);
+#if 0
+					/* not dynamically allocated */
+					SM_STAB_FREE(s->s_mci.mci_host);
+					SM_STAB_FREE(s->s_mci.mci_tolist);
+#endif /* 0 */
+#if SASL
+					/* should always by NULL */
+					SM_STAB_FREE(s->s_mci.mci_sasl_string);
+#endif /* SASL */
+					if (s->s_mci.mci_rpool != NULL)
+					{
+						sm_rpool_free(s->s_mci.mci_rpool);
+						s->s_mci.mci_macro.mac_rpool = NULL;
+						s->s_mci.mci_rpool = NULL;
+					}
+					break;
+				}
+  next:
+				p = s;
+				s = s->s_next;
+				continue;
+			}
+
+			/* remove entry */
+			SM_STAB_FREE(s->s_name); /* XXX */
+			f = s;
+			s = s->s_next;
+			sm_free(f);	/* XXX */
+			if (p == NULL)
+				SymTab[i] = s;
+			else
+				p->s_next = s;
+		}
+	}
+}
+
+#if SM_HEAP_CHECK
+/*
+**  DUMPSTAB -- dump symbol table.
+**
+**	For debugging.
+*/
+
+#define MAXSTTYPES	(ST_MCI + 1)
+
+void
+dumpstab()
+{
+	int i, t, total, types[MAXSTTYPES];
+	STAB *s;
+	static int prevt[MAXSTTYPES], prev = 0;
+
+	total = 0;
+	for (i = 0; i < MAXSTTYPES; i++)
+		types[i] = 0;
+	for (i = 0; i < STABSIZE; i++)
+	{
+		s = SymTab[i];
+		while (s != NULL)
+		{
+			++total;
+			t = s->s_symtype;
+			if (t > MAXSTTYPES - 1)
+				t = MAXSTTYPES - 1;
+			types[t]++;
+			s = s->s_next;
+		}
+	}
+	sm_syslog(LOG_INFO, NOQID, "stab: total=%d (%d)", total, total - prev);
+	prev = total;
+	for (i = 0; i < MAXSTTYPES; i++)
+	{
+		if (types[i] != 0)
+		{
+			sm_syslog(LOG_INFO, NOQID, "stab: type[%2d]=%2d (%d)",
+				i, types[i], types[i] - prevt[i]);
+		}
+		prevt[i] = types[i];
+	}
+}
+#endif /* SM_HEAP_CHECK */

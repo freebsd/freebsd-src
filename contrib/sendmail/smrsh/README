@@ -75,7 +75,7 @@ You should NOT include interpreter programs such as sh(1), csh(1),
 perl(1), uudecode(1) or the stream editor sed(1) in your list of
 acceptable commands.
 
-If your platform doesn't have a default CMDDIR setting, you will
+If your platform doesn't have a default SMRSH_CMDDIR setting, you will
 next need to create the directory /usr/adm/sm.bin and populate
 it with the programs that your site feels are allowable for sendmail
 to execute.   This directory is explicitly specified in the source
@@ -153,4 +153,4 @@ a typical system follows:
 	host.domain# /usr/sbin/sendmail -bd -q30m
 
 
-$Revision: 8.6.16.1 $, Last updated $Date: 2000/10/09 20:39:55 $
+$Revision: 8.8 $, Last updated $Date: 2001/01/24 00:05:58 $

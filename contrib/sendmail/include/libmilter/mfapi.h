@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.13.4.12 2000/09/09 02:11:48 ca Exp $
+ *	$Id: mfapi.h,v 8.35 2001/10/09 19:05:24 gshapiro Exp $
  */
 
 /*
@@ -17,13 +17,14 @@
 #ifndef _LIBMILTER_MFAPI_H
 # define _LIBMILTER_MFAPI_H	1
 
-# define LIBMILTER_API		extern
+# include <sys/socket.h>
+# include "libmilter/mfdef.h"
 
+# define LIBMILTER_API		extern
 
 # include <sys/types.h>
 
 #ifndef _SOCK_ADDR
-# include <sys/socket.h>
 # define _SOCK_ADDR	struct sockaddr
 #endif /* ! _SOCK_ADDR */
 
@@ -42,34 +43,12 @@ typedef struct smfi_str *SMFICTX_PTR;
 typedef struct smfiDesc smfiDesc_str;
 typedef struct smfiDesc	*smfiDesc_ptr;
 
-#define SMFI_VERSION	2		/* version number */
-
-/*
-**  What the filter might do -- values to be ORed together for
-**  smfiDesc.xxfi_flags.
-*/
-
-#define SMFIF_ADDHDRS	0x00000001L	/* filter may add headers */
-#define SMFIF_CHGBODY	0x00000002L	/* filter may replace body */
-#define SMFIF_MODBODY	SMFIF_CHGBODY	/* backwards compatible */
-#define SMFIF_ADDRCPT	0x00000004L	/* filter may add recipients */
-#define SMFIF_DELRCPT	0x00000008L	/* filter may delete recipients */
-#define SMFIF_CHGHDRS	0x00000010L	/* filter may change/delete headers */
-
-#define SMFI_V1_ACTS	0x0000000FL	/* The actions of V1 filter */
-#define SMFI_V2_ACTS	0x0000001FL	/* The actions of V2 filter */
-#define SMFI_CURR_ACTS	SMFI_V2_ACTS	/* The current version */
-
 /*
 **  Type which callbacks should return to indicate message status.
 **  This may take on one of the SMFIS_* values listed below.
 */
 
 typedef int	sfsistat;
-
-/*
-**  structure describing one milter
-*/
 
 #if defined(__linux__) && defined(__GNUC__) && defined(__cplusplus) && __GNUC_MINOR__ >= 8
 # define SM__P(X)	__PMT(X)
@@ -86,11 +65,15 @@ typedef int	sfsistat;
 # endif /* __STDC__ */
 #endif /* __P */
 
+/*
+**  structure describing one milter
+*/
+
 struct smfiDesc
 {
 	char		*xxfi_name;	/* filter name */
 	int		xxfi_version;	/* version code -- do not change */
-	u_long		xxfi_flags;	/* flags */
+	unsigned long	xxfi_flags;	/* flags */
 
 	/* connection info filter */
 	sfsistat	(*xxfi_connect) SM__P((SMFICTX *, char *, _SOCK_ADDR *));
@@ -111,7 +94,7 @@ struct smfiDesc
 	sfsistat	(*xxfi_eoh) SM__P((SMFICTX *));
 
 	/* body block */
-	sfsistat	(*xxfi_body) SM__P((SMFICTX *, u_char *, size_t));
+	sfsistat	(*xxfi_body) SM__P((SMFICTX *, unsigned char *, size_t));
 
 	/* end of message */
 	sfsistat	(*xxfi_eom) SM__P((SMFICTX *));
@@ -129,6 +112,24 @@ LIBMILTER_API int smfi_setdbg __P((int));
 LIBMILTER_API int smfi_settimeout __P((int));
 LIBMILTER_API int smfi_setconn __P((char *));
 LIBMILTER_API int smfi_stop __P((void));
+
+#define SMFI_VERSION	2		/* version number */
+
+/*
+**  What the filter might do -- values to be ORed together for
+**  smfiDesc.xxfi_flags.
+*/
+
+#define SMFIF_NONE	0x00000000L	/* no flags */
+#define SMFIF_ADDHDRS	0x00000001L	/* filter may add headers */
+#define SMFIF_CHGBODY	0x00000002L	/* filter may replace body */
+#define SMFIF_MODBODY	SMFIF_CHGBODY	/* backwards compatible */
+#define SMFIF_ADDRCPT	0x00000004L	/* filter may add recipients */
+#define SMFIF_DELRCPT	0x00000008L	/* filter may delete recipients */
+#define SMFIF_CHGHDRS	0x00000010L	/* filter may change/delete headers */
+#if _FFR_QUARANTINE
+# define SMFIF_QUARANTINE 0x00000020L	/* filter may quarantine envelope */
+#endif /* _FFR_QUARANTINE */
 
 /*
 **  Continue processing message/connection.
@@ -244,14 +245,14 @@ extern sfsistat	xxfi_eoh __P((SMFICTX *));
 */
 
 /* body block */
-extern sfsistat	xxfi_body __P((SMFICTX *, u_char *, size_t));
+extern sfsistat	xxfi_body __P((SMFICTX *, unsigned char *, size_t));
 
 /*
 **  xxfi_body(ctx, bodyp, bodylen) Invoked for each body chunk. There may
 **  be multiple body chunks passed to the filter. End-of-lines are
 **  represented as received from SMTP (normally Carriage-Return/Line-Feed).
 **
-**	u_char *bodyp; Pointer to body data
+**	unsigned char *bodyp; Pointer to body data
 **	size_t bodylen; Length of body data
 */
 
@@ -304,6 +305,15 @@ LIBMILTER_API char * smfi_getsymval __P((SMFICTX *, char *));
 */
 
 LIBMILTER_API int smfi_setreply __P((SMFICTX *, char *, char *, char *));
+
+#if _FFR_MULTILINE
+/*
+**  Alternatively, smfi_setmlreply can be called if a multi-line SMTP reply
+**  is needed.
+*/
+
+LIBMILTER_API int smfi_setmlreply __P((SMFICTX *, const char *, const char *, ...));
+#endif /* _FFR_MULTILINE */
 
 /*
 **  Set the specific reply code to be used in response to the active
@@ -370,7 +380,7 @@ LIBMILTER_API int smfi_delrcpt __P((SMFICTX *, char *));
 **		not be deleted.
 */
 
-LIBMILTER_API int smfi_replacebody __P((SMFICTX *, u_char *, int));
+LIBMILTER_API int smfi_replacebody __P((SMFICTX *, unsigned char *, int));
 
 /*
 **  Replace the body of the message. This routine may be called multiple
@@ -387,6 +397,16 @@ LIBMILTER_API int smfi_replacebody __P((SMFICTX *, u_char *, int));
 **  xxfi_abort is called. This can be used to reset state.
 */
 
+#if _FFR_QUARANTINE
+/*
+**  Quarantine an envelope
+**
+**	SMFICTX *ctx; Opaque context structure
+**	char *reason: explanation
+*/
+
+LIBMILTER_API int smfi_quarantine __P((SMFICTX *ctx, char *reason));
+#endif /* _FFR_QUARANTINE */
 
 /*
 **  Connection-private data (specific to an SMTP connection) can be

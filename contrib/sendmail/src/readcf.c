@@ -11,12 +11,9 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: readcf.c,v 8.382.4.43 2001/08/14 23:08:13 ca Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
 
+SM_RCSID("@(#)$Id: readcf.c,v 8.594 2001/12/14 00:43:17 gshapiro Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -31,6 +28,7 @@ static void	fileclass __P((int, char *, char *, bool, bool));
 static char	**makeargv __P((char *));
 static void	settimeout __P((char *, char *, bool));
 static void	toomany __P((int, int));
+static char	*extrquotstr __P((char *, char **, char *, bool *));
 
 /*
 **  READCF -- read configuration file.
@@ -57,7 +55,10 @@ static void	toomany __P((int, int));
 **		Mn arg=val...	Define mailer.  n is the internal name.
 **				Args specify mailer parameters.
 **		Oxvalue		Set option x to value.
+**		O option value	Set option (long name) to value.
 **		Pname=value	Set precedence name to value.
+**		Qn arg=val...	Define queue groups.  n is the internal name.
+**				Args specify queue parameters.
 **		Vversioncode[/vendorcode]
 **				Version level/vendor name of
 **				configuration syntax.
@@ -68,8 +69,8 @@ static void	toomany __P((int, int));
 **
 **	Parameters:
 **		cfname -- configuration file name.
-**		safe -- TRUE if this is the system config file;
-**			FALSE otherwise.
+**		safe -- true if this is the system config file;
+**			false otherwise.
 **		e -- the main envelope.
 **
 **	Returns:
@@ -85,7 +86,7 @@ readcf(cfname, safe, e)
 	bool safe;
 	register ENVELOPE *e;
 {
-	FILE *cf;
+	SM_FILE_T *cf;
 	int ruleset = -1;
 	char *q;
 	struct rewrite *rwp = NULL;
@@ -94,6 +95,7 @@ readcf(cfname, safe, e)
 	int nfuzzy;
 	char *file;
 	bool optional;
+	bool ok;
 	int mid;
 	register char *p;
 	long sff = SFF_OPENASROOT;
@@ -102,7 +104,7 @@ readcf(cfname, safe, e)
 	char exbuf[MAXLINE];
 	char pvpbuf[MAXLINE + MAXATOM];
 	static char *null_list[1] = { NULL };
-	extern u_char TokTypeNoC[];
+	extern unsigned char TokTypeNoC[];
 
 	FileName = cfname;
 	LineNumber = 0;
@@ -113,33 +115,34 @@ readcf(cfname, safe, e)
 	if (cf == NULL)
 	{
 		syserr("cannot open");
-		finis(FALSE, EX_OSFILE);
+		finis(false, true, EX_OSFILE);
 	}
 
-	if (fstat(fileno(cf), &statb) < 0)
+	if (fstat(sm_io_getinfo(cf, SM_IO_WHAT_FD, NULL), &statb) < 0)
 	{
 		syserr("cannot fstat");
-		finis(FALSE, EX_OSFILE);
+		finis(false, true, EX_OSFILE);
 	}
 
 	if (!S_ISREG(statb.st_mode))
 	{
 		syserr("not a plain file");
-		finis(FALSE, EX_OSFILE);
+		finis(false, true, EX_OSFILE);
 	}
 
 	if (OpMode != MD_TEST && bitset(S_IWGRP|S_IWOTH, statb.st_mode))
 	{
 		if (OpMode == MD_DAEMON || OpMode == MD_INITALIAS)
-			fprintf(stderr, "%s: WARNING: dangerous write permissions\n",
-				FileName);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "%s: WARNING: dangerous write permissions\n",
+					     FileName);
 		if (LogLevel > 0)
 			sm_syslog(LOG_CRIT, NOQID,
 				  "%s: WARNING: dangerous write permissions",
 				  FileName);
 	}
 
-#ifdef XLA
+#if XLA
 	xla_zero();
 #endif /* XLA */
 
@@ -148,7 +151,7 @@ readcf(cfname, safe, e)
 		if (bp[0] == '#')
 		{
 			if (bp != buf)
-				sm_free(bp);
+				sm_free(bp); /* XXX */
 			continue;
 		}
 
@@ -202,7 +205,7 @@ readcf(cfname, safe, e)
 			{
 				register char **ap;
 
-				rwp->r_lhs = copyplist(rwp->r_lhs, TRUE);
+				rwp->r_lhs = copyplist(rwp->r_lhs, true, NULL);
 
 				/* count the number of fuzzy matches in LHS */
 				for (ap = rwp->r_lhs; *ap != NULL; ap++)
@@ -288,7 +291,7 @@ readcf(cfname, safe, e)
 			{
 				register char **ap;
 
-				rwp->r_rhs = copyplist(rwp->r_rhs, TRUE);
+				rwp->r_rhs = copyplist(rwp->r_rhs, true, NULL);
 
 				/* check no out-of-bounds replacements */
 				nfuzzy += '0';
@@ -326,6 +329,36 @@ readcf(cfname, safe, e)
 					  case MATCHNCLASS:
 						botch = "$~";
 						break;
+
+#if 0
+/*
+**  This doesn't work yet as there are maps defined *after* the cf
+**  is read such as host, user, and alias.  So for now, it's removed.
+**  When it comes back, the RELEASE_NOTES entry will be:
+**	Emit warnings for unknown maps when reading the .cf file.  Based on
+**		patch from Robert Harker of Harker Systems.
+*/
+
+					  case LOOKUPBEGIN:
+						/*
+						**  Got a database lookup,
+						**  check if map is defined.
+						*/
+
+						ep = *(ap + 1);
+						if ((*ep & 0377) != MACRODEXPAND &&
+						    stab(ep, ST_MAP,
+							 ST_FIND) == NULL)
+						{
+							(void) sm_io_fprintf(smioout,
+									     SM_TIME_DEFAULT,
+									     "Warning: %s: line %d: map %s not found\n",
+									     FileName,
+									     LineNumber,
+									     ep);
+						}
+						break;
+#endif /* 0 */
 					}
 					if (botch != NULL)
 						syserr("Inappropriate use of %s on RHS",
@@ -349,22 +382,24 @@ readcf(cfname, safe, e)
 			if (rwp != NULL)
 			{
 				if (OpMode == MD_TEST)
-					printf("WARNING: Ruleset %s has multiple definitions\n",
-					       &bp[1]);
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "WARNING: Ruleset %s has multiple definitions\n",
+							    &bp[1]);
 				if (tTd(37, 1))
-					dprintf("WARNING: Ruleset %s has multiple definitions\n",
-						&bp[1]);
+					sm_dprintf("WARNING: Ruleset %s has multiple definitions\n",
+						   &bp[1]);
 				while (rwp->r_next != NULL)
 					rwp = rwp->r_next;
 			}
 			break;
 
 		  case 'D':		/* macro definition */
-			mid = macid(&bp[1], &ep);
+			mid = macid_parse(&bp[1], &ep);
 			if (mid == 0)
 				break;
 			p = munchstring(ep, NULL, '\0');
-			define(mid, newstr(p), e);
+			macdefine(&e->e_macro, A_TEMP, mid, p);
 			break;
 
 		  case 'H':		/* required header line */
@@ -375,7 +410,7 @@ readcf(cfname, safe, e)
 		  case 'T':		/* trusted user (set class `t') */
 			if (bp[0] == 'C')
 			{
-				mid = macid(&bp[1], &ep);
+				mid = macid_parse(&bp[1], &ep);
 				if (mid == 0)
 					break;
 				expand(ep, exbuf, sizeof exbuf, e);
@@ -405,27 +440,40 @@ readcf(cfname, safe, e)
 			break;
 
 		  case 'F':		/* word class from file */
-			mid = macid(&bp[1], &ep);
+			mid = macid_parse(&bp[1], &ep);
 			if (mid == 0)
 				break;
 			for (p = ep; isascii(*p) && isspace(*p); )
 				p++;
 			if (p[0] == '-' && p[1] == 'o')
 			{
-				optional = TRUE;
-				while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+				optional = true;
+				while (*p != '\0' &&
+				       !(isascii(*p) && isspace(*p)))
 					p++;
 				while (isascii(*p) && isspace(*p))
 					p++;
+				file = p;
 			}
 			else
-				optional = FALSE;
+				optional = false;
 
-			file = p;
-			q = p;
-			while (*q != '\0' && !(isascii(*q) && isspace(*q)))
-				q++;
-			if (*file == '|')
+			if (*p == '@')
+			{
+				/* use entire spec */
+				file = p;
+			}
+			else
+			{
+				file = extrquotstr(p, &q, " ", &ok);
+				if (!ok)
+				{
+					syserr("illegal filename '%s'", p);
+					break;
+				}
+			}
+
+			if (*file == '|' || *file == '@')
 				p = "%s";
 			else
 			{
@@ -442,7 +490,7 @@ readcf(cfname, safe, e)
 			fileclass(mid, file, p, safe, optional);
 			break;
 
-#ifdef XLA
+#if XLA
 		  case 'L':		/* extended load average description */
 			xla_init(&bp[1]);
 			break;
@@ -463,7 +511,7 @@ readcf(cfname, safe, e)
 			break;
 
 		  case 'O':		/* set option */
-			setoption(bp[1], &bp[2], safe, FALSE, e);
+			setoption(bp[1], &bp[2], safe, false, e);
 			break;
 
 		  case 'P':		/* set precedence */
@@ -480,6 +528,10 @@ readcf(cfname, safe, e)
 			Priorities[NumPriorities].pri_name = newstr(&bp[1]);
 			Priorities[NumPriorities].pri_val = atoi(++p);
 			NumPriorities++;
+			break;
+
+		  case 'Q':		/* define queue */
+			makequeue(&bp[1], true);
 			break;
 
 		  case 'V':		/* configuration syntax version */
@@ -502,12 +554,15 @@ readcf(cfname, safe, e)
 				/* level 5 configs have short name in $w */
 				p = macvalue('w', e);
 				if (p != NULL && (p = strchr(p, '.')) != NULL)
+				{
 					*p = '\0';
-				define('w', macvalue('w', e), e);
+					macdefine(&e->e_macro, A_TEMP, 'w',
+						  macvalue('w', e));
+				}
 			}
 			if (ConfigLevel >= 6)
 			{
-				ColonOkInAddr = FALSE;
+				ColonOkInAddr = false;
 			}
 
 			/*
@@ -539,25 +594,28 @@ readcf(cfname, safe, e)
 			setuserenv(&bp[1], p);
 			break;
 
-#if _FFR_MILTER
 		  case 'X':		/* mail filter */
+#if MILTER
 			milter_setup(&bp[1]);
+#else /* MILTER */
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Warning: Filter usage ('X') requires Milter support (-DMILTER)\n");
+#endif /* MILTER */
 			break;
-#endif /* _FFR_MILTER */
 
 		  default:
 		  badline:
 			syserr("unknown configuration line \"%s\"", bp);
 		}
 		if (bp != buf)
-			sm_free(bp);
+			sm_free(bp); /* XXX */
 	}
-	if (ferror(cf))
+	if (sm_io_error(cf))
 	{
 		syserr("I/O read error");
-		finis(FALSE, EX_OSFILE);
+		finis(false, true, EX_OSFILE);
 	}
-	(void) fclose(cf);
+	(void) sm_io_close(cf, SM_TIME_DEFAULT);
 	FileName = NULL;
 
 	/* initialize host maps from local service tables */
@@ -573,35 +631,21 @@ readcf(cfname, safe, e)
 		short mapreturn[MAXMAPACTIONS];
 
 		nmaps = switch_map_find("hosts", maptype, mapreturn);
-		UseNameServer = FALSE;
+		UseNameServer = false;
 		if (nmaps > 0 && nmaps <= MAXMAPSTACK)
 		{
 			register int mapno;
 
-			for (mapno = 0; mapno < nmaps && !UseNameServer; mapno++)
+			for (mapno = 0; mapno < nmaps && !UseNameServer;
+			     mapno++)
 			{
 				if (strcmp(maptype[mapno], "dns") == 0)
-					UseNameServer = TRUE;
+					UseNameServer = true;
 			}
 		}
-
-#ifdef HESIOD
-		nmaps = switch_map_find("passwd", maptype, mapreturn);
-		UseHesiod = FALSE;
-		if (nmaps > 0 && nmaps <= MAXMAPSTACK)
-		{
-			register int mapno;
-
-			for (mapno = 0; mapno < nmaps && !UseHesiod; mapno++)
-			{
-				if (strcmp(maptype[mapno], "hesiod") == 0)
-					UseHesiod = TRUE;
-			}
-		}
-#endif /* HESIOD */
 	}
 }
-/*
+/*
 **  TRANSLATE_DOLLARS -- convert $x into internal form
 **
 **	Actually does all appropriate pre-processing of a config line
@@ -627,7 +671,6 @@ translate_dollars(bp)
 	{
 		if (*p == '#' && p > bp && ConfigLevel >= 3)
 		{
-			/* this is an on-line comment */
 			register char *e;
 
 			switch (*--p & 0377)
@@ -639,7 +682,7 @@ translate_dollars(bp)
 
 			  case '\\':
 				/* it's backslash escaped */
-				(void) strlcpy(p, p + 1, strlen(p));
+				(void) sm_strlcpy(p, p + 1, strlen(p));
 				break;
 
 			  default:
@@ -648,7 +691,7 @@ translate_dollars(bp)
 				       *p != '\n' && p > bp)
 					p--;
 				if ((e = strchr(++p, '\n')) != NULL)
-					(void) strlcpy(p, e, strlen(p));
+					(void) sm_strlcpy(p, e, strlen(p));
 				else
 					*p-- = '\0';
 				break;
@@ -662,7 +705,7 @@ translate_dollars(bp)
 		if (p[1] == '$')
 		{
 			/* actual dollar sign.... */
-			(void) strlcpy(p, p + 1, strlen(p));
+			(void) sm_strlcpy(p, p + 1, strlen(p));
 			continue;
 		}
 
@@ -674,16 +717,16 @@ translate_dollars(bp)
 			p++;
 
 		/* convert macro name to code */
-		*p = macid(p, &ep);
+		*p = macid_parse(p, &ep);
 		if (ep != p + 1)
-			(void) strlcpy(p + 1, ep, strlen(p + 1));
+			(void) sm_strlcpy(p + 1, ep, strlen(p + 1));
 	}
 
 	/* strip trailing white space from the line */
 	while (--p > bp && isascii(*p) && isspace(*p))
 		*p = '\0';
 }
-/*
+/*
 **  TOOMANY -- signal too many of some option
 **
 **	Parameters:
@@ -704,7 +747,7 @@ toomany(id, maxcnt)
 {
 	syserr("too many %c lines, %d max", id, maxcnt);
 }
-/*
+/*
 **  FILECLASS -- read members of a class from a file
 **
 **	Parameters:
@@ -719,10 +762,40 @@ toomany(id, maxcnt)
 **		none
 **
 **	Side Effects:
-**
 **		puts all lines in filename that match a scanf into
 **			the named class.
 */
+
+/*
+**  Break up the match into words and add to class.
+*/
+
+static void
+parse_class_words(class, line)
+	int class;
+	char *line;
+{
+	while (line != NULL && *line != '\0')
+	{
+		register char *q;
+
+		/* strip leading spaces */
+		while (isascii(*line) && isspace(*line))
+			line++;
+		if (*line == '\0')
+			break;
+
+		/* find the end of the word */
+		q = line;
+		while (*line != '\0' && !(isascii(*line) && isspace(*line)))
+			line++;
+		if (*line != '\0')
+			*line++ = '\0';
+
+		/* enter the word in the symbol table */
+		setclass(class, q);
+	}
+}
 
 static void
 fileclass(class, filename, fmt, safe, optional)
@@ -732,34 +805,166 @@ fileclass(class, filename, fmt, safe, optional)
 	bool safe;
 	bool optional;
 {
-	FILE *f;
+	SM_FILE_T *f;
 	long sff;
 	pid_t pid;
 	register char *p;
 	char buf[MAXLINE];
 
 	if (tTd(37, 2))
-		dprintf("fileclass(%s, fmt=%s)\n", filename, fmt);
+		sm_dprintf("fileclass(%s, fmt=%s)\n", filename, fmt);
 
-	if (filename[0] == '|')
+	if (*filename == '\0')
+	{
+		syserr("fileclass: missing file name");
+		return;
+	}
+	else if (!SM_IS_DIR_DELIM(*filename) && *filename != '|' &&
+		 (p = strchr(filename, '@')) != NULL)
+	{
+		int status = 0;
+		char *key;
+		char *mn;
+		char *cl, *spec;
+		STAB *mapclass;
+		MAP map;
+
+		mn = newstr(macname(class));
+
+		key = filename;
+
+		/* skip past '@' */
+		*p++ = '\0';
+		cl = p;
+
+		if (strcmp(cl, "LDAP") == 0)
+		{
+			int n;
+			char *lc;
+			char jbuf[MAXHOSTNAMELEN];
+			char lcbuf[MAXLINE];
+
+			/* Get $j */
+			expand("\201j", jbuf, sizeof jbuf, &BlankEnvelope);
+			if (jbuf[0] == '\0')
+			{
+				(void) sm_strlcpy(jbuf, "localhost",
+						  sizeof jbuf);
+			}
+
+			/* impose the default schema */
+			lc = macvalue(macid("{sendmailMTACluster}"), CurEnv);
+			if (lc == NULL)
+				lc = "";
+			else
+			{
+				expand(lc, lcbuf, sizeof lcbuf, CurEnv);
+				lc = lcbuf;
+			}
+
+			cl = "ldap";
+			n = sm_snprintf(buf, sizeof buf,
+					"-k (&(objectClass=sendmailMTAClass)(sendmailMTAClassName=%s)(|(sendmailMTACluster=%s)(sendmailMTAHost=%s))) -v sendmailMTAClassValue",
+					mn, lc, jbuf);
+			if (n >= sizeof buf)
+			{
+				syserr("fileclass: F{%s}: Default LDAP string too long",
+				       mn);
+				sm_free(mn);
+				return;
+			}
+			spec = buf;
+		}
+		else
+		{
+			if ((spec = strchr(cl, ':')) == NULL)
+			{
+				syserr("fileclass: F{%s}: missing map class",
+				       mn);
+				sm_free(mn);
+				return;
+			}
+			*spec++ ='\0';
+		}
+
+		/* set up map structure */
+		mapclass = stab(cl, ST_MAPCLASS, ST_FIND);
+		if (mapclass == NULL)
+		{
+			syserr("fileclass: F{%s}: class %s not available",
+			       mn, cl);
+			sm_free(mn);
+			return;
+		}
+		memset(&map, '\0', sizeof map);
+		map.map_class = &mapclass->s_mapclass;
+		map.map_mname = mn;
+		map.map_mflags |= MF_FILECLASS;
+
+		/* parse map spec */
+		if (!map.map_class->map_parse(&map, spec))
+		{
+			/* map_parse() showed the error already */
+			sm_free(mn);
+			return;
+		}
+		map.map_mflags |= MF_VALID;
+
+		/* open map */
+		if (map.map_class->map_open(&map, O_RDONLY))
+		{
+			map.map_mflags |= MF_OPEN;
+			map.map_pid = getpid();
+		}
+		else
+		{
+			if (!optional &&
+			    !bitset(MF_OPTIONAL, map.map_mflags))
+				syserr("fileclass: F{%s}: map open failed",
+				       mn);
+			sm_free(mn);
+			return;
+		}
+
+		/* lookup */
+		p = (*map.map_class->map_lookup)(&map, key, NULL, &status);
+		if (status != EX_OK && status != EX_NOTFOUND)
+		{
+			if (!optional)
+				syserr("fileclass: F{%s}: map lookup failed",
+				       mn);
+			p = NULL;
+		}
+
+		/* use the results */
+		if (p != NULL)
+			parse_class_words(class, p);
+
+		/* close map */
+		map.map_mflags |= MF_CLOSING;
+		map.map_class->map_close(&map);
+		map.map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
+		sm_free(mn);
+		return;
+	}
+	else if (filename[0] == '|')
 	{
 		auto int fd;
 		int i;
 		char *argv[MAXPV + 1];
 
 		i = 0;
-		for (p = strtok(&filename[1], " \t"); p != NULL; p = strtok(NULL, " \t"))
-		{
-			if (i >= MAXPV)
-				break;
+		for (p = strtok(&filename[1], " \t");
+		     p != NULL && i < MAXPV;
+		     p = strtok(NULL, " \t"))
 			argv[i++] = p;
-		}
 		argv[i] = NULL;
 		pid = prog_open(argv, &fd, CurEnv);
 		if (pid < 0)
 			f = NULL;
 		else
-			f = fdopen(fd, "r");
+			f = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
+				       (void *) &fd, SM_IO_RDONLY, NULL);
 	}
 	else
 	{
@@ -772,6 +977,8 @@ fileclass(class, filename, fmt, safe, optional)
 			sff |= SFF_NOWLINK;
 		if (safe)
 			sff |= SFF_OPENASROOT;
+		else if (RealUid == 0)
+			sff |= SFF_ROOTOK;
 		if (DontLockReadFiles)
 			sff |= SFF_NOLOCK;
 		f = safefopen(filename, O_RDONLY, 0, sff);
@@ -783,7 +990,7 @@ fileclass(class, filename, fmt, safe, optional)
 		return;
 	}
 
-	while (fgets(buf, sizeof buf, f) != NULL)
+	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof buf) != NULL)
 	{
 #if SCANF
 		char wordbuf[MAXLINE + 1];
@@ -792,44 +999,27 @@ fileclass(class, filename, fmt, safe, optional)
 		if (buf[0] == '#')
 			continue;
 #if SCANF
-		if (sscanf(buf, fmt, wordbuf) != 1)
+		if (sm_io_sscanf(buf, fmt, wordbuf) != 1)
 			continue;
 		p = wordbuf;
 #else /* SCANF */
 		p = buf;
 #endif /* SCANF */
 
+		parse_class_words(class, p);
+
 		/*
-		**  Break up the match into words.
+		**  If anything else is added here,
+		**  check if the '@' map case above
+		**  needs the code as well.
 		*/
-
-		while (*p != '\0')
-		{
-			register char *q;
-
-			/* strip leading spaces */
-			while (isascii(*p) && isspace(*p))
-				p++;
-			if (*p == '\0')
-				break;
-
-			/* find the end of the word */
-			q = p;
-			while (*p != '\0' && !(isascii(*p) && isspace(*p)))
-				p++;
-			if (*p != '\0')
-				*p++ = '\0';
-
-			/* enter the word in the symbol table */
-			setclass(class, q);
-		}
 	}
 
-	(void) fclose(f);
+	(void) sm_io_close(f, SM_TIME_DEFAULT);
 	if (pid > 0)
 		(void) waitfor(pid);
 }
-/*
+/*
 **  MAKEMAILER -- define a new mailer.
 **
 **	Parameters:
@@ -844,12 +1034,14 @@ fileclass(class, filename, fmt, safe, optional)
 **			   M -- the maximum message size
 **			   N -- the niceness at which to run
 **			   P -- the path to the mailer
+**			   Q -- the queue group for the mailer
 **			   R -- the recipient rewriting set
 **			   S -- the sender rewriting set
 **			   T -- the mailer type (for DSNs)
 **			   U -- the uid to run as
 **			   W -- the time to wait at the end
 **			   m -- maximum messages per connection
+**			   r -- maximum number of recipients per message
 **			   / -- new root directory
 **			The first word is the canonical name of the mailer.
 **
@@ -870,14 +1062,17 @@ makemailer(line)
 	int i;
 	char fcode;
 	auto char *endp;
-	extern int NextMailer;
+	static int nextmailer = 0;	/* "free" index into Mailer struct */
 
 	/* allocate a mailer and set up defaults */
 	m = (struct mailer *) xalloc(sizeof *m);
 	memset((char *) m, '\0', sizeof *m);
+	errno = 0; /* avoid bogus error text */
 
 	/* collect the mailer name */
-	for (p = line; *p != '\0' && *p != ',' && !(isascii(*p) && isspace(*p)); p++)
+	for (p = line;
+	     *p != '\0' && *p != ',' && !(isascii(*p) && isspace(*p));
+	     p++)
 		continue;
 	if (*p != '\0')
 		*p++ = '\0';
@@ -893,7 +1088,8 @@ makemailer(line)
 	{
 		auto char *delimptr;
 
-		while (*p != '\0' && (*p == ',' || (isascii(*p) && isspace(*p))))
+		while (*p != '\0' &&
+		       (*p == ',' || (isascii(*p) && isspace(*p))))
 			p++;
 
 		/* p now points to field code */
@@ -915,16 +1111,24 @@ makemailer(line)
 		switch (fcode)
 		{
 		  case 'P':		/* pathname */
-			if (*p == '\0')
-				syserr("mailer %s: empty path name", m->m_name);
-			else
+			if (*p != '\0')	/* error is issued below */
 				m->m_mailer = newstr(p);
 			break;
 
 		  case 'F':		/* flags */
 			for (; *p != '\0'; p++)
+			{
 				if (!(isascii(*p) && isspace(*p)))
+				{
+#if _FFR_DEPRECATE_MAILER_FLAG_I
+					if (*p == M_INTERNAL)
+						sm_syslog(LOG_WARNING, NOQID,
+							  "WARNING: mailer=%s, flag=%c deprecated",
+							  m->m_name, *p);
+#endif /* _FFR_DEPRECATE_MAILER_FLAG_I */
 					setbitn(bitidx(*p), m->m_flags);
+				}
+			}
 			break;
 
 		  case 'S':		/* sender rewriting ruleset */
@@ -959,10 +1163,7 @@ makemailer(line)
 			break;
 
 		  case 'A':		/* argument vector */
-			if (*p == '\0')
-				syserr("mailer %s: null argument vector",
-					m->m_name);
-			else
+			if (*p != '\0')	/* error is issued below */
 				m->m_argv = makeargv(p);
 			break;
 
@@ -974,11 +1175,9 @@ makemailer(line)
 			m->m_maxdeliveries = atoi(p);
 			break;
 
-#if _FFR_DYNAMIC_TOBUF
 		  case 'r':		/* max recipient per envelope */
 			m->m_maxrcpt = atoi(p);
 			break;
-#endif /* _FFR_DYNAMIC_TOBUF */
 
 		  case 'L':		/* maximum line length */
 			m->m_linelimit = atoi(p);
@@ -1003,6 +1202,20 @@ makemailer(line)
 				syserr("mailer %s: null charset", m->m_name);
 			else
 				m->m_defcharset = newstr(p);
+			break;
+
+		  case 'Q':		/* queue for this mailer */
+			if (*p == '\0')
+			{
+				syserr("mailer %s: null queue", m->m_name);
+				break;
+			}
+			s = stab(p, ST_QUEUE, ST_FIND);
+			if (s == NULL)
+				syserr("mailer %s: unknown queue %s",
+					m->m_name, p);
+			else
+				m->m_qgrp = s->s_quegrp->qg_index;
 			break;
 
 		  case 'T':		/* MTA-Name/Address/Diagnostic types */
@@ -1133,6 +1346,24 @@ makemailer(line)
 		p = delimptr;
 	}
 
+#if !HASRRESVPORT
+	if (bitnset(M_SECURE_PORT, m->m_flags))
+	{
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "M%s: Warning: F=%c set on system that doesn't support rresvport()\n",
+				     m->m_name, M_SECURE_PORT);
+	}
+#endif /* !HASRRESVPORT */
+
+#if !HASNICE
+	if (m->m_nice != 0)
+	{
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "M%s: Warning: N= set on system that doesn't support nice()\n",
+				     m->m_name);
+	}
+#endif /* !HASNICE */
+
 	/* do some rationality checking */
 	if (m->m_argv == NULL)
 	{
@@ -1145,16 +1376,14 @@ makemailer(line)
 		return;
 	}
 
-	if (NextMailer >= MAXMAILERS)
+	if (nextmailer >= MAXMAILERS)
 	{
 		syserr("too many mailers defined (%d max)", MAXMAILERS);
 		return;
 	}
 
-#if _FFR_DYNAMIC_TOBUF
 	if (m->m_maxrcpt <= 0)
 		m->m_maxrcpt = DEFAULT_MAX_RCPT;
-#endif /* _FFR_DYNAMIC_TOBUF */
 
 	/* do some heuristic cleanup for back compatibility */
 	if (bitnset(M_LIMITS, m->m_flags))
@@ -1167,21 +1396,11 @@ makemailer(line)
 
 	if (strcmp(m->m_mailer, "[TCP]") == 0)
 	{
-#if _FFR_REMOVE_TCP_MAILER_PATH
-		syserr("M%s: P=[TCP] is deprecated, use P=[IPC] instead\n",
-		       m->m_name);
+		syserr("M%s: P=[TCP] must be replaced by P=[IPC]", m->m_name);
 		return;
-#else /* _FFR_REMOVE_TCP_MAILER_PATH */
-		printf("M%s: Warning: P=[TCP] is deprecated, use P=[IPC] instead\n",
-		       m->m_name);
-#endif /* _FFR_REMOVE_TCP_MAILER_PATH */
 	}
 
-	if (strcmp(m->m_mailer, "[IPC]") == 0
-#if !_FFR_REMOVE_TCP_MAILER_PATH
-	    || strcmp(m->m_mailer, "[TCP]") == 0
-#endif /* !_FFR_REMOVE_TCP_MAILER_PATH */
-	    )
+	if (strcmp(m->m_mailer, "[IPC]") == 0)
 	{
 		/* Use the second argument for host or path to socket */
 		if (m->m_argv[0] == NULL || m->m_argv[1] == NULL ||
@@ -1195,21 +1414,30 @@ makemailer(line)
 #if NETUNIX
 		    && strcmp(m->m_argv[0], "FILE") != 0
 #endif /* NETUNIX */
-#if !_FFR_DEPRECATE_IPC_MAILER_ARG
-		    && strcmp(m->m_argv[0], "IPC") != 0
-#endif /* !_FFR_DEPRECATE_IPC_MAILER_ARG */
 		    )
 		{
-			printf("M%s: Warning: first argument in %s mailer must be %s\n",
-			       m->m_name, m->m_mailer,
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "M%s: Warning: first argument in %s mailer must be %s\n",
+					     m->m_name, m->m_mailer,
 #if NETUNIX
-			       "TCP or FILE"
+					     "TCP or FILE"
 #else /* NETUNIX */
-			       "TCP"
+					     "TCP"
 #endif /* NETUNIX */
-			       );
+				     );
 		}
-
+		if (m->m_mtatype == NULL)
+			m->m_mtatype = "dns";
+		if (m->m_addrtype == NULL)
+			m->m_addrtype = "rfc822";
+		if (m->m_diagtype == NULL)
+		{
+			if (m->m_argv[0] != NULL &&
+			    strcmp(m->m_argv[0], "FILE") == 0)
+				m->m_diagtype = "x-unix";
+			else
+				m->m_diagtype = "smtp";
+		}
 	}
 	else if (strcmp(m->m_mailer, "[FILE]") == 0)
 	{
@@ -1228,23 +1456,6 @@ makemailer(line)
 			syserr("M%s: first argument in [FILE] mailer must be FILE",
 			       m->m_name);
 			return;
-		}
-	}
-
-	if (strcmp(m->m_mailer, "[IPC]") == 0 ||
-	    strcmp(m->m_mailer, "[TCP]") == 0)
-	{
-		if (m->m_mtatype == NULL)
-			m->m_mtatype = "dns";
-		if (m->m_addrtype == NULL)
-			m->m_addrtype = "rfc822";
-		if (m->m_diagtype == NULL)
-		{
-			if (m->m_argv[0] != NULL &&
-			    strcmp(m->m_argv[0], "FILE") == 0)
-				m->m_diagtype = "x-unix";
-			else
-				m->m_diagtype = "smtp";
 		}
 	}
 
@@ -1274,16 +1485,16 @@ makemailer(line)
 	if (s->s_mailer != NULL)
 	{
 		i = s->s_mailer->m_mno;
-		sm_free(s->s_mailer);
+		sm_free(s->s_mailer); /* XXX */
 	}
 	else
 	{
-		i = NextMailer++;
+		i = nextmailer++;
 	}
 	Mailer[i] = s->s_mailer = m;
 	m->m_mno = i;
 }
-/*
+/*
 **  MUNCHSTRING -- translate a string into internal form.
 **
 **	Parameters:
@@ -1307,8 +1518,8 @@ munchstring(p, delimptr, delim)
 	int delim;
 {
 	register char *q;
-	bool backslash = FALSE;
-	bool quotemode = FALSE;
+	bool backslash = false;
+	bool quotemode = false;
 	static char buf[MAXLINE];
 
 	for (q = buf; *p != '\0' && q < &buf[sizeof buf - 1]; p++)
@@ -1316,7 +1527,7 @@ munchstring(p, delimptr, delim)
 		if (backslash)
 		{
 			/* everything is roughly literal */
-			backslash = FALSE;
+			backslash = false;
 			switch (*p)
 			{
 			  case 'r':		/* carriage return */
@@ -1340,7 +1551,7 @@ munchstring(p, delimptr, delim)
 		else
 		{
 			if (*p == '\\')
-				backslash = TRUE;
+				backslash = true;
 			else if (*p == '"')
 				quotemode = !quotemode;
 			else if (quotemode || *p != delim)
@@ -1355,7 +1566,67 @@ munchstring(p, delimptr, delim)
 	*q++ = '\0';
 	return buf;
 }
-/*
+/*
+**  EXTRQUOTSTR -- extract a (quoted) string.
+**
+**	This routine deals with quoted (") strings and escaped
+**	spaces (\\ ).
+**
+**	Parameters:
+**		p -- source string.
+**		delimptr -- if non-NULL, set to the pointer of the
+**			field delimiter character.
+**		delimbuf -- delimiters for the field.
+**		st -- if non-NULL, store the return value (whether the
+**			string was correctly quoted) here.
+**
+**	Returns:
+**		the extracted string.
+**
+**	Side Effects:
+**		the returned string is a local static buffer.
+**		it must be copied before the function is called again.
+*/
+
+static char *
+extrquotstr(p, delimptr, delimbuf, st)
+	register char *p;
+	char **delimptr;
+	char *delimbuf;
+	bool *st;
+{
+	register char *q;
+	bool backslash = false;
+	bool quotemode = false;
+	static char buf[MAXLINE];
+
+	for (q = buf; *p != '\0' && q < &buf[sizeof buf - 1]; p++)
+	{
+		if (backslash)
+		{
+			backslash = false;
+			if (*p != ' ')
+				*q++ = '\\';
+		}
+		if (*p == '\\')
+			backslash = true;
+		else if (*p == '"')
+			quotemode = !quotemode;
+		else if (quotemode ||
+			 strchr(delimbuf, (int) *p) == NULL)
+			*q++ = *p;
+		else
+			break;
+	}
+
+	if (delimptr != NULL)
+		*delimptr = p;
+	*q++ = '\0';
+	if (st != NULL)
+		*st = !(quotemode || backslash);
+	return buf;
+}
+/*
 **  MAKEARGV -- break up a string into words
 **
 **	Parameters:
@@ -1396,7 +1667,7 @@ makeargv(p)
 
 	return avp;
 }
-/*
+/*
 **  PRINTRULES -- print rewrite rules (for debugging)
 **
 **	Parameters:
@@ -1419,18 +1690,21 @@ printrules()
 	{
 		if (RewriteRules[ruleset] == NULL)
 			continue;
-		printf("\n----Rule Set %d:", ruleset);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\n----Rule Set %d:", ruleset);
 
 		for (rwp = RewriteRules[ruleset]; rwp != NULL; rwp = rwp->r_next)
 		{
-			printf("\nLHS:");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "\nLHS:");
 			printav(rwp->r_lhs);
-			printf("RHS:");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "RHS:");
 			printav(rwp->r_rhs);
 		}
 	}
 }
-/*
+/*
 **  PRINTMAILER -- print mailer structure (for debugging)
 **
 **	Parameters:
@@ -1446,54 +1720,68 @@ printmailer(m)
 {
 	int j;
 
-	printf("mailer %d (%s): P=%s S=", m->m_mno, m->m_name, m->m_mailer);
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			     "mailer %d (%s): P=%s S=", m->m_mno, m->m_name,
+			     m->m_mailer);
 	if (RuleSetNames[m->m_se_rwset] == NULL)
-		printf("%d/", m->m_se_rwset);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d/",
+				     m->m_se_rwset);
 	else
-		printf("%s/", RuleSetNames[m->m_se_rwset]);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s/",
+				     RuleSetNames[m->m_se_rwset]);
 	if (RuleSetNames[m->m_sh_rwset] == NULL)
-		printf("%d R=", m->m_sh_rwset);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d R=",
+				     m->m_sh_rwset);
 	else
-		printf("%s R=", RuleSetNames[m->m_sh_rwset]);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s R=",
+				     RuleSetNames[m->m_sh_rwset]);
 	if (RuleSetNames[m->m_re_rwset] == NULL)
-		printf("%d/", m->m_re_rwset);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d/",
+				     m->m_re_rwset);
 	else
-		printf("%s/", RuleSetNames[m->m_re_rwset]);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s/",
+				     RuleSetNames[m->m_re_rwset]);
 	if (RuleSetNames[m->m_rh_rwset] == NULL)
-		printf("%d ", m->m_rh_rwset);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%d ",
+				     m->m_rh_rwset);
 	else
-		printf("%s ", RuleSetNames[m->m_rh_rwset]);
-	printf("M=%ld U=%d:%d F=", m->m_maxsize,
-	       (int) m->m_uid, (int) m->m_gid);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s ",
+				     RuleSetNames[m->m_rh_rwset]);
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "M=%ld U=%d:%d F=",
+			     m->m_maxsize, (int) m->m_uid, (int) m->m_gid);
 	for (j = '\0'; j <= '\177'; j++)
 		if (bitnset(j, m->m_flags))
-			(void) putchar(j);
-	printf(" L=%d E=", m->m_linelimit);
+			(void) sm_io_putc(smioout, SM_TIME_DEFAULT, j);
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " L=%d E=",
+			     m->m_linelimit);
 	xputs(m->m_eol);
 	if (m->m_defcharset != NULL)
-		printf(" C=%s", m->m_defcharset);
-	printf(" T=%s/%s/%s",
-		m->m_mtatype == NULL ? "<undefined>" : m->m_mtatype,
-		m->m_addrtype == NULL ? "<undefined>" : m->m_addrtype,
-		m->m_diagtype == NULL ? "<undefined>" : m->m_diagtype);
-#if _FFR_DYNAMIC_TOBUF
-	printf(" r=%d", m->m_maxrcpt);
-#endif /* _FFR_DYNAMIC_TOBUF */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " C=%s",
+				     m->m_defcharset);
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " T=%s/%s/%s",
+			     m->m_mtatype == NULL
+				? "<undefined>" : m->m_mtatype,
+			     m->m_addrtype == NULL
+				? "<undefined>" : m->m_addrtype,
+			     m->m_diagtype == NULL
+				? "<undefined>" : m->m_diagtype);
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " r=%d", m->m_maxrcpt);
 	if (m->m_argv != NULL)
 	{
 		char **a = m->m_argv;
 
-		printf(" A=");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " A=");
 		while (*a != NULL)
 		{
 			if (a != m->m_argv)
-				printf(" ");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     " ");
 			xputs(*a++);
 		}
 	}
-	printf("\n");
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
 }
-/*
+/*
 **  SETOPTION -- set global processing option
 **
 **	Parameters:
@@ -1532,6 +1820,9 @@ static struct resolverflags
 	{ "defnames",	RES_DEFNAMES	},
 	{ "stayopen",	RES_STAYOPEN	},
 	{ "dnsrch",	RES_DNSRCH	},
+# ifdef RES_USE_INET6
+	{ "use_inet6",	RES_USE_INET6	},
+# endif /* RES_USE_INET6 */
 	{ "true",	0		},	/* avoid error on old syntax */
 	{ NULL,		0		}
 };
@@ -1544,9 +1835,9 @@ static struct resolverflags
 
 static struct optioninfo
 {
-	char	*o_name;	/* long name of option */
-	u_char	o_code;		/* short name of option */
-	u_short	o_flags;	/* option flags */
+	char		*o_name;	/* long name of option */
+	unsigned char	o_code;		/* short name of option */
+	unsigned short	o_flags;	/* option flags */
 } OptionTab[] =
 {
 #if defined(SUN_EXTENSIONS) && defined(REMOTE_MODE)
@@ -1560,15 +1851,15 @@ static struct optioninfo
 	{ "MinFreeBlocks",		'b',		OI_SAFE	},
 	{ "CheckpointInterval",		'C',		OI_SAFE	},
 	{ "HoldExpensive",		'c',		OI_NONE	},
-#if !_FFR_REMOVE_AUTOREBUILD
-	{ "AutoRebuildAliases",		'D',		OI_NONE	},
-#endif /* !_FFR_REMOVE_AUTOREBUILD */
 	{ "DeliveryMode",		'd',		OI_SAFE	},
 	{ "ErrorHeader",		'E',		OI_NONE	},
 	{ "ErrorMode",			'e',		OI_SAFE	},
 	{ "TempFileMode",		'F',		OI_NONE	},
 	{ "SaveFromLine",		'f',		OI_NONE	},
 	{ "MatchGECOS",			'G',		OI_NONE	},
+
+	/* no long name, just here to avoid problems in setoption */
+	{ "",				'g',		OI_NONE	},
 	{ "HelpFile",			'H',		OI_NONE	},
 	{ "MaxHopCount",		'h',		OI_NONE	},
 	{ "ResolverOptions",		'I',		OI_NONE	},
@@ -1580,6 +1871,9 @@ static struct optioninfo
 	{ "UseErrorsTo",		'l',		OI_NONE	},
 	{ "LogLevel",			'L',		OI_SAFE	},
 	{ "MeToo",			'm',		OI_SAFE	},
+
+	/* no long name, just here to avoid problems in setoption */
+	{ "",				'M',		OI_NONE	},
 	{ "CheckAliases",		'n',		OI_NONE	},
 	{ "OldStyleHeaders",		'o',		OI_SAFE	},
 	{ "DaemonPortOptions",		'O',		OI_NONE	},
@@ -1704,48 +1998,91 @@ static struct optioninfo
 	{ "DataFileBufferSize",		O_DF_BUFSIZE,	OI_NONE	},
 #define O_XF_BUFSIZE	0xb1
 	{ "XscriptFileBufferSize",	O_XF_BUFSIZE,	OI_NONE	},
-# define O_LDAPDEFAULTSPEC	0xb2
+#define O_LDAPDEFAULTSPEC	0xb2
 	{ "LDAPDefaultSpec",		O_LDAPDEFAULTSPEC,	OI_NONE	},
 #if _FFR_QUEUEDELAY
-#define O_QUEUEDELAY	0xb3
+# define O_QUEUEDELAY	0xb3
 	{ "QueueDelay",			O_QUEUEDELAY,	OI_NONE	},
 #endif /* _FFR_QUEUEDELAY */
-# define O_SRVCERTFILE	0xb4
+#define O_SRVCERTFILE	0xb4
 	{ "ServerCertFile",		O_SRVCERTFILE,	OI_NONE	},
-# define O_SRVKEYFILE	0xb5
+#define O_SRVKEYFILE	0xb5
 	{ "Serverkeyfile",		O_SRVKEYFILE,	OI_NONE	},
-# define O_CLTCERTFILE	0xb6
+#define O_CLTCERTFILE	0xb6
 	{ "ClientCertFile",		O_CLTCERTFILE,	OI_NONE	},
-# define O_CLTKEYFILE	0xb7
+#define O_CLTKEYFILE	0xb7
 	{ "Clientkeyfile",		O_CLTKEYFILE,	OI_NONE	},
-# define O_CACERTFILE	0xb8
+#define O_CACERTFILE	0xb8
 	{ "CACERTFile",			O_CACERTFILE,	OI_NONE	},
-# define O_CACERTPATH	0xb9
+#define O_CACERTPATH	0xb9
 	{ "CACERTPath",			O_CACERTPATH,	OI_NONE	},
-# define O_DHPARAMS	0xba
+#define O_DHPARAMS	0xba
 	{ "DHParameters",		O_DHPARAMS,	OI_NONE	},
-#if _FFR_MILTER
 #define O_INPUTMILTER	0xbb
 	{ "InputMailFilters",		O_INPUTMILTER,	OI_NONE	},
 #define O_MILTER	0xbc
 	{ "Milter",			O_MILTER,	OI_SUBOPT	},
-#endif /* _FFR_MILTER */
 #define O_SASLOPTS	0xbd
 	{ "AuthOptions",		O_SASLOPTS,	OI_NONE	},
-#if _FFR_QUEUE_FILE_MODE
 #define O_QUEUE_FILE_MODE	0xbe
 	{ "QueueFileMode",		O_QUEUE_FILE_MODE, OI_NONE	},
-#endif /* _FFR_QUEUE_FILE_MODE */
-# if _FFR_TLS_1
+#if _FFR_TLS_1
 # define O_DHPARAMS5	0xbf
 	{ "DHParameters512",		O_DHPARAMS5,	OI_NONE	},
 # define O_CIPHERLIST	0xc0
 	{ "CipherList",			O_CIPHERLIST,	OI_NONE	},
-# endif /* _FFR_TLS_1 */
-# define O_RANDFILE	0xc1
+#endif /* _FFR_TLS_1 */
+#define O_RANDFILE	0xc1
 	{ "RandFile",			O_RANDFILE,	OI_NONE	},
+#define O_TLS_SRV_OPTS	0xc2
+	{ "TLSSrvOptions",		O_TLS_SRV_OPTS,	OI_NONE	},
+#define O_RCPTTHROT	0xc3
+	{ "BadRcptThrottle",		O_RCPTTHROT,	OI_SAFE	},
+#define O_DLVR_MIN	0xc4
+	{ "DeliverByMin",		O_DLVR_MIN,	OI_NONE	},
+#define O_MAXQUEUECHILDREN	0xc5
+	{ "MaxQueueChildren",		O_MAXQUEUECHILDREN,	OI_NONE	},
+#define O_MAXRUNNERSPERQUEUE	0xc6
+	{ "MaxRunnersPerQueue",		O_MAXRUNNERSPERQUEUE,	OI_NONE },
+#define O_DIRECTSUBMODIFIERS	0xc7
+	{ "DirectSubmissionModifiers",	O_DIRECTSUBMODIFIERS,	OI_NONE },
+#define O_NICEQUEUERUN	0xc8
+	{ "NiceQueueRun",		O_NICEQUEUERUN,	OI_NONE	},
+#define O_SHMKEY	0xc9
+	{ "SharedMemoryKey",		O_SHMKEY,	OI_NONE	},
+#define O_SASLBITS	0xca
+	{ "AuthMaxBits",		O_SASLBITS,	OI_NONE	},
+#define O_MBDB		0xcb
+	{ "MailboxDatabase",		O_MBDB,		OI_NONE	},
+#define O_MSQ		0xcc
+	{ "UseMSP",	O_MSQ,		OI_NONE	},
+#define O_DELAY_LA	0xcd
+	{ "DelayLA",	O_DELAY_LA,	OI_NONE	},
+#define O_FASTSPLIT	0xce
+	{ "FastSplit",	O_FASTSPLIT,	OI_NONE	},
+#if _FFR_SOFT_BOUNCE
+# define O_SOFTBOUNCE	0xcf
+	{ "SoftBounce",	O_SOFTBOUNCE,	OI_NONE	},
+#endif /* _FFR_SOFT_BOUNCE */
 	{ NULL,				'\0',		OI_NONE	}
 };
+
+# define CANONIFY(val)
+
+# define SET_OPT_DEFAULT(opt, val)	opt = val
+
+/* set a string option by expanding the value and assigning it */
+/* WARNING this belongs ONLY into a case statement! */
+#define SET_STRING_EXP(str)	\
+		expand(val, exbuf, sizeof exbuf, e);	\
+		newval = sm_pstrdup_x(exbuf);		\
+		if (str != NULL)	\
+			sm_free(str);	\
+		CANONIFY(newval);	\
+		str = newval;		\
+		break
+
+#define OPTNAME	o->o_name == NULL ? "<unknown>" : o->o_name
 
 void
 setoption(opt, val, safe, sticky, e)
@@ -1764,8 +2101,12 @@ setoption(opt, val, safe, sticky, e)
 	char buf[50];
 	extern bool Warn_Q_option;
 #if _FFR_ALLOW_SASLINFO
-	extern int SubmitMode;
+	extern unsigned int SubmitMode;
 #endif /* _FFR_ALLOW_SASLINFO */
+#if STARTTLS
+	char *newval;
+	char exbuf[MAXLINE];
+#endif /* STARTTLS */
 
 	errno = 0;
 	if (opt == ' ')
@@ -1795,7 +2136,7 @@ setoption(opt, val, safe, sticky, e)
 		sel = NULL;
 		for (o = OptionTab; o->o_name != NULL; o++)
 		{
-			if (strncasecmp(o->o_name, val, strlen(val)) != 0)
+			if (sm_strncasecmp(o->o_name, val, strlen(val)) != 0)
 				continue;
 			if (strlen(o->o_name) == strlen(val))
 			{
@@ -1839,27 +2180,29 @@ setoption(opt, val, safe, sticky, e)
 			if (o->o_code == opt)
 				break;
 		}
+		if (o->o_name == NULL)
+		{
+			syserr("readcf: unknown option name 0x%x", opt & 0xff);
+			return;
+		}
 		subopt = NULL;
 	}
 
 	if (subopt != NULL && !bitset(OI_SUBOPT, o->o_flags))
 	{
 		if (tTd(37, 1))
-			dprintf("setoption: %s does not support suboptions, ignoring .%s\n",
-				o->o_name == NULL ? "<unknown>" : o->o_name,
-				subopt);
+			sm_dprintf("setoption: %s does not support suboptions, ignoring .%s\n",
+				   OPTNAME, subopt);
 		subopt = NULL;
 	}
 
 	if (tTd(37, 1))
 	{
-		dprintf(isascii(opt) && isprint(opt) ?
-			"setoption %s (%c)%s%s=" :
-			"setoption %s (0x%x)%s%s=",
-			o->o_name == NULL ? "<unknown>" : o->o_name,
-			opt,
-			subopt == NULL ? "" : ".",
-			subopt == NULL ? "" : subopt);
+		sm_dprintf(isascii(opt) && isprint(opt) ?
+			   "setoption %s (%c)%s%s=" :
+			   "setoption %s (0x%x)%s%s=",
+			   OPTNAME, opt, subopt == NULL ? "" : ".",
+			   subopt == NULL ? "" : subopt);
 		xputs(val);
 	}
 
@@ -1870,7 +2213,7 @@ setoption(opt, val, safe, sticky, e)
 	if (!sticky && bitnset(opt, StickyOpt))
 	{
 		if (tTd(37, 1))
-			dprintf(" (ignored)\n");
+			sm_dprintf(" (ignored)\n");
 		return;
 	}
 
@@ -1879,7 +2222,7 @@ setoption(opt, val, safe, sticky, e)
 	*/
 
 	if (!safe && RealUid == 0)
-		safe = TRUE;
+		safe = true;
 	if (!safe && !bitset(OI_SAFE, o->o_flags))
 	{
 		if (opt != 'M' || (val[0] != 'r' && val[0] != 's'))
@@ -1887,13 +2230,13 @@ setoption(opt, val, safe, sticky, e)
 			int dp;
 
 			if (tTd(37, 1))
-				dprintf(" (unsafe)");
-			dp = drop_privileges(TRUE);
+				sm_dprintf(" (unsafe)");
+			dp = drop_privileges(true);
 			setstat(dp);
 		}
 	}
 	if (tTd(37, 1))
-		dprintf("\n");
+		sm_dprintf("\n");
 
 	switch (opt & 0xff)
 	{
@@ -1905,12 +2248,12 @@ setoption(opt, val, safe, sticky, e)
 #if MIME8TO7
 		switch (*val)
 		{
-		  case 'm':		/* convert 8-bit, convert MIME */
-			MimeMode = MM_CVTMIME|MM_MIME8BIT;
-			break;
-
 		  case 'p':		/* pass 8 bit, convert MIME */
 			MimeMode = MM_CVTMIME|MM_PASS8BIT;
+			break;
+
+		  case 'm':		/* convert 8-bit, convert MIME */
+			MimeMode = MM_CVTMIME|MM_MIME8BIT;
 			break;
 
 		  case 's':		/* strict adherence */
@@ -1937,23 +2280,30 @@ setoption(opt, val, safe, sticky, e)
 
 		  default:
 			syserr("Unknown 8-bit mode %c", *val);
-			finis(FALSE, EX_USAGE);
+			finis(false, true, EX_USAGE);
 		}
 #else /* MIME8TO7 */
-		printf("Warning: Option EightBitMode requires MIME8TO7 support\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires MIME8TO7 support\n",
+				     OPTNAME);
 #endif /* MIME8TO7 */
 		break;
 
 	  case 'A':		/* set default alias file */
 		if (val[0] == '\0')
-			setalias("aliases");
+		{
+			char *al;
+
+			SET_OPT_DEFAULT(al, "aliases");
+			setalias(al);
+		}
 		else
 			setalias(val);
 		break;
 
 	  case 'a':		/* look N minutes for "@:@" in alias file */
 		if (val[0] == '\0')
-			SafeAlias = 5 * 60;		/* five minutes */
+			SafeAlias = 5 MINUTES;
 		else
 			SafeAlias = convtime(val, 'm');
 		break;
@@ -1991,12 +2341,6 @@ setoption(opt, val, safe, sticky, e)
 
 		  case SM_QUEUE:	/* queue only */
 		  case SM_DEFER:	/* queue only and defer map lookups */
-#if !QUEUE
-			syserr("need QUEUE to set -odqueue or -oddefer");
-			break;
-#endif /* !QUEUE */
-			/* FALLTHROUGH */
-
 		  case SM_DELIVER:	/* do everything */
 		  case SM_FORK:		/* fork after verification */
 			set_delivery_mode(*val, e);
@@ -2004,15 +2348,9 @@ setoption(opt, val, safe, sticky, e)
 
 		  default:
 			syserr("Unknown delivery mode %c", *val);
-			finis(FALSE, EX_USAGE);
+			finis(false, true, EX_USAGE);
 		}
 		break;
-
-#if !_FFR_REMOVE_AUTOREBUILD
-	  case 'D':		/* rebuild alias database as needed */
-		AutoRebuild = atobool(val);
-		break;
-#endif /* !_FFR_REMOVE_AUTOREBUILD */
 
 	  case 'E':		/* error message header/header file */
 		if (*val != '\0')
@@ -2064,9 +2402,12 @@ setoption(opt, val, safe, sticky, e)
 
 	  case 'H':		/* help file */
 		if (val[0] == '\0')
-			HelpFile = "helpfile";
+		{
+			SET_OPT_DEFAULT(HelpFile, "helpfile");
+		}
 		else
 		{
+			CANONIFY(val);
 			HelpFile = newstr(val);
 		}
 		break;
@@ -2087,9 +2428,9 @@ setoption(opt, val, safe, sticky, e)
 				p++;
 			if (*p == '\0')
 				break;
-			clearmode = FALSE;
+			clearmode = false;
 			if (*p == '-')
-				clearmode = TRUE;
+				clearmode = true;
 			else if (*p != '+')
 				p--;
 			p++;
@@ -2098,21 +2439,19 @@ setoption(opt, val, safe, sticky, e)
 				p++;
 			if (*p != '\0')
 				*p++ = '\0';
-			if (strcasecmp(q, "HasWildcardMX") == 0)
+			if (sm_strcasecmp(q, "HasWildcardMX") == 0)
 			{
 				HasWildcardMX = !clearmode;
 				continue;
 			}
-#if _FFR_WORKAROUND_BROKEN_NAMESERVERS
 			if (sm_strcasecmp(q, "WorkAroundBrokenAAAA") == 0)
 			{
 				WorkAroundBrokenAAAA = !clearmode;
 				continue;
 			}
-#endif /* _FFR_WORKAROUND_BROKEN_NAMESERVERS */
 			for (rfp = ResolverFlags; rfp->rf_name != NULL; rfp++)
 			{
-				if (strcasecmp(q, rfp->rf_name) == 0)
+				if (sm_strcasecmp(q, rfp->rf_name) == 0)
 					break;
 			}
 			if (rfp->rf_name == NULL)
@@ -2123,8 +2462,8 @@ setoption(opt, val, safe, sticky, e)
 				_res.options |= rfp->rf_bits;
 		}
 		if (tTd(8, 2))
-			dprintf("_res.options = %x, HasWildcardMX = %d\n",
-				(u_int) _res.options, HasWildcardMX);
+			sm_dprintf("_res.options = %x, HasWildcardMX = %d\n",
+				   (unsigned int) _res.options, HasWildcardMX);
 #else /* NAMED_BIND */
 		usrerr("name server (I option) specified but BIND not compiled in");
 #endif /* NAMED_BIND */
@@ -2139,6 +2478,7 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case 'J':		/* .forward search path */
+		CANONIFY(val);
 		ForwardPath = newstr(val);
 		break;
 
@@ -2162,14 +2502,14 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case 'M':		/* define macro */
-		sticky = FALSE;
-		mid = macid(val, &ep);
+		sticky = false;
+		mid = macid_parse(val, &ep);
 		if (mid == 0)
 			break;
 		p = newstr(ep);
 		if (!safe)
 			cleanstrcpy(p, p, MAXNAME);
-		define(mid, p, CurEnv);
+		macdefine(&CurEnv->e_macro, A_TEMP, mid, p);
 		break;
 
 	  case 'm':		/* send to me too */
@@ -2183,12 +2523,8 @@ setoption(opt, val, safe, sticky, e)
 	    /* 'N' available -- was "net name" */
 
 	  case 'O':		/* daemon options */
-#if DAEMON
 		if (!setdaemonoptions(val))
 			syserr("too many daemons defined (%d max)", MAXDAEMONS);
-#else /* DAEMON */
-		syserr("DaemonPortOptions (O option) set but DAEMON not compiled in");
-#endif /* DAEMON */
 		break;
 
 	  case 'o':		/* assume old style headers */
@@ -2217,7 +2553,7 @@ setoption(opt, val, safe, sticky, e)
 
 			for (pv = PrivacyValues; pv->pv_name != NULL; pv++)
 			{
-				if (strcasecmp(val, pv->pv_name) == 0)
+				if (sm_strcasecmp(val, pv->pv_name) == 0)
 					break;
 			}
 			if (pv->pv_name == NULL)
@@ -2225,7 +2561,7 @@ setoption(opt, val, safe, sticky, e)
 			else
 				PrivacyFlags |= pv->pv_flag;
 		}
-		sticky = FALSE;
+		sticky = false;
 		break;
 
 	  case 'P':		/* postmaster copy address for returned mail */
@@ -2246,7 +2582,7 @@ setoption(opt, val, safe, sticky, e)
 			QueueDir = newstr(val);
 		}
 		if (RealUid != 0 && !safe)
-			Warn_Q_option = TRUE;
+			Warn_Q_option = true;
 		break;
 
 	  case 'R':		/* don't prune routes */
@@ -2262,15 +2598,21 @@ setoption(opt, val, safe, sticky, e)
 
 	  case 'S':		/* status file */
 		if (val[0] == '\0')
-			StatFile = "statistics";
+		{
+			SET_OPT_DEFAULT(StatFile, "statistics");
+		}
 		else
 		{
+			CANONIFY(val);
 			StatFile = newstr(val);
 		}
 		break;
 
 	  case 's':		/* be super safe, even if expensive */
-		SuperSafe = atobool(val);
+		if (tolower(*val) == 'i')
+			SuperSafe = SAFE_INTERACTIVE;
+		else
+			SuperSafe = atobool(val) ? SAFE_REALLY : SAFE_NO;
 		break;
 
 	  case 'T':		/* queue timeout */
@@ -2294,7 +2636,11 @@ setoption(opt, val, safe, sticky, e)
 	  case 'u':		/* set default uid */
 		for (p = val; *p != '\0'; p++)
 		{
+#if _FFR_DOTTED_USERNAMES
+			if (*p == '/' || *p == ':')
+#else /* _FFR_DOTTED_USERNAMES */
 			if (*p == '.' || *p == '/' || *p == ':')
+#endif /* _FFR_DOTTED_USERNAMES */
 			{
 				*p++ = '\0';
 				break;
@@ -2324,14 +2670,14 @@ setoption(opt, val, safe, sticky, e)
 			}
 		}
 
-#ifdef UID_MAX
+# ifdef UID_MAX
 		if (DefUid > UID_MAX)
 		{
 			syserr("readcf: option u: uid value (%ld) > UID_MAX (%ld); ignored",
-				(long) DefUid, (long) UID_MAX);
+				(long)DefUid, (long)UID_MAX);
 			break;
 		}
-#endif /* UID_MAX */
+# endif /* UID_MAX */
 
 		/* handle the group if it is there */
 		if (*p == '\0')
@@ -2358,8 +2704,12 @@ setoption(opt, val, safe, sticky, e)
 		QueueLA = atoi(val);
 		break;
 
-	  case 'X':		/* load avg at which to auto-reject connections */
+	  case 'X':	/* load avg at which to auto-reject connections */
 		RefuseLA = atoi(val);
+		break;
+
+	  case O_DELAY_LA:	/* load avg at which to delay connections */
+		DelayLA = atoi(val);
 		break;
 
 	  case 'y':		/* work recipient factor */
@@ -2382,9 +2732,19 @@ setoption(opt, val, safe, sticky, e)
 	  case O_QUEUESORTORD:	/* queue sorting order */
 		switch (*val)
 		{
+		  case 'f':	/* File Name */
+		  case 'F':
+			QueueSortOrder = QSO_BYFILENAME;
+			break;
+
 		  case 'h':	/* Host first */
 		  case 'H':
 			QueueSortOrder = QSO_BYHOST;
+			break;
+
+		  case 'm':	/* Modification time */
+		  case 'M':
+			QueueSortOrder = QSO_BYMODTIME;
 			break;
 
 		  case 'p':	/* Priority order */
@@ -2397,10 +2757,17 @@ setoption(opt, val, safe, sticky, e)
 			QueueSortOrder = QSO_BYTIME;
 			break;
 
-		  case 'f':	/* File Name */
-		  case 'F':
-			QueueSortOrder = QSO_BYFILENAME;
+		  case 'r':	/* Random */
+		  case 'R':
+			QueueSortOrder = QSO_RANDOM;
 			break;
+
+#if _FFR_RHS
+		  case 's':	/* Shuffled host name */
+		  case 'S':
+			QueueSortOrder = QSO_BYSHUFFLE;
+			break;
+#endif /* _FFR_RHS */
 
 		  default:
 			syserr("Invalid queue sort order \"%s\"", val);
@@ -2445,6 +2812,7 @@ setoption(opt, val, safe, sticky, e)
 #endif /* _FFR_QUEUEDELAY */
 
 	  case O_HOSTSFILE:	/* pathname of /etc/hosts file */
+		CANONIFY(val);
 		HostsFile = newstr(val);
 		break;
 
@@ -2453,10 +2821,11 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_DEFCHARSET:	/* default character set for mimefying */
-		DefaultCharSet = newstr(denlstring(val, TRUE, TRUE));
+		DefaultCharSet = newstr(denlstring(val, true, true));
 		break;
 
 	  case O_SSFILE:	/* service switch file */
+		CANONIFY(val);
 		ServiceSwitchFile = newstr(val);
 		break;
 
@@ -2465,15 +2834,15 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_NORCPTACTION:	/* what to do if no recipient */
-		if (strcasecmp(val, "none") == 0)
+		if (sm_strcasecmp(val, "none") == 0)
 			NoRecipientAction = NRA_NO_ACTION;
-		else if (strcasecmp(val, "add-to") == 0)
+		else if (sm_strcasecmp(val, "add-to") == 0)
 			NoRecipientAction = NRA_ADD_TO;
-		else if (strcasecmp(val, "add-apparently-to") == 0)
+		else if (sm_strcasecmp(val, "add-apparently-to") == 0)
 			NoRecipientAction = NRA_ADD_APPARENTLY_TO;
-		else if (strcasecmp(val, "add-bcc") == 0)
+		else if (sm_strcasecmp(val, "add-bcc") == 0)
 			NoRecipientAction = NRA_ADD_BCC;
-		else if (strcasecmp(val, "add-to-undisclosed") == 0)
+		else if (sm_strcasecmp(val, "add-to-undisclosed") == 0)
 			NoRecipientAction = NRA_ADD_TO_UNDISCLOSED;
 		else
 			syserr("Invalid NoRecipientAction: %s", val);
@@ -2492,11 +2861,39 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_MAXQUEUERUN:	/* max # of jobs in a single queue run */
-		MaxQueueRun = atol(val);
+		MaxQueueRun = atoi(val);
 		break;
 
 	  case O_MAXCHILDREN:	/* max # of children of daemon */
 		MaxChildren = atoi(val);
+		break;
+
+	  case O_MAXQUEUECHILDREN: /* max # of children of daemon */
+		MaxQueueChildren = atoi(val);
+		break;
+
+	  case O_MAXRUNNERSPERQUEUE: /* max # runners in a queue group */
+		MaxRunnersPerQueue = atoi(val);
+		break;
+
+	  case O_NICEQUEUERUN:		/* nice queue runs */
+#if !HASNICE
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: NiceQueueRun set on system that doesn't support nice()\n");
+#endif /* !HASNICE */
+
+		/* XXX do we want to check the range? > 0 ? */
+		NiceQueueRun = atoi(val);
+		break;
+
+	  case O_SHMKEY	:		/* shared memory key */
+#if SM_CONF_SHM
+		ShmKey = atol(val);
+#else /* SM_CONF_SHM */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires shared memory support (-DSM_CONF_SHM)\n",
+				     OPTNAME);
+#endif /* SM_CONF_SHM */
 		break;
 
 #if _FFR_MAX_FORWARD_ENTRIES
@@ -2510,11 +2907,12 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_MUSTQUOTE:	/* must quote these characters in phrases */
-		(void) strlcpy(buf, "@,;:\\()[]", sizeof buf);
-		if (strlen(val) < (SIZE_T) sizeof buf - 10)
-			(void) strlcat(buf, val, sizeof buf);
+		(void) sm_strlcpy(buf, "@,;:\\()[]", sizeof buf);
+		if (strlen(val) < sizeof buf - 10)
+			(void) sm_strlcat(buf, val, sizeof buf);
 		else
-			printf("Warning: MustQuoteChars too long, ignored.\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Warning: MustQuoteChars too long, ignored.\n");
 		MustQuoteChars = newstr(buf);
 		break;
 
@@ -2528,7 +2926,8 @@ setoption(opt, val, safe, sticky, e)
 
 	  case O_OPCHARS:	/* operator characters (old $o macro) */
 		if (OperatorChars != NULL)
-			printf("Warning: OperatorChars is being redefined.\n         It should only be set before ruleset definitions.\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Warning: OperatorChars is being redefined.\n         It should only be set before ruleset definitions.\n");
 		OperatorChars = newstr(munchstring(val, NULL, '\0'));
 		break;
 
@@ -2559,15 +2958,13 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_DBLBOUNCE:	/* address to which to send double bounces */
-		if (val[0] != '\0')
-			DoubleBounceAddr = newstr(val);
-		else
-			syserr("readcf: option DoubleBounceAddress: value required");
+		DoubleBounceAddr = newstr(val);
 		break;
 
 	  case O_HSDIR:		/* persistent host status directory */
 		if (val[0] != '\0')
 		{
+			CANONIFY(val);
 			HostStatDir = newstr(val);
 		}
 		break;
@@ -2579,7 +2976,11 @@ setoption(opt, val, safe, sticky, e)
 	  case O_RUNASUSER:	/* run bulk of code as this user */
 		for (p = val; *p != '\0'; p++)
 		{
+#if _FFR_DOTTED_USERNAMES
+			if (*p == '/' || *p == ':')
+#else /* _FFR_DOTTED_USERNAMES */
 			if (*p == '.' || *p == '/' || *p == ':')
+#endif /* _FFR_DOTTED_USERNAMES */
 			{
 				*p++ = '\0';
 				break;
@@ -2607,21 +3008,37 @@ setoption(opt, val, safe, sticky, e)
 				RunAsUid = pw->pw_uid;
 				RunAsGid = pw->pw_gid;
 			}
+			else if (EffGid == pw->pw_gid)
+				RunAsGid = pw->pw_gid;
+			else if (UseMSP && *p == '\0')
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "WARNING: RunAsGid for MSP ignored, check group ids (egid=%d, want=%d)\n",
+						     (int) EffGid,
+						     (int) pw->pw_gid);
 		}
-#ifdef UID_MAX
+# ifdef UID_MAX
 		if (RunAsUid > UID_MAX)
 		{
 			syserr("readcf: option RunAsUser: uid value (%ld) > UID_MAX (%ld); ignored",
 				(long) RunAsUid, (long) UID_MAX);
 			break;
 		}
-#endif /* UID_MAX */
+# endif /* UID_MAX */
 		if (*p != '\0')
 		{
 			if (isascii(*p) && isdigit(*p))
 			{
-				if (can_setuid)
-					RunAsGid = atoi(p);
+				gid_t runasgid;
+
+				runasgid = (gid_t) atoi(p);
+				if (can_setuid || EffGid == runasgid)
+					RunAsGid = runasgid;
+				else if (UseMSP)
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "WARNING: RunAsGid for MSP ignored, check group ids (egid=%d, want=%d)\n",
+							     (int) EffGid,
+							     (int) runasgid);
 			}
 			else
 			{
@@ -2631,13 +3048,19 @@ setoption(opt, val, safe, sticky, e)
 				if (gr == NULL)
 					syserr("readcf: option RunAsUser: unknown group %s",
 						p);
-				else if (can_setuid)
+				else if (can_setuid || EffGid == gr->gr_gid)
 					RunAsGid = gr->gr_gid;
+				else if (UseMSP)
+					(void) sm_io_fprintf(smioout,
+							     SM_TIME_DEFAULT,
+							     "WARNING: RunAsGid for MSP ignored, check group ids (egid=%d, want=%d)\n",
+							     (int) EffGid,
+							     (int) gr->gr_gid);
 			}
 		}
 		if (tTd(47, 5))
-			dprintf("readcf: RunAsUser = %d:%d\n",
-				(int)RunAsUid, (int)RunAsGid);
+			sm_dprintf("readcf: RunAsUser = %d:%d\n",
+				   (int) RunAsUid, (int) RunAsGid);
 		break;
 
 	  case O_DSN_RRT:
@@ -2645,12 +3068,10 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_PIDFILE:
-		if (PidFile != NULL)
-			sm_free(PidFile);
-		PidFile = newstr(val);
+		PSTRSET(PidFile, val);
 		break;
 
-	case O_DONTBLAMESENDMAIL:
+	  case O_DONTBLAMESENDMAIL:
 		p = val;
 		for (;;)
 		{
@@ -2670,7 +3091,7 @@ setoption(opt, val, safe, sticky, e)
 			for (dbs = DontBlameSendmailValues;
 			     dbs->dbs_name != NULL; dbs++)
 			{
-				if (strcasecmp(val, dbs->dbs_name) == 0)
+				if (sm_strcasecmp(val, dbs->dbs_name) == 0)
 					break;
 			}
 			if (dbs->dbs_name == NULL)
@@ -2680,21 +3101,29 @@ setoption(opt, val, safe, sticky, e)
 			else
 				setbitn(dbs->dbs_flag, DontBlameSendmail);
 		}
-		sticky = FALSE;
+		sticky = false;
 		break;
 
 	  case O_DPI:
-		DontProbeInterfaces = atobool(val);
+		if (sm_strcasecmp(val, "loopback") == 0)
+			DontProbeInterfaces = DPI_SKIPLOOPBACK;
+		else if (atobool(val))
+			DontProbeInterfaces = DPI_PROBENONE;
+		else
+			DontProbeInterfaces = DPI_PROBEALL;
 		break;
 
 	  case O_MAXRCPT:
 		MaxRcptPerMsg = atoi(val);
 		break;
 
+	  case O_RCPTTHROT:
+		BadRcptThrottle = atoi(val);
+		break;
+
 	  case O_DEADLETTER:
-		if (DeadLetterDrop != NULL)
-			sm_free(DeadLetterDrop);
-		DeadLetterDrop = newstr(val);
+		CANONIFY(val);
+		PSTRSET(DeadLetterDrop, val);
 		break;
 
 #if _FFR_DONTLOCKFILESFORREAD_OPTION
@@ -2710,26 +3139,36 @@ setoption(opt, val, safe, sticky, e)
 	  case O_CNCTONLYTO:
 		/* XXX should probably use gethostbyname */
 #if NETINET || NETINET6
+		ConnectOnlyTo.sa.sa_family = AF_UNSPEC;
 # if NETINET6
-		if (inet_addr(val) == INADDR_NONE)
-		{
+		if (anynet_pton(AF_INET6, val,
+				&ConnectOnlyTo.sin6.sin6_addr) != 1)
 			ConnectOnlyTo.sa.sa_family = AF_INET6;
-			if (inet_pton(AF_INET6, val,
-				      &ConnectOnlyTo.sin6.sin6_addr) != 1)
-				syserr("readcf: option ConnectOnlyTo: invalid IP address %s",
-				       val);
-		}
 		else
 # endif /* NETINET6 */
+# if NETINET
 		{
-			ConnectOnlyTo.sa.sa_family = AF_INET;
 			ConnectOnlyTo.sin.sin_addr.s_addr = inet_addr(val);
+			if (ConnectOnlyTo.sin.sin_addr.s_addr != INADDR_NONE)
+				ConnectOnlyTo.sa.sa_family = AF_INET;
+		}
+
+# endif /* NETINET */
+		if (ConnectOnlyTo.sa.sa_family == AF_UNSPEC)
+		{
+			syserr("readcf: option ConnectOnlyTo: invalid IP address %s",
+			       val);
+			break;
 		}
 #endif /* NETINET || NETINET6 */
 		break;
 
 	  case O_TRUSTUSER:
-#if HASFCHOWN
+# if !HASFCHOWN && !defined(_FFR_DROP_TRUSTUSER_WARNING)
+		if (!UseMSP)
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "readcf: option TrustedUser may cause problems on systems\n        which do not support fchown() if UseMSP is not set.\n");
+# endif /* !HASFCHOWN && !defined(_FFR_DROP_TRUSTUSER_WARNING) */
 		if (isascii(*val) && isdigit(*val))
 			TrustedUid = atoi(val);
 		else
@@ -2755,9 +3194,6 @@ setoption(opt, val, safe, sticky, e)
 			TrustedUid = 0;
 		}
 # endif /* UID_MAX */
-#else /* HASFCHOWN */
-		syserr("readcf: option TrustedUser: can not be used on systems which do not support fchown()");
-#endif /* HASFCHOWN */
 		break;
 
 	  case O_MAXMIMEHDRLEN:
@@ -2773,18 +3209,18 @@ setoption(opt, val, safe, sticky, e)
 		if (MaxMimeHeaderLength < 0)
 			MaxMimeHeaderLength = 0;
 		else if (MaxMimeHeaderLength < 128)
-			printf("Warning: MaxMimeHeaderLength: header length limit set lower than 128\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Warning: MaxMimeHeaderLength: header length limit set lower than 128\n");
 
 		if (MaxMimeFieldLength < 0)
 			MaxMimeFieldLength = 0;
 		else if (MaxMimeFieldLength < 40)
-			printf("Warning: MaxMimeHeaderLength: field length limit set lower than 40\n");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Warning: MaxMimeHeaderLength: field length limit set lower than 40\n");
 		break;
 
 	  case O_CONTROLSOCKET:
-		if (ControlSocketName != NULL)
-			sm_free(ControlSocketName);
-		ControlSocketName = newstr(val);
+		PSTRSET(ControlSocketName, val);
 		break;
 
 	  case O_MAXHDRSLEN:
@@ -2792,20 +3228,23 @@ setoption(opt, val, safe, sticky, e)
 
 		if (MaxHeadersLength > 0 &&
 		    MaxHeadersLength < (MAXHDRSLEN / 2))
-			printf("Warning: MaxHeadersLength: headers length limit set lower than %d\n", (MAXHDRSLEN / 2));
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Warning: MaxHeadersLength: headers length limit set lower than %d\n",
+					     (MAXHDRSLEN / 2));
 		break;
 
 	  case O_PROCTITLEPREFIX:
-		if (ProcTitlePrefix != NULL)
-			sm_free(ProcTitlePrefix);
-		ProcTitlePrefix = newstr(val);
+		PSTRSET(ProcTitlePrefix, val);
 		break;
 
 #if SASL
 	  case O_SASLINFO:
-#if _FFR_ALLOW_SASLINFO
+# if _FFR_ALLOW_SASLINFO
 		/*
-		**  Allow users to select their own authinfo file.
+		**  Allow users to select their own authinfo file
+		**  under certain circumstances, otherwise just ignore
+		**  the option.  If the option isn't ignored, several
+		**  commands don't work very well, e.g., mailq.
 		**  However, this is not a "perfect" solution.
 		**  If mail is queued, the authentication info
 		**  will not be used in subsequent delivery attempts.
@@ -2814,22 +3253,14 @@ setoption(opt, val, safe, sticky, e)
 		*/
 		if (!bitset(SUBMIT_MSA, SubmitMode) && RealUid != 0 &&
 		    RunAsUid != RealUid)
-		{
-			errno = 0;
-			syserr("Error: %s only allowed with -U\n",
-				o->o_name == NULL ? "<unknown>" : o->o_name);
-			ExitStat = EX_USAGE;
 			break;
-		}
-#endif /* _FFR_ALLOW_SASLINFO */
-		if (SASLInfo != NULL)
-			sm_free(SASLInfo);
-		SASLInfo = newstr(val);
+# endif /* _FFR_ALLOW_SASLINFO */
+		PSTRSET(SASLInfo, val);
 		break;
 
 	  case O_SASLMECH:
 		if (AuthMechanisms != NULL)
-			sm_free(AuthMechanisms);
+			sm_free(AuthMechanisms); /* XXX */
 		if (*val != '\0')
 			AuthMechanisms = newstr(val);
 		else
@@ -2839,12 +3270,11 @@ setoption(opt, val, safe, sticky, e)
 	  case O_SASLOPTS:
 		while (val != NULL && *val != '\0')
 		{
-			switch(*val)
+			switch (*val)
 			{
 			  case 'A':
 				SASLOpts |= SASL_AUTH_AUTH;
 				break;
-# if _FFR_SASL_OPTS
 			  case 'a':
 				SASLOpts |= SASL_SEC_NOACTIVE;
 				break;
@@ -2863,13 +3293,104 @@ setoption(opt, val, safe, sticky, e)
 			  case 'y':
 				SASLOpts |= SASL_SEC_NOANONYMOUS;
 				break;
-# endif /* _FFR_SASL_OPTS */
+			  case ' ':	/* ignore */
+			  case '\t':	/* ignore */
+			  case ',':	/* ignore */
+				break;
 			  default:
-				printf("Warning: Option: %s unknown parameter '%c'\n",
-					o->o_name == NULL ? "<unknown>"
-							  : o->o_name,
-					(isascii(*val) && isprint(*val)) ? *val
-									 : '?');
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Warning: Option: %s unknown parameter '%c'\n",
+						     OPTNAME,
+						     (isascii(*val) &&
+							isprint(*val))
+							? *val : '?');
+				break;
+			}
+			++val;
+			val = strpbrk(val, ", \t");
+			if (val != NULL)
+				++val;
+		}
+		break;
+	  case O_SASLBITS:
+		MaxSLBits = atoi(val);
+		break;
+
+#else /* SASL */
+	  case O_SASLINFO:
+	  case O_SASLMECH:
+	  case O_SASLOPTS:
+	  case O_SASLBITS:
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires SASL support (-DSASL)\n",
+				     OPTNAME);
+		break;
+#endif /* SASL */
+
+#if STARTTLS
+	  case O_SRVCERTFILE:
+		SET_STRING_EXP(SrvCERTfile);
+	  case O_SRVKEYFILE:
+		SET_STRING_EXP(Srvkeyfile);
+	  case O_CLTCERTFILE:
+		SET_STRING_EXP(CltCERTfile);
+	  case O_CLTKEYFILE:
+		SET_STRING_EXP(Cltkeyfile);
+	  case O_CACERTFILE:
+		SET_STRING_EXP(CACERTfile);
+	  case O_CACERTPATH:
+		SET_STRING_EXP(CACERTpath);
+	  case O_DHPARAMS:
+		SET_STRING_EXP(DHParams);
+# if _FFR_TLS_1
+	  case O_DHPARAMS5:
+		SET_STRING_EXP(DHParams5);
+	  case O_CIPHERLIST:
+		SET_STRING_EXP(CipherList);
+# endif /* _FFR_TLS_1 */
+
+	/*
+	**  XXX How about options per daemon/client instead of globally?
+	**  This doesn't work well for some options, e.g., no server cert,
+	**  but fine for others.
+	**
+	**  XXX Some people may want different certs per server.
+	**
+	**  See also srvfeatures()
+	*/
+
+	  case O_TLS_SRV_OPTS:
+		while (val != NULL && *val != '\0')
+		{
+			switch (*val)
+			{
+			  case 'V':
+				TLS_Srv_Opts |= TLS_I_NO_VRFY;
+				break;
+# if _FFR_TLS_1
+			/*
+			**  Server without a cert? That works only if
+			**  AnonDH is enabled as cipher, which is not in the
+			**  default list. Hence the CipherList option must
+			**  be available. Moreover: which clients support this
+			**  besides sendmail with this setting?
+			*/
+
+			  case 'C':
+				TLS_Srv_Opts &= ~TLS_I_SRV_CERT;
+				break;
+# endif /* _FFR_TLS_1 */
+			  case ' ':	/* ignore */
+			  case '\t':	/* ignore */
+			  case ',':	/* ignore */
+				break;
+			  default:
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "Warning: Option: %s unknown parameter '%c'\n",
+						     OPTNAME,
+						     (isascii(*val) &&
+							isprint(*val))
+							? *val : '?');
 				break;
 			}
 			++val;
@@ -2879,79 +3400,11 @@ setoption(opt, val, safe, sticky, e)
 		}
 		break;
 
-#else /* SASL */
-	  case O_SASLINFO:
-	  case O_SASLMECH:
-	  case O_SASLOPTS:
-		printf("Warning: Option: %s requires SASL support (-DSASL)\n",
-			o->o_name == NULL ? "<unknown>" : o->o_name);
-		break;
-#endif /* SASL */
-
-#if STARTTLS
-	  case O_SRVCERTFILE:
-		if (SrvCERTfile != NULL)
-			sm_free(SrvCERTfile);
-		SrvCERTfile = newstr(val);
-		break;
-
-	  case O_SRVKEYFILE:
-		if (Srvkeyfile != NULL)
-			sm_free(Srvkeyfile);
-		Srvkeyfile = newstr(val);
-		break;
-
-	  case O_CLTCERTFILE:
-		if (CltCERTfile != NULL)
-			sm_free(CltCERTfile);
-		CltCERTfile = newstr(val);
-		break;
-
-	  case O_CLTKEYFILE:
-		if (Cltkeyfile != NULL)
-			sm_free(Cltkeyfile);
-		Cltkeyfile = newstr(val);
-		break;
-
-	  case O_CACERTFILE:
-		if (CACERTfile != NULL)
-			sm_free(CACERTfile);
-		CACERTfile = newstr(val);
-		break;
-
-	  case O_CACERTPATH:
-		if (CACERTpath != NULL)
-			sm_free(CACERTpath);
-		CACERTpath = newstr(val);
-		break;
-
-	  case O_DHPARAMS:
-		if (DHParams != NULL)
-			sm_free(DHParams);
-		DHParams = newstr(val);
-		break;
-
-#  if _FFR_TLS_1
-	  case O_DHPARAMS5:
-		if (DHParams5 != NULL)
-			sm_free(DHParams5);
-		DHParams5 = newstr(val);
-		break;
-
-	  case O_CIPHERLIST:
-		if (CipherList != NULL)
-			sm_free(CipherList);
-		CipherList = newstr(val);
-		break;
-#  endif /* _FFR_TLS_1 */
-
 	  case O_RANDFILE:
-		if (RandFile != NULL)
-			sm_free(RandFile);
-		RandFile= newstr(val);
+		PSTRSET(RandFile, val);
 		break;
 
-# else /* STARTTLS */
+#else /* STARTTLS */
 	  case O_SRVCERTFILE:
 	  case O_SRVKEYFILE:
 	  case O_CLTCERTFILE:
@@ -2959,23 +3412,20 @@ setoption(opt, val, safe, sticky, e)
 	  case O_CACERTFILE:
 	  case O_CACERTPATH:
 	  case O_DHPARAMS:
-#  if _FFR_TLS_1
+# if _FFR_TLS_1
 	  case O_DHPARAMS5:
 	  case O_CIPHERLIST:
-#  endif /* _FFR_TLS_1 */
+# endif /* _FFR_TLS_1 */
 	  case O_RANDFILE:
-		printf("Warning: Option: %s requires TLS support\n",
-			o->o_name == NULL ? "<unknown>" : o->o_name);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires TLS support\n",
+				     OPTNAME);
 		break;
 
-# endif /* STARTTLS */
+#endif /* STARTTLS */
 
 	  case O_CLIENTPORT:
-#if DAEMON
 		setclientoptions(val);
-#else /* DAEMON */
-		syserr("ClientPortOptions (O option) set but DAEMON not compiled in");
-#endif /* DAEMON */
 		break;
 
 	  case O_DF_BUFSIZE:
@@ -2987,37 +3437,80 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_LDAPDEFAULTSPEC:
-#ifdef LDAPMAP
+#if LDAPMAP
 		ldapmap_set_defaults(val);
 #else /* LDAPMAP */
-		printf("Warning: Option: %s requires LDAP support (-DLDAPMAP)\n",
-			o->o_name == NULL ? "<unknown>" : o->o_name);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires LDAP support (-DLDAPMAP)\n",
+				     OPTNAME);
 #endif /* LDAPMAP */
 		break;
 
-#if _FFR_MILTER
 	  case O_INPUTMILTER:
+#if MILTER
 		InputFilterList = newstr(val);
+#else /* MILTER */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires Milter support (-DMILTER)\n",
+				     OPTNAME);
+#endif /* MILTER */
 		break;
 
 	  case O_MILTER:
+#if MILTER
 		milter_set_option(subopt, val, sticky);
+#else /* MILTER */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires Milter support (-DMILTER)\n",
+				     OPTNAME);
+#endif /* MILTER */
 		break;
-#endif /* _FFR_MILTER */
 
-#if _FFR_QUEUE_FILE_MODE
 	  case O_QUEUE_FILE_MODE:	/* queue file mode */
 		QueueFileMode = atooct(val) & 0777;
 		break;
-#endif /* _FFR_QUEUE_FILE_MODE */
+
+	  case O_DLVR_MIN:	/* deliver by minimum time */
+		DeliverByMin = convtime(val, 's');
+		break;
+
+	  /* modifiers {daemon_flags} for direct submissions */
+	  case O_DIRECTSUBMODIFIERS:
+		{
+			BITMAP256 m;	/* ignored */
+			extern ENVELOPE BlankEnvelope;
+
+			macdefine(&BlankEnvelope.e_macro, A_PERM,
+				  macid("{daemon_flags}"),
+				  getmodifiers(val, m));
+		}
+		break;
+
+	  case O_FASTSPLIT:
+		FastSplit = atoi(val);
+		break;
+
+	  case O_MBDB:
+		Mbdb = newstr(val);
+		break;
+
+	  case O_MSQ:
+		UseMSP = atobool(val);
+		break;
+
+#if _FFR_SOFT_BOUNCE
+	  case O_SOFTBOUNCE:
+		SoftBounce = atobool(val);
+		break;
+#endif /* _FFR_SOFT_BOUNCE */
 
 	  default:
 		if (tTd(37, 1))
 		{
 			if (isascii(opt) && isprint(opt))
-				dprintf("Warning: option %c unknown\n", opt);
+				sm_dprintf("Warning: option %c unknown\n", opt);
 			else
-				dprintf("Warning: option 0x%x unknown\n", opt);
+				sm_dprintf("Warning: option 0x%x unknown\n", opt);
 		}
 		break;
 	}
@@ -3033,7 +3526,7 @@ setoption(opt, val, safe, sticky, e)
 	if (sticky && !bitset(OI_SUBOPT, o->o_flags))
 		setbitn(opt, StickyOpt);
 }
-/*
+/*
 **  SETCLASS -- set a string into a class
 **
 **	Parameters:
@@ -3059,25 +3552,25 @@ setclass(class, str)
 		int mid;
 
 		str++;
-		mid = macid(str, NULL);
+		mid = macid(str);
 		if (mid == 0)
 			return;
 
 		if (tTd(37, 8))
-			dprintf("setclass(%s, $=%s)\n",
-				macname(class), macname(mid));
+			sm_dprintf("setclass(%s, $=%s)\n",
+				   macname(class), macname(mid));
 		copy_class(mid, class);
 	}
 	else
 	{
 		if (tTd(37, 8))
-			dprintf("setclass(%s, %s)\n", macname(class), str);
+			sm_dprintf("setclass(%s, %s)\n", macname(class), str);
 
 		s = stab(str, ST_CLASS, ST_ENTER);
 		setbitn(bitidx(class), s->s_class);
 	}
 }
-/*
+/*
 **  MAKEMAPENTRY -- create a map entry
 **
 **	Parameters:
@@ -3133,7 +3626,8 @@ makemapentry(line)
 	class = stab(classname, ST_MAPCLASS, ST_FIND);
 	if (class == NULL)
 	{
-		syserr("readcf: map %s: class %s not available", mapname, classname);
+		syserr("readcf: map %s: class %s not available", mapname,
+			classname);
 		return NULL;
 	}
 
@@ -3147,19 +3641,16 @@ makemapentry(line)
 
 	if (tTd(37, 5))
 	{
-		dprintf("map %s, class %s, flags %lx, file %s,\n",
-			s->s_map.map_mname, s->s_map.map_class->map_cname,
-			s->s_map.map_mflags,
-			s->s_map.map_file == NULL ? "(null)" : s->s_map.map_file);
-		dprintf("\tapp %s, domain %s, rebuild %s\n",
-			s->s_map.map_app == NULL ? "(null)" : s->s_map.map_app,
-			s->s_map.map_domain == NULL ? "(null)" : s->s_map.map_domain,
-			s->s_map.map_rebuild == NULL ? "(null)" : s->s_map.map_rebuild);
+		sm_dprintf("map %s, class %s, flags %lx, file %s,\n",
+			   s->s_map.map_mname, s->s_map.map_class->map_cname,
+			   s->s_map.map_mflags, s->s_map.map_file);
+		sm_dprintf("\tapp %s, domain %s, rebuild %s\n",
+			   s->s_map.map_app, s->s_map.map_domain,
+			   s->s_map.map_rebuild);
 	}
-
 	return &s->s_map;
 }
-/*
+/*
 **  STRTORWSET -- convert string to rewriting set number
 **
 **	Parameters:
@@ -3277,7 +3768,7 @@ strtorwset(p, endp, stabmode)
 			char *h = NULL;
 
 			if (RuleSetNames[ruleset] != NULL)
-				sm_free(RuleSetNames[ruleset]);
+				sm_free(RuleSetNames[ruleset]); /* XXX */
 			if (delim != '\0' && (h = strchr(q, delim)) != NULL)
 				*h = '\0';
 			RuleSetNames[ruleset] = newstr(q);
@@ -3287,7 +3778,7 @@ strtorwset(p, endp, stabmode)
 	}
 	return ruleset;
 }
-/*
+/*
 **  SETTIMEOUT -- set an individual timeout
 **
 **	Parameters:
@@ -3305,8 +3796,8 @@ static BITMAP256	StickyTimeoutOpt;
 
 static struct timeoutinfo
 {
-	char	*to_name;	/* long name of timeout */
-	u_char	to_code;	/* code for option */
+	char		*to_name;	/* long name of timeout */
+	unsigned char	to_code;	/* code for option */
 } TimeOutTab[] =
 {
 #define TO_INITIAL			0x01
@@ -3373,6 +3864,14 @@ static struct timeoutinfo
 	{ "resolver.retry.first",	TO_RESOLVER_RETRY_FIRST		},
 #define TO_CONTROL			0x1F
 	{ "control",			TO_CONTROL			},
+#define TO_LHLO				0x20
+	{ "lhlo",			TO_LHLO				},
+#define TO_AUTH				0x21
+	{ "auth",			TO_AUTH				},
+#define TO_STARTTLS			0x22
+	{ "starttls",			TO_STARTTLS			},
+#define TO_ACONNECT			0x23
+	{ "aconnect",			TO_ACONNECT			},
 	{ NULL,				0				},
 };
 
@@ -3384,16 +3883,15 @@ settimeout(name, val, sticky)
 	bool sticky;
 {
 	register struct timeoutinfo *to;
-	int i;
-	int addopts;
+	int i, addopts;
 	time_t toval;
 
 	if (tTd(37, 2))
-		dprintf("settimeout(%s = %s)", name, val);
+		sm_dprintf("settimeout(%s = %s)", name, val);
 
 	for (to = TimeOutTab; to->to_name != NULL; to++)
 	{
-		if (strcasecmp(to->to_name, name) == 0)
+		if (sm_strcasecmp(to->to_name, name) == 0)
 			break;
 	}
 
@@ -3411,12 +3909,12 @@ settimeout(name, val, sticky)
 	if (!sticky && bitnset(to->to_code, StickyTimeoutOpt))
 	{
 		if (tTd(37, 2))
-			dprintf(" (ignored)\n");
+			sm_dprintf(" (ignored)\n");
 		return;
 	}
 
 	if (tTd(37, 2))
-		dprintf("\n");
+		sm_dprintf("\n");
 
 	toval = convtime(val, 'm');
 	addopts = 0;
@@ -3481,6 +3979,10 @@ settimeout(name, val, sticky)
 
 	  case TO_ICONNECT:
 		TimeOuts.to_iconnect = toval;
+		break;
+
+	  case TO_ACONNECT:
+		TimeOuts.to_aconnect = toval;
 		break;
 
 	  case TO_QUEUEWARN:
@@ -3570,6 +4072,22 @@ settimeout(name, val, sticky)
 		TimeOuts.to_control = toval;
 		break;
 
+	  case TO_LHLO:
+		TimeOuts.to_lhlo = toval;
+		break;
+
+#if SASL
+	  case TO_AUTH:
+		TimeOuts.to_auth = toval;
+		break;
+#endif /* SASL */
+
+#if STARTTLS
+	  case TO_STARTTLS:
+		TimeOuts.to_starttls = toval;
+		break;
+#endif /* STARTTLS */
+
 	  default:
 		syserr("settimeout: invalid timeout %s", name);
 		break;
@@ -3581,7 +4099,7 @@ settimeout(name, val, sticky)
 			setbitn(to->to_code + i, StickyTimeoutOpt);
 	}
 }
-/*
+/*
 **  INITTIMEOUTS -- parse and set timeout values
 **
 **	Parameters:
@@ -3605,10 +4123,11 @@ inittimeouts(val, sticky)
 	register char *p;
 
 	if (tTd(37, 2))
-		dprintf("inittimeouts(%s)\n", val == NULL ? "<NULL>" : val);
+		sm_dprintf("inittimeouts(%s)\n", val == NULL ? "<NULL>" : val);
 	if (val == NULL)
 	{
 		TimeOuts.to_connect = (time_t) 0 SECONDS;
+		TimeOuts.to_aconnect = (time_t) 0 SECONDS;
 		TimeOuts.to_initial = (time_t) 5 MINUTES;
 		TimeOuts.to_helo = (time_t) 5 MINUTES;
 		TimeOuts.to_mail = (time_t) 10 MINUTES;
@@ -3627,24 +4146,44 @@ inittimeouts(val, sticky)
 #endif /* IDENTPROTO */
 		TimeOuts.to_fileopen = (time_t) 60 SECONDS;
 		TimeOuts.to_control = (time_t) 2 MINUTES;
+		TimeOuts.to_lhlo = (time_t) 2 MINUTES;
+#if SASL
+		TimeOuts.to_auth = (time_t) 10 MINUTES;
+#endif /* SASL */
+#if STARTTLS
+		TimeOuts.to_starttls = (time_t) 1 HOUR;
+#endif /* STARTTLS */
 		if (tTd(37, 5))
 		{
-			dprintf("Timeouts:\n");
-			dprintf("  connect = %ld\n", (long)TimeOuts.to_connect);
-			dprintf("  initial = %ld\n", (long)TimeOuts.to_initial);
-			dprintf("  helo = %ld\n", (long)TimeOuts.to_helo);
-			dprintf("  mail = %ld\n", (long)TimeOuts.to_mail);
-			dprintf("  rcpt = %ld\n", (long)TimeOuts.to_rcpt);
-			dprintf("  datainit = %ld\n", (long)TimeOuts.to_datainit);
-			dprintf("  datablock = %ld\n", (long)TimeOuts.to_datablock);
-			dprintf("  datafinal = %ld\n", (long)TimeOuts.to_datafinal);
-			dprintf("  rset = %ld\n", (long)TimeOuts.to_rset);
-			dprintf("  quit = %ld\n", (long)TimeOuts.to_quit);
-			dprintf("  nextcommand = %ld\n", (long)TimeOuts.to_nextcommand);
-			dprintf("  miscshort = %ld\n", (long)TimeOuts.to_miscshort);
-			dprintf("  ident = %ld\n", (long)TimeOuts.to_ident);
-			dprintf("  fileopen = %ld\n", (long)TimeOuts.to_fileopen);
-			dprintf("  control = %ld\n", (long)TimeOuts.to_control);
+			sm_dprintf("Timeouts:\n");
+			sm_dprintf("  connect = %ld\n",
+				   (long) TimeOuts.to_connect);
+			sm_dprintf("  aconnect = %ld\n",
+				   (long) TimeOuts.to_aconnect);
+			sm_dprintf("  initial = %ld\n",
+				   (long) TimeOuts.to_initial);
+			sm_dprintf("  helo = %ld\n", (long) TimeOuts.to_helo);
+			sm_dprintf("  mail = %ld\n", (long) TimeOuts.to_mail);
+			sm_dprintf("  rcpt = %ld\n", (long) TimeOuts.to_rcpt);
+			sm_dprintf("  datainit = %ld\n",
+				   (long) TimeOuts.to_datainit);
+			sm_dprintf("  datablock = %ld\n",
+				   (long) TimeOuts.to_datablock);
+			sm_dprintf("  datafinal = %ld\n",
+				   (long) TimeOuts.to_datafinal);
+			sm_dprintf("  rset = %ld\n", (long) TimeOuts.to_rset);
+			sm_dprintf("  quit = %ld\n", (long) TimeOuts.to_quit);
+			sm_dprintf("  nextcommand = %ld\n",
+				   (long) TimeOuts.to_nextcommand);
+			sm_dprintf("  miscshort = %ld\n",
+				   (long) TimeOuts.to_miscshort);
+			sm_dprintf("  ident = %ld\n", (long) TimeOuts.to_ident);
+			sm_dprintf("  fileopen = %ld\n",
+				   (long) TimeOuts.to_fileopen);
+			sm_dprintf("  lhlo = %ld\n",
+				   (long) TimeOuts.to_lhlo);
+			sm_dprintf("  control = %ld\n",
+				   (long) TimeOuts.to_control);
 		}
 		return;
 	}

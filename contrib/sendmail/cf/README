@@ -1,28 +1,50 @@
 
 		SENDMAIL CONFIGURATION FILES
 
-This document describes the sendmail configuration files.  This package
-requires a post-V7 version of m4; if you are running the 4.2bsd, SysV.2, or
-7th Edition version.  SunOS's /usr/5bin/m4 or BSD-Net/2's m4 both work.
-GNU m4 version 1.1 or later also works.  Unfortunately, the M4 on BSDI 1.0
-doesn't work -- you'll have to use a Net/2 or GNU version.  GNU m4 is
-available from ftp://ftp.gnu.org/pub/gnu/m4/m4-1.4.tar.gz (check for the
-latest version).  EXCEPTIONS: DEC's m4 on Digital UNIX 4.x is broken (3.x
-is fine).  Use GNU m4 on this platform.
+This document describes the sendmail configuration files.  It
+explains how to create a sendmail.cf file for use with sendmail.
+It also describes how to set options for sendmail which are explained
+in the Sendmail Installation and Operation guide (doc/op/op.me).
 
-To get started, you may want to look at tcpproto.mc (for TCP-only sites),
-uucpproto.mc (for UUCP-only sites), and clientproto.mc (for clusters of
-clients using a single mail host).  Others are versions previously used at
-Berkeley.  For example, ucbvax has gone away, but ucbvax.mc demonstrates
-some interesting techniques.
+To get started, you may want to look at tcpproto.mc (for TCP-only
+sites) and clientproto.mc (for clusters of clients using a single
+mail host), or the generic-*.mc files as operating system-specific
+examples.
 
-*******************************************************************
-***  BE SURE YOU CUSTOMIZE THESE FILES!  They have some		***
-***  Berkeley-specific assumptions built in, such as the name	***
-***  of their UUCP-relay.  You'll want to create your own	***
-***  domain description, and use that in place of		***
-***  domain/Berkeley.EDU.m4.					***
-*******************************************************************
+Table of Content:
+
+INTRODUCTION AND EXAMPLE
+A BRIEF INTRODUCTION TO M4
+FILE LOCATIONS
+OSTYPE
+DOMAINS
+MAILERS
+FEATURES
+HACKS
+SITE CONFIGURATION
+USING UUCP MAILERS
+TWEAKING RULESETS
+MASQUERADING AND RELAYING
+USING LDAP FOR ALIASES, MAPS, AND CLASSES
+LDAP ROUTING
+ANTI-SPAM CONFIGURATION CONTROL
+STARTTLS
+SMTP AUTHENTICATION
+ADDING NEW MAILERS OR RULESETS
+ADDING NEW MAIL FILTERS
+QUEUE GROUP DEFINITIONS
+NON-SMTP BASED CONFIGURATIONS
+WHO AM I?
+ACCEPTING MAIL FOR MULTIPLE NAMES
+USING MAILERTABLES
+USING USERDB TO MAP FULL NAMES
+MISCELLANEOUS SPECIAL FEATURES
+SECURITY NOTES
+TWEAKING CONFIGURATION OPTIONS
+MESSAGE SUBMISSION PROGRAM
+FORMAT OF FILES AND MAPS
+DIRECTORY LAYOUT
+ADMINISTRATIVE DETAILS
 
 
 +--------------------------+
@@ -54,7 +76,7 @@ Let's examine a typical .mc file:
 
 	divert(-1)
 	#
-	# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+	# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 	#	All rights reserved.
 	# Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 	# Copyright (c) 1988, 1993
@@ -106,11 +128,10 @@ definition appropriate for your environment.
 	MAILER(`local')
 	MAILER(`smtp')
 
-These describe the mailers used at the default CS site.  The
-local mailer is always included automatically.  Beware: MAILER
-declarations should always be at the end of the configuration file,
-and MAILER(`smtp') should always precede MAILER(`procmail'), and
-MAILER(`uucp').  The general rules are that the order should be:
+These describe the mailers used at the default CS site.  The local
+mailer is always included automatically.  Beware: MAILER declarations
+should always be at the end of the configuration file.  The general
+rules are that the order should be:
 
 	VERSIONID
 	OSTYPE
@@ -118,6 +139,7 @@ MAILER(`uucp').  The general rules are that the order should be:
 	FEATURE
 	local macro definitions
 	MAILER
+	LOCAL_CONFIG
 	LOCAL_RULE_*
 	LOCAL_RULESETS
 
@@ -125,6 +147,14 @@ There are a few exceptions to this rule.  Local macro definitions which
 influence a FEATURE() should be done before that feature.  For example,
 a define(`PROCMAIL_MAILER_PATH', ...) should be done before
 FEATURE(`local_procmail').
+
+*******************************************************************
+***  BE SURE YOU CUSTOMIZE THESE FILES!  They have some		***
+***  Berkeley-specific assumptions built in, such as the name	***
+***  of their UUCP-relay.  You'll want to create your own	***
+***  domain description, and use that in place of		***
+***  domain/Berkeley.EDU.m4.					***
+*******************************************************************
 
 
 +----------------------------+
@@ -158,6 +188,20 @@ expanded.  This also applies to
 
 because ``define'' is an M4 keyword.  If you want to use them, surround
 them with directed quotes, `like this'.
+
+
+Notice:
+-------
+
+This package requires a post-V7 version of m4; if you are running the
+4.2bsd, SysV.2, or 7th Edition version.  SunOS's /usr/5bin/m4 or
+BSD-Net/2's m4 both work.  GNU m4 version 1.1 or later also works.
+Unfortunately, the M4 on BSDI 1.0 doesn't work -- you'll have to use a
+Net/2 or GNU version.  GNU m4 is available from
+ftp://ftp.gnu.org/pub/gnu/m4/m4-1.4.tar.gz (check for the latest version).
+EXCEPTIONS: DEC's m4 on Digital UNIX 4.x is broken (3.x is fine).  Use GNU
+m4 on this platform.
+
 
 +----------------+
 | FILE LOCATIONS |
@@ -265,7 +309,10 @@ QUEUE_DIR		[/var/spool/mqueue] The directory containing
 			directories.  The names 'qf', 'df', and 'xf' are
 			reserved as specific subdirectories for the
 			corresponding queue file types as explained in
-			doc/op/op.me.
+			doc/op/op.me.  See also QUEUE GROUP DEFINITIONS.
+MSP_QUEUE_DIR		[/var/spool/clientmqueue] The directory containing
+			queue files for the MSP (Mail Submission Program,
+			see sendmail/SECURITY).
 STATUS_FILE		[/etc/mail/statistics] The file containing status
 			information.
 LOCAL_MAILER_PATH	[/bin/mail] The program used to deliver local mail.
@@ -294,13 +341,18 @@ LOCAL_SHELL_ARGS	[sh -c $u] The arguments passed to deliver "prog"
 			mail.
 LOCAL_SHELL_DIR		[$z:/] The directory search path in which the
 			shell should run.
+LOCAL_MAILER_QGRP	[undefined] The queue group for the local mailer.
 USENET_MAILER_PATH	[/usr/lib/news/inews] The name of the program
 			used to submit news.
 USENET_MAILER_FLAGS	[rsDFMmn] The mailer flags for the usenet mailer.
 USENET_MAILER_ARGS	[-m -h -n] The command line arguments for the
-			usenet mailer.
+			usenet mailer.  NOTE: Some versions of inews
+			(such as those shipped with newer versions of INN)
+			use different flags.  Double check the defaults
+			against the inews man page.
 USENET_MAILER_MAX	[100000] The maximum size of messages that will
 			be accepted by the usenet mailer.
+USENET_MAILER_QGRP	[undefined] The queue group for the usenet mailer.
 SMTP_MAILER_FLAGS	[undefined] Flags added to SMTP mailer.  Default
 			flags are `mDFMuX' for all SMTP-based mailers; the
 			"esmtp" mailer adds `a'; "smtp8" adds `8'; and
@@ -322,6 +374,11 @@ ESMTP_MAILER_ARGS	[TCP $h] The arguments passed to the esmtp mailer.
 SMTP8_MAILER_ARGS	[TCP $h] The arguments passed to the smtp8 mailer.
 DSMTP_MAILER_ARGS	[TCP $h] The arguments passed to the dsmtp mailer.
 RELAY_MAILER_ARGS	[TCP $h] The arguments passed to the relay mailer.
+SMTP_MAILER_QGRP	[undefined] The queue group for the smtp mailer.
+ESMTP_MAILER_QGRP	[undefined] The queue group for the esmtp mailer.
+SMTP8_MAILER_QGRP	[undefined] The queue group for the smtp8 mailer.
+DSMTP_MAILER_QGRP	[undefined] The queue group for the dsmtp mailer.
+RELAY_MAILER_QGRP	[undefined] The queue group for the relay mailer.
 RELAY_MAILER_MAXMSGS	[undefined] If defined, the maximum number of
 			messages to deliver in a single connection for the
 			relay mailer.
@@ -341,6 +398,7 @@ UUCP_MAILER_CHARSET	[undefined] If defined, messages containing 8-bit data
 			that ARRIVE from an address that resolves to one of
 			the UUCP mailers and which are converted to MIME will
 			be labeled with this character set.
+UUCP_MAILER_QGRP	[undefined] The queue group for the UUCP mailers.
 FAX_MAILER_PATH		[/usr/local/lib/fax/mailfax] The program used to
 			submit FAX messages.
 FAX_MAILER_ARGS		[mailfax $u $h $f] The arguments passed to the FAX
@@ -351,6 +409,7 @@ POP_MAILER_PATH		[/usr/lib/mh/spop] The pathname of the POP mailer.
 POP_MAILER_FLAGS	[Penu] Flags added to POP mailer.  Flags lsDFMq
 			are always added.
 POP_MAILER_ARGS		[pop $u] The arguments passed to the POP mailer.
+POP_MAILER_QGRP		[undefined] The queue group for the pop mailer.
 PROCMAIL_MAILER_PATH	[/usr/local/bin/procmail] The path to the procmail
 			program.  This is also used by
 			FEATURE(`local_procmail').
@@ -364,15 +423,18 @@ PROCMAIL_MAILER_ARGS	[procmail -Y -m $h $f $u] The arguments passed to
 			instead.
 PROCMAIL_MAILER_MAX	[undefined] If set, the maximum size message that
 			will be accepted by the procmail mailer.
+PROCMAIL_MAILER_QGRP	[undefined] The queue group for the procmail mailer.
 MAIL11_MAILER_PATH	[/usr/etc/mail11] The path to the mail11 mailer.
 MAIL11_MAILER_FLAGS	[nsFx] Flags for the mail11 mailer.
 MAIL11_MAILER_ARGS	[mail11 $g $x $h $u] Arguments passed to the mail11
 			mailer.
+MAIL11_MAILER_QGRP	[undefined] The queue group for the mail11 mailer.
 PH_MAILER_PATH		[/usr/local/etc/phquery] The path to the phquery
 			program.
 PH_MAILER_FLAGS		[ehmu] Flags for the phquery mailer.  Flags nrDFM
 			are always set.
 PH_MAILER_ARGS		[phquery -- $u] -- arguments to the phquery mailer.
+PH_MAILER_QGRP		[undefined] The queue group for the ph mailer.
 CYRUS_MAILER_FLAGS	[Ah5@/:|] The flags used by the cyrus mailer.  The
 			flags lsDFMnPq are always included.
 CYRUS_MAILER_PATH	[/usr/cyrus/bin/deliver] The program used to deliver
@@ -383,6 +445,7 @@ CYRUS_MAILER_MAX	[undefined] If set, the maximum size message that
 			will be accepted by the cyrus mailer.
 CYRUS_MAILER_USER	[cyrus:mail] The user and group to become when
 			running the cyrus mailer.
+CYRUS_MAILER_QGRP	[undefined] The queue group for the cyrus mailer.
 CYRUS_BB_MAILER_FLAGS	[u] The flags used by the cyrusbb mailer.
 			The flags lsDFMnP are always included.
 CYRUS_BB_MAILER_ARGS	[deliver -e -m $u] The arguments passed
@@ -397,6 +460,8 @@ QPAGE_MAILER_ARGS	[qpage -l0 -m -P$u] The arguments passed
 			to deliver qpage mail.
 QPAGE_MAILER_MAX	[4096] If set, the maximum size message that
 			will be accepted by the qpage mailer.
+QPAGE_MAILER_QGRP	[undefined] The queue group for the qpage mailer.
+LOCAL_PROG_QGRP		[undefined] The queue group for the prog mailer.
 
 Note: to tweak Name_MAILER_FLAGS use the macro MODIFY_MAILER_FLAGS:
 MODIFY_MAILER_FLAGS(`Name', `change') where Name is the first part of
@@ -407,7 +472,9 @@ the default value.  Example:
 
 	MODIFY_MAILER_FLAGS(`LOCAL', `+e')
 
-will add the flag `e' to LOCAL_MAILER_FLAGS.
+will add the flag `e' to LOCAL_MAILER_FLAGS.  Notice: there are
+several smtp mailers all of which are manipulated individually.
+See the section MAILERS for the available mailer names.
 WARNING: The FEATUREs local_lmtp and local_procmail set LOCAL_MAILER_FLAGS
 unconditionally, i.e., without respecting any definitions in an
 OSTYPE setting.
@@ -436,7 +503,7 @@ LOCAL_RELAY	The site that will handle unqualified names -- that
 		is, names without an @domain extension.
 		Normally MAIL_HUB is preferred for this function.
 		LOCAL_RELAY is mostly useful in conjunction with
-		FEATURE(stickyhost) -- see the discussion of
+		FEATURE(`stickyhost') -- see the discussion of
 		stickyhost below.  If not set, they are assumed to
 		belong on this machine.  This allows you to have a
 		central site to store a company- or department-wide
@@ -466,18 +533,14 @@ single machine sitting off somewhere, it is probably more work than
 it's worth.  This is just a mechanism for combining "domain dependent
 knowledge" into one place.
 
+
 +---------+
 | MAILERS |
 +---------+
 
 There are fewer mailers supported in this version than the previous
 version, owing mostly to a simpler world.  As a general rule, put the
-MAILER definitions last in your .mc file, and always put MAILER(`smtp')
-before MAILER(`uucp') and MAILER(`procmail') -- several features and
-definitions will modify the definition of mailers, and the smtp mailer
-modifies the UUCP mailer.  Moreover, MAILER(`cyrus'), MAILER(`pop'),
-MAILER(`phquery'), and MAILER(`usenet') must be defined after
-MAILER(`local').
+MAILER definitions last in your .mc file.
 
 local		The local and prog mailers.  You will almost always
 		need these; the only exception is if you relay ALL
@@ -502,9 +565,9 @@ uucp		The UNIX-to-UNIX Copy Program mailer.  Actually, this
 		"uucp-new" (a.k.a. "suucp").  The latter is for when you
 		know that the UUCP mailer at the other end can handle
 		multiple recipients in one transfer.  If the smtp mailer
-		is also included in your configuration, two other mailers
-		("uucp-dom" and "uucp-uudom") are also defined [warning:
-		you MUST specify MAILER(smtp) before MAILER(uucp)].  When you
+		is included in your configuration, two other mailers
+		("uucp-dom" and "uucp-uudom") are also defined [warning: you
+		MUST specify MAILER(`smtp') before MAILER(`uucp')].  When you
 		include the uucp mailer, sendmail looks for all names in
 		class {U} and sends them to the uucp-old mailer; all
 		names in class {Y} are sent to uucp-new; and all
@@ -545,6 +608,9 @@ procmail	An interface to procmail (does not come with sendmail).
 		If you use this with FEATURE(`local_procmail'), the FEATURE
 		should be listed first.
 
+		Of course there are other ways to solve this particular
+		problem, e.g., a catch-all entry in a virtusertable.
+
 mail11		The DECnet mail11 mailer, useful only if you have the mail11
 		program from gatekeeper.dec.com:/pub/DEC/gwtools (and
 		DECnet, of course).  This is for Phase IV DECnet support;
@@ -558,11 +624,12 @@ phquery		The phquery program.  This is somewhat counterintuitively
 
 cyrus		The cyrus and cyrusbb mailers.  The cyrus mailer delivers to
 		a local cyrus user.  this mailer can make use of the
-		"user+detail@local.host" syntax; it will deliver the mail to
-		the user's "detail" mailbox if the mailbox's ACL permits.
-		The cyrusbb mailer delivers to a system-wide cyrus mailbox
-		if the mailbox's ACL permits.  The cyrus mailer must be
-		defined after the local mailer.
+		"user+detail@local.host" syntax (see
+		FEATURE(`preserve_local_plus_detail')); it will deliver the
+		mail to the user's "detail" mailbox if the mailbox's ACL
+		permits.  The cyrusbb mailer delivers to a system-wide
+		cyrus mailbox if the mailbox's ACL permits.  The cyrus
+		mailer must be defined after the local mailer.
 
 qpage		A mailer for QuickPage, a pager interface.  See
 		http://www.qpage.org/ for further information.
@@ -585,7 +652,7 @@ example, the .mc line:
 	FEATURE(`use_cw_file')
 
 tells sendmail that you want to have it read an /etc/mail/local-host-names
-file to get values for class {w}.  The FEATURE may contain up to 9
+file to get values for class {w}.  A FEATURE may contain up to 9
 optional parameters -- for example:
 
 	FEATURE(`mailertable', `dbm /usr/lib/mailertable')
@@ -599,6 +666,11 @@ hash database format.  Note that you must still declare a database map type
 if you specify an argument to a FEATURE.  DATABASE_MAP_TYPE is only used
 if no argument is given for the FEATURE.  It must be specified before any
 feature that uses a map.
+
+Also, features which can take a map definition as an argument can also take
+the special keyword `LDAP'.  If that keyword is used, the map will use the
+LDAP definition described in the ``USING LDAP FOR ALIASES, MAPS, AND
+CLASSES'' section below.
 
 Available features are:
 
@@ -627,7 +699,7 @@ nouucp		Don't route UUCP addresses.  This feature takes one
 			part unless it originates from a system
 			that is allowed to relay.
 		`nospecial': don't do anything special with "!".
-		Warnings: 1. See the NOTICE in the ANTI-SPAM section.
+		Warnings: 1. See the notice in the anti-spam section.
 		2. don't remove "!" from OperatorChars if `reject' is
 		given as parameter.
 
@@ -752,7 +824,8 @@ always_add_domain
 		mail.  Normally it is not added on unqualified names.
 		However, if you use a shared message store but do not use
 		the same user name space everywhere, you may need the host
-		name on local names.
+		name on local names.  An optional argument specifies
+		another domain to be added than the local.
 
 allmasquerade	If masquerading is enabled (using MASQUERADE_AS), this
 		feature will cause recipient addresses to also masquerade
@@ -793,18 +866,26 @@ masquerade_entire_domain
 		    NOTE: only domains within your jurisdiction and
 		    current hierarchy should be masqueraded using this.
 
+local_no_masquerade
+		This feature prevents the local mailer from masquerading even
+		if MASQUERADE_AS is used.  MASQUERADE_AS will only have effect
+		on addresses of mail going outside the local domain.
+
 genericstable	This feature will cause unqualified addresses (i.e., without
 		a domain) and addresses with a domain listed in class {G}
 		to be looked up in a map and turned into another ("generic")
 		form, which can change both the domain name and the user name.
-		This is similar to the userdb functionality.  The same types of
-		addresses as for masquerading are looked up, i.e., only header
-		sender addresses unless the allmasquerade and/or
-		masquerade_envelope features are given.  Qualified addresses
-		must have the domain part in class {G}; entries can
-		be added to this class by the macros GENERICS_DOMAIN or
-		GENERICS_DOMAIN_FILE (analogously to MASQUERADE_DOMAIN and
-		MASQUERADE_DOMAIN_FILE, see below).
+		Notice: if you use an MSP (as it is default starting with
+		8.12), the MTA will only receive qualified addresses from the
+		MSP (as required by the RFCs).  Hence you need to add your
+		domain to class {G}.  This feature is similar to the userdb
+		functionality.  The same types of addresses as for
+		masquerading are looked up, i.e., only header sender
+		addresses unless the allmasquerade and/or masquerade_envelope
+		features are given.  Qualified addresses must have the domain
+		part in class {G}; entries can be added to this class by the
+		macros GENERICS_DOMAIN or GENERICS_DOMAIN_FILE (analogously
+		to MASQUERADE_DOMAIN and MASQUERADE_DOMAIN_FILE, see below).
 
 		The argument of FEATURE(`genericstable') may be the map
 		definition; the default map definition is:
@@ -839,8 +920,8 @@ virtusertable	A domain-specific form of aliasing, allowing multiple
 
 			info@foo.com	foo-info
 			info@bar.com	bar-info
-			joe@bar.com	error:nouser No such user here
-			jax@bar.com	error:D.S.N:unavailable Address invalid
+			joe@bar.com	error:nouser 550 No such user here
+			jax@bar.com	error:5.7.0:550 Address invalid
 			@baz.org	jane@example.net
 
 		then mail addressed to info@foo.com will be sent to the
@@ -849,7 +930,7 @@ virtusertable	A domain-specific form of aliasing, allowing multiple
 		will be sent to jane@example.net, mail to joe@bar.com will
 		be rejected with the specified error message, and mail to
 		jax@bar.com will also have a RFC 1893 compliant error code
-		D.S.N.
+		5.7.0.
 
 		The username from the original address is passed
 		as %1 allowing:
@@ -858,19 +939,24 @@ virtusertable	A domain-specific form of aliasing, allowing multiple
 
 		meaning someone@foo.org will be sent to someone@example.com.
 		Additionally, if the local part consists of "user+detail"
-		then "detail" is passed as %2 when a match against user+*
-		is attempted, so entries like
+		then "detail" is passed as %2 and "+detail" is passed as %3
+		when a match against user+* is attempted, so entries like
 
 			old+*@foo.org	new+%2@example.com
 			gen+*@foo.org	%2@example.com
-			+*@foo.org	%1+%2@example.com
+			+*@foo.org	%1%3@example.com
+			X++@foo.org	Z%3@example.com
+			@bar.org	%1%3
 
 		and other forms are possible.  Note: to preserve "+detail"
-		for a default case (@domain) +*@domain must be used as
-		exemplified above.
+		for a default case (@domain) %1%3 must be used as RHS.
+		There are two wildcards after "+": "+" matches only a non-empty
+		detail, "*" matches also empty details, e.g., user+@foo.org
+		matches +*@foo.org but not ++@foo.org.  This can be used
+		to ensure that the parameters %2 and %3 are not empty.
 
 		All the host names on the left hand side (foo.com, bar.com,
-		and baz.org) must be in class {w} or class {VirtHost}, the
+		and baz.org) must be in class {w} or class {VirtHost}.  The
 		latter can be defined by the macros VIRTUSER_DOMAIN or
 		VIRTUSER_DOMAIN_FILE (analogously to MASQUERADE_DOMAIN and
 		MASQUERADE_DOMAIN_FILE, see below).  If VIRTUSER_DOMAIN or
@@ -1025,13 +1111,13 @@ relay_based_on_MX
 relay_mail_from
 		Allows relaying if the mail sender is listed as RELAY in
 		the access map.  If an optional argument `domain' is given,
-		the domain portion of the mail sender is checked too.
-		This should only be used if absolutely necessary as the
-		sender address can be easily forged.  Use of this feature
-		requires the "From:" tag be prepended to the key in the
-		access map; see the discussion of tags and
-		FEATURE(`relay_mail_from') in the section on ANTI-SPAM
-		CONFIGURATION CONTROL.
+		relaying can be allowed just based on the domain portion
+		of the sender address.  This feature should only be used if
+		absolutely necessary as the sender address can be easily
+		forged.  Use of this feature requires the "From:" tag be
+		prepended to the key in the access map; see the discussion
+		of tags and FEATURE(`relay_mail_from') in the section on
+		anti-spam configuration control.
 
 relay_local_from
 		Allows relaying if the domain portion of the mail sender
@@ -1066,13 +1152,15 @@ accept_unresolvable_domains
 
 access_db	Turns on the access database feature.  The access db gives
 		you the ability to allow or refuse to accept mail from
-		specified domains for administrative reasons.  By default,
-		the access database specification is:
+		specified domains for administrative reasons.  Moreover,
+		it can control the behavior of sendmail in various situations.
+		By default, the access database specification is:
 
-			hash /etc/mail/access
+			hash -T<TMPF> /etc/mail/access
 
-		The format of the database is described in the anti-spam
-		configuration control section later in this document.
+		See the anti-spam configuration control section for further
+		important information about this feature.  Notice:
+		"-T<TMPF>" is meant literal, do not replace it by anything.
 
 blacklist_recipients
 		Turns on the ability to block incoming mail for certain
@@ -1087,25 +1175,27 @@ delay_checks	The rulesets check_mail and check_relay will not be called
 		when a client connects or issues a MAIL command, respectively.
 		Instead, those rulesets will be called by the check_rcpt
 		ruleset; they will be skipped under certain circumstances.
-		See "Delay all checks" in "ANTI-SPAM CONFIGURATION CONTROL".
-
-rbl		This feature is deprecated! Please use dnsbl instead.
-		Turns on rejection of hosts found in the Realtime Blackhole
-		List.  If an argument is provided it is used as the domain
-		in which blocked hosts are listed; otherwise, the main RBL
-		domain rbl.maps.vix.com is used (see NOTE below).  For
-		details, see http://maps.vix.com/rbl/.
+		See "Delay all checks" in the anti-spam configuration control
+		section.  Note: this feature is incompatible to the versions
+		in 8.10 and 8.11.
 
 dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		list.  If an argument is provided it is used as the domain
 		in which blocked hosts are listed; otherwise it defaults to
 		blackholes.mail-abuse.org.  An explanation for an DNS based
-		rejection list can be found http://mail-abuse.org/rbl/.  A
-		second argument can be used to change the default error
-		message of Mail from $&{client_addr} refused by blackhole site
-		SERVER where SERVER is replaced by the first argument.  This
-		feature can be included several times to query different DNS
-		based rejection lists.
+		rejection list can be found at http://mail-abuse.org/rbl/.
+		A second argument can be used to change the default error
+		message.  Without that second argument, the error message
+		will be
+			Mail from IP-ADDRESS refused by blackhole site SERVER
+		where IP-ADDRESS and SERVER are replaced by the appropriate
+		information.  By default, temporary lookup failures are
+		ignored.  This behavior can be changed by specifying a
+		third argument, which must be either `t' or a full error
+		message.  See the anti-spam configuration control section for
+		an example.  The dnsbl feature can be included several times
+		to query different DNS based rejection lists.  See also
+		enhdnsbl for an enhanced version.
 
 		NOTE: The default DNS blacklist, blackholes.mail-abuse.org,
 		is a service offered by the Mail Abuse Prevention System
@@ -1114,6 +1204,30 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		haven't subscribed.  Contact MAPS to subscribe
 		(http://mail-abuse.org/).
 
+enhdnsbl	Enhanced version of dnsbl (see above).  Further arguments
+		(up to 5) can be used to specify specific return values
+		from lookups.  Temporary lookup failures are ignored unless
+		a third argument is given, which must be either `t' or a full
+		error message.  By default, any successful lookup will
+		generate an error.  Otherwise the result of the lookup is
+		compared with the supplied argument(s), and only if a match
+		occurs an error is generated.  For example,
+
+		FEATURE(`enhdnsbl', `dnsbl.example.com', `', `t', `127.0.0.2.')
+
+		will reject the e-mail if the lookup returns the value
+		``127.0.0.2.'', or generate a 451 response if the lookup
+		temporarily failed.  The arguments can contain metasymbols
+		as they are allowed in the LHS of rules.  As the example
+		shows, the default values are also used if an empty argument,
+		i.e., `', is specified.  This feature requires that sendmail
+		has been compiled with the flag DNSMAP (see sendmail/README).
+
+lookupdotdomain	Look up also .domain in the access map.  This allows to
+		match only subdomains.  It does not work well with
+		FEATURE(`relay_hosts_only'), because most lookups for
+		subdomains are suppressed by the latter feature.
+
 loose_relay_check
 		Normally, if % addressing is used for a recipient, e.g.
 		user%site@othersite, and othersite is in class {R}, the
@@ -1121,10 +1235,68 @@ loose_relay_check
 		user@site for relaying.  This feature changes that
 		behavior.  It should not be needed for most installations.
 
+authinfo	Provide a separate map for client side authentication
+		information.  See SMTP AUTHENTICATION for details.
+		By default, the authinfo database specification is:
+
+			hash /etc/mail/authinfo
+
+preserve_luser_host
+		Preserve the name of the recipient host if LUSER_RELAY is
+		used.  Without this option, the domain part of the
+		recipient address will be replaced by the host specified as
+		LUSER_RELAY.  This feature only works if the hostname is
+		passed to the mailer (see mailer triple in op.me).  Note
+		that in the default configuration the local mailer does not
+		receive the hostname, i.e., the mailer triple has an empty
+		hostname.
+
+preserve_local_plus_detail
+		Preserve the +detail portion of the address when passing
+		address to local delivery agent.  Disables alias and
+		.forward +detail stripping (e.g., given user+detail, only
+		that address will be looked up in the alias file; user+* and
+		user will not be looked up).  Only use if the local
+		delivery agent in use supports +detail addressing.
+
+compat_check	Enable ruleset check_compat to look up pairs of addresses
+		with the Compat: tag --	Compat:sender<@>recipient -- in the
+		access map.  Valid values for the RHS include
+			DISCARD	silently discard recipient
+			TEMP:	return a temporary error
+			ERROR:	return a permanent error
+		In the last two cases, a 4xy/5xy SMTP reply code should
+		follow the colon.
+
 no_default_msa	Don't generate the default MSA daemon, i.e.,
 		DAEMON_OPTIONS(`Port=587,Name=MSA,M=E')
 		To define a MSA daemon with other parameters, use this
 		FEATURE and introduce new settings via DAEMON_OPTIONS().
+
+msp		Defines config file for Message Submission Program.
+		See sendmail/SECURITY for details and cf/cf/submit.mc
+		how to use it.  An optional argument can be used to
+		override the default of `localhost' to use as host to send
+		all e-mails to.  If `MSA' is specified as second argument
+		then port 587 is used to contact the server.  Example:
+
+			FEATURE(`msp', `', `MSA')
+
+		Some more hints about possible changes can be found below
+		in the section MESSAGE SUBMISSION PROGRAM.
+
+queuegroup	A simple example how to select a queue group based
+		on the full e-mail address or the domain of the
+		recipient.  Selection is done via entries in the
+		access map using the tag QGRP:, for example:
+
+			QGRP:example.com	main
+			QGRP:friend@some.org	others
+			QGRP:my.domain		local
+
+		where "main", "others", and "local" are names of
+		queue groups.  If an argument is specified, it is used
+		as default queue group.
 
 +-------+
 | HACKS |
@@ -1146,7 +1318,7 @@ subdomains.
     *****************************************************
     * This section is really obsolete, and is preserved	*
     * only for back compatibility.  You should plan on	*
-    * using mailertables for new installations.	  In	*
+    * using mailertables for new installations.  In	*
     * particular, it doesn't work for the newer forms	*
     * of UUCP mailers, such as uucp-uudom.		*
     *****************************************************
@@ -1237,7 +1409,8 @@ The four mailers are:
     uucp-dom
 	This UUCP mailer keeps everything as domain addresses.
 	Basically, it uses the SMTP mailer rewriting rules.  This mailer
-	is only included if MAILER(`smtp') is also specified.
+	is only included if MAILER(`smtp') is specified before
+	MAILER(`uucp').
 
 	Unfortunately, a lot of UUCP mailer transport agents require
 	bangified addresses in the envelope, although you can use
@@ -1252,7 +1425,7 @@ The four mailers are:
 	at all (e.g., "wolf") or the host component is a UUCP host name
 	instead of a domain name ("somehost!wolf" instead of
 	"some.dom.ain!wolf").  This is also included only if MAILER(`smtp')
-	is also specified.
+	is also specified earlier.
 
 Examples:
 
@@ -1378,7 +1551,10 @@ To exempt hosts or subdomains from being masqueraded, you can use
 	MASQUERADE_EXCEPTION(`host.domain')
 
 This can come handy if you want to masquerade a whole domain
-except for one (or a few) host(s).
+except for one (or a few) host(s).  If these names are in a file,
+you can use
+
+	MASQUERADE_EXCEPTION_FILE(`filename')
 
 Normally only header addresses are masqueraded.  If you want to
 masquerade the envelope as well, use
@@ -1392,9 +1568,9 @@ You can add users to this list using
 
 	EXPOSED_USER(`usernames')
 
-This adds users to class {E}; you could also use something like
+This adds users to class {E}; you could also use
 
-	FE/etc/mail/exposed-users
+	EXPOSED_USER_FILE(`filename')
 
 You can also arrange to relay all unqualified names (that is, names
 without @host) to a relay host.  For example, if you have a central
@@ -1410,9 +1586,9 @@ locally aliased.  You can add entries to this list using
 
 	LOCAL_USER(`usernames')
 
-This adds users to class {L}; you could also use something like
+This adds users to class {L}; you could also use
 
-	FL/etc/mail/local-users
+	LOCAL_USER_FILE(`filename')
 
 If you want all incoming mail sent to a centralized hub, as for a
 shared /var/spool/mail scheme, use
@@ -1468,6 +1644,290 @@ specified with a terminal dot:
 	      note the trailing dot ---^
 
 
++-------------------------------------------+
+| USING LDAP FOR ALIASES, MAPS, AND CLASSES |
++-------------------------------------------+
+
+LDAP can be used for aliases, maps, and classes by either specifying your
+own LDAP map specification or using the built-in default LDAP map
+specification.  The built-in default specifications all provide lookups
+which match against either the machine's fully qualified hostname (${j}) or
+a "cluster".  The cluster allows you to share LDAP entries among a large
+number of machines without having to enter each of the machine names into
+each LDAP entry.  To set the LDAP cluster name to use for a particular
+machine or set of machines, set the confLDAP_CLUSTER m4 variable to a
+unique name.  For example:
+
+	define(`confLDAP_CLUSTER', `Servers')
+
+Here, the word `Servers' will be the cluster name.  As an example, assume
+that smtp.sendmail.org, etrn.sendmail.org, and mx.sendmail.org all belong
+to the Servers cluster.
+
+Some of the LDAP LDIF examples below show use of the Servers cluster.
+Every entry must have either a sendmailMTAHost or sendmailMTACluster
+attribute or it will be ignored.  Be careful as mixing clusters and
+individual host records can have surprising results (see the CAUTION
+sections below).
+
+See the file cf/sendmail.schema for the actual LDAP schemas.  Note that
+this schema (and therefore the lookups and examples below) is experimental
+at this point as it has had little public review.  Therefore, it may change
+in future versions.  Feedback via sendmail@sendmail.org is encouraged.
+
+-------
+Aliases
+-------
+
+The ALIAS_FILE (O AliasFile) option can be set to use LDAP for alias
+lookups.  To use the default schema, simply use:
+
+	define(`ALIAS_FILE', `ldap:')
+
+By doing so, you will use the default schema which expands to a map
+declared as follows:
+
+	ldap -k (&(objectClass=sendmailMTAAliasObject)
+		  (sendmailMTAAliasGrouping=aliases)
+		  (|(sendmailMTACluster=${sendmailMTACluster})
+		    (sendmailMTAHost=$j))
+		  (sendmailMTAKey=%0))
+	     -v sendmailMTAAliasValue
+
+NOTE: The macros shown above ${sendmailMTACluster} and $j are not actually
+used when the binary expands the `ldap:' token as the AliasFile option is
+not actually macro-expanded when read from the sendmail.cf file.
+
+Example LDAP LDIF entries might be:
+
+	dn: sendmailMTAKey=sendmail-list, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAAlias
+	objectClass: sendmailMTAAliasObject
+	sendmailMTAAliasGrouping: aliases
+	sendmailMTAHost: etrn.sendmail.org
+	sendmailMTAKey: sendmail-list
+	sendmailMTAAliasValue: ca@example.org
+	sendmailMTAAliasValue: eric
+	sendmailMTAAliasValue: gshapiro@example.com
+
+	dn: sendmailMTAKey=owner-sendmail-list, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAAlias
+	objectClass: sendmailMTAAliasObject
+	sendmailMTAAliasGrouping: aliases
+	sendmailMTAHost: etrn.sendmail.org
+	sendmailMTAKey: owner-sendmail-list
+	sendmailMTAAliasValue: eric
+
+	dn: sendmailMTAKey=postmaster, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAAlias
+	objectClass: sendmailMTAAliasObject
+	sendmailMTAAliasGrouping: aliases
+	sendmailMTACluster: Servers
+	sendmailMTAKey: postmaster
+	sendmailMTAAliasValue: eric
+
+Here, the aliases sendmail-list and owner-sendmail-list will be available
+only on etrn.sendmail.org but the postmaster alias will be available on
+every machine in the Servers cluster (including etrn.sendmail.org).
+
+CAUTION: aliases are additive so that entries like these:
+
+	dn: sendmailMTAKey=bob, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAAlias
+	objectClass: sendmailMTAAliasObject
+	sendmailMTAAliasGrouping: aliases
+	sendmailMTACluster: Servers
+	sendmailMTAKey: bob
+	sendmailMTAAliasValue: eric
+
+	dn: sendmailMTAKey=bob, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAAlias
+	objectClass: sendmailMTAAliasObject
+	sendmailMTAAliasGrouping: aliases
+	sendmailMTAHost: etrn.sendmail.org
+	sendmailMTAKey: bob
+	sendmailMTAAliasValue: gshapiro
+
+would mean that on all of the hosts in the cluster, mail to bob would go to
+eric EXCEPT on etrn.sendmail.org in which case it would go to BOTH eric and
+gshapiro.
+
+If you prefer not to use the default LDAP schema for your aliases, you can
+specify the map parameters when setting ALIAS_FILE.  For example:
+
+	define(`ALIAS_FILE', `ldap:-k (&(objectClass=mailGroup)(mail=%0)) -v mgrpRFC822MailMember')
+
+----
+Maps
+----
+
+FEATURE()'s which take an optional map definition argument (e.g., access,
+mailertable, virtusertable, etc.) can instead take the special keyword
+`LDAP', e.g.:
+
+	FEATURE(`access_db', `LDAP')
+	FEATURE(`virtusertable', `LDAP')
+
+When this keyword is given, that map will use LDAP lookups consisting of
+the objectClass sendmailMTAClassObject, the attribute sendmailMTAMapName
+with the map name, a search attribute of sendmailMTAKey, and the value
+attribute sendmailMTAMapValue.
+
+The values for sendmailMTAMapName are:
+
+	FEATURE()		sendmailMTAMapName
+	---------		------------------
+	access_db		access
+	authinfo		authinfo
+	bitdomain		bitdomain
+	domaintable		domain
+	genericstable		generics
+	mailertable		mailer
+	uucpdomain		uucpdomain
+	virtusertable		virtuser
+
+For example, FEATURE(`mailertable', `LDAP') would use the map definition:
+
+	Kmailertable ldap -k (&(objectClass=sendmailMTAMapObject)
+			       (sendmailMTAMapName=mailer)
+			       (|(sendmailMTACluster=${sendmailMTACluster})
+				 (sendmailMTAHost=$j))
+			       (sendmailMTAKey=%0))
+			  -1 -v sendmailMTAMapValue
+
+An example LDAP LDIF entry using this map might be:
+
+	dn: sendmailMTAMapName=mailer, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAMap
+	sendmailMTACluster: Servers
+	sendmailMTAMapName: mailer
+
+	dn: sendmailMTAKey=example.com, sendmailMTAMapName=mailer, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAMap
+	objectClass: sendmailMTAMapObject
+	sendmailMTAMapName: mailer
+	sendmailMTACluster: Servers
+	sendmailMTAKey: example.com
+	sendmailMTAMapValue: relay:[smtp.example.com]
+
+CAUTION: If your LDAP database contains the record above and *ALSO* a host
+specific record such as:
+
+	dn: sendmailMTAKey=example.com@etrn, sendmailMTAMapName=mailer, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAMap
+	objectClass: sendmailMTAMapObject
+	sendmailMTAMapName: mailer
+	sendmailMTAHost: etrn.sendmail.org
+	sendmailMTAKey: example.com
+	sendmailMTAMapValue: relay:[mx.example.com]
+
+then these entries will give unexpected results.  When the lookup is done
+on etrn.sendmail.org, the effect is that there is *NO* match at all as maps
+require a single match.  Since the host etrn.sendmail.org is also in the
+Servers cluster, LDAP would return two answers for the example.com map key
+in which case sendmail would treat this as no match at all.
+
+If you prefer not to use the default LDAP schema for your maps, you can
+specify the map parameters when using the FEATURE().  For example:
+
+	FEATURE(`access_db', `ldap:-1 -k (&(objectClass=mapDatabase)(key=%0)) -v value')
+
+-------
+Classes
+-------
+
+Normally, classes can be filled via files or programs.  As of 8.12, they
+can also be filled via map lookups using a new syntax:
+
+	F{ClassName}mapkey@mapclass:mapspec
+
+mapkey is optional and if not provided the map key will be empty.  This can
+be used with LDAP to read classes from LDAP.  Note that the lookup is only
+done when sendmail is initially started.  Use the special value `@LDAP' to
+use the default LDAP schema.  For example:
+
+	RELAY_DOMAIN_FILE(`@LDAP')
+
+would put all of the attribute sendmailMTAClassValue values of LDAP records
+with objectClass sendmailMTAClass and an attribute sendmailMTAClassName of
+'R' into class $={R}.  In other words, it is equivalent to the LDAP map
+specification:
+
+	F{R}@ldap:-k (&(objectClass=sendmailMTAClass)
+		       (sendmailMTAClassName=R)
+		       (|(sendmailMTACluster=${sendmailMTACluster})
+			 (sendmailMTAHost=$j)))
+		  -v sendmailMTAClassValue
+
+NOTE: The macros shown above ${sendmailMTACluster} and $j are not actually
+used when the binary expands the `@LDAP' token as class declarations are
+not actually macro-expanded when read from the sendmail.cf file.
+
+This can be used with class related commands such as RELAY_DOMAIN_FILE(),
+MASQUERADE_DOMAIN_FILE(), etc:
+
+	Command				sendmailMTAClassName
+	-------				--------------------
+	CANONIFY_DOMAIN_FILE()		Canonify
+	EXPOSED_USER_FILE()		E
+	GENERICS_DOMAIN_FILE()		G
+	LDAPROUTE_DOMAIN_FILE()		LDAPRoute
+	LDAPROUTE_EQUIVALENT_FILE()	LDAPRouteEquiv
+	LOCAL_USER_FILE()		L
+	MASQUERADE_DOMAIN_FILE()	M
+	MASQUERADE_EXCEPTION_FILE()	N
+	RELAY_DOMAIN_FILE()		R
+	VIRTUSER_DOMAIN_FILE()		VirtHost
+
+You can also add your own as any 'F'ile class of the form:
+
+	F{ClassName}@LDAP
+	  ^^^^^^^^^
+will use "ClassName" for the sendmailMTAClassName.
+
+An example LDAP LDIF entry would look like:
+
+	dn: sendmailMTAClassName=R, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAClass
+	sendmailMTACluster: Servers
+	sendmailMTAClassName: R
+	sendmailMTAClassValue: sendmail.org
+	sendmailMTAClassValue: example.com
+	sendmailMTAClassValue: 10.56.23
+
+CAUTION: If your LDAP database contains the record above and *ALSO* a host
+specific record such as:
+
+	dn: sendmailMTAClassName=R@etrn.sendmail.org, dc=sendmail, dc=org
+	objectClass: sendmailMTA
+	objectClass: sendmailMTAClass
+	sendmailMTAHost: etrn.sendmail.org
+	sendmailMTAClassName: R
+	sendmailMTAClassValue: example.com
+
+the result will be similar to the aliases caution above.  When the lookup
+is done on etrn.sendmail.org, $={R} would contain all of the entries (from
+both the cluster match and the host match).  In other words, the effective
+is additive.
+
+If you prefer not to use the default LDAP schema for your classes, you can
+specify the map parameters when using the class command.  For example:
+
+	VIRTUSER_DOMAIN_FILE(`@ldap:-k (&(objectClass=virtHosts)(host=*)) -v host')
+
+Remember, macros can not be used in a class declaration as the binary does
+not expand them.
+
+
 +--------------+
 | LDAP ROUTING |
 +--------------+
@@ -1483,19 +1943,33 @@ LDAPROUTE_DOMAIN(), e.g.:
 
 	LDAPROUTE_DOMAIN(`example.com')
 
+Additionally, you can specify equivalent domains for LDAP routing using
+LDAPROUTE_EQUIVALENT() and LDAPROUTE_EQUIVALENT_FILE().  'Equivalent'
+hostnames are mapped to $M (the masqueraded hostname for the server) before
+the LDAP query.  For example, if the mail is addressed to
+user@host1.example.com, normally the LDAP lookup would only be done for
+'user@host1.example.com' and '@host1.example.com'.   However, if
+LDAPROUTE_EQUIVALENT(`host1.example.com') is used, the lookups would also be
+done on 'user@example.com' and '@example.com' after attempting the
+host1.example.com lookups.
+
 By default, the feature will use the schemas as specified in the draft
 and will not reject addresses not found by the LDAP lookup.  However,
 this behavior can be changed by giving additional arguments to the FEATURE()
 command:
 
-	FEATURE(`ldap_routing', <mailHost>, <mailRoutingAddress>, <bounce>)
+ FEATURE(`ldap_routing', <mailHost>, <mailRoutingAddress>, <bounce>, <detail>)
 
 where <mailHost> is a map definition describing how to lookup an alternative
 mail host for a particular address; <mailRoutingAddress> is a map definition
-describing how to lookup an alternative address for a particular address; and
+describing how to lookup an alternative address for a particular address;
 the <bounce> argument, if present and not the word "passthru", dictates
 that mail should be bounced if neither a mailHost nor mailRoutingAddress
-is found.
+is found; and <detail> indicates what actions to take if the address
+contains +detail information -- `strip' tries the lookup with the +detail
+and if no matches are found, strips the +detail and tries the lookup again;
+`preserve', does the same as `strip' but if a mailRoutingAddress match is
+found, the +detail information is copied to the new address.
 
 The default <mailHost> map definition is:
 
@@ -1537,7 +2011,10 @@ address:
 						original address *OR*
 						bounced as unknown user
 
-The term "local" host above means the host specified is in class {w}.
+The term "local" host above means the host specified is in class {w}.  If
+the result would mean sending the mail to a different host, that host is
+looked up in the mailertable before delivery.
+
 Note that the last case depends on whether the third argument is given
 to the FEATURE() command.  The default is to deliver the message to the
 original address.
@@ -1547,7 +2024,7 @@ inetLocalMailRecipient and the address be listed in a mailLocalAddress
 attribute.  If present, there must be only one mailHost attribute and it
 must contain a fully qualified host name as its value.  Similarly, if
 present, there must be only one mailRoutingAddress attribute and it must
-contain an RFC 822 compliant address.  Some example LDAP records (in ldif
+contain an RFC 822 compliant address.  Some example LDAP records (in LDIF
 format):
 
 	dn: uid=tom, o=example.com, c=US
@@ -1563,7 +2040,8 @@ This would deliver mail for tom@example.com to thomas@mailhost.example.com.
 	mailHost: eng.example.com
 
 This would relay mail for dick@example.com to the same address but redirect
-the mail to MX records listed for the host eng.example.com.
+the mail to MX records listed for the host eng.example.com (unless the
+mailertable overrides).
 
 	dn: uid=harry, o=example.com, c=US
 	objectClass: inetLocalMailRecipient
@@ -1604,13 +2082,22 @@ If you really want to revert to the old behaviour, you will need to use
 FEATURE(`promiscuous_relay').  You can allow certain domains to relay
 through your server by adding their domain name or IP address to class
 {R} using RELAY_DOMAIN() and RELAY_DOMAIN_FILE() or via the access database
-(described below).  The file consists (like any other file based class)
-of entries listed on separate lines, e.g.,
+(described below).  Note that IPv6 addresses must be prefaced with "IPv6:".
+The file consists (like any other file based class) of entries listed on
+separate lines, e.g.,
 
 	sendmail.org
 	128.32
-	1:2:3:4:5:6:7
+	IPv6:2002:c0a8:02c7
+	IPv6:2002:c0a8:51d2::23f4
 	host.mydomain.com
+	[UNIX:localhost]
+
+Notice: the last entry allows relaying for connections via a UNIX
+socket to the MTA/MSP.  This might be necessary if your configuration
+doesn't allow relaying by other means in that case, e.g., by having
+localhost.$m in class {R} (make sure $m is not just a top level
+domain).
 
 If you use
 
@@ -1627,16 +2114,20 @@ portion of an incoming recipient address by using
 
 For example, if your server receives a recipient of user@domain.com
 and domain.com lists your server in its MX records, the mail will be
-accepted for relay to domain.com.  Note that this will stop spammers
-from using your host to relay spam but it will not stop outsiders from
-using your server as a relay for their site (that is, they set up an
-MX record pointing to your mail server, and you will relay mail addressed
-to them without any prior arrangement).  Along the same lines,
+accepted for relay to domain.com.  This feature may cause problems
+if MX lookups for the recipient domain are slow or time out.  In that
+case, mail will be temporarily rejected.  It is usually better to
+maintain a list of hosts/domains for which the server acts as relay.
+Note also that this feature will stop spammers from using your host
+to relay spam but it will not stop outsiders from using your server
+as a relay for their site (that is, they set up an MX record pointing
+to your mail server, and you will relay mail addressed to them
+without any prior arrangement).  Along the same lines,
 
 	FEATURE(`relay_local_from')
 
 will allow relaying if the sender specifies a return path (i.e.
-MAIL FROM: <user@domain>) domain which is a local domain.  This a
+MAIL FROM: <user@domain>) domain which is a local domain.  This is a
 dangerous feature as it will allow spammers to spam using your mail
 server by simply specifying a return address of user@your.domain.com.
 It should not be used unless absolutely necessary.
@@ -1648,10 +2139,15 @@ which allows relaying if the mail sender is listed as RELAY in the
 access map.  If an optional argument `domain' is given, the domain
 portion of the mail sender is also checked to allowing relaying.
 This option only works together with the tag From: for the LHS of
-the access map entries (see below: Finer control...).
+the access map entries (see below: Finer control...).  This feature
+allows spammers to abuse your mail server by specifying a return
+address that you enabled in your access file.  This may be harder
+to figure out for spammers, but it should not be used unless
+necessary.  Instead use SMTP AUTH or STARTTLS to allow relaying
+for roaming users.
 
 
-If source routing is used in the recipient address (i.e.
+If source routing is used in the recipient address (e.g.,
 RCPT TO: <user%site.com@othersite.com>), sendmail will check
 user@site.com for relaying if othersite.com is an allowed relay host
 in either class {R}, class {m} if FEATURE(`relay_entire_domain') is used,
@@ -1679,13 +2175,29 @@ or reject those addresses.
 
 As of 8.9, sendmail will refuse mail if the MAIL FROM: parameter has
 an unresolvable domain (i.e., one that DNS, your local name service,
-or special case rules in ruleset 3 cannot locate).  If you want to
-continue to accept such domains, e.g., because you are inside a
-firewall that has only a limited view of the Internet host name space
-(note that you will not be able to return mail to them unless you have
-some "smart host" forwarder), use
+or special case rules in ruleset 3 cannot locate).  This also applies
+to addresses that use domain literals, e.g., <user@[1.2.3.4]>, if the
+IP address can't be mapped to a host name.  If you want to continue
+to accept such domains, e.g., because you are inside a firewall that
+has only a limited view of the Internet host name space (note that you
+will not be able to return mail to them unless you have some "smart
+host" forwarder), use
 
 	FEATURE(`accept_unresolvable_domains')
+
+Alternatively, you can allow specific addresses by adding them to
+the access map, e.g.,
+
+	From:unresolvable.domain	OK
+	From:[1.2.3.4]			OK
+	From:[1.2.4]			OK
+
+Notice: domains which are temporarily unresolvable are (temporarily)
+rejected with a 451 reply code.  If those domains should be accepted
+(which is discouraged) then you can use
+
+	LOCAL_CONFIG
+	C{ResOk}TEMP
 
 sendmail will also refuse mail if the MAIL FROM: parameter is not
 fully qualified (i.e., contains a domain as well as a user).  If you
@@ -1696,7 +2208,7 @@ want to continue to accept such senders, use
 Setting the DaemonPortOptions modifier 'u' overrides the default behavior,
 i.e., unqualified addresses are accepted even without this FEATURE.  If
 this FEATURE is not used, the DaemonPortOptions modifier 'f' can be used
-to enforce fully qualified addresses.
+to enforce fully qualified domain names.
 
 An ``access'' database can be created to accept or reject mail from
 selected domains.  For example, you may choose to reject all mail
@@ -1704,10 +2216,19 @@ originating from known spammers.  To enable such a database, use
 
 	FEATURE(`access_db')
 
-The FEATURE macro can accept a second parameter giving the key file
+Notice: the access database is applied to the envelope addresses
+and the connection information, not to the header.
+
+The FEATURE macro can accept as second parameter the key file
 definition for the database; for example
 
-	FEATURE(`access_db', `hash /etc/mail/access')
+	FEATURE(`access_db', `hash -T<TMPF> /etc/mail/access_map')
+
+Notice: If a second argument is specified it must contain the option
+`-T<TMPF>' as shown above.  The optional third and fourth parameters
+may be `skip' or `lookupdotdomain'.  The former enables SKIP as
+value part (see below), the latter is another way to enable the
+feature of the same name (see above).
 
 Remember, since /etc/mail/access is a database, after creating the text
 file as described below, you must use makemap to create the database
@@ -1716,21 +2237,27 @@ map.  For example:
 	makemap hash /etc/mail/access < /etc/mail/access
 
 The table itself uses e-mail addresses, domain names, and network
-numbers as keys.  For example,
+numbers as keys.  Note that IPv6 addresses must be prefaced with "IPv6:".
+For example,
 
-	spammer@aol.com		REJECT
-	cyberspammer.com	REJECT
-	192.168.212		REJECT
+	spammer@aol.com			REJECT
+	cyberspammer.com		REJECT
+	192.168.212			REJECT
+	IPv6:2002:c0a8:02c7		RELAY
+	IPv6:2002:c0a8:51d2::23f4	REJECT
 
 would refuse mail from spammer@aol.com, any user from cyberspammer.com
-(or any host within the cyberspammer.com domain), and any host on the
-192.168.212.* network.
+(or any host within the cyberspammer.com domain), any host on the
+192.168.212.* network, and the IPv6 address 2002:c0a8:51d2::23f4.  It would
+allow relay for the IPv6 network 2002:c0a8:02c7::/48.
 
 The value part of the map can contain:
 
-	OK		Accept mail even if other rules in the
-			running ruleset would reject it, for example,
-			if the domain name is unresolvable.
+	OK		Accept mail even if other rules in the running
+			ruleset would reject it, for example, if the domain
+			name is unresolvable.  "Accept" does not mean
+			"relay", but at most acceptance for local
+			recipients.  That is, OK allows less than RELAY.
 	RELAY		Accept mail addressed to the indicated domain or
 			received from the indicated domain for relaying
 			through your SMTP server.  RELAY also serves as
@@ -1742,10 +2269,16 @@ The value part of the map can contain:
 			it affects only the designated recipient, not
 			the whole message as it does in all other cases.
 			This should only be used if really necessary.
+	SKIP		This can only be used for host/domain names
+			and IP addresses/nets.  It will abort the current
+			search for this entry without accepting or rejecting
+			it but causing the default action.
 	### any text	where ### is an RFC 821 compliant error code and
 			"any text" is a message to return for the command.
 			The string should be quoted to avoid surprises,
 			e.g., sendmail may remove spaces otherwise.
+			This type is deprecated, use one the two
+			ERROR:  entries below instead.
 	ERROR:### any text
 			as above, but useful to mark error messages as such.
 	ERROR:D.S.N:### any text
@@ -1754,13 +2287,13 @@ The value part of the map can contain:
 
 For example:
 
-	cyberspammer.com	ERROR:"550 We don't accept mail from spammers"
+	cyberspammer.com	ERROR:550 "We don't accept mail from spammers"
 	okay.cyberspammer.com	OK
 	sendmail.org		RELAY
 	128.32			RELAY
-	1:2:3:4:5:6:7		RELAY
+	IPv6:1:2:3:4:5:6:7	RELAY
 	[127.0.0.3]		OK
-	[1:2:3:4:5:6:7:8]	OK
+	[IPv6:1:2:3:4:5:6:7:8]	OK
 
 would accept mail from okay.cyberspammer.com, but would reject mail from
 all other hosts at cyberspammer.com with the indicated message.  It would
@@ -1768,20 +2301,22 @@ allow relaying mail from and to any hosts in the sendmail.org domain, and
 allow relaying from the 128.32.*.* network and the IPv6 1:2:3:4:5:6:7:*
 network.  The latter two entries are for checks against ${client_name} if
 the IP address doesn't resolve to a hostname (or is considered as "may be
-forged").
+forged").  That is, using square brackets means these are host names,
+not network numbers.
 
 Warning: if you change the RFC 821 compliant error code from the default
 value of 550, then you should probably also change the RFC 1893 compliant
 error code to match it.  For example, if you use
 
-	user@example.com	450 mailbox full
+	user@example.com	ERROR:450 mailbox full
 
-the error returned would be "450 4.0.0 mailbox full" which is wrong.
-Use "450 4.2.2 mailbox full" or "ERROR:4.2.2:450 mailbox full"
-instead.
+the error returned would be "450 5.0.0 mailbox full" which is wrong.
+Use "ERROR:4.2.2:450 mailbox full" instead.
 
 Note, UUCP users may need to add hostname.UUCP to the access database
-or class {R}.  If you also use:
+or class {R}.
+
+If you also use:
 
 	FEATURE(`relay_hosts_only')
 
@@ -1824,13 +2359,14 @@ the example from above:
 
 Mail can't be sent to spammer@aol.com or anyone at cyberspammer.com.
 
-There is also a ``Realtime Blackhole List'' run by the MAPS project
-at http://maps.vix.com/.  This is a database maintained in DNS of
-spammers.  To use this database, use
+There are several DNS based blacklists, the first of which was
+the RBL (``Realtime Blackhole List'') run by the MAPS project,
+see http://mail-abuse.org/.  These are databases of spammers
+maintained in DNS.  To use such a database, specify
 
 	FEATURE(`dnsbl')
 
-This will cause sendmail to reject mail from any site in the
+This will cause sendmail to reject mail from any site in the original
 Realtime Blackhole List database.  This default DNS blacklist,
 blackholes.mail-abuse.org, is a service offered by the Mail Abuse
 Prevention System (MAPS).  As of July 31, 2001, MAPS is a subscription
@@ -1840,22 +2376,46 @@ subscribed.  Contact MAPS to subscribe (http://mail-abuse.org/).
 You can specify an alternative RBL server to check by specifying an
 argument to the FEATURE.  The default error message is
 
-You can specify an alternative RBL domain to check by specifying an
-argument to the FEATURE.  The default error message is
+	Mail from IP-ADDRESS refused by blackhole site SERVER
 
-	Mail from $&{client_addr} refused by blackhole site DOMAIN
+where IP-ADDRESS and SERVER are replaced by the appropriate
+information.  A second argument can be used to specify a different
+text.  By default, temporary lookup failures are ignored and hence
+cause the connection not to be rejected by the DNS based rejection
+list.  This behavior can be changed by specifying a third argument,
+which must be either `t' or a full error message.  For example:
 
-where DOMAIN is the first argument of the feature.  A second argument
-can be used to specify a different text.  This FEATURE can be
-included several times to query different DNS based rejection lists,
-e.g., the dial-up user list (see http://maps.vix.com/dul/).
+	FEATURE(`dnsbl', `dnsbl.example.com', `',
+	`"451 Temporary lookup failure for " $&{client_addr} " in dnsbl.example.com"')
+
+If `t' is used, the error message is:
+
+	451 Temporary lookup failure of IP-ADDRESS at SERVER
+
+where IP-ADDRESS and SERVER are replaced by the appropriate
+information.
+
+This FEATURE can be included several times to query different
+DNS based rejection lists, e.g., the dial-up user list (see
+http://mail-abuse.org/dul/).
+
+Notice: to avoid checking your own local domains against those
+blacklists, use the access_db feature and add:
+
+	Connect:10.1		OK
+	Connect:127.0.0.1	RELAY
+
+to the access map, where 10.1 is your local network.  You may
+want to use "RELAY" instead of "OK" to allow also relaying
+instead of just disabling the DNS lookups in the backlists.
+
 
 The features described above make use of the check_relay, check_mail,
 and check_rcpt rulesets.  If you wish to include your own checks,
 you can put your checks in the rulesets Local_check_relay,
 Local_check_mail, and Local_check_rcpt.  For example if you wanted to
 block senders with all numeric usernames (i.e. 2312343@bigisp.com),
-you would use Local_check_mail and the new regex map:
+you would use Local_check_mail and the regex map:
 
 	LOCAL_CONFIG
 	Kallnumbers regex -a@MATCH ^[0-9]+$
@@ -1875,6 +2435,7 @@ appropriate action is taken.  Otherwise, the results of the local
 rewriting are ignored.
 
 Finer control by using tags for the LHS of the access map
+---------------------------------------------------------
 
 Read this section only if the options listed so far are not sufficient
 for your purposes.  There is now the option to tag entries in the
@@ -1886,7 +2447,8 @@ access map according to their type.  Three tags are available:
 
 If the required item is looked up in a map, it will be tried first
 with the corresponding tag in front, then (as fallback to enable
-backward compatibility) without any tag.  For example,
+backward compatibility) without any tag, unless the specific feature
+requires a tag.  For example,
 
 	From:spammer@some.dom	REJECT
 	To:friend.domain	RELAY
@@ -1909,6 +2471,7 @@ reject mail from all other addresses with another.dom as domain
 part.
 
 Delay all checks
+----------------
 
 By using FEATURE(`delay_checks') the rulesets check_mail and check_relay
 will not be called when a client connects or issues a MAIL command,
@@ -1943,24 +2506,33 @@ FEATURE(`delay_checks') can take an optional argument:
 		 enables spamhater test
 
 If such an argument is given, the recipient will be looked up in the access
-map (using the tag To:).  If the argument is `friend', then the other
+map (using the tag Spam:).  If the argument is `friend', then the other
 rulesets will be skipped if the recipient address is found and has RHS
-spamfriend.  If the argument is `hater', then the other rulesets will be
-applied if the recipient address is found and has RHS spamhater.
+friend.  If the argument is `hater', then the other rulesets will be
+applied if the recipient address is found and has RHS hater.
 
 This allows for simple exceptions from the tests, e.g., by activating
-the spamfriend option and having
+the friend option and having
 
-	To:abuse@	SPAMFRIEND
+	Spam:abuse@	FRIEND
 
 in the access map, mail to abuse@localdomain will get through.  It is
 also possible to specify a full address or an address with +detail:
 
-	To:abuse@abuse.my.domain	SPAMFRIEND
-	To:me+abuse@		SPAMFRIEND
+	Spam:abuse@my.domain	FRIEND
+	Spam:me+abuse@		FRIEND
+	Spam:spam.domain	FRIEND
 
+Note: The required tag has been changed in 8.12 from To: to Spam:.
+This change is incompatible to previous versions.  However, you can
+(for now) simply add the new entries to the access map, the old
+ones will be ignored.  As soon as you removed the old entries from
+the access map, specify a third parameter (`n') to this feature and
+the backward compatibility rules will not be in the generated .cf
+file.
 
 Header Checks
+-------------
 
 You can also reject mail on the basis of the contents of headers.
 This is done by adding a ruleset call to the 'H' header definition command
@@ -1987,10 +2559,14 @@ defined for them can be given by:
 
 	H*: $>CheckHdr
 
-Notice: All rules act on tokens as explained in doc/op/op.{me,ps,txt}.
+Notice:
+1. All rules act on tokens as explained in doc/op/op.{me,ps,txt}.
 That may cause problems with simple header checks due to the
-tokenization. It might be simpler to use a regex map and apply it
+tokenization.  It might be simpler to use a regex map and apply it
 to $&{currHeader}.
+2. There are no default rulesets coming with this distribution of
+sendmail.  You can either write your own or you can search the
+WWW for examples, e.g.,  http://www.digitalanswers.org/check_local/
 
 After all of the headers are read, the check_eoh ruleset will be called for
 any final header-related checks.  The ruleset is called with the number of
@@ -2031,7 +2607,8 @@ probably not be used in production.
 +----------+
 
 In this text, cert will be used as an abreviation for X.509 certificate,
-DN is the distinguished name of a cert, and CA is a certification authority.
+DN (CN) is the distinguished (common) name of a cert, and CA is a
+certification authority, which signs (issues) certs.
 
 For STARTTLS to be offered by sendmail you need to set at least
 this variables (the file names and paths are just examples):
@@ -2044,53 +2621,57 @@ this variables (the file names and paths are just examples):
 On systems which do not have the compile flag HASURANDOM set (see
 sendmail/README) you also must set confRAND_FILE.
 
-See doc/op/op.{me,ps} for more information about these options,
-esp. the sections ``Certificates for STARTTLS'' and ``PRNG for
+See doc/op/op.{me,ps,txt} for more information about these options,
+especially the sections ``Certificates for STARTTLS'' and ``PRNG for
 STARTTLS''.
 
 Macros related to STARTTLS are:
 
 ${cert_issuer} holds the DN of the CA (the cert issuer).
 ${cert_subject} holds the DN of the cert (called the cert subject).
+${cn_issuer} holds the CN of the CA (the cert issuer).
+${cn_subject} holds the CN of the cert (called the cert subject).
 ${tls_version} the TLS/SSL version used for the connection, e.g., TLSv1,
-	SSLv3, SSLv2.
+	TLSv1/SSLv3, SSLv3, SSLv2.
 ${cipher} the cipher used for the connection, e.g., EDH-DSS-DES-CBC3-SHA,
 	EDH-RSA-DES-CBC-SHA, DES-CBC-MD5, DES-CBC3-SHA.
 ${cipher_bits} the keylength (in bits) of the symmetric encryption algorithm
 	used for the connection.
-${verify} holds the result of the verification of the presented cert. Possible
-	values are:
-	OK	verification succeeded.
-	NO	no cert presented.
-	FAIL	cert presented but could not be verified, e.g., the signing
-		CA is missing.
-	NONE	STARTTLS has not been performed.
-	TEMP	temporary error occurred.
-	PROTOCOL some protocol error occurred.
+${verify} holds the result of the verification of the presented cert.
+	Possible values are:
+	OK	 verification succeeded.
+	NO	 no cert presented.
+	NOT	 no cert requested.
+	FAIL	 cert presented but could not be verified,
+		 e.g., the cert of the signing CA is missing.
+	NONE	 STARTTLS has not been performed.
+	TEMP	 temporary error occurred.
+	PROTOCOL protocol error occurred (SMTP level).
 	SOFTWARE STARTTLS handshake failed.
-${server_name}	the name of the server of the current outgoing SMTP
+${server_name} the name of the server of the current outgoing SMTP
 	connection.
-${server_addr}	the address of the server of the current outgoing SMTP
+${server_addr} the address of the server of the current outgoing SMTP
 	connection.
 
 Relaying
+--------
 
 SMTP STARTTLS can allow relaying for senders who have successfully
-authenticated themselves. This is done in the ruleset RelayAuth. If the
+authenticated themselves.  This is done in the ruleset RelayAuth.  If the
 verification of the cert failed (${verify} != OK), relaying is subject to
-the usual rules. Otherwise the DN of the issuer is looked up in the access
-map using the tag CERTISSUER. If the resulting value is RELAY, relaying is
-allowed. If it is SUBJECT, the DN of the cert subject is looked up next in
-the access map. using the tag CERTSUBJECT. If the value is RELAY, relaying
+the usual rules.  Otherwise the DN of the issuer is looked up in the access
+map using the tag CERTISSUER.  If the resulting value is RELAY, relaying is
+allowed.  If it is SUBJECT, the DN of the cert subject is looked up next in
+the access map using the tag CERTSUBJECT.  If the value is RELAY, relaying
 is allowed.
 
 To make things a bit more flexible (or complicated), the values for
 ${cert_issuer} and ${cert_subject} can be optionally modified by regular
 expressions defined in the m4 variables _CERT_REGEX_ISSUER_ and
-_CERT_REGEX_SUBJECT_, respectively. To avoid problems with those macros in
+_CERT_REGEX_SUBJECT_, respectively.  To avoid problems with those macros in
 rulesets and map lookups, they are modified as follows: each non-printable
 character and the characters '<', '>', '(', ')', '"', '+' are replaced by
-their HEX value with a leading '+'. For example:
+their HEX value with a leading '+'.  For example:
 
 /C=US/ST=California/O=endmail.org/OU=private/CN=Darth Mail (Cert)/Email=
 darth+cert@endmail.org
@@ -2102,7 +2683,34 @@ Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
 
 (line breaks have been inserted for readability).
 
-Of course it is also possible to write a simple rulesets that allows
+Examples:
+
+To allow relaying for everyone who can present a cert signed by
+
+/C=US/ST=California/O=endmail.org/OU=private/CN=
+Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
+
+simply use:
+
+CERTIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
+Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org	RELAY
+
+To allow relaying only for a subset of machines that have a cert signed by
+
+/C=US/ST=California/O=endmail.org/OU=private/CN=
+Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
+
+use:
+
+CERTIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
+Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org	SUBJECT
+CERTSubject:/C=US/ST=California/O=endmail.org/OU=private/CN=
+DeathStar/Email=deathstar@endmail.org		RELAY
+
+Note: line breaks have been inserted after "CN=" for readability,
+each tagged entry must be one (long) line in the access map.
+
+Of course it is also possible to write a simple ruleset that allows
 relaying for everyone who can present a cert that can be verified, e.g.,
 
 LOCAL_RULESETS
@@ -2111,51 +2719,27 @@ R$*	$: $&{verify}
 ROK	$# OK
 
 Allowing Connections
+--------------------
 
-The rulesets tls_server and tls_client are used to decide whether an SMTP
-connection is accepted (or should continue).
+The rulesets tls_server, tls_client, and tls_rcpt are used to decide whether
+an SMTP connection is accepted (or should continue).
 
 tls_server is called when sendmail acts as client after a STARTTLS command
-(should) have been issued. The parameter is the value of ${verify}.
+(should) have been issued.  The parameter is the value of ${verify}.
 
 tls_client is called when sendmail acts as server, after a STARTTLS command
-has been issued, and from check_mail. The parameter is the value of
+has been issued, and from check_mail.  The parameter is the value of
 ${verify} and STARTTLS or MAIL, respectively.
 
-Both rulesets behave the same. If no access map is in use, the connection
+Both rulesets behave the same.  If no access map is in use, the connection
 will be accepted unless ${verify} is SOFTWARE, in which case the connection
-is always aborted.  Otherwise, ${client_name} (${server_name}) is looked
-up in the access map using the tag TLS_Srv (or TLS_Clt), which is done
-with the ruleset LookUpDomain. If no entry is found, ${client_addr}
+is always aborted.  For tls_server/tls_client, ${client_name}/${server_name}
+is looked up in the access map using the tag TLS_Srv/TLS_Clt, which is done
+with the ruleset LookUpDomain.  If no entry is found, ${client_addr}
 (${server_addr}) is looked up in the access map (same tag, ruleset
-LookUpAddr). If this doesn't result in an entry either, just the tag is
-looked up in the access map (included the trailing :).  The result of the
-lookups is then used to call the ruleset tls_connection, which checks the
-requirement specified by the RHS in the access map against the actual
-parameters of the current TLS connection, esp. ${verify} and
-${cipher_bits}. Legal RHSs in the access map are:
-
-VERIFY		verification must have succeeded
-VERIFY:bits	verification must have succeeded and ${cipher_bits} must
-		be greater than or equal bits.
-ENCR:bits	${cipher_bits} must be greater than or equal bits.
-
-The RHS can optionally be prefixed by TEMP+ or PERM+ to select a temporary
-or permanent error. The default is a temporary error code (403 4.7.0)
-unless the macro TLS_PERM_ERR is set during generation of the .cf file.
-
-If a certain level of encryption is required, then it might also be
-possible that this level is provided by the security layer from a SASL
-algorithm, e.g., DIGEST-MD5.
-
-Example: e-mail sent to secure.example.com should only use an encrypted
-connection. e-mail received from hosts within the laptop.example.com domain
-should only be accepted if they have been authenticated.
-TLS_Srv:secure.example.com      ENCR:112
-TLS_Clt:laptop.example.com      PERM+VERIFY:112
-
-Notice: requiring that e-mail is sent to a server only encrypted,
-e.g., via
+LookUpAddr).  If this doesn't result in an entry either, just the tag is
+looked up in the access map (included the trailing colon).  Notice:
+requiring that e-mail is sent to a server only encrypted, e.g., via
 
 TLS_Srv:secure.domain	ENCR:112
 
@@ -2166,14 +2750,83 @@ secure.domain.	IN MX 10	mail.secure.domain.
 secure.domain.	IN MX 50	mail.other.domain.
 
 then mail to user@secure.domain may go unencrypted to mail.other.domain.
+tls_rcpt can be used to address this problem.
+
+tls_rcpt is called before a RCPT TO: command is sent.  The parameter is the
+current recipient.  This ruleset is only defined if FEATURE(`access_db')
+is selected.  A recipient address user@domain is looked up in the access
+map in four formats: TLS_Rcpt:user@domain, TLS_Rcpt:user@, TLS_Rcpt:domain,
+and TLS_Rcpt:; the first match is taken.
+
+The result of the lookups is then used to call the ruleset TLS_connection,
+which checks the requirement specified by the RHS in the access map against
+the actual parameters of the current TLS connection, esp. ${verify} and
+${cipher_bits}.  Legal RHSs in the access map are:
+
+VERIFY		verification must have succeeded
+VERIFY:bits	verification must have succeeded and ${cipher_bits} must
+		be greater than or equal bits.
+ENCR:bits	${cipher_bits} must be greater than or equal bits.
+
+The RHS can optionally be prefixed by TEMP+ or PERM+ to select a temporary
+or permanent error.  The default is a temporary error code (403 4.7.0)
+unless the macro TLS_PERM_ERR is set during generation of the .cf file.
+
+If a certain level of encryption is required, then it might also be
+possible that this level is provided by the security layer from a SASL
+algorithm, e.g., DIGEST-MD5.
+
+Furthermore, there can be a list of extensions added.  Such a list
+starts with '+' and the items are separated by '++'.  Allowed
+extensions are:
+
+CN:name		name must match ${cn_subject}
+CN		${server_name} must match ${cn_subject}
+CS:name		name must match ${cert_subject}
+CI:name		name must match ${cert_issuer}
+
+Example: e-mail sent to secure.example.com should only use an encrypted
+connection.  E-mail received from hosts within the laptop.example.com domain
+should only be accepted if they have been authenticated.  The host which
+receives e-mail for darth@endmail.org must present a cert that uses the
+CN smtp.endmail.org.
+
+TLS_Srv:secure.example.com      ENCR:112
+TLS_Clt:laptop.example.com      PERM+VERIFY:112
+TLS_Rcpt:darth@endmail.org	ENCR:112+CN:smtp.endmail.org
+
+
+Disabling STARTTLS And Setting SMTP Server Features
+---------------------------------------------------
+
+By default STARTTLS is used whenever possible.  However, there are
+some broken MTAs that don't properly implement STARTTLS.  To be able
+to send to (or receive from) those MTAs, the ruleset try_tls
+(srv_features) can be used that work together with the access map.
+Entries for the access map must be tagged with Try_TLS (Srv_Features)
+and refer to the hostname or IP address of the connecting system.
+A default case can be specified by using just the tag.  For example,
+the following entries in the access map:
+
+	Try_TLS:broken.server	NO
+	Srv_Features:my.domain	v
+	Srv_Features:		V
+
+will turn off STARTTLS when sending to broken.server (or any host
+in that domain), and request a client certificate during the TLS
+handshake only for hosts in my.domain.  The valid entries on the RHS
+for Srv_Features are listed in the Sendmail Installation and
+Operations Guide.
 
 
 Received: Header
+----------------
 
-The Received: header reveals whether STARTTLS has been used. It contains an
+The Received: header reveals whether STARTTLS has been used.  It contains an
 extra line:
 
-(using ${tls_version} with cipher ${cipher} (${cipher_bits} bits) verified ${verify})
+(version=${tls_version} cipher=${cipher} bits=${cipher_bits} verify=${verify})
+
 
 +---------------------+
 | SMTP AUTHENTICATION |
@@ -2198,7 +2851,7 @@ RDIGEST-MD5 $| $+@$=w	$# OK
 to allow relaying for users that authenticated using DIGEST-MD5
 and have an identity in the local domains.
 
-The ruleset Strust_auth is used to determine whether a given AUTH=
+The ruleset trust_auth is used to determine whether a given AUTH=
 parameter (that is passed to this ruleset) should be trusted.  This
 ruleset may make use of the other ${auth_*} macros.  Only if the
 ruleset resolves to the error mailer, the AUTH= parameter is not
@@ -2216,6 +2869,48 @@ If the selected mechanism provides a security layer the number of
 bits used for the key of the symmetric cipher is stored in the
 macro ${auth_ssf}.
 
+If sendmail acts as client, it needs some information how to
+authenticate against another MTA.  This information can be provided
+by the ruleset authinfo or by the option DefaultAuthInfo.  The
+authinfo ruleset looks up {server_name} using the tag AuthInfo: in
+the access map.  If no entry is found, {server_addr} is looked up
+in the same way and finally just the tag AuthInfo: to provide
+default values.
+
+Notice: the default configuration file causes the option DefaultAuthInfo
+to fail since the ruleset authinfo is in the .cf file. If you really
+want to use DefaultAuthInfo (it is deprecated) then you have to
+remove the ruleset.
+
+The RHS for an AuthInfo: entry in the access map should consists of a
+list of tokens, each of which has the form: "TDstring" (including
+the quotes).  T is a tag which describes the item, D is a delimiter,
+either ':' for simple text or '=' for a base64 encoded string.
+Valid values for the tag are:
+
+	U	user (authorization) id
+	I	authentication id
+	P	password
+	R	realm
+	M	list of mechanisms delimited by spaces
+
+Example entries are:
+
+AuthInfo:other.dom "U:user" "I:user" "P:secret" "R:other.dom" "M:DIGEST-MD5"
+AuthInfo:more.dom "U:user" "P=c2VjcmV0"
+
+User or authentication id must exist as well as the password.  All
+other entries have default values.  If one of user or authentication
+id is missing, the existing value is used for the missing item.
+If "R:" is not specified, realm defaults to $j.  The list of mechanisms
+defaults to those specified by AuthMechanisms.
+
+Since this map contains sensitive information, either the access
+map must be unreadable by everyone but root (or the trusted user)
+or FEATURE(`authinfo') must be used which provides a separate map.
+Notice: It is not checked whether the map is actually
+group/world-unreadable, this is left to the user.
+
 +--------------------------------+
 | ADDING NEW MAILERS OR RULESETS |
 +--------------------------------+
@@ -2232,8 +2927,19 @@ LOCAL_RULESETS respectively.  For example:
 	Smyruleset
 	...
 
+Local additions for the rulesets srv_features, try_tls, tls_rcpt,
+tls_client, and tls_server can be made using LOCAL_SRV_FEATURES,
+LOCAL_TRY_TLS, LOCAL_TLS_RCPT, LOCAL_TLS_CLIENT, and LOCAL_TLS_SERVER,
+respectively.  For example, to add a local ruleset that decides
+whether to try STARTTLS in a sendmail client, use:
 
-#if _FFR_MILTER
+	LOCAL_TRY_TLS
+	R...
+
+Note: you don't need to add a name for the ruleset, it is implicitly
+defined by using the appropriate macro.
+
+
 +-------------------------+
 | ADDING NEW MAIL FILTERS |
 +-------------------------+
@@ -2275,8 +2981,20 @@ more filters than you want to use for `confINPUT_MAIL_FILTERS'.
 Note that setting `confINPUT_MAIL_FILTERS' after any INPUT_MAIL_FILTER()
 commands will clear the list created by the prior INPUT_MAIL_FILTER()
 commands.
-#endif /* _FFR_MILTER */
 
+
++-------------------------+
+| QUEUE GROUP DEFINITIONS |
++-------------------------+
+
+In addition to the queue directory (which is the default queue group
+called "mqueue"), sendmail can deal with multiple queue groups, which
+are collections of queue directories with the same behaviour.  Queue
+groups can be defined using the command:
+
+	QUEUE_GROUP(`name', `equates')
+
+For details about queue groups, please see doc/op/op.{me,ps,txt}.
 
 +-------------------------------+
 | NON-SMTP BASED CONFIGURATIONS |
@@ -2391,7 +3109,7 @@ something like:
 	my.domain		esmtp:host.my.domain
 
 The RHS should always be a "mailer:host" pair.  The mailer is the
-configuration name of a mailer (that is, an {M} line in the
+configuration name of a mailer (that is, an M line in the
 sendmail.cf file).  The "host" will be the hostname passed to
 that mailer.  In domain-based matches (that is, those with leading
 dots) the "%1" may be used to interpolate the wildcarded part of
@@ -2537,6 +3255,11 @@ confDOMAIN_NAME		$j macro	If defined, sets $j.  This should
 					domain name.
 confCF_VERSION		$Z macro	If defined, this is appended to the
 					configuration version name.
+confLDAP_CLUSTER	${sendmailMTACluster} macro
+					If defined, this is the LDAP
+					cluster to use for LDAP searches
+					as described above in ``USING LDAP
+					FOR ALIASES, MAPS, AND CLASSES''.
 confFROM_HEADER		From:		[$?x$x <$g>$|$g$.] The format of an
 					internally generated From: address.
 confRECEIVED_HEADER	Received:
@@ -2607,13 +3330,6 @@ confCHECKPOINT_INTERVAL	CheckpointInterval
 					[10] Checkpoint queue files every N
 					recipients.
 confDELIVERY_MODE	DeliveryMode	[background] Default delivery mode.
-confAUTO_REBUILD	AutoRebuildAliases
-					[False] Automatically rebuild alias
-					file if needed.
-					There is a potential for a denial
-					of service attack if this is set.
-					This option is deprecated and will
-					be removed from a future version.
 confERROR_MODE		ErrorMode	[print] Error message mode.
 confERROR_MESSAGE	ErrorHeader	[undefined] Error message header/file.
 confSAVE_FROM_LINES	SaveFromLine	Save extra leading From_ lines.
@@ -2671,13 +3387,15 @@ confCHECK_ALIASES	CheckAliases	[False] Check RHS of aliases when
 					considerably on large alias files.
 confOLD_STYLE_HEADERS*	OldStyleHeaders	[True] Assume that headers without
 					special chars are old style.
-confCLIENT_OPTIONS	ClientPortOptions
-					[none] Options for outgoing SMTP client
-					connections.
 confPRIVACY_FLAGS	PrivacyOptions	[authwarnings] Privacy flags.
 confCOPY_ERRORS_TO	PostmasterCopy	[undefined] Address for additional
 					copies of all error messages.
 confQUEUE_FACTOR	QueueFactor	[600000] Slope of queue-only function.
+confQUEUE_FILE_MODE	QueueFileMode	[undefined] Default permissions for
+					queue files (octal).  If not set,
+					sendmail uses 0600 unless its real
+					and effective uid are different in
+					which case it uses 0644.
 confDONT_PRUNE_ROUTES	DontPruneRoutes	[False] Don't prune down route-addr
 					syntax addresses to the minimum
 					possible.
@@ -2697,6 +3415,11 @@ confTO_ICONNECT		Timeout.iconnect
 					This allows a single very fast pass
 					followed by more careful delivery
 					attempts in the future.
+confTO_ACONNECT		Timeout.aconnect
+					[0] The overall timeout waiting for
+					all connection for a single delivery
+					attempt to succeed.  If 0, no overall
+					limit is applied.
 confTO_HELO		Timeout.helo	[5m] The timeout waiting for a response
 					to a HELO or EHLO command.
 confTO_MAIL		Timeout.mail	[10m] The timeout waiting for a
@@ -2726,6 +3449,13 @@ confTO_IDENT		Timeout.ident	[5s] The timeout waiting for a
 confTO_FILEOPEN		Timeout.fileopen
 					[60s] The timeout waiting for a file
 					(e.g., :include: file) to be opened.
+confTO_LHLO		Timeout.lhlo	[2m] The timeout waiting for a response
+					to an LMTP LHLO command.
+confTO_AUTH		Timeout.auth	[10m] The timeout waiting for a
+					response in an AUTH dialogue.
+confTO_STARTTLS		Timeout.starttls
+					[1h] The timeout waiting for a
+					response to an SMTP STARTTLS command.
 confTO_CONTROL		Timeout.control
 					[2m] The timeout for a complete
 					control socket transaction to complete.
@@ -2824,6 +3554,10 @@ confREFUSE_LA		RefuseLA	[varies] Load average at which
 					numproc) where numproc is the
 					number of processors online (if
 					that can be determined).
+confDELAY_LA		DelayLA		[0] Load average at which sendmail
+					will sleep for one second on most
+					SMTP commands and before accepting
+					connections.  0 means no limit.
 confMAX_ALIAS_RECURSION	MaxAliasRecursion
 					[10] Maximum depth of alias recursion.
 confMAX_DAEMON_CHILDREN	MaxDaemonChildren
@@ -2840,11 +3574,11 @@ confMAX_MIME_HEADER_LENGTH  MaxMimeHeaderLength
 					certain MIME header field values.
 confCONNECTION_RATE_THROTTLE ConnectionRateThrottle
 					[undefined] The maximum number of
-					connections permitted per second.
-					After this many connections are
-					accepted, further connections will be
-					delayed.  If not set or <= 0, there is
-					no limit.
+					connections permitted per second per
+					daemon.  After this many connections
+					are accepted, further connections
+					will be delayed.  If not set or <= 0,
+					there is no limit.
 confWORK_RECIPIENT_FACTOR
 			RecipientFactor	[30000] Cost of each recipient.
 confSEPARATE_PROC	ForkEachJob	[False] Run all deliveries in a
@@ -2852,7 +3586,8 @@ confSEPARATE_PROC	ForkEachJob	[False] Run all deliveries in a
 confWORK_CLASS_FACTOR	ClassFactor	[1800] Priority multiplier for class.
 confWORK_TIME_FACTOR	RetryFactor	[90000] Cost of each delivery attempt.
 confQUEUE_SORT_ORDER	QueueSortOrder	[Priority] Queue sort algorithm:
-					Priority, Host, Filename, or Time.
+					Priority, Host, Filename, Random,
+					Modification, or Time.
 confMIN_QUEUE_AGE	MinQueueAge	[0] The minimum amount of time a job
 					must sit in the queue between queue
 					runs.  This allows you to set the
@@ -2884,9 +3619,11 @@ confNO_RCPT_ACTION	NoRecipientAction
 					known recipients (which may expose
 					blind recipients), "add-apparently-to"
 					to do the same but use Apparently-To:
-					instead of To:, "add-bcc" to add an
-					empty Bcc: header, or
-					"add-to-undisclosed" to add the header
+					instead of To: (strongly discouraged
+					in accordance with IETF standards),
+					"add-bcc" to add an empty Bcc:
+					header, or "add-to-undisclosed" to
+					add the header
 					``To: undisclosed-recipients:;''.
 confSAFE_FILE_ENV	SafeFileEnvironment
 					[undefined] If set, sendmail will do a
@@ -2909,6 +3646,18 @@ confMAX_QUEUE_RUN_SIZE	MaxQueueRunSize	[0] If set, limit the maximum size of
 					so this should be as large as your
 					system can tolerate.  If not set, there
 					is no limit.
+confMAX_QUEUE_CHILDREN	MaxQueueChildren
+					[undefined] Limits the maximum number
+					of concurrent queue runners active.
+					This is to keep system resources used
+					within a reasonable limit.  Relates to
+					Queue Groups and ForkAllJobs.
+confMAX_RUNNERS_PER_QUEUE	MaxRunnersPerQueue
+					[1] Only active when MaxQueueChildren
+					defined.  Controls the maximum number
+					of queue runners (aka queue children)
+					active at the same time in a work
+					group.  See also MaxQueueChildren.
 confDONT_EXPAND_CNAMES	DontExpandCnames
 					[False] If set, $[ ... $] lookups that
 					do DNS based lookups do not expand
@@ -2969,7 +3718,8 @@ confDOUBLE_BOUNCE_ADDRESS  DoubleBounceAddress
 					[postmaster] If an error occurs when
 					sending an error message, send that
 					"double bounce" error message to this
-					address.
+					address.  If it expands to an empty
+					string, double bounces are dropped.
 confDEAD_LETTER_DROP	DeadLetterDrop	[undefined] Filename to save bounce
 					messages which could not be returned
 					to the user or sent to postmaster.
@@ -2993,6 +3743,11 @@ confMAX_RCPTS_PER_MESSAGE  MaxRecipientsPerMessage
 					receive a 452 error code (i.e., they
 					are deferred for the next delivery
 					attempt).
+confBAD_RCPT_THROTTLE	BadRcptThrottle	[infinite] If set and more than the
+					specified number of recipients in an
+					envelope are rejected, sleep for one
+					second after each rejected RCPT
+					command.
 confDONT_PROBE_INTERFACES  DontProbeInterfaces
 					[False] If set, sendmail will _not_
 					insert the names and addresses of any
@@ -3003,6 +3758,9 @@ confDONT_PROBE_INTERFACES  DontProbeInterfaces
 					in a mailertable entry) -- otherwise,
 					mail to addresses in this list will
 					bounce with a configuration error.
+					If set to "loopback" (without
+					quotes), sendmail will skip
+					loopback interfaces (e.g., "lo0").
 confPID_FILE		PidFile		[system dependent] Location of pid
 					file.
 confPROCESS_TITLE_PREFIX  ProcessTitlePrefix
@@ -3017,6 +3775,9 @@ confDONT_BLAME_SENDMAIL	DontBlameSendmail
 confREJECT_MSG		-		[550 Access denied] The message
 					given if the access database contains
 					REJECT in the value portion.
+confRELAY_MSG		-		[550 Relaying denied] The message
+					given if an unauthorized relaying
+					attempt is rejected.
 confDF_BUFFER_SIZE	DataFileBufferSize
 					[4096] The maximum size of a
 					memory-buffered data (df) file
@@ -3036,36 +3797,40 @@ confAUTH_MECHANISMS	AuthMechanisms	[GSSAPI KERBEROS_V4 DIGEST-MD5
 					by the CYRUS SASL library.
 confDEF_AUTH_INFO	DefaultAuthInfo	[undefined] Name of file that contains
 					authentication information for
-					outgoing connections.  This file
-					must contain the user id, the
-					authorization id, the password
-					(plain text), and the realm to use,
-					each on a separate line and must be
-					readable by root (or the trusted
-					user) only.  If no realm is
-					specified, $j is used.
-
-					NOTE: Currently, AuthMechanisms is
-					used to determine the list of
-					mechanisms to use on an outgoing
-					connection.  Sites which require a
-					different list of mechanisms for
-					incoming connections and outgoing
-					connections will have the ability
-					to do this in 8.11 by specifying a
-					list of mechanisms as the fifth
-					line of the DefaultAuthInfo file.
-					If no mechanisms are given in the
-					file, AuthMechanisms is used.  The
-					code for doing so is included as
-					in the sendmail source code but
-					disabled.  It can be enabled by
-					recompiling sendmail with:
-					-D_FFR_DEFAUTHINFO_MECHS
-confAUTH_OPTIONS	AuthOptions	[undefined] If this options is 'A'
+					outgoing connections.  This file must
+					contain the user id, the authorization
+					id, the password (plain text), the
+					realm to use, and the list of
+					mechanisms to try, each on a separate
+					line and must be readable by root (or
+					the trusted user) only.  If no realm
+					is specified, $j is used.  If no
+					mechanisms are given in the file,
+					AuthMechanisms is used.  Notice: this
+					option is deprecated and will be
+					removed in future versions; it doesn't
+					work for the MSP since it can't read
+					the file.  Use the authinfo ruleset
+					instead.  See also the section SMTP
+					AUTHENTICATION.
+confAUTH_OPTIONS	AuthOptions	[undefined] If this option is 'A'
 					then the AUTH= parameter for the
 					MAIL FROM command is only issued
 					when authentication succeeded.
+					Other values (which should be listed
+					one after the other without any
+					intervening characters except for
+					space or comma) are a, c, d, f, p,
+					and y.  See doc/op/op.me for
+					details.
+confAUTH_MAX_BITS	AuthMaxBits	[INT_MAX] Limit the maximum encryption
+					strength for the security layer in
+					SMTP AUTH (SASL).  Default is
+					essentially unlimited.
+confTLS_SRV_OPTIONS	TLSSrvOptions	If this option is 'V' no client
+					verification is performed, i.e.,
+					the server doesn't ask for a
+					certificate.
 confLDAP_DEFAULT_SPEC	LDAPDefaultSpec	[undefined] Default map
 					specification for LDAP maps.  The
 					value should only contain LDAP
@@ -3102,14 +3867,67 @@ confRAND_FILE		RandFile	[undefined] File containing random
 					requires this option if the compile
 					flag HASURANDOM is not set (see
 					sendmail/README).
+confNICE_QUEUE_RUN	NiceQueueRun	[undefined]  If set, the priority of
+					queue runners is set the given value
+					(nice(3)).
+confDIRECT_SUBMISSION_MODIFIERS	DirectSubmissionModifiers
+					[undefined] Defines {daemon_flags}
+					for direct submissions.
+confUSE_MSP		UseMSP		[false] Use as mail submission
+					program, see sendmail/SECURITY.
+confDELIVER_BY_MIN	DeliverByMin	[0] Minimum time for Deliver By
+					SMTP Service Extension (RFC 2852).
+confSHARED_MEMORY_KEY	SharedMemoryKey [0] Key for shared memory.
+confFAST_SPLIT		FastSplit	[1] If set to a value greater than
+					zero, the initial MX lookups on
+					addresses is suppressed when they
+					are sorted which may result in
+					faster envelope splitting.  If the
+					mail is submitted directly from the
+					command line, then the value also
+					limits the number of processes to
+					deliver the envelopes.
+confMAILBOX_DATABASE	MailboxDatabase	[pw] Type of lookup to find
+					information about local mailboxes.
+confDEQUOTE_OPTS	-		[empty] Additional options for the
+					dequote map.
+confINPUT_MAIL_FILTERS	InputMailFilters
+					A comma separated list of filters
+					which determines which filters and
+					the invocation sequence are
+					contacted for incoming SMTP
+					messages.  If none are set, no
+					filters will be contacted.
+confMILTER_LOG_LEVEL	Milter.LogLevel	[9] Log level for input mail filter
+					actions, defaults to LogLevel.
+confMILTER_MACROS_CONNECT	Milter.macros.connect
+					[empty]	Macros to transmit to milters
+					when a session connection starts.
+confMILTER_MACROS_HELO	Milter.macros.helo
+					[empty]	Macros to transmit to milters
+					after HELO command.
+confMILTER_MACROS_ENVFROM	Milter.macros.envfrom
+					[empty]	Macros to transmit to milters
+					after MAIL FROM command.
+confMILTER_MACROS_ENVRCPT	Milter.macros.envrcpt
+					[empty]	Macros to transmit to milters
+					after RCPT TO command.
+
 
 See also the description of OSTYPE for some parameters that can be
 tweaked (generally pathnames to mailers).
 
-DaemonPortOptions are a special case since multiple daemons can be
-defined.  This can be done via
+ClientPortOptions and DaemonPortOptions are special cases since multiple
+clients/daemons can be defined.  This can be done via
 
+	CLIENT_OPTIONS(`field1=value1,field2=value2,...')
 	DAEMON_OPTIONS(`field1=value1,field2=value2,...')
+
+Note that multiple CLIENT_OPTIONS() commands (and therefore multiple
+ClientPortOptions settings) are allowed in order to give settings for each
+protocol family (e.g., one for Family=inet and one for Family=inet6).  A
+restriction placed on one family only affects outgoing connections on that
+particular family.
 
 If DAEMON_OPTIONS is not used, then the default is
 
@@ -3152,10 +3970,117 @@ Notice: Do NOT use the 'a' modifier on a public accessible MTA!
 Finally, the M=E modifier shown above disables ETRN as required by RFC
 2476.
 
+Mail filters can be defined using the INPUT_MAIL_FILTER() and MAIL_FILTER()
+commands:
 
-+-----------+
-| HIERARCHY |
-+-----------+
+	INPUT_MAIL_FILTER(`sample', `S=local:/var/run/f1.sock')
+	MAIL_FILTER(`myfilter', `S=inet:3333@localhost')
+
+The INPUT_MAIL_FILTER() command causes the filter(s) to be called in the
+same order they were specified by also setting confINPUT_MAIL_FILTERS.  A
+filter can be defined without adding it to the input filter list by using
+MAIL_FILTER() instead of INPUT_MAIL_FILTER() in your .mc file.
+Alternatively, you can reset the list of filters and their order by setting
+confINPUT_MAIL_FILTERS option after all INPUT_MAIL_FILTER() commands in
+your .mc file.
+
+
++----------------------------+
+| MESSAGE SUBMISSION PROGRAM |
++----------------------------+
+
+The purpose of the message submission program (MSP) is explained
+in sendmail/SECURITY.  This section contains a list of caveats and
+a few hints how for those who want to tweak the default configuration
+for it (which is installed as submit.cf).
+
+Notice: do not add options/features to submit.mc unless you are
+absolutely sure you need them.  Options you may want to change
+include:
+
+- confTIME_ZONE on OS that don't use the default, e.g., Irix.
+- confDELIVERY_MODE is set to interactive in msp.m4 instead
+  of the default background mode.
+
+Some things are not intended to work with the MSP.  These include
+features that influence the delivery process (e.g., mailertable,
+aliases), or those that are only important for a SMTP server (e.g.,
+virtusertable, DaemonPortOptions, multiple queues).  Moreover,
+relaxing certain restrictions (RestrictQueueRun, permissions on
+queue directory) or adding features (e.g., enabling prog/file mailer)
+can cause security problems.
+
+Other things don't work well with the MSP and require tweaking or
+workarounds.  For example, to allow for client authentication it
+is not just sufficient to provide a client certificate and the
+corresponding key, but it is also necessary to make the key group
+(smmsp) readable and tell sendmail not to complain about that, i.e.,
+
+	define(`confDONT_BLAME_SENDMAIL', `GroupReadableKeyFile')
+
+If the MSP should actually use AUTH then the necessary data
+should be placed in a map as explained in SMTP AUTHENTICATION:
+
+FEATURE(`authinfo', `DATABASE_MAP_TYPE /etc/mail/msp-authinfo')
+
+/etc/mail/msp-authinfo should contain an entry like:
+
+	AuthInfo:127.0.0.1	"U:smmsp" "P:secret" "M:DIGEST-MD5"
+
+The file and the map created by makemap should be owned by smmsp,
+its group should be smmsp, and it should have mode 640.  The database
+used by the MTA for AUTH must have a corresponding entry.
+Additionally the MTA must trust this authentication data so the AUTH=
+part will be relayed on to the next hop.  This can be achieved by
+adding the following to your sendmail.mc file:
+
+	LOCAL_RULESETS
+	SLocal_trust_auth
+	R$*	$: $&{auth_authen}
+	Rsmmsp	$# OK
+
+feature/msp.m4 defines almost all settings for the MSP.  Most of
+those should not be changed at all.  Some of the features and options
+can be overridden if really necessary.  It is a bit tricky to do
+this, because it depends on the actual way the option is defined
+in feature/msp.m4.  If it is directly defined (i.e., define()) then
+the modified value must be defined after
+
+	FEATURE(`msp')
+
+If it is conditionally defined (i.e., ifdef()) then the desired
+value must be defined before the FEATURE line in the .mc file.
+To see how the options are defined read feature/msp.m4.
+
+
++--------------------------+
+| FORMAT OF FILES AND MAPS |
++--------------------------+
+
+Files that define classes, i.e., F{classname}, consist of lines
+each of which contains a single element of the class.  For example,
+/etc/mail/local-host-names may have the following content:
+
+my.domain
+another.domain
+
+Maps must be created using makemap(8) , e.g.,
+
+	makemap hash MAP < MAP
+
+In general, a text file from which a map is created contains lines
+of the form
+
+key	value
+
+where 'key' and 'value' are also called LHS and RHS, respectively.
+By default, the delimiter between LHS and RHS is a non-empty sequence
+of white space characters.
+
+
++------------------+
+| DIRECTORY LAYOUT |
++------------------+
 
 Within this directory are several subdirectories, to wit:
 
@@ -3226,7 +4151,6 @@ RULESETS (* means built in to sendmail)
   96	Bottom half of Ruleset 3 (ruleset 6 in old sendmail)
   97	Hook for recursive ruleset 0 call (ruleset 7 in old sendmail)
   98	Local part of ruleset 0 (ruleset 8 in old sendmail)
-  99	Guaranteed null (for debugging)
 
 
 MAILERS
@@ -3313,4 +4237,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.49 $, Last updated $Date: 2001/08/14 15:25:36 $
+$Revision: 8.600 $, Last updated $Date: 2002/01/10 17:43:41 $
