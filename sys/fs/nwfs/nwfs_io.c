@@ -81,8 +81,7 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 	struct nwnode *np = VTONW(vp);
 	struct nw_entry_info fattr;
 	struct vnode *newvp;
-	struct nameidata nami, *ndp = &nami;
-	struct componentname *cnp = &ndp->ni_cnd;
+	struct componentname cn;
 	ncpfid fid;
 
 	np = VTONW(vp);
@@ -91,7 +90,6 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 		return (EINVAL);
 	error = 0;
 	count = 0;
-	ndp->ni_dvp = vp;
 	i = uio->uio_offset / DE_SIZE; /* offset in directory */
 	if (i == 0) {
 		error = ncp_initsearch(vp, uio->uio_procp, cred);
@@ -137,10 +135,9 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 			error = nwfs_nget(vp->v_mount, fid, &fattr, vp, &newvp);
 			if (!error) {
 				VTONW(newvp)->n_ctime = VTONW(newvp)->n_vattr.va_ctime.tv_sec;
-				cnp->cn_nameptr = dp.d_name;
-				cnp->cn_namelen = dp.d_namlen;
-				ndp->ni_vp = newvp;
-			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
+				cn.cn_nameptr = dp.d_name;
+				cn.cn_namelen = dp.d_namlen;
+			        cache_enter(vp, newvp, &cn);
 				vput(newvp);
 			} else
 				error = 0;
