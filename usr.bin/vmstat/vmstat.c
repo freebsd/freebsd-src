@@ -119,28 +119,6 @@ struct nlist namelist[] = {
 #else
 #define X_END		13
 #endif
-#if defined(hp300) || defined(luna68k)
-#define	X_HPDINIT	(X_END)
-	{ "_hp_dinit" },
-#endif
-#ifdef mips
-#define	X_SCSI_DINIT	(X_END)
-	{ "_scsi_dinit" },
-#endif
-#ifdef tahoe
-#define	X_VBDINIT	(X_END)
-	{ "_vbdinit" },
-#define	X_CKEYSTATS	(X_END+1)
-	{ "_ckeystats" },
-#define	X_DKEYSTATS	(X_END+2)
-	{ "_dkeystats" },
-#endif
-#ifdef vax
-#define X_MBDINIT	(X_END)
-	{ "_mbdinit" },
-#define X_UBDINIT	(X_END+1)
-	{ "_ubdinit" },
-#endif
 	{ "" },
 };
 
@@ -612,26 +590,16 @@ pct(top, bot)
 
 #define	PCT(top, bot) pct((long)(top), (long)(bot))
 
-#if defined(tahoe)
-#include <machine/cpu.h>
-#endif
-
 void
 dosum()
 {
 	struct nchstats nchstats;
 	long nchtotal;
-#if defined(tahoe)
-	struct keystats keystats;
-#endif
 
 	kread(X_SUM, &sum, sizeof(sum));
 	(void)printf("%9u cpu context switches\n", sum.v_swtch);
 	(void)printf("%9u device interrupts\n", sum.v_intr);
 	(void)printf("%9u software interrupts\n", sum.v_soft);
-#ifdef vax
-	(void)printf("%9u pseudo-dma dz interrupts\n", sum.v_pdma);
-#endif
 	(void)printf("%9u traps\n", sum.v_trap);
 	(void)printf("%9u system calls\n", sum.v_syscall);
 	(void)printf("%9u swap pager pageins\n", sum.v_swapin);
@@ -674,22 +642,6 @@ dosum()
 	    PCT(nchstats.ncs_badhits, nchtotal),
 	    PCT(nchstats.ncs_falsehits, nchtotal),
 	    PCT(nchstats.ncs_long, nchtotal));
-#if defined(tahoe)
-	kread(X_CKEYSTATS, &keystats, sizeof(keystats));
-	(void)printf("%9d %s (free %d%% norefs %d%% taken %d%% shared %d%%)\n",
-	    keystats.ks_allocs, "code cache keys allocated",
-	    PCT(keystats.ks_allocfree, keystats.ks_allocs),
-	    PCT(keystats.ks_norefs, keystats.ks_allocs),
-	    PCT(keystats.ks_taken, keystats.ks_allocs),
-	    PCT(keystats.ks_shared, keystats.ks_allocs));
-	kread(X_DKEYSTATS, &keystats, sizeof(keystats));
-	(void)printf("%9d %s (free %d%% norefs %d%% taken %d%% shared %d%%)\n",
-	    keystats.ks_allocs, "data cache keys allocated",
-	    PCT(keystats.ks_allocfree, keystats.ks_allocs),
-	    PCT(keystats.ks_norefs, keystats.ks_allocs),
-	    PCT(keystats.ks_taken, keystats.ks_allocs),
-	    PCT(keystats.ks_shared, keystats.ks_allocs));
-#endif
 }
 
 #ifdef notyet
