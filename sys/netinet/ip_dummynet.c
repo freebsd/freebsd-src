@@ -983,7 +983,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 	    p_b = SCALE_MUL((int64_t) fs->c_3, (int64_t) q->avg) - fs->c_4;
 	} else {
 	    q->count = -1;
-	    printf("- drop");
+	    DEB(printf("dummynet: - drop"););
 	    return 1 ;
 	}
     } else if (q->avg > fs->min_th) {
@@ -1005,7 +1005,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 	 */
 	if (SCALE_MUL(p_b, SCALE((int64_t) q->count)) > q->random) {
 	    q->count = 0;
-	    DEB(printf("- red drop");)
+	    DEB(printf("dummynet: - red drop");)
 	    /* after a drop we calculate a new random value */
 	    q->random = random() & 0xffff;
 	    return 1;    /* drop */
