@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
@@ -222,6 +224,8 @@ static void
 lca_machine_check(unsigned long mces, struct trapframe *framep,
     unsigned long vector, unsigned long param);
 
+static void lca_cpu_idle (void);
+
 static int
 lca_probe(device_t dev)
 {
@@ -234,6 +238,7 @@ lca_probe(device_t dev)
 	lca_init_sgmap();
 
 	platform.mcheck_handler = lca_machine_check;
+	platform.cpu_idle = lca_cpu_idle;
 
 	device_add_child(dev, "pcib", 0);
 
@@ -268,6 +273,30 @@ lca_machine_check(unsigned long mces, struct trapframe *framep,
 	/* clear error flags in IOC_STATUS0 register */
 	stat0 = REGVAL64(LCA_IOC_STAT0);
 	REGVAL64(LCA_IOC_STAT0) = stat0;
+}
+
+void
+lca_cpu_idle (void)
+{
+	/*
+	 * 0x0 =  1
+	 * 0x1 =  1.5
+	 * 0x2 =  2
+	 * 0x3 =  4
+	 * 0x4 =  8
+	 * 0x5 = 16
+	 */
+	long override = 0x0;
+	long primary = 0x5;
+	long dma_ovr = 1;
+	long intr_ovr = 1;
+
+	REGVAL64(LCA_PMR) =
+	    (dma_ovr << 7) | (intr_ovr << 6) | (override << 3) | primary;
+	if (sched_runnable()) {
+		REGVAL64(LCA_PMR) =
+		    (override << 3) | override;
+	}
 }
 
 DRIVER_MODULE(lca, root, lca_driver, lca_devclass, 0, 0);
