@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.13 1997/08/25 00:29:11 brian Exp $
+ * $Id: filter.c,v 1.14 1997/08/31 22:59:23 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -75,8 +75,10 @@ ParseAddr(int argc,
     *paddr = IpcpInfo.his_ipaddr;
   else if (strcasecmp(*argv, "MYADDR") == 0)
     *paddr = IpcpInfo.want_ipaddr;
-  else
-    paddr->s_addr = inet_addr(*argv);
+  else if (inet_aton(*argv, paddr) == 0) {
+    LogPrintf(LogWARN, "ParseAddr: %s: Bad address\n", *argv);
+    return (0);
+  }
   if (cp && *cp) {
     bits = strtol(cp, &wp, 0);
     if (cp == wp || bits < 0 || bits > 32) {
@@ -196,15 +198,14 @@ ParseOp(char *cp)
 static int
 ParseUdpOrTcp(int argc, char **argv, int proto)
 {
+  filterdata.opt.srcop = filterdata.opt.dstop = OP_NONE;
+  filterdata.opt.estab = 0;
+
   if (argc == 0) {
     /* permit/deny all tcp traffic */
-    filterdata.opt.srcop = filterdata.opt.dstop = A_NONE;
     return (1);
   }
-  if (argc < 3) {
-    LogPrintf(LogWARN, "ParseUdpOrTcp: bad udp/tcp syntax.\n");
-    return (0);
-  }
+
   if (argc >= 3 && STREQ(*argv, "src")) {
     filterdata.opt.srcop = ParseOp(argv[1]);
     if (filterdata.opt.srcop == OP_NONE) {
@@ -233,7 +234,7 @@ ParseUdpOrTcp(int argc, char **argv, int proto)
     if (argc == 0)
       return (1);
   }
-  if (argc == 1) {
+  if (argc == 1 && proto == P_TCP) {
     if (STREQ(*argv, "estab")) {
       filterdata.opt.estab = 1;
       return (1);
@@ -246,7 +247,7 @@ ParseUdpOrTcp(int argc, char **argv, int proto)
   return (0);
 }
 
-char *opname[] = {"none", "eq", "gt", "lt"};
+char *opname[] = {"none", "eq", "gt", NULL, "lt"};
 
 static int
 Parse(int argc, char **argv, struct filterent * ofp)
@@ -319,7 +320,7 @@ Parse(int argc, char **argv, struct filterent * ofp)
 	  argv++;
 	}
 	proto = ParseProto(argc, argv);
-	if (proto) {
+	if (proto != P_NONE) {
 	  argc--;
 	  argv++;
 	}
