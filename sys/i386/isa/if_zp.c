@@ -290,6 +290,7 @@ zp_find_adapter(unsigned char *scratch, int reconfig)
 		}
 		pcic_power_on(slot);
 		pcic_reset(slot);
+		DELAY(50000);
 		/* map the card's attribute memory and examine its card
 		 * information structure tuples for something we recognize. */
 		pcic_map_memory(slot, 0, kvtop(scratch), 0L,
@@ -1123,7 +1124,7 @@ read_eeprom_data(id_port, offset)
 {
 
 	outb(id_port + 10, 0x80 + offset);
-	DELAY(100000);
+	DELAY(1000);
 	return inw(id_port + 12);
 }
 
