@@ -518,15 +518,17 @@ get_mcontext(struct thread *td, mcontext_t *mc)
 	struct trapframe *tf;
 	struct pcb *pcb;
 
-	if (((uintptr_t)mc & (64 - 1)) != 0)
-		return (EINVAL);
 	tf = td->td_frame;
 	pcb = td->td_pcb;
 	bcopy(tf, mc, sizeof(*tf));
+	mc->mc_flags = _MC_VERSION;
 	critical_enter();
-	if ((tf->tf_fprs & FPRS_FEF) != 0)
-		savefpctx(mc->mc_fp);
-	else if ((pcb->pcb_flags & PCB_FEF) != 0) {
+	if ((tf->tf_fprs & FPRS_FEF) != 0) {
+		savefpctx(pcb->pcb_ufp);
+		tf->tf_fprs &= ~FPRS_FEF;
+		pcb->pcb_flags |= PCB_FEF;
+	}
+	if ((pcb->pcb_flags & PCB_FEF) != 0) {
 		bcopy(pcb->pcb_ufp, mc->mc_fp, sizeof(*mc->mc_fp));
 		mc->mc_fprs |= FPRS_FEF;
 	}
@@ -541,7 +543,8 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	struct pcb *pcb;
 	uint64_t wstate;
 
-	if (!TSTATE_SECURE(mc->mc_tstate))
+	if (!TSTATE_SECURE(mc->mc_tstate) ||
+	    (mc->mc_flags & ((1L << _MC_VERSION_BITS) - 1)) != _MC_VERSION)
 		return (EINVAL);
 	tf = td->td_frame;
 	pcb = td->td_pcb;
