@@ -144,7 +144,7 @@ an_pccard_detach(device_t dev)
 	an_stop(sc);
 	ifmedia_removeall(&sc->an_ifmedia);
 	ifp->if_flags &= ~IFF_RUNNING;
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	sc->an_gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);

@@ -1056,7 +1056,7 @@ my_attach(device_t dev)
 	my_stop(sc);
 	ifmedia_set(&sc->ifmedia, media);
 
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 
 #if 0
 	at_shutdown(my_shutdown, sc, SHUTDOWN_POST_SYNC);
@@ -1084,7 +1084,7 @@ my_detach(device_t dev)
 	sc = device_get_softc(dev);
 	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	my_stop(sc);
 
 #if 0
@@ -1267,7 +1267,7 @@ my_rxeof(struct my_softc * sc)
 		 * address or the interface is in promiscuous mode.
 		 */
 		if (ifp->if_bpf) {
-			bpf_mtap(ifp, m);
+			BPF_MTAP(ifp, m);
 			if (ifp->if_flags & IFF_PROMISC &&
 			    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
 				ETHER_ADDR_LEN) &&
@@ -1277,9 +1277,7 @@ my_rxeof(struct my_softc * sc)
 			}
 		}
 #endif
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 	MY_UNLOCK(sc);
 	return;
@@ -1537,8 +1535,7 @@ my_start(struct ifnet * ifp)
 		 * If there's a BPF listener, bounce a copy of this frame to
 		 * him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->my_mbuf);
+		BPF_MTAP(ifp, cur_tx->my_mbuf);
 #endif
 	}
 	/*
@@ -1764,11 +1761,6 @@ my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	s = splimp();
 	MY_LOCK(sc);
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP)
 			my_init(sc);
@@ -1786,7 +1778,7 @@ my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 	MY_UNLOCK(sc);

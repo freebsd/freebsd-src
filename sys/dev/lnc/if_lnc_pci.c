@@ -187,7 +187,7 @@ lnc_pci_detach(device_t dev)
 	lnc_softc_t *sc = device_get_softc(dev);
 	int s = splimp();
 
-	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(&sc->arpcom.ac_if);
 
 	lnc_stop(sc);
 	bus_teardown_intr(dev, sc->irqres, sc->intrhand);

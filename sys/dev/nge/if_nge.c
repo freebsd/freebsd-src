@@ -977,7 +977,7 @@ nge_attach(dev)
 	ifp->if_baudrate = 1000000000;
 	ifp->if_snd.ifq_maxlen = NGE_TX_LIST_CNT - 1;
 	ifp->if_hwassist = NGE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1031,7 +1031,7 @@ nge_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 	callout_handle_init(&sc->nge_stat_ch);
 
 fail:
@@ -1056,7 +1056,7 @@ nge_detach(dev)
 
 	nge_reset(sc);
 	nge_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	if (!sc->nge_tbi) {
@@ -1326,7 +1326,6 @@ static void
 nge_rxeof(sc)
 	struct nge_softc	*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct nge_desc		*cur_rx;
@@ -1402,10 +1401,6 @@ nge_rxeof(sc)
 #endif
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
 
 		/* Do IP checksum checking. */
 		if (extsts & NGE_RXEXTSTS_IPPKT)
@@ -1426,11 +1421,11 @@ nge_rxeof(sc)
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
-			VLAN_INPUT_TAG(eh, m, extsts & NGE_RXEXTSTS_VTCI);
-                        continue;
-                }
+			VLAN_INPUT_TAG(ifp, m,
+				extsts & NGE_RXEXTSTS_VTCI, continue);
+		}
 
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	sc->nge_cdata.nge_rx_prod = i;
@@ -1705,12 +1700,7 @@ nge_encap(sc, m_head, txidx)
 	struct nge_desc		*f = NULL;
 	struct mbuf		*m;
 	int			frag, cur, cnt = 0;
-	struct ifvlan		*ifv = NULL;
-
-	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-		ifv = m_head->m_pkthdr.rcvif->if_softc;
+	struct m_tag		*mtag;
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -1752,9 +1742,10 @@ nge_encap(sc, m_head, txidx)
 			    NGE_TXEXTSTS_UDPCSUM;
 	}
 
-	if (ifv != NULL) {
+	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
+	if (mtag != NULL) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
-			(NGE_TXEXTSTS_VLANPKT|ifv->ifv_tag);
+			(NGE_TXEXTSTS_VLANPKT|VLAN_TAG_VALUE(mtag));
 	}
 
 	sc->nge_ldata->nge_tx_list[cur].nge_mbuf = m_head;
@@ -1806,8 +1797,7 @@ nge_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 	}
 
@@ -2140,10 +2130,6 @@ nge_ioctl(ifp, command, data)
 	s = splimp();
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > NGE_JUMBO_MTU)
 			error = EINVAL;
@@ -2204,7 +2190,7 @@ nge_ioctl(ifp, command, data)
 		}
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

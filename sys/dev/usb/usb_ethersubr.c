@@ -80,7 +80,6 @@ Static void usbintr		(void);
 
 Static void usbintr()
 {
-	struct ether_header	*eh;
 	struct mbuf		*m;
 	struct usb_qdat		*q;
 	struct ifnet		*ifp;
@@ -90,12 +89,10 @@ Static void usbintr()
 		IF_DEQUEUE(&usbq_rx, m);
 		if (m == NULL)
 			break;
-		eh = mtod(m, struct ether_header *);
 		q = (struct usb_qdat *)m->m_pkthdr.rcvif;
 		ifp = q->ifp;
 		m->m_pkthdr.rcvif = ifp;
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 
 		/* Re-arm the receiver */
 		(*q->if_rxstart)(ifp);

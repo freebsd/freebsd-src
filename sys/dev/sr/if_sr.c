@@ -868,8 +868,7 @@ top_srstart:
 #endif
 
 #ifndef NETGRAPH
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, mtx);
+		BPF_MTAP(ifp, mtx);
 #else	/* NETGRAPH */
 		sc->outbytes += len;
 #endif	/* NETGRAPH */
@@ -2126,8 +2125,7 @@ sr_get_packets(struct sr_softc *sc)
 			sr_copy_rxbuf(m, sc, len);	/* copy from DPRAM */
 
 #ifndef NETGRAPH
-			if (ifp->if_bpf)
-				bpf_mtap(ifp, m);
+			BPF_MTAP(ifp, m);
 
 #if BUGGY > 3
 			{

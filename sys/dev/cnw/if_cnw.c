@@ -850,8 +850,7 @@ cnw_start(ifp)
 			bpf_mtap(ifp->if_bpf, m0);
 #endif
 #else	/* FreeBSD */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m0);
+		BPF_MTAP(ifp, m0);
 #endif
 		
 		cnw_transmit(sc, m0);
@@ -1024,7 +1023,6 @@ cnw_recv(sc)
 	struct ifnet *ifp = &sc->sc_ethercom.ec_if;
 #else
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ether_header     *eh;
 #endif
 	struct mbuf *m;
 
@@ -1053,19 +1051,10 @@ cnw_recv(sc)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp->if_bpf, m);
 #endif
-#else	/* FreeBSD */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m);
 #endif
 
 		/* Pass the packet up. */
-#if !defined(__FreeBSD__)
 		(*ifp->if_input)(ifp, m);
-#else
-		eh = mtod(m, struct ether_header *);
-		m_adj(m, sizeof(struct ether_header));
-                ether_input(ifp, eh, m) ;
-#endif
 	}
 }
 
@@ -1660,7 +1649,7 @@ static int cnw_pccard_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 /*	callout_handle_init(&sc->cnw_stat_ch); */
 
 	return(0);

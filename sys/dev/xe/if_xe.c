@@ -289,7 +289,7 @@ xe_attach (device_t dev)
   device_printf(dev, "Ethernet address %6D\n", scp->arpcom.ac_enaddr, ":");
 
   /* Attach the interface */
-  ether_ifattach(scp->ifp, ETHER_BPF_SUPPORTED);
+  ether_ifattach(scp->ifp, scp->arpcom.ac_enaddr);
 
   /* Done */
   return 0;
@@ -416,12 +416,7 @@ xe_start(struct ifnet *ifp) {
     }
 
     /* Tap off here if there is a bpf listener */
-    if (ifp->if_bpf) {
-#if XE_DEBUG > 1
-      device_printf(scp->dev, "sending output packet to BPF\n");
-#endif
-      bpf_mtap(ifp, mbp);
-    }
+    BPF_MTAP(ifp, mbp);
 
     ifp->if_timer = 5;			/* In case we don't hear from the card again */
     scp->tx_queued++;
@@ -445,12 +440,6 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
   s = splimp();
 
   switch (command) {
-
-   case SIOCSIFADDR:
-   case SIOCGIFADDR:
-   case SIOCSIFMTU:
-    error = ether_ioctl(ifp, command, data);
-    break;
 
    case SIOCSIFFLAGS:
     /*
@@ -489,7 +478,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
     break;
 
    default:
-    error = EINVAL;
+    error = ether_ioctl(ifp, command, data);
   }
 
   (void)splx(s);
@@ -729,9 +718,8 @@ xe_intr(void *xscp)
 
 	  /* Deliver packet to upper layers */
 	  if (mbp != NULL) {
-	    mbp->m_pkthdr.len = mbp->m_len = len - ETHER_HDR_LEN;
-	    mbp->m_data += ETHER_HDR_LEN;	/* Strip off Ethernet header */
-	    ether_input(ifp, ehp, mbp);		/* Send the packet on its way */
+	    mbp->m_pkthdr.len = mbp->m_len = len;
+	    (*ifp->if_input)(ifp, mbp);		/* Send the packet on its way */
 	    ifp->if_ipackets++;			/* Success! */
 	  }
 	  XE_OUTW(XE_DO, 0x8000);		/* skip_rx_packet command */

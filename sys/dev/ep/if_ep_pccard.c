@@ -233,7 +233,7 @@ ep_pccard_detach(device_t dev)
 		return (0);
 	}
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(&sc->arpcom.ac_if);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
 	ep_free(dev);

@@ -646,12 +646,13 @@ fxp_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	/*
 	 * Let the system queue as many packets as we have available
@@ -725,7 +726,7 @@ fxp_detach(device_t dev)
 	/*
 	 * Close down routes etc.
 	 */
-	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(&sc->arpcom.ac_if);
 
 	/*
 	 * Free all media structures.
@@ -1138,8 +1139,7 @@ tbdinit:
 		/*
 		 * Pass packet to bpf if there is a listener.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, mb_head);
+		BPF_MTAP(ifp, mb_head);
 	}
 
 	/*
@@ -1352,7 +1352,9 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 			}
 
 			m->m_pkthdr.len = m->m_len = total_len;
-			ether_input(ifp, NULL, m);
+			m->m_pkthdr.rcvif = ifp;
+
+			(*ifp->if_input)(ifp, m);
 		}
 	}
 	if (rnr) {
@@ -1974,12 +1976,6 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	s = splimp();
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_ALLMULTI)
 			sc->flags |= FXP_FLAG_ALL_MCAST;
@@ -2033,7 +2029,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 	}
 	splx(s);
 	return (error);

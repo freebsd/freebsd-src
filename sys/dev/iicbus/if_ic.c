@@ -310,8 +310,7 @@ icintr (device_t dev, int event, char *ptr)
 	  sc->ic_if.if_ipackets ++;
 	  sc->ic_if.if_ibytes += len;
 
-	  if (sc->ic_if.if_bpf)
-	    bpf_tap(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
+	  BPF_TAP(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
 
 	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, &sc->ic_if, 0);
 
@@ -418,7 +417,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 		m0.m_data = (char *)&hdr;
 		n = &m0;
 
-		bpf_mtap(ifp, n);
+		BPF_MTAP(ifp, n);
 	}
 
 	sc->ic_sending = 1;

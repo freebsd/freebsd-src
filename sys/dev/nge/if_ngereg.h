@@ -674,7 +674,6 @@ struct nge_softc {
 	bus_space_read_4(sc->nge_btag, sc->nge_bhandle, reg)
 
 #define NGE_TIMEOUT		1000
-#define ETHER_ALIGN		2
 #define NGE_RXLEN		1536
 #define NGE_MIN_FRAMELEN	60
 
