@@ -976,7 +976,7 @@ yylex()
 			upper(cp);
 			p = lookup(sitetab, cp);
 			cbuf[cpos] = c;
-			if (p != 0) {
+			if (guest == 0 && p != 0) {
 				if (p->implemented == 0) {
 					state = CMD;
 					nack(p->name);
