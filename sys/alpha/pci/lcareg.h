@@ -44,6 +44,8 @@
 #define LCA_PCI_SPARSE	0x200000000L		/* PCI Sparse Space */
 #define LCA_PCI_DENSE	0x300000000L		/* PCI Dense Space */
 
+#define LCA_PMR		0x120000098L		/* Power Management (21066A)*/
+
 #define LCA_IOC_HAE	LCA_IOC_BASE		/* Host Address Ext. (64) */
 #define	IOC_HAE_ADDREXT	0x00000000f8000000UL
 #define	IOC_HAE_RSVSD	0xffffffff07ffffffUL
