@@ -124,6 +124,7 @@ int	lowpty = 0, highpty;	/* low, high pty numbers */
 int debug = 0;
 int keepalive = 1;
 char *progname;
+char *altlogin;
 
 extern void usage P((void));
 
@@ -133,7 +134,7 @@ extern void usage P((void));
  * passed off to getopt().
  */
 char valid_opts[] = {
-	'd', ':', 'h', 'k', 'n', 'S', ':', 'u', ':', 'U',
+	'd', ':', 'h', 'k', 'n', 'p', ':', 'S', ':', 'u', ':', 'U',
 #ifdef	AUTHENTICATION
 	'a', ':', 'X', ':',
 #endif
@@ -299,6 +300,10 @@ main(argc, argv)
 
 		case 'n':
 			keepalive = 0;
+			break;
+
+		case 'p':
+			altlogin = optarg;
 			break;
 
 #ifdef CRAY
