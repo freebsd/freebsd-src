@@ -871,7 +871,7 @@ zero_entry6(struct mbuf *m)
 	struct ip6_fw_chain *fcp;
 	int s;
 
-	if (m) {
+	if (m && m->m_len != 0) {
 		if (m->m_len != sizeof(struct ip6_fw))
 			return(EINVAL);
 		frwl = mtod(m, struct ip6_fw *);
