@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.3 1997/05/29 05:11:10 peter Exp $
+ * $Id: mplock.s,v 1.2 1997/07/06 23:20:04 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -20,6 +20,23 @@
  * of weird reentrancy situations.
  * 
  */
+
+/*
+ * these are all temps for debugging CPUSTOP code
+ * they will (hopefully) go away soon...
+ */
+#define MARK_HITS
+#define ADJUST_TPR
+#define ADJUST_IPL_NOT
+#define REALLY_STI
+
+#ifdef MARK_HITS
+#define MARK_HIT(X)				\
+		movl	_cpuid, %eax ;		\
+		movl	$X, _lhits(,%eax,4)
+#else
+#define MARK_HIT(X)
+#endif /* MARK_HITS */
 
 #include "opt_ddb.h"
 #include "assym.s"			/* system definitions */
@@ -56,9 +73,15 @@ NON_GPROF_ENTRY(MPgetlock)
 	jne	3f			/* ...do not collect $200 */
 #if defined(TEST_LOPRIO)
 	/* 1st acquire, claim LOW PRIO (ie, ALL INTerrupts) */
+#ifdef ADJUST_TPR
+	movl	20(%esp), %eax		/* saved copy */
+	andl	$0xffffff00, %eax	/* clear task priority field */
+	movl	%eax, 20(%esp)		/* 're-save' it */
+#else
 	movl	lapic_tpr, %eax		/* Task Priority Register */
 	andl	$0xffffff00, %eax	/* clear task priority field */
 	movl	%eax, lapic_tpr		/* set it */
+#endif /** ADJUST_TPR */
 #endif /** TEST_LOPRIO */
 	ret
 3:	cmpl	$0xffffffff, (%edx)	/* Wait for it to become free */
@@ -127,10 +150,48 @@ NON_GPROF_ENTRY(MPrellock)
  *  void get_mplock()
  *  -----------------
  *  All registers preserved
+ *
+ *  Stack (after call to _MPgetlock):
+ *	
+ *	&mp_lock	 4(%esp)
+ *	edx		 8(%esp)
+ *	ecx		12(%esp)
+ *	EFLAGS		16(%esp)
+ *	local APIC TPR	20(%esp)
+ *	 OR
+ *	ipl		20(%esp)
+ *	eax		24(%esp)
  */
 
 NON_GPROF_ENTRY(get_mplock)
 	pushl	%eax
+
+	MARK_HIT(1)
+
+#ifdef ADJUST_TPR
+	movl	lapic_tpr, %eax		/* get current TPR */
+	pushl	%eax			/* save current TPR */
+	pushfl				/* save current EFLAGS */
+	btl	$9, (%esp)		/* test EI bit */
+	jc	1f			/* INTs currently enabled */
+	andl	$0xffffff00, %eax	/* clear task priority field */
+	orl	$0x50, %eax		/* only allow IPIs
+	movl	%eax, lapic_tpr		/* set it */
+#endif /* ADJUST_TPR */
+
+#ifdef ADJUST_IPL
+	call	_splhigh		/* block all INTs EXCEPT IPIs */
+	pushl	%eax			/* save ipl */
+	pushfl				/* save current EFLAGS */
+	btl	$9, (%esp)		/* test EI bit */
+	jc	1f			/* INTs currently enabled */
+#endif /* ADJUST_IPL */
+
+#ifdef REALLY_STI
+	sti				/* allow IPI (and only IPI) INTS */
+#endif /* REALLY_STI */
+
+1:
 	pushl	%ecx
 	pushl	%edx
 	pushl	$_mp_lock
@@ -138,6 +199,21 @@ NON_GPROF_ENTRY(get_mplock)
 	add	$4, %esp
 	popl	%edx
 	popl	%ecx
+
+	MARK_HIT(0)
+
+#ifdef ADJUST_TPR
+	popfl				/* restore original EFLAGS */
+	popl	%eax			/* get original/modified TPR value */
+	movl	%eax, lapic_tpr		/* restore TPR */
+#endif /* ADJUST_TPR */
+
+#ifdef ADJUST_IPL
+	popfl				/* restore original EFLAGS */
+	call	_splx			/* restore original ipl */
+	add	$4, %esp
+#endif /* ADJUST_IPL */
+
 	popl	%eax
 	ret
 
@@ -165,6 +241,9 @@ NON_GPROF_ENTRY(try_mplock)
 
 NON_GPROF_ENTRY(rel_mplock)
 	pushl	%eax
+
+	MARK_HIT(128)
+
 	pushl	%ecx
 	pushl	%edx
 	pushl	$_mp_lock
@@ -172,6 +251,9 @@ NON_GPROF_ENTRY(rel_mplock)
 	add	$4, %esp
 	popl	%edx
 	popl	%ecx
+
+	MARK_HIT(0)
+
 	popl	%eax
 	ret
 
@@ -181,3 +263,11 @@ NON_GPROF_ENTRY(rel_mplock)
 	.align  2	/* mp_lock SHALL be aligned on i386 */
 _mp_lock:	.long	0		
 
+#ifdef MARK_HITS
+	.globl	_lhits
+_lhits:
+	.long	0
+	.long	0
+	.long	0
+	.long	0
+#endif /* MARK_HITS */
