@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.2 1994/10/13 18:01:32 se Exp $
+**  $Id: ncrcontrol.c,v 1.3 1994/10/15 00:03:32 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -180,7 +180,7 @@ void open_kvm(int flags)
 
 	if (kvm_isopen) return;
 
-#if (__FreeBSD >= 2)
+#if (__FreeBSD__ >= 2)
 	vmunix = getbootfile();
 #endif
 	if (vmunix == NULL) {
