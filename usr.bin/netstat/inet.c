@@ -445,7 +445,7 @@ inetprint(in, port, proto)
 	if (!nflag && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)
-		sprintf(cp, "%.8s", sp ? sp->s_name : "*");
+		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
 	width = Aflag ? 18 : 22;
