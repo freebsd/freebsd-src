@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.4 1996/12/28 09:25:06 max Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.5 1997/01/02 16:54:25 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
     <!-- Original revision: 1.24 -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
@@ -646,9 +646,9 @@
 
       <sect1><heading>コンソール, バスマウス, Xサーバのサポート</heading>
 
-	<p>2つのタイプのコンソールのから1つを選ぶ必要があります. また
-	X Window System を利用する場合, XSERVERオプションを有効にし
-	ます. またバスマウスとPS/2マウスのオプションもあります. 
+	<p>2つのタイプのコンソールからどちらか1つを選ぶ必要があります.
+	また X Window System を利用する場合, XSERVERオプションを有効に
+	します. またバスマウスとPS/2マウスのオプションもあります. 
 	
 	  <descrip>
 
