@@ -104,6 +104,7 @@ static const char rcsid[] =
 #define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
 #define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
 #define	MINICMPLEN	ICMP_MINLEN
+#define	MASKLEN		(options & F_MASK ? 4 : 0)
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	MAXTOS		255
@@ -139,6 +140,7 @@ int options;
 #define	F_MISSED	0x10000
 #define	F_ONCE		0x20000
 #define	F_HDRINCL	0x40000
+#define	F_MASK		0x80000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -249,7 +251,7 @@ main(argc, argv)
 	outpack = outpackhdr + sizeof(struct ip);
 	datap = &outpack[MINICMPLEN + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
-		"ADI:LQRS:T:c:adfi:l:m:nop:qrs:t:vz:"
+		"ADI:LQRS:T:c:adfi:l:m:Mnop:qrs:t:vz:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -327,6 +329,9 @@ main(argc, argv)
 				errx(EX_USAGE, "invalid TTL: `%s'", optarg);
 			ttl = ultmp;
 			options |= F_TTL;
+			break;
+		case 'M':
+			options |= F_MASK;
 			break;
 		case 'n':
 			options |= F_NUMERIC;
@@ -479,7 +484,7 @@ main(argc, argv)
 		errx(EX_USAGE,
 		    "-I, -L, -T flags cannot be used with unicast destination");
 
-	if (datalen >= PHDR_LEN)	/* can we time transfer */
+	if (datalen - MASKLEN >= PHDR_LEN)	/* can we time transfer */
 		timing = 1;
 	packlen = MAXIPLEN + MAXICMPLEN + datalen;
 	packlen = packlen > IP_MAXPACKET ? IP_MAXPACKET : packlen;
@@ -805,7 +810,10 @@ pinger(void)
 
 	packet = outpack;
 	icp = (struct icmp *)outpack;
-	icp->icmp_type = ICMP_ECHO;
+	if (options & F_MASK)
+		icp->icmp_type = ICMP_MASKREQ;
+	else
+		icp->icmp_type = ICMP_ECHO;
 	icp->icmp_code = 0;
 	icp->icmp_cksum = 0;
 	icp->icmp_seq = htons(ntransmitted);
@@ -814,8 +822,8 @@ pinger(void)
 	CLR(ntransmitted % mx_dup_ck);
 
 	if (timing)
-		(void)gettimeofday((struct timeval *)&outpack[MINICMPLEN],
-		    NULL);
+		(void)gettimeofday((struct timeval *)&outpack[
+			MINICMPLEN + MASKLEN], NULL);
 
 	cc = MINICMPLEN + datalen;
 
@@ -886,7 +894,8 @@ pr_pack(buf, cc, from, tv)
 	/* Now the ICMP part */
 	cc -= hlen;
 	icp = (struct icmp *)(buf + hlen);
-	if (icp->icmp_type == ICMP_ECHOREPLY) {
+	if ((icp->icmp_type == ICMP_ECHOREPLY) ||
+	    ((icp->icmp_type == ICMP_MASKREPLY) && (options & F_MASK))) {
 		if (icp->icmp_id != ident)
 			return;			/* 'Twas not our ECHO */
 		++nreceived;
@@ -898,6 +907,8 @@ pr_pack(buf, cc, from, tv)
 #else
 			tp = icp->icmp_data;
 #endif
+			tp+=MASKLEN;
+
 			/* Copy to avoid alignment problems: */
 			memcpy(&tv1, tp, sizeof(tv1));
 			tvsub(tv, &tv1);
@@ -938,6 +949,11 @@ pr_pack(buf, cc, from, tv)
 				(void)printf(" (DUP!)");
 			if (options & F_AUDIBLE)
 				(void)write(STDOUT_FILENO, &BBELL, 1);
+			if (options & F_MASK) {
+				/* Just prentend this cast isn't ugly */
+				(void)printf(" mask=%s",
+					pr_addr(*(struct in_addr *)&(icp->icmp_mask)));
+			}
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[PHDR_LEN];
 			dp = &outpack[MINICMPLEN + PHDR_LEN];
