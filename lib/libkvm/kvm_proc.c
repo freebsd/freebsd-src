@@ -465,6 +465,7 @@ kvm_argv(kd, p, addr, narg, maxcnt)
 			return (kd->argv);
 		}
 	}
+	return (0);
 }
 
 static void
@@ -579,9 +580,6 @@ kvm_uread(kd, p, uva, buf, len)
 	char procfile[MAXPATHLEN];
 	ssize_t amount;
 	int fd;
-	u_long tmpuva = uva;
-	int i;
-	char *chr;
 
 	cp = buf;
 
