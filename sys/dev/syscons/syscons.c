@@ -474,7 +474,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	ttychars(tp);
         /* Use the current setting of the <-- key as default VERASE. */  
         /* If the Delete key is preferable, an stty is necessary     */
-	if (sc != NULL) {
+	if (sc->kbd != NULL) {
 	    key.keynum = KEYCODE_BS;
 	    kbd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
             tp->t_cc[VERASE] = key.key.map[0];
@@ -2217,6 +2217,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 
     /*
      * Is the wanted vty open? Don't allow switching to a closed vty.
+     * If we are in DDB, don't switch to a vty in the VT_PROCESS mode.
      * Note that we always allow the user to switch to the kernel 
      * console even if it is closed.
      */
@@ -2226,6 +2227,11 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	    splx(s);
 	    sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
+	    return EINVAL;
+	}
+	if ((debugger > 0) && (SC_STAT(tp->t_dev)->smode.mode == VT_PROCESS)) {
+	    splx(s);
+	    DPRINTF(5, ("error 3, requested vty is in the VT_PROCESS mode\n"));
 	    return EINVAL;
 	}
     }
