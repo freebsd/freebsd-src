@@ -80,7 +80,7 @@ static mode_t mode;
 static u_long flags = 0xffffffff;
 
 static int	dsort __P((const FTSENT **, const FTSENT **));
-static void	output __P((int, int *, const char *, ...));
+static void	output __P((int, int *, const char *, ...)) __printflike(3, 4);
 static int	statd __P((FTS *, FTSENT *, uid_t *, gid_t *, mode_t *,
 			   u_long *));
 static void	statf __P((int, FTSENT *));
