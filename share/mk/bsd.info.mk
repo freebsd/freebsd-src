@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.9 1995/01/23 20:53:38 jkh Exp $
+# $Id: bsd.info.mk,v 1.10 1995/02/02 04:53:30 jkh Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -17,7 +17,12 @@ MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
 
 all: ${INFO:S/$/.info/g}
 
+# The default is "info" and it can never be "bin"
 DISTRIBUTION?=	info
+.if ${DISTRIBUTION} == "bin"
+DISTRIBUTION=	info
+.endif
+
 .if !target(distribute)
 distribute:     
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies     
