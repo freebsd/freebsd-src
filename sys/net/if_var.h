@@ -114,7 +114,14 @@ struct	ifqueue {
  * 
  * Unfortunately devices' softc are opaque, so we depend on this layout
  * to locate the struct ifnet from the softc in the generic code.
- * 
+ *
+ * Note that not all fields are used by drivers in the FreeBSD source
+ * tree. However, who knows what third party software does with fields
+ * marked as "unused", such as if_ipending, if_done, and if_poll*,
+ * so any attemt to redefine their meaning might end up in binary
+ * compatibility problems, even if the size of struct ifnet, and
+ * the size and position of its fields do not change.
+ * We just have to live with that.
  */
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
