@@ -23,22 +23,12 @@
 ; $FreeBSD$
 ;
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/filio.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/socket.h>
-#include <net/if.h>
 #include <netinet/in.h>
 
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_signal.h>
-#include <svr4/svr4_stropts.h>
-#include <svr4/svr4_socket.h>
-#include <svr4/svr4_sockio.h>
-#include <svr4/svr4_timod.h>
 #include <svr4/svr4_proto.h>
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
