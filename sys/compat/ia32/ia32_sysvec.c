@@ -78,8 +78,11 @@ __FBSDID("$FreeBSD$");
 static register_t *ia32_copyout_strings(struct image_params *imgp);
 static void ia32_setregs(struct thread *td, u_long entry, u_long stack,
     u_long ps_strings);
+static void ia32_fixlimits(struct image_params *imgp);
 
 extern struct sysent freebsd32_sysent[];
+
+SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
 
 struct sysentvec ia32_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
@@ -106,7 +109,8 @@ struct sysentvec ia32_freebsd_sysvec = {
 	FREEBSD32_PS_STRINGS,
 	VM_PROT_ALL,
 	ia32_copyout_strings,
-	ia32_setregs
+	ia32_setregs,
+	ia32_fixlimits
 };
 
 
@@ -282,4 +286,63 @@ ia32_setregs(td, entry, stack, ps_strings)
 	/* Return via doreti so that we can change to a different %cs */
 	pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_retval[1] = 0;
+}
+
+static u_long	ia32_maxdsiz = IA32_MAXDSIZ;
+SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxdsiz, CTLFLAG_RW, &ia32_maxdsiz, 0, "");
+static u_long	ia32_maxssiz = IA32_MAXSSIZ;
+SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxssiz, CTLFLAG_RW, &ia32_maxssiz, 0, "");
+static u_long	ia32_maxvmem = IA32_MAXVMEM;
+SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxvmem, CTLFLAG_RW, &ia32_maxvmem, 0, "");
+
+static void
+ia32_fixlimits(struct image_params *imgp)
+{
+	struct proc *p = imgp->proc;
+
+	if (ia32_maxdsiz != 0) {
+		if (p->p_rlimit[RLIMIT_DATA].rlim_cur > ia32_maxdsiz ||
+		    p->p_rlimit[RLIMIT_DATA].rlim_max > ia32_maxdsiz) {
+			if (p->p_limit->p_refcnt > 1) {
+				p->p_limit->p_refcnt--;
+				p->p_limit = limcopy(p->p_limit);
+			}
+			if (p->p_rlimit[RLIMIT_DATA].rlim_cur > ia32_maxdsiz)
+				p->p_rlimit[RLIMIT_DATA].rlim_cur =
+				    ia32_maxdsiz;
+			if (p->p_rlimit[RLIMIT_DATA].rlim_max > ia32_maxdsiz)
+				p->p_rlimit[RLIMIT_DATA].rlim_max =
+				    ia32_maxdsiz;
+		}
+	}
+	if (ia32_maxssiz != 0) {
+		if (p->p_rlimit[RLIMIT_STACK].rlim_cur > ia32_maxssiz ||
+		    p->p_rlimit[RLIMIT_STACK].rlim_max > ia32_maxssiz) {
+			if (p->p_limit->p_refcnt > 1) {
+				p->p_limit->p_refcnt--;
+				p->p_limit = limcopy(p->p_limit);
+			}
+			if (p->p_rlimit[RLIMIT_STACK].rlim_cur > ia32_maxssiz)
+				p->p_rlimit[RLIMIT_STACK].rlim_cur =
+				    ia32_maxssiz;
+			if (p->p_rlimit[RLIMIT_STACK].rlim_max > ia32_maxssiz)
+				p->p_rlimit[RLIMIT_STACK].rlim_max =
+				    ia32_maxssiz;
+		}
+	}
+	if (ia32_maxvmem != 0) {
+		if (p->p_rlimit[RLIMIT_VMEM].rlim_cur > ia32_maxvmem ||
+		    p->p_rlimit[RLIMIT_VMEM].rlim_max > ia32_maxvmem) {
+			if (p->p_limit->p_refcnt > 1) {
+				p->p_limit->p_refcnt--;
+				p->p_limit = limcopy(p->p_limit);
+			}
+			if (p->p_rlimit[RLIMIT_VMEM].rlim_cur > ia32_maxvmem)
+				p->p_rlimit[RLIMIT_VMEM].rlim_cur =
+				    ia32_maxvmem;
+			if (p->p_rlimit[RLIMIT_VMEM].rlim_max > ia32_maxvmem)
+				p->p_rlimit[RLIMIT_VMEM].rlim_max =
+				    ia32_maxvmem;
+		}
+	}
 }

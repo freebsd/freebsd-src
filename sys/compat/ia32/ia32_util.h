@@ -38,3 +38,7 @@
 #include <sys/cdefs.h>
 
 #define FREEBSD32_USRSTACK	((1ul << 32) - PAGE_SIZE)
+
+#define	IA32_MAXDSIZ	(512*1024*1024)		/* 512MB */
+#define	IA32_MAXSSIZ	(64*1024*1024)		/* 64MB */
+#define IA32_MAXVMEM	0			/* Unlimited */
