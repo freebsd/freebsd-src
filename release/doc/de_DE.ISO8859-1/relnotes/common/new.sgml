@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.111 2002/12/07 22:56:26 ue Exp $
-  basiert auf: 1.22.2.313
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.114 2003/01/11 09:39:51 ue Exp $
+  basiert auf: 1.22.2.316
 -->
 
 <articleinfo>
@@ -17,12 +17,16 @@
 
     <year>2002</year>
 
+    <year>2003</year>
+
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation
       Project</holder>
   </copyright>
 
   <copyright>
     <year>2002</year>
+
+    <year>2003</year>
 
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD German
       Documentation Project</holder>
@@ -226,6 +230,13 @@
     <para>Diverse kritische Fehler in <application>BIND</application>
       wurden korrigiert, weitere Informationen finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
+    <para>In der Systemfunktion &man.fpathconf.2; wurde ein Fehler
+      (Verlust von Datei-Handles) beseitigt, durch den ein lokaler
+      Benutzer das System zum Absturz bringen oder h&ouml;here
+      Privilegien erhalten konnte.  Weitere Informationen finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
   </sect2>
 
   <sect2 id="userland">
@@ -268,8 +279,14 @@
     <sect3>
       <title>Zus&auml;tzliche Software</title>
 
-      <para><application>cvs</application> ist jetzt in der Version
-	1.11.2 verf&uuml;gbar.</para>
+      <para>Alle Anwendungen aus dem <application>bzip2</application>
+	Paket sind jetzt im Basissystem verf&uuml;gbar (dies betrifft
+	speziell <command>bzip2recover</command>, das jetzt erzeugt
+	und installiert wird).</para>
+
+      <para><application>cvs</application> ist jetzt in der
+	Zwischenversion 1.11.2.1 mit Stand 1. Dezember 2002
+	verf&uuml;gbar.</para>
 
       <para><application>Heimdahl Kerberos</application> ist jetzt in
 	der Version 0.5.1 verf&uuml;gbar.</para>

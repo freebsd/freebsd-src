@@ -1,8 +1,8 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.2.2.9 2002/12/07 22:50:37 ue Exp $
-  basiert auf: 1.1.2.15
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.2.2.10 2003/01/10 09:09:35 ue Exp $
+  basiert auf: 1.1.2.16
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -33,12 +33,16 @@
 
       <year>2002</year>
 
+      <year>2003</year>
+
       <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation
         Project</holder>
     </copyright>
 
     <copyright>
       <year>2002</year>
+
+      <year>2003</year>
 
       <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The
         FreeBSD German Documentation Project</holder>
