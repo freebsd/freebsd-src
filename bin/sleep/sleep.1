@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sleep.1	8.3 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: sleep.1,v 1.6 1997/02/22 14:05:44 peter Exp $
 .\"
 .Dd April 18, 1994
 .Dt SLEEP 1
@@ -50,13 +50,13 @@ The
 command
 suspends execution for a minimum of
 .Ar seconds .
-.Nm Sleep
+.Nm
 is used to schedule the execution of other commands (see
 .Sx EXAMPLES
 below).
 .Pp
 The
-.Nm Sleep
+.Nm
 utility exits with one of the following values:
 .Bl -tag -width flag
 .It Li \&0
@@ -105,10 +105,10 @@ when the file is found, then another portion processing
 is done courteously by sleeping for 70 seconds in between each
 awk job.
 .Sh SEE ALSO
+.Xr at 1 ,
 .Xr setitimer 2 ,
 .Xr alarm 3 ,
-.Xr sleep 3 ,
-.Xr at 1
+.Xr sleep 3
 .Sh STANDARDS
 The
 .Nm sleep
