@@ -1,21 +1,23 @@
 #	$Id$
 
 PROG=	info
+NOMAN=  yes
 
-SRCS=	dir.c display.c doc.c echo_area.c filesys.c info-utils.c info.c infodoc.c infomap.c
-SRCS+=	m-x.c nodes.c search.c session.c signals.c terminal.c tilde.c window.c indices.c
-SRCS+=	xmalloc.c nodemenu.c footnotes.c dribble.c variables.c gc.c man.c clib.c
+SRCS=	dir.c display.c display.h doc.c doc.h dribble.c dribble.h
+SRCS+=	echo-area.c echo-area.h filesys.c filesys.h footnotes.c
+SRCS+=	footnotes.h funs.h gc.c gc.h indices.c indices.h
+SRCS+=	info-utils.c info-utils.h info.c info.h infodoc.c
+SRCS+=	infomap.c infomap.h m-x.c man.c man.h nodemenu.c nodes.c
+SRCS+=	nodes.h search.c search.h session.c session.h signals.c
+SRCS+=	signals.h termdep.h terminal.c terminal.h tilde.c tilde.h
+SRCS+=	variables.c variables.h window.c window.h
 
-CFLAGS+= -DHANDLE_MAN_PAGES -DNAMED_FUNCTIONS=1
-CFLAGS+= -DDEFAULT_INFOPATH=\"${INFODIR}:/usr/local/info:.\"
-CFLAGS+= -DSTDC_HEADERS=1 -DHAVE_UNISTD_H=1 -DHAVE_TERMIOS_H=1 -DHAVE_STRINGS_H=1 -DHAVE_STRING_H=1
-CFLAGS+= -DHAVE_VARARGS_H=1 -DHAVE_SYS_TIME_H=1 -DHAVE_SYS_FCNTL_H=1 -DHAVE_SYS_FILE_H=1
-CFLAGS+= -DHAVE_ALLOCA=1 -DHAVE_SETVBUF=1 -DHAVE_GETCWD=1 -DHAVE_MEMSET=1 -DHAVE_BZERO=1
-CFLAGS+= -DHAVE_STRCHR=1 -DHAVE_STRCASECMP=1 -DHAVE_VFPRINTF=1 -DHAVE_VSPRINTF=1 -DHAVE_STRERROR=1
-CFLAGS+= -DHAVE_SIGPROCMASK=1 -DHAVE_SIGSETMASK=1 -I${TXIDIR}/libtxi
+CFLAGS+= -DINFODIR=\"${INFODIR}:/usr/local/info:.\"
+CFLAGS+= -DLOCALEDIR=\"/usr/share/locale\" -DHAVE_CONFIG_H
+CFLAGS+= -I${TXIDIR} -I${TXIDIR}/lib -I../libintl
 
-DPADD=	${LIBTERMCAP} ${LIBTXI}
-LDADD=	-ltermcap ${LIBTXI}
+DPADD=	${LIBTERMCAP} ${LIBTXI} ${LIBINTL}
+LDADD=	-ltermcap ${LIBTXI} ${LIBINTL}
 
 .include <bsd.prog.mk>
 

@@ -1,7 +1,14 @@
 #	$Id$
 
-INFO=	texinfo info info-stnd makeinfo
+INFO=	info-stnd info texinfo
+
+MAKEINFO= ../makeinfo/makeinfo
+
+CLEANFILES+=    ${.OBJDIR}/texinfo.texi
+
+texinfo.texi: texinfo.txi
+	@ln -sf ${.OODATE} ${.TARGET}
 
 .include <bsd.info.mk>
 
-.PATH: ${TXIDIR} ${TXIDIR}/info ${TXIDIR}/makeinfo
+.PATH: ${TXIDIR}/doc

@@ -2,6 +2,6 @@
 # $Id$
 #
 
-SUBDIR= libtxi makeinfo info install-info doc
+SUBDIR= libtxi libintl makeinfo info install-info doc
 
 .include <bsd.subdir.mk>
