@@ -103,6 +103,7 @@ struct resource {
 	bus_space_handle_t r_bushandle;	/* bus_space handle */
 	struct	device *r_dev;	/* device which has allocated this resource */
 	struct	rman *r_rm;	/* resource manager from whence this came */
+	int	r_rid;		/* optional rid for this resource. */
 };
 
 struct rman {
@@ -131,16 +132,18 @@ struct resource *rman_reserve_resource_bound(struct rman *rm, u_long start,
 					u_int flags, struct device *dev);
 uint32_t rman_make_alignment_flags(uint32_t size);
 
-#define rman_get_start(r)	((r)->r_start)
-#define rman_get_end(r)		((r)->r_end)
-#define	rman_get_size(r)	(((r)->r_end - (r)->r_start) + 1)
-#define rman_get_flags(r)	((r)->r_flags)
-#define	rman_set_virtual(r,v)	((r)->r_virtual = (v))
-#define	rman_get_virtual(r)	((r)->r_virtual)
-#define rman_set_bustag(r,t)	((r)->r_bustag = (t))
-#define rman_get_bustag(r)	((r)->r_bustag)
-#define rman_set_bushandle(r,h)	((r)->r_bushandle = (h))
-#define rman_get_bushandle(r)	((r)->r_bushandle)
+u_long	rman_get_start(struct resource *_r);
+u_long	rman_get_end(struct resource *_r);
+u_long	rman_get_size(struct resource *_r);
+u_int	rman_get_flags(struct resource *_r);
+void	rman_set_virtual(struct resource *_r, void *_v);
+void   *rman_get_virtual(struct resource *_r);
+void	rman_set_bustag(struct resource *_r, bus_space_tag_t _t);
+bus_space_tag_t rman_get_bustag(struct resource *_r);
+void	rman_set_bushandle(struct resource *_r, bus_space_handle_t _h);
+bus_space_handle_t rman_get_bushandle(struct resource *_r);
+void	rman_set_rid(struct resource *_r, int _rid);
+int	rman_get_rid(struct resource *_r);
 
 extern	struct rman_head rman_head;
 #endif /* _KERNEL */

@@ -613,3 +613,75 @@ rman_make_alignment_flags(uint32_t size)
 
 	return(RF_ALIGNMENT_LOG2(i));
 }
+
+u_long
+rman_get_start(struct resource *r)
+{
+	return (r->r_start);
+}
+
+u_long
+rman_get_end(struct resource *r)
+{
+	return (r->r_end);
+}
+
+u_long
+rman_get_size(struct resource *r)
+{
+	return (r->r_end - r->r_start + 1);
+}
+
+u_int
+rman_get_flags(struct resource *r)
+{
+	return (r->r_flags);
+}
+
+void
+rman_set_virtual(struct resource *r, void *v)
+{
+	r->r_virtual = v;
+}
+
+void *
+rman_get_virtual(struct resource *r)
+{
+	return (r->r_virtual);
+}
+
+void
+rman_set_bustag(struct resource *r, bus_space_tag_t t)
+{
+	r->r_bustag = t;
+}
+
+bus_space_tag_t
+rman_get_bustag(struct resource *r)
+{
+	return (r->r_bustag);
+}
+
+void
+rman_set_bushandle(struct resource *r, bus_space_handle_t h)
+{
+	r->r_bushandle = h;
+}
+
+bus_space_handle_t
+rman_get_bushandle(struct resource *r)
+{
+	return (r->r_bushandle);
+}
+
+void
+rman_set_rid(struct resource *r, int rid)
+{
+	r->r_rid = rid;
+}
+
+int
+rman_get_rid(struct resource *r)
+{
+	return (r->r_rid);
+}
