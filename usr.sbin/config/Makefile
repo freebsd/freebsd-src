@@ -6,7 +6,7 @@ MAN=	config.8
 SRCS=	config.y main.c lang.l mkmakefile.c mkheaders.c \
 	mkoptions.c y.tab.h
 
-WARNS?=	1
+WARNS?=	6
 CFLAGS+= -I. -I${.CURDIR}
 
 DPADD=	${LIBL}

@@ -293,7 +293,7 @@ makefile(void)
 	moveifchanged(path("env.c.new"), path("env.c"));
 }
 
-void
+static void
 read_file(char *fname)
 {
 	FILE *fp;
@@ -542,7 +542,6 @@ static void
 read_files(void)
 {
 	char fname[MAXPATHLEN];
-	FILE *fp;
 	struct files_name *nl, *tnl;
 	
 	if (ident == NULL) {
