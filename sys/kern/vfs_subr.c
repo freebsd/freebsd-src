@@ -787,7 +787,9 @@ getnewvnode(tag, mp, vops, vpp)
 #ifdef INVARIANTS
 		{
 			if (vp->v_data)
-				panic("cleaned vnode isn't");
+				printf("cleaned vnode isn't, "
+				       "address %p, inode %p\n",
+				       vp, vp->v_data);
 			if (vp->v_numoutput)
 				panic("Clean vnode has pending I/O's");
 			if (vp->v_writecount != 0)
