@@ -799,7 +799,6 @@ static int nwfs_strategy (ap)
 	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
 	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	NCPVNDEBUG("\n");
-	KASSERT(!(bp->b_flags & B_PHYS), ("nwfs physio"));
 	if (bp->b_flags & B_ASYNC)
 		td = (struct thread *)0;
 	else
