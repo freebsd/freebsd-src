@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Chris D. Faulhaber
+ * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,16 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 {
 	struct acl *acl_int;
 
-	if (!acl_p) {
+	if (acl_p == NULL) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	acl_int = &(*acl_p)->ats_acl;
 
 	if ((acl_int->acl_cnt >= ACL_MAX_ENTRIES) || (acl_int->acl_cnt < 0)) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	*entry_p = &acl_int->acl_entry[acl_int->acl_cnt++];
@@ -63,7 +63,7 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 
 	(*acl_p)->ats_cur_entry = 0;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -75,9 +75,9 @@ acl_get_entry(acl_t acl, int entry_id, acl_entry_t *entry_p)
 {
 	struct acl *acl_int;
 
-	if (!acl) {
+	if (acl == NULL) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 	acl_int = &acl->ats_acl;
 
@@ -89,9 +89,9 @@ acl_get_entry(acl_t acl, int entry_id, acl_entry_t *entry_p)
 		if (acl->ats_cur_entry >= acl->ats_acl.acl_cnt)
 			return 0;
 		*entry_p = &acl_int->acl_entry[acl->ats_cur_entry++];
-		return 1;
+		return (1);
 	}
 
 	errno = EINVAL;
-	return -1;
+	return (-1);
 }

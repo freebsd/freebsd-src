@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Chris D. Faulhaber
+ * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,19 +54,19 @@ acl_calc_mask(acl_t *acl_p)
 	 * perform sanity checks here and validate the ACL prior to
 	 * returning.
 	 */
-	if (!acl_p || !*acl_p) {
+	if (acl_p == NULL || *acl_p == NULL) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 	acl_int = &(*acl_p)->ats_acl;
 	if ((acl_int->acl_cnt < 3) || (acl_int->acl_cnt > ACL_MAX_ENTRIES)) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	acl_new = acl_dup(*acl_p);
-	if (!acl_new)
-		return -1;
+	if (acl_new == NULL)
+		return (-1);
 	acl_int_new = &acl_new->ats_acl;
 
 	mask_mode = 0;
@@ -94,7 +94,7 @@ acl_calc_mask(acl_t *acl_p)
 		/* if no mask exists, check acl_cnt... */
 		if (acl_int_new->acl_cnt == ACL_MAX_ENTRIES) {
 			errno = ENOMEM;
-			return -1;
+			return (-1);
 		}
 		/* ...and add the mask entry */
 		acl_int_new->acl_entry[acl_int_new->acl_cnt].ae_tag = ACL_MASK;
@@ -108,11 +108,11 @@ acl_calc_mask(acl_t *acl_p)
 	if (acl_valid(acl_new) == -1) {
 		errno = EINVAL;
 		acl_free(acl_new);
-		return -1;
+		return (-1);
 	}
 
 	**acl_p = *acl_new;
 	acl_free(acl_new);
 
-	return 0;
+	return (0);
 }

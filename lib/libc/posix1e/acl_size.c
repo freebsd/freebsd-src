@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Chris D. Faulhaber
+ * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,5 +38,5 @@ acl_size(acl_t acl)
 {
 
 	errno = ENOSYS;
-	return -1;
+	return (-1);
 }
