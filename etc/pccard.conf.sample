@@ -222,6 +222,15 @@ card "CyQ've" "ELA-010"
 	insert	/etc/pccard_ether ed0
 	remove	/sbin/ifconfig ed0 delete
 
+# Allied Telesis CentreCOM LA-PCM_V2 ethernet card
+# NTT-DATA ASTROWINK-M/MMOIL(IrLAN) ethernet card
+card "Allied Telesis, K.K." "CentreCOM LA-PCM_V2"
+	config 0x20 "ed0" ?
+	insert echo CentreCOM LA-PCM V2 Ethernet card inserted
+	insert /etc/pccard_ether ed0
+	remove echo CentreCOM LA-PCM V2 Ethernet card removed
+	remove ifconfig ed0 delete
+
 #  Intel EtherExpress PRO/100 Mobile Adapter (16-bit verison)
 card "Intel" "EtherExpress(TM) PRO/100 PC C"
 	config  0x1 "xe0" ?
