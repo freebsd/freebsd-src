@@ -267,10 +267,11 @@ $(CONF): Makefile
 .endfor
 .endfor
 
-
+# XXX Make sure we don't pass -P to crunchgen(1).
+.MAKEFLAGS:= ${.MAKEFLAGS:N-P}
 .ORDER: $(OUTPUTS) objs
 $(OUTPUTS): $(CONF)
-	MAKEFLAGS= MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -fq -m $(OUTMK) \
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -fq -m $(OUTMK) \
 	    -c $(OUTC) $(CONF)
 
 $(PROG): $(OUTPUTS) objs
