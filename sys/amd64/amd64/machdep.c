@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.94 1994/11/26 09:37:57 phk Exp $
+ *	$Id: machdep.c,v 1.95 1994/11/27 01:49:39 phk Exp $
  */
 
 #include "npx.h"
@@ -1311,8 +1311,9 @@ init386(first)
 		pagesinext = 3840;
 
 	/*
-	 * Maxmem isn't the "maximum memory", it's the highest page of
-	 * of the physical address space. It should be "Maxphyspage".
+	 * Maxmem isn't the "maximum memory", it's one larger than the
+	 * highest page of of the physical address space. It should be
+	 * called something like "Maxphyspage".
 	 */
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
