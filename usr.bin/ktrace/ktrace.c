@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: ktrace.c,v 1.6 1996/09/19 19:50:13 phk Exp $";
+	"$Id: ktrace.c,v 1.6.2.1 1997/03/15 10:40:15 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -187,8 +187,9 @@ rpid(p)
 void
 usage()
 {
-	(void)fprintf(stderr,
-"usage:\tktrace [-aCcid] [-f trfile] [-g pgid] [-p pid] [-t [cnisuv]\n\tktrace [-aCcid] [-f trfile] [-t [cnisuw] command\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+"usage: ktrace [-aCcid] [-f trfile] [-g pgid] [-p pid] [-t [cnisuv]",
+"       ktrace [-aCcid] [-f trfile] [-t [cnisuw] command");
 	exit(1);
 }
 
