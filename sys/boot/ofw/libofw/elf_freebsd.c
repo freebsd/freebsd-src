@@ -66,11 +66,13 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 	vm_offset_t		mdp;
 	Elf_Ehdr		*e;
 	int			error;
+	intptr_t		entry;
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
 		return(EFTYPE);
 	}
 	e = (Elf_Ehdr *)&fmp->md_data;
+	entry = e->e_entry;
 
 	if ((error = md_load(fp->f_args, &mdp)) != 0)
 		return (error);
@@ -79,7 +81,7 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 
 	dev_cleanup();
 	ofw_release_heap();
-	OF_chain((void *)reloc, end - (char *)reloc, (void *)e->e_entry,
+	OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
 	    (void *)mdp, sizeof(mdp));
 
 	panic("exec returned");
