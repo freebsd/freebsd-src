@@ -122,7 +122,20 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
-static int	ip_checkinterface = 1;
+/*
+ * XXX - Setting ip_checkinterface mostly implements the receive side of
+ * the Strong ES model described in RFC 1122, but since the routing table
+ * and transmit implementation do not implement the Strong ES model,
+ * setting this to 1 results in an odd hybrid.
+ *
+ * XXX - ip_checkinterface currently must be disabled if you use ipnat
+ * to translate the destination address to another local interface.
+ *
+ * XXX - ip_checkinterface must be disabled if you add IP aliases
+ * to the loopback interface instead of the interface where the
+ * packets for those addresses are received.
+ */
+static int	ip_checkinterface = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
     &ip_checkinterface, 0, "Verify packet arrives on correct interface");
 
@@ -256,7 +269,7 @@ ip_input(struct mbuf *m)
 	struct ip *ip;
 	struct ipq *fp;
 	struct in_ifaddr *ia = NULL;
-	int    i, hlen, mff;
+	int    i, hlen, mff, checkif;
 	u_short sum;
 	u_int16_t divert_cookie;		/* firewall cookie */
 	struct in_addr pkt_dst;
@@ -364,6 +377,17 @@ tooshort:
 		} else
 			m_adj(m, ip->ip_len - m->m_pkthdr.len);
 	}
+
+	/*
+	 * Don't accept packets with a loopback destination address
+	 * unless they arrived via the loopback interface.
+	 */
+	if ((ntohl(ip->ip_dst.s_addr) & IN_CLASSA_NET) ==
+	    (IN_LOOPBACKNET << IN_CLASSA_NSHIFT) && 
+	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
+		goto bad;
+	}
+
 	/*
 	 * IpHack's section.
 	 * Right now when no processing on packet has done
@@ -480,6 +504,24 @@ pass:
 	pkt_dst = ip_fw_fwd_addr == NULL ?
 	    ip->ip_dst : ip_fw_fwd_addr->sin_addr;
 
+	/*
+	 * Enable a consistency check between the destination address
+	 * and the arrival interface for a unicast packet (the RFC 1122
+	 * strong ES model) if IP forwarding is disabled and the packet
+	 * is not locally generated and the packet is not subject to
+	 * 'ipfw fwd'.
+	 *
+	 * XXX - Checking also should be disabled if the destination
+	 * address is ipnat'ed to a different interface.
+	 *
+	 * XXX - Checking is incompatible with IP aliases added
+	 * to the loopback interface instead of the interface where
+	 * the packets are received.
+	 */
+	checkif = ip_checkinterface && (ipforwarding == 0) && 
+	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
+	    (ip_fw_fwd_addr == NULL);
+
 	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
@@ -488,17 +530,22 @@ pass:
 			goto ours;
 #endif
 		/*
-		 * check that the packet is either arriving from the
-		 * correct interface or is locally generated.
+		 * If the address matches, verify that the packet
+		 * arrived via the correct interface if checking is
+		 * enabled.
 		 */
-		if (ia->ia_ifp != m->m_pkthdr.rcvif && ip_checkinterface &&
-		     (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0)
-			continue;
-
-		if (IA_SIN(ia)->sin_addr.s_addr == pkt_dst.s_addr)
+		if (IA_SIN(ia)->sin_addr.s_addr == pkt_dst.s_addr && 
+		    (!checkif || ia->ia_ifp == m->m_pkthdr.rcvif))
 			goto ours;
-
-		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
+		/*
+		 * Only accept broadcast packets that arrive via the
+		 * matching interface.  Reception of forwarded directed
+		 * broadcasts would be handled via ip_forward() and
+		 * ether_output() with the loopback into the stack for
+		 * SIMPLEX interfaces handled by ether_output().
+		 */
+		if (ia->ia_ifp == m->m_pkthdr.rcvif &&
+		    ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    pkt_dst.s_addr)
 				goto ours;
