@@ -448,8 +448,6 @@ do_exec_no_pty(Session *s, const char *command, struct passwd * pw)
 	if (s == NULL)
 		fatal("do_exec_no_pty: no session");
 
-	signal(SIGPIPE, SIG_DFL);
-
 	session_proctitle(s);
 
 #ifdef USE_PAM
@@ -1242,6 +1240,12 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	 */
 	for (i = 3; i < getdtablesize(); i++)
 		close(i);
+
+	/*
+	 * Restore any signal handlers set by sshd previously that should
+	 * be restored to their initial state.
+	 */
+	signal(SIGPIPE, SIG_DFL);
 
 	/* Change current directory to the user\'s home directory. */
 	if (
