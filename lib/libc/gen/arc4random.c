@@ -45,6 +45,8 @@ struct arc4_stream {
 static int rs_initialized;
 static struct arc4_stream rs;
 
+static inline u_int8_t arc4_getbyte(struct arc4_stream *);
+
 static inline void
 arc4_init(as)
 	struct arc4_stream *as;
@@ -80,7 +82,7 @@ static void
 arc4_stir(as)
 	struct arc4_stream *as;
 {
-	int     fd;
+	int     fd, n;
 	struct {
 		struct timeval tv;
 		pid_t pid;
@@ -98,6 +100,16 @@ arc4_stir(as)
 	 * stack... */
 
 	arc4_addrandom(as, (void *) &rdat, sizeof(rdat));
+
+	/*
+	 * Throw away the first N bytes of output, as suggested in the
+	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
+	 * by Fluher, Mantin, and Shamir.  N=1024 is based on
+	 * suggestions in the paper "(Not So) Random Shuffles of RC4"
+	 * by Ilya Mironov.
+	 */
+	for (n = 0; n < 1024; n++)
+		arc4_getbyte(as);
 }
 
 static inline u_int8_t
