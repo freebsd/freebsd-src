@@ -72,10 +72,19 @@ tags: ${SRCS}
 .if defined(SRCS)
 CLEANFILES?=
 
+.if !exists(${.OBJDIR}/${DEPENDFILE})
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.o: ${_S}
+.endfor
+.endif
+
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} -t ${LFLAGS} ${.ALLSRC} > ${.TARGET}
+.if !exists(${.OBJDIR}/${DEPENDFILE})
+${_LC:R}.o: ${_LC}
+.endif
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
 .endfor
@@ -102,6 +111,9 @@ CLEANFILES+= ${_YH}
 .else
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
+.endif
+.if !exists(${.OBJDIR}/${DEPENDFILE})
+${_YC:R}.o: ${_YC}
 .endif
 .endfor
 .endfor
