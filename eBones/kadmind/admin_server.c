@@ -226,6 +226,16 @@ kadm_listen()
 		log("accept: %s",error_message(errno));
 		continue;
 	    }
+	    addrlen = sizeof(server_parm.admin_addr);
+	    if (getsockname(peer_fd, (struct sockaddr *)&server_parm.admin_addr,
+			    &addrlen)) {
+		log("getsockname: %s",error_message(errno));
+		continue;
+	    }
+#ifdef DEBUG
+	    printf("Connection recieved on %s\n",
+		   inet_ntoa(server_parm.admin_addr.sin_addr));
+#endif /* DEBUG */
 #ifndef DEBUG
 	    /* if you want a sep daemon for each server */
 	    if (pid = fork()) {
