@@ -178,14 +178,19 @@
       in the statistics gathering because of a race condition in the
       counters, not an actual memory leak.</para>
 
-    <para>(31 Oct 2004) When installing FreeBSD 5.3 onto a machine
-      without PS/2 ports using an USB keyboard, the keyboard will stop
-      working once the kernel boots.  As a workaround, select
+    <para>(31 Oct 2004, updated on 5 Nov 2004)
+      For &os;/i386 and &os;/amd64, when installing &os; 5.3
+      using an USB keyboard the keyboard will stop
+      working once the kernel boots, because a PS/2 keyboard is
+      always attached.  As a workaround, select
       <quote>Escape to loader prompt</quote> in the boot loader menu
       and enter the following lines at the prompt:</para>
 
     <screen>set hint.atkbd.0.flags="0x1"
 boot</screen>
+
+    <para>Note that if you use the boot floppies, this is set
+      by default.</para>
 
     <para>After the installation, add the following line into
       <filename>/boot/loader.conf</filename>:</para>
