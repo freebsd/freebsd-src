@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.55 1997/08/29 09:03:40 kato Exp $
+ * $Id: sysctl.h,v 1.56 1997/09/07 05:27:26 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -132,40 +132,40 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static const struct sysctl_oid sysctl__##parent##_##name = { \
 		nbr, kind, a1, a2, #name, handler, fmt }; \
-	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name);
+	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name)
 
 /* This makes a node from which other oids can hang */
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \
 	extern struct linker_set sysctl_##parent##_##name; \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access, \
 		(void*)&sysctl_##parent##_##name, 0, handler, "N", descr); \
-	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
+	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name)
 
 /* This is a string len can be 0 to indicate '\0' termination */
 #define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|access, \
-		arg, len, sysctl_handle_string, "A", descr);
+		arg, len, sysctl_handle_string, "A", descr)
 
 /* This is a integer, if ptr is NULL, val is returned */
 #define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
-		ptr, val, sysctl_handle_int, "I", descr);
+		ptr, val, sysctl_handle_int, "I", descr)
 
 /* This is anything, specified by a pointer and a lenth */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
-		ptr, len, sysctl_handle_opaque, fmt, descr);
+		ptr, len, sysctl_handle_opaque, fmt, descr)
 
 /* This is a struct, specified by a pointer and type */
 #define SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
 		ptr, sizeof(struct type), sysctl_handle_opaque, \
-		"S," #type, descr);
+		"S," #type, descr)
 
 /* Needs a proc.  Specify by pointer and arg */
 #define SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, access, \
-		ptr, arg, handler, fmt, descr);
+		ptr, arg, handler, fmt, descr)
 #endif /* KERNEL */
 
 /*
