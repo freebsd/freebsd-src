@@ -7,7 +7,11 @@
 # FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
 
 # MPEG animation format
-0	string		\000\000\001\263	MPEG file
+0	belong		0x000001b3		Mpeg video stream data
+#>4	beshort&0xfff0	x			(%d x
+#>5	beshort&0x0fff  x			%d)
+0	belong		0x000001ba		Mpeg system stream data
+0	beshort&0xfff0	0xfff0			Mpeg audio stream data
 
 # FLI animation format
 4	leshort		0xAF11			FLI file
