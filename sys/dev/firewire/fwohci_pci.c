@@ -380,13 +380,14 @@ fwohci_pci_detach(device_t self)
 static int
 fwohci_pci_suspend(device_t dev)
 {
+	fwohci_softc_t *sc = device_get_softc(dev);
 	int err;
 
 	device_printf(dev, "fwohci_pci_suspend\n");
 	err = bus_generic_suspend(dev);
 	if (err)
 		return err;
-	/* fwohci_stop(dev); */
+	fwohci_stop(sc, dev);
 	return 0;
 }
 
@@ -397,6 +398,7 @@ fwohci_pci_resume(device_t dev)
 
 	device_printf(dev, "fwohci_pci_resume: power_state = 0x%08x\n",
 					pci_get_powerstate(dev));
+	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	fwohci_pci_init(dev);
 	fwohci_resume(sc, dev);
 	return 0;

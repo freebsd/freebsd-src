@@ -84,6 +84,7 @@ devclass_t firewire_devclass;
 static int firewire_match      __P((device_t));
 static int firewire_attach      __P((device_t));
 static int firewire_detach      __P((device_t));
+static int firewire_resume      __P((device_t));
 #if 0
 static int firewire_shutdown    __P((device_t));
 #endif
@@ -109,7 +110,7 @@ static device_method_t firewire_methods[] = {
 	DEVMETHOD(device_attach,	firewire_attach),
 	DEVMETHOD(device_detach,	firewire_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	firewire_resume),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* Bus interface */
@@ -367,7 +368,7 @@ firewire_attach( device_t dev )
 
 	fc = (struct firewire_comm *)device_get_softc(pa);
 	sc->fc = fc;
-	fc->status = -1;
+	fc->status = FWBUSNOTREADY;
 
 	unitmask = UNIT2MIN(device_get_unit(dev));
 
@@ -432,6 +433,19 @@ firewire_add_child(device_t dev, int order, const char *name, int unit)
 	}
 
 	return child;
+}
+
+static int
+firewire_resume(device_t dev)
+{
+	struct firewire_softc *sc;
+
+	sc = (struct firewire_softc *)device_get_softc(dev);
+	sc->fc->status = FWBUSNOTREADY;
+	
+	bus_generic_resume(dev);
+
+	return(0);
 }
 
 /*
