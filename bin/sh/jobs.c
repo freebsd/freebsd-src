@@ -109,6 +109,7 @@ STATIC void setcurjob(struct job *);
 STATIC void deljob(struct job *);
 STATIC struct job *getcurjob(struct job *);
 #endif
+STATIC void showjob(struct job *);
 
 
 /*
@@ -276,6 +277,53 @@ jobscmd(int argc __unused, char **argv __unused)
 	return 0;
 }
 
+STATIC void
+showjob(struct job *jp)
+{
+	char s[64];
+	struct procstat *ps;
+	int col, i, jobno, procno;
+
+	procno = jp->nprocs;
+	jobno = jp - jobtab + 1;
+	for (ps = jp->ps ; ; ps++) {	/* for each process */
+		if (ps == jp->ps)
+			fmtstr(s, 64, "[%d] %d ", jobno, ps->pid);
+		else
+			fmtstr(s, 64, "    %d ", ps->pid);
+		out1str(s);
+		col = strlen(s);
+		s[0] = '\0';
+		if (ps->status == -1) {
+			/* don't print anything */
+		} else if (WIFEXITED(ps->status)) {
+			fmtstr(s, 64, "Exit %d", WEXITSTATUS(ps->status));
+		} else {
+#if JOBS
+			if (WIFSTOPPED(ps->status)) 
+				i = WSTOPSIG(ps->status);
+			else
+#endif
+				i = WTERMSIG(ps->status);
+			if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
+				scopy(sys_siglist[i & 0x7F], s);
+			else
+				fmtstr(s, 64, "Signal %d", i & 0x7F);
+			if (WCOREDUMP(ps->status))
+				strcat(s, " (core dumped)");
+		}
+		out1str(s);
+		col += strlen(s);
+		do {
+			out1c(' ');
+			col++;
+		} while (col < 30);
+		out1str(ps->cmd);
+		out1c('\n');
+		if (--procno <= 0)
+			break;
+	}
+}
 
 /*
  * Print a list of jobs.  If "change" is nonzero, only print jobs whose
@@ -290,12 +338,7 @@ void
 showjobs(int change)
 {
 	int jobno;
-	int procno;
-	int i;
 	struct job *jp;
-	struct procstat *ps;
-	int col;
-	char s[64];
 
 	TRACE(("showjobs(%d) called\n", change));
 	while (dowait(0, (struct job *)NULL) > 0);
@@ -308,44 +351,7 @@ showjobs(int change)
 		}
 		if (change && ! jp->changed)
 			continue;
-		procno = jp->nprocs;
-		for (ps = jp->ps ; ; ps++) {	/* for each process */
-			if (ps == jp->ps)
-				fmtstr(s, 64, "[%d] %d ", jobno, ps->pid);
-			else
-				fmtstr(s, 64, "    %d ", ps->pid);
-			out1str(s);
-			col = strlen(s);
-			s[0] = '\0';
-			if (ps->status == -1) {
-				/* don't print anything */
-			} else if (WIFEXITED(ps->status)) {
-				fmtstr(s, 64, "Exit %d", WEXITSTATUS(ps->status));
-			} else {
-#if JOBS
-				if (WIFSTOPPED(ps->status)) 
-					i = WSTOPSIG(ps->status);
-				else
-#endif
-					i = WTERMSIG(ps->status);
-				if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
-					scopy(sys_siglist[i & 0x7F], s);
-				else
-					fmtstr(s, 64, "Signal %d", i & 0x7F);
-				if (WCOREDUMP(ps->status))
-					strcat(s, " (core dumped)");
-			}
-			out1str(s);
-			col += strlen(s);
-			do {
-				out1c(' ');
-				col++;
-			} while (col < 30);
-			out1str(ps->cmd);
-			out1c('\n');
-			if (--procno <= 0)
-				break;
-		}
+		showjob(jp);
 		jp->changed = 0;
 		if (jp->state == JOBDONE) {
 			freejob(jp);
@@ -889,36 +895,19 @@ dowait(int block, struct job *job)
 	}
 	INTON;
 	if (! rootshell || ! iflag || (job && thisjob == job)) {
-		core = WCOREDUMP(status);
 #if JOBS
 		if (WIFSTOPPED(status))
 			sig = WSTOPSIG(status);
 		else
 #endif
+		{
 			if (WIFEXITED(status))
 				sig = 0;
 			else
 				sig = WTERMSIG(status);
-
-		if (sig != 0 && sig != SIGINT && sig != SIGPIPE) {
-			if (thisjob != job)
-				outfmt(out2, "%d: ", pid);
-#if JOBS
-			if (sig == SIGTSTP && rootshell && iflag)
-				outfmt(out2, "%%%d ", job - jobtab + 1);
-#endif
-			if (sig < NSIG && sys_siglist[sig])
-				out2str(sys_siglist[sig]);
-			else
-				outfmt(out2, "Signal %d", sig);
-			if (core)
-				out2str(" - core dumped");
-			out2c('\n');
-			flushout(&errout);
-		} else {
-			TRACE(("Not printing status: status=%d, sig=%d\n", 
-				   status, sig));
 		}
+		if (sig != 0 && sig != SIGINT && sig != SIGPIPE)
+			showjob(thisjob);
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
 		if (thisjob)
