@@ -36,12 +36,11 @@
  * Written by Jonathan Chen <jon@freebsd.org>
  */
 
-#define	CARDBUS_DEBUG
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -61,18 +60,25 @@
 #include "card_if.h"
 #include "pcib_if.h"
 
-#if defined CARDBUS_DEBUG
-#define	DPRINTF(a) printf a
-#define	DEVPRINTF(x) device_printf x
-#else
-#define	DPRINTF(a)
-#define	DEVPRINTF(x)
-#endif
+__FBSDID("$FreeBSD$");
 
-#if !defined(lint)
-static const char rcsid[] =
-    "$FreeBSD$";
-#endif
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, cardbus, CTLFLAG_RD, 0, "CardBus parameters");
+
+int	cardbus_debug = 0;
+TUNABLE_INT("hw.cardbus.debug", &cardbus_debug);
+SYSCTL_INT(_hw_cardbus, OID_AUTO, debug, CTLFLAG_RW,
+    &cardbus_debug, 0,
+  "CardBus debug");
+
+int	cardbus_cis_debug = 0;
+TUNABLE_INT("hw.cardbus.cis_debug", &cardbus_cis_debug);
+SYSCTL_INT(_hw_cardbus, OID_AUTO, cis_debug, CTLFLAG_RW,
+    &cardbus_cis_debug, 0,
+  "CardBus CIS debug");
+
+#define	DPRINTF(a) if (cardbus_debug) printf a
+#define	DEVPRINTF(x) if (cardbus_debug) device_printf x
 
 static int	cardbus_probe(device_t cbdev);
 static int	cardbus_attach(device_t cbdev);
