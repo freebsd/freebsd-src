@@ -166,43 +166,39 @@ alpha_set_fpmask(struct proc *p, char *args)
 static	int
 alpha_set_uac(struct proc *p, char *args)
 {
-	int error, s;
+	int error;
 	unsigned long uac;
 
 	error = copyin(args, &uac, sizeof(uac));
 	if (error)
 		return (error);
 
-	PROCTREE_LOCK(PT_SHARED);
+	PROC_LOCK(p);
 	if (p->p_pptr) {
-		s = splimp();
-		if (p->p_pptr) {
-			p->p_pptr->p_md.md_flags &= ~MDP_UAC_MASK;
-			p->p_pptr->p_md.md_flags |= uac & MDP_UAC_MASK;
-		} else
-			error = ESRCH;
-		splx(s);
+		PROC_LOCK(p->p_pptr);
+		p->p_pptr->p_md.md_flags &= ~MDP_UAC_MASK;
+		p->p_pptr->p_md.md_flags |= uac & MDP_UAC_MASK;
+		PROC_UNLOCK(p->p_pptr);
 	}
-	PROCTREE_LOCK(PT_RELEASE);
-	return error;
+	PROC_UNLOCK(p);
+	return 0;
 }
 
 static	int
 alpha_get_uac(struct proc *p, char *args)
 {
-	int error, s;
+	int error;
 	unsigned long uac;
 
 	error = ESRCH;
-	PROCTREE_LOCK(PT_SHARED);
+	PROC_LOCK(p);
 	if (p->p_pptr) {
-		s = splimp();
-		if (p->p_pptr) {
-			uac = p->p_pptr->p_md.md_flags & MDP_UAC_MASK;
-			error = copyout(&uac, args, sizeof(uac));
-		}
-		splx(s);
-	}
-	PROCTREE_LOCK(PT_RELEASE);
+		PROC_LOCK(p->p_pptr);
+		uac = p->p_pptr->p_md.md_flags & MDP_UAC_MASK;
+		PROC_UNLOCK(p->p_pptr);
+		PROC_UNLOCK(p);
+		error = copyout(&uac, args, sizeof(uac));
+	} else
+		PROC_UNLOCK(p);
 	return error;
 }
