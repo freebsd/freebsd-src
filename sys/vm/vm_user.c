@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_user.c,v 1.7 1995/02/09 14:14:13 davidg Exp $
+ * $Id: vm_user.c,v 1.8 1995/02/20 18:08:18 davidg Exp $
  */
 
 /*
@@ -76,75 +76,6 @@
 
 simple_lock_data_t vm_alloc_lock;	/* XXX */
 
-/*
- *	vm_protect sets the protection of the specified range in the
- *	specified map.
- */
-
-int
-vm_protect(map, start, size, set_maximum, new_protection)
-	register vm_map_t map;
-	vm_offset_t start;
-	vm_size_t size;
-	boolean_t set_maximum;
-	vm_prot_t new_protection;
-{
-	if (map == NULL)
-		return (KERN_INVALID_ARGUMENT);
-
-	return (vm_map_protect(map, trunc_page(start), round_page(start + size), new_protection, set_maximum));
-}
-
-/*
- *	vm_allocate allocates "zero fill" memory in the specfied
- *	map.
- */
-int
-vm_allocate(map, addr, size, anywhere)
-	register vm_map_t map;
-	register vm_offset_t *addr;
-	register vm_size_t size;
-	boolean_t anywhere;
-{
-	int result;
-
-	if (map == NULL)
-		return (KERN_INVALID_ARGUMENT);
-	if (size == 0) {
-		*addr = 0;
-		return (KERN_SUCCESS);
-	}
-	if (anywhere)
-		*addr = vm_map_min(map);
-	else
-		*addr = trunc_page(*addr);
-	size = round_page(size);
-
-	result = vm_map_find(map, NULL, (vm_offset_t) 0, addr, size, anywhere);
-
-	return (result);
-}
-
-/*
- *	vm_deallocate deallocates the specified range of addresses in the
- *	specified address map.
- */
-int
-vm_deallocate(map, start, size)
-	register vm_map_t map;
-	vm_offset_t start;
-	vm_size_t size;
-{
-	if (map == NULL)
-		return (KERN_INVALID_ARGUMENT);
-
-	if (size == (vm_offset_t) 0)
-		return (KERN_SUCCESS);
-
-	return (vm_map_remove(map, trunc_page(start), round_page(start + size)));
-}
-
-#if 1
 /*
  * Similar to vm_allocate but assigns an explicit pager.
  */
@@ -197,4 +128,3 @@ vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
 		vm_object_setpager(object, pager, (vm_offset_t) 0, TRUE);
 	return (result);
 }
-#endif
