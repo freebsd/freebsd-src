@@ -5,6 +5,13 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000906:
+	nsswitch has been imported from NetBSD.  Among other things,
+	this means that /etc/host.conf is no longer used.  See
+	nsswitch.conf(5) instead.  Note that at boot time rc.network
+	will attempt to produce a new nsswitch.conf file for you if you
+	don't have one, and you have host.conf.
+
 20000905:
 	This just in.  The boot loader has been updated.  The new
 	default kernel is /kernel.ko.  The new default module location
