@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.70 1998/06/30 08:13:27 jmg Exp $
+**  $Id: pcisupport.c,v 1.71 1998/07/07 05:00:09 bde Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -234,6 +234,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
+	case 0x84ca8086:
+		return ("Intel 82451NX Memory and I/O Controller");
+	case 0x84cb8086:
+		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
