@@ -767,10 +767,9 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 
 		if (   te->data_len < sizeof(toc->tab[0])
 		    || (te->data_len % sizeof(toc->tab[0])) != 0
+		    || te->address_format != CD_MSF_FORMAT
+		    && te->address_format != CD_LBA_FORMAT
 		   )
-			return EINVAL;
-		if (te->address_format != CD_MSF_FORMAT &&
-		    te->address_format != CD_LBA_FORMAT)
 			return EINVAL;
 
 		if (starting_track == 0)
@@ -785,6 +784,8 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			sizeof(toc->tab[0]);
 		if (te->data_len < len)
 			len = te->data_len;
+		if (len > sizeof(toc->tab))
+			return EINVAL;
 
 		/* Convert to MSF format, if needed. */
 		if (te->address_format == CD_MSF_FORMAT) {
