@@ -82,6 +82,13 @@ the common items quick how-tos, followed by entries for versions of
 	mergemaster (especially for updating /etc/rc, /etc/defaults/rc.conf,
 	and /etc/mail) and read /etc/mail/README for more details.
 
+20020318:
+	The ata(4) driver has been updated from the version in -CURRENT.  
+	As a result, some device nodes in /dev have changed; it will be 
+	necessary to update MAKEDEV and re-make the device nodes.
+	mergemaster(8) will offer to do this as a part of its upgrade
+	procedure.
+
 20020129:
 	FreeBSD 4.5-RELEASE.
 
