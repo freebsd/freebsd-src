@@ -52,7 +52,6 @@ static int	DoCommand(int ac, char **av);
 static int	DoInteractive(void);
 static const	struct ngcmd *FindCommand(const char *string);
 static int	MatchCommand(const struct ngcmd *cmd, const char *s);
-static void	DumpAscii(const u_char *buf, int len);
 static void	Usage(const char *msg);
 static int	ReadCmd(int ac, char **av);
 static int	HelpCmd(int ac, char **av);
@@ -229,48 +228,11 @@ DoInteractive(void)
 		}
 
 		/* Display any incoming control message */
-		while (FD_ISSET(csock, &rfds)) {
-			u_char buf[2 * sizeof(struct ng_mesg) + 8192];
-			struct ng_mesg *const m = (struct ng_mesg *)buf;
-			struct ng_mesg *const ascii = (struct ng_mesg *)m->data;
-			char path[NG_PATHLEN+1];
-
-			/* Get incoming message (in binary form) */
-			if (NgRecvMsg(csock, m, sizeof(buf), path) < 0) {
-				warn("recv incoming message");
-				break;
-			}
-
-			/* Ask originating node to convert to ASCII */
-			if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-			      NGM_BINARY2ASCII, m,
-			      sizeof(*m) + m->header.arglen) < 0
-			    || NgRecvMsg(csock, m, sizeof(buf), NULL) < 0) {
-				printf("Rec'd %s %d from \"%s\":\n",
-				    (m->header.flags & NGF_RESP) != 0 ?
-				      "response" : "command",
-				    m->header.cmd, path);
-				if (m->header.arglen == 0)
-					printf("No arguments\n");
-				else
-					DumpAscii(m->data, m->header.arglen);
-				break;
-			}
-
-			/* Display message in ASCII form */
-			printf("Rec'd %s \"%s\" (%d) from \"%s\":\n",
-			    (ascii->header.flags & NGF_RESP) != 0 ?
-			      "response" : "command",
-			    ascii->header.cmdstr, ascii->header.cmd, path);
-			if (*ascii->data != '\0')
-				printf("Args:\t%s\n", ascii->data);
-			else
-				printf("No arguments\n");
-			break;
-		}
+		if (FD_ISSET(csock, &rfds))
+			MsgRead();
 
 		/* Display any incoming data packet */
-		while (FD_ISSET(dsock, &rfds)) {
+		if (FD_ISSET(dsock, &rfds)) {
 			u_char buf[8192];
 			char hook[NG_HOOKLEN + 1];
 			int rl;
@@ -278,14 +240,13 @@ DoInteractive(void)
 			/* Read packet from socket */
 			if ((rl = NgRecvData(dsock,
 			    buf, sizeof(buf), hook)) < 0)
-				err(EX_OSERR, "read(hook)");
+				err(EX_OSERR, "reading hook \"%s\"", hook);
 			if (rl == 0)
 				errx(EX_OSERR, "EOF from hook \"%s\"?", hook);
 
 			/* Write packet to stdout */
 			printf("Rec'd data packet on hook \"%s\":\n", hook);
 			DumpAscii(buf, rl);
-			break;
 		}
 
 		/* Get any user input */
@@ -495,7 +456,7 @@ QuitCmd(int ac, char **av)
 /*
  * Dump data in hex and ASCII form
  */
-static void
+void
 DumpAscii(const u_char *buf, int len)
 {
 	char ch, sbuf[100];
