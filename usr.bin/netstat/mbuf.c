@@ -255,7 +255,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	} else {
 		/* XXX: peak is now wrong. */
 		printf("%lu/%lu/%d (current/peak/max):\n",
-		    totused[0], totused[0], nmbufs);
+		    totused[0], totnum, nmbufs);
 	}
 
 	for (i = 0; cflag && i < (num_objs - 1); i++) {
@@ -312,7 +312,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	} else {
 		/* XXX: peak is now wrong. */
 		printf("%lu/%lu/%d (current/peak/max):\n",
-		    totused[1], totused[1], nmbclusters);
+		    totused[1], totnum, nmbclusters);
 	}
 	for (i = 0; cflag && i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
