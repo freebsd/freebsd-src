@@ -168,6 +168,11 @@ stimeprint(w)
 {
 	struct tm *delta;
 
+	if (w->idletime == -1) {
+		(void)printf("     ");
+		return;
+	}
+
 	delta = gmtime(&w->idletime);
 	if (!delta->tm_yday)
 		if (!delta->tm_hour)

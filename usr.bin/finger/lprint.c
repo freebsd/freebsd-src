@@ -191,7 +191,8 @@ no_gecos:
 			 * idle time.  Follow with a comma if a remote login.
 			 */
 			delta = gmtime(&w->idletime);
-			if (delta->tm_yday || delta->tm_hour || delta->tm_min) {
+			if (w->idletime != -1 && (delta->tm_yday ||
+			    delta->tm_hour || delta->tm_min)) {
 				cpr += printf("%-*s idle ",
 				    maxlen - (int)strlen(w->tty) + 1, ",");
 				if (delta->tm_yday > 0) {

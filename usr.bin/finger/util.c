@@ -324,10 +324,23 @@ find_idle_and_ttywrite(w)
 	extern time_t now;
 	struct stat sb;
 	time_t touched;
+	int error;
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_DEV, w->tty);
-	if (stat(tbuf, &sb) < 0) {
+
+	error = stat(tbuf, &sb);
+	if (error < 0 && errno == ENOENT) {
+		/*
+		 * The terminal listed is not actually a terminal (i.e.,
+		 * ":0").  This is a failure, so we'll skip printing
+		 * out the idle time, which is non-ideal but better
+		 * than a bogus warning and idle time.
+		 */
+		w->idletime = -1;
+		return;
+	} else if (error < 0) {
 		warn("%s", tbuf);
+		w->idletime = -1;
 		return;
 	}
 	touched = sb.st_atime;
