@@ -50,13 +50,13 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft void
-.Fn setbuf "FILE *stream" "char *buf"
+.Fn setbuf "FILE *restrict stream" "char *restrict buf"
 .Ft void
 .Fn setbuffer "FILE *stream" "char *buf" "int size"
 .Ft int
 .Fn setlinebuf "FILE *stream"
 .Ft int
-.Fn setvbuf "FILE *stream" "char *buf" "int mode" "size_t size"
+.Fn setvbuf "FILE *restrict stream" "char *restrict buf" "int mode" "size_t size"
 .Sh DESCRIPTION
 The three types of buffering available are unbuffered, block buffered,
 and line buffered.
