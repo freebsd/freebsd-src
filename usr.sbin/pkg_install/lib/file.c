@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.20 1996/02/19 02:35:56 mpp Exp $";
+static const char *rcsid = "$Id: file.c,v 1.21 1996/03/12 06:12:43 jkh Exp $";
 #endif
 
 /*
@@ -23,9 +23,10 @@ static const char *rcsid = "$Id: file.c,v 1.20 1996/02/19 02:35:56 mpp Exp $";
  */
 
 #include "lib.h"
-#include "ftp.h"
+#include <ftpio.h>
 #include <pwd.h>
 #include <time.h>
+#include <sys/wait.h>
 
 /* Quick check to see if a file exists */
 Boolean
@@ -123,7 +124,7 @@ fileURLHost(char *fname, char *where, int max)
     /* Don't ever call this on a bad URL! */
     fname += strlen("ftp://");
     /* Do we have a place to stick our work? */
-    if (ret = where) {
+    if ((ret = where) != NULL) {
 	while (*fname && *fname != '/' && max--)
 	    *where++ = *fname++;
 	*where = '\0';
@@ -148,7 +149,7 @@ fileURLFilename(char *fname, char *where, int max)
     /* Don't ever call this on a bad URL! */
     fname += strlen("ftp://");
     /* Do we have a place to stick our work? */
-    if (ret = where) {
+    if ((ret = where) != NULL) {
 	while (*fname && *fname != '/')
 	    ++fname;
 	if (*fname == '/') {
@@ -172,24 +173,20 @@ fileURLFilename(char *fname, char *where, int max)
 char *
 fileGetURL(char *base, char *spec)
 {
-    char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp, *tmp;
+    char host[HOSTNAME_MAX], file[FILENAME_MAX];
+    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp;
     char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
     struct passwd *pw;
-    FTP_t ftp;
+    FILE *ftp;
     pid_t tpid;
-    int fd, fd2, i, len = 0;
-    char ch;
-    time_t start, stop;
+    int i;
     char *hint;
 
     rp = NULL;
     /* Special tip that sysinstall left for us */
     hint = getenv("PKG_ADD_BASE");
     if (!isURL(spec)) {
-	int len;
-
 	if (!base && !hint)
 	    return NULL;
 	/* We've been given an existing URL (that's known-good) and now we need
@@ -219,7 +216,6 @@ fileGetURL(char *base, char *spec)
     }
     else
 	strcpy(fname, spec);
-    ftp = FtpInit();
     cp = fileURLHost(fname, host, HOSTNAME_MAX);
     if (!*cp) {
 	whinge("URL `%s' has bad host part!", fname);
@@ -241,37 +237,23 @@ fileGetURL(char *base, char *spec)
 	whinge("Can't get user name for ID %d\n.", getuid());
 	strcpy(pword, "joe@");
     }
-    else
-	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, host);
+    else {
+	char me[HOSTNAME_MAX];
 
-    if (Verbose)
-	printf("Trying to log into %s as %s.\n", host, uname);
-    FtpOpen(ftp, host, uname, pword);
-    if (getenv("FTP_PASSIVE_MODE"))
-	FtpPassive(ftp, TRUE);
-
-    strcpy(dir, file);
-    for (i = strlen(dir); i && dir[i] != '/'; i--);
-    dir[i] = '\0';
-
-    if (dir[0]) {
-	if (Verbose) printf("FTP: chdir to %s\n", dir);
-	FtpChdir(ftp, dir);
+	gethostname(me, HOSTNAME_MAX);
+	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, me);
     }
-    FtpBinary(ftp, TRUE);
-    if (Verbose) printf("FTP: trying to get %s\n", basename_of(file));
-    tmp = basename_of(file);
-    if (!strstr(tmp, ".tgz"))
-	tmp = strconcat(tmp, ".tgz");
-    fd = FtpGet(ftp, tmp);
-    if (fd >= 0) {
+    if (Verbose)
+	printf("Trying to fetch %s.\n", fname);
+    ftp = ftpGetURL(fname, uname, pword);
+    if (ftp) {
 	pen[0] = '\0';
-	if (rp = make_playpen(pen, 0)) {
+	if ((rp = make_playpen(pen, 0)) != NULL) {
 	    if (Verbose)
 		printf("Extracting from FTP connection into %s\n", pen);
 	    tpid = fork();
 	    if (!tpid) {
-		dup2(fd, 0);
+		dup2(fileno(ftp), 0);
 		i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
 		if (Verbose)
 		    printf("tar command returns %d status\n", i);
@@ -280,7 +262,7 @@ fileGetURL(char *base, char *spec)
 	    else {
 		int pstat;
 
-		close(fd);
+		fclose(ftp);
 		tpid = waitpid(tpid, &pstat, 0);
 	    }
 	}
@@ -288,9 +270,8 @@ fileGetURL(char *base, char *spec)
 	    printf("Error: Unable to construct a new playpen for FTP!\n");
     }
     else
-	printf("Error: FTP Unable to get %s\n", basename_of(file));
-    FtpEOF(ftp);
-    FtpClose(ftp);
+	printf("Error: FTP Unable to get %s\n", fname);
+    fclose(ftp);
     return rp;
 }
 

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.7.4.1 1995/11/10 06:44:47 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.8 1995/11/12 04:55:30 jkh Exp $";
 #endif
 
 /*
@@ -123,7 +123,7 @@ pkg_do(char *pkg)
     if (!Fake) {
 	/* Some packages aren't packed right, so we need to just ignore delete_package()'s status.  Ugh! :-( */
 	if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
-	    warn("Couldn't entirely delete package (perhaps the packing list is\n"
+	    whinge("Couldn't entirely delete package (perhaps the packing list is\n"
 		 "incorrectly specified?)\n");
 	if (vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
 	    whinge("Couldn't remove log entry in %s, de-install failed.", LogDir);
@@ -206,7 +206,7 @@ undepend(PackingList p, char *pkgname)
 	 return;
      }
      if (rename(ftmp, fname) == -1)
-	 warn("Error renaming `%s' to `%s'", ftmp, fname);
+	 whinge("Error renaming `%s' to `%s'", ftmp, fname);
      remove(ftmp);			/* just in case */
      return;
 }
