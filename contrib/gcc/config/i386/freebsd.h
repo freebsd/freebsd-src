@@ -524,10 +524,6 @@ do {									\
 #undef LIB_SPEC
 #define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
 
-/* Let gcc locate this for us according to the -m rules */
-#undef  LIBGCC_SPEC
-#define LIBGCC_SPEC "%{!shared:libgcc.a%s}"
-
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
    link things in one of these three modes by applying the appropriate
