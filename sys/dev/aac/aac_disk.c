@@ -219,8 +219,12 @@ aac_disk_strategy(struct bio *bp)
  * for the controller to complete the requests.
  */
 static int
-aac_disk_dump(dev_t dev)
+aac_disk_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
+
+	/* XXX: This needs modified for the new dump API */
+	return (ENXIO);
+#if 0
 	struct aac_disk *ad;
 	struct aac_softc *sc;
 	vm_offset_t addr;
@@ -290,6 +294,7 @@ retry:
 	}
 
 	return (0);
+#endif
 }
 
 /*
