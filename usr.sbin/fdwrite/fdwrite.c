@@ -66,7 +66,7 @@ main(int argc, char **argv)
     int inputfd = -1, c, fdn = 0, i,j,fd;
     int bpt, verbose=1, nbytes=0, track;
     int interactive = 1;
-    char *device= "/dev/rfd0", *trackbuf = 0,*vrfybuf = 0;
+    char *device= "/dev/fd0", *trackbuf = 0,*vrfybuf = 0;
     struct fd_type fdt;
     FILE *tty;
 

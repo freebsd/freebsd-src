@@ -241,7 +241,7 @@ VN partitions that previously contained filesystems.
 .Pp
 .Dl vnconfig -e -s labels,reserve -S 400m vn1
 .Dl disklabel -r -w vn1 auto
-.Dl newfs /dev/rvn1c
+.Dl newfs /dev/vn1c
 .Dl mount /dev/vn1c /usr/obj
 .Pp
 Is an example of a swap-backed VN disk configuration.  This example assumes
