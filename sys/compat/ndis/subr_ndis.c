@@ -2752,7 +2752,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	}
 
 	if (TAILQ_EMPTY(&mountlist)) {
-		free(fh, M_TEMP);
+		ExFreePool(fh);
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
 		printf("NDIS: could not find file %s in linker list\n",
 		    afilename);
@@ -2764,7 +2764,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 
 	path = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
 	if (path == NULL) {
-		free(fh, M_TEMP);
+		ExFreePool(fh);
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
