@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.287
+     Original revision: 1.423
 -->
 
 <articleinfo>
@@ -24,9 +24,17 @@
 
   <abstract>
   <para>Les notes de version pour &os; &release.current;
-  contiennent un r&eacute;sum&eacute; des changements r&eacute;alis&eacute;s dans le
-  syst&egrave;me &os; de base depuis &release.prev;. Les
-  changements concernant le noyau et les programmes
+  contiennent un r&eacute;sum&eacute; des 
+
+<![ %include.historic; [
+   changements r&eacute;alis&eacute;s dans le syst&egrave;me &os; de base 
+   depuis &release.prev;. 
+]]>
+<![ %no.include.historic; [
+   changements r&eacute;cents r&eacute;alis&eacute;s dans le syst&egrave;me &os; de 
+   base de la branche de d&eacute;veloppement &release.branch;.
+]]>
+  Les changements concernant le noyau et les programmes
   utilisateurs sont mentionn&eacute;s ainsi que les avis de
   s&eacute;curit&eacute; applicables au syst&egrave;me de base qui ont &eacute;t&eacute;
   d&eacute;couverts depuis la derni&egrave;re version. Ces notes
@@ -38,11 +46,11 @@
 <sect1>
   <title>Introduction</title>
         <para>Ce document contient les notes de version pour &os;
-        &release.current; sur plate-forme &arch.print;. Il d&eacute;crit les 
-	nouvelles fonctions de &os; qui ont &eacute;t&eacute; ajout&eacute;es 
-	(ou modifi&eacute;es) depuis &release.prev;. Il contient &eacute;galement 
-	quelques notes sur la mise &agrgave; jour depuis la version 
-	pr&eacute;c&eacute;dente de &os;.</para>
+        &release.current; sur plate-forme &arch.print;. Il d&eacute;crit 
+	les nouvelles fonctions de &os; qui ont &eacute;t&eacute; 
+	ajout&eacute;es, modifi&eacute;es ou retir&eacute;es dans &os;. 
+	Il contient &eacute;galement quelques notes sur la mise &agrgave; 
+	jour depuis la version 	pr&eacute;c&eacute;dente de &os;.</para>
 <![ %release.type.snapshot [
 
         <para>La distribution snapshot &agrgave; laquelle s'applique ces notes
@@ -59,14 +67,15 @@
 
 
 
-  <para>Cette distribution de &os; &release.current; est uune distribution
+  <para>Cette distribution de &os; &release.current; est une distribution
   de type &release.type;. Elle est disponible a <ulink
   url="&release.url;"></ulink> 
   ou sur un des mirroirs. Pour plus d'informations sur la façon d'obtenir 
   cette (ou une autre) distribution &release.type;  de &os; voyez 
   le chapitre <ulink
-  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtenire
-  FreeBSD</quote></ulink> du <ulink url="http://www.FreeBSD.org/handbook/">
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
+  <quote>Obtenir FreeBSD</quote></ulink> du 
+  <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
   guide de r&eacute;f&eacute;rence de FreeBSD</ulink>.</para>
 
 ]]>
@@ -95,7 +104,7 @@
 <sect1>
   <title>Les nouveaut&eacute;s</title>
 
-        <para>Cette section d&eacute;crit les fonctions nouvelles ou les
+	<para>Cette section d&eacute;crit les fonctions nouvelles ou les
         modifications les plus visibles pour l'utilisateur sous
         &os; depuis la version &release.prev;. Il s'agit
         typiquement de nouveaux gestionnaires de p&eacute;riph&eacute;riques ou
@@ -105,94 +114,128 @@
         d&eacute;couverts apr&egrave;s la &release.prev; sont &eacute;galements
         mentionn&eacute;s.</para>
 
-        <para>De nombreux changements suppl&eacute;mentaires apport&eacute;s &agrgave;
-        &os; ne sont pas mentionn&eacute;s ici par faute de place. Par
-        exemple, la documentation a &eacute;t&eacute; corrig&eacute;e et am&eacute;lior&eacute;e, 
+	<para>De nombreux changements suppl&eacute;mentaires apport&eacute;s &agrgave; 
+	&os; ne sont pas mentionn&eacute;s ici par faute de place. Par exemple, la 
+	documentation a &eacute;t&eacute; corrig&eacute;e et am&eacute;lior&eacute;e, 
 	des bugs mineurs ont &eacute;t&eacute; corrig&eacute;s, du code potentiellement 
-	dangereux pour la s&eacute;curit&eacute; a &eacute;t&eacute; audit&eacute; et corrig&eacute; 
-	et le code source a &eacute;t&eacute; remis au propre.</para>
+	dangereux pour la s&eacute;curit&eacute; a &eacute;t&eacute; audit&eacute; et 
+	corrig&eacute; et le code source a &eacute;t&eacute; remis au propre.</para>
 
   <sect2 id="kernel">
-    <title>**Changements concernant le noyau</title>
+    <title>Changements concernant le noyau</title>
 
-    <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;rique &man.amdpm.4; 
-    a &eacute;t&eacute; ajout&eacute; pour permettre d'acc&eacute;der aux fonctions du 
-    syst&egrave;me de surveillance des puces AMD 756 chipset. &merged;</para>
+	<para arch="i386">L'&eacute;x&eacute;cution des programmes en format 
+	&man.a.out.5; n&eacute;cessite l'option <literal>COMPAT_AOUT</literal> dans le 
+	noyau ou le chargement du module noyau <filename>aout.ko</filename>.</para>
 
-    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.agp.4; pour les
-    p&eacute;riph&eacute;riques AGS a &eacute;t&eacute; ajout&eacute;. &merged;</para>
+	<para>&man.acct.2; a &eacute;t&eacute; modifi&eacute; pour ouvrir le fichier 
+	d'accounting en mode ajout, comme cela &man.accton.8; peut être utilis&eacute; 
+	pour activer l'accounting dans un fichier en mode ajout.&merged;</para>
+
+	<para arch="i386" role="historic">Le gestionnaire de p&eacute;riph&eacute;rique 
+	&man.amdpm.4; a &eacute;t&eacute; ajout&eacute; pour permettre d'acc&eacute;der 
+	aux fonctions du syst&egrave;me de surveillance des puces AMD 756 chipset. 
+	&merged;</para>
+
+    <para role="historic">Le gestionnaire de p&eacute;riph&eacute;rique &man.agp.4; 
+	pour les p&eacute;riph&eacute;riques AGS a &eacute;t&eacute; ajout&eacute;. 
+	&merged;</para>
 
     <para>Une nouvelle commande <command>show pcpu</command> ajout&eacute;e a 
     &man.ddb.4;, permet d'obtenir la liste des donn&eacute;es par 
     processeur.</para>
 
-    <para>Deux nouvelles commandes a &man.ddb.4; , <command>hwatch</command> et
-    <command>dhwatch</command>, ont &eacute;t&eacute; introduites.  Parall&egrave;lement a 
-    <command>watch</command> et <command>dwatch</command>, elles permettent
-    d'installer des points de v&eacute;rification mat&eacute;riels (en opposition aux
-    point de v&eacute;rification logiciels) si l'architecture mat&eacute;rielle le 
-    supporte. &merged;</para>
+    <para role="historic">Deux nouvelles commandes a &man.ddb.4; , 
+	<command>hwatch</command> et <command>dhwatch</command>, ont &eacute;t&eacute; 
+	introduites.  Parall&egrave;lement a <command>watch</command> et 
+	<command>dwatch</command>, elles permettent d'installer des points de 
+	v&eacute;rification mat&eacute;riels (en opposition aux point de 
+	v&eacute;rification logiciels) si l'architecture mat&eacute;rielle le 
+	supporte. &merged;</para>
 
     <para>&man.devfs.5;, permet de cr&eacute;er automatiquement les entr&eacute;es 
-    n&eacute;cessaires dans le r&eacute;pertoire <filename>/dev</filename> et le 
-    support des p&eacute;riph&eacute;riques a attachement variable, a &eacute;t&eacute; 
-    longuement revu. &man.devfs.5; est maintenant activ&eacute; par d&eacute;faut 
-    et peut etre d&eacute;sactiv&eacute; par l'option du noyau 
-    <literal>NODEVFS</literal> .</para>
+	n&eacute;cessaires dans le r&eacute;pertoire <filename>/dev</filename> et le 
+	support des p&eacute;riph&eacute;riques a attachement variable, a 
+	&eacute;t&eacute; longuement revu. &man.devfs.5; est maintenant activ&eacute; 
+	par d&eacute;faut et peut etre d&eacute;sactiv&eacute; par l'option du 
+	noyau <literal>NODEVFS</literal> .</para>
 
-    <para>Le gestionnaire de p&eacute;riph&eacute;rique dgm a &eacute;t&eacute; retir&eacute; 
-    en faveur du gestionnaire digi.</para>
+    <para>Le sous syst&egrave;me de <quote>r&egrave;gles</quote> &man.devfs.5; a 
+	&eacute;t&eacute; introduit. Les r&egrave;gles DEVFS permettent &agrave; 
+	l'administrateur de d&eacute;finir certaines propri&eacute;t&eacute;s pour 
+	chaque noeud de p&eacute;riph&eacute;rique avant qu'ils soient visibles en 
+	mode utilisateur. Les noeuds statiques (ex:<filename>/dev/speaker</filename>) 
+	et dynamiques  (e.g.  <filename>/dev/bpf*</filename>, certains 
+	p&eacute;riph&eacute;riques d&eacute;montables) sont support&eacute;s. 
+	Chaque montage de  &man.devfs.5; peut disposer de r&egrave;gles 
+	diff&eacute;rentes, permettant d'impl&eacute;menter des politiques 
+	diff&eacute;rentes pour impl&eacute;menter dans des jails par ex. Les 
+	r&egrave;gles et les ensembles de r&egrave;gles se manipulent avec 
+	l'utilitaire &man.devfs.8;</para>
 
-    <para>Un nouveau gestionnaire de p&eacute;riph&eacute;rique digi a &eacute;t&eacute; 
-    ajout&eacute; pour supporter les cartes Digiboard PCI Xr et ISA Xem. Un 
-    nouveau programme, &man.digictl.8;, permet de r&eacute;-initialiser les 
-    cartes qui ont des modules de ports externes attach&eacute;s comme les 
-    PC/Xem.</para>
+    <para>Le gestionnaire de p&eacute;riph&eacute;rique dgm a &eacute;t&eacute; 
+	retir&eacute; en faveur du gestionnaire digi.</para>
 
-    <para>Un nouvel appel syst&egrave;me &man.eaccess.2; a &eacute;t&eacute; ajout&eacute;, 
-    similaire &agrgave; &man.access.2; except&eacute; qu'il utilise les identit&eacute;s 
-    effective au lieu des identit&eacute;s r&eacute;elles.</para>
+    <para>Un nouveau gestionnaire de p&eacute;riph&eacute;rique digi a 
+	&eacute;t&eacute; ajout&eacute; pour supporter les cartes Digiboard PCI Xr et 
+	ISA Xem. Un nouveau programme, &man.digictl.8;, permet de r&eacute;-initialiser 
+	les cartes qui ont des modules de ports externes attach&eacute;s comme les 
+	PC/Xem.</para>
 
-    <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;rique &man.ichsmb.4; 
-    pour les cartes controleur Intel 82801AA (ICH) SMBus et compatibles a 
-    &eacute;t&eacute; ajout&eacute;. &merged;</para>
+    <para>Un nouvel appel syst&egrave;me &man.eaccess.2; a &eacute;t&eacute; 
+	ajout&eacute;, similaire &agrgave; &man.access.2; except&eacute; qu'il utilise 
+	les identit&eacute;s effective au lieu des identit&eacute;s r&eacute;elles.
+	</para>
+
+    <para arch="sparc64">Le support pour les p&eacute;riph&eacute;riques 
+	bas&eacute;s sur EBus a &eacute;t&eacute; ajout&eacute;.</para>
+
+    <para arch="i386" role="historic">Le gestionnaire de p&eacute;riph&eacute;rique 
+	&man.ichsmb.4; pour les cartes controleur Intel 82801AA (ICH) SMBus et 
+	compatibles a &eacute;t&eacute; ajout&eacute;. &merged;</para>
 
     <para>Chaque environnement &man.jail.2; peut maintenant tourner dans 
     son niveau de s&eacute;curit&eacute; personnel.</para>
 
-    <para>Les variables sysctl pour&man.jail.2; ont &eacute;t&eacute; d&eacute;plac&eacute;es
-     de la hi&eacute;rarchie <varname>jail.*</varname> a 
-     <varname>security.*</varname>.  Les autres variable sysctl ayant un 
-     rapport avec la s&eacute;curit&eacute; ont &eacute;t&eacute; d&eacute;plac&eacute;es de la 
-     hi&eacute;rarchie <varname>kern.security.*</varname> a 
-     <varname>security.*</varname>.</para>
+    <para>Les variables sysctl pour&man.jail.2; ont &eacute;t&eacute; 
+	d&eacute;plac&eacute;es de la hi&eacute;rarchie <varname>jail.*</varname> a 
+	<varname>security.*</varname>.  Les autres variable sysctl ayant un rapport 
+	avec la s&eacute;curit&eacute; ont &eacute;t&eacute; d&eacute;plac&eacute;es 
+	de la hi&eacute;rarchie <varname>kern.security.*</varname> a 
+	<varname>security.*</varname>.</para>
 
-    <para>La variable <varname>kern.maxvnodes</varname> limite maintenant 
-    propremement le nombre de vnodes utilis&eacute;s. Pr&eacute;c&eacute;demment 
-    uniquement les vnodes n'utilisant pas les pages de cache pouvaient etre 
-    lib&eacute;r&eacute;s; cela pouvait conduire a un nombre croissant de vnodes sans 
-    limitation m&eacute;moire sur des machines acc&eacute;dant a beaucoup de petits 
-    fichiers. Un thread noyau, <literal>vnlru</literal>, permet d'aider a 
-    lib&eacute;rer et r&eacute;utiliser les vnodes &merged;</para>
+    <para role="historic">La variable <varname>kern.maxvnodes</varname> 
+	limite maintenant propremement le nombre de vnodes utilis&eacute;s. 
+	Pr&eacute;c&eacute;demment uniquement les vnodes n'utilisant pas les pages de 
+	cache pouvaient etre lib&eacute;r&eacute;s; cela pouvait conduire a un nombre 
+	croissant de vnodes sans limitation m&eacute;moire sur des machines 
+	acc&eacute;dant a beaucoup de petits fichiers. Un thread noyau, 
+	<literal>vnlru</literal>, permet d'aider a lib&eacute;rer et r&eacute;utiliser 
+	les vnodes &merged;</para>
 
-    <para>Le tambon des messages noyau est maintenant accessible (de façon
-    ind&eacute;pendante de l'architecture) via la variable sysctl 
-    <varname>kern.msgbuf</varname> ; &man.dmesg.8; n'a plus besoin d'etre
-    SGID <groupname>kmem</groupname>. &merged;</para>
+    <para role="historic">Le tampon des messages noyau est maintenant accessible 
+	(de façon ind&eacute;pendante de l'architecture) via la variable sysctl 
+	<varname>kern.msgbuf</varname> ; &man.dmesg.8; n'a plus besoin d'etre SGID 
+	<groupname>kmem</groupname>. &merged;</para>
 
-    <para>L'appel syst&egrave;me &man.kqueue.2; a &eacute;t&eacute; ajout&eacute; au noyau
-     &os;. C'est une nouvelle interface qui remplace 
-     &man.poll.2;/&man.select.2;, qui offre de mailleurs performances ainsi
-      que la possiblit&eacute; de rapporter diff&eacute;rents type d'&eacute;v&eacute;nements.
-       Il supporte la supervision des changements dans les sockets, les pipes,
-        les fifos, les fichiers, les signaux et les processus. &merged;</para>
+    <para>L'environnement du noyau est maintenant dynamique, et peut être 
+	chang&eacute; via l'appel syst&egrave;me &man.kenv.2;.</para>
 
-    <para arch="i386">une nouvelle option du noyau
+
+    <para role="historic">L'appel syst&egrave;me &man.kqueue.2; a &eacute;t&eacute; 
+	ajout&eacute; au noyau &os;. C'est une nouvelle interface qui remplace 
+	&man.poll.2;/&man.select.2;, qui offre de mailleurs performances ainsi que la 
+	possiblit&eacute; de rapporter diff&eacute;rents type 
+	d'&eacute;v&eacute;nements. Il supporte la supervision des changements dans les
+	 sockets, les pipes, les fifos, les fichiers, les signaux et les processus. 
+	&merged;</para>
+
+    <para arch="i386,pc98" role="historic">une nouvelle option du noyau
      <varname>KVA_SPACE</varname> permet de reconfigurer la taille de l'espace
      adressable virtuel du noyau. &merged;</para>
 
-    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.labpc.4; a &eacute;t&eacute; 
-    retirer du a <quote>bitrot</quote>.</para>
+    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.labpc.4; a 
+	&eacute;t&eacute; retirer du a <quote>bitrot</quote>.</para>
 
     <para>Le chargeur et le linker du noyau v&eacute;rifient via la pr&eacute;sence
     du fichier <filename>linker.hints</filename> dans chaque r&eacute;pertoire 
@@ -201,14 +244,14 @@
      fichiers.</para>
 
 
-    <para>L'&eacute;mulation Linux supporte maintenant les fonctionnalit&eacute;s 
-    noyau n&eacute;cessaires au port 
-    <filename role="package">emulators/linux_base-7</filename> 
-    (&eacute;mulation RedHat 7.X). &merged;</para>
+    <para role="historic">L'&eacute;mulation Linux supporte maintenant les 
+	fonctionnalit&eacute;s noyau n&eacute;cessaires au port 
+	<filename role="package">emulators/linux_base-7</filename> 
+	(&eacute;mulation RedHat 7.X). &merged;</para>
 
-    <para>L'&eacute;mulation linux n&eacute;cessite maintenant l'option 
-    <literal>options SYSVSEM</literal> dans le fichier de configuration 
-    du noyau. &merged;</para>
+    <para role="historic">L'&eacute;mulation linux n&eacute;cessite maintenant 
+	l'option <literal>options SYSVSEM</literal> dans le fichier de configuration 
+	du noyau. &merged;</para>
 
     <para>**&man.lomac.4;, a Low-Watermark Mandatory Access Control
     security facility, has been added as a kernel module.  It provides
@@ -217,76 +260,99 @@
     configuration from the administrator.  Work on this feature was
     sponsored by DARPA and NAI Labs.</para>
 
-    <para>La variable de configuration du noyau <varname>maxusers</varname> 
-    est maintenant param&eacute;trable au moment du d&eacute;marrage. Les autres
-     param&egrave;tres d&eacute;pendant de <varname>maxusers</varname> sont maintenant
-      modifiables au d&eacute;marrage. Le param&egrave;tre <varname>hz</varname> est
-       lui aussi modifiable. &merged;</para>
+	<para>&os; supporte maintenant un environnement extensible de Mandatory Access 
+	Control. Il permet aux modules chargeables de noyau d'être lier au noyau au 
+	moment de la compilation, du d&eacute;marrage ou de l'ex&eacute;cution et 
+	augmente donc la politique de s&eacute;curit&eacute; du syst&egrave;me.
+	<note>
+		<para>L'impl&eacute;mentation de l'environnement MAC est en cours.</para>
+	</note>
+	</para>  
 
-    <para>Une valeur de <literal>0</literal> 
+    <para arch="ia64">Les enregistrements d'architecture machine de 
+	v&eacute;rification sont maintenant collect&eacute;s au moment du 
+	d&eacute;marrage et sont disponibles via les variables sysctl
+	<varname>hw.mca.*</varname>.</para>
+
+	<para role="historic">La variable de configuration du noyau 
+	<varname>maxusers</varname> est maintenant param&eacute;trable au moment du 
+	d&eacute;marrage. Les autres param&egrave;tres d&eacute;pendant de 
+	<varname>maxusers</varname> sont maintenant modifiables au d&eacute;marrage. 
+	Le param&egrave;tre <varname>hz</varname> est lui aussi modifiable. 
+	&merged;</para>
+
+    <para role="historic">Une valeur de <literal>0</literal> 
     pour la variable noyau <varname>maxusers</varname> indique de calculer
-    ,au moment du d&eacute;marrage, une valeur apropri&eacute;e (entre 32 et 384, en
-     fonction de la quantit&eacute; de m&eacute;moire). C'est la valeur par d&eacute;faut
-      du  noyau <filename>GENERIC</filename>. &merged;</para>
+    ,au moment du d&eacute;marrage, une valeur apropri&eacute;e (entre 32 et 384, 
+	en fonction de la quantit&eacute; de m&eacute;moire). C'est la valeur par 
+	d&eacute;faut du noyau <filename>GENERIC</filename>. &merged;</para>
 
-    <para arch="alpha">L'option noyau <varname>MAXMEM</varname> ,
+    <para arch="alpha" role="historic">L'option noyau <varname>MAXMEM</varname> ,
     coupl&eacute;e a la variable <varname>hw.physmem</varname> permet de
     r&eacute;duire, de façon articielle, la quantit&eacute; de m&eacute;moire 
     pr&eacute;sente sur une machine pour les tests (ou d'autres choses).
     &merged;</para>
 
-    <para>Les parametres noyau
+    <para role="historic">Les parametres noyau
     <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
     <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
     <varname>MAXSSIZ</varname>, et <varname>SGROWSIZ</varname> 
     sont maintenant des variable modifiables (<varname>kern.maxtsiz</varname>,
     <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
 
-    <para arch="i386">Les options de configuration du noyau
+    <para>Le code de profiling de &man.mutex.9; a &eacute;t&eacute; ajout&eacute; 
+	et est activable via l'option de configuration du noyau 
+	<literal>MUTEX_PROFILING</literal>. Cela permet d'activer la 
+	hi&eacute;rarchie des variables sysctl <varname>debug.mutex.prof.*</varname>. 
+	</para>
+
+    <para arch="i386,pc98" role="historic">Les options de configuration du noyau
      <literal>NCPU</literal>, <literal>NAPIC</literal>,
     <literal>NBUS</literal>, et <literal>NINTR</literal>,
     permettant de configurer les noyaux SMP, ont &eacute;t&eacute; retir&eacute;s.
     L'option <literal>NCPU</literal> est maintenant fix&eacute;e a 16 et 
     les autres options sus-mentionn&eacute;es sont dynamiques. &merged;</para>
 
-    <para>Un gestionnaire de p&eacute;riph&eacute;rique null-modem, &man.nmdm.4; a
-     &eacute;t&eacute; ajout&eacute;. &merged;</para>
+    <para role="historic">Un gestionnaire de p&eacute;riph&eacute;rique null-modem,
+	 &man.nmdm.4; a &eacute;t&eacute; ajout&eacute;. &merged;</para>
 
-    <para>L'option <literal>O_DIRECT</literal> a &eacute;t&eacute; ajout&eacute;e a
-    &man.open.2; et &man.fcntl.2;. L'ajout de cette option au moment
-    de l'ouverture de fichiers tente de minimiser les effects du cache
-    en lecture et en &eacute;criture &merged;</para>
+    <para role="historic">L'option <literal>O_DIRECT</literal> a &eacute;t&eacute; 
+	ajout&eacute;e a &man.open.2; et &man.fcntl.2;. L'ajout de cette option au 
+	moment de l'ouverture de fichiers tente de minimiser les effects du cache en 
+	lecture et en &eacute;criture &merged;</para>
 
-    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.orm.4; a &eacute;t&eacute; 
-    ajout&eacute; permettant d'utiliser la ROM optionnel dans l'espace 
-    m&eacute;moire ISA des I/O, cela permet de pr&eacute;venir d'autres gestionnaires
-     de p&eacute;riph&eacute;riques de r&eacute;clamer cette espace m&eacute;moire et donc 
-     d'entrer en conflit avec.&merged;</para>
+    <para role="historic">Le gestionnaire de p&eacute;riph&eacute;rique &man.orm.4; 
+	a &eacute;t&eacute; ajout&eacute; permettant d'utiliser la ROM optionnel dans 
+	l'espace m&eacute;moire ISA des I/O, cela permet de pr&eacute;venir d'autres 
+	gestionnaires de p&eacute;riph&eacute;riques de r&eacute;clamer cette espace 
+	m&eacute;moire et donc d'entrer en conflit avec.&merged;</para>
 
-    <para arch="i386">Le support PECOFF (format d'&eacute;x&eacute;cution Win32) a
-     &eacute;t&eacute; ajout&eacute;.</para>
+    <para arch="i386,pc98">Le support PECOFF (format d'&eacute;x&eacute;cution 
+	Win32) a &eacute;t&eacute; ajout&eacute;.</para>
 
-    <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;rique pcm supporte 
-    maintenant la gestion d'&eacute;nergie de the NEC PC-98NOTE.. &merged;</para>
+    <para arch="pc98" role="historic">Le gestionnaire de p&eacute;riph&eacute;rique 
+	pcm supporte maintenant la gestion d'&eacute;nergie de the NEC PC-98NOTE. 
+	&merged;</para>
 
-    <para>Les objets de m&eacute;moire partag&eacute;s POSIX.1b sont maintenant	
-    support&eacute;s. L'impl&eacute;mentation utilise des fichiers, mais active 
-    automatiquement l'option MAP_NOSYNC lorsqu'ils sont &man.mmap.2;-ed.
-     &merged;</para>
+    <para role="historic">Les objets de m&eacute;moire partag&eacute;s POSIX.1b 
+	sont maintenant	support&eacute;s. L'impl&eacute;mentation utilise des fichiers, 
+	mais active automatiquement l'option MAP_NOSYNC lorsqu'ils sont 
+	&man.mmap.2;-ed.  &merged;</para>
 
-    <para>Les diff&eacute;rentes options <literal>PQ_*CACHE</literal> ont 
-    &eacute;t&eacute; remplac&eacute;es par une seul option 
-    <literal>PQ_CACHESIZE</literal> permettant de fixer la taille du 
-    cache en kilobytes. Les anciennes options sont toujours support&eacute;es 
-    pour la compatibilit&eacute;.&merged;</para>
+    <para role="historic">Les diff&eacute;rentes options 
+	<literal>PQ_*CACHE</literal> ont &eacute;t&eacute; remplac&eacute;es par une 
+	seul option <literal>PQ_CACHESIZE</literal> permettant de fixer la taille du 
+	cache en kilobytes. Les anciennes options sont toujours support&eacute;es pour 
+	la compatibilit&eacute;.&merged;</para>
 
-    <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;rique &man.puc.4; 
-    (PCI <quote>Universal</quote> Communications) a &eacute;t&eacute; ajout&eacute;, 
-    permettant de connecter les ports s&eacute;ries PCI au 
-    gestionnaire &man.sio.4;.</para>
+    <para arch="i386" role="historic">Le gestionnaire de p&eacute;riph&eacute;rique 
+	&man.puc.4; (PCI <quote>Universal</quote> Communications) a &eacute;t&eacute; 
+	ajout&eacute;, permettant de connecter les ports s&eacute;ries PCI au 
+	gestionnaire &man.sio.4;.</para>
 
-    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.random.4; a &eacute;t&eacute; 
-    r&eacute;&eacute;crit pour utiliser l'algorithme <application>Yarrow</application>.
+    <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.random.4; a 
+	&eacute;t&eacute; r&eacute;&eacute;crit pour utiliser l'algorithme 
+	<application>Yarrow</application>.
     Il permet d'obtenir une meilleur entropy, depuis diff&eacute;rentes sources,
      incluant la console, les interfaces r&eacute;seaux Ethernet et PPP, et les
       p&eacute;riph&eacute;riques de stockage. L'entropy de  &man.random.4; est
@@ -302,9 +368,26 @@
     active les interfaces et les fonctionnalit&eacute;s utiles lors des phases de
     regression et de correction.</para>
 
-    <para arch="i386">Un gestionnaire de p&eacute;riodiquement &man.spic.4;, 
-    permettant d'acc&eacute;der au p&eacute;riph&eacute;rique d'appel de certains
-    portable Sony, a &eacute;t&eacute; ajout&eacute;..</para>
+    <para>Le support<literal>RLIMIT_VMEM</literal> support a &eacute;t&eacute; 
+	ajout&eacute;. Cette fonctionnalit&eacute; d&eacute;finit une nouvelle 
+	ressource limite qui couvre l'ensemble de l'espace m&eacute;moire virtuel d'un 
+	processus, incluant l'espace &man.mmap.2;. Cette limite peut être 
+	configur&eacute;e via la nouvelle variable <varname>vmemoryuse</varname>  de  
+	&man.login.conf.5;. &merged;</para>
+
+    <para arch="sparc64">Le support pour les p&eacute;riph&eacute;riques 
+	bas&eacute;s sur le bus SBus a &eacute;t&eacute; ajout&eacute;.</para>
+
+    <para arch="sparc64">Le p&eacute;riph&eacute;rique se, permettant de supporter 
+	le controleur s&eacute;rie Siemens SAB82532, que l'on trouve sur les nouvelles 
+	machines Ultra Sparc, a &eacute;t&eacute; ajout&eacute;.</para>
+
+    <para role="historic">Le p&eacute;riph&eacute;rique &man.snp.4; n'est plus 
+	statique et peut maintenant être compil&eacute; en module. &merged;</para>
+
+    <para arch="i386" role="historic">Un gestionnaire de p&eacute;riodiquement 
+	&man.spic.4;, permettant d'acc&eacute;der au p&eacute;riph&eacute;rique 
+	d'appel de certains portable Sony, a &eacute;t&eacute; ajout&eacute;.</para>
 
     <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.syscons.4; supporte 
     maintenant le copier-coller via le clavier, par d&eacute;faut via les 
