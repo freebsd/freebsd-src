@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	leave
-CFLAGS+=-Wall
+WARNS?=	2
 
 .include <bsd.prog.mk>

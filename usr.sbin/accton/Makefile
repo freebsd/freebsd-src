@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	accton
+WARNS?=	2
 MAN=	accton.8
 
 .include <bsd.prog.mk>
