@@ -1957,7 +1957,7 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_read_srom(sc, sc->dc_romwidth);
+		/* Don't read SROM for - auto-loaded on reset */
 		break;
 	case DC_DEVICEID_98713:
 	case DC_DEVICEID_98713_CP:
@@ -2091,9 +2091,8 @@ dc_attach(device_t dev)
 		break;
 	case DC_TYPE_AL981:
 	case DC_TYPE_AN985:
-		bcopy(sc->dc_srom + DC_AL_EE_NODEADDR, &eaddr,
-		    ETHER_ADDR_LEN);
-		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_AL_EE_NODEADDR, 3, 0);
+		*(u_int32_t *)(&eaddr[0]) = CSR_READ_4(sc, DC_AL_PAR0);
+		*(u_int16_t *)(&eaddr[4]) = CSR_READ_4(sc, DC_AL_PAR1);
 		break;
 	case DC_TYPE_CONEXANT:
 		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr,
