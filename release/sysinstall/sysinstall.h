@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.10 1997/01/03 06:38:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.11 1997/01/15 04:50:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -415,6 +415,7 @@ extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogM
 				  int (*check)(dialogMenuItem *d));
 extern void	deviceGetAll(void);
 extern Device	**deviceFind(char *name, DeviceType type);
+extern Device	**deviceFindDescr(char *name, char *desc, DeviceType class);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,

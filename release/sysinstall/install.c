@@ -674,10 +674,14 @@ installCommit(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    if (!mediaDevice && !msgYesNo("You need to select a media type first.  Do you want\n"
-				  "to do this now?")) {
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+    if (!mediaDevice) {
+	if (!msgYesNo("You need to select a media type first.  Do you want\n"
+		      "to do this now?")) {
+	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+		return DITEM_FAILURE | DITEM_RECREATE;
+	}
+	else
+		return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     if (!mediaDevice->init(mediaDevice)) {
