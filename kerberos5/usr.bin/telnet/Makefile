@@ -12,7 +12,7 @@ SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
 DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBDES} ${LIBKRB} ${LIBCRYPT} \
 		${LIBCOM_ERR}
 LDADD=		-ltermcap -L${TELNETOBJDIR} -ltelnet -ldes \
-		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err
+		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp
 
 .include <bsd.prog.mk>
 
