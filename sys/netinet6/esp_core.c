@@ -476,7 +476,7 @@ esp_blowfish_blockdecrypt(algo, sav, s, d)
 	bcopy(s, t, sizeof(t));
 	t[0] = ntohl(t[0]);
 	t[1] = ntohl(t[1]);
-	BF_encrypt(t, (BF_KEY *)sav->sched, BF_DECRYPT);
+	BF_encrypt(t, (BF_KEY *)sav->sched);
 	t[0] = htonl(t[0]);
 	t[1] = htonl(t[1]);
 	bcopy(t, d, sizeof(t));
@@ -496,7 +496,7 @@ esp_blowfish_blockencrypt(algo, sav, s, d)
 	bcopy(s, t, sizeof(t));
 	t[0] = ntohl(t[0]);
 	t[1] = ntohl(t[1]);
-	BF_encrypt(t, (BF_KEY *)sav->sched, BF_ENCRYPT);
+	BF_encrypt(t, (BF_KEY *)sav->sched);
 	t[0] = htonl(t[0]);
 	t[1] = htonl(t[1]);
 	bcopy(t, d, sizeof(t));
