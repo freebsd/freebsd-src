@@ -1,7 +1,7 @@
 /* usual BSD style copyright here */
 /* Written by Julian Elischer (julian@dialix.oz.au)*/
 /*
- * $Id: devfsext.h,v 1.8 1996/03/27 18:29:29 bde Exp $
+ * $Id: devfsext.h,v 1.9 1996/03/28 14:35:36 scrappy Exp $
  */
 
 #ifndef _SYS_DEVFSECT_H_
@@ -24,15 +24,10 @@ void *devfs_add_devswf(void *devsw,
 		char *fmt,
 		...)  ; 
 
-void *dev_link(char *path,
-		char *name,
-		void *original); /* the result of a previous dev_link
+void *devfs_link(char *path,
+		 char *name,
+		 void *original); /* the result of a previous dev_link
 					or dev_add operation */
-
-void *dev_linkf(void *original,  /* the result of a previous dev_link */
-		char *fmt,		/* or dev_add operation */
-		...); 
-					
 
 /* remove the device the cookie represents */
 void devfs_remove_dev(void *devnmp);
