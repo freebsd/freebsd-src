@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.97 1995/09/09 18:09:43 davidg Exp $
+ *	$Id: conf.c,v 1.98 1995/09/10 21:34:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -727,16 +727,6 @@ d_ioctl_t	apmioctl;
 #define	apmioctl	nxioctl
 #endif
 
-#ifdef IBCS2
-d_open_t	sockopen;
-d_close_t	sockclose;
-d_ioctl_t	sockioctl;
-#else
-#define	sockopen	nxopen
-#define	sockclose	nxclose
-#define	sockioctl	nxioctl
-#endif
-
 #include "ctx.h"
 #if NCTX > 0
 d_open_t	ctxopen;
@@ -1217,8 +1207,8 @@ struct cdevsw	cdevsw[] =
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
 	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
 	  seltrue,	nommap,		NULL },
-	{ sockopen,	sockclose,	noread,		nowrite,	/*41*/
-	  sockioctl,	nostop,		nullreset,	nodevtotty,/* socksys */
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*41*/
+	  nxioctl,	nxstop,		nullreset,	nxdevtotty,/* socksys */
 	  seltrue,	nommap,		NULL },
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
