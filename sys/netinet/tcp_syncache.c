@@ -666,7 +666,7 @@ syncache_socket(sc, lso)
 	tp->rcv_wnd = sc->sc_wnd;
 	tp->rcv_adv += tp->rcv_wnd;
 
-	tp->t_flags = sc->sc_tp->t_flags & (TF_NOPUSH|TF_NODELAY);
+	tp->t_flags = sototcpcb(lso)->t_flags & (TF_NOPUSH|TF_NODELAY);
 	if (sc->sc_flags & SCF_NOOPT)
 		tp->t_flags |= TF_NOOPT;
 	if (sc->sc_flags & SCF_WINSCALE) {
@@ -839,6 +839,11 @@ syncache_add(inc, to, th, sop, m)
 		 */
 		if (sc->sc_flags & SCF_TIMESTAMP)
 			sc->sc_tsrecent = to->to_tsval;
+		/*
+		 * PCB may have changed, pick up new values.
+		 */
+		sc->sc_tp = tp;
+		sc->sc_inp_gencnt = tp->t_inpcb->inp_gencnt;
 		if (syncache_respond(sc, m) == 0) {
 		        s = splnet();
 			TAILQ_REMOVE(&tcp_syncache.timerq[sc->sc_rxtslot],
