@@ -275,7 +275,7 @@ smb_ctx_setcharset(struct smb_ctx *ctx, const char *arg)
 int
 smb_ctx_setserver(struct smb_ctx *ctx, const char *name)
 {
-	if (strlen(name) >= SMB_MAXSRVNAMELEN) {
+	if (strlen(name) > SMB_MAXSRVNAMELEN) {
 		smb_error("server name '%s' too long", 0, name);
 		return ENAMETOOLONG;
 	}
@@ -286,7 +286,7 @@ smb_ctx_setserver(struct smb_ctx *ctx, const char *name)
 int
 smb_ctx_setuser(struct smb_ctx *ctx, const char *name)
 {
-	if (strlen(name) >= SMB_MAXUSERNAMELEN) {
+	if (strlen(name) > SMB_MAXUSERNAMELEN) {
 		smb_error("user name '%s' too long", 0, name);
 		return ENAMETOOLONG;
 	}
@@ -297,7 +297,7 @@ smb_ctx_setuser(struct smb_ctx *ctx, const char *name)
 int
 smb_ctx_setworkgroup(struct smb_ctx *ctx, const char *name)
 {
-	if (strlen(name) >= SMB_MAXUSERNAMELEN) {
+	if (strlen(name) > SMB_MAXUSERNAMELEN) {
 		smb_error("workgroup name '%s' too long", 0, name);
 		return ENAMETOOLONG;
 	}
@@ -310,7 +310,7 @@ smb_ctx_setpassword(struct smb_ctx *ctx, const char *passwd)
 {
 	if (passwd == NULL)
 		return EINVAL;
-	if (strlen(passwd) >= SMB_MAXPASSWORDLEN) {
+	if (strlen(passwd) > SMB_MAXPASSWORDLEN) {
 		smb_error("password too long", 0);
 		return ENAMETOOLONG;
 	}
@@ -325,7 +325,7 @@ smb_ctx_setpassword(struct smb_ctx *ctx, const char *passwd)
 int
 smb_ctx_setshare(struct smb_ctx *ctx, const char *share, int stype)
 {
-	if (strlen(share) >= SMB_MAXSHARENAMELEN) {
+	if (strlen(share) > SMB_MAXSHARENAMELEN) {
 		smb_error("share name '%s' too long", 0, share);
 		return ENAMETOOLONG;
 	}
