@@ -34,14 +34,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)trap.h	8.3 (Berkeley) 6/5/95
- *	$Id$
+ *	$Id: trap.h,v 1.6 1997/02/22 13:58:47 peter Exp $
  */
 
 extern int pendingsigs;
 
 int trapcmd __P((int, char **));
 void clear_traps __P((void));
-long setsignal __P((int));
+void setsignal __P((int));
 void ignoresig __P((int));
 void onsig __P((int));
 void dotrap __P((void));
