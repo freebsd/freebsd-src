@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,12 @@
 
 /* structure describing an ATA disk request */
 struct ad_request {
-    struct ad_softc		*device;	/* ptr to parent device */
+    struct ad_softc		*softc;		/* ptr to parent device */
     u_int32_t			blockaddr;	/* block number */
     u_int32_t			bytecount;	/* bytes to transfer */
     u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			currentsize;	/* size of current transfer */
-    struct callout_handle       timeout_handle; /* handle for untimeout */ 
+    struct callout_handle	timeout_handle; /* handle for untimeout */ 
     int				retries;	/* retry count */
     int				flags;
 #define		ADR_F_READ		0x0001
@@ -55,8 +55,7 @@ struct ad_request {
 
 /* structure describing an ATA disk */
 struct ad_softc {  
-    struct ata_softc		*controller;	/* ptr to parent ctrl */
-    int				unit;		/* ATA_MASTER or ATA_SLAVE */
+    struct ata_device		*device;	/* ptr to device softc */
     int				lun;		/* logical unit number */
     u_int64_t			total_secs;	/* total # of sectors (LBA) */
     u_int8_t			heads;
@@ -65,11 +64,10 @@ struct ad_softc {
     int				num_tags;	/* number of tags supported */
     int				flags;		/* drive flags */
 #define		AD_F_LABELLING		0x0001		
-#define		AD_F_DETACHING		0x0002
-#define		AD_F_CHS_USED		0x0004
-#define		AD_F_32B_ENABLED	0x0008
-#define		AD_F_TAG_ENABLED	0x0010
-#define		AD_F_RAID_SUBDISK	0x0020
+#define		AD_F_CHS_USED		0x0002
+#define		AD_F_32B_ENABLED	0x0004
+#define		AD_F_TAG_ENABLED	0x0008
+#define		AD_F_RAID_SUBDISK	0x0010
 
     struct ad_request		*tags[32];	/* tag array of requests */
     int				outstanding;	/* tags not serviced yet */
@@ -79,9 +77,9 @@ struct ad_softc {
     dev_t			dev;		/* device place holder */
 };
 
-void ad_attach(struct ata_softc *, int);
-void ad_detach(struct ad_softc *, int);
-void ad_start(struct ad_softc *);
+void ad_attach(struct ata_device *);
+void ad_detach(struct ata_device *, int);
+void ad_start(struct ata_device *);
 int ad_transfer(struct ad_request *);
 int ad_interrupt(struct ad_request *);
 int ad_service(struct ad_softc *, int);

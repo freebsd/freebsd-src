@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,10 +57,10 @@ static struct isa_pnp_id ata_ids[] = {
 static int
 ata_isa_probe(device_t dev)
 {
-    struct ata_softc *scp = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(dev);
     struct resource *io;
-    int rid;
     u_long tmp;
+    int rid;
 
     /* check isapnp ids */
     if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
@@ -80,8 +80,8 @@ ata_isa_probe(device_t dev)
     }
 
     bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
-    scp->channel = 0;
-    scp->flags |= ATA_USE_16BIT;
+    ch->unit = 0;
+    ch->flags |= ATA_USE_16BIT;
     return ata_probe(dev);
 }
 
@@ -96,7 +96,7 @@ static device_method_t ata_isa_methods[] = {
 static driver_t ata_isa_driver = {
     "ata",
     ata_isa_methods,
-    sizeof(struct ata_softc),
+    sizeof(struct ata_channel),
 };
 
 DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
@@ -108,38 +108,38 @@ DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
 #include "pci.h"
 #if NPCI == 0
 void *
-ata_dmaalloc(struct ata_softc *scp, int device)
+ata_dmaalloc(struct ata_channel *ch, int device)
 {
     return 0;
 }
 
 void
-ata_dmainit(struct ata_softc *scp, int device,
+ata_dmainit(struct ata_channel *ch, int device,
 	    int piomode, int wdmamode, int udmamode)
 {
 }
 
 int
-ata_dmasetup(struct ata_softc *scp, int device, struct ata_dmaentry *dmatab,
+ata_dmasetup(struct ata_channel *ch, int device, struct ata_dmaentry *dmatab,
 	     caddr_t data, int32_t count)
 {
     return -1;
 }
 
 void
-ata_dmastart(struct ata_softc *scp, int device, 
+ata_dmastart(struct ata_channel *ch, int device, 
 	     struct ata_dmaentry *dmatab, int dir)
 {
 }
 
 int
-ata_dmadone(struct ata_softc *scp)
+ata_dmadone(struct ata_channel *ch)
 {
     return -1;
 }
 
 int
-ata_dmastatus(struct ata_softc *scp)
+ata_dmastatus(struct ata_channel *ch)
 {
     return -1;
 }
