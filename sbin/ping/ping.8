@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.13 1998/03/19 07:45:57 charnier Exp $
+.\"	$Id: ping.8,v 1.14 1998/04/01 00:32:18 imp Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -41,7 +41,7 @@
 .Tn ICMP ECHO_REQUEST
 packets to network hosts
 .Sh SYNOPSIS
-.Nm
+.Nm ping
 .Op Fl QRadfnqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
@@ -74,7 +74,7 @@ header, followed by a
 and then an arbitrary number of
 .Dq pad
 bytes used to fill out the packet.  The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Audible. Include a bell
 .Pq ASCII 0x07
@@ -122,7 +122,7 @@ This flag only applies if the ping destination is a multicast address.
 If
 .Ar preload
 is specified,
-.Nm ping
+.Nm
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
@@ -190,7 +190,7 @@ e.g., after the interface was dropped by
 .Xr routed 8
 .Pc .
 .It Fl s Ar packetsize
-Specifies the number of data bytes to be sent.  
+Specify the number of data bytes to be sent.  
 The default is 56, which translates into 64
 .Tn ICMP
 data bytes when combined
@@ -271,7 +271,7 @@ to the same request.
 .Pp
 Damaged packets are obviously serious cause for alarm and often
 indicate broken hardware somewhere in the
-.Nm ping
+.Nm
 packet's path (in the network or in the hosts).
 .Sh TRYING DIFFERENT DATA PATTERNS
 The
@@ -326,7 +326,9 @@ uses 30,
 used 15
 .Pc .
 .Pp
-The maximum possible value of this field is 255, and most Unix systems set
+The maximum possible value of this field is 255, and most
+.Ux
+systems set
 the
 .Tn TTL
 field of
@@ -339,14 +341,18 @@ some hosts, but not reach them with
 or
 .Xr ftp 1 .
 .Pp
-In normal operation ping prints the ttl value from the packet it receives.
+In normal operation
+.Nm
+prints the ttl value from the packet it receives.
 When a remote system receives a ping packet, it can do one of three things
 with the
 .Tn TTL
 field in its response:
 .Bl -bullet
 .It
-Not change it; this is what Berkeley Unix systems did before the
+Not change it; this is what
+.Bx
+systems did before the
 .Bx 4.3 tahoe
 release.
 In this case the
@@ -355,7 +361,7 @@ value in the received packet will be 255 minus the
 number of routers in the round-trip path.
 .It
 Set it to 255; this is what current 
-.Tn BSD
+.Bx
 systems do.
 In this case the
 .Tn TTL
