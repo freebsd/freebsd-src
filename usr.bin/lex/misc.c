@@ -26,16 +26,27 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: misc.c,v 1.2 94/01/04 14:33:10 vern Exp $ */
+/* $Header: /home/daffy/u0/vern/flex/RCS/misc.c,v 2.47 95/04/28 11:39:39 vern Exp $ */
 
 #include "flexdef.h"
 
 
+void action_define( defname, value )
+char *defname;
+int value;
+	{
+	char buf[MAXLINE];
 
-/* declare functions that have forward references */
+	if ( (int) strlen( defname ) > MAXLINE / 2 )
+		{
+		format_pinpoint_message( _( "name \"%s\" ridiculously long" ), 
+			defname );
+		return;
+		}
 
-void dataflush PROTO((void));
-int otoi PROTO((Char []));
+	sprintf( buf, "#define %s %d\n", defname, value );
+	add_action( buf );
+	}
 
 
 void add_action( new_text )
@@ -45,7 +56,16 @@ char *new_text;
 
 	while ( len + action_index >= action_size - 10 /* slop */ )
 		{
-		action_size *= 2;
+		int new_size = action_size * 2;
+
+		if ( new_size <= 0 )
+			/* Increase just a little, to try to avoid overflow
+			 * on 16-bit machines.
+			 */
+			action_size += action_size / 8;
+		else
+			action_size = new_size;
+
 		action_array =
 			reallocate_character_array( action_array, action_size );
 		}
@@ -59,21 +79,16 @@ char *new_text;
 /* allocate_array - allocate memory for an integer array of the given size */
 
 void *allocate_array( size, element_size )
-int size, element_size;
+int size;
+size_t element_size;
 	{
 	register void *mem;
+	size_t num_bytes = element_size * size;
 
-	/* On 16-bit int machines (e.g., 80286) we might be trying to
-	 * allocate more than a signed int can hold, and that won't
-	 * work.  Cheap test:
-	 */
-	if ( element_size * size <= 0 )
-		flexfatal( "request for < 1 byte in allocate_array()" );
-
-	mem = flex_alloc( element_size * size );
-
-	if ( mem == NULL )
-		flexfatal( "memory allocation failed in allocate_array()" );
+	mem = flex_alloc( num_bytes );
+	if ( ! mem )
+		flexfatal(
+			_( "memory allocation failed in allocate_array()" ) );
 
 	return mem;
 	}
@@ -151,11 +166,12 @@ void check_char( c )
 int c;
 	{
 	if ( c >= CSIZE )
-		lerrsf( "bad character '%s' detected in check_char()",
+		lerrsf( _( "bad character '%s' detected in check_char()" ),
 			readable_form( c ) );
 
 	if ( c >= csize )
-		lerrsf( "scanner requires -8 flag to use the character '%s'",
+		lerrsf(
+		_( "scanner requires -8 flag to use the character %s" ),
 			readable_form( c ) );
 	}
 
@@ -173,21 +189,24 @@ register int c;
 /* copy_string - returns a dynamically allocated copy of a string */
 
 char *copy_string( str )
-register char *str;
+register const char *str;
 	{
-	register char *c;
+	register const char *c1;
+	register char *c2;
 	char *copy;
+	unsigned int size;
 
 	/* find length */
-	for ( c = str; *c; ++c )
+	for ( c1 = str; *c1; ++c1 )
 		;
 
-	copy = (char *) flex_alloc( (c - str + 1) * sizeof( char ) );
+	size = (c1 - str + 1) * sizeof( char );
+	copy = (char *) flex_alloc( size );
 
 	if ( copy == NULL )
-		flexfatal( "dynamic memory failure in copy_string()" );
+		flexfatal( _( "dynamic memory failure in copy_string()" ) );
 
-	for ( c = copy; (*c++ = *str++); )
+	for ( c2 = copy; (*c2++ = *str++) != 0; )
 		;
 
 	return copy;
@@ -210,7 +229,7 @@ register Char *str;
 
 	copy = allocate_Character_array( c - str + 1 );
 
-	for ( c = copy; (*c++ = *str++); )
+	for ( c = copy; (*c++ = *str++) != 0; )
 		;
 
 	return copy;
@@ -275,7 +294,7 @@ void dataend()
 		dataflush();
 
 	/* add terminator for initialization; { for vi */
-	puts( "    } ;\n" );
+	outn( "    } ;\n" );
 
 	dataline = 0;
 	datapos = 0;
@@ -286,14 +305,14 @@ void dataend()
 
 void dataflush()
 	{
-	putchar( '\n' );
+	outc( '\n' );
 
 	if ( ++dataline >= NUMDATALINES )
 		{
 		/* Put out a blank line so that the table is grouped into
 		 * large blocks that enable the user to find elements easily.
 		 */
-		putchar( '\n' );
+		outc( '\n' );
 		dataline = 0;
 		}
 
@@ -305,7 +324,7 @@ void dataflush()
 /* flexerror - report an error message and terminate */
 
 void flexerror( msg )
-char msg[];
+const char msg[];
 	{
 	fprintf( stderr, "%s: %s\n", program_name, msg );
 	flexend( 1 );
@@ -315,34 +334,11 @@ char msg[];
 /* flexfatal - report a fatal error message and terminate */
 
 void flexfatal( msg )
-char msg[];
+const char msg[];
 	{
-	fprintf( stderr, "%s: fatal internal error, %s\n", program_name, msg );
+	fprintf( stderr, _( "%s: fatal internal error, %s\n" ),
+		program_name, msg );
 	exit( 1 );
-	}
-
-
-/* lerrif - report an error message formatted with one integer argument */
-
-void lerrif( msg, arg )
-char msg[];
-int arg;
-	{
-	char errmsg[MAXLINE];
-	(void) sprintf( errmsg, msg, arg );
-	flexerror( errmsg );
-	}
-
-
-/* lerrsf - report an error message formatted with one string argument */
-
-void lerrsf( msg, arg )
-char msg[], arg[];
-	{
-	char errmsg[MAXLINE];
-
-	(void) sprintf( errmsg, msg, arg );
-	flexerror( errmsg );
 	}
 
 
@@ -359,50 +355,82 @@ Char str[];
 	}
 
 
-/* is_hex_digit - returns true if a character is a valid hex digit, false
- *		  otherwise
- */
+/* lerrif - report an error message formatted with one integer argument */
 
-int is_hex_digit( ch )
-int ch;
+void lerrif( msg, arg )
+const char msg[];
+int arg;
 	{
-	if ( isdigit( ch ) )
-		return 1;
-
-	switch ( clower( ch ) )
-		{
-		case 'a':
-		case 'b':
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':
-			return 1;
-
-		default:
-			return 0;
-		}
+	char errmsg[MAXLINE];
+	(void) sprintf( errmsg, msg, arg );
+	flexerror( errmsg );
 	}
 
 
-/* line_directive_out - spit out a "# line" statement */
+/* lerrsf - report an error message formatted with one string argument */
 
-void line_directive_out( output_file )
-FILE *output_file;
+void lerrsf( msg, arg )
+const char msg[], arg[];
 	{
-	if ( infilename && gen_line_dirs )
-		{
-		char directive[MAXLINE];
-		sprintf( directive, "# line %d \"%s\"\n", linenum, infilename );
+	char errmsg[MAXLINE];
 
-		/* If output_file is nil then we should put the directive in
-		 * the accumulated actions.
-		 */
-		if ( output_file )
-			fputs( directive, output_file );
-		else
-			add_action( directive );
+	(void) sprintf( errmsg, msg, arg );
+	flexerror( errmsg );
+	}
+
+
+/* line_directive_out - spit out a "#line" statement */
+
+void line_directive_out( output_file, do_infile )
+FILE *output_file;
+int do_infile;
+	{
+	char directive[MAXLINE], filename[MAXLINE];
+	char *s1, *s2, *s3;
+	static char line_fmt[] = "#line %d \"%s\"\n";
+
+	if ( ! gen_line_dirs )
+		return;
+
+	if ( (do_infile && ! infilename) || (! do_infile && ! outfilename) )
+		/* don't know the filename to use, skip */
+		return;
+
+	s1 = do_infile ? infilename : outfilename;
+	s2 = filename;
+	s3 = &filename[sizeof( filename ) - 2];
+
+	while ( s2 < s3 && *s1 )
+		{
+		if ( *s1 == '\\' )
+			/* Escape the '\' */
+			*s2++ = '\\';
+
+		*s2++ = *s1++;
 		}
+
+	*s2 = '\0';
+
+	if ( do_infile )
+		sprintf( directive, line_fmt, linenum, filename );
+	else
+		{
+		if ( output_file == stdout )
+			/* Account for the line directive itself. */
+			++out_linenum;
+
+		sprintf( directive, line_fmt, out_linenum, filename );
+		}
+
+	/* If output_file is nil then we should put the directive in
+	 * the accumulated actions.
+	 */
+	if ( output_file )
+		{
+		fputs( directive, output_file );
+		}
+	else
+		add_action( directive );
 	}
 
 
@@ -439,20 +467,20 @@ int value;
 	{
 	if ( datapos >= NUMDATAITEMS )
 		{
-		putchar( ',' );
+		outc( ',' );
 		dataflush();
 		}
 
 	if ( datapos == 0 )
 		/* Indent. */
-		fputs( "    ", stdout );
+		out( "    " );
 
 	else
-		putchar( ',' );
+		outc( ',' );
 
 	++datapos;
 
-	printf( "%5d", value );
+	out_dec( "%5d", value );
 	}
 
 
@@ -466,19 +494,19 @@ int value;
 	{
 	if ( datapos >= NUMDATAITEMS )
 		{
-		putchar( ',' );
+		outc( ',' );
 		dataflush();
 		}
 
 	if ( datapos == 0 )
 		/* Indent. */
-		fputs( "    ", stdout );
+		out( "    " );
 	else
-		putchar( ',' );
+		outc( ',' );
 
 	++datapos;
 
-	printf( "%5d", value );
+	out_dec( "%5d", value );
 	}
 
 
@@ -510,7 +538,7 @@ Char array[];
 		case 'r': return '\r';
 		case 't': return '\t';
 
-#ifdef __STDC__
+#if __STDC__
 		case 'a': return '\a';
 		case 'v': return '\v';
 #else
@@ -526,8 +554,6 @@ Char array[];
 		case '5':
 		case '6':
 		case '7':
-		case '8':
-		case '9':
 			{ /* \<octal> */
 			int sptr = 1;
 
@@ -554,7 +580,7 @@ Char array[];
 			int sptr = 2;
 
 			while ( isascii( array[sptr] ) &&
-				is_hex_digit( (char) array[sptr] ) )
+				isxdigit( (char) array[sptr] ) )
 				/* Don't increment inside loop control
 				 * because if isdigit() is a macro it might
 				 * expand into multiple increments ...
@@ -589,6 +615,96 @@ Char str[];
 	}
 
 
+/* out - various flavors of outputing a (possibly formatted) string for the
+ *	 generated scanner, keeping track of the line count.
+ */
+
+void out( str )
+const char str[];
+	{
+	fputs( str, stdout );
+	out_line_count( str );
+	}
+
+void out_dec( fmt, n )
+const char fmt[];
+int n;
+	{
+	printf( fmt, n );
+	out_line_count( fmt );
+	}
+
+void out_dec2( fmt, n1, n2 )
+const char fmt[];
+int n1, n2;
+	{
+	printf( fmt, n1, n2 );
+	out_line_count( fmt );
+	}
+
+void out_hex( fmt, x )
+const char fmt[];
+unsigned int x;
+	{
+	printf( fmt, x );
+	out_line_count( fmt );
+	}
+
+void out_line_count( str )
+const char str[];
+	{
+	register int i;
+
+	for ( i = 0; str[i]; ++i )
+		if ( str[i] == '\n' )
+			++out_linenum;
+	}
+
+void out_str( fmt, str )
+const char fmt[], str[];
+	{
+	printf( fmt, str );
+	out_line_count( fmt );
+	out_line_count( str );
+	}
+
+void out_str3( fmt, s1, s2, s3 )
+const char fmt[], s1[], s2[], s3[];
+	{
+	printf( fmt, s1, s2, s3 );
+	out_line_count( fmt );
+	out_line_count( s1 );
+	out_line_count( s2 );
+	out_line_count( s3 );
+	}
+
+void out_str_dec( fmt, str, n )
+const char fmt[], str[];
+int n;
+	{
+	printf( fmt, str, n );
+	out_line_count( fmt );
+	out_line_count( str );
+	}
+
+void outc( c )
+int c;
+	{
+	putc( c, stdout );
+
+	if ( c == '\n' )
+		++out_linenum;
+	}
+
+void outn( str )
+const char str[];
+	{
+	puts( str );
+	out_line_count( str );
+	++out_linenum;
+	}
+
+
 /* readable_form - return the the human-readable form of a character
  *
  * The returned string is in static storage.
@@ -609,7 +725,7 @@ register int c;
 			case '\r': return "\\r";
 			case '\t': return "\\t";
 
-#ifdef __STDC__
+#if __STDC__
 			case '\a': return "\\a";
 			case '\v': return "\\v";
 #endif
@@ -638,19 +754,15 @@ register int c;
 
 void *reallocate_array( array, size, element_size )
 void *array;
-int size, element_size;
+int size;
+size_t element_size;
 	{
 	register void *new_array;
+	size_t num_bytes = element_size * size;
 
-	/* Same worry as in allocate_array(): */
-	if ( size * element_size <= 0 )
-		flexfatal(
-			"attempt to increase array size by less than 1 byte" );
-
-	new_array = flex_realloc( array, size * element_size );
-
-	if ( new_array == NULL )
-		flexfatal( "attempt to increase array size failed" );
+	new_array = flex_realloc( array, num_bytes );
+	if ( ! new_array )
+		flexfatal( _( "attempt to increase array size failed" ) );
 
 	return new_array;
 	}
@@ -673,7 +785,7 @@ void skelout()
 	 */
 	while ( skelfile ?
 		(fgets( buf, MAXLINE, skelfile ) != NULL) :
-		((buf = skel[skel_ind++]) != 0) )
+		((buf = (char *) skel[skel_ind++]) != 0) )
 		{ /* copy from skel array */
 		if ( buf[0] == '%' )
 			{ /* control line */
@@ -696,7 +808,7 @@ void skelout()
 
 				default:
 					flexfatal(
-						"bad line in skeleton file" );
+					_( "bad line in skeleton file" ) );
 				}
 			}
 
@@ -706,9 +818,9 @@ void skelout()
 				/* Skeleton file reads include final
 				 * newline, skel[] array does not.
 				 */
-				fputs( buf, stdout );
+				out( buf );
 			else
-				printf( "%s\n", buf );
+				outn( buf );
 			}
 		}
 	}
@@ -723,16 +835,16 @@ void skelout()
 void transition_struct_out( element_v, element_n )
 int element_v, element_n;
 	{
-	printf( "%7d, %5d,", element_v, element_n );
+	out_dec2( " {%4d,%4d },", element_v, element_n );
 
 	datapos += TRANS_STRUCT_PRINT_LENGTH;
 
-	if ( datapos >= 75 )
+	if ( datapos >= 79 - TRANS_STRUCT_PRINT_LENGTH )
 		{
-		putchar( '\n' );
+		outc( '\n' );
 
 		if ( ++dataline % 10 == 0 )
-			putchar( '\n' );
+			outc( '\n' );
 
 		datapos = 0;
 		}
@@ -745,10 +857,11 @@ int element_v, element_n;
 void *yy_flex_xmalloc( size )
 int size;
 	{
-	void *result = flex_alloc( size );
+	void *result = flex_alloc( (size_t) size );
 
 	if ( ! result  )
-		flexfatal( "memory allocation failed in yy_flex_xmalloc()" );
+		flexfatal(
+			_( "memory allocation failed in yy_flex_xmalloc()" ) );
 
 	return result;
 	}
@@ -761,7 +874,7 @@ int size;
 
 void zero_out( region_ptr, size_in_bytes )
 char *region_ptr;
-int size_in_bytes;
+size_t size_in_bytes;
 	{
 	register char *rp, *rp_end;
 
