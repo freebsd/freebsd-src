@@ -80,10 +80,6 @@ _pthread_spin_init(pthread_spinlock_t *lock, int pshared)
 {
 	struct pthread_spinlock *s;
 
-	if (*lock != NULL) {
-		if ((*lock)->s_magic == THR_SPIN_MAGIC)
-			return (EBUSY);
-	}
 	s = (struct pthread_spinlock *)malloc(sizeof(struct pthread_spinlock));
 	if (s == NULL)
 		return (ENOMEM);
