@@ -36,6 +36,8 @@
 #define RAD_ACCESS_REQUEST		1
 #define RAD_ACCESS_ACCEPT		2
 #define RAD_ACCESS_REJECT		3
+#define RAD_ACCOUNTING_REQUEST		4
+#define RAD_ACCOUNTING_RESPONSE		5
 #define RAD_ACCESS_CHALLENGE		11
 
 /* Attribute types and values */
@@ -66,6 +68,9 @@
 #define RAD_FILTER_ID			11	/* String */
 #define RAD_FRAMED_MTU			12	/* Integer */
 #define RAD_FRAMED_COMPRESSION		13	/* Integer */
+	#define RAD_COMP_NONE			0
+	#define RAD_COMP_VJ			1
+	#define RAD_COMP_IPXHDR			2
 #define RAD_LOGIN_IP_HOST		14	/* IP address */
 #define RAD_LOGIN_SERVICE		15	/* Integer */
 #define RAD_LOGIN_TCP_PORT		16	/* Integer */
@@ -95,15 +100,63 @@
      /* reserved for accounting		40-59 */
 #define RAD_CHAP_CHALLENGE		60	/* String */
 #define RAD_NAS_PORT_TYPE		61	/* Integer */
+	#define RAD_ASYNC			0
+	#define RAD_SYNC			1
+	#define RAD_ISDN_SYNC			2
+	#define RAD_ISDN_ASYNC_V120		3
+	#define RAD_ISDN_ASYNC_V110		4
+	#define RAD_VIRTUAL			5
 #define RAD_PORT_LIMIT			62	/* Integer */
 #define RAD_LOGIN_LAT_PORT		63	/* Integer */
+#define RAD_CONNECT_INFO		77	/* String */
+
+/* Accounting attribute types and values */
+#define RAD_ACCT_STATUS_TYPE		40	/* Integer */
+	#define RAD_START			1
+	#define RAD_STOP			2
+	#define RAD_ACCOUNTING_ON		7
+	#define RAD_ACCOUNTING_OFF		8
+#define RAD_ACCT_DELAY_TIME		41	/* Integer */
+#define RAD_ACCT_INPUT_OCTETS		42	/* Integer */
+#define RAD_ACCT_OUTPUT_OCTETS		43	/* Integer */
+#define RAD_ACCT_SESSION_ID		44	/* String */
+#define RAD_ACCT_AUTHENTIC		45	/* Integer */
+	#define RAD_AUTH_RADIUS			1
+	#define RAD_AUTH_LOCAL			2
+	#define RAD_AUTH_REMOTE			3
+#define RAD_ACCT_SESSION_TIME		46	/* Integer */
+#define RAD_ACCT_INPUT_PACKETS		47	/* Integer */
+#define RAD_ACCT_OUTPUT_PACKETS		48	/* Integer */
+#define RAD_ACCT_TERMINATE_CAUSE	49	/* Integer */
+        #define RAD_TERM_USER_REQUEST		1
+        #define RAD_TERM_LOST_CARRIER		2
+        #define RAD_TERM_LOST_SERVICE		3
+        #define RAD_TERM_IDLE_TIMEOUT		4
+        #define RAD_TERM_SESSION_TIMEOUT	5
+        #define RAD_TERM_ADMIN_RESET		6
+        #define RAD_TERM_ADMIN_REBOOT		7
+        #define RAD_TERM_PORT_ERROR		8
+        #define RAD_TERM_NAS_ERROR		9
+        #define RAD_TERM_NAS_REQUEST		10
+        #define RAD_TERM_NAS_REBOOT		11
+        #define RAD_TERM_PORT_UNNEEDED		12
+        #define RAD_TERM_PORT_PREEMPTED		13
+        #define RAD_TERM_PORT_SUSPENDED		14
+        #define RAD_TERM_SERVICE_UNAVAILABLE    15
+        #define RAD_TERM_CALLBACK		16
+        #define RAD_TERM_USER_ERROR		17
+        #define RAD_TERM_HOST_REQUEST		18
+#define	RAD_ACCT_MULTI_SESSION_ID	50	/* String */
+#define	RAD_ACCT_LINK_COUNT		51	/* Integer */
 
 struct rad_handle;
 struct timeval;
 
 __BEGIN_DECLS
+struct rad_handle	*rad_acct_open(void);
 int			 rad_add_server(struct rad_handle *,
 			    const char *, int, const char *, int, int);
+struct rad_handle	*rad_auth_open(void);
 void			 rad_close(struct rad_handle *);
 int			 rad_config(struct rad_handle *, const char *);
 int			 rad_continue_send_request(struct rad_handle *, int,
@@ -116,7 +169,7 @@ int			 rad_get_attr(struct rad_handle *, const void **,
 			    size_t *);
 int			 rad_init_send_request(struct rad_handle *, int *,
 			    struct timeval *);
-struct rad_handle	*rad_open(void);
+struct rad_handle	*rad_open(void);  /* Deprecated, == rad_auth_open */
 int			 rad_put_addr(struct rad_handle *, int, struct in_addr);
 int			 rad_put_attr(struct rad_handle *, int,
 			    const void *, size_t);
