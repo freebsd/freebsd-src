@@ -95,13 +95,15 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 .if ${MACHINE} == "pc98"
-BOOTSIZE=		1200
+SMALLBOOTSIZE=		1200
+BOOTSIZE=		1440
 FIXITSIZE=		1440
 MFSSIZE=		2880
 BOOTINODE=		80000
 FIXITINODE=		4000
 MFSINODE=		8000
-BOOTLABEL=		fd1200
+SMALLBOOTLABEL=		fd1200
+BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
 MFSLABEL=		minimum2
 .else
@@ -556,9 +558,12 @@ release.8: write_mfs_in_kernel
 	@gzip -9vc mfsroot > mfsroot.gz
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
+.if ${MACHINE} == "pc98"
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
-.if ${MACHINE} != "pc98"
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot BIGBOOT=YES
+.else
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
 	@rm mfsroot mfsroot.gz mfsroot.size
 	@echo "Regular and MFS boot floppies made."
@@ -781,13 +786,13 @@ doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < ${KERNCONF} > BOOTMFS && \
+	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS && \
 	  [ -r ${KERNCONF}.hints ] && cp ${KERNCONF}.hints BOOTMFS.hints
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
-.if defined(BIGBOOT)
+.if defined(FDSIZE) && ${FDSIZE} == "BIG"
 	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
@@ -808,7 +813,7 @@ doMFSKERN:
 	    ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
 	    ${RD}/image.${FSIMAGE}/boot/device.hints && \
 	  echo "include /boot/device.hints" > ${RD}/image.${FSIMAGE}/boot/loader.rc
-.if !defined(BIGBOOT)
+.if !defined(FDSIZE) || ${FDSIZE} != "BIG"
 	@echo "load /kernel" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
@@ -820,17 +825,21 @@ doMFSKERN:
 .if ${MACHINE_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
-.if defined(BIGBOOT)
+.if defined(FDSIZE) && ${FDSIZE} == "BIG"
 	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
 	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 .endif
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
-.if defined(BIGBOOT)
+.if defined(FDSIZE) && ${FDSIZE} == "BIG"
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BIGBOOTLABEL}
+.elif defined(FDSIZE) && ${FDSIZE} == "SMALL"
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} \
+		${BOOTINODE} ${SMALLBOOTLABEL}
 .else
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
