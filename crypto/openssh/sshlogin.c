@@ -99,7 +99,7 @@ record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
 	strncpy(u.ut_line, ttyname + 5, sizeof(u.ut_line));
 	u.ut_time = time(NULL);
 	strncpy(u.ut_name, user, sizeof(u.ut_name));
-	strncpy(u.ut_host, host, sizeof(u.ut_host));
+	realhostname_sa(u.ut_host, sizeof(u.ut_host), addr, addr->sa_len);
 
 	login(&u);
 	lastlog = _PATH_LASTLOG;
