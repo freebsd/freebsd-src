@@ -81,9 +81,9 @@ struct spansarp		*spansarp_arptab[SPANSARP_HASHSIZ] = {NULL};
 /*
  * Local functions
  */
-static int		spansarp_request __P((struct spansarp *));
-static void		spansarp_aging __P((struct atm_time *));
-static void		spansarp_retry __P((struct atm_time *));
+static int		spansarp_request(struct spansarp *);
+static void		spansarp_aging(struct atm_time *);
+static void		spansarp_retry(struct atm_time *);
 
 /*
  * Local variables

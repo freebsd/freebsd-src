@@ -72,11 +72,11 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	proc_arp_req __P((struct ipvcc *, KBuffer *));
-static void	proc_arp_rsp __P((struct ipvcc *, KBuffer *));
-static void	proc_arp_nak __P((struct ipvcc *, KBuffer *));
-static void	proc_inarp_req __P((struct ipvcc *, KBuffer *));
-static void	proc_inarp_rsp __P((struct ipvcc *, KBuffer *));
+static void	proc_arp_req(struct ipvcc *, KBuffer *);
+static void	proc_arp_rsp(struct ipvcc *, KBuffer *);
+static void	proc_arp_nak(struct ipvcc *, KBuffer *);
+static void	proc_inarp_req(struct ipvcc *, KBuffer *);
+static void	proc_inarp_rsp(struct ipvcc *, KBuffer *);
 
 
 /*

@@ -65,28 +65,28 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	sscop_bgn_outconn __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_bgn_inconn __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_bgn_ready __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_bgrej_outrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_end_outrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_end_ready __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_endak_outrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_rs_outresyn __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_rs_inresyn __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_rs_outrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_rs_ready __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_er_error __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_er_idle __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_er_outrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_er_recovrsp __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_er_inrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_er_ready __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_erak_error __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_erak_idle __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_erak_outrecov __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_sd_ready __P((struct sscop *, KBuffer *, caddr_t));
-static void	sscop_poll_ready __P((struct sscop *, KBuffer *, caddr_t));
+static void	sscop_bgn_outconn(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_bgn_inconn(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_bgn_ready(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_bgrej_outrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_end_outrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_end_ready(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_endak_outrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_rs_outresyn(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_rs_inresyn(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_rs_outrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_rs_ready(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_er_error(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_er_idle(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_er_outrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_er_recovrsp(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_er_inrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_er_ready(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_erak_error(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_erak_idle(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_erak_outrecov(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_sd_ready(struct sscop *, KBuffer *, caddr_t);
+static void	sscop_poll_ready(struct sscop *, KBuffer *, caddr_t);
 
 
 /*
@@ -94,7 +94,7 @@ static void	sscop_poll_ready __P((struct sscop *, KBuffer *, caddr_t));
  */
 /* BGN PDU */
 static void	(*sscop_bgn_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_bgn_idle,		/* SOS_IDLE */
 			sscop_bgn_outconn,	/* SOS_OUTCONN */
@@ -111,7 +111,7 @@ static void	(*sscop_bgn_tab[SOS_NUMSTATES])
 
 /* BGAK PDU */
 static void	(*sscop_bgak_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_bgak_idle,	/* SOS_IDLE */
 			sscop_bgak_outconn,	/* SOS_OUTCONN */
@@ -128,7 +128,7 @@ static void	(*sscop_bgak_tab[SOS_NUMSTATES])
 
 /* BGREJ PDU */
 static void	(*sscop_bgrej_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_bgrej_error,	/* SOS_IDLE */
 			sscop_bgrej_outconn,	/* SOS_OUTCONN */
@@ -145,7 +145,7 @@ static void	(*sscop_bgrej_tab[SOS_NUMSTATES])
 
 /* END PDU */
 static void	(*sscop_end_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_end_idle,		/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -162,7 +162,7 @@ static void	(*sscop_end_tab[SOS_NUMSTATES])
 
 /* ENDAK PDU */
 static void	(*sscop_endak_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_noop,		/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -179,7 +179,7 @@ static void	(*sscop_endak_tab[SOS_NUMSTATES])
 
 /* RS PDU */
 static void	(*sscop_rs_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_rs_idle,		/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -196,7 +196,7 @@ static void	(*sscop_rs_tab[SOS_NUMSTATES])
 
 /* RSAK PDU */
 static void	(*sscop_rsak_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_rsak_idle,	/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -213,7 +213,7 @@ static void	(*sscop_rsak_tab[SOS_NUMSTATES])
 
 /* ER PDU */
 static void	(*sscop_er_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_er_idle,		/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -230,7 +230,7 @@ static void	(*sscop_er_tab[SOS_NUMSTATES])
 
 /* ERAK PDU */
 static void	(*sscop_erak_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_erak_idle,	/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -247,7 +247,7 @@ static void	(*sscop_erak_tab[SOS_NUMSTATES])
 
 /* SD PDU */
 static void	(*sscop_sd_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_sd_idle,		/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -264,7 +264,7 @@ static void	(*sscop_sd_tab[SOS_NUMSTATES])
 
 /* POLL PDU */
 static void	(*sscop_poll_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_poll_idle,	/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -281,7 +281,7 @@ static void	(*sscop_poll_tab[SOS_NUMSTATES])
 
 /* STAT PDU */
 static void	(*sscop_stat_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_stat_idle,	/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -298,7 +298,7 @@ static void	(*sscop_stat_tab[SOS_NUMSTATES])
 
 /* USTAT PDU */
 static void	(*sscop_ustat_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_ustat_idle,	/* SOS_IDLE */
 			sscop_noop,		/* SOS_OUTCONN */
@@ -315,7 +315,7 @@ static void	(*sscop_ustat_tab[SOS_NUMSTATES])
 
 /* UD PDU */
 static void	(*sscop_ud_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_ud_all,		/* SOS_IDLE */
 			sscop_ud_all,		/* SOS_OUTCONN */
@@ -332,7 +332,7 @@ static void	(*sscop_ud_tab[SOS_NUMSTATES])
 
 /* MD PDU */
 static void	(*sscop_md_tab[SOS_NUMSTATES])
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_md_all,		/* SOS_IDLE */
 			sscop_md_all,		/* SOS_OUTCONN */
@@ -352,7 +352,7 @@ static void	(*sscop_md_tab[SOS_NUMSTATES])
  * PDU type lookup table
  */
 void	(*(*sscop_q2110_pdutab[]))
-				__P((struct sscop *, KBuffer *, caddr_t)) = {
+				(struct sscop *, KBuffer *, caddr_t) = {
 		NULL,
 		sscop_bgn_tab,
 		sscop_bgak_tab,

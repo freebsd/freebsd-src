@@ -101,14 +101,14 @@ struct sp_info	unisig_iepool = {
 /*
  * Local functions
  */
-static int	unisig_attach __P((struct sigmgr *, struct atm_pif *));
-static int	unisig_detach __P((struct atm_pif *));
-static int	unisig_setup __P((Atm_connvc *, int *));
-static int	unisig_release __P((struct vccb *, int *));
-static int	unisig_accept __P((struct vccb *, int *));
-static int	unisig_reject __P((struct vccb *, int *));
-static int	unisig_abort __P((struct vccb *));
-static int	unisig_ioctl __P((int, caddr_t, caddr_t));
+static int	unisig_attach(struct sigmgr *, struct atm_pif *);
+static int	unisig_detach(struct atm_pif *);
+static int	unisig_setup(Atm_connvc *, int *);
+static int	unisig_release(struct vccb *, int *);
+static int	unisig_accept(struct vccb *, int *);
+static int	unisig_reject(struct vccb *, int *);
+static int	unisig_abort(struct vccb *);
+static int	unisig_ioctl(int, caddr_t, caddr_t);
 
 
 /*

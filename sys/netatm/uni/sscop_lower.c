@@ -135,8 +135,8 @@ sscop_lower(cmd, tok, arg1, arg2)
 	int	arg2;
 {
 	struct sscop	*sop = (struct sscop *)tok;
-	void		(**stab) __P((struct sscop *, int, int));
-	void		(*func) __P((struct sscop *, int, int));
+	void		(**stab)(struct sscop *, int, int);
+	void		(*func)(struct sscop *, int, int);
 	int		val;
 
 	ATM_DEBUG5("sscop_lower: cmd=0x%x, sop=%p, state=%d, arg1=0x%x, arg2=0x%x\n",

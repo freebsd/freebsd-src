@@ -69,24 +69,24 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * External functions
  */
-void		xdrmbuf_init __P((XDR *, KBuffer *, enum xdr_op));
+void		xdrmbuf_init(XDR *, KBuffer *, enum xdr_op);
 
 /*
  * Local functions
  */
-static void	spans_host_link __P((struct spans *, long));
-static void	spans_status_ind __P((struct spans *, spans_msg *));
-static void	spans_status_rsp __P((struct spans *, spans_msg *));
-static void	spans_open_req __P((struct spans *, spans_msg *));
-static void	spans_open_rsp __P((struct spans *, spans_msg *));
-static void	spans_close_req __P((struct spans *, spans_msg *));
-static void	spans_close_rsp __P((struct spans *, spans_msg *));
-static void	spans_multi_req __P((struct spans *, spans_msg *));
-static void	spans_add_req __P((struct spans *, spans_msg *));
-static void	spans_join_req __P((struct spans *, spans_msg *));
-static void	spans_leave_req __P((struct spans *, spans_msg *));
-static void	spans_vcir_ind __P((struct spans *, spans_msg *));
-static void	spans_query_req __P((struct spans *, spans_msg *));
+static void	spans_host_link(struct spans *, long);
+static void	spans_status_ind(struct spans *, spans_msg *);
+static void	spans_status_rsp(struct spans *, spans_msg *);
+static void	spans_open_req(struct spans *, spans_msg *);
+static void	spans_open_rsp(struct spans *, spans_msg *);
+static void	spans_close_req(struct spans *, spans_msg *);
+static void	spans_close_rsp(struct spans *, spans_msg *);
+static void	spans_multi_req(struct spans *, spans_msg *);
+static void	spans_add_req(struct spans *, spans_msg *);
+static void	spans_join_req(struct spans *, spans_msg *);
+static void	spans_leave_req(struct spans *, spans_msg *);
+static void	spans_vcir_ind(struct spans *, spans_msg *);
+static void	spans_query_req(struct spans *, spans_msg *);
 
 
 /*

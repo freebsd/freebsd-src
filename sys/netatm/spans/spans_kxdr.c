@@ -426,12 +426,12 @@ xdr_opaque(xdrs, cp, cnt)
  */
 
 
-void		xdrmbuf_init __P((XDR *, KBuffer *, enum xdr_op));
-static bool_t	xdrmbuf_getlong __P((XDR *, long *));
-static bool_t	xdrmbuf_putlong __P((XDR *, const long *));
-static bool_t	xdrmbuf_getbytes __P((XDR *, char *, u_int));
-static bool_t	xdrmbuf_putbytes __P((XDR *, const char *, u_int));
-static u_int	xdrmbuf_getpos __P((XDR *));
+void		xdrmbuf_init(XDR *, KBuffer *, enum xdr_op);
+static bool_t	xdrmbuf_getlong(XDR *, long *);
+static bool_t	xdrmbuf_putlong(XDR *, const long *);
+static bool_t	xdrmbuf_getbytes(XDR *, char *, u_int);
+static bool_t	xdrmbuf_putbytes(XDR *, const char *, u_int);
+static u_int	xdrmbuf_getpos(XDR *);
 
 static struct	xdr_ops xdrmbuf_ops = {
 	xdrmbuf_getlong,
