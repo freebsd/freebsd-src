@@ -25,9 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	From BSDI: intr.c,v 1.6.2.5 1999/07/06 19:16:52 cp Exp
- * $FreeBSD$
+ *	BSDI Id: intr.c,v 1.6.2.5 1999/07/06 19:16:52 cp Exp
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Interrupt thread code. */
 
