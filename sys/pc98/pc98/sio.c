@@ -2545,7 +2545,7 @@ siointr(arg)
 #endif /* COM_MULTIPORT */
 }
 
-static struct timespec siots[8192];
+static struct timespec siots[8];
 static int siotso;
 static int volatile siotsunit = -1;
 
@@ -2555,17 +2555,17 @@ sysctl_siots(SYSCTL_HANDLER_ARGS)
 	char buf[128];
 	long long delta;
 	size_t len;
-	int error, i;
+	int error, i, tso;
 
-	for (i = 1; i < siotso; i++) {
+	for (i = 1, tso = siotso; i < tso; i++) {
 		delta = (long long)(siots[i].tv_sec - siots[i - 1].tv_sec) *
 		    1000000000 +
 		    (siots[i].tv_nsec - siots[i - 1].tv_nsec);
 		len = sprintf(buf, "%lld\n", delta);
 		if (delta >= 110000)
 			len += sprintf(buf + len - 1, ": *** %ld.%09ld\n",
-			    (long)siots[i].tv_sec, siots[i].tv_nsec);
-		if (i == siotso - 1)
+			    (long)siots[i].tv_sec, siots[i].tv_nsec) - 1;
+		if (i == tso - 1)
 			buf[len - 1] = '\0';
 		error = SYSCTL_OUT(req, buf, len);
 		if (error != 0)
@@ -2755,6 +2755,10 @@ if (com->iptr - com->ibuf == 8)
 					CE_RECORD(com, CE_OVERRUN);
 			}
 cont:
+			if (line_status & LSR_TXRDY
+			    && com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY))
+				goto txrdy;
+
 			/*
 			 * "& 0x7F" is to avoid the gcc-1.40 generating a slow
 			 * jump from the top of the loop to here
@@ -2807,6 +2811,7 @@ cont:
 		}
 #endif
 
+txrdy:
 		/* output queued and everything ready? */
 #ifndef PC98
 		if (line_status & LSR_TXRDY
@@ -2859,11 +2864,9 @@ cont:
 				outb(com->data_port, *ioptr++);
 #endif
 				++com->bytes_out;
-				if (com->unit == siotsunit) {
-					nanouptime(&siots[siotso]);
-					siotso = (siotso + 1) %
-					    (sizeof siots / sizeof siots[0]);
-				}
+				if (com->unit == siotsunit
+				    && siotso < sizeof siots / sizeof siots[0])
+					nanouptime(&siots[siotso++]);
 			}
 #ifdef PC98
 			if (IS_8251(com->pc98_if_type))
