@@ -226,7 +226,6 @@ MAN=	accept_filter.9 \
 	VFS_FHTOVP.9 \
 	vfs_getnewfsid.9 \
 	vfs_getvfs.9 \
-	VFS_INIT.9 \
 	VFS_MOUNT.9 \
 	vfs_mount.9 \
 	vfs_mountedon.9 \
