@@ -17,7 +17,7 @@ CFLAGS+=	-I${SRCDIR}/include
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
-.if defined(WANT_BIND_LIBS)
+.if defined(WITH_BIND_LIBS)
 INCS=		${SRCDIR}/include/bind9/check.h \
 		${SRCDIR}/include/bind9/getaddresses.h \
 		${SRCDIR}/include/bind9/version.h

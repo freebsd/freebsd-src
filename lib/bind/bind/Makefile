@@ -65,7 +65,7 @@ SRCS+=		herror.c res_comp.c res_data.c \
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
-#.if defined(WANT_BIND_LIBS)
+#.if defined(WITH_BIND_LIBS)
 #INCS=		${SRCDIR}/include/isc/assertions.h \
 #		${SRCDIR}/include/isc/ctl.h \
 #		${SRCDIR}/include/isc/dst.h \
