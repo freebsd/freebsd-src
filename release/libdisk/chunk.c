@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.11 1995/05/08 02:08:25 phk Exp $
+ * $Id: chunk.c,v 1.12 1995/05/11 05:22:49 phk Exp $
  *
  */
 
@@ -114,6 +114,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 	ct = new_chunk();
 	if (!ct) err(1,"malloc failed");
 	memset(ct,0,sizeof *ct);
+	ct->disk = c2->disk;
 	ct->offset = offset;
 	ct->size = size;
 	ct->end = offset + size - 1;
@@ -131,6 +132,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 		cs = new_chunk();
 		if (!cs) err(1,"malloc failed");
 		memset(cs,0,sizeof *cs);
+		cs->disk = c2->disk;
 		cs->offset = offset;
 		cs->size = size;
 		cs->end = offset + size - 1;
@@ -144,6 +146,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 		cs = new_chunk();
 		if (!cs) err(1,"malloc failed");
 		*cs = *c2;
+		cs->disk = c2->disk;
 		cs->offset = ct->end + 1;
 		cs->size = c2->end - ct->end;
 		if(c2->name)
@@ -189,6 +192,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 		c2 = c1->part = new_chunk();
 		if (!c2) err(1,"malloc failed");
 		memset(c2,0,sizeof *c2);
+		c2->disk = c1->disk = d;
 		c2->offset = c1->offset = offset;
 		c2->size = c1->size = size;
 		c2->end = c1->end = end;
@@ -385,6 +389,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 		if (!c2) err(1,"malloc failed");	
 		*c2 = *c1;
 		c1->next = c2;
+		c1->disk = d;
 		c1->name = strdup("-");
 		c1->part = 0;
 		c1->type = unused;
