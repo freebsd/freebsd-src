@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.4 1993/09/12 20:45:53 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.5 1993/09/18 03:39:50 jkh Exp $";
 #endif
 
 /*
@@ -80,20 +80,20 @@ mark_plist(Package *pkg)
     }
 }
 
-/* Return whether or not there is an item of 'type' in the list */
-Boolean
-in_plist(Package *pkg, plist_t type)
+/* Find a given item in a packing list and, if so, return it (else NULL) */
+PackingList
+find_plist(Package *pkg, plist_t type)
 {
     PackingList p = pkg->head;
 
     while (p) {
 	if (p->type == type)
-	    return TRUE;
+	    return p;
 	p = p->next;
     }
-    return FALSE;
+    return NULL;
 }
-    
+ 
 /*
  * Delete plist item 'type' in the list (if 'name' is non-null, match it
  * too.)  If 'all' is set, delete all items, not just the first occurance.
