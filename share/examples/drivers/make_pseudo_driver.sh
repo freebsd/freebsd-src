@@ -49,9 +49,6 @@ cat >../../dev/${1}.c <<DONE
 #include <sys/malloc.h>		/* malloc region definitions */
 #include <machine/clock.h>	/* DELAY() */
 #include <sys/${1}io.h>		/* ${1} IOCTL definitions */
-#ifdef DEVFS
-#include <sys/devfsext.h>	/* DEVFS defintitions */
-#endif /* DEVFS */
 
 
 
@@ -93,9 +90,6 @@ static struct cdevsw ${1}_cdevsw = {
 struct ${1}_softc {
 	struct isa_device *dev;
 	char	buffer[BUFFERSIZE];
-#ifdef DEVFS
-	static void *devfs_token;
-#endif
 } ;
 
 typedef	struct ${1}_softc *sc_p;
@@ -269,10 +263,6 @@ ${1}_drvinit(void *unused)
 		}
 		bzero(scp, sizeof(*scp));
 		sca[unit] = scp;
-#if DEVFS
-    		scp->devfs_token = devfs_add_devswf(&${1}_cdevsw, unit, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0640, "${1}%d", unit);
-#endif
 	}
 }
 
