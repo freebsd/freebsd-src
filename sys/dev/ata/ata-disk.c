@@ -417,7 +417,7 @@ ad_transfer(struct ad_request *request)
     if (request->donecount == 0) {
 
 	/* start timeout for this transfer */
-	request->timeout_handle = timeout((timeout_t*)ad_timeout, request, 300);
+	request->timeout_handle = timeout((timeout_t*)ad_timeout, request, 3*hz);
 
 	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
