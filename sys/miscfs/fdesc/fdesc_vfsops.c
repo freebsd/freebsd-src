@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.5 1995/09/02 20:17:57 mpp Exp $
+ * $Id: fdesc_vfsops.c,v 1.6 1995/11/07 13:39:18 phk Exp $
  */
 
 /*
@@ -56,8 +56,24 @@
 #include <sys/malloc.h>
 #include <miscfs/fdesc/fdesc.h>
 
-static int fdesc_statfs __P((struct mount *, struct statfs *, struct proc *));
-
+static int	fdesc_fhtovp __P((struct mount *mp, struct fid *fhp,
+				  struct mbuf *nam, struct vnode **vpp,
+				  int *exflagsp, struct ucred **credanonp));
+static int	fdesc_mount __P((struct mount *mp, char *path, caddr_t data,
+				 struct nameidata *ndp, struct proc *p));
+static int	fdesc_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+				    caddr_t arg, struct proc *p));
+static int	fdesc_start __P((struct mount *mp, int flags, struct proc *p));
+static int	fdesc_unmount __P((struct mount *mp, int mntflags,
+				   struct proc *p));
+static int	fdesc_statfs __P((struct mount *mp, struct statfs *sbp,
+				  struct proc *p));
+static int	fdesc_sync __P((struct mount *mp, int waitfor,
+				struct ucred *cred, struct proc *p));
+static int	fdesc_vget __P((struct mount *mp, ino_t ino,
+				struct vnode **vpp));
+static int	fdesc_vptofh __P((struct vnode *vp, struct fid *fhp));
+  
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
@@ -235,9 +251,11 @@ fdesc_statfs(mp, sbp, p)
 }
 
 static int
-fdesc_sync(mp, waitfor)
+fdesc_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
+	struct ucred *cred;
+	struct proc *p;
 {
 
 	return (0);
@@ -258,12 +276,15 @@ fdesc_vget(mp, ino, vpp)
 }
 
 static int
-fdesc_fhtovp(mp, fhp, setgen, vpp)
+fdesc_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
-	int setgen;
+	struct mbuf *nam;
 	struct vnode **vpp;
+	int *exflagsp;
+	struct ucred **credanonp;
 {
+
 	return (EOPNOTSUPP);
 }
 
