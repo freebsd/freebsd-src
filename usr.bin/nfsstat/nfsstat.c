@@ -41,9 +41,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "From: @(#)nfsstat.c	8.1 (Berkeley) 6/6/93";*/
+#if 0
+static char sccsid[] = "@(#)nfsstat.c	8.2 (Berkeley) 3/31/95";
+#endif
 static const char rcsid[] =
-	"$Id: nfsstat.c,v 1.8 1997/02/22 19:56:25 peter Exp $";
+	"$Id: nfsstat.c,v 1.9 1997/03/29 04:31:23 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -162,12 +164,14 @@ readstats(stp)
 	} else {
 		int name[3];
 		size_t buflen = sizeof *stp;
+		struct vfsconf vfc;
 
+		if (getvfsbyname("nfs", &vfc) < 0)
+			err(1, "getvfsbyname: NFS not compiled into kernel");
 		name[0] = CTL_VFS;
-		name[1] = MOUNT_NFS;
+		name[1] = vfc.vfc_typenum;
 		name[2] = NFS_NFSSTATS;
-
-		if(sysctl(name, 3, stp, &buflen, (void *)0, (size_t)0) < 0) {
+		if (sysctl(name, 3, stp, &buflen, (void *)0, (size_t)0) < 0) {
 			err(1, "sysctl");
 		}
 	}
