@@ -31,12 +31,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)fsi_util.c	8.1 (Berkeley) 6/6/93
- *
- * $Id: fsi_util.c,v 1.1.1.1 1994/05/26 05:22:18 rgrimes Exp $
- *
  */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)fsi_util.c  8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif
 
 #include "../fsinfo/fsinfo.h"
 
@@ -47,7 +50,7 @@ void error(s, s1, s2, s3, s4)
 char *s, *s1, *s2, *s3, *s4;
 {
 	col_cleanup(0);
-	fprintf(stderr, "%s: Error, ", progname);
+	fprintf(stderr, "fsinfo: error, ");
 	fprintf(stderr, s, s1, s2, s3, s4);
 	fputc('\n', stderr);
 	errors++;
@@ -79,7 +82,7 @@ void fatal(s, s1, s2, s3, s4)
 char *s, *s1, *s2, *s3, *s4;
 {
 	col_cleanup(1);
-	fprintf(stderr, "%s: Fatal, ", progname);
+	fprintf(stderr, "fsinfo: fatal, ");
 	fprintf(stderr, s, s1, s2, s3, s4);
 	fputc('\n', stderr);
 	exit(1);
@@ -108,7 +111,7 @@ char *s, *s1, *s2, *s3, *s4;
 {
 	if (verbose > 0) {
 		fputc('#', stdout);
-		fprintf(stdout, "%s: ", progname);
+		fprintf(stdout, "fsinfo: ");
 		fprintf(stdout, s, s1, s2, s3, s4);
 		putc('\n', stdout);
 	}
@@ -137,10 +140,10 @@ FILE *fp;
 	fprintf(fp,
 "\
 # *** This file was automatically generated -- DO NOT EDIT HERE ***\n\
-# \"%s\" run by %s@%s on %s\
+# \"fsinfo\" run by %s@%s on %s\
 #\n\
 ",
-	progname, username, hostname, cp);
+	username, hostname, cp);
 }
 
 static int show_range = 10;
