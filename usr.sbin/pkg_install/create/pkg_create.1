@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.19 1997/05/02 22:00:05 max Exp $	
+.\"	$Id: pkg_create.1,v 1.20 1997/06/19 15:18:29 jkh Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -278,6 +278,18 @@ Format is the same as that used by the
 command (well, considering that it's later handed off to it, that's
 no surprise).  Use without an arg to set back to default (extraction)
 permissions.
+.It Cm @option Ar option
+Sets internal package options, the only two currently supported ones
+being
+.Ar extract-in-place ,
+which tells the pkg_add command not to extract the package's tarball
+into a staging area but rather directly into the target
+hierarchy (this is typically meant to be used only by distributions
+or other special package types), and
+.Ar preserve ,
+which tells pkg_add to move any existing files out of the way,
+preserving the previous contents (which are also resurrected on
+pkg_delete, so caveat emptor).
 .It Cm @owner Ar user
 Sets default ownership for all subsequently extracted files to
 .Ar user .

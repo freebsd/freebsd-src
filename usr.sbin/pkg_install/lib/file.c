@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: file.c,v 1.27 1997/02/22 16:09:47 peter Exp $";
 #endif
 
 /*
@@ -338,6 +338,40 @@ fileGetContents(char *fname)
     return contents;
 }
 
+/* Takes a filename and package name, returning (in "try") the canonical "preserve"
+ * name for it.
+ */
+Boolean
+make_preserve_name(char *try, int max, char *name, char *file)
+{
+    int len, i;
+
+    if ((len = strlen(file)) == 0)
+	return FALSE;
+    else
+	i = len - 1;
+    strncpy(try, file, max);
+    if (try[i] == '/') /* Catch trailing slash early and save checking in the loop */
+	--i;
+    for (; i; i--) {
+	if (try[i] == '/') {
+	    try[i + 1]= '.';
+	    strncpy(&try[i + 2], &file[i + 1], max - i - 2);
+	    break;
+	}
+    }
+    if (!i) {
+	try[0] = '.';
+	strncpy(try + 1, file, max - 1);
+    }
+    /* I should probably be called rude names for these inline assignments */
+    strncat(try, ".",  max -= strlen(try));
+    strncat(try, name, max -= strlen(name));
+    strncat(try, ".",  max--);
+    strncat(try, "backup", max -= 6);
+    return TRUE;
+}
+
 /* Write the contents of "str" to a file */
 void
 write_file(char *name, char *str)
@@ -347,7 +381,7 @@ write_file(char *name, char *str)
 
     fp = fopen(name, "w");
     if (!fp)
-	barf("Can't fopen '%s' for writing.", name);
+	barf("Cannot fopen '%s' for writing.", name);
     len = strlen(str);
     if (fwrite(str, 1, len, fp) != len)
 	barf("Short fwrite on '%s', tried to write %d bytes.", name, len);
@@ -365,7 +399,7 @@ copy_file(char *dir, char *fname, char *to)
     else
 	snprintf(cmd, FILENAME_MAX, "cp -p -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd))
-	barf("Couldn't perform '%s'", cmd);
+	barf("Could not perform '%s'", cmd);
 }
 
 void
@@ -378,7 +412,7 @@ move_file(char *dir, char *fname, char *to)
     else
 	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd))
-	barf("Couldn't perform '%s'", cmd);
+	barf("Could not perform '%s'", cmd);
 }
 
 /*
@@ -408,7 +442,7 @@ copy_hierarchy(char *dir, char *fname, Boolean to)
     printf("Using '%s' to copy trees.\n", cmd);
 #endif
     if (system(cmd))
-	barf("copy_file: Couldn't perform '%s'", cmd);
+	barf("copy_file: Could not perform '%s'", cmd);
 }
 
 /* Unpack a tar file */
