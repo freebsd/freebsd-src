@@ -59,7 +59,7 @@ extern char STR_SIEN[];
 #define	ASS_IDIS	MPASS2(!(save_intr() & IA64_PSR_I), STR_IDIS)
 #define ASS_SIEN(mpp)	MPASS2(((mpp)->mtx_saveintr & IA64_PSR_I), STR_SIEN)
 
-#define	mtx_legal2block()	((save_intr() & IA64_PSR_I)
+#define	mtx_legal2block()	(save_intr() & IA64_PSR_I)
 
 #endif	/* _KERNEL */
 
