@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.24 1994/10/23 21:27:05 wollman Exp $
+ *      $Id: aha1742.c,v 1.25 1994/11/15 14:53:09 bde Exp $
  */
 
 #include <sys/types.h>
@@ -39,8 +39,12 @@
 
 /* */
 
-#if defined(KERNEL) && !defined(DDB)
+#ifdef KERNEL
+# ifdef DDB
+#define	fatal_if_no_DDB()
+# else
 #define	fatal_if_no_DDB() panic("panic for historical reasons")
+# endif
 #endif
 
 typedef unsigned long int physaddr;
