@@ -114,7 +114,7 @@ struct procsig {
 struct pargs {
 	u_int	ar_ref;		/* Reference count. */
 	u_int	ar_length;	/* Length. */
-	u_char	ar_args[];	/* Arguments. */
+	u_char	ar_args[1];	/* Arguments. */
 };
 
 /*-
@@ -307,7 +307,7 @@ struct thread {
 		TDS_INHIBITED,
 		TDS_CAN_RUN,
 		TDS_RUNQ,
-		TDS_RUNNING,
+		TDS_RUNNING
 	} td_state;
 	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
