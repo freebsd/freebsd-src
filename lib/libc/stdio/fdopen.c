@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -61,7 +63,7 @@ fdopen(fd, mode)
 		return (NULL);
 
 	/* Make sure the mode the user wants is a subset of the actual mode. */
-	if ((fdflags = fcntl(fd, F_GETFL, 0)) < 0)
+	if ((fdflags = _libc_fcntl(fd, F_GETFL, 0)) < 0)
 		return (NULL);
 	tmp = fdflags & O_ACCMODE;
 	if (tmp != O_RDWR && (tmp != (oflags & O_ACCMODE))) {

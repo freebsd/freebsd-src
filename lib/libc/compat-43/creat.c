@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -39,12 +41,15 @@ static char sccsid[] = "@(#)creat.c	8.1 (Berkeley) 6/2/93";
 
 int
 #if __STDC__
-creat(const char *path, mode_t mode)
+__creat(const char *path, mode_t mode)
 #else
-creat(path, mode)
+__creat(path, mode)
 	char *path;
 	mode_t mode;
 #endif
 {
-	return(open(path, O_WRONLY|O_CREAT|O_TRUNC, mode));
+	return(_libc_open(path, O_WRONLY|O_CREAT|O_TRUNC, mode));
 }
+
+__weak_reference(__creat, _libc_creat);
+__weak_reference(_libc_creat, creat);

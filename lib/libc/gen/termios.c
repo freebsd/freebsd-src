@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -187,12 +189,14 @@ tcsendbreak(fd, len)
 }
 
 int
-tcdrain(fd)
+__tcdrain(fd)
 	int fd;
 {
-
 	return (ioctl(fd, TIOCDRAIN, 0));
 }
+
+__weak_reference(__tcdrain, _libc_tcdrain);
+__weak_reference(_libc_tcdrain, tcdrain);
 
 int
 tcflush(fd, which)
@@ -234,7 +238,8 @@ tcflow(fd, action)
 		if (tcgetattr(fd, &term) == -1)
 			return (-1);
 		c = term.c_cc[action == TCIOFF ? VSTOP : VSTART];
-		if (c != _POSIX_VDISABLE && write(fd, &c, sizeof(c)) == -1)
+		if (c != _POSIX_VDISABLE && _libc_write(fd, &c, sizeof(c)) ==
+		    -1)
 			return (-1);
 		return (0);
 	default:

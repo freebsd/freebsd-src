@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -55,9 +57,9 @@ psignal(sig, s)
 	else
 		c = "Unknown signal";
 	if (s != NULL && *s != '\0') {
-		(void)write(STDERR_FILENO, s, strlen(s));
-		(void)write(STDERR_FILENO, ": ", 2);
+		(void)_libc_write(STDERR_FILENO, s, strlen(s));
+		(void)_libc_write(STDERR_FILENO, ": ", 2);
 	}
-	(void)write(STDERR_FILENO, c, strlen(c));
-	(void)write(STDERR_FILENO, "\n", 1);
+	(void)_libc_write(STDERR_FILENO, c, strlen(c));
+	(void)_libc_write(STDERR_FILENO, "\n", 1);
 }

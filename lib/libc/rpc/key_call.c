@@ -28,6 +28,8 @@
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
+ *
+ * $FreeBSD$
  */
 
 #ident	"@(#)key_call.c	1.25	94/04/24 SMI"
@@ -367,7 +369,7 @@ int	vers;
 	(void) clnt_control(kcp->client, CLSET_RETRY_TIMEOUT,
 		(char *)&wait_time);
 	if (clnt_control(kcp->client, CLGET_FD, (char *)&fd))
-		fcntl(fd, F_SETFD, 1);	/* make it "close on exec" */
+		_libc_fcntl(fd, F_SETFD, 1);	/* make it "close on exec" */
 
 	return (kcp->client);
 }

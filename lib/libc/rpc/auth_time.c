@@ -28,6 +28,8 @@
  *
  * NOTE: This code has had the crap beaten out it in order to convert
  *       it from TI-RPC back to TD-RPC for use on FreeBSD.
+ *
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <syslog.h>
@@ -435,7 +437,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 				msg("alarm caught it, must be unreachable.");
 				goto error;
 			}
-			res = read(s, (char *)&thetime, sizeof(thetime));
+			res = _libc_read(s, (char *)&thetime, sizeof(thetime));
 			if (res != sizeof(thetime)) {
 				if (saw_alarm)
 					msg("timed out TCP call.");
@@ -447,7 +449,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 			time_valid = 1;
 		}
 		save = errno;
-		(void) close(s);
+		(void)_libc_close(s);
 		errno = save;
 		s = RPC_ANYSOCK;
 
@@ -466,7 +468,7 @@ error:
 	 */
 
 	if (s != RPC_ANYSOCK)
-		(void) close(s);
+		(void)_libc_close(s);
 
 	if (clnt != NULL)
 		clnt_destroy(clnt);

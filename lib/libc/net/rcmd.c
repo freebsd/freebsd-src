@@ -101,7 +101,7 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 			sigsetmask(oldmask);
 			return (-1);
 		}
-		fcntl(s, F_SETOWN, pid);
+		_libc_fcntl(s, F_SETOWN, pid);
 		bzero(&sin, sizeof sin);
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_family = hp->h_addrtype;
@@ -109,13 +109,13 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 		bcopy(hp->h_addr_list[0], &sin.sin_addr, MIN(hp->h_length, sizeof sin.sin_addr));
 		if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 			break;
-		(void)close(s);
+		(void)_libc_close(s);
 		if (errno == EADDRINUSE) {
 			lport--;
 			continue;
 		}
 		if (errno == ECONNREFUSED && timo <= 16) {
-			(void)sleep(timo);
+			(void)_libc_sleep(timo);
 			timo *= 2;
 			continue;
 		}
@@ -138,7 +138,7 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 	}
 	lport--;
 	if (fd2p == 0) {
-		write(s, "", 1);
+		_libc_write(s, "", 1);
 		lport = 0;
 	} else {
 		char num[8];
@@ -150,17 +150,17 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 			goto bad;
 		listen(s2, 1);
 		(void)snprintf(num, sizeof(num), "%d", lport);
-		if (write(s, num, strlen(num)+1) != strlen(num)+1) {
+		if (_libc_write(s, num, strlen(num)+1) != strlen(num)+1) {
 			(void)fprintf(stderr,
 			    "rcmd: write (setting up stderr): %s\n",
 			    strerror(errno));
-			(void)close(s2);
+			(void)_libc_close(s2);
 			goto bad;
 		}
 		nfds = max(s, s2)+1;
 		if(nfds > FD_SETSIZE) {
 			fprintf(stderr, "rcmd: too many files\n");
-			(void)close(s2);
+			(void)_libc_close(s2);
 			goto bad;
 		}
 again:
@@ -176,7 +176,7 @@ again:
 			else
 				(void)fprintf(stderr,
 				"select: protocol failure in circuit setup\n");
-			(void)close(s2);
+			(void)_libc_close(s2);
 			goto bad;
 		}
 		s3 = accept(s2, (struct sockaddr *)&from, &len);
@@ -185,10 +185,10 @@ again:
 		 * down and check for the real auxiliary channel to connect.
 		 */
 		if (from.sin_family == AF_INET && from.sin_port == htons(20)) {
-			close(s3);
+			_libc_close(s3);
 			goto again;
 		}
-		(void)close(s2);
+		(void)_libc_close(s2);
 		if (s3 < 0) {
 			(void)fprintf(stderr,
 			    "rcmd: accept: %s\n", strerror(errno));
@@ -205,17 +205,17 @@ again:
 			goto bad2;
 		}
 	}
-	(void)write(s, locuser, strlen(locuser)+1);
-	(void)write(s, remuser, strlen(remuser)+1);
-	(void)write(s, cmd, strlen(cmd)+1);
-	if (read(s, &c, 1) != 1) {
+	(void)_libc_write(s, locuser, strlen(locuser)+1);
+	(void)_libc_write(s, remuser, strlen(remuser)+1);
+	(void)_libc_write(s, cmd, strlen(cmd)+1);
+	if (_libc_read(s, &c, 1) != 1) {
 		(void)fprintf(stderr,
 		    "rcmd: %s: %s\n", *ahost, strerror(errno));
 		goto bad2;
 	}
 	if (c != 0) {
-		while (read(s, &c, 1) == 1) {
-			(void)write(STDERR_FILENO, &c, 1);
+		while (_libc_read(s, &c, 1) == 1) {
+			(void)_libc_write(STDERR_FILENO, &c, 1);
 			if (c == '\n')
 				break;
 		}
@@ -225,9 +225,9 @@ again:
 	return (s);
 bad2:
 	if (lport)
-		(void)close(*fd2p);
+		(void)_libc_close(*fd2p);
 bad:
-	(void)close(s);
+	(void)_libc_close(s);
 	sigsetmask(oldmask);
 	return (-1);
 }
@@ -251,13 +251,13 @@ rresvport(alport)
 	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 		return (s);
 	if (errno != EADDRINUSE) {
-		(void)close(s);
+		(void)_libc_close(s);
 		return (-1);
 	}
 #endif
 	sin.sin_port = 0;
 	if (bindresvport(s, &sin) == -1) {
-		(void)close(s);
+		(void)_libc_close(s);
 		return (-1);
 	}
 	*alport = (int)ntohs(sin.sin_port);

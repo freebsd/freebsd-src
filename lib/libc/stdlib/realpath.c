@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -65,7 +67,7 @@ realpath(path, resolved)
 	int symlinks = 0;
 
 	/* Save the starting point. */
-	if ((fd = open(".", O_RDONLY)) < 0) {
+	if ((fd = _libc_open(".", O_RDONLY)) < 0) {
 		(void)strcpy(resolved, ".");
 		return (NULL);
 	}
@@ -152,12 +154,12 @@ loop:
 	}
 
 	/* It's okay if the close fails, what's an fd more or less? */
-	(void)close(fd);
+	(void)_libc_close(fd);
 	return (resolved);
 
 err1:	serrno = errno;
 	(void)fchdir(fd);
-err2:	(void)close(fd);
+err2:	(void)_libc_close(fd);
 	errno = serrno;
 	return (NULL);
 }

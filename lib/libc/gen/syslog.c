@@ -260,7 +260,7 @@ vsyslog(pri, fmt, ap)
 	 * is the one from the syslogd failure.
 	 */
 	if (LogStat & LOG_CONS &&
-	    (fd = open(_PATH_CONSOLE, O_WRONLY, 0)) >= 0) {
+	    (fd = _libc_open(_PATH_CONSOLE, O_WRONLY, 0)) >= 0) {
 		struct iovec iov[2];
 		register struct iovec *v = iov;
 
@@ -271,7 +271,7 @@ vsyslog(pri, fmt, ap)
 		v->iov_base = "\r\n";
 		v->iov_len = 2;
 		(void)writev(fd, iov, 2);
-		(void)close(fd);
+		(void)_libc_close(fd);
 	}
 }
 static void
@@ -283,7 +283,7 @@ disconnectlog()
 	 * system services.
 	 */
 	if (LogFile != -1) {
-		close(LogFile);
+		_libc_close(LogFile);
 		LogFile = -1;
 	}
 	connected = 0;			/* retry connect */
@@ -297,7 +297,7 @@ connectlog()
 	if (LogFile == -1) {
 		if ((LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
 			return;
-		(void)fcntl(LogFile, F_SETFD, 1);
+		(void)_libc_fcntl(LogFile, F_SETFD, 1);
 	}
 	if (LogFile != -1 && !connected) {
 		SyslogAddr.sun_len = sizeof(SyslogAddr);
@@ -320,7 +320,7 @@ connectlog()
 		}
 
 		if (!connected) {
-			(void)close(LogFile);
+			(void)_libc_close(LogFile);
 			LogFile = -1;
 		}
 	}
@@ -346,7 +346,7 @@ openlog(ident, logstat, logfac)
 void
 closelog()
 {
-	(void)close(LogFile);
+	(void)_libc_close(LogFile);
 	LogFile = -1;
 	connected = 0;
 }

@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -49,5 +51,5 @@ void
 longjmperror()
 {
 #define	ERRMSG	"longjmp botch.\n"
-	(void)write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);
+	(void)_libc_write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);
 }
