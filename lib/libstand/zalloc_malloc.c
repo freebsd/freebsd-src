@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zalloc_malloc.c,v 1.1 1998/09/26 01:42:39 msmith Exp $
  */
 
 /*
@@ -42,6 +42,11 @@ static int MallocMax;
 static int MallocCount;
 
 void mallocstats(void);
+#endif
+
+#ifdef malloc
+#undef malloc
+#undef free
 #endif
 
 void *
