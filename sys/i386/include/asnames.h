@@ -132,6 +132,7 @@
 #define _Xintr9				Xintr9
 #define _XintrRTC			XintrRTC
 #define _Xinvltlb			Xinvltlb
+#define _Xrendezvous			Xrendezvous
 #define _Xmchk				Xmchk
 #define _Xmissing			Xmissing
 #define _Xnmi				Xnmi

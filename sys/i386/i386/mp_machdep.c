@@ -2661,3 +2661,76 @@ set_lapic_isrloc(int intr, int vector)
 	apic_isrbit_location[intr].bit = (1<<(vector & 31));
 }
 #endif
+
+/*
+ * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
+ * (if specified), rendezvous, execute the action function (if specified),
+ * rendezvous again, execute the teardown function (if specified), and then
+ * resume.
+ *
+ * Note that the supplied external functions _must_ be reentrant and aware
+ * that they are running in parallel and in an unknown lock context.
+ */
+static void (*smp_rv_setup_func)(void *arg);
+static void (*smp_rv_action_func)(void *arg);
+static void (*smp_rv_teardown_func)(void *arg);
+static void *smp_rv_func_arg;
+static volatile int smp_rv_waiters[2];
+
+void
+smp_rendezvous_action(void)
+{
+	/* setup function */
+	if (smp_rv_setup_func != NULL)
+		smp_rv_setup_func(smp_rv_func_arg);
+	/* spin on entry rendezvous */
+	atomic_add_int(&smp_rv_waiters[0], 1);
+	while (smp_rv_waiters[0] < mp_ncpus)
+		;
+	/* action function */
+	if (smp_rv_action_func != NULL)
+		smp_rv_action_func(smp_rv_func_arg);
+	/* spin on exit rendezvous */
+	atomic_add_int(&smp_rv_waiters[1], 1);
+	while (smp_rv_waiters[1] < mp_ncpus)
+		;
+	/* teardown function */
+	if (smp_rv_teardown_func != NULL)
+		smp_rv_teardown_func(smp_rv_func_arg);
+}
+
+void
+smp_rendezvous(void (* setup_func)(void *), 
+	       void (* action_func)(void *),
+	       void (* teardown_func)(void *),
+	       void *arg)
+{
+	u_int	efl;
+	
+	/* obtain rendezvous lock */
+	s_lock(&smp_rv_lock);		/* XXX sleep here? NOWAIT flag? */
+
+	/* set static function pointers */
+	smp_rv_setup_func = setup_func;
+	smp_rv_action_func = action_func;
+	smp_rv_teardown_func = teardown_func;
+	smp_rv_func_arg = arg;
+	smp_rv_waiters[0] = 0;
+	smp_rv_waiters[1] = 0;
+
+	/* disable interrupts on this CPU, save interrupt status */
+	efl = read_eflags();
+	write_eflags(efl & ~PSL_I);
+
+	/* signal other processors, which will enter the IPI with interrupts off */
+	all_but_self_ipi(XRENDEZVOUS_OFFSET);
+
+	/* call executor function */
+	smp_rendezvous_action();
+
+	/* restore interrupt flag */
+	write_eflags(efl);
+
+	/* release lock */
+	s_unlock(&smp_rv_lock);
+}

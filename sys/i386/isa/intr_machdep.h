@@ -113,6 +113,9 @@
 #define XCPUCHECKSTATE_OFFSET	(ICU_OFFSET + 113)
 #endif
 
+/* inter-CPU rendezvous */
+#define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 114)
+
 /* IPI to generate an additional software trap at the target CPU */
 #define XCPUAST_OFFSET		(ICU_OFFSET +  48)
 
