@@ -58,7 +58,6 @@ ACPI_MODULE_NAME("AC_ADAPTER")
 
 struct	acpi_acad_softc {
     int status;
-    int initializing;
 };
 
 static void	acpi_acad_get_status(void *);
@@ -87,6 +86,8 @@ static devclass_t acpi_acad_devclass;
 DRIVER_MODULE(acpi_acad, acpi, acpi_acad_driver, acpi_acad_devclass, 0, 0);
 MODULE_DEPEND(acpi_acad, acpi, 1, 1, 1);
 
+ACPI_SERIAL_DECL(acad, "ACPI AC adapter");
+
 static void
 acpi_acad_get_status(void *context)
 {
@@ -98,22 +99,20 @@ acpi_acad_get_status(void *context)
     dev = context;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
-    if (ACPI_FAILURE(acpi_GetInteger(h, "_PSR", &newstatus))) {
-	sc->status = -1;
-	return;
-    }
+    newstatus = -1;
+    acpi_GetInteger(h, "_PSR", &newstatus);
 
-    if (sc->status != newstatus) {
-	sc->status = newstatus;
-
-	/* Set system power profile based on AC adapter status */
-	power_profile_set_state(sc->status ? POWER_PROFILE_PERFORMANCE :
-				POWER_PROFILE_ECONOMY);
+    /* If status is valid and has changed, notify the system. */
+    ACPI_SERIAL_BEGIN(acad);
+    sc->status = newstatus;
+    if (newstatus != -1 && sc->status != newstatus) {
+	power_profile_set_state(newstatus ? POWER_PROFILE_PERFORMANCE :
+	    POWER_PROFILE_ECONOMY);
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "%s Line\n", sc->status ? "On" : "Off");
-
-	acpi_UserNotify("ACAD", h, sc->status);
+	    "%s Line\n", newstatus ? "On" : "Off");
+	acpi_UserNotify("ACAD", h, newstatus);
     }
+    ACPI_SERIAL_END(acad);
 }
 
 static void
@@ -157,8 +156,6 @@ acpi_acad_attach(device_t dev)
     int		error;
 
     sc = device_get_softc(dev);
-    if (sc == NULL)
-	return (ENXIO);
     handle = acpi_get_handle(dev);
 
     error = acpi_register_ioctl(ACPIIO_ACAD_GET_STATUS, acpi_acad_ioctl, dev);
@@ -175,7 +172,6 @@ acpi_acad_attach(device_t dev)
 
     /* Get initial status after whole system is up. */
     sc->status = -1;
-    sc->initializing = 0;
 
     /*
      * Install both system and device notify handlers since the Casio
@@ -196,8 +192,6 @@ acpi_acad_ioctl(u_long cmd, caddr_t addr, void *arg)
 
     dev = (device_t)arg;
     sc = device_get_softc(dev);
-    if (sc == NULL)
-	return (ENXIO);
 
     /*
      * No security check required: information retrieval only.  If
@@ -233,26 +227,20 @@ acpi_acad_init_acline(void *arg)
 {
     struct acpi_acad_softc *sc;
     device_t	dev;
-    int		retry, status;
+    int		retry;
 
     dev = (device_t)arg;
     sc = device_get_softc(dev);
-    if (sc->initializing)
-	return;
-
-    sc->initializing = 1;
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		"acline initialization start\n");
 
-    status = 0;
     for (retry = 0; retry < ACPI_ACAD_RETRY_MAX; retry++) {
 	acpi_acad_get_status(dev);
-	if (status != sc->status)
+	if (sc->status != -1)
 	    break;
 	AcpiOsSleep(10, 0);
     }
 
-    sc->initializing = 0;
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		"acline initialization done, tried %d times\n", retry + 1);
 }
@@ -270,8 +258,6 @@ acpi_acad_get_acline(int *status)
     if (dev == NULL)
 	return (ENXIO);
     sc = device_get_softc(dev);
-    if (sc == NULL)
-	return (ENXIO);
 
     acpi_acad_get_status(dev);
     *status = sc->status;
