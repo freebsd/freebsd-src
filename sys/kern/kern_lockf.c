@@ -61,7 +61,6 @@
 static int maxlockdepth = MAXDEPTH;
 
 #ifdef LOCKF_DEBUG
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/quota.h>
