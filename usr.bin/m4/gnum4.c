@@ -1,4 +1,4 @@
-/* $OpenBSD: gnum4.c,v 1.16 2002/02/16 21:27:48 millert Exp $ */
+/* $OpenBSD: gnum4.c,v 1.18 2002/04/26 16:15:16 espie Exp $ */
 
 /*
  * Copyright (c) 1999 Marc Espie
@@ -70,8 +70,7 @@ static void ensure_m4path(void);
 static struct input_file *dopath(struct input_file *, const char *);
 
 static struct path_entry *
-new_path_entry(dirname)
-	const char *dirname;
+new_path_entry(const char *dirname)
 {
 	struct path_entry *n;
 
@@ -86,8 +85,7 @@ new_path_entry(dirname)
 }
 	
 void 
-addtoincludepath(dirname)
-	const char *dirname;
+addtoincludepath(const char *dirname)
 {
 	struct path_entry *n;
 
@@ -127,9 +125,7 @@ ensure_m4path()
 
 static
 struct input_file *
-dopath(i, filename)
-	struct input_file *i;
-	const char *filename;
+dopath(struct input_file *i, const char *filename)
 {
 	char path[MAXPATHLEN];
 	struct path_entry *pe;
@@ -146,9 +142,7 @@ dopath(i, filename)
 }
 
 struct input_file *
-fopen_trypath(i, filename)
-	struct input_file *i;
-	const char *filename;
+fopen_trypath(struct input_file *i, const char *filename)
 {
 	FILE *f;
 
@@ -166,9 +160,7 @@ fopen_trypath(i, filename)
 }
 
 void 
-doindir(argv, argc)
-	const char *argv[];
-	int argc;
+doindir(const char *argv[], int argc)
 {
 	ndptr p;
 
@@ -180,9 +172,7 @@ doindir(argv, argc)
 }
 
 void 
-dobuiltin(argv, argc)
-	const char *argv[];
-	int argc;
+dobuiltin(const char *argv[], int argc)
 {
 	int n;
 	argv[1] = NULL;
@@ -201,7 +191,7 @@ static size_t bufsize = 0;
 static size_t current = 0;
 
 static void addchars(const char *, size_t);
-static void addchar(char);
+static void addchar(int);
 static char *twiddle(const char *);
 static char *getstring(void);
 static void exit_regerror(int, regex_t *);
@@ -213,9 +203,7 @@ static void add_replace(const char *, regex_t *, const char *, regmatch_t *);
 #define addconstantstring(s) addchars((s), sizeof(s)-1)
 
 static void 
-addchars(c, n)
-	const char *c;
-	size_t n;
+addchars(const char *c, size_t n)
 {
 	if (n == 0)
 		return;
@@ -233,8 +221,7 @@ addchars(c, n)
 }
 
 static void 
-addchar(c)
-	char c;
+addchar(int c)
 {
 	if (current +1 > bufsize) {
 		if (bufsize == 0)
@@ -258,9 +245,7 @@ getstring()
 
 
 static void 
-exit_regerror(er, re)
-	int er;
-	regex_t *re;
+exit_regerror(int er, regex_t *re)
 {
 	size_t 	errlen;
 	char 	*errbuf;
@@ -272,11 +257,7 @@ exit_regerror(er, re)
 }
 
 static void
-add_sub(n, string, re, pm)
-	size_t n;
-	const char *string;
-	regex_t *re;
-	regmatch_t *pm;
+add_sub(size_t n, const char *string, regex_t *re, regmatch_t *pm)
 {
 	if (n > re->re_nsub)
 		warnx("No subexpression %zu", n);
@@ -293,11 +274,7 @@ add_sub(n, string, re, pm)
  * constructs and replacing them with substrings of the original string.
  */
 static void 
-add_replace(string, re, replace, pm)
-	const char *string;
-	regex_t *re;
-	const char *replace;
-	regmatch_t *pm;
+add_replace(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 {
 	const char *p;
 
@@ -330,11 +307,7 @@ add_replace(string, re, replace, pm)
 }
 
 static void 
-do_subst(string, re, replace, pm)
-	const char *string;
-	regex_t *re;
-	const char *replace;
-	regmatch_t *pm;
+do_subst(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 {
 	int error;
 	int flags = 0;
@@ -374,11 +347,7 @@ do_subst(string, re, replace, pm)
 }
 
 static void 
-do_regexp(string, re, replace, pm)
-	const char *string;
-	regex_t *re;
-	const char *replace;
-	regmatch_t *pm;
+do_regexp(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 {
 	int error;
 
@@ -395,10 +364,7 @@ do_regexp(string, re, replace, pm)
 }
 
 static void 
-do_regexpindex(string, re, pm)
-	const char *string;
-	regex_t *re;
-	regmatch_t *pm;
+do_regexpindex(const char *string, regex_t *re, regmatch_t *pm)
 {
 	int error;
 
@@ -418,8 +384,7 @@ do_regexpindex(string, re, pm)
  * says. So we twiddle with the regexp before passing it to regcomp.
  */
 static char *
-twiddle(p)
-	const char *p;
+twiddle(const char *p)
 {
 	/* This could use strcspn for speed... */
 	while (*p != '\0') {
@@ -464,9 +429,7 @@ twiddle(p)
  * argv[4]: opt rep
  */
 void
-dopatsubst(argv, argc)
-	const char *argv[];
-	int argc;
+dopatsubst(const char *argv[], int argc)
 {
 	int error;
 	regex_t re;
@@ -490,9 +453,7 @@ dopatsubst(argv, argc)
 }
 
 void
-doregexp(argv, argc)
-	const char *argv[];
-	int argc;
+doregexp(const char *argv[], int argc)
 {
 	int error;
 	regex_t re;
@@ -517,8 +478,7 @@ doregexp(argv, argc)
 }
 
 void
-doesyscmd(cmd)
-	const char *cmd;
+doesyscmd(const char *cmd)
 {
 	int p[2];
 	pid_t pid, cpid;

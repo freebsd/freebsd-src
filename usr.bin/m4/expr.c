@@ -1,4 +1,4 @@
-/*	$OpenBSD: expr.c,v 1.12 2002/02/16 21:27:48 millert Exp $	*/
+/*	$OpenBSD: expr.c,v 1.14 2002/04/26 16:15:16 espie Exp $	*/
 /*	$NetBSD: expr.c,v 1.7 1995/09/28 05:37:31 tls Exp $	*/
 
 /*
@@ -38,8 +38,8 @@
  */
 
 #include <sys/cdefs.h>
-__SCCSID("@(#)expr.c      8.2 (Berkeley) 4/29/95");
-__RCSID_SOURCE("$OpenBSD: expr.c,v 1.12 2002/02/16 21:27:48 millert Exp $");
+__SCCSID("@(#)expr.c	8.2 (Berkeley) 4/29/95");
+__RCSID_SOURCE("$OpenBSD: expr.c,v 1.14 2002/04/26 16:15:16 espie Exp $");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
@@ -139,8 +139,7 @@ static jmp_buf expjump;
 #define getch()         *nxtch++
 
 int
-expr(expbuf)
-	const char *expbuf;
+expr(const char *expbuf)
 {
 	int rval;
 
@@ -163,12 +162,12 @@ expr(expbuf)
 static int
 query()
 {
-	int bool, true_val, false_val;
+	int result, true_val, false_val;
 
-	bool = lor();
+	result = lor();
 	if (skipws() != '?') {
 		ungetch();
-		return bool;
+		return result;
 	}
 
 	true_val = query();
@@ -176,7 +175,7 @@ query()
 		experr("bad query");
 
 	false_val = query();
-	return bool ? true_val : false_val;
+	return result ? true_val : false_val;
 }
 
 /*
@@ -610,8 +609,7 @@ skipws()
  * and forces eval to return FALSE.
  */
 static void
-experr(msg)
-	const char *msg;
+experr(const char *msg)
 {
 	printf("m4: %s in expr %s.\n", msg, where);
 	longjmp(expjump, -1);
