@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 int
 usleep(useconds)
-	unsigned int useconds;
+	useconds_t useconds;
 {
 	struct timespec time_to_sleep;
 

@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
  * If ``reload'' is non-zero, keep generating SIGALRM
  * every ``reload'' microseconds after the first signal.
  */
-unsigned
+useconds_t
 ualarm(usecs, reload)
-	unsigned usecs;
-	unsigned reload;
+	useconds_t usecs;
+	useconds_t reload;
 {
 	struct itimerval new, old;
 
