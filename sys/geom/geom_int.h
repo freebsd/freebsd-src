@@ -51,6 +51,7 @@ extern int g_debugflags;
  * 32	G_T_DETAILS
  */
 #define G_F_DISKIOCTL	64
+#define G_F_CTLDUMP	128
 
 
 /*

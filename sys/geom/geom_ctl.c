@@ -398,13 +398,11 @@ gctl_create_geom(struct gctl_req *req)
 	mp = gctl_get_class(req);
 	if (mp == NULL)
 		return;
-	printf("Found class: %p\n", mp);
 	if (mp->create_geom == NULL) {
 		gctl_error(req, "Class has no create_geom method");
 		return;
 	}
 	pp = gctl_get_provider(req);
-	printf("Found provider: %p\n", pp);
 	mp->create_geom(req, mp, pp);
 	g_topology_assert();
 }
@@ -419,7 +417,6 @@ gctl_destroy_geom(struct gctl_req *req)
 	mp = gctl_get_class(req);
 	if (mp == NULL)
 		return;
-	printf("Found class: %p\n", mp);
 	if (mp->destroy_geom == NULL) {
 		gctl_error(req, "Class has no destroy_geom method");
 		return;
@@ -433,7 +430,6 @@ gctl_destroy_geom(struct gctl_req *req)
 		gctl_error(req, "Geom not of specificed class");
 		return;
 	}
-	printf("Found geom: %p\n", gp);
 	mp->destroy_geom(req, mp, gp);
 	g_topology_assert();
 }
@@ -473,7 +469,8 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 	if (error)
 		return (error);
 
-	gctl_dump(req);
+	if (g_debugflags & G_F_CTLDUMP)
+		gctl_dump(req);
 #if 0
 	g_stall_events();
 #endif
