@@ -37,6 +37,7 @@
  */
 
 static int checkmethod = 1;
+static int use_kenv;
 static char *hintp;
 
 /*
@@ -50,7 +51,7 @@ res_find(int *line, int *startln,
     const char **ret_name, int *ret_namelen, int *ret_unit,
     const char **ret_resname, int *ret_resnamelen, const char **ret_value)
 {
-	int n = 0, hit, use_kenv, i = 0;
+	int n = 0, hit, i = 0;
 	char r_name[32];
 	int r_unit;
 	char r_resname[32];
@@ -58,7 +59,6 @@ res_find(int *line, int *startln,
 	const char *s, *cp;
 	char *p;
 
-	use_kenv = 0;
 	if (checkmethod) {
 		switch (hintmode) {
 		case 0:		/* config supplied nothing */
@@ -148,16 +148,18 @@ res_find(int *line, int *startln,
 			hit = 0;
 		if (hit)
 			break;
-		if (use_kenv)
+		if (use_kenv) {
 			cp = kenvp[++i];
-		else {
+			if (cp == NULL)
+				break;
+		} else {
 			while (*cp != '\0')
 				cp++;
 			cp++;
-		}
-		if (*cp == '\0') {
-			cp = NULL;
-			break;
+			if (*cp == '\0') {
+				cp = NULL;
+				break;
+			}
 		}
 	}
 	if (use_kenv)
