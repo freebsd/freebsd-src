@@ -1,10 +1,15 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.11 1996/04/19 22:28:01 ache Exp $
+#	$Id: security,v 1.12 1996/06/30 13:16:21 peter Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
+
+separator () {
+	echo ""
+	echo ""
+}
 
 host=`hostname -s`
 echo "Subject: $host security check output"
@@ -31,18 +36,36 @@ while test $# -ge 1; do
 done | xargs -n 20 ls -lgTd > $TMP
 
 if [ ! -f $LOG/setuid.today ] ; then
+	separator
 	echo "no $LOG/setuid.today"
 	cp $TMP $LOG/setuid.today
 fi
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
+	separator
 	echo "$host setuid diffs:"
 	diff -b $LOG/setuid.today $TMP
 	mv $LOG/setuid.today $LOG/setuid.yesterday
 	mv $TMP $LOG/setuid.today
 fi
-rm -f $TMP
 
-echo ""
-echo ""
+separator
 echo "checking for uids of 0:"
 awk 'BEGIN {FS=":"} $3=="0" {print $1,$3}' /etc/master.passwd
+
+# show denied packets
+if ipfw -a l 2>/dev/null | egrep "deny|reject" > $TMP; then
+	if [ ! -f $LOG/ipfw.today ] ; then
+		separator
+		echo "no $LOG/ipfw.today"
+		cp $TMP $LOG/ipfw.today
+	fi
+	if cmp $LOG/ipfw.today $TMP >/dev/null; then :; else
+		separator
+	        echo "$host denied packets:"
+	        diff -b $LOG/ipfw.today $TMP | egrep "^>"
+	        mv $LOG/ipfw.today $LOG/ipfw.yesterday
+	        mv $TMP $LOG/ipfw.today
+	fi
+fi
+
+rm -f $TMP
