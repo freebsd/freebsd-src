@@ -78,9 +78,6 @@ static void		pci_add_resources(device_t pcib, int b, int s, int f,
 					  device_t dev);
 static void		pci_add_children(device_t dev, int busno);
 static int		pci_probe(device_t dev);
-static int		pci_print_resources(struct resource_list *rl, 
-					    const char *name, int type,
-					    const char *format);
 static int		pci_print_child(device_t dev, device_t child);
 static void		pci_probe_nomatch(device_t dev, device_t child);
 static int		pci_describe_parse_line(char **ptr, int *vendor, 
@@ -834,34 +831,6 @@ pci_probe(device_t dev)
 }
 
 static int
-pci_print_resources(struct resource_list *rl, const char *name, int type,
-		    const char *format)
-{
-	struct resource_list_entry *rle;
-	int printed, retval;
-
-	printed = 0;
-	retval = 0;
-	/* Yes, this is kinda cheating */
-	SLIST_FOREACH(rle, rl, link) {
-		if (rle->type == type) {
-			if (printed == 0)
-				retval += printf(" %s ", name);
-			else if (printed > 0)
-				retval += printf(",");
-			printed++;
-			retval += printf(format, rle->start);
-			if (rle->count > 1) {
-				retval += printf("-");
-				retval += printf(format, rle->start +
-						 rle->count - 1);
-			}
-		}
-	}
-	return retval;
-}
-
-static int
 pci_print_child(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo;
@@ -875,9 +844,9 @@ pci_print_child(device_t dev, device_t child)
 
 	retval += bus_print_child_header(dev, child);
 
-	retval += pci_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += pci_print_resources(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += pci_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 
