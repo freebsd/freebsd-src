@@ -141,6 +141,9 @@ typedef	int32_t	swblk_t;	/*
 				 * 2^32 pages.
 				 */
 
+struct swdevt;
+typedef void sw_strategy_t(struct buf *bp, struct swdevt *sw);
+
 /*
  * Swap device table
  */
@@ -154,6 +157,7 @@ struct swdevt {
 	swblk_t	sw_end;
 	struct blist *sw_blist;
 	TAILQ_ENTRY(swdevt)	sw_list;
+	sw_strategy_t		*sw_strategy;
 };
 
 #define	SW_CLOSING	0x04
@@ -172,7 +176,7 @@ static int nswapdev;		/* Number of swap devices */
 int swap_pager_avail;
 static int swdev_syscall_active = 0; /* serialize swap(on|off) */
 
-static void swapdev_strategy(struct buf *);
+static void swapdev_strategy(struct buf *, struct swdevt *sw);
 
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
@@ -596,20 +600,33 @@ swp_pager_getswapspace(int npages)
 }
 
 static struct swdevt *
-swp_pager_find_dev(daddr_t blk, int npages)
+swp_pager_find_dev(daddr_t blk)
 {
 	struct swdevt *sp;
 
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (blk >= sp->sw_first && blk + npages <= sp->sw_end)
+		if (blk >= sp->sw_first && blk < sp->sw_end)
 			return (sp);
 	}
-	printf("Failed to find swapdev blk %ju, %d pages\n", 
-	    (uintmax_t)blk, npages);
+	printf("Failed to find swapdev blk %ju\n", (uintmax_t)blk);
 	TAILQ_FOREACH(sp, &swtailq, sw_list)
 		printf("has %ju...%ju\n",
 		    (uintmax_t)sp->sw_first, (uintmax_t)sp->sw_end);
 	return (NULL);
+}
+	
+static void
+swp_pager_strategy(struct buf *bp)
+{
+	struct swdevt *sp;
+
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (bp->b_blkno >= sp->sw_first && bp->b_blkno < sp->sw_end) {
+			sp->sw_strategy(bp, sp);
+			return;
+		}
+	}
+	KASSERT(0 == 1, ("Swapdev not found"));
 }
 	
 
@@ -634,7 +651,7 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
 
 	GIANT_REQUIRED;
 
-	sp = swp_pager_find_dev(blk, npages);
+	sp = swp_pager_find_dev(blk);
 	
 	/* per-swap area stats */
 	sp->sw_used -= npages;
@@ -1078,7 +1095,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
 	 */
 	BUF_KERNPROC(bp);
-	swapdev_strategy(bp);
+	swp_pager_strategy(bp);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1304,7 +1321,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
-			swapdev_strategy(bp);
+			swp_pager_strategy(bp);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
@@ -1318,7 +1335,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
 		 */
 		bp->b_iodone = swp_pager_sync_iodone;
-		swapdev_strategy(bp);
+		swp_pager_strategy(bp);
 
 		/*
 		 * Wait for the sync I/O to complete, then update rtvals.
@@ -1582,7 +1599,7 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 				daddr_t v = swap->swb_pages[i];
 				if (v == SWAPBLK_NONE)
 					continue;
-				if (swp_pager_find_dev(v, 1) == sp)
+				if (swp_pager_find_dev(v) == sp)
 					return 1;
 			}
 		}
@@ -1683,7 +1700,7 @@ restart:
                         for (j = 0; j < SWAP_META_PAGES; ++j) {
                                 v = swap->swb_pages[j];
                                 if (v != SWAPBLK_NONE &&
-				    swp_pager_find_dev(v, 1) == sp)
+				    swp_pager_find_dev(v) == sp)
                                         break;
                         }
 			if (j < SWAP_META_PAGES) {
@@ -1983,22 +2000,13 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
  *	The bp is expected to be locked and *not* B_DONE on call.
  */
 static void
-swapdev_strategy(struct buf *a_bp)
+swapdev_strategy(struct buf *bp, struct swdevt *sp)
 {
 	int s, sz;
-	struct swdevt *sp;
 	struct vnode *vp;
-	struct buf *bp;
 
-	bp = a_bp;
 	sz = howmany(bp->b_bcount, PAGE_SIZE);
 
-	/*
-	 * Convert interleaved swap into per-device swap.  Note that
-	 * the block size is left in PAGE_SIZE'd chunks (for the newswap)
-	 * here.
-	 */
-	sp = swp_pager_find_dev(bp->b_blkno, sz);
 	bp->b_dev = sp->sw_dev;
 	/*
 	 * Convert from PAGE_SIZE'd to DEV_BSIZE'd chunks for the actual I/O
@@ -2177,6 +2185,7 @@ swaponvp(struct thread *td, struct vnode *vp, dev_t dev, u_long nblks)
 	sp->sw_used = 0;
 	sp->sw_first = dvbase;
 	sp->sw_end = dvbase + nblks;
+	sp->sw_strategy = swapdev_strategy;
 
 	sp->sw_blist = blist_create(nblks);
 	/*
