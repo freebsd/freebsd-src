@@ -62,7 +62,7 @@ execcmd		exec
 exitcmd		exit
 expcmd		exp let
 exportcmd	export readonly
-#exprcmd	expr test [
+#exprcmd		expr
 falsecmd	false
 histcmd -h	fc
 fgcmd -j	fg
@@ -90,3 +90,4 @@ waitcmd		wait
 #foocmd		foo
 aliascmd	alias
 ulimitcmd	ulimit
+testcmd		test [
