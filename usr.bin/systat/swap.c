@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: swap.c,v 1.5 1997/07/06 04:37:22 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -122,17 +122,22 @@ initswap()
 {
 	int i;
 	char msgbuf[BUFSIZ];
+	char *cp;
 	static int once = 0;
 	u_long ptr;
 
 	if (once)
 		return (1);
 	if (kvm_nlist(kd, syms)) {
-		strcpy(msgbuf, "systat: swap: cannot find");
-		for (i = 0; syms[i].n_name != NULL; i++) {
+		snprintf(msgbuf, sizeof(msgbuf), "systat: swap: cannot find");
+		cp = msgbuf + strlen(msgbuf) + 1;
+		for (i = 0; 
+		    syms[i].n_name != NULL && cp - msgbuf < sizeof(msgbuf); 
+		    i++) {
 			if (syms[i].n_value == 0) {
-				strcat(msgbuf, " ");
-				strcat(msgbuf, syms[i].n_name);
+				snprintf(cp, sizeof(msgbuf) - (cp - msgbuf),
+				    " %s", syms[i].n_name);
+				cp += strlen(cp) + 1;
 			}
 		}
 		error(msgbuf);

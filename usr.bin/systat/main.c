@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.6 1997/08/13 06:45:10 charnier Exp $";
+	"$Id: main.c,v 1.7 1997/08/26 10:59:26 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -258,7 +258,7 @@ error(fmt, va_alist)
 
 	if (wnd) {
 		getyx(stdscr, oy, ox);
-		(void) vsprintf(buf, fmt, ap);
+		(void) vsnprintf(buf, sizeof(buf), fmt, ap);
 		clrtoeol();
 		standout();
 		mvaddstr(CMDLINE, 0, buf);
