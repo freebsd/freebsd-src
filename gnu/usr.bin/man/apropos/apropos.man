@@ -12,25 +12,29 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.TH apropos 1 "Jan 15, 1991"
-.LO 1
-.SH NAME
-apropos, whatis \- search the whatis database
-.SH SYNOPSIS
-.BI apropos
-keyword ...
-
-.BI whatis
-keyword ...
-.SH DESCRIPTION
-.B apropos 
+.Dd Jan 15, 1991
+.Dt APROPOS 1
+.Os
+.Sh NAME
+.Nm apropos , whatis
+.Nd search the whatis database
+.Sh SYNOPSIS
+.Nm apropos
+.Ar keyword ...
+.br
+.Nm whatis
+.Ar keyword ...
+.Sh DESCRIPTION
+.Nm apropos 
 searches a set of database files containing short descriptions
 of system commands for keywords and displays the result on the
 standard output.
-.B whatis
-display only complete word matches. 
+.Nm whatis
+displays only complete word matches. 
+.Sh RETURN VALUES
 The 
-.B apropos
+.Nm apropos
 utility exits 0 on success, and 1 if no keyword matched.
-.SH "SEE ALSO"
-man(1), makewhatis(1).
+.Sh SEE ALSO
+.Xr man 1 ,
+.Xr makewhatis 1

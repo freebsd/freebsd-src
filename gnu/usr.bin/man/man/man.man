@@ -12,16 +12,29 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.TH man 1 "Jan 5, 1991"
-.LO 1
-.SH NAME
-man \- format and display the on-line manual pages
-.SH SYNOPSIS
-man [\-adfhktw] [\-m system] [\-p string] [\-M path] [\-P pager]
-[\-S list] [section] name ...
-.SH DESCRIPTION
-man formats and displays the on-line manual pages.  This version knows
-about the MANPATH and PAGER environment variables, so you can have
+.Dd Jan 5, 1991
+.Dt MAN 1
+.Sh NAME
+.Nm man
+.Nd format and display the on-line manual pages
+.Sh SYNOPSIS
+.Nm man
+.Op Fl adfhktw
+.Op Fl m Ar system
+.Op Fl p Ar string
+.Op Fl M Ar path
+.Op Fl P Ar pager
+.Op Fl S Ar list
+.Op Ar section
+.Ar name ...
+.Sh DESCRIPTION
+.Nm Man
+formats and displays the on-line manual pages.  This version knows
+about the
+.Ev MANPATH
+and
+.Ev PAGER
+environment variables, so you can have
 your own set(s) of personal man pages and choose whatever program you
 like to display the formatted pages.  If section is specified, man
 only looks in that section of the manual.  You may also specify the
@@ -30,105 +43,97 @@ run on the source files via command line options or environment
 variables.  If enabled by the system administrator, formatted man
 pages will also be compressed with the `%compress%' command to save
 space.
-.SH OPTIONS
-.TP
-.B \-\^M " path"
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl M Ar path
 Specify an alternate manpath.  By default, man uses
-.B manpath
+.Nm manpath
 to determine the path to search.  This option overrides the
-.B MANPATH
+.Ev MANPATH
 environment variable.
-.TP
-.B \-\^P " pager"
+.It Fl P Ar pager
 Specify which pager to use.  By default, man uses
-.B %pager%,
+.Nm %pager% ,
 This option overrides the
-.B PAGER
+.Ev PAGER
 environment variable.
-.TP
-.B \-\^S " list"
+.It Fl S Ar list
 List is a colon separated list of manual sections to search.
 This option overrides the
-.B MANSECT
+.Ev MANSECT
 environment variable.
-.TP
-.B \-\^a
+.It Fl a
 By default, man will exit after displaying the first manual page it
 finds.  Using this option forces man to display all the manual pages
 that match
-.B name, 
-not just the first.  
-.TP
-.B \-\^d
+.Ar name ,
+not just the first.
+.It Fl d
 Don't actually display the man pages, but do print gobs of debugging
 information.
-.TP
-.B \-\^f
+.It Fl f
 Equivalent to
-.B whatis.
-.TP
-.B \-\^h
+.Nm whatis .
+.It Fl h
 Print a one line help message and exit.
-.TP
-.B \-\^k
+.It Fl k
 Equivalent to
-.B apropos.
-.TP
-.B \-\^m " system"
+.Nm apropos .
+.It Fl m Ar system
 Specify an alternate set of man pages to search based on the system
 name given.
-.TP
-.B \-\^p " string"
+.It Fl p Ar string
 Specify the sequence of preprocessors to run before nroff or troff.
 Not all installations will have a full set of preprocessors.
 Some of the preprocessors and the letters used to designate them are: 
 eqn (e), grap (g), pic (p), tbl (t), vgrind (v), refer (r).
 This option overrides the
-.B MANROFFSEQ
+.Ev MANROFFSEQ
 environment variable.
-.TP
-.B \-\^t
+.It Fl t
 Use
-.B %troff%
-to format the manual page, passing the output to 
-.B stdout.
+.Nm %troff%
+to format the manual page, passing the output to stdout.
 The output from
-.B %troff%
+.Nm %troff%
 may need to be passed through some filter or another before being
 printed.
-.TP
-.B \-\^w
+.It Fl w
 Don't actually display the man pages, but do print the location(s) of
 the files that would be formatted or displayed.
-.SH ENVIRONMENT
-.TP \w'MANROFFSEQ\ \ 'u
-.B MANPATH
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width MANROFFSEQ -compact
+.It Ev MANPATH
 If
-.B MANPATH
+.Ev MANPATH
 is set, its value is used as the path to search for manual pages.
-.TP
-.B MANROFFSEQ
+.It Ev MANROFFSEQ
 If
-.B MANROFFSEQ
+.Ev MANROFFSEQ
 is set, its value is used to determine the set of preprocessors run
 before running nroff or troff.  By default, pages are passed through
 the table preprocessor before nroff.
-.TP
-.B MANSEC
+.It Ev MANSEC
 If
-.B MANSEC
+.Ev MANSEC
 is set, its value is used to determine which manual sections to search.
-.TP
-.B PAGER
+.It Ev PAGER
 If
-.B PAGER
+.Ev PAGER
 is set, its value is used as the name of the program to use to display
 the man page.  By default,
-.B %pager%
+.Nm %pager%
 is used.
-.SH "SEE ALSO"
-apropos(1), whatis(1), manpath(1), more(1), groff(1).
-.SH BUGS
+.El
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr whatis 1 ,
+.Xr manpath 1 ,
+.Xr more 1 ,
+.Xr groff 1
+.Sh BUGS
 The
-.B \-t
+.Fl t
 option only works if a troff-like program is installed.

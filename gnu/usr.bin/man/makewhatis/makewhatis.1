@@ -22,16 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: makewhatis.1,v 1.5 1996/07/08 20:18:28 wosch Exp $
-
-
+.\" $Id: makewhatis.1,v 1.7 1996/12/09 07:26:01 mpp Exp $
 .Dd Jan, 12, 1995
 .Dt MAKEWHATIS 1
 .Os FreeBSD 2.1
 .Sh NAME
 .Nm makewhatis
 .Nd create whatis database
-
 .Sh SYNOPSIS
 .Nm
 .Op Fl a | Fl append
@@ -41,7 +38,6 @@
 .Op Fl o | Fl outfile Ar file
 .Op Fl v | Fl verbose
 .Op Ar directories ...
-
 .Sh DESCRIPTION 
 .Nm
 extracts the name and a short description from unformatted manpages
@@ -50,7 +46,6 @@ and creates the
 database. 
 .Nm
 can read gzip'ed manpages.
-
 .Ar Directory
 names a directory containing manpage subdirectories
 .Pq named Pa man.+ .
@@ -59,7 +54,6 @@ Colons are treated as spaces, hence
 or
 .Ic makewhatis `manpath`
 are allowed.
-
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl a , Fl append
@@ -67,26 +61,21 @@ Append mode. Don't delete old entries in whatis database. Note:
 the new database will be sorted without repeated lines and
 .Nm
 does not check if old entries are valid.
-
 .It Fl h , Fl help
 Print options and exit.
-
 .It Fl i , Fl indent Ar column
 Justify description strings to
 .Ar column Pq default 24 .
-
 .It Fl n , Fl name Ar name
 Use
 .Ar name
 instead of
 .Pa whatis Ns .
-
 .It Fl o , Fl outfile Ar file
 Write all output to
 .Ar file
 instead of
 .Pa dirname/whatis Ns .
-
 .It Fl v, Fl verbose
 Issue more warnings
 .Pq to stderr .
@@ -98,8 +87,6 @@ for a compressed page, and
 .Ql +
 for a link.
 .El
-
-
 .Sh EXAMPLES
 .Pp
 .Ic makewhatis $MANPATH
@@ -127,7 +114,6 @@ Create whatis database
 instead of
 .Pa whatis Ns .
 May be useful for Solaris.
-
 .Sh FILES
 .Bl -tag -width /etc/master.passwdxx -compact
 .It Pa */man/whatis
@@ -137,7 +123,6 @@ run
 .Nm makewhatis.local
 every week
 .El
-
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr catman 1 ,
@@ -148,11 +133,10 @@ every week
 .Xr sort 1 ,
 .Xr uniq 1 ,
 .Xr whatis 1 .
-
 .Sh HISTORY
 This
 .Nm
-command appeared in FreeBSD 2.1.
-
+command appeared in
+.Fx 2.1 .
 .Sh AUTHOR
 Wolfram Schneider, Berlin.
