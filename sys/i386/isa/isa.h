@@ -34,23 +34,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.5 1994/04/21 14:20:54 sos Exp $
+ *	$Id: isa.h,v 1.6 1994/10/01 02:56:15 davidg Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
-#define _I386_ISA_ISA_H_ 1
+#define	_I386_ISA_ISA_H_
 
 /*
  * ISA Bus conventions
  */
-
-#ifndef LOCORE
-#include <sys/cdefs.h>
-
-extern unsigned int atdevbase;	/* offset in virtual memory of ISA io mem */
-unsigned char rtcin __P((int));
-#endif
-
 
 /*
  * Input / Output Port Assignments
@@ -66,7 +58,7 @@ unsigned char rtcin __P((int));
 #define IO_TIMER1	0x040		/* 8253 Timer #1 */
 #define IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define IO_KBD		0x060		/* 8042 Keyboard */
-#define IO_PPI		0x061		/* Programmabel Peripheral Interface */
+#define IO_PPI		0x061		/* Programmable Peripheral Interface */
 #define IO_RTC		0x070		/* RTC */
 #define IO_NMI		IO_RTC		/* NMI Control */
 #define IO_DMAPG	0x080		/* DMA Page Registers */
@@ -182,4 +174,5 @@ unsigned char rtcin __P((int));
 #define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
 #endif	COMPAQ_RAMRELOC
-#endif /* _I386_ISA_ISA_H_ */
+
+#endif /* !_I386_ISA_ISA_H_ */
