@@ -55,7 +55,7 @@
 #       cua*    dialout serial ports
 #
 # Pseudo terminals:
-#	pty*	set of 16 master and slave pseudo terminals
+#	pty*	set of 32 master and slave pseudo terminals
 #	vty*	virtual terminals using syscons/pcvt/codrv console
 #
 # Printers:
@@ -76,7 +76,7 @@
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
 #
-#	$Id: MAKEDEV,v 1.64 1995/02/01 23:15:11 jkh Exp $
+#	$Id: MAKEDEV,v 1.65 1995/02/07 12:07:18 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -395,21 +395,28 @@ pty*)
 	class=`expr $i : 'pty\(.*\)'`
 	case $class in
 	0) offset=0 name=p;;
-	1) offset=16 name=q;;
-	2) offset=32 name=r;;
-	3) offset=48 name=s;;
-# Note that telnetd, rlogind, and xterm (at least) only look at p-s.
-	4) offset=64 name=t;;
+	1) offset=32 name=q;;
+	2) offset=64 name=r;;
+	3) offset=96 name=s;;
+# Note that xterm (at least) only look at p-s.
+        4) offset=128 name=P;;
+        5) offset=160 name=Q;;
+        6) offset=192 name=R;;
+        7) offset=224 name=S;;
+ 	# This still leaves [tuTU].
 	*) echo bad unit for pty in: $i;;
 	esac
 	case $class in
-	0|1|2|3|4)
+	0|1|2|3|4|5|6|7)
 		umask 0
-		eval `echo $offset $name | awk ' { b=$1; n=$2 } END {
-			for (i = 0; i < 16; i++)
-				printf("rm -f tty%s%x; mknod tty%s%x c 5 %d; \
-					rm -f pty%s%x; mknod pty%s%x c 6 %d; ", \
-					n, i, n, i, b+i, n, i, n, i, b+i); }'`
+		eval `echo $offset $name | awk ' { b=$1; n=$2 } END { \
+			for (i = 0; i < 32; i++) { \
+				c = substr("0123456789abcdefghijklmnopqrstuv", i + 1, 1); \
+				printf("rm -f tty%s%s; mknod tty%s%s c 5 %d; \
+					rm -f pty%s%s; mknod pty%s%s c 6 %d; ", \
+					n, c, n, c, b+i, n, c, n, c, b+i); \
+				} \
+			}'`
 		umask 77
 		;;
 	esac
