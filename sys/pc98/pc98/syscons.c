@@ -222,7 +222,7 @@ sc_probe_unit(int unit, int flags)
 {
     if (!scvidprobe(unit, flags, FALSE)) {
 	if (bootverbose)
-	    printf("sc%d: no video adapter is found.\n", unit);
+	    printf("sc%d: no video adapter found.\n", unit);
 	return ENXIO;
     }
 
