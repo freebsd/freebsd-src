@@ -34,7 +34,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: mount_std.8,v 1.1 1996/05/13 17:43:16 wollman Exp $
 .\"
 .Dd May 13, 1996
 .Dt MOUNT_STD 8
@@ -80,7 +80,11 @@ it was called) to determine the type of filesystem to be mounted.  If
 it is called by a name which does not end in
 .Dq Li _ Ns Ar fsname ,
 .Nm
-will issue a diagnostic and return an error.  The
+will assume (for compatibility
+with
+.Xr mount 8 )
+that the zeroth argument contains only the name of the filesystem type.
+The
 .Nm
 command is normally installed with appropriate links to commands for
 the distributed filesystems which can be mounted in this way;
@@ -93,8 +97,8 @@ command.
 .It argv[0] must end in _fsname
 The
 .Nm mount_std
-command was called with a zero'th argument which does not specify a
-filesystem type to be mounted.
+command was called with a zero'th argument of
+.Dq Li mount_std .
 .It vfsload(%s)
 .Nm
 was unable to load a kernel module implementing the %s filesystem
