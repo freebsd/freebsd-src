@@ -108,12 +108,6 @@ device		pass0		# Passthrough device (direct SCSI access)
 #device		amr0		# AMI MegaRAID
 #device		mlx0		# Mylex DAC960 family
 
-# Proprietary or custom CD-ROM Interfaces
-device		wt0	at isa? port 0x300 irq 5 drq 1
-device		mcd0	at isa? port 0x300 irq 10
-device		matcd0	at isa? port 0x230
-device		scd0	at isa? port 0x230
-
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 controller	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
