@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.122 1995/10/22 21:26:52 ache Exp $
+#	$Id: Makefile,v 1.123 1995/10/26 10:05:55 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -444,7 +444,7 @@ distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
 # Compatibility stuff, remove obsoleted links, if exists
-	if [ -d	${DESTDIR}/usr/share/locale ] ;	\
+	-if [ -d	${DESTDIR}/usr/share/locale ] ;	\
 	then \
 		cd ${DESTDIR}/usr/share/locale;	\
 		for l in ${LATIN1LINKS}	; do \
