@@ -112,18 +112,13 @@ is altered to indicate an alternative re-entry point, care should be taken
 to avoid loops, where the same packet is diverted more than once at the
 same rule.
 .Sh DETAILS
-To enable divert sockets, your kernel must be compiled with the option
-.Dv IPDIVERT
-or you have to load the
-.Dv IPDIVERT
-module.
+To enable divert sockets, a kernel must be compiled with
+.Cd "options IPDIVERT"
+or the
+.Pa ipdivert.ko
+module can be loaded at run-time:
 .Pp
-You can load the
-.Dv IPDIVERT
-module at runtime by issuing the following command:
-.Bd -literal -offset indent
-kldload ipdivert
-.Ed
+.Dl "kldload ipdivert"
 .Pp
 If a packet is diverted but no socket is bound to the
 port, or if
