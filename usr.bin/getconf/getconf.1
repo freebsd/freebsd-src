@@ -1,0 +1,161 @@
+.\"
+.\" Copyright 2000 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 25, 2000
+.Dt GETCONF 1
+.Os
+.Sh NAME
+.Nm getconf
+.Nd retrieve standard configuration variables
+.Sh SYNOPSIS
+.Nm getconf
+.Op Fl v Ar environment
+.Ar path_var
+.Ar file
+.Pp
+.Nm getconf
+.Op Fl v Ar environment
+.Ar system_var
+.Sh DESCRIPTION
+The
+.Nm getconf
+utility outputs the value of
+.Tn POSIX
+or
+.Tn X/Open
+system or path configuration variable on the standard output.
+If the specified variable is undefined, the string
+.Dq Li undefined
+is output.
+.Pp
+The first form of the command, with two mandatory
+arguments, retrieves file- and filesystem-specific
+configuration variables using
+.Xr pathconf 2 .
+The second form, with a single argument, retrieves system
+configuration variables using
+.Xr confstr 3
+and
+.Xr sysconf 3 ,
+depending on the type of variable.
+.Pp
+All variables use the same name as the manifest constants defined in
+the relevant standard C-language bindings, including any leading
+underscore or prefix.
+That is to say,
+.Ar system_var
+might be
+.Dv ARG_MAX
+or
+.Dv _POSIX_VERSION ,
+as opposed to the
+.Xr sysconf 3
+names
+.Dv _SC_ARG_MAX
+or
+.Dv _SC_POSIX_VERSION .
+(There is one exception: there is no corresponding manifest constant
+to
+.Dv _CS_PATH ,
+so a
+.Ar system_var
+of
+.Dq Li PATH 
+is used.)
+.Pp
+The
+.Fl v Ar environment
+option is not supported, but provided for compatibility purposes.
+.Sh DIAGNOSTICS
+The
+.Nm getconf
+utility exits 0 on success or >0 if an error occurred.
+Use of a
+.Ar system_var
+or
+.Ar path_var
+which is completely unknown to the system is considered an error,
+causing a diagnostic message to be written to standard error; one
+which is known but merely undefined does not result in an error
+indication.
+.Pp
+Use of the unsupported
+.Fl v Ar environment
+option will result in a diagnostic message indicating that it is not
+supported.
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+getconf PATH
+.Ed
+.Pp
+will display the system default setting for the
+.Ev PATH
+environment variable.
+.Pp
+The command:
+.Bd -literal -offset indent
+getconf NAME_MAX /tmp
+.Ed
+.Pp
+will display the maximum length of a filename in the
+.Pa /tmp
+directory.
+.Sh SEE ALSO
+.Xr confstr 3 ,
+.Xr pathconf 2 ,
+.Xr sysconf 3
+.Sh STANDARDS
+The
+.Nm getconf
+utility is expected to be compliant with
+.St -susv2 .
+.Sh HISTORY
+The
+.Nm getconf
+command first appeared in
+.Fx 5.0 .
+.Sh BUGS
+The original
+.Tn X/Open
+specification erroneously requires the return values of
+.Xr pathconf 2
+and
+.Xr sysconf 3
+to be printed using the
+.Xr printf 3
+format specifier
+.Li \&"%d" .
+We ignore that aspect of the specification and use the
+correct
+.Li \&"%ld"
+format.
+.Sh AUTHOR
+.An Garrett A. Wollman Aq wollman@lcs.mit.edu

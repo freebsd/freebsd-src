@@ -1,0 +1,56 @@
+%{
+/*
+ * Copyright is disclaimed as to the contents of this file.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/types.h>
+
+#include <limits.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "getconf.h"
+
+/*
+ * Stuff that isn't defined right now -- we want this file to work
+ * unmodified once it is defined.
+ */
+#ifndef _PC_FILESIZEBITS
+#define	_PC_FILESIZEBITS	-1
+#endif
+
+/*
+ * Override gperf's built-in external scope.
+ */
+static const struct map *in_word_set(const char *str, unsigned int len);
+
+%}
+struct map { char *name; int key; };
+%%
+FILESIZEBITS, _PC_FILESIZEBITS
+LINK_MAX, _PC_LINK_MAX
+MAX_CANON, _PC_MAX_CANON
+MAX_INPUT, _PC_MAX_INPUT
+NAME_MAX, _PC_NAME_MAX
+PATH_MAX, _PC_PATH_MAX
+PIPE_BUF, _PC_PIPE_BUF
+_POSIX_CHOWN_RESTRICTED, _PC_CHOWN_RESTRICTED
+_POSIX_NO_TRUNC, _PC_NO_TRUNC
+_POSIX_VDISABLE, _PC_VDISABLE
+_POSIX_ASYNC_IO, _PC_ASYNC_IO
+_POSIX_PRIO_IO, _PC_PRIO_IO
+_POSIX_SYNC_IO, _PC_SYNC_IO
+%%
+int
+find_pathconf(const char *name)
+{
+	const struct map *rv;
+
+	rv = in_word_set(name, strlen(name));
+	if (rv != 0)
+		return rv->key;
+	else
+		return -1;
+}
