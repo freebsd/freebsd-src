@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.4 1995/02/08 20:22:07 wollman Exp $
+ * $Id: in_pcb.c,v 1.5 1995/02/16 00:55:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -495,7 +495,7 @@ in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
 	u_int fport_arg, lport_arg;
 	int flags;
 {
-	register struct inpcb *inp, *match = 0;
+	register struct inpcb *inp, *match = NULL;
 	int matchwild = 3, wildcard;
 	u_short fport = fport_arg, lport = lport_arg;
 
@@ -527,8 +527,13 @@ in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
 		if (wildcard < matchwild) {
 			match = inp;
 			matchwild = wildcard;
-			if (matchwild == 0)
+			if (matchwild == 0) {
+				if (match->inp_prev != head) {
+					remque(match);
+					insque(match, head);
+				}
 				break;
+			}
 		}
 	}
 	return (match);
