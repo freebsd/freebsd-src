@@ -1,0 +1,4803 @@
+\input texinfo  @c -*-texinfo-*-
+
+@settitle User's Guide to the GNU C++ Class Library
+@setfilename libg++.info
+
+@ifinfo
+@format
+START-INFO-DIR-ENTRY
+* Libg++: (libg++).             The g++ class library.
+END-INFO-DIR-ENTRY
+@end format
+@end ifinfo
+
+@ifinfo
+This file documents the features and implementation of The GNU C++ library
+
+Copyright (C) 1988, 1991, 1992 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through @TeX{} and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+section entitled ``GNU Library General Public License'' is included exactly as
+in the original, and provided that the entire resulting derived work is
+distributed under the terms of a permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that the section entitled ``GNU Library General Public License'' and
+this permission notice may be included in translations approved by the
+Free Software Foundation instead of in the original English.
+@end ifinfo
+
+@iftex
+@finalout
+@c @smallbook
+@c @cropmarks
+@end iftex
+
+@setchapternewpage odd
+
+@titlepage
+@title User's Guide
+@title to the GNU C++ Library
+@sp 3
+@subtitle last updated April 29, 1992
+@subtitle for version 2.0
+@author Doug Lea (dl@@g.oswego.edu)
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1988, 1991, 1992 Free Software Foundation, Inc.
+
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+section entitled ``GNU Library General Public License'' is included exactly as
+in the original, and provided that the entire resulting derived work is
+distributed under the terms of a permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that the section entitled ``GNU Library General Public License'' may be
+included in a translation approved by the author instead of in the original
+English.
+
+@strong{Note: The GNU C++ library is still in test release. You will
+be performing a valuable service if you report any bugs you encounter.}
+
+@end titlepage
+
+@ifinfo
+@node Top, Copying, , (DIR)
+
+Introduction
+************
+
+This manual documents how to install and use the GNU C++ library.
+
+@end ifinfo
+@menu
+* Copying::	    GNU Library Public License says how you can copy
+                    and share the GNU C++ library.
+* Contributors::    People who have contributed to GNU C++ library.
+* Installation::    How to configure, compile and install GNU C++ library
+* Trouble::         If you have trouble installing GNU C++ library.
+* General::         Aims, objectives, and limitations of the GNU C++ library
+* Conventions::     Stylistic conventions
+* OK::              Support for representation invariants
+* Proto::           Introduction to container class prototypes
+* Pix::             Pseudo-indexes
+* Representations:: How variable-sized objects are represented
+* Expressions::     Some guidance on programming expression-oriented classes
+* Headers::         Header files and other support for interfacing C++ to C
+* Builtin::         Utility functions for builtin types
+* New::             Library dynamic allocation primitives
+* IOStream:(iostream)Top.
+                    The input/output library (istreams and ostreams).
+* Stream::          obsolete I/O library
+* Obstack::         Obstacks and their uses.
+* AllocRing::       A place to store objects for a while
+* String::          String, SubString, and Regex classes.
+* Integer::         Multiple precision Integer class.
+* Rational::        Multiple precision Rational class
+* Complex::         Complex number class
+* Fix::             Fixed point proportion classes
+* Bit::             BitSet and BitString classes
+* Random::          Random number generators
+* Data::            SampleStatistic and related classes for data collection
+* Curses::          CursesWindow class
+* List::            Lisp-like List prototype
+* LinkList::        Singly and doubly linked list class prototypes
+* Vector::          Vector prototypes
+* Plex::            Plex (adjustable array) prototypes
+* Stack::           Stack prototypes
+* Queue::           Queue prototypes
+* Deque::           Double ended queue prototypes
+* PQ::              Heap (priority queue) class prototypes
+* Set::             Set class prototypes
+* Bag::             Bag class prototypes
+* Map::             Map (Associative array) prototypes
+* GetOpt::          C++ class-based version of the GNU/UNIX getopt function
+* Projects::	    Things Still Left to do
+@end menu
+
+@node Copying, Contributors, Top, Top
+@include lgpl.texinfo
+
+@node Contributors, Installation, Copying, Top
+@unnumbered Contributors to GNU C++ library
+
+Aside from Michael Tiemann, who worked out the front end for GNU C++, and
+Richard Stallman, who worked out the back end, the following people (not
+including those who have made their contributions to GNU CC) should not go
+unmentioned.
+
+@itemize @bullet
+@item
+Doug Lea contributed most otherwise unattributed classes.
+
+@item
+Per Bothner contributed the iostream I/O classes.
+
+@item 
+Dirk Grunwald contributed the Random number generation classes,
+and PairingHeaps.
+
+@item 
+Kurt Baudendistel contributed Fixed precision reals.
+
+@item 
+Doug Schmidt contributed ordered hash tables, a perfect
+hash function generator, and several other utilities.
+
+@item
+Marc Shapiro contributed the ideas and preliminary code for Plexes.
+
+@item
+Eric Newton contributed the curses window classes.
+
+@item
+Some of the I/O code is derived from BSD 4.4,
+and was developed by the University of California, Berkeley.
+
+@item
+The code for converting accurately between floating point numbers
+and their string representations was written by David M. Gay of AT&T.
+@end itemize
+
+@node Installation, Trouble, Contributors, Top
+@chapter Installing GNU C++ library
+
+
+@enumerate
+@item
+Read through the README file and the Makefile. Make sure that all
+paths, system-dependent compile switches, and program names are correct.
+
+@item
+Check that files  @file{values.h}, @file{stdio.h},
+and @file{math.h} declare and define values appropriate for your
+system.
+
+@item
+Type @samp{make all} to compile the library, test, and install.
+Current details about contents of the tests and utilities are in the 
+@file{README} file.
+
+@end enumerate
+
+@node Trouble, General, Installation, Top
+@chapter Trouble in Installation
+
+Here are some of the things that have caused trouble for people installing
+GNU C++ library.
+
+@enumerate
+@item
+Make sure that your GNU C++ version number is at least as high as your
+libg++ version number. For example, libg++ 1.22.0 requires g++ 1.22.0 or
+later releases.
+
+@item
+Double-check system constants in the header files mentioned above.
+
+@end enumerate
+
+@node General, Conventions, Trouble, Top
+@chapter GNU C++ library aims, objectives, and limitations
+
+The GNU C++ library, libg++ is an attempt to provide a variety of C++
+programming tools and other support to GNU C++ programmers.
+
+Differences in distribution policy are only part of the difference
+between libg++.a and AT&T libC.a.  libg++ is not intended to be an
+exact clone of libC. For one, libg++ contains bits of code that depend
+on special features of GNU g++ that are either different or lacking in
+the AT&T version, including slightly different inlining and overloading
+strategies, dynamic local arrays, etc.  All of these
+differences are minor. For example, while the AT&T and GNU stream
+classes are implemented in very different ways, the vast majority of
+C++ programs compile and run under either version with no visible
+difference. Additionally, all g++-specific constructs are conditionally
+compiled; The library is designed to be compatible with any 2.0 C++
+compiler.
+
+libg++ has also contained workarounds for some limitations in g++: both
+g++ and libg++ are still undergoing rapid development and testing---a
+task that is helped tremendously by the feedback of active users.  This
+manual is also still under development; it has some catching up to do
+to include all the facilities now in the library.
+
+libg++ is not the only freely available source of C++ class libraries.
+Some notable alternative sources are Interviews and NIHCL.
+(InterViews has been available on the X-windows X11 tapes and also
+from interviews.stanford.edu.  NIHCL is available by anonymous
+ftp from GNU archives (such as the pub directory of prep.ai.mit.edu),
+although it is not supported by the FSF - and needs some work
+before it will work with g++.)
+
+As every C++ programmer knows, the design (moreso than the
+implementation) of a C++ class library is something of a challenge.
+Part of the reason is that C++ supports two, partially incompatible,
+styles of object-oriented programming -- The "forest" approach,
+involving a collection of free-standing classes that can be mixed and
+matched, versus the completely hierarchical (smalltalk style)
+approach, in which all classes are derived from a common ancestor.  Of
+course, both styles have advantages and disadvantages.  So far, libg++
+has adopted the "forest" approach.  Keith Gorlen's OOPS library adopts
+the hierarchical approach, and may be an attractive alternative for C++
+programmers who prefer this style.
+
+Currently (and/or in the near future) libg++ provides support for a
+few basic kinds of classes:
+
+The first kind of support provides an interface between C++ programs and
+C libraries. This includes basic header files (like @file{stdio.h}) as
+well as things like the File and stream classes. Other classes that
+interface to other aspects of C libraries (like those that maintain
+environmental information) are in various stages of development; all
+will undergo implementation modifications when the forthcoming GNU libc
+library is released.
+
+The second kind of support contains general-purpose basic classes that
+transparently manage variable-sized objects on the freestore.  This
+includes Obstacks, multiple-precision Integers and Rationals,
+arbitrary length Strings, BitSets, and BitStrings.
+
+Third, several classes and utilities of common interest (e.g.,
+Complex numbers) are provided.
+
+Fourth, a set of pseudo-generic prototype files are available
+as a mechanism for generating common container classes. These
+are described in more detail in the introduction to container
+prototypes. Currently, only a textual substitution
+mechanism is available for generic class creation.
+
+@node Conventions, OK, General, Top
+@chapter GNU C++ library stylistic conventions
+
+@itemize @bullet
+
+@item
+C++ source files have file extension @file{.cc}. Both C-compatibility
+header files and class declaration files have extension @file{.h}.
+
+@item
+C++ class names begin with capital letters, except for @code{istream}
+and @code{ostream}, for AT&T C++ compatibility. Multi-word class
+names capitalize each word, with no underscore separation.
+
+@item 
+Include files that define C++ classes begin with capital letters
+(as do the names of the classes themselves).  @file{stream.h} is
+uncapitalized for AT&T C++ compatibility.  
+
+@item 
+Include files that supply function prototypes for other C
+functions (system calls and libraries) are all lower case.
+
+@item 
+All include files define a preprocessor variable _X_h, where X
+is the name of the file, and conditionally compile only if this
+has not been already defined. The @code{#pragma once} facility
+is also used to avoid re-inclusion.
+
+@item
+Structures and objects that must be publicly defined,
+but are not intended for public use have names beginning
+with an underscore. (for example, the @code{_Srep} struct, which
+is used only by the String and SubString classes.)
+
+@item
+The underscore is used to separate components of long function
+names, @*e.g., @code{set_File_exception_handler()}.
+
+@item
+When a function could be usefully defined either as a
+member or a friend, it is generally a member if it modifies
+and/or returns itself, else it is a friend. There are cases
+where naturalness of expression wins out over this rule.
+
+@item
+Class declaration files are formatted so that it is easy
+to quickly check them to determine function names, parameters,
+and so on. Because of the different kinds of things that may
+appear in class declarations, there is no perfect way to do
+this. Any suggestions on developing a common class
+declaration formatting style are welcome.
+
+@item
+All classes use the same simple error (exception) handling strategy.
+Almost every class has a member function named @code{error(char* msg)}
+that invokes an associated error handler function via a pointer to that
+function, so that the error handling function may be reset by
+programmers. By default nearly all call @code{*lib_error_handler}, which
+prints the message and then aborts execution. This system is subject
+to change. In general, errors are assumed to be non-recoverable:
+Library classes do not include code that allows graceful continuation
+after exceptions.
+
+@end itemize
+
+@node OK, Proto, Conventions, Top
+@chapter Support for representation invariants
+
+Most GNU C++ library classes possess a method named @code{OK()},
+that is useful in helping to verify correct performance of class
+operations.
+
+The @code{OK()} operations checks the ``representation invariant'' of a
+class object. This is a test to check whether the object is in a valid
+state. In effect, it is a (sometimes partial) verification of the
+library's promise that (1) class operations always leave objects in
+valid states, and (2) the class protects itself so that client functions
+cannot corrupt this state.
+
+While no simple validation technique can assure that all operations
+perform correctly, calls to @code{OK()} can at least verify that
+operations do not corrupt representations. For example for @code{String
+a, b, c; ... a = b + c;}, a call to @code{a.OK();} will guarantee that
+@code{a} is a valid @code{String}, but does not guarantee that it
+contains the concatenation of @code{b + c}. However, given that @code{a}
+is known to be valid, it is possible to further verify its properties,
+for example via @code{a.after(b) == c && a.before(c) == b}. In other
+words, @code{OK()} generally checks only those internal representation
+properties that are otherwise inaccessible to users of the class. Other
+class operations are often useful for further validation.
+
+Failed calls to @code{OK()} call a class's @code{error} method if
+one exists, else directly call @code{abort}. Failure indicates
+an implementation error that should be reported.
+
+With only rare exceptions, the internal support functions for a class
+never themselves call @code{OK()} (although many of the test files
+in the distribution call @code{OK()} extensively).
+
+Verification of representational invariants can sometimes be
+very time consuming for complicated data structures. 
+
+
+@node Proto, Representations, OK, Top
+@chapter Introduction to container class prototypes
+
+As a temporary mechanism enabling the support of generic classes, the GNU
+C++ Library distribution contains a directory (@file{g++-include}) of files
+designed to serve as the basis for generating container classes of
+specified elements.  These files can be used to generate @file{.h} and
+@file{.cc} files in the current directory via a supplied shell script
+program that performs simple textual substitution to create specific
+classes.
+
+While these classes are generated independently, and thus share no code,
+it is possible to create versions that do share code among subclasses. For
+example, using @code{typedef void* ent}, and then generating a
+@code{entList} class, other derived classes could be created using the
+@code{void*} coercion method described in Stroustrup, pp204-210.
+
+This very simple class-generation facility is useful enough to serve
+current purposes, but will be replaced with a more coherent mechanism for
+handling C++ generics in a way that minimally disrupts current usage.
+Without knowing exactly when or how parametric classes might be
+added to the C++ language, provision of this simplest possible
+mechanism, textual substitution, appears to be the safest strategy,
+although it does require certain redundancies and awkward constructions.
+
+Specific classes may be generated via the @file{genclass} shell script
+program. This program has arguments specifying the kinds of base types(s)
+to be used. Specifying base types requires two arguments. The first is the
+name of the base type, which may be any named type, like @code{int} or
+@code{String}. Only named types are supported; things like @code{int*} are
+not accepted. However, pointers like this may be used by supplying the
+appropriate typedefs (e.g., editing the resulting files to include
+@code{typedef int* intp;}). The type name must be followed by one of the
+words @code{val} or @code{ref}, to indicate whether the base elements
+should be passed to functions by-value or by-reference. 
+
+You can specify basic container classes using @code{genclass base
+[val,ref] proto}, where @code{proto} is the name of the class being
+generated.  Container classes like dictionaries and maps that require
+two types may be specified via @code{genclass -2 keytype [val, ref],
+basetype [val, ref] proto}, where the key type is specified first and
+the contents type second.  The resulting classnames and filenames are
+generated by prepending the specified type names to the prototype names,
+and separating the filename parts with dots.  For example,
+@code{genclass int val List} generates class @code{intList} residing in
+files @file{int.List.h} and @file{int.List.cc}. @code{genclass -2 String
+ref int val VHMap} generates (the awkward, but unavoidable) class name
+@code{StringintVHMap}. Of course, programmers may use @code{typedef} or
+simple editing to create more appropriate names.  The existence of dot
+seperators in file names allows the use of GNU make to help automate
+configuration and recompilation. An example Makefile exploiting such
+capabilities may be found in the @file{libg++/proto-kit} directory.
+
+The @code{genclass} utility operates via simple text substitution using
+@code{sed}. All occurrences of the pseudo-types @code{<T>} and @code{<C>} 
+(if there are two types) are replaced with the indicated type, and
+occurrences of @code{<T&>} and @code{<C&>} are replaced by just the types,
+if @code{val} is specified, or types followed by ``&'' if @code{ref} is
+specified.
+
+Programmers will frequently need to edit the @file{.h} file in order to
+insert additional @code{#include} directives or other modifications.  A
+simple utility, @file{prepend-header} to prepend other @file{.h} files
+to generated files is provided in the distribution.  
+
+One dubious virtue of the prototyping mechanism is that, because sources files,
+not archived library classes, are generated, it is relatively simple for
+programmers to modify container classes in the common case where slight
+variations of standard container classes are required.
+
+It is often a good idea for programmers to archive (via @code{ar})
+generated classes into @file{.a} files so that only those class
+functions actually used in a given application will be loaded.
+The test subdirectory of the distribution shows an example of this.
+
+Because of @code{#pragma interface} directives, the @file{.cc} files
+should be compiled with @code{-O} or @code{-DUSE_LIBGXX_INLINES}
+enabled.
+
+Many container classes require specifications over and above the base
+class type. For example, classes that maintain some kind of ordering of
+elements require specification of a comparison function upon which to
+base the ordering.  This is accomplished via a prototype file
+@file{defs.hP} that contains macros for these functions. While these
+macros default to perform reasonable actions, they can and should be
+changed in particular cases. Most prototypes require only one or a few
+of these. No harm is done if unused macros are defined to perform
+nonsensical actions. The macros are:
+
+@table @code
+
+@item DEFAULT_INITIAL_CAPACITY
+The initial capacity for containers (e.g., hash tables) that require 
+an initial capacity argument for constructors. 
+Default: 100
+
+@item <T>EQ(a, b)
+return true if a is considered equal to b for the purposes of
+locating, etc., an element in a container. 
+Default: (a == b)
+
+@item <T>LE(a, b)
+return true if a is less than or equal to b
+Default: (a <= b)
+
+@item <T>CMP(a, b)
+return an integer < 0 if a<b, 0 if a==b, or > 0 if a>b.
+Default: (a <= b)? (a==b)? 0 : -1 : 1
+
+@item <T>HASH(a)
+return an unsigned integer representing the hash of a.
+Default: hash(a) ; where extern unsigned int hash(<T&>).
+(note: several useful hash functions are declared in builtin.h
+and defined in hash.cc)
+
+@end table
+
+Nearly all prototypes container classes support container
+traversal via @code{Pix} pseudo indices, as described elsewhere.
+
+All object containers must perform either a @code{X::X(X&)} (or
+@code{X::X()} followed by @code{X::operator =(X&)}) to copy objects into
+containers.  (The latter form is used for containers built from C++
+arrays, like @code{VHSets}). When containers are destroyed, they invoke
+@code{X::~X()}.  Any objects used in containers must have well behaved
+constructors and destructors. If you want to create containers that
+merely reference (point to) objects that reside elsewhere, and are not
+copied or destroyed inside the container, you must use containers
+of pointers, not containers of objects.
+
+All prototypes are designed to generate @emph{HOMOGENOUS} container
+classes.  There is no universally applicable method in C++ to support
+heterogenous object collections with elements of various subclasses of
+some specified base class. The only way to get heterogenous structures
+is to use collections of pointers-to-objects, not collections of objects
+(which also requires you to take responsibility for managing storage for
+the objects pointed to yourself).
+
+For example, the following usage illustrates a commonly encountered
+danger in trying to use container classes for heterogenous structures:
+
+@smallexample
+class Base @{ int x; ...@}
+class Derived : public Base @{ int y; ... @}
+
+BaseVHSet s; // class BaseVHSet generated via something like
+             // `genclass Base ref VHSet'
+
+void f()
+@{
+  Base b;
+  s.add(b); // OK
+
+  Derived d;
+  s.add(d);  // (CHOP!)
+@}
+@end smallexample
+
+At the line flagged with @samp{(CHOP!)}, a @code{Base::Base(Base&)} is
+called inside @code{Set::add(Base&)}---@emph{not}
+@code{Derived::Derived(Derived&)}.  Actually, in @code{VHSet}, a
+@code{Base::operator =(Base&)}, is used instead to place the element in
+an array slot, but with the same effect.  So only the Base part is
+copied as a @code{VHSet} element (a so-called chopped-copy). In this
+case, it has an @code{x} part, but no @code{y} part; and a Base, not
+Derived, vtable. Objects formed via chopped copies are rarely
+sensible.@refill
+
+To avoid this, you must resort to pointers:
+
+@smallexample
+typedef Base* BasePtr;
+
+BasePtrVHSet s; // class BaseVHSet generated via something like
+                // `genclass BasePtr val VHSet'
+
+void f()
+@{
+  Base* bp = new Base;
+  s.add(b);
+
+  Base* dp = new Derived;
+  s.add(d);  // works fine.
+
+  // Don't forget to delete bp and dp sometime.
+  // The VHSet won't do this for you.
+@}
+@end smallexample
+
+@section Example
+
+The prototypes can be difficult to use on first attempt. Here is an
+example that may be helpful. The utilities in the @file{proto-kit}
+simplify much of the actions described, but are not used here.
+
+Suppose you create a class @code{Person}, and want to make an Map that
+links the social security numbers associated with each person. You start
+off with a file @file{Person.h}
+
+@example
+
+#include <String.h>
+
+class Person
+@{
+  String nm;
+  String addr;
+  //...
+public:
+  const String& name() @{ return nm; @}
+  const String& address() @{ return addr; @}
+  void          print() @{ ... @}
+  //...
+@}
+
+@end example
+
+And in file @file{SSN.h},
+
+@example
+typedef unsigned int SSN;
+@end example
+
+Your first decision is what storage/usage strategy to use. There are
+several reasonable alternatives here: You might create an ``object
+collection'' of Persons, a ``pointer collection'' of
+pointers-to-Persons, or even a simple String map, housing either copies
+of pointers to the names of Persons, since other fields are unused for
+purposes of the Map. In an object collection, instances of class Person
+``live'' inside the Map, while in a pointer collection, the instances
+live elsewhere. Also, as above, if instances of subclasses of Person are
+to be used inside the Map, you must use pointers. In a String Map, the
+same difference holds, but now only for the name fields. Any of these
+choices might make sense in particular applications. 
+
+The second choice is the Map implementation strategy. Either a tree
+or a hash table might make sense. Suppose you want an AVL tree Map.
+There are two things to now check. First, as an object collection,
+the AVLMap requires that the elsement class contain an @code{X(X&)}
+constructor. In C++, if you don't specify such a constructor, one
+is constructed for you, but it is a very good idea to always do this
+yourself, to avoid surprises. In this example, you'd use something like
+@example
+class Person 
+@{ ...; 
+    Person(const Person& p) :nm(p.nm), addr(p.addr) @{@}
+@};
+@end example
+
+Also, an AVLMap requires a comparison function for elements in order
+to maintain order. Rather than requiring you to write a particular
+comparison function, a @file{defs} file is consulted to determine how to
+compare items. You must create and edit such a file.
+
+Before creating @file{Person.defs.h}, you must first make one additional
+decision. Should the Map member functions like @code{m.contains(p)}
+take arguments (@code{p}) by reference (i.e., typed as 
+@code{int Map::contains(const Person& p)} or by value (i.e., typed as
+@code{int Map::contains(const Person p)}. Generally, for user-defined
+classes, you want to pass by reference, and for builtins and pointers,
+to pass by value. SO you should pick by-reference.
+
+You can now create @file{Person.defs.h} via @code{genclass Person ref defs}.
+This creates a simple skeleton that you must edit. First, add
+@code{#include "Person.h"} to the top. Second, edit the @code{<T>CMP(a,b)}
+macro to compare on name, via
+
+@example
+#define <T>CMP(a, b) ( compare(a.name(), b.name()) )
+@end example
+
+@noindent
+which invokes the @code{int compare(const String&, const String&)}
+function from @file{String.h}. Of course, you could define this in any
+other way as well. In fact, the default versions in the skeleton turn
+out to be OK (albeit inefficient) in this particular example.
+
+You may also want to create file @file{SSN.defs.h}. Here, choosing
+call-by-value makes sense, and since no other capabilities (like
+comparison functions) of the SSNs are used (and the defaults are OK
+anyway), you'd type
+
+@example
+genclass SSN val defs
+@end example
+
+@noindent
+and then edit to place @code{#include "SSN.h"} at the top.
+
+Finally, you can generate the classes. First, generate the base
+class for Maps via
+
+@example
+genclass -2 Person ref SSN val Map
+@end example
+
+@noindent
+This generates only the abstract class, not the implementation, in file
+@file{Person.SSN.Map.h} and @file{Person.SSN.Map.cc}.  To create the
+AVL implementation, type
+
+@example
+genclass -2 Person ref SSN val AVLMap
+@end example
+
+@noindent
+This creates the class @code{PersonSSNAVLMap}, in
+@file{Person.SSN.AVLMap.h} and @file{Person.SSN.AVLMap.cc}.
+
+To use the AVL implementation, compile the two generated @file{.cc} files, and
+specify @samp{#include "Person.SSN.AVLMap.h"} in the application program.
+All other files are included in the right ways automatically.
+
+One last consideration, peculiar to Maps, is to pick a reasonable
+default contents when declaring an AVLMap. Zero might be appropriate
+here, so you might declare a Map,
+
+@example
+PersonSSNAVLMap m((SSN)0);
+@end example
+
+Suppose you wanted a @code{VHMap} instead of an @code{AVLMap} Besides
+generating different implementations, there are two differences in
+how you should prepare the @file{defs} file. First, because a VHMap
+uses a C++ array internally, and because C++ array slots are initialized
+differently than single elements, you must ensure that class Person
+contains (1) a no-argument constructor, and (2) an assignment operator.
+You could arrange this via
+
+@smallexample
+class Person 
+@{ ...; 
+    Person() @{@}
+  void operator = (const Person& p) @{ nm = p.nm; addr = p.addr; @}
+@};
+@end smallexample
+
+(The lack of action in the constructor is OK here because @code{Strings}
+possess usable no-argument constructors.)
+
+You also need to edit @file{Person.defs.h} to indicate a usable hash
+function and default capacity, via something like
+
+@example
+#include <builtin.h>
+#define <T>HASH(x)  (hashpjw(x.name().chars()))
+#define DEFAULT_INITIAL_CAPACITY 1000
+@end example
+
+Since the @code{hashpjw} function from @file{builtin.h} is
+appropriate here. Changing the default capacity to a value
+expected to exceed the actual capacity helps to avoid
+``hidden'' inefficiencies when a new VHMap is created without
+overriding the default, which is all too easy to do.
+
+Otherwise, everything is the same as above, substituting
+@code{VHMap} for @code{AVLMap}.
+
+@node Representations, Expressions, Proto, Top
+@chapter Variable-Sized Object Representation
+
+One of the first goals of the GNU C++ library is to enrich the kinds of
+basic classes that may be considered as (nearly) ``built into'' C++. A good
+deal of the inspiration for these efforts is derived from considering
+features of other type-rich languages, particularly Common Lisp and Scheme.
+The general characteristics of most class and friend operators and
+functions supported by these classes has been heavily influenced
+by such languages.
+
+Four of these types, Strings, Integers, BitSets, and BitStrings (as well as
+associated and/or derived classes) require representations suitable for
+managing variable-sized objects on the free-store. The basic technique used
+for all of these is the same, although various details necessarily differ
+from class to class.
+
+The general strategy for representing such objects is to create chunks of
+memory that include both header information (e.g., the size of the object),
+as well as the variable-size data (an array of some sort) at the end
+of the chunk. Generally the maximum size of an object is limited to
+something less than all of addressable memory, as a safeguard. The minimum
+size is also limited so as not to waste allocations expanding very small
+chunks. Internally, chunks are allocated in blocks well-tuned to the
+performance of the @code{new} operator.
+
+Class elements themselves are merely pointers to these chunks.
+Most class operations are performed via inline ``translation''
+functions that perform the required operation on the corresponding
+representation. However, constructors and assignments operate by
+copying entire representations, not just pointers.
+
+
+No attempt is made to control temporary creation in expressions
+and functions involving these classes. Users of previous versions
+of the classes will note the disappearance of both ``Tmp'' classes
+and reference counting. These were dropped because, while they
+did improve performance in some cases, they obscure class
+mechanics, lead programmers into the false belief that they need not
+worry about such things, and occasionally have paradoxical behavior.
+
+
+These variable-sized object classes are integrated as well as possible
+into C++. Most such classes possess converters that allow automatic
+coercion both from and to builtin basic types. (e.g., char* to and from
+String, long int to and from Integer, etc.). There are pro's and con's
+to circular converters, since they can sometimes lead to the conversion
+from a builtin type through to a class function and back to a builtin
+type without any special attention on the part of the programmer, both
+for better and worse.
+
+Most of these classes also provide special-case operators and functions
+mixing basic with class types, as a way to avoid constructors in cases
+where the operations do not rely on anything special about the
+representations.  For example, there is a special case concatenation
+operator for a String concatenated with a char, since building the
+result does not rely on anything about the String header. Again, there
+are arguments both for and against this approach. Supporting these cases
+adds a non-trivial degree of (mainly inline) function proliferation, but
+results in more efficient operations. Efficiency wins out over parsimony
+here, as part of the goal to produce classes that provide sufficient
+functionality and efficiency so that programmers are not tempted to try
+to manipulate or bypass the underlying representations.
+
+@node Expressions, Pix, Representations,  Top
+@chapter Some guidelines for using expression-oriented classes
+
+
+The fact that C++ allows operators to be overloaded for user-defined
+classes can make programming with library classes like @code{Integer},
+@code{String}, and so on very convenient. However, it is worth
+becoming familiar with some of the inherent limitations and problems
+associated with such operators.
+
+Many operators are @emph{constructive}, i.e., create a new object
+based on some function of some arguments. Sometimes the creation
+of such objects is wasteful. Most library classes supporting
+expressions contain facilities that help you avoid such waste.
+
+For example, for @code{Integer a, b, c; ...;  c = a + b + a;}, the
+plus operator is called to sum a and b, creating a new temporary object
+as its result. This temporary is then added with a, creating another
+temporary, which is finally copied into c, and the temporaries are then
+deleted. In other words, this code might have an effect similar to
+@code{Integer a, b, c; ...; Integer t1(a); t1 += b; Integer t2(t1);
+t2 += a; c = t2;}.
+
+For small objects, simple operators, and/or non-time/space critical
+programs, creation of temporaries is not a big problem. However, often,
+when fine-tuning a program, it may be a good idea to rewrite such
+code in a less pleasant, but more efficient manner.
+
+For builtin types like ints, and floats, C and C++ compilers already
+know how to optimize such expressions to reduce the need for
+temporaries. Unfortunately, this is not true for C++ user defined
+types, for the simple (but very annoying, in this context) reason that
+nothing at all is guaranteed about the semantics of overloaded operators
+and their interrelations. For example, if the above expression just
+involved ints, not Integers, a compiler might internally convert the
+statement into something like @code{ c = a; c += b; c+= a; }, or
+perhaps something even more clever.  But since C++ does not know that
+Integer operator += has any relation to Integer operator +, A C++
+compiler cannot do this kind of expression optimization itself.
+
+In many cases, you can avoid construction of temporaries simply by
+using the assignment versions of operators whenever possible, since
+these versions create no temporaries. However, for maximum flexibility,
+most classes provide a set of ``embedded assembly code'' procedures
+that you can use to fully control time, space, and evaluation strategies.
+Most of these procedures are ``three-address'' procedures that take
+two @code{const} source arguments, and a destination argument. The
+procedures perform the appropriate actions, placing the results in
+the destination (which is may involve overwriting old contents). These
+procedures are designed to be fast and robust. In particular, aliasing
+is always handled correctly, so that, for example
+@code{add(x, x, x); } is perfectly OK. (The names of these procedures
+are listed along with the classes.)
+
+For example, suppose you had an Integer expression
+@code{ a = (b - a) * -(d / c); }
+
+This would be compiled as if it were
+@code{ Integer t1=b-a; Integer t2=d/c; Integer t3=-t2; Integer t4=t1*t3; a=t4;}
+
+But, with some manual cleverness, you might yourself some up with
+@code{ sub(a, b, a); mul(a, d, a); div(a, c, a); }
+
+
+A related phenomenon occurs when creating your own constructive
+functions returning instances of such types. Suppose you wanted
+to write function 
+@code{Integer f(const Integer& a) @{ Integer r = a;  r += a; return r; @}}
+
+This function, when called (as in @code{ a = f(a); }) demonstrates a 
+similar kind of wasted copy. The returned value r must be copied
+out of the function before it can be used by the caller. In GNU
+C++, there is an alternative via the use of named return values.
+Named return values allow you to manipulate the returned object
+directly, rather than requiring you to create a local inside
+a function and then copy it out as the returned value. In this
+example, this can be done via
+@code{Integer f(const Integer& a) return r(a) @{ r += a; return; @}}
+
+
+A final guideline: The overloaded operators are very convenient, and
+much clearer to use than procedural code. It is almost always a good
+idea to make it right, @emph{then} make it fast, by translating 
+expression code into procedural code after it is known to be correct.
+
+
+
+@node Pix, Headers, Expressions, Top
+@chapter Pseudo-indexes
+
+Many useful classes operate as containers of elements. Techniques for
+accessing these elements from a container differ from class to class.
+In the GNU C++ library, access methods have been partially standardized
+across different classes via the use of pseudo-indexes called
+@code{Pixes}.  A @code{Pix} acts in some ways like an index, and in some
+ways like a pointer. (Their underlying representations are just
+@code{void*} pointers). A @code{Pix} is a kind of ``key'' that is
+translated into an element access by the class.  In virtually all cases,
+@code{Pixes} are pointers to some kind internal storage cells. The
+containers use these pointers to extract items.
+
+@code{Pixes} support traversal and inspection of elements in a
+collection using analogs of array indexing. However, they are
+pointer-like in that @code{0} is treated as an invalid @code{Pix}, and
+unsafe insofar as programmers can attempt to access nonexistent elements
+via dangling or otherwise invalid @code{Pixes} without first checking
+for their validity. 
+
+In general it is a very bad idea to perform traversals in the the midst
+of destructive modifications to containers.
+
+Typical applications might include code using the idiom
+@example
+for (Pix i = a.first(); i != 0; a.next(i)) use(a(i));
+@end example
+for some container @code{a} and function @code{use}.
+
+Classes supporting the use of @code{Pixes} always contain the following 
+methods, assuming a container @code{a} of element types of @code{Base}.
+
+@table @code
+
+@item Pix i = a.first()
+Set i to index the first element of a or 0 if a is empty.
+
+@item a.next(i)
+advance i to the next element of a or 0 if there is no next element;
+
+@item Base x = a(i); a(i) = x;
+a(i) returns a reference to the element indexed by i.
+
+@item int present = a.owns(i)
+returns true if Pix i is a valid Pix in a. This is often a
+relatively slow operation, since the collection must usually 
+traverse through elements to see if any correspond to the Pix.
+
+@end table
+
+Some container classes also support backwards traversal via
+
+@table @code
+@item Pix i = a.last()
+Set i to the last element of a or 0 if a is empty.
+
+@item a.prev(i)
+sets i to the previous element in a, or 0 if there is none.
+@end table
+
+Collections supporting elements with an equality operation possess
+
+@table @code
+@item Pix j = a.seek(x)
+sets j to the index of the first occurrence of x, or 0 if x is 
+not contained in a.
+@end table
+
+Bag classes possess
+
+@table @code
+@item Pix j = a.seek(x, Pix from = 0)
+sets j to the index of the next occurrence of x following i,
+or 0 if x is not contained in a. If i == 0, the first occurrence 
+is returned.
+@end table
+
+Set, Bag, and PQ classes possess
+
+@table @code
+@item Pix j = a.add(x) (or a.enq(x) for priority queues)
+add x to the collection, returning its Pix. The Pix of an item
+can change in collections where further additions and deletions
+involve the actual movement of elements (currently in OXPSet,
+OXPBag, XPPQ, VOHSet), but in all other cases, an item's Pix may
+be considered a permanent key to its location.
+@end table
+
+@node Headers, Builtin, Pix, Top
+@chapter Header files for interfacing C++ to C
+
+The following files are provided so that C++ programmers may
+invoke common C library and system calls. The names and contents
+of these files are subject to change in order to be compatible
+with the forthcoming GNU C library. Other files, not listed
+here, are simply C++-compatible interfaces to corresponding C
+library files.
+
+@table @file
+@item values.h
+A collection of constants defining the numbers of bits in builtin
+types, minimum and maximum values, and the like. Most names are
+the same as those found in @file{values.h} found on Sun systems.
+
+@item std.h
+A collection of common system calls and @file{libc.a} functions.
+Only those functions that can be declared without introducing
+new type definitions (socket structures, for example) are
+provided. Common @code{char*} functions (like @code{strcmp}) are among
+the declarations. All functions are declared along with their
+library names, so that they may be safely overloaded.
+
+@item string.h
+This file merely includes @file{<std.h>}, where string function
+prototypes are declared. This is a workaround for the fact that
+system @file{string.h} and @file{strings.h} files often differ
+in contents.
+
+@item osfcn.h
+This file merely includes @file{<std.h>}, where system function
+prototypes are declared. 
+
+@item libc.h
+This file merely includes @file{<std.h>}, where C library function
+prototypes are declared. 
+
+@item math.h
+A collection of prototypes for functions usually found in
+libm.a, plus some @code{#define}d constants that appear to be
+consistent with those provided in the AT&T version. The value
+of @code{HUGE} should be checked before using. Declarations of
+all common math functions are preceded with @code{overload}
+declarations, since these are commonly overloaded.
+
+@item stdio.h
+Declaration of @code{FILE} (@code{_iobuf}), common macros (like
+@code{getc}), and function prototypes for @file{libc.a}
+functions that operate on @code{FILE*}'s. The value
+@code{BUFSIZ} and the declaration of @code{_iobuf} should be
+checked before using.
+
+@item assert.h
+C++ versions of assert macros.
+
+@item generic.h
+String concatenation macros useful in creating generic classes.
+They are similar in function to the AT&T CC versions.
+
+@item new.h
+Declarations of the default global operator new, the two-argument
+placement version, and associated error handlers.
+@end table
+
+@node Builtin, New, Headers, Top
+@chapter Utility functions for built in types
+
+Files @file{builtin.h} and corresponding @file{.cc} implementation
+files contain various convenient
+inline and non-inline utility functions. These include useful
+enumeration types, such as @code{TRUE}, @code{FALSE} ,the type
+definition for pointers to libg++ error handling functions, and
+the following functions.
+
+@table @code
+@item long abs(long x); double abs(double x);
+inline versions of abs. Note that the standard libc.a version,
+@code{int abs(int)} is @emph{not} declared as inline.
+
+@item void clearbit(long& x, long b);
+clears the b'th bit of x (inline).
+
+@item void setbit(long& x, long b);
+sets the b'th bit of x (inline)
+
+@item int testbit(long x, long b);
+returns the b'th bit of x (inline).
+
+@item int even(long y);
+returns true if x is even (inline).
+
+@item int odd(long y);
+returns true is x is odd (inline).
+
+@item int sign(long x); int sign(double x);
+returns -1, 0, or 1, indicating whether x is less than, equal to, or
+greater than zero (inline).
+
+@item long gcd(long x, long y);
+returns the greatest common divisor of x and y.
+
+@item long lcm(long x, long y);
+returns the least common multiple of x and y.
+
+@item long lg(long x); 
+returns the floor of the base 2 log of x.
+
+@item long pow(long x, long y); double pow(double x, long y);
+returns x to the integer power y using via the iterative O(log y)
+``Russian peasant'' method.
+
+@item long sqr(long x); double sqr(double x);
+returns x squared (inline).
+
+@item long sqrt(long y);
+returns the floor of the square root of x.
+
+@item unsigned int hashpjw(const char* s);
+a hash function for null-terminated char* strings using the
+method described in Aho, Sethi, & Ullman, p 436.
+
+@item unsigned int multiplicativehash(int x);
+a hash function for integers that returns the lower bits of 
+multiplying x by the golden ratio times pow(2, 32). 
+See Knuth, Vol 3, p 508.
+
+@item unsigned int foldhash(double x);
+a hash function for doubles that exclusive-or's the first and
+second words of x, returning the result as an integer.
+
+@item double start_timer()
+Starts a process timer.
+
+@item double return_elapsed_time(double last_time)
+Returns the process time since last_time. 
+If last_time == 0 returns the time since the last start_timer. 
+Returns -1 if start_timer was not first called.
+
+@end table
+
+File @file{Maxima.h} includes versions of @code{MAX, MIN}
+for builtin types.
+
+File @file{compare.h} includes versions of @code{compare(x, y)}
+for builtin types. These return negative if the first argument
+is less than the second, zero for equal, and positive for greater.
+
+@node New, Stream, Builtin, Top
+@chapter Library dynamic allocation primitives
+
+Libg++ contains versions of @code{malloc, free, realloc} that were
+designed to be well-tuned to C++ applications. The source file
+@file{malloc.c} contains some design and implementation details.
+Here are the major user-visible differences from most system
+malloc routines:
+
+@enumerate
+
+@item
+These routines @emph{overwrite} storage of freed space. This
+means that it is never permissible to use a @code{delete}'d
+object in any way. Doing so will either result in trapped
+fatal errors or random aborts within malloc, free, or realloc.
+
+@item
+The routines tend to perform well when a large number
+of objects of the same size are allocated and freed. You
+may find that it is not worth it to create your
+own special allocation schemes in such cases.
+
+@item
+The library sets top-level @code{operator new()} to call malloc and
+@code{operator delete()} to call free. Of course, you may override these
+definitions in C++ programs by creating your own operators that will
+take precedence over the library versions. However, if you do so, be
+sure to define @emph{both} @code{operator new()} and @code{operator
+delete()}.
+
+@item
+These routines do @emph{not} support the odd convention, maintained by
+some versions of malloc, that you may call @code{realloc} with a pointer
+that has been @code{free}'d.
+
+@item
+The routines automatically perform simple checks on @code{free}'d
+pointers that can often determine whether users have accidentally
+written beyond the boundaries of allocated space, resulting in a fatal
+error.
+
+@item
+The function @code{malloc_usable_size(void* p)} returns the number of
+bytes actually allocated for @code{p}. For a valid pointer (i.e., one
+that has been @code{malloc}'d or @code{realloc}'d but not yet
+@code{free}'d) this will return a number greater than or equal to the
+requested size, else it will normally return 0. Unfortunately, a
+non-zero return can not be an absolutely perfect indication of lack of
+error. If a chunk has been @code{free}'d but then re-allocated for a
+different purpose somewhere elsewhere, then @code{malloc_usable_size}
+will return non-zero. Despite this, the function can be very valuable
+for performing run-time consistency checks.
+
+@item
+@code{malloc} requires 8 bytes of overhead per allocated chunk, plus a
+mmaximum alignment adjustment of 8 bytes. The number of bytes of usable
+space is exactly as requested, rounded to the nearest 8 byte boundary.
+
+@item
+The routines do @emph{not} contain any synchronization support for
+multiprocessing. If you perform global allocation on a shared
+memory multiprocessor, you should disable compilation and use
+of libg++ malloc in the distribution @file{Makefile} and use your
+system version of malloc.
+
+@end enumerate
+
+@iftex
+@node IOStream
+@chapter The new input/output classes
+
+The iostream classes implement most of the features of AT&T
+version 2.0 iostream library classes, and most of the features
+of the ANSI X3J16 library draft (which is based on the AT&T design).
+These classes are available in @code{libg++} for convenience and for
+compatibility with older releases; however, since the iostream classes
+are licensed under less stringent terms than @code{libg++}, they are now
+also available in a separate library called @code{libio}---and
+documented in a separate manual, corresponding to that library.
+
+@xref{Introduction,,Introduction, iostream.info, The GNU C++ Iostream
+Library}.
+@end iftex
+
+@node Stream, Obstack, New, Top
+@chapter The old I/O library
+
+WARNING: This chapter describes classes that are @emph{obsolete}.
+These classes are normally not available when libg++
+is installed normally.  The sources are currently included
+in the distribution, and you can configure libg++ to use
+these classes instead of the new iostream classes.
+This is only a temporary measure; you should convert your
+code to use iostreams as soon as possible.  The iostream
+classes provide some compatibility support, but it is
+very incomplete (there is no longer a @code{File} class).
+
+@section File-based classes
+   
+The @code{File} class supports basic IO on Unix files.  Operations are
+based on common C stdio library functions.
+
+@code{File} serves as the base class for istreams, ostreams, and other
+derived classes. It contains the interface between the Unix stdio file
+library and these more structured classes.  Most operations are implemented
+as simple calls to stdio functions. @code{File} class operations are also fully
+compatible with raw system file reads and writes (like the system
+@code{read} and @code{lseek} calls) when buffering is disabled (see below).
+The @code{FILE*} stdio file pointer is, however maintained as protected.
+Classes derived from File may only use the IO operations provided by File,
+which encompass essentially all stdio capabilities.
+
+The class contains four general kinds of functions: methods for binding
+@code{File}s to physical Unix files, basic IO methods, file and buffer
+control methods, and methods for maintaining logical and physical file
+status.
+
+
+Binding and related tasks are accomplished via @code{File} constructors and
+destructors, and member functions @code{open, close, remove, filedesc,
+name, setname}.
+
+If a file name is provided in a constructor or open, it is
+maintained as class variable @code{nm} and is accessible
+via @code{name}.  If no name is provided, then @code{nm} remains
+null, except that @code{Files} bound to the default files stdin,
+stdout, and stderr are automatically given the names
+@code{(stdin), (stdout), (stderr)} respectively.  
+The function @code{setname} may be used to change the
+internal name of the @code{File}. This does not change the name
+of the physical file bound to the File.
+      
+The member function @code{close} closes a file.  The
+@code{~File} destructor closes a file if it is open, except
+that stdin, stdout, and stderr are flushed but left open for
+the system to close on program exit since some systems may
+require this, and on others it does not matter.  @code{remove}
+closes the file, and then deletes it if possible by calling the
+system function to delete the file with the name provided in
+the @code{nm} field.
+
+@section Basic IO
+
+@itemize @bullet
+
+@item 
+@code{read} and @code{write} perform binary IO via stdio
+@code{fread} and @code{fwrite}.
+
+@item 
+@code{get} and @code{put} for chars invoke stdio @code{getc}
+and @code{putc} macros.
+
+@item 
+@code{put(const char* s)} outputs a null-terminated string via
+stdio @code{fputs}.
+
+@item 
+@code{unget} and @code{putback} are synonyms.  Both call stdio
+@code{ungetc}.
+
+@end itemize
+
+@section File Control
+
+@code{flush}, @code{seek}, @code{tell}, and @code{tell} call the
+corresponding stdio functions.
+
+@code{flush(char)} and @code{fill()} call stdio @code{_flsbuf}
+and @code{_filbuf} respectively.
+
+@code{setbuf} is mainly useful to turn off buffering in cases
+where nonsequential binary IO is being performed. @code{raw} is a
+synonym for @code{setbuf(_IONBF)}.  After a @code{f.raw()}, using
+the stdio functions instead of the system @code{read, write},
+etc., calls entails very little overhead.  Moreover, these become
+fully compatible with intermixed system calls (e.g.,
+@code{lseek(f.filedesc(), 0, 0)}). While intermixing @code{File}
+and system IO calls is not at all recommended, this technique
+does allow the @code{File} class to be used in conjunction with
+other functions and libraries already set up to operate on file
+descriptors. @code{setbuf} should be called at most once after a
+constructor or open, but before any IO.
+
+@section File Status
+
+File status is maintained in several ways. 
+
+A @code{File} may be checked for accessibility via
+@code{is_open()}, which returns true if the File is bound to a
+usable physical file, @code{readable()}, which returns true if
+the File can be read from (opened for reading, and not in a
+_fail state), or @code{writable()}, which returns true if the
+File can be written to.
+
+@code{File} operations return their status via two means: failure and
+success are represented via the logical state. Also, the
+return values of invoked stdio and system functions that
+return useful numeric values (not just failure/success flags)
+are held in a class variable accessible via @code{iocount}.
+(This is useful, for example, in determining the number of
+items actually read by the @code{read} function.)
+
+Like the AT&T i/o-stream classes, but unlike the description in
+the Stroustrup book, p238, @code{rdstate()} returns the bitwise
+OR of @code{_eof}, @code{_fail} and @code{_bad}, not necessarily
+distinct values. The functions @code{eof()}, @code{fail()},
+@code{bad()}, and @code{good()} can be used to test for each of
+these conditions independently.
+
+@code{_fail} becomes set for any input operation that could not
+read in the desired data, and for other failed operations. As
+with all Unix IO, @code{_eof} becomes true only when an input
+operations fails because of an end of file. Therefore,
+@code{_eof} is not immediately true after the last successful
+read of a file, but only after one final read attempt. Thus, for
+input operations, @code{_fail} and @code{_eof} almost always
+become true at the same time.  @code{bad} is set for unbound
+files, and may also be set by applications in order to communicate
+input corruption. Conversely, @code{_good} is defined as 0 and
+is returned by @code{rdstate()} if all is well.
+
+The state may be modified via @code{clear(flag)}, which,
+despite its name, sets the corresponding state_value flag.
+@code{clear()} with no arguments resets the state to @code{_good}.
+@code{failif(int cond)} sets the state to @code{_fail} only if
+@code{cond} is true.  
+
+Errors occuring during constructors and file opens also invoke the
+function @code{error}.  @code{error} in turn calls a resetable error
+handling function pointed to by the non-member global variable
+@code{File_error_handler} only if a system error has been generated.
+Since @code{error} cannot tell if the current system error is actually
+responsible for a failure, it may at times print out spurious messages.
+Three error handlers are provided. The default,
+@code{verbose_File_error_handler} calls the system function
+@code{perror} to print the corresponding error message on standard
+error, and then returns to the caller.  @code{quiet_File_error_handler}
+does nothing, and simply returns.  @code{fatal_File_error_handler}
+prints the error and then aborts execution. These three handlers, or any
+other user-defined error handlers can be selected via the non-member
+function @code{set_File_error_handler}.
+
+All read and write operations communicate either logical or
+physical failure by setting the @code{_fail} flag.  All further
+operations are blocked if the state is in a @code{_fail} or@code{_bad}
+condition. Programmers must explicitly use @code{clear()} to
+reset the state in order to continue IO processing after
+either a logical or physical failure.  C programmers who are
+unfamiliar with these conventions should note that, unlike
+the stdio library, @code{File} functions indicate IO success,
+status, or failure solely through the state, not via return values of
+the functions.  The @code{void*} operator or @code{rdstate()}
+may be used to test success.  In particular, according to c++
+conversion rules, the @code{void*} coercion is automatically
+applied whenever the @code{File&} return value of any @code{File}
+function is tested in an @code{if} or @code{while}.  Thus,
+for example, an easy way to copy all of stdin to stdout until
+eof (at which point @code{get} fails) or some error is
+@code{char c; while(cin.get(c) && cout.put(c));}.
+
+@ignore
+@section The istream and ostream classes
+
+Some of these are supported by incorporating additional,
+mainly virtual, functions into streambufs:
+
+@table @code
+
+@item streambuf::open([various args])
+attaches the streambuf to a file, if applicable
+
+@item streambuf::close()
+detaches the streambuf from a file, if applicable.
+
+@item streambuf::sputs(const char* s)
+outputs null-terminated string s in a generally faster way
+than repeated @code{sputcs}.
+
+@item streambuf::sputsn(const char* s, int n)
+outputs the first n characters of s in a generally faster way
+than repeated @code{sputcs}.
+
+@end table
+@end ignore
+
+The current version of istreams and ostreams differs significantly
+from previous versions in order to obtain compatibility with
+AT&T 1.2 streams. Most code using previous versions should still
+work. However, the following features of @code{File} are not
+incorporated in streams (they are still present in @code{File}):
+@code{scan(const char* fmt...), remove(), read(), write(),
+setbuf(), raw()}. Additionally, the feature of previous streams
+that allowed free intermixing of stream and stdio input and output
+is no longer guaranteed to always behave as desired.
+
+@node Obstack, AllocRing, Stream, Top
+@chapter The Obstack class
+
+
+The @code{Obstack} class is a simple rewrite of the C obstack macros and
+functions provided in the GNU CC compiler source distribution.  
+
+Obstacks provide a simple method of creating and maintaining a string
+table, optimized for the very frequent task of building strings
+character-by-character, and sometimes keeping them, and sometimes
+not. They seem especially useful in any parsing application. One of the
+test files demonstrates usage.
+
+A brief summary:
+@table @code
+
+@item grow   
+places something on the obstack without committing to wrap 
+it up as a single entity yet.
+
+@item finish 
+wraps up a constructed object as a single entity, 
+and returns the pointer to its start address.
+
+@item copy   
+places things on the obstack, and @emph{does} wrap them up.
+@code{copy} is always equivalent to first grow, then finish.
+
+@item free   
+deletes something, and anything else put on the obstack since its creation.
+@end table
+
+The other functions are less commonly needed:
+@table @code
+@item blank
+is like grow, except it just grows the space by size units
+without placing anything into this space
+@item alloc
+is like @code{blank}, but it wraps up the object and returns its starting
+address. 
+@item chunk_size, base, next_free, alignment_mask, size, room
+returns the appropriate class variables.
+@item grow_fast
+places a character on the obstack without checking if there is enough room.
+@item blank_fast
+like @code{blank}, but without checking if there is enough room.
+@item shrink(int n)
+shrink the current chunk by n bytes.
+@item contains(void* addr)
+returns true if the Obstack holds the address addr.
+@end table
+
+Here is a lightly edited version of the original C documentation:
+
+These functions operate a stack of objects.  Each object starts life
+small, and may grow to maturity.  (Consider building a word syllable
+by syllable.)  An object can move while it is growing.  Once it has
+been ``finished'' it never changes address again.  So the ``top of the
+stack'' is typically an immature growing object, while the rest of the
+stack is of mature, fixed size and fixed address objects.
+
+These routines grab large chunks of memory, using the GNU C++ @code{new}
+operator.  On occasion, they free chunks, via @code{delete}.
+
+Each independent stack is represented by a Obstack.
+
+One motivation for this package is the problem of growing char strings
+in symbol tables.  Unless you are a ``fascist pig with a read-only mind''
+[Gosper's immortal quote from HAKMEM item 154, out of context] you
+would not like to put any arbitrary upper limit on the length of your
+symbols.
+
+In practice this often means you will build many short symbols and a
+few long symbols.  At the time you are reading a symbol you don't know
+how long it is.  One traditional method is to read a symbol into a
+buffer, @code{realloc()}ating the buffer every time you try to read a
+symbol that is longer than the buffer.  This is beaut, but you still will
+want to copy the symbol from the buffer to a more permanent
+symbol-table entry say about half the time.
+
+With obstacks, you can work differently.  Use one obstack for all symbol
+names.  As you read a symbol, grow the name in the obstack gradually.
+When the name is complete, finalize it.  Then, if the symbol exists already,
+free the newly read name.
+
+The way we do this is to take a large chunk, allocating memory from
+low addresses.  When you want to build a symbol in the chunk you just
+add chars above the current ``high water mark'' in the chunk.  When you
+have finished adding chars, because you got to the end of the symbol,
+you know how long the chars are, and you can create a new object.
+Mostly the chars will not burst over the highest address of the chunk,
+because you would typically expect a chunk to be (say) 100 times as
+long as an average object.
+
+In case that isn't clear, when we have enough chars to make up
+the object, @emph{they are already contiguous in the chunk} (guaranteed)
+so we just point to it where it lies.  No moving of chars is
+needed and this is the second win: potentially long strings need
+never be explicitly shuffled. Once an object is formed, it does not
+change its address during its lifetime.
+
+When the chars burst over a chunk boundary, we allocate a larger
+chunk, and then copy the partly formed object from the end of the old
+chunk to the beginning of the new larger chunk.  We then carry on
+accreting characters to the end of the object as we normally would.
+
+A special version of grow is provided to add a single char at a time
+to a growing object.
+
+Summary:
+
+@itemize @bullet
+@item 
+We allocate large chunks.
+@item 
+We carve out one object at a time from the current chunk.
+@item 
+Once carved, an object never moves.
+@item 
+We are free to append data of any size to the currently growing object.
+@item 
+Exactly one object is growing in an obstack at any one time.
+@item 
+You can run one obstack per control block.
+@item 
+You may have as many control blocks as you dare.
+@item 
+Because of the way we do it, you can `unwind' a obstack back to a
+previous state. (You may remove objects much as you would with a stack.)
+@end itemize
+
+The obstack data structure is used in many places in the GNU C++ compiler.
+
+Differences from the the GNU C version
+@enumerate
+@item 
+The obvious differences stemming from the use of classes and
+inline functions instead of structs and macros. The C
+@code{init} and @code{begin} macros are replaced by constructors.
+
+@item 
+Overloaded function names are used for grow (and others),
+rather than the C @code{grow}, @code{grow0}, etc.
+
+@item 
+All dynamic allocation uses the the built-in @code{new} operator.
+This restricts flexibility by a little, but maintains compatibility
+with usual C++ conventions. 
+
+@item 
+There are now two versions of finish:
+
+@enumerate
+@item 
+finish() behaves like the C version.
+
+@item 
+finish(char terminator) adds @code{terminator}, and then calls
+@code{finish()}.  This enables the normal invocation of @code{finish(0)} to
+wrap up a string being grown character-by-character.
+@end enumerate
+
+@item 
+There are special versions of grow(const char* s) and 
+copy(const char* s) that add the null-terminated string @code{s}
+after computing its length.
+
+@item
+The shrink and contains functions are provided.
+
+@end enumerate
+
+@node AllocRing, String, Obstack, Top
+@chapter The AllocRing class
+
+An AllocRing is a bounded ring (circular list), each of whose elements
+contains a pointer to some space allocated via @code{new
+char[some_size]}. The entries are used cyclicly.  The size, n, of the
+ring is fixed at construction. After that, every nth use of the ring
+will reuse (or reallocate) the same space. AllocRings are needed in
+order to temporarily hold chunks of space that are needed transiently,
+but across constructor-destructor scopes. They mainly useful for storing
+strings containing formatted characters to print across various
+functions and coercions. These strings are needed across routines, so
+may not be deleted in any one of them, but should be recovered at some
+point. In other words, an AllocRing is an extremely simple minded
+garbage collection mechanism. The GNU C++ library used to use one
+AllocRing for such formatting purposes, but it is being phased out,
+and is now only used by obsolete functions.
+These days, AllocRings are probably not very useful.
+
+Support includes:
+
+@table @code
+
+@item AllocRing a(int n)
+constructs an Alloc ring with n entries, all null.
+
+@item void* mem = a.alloc(sz)
+moves the ring pointer to the next entry, and reuses the space
+if their is enough, also allocates space via new char[sz].
+
+@item int present = a.contains(void* ptr)
+returns true if ptr is held in one of the ring entries.
+
+@item a.clear()
+deletes all space pointed to in any entry. This is called
+automatically upon destruction.
+
+@item a.free(void* ptr)
+If ptr is one of the entries, calls delete of the pointer,
+and resets to entry pointer to null.
+
+@end table
+
+@node String, Integer, AllocRing, Top
+@chapter The String class
+
+The @code{String} class is designed to extend GNU C++ to support
+string processing capabilities similar to those in languages like
+Awk.  The class provides facilities that ought to be convenient
+and efficient enough to be useful replacements for @code{char*}
+based processing via the C string library (i.e., @code{strcpy,
+strcmp,} etc.) in many applications. Many details about String
+representations are described in the Representation section.
+
+A separate @code{SubString} class supports substring extraction
+and modification operations. This is implemented in a way that
+user programs never directly construct or represent substrings,
+which are only used indirectly via String operations.
+
+Another separate class, @code{Regex} is also used indirectly via String
+operations in support of regular expression searching, matching, and the
+like.  The Regex class is based entirely on the GNU Emacs regex
+functions.  @xref{Regexps, Syntax of Regular Expressions, Syntax of
+Regular Expressions, emacs.info, GNU Emacs Manual}, for a full
+explanation of regular expression syntax.  (For implementation details,
+see the internal documentation in files @file{regex.h} and
+@file{regex.c}.)
+
+@section  Constructors
+
+Strings are initialized and assigned as in the following examples:
+
+@table @code
+
+@item String x;  String y = 0; String z = "";
+Set x, y, and z to the nil string. Note that either 0 or "" may 
+always be used to refer to the nil string.
+
+@item String x = "Hello"; String y("Hello");
+Set x and y to a copy of the string "Hello".
+
+@item String x = 'A'; String y('A');
+Set x and y to the string value "A"
+
+@item String u = x; String v(x);
+Set u and v to the same string as String x
+
+@item String u = x.at(1,4); String v(x.at(1,4));
+Set u and v to the length 4 substring of x starting at position 1
+(counting indexes from 0).
+
+@item String x("abc", 2); 
+Sets x to "ab", i.e., the first 2 characters of "abc".
+
+@item String x = dec(20);
+Sets x to "20". As here, Strings may be initialized or assigned
+the results of any @code{char*} function.
+
+@end table
+
+There are no directly accessible forms for declaring SubString
+variables.
+
+The declaration @code{Regex r("[a-zA-Z_][a-zA-Z0-9_]*");} creates
+a compiled regular expression suitable for use in String
+operations described below. (In this case, one that matches any
+C++ identifier). The first argument may also be a String.
+Be careful in distinguishing the role of backslashes in quoted
+GNU C++ char* constants versus those in Regexes. For example, a Regex
+that matches either one or more tabs or all strings beginning
+with "ba" and ending with any number of occurrences of "na"
+could be declared as @code{Regex r = "\\(\t+\\)\\|\\(ba\\(na\\)*\\)"}
+Note that only one backslash is needed to signify the tab, but
+two are needed for the parenthesization and virgule, since the
+GNU C++ lexical analyzer decodes and strips backslashes before
+they are seen by Regex.
+
+There are three additional optional arguments to the Regex constructor 
+that are less commonly useful:
+
+@table @code
+@item fast (default 0)
+@code{fast} may be set to true (1) if the Regex should be
+"fast-compiled". This causes an additional compilation step that
+is generally worthwhile if the Regex will be used many times.
+
+@item bufsize (default max(40, length of the string))
+This is an estimate of the size of the internal compiled
+expression. Set it to a larger value if you know that the
+expression will require a lot of space. If you do not know, 
+do not worry: realloc is used if necessary.
+
+@item transtable (default none == 0)
+The address of a byte translation table (a char[256]) that
+translates each character before matching.
+
+@end table
+
+As a convenience, several Regexes are predefined and usable in
+any program. Here are their declarations from @file{String.h}.
+
+@smallexample
+extern Regex RXwhite;      // = "[ \n\t]+"
+extern Regex RXint;        // = "-?[0-9]+"
+extern Regex RXdouble;     // = "-?\\(\\([0-9]+\\.[0-9]*\\)\\|
+                           //    \\([0-9]+\\)\\|
+                           //    \\(\\.[0-9]+\\)\\)
+                           //    \\([eE][---+]?[0-9]+\\)?"
+extern Regex RXalpha;      // = "[A-Za-z]+"
+extern Regex RXlowercase;  // = "[a-z]+"
+extern Regex RXuppercase;  // = "[A-Z]+"
+extern Regex RXalphanum;   // = "[0-9A-Za-z]+"
+extern Regex RXidentifier; // = "[A-Za-z_][A-Za-z0-9_]*"
+
+@end smallexample
+
+@section Examples
+
+Most @code{String} class capabilities are best shown via example.
+The examples below use the following declarations.
+
+@example
+    String x = "Hello";
+    String y = "world";
+    String n = "123";
+    String z;
+    char*  s = ",";
+    String lft, mid, rgt;
+    Regex  r = "e[a-z]*o";
+    Regex  r2("/[a-z]*/");
+    char   c;
+    int    i, pos, len;
+    double f;
+    String words[10];
+    words[0] = "a";
+    words[1] = "b";
+    words[2] = "c";
+    
+@end example
+
+@section Comparing, Searching and Matching
+
+The usual lexicographic relational operators (@code{==, !=, <, <=, >, >=}) 
+are defined. A functional form @code{compare(String, String)} is also
+provided, as is @code{fcompare(String, String)}, which compares
+Strings without regard for upper vs. lower case.
+
+All other matching and searching operations are based on some form of the
+(non-public) @code{match} and @code{search} functions.  @code{match} and
+@code{search} differ in that @code{match} attempts to match only at the
+given starting position, while @code{search} starts at the position, and
+then proceeds left or right looking for a match.  As seen in the following
+examples, the second optional @code{startpos} argument to functions using
+@code{match} and @code{search} specifies the starting position of the
+search: If non-negative, it results in a left-to-right search starting at
+position @code{startpos}, and if negative, a right-to-left search starting
+at position @code{x.length() + startpos}. In all cases, the index returned
+is that of the beginning of the match, or -1 if there is no match. 
+
+Three String functions serve as front ends to @code{search} and @code{match}.
+@code{index} performs a search, returning the index, @code{matches} performs
+a match, returning nonzero (actually, the length of the match) on success,
+and @code{contains} is a boolean function performing either a search or
+match, depending on whether an index argument is provided:
+
+@table @code
+
+@item x.index("lo")
+returns the zero-based index of the leftmost occurrence of
+substring "lo" (3, in this case).  The argument may be a 
+String, SubString, char, char*, or Regex.
+
+@item x.index("l", 2)
+returns the index of the first of the leftmost occurrence of "l"
+found starting the search at position x[2], or 2 in this case.
+
+@item x.index("l", -1)
+returns the index of the rightmost occurrence of "l", or 3 here.
+
+@item x.index("l", -3)
+returns the index of the rightmost occurrence of "l" found by
+starting the search at the 3rd to the last position of x,
+returning 2 in this case.
+
+@item pos = r.search("leo", 3, len, 0)
+returns the index of r in the @code{char*} string of length 3,
+starting at position 0, also placing the  length of the match
+in reference parameter len.
+
+@item x.contains("He")
+returns nonzero if the String x contains the substring "He". The
+argument may be a String, SubString, char, char*, or Regex.
+
+@item x.contains("el", 1)
+returns nonzero if x contains the substring "el" at position 1.
+As in this example, the second argument to @code{contains},
+if present, means to match the substring only at that position,
+and not to search elsewhere in the string.
+
+@item x.contains(RXwhite);
+returns nonzero if x contains any whitespace (space, tab, or
+newline). Recall that @code{RXwhite} is a global whitespace Regex.
+
+@item x.matches("lo", 3)
+returns nonzero if x starting at position 3 exactly matches "lo", with
+no trailing characters (as it does in this example).
+
+@item x.matches(r)
+returns nonzero if String x as a whole matches Regex r.
+
+@item int f = x.freq("l")
+returns the number of distinct, nonoverlapping matches to the argument
+(2 in this case).
+
+@end table
+
+@section Substring extraction
+
+Substrings may be extracted via the @code{at}, @code{before},
+@code{through}, @code{from}, and @code{after} functions.  
+These behave as either lvalues or rvalues.
+
+@table @code
+
+@item z = x.at(2, 3)
+sets String z to be equal to the length 3 substring of String x
+starting at zero-based position 2, setting z to "llo" in this
+case. A nil String is returned if the arguments don't make sense.
+
+@item x.at(2, 2) = "r"
+Sets what was in positions 2 to 3 of x to "r", setting x to
+"Hero" in this case. As indicated here, SubString assignments may
+be of different lengths.
+
+@item x.at("He") = "je";
+x("He") is the substring of x that matches the first occurrence of
+it's argument. The substitution sets x to "jello". If "He" did
+not occur, the substring would be nil, and the assignment would
+have no effect.
+
+@item  x.at("l", -1) = "i";
+replaces the rightmost occurrence of "l" with "i", setting x to
+"Helio".
+
+@item z = x.at(r)
+sets String z to the first match in x of Regex r, or "ello" in this
+case. A nil String is returned if there is no match.
+
+@item z = x.before("o")
+sets z to the part of x to the left of the first occurrence of
+"o", or "Hell" in this case. The argument may also be a String,
+SubString, or Regex.  (If there is no match, z is set to "".)
+
+@item x.before("ll") = "Bri";
+sets the part of x to the left of "ll" to "Bri", setting x to
+"Brillo".
+
+@item z = x.before(2)
+sets z to the part of x to the left of x[2], or "He" in this
+case.
+
+@item z = x.after("Hel")
+sets z to the part of x to the right of "Hel", or "lo" in this
+case.
+
+@item z = x.through("el")
+sets z to the part of x up and including "el", or "Hel" in this case.
+
+@item z = x.from("el")
+sets z to the part of x from "el" to the end, or "ello" in this case.
+
+@item x.after("Hel") = "p";  
+sets x to "Help";
+
+@item z = x.after(3)
+sets z to the part of x to the right of x[3] or "o" in this case.
+
+@item z = "  ab c"; z = z.after(RXwhite)  
+sets z to the part of its old string to the right of the first
+group of whitespace, setting z to "ab c"; Use gsub(below) to
+strip out multiple occurrences of whitespace or any pattern.
+
+@item x[0] = 'J';
+sets the first element of x to 'J'. x[i] returns a reference to
+the ith element of x, or triggers an error if i is out of range. 
+
+@item common_prefix(x, "Help")
+returns the String containing the common prefix of the two Strings
+or "Hel" in this case.
+
+@item common_suffix(x, "to")
+returns the String containing the common suffix of the two Strings
+or "o" in this case.
+
+@end table
+
+@section Concatenation
+
+@table @code
+
+@item  z = x + s + ' ' + y.at("w") + y.after("w") + ".";
+sets z to "Hello, world."
+
+@item x += y;
+sets x to "Helloworld"
+
+@item cat(x, y, z)
+A faster way to say z = x + y.
+
+@item cat(z, y, x, x)
+Double concatenation; A faster way to say x = z + y + x.
+
+@item y.prepend(x);
+A faster way to say y = x + y.
+
+@item z = replicate(x, 3);
+sets z to "HelloHelloHello".
+
+@item z = join(words, 3, "/")
+sets z to the concatenation of the first 3 Strings in String
+array words, each separated by "/", setting z to "a/b/c" in this
+case.  The last argument may be "" or 0, indicating no separation.
+
+@end table
+
+@section Other manipulations
+
+@table @code
+
+@item z = "this string has five words"; i = split(z, words, 10, RXwhite);
+sets up to 10 elements of String array words to the parts of z
+separated by whitespace, and returns the number of parts actually
+encountered (5 in this case). Here, words[0] = "this", words[1] =
+"string", etc.  The last argument may be any of the usual.
+If there is no match, all of z ends up in words[0]. The words array
+is @emph{not} dynamically created by split. 
+
+@item int nmatches x.gsub("l","ll")
+substitutes all original occurrences of "l" with "ll", setting x
+to "Hellllo". The first argument may be any of the usual,
+including Regex.  If the second argument is "" or 0, all
+occurrences are deleted. gsub returns the number of matches
+that were replaced.
+
+@item z = x + y;  z.del("loworl");
+deletes the leftmost occurrence of "loworl" in z, setting z to
+"Held".
+
+@item z = reverse(x)
+sets z to the reverse of x, or "olleH".
+
+@item z = upcase(x)
+sets z to x, with all letters set to uppercase, setting z to "HELLO"
+
+@item z = downcase(x)
+sets z to x, with all letters set to lowercase, setting z to "hello"
+
+@item z = capitalize(x)
+sets z to x, with the first letter of each word set to uppercase, 
+and all others to lowercase, setting z to "Hello"
+
+@item x.reverse(), x.upcase(), x.downcase(), x.capitalize()
+in-place, self-modifying versions of the above.
+
+@end table
+
+@section Reading, Writing and Conversion
+
+@table @code
+
+@item cout << x 
+writes out x. 
+
+@item cout << x.at(2, 3)
+writes out the substring "llo".
+
+@item cin >> x
+reads a whitespace-bounded string into x.
+
+@item x.length()
+returns the length of String x (5, in this case).
+
+@item s = (const char*)x
+can be used to extract the @code{char*} char array. This
+coercion is useful for sending a String as an argument to any
+function expecting a @code{const char*} argument (like
+@code{atoi}, and @code{File::open}). This operator must be
+used with care, since the conversion returns a pointer
+to @code{String} internals without copying the characters:
+The resulting @code{(char*)} is only valid until
+the next String operation,  and you must not modify it.
+(The conversion is defined to return a const
+value so that GNU C++ will produce warning and/or error
+messages if changes are attempted.)
+
+@end table
+
+@node Integer, Rational, String, Top
+@chapter The Integer class.
+
+The @code{Integer} class provides multiple precision integer arithmetic
+facilities. Some representation details are discussed in the 
+Representation section.
+
+@code{Integers} may be up to @code{b * ((1 << b) - 1)} bits long, where
+@code{b} is the number of bits per short (typically 1048560 bits when
+@code{b = 16}).  The implementation assumes that a @code{long} is at least
+twice as long as a @code{short}. This assumption hides beneath almost all
+primitive operations, and would be very difficult to change. It also relies
+on correct behavior of @emph{unsigned} arithmetic operations.
+
+Some of the arithmetic algorithms are very loosely based on those
+provided in the MIT Scheme @file{bignum.c} release, which is
+Copyright (c) 1987 Massachusetts Institute of Technology. Their use
+here falls within the provisions described in the Scheme release.
+
+Integers may be constructed in the following ways:
+@table @code
+
+@item Integer x;
+Declares an uninitialized Integer.
+
+@item Integer x = 2; Integer y(2);
+Set x and y to the Integer value 2;
+
+@item Integer u(x); Integer v = x;
+Set u and v to the same value as x.
+
+@end table
+
+@deftypefn Method long Integer::as_long() const
+Used to coerce an @code{Integer} back into longs via the @code{long}
+coercion operator. If the Integer cannot fit into a long, this returns
+MINLONG or MAXLONG (depending on the sign) where MINLONG is the most
+negative, and MAXLONG is the most positive representable long.
+@end deftypefn
+
+@deftypefn Method int Integer::fits_in_long() const
+Returns true iff the @code{Integer} is @code{< MAXLONG} and @code{> MINLONG}.
+@end deftypefn
+
+@deftypefn Method double Integer::as_double() const
+Coerce the @code{Integer} to a @code{double}, with potential
+loss of precision.
+@code{+/-HUGE} is returned if the Integer cannot fit into a double.
+@end deftypefn
+
+@deftypefn Method int Integer::fits_in_double() const
+Returns true iff the @code{Integer} can fit into a double.
+@end deftypefn
+
+All of the usual arithmetic operators are provided (@code{+, -, *, /,
+%, +=, ++, -=, --, *=, /=, %=, ==, !=, <, <=, >, >=}).  All operators
+support special versions for mixed arguments of Integers and regular
+C++ longs in order to avoid useless coercions, as well as to allow
+automatic promotion of shorts and ints to longs, so that they may be
+applied without additional Integer coercion operators.  The only
+operators that behave differently than the corresponding int or long
+operators are @code{++} and @code{--}.  Because C++ does not
+distinguish prefix from postfix application, these are declared as
+@code{void} operators, so that no confusion can result from applying
+them as postfix.  Thus, for Integers x and y, @code{ ++x; y = x; } is
+correct, but @code{ y = ++x; } and @code{ y = x++; } are not.
+
+Bitwise operators (@code{~}, @code{&}, @code{|}, @code{^}, @code{<<}, 
+@code{>>}, @code{&=}, @code{|=}, @code{^=}, @code{<<=}, @code{>>=}) are
+also provided.  However, these operate on sign-magnitude, rather than
+two's complement representations. The sign of the result is arbitrarily
+taken as the sign of the first argument. For example, @code{Integer(-3)
+& Integer(5)} returns @code{Integer(-1)}, not -3, as it would using
+two's complement. Also, @code{~}, the complement operator, complements
+only those bits needed for the representation.  Bit operators are also
+provided in the BitSet and BitString classes. One of these classes
+should be used instead of Integers when the results of bit manipulations
+are not interpreted numerically.
+
+The following utility functions are also provided. (All arguments
+are Integers unless otherwise noted).
+
+@deftypefun void divide(const Integer& @var{x}, const Integer& @var{y}, Integer& @var{q}, Integer& @var{r})
+Sets @var{q} to the quotient and @var{r} to the remainder of @var{x} and @var{y}.
+(@var{q} and @var{r} are returned by reference). 
+@end deftypefun
+
+@deftypefun Integer pow(const Integer& @var{x}, const Integer& @var{p})
+Returns @var{x} raised to the power @var{p}.
+@end deftypefun
+
+@deftypefun Integer Ipow(long @var{x}, long @var{p})
+Returns @var{x} raised to the power @var{p}.
+@end deftypefun
+
+@deftypefun Integer gcd(const Integer& @var{x}, const Integer& @var{p})
+Returns the greatest common divisor of @var{x} and @var{y}.
+@end deftypefun
+
+@deftypefun Integer lcm(const Integer& @var{x}, const Integer& @var{p})
+Returns the least common multiple of @var{x} and @var{y}.
+@end deftypefun
+
+@deftypefun Integer abs(const Integer& @var{x}
+Returns the absolute value of @var{x}.
+@end deftypefun
+
+@deftypefn Method void Integer::negate()
+Negates @code{this} in place.
+@end deftypefn
+
+@table @code
+
+@item Integer sqr(x)
+returns x * x;
+
+@item Integer sqrt(x)
+returns the floor of the  square root of x.
+
+@item long lg(x);
+returns the floor of the base 2 logarithm of abs(x)
+
+@item int sign(x)
+returns -1 if x is negative, 0 if zero, else +1.
+Using @code{if (sign(x) == 0)} is a generally faster method
+of testing for zero than using relational operators.
+
+@item int even(x)
+returns true if x is an even number
+
+@item int odd(x)
+returns true if x is an odd number.
+
+@item void setbit(Integer& x, long b)
+sets the b'th bit (counting right-to-left from zero) of x to 1.
+
+@item void clearbit(Integer& x, long b)
+sets the b'th bit of x to 0.
+
+@item int testbit(Integer x, long b)
+returns true if the b'th bit of x is 1.
+
+@item Integer atoI(char* asciinumber, int base = 10);
+converts the base base char* string into its Integer form.
+
+@item void Integer::printon(ostream& s, int base = 10, int width = 0);
+prints the ascii string value of @code{(*this)} as a base @code{base}
+number, in field width at least @code{width}.
+
+@item ostream << x;
+prints x in base ten format.
+
+@item istream >> x;
+reads x as a base ten number.
+
+@item int compare(Integer x, Integer y)
+returns a negative number if x<y, zero if x==y, or positive if x>y.
+
+@item int ucompare(Integer x, Integer y)
+like compare, but performs unsigned comparison.
+
+@item add(x, y, z)
+A faster way to say z = x + y.
+
+@item sub(x, y, z)
+A faster way to say z = x - y.
+
+@item mul(x, y, z)
+A faster way to say z = x * y.
+
+@item div(x, y, z)
+A faster way to say z = x / y.
+
+@item mod(x, y, z)
+A faster way to say z = x % y.
+
+@item and(x, y, z)
+A faster way to say z = x & y.
+
+@item or(x, y, z)
+A faster way to say z = x | y.
+
+@item xor(x, y, z)
+A faster way to say z = x ^ y.
+
+@item lshift(x, y, z)
+A faster way to say z = x << y.
+
+@item rshift(x, y, z)
+A faster way to say z = x >> y.
+
+@item pow(x, y, z)
+A faster way to say z = pow(x, y).
+
+@item complement(x, z)
+A faster way to say z = ~x.
+
+@item negate(x, z)
+A faster way to say z = -x.
+
+@end table
+
+@node Rational, Complex, Integer, Top
+@chapter The Rational Class
+
+Class @code{Rational} provides multiple precision rational
+number arithmetic. All rationals are maintained in simplest
+form (i.e., with the numerator and denominator relatively
+prime, and with the denominator strictly positive).
+Rational arithmetic and relational operators are provided 
+(@code{+, -, *, /, +=, -=, *=, /=, ==, !=, <, <=, >, >=}). 
+Operations resulting in a rational number with zero denominator 
+trigger an exception.
+
+Rationals may be constructed and used in the following ways:
+
+@table @code
+
+@item Rational x;
+Declares an uninitialized Rational.
+
+@item Rational x = 2; Rational y(2);
+Set x and y to the Rational value 2/1;
+
+@item Rational x(2, 3);
+Sets x to the Rational value 2/3;
+
+@item Rational x = 1.2;
+Sets x to a Rational value close to 1.2. Any double precision value
+may be used to construct a Rational. The Rational will possess
+exactly as much precision as the double. Double values that do
+not have precise floating point equivalents (like 1.2) produce
+similarly imprecise rational values. 
+
+@item Rational x(Integer(123), Integer(4567));
+Sets x to the Rational value 123/4567.
+
+@item Rational u(x); Rational v = x;
+Set u and v to the same value as x.
+
+@item double(Rational x)
+A Rational may be coerced to a double with potential 
+loss of precision. +/-HUGE is returned if it will not fit.
+
+@item Rational abs(x)
+returns the absolute value of x.
+
+@item void x.negate()
+negates x.
+
+@item void x.invert()
+sets x to 1/x.
+
+@item int sign(x)
+returns 0 if x is zero, 1 if positive, and -1 if negative.
+
+@item Rational sqr(x)
+returns x * x.
+
+@item Rational pow(x, Integer y)
+returns x to the y power.
+
+@item Integer x.numerator()
+returns the numerator.
+
+@item Integer x.denominator()
+returns the denominator.
+
+@item Integer floor(x)
+returns the greatest Integer less than x.
+
+@item Integer ceil(x)
+returns the least Integer greater than x.
+
+@item Integer trunc(x)
+returns the Integer part of x.
+
+@item Integer round(x)
+returns the nearest Integer to x.
+
+@item int compare(x, y)
+returns a negative, zero, or positive number signifying whether x is
+less than, equal to, or greater than y.
+
+@item ostream << x;
+prints x in the form num/den, or just num if the denominator is one.
+
+@item istream >> x;
+reads x in the form num/den, or just num in which case the 
+denominator is set to one.
+
+@item add(x, y, z)
+A faster way to say z = x + y.
+
+@item sub(x, y, z)
+A faster way to say z = x - y.
+
+@item mul(x, y, z)
+A faster way to say z = x * y.
+
+@item div(x, y, z)
+A faster way to say z = x / y.
+
+@item pow(x, y, z)
+A faster way to say z = pow(x, y).
+
+@item negate(x, z)
+A faster way to say z = -x.
+
+@end table
+
+@node Complex, Fix, Rational, Top
+@chapter The Complex class.
+
+Class @code{Complex} is implemented in a way similar to that
+described by Stroustrup. In keeping with libg++ conventions,
+the class is named @code{Complex}, not @code{complex}.
+Complex arithmetic and relational operators are provided 
+(@code{+, -, *, /, +=, -=, *=, /=, ==, !=}). 
+Attempted division by (0, 0) triggers an exception.
+
+Complex numbers may be constructed and used in the following ways:
+
+@table @code
+
+@item Complex x;
+Declares an uninitialized Complex.
+
+@item Complex x = 2; Complex y(2.0);
+Set x and y to the Complex value (2.0, 0.0);
+
+@item Complex x(2, 3);
+Sets x to the Complex value (2, 3);
+
+@item Complex u(x); Complex v = x;
+Set u and v to the same value as x.
+
+@item double real(Complex& x);
+returns the real part of x.
+
+@item double imag(Complex& x);
+returns the imaginary part of x.
+
+@item double abs(Complex& x);
+returns the magnitude of x.
+
+@item double norm(Complex& x);
+returns the square of the magnitude of x.
+
+@item double arg(Complex& x);
+returns the argument (amplitude) of x.
+
+@item Complex polar(double r, double t = 0.0);
+returns a Complex with abs of r and arg of t.
+
+@item Complex conj(Complex& x);
+returns the complex conjugate of x.
+
+@item Complex cos(Complex& x);
+returns the complex cosine of x.
+
+@item Complex sin(Complex& x);
+returns the complex sine of x.
+
+@item Complex cosh(Complex& x);
+returns the complex hyperbolic cosine of x.
+
+@item Complex sinh(Complex& x);
+returns the complex hyperbolic sine of x.
+
+@item Complex exp(Complex& x);
+returns the exponential of x.
+
+@item Complex log(Complex& x);
+returns the natural log of x.
+
+@item Complex pow(Complex& x, long p);
+returns x raised to the p power.
+
+@item Complex pow(Complex& x, Complex& p);
+returns x raised to the p power.
+
+@item Complex sqrt(Complex& x);
+returns the square root of x.
+
+@item ostream << x;
+prints x in the form (re, im).
+
+@item istream >> x;
+reads x in the form (re, im), or just (re) or re in which case the 
+imaginary part is set to zero.
+
+@end table
+
+@node Fix, Bit, Complex, Top
+@chapter  Fixed precision numbers
+
+Classes @code{Fix16}, @code{Fix24}, @code{Fix32}, and @code{Fix48}
+support operations on 16, 24, 32, or 48 bit quantities that are
+considered as real numbers in the range [-1, +1).  Such numbers are
+often encountered in digital signal processing applications. The classes
+may be be used in isolation or together.  Class @code{Fix32}
+operations are entirely self-contained.  Class @code{Fix16} operations
+are self-contained except that the multiplication operation @code{Fix16
+* Fix16} returns a @code{Fix32}. @code{Fix24} and @code{Fix48} are
+similarly related.
+
+The standard arithmetic and relational operations are supported
+(@code{=}, @code{+}, @code{-}, @code{*}, @code{/}, @code{<<}, @code{>>},
+@code{+=}, @code{-=}, @code{*=}, @code{/=}, @code{<<=}, @code{>>=},
+@code{==}, @code{!=}, @code{<}, @code{<=}, @code{>}, @code{>=}).
+All operations include provisions for special handling in cases where
+the result exceeds +/- 1.0. There are two cases that may be handled
+separately: ``overflow'' where the results of addition and subtraction
+operations go out of range, and all other ``range errors'' in which
+resulting values go off-scale (as with division operations, and
+assignment or initialization with off-scale values). In signal
+processing applications, it is often useful to handle these two cases
+differently. Handlers take one argument, a reference to the integer
+mantissa of the offending value, which may then be manipulated.  In
+cases of overflow, this value is the result of the (integer) arithmetic
+computation on the mantissa; in others it is a fully saturated (i.e.,
+most positive or most negative) value. Handling may be reset to any of
+several provided functions or any other user-defined function via
+@code{set_overflow_handler} and @code{set_range_error_handler}. The
+provided functions for @code{Fix16} are as follows (corresponding
+functions are also supported for the others).
+
+@table @code
+
+@item Fix16_overflow_saturate
+The default overflow handler. Results are ``saturated'': positive results
+are set to the largest representable value (binary 0.111111...), and
+negative values to -1.0.
+
+@item Fix16_ignore
+Performs no action. For overflow, this will allow addition and
+subtraction operations to ``wrap around'' in the same manner
+as integer arithmetic, and for saturation, will leave values saturated.
+
+@item Fix16_overflow_warning_saturate
+Prints a warning message on standard error, then saturates the results.
+
+@item Fix16_warning
+The default range_error handler. Prints a warning message
+on standard error; otherwise leaving the argument unmodified.
+
+@item Fix16_abort
+prints an error message on standard error, then aborts execution. 
+
+
+@end table
+
+In addition to arithmetic operations, the following are provided:
+
+@table @code
+
+@item Fix16 a = 0.5; 
+Constructs fixed precision objects from double precision values.
+Attempting to initialize to a value outside the range invokes
+the range_error handler, except, as a convenience, 
+initialization to 1.0 sets the variable to the most positive 
+representable value (binary 0.1111111...) without invoking the handler.
+
+@item short& mantissa(a); long& mantissa(b);
+return a * pow(2, 15) or b * pow(2, 31) as an integer. These
+are returned by reference, to enable ``manual'' data manipulation.
+
+@item double value(a); double value(b);
+return a or b as floating point numbers.
+
+@end table
+
+@node Bit, Random, Fix, Top
+@chapter  Classes for Bit manipulation
+
+libg++ provides several different classes supporting the use
+and manipulation of collections of bits in different ways.
+
+@itemize @bullet
+
+@item
+Class @code{Integer} provides ``integer'' semantics. It supports
+manipulation of bits in ways that are often useful when treating bit arrays
+as numerical (integer) quantities.  This class is described elsewhere.
+
+@item 
+Class @code{BitSet} provides ``set'' semantics. It supports operations
+useful when treating collections of bits as representing potentially
+infinite sets of integers.
+
+@item
+Class @code{BitSet32} supports fixed-length BitSets holding exactly
+32 bits.
+
+@item
+Class @code{BitSet256} supports fixed-length BitSets holding exactly
+256 bits.
+
+@item
+Class @code{BitString} provides ``string'' (or ``vector'') semantics. 
+It supports operations useful when treating collections of bits as 
+strings of zeros and ones.
+
+@end itemize
+
+These classes also differ in the following ways:
+
+@itemize @bullet
+
+
+@item
+BitSets are logically infinite. Their space is dynamically altered to
+adjust to the smallest number of consecutive bits actually required to
+represent the sets. Integers also have this property. BitStrings are
+logically finite, but their sizes are internally dynamically managed to
+maintain proper length. This means that, for example, BitStrings are
+concatenatable while BitSets and Integers are not. 
+
+@item
+BitSet32 and BitSet256 have precisely the same properties as BitSets,
+except that they use constant fixed length bit vectors.
+
+@item
+While all classes support basic unary and binary operations @code{~, &,
+|, ^, -}, the semantics differ. BitSets perform bit operations that
+precisely mirror those for infinite sets. For example, complementing an
+empty BitSet returns one representing an infinite number of set bits.
+Operations on BitStrings and Integers operate only on those bits
+actually present in the representation.  For BitStrings and Integers,
+the the @code{&} operation returns a BitString with a length equal to
+the minimum length of the operands, and @code{|, ^} return one with
+length of the maximum.
+
+@item
+Only BitStrings support substring extraction and bit pattern matching.
+
+@end itemize
+
+@section BitSet
+
+BitSets are objects that contain logically infinite sets of nonnegative
+integers.  Representational details are discussed in the Representation
+chapter. Because they are logically infinite, all BitSets possess a
+trailing, infinitely replicated 0 or 1 bit, called the ``virtual bit'', and
+indicated via 0* or 1*.
+
+BitSet32 and BitSet256 have they same properties, except they are
+of fixed length, and thus have no virtual bit. 
+
+BitSets may be constructed as follows:
+
+@table @code
+
+@item BitSet a;
+declares an empty BitSet.
+
+@item BitSet a = atoBitSet("001000");
+sets a to the BitSet 0010*, reading left-to-right. The ``0*''
+indicates that the set ends with an infinite number of zero
+(clear) bits.
+
+@item BitSet a = atoBitSet("00101*");
+sets a to the BitSet 00101*, where ``1*'' means that the set ends
+with an infinite number of one (set) bits.
+
+@item BitSet a = longtoBitSet((long)23);
+sets a to the BitSet 111010*, the binary representation of decimal 23.
+
+@item BitSet a = utoBitSet((unsigned)23);
+sets a to the BitSet 111010*, the binary representation of decimal 23.
+
+@end table
+
+The following functions and operators are provided (Assume the
+declaration of BitSets a = 0011010*, b = 101101*, throughout, as
+examples).
+
+@table @code
+
+@item ~a
+returns the complement of a, or 1100101* in this case.
+
+@item a.complement()
+sets a to ~a.
+
+@item a & b; a &= b;
+returns a intersected with b, or 0011010*.
+
+@item a | b; a |= b;
+returns a unioned with b, or 1011111*.
+
+@item a - b; a -= b;
+returns the set difference of a and b, or 000010*.
+
+@item a ^ b; a ^= b;
+returns the symmetric difference of a and b, or 1000101*.
+
+@item a.empty()
+returns true if a is an empty set.
+
+@item a == b; 
+returns true if a and b contain the same set.
+
+@item a <= b;
+returns true if a is a subset of b.
+
+@item a < b;
+returns true if a is a proper subset of b;
+
+@item a != b; a >= b; a > b;
+are the converses of the above.
+
+@item a.set(7)
+sets the 7th (counting from 0) bit of a, setting a to 001111010*
+
+@item a.clear(2)
+clears the 2nd bit bit of a, setting a to 00011110*
+
+@item a.clear()
+clears all bits of a;
+
+@item a.set()
+sets all bits of a;
+
+@item a.invert(0)
+complements the 0th bit of a, setting a to 10011110*
+
+@item a.set(0,1)
+sets the 0th through 1st bits of a, setting a to 110111110*
+The two-argument versions of clear and invert are similar.
+
+@item a.test(3)
+returns true if the 3rd bit of a is set.
+
+@item a.test(3, 5)
+returns true if any of bits 3 through 5 are set.
+
+@item int i = a[3]; a[3] = 0;
+The subscript operator allows bits to be inspected and changed
+via standard subscript semantics, using a friend class BitSetBit.
+The use of the subscript operator a[i] rather than a.test(i) 
+requires somewhat greater overhead.
+
+@item a.first(1) or a.first()
+returns the index of the first set bit of a (2 in this case), 
+or -1 if no bits are set.
+
+@item a.first(0)
+returns the index of the first clear bit of a (0 in this case), 
+or -1 if no bits are clear.
+
+@item a.next(2, 1) or a.next(2)
+returns the index of the next bit after position 2 that is set (3
+in this case) or -1. @code{first} and @code{next} may be used as
+iterators, as in 
+@code{for (int i = a.first(); i >= 0; i = a.next(i))...}.
+
+@item a.last(1)
+returns the index of the rightmost set bit, or -1 if there or no set
+bits or all set bits.
+
+@item a.prev(3, 0)
+returns the index of the previous clear bit before position 3.
+
+@item a.count(1)
+returns the number of set bits in a, or -1 if there are 
+an infinite number.
+
+@item a.virtual_bit()
+returns the trailing (infinitely replicated) bit of a.
+
+@item a = atoBitSet("ababX", 'a', 'b', 'X');
+converts the char* string into a bitset, with 'a' denoting false,
+'b' denoting true, and 'X' denoting infinite replication.
+
+@item a.printon(cout, '-', '.', 0)
+prints @code{a} to @code{cout} represented with
+@code{'-'} for falses, @code{'.'} for trues, and no replication marker.
+
+@item cout << a
+prints @code{a} to @code{cout} (representing lases by @code{'f'},
+trues by @code{'t'}, and using @code{'*'} as the replication marker).
+
+@end table
+
+@section BitString
+
+BitStrings are objects that contain arbitrary-length strings of
+zeroes and ones. BitStrings possess some features that make them
+behave like sets, and others that behave as strings. They are
+useful in applications (such as signature-based algorithms) where
+both capabilities are needed.  Representational details are
+discussed in the Representation chapter.  Most capabilities are
+exact analogs of those supported in the BitSet and String
+classes.  A BitSubString is used with substring operations along
+the same lines as the String SubString class.  A BitPattern class
+is used for masked bit pattern searching.
+
+Only a default constructor is supported.  The declaration
+@code{BitString a;} initializes a to be an empty BitString.
+BitStrings may often be initialized via @code{atoBitString}
+and @code{longtoBitString}.
+
+Set operations (@code{ ~, complement, &, &=, |, |=, -, ^, ^=})
+behave just as the BitSet versions, except that there is no
+``virtual bit'': complementing complements only those bits in the
+BitString, and all binary operations across unequal length
+BitStrings assume a virtual bit of zero. The @code{&} operation
+returns a BitString with a length equal to the minimum length of
+the operands, and @code{|, ^} return one with length of the
+maximum.
+
+Set-based relational operations (@code{==, !=, <=, <, >=, >})
+follow the same rules. A string-like lexicographic comparison
+function, @code{lcompare}, tests the lexicographic relation between
+two BitStrings. For example, lcompare(1100, 0101) returns 1,
+since the first BitString starts with 1 and the second with 0.
+
+Individual bit setting, testing, and iterator operations 
+(@code{set, clear, invert, test, first, next, last, prev})
+are also like those for BitSets. BitStrings are automatically
+expanded when setting bits at positions greater than their
+current length.
+
+The string-based capabilities are just as those for class String.
+BitStrings may be concatenated (@code{+, +=}), searched
+(@code{index, contains, matches}), and extracted into
+BitSubStrings (@code{before, at, after}) which may be assigned and
+otherwise manipulated. Other string-based utility functions
+(@code{reverse, common_prefix, common_suffix}) are also provided.
+These have the same capabilities and descriptions as those
+for Strings.
+
+String-oriented operations can also be performed with a mask via
+class BitPattern. BitPatterns consist of two BitStrings, a
+pattern and a mask. On searching and matching, bits in the pattern
+that correspond to 0 bits in the mask are ignored. (The mask may
+be shorter than the pattern, in which case trailing mask bits are
+assumed to be 0). The pattern and mask are both public variables,
+and may be individually subjected to other bit operations.
+
+Converting to char* and printing (@code{(atoBitString,
+atoBitPattern, printon, ostream <<)}) are also as in BitSets, 
+except that no virtual bit is used, and an 'X' in a BitPattern means
+that the pattern bit is masked out.
+
+The following features are unique to BitStrings. 
+
+Assume declarations of BitString a = atoBitString("01010110") and b =
+atoBitSTring("1101").
+
+@table @code
+
+@item a = b + c;
+Sets a to the concatenation of b and c;
+
+@item a = b + 0; a = b + 1;
+sets a to b, appended with a zero (one).
+
+@item a += b;
+appends b to a;
+
+@item a += 0; a += 1;
+appends a zero (one) to a.
+
+@item a << 2; a <<= 2
+return a with 2 zeros prepended, setting a to 0001010110. (Note
+the necessary confusion of << and >> operators. For consistency
+with the integer versions, << shifts low bits to high, even though
+they are printed low bits first.)
+
+@item a >> 3; a >>= 3
+return a with the first 3 bits deleted, setting a to 10110.
+
+@item a.left_trim(0)
+deletes all 0 bits on the left of a, setting a to 1010110.
+
+@item a.right_trim(0)
+deletes all trailing 0 bits of a, setting a to 0101011.
+
+@item cat(x, y, z)
+A faster way to say z = x + y.
+
+@item diff(x, y, z)
+A faster way to say z = x - y.
+
+@item and(x, y, z)
+A faster way to say z = x & y.
+
+@item or(x, y, z)
+A faster way to say z = x | y.
+
+@item xor(x, y, z)
+A faster way to say z = x ^ y.
+
+@item lshift(x, y, z)
+A faster way to say z = x << y.
+
+@item rshift(x, y, z)
+A faster way to say z = x >> y.
+
+@item complement(x, z)
+A faster way to say z = ~x.
+
+@end table
+
+
+@node Random, Data, Bit, Top
+@chapter Random Number Generators and related classes
+
+The two classes @code{RNG} and @code{Random} are used together to
+generate a variety of random number distributions.  A distinction must
+be made between @emph{random number generators}, implemented by class
+@code{RNG}, and @emph{random number distributions}.  A random number
+generator produces a series of randomly ordered bits.  These bits can be
+used directly, or cast to other representations, such as a floating
+point value.  A random number generator should produce a @emph{uniform}
+distribution.  A random number distribution, on the other hand, uses the
+randomly generated bits of a generator to produce numbers from a
+distribution with specific properties.  Each instance of @code{Random}
+uses an instance of class @code{RNG} to provide the raw, uniform
+distribution used to produce the specific distribution.  Several
+instances of @code{Random} classes can share the same instance of
+@code{RNG}, or each instance can use its own copy.
+
+@section RNG
+
+Random distributions are constructed from members of class @code{RNG},
+the actual random number generators.  The @code{RNG} class contains no
+data; it only serves to define the interface to random number
+generators.  The @code{RNG::asLong} member returns an unsigned long
+(typically 32 bits) of random bits.  Applications that require a number
+of random bits can use this directly.  More often, these random bits are
+transformed to a uniform random number:
+
+@smallexample
+    //
+    // Return random bits converted to either a float or a double
+    //
+    float asFloat();
+    double asDouble();
+@};
+@end smallexample
+
+@noindent
+using either @code{asFloat} or @code{asDouble}.  It is intended that
+@code{asFloat} and @code{asDouble} return differing precisions;
+typically, @code{asDouble} will draw two random longwords and transform
+them into a legal @code{double}, while @code{asFloat} will draw a single
+longword and transform it into a legal @code{float}.  These members are
+used by subclasses of the @code{Random} class to implement a variety of
+random number distributions.
+
+@section ACG
+
+Class @code{ACG} is a variant of a Linear Congruential Generator
+(Algorithm M) described in Knuth, @emph{Art of Computer Programming, Vol
+III}.  This result is permuted with a Fibonacci Additive Congruential
+Generator to get good independence between samples.  This is a very high
+quality random number generator, although it requires a fair amount of
+memory for each instance of the generator.
+
+The @code{ACG::ACG} constructor takes two parameters: the seed and the
+size.  The seed is any number to be used as an initial seed. The
+performance of the generator depends on having a distribution of bits
+through the seed.  If you choose a number in the range of 0 to 31, a
+seed with more bits is chosen. Other values are deterministically
+modified to give a better distribution of bits.  This provides a good
+random number generator while still allowing a sequence to be repeated
+given the same initial seed.
+
+The @code{size} parameter determines the size of two tables used in the
+generator. The first table is used in the Additive Generator; see the
+algorithm in Knuth for more information. In general, this table is
+@code{size} longwords long. The default value, used in the algorithm in
+Knuth, gives a table of 220 bytes. The table size affects the period of
+the generators; smaller values give shorter periods and larger tables
+give longer periods. The smallest table size is 7 longwords, and the
+longest is 98 longwords. The @code{size} parameter also determines the
+size of the table used for the Linear Congruential Generator. This value
+is chosen implicitly based on the size of the Additive Congruential
+Generator table. It is two powers of two larger than the power of two
+that is larger than @code{size}.  For example, if @code{size} is 7, the
+ACG table is 7 longwords and the LCG table is 128 longwords. Thus, the
+default size (55) requires 55 + 256 longwords, or 1244 bytes. The
+largest table requires 2440 bytes and the smallest table requires 100
+bytes.  Applications that require a large number of generators or
+applications that aren't so fussy about the quality of the generator may
+elect to use the @code{MLCG} generator.
+
+@section MLCG
+
+The @code{MLCG} class implements a @emph{Multiplicative Linear
+Congruential Generator}. In particular, it is an implementation of the
+double MLCG described in @emph{``Efficient and Portable Combined Random
+Number Generators''} by Pierre L'Ecuyer, appearing in
+@emph{Communications of the ACM, Vol. 31. No. 6}. This generator has a
+fairly long period, and has been statistically analyzed to show that it
+gives good inter-sample independence.
+
+The @code{MLCG::MLCG} constructor has two parameters, both of which are
+seeds for the generator. As in the @code{MLCG} generator, both seeds are
+modified to give a ``better'' distribution of seed digits. Thus, you can
+safely use values such as `0' or `1' for the seeds. The @code{MLCG}
+generator used much less state than the @code{ACG} generator; only two
+longwords (8 bytes) are needed for each generator.
+
+@section Random
+
+A random number generator may be declared by first declaring a
+@code{RNG} and then a @code{Random}. For example, @code{ACG gen(10, 20);
+NegativeExpntl rnd (1.0, &gen);} declares an additive congruential
+generator with seed 10 and table size 20, that is used to generate
+exponentially distributed values with mean of 1.0.
+
+The virtual member @code{Random::operator()} is the common way of
+extracting a random number from a particular distribution.  The base
+class, @code{Random} does not implement @code{operator()}. This is
+performed by each of the subclasses. Thus, given the above declaration
+of @code{rnd}, new random values may be obtained via, for example,
+@code{double next_exp_rand = rnd();} Currently, the following subclasses
+are provided.
+
+@section Binomial
+
+The binomial distribution models successfully drawing items from
+a pool.  The first parameter to the constructor, @code{n}, is the
+number of items in the pool, and the second parameter, @code{u},
+is the probability of each item being successfully drawn.  The
+member @code{asDouble} returns the number of samples drawn from
+the pool.  Although it is not checked, it is assumed that
+@code{n>0} and @code{0 <= u <= 1}.  The remaining members allow
+you to read and set the parameters.
+
+@section Erlang
+
+The @code{Erlang} class implements an Erlang distribution with
+mean @code{mean} and variance @code{variance}.
+
+@section Geometric
+
+The @code{Geometric} class implements a discrete geometric
+distribution.  The first parameter to the constructor,
+@code{mean}, is the mean of the distribution.  Although it is not
+checked, it is assumed that @code{0 <= mean <= 1}.
+@code{Geometric()} returns the number of uniform random samples
+that were drawn before the sample was larger than @code{mean}.
+This quantity is always greater than zero.
+
+@section HyperGeometric
+
+The @code{HyperGeometric} class implements the hypergeometric
+distribution.  The first parameter to the constructor,
+@code{mean}, is the mean and the second, @code{variance}, is the
+variance.  The remaining members allow you to inspect and change
+the mean and variance.
+
+@section NegativeExpntl
+
+The @code{NegativeExpntl} class implements the negative
+exponential distribution.  The first parameter to the constructor
+is the mean.  The remaining members allow you to inspect and
+change the mean.
+
+@section Normal
+
+The @code{Normal}class implements the normal distribution.  The
+first parameter to the constructor, @code{mean}, is the mean and
+the second, @code{variance}, is the variance.  The remaining
+members allow you to inspect and change the mean and variance.
+The @code{LogNormal} class is a subclass of @code{Normal}.
+
+@section LogNormal
+
+The @code{LogNormal}class implements the logarithmic normal
+distribution.  The first parameter to the constructor,
+@code{mean}, is the mean and the second, @code{variance}, is the
+variance.  The remaining members allow you to inspect and change
+the mean and variance.  The @code{LogNormal} class is a subclass
+of @code{Normal}.
+
+@section Poisson
+
+The @code{Poisson} class implements the poisson distribution.
+The first parameter to the constructor is the mean.  The
+remaining members allow you to inspect and change the mean.
+
+@section DiscreteUniform
+
+The @code{DiscreteUniform} class implements a uniform random variable over
+the closed interval ranging from @code{[low..high]}.  The first parameter
+to the constructor is @code{low}, and the second is @code{high}, although
+the order of these may be reversed.  The remaining members allow you to
+inspect and change @code{low} and @code{high}.
+
+@section Uniform
+
+The @code{Uniform} class implements a uniform random variable over the
+open interval ranging from @code{[low..high)}.  The first parameter to
+the constructor is @code{low}, and the second is @code{high}, although
+the order of these may be reversed.  The remaining members allow you to
+inspect and change @code{low} and @code{high}.@refill
+
+@section Weibull
+
+The @code{Weibull} class implements a weibull distribution with
+parameters @code{alpha} and @code{beta}.  The first parameter to
+the class constructor is @code{alpha}, and the second parameter
+is @code{beta}.  The remaining members allow you to inspect and
+change @code{alpha} and @code{beta}.
+
+@section RandomInteger
+
+The @code{RandomInteger} class is @emph{not} a subclass of Random,
+but a stand-alone integer-oriented class that is dependent on the
+RNG classes. RandomInteger returns random integers uniformly from
+the closed interval @code{[low..high]}.  The first parameter to the
+constructor is @code{low}, and the second is @code{high}, although
+both are optional.  The last argument is always a generator.
+Additional members allow you to inspect and change @code{low} and
+@code{high}.  Random integers are generated using @code{asInt()} or
+@code{asLong()}.  Operator syntax (@code{()}) is also available as a
+shorthand for @code{asLong()}.  Because @code{RandomInteger} is often
+used in simulations for which uniform random integers are desired over
+a variety of ranges, @code{asLong()} and @code{asInt} have @code{high}
+as an optional argument.  Using this optional argument produces a
+single value from the new range, but does not change the default
+range.
+
+
+@node Data, Curses, Random, Top
+@chapter Data Collection
+Libg++ currently provides two classes for @emph{data collection}
+and analysis of the collected data.
+
+@section SampleStatistic
+
+Class @code{SampleStatistic} provides a means of accumulating
+samples of @code{double} values and providing common sample statistics.
+
+Assume declaration of @code{double x}.
+
+@table @code 
+
+@item SampleStatistic a;
+declares and initializes a.
+
+@item a.reset();
+re-initializes a.
+
+@item a += x;
+adds sample x.
+
+@item int n = a.samples();
+returns the number of samples.
+
+@item x = a.mean;
+returns the means of the samples.
+
+@item x = a.var()
+returns the sample variance of the samples.
+
+@item x = a.stdDev()
+returns the sample standard deviation of the samples.
+
+@item x = a.min()
+returns the minimum encountered sample.
+
+@item x = a.max()
+returns the maximum encountered sample.
+
+@item x = a.confidence(int p)
+returns the p-percent (0 <= p < 100) confidence interval.
+
+@item x = a.confidence(double p)
+returns the p-probability (0 <= p < 1) confidence interval.
+
+
+@end table
+
+@section SampleHistogram
+
+Class @code{SampleHistogram} is a derived class of
+@code{SampleStatistic} that supports collection and display of samples
+in bucketed intervals. It supports the following in addition to
+@code{SampleStatisic} operations.
+
+@table @code
+
+@item SampleHistogram h(double lo, double hi, double width);
+declares and initializes h to have buckets of size width from lo to hi.
+If the optional argument width is not specified, 10 buckets are
+created. The first bucket and also holds samples less than lo,
+and the last one holds samples greater than hi.
+
+@item int n = h.similarSamples(x)
+returns the number of samples in the same bucket as x.
+
+@item int n = h.inBucket(int i)
+returns the number of samples in  bucket i.
+
+@item int b = h.buckets()
+returns the number of buckets.
+
+@item h.printBuckets(ostream s)
+prints bucket counts on ostream s.
+
+@item double bound = h.bucketThreshold(int i)
+returns the upper bound of bucket i.
+
+
+@end table
+
+@node Curses, List, Data, Top
+@chapter Curses-based classes
+
+The @code{CursesWindow} class is a repackaging of standard
+curses library features into a class. It relies on @file{curses.h}.
+
+The supplied @file{curses.h} is a fairly conservative declaration
+of curses library features, and does not include features like
+``screen'' or X-window support. It is, for the most part, an
+adaptation, rather than an improvement of C-based @file{curses.h}
+files. The only substantive changes are the declarations of
+many functions as inline functions rather than macros, which
+was done solely to allow overloading.
+
+The @code{CursesWindow} class encapsulates curses window functions
+within a class. Only those functions that control windows are included:
+Terminal control functions and macros like @code{cbreak} are not part
+of the class.  All @code{CursesWindows} member functions have names
+identical to the corresponding curses library functions, except that the
+``w'' prefix is generally dropped. Descriptions of these functions may
+be found in your local curses library documentation.
+
+A @code{CursesWindow} may be declared via
+
+@table @code
+
+@item CursesWindow w(WINDOW* win)
+attaches w to the existing WINDOW* win. This is constructor is normally
+used only in the following special case.
+
+@item CursesWindow w(stdscr)
+attaches w to the default curses library standard screen window.
+
+@item CursesWindow w(int lines, int cols, int begin_y, int begin_x)
+attaches to an allocated curses window with the indicated size and
+screen position.
+
+@item CursesWindow sub(CursesWindow& w,int l,int c,int by,int bx,char ar='a')
+attaches to a subwindow of w created via the curses `subwin' command.
+If ar is sent as `r', the origin (by, bx) is relative to the parent 
+window, else it is absolute.
+
+@end table
+
+The class maintains a static counter that is used in order to
+automatically call the curses library @code{initscr} and @code{endscr}
+functions at the proper times. These need not, and should not be
+called ``manually''.
+
+@code{CursesWindow}s maintain a tree of their subwindows. Upon
+destruction of a @code{CursesWindow}, all of their subwindows are
+also invalidated if they had not previously been destroyed.
+
+It is possible to traverse trees of subwindows via the following
+member functions
+
+@table @code
+
+@item CursesWindow* w.parent()
+returns a pointer to the parent of the subwindow, or 0 if there is none.
+
+@item CursesWindow* w.child()
+returns the first child subwindow of the window, or 0 if there is none.
+
+@item CursesWindow* w.sibling()
+returns the next sibling of the subwindow, or 0 if there is none.
+
+@end table
+
+For example, to call some function @code{visit} for all subwindows
+of a window, you could write
+
+@example
+
+void traverse(CursesWindow& w)
+@{
+  visit(w);
+  if (w.child() != 0) traverse(*w.child);
+  if (w.sibling() != 0) traverse(*w.sibling);
+@}
+
+@end example
+   
+@node List, LinkList, Curses, Top
+@chapter List classes
+
+The files @file{g++-include/List.hP} and @file{g++-include/List.ccP}
+provide pseudo-generic Lisp-type List classes.  These lists are homogeneous
+lists, more similar to lists in statically typed functional languages like
+ML than Lisp, but support operations very similar to those found in Lisp.
+Any particular kind of list class may be generated via the @code{genclass}
+shell command. However, the implementation assumes that the base class
+supports an equality operator @code{==}.  All equality tests use the
+@code{==} operator, and are thus equivalent to the use of @code{equal}, not
+@code{eq} in Lisp.@refill
+
+All list nodes are created dynamically, and managed via reference counts.
+@code{List} variables are actually pointers to these list nodes.  
+Lists may also be traversed via Pixes, as described in the section
+describing Pixes. @xref{Pix}
+
+Supported operations are mirrored closely after those in Lisp. Generally,
+operations with functional forms are constructive, functional operations,
+while member forms (often with the same name) are sometimes
+procedural, possibly destructive operations.
+
+As with Lisp, destructive operations are supported. Programmers
+are allowed to change head and tail fields in any fashion, creating
+circular structures and the like. However, again as with Lisp, some
+operations implicitly assume that they are operating on pure lists, and
+may enter infinite loops when presented with improper lists. Also, the
+reference-counting storage management facility may fail to reclaim
+unused circularly-linked nodes. 
+
+Several Lisp-like higher order functions are supported (e.g., @code{map}).
+Typedef declarations for the required functional forms are provided
+int the @file{.h} file.
+
+For purposes of illustration, assume the specification of class
+@code{intList}.  Common Lisp versions of supported operations are shown
+in brackets for comparison purposes.
+
+@section Constructors and assignment
+
+@table @code
+
+@item intList a;           [ (setq a nil) ]
+Declares a to be a nil intList.
+
+@item intList b(2);        [ (setq b (cons 2 nil)) ]
+Declares b to be an intList with a head value of 2, and a nil tail.
+
+@item intList c(3, b);     [ (setq c (cons 3 b)) ]
+Declares c to be an intList with a head value of 3, and b as its tail.
+
+@item b = a;               [ (setq b a) ]
+Sets b to be the same list as a.
+
+@end table
+
+Assume the declarations of intLists a, b, and c in the following.
+@xref{Pix}.
+
+@section List status
+
+@table @code
+
+@item a.null(); OR !a;      [ (null a) ]
+returns true if a is null.
+
+@item a.valid();            [ (listp a) ]
+returns true if a is non-null. Inside a conditional test, the
+@code{void*} coercion may also be used as in @code{if (a) ...}.
+
+@item intList();            [ nil ]
+intList() may be used to null terminate a list, as in
+@code{intList f(int x) @{if (x == 0) return intList(); ... @} }.
+
+@item a.length();           [ (length a) ]
+returns the length of a.
+
+@item a.list_length();      [ (list-length a) ]
+returns the length of a, or -1 if a is circular.
+@end table
+
+@section heads and tails
+
+@table @code
+
+@item a.get(); OR a.head()  [ (car a) ]
+returns a reference to the head field.
+
+@item a[2];                 [ (elt a 2) ]
+returns a reference to the second (counting from zero) head field.
+
+@item a.tail();             [ (cdr a) ]
+returns the intList that is the tail of a.
+
+@item a.last();             [ (last a) ]
+returns the intList that is the last node of a.
+
+@item a.nth(2);             [ (nth a 2) ]
+returns the intList that is the nth node of a.
+
+@item a.set_tail(b);        [ (rplacd a b) ]
+sets a's tail to b.
+
+@item a.push(2);            [ (push 2 a) ]
+equivalent to a = intList(2, a);
+
+@item int x = a.pop()       [ (setq x (car a)) (pop a) ]
+returns the head of a, also setting a to its tail.
+
+@end table
+
+@section Constructive operations
+
+@table @code
+
+@item b = copy(a);          [ (setq b (copy-seq a)) ]
+sets b to a copy of a.
+
+@item b = reverse(a);       [ (setq b (reverse a)) ]
+Sets b to a reversed copy of a.
+
+@item c = concat(a, b);     [ (setq c (concat a b)) ]
+Sets c to a concatenated copy of a and b.
+
+@item c = append(a, b);     [ (setq c (append a b)) ]
+Sets c to a concatenated copy of a and b. All nodes of a are
+copied, with the last node pointing to b.
+
+@item b = map(f, a);        [ (setq b (mapcar f a)) ]
+Sets b to a new list created by applying function f to each node
+of a.
+
+@item c = combine(f, a, b); 
+Sets c to a new list created by applying function f to successive
+pairs of a and b. The resulting list has length the shorter of a
+and b.
+
+@item b = remove(x, a);     [ (setq b (remove x a)) ]
+Sets b to a copy of a, omitting all occurrences of x.
+
+@item b = remove(f, a);     [ (setq b (remove-if f a)) ]
+Sets b to a copy of a, omitting values causing function f to
+return true.
+
+@item b = select(f, a);     [ (setq b (remove-if-not f a)) ]
+Sets b to a copy of a, omitting values causing function f to
+return false.
+
+@item c = merge(a, b, f);   [ (setq c (merge a b f)) ]
+Sets c to a list containing the ordered elements (using the 
+comparison function f) of the sorted lists a and b.
+
+@end table
+
+@section Destructive operations
+
+@table @code
+
+@item a.append(b);          [ (rplacd (last a) b) ]
+appends b to the end of a. No new nodes are constructed.
+
+@item a.prepend(b);         [ (setq a (append b a)) ]
+prepends b to the beginning of a.
+
+@item a.del(x);             [ (delete x a) ]
+deletes all nodes with value x from a.
+
+@item a.del(f);             [ (delete-if f a) ]
+deletes all nodes causing function f to return true.
+
+@item a.select(f);          [ (delete-if-not f a) ]
+deletes all nodes causing function f to return false.
+
+@item a.reverse();          [ (nreverse a) ]
+reverses a in-place.
+
+@item a.sort(f);            [ (sort a f) ]
+sorts a in-place using ordering (comparison) function f.
+
+@item a.apply(f);           [ (mapc f a) ]
+Applies void function f (int x) to each element of a.
+
+@item a.subst(int old, int repl); [ (nsubst repl old a) ]
+substitutes repl for each occurrence of old in a. Note the
+different argument order than the Lisp version.
+
+@end table
+
+@section Other operations
+
+@table @code
+
+@item  a.find(int x);       [ (find x a) ]
+returns the intList at the first occurrence of x.
+
+@item  a.find(b);           [ (find b a) ]
+returns the intList at the first occurrence of sublist b.
+
+@item a.contains(int x);    [ (member x a) ]
+returns true if a contains x.
+
+@item a.contains(b);        [ (member b a) ]
+returns true if a contains sublist b.
+
+@item a.position(int x);    [ (position x a) ]
+returns the zero-based index of x in a, or -1 if x does not occur.
+
+@item int x = a.reduce(f, int base); [ (reduce f a :initial-value base) ]
+Accumulates the result of applying int function f(int, int) to
+successive elements of a, starting with base.
+
+@end table
+
+
+@node LinkList, Vector, List, Top
+@chapter Linked Lists
+
+SLLists provide pseudo-generic singly linked lists.  DLLists provide
+doubly linked lists.  The lists are designed for the simple maintenance
+of elements in a linked structure, and do not provide the more extensive
+operations (or node-sharing) of class @code{List}. They behave similarly
+to the @code{slist} and similar classes described by Stroustrup.@refill
+
+All list nodes are created dynamically. Assignment is performed via
+copying.
+
+Class @code{DLList} supports all @code{SLList} operations, plus
+additional operations described below.
+
+For purposes of illustration, assume the specification of class
+@code{intSLList}. In addition to the operations listed here,
+SLLists support traversal via Pixes. @xref{Pix}
+
+@table @code
+
+@item intSLList a;
+Declares a to be an empty list.
+
+@item intSLList b = a;
+Sets b to an element-by-element copy of a.
+
+@item a.empty()
+returns true if a contains no elements
+
+@item a.length();
+returns the number of elements in a.
+
+@item a.prepend(x);
+places x at the front of the list.
+
+@item a.append(x);
+places x at the end of the list.
+
+@item a.join(b)
+places all nodes from b to the end of a, simultaneously destroying b.
+
+@item x = a.front()
+returns a reference to the item stored at the head of the list, 
+or triggers an error if the list is empty.
+
+@item a.rear()
+returns a reference to the rear of the list, or triggers an error if the
+list is empty.
+
+@item x = a.remove_front()
+deletes and returns the item stored at the head of the list.
+
+@item a.del_front()
+deletes the first element, without returning it.
+
+@item a.clear()
+deletes all items from the list.
+
+@item a.ins_after(Pix i, item);
+inserts item after position i. If i is null, insertion is at the front.
+
+@item a.del_after(Pix i);
+deletes the element following i. If i is 0, the first item is deleted.
+
+@end table
+
+@section Doubly linked lists
+
+Class @code{DLList} supports the following additional operations,
+as well as backward traversal via Pixes.
+
+@table @code
+
+@item x = a.remove_rear();
+deletes and returns the item stored at the rear of the list.
+
+@item a.del_rear();
+deletes the last element, without returning it.
+
+@item a.ins_before(Pix i, x)
+inserts x before the i.
+
+@item a.del(Pix& iint dir = 1)
+deletes the item at the current position, then advances forward
+if dir is positive, else backward.
+
+@end table
+
+@node Vector, Plex, LinkList, Top
+@chapter Vector classes
+
+The files @file{g++-include/Vec.ccP} and @file{g++-include/AVec.ccP}
+provide pseudo-generic standard array-based vector operations.  The
+corresponding header files are @file{g++-include/Vec.hP} and
+@file{g++-include/AVec.hP}.  Class @code{Vec} provides operations
+suitable for any base class that includes an equality operator. Subclass
+@code{AVec} provides additional arithmetic operations suitable for base
+classes that include the full complement of arithmetic operators.
+
+@code{Vecs} are constructed and assigned by copying. Thus, they should
+normally be passed by reference in applications programs.
+
+Several mapping functions are provided that allow programmers to
+specify operations on vectors as a whole.
+
+For illustrative purposes assume that classes @code{intVec} and
+@code{intAVec} have been generated via @code{genclass}.
+
+@section Constructors and assignment
+
+@table @code
+@item intVec a;
+declares a to be an empty vector. Its size may be changed via resize.
+
+@item intVec a(10);
+declares a to be an uninitialized vector of ten elements (numbered 0-9).
+
+@item intVec b(6, 0);
+declares b to be a vector of six elements, all initialized to zero. Any
+value can be used as the initial fill argument.
+
+@item a = b;
+Copies b to a. a is resized to be the same as b.
+
+@item a = b.at(2, 4)
+constructs a from the 4 elements of b starting at b[2].
+@end table
+
+Assume declarations of @code{intVec a, b, c} and @code{int i, x} in 
+the following.
+
+@section Status and access
+
+@table @code
+@item a.capacity();
+returns the number of elements that can be held in a.
+
+@item a.resize(20);
+sets a's length to 20. All elements are unchanged, except that if
+the new size is smaller than the original, than trailing elements
+are deleted, and if greater, trailing elements are uninitialized.
+
+@item a[i];
+returns a reference to the i'th element of a, or produces an error
+if i is out of range.
+
+@item a.elem(i)
+returns a reference to the i'th element of a. Unlike the @code{[]} operator,
+i is not checked to ensure that it is within range.
+
+@item a == b;
+returns true if a and b contain the same elements in the same order.
+
+@item a != b;
+is the converse of a == b.
+@end table
+
+@section Constructive operations
+
+@table @code
+@item c = concat(a, b);
+sets c to the new vector constructed from all of the elements of
+a followed by all of b.
+
+@item c = map(f, a);
+sets c to the new vector constructed by applying int function f(int)
+to each element of a.
+
+@item c = merge(a, b, f);
+sets c to the new vector constructed by merging the elements of
+ordered vectors a and b using ordering (comparison) function f.
+
+@item c = combine(f, a, b);
+sets c to the new vector constructed by applying int function f(int, int)
+to successive pairs of a and b. The result has length the shorter of
+a and b.
+
+@item c = reverse(a)
+sets c to a, with elements in reverse order.
+@end table
+
+@section Destructive operations
+
+@table @code
+@item a.reverse();
+reverses a in-place.
+
+@item a.sort(f)
+sorts a in-place using comparison function f. The sorting method is a 
+variation of the quicksort functions supplied with GNU emacs.
+
+@item a.fill(0, 4, 2)
+fills the 2 elements starting at a[4] with zero.
+
+@end table
+
+@section Other operations
+
+@table @code
+
+@item a.apply(f)
+applies function f to each element in a.
+
+@item x = a.reduce(f, base)
+accumulates the results of applying function f to successive elements
+of a starting with base.
+
+@item a.index(int targ);
+returns the index of the leftmost occurrence of the target, or -1,
+if it does not occur.
+
+@item a.error(char* msg)
+invokes the error handler. The default version prints the error message,
+then aborts.
+@end table
+
+@section AVec operations.
+
+AVecs provide additional arithmetic operations.  All vector-by-vector
+operators generate an error if the vectors are not the same length. The
+following operations are provided, for @code{AVecs a, b} and 
+base element (scalar) @code{s}.
+
+@table @code
+@item a = b;
+Copies b to a. a and b must be the same size.
+
+@item a = s;
+fills all elements of a with the value s. a is not resized.
+
+@item a + s; a - s; a * s; a / s
+adds, subtracts, multiplies, or divides each element of a with the scalar.
+
+@item a += s; a -= s; a *= s; a /= s;
+adds, subtracts, multiplies, or divides the scalar into a.
+
+@item a + b; a - b; product(a, b), quotient(a, b)
+adds, subtracts, multiplies, or divides corresponding elements of a and b.
+
+@item a += b; a -= b; a.product(b); a.quotient(b);
+adds, subtracts, multiplies, or divides corresponding elements of b into a.
+
+@item s = a * b;
+returns the inner (dot) product of a and b.
+
+@item  x = a.sum();
+returns the sum of elements of a.
+
+@item x = a.sumsq();
+returns the sum of squared elements of a.
+
+@item x = a.min();
+returns the minimum element of a.
+
+@item x = a.max();
+returns the maximum element of a.
+
+@item i = a.min_index();
+returns the index of the minimum element of a.
+
+@item i = a.max_index();
+returns the index of the maximum element of a.
+
+Note that it is possible to apply vector versions other arithmetic
+operators via the mapping functions. For example, to set vector b
+to the  cosines of doubleVec a, use @code{b = map(cos, a);}.
+This is often more efficient than performing the operations
+in an element-by-element fashion.
+@end table
+
+@node Plex, Stack, Vector, Top
+@chapter Plex classes
+
+A ``Plex'' is a kind of array with the following properties:
+
+@itemize @bullet
+@item
+Plexes may have arbitrary upper and lower index bounds. For example
+a Plex may be declared to run from indices -10 .. 10.
+
+@item
+Plexes may be dynamically expanded at both the lower and upper bounds
+of the array in steps of one element.
+
+@item
+Only elements that have been specifically initialized or added may
+be accessed.
+
+@item
+Elements may be accessed via indices. Indices are always checked for
+validity at run time.  Plexes may be traversed via simple variations of
+standard array indexing loops.
+
+@item
+Plex elements may be accessed and traversed via Pixes.
+
+@item
+Plex-to-Plex assignment and related operations on entire Plexes
+are supported.
+
+@item
+Plex classes contain methods to help programmers check the validity
+of indexing and pointer operations.
+
+@item
+Plexes form ``natural'' base classes for many restricted-access data
+structures relying on logically contiguous indices, such as array-based
+stacks and queues.
+
+@item
+Plexes are implemented as pseudo-generic classes, and must be generated
+via the @code{genclass} utility.
+@end itemize
+
+Four subclasses of Plexes are supported: A @code{FPlex} is a Plex that
+may only grow or shrink within declared bounds; an @code{XPlex} may
+dynamically grow or shrink without bounds; an @code{RPlex} is the
+same as an @code{XPlex} but better supports indexing with poor
+locality of reference; a @code{MPlex} may grow
+or shrink, and additionally allows the logical deletion and restoration
+of elements. Because these classes are virtual subclasses of the
+``abstract'' class @code{Plex}, it is possible to write user code
+such as @code{void f(Plex& a) ...} that operates on any kind of
+Plex. However, as with nearly any virtual class, specifying the
+particular Plex class being used results in more efficient code.
+
+Plexes are implemented as a linked list of @code{IChunks}.  Each chunk
+contains a part of the array. Chunk sizes may be specified within Plex
+constructors.  Default versions also exist, that use a @code{#define'd}
+default.  Plexes grow by filling unused space in existing chunks, if
+possible, else, except for FPlexes, by adding another chunk.  Whenever
+Plexes grow by a new chunk, the default element constructors (i.e.,
+those which take no arguments) for all chunk elements are called at
+once. When Plexes shrink, destructors for the elements are not called
+until an entire chunk is freed. For this reason, Plexes (like C++
+arrays) should only be used for elements with default constructors and
+destructors that have no side effects.
+
+Plexes may be indexed and used like arrays, although traversal
+syntax is slightly different. Even though Plexes maintain elements
+in lists of chunks, they are implemented so that iteration and
+other constructs that maintain locality of reference require very
+little overhead over that for simple array traversal
+Pix-based traversal is also supported. For example, for a plex, p,
+of ints, the following traversal methods could be used.
+
+@smallexample
+for (int i = p.low(); i < p.fence(); p.next(i)) use(p[i]);
+for (int i = p.high(); i > p.ecnef(); p.prev(i)) use(p[i]);
+for (Pix t = p.first(); t != 0; p.next(t)) use(p(i));
+for (Pix t = p.last(); t != 0; p.prev(t)) use(p(i));
+@end smallexample
+
+Except for MPlexes, simply using @code{++i} and @code{--i} works just as
+well as @code{p.next(i)} and @code{p.prev(i)} when traversing by index.
+Index-based traversal is generally a bit faster than Pix-based
+traversal.
+
+@code{XPlexes} and @code{MPlexes} are less than optimal for applications
+in which widely scattered elements are indexed, as might occur when
+using Plexes as hash tables or ``manually'' allocated linked lists.
+In such applications, @code{RPlexes} are often preferable. @code{RPlexes}
+use a secondary chunk index table that requires slightly greater,
+but entirely uniform overhead per index operation.
+
+Even though they may grow in either direction, Plexes are normally
+constructed so that their ``natural'' growth direction is upwards,
+in that default chunk construction leaves free space, if present,
+at the end of the plex. However, if the chunksize arguments to 
+constructors are negative, they leave space at the beginning. 
+
+All versions of Plexes support the following basic capabilities.
+(letting @code{Plex} stand for the type name constructed via the
+genclass utility (e.g., @code{intPlex}, @code{doublePlex})).  Assume
+declarations of @code{Plex p, q}, @code{int i, j}, base element
+@code{x}, and Pix @code{pix}.
+
+@table @code
+
+@item Plex p;
+Declares p to be an initially zero-sized Plex with low index of zero,
+and the default chunk size. For FPlexes, chunk sizes represent maximum
+sizes.
+
+@item Plex p(int size);
+Declares p to be an initially zero-sized Plex with low index of zero,
+and the indicated chunk size. If size is negative, then the Plex
+is created with free space at the beginning of the Plex,
+allowing more efficient add_low() operations. Otherwise, it
+leaves space at the end.
+
+@item Plex p(int low, int size);
+Declares p to be an initially zero-sized Plex with low index of low,
+and the indicated chunk size.
+
+@item Plex p(int low, int high, Base initval, int size = 0);
+Declares p to be a Plex with indices from low to high, initially
+filled with initval, and the indicated chunk size if specified,
+else the default or (high - low + 1), whichever is greater. 
+
+@item Plex q(p);
+Declares q to be a copy of p.
+
+@item p = q;
+Copies Plex q into p, deleting its previous contents.
+
+@item p.length()
+Returns the number of elements in the Plex.
+
+@item p.empty()
+Returns true if Plex p contains no elements.
+
+@item p.full()
+Returns true if Plex p cannot be expanded. This always returns
+false for XPlexes and MPlexes.
+
+@item p[i]
+Returns a reference to the i'th element of p. An exception (error) occurs
+if i is not a valid index. 
+
+@item p.valid(i)
+Returns true if i is a valid index into Plex p.
+
+@item p.low(); p.high();
+Return the minimum (maximum) valid index of the Plex, or the high (low)
+fence if the plex is empty.
+
+@item p.ecnef(); p.fence();
+Return the index one position past the minimum (maximum) valid index.
+
+@item p.next(i); i = p.prev(i);
+Set i to the next (previous) index. This index may not be within bounds.
+
+@item p(pix)
+returns a reference to the item at Pix pix.
+
+@item pix = p.first(); pix = p.last();
+Return the minimum (maximum) valid Pix of the Plex, or 0
+if the plex is empty.
+
+@item p.next(pix); p.prev(pix);
+set pix to the next (previous) Pix, or 0 if there is none.
+
+@item p.owns(pix)
+Returns true if the Plex contains the element associated with pix.
+
+@item p.Pix_to_index(pix)
+If pix is a valid Pix to an element of the Plex, 
+returns its corresponding index, else raises an exception. 
+
+@item ptr = p.index_to_Pix(i)
+if i is a valid index, returns a the corresponding Pix.
+
+@item p.low_element(); p.high_element();
+Return a reference to the element at the minimum (maximum) valid index.
+An exception occurs if the Plex is empty.
+
+@item  p.can_add_low();  p.can_add_high();
+Returns true if the plex can be extended one element downward (upward).
+These always return true for XPlex and MPlex.
+
+@item j = p.add_low(x); j = p.add_high(x);
+Extend the Plex by one element downward (upward). The new minimum
+(maximum) index is returned.
+
+@item j = p.del_low(); j = p.del_high()
+Shrink the Plex by one element on the low (high) end. The new
+minimum (maximum) element is returned. An exception occurs if the
+Plex is empty.
+
+@item p.append(q);
+Append all of Plex q to the high side of p.
+
+@item p.prepend(q);
+Prepend all of q to the low side of p.
+
+@item p.clear()
+Delete all elements, resetting p to a zero-sized Plex.
+
+@item p.reset_low(i);
+Resets p to be indexed starting at low() = i. For example.
+if p were initially declared via @code{Plex p(0, 10, 0)}, 
+and then re-indexed via @code{p.reset_low(5)}, 
+it could then be indexed from indices 5 .. 14.
+
+@item p.fill(x)
+sets all p[i] to x.
+
+@item p.fill(x, lo, hi)
+sets all of p[i] from lo to hi, inclusive, to x.
+
+@item p.reverse()
+reverses p in-place.
+
+@item p.chunk_size()
+returns the chunk size used for the plex.
+
+@item p.error(const char * msg)
+calls the resettable error handler.
+
+@end table
+
+MPlexes are plexes with bitmaps that allow items to be logically
+deleted and restored. They behave like other plexes, but
+also support the following additional and modified capabilities:
+
+@table @code
+
+@item p.del_index(i); p.del_Pix(pix)
+logically deletes p[i] (p(pix)). After deletion, attempts to access p[i]
+generate a error. Indexing via low(), high(), prev(),
+and next() skip the element. Deleting an element never changes the
+logical bounds of the plex. 
+
+@item p.undel_index(i); p.undel_Pix(pix)
+logically undeletes p[i] (p(pix)). 
+
+@item p.del_low(); p.del_high()
+Delete the lowest (highest) undeleted element, resetting the
+logical bounds of the plex to the next lowest (highest) undeleted
+index. Thus, MPlex del_low() and del_high() may shrink the bounds
+of the plex by more than one index.
+
+@item p.adjust_bounds()
+Resets the low and high bounds of the Plex to the indexes of
+the lowest and highest actual undeleted elements.
+
+@item int i = p.add(x)
+Adds x in an unused index, if possible, else performs add_high.
+
+@item p.count()
+returns the number of valid (undeleted) elements.
+
+@item p.available()
+returns the number of available (deleted) indices.
+
+@item int i = p.unused_index()
+returns the index of some deleted element, if one exists, 
+else triggers an error. An unused element may be reused via undel.
+
+@item pix = p.unused_Pix()
+returns the pix of some deleted element, if one exists, else 0.
+An unused element may be reused via undel.
+
+@end table
+
+@node Stack, Queue, Plex, Top
+@chapter Stacks
+
+Stacks are declared as an ``abstract'' class. They are currently
+implemented in any of three ways.
+
+@table @code
+
+@item VStack
+implement fixed sized stacks via arrays.
+
+@item XPStack 
+implement dynamically-sized stacks via XPlexes.
+
+@item SLStack
+implement dynamically-size stacks via linked lists.
+
+@end table
+
+All possess the same capabilities. They differ only in constructors.
+VStack constructors require a fixed maximum capacity argument. 
+XPStack constructors optionally take a chunk size argument.
+SLStack constructors take no argument.
+
+Assume the declaration of a base element @code{x}.
+
+@table @code
+
+@item Stack s;  or Stack s(int capacity)
+declares a Stack.
+
+@item s.empty()
+returns true if stack s is empty.
+
+@item s.full()
+returns true if stack s is full. XPStacks and SLStacks never become full.
+
+@item s.length()
+returns the current number of elements in the stack.
+
+@item s.push(x)
+pushes x on stack s.
+
+@item x = s.pop()
+pops and returns the top of stack
+
+@item s.top()
+returns a reference to the top of stack.
+
+@item s.del_top()
+pops, but does not return the top of stack. When large items are held
+on the stack it is often a good idea to use @code{top()} to inspect and use
+the top of stack, followed by a @code{del_top()}
+
+@item s.clear()
+removes all elements from the stack.
+
+@end table
+
+@node Queue, Deque, Stack, Top
+@chapter Queues
+
+Queues are declared as an ``abstract'' class. They are currently
+implemented in any of three ways.
+
+@table @code
+@item VQueue 
+implement fixed sized Queues via arrays.
+
+@item XPQueue 
+implement dynamically-sized Queues via XPlexes.
+
+@item SLQueue 
+implement dynamically-size Queues via linked lists.
+@end table
+
+All possess the same capabilities; they differ only in constructors.
+@code{VQueue} constructors require a fixed maximum capacity argument. 
+@code{XPQueue} constructors optionally take a chunk size argument.
+@code{SLQueue} constructors take no argument.
+
+Assume the declaration of a base element @code{x}.
+
+@table @code
+@item Queue q; or Queue q(int capacity);
+declares a queue.
+
+@item q.empty()
+returns true if queue q is empty.
+
+@item q.full()
+returns true if queue q is full. XPQueues and SLQueues are never full.
+
+@item q.length()
+returns the current number of elements in the queue.
+
+@item q.enq(x)
+enqueues x on queue q.
+
+@item x = q.deq()
+dequeues and returns the front of queue
+
+@item q.front()
+returns a reference to the front of queue.
+
+@item q.del_front()
+dequeues, but does not return the front of queue
+
+@item q.clear()
+removes all elements from the queue.
+@end table
+
+@node Deque, PQ, Queue, Top
+@chapter Double ended Queues
+
+Deques are declared as an ``abstract'' class. They are currently
+implemented in two ways.
+
+@table @code
+
+@item XPDeque
+implement dynamically-sized Deques via XPlexes.
+
+@item DLDeque
+implement dynamically-size Deques via linked lists.
+
+@end table
+
+All possess the same capabilities. They differ only in constructors.
+XPDeque constructors optionally take a chunk size argument.
+DLDeque constructors take no argument.
+
+Double-ended queues support both stack-like and queue-like capabilities:
+
+Assume the declaration of a base element @code{x}.
+
+@table @code
+
+@item Deque d; or Deque d(int initial_capacity)
+declares a deque.
+
+@item d.empty()
+returns true if deque d is empty.
+
+@item d.full()
+returns true if deque d is full. 
+Always returns false in current implementations.
+
+@item d.length()
+returns the current number of elements in the deque.
+
+@item d.enq(x)
+inserts x at the rear of deque d.
+
+@item d.push(x)
+inserts x at the front of deque d.
+
+@item x = d.deq()
+dequeues and returns the front of deque
+
+@item d.front()
+returns a reference to the front of deque.
+
+@item d.rear()
+returns a reference to the rear of the deque.
+
+@item d.del_front()
+deletes, but does not return the front of deque
+
+@item d.del_rear()
+deletes, but does not return the rear of the deque.
+
+@item d.clear()
+removes all elements from the deque.
+
+@end table
+
+@node  PQ, Set, Deque, Top
+@chapter Priority Queue class prototypes.
+
+Priority queues maintain collections of objects arranged for fast
+access to the least element.
+
+Several prototype implementations of priority queues are supported.
+
+@table @code
+
+@item XPPQs 
+implement 2-ary heaps via XPlexes.
+
+@item SplayPQs 
+implement  PQs via Sleator and Tarjan's (JACM 1985)
+splay trees. The algorithms use a version of ``simple top-down
+splaying'' (described on page 669 of the article).  The simple-splay
+mechanism for priority queue functions is loosely based on the one used
+by D. Jones in the C splay tree functions available from volume 14 of
+the uunet.uu.net archives.
+
+@item PHPQs 
+implement pairing heaps (as described by Fredman and
+Sedgewick in @cite{Algorithmica}, Vol 1, p111-129).  Storage for heap elements
+is managed via an internal freelist technique. The constructor allows an
+initial capacity estimate for freelist space.  The storage is automatically
+expanded if necessary to hold new items. The deletion technique is a fast
+``lazy deletion'' strategy that marks items as deleted, without reclaiming
+space until the items come to the top of the heap. 
+
+@end table
+
+All PQ classes support the following operations, for some PQ class
+@code{Heap}, instance @code{h}, @code{Pix ind}, and base class
+variable @code{x}.
+
+@table @code
+
+@item h.empty()
+returns true if there are no elements in the PQ.
+
+@item h.length()
+returns the number of elements in h.
+
+@item ind = h.enq(x)
+Places x in the PQ, and returns its index.
+
+@item x = h.deq()
+Dequeues the minimum element of the PQ into x, or generates an error
+if the PQ is empty.
+
+@item h.front()
+returns a reference to the minimum element.
+
+@item h.del_front()
+deletes the minimum element.
+
+@item h.clear();
+deletes all elements from h;
+
+@item h.contains(x)
+returns true if x is in h.
+
+@item h(ind)
+returns a reference to the item indexed by ind.
+
+@item ind = h.first()
+returns the Pix of first item in the PQ or 0 if empty. 
+This need not be the Pix of the least element.
+
+@item h.next(ind)
+advances ind to the Pix of next element, or 0 if there are no more.
+
+@item ind = h.seek(x)
+Sets ind to the Pix of x, or 0 if x is not in h.
+
+@item h.del(ind)
+deletes the item with Pix ind.
+
+@end table
+
+@node Set, Bag, PQ, Top
+@chapter Set class prototypes
+
+Set classes maintain unbounded collections of items containing 
+no duplicate elements.
+
+These are currently implemented in several ways, differing in
+representation strategy, algorithmic efficiency, and appropriateness for
+various tasks. (Listed next to each are average (followed by worst-case,
+if different) time complexities for [a] adding, [f] finding (via seek,
+contains), [d] deleting, elements, and [c] comparing (via ==, <=) and
+[m] merging (via |=, -=, &=) sets).
+
+@table @code
+@item XPSets 
+implement unordered sets via XPlexes. 
+([a O(n)], [f O(n)], [d O(n)], [c O(n^2)] [m O(n^2)]).
+
+@item OXPSets 
+implement ordered sets via XPlexes.
+([a O(n)], [f O(log n)], [d O(n)], [c O(n)] [m O(n)]).
+
+@item SLSets 
+implement unordered sets via linked lists
+([a O(n)], [f O(n)], [d O(n)], [c O(n^2)] [m O(n^2)]).
+
+@item OSLSets 
+implement ordered sets via linked lists
+([a O(n)], [f O(n)], [d O(n)], [c O(n)] [m O(n)]).
+
+@item AVLSets 
+implement ordered sets via threaded AVL trees
+([a O(log n)], [f O(log n)], [d O(log n)], [c O(n)] [m O(n)]).
+
+@item BSTSets 
+implement ordered sets via binary search trees. The trees may
+be manually rebalanced via the O(n) @code{balance()} member function.
+([a O(log n)/O(n)], [f O(log n)/O(n)], [d O(log n)/O(n)], [c O(n)] [m O(n)]).
+
+@item SplaySets 
+implement ordered sets via Sleator and Tarjan's (JACM 1985)
+splay trees. The algorithms use a version of ``simple top-down
+splaying'' (described on page 669 of the article).  
+(Amortized: [a O(log n)], [f O(log n)], [d O(log n)], [c O(n)] [m O(n log n)]).
+
+@item VHSets 
+implement unordered sets via hash tables.
+The tables are automatically resized when their capacity is exhausted.
+([a O(1)/O(n)], [f O(1)/O(n)], [d O(1)/O(n)], [c O(n)/O(n^2)] [m O(n)/O(n^2)]).
+
+@item VOHSets 
+implement unordered sets via ordered hash tables
+The tables are automatically resized when their capacity is exhausted.
+([a O(1)/O(n)], [f O(1)/O(n)], [d O(1)/O(n)], [c O(n)/O(n^2)] [m O(n)/O(n^2)]).
+
+@item CHSets 
+implement unordered sets via chained hash tables.
+([a O(1)/O(n)], [f O(1)/O(n)], [d O(1)/O(n)], [c O(n)/O(n^2)] [m O(n)/O(n^2)]).
+@end table
+
+The different implementations differ in whether their constructors
+require an argument specifying their initial capacity. Initial
+capacities are required for plex and hash table based Sets.  If none is
+given @code{DEFAULT_INITIAL_CAPACITY} (from @file{<T>defs.h}) is
+used.@refill
+
+Sets support the following operations, for some class @code{Set},
+instances @code{a} and @code{b}, @code{Pix ind}, and base 
+element @code{x}. Since all implementations are virtual derived classes
+of the @code{<T>Set} class, it is possible to mix and match operations
+across different implementations, although, as usual, operations
+are generally faster when the particular classes are specified
+in functions operating on Sets. 
+
+Pix-based operations are more fully described in the section
+on Pixes. @xref{Pix}
+
+@table @code
+
+@item Set a; or Set a(int initial_size);
+Declares a to be an empty Set. The second version is allowed in
+set classes that require initial capacity or sizing specifications.
+
+@item a.empty()
+returns true if a is empty.
+
+@item a.length()
+returns the number of elements in a.
+
+@item Pix ind = a.add(x)
+inserts x into a, returning its index.
+
+@item a.del(x)
+deletes x from a.
+
+@item a.clear()
+deletes all elements from a;
+
+@item a.contains(x)
+returns true if x is in a.
+
+@item a(ind)
+returns a reference to the item indexed by ind.
+
+@item ind = a.first()
+returns the Pix of first item in the set or 0 if the Set is empty. 
+For ordered Sets, this is the Pix of the least element.
+
+@item a.next(ind)
+advances ind to the Pix of next element, or 0 if there are no more.
+
+@item ind = a.seek(x)
+Sets ind to the Pix of x, or 0 if x is not in a.
+
+@item a == b
+returns true if a and b contain all the same elements.
+
+@item a != b
+returns true if a and b do not contain all the same elements.
+
+@item a <= b
+returns true if a is a subset of b.
+
+@item a |= b
+Adds all elements of b to a. 
+
+@item a -= b
+Deletes all elements of b from a.
+
+@item a &= b
+Deletes all elements of a not occurring in b.
+
+@end table
+
+
+@node Bag, Map, Set, Top
+@chapter Bag class prototypes
+
+Bag classes maintain unbounded collections of items potentially
+containing  duplicate elements.
+
+These are currently implemented in several ways, differing in
+representation strategy, algorithmic efficiency, and appropriateness for
+various tasks. (Listed next to each are average (followed by worst-case,
+if different) time complexities for [a] adding, [f] finding (via seek,
+contains), [d] deleting elements).
+
+
+@table @code
+
+@item XPBags 
+implement unordered Bags via XPlexes.
+([a O(1)], [f O(n)], [d O(n)]).
+
+@item OXPBags 
+implement ordered Bags via XPlexes.
+([a O(n)], [f O(log n)], [d O(n)]).
+
+@item SLBags 
+implement unordered Bags via linked lists
+([a O(1)], [f O(n)], [d O(n)]).
+
+@item OSLBags 
+implement ordered Bags via linked lists
+([a O(n)], [f O(n)], [d O(n)]).
+
+@item SplayBags 
+implement ordered Bags via Sleator and Tarjan's (JACM 1985)
+splay trees. The algorithms use a version of ``simple top-down
+splaying'' (described on page 669 of the article).
+(Amortized: [a O(log n)], [f O(log n)], [d O(log n)]).
+
+@item VHBags 
+implement unordered Bags via hash tables.
+The tables are automatically resized when their capacity is exhausted.
+([a O(1)/O(n)], [f O(1)/O(n)], [d O(1)/O(n)]).
+
+@item CHBags 
+implement unordered Bags via chained hash tables.
+([a O(1)/O(n)], [f O(1)/O(n)], [d O(1)/O(n)]).
+
+@end table
+
+The implementations differ in whether their constructors
+require an argument to specify their initial capacity. Initial
+capacities are required for plex and hash table based Bags.  If none is
+given @code{DEFAULT_INITIAL_CAPACITY} (from @file{<T>defs.h}) is used.@refill
+
+Bags support the following operations, for some class @code{Bag},
+instances @code{a} and @code{b}, @code{Pix ind}, and base 
+element @code{x}. Since all implementations are virtual derived classes
+of the @code{<T>Bag} class, it is possible to mix and match operations
+across different implementations, although, as usual, operations
+are generally faster when the particular classes are specified
+in functions operating on Bags. 
+
+Pix-based operations are more fully described in the section
+on Pixes. @xref{Pix}
+
+@table @code
+
+@item Bag a; or Bag a(int initial_size)
+Declares a to be an empty Bag. The second version is allowed in
+Bag classes that require initial capacity or sizing specifications.
+
+@item a.empty()
+returns true if a is empty.
+
+@item a.length()
+returns the number of elements in a.
+
+@item ind = a.add(x)
+inserts x into a, returning its index.
+
+@item a.del(x)
+deletes one occurrence of x from a.
+
+@item a.remove(x)
+deletes all occurrences of x from a.
+
+@item a.clear()
+deletes all elements from a;
+
+@item a.contains(x)
+returns true if x is in a.
+
+@item a.nof(x)
+returns the number of occurrences of x in a.
+
+@item a(ind)
+returns a reference to the item indexed by ind.
+
+@item int = a.first()
+returns the Pix of first item in the Bag or 0 if the Bag is empty. 
+For ordered Bags, this is the Pix of the least element.
+
+@item a.next(ind)
+advances ind to the Pix of next element, or 0 if there are no more.
+
+@item ind = a.seek(x, Pix from = 0)
+Sets ind to the Pix of the next occurrence x, or 0 if there are none.
+If from is 0, the first occurrence is returned, else the following from.
+
+@end table
+
+@node  Map, GetOpt, Bag, Top
+@chapter Map Class Prototypes
+
+Maps support associative array operations (insertion, deletion, and
+membership of records based on an associated key). They require
+the specification of two types, the key type and the contents type.
+
+These are currently implemented in several ways, differing in
+representation strategy, algorithmic efficiency, and appropriateness for
+various tasks. (Listed next to each are average (followed by worst-case,
+if different) time complexities for [a] accessing (via op [],
+contains), [d] deleting elements).
+
+
+@table @code
+
+@item AVLMaps 
+implement ordered Maps via threaded AVL trees
+([a O(log n)], [d O(log n)]).
+
+@item RAVLMaps 
+Similar, but also maintain ranking information, used via 
+@code{ranktoPix(int r)}, that returns the @code{Pix} of the
+item at rank r, and @code{rank(key)} that returns the
+rank of the corresponding item.
+([a O(log n)], [d O(log n)]).
+
+@item SplayMaps 
+implement ordered Maps via Sleator and Tarjan's (JACM 1985)
+splay trees. The algorithms use a version of ``simple top-down
+splaying'' (described on page 669 of the article).  
+(Amortized: [a O(log n)], [d O(log n)]).
+
+@item VHMaps 
+implement unordered Maps via hash tables.
+The tables are automatically resized when their capacity is exhausted.
+([a O(1)/O(n)], [d O(1)/O(n)]).
+
+@item CHMaps 
+implement unordered Maps via chained hash tables.
+([a O(1)/O(n)], [d O(1)/O(n)]).
+
+@end table
+
+The different implementations differ in whether their constructors
+require an argument specifying their initial capacity. Initial
+capacities are required for hash table based Maps.  If none is
+given @code{DEFAULT_INITIAL_CAPACITY} (from @file{<T>defs.h}) is
+used.@refill
+
+All Map classes share the following operations (for some Map class,
+@code{Map} instance @code{d}, @code{Pix ind} and key variable @code{k},
+and contents variable @code{x}).
+
+Pix-based operations are more fully described in the section
+on Pixes. @xref{Pix}
+
+@table @code
+
+@item Map d(x);  Map d(x, int initial_capacity)
+Declare d to be an empty Map. The required argument, x, specifies
+the default contents, i.e., the contents of an otherwise
+uninitialized location. The second version, specifying
+initial capacity is allowed for Maps with an initial capacity
+argument.
+
+@item d.empty()
+returns true if d contains no items.
+
+@item d.length()
+returns the number of items in d.
+
+@item d[k]
+returns a reference to the contents of item with key k. If no
+such item exists, it is installed with the default contents.
+Thus d[k] = x installs x, and x = d[k] retrieves it. 
+
+@item  d.contains(k)
+returns true if an item with key field k exists in d.
+
+@item d.del(k)
+deletes the item with key k.
+
+@item d.clear()
+deletes all items from the table.
+
+@item x = d.dflt()
+returns the default contents.
+
+@item k = d.key(ind)
+returns a reference to the key at Pix ind.
+
+@item x = d.contents(ind)
+returns a reference to the contents at Pix ind.
+
+@item ind = d.first()
+returns the Pix of the first element in d, or 0 if d is empty.
+
+@item d.next(ind)
+advances ind to the next element, or 0 if there are no more.
+
+@item ind = d.seek(k)
+returns the Pix of element with key k, or 0 if k is not in d.
+
+@end table
+
+@node GetOpt, Projects, Map, Top
+@chapter C++ version of the GNU getopt function
+
+The GetOpt class provides an efficient and structured mechanism for
+processing command-line options from an application program.  The sample
+program fragment below illustrates a typical use of the GetOpt class
+for some hypothetical application program:
+
+@smallexample
+#include <stdio.h>
+#include <GetOpt.h>
+//...
+int debug_flag, compile_flag, size_in_bytes;
+
+int
+main (int argc, char **argv)
+@{
+  // Invokes ctor `GetOpt (int argc, char **argv, 
+  //                       char *optstring);'
+  GetOpt getopt (argc, argv, "dcs:");
+  int option_char;
+  
+  // Invokes member function `int operator ()(void);'
+  while ((option_char = getopt ()) != EOF)
+    switch (option_char)
+      @{  
+         case 'd': debug_flag = 1; break;
+         case 'c': compile_flag = 1; break;
+         case 's': size_in_bytes = atoi (getopt.optarg); break;
+         case '?': fprintf (stderr, 
+                            "usage: %s [dcs<size>]\n", argv[0]);
+      @}
+@}
+@end smallexample
+
+Unlike the C library version, the libg++ GetOpt class uses its
+constructor to initialize class data members containing the argument
+count, argument vector, and the option string.  This simplifies the
+interface for each subsequent call to member function @code{int operator
+()(void)}.
+
+The C version, on the other hand, uses hidden static variables to retain
+the option string and argument list values between calls to
+@code{getopt}.  This complicates the @code{getopt} interface since the
+argument count, argument vector, and option string must be passed as
+parameters for each invocation.  For the C version, the loop in the
+previous example becomes:
+
+@smallexample
+  while ((option_char = getopt (argc, argv, "dcs:")) != EOF)
+    // ...
+@end smallexample
+
+which requires extra overhead to pass the parameters for every call.
+
+Along with the GetOpt constructor and @code{int operator ()(void)},
+the other relevant elements of class GetOpt are:
+
+@table @code
+@item char *optarg
+Used for communication from @code{operator ()(void)} to the caller.
+When @code{operator ()(void)} finds an option that takes an argument, the
+argument value is stored here.
+@item int optind
+Index in @code{argv} of the next element to be scanned.
+This is used for communication to and from the caller
+and for communication between successive calls to @code{operator ()(void)}.
+          
+When @code{operator ()(void)} returns EOF, this is the index of the
+first of the non-option elements that the caller should itself scan.
+              
+Otherwise, @code{optind} communicates from one call to the next how much
+of @code{argv} has been scanned so far.
+@end table
+
+The libg++ version of GetOpt acts like standard UNIX @code{getopt} for
+the calling routine, but it behaves differently for the user, since it
+allows the user to intersperse the options with the other arguments.
+      
+As GetOpt works, it permutes the elements of @code{argv} so that, when
+it is done, all the options precede everything else.  Thus all
+application programs are extended to handle flexible argument order.
+
+Setting the environment variable _POSIX_OPTION_ORDER disables
+permutation.  Then the behavior is completely standard.
+
+@ignore
+((Left out because it is not part of libg++ proper, and does not
+use the library copyright.))
+
+@node Gperf, Projects, GetOpt, Top
+@chapter A Perfect Hash Function Generator
+
+GNU GPERF is a utility program that automatically generates perfect hash
+functions from a list of keywords.  The GNU C, GNU C++, GNU Pascal, GNU
+Modula 3 compilers and the GNU indent code formatting program all
+utilize reserved word recognizer routines generated by GPERF.  Complete
+documentation and source code is available in the ./gperf subdirectory
+in the libg++ distribution.  A paper describing GPERF in detail is
+available in the proceedings of the USENIX Second C++ Conference.
+@end ignore
+
+@node Projects, , GetOpt, Top
+@chapter Projects and other things left to do
+
+@section Coming Attractions
+
+Some things that will probably be available in libg++ in the near future:
+
+@itemize @bullet
+
+@item
+Revamped C-compatibility header files that will be compatible with
+the forthcoming (ANSI-based) GNU libc.a
+
+@item
+A revision of the File-based classes that will use the GNU stdio library,
+and also be 100% compatible (even at the streambuf level) with the AT&T
+2.0 stream classes.
+
+@item
+Additional container class prototypes.
+
+@item
+generic Matrix class prototypes.
+
+@item
+A task package probably based on Dirk Grunwald's threads package.
+
+@end itemize
+
+@section Wish List
+
+Some things that people have mentioned that they would like to
+see in libg++, but for which there have not been any offers:
+
+@itemize @bullet
+
+@item
+A method to automatically convert or incorporate libg++ classes
+so they can be used directly in Gorlen's OOPS environment.
+
+@item
+A class browser.
+
+@item
+A better general exception-handling strategy.
+
+@item
+Better documentation.
+
+@end itemize
+
+@section How to contribute
+
+Programmers who have written C++ classes that they believe to
+be of general interest are encourage to write to dl at rocky.oswego.edu.
+Contributing code is not difficult. Here are some general guidelines:
+
+@itemize @bullet
+
+@item
+FSF must maintain the right to accept or reject potential contributions.
+Generally, the only reasons for rejecting contributions are cases where
+they duplicate existing or nearly-released code, contain unremovable
+specific machine dependencies, or are somehow incompatible with the
+rest of the library. 
+
+@item
+Acceptance of contributions means that the code is accepted for adaptation
+into libg++.  FSF must reserve the right to make various editorial changes
+in code. Very often, this merely entails formatting, maintenance of various
+conventions, etc. Contributors are always given authorship credit and shown
+the final version for approval.
+
+@item
+Contributors must assign their copyright to FSF via a form sent out
+upon acceptance. Assigning copyright to FSF ensures that the code
+may be freely distributed.
+
+@item
+Assistance in providing documentation, test files, and debugging
+support is strongly encouraged.
+
+@end itemize
+
+Extensions, comments, and suggested modifications of existing libg++
+features are also very welcome.
+@contents
+@bye

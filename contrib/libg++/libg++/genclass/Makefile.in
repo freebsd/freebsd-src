@@ -1,0 +1,23 @@
+# Makefile for g++ library genclass test
+
+srcdir = .
+
+#### package, host, target, and site dependent Makefile fragments come in here.
+##
+
+genclass: $(srcdir)/genclass.sh
+	echo "/^PROTODIR=/c\\" > sedscript
+	echo "PROTODIR=$$\{PROTODIR-$(gxx_includedir)/gen\}" >> sedscript
+	sed <../Makefile -n -e '/VERSION/s/LIBG++_DIST_VERSION *= *\(.*\)/s|<VERSION>|\1|/p' >> sedscript
+	sed -f sedscript < $(srcdir)/genclass.sh > genclass.tmp
+	chmod 0755 genclass.tmp
+	rm -f sedscript
+	mv genclass.tmp genclass
+
+gentest: $(srcdir)/gentest.sh $(srcdir)/expected.out
+	$(srcdir)/gentest.sh > my.out 2>&1
+	diff $(srcdir)/expected.out my.out
+
+.PHONY: install
+install:
+	$(INSTALL_PROGRAM) genclass $(bindir)/genclass

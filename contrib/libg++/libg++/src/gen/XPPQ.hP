@@ -1,0 +1,105 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+
+#ifndef _<T>XPPQ_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>XPPQ_h 1
+
+#include "<T>.PQ.h"
+#include "<T>.XPlex.h"
+
+class <T>XPPQ : public <T>PQ
+{
+protected:
+  <T>XPlex              p;
+
+public:
+                <T>XPPQ(int chunksize = DEFAULT_INITIAL_CAPACITY);
+                <T>XPPQ(const <T>XPPQ&);
+
+  Pix           enq(<T&> item);
+  inline <T>           deq(); 
+
+  inline <T>&          front();
+  void          del_front();
+
+  inline int           contains(<T&> item);
+
+  inline void          clear(); 
+
+  inline Pix           first(); 
+  inline void          next(Pix& i);
+  inline <T>&          operator () (Pix i);
+  void          del(Pix i);
+  inline int           owns(Pix i);
+  Pix           seek(<T&> item);
+
+  int           OK();                    // rep invariant
+};
+
+inline <T>XPPQ::<T>XPPQ(int chunksize) 
+     : p(1, chunksize) { count = 0; }
+
+inline <T>XPPQ::<T>XPPQ(const <T>XPPQ& s) : p(s.p) { count = s.count; }
+
+inline Pix <T>XPPQ::first()
+{
+  return p.first();
+}
+
+inline void <T>XPPQ::next(Pix  & idx)
+{
+  p.next(idx);
+}
+
+inline <T>& <T>XPPQ::operator ()(Pix   idx)
+{
+  return p(idx);
+}
+
+inline <T>& <T>XPPQ::front ()
+{
+  return p.low_element();
+}
+
+inline <T> <T>XPPQ::deq ()
+{
+  <T> x = p.low_element();
+  del_front();
+  return x;
+}
+
+inline void <T>XPPQ::clear()
+{
+  count = 0;  p.clear();
+}
+
+inline int <T>XPPQ::contains (<T&> item)
+{
+  return seek(item) != 0;
+}
+
+inline int <T>XPPQ::owns (Pix   idx)
+{
+  return p.owns(idx);
+}
+
+#endif

@@ -1,0 +1,2271 @@
+Tue Jun 18 18:36:58 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* Version 2.7.2.
+
+Fri Dec  1 15:35:03 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* libg++.texi:  Don't document 'and' function etc, since they
+	are no longer available if __STRICT__ANSI__.
+	
+	* Makefile.in:  Generate g++FAQ.txt and g++FAQ.html from g++FAQ.texi.
+	(diststuff):  Also build g++FAQ.txt.
+	* configure.in (REAL_CLEAN):  Remove g++FAQ.{txt,html}.
+	* g++FAQ.txt:  Removed - now generated automatically.
+
+	* configure.in (configdirs):  Remove old-stream.
+
+Fri Apr 19 17:24:51 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* Version 2.8.0b3.
+
+Wed Apr 10 02:30:52 1996  Jason Molenda  (crash@phydeaux.cygnus.com)
+
+	* g++FAQ.texi, g++FAQ.txt:  Update to April 5 version.
+
+Mon Apr  8 15:04:37 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Permit --enable-shared to specify a list of
+	directories.
+
+Wed Mar 27 11:54:08 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* Version 2.8.0b2.
+
+Wed Feb 28 10:00:24 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+ 	* Version 2.8.0b1.
+
+	* *, config/*: Remove references to curses stuff.
+
+	* g++FAQ.txt (Subject): Update to February 15 version.
+
+Tue Dec 19 15:13:08 1995  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* config/aix.ml (SHFLAGS): Add -Wl,-unix.
+
+Sun Dec 17 00:26:54 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.in (install): Make sure shared libraries
+	are installed with mode 555.
+
+Mon Dec  4 14:07:02 1995  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* config/hpux.ml: HPUX has shared libcurses.
+
+	* Makefile.in (install): Make symbolic links relative.
+
+Tue Nov 28 14:26:49 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* Makefile.in (piclist): Use test instead of the left bracket, to
+	avoid problems with some versions of make.
+
+Sat Nov 25 11:47:26 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* configure.in: Delete changing LIBIBERTY to xiberty if cross.
+
+	* Makefile.in (install): Fix setting of rootme.
+
+Tue Nov 21 14:16:35 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Check ${with_cross_host} rather than comparing
+	${host} and ${target}.
+
+Tue Nov 14 01:34:06 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* Makefile.in (RX_OBJ): Delete MULTITOP reference.
+	(SHLIB, ../librx/rx.o): Likewise.
+	* configure.in: Delete call to cfg-ml-com.in.  Call config-ml.in
+	instead of cfg-ml-pos.in.
+	* src/configure.in (XCINCLUDES): Delete MULTITOP reference.
+	(config-ml.in): Call instead of cfg-ml-pos.in.
+	* src/depend: Regenerated.
+
+Sun Nov 12 16:28:06 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* g++FAQ.texi, g++FAQ.txt:  Update to September 15 version.
+
+	* Makefile.in (VERSION), README:  Update to 2.7.1.
+
+Thu Nov  9 17:45:00 1995  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* config/*.ml: Don't include -lcurses in LIBS.  Tweak.
+
+	* configure.in (MOSTLYCLEAN): Add piclist.
+
+Wed Nov  8 17:02:42 1995  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* Makefile.in (piclist): Don't include CursesW.o for targets that
+ 	lack a shared libcurses.
+
+Mon Nov  6 14:18:16 1995  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* config/linux.ml: Be sure to get the right libstdc++.
+
+Thu Oct 26 22:51:44 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (VERSION):  Increase to 2.7.0.90.
+
+Tue Oct 24 15:53:59 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* config/sol2shm.ml: New file, to pass -R to links.
+	* configure.in: For solaris2*, use sol2shm.ml instead of elfshlibm.ml.
+
+Tue Sep 26 15:22:31 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* config/irix5.ml: Pass -rpath to links.
+
+Fri Sep 15 00:24:52 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* config/linux.ml: Conform to Linux shared library numbering scheme.
+	* Makefile.in: Ditto.
+
+Mon Aug 21 11:46:03 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* Makefile.in (install): Make shared library executable and
+ 	non-writable.  Tidy.
+
+Sat Jul 22 14:00:26 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* Makefile.in (list): Add multilib support.
+	($(SHLIB), rx.o, install): Likewise.
+	* configure.in: Likewise.
+	* src/Makefile.in (install): Likewise.
+	* src/configure.in (XCINCLUDES): Likewise.
+	* src/depend: Regenerated.
+
+Wed Jun 28 13:45:24 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* g++FAQ.texi, g++FAQ.txt:  New versions from Joe Buck.
+
+Tue Jun 27 01:56:34 1995  Jeffrey A. Law  <law@rtl.cygnus.com>
+
+	* config/hpux.ml (SHFLAGS): Use $(PICFLAG), not $(LIBCFLAGS).
+
+Fri Jun 23 16:54:17 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* Makefile.in (SHLINK): Force link.
+	(install): Ditto.
+
+	* Makefile.in (SHARLIB): Provide a default value.
+
+Fri Jun 16 15:35:33 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* g++FAQ.texi, g++FAQ.txt: New files: Joe Buck's FAQ for G++.
+
+Thu Jun 15 21:01:10 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (VERSION):  Set to 2.7.0
+
+Fri Jun 16 13:57:22 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* config/aix.ml: Build both shared and archive libraries.
+
+Wed Jun 14 21:44:21 1995  Jason Merrill  <jason@python.cygnus.com>
+
+	* configure.in (frags): Use linux.ml for Linux/ELF.
+	* config/linux.ml: New file.
+
+Wed Jun  7 11:13:32 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* configure.in (MOSTLYCLEAN): Remove stamp-picdir.
+
+Mon Jun  5 18:41:03 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* Makefile.in (piclist): New rule.
+	(SHLIB): Use it.
+
+	* configure.in (MOSTLYCLEAN): Remove pic.
+	(frags): Use toplevel pic frags.
+
+	* config/*.ml: Build both shared and archive libraries.
+
+Mon May 22 23:36:42 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (VERSION):  Bump to 2.6.90.
+	(install):  Re-format;  add missing semi-colon.
+
+Wed May 10 05:07:45 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* config/aix.ml: New file.
+
+	* configure.in (enable_shared): Support enable_shared under AIX.
+
+	* Makefile.in (SHARLIB): New variable and rule for building an
+        archive library containing a single shared object (for AIX).
+
+Wed Apr 19 23:22:36 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* config/dec-osf.ml (SHDEPS): Link with -lstdc++.
+
+	* Makefile.in (SHLIB): Don't link with -lstdc++.
+
+Sun Apr 16 17:54:28 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* README:  Minor updates.
+	* libg++.texi:  Fix two typos.
+
+Wed Mar  8 16:34:44 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* config/elf.ml (LIBS): Also link with libstdc++.
+	* config/sunos4.ml: Ditto.
+
+	* config/dec-osf.ml (LIBS):  Pass -rpath to linker.
+
+Thu Feb 16 00:13:44 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* Makefile.in, config/*.ml: Generate shared library on most hosts
+	as libg++.so.$(VERSION), with a symlink to libg++.so, so that
+	multiple versions can coexist.
+
+Fri Jan 20 01:34:04 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* Makefile.in (list): Don't include files from libio and libiberty.
+	(SHLIB): Link with libstdc++.
+
+	* README.SHLIB: Add note about setting LD_LIBRARY_PATH.
+
+Mon Dec  5 19:45:21 1994  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* README:  Add note about AIX.
+	* NEWS:  Mention STL and shared library support.
+
+Wed Nov  9 01:24:09 1994  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* README.SHLIB: Update for new shared library support.
+
+Mon Nov  7 16:22:44 1994  Jason Merrill  <jason@phydeaux.cygnus.com>
+
+	* configure.in, config/*.ml: Handle --enable-shared.
+	(ALL): Reference 'libs' now.
+	(MOSTLYCLEAN): Handle 'list'.
+	(CLEAN): $(BUILD_LIBS) replaces $(TARGETLIB).
+
+	* Makefile.in (ALL, CHECK, TARGET_LIB): Remove.
+	(ARLIB): libg++.a.
+	(SHLIB): libg++.so.
+	(SHFLAGS): flags used when building $(SHLIB).
+	(SHDEPS) : libraries linked when building $(SHLIB).
+	(LIBIBERTY_OBJECTS_TO_GET): Reference file in other directory.
+	(list): Build master list of objects.
+	(libg++.a): Use it.
+	(libg++.so): Ditto.
+	(install): Only ranlib $(ARLIB).
+
+Sat Nov  5 16:09:24 1994  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (VERSION):  Update to 2.6.2.
+	* Makefile.in:  Support for adding in ../libio/rx.o into libg++.a
+	moved here from src/Makefile.in.
+	* NEWS, README:  Update.  Libstdc++ is now enabled by default.
+
+Fri Nov  4 17:14:09 1994  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* NEWS, TODO:  Fix typos.
+
+Mon Oct 24 15:43:09 1994  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* configure.in:  Remove no-longer-used NOSTDINC setting.
+	* utils/etags.c:  Removed.  The one in emacs-19 is better maintained.
+	* utils/Makefile.in, utils/configure.in, README:  Removed etags stuff.
+
+Thu Oct 20 17:07:53 1994  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* README, NEWS:  Note libstdc++.  Other updates.
+
+	* README.SHLIB:  Update from Joseph E. Sacco <jsacco@ssl.com>.
+
+Tue Oct 18 17:52:42 1994  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* README:  Minor improvements.
+	* README.SHLIB:  New file.  (Notes on building shared libraries.)
+	* utils/c++-mode.el:  Removed.
+
+Thu Oct 13 18:29:02 1994  Jason Merrill  (jason@phydeaux.cygnus.com)
+
+	* Makefile.in (install): Warn if we detect headers from a pre-2.5
+        installation.
+
+	* README: Add more information about problems from old
+        installations.
+
+Wed Aug 24 12:54:04 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* configure.in: Change i[34]86-*-linux to i[345]86-*-linux.
+
+Sat Aug 20 12:12:01 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION):  Increase to 2.6.1.
+	* NEWS:  Note use of librx.
+
+Fri Jul 22 00:09:06 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* utils/etags.c:  Replace index -> strchr and rindex -> strrchr.
+	Protect extern definitions of strchr, strrchr, strcpy, strncpy,
+	and strcmp by #ifndef's in case they are macros.
+	(This is a problem under AIX-3.2.5, as reported by
+	Tom McConnell <tmcconne@sedona.intel.com>.)
+	Remove commented-out definitions of index and rindex.
+
+Wed Jul 13 12:56:43 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION):  Increase to 2.6.
+	* README, NEWS, TODO:  Some updating.
+
+Mon Jul 11 18:56:59 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* README:  Update libg+.texinfo -> libg++.texi,
+	Take out Doug Lea's prominent address.
+
+Tue May 31 09:25:41 1994  Mike Stump  (mrs@cygnus.com)
+
+	* utils/etags.c: Add #include <string.h>, to avoid warning on alpha.
+
+Mon May 30 17:34:39 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (install):  Various cleaning up.
+	Move commands to install include files to src/Makefile.in.
+
+Wed May 25 16:00:55 1994  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION):  Set to 2.5.4.
+
+Thu Mar 17 22:35:05 1994  Per Bothner  (bothner@deneb.cygnus.com)
+
+	* configure.in:  Always set NOSTDINC in Makefiles.  (Don't try
+	to determine if C++ compiler can handle it.  We can't really
+	do that with the current configure setup.)
+	* README: Recommend build using 'make all "CC=gcc -O"'.
+	Note "make NOSTDIC=" is needed if using non-g++.
+
+Mon Mar  7 13:51:57 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* Makefile.in (.stmp-tests): Don't recurse into tests directory if
+	it does not exist.
+
+Sun Dec 19 19:04:12 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION):  Set to 2.5.3.
+	* README.386bsd:  Removed.
+
+Fri Nov 26 19:07:36 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION):  Set to 2.5.2.
+
+Thu Nov  4 16:58:40 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION): Update to version 2.5.1.
+	* Makefile.in (install):  Remove code to install g++-include.
+	* configure.in:  Restore code to set NOSTDINC.
+
+Wed Nov  3 11:50:21 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+
+Mon Nov  1 17:56:05 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* g++-include directory:  Removed.  (We assume fixproto now.)
+
+Mon Oct 25 21:08:33 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* libg++.texi:  Fix typo Slater -> [Daliel] Sleator.
+	Reported by Nathan Loofbourrow <loofbour@cis.ohio-state.edu>.
+
+Sat Oct 23 22:06:00 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in (VERSION):  Update to version 2.5.
+	* README, NEWS:  Various updates.
+
+Thu Oct 14 16:04:10 1993  Karen Christiansen  (karen@deneb.cygnus.com)
+
+	* configure.in: changed mv to mv -f 
+
+Mon Oct 11 12:43:51 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in:  Bump version number to 2.4.90.
+	* README, NEWS:  Update.
+	* Makefile.in:  Remove iostream references.
+
+Mon Oct  4 17:47:51 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* libg++.texi:  Note NIHCL availability and status.
+	* Makefile.in:  Bump version number to 2.4.8.
+
+Wed Aug 25 13:00:55 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config/{aix3-1.mt, hpux.mt, isc.mt, sco4.mt}:
+	Moved to ../libio/config (since they affect _G_config.h).
+	* configure.in:  Don't set my_target for sco/hpux/isc/aix.
+
+Wed Aug 18 12:23:19 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* Makefile.in:  Use FOO.list files instead of SUBDIR/stamp.
+
+Tue Aug 17 18:36:08 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	Set up for using ../libio instead of ./iostream.
+	* Makefile.in (SUBDIRS):  Don't include IO_DIR.
+	* utils/gen-params:  Moved to ../libio.
+	* Makefile.in:  Don't build or use _G_config.h; use ../libio.
+	* Makefile.in (stamp-libg++.a, libg++.a):  Re-do to use
+	$(IO_DIR)/iostream-files, where IO_DIR defaults to ../libio.
+	* config.shared:  Now just a stub that invokes ../libio/config.shared.
+	* utils/configure.in (srctrigger):  gen-params -> g++dep.sh.
+
+Wed Aug  4 17:29:14 1993  david d `zoo' zuhn  (zoo@rtl.cygnus.com)
+
+	* Makefile.in (install): add some 'else true' clauses for the
+	dain-bramaged DECstation Bourne shell
+
+Tue Aug  3 11:41:27 1993  Per Bothner  (bothner@kalessin.cygnus.com)
+
+	* config.shared:  Change INSTALL to use ../install.sh -c.
+	* configure.in:  Removed setting of INSTALL*.
+	* configure.in:  Removed reference to aix.mt.
+	* config/aix.mt:  Removed; no longer needed.
+	* config/{aix3-1.mt, hpux.mt, linux.mt, sco4.mt, solaris2.mt}:
+	Removed no-longer-needed setting of INSTALL*, NOSTDINC,
+	HAVE_CPLUS_EXTERN, and WRAP_C_INCLUDES.
+
+Sun Jul 25 19:21:45 1993  Per Bothner  (bothner@kalessin)
+
+	* config.shared:  Set WRAP_C_INCLUDES to no longer search
+	g++-include, now that gcc has the fixproto script.
+	* configure.in:  Don't need -nostdinc++ flag any more,
+	now that we're not using g++-include (with its #include_nexts).
+	* config.shared:  Restructure *clean rules, partly to
+	avoid some duplication.
+	* README:  Various clarifications.
+
+Wed Jul  7 15:33:39 1993  Brendan Kehoe  (brendan@lisa.cygnus.com)
+
+	* utils/gen-params (DOLLAR_IN_LABEL): Look for `7filebuf' instead
+	of just `filebuf' on the vtable name.
+
+Tue Jun 29 13:02:39 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in (VERSION): Set to 2.4 (yeah!).
+	* Makefile (install):  Don't depend on all.
+	* config.shared: Undo change of Jun 25.
+	* configure.in:  Handle *-*-solaris like *-*-solaris2.
+
+Fri Jun 25 12:23:22 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* config.shared:  Make install-info depend on info.
+
+Wed Jun 23 12:56:23 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Define VERSION (for cd ..; make taz).
+	* Makefile.in:  Set to version 2.3.91.
+	* Makefile.in (diststuff):  Needed for distributions.
+	* Makefile (dts):  Rip out.  Subsumed by stuff in ../Makefile.in.
+
+Tue Jun 22 13:16:30 1993  Per Bothner  (bothner@deneb.cygnus.com)
+
+	* README.386bsd:  Patches for 386bsd.
+	* utils/etags.c:  Add AIX alloca support.
+	* config.shared (CXXINCLUDES):  Fix quoting bug.
+	* libg++.texi:  Document Integer methods fits_in_long(),
+	as_long(), fits_in_double(), as_long().
+
+Tue Jun 15 11:54:42 1993  Per Bothner  (bothner@deneb.cygnus.com)
+
+	* config.shared (CLEAN):  Default to ${TARGETPROG} ${TARGETLIB}.
+	* configure.in (DISTCLEAN):  Add target-mkfrag.
+
+Mon Jun  7 13:13:27 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Increase version number to 2.3.90.
+	* configure.in:  Always automatically generate a target Makefile
+	fragment, and then posibly append the one in config/*.mt.
+	This means the config/*.mt only needs to contain what is
+	different from the normal case, which should ease updates.
+	* config/rs6000.mt:  Replace by aix3-1.mt (for buggy AIX 3.1),
+	and aix.mt (for more recent versions).
+	* config/isc.mt:  New file.
+	* configure.in:  Update for above config/*.mt changes.
+
+Tue Jun  1 16:53:14 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in (stamp-$(TARGETLIB)):  Delegate adding the
+	files from $(IODIR) to the sub-Makefile, invoking latter
+	with target add-to-targetlib.
+	* Makefile.in (_G_config.h):  Set CC=$(CXX) when invoking
+	utils/gen-params, to "force" use of C++ compiler.
+
+	* no-stream/Makefile.in (add-to-targetlib):  New rule.
+	* utils/gen-params:  Remove OLD_PLACEMENT support.
+
+Fri Jun  4 14:14:39 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (installcheck): Pass CXXFLAGS to test-install.
+	* config.shared: It's .SUFFIXES, not SUFFIXES.
+
+Thu Jun  3 00:53:03 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in (install): split off the running of the installation
+	tests into a new target, installcheck
+
+Wed May 12 13:39:46 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* utils/Makefile.in (etags.o, etags): Build etags via etags.o,
+	rather than directly from etags.c.
+
+Tue May 11 16:32:31 1993  Brendan Kehoe  (brendan@lisa.cygnus.com)
+
+	* utils/gen-params: Look for new types `int32_t' and `uint32_t'.
+
+Mon May 10 09:57:25 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* configure.in: Create target-mkfrag using move-if-change.
+
+Thu May  6 09:24:21 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (install): If TEST_INSTALL was overridden by
+	configure.in, don't try to install the test-install directory.
+	* configure.in: If cross, take gperf, test-install and utils out
+	of configdirs.  Otherwise they wind up in subdirs and get built.
+	Override TEST_INSTALL to be empty rather than Makefile.
+
+Mon May  3 18:55:19 1993  Per Bothner  (bothner@cygnus.com)
+
+	* configure.in:  If cross, use sed to hack Makefile, rather
+	than appending to target_makefile_frag, since that doesn't
+	work if there is a pre-existing fragment.
+	* Makefile.in:  Re-order INSTALLDIR.
+
+Mon May  3 11:45:41 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* config.shared: Added missing quotes around TOUCH_ON_COMPILE.
+
+Fri Apr 30 15:12:36 1993  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in (tooldir):  New definition.
+	* Makefile.in (install):  Install _G_config in $(tooldir)/include,
+	since it is the only include file that is target-dependent.
+	* Makefile.in (dist-fix-Makefile):  Remove no-longer-needed kludge.
+	* config.shared:  If TOUCH_ON_COMPILE is defined (at configure
+	time), make sure to 'touch stamp' on every compile.
+	This prevents unneeded re-builing of libg++.a.
+
+Wed Apr 28 11:44:05 1993  Ian Lance Taylor  (ian@rtl.cygnus.com)
+
+	* config.shared (MAKEOVERRIDES): Define to be empty.
+
+Tue Apr 27 15:52:19 1993  Per Bothner  (bothner@cygnus.com)
+
+	* config.shared (FLAGS_TO_PASS):  Also pass INSTALL, INSTALL_DATA,
+	and INSTALL_PROGRAM.
+	* Makefile.in:  Remove duplicate definition of FLAGS_TO_PASS.
+	Replace uses of BASE_FLAGS_TO_PASS by FLAGS_TO_PASS.
+
+Tue Apr 27 11:09:04 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* config.shared: info depends on .info files, not .texi files.
+
+Fri Apr 23 11:31:01 1993  Brendan Kehoe  (brendan@lisa.cygnus.com)
+
+	* configure.in (target_makefile_frag): If there was one in srcdir,
+	then reset it to include ${srcdir} so we'll copy it properly.
+
+Sun Apr 18 23:54:45 1993  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in and configure.in all directories, config.shared:
+	Revamped configure scheme.  See libg++/NEWS.
+	* README:  Some extra information, including a note
+	about what it means when test-install fails.
+	* libg++.texinfo:  Renamed to libg++.texi.
+	* gen-params:  Minor improvements (we hope) here and there.
+
+Tue Mar 23 00:14:33 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: minimal support for installcheck (FIXME), some
+	support for dvi target
+
+Fri Mar 19 10:35:32 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* david d `zoo' zuhn's patches for ARG_MAX:
+	Makefile.in (BASE_FLAGS_TO_PASS): New variable.
+	(FLAGS_TO_PASS): Use BASE_FLAGS_TO_PASS.
+	(info, install-info, install): Use BASE_FLAGS_TO_PASS.
+	(subdir_do): Don't echo FLAGS_TO_PASS.
+
+Fri Mar 12 18:35:02 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: recognize *-*-solaris2* instead of *-*-solaris2
+
+Fri Mar  5 11:41:15 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (MAKEOVERRIDES): Override GNU make 3.63 default
+	definition in order to reduce length of command line.
+
+Wed Feb 17 05:28:51 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: when making include files non-executable, make them
+	world readable as well
+
+Mon Jan 25 14:40:28 1993  Brendan Kehoe  (brendan@cygnus.com)
+
+	* config/alpha.mh: New file, for DEC's Alpha family.
+
+Wed Jan 13 21:17:26 1993  Mike Stump  (mrs@cygnus.com)
+
+	* .../Makefile.in, utils/gen-params, configure.in: Change .../gcc
+	to .../xgcc.
+
+Tue Jan  5 02:38:37 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: get the xiberty kludge "working"
+
+Wed Dec 30 14:15:31 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in (info): added -I to command line, for @include
+
+Tue Dec 29 08:54:13 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* utils/gen-params: Define _G_MATH_H_INLINES.  Based only on
+	arguments to gen-params; no test yet.
+	* config/sco4.mt, config/hpux.mt (G_CONFIG_ARGS): pass
+	MATH_H_INLINES as 1.
+
+	* Makefile.in: pass $(FLAGS_TO_PASS) to all calls to make.
+
+Mon Dec 28 12:07:11 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* utils/gen-params: added check for CURSES_FORMAT_ARG, which
+	differs from system to system.
+
+	* configure.in: for SCO 3.2v4 use sco4.
+	* config/sco4.mh: new file: SCO header files are C++ ready, and
+	SCO curses doesn't work with libg++ curses.
+
+Tue Dec 22 14:58:04 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* utils/gen-params:  At end, delete all temporary files.
+	* configure.in:  Don't bother linking lgpl.texinfo.
+	Clean up temp.o when done.
+	* Makefile.in:  Set version number to 2.3.1.
+	* Makefile.in (*clean rules):  Use ALL_SUBDIRS, which includes
+	old-stream and no-stream.
+	* Makefile.in:  Add dependencies for libg++.a, to support
+	parallel makes.
+
+Tue Dec 15 14:45:05 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: configure based on target, instead of host.  This
+	was a simple text substitution, which also involved renaming:
+
+	* config/{hpux.mt,linux.mt,rs6000.mt,solaris2.mt}: renamed from .mh
+
+Sat Dec 12 00:05:42 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  No longer use HAVE_CPLUS_EXTERN; we can use
+	WRAP_C_INCLUDES instead.  This should be somewhat more robust,
+	since we only depend on WRAP_C_INCLUDES being over-ridden.
+	* configure.in:  Don't generate HAVE_CPLUS_EXTERN.
+
+Wed Dec  9 15:08:34 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Set version to 2.3.
+	* README, NEWS, TODO: Various updates.
+
+Fri Dec  4 17:44:40 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in (install):  Pass CXX to test-install, not CC.
+	* Makefile.in (dist):  Use new ../etc directory for config stuff.
+
+Thu Dec  3 20:03:05 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Bump to version 2.2.95.
+	* Makefile.in (distclean, realclean):  Don't delete
+	Makefile until *after* recursive makes.
+	* Makefile.in:  Add a kludge to reconcile FSF/Cygnus conflict.
+
+Fri Nov 20 15:34:27 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in (install): don't change permissions on all info files,
+	just the ones that get installed by this Makefile
+
+Fri Nov 20 14:34:52 1992  Per Bothner  (bothner@cygnus.com)
+
+	* configure.in:  Add etc/fib to subdirs.
+	* configure.in, config/{linux,solaris2}.mh: Fix typo
+	INSTALLDATA -> INSTALL_DATA.
+
+Tue Nov 17 21:48:10 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Bump to 2.2.92.
+	* Makefile.in (install):  Use $(FLAGS_TO_PASS).
+
+	* utils/gen-params:  More "robust" sed patterns for extracting
+	type definitions.
+
+Sat Nov  7 19:45:42 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* config/solaris2.mh:  New file, for Sun's Solaris2 OS.
+	* configure.in:  Use it.
+
+Thu Nov  5 18:45:53 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Bump to version 2.1.91.
+	* Makefile.in, */Makefile.in, etc:  Replace ${C++} and
+	${C++FLAGS} by ${CXX} and ${CXXFLAGS}.  (Some versions of
+	'make' do not like '+' in variable names.)
+	* Makefile.in (install):  Fix typo (chmod directory).
+
+Mon Nov  2 13:20:54 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Don't pass $(NOSTDINC) as part of $(CC).
+	* Makefile.in (dist):  include/demangle.h is also needed.
+
+Sun Nov  1 16:25:00 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in, */Makefile.in, etc:  Use ${C++} (and ${C++FLAGS})
+	to compile C++ programs, not ${CC}.
+	* Makefile.in:  Bump to version 2.2.90.
+	* Makefile.in:  Use FLAGS_TO_PASS more consistently.
+
+Sat Oct 31 19:24:05 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* libg++.texinfo:  Fix a number of typos (from
+	meyering@cs.utexas.edu (Jim Meyering)).
+
+Fri Oct  9 16:44:30 1992  Per Bothner  (bothner at PersSony)
+
+	* Makefile.in:  Fixed rule for building libg++.a to not do
+	anything if everyting is up-to-date, using a stamp-libg++.a
+	indicator file.
+
+Tue Sep 29 15:47:05 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* COPYING, COPYING-LIB: Removed (- use versions in ..).
+	* README: Update accordingly.
+
+Fri Sep 25 11:28:24 1992  Per Bothner  (bothner@cygnus.com)
+
+	* utils/gen-params:  Define the type names (such as _G_size_t)
+	using typedefs, not macros.
+	* utils/gen-params:  Add commented-out hook for turning
+	off use of templates (for old compilers).
+
+Thu Oct  1 23:53:29 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: use cpu-vendor-os triple instead of nested cases
+
+Tue Sep 29 12:07:35 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* utils/gen-params: do the stdarg test with C++, not C, since
+	otherwise a type incompatibility is only a warning.
+
+Tue Sep 15 15:43:35 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (install): install libg++.a in $(INSTALLDIR), which
+	defaults to $(libdir), not $(tooldir).  Default $(gxx_includedir)
+	to $(tooldir/g++-include; the g++-include directory is currently
+	target dependent because of the _G_config.h file.  Also, gcc now
+	looks in $(tooldir) by default.
+	configure.in: if cross-compiling, override $(INSTALLDIR) to
+	$(tooldir)/lib.
+
+Fri Sep 11 16:05:08 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* configure.in, Makefile.in: When cross-compiling, don't build
+	gperf, or the utils directory, or test-install.
+
+Thu Sep 10 22:49:34 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* utils/gen-params: test for existence of curses.h.  It's not in
+	newlib.  Also corrected a couple of typos.
+
+Wed Sep  9 12:34:00 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in: try to get correct version of nm for target for
+	gen-params.
+
+Mon Aug 31 16:14:34 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Bump to version 2.2.3.
+	* Makefile.in:  Convert ${readme} to be `pwd`/ (with a
+	trailing slash) (as done in iostream).
+
+Mon Aug 17 17:15:06 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* utils/gen-params:  Allow command-line (e.g. HAVE_UNISTD=0)
+	to override feature testing for various include files.
+	* Makefile.in:   Pass $(NOSTDINC) to gen-params.
+	Turn off execute permission after installing data. 
+
+Wed Aug 12 00:33:09 1992  Per Bothner  (bothner@cygnus.com)
+
+	* utils/c++-mode.el:  New version.
+
+	* Makefile.in: Change to version 2.2.1.
+	* Makefile.in:  Remove some old junk.
+	Let 'install' depend on 'all'.
+	Let 'install' also install gperf.
+	* utils/gen-params:  Test for Posix-compatible (or rather
+	iostream/procbuf.C-compatible) sys/wait.h by compiling
+	C++ test program, not C.  Fixes NeXT problem, I hope.
+	Also, fix typo when predefined DOLLAR_IN_LABEL (fixes hpux).
+
+Mon Aug 10 11:38:14 1992  Ian Lance Taylor  (ian@dumbest.cygnus.com)
+
+	* Makefile.in: always create installation directories.
+
+Fri Jun 26 12:26:35 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in: Change to version 2.2.
+	* Makefile.in:  Don't `cd ../libiberty; make'; since this
+	may cause some confusion (with old versions of GNU make
+	passing the wrong environment); instead assume that
+	../Makefile takes care of it.
+	* configure.in, config/hpux.mh:  hpux support.
+	* utils/etags.c:  stat fixes for Posix and SVR3.
+	* utils/gen-params:  Minor fixes.
+
+Mon Jun 22 23:54:31 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Increase to version 2.1.92.
+	* utils/gen-params.  Add some paranoia when trying to
+	figure out a type for _G_ssize_t - make sure it doesn't
+	conflict with read().
+
+Fri Jun 19 23:15:13 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Increase to version 2.1.91.
+	* utils/etags.c:  New version, from emacs-19.
+	* utils/Makefile.in:  New etags needs GNU getopt.
+	* utils/gen-params:  Take out _G_HAVE_UNION_WAIT testing.
+	Instead, check that wait() will accept an (int*) - as
+	Posix and tradition (but not NeXT) says it should -
+	if it doesn't, say that we don't HAVE_SYS_WAIT.
+
+Wed Jun 17 18:48:16 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Increase version number to 2.1.90.
+	* no-stream/Makefile.in:  New directory and file.
+	Useful for building libg++ *without* iostreams.
+	* Makefile.in, */Makefile.in:  Cleanup *clean rules,
+	following standards.texi.
+	* utils/gendepend:  Remove tempoary file depend.tmp.
+	* utils/gen-params:  Check if <sys/wait.h> defines union wait.
+	* WHATS.NEW:  Merge old stuff from (deleted) etc/release.log.
+	* configure.in:  Check that we find an install that works;
+	for SYSV, also try /usr/ucb/install.
+	* TODO, README, libg++.texinfo:  Minor changes.
+
+Wed Jun  3 23:10:20 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Set version number to 2.1.
+	* utils/gen-params:  If ${NAMES_HAVE_UNDERSCORE} is non-null,
+	use that value; don't bother trying to deduce it.
+	Ditto for ${DOLLAR_IN_LABEL}.
+	Replace sed-idiom -n -e 1,1p by -e '2,$d', because the
+	former doesn't work in GNU sed.
+	Add sigset_t to the list of types searched for.
+	Look for <sys/wait.h> and defined _G_HAVE_SYS_WAIT appropriately.
+	* vms/{_G_config.h,AAAREADME.TXT}:  New versions from Youngdale.
+	* libg++.texinfo:  Note failure behavior for String::before().
+	* Makefile.in:  Use FLAGS_TO_PASS variable to be more
+	consistent about flags to pass to sub-makes.
+	Add some hooks for people with unusual environments:
+	Unually powerful C-libraries, or they don't want iostreams
+	to be part of libg++.a.
+	* configure.in:  Test for Linux configuration.
+	Avoid confusing error message when looking for ranlib.
+
+Fri May 29 13:08:12 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* utils/gen-params:  Remove TMP before running a sed which
+	writes to it (GNU sed supposedly has a bug where in that it
+	doesn't truncate a file before writing to it).
+	* Makefile.in:  Include strerror.o strsignal.o (from libiberty).
+
+	* Makefile.in:  Bump to version 2.0.91.
+	* etags.c:  #undef TRUE and FALSE before defining, to
+	avoid collisions.  (These inevitable collisions make it
+	a mistake to define TRUE and FALSE in the first place.)
+	* gen-params:  Test for <dirent.h>.
+	Use ${SED} instead of sed, since GNU sed may be broken.
+	Check if the type we found for va_list works, and have
+	a fall-back plan for when it doesn't.
+	* gen-params:  Check for sprintf return type.
+	Don't emit unneeded _G_const.
+	* config/mt-*:  Remove unused and obsolete files.
+	* vms directory:  Updates from Eric Youngdale.
+	* README:  Minor fixes.
+
+Thu May 14 12:29:29 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Set version to 2.0.90.
+	* Makefile.in:  Pass new flags to test-install, now that
+	test-install has been changed to to use ../libg++.a etc;
+	override that to use -lg++ etc to get inststalled versions.
+	* COPYING:  Replace by version 2 GPL.
+	* README:  Explain what copyrights apply to what.
+	* libg++.texinfo:  Remove comments about gperf, since it
+	is not part of libg++ proper (and is GPL, not LGPL).
+
+	* util/gen-params:  Re-order in a logical order.
+	Change _G_NO_UNISTD_H to _G_HAVE_UNISTD for consistency.
+	Add test for _G_FRIEND_BUG (if the compiler barfs on
+	extern "C" functions as friends).
+
+Wed May 13 12:06:57 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* configure.in:  Make sure to append 'depend' (if it exists)
+	to each Makefile.
+
+Sat May  9 12:43:38 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Bump version to 2.0.9.
+
+	* WHATS.NEW:  Be more expansive.
+	* configure.in:  Fix some typos.
+	* Various Makefile.in's:  Pass $(NOSTDINC) when compiling.
+	Also, fix some other CFLAGS problems.
+
+Wed May  6 11:48:32 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* utils/gen-params:  Also #include <time.h> in dummy.c,
+	so we can get clock_t.
+
+	* utils/gen-params: Moved argument evaluation to start.
+	Pass -I${gccdir}/include if using ${gccdir}/gcc.
+	* Makefile.in:  Pass $(XTRAFLAGS) to gen-params.
+	* vms directory:  Renamed _G_CONFIG.H to _G_config.h.
+
+Sat May  2 16:48:07 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* vms directory:  New files from Eric Youngdale.
+
+Thu Apr 30 13:42:59 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in:  Bump to version 2.0.8 for "progressive" release.
+	* every Makefile.in:  Replace gcc -O by just gcc, for constiency.
+	* utils/gen-params:  Rename every temp.c -> dummy.c.
+	Add test for sys/resource.h, and use that instead of the
+	no-longer-meaning test for sysv.
+	* Makefile.in:  Install sys/*.h from g++-include, not src.
+	Fix so that 'make libg++.a' does the right thing.
+
+Mon Apr 20 14:59:59 1992  Per Bothner  (bothner@cygnus.com)
+
+	* utils/gen-params:  Add introductory commentary.
+	Replace tabs by space in dummy.out, so following
+	sed scripts don't have to worry about tabs.
+
+Thu Apr 30 09:06:32 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: add .NOEXPORT so that subdirs don't inherit
+	  bad definitions.  Notably, so that libiberty doesn't inherit
+	  host_makefile_frag.
+
+Fri Apr 17 13:50:41 1992  Per Bothner  (bothner@cygnus.com)
+
+	* configure.in:  Use new 'subdirs' feature of configure,
+	to configure all sub-directories in one invocation of
+	'configure'.  This means we can get rid of all subdir
+	configure.in files, and we can share configuration files.
+	* configure.in:  If there is no host makefile fragment.
+	generate one.
+	* Makefile.in, */Makefile.in, etc: Use new configure scheme.
+	Also, define CC using a test for ../gcc/gcc, not just
+	a ../gcc directory.  Similar for AR etc.
+	* utils/gen-params:  New shell script to generate a .h
+	file with various system-specific parameters.
+	* Makefile.in:  New rule to generate _G_config.h using
+	utils/gen-params.  All Makefiles include the top-level
+	directory in the include search path, to make sure they
+	get _G_config.h (which is the the libg++ build directory,
+	not the srcdir).
+
+Mon Mar 23 16:46:01 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* libg++.texinfo:  Remove references to itoa and similar
+	deprecated functions that return a pseudo-static buffer
+	(allocated by AllocRings).   Replace by reference
+	to (new) printon() methods.
+
+Tue Mar 10 18:06:49 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Bump to version 2.0.
+	* Makefile.in (dist):  Fix to avoid symlink cycles.
+
+Sat Mar  7 19:36:35 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in (dist):  Handle '.' as a srcdir.
+
+Sat Mar  7 00:03:05 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Make.defs: removed.
+
+	* libg++.texinfo: added menu item hook.
+
+Fri Mar  6 16:51:58 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: bump version to 1.99.
+
+Fri Mar  6 15:53:13 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Remove some obsolete stuff.
+	* README, WHATS.NEW:  Update.
+	* PROBLEMS renamed to TODO.
+
+Thu Mar  5 00:18:15 1992  Heinrich G. Seidl  (hgs@cygnus.com)
+
+	* configure.in, Makefile.in: use `g++' as compiler for the library
+	  as does the user.
+
+	* Make.defs: use again awk for depend rules, since sed
+	  has too many bugs (sun's and GNU).
+          utils/g++dep.sh: print each dependency on one line
+
+Wed Mar  4 12:04:45 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Don't pass $(MAKE_ENVIRON) to test-install,
+	since we're trying to test the *installed* compiler.
+	Also, install-progs before the test-install.
+
+Tue Mar  3 23:01:05 1992  Per Bothner  (bothner@cygnus.com)
+
+	* PROBLEMS:  Added to list of things to do.
+
+Tue Mar  3 21:06:38 1992  Heinrich G. Seidl  (hgs@rtl.cygnus.com)
+
+	* Created `utils' directory and moved "progs" from
+	  `etc' into `utils'. 
+	  Makefile.in: `all' builds only programs and the libary,
+		       `check' builds all in `tests' and `etc' and 
+		       runs the tests.
+          Some minor bug fixes to Makefiles.
+
+Tue Mar  3 16:58:38 1992  Per Bothner  (bothner@cygnus.com)
+
+	* vms directory:  New files from
+	Eric Youngdale <youngdale@v6550c.nrl.navy.mil>.
+
+Sun Mar  1 17:17:54 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Added 'check' and 'etc-tests' rules.
+
+Thu Feb 27 17:05:49 1992  Per Bothner  (bothner@cygnus.com)
+
+	* Make.defs:  Change GXX from g++ to gcc, since g++
+	passes -lg++ to ld, which may not be installed yet.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Wed Feb 26 12:46:49 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Make.defs:  Change IDIR to use libdir instead of
+	datadir, to be compatible with FSF's gcc-2.0.
+	* Makefile.in:  Removed bogus '@' prefix in rule.
+
+Wed Feb 26 01:24:34 1992  Michael Tiemann  (tiemann at cygnus.com)
+
+	* Make.defs: Propagate XTRAFLAGS into MAKE_ENVIRON.
+
+Wed Feb 19 23:23:02 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Make.defs:  Add IO_SRCDIR macro to name source
+	of either isotream or old-stream.  This allows
+	an independent iostream distribution.
+	* Make.defs (depend rule):  Create empty file if no sources.
+	* README:  Move change summary to WHATS.NEW.
+	* WHATS.NEWS:  Minor updates (and merge).
+	* COPYING-LIB:  New file defining Library Licence.
+
+Sat Feb 15 13:06:50 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Makefile.in (dist):  Add some more top-level (above
+	libg++) files to the distribution.
+
+	* Makefile.in:  Bumped LIBG++_DIST_VERSION to 1.91.
+	* README:  Made some very inadequate updates.
+
+Mon Feb 10 11:28:19 1992  Per Bothner  (bothner at rtl.cygnus.com)
+
+	* libg++.texinfo:  Discourage use of AllocRings,
+	and encourage care using String::operator const char *.
+	(The latter has just now been changed to not copy
+	using an AllocRing.)
+
+Fri Feb  7 11:46:18 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Makefile.in: Added LIBG++_DIST_VERSION; set it to 1.90.
+	Added 'dist' rule to make distribution tar file.
+	* libg++.texinfo:  Preliminary changes to document
+	new iostream facilities.
+
+Fri Jan 31 17:13:11 1992  Per Bothner  (bothner at cygnus.com)
+
+	* WHATS.NEW:  New file, to document recent changes.
+
+Wed Jan 29 12:54:10 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Make.defs:  Change LIBDIR and IDIR so that libg++.a and
+	g++-include/* go info $(libdir) and $(datadir)/g++-include.
+	Thus we don't have to worry about gcc's $(libsubdir)
+	depending on gcc's version number.
+	Also, add compilation rules for *.C.
+
+Sat Jan 25 15:59:01 1992  Per Bothner  (bothner at PersSony)
+
+	* Make.defs, all Makefile.in files:  Centralize rules for
+	depend, FORCE, and Makefile in MAke.defs.  Remove such
+	rules from every Makeifle.in.
+	* Makefile.in: Don't pass GXXFLAGS or EH_FILES to sub-makes.
+
+Fri Jan 17 15:32:01 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Make.defs:  Make iostream be the default value of IO_DIR.
+	Removed duplicate -I$(SRCIDIR) from COMPILE.cc macro.
+
+Sun Jan  5 00:23:20 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Makefile.in, Make.defs, old-stream/Makefile.in:
+	Fix install-include-files rule.
+	* Makefile.in, Make.defs:  Move installation directory
+	names and INSTALL defines from former to latter.
+	* configure.in:  Add test-install directory.
+
+	* Makefile.in, Make.defs:  Move stuff from former to latter.
+	* Make.defs:  Allow switching between old stream and new
+	iostream library.  Allow use from any sub-directory.
+	* configure.in:  Add old-stream and gperf sub-directories.
+
+Fri Jan  3 16:36:31 1992  Per Bothner  (bothner at cygnus.com)
+
+	* Complex.h, Fix.h, String.h, gen/DLList.ccP, gen/SLList.ccP,
+	gen/Plex.ccP, gen/Vec.hP:  Add #include <builtin.h> as needed.
+	It was included by the old stream.h, but not by the new iostream.h.
+	* String.h:  Fix some portabilty problems that depended
+	on the old stream code.
+
+Thu Jan  2 21:07:04 1992  John Gilmore  (gnu at cygnus.com)
+
+	* Makefile.in (info, install-info, clean-info):  Handle info files.
+	(assorted):  Clean up unused macros, etc.
+
+	* libg++.texinfo:  Minor lint found by makeinfo and tex.
+
+Tue Dec 31 18:16:12 1991  Per Bothner  (bothner at cygnus.com)
+
+	Changes that allow makes to take be made either from here,
+	or directly in a sub-directory.
+	* Make.defs:  New file to contain defiitions shared between
+	libg++ sub-directories.
+	* Makefile.in:  Removed stuff now in Make.defs.
+	* configure.in:  Add iostream to configdirs.
+	Define host_makefile_frag to pull in Make.defs.
+
+Tue Feb 19 06:41:00 1991  Doug Lea  (dl at g.oswego.edu)
+
+        * malloc.c: Don't override use of libg++ version of bcopy
+          for SYSV users    
+
+        * timer.cc: Removed ifdefs for tek4300, since they are reported
+          not to be necessary or useful
+
+        * CursesW.h, curses.h: removed touchline and touchoverlap,
+          since they are apparently nonstandard, and aren't supported
+          in most C curses libraries.
+
+        * Removed test0 and twrapper from tests, since
+          they are not fully supported in g++-1.39.0
+
+Sat Jan 26 05:24:22 1991  Doug Lea  (dl at g.oswego.edu)
+
+        * signal.h: Reinstate full path name of C version of signal.h
+
+Fri Jan 25 08:45:09 1991  Doug Lea  (dl at g.oswego.edu)
+
+        * BitSet.h, BitString.h: pos and index fns inlined regardless
+          of __OPTIMIZE__, since needed elsewhere.
+
+        * RNG.h killed redundant #ifdef __GNU__
+
+Fri Dec 28 06:31:03 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * FPQueue.hP, FPStack.hP: removed defaults from defs (kept in decls)
+
+Sat Dec 22 14:51:40 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Integer.cc; atoIntRep: pulled sgn assignment out of loop
+
+Fri Dec 14 16:43:04 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Complex.cc: Fixed pow(Complex, Complex), and added 
+        pow(Complex, double), from thc@cs.brown.edu 
+
+Wed Dec 12 11:47:51 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * malloc.c: Killed prototype decls of fputs, fprintf;
+          just use whatever stdio.h gives.
+
+Thu Nov 29 13:02:32 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * dtoa.cc: better bounds for workspace arrays
+
+Wed Nov  7 05:53:36 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * ACG.cc: function LCG marked as static
+
+Sun Oct 28 05:32:30 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * std.h: ioctl decl now has void*, not char* as last param, since
+          sometimes need to pass in structs.
+
+Sat Oct 20 05:51:21 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * sys/socket.h: added getpeername decl
+
+Tue Oct 16 08:00:14 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Integer.cc (div) Overallocate `r' if necessary to ensure
+        trailing 0.
+
+Mon Oct 15 05:11:09 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * EH2.c: Added __raise_exception from tiemann
+
+Thu Oct 11 05:50:34 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * VHMap.ccP, CHMap.ccP. Base initializers explicitly name base
+          classes in constructors
+
+Sat Oct  6 08:56:56 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * RNG.cc: `volatile' added for vars that might have
+        greater precision in FP hardware than in memory, to
+        force comparisons to be done with memory versions, 
+        thus avoiding rounding error.
+
+        * Incorporated patches for graph from rich@rice.edu
+
+        * CHMap.hP: Fixed ifdef name to match class name for <T><C>CHNode
+
+Sun Sep 30 06:50:45 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * pow.cc: removed redundant tests
+
+Tue Sep  4 15:07:35 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Regex.cc: Don't die when someone declares Regex(0).
+
+Mon Aug 27 06:06:08 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * curses.h, CursesW: added vax to list of implementations not
+        supporting touchline & touchoverlap
+
+Thu Aug 23 05:46:16 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * std.h, resource.h text.hello.cc: more changes for i386
+
+        * sys/wait.h: Include <sys/resource.h>, not <resource.h>
+
+        * MPlex.hP: low() now returns lowest valid index. Similar
+        changes elsewhere.
+
+        * (stdio.h, math.h...) Installed patches for HPUX 7.0
+
+Mon Aug 13 08:17:29 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * istream.h: ctor istream(int filedesc, char* buf, int buflen, 
+          int sk, ostream* t = 0) -- made sk non-default to
+          prevent ambiguous matches.
+
+        * Makefiles: rearrangements, patches from Ron Guillmette
+        to enable compiles of etc and gperf files without install
+
+        * Added swap.h, from Ron Guilmette. Apparently needed for
+        Hansen's C++ answer book code.
+
+        * String.h: String operator() made a synonym for at(int, int),
+          for compatibilty with Hansen's classes.
+
+        * ostream.h: added ostream << (const void * p) to print p in hex.
+
+        * std.h: qsort should return void; srand takes unsigned arg
+        (required under USG, doesn't matter for others).
+
+        * Added complex.h, to include Complex.h & typedef Complex complex;
+        similarly with strclass.h
+
+        * builtin.h: Added min & max inlines; added min.h, max.h, 
+        minmax.h, and abs.h to just include builtin.h
+
+        * values.h: defined HIBITS, HIBITL
+
+        * CursesW.h, curses.h: sequent patches from jw@sics.se
+
+        * streambuf.h: sputback renamed sputbackc for AT&T 1.2 compatibility
+
+Sat Aug 11 08:01:00 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * MPlex.ccP: fixed off by one errors reported by bashford@scripps.edu
+
+        * stdio.h: more patches from will@nirvana.westford.ccur.com
+
+        * made #pragma implementation files for ctype, MIN, MAX, std,
+        curses, compare, math. Changed .h files accordingly
+
+Thu Aug  9 06:19:17 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * SmplHist.h: fixed bad #include
+
+Wed Aug  8 09:49:56 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Shortened all .h and .cc file names to work for SYSV,
+        even ones preoviously OK because they were in own subdir.
+        Necessary for #pragma interface. Yuck.
+
+Mon Aug  6 09:54:23 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * stdio.h, math.h, etc., added masscomp support from
+        will@nirvana.westford.ccur.com
+
+        * twrapper, tgwrapper: killed now-unnecessary deletes
+
+Wed Jul 25 10:05:13 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * stdio.h: new #defines for i386
+
+        * DLList.ccP (ins_after). Prepend if null pix, as stated in doc.
+
+        * installed malloc.c revisions
+
+Fri Jul 20 12:00:05 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * ostream.h (put) prevent sign extension comparing against EOF
+
+Tue Jul 17 10:06:12 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * libg++.texinfo updated
+
+Thu Jul 12 08:10:07 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * added Maxima.h from Igor Metz <metz@iam.unibe.ch>
+
+Fri Jul  6 06:19:32 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * etc/PlotFile3D: updates from ngo
+
+        * time.h don't include /usr/include/time.h on NeXT
+
+Mon Jul  2 07:48:51 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * installed VMS patches from Eric Youngdale 
+        <YOUNGDALE@v6550c.nrl.navy.mil>
+
+        * filebuf.cc (underflow) only reset iobuf ptrs if successful
+
+        * filebuf.cc (overflow) loop ::write's in case whole
+          request can't be satisfied in one
+
+Sat Jun 23 12:18:54 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * added bcopy.c, compiled ifdef USG, to guarantee compatibility,
+          from Eric Newton. Changed corresponding std.h declarations.
+
+        * std.h: added declarations for re_comp, re_exec
+
+        * (.h's, .hP's) added conditional compilation of
+        inlines under optimization only for all files
+        with #pragma interface
+
+Thu Jun  7 08:23:10 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * killed all g++ prefix const member functions, since they 
+          are no longer supported in g++.
+
+        * (everywhere) added support for #pragma interface
+        and #pragma implementation; undid .il files since these
+        will be done via same mecahnism in g++.
+
+Fri May 25 10:39:18 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * filebuf.cc (open) O_WRONLY added to append mode flags
+
+Sun May  6 09:27:06 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Complex.cc operator /(Complex&) replaced with that from
+          romine, that avoids potential under & overflow.
+
+        * std.h; Commented out declaration for umask, pending a better
+        fix, since it is wrong for SunOS4.1
+
+        * File.cc, Curses.cc: patches to work with vsscanf from bothner
+
+Tue May  1 07:45:29 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * math.h #include <math-68881.h> belongs inside extern "C"
+
+Fri Apr 27 06:15:32 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * String.cc (ncopy0): null terminate even if same source
+
+Thu Apr 19 07:29:24 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Map.ccP (Map::error): error message reads "Map", not "Set"
+
+Tue Apr 17 10:32:25 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Stack, Queue, Set, Bag, Map .hP : added virtual destructors
+
+Fri Apr  6 07:05:31 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * List.hP (pop) patch from dsouza
+
+Wed Apr  4 12:21:29 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Makefiles: use make var AR, not just ar
+
+        * streambuf.cc (setbuf) delete old base if one was allocated
+
+Tue Apr  3 08:07:45 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * time.h, std.h: changes for convex from schmidt
+
+        * installed new malloc.c, with valloc & memalign added.
+
+Thu Mar 29 08:28:16 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * stddef.h : added offsetof macro.
+
+Tue Mar 20 11:24:41 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Sample.cc: Confidence intervals now call t with degrees of freedom,
+        (n-1), not n.
+
+Sat Mar 17 10:17:02 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * All genclass-able files moved to g++-include/gen.
+          genclass.sh script file changed accordingly.
+
+        * (Everywhere) All X.h file inlines moved to il/X.il,
+        and only inlcuded when optimizing. Backup libg++.a
+        versions now generated via src/Xi.cc files. 
+        Exceptions: ctype.h, and std.h (for SysV->Bsd conv (like bcopy))
+
+        * Regex.h now a separate file from String.h
+
+Mon Mar 12 06:53:57 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * RPlex.cc:<T>RPlex:: <T>RPlex(int l, int chunksize). Fixed
+        incorrect biasing of initial chunk indices.
+
+Sun Mar 11 05:40:29 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * timer.cc: ifdef USG -> if defined(USG) || defined(tek4300)
+
+Wed Feb 28 05:27:15 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * gperf: patches from schmidt
+
+        * Makefiles: removed dependencies on /usr/include files
+
+Tue Feb 27 05:21:22 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Installed c++-mode.el update from detlefs
+
+Mon Feb 26 08:03:32 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Incremental.h now includes a default destructor to avoid linking
+        problems. Thanks to eirik@elf.TN.Cornell.EDU.
+
+        * all `error' routines now have const char*, not char* args.
+
+        * Plex classes revamped to support const Plexes. Also,
+        removed `changes', `changed', since they aren't necessary anymore
+
+Sat Feb 24 05:56:13 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * File.h verbose_error_handler, et al now have const char*, not
+        char* args
+
+        * Installed EH2.cc in src
+
+Mon Feb 19 08:34:51 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * installed Ngo's PlotFile3D in libg++/etc
+
+Sat Feb 17 05:28:25 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * installed Schmidt's gperf, trie-gen, and Patricia revisions
+
+        * String.cc pos <= 0 should be pos < 0
+
+Tue Feb 13 08:21:11 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Itolong (Integer.cc) patch from salzman@rand.org
+
+Mon Feb 12 08:21:07 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * allowed separate inclusion of ostream.h, istream.h and/or stream.h
+
+Thu Feb  8 07:02:49 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * PlotFile: patches from ngo for Convex byte-ordering.
+
+Tue Feb  6 06:29:11 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Vec.ccP: sort() killed goto, replaced with nested if's,
+        since g++ complains about binding contours.
+
+Sat Feb  3 08:30:06 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Getopt.h: opterr is public, not private
+
+        * builtin.cc, Random.cc, streambuf.cc broken into little pieces
+
+        * std.h getpgrp, setpgrp now have (...) signatures, since
+        some versions on some systems have arguments.
+
+        * put in malloc revision
+
+        * prepend-header: globbing changes via ngo's patches
+
+        * Plex: fixed declaration mismatches for fill
+
+Tue Jan 30 10:22:35 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * kmp.cc: modified to use libg++ GetOpt, not libc getopt
+
+Wed Jan 24 05:47:53 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * broke out struct xyzzy from builtin.cc into its own file in /src
+
+Sun Jan 21 09:44:10 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * sys/types.h: protect wchar_t and ptrdiff_t from /usr/include version
+
+        * stddef.h: wchar_t now defaults as unsigned short
+
+Sat Jan 20 08:51:01 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * sys/file.h KERNEL now defined only if ultrix. 
+        Also a typo: file_f should be file_h
+
+Fri Jan 19 05:18:03 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * malloc.c: added #ifndef NO_NEW_HANDLER, so malloc.c
+        compilable in C environments with no new handlers, and
+        other #ifdefs to make it C++-compilable as well.
+
+Tue Jan 16 04:54:27 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * libg++-1.36.3 released.
+
+        * etc/benchmarks: enabled various options, now that
+        g++ works with them.
+
+        * values.h vax MAX/MINFLOAT changed to be same as expected by gcc.
+
+        * streambuf.cc: Filebuf::overflow(): Fp->eof() is not an
+        error condition.
+
+        * std.h, stdio.h: more extern C fns declared as
+        returning int, not void when not specified as void by ANSI
+        or C man pages.
+
+Sat Jan 13 13:41:29 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * stdio.h: puts returns int
+
+Fri Jan 12 05:49:09 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * etc/lf/Dirent.h closedir returns void on some system, so
+        Dirent versions do too.
+
+Wed Jan 10 10:01:15 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Rational.h: 175 typo 
+
+Mon Jan  8 09:43:14 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * file.h: more protection against getting bad fn declarations
+        from /usr/include
+
+        * builtin.cc: removed dependency on float.h
+
+        * String.h Join, replicate need to be friends
+
+Sat Jan  6 08:48:18 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * from rfg: minor DGUX accomodations in std.h, stdio.h,
+        math.h
+
+Fri Jan  5 06:41:02 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * from Widen: added warning about tCurses needing linefeeds
+          on broken libcurses, fixed misc typos, added cfree() to malloc.c
+
+        * math.h -- added inline defs of isnan and isinf for sequents
+
+Wed Jan  3 08:29:43 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * builtin.cc: Deleted global _libgxx_io_oblast: no longer needed
+        killed extern decls of it elsewhere.
+
+        * Strings, Integers: finished/cleaned up previous changes
+
+Tue Jan  2 10:43:29 1990  Doug Lea  (dl at g.oswego.edu)
+
+        * Integer.cc: isolated copy and clear calls to allocation fns
+
+        * Strings: Removed StrTmp class, added double concatenation
+
+Mon Dec 11 08:31:48 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * AVLSet.cc op &= plugged little memory leak: when u is exhausted,
+        but t isn't, delete rest of t. 
+
+        * AVLMap: _delete: cont field wasn't copied in a case it should
+        have been
+
+        * merged tSet2 back into tSet and tBag2 back into tBag
+
+        * BitSet.cc (BitSetCompl) ensure all 1's in s[0] when
+        complementing empty set
+
+        * builtin.cc (return_elapsd_time, set_timer) No longer #ifdef'ed
+        for machines -- new .h organization should work for all.
+
+        * builtin.cc (lg) redeclared as  unsigned->long
+
+        * DGUX patches from rfg installed
+
+Tue Dec  5 11:58:51 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * BitSet, Integer, Rational: added constness, removed Tmp
+        classes, and used named return values
+
+Sat Dec  2 06:21:12 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * builtin.cc (dtoa) #if _IEEE != 0 handle isnan, isinf
+
+        * builtin.cc (itoa) force unsigned division in case
+        num == MININT
+
+Fri Dec  1 10:08:21 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * istream::operator>> clear eof if at eof but got something valid
+
+        * String::match and Regex::match return -1 on failure, since
+          0 could be a legal value
+
+        * gnulib3.c: Commented out ON_EXIT stuff. On Suns, for some
+        reason, on_exit routines don't link into libraries right.
+
+        * std.h: fixed getopt proto
+
+        * stat.h : added fn protos
+
+        * installed Schmidt's reorganization of etc 
+
+        * math-68881.h fix paren error noted on bug-gcc list
+
+        * CursesWindow(WINDOW*) initialize sib
+
+        * Renamed AllocQueue to AllocRing
+
+        * test.hello.cc #ifdefs for MIPSEL
+    
+        * Plex::del_chunk() delete the chunk, not just the chunk's data
+
+Sat Nov 25 12:50:06 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * VStack, VQueue: add operator =()
+
+        * Obstack::Obstack don't allocate on constructor, just on
+        first use
+
+        * String::_gsub: don't build new rep if no matches
+
+        * builtin.h: added more versions of abs
+
+        * installed new  malloc, and new.{h, cc}
+
+
+Thu Nov 23 06:20:17 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * added Schmidt's g++dep to etc
+
+        * math.h: additions for anint(), etc., HP HAVE_FPU
+
+Wed Nov 22 14:48:24 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Added Schmidt's trie-gen to libg++/etc
+
+Tue Nov 21 08:50:47 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * streambuf: eptr is now the pointer to the last valid
+        char in buffer, not the fence pointer, for AT&T compatibilty
+
+        * stream, streambuf : Added line buffered put's as default
+        must #define NO_LINE_BUFFER_STREAMBUF to override
+
+Mon Nov 20 09:52:47 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Plex: finish previous change: add_low, add_high don't introduce
+        straggling chunks
+
+        * new.h: typo, plus add default placement version of new()
+
+        * PlotFile, BitString, Fix16 .h's: more cfrontisms
+
+Sun Nov 19 07:38:36 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * removed File::operator FILE*() because it can lead
+        to ambiguities.
+
+        * incorporated cfront-dependent #ifdefs, etc. from Schmidt
+
+        * Fix24: integrated patches from wang
+
+Sat Nov 18 07:17:04 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * XPlex, RPlex, MPlex (del_low, del_high) old straggling
+        empty chunks weren't being deleted. fixed.
+
+Thu Nov 16 05:56:43 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * resource.h: added getrlimit, setrlimit
+
+Wed Nov 15 05:54:46 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * String.h: typo const& Regex => const Regex&
+
+Fri Nov 10 06:45:55 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Makefile: force submakes in non-gnumake fashion
+
+Thu Nov  9 09:32:21 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Curses.cc, curses.h, ctype.h: patches based on darrlyo's stuff.
+
+        * Fix.cc : *Correctly* installed ++i patch!
+
+Wed Nov  8 06:19:39 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * stdio.h now is now sub-included in other .h's needing USG-based
+        info.
+
+        * new etc/c++-mode.el from detlefs
+
+        * etc/Makefile: -DETAGS for etags.c
+
+        * more HPUX patches from darrylo and mike fion
+
+Tue Nov  7 07:23:25 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Fix.{h, cc}:  cleanup in search of memory leaks
+
+        * Added -DNO_GNULIB3 option in top-level Makefile
+
+Mon Nov  6 05:53:42 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * std.h, stdio.h, ctype.h.... HPUX and DGUX patches from
+        cole & darrylo
+
+        * tests/Makefile tCurses taken out of checktests
+
+        * Bitset.cc: fixed underallocation in BitSettoa according to
+        patch from darrylo@hpsrdmo.hp.com
+
+Sun Nov  5 06:45:26 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * gnulib3, Incremental.h, test.hello.cc: patched
+        via Eirik Fuller's incremental loading fixes
+
+Fri Nov  3 11:22:39 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * 1.36.0 released, after misc cleanup
+
+Tue Oct 31 09:44:32 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * added Rich Murphey's graph program to libg++/etc
+
+Mon Oct 30 10:13:07 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * sys/file.h: include types.h & maybe fcntl.h Some folks need them
+
+        * std.h: index, bcopy, etc. now inline, not macro if USG
+
+        * streambuf.h: sputback returns success; 
+        stream.h istream::putback/unget: set(_fail) if bad
+
+Tue Oct 24 16:53:05 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * stddef.h -- now really defines size_t. OK via new sys/types.h
+        fake-out.
+
+        * time.h -- now includes //usr/include/time.h too
+
+Sun Oct 22 07:58:36 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * String.h, cc: reworked to allow proper operation for consts
+        (some new stuff #ifdef'ed out because of g++ problems)
+
+Sat Oct 21 15:29:55 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Fix.cc: (new_Fix) cure for d < 0 problem from eirik fuller
+
+        * builtin.cc: added dtoa 
+
+        * AllocQueue.h,cc: added it & use elsewhere for building
+         formatting & ascii conversions
+
+Wed Oct 18 05:37:11 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Fix16.cc, Fix24.cc: Fixed operator / per wang's suggestions
+
+Tue Oct 17 06:47:25 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * stream.cc, Integer.cc: istream op >>, fixed to not read
+        after EOF when decoding numbers
+
+Mon Oct 16 15:33:11 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * added ostream << long long, and itoa's to handle
+
+        * values.h, stdio.h, Fix.cc, File.cc: things for convex from 
+          convex!csmith@uxc.cso.uiuc.edu
+
+Sat Oct 14 07:19:30 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * time.h: typedef'ed timezone to c_proto_timezone if not USG
+
+Wed Oct 11 09:42:39 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Makefiles: fixed various typos
+
+        * misc: cleaned up enum clashes reported with -Wenum-clash
+
+        * stream.cc Added #ifdefs to use filebufs for standard streams
+        if Filebufs give people trouble.
+
+Tue Oct  3 07:02:56 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * setjmp.h: now #includes host /usr/include/setjmp.h
+
+Mon Oct  2 16:00:59 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * commented out gcc constness in revised Complex.h since
+        it's still officially illegal to declare fns with refs(ptrs)
+        as const
+
+        * incorporated new gperf from schmidt
+
+        * added dhrystone benchmark to etc
+
+Sat Sep 30 09:02:07 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Complex.h: revamped to use const, etc.
+
+Fri Sep 29 06:58:56 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * added src/EH.cc from tiemann
+
+        * SLList.hP now  #include's the <T>.defs file
+
+        * CHSet, CHBag, CHMap, VHSet, VHBag, VHMap -- changed ints
+        to unsigned ints to ensure unsigned operations throughout.
+
+Mon Sep 25 07:32:11 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * added new.h
+
+Sun Sep 24 05:31:50 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * tgwrapper.cc: added init_nil to avoid crashes on exit.
+
+        * other miscellaneous cleanup (fixed enum/int clashes, etc.) to
+        adapt to latest g++-1.36.0-
+
+        * bool enum now in bool.h
+
+Thu Sep 14 06:18:46 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * sys/socket.h: select must have void* args, since different
+        systems use int* or fd_set*
+
+Wed Sep 13 11:38:19 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * builtin.cc: added unsigned versions of itoa, hex, dec, oct
+
+Tue Sep 12 09:28:01 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * more misc. cleanup to avoid warnings: removed redundant
+        type information from declarations of all coercion operators.
+
+Sat Sep  9 06:25:03 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * (everywhere) miscellaneous aesthetic cleanup to minimize g++
+        warning messages.
+
+        * (lots of files) used 'virtual fn() = 0' for pure virtual
+        functions, removing old `error(unimplemented...)' constructs.
+        allowed deletion of Stack.ccP, Queue.ccP, Deque.ccP files
+        which did only this.
+
+        * took all defines out of libconfig.h, and killed it
+        HAVE_VPRINTF, etc -> stdio.h
+        CHAR_PER_LONG, etc -> Integer.cc
+        SHOULD_FREE_TO_REALLOC -> (no longer needed, killed)
+        USG -> people should run g++ with -DUSG now
+
+Fri Sep  8 06:48:58 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * added Clark's version of etags that handles c++, to etc/
+
+        * moved special sparc alloca decl from libconfig.h to std.h
+
+        * std.h, math.h, ... killed `overload' declarations
+
+        * etc/getopt* => src/GetOpt.cc, g++-include/GetOpt.h, with
+        various corresponding changes
+
+Wed Sep  6 09:15:50 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * math.h renamed `struct exception' to `libm_exception'
+
+        * regex.c converted to use prototypes, etc. from schmidt
+
+Tue Sep  5 06:43:37 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * new c++-mode.el from detlefs
+
+        * added sys/param.h, which #undefs common macros, but keeps
+        needed constants
+
+        * Integer.h: rearranged ordering of some inlines to please g++
+
+        * Fix.h: need new constructor Fix(int, _Frep*) to please g++
+
+        * added __xyzzy hack from tiemann to builtin.cc
+
+        * added gnulib3 from tiemann
+
+Thu Aug 31 07:36:42 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * more USG stuff from Klossner (stdio.h, libconfig.h, 
+        values.h, ctype.h)
+
+Sun Aug 27 08:30:15 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * genclass: changed to take output filename prefix argument 
+        to avoid long file names on SYSV; tests files change accordingly
+
+        * installed gperf update from schmidt
+
+        * tests: added runtests, checktests to Makefile. Some tests
+        modified to suit.
+
+Sat Aug 26 09:00:14 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Plex, PHPQ files: deleted const qualifiers for some params
+        as temporary measure until all containers revised to use
+        const qualifiers as needed.
+
+        * curses.h macros converted into inlines
+
+        * added RankedAVLMap, based on code from paul%lfcs.ed.ac.uk
+
+        * moved non-ANSI stuff (TRUE, etc., ) from stddef.h to builtin.h
+
+        * added more USG stuff sent from rfg, grandi, cole, to standard headers
+
+        * std.h: added #ifdef USG section for USG->BSD conversions
+
+        * Makefiles: made more things adjustable, better USG support
+
+        * PHPQ.ccP: (preallocate) added missing size argument to vector delete
+
+Fri Aug 25 12:25:12 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * streambuf.cc: dumb error in filebuf::overflow
+
+Thu Aug 24 11:46:16 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * libconfig.h, values.h: #defines for sony from jkp
+
+Wed Aug 23 06:54:43 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Fix16.h, Fix32.h: declared op* as friends correctly
+
+        * String.h: declared StrTmp op + as friends of String
+
+Mon Aug 21 07:02:53 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * Poisson.h, Lognormal.h: add missing `public'
+
+        * assert.h: abort() declared volatile
+
+        * Vec.ccP: made gsort static
+
+        * std.h: added rewind & bsearch
+
+        * Makefiles: deleted -fchar-charconst
+
+Thu Aug 10 07:31:37 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * builtin.{h, cc}: added str(const char*, int width = 0)
+
+        * streambuf.cc: init_streambuf_ptrs: postpone action if fp->_cnt 0
+        (apparently needed for some USG systems)
+
+        * stream.cc: get, getline: match AT&T 1.2 _fail conditions
+
+Sun Aug  6 07:16:19 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * stream.cc, File.cc get(char[], int, char) read too many chars
+
+Thu Jul 20 09:42:44 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * adapted more C-compatibility .h files from Interviews
+
+Wed Jul 19 09:23:27 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * installed more C-compatibilty files: pwd.h, grp.h time.h
+
+Mon Jul 17 07:37:35 1989  Doug Lea  (dl at g.oswego.edu)
+
+        * installed Interviews/et++ compatible (I hope) signal.h
+
+        * installed new version of gperf from schmidt
+
+        * std.h: declared abort() and exit() as volatile
+
+        * builtin.cc: typo in gcd
+
+        * math.h: added overload decl for atan, etc
+
+        * VHMap.cc: removed assumption that operator = returns value.
+
+        * Makefiles: default dir is /usr/gnu/... not /usr/local
+
+        * setjmp.h: fixed constants for sun to match those in
+        sun /usr/include files, added ns32000
+
+        * BSTSet.ccP added new linear-time rebalancing algorithm
+
+        * builtin.cc: SYSV versions of timing stuff from ron cole
+
+        * File.{h,cc} fixed File::tell, added O_CREAT to exclusive 
+        access open, added fill(), flush(char).
+
+        * incorporated new streams: stream.{h,cc}, streambuf.{h, cc},
+        libg++.texinfo
+
+
+Sat May 20 07:42:11 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * math.h,math-68881.h: incorporated Fyfe's fixes to extern "C" problems
+
+Tue May 16 05:52:33 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * RNG.cc ifdef _IEEE_ fixed to if _IEEE == 1
+
+        * Installed Staelin's prototype Makefile updates
+
+Mon May 15 06:25:12 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * BitString.h: g++ optimizer bug workaround in left_trim
+
+        * math-68881.h - fgetman (not fgetmant) fix from widen
+
+Sat May 13 11:00:35 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * changes from tiemann for constructs of form X::f() 
+        changed to this->X::f(), necessary now that static members
+        are implemented. [postscript: no, it wasn't necessary]
+
+        * libg++.texinfo: misc documentation updates
+
+Fri May 12 05:06:06 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * (lots of places) added  friends and other minor changes
+        to adapt to new ``correct'' (but losing) g++ interpretation
+        of `protected:'
+
+        * re-inserted `overload' in .h files -- tiemann
+        says that gdb needs these for now
+
+        * stream.cc: eatwhite was inline by mistake. fixed.
+
+Thu May 11 07:31:06 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * List.ccP: initializer class for Nil, since can't always use 
+        { ... } initializer. Also made `head' a synonym for `get',
+        per request.
+
+        * installed changes to etc files from schmidt
+
+        * String.cc Scopy: return &NilSrep, not 0 for null
+
+        * added math-68881.h to g++-include (from grunwald)
+
+Sun May  7 08:38:10 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * catch-up day!:
+        converted header files to use extern "C" and #pragma once
+        killed `overload' declarations everywhere
+        renamed test files
+        added the beginnings of SYSV (USG) support
+        included some useful stuff for Suns in top Makefile (from  Guilmette)
+        cleaned up other Makefiles
+        added File::gets (from Schmidt)
+        moved gperf from etc to a top level subdir
+        added the useless char* chr(ch) to builtin.h
+        genclass puts dots in file names to use Staelins GNU Makefile stuff
+        (also added his `prepend-header' utility)
+        added Schmidt's getopt stuff into etc.
+        New versions of fixpoint classes from Baudendistel
+        (needed to change set_overflow_handler to
+        set_{FixXX}_overflow_handler
+        for each FixXX, since overloads clash on typedef'ed fn types)
+        Adapted Schmidt's new quicksort for Vec class
+        
+Fri Apr 28 16:26:17 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * ACG.cc: fixed ~ACG per grunwald
+
+Thu Apr 20 05:22:46 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * List.hP: first for nil list now returns null Pix
+
+        * Integer.cc: rshift fixed problem with 0 shifts
+
+Mon Apr 10 05:17:04 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * stream.h, PlotFile.h added explicit `private' for subclasses
+
+Sat Mar 18 06:08:30 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * String.[h,cc]: added Regex::match_info
+
+Fri Mar 17 14:37:12 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * stream.h: istream >> char now eats whitespace.
+
+        * builtin.h: overloaded `even', `odd'
+
+Thu Mar  9 06:43:43 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * Map.ccP: typo in Map::contents <T> => <C>
+
+        * stdio.h : inserted coercion in putc macro to avoid incorrect
+          sign extension.
+
+Tue Mar  7 05:35:52 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * List.hP: List::push no longer incorrectly calls dereference
+
+        * Inserted patches to etc stuff from Doug Schmidt
+
+Sun Mar  5 07:57:01 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * stream.h: added File::check_state to public functions
+
+        * BitSet.cc: longtoBitSet: Fixed typo 
+
+Sat Mar  4 10:06:24 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * installed CursesWindow files
+
+        * miscellaneous corrections to test files in light of
+          g++-1.34 changes
+
+Fri Mar  3 06:07:37 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * incorporated new version of Doug Schmidt's gperf
+
+        * BitString.cc: fixed reverse searching
+
+Sun Feb 26 05:44:28 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * assert : killed old assert.cc, adapted gcc assert.h
+
+Sat Feb 25 09:23:35 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * tests, libg++.texinfo: miscellaneous updates
+
+        * stddef.h NULL is now just `0', not (void*)0
+
+        * Makefile: added `prefix' as in g++ Makefile
+
+        * put a new c++-mode.el from david detlefs in etc
+
+        * BitString.[h,cc] BitSet[h,cc] now use unsigned short arrays instead
+          of unsigned longs to avoid long i; i >> 32, which does not
+          work on Sun4s and probably other machines. Simplified
+          a few shift & mask constructs accordingly.
+
+        * values.h, libconfig.h: support for sequent from
+          Johan Widen <mcvax!sics.se!jw@uunet.UU.NET>
+
+        * Fix.h: repaired type mismatches
+
+        * String.[cc,h] gsub now returns number of matches
+
+        * String.cc gsub(Regex...): repaired using patches 
+          from kadmon!jason@mtxinu.com
+
+        * stream.h scan didn't return *this if fail -- fixed.
+
+        * File.cc get(char*...): get of an empty line not a _fail condition
+
+        * RNG.[h,cc] installed new code from grunwald
+
+
+Tue Feb  7 05:53:23 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * Integer.h,cc Added optional base to atoI via code from per bothner
+
+        * String.h,cc Added `freq' method in String to count occurrences
+          using code from john willis
+
+Mon Feb  6 07:25:06 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * BitSet.cc:op <=, < now work if first arg shorter than second;
+                       clear() fixed.
+        * stream.h, stream.cc: made ostream<<(char*) non-inline
+
+Sun Feb  5 05:31:36 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * test19.cc: typo c.empty fixed to c.empty()
+
+Tue Jan 31 05:51:36 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * String.h: contains(Regex) return fact that search returns >= 0,
+        not just raw result.
+
+        * Fix.h: correct protection problem in op* 
+
+        * replace regex.c with emacs 18.52 version
+
+Fri Jan 27 06:29:20 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * AVLSet.ccP, AVLMap.ccP - check to see if root
+          is null before trying to delete elements
+
+        * libg++/Makefile - change install of libg++ to cd to src
+
+Sat Jan 14 06:03:33 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * fixed info node pointers in libg++.texinfo
+
+Wed Jan 11 06:20:37 1989  Doug Lea  (dl at rocky.oswego.edu)
+
+        * libg++-1.32.0 released
+        * Starting to use ChangeLog as of today
+
+
+Local Variables:
+version-control: never
+End:

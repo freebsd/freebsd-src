@@ -1,0 +1,101 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+
+#ifndef _<T>OSLSet_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>OSLSet_h 1
+
+#include "<T>.Set.h"
+#include "<T>.SLList.h"
+
+class <T>OSLSet : public <T>Set
+{
+protected:
+  <T>SLList     p;
+
+public:
+                <T>OSLSet();
+                <T>OSLSet(const <T>OSLSet&);
+
+  Pix           add(<T&> item);
+  void          del(<T&> item);
+  inline int           contains(<T&> item);
+
+  inline void          clear();
+
+  inline Pix           first();
+  inline void          next(Pix& i);
+  inline <T>&          operator () (Pix i);
+  inline int           owns(Pix i);
+  Pix           seek(<T&> item);
+
+  void          operator |= (<T>OSLSet& b);
+  void          operator -= (<T>OSLSet& b);
+  void          operator &= (<T>OSLSet& b);
+
+  int           operator == (<T>OSLSet& b);
+  int           operator != (<T>OSLSet& b);
+  int           operator <= (<T>OSLSet& b); 
+
+  int           OK();
+};
+
+
+inline <T>OSLSet::<T>OSLSet() : p() { count = 0; }
+
+inline <T>OSLSet::<T>OSLSet(const <T>OSLSet& s) : p(s.p) { count = s.count; }
+
+inline Pix <T>OSLSet::first()
+{
+  return p.first();
+}
+
+inline void <T>OSLSet::next(Pix  & idx)
+{
+  p.next(idx);
+}
+
+inline <T>& <T>OSLSet::operator ()(Pix   idx)
+{
+  return p(idx);
+}
+
+inline void <T>OSLSet::clear()
+{
+  count = 0;  p.clear();
+}
+
+inline int <T>OSLSet::contains (<T&> item)
+{
+  return seek(item) != 0;
+}
+
+inline int <T>OSLSet::owns (Pix   idx)
+{
+  return p.owns(idx);
+}
+
+inline int <T>OSLSet::operator != (<T>OSLSet& b)
+{
+  return !(*this == b);
+}
+
+#endif

@@ -1,0 +1,171 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1991 Free Software Foundation
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+/*
+ * Bags implemented via William Pugh SkipList algorithms.
+ * CACM, June 1990, p 668-676.
+ *
+ */
+
+#ifndef _<T>SkipBag_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>SkipBag_h 1
+
+#include "<T>.Bag.h"
+
+#include <limits.h>
+#include <MLCG.h>
+
+class <T>SkipBag;
+class <T>RealSkipBagNode;
+
+class <T>SkipBagNode
+{
+friend class <T>SkipBag;
+  private:
+    <T>RealSkipBagNode * * forward;
+    <T>SkipBagNode(int size);
+};
+
+class <T>RealSkipBagNode : public <T>SkipBagNode
+{
+friend class <T>SkipBag;
+  private:
+    <T>             item;
+    <T>RealSkipBagNode(<T&> h, int size);
+};
+
+typedef <T>RealSkipBagNode* <T>SkipBagNodePtr;
+
+inline <T>SkipBagNode::<T>SkipBagNode(int size)
+: forward(new <T>SkipBagNodePtr[size+1])
+{
+}
+
+inline <T>RealSkipBagNode::<T>RealSkipBagNode(<T&> h, int size)
+: item(h),
+  <T>SkipBagNode(size)
+{
+}
+
+class <T>SkipBag : public <T>Bag
+{
+friend class <T>SkipBaginit;
+  protected:
+    <T>SkipBagNode*   header;
+    int               level;
+    int               max_levels;
+    int               randoms_left;
+    long              random_bits;
+    
+    static MLCG*      gen;
+    int               random_level(void);
+    
+    <T>SkipBagNodePtr leftmost(void);
+    <T>SkipBagNodePtr rightmost(void);
+    <T>SkipBagNodePtr pred(<T>SkipBagNodePtr t);
+    <T>SkipBagNodePtr succ(<T>SkipBagNodePtr t);
+    void              _kill(void);
+    
+  private:
+    enum { BITS_IN_RANDOM = LONGBITS-1 };
+    
+  public:
+    <T>SkipBag(long size=DEFAULT_INITIAL_CAPACITY);
+    <T>SkipBag(<T>SkipBag& a);
+    ~<T>SkipBag(void);
+    
+    Pix           add(<T&> i);
+    void          del(<T&> i);
+    void          remove(<T&>i);
+    int           nof(<T&> i);
+    int           contains(<T&> i);
+    
+    void          clear(void);
+    
+    Pix           first(void);
+    void          next(Pix& i);
+    <T>&          operator () (Pix i);
+    Pix           seek(<T&> i, Pix from = 0);
+    
+    Pix           last(void);
+    void          prev(Pix& i);
+    
+    int           OK(void);
+};
+
+inline <T>SkipBagNodePtr <T>SkipBag::leftmost(void)
+{
+    return header->forward[0];
+}
+
+inline <T>SkipBagNodePtr <T>SkipBag::succ(<T>SkipBagNodePtr t)
+{
+    <T>SkipBagNodePtr result = 0;
+    if (t->forward[0]!=header) result = t->forward[0];
+    return result;
+}
+
+inline Pix <T>SkipBag::first(void)
+{
+    return Pix(leftmost());
+}
+
+inline Pix <T>SkipBag::last(void)
+{
+    return Pix(rightmost());
+}
+
+inline void <T>SkipBag::next(Pix& i)
+{
+    if (i != 0) i = Pix(succ((<T>SkipBagNodePtr)i));
+}
+
+inline <T>& <T>SkipBag::operator () (Pix i)
+{
+    if (i == 0) error("null Pix");
+    return ((<T>SkipBagNodePtr)i)->item;
+}
+
+inline void <T>SkipBag::prev(Pix& i)
+{
+    if (i != 0) i = Pix(pred((<T>SkipBagNodePtr)i));
+}
+
+inline int <T>SkipBag::contains(<T&> key)
+{
+    return seek(key) != 0;
+}
+
+inline <T>SkipBag::~<T>SkipBag()
+{
+    _kill();
+    delete header;
+}
+
+static class <T>SkipBaginit
+{
+  public:
+    <T>SkipBaginit();
+    ~<T>SkipBaginit();
+  private:
+    static int count;
+} <T>skipBaginit;
+
+#endif
