@@ -823,7 +823,7 @@ procfs_readdir(ap)
 		struct proc *p;
 
 		ALLPROC_LOCK(AP_SHARED);
-		p = allproc.lh_first;
+		p = LIST_FIRST(&allproc);
 		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
 			bzero((char *) dp, delen);
 			dp->d_reclen = delen;
@@ -847,7 +847,7 @@ procfs_readdir(ap)
 
 			default:
 				while (pcnt < i) {
-					p = p->p_list.le_next;
+					p = LIST_NEXT(p, p_list);
 					if (!p)
 						goto done;
 					if (p_can(curproc, p, P_CAN_SEE, NULL))
@@ -855,7 +855,7 @@ procfs_readdir(ap)
 					pcnt++;
 				}
 				while (p_can(curproc, p, P_CAN_SEE, NULL)) {
-					p = p->p_list.le_next;
+					p = LIST_NEXT(p, p_list);
 					if (!p)
 						goto done;
 				}
@@ -863,7 +863,7 @@ procfs_readdir(ap)
 				dp->d_namlen = sprintf(dp->d_name, "%ld",
 				    (long)p->p_pid);
 				dp->d_type = DT_DIR;
-				p = p->p_list.le_next;
+				p = LIST_NEXT(p, p_list);
 				break;
 			}
 
