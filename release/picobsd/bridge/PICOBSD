@@ -13,37 +13,25 @@ cpu		I686_CPU
 ident		PICOBSD
 maxusers	20
 
-options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
+#options	BOOTP			#Use BOOTP to obtain IP address/hostname
 options 	MFS			#Memory Filesystem
-#options 	DEVFS			#Device Filesystem
 options 	MD_ROOT			#MD is a potential root device
-#options 	NFS			#Network Filesystem
-#options 	NFS_ROOT		#NFS usable as root device, NFS required
-options		NFS_NOSERVER		#Disable the NFS-server code.
-#options		BOOTP			#Use BOOTP to obtain IP address/hostname
-options 	MSDOSFS			#MSDOS Filesystem
-#options 	CD9660			#ISO 9660 Filesystem
-#options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
-options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-#options 	UCONSOLE		#Allow users to grab the console
-options 	USERCONFIG		#boot -c editor
-#options		INTRO_USERCONFIG	#imply -c and parse info area
 
-options 	VISUAL_USERCONFIG	#visual boot -c editor
-#options 	KTRACE			#ktrace(1) support
-#options 	SYSVSHM			#SYSV-style shared memory
-#options 	SYSVMSG			#SYSV-style message queues
-#options 	SYSVSEM			#SYSV-style semaphores
-#options 	P1003_1B		#Posix P1003_1B real-time extensions
-#options 	_KPOSIX_PRIORITY_SCHEDULING
-#options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+#options 	MSDOSFS			#MSDOS Filesystem
+#options 	CD9660			#ISO 9660 Filesystem
+#options 	PROCFS			#Process filesystem
+#options 	USERCONFIG		#boot -c editor
+#options	INTRO_USERCONFIG	#imply -c and parse info area
+#options	VISUAL_USERCONFIG	#visual boot -c editor
+
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
-options		IPDIVERT
+#options	IPDIVERT		# divert (for natd)
+#options 	DEVFS			#Device Filesystem
 options		PCI_QUIET		#quiets PCI code on chipset settings
 
 # Support for bridging and bandwidth limiting
@@ -60,15 +48,14 @@ options 	COMPAT_OLDISA		# compatability shims for lnc, le
 device		fdc
 
 # ATA and ATAPI devices
-device		ata
-device		atadisk			# ATA disk drives
+#device		ata
+#device		atadisk			# ATA disk drives
 #device		atapicd			# ATAPI CDROM drives
-
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc	1
 device		atkbd
-device		psm
+#device		psm
 
 device		vga
 
@@ -94,17 +81,18 @@ device		sio
 device	miibus 
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		rl		# RealTek 8129/8139
-device		dc		# DEC/Intel 21143 and various workalikes
+device		xl0		# 3Com
+#device		rl		# RealTek 8129/8139
+#device		dc		# DEC/Intel 21143 and various workalikes
 device		ed
 
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		tun		# Packet tunnel.
-device		vn		#Vnode driver (turns a file into a device)
+#device		vn		#Vnode driver (turns a file into a device)
 device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
-device		bpf		# Berkeley packet filter
+#device		bpf		# Berkeley packet filter
