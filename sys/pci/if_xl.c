@@ -3020,17 +3020,25 @@ xl_ifmedia_sts(ifp, ifmr)
 {
 	struct xl_softc		*sc;
 	u_int32_t		icfg;
+	u_int16_t		status = 0;
 	struct mii_data		*mii = NULL;
 
 	sc = ifp->if_softc;
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
 
+	XL_SEL_WIN(4);
+	status = CSR_READ_2(sc, XL_W4_MEDIA_STATUS);
+
 	XL_SEL_WIN(3);
 	icfg = CSR_READ_4(sc, XL_W3_INTERNAL_CFG) & XL_ICFG_CONNECTOR_MASK;
 	icfg >>= XL_ICFG_CONNECTOR_BITS;
 
 	ifmr->ifm_active = IFM_ETHER;
+	ifmr->ifm_status = IFM_AVALID;
+
+	if ((status & XL_MEDIASTAT_CARRIER) == 0)
+		ifmr->ifm_status |= IFM_ACTIVE;
 
 	switch(icfg) {
 	case XL_XCVR_10BT:
