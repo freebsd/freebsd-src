@@ -65,7 +65,7 @@
 #if luna68k
 #   include "luna68k.h"
 #endif
-#if i386
+#if __i386__
 #   include "i386.h"
 #endif
 #if mips
