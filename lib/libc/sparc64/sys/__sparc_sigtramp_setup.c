@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 
-extern char __sigcode[];
+extern char __sigtramp[];
 
-static const struct sparc_sigtramp_install_args sia = { __sigcode, NULL };
+static const struct sparc_sigtramp_install_args sia = { __sigtramp, NULL };
 
 void
 __sparc_sigtramp_setup(void)
