@@ -40,6 +40,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/module.h>
 #include <sys/iconv.h>
+#include <sys/linker.h>
 
 #include <fs/msdosfs/msdosfsmount.h>
 
@@ -55,7 +56,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
 #include "mntopts.h"
 
 #define TRANSITION_PERIOD_HACK
