@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.3 1995/04/29 19:33:00 jkh Exp $
+ * $Id: dmenu.c,v 1.4 1995/05/01 21:56:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,15 +117,19 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	}
 	dialog_clear();
 	if (!rval) {
-	    if (menu->options & DMENU_MULTIPLE_TYPE)
-		tmp = &(menu->items[0]);
+	    if (menu->options & DMENU_MULTIPLE_TYPE) {
+		if (menu->options & DMENU_CALL_FIRST)
+		    tmp = &(menu->items[0]);
+		else {
+		    if (decode_and_dispatch_multiple(menu, result) ||
+			menu->options & DMENU_SELECTION_RETURNS) {
+			items_free(nitems, curr, max);
+			return;
+		    }
+		}
+	    }
 	    else {
-		for (tmp = menu->items; tmp->title; tmp++)
-		    if (!strcmp(result,
-				(*tmp->title == '*') ? tmp->title + 1 :
-				tmp->title))
-			break;
-		if (!tmp->title)
+		if ((tmp = decode(menu, result)) == NULL)
 		    msgFatal("Menu item `%s' not found??", result);
 	    }
 	}
@@ -135,61 +139,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    items_free(nitems, curr, max);
 	    return;
 	}
-	switch (tmp->type) {
-	    /* User whapped ESC twice and wants a sub-shell */
-	case DMENU_SHELL_ESCAPE:
-	    systemShellEscape();
-	    break;
-
-	    /* We want to simply display a file */
-	case DMENU_DISPLAY_FILE:
-	    systemDisplayFile((char *)tmp->ptr);
-	    break;
-
-	    /* It's a sub-menu; recurse on it */
-	case DMENU_SUBMENU: {
-	    int choice, scroll, curr, max;
-
-	    choice = scroll = curr = max = 0;
-	    dmenuOpen((DMenu *)tmp->ptr, &choice, &scroll, &curr, &max);
-	    break;
-	}
-
-	    /* Execute it as a system command */
-	case DMENU_SYSTEM_COMMAND:
-	    (void)systemExecute((char *)tmp->ptr);
-	    break;
-
-	    /* Same as above, but execute it in a prgbox */
-	case DMENU_SYSTEM_COMMAND_BOX:
-	    use_helpfile(NULL);
-	    use_helpline("Select OK to dismiss this dialog");
-	    dialog_prgbox(tmp->title, (char *)tmp->ptr, 22, 76, 1, 1);
-	    dialog_clear();
-	    break;
-
-	case DMENU_CALL:
-	    if (((int (*)())tmp->ptr)(result)) {
-		items_free(nitems, curr, max);
-		return;
-	    }
-	    break;
-
-	case DMENU_CANCEL:
-	    items_free(nitems, curr, max);
-	    return;
-
-	case DMENU_SET_VARIABLE:
-	    variable_set((char *)tmp->ptr);
-	    msgInfo("Setting option %s", tmp->ptr);
-	    break;
-	    
-	default:
-	    msgFatal("Don't know how to deal with menu type %d", tmp->type);
-	}
-
-	/* Did the user want to make this a single-selection menu? */
-	if (menu->options & DMENU_SELECTION_RETURNS) {
+	if (dispatch(tmp) || menu->options & DMENU_SELECTION_RETURNS) {
 	    items_free(nitems, curr, max);
 	    return;
 	}
