@@ -32,7 +32,7 @@ LDADD+=	${OBJCLIBS}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 ${PROG}: ${OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 
 .else !defined(SRCS)
 
@@ -47,7 +47,7 @@ SRCS=	${PROG}.c
 OBJS=	${PROG}.o
 
 ${PROG}: ${OBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
 
 .endif
@@ -65,16 +65,15 @@ MAN1=	${MAN}
 .MAIN: all
 all: objwarn ${PROG} ${SCRIPTS} ${FILES}
 .if !defined(NOMAN)
-all: all-man 
+all: _manpages
 .endif
-all: _SUBDIR
 
 CLEANFILES+= ${PROG} ${OBJS}
 
 .if defined(PROG)
 _EXTRADEPEND:
 .if ${OBJFORMAT} == aout
-	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
+	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
@@ -82,16 +81,15 @@ _EXTRADEPEND:
 .endif
 
 .if !target(install)
-.if !target(beforeinstall)
-beforeinstall:
-.endif
 
 _INSTALLFLAGS:=	${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-realinstall: beforeinstall
+.if !target(realinstall)
+realinstall: _proginstall
+_proginstall:
 .if defined(PROG)
 .if defined(PROGNAME)
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
@@ -105,6 +103,8 @@ realinstall: beforeinstall
 	(cd ${DESTDIR}${ORIGBINDIR}; ln -fs dm ${PROG}; \
 	    chown -h ${BINOWN}:${ORIGBINGRP} ${PROG})
 .endif
+
+realinstall:
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -127,6 +127,7 @@ realinstall: beforeinstall
 		ln -fs $$l $$t; \
 	done; true
 .endif
+.endif !target(realinstall)
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
@@ -150,7 +151,7 @@ _scriptsinstall: _SCRIPTSINS_${script:T}
 _SCRIPTSINS_${script:T}: ${script}
 	${INSTALL} ${COPY} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
 	    -g ${SCRIPTSGRP_${.ALLSRC:T}} -m ${SCRIPTSMODE_${.ALLSRC:T}} \
-	    ${_INSTALLFLAGS} ${.ALLSRC} \
+	    ${.ALLSRC} \
 	    ${DESTDIR}${SCRIPTSDIR_${.ALLSRC:T}}/${SCRIPTSNAME_${.ALLSRC:T}}
 .endfor
 .endif
@@ -177,29 +178,19 @@ _filesinstall: _FILESINS_${file:T}
 _FILESINS_${file:T}: ${file}
 	${INSTALL} ${COPY} -o ${FILESOWN_${.ALLSRC:T}} \
 	    -g ${FILESGRP_${.ALLSRC:T}} -m ${FILESMODE_${.ALLSRC:T}} \
-	    ${_INSTALLFLAGS} ${.ALLSRC} \
+	    ${.ALLSRC} \
 	    ${DESTDIR}${FILESDIR_${.ALLSRC:T}}/${FILESNAME_${.ALLSRC:T}}
 .endfor
 .endif
 
-install: afterinstall _SUBDIR
 .if !defined(NOMAN)
-afterinstall: realinstall maninstall
-.else
-afterinstall: realinstall
-.endif
+realinstall: _maninstall
 .endif
 
-DISTRIBUTION?=	bin
-.if !target(distribute)
-distribute: _SUBDIR
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
 .endif
 
 .if !target(lint)
-lint: ${SRCS} _SUBDIR
+lint: ${SRCS}
 .if defined(PROG)
 	@${LINT} ${LINTFLAGS} ${.ALLSRC} | more 2>&1
 .endif
@@ -210,7 +201,7 @@ tags:
 .endif
 
 .if !target(tags)
-tags: ${SRCS} _SUBDIR
+tags: ${SRCS}
 .if defined(PROG)
 	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
@@ -221,17 +212,6 @@ tags: ${SRCS} _SUBDIR
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
-.else
-.if !target(all-man)
-all-man:
-.endif
-.if !target(maninstall)
-maninstall:
-.endif
-.endif
-
-.if !target(regress)
-regress:
 .endif
 
 .if ${OBJFORMAT} != aout || make(checkdpadd) || defined(NEED_LIBNAMES)

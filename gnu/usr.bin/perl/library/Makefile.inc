@@ -30,15 +30,9 @@ ext/${MODULEDIR}/Makefile: scripts
 		INST_ARCHLIB=${.OBJDIR}/build/${MODULEDIR}; \
 	make -B config PERL_SRC=${.OBJDIR}
 
-install:
+realinstall:
 	@cd ${.OBJDIR}/ext/${MODULEDIR} ;\
 	make -B install \
-		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
-		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
-
-distribute:
-	@cd ${.OBJDIR}/ext/${MODULEDIR} ;\
-	make -B install DESTDIR=${DISTDIR}/${dist} SHARED=copies \
 		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
 		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
 

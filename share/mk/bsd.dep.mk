@@ -72,7 +72,7 @@ ${_YC}: ${_YSRC}
 
 .if !target(depend)
 .if defined(SRCS)
-depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
+depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
@@ -102,12 +102,13 @@ ${DEPENDFILE}: ${SRCS}
 	    ${.ALLSRC:M*.m}
 .endif
 .if target(_EXTRADEPEND)
-	cd ${.CURDIR}; ${MAKE} _EXTRADEPEND
+_EXTRADEPEND: .USE
+${DEPENDFILE}: _EXTRADEPEND
 .endif
 
 .ORDER: ${DEPENDFILE} afterdepend
 .else
-depend: beforedepend afterdepend _SUBDIR
+depend: beforedepend afterdepend
 .endif
 .if !target(beforedepend)
 beforedepend:
@@ -125,7 +126,7 @@ tags:
 .endif
 
 .if !target(tags)
-tags: ${SRCS} _SUBDIR
+tags: ${SRCS}
 	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
 	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
@@ -133,12 +134,34 @@ tags: ${SRCS} _SUBDIR
 .endif
 
 .if !target(cleandepend)
-cleandepend: _SUBDIR
+cleandepend:
 .if defined(SRCS)
 	rm -f ${DEPENDFILE} ${.OBJDIR}/GPATH ${.OBJDIR}/GRTAGS \
 		${.OBJDIR}/GSYMS ${.OBJDIR}/GTAGS
 .if defined(HTML)
 	rm -rf ${.OBJDIR}/HTML
 .endif
+.endif
+.endif
+
+.if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
+checkdpadd:
+.if ${OBJFORMAT} != aout
+	@ldadd=`echo \`for lib in ${DPADD} ; do \
+		echo $$lib | sed 's;^/usr/lib/lib\(.*\)\.a;-l\1;' ; \
+	done \`` ; \
+	ldadd1=`echo ${LDADD}` ; \
+	if [ "$$ldadd" != "$$ldadd1" ] ; then \
+		echo ${.CURDIR} ; \
+		echo "DPADD -> $$ldadd" ; \
+		echo "LDADD -> $$ldadd1" ; \
+	fi
+.else
+	@dpadd=`echo \`ld -Bstatic -f ${LDADD}\`` ; \
+	if [ "$$dpadd" != "${DPADD}" ] ; then \
+		echo ${.CURDIR} ; \
+		echo "LDADD -> $$dpadd" ; \
+		echo "DPADD =  ${DPADD}" ; \
+	fi
 .endif
 .endif

@@ -206,7 +206,7 @@ CLEANFILES+= ${DOC}.${_XFORMAT}
 .endfor
 
 
-.for __target in beforeinstall afterinstall all-man maninstall _SUBDIR
+.for __target in beforeinstall afterinstall all-man
 .if !target(${__target})
 ${__target}:
 .endif

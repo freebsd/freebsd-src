@@ -168,10 +168,10 @@ _LIBS+=lib${LIB}_pic.a
 PICFLAG=-fpic
 .endif
 
+all: objwarn ${_LIBS}
+
 .if !defined(NOMAN)
-all: objwarn ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
-.else
-all: objwarn ${_LIBS} _SUBDIR # llib-l${LIB}.ln
+all: _manpages
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
@@ -223,7 +223,7 @@ llib-l${LIB}.ln: ${SRCS}
 	${LINT} -C${LIB} ${CFLAGS} ${.ALLSRC:M*.c}
 
 .if !target(clean)
-clean:	_SUBDIR
+clean:
 	rm -f a.out ${OBJS} ${STATICOBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
 	rm -f lib${LIB}.a # llib-l${LIB}.ln
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
@@ -280,7 +280,8 @@ _SHLINSTALLFLAGS:=	${SHLINSTALLFLAGS}
 _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 .endfor
 
-realinstall: beforeinstall
+realinstall: _libinstall
+_libinstall:
 .if !defined(INTERNALLIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
@@ -324,24 +325,10 @@ realinstall: beforeinstall
 	done; true
 .endif
 
-install: afterinstall _SUBDIR
 .if !defined(NOMAN)
-afterinstall: realinstall maninstall
-.else
-afterinstall: realinstall
-.endif
+realinstall: _maninstall
 .endif
 
-.if !target(regress)
-regress:
-.endif
-
-DISTRIBUTION?=	bin
-.if !target(distribute)
-distribute:	_SUBDIR
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
 .endif
 
 .if !target(lint)
@@ -350,13 +337,6 @@ lint:
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
-.else
-.if !target(all-man)
-all-man:
-.endif
-.if !target(maninstall)
-maninstall:
-.endif
 .endif
 
 .include <bsd.dep.mk>

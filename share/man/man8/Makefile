@@ -27,8 +27,4 @@ MLINKS+=rc.8 ${MACHINE_ARCH}/rc.${MACHINE_ARCH}.8
 SUBDIR=	man8.${MACHINE_ARCH}
 .endif
 
-.if make(maninstall)
-maninstall:: _SUBDIR
-.endif
-
 .include <bsd.prog.mk>
