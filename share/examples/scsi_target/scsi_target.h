@@ -51,11 +51,11 @@ TAILQ_HEAD(io_queue, ccb_hdr);
 /* Descriptor attached to each ATIO */
 struct atio_descr {
 	off_t	  base_off;	/* Base offset for ATIO */
-	size_t	  total_len;	/* Total xfer len for this ATIO */
-	size_t	  init_req;	/* Transfer count requested to/from init */
-	size_t	  init_ack;	/* Data transferred ok to/from init */
-	size_t	  targ_req;	/* Transfer count requested to/from target */
-	size_t	  targ_ack;	/* Data transferred ok to/from target */
+	uint	  total_len;	/* Total xfer len for this ATIO */
+	uint	  init_req;	/* Transfer count requested to/from init */
+	uint	  init_ack;	/* Data transferred ok to/from init */
+	uint	  targ_req;	/* Transfer count requested to/from target */
+	uint	  targ_ack;	/* Data transferred ok to/from target */
 	int	  flags;	/* Flags for CTIOs */
 	u_int8_t *cdb;		/* Pointer to received CDB */
 		  		/* List of completed AIO/CTIOs */
