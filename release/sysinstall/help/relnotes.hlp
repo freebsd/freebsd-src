@@ -27,10 +27,16 @@ controllers.  These controllers are based on the AMD 53c974, and the
 driver is also able to handle other SCSI controllers based on that
 chip.  Of course, with Tekram being generous enough to support the
 FreeBSD project with their driver, we'd like to encourage you to buy
-their product.  The `ed' and `lnc' drivers now support auto-config-
-uration for the respective PCI ethernet cards, including many NE2000
-clones and the AMD PCnet chips.  The SDL RISCom N2 support is new, as
-well as the PCI version of the Cyclades driver.
+their product.
+
+The `ed' and `lnc' drivers now support auto-configuration for the
+respective PCI ethernet cards, including many NE2000 clones and the
+AMD PCnet chips.
+
+The SDL RISCom N2 support is new, as well as the PCI version of the
+Cyclades driver.
+
+The Intel Etherexpress Pro/10 card is now supported.
 
 Support for APM BIOSes is now in a much better shape.
 
