@@ -384,7 +384,10 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != &nobounce_dmamap)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	free(vaddr, M_DEVBUF);
+	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
+		free(vaddr, M_DEVBUF);
+	else
+		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 }
 
 #define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
