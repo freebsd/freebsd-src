@@ -141,7 +141,7 @@ static struct atapi_params *atapi_probe (int port, int unit);
 static int atapi_wait (int port, u_char bits_wanted);
 static void atapi_send_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_io (struct atapi *ata, struct atapicmd *ac);
-static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
+static int atapi_strt_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
 extern void wdstart (int ctrlr);
@@ -531,7 +531,7 @@ static void atapi_done (struct atapi *ata)
  * Return 1 if op started, and we are waiting for interrupt.
  * Return 0 when idle.
  */
-int atapi_start (int ctrlr)
+int atapi_strt (int ctrlr)
 {
 	struct atapi *ata = atapitab + ctrlr;
 	struct atapicmd *ac;
@@ -541,7 +541,7 @@ again:
 		return (0);
 
 	/* Start packet command. */
-	if (atapi_start_cmd (ata, ac) < 0) {
+	if (atapi_strt_cmd (ata, ac) < 0) {
 		atapi_done (ata);
 		goto again;
 	}
@@ -564,7 +564,7 @@ again:
 /*
  * Start new packet op. Returns -1 on errors.
  */
-int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac)
+int atapi_strt_cmd (struct atapi *ata, struct atapicmd *ac)
 {
 	ac->result.error = 0;
 	ac->result.status = 0;
@@ -904,7 +904,7 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 			ac->cmd[13], ac->cmd[14], ac->cmd[15], count);
 
 	/* Start packet command, wait for DRQ. */
-	if (atapi_start_cmd (ata, ac) >= 0 && atapi_wait_cmd (ata, ac) >= 0) {
+	if (atapi_strt_cmd (ata, ac) >= 0 && atapi_wait_cmd (ata, ac) >= 0) {
 		/* Send packet command. */
 		atapi_send_cmd (ata, ac);
 

@@ -273,7 +273,7 @@ extern int atapi_ndrv;                  /* the number of potential drives */
 extern struct atapi *atapi_tab;         /* the table of atapi controllers */
 
 int atapi_attach (int ctlr, int unit, int port);
-int atapi_start (int ctrlr);
+int atapi_strt (int ctrlr);
 int atapi_intr (int ctrlr);
 void atapi_debug (struct atapi *ata, int on);
 struct atapires atapi_request_wait (struct atapi *ata, int unit,
