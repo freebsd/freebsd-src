@@ -4,6 +4,7 @@
 CFLAGS+=-I${.CURDIR}/../../sys
 
 PROG=	chio
+WARNS?=	2
 SRCS=	chio.c
 
 .include <bsd.prog.mk>

@@ -63,21 +63,22 @@ static	int parse_element_unit __P((char *));
 static	const char * element_type_name __P((int et));
 static	int parse_special __P((char *));
 static	int is_special __P((char *));
-static	const char *bits_to_string __P((int, const char *));
+static	const char *bits_to_string __P((ces_status_flags, const char *));
 
 static	void find_element __P((char *, u_int16_t *, u_int16_t *));
-static	struct changer_element_status *get_element_status __P((u_int16_t, u_int16_t));
+static	struct changer_element_status *get_element_status
+	    __P((unsigned int, unsigned int));
 
-static	int do_move __P((char *, int, char **));
-static	int do_exchange __P((char *, int, char **));
-static	int do_position __P((char *, int, char **));
-static	int do_params __P((char *, int, char **));
-static	int do_getpicker __P((char *, int, char **));
-static	int do_setpicker __P((char *, int, char **));
-static	int do_status __P((char *, int, char **));
-static	int do_ielem __P((char *, int, char **));
-static	int do_return __P((char *, int, char **));
-static	int do_voltag __P((char *, int, char **));
+static	int do_move __P((const char *, int, char **));
+static	int do_exchange __P((const char *, int, char **));
+static	int do_position __P((const char *, int, char **));
+static	int do_params __P((const char *, int, char **));
+static	int do_getpicker __P((const char *, int, char **));
+static	int do_setpicker __P((const char *, int, char **));
+static	int do_status __P((const char *, int, char **));
+static	int do_ielem __P((const char *, int, char **));
+static	int do_return __P((const char *, int, char **));
+static	int do_voltag __P((const char *, int, char **));
 
 #ifndef CHET_VT
 #define	CHET_VT		10			/* Completely Arbitrary */
@@ -176,7 +177,7 @@ main(argc, argv)
 
 static int
 do_move(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -257,7 +258,7 @@ do_move(cname, argc, argv)
 
 static int
 do_exchange(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -369,7 +370,7 @@ do_exchange(cname, argc, argv)
 
 static int
 do_position(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -433,7 +434,7 @@ do_position(cname, argc, argv)
 /* ARGSUSED */
 static int
 do_params(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -479,7 +480,7 @@ do_params(cname, argc, argv)
 /* ARGSUSED */
 static int
 do_getpicker(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -509,7 +510,7 @@ do_getpicker(cname, argc, argv)
 
 static int
 do_setpicker(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -540,14 +541,14 @@ do_setpicker(cname, argc, argv)
 
 static int
 do_status(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
 	int i, count, base, chet, schet, echet;
-	char *description;
+	const char *description;
 	int pvoltag = 0;
 	int avoltag = 0;
 	int sense = 0;
@@ -689,7 +690,7 @@ do_status(cname, argc, argv)
 		/* Allocate storage for the status structures. */
 		cesr.cesr_element_status =
 		  (struct changer_element_status *) 
-		  calloc(count, sizeof(struct changer_element_status));
+		  calloc((size_t)count, sizeof(struct changer_element_status));
 		
 		if (!cesr.cesr_element_status)
 			errx(1, "can't allocate status storage");
@@ -762,7 +763,7 @@ do_status(cname, argc, argv)
 
 static int
 do_ielem(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -788,7 +789,7 @@ do_ielem(cname, argc, argv)
 
 static int
 do_voltag(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int argc;
 	char **argv;
 {
@@ -845,7 +846,7 @@ do_voltag(cname, argc, argv)
 			goto usage;
 		}
 
-		strncpy(csvr.csvr_voltag.cv_volid, argv[2],
+		strlcpy((char *)csvr.csvr_voltag.cv_volid, argv[2],
 		       sizeof(csvr.csvr_voltag.cv_volid));
 
 		if (argc == 4) {
@@ -944,7 +945,7 @@ is_special(cp)
 
 static const char *
 bits_to_string(v, cp)
-	int v;
+	ces_status_flags v;
 	const char *cp;
 {
 	const char *np;
@@ -977,7 +978,7 @@ bits_to_string(v, cp)
  */
 static int
 do_return(cname, argc, argv)
-	char *cname;
+	const char *cname;
 	int  argc;
 	char **argv;
 {
@@ -1006,7 +1007,8 @@ do_return(cname, argc, argv)
 	}
 	++argv; --argc;
 
-	ces = get_element_status(type, element);	/* Get the status */
+	/* Get the status */
+	ces = get_element_status((unsigned int)type, (unsigned int)element);
 
 	if (NULL == ces)
 		errx(1, "%s: null element status pointer", cname);
@@ -1042,22 +1044,22 @@ usage:
  */
 static struct changer_element_status *
 get_element_status(type, element)
-	u_int16_t	type;
-	u_int16_t	element;
+	unsigned int	type;
+	unsigned int	element;
 {
 	struct changer_element_status_request cesr;
 	struct changer_element_status *ces;
 	
 	ces = (struct changer_element_status *)
-	    calloc(1, sizeof(struct changer_element_status));
+	    calloc((size_t)1, sizeof(struct changer_element_status));
 
 	if (NULL == ces)
 		errx(1, "can't allocate status storage");
 
 	(void)memset(&cesr, 0, sizeof(cesr));
 
-	cesr.cesr_element_type = type;
-	cesr.cesr_element_base = element;
+	cesr.cesr_element_type = (u_int16_t)type;
+	cesr.cesr_element_base = (u_int16_t)element;
 	cesr.cesr_element_count = 1;		/* Only this one element */
 	cesr.cesr_flags |= CESR_VOLTAGS;	/* Grab voltags as well */
 	cesr.cesr_element_status = ces;
@@ -1088,7 +1090,8 @@ find_element(voltag, et, eu)
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
 	struct changer_element_status *ch_ces, *ces;
-	int elem, total_elem, found = 0;
+	int found = 0;
+	size_t elem, total_elem;
 
 	/*
 	 * Get the changer parameters, we're interested in the counts
@@ -1185,7 +1188,8 @@ find_element(voltag, et, eu)
 			continue;
 
 		/* Check to see if it is our target */
-		if (strcasecmp(voltag, ces->ces_pvoltag.cv_volid) == 0) {
+		if (strcasecmp(voltag,
+		    (const char *)ces->ces_pvoltag.cv_volid) == 0) {
 			*et = ces->ces_type;
 			*eu = ces->ces_addr;
 			++found;
