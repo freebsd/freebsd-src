@@ -59,7 +59,6 @@ extern volatile u_int		resched_cpus;
 extern void (*cpustop_restartfunc) __P((void));
 
 /* functions in apic_ipl.s */
-void	apic_eoi		__P((void));
 u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
 
