@@ -1,4 +1,4 @@
-/* $Id: elf_freebsd.c,v 1.4 1998/10/11 03:53:35 dima Exp $ */
+/* $Id: elf_freebsd.c,v 1.5 1998/10/14 09:53:25 peter Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -91,7 +91,8 @@
 #define _KERNEL
 
 static int	elf_exec(struct loaded_module *amp);
-int		bi_load(struct bootinfo_v1 *, vm_offset_t *);
+int		bi_load(struct bootinfo_v1 *, vm_offset_t *,
+			struct loaded_module *);
 
 struct module_format alpha_elf = { elf_loadmodule, elf_exec };
 
@@ -104,23 +105,20 @@ elf_exec(struct loaded_module *mp)
     struct module_metadata	*md;
     Elf_Ehdr			*hdr;
     int				err;
-    vm_offset_t			ssym, esym;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     hdr = (Elf_Ehdr *)&(md->md_data);
 
     /* XXX ffp_save does not appear to be used in the kernel.. */
-    err = bi_load(&bootinfo_v1, &ffp_save);
+    bzero(&bootinfo_v1, sizeof(bootinfo_v1));
+    err = bi_load(&bootinfo_v1, &ffp_save, mp);
     if (err)
 	return(err);
 
     /*
      * Fill in the bootinfo for the kernel.
      */
-    bzero(&bootinfo_v1, sizeof(bootinfo_v1));
-    bootinfo_v1.ssym = ssym;
-    bootinfo_v1.esym = esym;
     strncpy(bootinfo_v1.booted_kernel, mp->m_name,
 	    sizeof(bootinfo_v1.booted_kernel));
     prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo_v1.boot_flags,
