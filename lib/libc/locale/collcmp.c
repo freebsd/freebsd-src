@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#define ASCII_COMPATIBLE_COLLATE        /* see usr.bin/colldef/data */
+#define ASCII_COMPATIBLE_COLLATE        /* see share/colldef */
 
 #include <string.h>
 #include "collate.h"
