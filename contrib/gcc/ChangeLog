@@ -1,3 +1,47 @@
+Tue Mar  7 21:41:17 2000  Jeffrey A Law  (law@cygnus.com)
+
+	* cccp.c (handle_directive): Initialize backslash_newlines_p.
+
+	Wed Jan 19 20:39:17 2000  Jim Wilson  <wilson@cygnus.com>
+	* fixinc/inclhack.tpl: Test for directory before trying to cd into it.
+	* fixinc/fixincl.sh, fixinc/inclhack.sh: Regenerate.
+
+	Tue Oct 12 09:45:19 1999  Jonathan Larmour  <jlarmour@cygnus.co.uk>
+	* config/rs6000/eabi-ctors.c (__do_global_ctors): Run through
+	__CTOR_LIST__ in opposite order, which is the correct order for sorted
+	constructors.
+	(__do_global_dtors): similarly for __DTOR_LIST__.
+
+	2000-01-05  Bernd Schmidt  <bernds@cygnus.co.uk>
+	* reload1.c (choose_reload_regs): When disabling a reload, also
+	set reload_spill_index to -1.
+
+	Thu Nov  4 15:52:35 1999  Andrew Haley  <aph@cygnus.com>
+	* reload1.c (reload_reg_free_for_value_p): Don't use a register
+	that is in reload_reg_used.
+
+	2000-01-18  Clinton Popetz  <cpopetz@cygnus.com>
+	* loop.c (check_dbra_loop): When checking a loop for
+	reversability, check the source of any stores to ensure they 
+	don't depend on an initial value.
+
+	Sat Jan  8 12:12:46 2000  Nick Clifton  <nickc@cygnus.com>
+	* config/v850/v850.c (expand_epilogue): Interrupt functions no
+	longer allocate extra stack for function calls.
+
+Fri Feb 18 13:32:32 2000  Martin von Loewis  <loewis@informatik.hu-berlin.de>
+
+	* gcc.texi (Bug Reporting): Refer to bugs.html.
+	(Bug Lists): Likewise.
+	* system.h (GCCBUGURL): New preprocessor define.
+	(abort): Use it.
+	* gcc.c (main): Likewise.
+
+Thu Feb  3 10:53:45 2000  Richard Henderson  <rth@cygnus.com>
+
+	Wed Nov  3 10:10:58 1999  Richard Henderson  <rth@cygnus.com>
+        * c-decl.c (duplicate_decls): Copy DECL_MODE too.
+
 Thu Jan 20 10:02:07 2000  Richard Henderson  <rth@cygnus.com>
 
 	2000-01-03  Anthony Green  <green@cygnus.com>
