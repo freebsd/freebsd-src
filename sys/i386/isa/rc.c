@@ -30,7 +30,9 @@
  *
  */
 
+#include "opt_comconsole.h"
 #include "rc.h"
+
 #if NRC > 0
 
 /*#define RCDEBUG*/
