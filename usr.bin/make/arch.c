@@ -458,26 +458,22 @@ ArchStatMember(const char *archive, const char *member, Boolean hash)
 
     ln = Lst_Find(&archives, archive, ArchFindArchive);
     if (ln != NULL) {
+	char copy[AR_MAX_NAME_LEN + 1];
+
 	ar = Lst_Datum(ln);
 
 	he = Hash_FindEntry(&ar->members, member);
-
 	if (he != NULL) {
-	    return ((struct ar_hdr *)Hash_GetValue (he));
-	} else {
-	    /* Try truncated name */
-	    char copy[AR_MAX_NAME_LEN + 1];
-	    size_t len = strlen(member);
-
-	    if (len > AR_MAX_NAME_LEN) {
-		len = AR_MAX_NAME_LEN;
-		strncpy(copy, member, AR_MAX_NAME_LEN);
-		copy[AR_MAX_NAME_LEN] = '\0';
-	    }
-	    if ((he = Hash_FindEntry(&ar->members, copy)) != NULL)
-		return (Hash_GetValue(he));
-	    return (NULL);
+	    return (Hash_GetValue(he));
 	}
+
+	/* Try truncated name */
+	strncpy(copy, member, AR_MAX_NAME_LEN);
+	copy[AR_MAX_NAME_LEN] = '\0';
+
+	if ((he = Hash_FindEntry(&ar->members, copy)) != NULL)
+	    return (Hash_GetValue(he));
+	return (NULL);
     }
 
     if (!hash) {
