@@ -49,7 +49,8 @@ SYSUNINIT(n##unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,\
 linux_ioctl_unregister_handler, &n##_handler);
 
 /* Prototype for ioctl wrapper */
-static int linux_ioctl_tdfx(struct proc* p, struct linux_ioctl_args* args);
+/*static int linux_ioctl_tdfx(struct proc* p, struct linux_ioctl_args*
+ * args);*/
 
 /* Values for /dev/3dfx */
 /* Query IOCTLs */

@@ -78,13 +78,13 @@
 
 struct tdfx_softc {
 	int cardno;
-	vm_offset_t addr;
-	struct resource *memrange, *piorange;
-	int memrid, piorid;
+	vm_offset_t addr, addr2;
+	struct resource *memrange, *memrange2, *piorange;
+	int memrid, memrid2, piorid;
 	long range;
 	int vendor;
 	int type;
-	int addr0;
+	int addr0, addr1;
 	unsigned char bus;
 	unsigned char dv;
 	struct file *curFile;
