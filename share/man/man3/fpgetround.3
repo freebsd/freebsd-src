@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fpgetround.3	1.0 (Berkeley) 9/23/93
-.\"	$Id: fpgetround.3,v 1.3 1997/03/07 03:27:53 jmg Exp $
+.\"	$Id: fpgetround.3,v 1.2.2.1 1997/03/07 04:17:56 mpp Exp $
 .\"
 .Dd August 23, 1993
 .Dt FPGETROUND 3
@@ -38,6 +38,8 @@
 .Sh NAME
 .Nm fpgetround ,
 .Nm fpsetround ,
+.Nm fpsetprec ,
+.Nm fpgetprec ,
 .Nm fpgetmask ,
 .Nm fpsetmask ,
 .Nm fpgetsticky ,
@@ -47,45 +49,69 @@
 .Fd #include <floatingpoint.h>
 .Ft typedef enum {
 .br
-.Ft 	FP_RN,
+.Fa 	FP_RN,	
 .Li		/* round to nearest */
 .br
-.Ft 	FP_RM,
+.Fa 	FP_RM,	
 .Li		/* round to minus infinity */
 .br
-.Ft 	FP_RP,
+.Fa 	FP_RP,	
 .Li		/* round to plus infinity */
 .br
-.Ft 	FP_RZ,
+.Fa 	FP_RZ,	
 .Li		/* truncate */
 .br
-.Ft } fp_rnd;
+.Ft } fp_rnd_t;
 .Pp
-.Ft fp_rnd
-.Fn fpgetround ""
-.Ft fp_rnd
-.Fn fpsetround "fp_rnd direction"
-.Fd #define fp_except int
+.Ft fp_rnd_t
+.Fn fpgetround void
+.Ft fp_rnd_t
+.Fn fpsetround "fp_rnd_t direction"
+.Pp
+.nr fZ 0
+.Ft typedef enum {
+.br
+.Fa 	FP_PS,	
+.Li		/* 24 bit (single-precision) */
+.br
+.Fa 	FP_PRS,	
+.Li		/* reserved */
+.br
+.Fa 	FP_PD,	
+.Li		/* 53 bit (double-precision) */
+.br
+.Fa 	FP_PE,	
+.Li		/* 64 bit (extended-precision) */
+.br
+.Ft } fp_prec_t;
+.Pp
+.Ft fp_prec_t
+.Fn fpgetprec void
+.Ft fp_prec_t
+.Fn fpsetprec "fp_prec_t precision"
+.Pp
+.Fd #define fp_except_t int
 .Fd #define FP_X_INV	0x01		/* invalid */
 .Fd #define FP_X_OFL	0x08		/* overflow */
 .Fd #define FP_X_UFL	0x10		/* underflow */
 .Fd #define FP_X_DZ	0x04		/* divide-by-zero */
 .Fd #define FP_X_IMP	0x20		/* loss of precision */
 .Fd #define FP_X_DNML	0x02		/* denormal */
-.Ft fp_except
-.Fn fpgetmask ""
-.Ft fp_except
-.Fn fpsetmask "fp_except mask"
-.Ft fp_except
-.Fn fpgetsticky ""
-.Ft fp_except
-.Fn fpresetsticky "fp_except sticky"
+.Ft fp_except_t
+.Fn fpgetmask void
+.Ft fp_except_t
+.Fn fpsetmask "fp_except_t mask"
+.Ft fp_except_t
+.Fn fpgetsticky void
+.Ft fp_except_t
+.Fn fpresetsticky "fp_except_t sticky"
 .Sh DESCRIPTION
 When a floating point exception is detected, the exception sticky flag is
 set and the exception mask is tested. If the mask is set, then a trap
 occurs.  These routines allow both setting the floating point exception
 masks, and  resetting the exception sticky flags after an exception is
-detected.  In addition, they allow setting the floating point rounding mode.
+detected.  In addition, they allow setting the floating point rounding mode
+and precision.
 .Pp
 The
 .Fn fpgetround
@@ -97,6 +123,17 @@ The
 function
 sets the floating point rounding mode and returns
 the previous mode.
+.Pp
+The
+.Fn fpgetprec
+function
+returns the current floating point precision.
+.Pp
+The
+.Fn fpsetprec
+function
+sets the floating point precision and returns
+the previous precision.
 .Pp
 The
 .Fn fpgetmask

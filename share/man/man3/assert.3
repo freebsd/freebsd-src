@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)assert.3	8.1 (Berkeley) 6/9/93
-.\"	$Id: assert.3,v 1.3 1997/03/07 03:27:51 jmg Exp $
+.\"	$Id: assert.3,v 1.2.2.1 1997/03/07 04:17:54 mpp Exp $
 .\"
 .Dd June 9, 1993
 .Dt ASSERT 3
@@ -80,6 +80,8 @@ is false:
 "assertion \e"%s\e" failed: file \e"%s\e", line %d\n", \e
 		    "expression", __FILE__, __LINE__);
 .Ed
+.Sh SEE ALSO
+.Xr abort 3
 .Sh HISTORY
 A
 .Nm assert
