@@ -1,5 +1,7 @@
 #include "opt_geom.h"
-#ifndef GEOM
+#ifndef NO_GEOM
+#warning "The scd driver is currently incompatible with GEOM"
+#else
 /*-
  * Copyright (c) 1995 Mikael Hybsch
  * All rights reserved.

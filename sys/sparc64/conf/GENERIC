@@ -33,6 +33,8 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 # Platforms supported
 #	At this time all platforms are supported, as-is.
 
+options		NO_GEOM
+
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem

@@ -35,6 +35,9 @@
  * $FreeBSD$
  */
 
+#include "opt_geom.h"
+#ifndef NO_GEOM
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -263,15 +266,6 @@ disk_invalidate (struct disk *disk)
 {
 }
 
-SYSCTL_INT(_debug_sizeof, OID_AUTO, disklabel, CTLFLAG_RD,
-    0, sizeof(struct disklabel), "sizeof(struct disklabel)");
-
-SYSCTL_INT(_debug_sizeof, OID_AUTO, diskslices, CTLFLAG_RD,
-    0, sizeof(struct diskslices), "sizeof(struct diskslices)");
-
-SYSCTL_INT(_debug_sizeof, OID_AUTO, disk, CTLFLAG_RD,
-    0, sizeof(struct disk), "sizeof(struct disk)");
-
 static void
 g_kern_disks(void *p)
 {
@@ -309,3 +303,5 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
  
 SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NOLOCK, 0, 0, 
     sysctl_disks, "A", "names of available disks");
+
+#endif
