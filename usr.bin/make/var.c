@@ -987,7 +987,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	}
 
 	haveModifier = (*tstr == ':');
-	*tstr = '\0';
+	*tstr = '\0';			/* modify input string */
 
 	Buf_AddByte(buf, (Byte)'\0');
 	str = Buf_GetAll(buf, (size_t *)NULL);
