@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.20 2000/04/21 15:01:49 dmlb Exp $
+ * $Id: if_ray.c,v 1.21 2000/04/22 14:22:51 dmlb Exp $
  *
  */
 
@@ -2813,6 +2813,7 @@ ray_rcs_intr(struct ray_softc *sc, size_t rcs)
  * Functions based on CCS commands
  */
 
+#if 0
 /*
  * User land entry to multicast list changes
  */
@@ -2939,7 +2940,6 @@ ray_mcast_done(struct ray_softc *sc, size_t ccs)
 	ray_com_ecf_done(sc);
 }
 
-#if 0
 /*
  * User land entry to promiscuous mode changes
  */
@@ -3160,6 +3160,7 @@ ray_report_params(struct ray_softc *sc)
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_report, c_nparam, 1);
 
 }
+#endif
 
 /*
  * Return the error counters
@@ -3184,6 +3185,7 @@ ray_user_report_stats(struct ray_softc *sc, struct ray_stats_req *sr)
 	return (0);
 }
 
+#if 0
 /*
  * issue a update params
  *
@@ -3355,6 +3357,7 @@ static void ray_update_params_done(struct ray_softc *sc, size_t ccs, u_int stat)
 static int ray_mcast_user(struct ray_softc *sc) {return (0);}
 static void ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com) {}
 static void ray_mcast_done(struct ray_softc *sc, size_t ccs) {}
+
 static int ray_promisc_user(struct ray_softc *sc) {return (0);}
 static void ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com) {}
 static void ray_promisc_done(struct ray_softc *sc, size_t ccs) {}
@@ -3362,6 +3365,7 @@ static void ray_promisc_done(struct ray_softc *sc, size_t ccs) {}
 
 static int ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr) {return (0);}
 static int ray_user_report_params(struct ray_softc *sc, struct ray_param_req *pr) {return (0);}
+static void ray_report_params(struct ray_softc *sc) {}
 #endif
 
 /*
