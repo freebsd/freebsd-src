@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.121 1994/12/22 21:00:02 wollman Exp $
+#	$Id: LINT,v 1.122 1994/12/26 17:33:52 ats Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -434,19 +434,21 @@ tape		ft0	at fdc0 drive 2
 options	FDSEEKWAIT="16"
 
 #
-# Other standard PC hardware: `lpt', `mse', `psm', `sio'
+# Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
 #
 # lpt: printer port
 # mse: Logitech and ATI InPort bus mouse ports
 # psm: PS/2 mouse port (needs ALLOW_CONFLICT_IOADDR, above)
 # sio: serial ports (see sio(4))
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
+# gsc: Genius GS-4500 hand scanner.
 
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		gp0	at isa? port 0x2c0 tty
+device		gsc0	at isa? port "IO_GSC1" tty drq 3
 
 # Options for sio:
 options		COMCONSOLE		#prefer serial console to video console

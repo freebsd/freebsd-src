@@ -71,8 +71,9 @@
 #	pcaudio PCM audio driver 
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
+#	gsc	Genius GS-4500 hand scanner
 #
-#	$Id: MAKEDEV,v 1.60 1994/12/16 15:59:44 bde Exp $
+#	$Id: MAKEDEV,v 1.61 1994/12/25 15:08:29 ats Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -647,6 +648,12 @@ vat)
 	mknod vatio c 25 128
 	chown root.wheel vatio
 	chmod 660 vatio
+	;;
+
+gsc)
+	rm -f gsc0
+	mknod gsc0 c 47 0
+	chmod 666 gsc0
 	;;
 
 apm)

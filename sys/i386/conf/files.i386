@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.67 1994/12/26 01:06:41 ats Exp $
+#	$Id: files.i386,v 1.68 1994/12/31 19:27:29 gibbs Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -69,6 +69,7 @@ i386/isa/ft.c			optional	ft	device-driver
 i386/isa/elink.c		optional	ie	device-driver
 i386/isa/elink.c		optional	ep	device-driver
 i386/isa/gpib.c			optional	gp	device-driver
+i386/isa/gsc.c			optional	gsc	device-driver
 i386/isa/if_cx.c		optional	cx	device-driver
 i386/isa/if_ed.c		optional	ed	device-driver
 i386/isa/if_el.c		optional	el	device-driver
