@@ -40,10 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <assert.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 #include <wctype.h>
 #include "hexdump.h"
