@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.20 1998/05/15 20:19:16 wollman Exp $";
+	"$Id: main.c,v 1.21 1998/08/05 13:54:07 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -66,7 +66,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "netstat.h"
 
-struct nlist nl[] = {
+static struct nlist nl[] = {
 #define	N_IFNET		0
 	{ "_ifnet" },
 #define	N_IMP		1
@@ -209,7 +209,7 @@ static void usage __P((void));
 static struct protox *name2protox __P((char *));
 static struct protox *knownname __P((char *));
 
-kvm_t *kvmd;
+static kvm_t *kvmd;
 char *nlistf = NULL, *memf = NULL;
 
 int
@@ -220,7 +220,6 @@ main(argc, argv)
 	register struct protoent *p;
 	register struct protox *tp;	/* for printing cblocks & stats */
 	int ch;
-	char buf[_POSIX2_LINE_MAX];
 
 	af = AF_UNSPEC;
 
@@ -348,12 +347,17 @@ main(argc, argv)
 		exit(0);
 	}
 	if (pflag) {
-		if (tp->pr_stats)
-			(*tp->pr_stats)(tp->pr_usesysctl ? tp->pr_usesysctl
-					: nl[tp->pr_sindex].n_value,
-					tp->pr_name);
-		else
+		if (!tp->pr_stats) {
 			printf("%s: no stats routine\n", tp->pr_name);
+			exit(0);
+		}
+		if (tp->pr_usesysctl) {
+			(*tp->pr_stats)(tp->pr_usesysctl, tp->pr_name);
+		} else {
+			kread(0, 0, 0);
+			(*tp->pr_stats)(nl[tp->pr_sindex].n_value,
+					tp->pr_name);
+		}
 		exit(0);
 	}
 #if 0
@@ -371,10 +375,12 @@ main(argc, argv)
 	 */
 #endif
 	if (iflag) {
+		kread(0, 0, 0);
 		intpr(interval, nl[N_IFNET].n_value);
 		exit(0);
 	}
 	if (rflag) {
+		kread(0, 0, 0);
 		if (sflag)
 			rt_stats(nl[N_RTSTAT].n_value);
 		else
@@ -382,6 +388,7 @@ main(argc, argv)
 		exit(0);
 	}
 	if (gflag) {
+		kread(0, 0, 0);
 		if (sflag)
 			mrt_stats(nl[N_MRTPROTO].n_value,
 			    nl[N_MRTSTAT].n_value);
@@ -486,6 +493,8 @@ kread(addr, buf, size)
 			return(-1);
 		}
 	}
+	if (!buf)
+		return (0);
 	if (kvm_read(kvmd, addr, buf, size) != size) {
 		warnx("%s", kvm_geterr(kvmd));
 		return (-1);
