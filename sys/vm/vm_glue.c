@@ -675,9 +675,6 @@ vm_forkproc(td, p2, td2, flags)
 
 	if ((flags & RFMEM) == 0) {
 		p2->p_vmspace = vmspace_fork(p1->p_vmspace);
-
-		pmap_pinit2(vmspace_pmap(p2->p_vmspace));
-
 		if (p1->p_vmspace->vm_shm)
 			shmfork(p1, p2);
 	}
