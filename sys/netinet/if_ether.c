@@ -921,12 +921,20 @@ arplookup(addr, create, proxy)
 	else if (rt->rt_gateway->sa_family != AF_LINK)
 		why = "gateway route is not ours";
 
-	if (why && create) {
-		log(LOG_DEBUG, "arplookup %s failed: %s\n",
-		    inet_ntoa(sin.sin_addr), why);
-		return 0;
-	} else if (why) {
-		return 0;
+	if (why) {
+		if (create)
+			log(LOG_DEBUG, "arplookup %s failed: %s\n",
+			    inet_ntoa(sin.sin_addr), why);
+
+		/* If there are no references to this route, purge it */
+		if (rt->rt_refcnt <= 0 &&
+		    (rt->rt_flags & RTF_WASCLONED) != RTF_WASCLONED) {
+			rtrequest(RTM_DELETE,
+					(struct sockaddr *)rt_key(rt),
+					rt->rt_gateway, rt_mask(rt),
+					rt->rt_flags, 0);
+		}
+		return (0);
 	}
 	return ((struct llinfo_arp *)rt->rt_llinfo);
 }
