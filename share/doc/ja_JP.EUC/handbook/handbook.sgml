@@ -1,6 +1,6 @@
-<!-- $Id: handbook.sgml,v 1.4 1996/12/02 08:00:57 max Exp $ -->
+<!-- $Id: handbook.sgml,v 1.5 1996/12/11 22:08:45 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.61 -->
+<!-- Original revision: 1.63 -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 
@@ -36,7 +36,7 @@
       <author>
 	<name>FreeBSD ドキュメンテーションプロジェクト</name>
       </author>
-      <date>1996年11月</date>
+      <date>1996年12月</date>
 
 <abstract>FreeBSD へようこそ! このハンドブックは<bf>FreeBSD Release
 &rel.current;</bf>のインストールおよび, 日常での使い方について記述したもので, 

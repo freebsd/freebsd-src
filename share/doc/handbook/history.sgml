@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.15 1996/08/21 07:28:45 asami Exp $ -->
+<!-- $Id: history.sgml,v 1.19 1996/12/18 20:23:40 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -8,10 +8,8 @@
 The FreeBSD project had its genesis in the early part of 1993,
 partially as an outgrowth of the "Unofficial 386BSD Patchkit" by the
 patchkit's last 3 coordinators: Nate Williams, Rod Grimes and myself.
-David Greenman and Julian Elischer were also lurking in the background
-around this time, though they did not come fully into the project until
-a month or two after it was more or less officially launched.  Our
-original goal was to produce an intermediate snapshot of 386BSD in
+
+Our original goal was to produce an intermediate snapshot of 386BSD in
 order to fix a number of problems with it that the patchkit mechanism
 just was not capable of solving.  Some of you may remember the early
 working title for the project being "386BSD 0.5" or "386BSD Interim"
@@ -48,7 +46,7 @@ released in December of 1993.  This was based on the 4.3BSD-Lite
 success for a first offering, and we followed it with the highly successful
 FreeBSD 1.1 release in May of 1994.
 
-Around this time, some rather unexpected storm clouds formed on our
+Around this time, some rather unexpected storm clouds formed on the
 horizon as Novell and U.C. Berkeley settled their long-running lawsuit
 over the legal status of the Berkeley Net/2 tape.  A condition of that
 settlement was U.C. Berkeley's concession that large parts of Net/2
@@ -56,38 +54,34 @@ were "encumbered" code and the property of Novell, who had in turn acquired
 it from AT&amp;T some time previously.  What Berkeley got in return was
 Novell's "blessing" that the 4.4BSD-Lite release, when it was finally
 released, would be declared unencumbered and all existing Net/2 users
-would be strongly encouraged to switch.  This included us, and we were
-given until the end of July 1994 to stop shipping our own Net/2 based
-product.  Under the terms of that agreement, we were allowed one
-last release before the deadline and that became FreeBSD 1.1.5.1, the
-culmination of our year's work with Net/2 and generally considered by
-many to be a significant project milestone for stability and general
-performance..
+would be strongly encouraged to switch.  This included FreeBSD, and the
+project was given until the end of July 1994 to stop shipping its own
+Net/2 based product.  Under the terms of that agreement, the project
+was allowed one last release before the deadline, that release being
+FreeBSD 1.1.5.1.
 
-We then set about the arduous task of literally re-inventing ourselves
-with a completely new and rather incomplete set of 4.4BSD-Lite bits.  The
+FreeBSD then set about the arduous task of literally re-inventing itself
+from a completely new and rather incomplete set of 4.4BSD-Lite bits.  The
 "Lite" releases were light in part because Berkeley's CSRG had removed
 large chunks of code required for actually constructing a bootable running
 system (due to various legal requirements) and the fact that the Intel
-port of 4.4 was highly incomplete.  It took us until December of 1994
-to make this transition, and in January of 1995 we
-released FreeBSD 2.0 to the net and on CDROM.  Despite being still
-more than a little rough around the edges, the release was a
-significant success and has since been followed by the more robust and
-easier to install FreeBSD 2.0.5 release in June of 1995.
+port of 4.4 was highly incomplete.  It took the project until December of 1994
+to make this transition, and in January of 1995 it released FreeBSD 2.0 to
+the net and on CDROM.  Despite being still more than a little rough around
+the edges, the release was a significant success and was followed by the more
+robust and easier to install FreeBSD 2.0.5 release in June of 1995.
 
 <em>Where to from here?</em>
 
-We just released FreeBSD 2.1.5 in August of 1996, and it appears to be
-doing well enough for us that one last release along the -stable
-branch, 2.1.6, is merited.  This is scheduled for release some time in
-November.
+We released FreeBSD 2.1.5 in August of 1996, and it appeared to be
+popular enough among the ISP and commercial communities that one last
+release along the 2.1-stable branch, was merited.  This was FreeBSD 2.1.6,
+released in December 1996, and capping the end of mainstream development
+on 2.1-stable.  Now in maintenance mode, only security enhancements and other
+critical bug fixes will be done on this branch.
 
-2.2, our development branch where long term projects for everything
-from NFS v3 to PCCARD support is currently taking place, will continue
-to have snapshot releases made of it right up until initial 2.2 code
-freeze, which is scheduled for January of 1997.
-
-We also intend to focus on any remaining areas of weakness, like
-documentation or missing drivers, and steadily increase the overall
-quality and feature set of the system well into 1997 and beyond.
+FreeBSD 2.2 is now on a release branch and heading for its first full
+debut in January, 1997.  Long term development projects for everything
+from SMP to DEC ALPHA support will continue to take place in the
+3.0-current branch, which departed from 2.2 in October of 1996. 
+SNAPshot releases of 3.0 are expected to resume in early 1997.

@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.16 1996/10/29 12:06:57 max Exp $ -->
+<!-- $Id: ports.sgml,v 1.18 1996/12/21 11:51:33 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -468,8 +468,8 @@ name="packages directory.">
    though check your local mirror first, please!
 
    These are more likely to work (on the whole) than trying to compile from
-   source, and a lot faster!  Use the <tt>pkg_add(1)</tt> or 
-   <tt>pkg_manage(1)</tt> program to install them to your system.
+   source, and a lot faster!  Use the <tt>pkg_add(1)</tt> 
+dddprogram to install them to your system.
 
 </enum>
 

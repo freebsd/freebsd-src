@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: kernelconfig.sgml,v 1.2 1996/12/17 16:02:25 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
@@ -10,7 +10,7 @@
 	&a.tomo;,
 	 &a.yoshiaki;. <newline>
 	 2 November 1996. </em>
-    <!-- Original revision: 1.21 -->
+    <!-- Original revision: 1.22 -->
 
 	この章はシステムに合わせたカーネルの再構築の基礎について
 	述べたものです.  この章は, システム管理の初心者から
@@ -1140,10 +1140,16 @@ controller wcd0
 # sh MAKEDEV snd0
 </verb></tscreen>
 
-	これにより対応するエントリが作られます. 以上の簡単な手順を
-	エントリのない GENERICに含まれないデバイスではおこなうことになり
-	ます. 
-	
+	これにより対応するエントリが作られます. 
+	注: サウンドカードのようなデバイスのノードを作る場合で, もし他
+	の人がマシンにアクセスするようであれば, そのデバイスを 
+	<tt>/etc/fbtab</tt>ファイルに追加して外部からのアクセスから
+	保護するのが望ましいでしょう. このファイルの詳細については 
+	<tt>man fbtab</tt> を参照してください. 
+
+	GENERICに含まれていないためにエントリが作られていないデバイスでは, 
+	以上の簡単な手順をおこなうことになります. 
+
 	<quote><em/注:/ すべての SCSIコントローラは同じ <tt>/dev</tt>の
 	エントリを使用しますのでノードを作る必要はありません. またネッ
 	トワークカードと SLIP/PPP疑似デバイスは <tt>/dev</tt>にはエント

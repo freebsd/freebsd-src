@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.27 1996/08/28 00:43:56 asami Exp $ -->
+<!-- $Id: eresources.sgml,v 1.29 1996/12/18 22:41:08 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -72,6 +72,8 @@ freebsd-multimedia       Multimedia discussion
 freebsd-platforms        Concerning ports to non-Intel architecture platforms
 freebsd-ports            Discussion of the ports collection
 freebsd-security         Security issues
+freebsd-security-notifications  
+                         Security notifications  (moderated mailing list)
 freebsd-scsi             The SCSI subsystem
 freebsd-smp              Design discussions for [A]Symmetric MultiProcessing
 </verb>
@@ -277,6 +279,10 @@ for FreeBSD.
 <tag/FREEBSD-SECURITY/ <em>Security issues</em><newline> 
 FreeBSD computer security issues (DES, Kerberos, known security holes and
 fixes, etc).
+
+<tag/FREEBSD-SECURITY-NOTIFICATIONS/ <em>Security Notifications</em><newline>
+Notifications of FreeBSD security problems and fixes.  This is not
+a discussion list.  The discussion list is FreeBSD-security.
 
 <tag/FREEBSD-USER-GROUPS/ <em>User Group Coordination List</em><newline>
 This is the mailing list for the coordinators from each of the 

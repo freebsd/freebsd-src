@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.38.2.1 1996/11/06 08:46:38 phk Exp $ -->
+<!-- $Id: install.sgml,v 1.44 1996/12/21 15:01:07 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -339,11 +339,23 @@ Boot:
 	    <item>SDL Communications RISCom/N2 and N2pci sync serial cards.
 
 	    <item>Digiboard Sync/570i high-speed sync serial card.
+	
+	    <item>Decision-Computer Intl. "Eight-Serial" 8 port serial cards 
+                  using shared IRQ.
 
 	    <item>Adlib, SoundBlaster, SoundBlaster Pro,
 	      ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
 	      and Roland MPU-401 sound cards.
 
+	    <item>Matrox Meteor video frame grabber.
+
+	    <item>Creative Labs Video spigot frame grabber.
+
+	    <item>Omnimedia Talisman frame grabber.
+
+	    <item>X-10 power controllers.
+
+	    <item>PC joystick and speaker.
 	  </itemize>
 
 	  FreeBSD does not currently support IBM's microchannel (MCA) bus.
@@ -421,17 +433,6 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	  things the hard way, you must first prepare some
 	  floppies for the install.
 
-
-	  The first floppy that you will need in addition to the boot.flp 
-	  image is ``floppies/root.flp'', which is somewhat special in that 
-	  it is not a DOS filesystem floppy at all, but rather a floppy "image" 
-	  (it's actually a gzip'd cpio file).  You can create this floppy in 
-	  the same way that you created the boot floppy <ref id="install"
-	    name="the beginning of this guide">.  Once this floppy is
-	  made, you can go on to make the distribution set floppies
-	  using ordinary DOS or UFS (if you are preparing the floppies on
-	  another FreeBSD machine) formatted diskettes.
-
 	  You will need, at minimum, as many 1.44MB or 1.2MB floppies as
 	  it takes to hold all files in the bin (binary distribution)
 	  directory.  If you are preparing these floppies under DOS, then
@@ -489,26 +490,16 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	  FreeBSD:
 <tscreen><verb>
 C> MD C:\FREEBSD
-C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN\
-C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES\
+C> XCOPY /S E:\BIN C:\FREEBSD\BIN\
+C> XCOPY /S E:\MANPAGES C:\FREEBSD\MANPAGES\
 </verb></tscreen>
 	  assuming that <tt>C:</tt> is where you have free space
-	  and <tt>E:</tt> is where your CDROM is mounted.  Note
-	  that you need the <tt>FLOPPIES</tt> directory because
-	  the <tt>root.flp</tt> image is needed during an MS-DOS
-	  installation.
+	  and <tt>E:</tt> is where your CDROM is mounted.
 
 	  For as many `DISTS' you wish to install from MS-DOS
 	  (and you have free space for), install each one under
 	  <tt>C:&bsol;FREEBSD</tt> - the <tt>BIN</tt> dist is only the
-	  minimal requirement.  If you have room on your MS-DOS
-	  partition for all the distributions, you could replace
-	  the last line above with:
-<tscreen><verb>
-C> XCOPY /S E:\DISTS C:\FREEBSD\
-</verb></tscreen>
-	  which would copy all the subdirectories of 
-          <tt>E:&bsol;DISTS</tt> to <tt>C:&bsol;FREEBSD</tt>.
+	  minimal requirement.
 
       <sect1><heading>Before installing from QIC/SCSI Tape</heading>
 
@@ -522,9 +513,6 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 cd /freebsd/distdir<newline>
 tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 </tscreen>
-	  Make sure that the `floppies/' directory is one of the
-	  ``dists'' given above, since the installation will look
-	  for `floppies/root.flp' on the tape.
 
 	  When you go to do the installation, you should also
 	  make sure that you leave enough room in some temporary
