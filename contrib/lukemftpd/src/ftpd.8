@@ -1,6 +1,6 @@
-.\"	$NetBSD: ftpd.8,v 1.69 2002/02/08 01:30:07 ross Exp $
+.\"	$NetBSD: ftpd.8,v 1.74 2003-08-07 09:46:39 agc Exp $
 .\"
-.\" Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -45,11 +45,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -67,7 +63,7 @@
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\"
-.Dd October 25, 2002
+.Dd February 26, 2003
 .Dt FTPD 8
 .Os
 .Sh NAME
@@ -82,6 +78,7 @@ Internet File Transfer Protocol server
 .Op Fl C Ar user
 .Op Fl e Ar emailaddr
 .Op Fl h Ar hostname
+.Op Fl L Ar xferlogfile
 .Op Fl P Ar dataport
 .Op Fl V Ar version
 .Sh DESCRIPTION
@@ -172,6 +169,13 @@ session is logged using syslog with a facility of
 If this option is specified more than once, the retrieve (get), store (put),
 append, delete, make directory, remove directory and rename operations and
 their file name arguments are also logged.
+.It Fl L Ar xferlogfile
+Log
+.Tn wu-ftpd
+style
+.Sq xferlog
+entries to
+.Ar xferlogfile .
 .It Fl P Ar dataport
 Use
 .Ar dataport
@@ -392,7 +396,7 @@ interprets file names according to the
 .Dq globbing
 conventions used by
 .Xr csh 1 .
-This allows users to utilize the metacharacters
+This allows users to use the metacharacters
 .Dq Li \&*?[]{}~ .
 .Ss User authentication
 .Nm
