@@ -122,24 +122,6 @@ gdraw(int dx, int dy, int val)
 }
 
 static void
-gcls(void)
-{
-#ifdef PC98
-	outb(0x7c, 0x80);	/* GRCG on & TDW mode */
-	outb(0x7e, 0);			/* tile B */
-	outb(0x7e, 0);			/* tile R */
-	outb(0x7e, 0);			/* tile G */
-	outb(0x7e, 0);			/* tile I */
-
-	fillw(0, vid, 0x8000);
-
-	outb(0x7c, 0);	/* GRCG off */
-#else
-	bzero(vid, SCRW*SCRH);
-#endif
-}
-
-static void
 dragon_update(video_adapter_t *adp)
 {
 	static int	i, p, q;
@@ -153,7 +135,7 @@ dragon_update(video_adapter_t *adp)
 	int	tmp;
 
 	if (curve > CURVE) {
-		gcls();
+		(*vidsw[adp->va_index]->clear)(adp);
 
 		/* set palette of each curves */
 		for (tmp = 0; tmp < 3*CURVE; ++tmp) {
