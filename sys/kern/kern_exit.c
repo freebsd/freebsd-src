@@ -153,6 +153,10 @@ retry:
 		 * to return to userland will thread_exit() from userret().
 		 * thread_exit() will unsuspend us when the last other
 		 * thread exits.
+		 * If there is already a thread singler after resumption,
+		 * calling thread_single will fail, in the case, we just
+		 * re-check all suspension request, the thread should
+		 * either be suspended there or exit.
 		 */
 		if (thread_single(SINGLE_EXIT))
 			goto retry;
