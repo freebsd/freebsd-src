@@ -113,6 +113,9 @@
       cards.  As a result, <literal>device miibus</literal> is
       required in kernel configurations using the &man.ed.4;
       driver.</para>
+
+      <para>The &man.txp.4; driver has been added to support NICs
+      based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
     </sect3>
 
     <sect3>
