@@ -1042,18 +1042,11 @@ again:
 			td->cmd = 0;
 			td->css = 0;
 
-			/*
-			 * Mark the last descriptor with EOP and tell the
-			 * chip to insert a final checksum.
-			 */
-			if (m->m_next == NULL) {
-				td->cmd |= TXCMD_EOP|TXCMD_IFCS;
-			}
 			if (sc->wx_debug) {
 				printf("%s: XMIT[%d] %p vptr %lx (length %d "
-				    "DMA addr %x) idx %d cmd %x\n", sc->wx_name,
+				    "DMA addr %x) idx %d\n", sc->wx_name,
 				    ndesc, m, (long) vptr, td->length,
-				    td->address.lowpart, cidx, td->cmd);
+				    td->address.lowpart, cidx);
 			}
 			ndesc++;
 			cidx = T_NXT_IDX(cidx);
@@ -1064,6 +1057,13 @@ again:
 		 * the the packet chain described by mb_head.
 		 */
 		if (m == NULL) {
+			/*
+			 * Mark the last descriptor with EOP and tell the
+			 * chip to insert a final checksum.
+			 */
+			wxtd_t *td = &sc->tdescriptors[T_PREV_IDX(cidx)];
+			td->cmd = TXCMD_EOP|TXCMD_IFCS;
+
 			sc->tbase[sc->tnxtfree].sidx = sc->tnxtfree;
 			sc->tbase[sc->tnxtfree].eidx = cidx;
 			sc->tbase[sc->tnxtfree].next = NULL;
