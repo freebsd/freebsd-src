@@ -84,9 +84,9 @@ static const char rcsid[] =
 void search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	struct sockaddr_inarp *sin, struct rt_msghdr *rtm));
 void print_entry(struct sockaddr_dl *sdl,
-	struct sockaddr_inarp *sin, struct rt_msghdr *rtm);
+	struct sockaddr_inarp *addr, struct rt_msghdr *rtm);
 void nuke_entry(struct sockaddr_dl *sdl,
-	struct sockaddr_inarp *sin, struct rt_msghdr *rtm);
+	struct sockaddr_inarp *addr, struct rt_msghdr *rtm);
 int delete(char *host, char *info);
 void ether_print(u_char *cp);
 void usage(void);
@@ -102,6 +102,15 @@ static int pid;
 static int nflag;	/* no reverse dns lookups */
 static int aflag;	/* do it for all entries */
 static int s = -1;
+
+struct	sockaddr_in so_mask;
+struct	sockaddr_inarp blank_sin, sin_m;
+struct	sockaddr_dl blank_sdl, sdl_m;
+int	expire_time, flags, doing_proxy, proxy_only, found_entry;
+struct	{
+	struct	rt_msghdr m_rtm;
+	char	m_space[512];
+}	m_rtmsg;
 
 /* which function we're supposed to do */
 #define F_GET		1
@@ -147,6 +156,16 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+
+	bzero(&so_mask, sizeof(so_mask));
+	so_mask.sin_family = 8;
+	so_mask.sin_addr.s_addr = 0xffffffff;
+	bzero(&blank_sin, sizeof(blank_sin));
+	blank_sin.sin_len = sizeof(blank_sin);
+	blank_sin.sin_family = AF_INET;
+	bzero(&blank_sdl, sizeof(blank_sdl));
+	blank_sdl.sdl_len = sizeof(blank_sdl);
+	blank_sdl.sdl_family = AF_LINK;
 
 	if (!func)
 		func = F_GET;
@@ -234,15 +253,6 @@ getsocket(void)
 	}
 }
 
-struct	sockaddr_in so_mask = {8, 0, 0, { 0xffffffff}};
-struct	sockaddr_inarp blank_sin = {sizeof(blank_sin), AF_INET }, sin_m;
-struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
-int	expire_time, flags, doing_proxy, proxy_only, found_entry;
-struct	{
-	struct	rt_msghdr m_rtm;
-	char	m_space[512];
-}	m_rtmsg;
-
 /*
  * Set an individual arp entry
  */
@@ -250,7 +260,7 @@ int
 set(int argc, char **argv)
 {
 	struct hostent *hp;
-	register struct sockaddr_inarp *sin = &sin_m;
+	register struct sockaddr_inarp *addr = &sin_m;
 	register struct sockaddr_dl *sdl;
 	register struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
 	u_char *ea;
@@ -261,14 +271,14 @@ set(int argc, char **argv)
 	argv += 2;
 	sdl_m = blank_sdl;
 	sin_m = blank_sin;
-	sin->sin_addr.s_addr = inet_addr(host);
-	if (sin->sin_addr.s_addr == INADDR_NONE) {
+	addr->sin_addr.s_addr = inet_addr(host);
+	if (addr->sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host))) {
 			warnx("%s: %s", host, hstrerror(h_errno));
 			return (1);
 		}
-		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
-		    sizeof sin->sin_addr);
+		bcopy((char *)hp->h_addr, (char *)&addr->sin_addr,
+		    sizeof addr->sin_addr);
 	}
 	doing_proxy = flags = proxy_only = expire_time = 0;
 	while (argc-- > 0) {
@@ -293,9 +303,9 @@ set(int argc, char **argv)
 	}
 	ea = (u_char *)LLADDR(&sdl_m);
 	if (doing_proxy && !strcmp(eaddr, "auto")) {
-		if (!get_ether_addr(sin->sin_addr.s_addr, ea)) {
+		if (!get_ether_addr(addr->sin_addr.s_addr, ea)) {
 			printf("no interface found for %s\n",
-			       inet_ntoa(sin->sin_addr));
+			       inet_ntoa(addr->sin_addr));
 			return (1);
 		}
 		sdl_m.sdl_alen = 6;
@@ -308,9 +318,9 @@ tryagain:
 		warn("%s", host);
 		return (1);
 	}
-	sin = (struct sockaddr_inarp *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin_len) + (char *)sin);
-	if (sin->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
+	addr = (struct sockaddr_inarp *)(rtm + 1);
+	sdl = (struct sockaddr_dl *)(ROUNDUP(addr->sin_len) + (char *)addr);
+	if (addr->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
@@ -347,20 +357,20 @@ int
 get(char *host)
 {
 	struct hostent *hp;
-	struct sockaddr_inarp *sin = &sin_m;
+	struct sockaddr_inarp *addr = &sin_m;
 
 	sin_m = blank_sin;
-	sin->sin_addr.s_addr = inet_addr(host);
-	if (sin->sin_addr.s_addr == INADDR_NONE) {
+	addr->sin_addr.s_addr = inet_addr(host);
+	if (addr->sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host)))
 			errx(1, "%s: %s", host, hstrerror(h_errno));
-		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
-		    sizeof sin->sin_addr);
+		bcopy((char *)hp->h_addr, (char *)&addr->sin_addr,
+		    sizeof addr->sin_addr);
 	}
-	search(sin->sin_addr.s_addr, print_entry);
+	search(addr->sin_addr.s_addr, print_entry);
 	if (found_entry == 0) {
 		printf("%s (%s) -- no entry\n",
-		    host, inet_ntoa(sin->sin_addr));
+		    host, inet_ntoa(addr->sin_addr));
 		return(1);
 	}
 	return(0);
@@ -373,7 +383,7 @@ int
 delete(char *host, char *info)
 {
 	struct hostent *hp;
-	register struct sockaddr_inarp *sin = &sin_m;
+	register struct sockaddr_inarp *addr = &sin_m;
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
 	struct sockaddr_dl *sdl;
 
@@ -385,23 +395,23 @@ delete(char *host, char *info)
 		else
 			usage();
 	}
-	sin->sin_addr.s_addr = inet_addr(host);
-	if (sin->sin_addr.s_addr == INADDR_NONE) {
+	addr->sin_addr.s_addr = inet_addr(host);
+	if (addr->sin_addr.s_addr == INADDR_NONE) {
 		if (!(hp = gethostbyname(host))) {
 			warnx("%s: %s", host, hstrerror(h_errno));
 			return (1);
 		}
-		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
-		    sizeof sin->sin_addr);
+		bcopy((char *)hp->h_addr, (char *)&addr->sin_addr,
+		    sizeof addr->sin_addr);
 	}
 tryagain:
 	if (rtmsg(RTM_GET) < 0) {
 		warn("%s", host);
 		return (1);
 	}
-	sin = (struct sockaddr_inarp *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin_len) + (char *)sin);
-	if (sin->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
+	addr = (struct sockaddr_inarp *)(rtm + 1);
+	sdl = (struct sockaddr_dl *)(ROUNDUP(addr->sin_len) + (char *)addr);
+	if (addr->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) switch (sdl->sdl_type) {
@@ -423,7 +433,7 @@ delete:
 		return (1);
 	}
 	if (rtmsg(RTM_DELETE) == 0) {
-		printf("%s (%s) deleted\n", host, inet_ntoa(sin->sin_addr));
+		printf("%s (%s) deleted\n", host, inet_ntoa(addr->sin_addr));
 		return (0);
 	}
 	return (1);
@@ -440,7 +450,7 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	size_t needed;
 	char *lim, *buf, *next;
 	struct rt_msghdr *rtm;
-	struct sockaddr_inarp *sin;
+	struct sockaddr_inarp *sin2;
 	struct sockaddr_dl *sdl;
 
 	mib[0] = CTL_NET;
@@ -458,14 +468,14 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
-		sin = (struct sockaddr_inarp *)(rtm + 1);
-		(char *)sdl = (char *)sin + ROUNDUP(sin->sin_len);
+		sin2 = (struct sockaddr_inarp *)(rtm + 1);
+		(char *)sdl = (char *)sin2 + ROUNDUP(sin2->sin_len);
 		if (addr) {
-			if (addr != sin->sin_addr.s_addr)
+			if (addr != sin2->sin_addr.s_addr)
 				continue;
 			found_entry = 1;
 		}
-		(*action)(sdl, sin, rtm);
+		(*action)(sdl, sin2, rtm);
 	}
 	free(buf);
 }
@@ -475,7 +485,7 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
  */
 void
 print_entry(struct sockaddr_dl *sdl,
-	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
+	struct sockaddr_inarp *addr, struct rt_msghdr *rtm)
 {
 	const char *host;
 	struct hostent *hp;
@@ -483,8 +493,8 @@ print_entry(struct sockaddr_dl *sdl,
 	int seg;
 
 	if (nflag == 0)
-		hp = gethostbyaddr((caddr_t)&(sin->sin_addr),
-		    sizeof sin->sin_addr, AF_INET);
+		hp = gethostbyaddr((caddr_t)&(addr->sin_addr),
+		    sizeof addr->sin_addr, AF_INET);
 	else
 		hp = 0;
 	if (hp)
@@ -494,7 +504,7 @@ print_entry(struct sockaddr_dl *sdl,
 		if (h_errno == TRY_AGAIN)
 			nflag = 1;
 	}
-	printf("%s (%s) at ", host, inet_ntoa(sin->sin_addr));
+	printf("%s (%s) at ", host, inet_ntoa(addr->sin_addr));
 	if (sdl->sdl_alen)
 		ether_print(LLADDR(sdl));
 	else
@@ -503,14 +513,14 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" on %s", ifname);
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
-	if (sin->sin_other & SIN_PROXY)
+	if (addr->sin_other & SIN_PROXY)
 		printf(" published (proxy only)");
 	if (rtm->rtm_addrs & RTA_NETMASK) {
-		sin = (struct sockaddr_inarp *)
+		addr = (struct sockaddr_inarp *)
 			(ROUNDUP(sdl->sdl_len) + (char *)sdl);
-		if (sin->sin_addr.s_addr == 0xffffffff)
+		if (addr->sin_addr.s_addr == 0xffffffff)
 			printf(" published");
-		if (sin->sin_len != 8)
+		if (addr->sin_len != 8)
 			printf("(weird)");
 	}
         switch(sdl->sdl_type) {
@@ -545,12 +555,12 @@ print_entry(struct sockaddr_dl *sdl,
  * Nuke an arp entry
  */
 void
-nuke_entry(struct sockaddr_dl *sdl,
-	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
+nuke_entry(struct sockaddr_dl *sdl __unused,
+	struct sockaddr_inarp *addr, struct rt_msghdr *rtm __unused)
 {
 	char ip[20];
 
-	snprintf(ip, sizeof(ip), "%s", inet_ntoa(sin->sin_addr));
+	snprintf(ip, sizeof(ip), "%s", inet_ntoa(addr->sin_addr));
 	delete(ip, NULL);
 }
 
@@ -670,17 +680,17 @@ get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
 	struct ifreq ifreq;
 	struct ifconf ifc;
 	struct ifreq ifs[MAX_IFS];
-	int s;
+	int sock;
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0)
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock < 0)
 		err(1, "socket");
 
 	ifc.ifc_len = sizeof(ifs);
 	ifc.ifc_req = ifs;
 	if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
 		warnx("ioctl(SIOCGIFCONF)");
-		close(s);
+		close(sock);
 		return 0;
 	}
 
@@ -724,7 +734,7 @@ nextif:
 	}
 
 	if (ifr >= ifend) {
-		close(s);
+		close(sock);
 		return 0;
 	}
 
