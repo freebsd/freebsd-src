@@ -129,8 +129,7 @@ wwinit()
 	switch (wwospeed) {
 	default:
 	case B0:
-		wwbaud = 0;
-		break;
+		goto bad;
 	case B50:
 		wwbaud = 50;
 		break;
