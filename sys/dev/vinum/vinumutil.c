@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: util.c,v 1.3 1998/12/28 04:56:24 peter Exp $
+ * $Id: vinumutil.c,v 1.10 1999/01/02 00:39:04 grog Exp grog $
  */
 
 /* This file contains utility routines used both in kernel and user context */
@@ -100,6 +100,9 @@ plex_org(enum plexorg org)
 	return "striped";
 	break;
 
+    case plex_raid5:					    /* RAID5 plex */
+	return "raid5";
+	break;
 
     default:
 	sprintf(numeric_state, "Invalid org %d", (int) org);
@@ -211,4 +214,67 @@ sizespec(char *spec)
 #endif
     /* NOTREACHED */
     return -1;
+}
+
+/* Extract the volume number from a device number.
+ * Perform no checking. */
+int 
+Volno(dev_t dev)
+{
+    int x = (int) dev;
+    return (x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
+}
+
+/* Extract a plex number from a device number.
+ * Don't check the major number, but check the
+ * type.  Return -1 for invalid types. */
+int 
+Plexno(dev_t dev)
+{
+    int x = (int) dev;
+
+    switch (DEVTYPE(dev)) {
+    case VINUM_VOLUME_TYPE:
+    case VINUM_DRIVE_TYPE:
+    case VINUM_SUPERDEV_TYPE:
+    case VINUM_RAWSD_TYPE:
+	return -1;
+
+    case VINUM_PLEX_TYPE:
+    case VINUM_SD_TYPE:
+	return VOL[Volno(x)].plex[(x >> VINUM_PLEX_SHIFT) & (MASK(VINUM_PLEX_WIDTH))];
+
+    case VINUM_RAWPLEX_TYPE:
+	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
+	|((x >> VINUM_RAWPLEX_SHIFT)
+	    & (MASK(VINUM_RAWPLEX_WIDTH)
+		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
+    }
+    return 0;						    /* compiler paranoia */
+}
+
+/* Extract a subdisk number from a device number.
+ * Don't check the major number, but check the
+ * type.  Return -1 for invalid types. */
+int 
+Sdno(dev_t dev)
+{
+    int x = (int) dev;
+
+    switch (DEVTYPE(dev)) {
+    case VINUM_VOLUME_TYPE:
+    case VINUM_DRIVE_TYPE:
+    case VINUM_SUPERDEV_TYPE:
+    case VINUM_PLEX_TYPE:
+    case VINUM_RAWPLEX_TYPE:
+	return -1;
+
+    case VINUM_SD_TYPE:
+	return PLEX[Plexno(x)].sdnos[(x >> VINUM_SD_SHIFT) & (MASK(VINUM_SD_WIDTH))];
+
+    case VINUM_RAWSD_TYPE:
+	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
+	|((x >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH) << (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH))); /* upper 12 bits */
+    }
+    return -1;						    /* compiler paranoia */
 }
