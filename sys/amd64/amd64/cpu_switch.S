@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.35 1996/05/01 03:46:15 bde Exp $
+ *	$Id: swtch.s,v 1.36 1996/06/25 19:25:25 bde Exp $
  */
 
 #include "apm.h"
@@ -518,47 +518,4 @@ ENTRY(savectx)
 #endif	/* NNPX > 0 */
 
 1:
-	ret
-
-/*
- * addupc(int pc, struct uprof *up, int ticks):
- * update profiling information for the user process.
- */
-ENTRY(addupc)
-	pushl %ebp
-	movl %esp,%ebp
-	movl 12(%ebp),%edx			/* up */
-	movl 8(%ebp),%eax			/* pc */
-
-	subl PR_OFF(%edx),%eax			/* pc -= up->pr_off */
-	jb L1					/* if (pc was < off) return */
-
-	pushl %edx
-	mull PR_SCALE(%edx)			/* praddr = pc * up->pr_scale */
-	shrdl $16,%edx,%eax			/* praddr >>= 16 */
-	popl %edx
-	andl $-2,%eax				/* praddr &= ~1 */
-
-	cmpl PR_SIZE(%edx),%eax			/* if (praddr > up->pr_size) return */
-	ja L1
-
-/*	addl %eax,%eax				/* praddr -> word offset */
-	addl PR_BASE(%edx),%eax			/* praddr += up-> pr_base */
-	movl 16(%ebp),%ecx			/* ticks */
-
-	movl _curpcb,%edx
-	movl $proffault,PCB_ONFAULT(%edx)
-	addl %ecx,(%eax)			/* storage location += ticks */
-	movl $0,PCB_ONFAULT(%edx)
-L1:
-	leave
-	ret
-
-	ALIGN_TEXT
-proffault:
-	/* if we get a fault, then kill profiling all together */
-	movl $0,PCB_ONFAULT(%edx)		/* squish the fault handler */
-	movl 12(%ebp),%ecx
-	movl $0,PR_SCALE(%ecx)			/* up->pr_scale = 0 */
-	leave
 	ret
