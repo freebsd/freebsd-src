@@ -516,7 +516,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_CONTINUE:
 	case PT_DETACH:
 		/* XXX uap->data is used even in the PT_STEP case. */
-		if ((uap->req != PT_STEP) && ((unsigned)uap->data >= NSIG)) {
+		if (uap->req != PT_STEP && (unsigned)uap->data > _SIG_MAXSIG) {
 			error = EINVAL;
 			goto fail;
 		}
