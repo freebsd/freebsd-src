@@ -206,9 +206,6 @@ options 	ACPI_MAX_THREADS=1
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
-# Support for ACPI CPU Performance states via cpufreq(4)
-device		acpi_perf
-
 # DRM options:
 # mgadrm:    AGP Matrox G200, G400, G450, G550
 # r128drm:   ATI Rage 128

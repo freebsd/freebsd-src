@@ -48,9 +48,6 @@ options		KSTACK_PAGES=3
 
 device		acpi
 
-# Support for ACPI CPU Performance states via cpufreq(4)
-device		acpi_perf
-
 device		agp
 device		eisa
 device		isa
