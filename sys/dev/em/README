@@ -2,7 +2,7 @@ $FreeBSD$
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 
-April 13, 2003
+July 24, 2003
 
 
 Contents
@@ -21,7 +21,7 @@ Contents
 Overview
 ========
 
-This file describes the FreeBSD* driver, version 1.5.x, for the Intel(R)
+This file describes the FreeBSD* driver, version 1.7.x, for the Intel(R)
 PRO/1000 Family of Adapters. This driver has been developed for use with 
 FreeBSD, version 4.7. 
 
@@ -51,9 +51,10 @@ release:
    82544       PRO/1000 XF Server Adapter           A50484-xxx
 
    82544       PRO/1000 T Desktop Adapter           A62947-xxx
- 
+
    82540       PRO/1000 MT Desktop Adapter          A78408-xxx
-   82541                                            C91016-xxx
+
+   82541       PRO/1000 MT Desktop Adapter          C91016-xxx
 
    82545       PRO/1000 MT Server Adapter           A92165-xxx
 
@@ -67,6 +68,7 @@ release:
 
    82546EB     PRO/1000 MT Quad Port Server Adapter C11227-xxx 
 
+   82547       PRO/1000 CT Network Connection
 
 
 To verify your Intel adapter is supported, find the board ID number on the
@@ -281,8 +283,46 @@ Supported Adapters section.
 Known Limitations
 =================
  
-There are known performance issues with this driver when running UDP traffic
-with Jumbo Frames. Intel recommends not using Jumbo Frames for UDP traffic.
+  There are known performance issues with this driver when running UDP traffic
+  with Jumbo Frames. Intel recommends not using Jumbo Frames for UDP traffic.
+
+
+  82541/82547 can't link or is slow to link with some link partners
+  -----------------------------------------------------------------
+
+  There is a known compatibility issue with 82541/82547 and some switches 
+  where link will not be established, or will be slow to establish.  In 
+  particular, these switches are known to be incompatible with 82541/82547:
+
+        Planex FXG-08TE
+        I-O Data ETG-SH8
+
+  To workaround the issue, the driver can be compiled with an override of the 
+  PHY's master/slave setting.  Forcing master or forcing slave mode will 
+  improve time-to-link.
+
+  Edit ./em.x.x.x/src/if_em.h to remove the #define EM_MASTER_SLAVE 
+  from within the comments.  
+
+      /* #define EM_MASTER_SLAVE  2 */
+      #define EM_MASTER_SLAVE  2 
+
+  Use one of the following options.
+      0 = Hardware default
+      1 = Master mode
+      2 = Slave mode
+      3 = Auto master/slave
+
+  Recompile the module (refer to step 3 above)
+  a. To compile the module
+
+          cd em-x.x.x
+          make clean
+          make
+
+   b. To install the compiled module in system directory:
+ 
+          make install
 
 
 Support
