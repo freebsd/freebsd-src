@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.56 1998/04/19 23:31:21 julian Exp $
+ *	$Id: vn.c,v 1.57 1998/04/22 10:25:12 julian Exp $
  */
 
 /*
@@ -892,11 +892,10 @@ vn_drvinit(void *unused)
 		vn->slice->probeinfo.typespecific = NULL;
 		vn->slice->probeinfo.type = NULL;
 	}
-#define CDEV_MAJOR 20 /* not really needed */
 #endif	/* SLICE */
 }
 
-SYSINIT(vndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,vn_drvinit,NULL)
+SYSINIT(vndev, SI_SUB_DRIVERS, SI_ORDER_ANY, vn_drvinit, NULL)
 
 #ifdef SLICE
 
