@@ -32,7 +32,7 @@
 static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif
 static const char rcsid[] =
-	"$Id: update.c,v 1.2 1997/07/29 06:54:16 charnier Exp $";
+	"$Id: update.c,v 1.3 1998/02/20 04:38:20 jb Exp $";
 #endif
 
 /*
@@ -167,11 +167,7 @@ _openchild(command, fto, ffrom)
 	if (pipe(pdfrom) < 0) {
 		goto error2;
 	}
-#ifdef VFORK
-	switch (pid = vfork()) {
-#else
 	switch (pid = fork()) {
-#endif
 	case -1:
 		goto error3;
 

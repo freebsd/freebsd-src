@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: xargs.c,v 1.5 1997/08/27 06:26:23 charnier Exp $";
+	"$Id: xargs.c,v 1.6 1998/06/17 12:58:43 jkoshy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -287,9 +287,9 @@ run(argv)
 		(void)fflush(stderr);
 	}
 	noinvoke = 0;
-	switch(pid = vfork()) {
+	switch(pid = fork()) {
 	case -1:
-		err(1, "vfork");
+		err(1, "fork");
 	case 0:
 		execvp(argv[0], argv);
 		warn("%s", argv[0]);

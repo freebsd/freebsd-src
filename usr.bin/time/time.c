@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: time.c,v 1.10 1998/07/28 10:08:16 des Exp $";
+	"$Id: time.c,v 1.11 1998/08/24 10:16:59 cracauer Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -106,7 +106,7 @@ main(argc, argv)
 	}
 
 	gettimeofday(&before, (struct timezone *)NULL);
-	switch(pid = vfork()) {
+	switch(pid = fork()) {
 	case -1:			/* error */
 		err(1, "time");
 		/* NOTREACHED */
