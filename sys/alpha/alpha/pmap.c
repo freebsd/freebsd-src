@@ -984,6 +984,16 @@ pmap_dispose_proc(p)
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
+
+	/*
+	 * If the process got swapped out some of its UPAGES might have gotten
+	 * swapped.  Just get rid of the object to clean up the swap use
+	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 */
+	if (upobj->type == OBJT_SWAP) {
+		p->p_upages_obj = NULL;
+		vm_object_deallocate(upobj);
+	}
 }
 
 /*
