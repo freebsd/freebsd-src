@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.13 1994/10/09 07:34:52 davidg Exp $
+ * $Id: init_main.c,v 1.14 1994/10/20 00:08:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -345,6 +345,7 @@ static char *initpaths[] = {
 	"/sbin/init",
 	"/sbin/oinit",
 	"/sbin/init.bak",
+	"/stand/sysinstall",
 	NULL,
 };
 
