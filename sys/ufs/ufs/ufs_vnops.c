@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id$
+ * $Id: ufs_vnops.c,v 1.3 1994/08/02 07:55:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -53,12 +53,12 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
+#include <sys/lockf.h>
 
 #include <vm/vm.h>
 
 #include <miscfs/specfs/specdev.h>
 
-#include <ufs/ufs/lockf.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>
@@ -1947,81 +1947,8 @@ ufs_advlock(ap)
 	} */ *ap;
 {
 	register struct inode *ip = VTOI(ap->a_vp);
-	register struct flock *fl = ap->a_fl;
-	register struct lockf *lock;
-	off_t start, end;
-	int error;
 
-	/*
-	 * Avoid the common case of unlocking when inode has no locks.
-	 */
-	if (ip->i_lockf == (struct lockf *)0) {
-		if (ap->a_op != F_SETLK) {
-			fl->l_type = F_UNLCK;
-			return (0);
-		}
-	}
-	/*
-	 * Convert the flock structure into a start and end.
-	 */
-	switch (fl->l_whence) {
-
-	case SEEK_SET:
-	case SEEK_CUR:
-		/*
-		 * Caller is responsible for adding any necessary offset
-		 * when SEEK_CUR is used.
-		 */
-		start = fl->l_start;
-		break;
-
-	case SEEK_END:
-		start = ip->i_size + fl->l_start;
-		break;
-
-	default:
-		return (EINVAL);
-	}
-	if (start < 0)
-		return (EINVAL);
-	if (fl->l_len == 0)
-		end = -1;
-	else
-		end = start + fl->l_len - 1;
-	/*
-	 * Create the lockf structure
-	 */
-	MALLOC(lock, struct lockf *, sizeof *lock, M_LOCKF, M_WAITOK);
-	lock->lf_start = start;
-	lock->lf_end = end;
-	lock->lf_id = ap->a_id;
-	lock->lf_inode = ip;
-	lock->lf_type = fl->l_type;
-	lock->lf_next = (struct lockf *)0;
-	lock->lf_block = (struct lockf *)0;
-	lock->lf_flags = ap->a_flags;
-	/*
-	 * Do the requested operation.
-	 */
-	switch(ap->a_op) {
-	case F_SETLK:
-		return (lf_setlock(lock));
-
-	case F_UNLCK:
-		error = lf_clearlock(lock);
-		FREE(lock, M_LOCKF);
-		return (error);
-
-	case F_GETLK:
-		error = lf_getlock(lock, fl);
-		FREE(lock, M_LOCKF);
-		return (error);
-	
-	default:
-		free(lock, M_LOCKF);
-		return (EINVAL);
-	}
-	/* NOTREACHED */
+	return (lf_advlock(ap, &(ip->i_lockf), ip->i_size));
 }
 
 /*
