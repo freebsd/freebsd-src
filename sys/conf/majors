@@ -186,6 +186,7 @@ chrdev	name		comments
 168	pst		Promise SX6000 driver.
 171	mide		LSI MegaRAID IDE (control device)
 172	mided		LSI MegaRAID IDE (disk device)
+180	nvidia		NVIDIA (nvidiaN/nvidiactl)
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	mfs		Used by MFS
