@@ -474,7 +474,7 @@ main(argc, argv)
 	 * transfer size permitted by the controller or buffering.
 	 */
 	if (maxcontig == 0)
-		maxcontig = MAX(1, MIN(MAXPHYS, MAXBSIZE) / bsize - 1);
+		maxcontig = MAX(1, MAXPHYS / bsize - 1);
 	if (density == 0)
 		density = NFPI * fsize;
 	if (minfree < MINFREE && opt != FS_OPTSPACE) {
