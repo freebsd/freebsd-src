@@ -1593,7 +1593,7 @@ passive_mode()
 
 	tr_sec = tr.tv_sec;
 	now = localtime(&tr_sec);
-	strftime(timebuf, sizeof(timebuf) - 1, "%b %e %k:%M:%S", now);
+	strftime(timebuf, sizeof(timebuf), "%b %e %k:%M:%S", now);
 	printf("Mtrace %s at %s",
 		len == 0 ? "query" :
 			   igmp->igmp_type == IGMP_MTRACE_RESP ? "response" :
