@@ -14,7 +14,14 @@
 
   <abstract>
     <para>The release notes for &os; &release.current; contain a summary
-      of the changes made in the &os; base system since &release.prev;.
+      of
+<![ %include.historic; [
+      the changes made in the &os; base system since &release.prev;.
+]]>
+<![ %no.include.historic; [
+      recent changes made to the &os; base system on the &release.branch;
+      development branch.
+]]>
       Both changes for kernel and userland are listed, as well as
       applicable security advisories that were issued since the last
       release.  Some brief remarks on upgrading are also presented.</para>
@@ -26,8 +33,8 @@
 
   <para>This document contains the release notes for &os;
     &release.current; on the &arch.print; hardware platform.  It
-    describes new features of &os; that have been added (or changed)
-    since &release.prev;.  It also provides some notes on upgrading
+    describes recently added, changed, or deleted features of &os;.
+    It also provides some notes on upgrading
     from previous versions of &os;.</para>
 
 <![ %release.type.snapshot [
@@ -58,13 +65,27 @@
 <sect1>
   <title>What's New</title>
 
-  <para>This section describes the most user-visible new or changed
-    features in &os; since &release.prev;.  Typical release note items
+  <para>This section describes
+<![ %include.historic; [
+      the most user-visible new or changed features in &os;
+      since &release.prev;.
+      In general, changes described here are unique to the &release.branch;
+      branch unless specifically marked as &merged; features.
+]]>
+<![ %no.include.historic; [
+      many of the user-visible new or changed features in &os;
+      since &release.prev;.  It includes items that are unique to the
+      &release.branch; branch, as well as some features that may have been
+      recently merged to
+      other branches (after &os; &release.prev.historic;).  The later
+      items are marked as &merged;.
+]]>
+  </para>
+
+  <para>Typical release note items
     document new drivers or hardware support, new commands or options,
-    major bugfixes, or contributed software upgrades.  Security
-    advisories issued after &release.prev; are also listed.  In
-    general, changes described here are unique to the &release.branch;
-    branch unless specifically marked as &merged; features.</para>
+    major bugfixes, or contributed software upgrades.  Applicable security
+    advisories issued after &release.prev; are also listed.</para>
 
   <para>Many additional changes were made to &os; that are not listed
     here for lack of space.  For example, documentation was corrected
