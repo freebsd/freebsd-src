@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.6 1998/10/21 20:07:04 msmith Exp $
+ *	$Id: commands.c,v 1.7 1998/10/31 02:53:09 msmith Exp $
  */
 
 #include <stand.h>
@@ -384,7 +384,7 @@ command_read(int argc, char *argv[])
 /*
  * List all disk-like devices
  */
-COMMAND_SET(lsdev, "lsdev", NULL, command_lsdev);
+COMMAND_SET(lsdev, "lsdev", "list all devices", command_lsdev);
 
 static int
 command_lsdev(int argc, char *argv[])
@@ -422,3 +422,4 @@ command_lsdev(int argc, char *argv[])
     pager_close();
     return(CMD_OK);
 }
+
