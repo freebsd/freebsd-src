@@ -133,16 +133,16 @@ phys_pager_dealloc(vm_object_t object)
 	}
 }
 
+/*
+ * Fill as many pages as vm_fault has allocated for us.
+ */
 static int
 phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 {
-	int i, s;
+	int i;
 
-	s = splvm();
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	vm_page_lock_queues();
-	/*
-	 * Fill as many pages as vm_fault has allocated for us.
-	 */
 	for (i = 0; i < count; i++) {
 		if ((m[i]->flags & PG_ZERO) == 0) {
 			vm_page_unlock_queues();
@@ -161,8 +161,6 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		}
 	}
 	vm_page_unlock_queues();
-	splx(s);
-
 	return (VM_PAGER_OK);
 }
 
