@@ -34,11 +34,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)lcmd2.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "defs.h"
 #include <string.h> /* System string definitions. */
@@ -175,7 +178,7 @@ register struct timeval *t;
 		t->tv_sec %= 60;
 		fill++;
 	}
-	(void) sprintf(p, fill ? "%02ld.%02d" : "%ld.%02ld",
+	(void) sprintf(p, fill ? "%02ld.%02ld" : "%ld.%02ld",
 		t->tv_sec, t->tv_usec / 10000);
 	return buf;
 }
