@@ -642,7 +642,7 @@
 #define	USB_PRODUCT_HP_815C	0x0204		/* DeskJet 815C */
 #define	USB_PRODUCT_HP_3300C	0x0205		/* ScanJet 3300C */
 #define	USB_PRODUCT_HP_CDW8200	0x0207		/* CD-Writer Plus 8200e */
-#define	USB_PRODUCT_HP_1200C	0x0212		/* DeskJet 1220C */
+#define	USB_PRODUCT_HP_1220C	0x0212		/* DeskJet 1220C */
 #define	USB_PRODUCT_HP_810C	0x0304		/* DeskJet 810C/812C */
 #define	USB_PRODUCT_HP_4300C	0x0305		/* Scanjet 4300C */
 #define	USB_PRODUCT_HP_G85XI	0x0311		/* OfficeJet G85xi */
