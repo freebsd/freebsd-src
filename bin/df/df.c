@@ -172,7 +172,7 @@ main(argc, argv)
 			break;
 		case 't':
 			if (vfslist != NULL)
-				errx(1, "only one -t option may be specified.");
+				errx(1, "only one -t option may be specified");
 			fstype = optarg;
 			vfslist = makevfslist(optarg);
 			break;
