@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.53.2.2 1995/08/23 07:31:17 davidg Exp $
+ *	$Id: trap.c,v 1.53.2.3 1995/10/10 00:45:46 davidg Exp $
  */
 
 /*
@@ -80,8 +80,9 @@ extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
 extern void linux_syscall __P((struct trapframe frame));
 
-int	trap_pfault	__P((struct trapframe *, int));
-void	trap_fatal	__P((struct trapframe *));
+static int trap_pfault __P((struct trapframe *, int));
+static void trap_fatal __P((struct trapframe *));
+void dblfault_handler __P((void));
 
 extern inthand_t IDTVEC(syscall);
 
@@ -745,6 +746,33 @@ trap_fatal(frame)
 		panic(trap_msg[type]);
 	else
 		panic("unknown/reserved trap");
+}
+
+/*
+ * Double fault handler. Called when a fault occurs while writing
+ * a frame for a trap/exception onto the stack. This usually occurs
+ * when the stack overflows (such is the case with infinite recursion,
+ * for example).
+ *
+ * XXX Note that the current PTD gets replaced by IdlePTD when the
+ * task switch occurs. This means that the stack that was active at
+ * the time of the double fault is not available at <kstack> unless
+ * the machine was idle when the double fault occurred. The downside
+ * of this is that "trace <ebp>" in ddb won't work.
+ */
+void
+dblfault_handler()
+{
+	struct pcb *pcb = curpcb;
+
+	if (pcb != NULL) {
+		printf("\nFatal double fault:\n");
+		printf("eip = 0x%x\n", pcb->pcb_tss.tss_eip);
+		printf("esp = 0x%x\n", pcb->pcb_tss.tss_esp);
+		printf("ebp = 0x%x\n", pcb->pcb_tss.tss_ebp);
+	}
+
+	panic("double fault");
 }
 
 /*
