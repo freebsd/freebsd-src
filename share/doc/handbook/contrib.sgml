@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.19 1995/09/26 19:19:26 wollman Exp $ -->
+<!-- $Id: contrib.sgml,v 1.20 1995/09/27 00:46:15 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -249,6 +249,7 @@
 	<item>Joerg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
 	<item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
 	<item>John Dyson - &lt;formerly dyson@ref.tfs.com&gt;
+	<item>John Polstra &lt;jdp@polstra.com&gt;
 	<item>John Woods &lt;jfw@eddie.mit.edu&gt;
 	<item>Jordan K. Hubbard &lt;jkh@whisker.hubbard.ie&gt;
 	<item>Julian Elischer &lt;julian@dialix.oz.au&gt;
