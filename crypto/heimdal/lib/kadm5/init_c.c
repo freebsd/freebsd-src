@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-RCSID("$Id: init_c.c,v 1.34 1999/12/20 14:05:49 assar Exp $");
+RCSID("$Id: init_c.c,v 1.35 2000/01/28 03:20:18 assar Exp $");
 
 static void
 set_funcs(kadm5_client_context *c)
@@ -145,6 +145,9 @@ get_new_cache(krb5_context context,
     krb5_ccache id;
     
     krb5_get_init_creds_opt_init (&opt);
+    krb5_get_init_creds_opt_set_forwardable (&opt, FALSE);
+    krb5_get_init_creds_opt_set_proxiable (&opt, FALSE);
+
     if(password == NULL && prompter == NULL) {
 	krb5_keytab kt;
 	if(keytab == NULL)

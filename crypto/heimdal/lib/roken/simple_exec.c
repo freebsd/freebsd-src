@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: simple_exec.c,v 1.6 1999/12/02 16:58:52 joda Exp $");
+RCSID("$Id: simple_exec.c,v 1.7 2000/01/09 10:58:51 assar Exp $");
 #endif
 
 #include <stdarg.h>
@@ -113,27 +113,6 @@ simple_execve(const char *file, char *const args[], char *const envp[])
     }
 }
 
-static char **
-collect_args(va_list *ap)
-{
-    char **argv = NULL;
-    int argc = 0, i = 0;
-    do {
-	if(i == argc) {
-	    /* realloc argv */
-	    char **tmp = realloc(argv, (argc + 5) * sizeof(*argv));
-	    if(tmp == NULL) {
-		errno = ENOMEM;
-		return NULL;
-	    }
-	    argv = tmp;
-	    argc += 5;
-	}
-	argv[i++] = va_arg(*ap, char*);
-    } while(argv[i - 1] != NULL);
-    return argv;
-}
-
 int
 simple_execlp(const char *file, ...)
 {
@@ -142,7 +121,7 @@ simple_execlp(const char *file, ...)
     int ret;
 
     va_start(ap, file);
-    argv = collect_args(&ap);
+    argv = vstrcollect(&ap);
     va_end(ap);
     if(argv == NULL)
 	return -1;
@@ -160,7 +139,7 @@ simple_execle(const char *file, ... /* ,char *const envp[] */)
     int ret;
 
     va_start(ap, file);
-    argv = collect_args(&ap);
+    argv = vstrcollect(&ap);
     envp = va_arg(ap, char **);
     va_end(ap);
     if(argv == NULL)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: wrap.c,v 1.10 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: wrap.c,v 1.11 2000/01/25 23:15:44 assar Exp $");
 
 OM_uint32 gss_wrap_size_limit (
             OM_uint32 * minor_status,
@@ -63,7 +63,7 @@ OM_uint32 gss_wrap
            )
 {
   u_char *p;
-  struct md5 md5;
+  MD5_CTX md5;
   u_char hash[16];
   des_key_schedule schedule;
   des_cblock key;
@@ -110,16 +110,16 @@ OM_uint32 gss_wrap
   memset (p + 8 + input_message_buffer->length, padlength, padlength);
 
   /* checksum */
-  md5_init (&md5);
-  md5_update (&md5, p - 24, 8);
-  md5_update (&md5, p, input_message_buffer->length + padlength + 8);
-  md5_finito (&md5, hash);
+  MD5Init (&md5);
+  MD5Update (&md5, p - 24, 8);
+  MD5Update (&md5, p, input_message_buffer->length + padlength + 8);
+  MD5Final (hash, &md5);
 
   memset (&zero, 0, sizeof(zero));
   gss_krb5_getsomekey(context_handle, &key);
   des_set_key (&key, schedule);
-  des_cbc_cksum ((des_cblock *)hash,
-		 (des_cblock *)hash, sizeof(hash), schedule, &zero);
+  des_cbc_cksum ((const void *)hash, (void *)hash, sizeof(hash),
+		 schedule, &zero);
   memcpy (p - 8, hash, 8);
 
   /* sequence number */
@@ -137,7 +137,7 @@ OM_uint32 gss_wrap
 	  4);
 
   des_set_key (&key, schedule);
-  des_cbc_encrypt ((des_cblock *)p, (des_cblock *)p, 8,
+  des_cbc_encrypt ((const void *)p, (void *)p, 8,
 		   schedule, (des_cblock *)(p + 8), DES_ENCRYPT);
 
   krb5_auth_setlocalseqnumber (gssapi_krb5_context,
@@ -153,8 +153,8 @@ OM_uint32 gss_wrap
 	  key[i] ^= 0xf0;
       des_set_key (&key, schedule);
       memset (&zero, 0, sizeof(zero));
-      des_cbc_encrypt ((des_cblock *)p,
-		       (des_cblock *)p,
+      des_cbc_encrypt ((const void *)p,
+		       (void *)p,
 		       8 + input_message_buffer->length + padlength,
 		       schedule,
 		       &zero,

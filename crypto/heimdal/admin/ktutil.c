@@ -33,10 +33,10 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: ktutil.c,v 1.25 2000/01/02 05:07:34 assar Exp $");
+RCSID("$Id: ktutil.c,v 1.26 2000/02/07 04:29:25 assar Exp $");
 
-int help_flag;
-int version_flag;
+static int help_flag;
+static int version_flag;
 int verbose_flag;
 char *keytab_string; 
 

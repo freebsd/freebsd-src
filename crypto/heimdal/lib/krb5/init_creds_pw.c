@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds_pw.c,v 1.36 1999/12/02 17:05:10 joda Exp $");
+RCSID("$Id: init_creds_pw.c,v 1.38 2000/02/07 03:17:20 assar Exp $");
 
 static int
 get_config_time (krb5_context context,
@@ -88,7 +88,7 @@ init_cred (krb5_context context,
     krb5_error_code ret;
     krb5_realm *client_realm;
     int tmp;
-    int32_t now;
+    krb5_timestamp now;
 
     krb5_timeofday (context, &now);
 
@@ -164,7 +164,7 @@ print_expire (krb5_context context,
 {
     int i;
     LastReq *lr = &rep->enc_part.last_req;
-    int32_t sec;
+    krb5_timestamp sec;
     time_t t;
 
     krb5_timeofday (context, &sec);
@@ -353,7 +353,7 @@ change_password (krb5_context context,
     ret = (*prompter) (context, data, p, 0, NULL);
     free (p);
     if (result_code == 0) {
-	strncpy (newpw, buf1, newpw_sz);
+	strlcpy (newpw, buf1, newpw_sz);
 	ret = 0;
     } else
 	ret = ENOTTY;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "kpasswd_locl.h"
-RCSID("$Id: kpasswd.c,v 1.20 1999/12/02 17:05:00 joda Exp $");
+RCSID("$Id: kpasswd.c,v 1.21 2000/01/28 03:19:32 assar Exp $");
 
 static int version_flag;
 static int help_flag;
@@ -79,6 +79,8 @@ main (int argc, char **argv)
     krb5_get_init_creds_opt_init (&opt);
     
     krb5_get_init_creds_opt_set_tkt_life (&opt, 300);
+    krb5_get_init_creds_opt_set_forwardable (&opt, FALSE);
+    krb5_get_init_creds_opt_set_proxiable (&opt, FALSE);
 
     argc -= optind;
     argv += optind;
