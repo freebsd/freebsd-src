@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: devices.c,v 1.64 1997/02/22 14:11:22 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,9 +63,11 @@ static struct {
     { DEVICE_TYPE_CDROM,	"matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
     { DEVICE_TYPE_CDROM,	"wcd0c",	"ATAPI IDE CDROM"					},
     { DEVICE_TYPE_TAPE, 	"rst0",		"SCSI tape drive"					},
+    { DEVICE_TYPE_TAPE, 	"rsa0",		"SCSI tape drive (CAM)"					},
     { DEVICE_TYPE_TAPE, 	"rft0",		"Floppy tape drive (QIC-02)"				},
     { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
+    { DEVICE_TYPE_DISK, 	"da",		"SCSI disk device (CAM)"				},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_DISK, 	"od",		"SCSI optical disk device"				},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
