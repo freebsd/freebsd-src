@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1998/02/28 06:27:59 steve Exp $
+# $Id: Makefile,v 1.7 1998/02/28 10:41:01 ache Exp $
 #
 
 MAINTAINER=peter@FreeBSD.org
@@ -16,6 +16,8 @@ CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
 SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \
        zutil.c inflate.c infblock.c inftrees.c infcodes.c infutil.c inffast.c
+
+MAN3 = zlib.3
 
 beforeinstall:
 .for hdr in zconf.h zlib.h
