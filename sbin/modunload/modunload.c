@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modunload.c,v 1.4 1997/02/22 14:32:42 peter Exp $
+ *	$Id: modunload.c,v 1.5 1997/03/11 12:24:00 peter Exp $
  */
 
 #include <stdio.h>
@@ -74,7 +74,7 @@ main(argc, argv)
 	char *modname = NULL;
 	struct lmc_unload ulbuf;
 
-	while ((c = getopt(argc, argv, "i:n:")) != EOF) {
+	while ((c = getopt(argc, argv, "i:n:")) != -1) {
 		switch (c) {
 		case 'i':
 			modnum = atoi(optarg);

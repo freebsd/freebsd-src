@@ -60,7 +60,7 @@ main(int argc, char **argv)
 	int ch, doall;
 
 	doall = 0;
-	while ((ch = getopt(argc, argv, "a")) != EOF)
+	while ((ch = getopt(argc, argv, "a")) != -1)
 		switch((char)ch) {
 		case 'a':
 			doall = 1;

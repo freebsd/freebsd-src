@@ -72,7 +72,7 @@ main(argc, argv)
 	} else
 		howto = 0;
 	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "lnpq")) != EOF)
+	while ((ch = getopt(argc, argv, "lnpq")) != -1)
 		switch(ch) {
 		case 'l':		/* Undocumented; used by shutdown. */
 			lflag = 1;
