@@ -187,7 +187,7 @@ const char *	get_adapter_name(const char *);
 int		get_hex_addr(char *, u_char *, int);
 const char *	format_mac_addr(const Mac_addr *);
 int		parse_ip_prefix(const char *, struct in_addr *);
-int		compress_prefix_list(struct in_addr *, int);
+size_t		compress_prefix_list(struct in_addr *, size_t);
 void		check_netif_name(const char *);
 void		sock_error(int);
 
