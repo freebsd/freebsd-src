@@ -1,7 +1,7 @@
 <C><H4>Internet Software Consortium</H4></C>
 <C><H4>Dynamic Host Configuration Protocol Distribution</H4></C>
-<C><H4>Version 2 Patchlevel 3</H4></C>
-<C><H4>June 30, 2000</H4></C>
+<C><H4>Version 2 Patchlevel 5</H4></C>
+<C><H4>September 6, 2000</H4></C>
 
 <C><H4>README FILE</H4></C>
 
@@ -135,13 +135,13 @@ information.   On Digital Unix, type ``man pfilt''.</P>
 the tar utility and the gzip command - type something like:</P>
 
 <BLOCKQUOTE>
-	zcat dhcp-2.0pl3.tar.gz |tar xvf -
+	zcat dhcp-2.0pl5.tar.gz |tar xvf -
 </BLOCKQUOTE>
 
 <P>On BSD/OS, you have to type gzcat, not zcat, and you may run into
 similar problems on other operating systems.</P>
 
-<P>Now, cd to the dhcp-2.0pl3 subdirectory that you've just created and
+<P>Now, cd to the dhcp-2.0pl5 subdirectory that you've just created and
 configure the source tree by typing:</P>
 
 <BLOCKQUOTE>
