@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.23 1998/05/21 21:47:18 brian Exp $
+ * $Id: pap.c,v 1.24 1998/06/27 23:48:51 brian Exp $
  *
  *	TODO:
  */
@@ -58,7 +58,7 @@
 #include "chap.h"
 #include "datalink.h"
 
-static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
+static const char *papcodes[] = { "???", "REQUEST", "SUCCESS", "FAILURE" };
 
 void
 pap_SendChallenge(struct authinfo *auth, int papid, struct physical *physical)
@@ -73,7 +73,10 @@ pap_SendChallenge(struct authinfo *auth, int papid, struct physical *physical)
   plen = namelen + keylen + 2;
   log_Printf(LogDEBUG, "pap_SendChallenge: namelen = %d, keylen = %d\n",
 	    namelen, keylen);
-  log_Printf(LogPHASE, "PAP: %s\n", physical->dl->bundle->cfg.auth.name);
+  log_Printf(LogPHASE, "Pap Output: %s ********\n",
+             physical->dl->bundle->cfg.auth.name);
+  if (*physical->dl->bundle->cfg.auth.name == '\0')
+    log_Printf(LogWARN, "Sending empty PAP authname!\n");
   lh.code = PAP_REQUEST;
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
@@ -107,7 +110,7 @@ SendPapCode(int id, int code, const char *message, struct physical *physical)
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = mlen;
   memcpy(cp, message, mlen);
-  log_Printf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
+  log_Printf(LogPHASE, "Pap Output: %s\n", papcodes[code]);
   hdlc_Output(&physical->link, PRI_LINK, PROTO_PAP, bp);
 }
 
@@ -142,11 +145,11 @@ pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
     if (len >= ntohs(php->length)) {
       if (php->code < PAP_REQUEST || php->code > PAP_NAK)
 	php->code = 0;
-      log_Printf(LogPHASE, "pap_Input: %s\n", papcodes[php->code]);
-
       switch (php->code) {
       case PAP_REQUEST:
 	cp = (u_char *) (php + 1);
+        log_Printf(LogPHASE, "Pap Input: %s (%.*s)\n",
+                   papcodes[php->code], *cp, cp + 1);
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
           datalink_GotAuthname(physical->dl, cp+1, *cp);
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
@@ -171,7 +174,7 @@ pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	log_Printf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
+	log_Printf(LogPHASE, "Pap Input: %s (%s)\n", papcodes[php->code], cp);
 	if (physical->link.lcp.auth_iwait == PROTO_PAP) {
 	  physical->link.lcp.auth_iwait = 0;
 	  if (physical->link.lcp.auth_ineed == 0)
@@ -188,7 +191,7 @@ pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	log_Printf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
+	log_Printf(LogPHASE, "Pap Input: %s (%s)\n", papcodes[php->code], cp);
         datalink_AuthNotOk(physical->dl);
 	break;
       }

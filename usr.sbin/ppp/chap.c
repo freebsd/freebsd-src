@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.33 1998/06/27 14:18:01 brian Exp $
+ * $Id: chap.c,v 1.34 1998/06/27 23:48:41 brian Exp $
  *
  *	TODO:
  */
@@ -70,7 +70,7 @@ static const char *chapcodes[] = {
 
 static void
 ChapOutput(struct physical *physical, u_int code, u_int id,
-	   const u_char * ptr, int count)
+	   const u_char * ptr, int count, const char *text)
 {
   int plen;
   struct fsmheader lh;
@@ -85,7 +85,10 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   log_DumpBp(LogDEBUG, "ChapOutput", bp);
-  log_Printf(LogLCP, "ChapOutput: %s\n", chapcodes[code]);
+  if (text == NULL)
+    log_Printf(LogPHASE, "Chap Output: %s\n", chapcodes[code]);
+  else
+    log_Printf(LogPHASE, "Chap Output: %s (%s)\n", chapcodes[code], text);
   hdlc_Output(&physical->link, PRI_LINK, PROTO_CHAP, bp);
 }
 
@@ -105,7 +108,7 @@ chap_SendChallenge(struct authinfo *auth, int chapid, struct physical *physical)
   memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
   cp += len;
   ChapOutput(physical, CHAP_CHALLENGE, chapid, chap->challenge_data,
-	     cp - chap->challenge_data);
+	     cp - chap->challenge_data, NULL);
 }
 
 static void
@@ -132,7 +135,9 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
   name = cp + valsize;
   namelen = arglen - valsize - 1;
   name[namelen] = 0;
-  log_Printf(LogLCP, " Valsize = %d, Name = \"%s\"\n", valsize, name);
+
+  log_Printf(LogPHASE, "Chap Input: %s (from %s)\n",
+             chapcodes[chp->code], name);
 
   switch (chp->code) {
   case CHAP_CHALLENGE:
@@ -149,7 +154,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       argp = malloc(1 + valsize + namelen + 16);
 
     if (argp == NULL) {
-      ChapOutput(physical, CHAP_FAILURE, chp->id, "Out of memory!", 14);
+      ChapOutput(physical, CHAP_FAILURE, chp->id, "Out of memory!", 14, NULL);
       return;
     }
 #ifdef HAVE_DES
@@ -177,7 +182,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       chap_MS(digest, answer + 2 * keylen, valsize);
       log_DumpBuff(LogDEBUG, "answer", digest, 24);
       ChapOutput(physical, CHAP_RESPONSE, chp->id, argp,
-		 namelen + MS_CHAP_RESPONSE_LEN + 1);
+		 namelen + MS_CHAP_RESPONSE_LEN + 1, name);
     } else {
 #endif
       digest = argp;
@@ -196,11 +201,13 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       memcpy(digest + 16, name, namelen);
       ap += namelen;
       /* Send answer to the peer */
-      ChapOutput(physical, CHAP_RESPONSE, chp->id, argp, namelen + 17);
+      ChapOutput(physical, CHAP_RESPONSE, chp->id, argp, namelen + 17, name);
 #ifdef HAVE_DES
     }
 #endif
     free(argp);
+    if (*name == '\0')
+      log_Printf(LogWARN, "Sending empty CHAP authname!\n");
     break;
   case CHAP_RESPONSE:
     /*
@@ -229,7 +236,8 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
        */
       if (memcmp(cp, cdigest, 16) == 0) {
         datalink_GotAuthname(physical->dl, name, namelen);
-	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
+	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10, NULL);
+	physical->link.lcp.auth_ineed = 0;
         if (Enabled(bundle, OPT_UTMP))
           physical_Login(physical, name);
 
@@ -247,7 +255,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     /*
      * Peer is not registerd, or response digest is wrong.
      */
-    ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9);
+    ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9, NULL);
     datalink_AuthNotOk(physical->dl);
     break;
   }
@@ -274,7 +282,7 @@ RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     }
   } else {
     /* CHAP failed - it's not going to get any better */
-    log_Printf(LogPHASE, "Received CHAP_FAILURE\n");
+    log_Printf(LogPHASE, "Chap Input: Giving up after name/key FAILURE\n");
     datalink_AuthNotOk(physical->dl);
   }
 }
@@ -290,8 +298,6 @@ chap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
     if (len >= ntohs(chp->length)) {
       if (chp->code < 1 || chp->code > 4)
 	chp->code = 0;
-      log_Printf(LogLCP, "chap_Input: %s\n", chapcodes[chp->code]);
-
       bp->offset += sizeof(struct fsmheader);
       bp->cnt -= sizeof(struct fsmheader);
 
@@ -304,6 +310,7 @@ chap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	break;
       case CHAP_SUCCESS:
       case CHAP_FAILURE:
+        log_Printf(LogPHASE, "Chap Input: %s\n", chapcodes[chp->code]);
 	RecvChapResult(bundle, chp, bp, physical);
 	break;
       }
