@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.5 1995/12/15 03:06:50 peter Exp $
+ *  $Id: linux_file.c,v 1.6 1996/03/02 19:37:53 peter Exp $
  */
 
 #include <sys/param.h>
@@ -497,8 +497,16 @@ again:
 	    break;
 	}
 	linux_dirent.dino = (long) bdp->d_fileno;
-	linux_dirent.doff = (linux_off_t) linuxreclen;
-	linux_dirent.dreclen = (u_short) bdp->d_namlen;
+	if (justone) {
+	    /*
+	     * old linux-style readdir usage.
+	     */
+	    linux_dirent.doff = (linux_off_t) linuxreclen;
+	    linux_dirent.dreclen = (u_short) bdp->d_namlen;
+	} else {
+	    linux_dirent.doff = (linux_off_t) off;
+	    linux_dirent.dreclen = (u_short) linuxreclen;
+	}
 	strcpy(linux_dirent.dname, bdp->d_name);
 	if ((error = copyout((caddr_t)&linux_dirent, outp, linuxreclen))) {
 	    goto out;
