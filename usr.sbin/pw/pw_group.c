@@ -60,12 +60,14 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		NULL
 	};
 
+	if (mode == M_LOCK || mode == M_UNLOCK)
+		errx(EX_USAGE, "'lock' command is not available for groups");
+
 	/*
 	 * With M_NEXT, we only need to return the
 	 * next gid to stdout
 	 */
-	if (mode == M_NEXT)
-	{
+	if (mode == M_NEXT) {
 		gid_t next = gr_gidpolicy(cnf, args);
 		if (getarg(args, 'q'))
 			return next;
