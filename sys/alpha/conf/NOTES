@@ -156,4 +156,5 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ums0		# Mouse
 # USB Ethernet
 #device		aue0		# ADMtek USB ethernet
+#device		cue0		# CATC USB ethernet
 #device		kue0		# Kawasaki LSI USB ethernet
