@@ -41,7 +41,12 @@
 #define	_TTYS_OFF	"off"
 #define	_TTYS_ON	"on"
 #define	_TTYS_SECURE	"secure"
+#define	_TTYS_INSECURE	"insecure"
 #define	_TTYS_WINDOW	"window"
+#define	_TTYS_GROUP	"group"
+#define	_TTYS_NOGROUP	"none"
+#define	_TTYS_DIALUP	"dialup"
+#define	_TTYS_NETWORK	"network"
 
 struct ttyent {
 	char	*ty_name;	/* terminal device name */
@@ -49,9 +54,12 @@ struct ttyent {
 	char	*ty_type;	/* terminal type for termcap */
 #define	TTY_ON		0x01	/* enable logins (start ty_getty program) */
 #define	TTY_SECURE	0x02	/* allow uid of 0 to login */
+#define	TTY_DIALUP	0x04	/* is a dialup tty */
+#define	TTY_NETWORK	0x08	/* is a network tty */
 	int	ty_status;	/* status flags */
 	char 	*ty_window;	/* command to start up window manager */
 	char	*ty_comment;	/* comment field */
+	char	*ty_group;	/* tty group */
 };
 
 #include <sys/cdefs.h>
@@ -61,6 +69,8 @@ struct ttyent *getttyent __P((void));
 struct ttyent *getttynam __P((const char *));
 int setttyent __P((void));
 int endttyent __P((void));
+int isdialuptty __P((const char *));
+int isnetworktty __P((const char *));
 __END_DECLS
 
 #endif /* !_TTYENT_H_ */
