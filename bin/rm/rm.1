@@ -32,10 +32,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)rm.1	8.2 (Berkeley) 4/18/94
-.\"	$Id: rm.1,v 1.3 1996/03/07 23:26:58 wosch Exp $
+.\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
+.\"	$Id: rm.1,v 1.4 1996/08/29 18:06:07 wosch Exp $
 .\"
-.Dd April 18, 1994
+.Dd December 5, 1994
 .Dt RM 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm rm
 .Op Fl f | Fl i
-.Op Fl dPRr
+.Op Fl dPRrW
 .Ar file ...
 .Sh DESCRIPTION
 The
@@ -100,6 +100,10 @@ that directory is skipped.
 .It Fl r
 Equivalent to
 .Fl R .
+.It Fl W
+Attempts to undelete the named files.
+Currently, this option can only be used to recover
+files covered by whiteouts. (UNIMPLEMENTED)
 .El
 .Pp
 The
@@ -135,6 +139,7 @@ Example:
 ``$ rm -- -filename''.
 .Sh SEE ALSO
 .Xr rmdir 1 ,
+.Xr undelete 2 ,
 .Xr unlink 2 ,
 .Xr fts 3 ,
 .Xr getopt 3 ,
@@ -147,6 +152,12 @@ system.
 UFS is a fixed-block file system, LFS is not.
 In addition, only regular files are overwritten, other types of files
 are not.
+.Pp
+No support exists for the
+.Xr undelete 2
+call in the kernel, so the
+.Fl W
+option is not yet implemented.
 .Sh COMPATIBILITY
 The
 .Nm rm
