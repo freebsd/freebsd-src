@@ -347,6 +347,8 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 #endif /* INET6 */
 	int ipflags = 0;
 
+	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
+
 #ifdef INET6
 	isipv6 = IP_VHL_V(((struct ip *)ipgen)->ip_vhl) == 6;
 	ip6 = ipgen;
