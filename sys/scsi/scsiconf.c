@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.4 1995/10/10 00:42:02 davidg Exp $
+ *      $Id: scsiconf.c,v 1.30.4.5 1996/04/01 00:26:10 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -276,6 +276,10 @@ static struct scsidevs knowndevs[] =
 		"cd", SC_MORE_LUS
 	},
 	{
+		T_READONLY, T_REMOV, "NRC",	"MBR-7", "*",
+		"cd", SC_MORE_LUS
+	},
+	{
 		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
 		"cd", SC_ONE_LU
 	},
@@ -331,6 +335,10 @@ static struct scsidevs knowndevs[] =
 	},
 	{
 		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X"
+		    ,"any", "cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "NRC",	"MBR-7"
 		    ,"any", "cd", SC_MORE_LUS
 	},
 	{
