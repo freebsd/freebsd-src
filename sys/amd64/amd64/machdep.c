@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
@@ -139,6 +140,10 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
+
 int	_udatasel, _ucodesel, _ucode32sel;
 
 int cold = 1;
@@ -158,10 +163,6 @@ struct region_descriptor r_gdt, r_idt;
 struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
-
-#ifdef DDB
-void	*ksym_start, *ksym_end;
-#endif
 
 static void
 cpu_startup(dummy)
@@ -1113,8 +1114,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
 #ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, void *);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, void *);
+	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
 
 	/* Init basic tunables, hz etc */
@@ -1195,10 +1196,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	atpic_startup();
 #endif
 
-#ifdef DDB
 	kdb_init();
+
+#ifdef KDB
 	if (boothowto & RB_KDB)
-		Debugger("Boot flags requested debugger");
+		kdb_enter("Boot flags requested debugger");
 #endif
 
 	identify_cpu();		/* Final stage of CPU initialization */
@@ -1775,20 +1777,12 @@ user_dbreg_trap(void)
         return 0;
 }
 
-#ifndef DDB
-void
-Debugger(const char *msg)
-{
-	printf("Debugger(\"%s\") called.\n", msg);
-}
-#endif /* no DDB */
-
-#ifdef DDB
+#ifdef KDB
 
 /*
  * Provide inb() and outb() as functions.  They are normally only
  * available as macros calling inlined functions, thus cannot be
- * called inside DDB.
+ * called from the debugger.
  *
  * The actual code is stolen from <machine/cpufunc.h>, and de-inlined.
  */
@@ -1827,4 +1821,4 @@ outb(u_int port, u_char data)
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
 }
 
-#endif /* DDB */
+#endif /* KDB */
