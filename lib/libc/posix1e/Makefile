@@ -1,6 +1,8 @@
 #	$FreeBSD$
 
 LIB=	posix1e
+SHLIB_MAJOR= 2 
+SHLIB_MINOR= 0
 SRCS+=	acl_delete.c			\
 	acl_free.c			\
 	acl_from_text.c			\
@@ -9,7 +11,16 @@ SRCS+=	acl_delete.c			\
 	acl_set.c			\
 	acl_support.c			\
 	acl_to_text.c			\
-	acl_valid.c
+	acl_valid.c			\
+#	cap_clear.c			\
+#	cap_dup.c			\
+#	cap_free.c			\
+#	cap_get_flag.c			\
+#	cap_get_proc.c			\
+#	cap_init.c			\
+#	cap_set_flag.c			\
+#	cap_set_proc.c
+
 
 MAN3=	acl.3				\
 	acl_delete.3			\
@@ -21,6 +32,15 @@ MAN3=	acl.3				\
 	acl_set.3			\
 	acl_to_text.3			\
 	acl_valid.3			\
+	cap.3				\
+	cap_clear.3			\
+	cap_dup.3			\
+	cap_free.3			\
+	cap_get_flag.3			\
+	cap_get_proc.3			\
+	cap_init.3			\
+	cap_set_flag.3			\
+	cap_set_proc.3			\
 	posix1e.3
 
 MLINKS+=acl_delete.3 acl_delete_def_file.3	\
