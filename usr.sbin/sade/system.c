@@ -140,7 +140,7 @@ systemInitialize(int argc, char **argv)
     globalsInit();
 
     i = sizeof(boothowto);
-    if (!sysctlbyname("debug.boothowto", &boothowto, &i, NULL, NULL) &&
+    if (!sysctlbyname("debug.boothowto", &boothowto, &i, NULL, 0) &&
         (i == sizeof(boothowto)) && (boothowto & RB_VERBOSE))
 	variable_set2(VAR_DEBUG, "YES", 0);
 
