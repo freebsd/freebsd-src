@@ -1825,8 +1825,10 @@ mss_resume(device_t dev)
 
 	if (mss->bd_id == MD_CS423X) {
 		/* Needed on IBM Thinkpad 600E */
-		chn_setformat(mss->pch.channel, mss->pch.channel->format);
-		chn_setspeed(mss->pch.channel, mss->pch.channel->speed);
+		mss_lock(mss);
+		mss_format(&mss->pch, mss->pch.channel->format);
+		mss_speed(&mss->pch, mss->pch.channel->speed);
+		mss_unlock(mss);
 	}
 
     	return 0;
