@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.1.1.1 1994/10/12 12:02:52 se Exp $
+**  $Id: ncrcontrol.c,v 1.2 1994/10/13 18:01:32 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -694,6 +694,8 @@ void do_set (char * arg)
 		fprintf (stderr, "%s: ncb.user busy.\n", prog);
 		exit (1);
 	};
+
+	set_target_mask();
 
 	user.target = target_mask;
 	user.lun    = lun_mask;
