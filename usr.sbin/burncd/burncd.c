@@ -29,6 +29,7 @@
  */
 
 #include <unistd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,13 +57,13 @@ struct track_info {
 	int	addr;
 };
 static struct track_info tracks[100];
-static int fd, quiet, verbose, saved_block_size, notracks;
+static int global_fd_for_cleanup, quiet, verbose, saved_block_size, notracks;
 
 void add_track(char *, int, int, int);
-void do_DAO(int, int);
-void do_TAO(int, int, int);
+void do_DAO(int fd, int, int);
+void do_TAO(int fd, int, int, int);
 void do_format(int, int, char *);
-int write_file(struct track_info *);
+int write_file(int fd, struct track_info *);
 int roundup_blocks(struct track_info *);
 void cue_ent(struct cdr_cue_entry *, int, int, int, int, int, int, int);
 void cleanup(int);
@@ -71,7 +72,7 @@ void usage(void);
 int
 main(int argc, char **argv)
 {
-	int ch, arg, addr;
+	int arg, addr, ch, fd;
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
 	int nogap = 0, speed = 4 * 177, test_write = 0, force = 0;
 	int block_size = 0, block_type = 0, cdopen = 0, dvdrw = 0;
@@ -151,6 +152,7 @@ main(int argc, char **argv)
 	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
 
+	global_fd_for_cleanup = fd;
 	err_set_exit(cleanup);
 
 	for (arg = 0; arg < argc; arg++) {
@@ -291,9 +293,9 @@ main(int argc, char **argv)
 			cdopen = 1;
 		}
 		if (dao) 
-			do_DAO(test_write, multi);
+			do_DAO(fd, test_write, multi);
 		else
-			do_TAO(test_write, preemp, dvdrw);
+			do_TAO(fd, test_write, preemp, dvdrw);
 	}
 	if (fixate && !dao) {
 		if (!quiet)
@@ -367,7 +369,7 @@ add_track(char *name, int block_size, int block_type, int nogap)
 }
 
 void
-do_DAO(int test_write, int multi)
+do_DAO(int fd, int test_write, int multi)
 {
 	struct cdr_cuesheet sheet;
 	struct cdr_cue_entry cue[100];
@@ -459,7 +461,7 @@ do_DAO(int test_write, int multi)
 		err(EX_IOERR, "ioctl(CDRIOCSENDCUE)");
 
 	for (i = 0; i < notracks; i++) {
-		if (write_file(&tracks[i]))
+		if (write_file(fd, &tracks[i]))
 			err(EX_IOERR, "write_file");
 	}
 
@@ -467,7 +469,7 @@ do_DAO(int test_write, int multi)
 }
 
 void
-do_TAO(int test_write, int preemp, int dvdrw)
+do_TAO(int fd, int test_write, int preemp, int dvdrw)
 {
 	struct cdr_track track;
 	int i;
@@ -489,7 +491,7 @@ do_TAO(int test_write, int preemp, int dvdrw)
 		if (!quiet)
 			fprintf(stderr, "next writeable LBA %d\n",
 				tracks[i].addr);
-		if (write_file(&tracks[i]))
+		if (write_file(fd, &tracks[i]))
 			err(EX_IOERR, "write_file");
 		if (ioctl(fd, CDRIOCFLUSH) < 0)
 			err(EX_IOERR, "ioctl(CDRIOCFLUSH)");
@@ -509,7 +511,7 @@ do_format(int fd, int force, char *type)
 		err(EX_IOERR, "ioctl(CDRIOCREADFORMATCAPS)");
 
 	if (verbose) {
-		fprintf(stderr, "format list entries=%d\n", 
+		fprintf(stderr, "format list entries=%zd\n", 
 			capacities.length / sizeof(struct cdr_format_capacity));
 		fprintf(stderr, "current format: blocks=%u type=0x%x block_size=%u\n",
 			ntohl(capacities.blocks), capacities.type, 
@@ -576,7 +578,7 @@ do_format(int fd, int force, char *type)
 }
 
 int
-write_file(struct track_info *track_info)
+write_file(int fd, struct track_info *track_info)
 {
 	off_t size, count, filesize;
 	char buf[2352*BLOCKS];
@@ -591,8 +593,8 @@ write_file(struct track_info *track_info)
 		lseek(fd, track_info->addr * track_info->block_size, SEEK_SET);
 
 	if (verbose)
-		fprintf(stderr, "addr = %d size = %qd blocks = %d\n",
-			track_info->addr, track_info->file_size,
+		fprintf(stderr, "addr = %d size = %jd blocks = %d\n",
+			track_info->addr, (intmax_t)track_info->file_size,
 			roundup_blocks(track_info));
 
 	if (!quiet) {
@@ -600,8 +602,8 @@ write_file(struct track_info *track_info)
 			fprintf(stderr, "writing from stdin\n");
 		else
 			fprintf(stderr, 
-				"writing from file %s size %qd KB\n",
-				track_info->file_name, filesize);
+				"writing from file %s size %jd KB\n",
+				track_info->file_name, (intmax_t)filesize);
 	}
 	size = 0;
 
@@ -618,8 +620,8 @@ write_file(struct track_info *track_info)
 				track_info->block_size;
 		}
 		if ((res = write(fd, buf, count)) != count) {
-			fprintf(stderr, "\nonly wrote %d of %qd bytes err=%d\n",
-				res, count, errno);
+			fprintf(stderr, "\nonly wrote %d of %jd bytes: %s\n",
+				res, (intmax_t)count, strerror(errno));
 			break;
 		}
 		size += count;
@@ -627,12 +629,14 @@ write_file(struct track_info *track_info)
 		if (!quiet) {
 			int pct;
 
-			fprintf(stderr, "written this track %qd KB", size/1024);
+			fprintf(stderr, "written this track %jd KB",
+			    (intmax_t)size/1024);
 			if (track_info->file != STDIN_FILENO && filesize) {
 				pct = (size / 1024) * 100 / filesize;
 				fprintf(stderr, " (%d%%)", pct);
 			}
-			fprintf(stderr, " total %qd KB\r", tot_size/1024);
+			fprintf(stderr, " total %jd KB\r", 
+			    (intmax_t)tot_size / 1024);
 		}
 		if (size >= track_info->file_size)
 			break;
@@ -669,7 +673,8 @@ cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int idx,
 void
 cleanup(int dummy __unused)
 {
-	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
+	if (ioctl(global_fd_for_cleanup, CDRIOCSETBLOCKSIZE,
+	    &saved_block_size) < 0) 
 		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
 }
 
