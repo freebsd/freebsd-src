@@ -175,6 +175,8 @@ main(argc, argv)
 }
 
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
+#define	ATOI4(ar)	((ar)[0] - '0') * 1000 + ((ar)[1] - '0') * 100 + \
+			    ((ar)[2] - '0') * 10 + ((ar)[3] - '0'); (ar) += 4;
 void
 setthetime(fmt, p, jflag, nflag)
 	const char *fmt;
@@ -221,11 +223,16 @@ setthetime(fmt, p, jflag, nflag)
 
 		/* if p has a ".ss" field then let's pretend it's not there */
 		switch (strlen(p) - ((dot != NULL) ? 3 : 0)) {
+		case 12:				/* cc */
+			lt->tm_year = -1900 + ATOI4(p);
+			if (lt->tm_year < 0)
+				badformat();
+			goto year_done;
 		case 10:				/* yy */
 			lt->tm_year = ATOI2(p);
 			if (lt->tm_year < 69)		/* hack for 2000 ;-} */
 				lt->tm_year += 100;
-			/* FALLTHROUGH */
+year_done:		/* FALLTHROUGH */
 		case 8:					/* mm */
 			lt->tm_mon = ATOI2(p);
 			if (lt->tm_mon > 12)
@@ -286,6 +293,7 @@ usage()
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: date [-nu] [-d dst] [-r seconds] [-t west] "
 	    "[-v[+|-]val[ymwdHMS]] ... ",
-	    "            [-f fmt date | [[[[yy]mm]dd]HH]MM[.ss]] [+format]");
+	    "            "
+	    "[-f fmt date | [[[[[cc]yy]mm]dd]HH]MM[.ss]] [+format]");
 	exit(1);
 }
