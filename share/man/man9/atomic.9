@@ -37,6 +37,7 @@
 .Nm atomic_store
 .Nd atomic operations
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <machine/atomic.h>
 .Ft void
 .Fn atomic_add_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
