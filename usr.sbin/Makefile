@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.154 1999/05/05 07:37:03 wpaul Exp $
+#	$Id: Makefile,v 1.155 1999/05/10 10:17:00 obrien Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -56,6 +56,7 @@ SUBDIR=	IPXrouted \
 	pciconf \
 	periodic \
 	pkg_install \
+	pnpinfo \
 	portmap \
 	ppp \
 	pppctl \
@@ -128,7 +129,6 @@ SUBDIR+=apm \
 	mixer \
 	mptable \
 	pcvt \
-	pnpinfo \
 	rndcontrol \
 	sgsc \
 	sicontrol \

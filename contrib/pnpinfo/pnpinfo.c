@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.3 1998/09/13 22:15:44 eivind Exp $
+ *      $Id: pnpinfo.c,v 1.4 1999/05/04 16:59:42 luoqi Exp $
  */
 
 #include <sys/time.h>
@@ -578,16 +578,22 @@ isolation_protocol()
 }
 
 
-void
-main()
+int
+main(int argc, char **argv)
 {
     int num_pnp_devs;
 
+#ifdef __i386__
     /* Hey what about a i386_iopl() call :) */
     if (open("/dev/io", O_RDONLY) < 0) {
 	fprintf (stderr, "pnpinfo: Can't get I/O privilege.\n");
 	exit (1);
     }
+#endif
+#ifdef __alpha__
+    ioperm(0x203, 0x400 - 0x203, 1);
+#endif
+
     printf("Checking for Plug-n-Play devices...\n");
 
     /* Try various READ_DATA ports from 0x203-0x3ff */
@@ -599,6 +605,6 @@ main()
     }
     if (!num_pnp_devs) {
 	printf("No Plug-n-Play devices were found\n");
-	return;
+	return 0;
     }
 }
