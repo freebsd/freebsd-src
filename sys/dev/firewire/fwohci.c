@@ -1783,13 +1783,6 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
 		fw_busreset(fc);
-
-		OWRITE(sc, OHCI_AREQHI, 1 << 31);
-		/* XXX insecure ?? */
-		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
-		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
-		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
-
 	}
 busresetout:
 	if((stat & OHCI_INT_DMA_IR )){
@@ -1857,6 +1850,12 @@ busresetout:
 #endif
 		/* Enable bus reset interrupt */
 		OWRITE(sc, FWOHCI_INTMASK,  OHCI_INT_PHY_BUS_R);
+		/* Allow async. request to us */
+		OWRITE(sc, OHCI_AREQHI, 1 << 31);
+		/* XXX insecure ?? */
+		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
+		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
+		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
 /*
 ** Checking whether the node is root or not. If root, turn on 
 ** cycle master.
