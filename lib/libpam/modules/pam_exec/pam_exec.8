@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2003
+.Dd February 1, 2005
 .Dt PAM_EXEC 8
 .Os
 .Sh NAME
@@ -51,8 +51,17 @@ arguments.
 The child's environment is set to the current PAM environment list,
 as returned by
 .Xr pam_getenvlist 3 .
+In addition, the following PAM items are exported as environment
+variables:
+.Ev PAM_RHOST ,
+.Ev PAM_RUSER ,
+.Ev PAM_SERVICE ,
+.Ev PAM_TTY ,
+and
+.Ev PAM_USER .
 .Sh SEE ALSO
 .Xr pam.conf 5 ,
+.Xr pam_get_item 3 ,
 .Xr pam 8
 .Sh AUTHORS
 The
