@@ -520,7 +520,8 @@ main(int argc, char *argv[])
 	warnx("warning: sectors/FAT limits file system to %u clusters",
 	      cls);
     if (cls < mincls(fat))
-	errx(1, "too few clusters for FAT%u", fat);
+	errx(1, "%u clusters too few clusters for FAT%u, need %u", cls, fat,
+	    mincls(fat));
     if (cls > maxcls(fat)) {
 	cls = maxcls(fat);
 	bpb.bsec = x1 + (cls + 1) * bpb.spc - 1;
