@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,7 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.27 2000/06/02 16:14:35 hm Exp $
- *
- *	last edit-date: [Fri Jun  2 17:48:19 2000]
+ *	last edit-date: [Fri Jan 12 14:18:12 2001]
  *
  * $FreeBSD$
  *
@@ -131,7 +129,6 @@ static d_poll_t i4btrcpoll;
 
 #define CDEV_MAJOR 59
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4btrc_cdevsw = {
 	/* open */      i4btrcopen,
         /* close */     i4btrcclose,
@@ -148,13 +145,6 @@ static struct cdevsw i4btrc_cdevsw = {
         /* flags */     0,
         /* bmaj */      -1
 };
-#else
-static struct cdevsw i4btrc_cdevsw = {
-	i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
-  	i4btrcioctl,	nostop,		noreset,	nodevtotty,
-	POLLFIELD,	nommap, 	NULL, "i4btrc", NULL, -1
-};
-#endif
 
 /*---------------------------------------------------------------------------*
  *	interface init routine
@@ -162,12 +152,7 @@ static struct cdevsw i4btrc_cdevsw = {
 static
 void i4btrcinit(void *unused)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4btrc_cdevsw);
-#else
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &i4btrc_cdevsw, NULL);
-#endif
 }
 
 SYSINIT(i4btrcdev, SI_SUB_DRIVERS,
@@ -221,31 +206,21 @@ i4btrcattach()
 #endif
 {
 	int i;
-	
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
+
 	printf("i4btrc: %d ISDN trace device(s) attached\n", NI4BTRC);
-#endif
 	
 	for(i=0; i < NI4BTRC; i++)
 	{
 
 #if defined(__FreeBSD__)
-#if __FreeBSD__ < 4
-
-#ifdef DEVFS
-	  	devfs_token[i]
-		  = devfs_add_devswf(&i4btrc_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btrc%d", i);
-#endif
-
-#else
 		make_dev(&i4btrc_cdevsw, i,
 				     UID_ROOT, GID_WHEEL, 0600, "i4btrc%d", i);
 #endif
-#endif
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
+
+#if __FreeBSD__ > 4
 		mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", MTX_DEF);
+#endif
 		device_state[i] = ST_IDLE;
 	}
 }
@@ -449,10 +424,16 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 	{
 		device_state[unit] |= ST_WAITDATA;
 		
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 		if((error = msleep((caddr_t) &trace_queue[unit],
 					&trace_queue[unit].ifq_mtx,
 					TTIPRI | PCATCH,
 					"bitrc", 0 )) != 0)
+#else
+		if((error = tsleep((caddr_t) &trace_queue[unit],
+					TTIPRI | PCATCH,
+					"bitrc", 0 )) != 0)
+#endif                                                                                               
 		{
 			device_state[unit] &= ~ST_WAITDATA;
 			IF_UNLOCK(&trace_queue[unit]);

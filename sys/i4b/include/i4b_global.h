@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_global.h - i4b global include file
  *	--------------------------------------
  *
- *	$Id: i4b_global.h,v 1.27 2000/08/28 07:24:58 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Aug 24 12:38:50 2000]
+ *	last edit-date: [Mon Jan 15 15:47:40 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,6 +39,25 @@
 /*---------------------------------------------------------------------------*
  *	hiding OS differences in the kernel
  *---------------------------------------------------------------------------*/ 
+
+/*-------------------------------------------------*/
+/* hide SMP changes in FreeBSD 5.x-current for 4.x */
+/*-------------------------------------------------*/
+
+#if defined(__FreeBSD__) && __FreeBSD__ <= 4
+
+#define IF_LOCK(a)
+#define IF_UNLOCK(a)
+#define _IF_QFULL(a)		IF_QFULL((a))
+#define _IF_ENQUEUE(a, b)	IF_ENQUEUE((a), (b))
+#define _IF_DEQUEUE(a, b)	IF_DEQUEUE((a), (b))
+#define _IF_PREPEND(a, b)	IF_PREPEND((a), (b))
+
+/* get back DELAY() */
+
+#include <machine/clock.h>
+
+#endif
 
 /*---------------*/
 /* time handling */

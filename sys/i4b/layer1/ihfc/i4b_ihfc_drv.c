@@ -30,9 +30,7 @@
  *	Everything which has got anything to do with the
  *	HFC-1/S/SP chips has been put here.
  *
- *	last edit-date: [Wed Jul 19 09:39:42 2000]
- *
- *	$Id: i4b_ihfc_drv.c,v 1.11 2000/09/19 13:50:36 hm Exp $
+ *	last edit-date: [Fri Jan 12 17:06:52 2001]
  *
  * $FreeBSD$
  *
@@ -360,8 +358,10 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 			RESET_SOFT_CHAN(sc, chan);
 
 			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
-			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
+#endif
 			if (!activate) continue;
 
 			if (S_HFC & HFC_1)
@@ -383,8 +383,10 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 			RESET_SOFT_CHAN(sc, chan);
 
 			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
-			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
+#endif
 			S_PROT = prot;
 
 			if (!activate) continue;

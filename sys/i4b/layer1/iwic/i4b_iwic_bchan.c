@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1999, 2000 Dave Boyce. All rights reserved.
  *
- * Copyright (c) 2000 Hellmuth Michaelis. All rights reserved. 
+ * Copyright (c) 2000, 2001 Hellmuth Michaelis. All rights reserved. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,11 +29,9 @@
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------
  *
- *      $Id: i4b_iwic_bchan.c,v 1.8 2000/05/29 15:41:42 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:48:56 2000]
+ *      last edit-date: [Fri Jan 12 16:57:01 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -239,8 +237,18 @@ iwic_bchan_xirq(struct iwic_softc *sc, int chan_no)
 				if(!(i4b_l1_bchan_tel_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 					activity = ACT_RX;
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 				(void) IF_HANDOFF(&chan->rx_queue, chan->in_mbuf, NULL);
-
+#else
+				if(!(IF_QFULL(&chan->rx_queue)))
+				{
+					IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+				}
+				else
+				{
+					i4b_Bfreembuf(chan->in_mbuf);
+				}
+#endif
 				/* signal upper driver that data is available */
 
 				(*chan->iwic_drvr_linktab->bch_rx_data_ready)(chan->iwic_drvr_linktab->unit);
@@ -410,7 +418,10 @@ iwic_bchannel_setup(int unit, int chan_no, int bprot, int activate)
 	/* receiver part */
 
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_iwic_rx", MTX_DEF);
+#endif
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
@@ -425,7 +436,10 @@ iwic_bchannel_setup(int unit, int chan_no, int bprot, int activate)
 	/* transmitter part */
 
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4	
 	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_iwic_tx", MTX_DEF);
+#endif
 
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 	
