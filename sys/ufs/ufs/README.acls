@@ -50,7 +50,7 @@ system.  For reliability and performance reasons, the use of ACLs on
 UFS1 is discouraged; UFS2 extended attributes provide a more reliable
 storage mechanism for ACLs.
 
-Currently, support for ACLs on UFS requires the use of UFS EAs, which may
+Currently, support for ACLs on UFS1 requires the use of UFS1 EAs, which may
 be enabled by adding:
 
 	options UFS_EXTATTR
@@ -65,7 +65,7 @@ required extended attributes with the filesystem mount operation.  To
 enable ACLs, two extended attributes must be available in the
 EXTATTR_NAMESPACE_SYSTEM namespace: "posix1e.acl_access", which holds
 the access ACL, and "posix1e.acl_default" which holds the default ACL
-for directories.  If you're using UFS Extended Attributes, the following
+for directories.  If you're using UFS1 Extended Attributes, the following
 commands may be used to create the necessary EA backing files for
 ACLs in the filesystem root of each filesystem.  In these examples,
 the root filesystem is used; see README.extattr for more details.
