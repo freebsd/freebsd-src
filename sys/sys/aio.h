@@ -16,37 +16,11 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.5 1998/03/08 22:21:12 dufault Exp $
+ * $Id: aio.h,v 1.6 1998/03/09 00:15:08 dufault Exp $
  */
 
 #include <sys/types.h>
-
-/**************************************************************************/
-/* Additions to signal.h -- hack alert.                                   */
-/**************************************************************************/
-/*
- * sigval structure:
- */
-union sigval {
-	int	sival_int;
-	void	*sival_ptr;
-};
-
-/*
- * this is the sigevent structure:
- */
-struct sigevent {
-	int	sigev_notify;		/* Notification */
-	int	sigev_signo;		/* Signal number */
-	union sigval sigev_value;	/* Not used yet in FreeBSD */
-};
-
-/*
- * values for sigev_notify:
- */	
-#define	SIGEV_NONE	0		/* Don't post a signal */
-#define	SIGEV_SIGNAL	1		/* Post specified signal */
-
+#include <sys/signal.h>
 /*
  * Returned by aio_cancel:
  *  (Note that FreeBSD's aio is not cancellable -- yet.)

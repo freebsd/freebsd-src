@@ -346,4 +346,12 @@ struct sysent sysent[] = {
 	{ 1, (sy_call_t *)mlockall },			/* 324 = mlockall */
 	{ 0, (sy_call_t *)munlockall },			/* 325 = munlockall */
 	{ 2, (sy_call_t *)__getcwd },			/* 326 = __getcwd */
+	{ 2, (sy_call_t *)sched_setparam },		/* 327 = sched_setparam */
+	{ 2, (sy_call_t *)sched_getparam },		/* 328 = sched_getparam */
+	{ 3, (sy_call_t *)sched_setscheduler },		/* 329 = sched_setscheduler */
+	{ 1, (sy_call_t *)sched_getscheduler },		/* 330 = sched_getscheduler */
+	{ 0, (sy_call_t *)sched_yield },		/* 331 = sched_yield */
+	{ 1, (sy_call_t *)sched_get_priority_max },		/* 332 = sched_get_priority_max */
+	{ 1, (sy_call_t *)sched_get_priority_min },		/* 333 = sched_get_priority_min */
+	{ 2, (sy_call_t *)sched_rr_get_interval },		/* 334 = sched_rr_get_interval */
 };

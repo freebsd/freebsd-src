@@ -31,26 +31,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: aio.h,v 1.2 1998/03/08 17:25:11 dufault Exp $
+ * $Id: aio.h,v 1.3 1998/03/23 14:05:25 bde Exp $
  */
 
 /* aio.h: P1003.1B-1993 Asynchronous I/O */
 
-#ifndef _AIO_H_
-#define _AIO_H_
+#ifndef _P1003_1B_AIO_H_
+#define _P1003_1B_AIO_H_
 
-#ifdef _POSIX4_INCLUDE_MAYBES
+#include <sys/_posix.h>
 #include <sys/types.h>
-#include <signal.h>
-#include <time.h>
-#include <fcntl.h>
-#else
-struct timespec;
-#include <sys/types.h>
+
+/* For struct sigevent:
+ */
 #ifdef KERNEL
 #include <sys/signal.h>
 #else
 #include <signal.h>
+
+#ifdef _P1003_1B_INCLUDE_MAYBES
+#include <time.h>
+#include <fcntl.h>
+#else
+struct timespec;
 #endif
 #endif
 
@@ -104,4 +107,4 @@ __END_DECLS
 
 #endif /* KERNEL */
 
-#endif /* _POSIX4_AIO_H_ */
+#endif /* _P1003_1B_AIO_H_ */

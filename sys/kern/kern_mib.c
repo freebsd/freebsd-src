@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.13 1997/12/25 13:14:21 gpalmer Exp $
+ * $Id: kern_mib.c,v 1.14 1998/03/04 10:25:50 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -51,8 +51,6 @@
 #if defined(SMP)
 #include <machine/smp.h>
 #endif
-
-#include "opt_posix4.h"
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
@@ -73,10 +71,8 @@ SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
 SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
 	"user-level");
 
-#ifdef POSIX4
-SYSCTL_NODE(, CTL_POSIX4,  posix4,   CTLFLAG_RW, 0,
-	"posix4, (see posix4.h)");
-#endif
+SYSCTL_NODE(, CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
+	"p1003_1b, (see p1003_1b.h)");
 
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, osrelease, 0, "");
 
@@ -96,7 +92,7 @@ SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
 
 SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD, 0, ARG_MAX, "");
 
-SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 0, _POSIX_VERSION, "");
+SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 0, _KPOSIX_VERSION, "");
 
 SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RD, 0, NGROUPS_MAX, "");
 

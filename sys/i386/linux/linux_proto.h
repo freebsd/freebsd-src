@@ -10,6 +10,8 @@
 
 #include <sys/signal.h>
 
+struct proc;
+
 struct	linux_setup_args {
 	int dummy;
 };

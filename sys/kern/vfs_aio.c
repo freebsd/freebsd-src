@@ -13,11 +13,11 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.24 1998/02/25 06:30:15 bde Exp $
+ * $Id: vfs_aio.c,v 1.25 1998/03/28 10:33:09 bde Exp $
  */
 
 /*
- * This file contains support for the POSIX.4 AIO/LIO facility.
+ * This file contains support for the POSIX 1003.1B AIO/LIO facility.
  */
 
 #include <sys/param.h>
