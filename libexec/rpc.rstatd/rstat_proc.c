@@ -26,10 +26,14 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+
 #ifndef lint
-/*static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro";*/
-/*static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char rcsid[] = "$Id$";
+#if 0
+static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro";
+static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
@@ -41,12 +45,12 @@ static char rcsid[] = "$Id$";
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/dkstat.h>
-#include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vmmeter.h>
 
+#include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -56,6 +60,7 @@ static char rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <net/if.h>
 #include <net/if_mib.h>
@@ -82,6 +87,9 @@ struct nlist nl[] = {
 	{ "_dk_ndrive" },
 	{ "" },
 };
+
+int havedisk __P((void));
+void setup __P((void));
 int stats_service();
 
 extern int from_inetd;
@@ -97,7 +105,6 @@ union {
 void updatestat();
 static stat_is_init = 0;
 static kvm_t *kd;
-extern int errno;
 
 static int	cp_time_xlat[RSTAT_CPUSTATES] = { CP_USER, CP_NICE, CP_SYS,
 							CP_IDLE };
@@ -108,6 +115,7 @@ static long	bsd_cp_time[CPUSTATES];
 #define FSCALE (1 << 8)
 #endif
 
+void
 stat_init()
 {
     stat_is_init = 1;
@@ -171,7 +179,7 @@ rstatproc_havedisk_1()
 void
 updatestat()
 {
-	int off, i, hz;
+	int i, hz;
 	struct clockinfo clockrate;
 	struct vmmeter cnt;
 	struct ifmibdata ifmd;
@@ -208,7 +216,7 @@ updatestat()
 
 	if (kvm_read(kd, (long)nl[X_CPTIME].n_value, (char *)bsd_cp_time, sizeof(bsd_cp_time))
 	    != sizeof(bsd_cp_time)) {
-		syslog(LOG_ERR, "rstat: can't read cp_time from kmem\n");
+		syslog(LOG_ERR, "rstat: can't read cp_time from kmem");
 		exit(1);
 	}
 	for(i = 0; i < RSTAT_CPUSTATES ; i++)
@@ -239,7 +247,7 @@ updatestat()
 
 	/* XXX - should use sysctl */
  	if (kvm_read(kd, (long)nl[X_CNT].n_value, (char *)&cnt, sizeof cnt) != sizeof cnt) {
-		syslog(LOG_ERR, "rstat: can't read cnt from kmem\n");
+		syslog(LOG_ERR, "rstat: can't read cnt from kmem");
 		exit(1);
 	}
 	stats_all.s1.v_pgpgin = cnt.v_vnodepgsin;
@@ -255,7 +263,7 @@ updatestat()
 	/* XXX - should use sysctl */
  	if (kvm_read(kd, (long)nl[X_DKXFER].n_value, (char *)stats_all.s1.dk_xfer, sizeof (stats_all.s1.dk_xfer))
 	    != sizeof (stats_all.s1.dk_xfer)) {
-		syslog(LOG_ERR, "rstat: can't read dk_xfer from kmem\n");
+		syslog(LOG_ERR, "rstat: can't read dk_xfer from kmem");
 		exit(1);
 	}
 
@@ -297,9 +305,9 @@ updatestat()
 	alarm(1);
 }
 
+void
 setup()
 {
-	int off;
 	char errbuf[_POSIX2_LINE_MAX];
 
 	int en;
@@ -318,19 +326,19 @@ setup()
 /*
  * returns true if have a disk
  */
+int
 havedisk()
 {
-	int i, cnt;
 	int dk_ndrive;
 
 	if (kvm_nlist(kd, nl) != 0) {
-		syslog(LOG_ERR, "rstatd: Can't get namelist.(d)");
+		syslog(LOG_ERR, "rstatd: can't get namelist.(d)");
 		exit (1);
         }
 
 	if (kvm_read(kd, (long)nl[X_DKNDRIVE].n_value, (char *)&dk_ndrive,
 		     sizeof dk_ndrive)!= sizeof dk_ndrive) {
-		syslog(LOG_ERR, "rstat: can't read kmem\n");
+		syslog(LOG_ERR, "rstat: can't read kmem");
 		exit(1);
 	}
 	return (dk_ndrive != 0);
@@ -406,10 +414,8 @@ rstat_service(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument)) {
-		(void)fprintf(stderr, "unable to free arguments\n");
-		exit(1);
-	}
+	if (!svc_freeargs(transp, xdr_argument, &argument))
+		errx(1, "unable to free arguments");
 leave:
         if (from_inetd)
                 exit(0);
