@@ -1,5 +1,5 @@
-/*
- * Copyright 2001 David E. O'Brien
+/*-
+ * Copyright 2001 David E. O'Brien.
  * All rights reserved.
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
@@ -35,22 +35,25 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
 #endif
+#endif /* lint */
 
 #include <stdlib.h>
+
 #include "libc_private.h"
 #include "crtbrand.c"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-#pragma weak _DYNAMIC
 extern int _DYNAMIC;
+#pragma weak _DYNAMIC
 
-extern void _init(void);
 extern void _fini(void);
+extern void _init(void);
 extern int main(int, char **, char **);
 extern void _start(char **, void (*)(void), struct Struct_Obj_Entry *,
     struct ps_strings *);
@@ -66,18 +69,17 @@ char **environ;
 const char *__progname = "";
 
 /* The entry function. */
+/* ARGSUSED */
 void
-_start(char **ap,
-	void (*cleanup)(void),			/* from shared loader */
-	struct Struct_Obj_Entry *obj __unused,	/* from shared loader */
-	struct ps_strings *ps_strings __unused)
+_start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
+    struct ps_strings *ps_strings __unused)
 {
 	int argc;
 	char **argv;
 	char **env;
 	const char *s;
 
-	argc = * (long *) ap;
+	argc = *(long *)(void *)ap;
 	argv = ap + 1;
 	env  = ap + 2 + argc;
 	environ = env;

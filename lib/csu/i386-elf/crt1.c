@@ -23,21 +23,26 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
 #endif
+#endif /* lint */
 
-#include <stddef.h>
 #include <stdlib.h>
 
 #include "libc_private.h"
 #include "crtbrand.c"
+
+extern int _DYNAMIC;
+#pragma weak _DYNAMIC
 
 typedef void (*fptr)(void);
 
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
+extern void _start(char *, ...);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -46,33 +51,35 @@ extern int eprol;
 extern int etext;
 #endif
 
-extern int _DYNAMIC;
-#pragma weak _DYNAMIC
-
-#ifdef __i386__
-#define get_rtld_cleanup()				\
-	({ fptr __value;				\
-	    __asm__("movl %%edx,%0" : "=rm"(__value));	\
-	    __value; })
-#else
-#error "This file only supports the i386 architecture"
-#endif
-
 char **environ;
 const char *__progname = "";
 
-void
-_start(char *arguments, ...)
+static __inline fptr
+get_rtld_cleanup(void)
 {
-	fptr rtld_cleanup;
+	fptr retval;
+
+#ifdef	__GNUC__
+	__asm__("movl %%edx,%0" : "=rm"(retval));
+#else
+	retval = (fptr)0; /* XXXX Fix this for other compilers */
+#endif
+	return(retval);
+}
+
+/* The entry function. */
+void
+_start(char *ap, ...)
+{
+	fptr cleanup;
 	int argc;
 	char **argv;
 	char **env;
 	const char *s;
 
-	rtld_cleanup = get_rtld_cleanup();
-	argv = &arguments;
-	argc = * (int *) (argv - 1);
+	cleanup = get_rtld_cleanup();
+	argv = &ap;
+	argc = *(long *)(void *)(argv - 1);
 	env = argv + argc + 1;
 	environ = env;
 	if (argc > 0 && argv[0] != NULL) {
@@ -83,7 +90,7 @@ _start(char *arguments, ...)
 	}
 
 	if (&_DYNAMIC != NULL)
-		atexit(rtld_cleanup);
+		atexit(cleanup);
 
 #ifdef GCRT
 	atexit(_mcleanup);
