@@ -139,7 +139,7 @@ AcpiOsSleep (UINT32 Seconds, UINT32 Milliseconds)
 }
 
 void
-AcpiOsSleepUsec (UINT32 Microseconds)
+AcpiOsStall (UINT32 Microseconds)
 {
     FUNCTION_TRACE(__func__);
 

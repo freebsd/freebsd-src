@@ -136,6 +136,10 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
     DEBUG_PRINT(TRACE_MUTEX, ("get %d units from semaphore %p (has %d), timeout %d\n",
 			      Units, as, as->as_units, Timeout));
     for (;;) {
+	if (as->as_inits == ACPI_NO_UNIT_LIMIT) {
+	    result = AE_OK;
+	    break;
+	}
 	if (as->as_units >= Units) {
 	    as->as_units -= Units;
 	    result = AE_OK;
@@ -177,9 +181,11 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
     mtx_lock(&as->as_mtx);
     DEBUG_PRINT(TRACE_MUTEX, ("return %d units to semaphore %p (has %d)\n",
 			      Units, as, as->as_units));
-    as->as_units += Units;
-    if (as->as_units > as->as_maxunits)
-	as->as_units = as->as_maxunits;
+    if (as->as_units != ACPI_NO_UNIT_LIMIT) {
+	as->as_units += Units;
+	if (as->as_units > as->as_maxunits)
+	    as->as_units = as->as_maxunits;
+    }
     wakeup(as);
     mtx_unlock(&as->as_mtx);
     return_ACPI_STATUS(AE_OK);
