@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.15 1999/01/29 07:23:53 bde Exp $
+ *  $Id: coda_vnops.c,v 1.16 1999/07/21 12:51:36 phk Exp $
  * 
  */
 
@@ -255,8 +255,9 @@ coda_open(v)
     if (error)
 	return (error);
     if (!error) {
-	CODADEBUG( CODA_OPEN,myprintf(("open: dev %d inode %d result %d\n",
-				  dev, inode, error)); )
+	CODADEBUG( CODA_OPEN,myprintf(("open: dev %#lx inode %lu result %d\n",
+				       (u_long)dev2udev(dev), (u_long)inode,
+				       error)); )
     }
 
     /* Translate the <device, inode> pair for the cache file into
@@ -411,9 +412,9 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, p)
 
     MARK_ENTRY(CODA_RDWR_STATS);
 
-    CODADEBUG(CODA_RDWR, myprintf(("coda_rdwr(%d, %p, %d, %qd, %d)\n", rw, 
-			      uiop->uio_iov->iov_base, uiop->uio_resid, 
-			      uiop->uio_offset, uiop->uio_segflg)); )
+    CODADEBUG(CODA_RDWR, myprintf(("coda_rdwr(%d, %p, %d, %lld, %d)\n", rw, 
+			      (void *)uiop->uio_iov->iov_base, uiop->uio_resid, 
+			      (long long)uiop->uio_offset, uiop->uio_segflg)); )
 	
     /* Check for rdwr of control object. */
     if (IS_CTL_VP(vp)) {
@@ -1660,7 +1661,11 @@ coda_readdir(v)
 
     MARK_ENTRY(CODA_READDIR_STATS);
 
-    CODADEBUG(CODA_READDIR, myprintf(("coda_readdir(%p, %d, %qd, %d)\n", uiop->uio_iov->iov_base, uiop->uio_resid, uiop->uio_offset, uiop->uio_segflg)); )
+    CODADEBUG(CODA_READDIR, myprintf(("coda_readdir(%p, %d, %lld, %d)\n",
+				      (void *)uiop->uio_iov->iov_base,
+				      uiop->uio_resid,
+				      (long long)uiop->uio_offset,
+				      uiop->uio_segflg)); )
 	
     /* Check for readdir of control object. */
     if (IS_CTL_VP(vp)) {
@@ -1877,15 +1882,16 @@ coda_grab_vnode(dev_t dev, ino_t ino, struct vnode **vpp)
     struct mount *mp;
 
     if (!(mp = devtomp(dev))) {
-	myprintf(("coda_grab_vnode: devtomp(%d) returns NULL\n", dev));
+	myprintf(("coda_grab_vnode: devtomp(%#lx) returns NULL\n",
+		  (u_long)dev2udev(dev)));
 	return(ENXIO);
     }
 
     /* XXX - ensure that nonzero-return means failure */
     error = VFS_VGET(mp,ino,vpp);
     if (error) {
-	myprintf(("coda_grab_vnode: iget/vget(%d, %d) returns %p, err %d\n", 
-		  dev, ino, *vpp, error));
+	myprintf(("coda_grab_vnode: iget/vget(%lx, %lu) returns %p, err %d\n", 
+		  (u_long)dev2udev(dev), (u_long)ino, (void *)*vpp, error));
 	return(ENOENT);
     }
     return(0);
