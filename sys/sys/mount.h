@@ -481,6 +481,15 @@ int	getmntinfo __P((struct statfs **, int));
 int	mount __P((int, const char *, int, void *));
 int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
+
+/* C library stuff */
+struct	vfsconf *getvfsbyname __P((const char *));
+struct	vfsconf *getvfsbytype __P((int));
+struct	vfsconf *getvfsent __P((void));
+void	setvfsent __P((int));
+void	endvfsent __P((void));
+int	vfsisloadable __P((const char *));
+int	vfsload __P((const char *));
 __END_DECLS
 
 #endif /* KERNEL */

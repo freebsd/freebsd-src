@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.4 1994/08/18 22:35:08 wollman Exp $
+ * $Id: vfs_init.c,v 1.5 1994/09/21 03:46:48 wollman Exp $
  */
 
 
@@ -291,7 +291,7 @@ fs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int i;
 	int error;
 	int buflen = *oldlenp;
-	caddr_t where = newp, start = newp;
+	caddr_t where = oldp, start = oldp;
 
 	switch (name[0]) {
 	case FS_VFSCONF:
