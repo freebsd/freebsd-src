@@ -56,6 +56,7 @@
 #include <sys/malloc.h>
 #include <sys/socket.h>
 
+#include <machine/bus.h>
 
 #include <net/if.h>
 
@@ -321,7 +322,7 @@ en_pci_shutdown(
 
 #if !defined(MIDWAY_ENIONLY)
 
-#if defined(sparc) || defined(__FreeBSD__)
+#if defined(sparc)
 #define bus_space_read_1(t, h, o) \
   		((void)t, (*(volatile u_int8_t *)((h) + (o))))
 #endif
