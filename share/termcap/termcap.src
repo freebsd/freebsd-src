@@ -2566,6 +2566,41 @@ vt320-nac|vt300-nac|vt340-nac|vt320 without pseudographics:\
 	:as@:ae@:ac@:tc=vt320:
 dec-vt320-nac|dec-vt300-nac|dec-vt340-nac|dec vt320 without pseudographics:\
 	:tc=vt320-nac:
+# The following entry was converted with the "tic -C" command
+# in ncurses.  The original terminfo source file was posted to
+# comp.terminals by Daniel A. Glasser on 1991-01-07.
+#
+# The comments in () were inserted by tic.
+#
+# (untranslatable capabilities removed to fit entry within 1023 bytes)
+# (sgr removed to fit entry within 1023 bytes)
+# (acsc removed to fit entry within 1023 bytes)
+# (terminfo-only capabilities suppressed to fit entry within 1023 bytes)
+vt420|vt420-24|dec-vt420|DEC vt420 7 bit controls 80x24 autowrap:\
+        :am:es:hs:mi:ms:xn:xo:\
+        :co#80:it#8:li#24:ws#80:\
+        :AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
+        :LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:\
+        :cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:\
+        :cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:\
+        :ds=\E[2$~\r\E[1$}\E[K\E[$}:ec=\E[%dX:ei=\E[4l:fs=\E[$}:\
+        :ho=\E[H:ic=\E[@:im=\E[4h:is=\E[?7h\E[>\E[?1h\E F\E[?4l:\
+        :k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k6=\E[17~:k7=\E[18~:\
+        :k8=\E[19~:k9=\E[20~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:\
+        :kb=^H:kd=\E[B:kl=\E[D:kr=\E[C:ku=\E[A:le=^H:mb=\E[5m:\
+        :md=\E[1m:me=\E[0m:mr=\E[7m:nd=\E[C:nw=\EE:rc=\E8:sc=\E7:\
+        :se=\E[27m:sf=\ED:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
+        :ts=\E[2$~\E[1$}\E[1;%dH:ue=\E[24m:up=\E[A:us=\E[4m:\
+        :vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:
+vt400|dec-vt400|DEC VT400 level terminal for telnet alias:\
+        :tc=vt420:
+vt420-w|DEC vt420 7 bit controls 132x24 autowrap:\
+        :co#132:tc=vt420:
+vt420-36|DEC vt420 7 bit controls 80x36 autowrap:\
+        :li#36:tc=vt420:
+vt420-36w|DEC vt420 7 bit controls 132x36 autowrap:\
+        :co#132:li#36:tc=vt420:
+
 # From ftp://gatekeeper.dec.com/pub/DEC/termcaps/ :
 #
 # vt520.tc (9/30/94)
