@@ -276,7 +276,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		for (i = 0; i < acl->acl_cnt; i++) {
 			switch (acl->acl_entry[i].ae_tag) {
 			case ACL_GROUP_OBJ:
-				if (file_gid != cred->cr_groups[0])
+				if (!groupmember(file_gid, cred))
 					break;
 				dac_granted = 0;
 				if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
