@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
- *	$Id$
+ *	$Id: make.h,v 1.7 1997/02/22 19:27:16 peter Exp $
  */
 
 /*-
@@ -294,6 +294,7 @@ extern Lst     	dirSearchPath; 	/* The list of directories to search when
 extern Boolean	compatMake;	/* True if we are make compatible */
 extern Boolean	ignoreErrors;  	/* True if should ignore all errors */
 extern Boolean  beSilent;    	/* True if should print no commands */
+extern Boolean	beVerbose;	/* True if should print extra cruft */
 extern Boolean  noExecute;    	/* True if should execute nothing */
 extern Boolean  allPrecious;   	/* True if every target is precious */
 extern Boolean  keepgoing;    	/* True if should continue on unaffected
