@@ -32,10 +32,7 @@
 #ifndef	_MACHINE_TTE_H_
 #define	_MACHINE_TTE_H_
 
-#include <machine/atomic.h>
-
-#define	TTE_SHIFT	4
-#define	STTE_SHIFT	5
+#define	TTE_SHIFT	(4)
 
 #define	TT_CTX_SHIFT	(48)
 #define	TT_VA_SHIFT	(22)
@@ -44,10 +41,10 @@
 #define	TT_CTX_SIZE	(13)
 #define	TT_VA_SIZE	(42)
 
-#define	TT_CTX_MASK	((1L << TT_CTX_SIZE) - 1)
-#define	TT_VA_MASK	((1L << TT_VA_SIZE) - 1)
+#define	TT_CTX_MASK	((1UL << TT_CTX_SIZE) - 1)
+#define	TT_VA_MASK	((1UL << TT_VA_SIZE) - 1)
 
-#define	TT_G		(1L << 63)
+#define	TT_G		(1UL << 63)
 #define	TT_CTX(ctx)	(((u_long)(ctx) & TT_CTX_MASK) << TT_CTX_SHIFT)
 #define	TT_VA(va)	((u_long)(va) >> TT_VA_SHIFT)
 
@@ -63,55 +60,51 @@
 #define	TD_PA_SIZE	(28)
 #define	TD_SOFT_SIZE	(6)
 
-#define	TD_SIZE_MASK	(((1L << TD_SIZE_SIZE) - 1) << TD_SIZE_SHIFT)
-#define	TD_SOFT2_MASK	(((1L << TD_SOFT2_SIZE) - 1) << TD_SOFT2_SHIFT)
-#define	TD_DIAG_MASK	(((1L << TD_DIAG_SIZE) - 1) << TD_DIAG_SHIFT)
-#define	TD_PA_MASK	(((1L << TD_PA_SIZE) - 1) << TD_PA_SHIFT)
-#define	TD_SOFT_MASK	(((1L << TD_SOFT_SIZE) - 1) << TD_SOFT_SHIFT)
+#define	TD_SIZE_MASK	(((1UL << TD_SIZE_SIZE) - 1) << TD_SIZE_SHIFT)
+#define	TD_SOFT2_MASK	(((1UL << TD_SOFT2_SIZE) - 1) << TD_SOFT2_SHIFT)
+#define	TD_DIAG_MASK	(((1UL << TD_DIAG_SIZE) - 1) << TD_DIAG_SHIFT)
+#define	TD_PA_MASK	(((1UL << TD_PA_SIZE) - 1) << TD_PA_SHIFT)
+#define	TD_SOFT_MASK	(((1UL << TD_SOFT_SIZE) - 1) << TD_SOFT_SHIFT)
 
 #define	TD_VA_LOW_SHIFT	TD_SOFT2_SHIFT
 #define	TD_VA_LOW_MASK	TD_SOFT2_MASK
 
-#define	TS_EXEC		(1L << 4)
-#define	TS_INIT		(1L << 3)
-#define	TS_MNG		(1L << 2)
-#define	TS_REF		(1L << 1)
-#define	TS_W		(1L << 0)
+#define	TS_EXEC		(1UL << 4)
+#define	TS_REF		(1UL << 3)
+#define	TS_PV		(1UL << 2)
+#define	TS_W		(1UL << 1)
+#define	TS_WIRED	(1UL << 0)
 
-#define	TD_V		(1L << 63)
-#define	TD_8K		(0L << TD_SIZE_SHIFT)
-#define	TD_64K		(1L << TD_SIZE_SHIFT)
-#define	TD_512K		(2L << TD_SIZE_SHIFT)
-#define	TD_4M		(3L << TD_SIZE_SHIFT)
-#define	TD_NFO		(1L << 60)
-#define	TD_IE		(1L << 59)
+#define	TD_V		(1UL << 63)
+#define	TD_8K		(0UL << TD_SIZE_SHIFT)
+#define	TD_64K		(1UL << TD_SIZE_SHIFT)
+#define	TD_512K		(2UL << TD_SIZE_SHIFT)
+#define	TD_4M		(3UL << TD_SIZE_SHIFT)
+#define	TD_NFO		(1UL << 60)
+#define	TD_IE		(1UL << 59)
 #define	TD_VPN_LOW(vpn)	((vpn << TD_SOFT2_SHIFT) & TD_SOFT2_MASK)
 #define	TD_VA_LOW(va)	(TD_VPN_LOW((va) >> PAGE_SHIFT))
 #define	TD_PA(pa)	((pa) & TD_PA_MASK)
 #define	TD_EXEC		(TS_EXEC << TD_SOFT_SHIFT)
-#define	TD_INIT		(TS_INIT << TD_SOFT_SHIFT)
-#define	TD_MNG		(TS_MNG << TD_SOFT_SHIFT)
 #define	TD_REF		(TS_REF << TD_SOFT_SHIFT)
+#define	TD_PV		(TS_PV << TD_SOFT_SHIFT)
 #define	TD_SW		(TS_W << TD_SOFT_SHIFT)
-#define	TD_L		(1L << 6)
-#define	TD_CP		(1L << 5)
-#define	TD_CV		(1L << 4)
-#define	TD_E		(1L << 3)
-#define	TD_P		(1L << 2)
-#define	TD_W		(1L << 1)
-#define	TD_G		(1L << 0)
+#define	TD_WIRED	(TS_WIRED << TD_SOFT_SHIFT)
+#define	TD_L		(1UL << 6)
+#define	TD_CP		(1UL << 5)
+#define	TD_CV		(1UL << 4)
+#define	TD_E		(1UL << 3)
+#define	TD_P		(1UL << 2)
+#define	TD_W		(1UL << 1)
+#define	TD_G		(1UL << 0)
 
 #define	TT_GET_CTX(tag)	(((tag) >> TT_CTX_SHIFT) & TT_CTX_MASK)
+#define	TD_GET_SIZE(d)	(((d) >> TD_SIZE_SHIFT) & 3)
+#define	TD_GET_PA(d)	((d) & TD_PA_MASK)
 
 struct tte {
 	u_long	tte_tag;
 	u_long	tte_data;
-};
-
-struct stte {
-	struct	tte st_tte;
-	vm_offset_t st_next;
-	vm_offset_t st_prev;
 };
 
 static __inline vm_offset_t
@@ -125,12 +118,6 @@ static __inline vm_offset_t
 tte_get_va(struct tte tte)
 {
 	return (tte_get_vpn(tte) << PAGE_SHIFT);
-}
-
-static __inline void
-tte_invalidate(struct tte *tp)
-{
-	atomic_clear_long(&tp->tte_data, TD_V);
 }
 
 static __inline int
