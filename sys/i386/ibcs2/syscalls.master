@@ -1,4 +1,4 @@
-	$Id$
+	$Id: syscalls.master,v 1.7 1997/02/22 09:33:38 peter Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from IBCS2).
@@ -22,13 +22,11 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
-#include <i386/ibcs2/ibcs2_statfs.h>
 #include <i386/ibcs2/ibcs2_proto.h>
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
