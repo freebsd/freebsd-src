@@ -66,7 +66,7 @@ extern const union __nan_un {
 
 #define	MATH_ERRNO	1
 #define	MATH_ERREXCEPT	2
-#define	math_errhandling	0
+#define	math_errhandling	MATH_ERREXCEPT
 
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
