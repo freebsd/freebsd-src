@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.13 1994/10/25 14:04:32 bde Exp $
+#	$Id: Makefile.inc,v 1.14 1994/11/13 20:47:41 phk Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -40,8 +40,9 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/crypt.3 gen/ctermid.3 \
 	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
 	gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 gen/getbootfile.3 \
-	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getfsent.3 \
-	gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 gen/getloadavg.3 \
+	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getdomainname.3 \
+	gen/getfsent.3 gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 \
+	gen/getloadavg.3 \
 	gen/getmntinfo.3 gen/getnetgrent.3 gen/getpagesize.3 gen/getpass.3 \
 	gen/getpwent.3 gen/getttyent.3 gen/getvfsent.3 gen/getusershell.3 \
 	gen/glob.3 \
@@ -75,6 +76,7 @@ MLINKS+=getfsent.3 endfsent.3 getfsent.3 getfsfile.3 getfsent.3 getfsspec.3 \
 MLINKS+=getgrent.3 endgrent.3 getgrent.3 setgroupent.3 getgrent.3 getgrgid.3 \
 	getgrent.3 getgrnam.3 getgrent.3 setgrent.3 getgrent.3 setgrfile.3
 MLINKS+=gethostname.3 sethostname.3
+MLINKS+=getdomainname.3 setdomainname.3
 MLINKS+=getnetgrent.3 endnetgrent.3 getnetgrent.3 setnetgrent.3 \
 	getnetgrent.3 innetgr.3
 MLINKS+=getpwent.3 endpwent.3 getpwent.3 setpassent.3 getpwent.3 getpwnam.3 \
