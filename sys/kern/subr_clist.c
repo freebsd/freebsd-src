@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.14 1995/10/25 17:59:58 bde Exp $
+ * $Id: tty_subr.c,v 1.15 1995/10/31 19:00:00 peter Exp $
  */
 
 /*
@@ -351,10 +351,12 @@ putc(chr, clistp)
 	if (clistp->c_cl == NULL) {
 		if (clistp->c_cbreserved < 1) {
 			splx(s);
+			printf("putc to a clist with no reserved cblocks: data discarded.\n");
 #ifdef DIAGNOSTIC
-			printf("putc to a clist with no reserved cblocks");
+			Debugger("putc to clist with no reserved cblocks");
 #endif
-			return (-1);
+			/* black-hole the character */
+			return (0);
 		}
 		cblockp = cblock_alloc();
 		clistp->c_cbcount = 1;
@@ -432,10 +434,12 @@ b_to_q(src, amount, clistp)
 	if (clistp->c_cl == NULL) {
 		if (clistp->c_cbreserved < 1) {
 			splx(s);
+			printf("b_to_q to a clist with no reserved cblocks: data discarded.\n");
 #ifdef DIAGNOSTIC
-			printf("b_to_q to a clist with no reserved cblocks");
+			Debugger("b_to_q to clist with no reserved cblocks");
 #endif
-			return (amount);
+			/* black-hole the characters */
+			return (0);
 		}
 		cblockp = cblock_alloc();
 		clistp->c_cbcount = 1;
