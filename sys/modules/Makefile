@@ -375,10 +375,24 @@ _sppp=		sppp
 
 .if ${MACHINE_ARCH} == "amd64"
 _agp=		agp
+_ciss=		ciss
 _drm=		drm
+_em=		em
+_ext2fs=	ext2fs
+_i2c=		i2c
+_ida=		ida
+_iir=		iir
 _io=		io
+_ips=		ips
+_lnc=		lnc
+_mly=		mly
 #_ndis=		ndis
+_safe=		safe
+_scsi_low=	scsi_low
+_smbfs=		smbfs
 _sound=		sound
+_sppp=		sppp
+_twa=		twa
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
