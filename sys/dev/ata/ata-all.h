@@ -247,14 +247,16 @@ struct ata_dma {
     bus_addr_t			mdmatab;	/* bus address of dmatab */
     u_int32_t			alignment;	/* DMA engine alignment */
     u_int32_t			max_iosize;	/* DMA engine max IO size */
+    u_int32_t			cur_iosize;	/* DMA engine current IO size */
     int				flags;
 #define ATA_DMA_ACTIVE			0x01	/* DMA transfer in progress */
 #define ATA_DMA_READ			0x02	/* transaction is a read */
 
     void (*alloc)(struct ata_channel *ch);
     void (*free)(struct ata_channel *ch);
-    int (*setup)(struct ata_device *atadev, caddr_t data, int32_t count);
-    int (*start)(struct ata_channel *ch, caddr_t data, int32_t count, int dir);
+    int (*load)(struct ata_device *atadev, caddr_t data, int32_t count,int dir);
+    int (*unload)(struct ata_channel *ch);
+    int (*start)(struct ata_channel *ch);
     int (*stop)(struct ata_channel *ch);
 };
 

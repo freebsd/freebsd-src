@@ -49,7 +49,8 @@ __FBSDID("$FreeBSD$");
 static void ata_dmaalloc(struct ata_channel *);
 static void ata_dmafree(struct ata_channel *);
 static void ata_dmasetupd_cb(void *, bus_dma_segment_t *, int, int);
-static int ata_dmasetup(struct ata_device *, caddr_t, int32_t);
+static int ata_dmaload(struct ata_device *, caddr_t, int32_t, int);
+static int ata_dmaunload(struct ata_channel *);
 
 /* local vars */
 static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
@@ -70,9 +71,8 @@ ata_dmainit(struct ata_channel *ch)
     if ((ch->dma = malloc(sizeof(struct ata_dma), M_ATADMA, M_NOWAIT|M_ZERO))) {
 	ch->dma->alloc = ata_dmaalloc;
 	ch->dma->free = ata_dmafree;
-	ch->dma->setup = ata_dmasetup;
-	ch->dma->start = ata_dmastart;
-	ch->dma->stop = ata_dmastop;
+	ch->dma->load = ata_dmaload;
+	ch->dma->unload = ata_dmaunload;
 	ch->dma->alignment = 2;
 	ch->dma->max_iosize = 64*1024;
     }
@@ -194,17 +194,22 @@ ata_dmasetupd_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static int
-ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
+ata_dmaload(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 {
     struct ata_channel *ch = atadev->channel;
+    struct ata_dmasetup_data_cb_args cba;
 
-    if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
-	(count & (ch->dma->alignment - 1))) {
-	ata_prtdev(atadev, "FAILURE - non aligned DMA transfer attempted\n");
+    if (ch->dma->flags & ATA_DMA_ACTIVE) {
+	ata_prtdev(atadev, "FAILURE - already active DMA on this device\n");
 	return -1;
     }
     if (!count) {
 	ata_prtdev(atadev, "FAILURE - zero length DMA transfer attempted\n");
+	return -1;
+    }
+    if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
+	(count & (ch->dma->alignment - 1))) {
+	ata_prtdev(atadev, "FAILURE - non aligned DMA transfer attempted\n");
 	return -1;
     }
     if (count > ch->dma->max_iosize) {
@@ -213,19 +218,11 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
 		   count, ch->dma->max_iosize);
 	return -1;
     }
-    return 0;
-}
-
-int
-ata_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
-{
-    struct ata_dmasetup_data_cb_args cba;
-
-    if (ch->dma->flags & ATA_DMA_ACTIVE)
-	    panic("ata_dmasetup: transfer active on this device!");
 
     cba.dmatab = ch->dma->dmatab;
+
     bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_PREWRITE);
+
     if (bus_dmamap_load(ch->dma->ddmatag, ch->dma->ddmamap, data, count,
 			ata_dmasetupd_cb, &cba, 0) || cba.error)
 	return -1;
@@ -233,12 +230,14 @@ ata_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
     bus_dmamap_sync(ch->dma->ddmatag, ch->dma->ddmamap,
 		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 
+    ch->dma->cur_iosize = count;
     ch->dma->flags = dir ? (ATA_DMA_ACTIVE | ATA_DMA_READ) : ATA_DMA_ACTIVE;
+
     return 0;
 }
 
 int
-ata_dmastop(struct ata_channel *ch)
+ata_dmaunload(struct ata_channel *ch)
 {
     bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_POSTWRITE);
 
@@ -247,6 +246,8 @@ ata_dmastop(struct ata_channel *ch)
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ch->dma->ddmatag, ch->dma->ddmamap);
 
+    ch->dma->cur_iosize = 0;
     ch->dma->flags = 0;
+
     return 0;
 }

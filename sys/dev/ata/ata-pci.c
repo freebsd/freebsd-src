@@ -411,17 +411,14 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
 }
 
 static int
-ata_pci_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
+ata_pci_dmastart(struct ata_channel *ch)
 {
-    int error;
-
-    if ((error = ata_dmastart(ch, data, count, dir)))
-	return error;
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
-		 (dir ? ATA_BMCMD_WRITE_READ : 0) | ATA_BMCMD_START_STOP);
+		 ((ch->dma->flags & ATA_DMA_READ) ? ATA_BMCMD_WRITE_READ : 0) |
+		 ATA_BMCMD_START_STOP);
     return 0;
 }
 
@@ -434,7 +431,6 @@ ata_pci_dmastop(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
-    ata_dmastop(ch);
     return error;
 }
 
