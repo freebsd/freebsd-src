@@ -71,7 +71,6 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-static int ufs_abortop __P((struct vop_abortop_args *));
 static int ufs_access __P((struct vop_access_args *));
 static int ufs_advlock __P((struct vop_advlock_args *));
 static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct proc *));
@@ -736,22 +735,18 @@ ufs_link(ap)
 		panic("ufs_link: no name");
 #endif
 	if (tdvp->v_mount != vp->v_mount) {
-		VOP_ABORTOP(tdvp, cnp);
 		error = EXDEV;
 		goto out2;
 	}
 	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, p))) {
-		VOP_ABORTOP(tdvp, cnp);
 		goto out2;
 	}
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
-		VOP_ABORTOP(tdvp, cnp);
 		error = EMLINK;
 		goto out1;
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND)) {
-		VOP_ABORTOP(tdvp, cnp);
 		error = EPERM;
 		goto out1;
 	}
@@ -771,7 +766,6 @@ ufs_link(ap)
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
 out1:
 	if (tdvp != vp)
 		VOP_UNLOCK(vp, 0, p);
@@ -832,10 +826,6 @@ ufs_whiteout(ap)
 		break;
 	default:
 		panic("ufs_whiteout: unknown op");
-	}
-	if (cnp->cn_flags & HASBUF) {
-		zfree(namei_zone, cnp->cn_pnbuf);
-		cnp->cn_flags &= ~HASBUF;
 	}
 	return (error);
 }
@@ -899,14 +889,12 @@ ufs_rename(ap)
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
 abortit:
-		VOP_ABORTOP(tdvp, tcnp);
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
 			vput(tdvp);
 		if (tvp)
 			vput(tvp);
-		VOP_ABORTOP(fdvp, fcnp);
 		vrele(fdvp);
 		vrele(fvp);
 		return (error);
@@ -940,7 +928,6 @@ abortit:
 		}
 
 		/* Release destination completely. */
-		VOP_ABORTOP(tdvp, tcnp);
 		vput(tdvp);
 		vput(tvp);
 
@@ -1349,7 +1336,6 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
-			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
 			return (error);
@@ -1361,7 +1347,6 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
 		return (error);
@@ -1465,7 +1450,6 @@ bad:
 		vput(tvp);
 	}
 out:
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -1730,23 +1714,6 @@ ufs_readlink(ap)
 		return (0);
 	}
 	return (VOP_READ(vp, ap->a_uio, 0, ap->a_cred));
-}
-
-/*
- * Ufs abort op, called after namei() when a CREATE/DELETE isn't actually
- * done. If a buffer has been saved in anticipation of a CREATE, delete it.
- */
-/* ARGSUSED */
-int
-ufs_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	return (0);
 }
 
 /*
@@ -2087,10 +2054,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		mode |= IFREG;
 
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
-	if (error) {
-		zfree(namei_zone, cnp->cn_pnbuf);
+	if (error)
 		return (error);
-	}
 	ip = VTOI(tvp);
 	ip->i_gid = pdir->i_gid;
 #ifdef SUIDDIR
@@ -2131,7 +2096,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
-			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
 			return (error);
@@ -2143,7 +2107,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
 		return (error);
@@ -2174,9 +2137,6 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, NULL);
 	if (error)
 		goto bad;
-
-	if ((cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	*vpp = tvp;
 	return (0);
 
@@ -2185,7 +2145,6 @@ bad:
 	 * Write error occurred trying to update the inode
 	 * or the directory so must deallocate the inode.
 	 */
-	zfree(namei_zone, cnp->cn_pnbuf);
 	ip->i_effnlink = 0;
 	ip->i_nlink = 0;
 	ip->i_flag |= IN_CHANGE;
@@ -2210,7 +2169,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_read_desc,		(vop_t *) ufs_missingop },
 	{ &vop_reallocblks_desc,	(vop_t *) ufs_missingop },
 	{ &vop_write_desc,		(vop_t *) ufs_missingop },
-	{ &vop_abortop_desc,		(vop_t *) ufs_abortop },
 	{ &vop_access_desc,		(vop_t *) ufs_access },
 	{ &vop_advlock_desc,		(vop_t *) ufs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) ufs_bmap },

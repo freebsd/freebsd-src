@@ -40,6 +40,8 @@
 #include <sys/vnode.h>
 #include <sys/linker.h>
 
+#include <vm/vm_zone.h>
+
 #ifndef __ELF__
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -201,6 +203,7 @@ link_aout_load_file(const char* filename, linker_file_t* result)
     free(pathname, M_LINKER);
     if (error)
 	return error;
+    NDFREE(&nd, NDF_ONLY_PNBUF);
 
     /*
      * Read the a.out header from the file.

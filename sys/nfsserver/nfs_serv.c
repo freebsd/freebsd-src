@@ -61,21 +61,13 @@
  *	and note that nfsm_*() macros can terminate a procedure on certain
  *	errors.
  *
- *	VOP_ABORTOP() only frees the path component if HASBUF is set and
- *	SAVESTART is *not* set.
- *
- *	Various VOP_*() routines tend to free the path component if an 
- *	error occurs.  If no error occurs, the VOP_*() routines only free
- *	the path component if SAVESTART is NOT set.
- *
  *	lookup() and namei()
  *	may return garbage in various structural fields/return elements
  *	if an error is returned, and may garbage up nd.ni_dvp even if no
  *	error is returned and you did not request LOCKPARENT or WANTPARENT.
  *
  *	We use the ni_cnd.cn_flags 'HASBUF' flag to track whether the name
- *	buffer has been freed or not.  This is unique to nfs_serv.c for
- *	the moment, the rest of the system sets HASBUF but never clears it.
+ *	buffer has been freed or not.
  */
 
 #include <sys/param.h>
@@ -604,8 +596,7 @@ nfsrv_lookup(nfsd, slp, procp, mrq)
 	 */
 	vrele(ndp->ni_startdir);
 	ndp->ni_startdir = NULL;
-	zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-	nd.ni_cnd.cn_flags &= ~HASBUF;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/*
 	 * Get underlying attribute, then release remaining resources ( for
@@ -638,8 +629,7 @@ nfsrv_lookup(nfsd, slp, procp, mrq)
 nfsmout:
 	if (dirp)
 		vrele(dirp);
-	if (nd.ni_cnd.cn_flags & HASBUF)
-		zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (ndp->ni_startdir)
 		vrele(ndp->ni_startdir);
 	if (ndp->ni_vp)
@@ -1736,9 +1726,9 @@ nfsrv_create(nfsd, slp, procp, mrq)
 		if (vap->va_type == VREG || vap->va_type == VSOCK) {
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
-			if (error) {
-				nd.ni_cnd.cn_flags &= ~HASBUF;
-			} else {
+			if (error)
+				NDFREE(&nd, NDF_ONLY_PNBUF);
+			else {
 			    	nfsrv_object_create(nd.ni_vp);
 				if (exclusive_flag) {
 					exclusive_flag = 0;
@@ -1769,7 +1759,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 			if (error) {
-				nd.ni_cnd.cn_flags &= ~HASBUF;
+				NDFREE(&nd, NDF_ONLY_PNBUF);
 				goto nfsmreply0;
 			}
 			vput(nd.ni_vp);
@@ -1864,15 +1854,7 @@ nfsmout:
 	}
 	if (dirp)
 		vrele(dirp);
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * Since SAVESTART is set, we own the buffer and need to
-		 * zfree it ourselves.
-		 */
-		if (nd.ni_dvp)
-			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -1970,7 +1952,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 		nqsrv_getl(nd.ni_dvp, ND_WRITE);
 		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 		if (error)
-			nd.ni_cnd.cn_flags &= ~HASBUF;
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 	} else {
 		if (vtyp != VFIFO && (error = suser_xxx(cred, 0, 0)))
 			goto out;
@@ -1978,7 +1960,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 
 		error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 		if (error) {
-			nd.ni_cnd.cn_flags &= ~HASBUF;
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 			goto out;
 		}
 		vput(nd.ni_vp);
@@ -2012,16 +1994,7 @@ out:
 		vrele(nd.ni_startdir);
 		nd.ni_startdir = NULL;
 	}
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * Since SAVESTART is set, we own the buffer and need to
-		 * zfree it ourselves.
-		 */
-		if (nd.ni_dvp)
-			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		nd.ni_cnd.cn_flags &= ~HASBUF;
-		zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -2057,15 +2030,7 @@ nfsmout:
 		vrele(dirp);
 	if (nd.ni_startdir)
 		vrele(nd.ni_startdir);
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * Since SAVESTART is set, we own the buffer and need to
-		 * zfree it ourselves.
-		 */
-		if (nd.ni_dvp)
-			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -2143,7 +2108,7 @@ out:
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			nqsrv_getl(nd.ni_vp, ND_WRITE);
 			error = VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
-			nd.ni_cnd.cn_flags &= ~HASBUF;
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 		}
 	}
 	if (dirp && v3) {
@@ -2157,14 +2122,7 @@ out:
 		error = 0;
 	}
 nfsmout:
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * Since SAVESTART is not set, this is sufficient to free
-		 * the component buffer.  It's actually a NOP since we
-		 * do not save the name, but what the hey.
-		 */
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -2327,11 +2285,6 @@ nfsrv_rename(nfsd, slp, procp, mrq)
 out:
 	if (!error) {
 		/*
-		 * Do rename.  If an error occured, the underlying path
-		 * components are freed by the VOP routine.  If no error
-		 * occured, the SAVESTART flag prevents them from being
-		 * freed.
-		 *
 		 * The VOP_RENAME function releases all vnode references &
 		 * locks prior to returning so we need to clear the pointers
 		 * to bypass cleanup code later on.
@@ -2378,15 +2331,7 @@ nfsmout:
 		vrele(tdirp);
 	if (tond.ni_startdir)
 		vrele(tond.ni_startdir);
-	if (tond.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * The VOP_ABORTOP is probably a NOP.  Since we have set
-		 * SAVESTART, we need to zfree the buffer ourselves.
-		 */
-		if (tond.ni_dvp)
-			VOP_ABORTOP(tond.ni_dvp, &tond.ni_cnd);
-		zfree(namei_zone, tond.ni_cnd.cn_pnbuf);
-	}
+	NDFREE(&tond, NDF_ONLY_PNBUF);
 	if (tond.ni_dvp) {
 		if (tond.ni_dvp == tond.ni_vp)
 			vrele(tond.ni_dvp);
@@ -2403,11 +2348,7 @@ nfsmout:
 		vrele(fdirp);
 	if (fromnd.ni_startdir)
 		vrele(fromnd.ni_startdir);
-	if (fromnd.ni_cnd.cn_flags & HASBUF) {
-		if (fromnd.ni_dvp)
-			VOP_ABORTOP(fromnd.ni_dvp, &fromnd.ni_cnd);
-		zfree(namei_zone, fromnd.ni_cnd.cn_pnbuf);
-	}
+	NDFREE(&fromnd, NDF_ONLY_PNBUF);
 	if (fromnd.ni_dvp)
 		vrele(fromnd.ni_dvp);
 	if (fromnd.ni_vp)
@@ -2494,15 +2435,10 @@ nfsrv_link(nfsd, slp, procp, mrq)
 		error = EXDEV;
 out:
 	if (!error) {
-		/*
-		 * Do the link op.  Since SAVESTART is not set, the 
-		 * underlying path component is freed whether an error
-		 * is returned or not.
-		 */
 		nqsrv_getl(vp, ND_WRITE);
 		nqsrv_getl(xp, ND_WRITE);
 		error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
-		nd.ni_cnd.cn_flags &= ~HASBUF;
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 	}
 	/* fall through */
 
@@ -2520,14 +2456,7 @@ out1:
 	/* fall through */
 
 nfsmout:
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * Since we are not using SAVESTART,
-		 * VOP_ABORTOP is sufficient to free the path component
-		 */
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		/* zfree(namei_zone, nd.ni_cnd.cn_pnbuf); */
-	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (dirp)
 		vrele(dirp);
 	if (vp)
@@ -2629,7 +2558,7 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
 	if (error)
-		nd.ni_cnd.cn_flags &= ~HASBUF;
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 	else {
 		vput(nd.ni_vp);
 		nd.ni_vp = NULL;
@@ -2700,15 +2629,7 @@ out:
 	/* fall through */
 
 nfsmout:
-	if (nd.ni_cnd.cn_flags & HASBUF) {
-		/*
-		 * Since SAVESTART is set, we own the buffer and need to
-		 * zfree it ourselves.
-		 */
-		if (nd.ni_dvp)
-			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
-	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
@@ -2801,12 +2722,7 @@ nfsrv_mkdir(nfsd, slp, procp, mrq)
 
 	vap->va_type = VDIR;
 	if (nd.ni_vp != NULL) {
-		/*
-		 * Freeup path component.  Since SAVESTART was not set,
-		 * VOP_ABORTOP() will handle it.
-		 */
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
-		nd.ni_cnd.cn_flags &= ~HASBUF;
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		error = EEXIST;
 		goto out;
 	}
@@ -2818,7 +2734,7 @@ nfsrv_mkdir(nfsd, slp, procp, mrq)
 	 */
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
-	nd.ni_cnd.cn_flags &= ~HASBUF;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vpexcl = 1;
 
 	vput(nd.ni_dvp);
@@ -2853,12 +2769,7 @@ nfsmout:
 	if (dirp)
 		vrele(dirp);
 	if (nd.ni_dvp) {
-		/*
-		 * Since SAVESTART is not set, VOP_ABORTOP will always free
-		 * the path component.
-		 */
-		if (nd.ni_cnd.cn_flags & HASBUF)
-			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == nd.ni_vp && vpexcl)
 			vrele(nd.ni_dvp);
 		else
@@ -2953,10 +2864,8 @@ out:
 		nqsrv_getl(nd.ni_dvp, ND_WRITE);
 		nqsrv_getl(vp, ND_WRITE);
 		error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
-	} else {
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 	}
-	nd.ni_cnd.cn_flags &= ~HASBUF;
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	if (dirp)
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, procp);
@@ -2968,12 +2877,7 @@ out:
 	/* fall through */
 
 nfsmout:
-	/*
-	 * Since SAVESTART is not set, a VOP_ABORTOP is sufficient to
-	 * deal with the pathname component.
-	 */
-	if (nd.ni_cnd.cn_flags & HASBUF)
-		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (dirp)
 		vrele(dirp);
 	if (nd.ni_dvp) {

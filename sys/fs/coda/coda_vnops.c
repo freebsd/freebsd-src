@@ -131,7 +131,6 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_symlink_desc, coda_symlink },	/* symlink */
     { &vop_readdir_desc, coda_readdir },	/* readdir */
     { &vop_readlink_desc, coda_readlink },	/* readlink */
-    { &vop_abortop_desc, coda_abortop },	/* abortop */
     { &vop_inactive_desc, coda_inactive },	/* inactive */
     { &vop_reclaim_desc, coda_reclaim },	/* reclaim */
     { &vop_lock_desc, coda_lock },		/* lock */
@@ -563,6 +562,7 @@ coda_ioctl(v)
      */
     if (tvp->v_op != coda_vnodeop_p) {
 	vrele(tvp);
+	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	MARK_INT_FAIL(CODA_IOCTL_STATS);
 	CODADEBUG(CODA_IOCTL, 
 		 myprintf(("coda_ioctl error: %s not a coda object\n", 
@@ -571,7 +571,7 @@ coda_ioctl(v)
     }
 
     if (iap->vi.in_size > VC_MAXDATASIZE) {
-	vrele(tvp);
+	NDFREE(&ndp, 0);
 	return(EINVAL);
     }
     error = venus_ioctl(vtomi(tvp), &((VTOC(tvp))->c_fid), com, flag, data, cred, p);
@@ -582,6 +582,7 @@ coda_ioctl(v)
 	CODADEBUG(CODA_IOCTL, myprintf(("Ioctl returns %d \n", error)); )
 
     vrele(tvp);
+    NDFREE(&ndp, NDF_ONLY_PNBUF);
     return(error);
 }
 
@@ -743,29 +744,6 @@ coda_access(v)
     error = venus_access(vtomi(vp), &cp->c_fid, mode, cred, p);
 
     return(error);
-}
-
-/*
- * CODA abort op, called after namei() when a CREATE/DELETE isn't actually
- * done. If a buffer has been saved in anticipation of a coda_create or
- * a coda_remove, delete it.
- */
-/* ARGSUSED */
-int
-coda_abortop(v)
-    void *v;
-{
-/* true args */
-    struct vop_abortop_args /* {
-	struct vnode *a_dvp;
-	struct componentname *a_cnp;
-    } */ *ap = v;
-/* upcall decl */
-/* locals */
-
-    if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-    return (0);
 }
 
 int
@@ -1208,14 +1186,6 @@ coda_create(v)
 	}
 #endif
     }
-    /* Have to free the previously saved name */
-    /* 
-     * This condition is stolen from ufs_makeinode.  I have no idea
-     * why it's here, but what the hey...
-     */
-    if ((cnp->cn_flags & SAVESTART) == 0) {
-	zfree(namei_zone, cnp->cn_pnbuf);
-    }
     return(error);
 }
 
@@ -1276,9 +1246,6 @@ coda_remove(v)
 
     CODADEBUG(CODA_REMOVE, myprintf(("in remove result %d\n",error)); )
 
-    if ((cnp->cn_flags & SAVESTART) == 0) {
-	zfree(namei_zone, cnp->cn_pnbuf);
-    }
     return(error);
 }
 
@@ -1332,10 +1299,6 @@ coda_link(v)
 
     CODADEBUG(CODA_LINK,	myprintf(("in link result %d\n",error)); )
 
-    /* Drop the name buffer if we don't need to SAVESTART */
-    if ((cnp->cn_flags & SAVESTART) == 0) {
-	zfree(namei_zone, cnp->cn_pnbuf);
-    }
     return(error);
 }
 
@@ -1502,14 +1465,6 @@ coda_mkdir(v)
 	CODADEBUG(CODA_MKDIR, myprintf(("mkdir error %d\n",error));)
     }
 
-    /* Have to free the previously saved name */
-    /* 
-     * ufs_mkdir doesn't check for SAVESTART before freeing the
-     * pathname buffer, but ufs_create does.  For the moment, I'll
-     * follow their lead, but this seems like it is probably
-     * incorrect.  
-     */
-    zfree(namei_zone, cnp->cn_pnbuf);
     return(error);
 }
 
@@ -1559,9 +1514,6 @@ coda_rmdir(v)
 
     CODADEBUG(CODA_RMDIR, myprintf(("in rmdir result %d\n", error)); )
 
-    if ((cnp->cn_flags & SAVESTART) == 0) {
-	zfree(namei_zone, cnp->cn_pnbuf);
-    }
     return(error);
 }
 

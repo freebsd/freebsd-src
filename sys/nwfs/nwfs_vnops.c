@@ -77,7 +77,6 @@ static int nwfs_mkdir __P((struct vop_mkdir_args *));
 static int nwfs_rmdir __P((struct vop_rmdir_args *));
 static int nwfs_symlink __P((struct vop_symlink_args *));
 static int nwfs_readdir __P((struct vop_readdir_args *));
-static int nwfs_abortop __P((struct vop_abortop_args *));
 static int nwfs_bmap __P((struct vop_bmap_args *));
 static int nwfs_strategy __P((struct vop_strategy_args *));
 static int nwfs_print __P((struct vop_print_args *));
@@ -87,7 +86,6 @@ static int nwfs_pathconf __P((struct vop_pathconf_args *ap));
 vop_t **nwfs_vnodeop_p;
 static struct vnodeopv_entry_desc nwfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) nwfs_abortop },
 	{ &vop_access_desc,		(vop_t *) nwfs_access },
 	{ &vop_bmap_desc,		(vop_t *) nwfs_bmap },
 	{ &vop_open_desc,		(vop_t *) nwfs_open },
@@ -453,7 +451,6 @@ nwfs_create(ap)
 	if (vap->va_type == VSOCK)
 		return (EOPNOTSUPP);
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc))) {
-		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
 	fmode = AR_READ | AR_WRITE;
@@ -476,7 +473,6 @@ nwfs_create(ap)
 		if (cnp->cn_flags & MAKEENTRY)
 			cache_enter(dvp, vp, cnp);
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -510,7 +506,6 @@ nwfs_remove(ap)
 		    cnp->cn_namelen,cnp->cn_nameptr,cnp->cn_proc,cnp->cn_cred);
 		if (error == 0x899c) error = EACCES;
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -604,9 +599,7 @@ out:
 
 /*
  * nwfs hard link create call
- * Netware filesystems don't know what links are. But since we already called
- * nwfs_lookup() with create and lockparent, the parent is locked so we
- * have to free it before we return the error.
+ * Netware filesystems don't know what links are.
  */
 static int
 nwfs_link(ap)
@@ -616,8 +609,6 @@ nwfs_link(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-/*	VOP_ABORTOP(ap->a_tdvp, ap->a_cnp);*/
-	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return EOPNOTSUPP;
 }
 
@@ -635,8 +626,6 @@ nwfs_symlink(ap)
 		char *a_target;
 	} */ *ap;
 {
-	zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	/* VOP_ABORTOP(ap->a_dvp, ap->a_cnp); ??? */
 	return (EOPNOTSUPP);
 }
 
@@ -672,11 +661,9 @@ nwfs_mkdir(ap)
 	char *name=cnp->cn_nameptr;
 
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc))) {
-		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}	
 	if ((name[0] == '.') && ((len == 1) || ((len == 2) && (name[1] == '.')))) {
-		VOP_ABORTOP(dvp, cnp);
 		return EEXIST;
 	}
 	if (ncp_open_create_file_or_subdir(VTONWFS(dvp),dvp, cnp->cn_namelen,
@@ -696,7 +683,6 @@ nwfs_mkdir(ap)
 			*ap->a_vpp = newvp;
 		}
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -724,7 +710,6 @@ nwfs_rmdir(ap)
 	error = ncp_DeleteNSEntry(nmp, dnp->n_fid.f_id, 
 		cnp->cn_namelen, cnp->cn_nameptr,cnp->cn_proc,cnp->cn_cred);
 	if (error == NWE_DIR_NOT_EMPTY) error = ENOTEMPTY;
-	zfree(namei_zone, cnp->cn_pnbuf);
 	dnp->n_flag |= NMODIFIED;
 	nwfs_attr_cacheremove(dvp);
 	cache_purge(dvp);
@@ -862,23 +847,6 @@ nwfs_bmap(ap)
 		*ap->a_runp = 0;
 	if (ap->a_runb != NULL)
 		*ap->a_runb = 0;
-	return (0);
-}
-/*
- * nwfs abort op, called after namei() when a CREATE/DELETE isn't actually
- * done. Currently nothing to do.
- */
-/* ARGSUSED */
-int
-nwfs_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return (0);
 }
 

@@ -60,6 +60,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -332,7 +333,7 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 		nd.ni_vp = NULL;
 		goto fail;
 	}
-
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	imgp->vp = nd.ni_vp;
 
 	/*

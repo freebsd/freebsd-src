@@ -53,6 +53,7 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <miscfs/nullfs/null.h>
+#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
@@ -137,6 +138,7 @@ nullfs_mount(mp, path, data, ndp, p)
 
 	if (error)
 		return (error);
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 
 	/*
 	 * Sanity check on lower vnode

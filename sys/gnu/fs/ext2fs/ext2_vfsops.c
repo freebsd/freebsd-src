@@ -61,6 +61,8 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
 
+#include <vm/vm_zone.h>
+
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
@@ -259,6 +261,7 @@ ext2_mount(mp, path, data, ndp, p)
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
 	if ((error = namei(ndp)) != 0)
 		return (error);
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
 	if (!vn_isdisk(devvp)) {
