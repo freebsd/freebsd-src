@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.21 1995/07/29 11:44:28 bde Exp $
+ * $Id: vm_object.h,v 1.22 1995/08/26 23:19:49 bde Exp $
  */
 
 /*
@@ -126,6 +126,8 @@ struct vm_object {
 #define OBJ_DEAD	0x0008		/* dead objects (during rundown) */
 #define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
+#define	OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
+#define OBJ_CLEANING	0x0200
 
 
 #ifdef	KERNEL

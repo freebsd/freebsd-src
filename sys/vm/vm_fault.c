@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.34 1995/10/23 03:49:28 dyson Exp $
+ * $Id: vm_fault.c,v 1.35 1995/11/02 06:42:47 davidg Exp $
  */
 
 /*
@@ -606,7 +606,7 @@ readrest:
 
 	if (prot & VM_PROT_WRITE) {
 		m->flags |= PG_WRITEABLE;
-		m->object->flags |= OBJ_WRITEABLE;
+		m->object->flags |= OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY;
 		/*
 		 * If the fault is a write, we know that this page is being
 		 * written NOW. This will save on the pmap_is_modified() calls
