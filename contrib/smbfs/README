@@ -6,11 +6,14 @@
     This is native SMB/CIFS filesystem (smbfs for short) for FreeBSD.
 It is a complete, kernel side implementation of SMB requester and filesystem.
 
-    Supportted platforms:
-	FreeBSD 4.X
+    Supported platform		Comment
+	FreeBSD 4.X		Port
 
-	FreeBSD-current		kernel module is included in the base source
-				tree.
+	FreeBSD 4.5		Everything available in the base system.
+
+	FreeBSD-current		Everything available in the base system.
+
+	Darwin			maintained in the Darwin's  tree.
 
     I'm would be very grateful for any feedback, bug reports etc.
 
