@@ -370,6 +370,7 @@ static DEV_INFO device_info[] = {
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
 {"sn",          "SMC/Megahertz Ethernet adapters",			0,CLS_NETWORK},
+{"snc",		"SONIC Ethernet adapters",				0,CLS_NETWORK},
 {"xe",          "Xircom PC Card Ethernet adapter",		0,	CLS_NETWORK},
 {"rdp",		"RealTek RTL8002 Pocket Ethernet",	0,		CLS_NETWORK},
 
