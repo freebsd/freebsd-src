@@ -171,11 +171,11 @@ SMALLFLOPPYLABEL=	fd1200
 .endif
 FLOPPYSIZE=		1440
 FLOPPYSPLITSIZE=	1392
-MFSSIZE=		4320
 FLOPPYINODE=		40000
-BOOTINODE=		80000
-MFSINODE=		8000
 FLOPPYLABEL=		fd1440
+BOOTINODE=		80000
+MFSSIZE=		4320
+MFSINODE=		8000
 MFSLABEL=		minimum3
 .elif ${TARGET_ARCH} == "alpha"
 MFSSIZE=		4320
@@ -190,9 +190,9 @@ MFSLABEL=		auto
 MINIROOT=
 NO_FLOPPIES=
 .elif ${TARGET_ARCH} == "ia64"
+MFSSIZE=		8192
 MFSINODE=		8192
 MFSLABEL=		auto
-MFSSIZE=		8192
 NO_FLOPPIES=
 .elif ${TARGET_ARCH} == "amd64"
 MFSSIZE=		4096
@@ -254,9 +254,7 @@ EXTRAS+= cdrom.1
 .if defined(MAKE_ISOS)
 EXTRAS+= iso.1
 .endif
-.if ${TARGET} == "i386" && defined(EMUL_BOOT)
-BOOTABLE="-eb"
-.elif ${TARGET} == "pc98"
+.if ${TARGET} == "pc98"
 BOOTABLE=
 .else
 BOOTABLE="-b"
@@ -497,7 +495,7 @@ release.1:
 .endif
 	mkdir ${RD}/trees
 	mkdir ${RD}/kernels
-	for i in ${DISTRIBUTIONS} special; do \
+	for i in ${DISTRIBUTIONS}; do \
 		mkdir ${RD}/trees/$$i && \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
 		    -p ${RD}/trees/$$i > /dev/null && \
@@ -653,12 +651,6 @@ release.8:
 
 # Build the memory root filesystem.
 release.9:
-.if exists(${.CURDIR}/../sys/boot/${TARGET}/loader)
-	cd ${.CURDIR}/../sys/boot/${TARGET}/loader; \
-	${WMAKE} clean cleandepend; \
-	${WMAKE} -DNOMAN -DNOFORTH all; \
-	${WMAKE} -DNOMAN -DNOFORTH install DESTDIR=${RD}/trees/special
-.endif
 	cp ${RD}/trees/base/etc/disktab /etc
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
@@ -718,7 +710,7 @@ release.9:
 	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
 	    ${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9nv ${RD}/mfsroot/mfsroot
+	@gzip -9fnv ${RD}/mfsroot/mfsroot
 	touch ${.TARGET}
 
 KERNFLOPPYSET=		${RD}/floppyset/kern/kernel.gz
@@ -911,15 +903,6 @@ cdrom.1:
 .endif
 .endif
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
-.if ${TARGET} == "i386" && defined(EMUL_BOOT) && !defined(NO_FLOPPIES)
-	# In case bootable ISO with floppy emulation is desired.
-.if defined(CD_BOOT)
-	@mkdir -p ${CD_BOOT}/floppies
-	@cp ${CD_DISC1}/floppies/boot.flp ${CD_BOOT}/floppies
-.endif
-	@mkdir -p ${CD_DISC2}/floppies
-	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
-.endif
 .endif
 	touch ${.TARGET}
 
@@ -1105,6 +1088,7 @@ makeFloppySet:
 .if make(buildBootFloppy)
 IMAGEDIR=	${RD}/image.${FSIMAGE}
 HINTSFILE=	${.CURDIR}/../sys/${TARGET}/conf/GENERIC.hints
+ACPI_KO=	${RD}/trees/base/boot/kernel/acpi.ko
 IMAGEFILE=	${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "SMALL"
 FLPSIZE=	${SMALLFLOPPYSIZE}
@@ -1132,9 +1116,9 @@ buildBootFloppy:
 	@mkdir -p ${IMAGEDIR}/boot
 .if ${TARGET} == "i386"
 	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o -o \
-	    ${IMAGEDIR}/boot/loader ${RD}/trees/special/boot/loader
+	    ${IMAGEDIR}/boot/loader ${RD}/trees/base/boot/loader
 .else
-	@cp ${RD}/trees/special/boot/loader ${IMAGEDIR}/boot
+	@cp ${RD}/trees/base/boot/loader ${IMAGEDIR}/boot
 .endif
 	@[ -r ${HINTSFILE} ] && \
 	  sed -e '/^hint/s/^/set /' -e '/^#/d' ${HINTSFILE} > \
@@ -1144,8 +1128,11 @@ buildBootFloppy:
 	@echo "echo \\007\\007" >> ${IMAGEDIR}/boot/loader.rc
 	@echo "echo Please insert boot floppy and press enter:" >> ${IMAGEDIR}/boot/loader.rc
 	@echo "read" >> ${IMAGEDIR}/boot/loader.rc
+.if exists(${ACPI_KO})
+	@gzip -9nc ${ACPI_KO} > ${IMAGEDIR}/acpi.ko.gz
+	@echo "load /acpi.ko" >> ${IMAGEDIR}/boot/loader.rc
+.endif
 	@echo "load -t mfs_root /mfsroot" >> ${IMAGEDIR}/boot/loader.rc
-	@echo "set hint.acpi.0.disabled=1" >> ${IMAGEDIR}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${IMAGEDIR}/boot/loader.rc
 	@echo "autoboot 10" >> ${IMAGEDIR}/boot/loader.rc
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
