@@ -1,13 +1,15 @@
 /*
+ * natd - Network Address Translation Daemon for FreeBSD.
+ *
  * This software is provided free of charge, with no 
  * warranty of any kind, either expressed or implied.
  * Use at your own risk.
  * 
- * You may copy, modify and distribute this software freely.
+ * You may copy, modify and distribute this software (icmp.c) freely.
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id: icmp.c,v 1.3 1997/12/27 19:31:11 alex Exp $
+ *	$Id:$
  */
 
 #include <stdlib.h>
