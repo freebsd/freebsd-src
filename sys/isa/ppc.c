@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.11 1998/10/31 11:37:09 nsouch Exp $
+ *	$Id: ppc.c,v 1.12 1998/12/07 21:58:22 archie Exp $
  *
  */
 #include "ppc.h"
@@ -1286,7 +1286,7 @@ ppc_smclike_setmode(int unit, int mode)
  * Semantics of clearing EPP timeout bit.
  * PC87332	- reading SPP_STR does it...
  * SMC		- write 1 to EPP timeout bit			XXX
- * Others	- (???) write 0 to EPP timeout bit
+ * Others	- (?) write 0 to EPP timeout bit
  */
 static void
 ppc_reset_epp_timeout(int unit)

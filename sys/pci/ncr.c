@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.139 1998/12/07 21:58:47 archie Exp $
+**  $Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.139 1998/12/07 21:58:47 archie Exp $\n";
+	"\n$Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
@@ -7115,7 +7115,7 @@ struct tekram_eeprom {
 #define	TKR_ADPT_ACTNEG	0x08
 #define	TKR_ADPT_NOSEEK	0x10
 #define	TKR_ADPT_MORLUN	0x20
-  u_char	delay;		/* unit ? (table ???) */
+  u_char	delay;		/* unit ? ( table ??? ) */
   u_char	tags;		/* use 4 times as many ... */
   u_char	filler[60];
 };

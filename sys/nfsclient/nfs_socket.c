@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.47 1998/11/13 09:44:12 dfr Exp $
+ * $Id: nfs_socket.c,v 1.48 1998/12/07 21:58:44 archie Exp $
  */
 
 /*
@@ -403,11 +403,11 @@ nfs_safedisconnect(nmp)
  * For the client side:
  * - return EINTR if the RPC is terminated, 0 otherwise
  * - set R_MUSTRESEND if the send fails for any reason
- * - do any cleanup required by recoverable socket errors (???)
+ * - do any cleanup required by recoverable socket errors (?)
  * For the server side:
  * - return EINTR or ERESTART if interrupted by a signal
  * - return EPIPE if a connection is lost for connection based sockets (TCP...)
- * - do any cleanup required by recoverable socket errors (???)
+ * - do any cleanup required by recoverable socket errors (?)
  */
 int
 nfs_send(so, nam, top, rep)
@@ -469,7 +469,7 @@ nfs_send(so, nam, top, rep)
 			log(LOG_INFO, "nfsd send error %d\n", error);
 
 		/*
-		 * Handle any recoverable (soft) socket errors here. (???)
+		 * Handle any recoverable (soft) socket errors here. (?)
 		 */
 		if (error != EINTR && error != ERESTART &&
 			error != EWOULDBLOCK && error != EPIPE)

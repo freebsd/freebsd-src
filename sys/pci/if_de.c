@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.91 1998/11/28 00:25:32 msmith Exp $ */
+/*	$Id: if_de.c,v 1.92 1998/12/14 05:47:26 dillon Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2861,7 +2861,7 @@ tulip_read_macaddr(
 	 * Some folks don't use the standard ethernet rom format
 	 * but instead just put the address in the first 6 bytes
 	 * of the rom and let the rest be all 0xffs.  (Can we say
-	 * ZNYX???) (well sometimes they put in a checksum so we'll
+	 * ZNYX?) (well sometimes they put in a checksum so we'll
 	 * start at 8).
 	 */
 	for (idx = 8; idx < 32; idx++) {
