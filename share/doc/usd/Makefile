@@ -4,7 +4,18 @@
 # The following modules are not provided:
 # 14.jove
 
-SUBDIR=	title contents 04.csh 07.mail 10.exref 11.vitut 12.vi 13.viref \
-	18.msdiffs 19.memacros 20.meref 21.troff 22.trofftut
+SUBDIR=	title \
+	contents \
+	04.csh \
+	07.mail \
+	10.exref \
+	11.vitut \
+	12.vi \
+	13.viref \
+	18.msdiffs \
+	19.memacros \
+	20.meref \
+	21.troff \
+	22.trofftut
 
 .include <bsd.subdir.mk>
