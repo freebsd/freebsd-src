@@ -96,17 +96,17 @@ is similar to
 .Fn MDXFile ,
 but it only calculates the digest over a byte-range of the file specified,
 starting at
-.Ar offset
+.Fa offset
 and spanning
-.Ar length
+.Fa length
 bytes.
 If the
-.Ar length
+.Fa length
 parameter is specified as 0, or more than the length of the remaining part
 of the file,
 .Fn MDXFileChunk
 calculates the digest from
-.Ar offset
+.Fa offset
 to the end of file.
 .Fn MDXData
 calculates the digest of a chunk of data in memory, and uses
@@ -119,7 +119,7 @@ When using
 or
 .Fn MDXData ,
 the 
-.Ar buf
+.Fa buf
 argument can be a null pointer, in which case the returned string
 is allocated with
 .Xr malloc 3
@@ -127,7 +127,7 @@ and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
 If the 
-.Ar buf
+.Fa buf
 argument is non-null it must point to at least 33 characters of buffer space.
 .Sh SEE ALSO
 .Xr md2 3 ,
