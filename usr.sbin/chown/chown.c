@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
+#include <libgen.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,9 +80,7 @@ main(int argc, char **argv)
 	int ch, fts_options, rval;
 	char *cp;
 
-	cp = strrchr(argv[0], '/');
-	cp = (cp != NULL) ? cp + 1 : argv[0];
-	ischown = (strcmp(cp, "chown") == 0);
+	ischown = (strcmp(basename(argv[0]), "chown") == 0);
 
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
