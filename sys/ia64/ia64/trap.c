@@ -983,7 +983,7 @@ syscall(struct trapframe *tf)
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 	if (p->p_flag & P_SA)
-		thread_user_enter(p, td);
+		thread_user_enter(td);
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/* (*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params); */
