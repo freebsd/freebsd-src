@@ -66,7 +66,6 @@ __BEGIN_DECLS
 int dladdr __P((const void *, Dl_info *));
 int dlclose __P((void *));
 const char *dlerror __P((void));
-/* XXX dllockinit() interface is likely to change. */
 void dllockinit __P((void *_context,
 		     void *(*_lock_create)(void *_context),
 		     void (*_rlock_acquire)(void *_lock),
