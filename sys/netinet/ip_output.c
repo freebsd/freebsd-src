@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.25 1995/11/14 20:34:19 phk Exp $
+ *	$Id: ip_output.c,v 1.26 1995/12/05 17:46:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -91,6 +91,23 @@ ip_output(m0, opt, ro, flags, imo)
 	register struct mbuf *m = m0;
 	register int hlen = sizeof (struct ip);
 	int len, off, error = 0;
+	/*
+	 * It might seem obvious at first glance that one could easily
+	 * make a one-behind cache out of this by simply making `iproute'
+	 * static and eliminating the bzero() below.  However, this turns
+	 * out not to work, for two reasons:
+	 *
+	 * 1) This routine needs to be reentrant.  It can be called
+	 * recursively from encapsulating network interfaces, and it
+	 * is always called recursively from ip_mforward().
+	 *
+	 * 2) You turn out not to gain much.  There is already a one-
+	 * behind cache implemented for the specific case of forwarding,
+	 * and sends on a connected socket will use a route associated
+	 * with the PCB.  The only cases left are sends on unconnected
+	 * and raw sockets, and if these cases are really significant,
+	 * something is seriously wrong.
+	 */
 	struct route iproute;
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
