@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- *	$Id: rc_config.c,v 1.60 2000/10/09 11:17:07 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Oct 31 10:57:07 2000]
+ *      last edit-date: [Wed Jan 10 14:46:58 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -304,32 +302,32 @@ set_isppp_auth(int entry)
 	{
 		if(cep->ppp_expect_auth == AUTH_NONE)
 		{
-			spr.defs.myauth.proto = 0;
+			spr.defs.hisauth.proto = 0;
 		}
 		else if ((cep->ppp_expect_auth == AUTH_CHAP 
 			  || cep->ppp_expect_auth == AUTH_PAP)
 			 && cep->ppp_expect_name[0] != 0
 			 && cep->ppp_expect_password[0] != 0)
 		{
-			spr.defs.myauth.proto = cep->ppp_expect_auth == AUTH_PAP ? PPP_PAP : PPP_CHAP;
-			strncpy(spr.defs.myauth.name, cep->ppp_expect_name, AUTHNAMELEN);
-			strncpy(spr.defs.myauth.secret, cep->ppp_expect_password, AUTHKEYLEN);
+			spr.defs.hisauth.proto = cep->ppp_expect_auth == AUTH_PAP ? PPP_PAP : PPP_CHAP;
+			strncpy(spr.defs.hisauth.name, cep->ppp_expect_name, AUTHNAMELEN);
+			strncpy(spr.defs.hisauth.secret, cep->ppp_expect_password, AUTHKEYLEN);
 		}
 	}
 	if (cep->ppp_send_auth != AUTH_UNDEF)
 	{
 		if(cep->ppp_send_auth == AUTH_NONE)
 		{
-			spr.defs.hisauth.proto = 0;
+			spr.defs.myauth.proto = 0;
 		}
 		else if ((cep->ppp_send_auth == AUTH_CHAP 
 			  || cep->ppp_send_auth == AUTH_PAP)
 			 && cep->ppp_send_name[0] != 0
 			 && cep->ppp_send_password[0] != 0)
 		{
-			spr.defs.hisauth.proto = cep->ppp_send_auth == AUTH_PAP ? PPP_PAP : PPP_CHAP;
-			strncpy(spr.defs.hisauth.name, cep->ppp_send_name, AUTHNAMELEN);
-			strncpy(spr.defs.hisauth.secret, cep->ppp_send_password, AUTHKEYLEN);
+			spr.defs.myauth.proto = cep->ppp_send_auth == AUTH_PAP ? PPP_PAP : PPP_CHAP;
+			strncpy(spr.defs.myauth.name, cep->ppp_send_name, AUTHNAMELEN);
+			strncpy(spr.defs.myauth.secret, cep->ppp_send_password, AUTHKEYLEN);
 
 			if(cep->ppp_auth_flags & AUTH_REQUIRED)
 				spr.defs.hisauth.flags &= ~AUTHFLAG_NOCALLOUT;
