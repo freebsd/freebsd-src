@@ -339,7 +339,7 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 		return (NULL);
 	if (pccard_get_product_str(dev, &prodstr))
 		return (NULL);
-	for (ent = tab; ent->pp_vendor != 0 && ent->pp_product != 0; ent =
+	for (ent = tab; ent->pp_vendor != 0; ent =
 	    (const struct pccard_product *) ((const char *) ent + ent_size)) {
 		matches = 1;
 		if (ent->pp_vendor == PCCARD_VENDOR_ANY &&
