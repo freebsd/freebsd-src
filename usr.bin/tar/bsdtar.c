@@ -85,6 +85,7 @@ const struct option tar_longopts[] = {
 	{ "cd",                 required_argument, NULL, 'C' },
 	{ "confirmation",       no_argument,       NULL, 'w' },
 	{ "create",             no_argument,       NULL, 'c' },
+	{ "dereference",	no_argument,	   NULL, 'H' },
 	{ "directory",          required_argument, NULL, 'C' },
 	{ "exclude",            required_argument, NULL, OPTION_EXCLUDE },
 	{ "extract",            no_argument,       NULL, 'x' },
