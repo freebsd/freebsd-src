@@ -71,7 +71,7 @@ pam_end(pam_handle_t *_pamh,
 int
 pam_get_data(pam_handle_t *_pamh,
 	const char *_module_data_name,
-	void **_data);
+	const void **_data);
 
 int
 pam_get_item(pam_handle_t *_pamh,
