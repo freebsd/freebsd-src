@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chflags.1	8.2 (Berkeley) 3/31/94
+.\"	$Id$
 .\"
 .Dd March 31, 1994
 .Dt CHFLAGS 1
@@ -115,10 +116,13 @@ option is specified.
 In addition, these options override each other and the
 command's actions are determined by the last one specified.
 .Pp
+You can use "ls -lo" to see the flags of existing files.
+.Pp
 The
 .Nm chflags
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
+.Xr ls 1 ,
 .Xr chflags 2 ,
 .Xr stat 2 ,
 .Xr fts 3 ,
