@@ -220,14 +220,10 @@ DISKLABEL?=		disklabel
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
-# Things that need to be recompiled with Kerberos support.
-.if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
-K5PROGS!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
-.endif
-
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
-FIXCRYPTO=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump \
+FIXCRYPTO!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
+FIXCRYPTO+=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump \
 		lib/libfetch usr.bin/fetch
 .if !defined(NO_SENDMAIL)
 FIXCRYPTO+=	usr.sbin/sendmail
@@ -424,7 +420,6 @@ release rerelease:
 	MAKE_ISOS \
 	NOCDROM \
 	NODOC \
-	NOKERBEROS \
 	NOPORTS \
 	NOSHARED \
 	NOSRC \
@@ -520,13 +515,6 @@ release.3:
 	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
 	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
 	    buildworld distributeworld DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS5 \
-	    SUBDIR_OVERRIDE="kerberos5 ${K5PROGS}" \
-	    buildworld distributeworld DISTDIR=${RD}/trees
-	rm -f ${RD}/trees/krb5/usr/share/info/dir
-.endif
 	-chflags -R noschg ${RD}/trees
 	touch release.3
 
