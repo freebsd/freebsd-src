@@ -192,7 +192,7 @@ static const int64_t max_int64 = (int64_t)((~(uint64_t)0) >> 1);
 #ifdef INT64_MIN
 static const int64_t min_int64 = INT64_MIN;
 #else
-static const int64_t min_int64 = (int64_t)(~max_int64);
+static const int64_t min_int64 = (int64_t)(~((~(uint64_t)0) >> 1));
 #endif
 
 int
