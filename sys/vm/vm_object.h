@@ -74,7 +74,8 @@
 #include <sys/queue.h>
 #include <machine/atomic.h>
 
-enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_DEAD };
+enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
+		OBJT_DEAD };
 typedef u_char objtype_t;
 
 /*
@@ -121,6 +122,15 @@ struct vm_object {
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist;
 		} devp;
+
+		/*
+		 * Physmem pager
+		 *
+		 *	physp_pglist - list of allocated pages
+		 */
+		struct {
+			TAILQ_HEAD(, vm_page) physp_pglist;
+		} physp;
 
 		/*
 		 * Swap pager
