@@ -39,11 +39,11 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
@@ -114,6 +114,7 @@ static int bufspace, maxbufspace, vmiospace, maxvmiobufspace,
 	bufmallocspace, maxbufmallocspace;
 int numdirtybuffers, lodirtybuffers, hidirtybuffers;
 static int numfreebuffers, lofreebuffers, hifreebuffers;
+static int kvafreespace;
 
 SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD,
 	&numdirtybuffers, 0, "");
@@ -139,6 +140,8 @@ SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW,
 	&maxbufmallocspace, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, bufmallocspace, CTLFLAG_RD,
 	&bufmallocspace, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, kvafreespace, CTLFLAG_RD,
+	&kvafreespace, 0, "");
 
 static LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
 static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
@@ -214,6 +217,7 @@ bufinit()
 	lofreebuffers = nbuf / 18 + 5;
 	hifreebuffers = 2 * lofreebuffers;
 	numfreebuffers = nbuf;
+	kvafreespace = 0;
 
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	bogus_page = vm_page_alloc(kernel_object,
@@ -250,6 +254,9 @@ bremfree(struct buf * bp)
 	int s = splbio();
 
 	if (bp->b_qindex != QUEUE_NONE) {
+		if (bp->b_qindex == QUEUE_EMPTY) {
+			kvafreespace -= bp->b_kvasize;
+		}
 		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
 		bp->b_qindex = QUEUE_NONE;
 	} else {
@@ -262,6 +269,7 @@ bremfree(struct buf * bp)
 		--numfreebuffers;
 	splx(s);
 }
+
 
 /*
  * Get a buffer with the specified data.  Look in the cache first.
@@ -652,6 +660,7 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
+		kvafreespace += bp->b_kvasize;
 
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
@@ -1066,14 +1075,19 @@ findkvaspace:
 		 */
 		if (vm_map_findspace(buffer_map,
 			vm_map_min(buffer_map), maxsize, &addr)) {
-			for (bp1 = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
-			    bp1 != NULL; bp1 = TAILQ_NEXT(bp1, b_freelist))
-				if (bp1->b_kvasize != 0) {
-					bremfree(bp1);
-					bfreekva(bp1);
-					brelse(bp1);
-					goto findkvaspace;
-				}
+			if (kvafreespace > 0) {
+				int tfree = 0;
+				for (bp1 = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
+					bp1 != NULL; bp1 = TAILQ_NEXT(bp1, b_freelist))
+					if (bp1->b_kvasize != 0) {
+						tfree += bp1->b_kvasize;
+						bremfree(bp1);
+						bfreekva(bp1);
+						brelse(bp1);
+						if (tfree >= maxsize)
+							goto findkvaspace;
+					}
+			}
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto trytofreespace;
@@ -1151,9 +1165,7 @@ flushdirtybuffers(int slpflag, int slptimeo) {
 		}
 
 		if (bp) {
-			splx(s);
 			vfs_bio_awrite(bp);
-			s = splbio();
 			continue;
 		}
 		break;
