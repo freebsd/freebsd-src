@@ -38,7 +38,8 @@ char 		progname[MAXSTR];		/* Program name for errors */
 char		proto_name[MAXSTR]="";		/* Current line protocol   */
 int 		s;				/* main RAW socket 	   */
 int 		do_resolv=1;			/* Would try to resolv all */
-int 		do_verbose=0;			/* Verbose output(differs) */
+int 		do_short=0;			/* Compact output          */
+int		do_acct=0;			/* Show packet/byte count  */
 int 		ports_ok=0;			/* flag allowing ports     */
 u_short		flags=0;			/* New entry flags 	   */
 
@@ -49,6 +50,7 @@ u_short		flags=0;			/* New entry flags 	   */
 
 #define S_SEP1		"f" /* of "from" */
 #define S_SEP2		"t" /* of "to"   */
+#define S_SEP3		"v" /* of "via"  */
 
 #define P_AC		"a" /* of "accept" for policy action */
 #define P_DE		"d" /* of "deny" for policy action   */
@@ -176,12 +178,12 @@ struct hostent *he;
 int i,mb;
 
 
-if (do_verbose) {
+if (do_short && do_acct) {
 	printf("%8d:%8d ",chain->b_cnt,chain->p_cnt);
 }
 	
 
-if (do_verbose)
+if (do_short)
 	if (c_t==FW) {
 		if (chain->flags & IP_FW_F_ACCEPT) 
 			if (chain->flags & IP_FW_F_PRN)
@@ -230,7 +232,7 @@ else
 			printf("single ");
 	}
 
-if (do_verbose)
+if (do_short)
 	switch (chain->flags & IP_FW_F_KIND) {
 		case IP_FW_F_ICMP:
 			printf("I ");
@@ -271,7 +273,7 @@ else
 			break;
 	}
 
-if (do_verbose)
+if (do_short)
 	printf("[");
 else
 	printf("from ");
@@ -306,7 +308,7 @@ else
 			comma = ",";
 	}
 
-if (do_verbose)
+if (do_short)
 	printf("][");
 else
 	printf(" to ");
@@ -341,7 +343,14 @@ else
 		    comma = ",";
 	    }
 
-if (do_verbose)
+if (chain->via.s_addr) {
+	if (do_short)
+		printf("][");
+	else
+		printf(" via ");
+	printf(inet_ntoa(chain->via));
+}
+if (do_short)
 	printf("]\n");
 else
 	printf("\n");
@@ -544,10 +553,12 @@ char	*sm_bit,*sm_oct,*end;
 int	n_bit;
 struct	hostent *hptr;
 
-	(void)strtok(str,"/");
-	sm_bit=strtok(NULL,"");
-	(void)strtok(str,":");
-	sm_oct=strtok(NULL,"");
+	if (mask) {
+		(void)strtok(str,"/");
+		sm_bit=strtok(NULL,"");
+		(void)strtok(str,":");
+		sm_oct=strtok(NULL,"");
+	}
 	
 	if (!inet_aton(str,addr)) {
 		if (do_resolv) {
@@ -564,6 +575,12 @@ struct	hostent *hptr;
 		}
 	}
 
+		/*
+		 * This is in case mask we 
+		 * want to set IP only
+		 */
+	if (!mask)
+		return;
 	mask->s_addr=htonl(ULONG_MAX);
 
 		if (sm_bit) {
@@ -606,6 +623,7 @@ int p_num=0,ir=0;
 
 	frwl->n_src_p=0;
 	frwl->n_dst_p=0;
+	frwl->via.s_addr=0L;
 
 	if (strncmp(*av,S_SEP1,strlen(S_SEP1))) {
 		show_usage();
@@ -654,6 +672,9 @@ no_src_ports:
 	set_entry_ip(*av,&(frwl->dst),&(frwl->dst_mask));
 
 	if (*(++av)==NULL) 
+		goto no_tail;
+
+	if (!strncmp(*av,S_SEP3,strlen(S_SEP3))) 
 		goto no_dst_ports;
 
 	if (ports_ok) {
@@ -664,6 +685,18 @@ no_src_ports:
 			flags|=IP_FW_F_DRNG;
 	}
 no_dst_ports:
+	if (strncmp(*av,S_SEP3,strlen(S_SEP3))) {
+		show_usage();
+		exit(1);
+	}
+
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
+	}
+
+	set_entry_ip(*av,&(frwl->via),NULL);
+no_tail:
 
 }
 
@@ -794,13 +827,16 @@ struct ip_fw	frwl;
 	exit(1);
     }
 
-	while ((ch = getopt(ac, av ,"nv")) != EOF)
+	while ((ch = getopt(ac, av ,"ans")) != EOF)
 	switch(ch) {
+		case 'a':
+			do_acct=1;
+			break;
 		case 'n':
 	 		do_resolv=0;
         		break;
-        	case 'v':
-		    	do_verbose=1;
+        	case 's':
+		    	do_short=1;
             		break;
         	case '?':
          	default:
@@ -823,10 +859,13 @@ struct ip_fw	frwl;
 				int_t=FW;
 				break;
 			case A_CHKB:
+/*
 				ctl=IP_FW_CHK_BLK;
 				int_t=FW;
 				is_check=1;
 				break;
+*/
+return;
 			case A_ADDF:
 				ctl=IP_FW_ADD_FWD;
 				int_t=FW;
@@ -836,10 +875,13 @@ struct ip_fw	frwl;
 				int_t=FW;
 				break;
 			case A_CHKF:
+/*
 				ctl=IP_FW_CHK_FWD;
 				int_t=FW;
 				is_check=1;
 				break;
+*/
+return;
 			case A_ADDA:
 				ctl=IP_ACCT_ADD;
 				int_t=AC;
@@ -958,8 +1000,6 @@ proto_switch:
 	}
 
 	set_entry(av,&frwl); 
-	if (do_verbose)
-		flags|=IP_FW_F_PRN;
 	frwl.flags=flags;
 
 	if (is_check) {
