@@ -1636,6 +1636,11 @@
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
 	</listitem>
       </itemizedlist>
+
+      <note>
+        <para>The &man.em.4; driver is officially supported by Intel,
+        but is only supported on the i386.</para>
+      </note>
     </para>
 
   </sect2>
