@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.627 1999/08/15 09:54:56 phk Exp $
+#	$Id: LINT,v 1.628 1999/08/20 03:48:02 ken Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1516,6 +1516,16 @@ options AHC_ALLOW_MEMIO
 # with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
 # thus you need to bump this figure to 12 for them.
 options EISA_SLOTS=12
+
+#
+# MII bus support is required for some PCI 10/100 ethernet NICs,
+# namely those which use MII-compliant transceivers or implement
+# tranceiver control interfaces that operate like an MII. Adding
+# "controller miibus0" to the kernel config pulls in support for
+# the generic miibus API and all of the PHY drivers, including a
+# generic one for PHYs that aren't specifically handled by an
+# individual driver.
+controller	miibus0
 
 #
 # PCI devices & PCI options:

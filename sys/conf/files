@@ -121,6 +121,26 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional id
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
+dev/mii/mii.c		optional miibus
+dev/mii/mii_physubr.c	optional miibus
+dev/mii/ukphy.c		optional miibus
+dev/mii/ukphy_subr.c	optional miibus
+dev/mii/exphy.c		optional miibus
+dev/mii/nsphy.c		optional miibus
+miibus_if.o		optional miibus					\
+	dependency	"miibus_if.c miibus_if.h"			\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+miibus_if.c		optional miibus					\
+	dependency	"$S/kern/makedevops.pl $S/dev/mii/miibus_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/mii/miibus_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"miibus_if.c"
+miibus_if.h		optional miibus					\
+	dependency	"$S/kern/makedevops.pl $S/dev/mii/miibus_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/mii/miibus_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"miibus_if.h"
 dev/pdq/pdq.c		optional fea
 dev/pdq/pdq_ifsubr.c	optional fea
 dev/pdq/pdq.c		optional fpa
