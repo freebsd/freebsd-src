@@ -23,19 +23,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 28, 2000
 .Dt ACL_INIT 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm acl_init
 .Nd initialize ACL working storage
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/acl.h>
+.In sys/types.h
+.In sys/acl.h
 .Ft acl_t
 .Fn acl_init "int count"
 .Sh DESCRIPTION
@@ -47,7 +47,7 @@ least
 ACL entries.  A pointer to the working storage is returned.  The working
 storage allocated to contain the ACL is freed by a call to
 .Xr acl_free 3 .
-When the area is first allocated, it shall contain an an ACL that contains
+When the area is first allocated, it shall contain an ACL that contains
 no ACL entries.
 .Pp
 This function may cause memory to be allocated.  The caller should free any

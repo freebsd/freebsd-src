@@ -23,11 +23,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 28, 2000
 .Dt ACL_GET 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm acl_get_fd ,
 .Nm acl_get_fd_np ,
@@ -36,8 +36,8 @@
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/acl.h>
+.In sys/types.h
+.In sys/acl.h
 .Ft acl_t
 .Fn acl_get_file "const char *path_p" "acl_type_t type"
 .Ft acl_t
@@ -51,10 +51,10 @@ The
 and
 .Fn acl_get_fd_np
 each allow the retrieval of an ACL from a file.
-.Fn acl_get_file 
+.Fn acl_get_file
 is a POSIX.1e call that allows the retrieval of a
 specified type of ACL from a file by name;
-.Fn acl_get_fd 
+.Fn acl_get_fd
 is a POSIX.1e call that allows the retrieval of an ACL of type
 ACL_TYPE_ACCESS
 from a file descriptor.

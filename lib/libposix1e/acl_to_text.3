@@ -23,23 +23,23 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 28, 2000
 .Dt ACL_TO_TEXT 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm acl_to_text
-.Nd convert an ACL to Text
+.Nd convert an ACL to text
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/acl.h>
+.In sys/types.h
+.In sys/acl.h
 .Ft char *
 .Fn acl_to_text "acl_t acl" "ssize_t *len_p"
 .Sh DESCRIPTION
-The 
+The
 .Fn acl_to_text
 function translates the ACL pointed to by argument
 .Va acl

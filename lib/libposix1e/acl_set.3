@@ -23,11 +23,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 28, 2000
 .Dt ACL_SET 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm acl_set_fd ,
 .Nm acl_set_fd_np ,
@@ -36,8 +36,8 @@
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/acl.h>
+.In sys/types.h
+.In sys/acl.h
 .Ft int
 .Fn acl_set_file "const char *path_p" "acl_type_t type" "acl_t acl"
 .Ft int
@@ -53,13 +53,13 @@ and
 each associate an ACL with an object referred to by
 .Va fd
 or
-.Va path_p .  
+.Va path_p .
 All except
 .Fn acl_set_fd_np
 are POSIX.1e calls--
 .Fn acl_set_fd
 allows only the setting of ACLs of type ACL_TYPE_ACCESS
-where as 
+where as
 .Fn acl_set_fd_np
 allows the setting of ACLs of any type.
 .Sh IMPLEMENTATION NOTES
@@ -67,10 +67,7 @@ allows the setting of ACLs of any type.
 support for POSIX.1e interfaces and features is still under
 development at this time.
 .Sh RETURN VALUES
-Upon successful completion, the function shall return a value of zero.
-Otherwise, a value of -1 shall be returned and
-.Va errno
-shall be set to indicate the error.
+.Rv -std
 .Sh ERRORS
 If any of the following conditions occur, these functions shall return
 -1 and set

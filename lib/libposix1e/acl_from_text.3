@@ -23,19 +23,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 28, 2000
 .Dt ACL_FROM_TEXT 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm acl_from_text
 .Nd create an ACL from text
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/acl.h>
+.In sys/types.h
+.In sys/acl.h
 .Ft acl_t
 .Fn acl_from_text "const char *buf_p"
 .Sh DESCRIPTION
@@ -116,12 +116,12 @@ rely on the
 library calls to manage username and uid mapping, as well as the
 .Xr getgrent 3
 library calls to manage groupname and gid mapping.  These calls are not
-thread safe, and so transitively, neither are 
+thread safe, and so transitively, neither are
 .Fn acl_from_text
 and
 .Fn acl_to_text .
 These functions may also interfere with stateful
-calls associated with the 
+calls associated with the
 .Fn getpwent
 and
 .Fn getgrent

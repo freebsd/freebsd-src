@@ -23,22 +23,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd January 17, 2000
 .Dt POSIX1E 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm posix1e
 .Nd introduction to the POSIX.1e security API
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/acl.h>
-.Fd #include <sys/audit.h>
-.Fd #include <sys/capability.h>
-.Fd #include <sys/mac.h>
+.In sys/types.h
+.In sys/acl.h
+.In sys/audit.h
+.In sys/capability.h
+.In sys/mac.h
 .Sh DESCRIPTION
 The IEEE POSIX.1e specification never left draft form, but the interfaces
 it describes are now widely used despite inherent limitations.  Currently,
@@ -56,7 +56,7 @@ Access Control are in the wings, and Information Flow Labels are not on
 the calendar.
 .Pp
 POSIX.1e defines both syntax and semantics for these features, but fairly
-substantial changes are required to implement these features in the 
+substantial changes are required to implement these features in the
 operating system.  As shipped,
 .Fx 4.0
 permits file systems to export
