@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.17 1995/02/27 06:50:08 davidg Exp $
+ * $Id: vfs_subr.c,v 1.18 1995/02/27 10:15:38 davidg Exp $
  */
 
 /*
@@ -826,10 +826,13 @@ vrele(vp)
 		panic("vrele: ref cnt");
 	}
 #endif
-	/*
-	 * insert at tail of LRU list
-	 */
-	TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+	if (vp->v_flag & VAGE) {
+		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+		vp->v_flag &= ~VAGE;
+	} else {
+		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+	}
+
 	VOP_INACTIVE(vp);
 }
 
