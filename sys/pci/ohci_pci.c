@@ -97,9 +97,9 @@ static const char *ohci_device_generic   = "OHCI (generic) USB controller";
 #define PCI_OHCI_BASE_REG	0x10
 
 static const char *
-ohci_pci_match(device_t dev)
+ohci_pci_match(device_t self)
 {
-	u_int32_t device_id = pci_get_devid(dev);
+	u_int32_t device_id = pci_get_devid(self);
 
 	switch(device_id) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
@@ -113,9 +113,9 @@ ohci_pci_match(device_t dev)
 	case PCI_OHCI_DEVICEID_NEC:
 		return (ohci_device_nec);
 	default:
-		if (   pci_get_class(dev)    == PCIC_SERIALBUS
-		    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB
-		    && pci_get_progif(dev)   == PCI_INTERFACE_OHCI) {
+		if (   pci_get_class(self)    == PCIC_SERIALBUS
+		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
+		    && pci_get_progif(self)   == PCI_INTERFACE_OHCI) {
 			return (ohci_device_generic);
 		}
 	}
@@ -124,11 +124,11 @@ ohci_pci_match(device_t dev)
 }
 
 static int
-ohci_pci_probe(device_t dev)
+ohci_pci_probe(device_t self)
 {
-	const char *desc = ohci_pci_match(dev);
+	const char *desc = ohci_pci_match(self);
 	if (desc) {
-		device_set_desc(dev, desc);
+		device_set_desc(self, desc);
 		return 0;
 	} else {
 		return ENXIO;
@@ -136,22 +136,21 @@ ohci_pci_probe(device_t dev)
 }
 
 static int
-ohci_pci_attach(device_t dev)
+ohci_pci_attach(device_t self)
 {
-	int unit = device_get_unit(dev);
-	ohci_softc_t *sc = device_get_softc(dev);
+	device_t parent = device_get_parent(self);
+	ohci_softc_t *sc = device_get_softc(self);
 	device_t usbus;
-	usbd_status err;
+	int err;
 	int rid;
 	struct resource *res;
 	void *ih;
-	int error;
 
 	rid = PCI_CBMEM;
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
 				 0, ~0, 1, RF_ACTIVE);
 	if (!res) {
-		device_printf(dev, "could not map memory\n");
+		device_printf(self, "could not map memory\n");
 		return ENXIO;
         }
 
@@ -159,27 +158,20 @@ ohci_pci_attach(device_t dev)
 	sc->ioh = rman_get_bushandle(res);
 
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
 	if (res == NULL) {
-		device_printf(dev, "could not allocate irq\n");
+		device_printf(self, "could not allocate irq\n");
 		return ENOMEM;
 	}
 
-	error = bus_setup_intr(dev, res, INTR_TYPE_BIO,
-			       (driver_intr_t *) ohci_intr, sc, &ih);
-	if (error) {
-		device_printf(dev, "could not setup irq\n");
-		return error;
-	}
-
-	usbus = device_add_child(dev, "usb", -1, sc);
+	usbus = device_add_child(self, "usb", -1, sc);
 	if (!usbus) {
-		printf("ohci%d: could not add USB device\n", unit);
+		device_printf(self, "could not add USB device\n");
 		return ENOMEM;
 	}
 
-	switch (pci_get_devid(dev)) {
+	switch (pci_get_devid(self)) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		device_set_desc(usbus, ohci_device_aladdin_v);
 		sprintf(sc->sc_vendor, "AcerLabs");
@@ -202,19 +194,42 @@ ohci_pci_attach(device_t dev)
 		break;
 	default:
 		if (bootverbose)
-			printf("(New OHCI DeviceId=0x%08x)\n", pci_get_devid(dev));
+			device_printf(self, "(New OHCI DeviceId=0x%08x)\n",
+				      pci_get_devid(self));
 		device_set_desc(usbus, ohci_device_generic);
 		sprintf(sc->sc_vendor, "(unknown)");
 	}
 
-	sc->sc_bus.bdev = usbus;
-	err = ohci_init(sc);
-	if (err != USBD_NORMAL_COMPLETION) {
-		printf("ohci%d: init failed, error=%d\n", unit, err);
-		device_delete_child(dev, usbus);
+	err = BUS_SETUP_INTR(parent, self, res, INTR_TYPE_BIO,
+			     (driver_intr_t *) ohci_intr, sc, &ih);
+	if (err) {
+		device_printf(self, "could not setup irq, %d\n", err);
+		device_delete_child(self, usbus);
+		return err;
 	}
 
-	return device_probe_and_attach(sc->sc_bus.bdev);
+	sc->sc_bus.bdev = usbus;
+	err = ohci_init(sc);
+	if (!err)
+		err = device_probe_and_attach(sc->sc_bus.bdev);
+
+	if (err) {
+		device_printf(self, "init failed\n");
+
+		/* disable interrupts */
+		bus_space_write_4(sc->iot, sc->ioh,
+				  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+
+		err = BUS_TEARDOWN_INTR(parent, self, res, ih);
+		if (err)
+			/* XXX or should we panic? */
+			device_printf(self, "could not tear down irq, %d\n",
+				      err);
+		device_delete_child(self, usbus);
+		return EIO;
+	}
+
+	return 0;
 }
 
 static device_method_t ohci_methods[] = {
