@@ -217,7 +217,7 @@ SUBDIR+=dig \
 	host
 .endif
 
-.if !defined(NO_PERL)
+.if !defined(NO_PERL_WRAPPER)
 SUBDIR+=perl
 .endif
 
