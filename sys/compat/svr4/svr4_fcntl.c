@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $Id$
+ * $Id: svr4_fcntl.c,v 1.3 1999/07/30 12:45:15 newton Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -280,7 +280,7 @@ fd_revoke(p, fd)
 	    (error = suser(p)) != 0)
 		goto out;
 
-	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))
+	if (vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
 out:
 	vrele(vp);

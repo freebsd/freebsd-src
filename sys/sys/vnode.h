@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.96 1999/08/25 04:55:20 julian Exp $
+ * $Id: vnode.h,v 1.97 1999/08/25 12:24:30 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -103,7 +103,7 @@ struct vnode {
 		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
 		struct {
 			struct specinfo	*vu_specinfo; /* device (VCHR, VBLK) */
-			struct vnode *vu_specnext;
+			SLIST_ENTRY(vnode) vu_specnext;
 		} vu_spec;
 		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
 	} v_un;
@@ -155,10 +155,10 @@ struct vnode {
 #define	VXLOCK		0x00100	/* vnode is locked to change underlying type */
 #define	VXWANT		0x00200	/* process is waiting for vnode */
 #define	VBWAIT		0x00400	/* waiting for output to complete */
-#define	VALIASED	0x00800	/* vnode has an alias */
-#define	VDIROP		0x01000	/* LFS: vnode is involved in a directory op */
+/* open for business    0x00800 */
+/* open for business    0x01000 */
 #define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
-#define	VNINACT		0x04000	/* LFS: skip ufs_inactive() in lfs_vunref */
+/* open for business    0x04000 */
 #define	VAGE		0x08000	/* Insert vnode at head of free list */
 #define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
@@ -491,6 +491,8 @@ struct vop_bwrite_args;
 
 extern int	(*lease_check_hook) __P((struct vop_lease_args *));
 
+void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
+void	addaliasu __P((struct vnode *vp, udev_t nvp_rdev));
 int 	bdevvp __P((dev_t dev, struct vnode **vpp));
 /* cache_* may belong in namei.h. */
 void	cache_enter __P((struct vnode *dvp, struct vnode *vp,
@@ -567,10 +569,6 @@ int	vop_defaultop __P((struct vop_generic_args *ap));
 int	vop_null __P((struct vop_generic_args *ap));
 int	vop_panic __P((struct vop_generic_args *ap));
 
-struct vnode *
-	checkalias __P((struct vnode *vp, udev_t nvp_rdev, struct mount *mp));
-struct vnode *
-	checkalias2 __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));

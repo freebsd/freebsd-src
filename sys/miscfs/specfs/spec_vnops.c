@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.97 1999/08/17 04:02:04 alc Exp $
+ * $Id: spec_vnops.c,v 1.98 1999/08/25 00:26:34 julian Exp $
  */
 
 #include <sys/param.h>
@@ -686,8 +686,7 @@ spec_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_NON, dev %d, %d\n", major(ap->a_vp->v_rdev),
-		minor(ap->a_vp->v_rdev));
+	printf("tag VT_NON, dev %s\n", devtoname(ap->a_vp->v_rdev));
 	return (0);
 }
 
