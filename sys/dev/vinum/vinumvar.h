@@ -33,12 +33,8 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.5 1998/12/28 04:56:24 peter Exp $
+ * $Id: vinumvar.h,v 1.18 1999/01/15 06:00:24 grog Exp grog $
  */
-
-/* XXX gdb can't find our global pointers, so use this kludge to
- * point to them locally.  Remove after testing */
-#define BROKEN_GDB struct _vinum_conf *VC = &vinum_conf
 
 #include <sys/time.h>
 #include <dev/vinum/vinumstate.h>
@@ -65,6 +61,8 @@ enum constants {
     VINUM_SD_TYPE = 2,
     VINUM_DRIVE_TYPE = 3,
     VINUM_SUPERDEV_TYPE = 4,				    /* super device. */
+    VINUM_RAWPLEX_TYPE = 5,				    /* anonymous plex */
+    VINUM_RAWSD_TYPE = 6,				    /* anonymous subdisk */
 
     /* Shifts for the individual fields in the device */
     VINUM_TYPE_SHIFT = 28,
@@ -74,6 +72,12 @@ enum constants {
     VINUM_VOL_WIDTH = 8,
     VINUM_PLEX_WIDTH = 3,
     VINUM_SD_WIDTH = 8,
+
+    /* Shifts for the second half of raw plex and
+     * subdisk numbers */
+    VINUM_RAWPLEX_SHIFT = 8,				    /* shift the second half this much */
+    VINUM_RAWPLEX_WIDTH = 12,				    /* width of second half */
+
     MAJORDEV_SHIFT = 8,
 
     MAXPLEX = 8,					    /* maximum number of plexes in a volume */
@@ -92,6 +96,16 @@ enum constants {
 			     | (s << VINUM_SD_SHIFT) 		\
 			     | (t << VINUM_TYPE_SHIFT) )
 
+/* Create a bit mask for x bits */
+#define MASK(x)  ((1 << (x)) - 1)
+
+/* Create a raw block device number */
+#define VINUMRBDEV(d,t)  ((BDEV_MAJOR << MAJORDEV_SHIFT)				\
+			     | ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
+			     | ((d & ~MASK (VINUM_VOL_WIDTH))				\
+				<< (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
+			     | (t << VINUM_TYPE_SHIFT) )
+
 /* And a character device number */
 #define VINUMCDEV(v,p,s,t)  ((CDEV_MAJOR << MAJORDEV_SHIFT)	\
 			     | (v << VINUM_VOL_SHIFT)		\
@@ -101,18 +115,6 @@ enum constants {
 
 /* extract device type */
 #define DEVTYPE(x) ((x >> VINUM_TYPE_SHIFT) & 7)
-
-/* extract volume number */
-#define VOLNO(x) (x & ((1 << VINUM_VOL_WIDTH) - 1))
-
-/* extract plex number */
-#define PLEXNO(x) (VOL [VOLNO (x)].plex [(x >> VINUM_PLEX_SHIFT) & ((1 << VINUM_PLEX_WIDTH) - 1)])
-
-/* extract subdisk number */
-#define SDNO(x) (PLEX [PLEXNO (x)].sdnos [(x >> VINUM_SD_SHIFT) & ((1 << VINUM_SD_WIDTH) - 1)])
-
-/* extract drive number */
-#define DRIVENO(x) (SD [SDNO (x)].driveno)
 
     VINUM_SUPERDEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
 
@@ -132,7 +134,7 @@ enum constants {
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
     INITIAL_LOCKS = 8,					    /* number of locks to allocate to a volume */
-    DEFAULT_REVIVE_BLOCKSIZE = 32768,			    /* size of block to transfer in one op */
+    DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* size of block to transfer in one op */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
 
@@ -145,7 +147,15 @@ enum constants {
  * |-----------------------------------------------------------------------------------------------|
  *
  *    0x2                 03                 1           19                      06
+ *
+ * The fields in the minor number are interpreted as follows:
+ *
+ * Volume:              Only type and volume number are relevant
+ * Plex in volume:      type, plex number in volume and volume number are relevant
+ * raw plex:            type, plex number is made of bits 27-16 and 7-0
+ * raw subdisk:         type, subdisk number is made of bits 27-16 and 7-0
  */
+
 struct devcode {
 /* CARE.  These fields assume a big-endian word.  On a
  * little-endian system, they're the wrong way around */
@@ -160,7 +170,9 @@ struct devcode {
        VINUM_PLEX = 1,
        VINUM_SUBDISK = 2,
        VINUM_DRIVE = 3,
-       VINUM_SUPERDEV = 4, */
+       VINUM_SUPERDEV = 4,
+       VINUM_RAWPLEX = 5,                                     
+       VINUM_RAWSD = 6 */
     unsigned signbit:1;					    /* to make 32 bits */
 };
 
@@ -187,7 +199,8 @@ enum objflags {
     VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
     VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
     VF_KERNELOP = 0x8000,				    /* we're performing ops from kernel space */
-    VF_DIRTYCONFIG = 0x10000,				    /* config needs updating */
+    VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
+    VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
 };
 
 /* Global configuration information for the vinum subsystem */
@@ -300,9 +313,11 @@ enum drive_label_info {
 
 struct drive {
     enum drivestate state;				    /* current state */
+    int flags;						    /* flags */
     int subdisks_allocated;				    /* number of entries in sd */
     int subdisks_used;					    /* and the number used */
     int blocksize;					    /* size of fs blocks */
+    int pid;						    /* of locker */
     u_int64_t sectors_available;			    /* number of sectors still available */
     int secsperblock;
     int lasterror;					    /* last error on drive */
@@ -330,18 +345,31 @@ struct drive {
 
 struct sd {
     enum sdstate state;					    /* state */
+    int flags;
+    int lasterror;					    /* last error occurred */
     /* offsets in blocks */
     int64_t driveoffset;				    /* offset on drive */
+    /* plexoffset is the offset from the beginning of the
+     * plex to the very first part of the subdisk, in
+     * sectors.  For striped and RAID-5 plexes, only
+     * the first stripe is located at this offset */
     int64_t plexoffset;					    /* offset in plex */
     u_int64_t sectors;					    /* and length in sectors */
     int plexno;						    /* index of plex, if it belongs */
     int driveno;					    /* index of the drive on which it is located */
     int sdno;						    /* our index in vinum_conf */
+    int plexsdno;					    /* and our number in our plex
+							    * (undefined if no plex) */
     int pid;						    /* pid of process which opened us */
     u_int64_t reads;					    /* number of reads on this subdisk */
     u_int64_t writes;					    /* number of writes on this subdisk */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
+    /* revive parameters */
+    u_int64_t revived;					    /* block number of current revive request */
+    int revive_blocksize;				    /* revive block size (bytes) */
+    int revive_interval;				    /* and time to wait between transfers */
+    struct request *waitlist;				    /* list of requests waiting on revive op */
     char name[MAXSDNAME];				    /* name of subdisk */
 };
 
@@ -355,16 +383,10 @@ enum plexorg {
     plex_raid5						    /* RAID5 plex */
 };
 
-/* Region in plex (either defective or unmapped) */
-struct plexregion {
-    u_int64_t offset;					    /* start of region */
-    u_int64_t length;					    /* length */
-};
-
 struct plex {
     enum plexorg organization;				    /* Plex organization */
     enum plexstate state;				    /* and current state */
-    u_int64_t length;					    /* total length of plex (max offset) */
+    u_int64_t length;					    /* total length of plex (max offset, in blocks) */
     int flags;
     int stripesize;					    /* size of stripe or raid band, in sectors */
     int subdisks;					    /* number of associated subdisks */
@@ -385,18 +407,7 @@ struct plex {
     u_int64_t bytes_written;				    /* number of bytes written */
     u_int64_t multiblock;				    /* requests that needed more than one block */
     u_int64_t multistripe;				    /* requests that needed more than one stripe */
-    /* revive parameters */
-    u_int64_t revived;					    /* block number of current revive request */
-    int revive_blocksize;				    /* revive block size (bytes) */
-    int revive_interval;				    /* and time to wait between transfers */
-    struct request *waitlist;				    /* list of requests waiting on revive op */
-    /* geometry control */
-    int defective_regions;				    /* number of regions which are defective */
-    int defective_region_count;				    /* number of entries in defective_region */
-    struct plexregion *defective_region;		    /* list of offset/length pairs: defective sds */
-    int unmapped_regions;				    /* number of regions which are missing */
-    int unmapped_region_count;				    /* number of entries in unmapped_region */
-    struct plexregion *unmapped_region;			    /* list of offset/length pairs: missing sds */
+    int sddowncount;					    /* number of subdisks down */
     char name[MAXPLEXNAME];				    /* name of plex */
 };
 
@@ -501,16 +512,17 @@ enum setstateflags {
     setstate_none = 0,					    /* no flags */
     setstate_force = 1,					    /* force the state change */
     setstate_configuring = 2,				    /* we're currently configuring, don't save */
-    setstate_recursing = 4,				    /* we're called from another setstate function */
-    setstate_norecurse = 8,				    /* don't call other setstate functions */
-    setstate_noupdate = 16				    /* don't update config */
 };
 
 #ifdef VINUMDEBUG
 /* Debugging stuff */
-#define DEBUG_ADDRESSES 1
-#define DEBUG_NUMOUTPUT 2
-#define DEBUG_RESID     4				    /* go into debugger in complete_rqe */
-#define DEBUG_LASTREQS  8				    /* keep a circular buffer of last requests */
-#define DEBUG_REMOTEGDB 256				    /* go into remote gdb */
+enum debugflags {
+    DEBUG_ADDRESSES = 1,				    /* show buffer information during requests */
+    DEBUG_NUMOUTPUT = 2,				    /* show the value of vp->v_numoutput */
+    DEBUG_RESID = 4,					    /* go into debugger in complete_rqe */
+    DEBUG_LASTREQS = 8,					    /* keep a circular buffer of last requests */
+    DEBUG_REVIVECONFLICT = 16,				    /* print info about revive conflicts */
+    DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
+};
+
 #endif
