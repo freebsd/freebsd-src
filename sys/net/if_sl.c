@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.5 1994/09/09 12:58:10 davidg Exp $
+ * $Id: if_sl.c,v 1.6 1994/09/12 11:49:49 davidg Exp $
  */
 
 /*
@@ -109,33 +109,30 @@ Huh? Slip without inet?
 #endif
 
 /*
- * SLMAX is a hard limit on input packet size.  To simplify the code
+ * SLRMAX is a hard limit on input packet size.  To simplify the code
  * and improve performance, we require that packets fit in an mbuf
  * cluster, and if we get a compressed packet, there's enough extra
  * room to expand the header into a max length tcp/ip header (128
- * bytes).  So, SLMAX can be at most
+ * bytes).  So, SLRMAX can be at most
  *	MCLBYTES - 128
  *
- * SLMTU is a hard limit on output packet size.  To insure good
- * interactive response, SLMTU wants to be the smallest size that
- * amortizes the header cost.  (Remember that even with
- * type-of-service queuing, we have to wait for any in-progress
- * packet to finish.  I.e., we wait, on the average, 1/2 * mtu /
- * cps, where cps is the line speed in characters per second.
- * E.g., 533ms wait for a 1024 byte MTU on a 9600 baud line.  The
- * average compressed header size is 6-8 bytes so any MTU > 90
- * bytes will give us 90% of the line bandwidth.  A 100ms wait is
- * tolerable (500ms is not), so want an MTU around 296.  (Since TCP
- * will send 256 byte segments (to allow for 40 byte headers), the
- * typical packet size on the wire will be around 260 bytes).  In
- * 4.3tahoe+ systems, we can set an MTU in a route so we do that &
- * leave the interface MTU relatively high (so we don't IP fragment
- * when acting as a gateway to someone using a stupid MTU).
+ * SLMTU is the default transmit MTU. The transmit MTU should be kept
+ * small enough so that interactive use doesn't suffer, but large
+ * enough to provide good performance. 552 is a good choice for SLMTU
+ * because it is high enough to not fragment TCP packets being routed
+ * through this host. Packet fragmentation is bad with SLIP because
+ * fragment headers aren't compressed. The previous assumptions about
+ * the best MTU value don't really hold when using modern modems with
+ * BTLZ data compression because the modem buffers play a much larger
+ * role in interactive performance than the MTU. The MTU can be changed
+ * at any time to suit the specific environment with ifconfig(8), and
+ * its maximum value is defined as SLTMAX. SLTMAX must not be so large
+ * that it would overflow the stack if BPF is configured.
  *
- * Similar considerations apply to SLIP_HIWAT:  It's the amount of
- * data that will be queued 'downstream' of us (i.e., in clists
- * waiting to be picked up by the tty output interrupt).  If we
- * queue a lot of data downstream, it's immune to our t.o.s. queuing.
+ * SLIP_HIWAT is the amount of data that will be queued 'downstream'
+ * of us (i.e., in clists waiting to be picked up by the tty output
+ * interrupt).  If we queue a lot of data downstream, it's immune to
+ * our t.o.s. queuing.
  * E.g., if SLIP_HIWAT is 1024, the interactive traffic in mixed
  * telnet/ftp will see a 1 sec wait, independent of the mtu (the
  * wait is dependent on the ftp window size but that's typically
@@ -153,13 +150,17 @@ Huh? Slip without inet?
 #else
 #define	BUFOFFSET	(128+sizeof(struct ifnet **))
 #endif
-#define	SLMAX		(MCLBYTES - BUFOFFSET)
-#define	SLBUFSIZE	(SLMAX + BUFOFFSET)
+#define	SLRMAX		(MCLBYTES - BUFOFFSET)
+#define	SLBUFSIZE	(SLRMAX + BUFOFFSET)
 #ifndef SLMTU
-#define	SLMTU		296
+#define	SLMTU		552		/* default MTU */
 #endif
+#define SLTMAX		1500		/* maximum MTU */
 #define	SLIP_HIWAT	roundup(50,CBSIZE)
-#define	CLISTRESERVE	1024	/* Can't let clists get too low */
+#define	CLISTRESERVE	1024		/* Can't let clists get too low */
+
+/* add this many cblocks to the pool */
+#define CLISTEXTRA	((SLRMAX+SLTMAX) / CBSIZE)
 
 /*
  * SLIP ABORT ESCAPE MECHANISM:
@@ -229,7 +230,7 @@ slinit(sc)
 			return (0);
 		}
 	}
-	sc->sc_buf = sc->sc_ep - SLMAX;
+	sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_mp = sc->sc_buf;
 	sl_compress_init(&sc->sc_comp);
 	return (1);
@@ -264,6 +265,9 @@ slopen(dev, tp)
 			sc->sc_ttyp = tp;
 			sc->sc_if.if_baudrate = tp->t_ospeed;
 			ttyflush(tp, FREAD | FWRITE);
+
+			cblock_alloc_cblocks(CLISTEXTRA);
+
 			return (0);
 		}
 	return (ENXIO);
@@ -292,6 +296,7 @@ slclose(tp)
 		sc->sc_ep = 0;
 		sc->sc_mp = 0;
 		sc->sc_buf = 0;
+		cblock_free_cblocks(CLISTEXTRA);
 	}
 	splx(s);
 }
@@ -400,7 +405,7 @@ slstart(tp)
 	int s;
 	struct mbuf *m2;
 #if NBPFILTER > 0
-	u_char bpfbuf[SLMTU + SLIP_HDRLEN];
+	u_char bpfbuf[SLTMAX + SLIP_HDRLEN];
 	register int len = 0;
 #endif
 	extern int cfreecount;
@@ -486,9 +491,12 @@ slstart(tp)
 		/*
 		 * If system is getting low on clists, just flush our
 		 * output queue (if the stuff was important, it'll get
-		 * retransmitted).
+		 * retransmitted). Note that SLTMAX is used instead of
+		 * the current if_mtu setting because connections that
+		 * have already been established still use the original
+		 * (possibly larger) mss.
 		 */
-		if (cfreecount < CLISTRESERVE + SLMTU) {
+		if (cfreecount < CLISTRESERVE + SLTMAX) {
 			m_freem(m);
 			sc->sc_if.if_collisions++;
 			continue;
@@ -784,7 +792,7 @@ slinput(c, tp)
 error:
 	sc->sc_if.if_ierrors++;
 newpack:
-	sc->sc_mp = sc->sc_buf = sc->sc_ep - SLMAX;
+	sc->sc_mp = sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_escape = 0;
 }
 
@@ -798,8 +806,10 @@ slioctl(ifp, cmd, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
-	register struct ifreq *ifr;
-	register int s = splimp(), error = 0;
+	register struct ifreq *ifr = (struct ifreq *)data;
+	register int s, error = 0;
+
+	s = splimp();
 
 	switch (cmd) {
 
@@ -817,7 +827,6 @@ slioctl(ifp, cmd, data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		ifr = (struct ifreq *)data;
 		if (ifr == 0) {
 			error = EAFNOSUPPORT;		/* XXX */
 			break;
@@ -832,6 +841,17 @@ slioctl(ifp, cmd, data)
 		default:
 			error = EAFNOSUPPORT;
 			break;
+		}
+		break;
+
+	case SIOCSIFMTU:
+		/*
+		 * Set the interface MTU.
+		 */
+		if (ifr->ifr_mtu > SLTMAX) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
 		}
 		break;
 
