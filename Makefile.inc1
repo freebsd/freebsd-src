@@ -640,7 +640,7 @@ legacy:
 _strfile=	games/fortune/strfile
 .endif
 
-.if ${BOOTSTRAPPING} < 500042
+.if ${BOOTSTRAPPING} < 500113
 _groff=		gnu/usr.bin/groff
 .else
 _groff=		gnu/usr.bin/groff/tmac
