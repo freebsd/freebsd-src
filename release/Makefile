@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.144 1995/04/30 09:02:08 phk Exp $
+#	$Id: Makefile,v 1.145 1995/05/01 12:01:39 jkh Exp $
 #
 # How to roll a release:
 #
@@ -72,8 +72,6 @@ release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
-	echo "cd sbin/sysinstall"		>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd ../../release"			>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
