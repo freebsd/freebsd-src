@@ -1279,10 +1279,6 @@ struct	isa_device	*dev;
 		}
 	}
 
-	for(rpmajor=0;rpmajor<nchrdev;rpmajor++)
-		if(cdevsw[rpmajor].d_open == rpopen)
-			printf("From %d entries: Found entry at major = %d\n",nchrdev,rpmajor);
-*/
 	return(1);
 }
 
