@@ -1,13 +1,29 @@
+# Makefile copyright James Raynard (jraynard@freebsd.org) 1997
+#
+# $Id$
+
+.include "${.CURDIR}/../Makefile.inc"
+
+.PATH:	${.CURDIR}/../../../contrib/awk
+
 PROG=	awk
-SRCS=	main.c eval.c builtin.c msg.c iop.c io.c field.c getopt1.c \
-	getopt.c array.c \
-	node.c version.c re.c awk.c dfa.c
-CFLAGS+=-I${.CURDIR} -DGAWK
-CLEANFILES+=awk.c y.tab.h
+SRCS=	array.c awktab.c builtin.c eval.c field.c gawkmisc.c io.c main.c \
+	missing.c msg.c node.c re.c version.c dfa.c getopt.c getopt1.c random.c
+MAN1=	doc/awk.1
+
+YACC = bison -y
+
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../../contrib/awk
+CFLAGS+=	-DHAVE_CONFIG_H -DGAWK -DDEFPATH=\".\"
+CLEANFILES	+=awktab.c y.output y.tab.h
 
 SUBDIR+= doc
 
 DPADD+= ${LIBGNUREGEX} ${LIBM}
 LDADD+= -lgnuregex -lm
+
+
+awktab.c:	${.CURDIR}/../../../contrib/awk/awk.y
+	$(YACC) -v $> && mv y.tab.c awktab.c
 
 .include <bsd.prog.mk>
