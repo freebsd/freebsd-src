@@ -11,7 +11,9 @@
 .Nm rpc_clnt_create ,
 .Nm clnt_control ,
 .Nm clnt_create ,
+.Nm clnt_create_timed ,
 .Nm clnt_create_vers ,
+.Nm clnt_create_vers_timed ,
 .Nm clnt_destroy ,
 .Nm clnt_dg_create ,
 .Nm clnt_pcreateerror ,
@@ -19,6 +21,7 @@
 .Nm clnt_spcreateerror ,
 .Nm clnt_tli_create ,
 .Nm clnt_tp_create ,
+.Nm clnt_tp_create_timed ,
 .Nm clnt_vc_create ,
 .Nm rpc_createerr
 .Nd "library routines for dealing with creation and manipulation of"
@@ -33,7 +36,11 @@ handles
 .Ft "CLIENT *"
 .Fn clnt_create "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype"
 .Ft "CLIENT *"
+.Fn clnt_create_timed "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const char *nettype" "const struct timeval *timeout"
+.Ft "CLIENT *"
 .Fn clnt_create_vers "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "const char *nettype"
+.Ft "CLIENT *"
+.Fn clnt_create_vers_timed "const char * host" "const rpcprog_t prognum" "rpcvers_t *vers_outp" "const rpcvers_t vers_low" "const rpcvers_t vers_high" "char *nettype" "const struct timeval *timeout"
 .Ft void
 .Fn clnt_destroy "CLIENT *clnt"
 .Ft "CLIENT *"
@@ -48,6 +55,8 @@ handles
 .Fn clnt_tli_create "const int fildes" "const struct netconfig *netconf" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
 .Ft "CLIENT *"
 .Fn clnt_tp_create "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf"
+.Ft "CLIENT *"
+.Fn clnt_tp_create_timed "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf" "const struct timeval *timeout"
 .Ft "CLIENT *"
 .Fn clnt_vc_create "const int fildes" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
 .Sh DESCRIPTION
@@ -158,6 +167,17 @@ This mismatch will be discovered by a
 .Fn clnt_call
 later (see
 .Xr rpc_clnt_calls 3 ) .
+.It Fn clnt_create_timed
+Generic client creation routine which is similar to
+.Fn clnt_create
+but which also has the additional parameter
+.Fa timeout
+that specifies the maximum amount of time allowed for
+each transport class tried. In all other respects, the
+.Fn clnt_create_timed
+call behaves exactly like the
+.Fn clnt_create
+call.
 .It Fn clnt_create_vers
 Generic client creation routine which is similar to
 .Fn clnt_create
@@ -213,6 +233,17 @@ However,
 does this for you and returns a valid handle
 only if a version within
 the range supplied is supported by the server.
+.It Fn clnt_create_vers_timed
+Generic client creation routine which is similar to
+.Fn clnt_create_vers
+but which also has the additional parameter
+.Fa timeout
+that specifies the maximum amount of time allowed for
+each transport class tried. In all other respects, the
+.Fn clnt_create_vers_timed
+call behaves exactly like the
+.Fn clnt_create_vers
+call.
 .It Fn clnt_destroy
 A function macro that destroys the client's RPC handle.
 Destruction usually involves deallocation
@@ -393,6 +424,20 @@ if it fails.
 The
 .Fn clnt_pcreateerror
 routine can be used to print the reason for failure.
+.It Fn clnt_tp_create_timed
+Like
+.Fn clnt_tp_create
+except
+.Fn clnt_tp_create_timed
+has the extra parameter
+.Fa timeout
+which specifies the maximum time allowed for
+for the creation attempt to succeed.
+In all other respects, the
+.Fn clnt_tp_create_timed
+call behaves exactly like the
+.Fn clnt_tp_create
+call.
 .It Fn clnt_vc_create
 This routine creates an RPC
 client for the remote program

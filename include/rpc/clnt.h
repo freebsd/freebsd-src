@@ -1,6 +1,23 @@
 /*	$NetBSD: clnt.h,v 1.14 2000/06/02 22:57:55 fvdl Exp $	*/
 
 /*
+ * The contents of this file are subject to the Sun Standards
+ * License Version 1.0 the (the "License";) You may not use
+ * this file except in compliance with the License.  You may
+ * obtain a copy of the License at lib/libc/rpc/LICENSE
+ *
+ * Software distributed under the License is distributed on
+ * an "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either
+ * express or implied.  See the License for the specific
+ * language governing rights and limitations under the License.
+ *
+ * The Original Code is Copyright 1998 by Sun Microsystems, Inc
+ *
+ * The Initial Developer of the Original Code is:  Sun
+ * Microsystems, Inc.
+ *
+ * All Rights Reserved.
+ *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -36,7 +53,8 @@
 /*
  * clnt.h - Client side remote procedure call interface.
  *
- * Copyright (C) 1984, Sun Microsystems, Inc.
+ * Copyright (c) 1986-1991,1994-1999 by Sun Microsystems, Inc.
+ * All rights reserved.
  */
 
 #ifndef _RPC_CLNT_H_
@@ -257,6 +275,7 @@ struct rpc_timers {
 
 #define NULLPROC ((rpcproc_t)0)
 
+__BEGIN_DECLS
 /*
  * Below are the client handle creation routines for the various
  * implementations of client side rpc.  They can return NULL if a
@@ -266,12 +285,6 @@ struct rpc_timers {
 /*
  * Generic client creation routine. Supported protocols are those that
  * belong to the nettype namespace (/etc/netconfig).
- * CLIENT *
- * clnt_create(host, prog, vers, prot);
- *	const char *host; 	-- hostname
- *	const rpcprog_t prog;	-- program number
- *	const rpcvers_t vers;	-- version number
- *	const char *prot;	-- protocol
  */
 __BEGIN_DECLS
 extern CLIENT *clnt_create(const char *, const rpcprog_t, const rpcvers_t,
@@ -282,6 +295,21 @@ extern CLIENT *clnt_create(const char *, const rpcprog_t, const rpcvers_t,
  *	const rpcprog_t prog;			-- program number
  *	const rpcvers_t vers;			-- version number
  *	const char *nettype;			-- network type
+ */
+
+ /*
+ * Generic client creation routine. Just like clnt_create(), except
+ * it takes an additional timeout parameter.
+ */
+extern CLIENT * clnt_create_timed(const char *, const rpcprog_t,
+	const rpcvers_t, const char *, const struct timeval *);
+/*
+ *
+ *	const char *hostname;			-- hostname
+ *	const rpcprog_t prog;			-- program number
+ *	const rpcvers_t vers;			-- version number
+ *	const char *nettype;			-- network type
+ *	const struct timeval *tp;		-- timeout
  */
 
 /*
@@ -300,6 +328,22 @@ extern CLIENT *clnt_create_vers(const char *, const rpcprog_t, rpcvers_t *,
  *	const char *nettype;		-- network type
  */
 
+/*
+ * Generic client creation routine. Supported protocols are which belong
+ * to the nettype name space.
+ */
+extern CLIENT * clnt_create_vers_timed(const char *, const rpcprog_t,
+	rpcvers_t *, const rpcvers_t, const rpcvers_t, const char *,
+	const struct timeval *);
+/*
+ *	const char *host;		-- hostname
+ *	const rpcprog_t prog;		-- program number
+ *	rpcvers_t *vers_out;		-- servers highest available version
+ *	const rpcvers_t vers_low;	-- low version number
+ *	const rpcvers_t vers_high;	-- high version number
+ *	const char *nettype;		-- network type
+ *	const struct timeval *tp	-- timeout
+ */
 
 /*
  * Generic client creation routine. It takes a netconfig structure
@@ -315,16 +359,30 @@ extern CLIENT *clnt_tp_create(const char *, const rpcprog_t,
  */
 
 /*
+ * Generic client creation routine. Just like clnt_tp_create(), except
+ * it takes an additional timeout parameter.
+ */
+extern CLIENT * clnt_tp_create_timed(const char *, const rpcprog_t,
+	const rpcvers_t, const struct netconfig *, const struct timeval *);
+/*
+ *	const char *hostname;			-- hostname
+ *	const rpcprog_t prog;			-- program number
+ *	const rpcvers_t vers;			-- version number
+ *	const struct netconfig *netconf; 	-- network config structure
+ *	const struct timeval *tp		-- timeout
+ */
+
+/*
  * Generic TLI create routine. Only provided for compatibility.
  */
 
 extern CLIENT *clnt_tli_create(const int, const struct netconfig *,
-			       const struct netbuf *, const rpcprog_t,
+			       struct netbuf *, const rpcprog_t,
 			       const rpcvers_t, const u_int, const u_int);
 /*
  *	const register int fd;		-- fd
  *	const struct netconfig *nconf;	-- netconfig structure
- *	const struct netbuf *svcaddr;		-- servers address
+ *	struct netbuf *svcaddr;		-- servers address
  *	const u_long prog;			-- program number
  *	const u_long vers;			-- version number
  *	const u_int sendsz;			-- send size
