@@ -177,6 +177,8 @@
         dict
         ..
         doc
+            IPv6
+            ..
             bind
                 html
                 ..
@@ -274,6 +276,8 @@
         ..
         examples
             FreeBSD_version
+            ..
+            IPv6
             ..
             atapi
             ..
