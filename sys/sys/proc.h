@@ -193,6 +193,7 @@ struct	proc {
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
 	char	p_lock;			/* Process lock (prevent swap) count. */
+	struct	mtx p_mtx;		/* Process stucture lock.  */
 	u_char	p_oncpu;		/* Which cpu we are on */
 	u_char	p_lastcpu;		/* Last cpu we were on */
 	char	p_rqindex;		/* Run queue index */
