@@ -131,6 +131,7 @@ smb_probe(device_t dev)
 static int
 smb_attach(device_t dev)
 {
+	cdevsw_add(&smb_cdevsw);
 	return (0);
 }
 
@@ -267,4 +268,4 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-DEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, smb_cdevsw, 0, 0);
+DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, 0, 0);
