@@ -688,7 +688,13 @@ amr_periodic(void *data)
 
     debug("called");
 
-
+#if 0	
+    /* 
+     * XXX this is basically wrong - returning a command that's wedged
+     * leaves us vulnerable to the controller later completing the command
+     * and overwriting memory that may have subsequently been reused.
+     */
+       
     /*
      * Check for commands that are massively late.  This will need to be 
      * revisited if/when we deal with eg. device format commands.
@@ -711,6 +717,7 @@ amr_periodic(void *data)
 	}
     }
     splx(s);
+#endif
 
     /* reschedule */
     sc->amr_timeout = timeout(amr_periodic, sc, hz);
