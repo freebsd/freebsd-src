@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.54 1996/08/03 09:48:15 jraynard Exp $
+<date> $Id: freebsd-faq.sgml,v 1.55 1996/08/04 03:28:14 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -16,62 +16,215 @@ Any entries with a &lt;XXX&gt; are under construction.
     <sect>
       <heading>Preface</heading>
       <p>
-        Welcome to the FreeBSD 2.X FAQ !  This document tries to answer
-        some of the most frequently asked questions about FreeBSD 2.X  (or
-        later, unless specifically indicated).  If there's something you're
-        having trouble with and you just don't see it here, then please
-        send mail to:
+        Welcome to the FreeBSD 2.X FAQ !  
 
-        <url url="mailto:questions@FreeBSD.ORG" name="FreeBSD-questions
+      <sect1>
+        <heading>What is the purpose of this FAQ?</heading>
+        <p>
+          As is usual with Usenet FAQs, this document aims to cover the most
+          frequently asked questions concerning the FreeBSD operating system
+          (and of course answer them!).  Although originally intended to reduce
+          bandwidth and avoid the same old questions being asked over and over
+          again, FAQs have become recognised as valuable information resources.
+
+          Every effort has been made to make this FAQ as informative as 
+          possible; if you have any suggestions as to how it may be improved,
+          please feel free to mail them to the 
+
+          <url url="mailto:questions@FreeBSD.ORG" name="FreeBSD-questions
           Mailing list"> or to <url url="mailto:faq@FreeBSD.ORG"
           name="FreeBSD FAQ mailing list">
-
-        The latest released version is FreeBSD 2.1.0R. FreeBSD-current
-        refers to the future FreeBSD 2.2. The 2.1 release has been issued
-        from a special branch of the -current sources and is intended as a
-        even more stable version of 2.0.5.
-
-        There are regular snapshots extracted from 2.2-CURRENT. Check on
-        <tt>ftp.FreeBSD.ORG</tt> in <tt>/pub/FreeBSD/*-SNAP*</tt>.
 
       <sect1>
 	<heading>What is FreeBSD?</heading>
         <p>
-          FreeBSD 2.X is a UN*X type operating system based on
+          Briefly, FreeBSD 2.X is a UN*X type operating system based on
           U.C. Berkeley's 4.4BSD-lite release for the i386 platform.  It is
           also based indirectly on William Jolitz's port of U.C. Berkeley's
-          Net/2 to the i386, 386BSD.  There have been many additions and
-          bug fixes made throughout the entire system, some of the
-          highlights of which are:
+          Net/2 to the i386, known as 386BSD.  However, a very considerable
+          number of bug fixes and enhancements have been made to the original
+          code base, resulting in an extremely powerful and highly sophisticated
+          operating system.
+
+          FreeBSD is used by companies, Internet Service Providers, researchers,
+          computer professionals, students and home users all over the world
+          in their work, education and recreation.  See some of them in the 
+          <url url="http://www.freebsd.org/gallery.html" name="FreeBSd Gallery."> 
+
+          For a more detailed description of FreeBSD, see the Introduction to
+          <url url="http://www.freebsd.org/handbook" name="FreeBSD Handbook.">
+
+      <sect1>
+        <heading>What are the goals of FreeBSD?</heading>
+        <p>
+          The goals of the FreeBSD Project are to provide software that may
+          be used for any purpose and without strings attached.  Many of us
+          have a significant investment in the code (and project) and would
+          certainly not mind a little financial renumeration now and then,
+          but we're definitely not prepared to insist on it.  We believe
+          that our first and foremost "mission" is to provide code to any
+          and all comers, and for whatever purpose, so that the code gets
+          the widest possible use and provides the widest possible benefit.
+          This is, I believe, one of the most fundamental goals of Free
+          Software and one that we enthusiastically support.
+
+          That code in our source tree which falls under the GNU Public License
+          (GPL) or GNU Library Public License (GLPL) comes with slightly more
+          strings attached, though at least on the side of enforced
+          access rather than the usual opposite.  Due to the additional
+          complexities that can evolve in the commercial use of GPL software,
+          we do, however, endeavor to replace such software with submissions
+          under the more relaxed BSD copyright whenever possible.
+
+      <sect1>
+       <heading>Why is it called FreeBSD?</heading>
+       <p>
+         <itemize>
+	   <item>It may be used free of charge, even by commercial users.
+	   <item>Full source for the operating system is freely available, and
+		 the minimum possible restrictions have been placed upon its
+		 use, distribution and incorporation into other work (commercial
+		 or non-commercial).
+	   <item>Anyone who has an improvement and/or bug fix is free to submit
+		 their code and have it added to the source tree (subject to
+                 one or two obvious provisos).
+	 </itemize>
+
+       For those of our readers whose first language is not English, it may be
+       worth pointing out that the word ``free'' is being used in two ways here,
+       one meaning ``at no cost'', the other meaning ``you can do whatever you
+       like''.  Apart from one or two things you <tt /cannot/ do with the
+       FreeBSD code, for example pretending you wrote it, you really can do
+       whatever you like with it.
+
+      <sect1>
+	<heading>What is the latest version of FreeBSD?</heading>
+	<p>
+	  Version 2.1.5 is the latest version; it was released in mid-July.
+
+      <sect1>
+	<heading>What is FreeBSD-current?</heading>
+	<p>
+	  FreeBSD-current is the development version of the operating system,
+	  which will in due course become version 2.2.  As such, it is really
+	  only of interest to developers working on the system.  See the section
+	  ``Staying current with FreeBSD'' in the
+
+	  <url url="http://www.freebsd.org/handbook/" name="FreeBSD Handbook">
+
+      <sect1>
+        <heading> What are ``snapshots''?<label id="snapshots"></heading>
+        <p>
+          Every now and again, a ``snapshot'' is taken of the development
+          code, which is prepared as if it were an official release; recently,
+          CDROMs have even been cut from the snapshots. The intention is to:-
 
           <itemize>
-            <item>More robust and extensive PC device support
-            <item>System V-style IPC, messaging and semaphores
-            <item>Shared Libraries
-            <item>Much improved virtual memory code
-            <item>Better console driver support
-            <item>Network booting (diskless) support
-            <item>YP support
-            <item>Full support of the PCI bus
-            <item>Loadable kernel modules
-            <item>Serial Console Support
-            <item>Merged VM/Buffer Cache
-            <item>On demand PPP
-            <item>Sync PPP
-            <item>Improved SCSI support
+            <item>Test the latest version of the installation routine.
+            <item>Allow people who would like to run -current, but who don't 
+                  have the time and/or bandwidth to follow it on a day-to-day 
+                  basis, an easy way to do so.
+            <item>
+                  Preserve a fixed reference point as to when the code was 
+                  reasonably reliable.
+
+            <item>Ensure that a new feature in need of testing has the 
+                  greatest possible number of potential testers.
           </itemize>
 
-      <sect1>
-	<heading>What do I need to run FreeBSD?</heading>
-        <p>
-          You'll need a 386 or better PC, with 4 MB or more of RAM and at
-          least 60 MB of hard disk space. It can run with a low end MDA
-          card but to run X11R6, a VGA or better video card is needed.
+          The astute reader will have noticed that the last two items are 
+          somewhat mutually incompatible. As snapshots are based on 
+          development code, no claim is made that a snapshot is regarded as 
+          being of ``production quality'' - for that, you will have to use 
+          official releases.
 
-          See the section on <ref id="hardware" name="Hardware compatibility">
- 
       <sect1>
-	<heading>Where can I get FreeBSD</heading>
+         <heading> What about FreeBSD-stable?</heading>
+         <p>
+           Back when FreeBSD 2.0.5 was released, we branched FreeBSD 
+           development into two parts. One branch was named -stable, with the 
+           intention that only well-tested bug fixes and small incremental 
+           enhancements would be made to it (for Internet Service Providers 
+           and other commercial enterprises for whom sudden shifts or 
+           experimental features are quite undesirable).  The other branch was
+           -current, which essentially has been one unbroken line since 2.0
+           was released. If a little ASCII art would help, this is how it 
+           looks:
+         <p>
+		       2.0
+			|
+			|
+			|
+		      2.0.5 ---> 2.1 ---> 2.1.5	  [-stable]
+			|
+			|
+	  [-current]   2.2-SNAPs
+			|
+			|
+		       2.2 (scheduled for Q4 '96)
+			|
+			|
+			.
+         <p>
+           The -current branch is slowly progressing towards 2.2 and beyond, 
+           whereas the -stable branch will effectively end with 2.1.5.
+
+      <sect1> 
+        <heading>Why is the -stable branch ending with 2.1.5? </heading>
+        <p>
+          While we'd certainly like to be able to continue both branches of
+          development, we've found that the version control tools available to 
+          us are not particularly well-suited for this; in fact, they quickly 
+          result in a maintenance nightmare for any branch which lives much 
+          beyond 2-3 months. The -stable branch has, by contrast, lasted for 
+          well over a year and what little sanity the FreeBSD developers have 
+          left would be in serious jeopardy if we continued in this way.  
+          Perhaps in the future we'll figure out another model which gives 
+          everyone what they want, and we are working on such a model, but in 
+          the meantime it's probably best to think of -stable coming to an end 
+          with 2.1.5-RELEASE.
+
+      <sect1>
+        <heading> When are FreeBSD releases made?</heading>
+        <p>
+          As a general principle, the FreeBSD core team only release a new 
+          version of FreeBSD when they believe that there are sufficient new 
+          features and/or bug fixes to justify one, and are satisfied that the 
+          changes made have settled down sufficiently to avoid compromising the
+          stability of the release. Many users regard this caution as one of 
+          the best things about FreeBSD, although it can be a little 
+          frustrating when waiting for all the latest goodies to become 
+          available...
+        <p>
+          Releases are made about every 6 months on average.
+
+      <sect1>
+        <heading> Is FreeBSD only available for PCs?</heading>
+        <p>
+          At present, yes. If your machine has a different architecture, we 
+         suggest you look at
+         
+         <htmlurl url="http://www.netbsd.org/" name="NetBSD">
+
+         or 
+
+         <htmlurl url="http://www.openbsd.org/" name="OpenBSD">.
+
+       <sect1>
+         <heading> Who is responsible for FreeBSD?</heading>
+         <p>
+           The key decisions concerning the FreeBSD project, such as the 
+           overall direction of the project and who is allowed to add code to 
+           the source tree, are made by a ``core team'' consisting of 14 
+           people. There is a much larger group, of about 50 people, who can 
+           make changes to the source tree.
+          <p>
+            However, most non-trivial changes are discussed in advance in the 
+            mailing lists, and there are no restrictions on who may take part 
+            in the discussion.
+
+      <sect1>
+	<heading>Where can I get FreeBSD?<label id="where-get"></heading>
         <p>
           The distribution is available via anonymous ftp from:
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="the FreeBSD FTP site">
@@ -92,12 +245,13 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           In Australia, you may find it at:
 
-          Advanced MM Distributors<newline>
-          45 Elstone Ave<newline>
-          Airport West VIC 3042<newline>
+          Advanced Multimedia Distributors<newline>
+          Factory 1/1 Ovata Drive<newline>
+          Tullamarine, Melbourne<newline>
+          Victoria<newline>
+          Australia<newline>
 
-          Voice: +61 3 374-1410<newline>
-          Fax:   +61 3 338-7411 fax<newline>
+          Voice: +61 3 9338 67777<newline>
 
           CDROM Support BBS<newline>
           17 Irvine St<newline>
@@ -205,11 +359,9 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading>Books on FreeBSD</heading>
         <p> 
-          There currently aren't any books written specifically for
-          FreeBSD, although some people are supposedly working on some.
  
-          The FreeBSD Documentation Project exists, you may contact (or
-          better join them) on the <tt>doc</tt> mailing list:
+          There is a FreeBSD Documentation Project which you may contact (or
+          even better, join) on the <tt>doc</tt> mailing list:
           <url url="mailto:doc@FreeBSD.ORG" name="&lt;doc@FreeBSD.ORG&gt;">.
 
           A FreeBSD ``handbook'' is being created, and can be found as:
@@ -286,67 +438,104 @@ Any entries with a &lt;XXX&gt; are under construction.
  
           <url url="http://www.freebsd.org/" name="Main FreeBSD page">
 
-          The FreeBSD handbook has a pretty complete bibliography, look at:
+          The FreeBSD handbook has a pretty complete
           <url url="http://www.FreeBSD.ORG/How/handbook/bibliography.html" name="Bibliography">
-
-    <sect>
-      <heading>FreeBSD goals</heading>
-      <p>
-      <sect1>
-	<heading>Copyrights</heading>
-        <p>
-          The goals of the FreeBSD Project are to provide software that may
-          be used for any purpose and without strings attached.  Many of us
-          have a significant investment in the code (and project) and would
-          certainly not mind a little financial renumeration now and then,
-          but we're definitely not prepared to insist on it.  We believe
-          that our first and foremost "mission" is to provide code to any
-          and all comers, and for whatever purpose, so that the code gets
-          the widest possible use and provides the widest possible benefit.
-          This is, I believe, one of the most fundamental goals of Free
-          Software and one that we enthusiastically support.
-
-          That code in our source tree which falls under the GNU Public License
-          (GPL) or GNU Library Public License (GLPL) comes with slightly more
-          strings attached, though at least on the side of enforced
-          access rather than the usual opposite.  Due to the additional
-          complexities that can evolve in the commercial use of GPL software,
-          we do, however, endeavor to replace such software with submissions
-          under the more relaxed BSD copyright whenever possible.
 
     <sect>
       <heading>Installation</heading>
       <p>
       <sect1>
-        <heading>How do I install FreeBSD?</heading>
+        <heading>Which file do I download to get FreeBSD?</heading>
         <p>
+          I'll answer that in a minute, but first a few words of explanation
+          might be in order.  FreeBSD is not an application that you can
+          run from inside an existing DOS/Windows setup, it is an operating
+          system in its own right (in the same way as Windows NT or OS/2).
 
-          <bf/IMPORTANT NOTE/ if you  are installing 2.1.0R from tape,  see
-          the question  titled, 
-          <ref id="install-tape" name="Help!  I can't install from tape!">
- 
+          To install it involves making a ``primary partition'' for it on
+          the hard disk and arranging for it to be booted at system startup.
+          (FreeBSD gives you the option of installing a boot manager, so you
+          will be able to choose which operating system to use every time the
+          system starts up.  Alternatively, you can use the boot managers
+          provided with oher operating systems, such as OS/2 or Linux).
+
+          Obviously, this is not as simple as using an operating system that
+          those nice people you bought your PC from pre-installed for you,
+          but it's not too difficult provided you read (and, if possible, print
+          out) all the instructions before starting.  It may be a lot to
+          read, but it's very complete.  You should also make full note of the
+          exhortations to back everything up first and the legal disclaimers.
+          These are not there for amusement value - we mean it!  However,
+          most people find the installation goes fairly smoothly.
+
+          If you are able to be connected to the Internet for the duration
+          of the FreeBSD installation (lucky you!), the simplest way to
+          install FreeBSD is to download 
+          <url 
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot.flp"
+          name="the boot image,"> make a boot floppy, boot with it and watch it 
+          pull down all the necessary files. Depending on connection speed and 
+          how much of FreeBSD you wish to install, this could take several hours
+          (even the minimal installation requires downloading about 15MB of 
+          compressed files).
+
+          For people who do not have good Internet connectivity, the best
+          way to install FreeBSD is to buy a CDROM (see <ref id="where-get"
+          name="Where to get FreeBSD"> for details).  Unfortunately, this
+          is problematic for some people, as the support for IDE CDROMs in
+          FreeBSD is still in alpha (not because of some violent antipathy
+          towards IDE CDROMs, but simply due to a lack of people with the
+          necessary combination of skill, inclination and time).  If you have
+          an IDE CDROM, you should use the 
+          <url 
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/atapi.flp"
+          name="special boot floppy for IDE CDROMs.">  If that doesn't work
+          for you, the alternative is to use one of the methods in the next
+          paragraph.
+
+          Finally, if you already have a copy of the necessary files, FreeBSD 
+          can be installed from floppy disks, a DOS hard disk partition or
+          tape or over a network via SLIP, PPP, NFS, PLIP and Ethernet.
+
+      <sect1>
+        <heading>Where are the instructions for installing FreeBSD?</heading>
+        <p>
           Installation instructions can be found as:
  
-          <url   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/INSTALL"
-            name="INSTALL from 2.1.0R">
+          <url   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/INSTALL"
+            name="INSTALL from 2.1.5R">
  
           Release notes are also available as:
  
-          <url  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/RELNOTES"
-            name="RELNOTES from 2.1.0R">
+          <url  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/RELNOTES"
+            name="RELNOTES from 2.1.5R">
  
           On the CDROM, the following files are in the top-most directory:
  
           <verb>
+            HARDWARE.TXT    -- Hardware information
             INSTALL         -- Installation instructions
             README.TXT      -- Basic README file
             RELNOTES        -- Release notes
           </verb>
 
       <sect1>
-	<heading>I have only 4 MB of RAM. Can I install FreeBSD 2.1.0 ?</heading>
-
+	<heading>What do I need to run FreeBSD?</heading>
         <p>
+          you'll need a 386 or better PC, with 4 MB or more of RAM and at
+          least 60 MB of hard disk space. It can run with a low end MDA
+          card but to run X11R6, a VGA or better video card is needed.
+
+          See the section on <ref id="hardware" name="Hardware compatibility">
+
+      <sect1>
+	<heading>I have only 4 MB of RAM. Can I install FreeBSD?</heading>
+        <p>
+          The latest version of FreeBSD (2.1.5) will install on a 4MB
+          system, provided you use the <url 
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot4.flp"
+          name="special boot floppy for 4MB systems.">
+
           FreeBSD 2.1.0 does not install with 4 MB.  To be exact: it does
           not install with 640 kB base + 3 MB extended memory.  If your
           motherboard can remap some of the ``lost'' memory out of the
@@ -368,34 +557,26 @@ Any entries with a &lt;XXX&gt; are under construction.
           system was almost unusable though :-))
 
       <sect1>
-	<heading>Help! I have no space! Must I delete everything first?</heading>
-
-        <p>
-          If your machine is already running DOS and has little or no free
-          space available for FreeBSD's installation, all is not lost!  You
-          may find the ``<tt/FIPS/'' utility, provided in the
-          <tt>tools/</tt> subdirectory on the FreeBSD CDROM or on the
-          various FreeBSD ftp sites, to be quite useful.
-
-          <tt/FIPS/ allows you to split an existing DOS partition into two
-          pieces, preserving the original partition and allowing you to
-          install onto the second free piece.  You first ``defrag'' your
-          DOS partition, using the DOS 6.xx <tt/DEFRAG/ utility or the
-          Norton Disk tools, then run <tt/FIPS/.  It will prompt you for
-          the rest of the information it needs.  Afterwards, you can reboot
-          and install FreeBSD on the new free slice.  See the Distributions
-          menu for an estimation of how much free space you'll need for the
-          kind of installation you want.
-
-	  NOTE: <tt/FIPS/ may cause problems with the mounting of your
-          DOS partition under FreeBSD 2.X.
-
-      <sect1>
 	<heading>Can Windows 95 co-exist with FreeBSD?</heading>
 
         <p>
           Install Windows 95 first, after that FreeBSD. FreeBSD's boot
           manager will then manage to boot Win95 and FreeBSD.
+
+      <sect1>
+        <heading>How can I have more than one operating system on my PC?</heading>
+	<p>
+          Have a look at <url url="http://www.in.net/~jayrich/doc/multios.html" name="The multi-OS page.">
+
+      <sect1>
+        <heading>Can I install on an IDE disk with bad blocks?</heading>
+        <p>
+          FreeBSD's bad block (the ``<tt/bad144/'' command) handling is
+          still not 100&percnt; (to put it charitably) and it must
+          unfortunately be said that if you've got an IDE or ESDI drive
+          with lots of bad blocks, then FreeBSD is probably not for you!
+          That said, it does work on thousands of IDE based systems, so
+          you'd do well to try it first before simply giving up.
 
       <sect1>
         <heading>Can I use compressed DOS filesystems from FreeBSD?</heading>
@@ -427,25 +608,34 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
               mount -t msdos /dev/sd0s5 /dos_d
 
+      <sect1>
+	<heading>Strange things happen when I boot the install floppy!</heading>
+	<p>
+	  If you're seeing things like the machine grinding to a halt or
+	  spontaneously rebooting when you try to boot the install floppy,
+	  here are three questions to ask yourself:-
+	  <enum>
+	    <item>Did you use a new, freshly-formatted, error-free floppy
+		  (preferably a brand-new one striaght out of the box), as
+		  opposed to the magazine coverdisk that's been lying under
+		  the bed for the last three years)?
+	    <item>Did you download the floppy image in binary (or image) mode?
+		  (don't be embarrassed, even the best of us have made this 
+		  mistake at least once when FTP'ing things!)
+            <item>If you're using one of these new-fangled operating systems
+		  like Windows95 or Windows NT, did you shut it down and restart
+		  the system in plain, honest DOS?  It seems these OS's can
+		  interfere with programs that write directly to hardware, as
+		  the disk creation program does; even running it inside a DOS
+		  shell in the GUI can cause this problem.
+          </enum>
+
+          There have also been reports of Netscape causing problems when 
+          downloading the boot floppy, so it's probably best to use a different
+          FTP client if you can.
 
       <sect1>
-	<heading>Can I run DOS binaries under FreeBSD?</heading>
-
-        <p>
-          Not yet, though BSDI has just donated their <tt/rundos/ DOS emulation
-          subsystem which we're now working on integrating and enhancing.
-          Send mail to
-          <url url="mailto:emulation@freebsd.org"
-            name="The FreeBSD emulation discussion list">
-          if you're interested in joining this effort!
-
-          For now, there is a neat utility called ``<tt/pcemu/'' in the
-          ports collection which emulates an 8088 and enough BIOS services
-          to run DOS text mode applications.  It requires the X Window
-          System (provided as XFree86 3.1.2).
-
-      <sect1>
-	<heading>Help! I  can't  install from tape!<label id="install-tape"></heading>
+	<heading>Help! I can't install from tape!</heading>
         <p> 
           If you are installing 2.1.0R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
@@ -454,25 +644,6 @@ Any entries with a &lt;XXX&gt; are under construction.
           you will get an error that complains about  the record size being
           too big.
  
-       <sect1>
-	<heading>How can I install onto a large SCSI disk?</heading>
-
-        <p>
-          This depends.  If you don't have DOS (or another operating
-          system) on the system, you can just keep the drive in native mode
-          and simply make sure that your root partition is below 1024 cylinders so
-          the BIOS can boot the kernel from it.  It you also have DOS/some
-          other OS on the drive then your best bet is to find out what
-          parameters that it thinks you have before installing FreeBSD.
-          When FreeBSD's installation procedure prompts you for these
-          values, you should then enter them rather than simply going with
-          the defaults.
-
-          There is a freely available utility distributed with FreeBSD
-          called ``<tt/pfdisk/'' (located in the <tt>tools</tt>
-          subdirectory on the FreeBSD CDROM or on the various FreeBSD
-          ftp sites) which can be used for this purpose.
-
       <sect1>
 	<heading>Can I install on my laptop over PLIP (Parallel Line IP)?</heading>
         <p>
@@ -503,12 +674,78 @@ Any entries with a &lt;XXX&gt; are under construction.
           </verb>
 
       <sect1>
-	<heading>When I boot FreeBSD I get ``Missing Operating System''.</heading>
+        <heading>Which geometry should I use for a disk drive?<label id="geometry"></heading>
+        <p>
+          (By the "geometry" of a disk, we mean the number of cylinders,
+          heads and sectors/track on a disk - I'll refer to this as
+          C/H/S for convenience.  This is how the PC's BIOS works out
+          which area on a disk to read/write from).
+          
+          This seems to cause a lot of confusion for some reason.  First
+          of all, the <tt /physical/ geometry of a SCSI drive is totally
+          irrelevant, as FreeBSD works in term of disk blocks.  In fact, there
+          is no such thing as "the" physical geometry, as the sector density
+          varies across the disk - what manufacturers claim is the "true"
+          physical geometry is usually the geometry that they've worked out
+          results in the least wasted space.  For IDE disks, FreeBSD does
+          work in terms of C/H/S, but all modern drives will convert this
+          into block references internally as well.
+
+          All that matters is the <tt /logical/ geometry - the answer that the 
+          BIOS gets when it asks "what is your geometry" and then uses to access
+          the disk.  As FreeBSD uses the BIOS when booting, it's very important 
+          to get this right.  In particular, if you have more than one operating
+          system on a disk, they must all agree on the geometry, otherwise you 
+          will have serious problems booting!
+
+          For SCSI disks, the geometry to use depends on whether extended
+          translation support is turned on in your controller (this is
+          often referred to as "support for DOS disks &gt;1GB" or something 
+          similar).  If it's turned off, then use N cylinders, 64 heads
+          and 32 sectors/track, where 'N' is the capacity of the disk in
+          MB.  For example, a 2GB disk should pretend to have 2048 cylinders,
+          64 heads and 32 sectors/track.
+
+          If it <tt /is/ turned on (it's often supplied this way to get around
+          certain limitations in MSDOS) and the disk capacity is more than 1GB,
+          use M cylinders, 63 heads (*not* 64), and 255 sectors per track, where
+          'M' is the disk capacity in MB divided by 7.844238 (!).  So our
+          example 2GB drive would have 261 cylinders, 63 heads and 32 sectors
+          per track.
+
+          If you are not sure about this, or FreeBSD fails to detect the
+          geometry correctly during installation, the simplest way around
+          this is usually to create a small DOS partition on the disk.  The
+          correct geometry should then be detected (and you can always remove
+          the DOS partition in the partition editor if you don't want to keep
+          it).
+
+          Alternatively, there is a freely available utility distributed with 
+          FreeBSD called ``<tt/pfdisk.exe/'' (located in the <tt>tools</tt>
+          subdirectory on the FreeBSD CDROM or on the various FreeBSD
+          ftp sites) which can be used to work out what geometry the other
+          operating systems on the disk are using.  You can then enter this
+          geometry in the partition editor.
+
+      <sect1>
+        <heading>Any restrictions on how I divide the disk up?</heading>
 
         <p>
-          See question above.  This is classically a case of FreeBSD and
-          DOS or some other OS conflicting over their ideas of disk
-          geometry.  You will have to reinstall FreeBSD, but obeying the
+          Yes. You must make sure that your root partition is below 1024 
+          cylinders so the BIOS can boot the kernel from it.  (Note that this 
+          is a limitation in the PC's BIOS, not FreeBSD).  
+
+          For a SCSI drive, this will normally imply that the root partition 
+          will be in the first 1024MB (or in the first 4096MB if extended
+          translation is turned on - see previous question).  For IDE, the 
+          corresponding figure is 504MB.
+
+      <sect1>
+	<heading>When I boot FreeBSD I get ``Missing Operating System''.</heading>
+        <p>
+          This is classically a case of FreeBSD and DOS or some other OS 
+          conflicting over their ideas of disk <ref id="geometry" 
+          name="geometry.">  You will have to reinstall FreeBSD, but obeying the
           instructions given above will almost always get you going.
 
       <sect1>
@@ -570,14 +807,29 @@ Any entries with a &lt;XXX&gt; are under construction.
           need to worry about tuning your filesystem! :-)
 
       <sect1>
-	<heading>I have an IDE drive with lots of bad blocks on it...</heading>
+	<heading>I have bad blocks on my hard drive!</heading>
         <p>
-          FreeBSD's bad block (the ``<tt/bad144/'' command) handling is
-          still not 100&percnt; (to put it charitably) and it must
-          unfortunately be said that if you've got an IDE or ESDI drive
-          with lots of bad blocks, then FreeBSD is probably not for you!
-          That said, it does work on thousands of IDE based systems, so
-          you'd do well to try it first before simply giving up.
+          With SCSI drives, the drive should be capable of re-mapping
+          these automatically.  However, many drives are shipped with
+          this feature disabled, for some mysterious reason...
+
+          To enable this, you'll need to edit the first device page mode, 
+          which can be done on FreeBSD by giving the command (as root)
+
+<verb>
+ scsi -f /dev/rsd0c -m 1 -e -P 3
+</verb>
+
+          and changing the values of AWRE and ARRE from 0 to 1:-
+<verb>
+ AWRE (Auto Write Reallocation Enbld):  1
+ ARRE (Auto Read Reallocation Enbld):  1
+</verb>
+
+          For other drive types, you are dependent on support from the
+          operating system.  Unfortunately, the ``bad144'' command that
+	  FreeBSD supplies for this purpose needs a considerable amount
+	  of work done on it...
 
           IDE drives are <em/supposed/ to come with built-in bad-block
           remapping; if you have documentation for your drive, you may want
@@ -590,7 +842,8 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
           No.  FreeBSD 2.X comes with bounce buffers which allows your bus
           mastering controller access to greater than 16MB. (Note that this
-          is not required if you have a PCI motherboard).
+          should only be required if you are using ISA devices, although
+          one or two broken EISA and VLB devices may need it as well).
 
       <sect1>
 	<heading>I keep seeing messages like ``<tt/ed1: timeout/''.</heading>
@@ -1418,6 +1671,22 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           Please refer to the answer to the previous question.
   
       <sect1>
+	<heading>Can I run DOS binaries under FreeBSD?</heading>
+
+        <p>
+          Not yet, though BSDI has just donated their <tt/rundos/ DOS emulation
+          subsystem which we're now working on integrating and enhancing.
+          Send mail to
+          <url url="mailto:emulation@freebsd.org"
+            name="The FreeBSD emulation discussion list">
+          if you're interested in joining this effort!
+
+          For now, there is a neat utility called ``<tt/pcemu/'' in the
+          ports collection which emulates an 8088 and enough BIOS services
+          to run DOS text mode applications.  It requires the X Window
+          System (provided as XFree86 3.1.2).
+
+      <sect1>
         <heading>My programs occasionally die with ``Signal 11'' errors.</heading>
         <p>
           This can be caused by bad hardware (memory, motherboard, etc.).
@@ -1624,15 +1893,6 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           that won't be used by <tt/getty/'s about a second later.
 
       <sect1>
-        <heading>What's FreeBSD-current?</heading>
-
-        <p>
-          Read this:
-          <url url="http://www.freebsd.org/How/handbook/current.html"
-            name="Handbook entry on FreeBSD-CURRENT">
-          it will tell you all you need to know.
-          
-      <sect1>
 	<heading>What is this thing called ``<tt/sup/'', and how do I use it?</heading>
 
         <p>
@@ -1717,17 +1977,19 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           control over your machine to the eternal damnation of your soul.
           Given a choice, I think I'd prefer to get used to the scratchy
           noises, myself!
+
       <sect1>
         <heading>How do I create customized installation disks?</heading>
-
         <p>
           The entire process of creating installation disks and source and
           binary archives is automated by various targets in
           <tt>/usr/src/release/Makefile</tt>.  The information there should
-          be enough to get you started.
+          be enough to get you started.  However, it should be said that this
+          involves doing a ``make world'' and will therefore take up a lot of
+          time and disk space.
 
       <sect1>
-        <heading>&quot;make world&quot; clobbers my existing installed binaries.</heading>
+        <heading>``make world'' clobbers my existing installed binaries.</heading>
 
         <p>
 	  Yes, this is the general idea; as its name might suggest,
@@ -1896,8 +2158,8 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           write to the printer status port for setting addresses, plus that
           use that address + <tt/0x800/, and a third I/O port for reading
           that can be located anywhere between <tt/0x200/ and <tt/0x3ff/.
-
           
+
     <sect>
       <heading>Kernel Configuration</heading>
       <p>
@@ -3173,6 +3435,10 @@ domain foo.bar.edu
             FreeBSD Doc Team   
           <tag/Jordan Hubbard/
             Janitorial services (I don't do windows)
+          <tag/Doug White/
+            Services above and beyond the call of duty on freebsd-questions
+          <tag/Joerg Wunsch/
+            Services above and beyond the call of duty on Usenet
           <tag/Garrett Wollman/
             Networking and formatting
           <tag/Jim Lowe/
