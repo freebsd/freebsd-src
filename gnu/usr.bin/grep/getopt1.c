@@ -1,37 +1,36 @@
 /* getopt_long and getopt_long_only entry points for GNU getopt.
-   Copyright (C) 1987,88,89,90,91,92,93,94,96,97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1987,88,89,90,91,92,93,94,96,97,98
+     Free Software Foundation, Inc.
+   NOTE: The canonical source of this file is maintained with the GNU C Library.
+   Bugs can be reported to bug-glibc@gnu.org.
 
-   This file is part of the GNU C Library.  Its master source is NOT part of
-   the C library, however.  The master source lives in /gd/gnu/lib.
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by the
+   Free Software Foundation; either version 2, or (at your option) any
+   later version.
 
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public License as
-   published by the Free Software Foundation; either version 2 of the
-   License, or (at your option) any later version.
-
-   The GNU C Library is distributed in the hope that it will be useful,
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
-
-#include "getopt.h"
-
-#if !defined (__STDC__) || !__STDC__
+#else
+#if !defined __STDC__ || !__STDC__
 /* This is a separate conditional since some stdc systems
    reject `defined (const)'.  */
 #ifndef const
 #define const
 #endif
 #endif
+#endif
+
+#include "getopt.h"
 
 #include <stdio.h>
 
@@ -44,7 +43,7 @@
    it is simpler to just do this in the source for each such file.  */
 
 #define GETOPT_INTERFACE_VERSION 2
-#if !defined (_LIBC) && defined (__GLIBC__) && __GLIBC__ >= 2
+#if !defined _LIBC && defined __GLIBC__ && __GLIBC__ >= 2
 #include <gnu-versions.h>
 #if _GNU_GETOPT_INTERFACE_VERSION == GETOPT_INTERFACE_VERSION
 #define ELIDE_CODE
@@ -129,9 +128,9 @@ main (argc, argv)
       switch (c)
 	{
 	case 0:
-	  printf (_("option %s"), long_options[option_index].name);
+	  printf ("option %s", long_options[option_index].name);
 	  if (optarg)
-	    printf (_(" with arg %s"), optarg);
+	    printf (" with arg %s", optarg);
 	  printf ("\n");
 	  break;
 
@@ -146,38 +145,38 @@ main (argc, argv)
 	case '8':
 	case '9':
 	  if (digit_optind != 0 && digit_optind != this_option_optind)
-	    printf (_("digits occur in two different argv-elements.\n"));
+	    printf ("digits occur in two different argv-elements.\n");
 	  digit_optind = this_option_optind;
-	  printf (_("option %c\n"), c);
+	  printf ("option %c\n", c);
 	  break;
 
 	case 'a':
-	  printf (_("option a\n"));
+	  printf ("option a\n");
 	  break;
 
 	case 'b':
-	  printf (_("option b\n"));
+	  printf ("option b\n");
 	  break;
 
 	case 'c':
-	  printf (_("option c with value `%s'\n"), optarg);
+	  printf ("option c with value `%s'\n", optarg);
 	  break;
 
 	case 'd':
-	  printf (_("option d with value `%s'\n"), optarg);
+	  printf ("option d with value `%s'\n", optarg);
 	  break;
 
 	case '?':
 	  break;
 
 	default:
-	  printf (_("?? getopt returned character code 0%o ??\n"), c);
+	  printf ("?? getopt returned character code 0%o ??\n", c);
 	}
     }
 
   if (optind < argc)
     {
-      printf (_("non-option ARGV-elements: "));
+      printf ("non-option ARGV-elements: ");
       while (optind < argc)
 	printf ("%s ", argv[optind++]);
       printf ("\n");
