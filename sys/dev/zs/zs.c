@@ -943,7 +943,7 @@ zstty_cngetc(struct zstty_softc *sc)
 static int
 zstty_cncheckc(struct zstty_softc *sc)
 {
-	uint8_t c;
+	int c;
 
 	c = -1;
 	zstty_cnopen(sc);
