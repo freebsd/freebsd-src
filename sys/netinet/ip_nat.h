@@ -285,6 +285,7 @@ extern	nat_t	*nat_icmplookup __P((ip_t *, fr_info_t *, int));
 extern	nat_t	*nat_icmp __P((ip_t *, fr_info_t *, u_int *, int));
 extern	void	nat_insert __P((nat_t *));
 
+extern	int	ip_natout __P((ip_t *, fr_info_t *));
 extern	int	ip_natin __P((ip_t *, fr_info_t *));
 extern	void	ip_natunload __P((void)), ip_natexpire __P((void));
 extern	void	nat_log __P((struct nat *, u_int));

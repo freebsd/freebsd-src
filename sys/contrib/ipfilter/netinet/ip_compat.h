@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -27,6 +27,11 @@
 
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
+#endif
+#if SOLARIS2 >= 8
+# ifndef	USE_INET6
+#  define	USE_INET6
+# endif
 #endif
 
 #if defined(_KERNEL) || defined(KERNEL) || defined(__KERNEL__)
@@ -91,19 +96,29 @@ struct  ether_addr {
 # ifndef	KERNEL
 #  define	_KERNEL
 #  undef	RES_INIT
+#  if SOLARIS2 >= 8
+#   include <netinet/ip6.h>
+#  endif
 #  include <inet/common.h>
 #  include <inet/ip.h>
 #  include <inet/ip_ire.h>
 #  undef	_KERNEL
 # else /* _KERNEL */
+#  if SOLARIS2 >= 8
+#   include <netinet/ip6.h>
+#  endif
 #  include <inet/common.h>
 #  include <inet/ip.h>
 #  include <inet/ip_ire.h>
 # endif /* _KERNEL */
 # if SOLARIS2 >= 8
+#  include <inet/ip_if.h>
 #  include <netinet/ip6.h>
-#  include <inet/ip6.h>
 #  define	ipif_local_addr	ipif_lcl_addr
+/* Only defined in private include file */
+#  ifndef	V4_PART_OF_V6
+#   define	V4_PART_OF_V6(v6)	v6.s6_addr32[3]
+#  endif
 # endif
 #else
 # if !defined(__sgi)
@@ -125,12 +140,25 @@ typedef	 int	minor_t;
 # define	QUAD_T		long
 #endif /* BSD > 199306 */
 
+
 /*
  * These operating systems already take care of the problem for us.
  */
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || \
     defined(__sgi)
 typedef u_int32_t       u_32_t;
+# if defined(_KERNEL) && !defined(IPFILTER_LKM)
+#  if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 104110000)
+#   include "opt_inet.h"
+#  endif
+#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 400000) && \
+      !defined(KLD_MODULE)
+#   include "opt_inet6.h"
+#  endif
+#  ifdef INET6
+#   define USE_INET6
+#  endif
+# endif
 #else
 /*
  * Really, any arch where sizeof(long) != sizeof(int).
@@ -138,9 +166,37 @@ typedef u_int32_t       u_32_t;
 # if defined(__alpha__) || defined(__alpha) || defined(_LP64)
 typedef unsigned int    u_32_t;
 # else
-typedef unsigned long   u_32_t;
+#  if SOLARIS2 >= 6
+typedef	uint32_t	u_32_t;
+#  else
+typedef unsigned int	u_32_t;
+#  endif
 # endif
 #endif /* __NetBSD__ || __OpenBSD__ || __FreeBSD__ || __sgi */
+
+#ifdef	USE_INET6
+# if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#  include <netinet/ip6.h>
+#  ifdef	_KERNEL
+#   include <netinet6/ip6_var.h>
+#  endif
+typedef	struct ip6_hdr	ip6_t;
+# endif
+union	i6addr	{
+	u_32_t	i6[4];
+	struct	in_addr	in4;
+	struct	in6_addr in6;
+};
+#else
+union	i6addr	{
+	u_32_t	i6[4];
+	struct	in_addr	in4;
+};
+#endif
+
+#define	IP6CMP(a,b)	bcmp((char *)&(a), (char *)&(b), sizeof(a))
+#define	IP6EQ(a,b)	(bcmp((char *)&(a), (char *)&(b), sizeof(a)) == 0)
+#define	IP6NEQ(a,b)	(bcmp((char *)&(a), (char *)&(b), sizeof(a)) != 0)
 
 #ifndef	MAX
 #define	MAX(a,b)	(((a) > (b)) ? (a) : (b))
@@ -203,12 +259,15 @@ typedef unsigned long   u_32_t;
 #define	IPOPT_FINN	205	/* FINN */
 
 
-#if defined(__FreeBSD__) && defined(KERNEL)
+#if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
 # if __FreeBSD__ < 3
 #  include <machine/spl.h>
-# endif
-# if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
-#  define	ACTUALLY_LKM_NOT_KERNEL
+# else
+#  if __FreeBSD__ == 3
+#   if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
+#    define	ACTUALLY_LKM_NOT_KERNEL
+#   endif
+#  endif
 # endif
 #endif /* __FreeBSD__ && KERNEL */
 
@@ -216,12 +275,39 @@ typedef unsigned long   u_32_t;
  * Build some macros and #defines to enable the same code to compile anywhere
  * Well, that's the idea, anyway :-)
  */
+#if !SOLARIS || (SOLARIS2 < 6) || !defined(KERNEL)
+# define	ATOMIC_INCL		ATOMIC_INC
+# define	ATOMIC_INC64		ATOMIC_INC
+# define	ATOMIC_INC32		ATOMIC_INC
+# define	ATOMIC_INC16		ATOMIC_INC
+# define	ATOMIC_DECL		ATOMIC_DEC
+# define	ATOMIC_DEC64		ATOMIC_DEC
+# define	ATOMIC_DEC32		ATOMIC_DEC
+# define	ATOMIC_DEC16		ATOMIC_DEC
+#endif
 #ifdef KERNEL
 # if SOLARIS
-#  define	ATOMIC_INC(x)		{ mutex_enter(&ipf_rw); (x)++; \
+#  if SOLARIS2 >= 6
+#   include <sys/atomic.h>
+#   if SOLARIS2 == 6
+#    define	ATOMIC_INCL(x)		atomic_add_long((uint32_t*)&(x), 1)
+#    define	ATOMIC_DECL(x)		atomic_add_long((uint32_t*)&(x), -1)
+#   else
+#    define	ATOMIC_INCL(x)		atomic_add_long(&(x), 1)
+#    define	ATOMIC_DECL(x)		atomic_add_long(&(x), -1)
+#   endif
+#   define	ATOMIC_INC64(x)		atomic_add_64((uint64_t*)&(x), 1)
+#   define	ATOMIC_INC32(x)		atomic_add_32((uint32_t*)&(x), 1)
+#   define	ATOMIC_INC16(x)		atomic_add_16((uint16_t*)&(x), 1)
+#   define	ATOMIC_DEC64(x)		atomic_add_64((uint64_t*)&(x), -1)
+#   define	ATOMIC_DEC32(x)		atomic_add_32((uint32_t*)&(x), -1)
+#   define	ATOMIC_DEC16(x)		atomic_add_16((uint16_t*)&(x), -1)
+#  else
+#   define	ATOMIC_INC(x)		{ mutex_enter(&ipf_rw); (x)++; \
 					  mutex_exit(&ipf_rw); }
-#  define	ATOMIC_DEC(x)		{ mutex_enter(&ipf_rw); (x)--; \
+#   define	ATOMIC_DEC(x)		{ mutex_enter(&ipf_rw); (x)--; \
 					  mutex_exit(&ipf_rw); }
+#  endif
 #  define	MUTEX_ENTER(x)		mutex_enter(x)
 #  if 1
 #   define	KRWLOCK_T		krwlock_t
@@ -244,10 +330,14 @@ typedef unsigned long   u_32_t;
 #   define	RWLOCK_EXIT(x)		mutex_exit(x)
 #   define	RW_DESTROY(x)		mutex_destroy(x)
 #  endif
+#  define	MUTEX_INIT(x, y, z)	mutex_init((x), (y), MUTEX_DRIVER, (z))
+#  define	MUTEX_DESTROY(x)	mutex_destroy(x)
 #  define	MUTEX_EXIT(x)	mutex_exit(x)
 #  define	MTOD(m,t)	(t)((m)->b_rptr)
 #  define	IRCOPY(a,b,c)	copyin((a), (b), (c))
 #  define	IWCOPY(a,b,c)	copyout((a), (b), (c))
+#  define	IRCOPYPTR	ircopyptr
+#  define	IWCOPYPTR	iwcopyptr
 #  define	FREE_MB_T(m)	freemsg(m)
 #  define	SPL_NET(x)	;
 #  define	SPL_IMP(x)	;
@@ -283,9 +373,11 @@ typedef	struct	qif	{
 	 * in case the ILL has disappeared...
 	 */
 	size_t	qf_hl;	/* header length */
+	int	qf_sap;
 } qif_t;
-extern	ill_t	*get_unit __P((char *));
-#  define	GETUNIT(n)	get_unit((n))
+extern	ill_t	*get_unit __P((char *, int));
+#  define	GETUNIT(n, v)	get_unit(n, v)
+#  define	IFNAME(x)	((ill_t *)x)->ill_name
 # else /* SOLARIS */
 #  if defined(__sgi)
 #   define  hz HZ
@@ -307,35 +399,48 @@ typedef struct {
 #   define	WRITE_ENTER(x)		MUTEX_ENTER(x)
 #   define	RW_UPGRADE(x)		;
 #   define	MUTEX_DOWNGRADE(x)	;
-#   define	RWLOCK_EXIT(x)	MUTEX_EXIT(x)
-#   define	MUTEX_EXIT(x)	UNLOCK((x)->l, (x)->pl);
+#   define	RWLOCK_EXIT(x)		MUTEX_EXIT(x)
+#   define	MUTEX_EXIT(x)		UNLOCK((x)->l, (x)->pl);
+#   define	MUTEX_INIT(x,y,z)	(x).l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP)
+#   define	MUTEX_DESTROY(x)	LOCK_DEALLOC((x).l)
 #  else /* __sgi */
 #   define	ATOMIC_INC(x)		(x)++
 #   define	ATOMIC_DEC(x)		(x)--
 #   define	MUTEX_ENTER(x)		;
-#   define	READ_ENTER(x)	;
-#   define	WRITE_ENTER(x)	;
-#   define	RW_UPGRADE(x)	;
+#   define	READ_ENTER(x)		;
+#   define	WRITE_ENTER(x)		;
+#   define	RW_UPGRADE(x)		;
 #   define	MUTEX_DOWNGRADE(x)	;
-#   define	RWLOCK_EXIT(x)	;
-#   define	MUTEX_EXIT(x)	;
+#   define	RWLOCK_EXIT(x)		;
+#   define	MUTEX_EXIT(x)		;
+#   define	MUTEX_INIT(x,y,z)	;
+#   define	MUTEX_DESTROY(x)	;
 #  endif /* __sgi */
 #  ifndef linux
 #   define	FREE_MB_T(m)	m_freem(m)
 #   define	MTOD(m,t)	mtod(m,t)
-#   define	IRCOPY(a,b,c)	bcopy((a), (b), (c))
-#   define	IWCOPY(a,b,c)	bcopy((a), (b), (c))
+#   define	IRCOPY(a,b,c)	(bcopy((a), (b), (c)), 0)
+#   define	IWCOPY(a,b,c)	(bcopy((a), (b), (c)), 0)
+#   define	IRCOPYPTR	ircopyptr
+#   define	IWCOPYPTR	iwcopyptr
 #  endif /* !linux */
 # endif /* SOLARIS */
 
 # ifdef sun
 #  if !SOLARIS
 #   include	<sys/kmem_alloc.h>
-#   define	GETUNIT(n)	ifunit((n), IFNAMSIZ)
+#   define	GETUNIT(n, v)	ifunit(n, IFNAMSIZ)
+#   define	IFNAME(x)	((struct ifnet *)x)->if_name
 #  endif
 # else
 #  ifndef	linux
-#   define	GETUNIT(n)	ifunit((n))
+#   define	GETUNIT(n, v)	ifunit(n)
+#   if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
+        (defined(OpenBSD) && (OpenBSD >= 199603))
+#    define	IFNAME(x)	((struct ifnet *)x)->if_xname
+#   else
+#    define	IFNAME(x)	((struct ifnet *)x)->if_name
+#   endif
 #  endif
 # endif /* sun */
 
@@ -409,6 +514,8 @@ extern	vm_map_t	kmem_map;
 # define	ATOMIC_DEC(x)	(x)--
 # define	MUTEX_ENTER(x)	;
 # define	READ_ENTER(x)	;
+# define	MUTEX_INIT(x,y,z)	;
+# define	MUTEX_DESTROY(x)	;
 # define	WRITE_ENTER(x)	;
 # define	RW_UPGRADE(x)	;
 # define	MUTEX_DOWNGRADE(x)	;
@@ -422,9 +529,11 @@ extern	vm_map_t	kmem_map;
 # define	KMALLOCS(a,b,c)	(a) = (b)malloc(c)
 # define	KFREE(x)	free(x)
 # define	KFREES(x,s)	free(x)
-# define	GETUNIT(x)	get_unit(x)
-# define	IRCOPY(a,b,c)	bcopy((a), (b), (c))
-# define	IWCOPY(a,b,c)	bcopy((a), (b), (c))
+# define	GETUNIT(x, v)	get_unit(x,v)
+# define	IRCOPY(a,b,c)	(bcopy((a), (b), (c)), 0)
+# define	IWCOPY(a,b,c)	(bcopy((a), (b), (c)), 0)
+# define	IRCOPYPTR	ircopyptr
+# define	IWCOPYPTR	iwcopyptr
 #endif /* KERNEL */
 
 #if SOLARIS
@@ -746,7 +855,7 @@ typedef	struct	uio	{
 # define	if_name	name
 
 # ifdef	KERNEL
-#  define	GETUNIT(x)	dev_get(x)
+#  define	GETUNIT(x, v)	dev_get(x)
 #  define	FREE_MB_T(m)	kfree_skb(m, FREE_WRITE)
 #  define	uniqtime	do_gettimeofday
 #  undef INT_MAX
@@ -768,16 +877,50 @@ typedef	struct	uio	{
 #  define	KMALLOCS(a,b,c)	(a) = (b)kmalloc((c), GFP_ATOMIC)
 #  define	KFREE(x)	kfree_s((x), sizeof(*(x)))
 #  define	KFREES(x,s)	kfree_s((x), (s))
-#  define	IRCOPY(a,b,c)	{ \
-				 error = verify_area(VERIFY_READ, (a) ,(c)); \
-				 if (!error) \
-					memcpy_fromfs((b), (a), (c)); \
-				}
-#  define	IWCOPY(a,b,c)	{ \
-				 error = verify_area(VERIFY_WRITE, (b), (c)); \
-				 if (!error) \
-					memcpy_tofs((b), (a), (c)); \
-				}
+#define IRCOPY(const void *a, void *b, size_t c)	{ \
+	int error; \
+
+	error = verify_area(VERIFY_READ, a ,c); \
+	if (!error) \
+		memcpy_fromfs(b, a, c); \
+	return error; \
+}
+static inline int IWCOPY(const void *a, void *b, size_t c)
+{
+	int error;
+
+	error = verify_area(VERIFY_WRITE, b, c);
+	if (!error)
+		memcpy_tofs(b, a, c);
+	return error;
+}
+static inline int IRCOPYPTR(const void *a, void *b, size_t c) {
+	caddr_t ca;
+	int	error;
+
+	error = verify_area(VERIFY_READ, a ,sizeof(ca));
+	if (!error) {
+		memcpy_fromfs(ca, a, sizeof(ca));
+		error = verify_area(VERIFY_READ, ca , c);
+		if (!error)
+			memcpy_fromfs(b, ca, c);
+	}
+	return error;
+}
+static inline int IWCOPYPTR(const void *a, void *b, size_t c) {
+	caddr_t ca;
+	int	error;
+
+
+	error = verify_area(VERIFY_READ, b ,sizeof(ca));
+	if (!error) {
+		memcpy_fromfs(ca, b, sizeof(ca));
+		error = verify_area(VERIFY_WRITE, ca, c);
+		if (!error)
+			memcpy_tofs(ca, a, c);
+	}
+	return error;
+}
 # else
 #  define	__KERNEL__
 #  undef INT_MAX
@@ -818,12 +961,18 @@ struct	ether_addr	{
 #define	A_A	&
 #endif
 
+#define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG)
+
 #ifndef	ICMP_ROUTERADVERT
 # define	ICMP_ROUTERADVERT	9
 #endif
 #ifndef	ICMP_ROUTERSOLICIT
 # define	ICMP_ROUTERSOLICIT	10
 #endif
+#undef	ICMP_MAX_UNREACH
+#define	ICMP_MAX_UNREACH	14
+#undef	ICMP_MAXTYPE
+#define	ICMP_MAXTYPE		18
 /*
  * ICMP error replies have an IP header (20 bytes), 8 bytes of ICMP data,
  * another IP header and then 64 bits of data, totalling 56.  Of course,
@@ -833,5 +982,6 @@ struct	ether_addr	{
 #define	ICMPERR_IPICMPHLEN	(20 + 8)
 #define	ICMPERR_MINPKTLEN	(20 + 8 + 20)
 #define	ICMPERR_MAXPKTLEN	(20 + 8 + 20 + 8)
+#define	ICMP6ERR_MINPKTLEN	(20 + 8)
 
 #endif	/* __IP_COMPAT_H__ */

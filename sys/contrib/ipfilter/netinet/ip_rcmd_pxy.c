@@ -1,4 +1,7 @@
 /*
+ * $Id: ip_rcmd_pxy.c,v 1.4.2.1 2000/05/06 11:19:34 darrenr Exp $
+ */
+/*
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
  * code.
  * $FreeBSD$
@@ -124,11 +127,16 @@ nat_t *nat;
 	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
 			    ip->ip_dst, (dp << 16) | sp);
 	if (ipn == NULL) {
+		int slen;
+
+		slen = ip->ip_len;
+		ip->ip_len = fin->fin_hlen + sizeof(*tcp);
 		bcopy((char *)fin, (char *)&fi, sizeof(fi));
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = sp;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
+		tcp2->th_off = 5;
 		fi.fin_data[0] = ntohs(sp);
 		fi.fin_data[1] = 0;
 		fi.fin_dp = (char *)tcp2;
@@ -141,6 +149,7 @@ nat_t *nat;
 			fi.fin_fr = &rcmdfr;
 			(void) fr_addstate(ip, &fi, FI_W_DPORT);
 		}
+		ip->ip_len = slen;
 		ip->ip_src = swip;
 	}
 	return 0;

@@ -1503,7 +1503,7 @@ int set;
 
 	KMALLOC(fg, frgroup_t *);
 	if (fg) {
-		fg->fg_num = num & 0xffff;
+		fg->fg_num = num;
 		fg->fg_next = *fgp;
 		fg->fg_head = fp;
 		fg->fg_start = &fp->fr_grp;
