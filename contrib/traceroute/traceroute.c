@@ -40,9 +40,9 @@ static const char rcsid[] =
  * icmp "time exceeded" reply from a gateway.  We start our probes
  * with a ttl of one and increase by one until we get an icmp "port
  * unreachable" (which means we got to "host") or hit a max (which
- * defaults to 30 hops & can be changed with the -m flag).  Three
- * probes (change with -q flag) are sent at each ttl setting and a
- * line is printed showing the ttl, address of the gateway and
+ * defaults to net.inet.ip.ttl hops & can be changed with the -m flag).
+ * Three probes (change with -q flag) are sent at each ttl setting and
+ * a line is printed showing the ttl, address of the gateway and
  * round trip time of each probe.  If the probe answers come from
  * different gateways, the address of each responding system will
  * be printed.  If there is no response within a 5 sec. timeout
@@ -57,7 +57,7 @@ static const char rcsid[] =
  * A sample use might be:
  *
  *     [yak 71]% traceroute nis.nsf.net.
- *     traceroute to nis.nsf.net (35.1.1.48), 30 hops max, 56 byte packet
+ *     traceroute to nis.nsf.net (35.1.1.48), 64 hops max, 56 byte packet
  *      1  helios.ee.lbl.gov (128.3.112.1)  19 ms  19 ms  0 ms
  *      2  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  39 ms  19 ms
  *      3  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  39 ms  19 ms
@@ -77,7 +77,7 @@ static const char rcsid[] =
  * A more interesting example is:
  *
  *     [yak 72]% traceroute allspice.lcs.mit.edu.
- *     traceroute to allspice.lcs.mit.edu (18.26.0.115), 30 hops max
+ *     traceroute to allspice.lcs.mit.edu (18.26.0.115), 64 hops max
  *      1  helios.ee.lbl.gov (128.3.112.1)  0 ms  0 ms  0 ms
  *      2  lilac-dmc.Berkeley.EDU (128.32.216.1)  19 ms  19 ms  19 ms
  *      3  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  19 ms  19 ms
@@ -209,6 +209,9 @@ static const char rcsid[] =
 #include <sys/select.h>
 #endif
 #include <sys/socket.h>
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 #include <sys/time.h>
 
 #include <netinet/in_systm.h>
@@ -308,7 +311,7 @@ char *hostname;
 
 int nprobes = 3;
 int min_ttl = 1;
-int max_ttl = 30;
+int max_ttl;
 u_short ident;
 u_short port;			/* protocol specific base "port" */
 
@@ -419,6 +422,18 @@ main(int argc, char **argv)
 	}
 
 	setuid(getuid());
+
+#ifdef IPCTL_DEFTTL
+	{
+		int mib[4] = { CTL_NET, PF_INET, IPPROTO_IP, IPCTL_DEFTTL };
+		size_t sz = sizeof(max_ttl);
+
+		if (sysctl(mib, 4, &max_ttl, &sz, NULL, 0) == -1)
+			err(1, "sysctl(net.inet.ip.ttl)");
+	}
+#else
+	max_ttl = 30;
+#endif
 
 	if ((cp = strrchr(argv[0], '/')) != NULL)
 		prog = cp + 1;

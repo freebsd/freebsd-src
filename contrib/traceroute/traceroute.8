@@ -97,7 +97,9 @@ The default is 1, i.e., start with the first hop.
 .TP
 .B \-m
 Set the max time-to-live (max number of hops) used in outgoing probe
-packets.  The default is 30 hops (the same default used for TCP
+packets.  The default is
+.I net.inet.ip.ttl
+hops (the same default used for TCP
 connections).
 .TP
 .B \-n
@@ -173,7 +175,9 @@ packets with a small ttl (time to live) then listening for an
 ICMP "time exceeded" reply from a gateway.  We start our probes
 with a ttl of one and increase by one until we get an ICMP "port
 unreachable" (which means we got to "host") or hit a max (which
-defaults to 30 hops & can be changed with the \-m flag).  Three
+defaults to
+.I net.inet.ip.ttl
+hops & can be changed with the \-m flag).  Three
 probes (change with \-q flag) are sent at each ttl setting and a
 line is printed showing the ttl, address of the gateway and
 round trip time of each probe.  If the probe answers come from
@@ -192,7 +196,7 @@ A sample use and output might be:
 .RS
 .nf
 [yak 71]% traceroute nis.nsf.net.
-traceroute to nis.nsf.net (35.1.1.48), 30 hops max, 38 byte packet
+traceroute to nis.nsf.net (35.1.1.48), 64 hops max, 38 byte packet
  1  helios.ee.lbl.gov (128.3.112.1)  19 ms  19 ms  0 ms
  2  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  39 ms  19 ms
  3  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  39 ms  19 ms
@@ -219,7 +223,7 @@ A more interesting example is:
 .RS
 .nf
 [yak 72]% traceroute allspice.lcs.mit.edu.
-traceroute to allspice.lcs.mit.edu (18.26.0.115), 30 hops max
+traceroute to allspice.lcs.mit.edu (18.26.0.115), 64 hops max
  1  helios.ee.lbl.gov (128.3.112.1)  0 ms  0 ms  0 ms
  2  lilac-dmc.Berkeley.EDU (128.32.216.1)  19 ms  19 ms  19 ms
  3  lilac-dmc.Berkeley.EDU (128.32.216.1)  39 ms  19 ms  19 ms
