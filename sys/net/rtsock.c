@@ -409,13 +409,13 @@ route_output(struct mbuf *m, struct socket *so)
 						jail.sin_addr.s_addr =
 						htonl(prison_getip(so->so_cred));
 						info.rti_info[RTAX_IFA] =
-						(struct sockaddr *)&jail;
+						    (struct sockaddr *)&jail;
 					} else
 						info.rti_info[RTAX_IFA] =
-							rt->rt_ifa->ifa_addr;
+						    rt->rt_ifa->ifa_addr;
 					if (ifp->if_flags & IFF_POINTOPOINT)
-						 info.rti_info[RTAX_BRD] =
-							rt->rt_ifa->ifa_dstaddr;
+						info.rti_info[RTAX_BRD] =
+						    rt->rt_ifa->ifa_dstaddr;
 					rtm->rtm_index = ifp->if_index;
 				} else {
 					info.rti_info[RTAX_IFP] = NULL;
