@@ -48,6 +48,7 @@ extern int alwaysno;	/* assume "no" for all questions */
 extern int alwaysyes;	/* assume "yes" for all questions */
 extern int preen;	/* we are preening */
 extern int rdonly;	/* device is opened read only (supersedes above) */
+extern int force;
 
 extern struct dosDirEntry *rootDir;
 
@@ -83,6 +84,12 @@ int readboot(int, struct bootblock *);
  * Correct the FSInfo block.
  */
 int writefsinfo(int, struct bootblock *);
+
+/*
+ * Check the dirty flag. If clean return 1, otherwise return 0. 
+ * If it is FAT12, return 0 always.
+ */
+int checkdirty(int, struct bootblock *);
 
 /*
  * Read one of the FAT copies and return a pointer to the new
