@@ -164,7 +164,7 @@ vxattach(sc)
     ifp->if_watchdog = vxwatchdog;
     ifp->if_softc = sc;
 
-    ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+    ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
     sc->tx_start_thresh = 20;	/* probably a good starting point. */
 
@@ -441,9 +441,7 @@ startagain:
     CSR_WRITE_2(sc,  VX_COMMAND, SET_TX_START_THRESH |
 	((len / 4 + sc->tx_start_thresh) >> 2));
 
-    if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, m);
-    }
+    BPF_MTAP(&sc->arpcom.ac_if, m);
 
     /*
      * Do the output at splhigh() so that an interrupt from another device
@@ -714,8 +712,7 @@ again:
 	return;
     }
 
-    m_adj(m, sizeof(struct ether_header));
-    ether_input(ifp, eh, m);
+    (*ifp->if_input)(ifp, m);
 
     /*
     * In periods of high traffic we can actually receive enough
@@ -855,11 +852,6 @@ vxioctl(ifp, cmd, data)
     s = splimp();
 
     switch (cmd) {
-    case SIOCSIFADDR:
-    case SIOCGIFADDR:
-	ether_ioctl(ifp, cmd, data);
-	break;
-
     case SIOCSIFFLAGS:
 	if ((ifp->if_flags & IFF_UP) == 0 &&
 	    (ifp->if_flags & IFF_RUNNING) != 0) {
@@ -910,7 +902,8 @@ vxioctl(ifp, cmd, data)
 
 
     default:
-        error = EINVAL;
+	error = ether_ioctl(ifp, cmd, data);
+	break;
     }
 
     splx(s);

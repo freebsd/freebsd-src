@@ -446,6 +446,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 static __inline void
 lnc_rint(struct lnc_softc *sc)
 {
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
 	struct mbuf *head;
@@ -465,13 +466,13 @@ lnc_rint(struct lnc_softc *sc)
 
 #ifdef DIAGNOSTIC
 	if ((sc->recv_ring + sc->recv_next)->md->md1 & OWN) {
-		int unit = sc->arpcom.ac_if.if_unit;
+		int unit = ifp->if_unit;
 		log(LOG_ERR, "lnc%d: Receive interrupt with buffer still owned by controller -- Resetting\n", unit);
 		lnc_reset(sc);
 		return;
 	}
 	if (!((sc->recv_ring + sc->recv_next)->md->md1 & STP)) {
-		int unit = sc->arpcom.ac_if.if_unit;
+		int unit = ifp->if_unit;
 		log(LOG_ERR, "lnc%d: Receive interrupt but not start of packet -- Resetting\n", unit);
 		lnc_reset(sc);
 		return;
@@ -503,7 +504,7 @@ lnc_rint(struct lnc_softc *sc)
 			} while (!(flags & (STP | OWN | ENP | MDERR)));
 
 			if (flags & STP) {
-				int unit = sc->arpcom.ac_if.if_unit;
+				int unit = ifp->if_unit;
 				log(LOG_ERR, "lnc%d: Start of packet found before end of previous in receive ring -- Resetting\n", unit);
 				lnc_reset(sc);
 				return;
@@ -517,7 +518,7 @@ lnc_rint(struct lnc_softc *sc)
 					sc->recv_next = start_of_packet;
 					break;
 				} else {
-					int unit = sc->arpcom.ac_if.if_unit;
+					int unit = ifp->if_unit;
 					log(LOG_ERR, "lnc%d: End of received packet not found-- Resetting\n", unit);
 					lnc_reset(sc);
 					return;
@@ -532,7 +533,7 @@ lnc_rint(struct lnc_softc *sc)
 		next = sc->recv_ring + sc->recv_next;
 
 		if (flags & MDERR) {
-			int unit = sc->arpcom.ac_if.if_unit;
+			int unit = ifp->if_unit;
 			if (flags & RBUFF) {
 				LNCSTATS(rbuff)
 				log(LOG_ERR, "lnc%d: Receive buffer error\n", unit);
@@ -544,7 +545,7 @@ lnc_rint(struct lnc_softc *sc)
 					log(LOG_ERR, "lnc%d: Receive overflow error \n", unit);
 				}
 			} else if (flags & ENP) {
-			    if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC)==0) {
+			    if ((ifp->if_flags & IFF_PROMISC)==0) {
 				/*
 				 * FRAM and CRC are valid only if ENP
 				 * is set and OFLO is not.
@@ -565,7 +566,7 @@ lnc_rint(struct lnc_softc *sc)
 
 			/* Drop packet */
 			LNCSTATS(rerr)
-			sc->arpcom.ac_if.if_ierrors++;
+			ifp->if_ierrors++;
 			while (start_of_packet != sc->recv_next) {
 				start = sc->recv_ring + start_of_packet;
 				start->md->md2 = -RECVBUFSIZE; /* XXX - shouldn't be necessary */
@@ -575,7 +576,7 @@ lnc_rint(struct lnc_softc *sc)
 			}
 		} else { /* Valid packet */
 
-			sc->arpcom.ac_if.if_ipackets++;
+			ifp->if_ipackets++;
 
 
 			if (sc->nic.mem_mode == DMA_MBUF)
@@ -588,7 +589,7 @@ lnc_rint(struct lnc_softc *sc)
 				 * First mbuf in packet holds the
 				 * ethernet and packet headers
 				 */
-				head->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+				head->m_pkthdr.rcvif = ifp;
 				head->m_pkthdr.len = pkt_len ;
 				eh = (struct ether_header *) head->m_data;
 
@@ -601,15 +602,10 @@ lnc_rint(struct lnc_softc *sc)
 				      sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) == 0) {
 				    m_freem(head);
 				} else {
-				    /* Skip over the ether header */
-				    head->m_data += sizeof *eh;
-				    head->m_len -= sizeof *eh;
-				    head->m_pkthdr.len -= sizeof *eh;
-
-				    ether_input(&sc->arpcom.ac_if, eh, head);
+				    (*ifp->if_input)(ifp, head);
 				}
 			} else {
-				int unit = sc->arpcom.ac_if.if_unit;
+				int unit = ifp->if_unit;
 				log(LOG_ERR,"lnc%d: Packet dropped, no mbufs\n",unit);
 				LNCSTATS(drop_packet)
 			}
@@ -907,7 +903,7 @@ lnc_attach_common(device_t dev)
 	 * XXX -- should check return status of if_attach
 	 */
 
-	ether_ifattach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifattach(&sc->arpcom.ac_if, sc->arpcom.ac_enaddr);
 
 	printf("lnc%d: ", unit);
 	if (sc->nic.ic == LANCE || sc->nic.ic == C_LANCE)
@@ -1381,8 +1377,7 @@ lnc_start(struct ifnet *ifp)
 
 		ifp->if_timer = 2;
 
-		if (sc->arpcom.ac_if.if_bpf)
-			bpf_mtap(&sc->arpcom.ac_if, head);
+		BPF_MTAP(&sc->arpcom.ac_if, head);
 
 		if (sc->nic.mem_mode != DMA_MBUF)
 			m_freem(head);
@@ -1408,12 +1403,6 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	s = splimp();
 
 	switch (command) {
-        case SIOCSIFADDR:
-        case SIOCGIFADDR:
-        case SIOCSIFMTU:
-                error = ether_ioctl(ifp, command, data);
-                break;
-
 	case SIOCSIFFLAGS:
 #ifdef DEBUG
 		if (ifp->if_flags & IFF_DEBUG)
@@ -1464,7 +1453,8 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		error = 0;
 		break;
 	default:
-		error = EINVAL;
+                error = ether_ioctl(ifp, command, data);
+		break;
 	}
 	(void) splx(s);
 	return error;

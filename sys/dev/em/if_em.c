@@ -398,7 +398,7 @@ em_detach(device_t dev)
 
 	em_stop(adapter);
 	em_phy_hw_reset(&adapter->hw);
-	ether_ifdetach(&adapter->interface_data.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(&adapter->interface_data.ac_if);
 	em_free_pci_resources(adapter);
 
 	size = EM_ROUNDUP(adapter->num_tx_desc *
@@ -482,8 +482,7 @@ em_start(struct ifnet *ifp)
 		}
 
 		/* Send a copy of the frame to the BPF listener */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 		/* Set timeout in case hardware has problems transmitting */
 		ifp->if_timer = EM_TX_TIMEOUT;
@@ -876,11 +875,11 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	u_int16_t       txd_used, count;
 	
 	struct mbuf     *mp;
-	struct ifvlan *ifv = NULL;
 	struct em_tx_buffer   *tx_buffer;
 	struct em_tx_desc *saved_tx_desc = NULL;
 	struct em_tx_desc *current_tx_desc = NULL;
 	struct ifnet   *ifp = &adapter->interface_data.ac_if;
+	struct m_tag	*mtag;
 
 	/* Force a cleanup if number of descriptors available hit the threshold */
 	if (adapter->num_tx_desc_avail <= EM_TX_CLEANUP_THRESHOLD)
@@ -922,11 +921,7 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	}
 
 	/* Find out if we are in vlan mode */
-	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-		ifv = m_head->m_pkthdr.rcvif->if_softc;
-
+	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
 
 	txd_used = 0;
 	saved_tx_desc = adapter->next_avail_tx_desc;
@@ -964,12 +959,12 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
 	}
 	adapter->num_tx_desc_avail-= txd_used;
 
-	if (ifv != NULL) {
+	if (mtag != NULL) {
 		/* Tell hardware to add tag */
 		current_tx_desc->lower.data |= E1000_TXD_CMD_VLE;
 
 		/* Set the vlan id */
-		current_tx_desc->upper.fields.special = ifv->ifv_tag;
+		current_tx_desc->upper.fields.special = VLAN_TAG_VALUE(mtag);
 	}
 
 	/* Last Descriptor of Packet needs End Of Packet (EOP) bit set. */
@@ -1376,12 +1371,13 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_start = em_start;
 	ifp->if_watchdog = em_watchdog;
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, adapter->interface_data.ac_enaddr);
 
 	if (adapter->hw.mac_type >= em_82543) {
 		ifp->if_capabilities = IFCAP_HWCSUM;
 		ifp->if_capenable = ifp->if_capabilities;
 	}
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 
 	/* 
 	 * Specify the media types supported by this adapter and register
@@ -2001,7 +1997,6 @@ em_process_receive_interrupts(struct adapter * adapter)
 {
 	struct mbuf         *mp;
 	struct ifnet        *ifp;
-	struct ether_header *eh;
 	u_int16_t           len;
 	u_int8_t            last_byte;
 	u_int8_t            accept_frame = 0;
@@ -2096,18 +2091,14 @@ em_process_receive_interrupts(struct adapter * adapter)
 
 			if (eop) {
 				adapter->fmp->m_pkthdr.rcvif = ifp;
-
-				eh = mtod(adapter->fmp, struct ether_header *);
-
-				/* Remove ethernet header from mbuf */
-				m_adj(adapter->fmp, sizeof(struct ether_header));
 				em_receive_checksum(adapter, current_desc, 
 						    adapter->fmp);
 				if (current_desc->status & E1000_RXD_STAT_VP)
-					VLAN_INPUT_TAG(eh, adapter->fmp, 
-						       current_desc->special);
-				else
-					ether_input(ifp, eh, adapter->fmp);
+					VLAN_INPUT_TAG(ifp, adapter->fmp,
+						current_desc->special,
+						adapter->fmp = NULL);
+				if (adapter->fmp != NULL)
+					(*ifp->if_input)(ifp, adapter->fmp);
 
 				adapter->fmp = NULL;
 				adapter->lmp = NULL;

@@ -176,7 +176,6 @@
 #include <net/bpf.h>
 #ifdef __FreeBSD__
 #define BPFATTACH(ifp, dlt, hlen)	bpfattach((ifp), (dlt), (hlen))
-#define BPF_MTAP(ifp, m)		bpf_mtap((ifp), (m))
 #else
 #define BPFATTACH(ifp, dlt, hlen)	bpfattach(&(ifp)->if_bpf, (ifp), (dlt), (hlen))
 #define BPF_MTAP(ifp, m)		bpf_mtap((ifp)->if_bpf, (m))

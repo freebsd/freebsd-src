@@ -220,7 +220,7 @@ sn_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_timer = 0;
 
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/*
 	 * Fill the hardware address into ifa_addr if we find an AF_LINK
@@ -250,7 +250,7 @@ sn_detach(device_t dev)
 	struct sn_softc *sc = device_get_softc(dev);
 
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(&sc->arpcom.ac_if);
 	sn_deactivate(dev);
 	return 0;
 }
@@ -553,9 +553,7 @@ startagain:
 	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
 	sc->arpcom.ac_if.if_timer = 1;
 
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, top);
-	}
+	BPF_MTAP(ifp, top);
 
 	sc->arpcom.ac_if.if_opackets++;
 	m_freem(top);
@@ -750,9 +748,7 @@ snresume(struct ifnet *ifp)
 	sc->intr_mask = mask;
 	outw(BASE + MMU_CMD_REG_W, MMUCR_ENQUEUE);
 
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, top);
-	}
+	BPF_MTAP(ifp, top);
 
 	sc->arpcom.ac_if.if_opackets++;
 	m_freem(top);
@@ -1099,10 +1095,9 @@ read_another:
 	/*
 	 * Remove link layer addresses and whatnot.
 	 */
-	m->m_pkthdr.len = m->m_len = packet_length - sizeof(struct ether_header);
-	m->m_data += sizeof(struct ether_header);
+	m->m_pkthdr.len = m->m_len = packet_length;
 
-	ether_input(&sc->arpcom.ac_if, eh, m);
+	(*ifp->if_input)(ifp, m);
 
 out:
 
@@ -1140,12 +1135,6 @@ snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 	s = splimp();
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 			ifp->if_flags &= ~IFF_RUNNING;
@@ -1177,6 +1166,8 @@ snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 	    break;
 	default:
 		error = EINVAL;
+		error = ether_ioctl(ifp, cmd, data);
+		break;
 	}
 
 	splx(s);

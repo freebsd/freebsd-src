@@ -1594,7 +1594,7 @@ bge_attach(dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = BGE_TX_RING_CNT - 1;
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Save ASIC rev. */
@@ -1669,7 +1669,7 @@ bge_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	callout_handle_init(&sc->bge_stat_ch);
 
 fail:
@@ -1691,7 +1691,7 @@ bge_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	bge_stop(sc);
 	bge_reset(sc);
 
@@ -1913,9 +1913,6 @@ bge_rxeof(sc)
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len;
 		m->m_pkthdr.rcvif = ifp;
 
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-
 #if 0 /* currently broken for some packets, possibly related to TCP options */
 		if (ifp->if_hwassist) {
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
@@ -1930,16 +1927,13 @@ bge_rxeof(sc)
 #endif
 
 		/*
-		 * If we received a packet with a vlan tag, pass it
-		 * to vlan_input() instead of ether_input().
+		 * If we received a packet with a vlan tag,
+		 * attach that information to the packet.
 		 */
-		if (have_tag) {
-			VLAN_INPUT_TAG(eh, m, vlan_tag);
-			have_tag = vlan_tag = 0;
-			continue;
-		}
+		if (have_tag)
+			VLAN_INPUT_TAG(ifp, m, vlan_tag, continue);
 
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	CSR_WRITE_4(sc, BGE_MBX_RX_CONS0_LO, sc->bge_rx_saved_considx);
@@ -2164,12 +2158,7 @@ bge_encap(sc, m_head, txidx)
 	struct mbuf		*m;
 	u_int32_t		frag, cur, cnt = 0;
 	u_int16_t		csum_flags = 0;
-	struct ifvlan		*ifv = NULL;
-
-	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-		ifv = m_head->m_pkthdr.rcvif->if_softc;
+	struct m_tag		*mtag;
 
 	m = m_head;
 	cur = frag = *txidx;
@@ -2185,6 +2174,8 @@ bge_encap(sc, m_head, txidx)
 			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
 	}
 
+	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
+
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -2199,9 +2190,9 @@ bge_encap(sc, m_head, txidx)
 			   vtophys(mtod(m, vm_offset_t));
 			f->bge_len = m->m_len;
 			f->bge_flags = csum_flags;
-			if (ifv != NULL) {
+			if (mtag != NULL) {
 				f->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
-				f->bge_vlan_tag = ifv->ifv_tag;
+				f->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
 			} else {
 				f->bge_vlan_tag = 0;
 			}
@@ -2289,8 +2280,7 @@ bge_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 	}
 
 	/* Transmit */
@@ -2538,10 +2528,6 @@ bge_ioctl(ifp, command, data)
 	s = splimp();
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > BGE_JUMBO_MTU)
 			error = EINVAL;
@@ -2610,7 +2596,7 @@ bge_ioctl(ifp, command, data)
 		error = 0;
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

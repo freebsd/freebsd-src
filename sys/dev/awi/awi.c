@@ -217,8 +217,8 @@ int awi_dump_len = 28;
 #define	AWI_BPF_RAW	1
 #ifdef __FreeBSD__
 #define	AWI_BPF_MTAP(sc, m, raw) do {					\
-	if ((sc)->sc_ifp->if_bpf && (sc)->sc_rawbpf == (raw))		\
-		bpf_mtap((sc)->sc_ifp, (m));				\
+	if ((sc)->sc_rawbpf == (raw))					\
+		BPF_MTAP((sc)->sc_ifp, (m));				\
 } while (0);
 #else
 #define	AWI_BPF_MTAP(sc, m, raw) do {					\
@@ -239,6 +239,7 @@ int awi_dump_len = 28;
 devclass_t awi_devclass;
 #endif
 
+#if __FreeBSD_version < 500043
 /* NetBSD compatible functions  */
 static char * ether_sprintf(u_int8_t *);
 
@@ -251,6 +252,7 @@ ether_sprintf(enaddr)
 	sprintf(strbuf, "%6D", enaddr, ":");
 	return strbuf;
 }
+#endif
 #endif
 
 int
@@ -317,7 +319,7 @@ awi_attach(sc)
 	printf("%s: address %s\n",
 	    sc->sc_dev.dv_xname,  ether_sprintf(sc->sc_mib_addr.aMAC_Address));
 #ifdef __FreeBSD__
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->sc_mib_addr.aMAC_Address);
 #else
 	if_attach(ifp);
 	ether_ifattach(ifp, sc->sc_mib_addr.aMAC_Address);
@@ -1370,9 +1372,6 @@ awi_input(sc, m, rxts, rssi)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211_frame *wh;
-#ifndef __NetBSD__
-	struct ether_header *eh;
-#endif
 
 	/* trim CRC here for WEP can find its own CRC at the end of packet. */
 	m_adj(m, -ETHER_CRC_LEN);
@@ -1430,13 +1429,7 @@ awi_input(sc, m, rxts, rssi)
 #if !(defined(__FreeBSD__) && __FreeBSD_version >= 400000)
 		AWI_BPF_MTAP(sc, m, AWI_BPF_NORM);
 #endif
-#ifdef __NetBSD__
 		(*ifp->if_input)(ifp, m);
-#else
-		eh = mtod(m, struct ether_header *);
-		m_adj(m, sizeof(*eh));
-		ether_input(ifp, eh, m);
-#endif
 		break;
 	case IEEE80211_FC0_TYPE_MGT:
 		if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) !=

@@ -49,8 +49,6 @@ struct mtx { int filler; };
 #define PCIM_CMD_MWIEN		0x0010
 #endif
 
-#define ETHER_ALIGN	2
-
 /* CSR_WRITE_8 assumes the register is in low/high order */
 #define CSR_WRITE_8(gx, reg, val) do { \
 	bus_space_write_4((gx)->gx_btag, (gx)->gx_bhandle, \

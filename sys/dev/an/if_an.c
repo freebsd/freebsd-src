@@ -190,6 +190,10 @@ static char an_conf[256];
 /* sysctl vars */
 SYSCTL_NODE(_machdep, OID_AUTO, an, CTLFLAG_RD, 0, "dump RID");
 
+/* XXX violate ethernet/netgraph callback hooks */
+extern	void	(*ng_ether_attach_p)(struct ifnet *ifp);
+extern	void	(*ng_ether_detach_p)(struct ifnet *ifp);
+
 static int
 sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 {
@@ -499,7 +503,7 @@ an_attach(sc, unit, flags)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	callout_handle_init(&sc->an_stat_ch);
 	AN_UNLOCK(sc);
 
@@ -592,9 +596,7 @@ an_rxeof(sc)
 					     rx_frame.an_rx_payload_len);
 		}
 		/* dump raw 802.11 packet to bpf and skip ip stack */
-		if (ifp->if_bpf != NULL) {
-			bpf_tap(ifp, bpf_buf, len);
-		}
+		BPF_TAP(ifp, bpf_buf, len);
 	} else {
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
@@ -654,11 +656,10 @@ an_rxeof(sc)
 		ifp->if_ipackets++;
 
 		/* Receive packet. */
-		m_adj(m, sizeof(struct ether_header));
 #ifdef ANCACHE
 		an_cache_store(sc, eh, m, rx_frame.an_rx_signal_strength);
 #endif
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 }
 
@@ -1293,11 +1294,6 @@ an_ioctl(ifp, command, data)
 	}
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -1809,7 +1805,7 @@ an_ioctl(ifp, command, data)
 			an_setdef(sc, &sc->areq);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 out:
@@ -2021,8 +2017,7 @@ an_start(ifp)
 		 * If there's a BPF listner, bounce a copy of
 		 * this frame to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m0);
+		BPF_MTAP(ifp, m0);
 
 		m_freem(m0);
 		m0 = NULL;

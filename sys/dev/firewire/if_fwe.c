@@ -192,11 +192,12 @@ fwe_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = FWMAXQUEUE - 1;
 
 	s = splimp();
-	ether_ifattach(ifp, 1);
+	ether_ifattach(ifp, eaddr);
 	splx(s);
 
         /* Tell the upper layer(s) we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	ifp->if_snd.ifq_maxlen = MAX_QUEUED - 1;
 
@@ -239,7 +240,7 @@ fwe_detach(device_t dev)
 	s = splimp();
 
 	fwe_stop(fwe);
-	ether_ifdetach(&fwe->fwe_if, 1);
+	ether_ifdetach(&fwe->fwe_if);
 
 	splx(s);
 	return 0;
@@ -311,13 +312,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int s, error, len;
 
 	switch (cmd) {
-		case SIOCSIFADDR:
-		case SIOCGIFADDR:
-		case SIOCSIFMTU:
-			s = splimp();
-			error = ether_ioctl(ifp, cmd, data);
-			splx(s);
-			return (error);
 		case SIOCSIFFLAGS:
 			s = splimp();
 			if (ifp->if_flags & IFF_UP) {
@@ -348,7 +342,10 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 		default:
-			return (EINVAL);
+			s = splimp();
+			error = ether_ioctl(ifp, cmd, data);
+			splx(s);
+			return (error);
 	}
 
 	return (0);
@@ -434,8 +431,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		if (xfer == NULL) {
 			return;
 		}
-		if (ifp->if_bpf != NULL)
-			bpf_mtap(ifp, m);
+		BPF_MTAP(ifp, m);
 
 		xfer->send.off = 0;
 		xfer->spd = 2;
@@ -543,9 +539,7 @@ fwe_as_input(struct fw_xferq *xferq)
 #endif
 		p = xfer->recv.buf + xfer->recv.off + HDR_LEN + ALIGN_PAD;
 		eh = (struct ether_header *)p;
-		p += sizeof(struct ether_header);
-		len -= xfer->recv.off + HDR_LEN + ALIGN_PAD
-						+ sizeof(struct ether_header);
+		len -= xfer->recv.off + HDR_LEN + ALIGN_PAD;
 		m->m_data = p;
 		m->m_len = m->m_pkthdr.len = len;
 		m->m_pkthdr.rcvif = ifp;
@@ -565,7 +559,7 @@ fwe_as_input(struct fw_xferq *xferq)
 			 c[20], c[21], c[22], c[23]
 		 );
 #endif
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 		ifp->if_ipackets ++;
 
 		xfer->recv.buf = NULL;

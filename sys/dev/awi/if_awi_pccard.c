@@ -234,7 +234,7 @@ awi_pccard_detach(device_t dev)
 	struct awi_softc *sc = &psc->sc_awi;
 	struct ifnet *ifp = &sc->sc_ec.ac_if;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	ifp->if_flags &= ~IFF_RUNNING; 
 	if (psc->sc_intrhand) {
 		bus_teardown_intr(dev, psc->sc_irq_res, psc->sc_intrhand);
