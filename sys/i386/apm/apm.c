@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.97 1999/07/30 19:34:58 msmith Exp $
+ *	$Id: apm.c,v 1.98 1999/08/02 18:46:34 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -50,6 +50,7 @@
 static int apm_display __P((int newstate));
 static void apm_resume __P((void));
 static int apm_bioscall(void);
+static int apm_check_function_supported __P((u_int version, u_int func));
 
 static u_long	apm_version;
 
@@ -127,11 +128,25 @@ static struct cdevsw apm_cdevsw = {
 	/* bmaj */	-1
 };
 
+/*
+ * return  0 if the function successfull,
+ * return  1 if the function unsuccessfull,
+ * return -1 if the function unsupported.
+ */
 static int
 apm_bioscall(void)
 {
 	struct apm_softc *sc = &apm_softc;
 	int errno = 0;
+	u_int apm_func = sc->bios.r.eax & 0xff;
+
+	if (!apm_check_function_supported(sc->intversion, apm_func)) {
+#ifdef APM_DEBUG
+		printf("apm_bioscall: function 0x%x is not supported in v%d.%d\n",
+			apm_func, sc->majorversion, sc->minorversion);
+#endif
+		return (-1);
+	}
 
 	sc->bios_busy = 1;
 	if (sc->connectmode == APM_PROT32CONNECT) {
@@ -144,6 +159,34 @@ apm_bioscall(void)
 	}
 	sc->bios_busy = 0;
 	return (errno);
+}
+
+/* check whether APM function is supported (1)  or not (0). */
+static int
+apm_check_function_supported(u_int version, u_int func)
+{
+	/* except driver version */
+	if (func == APM_DRVVERSION) {
+		return (1);
+	}
+
+	switch (version) {
+	case INTVERSION(1, 0):
+		if (func > APM_GETPMEVENT) {
+			return (0); /* not supported */
+		}
+		break;
+	case INTVERSION(1, 1):
+		if (func > APM_ENGAGEDISENGAGEPM &&
+		    func < APM_OEMFUNC) {
+			return (0); /* not supported */
+		}
+		break;
+	case INTVERSION(1, 2):
+		break;
+	}
+
+	return (1); /* supported */
 }
 
 /* enable/disable power management */
@@ -176,6 +219,11 @@ apm_driver_version(int version)
 
 	if (apm_bioscall() == 0 && sc->bios.r.eax == version)
 		return (0);
+
+	/* Some old BIOSes don't return the connection version in %ax. */
+	if (sc->bios.r.eax == ((APM_BIOS << 8) | APM_DRVVERSION))
+		return (0);
+
 	return (1);
 }
  
@@ -1067,6 +1115,7 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	struct apm_softc *sc = &apm_softc;
 	struct apm_bios_arg *args;
 	int error = 0;
+	int ret;
 	int newstate;
 
 	if (!sc->initialized)
@@ -1135,8 +1184,23 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		sc->bios.r.edx = args->edx;
 		sc->bios.r.esi = args->esi;
 		sc->bios.r.edi = args->edi;
-		if (apm_bioscall())
+		if ((ret = apm_bioscall())) {
+			/*
+			 * Return code 1 means bios call was unsuccessful.
+			 * Error code is stored in %ah.
+			 * Return code -1 means bios call was unsupported
+			 * in the APM BIOS version.
+			 */
+			if (ret == -1) {
+				error = EINVAL;
+			}
+		} else {
+			/*
+			 * Return code 0 means bios call was successful.
+			 * We need only %al and can discard %ah.
+			 */
 			sc->bios.r.eax &= 0xff;
+		}
 		args->eax = sc->bios.r.eax;
 		args->ebx = sc->bios.r.ebx;
 		args->ecx = sc->bios.r.ecx;
