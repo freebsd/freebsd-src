@@ -211,6 +211,7 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef __i386__
 	{ "cy", &lock_class_mtx_spin },
 #endif
+	{ "sabtty", &lock_class_mtx_spin },
 	{ "ng_node", &lock_class_mtx_spin },
 	{ "ng_worklist", &lock_class_mtx_spin },
 	{ "ithread table lock", &lock_class_mtx_spin },
