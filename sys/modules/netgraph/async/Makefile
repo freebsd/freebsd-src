@@ -3,5 +3,6 @@
 
 KMOD=		ng_async
 SRCS= 		ng_async.c
+NOMAN=
 
 .include <bsd.kmod.mk>
