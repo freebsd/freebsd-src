@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.5 1997/07/22 18:37:49 smp Exp smp $
+ *	$Id: autoconf.c,v 1.74 1997/07/22 20:12:32 fsmp Exp $
  */
 
 /*
@@ -67,6 +67,11 @@
 #include "isa.h"
 #if NISA > 0
 #include <i386/isa/isa_device.h>
+#endif
+
+#include "pnp.h"
+#if NPNP > 0
+#include <i386/isa/pnp.h>
 #endif
 
 #include "eisa.h"
@@ -201,6 +206,10 @@ configure(dummy)
 
 #if NPCI > 0
 	pci_configure();
+#endif
+
+#if NPNP > 0
+	pnp_configure();
 #endif
 
 #if NISA > 0
