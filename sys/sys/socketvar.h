@@ -115,6 +115,9 @@ struct socket {
  * Constants for sb_flags field of struct sockbuf.
  */
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
+/*
+ * Constants for sb_flags field of struct sockbuf.
+ */
 #define	SB_LOCK		0x01		/* lock on data queue */
 #define	SB_WANT		0x02		/* someone is waiting to lock */
 #define	SB_WAIT		0x04		/* someone is waiting for data/space */
