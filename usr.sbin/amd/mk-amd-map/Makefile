@@ -5,7 +5,7 @@ CFLAGS+=-I${.CURDIR}/../include
 CFLAGS+=-I${.CURDIR}/../rpcx
 CFLAGS+=-I${.CURDIR}/../config
 CFLAGS+=-DOS_HDR=\"os-bsd44.h\"
-MAN8=	mk-amd-map.0
+MAN8=	mk-amd-map.8
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
