@@ -1,0 +1,114 @@
+.\" Copyright (c) 2001 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd December 26, 2001
+.Dt FFS 4
+.Sh NAME
+.Nm ffs
+.Nd Berkeley fast file system
+.Sh SYNOPSIS
+.Cd options FFS
+.Cd options SOFTUPDATES
+.Sh DESCRIPTION
+The Berkeley fast file system
+provides facilities to store file system data onto a disk device.
+.Nm FFS
+has been optimized over the years
+for speed and reliability
+and is the basis for the
+.Xr ufs 4
+file system.
+.Pp
+The
+.Dv SOFTUPDATES
+option is used to enable soft updates.
+The soft updates feature tracks writes to the disk
+and enforces metadata update dependancies
+(e.g. updating free block maps)
+to ensure that the file system remains consistent.
+To enable this feature,
+add the following to your kernel configuration file:
+.Pp
+.Dl Cd options SOFTUPDATES
+.Pp
+To enable soft updates on an
+.Em unmounted
+file system, use the following command:
+.Pp
+.Dl Ic tunefs -n enable Sy /foo
+.Pp
+.Dq Sy foo
+can be either a mount point
+(e.g.
+.Pa /usr ) ,
+or a disk device
+(e.g.
+.Pa /dev/da0s1a ) .
+.Pp
+The following
+.Xr sysctl 8
+MIBs are defined for use with
+.Nm FFS :
+.Bl -hang -width "vfs.ffs.doreallocblk" 
+.It Em vfs.ffs.doasyncfree
+Asynchronously write out modified inode and indirect blocks
+upon reallocating file system blocks to be contiguous.
+(Default: 1.)
+.It Em vfs.ffs.doreallocblks
+Enable support for the rearrangement of blocks
+to be contiguous.
+(Default: 1.)
+.El
+.Sh SEE ALSO
+.Xr ufs 4 ,
+.Xr tunefs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Lefler
+.%A R. Fabry
+.%D August 1984
+.%T "A Fast File System for UNIX"
+.%J "ACM Transactions on Computer Systems"
+.%N 2
+.%V 3
+.%P 181-197
+.Re
+.Rs
+.%A M. McKusick
+.%D June 2000
+.%T "Soft Updates: A Technique for Eliminating Most Synchronous Writes in the Fast Filesystem"
+.%J "Proceedings of the Freenix Track at the 1999 Usenix Annual Technical Conference"
+.%P 71-84
+.Re
