@@ -1,4 +1,4 @@
-; $Id: TODO,v 1.9 1995/03/16 05:07:09 paul Exp $
+; $Id: TODO,v 1.10 1995/03/17 19:28:59 joerg Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -128,7 +128,7 @@ best accomplish the task. }
 EMAIL:	<jkh>
 CATS:	user
 GRADE:	INTERMEDIATE
-STATUS:	OPEN
+STATUS:	CLOSED - PENDING DOC
 
 TASKID: 940911001
 TASK:	Make PAS16 a controller.
