@@ -103,7 +103,7 @@ main(argc, argv)
 	}
 
 	(void)time(&now);
-	srandom((u_int)(now + getpid()));
+	srandom((unsigned long)(now ^ getpid()));
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
