@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.8 1999/01/19 23:02:05 abial Exp $
+#	$Id: populate,v 1.9 1999/02/12 20:35:08 abial Exp $
 #
 
 . ../Version
@@ -30,8 +30,6 @@ else
 		sed -e "s/@VER@/${VER}/g" > \
 		/mnt/etc/rc
 	cp login.conf /mnt/etc/login.conf
-	cp ../lang/reboot.${LANGUAGE} /mnt/stand/reboot
-	ln -f /mnt/stand/reboot /mnt/stand/shutdown
 	cat ../lang/README.${LANGUAGE} | \
 		sed -e "s/@VER@/${VER}/g" > \
 		/mnt/README
@@ -39,6 +37,8 @@ fi
 cp ../lang/update.${LANGUAGE} /mnt/stand/update
 if [ "${TYPE}" = "dial" ]
 then
+	cp ../lang/reboot.${LANGUAGE} /mnt/stand/reboot
+	ln -f /mnt/stand/reboot /mnt/stand/shutdown
 	cp ../lang/login.${LANGUAGE} /mnt/stand/login
 	cp ../lang/dialup.${LANGUAGE} /mnt/stand/dialup
 	(cd ../../help;\
