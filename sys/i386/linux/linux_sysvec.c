@@ -215,6 +215,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct linux_rt_sigframe *fp, frame;
 	int oonstack;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
@@ -226,7 +227,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
-	PROC_LOCK(p);
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
@@ -258,7 +258,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 			    fp, oonstack);
 #endif
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -343,6 +342,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
+	PROC_LOCK(p);
 }
 
 

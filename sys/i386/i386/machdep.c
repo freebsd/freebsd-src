@@ -294,7 +294,7 @@ osendsig(catcher, sig, mask, code)
 	int oonstack;
 
 	p = curproc;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
@@ -328,7 +328,6 @@ osendsig(catcher, sig, mask, code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -422,6 +421,7 @@ osendsig(catcher, sig, mask, code)
 	regs->tf_fs = _udatasel;
 	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
+	PROC_LOCK(p);
 }
 #endif
 
@@ -440,11 +440,10 @@ sendsig(catcher, sig, mask, code)
 	int oonstack;
 
 	p = curproc;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 #ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
-		PROC_UNLOCK(p);
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
@@ -494,7 +493,6 @@ sendsig(catcher, sig, mask, code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -574,6 +572,7 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
+	PROC_LOCK(p);
 }
 
 /*
