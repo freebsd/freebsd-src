@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.12 1994/08/22 12:00:34 jkh Exp $
+# $Id: bsd.port.mk,v 1.13 1994/08/22 12:07:19 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -49,6 +49,7 @@ GMAKE?=		gmake
 # by individual Makefiles.
 PORTSDIR?=	/usr/ports
 DISTDIR?=	${PORTSDIR}/distfiles
+PACKAGES?=	${PORTSDIR}/packages
 
 WRKDIR?=	${.CURDIR}/work
 WRKSRC?=	${WRKDIR}/${DISTNAME}
@@ -69,6 +70,10 @@ EXTRACT_ARGS?=	-C ${WRKDIR} -xzf
 BUNDLE_CMD?=	tar
 BUNDLE_ARGS?=	-C ${WRKDIR} -czf
 
+PKG_CMD?=	pkg_create
+PKG_ARGS?=	-c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
+PKG_SUFX?=	.tgz
+
 HOME_LOCATION?=	<original site unknown>
 
 .MAIN: all
@@ -87,13 +92,16 @@ install:
 .if !target(package)
 package:
 # Makes some gross assumptions about a fairly simple package with no
-# install, require or deinstall scripts.  Override this rule if your
-# package is anything but run-of-the-mill (or show me a way to do this
-# more generally).
+# install, require or deinstall scripts.  Override the arguments with
+# PKG_ARGS if your package is anything but run-of-the-mill.
 	@if [ -d ${PKGDIR} ]; then \
 	   echo "===>  Building package for ${DISTNAME}"; \
-	   pkg_create -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR \
-	     -f ${PKGDIR}/PLIST ${DISTNAME}.tgz; \
+	   if [ -d ${PACKAGES} ]; then \
+		_TARGET=${PACKAGES}/${DISTNAME}${PKG_SUFX}; \
+	   else \
+		_TARGET=${DISTNAME}${PKG_SUFX}; \
+	   fi \
+	   ${PKG_CMD} ${PKG_ARGS} ${_TARGET}; \
 	fi
 .endif
 
