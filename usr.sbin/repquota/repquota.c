@@ -78,8 +78,8 @@ static const char rcsid[] =
 
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 
-char *qfname = QUOTAFILENAME;
-char *qfextension[] = INITQFNAMES;
+const char *qfname = QUOTAFILENAME;
+const char *qfextension[] = INITQFNAMES;
 
 struct fileusage {
 	struct	fileusage *fu_next;
@@ -90,8 +90,8 @@ struct fileusage {
 };
 #define FUHASH 1024	/* must be power of two */
 struct fileusage *fuhead[MAXQUOTAS][FUHASH];
-struct fileusage *lookup();
-struct fileusage *addid();
+struct fileusage *lookup(u_long, int);
+struct fileusage *addid(u_long, int, char *);
 u_long highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 
 int	vflag;			/* verbose */
@@ -257,9 +257,9 @@ repquota(fs, type, qfpathname)
 			    fup->fu_dqblk.dqb_bsoftlimit ?
 			    timeprt(fup->fu_dqblk.dqb_btime) : "-");
 		printf("  %7lu %7lu %7lu %6s\n",
-			fup->fu_dqblk.dqb_curinodes,
-			fup->fu_dqblk.dqb_isoftlimit,
-			fup->fu_dqblk.dqb_ihardlimit,
+			(u_long)fup->fu_dqblk.dqb_curinodes,
+			(u_long)fup->fu_dqblk.dqb_isoftlimit,
+			(u_long)fup->fu_dqblk.dqb_ihardlimit,
 			fup->fu_dqblk.dqb_isoftlimit &&
 			    fup->fu_dqblk.dqb_curinodes >=
 			    fup->fu_dqblk.dqb_isoftlimit ?
@@ -389,19 +389,22 @@ timeprt(seconds)
 
 	if (now == 0)
 		time(&now);
-	if (now > seconds)
-		return ("none");
+	if (now > seconds) {
+		strlcpy(buf, "none", sizeof (buf));
+		return (buf);
+	}
 	seconds -= now;
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
-		sprintf(buf, "%lddays", (hours + 12) / 24);
+		sprintf(buf, "%lddays", (long)(hours + 12) / 24);
 		return (buf);
 	}
 	if (minutes >= 60) {
-		sprintf(buf, "%2ld:%ld", minutes / 60, minutes % 60);
+		sprintf(buf, "%2ld:%ld", (long)minutes / 60,
+		    (long)minutes % 60);
 		return (buf);
 	}
-	sprintf(buf, "%2ld", minutes);
+	sprintf(buf, "%2ld", (long)minutes);
 	return (buf);
 }
