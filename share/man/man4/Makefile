@@ -23,6 +23,7 @@ MAN=	aac.4 \
 	bpf.4 \
 	bridge.4 \
 	bt.4 \
+	cardbus.4 \
 	ccd.4 \
 	cd.4 \
 	ch.4 \
@@ -123,6 +124,8 @@ MAN=	aac.4 \
 	orm.4 \
 	pass.4 \
 	pci.4 \
+	pccard.4 \
+	pccbb.4 \
 	pcic.4 \
 	pcm.4 \
 	pcn.4 \
