@@ -331,11 +331,12 @@ int	in_pcbbind(struct inpcb *, struct sockaddr *, struct thread *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct thread *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct thread *);
+int	in_pcbconnect_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
+	    u_short *, in_addr_t *, u_short *, struct inpcb **,
+	    struct thread *);
 void	in_pcbdetach(struct inpcb *);
 void	in_pcbdisconnect(struct inpcb *);
 int	in_pcbinshash(struct inpcb *);
-int	in_pcbladdr(struct inpcb *, struct sockaddr *,
-	    struct sockaddr_in **);
 struct inpcb *
 	in_pcblookup_local(struct inpcbinfo *,
 	    struct in_addr, u_int, int);
