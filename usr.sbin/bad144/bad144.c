@@ -133,7 +133,7 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	 * If we do, we may have to read twice over the block to find
 	 * exactly which one failed, and it may not fail second time.
 	 */
-	for (curr_sec = bstart; curr_sec < bend; curr_sec++) {
+	for (curr_sec = bstart; curr_sec < size; curr_sec++) {
 
 		if (verbose) {
 			if ((curr_sec % spc) == 0)
@@ -349,9 +349,9 @@ usage:
 	while (argc > 0) {
 		sn = atoi(*argv++);
 		argc--;
-		if (sn < 0 || sn >= size) {
+		if (sn < 0 || sn >= bend) {
 			printf("%ld: out of range [0,%ld) for disk %s\n",
-			    sn, size, dp->d_typename);
+			    sn, bend, dp->d_typename);
 			errs++;
 			continue;
 		}
