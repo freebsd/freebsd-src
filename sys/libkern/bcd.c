@@ -31,4 +31,5 @@ u_char const bin2bcd_data[] = {
 	0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99
 };
 
-char const hex2ascii_data[] = "0123456789abcdef";
+/* This is actually used with radix [2..36] */
+char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
