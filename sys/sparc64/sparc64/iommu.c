@@ -361,7 +361,7 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 		is->is_dvmabase = IOTSB_VSTART(is->is_tsbsize);
 
 	size = IOTSB_BASESZ << is->is_tsbsize;
-	printf("DVMA map: %#lx to %#lx\n",
+	printf("%s: DVMA map: %#lx to %#lx\n", name,
 	    is->is_dvmabase, is->is_dvmabase +
 	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT)) - 1);
 
