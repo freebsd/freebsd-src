@@ -111,7 +111,7 @@ iso88025_ifattach(struct ifnet *ifp)
         sdl = (struct sockaddr_dl *)ifa->ifa_addr;
         sdl->sdl_type = IFT_ISO88025;
         sdl->sdl_alen = ifp->if_addrlen;
-        bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+        bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 }
 
 /*
@@ -183,7 +183,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                         struct sockaddr *sa;
 
                         sa = (struct sockaddr *) & ifr->ifr_data;
-                        bcopy(((struct arpcom *)ifp->if_softc)->ac_enaddr,
+                        bcopy(IFP2AC(ifp)->ac_enaddr,
                               (caddr_t) sa->sa_data, ISO88025_ADDR_LEN);
                 }
                 break;
