@@ -896,8 +896,7 @@ g_mirror_sync_one(struct g_mirror_disk *disk)
 	bp->bio_parent = NULL;
 	bp->bio_cmd = BIO_READ;
 	bp->bio_offset = disk->d_sync.ds_offset;
-	bp->bio_length = MIN(G_MIRROR_SYNC_BLOCK_SIZE,
-	    sc->sc_mediasize - bp->bio_offset);
+	bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
 	bp->bio_cflags = 0;
 	bp->bio_done = g_mirror_sync_done;
 	bp->bio_data = disk->d_sync.ds_data;
@@ -980,8 +979,7 @@ g_mirror_sync_request(struct bio *bp)
 			g_mirror_event_send(disk, G_MIRROR_DISK_STATE_ACTIVE,
 			    G_MIRROR_EVENT_DONTWAIT);
 			return;
-		} else if (sync->ds_offset_done %
-		    (G_MIRROR_SYNC_BLOCK_SIZE * 100) == 0) {
+		} else if (sync->ds_offset_done % (MAXPHYS * 100) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -1236,8 +1234,7 @@ g_mirror_register_request(struct bio *bp)
 				    (bp->bio_offset < sync->ds_resync ||
 				     sync->ds_resync == -1)) {
 					sync->ds_resync = bp->bio_offset -
-					    (bp->bio_offset %
-					    G_MIRROR_SYNC_BLOCK_SIZE);
+					    (bp->bio_offset % MAXPHYS);
 				}
 				break;
 			default:
@@ -1574,8 +1571,7 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	error = g_access(disk->d_sync.ds_consumer, 1, 0, 0);
 	KASSERT(error == 0, ("Cannot open %s (error=%d).",
 	    disk->d_softc->sc_name, error));
-	disk->d_sync.ds_data = malloc(G_MIRROR_SYNC_BLOCK_SIZE, M_MIRROR,
-	    M_WAITOK);
+	disk->d_sync.ds_data = malloc(MAXPHYS, M_MIRROR, M_WAITOK);
 	sc->sc_sync.ds_ndisks++;
 }
 
@@ -1911,6 +1907,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 				    G_MIRROR_BUMP_ON_FIRST_WRITE;
 			}
 		}
+		wakeup(&g_mirror_class);
 		break;
 	    }
 	case G_MIRROR_DEVICE_STATE_RUNNING:
@@ -2369,6 +2366,14 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 			    G_MIRROR_EVENT_DONTWAIT);
 		}
 	}
+	/*
+	 * Be sure to return 0 for negativate access requests.
+	 * In case of some HW problems, it is possible that we don't have
+	 * any active disk here, so loop above will be no-op and error will
+	 * be ENXIO.
+	 */
+	if (error != 0 && acr <= 0 && acw <= 0 && ace <= 0)
+		error = 0;
 	return (error);
 }
 
@@ -2688,5 +2693,54 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "</State>\n");
 	}
 }
+
+static int
+g_mirror_can_go(void)
+{
+	struct g_mirror_softc *sc;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	int can_go;
+
+	DROP_GIANT();
+	can_go = 1;
+	g_topology_lock();
+	LIST_FOREACH(gp, &g_mirror_class.geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL) {
+			can_go = 0;
+			break;
+		}
+		pp = sc->sc_provider;
+		if (pp == NULL || pp->error != 0) {
+			can_go = 0;
+			break;
+		}
+	}
+	g_topology_unlock();
+	PICKUP_GIANT();
+	return (can_go);
+}
+
+static void
+g_mirror_rootwait(void)
+{
+
+	/*
+	 * HACK: Wait for GEOM, because g_mirror_rootwait() can be called,
+	 * HACK: before we get providers for tasting.
+	 */
+	tsleep(&g_mirror_class, PRIBIO, "mroot", hz * 3);
+	/*
+	 * Wait for mirrors in degraded state.
+	 */
+	for (;;) {
+		if (g_mirror_can_go())
+			break;
+		tsleep(&g_mirror_class, PRIBIO, "mroot", hz);
+	}
+}
+
+SYSINIT(g_mirror_root, SI_SUB_RAID, SI_ORDER_FIRST, g_mirror_rootwait, NULL)
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);
