@@ -52,7 +52,7 @@ struct opttab std_options[PAM_MAX_OPTIONS] = {
 /* Populate the options structure, syslogging all errors */
 void
 pam_std_option(struct options *options, struct opttab other_options[],
-    int argc, const char **argv)
+    int argc, const char *argv[])
 {
 	struct opttab *oo;
 	int i, j, std, extra, arglen, found;
