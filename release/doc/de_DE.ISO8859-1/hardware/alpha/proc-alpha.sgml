@@ -1,8 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.5 2002/03/12 01:26:09 ue Exp $
-  $Id: proc-alpha.sgml,v 1.18 2002/03/10 16:53:43 ue Exp $
-  basiert auf: 1.33
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.7 2002/03/14 23:05:36 ue Exp $
+  basiert auf: 1.37
 -->
 
 <sect1>
@@ -660,6 +659,10 @@ cpu     EV4</programlisting>
       <para>Das Flash ROM der Multia ist gro&szlig; genug, um SRM und
       ARC aufzunehmen und die Umschaltung der Software zu
       erm&ouml;glichen.</para>
+
+      <para>Die in die Multia eingebaute TGA-Grafikkarte kann von
+        &os; <emphasis>nicht</emphasis> als Konsole genutzt werden.
+	Sie m&uuml;ssen eine serielle Konsole verwenden.</para>
 
       <para>Die Multia hat nur einen 32 Bit PCI Steckplatz, der nur f&uuml;r
       eine kleine PCI-Karte genutzt werden kann.  Wenn Sie darauf
@@ -2053,6 +2056,7 @@ cpu     EV4</programlisting>
               <para>nutzt ECC </para>
             </listitem>
           </itemizedlist>
+          </listitem>
 
           <listitem>
             <para>Speicher der AS600:</para>
@@ -2195,12 +2199,30 @@ cd0: 250.000MB/s transfers (250.000 MHz, offset 12)</programlisting>
         von 4 DIMMs besteht also <emphasis>nicht</emphasis> aus vier
         nebeneinanderliegenden DIMMs.</para>
 
+      <para>Bei der AS600 sind die SIMMs auf zwei speziellen
+        Speicherkarten untergebraucht.  Die SIMM m&uuml;ssen in
+        Achtergruppen installiert werden und beide Speicherkarten
+        m&uuml;ssen identisch best&uuml;ckt werden.</para>
 
-      <para>Bei der AS600 sind die SIMMs f&uuml;r auf zwei
-        speziellen Speicherkarten untergebraucht.  Die SIMM
-        m&uuml;ssen in Achtergruppen installiert werden und beide
-        Speicherkarten m&uuml;ssen identisch best&uuml;ckt
-        werden.</para>
+      <para>Bitte beachten Sie, da&szlig; die AS500 und AS600 EISA
+        Maschinen sind.  Sie m&uuml;ssen also das EISA Configuration
+        Utility (ECU) von Diskette starten, wenn Sie eine EISA-Karte
+        in das System eingebaut haben oder wenn Sie die Konfiguration
+        der eingebauten I/O &auml;ndern wollen.  Die AS500 hat zwar
+        keinen EISA Steckplatz, trotzdem wird das ECU verwendet, um
+        die eingebaute Audio-Hardware und &auml;hnliches zu
+        konfigurieren.</para>
+
+      <para>Sie k&ouml;nnen die eingebaute Audio-Hardware der AS500
+        nutzen, wenn Sie die folgende Zeile in die Konfigurationsdatei
+        f&uuml;r Ihren angepa&szlig;ten Kernel schreiben:</para>
+
+      <programlisting>device pcm</programlisting>
+
+      <para>Benutzen Sie danach das ECU, um die Audio-Hardware auf IRQ
+        10, Port 0x530 und DRQ 0 einzustellen.  Sie m&uuml;ssen diese
+        Werte ebenfalls in <filename>hints</filename> angeben, dazu
+        kommt noch die Angabe flags 0x10011.</para>
 
       <para>Die PCI Steckpl&auml;tze der AS600 zeigen eine
         Besonderheit.  Die AS600 (um genau zu sein, die PCI
@@ -2994,6 +3016,7 @@ cpu     EV5</programlisting>
           <literal>cpu EV5</literal> ist nur notwendig, damit
           &man.config.8;  nicht meckert.</para>
       </note>
+    </sect3>
 
     <sect3>
       <title>AlphaServer 2000 (<quote>DemiSable</quote>), 2100
@@ -3984,6 +4007,13 @@ cpu     EV5</programlisting>
       wie auf einem &os;/intel System.  Bitte denken Sie daran,
       da&szlig; die VESA Modi auf der Alpha nicht unterst&uuml;tzt
       werden, Ihnen bleibt also nur die 80x25 Konsole.</para>
+
+    <para>In einigen Alphas finden Sie Grafikkarte mit einem
+      TGA-Baustein.  Diese einfache Grafikkarte unterst&uuml;tzt die
+      VGA-Emulation nicht und kann daher nicht als &os;-Konsole
+      verwendet werden.  Die TGA2 Grafikkarten unterst&uuml;tzen
+      dagegen eine VGA-Emulation und k&ouml;nnen als &os;-Konsole
+      genutzt werden.</para>
 
     <para>Die in den meisten Alphas vorhandenen seriellen Schnittstellen
       nach dem <quote>PC Standard</quote>, werden unterst&uuml;tzt.
