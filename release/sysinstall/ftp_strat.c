@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.17 1995/06/05 06:36:57 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.18 1995/06/05 12:03:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -189,7 +189,7 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
 {
     int fd;
     int nretries = 0, max_retries = MAX_FTP_RETRIES;
-    static Boolean boing = TRUE;
+    Boolean inDists = FALSE;
 
     if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT) || dev->flags & OPT_EXPLORATORY_GET)
 	max_retries = 1;
@@ -205,14 +205,18 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
 	    continue;
 	}
 	if (HasDistsDir) {
-	    if (boing)
+	    if (!inDists) {
 		FtpChdir(ftp, "dists");
-	    else
+		inDists = TRUE;
+	    }
+	    else {
 		FtpChdir(ftp, "..");
+		inDists = FALSE;
+	    }
 	}
-	boing = !boing;
     }
-
+    if (inDists)
+	FtpChdir(ftp, "..");
     return fd;
 }
 
