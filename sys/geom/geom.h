@@ -192,6 +192,9 @@ struct geomidorname {
 	} u;
 };
 
+/* geom_dev.c */
+int g_dev_print(void);
+
 /* geom_dump.c */
 void g_hexdump(void *ptr, int length);
 void g_trace(int level, char *, ...);
