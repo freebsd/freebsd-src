@@ -60,7 +60,7 @@ netUp(Device *dev)
     Device *netdev = (Device *)dev->private;
 
     if (netdev)
-	return netdev->init(netdev);
+	return DEVICE_INIT(netdev);
     else
 	return TRUE;	/* No net == happy net */
 }
@@ -72,7 +72,7 @@ netDown(Device *dev)
     Device *netdev = (Device *)dev->private;
 
     if (netdev)
-	netdev->shutdown(netdev);
+	DEVICE_SHUTDOWN(netdev);
 }
 
 Boolean
@@ -228,8 +228,8 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 	    if (ftperr != 421)	/* Timeout? */
 		variable_unset(VAR_FTP_PATH);
 	    /* If we can't re-initialize, just forget it */
-	    dev->shutdown(dev);
-	    if (!dev->init(dev)) {
+	    DEVICE_SHUTDOWN(dev);
+	    if (!DEVICE_INIT(dev)) {
 		netDown(dev);
 		if (OpenConn) {
 		    fclose(OpenConn);

@@ -53,7 +53,7 @@ mediaInitNFS(Device *dev)
     if (NFSMounted)
 	return TRUE;
 
-    if (netDevice && !netDevice->init(netDevice))
+    if (!DEVICE_INIT(netDevice))
 	return FALSE;
 
     if (Mkdir(mountpoint))
@@ -65,7 +65,7 @@ mediaInitNFS(Device *dev)
 		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name, mountpoint)) {
 	msgConfirm("Error mounting %s on %s: %s.", dev->name, mountpoint, strerror(errno));
 	if (netDevice)
-	    netDevice->shutdown(netDevice);
+	    DEVICE_SHUTDOWN(netDevice);
 	restorescr(w);
 	return FALSE;
     }
