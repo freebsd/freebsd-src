@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.204 1999/07/01 13:21:41 peter Exp $
+ * $Id: vfs_subr.c,v 1.205 1999/07/02 16:29:14 phk Exp $
  */
 
 /*
@@ -103,6 +103,17 @@ static u_long wantfreevnodes = 25;
 SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
+
+static int reassignbufcalls;
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
+static int reassignbufloops;
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufloops, CTLFLAG_RW, &reassignbufloops, 0, "");
+static int reassignbufsortgood;
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortgood, CTLFLAG_RW, &reassignbufsortgood, 0, "");
+static int reassignbufsortbad;
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 0, "");
+static int reassignbufmethod = 1;
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
 
 int vfs_ioopt = 0;
 #ifdef ENABLE_VFS_IOOPT
@@ -928,6 +939,8 @@ sched_sync(void)
 	int s;
 	struct proc *p = updateproc;
 
+	p->p_flag |= P_BUFEXHAUST;
+
 	for (;;) {
 		starttime = time_second;
 
@@ -1106,6 +1119,7 @@ reassignbuf(bp, newvp)
 		printf("reassignbuf: NULL");
 		return;
 	}
+	++reassignbufcalls;
 
 #if !defined(MAX_PERF)
 	/*
@@ -1159,19 +1173,37 @@ reassignbuf(bp, newvp)
 		bp->b_xflags |= B_VNDIRTY;
 		tbp = TAILQ_FIRST(listheadp);
 		if (tbp == NULL ||
-		    (bp->b_lblkno >= 0 && tbp->b_lblkno > bp->b_lblkno)) {
+		    bp->b_lblkno == 0 ||
+		    (bp->b_lblkno > 0 && bp->b_lblkno < tbp->b_lblkno)) {
 			TAILQ_INSERT_HEAD(listheadp, bp, b_vnbufs);
-		} else {
-			if (bp->b_lblkno >= 0) {
-				struct buf *ttbp;
-				while ((ttbp = TAILQ_NEXT(tbp, b_vnbufs)) &&
-				    (ttbp->b_lblkno < bp->b_lblkno)) {
-					tbp = ttbp;
-				}
+			++reassignbufsortgood;
+		} else if (bp->b_lblkno < 0) {
+			TAILQ_INSERT_TAIL(listheadp, bp, b_vnbufs);
+			++reassignbufsortgood;
+		} else if (reassignbufmethod == 1) {
+			/*
+			 * New sorting algorithm, only handle sequential case,
+			 * otherwise guess.
+			 */
+			if ((tbp = gbincore(newvp, bp->b_lblkno - 1)) != NULL &&
+			    (tbp->b_xflags & B_VNDIRTY)) {
 				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
+				++reassignbufsortgood;
 			} else {
-				TAILQ_INSERT_TAIL(listheadp, bp, b_vnbufs);
+				TAILQ_INSERT_HEAD(listheadp, bp, b_vnbufs);
+				++reassignbufsortbad;
 			}
+		} else {
+			/*
+			 * Old sorting algorithm, scan queue and insert
+			 */
+			struct buf *ttbp;
+			while ((ttbp = TAILQ_NEXT(tbp, b_vnbufs)) &&
+			    (ttbp->b_lblkno < bp->b_lblkno)) {
+				++reassignbufloops;
+				tbp = ttbp;
+			}
+			TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
 		}
 	} else {
 		bp->b_xflags |= B_VNCLEAN;
