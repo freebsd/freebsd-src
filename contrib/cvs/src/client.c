@@ -4121,13 +4121,13 @@ start_tcp_server (tofdp, fromfdp)
     {
 	fprintf (stderr, " -> Connecting to %s(%s):%d\n",
 		 current_parsed_root->hostname,
-		 inet_ntoa (client_sai.sin_addr), port);
+		 inet_ntoa (sin.sin_addr), port);
     }
 
     if (connect (s, (struct sockaddr *) &sin, sizeof sin) < 0)
 	error (1, 0, "connect to %s(%s):%d failed: %s",
 	       current_parsed_root->hostname,
-	       inet_ntoa (client_sai.sin_addr),
+	       inet_ntoa (sin.sin_addr),
 	       port, SOCK_STRERROR (SOCK_ERRNO));
 
     {
