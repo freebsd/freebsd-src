@@ -67,7 +67,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	pmap_mincore.9 pmap_object_init_pt.9 pmap_page_exists_quick.9 \
 	pmap_page_protect.9 pmap_pinit.9 pmap_qenter.9 \
 	pmap_release.9 pmap_remove.9 pmap_resident_count.9 pmap_zero_page.9 \
-	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
+	random.9 resettodr.9 resource_int_value.9 \
 	rtalloc.9 rtentry.9 runqueue.9  random_harvest.9 rijndael.9 \
 	rman.9 \
 	sbuf.9 scheduler.9 selrecord.9 sema.9 signal.9 sleep.9 sleepqueue.9 \
@@ -458,8 +458,6 @@ MLINKS+=taskqueue.9 TASKQUEUE_DEFINE.9
 
 MLINKS+=resource_int_value.9 resource_long_value.9
 MLINKS+=resource_int_value.9 resource_string_value.9
-MLINKS+=resource_query_string.9 resource_query_name.9
-MLINKS+=resource_query_string.9 resource_query_unit.9
 
 MLINKS+=suser.9 suser_cred.9
 
