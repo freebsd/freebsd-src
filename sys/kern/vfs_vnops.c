@@ -75,6 +75,16 @@ struct 	fileops vnops = {
 	vn_statfile, vn_closefile
 };
 
+int
+vn_open(ndp, flagp, cmode)
+	register struct nameidata *ndp;
+	int *flagp, cmode;
+{
+	struct thread *td = ndp->ni_cnd.cn_thread;
+
+	return (vn_open_cred(ndp, flagp, cmode, td->td_proc->p_ucred));
+}
+
 /*
  * Common code for vnode open operations.
  * Check permissions, and call the VOP_OPEN or VOP_CREATE routine.
@@ -83,14 +93,14 @@ struct 	fileops vnops = {
  * due to the NDINIT being done elsewhere.
  */
 int
-vn_open(ndp, flagp, cmode)
+vn_open_cred(ndp, flagp, cmode, cred)
 	register struct nameidata *ndp;
 	int *flagp, cmode;
+	struct ucred *cred;
 {
 	struct vnode *vp;
 	struct mount *mp;
 	struct thread *td = ndp->ni_cnd.cn_thread;
-	struct ucred *cred = td->td_proc->p_ucred;
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
