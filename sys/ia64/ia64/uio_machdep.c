@@ -92,7 +92,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			cnt = n;
 		page_offset = offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - page_offset);
-		cp = (char *)PHYS_TO_DMAP(ma[offset >> PAGE_SHIFT]->phys_addr) +
+		cp = (char *)
+		    IA64_PHYS_TO_RR7(ma[offset >> PAGE_SHIFT]->phys_addr) +
 		    page_offset;
 		switch (uio->uio_segflg) {
 		case UIO_USERSPACE:

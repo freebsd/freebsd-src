@@ -123,6 +123,7 @@ ia64/ia64/support.S		standard
 ia64/ia64/sys_machdep.c		standard
 ia64/ia64/syscall.S		standard
 ia64/ia64/trap.c		standard
+ia64/ia64/uio_machdep.c		standard
 ia64/ia64/uma_machdep.c		standard
 ia64/ia64/unaligned.c		standard
 ia64/ia64/unwind.c		standard
