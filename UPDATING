@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040802:
+	making /dev/(null|zero) into a module proved to be too unpopular,
+	so this bit has been revoked from the previous (20040801) entry.
+
 20040801:
 	The /dev/mem, /dev/io /dev/(null/zero) devices are now modules,
 	so you may wish to add them to your kernel config file. See
