@@ -170,7 +170,14 @@ _ILINKS=@ machine
 .MAIN: all
 all: objwarn ${PROG} all-man _SUBDIR
 
-beforedepend ${OBJS}: ${_ILINKS}
+beforedepend: ${_ILINKS}
+# Ensure that the links exist without depending on it when it exists which
+# causes all the modules to be rebuilt when the directory pointed to changes.
+.for _link in ${_ILINKS}
+.if !exists(${.OBJDIR}/${_link})
+${OBJS}: ${_link}
+.endif
+.endfor
 
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
