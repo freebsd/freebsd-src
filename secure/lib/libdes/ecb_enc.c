@@ -49,7 +49,7 @@
 #include "spr.h"
 
 char *libdes_version="libdes v 3.24 - 20-Apr-1996 - eay";
-char *DES_version="DES part of SSLeay 0.6.2 24-Jul-1996";
+char *DES_version="DES part of SSLeay 0.6.3 06-Aug-1996";
 
 char *des_options()
 	{
