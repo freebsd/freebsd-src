@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.1 1994/09/25 02:12:05 pst Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.2 1994/09/25 17:45:37 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -431,6 +431,7 @@ _gethostbydnsaddr(addr, len, type)
 	querybuf buf;
 	register struct hostent *hp;
 	char qbuf[MAXDNAME+1];
+	int o_res_options = _res.options;
 	
 	if (type != AF_INET)
 		return (NULL);
@@ -439,7 +440,9 @@ _gethostbydnsaddr(addr, len, type)
 		((unsigned)addr[2] & 0xff),
 		((unsigned)addr[1] & 0xff),
 		((unsigned)addr[0] & 0xff));
+	_res.options |= RES_RECURSE;
 	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf.buf, sizeof buf.buf);
+	_res.options = o_res_options;
 	if (n < 0) {
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
