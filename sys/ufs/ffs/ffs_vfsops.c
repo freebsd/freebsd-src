@@ -1304,7 +1304,7 @@ ffs_vget(mp, ino, flags, vpp)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	error = ufs_vinit(mp, ffs_specop_p, ffs_fifoop_p, &vp);
+	error = ufs_vinit(mp, ffs_fifoop_p, &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;

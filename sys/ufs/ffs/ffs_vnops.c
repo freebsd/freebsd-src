@@ -116,23 +116,6 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 static struct vnodeopv_desc ffs_vnodeop_opv_desc =
 	{ &ffs_vnodeop_p, ffs_vnodeop_entries };
 
-vop_t **ffs_specop_p;
-static struct vnodeopv_entry_desc ffs_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
-	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
-	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
-	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
-	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
-	{ &vop_deleteextattr_desc,	(vop_t *) ffs_deleteextattr },
-	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
-	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
-	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
-	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc ffs_specop_opv_desc =
-	{ &ffs_specop_p, ffs_specop_entries };
-
 vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
@@ -151,7 +134,6 @@ static struct vnodeopv_desc ffs_fifoop_opv_desc =
 	{ &ffs_fifoop_p, ffs_fifoop_entries };
 
 VNODEOP_SET(ffs_vnodeop_opv_desc);
-VNODEOP_SET(ffs_specop_opv_desc);
 VNODEOP_SET(ffs_fifoop_opv_desc);
 
 /*
@@ -1241,7 +1223,7 @@ struct vop_strategy_args {
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
 	if (vp->v_type == VFIFO)
 		return (ufs_vnoperatefifo((struct vop_generic_args *)ap));
-	return (ufs_vnoperatespec((struct vop_generic_args *)ap));
+	panic("spec nodes went here");
 }
 
 /*

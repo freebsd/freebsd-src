@@ -108,9 +108,6 @@ static int ufsfifo_close(struct vop_close_args *);
 static int ufsfifo_kqfilter(struct vop_kqfilter_args *);
 static int ufsfifo_read(struct vop_read_args *);
 static int ufsfifo_write(struct vop_write_args *);
-static int ufsspec_close(struct vop_close_args *);
-static int ufsspec_read(struct vop_read_args *);
-static int ufsspec_write(struct vop_write_args *);
 static int filt_ufsread(struct knote *kn, long hint);
 static int filt_ufswrite(struct knote *kn, long hint);
 static int filt_ufsvnode(struct knote *kn, long hint);
@@ -250,6 +247,9 @@ ufs_open(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
 
 	/*
 	 * Files marked append-only must be opened for appending.
@@ -2003,83 +2003,6 @@ ufs_print(ap)
 }
 
 /*
- * Read wrapper for special devices.
- */
-static int
-ufsspec_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
-	/*
-	 * The inode may have been revoked during the call, so it must not
-	 * be accessed blindly here or in the other wrapper functions.
-	 */
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		ip->i_flag |= IN_ACCESS;
-	return (error);
-}
-
-/*
- * Write wrapper for special devices.
- */
-static int
-ufsspec_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
-	return (error);
-}
-
-/*
- * Close wrapper for special devices.
- *
- * Update the times on the inode then do device close.
- */
-static int
-ufsspec_close(ap)
-	struct vop_close_args /* {
-		struct vnode *a_vp;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	VI_LOCK(vp);
-	if (vp->v_usecount > 1)
-		ufs_itimes(vp);
-	VI_UNLOCK(vp);
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
-}
-
-/*
  * Read wrapper for fifos.
  */
 static int
@@ -2296,9 +2219,8 @@ ufs_advlock(ap)
  * vnodes.
  */
 int
-ufs_vinit(mntp, specops, fifoops, vpp)
+ufs_vinit(mntp, fifoops, vpp)
 	struct mount *mntp;
-	vop_t **specops;
 	vop_t **fifoops;
 	struct vnode **vpp;
 {
@@ -2308,11 +2230,6 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	vp = *vpp;
 	ip = VTOI(vp);
 	switch(vp->v_type = IFTOVT(ip->i_mode)) {
-	case VCHR:
-	case VBLK:
-		vp->v_op = specops;
-		vp = addaliasu(vp, DIP(ip, i_rdev));
-		ip->i_vnode = vp;
 		break;
 	case VFIFO:
 		vp->v_op = fifoops;
@@ -2717,37 +2634,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 static struct vnodeopv_desc ufs_vnodeop_opv_desc =
 	{ &ufs_vnodeop_p, ufs_vnodeop_entries };
 
-static vop_t **ufs_specop_p;
-static struct vnodeopv_entry_desc ufs_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_fsync_desc,		(vop_t *) vop_panic },
-	{ &vop_access_desc,		(vop_t *) ufs_access },
-	{ &vop_close_desc,		(vop_t *) ufsspec_close },
-	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
-	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
-	{ &vop_print_desc,		(vop_t *) ufs_print },
-	{ &vop_read_desc,		(vop_t *) ufsspec_read },
-	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
-#ifdef MAC
-	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
-#endif
-	{ &vop_write_desc,		(vop_t *) ufsspec_write },
-#ifdef UFS_EXTATTR
-	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },
-	{ &vop_deleteextattr_desc,		(vop_t *) ufs_deleteextattr },
-	{ &vop_setextattr_desc,		(vop_t *) ufs_setextattr },
-#endif
-#ifdef UFS_ACL
-	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
-	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
-	{ &vop_aclcheck_desc,		(vop_t *) ufs_aclcheck },
-#endif
-	{NULL, NULL}
-};
-static struct vnodeopv_desc ufs_specop_opv_desc =
-	{ &ufs_specop_p, ufs_specop_entries };
-
 static vop_t **ufs_fifoop_p;
 static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
@@ -2781,7 +2667,6 @@ static struct vnodeopv_desc ufs_fifoop_opv_desc =
 	{ &ufs_fifoop_p, ufs_fifoop_entries };
 
 VNODEOP_SET(ufs_vnodeop_opv_desc);
-VNODEOP_SET(ufs_specop_opv_desc);
 VNODEOP_SET(ufs_fifoop_opv_desc);
 
 int
@@ -2800,13 +2685,4 @@ ufs_vnoperatefifo(ap)
 	} */ *ap;
 {
 	return (VOCALL(ufs_fifoop_p, ap->a_desc->vdesc_offset, ap));
-}
-
-int
-ufs_vnoperatespec(ap)
-	struct vop_generic_args /* {
-		struct vnodeop_desc *a_desc;
-	} */ *ap;
-{
-	return (VOCALL(ufs_specop_p, ap->a_desc->vdesc_offset, ap));
 }
