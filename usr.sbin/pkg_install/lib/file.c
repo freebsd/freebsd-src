@@ -414,9 +414,9 @@ copy_file(char *dir, char *fname, char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	snprintf(cmd, FILENAME_MAX, "cp -p -r %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "cp -r %s %s", fname, to);
     else
-	snprintf(cmd, FILENAME_MAX, "cp -p -r %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "cp -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
 	errx(2, "could not perform '%s'", cmd);
