@@ -1,3 +1,38 @@
+Sat Jun 17 23:00:00 2000 Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* Makefile.sim (.man.n): Replace `;' with `|', since DOS/Windows
+	path lists use the semicolon as a separator.
+
+Sun Jun 4 21:39:00 2000 Kaneda Hiroshi (vanitas at ma3.seikyou.ne.jp)
+
+	* Fixing a lot of typos in groff_mm.man
+
+Sun Jan 30 22:52:20 2000 Jörgen Hägg (jh at axis.com)
+
+	* version 1.34
+	* Changed the version number in the CVS repository
+
+Fri Sep 3 07:33:14 1999 Jörgen Hägg (jh at axis.com)
+
+	* version 1.33
+	* At last! I finally tracked down the PGFORM bug!
+	  It didn't setup the @pl, @ll and @po as it should, now it does.
+	* mgm_ref/mgm_roff renamed to mmroff [-x]
+	* fixed y2k-bug in \*[DT]
+	* \n[cov*year] removed, hope noone used that.
+	* ISODATE added with Iso as command line flag
+		(iso-date suggested by Paul Eggert)
+	* Added ISODATE to tmac.mse and removed local settings
+	  of new-date.
+	* INITI syntax changed and enhanced. Index processing is now
+	  done with mmroff.
+	* A few examples has been added, new subdirectory 'examples'.
+	* Fixed bug with SETR, header references are now only saved
+	  when Ref > 0
+	* Problem with register H1h fixed
+	* Added test for missing abstract in 4.MT
+	* Updated Makefile.sub, using tmac_m_prefix.
+
 Mon Mar 15 22:22:42 1999 Jörgen Hägg (jh at axis.com)
 
 	* OK, let's release this as a beta, 1.33 will be better. :-)

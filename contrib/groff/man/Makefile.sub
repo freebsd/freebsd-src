@@ -1,2 +1,7 @@
-MAN5=groff_font.n groff_out.n
-MAN7=groff_char.n
+MAN5=\
+  groff_font.n \
+  groff_out.n
+MAN7=\
+  groff_char.n \
+  groff.n \
+  roff.n

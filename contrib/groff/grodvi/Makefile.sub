@@ -3,4 +3,4 @@ MAN1=grodvi.n
 XLIBS=$(LIBDRIVER) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=dvi.o
-CCSRCS=dvi.cc
+CCSRCS=$(srcdir)/dvi.cc

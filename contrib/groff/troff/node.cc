@@ -18,6 +18,10 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "troff.h"
 #include "symbol.h"
 #include "dictionary.h"
@@ -29,6 +33,25 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "charinfo.h"
 #include "font.h"
 #include "reg.h"
+
+#include "nonposix.h"
+
+#ifdef _POSIX_VERSION
+
+#include <sys/wait.h>
+
+#else /* not _POSIX_VERSION */
+
+/* traditional Unix */
+
+#define WIFEXITED(s) (((s) & 0377) == 0)
+#define WEXITSTATUS(s) (((s) >> 8) & 0377)
+#define WTERMSIG(s) ((s) & 0177)
+#define WIFSTOPPED(s) (((s) & 0377) == 0177)
+#define WSTOPSIG(s) (((s) >> 8) & 0377)
+#define WIFSIGNALED(s) (((s) & 0377) != 0 && (((s) & 0377) != 0177))
+
+#endif /* not _POSIX_VERSION */
 
 #define STORE_WIDTH 1
 
@@ -180,11 +203,10 @@ static font_info **font_table = 0;
 static int font_table_size = 0;
 
 font_info::font_info(symbol nm, int n, symbol enm, font *f)
-: internal_name(nm), external_name(enm), fm(f), number(n),
-  is_constant_spaced(CONSTANT_SPACE_NONE),
-  sf(0), is_bold(0), cond_bold_list(0),
-  last_ligature_mode(1), last_kern_mode(1),
-  last_tfont(0), last_size(0)
+: last_tfont(0), number(n), last_size(0),
+  internal_name(nm), external_name(enm), fm(f),
+  is_bold(0), is_constant_spaced(CONSTANT_SPACE_NONE), last_ligature_mode(1),
+  last_kern_mode(1), cond_bold_list(0), sf(0)
 {
 }
 
@@ -298,7 +320,7 @@ void font_info::set_conditional_bold(int fontno, hunits offset)
 }
 
 conditional_bold::conditional_bold(int f, hunits h, conditional_bold *x)
-     : fontno(f), offset(h), next(x)
+     : next(x), fontno(f), offset(h)
 {
 }
 
@@ -631,6 +653,7 @@ class real_output_file : public output_file {
 				 vunits before, vunits after) = 0;
   virtual void really_begin_page(int pageno, vunits page_length) = 0;
   virtual void really_copy_file(hunits x, vunits y, const char *filename);
+  virtual void really_put_filename(const char *filename);
 protected:
   FILE *fp;
 public:
@@ -640,6 +663,7 @@ public:
   void transparent_char(unsigned char);
   void print_line(hunits x, vunits y, node *n, vunits before, vunits after);
   void begin_page(int pageno, vunits page_length);
+  void put_filename(const char *filename);
   int is_printing();
   void copy_file(hunits x, vunits y, const char *filename);
 };
@@ -719,6 +743,7 @@ public:
   void really_print_line(hunits x, vunits y, node *n, vunits before, vunits after);
   void really_begin_page(int pageno, vunits page_length);
   void really_copy_file(hunits x, vunits y, const char *filename);
+  void really_put_filename(const char *filename);
   void draw(char, hvpair *, int, font_size);
   int get_hpos() { return hpos; }
   int get_vpos() { return vpos; }
@@ -747,7 +772,7 @@ inline void troff_output_file::put(const char *s)
 
 inline void troff_output_file::put(int i)
 {
-  put_string(itoa(i), fp);
+  put_string(i_to_a(i), fp);
 }
 
 void troff_output_file::start_special()
@@ -1067,6 +1092,14 @@ void troff_output_file::draw(char code, hvpair *point, int npoints,
   put('\n');
 }
 
+void troff_output_file::really_put_filename(const char *filename)
+{
+  flush_tbuf();
+  put("F ");
+  put(filename);
+  put('\n');
+}
+
 void troff_output_file::really_begin_page(int pageno, vunits page_length)
 {
   flush_tbuf();
@@ -1142,7 +1175,7 @@ void troff_output_file::trailer(vunits page_length)
 }
 
 troff_output_file::troff_output_file()
-: current_height(0), current_slant(0), tbuf_len(0), nfont_positions(10),
+: current_slant(0), current_height(0), nfont_positions(10), tbuf_len(0),
   begun_page(0)
 {
   font_position = new symbol[nfont_positions];
@@ -1175,12 +1208,17 @@ void output_file::trailer(vunits)
 {
 }
 
+
+void output_file::put_filename(const char *filename)
+{
+}
+
 real_output_file::real_output_file()
 : printing(0)
 {
 #ifndef POPEN_MISSING
   if (pipe_command) {
-    if ((fp = popen(pipe_command, "w")) != 0) {
+    if ((fp = popen(pipe_command, POPEN_WT)) != 0) {
       piped = 1;
       return;
     }
@@ -1206,11 +1244,12 @@ real_output_file::~real_output_file()
     fp = 0;
     if (result < 0)
       fatal("pclose failed");
-    if ((result & 0x7f) != 0)
+    if (!WIFEXITED(result))
       error("output process `%1' got fatal signal %2",
-	    pipe_command, result & 0x7f);
+	    pipe_command,
+	    WIFSIGNALED(result) ? WTERMSIG(result) : WSTOPSIG(result));
     else {
-      int exit_status = (result >> 8) & 0xff;
+      int exit_status = WEXITSTATUS(result);
       if (exit_status != 0)
 	error("output process `%1' exited with status %2",
 	      pipe_command, exit_status);
@@ -1267,6 +1306,14 @@ void real_output_file::really_copy_file(hunits, vunits, const char *)
   // do nothing
 }
 
+void real_output_file::put_filename(const char *filename)
+{
+  really_put_filename(filename);
+}
+
+void real_output_file::really_put_filename(const char *filename)
+{
+}
 
 /* ascii_output_file */
 
@@ -1324,7 +1371,7 @@ public:
 };
 
 charinfo_node::charinfo_node(charinfo *c, node *x)
-: ci(c), node(x)
+: node(x), ci(c)
 {
 }
 
@@ -1491,7 +1538,7 @@ void glyph_node::operator delete(void *p)
 
 void ligature_node::operator delete(void *p)
 {
-  delete p;
+  delete[] (char *)p;
 }
 
 glyph_node::glyph_node(charinfo *c, tfont *t, node *x)
@@ -1697,7 +1744,7 @@ node *ligature_node::add_self(node *n, hyphen_list **p)
 }
 
 kern_pair_node::kern_pair_node(hunits n, node *first, node *second, node *x)
-     : node(x), n1(first), n2(second), amount(n)
+     : node(x), amount(n), n1(first), n2(second)
 {
 }
 
@@ -2044,7 +2091,7 @@ node *node::add_italic_correction(hunits *width)
 }
 
 italic_corrected_node::italic_corrected_node(node *nn, hunits xx, node *p)
-: n(nn), x(xx), node(p)
+: node(p), n(nn), x(xx)
 {
   assert(n != 0);
 }
@@ -2380,7 +2427,7 @@ void zero_width_node::vertical_extent(vunits *min, vunits *max)
   node_list_vertical_extent(n, min, max);
 }
 
-overstrike_node::overstrike_node() : max_width(H0), list(0)
+overstrike_node::overstrike_node() : list(0), max_width(H0)
 {
 }
 
@@ -2416,7 +2463,7 @@ hunits overstrike_node::width()
   return max_width;
 }
 
-bracket_node::bracket_node() : max_width(H0), list(0)
+bracket_node::bracket_node() : list(0), max_width(H0)
 {
 }
 
@@ -2428,7 +2475,8 @@ bracket_node::~bracket_node()
 node *bracket_node::copy()
 {
   bracket_node *on = new bracket_node;
-  node *last, *tem;
+  node *last = 0;
+  node *tem;
   for (tem = list; tem; tem = tem->next) {
     if (tem->next)
       tem->next->last = tem;
@@ -3293,7 +3341,7 @@ hvpair::hvpair()
 }
 
 draw_node::draw_node(char c, hvpair *p, int np, font_size s)
-     : code(c), npoints(np), sz(s)
+     : npoints(np), sz(s), code(c)
 {
   point = new hvpair[npoints];
   for (int i = 0; i < npoints; i++)
@@ -3969,7 +4017,7 @@ const char *italic_corrected_node::type()
 
 
 left_italic_corrected_node::left_italic_corrected_node(node *x)
-: n(0), node(x)
+: node(x), n(0)
 {
 }
 
@@ -4396,7 +4444,7 @@ void font_position()
 }
 
 font_family::font_family(symbol s)
-: nm(s), map_size(10)
+: map_size(10), nm(s)
 {
   map = new int[map_size];
   for (int i = 0; i < map_size; i++)
@@ -4832,7 +4880,7 @@ public:
 
 const char *next_available_font_position_reg::get_string()
 {
-  return itoa(next_available_font_position());
+  return i_to_a(next_available_font_position());
 }
 
 class printing_reg : public reg {

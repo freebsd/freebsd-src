@@ -1,3 +1,37 @@
+2000-05-18  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c: Adding `cq' as an alias for "'" in latin-1 map.
+
+2000-05-03  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c: Adding `dq' as an alias for `"' in latin-1 map.
+
+2000-04-28  Werner LEMBERG  <wl@gnu.org>
+
+	* DviChar.c: Replacing `md' glyph name with `pc' in latin-1 map to
+	make it distinct from the `md' glyph in the symbol font.
+
+2000-03-03  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile replaced with Imakefile.in which will be configured by
+	the main configure script of groff.  This will set the correct font
+	path, and it will make it possible to build xditview in a directory
+	different from $srcdir.
+
+2000-03-01  Colin Phipps  <crp22@cam.ac.uk>
+
+	* Dvi.c (OpenFile): Use tmpdir() for security reasons.
+	* xtotroff.c (MapFont): Avoid race while opening file.
+
+2000-02-06  Werner LEMBERG  <wl@gnu.org>
+
+	* Imakefile: Adapted to new directory structure.
+
+	* README: Updated.
+
+Version 1.15 released
+=====================
+
 1999-12-21  Werner LEMBERG  <wl@gnu.org>
 
 	* README: Fixed ftp GNU address.
@@ -293,7 +327,7 @@ Sun May 26 14:14:01 1991  James Clark  (jjc at jclark)
 	* xditview.c: Add -resolution argument.
 	* GXditview.ad: Add default for GXditview.height.
 	* Dvi.c (Initialize, SetDevice): Use default_resolution.
-    
+
 	* Dvi.c: Make MY_HEIGHT and MY_WIDTH use the paperlength and
 	paperwidth commands in the DESC file.
 	

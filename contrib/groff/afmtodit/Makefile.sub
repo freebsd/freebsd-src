@@ -13,9 +13,9 @@ afmtodit: afmtodit.pl
 	chmod +x afmtodit
 
 install_data: afmtodit
-	-test -d $(bindir) || mkdir $(bindir)
+	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
 	-rm -f $(bindir)/afmtodit
-	$(INSTALL_PROGRAM) afmtodit $(bindir)/afmtodit
+	$(INSTALL_SCRIPT) afmtodit $(bindir)/afmtodit
 
 uninstall_sub:
 	-rm -f $(bindir)/afmtodit

@@ -95,6 +95,11 @@ give `configure' the option `--exec-prefix=PATH', the package will use
 PATH as the prefix for installing programs and libraries.
 Documentation and other data files will still use the regular prefix.
 
+   In addition, if you use an unusual directory layout you can give
+options like `--bindir=PATH' to specify different values for particular
+kinds of files.  Run `configure --help' for a list of the directories
+you can set and what kinds of files go in them.
+
    If the package supports it, you can cause programs to be installed
 with an extra prefix or suffix on their names by giving `configure' the
 option `--program-prefix=PREFIX' or `--program-suffix=SUFFIX'.
@@ -162,7 +167,9 @@ operates.
 `--quiet'
 `--silent'
 `-q'
-     Do not print messages saying which checks are being made.
+     Do not print messages saying which checks are being made.  To
+     suppress all normal output, redirect it to `/dev/null' (any error
+     messages will still be shown).
 
 `--srcdir=DIR'
      Look for the package's source code in directory DIR.  Usually

@@ -248,6 +248,7 @@ parenright )
 partialdiff pd
 percent %
 period .
+periodcentered pc
 perthousand %0
 perpendicular pp
 plus +
@@ -258,12 +259,14 @@ proportional pt
 question ?
 questiondown r?
 quotedbl "
+quotedbl dq
 quotedblbase Bq
 quotedblleft lq
 quotedblright rq
 quoteleft `
 quoteleft oq
 quoteright '
+quoteright cq
 quotesingle aq
 quotesinglbase bq
 reflexsubset ib

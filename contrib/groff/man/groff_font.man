@@ -130,6 +130,16 @@ will cause no font to be mounted on the corresponding font position.
 The default font family is
 .IR fam .
 .TP
+.B use_charnames_in_special
+This command indicates that troff should encode named characters inside
+special commands.
+.TP
+.B pass_filenames
+requests that troff tells the driver the source file name being processed.
+This is achieved by another tcommand:
+.B F
+.IR filename .
+.TP
 .B charset
 This line and everything following in the file are ignored.
 It is allowed for the sake of backwards compatibility.
@@ -139,6 +149,13 @@ Other commands are ignored by
 .B troff
 but may be used by postprocessors to store arbitrary information
 about the device in the DESC file.
+.LP
+Here a list of obsolete keywords which are recognized by
+.B groff
+but completely ignored:
+.BR spare1 ,
+.BR spare2 ,
+.BR biggestfont .
 .SS Font file format
 A font file has two sections. The first section is a sequence
 of lines each containing a sequence of blank delimited
@@ -165,7 +182,8 @@ Characters
 are ligatures; possible ligatures are
 .BR ff ,
 .BR fi ,
-.BR fl 
+.BR fl ,
+.B ffi
 and
 .BR ffl .
 For backwards compatibility, the list of ligatures may be terminated
@@ -209,8 +227,10 @@ Each line gives information for one character.
 A line comprises a number of fields separated
 by blanks or tabs. The format is
 .IP
-.I
-name metrics type code comment
+.I name metrics type code 
+.RI [ entity_name ]
+.RB [ --
+.IR comment ]
 .LP
 .I name
 identifies the character:
@@ -279,7 +299,16 @@ or
 .B 0X
 it will be intepreted as hexadecimal.
 .LP
-Anything on the line after the code field will be ignored.
+The
+.I entity_name
+field gives an ascii string identifying the glyph which the postprocessor
+uses to print the character.
+This field is optional and has been introduced so that the html device driver
+can encode its character set.
+For example, the character `\e[Po]' is represented as `&pound;' in html 4.0.
+.LP
+Anything on the line after the encoding field resp. after `-\&-' will
+be ignored.
 .LP
 The
 .I metrics

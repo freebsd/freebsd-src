@@ -1,0 +1,89 @@
+More stuff for groff
+====================
+
+win32
+-----
+
+Here two ports using the gcc compiler and other GNU tools:
+
+  Thomer M. Gil <tmgil@cs.vu.nl>:
+
+    http://www.cs.vu.nl/~tmgil/misc/wingroff.html
+
+  Kees Zeelenberg <c.zeelenberg@hccnet.nl>:
+
+    ftp://ftp.franken.de/pub/win32/develop/gnuwin32/
+          cygwin/porters/Zeelenberg_Kees/B20/index.html
+
+dos
+---
+
+Binaries for Eli Zaretskii's port using the djgpp compiler
+are available from
+
+  ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2gnu/gro*b.zip
+
+and its mirrors; for installation details please read `arch/djgpp/README'.
+
+grap
+----
+
+An implementation of Kernighan & Bentley's grap language for typesetting
+graphs.  Written by Ted Faber <faber@lunabase.org>.  The actual version
+can be found at 
+
+  http://www.lunabase.org/~faber/Vault/software/grap/
+
+plot2dev
+--------
+
+This utility program can convert plot graphics to either pic or gremlin
+files.  It has been written by Richard Murphey <richard-murphey@rice.edu>
+and Daniel Senderowicz <daniel@synchrods.com> (who has added the gremlin
+driver).  The actual version can be found as
+
+  ftp://ftp.ffii.org/pub/groff/plot2dev-x.x.tar.gz
+
+miscellaneous
+-------------
+
+. Dr. Robert Hermann's groff gems are available from
+
+    http://www.eas.slu.edu/People/RBHerrmann/GROFF/index.html
+
+  At present there are examples for
+
+  o creating business cards
+  o using groff to make large format posters for presentations
+
+. Robert Marks's collection of useful macros and scripts is available from
+
+    http://www.agsm.edu.au/~bobm/odds+ends/scripts.html
+
+  Description:
+
+  o `polish': Is a sed (= the Unix stream editor) script that does many
+    things to ASCII text.  Amongst other things, it breaks lines at new
+    sentences, reduces upper-case acronyms by one point size, adds
+    diacriticals, changes simple quotes into smart quotes, and makes a few
+    simple grammar checks.  The best way to see what it does is to run it as
+    a sed script file (or files) on a text file and then compare the output
+    file with the original.
+
+  o `DropCaps' is a troff script which replaces the initial letters of
+    paragraphs immediately after H1 and H2 headings with drop-capitals of
+    specified point size, and automatically flows the text around the new
+    drop cap.
+
+  o `AJM Header' is a set of troff macros used in production of the
+    Australian Journal of Management.  They use the Memorandum Macros (mm)
+    of AT&T, and so should be invoked with the UNIX troff -mm flag; they
+    should also work with the GNU troff -mm flag.
+
+documentation
+-------------
+
+Many documents related to the original versions of troff, ditroff, pic, and
+others can be accessed from the following web page:
+
+  http://www.cs.bell-labs.com/cm/cs/cstr.html

@@ -1,5 +1,5 @@
 .\"------------
-.\" $Id: 4.MT,v 1.32 1999/09/03 05:33:13 jh Exp $
+.\" $Id: 4.MT,v 1.2 2000/02/21 20:32:58 jhaegg Exp $
 .\" Cover sheet. Memorandum type 4
 .\"------------
 .de cov@print-title
@@ -61,7 +61,9 @@
 .	cov@print-title
 .	cov@print-authors
 .	cov@print-firm
-.	if !\n[cov*abs-arg] .cov@print-abstract
+.	if d cov*abstract \{\
+.		if !\n[cov*abs-arg] .cov@print-abstract
+.	\}
 .	SP 3
 .	nr hd*cur-bline \n[nl]
 .	ds cov*mt-printed

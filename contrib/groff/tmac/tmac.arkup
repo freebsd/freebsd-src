@@ -1,19 +1,16 @@
 .\"
-.\"  a simple set of macros to provide HTML documents with basic www functionality
-.\"
-.\"  please can someone with more skill at creating macros improve on this
-.\"  many thanks - Gaius
-.\"
-.\"  suggestion: maybe when run with non -Thtml all the urls should appear as
-.\"  references.
-.\"
-.\" some simple html additions to any macro set
+.\"  A simple set of macros to provide HTML documents with basic
+.\"  www functionality.  It will work with any macro set.
 .\"
 .de HTML
-.if '\*(.T'html' \X^html:\\$*^
+.  if '\*(.T'html' \{\
+.\" the following line makes the vertical mode leave, so to say
+\&
+\X^html:\\$*^
+.  \}
 ..
 .de HTMLINDEX
-.if '\*(.T'html' \X^index:\\$*^
+.  if '\*(.T'html' \X^index:\\$*^
 ..
 .\"
 .\"  BODYCOLOR - $1 is foreground color
@@ -23,96 +20,77 @@
 .\"              $5 is the color of a visited hypertext link
 .\"
 .de BODYCOLOR
-.   HTML <body text=\\$1 bgcolor=\\$2 link=\\$3 alink=\\$4 vlink=\\$5>
+.  HTML <body text=\\$1 bgcolor=\\$2 link=\\$3 alink=\\$4 vlink=\\$5>
 ..
 .\"
 .\" BACKGROUND - $1 is the background image file
 .\"
 .de BACKGROUND
-.   HTML <body background=\\$1>
+.  HTML <body background=\\$1>
 ..
 .\"
 .\"  URL - $1 is the classical underlined blue text
 .\"        $2 is the url
+.\"        $3 is optional stuff printed immediately after $3
 .\"
 .de URL
-.   ie '\*(.T'html' \{\
-.        HTML <a href="\\$2">\\$1</a>
-.   \}
-.   el \{\
-\\$1 (<url: \\$2>)
-.   \}
-..
-.\"
-.\"  LINK - $1 is the classical underlined blue text
-.\"         $2 is the URL *with* the textual reference within a document
-.\"
-.\"         example:  .LINK "a nice heading" "#heading123"
-.\"
-.\"                    provides a link from "a nice heading" to the
-.\"                    textual name reference "heading123"
-.\"
-.\"                   .LINK "The GNU FSF" "" "www.gnu.org"
-.\"
-.\"                    deprecated - use the URL macro instead
-.\"         
-.\"
-.de LINK
-.   ie !'\\$3'' \{\
-.      @error the LINK macro has changed, use the URL (or FTP if appropriate) macro here
-.      @error you are advised to replace with URL or FTP macro "\\$1" "\\$3#\\$2"
-.      URL  "\\$1" "\\$3#\\$2"
-.   \}
-.   el \{\
-.      ie '\*(.T'html' \{\
-.          HTML <a href=\\$2>\\$1</a>
-.      \}
-.      el \{\
-.          URL "\\$1" "\\$2"
-.      \}          
-.   \}
+.  ie '\*(.T'html' \{\
+.    HTML <a href="\\$2">\\$1</a>\\$3
+.  \}
+.  el \{\
+\\$1 \(la\fC\\$2\fP\(ra\\$3
+.  \}
 ..
 .\"
 .\"  FTP - $1 is the classical underlined blue text
 .\"        $2 is the ftp url
+.\"        $3 is optional stuff printed immediately after $2
 .de FTP
-.   ie '\*(.T'html' \{\
-.        HTML <a href=\\$2>\\$1</a>
-.   \}
-.   el \{\
-$1 (<ftp:\\$2>)
-.   \}
+.  ie '\*(.T'html' \{\
+.    HTML <a href=\\$2>\\$1</a>\\$3
+.  \}
+.  el \{\
+\\$1 \(la\fC\\$2\fP\(ra\\$3
+.  \}
 ..
 .\"
 .\" MAILTO - generate html email reference
-.\"          $1 is the email address
+.\"          $1 is the email address (without the `mailto:' prefix)
 .\"          $2 is the optional name
+.\"          $3 is optional stuff printed immediately after $2 (resp. $1)
 .\"
-.\"          example .MAILTO fred@foo.bar "Fredrick Bloggs"
+.\"          example:
+.\"
+.\"            Foobar has been written by
+.\"            .MAILTO fred@foo.bar "Fredrick Bloggs" .
 .\"
 .de MAILTO
 .\"
 .\" force reset after a potential heading by performing some motion..
 .\" how do we do this --fixme--
 .\"  \h'\w' ''\h'-\w' '' doesn't work..
-.   ie '\*(.T'html' \{\
-.        ie '\\$2'' \{\
-.            HTML "<a href=mailto:\\$1>\\$1</a>"
-.        \}
-.        el \{\
-.            HTML "<a href=mailto:\\$1>\\$2</a>"
-.        \}
-.   \}
-.   el \{\
-\s-2\fB<email:\\$1>\fP\s+2
-.   \}
+.  ie '\*(.T'html' \{\
+.    ie '\\$2'' \{\
+.      HTML "<a href=mailto:\\$1>\\$1</a>\\$3"
+.    \}
+.    el \{\
+.      HTML "<a href=mailto:\\$1>\\$2</a>\\$3"
+.    \}
+.  \}
+.  el \{\
+.    ie '\\$2'' \{\
+\fC\\$1\fP\\$3
+.    \}
+.    el \{\
+\\$2 \(la\fC\\$1\fP\(ra\\$3
+.    \}
+.  \}
 ..
-.\"
 .\"
 .\" TAG - generate an html name $1
 .\"
 .de TAG
-.HTML <a name="\\$1"></a>
+.  HTML <a name="\\$1"></a>
 ..
 .\"
 .\" IMAGE - reference an image
@@ -121,22 +99,22 @@ $1 (<ftp:\\$2>)
 .\"         $3 is the y width (default if absent is the x value)
 .\"
 .de IMAGE
-.   ie '\*(.T'html' \{\
-.      nr HTMLWIDTH 400
-.      if '\\$2'' \{\
-.         nr HTMLWIDTH \\$2
-.      \}
-.      nr HTMLHEIGHT \\n[HTMLWIDTH]
-.      if '\\$3'' \{\
-.         nr HTMLHEIGHT \\$3
-.      \}
-.      HTML <img src="\\$1" width=\\n[HTMLWIDTH height=\\n[HTMLHEIGHT]>
-.   \}
-.   el \{\
-.      B1
-\fB\s-2<img src=\\$1>\fP\s+2
-.      B2
-.   \}
+.  ie '\*(.T'html' \{\
+.    nr HTMLWIDTH 400
+.    if '\\$2'' \{\
+.      nr HTMLWIDTH \\$2
+.    \}
+.    nr HTMLHEIGHT \\n[HTMLWIDTH]
+.    if '\\$3'' \{\
+.      nr HTMLHEIGHT \\$3
+.    \}
+.    HTML <img src="\\$1" width=\\n[HTMLWIDTH height=\\n[HTMLHEIGHT]>
+.  \}
+.  el \{\
+.    B1
+\(la\fC\\$1\fP\(ra
+.    B2
+.  \}
 ..
 .\"
 .\" CDFTP - if we are processing this on machine \\$1 then we create a
@@ -161,18 +139,23 @@ $1 (<ftp:\\$2>)
 .\"         machine doing both though :-(
 .\"         
 .\"
-.de CDFTP 
-.   sy /bin/rm -f /tmp/tmac.n
-.   sy /bin/echo ".ds HOSTNAME `hostname --short`" > /tmp/tmac.n
-.   so /tmp/tmac.n
-.   sy /bin/rm -f /tmp/tmac.n
-.   ie '\\*[HOSTNAME]'\\$1' \{\
-.      FTP "\\$2"  "\\$3"
-.   \}
-.   el \{\
-.      URL  "\\$2" "\\$4"
-.   \}
+.\".de CDFTP 
+.\".  sy /bin/rm -f /tmp/tmac.n
+.\".  sy /bin/echo ".ds HOSTNAME `hostname --short`" > /tmp/tmac.n
+.\".  so /tmp/tmac.n
+.\".  sy /bin/rm -f /tmp/tmac.n
+.\".  ie '\\*[HOSTNAME]'\\$1' \{\
+.\".    FTP "\\$2"  "\\$3"
+.\".  \}
+.\".  el \{\
+.\".    URL  "\\$2" "\\$4"
+.\".  \}
+.\"..
+.de LINE
+.  HTML <hr>
 ..
+.\"
 .\" it doesn't make sense to use hyphenation with html, so we turn it off.
+.\"
 .hy 0
 .nr HY 0
