@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.53 1999/03/12 08:05:49 alc Exp $
+ * $Id: vm_kern.c,v 1.54 1999/03/16 07:39:07 alc Exp $
  */
 
 /*
@@ -114,6 +114,30 @@ kmem_alloc_pageable(map, size)
 	addr = vm_map_min(map);
 	result = vm_map_find(map, NULL, (vm_offset_t) 0,
 	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	if (result != KERN_SUCCESS) {
+		return (0);
+	}
+	return (addr);
+}
+
+/*
+ *	kmem_alloc_nofault:
+ *
+ *	Same as kmem_alloc_pageable, except that it create a nofault entry.
+ */
+
+vm_offset_t
+kmem_alloc_nofault(map, size)
+	vm_map_t map;
+	register vm_size_t size;
+{
+	vm_offset_t addr;
+	register int result;
+
+	size = round_page(size);
+	addr = vm_map_min(map);
+	result = vm_map_find(map, NULL, (vm_offset_t) 0,
+	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	if (result != KERN_SUCCESS) {
 		return (0);
 	}
