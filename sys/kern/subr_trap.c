@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.28 1994/08/10 04:39:47 wollman Exp $
+ *	$Id: trap.c,v 1.29 1994/08/18 22:34:43 wollman Exp $
  */
 
 /*
@@ -44,12 +44,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/acct.h>
 #include <sys/kernel.h>
 #include <sys/syscall.h>
+#include <sys/sysent.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -63,7 +63,6 @@
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/eflags.h>
-
 #include <machine/trap.h>
 
 #include "isa.h"
@@ -72,9 +71,6 @@
 
 int	trap_pfault	__P((struct trapframe *, int));
 void	trap_fatal	__P((struct trapframe *));
-
-struct	sysent sysent[];
-int	nsysent;
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
@@ -632,10 +628,13 @@ syscall(frame)
 		params += sizeof(quad_t);
 	}
 
-	if (code >= nsysent)
-		callp = &sysent[0];
-	else
-		callp = &sysent[code];
+ 	if (p->p_sysent->sv_mask)
+ 		code = code & p->p_sysent->sv_mask;
+ 
+ 	if (code < 0 || code >= p->p_sysent->sv_size)
+ 		callp = &p->p_sysent->sv_table[0];
+  	else
+ 		callp = &p->p_sysent->sv_table[code];
 
 	if ((i = callp->sy_narg * sizeof (int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {

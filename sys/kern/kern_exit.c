@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.3 1994/08/02 07:41:59 davidg Exp $
+ * $Id: kern_exit.c,v 1.4 1994/08/06 07:15:03 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysent.h>
 #include <sys/map.h>
 #include <sys/ioctl.h>
 #include <sys/proc.h>
@@ -282,12 +283,12 @@ struct wait_args {
 	int	*status;
 	int	options;
 	struct	rusage *rusage;
-#ifdef COMPAT_43
+#if defined(COMPAT_43) || defined(IBCS2)
 	int	compat;		/* pseudo */
 #endif
 };
 
-#ifdef COMPAT_43
+#if defined(COMPAT_43) || defined(IBCS2)
 #if defined(hp300) || defined(luna68k)
 #include <machine/frame.h>
 #define GETPS(rp)	((struct frame *)(rp))->f_sr
@@ -342,7 +343,7 @@ wait1(q, uap, retval)
 {
 	register int nfound;
 	register struct proc *p, *t;
-	int status, error;
+	int status, error, sig;
 
 	if (uap->pid == 0)
 		uap->pid = -q->p_pgid;
@@ -357,15 +358,24 @@ loop:
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
 		nfound++;
+#if defined(COMPAT_43) || defined(IBCS2)
+		if (q->p_sysent->sv_sigtbl) {
+			if (p->p_xstat > q->p_sysent->sv_sigsize)
+				sig = q->p_sysent->sv_sigsize + 1;
+			else
+				sig = q->p_sysent->sv_sigtbl[p->p_xstat];
+		} else
+			sig = p->p_xstat;
+#endif
 		if (p->p_stat == SZOMB) {
 			/* charge childs scheduling cpu usage to parent */
 			if( curproc->p_pid != 1)
 				curproc->p_estcpu += p->p_estcpu;
 
 			retval[0] = p->p_pid;
-#ifdef COMPAT_43
+#if defined(COMPAT_43) || defined(IBCS2)
 			if (uap->compat)
-				retval[1] = p->p_xstat;
+				retval[1] = sig;
 			else
 #endif
 			if (uap->status) {
@@ -439,9 +449,9 @@ loop:
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
 			retval[0] = p->p_pid;
-#ifdef COMPAT_43
+#if defined(COMPAT_43) || defined(IBCS2)
 			if (uap->compat) {
-				retval[1] = W_STOPCODE(p->p_xstat);
+				retval[1] = W_STOPCODE(sig);
 				error = 0;
 			} else
 #endif
