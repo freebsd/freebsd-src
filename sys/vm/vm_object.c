@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.76 1996/06/16 20:37:30 dyson Exp $
+ * $Id: vm_object.c,v 1.77 1996/07/27 03:24:03 dyson Exp $
  */
 
 /*
@@ -219,6 +219,7 @@ vm_object_allocate(type, size)
 	result = (vm_object_t)
 	    malloc((u_long) sizeof *result, M_VMOBJ, M_WAITOK);
 
+
 	_vm_object_allocate(type, size, result);
 
 	return (result);
@@ -230,7 +231,7 @@ vm_object_allocate(type, size)
  *
  *	Gets another reference to the given object.
  */
-void
+inline void
 vm_object_reference(object)
 	register vm_object_t object;
 {
@@ -402,10 +403,8 @@ vm_object_terminate(object)
 	 * from paging queues.
 	 */
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-#if defined(DIAGNOSTIC)
 		if (p->flags & PG_BUSY)
 			printf("vm_object_terminate: freeing busy page\n");
-#endif
 		PAGE_WAKEUP(p);
 		vm_page_free(p);
 		cnt.v_pfree++;
