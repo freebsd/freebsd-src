@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.18 1996/12/16 17:36:48 kato Exp $
+ **      $Id: userconfig.c,v 1.19 1996/12/17 13:29:05 kato Exp $
  **/
 
 /**
@@ -251,6 +251,7 @@ static DEV_INFO device_info[] = {
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
 #endif
+{"amd",		"Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
 #ifdef PC98
 {"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
@@ -2252,7 +2253,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.18 1996/12/16 17:36:48 kato Exp $
+ *      $Id: userconfig.c,v 1.19 1996/12/17 13:29:05 kato Exp $
  */
 
 #include "scbus.h"
