@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.25.4.1 1995/07/23 05:12:13 davidg Exp $
+ *	$Id: tcp_input.c,v 1.25.4.2 1995/08/24 05:52:06 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -692,7 +692,13 @@ findpcb:
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
-			tp->rcv_adv += tp->rcv_wnd;
+
+			/*
+			 * Limit the `virtual advertised window' to TCP_MAXWIN
+			 * here.  Even if we requested window scaling, it will
+			 * become effective only later when our SYN is acked.
+			 */
+			tp->rcv_adv += min(tp->rcv_wnd, TCP_MAXWIN);
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
@@ -766,15 +772,7 @@ findpcb:
 
 		tp->irs = ti->ti_seq;
 		tcp_rcvseqinit(tp);
-		if (tiflags & TH_ACK && SEQ_GT(ti->ti_ack, tp->iss)) {
-			tcpstat.tcps_connects++;
-			soisconnected(so);
-			/* Do window scaling on this connection? */
-			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
-				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
-				tp->snd_scale = tp->requested_s_scale;
-				tp->rcv_scale = tp->request_r_scale;
-			}
+		if (tiflags & TH_ACK) {
 			/*
 			 * Our SYN was acked.  If segment contains CC.ECHO
 			 * option, check it to make sure this segment really
@@ -788,6 +786,14 @@ findpcb:
 					goto drop;
 				else
 					goto dropwithreset;
+			}
+			tcpstat.tcps_connects++;
+			soisconnected(so);
+			/* Do window scaling on this connection? */
+			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
+				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
+				tp->snd_scale = tp->requested_s_scale;
+				tp->rcv_scale = tp->request_r_scale;
 			}
 			/* Segment is acceptable, update cache if undefined. */
 			if (taop->tao_ccsent == 0)
@@ -1268,13 +1274,20 @@ trimthenstep6:
 		 */
 		if (tp->t_flags & TF_NEEDSYN) {
 			/*
-			 *   T/TCP: Connection was half-synchronized, and our
-			 *   SYN has been ACK'd (so connection is now fully
-			 *   synchronized).  Go to non-starred state and
-			 *   increment snd_una for ACK of SYN.
+			 * T/TCP: Connection was half-synchronized, and our
+			 * SYN has been ACK'd (so connection is now fully
+			 * synchronized).  Go to non-starred state,
+			 * increment snd_una for ACK of SYN, and check if
+			 * we can do window scaling.
 			 */
 			tp->t_flags &= ~TF_NEEDSYN;
 			tp->snd_una++;
+			/* Do window scaling? */
+			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
+				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
+				tp->snd_scale = tp->requested_s_scale;
+				tp->rcv_scale = tp->request_r_scale;
+			}
 		}
 
 process_ACK:
