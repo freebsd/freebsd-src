@@ -31,8 +31,8 @@
 #include <sys/queue.h>
 #include <sys/libkern.h>
 #include <sys/random.h>
-#include <sys/time.h>
 #include <sys/types.h>
+
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/random/hash.h>

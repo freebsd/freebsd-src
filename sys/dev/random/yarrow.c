@@ -40,9 +40,11 @@
 #include <sys/mutex.h>
 #include <sys/select.h>
 #include <sys/random.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/unistd.h>
+
+#include <machine/cpu.h>
+
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/random/hash.h>
@@ -53,7 +55,7 @@
 
 static void generator_gate(void);
 static void reseed(int);
-static void random_harvest_internal(struct timespec *, void *, u_int, u_int, u_int, enum esource);
+static void random_harvest_internal(u_int64_t, void *, u_int, u_int, u_int, enum esource);
 
 static void random_kthread(void *);
 
@@ -68,7 +70,7 @@ TAILQ_HEAD(harvestqueue, harvest) harvestqueue,
  * buffer size is pretty arbitrary.
  */
 struct harvest {
-	struct timespec time;		/* nanotime for clock jitter */
+	u_int64_t somecounter;		/* fast counter for clock jitter */
 	u_char entropy[HARVESTSIZE];	/* the harvested entropy */
 	u_int size, bits, frac;		/* stats about the entropy */
 	enum esource source;		/* stats about the entropy */
@@ -139,7 +141,7 @@ random_kthread(void *arg /* NOTUSED */)
 				yarrow_hash_iterate(&random_state.pool[event->pool].hash,
 					event->entropy, sizeof(event->entropy));
 				yarrow_hash_iterate(&random_state.pool[event->pool].hash,
-					&event->time, sizeof(event->time));
+					&event->somecounter, sizeof(event->somecounter));
 				source->frac += event->frac;
 				source->bits += event->bits + source->frac/1024;
 				source->frac %= 1024;
@@ -431,25 +433,27 @@ void
 write_random(void *buf, u_int count)
 {
 	u_int i;
-	struct timespec timebuf;
 
-	/* arbitrarily break the input up into HARVESTSIZE chunks */
+	/* Break the input up into HARVESTSIZE chunks.
+	 * The writer has too much control here, so "estimate" the
+	 * the entropy as zero.
+	 */
 	for (i = 0; i < count; i += HARVESTSIZE) {
-		nanotime(&timebuf);
-		random_harvest_internal(&timebuf, (char *)buf + i, HARVESTSIZE, 0, 0,
-			RANDOM_WRITE);
+		random_harvest_internal(get_cyclecount(), (char *)buf + i,
+			HARVESTSIZE, 0, 0, RANDOM_WRITE);
 	}
 
 	/* Maybe the loop iterated at least once */
 	if (i > count)
 		i -= HARVESTSIZE;
 
-	/* Get the last bytes even if the input length is not a multiple of HARVESTSIZE */
+	/* Get the last bytes even if the input length is not
+	 * a multiple of HARVESTSIZE.
+	 */
 	count %= HARVESTSIZE;
 	if (count) {
-		nanotime(&timebuf);
-		random_harvest_internal(&timebuf, (char *)buf + i, count, 0, 0,
-			RANDOM_WRITE);
+		random_harvest_internal(get_cyclecount(), (char *)buf + i, count,
+			0, 0, RANDOM_WRITE);
 	}
 
 	/* Explicit reseed */
@@ -485,22 +489,20 @@ generator_gate(void)
  */
 
 static void
-random_harvest_internal(struct timespec *timep, void *entropy, u_int count,
+random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 	u_int bits, u_int frac, enum esource origin)
 {
 	struct harvest *event;
 
-#if 0
-#ifdef DEBUG
+#ifdef DEBUG1
 	printf("Random harvest\n");
-#endif
 #endif
 	event = malloc(sizeof(struct harvest), M_TEMP, M_NOWAIT);
 
 	if (origin < ENTROPYSOURCE && event != NULL) {
 
-		/* nanotime provides clock jitter */
-		event->time = *timep;
+		/* fast counter provides clock jitter */
+		event->somecounter = somecounter;
 
 		/* the harvested entropy */
 		count = count > sizeof(event->entropy)
