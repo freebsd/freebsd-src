@@ -85,7 +85,7 @@ void copystr __P((void));
 int fgetNUL __P((char *, int, FILE *));
 unsigned hashit __P((char *, char, unsigned));
 void inithash __P((void));
-int match __P((char *));
+int match __P((const char *));
 int octdigit __P((char));
 void process __P((void));
 static void usage __P((void));
@@ -135,7 +135,7 @@ usage()
 void
 process()
 {
-	register c;
+	int c;
 
 	for (;;) {
 		c = getchar();
@@ -158,10 +158,10 @@ process()
 
 int
 match(ocp)
-	char *ocp;
+	const char *ocp;
 {
-	register char *cp;
-	register c;
+	const char *cp;
+	int c;
 
 	for (cp = ocp + 1; *cp; cp++) {
 		c = getchar();
@@ -178,7 +178,7 @@ match(ocp)
 void
 copystr()
 {
-	register c, ch;
+	int c, ch;
 	char buf[512];
 	register char *cp = buf;
 
@@ -324,7 +324,7 @@ fgetNUL(obuf, rmdr, file)
 	register int rmdr;
 	FILE *file;
 {
-	register c;
+	int c;
 	register char *buf = obuf;
 
 	while (--rmdr > 0 && (c = getc(file)) != 0 && c != EOF)
