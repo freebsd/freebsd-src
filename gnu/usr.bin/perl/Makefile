@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= libperl perl suidperl library pod utils x2p
+SUBDIR= libperl perl suidperl library pod utils x2p BSDPAN
 
 MAINTAINER=markm@freebsd.org
 

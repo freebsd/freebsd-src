@@ -1,0 +1,20 @@
+$FreeBSD$
+
+For importers of the future Perl versions.  BSDPAN operation depends on
+the fact it is loaded before system Perl modules.  To achieve this, the
+semi-documented (it is described as undocumented in Perl documentation)
+define APPLLIB_EXP is used.  Run Perl configure as follows (with other
+relevant arguments of course):
+
+   sh Configure -Dccflags='-DAPPLLIB_EXP="/usr/libdata/perl/BSDPAN"'
+
+Since FreeBSD uses its own Makefile to build Perl, it is necessary to
+duplicate this as an extra CFLAG.  This resides currently in
+gnu/usr.bin/perl/Makefile.inc:
+
+   CFLAGS+=	'-DAPPLLIB_EXP="/usr/libdata/perl/BSDPAN"'
+
+If APPLLIB_EXP ever gets removed from Perl, some other way of putting
+/usr/libdata/perl/BSDPAN in the start of @INC must be devised.
+
+-Anton <tobez@tobez.org>
