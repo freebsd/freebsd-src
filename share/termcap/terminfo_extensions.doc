@@ -2,7 +2,7 @@
 auto_left_margin        	"bw"	bool	"bw"	cub1 wraps from column 0 to last column
 auto_right_margin       	"am"	bool	"am"	terminal has automatic margins
 no_esc_ctlc             	"xsb"	bool	"xb"	beehive (f1=escape, f2=ctrl C)
-ceol_standout_glitch    	"xhp"	bool	"xs"	stnadout not erased by overwriting (hp)
+ceol_standout_glitch    	"xhp"	bool	"xs"	standout not erased by overwriting (hp)
 eat_newline_glitch      	"xenl"	bool	"xn"	newline ignored after 80 cols (concept)
 erase_overstrike        	"eo"	bool	"eo"	can erase overstrikes with a blank
 generic_type            	"gn"	bool	"gn"	generic line type
@@ -37,7 +37,7 @@ semi_auto_right_margin  	"sam"	bool	"YE"	printing in last column causes cr
 cpi_changes_res         	"cpix"	bool	"YF"	changing character pitch changes resolution
 lpi_changes_res         	"lpix"	bool	"YG"	chnaging line pitch changes resolution
 # These are the numerical capabilities
-columns                 	"cols"	num	"co"	number of columns in aline
+columns                 	"cols"	num	"co"	number of columns in a line
 init_tabs               	"it"	num	"it"	tabs initially every # spaces
 lines                   	"lines"	num	"li"	number of lines on screen or page
 lines_of_memory         	"lm"	num	"lm"	lines of memory if > line. 0 => varies
@@ -289,58 +289,58 @@ key_ssuspend            	"kSPD"	str	"!2"	shifted key
 key_sundo               	"kUND"	str	"!3"	shifted key
 req_for_input           	"rfi"	str	"RF"
 key_f11                 	"kf11"	str	"F1"	F11 function key
-key_f12                 	"kf12"	str	"F2"	F11 function key
-key_f13                 	"kf13"	str	"F3"	F11 function key
-key_f14                 	"kf14"	str	"F4"	F11 function key
-key_f15                 	"kf15"	str	"F5"	F11 function key
-key_f16                 	"kf16"	str	"F6"	F11 function key
-key_f17                 	"kf17"	str	"F7"	F11 function key
-key_f18                 	"kf18"	str	"F8"	F11 function key
-key_f19                 	"kf19"	str	"F9"	F11 function key
-key_f20                 	"kf20"	str	"FA"	F11 function key
-key_f21                 	"kf21"	str	"FB"	F11 function key
-key_f22                 	"kf22"	str	"FC"	F11 function key
-key_f23                 	"kf23"	str	"FD"	F11 function key
-key_f24                 	"kf24"	str	"FE"	F11 function key
-key_f25                 	"kf25"	str	"FF"	F11 function key
-key_f26                 	"kf26"	str	"FG"	F11 function key
-key_f27                 	"kf27"	str	"FH"	F11 function key
-key_f28                 	"kf28"	str	"FI"	F11 function key
-key_f29                 	"kf29"	str	"FJ"	F11 function key
-key_f30                 	"kf30"	str	"FK"	F11 function key
-key_f31                 	"kf31"	str	"FL"	F11 function key
-key_f32                 	"kf32"	str	"FM"	F11 function key
-key_f33                 	"kf33"	str	"FN"	F11 function key
-key_f34                 	"kf34"	str	"FO"	F11 function key
-key_f35                 	"kf35"	str	"FP"	F11 function key
-key_f36                 	"kf36"	str	"FQ"	F11 function key
-key_f37                 	"kf37"	str	"FR"	F11 function key
-key_f38                 	"kf38"	str	"FS"	F11 function key
-key_f39                 	"kf39"	str	"FT"	F11 function key
-key_f40                 	"kf40"	str	"FU"	F11 function key
-key_f41                 	"kf41"	str	"FV"	F11 function key
-key_f42                 	"kf42"	str	"FW"	F11 function key
-key_f43                 	"kf43"	str	"FX"	F11 function key
-key_f44                 	"kf44"	str	"FY"	F11 function key
-key_f45                 	"kf45"	str	"FZ"	F11 function key
-key_f46                 	"kf46"	str	"Fa"	F11 function key
-key_f47                 	"kf47"	str	"Fb"	F11 function key
-key_f48                 	"kf48"	str	"Fc"	F11 function key
-key_f49                 	"kf49"	str	"Fd"	F11 function key
-key_f50                 	"kf50"	str	"Fe"	F11 function key
-key_f51                 	"kf51"	str	"Ff"	F11 function key
-key_f52                 	"kf52"	str	"Fg"	F11 function key
-key_f53                 	"kf53"	str	"Fh"	F11 function key
-key_f54                 	"kf54"	str	"Fi"	F11 function key
-key_f55                 	"kf55"	str	"Fj"	F11 function key
-key_f56                 	"kf56"	str	"Fk"	F11 function key
-key_f57                 	"kf57"	str	"Fl"	F11 function key
-key_f58                 	"kf58"	str	"Fm"	F11 function key
-key_f59                 	"kf59"	str	"Fn"	F11 function key
-key_f60                 	"kf60"	str	"Fo"	F11 function key
-key_f61                 	"kf61"	str	"Fp"	F11 function key
-key_f62                 	"kf62"	str	"Fq"	F11 function key
-key_f63                 	"kf63"	str	"Fr"	F11 function key
+key_f12                 	"kf12"	str	"F2"	F12 function key
+key_f13                 	"kf13"	str	"F3"	F13 function key
+key_f14                 	"kf14"	str	"F4"	F14 function key
+key_f15                 	"kf15"	str	"F5"	F15 function key
+key_f16                 	"kf16"	str	"F6"	F16 function key
+key_f17                 	"kf17"	str	"F7"	F17 function key
+key_f18                 	"kf18"	str	"F8"	F18 function key
+key_f19                 	"kf19"	str	"F9"	F19 function key
+key_f20                 	"kf20"	str	"FA"	F20 function key
+key_f21                 	"kf21"	str	"FB"	F21 function key
+key_f22                 	"kf22"	str	"FC"	F22 function key
+key_f23                 	"kf23"	str	"FD"	F23 function key
+key_f24                 	"kf24"	str	"FE"	F24 function key
+key_f25                 	"kf25"	str	"FF"	F25 function key
+key_f26                 	"kf26"	str	"FG"	F26 function key
+key_f27                 	"kf27"	str	"FH"	F27 function key
+key_f28                 	"kf28"	str	"FI"	F28 function key
+key_f29                 	"kf29"	str	"FJ"	F29 function key
+key_f30                 	"kf30"	str	"FK"	F30 function key
+key_f31                 	"kf31"	str	"FL"	F31 function key
+key_f32                 	"kf32"	str	"FM"	F32 function key
+key_f33                 	"kf33"	str	"FN"	F33 function key
+key_f34                 	"kf34"	str	"FO"	F34 function key
+key_f35                 	"kf35"	str	"FP"	F35 function key
+key_f36                 	"kf36"	str	"FQ"	F36 function key
+key_f37                 	"kf37"	str	"FR"	F37 function key
+key_f38                 	"kf38"	str	"FS"	F38 function key
+key_f39                 	"kf39"	str	"FT"	F39 function key
+key_f40                 	"kf40"	str	"FU"	F40 function key
+key_f41                 	"kf41"	str	"FV"	F41 function key
+key_f42                 	"kf42"	str	"FW"	F42 function key
+key_f43                 	"kf43"	str	"FX"	F43 function key
+key_f44                 	"kf44"	str	"FY"	F44 function key
+key_f45                 	"kf45"	str	"FZ"	F45 function key
+key_f46                 	"kf46"	str	"Fa"	F46 function key
+key_f47                 	"kf47"	str	"Fb"	F47 function key
+key_f48                 	"kf48"	str	"Fc"	F48 function key
+key_f49                 	"kf49"	str	"Fd"	F49 function key
+key_f50                 	"kf50"	str	"Fe"	F50 function key
+key_f51                 	"kf51"	str	"Ff"	F51 function key
+key_f52                 	"kf52"	str	"Fg"	F52 function key
+key_f53                 	"kf53"	str	"Fh"	F53 function key
+key_f54                 	"kf54"	str	"Fi"	F54 function key
+key_f55                 	"kf55"	str	"Fj"	F55 function key
+key_f56                 	"kf56"	str	"Fk"	F56 function key
+key_f57                 	"kf57"	str	"Fl"	F57 function key
+key_f58                 	"kf58"	str	"Fm"	F58 function key
+key_f59                 	"kf59"	str	"Fn"	F59 function key
+key_f60                 	"kf60"	str	"Fo"	F60 function key
+key_f61                 	"kf61"	str	"Fp"	F61 function key
+key_f62                 	"kf62"	str	"Fq"	F62 function key
+key_f63                 	"kf63"	str	"Fr"	F63 function key
 clr_bol                 	"el1"	str	"cb"	Clear to beginning of line
 clear_margins           	"mgc"	str	"MC"	clear righ and left soft margins
 set_left_margin         	"smgl"	str	"ML"	set left soft margin
@@ -369,95 +369,95 @@ user6                   	"u6"	str	"u6"	User string # 6
 user7                   	"u7"	str	"u7"	User string # 7
 user8                   	"u8"	str	"u8"	User string # 8
 user9                   	"u9"	str	"u9"	User string # 9
-orig_pair               	"op"	str	"op"
-orig_colors             	"oc"	str	"oc"
-initialize_color        	"initc"	str	"Ic"
-initialize_pair         	"initp"	str	"Ip"
-set_color_pair          	"scp"	str	"sp"
-set_foreground          	"setf"	str	"Sf"
-set_background          	"setb"	str	"Sb"
-change_char_pitch       	"cpi"	str	"ZA"
-change_line_pitch       	"lpi"	str	"ZB"
-change_res_horz         	"chr"	str	"ZC"
-change_res_vert         	"cvr"	str	"ZD"
-define_char             	"defc"	str	"ZE"
-enter_doublewide_mode   	"swidm"	str	"ZF"
-enter_draft_quality     	"sdrfq"	str	"ZG"
-enter_italics_mode      	"sitm"	str	"ZH"
-enter_leftward_mode     	"slm"	str	"ZI"
-enter_micro_mode        	"smicm"	str	"ZJ"
-enter_near_letter_quality	"snlq"	str	"ZK"
-enter_normal_quality    	"snrmq"	str	"ZL"
-enter_shadow_mode       	"sshm"	str	"ZM"
-enter_subscript_mode    	"ssubm"	str	"ZN"
-enter_superscript_mode  	"ssupm"	str	"ZO"
-enter_upward_mode       	"sum"	str	"ZP"
-exit_doublewide_mode    	"rwidm"	str	"ZQ"
-exit_italics_mode       	"ritm"	str	"ZR"
-exit_leftward_mode      	"rlm"	str	"ZS"
-exit_micro_mode         	"rmicm"	str	"ZT"
-exit_shadow_mode        	"rshm"	str	"ZU"
-exit_subscript_mode     	"rsubm"	str	"ZV"
-exit_superscript_mode   	"rsupm"	str	"ZW"
-exit_upward_mode        	"rum"	str	"ZX"
-micro_column_address    	"mhpa"	str	"ZY"
-micro_down              	"mcud1"	str	"ZZ"
-micro_left              	"mcub1"	str	"Za"
-micro_right             	"mcuf1"	str	"Zb"
-micro_row_address       	"mvpa"	str	"Zc"
-micro_up                	"mcuu1"	str	"Zd"
-order_of_pins           	"porder"	str	"Ze"
-parm_down_micro         	"mcud"	str	"Zf"
-parm_left_micro         	"mcub"	str	"Zg"
-parm_right_micro        	"mcuf"	str	"Zh"
-parm_up_micro           	"mcuu"	str	"Zi"
-select_char_set         	"scs"	str	"Zj"
-set_bottom_margin       	"smgb"	str	"Zk"
-set_bottom_margin_parm  	"smgbp"	str	"Zl"
-set_left_margin_parm    	"smglp"	str	"Zm"
-set_right_margin_parm   	"smgrp"	str	"Zn"
-set_top_margin          	"smgt"	str	"Zo"
-set_top_margin_parm     	"smgtp"	str	"Zp"
-start_bit_image         	"sbim"	str	"Zq"
-start_char_set_def      	"scsd"	str	"Zr"
-stop_bit_image          	"rbim"	str	"Zs"
-stop_char_set_def       	"rcsd"	str	"Zt"
-subscript_characters    	"subcs"	str	"Zu"
-superscript_characters  	"supcs"	str	"Zv"
-these_cause_cr          	"docr"	str	"Zw"
-zero_motion             	"zerom"	str	"Zx"
-char_set_names          	"csnm"	str	"Zy"
-key_mouse               	"kmous"	str	"Km"
-mouse_info              	"minfo"	str	"Mi"
-req_mouse_pos           	"reqmp"	str	"RQ"
-get_mouse               	"getm"	str	"Gm"
-set_a_foreground        	"setaf"	str	"AF"
-set_a_background        	"setab"	str	"AB"
-pkey_plab               	"pfxl"	str	"xl"
-device_type             	"devt"	str	"dv"
-code_set_init           	"csin"	str	"ci"
-set0_des_seq            	"s0ds"	str	"s0"
-set1_des_seq            	"s1ds"	str	"s1"
-set2_des_seq            	"s2ds"	str	"s2"
-set3_des_seq            	"s3ds"	str	"s3"
-set_lr_margin           	"smglr"	str	"ML"
-set_tb_margin           	"smgtb"	str	"MT"
-bit_image_repeat        	"birep"	str	"Xy"
-bit_image_newline       	"binel"	str	"Zz"
-bit_image_carriage_return	"bicr"	str	"Yv"
-color_names             	"colornm"	str	"Yw"
-define_bit_image_region 	"defbi"	str	"Yx"
-end_bit_image_region    	"endbi"	str	"Yy"
-set_color_band          	"setcolor"	str	"Yz"
-set_page_length         	"slines"	str	"YZ"
-display_pc_char         	"dispc"	str	"S1"
-enter_pc_charset_mode   	"smpch"	str	"S2"
-exit_pc_charset_mode    	"rmpch"	str	"S3"
-enter_scancode_mode     	"smsc"	str	"S4"
-exit_scancode_mode      	"rmsc"	str	"S5"
-pc_term_options         	"pctrm"	str	"S6"
-scancode_escape         	"scesc"	str	"S7"
-alt_scancode_esc        	"scesa"	str	"S8"
+orig_pair               	"op"	str	"op"	set default color-pair to original one
+orig_colors             	"oc"	str	"oc"	set all color(-pair)s to the original ones
+initialize_color        	"initc"	str	"Ic"	initalize the definition of color
+initialize_pair         	"initp"	str	"Ip"	initalize color-pair
+set_color_pair          	"scp"	str	"sp"	set current color-pair
+set_foreground          	"setf"	str	"Sf"	set current forground color
+set_background          	"setb"	str	"Sb"	set current background color
+change_char_pitch       	"cpi"	str	"ZA"	change number of characters per inch
+change_line_pitch       	"lpi"	str	"ZB"	change number of lines per inch
+change_res_horz         	"chr"	str	"ZC"	change horizontal resolution
+change_res_vert         	"cvr"	str	"ZD"	change vertical resolution
+define_char             	"defc"	str	"ZE"	define a character in a character-set
+enter_doublewide_mode   	"swidm"	str	"ZF"	enter double wide printing
+enter_draft_quality     	"sdrfq"	str	"ZG"	enter draft quality mode
+enter_italics_mode      	"sitm"	str	"ZH"	enter italics mode
+enter_leftward_mode     	"slm"	str	"ZI"	enter leftware carriage motion
+enter_micro_mode        	"smicm"	str	"ZJ"	enable micro motion capabilities
+enter_near_letter_quality	"snlq"	str	"ZK"	set near-letter quality printing
+enter_normal_quality    	"snrmq"	str	"ZL"	set normal quality print
+enter_shadow_mode       	"sshm"	str	"ZM"	enable shodow printing
+enter_subscript_mode    	"ssubm"	str	"ZN"	enter subscript mode
+enter_superscript_mode  	"ssupm"	str	"ZO"	enter superscript mode
+enter_upward_mode       	"sum"	str	"ZP"	enable upward carriage motion
+exit_doublewide_mode    	"rwidm"	str	"ZQ"	leave doulbe wide priting
+exit_italics_mode       	"ritm"	str	"ZR"	leave italics mode
+exit_leftward_mode      	"rlm"	str	"ZS"	enable rightward (normal) carriage motion
+exit_micro_mode         	"rmicm"	str	"ZT"	disable micro motion capabilities
+exit_shadow_mode        	"rshm"	str	"ZU"	disable shadow printing
+exit_subscript_mode     	"rsubm"	str	"ZV"	leave subscript mode
+exit_superscript_mode   	"rsupm"	str	"ZW"	leave superscript mode
+exit_upward_mode        	"rum"	str	"ZX"	enable downware (normal carriage mode
+micro_column_address    	"mhpa"	str	"ZY"	like column_address for micro adjustments
+micro_down              	"mcud1"	str	"ZZ"	like cursor_down for micro adjustments
+micro_left              	"mcub1"	str	"Za"	like cursor_left for micro adjustments
+micro_right             	"mcuf1"	str	"Zb"	like cursor_right for micro adjustments
+micro_row_address       	"mvpa"	str	"Zc"	like row_address for micro adjustments
+micro_up                	"mcuu1"	str	"Zd"	like cursor_up for micro adjustments
+order_of_pins           	"porder"	str	"Ze"	matches software bits to print-head bits
+parm_down_micro         	"mcud"	str	"Zf"	like param_down_cursor for micro adjust
+parm_left_micro         	"mcub"	str	"Zg"	like param_left_cursor for micro adjust
+parm_right_micro        	"mcuf"	str	"Zh"	like param_right_cursor for micro adjust
+parm_up_micro           	"mcuu"	str	"Zi"	like param_up_cursor for micro adjust
+select_char_set         	"scs"	str	"Zj"	select character set
+set_bottom_margin       	"smgb"	str	"Zk"	set bottom margin at current line
+set_bottom_margin_parm  	"smgbp"	str	"Zl"	set bottom margin at line #1 or #2 lines from bottom
+set_left_margin_parm    	"smglp"	str	"Zm"	set left (right) margin at column #1 (#2)
+set_right_margin_parm   	"smgrp"	str	"Zn"	set right margin at column #1
+set_top_margin          	"smgt"	str	"Zo"	set top margin at current line
+set_top_margin_parm     	"smgtp"	str	"Zp"	set top (bottom) margin at line #1 (#2)
+start_bit_image         	"sbim"	str	"Zq"	start printing bit image graphics
+start_char_set_def      	"scsd"	str	"Zr"	start definition of a character set
+stop_bit_image          	"rbim"	str	"Zs"	end printing bit image graphics
+stop_char_set_def       	"rcsd"	str	"Zt"	end definition of a character set
+subscript_characters    	"subcs"	str	"Zu"	list of ``subscript-able'' characters
+superscript_characters  	"supcs"	str	"Zv"	list of ``supperscript-able'' characters
+these_cause_cr          	"docr"	str	"Zw"	printing any of these chars causes cr
+zero_motion             	"zerom"	str	"Zx"	no motion for the subsequent character
+char_set_names          	"csnm"	str	"Zy"	list of character set names
+key_mouse               	"kmous"	str	"Km"	0631, Mouse even has occured
+mouse_info              	"minfo"	str	"Mi"	mouse status information
+req_mouse_pos           	"reqmp"	str	"RQ"	request mouse position report
+get_mouse               	"getm"	str	"Gm"	curses should get button events
+set_a_foreground        	"setaf"	str	"AF"	set foreground color using ANSI escape
+set_a_background        	"setab"	str	"AB"	set background color using ANSI escape
+pkey_plab               	"pfxl"	str	"xl"	prog key #1 to xmit string #2 and show string #3
+device_type             	"devt"	str	"dv"	indicate language/codeset support
+code_set_init           	"csin"	str	"ci"	init sequence for multiple codesets
+set0_des_seq            	"s0ds"	str	"s0"	shift into codeset 0 (EUC set 0, ASCII)
+set1_des_seq            	"s1ds"	str	"s1"	shift into codeset 1
+set2_des_seq            	"s2ds"	str	"s2"	shift into codeset 2
+set3_des_seq            	"s3ds"	str	"s3"	shift into codeset 3
+set_lr_margin           	"smglr"	str	"ML"	set both left and right margins
+set_tb_margin           	"smgtb"	str	"MT"	sets both top and bottom margins
+bit_image_repeat        	"birep"	str	"Xy"	repeat bit-image cell #1 #2 times (use tparm)
+bit_image_newline       	"binel"	str	"Zz"	move to next row of the bit image (use tparm)
+bit_image_carriage_return	"bicr"	str	"Yv"	move to beginning of same row (use tparm)
+color_names             	"colornm"	str	"Yw"	give name for color #1
+define_bit_image_region 	"defbi"	str	"Yx"	define rectangular bit-image region (use tparm)
+end_bit_image_region    	"endbi"	str	"Yy"	end a bit-image region (use tparm)
+set_color_band          	"setcolor"	str	"Yz"	change to ribbon color #1
+set_page_length         	"slines"	str	"YZ"	set page lingth to #1 lines (use tparm) of an inch
+display_pc_char         	"dispc"	str	"S1"	display PC character
+enter_pc_charset_mode   	"smpch"	str	"S2"	enter PC character display mode
+exit_pc_charset_mode    	"rmpch"	str	"S3"	disable PC character display mode
+enter_scancode_mode     	"smsc"	str	"S4"	enter PC scancode mode
+exit_scancode_mode      	"rmsc"	str	"S5"	disable PC scancode mode
+pc_term_options         	"pctrm"	str	"S6"	pC terminal options
+scancode_escape         	"scesc"	str	"S7"	escape for scancode emultion
+alt_scancode_esc        	"scesa"	str	"S8"	alternate escape for scancode emultion (default is for vt100)
 # These capabilities or either obselete or extentions on certain systems
 # They are not used by SVR4 terminfo, so I have no idea in order they
 # should be
