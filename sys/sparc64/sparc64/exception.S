@@ -2035,6 +2035,22 @@ ENTRY(tl0_trap)
 	rdpr	%cwp, %l6
 	wrpr	%l6, %l7, %tstate
 
+	sub	%fp, CCFSZ, %sp
+
+	/*
+	 * Need to store %fsr to pass it to the user trap handler. Otherwise,
+	 * the ftt field might be zeoed out in a store in another trap or
+	 * interrupt. Use the temporary stack for that.
+	 */
+	rd	%fprs, %l3
+	or	%l3, FPRS_FEF, %l4
+	wr	%l4, 0, %fprs
+	dec	8, ASP_REG
+	stx	%fsr, [ASP_REG]
+	ldx	[ASP_REG], %l4
+	inc	8, ASP_REG
+	wr	%l3, 0, %fprs
+
 	mov	%l0, %l5
 	mov	%l1, %l6
 	mov	%l2, %l7
@@ -2468,11 +2484,19 @@ ENTRY(tl1_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
+	mov	PCB_REG, %l4
+	mov	PCPU_REG, %l5
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
 	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
 	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+
+	mov	%l4, PCB_REG
+	mov	%l5, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
@@ -2562,11 +2586,19 @@ ENTRY(tl1_intr)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
+	mov	PCB_REG, %l4
+	mov	PCPU_REG, %l5
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
 	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
 	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+
+	mov	%l4, PCB_REG
+	mov	%l5, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	call	critical_enter
 	 nop
