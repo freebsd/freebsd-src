@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.6 1994/12/22 21:20:39 se Exp $
+**  $Id: pcisupport.c,v 1.7 1995/02/02 12:36:19 davidg Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -50,7 +50,10 @@
 */
 
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/kernel.h>
 
+#include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
 extern	void	printf();
@@ -69,11 +72,14 @@ static	char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
-struct	pci_driver chipset_device = {
+struct	pci_device chipset_device = {
+	"chip",
 	chipset_probe,
 	chipset_attach,
 	&chipset_count
 };
+
+DATA_SET (pcidevice_set, chipset_device);
 
 static	char	confread(pcici_t config_id, int port);
 
@@ -296,11 +302,14 @@ static	char*	vga_probe (pcici_t tag, pcidi_t type);
 static	void	vga_attach(pcici_t tag, int unit);
 static	u_long	vga_count;
 
-struct	pci_driver vga_device = {
+struct	pci_device vga_device = {
+	"vga",
 	vga_probe,
 	vga_attach,
 	&vga_count
 };
+
+DATA_SET (pcidevice_set, vga_device);
 
 static	char*	vga_probe (pcici_t tag, pcidi_t type)
 {
@@ -345,11 +354,14 @@ static	char*	lkm_probe (pcici_t tag, pcidi_t type);
 static	void	lkm_attach(pcici_t tag, int unit);
 static	u_long	lkm_count;
 
-struct	pci_driver lkm_device = {
+struct	pci_device lkm_device = {
+	"lkm",
 	lkm_probe,
 	lkm_attach,
 	&lkm_count
 };
+
+DATA_SET (pcidevice_set, lkm_device);
 
 static	char*	lkm_probe (pcici_t tag, pcidi_t type)
 {
@@ -375,11 +387,14 @@ static	char*	ign_probe (pcici_t tag, pcidi_t type);
 static	void	ign_attach(pcici_t tag, int unit);
 static	u_long	ign_count;
 
-struct	pci_driver ign_device = {
+struct	pci_device ign_device = {
+	NULL,
 	ign_probe,
 	ign_attach,
 	&ign_count
 };
+
+DATA_SET (pcidevice_set, ign_device);
 
 static	char*	ign_probe (pcici_t tag, pcidi_t type)
 {
