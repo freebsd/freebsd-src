@@ -620,7 +620,6 @@ USB_DETACH(uscanner)
 	int maj, mn;
 #elif defined(__FreeBSD__)
 	dev_t dev;
-	struct vnode *vp;
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -657,9 +656,6 @@ USB_DETACH(uscanner)
 #elif defined(__FreeBSD__)
 	/* destroy the device for the control endpoint */
 	dev = makedev(USCANNER_CDEV_MAJOR, USBDEVUNIT(sc->sc_dev));
-	vp = SLIST_FIRST(&dev->si_hlist);
-	if (vp)
-		VOP_REVOKE(vp, REVOKEALL);
 	destroy_dev(dev);
 #endif
 

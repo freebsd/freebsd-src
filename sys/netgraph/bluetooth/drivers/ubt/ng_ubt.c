@@ -40,7 +40,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/poll.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 #include <machine/bus.h>
 
 #include <dev/usb/usb.h>
@@ -2704,7 +2704,6 @@ ubt_create_device_nodes(ubt_softc_p sc)
 Static void
 ubt_destroy_device_nodes(ubt_softc_p sc)
 {
-	struct vnode	*vp = NULL;
 
 	/*
 	 * Wait for processes to go away. This should be safe as we will not
@@ -2721,28 +2720,16 @@ ubt_destroy_device_nodes(ubt_softc_p sc)
 
 	/* Destroy device nodes */
 	if (sc->sc_bulk_dev != NODEV) {
-		vp = SLIST_FIRST(&sc->sc_bulk_dev->si_hlist);
-		if (vp != NULL) 
-			VOP_REVOKE(vp, REVOKEALL);
-
 		destroy_dev(sc->sc_bulk_dev);
 		sc->sc_bulk_dev = NODEV;
 	}
 
 	if (sc->sc_intr_dev != NODEV) {
-		vp = SLIST_FIRST(&sc->sc_intr_dev->si_hlist);
-		if (vp != NULL) 
-			VOP_REVOKE(vp, REVOKEALL);
-
 		destroy_dev(sc->sc_intr_dev);
 		sc->sc_intr_dev = NODEV;
 	}
 
 	if (sc->sc_ctrl_dev != NODEV) {
-		vp = SLIST_FIRST(&sc->sc_ctrl_dev->si_hlist);
-		if (vp != NULL) 
-			VOP_REVOKE(vp, REVOKEALL);
-
 		destroy_dev(sc->sc_ctrl_dev);
 		sc->sc_ctrl_dev = NODEV;
 	}
