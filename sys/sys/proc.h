@@ -485,7 +485,7 @@ struct proc {
 #define	TDF_SINTR	0x00008	/* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00010	/* Timing out during sleep. */
 #define	TDF_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
-#define	TDF_CVWAITQ	0x00080	/* Proces is on a cv_waitq (not slpq). */
+#define	TDF_CVWAITQ	0x00080	/* Thread is on a cv_waitq (not slpq). */
 #define	TDF_TIMOFAIL	0x01000	/* Timeout from sleep after we were awake. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
