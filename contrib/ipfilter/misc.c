@@ -53,7 +53,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)misc.c	1.3 2/4/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: misc.c,v 2.2.2.7 2002/02/22 15:32:55 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: misc.c,v 2.2.2.8 2002/04/26 10:24:24 darrenr Exp $";
 #endif
 
 extern	int	opts;
@@ -82,7 +82,8 @@ ip_t	*ip;
 				i++;
 				printf("%02x", *s++ & 0xff);
 			}
-			putchar(' ');
+			if (i + 1 != len)
+				putchar(' ');
 		}
 		putchar('\n');
 		return;
@@ -103,9 +104,29 @@ ip_t	*ip;
 			(void)printf(",%d", ntohs(tcp->th_sport));
 	(void)printf(" > ");
 	(void)printf("%s", inet_ntoa(ip->ip_dst));
-	if (!(ip->ip_off & IP_OFFMASK))
+	if (!(ip->ip_off & IP_OFFMASK)) {
 		if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
 			(void)printf(",%d", ntohs(tcp->th_dport));
+		if ((ip->ip_p == IPPROTO_TCP) && (tcp->th_flags)) {
+			putchar(' ');
+			if (tcp->th_flags & TH_FIN)
+				putchar('F');
+			if (tcp->th_flags & TH_SYN)
+				putchar('S');
+			if (tcp->th_flags & TH_RST)
+				putchar('R');
+			if (tcp->th_flags & TH_PUSH)
+				putchar('P');
+			if (tcp->th_flags & TH_ACK)
+				putchar('A');
+			if (tcp->th_flags & TH_URG)
+				putchar('U');
+			if (tcp->th_flags & TH_ECN)
+				putchar('E');
+			if (tcp->th_flags & TH_CWR)
+				putchar('C');
+		}
+	}
 	putchar('\n');
 }
 
