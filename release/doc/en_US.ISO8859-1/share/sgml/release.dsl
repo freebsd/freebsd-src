@@ -17,21 +17,20 @@
                   attributes: (list (list "align" "center"))
               (make element gi: "small"
                 (literal "This file, and other release-related documents, can be downloaded from ")
-	        (make element gi: "a"
-                      attributes: (list (list "href" (entity-text "release.url")))
+		(create-link (list (list "HREF" (entity-text "release.url")))
                   (literal (entity-text "release.url")))
                 (literal ".")))
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
                 (literal "For questions about FreeBSD, read the ")
-                (make element gi: "a"
-                      attributes: (list (list "href" "http://www.freebsd.org/docs.html"))
+		(create-link
+		  (list (list "HREF" "http://www.FreeBSD.org/docs.html"))
                   (literal "documentation"))
                 (literal " before contacting <")
-                (make element gi: "a"
-                      attributes: (list (list "href" "mailto:freebsd-questions@FreeBSD.org"))
-                  (literal "freebsd-questions@FreeBSD.org"))
+		(create-link
+		  (list (list "HREF" "mailto:questions@FreeBSD.org"))
+                  (literal "questions@FreeBSD.org"))
                 (literal ">.")
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
@@ -40,17 +39,15 @@
 		(literal (entity-text "release.branch"))
 		(literal " should subscribe to the ")
                 (literal "<")
-                (make element gi: "a"
-                      attributes: (list (list "href" "mailto:freebsd-current@FreeBSD.org"))
-                  (literal "freebsd-current@FreeBSD.org"))
+		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
+                  (literal "current@FreeBSD.org"))
                 (literal "> mailing list.")))
 
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
 	      (literal "For questions about this documentation, e-mail <")
-              (make element gi: "a"
-                    attributes: (list (list "href" "mailto:freebsd-doc@FreeBSD.org"))
-                (literal "freebsd-doc@FreeBSD.org"))
+	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
+                (literal "doc@FreeBSD.org"))
 	      (literal ">."))))))
 
 	<!-- Convert " ... " to `` ... '' in the HTML output. -->
