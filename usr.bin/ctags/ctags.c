@@ -131,7 +131,7 @@ main(argc, argv)
 	argc -= optind;
 	if (!argc) {
 usage:		(void)fprintf(stderr,
-			"usage: ctags [-BFadtuwvx] [-f tagsfile] file ...");
+			"usage: ctags [-BFadtuwvx] [-f tagsfile] file ...\n");
 		exit(1);
 	}
 
