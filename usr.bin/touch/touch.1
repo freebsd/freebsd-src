@@ -32,23 +32,23 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)touch.1	8.2 (Berkeley) 12/30/93
+.\"     @(#)touch.1	8.3 (Berkeley) 4/28/95
 .\"
-.Dd December 30, 1993
+.Dd April 28, 1995
 .Dt TOUCH 1
 .Os
 .Sh NAME
 .Nm touch
 .Nd change file access and modification times
 .Sh SYNOPSIS
-.Nm touch
+.Nm
 .Op Fl acfm
 .Op Fl r Ar file
-.Op Fl t [[CC]YY]MMDDhhmm[.SS]
-.Ar file ...
+.Op Fl t Ar [[CC]YY]MMDDhhmm[.SS]
+.Ar
 .Sh DESCRIPTION
 The
-.Nm touch
+.Nm
 utility sets the modification and access times of files to the
 current time of day.
 If the file doesn't exist, it is created with default permissions.
@@ -63,7 +63,7 @@ flag is also specified.
 .It Fl c
 Do not create the file if it does not exist.
 The
-.Nm touch
+.Nm
 utility does not treat this as an error.
 No error messages are displayed and the exit value is not affected.
 .It Fl f
@@ -124,7 +124,7 @@ letter pair is not specified, the value defaults to 0.
 .El
 .Pp
 The
-.Nm touch
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr utimes 2
@@ -156,12 +156,12 @@ letter pair is in the range 69 to 99, the year is set to 1969 to 1999,
 otherwise, the year is set in the 21st century.
 .Sh HISTORY
 A
-.Nm touch
-command appeared in
+.Nm
+utility appeared in
 .At v7 .
 .Sh STANDARDS
 The
-.Nm touch
-function is expected to be a superset of the
+.Nm
+utility is expected to be a superset of the
 .St -p1003.2
 specification.
