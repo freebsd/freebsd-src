@@ -1041,6 +1041,8 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 {
     ACPI_STATUS	status = AE_OK;
     UINT16	Count;
+    UINT8	TypeA;
+    UINT8	TypeB;
 
     FUNCTION_TRACE_U32(__func__, state);
     ACPI_ASSERTLOCK;
@@ -1057,6 +1059,12 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     case ACPI_STATE_S2:
     case ACPI_STATE_S3:
     case ACPI_STATE_S4:
+	status = AcpiHwObtainSleepTypeRegisterData((UINT8)state, &TypeA, &TypeB);
+	if (status != AE_OK) {
+	    device_printf(sc->acpi_dev, "AcpiHwObtainSleepTypeRegisterData failed - %s\n", AcpiFormatException(status));
+	    break;
+	}
+
 	/*
 	 * Inform all devices that we are going to sleep.
 	 */
