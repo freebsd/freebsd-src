@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.14 1995/06/28 11:28:43 se Exp $
+**  $Id: pcisupport.c,v 1.15 1995/06/28 16:02:05 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -266,6 +266,35 @@ static const struct condmsg conf82434lx[] =
     { 0 }
 };
 
+static const struct condmsg conf82378[] =
+{
+    { 0x4d, 0x20, 0x20, M_EQ, "\tCoprocessor errors enabled" },
+    { 0x4d, 0x10, 0x10, M_EQ, "\tMouse function enabled" },
+
+    { 0x4e, 0x30, 0x10, M_EQ, "\n\tIDE controller: Primary (1F0h-1F7h,3F6h,3F7h)" },
+    { 0x4e, 0x30, 0x30, M_EQ, "\n\tIDE controller: Secondary (170h-177h,376h,377h)" },
+    { 0x4e, 0x28, 0x08, M_EQ, "\n\tFloppy controller: 3F0h,3F1h " },
+    { 0x4e, 0x24, 0x04, M_EQ, "\n\tFloppy controller: 3F2h-3F7h " },
+    { 0x4e, 0x28, 0x28, M_EQ, "\n\tFloppy controller: 370h,371h " },
+    { 0x4e, 0x24, 0x24, M_EQ, "\n\tFloppy controller: 372h-377h " },
+    { 0x4e, 0x02, 0x02, M_EQ, "\n\tKeyboard controller: 60h,62h,64h,66h" },
+    { 0x4e, 0x01, 0x01, M_EQ, "\n\tRTC: 70h-77h" },
+
+    { 0x4f, 0x80, 0x80, M_EQ, "\n\tConfiguration RAM: 0C00h,0800h-08FFh" },
+    { 0x4f, 0x40, 0x40, M_EQ, "\n\tPort 92: enabled" },
+    { 0x4f, 0x03, 0x00, M_EQ, "\n\tSerial Port A: COM1 (3F8h-3FFh)" },
+    { 0x4f, 0x03, 0x01, M_EQ, "\n\tSerial Port A: COM2 (2F8h-2FFh)" },
+    { 0x4f, 0x0c, 0x00, M_EQ, "\n\tSerial Port B: COM1 (3F8h-3FFh)" },
+    { 0x4f, 0x0c, 0x04, M_EQ, "\n\tSerial Port B: COM2 (2F8h-2FFh)" },
+    { 0x4f, 0x30, 0x00, M_EQ, "\n\tParallel Port: LPT1 (3BCh-3BFh)" },
+    { 0x4f, 0x30, 0x04, M_EQ, "\n\tParallel Port: LPT2 (378h-37Fh)" },
+    { 0x4f, 0x30, 0x20, M_EQ, "\n\tParallel Port: LPT3 (278h-27Fh)" },
+    { 0x00, 0x00, 0x00, TRUE, "\n" },
+
+/* end marker */
+    { 0 }
+};
+
 static char confread (pcici_t config_id, int port)
 {
     unsigned long portw = port & ~3;
@@ -313,6 +342,8 @@ chipset_attach (pcici_t config_id, int unit)
 		writeconfig (config_id, conf82434lx);
 		break;
 	case 0x04848086:
+		writeconfig (config_id, conf82378);
+		break;
 	case 0x04828086:
 		printf ("\t[40] %lx [50] %lx [54] %lx\n",
 			pci_conf_read (config_id, 0x40),
