@@ -111,25 +111,6 @@ is zero and
 is not a null pointer, the object it points to is freed.
 .Pp
 
-.Pp
-The default is to compile with the ``SANITY'' option,
-which trades a couple of percent of performance for rather rigorous 
-sanity checking of the arguments passed to
-.Xr free 
-and
-.Xr realloc .
-.Pp
-If compiled without the ``SANITY'' option and the argument does not 
-match a pointer earlier returned by the
-.Xr calloc ,
-.Xr malloc ,
-or
-.Xr realloc
-function, or if the space has been deallocated by a call to
-.Fn free
-or
-.Xr realloc ,
-general havoc will be imminent.
 .Sh ENVIRONMENT
 This malloc will check the environment for a variable called
 .Em MALLOC_OPTIONS
@@ -139,15 +120,31 @@ Flags are single letters, uppercase means on, lowercase means off.
 .It A
 ``abort'' malloc will coredump the process, rather that tollerate failure.
 This is a very handy debugging aid, since the core file will represent the
-time of failure, rather than when the NULL pointer was accessed.
+time of failure,
+rather than when the NULL pointer was accessed.
+
 .It D
 ``dump'' malloc will dump statistics in a file called ``malloc.out'' at exit.
+
+.It J
+``junk'' fill some junk into the area allocated.
+Currently junk is bytes of 0xd0, this is pronounced ``Duh'' :-)
+
 .It R
 ``realloc'' always reallocate when
 .Fn realloc
 is called, even if the initial allocation was big enough.
 This can substantially aid in compacting memory.
+
+.It Z
+``zero'' fill some junk into the area allocated (see ``J''),
+except for the exact length the user asked for, which is zerod.
+
 .El
+.Pp
+The ``J'' and ``Z'' is mostly for testing and debugging,
+if a program changes behaviour if either of these options are used,
+it is buggy.
 .Sh RETURN VALUES
 The
 .Fn malloc
