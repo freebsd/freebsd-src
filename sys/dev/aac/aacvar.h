@@ -223,7 +223,7 @@ struct aac_interface
 	void	(*aif_set_mailbox)(struct aac_softc *sc, u_int32_t command,
 				   u_int32_t arg0, u_int32_t arg1,
 				   u_int32_t arg2, u_int32_t arg3);
-	int	(*aif_get_mailboxstatus)(struct aac_softc *sc);
+	int	(*aif_get_mailbox)(struct aac_softc *sc, int mb);
 	void	(*aif_set_interrupts)(struct aac_softc *sc, int enable);
 };
 extern struct aac_interface	aac_rx_interface;
@@ -238,8 +238,8 @@ extern struct aac_interface	aac_fa_interface;
 #define AAC_SET_MAILBOX(sc, command, arg0, arg1, arg2, arg3) \
 	((sc)->aac_if.aif_set_mailbox((sc), (command), (arg0), (arg1), (arg2), \
 	(arg3)))
-#define AAC_GET_MAILBOXSTATUS(sc)	((sc)->aac_if.aif_get_mailboxstatus(  \
-					(sc)))
+#define AAC_GET_MAILBOX(sc, mb)		((sc)->aac_if.aif_get_mailbox((sc), \
+					(mb)))
 #define	AAC_MASK_INTERRUPTS(sc)		((sc)->aac_if.aif_set_interrupts((sc), \
 					0))
 #define AAC_UNMASK_INTERRUPTS(sc)	((sc)->aac_if.aif_set_interrupts((sc), \
@@ -357,12 +357,19 @@ struct aac_softc
 #define	AAC_AIFFLAGS_ALLOCFIBS	(1 << 5)
 #define AAC_AIFFLAGS_PENDING	(AAC_AIFFLAGS_AIF | AAC_AIFFLAGS_PRINTF | \
 				 AAC_AIFFLAGS_ALLOCFIBS)
-	u_int32_t		quirks;
-#define AAC_QUIRK_PERC2QC	(1 << 0)
-#define	AAC_QUIRK_NOCAM		(1 << 1)	/* No SCSI passthrough */
-#define	AAC_QUIRK_CAM_NORESET	(1 << 2)	/* Fake SCSI resets */
-#define	AAC_QUIRK_CAM_PASSONLY	(1 << 3)	/* Only create pass devices */
+	u_int32_t		flags;
+#define AAC_FLAGS_PERC2QC	(1 << 0)
+#define	AAC_FLAGS_ENABLE_CAM	(1 << 1)	/* No SCSI passthrough */
+#define	AAC_FLAGS_CAM_NORESET	(1 << 2)	/* Fake SCSI resets */
+#define	AAC_FLAGS_CAM_PASSONLY	(1 << 3)	/* Only create pass devices */
+#define	AAC_FLAGS_SG_64BIT	(1 << 4)	/* Use 64-bit S/G addresses */
+#define	AAC_FLAGS_4GB_WINDOW	(1 << 5)	/* Device can access host mem
+						 * 2GB-4GB range */
+#define	AAC_FLAGS_NO4GB		(1 << 6)	/* Can't access host mem >2GB */
+#define	AAC_FLAGS_256FIBS	(1 << 7)	/* Can only do 256 commands */
 
+	u_int32_t		supported_options;
+	int			aac_max_fibs;
 	u_int32_t		scsi_method_id;
 	TAILQ_HEAD(,aac_sim)	aac_sim_tqh;
 };
