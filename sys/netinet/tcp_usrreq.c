@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.21 1995/12/06 23:37:42 bde Exp $
+ *	$Id: tcp_usrreq.c,v 1.22 1996/03/11 15:13:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -77,6 +77,8 @@ static struct tcpcb *
 		tcp_disconnect __P((struct tcpcb *));
 static struct tcpcb *
 		tcp_usrclosed __P((struct tcpcb *));
+
+#ifdef notdef
 /*
  * Process a TCP user request for TCP tb.  If this is a send request
  * then m is the mbuf chain of send data.  If this is a timer expiration
@@ -391,6 +393,431 @@ tcp_usrreq(so, req, m, nam, control)
 	splx(s);
 	return (error);
 }
+#endif
+
+#ifdef TCPDEBUG
+#define	TCPDEBUG0	int ostate
+#define	TCPDEBUG1()	ostate = tp ? tp->t_state : 0
+#define	TCPDEBUG2(req)	if (tp && (so->so_options & SO_DEBUG)) && \
+				tcp_trace(TA_USER, ostate, tp, 0, req)
+#else
+#define	TCPDEBUG0
+#define	TCPDEBUG1()
+#define	TCPDEBUG2(req)
+#endif
+
+/*
+ * TCP attaches to socket via pru_attach(), reserving space,
+ * and an internet control block.
+ */
+static int
+tcp_usr_attach(struct socket *so, int proto)
+{
+	int s = splnet();
+	int error;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = 0;
+	TCPDEBUG0;
+
+	TCPDEBUG1();
+	if (inp) {
+		error = EISCONN;
+		goto out;
+	}
+
+	error = tcp_attach(so);
+	if (error)
+		goto out;
+
+	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
+		so->so_linger = TCP_LINGERTIME * hz;
+	tp = sototcpcb(so);
+out:
+	TCPDEBUG2(PRU_ATTACH);
+	splx(s);
+	return error;
+}
+
+/*
+ * pru_detach() detaches the TCP protocol from the socket.
+ * If the protocol state is non-embryonic, then can't
+ * do this directly: have to initiate a pru_disconnect(),
+ * which may finish later; embryonic TCB's can just
+ * be discarded here.
+ */
+static int
+tcp_usr_detach(struct socket *so)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+	TCPDEBUG0;
+
+	if (inp == 0) {
+		splx(s);
+		return EINVAL;	/* XXX */
+	}
+	tp = intotcpcb(inp);
+	TCPDEBUG1();
+	if (tp->t_state > TCPS_LISTEN)
+		tp = tcp_disconnect(tp);
+	else
+		tp = tcp_close(tp);
+
+	TCPDEBUG2(PRU_DETACH);
+	splx(s);
+	return error;
+}
+
+#define	COMMON_START()	TCPDEBUG0; \
+			do { \
+				     if (inp == 0) { \
+					     splx(s); \
+					     return EINVAL; \
+				     } \
+				     tp = intotcpcb(inp); \
+				     TCPDEBUG1(); \
+		     } while(0)
+			     
+#define COMMON_END(req)	out: TCPDEBUG2(req); splx(s); return error; goto out
+
+
+/*
+ * Give the socket an address.
+ */
+static int
+tcp_usr_bind(struct socket *so, struct mbuf *nam)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+	struct sockaddr_in *sinp;
+
+	COMMON_START();
+
+	/*
+	 * Must check for multicast addresses and disallow binding
+	 * to them.
+	 */
+	sinp = mtod(nam, struct sockaddr_in *);
+	if (sinp->sin_family == AF_INET &&
+	    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+	error = in_pcbbind(inp, nam);
+	if (error)
+		goto out;
+	COMMON_END(PRU_BIND);
+
+}
+
+/*
+ * Prepare to accept connections.
+ */
+static int
+tcp_usr_listen(struct socket *so)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	if (inp->inp_lport == 0)
+		error = in_pcbbind(inp, NULL);
+	if (error == 0)
+		tp->t_state = TCPS_LISTEN;
+	COMMON_END(PRU_LISTEN);
+}
+
+/*
+ * Initiate connection to peer.
+ * Create a template for use in transmissions on this connection.
+ * Enter SYN_SENT state, and mark socket as connecting.
+ * Start keep-alive timer, and seed output sequence space.
+ * Send initial segment on connection.
+ */
+static int
+tcp_usr_connect(struct socket *so, struct mbuf *nam)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+	struct sockaddr_in *sinp;
+
+	COMMON_START();
+
+	/*
+	 * Must disallow TCP ``connections'' to multicast addresses.
+	 */
+	sinp = mtod(nam, struct sockaddr_in *);
+	if (sinp->sin_family == AF_INET
+	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+
+	if ((error = tcp_connect(tp, nam)) != 0)
+		goto out;
+	error = tcp_output(tp);
+	COMMON_END(PRU_CONNECT);
+}
+
+/*
+ * Initiate disconnect from peer.
+ * If connection never passed embryonic stage, just drop;
+ * else if don't need to let data drain, then can just drop anyways,
+ * else have to begin TCP shutdown process: mark socket disconnecting,
+ * drain unread data, state switch to reflect user close, and
+ * send segment (e.g. FIN) to peer.  Socket will be really disconnected
+ * when peer sends FIN and acks ours.
+ *
+ * SHOULD IMPLEMENT LATER PRU_CONNECT VIA REALLOC TCPCB.
+ */
+static int
+tcp_usr_disconnect(struct socket *so)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	tp = tcp_disconnect(tp);
+	COMMON_END(PRU_DISCONNECT);
+}
+
+/*
+ * Accept a connection.  Essentially all the work is
+ * done at higher levels; just return the address
+ * of the peer, storing through addr.
+ */
+static int
+tcp_usr_accept(struct socket *so, struct mbuf *nam)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	in_setpeeraddr(inp, nam);
+	COMMON_END(PRU_ACCEPT);
+}
+
+/*
+ * Mark the connection as being incapable of further output.
+ */
+static int
+tcp_usr_shutdown(struct socket *so)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	socantsendmore(so);
+	tp = tcp_usrclosed(tp);
+	if (tp)
+		error = tcp_output(tp);
+	COMMON_END(PRU_SHUTDOWN);
+}
+
+/*
+ * After a receive, possibly send window update to peer.
+ */
+static int
+tcp_usr_rcvd(struct socket *so, int flags)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	tcp_output(tp);
+	COMMON_END(PRU_RCVD);
+}
+
+/*
+ * Do a send by putting data in output queue and updating urgent
+ * marker if URG set.  Possibly send more data.
+ */
+static int
+tcp_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+	     struct mbuf *control)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	if (control && control->m_len) {
+		m_freem(control); /* XXX shouldn't caller do this??? */
+		if (m)
+			m_freem(m);
+		return EINVAL;
+	}
+
+	if(!(flags & PRUS_OOB)) {
+		sbappend(&so->so_snd, m);
+		if (nam && tp->t_state < TCPS_SYN_SENT) {
+			/*
+			 * Do implied connect if not yet connected,
+			 * initialize window to default value, and
+			 * initialize maxseg/maxopd using peer's cached
+			 * MSS.
+			 */
+			error = tcp_connect(tp, nam);
+			if (error)
+				goto out;
+			tp->snd_wnd = TTCP_CLIENT_SND_WND;
+			tcp_mss(tp, -1);
+		}
+
+		if (flags & PRUS_EOF) {
+			/*
+			 * Close the send side of the connection after
+			 * the data is sent.
+			 */
+			socantsendmore(so);
+			tp = tcp_usrclosed(tp);
+		}
+		if (tp != NULL)
+			error = tcp_output(tp);
+	} else {
+		if (sbspace(&so->so_snd) < -512) {
+			m_freem(m);
+			error = ENOBUFS;
+			goto out;
+		}
+		/*
+		 * According to RFC961 (Assigned Protocols),
+		 * the urgent pointer points to the last octet
+		 * of urgent data.  We continue, however,
+		 * to consider it to indicate the first octet
+		 * of data past the urgent section.
+		 * Otherwise, snd_up should be one lower.
+		 */
+		sbappend(&so->so_snd, m);
+		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
+		tp->t_force = 1;
+		error = tcp_output(tp);
+		tp->t_force = 0;
+	}
+	COMMON_END((flags & PRUS_OOB) ? PRU_SENDOOB : 
+		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
+}
+
+/*
+ * Abort the TCP.
+ */
+static int
+tcp_usr_abort(struct socket *so)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	tp = tcp_drop(tp, ECONNABORTED);
+	COMMON_END(PRU_ABORT);
+}
+
+/*
+ * Fill in st_bklsize for fstat() operations on a socket.
+ */
+static int
+tcp_usr_sense(struct socket *so, struct stat *sb)
+{
+	int s = splnet();
+
+	sb->st_blksize = so->so_snd.sb_hiwat;
+	splx(s);
+	return 0;
+}
+
+/*
+ * Receive out-of-band data.
+ */
+static int
+tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	if ((so->so_oobmark == 0 &&
+	     (so->so_state & SS_RCVATMARK) == 0) ||
+	    so->so_options & SO_OOBINLINE ||
+	    tp->t_oobflags & TCPOOB_HADDATA) {
+		error = EINVAL;
+		goto out;
+	}
+	if ((tp->t_oobflags & TCPOOB_HAVEDATA) == 0) {
+		error = EWOULDBLOCK;
+		goto out;
+	}
+	m->m_len = 1;
+	*mtod(m, caddr_t) = tp->t_iobc;
+	if ((flags & MSG_PEEK) == 0)
+		tp->t_oobflags ^= (TCPOOB_HAVEDATA | TCPOOB_HADDATA);
+	COMMON_END(PRU_RCVOOB);
+}
+
+static int
+tcp_usr_sockaddr(struct socket *so, struct mbuf *nam)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	in_setsockaddr(inp, nam);
+	COMMON_END(PRU_SOCKADDR);
+}
+
+static int
+tcp_usr_peeraddr(struct socket *so, struct mbuf *nam)
+{
+	int s = splnet();
+	int error = 0;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	COMMON_START();
+	in_setpeeraddr(inp, nam);
+	COMMON_END(PRU_PEERADDR);
+}
+
+/*
+ * XXX - this should just be a call to in_control, but we need to get
+ * the types worked out.
+ */
+static int
+tcp_usr_control(struct socket *so, int cmd, caddr_t arg, struct ifnet *ifp)
+{
+	return in_control(so, cmd, arg, ifp);
+}
+
+/* xxx - should be const */
+struct pr_usrreqs tcp_usrreqs = {
+	tcp_usr_abort, tcp_usr_accept, tcp_usr_attach, tcp_usr_bind,
+	tcp_usr_connect, pru_connect2_notsupp, tcp_usr_control, tcp_usr_detach,
+	tcp_usr_disconnect, tcp_usr_listen, tcp_usr_peeraddr, tcp_usr_rcvd,
+	tcp_usr_rcvoob, tcp_usr_send, tcp_usr_sense, tcp_usr_shutdown,
+	tcp_usr_sockaddr
+};
 
 /*
  * Common subroutine to open a TCP connection to remote host specified
