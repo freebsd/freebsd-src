@@ -50,7 +50,7 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-extern int __flt_rounds __P((void));
+extern int __flt_rounds(void);
 __END_DECLS
 
 #define FLT_RADIX	2		/* b */

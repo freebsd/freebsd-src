@@ -92,16 +92,16 @@
 /*
  * Routines for dealing with the cache.
  */
-void	cache_init __P((phandle_t));		/* turn it on */
-void	icache_flush __P((vm_offset_t, vm_offset_t));
-void	icache_inval_phys __P((vm_offset_t, vm_offset_t));
-void	dcache_flush __P((vm_offset_t, vm_offset_t));
-void	dcache_inval __P((pmap_t, vm_offset_t, vm_offset_t));
-void	dcache_inval_phys __P((vm_offset_t, vm_offset_t));
-void	dcache_blast __P((void));
-void	ecache_flush __P((vm_offset_t, vm_offset_t));
+void	cache_init(phandle_t);		/* turn it on */
+void	icache_flush(vm_offset_t, vm_offset_t);
+void	icache_inval_phys(vm_offset_t, vm_offset_t);
+void	dcache_flush(vm_offset_t, vm_offset_t);
+void	dcache_inval(pmap_t, vm_offset_t, vm_offset_t);
+void	dcache_inval_phys(vm_offset_t, vm_offset_t);
+void	dcache_blast(void);
+void	ecache_flush(vm_offset_t, vm_offset_t);
 #if 0
-void	ecache_inval_phys __P((vm_offset_t, vm_offset_t));
+void	ecache_inval_phys(vm_offset_t, vm_offset_t);
 #endif
 
 /*
