@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.9 1996/01/30 22:57:52 mpp Exp $
+ * $Id: if_slvar.h,v 1.10 1996/02/06 18:51:15 wollman Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
@@ -67,6 +67,7 @@ struct sl_softc {
 #define	SC_ERROR	0x0001		/* had an input error */
 #define	SC_OUTWAIT	0x0002		/* waiting for output fill */
 #define	SC_KEEPALIVE	0x0004		/* input keepalive */
+#define SC_STATIC       0x0008          /* it is static unit */
 
 /* visible flags */
 #define	SC_COMPRESS	IFF_LINK0	/* compress TCP traffic */
