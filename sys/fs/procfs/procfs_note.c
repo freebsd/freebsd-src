@@ -40,28 +40,18 @@
  */
 
 #include <sys/param.h>
-#include <sys/vnode.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sbuf.h>
+
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 int
-procfs_donote(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocnote(PFS_FILL_ARGS)
 {
-	int xlen;
-	int error;
-	char note[PROCFS_NOTELEN+1];
-
-	if (uio->uio_rw != UIO_WRITE)
-		return (EINVAL);
-
-	xlen = PROCFS_NOTELEN;
-	error = vfs_getuserstr(uio, note, &xlen);
-	if (error)
-		return (error);
-
+	sbuf_trim(sb);
+	sbuf_finish(sb);
 	/* send to process's notify function */
 	return (EOPNOTSUPP);
 }

@@ -40,45 +40,22 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sysent.h>
-#include <sys/vnode.h>
+
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 int
-procfs_dotype(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doproctype(PFS_FILL_ARGS)
 {
-	int len;
-	int error;
-	/*
-	 * buffer for emulation type
-	 */
-	char mebuffer[256];
-	char *none = "Not Available";
-
-	if (uio->uio_rw != UIO_READ)
-		return (EOPNOTSUPP);
-
-	if (uio->uio_offset != 0)
-		return (0);
+	static const char *none = "Not Available";
 
 	if (p && p->p_sysent && p->p_sysent->sv_name) {
-		len = strlen(p->p_sysent->sv_name);
-		bcopy(p->p_sysent->sv_name, mebuffer, len);
+		sbuf_printf(sb, p->p_sysent->sv_name);
 	} else {
-		len = strlen(none);
-		bcopy(none, mebuffer, len);
+		sbuf_printf(sb, none);
 	}
-	mebuffer[len++] = '\n';
-	error = uiomove(mebuffer, len, uio);
-	return error;
-}
-
-int
-procfs_validtype(struct thread *td)
-{
-	return ((td->td_proc->p_flag & P_SYSTEM) == 0);
+	sbuf_putc(sb, '\n');
+	return (0);
 }

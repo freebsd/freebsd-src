@@ -49,36 +49,26 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/tty.h>
-#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-#define DOCHECK() do { if (ps >= psbuf+sizeof(psbuf)) goto bailout; } while (0)
 int
-procfs_dostatus(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocstatus(PFS_FILL_ARGS)
 {
 	struct session *sess;
 	struct tty *tp;
 	struct ucred *cr;
-	char *ps, *pc;
+	char *pc;
 	char *sep;
 	int pid, ppid, pgid, sid;
 	int i;
-	int xlen;
-	int error;
-	char psbuf[256];	/* XXX - conservative */
-
-	if (uio->uio_rw != UIO_READ)
-		return (EOPNOTSUPP);
 
 	pid = p->p_pid;
 	PROC_LOCK(p);
@@ -91,45 +81,31 @@ procfs_dostatus(curp, p, pfs, uio)
 /* comm pid ppid pgid sid maj,min ctty,sldr start ut st wmsg 
                                 euid ruid rgid,egid,groups[1 .. NGROUPS]
 */
-	KASSERT(sizeof(psbuf) > MAXCOMLEN,
-			("Too short buffer for new MAXCOMLEN"));
 
-	ps = psbuf;
 	pc = p->p_comm;
-	xlen = strlen(p->p_comm);
 	do {
 		if (*pc < 33 || *pc > 126 || *pc == '\\')
-			ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "\\%03o",
-			    *pc);
+			sbuf_printf(sb, "\\%03o", *pc);
 		else
-			*ps++ = *pc;
-		DOCHECK();
-	} while (++pc < p->p_comm + xlen);
-	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-	    " %d %d %d %d ", pid, ppid, pgid, sid);
-	DOCHECK();
+			sbuf_putc(sb, *pc);
+	} while (*++pc);
+	sbuf_printf(sb, " %d %d %d %d ", pid, ppid, pgid, sid);
 	if ((p->p_flag&P_CONTROLT) && (tp = sess->s_ttyp))
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    "%d,%d ", major(tp->t_dev), minor(tp->t_dev));
+		sbuf_printf(sb, "%d,%d ", major(tp->t_dev), minor(tp->t_dev));
 	else
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    "%d,%d ", -1, -1);
-	DOCHECK();
+		sbuf_printf(sb, "%d,%d ", -1, -1);
 
 	sep = "";
 	if (sess->s_ttyvp) {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "%sctty", sep);
+		sbuf_printf(sb, "%sctty", sep);
 		sep = ",";
-		DOCHECK();
 	}
 	if (SESS_LEADER(p)) {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "%ssldr", sep);
+		sbuf_printf(sb, "%ssldr", sep);
 		sep = ",";
-		DOCHECK();
 	}
 	if (*sep != ',') {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "noflags");
-		DOCHECK();
+		sbuf_printf(sb, "noflags");
 	}
 
 	mtx_lock_spin(&sched_lock);
@@ -138,92 +114,56 @@ procfs_dostatus(curp, p, pfs, uio)
 
 		calcru(p, &ut, &st, (struct timeval *) NULL);
 		mtx_unlock_spin(&sched_lock);
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    " %lld,%ld %ld,%ld %ld,%ld",
+		sbuf_printf(sb, " %lld,%ld %ld,%ld %ld,%ld",
 		    (long long)p->p_stats->p_start.tv_sec,
 		    p->p_stats->p_start.tv_usec,
-		    (long)ut.tv_sec, ut.tv_usec,
-		    (long)st.tv_sec, st.tv_usec);
+		    ut.tv_sec, ut.tv_usec,
+		    st.tv_sec, st.tv_usec);
 	} else {
 		mtx_unlock_spin(&sched_lock);
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    " -1,-1 -1,-1 -1,-1");
+		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
-	DOCHECK();
 
 	if (p->p_flag & P_KSES) {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
-			"-kse- ");
+		sbuf_printf(sb, " %s", "-kse- ");
 	} else {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
+		sbuf_printf(sb, " %s",
 			(p->p_thread.td_wchan && p->p_thread.td_wmesg) ?
 			    p->p_thread.td_wmesg : "nochan");
 	}
-	DOCHECK();
 
 	cr = p->p_ucred;
 
-	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %lu %lu %lu", 
+	sbuf_printf(sb, " %lu %lu %lu",
 		(u_long)cr->cr_uid,
 		(u_long)cr->cr_ruid,
 		(u_long)cr->cr_rgid);
-	DOCHECK();
 
 	/* egid (cr->cr_svgid) is equal to cr_ngroups[0] 
 	   see also getegid(2) in /sys/kern/kern_prot.c */
 
 	for (i = 0; i < cr->cr_ngroups; i++) {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    ",%lu", (u_long)cr->cr_groups[i]);
-		DOCHECK();
+		sbuf_printf(sb, ",%lu", (u_long)cr->cr_groups[i]);
 	}
 
 	if (jailed(p->p_ucred)) {
 		mtx_lock(&p->p_ucred->cr_prison->pr_mtx);
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    " %s", p->p_ucred->cr_prison->pr_host);
+		sbuf_printf(sb, " %s", p->p_ucred->cr_prison->pr_host);
 		mtx_unlock(&p->p_ucred->cr_prison->pr_mtx);
 	} else {
-		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " -");
+		sbuf_printf(sb, " -");
 	}
-	DOCHECK();
-	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, "\n");
-	DOCHECK();
+	sbuf_printf(sb, "\n");
 
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-
-	return (error);
-
-bailout:
-	return (ENOMEM);
+	return (0);
 }
 
 int
-procfs_docmdline(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doproccmdline(PFS_FILL_ARGS)
 {
-	char *ps;
-	int xlen;
-	int error;
-	char *buf, *bp;
-	int buflen;
 	struct ps_strings pstr;
-	int i;
-	size_t bytes_left, done;
+	int error, i;
 
-	if (uio->uio_rw != UIO_READ)
-		return (EOPNOTSUPP);
-	
 	/*
 	 * If we are using the ps/cmdline caching, use that.  Otherwise
 	 * revert back to the old way which only implements full cmdline
@@ -234,47 +174,19 @@ procfs_docmdline(curp, p, pfs, uio)
 	 * Linux behaviour is to return zero-length in this case.
 	 */
 
-	if (p->p_args && (ps_argsopen || !p_cansee(curp, p))) {
-		bp = p->p_args->ar_args;
-		buflen = p->p_args->ar_length;
-		buf = 0;
-	} else if (p != curp) {
-		bp = p->p_comm;
-		buflen = MAXCOMLEN;
-		buf = 0;
+	if (p->p_args && (ps_argsopen || !p_cansee(td->td_proc, p))) {
+		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
+	} else if (p != td->td_proc) {
+		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
 	} else {
-		buflen = 256;
-		MALLOC(buf, char *, buflen + 1, M_TEMP, M_WAITOK);
-		bp = buf;
-		ps = buf;
 		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
-		if (error) {
-			FREE(buf, M_TEMP);
+		if (error)
 			return (error);
+		for (i = 0; i < pstr.ps_nargvstr; i++) {
+			sbuf_copyin(sb, pstr.ps_argvstr[i], 0);
+			sbuf_printf(sb, "%c", '\0');
 		}
-		bytes_left = buflen;
-		for (i = 0; bytes_left && (i < pstr.ps_nargvstr); i++) {
-			error = copyinstr(pstr.ps_argvstr[i], ps,
-					  bytes_left, &done);
-			/* If too long or malformed, just truncate */
-			if (error) {
-				error = 0;
-				break;
-			}
-			ps += done;
-			bytes_left -= done;
-		}
-		buflen = ps - buf;
 	}
 
-	buflen -= uio->uio_offset;
-	ps = bp + uio->uio_offset;
-	xlen = min(buflen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-	if (buf)
-		FREE(buf, M_TEMP);
-	return (error);
+	return (0);
 }

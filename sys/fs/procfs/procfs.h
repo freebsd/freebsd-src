@@ -40,109 +40,30 @@
  * $FreeBSD$
  */
 
-/*
- * The different types of node in a procfs filesystem
- */
-typedef enum {
-	Proot,		/* the filesystem root */
-	Pcurproc,	/* symbolic link for curproc */
-	Pproc,		/* a process-specific sub-directory */
-	Pfile,		/* the executable file */
-	Pmem,		/* the process's memory image */
-	Pregs,		/* the process's register set */
-	Pfpregs,	/* the process's FP register set */
-	Pdbregs,	/* the process's debug register set */
-	Pctl,		/* process control */
-	Pstatus,	/* process status */
-	Pnote,		/* process notifier */
-	Pnotepg,	/* process group notifier */
-	Pmap,		/* memory map */
-	Ptype,		/* executable type */
-	Pcmdline,	/* command line */
-	Prlimit		/* resource limits */
-} pfstype;
-
-/*
- * control data for the proc file system.
- */
-struct pfsnode {
-	struct pfsnode	*pfs_next;	/* next on list */
-	struct vnode	*pfs_vnode;	/* vnode associated with this pfsnode */
-	pfstype		pfs_type;	/* type of procfs node */
-	pid_t		pfs_pid;	/* associated process */
-	u_short		pfs_mode;	/* mode bits for stat() */
-	u_long		pfs_flags;	/* open flags */
-	u_long		pfs_fileno;	/* unique file id */
-	pid_t		pfs_lockowner;	/* pfs lock owner */
-};
-
-#define PROCFS_NOTELEN	64	/* max length of a note (/proc/$pid/note) */
-#define PROCFS_CTLLEN 	8	/* max length of a ctl msg (/proc/$pid/ctl */
-#define PROCFS_NAMELEN 	8	/* max length of a filename component */
-
-/*
- * Kernel stuff follows
- */
 #ifdef _KERNEL
-#define CNEQ(cnp, s, len) \
-	 ((cnp)->cn_namelen == (len) && \
-	  (bcmp((s), (cnp)->cn_nameptr, (len)) == 0))
 
-#define PROCFS_FILENO(pid, type) \
-	(((type) < Pproc) ? \
-			((type) + 2) : \
-			((((pid)+1) << 4) + ((int) (type))))
+int	 procfs_doproccmdline(PFS_FILL_ARGS);
+int	 procfs_doprocctl(PFS_FILL_ARGS);
+int	 procfs_doprocdbregs(PFS_FILL_ARGS);
+int	 procfs_doprocfpregs(PFS_FILL_ARGS);
+int	 procfs_doprocmap(PFS_FILL_ARGS);
+int	 procfs_doprocmem(PFS_FILL_ARGS);
+int	 procfs_doprocnote(PFS_FILL_ARGS);
+int	 procfs_doprocregs(PFS_FILL_ARGS);
+int	 procfs_doprocrlimit(PFS_FILL_ARGS);
+int	 procfs_doprocstatus(PFS_FILL_ARGS);
+int	 procfs_doproctype(PFS_FILL_ARGS);
+int	 procfs_ioctl(PFS_IOCTL_ARGS);
+int	 procfs_close(PFS_CLOSE_ARGS);
 
-/*
- * Convert between pfsnode vnode
- */
-#define VTOPFS(vp)	((struct pfsnode *)(vp)->v_data)
-#define PFSTOV(pfs)	((pfs)->pfs_vnode)
+/* Return 1 if process has special kernel digging privileges */
+int	 procfs_kmemaccess(struct proc *);
 
-typedef struct vfs_namemap vfs_namemap_t;
-struct vfs_namemap {
-	const char *nm_name;
-	int nm_val;
-};
+/* Attributes */
+int	 procfs_attr(PFS_ATTR_ARGS);
 
-int vfs_getuserstr __P((struct uio *, char *, int *));
-vfs_namemap_t *vfs_findname __P((vfs_namemap_t *, char *, int));
+/* Visbility */
+int	 procfs_notsystem(PFS_VIS_ARGS);
+int	 procfs_candebug(PFS_VIS_ARGS);
 
-/* <machine/reg.h> */
-struct reg;
-struct fpreg;
-struct dbreg;
-
-#define PFIND(pid) (pfind(pid))
-
-void procfs_exit __P((struct proc *));
-int procfs_freevp __P((struct vnode *));
-int procfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
-int procfs_donote __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_doregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_dodbregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_dorlimit __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-
-/* functions to check whether or not files should be displayed */
-int procfs_validfile __P((struct thread *));
-int procfs_validfpregs __P((struct thread *));
-int procfs_validregs __P((struct thread *));
-int procfs_validdbregs __P((struct thread *));
-int procfs_validmap __P((struct thread *));
-int procfs_validtype __P((struct thread *));
-
-#define PROCFS_LOCKED	0x01
-#define PROCFS_WANT	0x02
-
-extern vop_t **procfs_vnodeop_p;
-
-int	procfs_root __P((struct mount *, struct vnode **));
-int	procfs_rw __P((struct vop_read_args *));
 #endif /* _KERNEL */
