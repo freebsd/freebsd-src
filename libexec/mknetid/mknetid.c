@@ -91,7 +91,7 @@ usage()
 {
 	fprintf (stderr, "%s\n%s\n",
 	"usage: mknetid [-q] [-g group_file] [-p passwd_file] [-h hosts_file]",
-	"               [-d netid_file] [-d domain]");
+	"               [-n netid_file] [-d domain]");
 	exit(1);
 }
 
@@ -113,6 +113,7 @@ main(argc, argv)
 	char *ptr, *pidptr, *gidptr, *hptr;
 	int quiet = 0;
 
+	domain = NULL;
 	while ((ch = getopt(argc, argv, "g:p:h:n:d:q")) != -1) {
 		switch(ch) {
 		case 'g':
@@ -182,22 +183,36 @@ domain not set");
 	 * group information we just stored if necessary.
 	 */
 	while(fgets(readbuf, LINSIZ, pfp)) {
-		if ((ptr = strchr(readbuf, ':')) == NULL)
+		/* Ignore comments: ^[ \t]*# */
+		for (ptr = readbuf; *ptr != '\0'; ptr++)
+			if (*ptr != ' ' && *ptr != '\t')
+				break;
+		if (*ptr == '#' || *ptr == '\0')
+			continue;
+		if ((ptr = strchr(readbuf, ':')) == NULL) {
 			warnx("bad passwd file entry: %s", readbuf);
+			continue;
+		}
 		*ptr = '\0';
 		ptr++;
-		if ((ptr = strchr(ptr, ':')) == NULL)
+		if ((ptr = strchr(ptr, ':')) == NULL) {
 			warnx("bad passwd file entry: %s", readbuf);
+			continue;
+		}
 		*ptr = '\0';
 		ptr++;
 		pidptr = ptr;
-		if ((ptr = strchr(ptr, ':')) == NULL)
+		if ((ptr = strchr(ptr, ':')) == NULL) {
 			warnx("bad passwd file entry: %s", readbuf);
+			continue;
+		}
 		*ptr = '\0';
 		ptr++;
 		gidptr = ptr;
-		if ((ptr = strchr(ptr, ':')) == NULL)
+		if ((ptr = strchr(ptr, ':')) == NULL) {
 			warnx("bad passwd file entry: %s", readbuf);
+			continue;
+		}
 		*ptr = '\0';
 		i = atol(gidptr);
 
