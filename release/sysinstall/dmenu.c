@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.26 1996/11/07 08:03:21 jkh Exp $
+ * $Id: dmenu.c,v 1.25.2.1 1996/11/07 09:07:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include <errno.h>
 #include <sys/types.h>
 
 #define MAX_MENU		15
@@ -105,6 +106,25 @@ dmenuSetVariables(dialogMenuItem *tmp)
 	cp1 = cp2;
     }
     free(copy);
+    return DITEM_SUCCESS;
+}
+
+int
+dmenuSetKmapVariable(dialogMenuItem *tmp)
+{
+    char *lang;
+    int err;
+
+    variable_set((char *)tmp->data);
+    lang = variable_get("keymap");
+    if (lang != NULL)
+    {
+	err = loadKeymap(lang);
+	if (err == -1)
+	    msgConfirm("No appropriate keyboard map found, sorry.");
+	else if (err == -2)
+	    msgConfirm("Error installing keyboard map, errno = %d.", errno);
+    }
     return DITEM_SUCCESS;
 }
 
