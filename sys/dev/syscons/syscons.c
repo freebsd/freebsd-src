@@ -2348,7 +2348,7 @@ scinit(void)
      * bogus common variable so that it can be shared with pcvt, so it
      * can't be statically initialized.  XXX.
      */
-     Crtat = (u_short *)MONO_BUF;
+    Crtat = (u_short *)MONO_BUF;
     /*
      * If CGA memory seems to work, switch to color.
      */
@@ -2412,6 +2412,7 @@ scinit(void)
     current_default = &user_default;
     console[0] = &main_console;
     init_scp(console[0]);
+    cur_console = console[0];
 
     /* copy screen to temporary buffer */
     bcopyw(Crtat, sc_buffer,
@@ -2428,7 +2429,6 @@ scinit(void)
     console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
     console[0]->xpos = hw_cursor % COL;
     console[0]->ypos = hw_cursor / COL;
-    cur_console = console[0];
     for (i=1; i<MAXCONS; i++)
 	console[i] = NULL;
     kernel_console.esc = 0;
@@ -2484,7 +2484,7 @@ init_scp(scr_stat *scp)
 	if (crtc_addr == MONO_BASE)
 	    scp->mode = M_VGA_M80x25;
 	else
-    scp->mode = M_VGA_C80x25;
+	    scp->mode = M_VGA_C80x25;
     else
 	if (crtc_addr == MONO_BASE)
 	    scp->mode = M_B80x25;
@@ -3274,11 +3274,14 @@ set_vgaregs(char *modetable)
 static void
 set_font_mode()
 {
+    int s = splhigh();
+
     /* setup vga for loading fonts (graphics plane mode) */
     inb(crtc_addr+6);           		/* reset flip-flop */
     outb(ATC, 0x10); outb(ATC, 0x01);
     inb(crtc_addr+6);               		/* reset flip-flop */
     outb(ATC, 0x20);            		/* enable palette */
+
 #if SLOW_VGA
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
     outb(TSIDX, 0x04); outb(TSREG, 0x06);
@@ -3292,6 +3295,7 @@ set_font_mode()
     outw(GDCIDX, 0x0005);
     outw(GDCIDX, 0x0506);               /* addr = a0000, 64kb */
 #endif
+    splx(s);
 }
 
 static void
@@ -3450,7 +3454,9 @@ set_destructive_cursor(scr_stat *scp)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) ||
 	    (scp->cursor_start >= scp->font_size && i == scp->font_size - 1))
 	    cursor[i] |= 0xff;
+#if 0
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
+#endif
     set_font_mode();
     bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
@@ -3608,7 +3614,9 @@ draw_mouse_image(scr_stat *scp)
     scp->mouse_oldpos = scp->mouse_pos;
 
     /* wait for vertical retrace to avoid jitter on some videocards */
+#if 0
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
+#endif
     set_font_mode();
     bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
