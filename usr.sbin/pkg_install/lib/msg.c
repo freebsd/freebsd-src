@@ -30,10 +30,10 @@ static const char rcsid[] =
 
 /* Die a relatively simple death */
 void
-upchuck(const char *err)
+upchuck(const char *message)
 {
     cleanup(0);
-    errx(1, "fatal error during execution: %s", err);
+    errx(1, "fatal error during execution: %s", message);
 }
 
 /*

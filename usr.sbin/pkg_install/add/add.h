@@ -38,7 +38,7 @@ extern char	FirstPen[];
 extern add_mode_t AddMode;
 
 int		make_hierarchy(char *);
-void		extract_plist(char *, Package *);
-void		apply_perms(char *, char *);
+void		extract_plist(const char *, Package *);
+void		apply_perms(const char *, const char *);
 
 #endif	/* _INST_ADD_H_INCLUDE */

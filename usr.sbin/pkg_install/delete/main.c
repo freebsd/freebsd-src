@@ -47,7 +47,7 @@ main(int argc, char **argv)
     int ch, error;
     char **pkgs, **start;
     char *pkgs_split;
-    char *tmp;
+    const char *tmp;
     struct stat stat_s;
 
     pkgs = start = argv;

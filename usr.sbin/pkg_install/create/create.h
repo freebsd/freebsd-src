@@ -44,8 +44,8 @@ extern int	Dereference;
 extern int	PlistOnly;
 extern int	UseBzip2;
 
-void		check_list(char *, Package *);
+void		check_list(const char *, Package *);
 int		pkg_perform(char **);
-void		copy_plist(char *, Package *);
+void		copy_plist(const char *, Package *);
 
 #endif	/* _INST_CREATE_H_INCLUDE */
