@@ -1113,11 +1113,23 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		ISP_LOCK(isp);
 		return (1);
 	}
+#ifdef	ISP_TARGET_MODE
+	len = sizeof (void **) * isp->isp_maxcmds;
+	isp->isp_tgtlist = (void **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (isp->isp_tgtlist == NULL) {
+		isp_prt(isp, ISP_LOGERR, "cannot alloc tgtlist array");
+		ISP_LOCK(isp);
+		return (1);
+	}
+#endif
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 	pcs->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
 	if (pcs->dmaps == NULL) {
 		isp_prt(isp, ISP_LOGERR, "can't alloc dma map storage");
 		free(isp->isp_xflist, M_DEVBUF);
+#ifdef	ISP_TARGET_MODE
+		free(isp->isp_tgtlist, M_DEVBUF);
+#endif
 		ISP_LOCK(isp);
 		return (1);
 	}
@@ -1139,6 +1151,9 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		    "cannot create a dma tag for control spaces");
 		free(pcs->dmaps, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
+#ifdef	ISP_TARGET_MODE
+		free(isp->isp_tgtlist, M_DEVBUF);
+#endif
 		ISP_LOCK(isp);
 		return (1);
 	}
@@ -1149,6 +1164,9 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		    "cannot allocate %d bytes of CCB memory", len);
 		bus_dma_tag_destroy(isp->isp_cdmat);
 		free(isp->isp_xflist, M_DEVBUF);
+#ifdef	ISP_TARGET_MODE
+		free(isp->isp_tgtlist, M_DEVBUF);
+#endif
 		free(pcs->dmaps, M_DEVBUF);
 		ISP_LOCK(isp);
 		return (1);
@@ -1189,6 +1207,9 @@ bad:
 	bus_dmamem_free(isp->isp_cdmat, base, isp->isp_cdmap);
 	bus_dma_tag_destroy(isp->isp_cdmat);
 	free(isp->isp_xflist, M_DEVBUF);
+#ifdef	ISP_TARGET_MODE
+	free(isp->isp_tgtlist, M_DEVBUF);
+#endif
 	free(pcs->dmaps, M_DEVBUF);
 	ISP_LOCK(isp);
 	isp->isp_rquest = NULL;
