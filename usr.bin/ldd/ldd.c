@@ -28,14 +28,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/wait.h>
+
 #include <machine/elf.h>
+
 #include <arpa/inet.h>
+
 #include <a.out.h>
 #include <dlfcn.h>
 #include <err.h>
@@ -44,20 +45,17 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 
-extern void	dump_file(const char *);
-extern int	error_count;
+#include "extern.h"
 
-void
-usage()
+static void
+usage(void)
 {
 	fprintf(stderr, "usage: ldd [-a] [-v] [-f format] program ...\n");
 	exit(1);
 }
 
 int
-main(argc, argv)
-int	argc;
-char	*argv[];
+main(int argc, char *argv[])
 {
 	char		*fmt1 = NULL, *fmt2 = NULL;
 	int		rval;
@@ -139,7 +137,7 @@ char	*argv[];
 
 		file_ok = 1;
 		is_shlib = 0;
-		if (n >= sizeof hdr.aout && !N_BADMAG(hdr.aout)) {
+		if ((size_t)n >= sizeof hdr.aout && !N_BADMAG(hdr.aout)) {
 			/* a.out file */
 			if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
 #if 1 /* Compatibility */
@@ -149,7 +147,7 @@ char	*argv[];
 				warnx("%s: not a dynamic executable", *argv);
 				file_ok = 0;
 			}
-		} else if (n >= sizeof hdr.elf && IS_ELF(hdr.elf)) {
+		} else if ((size_t)n >= sizeof hdr.elf && IS_ELF(hdr.elf)) {
 			Elf_Ehdr ehdr;
 			Elf_Phdr phdr;
 			int dynamic = 0, i;
