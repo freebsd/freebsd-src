@@ -1,11 +1,11 @@
 <!--
     $FreeBSD$
-    Original revision: 1.4
+    Original revision: 1.5
 -->
 <sect1 id="support-sys">
   <title>対応しているシステム</title>
 
-  <para>80386, 80486, Pentium, Pentium Pro, Pentium II をはじめとする
+  <para>80486, Pentium, Pentium Pro, Pentium II をはじめとする
     i386 互換 CPU を搭載した NEC PC-9801/9821 シリーズ。
     AMD, Cyrix, IBM, IDT 製の i386 互換プロセッサにも対応しています。</para>
 

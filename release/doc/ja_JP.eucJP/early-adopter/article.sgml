@@ -1,43 +1,20 @@
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-
-<!ENTITY % freebsd PUBLIC "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
-%freebsd;
-
-<!ENTITY % authors PUBLIC "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-
-<!ENTITY % ja-teams PUBLIC "-//FreeBSD//ENTITIES DocBook Team Entities//JA">
-%ja-teams;
-
-<!ENTITY % teams PUBLIC "-//FreeBSD//ENTITIES DocBook Team Entities//EN">
-%teams;
-
-<!ENTITY % ja-mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
-%ja-mailing-lists;
-
-<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
-%ja-trademarks;
-
-<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
-%trademarks;
-
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
 <!ENTITY release.4x "4.<replaceable>X</replaceable>">
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
-<!ENTITY release.4last "4.9-RELEASE">
+<!ENTITY release.4last "4.10-RELEASE">
 <!ENTITY release.5branchpoint "5.3-RELEASE">
-
 ]>
 
 <!--
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.17
+    Original revision: 1.21
 -->
 
 <article>
@@ -53,6 +30,7 @@
     <copyright>
       <year>2002</year>
       <year>2003</year>
+      <year>2004</year>
       <holder role="mailto:re@FreeBSD.org">&os;
         リリースエンジニアリングチーム</holder>
     </copyright>
@@ -163,11 +141,11 @@
       あたりになると見込んでいます。</para>
 
     <para>&os; リリースエンジニアリング工程に関する詳細は、
-      <ulink url="http://www.FreeBSD.org/releng/index.html">リリースエンジニアリングのウェブページ</ulink>
-      および、<ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/index.html"><quote>&os; リリースエンジニアリング</quote></ulink>
+      <ulink url="&url.base;/releng/index.html">リリースエンジニアリングのウェブページ</ulink>
+      および、<ulink url="&url.articles.releng;/index.html"><quote>&os; リリースエンジニアリング</quote></ulink>
       という記事をご覧ください。
       きたる 5-STABLE 開発ブランチについての特記事項は
-      <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/5-roadmap/index.html"><quote>5-STABL 開発ブランチのロードマップ</quote></ulink>
+      <ulink url="&url.articles.5-roadmap;/index.html"><quote>5-STABL 開発ブランチのロードマップ</quote></ulink>
       という記事をご覧ください。</para>
 
   </sect1>
@@ -188,7 +166,7 @@
           現在進んでいる作業では、さまざまなカーネルサブシステムにおいて
           細粒度 (fine-grained) SMP ロックをおこない、カーネル内で実行される
           スレッドの数を増やすことを目標としています。詳しくは
-          <ulink url="http://www.FreeBSD.org/smp/">FreeBSD SMP
+          <ulink url="&url.base;/smp/">FreeBSD SMP
           プロジェクト</ulink> のページをご覧下さい。</para>
       </listitem>
 
@@ -339,9 +317,9 @@
 
       <listitem>
         <para>&os; <ulink
-          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/index.html">ハンドブック</ulink>
+          url="&url.books.handbook;/index.html">ハンドブック</ulink>
         と <ulink
-          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/index.html">FAQ</ulink>
+          url="&url.books.faq;/index.html">FAQ</ulink>
         のような文書は &os; &release.5x;
         までに加えられた最近の変更を反映していないかもしれません。</para>
       </listitem>
@@ -367,7 +345,7 @@
       リリースのサポートはある期間続けられます。
       実際に、&os; 4.8-RELEASE は 5.0-RELEASE の
       2 ヵ月後の 2003 年 4 月に公開され、続いて 4.9-RELEASE が
-      2003 年 10 月に公開されました。
+      2003 年 10 月に、4.10-RELEASE が 2004 年 5 月に公開されました。
       4-STABLE ブランチからの将来のリリースが出るとしたら、
       それにはいくつかの要素が絡んできます。
       最も重要なのは、5-STABLE ブランチの作成と、その安定性です。
@@ -389,7 +367,7 @@
       することが難しいためです。</para>
 
     <para>&a.security-officer; は &os; ウェブサイトの
-      <ulink url="http://www.FreeBSD.org/security/index.html">セキュリティのページ</ulink>
+      <ulink url="&url.base;/security/index.html">セキュリティのページ</ulink>
       で公開されているポリシに基づき、
       4-STABLE ブランチから作成されるリリースのサポートを継続します。
       セキュリティ勧告とセキュリティ上の修正がサポートするのは、
@@ -399,18 +377,18 @@
 
      <para>現在のところ、リリースエンジニアリングチームは 4-STABLE
        開発ブランチの将来について具体的な計画は持っていません。
-       このブランチからの今後のリリースは (もしあるとしたら) 
-       簡単な <quote>ポイント</quote> リリースになるでしょう。
-       それらのリリースはおそらく、&release.4last; と比べて機能面で
-       大きな変更が含まれていないことを示す
-       4.9.<replaceable>X</replaceable> というバージョン番号になるでしょう。
-       これらのリリースでは基本的に、セキュリティ問題の修正やバグの修正、
-       デバイスドライバの更新 (特に新しいハードウェアの対応が、
-       既に存在するデバイスドライバで簡単に可能な場合) が
-       重視されます。主要な新機能 (特に &release.5x; で
-       追加された新しい機構が必要なもの) は、おそらく、
-       これらのリリースには追加されません。</para>
-
+       4.10-RELEASE は <quote>Errata ブランチ</quote>
+       という位置付けで保守をおこなうことを決定しました。
+       従来、リリースの作成に使われたブランチは一定期間
+       <quote>セキュリティブランチ</quote> として
+       &a.security-officer; が保守し、
+       重大なセキュリティ上の修正のみが適用されていました。
+       FreeBSD 4.10-RELEASE では、その修正の適用範囲をローカルからのサービス妨害の修正や、
+       セキュリティ問題とは関係ないものの、影響度の大きい問題に対する、
+       十分に試験された修正にまで広げました。ただし、このブランチからこのような修正を含む
+       <quote>リリース版</quote> が毎回公開されるわけではなく、
+       &os; Errata Notice という、&os; セキュリティ勧告とよく似た方法で
+       修正パッチが公開されるようになります。</para>
   </sect1>
 
   <sect1 id="upgrade">
