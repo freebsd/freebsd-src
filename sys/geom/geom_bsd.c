@@ -547,6 +547,63 @@ g_bsd_ioctl(void *arg)
 }
 
 /*
+ * Rewrite the bootblock, which is BBSIZE bytes from the start of the disk.
+ * We punch down the disklabel where we expect it to be before writing.
+ */
+static int
+g_bsd_diocbsdbb(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+{
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+	struct g_bsd_softc *ms;
+	struct disklabel *dl;
+	struct g_consumer *cp;
+	u_char *buf;
+	void *p;
+	u_int secsize;
+	int error, i;
+	uint64_t sum;
+
+	/* Get hold of the interesting bits from the bio. */
+	gp = (void *)dev;
+	gsp = gp->softc;
+	ms = gsp->softc;
+
+	/* The disklabel to set is the ioctl argument. */
+	buf = g_malloc(BBSIZE, 0);
+	p = *(void **)data;
+	error = copyin(p, buf, BBSIZE);
+	if (error) {
+		g_free(buf);
+		return (error);
+	}
+	/* The disklabel to set is the ioctl argument. */
+	dl = (void *)(buf + ms->labeloffset);
+
+	DROP_GIANT();
+
+	/* Validate and modify our slice instance to match. */
+	error = g_bsd_modify(gp, dl);	/* Picks up topology lock on success. */
+	if (!error) {
+		cp = LIST_FIRST(&gp->consumer);
+		secsize = cp->provider->sectorsize;
+		dl = &ms->ondisk;
+		g_bsd_leenc_disklabel(buf + ms->labeloffset, dl);
+		if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
+			sum = 0;
+			for (i = 0; i < 63; i++)
+				sum += g_dec_le8(buf + i * 8);
+			g_enc_le8(buf + 504, sum);
+		}
+		error = g_write_data(cp, 0, buf, BBSIZE);
+		g_topology_unlock();
+	}
+	g_free(buf);
+	PICKUP_GIANT();
+	return (error);
+}
+
+/*
  * If the user tries to overwrite our disklabel through an open partition
  * or via a magicwrite config call, we end up here and try to prevent
  * footshooting as best we can.
@@ -654,6 +711,11 @@ g_bsd_start(struct bio *bp)
 		/* Return a copy of the disklabel to userland. */
 		bcopy(&ms->inram, gio->data, sizeof(ms->inram));
 		g_io_deliver(bp, 0);
+		return (1);
+	case DIOCBSDBB:
+		gio->func = g_bsd_diocbsdbb;
+		gio->dev = (void *)gp;
+		g_io_deliver(bp, EDIRIOCTL);
 		return (1);
 	case DIOCSDINFO:
 	case DIOCWDINFO:
