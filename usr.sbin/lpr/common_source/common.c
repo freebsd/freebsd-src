@@ -119,7 +119,7 @@ getq(pp, namelist)
 
 	seteuid(euid);
 	if ((dirp = opendir(pp->spool_dir)) == NULL)
-		return(-1);
+		return (-1);
 	if (fstat(dirp->dd_fd, &stbuf) < 0)
 		goto errdone;
 	seteuid(uid);
@@ -141,7 +141,8 @@ getq(pp, namelist)
 		if (stat(d->d_name, &stbuf) < 0)
 			continue;	/* Doesn't exist */
 		seteuid(uid);
-		q = (struct jobqueue *)malloc(sizeof(time_t)+strlen(d->d_name)+1);
+		q = (struct jobqueue *)malloc(sizeof(time_t) + strlen(d->d_name)
+		    + 1);
 		if (q == NULL)
 			goto errdone;
 		q->job_time = stbuf.st_mtime;
@@ -153,7 +154,7 @@ getq(pp, namelist)
 		if (++nitems > arraysz) {
 			arraysz *= 2;
 			queue = (struct jobqueue **)realloc((char *)queue,
-				arraysz * sizeof(struct jobqueue *));
+			    arraysz * sizeof(struct jobqueue *));
 			if (queue == NULL)
 				goto errdone;
 		}
@@ -167,7 +168,7 @@ getq(pp, namelist)
 
 errdone:
 	closedir(dirp);
-	return(-1);
+	return (-1);
 }
 
 /*
@@ -178,6 +179,7 @@ compar(p1, p2)
 	const void *p1, *p2;
 {
 	const struct jobqueue *qe1, *qe2;
+
 	qe1 = *(const struct jobqueue **)p1;
 	qe2 = *(const struct jobqueue **)p2;
 	
@@ -267,8 +269,8 @@ lpd_gettime(tsp, strp, strsize)
 {
 	struct timespec local_ts;
 	struct timeval btime;
-	char	*destp;
-	char	 tempstr[TIMESTR_SIZE];
+	char *destp;
+	char tempstr[TIMESTR_SIZE];
 	
 	if (tsp == NULL)
 		tsp = &local_ts;
@@ -310,7 +312,7 @@ lpd_gettime(tsp, strp, strsize)
 				tzhr--;
 			strcpy(savday, destp + strlen(destp) - 4);
 			snprintf(destp, (destp - tempstr), "%+03d%02d",
-				    (-1*tzhr), tzmin % 60);
+			    (-1*tzhr), tzmin % 60);
 			strcat(destp, savday);
 		}
 	}
@@ -372,13 +374,12 @@ trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
 	const char *orighost;
 {
 #define STATLINE_SIZE 1024
-	double	 trtime;
-	int	 remspace;
-	int	 statfile;
-	char	 thishost[MAXHOSTNAMELEN+1], statline[STATLINE_SIZE];
-	const char *rectype, *statfname;
-	const char *lprhost, *sendhost, *recvhost, *recvdev;
-	char	*eostat;
+	double trtime;
+	int remspace, statfile;
+	char thishost[MAXHOSTNAMELEN], statline[STATLINE_SIZE];
+	char *eostat;
+	const char *lprhost, *recvdev, *recvhost, *rectype;
+	const char *sendhost, *statfname;
 #define UPD_EOSTAT(xStr) do {         \
 	eostat = strchr(xStr, '\0');  \
 	remspace = eostat - xStr;     \
@@ -403,8 +404,11 @@ trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
 		recvhost = thishost;
 		break;
 	    case TR_PRINTING:
-		/* copying to a device (presumably local, though things
-		 * like 'net/CAP' can confuse this assumption...) */
+		/*
+		 * This case is for copying to a device (presumably local,
+		 * though filters using things like 'net/CAP' can confuse
+		 * this assumption...).
+		 */
 		rectype = "prnt";
 		statfname = pp->stat_send;
 		sendhost = thishost;
@@ -415,7 +419,8 @@ trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
 		/* internal error...  should we syslog/printf an error? */
 		return;
 	}
-	if (statfname == NULL) return;
+	if (statfname == NULL)
+		return;
 
 	/*
 	 * the original-host and userid are found out by reading thru the
@@ -424,12 +429,13 @@ trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
 	 * orighost & userid are generally not-available for incoming jobs.
 	 *
 	 * (it would be nice to create a work-around for that..)
-	*/
+	 */
 	if (orighost && (*orighost != '\0'))
 		lprhost = orighost;
 	else
 		lprhost = ".na.";
-	if (*userid == '\0')  userid = NULL;
+	if (*userid == '\0')
+		userid = NULL;
 
 	/*
 	 * Format of statline.
@@ -479,8 +485,8 @@ trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
 	 * assume the order or existence of any of these keyword fields.
 	 */
 	snprintf(statline, STATLINE_SIZE, "%s %s %s %s %03ld %s",
-			   pp->tr_timestr, pp->printer, lprhost,
-			   pp->jobnum, pp->jobdfnum, rectype);
+	    pp->tr_timestr, pp->printer, lprhost, pp->jobnum,
+	    pp->jobdfnum, rectype);
 	UPD_EOSTAT(statline);
 
 	if (userid != NULL) {
@@ -490,11 +496,13 @@ trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
 	snprintf(eostat, remspace, " secs=%#.2f bytes=%u", trtime, bytecnt);
 	UPD_EOSTAT(statline);
 	
-	/* the bps field duplicates info from bytes and secs, so do not
-	 * bother to include it for very small files */
+	/*
+	 * The bps field duplicates info from bytes and secs, so do
+	 * not bother to include it for very small files.
+	 */
 	if ((bytecnt > 25000) && (trtime > 1.1)) {
 		snprintf(eostat, remspace, " bps=%#.2e",
-					   ((double)bytecnt/trtime));
+		    ((double)bytecnt/trtime));
 		UPD_EOSTAT(statline);
 	}
 
