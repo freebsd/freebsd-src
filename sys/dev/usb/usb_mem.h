@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_mem.h,v 1.16 2002/05/19 06:24:33 augustss Exp $	*/
+/*	$NetBSD: usb_mem.h,v 1.18 2002/05/28 17:45:17 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -51,10 +51,9 @@ typedef struct usb_dma_block {
 	LIST_ENTRY(usb_dma_block) next;
 } usb_dma_block_t;
 
-#define DMAADDR(dma, offset) \
-	((dma)->block->map->dm_segs[0].ds_addr + (dma)->offs + (offset))
-#define KERNADDR(dma, offset) \
-	((void *)((char *)((dma)->block->kaddr + (dma)->offs) + (offset)))
+#define DMAADDR(dma, o) ((dma)->block->map->dm_segs[0].ds_addr + (dma)->offs + (o))
+#define KERNADDR(dma, o) \
+	((void *)((char *)((dma)->block->kaddr + (dma)->offs) + (o)))
 
 usbd_status	usb_allocmem(usbd_bus_handle,size_t,size_t, usb_dma_t *);
 void		usb_freemem(usbd_bus_handle, usb_dma_t *);
@@ -83,11 +82,10 @@ void		usb_freemem(usbd_bus_handle, usb_dma_t *);
 #define		usb_freemem(t,p)	(free(*(p), M_USB))
 
 #ifdef __alpha__
-#define DMAADDR(dma, offset) \
-	(alpha_XXX_dmamap((vm_offset_t) *(dma) + (offset)))
+#define DMAADDR(dma, o)	(alpha_XXX_dmamap((vm_offset_t) *(dma) + (o)))
 #else
-#define DMAADDR(dma, offset)	(vtophys(*(dma) + (offset)))
+#define DMAADDR(dma, o)	(vtophys(*(dma) + (o)))
 #endif
-#define KERNADDR(dma, offset)	((void *) (*(dma) + (offset)))
-#endif
+#define KERNADDR(dma, o)	((void *) ((char *)*(dma) + (o)))
+#endif /* __FreeBSD__ */
 
