@@ -1,3 +1,5 @@
+.\"	$KAME$
+.\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
 .\"
@@ -25,12 +27,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rrenumd.8,v 1.1.1.1 1999/08/08 23:31:38 itojun Exp $
 .\"     $FreeBSD$
 .\"
 .Dd Sep 7, 1998
 .Dt RRENUMD 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm rrenumd
 .Nd router renumbering daemon
@@ -39,7 +40,6 @@
 .Oo
 .Fl c Ar conf_file | Fl s
 .Oc
-.Op Fl P Ar policy
 .Op Fl df
 .Sh DESCRIPTION
 .Nm Rrenumd
@@ -72,13 +72,6 @@ Do not become daemon.
 .It Fl s
 Script mode.
 Configuration information is obtained from standard input.
-.It Fl P Ar policy
-.Ar policy
-specifies IPsec policy for the rrenumd session.
-For details please refer to
-.Xr ipsec 4
-and
-.Xr ipsec_set_policy 3 .
 .It Fl c Ar conf_file
 Specify a configuration file where configuration information is kept.
 .Sh RETURN VALUES
