@@ -243,6 +243,7 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x43008c0e, "Creative ViBRA16X"},		/* CTL0043 */
 	{0x44008c0e, "Creative SB AWE64 Gold"},		/* CTL0044 */
 	{0x45008c0e, "Creative SB AWE64"},		/* CTL0045 */
+	{0x46008c0e, "Creative SB AWE64"},		/* CTL0046 */
 
 	{0x01000000, "Avance Logic ALS100+"},		/* @@@0001 - ViBRA16X clone */
 	{0x01100000, "Avance Asound 110"},		/* @@@1001 */
