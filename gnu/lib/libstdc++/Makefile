@@ -8,7 +8,7 @@ SUPDIR=	${SRCDIR}/libsupc++
        ${SRCDIR}/config/locale/generic ${SRCDIR} ${SRCDIR}/std \
        ${SUPDIR} ${GCCDIR}
 
-SUBDIR=	doc
+#SUBDIR=	doc
 
 LIB=		stdc++
 SHLIB_MAJOR=	4
