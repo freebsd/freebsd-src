@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.7 1993/11/18 05:02:58 rgrimes Exp $
+ *      $Id: scsiconf.c,v 1.8 1993/12/19 00:54:54 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -120,19 +120,149 @@ struct scsidevs {
 	        errval(*attach_rtn) ();
 	char   *devname;
 	char    flags;		/* 1 show my comparisons during boot(debug) */
+#ifdef NEW_SCSICONF
+	u_int16	quirks;
+	void   *devmodes;
+#endif
 };
 
 #define SC_SHOWME	0x01
 #define	SC_ONE_LU	0x00
 #define	SC_MORE_LUS	0x02
-#if	NUK > 0
 
-static struct scsidevs unknowndev = {
-	-1, 0, "standard", "any"
-	    ,"any", ukattach, "uk", SC_MORE_LUS
-};
+#if	NUK > 0
+static struct scsidevs unknowndev = 
+	{
+		-1, 0, "*", "*", "*", 
+		ukattach, "uk", SC_MORE_LUS
+	};
 #endif 	/*NUK*/
+
+#ifdef NEW_SCSICONF
+static st_modes mode_tandberg3600 = 
+	{
+	    {0, 0, 0},					/* minor 0,1,2,3 */
+	    {0, ST_Q_FORCE_VAR_MODE, QIC_525},		/* minor 4,5,6,7 */
+	    {0, 0, QIC_150},				/* minor 8,9,10,11 */
+	    {0, 0, QIC_120}				/* minor 12,13,14,15 */
+	};
+static st_modes mode_archive2525 =
+	{
+	    {0, ST_Q_SNS_HLP, 0},			/* minor 0,1,2,3 */
+	    {0, ST_Q_SNS_HLP, QIC_525},			/* minor 4,5,6,7 */
+	    {0, 0, QIC_150},				/* minor 8,9,10,11 */
+	    {0, 0, QIC_120}				/* minor 12,13,14,15 */
+	};
+static st_modes mode_archive150 =
+	{
+	    {0, 0, 0},					/* minor 0,1,2,3 */
+	    {0, 0, QIC_150},				/* minor 4,5,6,7 */
+	    {0, 0, QIC_120},				/* minor 8,9,10,11 */
+	    {0, 0, QIC_24}				/* minor 12,13,14,15 */
+	};
+static st_modes mode_wangtek5525 =
+	{
+	    {0, 0, 0},					/* minor 0,1,2,3 */
+	    {0, ST_Q_BLKSIZ, QIC_525},			/* minor 4,5,6,7 */
+	    {0, 0, QIC_150},				/* minor 8,9,10,11 */
+	    {0, 0, QIC_120}				/* minor 12,13,14,15 */
+	};
+static st_modes mode_wangdat1300 =
+	{
+	    {0, 0, 0},					/* minor 0,1,2,3 */
+	    {512, ST_Q_FORCE_FIXED_MODE, DDS},		/* minor 4,5,6,7 */
+	    {1024, ST_Q_FORCE_FIXED_MODE, DDS},		/* minor 8,9,10,11 */
+	    {0, ST_Q_FORCE_VAR_MODE, DDS}		/* minor 12,13,14,15 */
+	};
+static st_modes mode_unktape =
+	{
+	    {512, ST_Q_FORCE_FIXED_MODE, 0},		/* minor 0,1,2,3 */
+	    {512, ST_Q_FORCE_FIXED_MODE, QIC_24},	/* minor 4,5,6,7 */
+	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_1600},	/* minor 8,9,10,11 */
+	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_6250}	/* minor 12,13,14,15 */
+	};
+#endif /* NEW_SCSICONF */
+
 static struct scsidevs knowndevs[] =
+#ifdef NEW_SCSICONF
+{
+#if NSD > 0
+	{
+		T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A", 
+		sdattach, "mx1", SC_ONE_LU
+	},
+	{
+		T_DIRECT, T_FIXED, "*", "*", "*", 
+		sdattach, "sd", SC_ONE_LU
+	},
+#endif	/* NSD */
+#if NST > 0
+	{
+		T_SEQUENTIAL, T_REMOV, "TANDBERG", " TDC 3600", "*",
+		stattach, "st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_tandberg3600
+	},
+	{
+		T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 2525*", "-005",
+		stattach, "st", SC_ONE_LU, 0, mode_archive2525
+	},
+	{
+		T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 150", "*",
+		stattach, "st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_archive150
+	},
+	{
+		T_SEQUENTIAL, T_REMOV, "WANGTEK", "5525ES*", "*",
+		stattach, "st", SC_ONE_LU, 0, mode_wangtek5525
+	},
+	{
+		T_SEQUENTIAL, T_REMOV, "WangDAT", "Model 1300", "*",
+		stattach, "st", SC_ONE_LU, 0, mode_wangdat1300
+	},
+	{
+		T_SEQUENTIAL, T_REMOV, "*", "*", "*", 
+		stattach, "st", SC_ONE_LU, 0, mode_unktape
+	},
+#endif	/* NST */
+#if NCALS > 0
+	{
+		T_PROCESSOR, T_FIXED, "*", "*", "*", 
+		calsattach, "cals", SC_MORE_LUS
+	},
+#endif	/* NCALS */
+#if NCH > 0
+	{
+		T_CHANGER, T_REMOV, "*", "*", "*", 
+		chattach, "ch", SC_ONE_LU
+	},
+#endif	/* NCH */
+#if NCD > 0
+#ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
+	{
+		T_READONLY, T_REMOV, "SONY", "CD-ROM CDU-8012", "3.1a", 
+		cdattach, "cd", SC_ONE_LU
+	},
+	{
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
+		cdattach, "cd", SC_MORE_LUS
+	},
+#endif
+#endif	/* NCD */
+#if NBLL > 0
+	{
+		T_PROCESSOR, T_FIXED, "AEG", "READER", "V1.0", 
+		bllattach, "bll", SC_MORE_LUS
+	},
+#endif	/* NBLL */
+#if NKIL > 0
+	{
+		T_SCANNER, T_FIXED, "KODAK", "IL Scanner 900", "*",
+		kil_attach, "kil", SC_ONE_LU
+	},
+#endif	/* NKIL */
+	{
+		0
+	}
+};
+#else
 {
 #if NSD > 0
 	{
@@ -191,6 +321,7 @@ static struct scsidevs knowndevs[] =
 		0
 	}
 };
+#endif /* NEW_SCSICONF */
 
 /*
  * Declarations
@@ -244,7 +375,9 @@ scsi_attachdevs(sc_link_proto)
 #undef	SCSI_DELAY
 #define SCSI_DELAY 2
 #endif	/* SCSI_DELAY */
-	DELAY(1000000 * SCSI_DELAY);
+	if (scsibus == 0) {
+		DELAY(1000000 * SCSI_DELAY);
+	}
 	scsibus++;
 	scsi_probe_bus(scsibus - 1,-1,-1);
 }
@@ -334,8 +467,18 @@ scsi_probe_bus(int bus, int targ, int lun)
 			}
 			sc_link->target = targ;
 			sc_link->lun = lun;
+			sc_link->quirks = 0;
 			predef = scsi_get_predef(sc_link, &maybe_more);
 			bestmatch = scsi_probedev(sc_link, &maybe_more);
+#ifdef NEW_SCSICONF
+			if (bestmatch) {
+			    sc_link->quirks = bestmatch->quirks;
+			    sc_link->devmodes = bestmatch->devmodes;
+			} else {
+			    sc_link->quirks = 0;
+			    sc_link->devmodes = NULL;
+			}
+#endif
 			if ((bestmatch) && (predef)) {	/* both exist */
 				if (bestmatch->attach_rtn
 				    != predef->attach_rtn) {
@@ -624,6 +767,32 @@ scsi_probedev(sc_link, maybe_more)
 	}
 	return (bestmatch);
 }
+
+#ifdef NEW_SCSICONF
+/*
+ * Compare name with pattern, return 0 on match.
+ * Short pattern matches trailing blanks in name, 
+ * wildcard '*' in pattern matches rest of name
+ */
+int
+match(pattern, name)
+	char *pattern;
+	char *name;
+{
+	char c;
+	while (c = *pattern++)
+	{
+		if (c == '*') return 0;
+		if (c != *name++) return 1;
+	}
+	while (c = *name++)
+	{
+		if (c != ' ') return 1;
+	}
+	return 0;
+}
+#endif
+
 /*
  * Try make as good a match as possible with
  * available sub drivers       
@@ -634,6 +803,40 @@ selectdev(qualifier, type, remov, manu, model, rev)
 	boolean remov;
 	char   *manu, *model, *rev;
 {
+#ifdef NEW_SCSICONF
+	struct scsidevs *bestmatch = NULL;
+	struct scsidevs *thisentry;
+
+	type |= qualifier;	/* why? */
+
+	for ( thisentry = knowndevs; thisentry->manufacturer; thisentry++ )
+	{
+		if (type != thisentry->type) {
+			continue;
+		}
+		if (remov != thisentry->removable) {
+			continue;
+		}
+
+		if (thisentry->flags & SC_SHOWME)
+			printf("\n%s-\n%s-", thisentry->manufacturer, manu);
+		if (match(thisentry->manufacturer, manu)) {
+			continue;
+		}
+		if (thisentry->flags & SC_SHOWME)
+			printf("\n%s-\n%s-", thisentry->model, model);
+		if (match(thisentry->model, model)) {
+			continue;
+		}
+		if (thisentry->flags & SC_SHOWME)
+			printf("\n%s-\n%s-", thisentry->version, rev);
+		if (match(thisentry->version, rev)) {
+			continue;
+		}
+		bestmatch = thisentry;
+		break;
+	}
+#else
 	u_int32 numents = (sizeof(knowndevs) / sizeof(struct scsidevs)) - 1;
 	u_int32 count = 0;
 	u_int32 bestmatches = 0;
@@ -688,6 +891,7 @@ selectdev(qualifier, type, remov, manu, model, rev)
 			break;
 		}
 	}
+#endif /* NEW_SCSICONF */
 	if (bestmatch == (struct scsidevs *) 0) {
 #if NUK > 0
 		bestmatch = &unknowndev;

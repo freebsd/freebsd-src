@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.17 1994/08/02 07:52:34 davidg Exp $
+ * $Id: st.c,v 1.18 1994/08/31 06:17:49 davidg Exp $
  */
 
 /*
@@ -61,6 +61,7 @@ u_int32 ststrats, stqueues;
 
 #define SCSI_2_MAX_DENSITY_CODE	0x17	/* maximum density code specified
 					 * in SCSI II spec. */
+#ifndef NEW_SCSICONF
 /*
  * Define various devices that we know mis-behave in some way,
  * and note how they are bad, so we can correct for them
@@ -147,6 +148,7 @@ static struct rogues gallery[] =	/* ends with an all-null entry */
     },
     {(char *) 0}
 };
+#endif /* NEW_SCSICONF */
 
 errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
 errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
@@ -165,7 +167,9 @@ void    ststart();
 void	st_unmount();
 errval	st_mount_tape();
 void	st_loadquirks();
+#ifndef NEW_SCSICONF
 void	st_identify_drive();
+#endif
 errval  st_interpret_sense();
 
 #define ESUCCESS 0
@@ -195,7 +199,9 @@ struct st_data {
 /*--------------------parameters reported by the device ----------------------*/
 	u_int32 blkmin;		/* min blk size                       */
 	u_int32 blkmax;		/* max blk size                       */
+#ifndef NEW_SCSICONF
 	struct rogues *rogues;	/* if we have a rogue entry           */
+#endif
 /*--------------------parameters reported by the device for this media--------*/
 	u_int32 numblks;	/* nominal blocks capacity            */
 	u_int32 media_blksiz;	/* 0 if not ST_FIXEDBLOCKS            */
@@ -203,7 +209,11 @@ struct st_data {
 /*--------------------quirks for the whole drive------------------------------*/
 	u_int32 drive_quirks;	/* quirks of this drive               */
 /*--------------------How we should set up when openning each minor device----*/
+#ifdef NEW_SCSICONF
+	st_modes modes; /* plus more for each mode            */
+#else
 	struct modes modes[4];	/* plus more for each mode            */
+#endif
 	u_int8  modeflags[4];	/* flags for the modes                */
 #define DENSITY_SET_BY_USER	0x01
 #define DENSITY_SET_BY_QUIRK	0x02
@@ -286,12 +296,17 @@ stattach(sc_link)
 	 */
 	st->sc_link = sc_link;
 
+
+
 	/*
 	 * Check if the drive is a known criminal and take
 	 * Any steps needed to bring it into line
 	 */
+#ifdef NEW_SCSICONF
+	st_loadquirks(st);
+#else
 	st_identify_drive(unit);
-
+#endif
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -321,6 +336,7 @@ stattach(sc_link)
 	return 0;
 }
 
+#ifndef NEW_SCSICONF
 /*
  * Use the inquiry routine in 'scsi_base' to get drive info so we can
  * Further tailor our behaviour.
@@ -395,6 +411,7 @@ st_identify_drive(unit)
 		}
 	}
 }
+#endif /* NEW_SCSICONF */
 
 /*
  * initialise the subdevices to the default (QUIRK) state.
@@ -406,15 +423,28 @@ st_loadquirks(st)
 	struct st_data *st;
 {
 	int     i;
+#ifdef NEW_SCSICONF
+	struct	st_mode *mode;
+	struct	st_mode *mode2;
+
+	mode = (struct st_mode*) st->sc_link->devmodes;
+	if (!mode)
+		return;
+
+	st->quirks = st->drive_quirks = st->sc_link->quirks;
+
+#else
 	struct	modes *mode;
 	struct	modes *mode2;
 
 	if (!st->rogues)
 		return;
 	mode = st->rogues->modes;
+#endif
 	mode2 = st->modes;
+
 	for (i = 0; i < 4; i++) {
-		bzero(mode2, sizeof(struct modes));
+		bzero(mode2, sizeof(*mode2));
 		st->modeflags[i] &= ~(BLKSIZE_SET_BY_QUIRK
 		    | DENSITY_SET_BY_QUIRK
 		    | BLKSIZE_SET_BY_USER
