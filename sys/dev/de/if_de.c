@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.6 1994/11/13 12:39:38 davidg Exp $
+ * $Id: if_de.c,v 1.7 1994/11/22 09:47:31 davidg Exp $
  *
  */
 
@@ -394,7 +394,6 @@ tulip_rx_intr(
 	    }
 #endif
 	    eh = *(struct ether_header *) bufaddr;
-	    eh.ether_type = ntohs(eh.ether_type);
 #if NBPFILTER > 0
 	    if (sc->tulip_bpf != NULL) {
 		bpf_tap(sc->tulip_bpf, bufaddr, total_len);

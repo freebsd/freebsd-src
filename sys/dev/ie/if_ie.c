@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.17 1994/10/23 21:27:20 wollman Exp $
+ *	$Id: if_ie.c,v 1.18 1994/10/26 00:16:17 phk Exp $
  */
 
 /*
@@ -1230,8 +1230,6 @@ static void ie_readframe(unit, ie, num)
    * copying the data in; this saves us valuable cycles when operating
    * as a multicast router or when using BPF.
    */
-
-  eh.ether_type = ntohs(eh.ether_type);
 
   /*
    * Finally pass this packet up to higher layers.
