@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.26 1994/08/29 21:37:49 ache Exp $
+ *      $Id: sd.c,v 1.27 1994/08/30 00:12:11 jkh Exp $
  */
 
 #define SPLSD splbio
@@ -60,7 +60,7 @@ int     Debugger(const char *);
 #define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
 #define	UNITSHIFT	3
 #define PARTITION(z)	(minor(z) & 0x07)
-#define RAW_PART        2
+#define RAW_PART        3       /* XXX must be 2 */
 #define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
 #define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAW_PART )
@@ -696,7 +696,7 @@ sdgetdisklabel(unsigned char unit)
 	struct sd_data *sd = sd_data[unit];
 	dev_t dev;
 
-	dev = makedev(0, (unit << UNITSHIFT) + 3);
+	dev = makedev(0, (unit << UNITSHIFT) + RAW_PART);
 	/*
 	 * If the inflo is already loaded, use it
 	 */
@@ -705,7 +705,7 @@ sdgetdisklabel(unsigned char unit)
 
 	bzero(&sd->disklabel, sizeof(struct disklabel));
 	/*
-	 * make partition 3 the whole disk in case of failure then get pdinfo
+	 * make raw partition the whole disk in case of failure then get pdinfo
 	 * for historical reasons, make part a same as raw part
 	 */
 	sd->disklabel.d_partitions[0].p_offset = 0;
@@ -725,7 +725,7 @@ sdgetdisklabel(unsigned char unit)
 	/*
 	 * Call the generic disklabel extraction routine
 	 */
-	if (errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + 3), 
+	if (errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAW_PART),
 	    sdstrategy,
 	    &sd->disklabel
 #ifdef NetBSD
