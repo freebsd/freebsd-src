@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.70 1998/01/12 15:34:17 kato Exp $
+ *  $Id: syscons.c,v 1.71 1998/01/12 15:38:20 kato Exp $
  */
 
 #include "sc.h"
@@ -2755,8 +2755,9 @@ scan_esc(scr_stat *scp, u_char c)
 	case '(':   /* iso-2022: designate 94 character set to G0 */
 #ifdef KANJI
 	    scp->kanji_type = 0x40;
-#endif
+#else
 	    scp->term.esc = 5;
+#endif
 	    return;
 	}
     }
