@@ -25,6 +25,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ * $FreeBSD$
  */
 
 #ident	"@(#)rpc_scan.c	1.13	93/07/05 SMI"
@@ -37,6 +39,8 @@ static char sccsid[] = "@(#)rpc_scan.c 1.11 89/02/22 (C) 1987 SMI";
  * rpc_scan.c, Scanner for the RPC protocol compiler 
  * Copyright (C) 1987, Sun Microsystems, Inc. 
  */
+
+#include <sys/types.h>
 
 #include <sys/wait.h>
 #include <stdio.h>
