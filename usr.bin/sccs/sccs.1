@@ -34,14 +34,14 @@
 .\"
 .Dd June 6, 1993
 .Dt SCCS 1
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm sccs
 .Nd front end for the
 .Li SCCS
 subsystem
 .Sh SYNOPSIS
-.Nm sccs
+.Nm
 .Op Fl r
 .Op Fl d Ar path
 .Op Fl p Ar path
@@ -49,8 +49,9 @@ subsystem
 .Op flags
 .Op Ar
 .Sh DESCRIPTION
-.Nm Sccs
-is a front end to the
+The
+.Nm
+utility is a front end to the
 .Li SCCS
 programs
 that
@@ -65,7 +66,7 @@ to
 provide additional protection.
 .Pp
 Basically,
-.Nm sccs
+.Nm
 runs the command with the specified
 .Ar flags
 and
@@ -74,7 +75,7 @@ Each argument is normally modified to be prepended with
 .Dq Li SCCS/s. .
 .Pp
 Flags to be interpreted by the
-.Nm sccs
+.Nm
 program must be before the
 .Ar command
 argument.
@@ -268,9 +269,9 @@ about the named files.
 .Pp
 .It Fl r
 Runs
-.Nm sccs
+.Nm
 as the real user rather than as whatever effective user
-.Nm sccs
+.Nm
 is
 .Dq Li set user id
 to.
@@ -311,6 +312,7 @@ The intent here is to create aliases such as
 which
 will be used as
 .Dq Li syssccs get cmd/who.c .
+.El
 .Pp
 Certain
 commands (such as
@@ -388,7 +390,7 @@ If such a directory is found, it is used.
 .Re
 .Sh HISTORY
 The
-.Nm sccs
+.Nm
 command
 appeared in
 .Bx 4.3 .
