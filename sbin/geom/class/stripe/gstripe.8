@@ -141,6 +141,41 @@ Specifies size of stripe block.
 .It Fl v
 Be more verbose.
 .El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of
+.Nm .
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.stripe.debug : No 0
+Debug level of the
+.Nm .
+This can be set to a number between 0 and 3, both included.
+If set to 0 minimal debug information is printed, and if set to 3 the
+maximum amount of debug information in printed.
+.It Va kern.geom.stripe.fast : No 1
+If set to a non-zero value enable
+.Dq "fast mode"
+instead of the normal
+.Dq "economic mode" .
+Compared to
+.Dq "economic mode"
+.Dq "fast mode"
+uses more memory, but it is much faster for smaller stripe sizes.
+If enough memory cannot be allocated
+.Nm
+will fall back to
+.Dq "economic mode" .
+.It Va kern.geom.stripe.maxmem : No 1310720
+Maximum amount of memory that can be consumed by
+.Dq "fast mode"
+(in bytes).
+This
+.Xr sysctl 8
+variable is read-only and can only be set as a tunable in
+.Xr loader.conf 5 .
+.El
 .Sh EXAMPLES
 The following example shows how to set up striped device from four disks
 for automatic configuration, create a file system on it, and mount it:
@@ -157,9 +192,11 @@ gstripe unload
 Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
+.Xr loader.conf 5 ,
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
+.Xr sysctl 8 ,
 .Xr umount 8 ,
 .Xr vinum 8
 .Sh HISTORY
