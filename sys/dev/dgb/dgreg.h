@@ -4,16 +4,24 @@
  *  Digiboard driver.
  *
  *  Stage 1. "Better than nothing".
+ *  Stage 2. "Gee, it works!".
  *
- *  Based on sio driver by Bruce Evans and on Linux driver by Troy 
- *  De Jongh <troyd@digibd.com> or <troyd@skypoint.com> 
- *  which is under GNU General Public License version 2 so this driver 
- *  is forced to be under GPL 2 too.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
+ * 2. Redistributions of binary code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, in the accompanying documentation.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- *  Written by Serge Babkin,
+ *  Written by Sergey Babkin,
  *      Joint Stock Commercial Bank "Chelindbank"
  *      (Chelyabinsk, Russia)
- *      babkin@hq.icb.chel.su
+ *      babkin@freebsd.org
  */
 
 #define MAX_DGB_PORTS	32
