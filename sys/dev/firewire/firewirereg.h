@@ -230,10 +230,12 @@ struct fw_xferq {
 
 struct fw_bulkxfer{
 	caddr_t buf;
+	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_bulkxfer) link;
 	caddr_t start;
 	caddr_t end;
 	u_int npacket;
+	int resp;
 };
 
 struct fw_dvbuf{
