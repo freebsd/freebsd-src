@@ -220,6 +220,9 @@ dev/isp/isp.c		optional isp
 dev/isp/isp_pci.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
+dev/iir/iir.c		optional iir
+dev/iir/iir_ctrl.c	optional iir
+dev/iir/iir_pci.c	optional iir pci
 dev/lge/if_lge.c	optional lge
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
