@@ -135,6 +135,7 @@ static driver_intr_t isa_strayintr;
 static void	ithds_init(void *dummy);
 static void	ithread_enable(int vector);
 static void	ithread_disable(int vector);
+static void	init_i8259(void);
 
 #ifdef PC98
 #define NMI_PARITY 0x04
@@ -282,6 +283,22 @@ isa_nmi(cd)
 }
 
 /*
+ *  ICU reinitialize when ICU configuration has lost.
+ */
+void icu_reinit()
+{
+	int i;
+	u_int32_t eflags;
+	eflags = read_eflags();
+	disable_intr();
+	init_i8259();
+	for(i=0;i<ICU_LEN;i++)
+		if(intr_handler[i] != isa_strayintr)
+			INTREN(1<<i);
+	write_eflags(eflags);
+}
+
+/*
  * Create a default interrupt table to avoid problems caused by
  * spurious interrupts during configuration of kernel, then setup
  * interrupt control unit.
@@ -294,8 +311,16 @@ isa_defaultirq()
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
 		icu_unset(i, (driver_intr_t *)NULL);
+	init_i8259();
+}
 
-	/* initialize 8259's */
+
+/* 
+ *initialize 8259's
+ */
+static void init_i8259()
+{
+
 #ifdef DEV_MCA
 	if (MCA_system)
 		outb(IO_ICU1, 0x19);		/* reset; program device, four bytes */
