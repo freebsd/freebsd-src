@@ -29,17 +29,18 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
 #include <sys/poll.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/random.h>
 
@@ -701,7 +702,7 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 	do {
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
-			if (flag & IO_NDELAY) {
+			if (flag & O_NONBLOCK) {
 				splx(s);
 				return (EWOULDBLOCK);
 			}
