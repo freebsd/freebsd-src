@@ -555,6 +555,7 @@ spec_freeblks(ap)
 	bp->b_dev = ap->a_vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
+	bp->b_iooffset = bp->b_offset;
 	bp->b_bcount = ap->a_length;
 	BUF_KERNPROC(bp);
 	DEV_STRATEGY(bp);
