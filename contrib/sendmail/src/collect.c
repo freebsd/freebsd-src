@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.242.2.3 2002/12/03 17:06:30 gshapiro Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.242.2.4 2003/03/28 17:34:39 ca Exp $")
 
 static void	collecttimeout __P((time_t));
 static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
@@ -444,6 +444,7 @@ collect(fp, smtpmode, hdrp, e)
 					  OpMode != MD_ARPAFTP))
 
 				{
+					SM_ASSERT(pbp < peekbuf + sizeof(peekbuf));
 					*pbp++ = c;
 					c = '.';
 				}
@@ -455,11 +456,14 @@ collect(fp, smtpmode, hdrp, e)
 				else
 				{
 					/* push back the ".\rx" */
+					SM_ASSERT(pbp < peekbuf + sizeof(peekbuf));
 					*pbp++ = c;
 					if (OpMode != MD_SMTP &&
 					    OpMode != MD_DAEMON &&
 					    OpMode != MD_ARPAFTP)
 					{
+						SM_ASSERT(pbp < peekbuf +
+							 sizeof(peekbuf));
 						*pbp++ = '\r';
 						c = '.';
 					}
@@ -625,6 +629,7 @@ nextstate:
 			}
 
 			/* trim off trailing CRLF or NL */
+			SM_ASSERT(bp > buf);
 			if (*--bp != '\n' || *--bp != '\r')
 				bp++;
 			*bp = '\0';

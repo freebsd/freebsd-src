@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.16 2003/01/18 00:41:50 gshapiro Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.17 2003/03/12 22:42:52 gshapiro Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -2021,6 +2021,9 @@ EXTERN struct
 #define TOC_NORMAL	0	/* normal delivery */
 #define TOC_URGENT	1	/* urgent delivery */
 #define TOC_NONURGENT	2	/* non-urgent delivery */
+#if _FFR_QUEUERETURN_DSN
+# define TOC_DSN	3	/* DSN delivery */
+#endif /* _FFR_QUEUERETURN_DSN */
 
 /* resolver timeout specifiers */
 #define RES_TO_FIRST	0	/* first attempt */

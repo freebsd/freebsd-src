@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.863.2.28 2003/02/11 17:17:22 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.30 2003/03/20 00:20:16 ca Exp $")
 
 #include <dirent.h>
 
@@ -32,11 +32,11 @@ SM_RCSID("@(#)$Id: queue.c,v 8.863.2.28 2003/02/11 17:17:22 ca Exp $")
 #if _FFR_QUEUEDELAY
 # define QF_VERSION	7	/* version number of this queue format */
 static time_t	queuedelay __P((ENVELOPE *));
-#define queuedelay_qfver_unsupported(qfver) false
+# define queuedelay_qfver_unsupported(qfver) false
 #else /* _FFR_QUEUEDELAY */
 # define QF_VERSION	6	/* version number of this queue format */
 # define queuedelay(e)	MinQueueAge
-#define queuedelay_qfver_unsupported(qfver) ((qfver) == 5 || (qfver) == 7)
+# define queuedelay_qfver_unsupported(qfver) ((qfver) == 5 || (qfver) == 7)
 #endif /* _FFR_QUEUEDELAY */
 #if _FFR_QUARANTINE
 static char	queue_letter __P((ENVELOPE *, int));
@@ -219,7 +219,7 @@ int	*PRSATmpCnt;
 /* offset for queue_shm */
 # define OFF_QUEUE_SHM(p) (((char *) (p)) + SHM_OFF_HEAD + sizeof(FileSys) + sizeof(int) * 2)
 
-#define QSHM_ENTRIES(i)	QShm[i].qs_entries
+# define QSHM_ENTRIES(i)	QShm[i].qs_entries
 
 /* basic size of shared memory segment */
 # define SM_T_SIZE	(SHM_OFF_HEAD + sizeof(FileSys) + sizeof(int) * 2)
@@ -3316,8 +3316,8 @@ strrev(fwd)
 
 #if _FFR_RHS
 
-#define NASCII	128
-#define NCHAR	256
+# define NASCII	128
+# define NCHAR	256
 
 static unsigned char ShuffledAlphabet[NCHAR];
 

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.7 2002/11/10 19:13:11 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.607.2.8 2003/03/12 22:42:52 gshapiro Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -3976,6 +3976,12 @@ static struct timeoutinfo
 	{ "starttls",			TO_STARTTLS			},
 #define TO_ACONNECT			0x23
 	{ "aconnect",			TO_ACONNECT			},
+#if _FFR_QUEUERETURN_DSN
+# define TO_QUEUEWARN_DSN		0x24
+	{ "queuewarn.dsn",		TO_QUEUEWARN_DSN		},
+# define TO_QUEUERETURN_DSN		0x25
+	{ "queuereturn.dsn",		TO_QUEUERETURN_DSN		},
+#endif /* _FFR_QUEUERETURN_DSN */
 	{ NULL,				0				},
 };
 
@@ -4094,6 +4100,9 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_warning[TOC_NORMAL] = toval;
 		TimeOuts.to_q_warning[TOC_URGENT] = toval;
 		TimeOuts.to_q_warning[TOC_NONURGENT] = toval;
+#if _FFR_QUEUERETURN_DSN
+		TimeOuts.to_q_warning[TOC_DSN] = toval;
+#endif /* _FFR_QUEUERETURN_DSN */
 		addopts = 2;
 		break;
 
@@ -4112,11 +4121,21 @@ settimeout(name, val, sticky)
 		TimeOuts.to_q_warning[TOC_NONURGENT] = toval;
 		break;
 
+#if _FFR_QUEUERETURN_DSN
+	  case TO_QUEUEWARN_DSN:
+		toval = convtime(val, 'h');
+		TimeOuts.to_q_warning[TOC_DSN] = toval;
+		break;
+#endif /* _FFR_QUEUERETURN_DSN */
+
 	  case TO_QUEUERETURN:
 		toval = convtime(val, 'd');
 		TimeOuts.to_q_return[TOC_NORMAL] = toval;
 		TimeOuts.to_q_return[TOC_URGENT] = toval;
 		TimeOuts.to_q_return[TOC_NONURGENT] = toval;
+#if _FFR_QUEUERETURN_DSN
+		TimeOuts.to_q_return[TOC_DSN] = toval;
+#endif /* _FFR_QUEUERETURN_DSN */
 		addopts = 2;
 		break;
 
@@ -4134,6 +4153,13 @@ settimeout(name, val, sticky)
 		toval = convtime(val, 'd');
 		TimeOuts.to_q_return[TOC_NONURGENT] = toval;
 		break;
+
+#if _FFR_QUEUERETURN_DSN
+	  case TO_QUEUERETURN_DSN:
+		toval = convtime(val, 'd');
+		TimeOuts.to_q_return[TOC_DSN] = toval;
+		break;
+#endif /* _FFR_QUEUERETURN_DSN */
 
 	  case TO_HOSTSTATUS:
 		MciInfoTimeout = toval;
