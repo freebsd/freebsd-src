@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.91.2.5.8.12 2004/06/11 01:17:36 marka Exp $ */
+/* $Id: validator.c,v 1.91.2.5.8.15 2005/02/09 05:13:02 marka Exp $ */
 
 #include <config.h>
 
@@ -497,6 +497,8 @@ nsecnoexistnodata(dns_validator_t *val, dns_name_t* name, dns_name_t *nsecname,
 
 	REQUIRE(exists != NULL);
 	REQUIRE(data != NULL);
+	REQUIRE(nsecset != NULL &&
+		nsecset->type == dns_rdatatype_nsec);
 
 	result = dns_rdataset_first(nsecset);
 	if (result != ISC_R_SUCCESS) {
@@ -661,7 +663,7 @@ authvalidated(isc_task_t *task, isc_event_t *event) {
 		if (rdataset->trust == dns_trust_secure)
 			val->seensig = ISC_TRUE;
 
-		if (val->nsecset != NULL &&
+		if (rdataset->type == dns_rdatatype_nsec &&
 		    rdataset->trust == dns_trust_secure &&
 		    ((val->attributes & VALATTR_NEEDNODATA) != 0 ||
 		     (val->attributes & VALATTR_NEEDNOQNAME) != 0) &&
@@ -2354,8 +2356,18 @@ proveunsecure(dns_validator_t *val, isc_boolean_t resume) {
 	}
 
 	if (result == ISC_R_NOTFOUND) {
-		if (!val->havedlvsep)
+		if (!val->havedlvsep) {
+			validator_log(val, ISC_LOG_DEBUG(3),
+				      "not beneath secure root / DLV");
+			if (val->mustbesecure) {
+				validator_log(val, ISC_LOG_WARNING,
+					      "must be secure failure");
+				result = DNS_R_MUSTBESECURE;
+				goto out;
+			}
+			val->event->rdataset->trust = dns_trust_answer;
 			return (ISC_R_SUCCESS);
+		}
 		dns_name_copy(dns_fixedname_name(&val->dlvsep),
 			      dns_fixedname_name(&secroot), NULL);
 	} else if (result != ISC_R_SUCCESS)
