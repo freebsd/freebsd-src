@@ -1,0 +1,168 @@
+
+Input: 1.23
+strtodI consumes 4 bytes and returns 17
+dd[0] = #3ff3ae14 7ae147ae = 1.23
+dd[1] = #3ff3ae14 7ae147af = 1.2300000000000002
+
+
+Input: 1.23e+20
+strtodI consumes 8 bytes and returns 1
+dd[0] = #441aabdf 2145b430 = 1.23e+20
+dd[1] = #441aabdf 2145b430 = 1.23e+20
+
+
+Input: 1.23e-20
+strtodI consumes 8 bytes and returns 33
+dd[0] = #3bcd0ae4 cf767530 = 1.2299999999999999e-20
+dd[1] = #3bcd0ae4 cf767531 = 1.23e-20
+
+
+Input: 1.23456789
+strtodI consumes 10 bytes and returns 17
+dd[0] = #3ff3c0ca 4283de1b = 1.23456789
+dd[1] = #3ff3c0ca 4283de1c = 1.2345678900000001
+
+
+Input: 1.23456589e+20
+strtodI consumes 14 bytes and returns 17
+dd[0] = #441ac537 a660b997 = 1.23456589e+20
+dd[1] = #441ac537 a660b998 = 123456589000000010000
+
+
+Input: 1.23e+30
+strtodI consumes 8 bytes and returns 17
+dd[0] = #462f0cb0 4e8fb790 = 1.23e+30
+dd[1] = #462f0cb0 4e8fb791 = 1.2300000000000001e+30
+
+
+Input: 1.23e-30
+strtodI consumes 8 bytes and returns 33
+dd[0] = #39b8f286 6f5010aa = 1.2299999999999999e-30
+dd[1] = #39b8f286 6f5010ab = 1.23e-30
+
+
+Input: 1.23456789e-20
+strtodI consumes 14 bytes and returns 17
+dd[0] = #3bcd2681 471e7ada = 1.23456789e-20
+dd[1] = #3bcd2681 471e7adb = 1.2345678900000001e-20
+
+
+Input: 1.23456789e-30
+strtodI consumes 14 bytes and returns 17
+dd[0] = #39b90a3e 33bbd995 = 1.23456789e-30
+dd[1] = #39b90a3e 33bbd996 = 1.2345678900000002e-30
+
+
+Input: 1.234567890123456789
+strtodI consumes 20 bytes and returns 17
+dd[0] = #3ff3c0ca 428c59fb = 1.2345678901234567
+dd[1] = #3ff3c0ca 428c59fc = 1.234567890123457
+
+
+Input: 1.23456789012345678901234567890123456789
+strtodI consumes 40 bytes and returns 17
+dd[0] = #3ff3c0ca 428c59fb = 1.2345678901234567
+dd[1] = #3ff3c0ca 428c59fc = 1.234567890123457
+
+
+Input: 1.23e306
+strtodI consumes 8 bytes and returns 33
+dd[0] = #7f7c0676 cd1c61f4 = 1.2299999999999999e+306
+dd[1] = #7f7c0676 cd1c61f5 = 1.23e+306
+
+
+Input: 1.23e-306
+strtodI consumes 9 bytes and returns 33
+dd[0] = #6ba3b8 5da396e7 = 1.2299999999999999e-306
+dd[1] = #6ba3b8 5da396e8 = 1.23e-306
+
+
+Input: 1.23e-320
+strtodI consumes 9 bytes and returns 80
+dd[0] = #0 0 = 0
+dd[1] = #100000 0 = 2.2250738585072014e-308
+
+
+Input: 1.23e-20
+strtodI consumes 8 bytes and returns 33
+dd[0] = #3bcd0ae4 cf767530 = 1.2299999999999999e-20
+dd[1] = #3bcd0ae4 cf767531 = 1.23e-20
+
+
+Input: 1.23456789e307
+strtodI consumes 14 bytes and returns 33
+dd[0] = #7fb194b1 4bdaecdb = 1.2345678899999998e+307
+dd[1] = #7fb194b1 4bdaecdc = 1.23456789e+307
+
+
+Input: 1.23456589e-307
+strtodI consumes 15 bytes and returns 17
+dd[0] = #363196 bb9845fa = 1.23456589e-307
+dd[1] = #363196 bb9845fb = 1.2345658900000001e-307
+
+
+Input: 1.234567890123456789
+strtodI consumes 20 bytes and returns 17
+dd[0] = #3ff3c0ca 428c59fb = 1.2345678901234567
+dd[1] = #3ff3c0ca 428c59fc = 1.234567890123457
+
+
+Input: 1.234567890123456789e301
+strtodI consumes 24 bytes and returns 17
+dd[0] = #7e726f51 75f56413 = 1.2345678901234568e+301
+dd[1] = #7e726f51 75f56414 = 1.234567890123457e+301
+
+
+Input: 1.234567890123456789e-301
+strtodI consumes 25 bytes and returns 17
+dd[0] = #1752a64 e34ba0d3 = 1.2345678901234567e-301
+dd[1] = #1752a64 e34ba0d4 = 1.234567890123457e-301
+
+
+Input: 1.234567890123456789e-321
+strtodI consumes 25 bytes and returns 80
+dd[0] = #0 0 = 0
+dd[1] = #100000 0 = 2.2250738585072014e-308
+
+
+Input: 1e23
+strtodI consumes 4 bytes and returns 17
+dd[0] = #44b52d02 c7e14af6 = 1e+23
+dd[1] = #44b52d02 c7e14af7 = 1.0000000000000001e+23
+
+
+Input: 1e310
+strtodI consumes 5 bytes and returns 163
+dd[0] = #7fefffff ffffffff = 1.7976931348623157e+308
+dd[1] = #7ff00000 0 = Infinity
+
+
+Input: 9.0259718793241475e-277
+strtodI consumes 23 bytes and returns 33
+dd[0] = #69fffff ffffffff = 9.025971879324147e-277
+dd[1] = #6a00000 0 = 9.025971879324148e-277
+
+
+Input: 9.025971879324147880346310405869e-277
+strtodI consumes 37 bytes and returns 17
+dd[0] = #6a00000 0 = 9.025971879324148e-277
+dd[1] = #6a00000 1 = 9.02597187932415e-277
+
+
+Input: 9.025971879324147880346310405868e-277
+strtodI consumes 37 bytes and returns 33
+dd[0] = #69fffff ffffffff = 9.025971879324147e-277
+dd[1] = #6a00000 0 = 9.025971879324148e-277
+
+
+Input: 2.2250738585072014e-308
+strtodI consumes 23 bytes and returns 17
+dd[0] = #100000 0 = 2.2250738585072014e-308
+dd[1] = #100000 1 = 2.225073858507202e-308
+
+
+Input: 2.2250738585072013e-308
+strtodI consumes 23 bytes and returns 33
+dd[0] = #0 0 = 0
+dd[1] = #100000 0 = 2.2250738585072014e-308
+
