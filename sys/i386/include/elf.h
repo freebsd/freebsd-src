@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.4 1998/09/14 20:30:12 jdp Exp $
+ *      $Id: elf.h,v 1.5 1998/10/18 15:31:23 peter Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -118,4 +118,14 @@ __ElfType(Auxinfo);
 #define ELF_TARG_MACH	EM_386
 #define ELF_TARG_VER	1
 
+#ifdef KERNEL
+
+/*
+ * On the i386 we load the dynamic linker at a fixed address,
+ * below where the executable itself is loaded.  This is the
+ * standard SVR4 location for it.
+ */
+#define ELF_RTLD_ADDR(vmspace)	0x08000000
+
+#endif /* KERNEL */
 #endif /* !_MACHINE_ELF_H_ */
