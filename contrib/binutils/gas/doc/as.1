@@ -132,7 +132,7 @@
 .\" ========================================================================
 .\"
 .IX Title "AS 1"
-.TH AS 1 "2002-05-14" "binutils-2.12.1" "GNU Development Tools"
+.TH AS 1 "2002-08-05" "binutils-2.12.91" "GNU Development Tools"
 .UC
 .SH "NAME"
 \&\s-1AS\s0 \- the portable \s-1GNU\s0 assembler.
@@ -189,7 +189,7 @@ as [\fB\-a\fR[\fBcdhlns\fR][=\fIfile\fR]] [\fB\-D\fR] [\fB\-\-defsym\fR \fIsym\f
 .PP
 \&\fITarget M32R options:\fR
    [\fB\-\-m32rx\fR|\fB\-\-[no\-]warn\-explicit\-parallel\-conflicts\fR|
-    \fB\-\-W[n]p\fR]
+   \fB\-\-W[n]p\fR]
 .PP
 \&\fITarget M680X0 options:\fR
    [\fB\-l\fR] [\fB\-m68000\fR|\fB\-m68010\fR|\fB\-m68020\fR|...]
@@ -205,12 +205,19 @@ as [\fB\-a\fR[\fBcdhlns\fR][=\fIfile\fR]] [\fB\-D\fR] [\fB\-\-defsym\fR \fIsym\f
    [\fB\-mcpu=[210|340]\fR]
 .PP
 \&\fITarget \s-1MIPS\s0 options:\fR
-   [\fB\-nocpp\fR] [\fB\-EL\fR] [\fB\-EB\fR] [\fB\-G\fR \fInum\fR] [\fB\-mcpu\fR=\fI\s-1CPU\s0\fR ]
-   [\fB\-mips1\fR] [\fB\-mips2\fR] [\fB\-mips3\fR] [\fB\-mips4\fR] [\fB\-mips5\fR]
-   [\fB\-mips32\fR] [\fB\-mips64\fR]
-   [\fB\-m4650\fR] [\fB\-no\-m4650\fR]
-   [\fB\-\-trap\fR] [\fB\-\-break\fR] [\fB\-n\fR]
-   [\fB\-\-emulation\fR=\fIname\fR ]
+   [\fB\-nocpp\fR] [\fB\-EL\fR] [\fB\-EB\fR] [\fB\-n\fR] [\fB\-O\fR[\fIoptimization level\fR]]
+   [\fB\-g\fR[\fIdebug level\fR]] [\fB\-G\fR \fInum\fR] [\fB\-KPIC\fR] [\fB\-call_shared\fR]
+   [\fB\-non_shared\fR] [\fB\-xgot\fR] [\fB\-\-membedded\-pic\fR]
+   [\fB\-mabi\fR=\fI\s-1ABI\s0\fR] [\fB\-32\fR] [\fB\-n32\fR] [\fB\-64\fR] [\fB\-mfp32\fR] [\fB\-mgp32\fR]
+   [\fB\-march\fR=\fI\s-1CPU\s0\fR] [\fB\-mtune\fR=\fI\s-1CPU\s0\fR] [\fB\-mips1\fR] [\fB\-mips2\fR]
+   [\fB\-mips3\fR] [\fB\-mips4\fR] [\fB\-mips5\fR] [\fB\-mips32\fR] [\fB\-mips64\fR]
+   [\fB\-construct\-floats\fR] [\fB\-no\-construct\-floats\fR]
+   [\fB\-trap\fR] [\fB\-no\-break\fR] [\fB\-break\fR] [\fB\-no\-trap\fR]
+   [\fB\-mfix7000\fR] [\fB\-mno\-fix7000\fR]
+   [\fB\-mips16\fR] [\fB\-no\-mips16\fR]
+   [\fB\-mips3d\fR] [\fB\-no\-mips3d\fR]
+   [\fB\-mdmx\fR] [\fB\-no\-mdmx\fR]
+   [\fB\-mdebug\fR] [\fB\-no\-mdebug\fR]
 .PP
 \&\fITarget \s-1MMIX\s0 options:\fR
    [\fB\-\-fixed\-special\-register\-names\fR] [\fB\-\-globalize\-symbols\fR]
@@ -675,33 +682,90 @@ Generate ``little endian'' format output.
 .IX Item "-mips3"
 .IP "\fB\-mips4\fR" 4
 .IX Item "-mips4"
+.IP "\fB\-mips5\fR" 4
+.IX Item "-mips5"
 .IP "\fB\-mips32\fR" 4
 .IX Item "-mips32"
 .IP "\fB\-mips64\fR" 4
 .IX Item "-mips64"
 .PD
 Generate code for a particular \s-1MIPS\s0 Instruction Set Architecture level.
-\&\fB\-mips1\fR corresponds to the R2000 and R3000 processors,
-\&\fB\-mips2\fR to the R6000 processor, and \fB\-mips3\fR to the R4000
-processor.
-\&\fB\-mips5\fR, \fB\-mips32\fR, and \fB\-mips64\fR correspond
-to generic \s-1MIPS\s0 V, \s-1MIPS32\s0, and \s-1MIPS64\s0 \s-1ISA\s0
-processors, respectively.
-.IP "\fB\-m4650\fR" 4
-.IX Item "-m4650"
+\&\fB\-mips1\fR is an alias for \fB\-march=r3000\fR, \fB\-mips2\fR is an
+alias for \fB\-march=r6000\fR, \fB\-mips3\fR is an alias for
+\&\fB\-march=r4000\fR and \fB\-mips4\fR is an alias for \fB\-march=r8000\fR.
+\&\fB\-mips5\fR, \fB\-mips32\fR, and \fB\-mips64\fR correspond to generic
+\&\fB\s-1MIPS\s0 V\fR, \fB\s-1MIPS32\s0\fR, and \fB\s-1MIPS64\s0\fR \s-1ISA\s0 processors,
+respectively.
+.IP "\fB\-march=\fR\fI\s-1CPU\s0\fR" 4
+.IX Item "-march=CPU"
+Generate code for a particular \s-1MIPS\s0 cpu.
+.IP "\fB\-mtune=\fR\fIcpu\fR" 4
+.IX Item "-mtune=cpu"
+Schedule and tune for a particular \s-1MIPS\s0 cpu.
+.IP "\fB\-mfix7000\fR" 4
+.IX Item "-mfix7000"
 .PD 0
-.IP "\fB\-no\-m4650\fR" 4
-.IX Item "-no-m4650"
+.IP "\fB\-mno\-fix7000\fR" 4
+.IX Item "-mno-fix7000"
 .PD
-Generate code for the \s-1MIPS\s0 R4650 chip.  This tells the assembler to accept
-the \fBmad\fR and \fBmadu\fR instruction, and to not schedule \fBnop\fR
-instructions around accesses to the \fB\s-1HI\s0\fR and \fB\s-1LO\s0\fR registers.
-\&\fB\-no\-m4650\fR turns off this option.
-.IP "\fB\-mcpu=\fR\fI\s-1CPU\s0\fR" 4
-.IX Item "-mcpu=CPU"
-Generate code for a particular \s-1MIPS\s0 cpu.  It is exactly equivalent to
-\&\fB\-m\fR\fIcpu\fR, except that there are more value of \fIcpu\fR
-understood.
+Cause nops to be inserted if the read of the destination register
+of an mfhi or mflo instruction occurs in the following two instructions.
+.IP "\fB\-mdebug\fR" 4
+.IX Item "-mdebug"
+.PD 0
+.IP "\fB\-no\-mdebug\fR" 4
+.IX Item "-no-mdebug"
+.PD
+Cause stabs-style debugging output to go into an ECOFF-style .mdebug
+section instead of the standard \s-1ELF\s0 .stabs sections.
+.IP "\fB\-mgp32\fR" 4
+.IX Item "-mgp32"
+.PD 0
+.IP "\fB\-mfp32\fR" 4
+.IX Item "-mfp32"
+.PD
+The register sizes are normally inferred from the \s-1ISA\s0 and \s-1ABI\s0, but these
+flags force a certain group of registers to be treated as 32 bits wide at
+all times.  \fB\-mgp32\fR controls the size of general-purpose registers
+and \fB\-mfp32\fR controls the size of floating-point registers.
+.IP "\fB\-mips16\fR" 4
+.IX Item "-mips16"
+.PD 0
+.IP "\fB\-no\-mips16\fR" 4
+.IX Item "-no-mips16"
+.PD
+Generate code for the \s-1MIPS\s0 16 processor.  This is equivalent to putting
+\&\f(CW\*(C`.set mips16\*(C'\fR at the start of the assembly file.  \fB\-no\-mips16\fR
+turns off this option.
+.IP "\fB\-mips3d\fR" 4
+.IX Item "-mips3d"
+.PD 0
+.IP "\fB\-no\-mips3d\fR" 4
+.IX Item "-no-mips3d"
+.PD
+Generate code for the \s-1MIPS\-3D\s0 Application Specific Extension.
+This tells the assembler to accept \s-1MIPS\-3D\s0 instructions.
+\&\fB\-no\-mips3d\fR turns off this option.
+.IP "\fB\-mdmx\fR" 4
+.IX Item "-mdmx"
+.PD 0
+.IP "\fB\-no\-mdmx\fR" 4
+.IX Item "-no-mdmx"
+.PD
+Generate code for the \s-1MDMX\s0 Application Specific Extension.
+This tells the assembler to accept \s-1MDMX\s0 instructions.
+\&\fB\-no\-mdmx\fR turns off this option.
+.IP "\fB\-\-construct\-floats\fR" 4
+.IX Item "--construct-floats"
+.PD 0
+.IP "\fB\-\-no\-construct\-floats\fR" 4
+.IX Item "--no-construct-floats"
+.PD
+The \fB\-\-no\-construct\-floats\fR option disables the construction of
+double width floating point constants by loading the two halves of the
+value into the two single width floating point registers that make up
+the double width register.  By default \fB\-\-construct\-floats\fR is
+selected, allowing construction of these floating point constants.
 .IP "\fB\-\-emulation=\fR\fIname\fR" 4
 .IX Item "--emulation=name"
 This option causes \fBas\fR to emulate \fBas\fR configured

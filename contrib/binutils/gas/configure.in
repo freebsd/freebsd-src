@@ -146,7 +146,10 @@ changequote([,])dnl
       rs6000*)		cpu_type=ppc ;;
       s390x*)		cpu_type=s390 arch=s390x ;;
       s390*)		cpu_type=s390 arch=s390 ;;
-      sh64*)            cpu_type=sh64 endian=big;;
+      sh5*)		cpu_type=sh64 endian=big ;;
+      sh5le*)		cpu_type=sh64 endian=little ;;
+      sh64*)            cpu_type=sh64 endian=big ;;
+      sh64le*)		cpu_type=sh64 endian=little ;;
       sh*le)		cpu_type=sh endian=little ;;
       sh*)		cpu_type=sh endian=big ;;
       sparclite*)	cpu_type=sparc arch=sparclite ;;
@@ -168,7 +171,6 @@ changequote([,])dnl
     dev=no
     bfd_gas=no
     em=generic
-    mips_stabs_elf=
 
     # assign object format
     case ${generic_target} in
@@ -181,11 +183,11 @@ changequote([,])dnl
 
       alpha*-*-*vms*)	    fmt=evax ;;
       alpha*-*-netware*)    fmt=ecoff ;;
-      alpha*-*-openbsd*)    fmt=ecoff ;;
       alpha*-*-osf*)        fmt=ecoff ;;
       alpha*-*-linuxecoff*) fmt=ecoff ;;
       alpha*-*-linux-gnu*)  fmt=elf em=linux ;;
       alpha*-*-netbsd*)     fmt=elf em=nbsd ;;
+      alpha*-*-openbsd*)    fmt=elf em=obsd ;;
 
       arc-*-elf*)           fmt=elf bfd_gas=yes ;;
 
@@ -212,9 +214,11 @@ changequote([,])dnl
 
       d10v-*-*)		    fmt=elf bfd_gas=yes ;;
       d30v-*-*)		    fmt=elf bfd_gas=yes ;;
+      dlx-*-*)		    fmt=elf ;;
 
 
       fr30-*-*)		    fmt=elf bfd_gas=yes ;;
+      frv-*-*)		    fmt=elf bfd_gas=yes ;;
 
       hppa-*-linux-gnu*)    case ${cpu} in
 				hppa*64*)
@@ -225,6 +229,7 @@ changequote([,])dnl
       hppa-*-*elf*)         fmt=elf em=hppa ;;
       hppa-*-lites*)        fmt=elf em=hppa ;;
       hppa-*-netbsd*)       fmt=elf em=nbsd ;;
+      hppa-*-openbsd*)      fmt=elf em=hppa ;;
       hppa-*-osf*)          fmt=som em=hppa ;;
       hppa-*-rtems*)        fmt=elf em=hppa ;;
       hppa-*-hpux11*)	    case ${cpu} in
@@ -251,6 +256,7 @@ changequote([,])dnl
       i386-*-beoself* | i386-*-beos*) fmt=elf bfd_gas=yes ;;
       i386-*-bsd*)          fmt=aout em=386bsd ;;
       i386-*-netbsd0.8)     fmt=aout em=386bsd ;;
+      i386-*-netbsdpe*)       fmt=coff em=pe bfd_gas=yes ;;
       i386-*-netbsd*)       em=nbsd bfd_gas=yes
 			    case ${cpu} in
 			      x86_64)	fmt=elf ;;
@@ -299,6 +305,7 @@ changequote([,])dnl
       i386-*-cygwin*)       fmt=coff em=pe bfd_gas=yes ;;
       i386-*-interix*)	    fmt=coff em=interix bfd_gas=yes ;;
       i386-*-mingw32*)      fmt=coff em=pe bfd_gas=yes ;;
+      i386-*-nto-qnx*)	    fmt=elf ;;
       i386-*-*nt*)          fmt=coff em=pe bfd_gas=yes ;;
       i386-*-vxworks*)      fmt=aout ;;
       i386-*-chaos)         fmt=elf ;;
@@ -368,13 +375,13 @@ changequote([,])dnl
       mips-*-irix*)         fmt=ecoff ;;
       mips-*-lnews*)        fmt=ecoff em=lnews ;;
       mips-*-riscos*)       fmt=ecoff ;;
-      mips*-*-linux*)	    fmt=elf em=tmips mips_stabs_elf=y ;;
+      mips*-*-linux*)	    fmt=elf em=tmips ;;
       mips-*-sysv4*MP* | mips-*-gnu*)
 			    fmt=elf em=tmips ;;
       mips-*-sysv*)         fmt=ecoff ;;
       mips-*-elf* | mips-*-rtems* | mips-*-netbsd* | mips-*-openbsd*)
 			    fmt=elf ;;
-      mips-*-vxworks*)      fmt=elf mips_stabs_elf=y ;;
+      mips-*-vxworks*)      fmt=elf ;;
       mmix-*-*)		    fmt=elf bfd_gas=yes ;;
       mn10200-*-*)	    fmt=elf bfd_gas=yes ;;
       mn10300-*-*)	    fmt=elf bfd_gas=yes ;;
@@ -385,6 +392,7 @@ changequote([,])dnl
       pj*)		    fmt=elf ;;
       ppc-*-pe | ppc-*-cygwin* | ppc-*-winnt*)
 		            fmt=coff em=pe ;;
+      ppc-*-aix5*)          fmt=coff em=aix5 ;;
       ppc-*-aix*)           fmt=coff ;;
       ppc-*-beos*)          fmt=coff ;;
       ppc-*-*bsd* | ppc-*-elf* | ppc-*-eabi* | ppc-*-sysv4*)
@@ -409,6 +417,7 @@ changequote([,])dnl
 			    fmt=coff em=macos ;;
       ppc-*-netware*)       fmt=elf em=ppcnw ;;
       ppc-*-vxworks*)       fmt=elf ;;
+      ppc-*-windiss*)       fmt=elf ;;
 
       s390x-*-linux-gnu*)   fmt=elf em=linux ;;
       s390-*-linux-gnu*)    fmt=elf em=linux ;;
@@ -420,16 +429,18 @@ changequote([,])dnl
 				sh*)
 					endian=little ;;
 			    esac ;;
+      sh5*-*-netbsd*)       fmt=elf em=nbsd ;;
+      sh64*-*-netbsd*)      fmt=elf em=nbsd ;;
       sh*-*-netbsdelf*)     fmt=elf em=nbsd ;;
       sh-*-elf*)	    fmt=elf ;;
-      sh-*-coff*)           fmt=coff bfd_gas=yes;;
+      sh-*-coff*)           fmt=coff ;;
       sh-*-pe*)             fmt=coff em=pe bfd_gas=yes endian=little ;;
       sh-*-rtemself*)       fmt=elf ;;
-      sh-*-rtems*)	    fmt=coff bfd_gas=yes;;
+      sh-*-rtems*)	    fmt=coff ;;
 
       sh64-*-elf*)	    fmt=elf ;;
       ns32k-pc532-mach* | ns32k-pc532-ux*)    fmt=aout em=pc532mach ;;
-      ns32k-pc532-netbsd* | ns32k-pc532-lites*)  fmt=aout em=nbsd532 ;;
+      ns32k-*-netbsd* | ns32k-pc532-lites*)  fmt=aout em=nbsd532 ;;
       ns32k-pc532-openbsd*) fmt=aout em=nbsd532 ;;
 
       sparc-*-rtemsaout*)   fmt=aout ;;
@@ -454,7 +465,12 @@ changequote([,])dnl
                                 sparc64) fmt=elf ;;
                             esac
                             ;;
-      sparc-*-openbsd*)     fmt=aout em=nbsd ;;
+      sparc-*-openbsd*)     em=nbsd
+                            case ${cpu} in
+                               sparc) fmt=aout ;;
+                               sparc64) fmt=elf ;;
+                            esac
+                            ;;
 
       strongarm-*-coff)     fmt=coff ;;
       strongarm-*-elf)      fmt=elf ;;
@@ -471,6 +487,9 @@ changequote([,])dnl
       v850e-*-*)	    fmt=elf bfd_gas=yes ;;
       v850ea-*-*)	    fmt=elf bfd_gas=yes ;;
 
+      vax-*-netbsdelf*)     fmt=elf em=nbsd bfd_gas=yes ;;
+      vax-*-netbsdaout* | vax-*-netbsd*)
+			    fmt=aout em=nbsd ;;
       vax-*-bsd* | vax-*-ultrix*)
 			    fmt=aout ;;
       vax-*-vms)            fmt=vms ;;
@@ -510,11 +529,6 @@ changequote([,])dnl
 	AC_DEFINE_UNQUOTED(TARGET_BYTES_BIG_ENDIAN, $endian_def,
 			   [Define as 1 if big endian.])
       fi
-    fi
-
-    if test x${mips_stabs_elf} != x; then
-      AC_DEFINE(MIPS_STABS_ELF, 1,
-		[Use ELF stabs for MIPS, not ECOFF stabs])
     fi
 
     case ${cpu_type}-${fmt} in
@@ -568,6 +582,9 @@ changequote([,])dnl
 	using_cgen=yes
 	;;
 
+      frv)
+	using_cgen=yes
+	;;
       m68k)
 	case ${extra_objects} in
 	*m68k-parse.o*) ;;
@@ -858,7 +875,7 @@ esac
 case "${need_bfd}" in
 yes)
   BFDLIB=../bfd/libbfd.la
-  ALL_OBJ_DEPS="$ALL_OBJ_DEPS ../bfd/bfd.h"
+  ALL_OBJ_DEPS="$ALL_OBJ_DEPS"' ../bfd/bfd.h $(INCDIR)/symcat.h'
   ;;
 esac
 
