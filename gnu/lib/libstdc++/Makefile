@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.14 1999/04/05 08:07:40 obrien Exp $
+# $Id: Makefile,v 1.15 1999/04/05 09:01:45 obrien Exp $
 #
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
@@ -12,7 +12,7 @@ LIB=		stdc++
 SHLIB_MAJOR=	3
 SHLIB_MINOR=	0
 
-CFLAGS+=	-I${EGCSDIR}/include -I${EGCSDIR}/libio -I.
+CFLAGS+=	-I${.CURDIR} -I${EGCSDIR}/include -I${EGCSDIR}/libio -I.
 CXXFLAGS+=	-I${EGCSDIR}/libstdc++/stl -I${EGCSDIR}/libstdc++ \
 		-I${EGCSDIR}/gcc/cp/inc -I.
 CXXFLAGS+=	-nostdinc++ -fno-implicit-templates
@@ -72,9 +72,9 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 	iovfprintf.c iovfscanf.c iovsprintf.c iovsscanf.c outfloat.c \
 	peekc.c strops.c
 
-beforeinstall: _G_config.h
+beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		_G_config.h \
+		${.CURDIR}/_G_config.h \
 		${DESTDIR}/usr/include/g++
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS:S;^;${EGCSDIR}/libstdc++/;} \
@@ -85,13 +85,7 @@ beforeinstall: _G_config.h
 		${SHDRS:S;^;${EGCSDIR}/libstdc++/std/;} \
 		${DESTDIR}/usr/include/g++/std
 
-SRCS+=		_G_config.h
-CLEANFILES+=	_G_config.h dummy.h dummy.c dummy.C
-_G_config.h: Makefile ${EGCSDIR}/libio/gen-params
-	CC="${CC}" CXX="${CXX}" CONFIG_NM="nm" \
-		CPP="${CC} -E -nostdinc -idirafter ${DESTDIR}/usr/include" \
-		sh ${EGCSDIR}/libio/gen-params \
-		LIB_VERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}.0 >${.TARGET}
+CLEANFILES+=	dummy.h dummy.c dummy.C
 
 # Lots of special cases
 
@@ -227,5 +221,13 @@ ldcomio.cc: cinst.cc
 	echo "#define $i 1" >> ${.TARGET}
 .endfor
 	cat ${.ALLSRC} >> ${.TARGET}
+
+# ======== _G_config.h generation =======
+# In case you want or need to generate a _G_config.h file.
+make_G_config_h:
+	CC="${CC}" CXX="${CXX}" CONFIG_NM="nm" \
+		CPP="${CC} -E -nostdinc -idirafter ${DESTDIR}/usr/include" \
+		sh ${EGCSDIR}/libio/gen-params \
+		LIB_VERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}.0 >${.TARGET}
 
 .include <bsd.lib.mk>
