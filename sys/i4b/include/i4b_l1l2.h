@@ -27,11 +27,11 @@
  *	i4b_l1l2.h - i4b layer 1 / layer 2 interactions
  *	---------------------------------------------------
  *
- *	$Id: i4b_l1l2.h,v 1.9 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_l1l2.h,v 1.11 2000/06/02 16:14:35 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:44:39 1999]
+ *	last edit-date: [Fri Jun  2 14:35:03 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -67,11 +67,6 @@ struct i4b_l1l2_func
 	/* =================== */
 	
 	int	(*PH_DATA_REQ) (int, struct mbuf *, int);
-
-	/* 3rd ph_data_req parameter */
-#define MBUF_DONTFREE	0
-#define MBUF_FREE	1	
-
 	int	(*PH_ACTIVATE_REQ) (int);
 
 #define PH_Data_Req(unit, data, freeflag)	\
@@ -89,7 +84,7 @@ struct i4b_l1l2_func
 	/* L1/L2 management command and status information */
 	/* =============================================== */
 	int	(*MPH_STATUS_IND) (int, int, int);
-	int	(*MPH_COMMAND_REQ) (int, int, int);
+	int	(*MPH_COMMAND_REQ) (int, int, void *);
 
 #define MPH_Status_Ind(unit, status, parm)	\
 	((*i4b_l1l2_func.MPH_STATUS_IND)(unit, status, parm))

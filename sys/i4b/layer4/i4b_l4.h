@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l4.h - kernel interface to userland header file
  *	---------------------------------------------------
  *
- *	$Id: i4b_l4.h,v 1.17 1999/12/13 21:25:28 hm Exp $ 
+ *	$Id: i4b_l4.h,v 1.18 2000/04/27 11:35:01 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:06:24 1999]
+ *      last edit-date: [Thu Apr 27 13:28:01 2000]
  *
  *---------------------------------------------------------------------------*/
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l3.h - layer 3 header file
  *	------------------------------
  *
- *	$Id: i4b_l3.h,v 1.10 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l3.h,v 1.11 2000/04/27 09:25:21 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:55 1999]
+ *      last edit-date: [Thu Apr 27 11:07:01 2000]
  *
  *---------------------------------------------------------------------------*/
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,26 +27,21 @@
  *	i4b - mbuf handling support routines
  *	------------------------------------
  *
- *	$Id: i4b_mbuf.c,v 1.13 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_mbuf.c,v 1.15 2000/05/29 15:41:42 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:10 1999]
+ *      last edit-date: [Mon May 29 16:55:18 2000]
  *
  *---------------------------------------------------------------------------*/
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-
-#if defined(__FreeBSD__)
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
 

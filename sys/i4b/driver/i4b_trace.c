@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.24 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_trace.c,v 1.27 2000/06/02 16:14:35 hm Exp $
  *
- *	last edit-date: [Mon Dec 13 21:39:35 1999]
+ *	last edit-date: [Fri Jun  2 17:48:19 2000]
  *
  * $FreeBSD$
  *
@@ -40,17 +40,6 @@
 #include "i4btrc.h"
 
 #if NI4BTRC > 0
-
-#ifdef __FreeBSD__
-#include "isic.h"	/* 'isic' is no pseudo-device on non FreeBSD -
-			 * so we just can't count it at compile time,
-			 * we're doing an attach-time check instead. */
-
-#if NI4BTRC < NISIC
-#error "number of trace devices != number of passive ISDN controllers !"
-#error "change number of i4btrc to be equal to number of isic devices !"
-#endif
-#endif	/* __FreeBSD__ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,6 +61,9 @@
 
 #ifdef __FreeBSD__
 
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
 
 #include <machine/i4b_trace.h>
 #include <machine/i4b_ioctl.h>
@@ -98,6 +90,9 @@ static int device_state[NI4BTRC];
 #define ST_WAITDATA	0x02
 
 #if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+static void *devfs_token[NI4BTRC];
+#endif
 #endif
 
 static int analyzemode = 0;
@@ -238,6 +233,12 @@ i4btrcattach()
 #if defined(__FreeBSD__)
 #if __FreeBSD__ < 4
 
+#ifdef DEVFS
+	  	devfs_token[i]
+		  = devfs_add_devswf(&i4btrc_cdevsw, i, DV_CHR,
+				     UID_ROOT, GID_WHEEL, 0600,
+				     "i4btrc%d", i);
+#endif
 
 #else
 		make_dev(&i4btrc_cdevsw, i,
@@ -361,7 +362,7 @@ i4btrcopen(dev_t dev, int flag, int fmt, struct proc *p)
 	int x;
 	int unit = minor(dev);
 
-	if(unit > NI4BTRC)
+	if(unit >= NI4BTRC)
 		return(ENXIO);
 
 	if(device_state[unit] & ST_ISOPEN)
@@ -386,11 +387,13 @@ PDEVSTATIC int
 i4btrcclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = minor(dev);
-	int i, x, cno = -1;
+	int i, x;
+	int cno = -1;
 
-	for(i = 0; i < nctrl; i++)
+	for(i=0; i < nctrl; i++)
 	{
-		if(ctrl_desc[i].N_SET_TRACE)
+		if((ctrl_desc[i].ctrl_type == CTRL_PASSIVE) &&
+			(ctrl_desc[i].unit == unit))
 		{
 			cno = i;
 			break;
@@ -404,8 +407,8 @@ i4btrcclose(dev_t dev, int flag, int fmt, struct proc *p)
 		
 		if(cno >= 0)
 		{
-			ctrl_desc[cno].N_SET_TRACE(rxunit, TRACE_OFF);
-			ctrl_desc[cno].N_SET_TRACE(txunit, TRACE_OFF);
+			(*ctrl_desc[cno].N_MGMT_COMMAND)(rxunit, CMR_SETTRACE, TRACE_OFF);
+			(*ctrl_desc[cno].N_MGMT_COMMAND)(txunit, CMR_SETTRACE, TRACE_OFF);
 		}
 		rxunit = -1;
 		txunit = -1;
@@ -413,7 +416,7 @@ i4btrcclose(dev_t dev, int flag, int fmt, struct proc *p)
 	
 	if(cno >= 0)
 	{
-		ctrl_desc[cno].N_SET_TRACE(unit, TRACE_OFF);
+			(*ctrl_desc[cno].N_MGMT_COMMAND)(ctrl_desc[cno].unit, CMR_SETTRACE, TRACE_OFF);
 	}
 
 	x = SPLI4B();
@@ -494,33 +497,27 @@ i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	int error = 0;
 	int unit = minor(dev);
 	i4b_trace_setupa_t *tsa;
-	int i, cno = -1;
+	int i;
+	int cno = -1;
 
-	/* find the first passive controller to get at the set/get function
-	   pointers. Would be better if we had the controller class virtual
-	   function table separate from the port registry... */
+	/* find the first passive controller matching our unit no */
 
 	for(i=0; i < nctrl; i++)
 	{
-		if(ctrl_desc[i].N_SET_TRACE)
+		if((ctrl_desc[i].ctrl_type == CTRL_PASSIVE) &&
+			(ctrl_desc[i].unit == unit))
 		{
-			cno = i;	/* one suitable controller, might not */
-			break;		/* be related to the trace unit at all, but */
-		}			/* has the right function pointers */
+			cno = i;
+			break;
+		}
 	}
 	
 	switch(cmd)
 	{
-		case I4B_TRC_GET:
-			if(cno < 0)
-				return ENOTTY;
-			*(int *)data = ctrl_desc[cno].N_GET_TRACE(unit);
-			break;
-		
 		case I4B_TRC_SET:
 			if(cno < 0)
 				return ENOTTY;
-			ctrl_desc[cno].N_SET_TRACE(unit, *(int *)data);
+			(*ctrl_desc[cno].N_MGMT_COMMAND)(ctrl_desc[cno].unit, CMR_SETTRACE, (void *)*(unsigned int *)data);
 			break;
 
 		case I4B_TRC_SETA:
@@ -549,8 +546,8 @@ i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					
 				outunit = unit;
 				analyzemode = 1;
-				ctrl_desc[cno].N_SET_TRACE(rxunit, tsa->rxflags & (TRACE_I | TRACE_D_RX | TRACE_B_RX));
-				ctrl_desc[cno].N_SET_TRACE(txunit, tsa->txflags & (TRACE_I | TRACE_D_RX | TRACE_B_RX));
+				(*ctrl_desc[cno].N_MGMT_COMMAND)(rxunit, CMR_SETTRACE, (int *)(tsa->rxflags & (TRACE_I | TRACE_D_RX | TRACE_B_RX)));
+				(*ctrl_desc[cno].N_MGMT_COMMAND)(txunit, CMR_SETTRACE, (int *)(tsa->txflags & (TRACE_I | TRACE_D_RX | TRACE_B_RX)));
 			}
 			break;
 
