@@ -196,6 +196,7 @@ nsphy_service(sc, mii, cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
+	device_t parent;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -222,6 +223,8 @@ nsphy_service(sc, mii, cmd)
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
+
+		parent = device_get_parent(sc->mii_dev);
 
 		reg = PHY_READ(sc, MII_NSPHY_PCR);
 
@@ -256,16 +259,20 @@ nsphy_service(sc, mii, cmd)
 		 */
 		reg |= 0x0100 | 0x0400;
 
-		if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
-		    "fxp") == 0)
+		if (strcmp(device_get_name(parent), "fxp") == 0)
 			PHY_WRITE(sc, MII_NSPHY_PCR, reg);
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 			/*
-			 * If we're already in auto mode, just return.
+			 * If we're already in auto mode and don't hang off
+			 * of a hme(4), just return. DP83840A on hme(4) don't
+			 * advertise their media capabilities themselves
+			 * properly so force writing the ANAR according to
+			 * the BMSR by mii_phy_auto() every time.
 			 */
-			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
+			if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0 &&
+			    strcmp(device_get_name(parent), "hme") != 0)
 				return (0);
 			(void) mii_phy_auto(sc);
 			break;
