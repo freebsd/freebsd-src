@@ -291,6 +291,8 @@ set(int argc, char **argv)
 	ea = (u_char *)LLADDR(&sdl_m);
 	if (doing_proxy && !strcmp(eaddr, "auto")) {
 		if (!get_ether_addr(sin->sin_addr.s_addr, ea)) {
+			printf("no interface found for %s\n",
+			       inet_ntoa(sin->sin_addr));
 			return (1);
 		}
 		sdl_m.sdl_alen = 6;
