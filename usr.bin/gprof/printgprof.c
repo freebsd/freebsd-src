@@ -100,7 +100,7 @@ flatprofheader()
 	printblurb( _PATH_FLAT_BLURB );
     }
     printf( "\ngranularity: each sample hit covers %g byte(s)" ,
-	    scale * sizeof(UNIT) );
+	    scale * HISTORICAL_SCALE_2 );
     if ( totime > 0.0 ) {
 	printf( " for %.2f%% of %.2f seconds\n\n" ,
 		100.0/totime , totime / hz );
@@ -161,7 +161,7 @@ gprofheader()
 	printblurb( _PATH_CALLG_BLURB );
     }
     printf( "\ngranularity: each sample hit covers %g byte(s)" ,
-	    scale * sizeof(UNIT) );
+	    scale * HISTORICAL_SCALE_2 );
     if ( printtime > 0.0 ) {
 	printf( " for %.2f%% of %.2f seconds\n\n" ,
 		100.0/printtime , printtime / hz );
