@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.11 1995/03/16 18:16:14 bde Exp $
+ * $Id: disklabel.h,v 1.12 1995/04/15 22:46:28 bde Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -392,6 +392,20 @@ extern struct dos_partition dos_partitions[NDOSPART];
  * don't have enough bits, and cpio and tar don't notice the lossage.
  * There are also some sign extension bugs.
  */
+
+/*
+       3                   2                   1                   0
+     1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+    _________________________________________________________________
+    | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
+    -----------------------------------------------------------------
+    |      TYPE           | SLICE   |  MAJOR?       |  UNIT   |PART |
+    -----------------------------------------------------------------
+    |      TYPE     |PART2| SLICE   |  MAJOR?       |  UNIT   |PART | <-soon
+    -----------------------------------------------------------------
+
+	I want 3 more part bits (taken from 'TYPE' (useless as it is) (JRE)
+*/
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | ((unit) << 3) | (part))
 #define	dkminor(unit, part)	dkmakeminor((unit), 0, (part))
