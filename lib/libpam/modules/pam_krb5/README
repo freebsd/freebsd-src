@@ -36,8 +36,8 @@ dtlogin on Solaris doesn't support xrealm logins (probably a good thing).
 III. PAM notes/open issues
 
 auth module:
-When is pam_sm_setcred() ever called with flags other than PAM_ESTABLISH_CRED
-or PAM_DELETE_CRED?
+When is pam_sm_setcred() ever called with flags other than PAM_ESTABLISH_CRED?
+It would be fairly easy to support PAM_DELETE_CRED.
 
 acct module:
 I believe this to be complete.

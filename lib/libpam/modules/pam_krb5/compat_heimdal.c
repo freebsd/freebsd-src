@@ -28,17 +28,9 @@ compat_free_data_contents(krb5_context context, krb5_data *data)
 	krb5_xfree(data->data);
 }
 
-krb5_error_code
-compat_cc_next_cred(krb5_context context, const krb5_ccache id, 
-    krb5_cc_cursor *cursor, krb5_creds *creds)
-{
-	return krb5_cc_next_cred(context, id, creds, cursor);
-}
-
-
 static krb5_error_code
-heimdal_pam_prompter(krb5_context context, void *data, const char *banner, int 
-  num_prompts, krb5_prompt prompts[])
+heimdal_pam_prompter(krb5_context context, void *data, const char *name,
+    const char *banner, int num_prompts, krb5_prompt prompts[])
 {
     int		pam_prompts = num_prompts;
     int		pamret, i;
