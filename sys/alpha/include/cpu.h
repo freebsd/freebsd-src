@@ -81,7 +81,7 @@ struct clockframe {
 #define	CPU_ADJKERNTZ		7	/* int:	timezone offset	(seconds) */
 #define	CPU_DISRTCSET		8	/* int: disable resettodr() call */
 #define	CPU_WALLCLOCK		9	/* int:	indicates wall CMOS clock */
-#define	CPU_MAXID		9	/* 9 valid machdep IDs */
+#define	CPU_MAXID		10	/* valid machdep IDs */
 
 #define	CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
