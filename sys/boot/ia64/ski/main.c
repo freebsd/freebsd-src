@@ -44,6 +44,13 @@ extern char bootprog_maker[];
 struct ski_devdesc	currdev;	/* our current device */
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
+static int
+ski_autoload(void)
+{
+
+	return (0);
+}
+
 void
 ski_main(void)
 {
