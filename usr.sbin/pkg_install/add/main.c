@@ -163,7 +163,8 @@ main(int argc, char **argv)
 	usage();
     }
     /* Make sure the sub-execs we invoke get found */
-    setenv("PATH", "/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin", 1);
+    setenv("PATH", "/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin"
+	1);
 
     /* Set a reasonable umask */
     umask(022);
@@ -189,12 +190,17 @@ getpackagesite(void)
 	return sitepath;
     }
 
-    if (getenv("PACKAGEROOT"))
-	strcpy(sitepath, getenv("PACKAGEROOT"));
+    if (getenv("PACKAGEMIRROR"))
+	strcpy(sitepath, getenv("PACKAGEMIRROR"));
     else
 	strcpy(sitepath, "ftp://ftp.FreeBSD.org");
 
-    strcat(sitepath, "/pub/FreeBSD/ports/");
+    if (getenv("PACKAGEROOT"))
+	strcpy(sitepath, getenv("PACKAGEMIRRORROOT"));
+    else
+    	strcat(sitepath, "/pub");
+
+    strcat(sitepath, "/FreeBSD/ports/");
 
     uname(&u);
     strcat(sitepath, u.machine);
