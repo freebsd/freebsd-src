@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.62 1999/08/15 13:28:35 marcel Exp $
+ *  $Id: linux_misc.c,v 1.63 1999/08/15 17:28:39 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -573,6 +573,23 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
     if (p->p_retval[1] == 1)
 	p->p_retval[0] = 0;
     return 0;
+}
+
+int
+linux_vfork(struct proc *p, struct linux_vfork_args *args)
+{
+	int error;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): fork()\n", p->p_pid);
+#endif
+
+	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
+		return error;
+	/* Are we the child? */
+	if (p->p_retval[1] == 1)
+		p->p_retval[0] = 0;
+	return 0;
 }
 
 #define CLONE_VM	0x100
