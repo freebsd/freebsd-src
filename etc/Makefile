@@ -14,8 +14,8 @@ BIN1=   amd.map apmd.conf auth.conf \
 	phones printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
-	rc.syscons rc.sysctl remote rpc services shells sysctl.conf \
-	syslog.conf usbd.conf \
+	rc.subr rc.syscons rc.sysctl remote rpc services \
+	shells sysctl.conf syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
 	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	etc.${MACHINE_ARCH}/ttys \
@@ -80,6 +80,7 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
 	( cd ${.CURDIR}/periodic; ${MAKE} install ); \
+	( cd ${.CURDIR}/rc.d; ${MAKE} install ); \
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
