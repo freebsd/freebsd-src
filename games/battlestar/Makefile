@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	battlestar
 SRCS=	battlestar.c com1.c com2.c com3.c com4.c com5.c com6.c com7.c \
@@ -11,7 +12,9 @@ HIDEGAME=hidegame
 #CFLAGS+= -Wall -W
 
 beforeinstall:
+.if !exists(${DESTDIR}/var/games/battlestar.log)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/battlestar.log
+.endif
 
 .include <bsd.prog.mk>
