@@ -253,16 +253,16 @@ GTFILES_LANG_DIR_NAMES+=	f
 .for L in ${GTFILES_LANG_DIR_NAMES} c
 .if exists(${GCCDIR}/$L-config-lang.in)
 # Source the language config file
-$L_GTFILES!=	sh -c '. ${GCCDIR}/$L-config-lang.in; echo $$gtfiles'
+L_GTFILES!=	sh -c '. ${GCCDIR}/$L-config-lang.in; echo $$gtfiles'
 .else
-$L_GTFILES!=	sh -c '. ${GCCDIR}/$L/config-lang.in; echo $$gtfiles'
+L_GTFILES!=	sh -c '. ${GCCDIR}/$L/config-lang.in; echo $$gtfiles'
 .endif
-GTFILES+=	${$L_GTFILES}
-.for F in ${$L_GTFILES}
+.for F in ${L_GTFILES}
 GTFILES_FILES+=	$F
 GTFILES_LANGS+= $L
 .endfor
 .endfor
+GTFILES+=	${GTFILES_FILES}
 
 #-----------------------------------------------------------------------
 # the host/target compiler config.
