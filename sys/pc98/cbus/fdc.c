@@ -198,8 +198,6 @@ typedef	struct fd_data *fd_p;
 typedef struct fdc_data *fdc_p;
 typedef enum fdc_type fdc_t;
 
-#define FDNUMTOUNIT(n)	(((n) & 3) << 6)
-
 /*
  * fdc maintains a set (1!) of ivars per child of each controller.
  */
