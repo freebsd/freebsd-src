@@ -144,6 +144,9 @@ static struct cdevsw ucom_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     D_TTY | D_KQFILTER,
+#if __FreeBSD_version < 500014
+	/* bmaj */	-1,
+#endif
 	/* kqfilter */	ttykqfilter,
 };
 
