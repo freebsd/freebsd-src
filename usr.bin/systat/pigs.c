@@ -125,7 +125,7 @@ showpigs()
 		wmove(wnd, y, 0);
 		wclrtoeol(wnd);
 		mvwaddstr(wnd, y, 0, uname);
-		sprintf(pidname, "%10.10s", pname, 0);
+		sprintf(pidname, "%10.10s", pname);
 		mvwaddstr(wnd, y, 9, pidname);
 		wmove(wnd, y, 20);
 		for (j = pt[k].pt_pctcpu*factor + 0.5; j > 0; j--)
