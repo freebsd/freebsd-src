@@ -397,8 +397,11 @@ p_sockaddr(sa, mask, flags, width)
 	    {
 		register struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-		if (sin->sin_addr.s_addr == INADDR_ANY)
-			cp = "default";
+		if ((sin->sin_addr.s_addr == INADDR_ANY) &&
+			mask &&
+			ntohl(((struct sockaddr_in *)mask)->sin_addr.s_addr)
+				==0L)
+				cp = "default" ;
 		else if (flags & RTF_HOST)
 			cp = routename(sin->sin_addr.s_addr);
 		else if (mask)
