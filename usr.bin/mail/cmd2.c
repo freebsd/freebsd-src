@@ -369,7 +369,7 @@ core()
 	int pid;
 	extern union wait wait_status;
 
-	switch (pid = vfork()) {
+	switch (pid = fork()) {
 	case -1:
 		perror("fork");
 		return(1);
