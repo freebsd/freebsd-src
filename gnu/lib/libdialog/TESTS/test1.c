@@ -13,7 +13,7 @@
  * nor does the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id$
+ * $Id: test1.c,v 1.1 1995/12/23 01:10:32 jkh Exp $
  */
 
 #include <stdio.h>
@@ -23,9 +23,13 @@
 #include <sys/wait.h>
 #include <dialog.h>
 
-static enum { nowhere, berlin, rome, ny } where;
+#define IVAL	0	/* Time so sleep between stages */
 
-#define IVAL	0
+
+/* Private routines and the menu declarations that use them reside in this section */
+
+/* Callbacks for menu1 */
+static enum { nowhere, berlin, rome, ny } where;
 
 static int
 _menu1_berlin_action(dialogMenuItem *self)
@@ -87,13 +91,16 @@ _menu1_ny_action(dialogMenuItem *self)
   return st;
 }
 
+/* menu1 - show off the "fire" action hook */
 static dialogMenuItem menu1[] = {
   { "Berlin", "Go visit Germany's new capitol", NULL, _menu1_berlin_action },
   { "Rome", "Go visit the Roman ruins", NULL, _menu1_rome_action },
   { "New York", "Go visit the streets of New York", NULL, _menu1_ny_action },
 };
 
-int
+
+/* Callbacks for menu2 */
+static int
 getBool(dialogMenuItem *self)
 {
   if (self->data && *((int *)self->data))
@@ -101,7 +108,8 @@ getBool(dialogMenuItem *self)
   return FALSE;
 }
 
-int setBool(dialogMenuItem *self)
+static int
+setBool(dialogMenuItem *self)
 {
   if (self->data) {
     *((int *)self->data) = !*((int *)self->data);
@@ -113,13 +121,25 @@ int setBool(dialogMenuItem *self)
 static int german_book, italian_book, slang_book;
 static int spending;
 
-int clearBooks(dialogMenuItem *self)
+static int
+clearBooks(dialogMenuItem *self)
 {
   german_book = italian_book = slang_book = FALSE;
   return DITEM_REDRAW;
 }
 
-int buyBooks(dialogMenuItem *self)
+/* menu2 - A more advanced way of using checked and fire hooks to manipulate the backing-variables directly */
+static dialogMenuItem menu2[] = {
+  { "German", "Buy book on learning German", getBool, setBool, &german_book},
+  { "Italian", "Buy book on learning Italian", getBool, setBool, &italian_book },
+  { "Slang", "Buy book on commonly used insults", getBool, setBool, &slang_book },
+  { "Clear", "Clear book list", NULL, clearBooks, NULL, ' ', ' ', ' ' },
+};
+
+
+/* Callbacks for menu3 */
+static int
+buyBooks(dialogMenuItem *self)
 {
   char foo[256];
 
@@ -134,33 +154,32 @@ int buyBooks(dialogMenuItem *self)
   return DITEM_SUCCESS;
 }
 
-int check(dialogMenuItem *self)
+/* menu3 - Look mom!  We can finally use our own OK and Cancel buttons! */
+static dialogMenuItem menu3[] = {
+  { "Buy!", NULL, NULL, buyBooks },	/* This is the new "OK" button with own fire action */
+  { "No Way!", NULL, NULL, NULL },	/* This is the new "Cancel" button with defaults */
+  { "German", "Buy books on learning German",	getBool, setBool, &german_book},	/* Actual items start here */
+  { "Italian", "Buy books on learning Italian",	getBool, setBool, &italian_book },
+  { "Slang", "Buy books on commonly used insults", getBool, setBool, &slang_book },
+  { "Clear", "Clear book list",			NULL,	clearBooks, NULL },
+};
+
+
+/* Callbacks for menu4 and menu5 */
+static int
+check(dialogMenuItem *self)
 {
   return ((int)self->data == spending);
 }
 
-int spend(dialogMenuItem *self)
+static int
+spend(dialogMenuItem *self)
 {
   spending = (int)self->data;
   return DITEM_REDRAW;
 }
 
-static dialogMenuItem menu2[] = {
-  { "German", "Buy book on learning German", getBool, setBool, &german_book},
-  { "Italian", "Buy book on learning Italian", getBool, setBool, &italian_book },
-  { "Slang", "Buy book on commonly used insults", getBool, setBool, &slang_book },
-  { "Clear", "Clear book list", NULL, clearBooks, NULL },
-};
-
-static dialogMenuItem menu3[] = {
-  { "Buy!", NULL, NULL, buyBooks },
-  { "No Way!", NULL, NULL, NULL },
-  { "German", "Buy books on learning German", getBool, setBool, &german_book},
-  { "Italian", "Buy books on learning Italian", getBool, setBool, &italian_book },
-  { "Slang", "Buy books on commonly used insults", getBool, setBool, &slang_book },
-  { "Clear", "Clear book list", NULL, clearBooks, NULL },
-};
-
+/* menu4 - Show off a simulated compound menu (group at top is checklist, group at bottom radio) */
 static dialogMenuItem menu4[] = {
   { "German", "Buy books on learning German", getBool, setBool, &german_book},
   { "Italian", "Buy books on learning Italian", getBool, setBool, &italian_book },
@@ -171,12 +190,57 @@ static dialogMenuItem menu4[] = {
   { "100", "Spend $100", check, spend, (void *)100, '(', '*', ')' },
 };
 
+/* menu5 - Show a simple radiolist menu that inherits the radio appearance by default */
 static dialogMenuItem menu5[] = {
   { "1000", "Spend $1,000", check, spend, (void *)1000 },
   { "500", "Spend $500", check, spend, (void *)500 },
   { "100", "Spend $100", check, spend, (void *)100 },
 };
 
+
+/* Callbacks for menu6 */
+static char bachelor[10], bachelette[10];
+
+static int
+getBachelor(dialogMenuItem *self)
+{
+  return !strcmp(bachelor, self->prompt);
+}
+
+static int
+setBachelor(dialogMenuItem *self)
+{
+  strcpy(bachelor, self->prompt);
+  return DITEM_REDRAW;
+}
+
+static int
+getBachelette(dialogMenuItem *self)
+{
+  return !strcmp(bachelette, self->prompt);
+}
+
+static int
+setBachelette(dialogMenuItem *self)
+{
+  strcpy(bachelette, self->prompt);
+  return DITEM_REDRAW;
+}
+
+/* menu6- More complex radiolist menu that creates two groups in a single menu */
+static dialogMenuItem menu6[] = {
+  { "Tom", "Tom's a dynamic shoe salesman from Tulsa, OK!", getBachelor, setBachelor },
+  { "Dick", "Dick's a retired engine inspector from McDonnell-Douglas!", getBachelor, setBachelor },
+  { "Harry", "Harry's a professional female impersonator from Las Vegas!", getBachelor, setBachelor },
+  { "-----", "----------------------------------", NULL, NULL, NULL, ' ', ' ', ' ' },
+  { "Jane", "Jane's a twice-divorced housewife from Moose, Oregon!", getBachelette, setBachelette },
+  { "Sally", "Sally's a shy Human Resources Manager for IBM!", getBachelette, setBachelette },
+  { "Mary", "Mary's an energetic serial killer on the lam!", getBachelette, setBachelette },
+};
+
+/* End of hook functions */
+
+/* Kick it off, James! */
 int
 main(int argc, unsigned char *argv[])
 {
@@ -191,24 +255,27 @@ main(int argc, unsigned char *argv[])
   fprintf(stderr, "returned value for dialog_yesno was %d\n", retval);
   sleep(IVAL);
 
-  retval = dialog_msgbox("This is dialog_msgbox() in action with pause on", "This is a multiple\nline message.",
+  retval = dialog_msgbox("This is dialog_msgbox() in action with pause on", "Hi there.  Please press return now.",
 			 -1, -1, 1);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_msgbox was %d\n", retval);
   sleep(IVAL);
 
-  retval = dialog_msgbox("This is dialog_msgbox() in action", "This is a multiple\nline message.",
+  retval = dialog_msgbox("This is dialog_msgbox() in action with pause off",
+			 "It also contains\n"
+			 "a multiple line\n"
+			 "message.",
 			 -1, -1, 0);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_msgbox was %d\n", retval);
   sleep(IVAL);
 
-  retval = dialog_prgbox("This is dialog_prgbox() in action", "cal", 14, 40, TRUE, TRUE);
+  retval = dialog_prgbox("This is dialog_prgbox() in action with cal(1)", "cal", 14, 50, TRUE, TRUE);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_prgbox was %d\n", retval);
   sleep(IVAL);
 
-  retval = dialog_textbox("This is dialog_textbox() in action", "/etc/passwd", 10, 50);
+  retval = dialog_textbox("This is dialog_textbox() in action with /etc/passwd", "/etc/passwd", 10, 60);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_textbox was %d\n", retval);
   sleep(IVAL);
@@ -224,7 +291,7 @@ main(int argc, unsigned char *argv[])
 			    "this checklist menu shows off some of the straight-forward features\n"
 			    "of the new menu system's check & fire dispatch hooks", -1, -1, 4, -4, &menu2, NULL);
   dialog_clear();
-  fprintf(stderr, "returned value for dialog_checklist was %d\n", retval);
+  fprintf(stderr, "returned value for dialog_checklist was %d (%d %d %d)\n", retval, german_book, italian_book, slang_book);
   sleep(IVAL);
 
   retval = dialog_checklist("this is dialog_checklist() in action, trial #2",
@@ -235,7 +302,7 @@ main(int argc, unsigned char *argv[])
   sleep(IVAL);
 
   retval = dialog_checklist("this is dialog_checklist() in action, trial #3",
-			    "Now we show off some of the button 'styles' one could use.",
+			    "Now we show off some of the button 'styles' one can create.",
 			    -1, -1, 7, -7, menu4, NULL);
   dialog_clear();
   fprintf(stderr, "spent $%d on %s%s%s books\n", spending, german_book ? " german" : "",
@@ -247,6 +314,15 @@ main(int argc, unsigned char *argv[])
 			    "of the new menu system's check & fire dispatch hooks", -1, -1, 3, -3, &menu5, NULL);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_radiolist was %d (money set to %d)\n", retval, spending);
+  sleep(IVAL);
+
+  retval = dialog_radiolist("this is dialog_radiolist() in action, trial #2",
+			    "Welcome to \"The Love Blender!\" - America's favorite game show\n"
+			    "where YOU, the contestant, get to choose which of these two\n"
+			    "fine specimens of humanity will go home together, whether they\n"
+			    "like it or not!", -1, -1, 7, -7, &menu6, NULL);
+  dialog_clear();
+  fprintf(stderr, "I'm sure that %s and %s will be very happy together!\n", bachelor, bachelette);
   sleep(IVAL);
 
   end_dialog();
