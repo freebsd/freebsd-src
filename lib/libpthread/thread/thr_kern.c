@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,7 +135,7 @@ static void	kse_sched_single(struct kse *curkse);
 static void	kse_switchout_thread(struct kse *kse, struct pthread *thread);
 static void	kse_wait(struct kse *kse, struct pthread *td_wait);
 static void	kse_free_unlocked(struct kse *kse);
-static void	kseg_free(struct kse_group *kseg);
+static void	kseg_free_unlocked(struct kse_group *kseg);
 static void	kseg_init(struct kse_group *kseg);
 static void	kseg_reinit(struct kse_group *kseg);
 static void	kse_waitq_insert(struct pthread *thread);
@@ -404,7 +405,7 @@ _kse_lock_wait(struct lock *lock, struct lockuser *lu)
 		 * is granted.
 		 */
 		saved_flags = curkse->k_mbx.km_flags;
-		curkse->k_mbx.km_flags |= KMF_NOUPCALL;
+		curkse->k_mbx.km_flags |= KMF_NOUPCALL | KMF_NOCOMPLETED;
 		kse_release(&ts);
 		curkse->k_mbx.km_flags = saved_flags;
 
@@ -703,6 +704,9 @@ kse_sched_multi(struct kse *curkse)
 	struct pthread_sigframe *curframe;
 	int ret;
 
+	THR_ASSERT(curkse->k_mbx.km_curthread == NULL,
+	    "Mailbox not null in kse_sched_multi");
+
 	/* Check for first time initialization: */
 	if ((curkse->k_flags & KF_INITIALIZED) == 0) {
 		/* Setup this KSEs specific data. */
@@ -714,8 +718,10 @@ kse_sched_multi(struct kse *curkse)
 	}
 
 	/* This may have returned from a kse_release(). */
-	if (KSE_WAITING(curkse))
+	if (KSE_WAITING(curkse)) {
+		DBG_MSG("Entered upcall when KSE is waiting.");
 		KSE_CLEAR_WAIT(curkse);
+	}
 
 	/* Lock the scheduling lock. */
 	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
@@ -1067,7 +1073,7 @@ _thr_gc(struct pthread *curthread)
 			crit = _kse_critical_enter();
 			KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
 			kse_free_unlocked(td->kse);
-			kseg_free(td->kseg);
+			kseg_free_unlocked(td->kseg);
 			KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
 			_kse_critical_leave(crit);
 		}
@@ -1080,12 +1086,13 @@ _thr_gc(struct pthread *curthread)
 /*
  * Only new threads that are running or suspended may be scheduled.
  */
-void
+int
 _thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
 {
 	struct kse *curkse;
 	kse_critical_t crit;
 	int need_start;
+	int ret;
 
 	/*
 	 * If this is the first time creating a thread, make sure
@@ -1106,6 +1113,7 @@ _thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
 		KSEG_THRQ_ADD(newthread->kseg, newthread);
 		TAILQ_INSERT_TAIL(&newthread->kseg->kg_kseq, newthread->kse,
 		    k_kgqe);
+		newthread->kseg->kg_ksecount = 1;
 		if (newthread->state == PS_RUNNING)
 			THR_RUNQ_INSERT_TAIL(newthread);
 		newthread->kse->k_curthread = NULL;
@@ -1119,7 +1127,9 @@ _thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
 		curkse = _get_curkse();
 		_ksd_setprivate(&newthread->kse->k_ksd);
 		newthread->kse->k_flags |= KF_INITIALIZED;
-		kse_create(&newthread->kse->k_mbx, 1);
+		ret = kse_create(&newthread->kse->k_mbx, 1);
+		if (ret != 0)
+			ret = errno;
 		_ksd_setprivate(&curkse->k_ksd);
 		_kse_critical_leave(crit);
 	}
@@ -1156,7 +1166,9 @@ _thr_schedule_add(struct pthread *curthread, struct pthread *newthread)
 			 */
 			KSE_WAKEUP(newthread->kse);
 		}
+		ret = 0;
 	}
+	return (ret);
 }
 
 void
@@ -1420,13 +1432,13 @@ kse_wait(struct kse *kse, struct pthread *td_wait)
 	KSE_GET_TOD(kse, &ts);
 
 	if ((td_wait == NULL) || (td_wait->wakeup_time.tv_sec < 0)) {
-		/* Limit sleep to no more than 2 minutes. */
-		ts_sleep.tv_sec = 120;
+		/* Limit sleep to no more than 1 minute. */
+		ts_sleep.tv_sec = 60;
 		ts_sleep.tv_nsec = 0;
 	} else {
 		TIMESPEC_SUB(&ts_sleep, &td_wait->wakeup_time, &ts);
-		if (ts_sleep.tv_sec > 120) {
-			ts_sleep.tv_sec = 120;
+		if (ts_sleep.tv_sec > 60) {
+			ts_sleep.tv_sec = 60;
 			ts_sleep.tv_nsec = 0;
 		}
 	}
@@ -1462,6 +1474,7 @@ kse_fini(struct kse *kse)
 		/* Remove this KSE from the KSEG's list of KSEs. */
 		KSE_SCHED_LOCK(kse, kse->k_kseg);
 		TAILQ_REMOVE(&kse->k_kseg->kg_kseq, kse, k_kgqe);
+		kse->k_kseg->kg_ksecount--;
 		if (TAILQ_EMPTY(&kse->k_kseg->kg_kseq))
 			free_kseg = kse->k_kseg;
 		KSE_SCHED_UNLOCK(kse, kse->k_kseg);
@@ -1472,7 +1485,7 @@ kse_fini(struct kse *kse)
 		 */
 		KSE_LOCK_ACQUIRE(kse, &kse_lock);
 		if (free_kseg != NULL)
-			kseg_free(free_kseg);
+			kseg_free_unlocked(free_kseg);
 		kse_free_unlocked(kse);
 		KSE_LOCK_RELEASE(kse, &kse_lock);
 		kse_exit();
@@ -1491,14 +1504,11 @@ kse_fini(struct kse *kse)
 		if ((active_kse_count > 1) &&
 		    (kse->k_kseg->kg_threadcount == 0)) {
 			KSE_SCHED_UNLOCK(kse, kse->k_kseg);
-			/*
-			 * XXX - We need a way for the KSE to do a timed
-			 *       wait.
-			 */
 			kse_release(&ts);
 			/* The above never returns. */
 		}
-		KSE_SCHED_UNLOCK(kse, kse->k_kseg);
+		else
+			KSE_SCHED_UNLOCK(kse, kse->k_kseg);
 
 		/* There are no more threads; exit this process: */
 		if (kse->k_kseg->kg_threadcount == 0) {
@@ -1708,12 +1718,26 @@ _kseg_alloc(struct pthread *curthread)
  * no more threads that reference it.
  */
 static void
-kseg_free(struct kse_group *kseg)
+kseg_free_unlocked(struct kse_group *kseg)
 {
 	TAILQ_REMOVE(&active_kse_groupq, kseg, kg_qe);
 	TAILQ_INSERT_HEAD(&free_kse_groupq, kseg, kg_qe);
 	free_kseg_count++;
 	active_kseg_count--;
+}
+
+void
+_kseg_free(struct kse_group *kseg)
+{
+	struct kse *curkse;
+	kse_critical_t crit;
+
+	crit = _kse_critical_enter();
+	curkse = _get_curkse();
+	KSE_LOCK_ACQUIRE(curkse, &kse_lock);
+	kseg_free_unlocked(kseg);
+	KSE_LOCK_RELEASE(curkse, &kse_lock);
+	_kse_critical_leave(crit);
 }
 
 /*
@@ -1747,8 +1771,8 @@ _kse_alloc(struct pthread *curthread)
 		if (kse != NULL) {
 			TAILQ_REMOVE(&free_kseq, kse, k_qe);
 			free_kse_count--;
-			active_kse_count++;
 			TAILQ_INSERT_TAIL(&active_kseq, kse, k_qe);
+			active_kse_count++;
 		}
 		KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
 		_kse_critical_leave(crit);
@@ -1817,8 +1841,8 @@ _kse_alloc(struct pthread *curthread)
 			return (NULL);
 		}
 		kse->k_flags = 0;
-		active_kse_count++;
 		TAILQ_INSERT_TAIL(&active_kseq, kse, k_qe);
+		active_kse_count++;
 		if (curthread != NULL) {
 			KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
 			_kse_critical_leave(crit);
@@ -1830,6 +1854,7 @@ _kse_alloc(struct pthread *curthread)
 void
 kse_free_unlocked(struct kse *kse)
 {
+	TAILQ_REMOVE(&active_kseq, kse, k_qe);
 	active_kse_count--;
 	kse->k_kseg = NULL;
 	kse->k_flags &= ~KF_INITIALIZED;
@@ -1868,6 +1893,7 @@ kseg_reinit(struct kse_group *kseg)
 	TAILQ_INIT(&kseg->kg_threadq);
 	TAILQ_INIT(&kseg->kg_schedq.sq_waitq);
 	kseg->kg_threadcount = 0;
+	kseg->kg_ksecount = 0;
 	kseg->kg_idle_kses = 0;
 	kseg->kg_flags = 0;
 }

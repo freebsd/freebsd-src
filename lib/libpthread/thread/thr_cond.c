@@ -373,6 +373,8 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int	unlock_mutex = 1;
 	int	seqno;
 
+	THR_ASSERT(curthread->locklevel == 0,
+	    "cv_timedwait: locklevel is not zero!");
 	_thr_enter_cancellation_point(curthread);
 
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
@@ -575,6 +577,8 @@ _pthread_cond_signal(pthread_cond_t * cond)
 	struct pthread	*pthread;
 	int		rval = 0;
 
+	THR_ASSERT(curthread->locklevel == 0,
+	    "cv_timedwait: locklevel is not zero!");
 	if (cond == NULL)
 		rval = EINVAL;
        /*
@@ -632,6 +636,8 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 	struct pthread	*pthread;
 	int		rval = 0;
 
+	THR_ASSERT(curthread->locklevel == 0,
+	    "cv_timedwait: locklevel is not zero!");
 	if (cond == NULL)
 		rval = EINVAL;
        /*
