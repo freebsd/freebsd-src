@@ -125,7 +125,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1 || *username == '+' || *username == '-')
+	if (argc != 1 || (username && (*username == '+' || *username == '-')))
 		usage();
 
 	/*
