@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.67 1995/11/04 11:42:32 jkh Exp $
+ * $Id: install.c,v 1.71.2.68 1995/11/04 12:02:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -582,6 +582,12 @@ installFilesystems(char *str)
 
     /* As the very first thing, try to get ourselves some swap space */
     sprintf(dname, "/dev/%s", swapdev->name);
+    if (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname)) {
+	dialog_clear();
+	msgConfirm("Unable to make device node for %s in /dev!\n"
+		   "The creation of filesystems will be aborted.", dname);
+	return RET_FAIL;
+    }
     if (!swapon(dname))
 	msgNotify("Added %s as initial swap device", dname);
     else
@@ -591,11 +597,10 @@ installFilesystems(char *str)
 
     /* Next, create and/or mount the root device */
     sprintf(dname, "/dev/r%sa", rootdev->disk->name);
-
     if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
 	dialog_clear();
 	msgConfirm("Unable to make device node for %s in /dev!\n"
-		   "The writing of filesystems will be aborted.", dname);
+		   "The creation of filesystems will be aborted.", dname);
 	return RET_FAIL;
     }
 
