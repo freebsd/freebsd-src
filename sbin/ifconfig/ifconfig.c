@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.40 1999/06/06 09:17:30 phk Exp $";
+	"$Id: ifconfig.c,v 1.41 1999/06/19 18:42:19 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -758,10 +758,6 @@ status(afp, addrcount, sdl, ifm, ifam)
 		printf(" mtu %d", mtu);
 	putchar('\n');
 
-	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
-	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
-		printf("%s", ifs.ascii);
-
 	while (addrcount > 0) {
 		
 		info.rti_addrs = ifam->ifam_addrs;
@@ -806,6 +802,10 @@ status(afp, addrcount, sdl, ifm, ifam)
 	if (allfamilies || afp->af_status == vlan_status)
 		vlan_status(s, NULL);
 #endif
+	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
+	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
+		printf("%s", ifs.ascii);
+
 	if (!allfamilies && !p && afp->af_status != media_status &&
 	    afp->af_status != ether_status && afp->af_status != vlan_status)
 		warnx("%s has no %s interface address!", name, afp->af_name);
