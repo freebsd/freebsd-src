@@ -12,7 +12,7 @@
 #
 #  3) If no label has been found, use MYADDR if it exists.
 #
-# $Id: ppp.linkup.sample,v 1.5 1997/02/23 09:21:11 peter Exp $
+# $Id: ppp.linkup.sample,v 1.6 1997/02/23 14:04:23 brian Exp $
 #
 #########################################################################
 
@@ -39,11 +39,16 @@ MYADDR:
 # as our default gateway.
 # This is vital if you don't already know either sides IP number.
 #
+# We create a loopback route to ourselves so that we can "ping"
+# our side of the connection
+#
 # We also want to execute a script on startup.  This script can do
 # nice things such as kick off "sendmail -q", "popclient my.isp" and
-# "slurp -d news".
+# "slurp -d news".  It can be passed MYADDR, HISADDR and INTERFACE
+# too - useful for informing a DNS.
 #
 pmdemand:
  delete ALL
  add 0 0 HISADDR
+ add MYADDR 255.255.255.255 127.0.0.1
  ! sh -c "/etc/ppp/ppp.etherup.pmdemand &"
