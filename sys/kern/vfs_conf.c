@@ -61,6 +61,16 @@ MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 
 struct vnode	*rootvnode;
 
+/* 
+ * The root specifiers we will try if RB_CDROM is specified.
+ */
+static char *cdrom_rootdevnames[] = {
+	"cd9660:cd0a",
+	"cd9660:acd0a",
+	"cd9660:wcd0a",
+	NULL
+};
+
 static void	vfs_mountroot(void *junk);
 static int	vfs_mountroot_try(char *mountfrom);
 static int	vfs_mountroot_ask(void);
@@ -78,6 +88,8 @@ SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_SECOND, vfs_mountroot, NULL);
 static void
 vfs_mountroot(void *junk)
 {
+	int		i;
+	
 	/* 
 	 * The root filesystem information is compiled in, and we are
 	 * booted with instructions to use it.
@@ -94,6 +106,18 @@ vfs_mountroot(void *junk)
 	if (boothowto & (RB_DFLTROOT | RB_ASKNAME)) {
 		if (!vfs_mountroot_ask())
 			return;
+	}
+
+	/*
+	 * We've been given the generic "use CDROM as root" flag.  This is
+	 * necessary because one media may be used in many different
+	 * devices, so we need to search for them.
+	 */
+	if (boothowto & RB_CDROM) {
+		for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
+			if (!vfs_mountroot_try(cdrom_rootdevnames[i]))
+				return;
+		}
 	}
 
 	/*
