@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.27 1997/02/22 09:47:51 peter Exp $
+ * $Id: ufs_readwrite.c,v 1.28 1997/03/03 16:23:02 bde Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -311,7 +311,7 @@ WRITE(ap)
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-		tv = time;
+		gettime(&tv);
 		error = VOP_UPDATE(vp, &tv, &tv, 1);
 	}
 	return (error);

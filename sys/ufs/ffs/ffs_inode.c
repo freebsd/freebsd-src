@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id$
+ * $Id: ffs_inode.c,v 1.25 1997/02/22 09:47:03 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -183,7 +183,7 @@ ffs_truncate(ap)
 		return (EINVAL);
 	if (length > fs->fs_maxfilesize)
 		return (EFBIG);
-	tv = time;
+	gettime(&tv);
 	if (ovp->v_type == VLNK &&
 	    (oip->i_size < ovp->v_mount->mnt_maxsymlinklen || oip->i_din.di_blocks == 0)) {
 #ifdef DIAGNOSTIC

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.42 1997/02/22 09:42:46 peter Exp $
+ * $Id: nfs_vnops.c,v 1.43 1997/02/28 17:56:27 bde Exp $
  */
 
 
@@ -3234,13 +3234,15 @@ nfsspec_read(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
+	struct timeval tv;
 
 	/*
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	np->n_atim.tv_sec = time.tv_sec;
-	np->n_atim.tv_nsec = time.tv_usec * 1000;
+	gettime(&tv);
+	np->n_atim.tv_sec = tv.tv_sec;
+	np->n_atim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -3257,13 +3259,15 @@ nfsspec_write(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
+	struct timeval tv;
 
 	/*
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	np->n_mtim.tv_sec = time.tv_sec;
-	np->n_mtim.tv_nsec = time.tv_usec * 1000;
+	gettime(&tv);
+	np->n_mtim.tv_sec = tv.tv_sec;
+	np->n_mtim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap));
 }
 
@@ -3313,13 +3317,15 @@ nfsfifo_read(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
+	struct timeval tv;
 
 	/*
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	np->n_atim.tv_sec = time.tv_sec;
-	np->n_atim.tv_nsec = time.tv_usec * 1000;
+	gettime(&tv);
+	np->n_atim.tv_sec = tv.tv_sec;
+	np->n_atim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -3336,13 +3342,15 @@ nfsfifo_write(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
+	struct timeval tv;
 
 	/*
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	np->n_mtim.tv_sec = time.tv_sec;
-	np->n_mtim.tv_nsec = time.tv_usec * 1000;
+	gettime(&tv);
+	np->n_mtim.tv_sec = tv.tv_sec;
+	np->n_mtim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap));
 }
 
@@ -3362,16 +3370,18 @@ nfsfifo_close(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
+	struct timeval tv;
 	struct vattr vattr;
 
 	if (np->n_flag & (NACC | NUPD)) {
+		gettime(&tv);
 		if (np->n_flag & NACC) {
-			np->n_atim.tv_sec = time.tv_sec;
-			np->n_atim.tv_nsec = time.tv_usec * 1000;
+			np->n_atim.tv_sec = tv.tv_sec;
+			np->n_atim.tv_nsec = tv.tv_usec * 1000;
 		}
 		if (np->n_flag & NUPD) {
-			np->n_mtim.tv_sec = time.tv_sec;
-			np->n_mtim.tv_nsec = time.tv_usec * 1000;
+			np->n_mtim.tv_sec = tv.tv_sec;
+			np->n_mtim.tv_nsec = tv.tv_usec * 1000;
 		}
 		np->n_flag |= NCHG;
 		if (vp->v_usecount == 1 &&
