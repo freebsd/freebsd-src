@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic_p.c,v 1.10 1999/04/24 20:14:03 peter Exp $
+ * $Id: pcic_p.c,v 1.11 1999/05/02 05:53:50 nate Exp $
  */
 
 #include "pci.h"
@@ -57,11 +57,7 @@ static struct pci_device pcic_pci_driver = {
 	NULL
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER(pcic_pci, pcic_pci_driver);
-#else
-DATA_SET(pcidevice_set, pcic_pci_driver);
-#endif /* COMPAT_PCI_DRIVER */
 
 /*
  * Return the ID string for the controller if the vendor/product id

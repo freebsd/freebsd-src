@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpm.c,v 1.2 1999/04/24 20:13:58 peter Exp $
+ *	$Id: alpm.c,v 1.3 1999/05/08 21:59:37 dfr Exp $
  *
  */
 
@@ -205,11 +205,7 @@ static struct	pci_device alpm_device = {
 	&alpm_count
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (alpm, alpm_device);
-#else
-DATA_SET (pcidevice_set, alpm_device);
-#endif /* COMPAT_PCI_DRIVER */
 
 static const char*
 alpm_pci_probe(pcici_t tag, pcidi_t type)
