@@ -517,7 +517,7 @@ Static void umass_cam_quirk_cb	(struct umass_softc *sc, void *priv,
 
 Static void umass_cam_rescan_callback
 				(struct cam_periph *periph,union ccb *ccb);
-Static void umass_cam_rescan	(struct umass_softc *sc);
+Static void umass_cam_rescan	(void *addr);
 
 Static int umass_cam_attach_sim	(void);
 Static int umass_cam_attach	(struct umass_softc *sc);
@@ -2097,8 +2097,13 @@ umass_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 }
 
 Static void
-umass_cam_rescan(struct umass_softc *sc)
+umass_cam_rescan(void *addr)
 {
+	/* Note: The sc is only passed in for debugging prints. If the device
+	 * is disconnected before umass_cam_rescan has been able to run the
+	 * driver might bomb.
+	 */
+	struct umass_softc *sc = (struct umass_softc *) addr;
 	struct cam_path *path;
 	union ccb *ccb = malloc(sizeof(union ccb), M_USBDEV, M_WAITOK);
 
@@ -2155,7 +2160,11 @@ umass_cam_attach(struct umass_softc *sc)
 		 * after booting has completed, when interrupts have been
 		 * enabled.
 		 */
-		umass_cam_rescan(sc);
+
+		/* XXX This will bomb if the driver is unloaded between attach
+		 * and execution of umass_cam_rescan.
+		 */
+		timeout(umass_cam_rescan, sc, MS_TO_TICKS(200));
 	}
 
 	return(0);	/* always succesfull */
