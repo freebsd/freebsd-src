@@ -5,6 +5,8 @@
  * Created: Sat Mar 18 22:15:47 1995 ylo
  * Code to connect to a remote host, and to perform the client side of the
  * login (authentication) dialog.
+ * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -1085,9 +1087,11 @@ check_host_key(char *host, struct sockaddr *hostaddr, RSA *host_key)
 	case AF_INET:
 		local = (ntohl(((struct sockaddr_in *)hostaddr)->sin_addr.s_addr) >> 24) == IN_LOOPBACKNET;
 		break;
+#ifdef INET6
 	case AF_INET6:
 		local = IN6_IS_ADDR_LOOPBACK(&(((struct sockaddr_in6 *)hostaddr)->sin6_addr));
 		break;
+#endif
 	default:
 		local = 0;
 		break;

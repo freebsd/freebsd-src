@@ -11,6 +11,7 @@
  * 
  * Generic header file for ssh.
  * 
+ * $FreeBSD$
  */
 
 /* RCSID("$Id: ssh.h,v 1.33 2000/02/01 22:32:53 d Exp $"); */
@@ -61,7 +62,7 @@
  */
 #define SSH_SERVICE_NAME	"ssh"
 
-#define ETCDIR			"/etc"
+#define ETCDIR			"__PREFIX__/etc"
 #define PIDDIR			"/var/run"
 
 /*
@@ -78,7 +79,7 @@
 #define SERVER_CONFIG_FILE	ETCDIR "/sshd_config"
 #define HOST_CONFIG_FILE	ETCDIR "/ssh_config"
 
-#define SSH_PROGRAM		"/usr/bin/ssh"
+#define SSH_PROGRAM		"__PREFIX__/bin/ssh"
 
 /*
  * The process id of the daemon listening for connections is saved here to

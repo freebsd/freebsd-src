@@ -9,6 +9,7 @@
  * 
  * Created: Mon Aug 21 15:48:58 1995 ylo
  * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -67,6 +68,8 @@ initialize_server_options(ServerOptions *options)
 	options->num_deny_users = 0;
 	options->num_allow_groups = 0;
 	options->num_deny_groups = 0;
+	options->connections_per_period = 0;
+	options->connections_period = 0;
 }
 
 void 
@@ -159,7 +162,7 @@ typedef enum {
 	sPrintMotd, sIgnoreRhosts, sX11Forwarding, sX11DisplayOffset,
 	sStrictModes, sEmptyPasswd, sRandomSeedFile, sKeepAlives, sCheckMail,
 	sUseLogin, sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
-	sIgnoreUserKnownHosts
+	sIgnoreUserKnownHosts, sConnectionsPerPeriod
 } ServerOpCodes;
 
 /* Textual representation of the tokens. */
@@ -207,6 +210,7 @@ static struct {
 	{ "denyusers", sDenyUsers },
 	{ "allowgroups", sAllowGroups },
 	{ "denygroups", sDenyGroups },
+	{ "connectionsperperiod", sConnectionsPerPeriod },
 	{ NULL, 0 }
 };
 
@@ -316,7 +320,11 @@ parse_int:
 					filename, linenum);
 				exit(1);
 			}
-			value = atoi(cp);
+			if (sscanf(cp, " %d ", &value) != 1) {
+				fprintf(stderr, "%s line %d: invalid integer value.\n",
+					filename, linenum);
+				exit(1);
+			}
 			if (*intptr == -1)
 				*intptr = value;
 			break;
@@ -506,63 +514,65 @@ parse_flag:
 
 		case sAllowUsers:
 			while ((cp = strtok(NULL, WHITESPACE))) {
-				if (options->num_allow_users >= MAX_ALLOW_USERS) {
-					fprintf(stderr, "%s line %d: too many allow users.\n",
-						filename, linenum);
-					exit(1);
-				}
+				if (options->num_allow_users >= MAX_ALLOW_USERS)
+					fatal("%.200s line %d: too many allow users.\n", filename,
+					    linenum);
 				options->allow_users[options->num_allow_users++] = xstrdup(cp);
 			}
 			break;
 
 		case sDenyUsers:
 			while ((cp = strtok(NULL, WHITESPACE))) {
-				if (options->num_deny_users >= MAX_DENY_USERS) {
-					fprintf(stderr, "%s line %d: too many deny users.\n",
-						filename, linenum);
-					exit(1);
-				}
+				if (options->num_deny_users >= MAX_DENY_USERS)
+					fatal("%.200s line %d: too many deny users.\n", filename,
+					    linenum);
 				options->deny_users[options->num_deny_users++] = xstrdup(cp);
 			}
 			break;
 
 		case sAllowGroups:
 			while ((cp = strtok(NULL, WHITESPACE))) {
-				if (options->num_allow_groups >= MAX_ALLOW_GROUPS) {
-					fprintf(stderr, "%s line %d: too many allow groups.\n",
-						filename, linenum);
-					exit(1);
-				}
+				if (options->num_allow_groups >= MAX_ALLOW_GROUPS)
+					fatal("%.200s line %d: too many allow groups.\n", filename,
+					    linenum);
 				options->allow_groups[options->num_allow_groups++] = xstrdup(cp);
 			}
 			break;
 
 		case sDenyGroups:
 			while ((cp = strtok(NULL, WHITESPACE))) {
-				if (options->num_deny_groups >= MAX_DENY_GROUPS) {
-					fprintf(stderr, "%s line %d: too many deny groups.\n",
-						filename, linenum);
-					exit(1);
-				}
+				if (options->num_deny_groups >= MAX_DENY_GROUPS)
+					fatal("%.200s line %d: too many deny groups.\n", filename,
+					    linenum);
 				options->deny_groups[options->num_deny_groups++] = xstrdup(cp);
 			}
 			break;
 
+		case sConnectionsPerPeriod:
+			cp = strtok(NULL, WHITESPACE);
+			if (cp == NULL)
+				fatal("%.200s line %d: missing (>= 0) number argument.\n",
+					filename, linenum);
+			if (sscanf(cp, " %u/%u ", &options->connections_per_period,
+			    &options->connections_period) != 2)
+				fatal("%.200s line %d: invalid numerical argument(s).\n",
+				    filename, linenum);
+			if (options->connections_per_period != 0 &&
+			    options->connections_period == 0)
+				fatal("%.200s line %d: invalid connections period.\n",
+				    filename, linenum);
+			break;
+
 		default:
-			fprintf(stderr, "%s line %d: Missing handler for opcode %s (%d)\n",
+			fatal("%.200s line %d: Missing handler for opcode %s (%d)\n",
 				filename, linenum, cp, opcode);
-			exit(1);
 		}
-		if (strtok(NULL, WHITESPACE) != NULL) {
-			fprintf(stderr, "%s line %d: garbage at end of line.\n",
-				filename, linenum);
-			exit(1);
-		}
+		if (strtok(NULL, WHITESPACE) != NULL)
+			fatal("%.200s line %d: garbage at end of line.\n", filename,
+			    linenum);
 	}
 	fclose(f);
-	if (bad_options > 0) {
-		fprintf(stderr, "%s: terminating, %d bad configuration options\n",
+	if (bad_options > 0)
+		fatal("%.200s: terminating, %d bad configuration options\n",
 			filename, bad_options);
-		exit(1);
-	}
 }

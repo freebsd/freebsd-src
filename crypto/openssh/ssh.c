@@ -8,6 +8,8 @@
  * of X11, TCP/IP, and authentication connections.
  *
  * Modified to work with SSL by Niels Provos <provos@citi.umich.edu> in Canada.
+ *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -131,6 +133,9 @@ rsh_connect(char *host, char *user, Buffer * command)
 	log("Using rsh.  WARNING: Connection will not be encrypted.");
 	/* Build argument list for rsh. */
 	i = 0;
+#ifndef	_PATH_RSH
+#define	_PATH_RSH	"/usr/bin/rsh"
+#endif
 	args[i++] = _PATH_RSH;
 	/* host may have to come after user on some systems */
 	args[i++] = host;

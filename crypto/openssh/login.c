@@ -15,12 +15,17 @@
  * login the current system has.  Also, we want to be able to execute commands
  * on a tty.
  * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
 RCSID("$Id: login.c,v 1.11 2000/01/04 00:07:59 markus Exp $");
 
+#ifdef __FreeBSD__
+#include <libutil.h>
+#else
 #include <util.h>
+#endif /* __FreeBSD__ */
 #include <utmp.h>
 #include "ssh.h"
 

@@ -1,14 +1,17 @@
 # This is ssh server systemwide configuration file.
+#
+# $FreeBSD$
 
 Port 22
 #ListenAddress 0.0.0.0
 #ListenAddress ::
-HostKey /etc/ssh_host_key
+HostKey __PREFIX__/etc/ssh_host_key
 ServerKeyBits 768
-LoginGraceTime 600
+LoginGraceTime 60
 KeyRegenerationInterval 3600
-PermitRootLogin yes
-#
+PermitRootLogin no
+# Rate-limit sshd connections to 5 connections per 10 seconds
+ConnectionsPerPeriod 5/10
 # Don't read ~/.rhosts and ~/.shosts files
 IgnoreRhosts yes
 # Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
