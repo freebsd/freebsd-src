@@ -66,7 +66,7 @@ CRYPTO_LDADD=	-lcrypto
 # Link against POSIX threads library
 .if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
 .if defined(NOLIBC_R)
-.error "BIND requires libc_r - define NO_BIND, or undefine NOLIBC_R"
+.error "BIND requires libpthread - define NO_BIND, or undefine NOLIBC_R"
 .endif
 .else
 .if defined(NOLIBPTHREAD)
