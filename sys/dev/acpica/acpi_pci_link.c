@@ -120,7 +120,7 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 			break;
 
 		default:
-			printf("unkown,");
+			printf("unknown,");
 			break;
 		}
 		
@@ -134,7 +134,7 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 			break;
 
 		default:
-			printf("unkown,");
+			printf("unknown,");
 			break;
 		}
 
@@ -148,7 +148,7 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 			break;
 
 		default:
-			printf("unkown");
+			printf("unknown");
 			break;
 		}
 
