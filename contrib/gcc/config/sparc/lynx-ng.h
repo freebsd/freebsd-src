@@ -18,9 +18,6 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include <sparc/sparc.h>
-#include <lynx-ng.h>
-
 /* ??? Must redefine to get sparclite and v8 defines.  Can this be done
    differently?  */
 
@@ -33,7 +30,7 @@ Boston, MA 02111-1307, USA.  */
 /* Names to predefine in the preprocessor for this target machine.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Dsparc -DLynx -DIBITS32 -Asystem(unix) -Asystem(lynx) -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-Dunix -Dsparc -DLynx -DIBITS32 -Asystem=unix -Asystem=lynx -Acpu=sparc -Amachine=sparc"
 
 /* Provide required defaults for linker switches.  */
 

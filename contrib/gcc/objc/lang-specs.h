@@ -1,5 +1,5 @@
 /* Definitions for specs for Objective-C.
-   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,76 +21,23 @@ Boston, MA 02111-1307, USA.  */
 /* This is the contribution to the `default_compilers' array in gcc.c for
    objc.  */
 
-  {".m", {"@objective-c"}},
+  {".m", "@objective-c", 0},
   {"@objective-c",
-#if USE_CPPLIB
-   {"%{E|M|MM:cpp0 -lang-objc %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
-	%{C:%{!E:%eGNU C does not support -C without using -E}}\
-	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -D__OBJC__ %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
-	%{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs}\
-        %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
-	%{ffast-math:-D__FAST_MATH__}\
-        %{traditional} %{ftraditional:-traditional}\
-        %{traditional-cpp:-traditional}\
-	%{fleading-underscore} %{fno-leading-underscore}\
-	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-        %i %{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}}\n}",
-    "%{!M:%{!MM:%{!E:cc1obj %i %1 \
-		   %{nostdinc*} %{A*} %{I*} %{P} %I\
-                   %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-		   -D__OBJC__ %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
-		   %{!undef:%{!ansi:%p} %P} %{trigraphs}\
-		   %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
-		   %{ffast-math:-D__FAST_MATH__}\
-		   %{!Q:-quiet} -dumpbase %b.m %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
-		   %{traditional} %{v:-version} %{pg:-p} %{p} %{f*} \
-    		   -lang-objc %{gen-decls} \
-		   %{aux-info*} %{Qn:-fno-ident}\
-		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-     %{!S:as %a %Y\
-	%{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-        %{!pipe:%g.s} %A\n }}}}"}
-#else /* ! USE_CPPLIB */
-   {"cpp0 -lang-objc %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
-	%{C:%{!E:%eGNU C does not support -C without using -E}}\
-	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -D__OBJC__ %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
-	 %{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs}\
-        %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
-	%{ffast-math:-D__FAST_MATH__}\
-        %{traditional} %{ftraditional:-traditional}\
-        %{traditional-cpp:-traditional}\
-	%{fleading-underscore} %{fno-leading-underscore}\
-	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-        %i %{!M:%{!MM:%{!E:%{!pipe:%g.mi}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n",
-    "%{!M:%{!MM:%{!E:cc1obj %{!pipe:%g.mi} %1 \
-		   %{!Q:-quiet} -dumpbase %b.m %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
-		   %{traditional} %{v:-version} %{pg:-p} %{p} %{f*} \
-    		   -lang-objc %{gen-decls} \
-		   %{aux-info*} %{Qn:-fno-ident}\
-		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-              %{!S:as %a %Y\
-		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-                      %{!pipe:%g.s} %A\n }}}}"}
-#endif /* ! USE_CPPLIB */
-  },
-  {".mi", {"@objc-cpp-output"}},
+   /* cc1obj has an integrated ISO C preprocessor.  We should invoke the
+      external preprocessor if -save-temps or -traditional is given.  */
+     "%{E|M|MM:%(trad_capable_cpp) -lang-objc %{ansi:-std=c89} %(cpp_options)}\
+      %{!E:%{!M:%{!MM:\
+	%{save-temps:%(trad_capable_cpp) -lang-objc %{ansi:-std=c89}\
+	  %(cpp_options) %b.mi \n\
+	    cc1obj -fpreprocessed %b.mi %(cc1_options) %{gen-decls}}\
+	%{!save-temps:\
+	  %{traditional|ftraditional|traditional-cpp:\
+	    tradcpp0 -lang-objc %{ansi:-std=c89} %(cpp_options) %{!pipe:%g.mi} |\n\
+	    cc1obj -fpreprocessed %{!pipe:%g.mi} %(cc1_options) %{gen-decls}}\
+	  %{!traditional:%{!ftraditional:%{!traditional-cpp:\
+	    cc1obj %{ansi:-std=c89} %(cpp_unique_options) %(cc1_options) %{gen-decls}}}}}\
+        %{!fsyntax-only:%(invoke_as)}}}}", 0},
+  {".mi", "@objc-cpp-output", 0},
   {"@objc-cpp-output",
-   {"%{!M:%{!MM:%{!E:cc1obj %i %1 \
-		   %{!Q:-quiet} -dumpbase %b.m %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
-		   %{traditional} %{v:-version} %{pg:-p} %{p} %{f*} \
-    		   -lang-objc %{gen-decls} \
-		   %{aux-info*} %{Qn:-fno-ident}\
-		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n",
-    "%{!S:as %a %Y\
-	%{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-        %{!pipe:%g.s} %A\n }}}}"}},
+     "%{!M:%{!MM:%{!E:cc1obj -fpreprocessed %i %(cc1_options) %{gen-decls}\
+			     %{!fsyntax-only:%(invoke_as)}}}}", 0},

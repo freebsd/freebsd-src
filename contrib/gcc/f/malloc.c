@@ -70,7 +70,7 @@ struct _malloc_root_ malloc_root_
 
 static void *malloc_reserve_ = NULL;	/* For crashes. */
 #if MALLOC_DEBUG
-static const char *malloc_types_[] =
+static const char *const malloc_types_[] =
 {"KS", "KSR", "NF", "NFR", "US", "USR"};
 #endif
 
@@ -140,8 +140,7 @@ malloc_init ()
 {
   if (malloc_reserve_ != NULL)
     return;
-  malloc_reserve_ = malloc (20 * 1024);	/* In case of crash, free this first. */
-  assert (malloc_reserve_ != NULL);
+  malloc_reserve_ = xmalloc (20 * 1024); /* In case of crash, free this first. */
 }
 
 /* malloc_pool_display -- Display a pool

@@ -1,24 +1,45 @@
 /* Loop optimization definitions for GNU C-Compiler
-   Copyright (C) 1991, 1995, 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1995, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
-#include "varray.h"
+#include "bitmap.h"
+#include "sbitmap.h"
+#include "hard-reg-set.h"
+#include "basic-block.h"
+
+/* Flags passed to loop_optimize.  */
+#define LOOP_UNROLL 1
+#define LOOP_BCT 2
+#define LOOP_PREFETCH 4
+
+/* Get the loop info pointer of a loop.  */
+#define LOOP_INFO(LOOP) ((struct loop_info *) (LOOP)->aux)
+
+/* Get a pointer to the loop movables structure.  */
+#define LOOP_MOVABLES(LOOP) (&LOOP_INFO (LOOP)->movables)
+
+/* Get a pointer to the loop registers structure.  */
+#define LOOP_REGS(LOOP) (&LOOP_INFO (LOOP)->regs)
+
+/* Get a pointer to the loop induction variables structure.  */
+#define LOOP_IVS(LOOP) (&LOOP_INFO (LOOP)->ivs)
 
 /* Get the luid of an insn.  Catch the error of trying to reference the LUID
    of an insn added during loop, since these don't have LUIDs.  */
@@ -27,17 +48,26 @@ Boston, MA 02111-1307, USA.  */
   (INSN_UID (INSN) < max_uid_for_loop ? uid_luid[INSN_UID (INSN)] \
    : (abort (), -1))
 
+#define REGNO_FIRST_LUID(REGNO) uid_luid[REGNO_FIRST_UID (REGNO)]
+#define REGNO_LAST_LUID(REGNO) uid_luid[REGNO_LAST_UID (REGNO)]
+
+
 /* A "basic induction variable" or biv is a pseudo reg that is set
    (within this loop) only by incrementing or decrementing it.  */
 /* A "general induction variable" or giv is a pseudo reg whose
    value is a linear function of a biv.  */
 
 /* Bivs are recognized by `basic_induction_var';
-   Givs by `general_induct_var'.  */
+   Givs by `general_induction_var'.  */
 
 /* An enum for the two different types of givs, those that are used
    as memory addresses and those that are calculated into registers.  */
-enum g_types { DEST_ADDR, DEST_REG };
+enum g_types
+{
+  DEST_ADDR,
+  DEST_REG
+};
+
 
 /* A `struct induction' is created for every instruction that sets
    an induction variable (either a biv or a giv).  */
@@ -59,7 +89,7 @@ struct induction
 				/* For a biv, this is the place where add_val
 				   was found.  */
   enum machine_mode mode;	/* The mode of this biv or giv */
-  enum machine_mode mem_mode;	/* For DEST_ADDR, mode of the memory object. */
+  rtx mem;			/* For DEST_ADDR, the memory object.  */
   rtx mult_val;			/* Multiplicative factor for src_reg.  */
   rtx add_val;			/* Additive constant for that product.  */
   int benefit;			/* Gain from eliminating this insn.  */
@@ -87,25 +117,27 @@ struct induction
   unsigned always_executed : 1; /* 1 if this set occurs each iteration.  */
   unsigned maybe_multiple : 1;	/* Only used for a biv and  1 if this biv
 				   update may be done multiple times per
-				   iteration. */
+				   iteration.  */
   unsigned cant_derive : 1;	/* For giv's, 1 if this giv cannot derive
 				   another giv.  This occurs in many cases
 				   where a giv's lifetime spans an update to
-				   a biv. */
+				   a biv.  */
   unsigned maybe_dead : 1;	/* 1 if this giv might be dead.  In that case,
 				   we won't use it to eliminate a biv, it
-				   would probably lose. */
+				   would probably lose.  */
   unsigned auto_inc_opt : 1;	/* 1 if this giv had its increment output next
-				   to it to try to form an auto-inc address. */
+				   to it to try to form an auto-inc address.  */
   unsigned unrolled : 1;	/* 1 if new register has been allocated and
 				   initialized in unrolled loop.  */
   unsigned shared : 1;
-  unsigned no_const_addval : 1; /* 1 if add_val does not contain a const. */
+  unsigned no_const_addval : 1; /* 1 if add_val does not contain a const.  */
   int lifetime;			/* Length of life of this giv */
   rtx derive_adjustment;	/* If nonzero, is an adjustment to be
 				   subtracted from add_val when this giv
 				   derives another.  This occurs when the
-				   giv spans a biv update by incrementation. */
+				   giv spans a biv update by incrementation.  */
+  rtx ext_dependent;		/* If nonzero, is a sign or zero extension
+				   if a biv on which this giv is dependent.  */
   struct induction *next_iv;	/* For givs, links together all givs that are
 				   based on the same biv.  For bivs, links
 				   together all biv entries that refer to the
@@ -113,26 +145,24 @@ struct induction
   struct induction *same;	/* If this giv has been combined with another
 				   giv, this points to the base giv.  The base
 				   giv will have COMBINED_WITH non-zero.  */
-  struct induction *derived_from;/* For a giv, if we decided to derive this
-				   giv from another one.  */
   HOST_WIDE_INT const_adjust;	/* Used by loop unrolling, when an address giv
 				   is split, and a constant is eliminated from
 				   the address, the -constant is stored here
-				   for later use. */
-  int ix;			/* Used by recombine_givs, as n index into
-				   the stats array.  */
+				   for later use.  */
   struct induction *same_insn;	/* If there are multiple identical givs in
 				   the same insn, then all but one have this
 				   field set, and they all point to the giv
 				   that doesn't have this field set.  */
   rtx last_use;			/* For a giv made from a biv increment, this is
-				   a substitute for the lifetime information. */
+				   a substitute for the lifetime information.  */
 };
+
 
 /* A `struct iv_class' is created for each biv.  */
 
-struct iv_class {
-  int regno;			/* Pseudo reg which is the biv.  */
+struct iv_class
+{
+  unsigned int regno;		/* Pseudo reg which is the biv.  */
   int biv_count;		/* Number of insns setting this reg.  */
   struct induction *biv;	/* List of all insns that set this reg.  */
   int giv_count;		/* Number of DEST_REG givs computed from this
@@ -140,24 +170,149 @@ struct iv_class {
 				   check_dbra_loop.  */
   struct induction *giv;	/* List of all insns that compute a giv
 				   from this reg.  */
-  int total_benefit;		/* Sum of BENEFITs of all those givs */
-  rtx initial_value;		/* Value of reg at loop start */
-  rtx initial_test;		/* Test performed on BIV before loop */
-  struct iv_class *next;	/* Links all class structures together */
-  rtx init_insn;		/* insn which initializes biv, 0 if none. */
-  rtx init_set;			/* SET of INIT_INSN, if any. */
+  int total_benefit;		/* Sum of BENEFITs of all those givs.  */
+  rtx initial_value;		/* Value of reg at loop start.  */
+  rtx initial_test;		/* Test performed on BIV before loop.  */
+  rtx final_value;		/* Value of reg at loop end, if known.  */
+  struct iv_class *next;	/* Links all class structures together.  */
+  rtx init_insn;		/* insn which initializes biv, 0 if none.  */
+  rtx init_set;			/* SET of INIT_INSN, if any.  */
   unsigned incremented : 1;	/* 1 if somewhere incremented/decremented */
-  unsigned eliminable : 1;	/* 1 if plausible candidate for elimination. */
-  unsigned nonneg : 1;		/* 1 if we added a REG_NONNEG note for this. */
+  unsigned eliminable : 1;	/* 1 if plausible candidate for
+                                   elimination.  */
+  unsigned nonneg : 1;		/* 1 if we added a REG_NONNEG note for
+                                   this.  */
   unsigned reversed : 1;	/* 1 if we reversed the loop that this
-				   biv controls. */
+				   biv controls.  */
+  unsigned all_reduced : 1;	/* 1 if all givs using this biv have
+                                   been reduced.  */
 };
 
-/* Information required to calculate the number of loop iterations. 
-   This is set by loop_iterations.  */
+
+/* Definitions used by the basic induction variable discovery code.  */
+enum iv_mode
+{
+  UNKNOWN_INDUCT,
+  BASIC_INDUCT,
+  NOT_BASIC_INDUCT,
+  GENERAL_INDUCT
+};
+
+
+/* A `struct iv' is created for every register.  */
+
+struct iv
+{
+  enum iv_mode type;
+  union 
+  {
+    struct iv_class *class;
+    struct induction *info;
+  } iv;
+};
+
+
+#define REG_IV_TYPE(ivs, n) ivs->regs[n].type
+#define REG_IV_INFO(ivs, n) ivs->regs[n].iv.info
+#define REG_IV_CLASS(ivs, n) ivs->regs[n].iv.class
+
+
+struct loop_ivs
+{
+  /* Indexed by register number, contains pointer to `struct
+     iv' if register is an induction variable.  */
+  struct iv *regs;
+
+  /* Size of regs array.  */
+  unsigned int n_regs;
+
+  /* The head of a list which links together (via the next field)
+     every iv class for the current loop.  */
+  struct iv_class *list;
+};
+
+
+typedef struct loop_mem_info
+{
+  rtx mem;      /* The MEM itself.  */
+  rtx reg;      /* Corresponding pseudo, if any.  */
+  int optimize; /* Nonzero if we can optimize access to this MEM.  */
+} loop_mem_info;
+
+
+
+struct loop_reg
+{
+  /* Number of times the reg is set during the loop being scanned.
+     During code motion, a negative value indicates a reg that has
+     been made a candidate; in particular -2 means that it is an
+     candidate that we know is equal to a constant and -1 means that
+     it is an candidate not known equal to a constant.  After code
+     motion, regs moved have 0 (which is accurate now) while the
+     failed candidates have the original number of times set.
+
+     Therefore, at all times, == 0 indicates an invariant register;
+     < 0 a conditionally invariant one.  */
+  int set_in_loop;
+
+  /* Original value of set_in_loop; same except that this value
+     is not set negative for a reg whose sets have been made candidates
+     and not set to 0 for a reg that is moved.  */
+  int n_times_set;
+
+  /* Contains the insn in which a register was used if it was used
+     exactly once; contains const0_rtx if it was used more than once.  */
+  rtx single_usage;
+
+  /* Nonzero indicates that the register cannot be moved or strength
+     reduced.  */
+  char may_not_optimize;
+
+  /* Nonzero means reg N has already been moved out of one loop.
+     This reduces the desire to move it out of another.  */
+  char moved_once;
+};
+
+
+struct loop_regs
+{
+  int num;			/* Number of regs used in table.  */
+  int size;			/* Size of table.  */
+  struct loop_reg *array;	/* Register usage info. array.  */
+  int multiple_uses;		/* Nonzero if a reg has multiple uses.  */
+};
+
+
+
+struct loop_movables
+{
+  /* Head of movable chain.  */
+  struct movable *head;
+  /* Last movable in chain.  */
+  struct movable *last;
+};
+
+
+/* Information pertaining to a loop.  */
 
 struct loop_info
 {
+  /* Nonzero if there is a subroutine call in the current loop.  */
+  int has_call;
+  /* Nonzero if there is a libcall in the current loop.  */
+  int has_libcall;
+  /* Nonzero if there is a non constant call in the current loop.  */
+  int has_nonconst_call;
+  /* Nonzero if there is a volatile memory reference in the current
+     loop.  */
+  int has_volatile;
+  /* Nonzero if there is a tablejump in the current loop.  */
+  int has_tablejump;
+  /* Nonzero if there are ways to leave the loop other than falling
+     off the end.  */
+  int has_multiple_exit_targets;
+  /* Nonzero if there is an indirect jump in the current function.  */
+  int has_indirect_jump;
   /* Register or constant initial loop value.  */
   rtx initial_value;
   /* Register or constant value used for comparison test.  */
@@ -181,69 +336,85 @@ struct loop_info
      wider iterator, this number will be zero if the number of loop
      iterations is too large for an unsigned integer to hold.  */
   unsigned HOST_WIDE_INT n_iterations;
-  /* The loop unrolling factor.
-     Potential values:
-     0: unrolled
-     1: not unrolled.
-     -1: completely unrolled
-     >0: holds the unroll exact factor.  */
+  /* The number of times the loop body was unrolled.  */
   unsigned int unroll_number;
-  /* Non-zero if the loop has a NOTE_INSN_LOOP_VTOP.  */
-  rtx vtop;
+  int used_count_register;
+  /* The loop iterator induction variable.  */
+  struct iv_class *iv;
+  /* List of MEMs that are stored in this loop.  */
+  rtx store_mems;
+  /* Array of MEMs that are used (read or written) in this loop, but
+     cannot be aliased by anything in this loop, except perhaps
+     themselves.  In other words, if mems[i] is altered during
+     the loop, it is altered by an expression that is rtx_equal_p to
+     it.  */
+  loop_mem_info *mems;
+  /* The index of the next available slot in MEMS.  */
+  int mems_idx;
+  /* The number of elements allocated in MEMS.  */
+  int mems_allocated;
+  /* Nonzero if we don't know what MEMs were changed in the current
+     loop.  This happens if the loop contains a call (in which case
+     `has_call' will also be set) or if we store into more than
+     NUM_STORES MEMs.  */
+  int unknown_address_altered;
+  /* The above doesn't count any readonly memory locations that are
+     stored.  This does.  */
+  int unknown_constant_address_altered;
+  /* Count of memory write instructions discovered in the loop.  */
+  int num_mem_sets;
+  /* The insn where the first of these was found.  */
+  rtx first_loop_store_insn;
+  /* The chain of movable insns in loop.  */
+  struct loop_movables movables;
+  /* The registers used the in loop.  */
+  struct loop_regs regs;
+  /* The induction variable information in loop.  */
+  struct loop_ivs ivs;
+  /* Non-zero if call is in pre_header extended basic block.  */
+  int pre_header_has_call;
 };
 
-/* Definitions used by the basic induction variable discovery code.  */
-enum iv_mode { UNKNOWN_INDUCT, BASIC_INDUCT, NOT_BASIC_INDUCT,
-		 GENERAL_INDUCT };
 
 /* Variables declared in loop.c, but also needed in unroll.c.  */
 
 extern int *uid_luid;
 extern int max_uid_for_loop;
-extern int *uid_loop_num;
-extern int *loop_outer_loop;
-extern rtx *loop_number_exit_labels;
-extern int *loop_number_exit_count;
-extern int max_reg_before_loop;
-
+extern unsigned int max_reg_before_loop;
+extern struct loop **uid_loop;
 extern FILE *loop_dump_stream;
 
-extern varray_type reg_iv_type;
-extern varray_type reg_iv_info;
-
-#define REG_IV_TYPE(n) \
-  (*(enum iv_mode *) &VARRAY_INT(reg_iv_type, (n)))
-#define REG_IV_INFO(n) \
-  (*(struct induction **) &VARRAY_GENERIC_PTR(reg_iv_info, (n)))
-
-extern struct iv_class **reg_biv_class;
-extern struct iv_class *loop_iv_list;
-
-extern int first_increment_giv, last_increment_giv;
 
 /* Forward declarations for non-static functions declared in loop.c and
    unroll.c.  */
-int invariant_p PROTO((rtx));
-rtx get_condition_for_loop PROTO((rtx));
-void emit_iv_add_mult PROTO((rtx, rtx, rtx, rtx, rtx));
-rtx express_from PROTO((struct induction *, struct induction *));
+int loop_invariant_p PARAMS ((const struct loop *, rtx));
+rtx get_condition_for_loop PARAMS ((const struct loop *, rtx));
+void loop_iv_add_mult_hoist PARAMS ((const struct loop *, rtx, rtx, rtx, rtx));
+void loop_iv_add_mult_sink PARAMS ((const struct loop *, rtx, rtx, rtx, rtx));
+void loop_iv_add_mult_emit_before PARAMS ((const struct loop *, rtx, 
+					   rtx, rtx, rtx,
+					   basic_block, rtx));
+rtx express_from PARAMS ((struct induction *, struct induction *));
+rtx extend_value_for_giv PARAMS ((struct induction *, rtx));
 
-void unroll_loop PROTO((rtx, int, rtx, rtx, struct loop_info *, int));
-rtx biv_total_increment PROTO((struct iv_class *, rtx, rtx));
-unsigned HOST_WIDE_INT loop_iterations PROTO((rtx, rtx, struct loop_info *));
-int precondition_loop_p PROTO((rtx, struct loop_info *, 
-			       rtx *, rtx *, rtx *, 
-			       enum machine_mode *mode));
-rtx final_biv_value PROTO((struct iv_class *, rtx, rtx,
-			   unsigned HOST_WIDE_INT));
-rtx final_giv_value PROTO((struct induction *, rtx, rtx,
-			   unsigned HOST_WIDE_INT));
-void emit_unrolled_add PROTO((rtx, rtx, rtx));
-int back_branch_in_range_p PROTO((rtx, rtx, rtx));
-int loop_insn_first_p PROTO((rtx, rtx));
+void unroll_loop PARAMS ((struct loop *, int, int));
+rtx biv_total_increment PARAMS ((const struct iv_class *));
+unsigned HOST_WIDE_INT loop_iterations PARAMS ((struct loop *));
+int precondition_loop_p PARAMS ((const struct loop *,
+				 rtx *, rtx *, rtx *,
+				 enum machine_mode *mode));
+rtx final_biv_value PARAMS ((const struct loop *, struct iv_class *));
+rtx final_giv_value PARAMS ((const struct loop *, struct induction *));
+void emit_unrolled_add PARAMS ((rtx, rtx, rtx));
+int back_branch_in_range_p PARAMS ((const struct loop *, rtx));
 
-extern int *loop_unroll_number;
+int loop_insn_first_p PARAMS ((rtx, rtx));
+typedef rtx (*loop_insn_callback) PARAMS ((struct loop *, rtx, int, int));
+void for_each_insn_in_loop PARAMS ((struct loop *, loop_insn_callback));
+rtx loop_insn_emit_before PARAMS((const struct loop *, basic_block, 
+				  rtx, rtx));
+rtx loop_insn_sink PARAMS((const struct loop *, rtx));
+rtx loop_insn_hoist PARAMS((const struct loop *, rtx));
 
-/* Forward declarations for non-static functions declared in stmt.c.  */
-void find_loop_tree_blocks PROTO((void));
-void unroll_block_trees PROTO((void));
+/* Forward declarations for non-static functions declared in doloop.c.  */
+int doloop_optimize PARAMS ((const struct loop *));

@@ -1,5 +1,6 @@
 /* Definitions of target machine for GNU compiler, for SPARC64, ELF.
-   Copyright (C) 1994, 1995, 1996, 1997, 1998  Free Software Foundation, Inc.
+   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000
+   Free Software Foundation, Inc.
    Contributed by Doug Evans, dje@cygnus.com.
 
 This file is part of GNU CC.
@@ -24,8 +25,6 @@ Boston, MA 02111-1307, USA.  */
    less duplicate all of svr4.h, sparc/sysv4.h, and sparc/sol2.h here
    (suitably cleaned up).  */
 
-#include "sparc/sol2.h"
-
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (sparc64-elf)")
 
@@ -34,13 +33,13 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT \
 (MASK_V9 + MASK_PTR64 + MASK_64BIT + MASK_HARD_QUAD \
- + MASK_APP_REGS + MASK_EPILOGUE + MASK_FPU + MASK_STACK_BIAS)
+ + MASK_APP_REGS + MASK_EPILOGUE + MASK_FPU + MASK_STACK_BIAS + MASK_LONG_DOUBLE_128)
 
 #undef SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL CM_EMBMEDANY
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dsparc -D__ELF__ -Acpu(sparc) -Amachine(sparc)"
+#define CPP_PREDEFINES "-Dsparc -D__ELF__ -Acpu=sparc -Amachine=sparc"
 
 /* __svr4__ is used by the C library (FIXME) */
 #undef CPP_SUBTARGET_SPEC
@@ -80,8 +79,8 @@ crtbegin.o%s \
 /* V9 chips can handle either endianness.  */
 #undef SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES \
-{"big-endian", -MASK_LITTLE_ENDIAN, "Generate code for big endian" }, \
-{"little-endian", MASK_LITTLE_ENDIAN, "Generate code for little endian" },
+{"big-endian", -MASK_LITTLE_ENDIAN, N_("Generate code for big endian") }, \
+{"little-endian", MASK_LITTLE_ENDIAN, N_("Generate code for little endian") },
 
 #undef BYTES_BIG_ENDIAN
 #define BYTES_BIG_ENDIAN (! TARGET_LITTLE_ENDIAN)
@@ -111,48 +110,7 @@ crtbegin.o%s \
    GDB doesn't support 64 bit stabs yet and the desired debug format is DWARF
    anyway so it is the default.  */
 
-#define DWARF_DEBUGGING_INFO
-#define DWARF2_DEBUGGING_INFO
 #define DBX_DEBUGGING_INFO
 
 #undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
-
-/* Stabs doesn't use this, and it confuses a simulator.  */
-/* ??? Need to see what DWARF needs, if anything.  */
-#undef ASM_IDENTIFY_GCC
-#define ASM_IDENTIFY_GCC(FILE)
-
-/* Define the names of various pseudo-ops used by the Sparc/svr4 assembler.
-   ??? If ints are 64 bits then UNALIGNED_INT_ASM_OP (defined elsewhere) is
-   misnamed.  These should all refer to explicit sizes (half/word/xword?),
-   anything other than short/int/long/etc.  */
-
-#define UNALIGNED_LONGLONG_ASM_OP	".uaxword"
-
-/* DWARF stuff.  */
-
-#define ASM_OUTPUT_DWARF_ADDR(FILE, LABEL) \
-do {								\
-  fprintf ((FILE), "\t%s\t", UNALIGNED_LONGLONG_ASM_OP);	\
-  assemble_name ((FILE), (LABEL));				\
-  fprintf ((FILE), "\n");					\
-} while (0)
-
-#define ASM_OUTPUT_DWARF_ADDR_CONST(FILE, RTX) \
-do {								\
-  fprintf ((FILE), "\t%s\t", UNALIGNED_LONGLONG_ASM_OP);	\
-  output_addr_const ((FILE), (RTX));				\
-  fputc ('\n', (FILE));						\
-} while (0)
-
-#define ASM_OUTPUT_DWARF2_ADDR_CONST(FILE, ADDR) \
-  fprintf ((FILE), "\t%s\t%s", UNALIGNED_LONGLONG_ASM_OP, (ADDR))
-
-/* ??? Not sure if this should be 4 or 8 bytes.  4 works for now.  */
-#define ASM_OUTPUT_DWARF_REF(FILE, LABEL) \
-do {								\
-  fprintf ((FILE), "\t%s\t", UNALIGNED_INT_ASM_OP);		\
-  assemble_name ((FILE), (LABEL));				\
-  fprintf ((FILE), "\n");					\
-} while (0)

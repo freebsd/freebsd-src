@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for SunOS 4.x
-   Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright (C) 1994, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -18,32 +18,29 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+#undef SUNOS4_SHARED_LIBRARIES
 #define SUNOS4_SHARED_LIBRARIES 1
+
+#undef CPP_PREDEFINES
+#define CPP_PREDEFINES "-Dsparc -Dsun -Dunix -Asystem=unix -Asystem=bsd"
+
+#define LIB_SPEC "%{!shared:%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p} %{g:-lg}}"
+
+/* Provide required defaults for linker -e and -d switches.  */
+
+#define LINK_SPEC \
+ "%{!shared:%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp} %{static:-Bstatic} \
+  %{assert*} %{shared:%{!mimpure-text:-assert pure-text}}"
 
 /* Use N_BINCL stabs.  */
 
 #define DBX_USE_BINCL
 
-#include "sparc/sparc.h"
-
 /* The Sun as doesn't like unaligned data.  */
 #define DWARF2_UNWIND_INFO 0
 
-/* Override MACHINE_STATE_{SAVE,RESTORE} because we have special
-   traps available which can get and set the condition codes
-   reliably.  */
-#undef MACHINE_STATE_SAVE
-#define MACHINE_STATE_SAVE(ID)				\
-  unsigned long int ms_flags, ms_saveret;		\
-  asm volatile("ta	0x20\n\t"			\
-	       "mov	%%g1, %0\n\t"			\
-	       "mov	%%g2, %1\n\t"			\
-	       : "=r" (ms_flags), "=r" (ms_saveret));
-
-#undef MACHINE_STATE_RESTORE
-#define MACHINE_STATE_RESTORE(ID)			\
-  asm volatile("mov	%0, %%g1\n\t"			\
-	       "mov	%1, %%g2\n\t"			\
-	       "ta	0x21\n\t"			\
-	       : /* no outputs */			\
-	       : "r" (ms_flags), "r" (ms_saveret));
+/* SunOS has on_exit instead of atexit.  */
+/* The man page says it returns int.  */
+extern int on_exit PARAMS ((void *, void *));
+#define ON_EXIT(FUNC) on_exit ((FUNC), 0)
+#define NEED_ATEXIT

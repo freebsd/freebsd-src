@@ -1,5 +1,5 @@
 /* equiv.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995-1998 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -912,21 +912,6 @@ ffeequiv_add (ffeequiv eq, ffebld list, ffelexToken t)
 
   ffeequiv_set_list (eq, ffebld_new_item (list, ffeequiv_list (eq)));
 }
-
-/* ffeequiv_dump -- Dump info on equivalence object
-
-   ffeequiv eq;
-   ffeequiv_dump(eq);  */
-
-#if FFECOM_targetCURRENT == FFECOM_targetFFE
-void
-ffeequiv_dump (ffeequiv eq)
-{
-  if (ffeequiv_common (eq) != NULL)
-    fprintf (dmpout, "(common %s) ", ffesymbol_text (ffeequiv_common (eq)));
-  ffebld_dump (ffeequiv_list (eq));
-}
-#endif
 
 /* ffeequiv_exec_transition -- Do the hard work on all the equivalence objects
 

@@ -1,9 +1,18 @@
 /* Definitions of target machine for GNU compiler, for 64-bit SPARC
    running Solaris 2 using the system linker.  */
 
-#define SPARC_BI_ARCH
+#ifdef AS_SPARC64_FLAG
+#include "sparc/sparc_bi.h"
+#endif
 
+#include "sparc/sparc.h"
+#include "dbxelf.h"
+#include "elfos.h"
+#include "svr4.h"
+#include "sparc/sysv4.h"
 #include "sparc/sol2.h"
+
+#ifdef AS_SPARC64_FLAG
 
 /* At least up through Solaris 2.6,
    the system linker does not work with DWARF or DWARF2,
@@ -18,7 +27,7 @@
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT \
   (MASK_V9 + MASK_PTR64 + MASK_64BIT /* + MASK_HARD_QUAD */ + \
-   MASK_STACK_BIAS + MASK_APP_REGS + MASK_EPILOGUE + MASK_FPU)
+   MASK_STACK_BIAS + MASK_EPILOGUE + MASK_FPU + MASK_LONG_DOUBLE_128)
 #endif
 
 /* The default code model.  */
@@ -31,7 +40,7 @@
 #undef ASM_CPU32_DEFAULT_SPEC
 #define ASM_CPU32_DEFAULT_SPEC	""
 #undef ASM_CPU64_DEFAULT_SPEC
-#define ASM_CPU64_DEFAULT_SPEC	"-xarch=v9"
+#define ASM_CPU64_DEFAULT_SPEC	AS_SPARC64_FLAG
 
 #if TARGET_CPU_DEFAULT == TARGET_CPU_v9
 #undef CPP_CPU64_DEFAULT_SPEC
@@ -45,11 +54,11 @@
 #undef ASM_CPU32_DEFAULT_SPEC
 #define ASM_CPU32_DEFAULT_SPEC "-xarch=v8plusa"
 #undef ASM_CPU64_DEFAULT_SPEC
-#define ASM_CPU64_DEFAULT_SPEC "-xarch=v9a"
+#define ASM_CPU64_DEFAULT_SPEC AS_SPARC64_FLAG "a"
 #endif
 
 /* The sun bundled assembler doesn't accept -Yd, (and neither does gas).
-   It's safe to pass -s always, even if -g is not used. */
+   It's safe to pass -s always, even if -g is not used.  */
 #undef ASM_SPEC
 #define ASM_SPEC "\
 %{v:-V} %{Qy:} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s \
@@ -84,9 +93,9 @@
 
 #undef ASM_CPU_SPEC
 #define ASM_CPU_SPEC "\
-%{mcpu=ultrasparc:" DEF_ARCH32_SPEC("-xarch=v8plusa") DEF_ARCH64_SPEC("-xarch=v9a") "} \
-%{mcpu=v9:" DEF_ARCH32_SPEC("-xarch=v8plus") DEF_ARCH64_SPEC("-xarch=v9") "} \
-%{!mcpu=ultrasparc:%{!mcpu=v9:%{mcpu*:" DEF_ARCH32_SPEC("-xarch=v8") DEF_ARCH64_SPEC("-xarch=v9") "}}} \
+%{mcpu=ultrasparc:" DEF_ARCH32_SPEC("-xarch=v8plusa") DEF_ARCH64_SPEC(AS_SPARC64_FLAG "a") "} \
+%{mcpu=v9:" DEF_ARCH32_SPEC("-xarch=v8plus") DEF_ARCH64_SPEC(AS_SPARC64_FLAG) "} \
+%{!mcpu=ultrasparc:%{!mcpu=v9:%{mcpu*:" DEF_ARCH32_SPEC("-xarch=v8") DEF_ARCH64_SPEC(AS_SPARC64_FLAG) "}}} \
 %{!mcpu*:%(asm_cpu_default)} \
 "
 
@@ -130,7 +139,7 @@
                           %{!p: \
 	                    %{pg:gcrt1.o%s gmon.o%s} \
                             %{!pg:crt1.o%s}}}} \
-			crti.o%s" STARTFILE_ARCH_SPEC " \
+			crti.o%s " STARTFILE_ARCH_SPEC " \
 			crtbegin.o%s"
 
 #ifdef SPARC_BI_ARCH
@@ -155,12 +164,36 @@
 %{!m32:" ASM_CPU64_DEFAULT_SPEC "} \
 ")
 
+/* wchar_t is called differently in <wchar.h> for 32 and 64-bit
+   compilations.  This is called for by SCD 2.4.1, p. 6-83, Figure 6-65
+   (32-bit) and p. 6P-10, Figure 6.38 (64-bit).  */
+#define NO_BUILTIN_WCHAR_TYPE
+
+#undef WCHAR_TYPE
+#define WCHAR_TYPE (TARGET_ARCH64 ? "int" : "long int")
+
+#undef WCHAR_TYPE_SIZE
+#define WCHAR_TYPE_SIZE 32
+
+/* Same for wint_t.  See SCD 2.4.1, p. 6-83, Figure 6-66 (32-bit).  There's
+   no corresponding 64-bit definition, but this is what Solaris 8
+   <iso/wchar_iso.h> uses.  */
+#define NO_BUILTIN_WINT_TYPE
+
+#undef WINT_TYPE
+#define WINT_TYPE (TARGET_ARCH64 ? "int" : "long int")
+
+#undef WINT_TYPE_SIZE
+#define WINT_TYPE_SIZE 32
+
 #undef CPP_ARCH32_SPEC
 #define CPP_ARCH32_SPEC "-D__SIZE_TYPE__=unsigned\\ int -D__PTRDIFF_TYPE__=int \
--D__GCC_NEW_VARARGS__ -Acpu(sparc) -Amachine(sparc)"
+-D__WCHAR_TYPE__=long\\ int -D__WINT_TYPE__=long\\ int \
+-D__GCC_NEW_VARARGS__ -Acpu=sparc -Amachine=sparc"
 #undef CPP_ARCH64_SPEC
 #define CPP_ARCH64_SPEC "-D__SIZE_TYPE__=long\\ unsigned\\ int -D__PTRDIFF_TYPE__=long\\ int \
--D__arch64__ -Acpu(sparc64) -Amachine(sparcv9) -D__sparcv9"
+-D__WCHAR_TYPE__=int -D__WINT_TYPE__=int \
+-D__arch64__ -Acpu=sparc64 -Amachine=sparcv9 -D__sparcv9"
 
 #undef CPP_ARCH_SPEC
 #define CPP_ARCH_SPEC "\
@@ -244,7 +277,8 @@
 %{mcypress:-mcpu=cypress} \
 %{msparclite:-mcpu=sparclite} %{mf930:-mcpu=f930} %{mf934:-mcpu=f934} \
 %{mv8:-mcpu=v8} %{msupersparc:-mcpu=supersparc} \
-%{m64:-mptr64 -mcpu=v9 -mstack-bias -mno-v8plus} \
+%{m64:-mptr64 -mstack-bias -mno-v8plus \
+  %{!mcpu*:%{!mcypress:%{!msparclite:%{!mf930:%{!mf934:%{!mv8*:%{!msupersparc:-mcpu=v9}}}}}}}} \
 "
 #else
 #define CC1_SPEC "\
@@ -252,8 +286,10 @@
 %{mcypress:-mcpu=cypress} \
 %{msparclite:-mcpu=sparclite} %{mf930:-mcpu=f930} %{mf934:-mcpu=f934} \
 %{mv8:-mcpu=v8} %{msupersparc:-mcpu=supersparc} \
-%{m32:-mptr32 -mcpu=cypress -mno-stack-bias} \
-%{mv8plus:-m32 -mptr32 -mcpu=cypress -mno-stack-bias} \
+%{m32:-mptr32 -mno-stack-bias \
+  %{!mcpu*:%{!mcypress:%{!msparclite:%{!mf930:%{!mf934:%{!mv8*:%{!msupersparc:-mcpu=cypress}}}}}}}} \
+%{mv8plus:-m32 -mptr32 -mno-stack-bias \
+  %{!mcpu*:%{!mcypress:%{!msparclite:%{!mf930:%{!mf934:%{!mv8:%{!msupersparc:-mcpu=v9}}}}}}}} \
 "
 #endif
 
@@ -296,68 +332,4 @@
  
 #endif /* ! SPARC_BI_ARCH */
 
-/*
- * Attempt to turn on access permissions for the stack.
- *
- * This code must be defined when compiling gcc but not when compiling
- * libgcc2.a, unless we're generating code for 64 bits SPARC
- *
- * _SC_STACK_PROT is only defined for post 2.6, but we want this code
- * to run always.  2.6 can change the stack protection but has no way to
- * query it.
- *
- */
-
-#define TRANSFER_FROM_TRAMPOLINE					\
-static int need_enable_exec_stack;					\
-									\
-static void check_enabling(void) __attribute__ ((constructor));		\
-static void check_enabling(void)					\
-{									\
-  extern long sysconf(int);						\
-									\
-  int prot = (int) sysconf(515 /*_SC_STACK_PROT */);			\
-  if (prot != 7)							\
-    need_enable_exec_stack = 1;						\
-}									\
-									\
-void									\
-__enable_execute_stack (addr)						\
-     void *addr;							\
-{									\
-  if (!need_enable_exec_stack)						\
-    return;								\
-  else {								\
-    long size = getpagesize ();						\
-    long mask = ~(size-1);						\
-    char *page = (char *) (((long) addr) & mask); 			\
-    char *end  = (char *) ((((long) (addr + TRAMPOLINE_SIZE)) & mask) + size); \
-									\
-    /* 7 is PROT_READ | PROT_WRITE | PROT_EXEC */ 			\
-    if (mprotect (page, end - page, 7) < 0)				\
-      perror ("mprotect of trampoline code");				\
-  }									\
-}
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global constructors.  */
-#undef ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
-  do {									\
-    ctors_section ();							\
-    fprintf (FILE, "\t%s\t ", TARGET_ARCH64 ? ASM_LONGLONG : INT_ASM_OP); \
-    assemble_name (FILE, NAME);						\
-    fprintf (FILE, "\n");						\
-  } while (0)
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global destructors.  */
-#undef ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
-  do {									\
-    dtors_section ();                   				\
-    fprintf (FILE, "\t%s\t ", TARGET_ARCH64 ? ASM_LONGLONG : INT_ASM_OP); \
-    assemble_name (FILE, NAME);              				\
-    fprintf (FILE, "\n");						\
-  } while (0)
-
+#endif

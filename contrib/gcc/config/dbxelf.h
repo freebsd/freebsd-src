@@ -22,8 +22,8 @@ Boston, MA 02111-1307, USA.  */
    support -gstabs generating stabs in sections, as produced by gas
    and understood by gdb.  */
 
-#ifndef __DBX_ELF_H
-#define __DBX_ELF_H
+#ifndef GCC_DBX_ELF_H
+#define GCC_DBX_ELF_H
 
 /* Output DBX (stabs) debugging information if doing -gstabs.  */
 
@@ -54,28 +54,6 @@ Boston, MA 02111-1307, USA.  */
 #define DBX_CONTIN_LENGTH 0
 #endif
 
-/* When using stabs, gcc2_compiled must be a stabs entry, not an
-   ordinary symbol, or gdb won't see it.  Furthermore, since gdb reads
-   the input piecemeal, starting with each N_SO, it's a lot easier if
-   the gcc2 flag symbol is *after* the N_SO rather than before it.  So
-   we emit an N_OPT stab there.  */
-
-#define ASM_IDENTIFY_GCC(FILE)						\
-do									\
-  {									\
-    if (write_symbols != DBX_DEBUG)					\
-      fputs ("gcc2_compiled.:\n", FILE);				\
-  }									\
-while (0)
-
-#define ASM_IDENTIFY_GCC_AFTER_SOURCE(FILE)				\
-do									\
-  {									\
-    if (write_symbols == DBX_DEBUG)					\
-      fputs ("\t.stabs\t\"gcc2_compiled.\", 0x3c, 0, 0, 0\n", FILE);	\
-  }									\
-while (0)
-
 /* Like block addresses, stabs line numbers are relative to the
    current function.  */
 
@@ -86,7 +64,7 @@ do									\
     static int sym_lineno = 1;						\
     char temp[256];							\
     ASM_GENERATE_INTERNAL_LABEL (temp, "LM", sym_lineno);		\
-    fprintf (FILE, ".stabn 68,0,%d,", LINE);				\
+    fprintf (FILE, "\t.stabn 68,0,%d,", LINE);				\
     assemble_name (FILE, temp);						\
     putc ('-', FILE);							\
     assemble_name (FILE,						\
@@ -106,4 +84,4 @@ while (0)
   asm_fprintf (FILE,							\
 	       "\t.text\n\t.stabs \"\",%d,0,0,%LLetext\n%LLetext:\n", N_SO)
 
-#endif /* __DBX_ELF_H */
+#endif /* ! GCC_DBX_ELF_H */

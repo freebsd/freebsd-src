@@ -1,5 +1,5 @@
 /* Definitions for SPARC running Linux-based GNU systems with ELF.
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Eddie C. Dost (ecd@skynet.be)
 
 This file is part of GNU CC.
@@ -21,52 +21,38 @@ Boston, MA 02111-1307, USA.  */
 
 #define LINUX_DEFAULT_ELF
 
-/* Don't assume anything about the header files. */
+/* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
 
-#undef HAVE_ATEXIT
-#define HAVE_ATEXIT
-
 /* GNU/Linux uses ctype from glibc.a. I am not sure how complete it is.
-   For now, we play safe. It may change later. */
+   For now, we play safe. It may change later.  */
 
 #if 0
 #undef MULTIBYTE_CHARS
 #define MULTIBYTE_CHARS 1
 #endif
 
-#ifndef USE_GNULIBC_1
-#undef DEFAULT_VTABLE_THUNKS
-#define DEFAULT_VTABLE_THUNKS 1
-#endif
-
-/* Use stabs instead of DWARF debug format.  */
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
-
-#include <sparc/sysv4.h>
-
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
-
-/* Output at beginning of assembler file.  */
-/* The .file command should always begin the output.  */
-#undef ASM_FILE_START
-#define ASM_FILE_START(FILE)                                            \
-  do {                                                                  \
-        output_file_directive (FILE, main_input_filename);              \
-        fprintf (FILE, "\t.version\t\"01.01\"\n");                      \
-  } while (0)
 
 /* Provide a STARTFILE_SPEC appropriate for GNU/Linux.  Here we add
    the GNU/Linux magical crtbegin.o file (see crtstuff.c) which
    provides part of the support for getting C++ file-scope static
-   object constructed before entering `main'. */
+   object constructed before entering `main'.  */
    
 #undef  STARTFILE_SPEC
+#ifdef USE_GNULIBC_1
 #define STARTFILE_SPEC \
   "%{!shared: \
      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
    crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+#else
+#define STARTFILE_SPEC \
+  "%{!shared: \
+     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
+   crti.o%s %{static:crtbeginT.o%s}\
+   %{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
+#endif
 
 /* Provide a ENDFILE_SPEC appropriate for GNU/Linux.  Here we tack on
    the GNU/Linux magical crtend.o file (see crtstuff.c) which
@@ -78,7 +64,7 @@ Boston, MA 02111-1307, USA.  */
 #define ENDFILE_SPEC \
   "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
 
-/* This is for -profile to use -lc_p instead of -lc. */
+/* This is for -profile to use -lc_p instead of -lc.  */
 #undef	CC1_SPEC
 #define	CC1_SPEC "%{profile:-p} \
 %{sun4:} %{target:} \
@@ -87,8 +73,17 @@ Boston, MA 02111-1307, USA.  */
 %{mv8:-mcpu=v8} %{msupersparc:-mcpu=supersparc} \
 "
 
+/* The GNU C++ standard library requires that these macros be defined.  */
+#undef CPLUSPLUS_CPP_SPEC
+#define CPLUSPLUS_CPP_SPEC "-D_GNU_SOURCE %(cpp)"
+
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (sparc GNU/Linux with ELF)");
+
+#undef SUBTARGET_SWITCHES
+#define SUBTARGET_SWITCHES \
+{"long-double-64", -MASK_LONG_DOUBLE_128, N_("Use 64 bit long doubles") }, \
+{"long-double-128", MASK_LONG_DOUBLE_128, N_("Use 128 bit long doubles") },
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
@@ -97,21 +92,25 @@ Boston, MA 02111-1307, USA.  */
 #define PTRDIFF_TYPE "int"
   
 #undef WCHAR_TYPE
-#define WCHAR_TYPE "long int"
+#define WCHAR_TYPE "int"
    
 #undef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE BITS_PER_WORD
+#define WCHAR_TYPE_SIZE 32
+
+#undef MAX_WCHAR_TYPE_SIZE
     
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__sparc__ -Dlinux -Asystem(unix) -Asystem(posix)"
+#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__sparc__ -Dlinux -Asystem=unix -Asystem=posix"
 
 #undef CPP_SUBTARGET_SPEC
 #ifdef USE_GNULIBC_1
 #define CPP_SUBTARGET_SPEC \
-"%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE}"
+"%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
+%{mlong-double-128:-D__LONG_DOUBLE_128__}"
 #else
 #define CPP_SUBTARGET_SPEC \
-"%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
+"%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
+%{pthread:-D_REENTRANT} %{mlong-double-128:-D__LONG_DOUBLE_128__}"
 #endif
 
 #undef LIB_SPEC
@@ -150,7 +149,7 @@ Boston, MA 02111-1307, USA.  */
    When the -shared link option is used a final link is not being
    done.  */
 
-/* If ELF is the default format, we should not use /lib/elf. */
+/* If ELF is the default format, we should not use /lib/elf.  */
 
 #undef  LINK_SPEC
 #ifdef USE_GNULIBC_1
@@ -173,6 +172,7 @@ Boston, MA 02111-1307, USA.  */
 #endif
 #else
 #define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
+  %{!mno-relax:%{!r:-relax}} \
   %{!shared: \
     %{!ibcs: \
       %{!static: \
@@ -182,19 +182,15 @@ Boston, MA 02111-1307, USA.  */
 #endif
 
 /* The sun bundled assembler doesn't accept -Yd, (and neither does gas).
-   It's safe to pass -s always, even if -g is not used. */
+   It's safe to pass -s always, even if -g is not used.  */
 #undef ASM_SPEC
 #define ASM_SPEC \
-  "%{V} %{v:%{!V:-V}} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s %{fpic:-K PIC} %{fPIC:-K PIC}"
+  "%{V} %{v:%{!V:-V}} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s %{fpic:-K PIC} \
+   %{fPIC:-K PIC} %(asm_relax)"
 
 /* Same as sparc.h */
 #undef DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(REGNO) (REGNO)
-
-/* We use stabs-in-elf for debugging, because that is what the native
-   toolchain uses.  XXX */
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
 #undef ASM_OUTPUT_ALIGNED_LOCAL
 #define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
@@ -206,7 +202,7 @@ do {									\
 } while (0)
 
 #undef COMMON_ASM_OP
-#define COMMON_ASM_OP "\t.common"
+#define COMMON_ASM_OP "\t.common\t"
 
 /* This is how to output a definition of an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
@@ -229,31 +225,25 @@ do {									\
 
 #undef  ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
-  sprintf (LABEL, "*.L%s%d", PREFIX, NUM)
+  sprintf (LABEL, "*.L%s%ld", PREFIX, (long)(NUM))
 
 
-#if 0
 /* Define for support of TFmode long double and REAL_ARITHMETIC.
-   Sparc ABI says that long double is 4 words. GNU/Linux does not support
-   long double yet.  */
-#define LONG_DOUBLE_TYPE_SIZE 128
+   Sparc ABI says that long double is 4 words.  */
+#define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
+
+/* Constant which presents upper bound of the above value.  */
+#define MAX_LONG_DOUBLE_TYPE_SIZE 128
+
+/* Define this to set long double type size to use in libgcc2.c, which can
+   not depend on target_flags.  */
+#ifdef __LONG_DOUBLE_128__
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 128
+#else
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
+#endif
+
+#if !defined(USE_GNULIBC_1) && defined(HAVE_LD_EH_FRAME_HDR)
+#define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
 #endif
 
-/* Override MACHINE_STATE_{SAVE,RESTORE} because we have special
-   traps available which can get and set the condition codes
-   reliably.  */
-#undef MACHINE_STATE_SAVE
-#define MACHINE_STATE_SAVE(ID)				\
-  unsigned long int ms_flags, ms_saveret;		\
-  asm volatile("ta	0x20\n\t"			\
-	       "mov	%%g1, %0\n\t"			\
-	       "mov	%%g2, %1\n\t"			\
-	       : "=r" (ms_flags), "=r" (ms_saveret));
-
-#undef MACHINE_STATE_RESTORE
-#define MACHINE_STATE_RESTORE(ID)			\
-  asm volatile("mov	%0, %%g1\n\t"			\
-	       "mov	%1, %%g2\n\t"			\
-	       "ta	0x21\n\t"			\
-	       : /* no outputs */			\
-	       : "r" (ms_flags), "r" (ms_saveret));
