@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.38 1996/03/24 18:57:35 joerg Exp $
+ * $Id: disks.c,v 1.39 1996/04/07 03:52:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -148,7 +141,6 @@ getBootMgr(char *dname)
 	/* Figure out what kind of MBR the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
 	MenuMBRType.title = str;
-	dialog_clear();
 	i = dmenuOpenSimple(&MenuMBRType);
     }
     else {
@@ -260,7 +252,7 @@ diskPartition(Device *dev, Disk *d)
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	}
-	    break;
+	break;
 
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
@@ -361,7 +353,7 @@ diskPartition(Device *dev, Disk *d)
 		    && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
 
-		if (diskPartitionWrite(NULL) != RET_SUCCESS) {
+		if (diskPartitionWrite(NULL) != DITEM_SUCCESS) {
 		    dialog_clear();
 		    msgConfirm("Disk partition write returned an error status!");
 		}
@@ -415,35 +407,33 @@ diskPartition(Device *dev, Disk *d)
 }
 
 static int
-partitionHook(char *str)
+partitionHook(dialogMenuItem *selected)
+{
+    Device **devs = NULL;
+    WINDOW *w;
+
+    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
+    if (!devs) {
+	dialog_clear();
+	msgConfirm("Unable to find disk %s!", selected->prompt);
+	return DITEM_FAILURE;
+    }
+    devs[0]->enabled = TRUE;
+    w = savescr();
+    diskPartition(devs[0], (Disk *)devs[0]->private);
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+static int
+partitionCheck(dialogMenuItem *selected)
 {
     Device **devs = NULL;
 
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    /* Try and open all the disks */
-    while (str) {
-	char *cp;
-
-	cp = index(str, '\n');
-	if (cp)
-	   *cp++ = 0;
-	if (!*str) {
-	    beep();
-	    return 0;
-	}
-	devs = deviceFind(str, DEVICE_TYPE_DISK);
-	if (!devs) {
-	    dialog_clear();
-	    msgConfirm("Unable to find disk %s!", str);
-	    return 0;
-	}
-	devs[0]->enabled = TRUE;
-	diskPartition(devs[0], (Disk *)devs[0]->private);
-	str = cp;
-    }
-    return devs ? 1 : 0;
+    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
+    if (!devs || devs[0]->enabled == FALSE)
+	return FALSE;
+    return TRUE;
 }
 
 int
@@ -452,10 +442,9 @@ diskPartitionEditor(dialogMenuItem *self)
     DMenu *menu;
     Device **devs;
     int i, cnt;
-    char *cp, *str;
+    char *cp;
 
     cp = variable_get(VAR_DISK);
-    str= variable_get(SYSTEM_STATE);
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -463,16 +452,15 @@ diskPartitionEditor(dialogMenuItem *self)
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     else if (cnt == 1) {
 	devs[0]->enabled = TRUE;
 	diskPartition(devs[0], (Disk *)devs[0]->private);
-	i = RET_SUCCESS;
-	variable_set2(DISK_SELECTED, "yes");
+	i = DITEM_SUCCESS;
     }
     else {
-	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
+	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook, partitionCheck);
 	if (!menu) {
 	    dialog_clear();
 	    msgConfirm("No devices suitable for installation found!\n\n"
@@ -480,15 +468,17 @@ diskPartitionEditor(dialogMenuItem *self)
 		       "were detected properly.  This can be done by pressing the\n"
 		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
 		       "the boot messages.  Press [Scroll Lock] again to return.");
-	    i = RET_FAIL;
+	    i = DITEM_FAILURE;
 	}
 	else {
-	    if (!dmenuOpenSimple(menu))
-		i = RET_FAIL;
-	    else  {
-		i = RET_SUCCESS;
-		variable_set2(DISK_SELECTED, "yes");
-	    }
+	    WINDOW *w;
+
+	    w = savescr();
+	    if (dmenuOpenSimple(menu))
+		i = DITEM_SUCCESS;
+	    else
+		i = DITEM_FAILURE;
+	    restorescr(w);
 	    free(menu);
 	}
     }
@@ -503,18 +493,18 @@ diskPartitionWrite(dialogMenuItem *self)
     int i;
 
     if ((cp = variable_get(DISK_PARTITIONED)) && strcmp(cp, "yes"))
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     else if (!cp) {
 	dialog_clear();
 	msgConfirm("You must partition the disk(s) before this option can be used.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	dialog_clear();
 	msgConfirm("Unable to find any disks to write to??");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     for (i = 0; devs[i]; i++) {
@@ -529,7 +519,7 @@ diskPartitionWrite(dialogMenuItem *self)
 	if (Write_Disk(d)) {
 	    dialog_clear();
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 	/* Now scan for bad blocks, if necessary */
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
@@ -552,5 +542,5 @@ diskPartitionWrite(dialogMenuItem *self)
     }
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.21 1996/03/18 15:27:51 jkh Exp $
+ * $Id: index.c,v 1.22 1996/03/21 09:30:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -64,10 +57,9 @@ _strdup(char *ptr)
 
 static char *descrs[] = {
     "Package Selection", "To mark a package or select a category, move to it and press SPACE.\n"
-    "To unmark a package, press SPACE again.  When you want to commit your\n"
-    "marks, press [ENTER].  To go to a previous menu, select UP item or Cancel.\n"
-    "To search for a package by name, press ESC.  To extract packages, you\n"
-    "should Cancel all the way out of any submenus and finally this menu.",
+    "To unmark a package, press SPACE again.  To go to a previous menu, select the Cancel\n"
+    "button.  To search for a package by name, press ESC.  To finally extract packages, you\n"
+    "should Cancel all the way out of any submenus and this top menu.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -338,10 +330,7 @@ index_sort(PkgNodePtr top)
     }
 }
 
-/*
- * No, we don't free n because someone else is still pointing at it.
- * It's just clone linked from another location, which we're adjusting.
- */
+/* Delete an entry out of the index */
 void
 index_delete(PkgNodePtr n)
 {
@@ -351,6 +340,10 @@ index_delete(PkgNodePtr n)
 	n->name = NULL;
 }
 
+/*
+ * Search for a given node by name, returning the category in if
+ * tp is non-NULL.
+ */
 PkgNodePtr
 index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 {
@@ -381,28 +374,52 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
     return p;
 }
 
-/* Work function for seeing if name x is in result string y */
-static Boolean
-is_selected_in(char *name, char *result)
+int
+pkg_checked(dialogMenuItem *self)
 {
-    Boolean ret = FALSE;
+    PkgNodePtr kp = self->data, plist = (PkgNodePtr)self->aux;
 
-    while (*result) {
-	char *cp;
+    if (kp->type == PACKAGE && plist)
+	return index_search(plist, kp->name, NULL) ? TRUE : FALSE;
+    else
+	return FALSE;
+}
 
-	cp = index(result, '\n');
-	if (!cp) {
-	    ret = !strcmp(name, result);
-	    break;
+int
+pkg_fire(dialogMenuItem *self)
+{
+    PkgNodePtr sp, kp = self->data, plist = (PkgNodePtr)self->aux;
+
+    if (!plist)
+	return DITEM_FAILURE;
+    if (kp->type == PACKAGE) {
+	sp = index_search(plist, kp->name, NULL);
+	/* Not already selected? */
+	if (!sp) {
+	    PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
+
+	    *np = *kp;
+	    np->next = plist->kids;
+	    plist->kids = np;
+	    msgInfo("%s added to selection list", kp->name);
 	}
-	else {
-	    ret = !strncmp(name, result, cp - result - 1);
-	    if (ret)
-		break;
+	else if (sp) {
+	    msgInfo("Removing %s from selection list", kp->name);
+	    index_delete(sp);
 	}
-	result = cp + 1;
     }
-    return ret;
+    else {	/* Not a package, must be a directory */
+	int p, s;
+		    
+	p = s = 0;
+	index_menu(kp, plist, &p, &s);
+    }
+    return DITEM_SUCCESS;
+}
+
+void
+pkg_selected(dialogMenuItem *self, int is_selected)
+{
 }
 
 int
@@ -410,9 +427,8 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 {
     int n, rval, maxname;
     int curr, max;
-    PkgNodePtr sp, kp;
-    char **nitems;
-    char result[4096];
+    PkgNodePtr kp;
+    dialogMenuItem *nitems;
     Boolean hasPackages;
 
     hasPackages = FALSE;
@@ -433,7 +449,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     if (!n && plist) {
 	dialog_clear();
 	msgConfirm("The %s menu is empty.", top->name);
-	return RET_DONE;
+	return DITEM_LEAVE_MENU;
     }
 
     dialog_clear();
@@ -441,66 +457,26 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	n = 0;
 	curr = max = 0;
 	kp = top->kids;
-	if (!hasPackages && kp && kp->name && plist) {
-	    nitems = item_add_pair(nitems, "UP", "<RETURN TO PREVIOUS MENU>", &curr, &max);
-	    ++n;
-	}
 	while (kp && kp->name) {
+	    char buf[256];
+
 	    /* Brutally adjust description to fit in menu */
-	    if (strlen(kp->desc) > (_MAX_DESC - maxname))
-		kp->desc[_MAX_DESC - maxname] = '\0';
-	    nitems = item_add_pair(nitems, kp->name, kp->desc, &curr, &max);
-	    if (hasPackages) {
-		if (kp->type == PACKAGE && plist)
-		    nitems = item_add(nitems, index_search(plist, kp->name, NULL) ? "ON" : "OFF", &curr, &max);
-		else
-		    nitems = item_add(nitems, "OFF", &curr, &max);
-	    }
+	    strcpy(buf, kp->desc);
+	    if (strlen(buf) > (_MAX_DESC - maxname))
+		buf[_MAX_DESC - maxname] = '\0';
+	    nitems = item_add(nitems, kp->name, buf, pkg_checked, pkg_fire, pkg_selected, kp, (int)plist, &curr, &max);
 	    ++n;
 	    kp = kp->next;
 	}
-	nitems = item_add(nitems, NULL, &curr, &max);
+	/* NULL delimiter so item_free() knows when to stop later */
+	nitems = item_add(nitems, NULL, NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
 
 	if (hasPackages)
-	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
-				    (unsigned char **)nitems, result);
+	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n, nitems, NULL);
 	else	/* It's a categories menu */
-	    rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
-			       (unsigned char **)nitems, result, pos, scroll);
-	if (!rval && plist && strcmp(result, "UP")) {
-	    for (kp = top->kids; kp; kp = kp->next) {
-		if (kp->type == PACKAGE) {
-		    sp = index_search(plist, kp->name, NULL);
-		    if (is_selected_in(kp->name, result)) {
-			if (!sp) {
-			    PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
-
-			    *np = *kp;
-			    np->next = plist->kids;
-			    plist->kids = np;
-			    standout();
-			    mvprintw(24, 0, "Selected packages were added to selection list\n", kp->name);
-			    standend();
-			    refresh();
-			}
-		    }
-		    else if (sp) {
-			standout();
-			mvprintw(24, 0, "Deleting unselected packages from selection list\n", kp->name);
-			standend();
-			refresh();
-			index_delete(sp);
-		    }
-		}
-		else if (!strcmp(kp->name, result)) {	/* Not a package, must be a directory */
-		    int p, s;
-		    
-		    p = s = 0;
-		    index_menu(kp, plist, &p, &s);
-		}
-	    }
-	}
-	else if (rval == -1 && plist) {
+	    rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n,
+			       nitems, NULL, pos, scroll);
+	if (rval == -1 && plist) {
 	    static char *cp;
 	    PkgNodePtr menu;
 
@@ -519,12 +495,11 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 		    msgConfirm("Search string: %s yielded no hits.", cp);
 		}
 	    }
+	    continue;
 	}
-	else {
-	    dialog_clear();
-	    items_free(nitems, &curr, &max);
-	    return rval ? RET_FAIL : RET_SUCCESS;
-	}
+	dialog_clear();
+	items_free(nitems, &curr, &max);
+	return rval ? DITEM_FAILURE : DITEM_SUCCESS;
     }
 }
 
@@ -532,7 +507,7 @@ int
 index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
 {
     PkgNodePtr tmp;
-    int status = RET_SUCCESS;
+    int status = DITEM_SUCCESS;
 
     for (tmp = plist->kids; tmp; tmp = tmp->next)
 	status = index_extract_one(dev, top, tmp, FALSE);
@@ -542,7 +517,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
 static int
 index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 {
-    int status = RET_SUCCESS;
+    int status = DITEM_SUCCESS;
     PkgNodePtr tmp2;
     IndexEntryPtr id = who->data;
 
@@ -551,12 +526,12 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 
 	strcpy(t, id->deps);
 	cp = t;
-	while (cp && status == RET_SUCCESS) {
+	while (cp && status == DITEM_SUCCESS) {
 	    if ((cp2 = index(cp, ' ')) != NULL)
 		*cp2 = '\0';
 	    if ((tmp2 = index_search(top, cp, NULL)) != NULL) {
 		status = index_extract_one(dev, top, tmp2, TRUE);
-		if (status != RET_SUCCESS) {
+		if (status != DITEM_SUCCESS) {
 		    if (variable_get(VAR_NO_CONFIRM))
 			msgNotify("Loading of dependant package %s failed", cp);
 		    else
@@ -570,7 +545,7 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	}
     }
     /* Done with the deps?  Load the real m'coy */
-    if (status == RET_SUCCESS)
+    if (status == DITEM_SUCCESS)
 	status = package_extract(dev, who->name, depended);
     return status;
 }

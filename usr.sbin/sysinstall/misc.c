@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.14 1996/01/14 21:48:57 phk Exp $
+ * $Id: misc.c,v 1.15 1996/03/18 15:28:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -205,32 +198,41 @@ safe_realloc(void *orig, size_t size)
  * for dialog_menu().
  */
 
-/* Add a string to an item list */
-char **
-item_add(char **list, char *item, int *curr, int *max)
+/* Add an item to an item list */
+dialogMenuItem *
+item_add(dialogMenuItem *list, char *prompt, char *title,
+	 int (*checked)(dialogMenuItem *self),
+	 int (*fire)(dialogMenuItem *self),
+	 void (*selected)(dialogMenuItem *self, int is_selected),
+	 void *data, int aux, int *curr, int *max)
 {
+    dialogMenuItem *d;
 
     if (*curr == *max) {
 	*max += 20;
-	list = (char **)realloc(list, sizeof(char *) * *max);
+	list = (dialogMenuItem *)realloc(list, sizeof(dialogMenuItem) * *max);
     }
-    list[(*curr)++] = item;
-    return list;
-}
-
-/* Add a pair of items to an item list (more the usual case) */
-char **
-item_add_pair(char **list, char *item1, char *item2, int *curr, int *max)
-{
-    list = item_add(list, item1, curr, max);
-    list = item_add(list, item2, curr, max);
+    d = &list[(*curr)++];
+    d->prompt = prompt ? strdup(prompt) : NULL;
+    d->title = title ? strdup(title) : NULL;
+    d->checked = checked;
+    d->fire = fire;
+    d->selected = selected;
+    d->data = data;
+    d->aux = aux;
     return list;
 }
 
 /* Toss the items out */
 void
-items_free(char **list, int *curr, int *max)
+items_free(dialogMenuItem *list, int *curr, int *max)
 {
+    int i;
+
+    for (i = 0; list[i].prompt; i++) {
+	safe_free(list[i].prompt);
+	safe_free(list[i].title);
+    }
     safe_free(list);
     *curr = *max = 0;
 }
@@ -243,7 +245,7 @@ Mkdir(char *ipath, void *data)
     char *p, *path;
 
     if (file_readable(ipath))
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
 
     path = strdup(ipath);
     if (isDebug())
@@ -261,20 +263,20 @@ Mkdir(char *ipath, void *data)
 	    if (errno != ENOENT) {
 		dialog_clear();
 		msgConfirm("Couldn't stat directory %s: %s", path, strerror(errno));
-		return RET_FAIL;
+		return DITEM_FAILURE;
 	    }
 	    if (isDebug())
 		msgDebug("mkdir(%s..)\n", path);
 	    if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
 		dialog_clear();
 		msgConfirm("Couldn't create directory %s: %s", path,strerror(errno));
-		return RET_FAIL;
+		return DITEM_FAILURE;
 	    }
 	}
 	*p = '/';
     }
     free(path);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -297,7 +299,7 @@ Mount(char *mountp, void *dev)
     if (Mkdir(mountpoint, NULL)) {
 	dialog_clear();
 	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (isDebug())
 	msgDebug("mount %s %s\n", device, mountpoint);
@@ -306,7 +308,24 @@ Mount(char *mountp, void *dev)
     if (mount(MOUNT_UFS, mountpoint, MNT_ASYNC, (caddr_t)&ufsargs) == -1) {
 	dialog_clear();
 	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
+}
+
+WINDOW *
+savescr(void)
+{
+    WINDOW *w;
+
+    w = dupwin(newscr);
+    return w;
+}
+
+void
+restorescr(WINDOW *w)
+{
+    touchwin(w);
+    wrefresh(w);
+    delwin(w);
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.14 1996/03/02 07:31:51 jkh Exp $
+ * $Id: dmenu.c,v 1.15 1996/04/07 03:52:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -52,41 +45,52 @@ int
 dmenuDisplayFile(dialogMenuItem *tmp)
 {
     systemDisplayHelp((char *)tmp->data);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
+    WINDOW *w;
+
+    w = savescr();
     dialog_clear();
-    return dmenuOpenSimple((DMenu *)tmp->data);
+    (void)dmenuOpenSimple((DMenu *)tmp->data);
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuSystemCommand(dialogMenuItem *tmp)
 {
-    int i;
+    WINDOW *w;
 
-    i = systemExecute((char *)tmp->data) ? RET_FAIL : RET_SUCCESS;
+    w = savescr();
+    systemExecute((char *)tmp->data);
     dialog_clear();
-    return i;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuSystemCommandBox(dialogMenuItem *tmp)
 {
+    WINDOW *w;
+
+    w = savescr();
     use_helpfile(NULL);
     use_helpline("Select OK to dismiss this dialog");
     dialog_prgbox(tmp->title, (char *)tmp->data, 22, 76, 1, 1);
     dialog_clear();
-    return RET_SUCCESS;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuCancel(dialogMenuItem *tmp)
 {
     cancelled = TRUE;
-    return RET_SUCCESS;
+    return DITEM_LEAVE_MENU;
 }
 
 int
@@ -94,21 +98,24 @@ dmenuSetVariable(dialogMenuItem *tmp)
 {
     variable_set((char *)tmp->data);
     msgInfo("Set %s", tmp->data);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuSetFlag(dialogMenuItem *tmp)
 {
-    *((unsigned int *)tmp->data) |= tmp->aux;
-    return RET_SUCCESS;
+    if (*((unsigned int *)tmp->data) & tmp->aux)
+	*((unsigned int *)tmp->data) &= ~tmp->aux;
+    else
+	*((unsigned int *)tmp->data) |= tmp->aux;
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuSetValue(dialogMenuItem *tmp)
 {
     *((unsigned int *)tmp->data) = tmp->aux;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /* Traverse menu but give user no control over positioning */
@@ -188,21 +195,23 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
-	if (menu->type == DMENU_NORMAL_TYPE)
+	if (menu->type & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
 			       menu_height(menu, n), -n, menu->items, NULL, choice, scroll);
 
-	else if (menu->type == DMENU_RADIO_TYPE)
+	else if (menu->type & DMENU_RADIO_TYPE)
 	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
 				    menu_height(menu, n), -n, menu->items, NULL);
 
-	else if (menu->type == DMENU_CHECKLIST_TYPE)
+	else if (menu->type & DMENU_CHECKLIST_TYPE)
 	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
 				    menu_height(menu, n), -n, menu->items, NULL);
+	else
+	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
 
 	/* This seems to be the only technique that works for getting the display to look right */
 	dialog_clear();
-	if (rval)
+	if (rval || menu->type & (DMENU_SELECTION_RETURNS | DMENU_RADIO_TYPE | DMENU_CHECKLIST_TYPE))
 	    return FALSE;
 	else if (cancelled) {
 	    cancelled = FALSE;

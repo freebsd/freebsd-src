@@ -163,7 +163,7 @@ dodir(char *fn, struct stat *fs, struct stat *ts, int rel)
 		(void)dodir(buf, &sb, &sc, (buf[0] != '/'));
 		if (chdir ("..") < 0) {
 		    msgDebug("Unable to get back to ..\n");
-		    return RET_FAIL;
+		    return DITEM_FAILURE;
 		}
 		curdir = rcurdir = ocurdir;
 		continue;
@@ -195,24 +195,24 @@ lndir(char *from, char *to)
     /* to directory */
     if (stat(to, &ts) < 0) {
 	msgDebug("Destination directory doesn't exist: %s\n", to);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (!(S_ISDIR(ts.st_mode))) {
 	msgDebug ("%s: Not a directory\n", to);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (chdir(to) < 0) {
 	msgDebug("Unable to chdir to %s\n", to);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     /* from directory */
     if (stat(from, &fs) < 0) {
 	msgDebug("From directory doesn't exist: %s\n", from);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (!(S_ISDIR(fs.st_mode))) {
 	msgDebug ("%s: Not a directory\n", from);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     return dodir(from, &fs, &ts, 0);
 }

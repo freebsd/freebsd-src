@@ -1,6 +1,7 @@
 PROG=	sysinstall
 NOMAN=	yes
 CLEANFILES=	makedevs.c rtermcap
+DEBUG_FLAGS+=	-g3
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
@@ -14,7 +15,7 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c \
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog
 
 DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK}
-LDADD=  -ldialog -lncurses -lmytinfo -lutil -ldisk
+LDADD=  /usr/src/gnu/lib/libdialog/obj/libdialog.a -lncurses -lmytinfo -lutil -ldisk
 
 makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp

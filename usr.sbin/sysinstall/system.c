@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.48 1996/03/18 15:28:08 jkh Exp $
+ * $Id: system.c,v 1.49 1996/03/21 09:30:17 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -129,21 +129,17 @@ systemDisplayHelp(char *file)
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
 	use_helpfile(NULL);
 	use_helpline(NULL);
-	w = dupwin(newscr);
+	w = savescr();
 	dialog_mesgbox("Sorry!", buf, -1, -1);
-	touchwin(w);
-	wrefresh(w);
-	delwin(w);
+	restorescr(w);
 	return 1;
     }
     else {
 	use_helpfile(NULL);
 	use_helpline(NULL);
-	w = dupwin(newscr);
+	w = savescr();
 	dialog_textbox(file, fname, LINES, COLS);
-	touchwin(w);
-	wrefresh(w);
-	delwin(w);
+	restorescr(w);
     }
     return 0;
 }

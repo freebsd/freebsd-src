@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.30 1996/03/21 17:20:31 jkh Exp $
+ * $Id: media.c,v 1.31 1996/04/07 03:52:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -51,25 +44,20 @@
 #include "sysinstall.h"
 
 static int
-genericHook(char *str, DeviceType type)
+genericHook(dialogMenuItem *self, DeviceType type)
 {
     Device **devs;
 
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    if (!*str)
-	return 0;
-    devs = deviceFind(str, type);
+    devs = deviceFind(self->prompt, type);
     if (devs)
 	mediaDevice = devs[0];
-    return devs ? 1 : 0;
+    return devs ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 static int
-cdromHook(char *str)
+cdromHook(dialogMenuItem *self)
 {
-    return genericHook(str, DEVICE_TYPE_CDROM);
+    return genericHook(self, DEVICE_TYPE_CDROM);
 }
 
 char *
@@ -100,29 +88,29 @@ mediaSetCDROM(dialogMenuItem *self)
 		   "configuration is correct and that the CDROM drive is of a supported\n"
 		   "type.  For more information, consult the hardware guide\n"
 		   "in the Doc menu.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
 	int status;
 	
-	menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
+	menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? RET_DONE : RET_FAIL;
+    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 static int
-floppyHook(char *str)
+floppyHook(dialogMenuItem *self)
 {
-    return genericHook(str, DEVICE_TYPE_FLOPPY);
+    return genericHook(self, DEVICE_TYPE_FLOPPY);
 }
 
 /*
@@ -142,29 +130,29 @@ mediaSetFloppy(dialogMenuItem *self)
 	msgConfirm("No floppy devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
 	int status;
 
-	menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyHook);
+	menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create Floppy menu!  Something is seriously wrong.");
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? RET_DONE : RET_FAIL;
+    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 static int
-DOSHook(char *str)
+DOSHook(dialogMenuItem *self)
 {
-    return genericHook(str, DEVICE_TYPE_DOS);
+    return genericHook(self, DEVICE_TYPE_DOS);
 }
 
 /*
@@ -182,29 +170,29 @@ mediaSetDOS(dialogMenuItem *self)
     if (!cnt) {
 	dialog_clear();
 	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
 	int status;
 
-	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook);
+	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create DOS menu!  Something is seriously wrong.");
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? RET_DONE : RET_FAIL;
+    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 static int
-tapeHook(char *str)
+tapeHook(dialogMenuItem *self)
 {
-    return genericHook(str, DEVICE_TYPE_TAPE);
+    return genericHook(self, DEVICE_TYPE_TAPE);
 }
 
 /*
@@ -224,19 +212,19 @@ mediaSetTape(dialogMenuItem *self)
 	msgConfirm("No tape drive devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else if (cnt > 1) {
 	DMenu *menu;
 	int status;
 
-	menu = deviceCreateMenu(&MenuMediaTape, DEVICE_TYPE_TAPE, tapeHook);
+	menu = deviceCreateMenu(&MenuMediaTape, DEVICE_TYPE_TAPE, tapeHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create tape drive menu!  Something is seriously wrong.");
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     else
 	mediaDevice = devs[0];
@@ -253,7 +241,7 @@ mediaSetTape(dialogMenuItem *self)
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return mediaDevice ? RET_DONE : RET_FAIL;
+    return mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 /*
@@ -268,14 +256,14 @@ mediaSetFTP(dialogMenuItem *self)
 
     if (!(cp = variable_get(VAR_FTP_PATH))) {
 	if (!dmenuOpenSimple(&MenuMediaFTP))
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	else
 	    cp = variable_get(VAR_FTP_PATH);
     }
     if (!cp) {
 	dialog_clear();
 	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://");
@@ -287,17 +275,17 @@ mediaSetFTP(dialogMenuItem *self)
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.");
 	if (!cp || !*cp)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     if (strncmp("ftp://", cp, 6)) {
 	dialog_clear();
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     strcpy(ftpDevice.name, cp);
 
     if (!tcpDeviceSelect())
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
@@ -306,7 +294,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
-    return RET_DONE;
+    return DITEM_LEAVE_MENU;
 }
 
 int
@@ -333,7 +321,7 @@ mediaSetUFS(dialogMenuItem *self)
 	val = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 				 "containing the FreeBSD distribution files:");
 	if (!val)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     strcpy(ufsDevice.name, "ufs");
     ufsDevice.type = DEVICE_TYPE_UFS;
@@ -343,7 +331,7 @@ mediaSetUFS(dialogMenuItem *self)
     ufsDevice.shutdown = dummyShutdown;
     ufsDevice.private = strdup(val);
     mediaDevice = &ufsDevice;
-    return RET_DONE;
+    return DITEM_LEAVE_MENU;
 }
 
 int
@@ -356,11 +344,11 @@ mediaSetNFS(dialogMenuItem *self)
 			    "host and directory containing the FreeBSD distribution files.\n"
 			    "This should be in the format:  hostname:/some/freebsd/dir");
     if (!cp)
-	return RET_FAIL;
+	return DITEM_FAILURE;
     strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
     if (!tcpDeviceSelect())
-	return RET_FAIL;
+	return DITEM_FAILURE;
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
@@ -368,7 +356,7 @@ mediaSetNFS(dialogMenuItem *self)
     nfsDevice.shutdown = mediaShutdownNFS;
     nfsDevice.private = mediaDevice;
     mediaDevice = &nfsDevice;
-    return RET_DONE;
+    return DITEM_LEAVE_MENU;
 }
 
 Boolean
@@ -519,8 +507,8 @@ int
 mediaGetType(dialogMenuItem *self)
 {
     if (!dmenuOpenSimple(&MenuMedia))
-	return RET_FAIL;
-    return RET_SUCCESS;
+	return DITEM_FAILURE;
+    return DITEM_SUCCESS;
 }
 
 /* Return TRUE if all the media variables are set up correctly */
@@ -531,7 +519,7 @@ mediaVerify(void)
 	dialog_clear();
 	msgConfirm("Media type not set!  Please select a media type\n"
 		   "from the Installation menu before proceeding.");
-	return mediaGetType(NULL) == RET_SUCCESS;
+	return mediaGetType(NULL) == DITEM_SUCCESS;
     }
     return TRUE;
 }
@@ -545,7 +533,7 @@ mediaSetFtpOnError(dialogMenuItem *self)
     if (!cp) {
 	dialog_clear();
 	msgConfirm("FTP error handling is not set to anything!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else {
 	if (!strcmp(cp, "abort"))
@@ -555,7 +543,7 @@ mediaSetFtpOnError(dialogMenuItem *self)
 	else /* must be "reselect" - wrap around */
 	    variable_set2(VAR_FTP_ONERROR, "abort");
     }
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /* Set the FTP username and password fields */
@@ -570,7 +558,7 @@ mediaSetFtpUserPass(dialogMenuItem *self)
     else
 	pass = NULL;
     dialog_clear();
-    return pass ? RET_SUCCESS : RET_FAIL;
+    return pass ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 /* Set CPIO verbosity level */
@@ -582,7 +570,7 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     if (!cp) {
 	dialog_clear();
 	msgConfirm("CPIO Verbosity is not set to anything!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     else {
 	if (!strcmp(cp, "low"))
@@ -592,5 +580,5 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
 	else /* must be "high" - wrap around */
 	    variable_set2(VAR_CPIO_VERBOSITY, "low");
     }
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

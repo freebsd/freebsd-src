@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.33 1996/03/02 07:31:58 jkh Exp $
+ * $Id: tcpip.c,v 1.34 1996/04/07 03:52:36 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Gary J Palmer
- *	for the FreeBSD Project.
- * 4. The name of Gary J Palmer or the FreeBSD Project may
- *    not be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY GARY J PALMER ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -183,7 +176,7 @@ tcpInstallDevice(char *str)
     string_prune(str);
     str = string_skipwhite(str);
     if (!*str)
-	return RET_FAIL;
+	return DITEM_FAILURE;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
     if (devs && (dp = devs[0])) {
 	char temp[512], ifn[255];
@@ -225,7 +218,7 @@ tcpInstallDevice(char *str)
 	}
 	mediaDevice = dp;
     }
-    return dp ? RET_SUCCESS : RET_FAIL;
+    return dp ? DITEM_SUCCESS : DITEM_FAILURE;
 }
     
 /* This is it - how to get TCP setup values */
@@ -512,27 +505,22 @@ tcpOpenDialog(Device *devp)
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     }
-    return RET_FAIL;
+    return DITEM_FAILURE;
 }
 
 static int
-netHook(char *str)
+netHook(dialogMenuItem *self)
 {
     Device **devs;
 
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    if (!*str)
-	return RET_FAIL;
-    devs = deviceFind(str, DEVICE_TYPE_NETWORK);
+    devs = deviceFind(self->prompt, DEVICE_TYPE_NETWORK);
     if (devs) {
 	tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
     }
-    return devs ? RET_DONE : RET_FAIL;
+    return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 /* Get a network device */
@@ -558,7 +546,7 @@ tcpDeviceSelect(void)
 	status = TRUE;
     }
     else {
-	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
+	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");
 	status = dmenuOpenSimple(menu);
@@ -573,5 +561,5 @@ tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
     configResolv();
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
