@@ -1051,6 +1051,7 @@ keyreplace(marker, delta, delimstuffed, infile, out, dolog)
 	    case Id:
 	    case LocalId:
 	    case Header:
+	    case CVSHeader:
 		if (marker == Id || RCSv < VERSION(4) ||
 		    (marker == LocalId && LocalIdMode == Id))
 			escape_string(out, basefilename(RCSname));
