@@ -473,10 +473,10 @@ kmem_alloc_wait(map, size)
 			vm_map_unlock(map);
 			return (0);
 		}
-		vm_map_unlock(map);
-		tsleep(map, PVM, "kmaw", 0);
+		map->needs_wakeup = TRUE;
+		vm_map_unlock_and_wait(map, FALSE);
 	}
-	vm_map_insert(map, NULL, (vm_offset_t) 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
+	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
 	return (addr);
 }
@@ -497,7 +497,10 @@ kmem_free_wakeup(map, addr, size)
 
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
-	wakeup(map);
+	if (map->needs_wakeup) {
+		map->needs_wakeup = FALSE;
+		vm_map_wakeup(map);
+	}
 	vm_map_unlock(map);
 }
 
