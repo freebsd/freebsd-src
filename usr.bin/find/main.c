@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 4/16/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -74,6 +75,8 @@ main(argc, argv)
 {
 	register char **p, **start;
 	int Hflag, Lflag, Pflag, ch;
+
+	(void)setlocale(LC_ALL, "");
 
 	(void)time(&now);	/* initialize the time-of-day */
 
