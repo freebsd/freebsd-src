@@ -113,6 +113,6 @@ get_lattr(int pid)
 	if (devlomac == -1)
 		lomac_start();
 	if (ioctl(devlomac, LIOGETPLEVEL, &pid) == -1)
-		err(1, NULL);
+		err(1, "ioctl");
 	return (pid);
 }

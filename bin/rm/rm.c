@@ -185,7 +185,7 @@ rm_tree(char **argv)
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
 	if (!(fts = fts_open(argv, flags, NULL)))
-		err(1, NULL);
+		err(1, "fts_open");
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
@@ -436,7 +436,7 @@ check(char *path, char *name, struct stat *sp)
 			return (1);
 		strmode(sp->st_mode, modep);
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
-			err(1, NULL);
+			err(1, "fflagstostr");
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
 		    modep + 1, modep[9] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
