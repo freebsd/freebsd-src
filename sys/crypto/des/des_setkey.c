@@ -1,7 +1,7 @@
-/*	$FreeBSD$	*/
 /*	$KAME: des_setkey.c,v 1.7 2001/09/10 04:03:58 itojun Exp $	*/
 
 /* crypto/des/set_key.c */
+
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  *
@@ -55,6 +55,10 @@
  * 1.1 added norm_expand_bits
  * 1.0 First working version
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <crypto/des/des_locl.h>
