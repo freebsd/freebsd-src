@@ -63,7 +63,7 @@
 #
 # c_fmt
 #
-%a %e %b %X %Y
+%a %Ex %X %Y
 #
 # am
 # (two spaces)
@@ -75,7 +75,7 @@
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %Ex %Y %X %Z
 #
 # Long month names in alternative form
 #
@@ -91,3 +91,7 @@
 октябрь
 ноябрь
 декабрь
+#
+# Ex_fmt
+#
+%e %b

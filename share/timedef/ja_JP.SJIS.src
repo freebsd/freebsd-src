@@ -67,7 +67,7 @@
 #
 # just following tradition...
 # %a %b %e %H:%M:%S %Y
-%a %b/%e %T %Y
+%a %Ex %T %Y
 #
 # am
 #
@@ -84,3 +84,22 @@ PM
 # date_fmt
 #
 %Y”N %B%e“ú %A %X %Z
+#
+# Long months names (alternative)
+#
+1ŒŽ
+2ŒŽ
+3ŒŽ
+4ŒŽ
+5ŒŽ
+6ŒŽ
+7ŒŽ
+8ŒŽ
+9ŒŽ
+10ŒŽ
+11ŒŽ
+12ŒŽ
+#
+# Ex_fmt
+#
+%b/%e
