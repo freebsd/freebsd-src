@@ -33,56 +33,56 @@
 /*
  * defines for older EISA controllers (IDA, IDA-2, IAES, SMART)
  */
-#define R_EISA_INT_MASK			0x01
-#define R_EISA_LOCAL_MASK		0x04
-#define R_EISA_LOCAL_DOORBELL		0x05
-#define R_EISA_SYSTEM_MASK		0x06
-#define R_EISA_SYSTEM_DOORBELL		0x07
-#define R_EISA_LIST_ADDR		0x08
-#define R_EISA_LIST_LEN			0x0c
-#define R_EISA_TAG			0x0f
-#define R_EISA_COMPLETE_ADDR		0x10
-#define R_EISA_LIST_STATUS		0x16
+#define	R_EISA_INT_MASK			0x01
+#define	R_EISA_LOCAL_MASK		0x04
+#define	R_EISA_LOCAL_DOORBELL		0x05
+#define	R_EISA_SYSTEM_MASK		0x06
+#define	R_EISA_SYSTEM_DOORBELL		0x07
+#define	R_EISA_LIST_ADDR		0x08
+#define	R_EISA_LIST_LEN			0x0c
+#define	R_EISA_TAG			0x0f
+#define	R_EISA_COMPLETE_ADDR		0x10
+#define	R_EISA_LIST_STATUS		0x16
 
-#define EISA_CHANNEL_BUSY		0x01
-#define EISA_CHANNEL_CLEAR		0x02
+#define	EISA_CHANNEL_BUSY		0x01
+#define	EISA_CHANNEL_CLEAR		0x02
 
 /*
  * board register offsets for SMART-2 controllers
  */
-#define R_CMD_FIFO	0x04
-#define R_DONE_FIFO	0x08
-#define R_INT_MASK	0x0C
-#define R_STATUS	0x10
-#define R_INT_PENDING	0x14
+#define	R_CMD_FIFO	0x04
+#define	R_DONE_FIFO	0x08
+#define	R_INT_MASK	0x0C
+#define	R_STATUS	0x10
+#define	R_INT_PENDING	0x14
 
 /*
  * interrupt mask values for SMART series
  */
-#define INT_DISABLE	0x00
-#define INT_ENABLE	0x01
+#define	INT_DISABLE	0x00
+#define	INT_ENABLE	0x01
 
 /*
  * board offsets for the 42xx series
  */
-#define R_42XX_STATUS	0x30
-#define R_42XX_INT_MASK	0x34
-#define R_42XX_REQUEST	0x40
-#define R_42XX_REPLY	0x44
+#define	R_42XX_STATUS	0x30
+#define	R_42XX_INT_MASK	0x34
+#define	R_42XX_REQUEST	0x40
+#define	R_42XX_REPLY	0x44
 
 /*
  * interrupt values for 42xx series
  */
-#define INT_ENABLE_42XX			0x00
-#define INT_DISABLE_42XX		0x08
-#define STATUS_42XX_INT_PENDING		0x08
+#define	INT_ENABLE_42XX			0x00
+#define	INT_DISABLE_42XX		0x08
+#define	STATUS_42XX_INT_PENDING		0x08
 
 /*
  * return status codes
  */
-#define SOFT_ERROR	0x02
-#define HARD_ERROR	0x04
-#define CMD_REJECTED	0x14
+#define	SOFT_ERROR	0x02
+#define	HARD_ERROR	0x04
+#define	CMD_REJECTED	0x14
 
 /*
  * command types 
@@ -96,13 +96,13 @@
 #define	CMD_SENSE_DRV_LEDS	0x17
 #define	CMD_GET_LOG_DRV_EXT	0x18
 #define	CMD_GET_CTRL_INFO	0x11
-#define CMD_READ		0x20
-#define CMD_WRITE		0x30
-#define CMD_WRITE_MEDIA		0x31
-#define CMD_GET_CONFIG		0x50
-#define CMD_SET_CONFIG		0x51
-#define CMD_START_FIRMWARE	0x99		/* for integrated RAID */
-#define CMD_FLUSH_CACHE		0xc2
+#define	CMD_READ		0x20
+#define	CMD_WRITE		0x30
+#define	CMD_WRITE_MEDIA		0x31
+#define	CMD_GET_CONFIG		0x50
+#define	CMD_SET_CONFIG		0x51
+#define	CMD_START_FIRMWARE	0x99		/* for integrated RAID */
+#define	CMD_FLUSH_CACHE		0xc2
 
 /*
  * command structures
