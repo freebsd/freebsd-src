@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.68 2003/08/21 17:49:50 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.69 2003/08/21 18:05:35 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -106,20 +106,32 @@
 #define	PCMCIA_VENDOR_ASUS	0x02aa	/* ASUS */
 #define	PCMCIA_VENDOR_SIEMENS	0x02ac	/* Siemens */
 #define	PCMCIA_VENDOR_MICROSOFT	0x02d2	/* Microsoft Corporation */
+
+/*
+ * The following vendor IDs are byte-swapped from what the company is assigned.
+ */
 #define	PCMCIA_VENDOR_NWN	0x0602	/* No Wires Needed */
 #define	PCMCIA_VENDOR_BREEZECOM	0x0a02	/* BreezeCOM */
-#define	PCMCIA_VENDOR_NEWMEDIA2	0x10cd	/* NewMedia */
-#define	PCMCIA_VENDOR_PLANEX_2	0x14ea	/* PLANEX */
-#define	PCMCIA_VENDOR_ACTIONTEC	0x1668	/* ACTIONTEC */
 #define	PCMCIA_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
 #define	PCMCIA_VENDOR_BONDWELL	0x3b01	/* Bondwell */
 #define	PCMCIA_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
+#define	PCMCIA_VENDOR_COMPEX	0x8a01	/* Compex Corporation */
+#define	PCMCIA_VENDOR_ZONET	0x8a01	/* Zonet Technology Inc. */
+#define	PCMCIA_VENDOR_ELSA	0xd601	/* Elsa */
+
+/*
+ * The following vendor IDs are not, as far as I can tell, actually
+ * assigned to these people.  However, all the ones starting with '0xc'
+ * look coherent enough that maybe somebody other than PCMCIA is
+ * assigning numbers in that range.
+ */
+#define	PCMCIA_VENDOR_NEWMEDIA2	0x10cd	/* NewMedia */
+#define	PCMCIA_VENDOR_PLANEX_2	0x14ea	/* PLANEX */
+#define	PCMCIA_VENDOR_ACTIONTEC	0x1668	/* ACTIONTEC */
 #define	PCMCIA_VENDOR_AIRVAST	0x50c2	/* AirVast Technology */
 #define	PCMCIA_VENDOR_ARCHOS	0x5241	/* Archos */
 #define	PCMCIA_VENDOR_DUAL	0x890f	/* Dual */
 #define	PCMCIA_VENDOR_EDIMAX	0x890f	/* Edimax Technology Inc. */
-#define	PCMCIA_VENDOR_COMPEX	0x8a01	/* Compex Corporation */
-#define	PCMCIA_VENDOR_ZONET	0x8a01	/* Zonet Technology Inc. */
 #define	PCMCIA_VENDOR_CONTEC	0xc001	/* Contec */
 #define	PCMCIA_VENDOR_MACNICA	0xc00b	/* MACNICA */
 #define	PCMCIA_VENDOR_ROLAND	0xc00c	/* Roland */
@@ -129,7 +141,6 @@
 #define	PCMCIA_VENDOR_RATOC	0xc015	/* RATOC System Inc. */
 #define	PCMCIA_VENDOR_WORKBIT	0xc024	/* WORKBIT */
 #define	PCMCIA_VENDOR_EMTAC	0xc250	/* EMTAC Technology Corporation */
-#define	PCMCIA_VENDOR_ELSA	0xd601	/* Elsa */
 
 /*
  * List of known products.  Grouped by vendor, sorted by number within the
