@@ -13,7 +13,6 @@
 * warranties, including, without limitation, the implied warranties of
 * merchantibility and fitness for any particular purpose.
 ************************************************************************/
-/* $FreeBSD$ */
 /*
     SYNOPSIS
 	void login_fbtab(tty, uid, gid)
@@ -58,6 +57,10 @@
 	Eindhoven University of Technology
 	The Netherlands
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
