@@ -40,26 +40,28 @@ struct ip_fw {
  * Values for "flags" field .
  */
 
-#define IP_FW_F_ALL	0x00	/* This is a universal packet firewall*/
-#define IP_FW_F_TCP	0x01	/* This is a TCP packet firewall      */
-#define IP_FW_F_UDP	0x02	/* This is a UDP packet firewall      */
-#define IP_FW_F_ICMP	0x03	/* This is a ICMP packet firewall     */
-#define IP_FW_F_KIND	0x03	/* Mask to isolate firewall kind      */
-#define IP_FW_F_ACCEPT	0x04	/* This is an accept firewall (as     *
+#define IP_FW_F_ALL	0x000	/* This is a universal packet firewall*/
+#define IP_FW_F_TCP	0x001	/* This is a TCP packet firewall      */
+#define IP_FW_F_UDP	0x002	/* This is a UDP packet firewall      */
+#define IP_FW_F_ICMP	0x003	/* This is a ICMP packet firewall     */
+#define IP_FW_F_KIND	0x003	/* Mask to isolate firewall kind      */
+#define IP_FW_F_ACCEPT	0x004	/* This is an accept firewall (as     *
 				 *         opposed to a deny firewall)*
 				 *                                    */
-#define IP_FW_F_SRNG	0x08	/* The first two src ports are a min  *
+#define IP_FW_F_SRNG	0x008	/* The first two src ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            *
 				 *                                    */
-#define IP_FW_F_DRNG	0x10	/* The first two dst ports are a min  *
+#define IP_FW_F_DRNG	0x010	/* The first two dst ports are a min  *
 				 * and max range (stored in host byte *
 				 * order).                            *
 				 * (ports[0] <= port <= ports[1])     *
 				 *                                    */
-#define IP_FW_F_PRN	0x20	/* In verbose mode print this firewall*/
-#define IP_FW_F_BIDIR	0x40	/* For accounting-count two way       */
-#define IP_FW_F_MASK	0x7F	/* All possible flag bits mask        */
+#define IP_FW_F_PRN	0x020	/* In verbose mode print this firewall*/
+#define IP_FW_F_BIDIR	0x040	/* For accounting-count two way       */
+#define IP_FW_F_TCPSYN	0x080	/* For tcp packets-check SYN only     */
+#define IP_FW_F_ICMPRPL	0x100	/* Send back icmp unreachable packet  */
+#define IP_FW_F_MASK	0x1FF	/* All possible flag bits mask        */
 
 /*    
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
@@ -80,6 +82,13 @@ struct ip_fw {
 #define IP_ACCT_FLUSH (IP_FW_BASE_CTL+12)
 #define IP_ACCT_ZERO  (IP_FW_BASE_CTL+13)
 
+/*
+ * Policy flags...
+ */
+#define IP_FW_P_DENY		0x01
+#define IP_FW_P_ICMP		0x02
+#define IP_FW_P_MASK		0x03
+
 
 /*
  * Main firewall chains definitions and global var's definitions.
@@ -88,7 +97,7 @@ struct ip_fw {
 #ifdef IPFIREWALL
 extern struct ip_fw *ip_fw_blk_chain;
 extern struct ip_fw *ip_fw_fwd_chain;
-extern int ip_fw_policy;
+extern u_short ip_fw_policy;
 #endif
 #ifdef IPACCT
 extern struct ip_fw *ip_acct_chain;
