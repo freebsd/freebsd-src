@@ -67,9 +67,10 @@
  */
 
 
+#include "lib.h"
+
 #include <ctype.h>
 #include <stdlib.h>
-#include <string.h>
 #include "gprint.h"
 
 #include "device.h"
@@ -77,7 +78,6 @@
 #include "searchpath.h"
 #include "macropath.h"
 
-#include "lib.h"
 #include "errarg.h"
 #include "error.h"
 #include "defs.h"
@@ -848,7 +848,7 @@ interpret(char *line)
     if (par > 0.0)
       xscale *= par;
     else
-      error("illegal scale value on line %1", linenum);
+      error("invalid scale value on line %1", linenum);
     break;
 
   case 'f':			/* file */

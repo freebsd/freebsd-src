@@ -18,22 +18,23 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <errno.h>
 
 #include "errarg.h"
 #include "error.h"
-#include "lib.h"
 #include "cset.h"
 
 #include "refid.h"
 #include "search.h"
 
+/* for isatty() */
+#include "posix.h"
+
 extern "C" {
-  int isatty(int);
   const char *Version_string;
 }
 

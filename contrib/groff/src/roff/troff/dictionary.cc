@@ -138,7 +138,7 @@ int dictionary_iterator::get(symbol *sp, void **vp)
 }
 
 object_dictionary_iterator::object_dictionary_iterator(object_dictionary &od)
-     : di(od.d)
+: di(od.d)
 {
 }
 

@@ -1,9 +1,9 @@
-PROG=addftinfo
+PROG=addftinfo$(EXEEXT)
 MAN1=addftinfo.n
 XLIBS=$(LIBGROFF)
 OBJS=\
-  addftinfo.o \
-  guess.o
+  addftinfo.$(OBJEXT) \
+  guess.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/addftinfo.cc \
   $(srcdir)/guess.cc

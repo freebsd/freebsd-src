@@ -1,5 +1,5 @@
-% Hyphenation patterns for US English.
-% These are the standard Plain TeX hyphenation patterns (in hyphen.tex).
+% The Plain TeX hyphenation tables [NOT TO BE CHANGED IN ANY WAY!]
+\patterns{ % just type <return> if you're not using INITEX
 .ach4
 .ad4der
 .af1t
@@ -4447,3 +4447,20 @@ zo5ol
 zte4
 4z1z2
 z4zy
+}
+\hyphenation{ % Do NOT make any alterations to this list! --- DEK
+as-so-ciate
+as-so-ciates
+dec-li-na-tion
+oblig-a-tory
+phil-an-thropic
+present
+presents
+project
+projects
+reci-procity
+re-cog-ni-zance
+ref-or-ma-tion
+ret-ri-bu-tion
+ta-ble
+}

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -20,7 +20,6 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include "table.h"
-#include "htmlindicate.h"
 
 #define MAX_POINT_SIZE 99
 #define MAX_VERTICAL_SPACING 72
@@ -110,7 +109,7 @@ int table_input::get()
 	else {
 	  state = MIDDLE;
 	  if (c == '\0') {
-	    error("illegal input character code 0");
+	    error("invalid input character code 0");
 	    break;
 	  }
 	}
@@ -139,7 +138,7 @@ int table_input::get()
 	  current_lineno++;
 	}
 	else if (c == '\0') {
-	  error("illegal input character code 0");
+	  error("invalid input character code 0");
 	  break;
 	}
 	return c;
@@ -221,8 +220,6 @@ void process_input_file(FILE *fp)
       break;
     case HAD_TS:
       if (c == ' ' || c == '\n' || compatible_flag) {
-	printf(".if '\\*(.T'html' \\X(table-start(\n");
-	html_begin_suppress(0);
 	putchar('.');
 	putchar('T');
 	putchar('S');
@@ -244,16 +241,12 @@ void process_input_file(FILE *fp)
 	    fputs(".TE", stdout);
 	    while ((c = getc(fp)) != '\n') {
 	      if (c == EOF) {
-		printf(".if '\\*(.T'html' \\X(table-end(\n");
-		html_end_suppress(0);
 		putchar('\n');
 		return;
 	      }
 	      putchar(c);
 	    }
 	    putchar('\n');
-	    printf(".if '\\*(.T'html' \\X(table-end(\n");
-	    html_end_suppress(0);
 	    current_lineno++;
 	  }
 	}
@@ -453,33 +446,38 @@ options *process_options(table_input &in)
     }
     else if (strieq(p, "center") || strieq(p, "centre")) {
       if (arg)
-	error("`center' option does not take a argument");
+	error("`center' option does not take an argument");
       opt->flags |= table::CENTER;
     }
     else if (strieq(p, "expand")) {
       if (arg)
-	error("`expand' option does not take a argument");
+	error("`expand' option does not take an argument");
       opt->flags |= table::EXPAND;
     }
     else if (strieq(p, "box") || strieq(p, "frame")) {
       if (arg)
-	error("`box' option does not take a argument");
+	error("`box' option does not take an argument");
       opt->flags |= table::BOX;
     }
     else if (strieq(p, "doublebox") || strieq(p, "doubleframe")) {
       if (arg)
-	error("`doublebox' option does not take a argument");
+	error("`doublebox' option does not take an argument");
       opt->flags |= table::DOUBLEBOX;
     }
     else if (strieq(p, "allbox")) {
       if (arg)
-	error("`allbox' option does not take a argument");
+	error("`allbox' option does not take an argument");
       opt->flags |= table::ALLBOX;
     }
     else if (strieq(p, "nokeep")) {
       if (arg)
-	error("`nokeep' option does not take a argument");
+	error("`nokeep' option does not take an argument");
       opt->flags |= table::NOKEEP;
+    }
+    else if (strieq(p, "nospaces")) {
+      if (arg)
+	error("`nospaces' option does not take an argument");
+      opt->flags |= table::NOSPACES;
     }
     else if (strieq(p, "decimalpoint")) {
       if (!arg)
@@ -1214,6 +1212,8 @@ table *process_data(table_input &in, format *f, options *opt)
 	    int ln = current_lineno;
 	    if (c == '\n')
 	      --ln;
+	    if ((opt->flags & table::NOSPACES))
+	      input_entry.remove_spaces();
 	    while (col < ncolumns
 		   && line_format[col].type == FORMAT_SPAN) {
 	      tbl->add_entry(current_row, col, "", &line_format[col],
@@ -1385,7 +1385,7 @@ table *process_data(table_input &in, format *f, options *opt)
 	    f = newf;
 	}
 	if (line.length() >= 3
-	    && line[0] == '.' && line[1] == 'f' && line[2] == 'f') {
+	    && line[0] == '.' && line[1] == 'l' && line[2] == 'f') {
 	  line += '\0';
 	  interpret_lf_args(line.contents() + 3);
 	}

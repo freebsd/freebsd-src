@@ -42,7 +42,7 @@ the original English.
 .el .RB "[\ " "\\$1" "\ ]"
 ..
 .OP \-rvCNR
-.OP \-d cc
+.OP \-d xy
 .OP \-T name
 .OP \-M dir
 .OP \-f F
@@ -96,6 +96,16 @@ GNU eqn does not provide the functionality of neqn:
 it does not support low-resolution, typewriter-like devices
 (although it may work adequately for very simple input).
 .SH OPTIONS
+.TP
+.BI \-d xy
+Specify delimiters
+.I x
+and
+.I y
+for the left and right end, respectively, of in-line equations.
+Any
+.B delim
+statements in the source file overrides this.
 .TP
 .B \-C
 Recognize
@@ -456,7 +466,7 @@ by drawing a diagonal line through it.
 .IP
 .nf
 .ft B
-.ne 6+\n(.Vu
+.if t .ne 6+\n(.Vu
 \&.EQ
 define cancel 'special Ca'
 \&.EN
@@ -475,7 +485,7 @@ Here's a more complicated construct that draws a box round an expression:
 .IP
 .nf
 .ft B
-.ne 11+\n(.Vu
+.if t .ne 11+\n(.Vu
 \&.EQ
 define box 'special Bx'
 \&.EN

@@ -1,4 +1,4 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -202,6 +202,10 @@ char *do_sprintf(const char *form, const double *v, int nv);
 %token GREATEREQUAL
 %token LEFT_CORNER
 %token RIGHT_CORNER
+%token NORTH
+%token SOUTH
+%token EAST
+%token WEST
 %token CENTER
 %token END
 %token START
@@ -210,12 +214,17 @@ char *do_sprintf(const char *form, const double *v, int nv);
 %token PLOT
 %token THICKNESS
 %token FILL
+%token COLORED
+%token OUTLINED
+%token SHADED
 %token ALIGNED
 %token SPRINTF
 %token COMMAND
 
 %token DEFINE
 %token UNDEF
+
+%left '.'
 
 /* this ensures that plot 17 "%g" parses as (plot 17 "%g") */
 %left PLOT
@@ -231,11 +240,13 @@ box "foo" above ljust == box ("foo" above ljust)
 /* Give attributes that take an optional expression a higher
 precedence than left and right, so that eg `line chop left'
 parses properly. */
-%left CHOP SOLID DASHED DOTTED UP DOWN FILL
+%left CHOP SOLID DASHED DOTTED UP DOWN FILL COLORED OUTLINED
 %left LABEL
 
 %left VARIABLE NUMBER '(' SIN COS ATAN2 LOG EXP SQRT K_MAX K_MIN INT RAND SRAND LAST 
 %left ORDINAL HERE '`'
+
+%left BOX CIRCLE ELLIPSE ARC LINE ARROW SPLINE '['
 
 /* these need to be lower than '-' */
 %left HEIGHT RADIUS WIDTH DIAMETER FROM TO AT THICKNESS
@@ -244,7 +255,7 @@ parses properly. */
 works */
 %left DOT_N DOT_E DOT_W DOT_S DOT_NE DOT_SE DOT_NW DOT_SW DOT_C
 %left DOT_START DOT_END TOP BOTTOM LEFT_CORNER RIGHT_CORNER
-%left UPPER LOWER CENTER START END
+%left UPPER LOWER NORTH SOUTH EAST WEST CENTER START END
 
 %left ','
 %left OROR
@@ -350,7 +361,7 @@ placeless_element:
 		{
 		  fprintf(stderr, "%s\n", $2.str);
 		  a_delete $2.str;
-	          fflush(stderr);
+		  fflush(stderr);
 		}
 	| SH
 		{ delim_flag = 1; }
@@ -433,11 +444,20 @@ placeless_element:
 
 reset_variables:
 	RESET VARIABLE
-		{ reset($2); a_delete $2; }
+		{
+		  reset($2);
+		  a_delete $2;
+		}
 	| reset_variables VARIABLE
-		{ reset($2); a_delete $2; }
+		{
+		  reset($2);
+		  a_delete $2;
+		}
 	| reset_variables ',' VARIABLE
-		{ reset($3); a_delete $3; }
+		{
+		  reset($3);
+		  a_delete $3;
+		}
 	;
 
 print_args:
@@ -462,7 +482,7 @@ print_args:
 	;
 
 print_arg:
-  	expr               %prec ','
+  	expr							%prec ','
 		{
 		  $$.str = new char[GDIGITS + 1];
 		  sprintf($$.str, "%g", $1);
@@ -471,19 +491,24 @@ print_arg:
 		}
 	| text
 		{ $$ = $1; }
-	| position          %prec ','
+	| position						%prec ','
 		{
 		  $$.str = new char[GDIGITS + 2 + GDIGITS + 1];
 		  sprintf($$.str, "%g, %g", $1.x, $1.y);
 		  $$.filename = 0;
 		  $$.lineno = 0;
 		}
+	;
 
 simple_if:
 	IF any_expr THEN
 		{ delim_flag = 1; }
 	DELIMITED
-		{ delim_flag = 0; $$.x = $2; $$.body = $5; }
+		{
+		  delim_flag = 0;
+		  $$.x = $2;
+		  $$.body = $5;
+		}
 	;
 
 until:
@@ -532,11 +557,20 @@ text_expr:
 
 optional_by:
 	/* empty */
-		{ $$.val = 1.0; $$.is_multiplicative = 0; }
+		{
+		  $$.val = 1.0;
+		  $$.is_multiplicative = 0;
+		}
 	| BY expr
-		{ $$.val = $2; $$.is_multiplicative = 0; }
+		{
+		  $$.val = $2;
+		  $$.is_multiplicative = 0;
+		}
 	| BY '*' expr
-		{ $$.val = $3; $$.is_multiplicative = 1; }
+		{
+		  $$.val = $3;
+		  $$.is_multiplicative = 1;
+		}
 	;
 
 element:
@@ -555,7 +589,11 @@ element:
 		  }
 		}
 	| LABEL ':' optional_separator element
-		{ $$ = $4; define_label($1, & $$); a_delete $1; }
+		{
+		  $$ = $4;
+		  define_label($1, & $$);
+		  a_delete $1;
+		}
 	| LABEL ':' optional_separator position_not_place
 		{
 		  $$.obj = 0;
@@ -603,17 +641,11 @@ optional_element:
 
 object_spec:
 	BOX
-		{
-		  $$ = new object_spec(BOX_OBJECT);
-		}
+		{ $$ = new object_spec(BOX_OBJECT); }
 	| CIRCLE
-		{
-		  $$ = new object_spec(CIRCLE_OBJECT);
-		}
+		{ $$ = new object_spec(CIRCLE_OBJECT); }
 	| ELLIPSE
-		{
-		  $$ = new object_spec(ELLIPSE_OBJECT);
-		}
+		{ $$ = new object_spec(ELLIPSE_OBJECT); }
 	| ARC
 		{
 		  $$ = new object_spec(ARC_OBJECT);
@@ -647,7 +679,7 @@ object_spec:
 		  lookup_variable("linewid", & $$->segment_width);
 		  $$->dir = current_direction;
 		}
-	| text   %prec TEXT
+	| text							%prec TEXT
 		{
 		  $$ = new object_spec(TEXT_OBJECT);
 		  $$->text = new text_item($1.str, $1.filename, $1.lineno);
@@ -715,7 +747,7 @@ object_spec:
 		  $$->radius = $3/2.0;
 		  $$->flags |= HAS_RADIUS;
 		}
-	| object_spec expr %prec HEIGHT
+	| object_spec expr					%prec HEIGHT
 		{
 		  $$ = $1;
 		  $$->flags |= HAS_SEGMENT;
@@ -830,6 +862,15 @@ object_spec:
 		  $$->flags |= HAS_WITH;
 		  $$->with = $3;
 		}
+	| object_spec WITH position				%prec ','
+		{
+		  $$ = $1;
+		  $$->flags |= HAS_WITH;
+		  position pos;
+		  pos.x = $3.x;
+		  pos.y = $3.y;
+		  $$->with = new path(pos);
+		}
 	| object_spec BY expr_pair
 		{
 		  $$ = $1;
@@ -887,6 +928,29 @@ object_spec:
 		  $$ = $1;
 		  $$->flags |= IS_FILLED;
 		  $$->fill = $3;
+		}
+	| object_spec SHADED text
+		{
+		  $$ = $1;
+		  $$->flags |= (IS_SHADED | IS_FILLED);
+		  $$->shaded = new char[strlen($3.str)+1];
+		  strcpy($$->shaded, $3.str);
+		}
+	| object_spec COLORED text
+		{
+		  $$ = $1;
+		  $$->flags |= (IS_SHADED | IS_OUTLINED | IS_FILLED);
+		  $$->shaded = new char[strlen($3.str)+1];
+		  strcpy($$->shaded, $3.str);
+		  $$->outlined = new char[strlen($3.str)+1];
+		  strcpy($$->outlined, $3.str);
+		}
+	| object_spec OUTLINED text
+		{
+		  $$ = $1;
+		  $$->flags |= IS_OUTLINED;
+		  $$->outlined = new char[strlen($3.str)+1];
+		  strcpy($$->outlined, $3.str);
 		}
 	| object_spec CHOP
   		{
@@ -956,7 +1020,7 @@ object_spec:
 		  $$ = $1;
 		  $$->flags &= ~IS_CLOCKWISE;
 		}
-	| object_spec text   %prec TEXT
+	| object_spec text					%prec TEXT
 		{
 		  $$ = $1;
 		  text_item **p;
@@ -1019,9 +1083,7 @@ object_spec:
 
 text:
 	TEXT
-		{
-		  $$ = $1;
-		}
+		{ $$ = $1; }
 	| SPRINTF '(' TEXT sprintf_args ')'
 		{
 		  $$.filename = $3.filename;
@@ -1108,13 +1170,17 @@ between:
 
 expr_pair:
 	expr ',' expr
-		{ $$.x = $1; $$.y = $3; }
+		{
+		  $$.x = $1;
+		  $$.y = $3;
+		}
 	| '(' expr_pair ')'
 		{ $$ = $2; }
 	;
 
 place:
-	label  %prec CHOP /* line at A left == line (at A) left */
+	/* line at A left == line (at A) left */
+	label							%prec CHOP
 		{ $$ = $1; }
 	| label corner
 		{
@@ -1154,9 +1220,7 @@ label:
 		  a_delete $1;
 		}
 	| nth_primitive
-		{
-		  $$.obj = $1;
-		}
+		{ $$.obj = $1; }
 	| label '.' LABEL
 		{
 		  path pth($3);
@@ -1176,7 +1240,7 @@ ordinal:
 	;
 
 optional_ordinal_last:
-        LAST
+	LAST
 		{ $$ = 1; }
   	| ordinal LAST
 		{ $$ = $1; }
@@ -1238,9 +1302,7 @@ object_type:
 
 label_path:
  	'.' LABEL
-		{
-		  $$ = new path($2);
-		}
+		{ $$ = new path($2); }
 	| label_path '.' LABEL
 		{
 		  $$ = $1;
@@ -1249,17 +1311,12 @@ label_path:
 	;
 
 relative_path:
-	corner
-		{
-		  $$ = new path($1);
-		}
+	corner							%prec CHOP
+		{ $$ = new path($1); }
 	/* give this a lower precedence than LEFT and RIGHT so that
 	   [A: box] with .A left == [A: box] with (.A left) */
-
-  	| label_path %prec TEXT
-		{
-		  $$ = $1;
-		}
+  	| label_path						%prec TEXT
+		{ $$ = $1; }
 	| label_path corner
 		{
 		  $$ = $1;
@@ -1269,9 +1326,7 @@ relative_path:
 
 path:
 	relative_path
-		{
-		  $$ = $1;
-		}
+		{ $$ = $1; }
 	| '(' relative_path ',' relative_path ')'
 		{
 		  $$ = $2;
@@ -1355,6 +1410,14 @@ corner:
 		{ $$ = &object::north_east; }
 	| LOWER RIGHT_CORNER
 		{ $$ = &object::south_east; }
+	| NORTH
+		{ $$ = &object::north; }
+	| SOUTH
+		{ $$ = &object::south; }
+	| EAST
+		{ $$ = &object::east; }
+	| WEST
+		{ $$ = &object::west; }
 	| CENTER
 		{ $$ = &object::center; }
 	| START
@@ -1444,7 +1507,7 @@ expr:
 		    YYABORT;
 		  }
 		}
-	| '-' expr    %prec '!'
+	| '-' expr						%prec '!'
 		{ $$ = -$2; }
 	| '(' any_expr ')'
 		{ $$ = $2; }
@@ -1521,7 +1584,10 @@ expr:
 		  $$ = (rand() & 0x7fff) / double(0x8000);
 		}
 	| SRAND '(' any_expr ')'
-		{ $$ = 0; srand((unsigned int)$3); }
+		{
+		  $$ = 0;
+		  srand((unsigned int)$3);
+		}
 	| expr '<' expr
 		{ $$ = ($1 < $3); }
 	| expr LESSEQUAL expr
@@ -1754,23 +1820,7 @@ char *format_number(const char *form, double n)
 {
   if (form == 0)
     form = "%g";
-  else {
-    // this is a fairly feeble attempt at validation of the format
-    int nspecs = 0;
-    for (const char *p = form; *p != '\0'; p++)
-      if (*p == '%') {
-	if (p[1] == '%')
-	  p++;
-	else
-	  nspecs++;
-      }
-    if (nspecs > 1) {
-      lex_error("bad format `%1'", form);
-      return strsave(form);
-    }
-  }
-  sprintf(sprintf_buf, form, n);
-  return strsave(sprintf_buf);
+  return do_sprintf(form, &n, 1);
 }
 
 char *do_sprintf(const char *form, const double *v, int nv)
@@ -1792,18 +1842,20 @@ char *do_sprintf(const char *form, const double *v, int nv)
       if (*form == '%') {
 	one_format += *form++;
 	one_format += '\0';
-	sprintf(sprintf_buf, one_format.contents());
+	snprintf(sprintf_buf, sizeof(sprintf_buf),
+		 "%s", one_format.contents());
       }
       else {
 	if (i >= nv) {
-	  lex_error("too few arguments to sprintf");
+	  lex_error("too few arguments to snprintf");
 	  result += one_format;
 	  result += form;
 	  break;
 	}
 	one_format += *form++;
 	one_format += '\0';
-	sprintf(sprintf_buf, one_format.contents(), v[i++]);
+	snprintf(sprintf_buf, sizeof(sprintf_buf),
+		 one_format.contents(), v[i++]);
       }
       one_format.clear();
       result += sprintf_buf;

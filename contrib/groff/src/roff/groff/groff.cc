@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -20,13 +20,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 // A front end for groff.
 
-#include <stdio.h>
-#include <string.h>
+#include "lib.h"
+
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
 
-#include "lib.h"
 #include "assert.h"
 #include "errarg.h"
 #include "error.h"
@@ -50,6 +49,7 @@ extern "C" {
 }
 #endif /* NEED_DECLARATION_PUTENV */
 
+// The number of commands must be in sync with MAX_COMMANDS in pipeline.h
 const int SOELIM_INDEX = 0;
 const int REFER_INDEX = SOELIM_INDEX + 1;
 const int GRAP_INDEX = REFER_INDEX + 1;
@@ -77,6 +77,7 @@ public:
   const char *get_name();
   void append_arg(const char *, const char * = 0);
   void insert_arg(const char *);
+  void insert_args(string s);
   void clear_args();
   char **get_argv();
   void print(int is_last, FILE *fp);
@@ -125,7 +126,7 @@ int main(int argc, char **argv)
     { NULL, 0, 0, 0 }
   };
   while ((opt = getopt_long(argc, argv,
-			    "abCd:eEf:F:gGhiI:lL:m:M:n:No:pP:r:RsStT:UvVw:W:XzZ",
+			    "abcCd:eEf:F:gGhiI:lL:m:M:n:No:pP:r:RsStT:UvVw:W:XzZ",
 			    long_options, NULL))
 	 != EOF) {
     char buf[3];
@@ -178,7 +179,7 @@ int main(int argc, char **argv)
       vflag = 1;
       {
 	printf("GNU groff version %s\n", Version_string);
-	printf("Copyright (C) 1989-2001 Free Software Foundation, Inc.\n"
+	printf("Copyright (C) 2002 Free Software Foundation, Inc.\n"
 	       "GNU groff comes with ABSOLUTELY NO WARRANTY.\n"
 	       "You may redistribute copies of groff and its subprograms\n"
 	       "under the terms of the GNU General Public License.\n"
@@ -206,6 +207,9 @@ int main(int argc, char **argv)
       break;
     case 'E':
     case 'b':
+      commands[TROFF_INDEX].append_arg(buf);
+      break;
+    case 'c':
       commands[TROFF_INDEX].append_arg(buf);
       break;
     case 'S':
@@ -280,19 +284,14 @@ int main(int argc, char **argv)
     fatal("invalid device `%1'", device);
   if (!postdriver)
     fatal("no `postpro' command in DESC file for device `%1'", device);
-
-  if (predriver) {
+  if (predriver && !zflag) {
     commands[TROFF_INDEX].insert_arg(commands[TROFF_INDEX].get_name());
-    const char *p = Pargs.contents();
-    const char *end = p + Pargs.length();
-    while (p < end) {
-      // pass the device arguments to the predrivers as well
-      commands[TROFF_INDEX].insert_arg(p);
-      p = strchr(p, '\0') + 1;
-    }
     commands[TROFF_INDEX].set_name(predriver);
+    // pass the device arguments to the predrivers as well
+    commands[TROFF_INDEX].insert_args(Pargs);
+    if (vflag)
+      commands[TROFF_INDEX].insert_arg("-v");
   }
-
   const char *real_driver = 0;
   if (Xflag) {
     real_driver = postdriver;
@@ -549,6 +548,27 @@ void possible_command::insert_arg(const char *s)
   args = str;
 }
 
+void possible_command::insert_args(string s)
+{
+  const char *p = s.contents();
+  const char *end = p + s.length();
+  int l = 0;
+  if (p >= end)
+    return;
+  // find the total number of arguments in our string
+  do {
+    l++;
+    p = strchr(p, '\0') + 1;
+  } while (p < end);
+  // now insert each argument preserving the order
+  for (int i = l - 1; i >= 0; i--) {
+    p = s.contents();
+    for (int j = 0; j < i; j++)
+      p = strchr(p, '\0') + 1;
+    insert_arg(p);
+  }
+}
+
 void possible_command::build_argv()
 {
   if (argv)
@@ -658,7 +678,7 @@ char **possible_command::get_argv()
 void synopsis(FILE *stream)
 {
   fprintf(stream,
-"usage: %s [-abeghilpstvzCENRSUVXZ] [-Fdir] [-mname] [-Tdev] [-ffam]\n"
+"usage: %s [-abceghilpstvzCENRSUVXZ] [-Fdir] [-mname] [-Tdev] [-ffam]\n"
 "       [-wname] [-Wname] [-Mdir] [-dcs] [-rcn] [-nnum] [-olist] [-Parg]\n"
 "       [-Larg] [-Idir] [files...]\n",
 	  program_name);
@@ -696,6 +716,7 @@ void help()
 "-E\tinhibit all errors\n"
 "-b\tprint backtraces with errors or warnings\n"
 "-l\tspool the output\n"
+"-c\tdisable color output\n"
 "-C\tenable compatibility mode\n"
 "-V\tprint commands on stdout instead of running them\n"
 "-Parg\tpass arg to the postprocessor\n"

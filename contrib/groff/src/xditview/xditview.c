@@ -179,7 +179,9 @@ int main(argc, argv)
     toplevel = XtAppInitialize(&xtcontext, "GXditview",
 			    options, XtNumber (options),
  			    &argc, argv, fallback_resources, NULL, 0);
-    if (argc > 2)
+    if (argc > 2
+	|| (argc == 2 && (!strcmp(argv[1], "-help")
+			  || !strcmp(argv[1], "--help"))))
 	Syntax(argv[0]);
 
     XtGetApplicationResources(toplevel, (XtPointer)&app_resources,

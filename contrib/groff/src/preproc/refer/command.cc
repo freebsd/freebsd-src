@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -193,9 +194,9 @@ void input_stack::push_file(const char *fn)
     }
     if (c == EOF)
       break;
-    if (illegal_input_char(c))
+    if (invalid_input_char(c))
       error_with_file_and_line(fn, lineno,
-			       "illegal input character code %1", int(c));
+			       "invalid input character code %1", int(c));
     else {
       buf += c;
       if (c == '\n') {

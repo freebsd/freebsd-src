@@ -20,8 +20,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #if !defined(HTML_H)
 #  define HTML_H
-#  undef DEBUGGING
-// #  define DEBUGGING
 
 /*
  *  class and structure needed to buffer words
@@ -53,6 +51,7 @@ public:
   simple_output(FILE *, int max_line_length);
   simple_output &put_string(const char *, int);
   simple_output &put_string(const char *s);
+  simple_output &put_string(const string &s);
   simple_output &put_troffps_char (const char *s);
   simple_output &put_translated_string(const char *s);
   simple_output &put_number(int);
