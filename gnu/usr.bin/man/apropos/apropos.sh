@@ -16,7 +16,7 @@
 #
 # rewritten by Wolfram Schneider, Berlin, Feb 1996
 #
-# $Id: $
+# $Id: apropos.sh,v 1.3 1996/03/10 18:52:09 wosch Exp $
 
 
 PATH=/bin:/usr/bin:$PATH
@@ -72,5 +72,23 @@ do
 	else
         	echo "$manpage: nothing appropriate"
 	fi
-done | $PAGER
+done | 
 
+( 	# start $PAGER only if we find a manual page
+	while read line
+ 	do
+		case $line in
+			*": nothing appropriate") line2="$line2$line\n";;
+			*) break;;
+		esac
+	done
+
+	# nothing found, exit
+	if test -z "$line" -a ! -z "$line2"; then
+		case X"$line2" in X);; *) printf "$line2";; esac
+		exit 1
+	else
+		( case X"$line2" in X);; *) printf "$line2";; esac
+		  echo $line; cat ) | $PAGER
+	fi
+)
