@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.57.2.5 1997/11/04 09:02:38 dyson Exp $
+ * $Id: vm_map.c,v 1.57.2.6 1998/09/22 01:30:54 jdp Exp $
  */
 
 /*
@@ -2356,7 +2356,8 @@ RetryLookup:;
 	if ((fault_type & VM_PROT_OVERRIDE_WRITE) == 0 ||
 		(entry->eflags & MAP_ENTRY_COW) == 0 ||
 		(entry->wired_count != 0)) {
-		if ((fault_type & (prot)) != fault_type)
+		if ((fault_type & (prot)) !=
+		    (fault_type & ~VM_PROT_OVERRIDE_WRITE))
 			RETURN(KERN_PROTECTION_FAILURE);
 	}
 
