@@ -343,7 +343,7 @@ int procfs_kmemaccess(curp)
 	int i;
 	struct ucred *cred;
 
-	cred = curp->p_cred->pc_ucred;
+	cred = curp->p_ucred;
 	if (suser(curp))
 		return 1;
 

@@ -480,7 +480,7 @@ loop:
 			 * Free up credentials.
 			 */
 			if (--p->p_cred->p_refcnt == 0) {
-				crfree(p->p_cred->pc_ucred);
+				crfree(p->p_ucred);
 				FREE(p->p_cred, M_SUBPROC);
 				p->p_cred = NULL;
 			}

@@ -1580,7 +1580,7 @@ coredump(p)
 	register struct proc *p;
 {
 	register struct vnode *vp;
-	register struct ucred *cred = p->p_cred->pc_ucred;
+	register struct ucred *cred = p->p_ucred;
 	struct nameidata nd;
 	struct vattr vattr;
 	int error, error1;
