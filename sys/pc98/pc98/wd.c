@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.9 1997/05/12 09:13:15 kato Exp $
+ *	$Id: wd.c,v 1.9.2.10 1997/07/10 10:47:13 kato Exp $
  */
 
 /* TODO:
@@ -2196,8 +2196,17 @@ out:
 				      CADDR1 + ((int)addr & PAGE_MASK),
 				      DEV_BSIZE / sizeof(short));
 			addr += DEV_BSIZE;
-			if ((unsigned)addr % (1024 * 1024) == 0)
+			/*
+			 * If we are dumping core, it may take a while.
+			 * So reassure the user and hold off any watchdogs.
+			 */
+			if ((unsigned)addr % (1024 * 1024) == 0) {
+#ifdef	HW_WDOG
+				if (wdog_tickler)
+					(*wdog_tickler)();
+#endif /* HW_WDOG */
 				printf("%ld ", num / (1024 * 1024 / DEV_BSIZE));
+			}
 			num--;
 			blkcnt--;
 		}
