@@ -1,11 +1,11 @@
-<!-- $Id: scsi.sgml,v 1.2 1995/06/30 17:37:48 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.3 1995/08/29 01:42:45 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
       <title>An introduction to SCSI and its use with FreeBSD</title>
       <author>(c) 1995, Wilko Bulte, <tt/wilko@yedi.iaf.nl/
-      <date>V0.2, Thu Apr 20 22:45:23 MET DST 1995</date>
-     Copyright 1995, W. C. Bulte, Arnhem, The Netherlands 
+      <date>Sun Sep  3 17:14:48 MET DST 1995</date>
+     Copyright 1995, Wilko C. Bulte, Arnhem, The Netherlands 
 
       <abstract>
         This document attempts to describe the background of SCSI, its
@@ -15,7 +15,7 @@
 -->
     <sect><heading>SCSI<label id="scsi"></heading>
 
-      <p><em>&copy; 1995, &a.wilko;.</em>
+      <p><em>&copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
 
         SCSI is an acronym for Small Computer Systems Interface.  It is an
         ANSI standard that has become one of the leading I/O buses in the
@@ -38,7 +38,7 @@
         includes the (revised) CCS as part of the standard itself.  The
         commands are dependent on the type of device at hand. It does not
         make much sense of course to define a Write command for a
-        scanner...
+        scanner.
 
         The SCSI bus is a parallel bus, which comes in a number of
         variants.  The oldest and most used is an 8 bit wide bus, with
@@ -87,10 +87,10 @@
         QIC tape unit, a SCSI-1 helical scan tape unit and 2 SCSI-1 disks
         work together quite happily.
 
-    <sect1><heading>Concepts of SCSI</heading>
+    <sect1><heading>Components of SCSI</heading>
       <p>
-      <sect2><heading>A <it>smart</it> interface</heading>
-        <p>
+<!--      <sect2><heading>A <it>smart</it> interface</heading>
+        <p> -->
           As said before, SCSI devices are smart.  The idea is to put the
           knowledge about intimate hardware details onto the SCSI device
           itself.  In this way, the host system does not have to worry
@@ -104,8 +104,8 @@
 	  there is no longer a need to change (and qualify!) drivers for 
 	  every odd new device that is introduced.
 
-      <sect2><heading>Do's and don't's on interconnections</heading>
-        <p>
+<!--      <sect2><heading>Do's and don't's on interconnections</heading>
+        <p> -->
           For cabling and connectors there is a golden rule: get good
           stuff. With bus speeds going up all the time you will save
           yourself a lot of grief by using good material.
@@ -116,9 +116,10 @@
           hunting down a problem with a flaky machine only to discover that
           shortening the SCSI bus with 1 meter solved the problem.  And the
           original bus length was well within the SCSI specification.
+
       <sect2><heading>SCSI bus types</heading>
         <p>
-          From an electrical point of view, there are two Incompatible bus
+          From an electrical point of view, there are two incompatible bus
           types: single-ended and differential.  This means that there are
           two different main groups of SCSI devices and controllers, which
           cannot be mixed on the same bus.  It is possible however to use
@@ -148,7 +149,7 @@
           that on a narrow (8 bit) bus 10 Mbytes/sec are possible instead
           of 5 Mbytes/sec for 'slow' SCSI. More on this later.
 
-	  It should be noted that the datalines > 8 are only used for
+	  It should be noted that the datalines &gt; 8 are only used for
 	  datatransfers and device addressing. The transfers of commands
 	  and status messages etc are only performed on the lowest 8
           datalines. The standard allows narrow devices to operate on
@@ -216,7 +217,7 @@
 	    AH1740 as a single ended board, whereas the AH1744 was differential.
 	    The software interface to the host is identical for both.
 
-        <sect3><heading>Terminators</heading>
+        <sect2><heading>Terminators</heading>
           <p>
             Terminators in SCSI terminology are resistor networks that are
             used to get a correct impedance matching.  Impedance matching
@@ -277,7 +278,7 @@
             for the internal flat cable connectors. This makes
             reconfiguration much easier.
         
-        <sect3><heading>Terminator power</heading>
+        <sect2><heading>Terminator power</heading>
           <p>
             The terminators discussed in the previous chapter need power to
             operate properly.  On the SCSI bus, a line is dedicated to this
@@ -317,7 +318,7 @@
             configurable, using some sort of setup tool. Consult you
 	    documentation!
 
-        <sect3><heading>Device addressing</heading>
+        <sect2><heading>Device addressing</heading>
           <p>
             Because the SCSI bus is, ehh, a bus there must be a way to
             distinguish or address the different devices connected to it.
@@ -349,7 +350,7 @@
             tapechanger. In this way, the host system can address each of
             the parts of the tape unit as desired.
 
-        <sect3><heading>Bus layout</heading>
+        <sect2><heading>Bus layout</heading>
           <p>
             SCSI buses are linear. So, not shaped like Y-junctions, star
             topologies, cobwebbs or whatever else people might want to
@@ -366,7 +367,7 @@
 
     <sect1><heading>Using SCSI with FreeBSD</heading>
       <p>
-      <sect2><heading>About translations, BIOSes and magic..</heading>
+      <sect2><heading>About translations, BIOSes and magic...</heading>
         <p>
           As stated before, you should first make sure that you have a
           electrically sound bus.
@@ -447,8 +448,8 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
 
       <sect2><heading>SCSI subsystem design</heading>
         <p>
-          FreeBSD uses a sort of layered SCSI subsystem. For each different
-          controller card a so called device driver is written. This driver
+          FreeBSD uses a layered SCSI subsystem. For each different
+          controller card a device driver is written. This driver
           knows all the intimate details about the hardware it
           controls. The driver has a interface to the upper layers of the
           SCSI subsystem through which it receives it's commands and
@@ -468,17 +469,95 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
       <sect2><heading>Kernel configuration</heading>
         <p>
           Dependent on your hardware, the kernel configuration file must
-          contain a line which describes your hostadapter. This includes
-          I/O addresses, interrupts etc. Consult the man page for your
-          adapter driver to get more info.
+          contain one or more lines describing your hostadapter(s). 
+	  This includes I/O addresses, interrupts etc. 
+	  Consult the man page for your
+          adapter driver to get more info. Apart from that, check out
+	  /sys/i386/conf/LINT for an overview of a kernel config file.
+	  LINT contains every possible option you can dream of. It
+	  does <em>not</em> imply LINT will actually get you to a
+	  working kernel at all.
 
-	  Although it is probably an obvious remark: the kernel config
+	  Although it is probably stating the obvious: the kernel config
 	  file should reflect your actual hardware setup. So, interrupts,
-	  I/O addresses etc must match the kernel config file.
+	  I/O addresses etc must match the kernel config file. During
+	  system boot messages will be displayed to indicate whether
+	  the configured hardware was actually found.
 
-          An example from the kernel config file (they live in
-          <tt>/sys/i386/conf</tt> BTW), with some added comments (between
-          &lsqb;&rsqb;):
+          An example based on the FreeBSD 2.0.5-Release kernel config 
+	  file LINT with some added comments (between &lsqb;&rsqb;):
+
+	  <verb>
+		
+# SCSI host adapters: `aha', `ahb', `aic', `bt', `nca'
+#
+# aha: Adaptec 154x
+# ahb: Adaptec 174x
+# ahc: Adaptec 274x/284x/294x
+# aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
+# bt: Most Buslogic controllers
+# nca: ProAudioSpectrum cards using the NCR 5380 or Trantor T130
+# uha: UltraStore 14F and 34F
+# sea: Seagate ST01/02 8 bit controller (slow!)
+# wds: Western Digital WD7000 controller (no scatter/gather!).
+#
+# Note that the order is important in order for Buslogic cards to be
+# probed correctly.
+#
+
+&lsqb;For a Bustek controller&rsqb;
+controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
+
+&lsqb;For an Adaptec AHA274x, 284x etc controller&rsqb;
+controller	ahc0	at isa? bio irq ? vector ahcintr # port??? iomem?
+
+&lsqb;For an Adaptec AHA174x controller&rsqb;
+controller	ahb0	at isa? bio irq ? vector ahbintr
+
+&lsqb;For an Adaptec AHA154x controller&rsqb;
+controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
+
+&lsqb;For an Ultrastor adapter&rsqb;
+controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
+
+controller	scbus0	#base SCSI code
+
+disk sd0 at scbus0 target 0 unit 0	[SCSI disk 0 is at scbus 0, LUN 0]
+disk sd1 at scbus0 target 1		[implicit LUN 0 if omitted]
+disk sd2 at scbus0 target 3
+disk sd3 at scbus0 target 4
+tape st1 at scbus0 target 6		[SCSI tape at target 6]
+device cd0 at scbus?			[the first ever CDROM found, no wiring]
+
+	  </verb>
+
+	  The example above tells the kernel to look for a bt (Bustek)
+	  controller, then for an Adaptec 274x, 284x etc board, and 
+	  so on. The lines following the controller specifications 
+	  tell the kernel to configure specific devices but 
+	  <em>only</em> attach them when they match the target ID and
+	  LUN specified. 
+
+	  So, if you had a SCSI tape at target ID 2 it would not be
+	  configured, but it will attach when it is at target ID 6.
+
+	  Below is another example of a kernel config file as used by
+	  FreeBSD version < 2.0.5. The difference with the first example is
+          that devices are not 'wired down'. 'Wired down' means
+          that you specify which SCSI target belongs to which device.
+
+	  A kernel built to the config file below will attach 
+	  the first SCSI disk it finds to sd0, the second disk to sd1
+	  etc. If you ever removed or added a disk, all other devices
+	  of the same type (disk in this case) would 'move around'.
+	  This implies you have to change /etc/fstab each time.
+
+	  Although the old style still works, you 
+	  are <em>strongly</em> recommended to use this new feature.
+	  It will save you a lot of grief whenever you shift your
+	  hardware around on the SCSI buses. So, when you re-use
+	  your old trusty config file after upgrading from a 
+	  pre-FreeBSD2.0.5.R system check this out.
 
           <verb>
 controller      ahb0    at isa? bio irq 11 vector ahbintr	&lsqb;driver for Adaptec 174x&rsqb;
@@ -498,11 +577,7 @@ device          st1
 device          cd0     #Only need one of these, the code dynamically grows &lsqb;for the cdrom&rsqb;
           </verb>
 
-          So, the ahb driver is used for the Adaptec 1740, the aha driver
-          for the Adaptec 154x etc. If you have more than one card of the
-          same type in your system you get an ahb1, ahb2 line etc.
-
-          The example above supports 4 SCSI disks. If during boot more
+          Both examples support 4 SCSI disks. If during boot more
           devices of a specific type (e.g. sd disks) are found than are
           configured in the booting kernel, the system will complain.  You
           will have to build and boot a new kernel (after adapting the kernel
@@ -644,44 +719,46 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
         BBS (719-574-0424) and on the ncrinfo.ncr.com anonymous ftp site.
 
         Latest X3T10 committee documents are:
-        <verb>
-  AT Attachment (ATA or IDE) &lsqb;X3.221-1994&rsqb;                            Approved
-  ATA Extensions (ATA-2) &lsqb;X3T10/948D Rev 2i&rsqb;
-  Enhanced Small Device Interface (ESDI) &lsqb;X3.170-1990/X3.170a-1991&rsqb;   Approved
-  Small Computer System Interface - 2 (SCSI-2) &lsqb;X3.131-1994&rsqb;          Approved
-  SCSI-2 Common Access Method Transport and SCSI Interface Module (CAM) 
+        <itemize>
+<item>AT Attachment (ATA or IDE) &lsqb;X3.221-1994&rsqb; (<em>Approved</em>)
+<item>ATA Extensions (ATA-2) &lsqb;X3T10/948D Rev 2i&rsqb;
+<item>Enhanced Small Device Interface (ESDI) &lsqb;X3.170-1990/X3.170a-1991&rsqb;   (<em>Approved</em>)
+<item>Small Computer System Interface - 2 (SCSI-2) &lsqb;X3.131-1994&rsqb; (<em>Approved</em>)
+<item>SCSI-2 Common Access Method Transport and SCSI Interface Module (CAM) 
                                    &lsqb;X3T10/792D Rev 11&rsqb;
-        </verb>
+        </itemize>
         Other publications that might provide you with additional information are:
-        <verb>
-"SCSI: Understanding the Small Computer System Interface", written by NCR 
+<itemize>
+<item>"SCSI: Understanding the Small Computer System Interface", written by NCR 
 Corporation.  Available from: Prentice Hall, Englewood Cliffs, NJ, 07632
 Phone: (201) 767-5937 ISBN 0-13-796855-8
 
-"Basics of SCSI", a SCSI tutorial written by Ancot Corporation
+<item>"Basics of SCSI", a SCSI tutorial written by Ancot Corporation
 Contact Ancot for availability information at:
 Phone: (415) 322-5322  Fax: (415) 322-0455
 
-"SCSI Interconnection Guide Book", an AMP publication (dated 4/93, Catalog 
+<item>"SCSI Interconnection Guide Book", an AMP publication (dated 4/93, Catalog 
 65237) that lists the various SCSI connectors and suggests cabling schemes.  
 Available from AMP at (800) 522-6752 or (717) 564-0100
 
-"Fast Track to SCSI", A Product Guide written by Fujitsu.
+<item>"Fast Track to SCSI", A Product Guide written by Fujitsu.
 Available from: Prentice Hall, Englewood Cliffs, NJ, 07632
 Phone: (201) 767-5937 ISBN 0-13-307000-X
 
-"The SCSI Bench Reference", "The SCSI Encyclopedia", and the "SCSI Tutor",
+<item>"The SCSI Bench Reference", "The SCSI Encyclopedia", and the "SCSI Tutor",
 ENDL Publications, 14426 Black Walnut Court, Saratoga CA, 95070
 Phone: (408) 867-6642
         
-"Zadian SCSI Navigator" (quick ref. book) and "Discover the Power of SCSI" 
+<item>"Zadian SCSI Navigator" (quick ref. book) and "Discover the Power of SCSI" 
 (First book along with a one-hour video and tutorial book), Zadian Software, 
 Suite 214, 1210 S. Bascom Ave., San Jose, CA 92128, (408) 293-0800
-        </verb>
+        </itemize>
 
-        On Usenet the newsgroups comp.periphs.scsi and comp.periphs are
-        noteworthy places to look for more info. You can also find the
-        SCSI-Faq there, which posted periodically.
+        On Usenet the newsgroups <htmlurl
+        url="news:comp.periphs.scsi" name="comp.periphs.scsi">
+        and <htmlurl url="news:comp.periphs" name="comp.periphs">
+        are noteworthy places to look for more info. You can also
+        find the SCSI-Faq there, which is posted periodically.
 
         Most major SCSI device and hostadapter suppliers operate ftp sites
         and/or BBS systems. They may be valuable sources of information
