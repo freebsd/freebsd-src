@@ -37,7 +37,6 @@
 
 #include <netatm/kern_include.h>
 
-#include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/unisig_msg.h>
 #include <netatm/uni/unisig_print.h>

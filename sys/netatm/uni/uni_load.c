@@ -41,8 +41,6 @@
 
 #include <netatm/kern_include.h>
 
-#include <netatm/uni/uni.h>
-
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
