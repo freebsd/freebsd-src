@@ -56,6 +56,8 @@
 # define CARDBUS_CIS_ASI_BAR5		0x06
 # define CARDBUS_CIS_ASI_ROM		0x07
 #define CARDBUS_ROM_REG		0x30
+# define CARDBUS_ROM_ENABLE		0x00000001
+# define CARDBUS_ROM_ADDRMASK		0xfffff800
 
 /* EXROM offsets for reading CIS */
 #define CARDBUS_EXROM_SIGNATURE	0x00

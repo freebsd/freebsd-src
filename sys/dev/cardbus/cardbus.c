@@ -112,8 +112,8 @@ static int cardbus_set_resource_method(device_t dev, device_t child, int type,
 				       int rid, u_long start, u_long count);
 static int cardbus_get_resource_method(device_t dev, device_t child, int type,
 				      int rid, u_long *startp, u_long *countp);
-static void cardbus_add_map(device_t bdev, device_t dev,
-			    pcicfgregs *cfg, int reg);
+static int cardbus_add_map(device_t bdev, device_t dev, pcicfgregs *cfg,
+			   int reg);
 static void cardbus_add_resources(device_t dev, pcicfgregs* cfg);
 static void cardbus_release_all_resources(device_t dev,
 					  struct resource_list *rl);
@@ -167,15 +167,10 @@ cardbus_detach(device_t dev)
 static void
 device_setup_regs(device_t bdev, int b, int s, int f, pcicfgregs *cfg)
 {
-	PCIB_WRITE_CONFIG(bdev, b, s, f, PCIR_COMMAND,
-			  PCIB_READ_CONFIG(bdev, b, s, f, PCIR_COMMAND, 2) |
-			  PCIM_CMD_MEMEN|PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN,
-			  2);
-	
 	PCIB_WRITE_CONFIG(bdev, b, s, f, PCIR_INTLINE,
 			  pci_get_irq(device_get_parent(bdev)), 1);
 	cfg->intline = PCIB_READ_CONFIG(bdev, b, s, f, PCIR_INTLINE, 1);
-	
+
 	PCIB_WRITE_CONFIG(bdev, b, s, f, PCIR_CACHELNSZ, 0x08, 1);
 	cfg->cachelnsz = PCIB_READ_CONFIG(bdev, b, s, f, PCIR_CACHELNSZ, 1);
 
@@ -318,7 +313,7 @@ cardbus_read_device(device_t pcib, int b, int s, int f)
 			return (NULL);
 
 		cfg = &devlist_entry->cfg;
-		
+
 		cfg->bus		= b;
 		cfg->slot		= s;
 		cfg->func		= f;
@@ -451,7 +446,7 @@ cardbus_readpcb(device_t pcib, int b, int s, int f)
 
 	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_2, 2);
 	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_2, 2);
-	
+
 	p->seclat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECLAT_2, 1);
 
 	p->membase0 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMBASE0_2, 4);
@@ -548,7 +543,6 @@ cardbus_set_resource(device_t dev, device_t child, int type, int rid,
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
-	if (rid == CARDBUS_ROM_REG) start |= 1;
 	if (device_get_parent(child) == dev)
 		pci_write_config(child, rid, start, 4);
 	return 0;
@@ -618,24 +612,30 @@ cardbus_delete_resource_method(device_t dev, device_t child,
 	BUS_DELETE_RESOURCE(device_get_parent(dev), child, type, rid);
 }
 
-static void
+static int
 cardbus_add_map(device_t cbdev, device_t dev, pcicfgregs *cfg, int reg)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(dev);
 	struct resource_list *rl = &dinfo->resources;
 	struct resource_list_entry *rle;
+	struct resource *res;
 	device_t bdev = device_get_parent(cbdev);
 	u_int32_t size;
 	u_int32_t testval;
 	int type;
-	struct resource *res;
+
+	if (reg == CARDBUS_ROM_REG)
+		testval = CARDBUS_ROM_ADDRMASK;
+	else
+		testval = ~0;
 
 	PCIB_WRITE_CONFIG(bdev, cfg->bus, cfg->slot, cfg->func,
-			  reg, 0xfffffff0, 4);
-	
+			  reg, testval, 4);
+
 	testval = PCIB_READ_CONFIG(bdev, cfg->bus, cfg->slot, cfg->func,
 				   reg, 4);
-	if (testval == 0xfffffff0 || testval == 0) return;
+	if (testval == ~0 || testval == 0)
+		return 0;
 
 	if ((testval&1) == 0)
 		type = SYS_RES_MEMORY;
@@ -653,31 +653,52 @@ cardbus_add_map(device_t cbdev, device_t dev, pcicfgregs *cfg, int reg)
 		rle->res = res;
 	} else {
 		device_printf(dev, "Unable to add map %02x\n", reg);
+		type = 0;
 	}
+	return type;
 }
 
 static void
 cardbus_add_resources(device_t dev, pcicfgregs* cfg)
 {
 	device_t cbdev = device_get_parent(dev);
+	device_t bdev = device_get_parent(cbdev);
 	struct cardbus_devinfo *dinfo = device_get_ivars(dev);
 	struct resource_list *rl = &dinfo->resources;
 	struct cardbus_quirk *q;
 	struct resource_list_entry *rle;
 	struct resource *res;
 	int rid;
+	u_int command;
+	int type;
+	int types;
 	int i;
 
+	types = 0;
 	for (i = 0; i < cfg->nummaps; i++) {
-		cardbus_add_map(cbdev, dev, cfg, PCIR_MAPS + i*4);
+		type = cardbus_add_map(cbdev, dev, cfg, PCIR_MAPS + i*4);
+		types |= 0x1 << type;
 	}
-	cardbus_add_map(cbdev, dev, cfg, CARDBUS_ROM_REG);
+	type = cardbus_add_map(cbdev, dev, cfg, CARDBUS_ROM_REG);
+	types |= 0x1 << type;
 
 	for (q = &cardbus_quirks[0]; q->devid; q++) {
 		if (q->devid == ((cfg->device << 16) | cfg->vendor)
-		    && q->type == CARDBUS_QUIRK_MAP_REG)
-			cardbus_add_map(cbdev, dev, cfg, q->arg1);
+		    && q->type == CARDBUS_QUIRK_MAP_REG) {
+			type = cardbus_add_map(cbdev, dev, cfg, q->arg1);
+			types |= 0x1 << type;
+		}
 	}
+
+	command = PCIB_READ_CONFIG(bdev, cfg->bus, cfg->slot,
+				   cfg->func, PCIR_COMMAND, 2);
+	if ((types & (0x1 << SYS_RES_MEMORY)) != 0)
+		command |= PCIM_CMD_MEMEN;
+	if ((types & (0x1 << SYS_RES_IOPORT)) != 0)
+		command |= PCIM_CMD_PORTEN;
+	command |= PCIM_CMD_BUSMASTEREN;
+	PCIB_WRITE_CONFIG(bdev, cfg->bus, cfg->slot, cfg->func,
+			  PCIR_COMMAND, command, 2);
 
 	rid = 0;
 	res = bus_generic_alloc_resource(cbdev, dev, SYS_RES_IRQ,
@@ -719,11 +740,19 @@ cardbus_alloc_resource(device_t self, device_t child, int type,
 	if (device_get_parent(child) == self || child == self)
 		rle = resource_list_find(rl, type, *rid);
 	if (rle) {
-		if (flags & RF_ACTIVE)
+		if (flags & RF_ACTIVE) {
 			if (bus_activate_resource(child, type, *rid,
 						  rle->res)) {
 				return NULL;
 			}
+			if (*rid == CARDBUS_ROM_REG) {
+				uint32_t rom_reg;
+
+				rom_reg = pci_read_config(child, *rid, 4);
+				rom_reg |= CARDBUS_ROM_ENABLE;
+				pci_write_config(child, *rid, rom_reg, 4);
+			}
+		}
 		return rle->res; /* XXX: check if range within start/end */
 	} else {
 		res = bus_generic_alloc_resource(self, child, type, rid,
@@ -747,6 +776,20 @@ static int
 cardbus_release_resource(device_t dev, device_t child, int type, int rid,
 			 struct resource *r)
 {
+	/*
+	 * According to the PCI 2.2 spec, devices may share an address
+	 * decoder between memory mapped ROM access and memory
+	 * mapped register access.  To be safe, disable ROM access
+	 * whenever it is released.
+	 */
+	if (rid == CARDBUS_ROM_REG) {
+		uint32_t rom_reg;
+
+		rom_reg = pci_read_config(child, rid, 4);
+		rom_reg &= ~CARDBUS_ROM_ENABLE;
+		pci_write_config(child, rid, rom_reg, 4);
+	}
+
 	return bus_deactivate_resource(child, type, rid, r);
 }
 
