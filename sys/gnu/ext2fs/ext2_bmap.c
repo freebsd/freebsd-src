@@ -185,7 +185,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 			bqrelse(bp);
 
 		ap->in_exists = 1;
-		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0);
+		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0, 0);
 		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
 			if (!daddr)

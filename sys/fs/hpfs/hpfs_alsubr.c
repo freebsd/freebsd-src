@@ -181,7 +181,7 @@ hpfs_allocalsec (
 	if (error) 
 		return (error);
 
-	bp = getblk(hpmp->hpm_devvp, lsn, DEV_BSIZE, 0, 0);
+	bp = getblk(hpmp->hpm_devvp, lsn, DEV_BSIZE, 0, 0, 0);
 	clrbuf(bp);
 
 	/* Fill AlSec info */
