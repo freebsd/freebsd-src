@@ -45,10 +45,10 @@
 .Op Fl c
 .Op Fl h | k
 .Op Fl x
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm du
+.Nm
 utility displays the file system block usage for each file argument
 and for each directory in the file hierarchy rooted in each directory
 argument.
@@ -63,7 +63,7 @@ is used to determine the preferred block size.
 Partial numbers of blocks are rounded up.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl P
 No symbolic links are followed.
 (default)
@@ -115,7 +115,7 @@ followed is not counted or displayed.
 .Pp
 Files having multiple hard links are counted (and displayed) a single
 time per
-.Nm du
+.Nm
 execution.
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
@@ -138,6 +138,6 @@ option is not specified, the block counts will be displayed in 512-byte blocks.
 .Xr quot 8
 .Sh HISTORY
 A
-.Nm du
+.Nm
 command appeared in
 .At v1 .
