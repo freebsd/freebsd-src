@@ -32,22 +32,27 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)xstr.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <signal.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
 #include <string.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 /*
@@ -72,45 +77,54 @@ int	cflg;
 int	vflg;
 int	readstd;
 
+static void usage __P((void));
+int istail __P((char *, char *));
+char lastchr __P((char *));
+void xsdotc __P((void));
+void prstr __P((char *));
+void found __P((int, off_t, char *));
+void flushsh __P((void));
+int xgetc __P((FILE *));
+int fgetNUL __P((char *, int, FILE *));
+void inithash __P((void));
+int octdigit __P((char));
+void process __P((char *));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	int c;
 
-	argc--, argv++;
-	while (argc > 0 && argv[0][0] == '-') {
-		register char *cp = &(*argv++)[1];
-
-		argc--;
-		if (*cp == 0) {
+	while ((c = getopt(argc, argv, "-cv")) != -1)
+		switch (c) {
+		case '-':
 			readstd++;
-			continue;
-		}
-		do switch (*cp++) {
-
+			break;
 		case 'c':
 			cflg++;
-			continue;
-
+			break;
 		case 'v':
 			vflg++;
-			continue;
-
+			break;
 		default:
-			fprintf(stderr, "usage: xstr [ -v ] [ -c ] [ - ] [ name ... ]\n");
-		} while (*cp);
-	}
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+		
 	if (signal(SIGINT, SIG_IGN) == SIG_DFL)
 		signal(SIGINT, onintr);
-	if (cflg || argc == 0 && !readstd)
+	if (cflg || (argc == 0 && !readstd))
 		inithash();
 	else
 		strings = mktemp(strdup(_PATH_TMP));
 	while (readstd || argc > 0) {
 		if (freopen("x.c", "w", stdout) == NULL)
-			perror("x.c"), exit(1);
+			err(1, "x.c");
 		if (!readstd && freopen(argv[0], "r", stdin) == NULL)
-			perror(argv[0]), exit(2);
+			err(2, "%s", argv[0]);
 		process("x.c");
 		if (readstd == 0)
 			argc--, argv++;
@@ -125,8 +139,16 @@ main(argc, argv)
 	exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: xstr [-v] [-c] [-] [name ...]\n");
+	exit (1);
+}
+
 char linebuf[BUFSIZ];
 
+void
 process(name)
 	char *name;
 {
@@ -138,10 +160,8 @@ process(name)
 	printf("extern char\txstr[];\n");
 	for (;;) {
 		if (fgets(linebuf, sizeof linebuf, stdin) == NULL) {
-			if (ferror(stdin)) {
-				perror(name);
-				exit(3);
-			}
+			if (ferror(stdin))
+				err(3, "%s", name);
 			break;
 		}
 		if (linebuf[0] == '#') {
@@ -151,7 +171,7 @@ process(name)
 				printf("%s", linebuf);
 			continue;
 		}
-		for (cp = linebuf; c = *cp++;) switch (c) {
+		for (cp = linebuf; (c = *cp++);) switch (c) {
 
 		case '"':
 			if (incomm)
@@ -194,7 +214,7 @@ def:
 	}
 out:
 	if (ferror(stdout))
-		perror("x.c"), onintr();
+		warn("x.c"), onintr();
 }
 
 off_t
@@ -207,7 +227,7 @@ yankstr(cpp)
 	register char *dp = dbuf;
 	register char *tp;
 
-	while (c = *cp++) {
+	while ((c = *cp++)) {
 		switch (c) {
 
 		case '"':
@@ -221,16 +241,14 @@ yankstr(cpp)
 			if (c == '\n') {
 				if (fgets(linebuf, sizeof linebuf, stdin)
 				    == NULL) {
-					if (ferror(stdin)) {
-						perror("x.c");
-						exit(3);
-					}
+					if (ferror(stdin))
+						err(3, "x.c");
 					return(-1);
 				}
 				cp = linebuf;
 				continue;
 			}
-			for (tp = "b\bt\tr\rn\nf\f\\\\\"\""; ch = *tp++; tp++)
+			for (tp = "b\bt\tr\rn\nf\f\\\\\"\""; (ch = *tp++); tp++)
 				if (c == ch) {
 					c = *tp;
 					goto gotc;
@@ -257,13 +275,14 @@ out:
 	return (hashit(dbuf, 1));
 }
 
+int
 octdigit(c)
 	char c;
 {
-
 	return (isdigit(c) && c != '8' && c != '9');
 }
 
+void
 inithash()
 {
 	char buf[BUFSIZ];
@@ -273,13 +292,14 @@ inithash()
 		return;
 	for (;;) {
 		mesgpt = tellpt;
-		if (fgetNUL(buf, sizeof buf, mesgread) == NULL)
+		if (fgetNUL(buf, sizeof buf, mesgread) == 0)
 			break;
 		ignore(hashit(buf, 0));
 	}
 	ignore(fclose(mesgread));
 }
 
+int
 fgetNUL(obuf, rmdr, file)
 	char *obuf;
 	register int rmdr;
@@ -291,9 +311,10 @@ fgetNUL(obuf, rmdr, file)
 	while (--rmdr > 0 && (c = xgetc(file)) != 0 && c != EOF)
 		*buf++ = c;
 	*buf++ = 0;
-	return ((feof(file) || ferror(file)) ? NULL : 1);
+	return ((feof(file) || ferror(file)) ? 0 : 1);
 }
 
+int
 xgetc(file)
 	FILE *file;
 {
@@ -326,15 +347,11 @@ hashit(str, new)
 		if (i >= 0)
 			return (hp->hpt + i);
 	}
-	if ((hp = (struct hash *) calloc(1, sizeof (*hp))) == NULL) {
-		perror("xstr");
-		exit(8);
-	}
+	if ((hp = (struct hash *) calloc(1, sizeof (*hp))) == NULL)
+		errx(8, "calloc");
 	hp->hpt = mesgpt;
-	if (!(hp->hstr = strdup(str))) {
-		(void)fprintf(stderr, "xstr: %s\n", strerror(errno));
-		exit(1);
-	}
+	if (!(hp->hstr = strdup(str)))
+		err(1, NULL);
 	mesgpt += strlen(hp->hstr) + 1;
 	hp->hnext = hp0->hnext;
 	hp->hnew = new;
@@ -342,6 +359,7 @@ hashit(str, new)
 	return (hp->hpt);
 }
 
+void
 flushsh()
 {
 	register int i;
@@ -367,13 +385,14 @@ flushsh()
 				fseek(mesgwrit, hp->hpt, 0);
 				ignore(fwrite(hp->hstr, strlen(hp->hstr) + 1, 1, mesgwrit));
 				if (ferror(mesgwrit))
-					perror(strings), exit(4);
+					err(4, "%s", strings);
 			}
 		}
 	if (fclose(mesgwrit) == EOF)
-		perror(strings), exit(4);
+		err(4, "%s", strings);
 }
 
+void
 found(new, off, str)
 	int new;
 	off_t off;
@@ -389,12 +408,13 @@ found(new, off, str)
 	fprintf(stderr, "\n");
 }
 
+void
 prstr(cp)
 	register char *cp;
 {
 	register int c;
 
-	while (c = (*cp++ & 0377))
+	while ((c = (*cp++ & 0377)))
 		if (c < ' ')
 			fprintf(stderr, "^%c", c + '`');
 		else if (c == 0177)
@@ -405,16 +425,17 @@ prstr(cp)
 			fprintf(stderr, "%c", c);
 }
 
+void
 xsdotc()
 {
 	register FILE *strf = fopen(strings, "r");
 	register FILE *xdotcf;
 
 	if (strf == NULL)
-		perror(strings), exit(5);
+		err(5, "%s", strings);
 	xdotcf = fopen("xs.c", "w");
 	if (xdotcf == NULL)
-		perror("xs.c"), exit(6);
+		err(6, "xs.c");
 	fprintf(xdotcf, "char\txstr[] = {\n");
 	for (;;) {
 		register int i, c;
@@ -422,7 +443,7 @@ xsdotc()
 		for (i = 0; i < 8; i++) {
 			c = getc(strf);
 			if (ferror(strf)) {
-				perror(strings);
+				warn("%s", strings);
 				onintr();
 			}
 			if (feof(strf)) {
@@ -439,6 +460,7 @@ out:
 	ignore(fclose(strf));
 }
 
+char
 lastchr(cp)
 	register char *cp;
 {
@@ -448,6 +470,7 @@ lastchr(cp)
 	return (*cp);
 }
 
+int
 istail(str, of)
 	register char *str, *of;
 {

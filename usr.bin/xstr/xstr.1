@@ -41,6 +41,7 @@
 .Nm xstr
 .Op Fl c
 .Op Fl 
+.Op Fl v
 .Op Ar file
 .Sh DESCRIPTION
 .Nm Xstr
@@ -66,7 +67,7 @@ replacing
 string references by expressions of the form (&xstr[number])
 for some number.
 An appropriate declaration of
-.Nm xstr
+.Nm
 is prepended to the file.
 The resulting C text is placed in the file
 .Pa x.c ,
@@ -76,6 +77,8 @@ The strings from this file are placed in the
 data base if they are not there already.
 Repeated strings and strings which are suffixes of existing strings
 do not cause changes to the data base.
+.It Fl v
+Verbose mode.
 .El
 .Pp
 After all components of a large program have been compiled a file
@@ -110,7 +113,7 @@ as before, without using or affecting any
 file in the same directory.
 .Pp
 It may be useful to run
-.Nm xstr
+.Nm
 after the C preprocessor if any macro definitions yield strings
 or if there is conditional code which contains strings
 which may not, in fact, be needed.
@@ -149,7 +152,7 @@ Temp file when `xstr name' doesn't touch
 .Sh BUGS
 If a string is a suffix of another string in the data base,
 but the shorter string is seen first by
-.Nm xstr
+.Nm
 both strings will be placed in the data base, when just
 placing the longer one there will do.
 .Sh HISTORY
