@@ -31,14 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.12 1996/03/11 02:22:23 hsu Exp $
+ * $Id: socketvar.h,v 1.13 1996/03/11 15:37:44 davidg Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
 #define _SYS_SOCKETVAR_H_
 
-#include <sys/stat.h>			/* for struct stat */
-#include <sys/filedesc.h>		/* for struct filedesc */
+#include <sys/queue.h>			/* for TAILQ macros */
 #include <sys/select.h>			/* for struct selinfo */
 
 /*
@@ -202,6 +201,11 @@ extern u_long	sb_max;
 /* to catch callers missing new second argument to sonewconn: */
 #define	sonewconn(head, connstatus)	sonewconn1((head), (connstatus))
 
+struct filedesc;
+struct mbuf;
+struct sockaddr;
+struct stat;
+
 /*
  * File operations on sockets.
  */
@@ -209,9 +213,6 @@ int	soo_ioctl __P((struct file *fp, int cmd, caddr_t data,
 	    struct proc *p));
 int	soo_select __P((struct file *fp, int which, struct proc *p));
 int	soo_stat __P((struct socket *so, struct stat *ub));
-
-struct mbuf;
-struct sockaddr;
 
 /*
  * From uipc_socket and friends
