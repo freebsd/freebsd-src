@@ -1021,6 +1021,7 @@ static void sis_tick(xsc)
 	sc = xsc;
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
+	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
 
 	splx(s);
 
