@@ -7,7 +7,7 @@ INTERNALLIB=		true
 
 SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c biospci.c biossmap.c \
 	bootinfo.c bootinfo32.c comconsole.c devicename.c elf32_freebsd.c \
-	gatea20.c i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
+	gatea20.c i386_copy.c i386_module.c nullconsole.c pxe.c \
 	time.c vidconsole.c
 
 CFLAGS+=	-ffreestanding
@@ -41,11 +41,14 @@ ${SRCS:M*.c:R:S/$/.o/g}: machine
 .if exists(${.CURDIR}/../../../i386/include)
 beforedepend ${OBJS}: machine
 
+CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 
 .endif
 
-CLEANFILES+=	machine
+OBJS+=	pxetramp.o
+pxetramp.o: pxetramp.s
+	as -o ${.TARGET} ${.ALLSRC:M*pxetramp*}
 
 .include <bsd.lib.mk>
