@@ -40,58 +40,86 @@
 typedef volatile u_int 	breg_t;
 
 
-#define BKTR_DSTATUS                 0x000
-#define BKTR_IFORM                   0x004
-#define BKTR_TDEC                    0x008
-#define BKTR_EVEN_CROP               0x00C
-#define BKTR_ODD_CROP                0x08C
-#define BKTR_E_VDELAY_LO             0x010
-#define BKTR_O_VDELAY_LO             0x090
-#define BKTR_E_VACTIVE_LO            0x014
-#define BKTR_O_VACTIVE_LO            0x094
-#define BKTR_E_DELAY_LO              0x018
-#define BKTR_O_DELAY_LO              0x098
-#define BKTR_E_HACTIVE_LO            0x01C
-#define BKTR_O_HACTIVE_LO            0x09C
-#define BKTR_E_HSCALE_HI             0x020
-#define BKTR_O_HSCALE_HI             0x0A0
-#define BKTR_E_HSCALE_LO             0x024
-#define BKTR_O_HSCALE_LO             0x0A4
-#define BKTR_BRIGHT                  0x028
-#define BKTR_E_CONTROL               0x02C
-#define BKTR_O_CONTROL               0x0AC
-#define BKTR_CONTRAST_LO             0x030
-#define BKTR_SAT_U_LO                0x034
-#define BKTR_SAT_V_LO                0x038
-#define BKTR_HUE                     0x03C
-#define BKTR_E_SCLOOP                0x040
-#define BKTR_O_SCLOOP                0x0C0
-#define BKTR_OFORM                   0x048
-#define BKTR_E_VSCALE_HI             0x04C
-#define BKTR_O_VSCALE_HI             0x0CC
-#define BKTR_E_VSCALE_LO             0x050
-#define BKTR_O_VSCALE_LO             0x0D0
-#define BKTR_TEST                    0x054
-#define BKTR_ADELAY                  0x060
-#define BKTR_BDELAY                  0x064
-#define BKTR_ADC                     0x068
-#define BKTR_E_VTC                   0x06C
-#define BKTR_O_VTC                   0x0EC
-#define BKTR_SRESET                  0x07C
-#define BKTR_COLOR_FMT               0x0D4
-#define BKTR_COLOR_CTL               0x0D8
-#define BKTR_CAP_CTL                 0x0DC
-#define BKTR_VBI_PACK_SIZE           0x0E0
-#define BKTR_VBI_PACK_DEL            0x0E4
-#define BKTR_INT_STAT                0x100
-#define BKTR_INT_MASK                0x104
-#define BKTR_RISC_COUNT              0x120
-#define BKTR_RISC_STRT_ADD           0x114
-#define BKTR_GPIO_DMA_CTL            0x10C
-#define BKTR_GPIO_OUT_EN             0x118
-#define BKTR_GPIO_REG_INP            0x11C
-#define BKTR_GPIO_DATA               0x200
-#define BKTR_I2C_CONTROL             0x110
+#define BKTR_DSTATUS			0x000
+# define BT848_DSTATUS_PRES		(1<<7)
+# define BT848_DSTATUS_HLOC		(1<<6)
+# define BT848_DSTATUS_FIELD		(1<<5)
+# define BT848_DSTATUS_NUML		(1<<4)
+# define BT848_DSTATUS_CSEL		(1<<3)
+# define BT848_DSTATUS_LOF		(1<<1)
+# define BT848_DSTATUS_COF		(1<<0)
+#define BKTR_IFORM			0x004
+#define BKTR_TDEC			0x008
+#define BKTR_EVEN_CROP			0x00C
+#define BKTR_ODD_CROP			0x08C
+#define BKTR_E_VDELAY_LO		0x010
+#define BKTR_O_VDELAY_LO		0x090
+#define BKTR_E_VACTIVE_LO		0x014
+#define BKTR_O_VACTIVE_LO		0x094
+#define BKTR_E_DELAY_LO			0x018
+#define BKTR_O_DELAY_LO			0x098
+#define BKTR_E_HACTIVE_LO		0x01C
+#define BKTR_O_HACTIVE_LO		0x09C
+#define BKTR_E_HSCALE_HI		0x020
+#define BKTR_O_HSCALE_HI		0x0A0
+#define BKTR_E_HSCALE_LO		0x024
+#define BKTR_O_HSCALE_LO		0x0A4
+#define BKTR_BRIGHT			0x028
+#define BKTR_E_CONTROL			0x02C
+#define BKTR_O_CONTROL			0x0AC
+#define BKTR_CONTRAST_LO		0x030
+#define BKTR_SAT_U_LO			0x034
+#define BKTR_SAT_V_LO			0x038
+#define BKTR_HUE			0x03C
+#define BKTR_E_SCLOOP			0x040
+#define BKTR_O_SCLOOP			0x0C0
+#define BKTR_OFORM			0x048
+#define BKTR_E_VSCALE_HI		0x04C
+#define BKTR_O_VSCALE_HI		0x0CC
+#define BKTR_E_VSCALE_LO		0x050
+#define BKTR_O_VSCALE_LO		0x0D0
+#define BKTR_TEST			0x054
+#define BKTR_ADELAY			0x060
+#define BKTR_BDELAY			0x064
+#define BKTR_ADC			0x068
+#define BKTR_E_VTC			0x06C
+#define BKTR_O_VTC			0x0EC
+#define BKTR_SRESET			0x07C
+#define BKTR_COLOR_FMT			0x0D4
+#define BKTR_COLOR_CTL			0x0D8
+#define BKTR_CAP_CTL			0x0DC
+#define BKTR_VBI_PACK_SIZE		0x0E0
+#define BKTR_VBI_PACK_DEL		0x0E4
+#define BKTR_INT_STAT			0x100
+#define BKTR_INT_MASK			0x104
+# define BT848_INT_RISCS		(0xf<<28)
+# define BT848_INT_RISC_EN		(1<<27)
+# define BT848_INT_RACK			(1<<25)
+# define BT848_INT_FIELD		(1<<24)
+# define BT848_INT_SCERR		(1<<19)
+# define BT848_INT_OCERR		(1<<18)
+# define BT848_INT_PABORT		(1<<17)
+# define BT848_INT_RIPERR		(1<<16)
+# define BT848_INT_PPERR		(1<<15)
+# define BT848_INT_FDSR			(1<<14)
+# define BT848_INT_FTRGT		(1<<13)
+# define BT848_INT_FBUS			(1<<12)
+# define BT848_INT_RISCI		(1<<11)
+# define BT848_INT_GPINT		(1<<9)
+# define BT848_INT_I2CDONE		(1<<8)
+# define BT848_INT_VPRES		(1<<5)
+# define BT848_INT_HLOCK		(1<<4)
+# define BT848_INT_OFLOW		(1<<3)
+# define BT848_INT_HSYNC		(1<<2)
+# define BT848_INT_VSYNC		(1<<1)
+# define BT848_INT_FMTCHG		(1<<0)
+#define BKTR_RISC_COUNT			0x120
+#define BKTR_RISC_STRT_ADD		0x114
+#define BKTR_GPIO_DMA_CTL		0x10C
+#define BKTR_GPIO_OUT_EN		0x118
+#define BKTR_GPIO_REG_INP		0x11C
+#define BKTR_GPIO_DATA			0x200
+#define BKTR_I2C_CONTROL		0x110
 
 
 /*
@@ -99,7 +127,7 @@ typedef volatile u_int 	breg_t;
  */
 struct tvtuner {
 	int	frequency;
-	u_char	tunertype;
+	u_char	chnlset;
 	u_char	channel;
 	u_char	band;
 };
@@ -182,6 +210,9 @@ typedef struct bktr_softc {
 #endif
     struct meteor_video video;
     struct tvtuner	tuner;
+    u_char      card_type;		/* brand of card */
+    u_char      audio_mux_select;	/* current mode of the audio */
+    u_char      audio_mute_state;	/* mute state of the audio */
 } bktr_reg_t;
 
 
