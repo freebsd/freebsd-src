@@ -32,13 +32,18 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -81,7 +86,7 @@ main(argc, argv)
 	ischown = myname[2] == 'o';
 
 	Hflag = Lflag = Pflag = hflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfh")) !=  -1)
+	while ((ch = getopt(argc, argv, "HLPRfh")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -243,25 +248,18 @@ chownerr(file)
 
 	/* Check for chown without being root. */
 	if (errno != EPERM ||
-	    uid != -1 && euid == -1 && (euid = geteuid()) != 0) {
-		if (fflag)
-			exit(0);
+	    (uid != -1 && euid == -1 && (euid = geteuid()) != 0))
 		err(1, "%s", file);
-	}
 
 	/* Check group membership; kernel just returns EPERM. */
-	if (gid != -1 && ngroups == -1) {
+	if (gid != -1 && ngroups == -1 &&
+	    euid == -1 && (euid = geteuid()) != 0) {
 		ngroups = getgroups(NGROUPS, groups);
 		while (--ngroups >= 0 && gid != groups[ngroups]);
-		if (ngroups < 0) {
-			if (fflag)
-				exit(0);
+		if (ngroups < 0)
 			errx(1, "you are not a member of group %s", gname);
-		}
 	}
-
-	if (!fflag)
-		warn("%s", file);
+	warn("%s", file);
 }
 
 void
