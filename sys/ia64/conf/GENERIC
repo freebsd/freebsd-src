@@ -28,10 +28,12 @@ makeoptions	DEBUG=-g	# Build kernel with debug information.
 
 options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
-options 	DDB		# Enable the kernel debugger
+options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
+options 	GDB		# Support remote GDB
 options 	INET		# InterNETworking
 options 	INET6		# IPv6 communications protocols
+options 	KDB		# Enable kernel debugger support
 options 	KTRACE		# ktrace(1) syscall trace support
 options 	MD_ROOT		# MD usable as root device
 options 	MSDOSFS		# MSDOS Filesystem
