@@ -393,5 +393,5 @@ dec_1000a_intr_init()
 /*
  * Enable cascade interrupt.
  */
-	dec_1000_intr_enable(2);
+	dec_1000a_intr_enable(2);
 }
