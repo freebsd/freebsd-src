@@ -22,6 +22,12 @@
 #define CURSES 1
 #define CURSES_H 1
 
+/* This is defined in more than one ncurses header, for identification */
+#undef  NCURSES_VERSION
+#define NCURSES_VERSION "1.8.6/ache"
+
+typedef unsigned long  chtype;
+
 #include <stdio.h>
 #include <stdarg.h>
 #ifndef NOTERMIOS
@@ -36,8 +42,6 @@
 #include <unctrl.h>
 
 #define bool    char
-
-typedef unsigned long  chtype;
 
 /* attributes */
 #define A_ATTRIBUTES	0xffffff00
