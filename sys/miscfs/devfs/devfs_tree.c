@@ -2,8 +2,10 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.30 1996/09/10 08:27:33 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.31 1996/09/29 15:00:37 bde Exp $
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -841,9 +843,11 @@ bdevvp(dev_t dev, struct vnode **vpp)
 {
 	dn_p	dnp = 0;
 
+	if (dev == NODEV)
+		return(0);
 	dnp=  findbdev(dev, dev_root->dnp);
 	if (!dnp)
-		return (0);
+		return (ENOENT);
 	return (devfs_dntovn(dnp, vpp));
 }
 #endif /* DEVFS_ROOT */
