@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.4 1995/09/03 05:43:25 julian Exp $
+ *	$Id: md_var.h,v 1.5 1995/11/21 12:52:57 bde Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -42,7 +42,6 @@ extern	u_long	cpu_high;
 extern	u_long	cpu_id;
 extern	char	cpu_vendor[];
 extern	char	etext[];
-extern	vm_offset_t isaphysmem;
 extern	char	kstack[];
 extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;

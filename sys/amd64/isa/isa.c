@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.61 1996/01/19 23:38:06 phk Exp $
+ *	$Id: isa.c,v 1.62 1996/01/27 01:56:30 bde Exp $
  */
 
 /*
@@ -561,15 +561,45 @@ isa_defaultirq()
 	outb(IO_ICU2, 0x0a);		/* default to IRR on read */
 }
 
-/* region of physical memory known to be contiguous */
-vm_offset_t isaphysmem;
-static caddr_t dma_bounce[8];		/* XXX */
-static char bounced[8];		/* XXX */
-#define MAXDMASZ 512		/* XXX */
+static caddr_t	dma_bouncebuf[8];
+static unsigned	dma_bouncebufsize[8];
+static char	dma_bounced[8];
+static char	dma_busy[8];
 
 /* high byte of address is stored in this port for i-th dma channel */
 static short dmapageport[8] =
 	{ 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
+
+/*
+ * Allocate a DMA channel.
+ */
+void
+isa_dmainit(chan, bouncebufsize)
+	unsigned chan;
+	unsigned bouncebufsize;
+{
+	void *buf;
+
+	if (chan > 7 || dma_bouncebuf[chan] != NULL)
+		panic("isa_dmainit: impossible request"); 
+	dma_bouncebufsize[chan] = bouncebufsize;
+
+	/* Try malloc() first.  It works better if it works. */
+	buf = malloc(bouncebufsize, M_DEVBUF, M_NOWAIT);
+	if (buf != NULL) {
+		if (isa_dmarangecheck(buf, bouncebufsize, chan) == 0) {
+			dma_bouncebuf[chan] = buf;
+			return;
+		}
+		free(buf, M_DEVBUF);
+	}
+	buf = contigmalloc(bouncebufsize, M_DEVBUF, M_NOWAIT, 0ul, 0xfffffful,
+			   1ul, chan & 4 ? 0x20000ul : 0x10000ul);
+	if (buf == NULL)
+		printf("isa_dmainit(%d, %d) failed\n", chan, bouncebufsize);
+	else
+		dma_bouncebuf[chan] = buf;
+}
 
 /*
  * isa_dmacascade(): program 8237 DMA controller channel to accept
@@ -604,13 +634,15 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
+	if (dma_busy[chan])
+		printf("isa_dmastart: channel %u busy\n", chan);
+	dma_busy[chan] = 1;
 	if (isa_dmarangecheck(addr, nbytes, chan)) {
-		if (dma_bounce[chan] == 0)
-			dma_bounce[chan] =
-				(caddr_t) isaphysmem + NBPG*chan;
-		bounced[chan] = 1;
-		newaddr = dma_bounce[chan];
-		*(int *) newaddr = 0;	/* XXX */
+		if (dma_bouncebuf[chan] == NULL
+		    || dma_bouncebufsize[chan] < nbytes)
+			panic("isa_dmastart: bad bounce buffer"); 
+		dma_bounced[chan] = 1;
+		newaddr = dma_bouncebuf[chan];
 
 		/* copy bounce buffer on write */
 		if (!(flags & B_READ))
@@ -694,12 +726,30 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {
 
-	/* copy bounce buffer on read */
-	/*if ((flags & (B_PHYS|B_READ)) == (B_PHYS|B_READ))*/
-	if (bounced[chan]) {
-		bcopy(dma_bounce[chan], addr, nbytes);
-		bounced[chan] = 0;
+	if (!dma_busy[chan])
+		printf("isa_dmadone: channel %d not busy\n", chan);
+	if (dma_bounced[chan]) {
+		/* copy bounce buffer on read */
+		if (flags & B_READ)
+			bcopy(dma_bouncebuf[chan], addr, nbytes);
+
+		dma_bounced[chan] = 0;
 	}
+	dma_busy[chan] = 0;
+}
+
+void
+isa_dmadone_nobounce(chan)
+	unsigned chan;
+{
+
+	if (!dma_busy[chan])
+		printf("isa_dmadone_nobounce: channel %u not busy\n", chan);
+	if (dma_bounced[chan]) {
+		printf("isa_dmadone_nobounce: channel %u bounced\n", chan);
+		dma_bounced[chan] = 0;
+	}
+	dma_busy[chan] = 0;
 }
 
 /*
