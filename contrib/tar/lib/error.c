@@ -190,10 +190,11 @@ error_tail (int status, int errnum, const char *message, va_list args)
     {
 # if defined HAVE_STRERROR_R || _LIBC
       char errbuf[1024];
+      char *s;
       /* Don't use __strerror_r's return value because on some systems
 	 (at least DEC UNIX 4.0[A-D]) strerror_r returns `int'.  */
       (void)__strerror_r (errnum, errbuf, sizeof errbuf);
-      char *s = errbuf;
+      s = errbuf;
 #  if _LIBC && USE_IN_LIBIO
       if (_IO_fwide (stderr, 0) > 0)
 	__fwprintf (stderr, L": %s", s);
