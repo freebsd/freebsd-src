@@ -244,7 +244,7 @@
 		Set the number of sendfile buffers to be allocated.  This
 		overrides the value determined when the kernel was compiled.
 
-	set kern.vm.kmem.size=<value>		VM_KMEM_SIZE
+	set vm.kmem_size=<value>		VM_KMEM_SIZE
 
 		Sets the size of kernel memory (bytes).  This overrides
 		the value determined when the kernel was compiled.
