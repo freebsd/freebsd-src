@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.39 1994/11/07 04:02:26 phk Exp $
+#	$Id: rc,v 1.40 1994/11/17 08:28:02 smace Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -239,7 +239,7 @@ if [ -x /sbin/ldconfig ]; then
 	ldconfig ${_LDC}
 fi
 
-sh /etc/rc.local
+. /etc/rc.local
 
 date
 
