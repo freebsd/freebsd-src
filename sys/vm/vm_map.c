@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.129 1998/06/21 14:53:43 bde Exp $
+ * $Id: vm_map.c,v 1.130 1998/07/11 07:46:12 bde Exp $
  */
 
 /*
@@ -2863,8 +2863,8 @@ DB_SHOW_COMMAND(map, vm_map_print)
 		}
 #endif
 		
-		db_iprintf("map entry 0x%x: start=0x%lx, end=0x%lx\n",
-		    (long) entry, (long) entry->start, (long) entry->end);
+		db_iprintf("map entry %p: start=%p, end=%p\n",
+		    (void *)entry, (void *)entry->start, (void *)entry->end);
 		nlines++;
 		if (map->is_main_map) {
 			static char *inheritance_name[4] =

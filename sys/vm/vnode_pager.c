@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.92 1998/07/04 20:45:42 julian Exp $
+ *	$Id: vnode_pager.c,v 1.93 1998/07/11 07:46:16 bde Exp $
  */
 
 /*
@@ -647,8 +647,14 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			IDX_TO_OFF(m[i]->pindex), &runpg);
 		if (firstaddr == -1) {
 			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
-				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %d, foff: %ld, vnp_size: %d",
-			   	 firstaddr, foff, object->un_pager.vnp.vnp_size);
+				/* XXX no %qd in kernel. */
+				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %d, foff: 0x%lx%08lx, vnp_size: 0x%lx%08lx",
+			   	 firstaddr, (u_long)(foff >> 32),
+			   	 (u_long)(u_int32_t)foff,
+				 (u_long)(u_int32_t)
+				 (object->un_pager.vnp.vnp_size >> 32),
+				 (u_long)(u_int32_t)
+				 object->un_pager.vnp.vnp_size);
 			}
 			vnode_pager_freepage(m[i]);
 			runend = i + 1;
