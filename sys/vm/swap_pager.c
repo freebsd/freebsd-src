@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.114 1999/02/18 19:57:33 dillon Exp $
+ * $Id: swap_pager.c,v 1.115 1999/02/21 08:30:49 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -119,23 +119,9 @@ struct blist *swapblist;
 static struct swblock **swhash;
 static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
-static int swap_cluster_max;	/* maximum VOP I/O allowed		*/
-
-#ifndef DISALLOW_SWAP_TUNE
 
 SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
         CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
-SYSCTL_INT(_vm, OID_AUTO, swap_cluster_max,
-        CTLFLAG_RW, &swap_cluster_max, 0, "Maximum swap I/O cluster (pages)");
-
-#else
-
-SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
-        CTLFLAG_RD, &swap_async_max, 0, "");
-SYSCTL_INT(_vm, OID_AUTO, swap_cluster_max,
-        CTLFLAG_RD, &swap_cluster_max, 0, "");
-
-#endif
 
 /*
  * "named" and "unnamed" anon region objects.  Try to reduce the overhead
@@ -299,13 +285,12 @@ swap_pager_swap_init()
 	 * So it all works out pretty well.
 	 */
 
-	swap_cluster_max = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
+	nsw_cluster_max = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
 
 	nsw_rcount = (nswbuf + 1) / 2;
 	nsw_wcount_sync = (nswbuf + 3) / 4;
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
-	nsw_cluster_max = swap_cluster_max;
 
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
@@ -1054,12 +1039,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	/*
 	 * Step 2
 	 *
-	 * Update nsw parameters from swap_async_max and swap_cluster_max 
-	 * sysctl values.  Do not let the sysop crash the machine with bogus
-	 * numbers.
+	 * Update nsw parameters from swap_async_max sysctl values.
+	 * Do not let the sysop crash the machine with bogus numbers.
 	 */
-
-#ifndef DISALLOW_SWAP_TUNE
 
 	if (swap_async_max != nsw_wcount_async_max) {
 		int n;
@@ -1088,19 +1070,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		}
 		splx(s);
 	}
-
-	if (swap_cluster_max != nsw_cluster_max) {
-		int n;
-
-		if ((n = swap_cluster_max) < 1)
-			n = 1;
-		if (n > min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER))
-			n = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
-		swap_cluster_max = n;
-		nsw_cluster_max = n;
-	}
-
-#endif
 
 	/*
 	 * Step 3
@@ -1248,20 +1217,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			tsleep(bp, PVM, "swwrt", 0);
 		}
 
-#if 0
-		if (bp->b_flags & B_ERROR) {
-			grv = VM_PAGER_ERROR;
-		}
-#endif
-
 		for (j = 0; j < n; ++j)
 			rtvals[i+j] = VM_PAGER_PEND;
 
-#if 0
-		if (bp->b_flags & B_ERROR) {
-			grv = VM_PAGER_ERROR;
-		}
-#endif
 
 		/*
 		 * Now that we are through with the bp, we can call the
