@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.32 2001/05/23 23:04:38 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.35 2003/04/28 02:54:43 grog Exp $
  * $FreeBSD$
  */
 
@@ -125,15 +125,10 @@ vinumstrategy(struct bio *biop)
 
     switch (DEVTYPE(bp->b_dev)) {
     case VINUM_SD_TYPE:
-    case VINUM_RAWSD_TYPE:
+    case VINUM_SD2_TYPE:
 	sdio(bp);
 	return;
 
-	/*
-	 * In fact, vinum doesn't handle drives: they're
-	 * handled directly by the disk drivers
-	 */
-    case VINUM_DRIVE_TYPE:
     default:
 	bp->b_error = EIO;				    /* I/O error */
 	bp->b_io.bio_flags |= BIO_ERROR;
@@ -160,7 +155,6 @@ vinumstrategy(struct bio *biop)
 	 * pointer (set above) for the volume
 	 */
     case VINUM_PLEX_TYPE:
-    case VINUM_RAWPLEX_TYPE:
 	bp->b_resid = bp->b_bcount;			    /* transfer everything */
 	vinumstart(bp, 0);
 	return;
@@ -272,8 +266,8 @@ vinumstart(struct buf *bp, int reviveok)
 	    if ((vol->plexes > 0)			    /* multiple plex */
 	    ||(isparity((&PLEX[vol->plex[0]])))) {	    /* or RAID-[45], */
 		rq->save_data = bp->b_data;		    /* save the data buffer address */
-		bp->b_data = Malloc(bp->b_bufsize);
-		bcopy(rq->save_data, bp->b_data, bp->b_bufsize); /* make a copy */
+		bp->b_data = Malloc(bp->b_bcount);
+		bcopy(rq->save_data, bp->b_data, bp->b_bcount);	/* make a copy */
 		rq->flags |= XFR_COPYBUF;		    /* and note that we did it */
 	    }
 	    status = build_write_request(rq);
@@ -317,10 +311,10 @@ launch_requests(struct request *rq, int reviveok)
     int rcount;						    /* request count */
 
     /*
-     * First find out whether we're reviving, and the
-     * request contains a conflict.  If so, we hang
-     * the request off plex->waitlist of the first
-     * plex we find which is reviving
+     * First find out whether we're reviving, and
+     * the request contains a conflict.  If so, we
+     * hang the request off plex->waitlist of the
+     * first plex we find which is reviving.
      */
 
     if ((rq->flags & XFR_REVIVECONFLICT)		    /* possible revive conflict */
@@ -346,12 +340,20 @@ launch_requests(struct request *rq, int reviveok)
 		rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
-		(long long)rq->bp->b_blkno,
+		rq->bp->b_blkno,
 		rq->bp->b_bcount);
 #endif
 	return 0;					    /* and get out of here */
     }
     rq->active = 0;					    /* nothing yet */
+#ifdef VINUMDEBUG
+    /* XXX This is probably due to a bug */
+    if (rq->rqg == NULL) {				    /* no request */
+	log(LOG_ERR, "vinum: null rqg\n");
+	abortrequest(rq, EINVAL);
+	return -1;
+    }
+#endif
 #ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
@@ -360,7 +362,7 @@ launch_requests(struct request *rq, int reviveok)
 	    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
-	    (long long)rq->bp->b_blkno,
+	    rq->bp->b_blkno,
 	    rq->bp->b_bcount);
     vinum_conf.lastrq = rq;
     vinum_conf.lastbuf = rq->bp;
@@ -400,7 +402,9 @@ launch_requests(struct request *rq, int reviveok)
     /*
      * Now fire off the requests.  In this loop the
      * bottom half could be completing requests
-     * before we finish, so we need splbio() protection.
+     * before we finish.  We avoid splbio()
+     * protection by ensuring we don't tread in the
+     * same places that the bottom half does.
      */
     for (rqg = rq->rqg; rqg != NULL;) {			    /* through the whole request chain */
 	if (rqg->lockbase >= 0)				    /* this rqg needs a lock first */
@@ -410,7 +414,7 @@ launch_requests(struct request *rq, int reviveok)
 	    rqe = &rqg->rqe[rqno];
 
 	    /*
-	     * Point to next rqg before the bottom end
+	     * Point to next rqg before the bottom half
 	     * changes the structures.
 	     */
 	    if (++rqno >= rcount)
@@ -433,10 +437,12 @@ launch_requests(struct request *rq, int reviveok)
 			minor(rqe->b.b_dev),
 			rqe->sdno,
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
-			(long long)rqe->b.b_blkno,
+			rqe->b.b_blkno,
 			rqe->b.b_bcount);
-		if (debug & DEBUG_LASTREQS)
+		if (debug & DEBUG_LASTREQS) {
+		    microtime(&rqe->launchtime);	    /* time we launched this request */
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
+		}
 #endif
 		/* fire off the request */
 		DEV_STRATEGY(&rqe->b);
@@ -630,16 +636,16 @@ bre(struct request *rq,
 #ifdef VINUMDEBUG
 		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
 			log(LOG_DEBUG,
-			    "vinum: EOF on plex %s, sd %s offset %x (user offset %llx)\n",
+			    "vinum: EOF on plex %s, sd %s offset %x (user offset 0x%llx)\n",
 			    plex->name,
 			    sd->name,
 			    (u_int) sd->sectors,
-			    (long long)bp->b_blkno);
+			    bp->b_blkno);
 			log(LOG_DEBUG,
 			    "vinum: stripebase %#llx, stripeoffset %#llxx, blockoffset %#llx\n",
-			    (unsigned long long)stripebase,
-			    (unsigned long long)stripeoffset,
-			    (unsigned long long)blockoffset);
+			    stripebase,
+			    stripeoffset,
+			    blockoffset);
 		    }
 #endif
 		}
@@ -833,8 +839,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
     bp->b_resid = bp->b_bcount;				    /* and it's still all waiting */
     bp->b_bufsize = bp->b_bcount;			    /* and buffer size */
-    bp->b_rcred = FSCRED;				    /* we have the filesystem credentials */
-    bp->b_wcred = FSCRED;				    /* we have the filesystem credentials */
+    bp->b_rcred = FSCRED;				    /* we have the file system credentials */
+    bp->b_wcred = FSCRED;				    /* we have the file system credentials */
 
     if (rqe->flags & XFR_MALLOCED) {			    /* this operation requires a malloced buffer */
 	bp->b_data = Malloc(bp->b_bcount);		    /* get a buffer to put it in */
@@ -941,7 +947,7 @@ sdio(struct buf *bp)
     bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
     sbp->b.b_flags = bp->b_flags;
     sbp->b.b_iocmd = bp->b_iocmd;
-    sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
+    sbp->b.b_bufsize = bp->b_bcount;			    /* buffer size */
     sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
     sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */
     sbp->b.b_dev = DRIVE[sd->driveno].dev;		    /* device */
@@ -969,13 +975,13 @@ sdio(struct buf *bp)
 #ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+	    "  %s dev %d.%d, sd %d, offset 0x%llx, devoffset 0x%llx, length %ld\n",
 	    sbp->b.b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(sbp->b.b_dev),
 	    minor(sbp->b.b_dev),
 	    sbp->sdno,
-	    (u_int) (sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
-	    (int) sbp->b.b_blkno,
+	    sbp->b.b_blkno - SD[sbp->sdno].driveoffset,
+	    sbp->b.b_blkno,
 	    sbp->b.b_bcount);
 #endif
     s = splbio();
