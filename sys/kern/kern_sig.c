@@ -1536,6 +1536,9 @@ postsig(sig)
 
 	KASSERT(sig != 0, ("postsig"));
 
+#ifdef KTRACE
+	mtx_lock(&Giant);
+#endif
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	SIGDELSET(p->p_siglist, sig);
@@ -1544,6 +1547,7 @@ postsig(sig)
 	if (KTRPOINT(p, KTR_PSIG))
 		ktrpsig(p->p_tracep, sig, action, p->p_flag & P_OLDMASK ?
 		    &p->p_oldsigmask : &p->p_sigmask, 0);
+	mtx_unlock(&Giant);
 #endif
 	_STOPEVENT(p, S_SIG, sig);
 
