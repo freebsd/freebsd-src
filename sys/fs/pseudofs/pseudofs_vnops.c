@@ -830,9 +830,6 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
 	{ &vop_symlink_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_write_desc,		(vop_t *)pfs_write	},
-	{ &vop_lock_desc,		(vop_t *)vop_stdlock	},
-	{ &vop_unlock_desc,		(vop_t *)vop_stdunlock	},
-	{ &vop_islocked_desc,		(vop_t *)vop_stdislocked},
 	/* XXX I've probably forgotten a few that need vop_eopnotsupp */
 	{ NULL,				(vop_t *)NULL		}
 };

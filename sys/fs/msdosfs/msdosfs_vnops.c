@@ -1883,9 +1883,7 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) msdosfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) msdosfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) msdosfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_link_desc,		(vop_t *) msdosfs_link },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) msdosfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) msdosfs_mknod },
@@ -1900,7 +1898,6 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) msdosfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) msdosfs_write },
 	{ NULL, NULL }
 };

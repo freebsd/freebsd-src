@@ -549,9 +549,6 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc fdesc_vnodeop_opv_desc =
