@@ -102,6 +102,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"kue",		"Kawasaki LSI USB ethernet adapter"				},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"		},
+    { DEVICE_TYPE_NETWORK,	"lge",		"Level 1 LXT1001 gigabit ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"nge",		"NatSemi PCI gigabit ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"pcn",		"AMD Am79c79x PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"ray",		"Raytheon Raylink 802.11 wireless adaptor"			},
