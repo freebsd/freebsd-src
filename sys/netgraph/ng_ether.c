@@ -57,6 +57,7 @@
 
 #include <net/bridge.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_arp.h>
 #include <net/if_var.h>
@@ -169,6 +170,20 @@ static const struct ng_cmdlist ng_ether_cmdlist[] = {
 	  NGM_ETHER_SET_AUTOSRC,
 	  "setautosrc",
 	  &ng_parse_int32_type,
+	  NULL
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_ADD_MULTI,
+	  "addmulti",
+	  &ng_parse_enaddr_type,
+	  NULL
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_DEL_MULTI,
+	  "delmulti",
+	  &ng_parse_enaddr_type,
 	  NULL
 	},
 	{ 0 }
@@ -492,6 +507,47 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			priv->autoSrcAddr = !!*((u_int32_t *)msg->data);
 			break;
+		case NGM_ETHER_ADD_MULTI:
+		    {
+			struct sockaddr_dl sa_dl;
+			struct ifmultiaddr *ifm;
+
+			if (msg->header.arglen != ETHER_ADDR_LEN) {
+				error = EINVAL;
+				break;
+			}
+			sa_dl.sdl_len = sizeof(struct sockaddr_dl);
+			sa_dl.sdl_family = AF_LINK;
+			sa_dl.sdl_index = 0;
+			sa_dl.sdl_nlen = 0;
+			sa_dl.sdl_alen = 6;
+			sa_dl.sdl_slen = 0;
+			bcopy((void *)msg->data, LLADDR(&sa_dl),
+			    ETHER_ADDR_LEN);
+			error = if_addmulti(priv->ifp,
+			    (struct sockaddr *)&sa_dl, &ifm);
+			break;
+		    }
+		case NGM_ETHER_DEL_MULTI:
+		    {
+			struct sockaddr_dl sa_dl;
+
+			if (msg->header.arglen != ETHER_ADDR_LEN) {
+				error = EINVAL;
+				break;
+			}
+			sa_dl.sdl_len = sizeof(struct sockaddr_dl);
+			sa_dl.sdl_family = AF_LINK;
+			sa_dl.sdl_index = 0;
+			sa_dl.sdl_nlen = 0;
+			sa_dl.sdl_alen = 6;
+			sa_dl.sdl_slen = 0;
+			bcopy((void *)msg->data, LLADDR(&sa_dl),
+			    ETHER_ADDR_LEN);
+			error = if_delmulti(priv->ifp,
+			    (struct sockaddr *)&sa_dl);
+			break;
+		    }
 		default:
 			error = EINVAL;
 			break;
