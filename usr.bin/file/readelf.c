@@ -1,7 +1,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: readelf.c,v 1.3 1998/01/28 07:36:25 charnier Exp $";
+	"$Id: readelf.c,v 1.4 1998/02/20 04:54:00 jb Exp $";
 #endif /* not lint */
 
 #ifdef BUILTIN_ELF
@@ -85,6 +85,7 @@ dophn_exec(fd, off, num, size, buf)
 }
 
 size_t	prpsoffsets[] = {
+	8,		/* FreeBSD */
 	100,		/* SunOS 5.x */
 	32,		/* Linux */
 };
@@ -93,14 +94,15 @@ size_t	prpsoffsets[] = {
 
 /*
  * Look through the program headers of an executable image, searching
- * for a PT_NOTE section of type NT_PRPSINFO, with a name "CORE"; if one
- * is found, try looking in various places in its contents for a 16-character
- * string containing only printable characters - if found, that string
- * should be the name of the program that dropped core.
- * Note: right after that 16-character string is, at least in SunOS 5.x
- * (and possibly other SVR4-flavored systems) and Linux, a longer string
- * (80 characters, in 5.x, probably other SVR4-flavored systems, and Linux)
- * containing the start of the command line for that program.
+ * for a PT_NOTE section of type NT_PRPSINFO, with a name "CORE" or
+ * "FreeBSD"; if one is found, try looking in various places in its
+ * contents for a 16-character string containing only printable
+ * characters - if found, that string should be the name of the program
+ * that dropped core.  Note: right after that 16-character string is,
+ * at least in SunOS 5.x (and possibly other SVR4-flavored systems) and
+ * Linux, a longer string (80 characters, in 5.x, probably other
+ * SVR4-flavored systems, and Linux) containing the start of the
+ * command line for that program.
  */
 static void
 dophn_core(fd, off, num, size, buf)
@@ -159,7 +161,8 @@ dophn_core(fd, off, num, size, buf)
 			}
 
 			/*
-			 * Make sure this note has the name "CORE".
+			 * Make sure this note has the name "CORE" or
+			 * "FreeBSD".
 			 */
 			if (offset + nh->n_namesz >= bufsize) {
 				/*
@@ -167,8 +170,9 @@ dophn_core(fd, off, num, size, buf)
 				 */
 				break;
 			}
-			if (nh->n_namesz != 5
-			    || strcmp(&nbuf[offset], "CORE") != 0)
+			if (nbuf[offset + nh->n_namesz - 1] != '\0' ||
+			    (strcmp(&nbuf[offset], "CORE") != 0 &&
+			    strcmp(&nbuf[offset], "FreeBSD") != 0))
 				continue;
 			offset += nh->n_namesz;
 			offset = ((offset + 3)/4)*4;
