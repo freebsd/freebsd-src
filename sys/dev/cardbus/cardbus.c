@@ -146,7 +146,7 @@ static void	cardbus_disable_io_method(device_t cbdev, device_t child,
 static int
 cardbus_probe(device_t cbdev)
 {
-	device_set_desc(cbdev, "Cardbus bus (newcard)");
+	device_set_desc(cbdev, "CardBus bus");
 	return 0;
 }
 
@@ -161,6 +161,19 @@ cardbus_detach(device_t cbdev)
 {
 	cardbus_detach_card(cbdev, DETACH_FORCE);
 	return 0;
+}
+
+static int
+cardbus_suspend(device_t self)
+{
+	cardbus_detach_card(self, DETACH_FORCE);
+	return (0);
+}
+
+static int
+cardbus_resume(device_t self)
+{
+	return (0);
 }
 
 /************************************************************************/
@@ -1199,8 +1212,8 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(device_attach,	cardbus_attach),
 	DEVMETHOD(device_detach,	cardbus_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_suspend,	cardbus_suspend),
+	DEVMETHOD(device_resume,	cardbus_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	cardbus_print_child),

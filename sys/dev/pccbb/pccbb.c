@@ -2096,14 +2096,67 @@ pccbb_write_config(device_t brdev, int b, int s, int f, int reg, u_int32_t val,
 	    b, s, f, reg, val, width);
 }
 
+static int
+pccbb_suspend(device_t self)
+{
+	int			error = 0;
+	struct pccbb_softc*	sc = device_get_softc(self);
+
+	bus_teardown_intr(self, sc->sc_irq_res, sc->sc_intrhand);
+	error = bus_generic_suspend(self);
+	return (error);
+}
+
+static int
+pccbb_resume(device_t self)
+{
+	int	error = 0;
+	struct pccbb_softc *sc = (struct pccbb_softc *)device_get_softc(self);
+	u_int32_t tmp;
+
+	pci_write_config(self, PCCBBR_SOCKBASE,
+	    rman_get_start(sc->sc_base_res), 4);
+	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
+	    rman_get_start(sc->sc_base_res)));
+
+	pccbb_chipinit(sc);
+
+	/* CSC Interrupt: Card detect interrupt on */
+	sc->sc_socketreg->socket_mask |= PCCBB_SOCKET_MASK_CD;
+
+	/* reset interrupt */
+	tmp = sc->sc_socketreg->socket_event;
+	sc->sc_socketreg->socket_event = tmp;
+
+	/* re-establish the interrupt. */
+	if (bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO, pccbb_intr, sc,
+	    &(sc->sc_intrhand))) {
+		device_printf(self, "couldn't re-establish interrupt");
+		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
+		bus_release_resource(self, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
+		    sc->sc_base_res);
+		mtx_destroy(&sc->sc_mtx);
+		error = ENOMEM;
+	}
+	bus_generic_resume(self);
+
+	/* wakeup thread */
+	if (!error) {
+		mtx_lock(&sc->sc_mtx);
+		wakeup(sc);
+		mtx_unlock(&sc->sc_mtx);
+	}
+	return (error);
+}
+
 static device_method_t pccbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			pccbb_probe),
 	DEVMETHOD(device_attach,		pccbb_attach),
 	DEVMETHOD(device_detach,		pccbb_detach),
 	DEVMETHOD(device_shutdown,		pccbb_shutdown),
-	DEVMETHOD(device_suspend,		bus_generic_suspend),
-	DEVMETHOD(device_resume,		bus_generic_resume),
+	DEVMETHOD(device_suspend,		pccbb_suspend),
+	DEVMETHOD(device_resume,		pccbb_resume),
 
 	/* bus methods */
 	DEVMETHOD(bus_print_child,		bus_generic_print_child),
