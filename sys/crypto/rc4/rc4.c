@@ -37,6 +37,9 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/types.h>
 #include <crypto/rc4/rc4.h>
 
@@ -102,3 +105,22 @@ rc4_crypt(struct rc4_state *const state,
 	}
 }
 
+static int
+rc4_modevent(module_t mod, int type, void *unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+		return 0;
+	case MOD_UNLOAD:
+		return 0;
+	}
+	return EINVAL;
+}
+
+static moduledata_t rc4_mod = {
+	"rc4",
+	rc4_modevent,
+	0
+};
+DECLARE_MODULE(rc4, rc4_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+MODULE_VERSION(rc4, 1);
