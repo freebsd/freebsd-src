@@ -42,6 +42,8 @@ o The MSDOS filesystem code now handles VFAT and FAT32 partitions.
 
 o ATAPI/IDE CD burner support (BETA).
 
+o ATAPI/IDE tape drive support (BETA).
+
 o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
   has changed from IRQ 5 to IRQ 10.
   The ed1 Ethernet device has been removed.  Use the Userconfig utility
@@ -228,6 +230,18 @@ KerberosIV is now merged.
 
 
 USERLAND CHANGES:
+
+The default binary type (and compiler toolchain) has been
+switched from a.out to ELF.  This gives us access to much
+newer compiler technology (much of which didn't support a.out),
+allows for smaller executables and provides much better
+support for languages like C++, among many other advantages.
+Older a.out libraries and binaries will, of course, continue to work
+and provisions have been made for having both varieties installed if
+and as necessary for transitional purposes.
+
+Perl4 has now been replaced by Perl5 as a standard part of the
+system.
 
 The default username length has increased to 16 characters.
 Caution:  Old utmp/wtmp files will NOT work with this change since
