@@ -35,9 +35,9 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id: syscons.c,v 1.23 1993/12/21 03:27:26 rich Exp $
+ *	$Id: syscons.c,v 1.24 1994/01/03 07:55:47 davidg Exp $
  *
- * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
+ * Heavily modified by Sxren Schmidt (sos@login.dkuug.dk) to provide:
  *
  * 	virtual consoles, SYSV ioctl's, ANSI emulation ....
  */
@@ -91,9 +91,9 @@
 
 /* virtual video memory addresses */
 #if !defined(NetBSD)
-#define	MONO_BUF	0xFE0B0000
-#define	CGA_BUF		0xFE0B8000
-#define	VGA_BUF		0xFE0A0000
+#define	MONO_BUF	(KERNBASE+0xB0000)
+#define	CGA_BUF		(KERNBASE+0xB8000)
+#define	VGA_BUF		(KERNBASE+0xA0000)
 #endif
 #define VIDEOMEM	0x000A0000
 

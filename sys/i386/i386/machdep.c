@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.23 1993/12/22 13:12:04 davidg Exp $
+ *	$Id: machdep.c,v 1.24 1994/01/03 07:55:21 davidg Exp $
  */
 
 #include "npx.h"
@@ -71,14 +71,7 @@
 #include "sys/exec.h"
 #include "sys/vnode.h"
 
-#ifndef MACHINE_NONCONTIG
-extern vm_offset_t avail_end;
-#else
 extern vm_offset_t avail_start, avail_end;
-static vm_offset_t hole_start, hole_end;
-static vm_offset_t avail_next;
-static unsigned int avail_remaining;
-#endif /* MACHINE_NONCONTIG */
 
 #include "machine/cpu.h"
 #include "machine/reg.h"
@@ -130,6 +123,8 @@ extern int forcemaxmem;
 #endif
 int biosmem;
 
+vm_offset_t	phys_avail[6];
+
 extern cyloffset;
 
 int cpu_class;
@@ -156,14 +151,9 @@ cpu_startup()
 
 	/* avail_end was pre-decremented in pmap_bootstrap to compensate */
 	for (i = 0; i < btoc(sizeof (struct msgbuf)); i++)
-#ifndef MACHINE_NONCONTIG
 		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp,
 			   avail_end + i * NBPG,
 			   VM_PROT_ALL, TRUE);
-#else
-		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp + i * NBPG,
-			   avail_end + i * NBPG, VM_PROT_ALL, TRUE);
-#endif
 	msgbufmapped = 1;
 
 	/*
@@ -280,7 +270,7 @@ again:
 	mclrefcnt = (char *)malloc(NMBCLUSTERS+CLBYTES/MCLBYTES,
 				   M_MBUF, M_NOWAIT);
 	bzero(mclrefcnt, NMBCLUSTERS+CLBYTES/MCLBYTES);
-	mb_map = kmem_suballoc(kernel_map, (vm_offset_t)&mbutl, &maxaddr,
+	mb_map = kmem_suballoc(kmem_map, (vm_offset_t)&mbutl, &maxaddr,
 			       VM_MBUF_SIZE, FALSE);
 	/*
 	 * Initialize callouts
@@ -556,7 +546,7 @@ boot(arghowto)
 	extern int cold;
 	int nomsg = 1;
 
-	if(cold) {
+	if (cold) {
 		printf("hit reset please");
 		for(;;);
 	}
@@ -1068,13 +1058,13 @@ init386(first)
 	/*
 	 * 15 Aug 92	Terry Lambert		The real fix for the CMOS bug
 	 */
-	if( biosbasemem != EXPECT_BASEMEM) {
-		printf( "Warning: Base memory %dK, assuming %dK\n", biosbasemem, EXPECT_BASEMEM);
+	if (biosbasemem != EXPECT_BASEMEM) {
+		printf("Warning: Base memory %dK, assuming %dK\n", biosbasemem, EXPECT_BASEMEM);
 		biosbasemem = EXPECT_BASEMEM;		/* assume base*/
 	}
 
-	if( biosextmem > 65536) {
-		printf( "Warning: Extended memory %dK(>64M), assuming 0K\n", biosextmem);
+	if (biosextmem > 65536) {
+		printf("Warning: Extended memory %dK(>64M), assuming 0K\n", biosextmem);
 		biosextmem = 0;				/* assume none*/
 	}
 
@@ -1093,34 +1083,36 @@ init386(first)
 		Maxmem = 640/4;
 	else {
 		Maxmem = pagesinext + 0x100000/NBPG;
-		if (first < 0x100000)
-			first = 0x100000; /* skip hole */
 	}
 
 	/* This used to explode, since Maxmem used to be 0 for bas CMOS*/
+#ifdef MAXMEM
+	if (MAXMEM/4 < Maxmem)
+		Maxmem = MAXMEM/4;
+#endif
 	maxmem = Maxmem - 1;	/* highest page of usable memory */
 	physmem = maxmem;	/* number of pages of physmem addr space */
 /*printf("using first 0x%x to 0x%x\n ", first, maxmem*NBPG);*/
 	if (maxmem < 2048/4) {
-		printf("Too little RAM memory. Warning, running in degraded mode.\n");
-#ifdef INFORM_WAIT
-		/*
-		 * People with less than 2 Meg have to hit return; this way
-		 * we see the messages and can tell them why they blow up later.
-		 * If they get working well enough to recompile, they can unset
-		 * the flag; otherwise, it's a toy and they have to lump it.
-		 */
-		cngetc();
-#endif	/* !INFORM_WAIT*/
+		panic("Too little RAM memory.\n");
+		/* NOT REACHED */
 	}
 
 	/* call pmap initialization to make new kernel address space */
-#ifndef MACHINCE_NONCONTIG
 	pmap_bootstrap (first, 0);
-#else
-	pmap_bootstrap ((vm_offset_t)atdevbase + IOM_SIZE);
 
-#endif /* MACHINE_NONCONTIG */
+	/*
+	 * Initialize pointers to the two chunks of memory; for use
+	 *	later in vm_page_startup.
+	 */
+	/* avail_start and avail_end are initialized in pmap_bootstrap */
+	phys_avail[0] = 0x1000;		/* memory up to the ISA hole */
+	phys_avail[1] = 0xa0000;
+	phys_avail[2] = avail_start;	/* memory up to the end */
+	phys_avail[3] = avail_end;
+	phys_avail[4] = 0;		/* no more chunks */
+	phys_avail[5] = 0;
+
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	/* make a initial tss so microp can get interrupt stack on syscall! */
@@ -1139,7 +1131,7 @@ init386(first)
 	x = (int) &IDTVEC(syscall);
 	gdp->gd_looffset = x++;
 	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
-	gdp->gd_stkcpy = 1;	/* Leaves room for eflags like a trap */
+	gdp->gd_stkcpy = 1;
 	gdp->gd_type = SDT_SYS386CGT;
 	gdp->gd_dpl = SEL_UPL;
 	gdp->gd_p = 1;
@@ -1170,9 +1162,7 @@ clearseg(n)
 	*(int *)CMAP2 = PG_V | PG_KW | ctob(n);
 	load_cr3(rcr3());
 	bzero(CADDR2,NBPG);
-#ifndef MACHINE_NONCONTIG
 	*(int *) CADDR2 = 0;
-#endif /* MACHINE_NONCONTIG */
 }
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: support.s,v 1.1 1993/11/13 02:25:05 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -385,8 +385,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	movl	%edi,%eax
 	addl	%ebx,%eax
 	jc	copyout_fault
-#define VM_END_USER_ADDRESS	0xFDBFE000	/* XXX */
-	cmpl	$VM_END_USER_ADDRESS,%eax
+	cmpl	$VM_MAXUSER_ADDRESS,%eax
 	ja	copyout_fault
 
 #ifndef USE_486_WRITE_PROTECT
@@ -708,7 +707,7 @@ ENTRY(copyoutstr)
 	 * XXX - however, it would be faster to rewrite this function to use
 	 * strlen() and copyout().
 	 */
-	cmpl	$VM_END_USER_ADDRESS,%edi
+	cmpl	$VM_MAXUSER_ADDRESS,%edi
 	jae	cpystrflt
 	lodsb
 	gs
@@ -742,7 +741,7 @@ ENTRY(copyoutstr)
 	 * we look at a page at a time and the end address is on a page
 	 * boundary.
 	 */
-	cmpl	$VM_END_USER_ADDRESS,%edi
+	cmpl	$VM_MAXUSER_ADDRESS,%edi
 	jae	cpystrflt
 	movl	%edi,%eax
 	shrl	$IDXSHIFT,%eax
