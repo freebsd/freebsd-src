@@ -95,6 +95,8 @@ lflag_print()
 			(void)show_text(pn->dir, _PATH_PROJECT, "Project");
 			if (!show_text(pn->dir, _PATH_PLAN, "Plan"))
 				(void)printf("No Plan.\n");
+			(void)show_text(pn->dir,
+			    _PATH_PUBLICKEY, "Public key");
 		}
 	}
 }
