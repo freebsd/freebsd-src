@@ -109,6 +109,7 @@ SUBDIR=	apply \
 	mt \
 	ncal \
 	netstat \
+	newgrp \
 	nfsstat \
 	nice \
 	nl \
