@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.221 1998/10/17 15:25:26 bde Exp $
+#	$Id: Makefile,v 1.222 1998/12/28 17:03:49 peter Exp $
 #
 # The user-driven targets are:
 #
@@ -63,25 +63,19 @@
 #           Upgrading an i386 system from a.out to elf format
 #
 #
-# The aout->elf transition build is performed by doing a `make aout-to-elf'
-# or a `make aout-to-elf-build' followed by a `make aout-to-elf-install'.
+# The aout->elf transition build is performed by doing a `make upgrade' (or
+# `make aout-to-elf') or in two steps by a `make aout-to-elf-build' followed
+# by a `make aout-to-elf-install', depending on user preference.
 # You need to have at least 320 Mb of free space for the object tree.
 #
 # The upgrade process checks the installed release. If this is 3.0-CURRENT,
 # it is assumed that your kernel contains all the syscalls required by the
 # current sources.
 #
-# For installed systems where `uname -r' reports something other than
-# 3.0-CURRENT, the upgrade process expects to build a kernel using the
-# kernel configuration file sys/i386/conf/GENERICupgrade. This file is
-# defaulted to the GENERIC kernel configuration file on the assumption that
-# it will be suitable for most systems. Before performing the upgrade,
-# replace sys/i386/conf/GENERICupgrade with your own version if your
-# hardware requires a different configuration.
-#
 # The upgrade procedure will stop and ask for confirmation to proceed
 # several times. On each occasion, you can type Ctrl-C to abort the
-# upgrade.
+# upgrade.  Optionally, you can also start it with NOCONFIRM=yes and skip
+# the confirmation steps.
 #
 # At the end of the upgrade procedure, /etc/objformat is created or
 # updated to contain OBJFORMAT=elf. From then on, you're elf by default.
@@ -134,6 +128,9 @@ UPGRADE =	aout-to-elf aout-to-elf-build aout-to-elf-install \
 #
 # Handle the upgrade targets, using the source relative mk files.
 #
+
+upgrade:	aout-to-elf
+
 ${UPGRADE} : upgrade_checks
 	@cd ${.CURDIR}; \
 		make -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
