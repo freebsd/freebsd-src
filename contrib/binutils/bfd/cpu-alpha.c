@@ -21,18 +21,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sysdep.h"
 #include "libbfd.h"
 
+#define N(BITS_WORD, BITS_ADDR, NUMBER, PRINT, DEFAULT, NEXT) \
+  {							\
+    BITS_WORD, /* bits in a word */			\
+    BITS_ADDR, /* bits in an address */			\
+    8,	/* 8 bits in a byte */				\
+    bfd_arch_alpha,					\
+    NUMBER,						\
+    "alpha",						\
+    PRINT,						\
+    3,							\
+    DEFAULT,						\
+    bfd_default_compatible, 				\
+    bfd_default_scan,					\
+    NEXT,						\
+  }
+
+#define NN(index) (&arch_info_struct[index])
+
+/* These exist only so that we can resonably disassemble PALcode.  */
+static const bfd_arch_info_type arch_info_struct[] = 
+{
+  N (64, 64, bfd_mach_alpha_ev4, "alpha:ev4", false, NN(1)),
+  N (64, 64, bfd_mach_alpha_ev5, "alpha:ev5", false, NN(2)),
+  N (64, 64, bfd_mach_alpha_ev6, "alpha:ev6", false, 0),
+};
+
 const bfd_arch_info_type bfd_alpha_arch =
-  {
-    64,	/* 32 bits in a word */
-    64,	/* 32 bits in an address */
-    8,	/* 8 bits in a byte */
-    bfd_arch_alpha,
-    0,	/* only 1 machine */
-    "alpha",
-    "alpha",
-    3,
-    true, /* the one and only */
-    bfd_default_compatible, 
-    bfd_default_scan ,
-    0,
-  };
+  N (64, 64, 0, "alpha", true, NN(0));

@@ -1,5 +1,5 @@
 /* stabs.c -- Parse COFF debugging information
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright (C) 1996, 98, 99, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -201,8 +201,7 @@ parse_coff_type (abfd, symbols, types, coff_symno, ntype, pauxent, useaux,
 	}
       else
 	{
-	  fprintf (stderr, "%s: parse_coff_type: Bad type code 0x%x\n",
-		   program_name, ntype);
+	  non_fatal (_("parse_coff_type: Bad type code 0x%x"), ntype);
 	  return DEBUG_TYPE_NULL;
 	}
 
@@ -420,8 +419,8 @@ parse_coff_struct_type (abfd, symbols, types, ntype, pauxent, dhandle)
 
       if (! bfd_coff_get_syment (abfd, sym, &syment))
 	{
-	  fprintf (stderr, "%s: bfd_coff_get_syment failed: %s\n",
-		   program_name, bfd_errmsg (bfd_get_error ()));
+	  non_fatal (_("bfd_coff_get_syment failed: %s"),
+		     bfd_errmsg (bfd_get_error ()));
 	  return DEBUG_TYPE_NULL;
 	}
 
@@ -436,8 +435,8 @@ parse_coff_struct_type (abfd, symbols, types, ntype, pauxent, dhandle)
 	{
 	  if (! bfd_coff_get_auxent (abfd, sym, 0, &auxent))
 	    {
-	      fprintf (stderr, "%s: bfd_coff_get_auxent failed: %s\n",
-		       program_name, bfd_errmsg (bfd_get_error ()));
+	      non_fatal (_("bfd_coff_get_auxent failed: %s"),
+			 bfd_errmsg (bfd_get_error ()));
 	      return DEBUG_TYPE_NULL;
 	    }
 	  psubaux = &auxent;
@@ -498,7 +497,7 @@ static debug_type
 parse_coff_enum_type (abfd, symbols, types, pauxent, dhandle)
      bfd *abfd;
      struct coff_symbols *symbols;
-     struct coff_types *types;
+     struct coff_types *types ATTRIBUTE_UNUSED;
      union internal_auxent *pauxent;
      PTR dhandle;
 {
@@ -528,8 +527,8 @@ parse_coff_enum_type (abfd, symbols, types, pauxent, dhandle)
 
       if (! bfd_coff_get_syment (abfd, sym, &syment))
 	{
-	  fprintf (stderr, "%s: bfd_coff_get_syment failed: %s\n",
-		   program_name, bfd_errmsg (bfd_get_error ()));
+	  non_fatal (_("bfd_coff_get_syment failed: %s"),
+		     bfd_errmsg (bfd_get_error ()));
 	  return DEBUG_TYPE_NULL;
 	}
 
@@ -569,7 +568,7 @@ parse_coff_enum_type (abfd, symbols, types, pauxent, dhandle)
 static boolean
 parse_coff_symbol (abfd, types, sym, coff_symno, psyment, dhandle, type,
 		   within_function)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      struct coff_types *types;
      asymbol *sym;
      long coff_symno;
@@ -709,8 +708,8 @@ parse_coff (abfd, syms, symcount, dhandle)
 
       if (! bfd_coff_get_syment (abfd, sym, &syment))
 	{
-	  fprintf (stderr, "%s: bfd_coff_get_syment failed: %s\n",
-		   program_name, bfd_errmsg (bfd_get_error ()));
+	  non_fatal (_("bfd_coff_get_syment failed: %s"),
+		     bfd_errmsg (bfd_get_error ()));
 	  return false;
 	}
 
@@ -729,8 +728,8 @@ parse_coff (abfd, syms, symcount, dhandle)
 	{
 	  if (! bfd_coff_get_auxent (abfd, sym, 0, &auxent))
 	    {
-	      fprintf (stderr, "%s: bfd_coff_get_auxent failed: %s\n",
-		       program_name, bfd_errmsg (bfd_get_error ()));
+	      non_fatal (_("bfd_coff_get_auxent failed: %s"),
+			 bfd_errmsg (bfd_get_error ()));
 	      return false;
 	    }
 	  paux = &auxent;
@@ -795,8 +794,8 @@ parse_coff (abfd, syms, symcount, dhandle)
 	    {
 	      if (fnname == NULL)
 		{
-		  fprintf (stderr, "%s: %ld: .bf without preceding function\n",
-			   program_name, this_coff_symno);
+		  non_fatal (_("%ld: .bf without preceding function"),
+			     this_coff_symno);
 		  return false;
 		}
 
@@ -845,8 +844,7 @@ parse_coff (abfd, syms, symcount, dhandle)
 	    {
 	      if (! within_function)
 		{
-		  fprintf (stderr, "%s: %ld: unexpected .ef\n",
-			   program_name, this_coff_symno);
+		  non_fatal (_("%ld: unexpected .ef\n"), this_coff_symno);
 		  return false;
 		}
 

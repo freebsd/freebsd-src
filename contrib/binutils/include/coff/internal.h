@@ -53,6 +53,7 @@ struct internal_filehdr
   long f_nsyms;			/* number of symtab entries	*/
   unsigned short f_opthdr;	/* sizeof(optional hdr)		*/
   unsigned short f_flags;	/* flags			*/
+  unsigned short f_target_id;	/* (TIc80 specific)		*/
 };
 
 
@@ -88,9 +89,13 @@ typedef struct _IMAGE_DATA_DIRECTORY
 }  IMAGE_DATA_DIRECTORY;
 #define IMAGE_NUMBEROF_DIRECTORY_ENTRIES  16
 
-/* default image base for NT */
+/* Default image base for NT.  */
 #define NT_EXE_IMAGE_BASE 0x400000
 #define NT_DLL_IMAGE_BASE 0x10000000
+
+/* Default image base for BeOS. */
+#define BEOS_EXE_IMAGE_BASE 0x80000000
+#define BEOS_DLL_IMAGE_BASE 0x10000000
 
 /* Extra stuff in a PE aouthdr */
 
@@ -215,6 +220,13 @@ struct internal_aouthdr
 #define C_ALIAS	 	105	/* duplicate tag		*/
 #define C_HIDDEN	106	/* ext symbol in dmert public lib */
 
+#define C_WEAKEXT	127	/* weak symbol -- GNU extension */
+
+/* New storage classes for TIc80 */
+#define C_UEXT		19	/* Tentative external definition */
+#define C_STATLAB	20	/* Static load time label */
+#define C_EXTLAB	21	/* External load time label */
+#define C_SYSTEM	23	/* System Wide variable */
 
 /* New storage classes for WINDOWS_NT   */
 #define C_SECTION       104     /* section name */
@@ -260,11 +272,11 @@ struct internal_aouthdr
 #define C_ESTAT         (0x90)
 
 /* Storage classes for Thumb symbols */
-#define C_THUMBEXT      (128 + C_EXT)
-#define C_THUMBSTAT     (128 + C_STAT)
-#define C_THUMBLABEL    (128 + C_LABEL)
-#define C_THUMBEXTFUNC  (C_THUMBEXT  + 20)
-#define C_THUMBSTATFUNC (C_THUMBSTAT + 20)
+#define C_THUMBEXT      (128 + C_EXT)		/* 130 */
+#define C_THUMBSTAT     (128 + C_STAT)		/* 131 */
+#define C_THUMBLABEL    (128 + C_LABEL)		/* 134 */
+#define C_THUMBEXTFUNC  (C_THUMBEXT  + 20)	/* 150 */
+#define C_THUMBSTATFUNC (C_THUMBSTAT + 20)	/* 151 */
 
 /********************** SECTION HEADER **********************/
 
@@ -409,6 +421,7 @@ struct internal_syment
 #define DT_ARY		(3)	/* array */
 
 #define BTYPE(x)	((x) & N_BTMASK)
+#define DTYPE(x)	(((x) & N_TMASK) >> N_BTSHFT)
 
 #define ISPTR(x) \
   (((unsigned long) (x) & N_TMASK) == ((unsigned long) DT_PTR << N_BTSHFT))
@@ -577,33 +590,28 @@ struct internal_reloc
   unsigned long r_offset;	/* Used by Alpha ECOFF, SPARC, others */
 };
 
-#define R_RELBYTE	017
-#define R_RELWORD	020
-#define R_PCRBYTE	022
-#define R_PCRWORD	023
-#define R_PCRLONG	024
+#define R_DIR16 	 1
+#define R_DIR32 	 6
+#define R_IMAGEBASE	 7
+#define R_RELBYTE	15
+#define R_RELWORD	16
+#define R_RELLONG	17
+#define R_PCRBYTE	18
+#define R_PCRWORD	19
+#define R_PCRLONG	20
+#define R_IPRSHORT	24
+#define R_IPRLONG	26
+#define R_GETSEG	29
+#define R_GETPA 	30
+#define R_TAGWORD	31
+#define R_JUMPTARG	32	/* strange 29k 00xx00xx reloc */
 
-#define	R_DIR16		01
-#define R_DIR32		06
-#define	R_PCLONG	020
-#define R_RELBYTE	017
-#define R_RELWORD	020
-#define R_IMAGEBASE     07
-
-
-#define R_PCR16L 128
-#define R_PCR26L 129
-#define R_VRT16  130
-#define R_HVRT16 131
-#define R_LVRT16 132
-#define R_VRT32  133
-#define R_RELLONG	(0x11)	/* Direct 32-bit relocation */
-#define R_IPRSHORT	(0x18)
-#define R_IPRLONG	(0x1a)
-#define R_GETSEG	(0x1d)
-#define R_GETPA		(0x1e)
-#define R_TAGWORD	(0x1f)
-#define R_JUMPTARG	0x20	/* strange 29k 00xx00xx reloc */
+#define R_PCR16L       128
+#define R_PCR26L       129
+#define R_VRT16        130
+#define R_HVRT16       131
+#define R_LVRT16       132
+#define R_VRT32        133
 
 
 /* This reloc identifies mov.b instructions with a 16bit absolute
@@ -663,7 +671,7 @@ struct internal_reloc
 #define R_MOVL1    	0x4c
 
 /* This reloc identifies mov.[wl] insns which formerlly had
-   a 32/24bit absolute address and how have a 16bit absolute address.  */
+   a 32/24bit absolute address and now have a 16bit absolute address.  */
 #define R_MOVL2 	0x4d
 
 /* This reloc identifies a bCC:8 which will have it's condition

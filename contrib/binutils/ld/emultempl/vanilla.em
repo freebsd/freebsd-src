@@ -64,6 +64,16 @@ struct ld_emulation_xfer_struct ld_vanilla_emulation =
   before_allocation_default,
   vanilla_get_script,
   "vanilla",
-  "a.out-sunos-big"
+  "a.out-sunos-big",
+  NULL,	/* finish */
+  NULL,	/* create output section statements */
+  NULL,	/* open dynamic archive */
+  NULL,	/* place orphan */
+  NULL,	/* set symbols */
+  NULL,	/* parse args */
+  NULL,	/* unrecognized file */
+  NULL,	/* list options */
+  NULL,	/* recognized file */
+  NULL 	/* find_potential_libraries */
 };
 EOF
