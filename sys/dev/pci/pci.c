@@ -1301,21 +1301,33 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 * XXX add support here for SYS_RES_IOPORT and SYS_RES_MEMORY
 	 */
 	if (device_get_parent(child) == dev) {
-		/*
-		 * If the child device doesn't have an interrupt routed
-		 * and is deserving of an interrupt, try to assign it one.
-		 */
-		if ((type == SYS_RES_IRQ) &&
-		    !PCI_INTERRUPT_VALID(cfg->intline) &&
-		    (cfg->intpin != 0)) {
-			cfg->intline = PCIB_ROUTE_INTERRUPT(
-				device_get_parent(dev), child, cfg->intpin);
-			if (PCI_INTERRUPT_VALID(cfg->intline)) {
-				pci_write_config(child, PCIR_INTLINE,
-				    cfg->intline, 1);
-				resource_list_add(rl, SYS_RES_IRQ, 0,
-				    cfg->intline, cfg->intline, 1);
+		switch (type) {
+		case SYS_RES_IRQ:
+			/*
+			 * If the child device doesn't have an
+			 * interrupt routed and is deserving of an
+			 * interrupt, try to assign it one.
+			 */
+			if (!PCI_INTERRUPT_VALID(cfg->intline) &&
+			    (cfg->intpin != 0)) {
+				cfg->intline = PCIB_ROUTE_INTERRUPT(
+				    device_get_parent(dev), child, cfg->intpin);
+				if (PCI_INTERRUPT_VALID(cfg->intline)) {
+					pci_write_config(child, PCIR_INTLINE,
+					    cfg->intline, 1);
+					resource_list_add(rl, SYS_RES_IRQ, 0,
+					    cfg->intline, cfg->intline, 1);
+				}
 			}
+			break;
+		case SYS_RES_IOPORT:
+		case SYS_RES_MEMORY:
+			/*
+			 * Enable the I/O mode.  We should also be allocating
+			 * resources too. XXX
+			 */
+			PCI_ENABLE_IO(dev, child, type);
+			break;
 		}
 	}
 
