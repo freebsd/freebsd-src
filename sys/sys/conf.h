@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.40 1998/06/07 17:12:57 dfr Exp $
+ * $Id: conf.h,v 1.41 1998/06/17 14:58:04 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -133,6 +133,11 @@ struct cdevsw {
 	char		*d_name;	/* see above */
 	struct bdevsw	*d_bdev;
 	int		d_maj;
+	d_dump_t	*d_dump;
+	d_psize_t	*d_psize;
+	u_int		d_flags;
+	int		d_maxio;
+	int		d_bmaj;
 };
 
 #ifdef KERNEL
@@ -277,7 +282,6 @@ int	bdevsw_module_handler __P((module_t mod, modeventtype_t what, void* arg));
 
 #endif /* _SYS_MODULE_H_ */
 
-int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw **old));
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
 void	bdevsw_add_generic __P((int bdev, int cdev, struct bdevsw *bdevsw));
 dev_t	chrtoblk __P((dev_t dev));
