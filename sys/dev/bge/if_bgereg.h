@@ -1857,6 +1857,12 @@ struct bge_status_block {
 #define ALTIMA_DEVICE_AC9100	 	0x03ea			
 
 /*
+ * Dell PCI vendor ID
+ */
+
+#define DELL_VENDORID			0x1028
+
+/*
  * Offset of MAC address inside EEPROM.
  */
 #define BGE_EE_MAC_OFFSET		0x7C
@@ -2267,6 +2273,7 @@ struct bge_softc {
 	u_int32_t		bge_chipid;
 	u_int8_t		bge_asicrev;
 	u_int8_t		bge_chiprev;
+	u_int8_t		bge_no_3_led;
 	struct bge_ring_data	bge_ldata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	u_int16_t		bge_tx_saved_considx;
