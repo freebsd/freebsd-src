@@ -16,8 +16,16 @@
 #ifndef SNOOP_H
 #define SNOOP_H		
 
-#define SNOOP_MINLEN		(2*1024)	/* This should be 2^X */
-#define SNOOP_MAXLEN		(256*1024)	/* This one also,256K */
+#define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
+						 * 4K tested to be the minimum
+						 * for which on normal tty
+						 * usage there is no need to
+						 * allocate more.
+						 */
+#define SNOOP_MAXLEN		(64*1024)	/* This one also,64K enough 
+						 * If we grow more,something
+						 * really bad in this world..
+						 */
 
 /*
  * This is the main snoop per-device 
@@ -36,6 +44,7 @@ struct snoop {
 #define SNOOP_OPEN		0x0004
 #define SNOOP_RWAIT		0x0008
 #define SNOOP_OFLOW		0x0010
+#define SNOOP_DOWN		0x0020
 	struct selinfo	snp_sel;	/* Selection info	       */
 };
 
