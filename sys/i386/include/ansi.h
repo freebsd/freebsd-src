@@ -31,15 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.6 1995/02/03 21:23:46 bde Exp $
+ * $Id: ansi.h,v 1.8 1995/06/28 01:39:26 bde Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_
 #define	_MACHINE_ANSI_H_
 
 /*
- * Types which are fundamental to the implementation and may appear in
- * more than one standard header are defined here.  Standard headers
+ * Types which are fundamental to the implementation and must be declared
+ * in more than one standard header are defined here.  Standard headers
  * then use:
  *	#ifdef	_BSD_SIZE_T_
  *	typedef	_BSD_SIZE_T_ size_t;
@@ -51,6 +51,15 @@
 #define	_BSD_SIZE_T_	unsigned int		/* sizeof() */
 #define	_BSD_SSIZE_T_	int			/* byte count or error */
 #define	_BSD_TIME_T_	long			/* time() */
+
+/*
+ * Types which are fundamental to the implementation and must be used
+ * in more than one standard header although they are only declared in
+ * one (perhaps nonstandard) header are defined here.  Standard headers
+ * use _BSD_XXX_T_ without undef'ing it.
+ */
+#define	_BSD_OFF_T_	long long		/* file offset */
+#define	_BSD_PID_T_	long			/* process [group] */
 #define	_BSD_VA_LIST_	char *			/* va_list */
 
 /*
