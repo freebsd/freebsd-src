@@ -63,11 +63,11 @@ process priorities) based on values for a specific named class.
 .Pp
 The function
 .Fn setusercontext
-sets class context values based on a given login_cap_t
-object, a specific passwd record (if login_cap_t is NULL),
-sets the current session's login and the current process
+function sets class context values based on a given login_cap_t
+object and a specific passwd record (if login_cap_t is NULL),
+the current session's login, and the current process
 user and group ownership.
-Each of these functions is selectable via bit-flags passed
+Each of these actions is selectable via bit-flags passed
 in the
 .Ar flags
 parameter, which is comprised of one or more of the following:
