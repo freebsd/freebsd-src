@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -61,10 +61,9 @@ static const char rcsid[] =
 
 time_t	 expand __P((u_int));
 char	*flagbits __P((int));
-char	*getdev __P((dev_t));
+const	 char *getdev __P((dev_t));
 int	 requested __P((char *[], struct acct *));
-static void	 usage __P((void));
-char	*user_from_uid();
+static	 void usage __P((void));
 
 #define AC_UTIME 1 /* user */
 #define AC_STIME 2 /* system */
@@ -81,15 +80,15 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char *p;
+	char *p;
 	struct acct ab;
 	struct stat sb;
 	FILE *fp;
 	off_t size;
 	time_t t;
 	int ch;
-	char *acctfile;
-	int time = 0;
+	const char *acctfile;
+	int flags = 0;
 
 	acctfile = _PATH_ACCT;
 	while ((ch = getopt(argc, argv, "f:usecSE")) != -1)
@@ -99,24 +98,24 @@ main(argc, argv)
 			break;
 
 		case 'u': 
-			time |= AC_UTIME; /* user time */
+			flags |= AC_UTIME; /* user time */
 			break;
 		case 's':
-			time |= AC_STIME; /* system time */
+			flags |= AC_STIME; /* system time */
 			break;
 		case 'e':
-			time |= AC_ETIME; /* elapsed time */
+			flags |= AC_ETIME; /* elapsed time */
 			break;
         	case 'c':
-                        time |= AC_CTIME; /* user + system time */
+                        flags |= AC_CTIME; /* user + system time */
 			break;
 
         	case 'S':
-                        time |= AC_BTIME; /* starting time */
+                        flags |= AC_BTIME; /* starting time */
 			break;
         	case 'E':
 			/* exit time (starting time + elapsed time )*/
-                        time |= AC_FTIME; 
+                        flags |= AC_FTIME; 
 			break;
 
 		case '?':
@@ -125,8 +124,8 @@ main(argc, argv)
 		}
 
 	/* default user + system time and starting time */
-	if (!time) {
-	    time = AC_CTIME | AC_BTIME;
+	if (!flags) {
+	    flags = AC_CTIME | AC_BTIME;
 	}
 
 	argc -= optind;
@@ -143,7 +142,7 @@ main(argc, argv)
 	size = sb.st_size - sb.st_size % sizeof(struct acct);
 
 	/* Check if any records to display. */
-	if (size < sizeof(struct acct))
+	if ((unsigned)size < sizeof(struct acct))
 		exit(0);
 
 	/*
@@ -184,34 +183,34 @@ main(argc, argv)
 		
 		
 		/* user + system time */
-		if (time & AC_CTIME) {
+		if (flags & AC_CTIME) {
 			(void)printf(" %6.2f secs", 
 				     (expand(ab.ac_utime) + 
 				      expand(ab.ac_stime))/AC_HZ);
 		}
 		
 		/* usr time */
-		if (time & AC_UTIME) {
+		if (flags & AC_UTIME) {
 			(void)printf(" %6.2f us", expand(ab.ac_utime)/AC_HZ);
 		}
 		
 		/* system time */
-		if (time & AC_STIME) {
+		if (flags & AC_STIME) {
 			(void)printf(" %6.2f sy", expand(ab.ac_stime)/AC_HZ);
 		}
 		
 		/* elapsed time */
-		if (time & AC_ETIME) {
+		if (flags & AC_ETIME) {
 			(void)printf(" %8.2f es", expand(ab.ac_etime)/AC_HZ);
 		}
 		
 		/* starting time */
-		if (time & AC_BTIME) {
+		if (flags & AC_BTIME) {
 			(void)printf(" %.16s", ctime(&ab.ac_btime));
 		}
 		
 		/* exit time (starting time + elapsed time )*/
-		if (time & AC_FTIME) {
+		if (flags & AC_FTIME) {
 			t = ab.ac_btime;
 			t += (time_t)(expand(ab.ac_etime)/AC_HZ);
 			(void)printf(" %.16s", ctime(&t));
@@ -225,7 +224,7 @@ time_t
 expand(t)
 	u_int t;
 {
-	register time_t nt;
+	time_t nt;
 
 	nt = t & 017777;
 	t >>= 13;
@@ -238,7 +237,7 @@ expand(t)
 
 char *
 flagbits(f)
-	register int f;
+	int f;
 {
 	static char flags[20] = "-";
 	char *p;
@@ -257,10 +256,10 @@ flagbits(f)
 
 int
 requested(argv, acp)
-	register char *argv[];
-	register struct acct *acp;
+	char *argv[];
+	struct acct *acp;
 {
-	register char *p;
+	const char *p;
 
 	do {
 		p = user_from_uid(acp->ac_uid, 0);
@@ -274,12 +273,12 @@ requested(argv, acp)
 	return (0);
 }
 
-char *
+const char *
 getdev(dev)
 	dev_t dev;
 {
 	static dev_t lastdev = (dev_t)-1;
-	static char *lastname;
+	static const char *lastname;
 
 	if (dev == NODEV)			/* Special case. */
 		return ("__");
