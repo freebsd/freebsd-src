@@ -1128,6 +1128,7 @@ amfs_auto_lookuppn(am_node *mp, char *fname, int *error_return, int op)
 	  memset((char *) &ap, 0, sizeof(am_opts));
 	  pt = ops_match(&ap, *sp, "", mp->am_path, "/defaults",
 			 mp->am_parent->am_mnt->mf_info);
+	  free_opts(&ap);	/* don't leak */
 	  if (pt == &amfs_error_ops) {
 	    plog(XLOG_MAP, "failed to match defaults for \"%s\"", *sp);
 	  } else {

@@ -745,6 +745,10 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
 
+@item @b{i386-pc-solaris2.7}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
 @item @b{i386-unknown-freebsd2.1.0}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab      @tab 
@@ -781,11 +785,19 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
 
-@item @b{i586-pc-linux-gnulinc1}
+@item @b{i586-pc-linux-gnu}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
+
+@item @b{i586-pc-linux-gnulibc1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
 
 @item @b{i686-pc-linux-gnu}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
+
+@item @b{i686-pc-linux-gnulibc1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
 
@@ -865,6 +877,10 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
 
+@item @b{sparc-sun-solaris2.7}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
 @item @b{sparc-sun-sunos4.1.1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
@@ -892,6 +908,10 @@ features.
 @item @b{sparc-unknown-netbsd1.2E}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab       @tab      @tab 
+
+@item @b{sparc64-unknown-linux-gnu}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab 
 
 @end multitable
 
@@ -3396,8 +3416,9 @@ if that is required in an argument.  There is no way to escape or change
 the quote character.
 
 To run the program @samp{rvdmount} with a host name and filesystem as
-arguments would be specified by @samp{mount:="/etc/rvdmount rvdmount
-fserver $@{path@}"}.
+arguments would be specified by
+@samp{fs:=$@{autodir@}$@{path@};mount:="/etc/rvdmount rvdmount fserver
+$@{fs@}"}.
 
 The first element in the array is taken as the pathname of the program
 to execute.  The other members of the array form the argument vector to

@@ -30,6 +30,8 @@ files.
 January 27, 1998: support pid files in the amd.conf file.  Provide base name
 for hesiod zone files.  Always use /etc/amd.conf if exists.
 
+August 8, 1998: add detection support for NFS V.3 for NetBSD 1.3F.
+
 * Hannes Reinecke <hare@MathI.UNI-Heidelberg.DE>
 
 Back in 1995, contributed code for linux.  A new parser for file system
@@ -88,6 +90,9 @@ July 13, 1997: Move amd.conf parsing to before switch_option() on log/debug
 options.  Minor type wrt "ro" option in libamu/mount_fs.c.  Added more
 fillers of mnttab options, for acdirmax, acdirmin, acregmax, acregmin, noac,
 grpid, nosuid, and actimo.
+
+August 15, 1998: fix memory leak in processing of /defaults, and avoid
+accessing uninitialized memory in osf1.
 
 * Roman Hodek <Roman.Hodek@informatik.uni-erlangen.de>
 
@@ -171,6 +176,9 @@ January 12, 1998: minor bug in output of amd -H.
 January 13, 1998: use case insensitive comparisons for variables that need
 it (such as all hostname related ones, and more).
 
+July 20, 1998: don't leak memory in the private version of yp_all (when
+vendor yp_all is bad).
+
 * Fred Korz <korz@smarts.com>
 
 January 30, 1998: minor typo fixed to tftp example in am-utils.texi.
@@ -186,5 +194,12 @@ allow startup script to redirect it.  Set a temporary secure umask(0022)
 before writing log file and restore it afterwards.
 
 * Matthew Crosby <mcrosby@ms.com>
+
 April 20, 1998: allow arbitrary number of interfaces in wire listing.
+
+* David O'Brien <obrien@NUXI.com>
+
+September 4, 1998: bug fix to avoid overrunning hostname buffer, and minor
+amd.conf man page typo correction.
+
 

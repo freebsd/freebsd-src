@@ -11,12 +11,15 @@ U.S.A:
 	New York (Primary Site):
 		ftp://shekel.mcl.cs.columbia.edu/pub/am-utils
 		Maintainer: ezk@cs.columbia.edu
-	Maryland:
+	Minnesota:
 		ftp://ftp.cs.umn.edu/pub/AMD
 		Maintainer: dokas@cs.umn.edu
 	Virginia (Newport News):
-*		ftp://www.ferginc.com/pub/unix/am-utils
+		ftp://www.ferginc.com/pub/unix/am-utils
 		Maintainer: Branson.Matheson@FergInc.com
+	Ohio (Kent State University):
+		ftp://info.mcs.kent.edu/pub/am-utils
+		Maintainer: root@mcs.kent.edu
 
 Europe:
 	Germany:
@@ -27,7 +30,7 @@ Europe:
 		Maintainer: archive@ftp.sunet.se
 	Sweden:
 		ftp://ftp.matematik.su.se/pub/mirrors/shekel.mcl.cs.columbia.edu/pub/am-utils
-		Maintainer: lifj@matematik.su.se
+		Maintainer: leifj@matematik.su.se
 	UK:
 		ftp://sunsite.org.uk/packages/am-utils
 		Maintainer: lmjm@icparc.ic.ac.uk
