@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.142 1995/04/23 23:06:36 phk Exp $
+#	$Id: Makefile,v 1.143 1995/04/24 04:06:30 phk Exp $
 #
 # How to roll a release:
 #
@@ -130,7 +130,7 @@ release.2:
 
 # Make and install a couple of kernels we need.
 release.3:
-	rm -f ${RD}/kernels
+	rm -rf ${RD}/kernels
 	mkdir -p ${RD}/kernels
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
