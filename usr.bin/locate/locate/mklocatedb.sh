@@ -76,16 +76,14 @@ if [ X"$1" = "X-presort" ]; then
 
     $code $bigrams > $filelist || exit 1
     locate -d $filelist / | $bigram | $sort -nr | head -128 |
-    awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams
-	|| exit 1
+    awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams || exit 1
     locate -d $filelist / | $code $bigrams || exit 1
     exit 	
 
 else
     if $sortcmd $sortopt > $filelist; then
         $bigram < $filelist | $sort -nr | 
-	awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams
-	    || exit 1
+	awk '{if (/^[ 	]*[0-9]+[ 	]+..$/) {printf("%s",$2)} else {exit 1}}' > $bigrams || exit 1
         $code $bigrams < $filelist || exit 1
     else
         echo "`basename $0`: cannot build locate database" >&2
