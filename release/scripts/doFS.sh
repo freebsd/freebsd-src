@@ -64,6 +64,8 @@ dofs_md () {
 	fi
 
 	MDDEVICE=`mdconfig -a -t vnode -f ${FSIMG}`
+	# This sleep is needed to solve some sort of race condition
+	sleep 5
 	if [ ! -c /dev/${MDDEVICE} ] ; then
 		echo "No /dev/$MDDEVICE" 1>&2
 		exit 1
