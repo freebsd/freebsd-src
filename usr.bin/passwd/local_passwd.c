@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: local_passwd.c,v 1.13 1997/02/22 19:56:34 peter Exp $
  */
 
 #ifndef lint
@@ -152,7 +152,7 @@ getnewpasswd(pw, nis)
 		(void)printf("Mismatch; try again, EOF to quit.\n");
 	}
 	/* grab a random printable character that isn't a colon */
-	(void)srandom((int)time((time_t *)NULL));
+	(void)srandom((unsigned)(time(NULL) ^ getpid()));
 #ifdef NEWSALT
 	salt[0] = _PASSWORD_EFMT1;
 	to64(&salt[1], (long)(29 * 25), 4);
