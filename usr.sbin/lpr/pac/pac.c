@@ -410,8 +410,8 @@ qucmp(const void *a, const void *b)
 	register const struct hent *h1, *h2;
 	register int r;
 
-	h1 = *(const struct hent **)a;
-	h2 = *(const struct hent **)b;
+	h1 = *(const struct hent * const *)a;
+	h2 = *(const struct hent * const *)b;
 	if (sort)
 		r = h1->h_feetpages < h2->h_feetpages ?
 		    -1 : h1->h_feetpages > h2->h_feetpages;
