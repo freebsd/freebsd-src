@@ -1,18 +1,21 @@
 filter-rule = [ insert ] action in-out [ options ] [ tos ] [ ttl ]
-	      [ proto ] [ ip ] .
+	      [ proto ] [ ip ] [ group ].
 
 insert	= "@" decnumber .
-action	= block | "pass" | log | "count" | call .
+action	= block | "pass" | log | "count" | skip | auth | call .
 in-out	= "in" | "out" .
 options	= [ log ] [ "quick" ] [ "on" interface-name [ dup ] [ froute ] ] .
 tos	= "tos" decnumber | "tos" hexnumber .
 ttl	= "ttl" decnumber .
 proto	= "proto" protocol .
 ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
+group	= [ "head" decnumber ] [ "group" decnumber ] .
 
 block	= "block" [ "return-icmp"[return-code] | "return-rst" ] .
+auth	= "auth" | "preauth" .
 log	= "log" [ "body" ] [ "first" ] [ "or-block" ] .
 call	= "call" [ "now" ] function-name .
+skip	= "skip" decnumber .
 dup	= "dup-to" interface-name[":"ipaddr] .
 froute	= "fastroute" | "to" interface-name .
 protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
@@ -44,7 +47,8 @@ seclvl  = "unclass" | "confid" | "reserv-1" | "reserv-2" | "reserv-3" |
 	  "reserv-4" | "secret" | "topsecret" .
 icmp-type = "unreach" | "echo" | "echorep" | "squench" | "redir" |
 	    "timex" | "paramprob" | "timest" | "timestrep" | "inforeq" |
-	    "inforep" | "maskreq" | "maskrep"  | decnumber .
+	    "inforep" | "maskreq" | "maskrep"  | "routerad" |
+	    "routersol" | decnumber .
 icmp-code = decumber | "net-unr" | "host-unr" | "proto-unr" | "port-unr" |
 	    "needfrag" | "srcfail" | "net-unk" | "host-unk" | "isolate" |
 	    "net-prohib" | "host-prohib" | "net-tos" | "host-tos" .
