@@ -315,7 +315,8 @@ draw:
 			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
 			if (st & DITEM_REDRAW) {
 			    for (i = 0; i < max_choice; i++) {
-				status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
+				status[scroll + i] = ditems[scroll + i].checked ?
+				    ditems[scroll + i].checked(&ditems[scroll + i]) : FALSE;
 				print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1],
 					   status[scroll + i], i, i == choice, DREF(ditems, scroll + i));
 			    }
@@ -341,14 +342,14 @@ draw:
 			    break;
 			}
 		    }
-		    status[scroll+choice] = ditems[scroll+choice].checked ?
-			ditems[scroll+choice].checked(&ditems[scroll+choice]) : FALSE;
-		    lbra = ditems[scroll+choice].lbra;
-		    rbra = ditems[scroll+choice].rbra;
-		    mark = ditems[scroll+choice].mark;
+		    status[scroll + choice] = ditems[scroll + choice].checked ?
+			ditems[scroll + choice].checked(&ditems[scroll + choice]) : FALSE;
+		    lbra = ditems[scroll + choice].lbra;
+		    rbra = ditems[scroll + choice].rbra;
+		    mark = ditems[scroll + choice].mark;
 		}
 		else
-		    status[scroll+choice] = !status[scroll+choice];
+		    status[scroll + choice] = !status[scroll + choice];
 		getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 		wmove(list, choice, check_x);
 		wattrset(list, check_selected_attr);
