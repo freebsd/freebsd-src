@@ -1,8 +1,8 @@
 .\" $FreeBSD$
 .Dd 20 September 1995
 .nr XX \w'\fC00'
-.Os FreeBSD
 .Dt PPP 8
+.Os
 .Sh NAME
 .Nm ppp
 .Nd Point to Point Protocol (a.k.a. user-ppp)
