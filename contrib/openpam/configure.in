@@ -1,7 +1,7 @@
 dnl $P4: //depot/projects/openpam/configure.in#3 $
 
 AC_PREREQ(2.53)
-AC_INIT([OpenPAM],[20030715],[des@freebsd.org])
+AC_INIT([OpenPAM],[20040210],[des@freebsd.org])
 AC_CONFIG_SRCDIR([lib/pam_start.c])
 AM_CONFIG_HEADER([config.h])
 

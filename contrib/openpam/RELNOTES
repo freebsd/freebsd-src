@@ -1,6 +1,6 @@
 
-		  Release notes for OpenPAM Dogwood
-		  =================================
+		  Release notes for OpenPAM Eelgrass
+		  ==================================
 
 This release corresponds to the code used in FreeBSD-CURRENT as of the
 release date.  It has also been tested on several other platforms, and
@@ -26,4 +26,4 @@ proper credit for your contribution.
 
 Please direct bug reports and inquiries to des@freebsd.org.
 
-$P4: //depot/projects/openpam/RELNOTES#19 $
+$P4: //depot/projects/openpam/RELNOTES#20 $

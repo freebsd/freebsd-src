@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#9 $
+ * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#10 $
  */
 
 #include <sys/param.h>
@@ -56,14 +56,16 @@ int
 openpam_restore_cred(pam_handle_t *pamh)
 {
 	struct pam_saved_cred *scred;
+	void *scredp;
 	int r;
 
 	ENTER();
-	r = pam_get_data(pamh, PAM_SAVED_CRED, (const void **)&scred);
+	r = pam_get_data(pamh, PAM_SAVED_CRED, &scredp);
 	if (r != PAM_SUCCESS)
 		RETURNC(r);
-	if (scred == NULL)
+	if (scredp == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
+	scred = scredp;
 	if (scred->euid != geteuid()) {
 		if (seteuid(scred->euid) < 0 ||
 		    setgroups(scred->ngroups, scred->groups) < 0 ||
