@@ -32,14 +32,11 @@
  */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)pass1.c	8.6 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -157,8 +154,9 @@ checkinode(inumber, idesc)
 				errx(EEXIT, "cannot read symlink");
 			if (debug) {
 				symbuf[dp->di_size] = 0;
-				printf("convert symlink %ld(%s) of size %ld\n",
-					inumber, symbuf, (long)dp->di_size);
+				printf("convert symlink %lu(%s) of size %ld\n",
+					(u_long)inumber, symbuf,
+					(long)dp->di_size);
 			}
 			dp = ginode(inumber);
 			memmove(dp->di_shortlink, symbuf, (long)dp->di_size);
@@ -183,7 +181,8 @@ checkinode(inumber, idesc)
 	for (j = ndb; j < NDADDR; j++)
 		if (dp->di_db[j] != 0) {
 			if (debug)
-				printf("bad direct addr: %ld\n", dp->di_db[j]);
+				printf("bad direct addr: %ld\n",
+				    (long)dp->di_db[j]);
 			goto unknown;
 		}
 	for (j = 0, ndb -= NDADDR; ndb > 0; j++)
@@ -192,7 +191,7 @@ checkinode(inumber, idesc)
 		if (dp->di_ib[j] != 0) {
 			if (debug)
 				printf("bad indirect addr: %ld\n",
-					dp->di_ib[j]);
+				    (long)dp->di_ib[j]);
 			goto unknown;
 		}
 	if (ftypeok(dp) == 0)

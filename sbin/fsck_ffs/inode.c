@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: inode.c,v 1.14 1998/06/15 07:07:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ iblock(idesc, ilevel, isize)
 			if (*ap == 0)
 				continue;
 			(void)sprintf(buf, "PARTIALLY TRUNCATED INODE I=%lu",
-				idesc->id_number);
+			    (u_long)idesc->id_number);
 			if (dofix(idesc, buf)) {
 				*ap = 0;
 				dirty(bp);
@@ -246,9 +246,10 @@ chkrange(blk, cnt)
 		if ((blk + cnt) > cgsblock(&sblock, c)) {
 			if (debug) {
 				printf("blk %ld < cgdmin %ld;",
-				    blk, cgdmin(&sblock, c));
+				    (long)blk, (long)cgdmin(&sblock, c));
 				printf(" blk + cnt %ld > cgsbase %ld\n",
-				    blk + cnt, cgsblock(&sblock, c));
+				    (long)(blk + cnt),
+				    (long)cgsblock(&sblock, c));
 			}
 			return (1);
 		}
@@ -256,9 +257,9 @@ chkrange(blk, cnt)
 		if ((blk + cnt) > cgbase(&sblock, c+1)) {
 			if (debug)  {
 				printf("blk %ld >= cgdmin %ld;",
-				    blk, cgdmin(&sblock, c));
+				    (long)blk, (long)cgdmin(&sblock, c));
 				printf(" blk + cnt %ld > sblock.fs_fpg %ld\n",
-				    blk+cnt, sblock.fs_fpg);
+				    (long)(blk + cnt), (long)sblock.fs_fpg);
 			}
 			return (1);
 		}
@@ -506,7 +507,7 @@ pinode(ino)
 	struct passwd *pw;
 	time_t t;
 
-	printf(" I=%lu ", ino);
+	printf(" I=%lu ", (u_long)ino);
 	if (ino < ROOTINO || ino > maxino)
 		return;
 	dp = ginode(ino);

@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dir.c,v 1.10 1998/06/15 07:07:10 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -493,7 +493,7 @@ linkup(orphan, parentdir)
 		lncntp[lfdir]++;
 		pwarn("DIR I=%lu CONNECTED. ", orphan);
 		if (parentdir != (ino_t)-1) {
-			printf("PARENT WAS I=%lu\n", parentdir);
+			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
 			/*
 			 * The parent directory, because of the ordering
 			 * guarantees, has had the link count incremented
