@@ -42,7 +42,6 @@
 #include <sys/rman.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcivar.h>
 
@@ -52,16 +51,14 @@
  * Based on the i386-only mp_clock.c by <phk@FreeBSD.ORG>.
  */
 
-/*
- * Hooks for the ACPI CA debugging infrastructure
- */
+/* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_SYSTEM
 ACPI_MODULE_NAME("TIMER")
 
 static device_t	acpi_timer_dev;
 struct resource	*acpi_timer_reg;
 
-static u_int	acpi_timer_frequency = 14318182/4;
+static u_int	acpi_timer_frequency = 14318182 / 4;
 
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
@@ -71,12 +68,9 @@ static unsigned	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_test(void);
 
-static u_int32_t read_counter(void);
-static int test_counter(void);
+static uint32_t read_counter(void);
+static int	test_counter(void);
 
-/*
- * Driver hung off ACPI.
- */
 static device_method_t acpi_timer_methods[] = {
     DEVMETHOD(device_identify,	acpi_timer_identify),
     DEVMETHOD(device_probe,	acpi_timer_probe),
@@ -94,9 +88,6 @@ static driver_t acpi_timer_driver = {
 static devclass_t acpi_timer_devclass;
 DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
 
-/*
- * Timecounter.
- */
 static struct timecounter acpi_timer_timecounter = {
 	acpi_timer_get_timecount_safe,
 	0,
@@ -106,52 +97,55 @@ static struct timecounter acpi_timer_timecounter = {
 	1000
 };
 
-
-static u_int32_t
+static uint32_t
 read_counter()
 {
-	bus_space_handle_t bsh;
-	bus_space_tag_t bst;
-	u_int32_t tv;
+    bus_space_handle_t bsh;
+    bus_space_tag_t bst;
+    u_int32_t tv;
 
-	bsh = rman_get_bushandle(acpi_timer_reg);
-	bst = rman_get_bustag(acpi_timer_reg);
-	tv = bus_space_read_4(bst, bsh, 0);
-	bus_space_barrier(bst, bsh, 0, 4, BUS_SPACE_BARRIER_READ);
-	return (tv);
+    bsh = rman_get_bushandle(acpi_timer_reg);
+    bst = rman_get_bustag(acpi_timer_reg);
+    tv = bus_space_read_4(bst, bsh, 0);
+    bus_space_barrier(bst, bsh, 0, 4, BUS_SPACE_BARRIER_READ);
+
+    return (tv);
 }
 
 #define N 2000
 static int
 test_counter()
 {
-	int min, max, n, delta;
-	unsigned last, this;
+    u_int	last, this;
+    int		min, max, n, delta;
 
-	min = 10000000;
-	max = 0;
-	last = read_counter();
-	for (n = 0; n < N; n++) {
-		this = read_counter();
-		delta = (this - last) & 0xffffff;
-		if (delta > max)
-			max = delta;
-		else if (delta < min)
-			min = delta;
-		last = this;
-	}
-	if (max - min > 2)
-		n = 0;
-	else if (min < 0 || max == 0)
-		n = 0;
-	else
-		n = 1;
-	if (bootverbose)
-		printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
-			n ? "GOOD" : "BAD ",
-			min, max, max - min);
-	return (n);
+    min = 10000000;
+    max = 0;
+    last = read_counter();
+    for (n = 0; n < N; n++) {
+	this = read_counter();
+	delta = (this - last) & 0xffffff;
+	if (delta > max)
+	    max = delta;
+	else if (delta < min)
+	    min = delta;
+	last = this;
+    }
+    if (max - min > 2)
+	n = 0;
+    else if (min < 0 || max == 0)
+	n = 0;
+    else
+	n = 1;
+    if (bootverbose) {
+	printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
+		n ? "GOOD" : "BAD ",
+		min, max, max - min);
+    }
+
+    return (n);
 }
+#undef N
 
 /*
  * Locate the ACPI timer using the FADT, set up and allocate the I/O resources
@@ -167,10 +161,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    if (acpi_disabled("timer"))
-	return_VOID;
-
-    if (AcpiGbl_FADT == NULL)
+    if (acpi_disabled("timer") || AcpiGbl_FADT == NULL)
 	return_VOID;
     
     if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_timer", 0)) == NULL) {
@@ -188,7 +179,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     acpi_timer_reg = bus_alloc_resource(dev, rtype, &rid, 0, ~0, 1, RF_ACTIVE);
     if (acpi_timer_reg == NULL) {
 	device_printf(dev, "couldn't allocate I/O resource (%s 0x%lx)\n",
-	  (rtype == SYS_RES_IOPORT) ? "port" : "mem", rstart);
+		      rtype == SYS_RES_IOPORT ? "port" : "mem", rstart);
 	return_VOID;
     }
     if (testenv("debug.acpi.timer_test"))
@@ -207,8 +198,8 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     }
     tc_init(&acpi_timer_timecounter);
 
-    sprintf(desc, "%d-bit timer at 3.579545MHz", (AcpiGbl_FADT->TmrValExt)
-      ? 32 : 24);
+    sprintf(desc, "%d-bit timer at 3.579545MHz",
+	    AcpiGbl_FADT->TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
 
     return_VOID;
@@ -218,14 +209,15 @@ static int
 acpi_timer_probe(device_t dev)
 {
     if (dev == acpi_timer_dev)
-	return(0);
-    return(ENXIO);
+	return (0);
+
+    return (ENXIO);
 }
 
 static int
 acpi_timer_attach(device_t dev)
 {
-    return(0);
+    return (0);
 }
 
 /*
@@ -252,7 +244,8 @@ acpi_timer_get_timecount_safe(struct timecounter *tc)
 	u1 = u2;
 	u2 = u3;
 	u3 = read_counter();
-    } while (u1 > u2 || u2 > u3 || (u3 - u1) > 15);
+    } while (u1 > u2 || u2 > u3 || u3 - u1 > 15);
+
     return (u2);
 }
 
@@ -273,6 +266,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 	acpi_timer_frequency = freq;
 	acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     }
+
     return (error);
 }
  
@@ -295,12 +289,13 @@ acpi_timer_test(void)
     device_printf(acpi_timer_dev, "timer test in progress, reboot to quit.\n");
     for (;;) {
 	/*
-	 * The failure case is where u3 > u1, but u2 does not fall between the two,
-	 * ie. it contains garbage.
+	 * The failure case is where u3 > u1, but u2 does not fall between
+	 * the two, ie. it contains garbage.
 	 */
 	if (u3 > u1) {
-	    if ((u2 < u1) || (u2 > u3))
-		device_printf(acpi_timer_dev, "timer is not monotonic: 0x%08x,0x%08x,0x%08x\n",
+	    if (u2 < u1 || u2 > u3)
+		device_printf(acpi_timer_dev,
+			      "timer is not monotonic: 0x%08x,0x%08x,0x%08x\n",
 			      u1, u2, u3);
 	}
 	u1 = u2;
@@ -359,7 +354,8 @@ static driver_t acpi_timer_pci_driver = {
 };
 
 devclass_t acpi_timer_pci_devclass;
-DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver, acpi_timer_pci_devclass, 0, 0);
+DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver,
+	      acpi_timer_pci_devclass, 0, 0);
 
 /*
  * Look at PCI devices going past; if we detect one we know contains
@@ -375,16 +371,19 @@ acpi_timer_pci_probe(device_t dev)
     device = pci_get_device(dev);
     revid  = pci_get_revid(dev);
     
-    if (((vendor == 0x8086) && (device == 0x7113) && (revid >= 0x03))	|| /* PIIX4M */
-	((vendor == 0x8086) && (device == 0x719b)) 			|| /* i440MX */
-	0) {
+    /* Detect the PIIX4M and i440MX, respectively */
+    if ((vendor == 0x8086 && device == 0x7113 && revid >= 0x03)	||
+	(vendor == 0x8086 && device == 0x719b)) {
 
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
-	if (bootverbose)
-	    device_printf(acpi_timer_dev, "functional ACPI timer detected, enabling fast timecount interface\n");
+	if (bootverbose) {
+	    device_printf(acpi_timer_dev,"functional ACPI timer detected, "
+			  "enabling fast timecount interface\n");
+	}
     }
 
-    return(ENXIO);		/* we never match anything */
+    /* We never match anything */
+    return (ENXIO);
 }
 #endif
