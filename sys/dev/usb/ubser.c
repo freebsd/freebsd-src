@@ -257,7 +257,6 @@ USB_ATTACH(ubser)
 	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	usbd_devinfo(udev, 0, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 	DPRINTFN(10,("\nubser_attach: sc=%p\n", sc));
 
