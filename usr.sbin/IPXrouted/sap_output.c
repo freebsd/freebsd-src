@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_output.c,v 1.1 1995/10/26 21:28:24 julian Exp $
+ *	$Id: sap_output.c,v 1.2 1995/11/13 21:01:34 julian Exp $
  */
 
 /*
@@ -157,7 +157,7 @@ sap_supply(dst, flags, ifp, ServType)
 		csap = sap->clone;
 		while (csap) {
 			if (csap->ifp == ifp)
-				continue;
+				goto next;
 			csap = csap->clone;
 		}
 
@@ -172,6 +172,7 @@ sap_supply(dst, flags, ifp, ServType)
 		*n = sap->sap;
 		n->hops = htons(metric);
 		n++;
+next:
 	}
 	if (n != sap_msg->sap) {
 		size = (char *)n - (char *)sap_msg;
