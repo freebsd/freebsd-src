@@ -35,28 +35,20 @@
  */
 
 /*
- * NS16550 UART registers
+ * NS8250... UART registers.
  */
-#define	com_data	0	/* data register (R/W) */
-#define	com_dlbl	0	/* divisor latch low (W) */
-#define	com_dlbh	1	/* divisor latch high (W) */
-#define	com_ier		1	/* interrupt enable (W) */
-#define	com_iir		2	/* interrupt identification (R) */
-#define	com_fifo	2	/* FIFO control (W) */
-#define	com_lctl	3	/* line control register (R/W) */
-#define	com_cfcr	3	/* line control register (R/W) */
-#define	com_mcr		4	/* modem control register (R/W) */
-#define	com_lsr		5	/* line status register (R/W) */
-#define	com_msr		6	/* modem status register (R/W) */
-#define	com_scr		7	/* scratch register for 16450 up (R/W) */
 
-/* interrupt enable register */
+/* 8250 registers #[0-6]. */
+
+#define	com_data	0	/* data register (R/W) */
+
+#define	com_ier		1	/* interrupt enable register (W) */
 #define	IER_ERXRDY	0x1
 #define	IER_ETXRDY	0x2
 #define	IER_ERLS	0x4
 #define	IER_EMSC	0x8
 
-/* interrupt identification register */
+#define	com_iir		2	/* interrupt identification register (R) */
 #define	IIR_IMASK	0xf
 #define	IIR_RXTOUT	0xc
 #define	IIR_RLS		0x6
@@ -66,17 +58,8 @@
 #define	IIR_MLSC	0x0
 #define	IIR_FIFO_MASK	0xc0	/* set if FIFOs are enabled */
 
-/* fifo control register */
-#define	FIFO_ENABLE	0x01
-#define	FIFO_RCV_RST	0x02
-#define	FIFO_XMT_RST	0x04
-#define	FIFO_DMA_MODE	0x08
-#define	FIFO_RX_LOW	0x00
-#define	FIFO_RX_MEDL	0x40
-#define	FIFO_RX_MEDH	0x80
-#define	FIFO_RX_HIGH	0xc0
-
-/* character format control register (aka line control register) */
+#define	com_lctl	3	/* line control register (R/W) */
+#define	com_cfcr	3	/* character format control register (R/W) */
 #define	CFCR_DLAB	0x80
 #define	CFCR_SBREAK	0x40
 #define	CFCR_PZERO	0x30
@@ -89,17 +72,17 @@
 #define	CFCR_7BITS	0x02
 #define	CFCR_6BITS	0x01
 #define	CFCR_5BITS	0x00
-#define	CFCR_EFR_ENABLE	0xbf		/* magic to enable EFR on 16650 up */
+#define	CFCR_EFR_ENABLE	0xbf	/* magic to enable EFR on 16650 up */
 
-/* modem control register */
-#define	MCR_PRESCALE	0x80		/* only available on 16650 up */
+#define	com_mcr		4	/* modem control register (R/W) */
+#define	MCR_PRESCALE	0x80	/* only available on 16650 up */
 #define	MCR_LOOPBACK	0x10
 #define	MCR_IENABLE	0x08
 #define	MCR_DRS		0x04
 #define	MCR_RTS		0x02
 #define	MCR_DTR		0x01
 
-/* line status register */
+#define	com_lsr		5	/* line status register (R/W) */
 #define	LSR_RCV_FIFO	0x80
 #define	LSR_TSRE	0x40
 #define	LSR_TXRDY	0x20
@@ -110,7 +93,7 @@
 #define	LSR_RXRDY	0x01
 #define	LSR_RCV_MASK	0x1f
 
-/* modem status register */
+#define	com_msr		6	/* modem status register (R/W) */
 #define	MSR_DCD		0x80
 #define	MSR_RI		0x40
 #define	MSR_DSR		0x20
@@ -120,9 +103,28 @@
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
 
-/* enhanced feature register (only available on 16650 up) */
-#define	com_efr		com_fifo
-#define	EFR_EFE		0x10		/* enhanced functions enable */
+/* 8250 multiplexed registers #[0-1].  Access enabled by LCR[7]. */
+#define	com_dlbl	0	/* divisor latch low (W) */
+#define	com_dlbh	1	/* divisor latch high (W) */
+
+/* 16450 register #7.  Not multiplexed. */
+#define	com_scr		7	/* scratch register (R/W) */
+
+/* 16550 register #2.  Not multiplexed. */
+#define	com_fifo	2	/* FIFO control register (W) */
+#define	FIFO_ENABLE	0x01
+#define	FIFO_RCV_RST	0x02
+#define	FIFO_XMT_RST	0x04
+#define	FIFO_DMA_MODE	0x08
+#define	FIFO_RX_LOW	0x00
+#define	FIFO_RX_MEDL	0x40
+#define	FIFO_RX_MEDH	0x80
+#define	FIFO_RX_HIGH	0xc0
+
+/* 16650 registers #2,[4-7].  Access enabled by LCR_EFR_ENABLE. */
+
+#define	com_efr		com_fifo /* enhanced feature register (R/W) */
+#define	EFR_EFE		0x10	/* enhanced functions enable */
 
 #ifdef PC98
 /* Hardware extension mode register for RSB-2000/3000. */
