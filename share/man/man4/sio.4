@@ -69,6 +69,10 @@ For Hayes ESP cards:
 For PCI and PCCARD cards:
 .Cd "device sio"
 .Pp
+For dual port PCI cards that share an interrupt:
+.Cd "device sio2 at pci? flags 0x201"
+.Cd "device sio3 at pci? flags 0x201"
+.Pp
 Meaning of
 .Ar flags :
 .Bl -tag -offset indent -compact -width 0x000000
