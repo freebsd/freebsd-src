@@ -1697,7 +1697,7 @@ init386(first)
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
 #ifdef SMP
-	pc = &SMP_prvspace[0];
+	pc = &SMP_prvspace[0].pcpu;
 	gdt_segs[GPRIV_SEL].ssd_limit =
 		atop(sizeof(struct privatespace) - 1);
 #else
