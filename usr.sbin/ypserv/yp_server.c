@@ -366,10 +366,10 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		char g[11], t[11], p[11];
 		char ypxfr_command[MAXPATHLEN + 2];
 
-		sprintf (ypxfr_command, "%sypxfr", _PATH_LIBEXEC);
-		sprintf (t, "%u", argp->transid);
-		sprintf (g, "%u", argp->prog);
-		sprintf (p, "%u", argp->port);
+		snprintf (ypxfr_command, sizeof(ypxfr_command), "%sypxfr", _PATH_LIBEXEC);
+		snprintf (t, sizeof(t), "%u", argp->transid);
+		snprintf (g, sizeof(g), "%u", argp->prog);
+		snprintf (p, sizeof(p), "%u", argp->port);
 		if (debug) {
 			close(0); close(1); close(2);
 		}
