@@ -667,8 +667,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	KASSERT(dmat->lowaddr >= ptoa(Maxmem) || map != NULL,
 		("bus_dmamap_load_mbuf: No support for bounce pages!"));
-	KASSERT(m0->m_flags & M_PKTHDR,
-		("bus_dmamap_load_mbuf: no packet header"));
+	M_ASSERTPKTHDR(m0);
 
 	nsegs = 0;
 	error = 0;

@@ -345,9 +345,7 @@ outloop:
 		return;
 
 	/* We need the header for m_pkthdr.len. */
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("%s: sncstart: no header mbuf",
-		      device_get_nameunit(sc->sc_dev));
+	M_ASSERTPKTHDR(m);
 
 	/*
 	 * If bpf is listening on this interface, let it

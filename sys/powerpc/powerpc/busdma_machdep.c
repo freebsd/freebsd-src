@@ -417,8 +417,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 #endif
 	int nsegs = 0, error = 0;
 
-	KASSERT(m0->m_flags & M_PKTHDR,
-	    ("bus_dmamap_load_mbuf: no packet header"));
+	M_ASSERTPKTHDR(m0);
 
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		int first = 1;

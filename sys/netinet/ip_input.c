@@ -334,8 +334,7 @@ ip_input(struct mbuf *m)
 		}
 	}
 
-	KASSERT(m != NULL && (m->m_flags & M_PKTHDR) != 0,
-	    ("ip_input: no HDR"));
+	M_ASSERTPKTHDR(m);
 
 	if (args.rule) {	/* dummynet already filtered us */
 		ip = mtod(m, struct ip *);
