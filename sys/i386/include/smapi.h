@@ -57,7 +57,7 @@ struct smapi_bios_header {
 	u_int32_t	prot32_offset;
 	u_int32_t	prot32_segment;
 	
-};
+} __packed;
 
 struct smapi_bios_parameter {
 	union {
@@ -78,7 +78,7 @@ struct smapi_bios_parameter {
 	u_int32_t	param4;
 	u_int32_t	param5;
 
-};
+} __packed;
 
 #define	cmd_func	type.in.func
 #define	cmd_sub_func	type.in.sub_func
