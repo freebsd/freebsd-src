@@ -29,10 +29,12 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 
+#include <stdio.h>
 #include <unistd.h>
 
 #include "probe.h"
 #include "log.h"
+#include "id.h"
 
 struct probe probe;
 
