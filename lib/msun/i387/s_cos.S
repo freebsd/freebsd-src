@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asm.h>
+#include <machine/asmacros.h>
 
-RCSID("$Id: s_cos.S,v 1.3 1994/03/12 01:30:37 jtc Exp $")
+RCSID("$Id: s_cos.S,v 1.1.1.1 1994/08/19 09:40:01 jkh Exp $")
 
 ENTRY(cos)
 	fldl	4(%esp)
