@@ -112,6 +112,7 @@
 .Op Fl u Ar uid
 .Op Fl F
 .Op Fl P
+.Op Fl 7
 .Op Fl a
 .Nm
 .Op Fl V Ar etcdir
@@ -681,6 +682,9 @@ If the
 option is used, then
 .Nm
 outputs the account details in a more human readable form.
+If the
+.Fl 7
+option is used, the account details are shown in v7 format.
 The
 .Fl a
 option lists all users currently on file.
@@ -756,6 +760,11 @@ with the
 replacing
 .Fl u Ar uid
 to specify the group id.
+The
+.Fl 7
+option does not apply to the
+.Ar groupshow
+command.
 .Pp
 The command
 .Ar groupnext
