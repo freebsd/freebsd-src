@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.12 1998/06/30 23:04:17 brian Exp $
+ *	$Id: mp.c,v 1.13 1998/08/07 18:42:50 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1012,4 +1012,10 @@ mp_LinkLost(struct mp *mp, struct datalink *dl)
   if (mp->seq.min_in == dl->mp.seq)
     /* We've lost the link that's holding everything up ! */
     mp_Input(mp, NULL, NULL);
+}
+
+void
+mp_DeleteQueue(struct mp *mp)
+{
+  link_DeleteQueue(&mp->link);
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.31 1998/08/07 18:42:47 brian Exp $
+ *	$Id: bundle.c,v 1.32 1998/08/09 15:34:11 brian Exp $
  */
 
 #include <sys/param.h>
@@ -205,6 +205,36 @@ bundle_Notify(struct bundle *bundle, char c)
     close(bundle->notify.fd);
     bundle->notify.fd = -1;
   }
+}
+
+static void 
+bundle_ClearQueues(void *v)
+{
+  struct bundle *bundle = (struct bundle *)v;
+  struct datalink *dl;
+
+  log_Printf(LogPHASE, "Clearing choked output queue\n");
+  timer_Stop(&bundle->choked.timer);
+
+  /*
+   * Emergency time:
+   *
+   * We've had a full queue for PACKET_DEL_SECS seconds without being
+   * able to get rid of any of the packets.  We've probably given up
+   * on the redials at this point, and the queued data has almost
+   * definitely been timed out by the layer above.  As this is preventing
+   * us from reading the TUN_NAME device (we don't want to buffer stuff
+   * indefinitely), we may as well nuke this data and start with a clean
+   * slate !
+   *
+   * Unfortunately, this has the side effect of shafting any compression
+   * dictionaries in use (causing the relevant RESET_REQ/RESET_ACK).
+   */
+
+  ip_DeleteQueue();
+  mp_DeleteQueue(&bundle->ncp.mp);
+  for (dl = bundle->links; dl; dl = dl->next)
+    physical_DeleteQueue(dl->physical);
 }
 
 static void
@@ -547,11 +577,19 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
         want = 20;
       if (queued < want) {
         /* Not enough - select() for more */
+        if (bundle->choked.timer.state == TIMER_RUNNING)
+          timer_Stop(&bundle->choked.timer);	/* Not needed any more */
         FD_SET(bundle->dev.fd, r);
         if (*n < bundle->dev.fd + 1)
           *n = bundle->dev.fd + 1;
         log_Printf(LogTIMER, "%s: fdset(r) %d\n", TUN_NAME, bundle->dev.fd);
         result++;
+      } else if (bundle->choked.timer.state == TIMER_STOPPED) {
+        bundle->choked.timer.func = bundle_ClearQueues;
+        bundle->choked.timer.name = "output choke";
+        bundle->choked.timer.load = bundle->cfg.choked.timeout * SECTICKS;
+        bundle->choked.timer.arg = bundle;
+        timer_Start(&bundle->choked.timer);
       }
     }
   }
@@ -833,6 +871,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.cfg.autoload.max.timeout = 0;
   bundle.cfg.autoload.min.packets = 0;
   bundle.cfg.autoload.min.timeout = 0;
+  bundle.cfg.choked.timeout = CHOKED_TIMEOUT;
   bundle.phys_type.all = type;
   bundle.phys_type.open = 0;
 
@@ -871,6 +910,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   memset(&bundle.autoload.timer, '\0', sizeof bundle.autoload.timer);
   bundle.autoload.done = 0;
   bundle.autoload.running = 0;
+  memset(&bundle.choked.timer, '\0', sizeof bundle.choked.timer);
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
@@ -924,6 +964,7 @@ bundle_Destroy(struct bundle *bundle)
    * out under exceptional conditions such as a descriptor exception.
    */
   timer_Stop(&bundle->idle.timer);
+  timer_Stop(&bundle->choked.timer);
   timer_Stop(&bundle->autoload.timer);
   mp_Down(&bundle->ncp.mp);
   ipcp_CleanInterface(&bundle->ncp.ipcp);
@@ -1218,6 +1259,8 @@ bundle_ShowStatus(struct cmdargs const *arg)
                   " packets queued\n", arg->bundle->autoload.running ?
                   "" : "not ", ip_QueueLen());
 
+  prompt_Printf(arg->prompt, " Choked Timer:  %ds\n",
+                arg->bundle->cfg.choked.timeout);
   prompt_Printf(arg->prompt, " Idle Timer:    ");
   if (arg->bundle->cfg.idle_timeout) {
     prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle_timeout);

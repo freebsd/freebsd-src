@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.49 1998/07/11 19:05:24 brian Exp $
+ * $Id: ip.c,v 1.50 1998/08/07 18:42:48 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -503,6 +503,16 @@ ip_Enqueue(int pri, char *ptr, int count)
   bp = mbuf_Alloc(count, MB_IPQ);
   memcpy(MBUF_CTOP(bp), ptr, count);
   mbuf_Enqueue(&IpOutputQueues[pri], bp);
+}
+
+void
+ip_DeleteQueue()
+{
+  struct mqueue *queue;
+
+  for (queue = IpOutputQueues; queue < IpOutputQueues + PRI_MAX; queue++)
+    while (queue->top)
+      mbuf_Free(mbuf_Dequeue(queue));
 }
 
 int

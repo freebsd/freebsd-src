@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.11 1998/07/29 18:21:13 brian Exp $
+ *	$Id: bundle.h,v 1.12 1998/08/07 18:42:47 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -98,6 +98,10 @@ struct bundle {
         int timeout;          /* this number of seconds                */
       } max, min;
     } autoload;
+
+    struct {
+      int timeout;		/* How long to leave the output queue choked */
+    } choked;
   } cfg;
 
   struct {
@@ -127,6 +131,10 @@ struct bundle {
     unsigned running : 1;
     unsigned comingup : 1;
   } autoload;
+
+  struct {
+    struct pppTimer timer;      /* choked output queue timer */
+  } choked;
 };
 
 #define descriptor2bundle(d) \
