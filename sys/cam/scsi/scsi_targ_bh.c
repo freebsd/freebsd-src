@@ -263,7 +263,7 @@ targbhenlun(struct cam_periph *periph)
 	status = immed_ccb.ccb_h.status;
 	if (status != CAM_REQ_CMP) {
 		xpt_print_path(periph->path);
-		printf("targbhenlun - Enable Lun Rejected for status 0x%x\n",
+		printf("targbhenlun - Enable Lun Rejected with status 0x%x\n",
 		       status);
 		return (status);
 	}
