@@ -160,6 +160,18 @@ struct protosw inetsw[] = {
   encap_init,		0,		0,		0,
   &rip_usrreqs
 },
+{ SOCK_RAW,	&inetdomain,	IPPROTO_MOBILE,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+  encap4_input,	0,		0,		rip_ctloutput,
+  0,
+  encap_init,	0,		0,		0,
+  &rip_usrreqs
+},
+{ SOCK_RAW,	&inetdomain,	IPPROTO_GRE,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+  encap4_input,	0,		0,		rip_ctloutput,
+  0,
+  encap_init,	0,		0,		0,
+  &rip_usrreqs
+},
 # ifdef INET6
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   encap4_input,	0,	 	0,		rip_ctloutput,
