@@ -1157,33 +1157,27 @@ osigstack(td, uap)
 	register struct osigstack_args *uap;
 {
 	struct proc *p = td->td_proc;
-	struct sigstack ss;
+	struct sigstack nss, oss;
 	int error = 0;
 
-	mtx_lock(&Giant);
-
-	if (uap->oss != NULL) {
-		PROC_LOCK(p);
-		ss.ss_sp = p->p_sigstk.ss_sp;
-		ss.ss_onstack = sigonstack(cpu_getstack(td));
-		PROC_UNLOCK(p);
-		error = copyout(&ss, uap->oss, sizeof(struct sigstack));
-		if (error)
-			goto done2;
-	}
-
 	if (uap->nss != NULL) {
-		if ((error = copyin(uap->nss, &ss, sizeof(ss))) != 0)
-			goto done2;
-		PROC_LOCK(p);
-		p->p_sigstk.ss_sp = ss.ss_sp;
-		p->p_sigstk.ss_size = 0;
-		p->p_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
-		p->p_flag |= P_ALTSTACK;
-		PROC_UNLOCK(p);
+		error = copyin(uap->nss, &nss, sizeof(nss));
+		if (error)
+			return (error);
 	}
-done2:
-	mtx_unlock(&Giant);
+	PROC_LOCK(p);
+	oss.ss_sp = p->p_sigstk.ss_sp;
+	oss.ss_onstack = sigonstack(cpu_getstack(td));
+	if (uap->nss != NULL) {
+		p->p_sigstk.ss_sp = nss.ss_sp;
+		p->p_sigstk.ss_size = 0;
+		p->p_sigstk.ss_flags |= nss.ss_onstack & SS_ONSTACK;
+		p->p_flag |= P_ALTSTACK;
+	}
+	PROC_UNLOCK(p);
+	if (uap->oss != NULL)
+		error = copyout(&oss, uap->oss, sizeof(oss));
+
 	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
