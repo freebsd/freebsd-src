@@ -277,13 +277,13 @@ is interrupted.
 .El
 .Pp
 Targets and sources may contain the shell wildcard expressions
-.Ql ? ,
+.Ql \&? ,
 .Ql * ,
 .Ql []
 and
 .Ql {} .
 The expressions
-.Ql ? ,
+.Ql \&? ,
 .Ql *
 and
 .Ql []
@@ -409,10 +409,10 @@ The name of the target; also known as
 .Pp
 The shorter forms
 .Ql Va @ ,
-.Ql Va ! ,
+.Ql Va \&! ,
 .Ql Va \&< ,
 .Ql Va \&% ,
-.Ql Va ? ,
+.Ql Va \&? ,
 .Ql Va \&> ,
 and
 .Ql Va *
@@ -595,7 +595,7 @@ Each modifier begins with a colon and one of the following
 special characters.
 The colon may be escaped with a backslash
 .Pq Ql \e .
-.Bl -tag -width Cm E\&
+.Bl -tag -width Cm
 .Sm off
 .It Cm C No \&/ Ar pattern Xo
 .No \&/ Ar replacement
@@ -634,7 +634,7 @@ Converts variable to lower-case letters.
 Select only those words that match the rest of the modifier.
 The standard shell wildcard characters
 .Pf ( Ql * ,
-.Ql ? ,
+.Ql \&? ,
 and
 .Ql Op )
 may
@@ -857,7 +857,7 @@ will only evaluate a conditional as far as is necessary to determine
 its value.
 Parentheses may be used to change the order of evaluation.
 The boolean operator
-.Ql Ic \&!
+.Ql Ic !\&
 may be used to logically negate an entire
 conditional.
 It is of higher precedence than
@@ -866,7 +866,7 @@ It is of higher precedence than
 The value of
 .Ar expression
 may be any of the following:
-.Bl -tag -width Ic defined
+.Bl -tag -width Ic
 .It Ic defined
 Takes a variable name as an argument and evaluates to true if the variable
 has been defined.
@@ -970,7 +970,7 @@ Comments begin with a hash
 character, anywhere but in a shell
 command line, and continue to the end of the line.
 .Sh SPECIAL SOURCES
-.Bl -tag -width Ic .IGNORE
+.Bl -tag -width Ic
 .It Ic .IGNORE
 Ignore any errors from the commands associated with this target, exactly
 as if they all were preceded by a dash
@@ -1027,7 +1027,7 @@ detected and targets that form loops will be silently ignored.
 .Sh "SPECIAL TARGETS"
 Special targets may not be included with other targets, i.e. they must be
 the only target specified.
-.Bl -tag -width Ic .BEGIN
+.Bl -tag -width Ic
 .It Ic .BEGIN
 Any command lines attached to this target are executed before anything
 else is done.
@@ -1154,6 +1154,7 @@ command in the file.
 Each source specifies a suffix to
 .Nm .
 If no sources are specified, any previous specified suffices are deleted.
+.El
 .Sh COMPATIBILITY
 Older versions of
 .Nm
