@@ -44,7 +44,7 @@
 #include <sys/diskslice.h>
 #include <sys/cdio.h>
 
-#include <i386/isa/atapi.h>
+#include <pc98/pc98/atapi.h>
 
 static	d_open_t	wfdopen;
 static	d_close_t	wfdclose;
