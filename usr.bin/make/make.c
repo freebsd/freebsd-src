@@ -88,6 +88,8 @@ static int  	numNodes;   	/* Number of nodes to be processed. If this
 
 static int MakeAddChild __P((ClientData, ClientData));
 static int MakeAddAllSrc __P((ClientData, ClientData));
+static int MakeTimeStamp __P((ClientData, ClientData));
+static int MakeHandleUse __P((ClientData, ClientData));
 static Boolean MakeStartJobs __P((void));
 static int MakePrintStatus __P((ClientData, ClientData));
 /*-
