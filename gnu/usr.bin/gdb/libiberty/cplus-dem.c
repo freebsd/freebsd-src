@@ -32,10 +32,9 @@ Cambridge, MA 02139, USA.  */
 #include <string.h>
 #include <stdio.h>
 
-extern char *xmalloc PARAMS((long));
-extern char *xrealloc PARAMS((PTR, long));
-extern char *strstr PARAMS ((const char *, const char *));
-extern void free PARAMS((PTR));
+#include "libiberty.h"
+
+extern char *strstr ();
 
 /* In order to allow a single demangler executable to demangle strings
    using various common values of CPLUS_MARKER, as well as any specific
@@ -96,6 +95,8 @@ static CONST struct optable
   {"dl",	  " delete",	DMGL_ANSI},	/* new (1.92,	 ansi) */
   {"new",	  " new",	0},		/* old (1.91,	 and 1.x) */
   {"delete",	  " delete",	0},		/* old (1.91,	 and 1.x) */
+  {"vn",	  " new []",	DMGL_ANSI},	/* GNU, pending ansi */
+  {"vd",	  " delete []",	DMGL_ANSI},	/* GNU, pending ansi */
   {"as",	  "=",		DMGL_ANSI},	/* ansi */
   {"ne",	  "!=",		DMGL_ANSI},	/* old, ansi */
   {"eq",	  "==",		DMGL_ANSI},	/* old,	ansi */
@@ -303,6 +304,129 @@ consume_count (type)
     return (count);
 }
 
+int
+cplus_demangle_opname (opname, result, options)
+     char *opname;
+     char *result;
+     int options;
+{
+  int len, i, len1, ret;
+  string type;
+  struct work_stuff work[1];
+  CONST char *tem;
+
+  len = strlen(opname);
+  result[0] = '\0';
+  ret = 0;
+  work->options = options;
+  
+  if (opname[0] == '_' && opname[1] == '_'
+	  && opname[2] == 'o' && opname[3] == 'p')
+    {
+      /* ANSI.  */
+      /* type conversion operator.  */
+      tem = opname + 4;
+      if (do_type (work, &tem, &type))
+	{
+	  strcat (result, "operator ");
+	  strncat (result, type.b, type.p - type.b);
+	  string_delete (&type);
+	  ret = 1;
+	}
+    }
+  else if (opname[0] == '_' && opname[1] == '_'
+	   && opname[2] >= 'a' && opname[2] <= 'z'
+	   && opname[3] >= 'a' && opname[3] <= 'z')
+    {
+      if (opname[4] == '\0')
+	{
+	  /* Operator.  */
+	  for (i = 0; i < sizeof (optable) / sizeof (optable[0]); i++)
+	    {
+	      if (strlen (optable[i].in) == 2
+		  && memcmp (optable[i].in, opname + 2, 2) == 0)
+		{
+		  strcat (result, "operator");
+		  strcat (result, optable[i].out);
+		  ret = 1;
+		  break;
+		}
+	    }
+	}
+      else
+	{
+	  if (opname[2] == 'a' && opname[5] == '\0')
+	    {
+	      /* Assignment. */
+	      for (i = 0; i < sizeof (optable) / sizeof (optable[0]); i++)
+		{
+		  if (strlen (optable[i].in) == 3
+		      && memcmp (optable[i].in, opname + 2, 3) == 0)
+		    {
+		      strcat (result, "operator");
+		      strcat (result, optable[i].out);
+		      ret = 1;
+		      break;
+		    }		      
+		}
+	    }
+	}
+    }
+  else if (len >= 3 
+      && opname[0] == 'o'
+      && opname[1] == 'p'
+      && strchr (cplus_markers, opname[2]) != NULL)
+    {
+      /* see if it's an assignment expression */
+      if (len >= 10 /* op$assign_ */
+	  && memcmp (opname + 3, "assign_", 7) == 0)
+	{
+	  for (i = 0; i < sizeof (optable) / sizeof (optable[0]); i++)
+	    {
+	      len1 = len - 10;
+	      if (strlen (optable[i].in) == len1
+		  && memcmp (optable[i].in, opname + 10, len1) == 0)
+		{
+		  strcat (result, "operator");
+		  strcat (result, optable[i].out);
+		  strcat (result, "=");
+		  ret = 1;
+		  break;
+		}
+	    }
+	}
+      else
+	{
+	  for (i = 0; i < sizeof (optable) / sizeof (optable[0]); i++)
+	    {
+	      len1 = len - 3;
+	      if (strlen (optable[i].in) == len1 
+		  && memcmp (optable[i].in, opname + 3, len1) == 0)
+		{
+		  strcat (result, "operator");
+		  strcat (result, optable[i].out);
+		  ret = 1;
+		  break;
+		}
+	    }
+	}
+    }
+  else if (len >= 5 && memcmp (opname, "type", 4) == 0
+	   && strchr (cplus_markers, opname[4]) != NULL)
+    {
+      /* type conversion operator */
+      tem = opname + 5;
+      if (do_type (work, &tem, &type))
+	{
+	  strcat (result, "operator ");
+	  strncat (result, type.b, type.p - type.b);
+	  string_delete (&type);
+	  ret = 1;
+	}
+    }
+  return ret;
+
+}
 /* Takes operator name as e.g. "++" and returns mangled
    operator name (e.g. "postincrement_expr"), or NULL if not found.
 
@@ -343,9 +467,9 @@ int cplus_match (mangled, text, text_len)
   }
 }
 
-/* char *cplus_demangle (const char *name, int options)
+/* char *cplus_demangle (const char *mangled, int options)
 
-   If NAME is a mangled function name produced by GNU C++, then
+   If MANGLED is a mangled function name produced by GNU C++, then
    a pointer to a malloced string giving a C++ representation
    of the name will be returned; otherwise NULL will be returned.
    It is the caller's responsibility to free the string which
@@ -369,7 +493,7 @@ int cplus_match (mangled, text, text_len)
 
    Note that any leading underscores, or other such characters prepended by
    the compilation system, are presumed to have already been stripped from
-   TYPE.  */
+   MANGLED.  */
 
 char *
 cplus_demangle (mangled, options)
@@ -582,7 +706,15 @@ demangle_signature (work, mangled, declp)
 	    /* G++ Template */
 	    string_init(&trawname); 
 	    string_init(&tname);
+            if (oldmangled == NULL)
+              {
+                oldmangled = *mangled;
+              }
 	    success = demangle_template (work, mangled, &tname, &trawname);
+            if (success)
+              {
+                remember_type (work, oldmangled, *mangled - oldmangled);
+              }
 	    string_append(&tname, "::");
 	    string_prepends(declp, &tname);
   	    if (work -> destructor & 1)
@@ -598,6 +730,7 @@ demangle_signature (work, mangled, declp)
               }
 	    string_delete(&trawname);
 	    string_delete(&tname);
+	    oldmangled = NULL;
 	    expect_func = 1;
 	    break;
 
@@ -628,7 +761,9 @@ demangle_signature (work, mangled, declp)
 	      }
 	    break;
 	}
+/*
       if (AUTO_DEMANGLING || GNU_DEMANGLING)
+*/
 	{
 	  if (success && expect_func)
 	    {
@@ -709,7 +844,7 @@ demangle_template (work, mangled, tname, trawname)
   (*mangled)++;
   start = *mangled;
   /* get template name */
-  if ((r = consume_count (mangled)) == 0)
+  if ((r = consume_count (mangled)) == 0 || strlen (*mangled) < r)
     {
       return (0);
     }
@@ -770,6 +905,7 @@ demangle_template (work, mangled, tname, trawname)
 	      switch (*old_p)
 		{
 		  case 'P':
+		  case 'p':
 		  case 'R':
 		    done = is_pointer = 1;
 		    break;
@@ -782,7 +918,9 @@ demangle_template (work, mangled, tname, trawname)
 		  case 'O':	/* ??? */
 		    old_p++;
 		    continue;
-		  case 'Q':	/* repetition of following */
+		  case 'Q':	/* qualified name */
+                    done = is_integral = 1;
+                    break;
 		  case 'T':	/* remembered type */
 		    abort ();
 		    break;
@@ -803,7 +941,10 @@ demangle_template (work, mangled, tname, trawname)
 		    done = is_real = 1;
 		    break;
 		  default:
-		    abort ();
+		    /* it's probably user defined type, let's assume
+		       it's integeral, it seems hard to figure out
+		       what it really is */
+		    done = is_integral = 1;
 		}
 	    }
 	  if (is_integral)
@@ -865,6 +1006,8 @@ demangle_template (work, mangled, tname, trawname)
 	}
       need_comma = 1;
     }
+  if (tname->p[-1] == '>')
+    string_append (tname, " ");
   string_append (tname, ">");
   
 /*
@@ -905,6 +1048,42 @@ arm_pt (work, mangled, n, anchor, args)
   return 0;
 }
 
+static void
+demangle_arm_pt (work, mangled, n, declp)
+     struct work_stuff *work;
+     CONST char **mangled;
+     int n;
+     string *declp;
+{
+  CONST char *p;
+  CONST char *args;
+  CONST char *e = *mangled + n;
+
+  /* ARM template? */
+  if (arm_pt (work, *mangled, n, &p, &args))
+  {
+    string arg;
+    string_init (&arg);
+    string_appendn (declp, *mangled, p - *mangled);
+    string_append (declp, "<");
+    /* should do error checking here */
+    while (args < e) {
+      string_clear (&arg);
+      do_type (work, &args, &arg);
+      string_appends (declp, &arg);
+      string_append (declp, ",");
+    }
+    string_delete (&arg);
+    --declp->p;
+    string_append (declp, ">");
+  }
+  else
+  {
+    string_appendn (declp, *mangled, n);
+  }
+  *mangled += n;
+}
+
 static int
 demangle_class_name (work, mangled, declp)
      struct work_stuff *work;
@@ -916,35 +1095,11 @@ demangle_class_name (work, mangled, declp)
 
   n = consume_count (mangled);
   if (strlen (*mangled) >= n)
-    {
-      CONST char *p;
-      CONST char *args;
-      CONST char *e = *mangled + n;
-      /* ARM template? */
-      if (arm_pt (work, *mangled, n, &p, &args))
-	{
-	  string arg;
-	  string_init (&arg);
-	  string_appendn (declp, *mangled, p - *mangled);
-	  string_append (declp, "<");
-	  /* should do error checking here */
-	  while (args < e) {
-	    string_clear (&arg);
-	    do_type (work, &args, &arg);
-	    string_appends (declp, &arg);
-	    string_append (declp, ",");
-	  }
-	  string_delete (&arg);
-	  --declp->p;
-	  string_append (declp, ">");
-        }
-      else
-	{
-	  string_appendn (declp, *mangled, n);
-        }
-      *mangled += n;
-      success = 1;
-    }
+  {
+    demangle_arm_pt (work, mangled, n, declp);
+    success = 1;
+  }
+
   return (success);
 }
 
@@ -1057,17 +1212,24 @@ demangle_prefix (work, mangled, declp)
   CONST char *scan;
   int i;
 
-  if (strncmp(*mangled, "_GLOBAL_$D$", 11) == 0)
+  if (strlen(*mangled) >= 11 && strncmp(*mangled, "_GLOBAL_", 8) == 0)
     {
-      /* it's a GNU global destructor to be executed at program exit */
-      (*mangled) += 11;
-      work->destructor = 2;
-    }
-  else if (strncmp(*mangled, "_GLOBAL_$I$", 11) == 0)
-    {
-      /* it's a GNU global constructor to be executed at program initial */
-      (*mangled) += 11;
-      work->constructor = 2;
+      char *marker = strchr (cplus_markers, (*mangled)[8]);
+      if (marker != NULL && *marker == (*mangled)[10])
+	{
+	  if ((*mangled)[9] == 'D')
+	    {
+	      /* it's a GNU global destructor to be executed at program exit */
+	      (*mangled) += 11;
+	      work->destructor = 2;
+	    }
+	  else if ((*mangled)[9] == 'I')
+	    {
+	      /* it's a GNU global constructor to be executed at program init */
+	      (*mangled) += 11;
+	      work->constructor = 2;
+	    }
+	}
     }
   else if (ARM_DEMANGLING && strncmp(*mangled, "__std__", 7) == 0)
     {
@@ -1134,9 +1296,12 @@ demangle_prefix (work, mangled, declp)
 	}
       else
 	{
-      /* A GNU style constructor starts with "__[0-9Qt]. */
-          work -> constructor += 1;
-          *mangled = scan + 2;
+	  /* A GNU style constructor starts with __[0-9Qt].  But cfront uses
+	     names like __Q2_3foo3bar for nested type names.  So don't accept
+	     this style of constructor for cfront demangling.  */
+	  if (!(LUCID_DEMANGLING || ARM_DEMANGLING))
+	    work -> constructor += 1;
+	  *mangled = scan + 2;
 	}
     }
   else if ((scan == *mangled) && !isdigit (scan[2]) && (scan[2] != 't'))
@@ -1162,6 +1327,14 @@ demangle_prefix (work, mangled, declp)
 	      demangle_function_name (work, mangled, declp, scan);
 	    }
 	}
+    }
+  else if (ARM_DEMANGLING && scan[2] == 'p' && scan[3] == 't')
+    {
+      /* Cfront-style parameterized type.  Handled later as a signature. */
+      success = 1;
+
+      /* ARM template? */
+      demangle_arm_pt (work, mangled, strlen (*mangled), declp);
     }
   else if (*(scan + 2) != '\0')
     {
@@ -1206,9 +1379,11 @@ DESCRIPTION
 		_$_3foo		(destructor for class foo)
 		_vt$foo		(foo virtual table)
 		_vt$foo$bar	(foo::bar virtual table)
+		__vt_foo	(foo virtual table, new style with thunks)
 		_3foo$varname	(static data member)
 		_Q22rs2tu$vw	(static data member)
 		__t6vector1Zii	(constructor with template)
+		__thunk_4__$_7ostream (virtual function thunk)
  */
 
 static int
@@ -1230,35 +1405,62 @@ gnu_special (work, mangled, declp)
       work -> destructor += 1;
     }
   else if ((*mangled)[0] == '_'
-	   && (*mangled)[1] == 'v'
-	   && (*mangled)[2] == 't'
-	   && strchr (cplus_markers, (*mangled)[3]) != NULL)
+	   && (((*mangled)[1] == '_'
+		&& (*mangled)[2] == 'v'
+		&& (*mangled)[3] == 't'
+		&& (*mangled)[4] == '_')
+	     || ((*mangled)[1] == 'v'
+		 && (*mangled)[2] == 't'
+		 && strchr (cplus_markers, (*mangled)[3]) != NULL)))
     {
       /* Found a GNU style virtual table, get past "_vt<CPLUS_MARKER>"
          and create the decl.  Note that we consume the entire mangled
 	 input string, which means that demangle_signature has no work
 	 to do. */
-      (*mangled) += 4;
+      if ((*mangled)[2] == 'v')
+	(*mangled) += 5; /* New style, with thunks: "__vt_" */
+      else
+	(*mangled) += 4; /* Old style, no thunks: "_vt<CPLUS_MARKER>" */
       while (**mangled != '\0')
 	{
-	  if (isdigit(*mangled[0]))
+	  p = strpbrk (*mangled, cplus_markers);
+	  switch (**mangled)
 	    {
-	      n = consume_count(mangled);
+	    case 'Q':
+	      success = demangle_qualified (work, mangled, declp, 0, 1);
+	      break;
+	    case 't':
+	      success = demangle_template (work, mangled, declp, 0);
+	      break;
+	    default:
+	      if (isdigit(*mangled[0]))
+		{
+		  n = consume_count(mangled);
+		}
+	      else
+		{
+		  n = strcspn (*mangled, cplus_markers);
+		}
+	      string_appendn (declp, *mangled, n);
+	      (*mangled) += n;
+	    }
+
+	  if (success && ((p == NULL) || (p == *mangled)))
+	    {
+	      if (p != NULL)
+		{
+		  string_append (declp, "::");
+		  (*mangled)++;
+		}
 	    }
 	  else
 	    {
-	      n = strcspn (*mangled, cplus_markers);
-	    }
-	  string_appendn (declp, *mangled, n);
-	  (*mangled) += n;
-	  
-	  if (**mangled != '\0')
-	    {
-	      string_append (declp, "::");
-	      (*mangled)++;
+	      success = 0;
+	      break;
 	    }
 	}
-      string_append (declp, " virtual table");
+      if (success)
+	string_append (declp, " virtual table");
     }
   else if ((*mangled)[0] == '_'
 	   && (strchr("0123456789Qt", (*mangled)[1]) != NULL)
@@ -1287,6 +1489,25 @@ gnu_special (work, mangled, declp)
 	  string_append (declp, "::");
 	  n = strlen (*mangled);
 	  string_appendn (declp, *mangled, n);
+	  (*mangled) += n;
+	}
+      else
+	{
+	  success = 0;
+	}
+    }
+  else if (strncmp (*mangled, "__thunk_", 8) == 0)
+    {
+      int delta = ((*mangled) += 8, consume_count (mangled));
+      char *method = cplus_demangle (++*mangled, work->options);
+      if (method)
+	{
+	  char buf[50];
+	  sprintf (buf, "virtual function thunk (delta:%d) for ", -delta);
+	  string_append (declp, buf);
+	  string_append (declp, method);
+	  free (method);
+	  n = strlen (*mangled);
 	  (*mangled) += n;
 	}
       else
@@ -1621,6 +1842,7 @@ do_type (work, mangled, result)
 
 	/* A pointer type */
 	case 'P':
+	case 'p':
 	  (*mangled)++;
 	  string_prepend (&decl, "*");
 	  break;
@@ -1903,6 +2125,11 @@ demangle_fund_type (work, mangled, result)
 	(*mangled)++;
 	APPEND_BLANK (result);
 	string_append (result, "short");
+	break;
+      case 'b':
+	(*mangled)++;
+	APPEND_BLANK (result);
+	string_append (result, "bool");
 	break;
       case 'c':
 	(*mangled)++;
@@ -2271,7 +2498,8 @@ demangle_function_name (work, mangled, declp, scan)
 	    }
 	}
     }
-  else if (declp->p - declp->b >= 5 && memcmp (declp->b, "type$", 5) == 0)
+  else if (declp->p - declp->b >= 5 && memcmp (declp->b, "type", 4) == 0
+	   && strchr (cplus_markers, declp->b[4]) != NULL)
     {
       /* type conversion operator */
       tem = declp->b + 5;
@@ -2486,9 +2714,10 @@ string_prependn (p, s, n)
     }
 }
 
-/* To generate a standalone demangler program for testing purposes, just
-   compile and link this file with -DMAIN.   When run, it demangles each
-   command line arg, or each stdin string, and prints the result on stdout. */
+/* To generate a standalone demangler program for testing purposes,
+   just compile and link this file with -DMAIN and libiberty.a.  When
+   run, it demangles each command line arg, or each stdin string, and
+   prints the result on stdout. */
 
 #ifdef MAIN
 
@@ -2510,35 +2739,6 @@ demangle_it (mangled_name)
     }
 }
 
-char *
-xmalloc (size)
-    long size;
-{
-  char * newmem;
-
-  if ((newmem = (char *) malloc ((int) size)) == NULL)
-    {
-      fprintf (stderr, "\nCan't allocate %u bytes\n", size);
-      exit (1);
-    }
-  return (newmem);
-}
-
-char *
-xrealloc (oldmem, size)
-    PTR oldmem;
-    long size;
-{
-  char * newmem;
-
-  if ((newmem = (char *) realloc ((char *) oldmem, (int) size)) == NULL)
-    {
-      fprintf (stderr, "\nCan't reallocate %u bytes\n", size);
-      exit (1);
-    }
-  return (newmem);
-}
-
 #include "getopt.h"
 
 static char *program_name;
@@ -2550,8 +2750,9 @@ usage (stream, status)
      int status;
 {    
   fprintf (stream, "\
-Usage: %s [-_] [-s {gnu,lucid,arm}] [--strip-underscores]\n\
-       [--format={gnu,lucid,arm}] [--help] [--version] [arg...]\n",
+Usage: %s [-_] [-n] [-s {gnu,lucid,arm}] [--strip-underscores]\n\
+       [--no-strip-underscores] [--format={gnu,lucid,arm}]\n\
+       [--help] [--version] [arg...]\n",
 	   program_name);
   exit (status);
 }
@@ -2568,6 +2769,7 @@ static struct option long_options[] = {
   {"strip-underscores", no_argument, 0, '_'},
   {"format", required_argument, 0, 's'},
   {"help", no_argument, 0, 'h'},
+  {"no-strip-underscores", no_argument, 0, 'n'},
   {"version", no_argument, 0, 'v'},
   {0, no_argument, 0, 0}
 };
@@ -2581,9 +2783,11 @@ main (argc, argv)
   int c;
 
   program_name = argv[0];
+  xmalloc_set_program_name (program_name);
+
   strip_underscore = prepends_underscore;
 
-  while ((c = getopt_long (argc, argv, "_s:", long_options, (int *) 0)) != EOF)
+  while ((c = getopt_long (argc, argv, "_ns:", long_options, (int *) 0)) != EOF)
     {
       switch (c)
 	{
@@ -2592,6 +2796,9 @@ main (argc, argv)
 	    break;
 	  case 'h':
 	    usage (stdout, 0);
+	  case 'n':
+	    strip_underscore = 0;
+	    break;
 	  case 'v':
 	    printf ("GNU %s version %s\n", program_name, program_version);
 	    exit (0);

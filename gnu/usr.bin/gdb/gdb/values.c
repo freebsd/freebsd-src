@@ -31,14 +31,12 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Local function prototypes. */
 
-static value
-value_headof PARAMS ((value, struct type *, struct type *));
+static value_ptr value_headof PARAMS ((value_ptr, struct type *,
+				       struct type *));
 
-static void
-show_values PARAMS ((char *, int));
+static void show_values PARAMS ((char *, int));
 
-static void
-show_convenience PARAMS ((char *, int));
+static void show_convenience PARAMS ((char *, int));
 
 /* The value-history records all the values printed
    by print commands during this session.  Each chunk
@@ -51,7 +49,7 @@ show_convenience PARAMS ((char *, int));
 struct value_history_chunk
 {
   struct value_history_chunk *next;
-  value values[VALUE_HISTORY_CHUNK];
+  value_ptr values[VALUE_HISTORY_CHUNK];
 };
 
 /* Chain of chunks now in use.  */
@@ -64,19 +62,19 @@ static int value_history_count;	/* Abs number of last entry stored */
    (except for those released by calls to release_value)
    This is so they can be freed after each command.  */
 
-static value all_values;
+static value_ptr all_values;
 
 /* Allocate a  value  that has the correct length for type TYPE.  */
 
-value
+value_ptr
 allocate_value (type)
      struct type *type;
 {
-  register value val;
+  register value_ptr val;
 
   check_stub_type (type);
 
-  val = (value) xmalloc (sizeof (struct value) + TYPE_LENGTH (type));
+  val = (struct value *) xmalloc (sizeof (struct value) + TYPE_LENGTH (type));
   VALUE_NEXT (val) = all_values;
   all_values = val;
   VALUE_TYPE (val) = type;
@@ -91,20 +89,22 @@ allocate_value (type)
   VALUE_REGNO (val) = -1;
   VALUE_LAZY (val) = 0;
   VALUE_OPTIMIZED_OUT (val) = 0;
+  val->modifiable = 1;
   return val;
 }
 
 /* Allocate a  value  that has the correct length
    for COUNT repetitions type TYPE.  */
 
-value
+value_ptr
 allocate_repeat_value (type, count)
      struct type *type;
      int count;
 {
-  register value val;
+  register value_ptr val;
 
-  val = (value) xmalloc (sizeof (struct value) + TYPE_LENGTH (type) * count);
+  val =
+    (value_ptr) xmalloc (sizeof (struct value) + TYPE_LENGTH (type) * count);
   VALUE_NEXT (val) = all_values;
   all_values = val;
   VALUE_TYPE (val) = type;
@@ -125,7 +125,7 @@ allocate_repeat_value (type, count)
 /* Return a mark in the value chain.  All values allocated after the
    mark is obtained (except for those released) are subject to being freed
    if a subsequent value_free_to_mark is passed the mark.  */
-value
+value_ptr
 value_mark ()
 {
   return all_values;
@@ -135,9 +135,9 @@ value_mark ()
    (except for those released).  */
 void
 value_free_to_mark (mark)
-     value mark;
+     value_ptr mark;
 {
-  value val, next;
+  value_ptr val, next;
 
   for (val = all_values; val && val != mark; val = next)
     {
@@ -153,7 +153,7 @@ value_free_to_mark (mark)
 void
 free_all_values ()
 {
-  register value val, next;
+  register value_ptr val, next;
 
   for (val = all_values; val; val = next)
     {
@@ -169,9 +169,9 @@ free_all_values ()
 
 void
 release_value (val)
-     register value val;
+     register value_ptr val;
 {
-  register value v;
+  register value_ptr v;
 
   if (all_values == val)
     {
@@ -189,15 +189,33 @@ release_value (val)
     }
 }
 
+/* Release all values up to mark  */
+value_ptr
+value_release_to_mark (mark)
+     value_ptr mark;
+{
+  value_ptr val, next;
+
+  for (val = next = all_values; next; next = VALUE_NEXT (next))
+    if (VALUE_NEXT (next) == mark)
+      {
+	all_values = VALUE_NEXT (next);
+	VALUE_NEXT (next) = 0;
+	return val;
+      }
+  all_values = 0;
+  return val;
+}
+
 /* Return a copy of the value ARG.
    It contains the same contents, for same memory address,
    but it's a different block of storage.  */
 
-value
+value_ptr
 value_copy (arg)
-     value arg;
+     value_ptr arg;
 {
-  register value val;
+  register value_ptr val;
   register struct type *type = VALUE_TYPE (arg);
   if (VALUE_REPEATED (arg))
     val = allocate_repeat_value (type, VALUE_REPETITIONS (arg));
@@ -210,6 +228,7 @@ value_copy (arg)
   VALUE_BITSIZE (val) = VALUE_BITSIZE (arg);
   VALUE_REGNO (val) = VALUE_REGNO (arg);
   VALUE_LAZY (val) = VALUE_LAZY (arg);
+  val->modifiable = arg->modifiable;
   if (!VALUE_LAZY (val))
     {
       memcpy (VALUE_CONTENTS_RAW (val), VALUE_CONTENTS_RAW (arg),
@@ -228,7 +247,7 @@ value_copy (arg)
 
 int
 record_latest_value (val)
-     value val;
+     value_ptr val;
 {
   int i;
 
@@ -262,7 +281,10 @@ record_latest_value (val)
      a value on the value history never changes.  */
   if (VALUE_LAZY (val))
     value_fetch_lazy (val);
-  VALUE_LVAL (val) = not_lval;
+  /* We preserve VALUE_LVAL so that the user can find out where it was fetched
+     from.  This is a bit dubious, because then *&$1 does not just return $1
+     but the current contents of that location.  c'est la vie...  */
+  val->modifiable = 0;
   release_value (val);
 
   /* Now we regard value_history_count as origin-one
@@ -273,7 +295,7 @@ record_latest_value (val)
 
 /* Return a copy of the value in the history with sequence number NUM.  */
 
-value
+value_ptr
 access_value_history (num)
      int num;
 {
@@ -317,7 +339,7 @@ clear_value_history ()
 {
   register struct value_history_chunk *next;
   register int i;
-  register value val;
+  register value_ptr val;
 
   while (value_history_chain)
     {
@@ -337,7 +359,7 @@ show_values (num_exp, from_tty)
      int from_tty;
 {
   register int i;
-  register value val;
+  register value_ptr val;
   static int num = 1;
 
   if (num_exp)
@@ -360,7 +382,7 @@ show_values (num_exp, from_tty)
     {
       val = access_value_history (i);
       printf_filtered ("$%d = ", i);
-      value_print (val, stdout, 0, Val_pretty_default);
+      value_print (val, gdb_stdout, 0, Val_pretty_default);
       printf_filtered ("\n");
     }
 
@@ -409,11 +431,11 @@ lookup_internalvar (name)
   return var;
 }
 
-value
+value_ptr
 value_of_internalvar (var)
      struct internalvar *var;
 {
-  register value val;
+  register value_ptr val;
 
 #ifdef IS_TRAPPED_INTERNALVAR
   if (IS_TRAPPED_INTERNALVAR (var->name))
@@ -432,7 +454,7 @@ void
 set_internalvar_component (var, offset, bitpos, bitsize, newval)
      struct internalvar *var;
      int offset, bitpos, bitsize;
-     value newval;
+     value_ptr newval;
 {
   register char *addr = VALUE_CONTENTS (var->value) + offset;
 
@@ -451,21 +473,33 @@ set_internalvar_component (var, offset, bitpos, bitsize, newval)
 void
 set_internalvar (var, val)
      struct internalvar *var;
-     value val;
+     value_ptr val;
 {
+  value_ptr newval;
+
 #ifdef IS_TRAPPED_INTERNALVAR
   if (IS_TRAPPED_INTERNALVAR (var->name))
     SET_TRAPPED_INTERNALVAR (var, val, 0, 0, 0);
 #endif
 
-  free ((PTR)var->value);
-  var->value = value_copy (val);
+  newval = value_copy (val);
+
   /* Force the value to be fetched from the target now, to avoid problems
      later when this internalvar is referenced and the target is gone or
      has changed.  */
-  if (VALUE_LAZY (var->value))
-    value_fetch_lazy (var->value);
-  release_value (var->value);
+  if (VALUE_LAZY (newval))
+    value_fetch_lazy (newval);
+
+  /* Begin code which must not call error().  If var->value points to
+     something free'd, an error() obviously leaves a dangling pointer.
+     But we also get a danling pointer if var->value points to
+     something in the value chain (i.e., before release_value is
+     called), because after the error free_all_values will get called before
+     long.  */
+  free ((PTR)var->value);
+  var->value = newval;
+  release_value (newval);
+  /* End code which must not call error().  */
 }
 
 char *
@@ -512,11 +546,11 @@ show_convenience (ignore, from_tty)
 	  varseen = 1;
 	}
       printf_filtered ("$%s = ", var->name);
-      value_print (var->value, stdout, 0, Val_pretty_default);
+      value_print (var->value, gdb_stdout, 0, Val_pretty_default);
       printf_filtered ("\n");
     }
   if (!varseen)
-    printf ("No debugger convenience variables now defined.\n\
+    printf_unfiltered ("No debugger convenience variables now defined.\n\
 Convenience variables have names starting with \"$\";\n\
 use \"set\" as in \"set $foo = 5\" to define them.\n");
 }
@@ -528,7 +562,7 @@ use \"set\" as in \"set $foo = 5\" to define them.\n");
 
 LONGEST
 value_as_long (val)
-     register value val;
+     register value_ptr val;
 {
   /* This coerces arrays and functions, which is necessary (e.g.
      in disassemble_command).  It also dereferences references, which
@@ -540,7 +574,7 @@ value_as_long (val)
 
 double
 value_as_double (val)
-     register value val;
+     register value_ptr val;
 {
   double foo;
   int inv;
@@ -554,7 +588,7 @@ value_as_double (val)
    Does not deallocate the value.  */
 CORE_ADDR
 value_as_pointer (val)
-     value val;
+     value_ptr val;
 {
   /* Assume a CORE_ADDR can fit in a LONGEST (for now).  Not sure
      whether we want this to be true eventually.  */
@@ -582,9 +616,6 @@ value_as_pointer (val)
    to member which reaches here is considered to be equivalent
    to an INT (or some size).  After all, it is only an offset.  */
 
-/* FIXME:  This should be rewritten as a switch statement for speed and
-   ease of comprehension.  */
-
 LONGEST
 unpack_long (type, valaddr)
      struct type *type;
@@ -594,49 +625,34 @@ unpack_long (type, valaddr)
   register int len = TYPE_LENGTH (type);
   register int nosign = TYPE_UNSIGNED (type);
 
-  if (code == TYPE_CODE_ENUM || code == TYPE_CODE_BOOL)
-    code = TYPE_CODE_INT;
-  if (code == TYPE_CODE_FLT)
+  switch (code)
     {
-      if (len == sizeof (float))
-	{
-	  float retval;
-	  memcpy (&retval, valaddr, sizeof (retval));
-	  SWAP_TARGET_AND_HOST (&retval, sizeof (retval));
-	  return retval;
-	}
-
-      if (len == sizeof (double))
-	{
-	  double retval;
-	  memcpy (&retval, valaddr, sizeof (retval));
-	  SWAP_TARGET_AND_HOST (&retval, sizeof (retval));
-	  return retval;
-	}
+    case TYPE_CODE_ENUM:
+    case TYPE_CODE_BOOL:
+    case TYPE_CODE_INT:
+    case TYPE_CODE_CHAR:
+    case TYPE_CODE_RANGE:
+      if (nosign)
+	return extract_unsigned_integer (valaddr, len);
       else
-	{
-	  error ("Unexpected type of floating point number.");
-	}
-    }
-  else if ((code == TYPE_CODE_INT || code == TYPE_CODE_CHAR) && nosign)
-    {
-      return extract_unsigned_integer (valaddr, len);
-    }
-  else if (code == TYPE_CODE_INT || code == TYPE_CODE_CHAR)
-    {
-      return extract_signed_integer (valaddr, len);
-    }
-  /* Assume a CORE_ADDR can fit in a LONGEST (for now).  Not sure
-     whether we want this to be true eventually.  */
-  else if (code == TYPE_CODE_PTR || code == TYPE_CODE_REF)
-    {
-      return extract_address (valaddr, len);
-    }
-  else if (code == TYPE_CODE_MEMBER)
-    error ("not implemented: member types in unpack_long");
+	return extract_signed_integer (valaddr, len);
 
-  error ("Value not integer or pointer.");
-  return 0; 	/* For lint -- never reached */
+    case TYPE_CODE_FLT:
+      return extract_floating (valaddr, len);
+
+    case TYPE_CODE_PTR:
+    case TYPE_CODE_REF:
+      /* Assume a CORE_ADDR can fit in a LONGEST (for now).  Not sure
+	 whether we want this to be true eventually.  */
+      return extract_address (valaddr, len);
+
+    case TYPE_CODE_MEMBER:
+      error ("not implemented: member types in unpack_long");
+
+    default:
+      error ("Value can't be converted to integer.");
+    }
+  return 0; /* Placate lint.  */
 }
 
 /* Return a double value from the specified type and address.
@@ -663,35 +679,18 @@ unpack_double (type, valaddr, invp)
 	  *invp = 1;
 	  return 1.234567891011121314;
 	}
-
-      if (len == sizeof (float))
-	{
-	  float retval;
-	  memcpy (&retval, valaddr, sizeof (retval));
-	  SWAP_TARGET_AND_HOST (&retval, sizeof (retval));
-	  return retval;
-	}
-
-      if (len == sizeof (double))
-	{
-	  double retval;
-	  memcpy (&retval, valaddr, sizeof (retval));
-	  SWAP_TARGET_AND_HOST (&retval, sizeof (retval));
-	  return retval;
-	}
-      else
-	{
-	  error ("Unexpected type of floating point number.");
-	  return 0; /* Placate lint.  */
-	}
+      return extract_floating (valaddr, len);
     }
-  else if (nosign) {
-   /* Unsigned -- be sure we compensate for signed LONGEST.  */
-   return (unsigned LONGEST) unpack_long (type, valaddr);
-  } else {
-    /* Signed -- we are OK with unpack_long.  */
-    return unpack_long (type, valaddr);
-  }
+  else if (nosign)
+    {
+      /* Unsigned -- be sure we compensate for signed LONGEST.  */
+      return (unsigned LONGEST) unpack_long (type, valaddr);
+    }
+  else
+    {
+      /* Signed -- we are OK with unpack_long.  */
+      return unpack_long (type, valaddr);
+    }
 }
 
 /* Unpack raw data (copied from debugee, target byte order) at VALADDR
@@ -724,14 +723,14 @@ unpack_pointer (type, valaddr)
 
    For C++, must also be able to return values from static fields */
 
-value
+value_ptr
 value_primitive_field (arg1, offset, fieldno, arg_type)
-     register value arg1;
+     register value_ptr arg1;
      int offset;
      register int fieldno;
      register struct type *arg_type;
 {
-  register value v;
+  register value_ptr v;
   register struct type *type;
 
   check_stub_type (arg_type);
@@ -772,9 +771,9 @@ value_primitive_field (arg1, offset, fieldno, arg_type)
 
    For C++, must also be able to return values from static fields */
 
-value
+value_ptr
 value_field (arg1, fieldno)
-     register value arg1;
+     register value_ptr arg1;
      register int fieldno;
 {
   return value_primitive_field (arg1, 0, fieldno, VALUE_TYPE (arg1));
@@ -784,22 +783,26 @@ value_field (arg1, fieldno)
    F is the list of member functions which contains the desired method.
    J is an index into F which provides the desired method. */
 
-value
+value_ptr
 value_fn_field (arg1p, f, j, type, offset)
-     value *arg1p;
+     value_ptr *arg1p;
      struct fn_field *f;
      int j;
      struct type *type;
      int offset;
 {
-  register value v;
+  register value_ptr v;
   register struct type *ftype = TYPE_FN_FIELD_TYPE (f, j);
   struct symbol *sym;
 
   sym = lookup_symbol (TYPE_FN_FIELD_PHYSNAME (f, j),
 		       0, VAR_NAMESPACE, 0, NULL);
-  if (! sym) error ("Internal error: could not find physical method named %s",
+  if (! sym) 
+	return NULL;
+/*
+	error ("Internal error: could not find physical method named %s",
 		    TYPE_FN_FIELD_PHYSNAME (f, j));
+*/
   
   v = allocate_value (ftype);
   VALUE_ADDRESS (v) = BLOCK_START (SYMBOL_BLOCK_VALUE (sym));
@@ -827,22 +830,22 @@ value_fn_field (arg1p, f, j, type, offset)
    J is an index into F which provides the desired virtual function.
 
    TYPE is the type in which F is located.  */
-value
+value_ptr
 value_virtual_fn_field (arg1p, f, j, type, offset)
-     value *arg1p;
+     value_ptr *arg1p;
      struct fn_field *f;
      int j;
      struct type *type;
      int offset;
 {
-  value arg1 = *arg1p;
+  value_ptr arg1 = *arg1p;
   /* First, get the virtual function table pointer.  That comes
      with a strange type, so cast it to type `pointer to long' (which
      should serve just fine as a function type).  Then, index into
      the table, and convert final value to appropriate function type.  */
-  value entry, vfn, vtbl;
-  value vi = value_from_longest (builtin_type_int, 
-			      (LONGEST) TYPE_FN_FIELD_VOFFSET (f, j));
+  value_ptr entry, vfn, vtbl;
+  value_ptr vi = value_from_longest (builtin_type_int, 
+				     (LONGEST) TYPE_FN_FIELD_VOFFSET (f, j));
   struct type *fcontext = TYPE_FN_FIELD_FCONTEXT (f, j);
   struct type *context;
   if (fcontext == NULL)
@@ -877,16 +880,23 @@ value_virtual_fn_field (arg1p, f, j, type, offset)
      a virtual function.  */
   entry = value_subscript (vtbl, vi);
 
-  /* Move the `this' pointer according to the virtual function table. */ 
-  VALUE_OFFSET (arg1) += value_as_long (value_field (entry, 0))/* + offset*/;
-
-  if (! VALUE_LAZY (arg1))
+  if (TYPE_CODE (VALUE_TYPE (entry)) == TYPE_CODE_STRUCT)
     {
-      VALUE_LAZY (arg1) = 1;
-      value_fetch_lazy (arg1);
-    }
+      /* Move the `this' pointer according to the virtual function table. */
+      VALUE_OFFSET (arg1) += value_as_long (value_field (entry, 0));
+      
+      if (! VALUE_LAZY (arg1))
+	{
+	  VALUE_LAZY (arg1) = 1;
+	  value_fetch_lazy (arg1);
+	}
 
-  vfn = value_field (entry, 2);
+      vfn = value_field (entry, 2);
+    }
+  else if (TYPE_CODE (VALUE_TYPE (entry)) == TYPE_CODE_PTR)
+    vfn = entry;
+  else
+    error ("I'm confused:  virtual function table has bad type");
   /* Reinstantiate the function pointer with the correct type.  */
   VALUE_TYPE (vfn) = lookup_pointer_type (TYPE_FN_FIELD_TYPE (f, j));
 
@@ -903,14 +913,14 @@ value_virtual_fn_field (arg1p, f, j, type, offset)
 
    FIXME-tiemann: should work with dossier entries as well.  */
 
-static value
+static value_ptr
 value_headof (in_arg, btype, dtype)
-     value in_arg;
+     value_ptr in_arg;
      struct type *btype, *dtype;
 {
   /* First collect the vtables we must look at for this object.  */
   /* FIXME-tiemann: right now, just look at top-most vtable.  */
-  value arg, vtbl, entry, best_entry = 0;
+  value_ptr arg, vtbl, entry, best_entry = 0;
   int i, nelems;
   int offset, best_offset = 0;
   struct symbol *sym;
@@ -928,7 +938,8 @@ value_headof (in_arg, btype, dtype)
   /* Check that VTBL looks like it points to a virtual function table.  */
   msymbol = lookup_minimal_symbol_by_pc (VALUE_ADDRESS (vtbl));
   if (msymbol == NULL
-      || !VTBL_PREFIX_P (demangled_name = SYMBOL_NAME (msymbol)))
+      || (demangled_name = SYMBOL_NAME (msymbol)) == NULL
+      || !VTBL_PREFIX_P (demangled_name))
     {
       /* If we expected to find a vtable, but did not, let the user
 	 know that we aren't happy, but don't throw an error.
@@ -947,6 +958,9 @@ value_headof (in_arg, btype, dtype)
     {
       entry = value_subscript (vtbl, value_from_longest (builtin_type_int, 
 						      (LONGEST) i));
+      /* This won't work if we're using thunks. */
+      if (TYPE_CODE (VALUE_TYPE (entry)) != TYPE_CODE_STRUCT)
+	break;
       offset = longest_to_int (value_as_long (value_field (entry, 0)));
       /* If we use '<=' we can handle single inheritance
        * where all offsets are zero - just use the first entry found. */
@@ -992,9 +1006,9 @@ value_headof (in_arg, btype, dtype)
    of its baseclasses) to figure out the most derived type that ARG
    could actually be a pointer to.  */
 
-value
+value_ptr
 value_from_vtable_info (arg, type)
-     value arg;
+     value_ptr arg;
      struct type *type;
 {
   /* Take care of preliminaries.  */
@@ -1067,7 +1081,7 @@ int
 baseclass_offset (type, index, arg, offset)
      struct type *type;
      int index;
-     value arg;
+     value_ptr arg;
      int offset;
 {
   struct type *basetype = TYPE_BASECLASS (type, index);
@@ -1129,7 +1143,7 @@ baseclass_addr (type, index, valaddr, valuep, errp)
      struct type *type;
      int index;
      char *valaddr;
-     value *valuep;
+     value_ptr *valuep;
      int *errp;
 {
   struct type *basetype = TYPE_BASECLASS (type, index);
@@ -1149,7 +1163,7 @@ baseclass_addr (type, index, valaddr, valuep, errp)
 	{
 	  if (vb_match (type, i, basetype))
 	    {
-	      value val = allocate_value (basetype);
+	      value_ptr val = allocate_value (basetype);
 	      CORE_ADDR addr;
 	      int status;
 
@@ -1299,12 +1313,12 @@ modify_field (addr, fieldval, bitpos, bitsize)
 
 /* Convert C numbers into newly allocated values */
 
-value
+value_ptr
 value_from_longest (type, num)
      struct type *type;
      register LONGEST num;
 {
-  register value val = allocate_value (type);
+  register value_ptr val = allocate_value (type);
   register enum type_code code = TYPE_CODE (type);
   register int len = TYPE_LENGTH (type);
 
@@ -1314,6 +1328,7 @@ value_from_longest (type, num)
     case TYPE_CODE_CHAR:
     case TYPE_CODE_ENUM:
     case TYPE_CODE_BOOL:
+    case TYPE_CODE_RANGE:
       store_signed_integer (VALUE_CONTENTS_RAW (val), len, num);
       break;
       
@@ -1330,30 +1345,21 @@ value_from_longest (type, num)
   return val;
 }
 
-value
+value_ptr
 value_from_double (type, num)
      struct type *type;
      double num;
 {
-  register value val = allocate_value (type);
+  register value_ptr val = allocate_value (type);
   register enum type_code code = TYPE_CODE (type);
   register int len = TYPE_LENGTH (type);
 
   if (code == TYPE_CODE_FLT)
     {
-      if (len == sizeof (float))
-	* (float *) VALUE_CONTENTS_RAW (val) = num;
-      else if (len == sizeof (double))
-	* (double *) VALUE_CONTENTS_RAW (val) = num;
-      else
-	error ("Floating type encountered with unexpected data length.");
+      store_floating (VALUE_CONTENTS_RAW (val), len, num);
     }
   else
     error ("Unexpected type encountered for floating constant.");
-
-  /* num was in host byte order.  So now put the value's contents
-     into target byte order.  */
-  SWAP_TARGET_AND_HOST (VALUE_CONTENTS_RAW (val), len);
 
   return val;
 }
@@ -1372,14 +1378,14 @@ value_from_double (type, num)
    0 when it is using the value returning conventions (this often
    means returning pointer to where structure is vs. returning value). */
 
-value
+value_ptr
 value_being_returned (valtype, retbuf, struct_return)
      register struct type *valtype;
      char retbuf[REGISTER_BYTES];
      int struct_return;
      /*ARGSUSED*/
 {
-  register value val;
+  register value_ptr val;
   CORE_ADDR addr;
 
 #if defined (EXTRACT_STRUCT_VALUE_ADDRESS)
@@ -1431,7 +1437,7 @@ value_being_returned (valtype, retbuf, struct_return)
 
 int
 using_struct_return (function, funcaddr, value_type, gcc_p)
-     value function;
+     value_ptr function;
      CORE_ADDR funcaddr;
      struct type *value_type;
      int gcc_p;
@@ -1456,7 +1462,7 @@ using_struct_return (function, funcaddr, value_type, gcc_p)
 
 void
 set_return_value (val)
-     value val;
+     value_ptr val;
 {
   register enum type_code code = TYPE_CODE (VALUE_TYPE (val));
   double dbuf;

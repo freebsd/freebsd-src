@@ -28,15 +28,15 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Prototypes for local functions */
 
 static void
-print_subexp PARAMS ((struct expression *, int *, FILE *, enum precedence));
+print_subexp PARAMS ((struct expression *, int *, GDB_FILE *, enum precedence));
 
 static void
-print_simple_m2_func PARAMS ((char *, struct expression *, int *, FILE *));
+print_simple_m2_func PARAMS ((char *, struct expression *, int *, GDB_FILE *));
 
 void
 print_expression (exp, stream)
      struct expression *exp;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   int pc = 0;
   print_subexp (exp, &pc, stream, PREC_NULL);
@@ -51,7 +51,7 @@ static void
 print_subexp (exp, pos, stream, prec)
      register struct expression *exp;
      register int *pos;
-     FILE *stream;
+     GDB_FILE *stream;
      enum precedence prec;
 {
   register unsigned tem;
@@ -64,7 +64,7 @@ print_subexp (exp, pos, stream, prec)
   enum precedence myprec = PREC_NULL;
   /* Set to 1 for a right-associative operator.  */
   int assoc = 0;
-  value val;
+  value_ptr val;
   char *tempstr = NULL;
 
   op_print_tab = exp->language_defn->la_op_print_tab;
@@ -340,23 +340,23 @@ print_subexp (exp, pos, stream, prec)
       (*pos) += 2;
       nargs = longest_to_int (exp->elts[pc + 1].longconst);
       print_subexp (exp, pos, stream, PREC_SUFFIX);
-      fprintf (stream, " [");
+      fprintf_unfiltered (stream, " [");
       for (tem = 0; tem < nargs; tem++)
 	{
 	  if (tem != 0)
-	    fprintf (stream, ", ");
+	    fprintf_unfiltered (stream, ", ");
 	  print_subexp (exp, pos, stream, PREC_ABOVE_COMMA);
 	}
-      fprintf (stream, "]");
+      fprintf_unfiltered (stream, "]");
       return;
 
     case BINOP_VAL:
       (*pos)+=2;
-      fprintf(stream,"VAL(");
+      fprintf_unfiltered(stream,"VAL(");
       type_print(exp->elts[pc+1].type,"",stream,0);
-      fprintf(stream,",");
+      fprintf_unfiltered(stream,",");
       print_subexp(exp,pos,stream,PREC_PREFIX);
-      fprintf(stream,")");
+      fprintf_unfiltered(stream,")");
       return;
 
     case UNOP_CAP:
@@ -466,11 +466,11 @@ print_simple_m2_func(s,exp,pos,stream)
    char *s;
    register struct expression *exp;
    register int *pos;
-   FILE *stream;
+   GDB_FILE *stream;
 {
-   fprintf(stream,"%s(",s);
+   fprintf_unfiltered(stream,"%s(",s);
    print_subexp(exp,pos,stream,PREC_PREFIX);
-   fprintf(stream,")");
+   fprintf_unfiltered(stream,")");
 }
    
 /* Return the operator corresponding to opcode OP as
@@ -498,7 +498,7 @@ op_string(op)
 void
 dump_expression (exp, stream, note)
      struct expression *exp;
-     FILE *stream;
+     GDB_FILE *stream;
      char *note;
 {
   int elt;
@@ -506,8 +506,9 @@ dump_expression (exp, stream, note)
   char *eltscan;
   int eltsize;
 
-  fprintf_filtered (stream, "Dump of expression @ 0x%lx, %s:\n",
-		    (unsigned long) exp, note);
+  fprintf_filtered (stream, "Dump of expression @ ");
+  gdb_print_address (exp, stream);
+  fprintf_filtered (stream, ", %s:\n", note);
   fprintf_filtered (stream, "\tLanguage %s, %d elements, %d bytes each.\n",
 		    exp->language_defn->la_name, exp -> nelts,
 		    sizeof (union exp_element));

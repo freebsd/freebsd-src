@@ -217,7 +217,7 @@ extern struct block * block_for_pc PARAMS ((CORE_ADDR));
 extern int frameless_look_for_prologue PARAMS ((FRAME));
 
 extern void print_frame_args PARAMS ((struct symbol *, struct frame_info *,
-				      int, FILE *));
+				      int, GDB_FILE *));
 
 extern FRAME find_relative_frame PARAMS ((FRAME, int*));
 
@@ -232,6 +232,8 @@ extern void print_frame_info PARAMS ((struct frame_info *, int, int, int));
 extern CORE_ADDR find_saved_register PARAMS ((FRAME, int));
 
 extern FRAME block_innermost_frame PARAMS ((struct block *));
+
+extern FRAME find_frame_addr_in_frame_chain PARAMS ((FRAME_ADDR));
 
 extern CORE_ADDR sigtramp_saved_pc PARAMS ((FRAME));
 

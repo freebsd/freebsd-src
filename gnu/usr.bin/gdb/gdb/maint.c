@@ -1,5 +1,5 @@
 /* Support for GDB maintenance commands.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
    Written by Fred Fish at Cygnus Support.
 
 This file is part of GDB.
@@ -30,6 +30,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "gdbtypes.h"
 #include "demangle.h"
 #include "gdbcore.h"
+#include "expression.h" /* For language.h */
+#include "language.h"
 
 static void
 maintenance_command PARAMS ((char *, int));
@@ -59,8 +61,8 @@ maintenance_command (args, from_tty)
      char *args;
      int from_tty;
 {
-  printf ("\"maintenance\" must be followed by the name of a maintenance command.\n");
-  help_list (maintenancelist, "maintenance ", -1, stdout);
+  printf_unfiltered ("\"maintenance\" must be followed by the name of a maintenance command.\n");
+  help_list (maintenancelist, "maintenance ", -1, gdb_stdout);
 }
 
 
@@ -94,19 +96,19 @@ maintenance_demangle (args, from_tty)
 
   if (args == NULL || *args == '\0')
     {
-      printf ("\"maintenance demangle\" takes an argument to demangle.\n");
+      printf_unfiltered ("\"maintenance demangle\" takes an argument to demangle.\n");
     }
   else
     {
       demangled = cplus_demangle (args, DMGL_ANSI | DMGL_PARAMS);
       if (demangled != NULL)
 	{
-	  printf ("%s\n", demangled);
+	  printf_unfiltered ("%s\n", demangled);
 	  free (demangled);
 	}
       else
 	{
-	  printf ("Can't demangle \"%s\"\n", args);
+	  printf_unfiltered ("Can't demangle \"%s\"\n", args);
 	}
     }
 }
@@ -121,8 +123,8 @@ maintenance_info_command (arg, from_tty)
      char *arg;
      int from_tty;
 {
-  printf ("\"maintenance info\" must be followed by the name of an info command.\n");
-  help_list (maintenanceinfolist, "maintenance info ", -1, stdout);
+  printf_unfiltered ("\"maintenance info\" must be followed by the name of an info command.\n");
+  help_list (maintenanceinfolist, "maintenance info ", -1, gdb_stdout);
 }
 
 static void
@@ -135,6 +137,7 @@ print_section_table (abfd, asect, ignore)
 
   flags = bfd_get_section_flags (abfd, asect);
 
+  /* FIXME-32x64: Need print_address_numeric with field width.  */
   printf_filtered ("    %s",
 		   local_hex_string_custom
 		     ((unsigned long) bfd_section_vma (abfd, asect), "08l"));
@@ -168,8 +171,8 @@ print_section_table (abfd, asect, ignore)
     printf_filtered (" HAS_CONTENTS");
   if (flags & SEC_NEVER_LOAD)
     printf_filtered (" NEVER_LOAD");
-  if (flags & SEC_SHARED_LIBRARY)
-    printf_filtered (" SHARED_LIBRARY");
+  if (flags & SEC_COFF_SHARED_LIBRARY)
+    printf_filtered (" COFF_SHARED_LIBRARY");
   if (flags & SEC_IS_COMMON)
     printf_filtered (" IS_COMMON");
 
@@ -211,31 +214,16 @@ maintenance_print_command (arg, from_tty)
      char *arg;
      int from_tty;
 {
-  printf ("\"maintenance print\" must be followed by the name of a print command.\n");
-  help_list (maintenanceprintlist, "maintenance print ", -1, stdout);
+  printf_unfiltered ("\"maintenance print\" must be followed by the name of a print command.\n");
+  help_list (maintenanceprintlist, "maintenance print ", -1, gdb_stdout);
 }
 
-/*
-
-GLOBAL FUNCTION
-
-	_initialize_maint_cmds -- initialize the process file system stuff
-
-SYNOPSIS
-
-	void _initialize_maint_cmds (void)
-
-DESCRIPTION
-
-	Do required initializations during gdb startup for using the
-	/proc file system interface.
-
-*/
-
+#endif	/* MAINTENANCE_CMDS */
 
 void
 _initialize_maint_cmds ()
 {
+#if MAINTENANCE_CMDS	/* Entire file goes away if not including maint cmds */
   add_prefix_cmd ("maintenance", class_maintenance, maintenance_command,
 		  "Commands for use by GDB maintainers.\n\
 Includes commands to dump specific internal GDB structures in\n\
@@ -300,6 +288,8 @@ If a SOURCE file is specified, dump only that file's partial symbols.",
 	   "Print dump of current object file definitions.",
 	   &maintenanceprintlist);
 
-}
-
+  add_cmd ("check-symtabs", class_maintenance, maintenance_check_symtabs,
+	   "Check consistency of psymtabs and symtabs.",
+	   &maintenancelist);
 #endif	/* MAINTENANCE_CMDS */
+}

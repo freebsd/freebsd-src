@@ -36,9 +36,10 @@ struct external_exec
 #define OMAGIC 0407		/* ...object file or impure executable.  */
 #define NMAGIC 0410		/* Code indicating pure executable.  */
 #define ZMAGIC 0413		/* Code indicating demand-paged executable.  */
+#define BMAGIC 0415		/* Used by a b.out object.  */
 
 /* This indicates a demand-paged executable with the header in the text.
-   As far as I know it is only used by 386BSD and/or BSDI.  */
+   It is used by 386BSD (and variants) and Linux, at least.  */
 #define QMAGIC 0314
 # ifndef N_BADMAG
 #  define N_BADMAG(x)	  (N_MAGIC(x) != OMAGIC		\
@@ -57,7 +58,7 @@ struct external_exec
 #endif
 
 /* The difference between PAGE_SIZE and N_SEGSIZE is that PAGE_SIZE is
-   the the finest granularity at which you can page something, thus it
+   the finest granularity at which you can page something, thus it
    controls the padding (if any) before the text segment of a ZMAGIC
    file.  N_SEGSIZE is the resolution at which things can be marked as
    read-only versus read/write, so it controls the padding between the
@@ -121,6 +122,11 @@ struct external_exec
 #define N_SHARED_LIB(x) ((x).a_entry < TEXT_START_ADDR)
 #endif
 
+/* Returning 0 not TEXT_START_ADDR for OMAGIC and NMAGIC is based on
+   the assumption that we are dealing with a .o file, not an
+   executable.  This is necessary for OMAGIC (but means we don't work
+   right on the output from ld -N); more questionable for NMAGIC.  */
+
 #ifndef N_TXTADDR
 #define N_TXTADDR(x) \
     (/* The address of a QMAGIC file is always one page in, */ \
@@ -134,6 +140,19 @@ struct external_exec
     )
 #endif
 
+/* If N_HEADER_IN_TEXT is not true for ZMAGIC, there is some padding
+   to make the text segment start at a certain boundary.  For most
+   systems, this boundary is PAGE_SIZE.  But for Linux, in the
+   time-honored tradition of crazy ZMAGIC hacks, it is 1024 which is
+   not what PAGE_SIZE needs to be for QMAGIC.  */
+
+#ifndef ZMAGIC_DISK_BLOCK_SIZE
+#define ZMAGIC_DISK_BLOCK_SIZE PAGE_SIZE
+#endif
+
+#define N_DISK_BLOCK_SIZE(x) \
+  (N_MAGIC(x) == ZMAGIC ? ZMAGIC_DISK_BLOCK_SIZE : PAGE_SIZE)
+
 /* Offset in an a.out of the start of the text section. */
 #ifndef N_TXTOFF
 #define N_TXTOFF(x)	\
@@ -142,7 +161,7 @@ struct external_exec
      N_SHARED_LIB(x) ? 0 : \
      N_HEADER_IN_TEXT(x) ?	\
 	    EXEC_BYTES_SIZE :			/* no padding */\
-	    PAGE_SIZE				/* a page of padding */\
+	    ZMAGIC_DISK_BLOCK_SIZE		/* a page of padding */\
     )
 #endif
 /* Size of the text section.  It's always as stated, except that we
@@ -174,15 +193,21 @@ struct external_exec
 
 /* Offsets of the various portions of the file after the text segment.  */
 
-/* For {N,Q,Z}MAGIC, there is padding to make the data segment start
-   on a page boundary.  Most of the time the a_text field (and thus
-   N_TXTSIZE) already contains this padding.  But if it doesn't (I
-   think maybe this happens on BSDI and/or 386BSD), then add it.  */
+/* For {Q,Z}MAGIC, there is padding to make the data segment start on
+   a page boundary.  Most of the time the a_text field (and thus
+   N_TXTSIZE) already contains this padding.  It is possible that for
+   BSDI and/or 386BSD it sometimes doesn't contain the padding, and
+   perhaps we should be adding it here.  But this seems kind of
+   questionable and probably should be BSDI/386BSD-specific if we do
+   do it.
+
+   For NMAGIC (at least for hp300 BSD, probably others), there is
+   padding in memory only, not on disk, so we must *not* ever pad here
+   for NMAGIC.  */
 
 #ifndef N_DATOFF
 #define N_DATOFF(x) \
- (N_MAGIC(x) == OMAGIC ? N_TXTOFF(x) + N_TXTSIZE(x) : \
-  PAGE_SIZE + ((N_TXTOFF(x) + N_TXTSIZE(x) - 1) & ~(PAGE_SIZE - 1)))
+ (N_TXTOFF(x) + N_TXTSIZE(x))
 #endif
 
 #ifndef N_TRELOFF
@@ -263,6 +288,17 @@ struct internal_nlist {
 
 #define	N_WARNING 0x1e
 
+/* Weak symbols.  These are a GNU extension to the a.out format.  The
+   semantics are those of ELF weak symbols.  Weak symbols are always
+   externally visible.  The N_WEAK? values are squeezed into the
+   available slots.  The value of a N_WEAKU symbol is 0.  The values
+   of the other types are the definitions.  */
+#define N_WEAKU	0x0d		/* Weak undefined symbol.  */
+#define N_WEAKA 0x0e		/* Weak absolute symbol.  */
+#define N_WEAKT 0x0f		/* Weak text symbol.  */
+#define N_WEAKD 0x10		/* Weak data symbol.  */
+#define N_WEAKB 0x11		/* Weak bss symbol.  */
+
 /* Relocations 
 
   There	are two types of relocation flavours for a.out systems,
@@ -286,25 +322,25 @@ struct reloc_std_external {
   bfd_byte r_type[1];	/* relocation type			*/
 };
 
-#define	RELOC_STD_BITS_PCREL_BIG	0x80
-#define	RELOC_STD_BITS_PCREL_LITTLE	0x01
+#define	RELOC_STD_BITS_PCREL_BIG	((unsigned int) 0x80)
+#define	RELOC_STD_BITS_PCREL_LITTLE	((unsigned int) 0x01)
 
-#define	RELOC_STD_BITS_LENGTH_BIG	0x60
-#define	RELOC_STD_BITS_LENGTH_SH_BIG	5	/* To shift to units place */
-#define	RELOC_STD_BITS_LENGTH_LITTLE	0x06
+#define	RELOC_STD_BITS_LENGTH_BIG	((unsigned int) 0x60)
+#define	RELOC_STD_BITS_LENGTH_SH_BIG	5
+#define	RELOC_STD_BITS_LENGTH_LITTLE	((unsigned int) 0x06)
 #define	RELOC_STD_BITS_LENGTH_SH_LITTLE	1
 
-#define	RELOC_STD_BITS_EXTERN_BIG	0x10
-#define	RELOC_STD_BITS_EXTERN_LITTLE	0x08
+#define	RELOC_STD_BITS_EXTERN_BIG	((unsigned int) 0x10)
+#define	RELOC_STD_BITS_EXTERN_LITTLE	((unsigned int) 0x08)
 
-#define	RELOC_STD_BITS_BASEREL_BIG	0x08
-#define	RELOC_STD_BITS_BASEREL_LITTLE	0x08
+#define	RELOC_STD_BITS_BASEREL_BIG	((unsigned int) 0x08)
+#define	RELOC_STD_BITS_BASEREL_LITTLE	((unsigned int) 0x10)
 
-#define	RELOC_STD_BITS_JMPTABLE_BIG	0x04
-#define	RELOC_STD_BITS_JMPTABLE_LITTLE	0x04
+#define	RELOC_STD_BITS_JMPTABLE_BIG	((unsigned int) 0x04)
+#define	RELOC_STD_BITS_JMPTABLE_LITTLE	((unsigned int) 0x20)
 
-#define	RELOC_STD_BITS_RELATIVE_BIG	0x02
-#define	RELOC_STD_BITS_RELATIVE_LITTLE	0x02
+#define	RELOC_STD_BITS_RELATIVE_BIG	((unsigned int) 0x02)
+#define	RELOC_STD_BITS_RELATIVE_LITTLE	((unsigned int) 0x40)
 
 #define	RELOC_STD_SIZE	(BYTES_IN_WORD + 3 + 1)		/* Bytes per relocation entry */
 
@@ -346,12 +382,12 @@ struct reloc_ext_external {
   bfd_byte r_addend[BYTES_IN_WORD];	/* datum addend				*/
 };
 
-#define	RELOC_EXT_BITS_EXTERN_BIG	0x80
-#define	RELOC_EXT_BITS_EXTERN_LITTLE	0x01
+#define	RELOC_EXT_BITS_EXTERN_BIG	((unsigned int) 0x80)
+#define	RELOC_EXT_BITS_EXTERN_LITTLE	((unsigned int) 0x01)
 
-#define	RELOC_EXT_BITS_TYPE_BIG		0x1F
+#define	RELOC_EXT_BITS_TYPE_BIG		((unsigned int) 0x1F)
 #define	RELOC_EXT_BITS_TYPE_SH_BIG	0
-#define	RELOC_EXT_BITS_TYPE_LITTLE	0xF8
+#define	RELOC_EXT_BITS_TYPE_LITTLE	((unsigned int) 0xF8)
 #define	RELOC_EXT_BITS_TYPE_SH_LITTLE	3
 
 /* Bytes per relocation entry */
@@ -402,7 +438,13 @@ enum reloc_type
   RELOC_CONST,
   RELOC_CONSTH,
   
+  /* All the new ones I can think of, for sparc v9 */
 
+  RELOC_64,			/* data[0:63] = addend + sv 		*/
+  RELOC_DISP64,			/* data[0:63] = addend - pc + sv 	*/
+  RELOC_WDISP21,		/* data[0:20] = (addend + sv - pc)>>2 	*/
+  RELOC_DISP21,			/* data[0:20] = addend - pc + sv        */
+  RELOC_DISP14,			/* data[0:13] = addend - pc + sv 	*/
   /* Q .
      What are the other ones,
      Since this is a clean slate, can we throw away the ones we dont

@@ -39,6 +39,9 @@ BUGS
 */
 
 
+#include "ansidecl.h"
+#include "libiberty.h"
+
 char *
 basename (name)
   char *name;

@@ -68,7 +68,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Offset to saved PC in sigcontext, from <sys/signal.h>.  */
 #define SIGCONTEXT_PC_OFFSET 20
 
-#undef FRAME_SAVED_PC(FRAME)
+#undef FRAME_SAVED_PC
 #define FRAME_SAVED_PC(FRAME) \
   (((FRAME)->signal_handler_caller \
     ? sigtramp_saved_pc (FRAME) \

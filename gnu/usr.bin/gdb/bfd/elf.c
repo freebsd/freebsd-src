@@ -33,6 +33,7 @@ SECTION
 
 #include "bfd.h"
 #include "sysdep.h"
+#include "bfdlink.h"
 #include "libbfd.h"
 #define ARCH_SIZE 0
 #include "libelf.h"
@@ -41,8 +42,8 @@ SECTION
    cause invalid hash tables to be generated.  (Well, you would if this
    were being used yet.)  */
 unsigned long
-DEFUN (bfd_elf_hash, (name),
-       CONST unsigned char *name)
+bfd_elf_hash (name)
+     CONST unsigned char *name;
 {
   unsigned long h = 0;
   unsigned long g;
@@ -65,33 +66,32 @@ DEFUN (bfd_elf_hash, (name),
    buffer. */
 
 static char *
-DEFUN (elf_read, (abfd, offset, size),
-       bfd * abfd AND
-       long offset AND
-       int size)
+elf_read (abfd, offset, size)
+     bfd * abfd;
+     long offset;
+     int size;
 {
   char *buf;
 
   if ((buf = bfd_alloc (abfd, size)) == NULL)
     {
-      bfd_error = no_memory;
+      bfd_set_error (bfd_error_no_memory);
       return NULL;
     }
   if (bfd_seek (abfd, offset, SEEK_SET) == -1)
-    {
-      bfd_error = system_call_error;
-      return NULL;
-    }
+    return NULL;
   if (bfd_read ((PTR) buf, size, 1, abfd) != size)
     {
-      bfd_error = system_call_error;
+      if (bfd_get_error () != bfd_error_system_call)
+	bfd_set_error (bfd_error_file_truncated);
       return NULL;
     }
   return buf;
 }
 
 boolean
-DEFUN (elf_mkobject, (abfd), bfd * abfd)
+elf_mkobject (abfd)
+     bfd * abfd;
 {
   /* this just does initialization */
   /* coff_mkobject zalloc's space for tdata.coff_obj_data ... */
@@ -99,7 +99,7 @@ DEFUN (elf_mkobject, (abfd), bfd * abfd)
     bfd_zalloc (abfd, sizeof (struct elf_obj_tdata));
   if (elf_tdata (abfd) == 0)
     {
-      bfd_error = no_memory;
+      bfd_set_error (bfd_error_no_memory);
       return false;
     }
   /* since everything is done at close time, do we need any
@@ -109,9 +109,9 @@ DEFUN (elf_mkobject, (abfd), bfd * abfd)
 }
 
 char *
-DEFUN (elf_get_str_section, (abfd, shindex),
-       bfd * abfd AND
-       unsigned int shindex)
+elf_get_str_section (abfd, shindex)
+     bfd * abfd;
+     unsigned int shindex;
 {
   Elf_Internal_Shdr **i_shdrp;
   char *shstrtab = NULL;
@@ -135,10 +135,10 @@ DEFUN (elf_get_str_section, (abfd, shindex),
 }
 
 char *
-DEFUN (elf_string_from_elf_section, (abfd, shindex, strindex),
-       bfd * abfd AND
-       unsigned int shindex AND
-       unsigned int strindex)
+elf_string_from_elf_section (abfd, shindex, strindex)
+     bfd * abfd;
+     unsigned int shindex;
+     unsigned int strindex;
 {
   Elf_Internal_Shdr *hdr;
 
@@ -152,6 +152,68 @@ DEFUN (elf_string_from_elf_section, (abfd, shindex, strindex),
     return NULL;
 
   return ((char *) hdr->rawdata) + strindex;
+}
+
+/* Make a BFD section from an ELF section.  We store a pointer to the
+   BFD section in the rawdata field of the header.  */
+
+boolean
+_bfd_elf_make_section_from_shdr (abfd, hdr, name)
+     bfd *abfd;
+     Elf_Internal_Shdr *hdr;
+     const char *name;
+{
+  asection *newsect;
+  flagword flags;
+
+  if (hdr->rawdata != NULL)
+    {
+      BFD_ASSERT (strcmp (name, ((asection *) hdr->rawdata)->name) == 0);
+      return true;
+    }
+
+  newsect = bfd_make_section_anyway (abfd, name);
+  if (newsect == NULL)
+    return false;
+
+  newsect->filepos = hdr->sh_offset;
+
+  if (! bfd_set_section_vma (abfd, newsect, hdr->sh_addr)
+      || ! bfd_set_section_size (abfd, newsect, hdr->sh_size)
+      || ! bfd_set_section_alignment (abfd, newsect,
+				      bfd_log2 (hdr->sh_addralign)))
+    return false;
+
+  flags = SEC_NO_FLAGS;
+  if (hdr->sh_type != SHT_NOBITS)
+    flags |= SEC_HAS_CONTENTS;
+  if ((hdr->sh_flags & SHF_ALLOC) != 0)
+    {
+      flags |= SEC_ALLOC;
+      if (hdr->sh_type != SHT_NOBITS)
+	flags |= SEC_LOAD;
+    }
+  if ((hdr->sh_flags & SHF_WRITE) == 0)
+    flags |= SEC_READONLY;
+  if ((hdr->sh_flags & SHF_EXECINSTR) != 0)
+    flags |= SEC_CODE;
+  else if ((flags & SEC_LOAD) != 0)
+    flags |= SEC_DATA;
+
+  /* The debugging sections appear to be recognized only by name, not
+     any sort of flag.  */
+  if (strncmp (name, ".debug", sizeof ".debug" - 1) == 0
+      || strncmp (name, ".line", sizeof ".line" - 1) == 0
+      || strncmp (name, ".stab", sizeof ".stab" - 1) == 0)
+    flags |= SEC_DEBUGGING;
+
+  if (! bfd_set_section_flags (abfd, newsect, flags))
+    return false;
+
+  hdr->rawdata = (PTR) newsect;
+  elf_section_data (newsect)->this_hdr = *hdr;
+
+  return true;
 }
 
 /*
@@ -170,9 +232,9 @@ DESCRIPTION
 */
 
 struct elf_internal_shdr *
-DEFUN (bfd_elf_find_section, (abfd, name),
-       bfd * abfd AND
-       char *name)
+bfd_elf_find_section (abfd, name)
+     bfd * abfd;
+     char *name;
 {
   Elf_Internal_Shdr **i_shdrp;
   char *shstrtab;
@@ -194,18 +256,6 @@ DEFUN (bfd_elf_find_section, (abfd, name),
   return 0;
 }
 
-const struct bfd_elf_arch_map bfd_elf_arch_map[] = {
-  { bfd_arch_sparc, EM_SPARC },
-  { bfd_arch_i386, EM_386 },
-  { bfd_arch_m68k, EM_68K },
-  { bfd_arch_m88k, EM_88K },
-  { bfd_arch_i860, EM_860 },
-  { bfd_arch_mips, EM_MIPS },
-  { bfd_arch_hppa, EM_HPPA },
-};
-
-const int bfd_elf_arch_map_size = sizeof (bfd_elf_arch_map) / sizeof (bfd_elf_arch_map[0]);
-
 const char *const bfd_elf_section_type_names[] = {
   "SHT_NULL", "SHT_PROGBITS", "SHT_SYMTAB", "SHT_STRTAB",
   "SHT_RELA", "SHT_HASH", "SHT_DYNAMIC", "SHT_NOTE",
@@ -222,27 +272,126 @@ const char *const bfd_elf_section_type_names[] = {
    function.  It just short circuits the reloc if producing
    relocateable output against an external symbol.  */
 
+/*ARGSUSED*/
 bfd_reloc_status_type
 bfd_elf_generic_reloc (abfd,
 		       reloc_entry,
 		       symbol,
 		       data,
 		       input_section,
-		       output_bfd)
+		       output_bfd,
+		       error_message)
      bfd *abfd;
      arelent *reloc_entry;
      asymbol *symbol;
      PTR data;
      asection *input_section;
      bfd *output_bfd;
+     char **error_message;
 {
   if (output_bfd != (bfd *) NULL
       && (symbol->flags & BSF_SECTION_SYM) == 0
-      && reloc_entry->addend == 0)
+      && (! reloc_entry->howto->partial_inplace
+	  || reloc_entry->addend == 0))
     {
       reloc_entry->address += input_section->output_offset;
       return bfd_reloc_ok;
     }
 
   return bfd_reloc_continue;
+}
+
+/* Create an entry in an ELF linker hash table.  */
+
+struct bfd_hash_entry *
+_bfd_elf_link_hash_newfunc (entry, table, string)
+     struct bfd_hash_entry *entry;
+     struct bfd_hash_table *table;
+     const char *string;
+{
+  struct elf_link_hash_entry *ret = (struct elf_link_hash_entry *) entry;
+
+  /* Allocate the structure if it has not already been allocated by a
+     subclass.  */
+  if (ret == (struct elf_link_hash_entry *) NULL)
+    ret = ((struct elf_link_hash_entry *)
+	   bfd_hash_allocate (table, sizeof (struct elf_link_hash_entry)));
+  if (ret == (struct elf_link_hash_entry *) NULL)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return (struct bfd_hash_entry *) ret;
+    }
+
+  /* Call the allocation method of the superclass.  */
+  ret = ((struct elf_link_hash_entry *)
+	 _bfd_link_hash_newfunc ((struct bfd_hash_entry *) ret,
+				 table, string));
+  if (ret != (struct elf_link_hash_entry *) NULL)
+    {
+      /* Set local fields.  */
+      ret->indx = -1;
+      ret->size = 0;
+      ret->align = 0;
+      ret->dynindx = -1;
+      ret->dynstr_index = 0;
+      ret->weakdef = NULL;
+      ret->type = STT_NOTYPE;
+      ret->elf_link_hash_flags = 0;
+    }
+
+  return (struct bfd_hash_entry *) ret;
+}
+
+/* Initialize an ELF linker hash table.  */
+
+boolean
+_bfd_elf_link_hash_table_init (table, abfd, newfunc)
+     struct elf_link_hash_table *table;
+     bfd *abfd;
+     struct bfd_hash_entry *(*newfunc) PARAMS ((struct bfd_hash_entry *,
+						struct bfd_hash_table *,
+						const char *));
+{
+  table->dynobj = NULL;
+  table->dynsymcount = 0;
+  table->dynstr = NULL;
+  table->bucketcount = 0;
+  return _bfd_link_hash_table_init (&table->root, abfd, newfunc);
+}
+
+/* Create an ELF linker hash table.  */
+
+struct bfd_link_hash_table *
+_bfd_elf_link_hash_table_create (abfd)
+     bfd *abfd;
+{
+  struct elf_link_hash_table *ret;
+
+  ret = ((struct elf_link_hash_table *)
+	 bfd_alloc (abfd, sizeof (struct elf_link_hash_table)));
+  if (ret == (struct elf_link_hash_table *) NULL)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
+
+  if (! _bfd_elf_link_hash_table_init (ret, abfd, _bfd_elf_link_hash_newfunc))
+    {
+      bfd_release (abfd, ret);
+      return NULL;
+    }
+
+  return &ret->root;
+}
+
+/* This is a hook for the ELF emulation code in the generic linker to
+   tell the backend linker what file name to use for the DT_NEEDED
+   entry for a dynamic object.  */
+
+void
+bfd_elf_set_dt_needed_name (abfd, name)
+     bfd *abfd;
+     const char *name;
+{
+  elf_dt_needed_name (abfd) = name;
 }

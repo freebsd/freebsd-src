@@ -27,12 +27,16 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "ansidecl.h"
 
-/* An address in the program being debugged.  Host byte order.  */
-#ifndef CORE_ADDR_TYPE
-typedef unsigned int CORE_ADDR;
-#else
-typedef CORE_ADDR_TYPE CORE_ADDR;
-#endif
+/* For BFD64 and bfd_vma.  */
+#include "bfd.h"
+
+/* An address in the program being debugged.  Host byte order.  Rather
+   than duplicate all the logic in BFD which figures out what type
+   this is (long, long long, etc.) and whether it needs to be 64
+   bits (the host/target interactions are subtle), we just use
+   bfd_vma.  */
+
+typedef bfd_vma CORE_ADDR;
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -88,7 +92,8 @@ enum language
    language_c, 			/* C */
    language_cplus, 		/* C++ */
    language_chill,		/* Chill */
-   language_m2			/* Modula-2 */
+   language_m2,			/* Modula-2 */
+   language_asm			/* Assembly language */
 };
 
 /* the cleanup list records things that have to be undone
@@ -211,7 +216,11 @@ myread PARAMS ((int, char *, int));
 
 extern int
 query ();
+
+/* Annotation stuff.  */
 
+extern int annotation_level; /* in stack.c */
+
 extern void
 begin_line PARAMS ((void));
 
@@ -221,14 +230,38 @@ wrap_here PARAMS ((char *));
 extern void
 reinitialize_more_filter PARAMS ((void));
 
+typedef FILE GDB_FILE;
+#define gdb_stdout stdout
+#define gdb_stderr stderr
+
 extern int
-print_insn PARAMS ((CORE_ADDR, FILE *));
+print_insn PARAMS ((CORE_ADDR, GDB_FILE *));
 
 extern void
-fputs_filtered PARAMS ((const char *, FILE *));
+gdb_flush PARAMS ((GDB_FILE *));
+
+extern GDB_FILE *
+gdb_fopen PARAMS ((char * name, char * mode));
+
+extern void
+fputs_filtered PARAMS ((const char *, GDB_FILE *));
+
+extern void
+fputs_unfiltered PARAMS ((const char *, GDB_FILE *));
+
+extern void
+fputc_unfiltered PARAMS ((int, GDB_FILE *));
+
+extern void
+putc_unfiltered PARAMS ((int));
+
+#define putchar_unfiltered(C)  putc_unfiltered(C)
 
 extern void
 puts_filtered PARAMS ((char *));
+
+extern void
+puts_unfiltered PARAMS ((char *));
 
 extern void
 vprintf_filtered ();
@@ -249,19 +282,34 @@ extern void
 printfi_filtered ();
 
 extern void
-print_spaces PARAMS ((int, FILE *));
+vprintf_unfiltered ();
 
 extern void
-print_spaces_filtered PARAMS ((int, FILE *));
+vfprintf_unfiltered ();
+
+extern void
+fprintf_unfiltered ();
+
+extern void
+printf_unfiltered ();
+
+extern void
+print_spaces PARAMS ((int, GDB_FILE *));
+
+extern void
+print_spaces_filtered PARAMS ((int, GDB_FILE *));
 
 extern char *
 n_spaces PARAMS ((int));
 
 extern void
-gdb_printchar PARAMS ((int, FILE *, int));
+gdb_printchar PARAMS ((int, GDB_FILE *, int));
+
+/* Print a host address.  */
+extern void gdb_print_address PARAMS ((void *, GDB_FILE *));
 
 extern void
-fprintf_symbol_filtered PARAMS ((FILE *, char *, enum language, int));
+fprintf_symbol_filtered PARAMS ((GDB_FILE *, char *, enum language, int));
 
 extern void
 perror_with_name PARAMS ((char *));
@@ -290,13 +338,10 @@ extern char *
 gdb_readline PARAMS ((char *));
 
 extern char *
-command_line_input PARAMS ((char *, int));
+command_line_input PARAMS ((char *, int, char *));
 
 extern void
 print_prompt PARAMS ((void));
-
-extern int
-batch_mode PARAMS ((void));
 
 extern int
 input_from_terminal_p PARAMS ((void));
@@ -307,10 +352,13 @@ extern void
 set_next_address PARAMS ((CORE_ADDR));
 
 extern void
-print_address_symbolic PARAMS ((CORE_ADDR, FILE *, int, char *));
+print_address_symbolic PARAMS ((CORE_ADDR, GDB_FILE *, int, char *));
 
 extern void
-print_address PARAMS ((CORE_ADDR, FILE *));
+print_address_numeric PARAMS ((CORE_ADDR, int, GDB_FILE *));
+
+extern void
+print_address PARAMS ((CORE_ADDR, GDB_FILE *));
 
 /* From source.c */
 
@@ -383,6 +431,10 @@ enum val_prettyprint
    nm-*.h files, built by the `configure' script.  */
 
 #include "nm.h"
+
+#ifdef KERNEL_DEBUG
+extern int kernel_debugging;
+#endif
 
 /* If the xm.h file did not define the mode string used to open the
    files, assume that binary files are opened the same way as text
@@ -466,80 +518,32 @@ enum val_prettyprint
 #define	LONG_MAX ((long)(ULONG_MAX >> 1))	/* 0x7FFFFFFF for 32-bits */
 #endif
 
-/* Number of bits in a char or unsigned char for the target machine.
-   Just like CHAR_BIT in <limits.h> but describes the target machine.  */
-#if !defined (TARGET_CHAR_BIT)
-#define TARGET_CHAR_BIT 8
-#endif
+#ifdef BFD64
 
-/* Number of bits in a short or unsigned short for the target machine. */
-#if !defined (TARGET_SHORT_BIT)
-#define TARGET_SHORT_BIT (2 * TARGET_CHAR_BIT)
-#endif
+/* This is to make sure that LONGEST is at least as big as CORE_ADDR.  */
 
-/* Number of bits in an int or unsigned int for the target machine. */
-#if !defined (TARGET_INT_BIT)
-#define TARGET_INT_BIT (4 * TARGET_CHAR_BIT)
-#endif
+#define LONGEST BFD_HOST_64_BIT
 
-/* Number of bits in a long or unsigned long for the target machine. */
-#if !defined (TARGET_LONG_BIT)
-#define TARGET_LONG_BIT (4 * TARGET_CHAR_BIT)
-#endif
+#else /* No BFD64 */
 
-/* Number of bits in a long long or unsigned long long for the target machine. */
-#if !defined (TARGET_LONG_LONG_BIT)
-#define TARGET_LONG_LONG_BIT (2 * TARGET_LONG_BIT)
-#endif
+/* If all compilers for this host support "long long" and we want to
+   use it for LONGEST (the performance hit is about 10% on a testsuite
+   run based on one DECstation test), then the xm.h file can define
+   CC_HAS_LONG_LONG.
 
-/* Number of bits in a float for the target machine. */
-#if !defined (TARGET_FLOAT_BIT)
-#define TARGET_FLOAT_BIT (4 * TARGET_CHAR_BIT)
-#endif
-
-/* Number of bits in a double for the target machine. */
-#if !defined (TARGET_DOUBLE_BIT)
-#define TARGET_DOUBLE_BIT (8 * TARGET_CHAR_BIT)
-#endif
-
-/* Number of bits in a long double for the target machine.  */
-#if !defined (TARGET_LONG_DOUBLE_BIT)
-#define TARGET_LONG_DOUBLE_BIT (2 * TARGET_DOUBLE_BIT)
-#endif
-
-/* Number of bits in a "complex" for the target machine. */
-#if !defined (TARGET_COMPLEX_BIT)
-#define TARGET_COMPLEX_BIT (2 * TARGET_FLOAT_BIT)
-#endif
-
-/* Number of bits in a "double complex" for the target machine. */
-#if !defined (TARGET_DOUBLE_COMPLEX_BIT)
-#define TARGET_DOUBLE_COMPLEX_BIT (2 * TARGET_DOUBLE_BIT)
-#endif
-
-/* Number of bits in a pointer for the target machine */
-#if !defined (TARGET_PTR_BIT)
-#define TARGET_PTR_BIT TARGET_INT_BIT
-#endif
-
-/* Default to support for "long long" if the host compiler being used is gcc.
-   Config files must define CC_HAS_LONG_LONG to use other host compilers
-   that are capable of supporting "long long", and to cause gdb to use that
-   support.  Not defining CC_HAS_LONG_LONG will suppress use of "long long"
-   regardless of what compiler is used.
-
-   FIXME: For now, automatic selection of "long long" as the default when
-   gcc is used is disabled, pending further testing.  Concerns include the
-   impact on gdb performance and the universality of bugfree long long
-   support on platforms that do have gcc.  Compiling with FORCE_LONG_LONG
-   will select "long long" use for testing purposes.  -fnf */
+   Using GCC 1.39 on BSDI with long long causes about 700 new
+   testsuite failures.  Using long long for LONGEST on the DECstation
+   causes 3 new FAILs in the testsuite and many heuristic fencepost
+   warnings.  These are not investigated, but a first guess would be
+   that the BSDI problems are GCC bugs in long long support and the
+   latter are GDB bugs.  */
 
 #ifndef CC_HAS_LONG_LONG
-#  if defined (__GNUC__) && defined (FORCE_LONG_LONG) /* See FIXME above */
+#  if defined (__GNUC__) && defined (FORCE_LONG_LONG)
 #    define CC_HAS_LONG_LONG 1
 #  endif
 #endif
-	
+
 /* LONGEST should not be a typedef, because "unsigned LONGEST" needs to work.
    CC_HAS_LONG_LONG is defined if the host compiler supports "long long"
    variables and we wish to make use of that support.  */
@@ -552,30 +556,13 @@ enum val_prettyprint
 #  endif
 #endif
 
+#endif /* No BFD64 */
+
 /* Convert a LONGEST to an int.  This is used in contexts (e.g. number of
    arguments to a function, number in a value history, register number, etc.)
    where the value must not be larger than can fit in an int.  */
 
-#ifndef longest_to_int
-#  ifdef CC_HAS_LONG_LONG
-#    define longest_to_int(x) (((x) > INT_MAX || (x) < INT_MIN) \
-			       ? (error ("Value out of range."),0) : (int) (x))
-#  else
-     /* Assume sizeof (int) == sizeof (long).  */
-#    define longest_to_int(x) ((int) (x))
-#  endif
-#endif
-
-/* If we picked up a copy of CHAR_BIT from a configuration file
-   (which may get it by including <limits.h>) then use it to set
-   the number of bits in a host char.  If not, use the same size
-   as the target. */
-
-#if defined (CHAR_BIT)
-#define HOST_CHAR_BIT CHAR_BIT
-#else
-#define HOST_CHAR_BIT TARGET_CHAR_BIT
-#endif
+extern int longest_to_int PARAMS ((LONGEST));
 
 /* Assorted functions we can declare, now that const and volatile are 
    defined.  */
@@ -627,8 +614,18 @@ parse_escape PARAMS ((char **));
 
 extern const char * const reg_names[];
 
+/* Message to be printed before the error message, when an error occurs.  */
+
+extern char *error_pre_print;
+
+/* Message to be printed before the warning message, when a warning occurs.  */
+
+extern char *warning_pre_print;
+
 extern NORETURN void			/* Does not return to the caller.  */
 error ();
+
+extern void error_begin PARAMS ((void));
 
 extern NORETURN void			/* Does not return to the caller.  */
 fatal ();
@@ -723,7 +720,7 @@ psignal PARAMS ((unsigned, const char *));
 #endif
 
 extern int
-fclose PARAMS ((FILE *stream));				/* 4.9.5.1 */
+fclose PARAMS ((GDB_FILE *stream));				/* 4.9.5.1 */
 
 extern void
 perror PARAMS ((const char *));				/* 4.9.10.4 */
@@ -750,7 +747,7 @@ free PARAMS ((void *));					/* 4.10.3.2 */
 extern void
 qsort PARAMS ((void *base, size_t nmemb,		/* 4.10.5.2 */
 	       size_t size,
-	       int (*comp)(const void *, const void *)));
+	       int (*compar)(const void *, const void *)));
 
 #ifndef	MEM_FNS_DECLARED	/* Some non-ANSI use void *, not char *.  */
 extern PTR
@@ -784,17 +781,21 @@ strerror PARAMS ((int));				/* 4.11.6.2 */
 #ifndef alloca
 # ifdef __GNUC__
 #  define alloca __builtin_alloca
-# else
+# else /* Not GNU C */
 #  ifdef sparc
 #   include <alloca.h>		/* NOTE:  Doesn't declare alloca() */
 #  endif
-#  ifdef __STDC__
-   extern void *alloca (size_t);
-#  else /* __STDC__ */
+
+/* We need to be careful not to declare this in a way which conflicts with
+   bison.  Bison never declares it as char *, but under various circumstances
+   (like __hpux) we need to use void *.  */
+#  if defined (__STDC__) || defined (__hpux)
+   extern void *alloca ();
+#  else /* Don't use void *.  */
    extern char *alloca ();
-#  endif
-# endif
-#endif
+#  endif /* Don't use void *.  */
+# endif /* Not GNU C */
+#endif /* alloca not defined */
 
 /* TARGET_BYTE_ORDER and HOST_BYTE_ORDER must be defined to one of these.  */
 
@@ -813,6 +814,73 @@ strerror PARAMS ((int));				/* 4.11.6.2 */
 
 #include "tm.h"
 
+/* Number of bits in a char or unsigned char for the target machine.
+   Just like CHAR_BIT in <limits.h> but describes the target machine.  */
+#if !defined (TARGET_CHAR_BIT)
+#define TARGET_CHAR_BIT 8
+#endif
+
+/* Number of bits in a short or unsigned short for the target machine. */
+#if !defined (TARGET_SHORT_BIT)
+#define TARGET_SHORT_BIT (2 * TARGET_CHAR_BIT)
+#endif
+
+/* Number of bits in an int or unsigned int for the target machine. */
+#if !defined (TARGET_INT_BIT)
+#define TARGET_INT_BIT (4 * TARGET_CHAR_BIT)
+#endif
+
+/* Number of bits in a long or unsigned long for the target machine. */
+#if !defined (TARGET_LONG_BIT)
+#define TARGET_LONG_BIT (4 * TARGET_CHAR_BIT)
+#endif
+
+/* Number of bits in a long long or unsigned long long for the target machine. */
+#if !defined (TARGET_LONG_LONG_BIT)
+#define TARGET_LONG_LONG_BIT (2 * TARGET_LONG_BIT)
+#endif
+
+/* Number of bits in a float for the target machine. */
+#if !defined (TARGET_FLOAT_BIT)
+#define TARGET_FLOAT_BIT (4 * TARGET_CHAR_BIT)
+#endif
+
+/* Number of bits in a double for the target machine. */
+#if !defined (TARGET_DOUBLE_BIT)
+#define TARGET_DOUBLE_BIT (8 * TARGET_CHAR_BIT)
+#endif
+
+/* Number of bits in a long double for the target machine.  */
+#if !defined (TARGET_LONG_DOUBLE_BIT)
+#define TARGET_LONG_DOUBLE_BIT (2 * TARGET_DOUBLE_BIT)
+#endif
+
+/* Number of bits in a "complex" for the target machine. */
+#if !defined (TARGET_COMPLEX_BIT)
+#define TARGET_COMPLEX_BIT (2 * TARGET_FLOAT_BIT)
+#endif
+
+/* Number of bits in a "double complex" for the target machine. */
+#if !defined (TARGET_DOUBLE_COMPLEX_BIT)
+#define TARGET_DOUBLE_COMPLEX_BIT (2 * TARGET_DOUBLE_BIT)
+#endif
+
+/* Number of bits in a pointer for the target machine */
+#if !defined (TARGET_PTR_BIT)
+#define TARGET_PTR_BIT TARGET_INT_BIT
+#endif
+
+/* If we picked up a copy of CHAR_BIT from a configuration file
+   (which may get it by including <limits.h>) then use it to set
+   the number of bits in a host char.  If not, use the same size
+   as the target. */
+
+#if defined (CHAR_BIT)
+#define HOST_CHAR_BIT CHAR_BIT
+#else
+#define HOST_CHAR_BIT TARGET_CHAR_BIT
+#endif
+
 /* The bit byte-order has to do just with numbering of bits in
    debugging symbols and such.  Conceptually, it's quite separate
    from byte/word byte order.  */
@@ -827,27 +895,6 @@ strerror PARAMS ((int));				/* 4.11.6.2 */
 #endif /* Little endian.  */
 #endif /* BITS_BIG_ENDIAN not defined.  */
 
-/* Swap LEN bytes at BUFFER between target and host byte-order.  This is
-   the wrong way to do byte-swapping because it assumes that you have a way
-   to have a host variable of exactly the right size.
-   extract_* are the right way.  */
-#if TARGET_BYTE_ORDER == HOST_BYTE_ORDER
-#define SWAP_TARGET_AND_HOST(buffer,len)
-#else /* Target and host byte order differ.  */
-#define SWAP_TARGET_AND_HOST(buffer,len) \
-  {	       	       	       	       	       	       	       	       	 \
-    char tmp;								 \
-    char *p = (char *)(buffer);						 \
-    char *q = ((char *)(buffer)) + len - 1;		   		 \
-    for (; p < q; p++, q--)				 		 \
-      {									 \
-        tmp = *q;							 \
-        *q = *p;							 \
-        *p = tmp;							 \
-      }									 \
-  }
-#endif /* Target and host byte order differ.  */
-
 /* In findvar.c.  */
 LONGEST extract_signed_integer PARAMS ((void *, int));
 unsigned LONGEST extract_unsigned_integer PARAMS ((void *, int));
@@ -856,6 +903,9 @@ CORE_ADDR extract_address PARAMS ((void *, int));
 void store_signed_integer PARAMS ((void *, int, LONGEST));
 void store_unsigned_integer PARAMS ((void *, int, unsigned LONGEST));
 void store_address PARAMS ((void *, int, CORE_ADDR));
+
+double extract_floating PARAMS ((void *, int));
+void store_floating PARAMS ((void *, int, double));
 
 /* On some machines there are bits in addresses which are not really
    part of the address, but are used by the kernel, the hardware, etc.
@@ -875,13 +925,8 @@ void store_address PARAMS ((void *, int, CORE_ADDR));
 extern CORE_ADDR
 push_bytes PARAMS ((CORE_ADDR, char *, int));
 
-/* In some modules, we don't have a definition of REGISTER_TYPE yet, so we
-   must avoid prototyping this function for now.  FIXME.  Should be:
 extern CORE_ADDR
-push_word PARAMS ((CORE_ADDR, REGISTER_TYPE));
- */
-extern CORE_ADDR
-push_word ();
+push_word PARAMS ((CORE_ADDR, unsigned LONGEST));
 
 /* Some parts of gdb might be considered optional, in the sense that they
    are not essential for being able to build a working, usable debugger

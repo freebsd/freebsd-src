@@ -30,24 +30,26 @@ struct std_regs {
 extern struct std_regs std_regs[];
 extern unsigned num_std_regs;
 
-struct expression *expout;
-int expout_size;
-int expout_ptr;
+extern struct expression *expout;
+extern int expout_size;
+extern int expout_ptr;
 
 /* If this is nonzero, this block is used as the lexical context
    for symbol names.  */
 
-struct block *expression_context_block;
+extern struct block *expression_context_block;
 
 /* The innermost context required by the stack and register variables
    we've encountered so far. */
-struct block *innermost_block;
+extern struct block *innermost_block;
 
-/* The block in which the most recently discovered symbol was found. */
-struct block *block_found;
+/* The block in which the most recently discovered symbol was found.
+   FIXME: Should be declared along with lookup_symbol in symtab.h; is not
+   related specifically to parsing.  */
+extern struct block *block_found;
 
 /* Number of arguments seen so far in innermost function call.  */
-int arglist_len;
+extern int arglist_len;
 
 /* A string token, either a char-string or bit-string.  Char-strings are
    used, for example, for the names of symbols. */
@@ -82,35 +84,31 @@ union type_stack_elt {
   enum type_pieces piece;
   int int_val;
 };
-union type_stack_elt *type_stack;
-int type_stack_depth, type_stack_size;
+extern union type_stack_elt *type_stack;
+extern int type_stack_depth, type_stack_size;
 
-extern void
-write_exp_elt PARAMS ((union exp_element));
+extern void write_exp_elt PARAMS ((union exp_element));
 
-extern void
-write_exp_elt_opcode PARAMS ((enum exp_opcode));
+extern void write_exp_elt_opcode PARAMS ((enum exp_opcode));
 
-extern void
-write_exp_elt_sym PARAMS ((struct symbol *));
+extern void write_exp_elt_sym PARAMS ((struct symbol *));
 
-extern void
-write_exp_elt_longcst PARAMS ((LONGEST));
+extern void write_exp_elt_longcst PARAMS ((LONGEST));
 
-extern void
-write_exp_elt_dblcst PARAMS ((double));
+extern void write_exp_elt_dblcst PARAMS ((double));
 
-extern void
-write_exp_elt_type PARAMS ((struct type *));
+extern void write_exp_elt_type PARAMS ((struct type *));
 
-extern void
-write_exp_elt_intern PARAMS ((struct internalvar *));
+extern void write_exp_elt_intern PARAMS ((struct internalvar *));
 
-extern void
-write_exp_string PARAMS ((struct stoken));
+extern void write_exp_string PARAMS ((struct stoken));
 
-extern void
-write_exp_bitstring PARAMS ((struct stoken));
+extern void write_exp_bitstring PARAMS ((struct stoken));
+
+extern void write_exp_elt_block PARAMS ((struct block *));
+
+extern void write_exp_msymbol PARAMS ((struct minimal_symbol *,
+				       struct type *, struct type *));
 
 extern void
 start_arglist PARAMS ((void));
@@ -138,7 +136,7 @@ extern struct type *follow_types PARAMS ((struct type *));
 /* During parsing of a C expression, the pointer to the next character
    is in this variable.  */
 
-char *lexptr;
+extern char *lexptr;
 
 /* Tokens that refer to names do so with explicit pointer and length,
    so they can share the storage that lexptr is parsing.
@@ -149,15 +147,15 @@ char *lexptr;
 
    namecopy is allocated once, guaranteed big enough, for each parsing.  */
 
-char *namecopy;
+extern char *namecopy;
 
 /* Current depth in parentheses within the expression.  */
 
-int paren_depth;
+extern int paren_depth;
 
 /* Nonzero means stop parsing on first comma (if not within parentheses).  */
 
-int comma_terminates;
+extern int comma_terminates;
 
 /* These codes indicate operator precedences for expression printing,
    least tightly binding first.  */

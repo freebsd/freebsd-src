@@ -27,6 +27,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    VOLATILE	`volatile'		`'
    SIGNED	`signed'		`'
    PTRCONST	`void *const'		`char *'
+   ANSI_PROTOTYPES  1			not defined
 
    CONST is also defined, but is obsolete.  Just use const.
 
@@ -111,6 +112,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define PROTO(type, name, arglist)	type name arglist
 #define PARAMS(paramlist)		paramlist
+#define ANSI_PROTOTYPES			1
 
 #else	/* Not ANSI C.  */
 

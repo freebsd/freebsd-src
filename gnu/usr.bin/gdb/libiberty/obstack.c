@@ -1,5 +1,5 @@
 /* obstack.c - subroutines used implicitly by object stack macros
-   Copyright (C) 1988, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 89, 90, 91, 92, 93, 94 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU Library General Public License as published by the
@@ -28,7 +28,15 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    program understand `configure --with-gnu-libc' and omit the object files,
    it is simpler to just do this in the source for each such file.  */
 
+/* CYGNUS LOCAL.  No, don't comment the code out.  We will be using
+   ../include/obstack.h, which was changed relatively recently in a
+   way that is not binary compatible.  Until we feel confident that
+   nobody is using the old obstack.c code, force the use of this code.
+   This issue will arise anytime a change is made which is not binary
+   compatible.
 #if defined (_LIBC) || !defined (__GNU_LIBRARY__)
+*/
+#if 1
 
 
 #ifdef __STDC__
@@ -83,9 +91,13 @@ struct obstack *_obstack;
 /* Initialize an obstack H for use.  Specify chunk size SIZE (0 means default).
    Objects start on multiples of ALIGNMENT (0 means use default).
    CHUNKFUN is the function to use to allocate chunks,
-   and FREEFUN the function to free them.  */
+   and FREEFUN the function to free them.
 
-void
+   Return nonzero if successful, zero if out of memory.
+   To recover from an out of memory error,
+   free up some memory, then call this again.  */
+
+int
 _obstack_begin (h, size, alignment, chunkfun, freefun)
      struct obstack *h;
      int size;
@@ -121,15 +133,22 @@ _obstack_begin (h, size, alignment, chunkfun, freefun)
   h->use_extra_arg = 0;
 
   chunk = h->chunk = CALL_CHUNKFUN (h, h -> chunk_size);
+  if (!chunk)
+    {
+      h->alloc_failed = 1;
+      return 0;
+    }
+  h->alloc_failed = 0;
   h->next_free = h->object_base = chunk->contents;
   h->chunk_limit = chunk->limit
     = (char *) chunk + h->chunk_size;
   chunk->prev = 0;
   /* The initial chunk now contains no empty object.  */
   h->maybe_empty_object = 0;
+  return 1;
 }
 
-void
+int
 _obstack_begin_1 (h, size, alignment, chunkfun, freefun, arg)
      struct obstack *h;
      int size;
@@ -167,12 +186,19 @@ _obstack_begin_1 (h, size, alignment, chunkfun, freefun, arg)
   h->use_extra_arg = 1;
 
   chunk = h->chunk = CALL_CHUNKFUN (h, h -> chunk_size);
+  if (!chunk)
+    {
+      h->alloc_failed = 1;
+      return 0;
+    }
+  h->alloc_failed = 0;
   h->next_free = h->object_base = chunk->contents;
   h->chunk_limit = chunk->limit
     = (char *) chunk + h->chunk_size;
   chunk->prev = 0;
   /* The initial chunk now contains no empty object.  */
   h->maybe_empty_object = 0;
+  return 1;
 }
 
 /* Allocate a new current chunk for the obstack *H
@@ -199,7 +225,14 @@ _obstack_newchunk (h, length)
     new_size = h->chunk_size;
 
   /* Allocate and initialize the new chunk.  */
-  new_chunk = h->chunk = CALL_CHUNKFUN (h, new_size);
+  new_chunk = CALL_CHUNKFUN (h, new_size);
+  if (!new_chunk)
+    {
+      h->alloc_failed = 1;
+      return;
+    }
+  h->alloc_failed = 0;
+  h->chunk = new_chunk;
   new_chunk->prev = old_chunk;
   new_chunk->limit = h->chunk_limit = (char *) new_chunk + new_size;
 

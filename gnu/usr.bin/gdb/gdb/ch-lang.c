@@ -52,7 +52,7 @@ chill_demangle (mangled)
 static void
 chill_printchar (c, stream)
      register int c;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   c &= 0xFF;			/* Avoid sign bit follies */
 
@@ -79,7 +79,7 @@ chill_printchar (c, stream)
 
 static void
 chill_printstr (stream, string, length, force_ellipses)
-     FILE *stream;
+     GDB_FILE *stream;
      char *string;
      unsigned int length;
      int force_ellipses;
@@ -95,7 +95,7 @@ chill_printstr (stream, string, length, force_ellipses)
 
   if (length == 0)
     {
-      chill_printchar ('\0', stream);
+      fputs_filtered ("\"\"", stream);
       return;
     }
 
@@ -128,7 +128,7 @@ chill_printstr (stream, string, length, force_ellipses)
 	{
 	  if (in_control_form || in_literal_form)
 	    {
-	      fputs_filtered ("'//", stream);
+	      fputs_filtered ("\"//", stream);
 	      in_control_form = in_literal_form = 0;
 	    }
 	  chill_printchar (c, stream);
@@ -145,10 +145,10 @@ chill_printstr (stream, string, length, force_ellipses)
 		{
 		  if (in_control_form)
 		    {
-		      fputs_filtered ("'//", stream);
+		      fputs_filtered ("\"//", stream);
 		      in_control_form = 0;
 		    }
-		  fputs_filtered ("'", stream);
+		  fputs_filtered ("\"", stream);
 		  in_literal_form = 1;
 		}
 	      fprintf_filtered (stream, "%c", c);
@@ -159,10 +159,10 @@ chill_printstr (stream, string, length, force_ellipses)
 		{
 		  if (in_literal_form)
 		    {
-		      fputs_filtered ("'//", stream);
+		      fputs_filtered ("\"//", stream);
 		      in_literal_form = 0;
 		    }
-		  fputs_filtered ("c'", stream);
+		  fputs_filtered ("c\"", stream);
 		  in_control_form = 1;
 		}
 	      fprintf_filtered (stream, "%.2x", c);
@@ -174,12 +174,27 @@ chill_printstr (stream, string, length, force_ellipses)
   /* Terminate the quotes if necessary.  */
   if (in_literal_form || in_control_form)
     {
-      fputs_filtered ("'", stream);
+      fputs_filtered ("\"", stream);
     }
   if (force_ellipses || (i < length))
     {
       fputs_filtered ("...", stream);
     }
+}
+
+/* Return 1 if TYPE is a varying string or array. */
+
+int
+chill_is_varying_struct (type)
+     struct type *type;
+{
+  if (TYPE_CODE (type) != TYPE_CODE_STRUCT)
+    return 0;
+  if (TYPE_NFIELDS (type) != 2)
+    return 0;
+  if (strcmp (TYPE_FIELD_NAME (type, 0), "__var_length") != 0)
+    return 0;
+  return 1;
 }
 
 static struct type *
@@ -212,13 +227,13 @@ chill_create_fundamental_type (objfile, typeid)
 	type = init_type (TYPE_CODE_CHAR, 1, TYPE_FLAG_UNSIGNED, "CHAR", objfile);
 	break;
       case FT_SIGNED_CHAR:
-	type = init_type (TYPE_CODE_INT, 1, TYPE_FLAG_SIGNED, "BYTE", objfile);
+	type = init_type (TYPE_CODE_INT, 1, 0, "BYTE", objfile);
 	break;
       case FT_UNSIGNED_CHAR:
 	type = init_type (TYPE_CODE_INT, 1, TYPE_FLAG_UNSIGNED, "UBYTE", objfile);
 	break;
       case FT_SHORT:			/* Chill ints are 2 bytes */
-	type = init_type (TYPE_CODE_INT, 2, TYPE_FLAG_SIGNED, "INT", objfile);
+	type = init_type (TYPE_CODE_INT, 2, 0, "INT", objfile);
 	break;
       case FT_UNSIGNED_SHORT:		/* Chill ints are 2 bytes */
 	type = init_type (TYPE_CODE_INT, 2, TYPE_FLAG_UNSIGNED, "UINT", objfile);
@@ -227,7 +242,7 @@ chill_create_fundamental_type (objfile, typeid)
       case FT_SIGNED_INTEGER:		/* FIXME? */
       case FT_LONG:			/* Chill longs are 4 bytes */
       case FT_SIGNED_LONG:		/* Chill longs are 4 bytes */
-	type = init_type (TYPE_CODE_INT, 4, TYPE_FLAG_SIGNED, "LONG", objfile);
+	type = init_type (TYPE_CODE_INT, 4, 0, "LONG", objfile);
 	break;
       case FT_UNSIGNED_INTEGER:		/* FIXME? */
       case FT_UNSIGNED_LONG:		/* Chill longs are 4 bytes */
@@ -300,8 +315,7 @@ const struct language_defn chill_language_defn = {
   chill_create_fundamental_type,/* Create fundamental type in this language */
   chill_print_type,		/* Print a type using appropriate syntax */
   chill_val_print,		/* Print a value using appropriate syntax */
-  &BUILTIN_TYPE_LONGEST,	/* longest signed   integral type */
-  &BUILTIN_TYPE_UNSIGNED_LONGEST,/* longest unsigned integral type */
+  chill_value_print,		/* Print a top-levl value */
   &builtin_type_chill_real,	/* longest floating point type */
   {"",      "B'",  "",   ""},	/* Binary format info */
   {"O'%lo",  "O'",  "o",  ""},	/* Octal format info */

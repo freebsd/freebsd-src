@@ -31,18 +31,19 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "language.h"
 #include "demangle.h"
 #include "ch-lang.h"
+#include "typeprint.h"
 
 #include <string.h>
 #include <errno.h>
 
 static void
-chill_type_print_base PARAMS ((struct type *, FILE *, int, int));
+chill_type_print_base PARAMS ((struct type *, GDB_FILE *, int, int));
 
 void
 chill_print_type (type, varstring, stream, show, level)
      struct type *type;
      char *varstring;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
@@ -69,11 +70,10 @@ chill_print_type (type, varstring, stream, show, level)
 static void
 chill_type_print_base (type, stream, show, level)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
-  char *name;
   register int len;
   register int i;
   struct type *index_type;
@@ -99,6 +99,8 @@ chill_type_print_base (type, stream, show, level)
       return;
     }
 
+  check_stub_type (type);
+
   switch (TYPE_CODE (type))
     {
       case TYPE_CODE_PTR:
@@ -109,6 +111,14 @@ chill_type_print_base (type, stream, show, level)
 	  }
 	fprintf_filtered (stream, "REF ");
 	chill_type_print_base (TYPE_TARGET_TYPE (type), stream, show, level);
+	break;
+
+      case TYPE_CODE_BOOL:
+	/* FIXME: we should probably just print the TYPE_NAME, in case
+	   anyone ever fixes the compiler to give us the real names
+	   in the presence of the chill equivalent of typedef (assuming
+	   there is one).  */
+	fprintf_filtered (stream, "BOOL");
 	break;
 
       case TYPE_CODE_ARRAY:
@@ -124,11 +134,22 @@ chill_type_print_base (type, stream, show, level)
 	chill_print_type (TYPE_TARGET_TYPE (type), "", stream, show, level);
 	break;
 
+      case TYPE_CODE_BITSTRING:
+        fprintf_filtered (stream, "BOOLS (%d)",
+			  TYPE_FIELD_BITPOS (TYPE_FIELD_TYPE(type,0), 1) + 1);
+	break;
+
+      case TYPE_CODE_SET:
+        fputs_filtered ("POWERSET ", stream);
+	chill_print_type (TYPE_FIELD_TYPE (type, 0), "", stream,
+			  show - 1, level);
+	break;
+
       case TYPE_CODE_STRING:
 	range_type = TYPE_FIELD_TYPE (type, 0);
 	index_type = TYPE_TARGET_TYPE (range_type);
 	high_bound = TYPE_FIELD_BITPOS (range_type, 1);
-        fputs_filtered ("CHAR (", stream);
+        fputs_filtered ("CHARS (", stream);
 	print_type_scalar (index_type, high_bound + 1, stream);
 	fputs_filtered (")", stream);
 	break;
@@ -147,20 +168,16 @@ chill_type_print_base (type, stream, show, level)
 	break;
 
       case TYPE_CODE_STRUCT:
-	fprintf_filtered (stream, "STRUCT ");
-	if ((name = type_name_no_tag (type)) != NULL)
+	if (chill_is_varying_struct (type))
 	  {
-	    fputs_filtered (name, stream);
-	    fputs_filtered (" ", stream);
-	    wrap_here ("    ");
-	  }
-	if (show < 0)
-	  {
-	    fprintf_filtered (stream, "(...)");
+	    chill_type_print_base (TYPE_FIELD_TYPE (type, 1),
+				   stream, show, level);
+	    fputs_filtered (" VARYING", stream);
 	  }
 	else
 	  {
-	    check_stub_type (type);
+	    fprintf_filtered (stream, "STRUCT ");
+
 	    fprintf_filtered (stream, "(\n");
 	    if ((TYPE_NFIELDS (type) == 0) && (TYPE_NFN_FIELDS (type) == 0))
 	      {
@@ -178,11 +195,42 @@ chill_type_print_base (type, stream, show, level)
 		len = TYPE_NFIELDS (type);
 		for (i = TYPE_N_BASECLASSES (type); i < len; i++)
 		  {
+		    struct type *field_type = TYPE_FIELD_TYPE (type, i);
 		    QUIT;
 		    print_spaces_filtered (level + 4, stream);
-		    chill_print_type (TYPE_FIELD_TYPE (type, i),
-				      TYPE_FIELD_NAME (type, i),
-				      stream, show - 1, level + 4);
+		    if (TYPE_CODE (field_type) == TYPE_CODE_UNION)
+		      { int j; /* variant number */
+			fputs_filtered ("CASE OF\n", stream);
+			for (j = 0; j < TYPE_NFIELDS (field_type); j++)
+			  { int k; /* variant field index */
+			    struct type *variant_type
+			      = TYPE_FIELD_TYPE (field_type, j);
+			    int var_len = TYPE_NFIELDS (variant_type);
+			    print_spaces_filtered (level + 4, stream);
+			    if (strcmp (TYPE_FIELD_NAME (field_type, j),
+					"else") == 0)
+			      fputs_filtered ("ELSE\n", stream);
+			    else
+			      fputs_filtered (":\n", stream);
+			    if (TYPE_CODE (variant_type) != TYPE_CODE_STRUCT)
+			      error ("variant record confusion");
+			    for (k = 0; k < var_len; k++)
+			      {
+				print_spaces_filtered (level + 8, stream);
+				chill_print_type (TYPE_FIELD_TYPE (variant_type, k),
+						  TYPE_FIELD_NAME (variant_type, k),
+						  stream, show - 1, level + 8);
+				if (k < (var_len - 1))
+				  fputs_filtered (",", stream);
+				fputs_filtered ("\n", stream);
+			      }
+			  }
+			fputs_filtered ("ESAC\n", stream);
+		      }
+		    else
+		      chill_print_type (field_type,
+					TYPE_FIELD_NAME (type, i),
+					stream, show - 1, level + 4);
 		    if (i < (len - 1))
 		      {
 			fputs_filtered (",", stream);
@@ -194,11 +242,53 @@ chill_type_print_base (type, stream, show, level)
 	  }
 	break;
 
+      case TYPE_CODE_RANGE:
+	if (TYPE_DUMMY_RANGE (type))
+	  chill_type_print_base (TYPE_TARGET_TYPE (type),
+				 stream, show, level);
+	else if (TYPE_TARGET_TYPE (type))
+	  {
+	    chill_type_print_base (TYPE_TARGET_TYPE (type),
+				   stream, show, level);
+	    fputs_filtered (" (", stream);
+	    print_type_scalar (TYPE_TARGET_TYPE (type),
+			       TYPE_FIELD_BITPOS (type, 0), stream);
+	    fputs_filtered (":", stream);
+	    print_type_scalar (TYPE_TARGET_TYPE (type),
+			       TYPE_FIELD_BITPOS (type, 1), stream);
+	    fputs_filtered (")", stream);
+	  }
+	else
+	  fprintf_filtered (stream, "RANGE? (%s : %d)",
+			    TYPE_FIELD_BITPOS (type, 0),
+			    TYPE_FIELD_BITPOS (type, 1));
+	break;
+
+      case TYPE_CODE_ENUM:
+	{
+	  register int lastval = 0;
+	  fprintf_filtered (stream, "SET (");
+	  len = TYPE_NFIELDS (type);
+	  for (i = 0; i < len; i++)
+	    {
+	      QUIT;
+	      if (i) fprintf_filtered (stream, ", ");
+	      wrap_here ("    ");
+	      fputs_filtered (TYPE_FIELD_NAME (type, i), stream);
+	      if (lastval != TYPE_FIELD_BITPOS (type, i))
+		{
+		  fprintf_filtered (stream, " = %d", TYPE_FIELD_BITPOS (type, i));
+		  lastval = TYPE_FIELD_BITPOS (type, i);
+		}
+	      lastval++;
+	    }
+	  fprintf_filtered (stream, ")");
+	}
+	break;
+
       case TYPE_CODE_VOID:
       case TYPE_CODE_UNDEF:
       case TYPE_CODE_ERROR:
-      case TYPE_CODE_RANGE:
-      case TYPE_CODE_ENUM:
       case TYPE_CODE_UNION:
       case TYPE_CODE_METHOD:
 	error ("missing language support in chill_type_print_base");

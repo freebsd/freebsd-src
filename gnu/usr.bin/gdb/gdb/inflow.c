@@ -25,6 +25,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "serial.h"
 #include "terminal.h"
 #include "target.h"
+#include "thread.h"
 
 #include <signal.h>
 #include <fcntl.h>
@@ -56,12 +57,6 @@ kill_command PARAMS ((char *, int));
 
 static void
 terminal_ours_1 PARAMS ((int));
-
-/* Nonzero if we are debugging an attached outside process
-   rather than an inferior.  */
-
-int attach_flag;
-
 
 /* Record terminal status separately for debugger and inferior.  */
 
@@ -146,6 +141,9 @@ gdb_has_a_terminal ()
 	}
 
       return gdb_has_a_terminal_flag == yes;
+    default:
+      /* "Can't happen".  */
+      return 0;
     }
 }
 
@@ -153,7 +151,7 @@ gdb_has_a_terminal ()
 
 #define	OOPSY(what)	\
   if (result == -1)	\
-    fprintf(stderr, "[%s failed in terminal_inferior: %s]\n", \
+    fprintf_unfiltered(gdb_stderr, "[%s failed in terminal_inferior: %s]\n", \
 	    what, strerror (errno))
 
 static void terminal_ours_1 PARAMS ((int));
@@ -172,7 +170,17 @@ terminal_init_inferior ()
 	free (inferior_ttystate);
       inferior_ttystate = SERIAL_GET_TTY_STATE (stdin_serial);
 #ifdef PROCESS_GROUP_TYPE
+#ifdef PIDGET
+      /* This is for Lynx, and should be cleaned up by having Lynx be
+	 a separate debugging target with a version of
+	 target_terminal_init_inferior which passes in the process
+	 group to a generic routine which does all the work (and the
+	 non-threaded child_terminal_init_inferior can just pass in
+	 inferior_pid to the same routine).  */
+      inferior_process_group = PIDGET (inferior_pid);
+#else
       inferior_process_group = inferior_pid;
+#endif
 #endif
 
       /* Make sure that next time we call terminal_inferior (which will be
@@ -310,7 +318,10 @@ terminal_ours_1 (output_only)
 
       /* Here we used to set ICANON in our ttystate, but I believe this
 	 was an artifact from before when we used readline.  Readline sets
-	 the tty state when it needs to.  */
+	 the tty state when it needs to.
+	 FIXME-maybe: However, query() expects non-raw mode and doesn't
+	 use readline.  Maybe query should use readline (on the other hand,
+	 this only matters for HAVE_SGTTY, not termio or termios, I think).  */
 
       /* Set tty state to our_ttystate.  We don't change in our out of raw
 	 mode, to avoid flushing input.  We need to do the same thing
@@ -318,6 +329,7 @@ terminal_ours_1 (output_only)
 	 terminal_is_ours and terminal_is_ours_for_output flags.  It's OK,
 	 though, since readline will deal with raw mode when/if it needs to.
 	 */
+
       SERIAL_NOFLUSH_SET_TTY_STATE (stdin_serial, our_ttystate,
 				    inferior_ttystate);
 
@@ -331,7 +343,7 @@ terminal_ours_1 (output_only)
 	     used to check for an error here, so perhaps there are other
 	     such situations as well.  */
 	  if (result == -1)
-	    fprintf (stderr, "[tcsetpgrp failed in terminal_ours: %s]\n",
+	    fprintf_unfiltered (gdb_stderr, "[tcsetpgrp failed in terminal_ours: %s]\n",
 		     strerror (errno));
 #endif
 #endif /* termios */
@@ -535,33 +547,10 @@ kill_command (arg, from_tty)
   if (target_has_stack) {
     printf_filtered ("In %s,\n", current_target->to_longname);
     if (selected_frame == NULL)
-      fputs_filtered ("No selected stack frame.\n", stdout);
+      fputs_filtered ("No selected stack frame.\n", gdb_stdout);
     else
       print_stack_frame (selected_frame, selected_frame_level, 1);
   }
-}
-
-/* The inferior process has died.  Long live the inferior!  */
-
-void
-generic_mourn_inferior ()
-{
-  inferior_pid = 0;
-  attach_flag = 0;
-  breakpoint_init_inferior ();
-  registers_changed ();
-
-#ifdef CLEAR_DEFERRED_STORES
-  /* Delete any pending stores to the inferior... */
-  CLEAR_DEFERRED_STORES;
-#endif
-
-  reopen_exec_file ();
-  reinit_frame_cache ();
-
-  /* It is confusing to the user for ignore counts to stick around
-     from previous runs of the inferior.  So clear them.  */
-  breakpoint_clear_ignore_counts ();
 }
 
 /* Call set_sigint_trap when you need to pass a signal on to an attached
@@ -589,8 +578,67 @@ clear_sigint_trap()
   signal (SIGINT, osig);
 }
 
+#if defined (SIGIO) && defined (FASYNC) && defined (FD_SET) && defined (F_SETOWN)
+static void (*old_sigio) ();
 
-int job_control;
+static void
+handle_sigio (signo)
+     int signo;
+{
+  int numfds;
+  fd_set readfds;
+
+  signal (SIGIO, handle_sigio);
+
+  FD_ZERO (&readfds);
+  FD_SET (target_activity_fd, &readfds);
+  numfds = select (target_activity_fd + 1, &readfds, NULL, NULL, NULL);
+  if (numfds >= 0 && FD_ISSET (target_activity_fd, &readfds))
+    {
+      if ((*target_activity_function) ())
+	kill (inferior_pid, SIGINT);
+    }
+}
+
+static int old_fcntl_flags;
+
+void
+set_sigio_trap ()
+{
+  if (target_activity_function)
+    {
+      old_sigio = (void (*) ()) signal (SIGIO, handle_sigio);
+      fcntl (target_activity_fd, F_SETOWN, getpid()); 
+      old_fcntl_flags = fcntl (target_activity_fd, F_GETFL, 0);
+      fcntl (target_activity_fd, F_SETFL, old_fcntl_flags | FASYNC);
+    }
+}
+
+void
+clear_sigio_trap ()
+{
+  if (target_activity_function)
+    {
+      signal (SIGIO, old_sigio);
+      fcntl (target_activity_fd, F_SETFL, old_fcntl_flags);
+    }
+}
+#else /* No SIGIO.  */
+void
+set_sigio_trap ()
+{
+  if (target_activity_function)
+    abort ();
+}
+
+void
+clear_sigio_trap ()
+{
+  if (target_activity_function)
+    abort ();
+}
+#endif /* No SIGIO.  */
+
 
 /* This is here because this is where we figure out whether we (probably)
    have job control.  Just using job_control only does part of it because
@@ -605,6 +653,7 @@ int
 gdb_setpgid ()
 {
   int retval = 0;
+
   if (job_control)
     {
 #if defined (NEED_POSIX_SETPGID) || defined (HAVE_TERMIOS)

@@ -1,5 +1,5 @@
 /* BFD back end for traditional Unix core files (U-area and raw sections)
-   Copyright 1988, 1989, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
    Written by John Gilmore of Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -63,7 +63,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* forward declarations */
 
-bfd_target *	trad_unix_core_file_p PARAMS ((bfd *abfd));
+const bfd_target *trad_unix_core_file_p PARAMS ((bfd *abfd));
 char *		trad_unix_core_file_failing_command PARAMS ((bfd *abfd));
 int		trad_unix_core_file_failing_signal PARAMS ((bfd *abfd));
 boolean		trad_unix_core_file_matches_executable_p
@@ -72,7 +72,7 @@ boolean		trad_unix_core_file_matches_executable_p
 /* Handle 4.2-style (and perhaps also sysV-style) core dump file.  */
 
 /* ARGSUSED */
-bfd_target *
+const bfd_target *
 trad_unix_core_file_p (abfd)
      bfd *abfd;
 
@@ -82,7 +82,7 @@ trad_unix_core_file_p (abfd)
 
 #ifdef TRAD_CORE_USER_OFFSET
   /* If defined, this macro is the file position of the user struct.  */
-  if (bfd_seek (abfd, TRAD_CORE_USER_OFFSET, SEEK_SET) == 0)
+  if (bfd_seek (abfd, TRAD_CORE_USER_OFFSET, SEEK_SET) != 0)
     return 0;
 #endif
     
@@ -90,19 +90,19 @@ trad_unix_core_file_p (abfd)
   if (val != sizeof u)
     {
       /* Too small to be a core file */
-      bfd_error = wrong_format;
+      bfd_set_error (bfd_error_wrong_format);
       return 0;
     }
 
   /* Sanity check perhaps??? */
   if (u.u_dsize > 0x1000000)	/* Remember, it's in pages... */
     {
-      bfd_error = wrong_format;
+      bfd_set_error (bfd_error_wrong_format);
       return 0;
     }
   if (u.u_ssize > 0x1000000)
     {
-      bfd_error = wrong_format;
+      bfd_set_error (bfd_error_wrong_format);
       return 0;
     }
 
@@ -114,14 +114,19 @@ trad_unix_core_file_p (abfd)
       return 0;
     if (fstat (fileno (stream), &statbuf) < 0)
       {
-	bfd_error = system_call_error;
+	bfd_set_error (bfd_error_system_call);
 	return 0;
       }
-    if (NBPG * (UPAGES + u.u_dsize + u.u_ssize) > statbuf.st_size)
+    if (NBPG * (UPAGES + u.u_dsize
+#ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
+		- u.u_tsize
+#endif
+		+ u.u_ssize) > statbuf.st_size)
       {
-	bfd_error = file_truncated;
+	bfd_set_error (bfd_error_file_truncated);
 	return 0;
       }
+#ifndef TRAD_CORE_ALLOW_ANY_EXTRA_SIZE
     if (NBPG * (UPAGES + u.u_dsize + u.u_ssize)
 #ifdef TRAD_CORE_EXTRA_SIZE_ALLOWED
 	/* Some systems write the file too big.  */
@@ -131,9 +136,10 @@ trad_unix_core_file_p (abfd)
       {
 	/* The file is too big.  Maybe it's not a core file
 	   or we otherwise have bad values for u_dsize and u_ssize).  */
-	bfd_error = wrong_format;
+	bfd_set_error (bfd_error_wrong_format);
 	return 0;
       }
+#endif
   }
 
   /* OK, we believe you.  You're a core file (sure, sure).  */
@@ -141,9 +147,9 @@ trad_unix_core_file_p (abfd)
   /* Allocate both the upage and the struct core_data at once, so
      a single free() will free them both.  */
   rawptr = (struct trad_core_struct *)
-		bfd_zalloc (abfd, sizeof (struct trad_core_struct));
+		bfd_zmalloc (sizeof (struct trad_core_struct));
   if (rawptr == NULL) {
-    bfd_error = no_memory;
+    bfd_set_error (bfd_error_no_memory);
     return 0;
   }
   
@@ -154,20 +160,20 @@ trad_unix_core_file_p (abfd)
   /* Create the sections.  This is raunchy, but bfd_close wants to free
      them separately.  */
 
-  core_stacksec(abfd) = (asection *) zalloc (sizeof (asection));
+  core_stacksec(abfd) = (asection *) bfd_zmalloc (sizeof (asection));
   if (core_stacksec (abfd) == NULL) {
   loser:
-    bfd_error = no_memory;
+    bfd_set_error (bfd_error_no_memory);
     free ((void *)rawptr);
     return 0;
   }
-  core_datasec (abfd) = (asection *) zalloc (sizeof (asection));
+  core_datasec (abfd) = (asection *) bfd_zmalloc (sizeof (asection));
   if (core_datasec (abfd) == NULL) {
   loser1:
     free ((void *)core_stacksec (abfd));
     goto loser;
   }
-  core_regsec (abfd) = (asection *) zalloc (sizeof (asection));
+  core_regsec (abfd) = (asection *) bfd_zmalloc (sizeof (asection));
   if (core_regsec (abfd) == NULL) {
     free ((void *)core_datasec (abfd));
     goto loser1;
@@ -179,9 +185,13 @@ trad_unix_core_file_p (abfd)
 
   core_stacksec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
   core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_regsec (abfd)->flags = SEC_ALLOC + SEC_HAS_CONTENTS;
+  core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
 
-  core_datasec (abfd)->_raw_size =  NBPG * u.u_dsize;
+  core_datasec (abfd)->_raw_size =  NBPG * u.u_dsize
+#ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
+    - NBPG * u.u_tsize
+#endif
+      ;
   core_stacksec (abfd)->_raw_size = NBPG * u.u_ssize;
   core_regsec (abfd)->_raw_size = NBPG * UPAGES; /* Larger than sizeof struct u */
 
@@ -192,14 +202,7 @@ trad_unix_core_file_p (abfd)
 #else
   core_datasec (abfd)->vma = HOST_TEXT_START_ADDR + (NBPG * u.u_tsize);
 #endif
-/* a hack, but it works for FreeBSD !! */
-#include <vm/vm_param.h>
-/* this should really be in <vm/vm_param.h>, but somebody forgot it */
-#ifndef vm_page_size
-#define vm_page_size 4096
-#endif
-#define HOST_STACK_START_ADDR trunc_page(u.u_kproc.kp_eproc.e_vm.vm_maxsaddr \
-+ MAXSSIZ - ctob(u.u_ssize))
+
 #ifdef HOST_STACK_START_ADDR
   core_stacksec (abfd)->vma = HOST_STACK_START_ADDR;
 #else
@@ -223,11 +226,11 @@ trad_unix_core_file_p (abfd)
   core_regsec (abfd)->vma = 0 - (int) u.u_ar0;
 
   core_datasec (abfd)->filepos = NBPG * UPAGES;
-#ifdef TRAD_CORE_STACK_FILEPOS
-  core_stacksec (abfd)->filepos = TRAD_CORE_STACK_FILEPOS;
-#else
-  core_stacksec (abfd)->filepos = (NBPG * UPAGES) + NBPG * u.u_dsize;
+  core_stacksec (abfd)->filepos = (NBPG * UPAGES) + NBPG * u.u_dsize
+#ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
+    - NBPG * u.u_tsize
 #endif
+      ;
   core_regsec (abfd)->filepos = 0; /* Register segment is the upage */
 
   /* Align to word at least */
@@ -276,74 +279,18 @@ trad_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
   return true;		/* FIXME, We have no way of telling at this point */
 }
 
-/* No archive file support via this BFD */
-#define	trad_unix_openr_next_archived_file	bfd_generic_openr_next_archived_file
-#define	trad_unix_generic_stat_arch_elt		bfd_generic_stat_arch_elt
-#define	trad_unix_slurp_armap			bfd_false
-#define	trad_unix_slurp_extended_name_table	bfd_true
-#define	trad_unix_write_armap			(boolean (*) PARAMS	\
-    ((bfd *arch, unsigned int elength, struct orl *map, \
-      unsigned int orl_count, int stridx))) bfd_false
-#define	trad_unix_truncate_arname		bfd_dont_truncate_arname
-#define	aout_32_openr_next_archived_file	bfd_generic_openr_next_archived_file
-
-#define	trad_unix_close_and_cleanup		bfd_generic_close_and_cleanup
-#define	trad_unix_set_section_contents		(boolean (*) PARAMS	\
-        ((bfd *abfd, asection *section, PTR data, file_ptr offset,	\
-        bfd_size_type count))) bfd_false
-#define	trad_unix_get_section_contents		bfd_generic_get_section_contents
-#define	trad_unix_new_section_hook		(boolean (*) PARAMS	\
-	((bfd *, sec_ptr))) bfd_true
-#define	trad_unix_get_symtab_upper_bound	bfd_0u
-#define	trad_unix_get_symtab			(unsigned int (*) PARAMS \
-        ((bfd *, struct symbol_cache_entry **))) bfd_0u
-#define	trad_unix_get_reloc_upper_bound		(unsigned int (*) PARAMS \
-	((bfd *, sec_ptr))) bfd_0u
-#define	trad_unix_canonicalize_reloc		(unsigned int (*) PARAMS \
-	((bfd *, sec_ptr, arelent **, struct symbol_cache_entry**))) bfd_0u
-#define	trad_unix_make_empty_symbol		(struct symbol_cache_entry * \
-	(*) PARAMS ((bfd *))) bfd_false
-#define	trad_unix_print_symbol			(void (*) PARAMS	\
-	((bfd *, PTR, struct symbol_cache_entry  *,			\
-	bfd_print_symbol_type))) bfd_false
-#define	trad_unix_get_symbol_info		(void (*) PARAMS	\
-	((bfd *, struct symbol_cache_entry  *,			\
-	symbol_info *))) bfd_false
-#define	trad_unix_get_lineno			(alent * (*) PARAMS	\
-	((bfd *, struct symbol_cache_entry *))) bfd_nullvoidptr
-#define	trad_unix_set_arch_mach			(boolean (*) PARAMS	\
-	((bfd *, enum bfd_architecture, unsigned long))) bfd_false
-#define	trad_unix_find_nearest_line		(boolean (*) PARAMS	\
-        ((bfd *abfd, struct sec  *section,				\
-         struct symbol_cache_entry  **symbols,bfd_vma offset,		\
-         CONST char **file, CONST char **func, unsigned int *line))) bfd_false
-#define	trad_unix_sizeof_headers		(int (*) PARAMS	\
-	((bfd *, boolean))) bfd_0
-
-#define trad_unix_bfd_debug_info_start		bfd_void
-#define trad_unix_bfd_debug_info_end		bfd_void
-#define trad_unix_bfd_debug_info_accumulate	(void (*) PARAMS	\
-	((bfd *, struct sec *))) bfd_void
-#define trad_unix_bfd_get_relocated_section_contents bfd_generic_get_relocated_section_contents
-#define trad_unix_bfd_relax_section		bfd_generic_relax_section
-#define trad_unix_bfd_seclet_link \
-  ((boolean (*) PARAMS ((bfd *, PTR, boolean))) bfd_false)
-#define trad_unix_bfd_reloc_type_lookup \
-  ((CONST struct reloc_howto_struct *(*) PARAMS ((bfd *, bfd_reloc_code_real_type))) bfd_nullvoidptr)
-#define trad_unix_bfd_make_debug_symbol \
-  ((asymbol *(*) PARAMS ((bfd *, void *, unsigned long))) bfd_nullvoidptr)
-
 /* If somebody calls any byte-swapping routines, shoot them.  */
 void
 swap_abort()
 {
   abort(); /* This way doesn't require any declaration for ANSI to fuck up */
 }
-#define	NO_GET	((bfd_vma (*) PARAMS ((         bfd_byte *))) swap_abort )
+#define	NO_GET	((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
 #define	NO_PUT	((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
-#define	NO_SIGNED_GET ((bfd_signed_vma (*) PARAMS ((bfd_byte *))) swap_abort )
+#define	NO_SIGNED_GET \
+  ((bfd_signed_vma (*) PARAMS ((const bfd_byte *))) swap_abort )
 
-bfd_target trad_core_vec =
+const bfd_target trad_core_vec =
   {
     "trad-core",
     bfd_target_unknown_flavour,
@@ -351,7 +298,7 @@ bfd_target trad_core_vec =
     true,			/* target headers byte order */
     (HAS_RELOC | EXEC_P |	/* object flags */
      HAS_LINENO | HAS_DEBUG |
-     HAS_SYMS | HAS_LOCALS | DYNAMIC | WP_TEXT | D_PAGED),
+     HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
     (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC), /* section flags */
     0,			                                   /* symbol prefix */
     ' ',						   /* ar_pad_char */
@@ -379,6 +326,15 @@ bfd_target trad_core_vec =
      bfd_false, bfd_false
     },
     
-    JUMP_TABLE(trad_unix),
+       BFD_JUMP_TABLE_GENERIC (_bfd_generic),
+       BFD_JUMP_TABLE_COPY (_bfd_generic),
+       BFD_JUMP_TABLE_CORE (trad_unix),
+       BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
+       BFD_JUMP_TABLE_SYMBOLS (_bfd_nosymbols),
+       BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
+       BFD_JUMP_TABLE_WRITE (_bfd_generic),
+       BFD_JUMP_TABLE_LINK (_bfd_nolink),
+       BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
+
     (PTR) 0			/* backend_data */
 };

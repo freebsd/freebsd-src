@@ -1,5 +1,5 @@
 /* Print i386 instructions for GDB, the GNU debugger.
-   Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1991, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -33,12 +33,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #include "dis-asm.h"
+#include "sysdep.h"
 
 #define MAXLEN 20
 
 #include <setjmp.h>
 
-struct private
+struct dis_private
 {
   /* Points to first byte not fetched.  */
   bfd_byte *max_fetched;
@@ -51,7 +52,7 @@ struct private
    to ADDR (exclusive) are valid.  Returns 1 for success, longjmps
    on error.  */
 #define FETCH_DATA(info, addr) \
-  ((addr) <= ((struct private *)(info->private_data))->max_fetched \
+  ((addr) <= ((struct dis_private *)(info->private_data))->max_fetched \
    ? 1 : fetch_data ((info), (addr)))
 
 static int
@@ -60,7 +61,7 @@ fetch_data (info, addr)
      bfd_byte *addr;
 {
   int status;
-  struct private *priv = (struct private *)info->private_data;
+  struct dis_private *priv = (struct dis_private *)info->private_data;
   bfd_vma start = priv->insn_start + (priv->max_fetched - priv->the_buffer);
 
   status = (*info->read_memory_func) (start,
@@ -415,8 +416,8 @@ struct dis386 dis386[] = {
   { "stosS",	Yv, eAX },
   { "lodsb",	AL, Xb },
   { "lodsS",	eAX, Xv },
-  { "scasb",	AL, Xb },
-  { "scasS",	eAX, Xv },
+  { "scasb",	AL, Yb },
+  { "scasS",	eAX, Yv },
   /* b0 */
   { "movb",	AL, Ib },
   { "movb",	CL, Ib },
@@ -977,7 +978,7 @@ print_insn_i386 (pc, info)
   char *first, *second, *third;
   int needcomma;
   
-  struct private priv;
+  struct dis_private priv;
   bfd_byte *inbuf = priv.the_buffer;
 
   info->private_data = (PTR) &priv;
@@ -1045,11 +1046,17 @@ print_insn_i386 (pc, info)
   else
     dp = &dis386[*codep];
   codep++;
+
+  /* Fetch the mod/reg/rm byte.  FIXME: We should be only fetching
+     this if we need it.  As it is, this code loses if there is a
+     one-byte instruction (without a mod/reg/rm byte) at the end of
+     the address space.  */
+
   FETCH_DATA (info, codep + 1);
   mod = (*codep >> 6) & 3;
   reg = (*codep >> 3) & 7;
   rm = *codep & 7;
-  
+
   if (dp->name == NULL && dp->bytemode1 == FLOATCODE)
     {
       dofloat ();

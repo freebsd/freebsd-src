@@ -1,5 +1,6 @@
 /* Evaluate expressions for GDB.
-   Copyright 1986, 1987, 1989, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -18,12 +19,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "defs.h"
+#include <string.h>
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "value.h"
 #include "expression.h"
 #include "target.h"
 #include "frame.h"
+#include "demangle.h"
 #include "language.h"	/* For CAST_IS_CONVERSION */
 
 /* Values of NOSIDE argument to eval_subexp.  */
@@ -43,18 +46,18 @@ enum noside
 
 /* Prototypes for local functions. */
 
-static value
+static value_ptr
 evaluate_subexp_for_sizeof PARAMS ((struct expression *, int *));
 
-static value
+static value_ptr
 evaluate_subexp_with_coercion PARAMS ((struct expression *, int *,
 				       enum noside));
 
-static value
+static value_ptr
 evaluate_subexp_for_address PARAMS ((struct expression *, int *,
 				     enum noside));
 
-static value
+static value_ptr
 evaluate_subexp PARAMS ((struct type *, struct expression *, int *,
 			 enum noside));
 
@@ -93,12 +96,12 @@ parse_and_eval_address_1 (expptr)
   return addr;
 }
 
-value
+value_ptr
 parse_and_eval (exp)
      char *exp;
 {
   struct expression *expr = parse_expression (exp);
-  register value val;
+  register value_ptr val;
   register struct cleanup *old_chain
     = make_cleanup (free_current_contents, &expr);
 
@@ -111,12 +114,12 @@ parse_and_eval (exp)
    in the string EXPP as an expression, evaluate it, and return the value.
    EXPP is advanced to point to the comma.  */
 
-value
+value_ptr
 parse_to_comma_and_eval (expp)
      char **expp;
 {
   struct expression *expr = parse_exp_1 (expp, (struct block *) 0, 1);
-  register value val;
+  register value_ptr val;
   register struct cleanup *old_chain
     = make_cleanup (free_current_contents, &expr);
 
@@ -130,12 +133,7 @@ parse_to_comma_and_eval (expp)
 
    See expression.h for info on the format of an expression.  */
 
-static value evaluate_subexp ();
-static value evaluate_subexp_for_address ();
-static value evaluate_subexp_for_sizeof ();
-static value evaluate_subexp_with_coercion ();
-
-value
+value_ptr
 evaluate_expression (exp)
      struct expression *exp;
 {
@@ -146,7 +144,7 @@ evaluate_expression (exp)
 /* Evaluate an expression, avoiding all memory references
    and getting a value whose type alone is correct.  */
 
-value
+value_ptr
 evaluate_type (exp)
      struct expression *exp;
 {
@@ -154,7 +152,7 @@ evaluate_type (exp)
   return evaluate_subexp (NULL_TYPE, exp, &pc, EVAL_AVOID_SIDE_EFFECTS);
 }
 
-static value
+static value_ptr
 evaluate_subexp (expect_type, exp, pos, noside)
      struct type *expect_type;
      register struct expression *exp;
@@ -164,10 +162,10 @@ evaluate_subexp (expect_type, exp, pos, noside)
   enum exp_opcode op;
   int tem, tem2, tem3;
   register int pc, pc2 = 0, oldpos;
-  register value arg1 = NULL, arg2 = NULL, arg3;
+  register value_ptr arg1 = NULL, arg2 = NULL, arg3;
   struct type *type;
   int nargs;
-  value *argvec;
+  value_ptr *argvec;
 
   pc = (*pos)++;
   op = exp->elts[pc].opcode;
@@ -263,7 +261,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
       tem2 = longest_to_int (exp->elts[pc + 1].longconst);
       tem3 = longest_to_int (exp->elts[pc + 2].longconst);
       nargs = tem3 - tem2 + 1;
-      argvec = (value *) alloca (sizeof (value) * nargs);
+      argvec = (value_ptr *) alloca (sizeof (value_ptr) * nargs);
       for (tem = 0; tem < nargs; tem++)
 	{
 	  /* Ensure that array expressions are coerced into pointer objects. */
@@ -341,7 +339,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 		    for (j = TYPE_FN_FIELDLIST_LENGTH (basetype, i) - 1; j >= 0; --j)
 		      if (TYPE_FN_FIELD_VOFFSET (f, j) == fnoffset)
 			{
-			  value temp = value_ind (arg2);
+			  value_ptr temp = value_ind (arg2);
 			  arg1 = value_virtual_fn_field (&temp, f, j, domain_type, 0);
 			  arg2 = value_addr (temp);
 			  goto got_it;
@@ -404,7 +402,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	}
       /* Allocate arg vector, including space for the function to be
 	 called in argvec[0] and a terminating NULL */
-      argvec = (value *) alloca (sizeof (value) * (nargs + 2));
+      argvec = (value_ptr *) alloca (sizeof (value_ptr) * (nargs + 2));
       for (; tem <= nargs; tem++)
 	/* Ensure that array expressions are coerced into pointer objects. */
 	argvec[tem] = evaluate_subexp_with_coercion (exp, pos, noside);
@@ -415,17 +413,25 @@ evaluate_subexp (expect_type, exp, pos, noside)
       if (op == STRUCTOP_STRUCT || op == STRUCTOP_PTR)
 	{
 	  int static_memfuncp;
-	  value temp = arg2;
+	  value_ptr temp = arg2;
+	  char tstr[64];
 
 	  argvec[1] = arg2;
-	  argvec[0] =
-	    value_struct_elt (&temp, argvec+1, &exp->elts[pc2 + 2].string,
+	  argvec[0] = 0;
+	  strcpy(tstr, &exp->elts[pc2+2].string);
+          if (!argvec[0]) 
+	    {
+	      temp = arg2;
+	      argvec[0] =
+	      value_struct_elt (&temp, argvec+1, tstr,
 			      &static_memfuncp,
 			      op == STRUCTOP_STRUCT
 			      ? "structure" : "structure pointer");
-	  arg2 = value_from_longest (lookup_pointer_type (VALUE_TYPE (temp)),
-				     VALUE_ADDRESS (temp)+VALUE_OFFSET (temp));
+	    }
+	  arg2 = value_from_longest (lookup_pointer_type(VALUE_TYPE (temp)),
+			 VALUE_ADDRESS (temp)+VALUE_OFFSET (temp));
 	  argvec[1] = arg2;
+
 	  if (static_memfuncp)
 	    {
 	      argvec[1] = argvec[0];
@@ -473,9 +479,9 @@ evaluate_subexp (expect_type, exp, pos, noside)
 			   lval_memory);
       else
 	{
-	  value temp = arg1;
-	  return value_struct_elt (&temp, (value *)0, &exp->elts[pc + 2].string,
-				   (int *) 0, "structure");
+	  value_ptr temp = arg1;
+	  return value_struct_elt (&temp, NULL, &exp->elts[pc + 2].string,
+				   NULL, "structure");
 	}
 
     case STRUCTOP_PTR:
@@ -491,9 +497,9 @@ evaluate_subexp (expect_type, exp, pos, noside)
 			   lval_memory);
       else
 	{
-	  value temp = arg1;
-	  return value_struct_elt (&temp, (value *)0, &exp->elts[pc + 2].string,
-				   (int *) 0, "structure pointer");
+	  value_ptr temp = arg1;
+	  return value_struct_elt (&temp, NULL, &exp->elts[pc + 2].string,
+				   NULL, "structure pointer");
 	}
 
     case STRUCTOP_MEMBER:
@@ -623,6 +629,13 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	return value_x_binop (arg1, arg2, op, OP_NULL);
       else
 	return value_subscript (arg1, arg2);
+
+    case BINOP_IN:
+      arg1 = evaluate_subexp_with_coercion (exp, pos, noside);
+      arg2 = evaluate_subexp_with_coercion (exp, pos, noside);
+      if (noside == EVAL_SKIP)
+	goto nosideret;
+      return value_in (arg1, arg2);
       
     case MULTI_SUBSCRIPT:
       (*pos) += 2;
@@ -1028,7 +1041,7 @@ GDB does not (yet) know how to evaluated that kind of expression");
    NOSIDE may be EVAL_AVOID_SIDE_EFFECTS;
    then only the type of the result need be correct.  */
 
-static value
+static value_ptr
 evaluate_subexp_for_address (exp, pos, noside)
      register struct expression *exp;
      register int *pos;
@@ -1086,7 +1099,7 @@ evaluate_subexp_for_address (exp, pos, noside)
     default_case:
       if (noside == EVAL_AVOID_SIDE_EFFECTS)
 	{
-	  value x = evaluate_subexp (NULL_TYPE, exp, pos, noside);
+	  value_ptr x = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  if (VALUE_LVAL (x) == lval_memory)
 	    return value_zero (lookup_pointer_type (VALUE_TYPE (x)),
 			       not_lval);
@@ -1110,7 +1123,7 @@ evaluate_subexp_for_address (exp, pos, noside)
 
    */
 
-static value
+static value_ptr
 evaluate_subexp_with_coercion (exp, pos, noside)
      register struct expression *exp;
      register int *pos;
@@ -1118,7 +1131,7 @@ evaluate_subexp_with_coercion (exp, pos, noside)
 {
   register enum exp_opcode op;
   register int pc;
-  register value val;
+  register value_ptr val;
   struct symbol *var;
 
   pc = (*pos);
@@ -1149,14 +1162,14 @@ evaluate_subexp_with_coercion (exp, pos, noside)
    and return a value for the size of that subexpression.
    Advance *POS over the subexpression.  */
 
-static value
+static value_ptr
 evaluate_subexp_for_sizeof (exp, pos)
      register struct expression *exp;
      register int *pos;
 {
   enum exp_opcode op;
   register int pc;
-  value val;
+  value_ptr val;
 
   pc = (*pos);
   op = exp->elts[pc].opcode;

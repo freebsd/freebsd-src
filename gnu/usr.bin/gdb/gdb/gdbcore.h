@@ -64,11 +64,18 @@ read_memory_integer PARAMS ((CORE_ADDR memaddr, int len));
 extern unsigned LONGEST
 read_memory_unsigned_integer PARAMS ((CORE_ADDR memaddr, int len));
 
-/* If this is prototyped, need to deal with void* vs. char*.  */
+/* This takes a char *, not void *.  This is probably right, because
+   passing in an int * or whatever is wrong with respect to
+   byteswapping, alignment, different sizes for host vs. target types,
+   etc.  */
 
-extern void
-write_memory PARAMS ((CORE_ADDR memaddr, char *myaddr, int len));
+extern void write_memory PARAMS ((CORE_ADDR memaddr, char *myaddr, int len));
 
+extern void generic_search PARAMS ((int len, char *data, char *mask,
+				    CORE_ADDR startaddr, int increment,
+				    CORE_ADDR lorange, CORE_ADDR hirange,
+				    CORE_ADDR *addr_found, char *data_found));
+
 /* Hook for `exec_file_command' command to call.  */
 
 extern void (*exec_file_display_hook) PARAMS ((char *filename));
@@ -113,6 +120,9 @@ extern CORE_ADDR kernel_u_addr;
 
 /* The target vector for core files */
 extern struct target_ops core_ops;
+#ifdef KERNEL_DEBUG
+extern struct target_ops kcore_ops;
+#endif
 
  /* target vector functions called directly from elsewhere */
 void

@@ -29,7 +29,9 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "target.h"
 #include "thread.h"
 #include "command.h"
+#include "gdbcmd.h"
 
+#include <ctype.h>
 #include <sys/types.h>
 #include <signal.h>
 
@@ -211,6 +213,112 @@ thread_switch (pid)
 }
 
 static void
+restore_current_thread (pid)
+     int pid;
+{
+  if (pid != inferior_pid)
+    thread_switch (pid);
+}
+
+/* Apply a GDB command to a list of threads.  List syntax is a whitespace
+   seperated list of numbers, or ranges, or the keyword `all'.  Ranges consist
+   of two numbers seperated by a hyphen.  Examples:
+
+	thread apply 1 2 7 4 backtrace	Apply backtrace cmd to threads 1,2,7,4
+	thread apply 2-7 9 p foo(1)	Apply p foo(1) cmd to threads 2->7 & 9
+	thread apply all p x/i $pc	Apply x/i $pc cmd to all threads
+*/
+
+static void
+thread_apply_all_command (cmd, from_tty)
+     char *cmd;
+     int from_tty;
+{
+  struct thread_info *tp;
+  struct cleanup *old_chain;
+
+  if (cmd == NULL || *cmd == '\000')
+    error ("Please specify a command following the thread ID list");
+
+  old_chain = make_cleanup (restore_current_thread, inferior_pid);
+
+  for (tp = thread_list; tp; tp = tp->next)
+    {
+      thread_switch (tp->pid);
+      printf_filtered ("\nThread %d (%s):\n", tp->num,
+		       target_pid_to_str (inferior_pid));
+      execute_command (cmd, from_tty);
+    }
+}
+
+static void
+thread_apply_command (tidlist, from_tty)
+     char *tidlist;
+     int from_tty;
+{
+  char *cmd;
+  char *p;
+  struct cleanup *old_chain;
+
+  if (tidlist == NULL || *tidlist == '\000')
+    error ("Please specify a thread ID list");
+
+  for (cmd = tidlist; *cmd != '\000' && !isalpha(*cmd); cmd++);
+
+  if (*cmd == '\000')
+    error ("Please specify a command following the thread ID list");
+
+  old_chain = make_cleanup (restore_current_thread, inferior_pid);
+
+  while (tidlist < cmd)
+    {
+      struct thread_info *tp;
+      int start, end;
+
+      start = strtol (tidlist, &p, 10);
+      if (p == tidlist)
+	error ("Error parsing %s", tidlist);
+      tidlist = p;
+
+      while (*tidlist == ' ' || *tidlist == '\t')
+	tidlist++;
+
+      if (*tidlist == '-')	/* Got a range of IDs? */
+	{
+	  tidlist++;	/* Skip the - */
+	  end = strtol (tidlist, &p, 10);
+	  if (p == tidlist)
+	    error ("Error parsing %s", tidlist);
+	  tidlist = p;
+
+	  while (*tidlist == ' ' || *tidlist == '\t')
+	    tidlist++;
+	}
+      else
+	end = start;
+
+      for (; start <= end; start++)
+	{
+	  tp = find_thread_id (start);
+
+	  if (!tp)
+	    {
+	      warning ("Unknown thread %d.", start);
+	      continue;
+	    }
+
+	  thread_switch (tp->pid);
+	  printf_filtered ("\nThread %d (%s):\n", tp->num,
+			   target_pid_to_str (inferior_pid));
+	  execute_command (cmd, from_tty);
+	}
+    }
+}
+
+/* Switch to the specified thread.  Will dispatch off to thread_apply_command
+   if prefix of arg is `apply'.  */
+
+static void
 thread_command (tidstr, from_tty)
      char *tidstr;
      int from_tty;
@@ -221,7 +329,6 @@ thread_command (tidstr, from_tty)
   if (!tidstr)
     error ("Please specify a thread ID.  Use the \"info threads\" command to\n\
 see the IDs of currently known threads.");
-
 
   num = atoi (tidstr);
 
@@ -240,9 +347,25 @@ see the IDs of currently known threads.", num);
 void
 _initialize_thread ()
 {
+  static struct cmd_list_element *thread_cmd_list = NULL;
+  static struct cmd_list_element *thread_apply_list = NULL;
+  extern struct cmd_list_element *cmdlist;
+
   add_info ("threads", info_threads_command,
 	    "IDs of currently known threads.");
-  add_com ("thread", class_info, thread_command,
-	   "Use this command to switch between threads.\n\
-The new thread ID must be currently known.");
+
+  add_prefix_cmd ("thread", class_run, thread_command,
+		  "Use this command to switch between threads.\n\
+The new thread ID must be currently known.", &thread_cmd_list, "thread ", 1,
+		  &cmdlist);
+
+  add_prefix_cmd ("apply", class_run, thread_apply_command,
+		  "Apply a command to a list of threads.",
+		  &thread_apply_list, "apply ", 1, &thread_cmd_list);
+
+  add_cmd ("all", class_run, thread_apply_all_command,
+	   "Apply a command to all threads.",
+	   &thread_apply_list);
+
+  add_com_alias ("t", "thread", class_run, 1);
 }

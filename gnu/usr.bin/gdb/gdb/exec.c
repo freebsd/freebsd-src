@@ -1,5 +1,5 @@
 /* Work with executable files, for GDB. 
-   Copyright 1988, 1989, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -22,6 +22,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "inferior.h"
 #include "target.h"
 #include "gdbcmd.h"
+#include "language.h"
 
 #ifdef USG
 #include <sys/types.h>
@@ -148,15 +149,25 @@ exec_file_command (args, from_tty)
       exec_bfd = bfd_fdopenr (scratch_pathname, gnutarget, scratch_chan);
       if (!exec_bfd)
 	error ("Could not open `%s' as an executable file: %s",
-	       scratch_pathname, bfd_errmsg (bfd_error));
+	       scratch_pathname, bfd_errmsg (bfd_get_error ()));
       if (!bfd_check_format (exec_bfd, bfd_object))
-	error ("\"%s\": not in executable format: %s.",
-	       scratch_pathname, bfd_errmsg (bfd_error));
+	{
+	  /* Make sure to close exec_bfd, or else "run" might try to use
+	     it.  */
+	  exec_close (0);
+	  error ("\"%s\": not in executable format: %s.",
+		 scratch_pathname, bfd_errmsg (bfd_get_error ()));
+	}
 
       if (build_section_table (exec_bfd, &exec_ops.to_sections,
 				&exec_ops.to_sections_end))
-	error ("Can't find the file sections in `%s': %s", 
-		exec_bfd->filename, bfd_errmsg (bfd_error));
+	{
+	  /* Make sure to close exec_bfd, or else "run" might try to use
+	     it.  */
+	  exec_close (0);
+	  error ("Can't find the file sections in `%s': %s", 
+		 exec_bfd->filename, bfd_errmsg (bfd_get_error ()));
+	}
 
 #ifdef NEED_TEXT_START_END
 
@@ -173,7 +184,7 @@ exec_file_command (args, from_tty)
 	text_start = ~(CORE_ADDR)0;
 	text_end = (CORE_ADDR)0;
 	for (p = exec_ops.to_sections; p < exec_ops.to_sections_end; p++)
-	  if (bfd_get_section_flags (p->bfd, p->sec_ptr)
+	  if (bfd_get_section_flags (p->bfd, p->the_bfd_section)
 	      & (SEC_CODE | SEC_READONLY))
 	    {
 	      if (text_start > p->addr) 
@@ -193,7 +204,7 @@ exec_file_command (args, from_tty)
 	(*exec_file_display_hook) (filename);
     }
   else if (from_tty)
-    printf ("No exec file now.\n");
+    printf_unfiltered ("No exec file now.\n");
 }
 
 /* Set both the exec file and the symbol file, in one command.  
@@ -226,13 +237,12 @@ add_to_section_table (abfd, asect, table_pp_char)
   flagword aflag;
 
   aflag = bfd_get_section_flags (abfd, asect);
-  /* FIXME, we need to handle BSS segment here...it alloc's but doesn't load */
-  if (!(aflag & SEC_LOAD))
+  if (!(aflag & SEC_ALLOC))
     return;
   if (0 == bfd_section_size (abfd, asect))
     return;
   (*table_pp)->bfd = abfd;
-  (*table_pp)->sec_ptr = asect;
+  (*table_pp)->the_bfd_section = asect;
   (*table_pp)->addr = bfd_section_vma (abfd, asect);
   (*table_pp)->endaddr = (*table_pp)->addr + bfd_section_size (abfd, asect);
   (*table_pp)++;
@@ -304,8 +314,8 @@ xfer_memory (memaddr, myaddr, len, write, target)
 	if (p->endaddr >= memend)
 	  {
 	    /* Entire transfer is within this section.  */
-	    res = xfer_fn (p->bfd, p->sec_ptr, myaddr, memaddr - p->addr, len);
-	    return (res != false)? len: 0;
+	    res = xfer_fn (p->bfd, p->the_bfd_section, myaddr, memaddr - p->addr, len);
+	    return (res != 0) ? len : 0;
 	  }
 	else if (p->endaddr <= memaddr)
 	  {
@@ -316,8 +326,8 @@ xfer_memory (memaddr, myaddr, len, write, target)
 	  {
 	    /* This section overlaps the transfer.  Just do half.  */
 	    len = p->endaddr - memaddr;
-	    res = xfer_fn (p->bfd, p->sec_ptr, myaddr, memaddr - p->addr, len);
-	    return (res != false)? len: 0;
+	    res = xfer_fn (p->bfd, p->the_bfd_section, myaddr, memaddr - p->addr, len);
+	    return (res != 0) ? len : 0;
 	  }
       else if (p->addr < nextsectaddr)
 	nextsectaddr = p->addr;
@@ -354,20 +364,27 @@ print_section_info (t, abfd)
   printf_filtered ("\t`%s', ", bfd_get_filename(abfd));
   wrap_here ("        ");
   printf_filtered ("file type %s.\n", bfd_get_target(abfd));
-  printf_filtered ("\tEntry point: %s\n",
-		   local_hex_string ((unsigned long) bfd_get_start_address (exec_bfd)));
-  for (p = t->to_sections; p < t->to_sections_end; p++) {
-    printf_filtered ("\t%s", local_hex_string_custom ((unsigned long) p->addr, "08l"));
-    printf_filtered (" - %s", local_hex_string_custom ((unsigned long) p->endaddr, "08l"));
-    if (info_verbose)
-      printf_filtered (" @ %s",
-		       local_hex_string_custom ((unsigned long) p->sec_ptr->filepos, "08l"));
-    printf_filtered (" is %s", bfd_section_name (p->bfd, p->sec_ptr));
-    if (p->bfd != abfd) {
-      printf_filtered (" in %s", bfd_get_filename (p->bfd));
+  if (abfd == exec_bfd)
+    {
+      printf_filtered ("\tEntry point: ");
+      print_address_numeric (bfd_get_start_address (abfd), 1, gdb_stdout);
+      printf_filtered ("\n");
     }
-    printf_filtered ("\n");
-  }
+  for (p = t->to_sections; p < t->to_sections_end; p++)
+    {
+      /* FIXME-32x64 need a print_address_numeric with field width */
+      printf_filtered ("\t%s", local_hex_string_custom ((unsigned long) p->addr, "08l"));
+      printf_filtered (" - %s", local_hex_string_custom ((unsigned long) p->endaddr, "08l"));
+      if (info_verbose)
+	printf_filtered (" @ %s",
+			 local_hex_string_custom ((unsigned long) p->the_bfd_section->filepos, "08l"));
+      printf_filtered (" is %s", bfd_section_name (p->bfd, p->the_bfd_section));
+      if (p->bfd != abfd)
+	{
+	  printf_filtered (" in %s", bfd_get_filename (p->bfd));
+	}
+      printf_filtered ("\n");
+    }
 }
 
 static void
@@ -400,8 +417,8 @@ set_section_command (args, from_tty)
   secaddr = parse_and_eval_address (args);
 
   for (p = exec_ops.to_sections; p < exec_ops.to_sections_end; p++) {
-    if (!strncmp (secname, bfd_section_name (exec_bfd, p->sec_ptr), seclen)
-	&& bfd_section_name (exec_bfd, p->sec_ptr)[seclen] == '\0') {
+    if (!strncmp (secname, bfd_section_name (exec_bfd, p->the_bfd_section), seclen)
+	&& bfd_section_name (exec_bfd, p->the_bfd_section)[seclen] == '\0') {
       offset = secaddr - p->addr;
       p->addr += offset;
       p->endaddr += offset;

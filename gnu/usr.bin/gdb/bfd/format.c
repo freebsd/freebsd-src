@@ -1,5 +1,5 @@
 /* Generic BFD support for file formats.
-   Copyright (C) 1990-1991 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 92, 93, 94 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -20,20 +20,20 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
 SECTION
-	File Formats
+	File formats
 
-	A format is a BFD concept of high level file contents. The
+	A format is a BFD concept of high level file contents type. The
 	formats supported by BFD are: 
 
-	o bfd_object
+	o <<bfd_object>>
 
 	The BFD may contain data, symbols, relocations and debug info.
 
-	o bfd_archive
+	o <<bfd_archive>>
 
 	The BFD contains other BFDs and an optional index.
 
-	o bfd_core
+	o <<bfd_core>>
 
 	The BFD contains the result of an executable core dump.
 
@@ -44,9 +44,8 @@ SECTION
 #include "sysdep.h"
 #include "libbfd.h"
 
-extern bfd_target *target_vector[];
-extern bfd_target *default_vector[];
-
+/* IMPORT from targets.c.  */
+extern const size_t _bfd_target_vector_entries;
 
 /*
 FUNCTION
@@ -56,15 +55,14 @@ SYNOPSIS
 	boolean bfd_check_format(bfd *abfd, bfd_format format);
 
 DESCRIPTION
-	This routine is supplied a BFD and a format. It attempts to
-	verify if the file attached to the BFD is indeed compatible
-	with the format specified (ie, one of <<bfd_object>>,
+	Verify if the file attached to the BFD @var{abfd} is compatible
+	with the format @var{format} (i.e., one of <<bfd_object>>,
 	<<bfd_archive>> or <<bfd_core>>).
 
-	If the BFD has been set to a specific @var{target} before the
-	call, only the named target and format combination will be
+	If the BFD has been set to a specific target before the
+	call, only the named target and format combination is
 	checked. If the target has not been set, or has been set to
-	<<default>> then all the known target backends will be
+	<<default>>, then all the known target backends is
 	interrogated to determine a match.  If the default target
 	matches, it is used.  If not, exactly one target must recognize
 	the file, or an error results.
@@ -72,34 +70,62 @@ DESCRIPTION
 	The function returns <<true>> on success, otherwise <<false>>
 	with one of the following error codes:  
 
-	o invalid_operation -
+	o <<bfd_error_invalid_operation>> -
 	if <<format>> is not one of <<bfd_object>>, <<bfd_archive>> or
 	<<bfd_core>>.
 
-	o system_call_error -
+	o <<bfd_error_system_call>> -
 	if an error occured during a read - even some file mismatches
-	can cause system_call_errors
+	can cause bfd_error_system_calls.
 
-	o file_not_recognised -
-	none of the backends recognised the file format
+	o <<file_not_recognised>> -
+	none of the backends recognised the file format.
 
-	o file_ambiguously_recognized -
+	o <<bfd_error_file_ambiguously_recognized>> -
 	more than one backend recognised the file format.
-
 */
 
 boolean
-DEFUN(bfd_check_format,(abfd, format),
-      bfd *abfd AND
-      bfd_format format)
+bfd_check_format (abfd, format)
+     bfd *abfd;
+     bfd_format format;
 {
-  bfd_target **target, *save_targ, *right_targ;
+  return bfd_check_format_matches (abfd, format, NULL);
+}
+
+/*
+FUNCTION
+	bfd_check_format_matches
+
+SYNOPSIS
+	boolean bfd_check_format_matches(bfd *abfd, bfd_format format, char ***matching);
+
+DESCRIPTION
+	Like <<bfd_check_format>>, except when it returns false with
+	<<bfd_errno>> set to <<bfd_error_file_ambiguously_recognized>>.  In that
+	case, if @var{matching} is not NULL, it will be filled in with
+	a NULL-terminated list of the names of the formats that matched,
+	allocated with <<malloc>>.
+	Then the user may choose a format and try again.
+
+	When done with the list that @var{matching} points to, the caller
+	should free it.  
+*/
+
+boolean
+bfd_check_format_matches (abfd, format, matching)
+     bfd *abfd;
+     bfd_format format;
+     char ***matching;
+{
+  const bfd_target * const *target, *save_targ, *right_targ;
+  char **matching_vector = NULL;
   int match_count;
 
   if (!bfd_read_p (abfd) ||
       ((int)(abfd->format) < (int)bfd_unknown) ||
       ((int)(abfd->format) >= (int)bfd_type_end)) {
-    bfd_error = invalid_operation;
+    bfd_set_error (bfd_error_invalid_operation);
     return false;
   }
 
@@ -112,6 +138,19 @@ DEFUN(bfd_check_format,(abfd, format),
 
   save_targ = abfd->xvec;
   match_count = 0;
+  if (matching)
+    {
+      matching_vector =
+	(char **) malloc (sizeof (char *) *
+			  (_bfd_target_vector_entries + 1));
+      if (!matching_vector)
+	{
+	  bfd_set_error (bfd_error_no_memory);
+	  return false;
+	}
+      matching_vector[0] = NULL;
+      *matching = matching_vector;
+    }
   right_targ = 0;
 
 
@@ -121,33 +160,46 @@ DEFUN(bfd_check_format,(abfd, format),
   /* If the target type was explicitly specified, just check that target.  */
 
   if (!abfd->target_defaulted) {
-    bfd_seek (abfd, (file_ptr)0, SEEK_SET);	/* rewind! */
-
+    if (bfd_seek (abfd, (file_ptr)0, SEEK_SET) != 0)	/* rewind! */
+      return false;
     right_targ = BFD_SEND_FMT (abfd, _bfd_check_format, (abfd));
     if (right_targ) {
       abfd->xvec = right_targ;		/* Set the target as returned */
+      if (matching)
+	free (matching_vector);
       return true;			/* File position has moved, BTW */
     }
   }
 
-  for (target = target_vector; *target != NULL; target++) {
-    bfd_target *temp;
+  for (target = bfd_target_vector; *target != NULL; target++) {
+    const bfd_target *temp;
 
     abfd->xvec = *target;	/* Change BFD's target temporarily */
-    bfd_seek (abfd, (file_ptr)0, SEEK_SET);
-    /* If _bfd_check_format neglects to set bfd_error, assume wrong_format.
+    if (bfd_seek (abfd, (file_ptr)0, SEEK_SET) != 0)
+      return false;
+    /* If _bfd_check_format neglects to set bfd_error, assume bfd_error_wrong_format.
        We didn't used to even pay any attention to bfd_error, so I suspect
        that some _bfd_check_format might have this problem.  */
-    bfd_error = wrong_format;
+    bfd_set_error (bfd_error_wrong_format);
     temp = BFD_SEND_FMT (abfd, _bfd_check_format, (abfd));
     if (temp) {				/* This format checks out as ok! */
       right_targ = temp;
+      if (matching)
+	{
+	  matching_vector[match_count] = temp->name;
+	  matching_vector[match_count + 1] = NULL;
+	}
       match_count++;
       /* If this is the default target, accept it, even if other targets
 	 might match.  People who want those other targets have to set 
 	 the GNUTARGET variable.  */
-      if (temp == default_vector[0])
+      if (temp == bfd_default_vector[0])
 	{
+	  if (matching)
+	    {
+	      matching_vector[0] = temp->name;
+	      matching_vector[1] = NULL;
+	    }
 	  match_count = 1;
 	  break;
 	}
@@ -160,51 +212,60 @@ DEFUN(bfd_check_format,(abfd, format),
        */
       break;
 #endif
-    } else if (bfd_error != wrong_format) {
+    } else if (bfd_get_error () != bfd_error_wrong_format) {
       abfd->xvec = save_targ;
       abfd->format = bfd_unknown;
+      if (matching && bfd_get_error () != bfd_error_file_ambiguously_recognized)
+	free (matching_vector);
       return false;
     }
   }
 
   if (match_count == 1) {
     abfd->xvec = right_targ;		/* Change BFD's target permanently */
+    if (matching)
+      free (matching_vector);
     return true;			/* File position has moved, BTW */
   }
 
   abfd->xvec = save_targ;		/* Restore original target type */
   abfd->format = bfd_unknown;		/* Restore original format */
-  bfd_error = ((match_count == 0) ? file_not_recognized :
-	       file_ambiguously_recognized);
+  if (match_count == 0)
+    {
+      bfd_set_error (bfd_error_file_not_recognized);
+      if (matching)
+	free (matching_vector);
+    }
+  else
+    bfd_set_error (bfd_error_file_ambiguously_recognized);
   return false;
 }
-
 
 /*
 FUNCTION
 	bfd_set_format
 
 SYNOPSIS
-	boolean bfd_set_format(bfd *, bfd_format);
+	boolean bfd_set_format(bfd *abfd, bfd_format format);
 
 DESCRIPTION
-	This function sets the file format of the supplied BFD to the
-	format requested. If the target set in the BFD does not
-	support the format requested, the format is illegal or the BFD
-	is not open for writing than an error occurs.
+	This function sets the file format of the BFD @var{abfd} to the
+	format @var{format}. If the target set in the BFD does not
+	support the format requested, the format is invalid, or the BFD
+	is not open for writing, then an error occurs.
 
 */
 
 boolean
-DEFUN(bfd_set_format,(abfd, format),
-      bfd *abfd AND
-      bfd_format format)
+bfd_set_format (abfd, format)
+     bfd *abfd;
+     bfd_format format;
 {
 
   if (bfd_read_p (abfd) ||
       ((int)abfd->format < (int)bfd_unknown) ||
       ((int)abfd->format >= (int)bfd_type_end)) {
-    bfd_error = invalid_operation;
+    bfd_set_error (bfd_error_invalid_operation);
     return false;
   }
 
@@ -228,18 +289,17 @@ FUNCTION
 	bfd_format_string
 
 SYNOPSIS
-	CONST char *bfd_format_string(bfd_format);
+	CONST char *bfd_format_string(bfd_format format);
 
 DESCRIPTION
-	This function takes one argument, and enumerated type
-	(bfd_format) and returns a pointer to a const string
-	<<invalid>>, <<object>>, <<archive>>, <<core>> or <<unknown>>
-	depending upon the value of the enumeration.
+	Return a pointer to a const string
+	<<invalid>>, <<object>>, <<archive>>, <<core>>, or <<unknown>>,
+	depending upon the value of @var{format}.
 */
 
 CONST char *
-DEFUN(bfd_format_string,(format),
-     bfd_format format)
+bfd_format_string (format)
+     bfd_format format;
 {
   if (((int)format <(int) bfd_unknown) 
       || ((int)format >=(int) bfd_type_end)) 
