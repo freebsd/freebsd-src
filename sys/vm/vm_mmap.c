@@ -743,7 +743,6 @@ madvise(td, uap)
 	struct madvise_args *uap;
 {
 	vm_offset_t start, end;
-	int ret;
 
 	/*
 	 * Check for illegal behavior
@@ -771,10 +770,10 @@ madvise(td, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
-	mtx_lock(&Giant);
-	ret = vm_map_madvise(&td->td_proc->p_vmspace->vm_map, start, end, uap->behav);
-	mtx_unlock(&Giant);
-	return (ret ? EINVAL : 0);
+	if (vm_map_madvise(&td->td_proc->p_vmspace->vm_map, start, end,
+	    uap->behav))
+		return (EINVAL);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
