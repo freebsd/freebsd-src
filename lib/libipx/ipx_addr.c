@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -59,10 +61,10 @@ ipx_addr(name)
 	buf[sizeof(buf) - 1] = '\0';
 
 	/*
-	 * First, figure out what he intends as a field separtor.
-	 * Despite the way this routine is written, the prefered
+	 * First, figure out what he intends as a field separator.
+	 * Despite the way this routine is written, the preferred
 	 * form  2-272.AA001234H.01777, i.e. XDE standard.
-	 * Great efforts are made to insure backward compatability.
+	 * Great efforts are made to ensure backwards compatibility.
 	 */
 	if ( (hostname = strchr(buf, '#')) )
 		separator = '#';
@@ -132,7 +134,7 @@ Field(buf, out, len)
 	}
 	/*
 	 * This is REALLY stretching it but there was a
-	 * comma notation separting shorts -- definitely non standard
+	 * comma notation separating shorts -- definitely non-standard
 	 */
 	if (1 < (i = sscanf(buf,"%x,%x,%x",
 			&hb[0], &hb[1], &hb[2]))) {
