@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.8 1998/03/05 12:20:08 dg Exp $
+ * $Id: vfs_bio.c,v 1.104.2.9 1998/05/06 19:10:59 gibbs Exp $
  */
 
 /*
@@ -1174,7 +1174,7 @@ loop:
 		 * Normally the vnode is locked so this isn't a problem.
 		 * VBLK type I/O requests, however, don't lock the vnode.
 		 */
-		if (!VOP_ISLOCKED(vp) && gbincore(vp, blkno)) {
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE && gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
