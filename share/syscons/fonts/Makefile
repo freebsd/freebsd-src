@@ -1,0 +1,19 @@
+FONTS=cp866c-8x16.fnt cp865-8x14.fnt iso-8x16.fnt koi8-r-8x8.fnt cp866-8x14.fnt \
+	cp850-8x14.fnt cp865-8x16.fnt iso-8x8.fnt koi8-rc-8x16.fnt cp866-8x16.fnt \
+	cp850-8x16.fnt cp865-8x8.fnt koi8-r-8x14.fnt cp866-8x8.fnt cp850-8x8.fnt \
+	iso-8x14.fnt koi8-r-8x16.fnt cp866b-8x16.fnt koi8-rb-8x16.fnt
+
+FONTDIR = /usr/share/syscons/fonts
+
+NOMAN = noman
+
+all:;
+
+clean:;
+
+install:
+	cd ${.CURDIR}; \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
+		${DESTDIR}${FONTDIR}
+
+.include <bsd.prog.mk>
