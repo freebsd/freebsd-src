@@ -104,7 +104,7 @@ MALLOC_DEFINE(M_TTYS, "ttys", "tty data structures");
 static int	proc_compare(struct proc *p1, struct proc *p2);
 static int	ttnread(struct tty *tp);
 static void	ttyecho(int c, struct tty *tp);
-static int	ttyoutput(int c, register struct tty *tp);
+static int	ttyoutput(int c, struct tty *tp);
 static void	ttypend(struct tty *tp);
 static void	ttyretype(struct tty *tp);
 static void	ttyrub(int c, struct tty *tp);
@@ -212,7 +212,7 @@ SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
 int
 ttyopen(device, tp)
 	dev_t device;
-	register struct tty *tp;
+	struct tty *tp;
 {
 	int s;
 
@@ -242,7 +242,7 @@ ttyopen(device, tp)
  */
 int
 ttyclose(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
 	int s;
 
@@ -281,11 +281,11 @@ ttyclose(tp)
  */
 int
 ttyinput(c, tp)
-	register int c;
-	register struct tty *tp;
+	int c;
+	struct tty *tp;
 {
-	register tcflag_t iflag, lflag;
-	register cc_t *cc;
+	tcflag_t iflag, lflag;
+	cc_t *cc;
 	int i, err;
 
 	/*
@@ -629,11 +629,11 @@ startoutput:
  */
 static int
 ttyoutput(c, tp)
-	register int c;
-	register struct tty *tp;
+	int c;
+	struct tty *tp;
 {
-	register tcflag_t oflag;
-	register int col, s;
+	tcflag_t oflag;
+	int col, s;
 
 	oflag = tp->t_oflag;
 	if (!ISSET(oflag, OPOST)) {
@@ -724,12 +724,12 @@ ttyoutput(c, tp)
 /* ARGSUSED */
 int
 ttioctl(tp, cmd, data, flag)
-	register struct tty *tp;
+	struct tty *tp;
 	u_long cmd;
 	int flag;
 	void *data;
 {
-	register struct proc *p;
+	struct proc *p;
 	struct thread *td;
 	struct pgrp *pgrp;
 	int s, error;
@@ -839,7 +839,7 @@ ttioctl(tp, cmd, data, flag)
 		splx(s);
 		break;
 	case TIOCFLUSH: {		/* flush buffers */
-		register int flags = *(int *)data;
+		int flags = *(int *)data;
 
 		if (flags == 0)
 			flags = FREAD | FWRITE;
@@ -911,7 +911,7 @@ ttioctl(tp, cmd, data, flag)
 	case TIOCSETA:			/* set termios struct */
 	case TIOCSETAW:			/* drain output, set */
 	case TIOCSETAF: {		/* drn out, fls in, set */
-		register struct termios *t = (struct termios *)data;
+		struct termios *t = (struct termios *)data;
 
 		if (t->c_ispeed == 0)
 			t->c_ispeed = t->c_ospeed;
@@ -1006,7 +1006,7 @@ ttioctl(tp, cmd, data, flag)
 		break;
 	}
 	case TIOCSETD: {		/* set line discipline */
-		register int t = *(int *)data;
+		int t = *(int *)data;
 		dev_t device = tp->t_dev;
 
 		if ((u_int)t >= nlinesw)
@@ -1272,7 +1272,7 @@ ttnread(tp)
  */
 int
 ttywait(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
 	int error, s;
 
@@ -1320,10 +1320,10 @@ ttywflush(tp)
  */
 void
 ttyflush(tp, rw)
-	register struct tty *tp;
+	struct tty *tp;
 	int rw;
 {
-	register int s;
+	int s;
 
 	s = spltty();
 #if 0
@@ -1497,7 +1497,7 @@ ttylclose(tp, flag)
  */
 int
 ttymodem(tp, flag)
-	register struct tty *tp;
+	struct tty *tp;
 	int flag;
 {
 
@@ -1560,10 +1560,10 @@ ttymodem(tp, flag)
  */
 static void
 ttypend(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
 	struct clist tq;
-	register int c;
+	int c;
 
 	CLR(tp->t_lflag, PENDIN);
 	SET(tp->t_state, TS_TYPEN);
@@ -1587,15 +1587,15 @@ ttypend(tp)
  */
 int
 ttread(tp, uio, flag)
-	register struct tty *tp;
+	struct tty *tp;
 	struct uio *uio;
 	int flag;
 {
-	register struct clist *qp;
-	register int c;
-	register tcflag_t lflag;
-	register cc_t *cc = tp->t_cc;
-	register struct proc *p = curproc;
+	struct clist *qp;
+	int c;
+	tcflag_t lflag;
+	cc_t *cc = tp->t_cc;
+	struct proc *p = curproc;
 	int s, first, error = 0;
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
@@ -1868,7 +1868,7 @@ out:
  */
 int
 ttycheckoutq(tp, wait)
-	register struct tty *tp;
+	struct tty *tp;
 	int wait;
 {
 	int hiwat, s;
@@ -1900,13 +1900,13 @@ ttycheckoutq(tp, wait)
  */
 int
 ttwrite(tp, uio, flag)
-	register struct tty *tp;
-	register struct uio *uio;
+	struct tty *tp;
+	struct uio *uio;
 	int flag;
 {
-	register char *cp = NULL;
-	register int cc, ce;
-	register struct proc *p;
+	char *cp = NULL;
+	int cc, ce;
+	struct proc *p;
 	int i, hiwat, cnt, error, s;
 	char obuf[OBUFSIZ];
 
@@ -2108,11 +2108,11 @@ ovhiwat:
  */
 static void
 ttyrub(c, tp)
-	register int c;
-	register struct tty *tp;
+	int c;
+	struct tty *tp;
 {
-	register char *cp;
-	register int savecol;
+	char *cp;
+	int savecol;
 	int tabc, s;
 
 	if (!ISSET(tp->t_lflag, ECHO) || ISSET(tp->t_lflag, EXTPROC))
@@ -2202,7 +2202,7 @@ ttyrub(c, tp)
  */
 static void
 ttyrubo(tp, cnt)
-	register struct tty *tp;
+	struct tty *tp;
 	int cnt;
 {
 
@@ -2220,9 +2220,9 @@ ttyrubo(tp, cnt)
  */
 static void
 ttyretype(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
-	register char *cp;
+	char *cp;
 	int s, c;
 
 	/* Echo the reprint character. */
@@ -2255,8 +2255,8 @@ ttyretype(tp)
  */
 static void
 ttyecho(c, tp)
-	register int c;
-	register struct tty *tp;
+	int c;
+	struct tty *tp;
 {
 
 	if (!ISSET(tp->t_state, TS_CNTTB))
@@ -2283,7 +2283,7 @@ ttyecho(c, tp)
  */
 void
 ttwakeup(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
 
 	if (SEL_WAITING(&tp->t_rsel))
@@ -2299,7 +2299,7 @@ ttwakeup(tp)
  */
 void
 ttwwakeup(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
 
 	if (SEL_WAITING(&tp->t_wsel) && tp->t_outq.c_cc <= tp->t_olowat)
@@ -2326,7 +2326,7 @@ ttwwakeup(tp)
 int
 ttspeedtab(speed, table)
 	int speed;
-	register struct speedtab *table;
+	struct speedtab *table;
 {
 
 	for ( ; table->sp_speed != -1; table++)
@@ -2347,7 +2347,7 @@ void
 ttsetwater(tp)
 	struct tty *tp;
 {
-	register int cps, ttmaxhiwat, x;
+	int cps, ttmaxhiwat, x;
 
 	/* Input. */
 	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
@@ -2404,9 +2404,9 @@ ttsetwater(tp)
  */
 void
 ttyinfo(tp)
-	register struct tty *tp;
+	struct tty *tp;
 {
-	register struct proc *p, *pick;
+	struct proc *p, *pick;
 	struct timeval utime, stime;
 	const char *stmp;
 	long ltmp;
@@ -2487,7 +2487,7 @@ ttyinfo(tp)
 
 static int
 proc_compare(p1, p2)
-	register struct proc *p1, *p2;
+	struct proc *p1, *p2;
 {
 
 	int esta, estb;
@@ -2560,7 +2560,7 @@ tputchar(c, tp)
 	int c;
 	struct tty *tp;
 {
-	register int s;
+	int s;
 
 	s = spltty();
 	if (!ISSET(tp->t_state, TS_CONNECTED)) {
