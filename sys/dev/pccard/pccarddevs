@@ -103,7 +103,7 @@ vendor ACTIONTEC		0x1668	ACTIONTEC
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
-vendor OEM1			0x50c2	Mystery OEM #1
+vendor AIRVAST                  0x50c2  AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
 vendor EDIMAX			0x890f	Edimax Technology Inc.
@@ -150,6 +150,9 @@ product ADAPTEC APA1460A	0x0002 Adaptec APA-1460A SlimSCSI
 product AIRONET PC4500		0x0005 Aironet PC4500 Wireless LAN Adapter
 product AIRONET PC4800		0x0007 Aironet PC4800 Wireless LAN Adapter
 product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
+
+/* AirVast */
+product AIRVAST WN_100          0x7300 AirVast WN-100 
 
 /* Allied Telesis K.K. */
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
@@ -324,9 +327,6 @@ product NOKIA C020_WLAN		0x20c0 Nokia C020 WLAN Card
 /* No Wires Needed */
 product NWN WLAN_550		0x0002 NWN 550 WLAN
 product NWN WLAN_1148		0x0003 NWN 1148 WLAN
-
-/* Mystery OEM #1 */
-product OEM1 PRISM3		0x7300 Prism 3 37300P
 
 /* Olicom Products */
 product OLICOM TR		0x2132 GoCard Token Ring 16/4
