@@ -1125,8 +1125,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
 	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
-				     acpi_eventhandler_power_button_for_sleep,
-				     sc);
+				     acpi_event_power_button_sleep, sc);
 	if (first_time)
 	    device_printf(sc->acpi_dev, "Power Button (fixed)\n");
     }
@@ -1134,8 +1133,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, 0);
 	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
-				     acpi_eventhandler_sleep_button_for_sleep,
-				     sc);
+				     acpi_event_sleep_button_sleep, sc);
 	if (first_time)
 	    device_printf(sc->acpi_dev, "Sleep Button (fixed)\n");
     }
@@ -1719,7 +1717,7 @@ acpi_system_eventhandler_wakeup(void *arg, int state)
  * ACPICA Event Handlers (FixedEvent, also called from button notify handler)
  */
 UINT32
-acpi_eventhandler_power_button_for_sleep(void *context)
+acpi_event_power_button_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
@@ -1731,7 +1729,7 @@ acpi_eventhandler_power_button_for_sleep(void *context)
 }
 
 UINT32
-acpi_eventhandler_power_button_for_wakeup(void *context)
+acpi_event_power_button_wake(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
@@ -1743,7 +1741,7 @@ acpi_eventhandler_power_button_for_wakeup(void *context)
 }
 
 UINT32
-acpi_eventhandler_sleep_button_for_sleep(void *context)
+acpi_event_sleep_button_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
@@ -1755,7 +1753,7 @@ acpi_eventhandler_sleep_button_for_sleep(void *context)
 }
 
 UINT32
-acpi_eventhandler_sleep_button_for_wakeup(void *context)
+acpi_event_sleep_button_wake(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 

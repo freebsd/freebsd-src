@@ -60,8 +60,8 @@ static void 	acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify,
 					   void *context);
 static ACPI_STATUS
 		acpi_button_fixed_handler(void *context);
-static void	acpi_button_notify_pressed_for_sleep(void *arg);
-static void	acpi_button_notify_pressed_for_wakeup(void *arg);
+static void	acpi_button_notify_sleep(void *arg);
+static void	acpi_button_notify_wakeup(void *arg);
 
 static device_method_t acpi_button_methods[] = {
     /* Device interface */
@@ -127,10 +127,13 @@ acpi_button_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->button_dev = dev;
     sc->button_handle = acpi_get_handle(dev);
+    event = (sc->button_type == ACPI_SLEEP_BUTTON) ?
+	    ACPI_EVENT_SLEEP_BUTTON : ACPI_EVENT_POWER_BUTTON;
 
+    /* Install the appropriate new handler. */
     if (sc->fixed) {
-	event = (sc->button_type == ACPI_SLEEP_BUTTON) ?
-		ACPI_EVENT_SLEEP_BUTTON : ACPI_EVENT_POWER_BUTTON;
+	AcpiEnableEvent(event, 0);
+	AcpiClearEvent(event);
 	status = AcpiInstallFixedEventHandler(event,
 			acpi_button_fixed_handler, sc);
     } else {
@@ -143,6 +146,23 @@ acpi_button_attach(device_t dev)
 	return_VALUE (ENXIO);
     }
     acpi_device_enable_wake_capability(sc->button_handle, 1);
+
+    /*
+     * If we have fixed buttons defined in the FADT, remove them now that
+     * we have found one in the AML.  Some systems define buttons both ways
+     * but only deliver events to the AML object.
+     */
+    if (event == ACPI_EVENT_POWER_BUTTON && AcpiGbl_FADT->PwrButton == 0) {
+	AcpiDisableEvent(event, 0);
+	AcpiClearEvent(event);
+	AcpiRemoveFixedEventHandler(event, acpi_event_power_button_sleep);
+    }
+    if (event == ACPI_EVENT_SLEEP_BUTTON && AcpiGbl_FADT->SleepButton == 0) {
+	AcpiDisableEvent(event, 0);
+	AcpiClearEvent(event);
+	AcpiRemoveFixedEventHandler(event, acpi_event_sleep_button_sleep);
+    }
+
     return_VALUE (0);
 }
 
@@ -163,7 +183,7 @@ acpi_button_resume(device_t dev)
 }
 
 static void
-acpi_button_notify_pressed_for_sleep(void *arg)
+acpi_button_notify_sleep(void *arg)
 {
     struct acpi_button_softc	*sc;
     struct acpi_softc		*acpi_sc;
@@ -180,11 +200,11 @@ acpi_button_notify_pressed_for_sleep(void *arg)
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
 	ACPI_VPRINT(sc->button_dev, acpi_sc, "power button pressed\n");
-	acpi_eventhandler_power_button_for_sleep((void *)acpi_sc);
+	acpi_event_power_button_sleep(acpi_sc);
 	break;
     case ACPI_SLEEP_BUTTON:
 	ACPI_VPRINT(sc->button_dev, acpi_sc, "sleep button pressed\n");
-	acpi_eventhandler_sleep_button_for_sleep((void *)acpi_sc);
+	acpi_event_sleep_button_sleep(acpi_sc);
 	break;
     default:
 	break;		/* unknown button type */
@@ -192,7 +212,7 @@ acpi_button_notify_pressed_for_sleep(void *arg)
 }
 
 static void
-acpi_button_notify_pressed_for_wakeup(void *arg)
+acpi_button_notify_wakeup(void *arg)
 {
     struct acpi_button_softc	*sc;
     struct acpi_softc		*acpi_sc;
@@ -209,11 +229,11 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
 	ACPI_VPRINT(sc->button_dev, acpi_sc, "wakeup by power button\n");
-	acpi_eventhandler_power_button_for_wakeup((void *)acpi_sc);
+	acpi_event_power_button_wake(acpi_sc);
 	break;
     case ACPI_SLEEP_BUTTON:
 	ACPI_VPRINT(sc->button_dev, acpi_sc, "wakeup by sleep button\n");
-	acpi_eventhandler_sleep_button_for_wakeup((void *)acpi_sc);
+	acpi_event_sleep_button_wake(acpi_sc);
 	break;
     default:
 	break;		/* unknown button type */
@@ -230,11 +250,11 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_button_notify_pressed_for_sleep, sc);
+				acpi_button_notify_sleep, sc);
 	break;   
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-				acpi_button_notify_pressed_for_wakeup, sc);
+				acpi_button_notify_wakeup, sc);
 	break;   
     default:
 	break;		/* unknown notification value */
