@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Paul Borman at Krystal Technologies.
+ * Copyright (c) 2002-2004 Tim J. Robbins
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,18 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -33,120 +23,123 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * UTF2 encoding.
+ *
+ * This is an obsolete subset of UTF-8, maintained for temporary
+ * compatibility with old applications. It is limited to 1-, 2- or
+ * 3-byte encodings, and allows redundantly-encoded characters.
+ *
+ * See utf2(5) for details.
+ */
 
 /* UTF2 is obsolete and will be removed in FreeBSD 6 -- use UTF-8 instead. */
 #define	OBSOLETE_IN_6
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)utf2.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/param.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <rune.h>
+#include <errno.h>
+#include <runetype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <wchar.h>
 
-rune_t	_UTF2_sgetrune(const char *, size_t, char const **);
-int	_UTF2_sputrune(rune_t, char *, size_t, char **);
+extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
-static int _utf_count[16] = {
-	1, 1, 1, 1, 1, 1, 1, 1,
-	0, 0, 0, 0, 2, 2, 3, 0,
-};
+size_t  _UTF2_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+	    mbstate_t * __restrict);
+size_t  _UTF2_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int
-_UTF2_init(rl)
-	_RuneLocale *rl;
+_UTF2_init(_RuneLocale *rl)
 {
-	rl->sgetrune = _UTF2_sgetrune;
-	rl->sputrune = _UTF2_sputrune;
+
+	__mbrtowc = _UTF2_mbrtowc;
+	__wcrtomb = _UTF2_wcrtomb;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 3;
+
 	return (0);
 }
 
-rune_t
-_UTF2_sgetrune(string, n, result)
-	const char *string;
-	size_t n;
-	char const **result;
+size_t
+_UTF2_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
 {
-	int c;
+	int ch, i, len, mask;
+	wchar_t wch;
 
-	if (n < 1 || (c = _utf_count[(*string >> 4) & 0xf]) > n) {
-		if (result)
-			*result = string;
-		return (_INVALID_RUNE);
+	if (s == NULL)
+		return (0);
+	if (n == 0)
+		return ((size_t)-2);
+
+	ch = (unsigned char)*s;
+	if ((ch & 0x80) == 0) {
+		mask = 0x7f;
+		len = 1;
+	} else if ((ch & 0xe0) == 0xc0) {
+		mask = 0x1f;
+		len = 2;
+	} else if ((ch & 0xf0) == 0xe0) {
+		mask = 0x0f;
+		len = 3;
+	} else {
+		errno = EILSEQ;
+		return ((size_t)-1);
 	}
-	switch (c) {
-	case 1:
-		if (result)
-			*result = string + 1;
-		return (*string & 0xff);
-	case 2:
-		if ((string[1] & 0xC0) != 0x80)
-			goto encoding_error;
-		if (result)
-			*result = string + 2;
-		return (((string[0] & 0x1F) << 6) | (string[1] & 0x3F));
-	case 3:
-		if ((string[1] & 0xC0) != 0x80 || (string[2] & 0xC0) != 0x80)
-			goto encoding_error;
-		if (result)
-			*result = string + 3;
-		return (((string[0] & 0x1F) << 12) | ((string[1] & 0x3F) << 6)
-		    | (string[2] & 0x3F));
-	default:
-encoding_error:	if (result)
-			*result = string + 1;
-		return (_INVALID_RUNE);
+
+	if (n < (size_t)len)
+		return ((size_t)-2);
+
+	wch = (unsigned char)*s++ & mask;
+	i = len;
+	while (--i != 0) {
+		if ((*s & 0xc0) != 0x80) {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wch <<= 6;
+		wch |= *s++ & 0x3f;
 	}
+	if (pwc != NULL)
+		*pwc = wch;
+	return (wch == L'\0' ? 0 : len);
 }
 
-int
-_UTF2_sputrune(c, string, n, result)
-	rune_t c;
-	char *string, **result;
-	size_t n;
+size_t
+_UTF2_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps __unused)
 {
-	if (c & 0xF800) {
-		if (n >= 3) {
-			if (string) {
-				string[0] = 0xE0 | ((c >> 12) & 0x0F);
-				string[1] = 0x80 | ((c >> 6) & 0x3F);
-				string[2] = 0x80 | ((c) & 0x3F);
-			}
-			if (result)
-				*result = string + 3;
-		} else
-			if (result)
-				*result = NULL;
+	unsigned char lead;
+	int i, len;
 
-		return (3);
-	} else
-		if (c & 0x0780) {
-			if (n >= 2) {
-				if (string) {
-					string[0] = 0xC0 | ((c >> 6) & 0x1F);
-					string[1] = 0x80 | ((c) & 0x3F);
-				}
-				if (result)
-					*result = string + 2;
-			} else
-				if (result)
-					*result = NULL;
-			return (2);
-		} else {
-			if (n >= 1) {
-				if (string)
-					string[0] = c;
-				if (result)
-					*result = string + 1;
-			} else
-				if (result)
-					*result = NULL;
-			return (1);
-		}
+	if (s == NULL)
+		return (1);
+
+	if ((wc & ~0x7f) == 0) {
+		lead = 0;
+		len = 1;
+	} else if ((wc & ~0x7ff) == 0) {
+		lead = 0xc0;
+		len = 2;
+	} else if ((wc & ~0xffff) == 0) {
+		lead = 0xe0;
+		len = 3;
+	} else {
+		errno = EILSEQ;
+		return ((size_t)-1);
+	}
+
+	for (i = len - 1; i > 0; i--) {
+		s[i] = (wc & 0x3f) | 0x80;
+		wc >>= 6;
+	}
+	*s = (wc & 0xff) | lead;
+
+	return (len);
 }
