@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.32 1995/05/30 08:16:15 rgrimes Exp $
+ *	$Id: vm_page.c,v 1.33 1995/07/13 08:48:37 davidg Exp $
  */
 
 /*
@@ -552,9 +552,11 @@ vm_page_alloc(object, offset, page_req)
 	if (offset != trunc_page(offset))
 		panic("vm_page_alloc: offset not page aligned");
 
+#if 0
 	mem = vm_page_lookup(object, offset);
 	if (mem)
 		panic("vm_page_alloc: page already allocated");
+#endif
 #endif
 
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
