@@ -76,6 +76,10 @@
  *  ----------------------------------
  *  Destroys	%eax, %ecx.  %edx must hold lock argument.
  *  Note: TPR_TARGET (relative to the stack) is destroyed in GRAB_HWI
+ *
+ *  NOTE: Serialization is not required if we already hold the lock, since
+ *  we already hold the lock, nor do we need a locked instruction if we 
+ *  already hold the lock.
  */
 
 NON_GPROF_ENTRY(MPgetlock_edx)
@@ -86,7 +90,7 @@ NON_GPROF_ENTRY(MPgetlock_edx)
 	cmpl	_cpu_lockid, %ecx	/* Do we already own the lock? */
 	jne	2f
 	incl	%eax			/* yes, just bump the count */
-	movl	%eax, (%edx)
+	movl	%eax, (%edx)		/* serialization not required */
 	ret
 2:
 	movl	$FREE_LOCK, %eax	/* lock must be free */
@@ -157,6 +161,19 @@ NON_GPROF_ENTRY(MPtrylock)
  *  void MPrellock_edx(unsigned int *lock : %edx)
  *  ----------------------------------
  *  Destroys	%ecx, argument must be in %edx
+ *
+ *  SERIALIZATION NOTE!
+ *
+ *  The pentium may execute instructions out of order.  On a UP system
+ *  this isn't a problem but on an MP system the pentium can get it 
+ *  wrong.
+ *
+ *  We must force instruction serialization prior to releasing the MP lock for
+ *  the last time.  'cpuid' or a locked bus cycle will accomplish this.  A
+ *  locked bus cycle is the fastest solution.  We use our per-cpu private
+ *  memory area rather then the shared lock memory because we are more likely
+ *  to already have exclusive access to the cache line (which is 3x faster 
+ *  then if we have to invalid another cpu's cache).
  */
 
 NON_GPROF_ENTRY(MPrellock_edx)
@@ -166,6 +183,8 @@ NON_GPROF_ENTRY(MPrellock_edx)
 	jnz	2f
 	ARB_HWI				/* last release, arbitrate hw INTs */
 	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
+	lock
+	addl	$0,%fs:0		/* see note above */
 2:
 	movl	%ecx, (%edx)
 	ret
