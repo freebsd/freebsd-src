@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.19 1995/07/13 08:48:38 davidg Exp $
+ * $Id: vm_page.h,v 1.20 1995/09/03 20:11:26 dyson Exp $
  */
 
 /*
@@ -128,7 +128,6 @@ struct vm_page {
 #define	PG_BUSY		0x0010		/* page is in transit (O) */
 #define	PG_WANTED	0x0020		/* someone is waiting for page (O) */
 #define	PG_TABLED	0x0040		/* page is in VP table (O) */
-#define	PG_COPYONWRITE	0x0080		/* must copy page before changing (O) */
 #define	PG_FICTITIOUS	0x0100		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0200		/* page is mapped writeable */
 #define PG_MAPPED	0x0400		/* page is mapped */
