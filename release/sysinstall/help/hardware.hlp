@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.8 1996/08/23 07:56:04 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.1 1996/11/13 11:49:40 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -102,7 +102,7 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL)
-vx0     dyn     dyn     n/a     dyn
+vx0     dyn     dyn     n/a     dyn	3Com 3c590 / 3c595
 ze0     300     5       dyn     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
@@ -113,8 +113,8 @@ zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
 If the hardware in your computer is not set to the same settings as
 those shown in the table and the item in conflict is not marked 'dyn',
 you will have to either reconfigure your hardware or use UserConfig
-('-c' boot option) to reconfigure the kernel to match the way your
-hardware is currently set (see the next section).
+to reconfigure the kernel to match the way your hardware is currently set
+(see the next section).
 
 If the settings do not match, the kernel may be unable to locate
 or reliably access the devices in your system.
@@ -123,127 +123,150 @@ or reliably access the devices in your system.
 2.      Using UserConfig to change FreeBSD kernel settings
 --      --------------------------------------------------
 
-The UserConfig utility allows you to override various settings of
-the FreeBSD kernel before the system has booted.  This allows you to
-make minor adjustments to the various drivers in the system without
-necessarily having to recompile the kernel.
+The FreeBSD kernel on the install floppy contains drivers for every
+piece of hardware that could concievably be used to install the rest
+of the system with.  Unfortunately, PC hardware being what it is, some
+of these devices can be difficult to detect accurately, and for some,
+the process of detecting another can cause irreversible confusion.
 
-UserConfig is activated by specifying the `-c' flag at the initial
-boot prompt.  For example:
+To make this process easier, FreeBSD provides UserConfig.  With this
+UserConfig, the user can configure and disable device drivers before
+the kernel is loaded, avoiding potential conflicts, and eliminating
+the need to reconfigure hardware to suit the default driver settings.
 
-        >> FreeBSD BOOT @ 0x10000: 640/7168 k of memory
-        Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.
-        Usage: [[wd(0,a)]/kernel][-abcCdhrsv]
-        Use ? for file list or press Enter for defaults
+Once FreeBSD is installed, it will remember the changes made using
+UserConfig, so that they only need be made once.
 
-        Boot: -c
-              --
+It is important to disable drivers that are not relevant to a system
+in order to minimise the possibility of interference, which can cause
+problems that are difficult to track down.
 
-This command causes the system to boot the default kernel ("/kernel") and
-the UserConfig utility to be started once the kernel is loaded into memory.
+UserConfig features a commandline interface for users with serial
+consoles or a need to type commands, and a fullscreen 'visual'
+interface, which provides point-and-shoot configuration functionality.
 
-The `-c' flag follows any of the other parameters you may need to provide
-for the system to boot properly.   For example, to boot off the second of
-two SCSI drives installed and run UserConfig, you would type:
+Here is a sample UserConfig screen shot in 'visual' mode:
 
-        Boot: sd(1,a)/kernel -c
-              -----------------
+---Active Drivers---------------------------10 Conflicts------Dev---IRQ--Port--
+ Storage :  (Collapsed)
+ Network :
+  NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters    CONF  ed0       5  0x280
+  NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters    CONF  ed1       5  0x300 
+ Communications : (Collapsed)
+ Input : (Collapsed)
+ Multimedia :
+---Inactive Drivers-------------------------------------------Dev--------------
+ Storage :
+ Network : (Collapsed)
+ Communications :
+ Input :
+ Multimedia :
+ PCI :
 
-As always, the kernel will report some information on your processor
-and how much memory your system has.  Then UserConfig will be invoked
-and you will see the prompt:
-
-        config>
-
-To see the list of commands that UserConfig accepts, you may type '?' and
-press [ENTER].  The help message looks something like this:
-
-Command                 Description
--------                 -----------
-ls                      List currently configured devices
-port <devname> <addr>   Set device port (i/o address)
-irq <devname> <number>  Set device irq
-drq <devname> <number>  Set device drq (DMA Request)
-iomem <devname> <addr>  Set device maddr (memory address)
-iosize <devname> <size> Set device memory size
-flags <devname> <mask>  Set device flags
-enable <devname>        Enable device
-disable <devname>       Disable device (will not be probed)
-visual                  Go to visual mode
-quit                    Exit this configuration utility
-help                    This message
+---Parameters-for-device-ed0---------------------------------------------------
+ Port address : 0x280      Memory address : 0xd8000
+ IRQ number   : 5          Memory size    : 0x2000
+ Flags        : 0x0000
+-------------------------------------------------------------------------------
+  IO Port address (Hexadecimal, 0x1-0x2000)
+  [TAB]   Change fields           [Q]   Save device parameters
 
 
-You may alter nearly all of the default settings present in the FreeBSD
-generic kernel.  This includes reassigning IRQs, disabling troublesome
-devices (or drivers that conflict with the hardware your system has),
-setting special device flags, etc.
+  The screen is divided into four sections :
 
-Since people's tastes in user interface design vary widely, we have
-provided two different interfaces to the UserConfig utility.  If you
-type `visual' (or just `v') you will be placed in the "GUI" oriented device
-attributes editor.  If you're someone who's more at home with
-command-line flavored interfaces then simply don't do that and use
-the CLI commands directly. :-)
+ - Active Drivers.  Listed here are the device drivers that are currently
+   enabled, and their basic parameters.
+ - Inactive Drivers.  These drivers are present, but are disabled.
+ - Parameter edit field.  This area is used for editing driver parameters.
+ - Help area.  Keystroke help is displayed here.
 
-Since the visual interface pretty much describes itself, we'll use the
-more verbose command line interface while describing UserConfig in the
-following examples.
+One of the Active and Inactive lists is always in use, and the current
+entry in the list will be shown with a highlight bar.  If there are
+more entries in a list than can be shown, it will scroll.  The bar can
+be moved up and down using the cursor keys, and moved between lists
+with the TAB key.
 
-The most common use of UserConfig is to adjust or disable a driver
-which is causing trouble.  The "ls" command displays the current
-settings for all the drivers present in the booted kernel, and once
-you have located an entry of interest you may use the displayed device
-name to change its settings or even disable the driver completely.
+Drivers in the Active list may be marked "CONF".  This indicates that
+one or more of their parameters conflicts with another device, and
+indicates a potential for problems.  The total number of conflicts is
+displayed at the top of the screen.
 
-For example, to change the memory address of network adapter 'ed0' to
-the address 0xd4000, you would type
-        
-        config> iomem ed0 0xd4000
-                -----------------
+As a general rule, conflicts should be avoided, either by disabling
+conflicting devices that are not present in the system, or by altering
+their configuration so that they match the installed hardware.
 
-To entirely disable a device driver you are not using, use the
-"disable" command.  In this example, you would disable device
-`ie0' by typing:
+In the list areas, drivers are grouped by their basic function.
+Groups can be 'Collapsed' to simplify the display (this is the default
+state for all groups).  If a group is collapsed, it will be shown with
+'(Collapsed)' in the list, as above.  To Expand a Collapsed group,
+position the highlight bar over the group heading and press Enter.  To
+Collapse it again, repeat the process.
 
-        config> disable ie0
-                -----------
+When a device driver in the Active list is highlighted, its full
+parameters are displayed in the Parameter edit area.  Note that not
+all drivers use all possible parameters, and some hardware supported
+by drivers may not use all the parameters the driver supports.
 
-You can use the "ls" command to verify your changes and correct
-any other problems before continuing the boot process.
+To disable a driver, go to the Active list, Expand the group it is in,
+highlight the driver and press Del.  The driver will move to its group
+in the Inactive list.  (If the group is collapsed or off the screen,
+you may not see the driver in its new location.)
 
-Once you are happy with a given configuration you may type: "quit"
+To enable a driver, go to the Inactive list, Expand the group it is
+in, highlight the driver and press Enter.  The highlight will move to
+the Active list, and the driver you have just enabled will be
+highlighted, ready to be configured.
 
-This will cause the kernel to boot with the new settings you
-have chosen.
+To configure a driver, go to the Active list, Expand the group it is
+in, highlight the driver and press Enter.  The cursor will move to the
+Parameter edit area, and the device's parameters may be edited.
 
-Once you have a fully installed system (e.g. the `bin' distribution
-has been successfully extracted), any changes you make in UserConfig
-are permanently stored in the `/kernel' file on the root filesystem.
-This action is performed by the `dset' utility, which will ensure that
-these settings remain in effect until you replace the kernel with
-a new one.  If you do not want your changes to be permanently
-stored like this, remove `dset' from the /etc/rc file before you
-make any changes.
+While editing parameters, the TAB and cursor keys can be used to move
+between fields.  Most numeric values (except IRQ) are entered in
+hexadecimal, as indicated by the '0x' at the beginning of the field.
+The allowable values for a given field are show in the Key Help area
+when the field is active.
 
-If you accidentally change a setting for a device that you did not mean
-to change, the safest thing to do is to reset the computer and start
-over.  Do not allow the boot to proceed (e.g. do not type "quit") with
-bad settings as these may be permanently stored by dset and
-leave your system in a state where it will no longer run properly.
+To finish configuring a driver, press 'Q'.
 
-We suggest as a general rule that you disable any drivers that are not
-used by your particular hardware configuration.  There are known problems
-with certain device drivers (see section 4.0) that can cause conflicts
-with other devices if they're also not disabled.  You should move or
-disable any device that resides at the same port or IRQ as a device
-you actually have!
 
-You can also remove drivers that are not needed by building yourself a
-custom kernel that contains only the device drivers which your system
-really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
-sufficient free disk space to store and compile the kernel sources,
-this is the option we most highly recommend.
+Sample UserConfig session  
+-------------------------
+
+Here is a walkthrough of a sample use of UserConfig.  The system in
+question has an IDE disk, two serial ports, a single printer port, a
+floppy drive and an NE2000 ethernet card set to I/O address 0x340 and
+IRQ 10.
+
+- At the 'config>' prompt, type 'v' and press Enter to activate
+  'visual' mode.
+
+- The fullscreen mode comes up, with the highlight bar in the Active Drivers
+  area over the 'Storage' group, which is Collapsed.  Press Enter to 
+  Expand the group.
+
+- Disable all of the drivers listed in this group except for the 
+  "Floppy disk controller" and "IDE/ESDI/MFM disk controller" by 
+  highlighting each in turn and pressing Del.
+
+- Move to the 'Network' group, Expand it, and disable all of the drivers
+  except for 'ed0', the first of the 
+  "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters".
+
+- Move to the 'Communications' group, Expand it and disable the 'lpt1' and
+  'lpt2' drivers.
+
+- Disable the 'mse0' driver in the 'Input' group.
+
+- Go back to the 'Network' group, highlight the 'ed0' driver, and press
+  Enter to configure it.
+
+- Change the 'Port address' and 'IRQ number' fields to match the 
+  configuration of the card, ie. 0x340 and 10 respectively.
+
+- Press 'Q' to finish configuring the device, and then 'Q' again to
+  leave UserConfig.  Answer 'yes' to save the changes and continue to boot
+  using the new configuration.
 
 
 3.      LINT - other possible configurations
