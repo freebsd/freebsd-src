@@ -46,7 +46,9 @@
 
 #include <sys/uio.h>
 #include <sys/param.h>
+#ifdef _KERNEL
 #include <sys/lock.h>
+#endif
 
 /*
  * First, define system-dependent types and constants.
