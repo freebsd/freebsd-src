@@ -326,13 +326,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
-                   /*
-                    * SEAGRAND NP-900 MP3 Player
-                    * PR: kern/64563
-                    */
-                   {T_DIRECT, SIP_MEDIA_REMOVABLE, "SEAGRAND", "NP-900*", "*"},
-                   /*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
-           },
+		/*
+		 * SEAGRAND NP-900 MP3 Player
+		 * PR: kern/64563
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SEAGRAND", "NP-900*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
+	},
 };
 
 static	d_open_t	daopen;
