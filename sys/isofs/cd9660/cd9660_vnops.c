@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.13 1995/03/28 07:46:38 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.14 1995/05/30 08:05:05 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -202,6 +202,7 @@ cd9660_getattr(ap)
 	vap->va_blocksize = ip->i_mnt->logical_block_size;
 	vap->va_bytes	= (u_quad_t) ip->i_size;
 	vap->va_type	= vp->v_type;
+	vap->va_filerev	= 0;
 	return (0);
 }
 

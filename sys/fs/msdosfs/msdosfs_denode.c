@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.11 1995/04/11 17:13:17 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.12 1995/05/30 08:07:37 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -69,6 +69,23 @@
 struct denode **dehashtbl;
 u_long dehash;			/* size of hash table - 1 */
 #define	DEHASH(dev, deno)	(((dev) + (deno)) & dehash)
+
+union _qcvt {
+	quad_t qcvt;
+	long val[2];
+};
+#define SETHIGH(q, h) { \
+	union _qcvt tmp; \
+	tmp.qcvt = (q); \
+	tmp.val[_QUAD_HIGHWORD] = (h); \
+	(q) = tmp.qcvt; \
+}
+#define SETLOW(q, l) { \
+	union _qcvt tmp; \
+	tmp.qcvt = (q); \
+	tmp.val[_QUAD_LOWWORD] = (l); \
+	(q) = tmp.qcvt; \
+}
 
 int msdosfs_init()
 {
@@ -297,6 +314,8 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 		}
 	} else
 		nvp->v_type = VREG;
+	SETHIGH(ldep->de_modrev, mono_time.tv_sec);
+	SETLOW(ldep->de_modrev, mono_time.tv_usec * 4294);
 	VREF(ldep->de_devvp);
 	*depp = ldep;
 	return 0;
