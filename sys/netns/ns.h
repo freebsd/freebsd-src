@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.h	8.1 (Berkeley) 6/10/93
- * $Id: ns.h,v 1.4 1995/07/29 11:41:49 bde Exp $
+ * $Id: ns.h,v 1.5 1995/10/26 20:31:44 julian Exp $
  */
 
 #ifndef _NETNS_NS_H_
@@ -142,7 +142,8 @@ extern union ns_host ns_zerohost;
 extern union ns_host ns_broadhost;
 extern union ns_net ns_zeronet;
 extern union ns_net ns_broadnet;
-u_short ns_cksum();
+
+u_short ns_cksum __P((struct mbuf *m, int len));
 #else
 
 #include <sys/cdefs.h>

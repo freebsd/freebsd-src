@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.h,v 1.4 1995/11/06 05:21:01 gibbs Exp $
+ *	$Id: eisaconf.h,v 1.5 1995/11/20 12:41:13 phk Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -72,6 +72,7 @@ struct eisa_device {
 	struct kern_devconf*	kdc;
 };
 
+void eisa_configure __P((void));
 struct eisa_device *eisa_match_dev __P((struct eisa_device *, char * (*)(eisa_id_t)));
 
 void eisa_reg_start __P((struct eisa_device *));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
- * $Id: specdev.h,v 1.4 1995/10/23 02:22:51 dyson Exp $
+ * $Id: specdev.h,v 1.5 1995/11/09 08:16:12 bde Exp $
  */
 
 /*
@@ -81,9 +81,8 @@ struct	flock;
 struct	buf;
 struct	uio;
 
-int	spec_badop(),
-	spec_ebadf();
-
+int	spec_badop __P((void));
+int	spec_ebadf __P((void));
 int	spec_lookup __P((struct vop_lookup_args *));
 #define spec_create ((int (*) __P((struct  vop_create_args *)))spec_badop)
 #define spec_mknod ((int (*) __P((struct  vop_mknod_args *)))spec_badop)

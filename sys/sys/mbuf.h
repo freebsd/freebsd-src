@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.9 1994/11/14 13:54:20 bde Exp $
+ * $Id: mbuf.h,v 1.10 1995/07/29 11:42:46 bde Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -387,7 +387,7 @@ void	m_adj __P((struct mbuf *,int));
 struct	mbuf *m_pullup __P((struct mbuf *, int));
 struct	mbuf *m_split __P((struct mbuf *,int,int));
 struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
-			    void (*copy)(struct mbuf *, caddr_t, u_int)));
+			    void (*copy)(char *, caddr_t, u_int)));
 
 #ifdef MBTYPES
 int mbtypes[] = {				/* XXX */

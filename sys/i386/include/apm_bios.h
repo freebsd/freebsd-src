@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.4 1995/02/17 02:22:45 phk Exp $
+ *	$Id: apm_bios.h,v 1.5 1995/05/30 08:00:23 rgrimes Exp $
  */
 
 #ifndef _MACHINE_APM_BIOS_H_
@@ -123,7 +123,7 @@
 /* C definitions */
 struct apmhook {
 	struct apmhook	*ah_next;
-	int		(*ah_fun)();
+	int		(*ah_fun) __P((void *ah_arg));
 	void		*ah_arg;
 	const char	*ah_name;
 	int		ah_order;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.7 1995/10/31 12:13:49 phk Exp $
+ * $Id: iso.h,v 1.8 1995/11/09 08:13:35 bde Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -212,7 +212,7 @@ struct iso_mnt {
 #define iso_lblktodaddr(imp, lbn) btodb(iso_lblktosize(imp, lbn))
 #define iso_dblkinc(imp, lbn) ((lbn) + iso_lblktodaddr(imp, 1))
 #define iso_dblkno(imp, loc) iso_lblktodaddr(imp, iso_lblkno(imp, loc))
-int cd9660_init __P(());
+int cd9660_init __P((void));
 
 struct iso_node;
 int iso_blkatoff __P((struct iso_node *ip, long offset, struct buf **bpp));
@@ -225,6 +225,15 @@ int cd9660_mountroot __P((void));
 
 extern vop_t **cd9660_vnodeop_p;
 
+static int isonum_711 __P((unsigned char *p));
+static int isonum_712 __P((char *p));
+static int isonum_721 __P((unsigned char *p));
+static int isonum_722 __P((unsigned char *p));
+static int isonum_723 __P((unsigned char *p));
+static int isonum_731 __P((unsigned char *p));
+static int isonum_732 __P((unsigned char *p));
+static int isonum_733 __P((unsigned char *p));
+  
 static inline int
 isonum_711(p)
 	unsigned char *p;

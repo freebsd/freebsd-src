@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.5 1995/03/25 21:10:38 bde Exp $
+**  $Id: pcivar.h,v 1.6 1995/05/30 08:13:12 rgrimes Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -238,17 +238,20 @@ int pci_map_port (pcici_t tag, u_long entry, u_short * pa);
 **-----------------------------------------------------------------
 */
 
+typedef int pci_inthand_t(void *arg);
+
 struct pci_int_desc {
 	struct pci_int_desc * pcid_next;
 	pcici_t 	      pcid_tag;
-	int		    (*pcid_handler)();
+	pci_inthand_t	     *pcid_handler;
 	void*		      pcid_argument;
 	unsigned *	      pcid_maskptr;
 	unsigned	      pcid_tally;
 	unsigned	      pcid_mask;
 };
 
-int pci_map_int (pcici_t tag, int (*func)(), void* arg, unsigned * maskptr);
+int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg,
+		 unsigned *maskptr);
 
 int pci_unmap_int (pcici_t tag);
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.12 1995/10/29 15:32:43 phk Exp $
+ * $Id: nfs.h,v 1.13 1995/10/31 21:17:59 joerg Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -487,6 +487,7 @@ int	nfs_getreq __P((struct nfsrv_descript *,struct nfsd *,int));
 int	nfs_send __P((struct socket *,struct mbuf *,struct mbuf *,struct nfsreq *));
 int	nfs_rephead __P((int,struct nfsrv_descript *,struct nfssvc_sock *,int,int,u_quad_t *,struct mbuf **,struct mbuf **,caddr_t *));
 int	nfs_sndlock __P((int *,struct nfsreq *));
+void	nfs_sndunlock __P((int *flagp));
 int	nfs_disct __P((struct mbuf **,caddr_t *,int,int,caddr_t *));
 int	nfs_vinvalbuf __P((struct vnode *,int,struct ucred *,struct proc *,int));
 int	nfs_readrpc __P((struct vnode *,struct uio *,struct ucred *));
@@ -511,6 +512,7 @@ void	nfsm_adj __P((struct mbuf *,int,int));
 int	nfsm_mbuftouio __P((struct mbuf **,struct uio *,int,caddr_t *));
 void	nfsrv_initcache __P((void));
 int	nfs_rcvlock __P((struct nfsreq *));
+void	nfs_rcvunlock __P((int *flagp));
 int	nfs_getauth __P((struct nfsmount *,struct nfsreq *,struct ucred *,char **,int *,char *,int *,NFSKERBKEY_T));
 int	nfs_getnickauth __P((struct nfsmount *,struct ucred *,char **,int *,char *,int));
 int	nfs_savenickauth __P((struct nfsmount *,struct ucred *,int,NFSKERBKEY_T,struct mbuf **,char **,struct mbuf *));
@@ -523,6 +525,7 @@ u_long nfs_hash __P((nfsfh_t *,int));
 int	nfssvc_iod __P((struct proc *));
 int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
 int	nfssvc_addsock __P((struct file *,struct mbuf *));
+void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
 int	nfsrv_dorec __P((struct nfssvc_sock *,struct nfsd *,struct nfsrv_descript **));
 int	nfsrv_getcache __P((struct nfsrv_descript *,struct nfssvc_sock *,struct mbuf **));
 void	nfsrv_updatecache __P((struct nfsrv_descript *,int,struct mbuf *));

@@ -36,14 +36,22 @@
 /*
  *	Controller data - Specific to each slot controller.
  */
+struct slot;
 struct slot_ctrl {
-	int	(*mapmem)();	/* Map memory */
-	int	(*mapio)();	/* Map io */
-	void	(*reset)();	/* init */
-	void	(*disable)();	/* Disable slot */
-	int	(*power)();	/* Set power values */
-	int	(*ioctl)();	/* ioctl to lower level */
-	void	(*mapirq)();	/* Map interrupt number */
+	int	(*mapmem) __P((struct slot *, int));
+				/* Map memory */
+	int	(*mapio) __P((struct slot *, int));
+				/* Map io */
+	void	(*reset) __P((void *));
+				/* init */
+	void	(*disable) __P((struct slot *));
+				/* Disable slot */
+	int	(*power) __P((struct slot *));
+				/* Set power values */
+	int	(*ioctl) __P((struct slot *, int, caddr_t));
+				/* ioctl to lower level */
+	void	(*mapirq) __P((struct slot *, int));
+				/* Map interrupt number */
 	int	extra;		/* Controller specific size */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */
@@ -124,5 +132,3 @@ enum card_event { card_removed, card_inserted };
 struct slot	*pccard_alloc_slot(struct slot_ctrl *);
 void		pccard_event(struct slot *, enum card_event);
 void		pccard_remove_controller(struct slot_ctrl *);
-int		pccard_alloc_intr();
-void		pccard_add_driver(struct pccard_drv *);
