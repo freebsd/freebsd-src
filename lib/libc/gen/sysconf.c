@@ -67,8 +67,10 @@ sysconf(name)
 	struct rlimit rl;
 	size_t len;
 	int mib[2], value;
+	long defaultresult;
 
 	len = sizeof(value);
+	defaultresult = -1;
 
 	switch (name) {
 /* 1003.1 */
@@ -257,6 +259,7 @@ sysconf(name)
 		mib[1] = CTL_P1003_1B_MQ_OPEN_MAX;
 		goto yesno;
 	case _SC_PAGESIZE:
+		defaultresult = getpagesize();
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_PAGESIZE;
 		goto yesno;
@@ -285,7 +288,7 @@ sysconf(name)
 yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 			return (-1);
 		if (value == 0)
-			return (-1);
+			return (defaultresult);
 		return (value);
 		break;
 	default:
