@@ -307,14 +307,17 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 {
 	struct proc *p;
 	struct thread *td;
+	struct trapframe *regs;
 
 	td = curthread;
 	p = td->td_proc;
+	regs = td->td_frame;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	bzero(si, sizeof(*si));
 	si->si_signo = sig;
 	si->si_code = code;
+	si->si_addr = (void *)regs->tf_addr;
 	/* XXXKSE fill other fields */
 }
 
