@@ -553,8 +553,8 @@ configSecurityModerate(dialogMenuItem *self)
 	    "mechanisms like inetd(8) have been enabled by default\n"
 	    "for a comfortable user experience but with possible\n"
 	    "trade-offs in system security.  If this bothers you and\n"
-	    "you know exactly what you are doing, select the high\n"
-	    "high security profile instead.\n\n"
+	    "you know exactly what you are doing, select one of the\n"
+	    "other security profiles instead.\n\n"
 	    "To change any of these settings later, edit /etc/rc.conf");
 
     restorescr(w);
@@ -576,9 +576,9 @@ configSecurityLiberal(dialogMenuItem *self)
 	    "This means that most \"popular\" network services and\n"
 	    "mechanisms like inetd(8) have been enabled by default\n"
 	    "for the most comfortable user experience but with possible\n"
-	    "trade-offs in system security.  If this bothers you, select\n"
-	    "the medium security profile or, if you know exactly what you\n"
-	    "are doing, the high security profile instead.\n\n"
+	    "trade-offs in system security.  If this bothers you and\n"
+	    "you know exactly what you are doing, select one of the\n"
+	    "other security profiles instead.\n\n"
 	    "To change any of these settings later, edit /etc/rc.conf");
 
     restorescr(w);

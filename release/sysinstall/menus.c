@@ -1604,8 +1604,8 @@ DMenu MenuSecurityProfile = {
     "Each item in this list will set what it considers to\n"
     "be \"appropriate\" values in that category for various\n"
     "security-related knobs in /etc/rc.conf.",
-    "Select a canned security profile.",
-    NULL,
+    "Select a canned security profile - F1 for help",
+    "security",						/* help file */
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, configSecurityModerate },
       { "Low",		"Fairly wide-open (little) security.", NULL, configSecurityLiberal },
       { "Medium",	"Moderate security settings [DEFAULT].", NULL, configSecurityModerate },
