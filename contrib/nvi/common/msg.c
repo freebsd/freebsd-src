@@ -617,13 +617,14 @@ msgq_status(sp, lno, flags)
 			memcpy(p, t, len);
 			p += len;
 		} else {
-			t = msg_cat(sp, "027|line %lu of %lu [%ld%%]", &len);
-			(void)sprintf(p, t, lno, last, (lno * 100) / last);
+			t = msg_cat(sp, "027|line %lu of %lu [%lu%%]", &len);
+			(void)sprintf(p, t, (u_long)lno, (u_long)last,
+			    (u_long)(lno * 100) / last);
 			p += strlen(p);
 		}
 	} else {
 		t = msg_cat(sp, "029|line %lu", &len);
-		(void)sprintf(p, t, lno);
+		(void)sprintf(p, t, (u_long)lno);
 		p += strlen(p);
 	}
 #ifdef DEBUG
