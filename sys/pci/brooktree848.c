@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.61.2.2 1999/01/28 17:26:32 roger Exp $ */
+/* $Id: brooktree848.c,v 1.70 1999/04/29 05:48:32 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -354,6 +354,13 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                     Added for Jan Schmidt <mmedia@rz.uni-greifswald.de>
                     Added ALPS Tuner Type from Hiroki Mori <mori@infocity.co.jp>
 
+1.61    29 Apr 1999 Roger Hardiman <roger@freebsd.org>
+                    Fix row=0/columns=0 bug. From Randal Hopper<aa8vb@ipass.net>
+                    Add option to block the reset of the MSP34xx audio chip by
+                    adding options BKTR_NO_MSP_RESET to the kernel config file.
+                    This is usefull if you run another operating system
+                    first to initialise the audio chip, then do a soft reboot.
+                    Added for Yuri Gindin <yuri@xpert.com>
 */
 
 #define DDB(x) x
@@ -488,7 +495,11 @@ static struct	pci_device bktr_device = {
 	&bktr_count
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (bktr, bktr_device);
+#else
 DATA_SET (pcidevice_set, bktr_device);
+#endif /* COMPAT_PCI_DRIVER */
 
 static	d_open_t	bktr_open;
 static	d_close_t	bktr_close;
@@ -2461,13 +2472,25 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		else
 			bktr->flags &= ~METEOR_ONLY_EVEN_FIELDS;
 
-		if ((geo->columns & 0x3fe) != geo->columns) {
+		if (geo->columns <= 0) {
+			printf(
+			"bktr%d: ioctl: %d: columns must be greater than zero.\n",
+				unit, geo->columns);
+			error = EINVAL;
+		}
+		else if ((geo->columns & 0x3fe) != geo->columns) {
 			printf(
 			"bktr%d: ioctl: %d: columns too large or not even.\n",
 				unit, geo->columns);
 			error = EINVAL;
 		}
-		if (((geo->rows & 0x7fe) != geo->rows) ||
+		if (geo->rows <= 0) {
+			printf(
+			"bktr%d: ioctl: %d: rows must be greater than zero.\n",
+				unit, geo->rows);
+			error = EINVAL;
+		}
+		else if (((geo->rows & 0x7fe) != geo->rows) ||
 			((geo->oformat & METEOR_GEO_FIELD_MASK) &&
 				((geo->rows & 0x3fe) != geo->rows)) ) {
 			printf(
@@ -4458,9 +4481,14 @@ msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
 }
 
 /* Reset the MSP chip */
+/* The user can block the reset (which is handy if you initialise the
+ * MSP audio in another operating system first (eg in Windows)
+ */
 static void
 msp_reset( bktr_ptr_t bktr )
 {
+
+#ifndef BKTR_NO_MSP_RESET
 	/* put into reset mode */
 	iicbus_start(IICBUS(bktr), MSP3400C_WADDR, 0 /* no timeout? */);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
@@ -4474,7 +4502,7 @@ msp_reset( bktr_ptr_t bktr )
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_stop(IICBUS(bktr));
-
+#endif
 	return;
 }
 
@@ -4721,8 +4749,12 @@ static unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int ad
 }
 
 /* Reset the MSP chip */
+/* The user can block the reset (which is handy if you initialise the
+ * MSP audio in another operating system first (eg in Windows)
+ */
 static void msp_reset( bktr_ptr_t bktr ) {
 
+#ifndef BKTR_NO_MSP_RESET
 	/* put into reset mode */
 	i2c_start(bktr);
 	i2c_write_byte(bktr, MSP3400C_WADDR);
@@ -4738,6 +4770,8 @@ static void msp_reset( bktr_ptr_t bktr ) {
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x00);
 	i2c_stop(bktr);
+#endif
+	return;
 
 }
 
@@ -5312,9 +5346,17 @@ checkDBX:
 checkMSP:
 	/* If this is a Hauppauge Bt878 card, we need to enable the
 	 * MSP 34xx audio chip. 
-         * The chip's reset line is wired to GPIO pin 5 and a pulldown
-	 * resistor holds the device in reset until we set GPIO pin 5
+	 * If this is a Hauppauge Bt848 card, reset the MSP device.
+	 * The MSP reset line is wired to GPIO pin 5. On Bt878 cards a pulldown
+	 * resistor holds the device in reset until we set GPIO pin 5.
          */
+
+	/* Optionally skip the MSP reset. This is handy if you initialise the
+	 * MSP audio in another operating system (eg Windows) first and then
+	 * do a soft reboot.
+	 */
+
+#ifndef BKTR_NO_MSP_RESET
 	if (card == CARD_HAUPPAUGE) {
             bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
             bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
@@ -5324,6 +5366,7 @@ checkMSP:
             bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
             DELAY(2500); /* wait 2.5ms */
         }
+#endif
 
 #if defined( OVERRIDE_MSP )
 	bktr->card.msp3400c = OVERRIDE_MSP;
@@ -6138,7 +6181,7 @@ static void msp_autodetect( bktr_ptr_t bktr ) {
 
 
 #ifdef __FreeBSD__
-static bktr_devsw_installed = 0;
+static int bktr_devsw_installed;
 
 static void
 bktr_drvinit( void *unused )
