@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.275 1998/08/18 07:36:47 sos Exp $
+ *  $Id: syscons.c,v 1.276 1998/08/23 08:26:41 bde Exp $
  */
 
 #include "sc.h"
@@ -138,7 +138,6 @@ static  scr_stat    	main_console;
 static  scr_stat    	*console[MAXCONS];
 #ifdef DEVFS
 static	void		*sc_devfs_token[MAXCONS];
-static	void		*sc_vga_devfs_token;
 static	void		*sc_mouse_devfs_token;
 static	void		*sc_console_devfs_token;
 #endif
@@ -842,7 +841,6 @@ scattach(struct isa_device *dev)
     for (vc = 0; vc < MAXCONS; vc++)
         sc_devfs_token[vc] = devfs_add_devswf(&sc_cdevsw, vc, DV_CHR,
 				UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc);
-    sc_vga_devfs_token = devfs_link(sc_devfs_token[0], "vga");
     sc_mouse_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_MOUSE, DV_CHR,
 				UID_ROOT, GID_WHEEL, 0600, "sysmouse");
     sc_console_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_CONSOLE, DV_CHR,
