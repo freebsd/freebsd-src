@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)profil.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: profil.2,v 1.5 1997/02/22 15:04:10 peter Exp $
 .\"
 .Dd "June 4, 1993"
 .Dt PROFIL 2
@@ -42,6 +42,7 @@
 .Nm profil
 .Nd control process profiling
 .Sh SYNOPSIS
+.Fd #include <unistd.h>
 .Ft int
 .Fn profil "char *samples" "int size" "int offset" "int scale"
 .Sh DESCRIPTION

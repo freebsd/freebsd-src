@@ -41,7 +41,8 @@
 .Nm quotactl
 .Nd manipulate filesystem quotas
 .Sh SYNOPSIS
-.Fd #include <ufs/ufs/quota.h>	/* for ufs quotas */
+.Fd #include <sys/types.h>
+.Fd #include <ufs/ufs/quota.h>
 .Ft int
 .Fn quotactl "const char *path" "int cmd" "int id" "char *addr"
 .Sh DESCRIPTION

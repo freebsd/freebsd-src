@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: listen.2,v 1.9 1997/02/22 15:03:59 peter Exp $
 .\"
 .Dd November 3, 1995
 .Dt LISTEN 2
@@ -39,6 +39,7 @@
 .Nm listen
 .Nd listen for connections on a socket
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Ft int
 .Fn listen "int s" "int backlog"

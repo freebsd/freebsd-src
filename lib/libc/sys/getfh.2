@@ -41,7 +41,7 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
 .Ft int
-.Fn getfh "char *path" "fhandle_t *fhp"
+.Fn getfh "const char *path" "fhandle_t *fhp"
 .Sh DESCRIPTION
 .Fn Getfh
 returns a file handle for the specified file or directory

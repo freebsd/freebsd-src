@@ -43,7 +43,7 @@
 .Ft int
 .Fn gettimeofday "struct timeval *tp" "struct timezone *tzp"
 .Ft int
-.Fn settimeofday "struct timeval *tp" "struct timezone *tzp"
+.Fn settimeofday "const struct timeval *tp" "const struct timezone *tzp"
 .Sh DESCRIPTION
 .Bf -symbolic
 Note: timezone is no longer used; this information is kept outside

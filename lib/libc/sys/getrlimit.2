@@ -45,7 +45,7 @@
 .Ft int
 .Fn getrlimit "int resource" "struct rlimit *rlp"
 .Ft int
-.Fn setrlimit "int resource" "struct rlimit *rlp"
+.Fn setrlimit "int resource" "const struct rlimit *rlp"
 .Sh DESCRIPTION
 Limits on the consumption of system resources by the current process
 and each process it creates may be obtained with the
