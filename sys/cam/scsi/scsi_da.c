@@ -142,6 +142,21 @@ static struct da_quirk_entry da_quirk_table[] =
 {
 	{
 		/*
+		 * Fujitsu M2513A MO drives.
+		 * Tested devices: M2513A2 firmware versions 1200 & 1300.
+		 * (dip switch selects whether T_DIRECT or T_OPTICAL device)
+		 * Reported by: W.Scholten <whs@xs4all.nl>
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJITSU", "M2513A", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/* See above. */
+		{T_OPTICAL, SIP_MEDIA_REMOVABLE, "FUJITSU", "M2513A", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * This particular Fujitsu drive doesn't like the
 		 * synchronize cache command.
 		 * Reported by: Tom Jackson <toj@gorilla.net>
@@ -207,6 +222,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
+	{
+		/*
+		 * Infortrend IFT-3102 SCSI to SCSI controller
+		 * (firmware version 2.23).
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "IFT", "3102", "*"},
+		/* quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 
 	/* Below a list of quirks for USB devices supported by umass. */
 	{
@@ -226,13 +249,9 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * Sony Memory Stick adapter MSAC-US1,
-		 * does not support READ_6 commands only READ_10. It also does
-		 * not support sync cache (0x35).
-		 * Sony PCG-C1VJ Internal Memory Stick Slot (MSC-U01) also
-		 * has this quirk.  Make all sony MS* products use this
-		 * quirk.  Reported by: TERAMOTO Masahiro
-		 * <teramoto@comm.eng.osaka-u.ac.jp> (PR 23378).
+		 * Sony Memory Stick adapter MSAC-US1 and
+		 * Sony PCG-C1VJ Internal Memory Stick Slot (MSC-U01).
+		 * Make all sony MS* products use this quirk.
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "MS*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
@@ -240,13 +259,80 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * Sony DSC cameras (DSC-S30, DSC-S50, DSC-S70)
-		 * do not support READ_6 commands, only READ_10. 
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
+        {
+		/*
+		 * Maxtor 3000LE USB Drive
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "MAXTOR*", "K040H2*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
 	{
 		{T_OPTICAL, SIP_MEDIA_REMOVABLE, "FUJITSU", "MCF3064AP", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Microtech USB CameraMate
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*", "Compact Flash*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * The vendor, product and version strings coming from the
+		 * controller are null terminated instead of being padded with
+		 * spaces. The trailing wildcard character '*' is required.
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SMSC*", "USB FDC*","*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+        {
+		/*
+		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C-*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Olympus E-100RS digital camera.
+		 * Reported by:	Bernd Walter <ticso@cicely8.cicely.de>
+		 * XXX See above; its likely all Olympus digital cameras
+		 *     have the same quirk, but I cannot confirm. - kbyanc
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "E-100RS", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+        {
+		/*
+		 * KingByte Pen Drives
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NO BRAND", "PEN DRIVE", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+ 	},
+ 	{
+		/*
+		 * FujiFilm Camera
+		 */
+ 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJIFILMUSB-DRIVEUNIT", "USB-DRIVEUNIT", "*"},
+ 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+ 	},
+	{
+		/*
+		 * Nikon Coolpix 995
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NIKON", "NIKON DSC E995", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Minolta Dimage 2330
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MINOLTA", "DIMAGE 2330*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
