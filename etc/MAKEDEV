@@ -126,6 +126,7 @@
 #	gsc	Genius GS-4500 hand scanner
 #	joy	pc joystick
 #	tun*	Tunneling IP device
+#	tap*	Ethernet Tunneling device
 #	snp*	tty snoop devices
 #	spigot	Video Spigot video acquisition card
 #	ctx*	Cortex-I video acquisition card
@@ -252,6 +253,7 @@ all)
 	sh MAKEDEV usb usb0 uhid0 ums0 ulpt0 ugen0	# cdev, USB devices
 	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 			# cdev, network
 	sh MAKEDEV ipl tun0 tun1 tun2 tun3		# cdev, network
+	sh MAKEDEV tap0 tap1 tap2 tap3			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0 card1 card2 card3	# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
@@ -286,6 +288,7 @@ fixit)
 	sh MAKEDEV smb0					# cdev, SMBus device
 	sh MAKEDEV ums0					# cdev, USB devices
 	sh MAKEDEV tun0					# cdev, network
+	sh MAKEDEV tap0					# cdev, network
 	sh MAKEDEV ch0					# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0			# cdev, laptop
 	sh MAKEDEV pass1 xpt1				# cdev, CAM
@@ -1420,6 +1423,15 @@ tun*)
 	unit=0
 	while [ $unit -le $ntun ]; do
 		mknod tun$unit c 52 $unit uucp:dialer
+		unit=$(($unit + 1))
+	done
+	;;
+
+tap*)
+	ntap=`expr $i : 'tap\(.*\)$'`
+	unit=0
+	while [ $unit -le $ntap ]; do
+		mknod tap$unit c 149 $unit root:network
 		unit=$(($unit + 1))
 	done
 	;;

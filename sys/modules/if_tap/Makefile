@@ -1,5 +1,8 @@
 # Copyright (C) 1999-2000 by Maksim Yevmenkin <m_evmenkin@yahoo.com>
 #
+# This file should be in "kernel_dir/modules/if_tap" directory
+# kernel_dir - kernel source root directory (/usr/src/sys)
+#
 # $FreeBSD$
 
 .PATH:		${.CURDIR}/../../net
