@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.17 1999/08/18 02:19:52 msmith Exp $
+ *      $Id: bios.c,v 1.18 1999/08/20 21:08:41 msmith Exp $
  */
 
 /*
@@ -315,7 +315,16 @@ bios16(struct bios_args *args, char *fmt, ...)
     arg_start = 0xffffffff;
     arg_end = 0;
 
-    stack = (caddr_t)PAGE_SIZE;
+    /*
+     * Some BIOS entrypoints attempt to copy the largest-case
+     * argument frame (in order to generalise handling for 
+     * different entry types).  If our argument frame is 
+     * smaller than this, the BIOS will reach off the top of
+     * our constructed stack segment.  Pad the top of the stack
+     * with some garbage to avoid this.
+     */
+    stack = (caddr_t)PAGE_SIZE - 32;
+
     va_start(ap, fmt);
     for (p = fmt; p && *p; p++) {
 	switch (*p) {
