@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.5 1996/01/25 23:03:07 joerg Exp $
+ *      $Id: bt.c,v 1.6 1996/02/16 17:23:56 gibbs Exp $
  */
 
 /*
@@ -70,6 +70,8 @@ struct bt_data *btdata[NBT];
 #define		BT_CDF		0x08		/* cmd/data out port full */
 #define		BT_DF		0x04		/* Data in port full */
 #define		BT_INVDCMD	0x01		/* Invalid command */
+#define BT_STAT_MASK \
+	(BT_STST | BT_DIAGF | BT_INIT | BT_IDLE | BT_CDF | BT_DF | BT_INVDCMD)
 
 #define	BT_CMD_DATA_PORT	(BT_BASE + 0x1)		/* cmds and datas */
 /*			      ReadOps WriteOps			*/
@@ -557,6 +559,10 @@ bt_intr(arg)
 	 * just return.
 	 */
 	stat = inb(BT_INTR_PORT);
+	if((stat & BT_STAT_MASK) == 0) {
+		/* Shared interrupt */
+		return;
+	}
 
 	/* Mail Box out empty ? */
 	if (stat & BT_MBOA) {
