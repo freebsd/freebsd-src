@@ -436,7 +436,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 			kn->kn_fop = fops;
 
 			/*
-			 * apply reference count to knode structure, so
+			 * apply reference count to knote structure, and
 			 * do not release it at the end of this routine.
 			 */
 			fp = NULL;
