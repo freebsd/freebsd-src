@@ -270,6 +270,7 @@ dev/awi/awi_wep.c	optional awi
 dev/awi/awi_wicfg.c	optional awi
 dev/awi/if_awi_pccard.c	optional awi card
 dev/awi/if_awi_pccard.c	optional awi pccard
+dev/bge/if_bge.c	optional bge
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_card.c	optional bktr pci
 dev/bktr/bktr_core.c	count bktr pci
