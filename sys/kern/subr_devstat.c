@@ -44,7 +44,7 @@
 #include <machine/atomic.h>
 
 static int devstat_num_devs;
-static u_int devstat_generation;
+static long devstat_generation;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 static struct mtx devstat_mutex;
@@ -358,7 +358,7 @@ static int
 sysctl_devstat(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	u_int mygen;
+	long mygen;
 	struct devstat *nds;
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
@@ -420,7 +420,7 @@ SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
  */
 SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, 
     &devstat_num_devs, 0, "Number of devices in the devstat list");
-SYSCTL_UINT(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
+SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
     &devstat_generation, 0, "Devstat list generation");
 SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, 
     &devstat_version, 0, "Devstat list version number");
