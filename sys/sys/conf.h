@@ -61,6 +61,7 @@ struct specinfo {
 	struct cdevsw	*si_devsw;
 	void 		*si_devfs;	/* save cookie for devfs operations */
 	void 		*si_bdevfs;	/* XXX block device (should go away) */
+	int		si_iosize_max;	/* maximum I/O size (for physio &al) */
 	union {
 		struct {
 			struct tty *__sit_tty;
@@ -70,7 +71,6 @@ struct specinfo {
 			struct mount *__sid_mountpoint;
 			int __sid_bsize_phys; /* min physical block size */
 			int __sid_bsize_best; /* optimal block size */
-			int __sid_iosize_max;  /* maximum I/O size */
 		} __si_disk;
 	} __si_u;
 };
@@ -80,7 +80,6 @@ struct specinfo {
 #define si_mountpoint	__si_u.__si_disk.__sid_mountpoint
 #define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
 #define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
-#define si_iosize_max	__si_u.__si_disk.__sid_iosize_max
 
 /*
  * Exported shorthand
@@ -182,7 +181,7 @@ struct cdevsw {
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
 	u_int		d_flags;
-	int		d_maxio;
+	int		d_bogomaxio;	/* XXX not used */
 	int		d_bmaj;
 };
 
