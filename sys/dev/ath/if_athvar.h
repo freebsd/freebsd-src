@@ -155,6 +155,31 @@ struct ath_softc {
 #define	sc_tx_th		u_tx_rt.th
 #define	sc_rx_th		u_rx_rt.th
 
+#define	ATH_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
+		 MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE)
+#define	ATH_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+#define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+
+#define	ATH_TXBUF_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->sc_txbuflock, \
+		device_get_nameunit((_sc)->sc_dev), "xmit buf q", MTX_DEF)
+#define	ATH_TXBUF_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txbuflock)
+#define	ATH_TXBUF_LOCK(_sc)		mtx_lock(&(_sc)->sc_txbuflock)
+#define	ATH_TXBUF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txbuflock)
+#define	ATH_TXBUF_LOCK_ASSERT(_sc) \
+	mtx_assert(&(_sc)->sc_txbuflock, MA_OWNED)
+
+#define	ATH_TXQ_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->sc_txqlock, \
+		device_get_nameunit((_sc)->sc_dev), "xmit q", MTX_DEF)
+#define	ATH_TXQ_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txqlock)
+#define	ATH_TXQ_LOCK(_sc)		mtx_lock(&(_sc)->sc_txqlock)
+#define	ATH_TXQ_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txqlock)
+#define	ATH_TXQ_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_txqlock, MA_OWNED)
+
 int	ath_attach(u_int16_t, struct ath_softc *);
 int	ath_detach(struct ath_softc *);
 void	ath_resume(struct ath_softc *);
