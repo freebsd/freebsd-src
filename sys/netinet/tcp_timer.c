@@ -528,7 +528,11 @@ tcp_timer_rexmt(xtp)
 		 */
 		tp->snd_cwnd_prev = tp->snd_cwnd;
 		tp->snd_ssthresh_prev = tp->snd_ssthresh;
-		tp->snd_high_prev = tp->snd_high;
+		tp->snd_recover_prev = tp->snd_recover;
+		if (IN_FASTRECOVERY(tp))
+		  tp->t_flags |= TF_WASFRECOVERY;
+		else
+		  tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
 	tcpstat.tcps_rexmttimeo++;
@@ -566,7 +570,7 @@ tcp_timer_rexmt(xtp)
 		tp->t_srtt = 0;
 	}
 	tp->snd_nxt = tp->snd_una;
-	tp->snd_high = tp->snd_max;
+	tp->snd_recover = tp->snd_max;
 	/*
 	 * Force a segment to be sent.
 	 */
@@ -607,6 +611,7 @@ tcp_timer_rexmt(xtp)
 		tp->snd_ssthresh = win * tp->t_maxseg;
 		tp->t_dupacks = 0;
 	}
+	EXIT_FASTRECOVERY(tp);
 	(void) tcp_output(tp);
 
 out:
