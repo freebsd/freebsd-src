@@ -48,7 +48,7 @@
  * Locks provide shared/exclusive sychronization.
  */
 
-#ifdef DEBUG
+#ifdef SIMPLELOCK_DEBUG
 #define COUNT(p, x) if (p) (p)->p_locks += (x)
 #else
 #define COUNT(p, x)
@@ -171,9 +171,8 @@ lockmgr(lkp, flags, interlkp, p)
 	else
 		pid = LK_KERNPROC;
 	simple_lock(&lkp->lk_interlock);
-	if (flags & LK_INTERLOCK) {
+	if (flags & LK_INTERLOCK)
 		simple_unlock(interlkp);
-	}
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 #ifdef DIAGNOSTIC
 	/*
