@@ -740,8 +740,12 @@ ntfs_fget(
 	dprintf(("ntfs_fget: allocating fnode: %p\n",fp));
 
 	fp->f_ip = ip;
-	fp->f_attrname = attrname;
-	if (fp->f_attrname) fp->f_flag |= FN_AATTRNAME;
+	if (attrname) {
+		fp->f_flag |= FN_AATTRNAME;
+		MALLOC(fp->f_attrname, char *, strlen(attrname)+1, M_TEMP, M_WAITOK);
+		strcpy(fp->f_attrname, attrname);
+	} else
+		fp->f_attrname = NULL;
 	fp->f_attrtype = attrtype;
 
 	ntfs_ntref(ip);
@@ -818,14 +822,14 @@ ntfs_ntlookupattr(
 			goto out;
 		}
 		return (ENOENT);
-	}
+	} else
+		*attrtype = NTFS_A_DATA;
 
     out:
 	if (namelen) {
 		MALLOC((*attrname), char *, namelen, M_TEMP, M_WAITOK);
 		memcpy((*attrname), name, namelen);
 		(*attrname)[namelen] = '\0';
-		*attrtype = NTFS_A_DATA;
 	}
 
 	return (0);
@@ -945,17 +949,18 @@ ntfs_ntlookupfile(
 				goto fail;
 			}
 
+			/* vget node, but don't load it */
+			error = ntfs_vgetex(ntmp->ntm_mountp,
+				   iep->ie_number, attrtype, attrname,
+				   LK_EXCLUSIVE, VG_DONTLOADIN | VG_DONTVALIDFN,
+				   curproc, &nvp);
+
 			/* free the buffer returned by ntfs_ntlookupattr() */
 			if (attrname) {
 				FREE(attrname, M_TEMP);
 				attrname = NULL;
 			}
 
-			/* vget node, but don't load it */
-			error = ntfs_vgetex(ntmp->ntm_mountp,
-				   iep->ie_number, attrtype, attrname,
-				   LK_EXCLUSIVE, VG_DONTLOADIN | VG_DONTVALIDFN,
-				   curproc, &nvp);
 			if (error)
 				goto fail;
 
