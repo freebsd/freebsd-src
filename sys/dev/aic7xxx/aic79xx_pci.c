@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#61 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#66 $
  *
  * $FreeBSD$
  */
@@ -80,6 +80,7 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AIC7902_B			0x801D9005FFFF9005ull
 #define ID_AIC7902_B_IROC		0x809D9005FFFF9005ull
 #define ID_AHA_39320			0x8010900500409005ull
+#define ID_AHA_39320A			0x8016900500409005ull
 #define ID_AHA_39320D			0x8011900500419005ull
 #define ID_AHA_39320D_B			0x801C900500419005ull
 #define ID_AHA_39320D_HP		0x8011900500AC0E11ull
@@ -135,6 +136,12 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ID_AHA_39320,
 		ID_ALL_MASK,
 		"Adaptec 39320 Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_39320A,
+		ID_ALL_MASK,
+		"Adaptec 39320A Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
 	{
@@ -691,14 +698,14 @@ static const char *pci_status_source[] =
 
 static const char *split_status_strings[] =
 {
-	"%s: Received split response in %s.\n"
+	"%s: Received split response in %s.\n",
 	"%s: Received split completion error message in %s\n",
 	"%s: Receive overrun in %s\n",
 	"%s: Count not complete in %s\n",
 	"%s: Split completion data bucket in %s\n",
 	"%s: Split completion address error in %s\n",
 	"%s: Split completion byte count error in %s\n",
-	"%s: Signaled Target-abort to early terminate a split in %s\n",
+	"%s: Signaled Target-abort to early terminate a split in %s\n"
 };
 
 static const char *pci_status_strings[] =
@@ -740,7 +747,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 		if (i == 5)
 			continue;
 		pci_status[i] = ahd_inb(ahd, reg);
-		/* Clear latched errors.  So our interupt deasserts. */
+		/* Clear latched errors.  So our interrupt deasserts. */
 		ahd_outb(ahd, reg, pci_status[i]);
 	}
 
@@ -796,14 +803,14 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 
 		split_status[i] = ahd_inb(ahd, DCHSPLTSTAT0);
 		split_status1[i] = ahd_inb(ahd, DCHSPLTSTAT1);
-		/* Clear latched errors.  So our interupt deasserts. */
+		/* Clear latched errors.  So our interrupt deasserts. */
 		ahd_outb(ahd, DCHSPLTSTAT0, split_status[i]);
 		ahd_outb(ahd, DCHSPLTSTAT1, split_status1[i]);
 		if (i != 0)
 			continue;
 		sg_split_status[i] = ahd_inb(ahd, SGSPLTSTAT0);
 		sg_split_status1[i] = ahd_inb(ahd, SGSPLTSTAT1);
-		/* Clear latched errors.  So our interupt deasserts. */
+		/* Clear latched errors.  So our interrupt deasserts. */
 		ahd_outb(ahd, SGSPLTSTAT0, sg_split_status[i]);
 		ahd_outb(ahd, SGSPLTSTAT1, sg_split_status1[i]);
 	}
@@ -898,7 +905,7 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 		ahd->features |= AHD_RTI|AHD_NEW_IOCELL_OPTS
 			      |  AHD_NEW_DFCNTRL_OPTS;
 		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_ABORT_LQI_BUG
-			  |  AHD_INTCOLLISION_BUG;
+			  |  AHD_INTCOLLISION_BUG|AHD_EARLY_REQ_BUG;
 
 		/*
 		 * IO Cell paramter setup.
