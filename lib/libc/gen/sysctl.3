@@ -130,22 +130,24 @@ listed here, and described in separate sections below.
 .Pp
 For example, the following retrieves the maximum number of processes allowed
 in the system:
+.Pp
 .Bd -literal -offset indent -compact
 int mib[2], maxproc;
 size_t len;
-.sp
+
 mib[0] = CTL_KERN;
 mib[1] = KERN_MAXPROC;
 len = sizeof(maxproc);
 sysctl(mib, 2, &maxproc, &len, NULL, 0);
 .Ed
-.sp
+.Pp
 To retrieve the standard search path for the system utilities:
+.Pp
 .Bd -literal -offset indent -compact
 int mib[2];
 size_t len;
 char *p;
-.sp
+
 mib[0] = CTL_USER;
 mib[1] = USER_CS_PATH;
 sysctl(mib, 2, NULL, &len, NULL, 0);
