@@ -1655,19 +1655,22 @@ wi_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		/*
-		 * Can't do promisc and hostap at the same time.
+		 * Can't do promisc and hostap at the same time.  If all that's
+		 * changing is the promisc flag, try to short-circuit a call to
+		 * wi_init() by just setting PROMISC in the hardware.
 		 */
-		if (sc->wi_ptype == WI_PORTTYPE_AP)
-			ifp->if_flags &= ~IFF_PROMISC;
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->wi_if_flags & IFF_PROMISC)) {
-				WI_SETVAL(WI_RID_PROMISC, 1);
-			} else if (ifp->if_flags & IFF_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->wi_if_flags & IFF_PROMISC) {
-				WI_SETVAL(WI_RID_PROMISC, 0);
+			if (sc->wi_ptype != WI_PORTTYPE_AP &&
+			    ifp->if_flags & IFF_RUNNING) {
+				if (ifp->if_flags & IFF_PROMISC &&
+				    !(sc->wi_if_flags & IFF_PROMISC)) {
+					WI_SETVAL(WI_RID_PROMISC, 1);
+				} else if (!(ifp->if_flags & IFF_PROMISC) &&
+				    sc->wi_if_flags & IFF_PROMISC) {
+					WI_SETVAL(WI_RID_PROMISC, 0);
+				} else {
+					wi_init(sc);
+				}
 			} else {
 				wi_init(sc);
 			}
@@ -2091,12 +2094,7 @@ wi_init(xsc)
 	 *      and always reset promisc mode in Host-AP regime,
 	 *      it shows us all the packets anyway.
 	 */
-	/*
-	 * Can't do promisc and hostap at the same time.
-	 */
-	if (sc->wi_ptype == WI_PORTTYPE_AP)
-		ifp->if_flags &= ~IFF_PROMISC;
-	if (ifp->if_flags & IFF_PROMISC)
+	if (sc->wi_ptype != WI_PORTTYPE_AP && ifp->if_flags & IFF_PROMISC)
 		WI_SETVAL(WI_RID_PROMISC, 1);
 	else
 		WI_SETVAL(WI_RID_PROMISC, 0);
