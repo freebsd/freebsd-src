@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.25 1998/05/13 06:10:13 peter Exp $
+ * $Id: nfs_node.c,v 1.26 1998/05/13 07:49:08 peter Exp $
  */
 
 
@@ -54,8 +54,7 @@
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
 
-static MALLOC_DEFINE(M_NFSNODE, "NFS node", "NFS vnode private part");
-
+static vm_zone_t nfsnode_zone;
 static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 static u_long nfsnodehash;
 
@@ -69,12 +68,8 @@ static u_long nfsnodehash;
 void
 nfs_nhinit()
 {
-
-#ifndef lint
-	if ((sizeof(struct nfsnode) - 1) & sizeof(struct nfsnode))
-		printf("nfs_nhinit: bad size %d\n", sizeof(struct nfsnode));
-#endif /* not lint */
-	nfsnodehashtbl = hashinit(desiredvnodes, M_NFSNODE, &nfsnodehash);
+	nfsnode_zone = zinit("NFSNODE", sizeof(struct nfsnode), 0, 0, 1);
+	nfsnodehashtbl = hashinit(desiredvnodes, M_NFSHASH, &nfsnodehash);
 }
 
 /*
@@ -144,11 +139,11 @@ loop:
 	nfs_node_hash_lock = 1;
 
 	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * Allocate before getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
+	 * elsewhere if zalloc should block.
 	 */
-	MALLOC(np, struct nfsnode *, sizeof *np, M_NFSNODE, M_WAITOK);
+	np = zalloc(nfsnode_zone);
 		
 	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
@@ -156,7 +151,7 @@ loop:
 			wakeup(&nfs_node_hash_lock);
 		nfs_node_hash_lock = 0;
 		*npp = 0;
-		FREE(np, M_NFSNODE);
+		zfree(nfsnode_zone, np);
 		return (error);
 	}
 	vp = nvp;
@@ -274,7 +269,7 @@ nfs_reclaim(ap)
 	}
 
 	cache_purge(vp);
-	FREE(vp->v_data, M_NFSNODE);
+	zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = (void *)0;
 	return (0);
 }

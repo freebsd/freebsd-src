@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.34 1998/03/30 09:53:43 phk Exp $
+ * $Id: nfs.h,v 1.35 1998/05/19 07:11:22 peter Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -118,8 +118,6 @@
  *  to one that does not allocate space in powers of 2 size, then this all
  *  becomes bunk!)
  */
-#define NFS_NODEALLOC	256
-#define NFS_MNTALLOC	512
 #define NFS_SVCALLOC	256
 #define NFS_UIDALLOC	128
 
@@ -307,13 +305,17 @@ union nethostaddr {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NFSREQ);
-MALLOC_DECLARE(M_NFSMNT);
 MALLOC_DECLARE(M_NFSDIROFF);
 MALLOC_DECLARE(M_NFSRVDESC);
 MALLOC_DECLARE(M_NFSUID);
 MALLOC_DECLARE(M_NQLEASE);
 MALLOC_DECLARE(M_NFSD);
 MALLOC_DECLARE(M_NFSBIGFH);
+MALLOC_DECLARE(M_NFSHASH);
+#endif
+
+#ifdef ZONE_INTERRUPT
+extern vm_zone_t nfsmount_zone;
 #endif
 
 struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
