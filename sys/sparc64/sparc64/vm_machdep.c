@@ -71,6 +71,7 @@
 
 #include <machine/cache.h>
 #include <machine/cpu.h>
+#include <machine/fp.h>
 #include <machine/fsr.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -186,11 +187,10 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/*
 	 * Ensure that p1's pcb is up to date.
 	 */
-	if ((td1->td_frame->tf_fprs & FPRS_FEF) != 0) {
-		mtx_lock_spin(&sched_lock);
-		savefpctx(&pcb1->pcb_fpstate);
-		mtx_unlock_spin(&sched_lock);
-	}
+	critical_enter();
+	if ((td1->td_frame->tf_fprs & FPRS_FEF) != 0)
+		savefpctx(pcb1->pcb_ufp);
+	critical_exit();
 	/* Make sure the copied windows are spilled. */
 	flushw();
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */

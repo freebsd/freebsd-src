@@ -682,8 +682,7 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	pcb = td->td_pcb;
 	tf = td->td_frame;
-	bcopy(pcb->pcb_fpstate.fp_fb, fpregs->fr_regs,
-	    sizeof(pcb->pcb_fpstate.fp_fb));
+	bcopy(pcb->pcb_ufp, fpregs->fr_regs, sizeof(fpregs->fr_regs));
 	fpregs->fr_fsr = tf->tf_fsr;
 	fpregs->fr_gsr = tf->tf_gsr;
 	return (0);
@@ -697,8 +696,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	pcb = td->td_pcb;
 	tf = td->td_frame;
-	bcopy(fpregs->fr_regs, pcb->pcb_fpstate.fp_fb,
-	    sizeof(fpregs->fr_regs));
+	bcopy(fpregs->fr_regs, pcb->pcb_ufp, sizeof(pcb->pcb_ufp));
 	tf->tf_fsr = fpregs->fr_fsr;
 	tf->tf_gsr = fpregs->fr_gsr;
 	return (0);
