@@ -134,6 +134,9 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para>&man.devfs.5; path rules now work correctly on
+      directories.</para>
+
     <para arch="i386,pc98">The dgb (DigiBoard intelligent serial card) driver has been
       removed due to breakage.  Its replacement is the &man.digi.4; driver,
       which supports all the hardware of the dgb driver.</para>
@@ -284,9 +287,6 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
-
-    <para>&man.devfs.8; path rules now work correctly on
-      directories.</para>
 
     <para>The configuration files used by the &man.resolver.5; now
       support the <literal>timeout:</literal> and
