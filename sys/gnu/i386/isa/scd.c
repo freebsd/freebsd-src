@@ -33,7 +33,7 @@
  */
 
 
-/* $Id: scd.c,v 1.6 1995/02/06 22:35:06 jkh Exp $ */
+/* $Id: scd.c,v 1.7 1995/02/09 11:30:07 jkh Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -59,7 +59,7 @@
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <gnu/i386/scdreg.h>
+#include <gnu/i386/isa/scdreg.h>
 
 #define scd_part(dev)	((minor(dev)) & 7)
 #define scd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
