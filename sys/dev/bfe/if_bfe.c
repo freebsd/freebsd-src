@@ -402,7 +402,9 @@ bfe_attach(device_t dev)
 	ifp->if_init = bfe_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 100000000;
-	ifp->if_snd.ifq_maxlen = BFE_TX_QLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, BFE_TX_QLEN);
+	ifp->if_snd.ifq_drv_maxlen = BFE_TX_QLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	bfe_get_config(sc);
 
@@ -1256,7 +1258,7 @@ bfe_intr(void *xsc)
 		bfe_txeof(sc);
 
 	/* We have packets pending, fire them out */ 
-	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+	if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bfe_start(ifp);
 
 	BFE_UNLOCK(sc);
@@ -1375,7 +1377,7 @@ bfe_start(struct ifnet *ifp)
 	}
 
 	while(sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if(m_head == NULL)
 			break;
 
@@ -1384,7 +1386,7 @@ bfe_start(struct ifnet *ifp)
 		 * enough room, let the chip drain the ring.
 		 */
 		if(bfe_encap(sc, m_head, &idx)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
