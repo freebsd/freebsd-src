@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
-.\"	$Id: fts.3,v 1.3 1997/03/09 00:43:49 mpp Exp $
+.\"	$Id: fts.3,v 1.2.2.1 1997/03/09 00:51:54 mpp Exp $
 .\"
 .Dd April 16, 1994
 .Dt FTS 3
@@ -315,7 +315,7 @@ Therefore, the
 and
 .Fa fts_accpath
 fields are guaranteed to be
-.Dv NULL Ns -terminated
+.Dv NUL Ns -terminated
 .Em only
 for the file most recently returned by
 .Fn fts_read .
@@ -333,7 +333,7 @@ are attempted.
 The
 .Fa fts_name
 field is always
-.Dv NULL Ns -terminated.
+.Dv NUL Ns -terminated.
 .Sh FTS_OPEN
 The
 .Fn fts_open
