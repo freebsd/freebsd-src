@@ -75,6 +75,7 @@ const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
 #define	OPTION_NODUMP 3
 #define	OPTION_HELP 4
 #define	OPTION_INCLUDE 5
+#define	OPTION_ONE_FILE_SYSTEM 5
 
 const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
@@ -104,6 +105,7 @@ const struct option tar_longopts[] = {
 	{ "nodump",             no_argument,       NULL, OPTION_NODUMP },
 	{ "norecurse",          no_argument,       NULL, 'n' },
 	{ "no-same-owner",	no_argument,	   NULL, 'o' },
+	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
 	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
 	{ "same-permissions",   no_argument,       NULL, 'p' },
@@ -249,7 +251,7 @@ main(int argc, char **argv)
 		case 'L': /* BSD convention */
 			bsdtar->symlink_mode = 'L';
 			break;
-	        case 'l': /* SUSv2 */
+	        case 'l': /* SUSv2; note that GNU -l conflicts */
 			bsdtar->option_warn_links = 1;
 			break;
 		case 'm': /* SUSv2 */
@@ -266,9 +268,14 @@ main(int argc, char **argv)
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
 			break;
-		case 'o': /* SUSv2 */
+		case 'o': /* SUSv2; note that GNU -o conflicts */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
+#if HAVE_GETOPT_LONG
+		case OPTION_ONE_FILE_SYSTEM: /* -l in GNU tar */
+			bsdtar->option_dont_traverse_mounts = 1;
+			break;
+#endif
 #if 0
 		/*
 		 * The common BSD -P option is not necessary, since
@@ -321,9 +328,6 @@ main(int argc, char **argv)
 			break;
 		case 'w': /* SUSv2 */
 			bsdtar->option_interactive = 1;
-			break;
-		case 'X': /* -l in GNU tar */
-			bsdtar->option_dont_traverse_mounts = 1;
 			break;
 		case 'x': /* SUSv2 */
 			if (mode != '\0')
