@@ -96,9 +96,8 @@ Buf_OvAddByte (bp, byte)
     Buffer bp;
     int    byte;
 {
-    int nbytes = 1;
     bp->left = 0;
-    BufExpand (bp, nbytes);
+    BufExpand (bp, 1);
 
     *bp->inPtr++ = byte;
     bp->left--;
