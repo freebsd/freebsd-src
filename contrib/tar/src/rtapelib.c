@@ -32,6 +32,8 @@
    into macros for speed by Jay Fenlason.  Use -DWITH_REXEC for rexec
    code, courtesy of Dan Kegel.  */
 
+/* $FreeBSD$ */
+
 #include "system.h"
 
 #include <safe-read.h>
@@ -437,6 +439,9 @@ rmt_open__ (const char *path, int open_mode, int bias, const char *remote_shell)
     /* Identify the remote command to be executed.  */
 
     if (!remote_shell)
+      remote_shell = getenv("TAR_RSH");
+
+    if (!remote_shell)
       {
 #ifdef REMOTE_SHELL
 	remote_shell = REMOTE_SHELL;
@@ -488,10 +493,10 @@ rmt_open__ (const char *path, int open_mode, int bias, const char *remote_shell)
 #endif
 
 	if (remote_user)
-	  execl (remote_shell, remote_shell_basename, remote_host,
-		 "-l", remote_user, "/etc/rmt", (char *) 0);
+	  execlp (remote_shell, remote_shell_basename, "-l", remote_user,
+	  	remote_host, "/etc/rmt", (char *) 0);
 	else
-	  execl (remote_shell, remote_shell_basename, remote_host,
+	  execlp (remote_shell, remote_shell_basename, remote_host,
 		 "/etc/rmt", (char *) 0);
 
 	/* Bad problems if we get here.  */

@@ -19,11 +19,16 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* Define to non-zero for forcing old ctime format instead of ISO format.  */
 #undef USE_OLD_CTIME
 
 #include "system.h"
 #include <quotearg.h>
+#ifdef HAVE_LANGINFO_CODESET
+#include <langinfo.h>
+#endif
 
 #include "common.h"
 
@@ -78,6 +83,10 @@ read_and (void (*do_something) ())
     {
       prev_status = status;
       status = read_header (0);
+      /* check if the namelist got emptied during the course of reading */
+      /* the tape, if so stop by setting status to EOF */
+      if (namelist_freed)
+        status = HEADER_END_OF_FILE;
       switch (status)
 	{
 	case HEADER_STILL_UNREAD:
@@ -832,6 +841,7 @@ stringify_uintmax_t_backwards (uintmax_t o, char *buf)
 char const *
 tartime (time_t t)
 {
+#if !defined(__FreeBSD__) || !defined(HAVE_LANGINFO_CODESET)
   static char buffer[max (UINTMAX_STRSIZE_BOUND + 1,
 			  INT_STRLEN_BOUND (int) + 16)];
   char *p;
@@ -870,6 +880,16 @@ tartime (time_t t)
   while (buffer + sizeof buffer - 19 - 1 < p)
     *--p = ' ';
   return p;
+#else /* __FreeBSD__ */
+  static char buffer[80];
+  static int d_first = -1;
+
+  if (d_first < 0)
+    d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+  strftime(buffer, sizeof(buffer), d_first ? "%e %b %R %Y" : "%b %e %R %Y",
+           localtime(&t));
+  return buffer;
+#endif /* __FreeBSD__ */
 }
 
 /* Actually print it.

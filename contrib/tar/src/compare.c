@@ -19,6 +19,8 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "system.h"
 
 #if HAVE_UTIME_H
@@ -565,7 +567,7 @@ diff_archive (void)
 	size_t len = strlen (current_link_name);
 	char *linkbuf = alloca (len + 1);
 
-	status = readlink (current_file_name, linkbuf, len + 1);
+	status = readlink (current_file_name, linkbuf, len);
 
 	if (status < 0)
 	  {
