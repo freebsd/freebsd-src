@@ -366,13 +366,11 @@ sub open_locked($;$$) {
 	    or last;
 	if (!(@sb1 = stat(FILE))) {
 	    # Huh? shouldn't happen
-	    warning("$fn: stat(): $!");
 	    last;
 	}
 	if (!flock(FILE, LOCK_EX|LOCK_NB)) {
 	    # A failure here means the file can't be locked, or
 	    # something really weird happened, so just give up.
-	    warning("$fn: flock(): $!");
 	    last;
 	}
 	if (!(@sb2 = stat($fn))) {
@@ -526,7 +524,7 @@ MAIN:{
 	}
 	$lockfile = $1;
 	$lock = open_locked($lockfile, O_CREAT, 0600)
-	    or die("unable to acquire lock on $lockfile");
+	    or die("unable to acquire lock on $lockfile\n");
 	# Lock will be released upon termination.
     }
 
