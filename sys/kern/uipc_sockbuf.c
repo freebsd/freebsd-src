@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.27 1997/08/16 19:15:05 wollman Exp $
+ *	$Id: uipc_socket2.c,v 1.28 1997/09/02 20:05:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -215,7 +215,7 @@ sonewconn(head, connstatus)
 	so->so_pgid = head->so_pgid;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 
-	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, curproc)) { /*XXX*/
+	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		(void) free((caddr_t)so, M_SOCKET);
 		return ((struct socket *)0);
 	}
