@@ -121,6 +121,7 @@ struct kue_ether_desc {
 #define KUE_CTL_WRITE		0x02
 
 #define KUE_CONFIG_NO		1
+#define KUE_IFACE_IDX		0
 
 /*
  * The interrupt endpoint is currently unused
