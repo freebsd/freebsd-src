@@ -206,7 +206,7 @@ pass5()
 			newcg->cg_frotor = cg->cg_frotor;
 		else
 			newcg->cg_frotor = 0;
-		if (cg->cg_irotor < newcg->cg_niblk)
+		if (cg->cg_irotor < fs->fs_ipg)
 			newcg->cg_irotor = cg->cg_irotor;
 		else
 			newcg->cg_irotor = 0;
