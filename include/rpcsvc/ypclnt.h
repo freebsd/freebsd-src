@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypclnt.h,v 1.7 1997/05/07 02:27:18 eivind Exp $
+ *	$Id: ypclnt.h,v 1.4 1996/12/30 14:01:12 peter Exp $
  */
 
 #ifndef _RPCSVC_YPCLNT_H_
