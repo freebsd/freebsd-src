@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.4 1995/05/30 05:40:48 rgrimes Exp $";
-static char rcsid[] = "$Id: getnetnamadr.c,v 1.4 1995/05/30 05:40:48 rgrimes Exp $";
+static char sccsid[] = "@(#)$Id: getnetnamadr.c,v 1.5 1996/07/12 18:54:40 jkh Exp $";
+static char rcsid[] = "$Id: getnetnamadr.c,v 1.5 1996/07/12 18:54:40 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -37,20 +37,6 @@ static char rcsid[] = "$Id: getnetnamadr.c,v 1.4 1995/05/30 05:40:48 rgrimes Exp
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
-
-extern void _setnetent __P(( int ));
-extern void _endnetent __P(( void ));
-extern void _setnethtent __P(( int ));
-extern void _endnethtent __P(( void ));
-extern void _setnetdnsent __P(( int ));
-extern void _endnetdnsent __P(( void ));
-
-extern struct netent * _getnetbyhtname  __P((const char *));
-extern struct netent * _getnetbydnsname __P((const char *));
-extern struct netent * _getnetbynisname __P((const char *));
-extern struct netent * _getnetbyhtaddr  __P((long, int));
-extern struct netent * _getnetbydnsaddr __P((long, int));
-extern struct netent * _getnetbynisaddr __P((long, int));
 
 #ifndef _PATH_NETCONF
 #define _PATH_NETCONF	"/etc/host.conf"
@@ -160,9 +146,9 @@ getnetbyname(const char *name)
 }
 
 struct netent *
-getnetbyaddr(addr, type)
+getnetbyaddr(addr, af)
 	long addr;
-	int type;
+	int af;
 {
 	struct netent *hp = 0;
 	int nserv = 0;
@@ -175,13 +161,13 @@ getnetbyaddr(addr, type)
 		      case SERVICE_NONE:
 			return 0;
 		      case SERVICE_TABLE:
-			hp = _getnetbyhtaddr(addr, type);
+			hp = _getnetbyhtaddr(addr, af);
 			break;
 		      case SERVICE_BIND:
-			hp = _getnetbydnsaddr(addr, type);
+			hp = _getnetbydnsaddr(addr, af);
 			break;
 		      case SERVICE_NIS:
-			hp = _getnetbynisaddr(addr, type);
+			hp = _getnetbynisaddr(addr, af);
 			break;
 		}
 		nserv++;
