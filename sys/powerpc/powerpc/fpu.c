@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/user.h>
 
 #include <machine/fpu.h>
@@ -53,11 +54,11 @@ enable_fpu(struct thread *td)
 	tf = trapframe(td);
 
 	/*
-	 * Save the thread's FPU CPU number, and set the CPU's current 
+	 * Save the thread's FPU CPU number, and set the CPU's current
 	 * FPU thread
 	 */
 	td->td_pcb->pcb_fpcpu = PCPU_GET(cpuid);
-	PCPU_SET(fputhread, td);	
+	PCPU_SET(fputhread, td);
 
 	/*
 	 * Enable the FPU for when the thread returns from the exception.
@@ -110,7 +111,7 @@ save_fpu(struct thread *td)
 	struct	pcb *pcb;
 
 	pcb = td->td_pcb;
-	
+
 	/*
 	 * Temporarily re-enable floating-point during the save
 	 */
@@ -144,7 +145,7 @@ save_fpu(struct thread *td)
 	 * Clear the current fp thread and pcb's CPU id
 	 * XXX should this be left clear to allow lazy save/restore ?
 	 */
-	pcb->pcb_fpcpu = NULL;
+	pcb->pcb_fpcpu = INT_MAX;
 	PCPU_SET(fputhread, NULL);
 }
 
