@@ -260,6 +260,10 @@ int warn_missing_format_attribute;
 
 int warn_pointer_arith;
 
+/* Nonzero means do not warn that K&R style main() is not a function prototype. */
+
+int flag_bsd_no_warn_kr_main;
+
 /* Nonzero means warn for any global function def
    without separate previous prototype decl.  */
 
@@ -354,6 +358,10 @@ int flag_isoc94;
 /* Nonzero means use the ISO C99 dialect of C.  */
 
 int flag_isoc99;
+
+/* Nonzero means allow the BSD kernel printf enhancements.  */
+
+int flag_bsd_format;
 
 /* Nonzero means that we have builtin functions, and main is an int */
 
