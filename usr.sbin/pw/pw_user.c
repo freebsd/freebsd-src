@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.10 1996/12/30 11:52:34 davidn Exp $
+ *	$Id: pw_user.c,v 1.11 1997/01/03 04:42:18 davidn Exp $
  */
 
 #include <unistd.h>
@@ -87,6 +87,7 @@ static void	rmskey(char const * name);
 int
 pw_user(struct userconf * cnf, int mode, struct cargs * args)
 {
+	int	        r, r1;
 	char           *p = NULL;
 	struct carg    *a_name;
 	struct carg    *a_uid;
@@ -190,6 +191,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	if ((arg = getarg(args, 'e')) != NULL)
 		cnf->expire_days = atoi(arg->val);
+
+	if ((arg = getarg(args, 'y')) != NULL)
+		cnf->nispasswd = arg->val;
 
 	if ((arg = getarg(args, 'p')) != NULL && arg->val)
 		cnf->password_days = atoi(arg->val);
@@ -332,6 +336,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			if (!delpwent(pwd))
 				cmderr(EX_IOERR, "Error updating passwd file: %s\n", strerror(errno));
+
+			if (cnf->nispasswd && *cnf->nispasswd=='/' && !delnispwent(cnf->nispasswd, a_name->val))
+				perror("WARNING: NIS passwd update");
+				
 			editgroups(a_name->val, NULL);
 
 			pw_log(cnf, mode, W_USER, "%s(%ld) account removed", a_name->val, (long) uid);
@@ -498,11 +506,25 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if (getarg(args, 'N') != NULL)
 		return print_user(pwd, getarg(args, 'P') != NULL);
 
-	if ((mode == M_ADD && !addpwent(pwd)) ||
-	    (mode == M_UPDATE && !chgpwent(a_name->val, pwd))) {
+	r = r1 = 1;
+	if (mode == M_ADD) {
+		r = addpwent(pwd);
+		if (r && cnf->nispasswd && *cnf->nispasswd=='/')
+			r1 = addnispwent(cnf->nispasswd, pwd);
+	} else if (mode == M_UPDATE) {
+		r = chgpwent(a_name->val, pwd);
+		if (r && cnf->nispasswd && *cnf->nispasswd=='/')
+			r1 = chgnispwent(cnf->nispasswd, a_name->val, pwd);
+	}
+
+	if (!r) {
 		perror("password update");
 		return EX_IOERR;
+	} else if (!r1) {
+		perror("WARNING: NIS password update");
+		/* Keep on trucking */
 	}
+
 	/*
 	 * Ok, user is created or changed - now edit group file
 	 */
