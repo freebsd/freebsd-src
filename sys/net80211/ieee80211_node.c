@@ -148,8 +148,11 @@ ieee80211_begin_scan(struct ifnet *ifp)
 	 * In all but hostap mode scanning starts off in
 	 * an active mode before switching to passive.
 	 */
-	if (ic->ic_opmode != IEEE80211_M_HOSTAP)
+	if (ic->ic_opmode != IEEE80211_M_HOSTAP) {
 		ic->ic_flags |= IEEE80211_F_ASCAN;
+		ic->ic_stats.is_scan_active++;
+	} else
+		ic->ic_stats.is_scan_passive++;
 	if (ifp->if_flags & IFF_DEBUG)
 		if_printf(ifp, "begin %s scan\n",
 			(ic->ic_flags & IEEE80211_F_ASCAN) ?
@@ -581,6 +584,7 @@ restart:
 			    IEEE80211_FC0_SUBTYPE_DEAUTH,
 			    IEEE80211_REASON_AUTH_EXPIRE);
 			ieee80211_free_node(ic, ni);
+			ic->ic_stats.is_node_timeout++;
 			goto restart;
 		}
 	}

@@ -720,6 +720,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error = 0;
 	u_int kid, len;
 	struct ieee80211req *ireq;
+	struct ifreq *ifr;
 	u_int8_t tmpkey[IEEE80211_KEYBUF_SIZE];
 	char tmpssid[IEEE80211_NWID_LEN];
 	struct ieee80211_channel *chan;
@@ -980,6 +981,10 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error)
 			break;
 		error = ieee80211_cfgset(ifp, cmd, data);
+		break;
+	case SIOCG80211STATS:
+		ifr = (struct ifreq *)data;
+		copyout(&ic->ic_stats, ifr->ifr_data, sizeof (ic->ic_stats));
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
