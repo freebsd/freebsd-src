@@ -167,6 +167,14 @@ struct trapframe;
 #define LINUX_SIG_UNBLOCK	1
 #define LINUX_SIG_SETMASK	2
 
+/* keyboard defines */
+#define LINUX_KDGKBMODE         0x4B44
+#define LINUX_KDSKBMODE         0x4B45
+
+#define LINUX_KBD_RAW           0
+#define LINUX_KBD_XLATE         1
+#define LINUX_KBD_MEDIUMRAW     2
+
 /* termio commands */
 #define LINUX_TCGETS		0x5401
 #define LINUX_TCSETS		0x5402
@@ -215,6 +223,14 @@ struct trapframe;
 #define LINUX_TIOCSERSWILD	0x5455
 #define LINUX_TIOCGLCKTRMIOS	0x5456
 #define LINUX_TIOCSLCKTRMIOS	0x5457
+#define LINUX_VT_OPENQRY        0x5600
+#define LINUX_VT_GETMODE        0x5601
+#define LINUX_VT_SETMODE        0x5602
+#define LINUX_VT_GETSTATE       0x5603
+#define LINUX_VT_ACTIVATE       0x5606  
+#define LINUX_VT_WAITACTIVE     0x5607
+
+
 
 /* arguments for tcflush() and LINUX_TCFLSH */
 #define LINUX_TCIFLUSH        0
