@@ -854,11 +854,11 @@ scbus_devtab(fp, dev_idp)
 		if (mp == 0 || !eq(mp->d_name, "scbus")) {
 			continue;
 		}
-		mp = mp->d_conn;
-		if (mp == 0) {
-			printf("%s%s: devices not attached to a SCSI  controller\n",
-				dp->d_name, wnum(dp->d_unit));
-			continue;
+
+		if (mp->d_conn == 0) {
+			fprintf(stderr,
+			 "%s%s: Warning, can't tell what is attached to scbus%s.\n",
+			 dp->d_name, wnum(dp->d_unit), wnum(mp->d_unit));
 		}
 		
 		fprintf(fp, "{ ");
