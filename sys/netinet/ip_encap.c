@@ -153,7 +153,7 @@ encap4_input(m, va_alist)
 
 	match = NULL;
 	matchprio = 0;
-	for (ep = LIST_FIRST(&encaptab); ep; ep = LIST_NEXT(ep, chain)) {
+	LIST_FOREACH(ep, &encaptab, chain) {
 		if (ep->af != AF_INET)
 			continue;
 		if (ep->proto >= 0 && ep->proto != proto)
@@ -249,7 +249,7 @@ encap6_input(mp, offp, proto)
 
 	match = NULL;
 	matchprio = 0;
-	for (ep = LIST_FIRST(&encaptab); ep; ep = LIST_NEXT(ep, chain)) {
+	LIST_FOREACH(ep, &encaptab, chain) {
 		if (ep->af != AF_INET6)
 			continue;
 		if (ep->proto >= 0 && ep->proto != proto)
@@ -333,7 +333,7 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 	}
 
 	/* check if anyone have already attached with exactly same config */
-	for (ep = LIST_FIRST(&encaptab); ep; ep = LIST_NEXT(ep, chain)) {
+	LIST_FOREACH(ep, &encaptab, chain) {
 		if (ep->af != af)
 			continue;
 		if (ep->proto != proto)
@@ -428,7 +428,7 @@ encap_detach(cookie)
 	const struct encaptab *ep = cookie;
 	struct encaptab *p;
 
-	for (p = LIST_FIRST(&encaptab); p; p = LIST_NEXT(p, chain)) {
+	LIST_FOREACH(p, &encaptab, chain) {
 		if (p == ep) {
 			LIST_REMOVE(p, chain);
 			free(p, M_NETADDR);	/*XXX*/

@@ -490,8 +490,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * that will occur.
 		 */
 		softc->flags |= PT_FLAG_RETRY_UA;
-		for (ccbh = LIST_FIRST(&softc->pending_ccbs);
-		     ccbh != NULL; ccbh = LIST_NEXT(ccbh, periph_links.le))
+		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= PT_CCB_RETRY_UA;
 		splx(s);
 		/* FALLTHROUGH */

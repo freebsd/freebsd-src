@@ -875,7 +875,7 @@ procfs_readdir(ap)
 #ifdef PROCFS_ZOMBIE
 		if (p == 0 && doingzomb == 0) {
 			doingzomb = 1;
-			p = zombproc.lh_first;
+			p = LIST_FIRST(&zombproc);
 			goto again;
 		}
 #endif

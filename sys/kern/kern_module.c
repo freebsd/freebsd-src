@@ -81,7 +81,7 @@ module_shutdown(void* arg1, int arg2)
 {
     module_t mod;
 
-    for (mod = TAILQ_FIRST(&modules); mod; mod = TAILQ_NEXT(mod, link))
+    TAILQ_FOREACH(mod, &modules, link)
 	MOD_EVENT(mod, MOD_SHUTDOWN);
 }
 
@@ -168,7 +168,7 @@ module_lookupbyname(const char* name)
 {
     module_t mod;
 
-    for (mod = TAILQ_FIRST(&modules); mod; mod = TAILQ_NEXT(mod, link)) {
+    TAILQ_FOREACH(mod, &modules, link) {
 	if (!strcmp(mod->name, name))
 	    return mod;
     }
@@ -181,7 +181,7 @@ module_lookupbyid(int modid)
 {
     module_t mod;
 
-    for (mod = TAILQ_FIRST(&modules); mod; mod = TAILQ_NEXT(mod, link)) {
+    TAILQ_FOREACH(mod, &modules, link) {
 	if (mod->id == modid)
 	    return mod;
     }

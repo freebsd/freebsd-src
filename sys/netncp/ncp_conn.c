@@ -470,8 +470,8 @@ ncp_conn_putprochandles(struct proc *p) {
 	int haveone = 0;
 
 	lockmgr(&lhlock, LK_EXCLUSIVE, 0, p);
-	for (hp = lhlist.slh_first; hp; hp = nhp) {
-		nhp = hp->nh_next.sle_next;
+	for (hp = SLIST_FIRST(&lhlist); hp; hp = nhp) {
+		nhp = SLIST_NEXT(hp, nh_next);
 		if (hp->nh_proc != p) continue;
 		haveone = 1;
 		hp->nh_conn->ref_cnt -= hp->nh_ref;

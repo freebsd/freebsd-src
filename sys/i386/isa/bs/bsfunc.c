@@ -95,17 +95,17 @@ bstimeout(arg)
 	bsc->sc_flags &= ~BSSTARTTIMEOUT;
 
 	/* check */
-	if ((ti = bsc->sc_nexus) && (cb = ti->ti_ctab.tqh_first))
+	if ((ti = bsc->sc_nexus) && (cb = TAILQ_FIRST(&ti->ti_ctab)))
 	{
 		if ((cb->tc -= BS_TIMEOUT_CHECK_INTERVAL) < 0)
 			bs_timeout_target(ti);
 	}
-	else for (ti = bsc->sc_titab.tqh_first; ti; ti = ti->ti_tchain.tqe_next)
+	else TAILQ_FOREACH(ti, &bsc->sc_titab, ti_tchain)
 	{
 		if (bsc->sc_dtgnum && ti->ti_phase < DISCONNECTED)
 			continue;
 
-		cb = ti->ti_ctab.tqh_first;
+		cb = TAILQ_FIRST(&ti->ti_ctab);
 		if (cb && ((cb->tc -= BS_TIMEOUT_CHECK_INTERVAL) < 0))
 			bs_timeout_target(ti);
 	}
@@ -257,7 +257,7 @@ bs_start_syncmsg(ti, cb, flag)
 		msg.flag = 0;
 		lun = ti->ti_lun;
 		if (cb == NULL)
-			cb = ti->ti_ctab.tqh_first;
+			cb = TAILQ_FIRST(&ti->ti_ctab);
 	}
 	else if (ti->ti_cfgflags & BS_SCSI_SYNC)
 	{
@@ -418,7 +418,7 @@ bs_force_abort(ti)
 {
 	struct bs_softc *bsc = ti->ti_bsc;
 	struct msgbase msg;
-	struct bsccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = TAILQ_FIRST(&ti->ti_ctab);
 	u_int lun;
 
 	if (cb)
@@ -478,13 +478,13 @@ bs_scsibus_start(bsc)
 			bshw_bus_reset(bsc);
 			bshw_chip_reset(bsc);
 			printf(" done. scsi bus ready.\n");
-			nextti = bsc->sc_titab.tqh_first;
+			nextti = TAILQ_FIRST(&bsc->sc_titab);
 			error = COMPLETE;
 		}
 
 		if ((ti = nextti) == NULL)
 			break;
-		nextti = ti->ti_tchain.tqe_next;
+		nextti = TAILQ_NEXT(ti, ti_tchain);
 
 		bits = (1 << ti->ti_id);
 		if (skip & bits)
@@ -510,11 +510,11 @@ bs_scsibus_start(bsc)
 	bsc->sc_hstate = BSC_RDY;
 
 	/* recover */
-	for (ti = bsc->sc_titab.tqh_first; ti; ti = ti->ti_tchain.tqe_next)
+	TAILQ_FOREACH(ti, &bsc->sc_titab, ti_tchain)
 	{
 		ti->ti_ctab = ti->ti_bctab;
 		TAILQ_INIT(&ti->ti_bctab);
-		if (ti->ti_ctab.tqh_first)
+		if (TAILQ_FIRST(&ti->ti_ctab))
 			bscmdstart(ti, BSCMDSTART);
 	}
 }
@@ -539,7 +539,7 @@ bs_reset_nexus(bsc)
 	bsc->sc_dtgnum = 0;
 
 	/* target state clear */
-	for (ti = bsc->sc_titab.tqh_first; ti; ti = ti->ti_tchain.tqe_next)
+	TAILQ_FOREACH(ti, &bsc->sc_titab, ti_tchain)
 	{
 		if (ti->ti_state == BS_TARG_SYNCH)
 			bs_analyze_syncmsg(ti, NULL);
@@ -548,7 +548,7 @@ bs_reset_nexus(bsc)
 
 		BS_SETUP_PHASE(UNDEF)
 		bs_hostque_delete(bsc, ti);
-		if ((cb = ti->ti_ctab.tqh_first) != NULL)
+		if ((cb = TAILQ_FIRST(&ti->ti_ctab)) != NULL)
 		{
 			if (bsc->sc_hstate == BSC_TARG_CHECK)
 			{
@@ -573,7 +573,7 @@ bs_reset_nexus(bsc)
 		ti->ti_flags &= ~BSNEXUS;
 #endif	/* BS_DIAG */
 
-		for ( ; cb; cb = cb->ccb_chain.tqe_next)
+		for ( ; cb; cb = TAILQ_NEXT(cb, ccb_chain))
 		{
 			bs_kill_msg(cb);
 			cb->bsccb_flags &= ~(BSITSDONE | BSCASTAT);
@@ -581,7 +581,7 @@ bs_reset_nexus(bsc)
 		}
 
 		if (bsc->sc_hstate != BSC_TARG_CHECK &&
-		    ti->ti_bctab.tqh_first == NULL)
+		    TAILQ_FIRST(&ti->ti_bctab) == NULL)
 			ti->ti_bctab = ti->ti_ctab;
 
 		TAILQ_INIT(&ti->ti_ctab);
@@ -872,7 +872,7 @@ bs_debug_print_all(bsc)
 {
 	struct targ_info *ti;
 
-	for (ti = bsc->sc_titab.tqh_first; ti; ti = ti->ti_tchain.tqe_next)
+	TAILQ_FOREACH(ti, &bsc->sc_titab, ti_tchain)
 		bs_debug_print(bsc, ti);
 }
 
@@ -903,7 +903,7 @@ bs_debug_print(bsc, ti)
 		       ti->ti_lun, phase[(int) ti->ti_phase]);
 		printf("msgptr %x msg[0] %x status %x tqh %lx fl %x\n",
 		       (u_int) (ti->ti_msginptr), (u_int) (ti->ti_msgin[0]),
-		       ti->ti_status, (u_long) (cb = ti->ti_ctab.tqh_first),
+		       ti->ti_status, (u_long) (cb = TAILQ_FIRST(&ti->ti_ctab)),
 		       ti->ti_flags);
 		if (cb)
 			printf("cmdlen %x cmdaddr %lx cmd[0] %x\n",

@@ -1147,7 +1147,7 @@ pbrelvp(bp)
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 
 	/* XXX REMOVE ME */
-	if (bp->b_vnbufs.tqe_next != NULL) {
+	if (TAILQ_NEXT(bp, b_vnbufs) != NULL) {
 		panic(
 		    "relpbuf(): b_vp was probably reassignbuf()d %p %x", 
 		    bp,

@@ -696,17 +696,17 @@ cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 
 	s = splsoftcam();
 	
-	while (periph->ccb_list.slh_first == NULL) {
+	while (SLIST_FIRST(&periph->ccb_list) == NULL) {
 		if (periph->immediate_priority > priority)
 			periph->immediate_priority = priority;
 		xpt_schedule(periph, priority);
-		if ((periph->ccb_list.slh_first != NULL)
-		 && (periph->ccb_list.slh_first->pinfo.priority == priority))
+		if ((SLIST_FIRST(&periph->ccb_list) != NULL)
+		 && (SLIST_FIRST(&periph->ccb_list)->pinfo.priority == priority))
 			break;
 		tsleep(&periph->ccb_list, PRIBIO, "cgticb", 0);
 	}
 
-	ccb_h = periph->ccb_list.slh_first;
+	ccb_h = SLIST_FIRST(&periph->ccb_list);
 	SLIST_REMOVE_HEAD(&periph->ccb_list, periph_links.sle);
 	splx(s);
 	return ((union ccb *)ccb_h);

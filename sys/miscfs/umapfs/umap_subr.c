@@ -157,7 +157,7 @@ umap_node_find(mp, targetvp)
 	 */
 	hd = UMAP_NHASH(targetvp);
 loop:
-	for (a = hd->lh_first; a != 0; a = a->umap_hash.le_next) {
+	LIST_FOREACH(a, hd, umap_hash) {
 		if (a->umap_lowervp == targetvp &&
 		    a->umap_vnode->v_mount == mp) {
 			vp = UMAPTOV(a);

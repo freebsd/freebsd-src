@@ -178,9 +178,9 @@ main(int argc, char *argv[])
 							"times\n", appname);
 				}
 				includes_search_curdir = 0;
-				for (include_dir = search_path.slh_first;
+				for (include_dir = SLIST_FIRST(&search_path);
 				     include_dir != NULL;
-				     include_dir = include_dir->links.sle_next)
+				     include_dir = SLIST_NEXT(include_dir, links))
 					/*
 					 * All entries before a '-I-' only
 					 * apply to includes specified with
@@ -276,9 +276,9 @@ back_patch()
 {
 	struct instruction *cur_instr;
 
-	for(cur_instr = seq_program.stqh_first;
+	for(cur_instr = STAILQ_FIRST(&seq_program);
 	    cur_instr != NULL;
-	    cur_instr = cur_instr->links.stqe_next) {
+	    cur_instr = STAILQ_NEXT(cur_instr, links)) {
 		if (cur_instr->patch_label != NULL) {
 			struct ins_format3 *f3_instr;
 			u_int address;
@@ -316,12 +316,12 @@ output_code()
   */\n");
 
 	fprintf(ofile, "static uint8_t seqprog[] = {\n");
-	for(cur_instr = seq_program.stqh_first;
+	for(cur_instr = STAILQ_FIRST(&seq_program);
 	    cur_instr != NULL;
-	    cur_instr = cur_instr->links.stqe_next) {
+	    cur_instr = STAILQ_NEXT(cur_instr, links)) {
 
 		fprintf(ofile, "%s\t0x%02x, 0x%02x, 0x%02x, 0x%02x",
-			cur_instr == seq_program.stqh_first ? "" : ",\n",
+			cur_instr == STAILQ_FIRST(&seq_program) ? "" : ",\n",
 #if BYTE_ORDER == LITTLE_ENDIAN
 			cur_instr->format.bytes[0],
 			cur_instr->format.bytes[1],

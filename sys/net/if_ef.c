@@ -518,7 +518,7 @@ ef_load(void)
 	struct ef_link *efl = NULL;
 	int error = 0, d;
 
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s%d\n", ifp->if_name, ifp->if_unit);
 		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 

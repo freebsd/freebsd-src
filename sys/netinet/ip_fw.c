@@ -473,8 +473,7 @@ iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 	} else if (ifu->fu_via_ip.s_addr != 0) {	/* Zero == wildcard */
 		struct ifaddr *ia;
 
-		for (ia = ifp->if_addrhead.tqh_first;
-		    ia != NULL; ia = ia->ifa_link.tqe_next) {
+		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 			if (ia->ifa_addr == NULL)
 				continue;
 			if (ia->ifa_addr->sa_family != AF_INET)
@@ -904,10 +903,10 @@ lookup_next_rule(struct ip_fw_chain *me)
     int rule = me->rule->fw_skipto_rule ; /* guess... */
 
     if ( (me->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_SKIPTO )
-	for (chain = me->chain.le_next; chain ; chain = chain->chain.le_next )
+	for (chain = LIST_NEXT(me, chain); chain ; chain = LIST_NEXT(chain, chain) )
 	    if (chain->rule->fw_number >= rule)
                 return chain ;
-    return me->chain.le_next ; /* failure or not a skipto */
+    return LIST_NEXT(me, chain) ; /* failure or not a skipto */
 }
 
 /*
@@ -1462,7 +1461,7 @@ flush_rule_ptrs()
 {
     struct ip_fw_chain *fcp ;
 
-    for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next) {
+    LIST_FOREACH(fcp, &ip_fw_chain, chain) {
 	fcp->rule->next_rule_ptr = NULL ;
     }
 }
@@ -1501,7 +1500,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	
 	s = splnet();
 
-	if (chainptr->lh_first == 0) {
+	if (LIST_FIRST(chainptr) == 0) {
 		LIST_INSERT_HEAD(chainptr, fwc, chain);
 		splx(s);
 		return(0);
@@ -1509,7 +1508,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 
 	/* If entry number is 0, find highest numbered rule and add 100 */
 	if (ftmp->fw_number == 0) {
-		for (fcp = LIST_FIRST(chainptr); fcp; fcp = LIST_NEXT(fcp, chain)) {
+		LIST_FOREACH(fcp, chainptr, chain) {
 			if (fcp->rule->fw_number != (u_short)-1)
 				nbr = fcp->rule->fw_number;
 			else
@@ -1521,7 +1520,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	}
 
 	/* Got a valid number; now insert it, keeping the list ordered */
-	for (fcp = LIST_FIRST(chainptr); fcp; fcp = LIST_NEXT(fcp, chain)) {
+	LIST_FOREACH(fcp, chainptr, chain) {
 		if (fcp->rule->fw_number > ftmp->fw_number) {
 			if (fcpl) {
 				LIST_INSERT_AFTER(fcpl, fwc, chain);
@@ -1583,7 +1582,7 @@ zero_entry(struct ip_fw *frwl)
 
 	if (frwl == 0) {
 		s = splnet();
-		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain)) {
+		LIST_FOREACH(fcp, &ip_fw_chain, chain) {
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
 			fcp->rule->fw_loghighest = fcp->rule->fw_logamount;
 			fcp->rule->timestamp = 0;
@@ -1598,7 +1597,7 @@ zero_entry(struct ip_fw *frwl)
 		 *	same number, so we don't stop after finding the first
 		 *	match if zeroing a specific entry.
 		 */
-		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
+		LIST_FOREACH(fcp, &ip_fw_chain, chain)
 			if (frwl->fw_number == fcp->rule->fw_number) {
 				s = splnet();
 				while (fcp && frwl->fw_number == fcp->rule->fw_number) {
@@ -1637,7 +1636,7 @@ resetlog_entry(struct ip_fw *frwl)
 	if (frwl == 0) {
 		s = splnet();
 		counter = 0;
-		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
+		LIST_FOREACH(fcp, &ip_fw_chain, chain)
 			fcp->rule->fw_loghighest = fcp->rule->fw_pcnt +
 			    fcp->rule->fw_logamount;
 		splx(s);
@@ -1650,7 +1649,7 @@ resetlog_entry(struct ip_fw *frwl)
 		 *	same number, so we don't stop after finding the first
 		 *	match if zeroing a specific entry.
 		 */
-		for (fcp = LIST_FIRST(&ip_fw_chain); fcp; fcp = LIST_NEXT(fcp, chain))
+		LIST_FOREACH(fcp, &ip_fw_chain, chain)
 			if (frwl->fw_number == fcp->rule->fw_number) {
 				s = splnet();
 				while (fcp && frwl->fw_number == fcp->rule->fw_number) {
@@ -1889,9 +1888,9 @@ ip_fw_ctl(struct sockopt *sopt)
 		s = splnet();
 		remove_dyn_rule(NULL, 1 /* force delete */);
 		splx(s);
-		for (fcp = ip_fw_chain.lh_first; 
+		for (fcp = LIST_FIRST(&ip_fw_chain); 
 		     fcp != 0 && fcp->rule->fw_number != IPFW_DEFAULT_RULE;
-		     fcp = ip_fw_chain.lh_first) {
+		     fcp = LIST_FIRST(&ip_fw_chain)) {
 			s = splnet();
 			LIST_REMOVE(fcp, chain);
 #ifdef DUMMYNET
@@ -1987,7 +1986,7 @@ ip_fw_init(void)
 	    add_entry(&ip_fw_chain, &default_rule))
 		panic("ip_fw_init");
 
-	ip_fw_default_rule = ip_fw_chain.lh_first ;
+	ip_fw_default_rule = LIST_FIRST(&ip_fw_chain) ;
 	printf("IP packet filtering initialized, "
 #ifdef IPDIVERT
 		"divert enabled, "

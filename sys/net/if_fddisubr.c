@@ -537,7 +537,7 @@ fddi_ifattach(ifp)
 	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 #elif defined(__NetBSD__)
 	LIST_INIT(&((struct arpcom *)ifp)->ac_multiaddrs);
-	for (ifa = TAILQ_FIRST(&ifp->if_addrlist); ifa != NULL; ifa = TAILQ_NEXT(ifa, ifa_list))
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 #else
 	for (ifa = ifp->if_addrlist; ifa != NULL; ifa = ifa->ifa_next)
 #endif

@@ -1463,7 +1463,7 @@ vm_daemon()
 		 */
 
 		ALLPROC_LOCK(AP_SHARED);
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		LIST_FOREACH(p, &allproc, p_list) {
 			vm_pindex_t limit, size;
 
 			/*

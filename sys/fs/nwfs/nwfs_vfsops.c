@@ -498,9 +498,9 @@ nwfs_sync(mp, waitfor, cred, p)
 	 * Force stale buffer cache information to be flushed.
 	 */
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first;
+	for (vp = LIST_FIRST(&mp->mnt_vnodelist);
 	     vp != NULL;
-	     vp = vp->v_mntvnodes.le_next) {
+	     vp = LIST_NEXT(vp, v_mntvnodes)) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.

@@ -385,8 +385,8 @@ rip_ctlinput(cmd, sa, vip)
 
 	switch (cmd) {
 	case PRC_IFDOWN:
-		for (ia = in_ifaddrhead.tqh_first; ia;
-		     ia = ia->ia_link.tqe_next) {
+		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
+		     ia = TAILQ_NEXT(ia, ia_link)) {
 			if (ia->ia_ifa.ifa_addr == sa
 			    && (ia->ia_flags & IFA_ROUTE)) {
 				/*
@@ -406,8 +406,8 @@ rip_ctlinput(cmd, sa, vip)
 		break;
 
 	case PRC_IFUP:
-		for (ia = in_ifaddrhead.tqh_first; ia;
-		     ia = ia->ia_link.tqe_next) {
+		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
+		     ia = TAILQ_NEXT(ia, ia_link)) {
 			if (ia->ia_ifa.ifa_addr == sa)
 				break;
 		}
@@ -609,8 +609,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		return ENOMEM;
 	
 	s = splnet();
-	for (inp = ripcbinfo.listhead->lh_first, i = 0; inp && i < n;
-	     inp = inp->inp_list.le_next) {
+	for (inp = LIST_FIRST(ripcbinfo.listhead), i = 0; inp && i < n;
+	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt)
 			inp_list[i++] = inp;
 	}
