@@ -64,12 +64,13 @@
 #define	USB_VENDOR_CONNECTIX	0x0478		/* Connectix */
 #define	USB_VENDOR_ACER	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
-#define USB_VENDOR_LUCENT	0x04b8		/* Lucent Technologies */
+#define	USB_VENDOR_EPSON	0x04b8		/* Epson */
 #define	USB_VENDOR_3COM	0x04c1		/* 3Com */
 #define	USB_VENDOR_KONICA	0x04c8		/* Konica Corporation */
 #define	USB_VENDOR_SHUTTLE	0x04e6		/* Shuttle Technology */
 #define	USB_VENDOR_JAZZ	0x04fa		/* Jazz */
 #define	USB_VENDOR_VISION	0x0553		/* Vision */
+#define	USB_VENDOR_AKS	0x0529		/* Aladdin Knowledge Systems */
 #define	USB_VENDOR_ATEN	0x0557		/* ATen */
 #define	USB_VENDOR_PERACOM	0x0565		/* Peracom */
 #define	USB_VENDOR_EIZO	0x056d		/* EIZO */
@@ -134,8 +135,8 @@
 /* Cypress Semiconduuctor products */
 #define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
 
-/* Lucent Technologies products */
-#define USB_PRODUCT_LUCENT_1284_BRIDGE	0x0003		/* printer adapter */
+/* Epson products */
+#define	USB_PRODUCT_EPSON_PRINTER3	0x0003		/* printer adapter */
 
 /* 3Com products */
 #define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
@@ -151,6 +152,9 @@
 
 /* Vision products */
 #define	USB_PRODUCT_VISION_CAMERA	0x0002		/* VC6452V002 Camera */
+
+/* AKS products */
+#define	USB_PRODUCT_AKS_USBHASP	0x0001		/* USB-HASP 0.06 */
 
 /* ATen products */
 #define	USB_PRODUCT_ATEN_UC1284	0x2001		/* Parallel printer adapter */
@@ -184,11 +188,12 @@
 /* ADS products */
 #define	USB_PRODUCT_ADS_ENET	0x0008		/* Ethernet adapter */
 
-/* PLX products */
-#define	USB_PRODUCT_PLX_TESTBOARD	0x9060		/* test board */
-
+/* Entrega products */
 #define	USB_PRODUCT_ENTREGA_CENTRONICS	0x0006		/* Centronics connector */
 #define	USB_PRODUCT_ENTREGA_SERIAL	0x8001		/* DB25 Serial connector */
+
+/* PLX products */
+#define	USB_PRODUCT_PLX_TESTBOARD	0x9060		/* test board */
 
 /* Inside Out Networks products */
 #define	USB_PRODUCT_INSIDEOUT_EDGEPORT4	0x0001		/* EdgePort/4 serial ports */

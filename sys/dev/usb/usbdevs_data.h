@@ -154,10 +154,10 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "mouse",
 	},
 	{
-	    USB_VENDOR_LUCENT, USB_PRODUCT_LUCENT_1284_BRIDGE,
+	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_PRINTER3,
 	    0,
-	    "Lucent Technologies",
-	    "USB Smart Cable",
+	    "Epson",
+	    "printer adapter",
 	},
 	{
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_USR56K,
@@ -188,6 +188,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Vision",
 	    "VC6452V002 Camera",
+	},
+	{
+	    USB_VENDOR_AKS, USB_PRODUCT_AKS_USBHASP,
+	    0,
+	    "Aladdin Knowledge Systems",
+	    "USB-HASP 0.06",
 	},
 	{
 	    USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC1284,
@@ -262,12 +268,6 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Ethernet adapter",
 	},
 	{
-	    USB_VENDOR_PLX, USB_PRODUCT_PLX_TESTBOARD,
-	    0,
-	    "PLX",
-	    "test board",
-	},
-	{
 	    USB_VENDOR_ENTREGA, USB_PRODUCT_ENTREGA_CENTRONICS,
 	    0,
 	    "Entrega",
@@ -278,6 +278,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Entrega",
 	    "DB25 Serial connector",
+	},
+	{
+	    USB_VENDOR_PLX, USB_PRODUCT_PLX_TESTBOARD,
+	    0,
+	    "PLX",
+	    "test board",
 	},
 	{
 	    USB_VENDOR_INSIDEOUT, USB_PRODUCT_INSIDEOUT_EDGEPORT4,
@@ -376,6 +382,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_EPSON, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Epson",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_3COM, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "3Com",
@@ -403,6 +415,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_VISION, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Vision",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_AKS, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Aladdin Knowledge Systems",
 	    NULL,
 	},
 	{
