@@ -37,46 +37,28 @@ __FBSDID("$FreeBSD$");
 float
 wcstof(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 {
-	static const mbstate_t initial;
-	mbstate_t state;
 	float val;
-	char *buf, *end, *p;
+	char *buf, *end;
 	const wchar_t *wcp;
-	size_t clen, len;
+	size_t len;
 
 	while (iswspace(*nptr))
 		nptr++;
 
-	state = initial;
 	wcp = nptr;
-	if ((len = wcsrtombs(NULL, &wcp, 0, &state)) == (size_t)-1) {
+	if ((len = wcsrtombs(NULL, &wcp, 0, NULL)) == (size_t)-1) {
 		if (endptr != NULL)
 			*endptr = (wchar_t *)nptr;
 		return (0.0);
 	}
 	if ((buf = malloc(len + 1)) == NULL)
 		return (0.0);
-	state = initial;
-	wcsrtombs(buf, &wcp, len + 1, &state);
+	wcsrtombs(buf, &wcp, len + 1, NULL);
 
 	val = strtof(buf, &end);
 
-	if (endptr != NULL) {
-#if 1					/* Fast, assume 1:1 WC:MBS mapping. */
+	if (endptr != NULL)
 		*endptr = (wchar_t *)nptr + (end - buf);
-		(void)clen;
-		(void)p;
-#else					/* Slow, conservative approach. */
-		state = initial;
-		*endptr = (wchar_t *)nptr;
-		p = buf;
-		while (p < end &&
-		    (clen = mbrlen(p, end - p, &state)) > 0) {
-			p += clen;
-			(*endptr)++;
-		}
-#endif
-	}
 
 	free(buf);
 
