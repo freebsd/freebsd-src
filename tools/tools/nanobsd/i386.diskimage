@@ -8,7 +8,7 @@
 #
 # Called as:
 #
-# ${.CURDIR}/i386.diskimage $SECTS $HD $SC $DATASLICE ${.OBJDIR}/_.w ${.OBJDIR}/_.i
+# ${.CURDIR}/i386.diskimage $SECTS $HD $SC $DATASLICE ${.OBJDIR}/_.w ${.OBJDIR}/_.i [ ${.CURDIR}/cfgmaster ]
 #
 # XXX: newfs params.
 
@@ -20,6 +20,7 @@ SC=$3
 DATASLICE=$4
 WD=$5
 IMG=$6
+CFGMASTER=$7
 
 TMPFILE0=`mktemp -t nanobsd`
 TMPFILE1=`mktemp -t nanobsd`
@@ -48,6 +49,11 @@ mount /dev/${MD}s1a ${TMPMNT}
 (cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
 df ${TMPMNT}
 umount ${TMPMNT}
+if [ -d "${CFGMASTER}" ]; then
+  mount /dev/${MD}s3 ${TMPMNT}
+  ( cd ${CFGMASTER} && find . -print | cpio -dumpl ${TMPMNT} )
+  umount ${TMPMNT}
+fi
 dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 dd if=/dev/${MD} of=${IMG} bs=64k
 dd if=/dev/${MD}s1 of=${IMG}.s1 bs=64k
