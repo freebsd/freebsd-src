@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.83.2.1 1996/12/21 18:27:20 bde Exp $
+ *	$Id: trap.c,v 1.83.2.2 1997/02/13 07:51:53 bde Exp $
  */
 
 /*
@@ -133,6 +133,11 @@ static char *trap_msg[] = {
 static void userret __P((struct proc *p, struct trapframe *frame,
 			 u_quad_t oticks));
 
+#ifndef NO_F00F_HACK
+extern struct gate_descriptor *t_idt;
+extern int has_f00f_bug;
+#endif
+
 static inline void
 userret(p, frame, oticks)
 	struct proc *p;
@@ -189,6 +194,9 @@ trap(frame)
 	u_long eva;
 #endif
 
+#ifndef NO_F00F_HACK
+restart:
+#endif
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
@@ -239,6 +247,10 @@ trap(frame)
 			i = trap_pfault(&frame, TRUE);
 			if (i == -1)
 				return;
+#ifndef NO_F00F_HACK
+			if (i == -2)
+				goto restart;
+#endif
 			if (i == 0)
 				goto out;
 
@@ -585,7 +597,18 @@ trap_pfault(frame, usermode)
 	if (va >= KERNBASE) {
 		/*
 		 * Don't allow user-mode faults in kernel address space.
+		 * An exception:  if the faulting address is the invalid
+		 * instruction entry in the IDT, then the Intel Pentium
+		 * F00F bug workaround was triggered, and we need to
+		 * treat it is as an illegal instruction, and not a page
+		 * fault.
 		 */
+#ifndef NO_F00F_HACK
+		if ((eva == (unsigned int)&t_idt[6]) && has_f00f_bug) {
+			frame->tf_trapno = T_PRIVINFLT;
+			return -2;
+		}
+#endif
 		if (usermode)
 			goto nogo;
 
