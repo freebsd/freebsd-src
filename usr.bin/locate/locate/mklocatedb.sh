@@ -28,7 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $Id$
+# $Id: mklocatedb.sh,v 1.4 1997/02/22 19:55:49 peter Exp $
 
 
 # The directory containing locate subprograms
@@ -38,7 +38,7 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 
 umask 077			# protect temp files
 
-: ${TMPDIR=/tmp}; export TMPDIR; 
+TMPDIR=${TMPDIR:-/tmp}; export TMPDIR
 if test X"$TMPDIR" = X -o ! -d "$TMPDIR"; then
 	TMPDIR=/tmp; export TMPDIR
 fi
