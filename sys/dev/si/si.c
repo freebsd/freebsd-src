@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.1 1995/08/09 13:13:46 peter Exp $
+ *	$Id: si.c,v 1.2 1995/08/10 08:48:34 peter Exp $
  */
 
 #ifndef lint
@@ -77,7 +77,6 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
  * and a (programmable - SIHOST2) interrupt at IRQ 11,12 or 15.
  */
 
-#define	DEF_IXANY	SPF_IXANY	/* allow IXANY in t_iflag to work */
 #define	POLL		/* turn on poller to generate buffer empty interrupt */
 #define SI_I_HIGH_WATER	(TTYHOG - SLXOS_BUFFERSIZE)
 
@@ -107,7 +106,23 @@ static int si_debug = 0;
 extern int si_dsize;
 extern unsigned char si_download[];
 
-struct si_softc si_softc[NSI];		/* 4 elements */
+struct si_softc {
+	struct device	sc_dev;  	/* base device */
+
+	int 		sc_type;	/* adapter type */
+	char 		*sc_typename;	/* adapter type string */
+
+	struct si_port	*sc_ports;	/* port structures for this card */
+
+	caddr_t		sc_paddr;	/* physical addr of iomem */
+	caddr_t		sc_maddr;	/* kvaddr of iomem */
+	int		sc_nport;	/* # ports on this card */
+	int		sc_irq;		/* copy of attach irq */
+	int		sc_eisa_iobase;	/* EISA io port address */
+	int		sc_eisa_irqbits;
+	struct kern_devconf sc_kdc;
+};
+struct si_softc si_softc[NSI];		/* up to 4 elements */
 
 #ifndef B2000	/* not standard */
 # define B2000 2000
@@ -152,9 +167,6 @@ static struct speedtab chartimes[] = {
 	-1,	-1
 };
 static volatile int in_intr = 0;	/* Inside interrupt handler? */
-static int buffer_space = 128;		/* Amount of free buffer space
-					   which must be available before
-					   the writer is unblocked */
 static int sidefaultrate = TTYDEF_SPEED;
 
 #ifdef POLL
@@ -575,7 +587,7 @@ mem_fail:
 				pp->sp_ccb = ccbp;	/* save the address */
 				pp->sp_tty = tp++;
 				pp->sp_pend = IDLE_CLOSE;
-				pp->sp_flags = DEF_IXANY;
+				pp->sp_flags = 0;
 				pp->sp_state = 0;	/* internal flag */
 				pp->sp_dtr_wait = 3 * hz;
 				pp->sp_iin.c_iflag = 0;
@@ -1170,6 +1182,7 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	register struct si_port *xpp;
 	volatile struct si_reg *regp;
 	struct si_tcsi *dp;
+	struct si_pstat *sps;
 	BYTE *bp;
 	int i, *ip, error = 0;
 	int oldspl;
@@ -1179,6 +1192,12 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%x,%x,%x,%x)\n",
 		dev, cmd, data, flag));
+
+#if 1
+	DPRINT((0, DBG_IOCTL, "TCSI_PORT=%x\n", TCSI_PORT));
+	DPRINT((0, DBG_IOCTL, "TCSI_CCB=%x\n", TCSI_CCB));
+	DPRINT((0, DBG_IOCTL, "TCSI_TTY=%x\n", TCSI_TTY));
+#endif
 
 	if (!IS_CONTROLDEV(mynor)) {
 		DPRINT((0, DBG_IOCTL|DBG_FAIL, "not called from control device!\n"));
@@ -1209,7 +1228,11 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/*
 		 * Check that a controller for this port exists
 		 */
+
+		/* may also be a struct si_pstat, a superset of si_tcsi */
+
 		dp = (struct si_tcsi *)data;
+		sps = (struct si_pstat *)data;
 		card = dp->tc_card;
 		xsc = &si_softc[card];	/* check.. */
 		if (card < 0 || card >= NSI || xsc->sc_type == NULL) {
@@ -1272,71 +1295,21 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		SUCHECK;
 		regp->int_count = dp->tc_int;
 		break;
-	case TCSIGMIN:
-		dp->tc_int = buffer_space;
-		break;
-	case TCSIMIN:
-		SUCHECK;
-		buffer_space = dp->tc_int;
-		break;
-	case TCSIIXANY:
-		switch (dp->tc_int) {
-		case -1:
-			dp->tc_int = (xpp->sp_flags & SPF_IXANY)?1:0;
-			break;
-		case 1:
-			SUCHECK;
-			xpp->sp_flags |= SPF_IXANY;
-			break;
-		case 0:
-			SUCHECK;
-			xpp->sp_flags &= ~SPF_IXANY;
-			break;
-		default:
-			error = EINVAL;
-			goto out;
-		}
-		break;
-	case TCSIFLOW:
-		i = dp->tc_int;
-		if (i == -1)
-			dp->tc_int = xpp->sp_flags & (SPF_CTSOFLOW|SPF_RTSIFLOW);
-		else {
-			SUCHECK;
-			if (i & ~(SPF_CTSOFLOW|SPF_RTSIFLOW) != 0) {
-				error = EINVAL;
-				goto out;
-			}
-			if (i & SPF_CTSOFLOW)
-				xpp->sp_flags |= SPF_CTSOFLOW;
-			else
-				xpp->sp_flags &= ~SPF_CTSOFLOW;
-			if (i & SPF_RTSIFLOW)
-				xpp->sp_flags |= SPF_RTSIFLOW;
-			else
-				xpp->sp_flags &= ~SPF_RTSIFLOW;
-		}
-		break;
 	case TCSISTATE:
 		dp->tc_int = xpp->sp_ccb->hi_ip;
 		break;
-	case TCSIPPP:
-		switch (dp->tc_int) {
-		case -1:
-			dp->tc_int = (xpp->sp_flags & SPF_PPP)?1:0;
-			break;
-		case 1:
-			SUCHECK;
-			xpp->sp_flags |= SPF_PPP;
-			break;
-		case 0:
-			SUCHECK;
-			xpp->sp_flags &= ~SPF_PPP;
-			break;
-		default:
-			error = EINVAL;
-			goto out;
-		}
+	/* these next three use a different structure */
+	case TCSI_PORT:
+		SUCHECK;
+		sps->tc_siport = *xpp;
+		break;
+	case TCSI_CCB:
+		SUCHECK;
+		sps->tc_ccb = *xpp->sp_ccb;
+		break;
+	case TCSI_TTY:
+		SUCHECK;
+		sps->tc_tty = *xpp->sp_tty;
 		break;
 	default:
 		error = EINVAL;
@@ -1370,8 +1343,8 @@ siparam(tp, t)
 	iflag = t->c_iflag;
 	oflag = t->c_oflag;
 	lflag = t->c_lflag;
-	DPRINT((pp, DBG_PARAM, "OFLAG 0x%x CFLAG 0x%x IFLAG 0x%x\n",
-		t->c_oflag, cflag, iflag));
+	DPRINT((pp, DBG_PARAM, "OFLAG 0x%x CFLAG 0x%x IFLAG 0x%x LFLAG 0x%x\n",
+		oflag, cflag, iflag, lflag));
 
 
 	/* if not hung up.. */
@@ -1448,7 +1421,7 @@ siparam(tp, t)
 	ccbp->hi_rxon = t->c_cc[VSTART];
 	ccbp->hi_rxoff = t->c_cc[VSTOP];
 
-	if ((iflag & IXANY) && pp->sp_flags&SPF_IXANY)
+	if (iflag & IXANY)
 		ccbp->hi_prtcl |= SP_TANY;
 	if (iflag & IXON)
 		ccbp->hi_prtcl |= SP_TXEN;
@@ -1463,10 +1436,10 @@ siparam(tp, t)
 	 */
 
 	/* Output - RTS must be raised before data can be sent */
-	if (cflag & CCTS_OFLOW || pp->sp_flags&SPF_CTSOFLOW)
+	if (cflag & CCTS_OFLOW)
 		ccbp->hi_mr2 |= MR2_RTSCONT;
 	/* Input - CTS is raised when port is ready to receive data */
-	if (cflag & CRTS_IFLOW || pp->sp_flags&SPF_RTSIFLOW)
+	if (cflag & CRTS_IFLOW)
 		ccbp->hi_mr1 |= MR1_CTSCONT;
 
 	/* potential sleep here */
@@ -1486,8 +1459,8 @@ siparam(tp, t)
 		(void) si_modem(pp, SET, TIOCM_DTR|TIOCM_RTS);
 	}
 
-	DPRINT((pp, DBG_PARAM, "siparam, config completed ok MR1 %x MR2 %x\n",
-		ccbp->hi_mr1, ccbp->hi_mr2));
+	DPRINT((pp, DBG_PARAM, "siparam, complete: MR1 %x MR2 %x HI_MASK %x PRTCL %x HI_BREAK %x\n",
+		ccbp->hi_mr1, ccbp->hi_mr2, ccbp->hi_mask, ccbp->hi_prtcl, ccbp->hi_break));
 
 	splx(oldspl);
 out:
