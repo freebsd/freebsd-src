@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.23 1997/07/09 20:33:58 julian Exp $";
+	"$Id: ping.c,v 1.24 1997/07/13 06:16:44 sef Exp $";
 #endif /* not lint */
 
 /*
@@ -71,6 +71,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <math.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
@@ -155,6 +156,7 @@ int timing;			/* flag to do timing */
 double tmin = 999999999.0;	/* minimum round trip time */
 double tmax = 0.0;		/* maximum round trip time */
 double tsum = 0.0;		/* sum of all times, for doing average */
+double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
 
 int reset_kerninfo;
 sig_atomic_t siginfo_p;
@@ -649,6 +651,7 @@ pr_pack(buf, cc, from)
 			triptime = ((double)tv.tv_sec) * 1000.0 +
 			    ((double)tv.tv_usec) / 1000.0;
 			tsum += triptime;
+			tsumsq += triptime * triptime;
 			if (triptime < tmin)
 				tmin = triptime;
 			if (triptime > tmax)
@@ -922,9 +925,14 @@ finish(int sig)
 			    (int) (((ntransmitted - nreceived) * 100) /
 			    ntransmitted));
 	(void)putchar('\n');
-	if (nreceived && timing)
-		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
-		    tmin, tsum / (nreceived + nrepeats), tmax);
+	if (nreceived && timing) {
+		double n = nreceived + nrepeats;
+		double avg = tsum / n;
+		double vari = tsumsq / n - avg * avg;
+		printf("round-trip min/avg/max/stddev = "
+		       "%.3f/%.3f/%.3f/%.3f ms\n",
+		    tmin, avg, tmax, sqrt(vari));
+	}
 	if (reset_kerninfo && tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		ts.c_lflag &= ~NOKERNINFO;
 		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
