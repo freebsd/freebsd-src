@@ -33,7 +33,7 @@
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_PAS)
 
 #define DEFINE_TRANSLATIONS
-#include <i386/isa/sound/pas.h>
+#include <i386/isa/sound/pas_defs.h>
 
 static int config_pas_hw __P((struct address_info *hw_config));
 static int detect_pas_hw __P((struct address_info *hw_config));

@@ -32,7 +32,7 @@
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include <i386/isa/sound/pas.h>
+#include <i386/isa/sound/pas_defs.h>
 
 static int pcm_set_bits __P((int arg));
 static int pcm_set_channels __P((int arg));
