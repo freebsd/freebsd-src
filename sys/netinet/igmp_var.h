@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id$
+ * $Id: igmp_var.h,v 1.11 1997/02/22 09:41:27 peter Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -63,8 +63,6 @@ struct igmpstat {
 };
 
 #ifdef KERNEL
-extern struct igmpstat igmpstat;
-
 #define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
 
 /*
