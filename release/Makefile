@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.200 1996/01/08 22:13:48 phk Exp $
+#	$Id: Makefile,v 1.201 1996/01/10 08:51:08 phk Exp $
 #
 # How to roll a release:
 #
@@ -12,7 +12,7 @@
 #
 # SET THIS !!!
 BUILDNAME=2.2-current
-# CHROOTDIR=/a/release
+# CHROOTDIR=/a/r2
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_1_0
 
@@ -31,9 +31,6 @@ EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
 BOOT1=	etc/protocols etc/sysconfig
 
 FAQS=	MIRROR.SITES
-
-# define this to use a vn device instead of the floppy drive
-VNDEVICE=		vn0
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -110,15 +107,10 @@ rerelease release:
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
-	echo "make all"				>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
-	echo "make all"				>> ${CHROOTDIR}/mk
 .endif
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "rm -f obj/release.4"		>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	cp ${.CURDIR}/Makefile ${CHROOTDIR}/usr/src/release
@@ -205,15 +197,19 @@ release.4:
 	done
 	touch release.4
 
-# Fix up the distributions.
+#
+# --==## Fix up the distributions. ##==--
+#
 release.5:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
+	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
 		rm -rf ${RD}/trees/manpages/usr/share/man &&\
 		mv ${RD}/trees/bin/usr/share/man \
 			${RD}/trees/manpages/usr/share/man ;\
 	fi
+	# Move all the games out to their own dist
 	if [ -d ${RD}/trees/bin/usr/games ] ; then \
 		rm -rf ${RD}/trees/games/usr/games &&\
 		mv ${RD}/trees/bin/usr/games \
@@ -229,6 +225,7 @@ release.5:
 		mv ${RD}/trees/bin/var/games \
 			${RD}/trees/games/var/games ;\
 	fi
+	# Move the dict out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/dict ] ; then \
 		rm -rf ${RD}/trees/dict/usr/share/dict &&\
 		mv ${RD}/trees/bin/usr/share/dict \
@@ -240,20 +237,29 @@ release.5:
 				${RD}/trees/dict/usr/share/misc ; \
 		fi ; \
 	done
-	-mv ${RD}/trees/bin/usr/share/info/* \
-		${RD}/trees/info/usr/share/info
+	# Move the info files out to their own dist
+	if [ -d ${RD}/trees/bin/usr/share/info ] ; then \
+		rm -rf ${RD}/trees/info/usr/share/info &&\
+		mv ${RD}/trees/bin/usr/share/info \
+			${RD}/trees/info/usr/share ;\
+	fi
+	# Move the profiled libraries out to their own dist
 	for i in ${RD}/trees/bin/usr/lib/*_p.a ; do \
 		if [ -f $$i ] ; then \
 			mv $$i \
 				${RD}/trees/proflibs/usr/lib ; \
 		fi ; \
 	done
+	# Remove some files we can faster regen after installing.
 	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
+	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		find ${EXTRA_DISTS} -depth -type d -print | xargs rmdir
 	touch release.5
 
-# Make binary dists, notice that DES dist isn't finished yet.
+#
+# --==## Make binary dists ##==--
+#
 release.6:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
@@ -262,45 +268,48 @@ release.6:
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
-			cd ${.CURDIR} && \
-				$(MAKE) doTARBALL SD=${RD}/trees/$${i} \
-					TN=$$i TD=$$i ARG="." && \
+			cd ${.CURDIR} && $(MAKE) doTARBALL \
+				SD=${RD}/trees/$${i} \
+				TN=$$i TD=$$i ARG="." && \
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
+	( cd ${RD}/dists && \
+		if [ -f krb/krb.aa ] ; then mv krb/* des && rmdir krb ; fi )
+	( cd ${RD}/info && \
+		if [ -d krb ] ; then mv krb/* des && rmdir krb ; fi )
 	touch release.6
 
 
-# Make source dists, and finish off DES too
+#
+# --==## Make source dists ##==--
+#
 release.7:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
 	@for i in `cd /usr/src && echo [a-z]*` ; do \
-		if [ -d /usr/src/$$i -a "$$i" != "CVS" ] ; then \
-			cd ${.CURDIR} && \
-			$(MAKE) doTARBALL SD=/usr/src \
+		if [ -d /usr/src/$$i ] ; then \
+			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
-				TD=src ARG="$$i" ; \
+				SD=/usr/src TD=src ARG="$$i" ; \
 		fi ; \
 	done
 .if defined(EXTRA_SRC)
 	@set ${EXTRA_SRC} && \
 	while [ $$# -ge 2 ] ; do \
-		if [ -d /usr/src/$$1 -a "$$1" != "CVS" ] ; then \
-			cd ${.CURDIR} && \
-			$(MAKE) doTARBALL SD=/usr/src \
-				TN="s$$2" \
-				TD=src ARG="$$1" ; \
-		fi && \
-		shift && shift ; \
+		if [ -d /usr/src/$$1 ] ; then \
+			cd ${.CURDIR} && $(MAKE) doTARBALL \
+				SD=/usr/src TN="s$$2" TD=src ARG="$$1" ; \
+		fi && shift && shift ; \
 	done
 .endif
 	( cd ${RD}/dists/src && \
-	if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
-	( cd ${RD}/dists && \
-	if [ -f krb/krb.aa ] ; then mv krb/* des && rmdir krb ; fi )
+		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
+		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
+	( cd ${RD}/info/src && \
+		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
+		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
 	@echo "src distribution is finished."
 	touch release.7
 
@@ -352,13 +361,16 @@ release.8: write_mfs_in_kernel
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
 
-	# rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
+	rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
-	# rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
+	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
+	rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	touch release.8
 
-# Complete the rootfd directory
+#
+# --==## Create a root floppy ##==--
+#
 release.9:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/rootfd
@@ -368,19 +380,6 @@ release.9:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=root \
 		DIR=${RD}/rootfd/stand ZIP=false
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
-	( cd ${RD}/rootfd/stand/info && \
-		if [ -d krb ] ; then \
-			mv krb/* des && \
-			rmdir krb ; \
-	fi )
-	if [ -f ${RD}/rootfd/stand/info/src/ssecure.inf ] ; then \
-		mv ${RD}/rootfd/stand/info/src/ssecure.inf \
-			${RD}/rootfd/stand/info/des ; \
-	fi
-	if [ -f ${RD}/rootfd/stand/info/src/sebones.inf ] ; then \
-		mv ${RD}/rootfd/stand/info/src/sebones.inf \
-			${RD}/rootfd/stand/info/des ; \
-	fi
 	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | \
 		tar xvf - -C ${RD}/rootfd/stand
 	cp ${.CURDIR}/sysinstall/power.uu ${RD}/rootfd/stand && \
@@ -392,27 +391,30 @@ release.9:
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
 
-# Complete the fixitfd
+#
+# --==## Create a fixit floppy ##==--
+#
 release.10:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/fixitfd
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
-		mkdir stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
+		mkdir dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
-	( cd ${RD}/trees/bin/dev && \
-		sh MAKEDEV all && \
-		find . -print | \
-	cpio -dump ${RD}/fixitfd/dev )
+	( cd ${RD}/fixitfd/dev && \
+		cp ${RD}/trees/bin/dev/MAKEDEV . && \
+		sh MAKEDEV all )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	rm -f ${RD}/floppies/fixit.flp
 	sh ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
 		1024 ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 	touch release.10
 
+#
+# --==## Setup a suitable ftp-area ##==--
+#
 ftp.1:
 	rm -rf ${FD}
 	mkdir ${FD}
@@ -420,17 +422,15 @@ ftp.1:
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cd ${.CURDIR} && ln -f ${FAQS} ${FD}
 
-	# This rule makes ${CHROOTDIR}/R/ftp a suitable anon ftp for testing.
-ftp.2:
-	-mkdir ${FD}/bin
-	ln -f ${RD}/trees/bin/bin/ls ${FD}/bin/ls
-
+#
+# --==## Setup a suitable cdrom-area ##==--
+#
 cdrom.1:
 	rm -rf ${CD}
 	mkdir ${CD}
 	mkdir ${CD}/filesys
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
-	ln -f ${RD}/kernels/MFSKERNEL ${CD}/kernel
+	ln -f ${RD}/kernels/MFSKERNEL.std ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
@@ -461,8 +461,7 @@ doTARBALL:
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		cd ${RD}/info && \
 		mkdir -p ${TD} && \
-		chmod a+x ${.CURDIR}/info.sh && \
-		${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > ${TD}/$$tn.inf \
+		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > ${TD}/$$tn.inf \
 	)
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
@@ -547,7 +546,8 @@ doMFSKERN:
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	rm -rf ${RD}/boot.${FSIMAGE}
 	mkdir  ${RD}/boot.${FSIMAGE}
-	mv ${RD}/kernels/BOOTMFS ${RD}/boot.${FSIMAGE}/kernel
+	mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
