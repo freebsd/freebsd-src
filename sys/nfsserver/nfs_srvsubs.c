@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
@@ -521,49 +522,56 @@ static short *nfsrv_v3errmap[] = {
  * Called once to initialize data structures...
  */
 static int
-nfs_init(void *dummy __unused)
+nfsrv_modevent(module_t mod, int type, void *data)
 {
 
-	rpc_vers = txdr_unsigned(RPC_VER2);
-	rpc_call = txdr_unsigned(RPC_CALL);
-	rpc_reply = txdr_unsigned(RPC_REPLY);
-	rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
-	rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
-	rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
-	rpc_autherr = txdr_unsigned(RPC_AUTHERR);
-	rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
-	nfs_prog = txdr_unsigned(NFS_PROG);
-	nfs_true = txdr_unsigned(TRUE);
-	nfs_false = txdr_unsigned(FALSE);
-	nfs_xdrneg1 = txdr_unsigned(-1);
-	nfs_ticks = (hz * NFS_TICKINTVL + 500) / 1000;
-	if (nfs_ticks < 1)
-		nfs_ticks = 1;
+	switch (type) {
+	case MOD_LOAD:
+		rpc_vers = txdr_unsigned(RPC_VER2);
+		rpc_call = txdr_unsigned(RPC_CALL);
+		rpc_reply = txdr_unsigned(RPC_REPLY);
+		rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
+		rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
+		rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
+		rpc_autherr = txdr_unsigned(RPC_AUTHERR);
+		rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
+		nfs_prog = txdr_unsigned(NFS_PROG);
+		nfs_true = txdr_unsigned(TRUE);
+		nfs_false = txdr_unsigned(FALSE);
+		nfs_xdrneg1 = txdr_unsigned(-1);
+		nfs_ticks = (hz * NFS_TICKINTVL + 500) / 1000;
+		if (nfs_ticks < 1)
+			nfs_ticks = 1;
 
-	nfsrv_init(0);			/* Init server data structures */
-	nfsrv_initcache();		/* Init the server request cache */
+		nfsrv_init(0);		/* Init server data structures */
+		nfsrv_initcache();	/* Init the server request cache */
 
-	nfsrv_timer(0);
+		nfsrv_timer(0);
 
-	nfs_prev_nfssvc_sy_narg = sysent[SYS_nfssvc].sy_narg;
-	sysent[SYS_nfssvc].sy_narg = 2;
-	nfs_prev_nfssvc_sy_call = sysent[SYS_nfssvc].sy_call;
-	sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
+		nfs_prev_nfssvc_sy_narg = sysent[SYS_nfssvc].sy_narg;
+		sysent[SYS_nfssvc].sy_narg = 2;
+		nfs_prev_nfssvc_sy_call = sysent[SYS_nfssvc].sy_call;
+		sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
+		break;
 
-	return (0);
+		case MOD_UNLOAD:
+
+		untimeout(nfsrv_timer, (void *)NULL, nfsrv_timer_handle);
+		sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
+		sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
+		break;
+	}
+	return 0;
 }
-SYSINIT(nfs, SI_SUB_VFS, SI_ORDER_ANY, nfs_init, NULL);
+static moduledata_t nfsserver_mod = {
+	"nfsserver",
+	nfsrv_modevent,
+	NULL,
+};
+DECLARE_MODULE(nfsserver, nfsserver_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
-static int
-nfs_uninit(void *dummy __unused)
-{
-
-	untimeout(nfsrv_timer, (void *)NULL, nfsrv_timer_handle);
-	sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
-	sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
-	return (0);
-}
-SYSUNINIT(nfs, SI_SUB_VFS, SI_ORDER_ANY, nfs_uninit, NULL);
+/* So that loader and kldload(2) can find us, wherever we are.. */
+MODULE_VERSION(nfsserver, 1);
 
 /*
  * Set up nameidata for a lookup() call and do it.
