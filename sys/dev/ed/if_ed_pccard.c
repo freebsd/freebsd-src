@@ -95,10 +95,375 @@ ed_pccard_detach(device_t dev)
 	return (0);
 }
 
-static const struct pccard_product ed_pccard_products[] = {
-	{ PCCARD_STR_KINGSTON_KNE2,		PCCARD_VENDOR_KINGSTON,
-	  PCCARD_PRODUCT_KINGSTON_KNE2,		0, NULL, NULL },
-	{ NULL }
+static const struct ed_product {
+	struct pccard_product	prod;
+	int enet_maddr;
+	unsigned char enet_vendor[3];
+	int flags;
+#define	NE2000DVF_DL10019	0x0001		/* chip is D-Link DL10019 */
+#define	NE2000DVF_AX88190	0x0002		/* chip is ASIX AX88190 */
+} ed_pccard_products[] = {
+	{ { PCCARD_STR_AMBICOM_AMB8002T,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_AMBICOM_AMB8002T },
+	  -1, { 0x00, 0x10, 0x7a } },
+
+	{ { PCCARD_STR_PREMAX_PE200,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_PREMAX_PE200 },
+	  0x07f0, { 0x00, 0x20, 0xe0 } },
+
+	{ { PCCARD_STR_DIGITAL_DEPCMXX,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_DIGITAL_DEPCMXX },
+	  0x0ff0, { 0x00, 0x00, 0xe8 } },
+
+	{ { PCCARD_STR_PLANET_SMARTCOM2000,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_PLANET_SMARTCOM2000 },
+	  0xff0, { 0x00, 0x00, 0xe8 } },
+
+	{ { PCCARD_STR_DLINK_DE660,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_DLINK_DE660 },
+	  -1, { 0x00, 0x80, 0xc8 } },
+
+	{ { PCCARD_STR_RPTI_EP400,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_RPTI_EP400 },
+	  -1, { 0x00, 0x40, 0x95 } },
+
+	{ { PCCARD_STR_RPTI_EP401,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_RPTI_EP401 },
+	  -1, { 0x00, 0x40, 0x95 } },
+
+	{ { PCCARD_STR_ACCTON_EN2212,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_ACCTON_EN2212 },
+	  0x0ff0, { 0x00, 0x00, 0xe8 } },
+
+	{ { PCCARD_STR_SVEC_COMBOCARD,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_SVEC_COMBOCARD },
+	  -1, { 0x00, 0xe0, 0x98 } },
+
+	{ { PCCARD_STR_SVEC_LANCARD,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_SVEC_LANCARD },
+	  0x7f0, { 0x00, 0xc0, 0x6c } },
+
+	{ { PCCARD_STR_EPSON_EEN10B,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_EPSON_EEN10B, 0,
+	    PCCARD_CIS_EPSON_EEN10B },
+	  0xff0, { 0x00, 0x00, 0x48 } },
+
+	/*
+	 * You have to add new entries which contains
+	 * PCCARD_VENDOR_INVALID and/or PCCARD_PRODUCT_INVALID 
+	 * in front of this comment.
+	 *
+	 * There are cards which use a generic vendor and product id but needs
+	 * a different handling depending on the cis_info, so ne2000_match
+	 * needs a table where the exceptions comes first and then the normal
+	 * product and vendor entries.
+	 */
+
+	{ { PCCARD_STR_IBM_INFOMOVER,
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_INFOMOVER, 0,
+	    PCCARD_CIS_IBM_INFOMOVER },
+	  0x0ff0, { 0x08, 0x00, 0x5a } },
+
+	{ { PCCARD_STR_IBM_INFOMOVER,
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_INFOMOVER, 0,
+	    PCCARD_CIS_IBM_INFOMOVER },
+	  0x0ff0, { 0x00, 0x04, 0xac } },
+
+	{ { PCCARD_STR_IBM_INFOMOVER,
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_INFOMOVER, 0,
+	    PCCARD_CIS_IBM_INFOMOVER },
+	  0x0ff0, { 0x00, 0x06, 0x29 } },
+
+	{ { PCCARD_STR_KINGSTON_KNE2,		PCCARD_VENDOR_KINGSTON,
+	    PCCARD_PRODUCT_KINGSTON_KNE2,		0,
+	    PCCARD_CIS_KINGSTON_KNE2 },
+	  -1, { 0, 0, 0 }, 0 },			/* XXX */
+
+	{ { PCCARD_STR_LINKSYS_ECARD_1, 
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_ECARD_1, 0,
+	    PCCARD_CIS_LINKSYS_ECARD_1 },
+	  -1, { 0x00, 0x80, 0xc8 } },
+
+	{ { PCCARD_STR_PLANEX_FNW3600T,
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_COMBO_ECARD, 0,
+	    PCCARD_CIS_PLANEX_FNW3600T },
+	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
+
+	{ { PCCARD_STR_SVEC_PN650TX,
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_COMBO_ECARD, 0,
+	    PCCARD_CIS_SVEC_PN650TX },
+	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
+
+	/*
+	 * This entry should be here so that above two cards doesn't
+	 * match with this.  FNW-3700T won't match above entries due to
+	 * MAC address check.
+	 */
+	{ { PCCARD_STR_PLANEX_FNW3700T, 
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_COMBO_ECARD, 0,
+	    PCCARD_CIS_PLANEX_FNW3700T },
+	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_AX88190 },
+
+	{ { PCCARD_STR_LINKSYS_ETHERFAST,
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_ETHERFAST, 0,
+	    PCCARD_CIS_LINKSYS_ETHERFAST },
+	  -1, { 0x00, 0x80, 0xc8 }, NE2000DVF_DL10019 },
+
+	{ { PCCARD_STR_DLINK_DE650,
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_ETHERFAST, 0,
+	    PCCARD_CIS_DLINK_DE650 },
+	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
+
+	{ { PCCARD_STR_MELCO_LPC2_TX,
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_ETHERFAST, 0,
+	    PCCARD_CIS_MELCO_LPC2_TX },
+	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_DL10019 },
+
+	{ { PCCARD_STR_LINKSYS_COMBO_ECARD, 
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_COMBO_ECARD, 0,
+	    PCCARD_CIS_LINKSYS_COMBO_ECARD }, 
+	  -1, { 0x00, 0x80, 0xc8 } },
+
+	{ { PCCARD_STR_LINKSYS_TRUST_COMBO_ECARD,
+	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_TRUST_COMBO_ECARD, 0,
+	    PCCARD_CIS_LINKSYS_TRUST_COMBO_ECARD },
+	  0x0120, { 0x20, 0x04, 0x49 } },
+
+	/* 
+	 * Although the comments above say to put VENDOR/PRODUCT
+	 * INVALID IDs above this list, we need to keep this one below
+	 * the ECARD_1, or else both will match the same more-generic
+	 * entry rather than the more specific one above with proper
+	 * vendor and product IDs.
+	 */
+	{ { PCCARD_STR_LINKSYS_ECARD_2, 
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_LINKSYS_ECARD_2 },
+	  -1, { 0x00, 0x80, 0xc8 } },
+
+	/*
+	 * D-Link DE-650 has many minor versions:
+	 *
+	 *   CIS information          Manufacturer Product  Note
+	 * 1 "D-Link, DE-650"             INVALID  INVALID  white card
+	 * 2 "D-Link, DE-650, Ver 01.00"  INVALID  INVALID  became bare metal
+	 * 3 "D-Link, DE-650, Ver 01.00"   0x149    0x265   minor changed look
+	 * 4 "D-Link, DE-650, Ver 01.00"   0x149    0x265   collision LED added
+	 *
+	 * While the 1st and the 2nd types should use the "D-Link DE-650"
+	 * entry, the 3rd and the 4th types should use the "Linksys 
+	 * EtherCard" entry. Therefore, this enty must be below the 
+	 * LINKSYS_ECARD_1.  --itohy
+	 */
+	{ { PCCARD_STR_DLINK_DE650,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_DLINK_DE650 },
+	  0x0040, { 0x00, 0x80, 0xc8 } },
+
+	/*
+	 * IO-DATA PCLA/TE and later version of PCLA/T has valid
+	 * vendor/product ID and it is possible to read MAC address
+	 * using standard I/O ports.  It also read from CIS offset 0x01c0.
+	 * On the other hand, earlier version of PCLA/T doesn't have valid
+	 * vendor/product ID and MAC address must be read from CIS offset
+	 * 0x0ff0 (i.e., usual ne2000 way to read it doesn't work).
+	 * And CIS information of earlier and later version of PCLA/T are
+	 * same except fourth element.  So, for now, we place the entry for
+	 * PCLA/TE (and later version of PCLA/T) followed by entry
+	 * for the earlier version of PCLA/T (or, modify to match all CIS
+	 * information and have three or more individual entries).
+	 */
+	{ { PCCARD_STR_IODATA_PCLATE,
+	    PCCARD_VENDOR_IODATA, PCCARD_PRODUCT_IODATA_PCLATE, 0,
+	    PCCARD_CIS_IODATA_PCLATE },
+	  -1, { 0x00, 0xa0, 0xb0 } },
+
+	/*
+	 * This entry should be placed after above PCLA-TE entry.
+	 * See above comments for detail.
+	 */
+	{ { PCCARD_STR_IODATA_PCLAT,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_IODATA_PCLAT },
+	  0x0ff0, { 0x00, 0xa0, 0xb0 } },
+
+	{ { PCCARD_STR_DAYNA_COMMUNICARD_E_1,
+	    PCCARD_VENDOR_DAYNA, PCCARD_PRODUCT_DAYNA_COMMUNICARD_E_1, 0,
+	    PCCARD_CIS_DAYNA_COMMUNICARD_E_1 },
+	  0x0110, { 0x00, 0x80, 0x19 } },
+
+	{ { PCCARD_STR_DAYNA_COMMUNICARD_E_2,
+	    PCCARD_VENDOR_DAYNA, PCCARD_PRODUCT_DAYNA_COMMUNICARD_E_2, 0,
+	    PCCARD_CIS_DAYNA_COMMUNICARD_E_2 },
+	  -1, { 0x00, 0x80, 0x19 } },
+
+	{ { PCCARD_STR_COREGA_ETHER_PCC_T,
+	    PCCARD_VENDOR_COREGA, PCCARD_PRODUCT_COREGA_ETHER_PCC_T, 0,
+	    PCCARD_CIS_COREGA_ETHER_PCC_T },
+	  -1, { 0x00, 0x00, 0xf4 } },
+
+	{ { PCCARD_STR_COREGA_ETHER_II_PCC_T,
+	    PCCARD_VENDOR_COREGA, PCCARD_PRODUCT_COREGA_ETHER_II_PCC_T, 0,
+	    PCCARD_CIS_COREGA_ETHER_II_PCC_T },
+	  -1, { 0x00, 0x00, 0xf4 } },
+
+	{ { PCCARD_STR_COREGA_FAST_ETHER_PCC_TX,
+	    PCCARD_VENDOR_COREGA, PCCARD_PRODUCT_COREGA_FAST_ETHER_PCC_TX, 0,
+	    PCCARD_CIS_COREGA_FAST_ETHER_PCC_TX },
+	  -1, { 0x00, 0x00, 0xf4 }, NE2000DVF_DL10019 },
+
+	{ { PCCARD_STR_COMPEX_LINKPORT_ENET_B,
+	    PCCARD_VENDOR_COMPEX, PCCARD_PRODUCT_COMPEX_LINKPORT_ENET_B, 0,
+	    PCCARD_CIS_COMPEX_LINKPORT_ENET_B },
+	  0x01c0, { 0x00, 0xa0, 0x0c } },
+
+	{ { PCCARD_STR_SMC_EZCARD,
+	    PCCARD_VENDOR_SMC, PCCARD_PRODUCT_SMC_EZCARD, 0,
+	    PCCARD_CIS_SMC_EZCARD },
+	  0x01c0, { 0x00, 0xe0, 0x29 } },
+
+	{ { PCCARD_STR_SOCKET_LP_ETHER_CF,
+	    PCCARD_VENDOR_SOCKET, PCCARD_PRODUCT_SOCKET_LP_ETHER_CF, 0,
+	    PCCARD_CIS_SOCKET_LP_ETHER_CF },
+	  -1, { 0x00, 0xc0, 0x1b } },
+
+	{ { PCCARD_STR_SOCKET_LP_ETHER,
+	    PCCARD_VENDOR_SOCKET, PCCARD_PRODUCT_SOCKET_LP_ETHER, 0,
+	    PCCARD_CIS_SOCKET_LP_ETHER },
+	  -1, { 0x00, 0xc0, 0x1b } },
+
+	{ { PCCARD_STR_XIRCOM_CFE_10,
+	    PCCARD_VENDOR_XIRCOM, PCCARD_PRODUCT_XIRCOM_CFE_10, 0,
+	    PCCARD_CIS_XIRCOM_CFE_10 },
+	  -1, { 0x00, 0x10, 0xa4 } },
+
+	{ { PCCARD_STR_MELCO_LPC3_TX, 
+	    PCCARD_VENDOR_MELCO, PCCARD_PRODUCT_MELCO_LPC3_TX, 0,
+	    PCCARD_CIS_MELCO_LPC3_TX }, 
+	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_AX88190 },
+
+	{ { PCCARD_STR_BILLIONTON_LNT10TN,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_BILLIONTON_LNT10TN },
+	  -1, { 0x00, 0x00, 0x00 } },
+
+	{ { PCCARD_STR_NDC_ND5100_E,
+	    PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, 0,
+	    PCCARD_CIS_NDC_ND5100_E },
+	  -1, { 0x00, 0x80, 0xc6 } },
+
+	{ { PCCARD_STR_TELECOMDEVICE_TCD_HPC100,
+	    PCCARD_VENDOR_TELECOMDEVICE, PCCARD_PRODUCT_TELECOMDEVICE_TCD_HPC100, 0,
+	    PCCARD_CIS_TELECOMDEVICE_TCD_HPC100 },
+	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_AX88190 },
+
+	{ { PCCARD_STR_MACNICA_ME1_JEIDA,
+	    PCCARD_VENDOR_MACNICA, PCCARD_PRODUCT_MACNICA_ME1_JEIDA, 0,
+	    PCCARD_CIS_MACNICA_ME1_JEIDA },
+	  0x00b8, { 0x08, 0x00, 0x42 } },
+
+#if 0
+    /* the rest of these are stolen from the linux pcnet pcmcia device
+       driver.  Since I don't know the manfid or cis info strings for
+       any of them, they're not compiled in until I do. */
+    { "APEX MultiCard",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x03f4, { 0x00, 0x20, 0xe5 } },
+    { "ASANTE FriendlyNet",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x4910, { 0x00, 0x00, 0x94 } },
+    { "Danpex EN-6200P2",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0110, { 0x00, 0x40, 0xc7 } },
+    { "DataTrek NetCard",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0x20, 0xe8 } },
+    { "Dayna CommuniCard E",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0110, { 0x00, 0x80, 0x19 } },
+    { "EP-210 Ethernet",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0110, { 0x00, 0x40, 0x33 } },
+    { "ELECOM Laneed LD-CDWA",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x00b8, { 0x08, 0x00, 0x42 } },
+    { "Grey Cell GCS2220",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0000, { 0x00, 0x47, 0x43 } },
+    { "Hypertec Ethernet",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x01c0, { 0x00, 0x40, 0x4c } },
+    { "IBM CCAE",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x08, 0x00, 0x5a } },
+    { "IBM CCAE",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0x04, 0xac } },
+    { "IBM CCAE",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0x06, 0x29 } },
+    { "IBM FME",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0374, { 0x00, 0x04, 0xac } },
+    { "IBM FME",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0374, { 0x08, 0x00, 0x5a } },
+    { "Katron PE-520",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0110, { 0x00, 0x40, 0xf6 } },
+    { "Kingston KNE-PCM/x",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0xc0, 0xf0 } },
+    { "Kingston KNE-PCM/x",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0xe2, 0x0c, 0x0f } },
+    { "Kingston KNE-PC2",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0180, { 0x00, 0xc0, 0xf0 } },
+    { "Longshine LCS-8534",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0000, { 0x08, 0x00, 0x00 } },
+    { "Maxtech PCN2000",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x5000, { 0x00, 0x00, 0xe8 } },
+    { "NDC Instant-Link",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x003a, { 0x00, 0x80, 0xc6 } },
+    { "NE2000 Compatible",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0xa0, 0x0c } },
+    { "Network General Sniffer",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0x00, 0x65 } },
+    { "Panasonic VEL211",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0x80, 0x45 } },
+    { "SCM Ethernet",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0ff0, { 0x00, 0x20, 0xcb } },
+    { "Socket EA",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x4000, { 0x00, 0xc0, 0x1b } },
+    { "Volktek NPL-402CT",
+      0x0000, 0x0000, NULL, NULL, 0,
+      0x0060, { 0x00, 0x40, 0x05 } },
+#endif
+
+	{ { PCCARD_STR_ALLIEDTELESIS_LA_PCM,
+	    PCCARD_VENDOR_ALLIEDTELESIS, PCCARD_PRODUCT_ALLIEDTELESIS_LA_PCM, 0,
+	    PCCARD_CIS_ALLIEDTELESIS_LA_PCM },
+	  0x0ff0, { 0x00, 0x00, 0xf4 } },
+
 };
 
 static int
@@ -106,7 +471,8 @@ ed_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
 
-	if ((pp = pccard_product_lookup(dev, ed_pccard_products,
+	if ((pp = pccard_product_lookup(dev, 
+	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
 		device_set_desc(dev, pp->pp_name);
 		return 0;
