@@ -114,11 +114,12 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	struct indir a[NIADDR+1], *xap;
 	ufs_daddr_t daddr;
 	long metalbn;
-	int error, maxrun = 0, num;
+	int error, maxrun, num;
 
 	ip = VTOI(vp);
 	mp = vp->v_mount;
 	ump = VFSTOUFS(mp);
+	devvp = ump->um_devvp;
 #ifdef DIAGNOSTIC
 	if ((ap != NULL && nump == NULL) || (ap == NULL && nump != NULL))
 		panic("ufs_bmaparray: invalid arguments");
@@ -132,10 +133,8 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		*runb = 0;
 	}
 
-	if (vn_isdisk(vp))
-		maxrun = vp->v_rdev->si_iosize_max / mp->mnt_stat.f_iosize - 1;
-	else
-		maxrun = 0;
+	vp->v_maxio = devvp->v_maxio;
+	maxrun = vp->v_maxio / mp->mnt_stat.f_iosize - 1;
 
 	xap = ap == NULL ? a : ap;
 	if (!nump)
@@ -169,7 +168,6 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	/* Get disk address out of indirect block array */
 	daddr = ip->i_ib[xap->in_off];
 
-	devvp = VFSTOUFS(vp->v_mount)->um_devvp;
 	for (bp = NULL, ++xap; --num; ++xap) {
 		/*
 		 * Exit the loop if there is no disk address assigned yet and
