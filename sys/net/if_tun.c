@@ -107,7 +107,6 @@ tun_clone(arg, name, namelen, dev)
 		return;
 	*dev = make_dev(&tun_cdevsw, unit2minor(u),
 	    UID_ROOT, GID_WHEEL, 0600, "tun%d", u);
-	(*dev)->si_drv2 = (void *)1;	/* Mark it as make_dev()'d */
 }
 
 static int
@@ -140,10 +139,11 @@ tun_modevent(module_t mod, int type, void *data)
 			tunhead = tp->next;
 			bpfdetach(&tp->tun_if);
 			if_detach(&tp->tun_if);
-			KASSERT(dev->si_drv2 != NULL, ("Bad si_drv2 value"));
+			KASSERT(dev->si_flags & SI_NAMED, ("Missing make_dev"));
 			destroy_dev(dev);
 			FREE(tp, M_TUN);
 		}
+		cdevsw_remove(&tun_cdevsw);
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
 		break;
 	} 
@@ -180,11 +180,9 @@ tuncreate(dev)
 	struct tun_softc *sc;
 	struct ifnet *ifp;
 
-	if (dev->si_drv2 == NULL) {
+	if (!(dev->si_flags & SI_NAMED))
 		dev = make_dev(&tun_cdevsw, minor(dev),
 		    UID_UUCP, GID_DIALER, 0600, "tun%d", dev2unit(dev));
-		dev->si_drv2 = (void *)1;
-	}
 
 	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	sc->tun_flags = TUN_INITED;
