@@ -104,8 +104,9 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 	SLOT(x) == 0, ("%s: Bad INPCB label", __func__ ))
 #define	ASSERT_IPQ_LABEL(x)	KASSERT(SLOT(x) == IPQMAGIC ||	\
 	SLOT(x) == 0, ("%s: Bad IPQ label", __func__ ))
-#define	ASSERT_MBUF_LABEL(x)	KASSERT(SLOT(x) == MBUFMAGIC ||		\
-	SLOT(x) == 0, ("%s: Bad MBUF label", __func__ ))
+#define	ASSERT_MBUF_LABEL(x)	KASSERT(x == NULL ||			\
+	SLOT(x) == MBUFMAGIC ||	SLOT(x) == 0,				\
+	("%s: Bad MBUF label", __func__ ))
 #define	ASSERT_MOUNT_LABEL(x)	KASSERT(SLOT(x) == MOUNTMAGIC ||	\
 	SLOT(x) == 0, ("%s: Bad MOUNT label", __func__ ))
 #define	ASSERT_SOCKET_LABEL(x)	KASSERT(SLOT(x) == SOCKETMAGIC ||	\
