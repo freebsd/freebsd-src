@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.61 1999/01/23 08:44:17 markm Exp $
+#	$Id: Makefile.inc1,v 1.62 1999/01/27 15:08:05 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -226,7 +226,7 @@ buildworld: check-objformat
 	@echo ">>> Cleaning up the temporary ${OBJFORMAT} build tree"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}
-	chflags -R noschg ${WORLDTMP}/
+	-chflags -R noschg ${WORLDTMP}/
 	rm -rf ${WORLDTMP}
 .endif
 .if !defined(NOTOOLS)
