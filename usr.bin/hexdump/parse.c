@@ -87,7 +87,8 @@ add(fmt)
 	FU *tfu, **nextfu;
 
 	/* start new linked list of format units */
-	tfs = emalloc(sizeof(FS));
+	if ((tfs = calloc(1, sizeof(FS))) == NULL)
+		err(1, NULL);
 	if (!fshead)
 		fshead = tfs;
 	else
@@ -103,7 +104,8 @@ add(fmt)
 			break;
 
 		/* allocate a new format unit and link it in */
-		tfu = emalloc(sizeof(FU));
+		if ((tfu = calloc(1, sizeof(FU))) == NULL)
+			err(1, NULL);
 		*nextfu = tfu;
 		nextfu = &tfu->nextfu;
 		tfu->reps = 1;
@@ -141,7 +143,7 @@ add(fmt)
 			if (*p++ == 0)
 				badfmt(fmt);
 		if (!(tfu->fmt = malloc(p - savep + 1)))
-			nomem();
+			err(1, NULL);
 		(void) strncpy(tfu->fmt, savep, p - savep);
 		tfu->fmt[p - savep] = '\0';
 		escape(tfu->fmt);
@@ -222,7 +224,8 @@ rewrite(fs)
 		 * character gets its own.
 		 */
 		for (nconv = 0, fmtp = fu->fmt; *fmtp; nextpr = &pr->nextpr) {
-			pr = emalloc(sizeof(PR));
+			if ((pr = calloc(1, sizeof(PR))) == NULL)
+				err(1, NULL);
 			if (!fu->nextpr)
 				fu->nextpr = pr;
 			else
@@ -385,7 +388,8 @@ isint2:					switch(fu->bcnt) {
 			 */
 			savech = *p2;
 			p1[0] = '\0';
-			pr->fmt = emalloc(strlen(fmtp) + 2);
+			if ((pr->fmt = calloc(1, strlen(fmtp) + 2)) == NULL)
+				err(1, NULL);
 			(void)strcpy(pr->fmt, fmtp);
 			(void)strcat(pr->fmt, cs);
 			*p2 = savech;
