@@ -16,7 +16,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.4 1998/03/08 17:25:30 dufault Exp $
+ * $Id: aio.h,v 1.5 1998/03/08 22:21:12 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,7 @@ struct sigevent {
 /*
  * values for sigev_notify:
  */	
-define	SIGEV_NONE	0		/* Don't post a signal */
+#define	SIGEV_NONE	0		/* Don't post a signal */
 #define	SIGEV_SIGNAL	1		/* Post specified signal */
 
 /*
