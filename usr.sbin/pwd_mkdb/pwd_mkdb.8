@@ -43,6 +43,7 @@
 .Op Fl C
 .Op Fl N
 .Op Fl p
+.Op Fl q
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
 .Op Fl u Ar username
@@ -78,6 +79,12 @@ the rebuilding of the database.
 .It Fl p
 Create a Version 7 style password file and install it into
 .Pa /etc/passwd .
+.It Fl q
+Suppress the warnings that
+.Nm
+normally generates for large user and group IDs.
+Such IDs can cause serious problems with software
+that makes assumptions about the values of IDs.
 .It Fl d Ar directory
 Store databases into specified destination directory instead of
 .Pa /etc .

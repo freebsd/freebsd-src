@@ -31,6 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)pw_scan.h	8.1 (Berkeley) 4/1/94
+ *
+ *	$FreeBSD$
  */
+
+extern int	pw_big_ids_warning;
 
 extern int	pw_scan __P((char *, struct passwd *));
