@@ -163,7 +163,8 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 		off_t limit)
 {
 	register struct ucred *cred = td->td_ucred;
-	register struct vmspace *vm = td->td_proc->p_vmspace;
+	struct proc *p = td->td_proc;
+	register struct vmspace *vm = p->p_vmspace;
 	int             error;
 #ifdef PECOFF_DEBUG
 	struct vm_map  *map;
@@ -173,7 +174,9 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 #endif
 	if (ctob((UAREA_PAGES+KSTACK_PAGES) + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
-	fill_kinfo_proc(td->td_proc, &td->td_proc->p_uarea->u_kproc);
+	PROC_LOCK(p);
+	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	PROC_UNLOCK(p);
 
 #if PECOFF_DEBUG
 	fill_regs(td, &regs);
