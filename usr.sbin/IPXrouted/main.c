@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6 1995/10/11 18:57:21 jhay Exp $
+ *	$Id: main.c,v 1.1 1995/10/26 21:28:19 julian Exp $
  */
 
 #ifndef lint
@@ -79,16 +79,16 @@ int	noteremoterequests;	/* squawk on requests from non-local nets */
 int	r;			/* Routing socket to install updates with */
 struct	sockaddr_ipx ipx_netmask;	/* Used in installing routes */
 
-char	packet[MAXPACKETSIZE+sizeof(struct ipxdp)+1];
+char	packet[MAXPACKETSIZE+sizeof(struct ipx)+1];
 
 char	**argv0;
 
 int	supplier = -1;		/* process should supply updates */
 int	dosap = 1;		/* By default do SAP services. */
 
-struct	rip *msg = (struct rip *) &packet[sizeof (struct ipxdp)]; 
+struct	rip *msg = (struct rip *) &packet[sizeof (struct ipx)]; 
 struct	sap_packet *sap_msg = 
-		(struct sap_packet *) &packet[sizeof (struct ipxdp)]; 
+		(struct sap_packet *) &packet[sizeof (struct ipx)]; 
 void	hup(), fkexit(), timer();
 void	process(int fd, int pkt_type);
 int	getsocket(int type, int proto, struct sockaddr_ipx *sipx);
@@ -248,7 +248,7 @@ process(fd, pkt_type)
 {
 	struct sockaddr from;
 	int fromlen = sizeof (from), cc, omask;
-	struct ipxdp *ipxdp = (struct ipxdp *)packet;
+	struct ipx *ipxdp = (struct ipx *)packet;
 
 	cc = recvfrom(fd, packet, sizeof (packet), 0, &from, &fromlen);
 	if (cc <= 0) {
@@ -258,22 +258,22 @@ process(fd, pkt_type)
 	}
 	if (tracepackets > 1 && ftrace) {
 	    fprintf(ftrace,"rcv %d bytes on %s ", 
-		    cc, ipxdp_ntoa(&ipxdp->ipxdp_dna));
-	    fprintf(ftrace," from %s\n", ipxdp_ntoa(&ipxdp->ipxdp_sna));
+		    cc, ipxdp_ntoa(&ipxdp->ipx_dna));
+	    fprintf(ftrace," from %s\n", ipxdp_ntoa(&ipxdp->ipx_sna));
 	}
 	
 	if (noteremoterequests && 
-	    !ipx_neteqnn(ipxdp->ipxdp_sna.x_net, ipx_zeronet) &&
-	    !ipx_neteq(ipxdp->ipxdp_sna, ipxdp->ipxdp_dna))
+	    !ipx_neteqnn(ipxdp->ipx_sna.x_net, ipx_zeronet) &&
+	    !ipx_neteq(ipxdp->ipx_sna, ipxdp->ipx_dna))
 	{
 		syslog(LOG_ERR,
 		       "net of interface (%s) != net on ether (%s)!\n",
-		       ipxdp_nettoa(ipxdp->ipxdp_dna.x_net),
-		       ipxdp_nettoa(ipxdp->ipxdp_sna.x_net));
+		       ipxdp_nettoa(ipxdp->ipx_dna.x_net),
+		       ipxdp_nettoa(ipxdp->ipx_sna.x_net));
 	}
 			
 	/* We get the IPX header in front of the RIF packet*/
-	cc -= sizeof (struct ipxdp);
+	cc -= sizeof (struct ipx);
 #define	mask(s)	(1<<((s)-1))
 	omask = sigblock(mask(SIGALRM));
 	switch(pkt_type) {
@@ -309,15 +309,15 @@ getsocket(type, proto, sipx)
 	if (retry == 0)
 		return (-1);
 	if (domain==AF_IPX) {
-		struct ipxdp ipxdp;
+		struct ipx ipxdp;
 		if (setsockopt(s, 0, SO_HEADERS_ON_INPUT, &on, sizeof(on))) {
 			syslog(LOG_ERR, "setsockopt SEE HEADERS: %m");
 			exit(1);
 		}
 		if (ntohs(sipx->sipx_addr.x_port) == IPXPORT_RIP)
-			ipxdp.ipxdp_pt = IPXPROTO_RI;
+			ipxdp.ipx_pt = IPXPROTO_RI;
 		else if (ntohs(sipx->sipx_addr.x_port) == IPXPORT_SAP)
-			ipxdp.ipxdp_pt = IPXPROTO_SAP;
+			ipxdp.ipx_pt = IPXPROTO_SAP;
 		else {
 			syslog(LOG_ERR, "port should be either RIP or SAP");
 			exit(1);
