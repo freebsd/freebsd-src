@@ -209,7 +209,7 @@ promstart(tp)
 
 	tp->t_state |= TS_BUSY;
 	while (tp->t_outq.c_cc != 0)
-		promcnputc(tp->t_dev, getc(&tp->t_outq));
+		promcnputc(NULL, getc(&tp->t_outq));
 	tp->t_state &= ~TS_BUSY;
 
 	ttwwakeup(tp);
@@ -240,7 +240,7 @@ promtimeout(v)
 	struct tty *tp = v;
 	int c;
 
-	while ((c = promcncheckc(tp->t_dev)) != -1) {
+	while ((c = promcncheckc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN)
 			(*linesw[tp->t_line].l_rint)(c, tp);
 	}

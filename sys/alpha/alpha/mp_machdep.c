@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
+#include <sys/cons.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>

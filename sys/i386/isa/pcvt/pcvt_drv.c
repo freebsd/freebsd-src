@@ -725,7 +725,7 @@ pcvt_cn_term(struct consdev *cp)
  *	console put char
  *---------------------------------------------------------------------------*/
 static void
-pcvt_cn_putc(dev_t dev, int c)
+pcvt_cn_putc(struct consdev *cd, int c)
 {
 	if (c == '\n')
 		sput("\r", 1, 1, 0);
@@ -739,7 +739,7 @@ pcvt_cn_putc(dev_t dev, int c)
  *	console get char
  *---------------------------------------------------------------------------*/
 static int
-pcvt_cn_getc(dev_t dev)
+pcvt_cn_getc(struct consdev *cd)
 {
 	register int s;
 	static u_char *cp, cbuf[4]; /* Temp buf for multi-char key sequence. */
@@ -789,7 +789,7 @@ pcvt_cn_getc(dev_t dev)
  *	console check for char
  *---------------------------------------------------------------------------*/
 static int
-pcvt_cn_checkc(dev_t dev)
+pcvt_cn_checkc(struct consdev *cd)
 {
 	char *cp;
 	int x;

@@ -224,7 +224,7 @@ ofw_tty_start(struct tty *tp)
 
 	tp->t_state |= TS_BUSY;
 	while (tp->t_outq.c_cc != 0) {
-		ofw_cons_putc(tp->t_dev, getc(&tp->t_outq));
+		ofw_cons_putc(NULL, getc(&tp->t_outq));
 	}
 	tp->t_state &= ~TS_BUSY;
 
@@ -250,7 +250,7 @@ ofw_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	while ((c = ofw_cons_checkc(tp->t_dev)) != -1) {
+	while ((c = ofw_cons_checkc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN) {
 			(*linesw[tp->t_line].l_rint)(c, tp);
 		}
@@ -292,7 +292,7 @@ ofw_cons_init(struct consdev *cp)
 }
 
 static int
-ofw_cons_getc(dev_t dev)
+ofw_cons_getc(struct consdev *cp)
 {
 	unsigned char ch;
 	int l;
@@ -314,7 +314,7 @@ ofw_cons_getc(dev_t dev)
 }
 
 static int
-ofw_cons_checkc(dev_t dev)
+ofw_cons_checkc(struct consdev *cp)
 {
 	unsigned char ch;
 
@@ -330,7 +330,7 @@ ofw_cons_checkc(dev_t dev)
 }
 
 static void
-ofw_cons_putc(dev_t dev, int c)
+ofw_cons_putc(struct consdev *cp, int c)
 {
 	char cbuf;
 
