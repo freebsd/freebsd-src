@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.20 1997/04/13 15:38:10 bde Exp $
+ * $Id: types.h,v 1.21 1997/05/08 13:50:36 peter Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -172,7 +172,7 @@ off_t	 lseek __P((int, off_t, int));
 #endif
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
-caddr_t	 mmap __P((caddr_t, size_t, int, int, int, off_t));
+void *	 mmap __P((void *, size_t, int, int, int, off_t));
 #endif
 #ifndef _TRUNCATE_DECLARED
 #define	_TRUNCATE_DECLARED
