@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI signal.c,v 2.2 1996/04/08 19:33:06 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 #include "trap.h"

@@ -19,8 +19,6 @@ You should have received a copy of the GNU General Public License
 along with GDB; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
-
 /*
  * 80386 instruction printer by Pace Willisson (pace@prep.ai.mit.edu)
  * July 1988
@@ -34,6 +32,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * and the small letter tells about the operand size.  Refer to 
  * the Intel manual for details.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <ctype.h>

@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI ParseBuffer.c,v 2.2 1996/04/08 19:32:15 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>

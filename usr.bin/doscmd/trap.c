@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI trap.c,v 2.3 1996/04/08 19:33:08 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <machine/trap.h>
 
