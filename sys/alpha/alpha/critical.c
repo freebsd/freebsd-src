@@ -22,16 +22,18 @@
 void
 cpu_critical_enter(void)
 {
-	struct thread *td = curthread;
+	struct thread *td;
 
+	td = curthread;
 	td->td_md.md_savecrit = intr_disable();
 }
 
 void
 cpu_critical_exit(void)
 {
-	struct thread *td = curthread;
+	struct thread *td;
 
+	td = curthread;
 	intr_restore(td->td_md.md_savecrit);
 }
 
@@ -42,8 +44,9 @@ cpu_critical_exit(void)
 void
 cpu_critical_fork_exit(void)
 {
-	struct thread *td = curthread;
+	struct thread *td;
 
+	td = curthread;
 	td->td_critnest = 1;
 	td->td_md.md_savecrit = ALPHA_PSL_IPL_0;
 }
@@ -54,6 +57,7 @@ cpu_critical_fork_exit(void)
 void
 cpu_thread_link(struct thread *td)
 {
+
 	td->td_md.md_savecrit = 0;
 }
 

@@ -59,8 +59,10 @@ SYSCTL_INT(_debug, OID_AUTO, critical_mode,
 void
 cpu_critical_enter(void)
 {
+	struct thread *td;
+
 	if (critical_mode == 0) {
-		struct thread *td = curthread;
+		td = curthread;
 		td->td_md.md_savecrit = intr_disable();
 	}
 }
@@ -87,8 +89,10 @@ cpu_critical_enter(void)
 void
 cpu_critical_exit(void)
 {
-	struct thread *td = curthread;
+	register_t eflags;
+	struct thread *td;
 
+	td = curthread;
 	if (td->td_md.md_savecrit != (register_t)-1) {
 		intr_restore(td->td_md.md_savecrit);
 		td->td_md.md_savecrit = (register_t)-1;
@@ -105,8 +109,6 @@ cpu_critical_exit(void)
 		 * we decrement td_intr_nesting_level to 0.
 		 */
 		if (PCPU_GET(int_pending)) {
-			register_t eflags;
-
 			eflags = intr_disable();
 			if (PCPU_GET(int_pending)) {
 				++td->td_intr_nesting_level;
@@ -140,6 +142,7 @@ cpu_critical_fork_exit(void)
 void
 cpu_thread_link(struct thread *td)
 {
+
 	td->td_md.md_savecrit = 0;
 }
 
@@ -155,20 +158,22 @@ cpu_thread_link(struct thread *td)
 void
 unpend(void)
 {
+	int irq;
+	u_int32_t mask;
+
 	KASSERT(curthread->td_critnest == 0, ("unpend critnest != 0"));
 	KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled1"));
 	curthread->td_critnest = 1;
 	for (;;) {
-		u_int32_t mask;
-
 		/*
 		 * Fast interrupts have priority
 		 */
 		if ((mask = PCPU_GET(fpending)) != 0) {
-			int irq = bsfl(mask);
+			irq = bsfl(mask);
 			PCPU_SET(fpending, mask & ~(1 << irq));
 			call_fast_unpend(irq);
-			KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled2 %d", irq));
+			KASSERT((read_eflags() & PSL_I) == 0,
+			    ("unpend interrupts enabled2 %d", irq));
 			continue;
 		}
 
@@ -176,10 +181,11 @@ unpend(void)
 		 * Threaded interrupts come next
 		 */
 		if ((mask = PCPU_GET(ipending)) != 0) {
-			int irq = bsfl(mask);
+			irq = bsfl(mask);
 			PCPU_SET(ipending, mask & ~(1 << irq));
 			sched_ithd((void *)irq);
-			KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled3 %d", irq));
+			KASSERT((read_eflags() & PSL_I) == 0,
+			    ("unpend interrupts enabled3 %d", irq));
 			continue;
 		}
 
@@ -190,7 +196,7 @@ unpend(void)
 		 * isa/xxx_vector.s
 		 */
 		if ((mask = PCPU_GET(spending)) != 0) {
-			int irq = bsfl(mask);
+			irq = bsfl(mask);
 			PCPU_SET(spending, mask & ~(1 << irq));
 			switch(irq) {
 			case 0:		/* bit 0 - hardclock */
@@ -200,11 +206,13 @@ unpend(void)
 				break;
 			case 1:		/* bit 1 - statclock */
 				mtx_lock_spin(&sched_lock);
-				statclock_process(curthread->td_kse, (register_t)unpend, 0);
+				statclock_process(curthread->td_kse,
+				    (register_t)unpend, 0);
 				mtx_unlock_spin(&sched_lock);
 				break;
 			}
-			KASSERT((read_eflags() & PSL_I) == 0, ("unpend interrupts enabled4 %d", irq));
+			KASSERT((read_eflags() & PSL_I) == 0,
+			    ("unpend interrupts enabled4 %d", irq));
 			continue;
 		}
 		break;
@@ -217,4 +225,3 @@ unpend(void)
 	PCPU_SET(int_pending, 0);
 	curthread->td_critnest = 0;
 }
-
