@@ -105,37 +105,37 @@ __FBSDID("$FreeBSD$");
 #endif
 
 typedef struct {
-	char	first;
+	int	first;
 	long    pos;
 } STR;
 
-char	*Infile		= NULL,		/* input file name */
-	Outfile[MAXPATHLEN] = "",	/* output file name */
-	Delimch		= '%';		/* delimiting character */
+static char	*Infile		= NULL,		/* input file name */
+		Outfile[MAXPATHLEN] = "",	/* output file name */
+		Delimch		= '%';		/* delimiting character */
 
-int	Cflag		= FALSE;	/* embedded comments */
-int	Sflag		= FALSE;	/* silent run flag */
-int	Oflag		= FALSE;	/* ordering flag */
-int	Iflag		= FALSE;	/* ignore case flag */
-int	Rflag		= FALSE;	/* randomize order flag */
-int	Xflag		= FALSE;	/* set rotated bit */
-long	Num_pts		= 0;		/* number of pointers/strings */
+static int	Cflag		= FALSE;	/* embedded comments */
+static int	Sflag		= FALSE;	/* silent run flag */
+static int	Oflag		= FALSE;	/* ordering flag */
+static int	Iflag		= FALSE;	/* ignore case flag */
+static int	Rflag		= FALSE;	/* randomize order flag */
+static int	Xflag		= FALSE;	/* set rotated bit */
+static long	Num_pts		= 0;		/* number of pointers/strings */
 
-long    *Seekpts;
+static long    *Seekpts;
 
-FILE	*Sort_1, *Sort_2;		/* pointers for sorting */
+static FILE	*Sort_1, *Sort_2;		/* pointers for sorting */
 
-STRFILE	Tbl;				/* statistics table */
+static STRFILE	Tbl;				/* statistics table */
 
-STR	*Firstch;			/* first chars of each string */
+static STR	*Firstch;			/* first chars of each string */
 
-void	add_offset(FILE *, long);
-int	cmp_str(const void *, const void *);
+static void	add_offset(FILE *, long);
+static int	cmp_str(const void *, const void *);
 static int      stable_collate_range_cmp(int, int);
-void	do_order(void);
-void	getargs(int, char **);
-void	randomize(void);
-void	usage(void);
+static void	do_order(void);
+static void	getargs(int, char **);
+static void	randomize(void);
+static void	usage(void);
 
 /*
  * main:
