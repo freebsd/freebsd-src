@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: user.c,v 1.5 1997/02/22 16:04:47 peter Exp $";
+	"$Id: user.c,v 1.6 1997/09/15 06:39:07 charnier Exp $";
 #endif
 
 /* vix 26jan87 [log is in RCS file]
@@ -26,6 +26,7 @@ static const char rcsid[] =
 
 #include "cron.h"
 
+static char *User_name;
 
 void
 free_user(u)
@@ -41,6 +42,12 @@ free_user(u)
 	free(u);
 }
 
+static void
+log_error(msg)
+	char	*msg;
+{
+	log_it(User_name, getpid(), "PARSE", msg);
+}
 
 user *
 load_user(crontab_fd, pw, name)
@@ -94,7 +101,8 @@ load_user(crontab_fd, pw, name)
 			u = NULL;
 			goto done;
 		case FALSE:
-			e = load_entry(file, NULL, pw, envp);
+			User_name = u->name;    /* for log_error */
+			e = load_entry(file, log_error, pw, envp);
 			if (e) {
 				e->next = u->crontab;
 				u->crontab = e;
