@@ -7,7 +7,7 @@ PROG=	pod2text
 NOMAN=	true
 
 ${PROG}: ${PROG}.PL
-	miniperl ${MINIPERLOPT} ${PROG}.PL
+	${MINIPERL} ${MINIPERLOPT} ${PROG}.PL
 
 .include <bsd.prog.mk>
 

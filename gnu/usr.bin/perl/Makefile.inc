@@ -2,11 +2,15 @@
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 PERL5LIBSRC?= ${.CURDIR}/../libperl
+MINIPERL?=	${.OBJDIR}/../miniperl/miniperl
 
 BINDIR?=	/usr/bin
 
 SHLIB_MAJOR?=	3
-SHLIB_MINOR?=	0
+
+VERSION=	5.00503
+
+DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
 
 HEADERS=EXTERN.h INTERN.h XSUB.h XSlock.h av.h bytecode.h byterun.h \
 	cc_runtime.h cop.h cv.h dosish.h embed.h embedvar.h fakethr.h form.h \
@@ -26,6 +30,8 @@ CLEANFILES+= ${.OBJDIR}/${I}
 DEPEND_H+= ${.OBJDIR}/${I}
 .endfor
 
+LDFLAGS+=	-L${.OBJDIR}/../libperl
+
 links: ${DEPEND_H}
 	@for d in ${FARMDIRS} ; do \
 		rm -rf $${d} ;\
@@ -38,8 +44,8 @@ links: ${DEPEND_H}
 			ln -s ${PERL5SRC}/$${i} $${i} ;\
 		done ;\
 	done
-	@mkdir lib/auto
-	@mkdir build
+	@-mkdir lib/auto
+	@-mkdir build
 	@ln -sf ${PERL5SRC}/config_h.SH config_h.sh
 	@ln -sf ${PERL5SRC}/cflags.SH cflags.sh
 	@ln -sf ${PERL5SRC}/ext/re/re.pm lib/re.pm
@@ -48,14 +54,36 @@ links: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
+	@ln -sf ${PERL5LIBSRC}/config.SH-${THREAD}${OBJFORMAT}.${MACHINE_ARCH} \
+		config.sh
 	@touch ${.TARGET}
+
+scripts: links
+	@sh config_h.sh
+	@sh cflags.sh
+	@sh writemain.sh
+	@sh myconfig
+	@${MINIPERL} ${PERL5SRC}/configpm \
+		Config.pm Porting/Glossary myconfig
+	@ln -sf ../Config.pm lib/Config.pm
+	@touch ${.TARGET}
+
+.if !defined(NO_PERL_SCRIPT_MAKE)
+config.h:	scripts
+.endif
 
 CLEANFILES+=	links
 CLEANFILES+=	config.h config.sh config_h.sh
 CLEANFILES+=	regcomp.c regexec.c miniperlmain.c
 CLEANFILES+=	writemain writemain.sh cflags cflags.sh myconfig
 CLEANDIRS+=	lib ext Porting hints build
+
 FARMDIRS=	lib ext Porting hints
+
+MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
+		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
+		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
+		DEFINE=-DPERL_CORE
 
 PERL_THREADED?= no
 .if ${PERL_THREADED} == "yes"
@@ -68,16 +96,28 @@ PERL_DEBUGGING?=        no
 CFLAGS+=        -DDEBUGGING
 .endif
 
-config.sh: ${PERL5LIBSRC}/config.SH-${THREAD}${OBJFORMAT}.${MACHINE_ARCH}
-	ln -sf ${.OODATE} ${.TARGET}
+autosplit: scripts lib/*.pm lib/*/*.pm
+	${MINIPERL} -I${.OBJDIR}/lib \
+		-e 'use AutoSplit; autosplit_lib_modules(@ARGV)' \
+		lib/*.pm lib/*/*.pm
+	@touch ${.TARGET}
 
-config.h: links config_h.sh config.sh
-	sh config_h.sh
+${DYNALOADER}:	scripts \
+		ext/DynaLoader/DynaLoader.pm \
+		ext/DynaLoader/Makefile
+	@cd ext/DynaLoader; \
+	make -B all PERL_SRC=${.OBJDIR}
 
-cflags.sh config_h.sh writemain.sh: links
+ext/DynaLoader/DynaLoader.pm: scripts ext/DynaLoader/DynaLoader_pm.PL
+	@cd ext/DynaLoader; \
+	${MINIPERL} -I${.OBJDIR} -I${.OBJDIR}/lib DynaLoader_pm.PL DynaLoader.pm
 
-cflags: cflags.sh
-	sh cflags.sh
+ext/DynaLoader/XSLoader.pm: scripts ext/DynaLoader/XSLoader_pm.PL
+	@cd ext/DynaLoader; \
+	${MINIPERL} -I${.OBJDIR} -I${.OBJDIR}/lib XSLoader_pm.PL XSLoader.pm
 
-writemain: writemain.sh
-	sh writemain.sh
+ext/DynaLoader/Makefile: scripts ext/DynaLoader/Makefile.PL
+	@cd ext/DynaLoader; \
+	${MINIPERL} -I${.OBJDIR} -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
+		LINKTYPE=static LIBS="-lperl -lm"; \
+	make -B config PERL_SRC=${.OBJDIR}

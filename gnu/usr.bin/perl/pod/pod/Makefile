@@ -19,7 +19,7 @@ ${.OBJDIR}/${I}.pod: ${I}.pod
 	@ln -sf ${.OODATE} ${.TARGET}
 
 ${I}.1: ${I}.pod
-	miniperl ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${.OODATE} \
+	${MINIPERL} ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${.OODATE} \
 		> ${.TARGET}
 
 MAN1+=	${I}.1
@@ -32,6 +32,6 @@ CLEANFILES+= ${.OBJDIR}/${I}.pod ${I}.1
 install:
 	cd ${PERL5SRC}/pod ;\
 	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
-		${PODS} ${DESTDIR}/usr/libdata/perl/5.00503/pod
+		${PODS} ${DESTDIR}/usr/libdata/perl/${VERSION}/pod
 
 .PATH: ${PERL5SRC}/pod

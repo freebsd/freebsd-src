@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-MODULE=	SysV
-MODULEDIR= IPC/SysV
+MODULE=	Thread
 
 .include "../Makefile.inc"
 .include <bsd.obj.mk>

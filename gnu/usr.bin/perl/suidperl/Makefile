@@ -10,55 +10,29 @@ NOSHARED= no
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
 DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD}
 LDADD=	-Wl,-E ${DYNALOADER} -lperl -lm -lcrypt -lmd
+LINKS=	${BINDIR}/${PROG} ${BINDIR}/sperl5 \
+	${BINDIR}/${PROG} ${BINDIR}/sperl${VERSION}
 BINOWN=	root
+.if defined(ENABLE_SUIDPERL) && ${ENABLE_SUIDPERL} == "true"
 BINMODE=4511
-LINKS=	${BINDIR}/${PROG} ${BINDIR}/sperl5.00503
+.else
+BINMODE=511
+.endif
 
-CLEANFILES=	Config.pm perlmain.c sperl.c \
-		autosplit pod2man.PL pod2man ext.libs \
-		man3pages
-
-STATIC_EXT=	DynaLoader/DynaLoader
+CLEANFILES=	Config.pm perlmain.c \
+		autosplit ext.libs
+CLEANFILES+=	sperl.c
 
 .include <bsd.prog.mk>
 
-MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
-		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
-		PERL=perl FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include
+beforedepend all: scripts
 
-${PROG}: Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
+${PROG}: scripts autosplit ${DYNALOADER}
 
-sperl.c: perl.c
-	@ln -sf ${.OODATE} ${.TARGET}
-
-Config.pm: links ${PERL5SRC}/configpm myconfig config.sh
-	miniperl ${PERL5SRC}/configpm \
-		Config.pm Porting/Glossary myconfig config.sh
-	@cd lib ; ln -sf ../${.TARGET}
-
-perlmain.c: config.sh writemain config.h
-	sh writemain lib/auto/DynaLoader/DynaLoader.a > ${.TARGET}
-
-autosplit: links Config.pm lib/*.pm lib/*/*.pm
-	miniperl -I${.OBJDIR}/lib \
-		-e 'use AutoSplit; autosplit_lib_modules(@ARGV)' \
-		lib/*.pm lib/*/*.pm
-	touch ${.TARGET}
-
-.for I in ${STATIC_EXT}
-ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm config.h
-	@cd ext/${I:H}; \
-	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
-		LINKTYPE=static LIBS="-lperl -lm"; \
-	make -B config PERL_SRC=${.OBJDIR}
-
-lib/auto/${I}.a: links ext/${I:H}/Makefile
-	@cd ext/${I:H}; \
-	make -B all PERL_SRC=${.OBJDIR}
-
-all:	lib/auto/${I}.a
-
-STATICS+=	lib/auto/${I}.a
-.endfor
+perlmain.c: scripts autosplit
+	sh writemain ${DYNALOADER} > ${.TARGET}
 
 .PATH:	${PERL5SRC}
+
+sperl.c: ${PERL5SRC}/perl.c
+	@ln -sf ${.OODATE} ${.TARGET}
