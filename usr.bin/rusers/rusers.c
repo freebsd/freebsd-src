@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <timeconv.h>
 #include <unistd.h>
 
 #define MAX_INT		0x7fffffff
@@ -97,10 +98,12 @@ rusers_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 	int idle;
 	char date[32], idle_time[64], remote[64];
 	struct hostent *hp;
-	utmpidlearr *up = (utmpidlearr *)replyp;
+	utmpidlearr *up, u;
 	char *host;
 	int days, hours, minutes, seconds;
 
+	up = &u;
+	memcpy(up, replyp, sizeof(*up));
 	if (search_host(raddrp->sin_addr))
 		return (0);
 
@@ -191,7 +194,7 @@ onehost(char *host)
 	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, (xdrproc_t)xdr_void, NULL,
 	    (xdrproc_t)xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
 		errx(1, "%s", clnt_sperror(rusers_clnt, ""));
-	addr.sin_addr.s_addr = *(int *)hp->h_addr;
+	memcpy(&addr.sin_addr.s_addr, hp->h_addr, sizeof(addr.sin_addr.s_addr));
 	rusers_reply((caddr_t)&up, &addr);
 	clnt_destroy(rusers_clnt);
 }
