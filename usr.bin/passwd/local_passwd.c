@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.8 1995/12/16 09:45:12 markm Exp $
+ * $Id: local_passwd.c,v 1.9 1996/07/01 19:38:24 guido Exp $
  */
 
 #ifndef lint
@@ -54,6 +54,10 @@ static const char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 #include <pw_util.h>
 #ifdef YP
 #include <pw_yp.h>
+#endif
+
+#ifdef LOGGING
+#include <syslog.h>
 #endif
 
 #include "extern.h"
@@ -178,5 +182,8 @@ local_passwd(uname)
 
 	if (!pw_mkdb(uname))
 		pw_error((char *)NULL, 0, 1);
+#ifdef LOGGING
+	syslog(LOG_DEBUG, "user %s changed their local password\n", uname);
+#endif
 	return (0);
 }
