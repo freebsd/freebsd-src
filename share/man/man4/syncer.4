@@ -37,14 +37,10 @@ The
 .Nm
 kernel process helps protect the integrity of disk volumes
 by flushing volatile cached filesystem data to disk.
-This is done at thirty second
-.Pq actually Dv SYNCER_MAXDELAY - 2
-intervals by default.
 .Pp
 The kernel places all
 .Xr vnode 9 Ns 's
-in a number of queues equal to
-.Dv SYNCER_MAXDELAY .
+in a number of queues.
 The
 .Nm
 process works through the queues
@@ -52,7 +48,7 @@ in a round-robin fashion,
 usually processing one queue per second.
 For each
 .Xr vnode 9
-on the queue,
+on that queue,
 the 
 .Nm
 process forces a write out to disk of its dirty buffers.
@@ -60,12 +56,6 @@ process forces a write out to disk of its dirty buffers.
 .Xr sync 2 ,
 .Xr fsck 8 ,
 .Xr sync 8
-.Sh BUGS
-It is possible on some systems that a
-.Xr sync 2
-occurring simultaneously with a crash may cause
-file system damage.  See
-.Xr fsck 8 .
 .Sh HISTORY
 The
 .Nm
@@ -80,3 +70,9 @@ A kernel initiated
 update
 process first appeared in
 .Fx 2.0 .
+.Sh BUGS
+It is possible on some systems that a
+.Xr sync 2
+occurring simultaneously with a crash may cause
+file system damage.  See
+.Xr fsck 8 .
