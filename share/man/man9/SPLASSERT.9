@@ -35,8 +35,8 @@
 .Nm SPLASSERT
 .Nd kernel spl level verification macro
 .Sh SYNOPSIS
-.Fd options INVARIANTS
-.Fd options INVARIANT_SUPPORT
+.Cd options INVARIANTS
+.Cd options INVARIANT_SUPPORT
 .Fn SPLASSERT "char *level, char *msg"
 .Sh DESCRIPTION
 In a kernel compiled with both "options INVARIANTS"
@@ -78,7 +78,7 @@ When set to 2 the
 .Fn SPLASSERT
 macro is defined to
 .Xr panic 9 .
-.Sh EXAMPLE
+.Sh EXAMPLES
 The kernel function
 .Fn rtredirect
 must be called at
@@ -98,6 +98,6 @@ rtalloc(ro)
 .Xr KASSERT 9 ,
 .Xr panic 9
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Jonathan M. Bresler
 .Aq jmb@freebsd.org .
