@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.33 1996/05/28 16:20:11 phk Exp $
+#	$Id: bsd.lib.mk,v 1.34 1996/06/03 13:23:31 jfieber Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -190,6 +190,9 @@ clean:	_LIBSUBDIR
 	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
 	rm -f ${SOBJS} shared/*.o
 	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
+.if defined(CLEANDIRS)
+	rm -rf ${CLEANDIRS}
+.endif
 .endif
 
 .if !target(cleandir)
@@ -200,6 +203,9 @@ cleandir:	_LIBSUBDIR
 	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
 	rm -f ${SOBJS} shared/*.o
 	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
+.if defined(CLEANDIRS)
+	rm -rf ${CLEANDIRS}
+.endif
 	cd ${.CURDIR}; rm -rf obj;
 .endif
 
