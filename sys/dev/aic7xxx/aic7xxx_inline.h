@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#21 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#27 $
  *
  * $FreeBSD$
  */
@@ -37,8 +37,8 @@
 #define _AIC7XXX_INLINE_H_
 
 /************************* Sequencer Execution Control ************************/
-static __inline int  ahc_is_paused(struct ahc_softc *ahc);
 static __inline void ahc_pause_bug_fix(struct ahc_softc *ahc);
+static __inline int  ahc_is_paused(struct ahc_softc *ahc);
 static __inline void ahc_pause(struct ahc_softc *ahc);
 static __inline void ahc_unpause(struct ahc_softc *ahc);
 
@@ -146,6 +146,13 @@ static __inline uint32_t
 					   struct ahc_dma_seg *sg);
 static __inline uint32_t
 			ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index);
+static __inline void	ahc_sync_scb(struct ahc_softc *ahc,
+				     struct scb *scb, int op);
+static __inline void	ahc_sync_sglist(struct ahc_softc *ahc,
+					struct scb *scb, int op);
+static __inline uint32_t
+			ahc_targetcmd_offset(struct ahc_softc *ahc,
+					     u_int index);
 
 static __inline struct ahc_dma_seg *
 ahc_sg_bus_to_virt(struct scb *scb, uint32_t sg_busaddr)
@@ -175,6 +182,33 @@ ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index)
 {
 	return (ahc->scb_data->hscb_busaddr
 		+ (sizeof(struct hardware_scb) * index));
+}
+
+static __inline void
+ahc_sync_scb(struct ahc_softc *ahc, struct scb *scb, int op)
+{
+	ahc_dmamap_sync(ahc, ahc->scb_data->hscb_dmat,
+			ahc->scb_data->hscb_dmamap,
+			/*offset*/(scb->hscb - ahc->hscbs) * sizeof(*scb->hscb),
+			/*len*/sizeof(*scb->hscb), op);
+}
+
+static __inline void
+ahc_sync_sglist(struct ahc_softc *ahc, struct scb *scb, int op)
+{
+	if (scb->sg_count == 0)
+		return;
+
+	ahc_dmamap_sync(ahc, ahc->scb_data->sg_dmat, scb->sg_map->sg_dmamap,
+			/*offset*/(scb->sg_list - scb->sg_map->sg_vaddr)
+				* sizeof(struct ahc_dma_seg),
+			/*len*/sizeof(struct ahc_dma_seg) * scb->sg_count, op);
+}
+
+static __inline uint32_t
+ahc_targetcmd_offset(struct ahc_softc *ahc, u_int index)
+{
+	return (((uint8_t *)&ahc->targetcmds[index]) - ahc->qoutfifo);
 }
 
 /******************************** Debugging ***********************************/
@@ -219,8 +253,6 @@ ahc_update_residual(struct scb *scb)
 	sgptr = ahc_le32toh(scb->hscb->sgptr);
 	if ((sgptr & SG_RESID_VALID) != 0)
 		ahc_calc_residual(scb);
-	else
-		ahc_set_residual(scb, 0);
 }
 
 /*
@@ -284,8 +316,13 @@ ahc_free_scb(struct ahc_softc *ahc, struct scb *scb)
 static __inline struct scb *
 ahc_lookup_scb(struct ahc_softc *ahc, u_int tag)
 {
-	return (ahc->scb_data->scbindex[tag]);
+	struct scb* scb;
 
+	scb = ahc->scb_data->scbindex[tag];
+	if (scb != NULL)
+		ahc_sync_scb(ahc, scb,
+			     BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
+	return (scb);
 }
 
 static __inline void
@@ -342,6 +379,14 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 	 * Keep a history of SCBs we've downloaded in the qinfifo.
 	 */
 	ahc->qinfifo[ahc->qinfifonext++] = scb->hscb->tag;
+
+	/*
+	 * Make sure our data is consistant from the
+	 * perspective of the adapter.
+	 */
+	ahc_sync_scb(ahc, scb, BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
+
+	/* Tell the adapter about the newly queued SCB */
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		ahc_outb(ahc, HNSCB_QOFF, ahc->qinfifonext);
 	} else {
@@ -373,8 +418,31 @@ ahc_get_sense_bufaddr(struct ahc_softc *ahc, struct scb *scb)
 }
 
 /************************** Interrupt Processing ******************************/
-static __inline u_int ahc_check_cmdcmpltqueues(struct ahc_softc *ahc);
-static __inline void ahc_intr(struct ahc_softc *ahc);
+static __inline void	ahc_sync_qoutfifo(struct ahc_softc *ahc, int op);
+static __inline void	ahc_sync_tqinfifo(struct ahc_softc *ahc, int op);
+static __inline u_int	ahc_check_cmdcmpltqueues(struct ahc_softc *ahc);
+static __inline void	ahc_intr(struct ahc_softc *ahc);
+
+static __inline void
+ahc_sync_qoutfifo(struct ahc_softc *ahc, int op)
+{
+	ahc_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
+			/*offset*/0, /*len*/256, op);
+}
+
+static __inline void
+ahc_sync_tqinfifo(struct ahc_softc *ahc, int op)
+{
+#ifdef AHC_TARGET_MODE
+	if ((ahc->flags & AHC_TARGETROLE) != 0) {
+		ahc_dmamap_sync(ahc, ahc->shared_data_dmat,
+				ahc->shared_data_dmamap,
+				ahc_targetcmd_offset(ahc, 0),
+				sizeof(struct target_cmd) * AHC_TMODE_CMDS,
+				op);
+	}
+#endif
+}
 
 /*
  * See if the firmware has posted any completed commands
@@ -388,12 +456,21 @@ ahc_check_cmdcmpltqueues(struct ahc_softc *ahc)
 	u_int retval;
 
 	retval = 0;
+	ahc_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
+			/*offset*/ahc->qoutfifonext, /*len*/1,
+			BUS_DMASYNC_POSTREAD);
 	if (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL)
 		retval |= AHC_RUN_QOUTFIFO;
 #ifdef AHC_TARGET_MODE
-	if ((ahc->flags & AHC_TARGETROLE) != 0
-	 && ahc->targetcmds[ahc->tqinfifonext].cmd_valid != 0)
-		retval |= AHC_RUN_TQINFIFO;
+	if ((ahc->flags & AHC_TARGETROLE) != 0) {
+		ahc_dmamap_sync(ahc, ahc->shared_data_dmat,
+				ahc->shared_data_dmamap,
+				ahc_targetcmd_offset(ahc, ahc->tqinfifofnext),
+				/*len*/sizeof(struct target_cmd),
+				BUS_DMASYNC_POSTREAD);
+		if (ahc->targetcmds[ahc->tqinfifonext].cmd_valid != 0)
+			retval |= AHC_RUN_TQINFIFO;
+	}
 #endif
 	return (retval);
 }
@@ -418,35 +495,12 @@ ahc_intr(struct ahc_softc *ahc)
 		intstat = CMDCMPLT;
 	else {
 		intstat = ahc_inb(ahc, INTSTAT);
-		/*
-		 * We can't generate queuestat once above
-		 * or we are exposed to a race when our
-		 * interrupt is shared with another device.
-		 * if instat showed a command complete interrupt,
-		 * but our first generation of queue stat
-		 * "just missed" the delivery of this transaction,
-		 * we would clear the command complete interrupt
-		 * below without ever servicing the completed
-		 * command.
-		 */
-		queuestat = ahc_check_cmdcmpltqueues(ahc);
-#if AHC_PCI_CONFIG > 0
-		if (ahc->unsolicited_ints > 500
-		 && (ahc->chip & AHC_PCI) != 0
-		 && (ahc_inb(ahc, ERROR) & PCIERRSTAT) != 0)
-			ahc->bus_intr(ahc);
+		queuestat = AHC_RUN_QOUTFIFO;
+#ifdef AHC_TARGET_MODE
+		if ((ahc->flags & AHC_TARGETROLE) != 0)
+			queuestat |= AHC_RUN_TQINFIFO;
 #endif
 	}
-
-	if (intstat == 0xFF && (ahc->features & AHC_REMOVABLE) != 0)
-		/* Hot eject */
-		return;
-
-	if ((intstat & INT_PEND) == 0) {
-		ahc->unsolicited_ints++;
-		return;
-	}
-	ahc->unsolicited_ints = 0;
 
 	if (intstat & CMDCMPLT) {
 		ahc_outb(ahc, CLRINT, CLRCMDINT);
@@ -469,6 +523,25 @@ ahc_intr(struct ahc_softc *ahc)
 			ahc_run_tqinfifo(ahc, /*paused*/FALSE);
 #endif
 	}
+
+	if (intstat == 0xFF && (ahc->features & AHC_REMOVABLE) != 0)
+		/* Hot eject */
+		return;
+
+	if ((intstat & INT_PEND) == 0) {
+#if AHC_PCI_CONFIG > 0
+		if (ahc->unsolicited_ints > 500) {
+			ahc->unsolicited_ints = 0;
+			if ((ahc->chip & AHC_PCI) != 0
+			 && (ahc_inb(ahc, ERROR) & PCIERRSTAT) != 0)
+				ahc->bus_intr(ahc);
+		}
+#endif
+		ahc->unsolicited_ints++;
+		return;
+	}
+	ahc->unsolicited_ints = 0;
+
 	if (intstat & BRKADRINT) {
 		ahc_handle_brkadrint(ahc);
 		/* Fatal error, no more interrupts to handle. */

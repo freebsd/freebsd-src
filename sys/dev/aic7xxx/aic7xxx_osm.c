@@ -1106,9 +1106,12 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		/* Copy the segments into our SG list */
 		sg = scb->sg_list;
 		while (dm_segs < end_seg) {
-			sg->addr = dm_segs->ds_addr;
-/* XXX Add in the 5th byte of the address later. */
-			sg->len = dm_segs->ds_len;
+			uint32_t len;
+
+			sg->addr = ahc_htole32(dm_segs->ds_addr);
+			len = dm_segs->ds_len
+			    | ((dm_segs->ds_addr >> 8) & 0x7F000000);
+			sg->len = ahc_htole32(len);
 			sg++;
 			dm_segs++;
 		}
@@ -1119,7 +1122,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		 * sequencer will clear as soon as a data transfer
 		 * occurs.
 		 */
-		scb->hscb->sgptr = scb->sg_list_phys | SG_FULL_RESID;
+		scb->hscb->sgptr = ahc_htole32(scb->sg_list_phys|SG_FULL_RESID);
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_PREREAD;
@@ -1165,13 +1168,13 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 					xpt_done(ccb);
 					return;
 				}
-				sg->addr = ahc->dma_bug_buf;
-				sg->len = 1;
+				sg->addr = ahc_htole32(ahc->dma_bug_buf);
+				sg->len = ahc_htole32(1);
 				sg++;
 			}
 		}
 		sg--;
-		sg->len |= AHC_DMA_LAST_SEG;
+		sg->len |= ahc_htole32(AHC_DMA_LAST_SEG);
 
 		/* Copy the first SG into the "current" data pointer area */
 		scb->hscb->dataptr = scb->sg_list->addr;
@@ -1297,6 +1300,8 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 	hscb = scb->hscb;
 	ccb_h = &csio->ccb_h;
 	
+	csio->resid = 0;
+	csio->sense_resid = 0;
 	if (ccb_h->func_code == XPT_SCSI_IO) {
 		hscb->cdb_len = csio->cdb_len;
 		if ((ccb_h->flags & CAM_CDB_POINTER) != 0) {
