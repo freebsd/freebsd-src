@@ -300,13 +300,12 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	struct g_slice *gsl;
 	va_list ap;
 	struct sbuf *sb;
-	int error, acc;
+	int acc;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_config(%s, %d, %d)",
 	     gp->name, idx, how);
 	g_topology_assert();
 	gsp = gp->softc;
-	error = 0;
 	if (idx >= gsp->nslice)
 		return(EINVAL);
 	gsl = &gsp->slices[idx];
@@ -430,6 +429,14 @@ g_slice_spoiled(struct g_consumer *cp)
 	g_wither_geom(gp, ENXIO);
 }
 
+int
+g_slice_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
+{
+
+	g_slice_spoiled(LIST_FIRST(&gp->consumer));
+	return (0);
+}
+
 struct g_geom *
 g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
 {
@@ -450,6 +457,8 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	gp->start = g_slice_start;
 	gp->spoiled = g_slice_spoiled;
 	gp->dumpconf = g_slice_dumpconf;
+	if (gp->class->destroy_geom == NULL)
+		gp->class->destroy_geom = g_slice_destroy_geom;
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	if (error == 0)
