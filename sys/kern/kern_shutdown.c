@@ -247,7 +247,7 @@ boot(int howto)
 {
 	static int first_buf_printf = 1;
 
-#ifdef SMP
+#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 	/* Do all shutdown processing on cpu0 */
 	mtx_lock_spin(&sched_lock);
 	sched_bind(curthread, 0);
