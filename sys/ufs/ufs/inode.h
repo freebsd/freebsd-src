@@ -75,12 +75,7 @@ struct inode {
 	ino_t	  i_number;	/* The identity of the inode. */
 	int	  i_effnlink;	/* i_nlink when I/O completes */
 
-	union {			/* Associated filesystem. */
-		struct	fs *fs;		/* FFS */
-		struct	ext2_sb_info *e2fs;	/* EXT2FS */
-	} inode_u;
-#define	i_fs	inode_u.fs
-#define	i_e2fs	inode_u.e2fs
+	struct	 fs *i_fs;	/* Associated filesystem superblock. */
 	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
 	u_quad_t i_modrev;	/* Revision level for NFS lease. */
 	struct	 lockf *i_lockf;/* Head of byte-level lock list. */
@@ -93,7 +88,6 @@ struct inode {
 	doff_t	  i_offset;	/* Offset of free space in directory. */
 	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
-	u_int32_t i_spare[3];	/* XXX actually non-spare (for ext2fs). */
 
 	struct dirhash *i_dirhash; /* Hashing for large directories */
 	/*
