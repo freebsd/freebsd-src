@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:17 jdp Exp $
+# $Id: Makefile,v 1.2 1998/03/06 00:28:04 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -8,6 +8,7 @@
 
 PROG=		strip
 SRCS=		objcopy.c is-strip.c
+CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+=	-I${SRCDIR}/binutils
 LDADD+=		-L${RELTOP}/libbinutils -lbinutils
 LDADD+=		-L${RELTOP}/libbfd -lbfd

@@ -1,0 +1,26 @@
+#
+# $Id$
+#
+
+EMULATION=	elf64alpha
+HOST=		alpha-unknown-freebsdelf
+TARGET=		alpha-unknown-freebsdelf
+LDSCRIPTS=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
+		elf64alpha.xs elf64alpha.xu alpha.x alpha.xbn \
+		alpha.xn alpha.xr alpha.xu
+SRCS+=		eelf64alpha.c ealpha.c
+CLEANFILES+=	eelf64alpha.c ealpha.c
+
+beforedepend: eelf64alpha.c ealpha.c
+
+eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
+		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
+	    ${EMULATION} ${TARGET}
+
+ealpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
+		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
+	    alpha alpha-unknown-freebsd

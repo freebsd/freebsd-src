@@ -11,33 +11,26 @@ gnudir=$(pwd)
 contribdir="${gnudir}/../../../contrib/binutils"
 
 rm -rf build
-mkdir -p build/i386-aout
-(cd build/i386-aout
-    ${contribdir}/configure i386-unknown-freebsd || exit
-    (cd gas
-	echo "Updating i386-aout/as"
-	make config.h || exit
-	cp config.h ${gnudir}/i386-aout/as/config.h || exit
-	)
-    )
+mkdir build
 
-mkdir -p build/i386-elf
-(cd build/i386-elf
+(cd build
     ${contribdir}/configure i386-unknown-freebsdelf || exit
     (cd gas
-	echo "Updating i386-elf/as"
+	echo "Updating as"
 	make config.h || exit
-	cp config.h ${gnudir}/i386-elf/as/config.h || exit
+	cp config.h ${gnudir}/as/i386/config.h || exit
 	)
     (cd ld
-	echo "Updating i386-elf/ld"
+	echo "Updating ld"
 	make config.h ldemul-list.h || exit
-	cp config.h ldemul-list.h ${gnudir}/i386-elf/ld || exit
+	cp config.h ${gnudir}/ld || exit
+	cp ldemul-list.h ${gnudir}/ld/i386 || exit
 	)
     (cd bfd
 	echo "Updating libbfd"
 	make bfd.h config.h || exit
-	cp bfd.h config.h ${gnudir}/libbfd || exit
+	cp bfd.h ${gnudir}/libbfd || exit
+	cp config.h ${gnudir}/libbfd/i386 || exit
 	)
     (cd binutils
 	echo "Updating libbinutils"

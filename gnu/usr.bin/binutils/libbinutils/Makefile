@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:05 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -7,7 +7,7 @@
 .PATH: ${SRCDIR}/binutils
 
 LIB=		binutils
-SRCS=		arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
+SRCS+=		arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
 		ieee.c rdcoff.c rddbg.c stabs.c wrstabs.c version.c
 CFLAGS+=	-DTARGET=\"${TARGET}\"
 CFLAGS+=	-DVERSION=\"${VERSION}\"
