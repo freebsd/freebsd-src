@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		k5list
-SRCS=		klist.c krb5_err.h heim_err.h
+SRCS=		klist.c krb5_err.h heim_err.h k524_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/lib/kafs \

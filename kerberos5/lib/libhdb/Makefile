@@ -23,12 +23,14 @@ SRCS=	\
 	hdb_err.c				\
 	hdb_err.h				\
 	hdb_asn1.h				\
+	k524_err.h				\
 	krb5_err.h				\
 	heim_err.h				\
 	${GEN:S/.x/.c/g}
 
 GEN=						\
 	asn1_Key.x				\
+	asn1_GENERATION.x			\
 	asn1_Event.x				\
 	asn1_HDBFlags.x				\
 	asn1_hdb_entry.x			\
@@ -53,7 +55,7 @@ CLEANFILES+=	${GEN:S/.x/.c/g} hdb_asn1.h asn1_files
 ${GEN} hdb_asn1.h:	asn1_compile hdb.asn1
 	./asn1_compile ${KRB5DIR}/lib/hdb/hdb.asn1 hdb_asn1
 
-asn1_compile:	parse.o lex.o main.c hash.c symbol.c gen.c \
+asn1_compile:	parse.o lex.o main.c hash.c symbol.c emalloc.c gen.c \
 		gen_encode.c gen_decode.c gen_free.c gen_length.c \
 		gen_copy.c gen_glue.c getarg.c warnerr.c print_version.o \
 		get_window_size.c strupr.c
