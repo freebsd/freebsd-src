@@ -126,7 +126,12 @@ g_unload_class(void *arg, int flag)
 	hh = arg;
 	mp = hh->mp;
 	g_trace(G_T_TOPOLOGY, "g_unload_class(%s)", mp->name);
-	if (mp->destroy_geom == NULL) {
+
+	/*
+	 * We allow unloading if we have no geoms, or a class
+	 * method we can use to get rid of them.
+	 */
+	if (!LIST_EMPTY(&mp->geom) && mp->destroy_geom == NULL) {
 		hh->error = EOPNOTSUPP;
 		return;
 	}
