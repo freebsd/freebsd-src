@@ -552,7 +552,8 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
       if (offset == (size_t) -1)
 	goto failure;
 #ifdef MBS_SUPPORT
-      if (MB_CUR_MAX > 1 && mb_properties[offset+beg-buf] == 0)
+      if (MB_CUR_MAX > 1 && offset + beg - buf < size
+          && mb_properties[offset+beg-buf] == 0)
 	continue; /* It is a part of multibyte character.  */
 #endif /* MBS_SUPPORT */
       beg += offset;
