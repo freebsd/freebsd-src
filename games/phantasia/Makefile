@@ -14,11 +14,11 @@ setup: phantglobs.o setup.o monsters.asc ${LIBM}
 	${CC} phantglobs.o setup.o -o ${.TARGET} -lm
 
 beforeinstall: 
-	@if [ ! -d /var/games/phantasia ]; then \
-		mkdir -p /var/games/phantasia; \
+	@if [ ! -d ${DESTDIR}/var/games/phantasia ]; then \
+		mkdir -p ${DESTDIR}/var/games/phantasia; \
 	fi
 	./setup -m ${.CURDIR}/monsters.asc
-	chown games.bin /var/games/phantasia/*
+	chown games.bin ${DESTDIR}/var/games/phantasia/*
 
 # Make Phantasia map.  Change the map commands reflect your installation.
 # PLOTDEVICE is used for plotting the map.  Change as appropriate.
