@@ -729,7 +729,9 @@ dointr()
 	u_long *intrcnt, uptime;
 	u_int64_t inttotal;
 	int nintr, inamlen;
-	char *intrname;
+	int i, istrnamlen;
+	size_t clen;
+	char *intrname, *tintrname;
 
 	uptime = getuptime();
 	nintr = namelist[X_EINTRCNT].n_value - namelist[X_INTRCNT].n_value;
@@ -741,17 +743,26 @@ dointr()
 		errx(1, "malloc");
 	kread(X_INTRCNT, intrcnt, (size_t)nintr);
 	kread(X_INTRNAMES, intrname, (size_t)inamlen);
-	(void)printf("%-14s %20s %10s\n", "interrupt", "total", "rate");
+	tintrname = intrname;
+	istrnamlen = 14;
+	for (i = 0; i < nintr; i++) {
+		clen = strlen(tintrname);
+		if (clen > istrnamlen)
+			istrnamlen = clen;
+		tintrname += clen + 1;
+	}
+	(void)printf("%-*s %20s %10s\n", istrnamlen, "interrupt", "total",
+	    "rate");
 	inttotal = 0;
 	nintr /= sizeof(long);
 	while (--nintr >= 0) {
 		if (*intrcnt)
-			(void)printf("%-14s %20lu %10lu\n", intrname,
+			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("%-14s %20llu %10llu\n", "Total", inttotal,
+	(void)printf("%-*s %20llu %10llu\n", istrnamlen, "Total", inttotal,
 			inttotal / (u_int64_t) uptime);
 }
 
