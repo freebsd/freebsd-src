@@ -47,7 +47,7 @@ isdir(char *fname)
 {
     struct stat sb;
 
-    if (stat(fname, &sb) != FAIL && S_ISDIR(sb.st_mode))
+    if (lstat(fname, &sb) != FAIL && S_ISDIR(sb.st_mode))
 	return TRUE;
     else
 	return FALSE;
