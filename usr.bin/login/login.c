@@ -281,7 +281,7 @@ main(argc, argv)
 			 * links, but we have no way of determining if the
 			 * link is encrypted.
 			 */
-			if (!permit_password) {
+			if (!permit_passwd) {
 				rval = 1;		/* failed */
 			} else
 #endif
