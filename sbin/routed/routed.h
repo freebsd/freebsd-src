@@ -40,7 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ident "$Revision: 1.10 $"
+#ident "$Revision: 1.11 $"
 
 /*
  * Routing Information Protocol
