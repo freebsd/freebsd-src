@@ -1,7 +1,16 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Sun Aug 11 17:39:06 2002]
+ReleaseNotes for isdn4bsd             last edit-date: [Mon Aug 12 09:47:59 2002]
 ================================================================================
+
+release 1.04
+--------------------------------------------------------------------------------
+
+- add support properly displaying and logging incoming telephone numbers (MSNs)
+  by looking at the "type of number" field and providing configurable hooks
+  to correct the numbers accordingly. See keywords add-prefix, prefix-national
+  and prefix-international in isdnd.rc(5).
+  This feature was implemented by Christian Ullrich <chris@chrullrich.de>
 
 release 1.03
 --------------------------------------------------------------------------------

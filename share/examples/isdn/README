@@ -6,7 +6,7 @@ $FreeBSD$
                                   isdn4bsd
                                   ========
 
-                         Version 1.03.00 / August 2002
+                         Version 1.04.00 / August 2002
 
                                  written by:
 
@@ -182,7 +182,7 @@ BSD/OS:
   changes and improvements.
 
 - For installation instructions have a look at the isdn4bsd handbook
-  available online at http://people.freebsd.org/~hm/
+  available online at http://people.freebsd.org/~hm/i4b-home/
 
 - isdn4bsd has a homepage at http://www.freebsd-support.de/i4b/ where i
   will try to maintain links to docs, updates and errata.
@@ -201,7 +201,7 @@ BSD/OS:
 ------------------------------
 
 Read the installation instructions in the isdn4bsd handbook which is
-available online at http://people.freebsd.org/~hm/
+available online at http://people.freebsd.org/~hm/i4b-home/
 
 In case they are incomplete, unclear, wrong or outdated, please send me an 
 update for inclusion into a future distribution!
@@ -239,7 +239,7 @@ to or other equipment like ISDN simulators (which i don't get access to
 for free): in this case you are the only person being able to trace down
 the bug and fix it.
 
-There is a web page for i4b at http://www.freebsd-support.de/i4b available
+There is a web page for i4b at http://www.freebsd-support.de/i4b/ available
 where i will put bugfixes, updates and contributions. In particular it has
 an "errata" page, where you should look in case you have problems with i4b.
 
@@ -331,7 +331,7 @@ get isdn4bsd where you can get FreeBSD: http://www.freebsd.org
 
 Isdn4bsd has its own homepage at
 
-	http://www.freebsd-support.de/i4b
+	http://www.freebsd-support.de/i4b/
 
 
 

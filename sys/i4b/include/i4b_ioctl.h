@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Aug 11 12:39:58 2002]
+ *      last edit-date: [Sun Aug 11 19:19:08 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,7 +40,7 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		1		/* version number	*/
-#define	REL		3		/* release number	*/
+#define	REL		4		/* release number	*/
 #define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
@@ -344,6 +344,11 @@ typedef struct {
 	char		dst_subaddr[SUBADDR_MAX];	/* dest subaddr */
 	char		src_telno[TELNO_MAX];	/* source telno		*/
 	char		src_subaddr[SUBADDR_MAX];	/* src subaddr	*/
+	int		dst_ton;		/* dest. type of number */
+	int		src_ton;		/* src. type of number	*/
+#define  TON_OTHER    0		/* other type of number 		*/
+#define  TON_INTERNAT 1		/* international number			*/
+#define  TON_NATIONAL 2		/* national number			*/
 	int		scr_ind;/* screening indicator			*/
 #define  SCR_NONE     0		/* no screening indicator transmitted	*/
 #define  SCR_USR_NOSC 1		/* screening user provided, not screened*/

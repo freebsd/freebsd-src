@@ -87,6 +87,7 @@ int lineno;
 
 acctall				{ return ACCTALL; }
 acctfile			{ return ACCTFILE; }
+add-prefix			{ return ADDPREFIX; }
 alert				{ return ALERT; }
 aliasing			{ return ALIASING; }
 aliasfile			{ return ALIASFNAME; }
@@ -157,6 +158,8 @@ ppp-expect-password		{ return PPP_EXPECT_PASSWORD; }
 ppp-send-auth			{ return PPP_SEND_AUTH; }
 ppp-send-name			{ return PPP_SEND_NAME; }
 ppp-send-password		{ return PPP_SEND_PASSWORD; }
+prefix-international		{ return PREFIXINTERNATIONAL; }
+prefix-national			{ return PREFIXNATIONAL; }
 protocol			{ return PROTOCOL; }
 ratesfile			{ return RATESFILE; }
 ratetype			{ return RATETYPE; }

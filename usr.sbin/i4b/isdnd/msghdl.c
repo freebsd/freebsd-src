@@ -64,6 +64,14 @@ msg_connect_ind(msg_connect_ind_t *mp)
 #define SRC (aliasing == 0 ? mp->src_telno : src_tela)
 #define DST (aliasing == 0 ? mp->dst_telno : dst_tela)
 
+	/* Add prefixes. All preexisting alias files are useless
+	   if this is on. */
+	if(addprefix)
+	{
+		add_number_prefix(mp->src_telno, mp->src_ton);
+		add_number_prefix(mp->dst_telno, mp->dst_ton);
+	}
+
 	if(aliasing)
 	{
 		src_tela = get_alias(mp->src_telno);

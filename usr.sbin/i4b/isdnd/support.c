@@ -1135,4 +1135,32 @@ dayok:
 	return(0);	
 }
 
+/*--------------------------------------------------------------------------*
+ *	prepend national or international prefix to a number
+ *--------------------------------------------------------------------------*/
+int add_number_prefix(char *number, int type_of_number)
+{
+	char tmp[TELNO_MAX];
+	char *prefix;
+	int result = 0;
+
+	if (type_of_number == TON_NATIONAL || type_of_number == TON_INTERNAT)
+	{
+		if (type_of_number == TON_NATIONAL)
+			prefix = prefixnational;
+		else 
+			prefix = prefixinternational;
+		
+		/* Add prefix only if not already there */
+		if (strncmp(number, prefix, strlen(prefix)) != 0)
+		{
+			snprintf(tmp, sizeof(tmp)-1, "%s%s", prefix, number);
+			strncpy(number, tmp, TELNO_MAX-1);
+			result = 1;
+		}
+	}
+
+	return result;
+}
+
 /* EOF */
