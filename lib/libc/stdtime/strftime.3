@@ -72,13 +72,17 @@ could have been written into
 .Fa buf
 then
 .Fa bug
-will not be NUL terminated.
+will not be 
+.Sq Li \&\e0 
+terminated.
 If the total number of resulting characters, including the terminating
-NUL character, is not more than
+.Sq Li \&\e0
+character, is not more than
 .Fa maxsize ,
 .Fn strftime
 returns the number of characters in the array, not counting the
-terminating NUL.
+terminating
+.Sq Li \&\e0 .
 Otherwise, zero is returned.
 .Pp
 Each conversion specification is replaced by the characters as
