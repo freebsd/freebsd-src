@@ -303,7 +303,9 @@ _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
+.if ${MACHINE} == "i386"
 _wlconfig=	wlconfig
+.endif
 _zzz=		zzz
 .endif
 
