@@ -309,6 +309,10 @@ gif_encapcheck(m, off, proto, arg)
 		return 0;
 	}
 
+	/* Bail on short packets */
+	if (m->m_pkthdr.len < sizeof(ip))
+		return 0;
+
 	/* LINTED const cast */
 	m_copydata((struct mbuf *)m, 0, sizeof(ip), (caddr_t)&ip);
 
@@ -425,7 +429,7 @@ gif_input(m, af, ifp)
 	struct ifnet *ifp;
 {
 	int s, isr;
-	struct ifqueue *ifq = 0;
+	struct ifqueue *ifq = NULL;
 
 	if (ifp == NULL) {
 		/* just in case */
@@ -510,7 +514,10 @@ gif_ioctl(ifp, cmd, data)
 	struct ifreq     *ifr = (struct ifreq*)data;
 	int error = 0, size;
 	struct sockaddr *dst, *src;
-		
+#ifdef	SIOCSIFMTU /* xxx */
+	u_long mtu;
+#endif
+
 	switch (cmd) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
@@ -528,18 +535,16 @@ gif_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCSIFMTU:
-		{
-			u_long mtu;
-			mtu = ifr->ifr_mtu;
-			if (mtu < GIF_MTU_MIN || mtu > GIF_MTU_MAX) {
-				return (EINVAL);
-			}
-			ifp->if_mtu = mtu;
-		}
+		mtu = ifr->ifr_mtu;
+		if (mtu < GIF_MTU_MIN || mtu > GIF_MTU_MAX)
+			return (EINVAL);
+		ifp->if_mtu = mtu;
 		break;
 #endif /* SIOCSIFMTU */
 
+#ifdef INET
 	case SIOCSIFPHYADDR:
+#endif
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif /* INET6 */
