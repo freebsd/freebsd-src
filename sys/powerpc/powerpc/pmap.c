@@ -1219,6 +1219,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 		}
 	}	
 
+	PMAP_LOCK(kernel_pmap);
 	error = pmap_pvo_enter(kernel_pmap, pmap_upvo_zone,
 	    &pmap_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
 
@@ -1232,6 +1233,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	if ((pte_lo & (PTE_I | PTE_G)) == 0) {
 		pmap_syncicache(pa, PAGE_SIZE);
 	}
+	PMAP_UNLOCK(kernel_pmap);
 }
 
 /*
