@@ -176,9 +176,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
+# define OPTFLAGS "BC:D:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
 #else
-# define OPTFLAGS "BD:E:I:PSV:Xd:ef:ij:km:nqrstv"
+# define OPTFLAGS "BC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -1385,9 +1385,9 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
-"            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
-"            [variable=value] [target ...]");
+"usage: make [-BPSXeiknqrstv] [-C directory] [-D variable] [-d flags]",
+"            [-E variable] [-f makefile] [-I directory] [-j max_jobs]",
+"            [-m directory] [-V variable] [variable=value] [target ...]");
 	exit(2);
 }
 
