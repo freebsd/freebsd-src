@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.26 1998/06/27 14:17:23 brian Exp $
+ *	$Id: bundle.c,v 1.27 1998/06/27 14:18:00 brian Exp $
  */
 
 #include <sys/param.h>
@@ -952,7 +952,7 @@ struct rtmsg {
 
 int
 bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
-                struct in_addr gateway, struct in_addr mask, int bang)
+                struct in_addr gateway, struct in_addr mask, int bang, int ssh)
 {
   struct rtmsg rtmes;
   int s, nb, wb;
@@ -1052,12 +1052,13 @@ failed:
       if (!bang)
         log_Printf(LogWARN, "Del route failed: %s: Non-existent\n",
                   inet_ntoa(dst));
-    } else if (rtmes.m_rtm.rtm_errno == 0)
-      log_Printf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
-                inet_ntoa(dst), strerror(errno));
-    else
+    } else if (rtmes.m_rtm.rtm_errno == 0) {
+      if (!ssh || errno != ENETUNREACH)
+        log_Printf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
+                   inet_ntoa(dst), strerror(errno));
+    } else
       log_Printf(LogWARN, "%s route failed: %s: %s\n",
-		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
+		 cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
   }
   log_Printf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
             wb, cmdstr, (unsigned)dst.s_addr, (unsigned)gateway.s_addr);
