@@ -1,12 +1,14 @@
 /*
- * Copyright 1997 Marshall Kirk McKusick. All Rights Reserved.
+ * Copyright 1998 Marshall Kirk McKusick. All Rights Reserved.
  *
- * The soft dependency code is derived from work done by Greg Ganger
- * at the University of Michigan.
+ * The soft updates code is derived from the appendix of a University
+ * of Michigan technical report (Gregory R. Ganger and Yale N. Patt,
+ * "Soft Updates: A Solution to the Metadata Update Problem in File
+ * Systems", CSE-TR-254-95, August 1995).
  *
  * The following are the copyrights and redistribution conditions that
- * apply to this copy of the soft dependency software. For a license
- * to use, redistribute or sell the soft dependency software under
+ * apply to this copy of the soft update software. For a license
+ * to use, redistribute or sell the soft update software under
  * conditions other than those described here, please contact the
  * author at one of the following addresses:
  *
@@ -24,12 +26,12 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. None of the names of McKusick, Ganger, or the University of Michigan
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 3. None of the names of McKusick, Ganger, Patt, or the University of
+ *    Michigan may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
  * 4. Redistributions in any form must be accompanied by information on
  *    how to obtain complete source code for any accompanying software
- *    that uses the this software. This source code must either be included
+ *    that uses this software. This source code must either be included
  *    in the distribution or be available for no more than the cost of
  *    distribution plus a nominal fee, and must be freely redistributable
  *    under reasonable conditions. For an executable file, complete
@@ -50,7 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)softdep.h	9.1 (McKusick) 7/9/97
+ *
+ *	from: @(#)softdep.h	9.4 (McKusick) 1/15/98
  */
 
 #include <sys/queue.h>
@@ -220,6 +223,15 @@ struct pagedep {
  * The entries on the id_inoupdt and id_newinoupdt lists must be kept
  * sorted by logical block number to speed the calculation of the size
  * of the rolled back inode (see explanation in initiate_write_inodeblock).
+ * When a directory entry is created, it is represented by a diradd.
+ * The diradd is added to the id_inowait list and is not permitted to be
+ * written to disk until the inode that it represents is written. After
+ * the inode is written, the id_inowait list is processed and the diradd
+ * entries are moved to the id_pendinghd list where they remain until
+ * the directory block containing the name has been written to disk.
+ * The purpose of keeping the entries on the id_pendinghd list is so that
+ * the softdep_fsync function can find and push the inode's directory
+ * name(s) as part of the fsync operation for that file.
  */
 struct inodedep {
 	struct	worklist id_list;	/* buffer holding inode block */
