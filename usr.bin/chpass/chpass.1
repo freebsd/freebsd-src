@@ -47,18 +47,7 @@
 .Nm chpass
 .Op Fl a Ar list
 .Op Fl p Ar encpass
-.Op Fl e Ar expiretime
 .Op Fl s Ar newshell
-.Op user
-.Pp
-.Nm chpass
-.Op Fl oly
-.Op Fl a Ar list
-.Op Fl p Ar encpass
-.Op Fl e Ar expiretime
-.Op Fl s Ar newshell
-.Op Fl d Ar domain
-.Op Fl h Ar host
 .Op user
 .Sh DESCRIPTION
 The
@@ -88,9 +77,6 @@ The super-user is allowed to directly supply an encrypted password field,
 in the format used by
 .Xr crypt 3 ,
 as an argument.
-.It Fl e Ar expiretime
-Change the account expire time. This option is used to set the expire time
-from a script as if it was done in the interactive editor.
 .It Fl s Ar newshell
 Attempt to change the user's shell to
 .Ar newshell .

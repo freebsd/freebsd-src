@@ -43,14 +43,8 @@
 .Nd make LC_CTYPE locale files
 .Sh SYNOPSIS
 .Nm mklocale
-.Op Fl d
 .Ar "< src-file"
 .Ar "> language/LC_CTYPE"
-.Nm mklocale
-.Op Fl d
-.Fl o
-.Ar language/LC_CTYPE
-.Ar src-file
 .Sh DESCRIPTION
 The
 .Nm mklocale
@@ -67,14 +61,6 @@ is quite simple.
 It consists of a series of lines which start with a keyword and have
 associated data following.  C style comments are used
 to place comments in the file.
-.Pp
-Following options are available:
-.Bl -tag -width indent
-.It Fl d
-Turns on debuging messages.
-.It Fl o
-Specify output file.
-.El
 .Pp
 Besides the keywords which will be listed below,
 the following are valid tokens in
@@ -256,7 +242,7 @@ Defines runes which are special characters, printable and graphic.
 Defines runes which are phonograms, printable and graphic.
 .El
 .Sh SEE ALSO
-.Xr colldef 1 ,
+.Xr mklocale 1 ,
 .Xr mbrune 3 ,
 .Xr rune 3 ,
 .Xr setlocale 3 ,
