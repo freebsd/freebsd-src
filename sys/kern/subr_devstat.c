@@ -122,8 +122,7 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 
 	ds->device_number = devstat_current_devnumber++;
 	ds->unit_number = unit_number;
-	strncpy(ds->device_name, dev_name, DEVSTAT_NAME_LEN);
-	ds->device_name[DEVSTAT_NAME_LEN - 1] = '\0';
+	strlcpy(ds->device_name, dev_name, DEVSTAT_NAME_LEN);
 	ds->block_size = block_size;
 	ds->flags = flags;
 	ds->device_type = device_type;

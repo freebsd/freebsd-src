@@ -372,9 +372,8 @@ getenv_string(const char *name, char *data, int size)
 
 	tmp = getenv(name);
 	if (tmp != NULL) {
-		strncpy(data, tmp, size);
+		strlcpy(data, tmp, size);
 		freeenv(tmp);
-		data[size - 1] = 0;
 		return (1);
 	} else
 		return (0);

@@ -1108,10 +1108,10 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 
 	psinfo->pr_version = PRPSINFO_VERSION;
 	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
-	strncpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname) - 1);
+	strlcpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname));
 
 	/* XXX - We don't fill in the command line arguments properly yet. */
-	strncpy(psinfo->pr_psargs, p->p_comm, PRARGSZ);
+	strlcpy(psinfo->pr_psargs, p->p_comm, sizeof(psinfo->pr_psargs));
 
 	/* Fill in the header. */
 	bzero(hdr, hdrsize);
