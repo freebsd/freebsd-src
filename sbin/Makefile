@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.58 1998/11/09 21:52:50 dima Exp $
+#	$Id: Makefile,v 1.59 1998/11/10 11:54:29 bde Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -59,8 +59,8 @@ SUBDIR=	adjkerntz \
 	startslip \
 	swapon \
 	tunefs \
-	umount \
-	vinum
+	umount
+#	vinum
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 SUBDIR+= ${MACHINE_ARCH}
