@@ -32,7 +32,7 @@
 #define	_SVR4_SIGNAL_H_
 
 #include <i386/svr4/svr4_machdep.h>
-#include <svr4/svr4_siginfo.h>
+#include <compat/svr4/svr4_siginfo.h>
 
 #define	SVR4_SIGHUP	 1
 #define	SVR4_SIGINT	 2

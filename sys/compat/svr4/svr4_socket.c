@@ -54,13 +54,13 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_socket.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_sockmod.h>
-#include <svr4/svr4_proto.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_socket.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_sockmod.h>
+#include <compat/svr4/svr4_proto.h>
 
 struct svr4_sockcache_entry {
 	struct proc *p;		/* Process for the socket		*/
