@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.15 1995/06/02 02:38:13 jkh Exp $
+ * $Id: config.c,v 1.15.2.16 1995/06/03 06:30:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,6 +279,12 @@ configSysconfig(void)
 	}
     }
     fclose(fp);
+
+    /* If we're an NFS server, we need an exports file */
+    if (getenv("nfs_server") && !file_readable("/etc/exports")) {
+	msgConfirm("You have chosen to be an NFS server but have not yet configured\nthe /etc/exports file.  The format for an exports entry is:\n     <mountpoint> <opts> <host [..host]>\nWhere <mounpoint> is the name of a filesystem as specified\nin the Label editor, <opts> is a list of special options we\nwon't concern ourselves with here (``man exports'' when the\nsystem is fully installed) and <host> is one or more host\nnames who are allowed to mount this file system.  Press\n[ENTER] now to invoke the editor on /etc/exports");
+	vsystem("vi /etc/exports");
+    }
 }
 
 int
@@ -289,6 +295,17 @@ configSaverTimeout(char *str)
     val = msgGetInput("60", "Enter time-out period in seconds for screen saver");
     if (val)
 	variable_set2("blanktime", val);
+    return 0;
+}
+
+int
+configNTP(char *str)
+{
+    char *val;
+
+    val = msgGetInput(NULL, "Enter the name of an NTP server");
+    if (val)
+	variable_set2("ntpdate", val);
     return 0;
 }
 

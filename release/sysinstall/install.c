@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.17 1995/06/03 04:52:57 jkh Exp $
+ * $Id: install.c,v 1.70.2.18 1995/06/04 05:27:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,9 +51,9 @@
 
 Boolean SystemWasInstalled;
 
-static void	make_filesystems(void);
-static void	copy_self(void);
-static void	root_extract(void);
+static Boolean	make_filesystems(void);
+static Boolean	copy_self(void);
+static Boolean	root_extract(void);
 
 static Chunk *rootdev;
 
@@ -211,8 +211,14 @@ installInitial(void)
 	    }
 	}
     }
-    make_filesystems();
-    copy_self();
+    if (!make_filesystems()) {
+	msgConfirm("Couldn't make filesystems properly.  Aborting.");
+	return 0;
+    }
+    if (!copy_self()) {
+	msgConfirm("Couldn't clone the boot floppy onto the root file system.\nAborting.");
+	return 0;
+    }
     dialog_clear();
     chroot("/mnt");
     chdir("/");
@@ -229,11 +235,12 @@ installInitial(void)
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
-	if (login_tty(fd)==-1) {
+	if (login_tty(fd) == -1) {
 	    msgNotify("Can't set controlling terminal");
 	    exit(1);
 	}
 	printf("Warning: This shell is chroot()'d to /mnt\n");
+	setenv("PATH", "/bin:/sbin:/usr/sbin:/usr/bin:/usr/X11R6/bin:/usr/local/bin", 1);
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
@@ -262,20 +269,23 @@ installCommit(char *str)
 	    return 0;
 	configFstab();
     }
-    root_extract();
+    if (!root_extract()) {
+	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
+	return 0;
+    }
     distExtractAll();
 
     if (access("/kernel", R_OK))
 	vsystem("ln -f /kernel.GENERIC /kernel");
 
     dialog_clear();
-    msgConfirm("Installation completed successfully, hit return now to go back\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
     SystemWasInstalled = TRUE;
     return 0;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
-static void
+static Boolean
 make_filesystems(void)
 {
     int i;
@@ -284,6 +294,7 @@ make_filesystems(void)
     Device **devs;
     char dname[40];
     PartInfo *p = (PartInfo *)rootdev->private;
+    Boolean RootReadOnly;
 
     command_clear();
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
@@ -300,10 +311,12 @@ make_filesystems(void)
 	i = vsystem("%s %s", p->newfs_cmd, dname);
 	if (i) {
 	    msgConfirm("Unable to make new root filesystem!  Command returned status %d", i);
-	    return;
+	    return FALSE;
 	}
+	RootReadOnly = FALSE;
     }
     else {
+	RootReadOnly = TRUE;
 	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
 	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 	msgNotify("Checking integrity of existing %s filesystem", dname);
@@ -314,9 +327,9 @@ make_filesystems(void)
     sprintf(dname, "/dev/%sa", rootdev->disk->name);
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system!  Giving up.");
-	return;
+	return FALSE;
     }
-    else {
+    else if (!RootReadOnly) {
 	extern int makedevs(void);
 
 	msgNotify("Making device files");
@@ -335,11 +348,14 @@ make_filesystems(void)
 	    continue;
 
 	disk = (Disk *)devs[i]->private;
-	if (!disk->chunks)
-	    msgFatal("No chunk list found for %s!", disk->name);
+	if (!disk->chunks) {
+	    msgConfirm("No chunk list found for %s!", disk->name);
+	    return FALSE;
+	}
 
 	/* Make the proper device mount points in /mnt/dev */
-	MakeDevDisk(disk, "/mnt/dev");
+	if (!RootReadOnly)
+	    MakeDevDisk(disk, "/mnt/dev");
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
@@ -369,16 +385,17 @@ make_filesystems(void)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private)
+	    else if (c1->type == fat && c1->private && !RootReadOnly)
 		Mkdir(((PartInfo *)c1->private)->mountpoint, NULL);
 	}
     }
     command_sort();
     command_execute();
+    return TRUE;
 }
 
 /* Copy the boot floppy contents into /stand */
-static void
+static Boolean
 copy_self(void)
 {
     int i;
@@ -389,19 +406,21 @@ copy_self(void)
 	msgConfirm("Copy returned error status of %d!", i);
 
     /* Copy the /etc files into their rightful place */
-    (void)vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt");
+    if (!vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt"))
+	return TRUE;
+    return FALSE;
 }
 
 static Boolean loop_on_root_floppy(void);
 
-static void
+static Boolean
 root_extract(void)
 {
     int fd;
     static Boolean alreadyExtracted = FALSE;
 
     if (alreadyExtracted)
-	return;
+	return TRUE;
 
     if (OnCDROM) {
 	fd = open("/floppies/root.flp", O_RDONLY);
@@ -409,7 +428,7 @@ root_extract(void)
 	    msgNotify("Extracting root image from CDROM..");
 	    alreadyExtracted = mediaExtractDist("/", fd);
 	    close(fd);
-	    return;
+	    return TRUE;
 	}
 	else /* Must not be a FreeBSD CDROM */
 	    OnCDROM = FALSE;
@@ -448,6 +467,7 @@ root_extract(void)
     }
     else
 	alreadyExtracted = loop_on_root_floppy();
+    return alreadyExtracted;
 }
 
 static Boolean

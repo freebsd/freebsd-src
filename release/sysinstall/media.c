@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.24.2.5 1995/06/03 23:23:39 jkh Exp $
+ * $Id: media.c,v 1.24.2.6 1995/06/04 05:13:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -259,7 +259,7 @@ mediaSetFTP(char *str)
     if (!cp)
 	return 0;
     if (!strcmp(cp, "other")) {
-	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nA URL looks like this:  ftp://<hostname>/<path>");
+	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept either anonymous\nftp or you should have set an ftp username and password\nin the Options Menu.\nA URL looks like this:  ftp://<hostname>/<path>\nWhere <path> is relative to the anonymous ftp directory or the\nhome directory of the user being logged in as.");
 	if (!cp || strncmp("ftp://", cp, 6))
 	    return 0;
 	else
@@ -285,7 +285,7 @@ mediaSetUFS(char *str)
     static Device ufsDevice;
     char *val;
 
-    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribtion files:");
+    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribution files:");
     if (!val)
 	return 0;
     strcpy(ufsDevice.name, "ufs");

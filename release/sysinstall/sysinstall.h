@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.11 1995/06/04 05:13:37 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.12 1995/06/04 05:20:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -299,6 +299,7 @@ extern void	configResolv(void);
 extern int	configPorts(char *str);
 extern int	configPackages(char *str);
 extern int	configSaverTimeout(char *str);
+extern int	configNTP(char *str);
 
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);
