@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.9 1997/02/22 09:32:00 peter Exp $
+ *	$Id: bt74x.c,v 1.10 1997/07/20 06:31:09 bde Exp $
  */
 
 #include "eisa.h"
@@ -90,7 +90,7 @@
 static int	bt_eisa_probe __P((void));
 static int	bt_eisa_attach __P((struct eisa_device *e_dev));
 
-struct eisa_driver bt_eisa_driver = {
+static struct eisa_driver bt_eisa_driver = {
 					"bt",
 					bt_eisa_probe,
 					bt_eisa_attach,
