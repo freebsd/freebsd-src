@@ -24,6 +24,19 @@
 #include <sys/sysctl.h>
 #include <sys/linker.h>
 #include <sys/queue.h>
+#include <sys/mdioctl.h>
+#include <sys/vnode.h>
+#include <sys/namei.h>
+#include <sys/fcntl.h>
+#include <sys/proc.h>
+#include <machine/atomic.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
+#include <vm/swap_pager.h>
 
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
@@ -52,17 +65,13 @@ static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 #endif
 
 static int mdrootready;
-
-static void mdcreate_malloc(int unit);
+static int mdunits;
 
 #define CDEV_MAJOR	95
-#define BDEV_MAJOR	22
 
 static d_strategy_t mdstrategy;
-static d_strategy_t mdstrategy_preload;
-static d_strategy_t mdstrategy_malloc;
 static d_open_t mdopen;
-static d_ioctl_t mdioctl;
+static d_ioctl_t mdioctl, mdctlioctl;
 
 static struct cdevsw md_cdevsw = {
         /* open */      mdopen,
@@ -78,7 +87,19 @@ static struct cdevsw md_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     D_DISK | D_CANFREE | D_MEMDISK,
-        /* bmaj */      BDEV_MAJOR
+};
+
+static struct cdevsw mdctl_cdevsw = {
+        /* open */      nullopen,
+        /* close */     nullclose,
+        /* read */      noread,
+        /* write */     nowrite,
+        /* ioctl */     mdctlioctl,
+        /* poll */      nopoll,
+        /* mmap */      nommap,
+        /* strategy */  nostrategy,
+        /* name */      "md",
+        /* maj */       CDEV_MAJOR
 };
 
 static struct cdevsw mddisk_cdevsw;
@@ -93,8 +114,10 @@ struct md_s {
 	struct disk disk;
 	dev_t dev;
 	int busy;
-	enum {MD_MALLOC, MD_PRELOAD} type;
+	enum md_types type;
 	unsigned nsect;
+	unsigned secsize;
+	unsigned flags;
 
 	/* MD_MALLOC related fields */
 	unsigned nsecp;
@@ -103,9 +126,14 @@ struct md_s {
 	/* MD_PRELOAD related fields */
 	u_char *pl_ptr;
 	unsigned pl_len;
-};
 
-static int mdunits;
+	/* MD_VNODE related fields */
+	struct vnode *vnode;
+	struct ucred *cred;
+
+	/* MD_OBJET related fields */
+	vm_object_t object;
+};
 
 static int
 mdopen(dev_t dev, int flag, int fmt, struct proc *p)
@@ -118,13 +146,12 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 			devtoname(dev), flag, fmt, p);
 
 	sc = dev->si_drv1;
-	if ((!devfs_present) && sc->unit + 1 == mdunits)
-		mdcreate_malloc(-1);
 
 	dl = &sc->disk.d_label;
 	bzero(dl, sizeof(*dl));
-	dl->d_secsize = DEV_BSIZE;
-	dl->d_nsectors = 1024;
+	dl->d_secsize = sc->secsize;
+	if (sc->nsect > 1024)
+	dl->d_nsectors = sc->nsect > 1024 ? 1024 : sc->nsect;
 	dl->d_ntracks = 1;
 	dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
 	dl->d_secperunit = sc->nsect;
@@ -144,57 +171,20 @@ mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 }
 
 static void
-mdstrategy(struct bio *bp)
+mdstart_malloc(struct md_s *sc)
 {
-	struct md_s *sc;
-
-	if (md_debug > 1)
-		printf("mdstrategy(%p) %s %x, %d, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
-		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
-
-	sc = bp->bio_dev->si_drv1;
-	if (sc->type == MD_MALLOC) {
-		mdstrategy_malloc(bp);
-	} else {
-		mdstrategy_preload(bp);
-	}
-	return;
-}
-
-
-static void
-mdstrategy_malloc(struct bio *bp)
-{
-	int s, i;
-	struct md_s *sc;
+	int i;
+	struct bio *bp;
 	devstat_trans_flags dop;
 	u_char *secp, **secpp, *dst;
 	unsigned secno, nsec, secval, uc;
 
-	if (md_debug > 1)
-		printf("mdstrategy_malloc(%p) %s %x, %d, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
-		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
-
-	sc = bp->bio_dev->si_drv1;
-
-	s = splbio();
-
-	bioqdisksort(&sc->bio_queue, bp);
-
-	if (sc->busy) {
-		splx(s);
-		return;
-	}
-
-	sc->busy++;
-	
-	while (1) {
+	for (;;) {
+		/* XXX: LOCK(unique unit numbers) */
 		bp = bioq_first(&sc->bio_queue);
 		if (bp)
 			bioq_remove(&sc->bio_queue, bp);
-		splx(s);
+		/* XXX: UNLOCK(unique unit numbers) */
 		if (!bp)
 			break;
 
@@ -211,7 +201,6 @@ mdstrategy_malloc(struct bio *bp)
 		secno = bp->bio_pblkno;
 		dst = bp->bio_data;
 		while (nsec--) {
-
 			if (secno < sc->nsecp) {
 				secpp = &sc->secp[secno];
 				if ((uintptr_t)*secpp > 255) {
@@ -231,7 +220,7 @@ mdstrategy_malloc(struct bio *bp)
 				    bp->bio_flags, secpp, secp, secval);
 
 			if (bp->bio_cmd == BIO_DELETE) {
-				if (secpp) {
+				if (secpp && !(sc->flags & MD_RESERVE)) {
 					if (secp)
 						FREE(secp, M_MDSECT);
 					*secpp = 0;
@@ -246,10 +235,15 @@ mdstrategy_malloc(struct bio *bp)
 					bzero(dst, DEV_BSIZE);
 				}
 			} else {
-				uc = dst[0];
-				for (i = 1; i < DEV_BSIZE; i++) 
-					if (dst[i] != uc)
-						break;
+				if (sc->flags & MD_COMPRESS) {
+					uc = dst[0];
+					for (i = 1; i < DEV_BSIZE; i++) 
+						if (dst[i] != uc)
+							break;
+				} else {
+					i = 0;
+					uc = 0;
+				}
 				if (i == DEV_BSIZE && !uc) {
 					if (secp)
 						FREE(secp, M_MDSECT);
@@ -272,7 +266,6 @@ mdstrategy_malloc(struct bio *bp)
 						if (!secp) 
 							MALLOC(secp, u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK);
 						bcopy(dst, secp, DEV_BSIZE);
-
 						*secpp = secp;
 					}
 				}
@@ -283,43 +276,23 @@ mdstrategy_malloc(struct bio *bp)
 		bp->bio_resid = 0;
 		devstat_end_transaction_bio(&sc->stats, bp);
 		biodone(bp);
-		s = splbio();
 	}
-	sc->busy = 0;
 	return;
 }
 
 
 static void
-mdstrategy_preload(struct bio *bp)
+mdstart_preload(struct md_s *sc)
 {
-	int s;
-	struct md_s *sc;
+	struct bio *bp;
 	devstat_trans_flags dop;
 
-	if (md_debug > 1)
-		printf("mdstrategy_preload(%p) %s %x, %d, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
-		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
-
-	sc = bp->bio_dev->si_drv1;
-
-	s = splbio();
-
-	bioqdisksort(&sc->bio_queue, bp);
-
-	if (sc->busy) {
-		splx(s);
-		return;
-	}
-
-	sc->busy++;
-	
-	while (1) {
+	for (;;) {
+		/* XXX: LOCK(unique unit numbers) */
 		bp = bioq_first(&sc->bio_queue);
 		if (bp)
 			bioq_remove(&sc->bio_queue, bp);
-		splx(s);
+		/* XXX: UNLOCK(unique unit numbers) */
 		if (!bp)
 			break;
 
@@ -337,27 +310,199 @@ mdstrategy_preload(struct bio *bp)
 		bp->bio_resid = 0;
 		devstat_end_transaction_bio(&sc->stats, bp);
 		biodone(bp);
-		s = splbio();
 	}
-	sc->busy = 0;
 	return;
 }
 
-static struct md_s *
-mdcreate(int unit)
+static void
+mdstart_vnode(struct md_s *sc)
+{
+	int error;
+	struct bio *bp;
+	struct uio auio;
+	struct iovec aiov;
+	struct mount *mp;
+
+	/*
+	 * VNODE I/O
+	 *
+	 * If an error occurs, we set BIO_ERROR but we do not set 
+	 * B_INVAL because (for a write anyway), the buffer is 
+	 * still valid.
+	 */
+
+	for (;;) {
+		/* XXX: LOCK(unique unit numbers) */
+		bp = bioq_first(&sc->bio_queue);
+		if (bp)
+			bioq_remove(&sc->bio_queue, bp);
+		/* XXX: UNLOCK(unique unit numbers) */
+		if (!bp)
+			break;
+
+		devstat_start_transaction(&sc->stats);
+
+		bzero(&auio, sizeof(auio));
+
+		aiov.iov_base = bp->bio_data;
+		aiov.iov_len = bp->bio_bcount;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = (vm_ooffset_t)bp->bio_pblkno * sc->secsize;
+		auio.uio_segflg = UIO_SYSSPACE;
+		if(bp->bio_cmd == BIO_READ)
+			auio.uio_rw = UIO_READ;
+		else
+			auio.uio_rw = UIO_WRITE;
+		auio.uio_resid = bp->bio_bcount;
+		auio.uio_procp = curproc;
+		if (VOP_ISLOCKED(sc->vnode, NULL))
+			vprint("unexpected vn driver lock", sc->vnode);
+		if (bp->bio_cmd == BIO_READ) {
+			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
+			error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
+		} else {
+			(void) vn_start_write(sc->vnode, &mp, V_WAIT);
+			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
+			error = VOP_WRITE(sc->vnode, &auio, 0, sc->cred);
+			vn_finished_write(mp);
+		}
+		VOP_UNLOCK(sc->vnode, 0, curproc);
+		bp->bio_resid = auio.uio_resid;
+
+		if (error) {
+			bp->bio_error = error;
+			bp->bio_flags |= BIO_ERROR;
+		}
+		devstat_end_transaction_bio(&sc->stats, bp);
+		biodone(bp);
+	}
+	return;
+}
+
+static void
+mdstart_swap(struct md_s *sc)
+{
+	struct bio *bp;
+
+	for (;;) {
+		/* XXX: LOCK(unique unit numbers) */
+		bp = bioq_first(&sc->bio_queue);
+		if (bp)
+			bioq_remove(&sc->bio_queue, bp);
+		/* XXX: UNLOCK(unique unit numbers) */
+		if (!bp)
+			break;
+
+#if 0
+		devstat_start_transaction(&sc->stats);
+#endif
+
+		if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE)) 
+			biodone(bp);
+		else
+			vm_pager_strategy(sc->object, bp);
+
+#if 0
+		devstat_end_transaction_bio(&sc->stats, bp);
+#endif
+	}
+	return;
+}
+
+static void
+mdstrategy(struct bio *bp)
 {
 	struct md_s *sc;
 
-	if (unit == -1)
-		unit = mdunits++;
-	/* Make sure this unit isn't already in action */
+	if (md_debug > 1)
+		printf("mdstrategy(%p) %s %x, %d, %ld, %p)\n",
+		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
+
+	sc = bp->bio_dev->si_drv1;
+
+	/* XXX: LOCK(sc->lock) */
+	bioqdisksort(&sc->bio_queue, bp);
+	/* XXX: UNLOCK(sc->lock) */
+
+	if (atomic_cmpset_int(&sc->busy, 0, 1) == 0)
+		return;
+
+	switch (sc->type) {
+	case MD_MALLOC:
+		mdstart_malloc(sc);
+		break;
+	case MD_PRELOAD:
+		mdstart_preload(sc);
+		break;
+	case MD_VNODE:
+		mdstart_vnode(sc);
+		break;
+	case MD_SWAP:
+		mdstart_swap(sc);
+		break;
+	default:
+		panic("Impossible md(type)");
+		break;
+	}
+	sc->busy = 0;
+}
+
+static struct md_s *
+mdfind(int unit)
+{
+	struct md_s *sc;
+
+	/* XXX: LOCK(unique unit numbers) */
 	LIST_FOREACH(sc, &md_softc_list, list) {
 		if (sc->unit == unit)
-			return (NULL);
+			break;
 	}
+	/* XXX: UNLOCK(unique unit numbers) */
+	return (sc);
+}
+
+static struct md_s *
+mdnew(int unit)
+{
+	struct md_s *sc;
+	int max = -1;
+
+	/* XXX: LOCK(unique unit numbers) */
+	LIST_FOREACH(sc, &md_softc_list, list) {
+		if (sc->unit == unit) {
+			/* XXX: UNLOCK(unique unit numbers) */
+			return (NULL);
+		}
+		if (sc->unit > max)
+			max = sc->unit;
+	}
+	if (unit == -1)
+		unit = max + 1;
+	if (unit > DKMAXUNIT)
+		return (NULL);
 	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK | M_ZERO);
-	LIST_INSERT_HEAD(&md_softc_list, sc, list);
 	sc->unit = unit;
+	LIST_INSERT_HEAD(&md_softc_list, sc, list);
+	/* XXX: UNLOCK(unique unit numbers) */
+	return (sc);
+}
+
+static void
+mddelete(struct md_s *sc)
+{
+
+	/* XXX: LOCK(unique unit numbers) */
+	LIST_REMOVE(sc, list);
+	/* XXX: UNLOCK(unique unit numbers) */
+	FREE(sc, M_MD);
+}
+
+static void
+mdinit(struct md_s *sc)
+{
+
 	bioq_init(&sc->bio_queue);
 	devstat_add_entry(&sc->stats, "md", sc->unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
@@ -365,7 +510,6 @@ mdcreate(int unit)
 		DEVSTAT_PRIORITY_OTHER);
 	sc->dev = disk_create(sc->unit, &sc->disk, 0, &md_cdevsw, &mddisk_cdevsw);
 	sc->dev->si_drv1 = sc;
-	return (sc);
 }
 
 static void
@@ -373,53 +517,291 @@ mdcreate_preload(u_char *image, unsigned length)
 {
 	struct md_s *sc;
 
-	sc = mdcreate(-1);
+	sc = mdnew(-1);
+	if (sc == NULL)
+		return;
 	sc->type = MD_PRELOAD;
+	sc->secsize = DEV_BSIZE;
 	sc->nsect = length / DEV_BSIZE;
 	sc->pl_ptr = image;
 	sc->pl_len = length;
-
 	if (sc->unit == 0) 
 		mdrootready = 1;
+	mdinit(sc);
 }
 
-static void
-mdcreate_malloc(int unit)
+static int
+mdcreate_malloc(struct md_ioctl *mdio)
 {
 	struct md_s *sc;
+	unsigned u;
 
-	sc = mdcreate(unit);
-	if (sc == NULL)
-		return;
-
+	if (mdio->md_size == 0)
+		return(EINVAL);
+	if (mdio->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
+		return(EINVAL);
+	/* Compression doesn't make sense if we have reserved space */
+	if (mdio->md_options & MD_RESERVE)
+		mdio->md_options &= ~MD_COMPRESS;
+	if (mdio->md_options & MD_AUTOUNIT) {
+		sc = mdnew(-1);
+		if (sc == NULL)
+			return (ENOMEM);
+		mdio->md_unit = sc->unit;
+	} else {
+		sc = mdnew(mdio->md_unit);
+		if (sc == NULL)
+			return (EBUSY);
+	}
 	sc->type = MD_MALLOC;
-
-	sc->nsect = MD_NSECT;	/* for now */
-	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
-	sc->nsecp = 1;
+	sc->secsize = DEV_BSIZE;
+	sc->nsect = mdio->md_size;
+	sc->flags = mdio->md_options & MD_COMPRESS;
+	if (!(mdio->md_options & MD_RESERVE)) {
+		MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
+		sc->nsecp = 1;
+	} else {
+		MALLOC(sc->secp, u_char **, sc->nsect * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
+		sc->nsecp = sc->nsect;
+		for (u = 0; u < sc->nsect; u++)
+			MALLOC(sc->secp[u], u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK | M_ZERO);
+	}
 	printf("md%d: Malloc disk\n", sc->unit);
+	mdinit(sc);
+	return (0);
 }
 
-static void
-md_clone (void *arg, char *name, int namelen, dev_t *dev)
-{
-	int i, u;
 
-	if (*dev != NODEV)
-		return;
-	i = dev_stdclone(name, NULL, "md", &u);
-	if (i == 0)
-		return;
-	if (u > DKMAXUNIT)
-		return;
-	/* XXX: should check that next char is [\0sa-h] */
+static int
+mdsetcred(struct md_s *sc, struct ucred *cred)
+{
+	char *tmpbuf;
+	int error = 0;
+
 	/*
-	 * Now we cheat: We just create the disk, but don't match.
-	 * Since we run before it, subr_disk.c::disk_clone() will
-	 * find our disk and match the sought for device.
+	 * Set credits in our softc
 	 */
-	mdcreate_malloc(u);
-	return;
+
+	if (sc->cred)
+		crfree(sc->cred);
+	sc->cred = crdup(cred);
+
+	/*
+	 * Horrible kludge to establish credentials for NFS  XXX.
+	 */
+
+	if (sc->vnode) {
+		struct uio auio;
+		struct iovec aiov;
+
+		tmpbuf = malloc(sc->secsize, M_TEMP, M_WAITOK);
+		bzero(&auio, sizeof(auio));
+
+		aiov.iov_base = tmpbuf;
+		aiov.iov_len = sc->secsize;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = 0;
+		auio.uio_rw = UIO_READ;
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_resid = aiov.iov_len;
+		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curproc);
+		error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
+		VOP_UNLOCK(sc->vnode, 0, curproc);
+		free(tmpbuf, M_TEMP);
+	}
+	return (error);
+}
+
+static int
+mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
+{
+	struct md_s *sc;
+	struct vattr vattr;
+	struct nameidata nd;
+	int error, flags;
+
+	if (mdio->md_options & MD_AUTOUNIT) {
+		sc = mdnew(-1); 
+		mdio->md_unit = sc->unit;
+	} else {
+		sc = mdnew(mdio->md_unit);
+	}
+	if (sc == NULL)
+		return (EBUSY);
+
+	sc->type = MD_VNODE;
+
+	flags = FREAD|FWRITE;
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, mdio->md_file, p);
+	error = vn_open(&nd, &flags, 0);
+	if (error) {
+		if (error != EACCES && error != EPERM && error != EROFS)
+			return (error);
+		flags &= ~FWRITE;
+		sc->flags |= MD_READONLY;
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, mdio->md_file, p);
+		error = vn_open(&nd, &flags, 0);
+		if (error)
+			return (error);
+	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	if (nd.ni_vp->v_type != VREG ||
+	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p))) {
+		VOP_UNLOCK(nd.ni_vp, 0, p);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+		return (error ? error : EINVAL);
+	}
+	VOP_UNLOCK(nd.ni_vp, 0, p);
+	sc->secsize = DEV_BSIZE;
+	sc->vnode = nd.ni_vp;
+
+	/*
+	 * If the size is specified, override the file attributes.
+	 */
+	if (mdio->md_size)
+		sc->nsect = mdio->md_size;
+	else
+		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
+	error = mdsetcred(sc, p->p_ucred);
+	if (error) {
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+		return(error);
+	}
+	mdinit(sc);
+	return (0);
+}
+
+static int
+mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
+{
+	unsigned u;
+
+	if (sc->dev != NULL)
+		disk_destroy(sc->dev);
+	if (sc->vnode != NULL)
+		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE), sc->cred, p);
+	if (sc->cred != NULL)
+		crfree(sc->cred);
+	if (sc->object != NULL)
+		vm_pager_deallocate(sc->object);
+	if (sc->secp != NULL) {
+		for (u = 0; u < sc->nsecp; u++) 
+			if ((uintptr_t)sc->secp[u] > 255)
+				FREE(sc->secp[u], M_MDSECT);
+		FREE(sc->secp, M_MD);
+	}
+	mddelete(sc);
+	return (0);
+}
+
+static int
+mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
+{
+	int error;
+	struct md_s *sc;
+
+	if (mdio->md_options & MD_AUTOUNIT) {
+		sc = mdnew(-1);
+		mdio->md_unit = sc->unit;
+	} else {
+		sc = mdnew(mdio->md_unit);
+	}
+	if (sc == NULL)
+		return (EBUSY);
+
+	sc->type = MD_SWAP;
+
+	/*
+	 * Range check.  Disallow negative sizes or any size less then the
+	 * size of a page.  Then round to a page.
+	 */
+
+	if (mdio->md_size == 0)
+		return(EDOM);
+
+	/*
+	 * Allocate an OBJT_SWAP object.
+	 *
+	 * sc_secsize is PAGE_SIZE'd
+	 *
+	 * mdio->size is in DEV_BSIZE'd chunks.
+	 * Note the truncation.
+	 */
+
+	sc->secsize = PAGE_SIZE;
+	sc->nsect = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
+	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, sc->secsize * (vm_offset_t)sc->nsect, VM_PROT_DEFAULT, 0);
+	if (mdio->md_options & MD_RESERVE) {
+		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
+			vm_pager_deallocate(sc->object);
+			sc->object = NULL;
+			return(EDOM);
+		}
+	}
+	error = mdsetcred(sc, p->p_ucred);
+	if (error)
+		mddestroy(sc, mdio, p);
+	else
+		mdinit(sc);
+	return(error);
+}
+
+static int
+mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+{
+	struct md_ioctl *mdio;
+	struct md_s *sc;
+
+	if (md_debug)
+		printf("mdctlioctl(%s %lx %p %x %p)\n",
+			devtoname(dev), cmd, addr, flags, p);
+
+	mdio = (struct md_ioctl *)addr;
+	if (mdio->md_type != MD_VNODE)
+		mdio->md_file[0] = '\0';
+	switch (cmd) {
+	case MDIOCATTACH:
+		printf("A: u %u t %d n %s s %u o %u\n", mdio->md_unit,
+		    mdio->md_type, mdio->md_file, mdio->md_size,
+		    mdio->md_options);
+		switch (mdio->md_type) {
+		case MD_MALLOC:
+			return(mdcreate_malloc(mdio));
+		case MD_PRELOAD:
+			return (EINVAL);
+		case MD_VNODE:
+			return(mdcreate_vnode(mdio, p));
+		case MD_SWAP:
+			return(mdcreate_swap(mdio, p));
+		default:
+			return (EINVAL);
+		}
+	case MDIOCDETACH:
+		printf("D: u %u t %d n %s s %u o %u\n", mdio->md_unit,
+		    mdio->md_type, mdio->md_file, mdio->md_size,
+		    mdio->md_options);
+		if (*mdio->md_file != '\0')
+			return(EINVAL);
+		if (mdio->md_size != 0)
+			return(EINVAL);
+		if (mdio->md_options != 0)
+			return(EINVAL);
+		sc = mdfind(mdio->md_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		switch(sc->type) {
+		case MD_VNODE:
+		case MD_SWAP:
+		case MD_MALLOC:
+			return(mddestroy(sc, mdio, p));
+		default:
+			return (EOPNOTSUPP);
+		}
+	default:
+		return (ENOIOCTL);
+	};
+	return (ENOIOCTL);
 }
 
 static void
@@ -452,9 +834,7 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		mdcreate_preload(ptr, len);
 	} 
-	EVENTHANDLER_REGISTER(dev_clone, md_clone, 0, 999);
-	if (!devfs_present)
-		mdcreate_malloc(-1);
+	make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL, 0600, "mdctl");
 }
 
 SYSINIT(mddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, md_drvinit,NULL)
