@@ -1527,12 +1527,15 @@ in6_ifinit(ifp, ia, sin6, newhost)
 
 	/*
 	 * Special case:
-	 * If the destination address is specified for a point-to-point
+	 * If a new destination address is specified for a point-to-point
 	 * interface, install a route to the destination as an interface
 	 * direct route.
+	 * XXX: the logic below rejects assigning multiple addresses on a p2p
+	 * interface that share a same destination.
 	 */
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
-	if (plen == 128 && ia->ia_dstaddr.sin6_family == AF_INET6) {
+	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
+	    ia->ia_dstaddr.sin6_family == AF_INET6) {
 		if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD,
 				    RTF_UP | RTF_HOST)) != 0)
 			return (error);
