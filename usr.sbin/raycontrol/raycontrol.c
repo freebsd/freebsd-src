@@ -183,7 +183,7 @@ ray_dumpinfo(char *iface)
 	printf("%-26s\t",  mib_strings[RAY_MIB_VERSION]);
 	printf("%d\n", 3+version);
 
-	for (mib = RAY_MIB_NET_TYPE; mib < RAY_MIB_MAX; mib++) {
+	for (mib = RAY_MIB_NET_TYPE; mib <= RAY_MIB_MAX; mib++) {
 
 		if ((mib_info[mib][0] & version) == 0)
 			continue;
