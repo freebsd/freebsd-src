@@ -42,17 +42,19 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)uniq.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)uniq.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: uniq.c,v 1.1.1.1.8.2 1997/08/29 05:30:06 imp Exp $";
+	"$Id: uniq.c,v 1.5 1998/03/08 20:56:43 ache Exp $";
 #endif /* not lint */
 
-#include <err.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <locale.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define	MAXLINELEN	(8 * 1024)
 
@@ -75,6 +77,8 @@ main (argc, argv)
 	int ch;
 	char *prevline, *thisline, *p;
 	int iflag = 0, comp;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	obsolete(argv);
 	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
@@ -197,7 +201,7 @@ skip(str)
 	register int infield, nchars, nfields;
 
 	for (nfields = numfields, infield = 0; nfields && *str; ++str)
-		if (isspace(*str)) {
+		if (isspace((unsigned char)*str)) {
 			if (infield) {
 				infield = 0;
 				--nfields;
@@ -233,7 +237,7 @@ obsolete(argv)
 				return;
 		} else if (ap[1] == '-')
 			return;
-		if (!isdigit(ap[1]))
+		if (!isdigit((unsigned char)ap[1]))
 			continue;
 		/*
 		 * Digit signifies an old-style option.  Malloc space for dash,
