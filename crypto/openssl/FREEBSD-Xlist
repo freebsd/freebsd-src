@@ -1,10 +1,15 @@
 $FreeBSD$
+INSTALL.DJGPP
 INSTALL.MacOS
+INSTALL.OS2
 INSTALL.VMS
 INSTALL.W32
+INSTALL.WCE
 MacOS/
 VMS/
 *.com
+*.def
+*.mak
 */*.bat
 */*.com
 */*/*.bat
@@ -13,6 +18,7 @@ apps/openssl-vms.cnf
 crypto/bn/asm/pa-risc2.s.old
 crypto/bn/asm/vms.mar
 crypto/bn/vms-helper.c
+crypto/buildinf.h
 crypto/dso/dso_vms.c
 crypto/dso/dso_win32.c
 crypto/threads/solaris.sh
@@ -24,6 +30,9 @@ shlib/irix.sh
 shlib/solaris-sc4.sh
 shlib/solaris.sh
 shlib/sun.sh
+shlib/sco5-shared-installed
+shlib/sco5-shared-gcc.sh
+shlib/sco5-shared.sh
 shlib/svr5-shared-gcc.sh
 shlib/svr5-shared-installed
 shlib/svr5-shared.sh
