@@ -29,12 +29,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_extern.h,v 1.6 1996/06/03 03:22:36 wpaul Exp $
+ *	$Id: yppasswdd_extern.h,v 1.7 1996/06/23 22:20:43 wpaul Exp $
  */
 
 #include <sys/types.h>
 #include <limits.h>
 #include <db.h>
+#include <paths.h>
 #include <rpc/rpc.h>
 #include <pwd.h>
 #include <err.h>
@@ -45,6 +46,11 @@
 #ifndef YPLIBDIR
 #define YPLIBDIR "/usr/libexec/"
 #endif
+
+#ifndef _PATH_YP
+#define _PATH_YP "/var/yp/"
+#endif
+
 #define MAP_UPDATE "yppwupdate"
 #define MAP_UPDATE_PATH YPLIBDIR "yppwupdate"
 

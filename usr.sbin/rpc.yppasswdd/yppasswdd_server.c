@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.16 1996/06/04 00:00:19 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.17 1996/06/23 22:20:43 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.16 1996/06/04 00:00:19 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.17 1996/06/23 22:20:43 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -542,7 +542,7 @@ yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
 
 	if (strcmp(domain, yppasswd_domain)) {
 		snprintf(passfile_buf, sizeof(passfile_buf),
-			"/var/yp/%s/master.passwd", domain);
+			"%s/%s/master.passwd", yp_dir, domain);
 		passfile = (char *)&passfile_buf;
 	}
 
@@ -695,7 +695,7 @@ allow additions to be made to the password database", progname);
 
 	if (strcmp(argp->domain, yppasswd_domain)) {
 		snprintf(passfile_buf, sizeof(passfile_buf),
-			"/var/yp/%s/master.passwd", argp->domain);
+			"%s/%s/master.passwd", yp_dir, argp->domain);
 		passfile = (char *)&passfile_buf;
 	}       
 

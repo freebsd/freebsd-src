@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.11 1996/06/03 03:21:24 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.13 1996/06/23 22:24:42 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.11 1996/06/03 03:21:24 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.13 1996/06/23 22:24:42 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -85,7 +85,8 @@ static int _rpcfdtype;
 
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "rpc.yppasswdd";
-char *passfile_default = "/var/yp/master.passwd";
+char *yp_dir = _PATH_YP;
+char *passfile_default = _PATH_YP "master.passwd";
 char *passfile;
 char *yppasswd_domain = NULL;
 int no_chsh = 0;
@@ -95,7 +96,6 @@ int multidomain = 0;
 int verbose = 0;
 int resvport = 1;
 int inplace = 0;
-char *yp_dir = "/var/yp/";
 int yp_sock;
 
 
