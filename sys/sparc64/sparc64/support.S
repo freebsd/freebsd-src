@@ -585,47 +585,7 @@ ENTRY(openfirmware_exit)
 	! never to return
 END(openfirmware_exit)
 
-#ifdef GUPROF
-
-/*
- * XXX including sys/gmon.h in genassym.c is not possible due to uintfptr_t
- * badness.
- */
-#define	GM_STATE	0x0
-#define	GMON_PROF_OFF	3
-#define	GMON_PROF_HIRES	4
-
-	_ALIGN_TEXT
-	.globl  __cyg_profile_func_enter
-	.type   __cyg_profile_func_enter,@function
-__cyg_profile_func_enter:
-	SET(_gmonparam, %o3, %o2)
-	lduw    [%o2 + GM_STATE], %o3
-	cmp     %o3, GMON_PROF_OFF
-	be,a,pn %icc, 1f
-	 nop
-	SET(mcount, %o3, %o2)
-	jmpl	%o2, %g0
-	 nop
-1:      retl
-	 nop
-	.size	__cyg_profile_func_enter, . - __cyg_profile_func_enter
-
-	_ALIGN_TEXT
-	.globl  __cyg_profile_func_exit
-	.type   __cyg_profile_func_exit,@function
-__cyg_profile_func_exit:
-	SET(_gmonparam, %o3, %o2)
-	lduw    [%o2 + GM_STATE], %o3
-	cmp     %o3, GMON_PROF_HIRES
-	be,a,pn %icc, 1f
-	 nop
-	SET(mexitcount, %o3, %o2)
-	jmpl	%o2, %g0
-	 nop
-1:      retl
-	 nop
-	.size	__cyg_profile_func_exit, . - __cyg_profile_func_exit
+#ifdef GPROF
 
 ENTRY(user)
 	nop
@@ -642,4 +602,46 @@ ENTRY(bintr)
 ENTRY(eintr)
 	nop
 
-#endif
+
+/*
+ * XXX including sys/gmon.h in genassym.c is not possible due to uintfptr_t
+ * badness.
+ */
+#define	GM_STATE	0x0
+#define	GMON_PROF_OFF	3
+#define	GMON_PROF_HIRES	4
+
+	.globl	_mcount
+	.set	_mcount, __cyg_profile_func_enter
+
+ENTRY(__cyg_profile_func_enter)
+	SET(_gmonparam, %o3, %o2)
+	lduw    [%o2 + GM_STATE], %o3
+	cmp     %o3, GMON_PROF_OFF
+	be,a,pn %icc, 1f
+	 nop
+	SET(mcount, %o3, %o2)
+	jmpl	%o2, %g0
+	 nop
+1:      retl
+	 nop
+END(__cyg_profile_func_enter)
+
+#ifdef GUPROF
+
+ENTRY(__cyg_profile_func_exit)
+	SET(_gmonparam, %o3, %o2)
+	lduw    [%o2 + GM_STATE], %o3
+	cmp     %o3, GMON_PROF_HIRES
+	be,a,pn %icc, 1f
+	 nop
+	SET(mexitcount, %o3, %o2)
+	jmpl	%o2, %g0
+	 nop
+1:      retl
+	 nop
+END(__cyg_profile_func_exit)
+
+#endif /* GUPROF */
+
+#endif /* GPROF */
