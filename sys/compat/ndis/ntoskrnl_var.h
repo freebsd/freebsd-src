@@ -466,6 +466,13 @@ typedef uint32_t (*driver_dispatch)(device_object *, irp *);
 
 #define STATUS_WAIT_0			0x00000000
 
+/*
+ * FreeBSD's kernel stack is 2 pages in size by default. The
+ * Windows stack is larger, so we need to give our threads more
+ * stack pages. 4 should be enough, we use 8 just to extra safe.
+ */
+#define NDIS_KSTACK_PAGES	8
+
 extern image_patch_table ntoskrnl_functbl[];
 extern struct mtx *ntoskrnl_dispatchlock;
 

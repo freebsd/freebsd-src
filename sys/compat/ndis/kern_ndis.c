@@ -268,14 +268,16 @@ ndis_create_kthreads()
 		ndis_tproc.np_q = &ndis_ttodo;
 		ndis_tproc.np_state = NDIS_PSTATE_SLEEPING;
 		error = kthread_create(ndis_runq, &ndis_tproc,
-		    &ndis_tproc.np_p, RFHIGHPID, 0, "ndis taskqueue");
+		    &ndis_tproc.np_p, RFHIGHPID,
+		    NDIS_KSTACK_PAGES, "ndis taskqueue");
 	}
 
 	if (error == 0) {
 		ndis_iproc.np_q = &ndis_itodo;
 		ndis_iproc.np_state = NDIS_PSTATE_SLEEPING;
 		error = kthread_create(ndis_runq, &ndis_iproc,
-		    &ndis_iproc.np_p, RFHIGHPID, 0, "ndis swi");
+		    &ndis_iproc.np_p, RFHIGHPID,
+		    NDIS_KSTACK_PAGES, "ndis swi");
 	}
 
 	if (error) {
