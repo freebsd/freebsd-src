@@ -580,11 +580,11 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return EINVAL;
 	}
-	if (td && jailed(td->td_ucred) && !jail_allow_raw_sockets) {
+	if (jailed(td->td_ucred) && !jail_allow_raw_sockets) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return (EPERM);
 	}
-	if (td && (error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)) != 0) {
+	if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)) != 0) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
 	}

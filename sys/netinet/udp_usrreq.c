@@ -790,7 +790,7 @@ udp_output(inp, m, addr, control, td)
 
 	if (addr) {
 		sin = (struct sockaddr_in *)addr;
-		if (td && jailed(td->td_ucred))
+		if (jailed(td->td_ucred))
 			prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
@@ -1006,7 +1006,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	s = splnet();
 	sin = (struct sockaddr_in *)nam;
-	if (td && jailed(td->td_ucred))
+	if (jailed(td->td_ucred))
 		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
 	error = in_pcbconnect(inp, nam, td->td_ucred);
 	splx(s);
