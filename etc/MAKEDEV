@@ -22,76 +22,128 @@
 #	@(#)MAKEDEV	5.2 (Berkeley) 6/22/90
 #
 # Device "make" file.  Valid arguments:
+#	all	makes all known devices, standard number of units (or close)
 #	std	standard devices
 #	local	configuration specific devices
 #
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
+#	st*	"NEW type scsi tapes" (old driver uses the
+#		block devices of the disks to get access)
 #
 # Disks:
 #	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
 #	as*	"SCSI" disk/tape/CDROM drives
+#	sd*	"NEW type scsi disks"
+#	cd*	"NEW type cdrom disks"
 #
+# Console ports:
+#	pc*	devices for stock pccons (cleans up co devices) 
+#	co*	devices for codrv (cleans up pc devices)
+#	vty*	virtual console devices for codrv (cleans up pc devices)
+# 
 # Terminal ports:
 #	com*	standard PC COM ports
+#	tty*	alias for PC COM ports, this is what the system really wants
+#	sio*	fast interrupt PC COM ports
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
+#	vty*	virtual terminals using codrv console
 #
 # Printers:
+#	lpt*	stock lp
+#	lpa*	interruptless lp
 #
 # Call units:
 #
 # Special purpose devices:
-#	flog*	kernel logging device
+#	bpf*	packet filter
+#	dcf*	dcf clock
+#	speaker	pc speaker
+#	tw*	xten power controller
+#
+# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+# --------------------         -----   ----------------------
+# CURRENT PATCH LEVEL:         4       00170
+# --------------------         -----   ----------------------
+#
+# 16 Feb 93	Julian Elischer		ADDED for SCSI system
+# 16 Feb 93	Julian Elischer		media changer device
+# 10 Mar 93	Rodney W. Grimes	general clean up of above patches
+#					typo in rm of kmem (was kmdem)
+#					major number for /dev/fd/* and /dev/std*
+#					added lpt, lpa, bpf, vga, vgaco, kbdco
+# 08 Apr 93	Rodney W. Grimes	Cleanup chgrp, chown and chmod stuff
+#					Added duplicate name tty=com,
+#					added speaker, dcf
+# 22 Apr 93	Holger Veit		device create for co,pc,vty
+# 26 May 93	Rodney W. Grimes	Redid all to be in bdev/cdev order.
+# 26 May 93	Gene Stark		Added tw xten power controller
+#		Rodney W. Grimes	Added sio serial port (fast interrupt)
+# 09 Jun 93	Jordan K. Hubbard	Make all makes both pc0 and co0, this
+#					can be very bad.  Rod: I removed co0
+#					from the all.
+# 20 Jun 93	Holger Viet		Fixed co*) entry to be correct minor
+#					and to do the proper clean ups.
 #
 
-PATH=/sbin:/bin/:/usr/bin
+PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
 umask 77
 for i
 do
 case $i in
 
+all)
+	sh MAKEDEV std						# standard
+	sh MAKEDEV wd0 wd1 fd0 fd1 wt0 sd0 sd1 as0 as1 st0 cd0	# bdev
+	sh MAKEDEV pty0 tty0 tty1 tty2 tty3 pc0 lpt0 lpt1 lpt2	# cdev
+	sh MAKEDEV ch0 tw0 bpf0 vty04 dcf0 lpa0 lpa1 lpa2	# cdev
+	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
+	# NOTE: co0 is not done by a sh MAKEDEV all, rgrimes
+	;;
 std)
-	rm -f console drum mem kmdem null tty klog stdin stdout stderr
-	mknod console		c 0 0
-	mknod drum		c 4 0	; chmod 640 drum ; chgrp kmem drum
-	mknod kmem		c 2 1	; chmod 640 kmem ; chgrp kmem kmem
-	mknod mem		c 2 0	; chmod 640 mem ; chgrp kmem mem
-	mknod null		c 2 2	; chmod 666 null
-	mknod tty		c 1 0	; chmod 666 tty
-	mknod klog		c 7 0	; chmod 600 klog
-	mknod stdin		c 53 0	; chmod 666 stdin
-	mknod stdout		c 53 1	; chmod 666 stdout
-	mknod stderr		c 53 2	; chmod 666 stderr
+	rm -f console drum mem kmem null tty klog stdin stdout stderr
+	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
+	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
+	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
+	mknod mem	c 2 0;	chmod 640 mem;		chown root.kmem mem
+	mknod null	c 2 2;	chmod 666 null;		chown root.wheel null
+	mknod tty	c 1 0;	chmod 666 tty;		chown root.wheel tty
+	mknod klog	c 7 0;	chmod 600 klog;		chown root.wheel klog
+	mknod stdin	c 22 0; chmod 666 stdin;	chown root.wheel stdin
+	mknod stdout	c 22 1; chmod 666 stdout;	chown root.wheel stdout
+	mknod stderr	c 22 2; chmod 666 stderr;	chown root.wheel stderr
 	rm -f fd/*
 	mkdir fd > /dev/null 2>&1
 	(cd fd && eval `echo "" | awk ' BEGIN { \
 		for (i = 0; i < 64; i++) \
-	 		printf("mknod %d c 53 %d;", i, i)}'`)
+	 		printf("mknod %d c 22 %d;", i, i)}'`)
 	chown -R bin.bin fd
 	chmod 555 fd
 	chmod 666 fd/*
 	;;
 
 wt*)
-	umask 2
-	mknod wt0 b 3 0
-	mknod rwt0 c 10 0
-	umask 77
+	umask 2;
+	rm -f wt0 rwt0
+	mknod wt0 	b 3 0;	chown root.operator wt0
+	mknod rwt0	c 10 0;	chown root.operator rwt0
+	umask 77;
 	;;
 
-fd*|wd*|as*)
+as*|fd*|sd*|wd*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
 	case $i in
-	fd*) name=fd; blk=2; chr=9;;
-	wd*) name=wd; blk=0; chr=3;;
 	as*) name=as; blk=4; chr=13;;
+	fd*) name=fd; blk=2; chr=9;;
+	sd*) name=sd; blk=4; chr=13;;
+	wd*) name=wd; blk=0; chr=3;;
 	esac
 	rm -f $name$unit? r$name$unit?
 	case $unit in
-	0|1)
+	0|1|2|3|4|5|6)
 		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
 		mknod ${name}${unit}b	b $blk `expr $unit '*' 8 + 1`
 		mknod ${name}${unit}c	b $blk `expr $unit '*' 8 + 2`
@@ -118,10 +170,12 @@ fd*|wd*|as*)
 	umask 77
 	;;
 
-com*)
-	unit=`expr $i : 'com\(.*\)'`
-	rm -f com$unit
-	mknod com$unit c 8 $unit
+com*|tty*)
+	unit=`expr $i : '...\(.*\)'`
+	rm -f com0$unit tty0$unit
+	mknod com0$unit c 8 $unit
+	mknod tty0$unit c 8 $unit
+	chown uucp.wheel com0$unit tty0$unit
 	;;
 
 pty*)
@@ -140,15 +194,184 @@ pty*)
 		umask 0
 		eval `echo $offset $name | awk ' { b=$1; n=$2 } END {
 			for (i = 0; i < 16; i++)
-				printf("mknod tty%s%x c 5 %d; \
-					mknod pty%s%x c 6 %d; ", \
-					n, i, b+i, n, i, b+i); }'`
+				printf("rm -f tty%s%x; mknod tty%s%x c 5 %d; \
+					rm -f pty%s%x; mknod pty%s%x c 6 %d; ", \
+					n, i, n, i, b+i, n, i, n, i, b+i); }'`
 		umask 77
 		if [ $class = 1 ]; then
 			mv ttyqf ttyv0; mv ptyqf ptyv0
 		fi
 		;;
 	esac
+	;;
+
+st*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	case $i in
+	st*) name=st;  chr=14; blk=5;;
+	esac
+	rm -f $name$unit n$name$unit e$name$unit en$name$unit \
+		r$name$unit nr$name$unit er$name$unit enr$name$unit 
+	case $unit in
+	0|1|2|3|4|5|6)
+		mknod ${name}${unit}	b $blk `expr $unit '*' 16 + 0`
+		mknod n${name}${unit}	b $blk `expr $unit '*' 16 + 1`
+		mknod e${name}${unit}	b $blk `expr $unit '*' 16 + 2`
+		mknod en${name}${unit}	b $blk `expr $unit '*' 16 + 3`
+		mknod r${name}${unit}	c $chr `expr $unit '*' 16 + 0`
+		mknod nr${name}${unit}	c $chr `expr $unit '*' 16 + 1`
+		mknod er${name}${unit}	c $chr `expr $unit '*' 16 + 2`
+		mknod enr${name}${unit}	c $chr `expr $unit '*' 16 + 3`
+		chgrp operator ${name}${unit} n${name}${unit} \
+			e$name$unit en$name$unit \
+			r${name}${unit} nr${name}${unit} \
+			er${name}${unit} enr${name}${unit} 
+		chmod 640 ${name}${unit} n${name}${unit} \
+			e$name$unit en$name$unit \
+			r${name}${unit} nr${name}${unit} \
+			er${name}${unit} enr${name}${unit} 
+		;;
+	*)
+		echo bad unit for tape in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+ch*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	case $i in
+	ch*) name=ch;  chr=17;;
+	esac
+	rm -f $name$unit
+	case $unit in
+	0|1|2|3|4|5|6)
+		mknod ${name}${unit}	c $chr `expr $unit '*' 16 + 0`
+		chgrp operator ${name}${unit}
+		chmod 640 ${name}${unit}
+		;;
+	*)
+		echo bad unit for media changer in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+cd*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	case $i in
+	cd*) name=cd; blk=6; chr=15;;
+	esac
+	rm -f $name$unit? r$name$unit?
+	case $unit in
+	0|1|2|3|4|5|6)
+		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
+		mknod ${name}${unit}d	b $blk `expr $unit '*' 8 + 3`
+		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
+		mknod r${name}${unit}d	c $chr `expr $unit '*' 8 + 3`
+		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+lpt*)
+	unit=`expr $i : 'lpt\(.*\)'`
+	rm -f lpt$unit
+	mknod lpt$unit c 16 $unit
+	chown root.wheel lpt$unit
+	;;
+
+tw*)
+	unit=`expr $i : 'tw\(.*\)'`
+	rm -f tw$unit
+	mknod tw$unit c 19 $unit
+	chown root.wheel tw$unit
+	;;
+
+# hv 22-apr-93 use this to create the necessary devices for codrv
+# this will cleanup /dev/vga left from pccons
+co*)
+	chr=21
+	name=vga
+ 	rm -rf ${name}
+	mknod ${name} c ${chr} 128
+	ln ${name} ${name}co
+	chmod 644 ${name}
+	chown root.wheel ${name}
+
+	chr=21
+	name=kbd
+ 	rm -rf ${name}
+	mknod ${name} c ${chr} 0
+	ln ${name} ${name}co
+	chmod 644 ${name}
+	chown root.wheel ${name}
+	;;
+
+# hv 22-apr-93 use this to create the necessary video device for
+# pccons driver
+pc*)
+	chr=12
+	minor=0
+ 	name=vga
+	rm -f ${name} kbd kbdco vgaco ttyv[0-9][0-9]
+	mknod ${name} c ${chr} ${minor}
+	chown root.wheel $name
+	;;
+
+# hv 22-apr-93 use this to create virtual consoles for codrv
+# /dev/ttyv00-12
+# use as MAKEDEV vtyNN to create NN entries
+vty*)
+	chr=12
+	units=`expr $i : 'vty\(.*\)'`
+	umask 0
+	eval `echo ${chr} ${units} | awk ' { c=$1; n=$2 } END {
+		for (i = 0; i < n; i++)
+			printf("rm -f ttyv%01x; mknod ttyv%01x c %d %d;", \
+				i, i, c, i); }'`
+	umask 77
+	;;
+
+bpf*)
+	unit=`expr $i : 'bpf\(.*\)'`
+	rm -f bpf$unit
+	mknod bpf$unit c 23 $unit
+	chown root.wheel bpf$unit
+	;;
+
+dcf*)
+	unit=`expr $i : 'dcf\(.*\)'`
+	rm -f dcf$unit
+	mknod dcf$unit c 24 $unit
+	chown root.wheel dcf$unit
+	;;
+
+lpa*)
+	unit=`expr $i : 'lpa\(.*\)'`
+	chr=25
+	rm -f lpa$unit lpa${unit}p
+	mknod lpa${unit}	c $chr `expr $unit + 0`
+	mknod lpa${unit}p	c $chr `expr $unit + 32`
+	chown root.wheel lpa${unit} lpa${unit}p
+	;;
+
+speaker)
+	rm -f speaker
+	mknod speaker c 26 0
+	chown root.wheel speaker
+	;;
+
+sio*)
+	unit=`expr $i : '...\(.*\)'`
+	rm -f sio0$unit
+	mknod sio0$unit c 28 $unit
+	chown uucp.wheel sio0$unit
 	;;
 
 local)
