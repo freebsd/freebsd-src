@@ -186,7 +186,7 @@ world:
 	@echo "WARNING: make world will overwrite your existing FreeBSD"
 	@echo "installation without also building and installing a new"
 	@echo "kernel.  This can be dangerous.  Please read the handbook,"
-	@echo "'Using make world', for how to upgrade your system."
+	@echo "'Rebuilding world', for how to upgrade your system."
 	@echo "Define DESTDIR to where you want to install FreeBSD,"
 	@echo "including /, to override this warning and proceed as usual."
 	@echo "You may get the historical 'make world' behavior by defining"
