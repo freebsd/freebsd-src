@@ -865,7 +865,7 @@ ether_ifdetach(ifp, bpf)
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
-SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RD,
+SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
 	    &ether_ipfw,0,"Pass ether pkts through firewall");
 
 int
