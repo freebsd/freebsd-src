@@ -52,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)softdep.h	9.5 (McKusick) 2/11/98
- *	$Id:$
+ *	@(#)softdep.h	9.6 (McKusick) 2/25/99
+ *	$Id: softdep.h,v 1.6 1999/05/07 05:21:16 mckusick Exp $
  */
 
 #include <sys/queue.h>
@@ -517,6 +517,7 @@ struct mkdir {
 	struct	worklist md_list;	/* id_inowait or buffer holding dir */
 #	define	md_state md_list.wk_state /* type: MKDIR_PARENT or MKDIR_BODY */
 	struct	diradd *md_diradd;	/* associated diradd */
+	struct	buf *md_buf;		/* MKDIR_BODY: buffer holding dir */
 	LIST_ENTRY(mkdir) md_mkdirs;	/* list of all mkdirs */
 };
 LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
