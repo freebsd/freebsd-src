@@ -66,7 +66,6 @@ static d_poll_t apmpoll;
 
 static struct cdevsw apm_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	apmopen,
 	.d_close =	apmclose,
 	.d_write =	apmwrite,
@@ -333,20 +332,26 @@ acpi_SetDefaultIntrModel(int model)
 int
 acpi_machdep_quirks(int *quirks)
 {
-    char *va;
-    int year;
+	char *va;
+	int year;
 
-    /* BIOS address 0xffff5 contains the date in the format mm/dd/yy. */
-    va = pmap_mapdev(0xffff0, 16);
-    sscanf(va + 11, "%2d", &year);
-    pmap_unmapdev((vm_offset_t)va, 16);
+	/* BIOS address 0xffff5 contains the date in the format mm/dd/yy. */
+	va = pmap_mapdev(0xffff0, 16);
+	sscanf(va + 11, "%2d", &year);
+	pmap_unmapdev((vm_offset_t)va, 16);
 
-    /* 
-     * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
-     * check must be changed by my 114th birthday.
-     */
-    if (year > 90 && year < 99)
-	*quirks = ACPI_Q_BROKEN;
+	/* 
+	 * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
+	 * check must be changed by my 114th birthday.
+	 */
+	if (year > 90 && year < 99)
+		*quirks = ACPI_Q_BROKEN;
 
-    return (0);
+	return (0);
+}
+
+void
+acpi_cpu_c1()
+{
+	__asm __volatile("sti; hlt");
 }

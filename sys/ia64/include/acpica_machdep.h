@@ -75,4 +75,6 @@ extern int	acpi_release_global_lock(uint32_t *lock);
 #define COMPILER_DEPENDENT_INT64       long
 #define COMPILER_DEPENDENT_UINT64      unsigned long
 
+void	acpi_cpu_c1(void);
+
 #endif /* __ACPICA_MACHDEP_H__ */
