@@ -333,7 +333,7 @@ This command is typically run on a slice such as
 .if n This form corresponds to the "write label" command described above.  
 In addition to writing a new volume label, it also installs the bootstrap.
 If run on a base disk this command will create a ``dangerously-dedicated''
-label.  This command is normally run on a slice rather then a base disk.
+label.  This command is normally run on a slice rather than a base disk.
 .Pp
 .Nm disklabel
 .Fl R
@@ -349,7 +349,7 @@ label.  This command is normally run on a slice rather then a base disk.
 .if n This form corresponds to the "restore label" command described above.  
 In addition to restoring the volume label, it also installs the bootstrap.
 If run on a base disk this command will create a ``dangerously-dedicated''
-label.  This command is normally run on a slice rather then a base disk.
+label.  This command is normally run on a slice rather than a base disk.
 .Pp
 The bootstrap commands always access the disk directly, so it is not necessary
 to specify the
@@ -409,14 +409,14 @@ to initialize a virgin FreeBSD disklabel and install FreeBSD boot blocks .
 .It
 Use
 .Ar disklabel
-to edit your newly created label, addiing appropriate partitions.
+to edit your newly created label, adding appropriate partitions.
 .It
 Finally newfs the filesystem partitions you created in the label.  A typical
-disklabel partiioning scheme would be to have an ``a'' partition 
+disklabel partitioning scheme would be to have an ``a'' partition 
 of approximately 128MB to hold the root filesystem, a ``b'' partition for
 swap, a ``d'' partition for /var (usually 128MB), an ``e'' partition
 for /var/tmp (usually 128MB), an ``f'' partition for /usr (usually around 2G),
-and finally a ``g'' partition for /home (usally all remaining space).
+and finally a ``g'' partition for /home (usually all remaining space).
 Your mileage may vary.
 .El
 .Pp
@@ -528,6 +528,7 @@ For file systems only, the block size.
 For UFS file systems, the number of cylinders in a cylinder group.  For LFS file
 systems, the segment shift value.
 .El
+.Pp
 The remainder of the line is a comment and shows the cylinder allocations based
 on the obsolete (but possibly correct) geometry information about the drive.
 The asterisk (*) indicates that the partition does not begin or end exactly on a
