@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.294 1996/11/15 18:36:21 jkh Exp $
+#	$Id: LINT,v 1.295 1996/11/16 01:09:19 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -899,7 +899,6 @@ controller	ahc0
 options	AHC_TAGENABLE
 
 # enable SCB paging - See the ahc.4 man page
-# WARNING: with AHC_TAGENABLE set can be dangerous on Adaptec 2842
 options	AHC_SCBPAGING_ENABLE
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
