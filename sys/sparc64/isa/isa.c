@@ -41,6 +41,7 @@
 #include <isa/isavar.h>
 #include <isa/isa_common.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/resource.h>
@@ -111,7 +112,7 @@ isa_init(device_t dev)
 
 	/* The parent of the bus must be a PCI-ISA bridge. */
 	bridge = device_get_parent(dev);
-	isab_node = ofw_pci_get_node(bridge);
+	isab_node = ofw_bus_get_node(bridge);
 	nbr = OF_getprop_alloc(isab_node, "ranges", sizeof(*br), (void **)&br);
 	if (nbr <= 0)
 		panic("isa_init: cannot get bridge range property");

@@ -35,7 +35,6 @@ INTERFACE ofw_pci;
 CODE {
 	static ofw_pci_intr_pending_t ofw_pci_default_intr_pending;
 	static ofw_pci_get_bus_handle_t ofw_pci_default_get_bus_handle;
-	static ofw_pci_get_node_t ofw_pci_default_get_node;
 	static ofw_pci_adjust_busrange_t ofw_pci_default_adjust_busrange;
 
 	static int
@@ -52,13 +51,6 @@ CODE {
 
 		return (OFW_PCI_GET_BUS_HANDLE(device_get_parent(dev), type,
 		    childhdl, tag));
-	}
-
-	static phandle_t
-	ofw_pci_default_get_node(device_t bus, device_t dev)
-	{
-
-		return (0);
 	}
 
 	static void
@@ -84,15 +76,6 @@ METHOD bus_space_handle_t get_bus_handle {
 	bus_space_handle_t childhdl;
 	bus_space_tag_t *tag;
 } DEFAULT ofw_pci_default_get_bus_handle;
-
-# Get the firmware node for the device dev on the bus. The default method will
-# return 0, which signals that there is no such node.
-# This could be an ivar, but isn't to avoid numbering conflicts with standard
-# pci/pcib ones.
-METHOD phandle_t get_node {
-	device_t bus;
-	device_t dev;
-} DEFAULT ofw_pci_default_get_node;
 
 # Make sure that all PCI bridges up in the hierarchy contain this bus in their
 # subordinate bus range. This is required because we reenumerate all PCI

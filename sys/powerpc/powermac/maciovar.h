@@ -31,29 +31,6 @@
 #define _MACIO_MACIOVAR_H_
 
 /*
- * Accessors for macio devices
- */
-
-enum macio_ivars {
-        MACIO_IVAR_NODE,
-        MACIO_IVAR_NAME,
-	MACIO_IVAR_DEVTYPE,
-        MACIO_IVAR_NREGS,
-        MACIO_IVAR_REGS,
-};
-
-#define MACIO_ACCESSOR(var, ivar, type)                                 \
-        __BUS_ACCESSOR(macio, var, MACIO, ivar, type)
-
-MACIO_ACCESSOR(node,            NODE,                   phandle_t)
-MACIO_ACCESSOR(name,            NAME,                   char *)
-MACIO_ACCESSOR(devtype,         DEVTYPE,                char *)
-MACIO_ACCESSOR(nregs,           NREGS,                  u_int)
-MACIO_ACCESSOR(regs,            REGS,                   struct macio_reg *)
-
-#undef MACIO_ACCESSOR
-
-/*
  * The addr space size
  * XXX it would be better if this could be determined by querying the
  *     PCI device, but there isn't an access method for this
@@ -72,14 +49,14 @@ struct macio_reg {
  * Per macio device structure.
  */
 struct macio_devinfo {
+	char	  *mdi_compat;
+	char	  *mdi_model;
+	char	  *mdi_name;
 	phandle_t  mdi_node;
-	char      *mdi_name;
-	char      *mdi_device_type;
+	char	  *mdi_type;
 	int        mdi_interrupts[5];
 	int	   mdi_ninterrupts;
 	int        mdi_base;
-	int        mdi_nregs;
-	struct macio_reg *mdi_regs;
 	struct resource_list mdi_resources;
 };
 

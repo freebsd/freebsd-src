@@ -294,6 +294,7 @@ MFILES?= kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
     dev/iicbus/iicbus_if.m isa/isa_if.m \
     libkern/iconv_converter_if.m \
     dev/acpica/acpi_if.m dev/eisa/eisa_if.m dev/mii/miibus_if.m \
+    dev/ofw/ofw_bus_if.m \
     dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
     dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
     dev/usb/usb_if.m dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \

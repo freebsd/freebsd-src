@@ -33,6 +33,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -56,14 +57,19 @@ static device_method_t fhc_nexus_methods[] = {
 	/* Bus interface. */
 	DEVMETHOD(bus_print_child,	fhc_print_child),
 	DEVMETHOD(bus_probe_nomatch,	fhc_probe_nomatch),
-	DEVMETHOD(bus_read_ivar,	fhc_read_ivar),
-	DEVMETHOD(bus_write_ivar,	fhc_write_ivar),
 	DEVMETHOD(bus_setup_intr,	fhc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	fhc_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	fhc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	fhc_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+
+        /* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_compat,	fhc_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	fhc_get_model),
+	DEVMETHOD(ofw_bus_get_name,	fhc_get_name),
+	DEVMETHOD(ofw_bus_get_node,	fhc_get_node),
+	DEVMETHOD(ofw_bus_get_type,	fhc_get_type),
 
 	{ NULL, NULL }
 };

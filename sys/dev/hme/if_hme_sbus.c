@@ -51,8 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/socket.h>
 
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
-#include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 
@@ -131,9 +132,9 @@ MODULE_DEPEND(hme, ether, 1, 1, 1);
 static int
 hme_sbus_probe(device_t dev)
 {
-	char *name;
+	const char *name;
 
-	name = sbus_get_name(dev);
+	name = ofw_bus_get_name(dev);
 	if (strcmp(name, "SUNW,qfe") == 0 ||
 	    strcmp(name, "SUNW,hme") == 0) {
 		device_set_desc(dev, "Sun HME 10/100 Ethernet");
