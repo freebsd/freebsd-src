@@ -101,6 +101,7 @@ int sm_check_hostname(struct svc_req *req, char *arg)
 struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
 {
   static sm_stat_res res;
+  struct sockaddr_in *claddr;
   static int err;
 
   err = 1;
@@ -116,7 +117,9 @@ struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
 	    res.res_stat = stat_succ;
     else
     {
-      syslog(LOG_ERR, "invalid hostname to sm_stat: %s", arg->mon_name);
+      claddr = svc_getcaller(req->rq_xprt);
+      syslog(LOG_ERR, "invalid hostname to sm_stat from %s: %s",
+	  inet_ntoa(claddr->sin_addr), arg->mon_name);
       res.res_stat = stat_fail;
     }
   }
