@@ -410,7 +410,7 @@ printf("uselib: Page aligned binary %lu\n", file_offset);
 	    goto cleanup;
     }
 #ifdef DEBUG
-printf("mem=%08lx = %08lx %08lx\n", vmaddr, ((long*)vmaddr)[0], ((long*)vmaddr)[1]);
+printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long*)vmaddr)[0], ((long*)vmaddr)[1]);
 #endif
     if (bss_size != 0) {
         /*
