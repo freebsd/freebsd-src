@@ -701,8 +701,11 @@ debug_vn_lock(vp, flags, td, filename, line)
 			    "vn_lock", 0);
 			error = ENOENT;
 		} else {
+#if 0
+			/* this can now occur in normal operation */
 			if (vp->v_vxproc != NULL)
 				log(LOG_INFO, "VXLOCK interlock avoided in vn_lock\n");
+#endif
 #ifdef	DEBUG_LOCKS
 			vp->filename = filename;
 			vp->line = line;

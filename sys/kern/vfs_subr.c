@@ -1648,7 +1648,10 @@ vget(vp, flags, td)
 		mtx_lock(&vp->v_interlock);
 	if (vp->v_flag & VXLOCK) {
 		if (vp->v_vxproc == curthread) {
+#if 0
+			/* this can now occur in normal operation */
 			log(LOG_INFO, "VXLOCK interlock avoided\n");
+#endif
 		} else {
 			vp->v_flag |= VXWANT;
 			msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
