@@ -4,18 +4,18 @@
 # modems -- modem configuration data base file
 # see tip(1), modems(5)
 #
-# dial_command	         AT command to dial up remote
-# echo_off_command       AT command to turn off command echo
-# escape_guard_time      Shroud escape sequence with specified delay (ms)
-# escape_sequence        Return to command escape sequence
-# hangup_command         AT command to hangup modem
-# hw_flow_control        Enable RTS/CTS flow control between DTE/DCE
-# intercharacter_delay   Delay between characters sent to modem when issuing
-#                        commands
-# intercommand_delay     Minimum delay between commands to modem
-# init_string            AT command to initialize modem before dialing out
-# lock_baud              Use fixed DTE / DCE bit rate
-# reset_delay            Delay required by modem for reset
+# dial_command		AT command to dial up remote
+# echo_off_command	AT command to turn off command echo
+# escape_guard_time	Shroud escape sequence with specified delay (ms)
+# escape_sequence	Return to command escape sequence
+# hangup_command	AT command to hangup modem
+# hw_flow_control	Enable RTS/CTS flow control between DTE/DCE
+# intercharacter_delay	Delay between characters sent to modem when issuing
+#			commands
+# intercommand_delay	Minimum delay between commands to modem
+# init_string		AT command to initialize modem before dialing out
+# lock_baud		Use fixed DTE / DCE bit rate
+# reset_delay		Delay required by modem for reset
 #
 
 sportster|st|US Robotics Sportster 14.4K:dial_command=ATDT%s\r:hangup_command=ATH\r:\

@@ -32,9 +32,9 @@
 # Floppy formats:
 #
 # To make a filesystem on a floppy:
-#    fdformat [-f <size>] fd<drive>[.<size>]
-#    disklabel -r -w fd<drive>[.<size>] fd<size>
-#    newfs fd<drive>[.<size>]
+#	fdformat [-f <size>] fd<drive>[.<size>]
+#	disklabel -r -w fd<drive>[.<size>] fd<size>
+#	newfs fd<drive>[.<size>]
 #
 
 fd360:\
@@ -110,7 +110,7 @@ mk156|toshiba156|Toshiba MK156 156Mb:\
 	:dt=SCSI:ty=winchester:se#512:nt#10:ns#35:nc#825:\
 	:pa#15748:oa#0:ba#4096:fa#512:ta=4.2BSD:\
 	:pb#15748:ob#15748:tb=swap:\
-        :pc#288750:oc#0:\
+	:pc#288750:oc#0:\
 	:ph#257250:oh#31500:bh#4096:fh#512:th=4.2BSD:	
 
 cp3100|Connor Peripherals 100MB IDE:\
