@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1998/11/06 22:14:08 des Exp $
+#	$Id: Makefile,v 1.8 1998/11/07 08:59:38 des Exp $
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
@@ -41,11 +41,11 @@ httperr.inc: http.errors
 	  | while read NUM CAT STRING; do \
 	    echo "    { $${NUM}, FETCH_$${CAT}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { -1, FETCH_UNKNOWN, \"Unknown FTP error\" }" >> ${.TARGET}
+	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
 fetch_err.c fetch_err.h: fetch_err.et
-	compile_et ${.ALLSRC}
+	compile_et -lang c ${.ALLSRC}
 
 .include <bsd.lib.mk>
 
