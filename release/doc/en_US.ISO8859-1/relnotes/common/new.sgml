@@ -109,7 +109,7 @@
     <title>Kernel Changes</title>
 
     <para arch="pc98">Support for the CanBe power management
-      controller has been added.</para>
+      controller has been added. &merged;</para>
 
     <para>&man.devfs.5; is now mandatory; the
       <literal>NODEVFS</literal> option has been removed from the set of
@@ -164,7 +164,10 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>A bug in TCP NewReno, which caused premature exit from
+	fast recovery when NewReno was enabled, has been
+	fixed. &merged;</para>
+
     </sect3>
 
     <sect3>
@@ -288,12 +291,20 @@
     <para>The MAKEDEV script is now unnecessary, due to the mandatory
       presence of &man.devfs.5;, and has been removed.</para>
 
+    <para>The &man.libgeom.3; library has been added to allow some
+      userland access to the &man.geom.4; subsystem.</para>
+
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
       to finish before beginning a new one.  This feature is designed
       to prevent system overloads caused by starting several
       compression jobs on big files simultaneously. &merged;</para>
+
+    <para>&man.pam.ssh.8; has been rewritten.  One side effect of the
+      rewrite is that it now starts a separate instance of
+      &man.ssh-agent.1; for each session instead of trying to connect
+      each session to the agent started by the first session.</para>
 
     <para>&man.ping.8; now supports a <option>-D</option> flag to set
       the <quote>Don't Fragment</quote> bit on outgoing packets.</para>
@@ -320,6 +331,10 @@
 	  experimental.</para>
       </note>
     </para>
+
+    <para>&man.syslogd.8; now allows multiple hosts or programs to be
+      named in host or program specifications in &man.syslog.conf.5;
+      files.</para>
 
     <para>&man.systat.1; now includes an <option>-ifstat</option>
       display mode that displays the network traffic going through
@@ -364,7 +379,7 @@
         devices.</para>
 
       <para><application>sendmail</application> has been updated to
-        version 8.12.7.</para>
+        version 8.12.7. &merged;</para>
 
       <para>&man.tcpdump.1; now supports a <option>-L</option> flag to
 	list the data link types available on an interface and a
