@@ -66,10 +66,15 @@ ports-all
 
 # These are the individual collections that make up "ports-all".  If you
 # use these, be sure to comment out "ports-all" above.
+#
+# Be sure to ALWAYS cvsup the ports-base collection if you use any of the
+# other individual collections below. ports-base is a mandatory collection
+# for the ports collection, and your ports may not build correctly if it
+# is not kept up to date.
+#ports-base
 #ports-archivers
 #ports-astro
 #ports-audio
-#ports-base
 #ports-benchmarks
 #ports-biology
 #ports-cad
