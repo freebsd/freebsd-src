@@ -90,6 +90,8 @@
 
 #include <pci/if_sisreg.h>
 
+MODULE_DEPEND(sis, miibus, 1, 1, 1);
+
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
