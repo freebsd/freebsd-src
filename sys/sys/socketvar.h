@@ -401,7 +401,7 @@ int	solisten(struct socket *so, int backlog, struct thread *td);
 struct socket *
 	sonewconn(struct socket *head, int connstatus);
 int	sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen);
-int	sooptcopyout(struct sockopt *sopt, void *buf, size_t len);
+int	sooptcopyout(struct sockopt *sopt, const void *buf, size_t len);
 
 /* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
 int	soopt_getm(struct sockopt *sopt, struct mbuf **mp);
