@@ -141,15 +141,16 @@ netfinger(name)
 		int lastc = '\n';
 
 		while ((c = getc(fp)) != EOF) {
-			c &= 0x7f;
 			if (c == 0x0d) {
 				if (lastc == '\r')	/* ^M^M - skip dupes */
 					continue;
 				c = '\n';
 				lastc = '\r';
 			} else {
-				if (!isprint(c) && !isspace(c))
+				if (!isprint(c) && !isspace(c)) {
+					c &= 0x7f;
 					c |= 0x40;
+				}
 				if (lastc != '\r' || c != '\n')
 					lastc = c;
 				else {
