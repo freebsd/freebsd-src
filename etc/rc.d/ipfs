@@ -15,14 +15,7 @@ name="ipfs"
 rcvar=`set_rcvar`
 start_cmd="ipfs_start"
 stop_cmd="ipfs_stop"
-case ${OSTYPE} in
-FreeBSD)
-	start_precmd="ipfs_prestart"
-	;;
-NetBSD)
-	ipfs_program="/usr/sbin/ipfs"
-	;;
-esac
+start_precmd="ipfs_prestart"
 
 ipfs_prestart()
 {

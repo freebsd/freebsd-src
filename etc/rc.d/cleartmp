@@ -32,15 +32,9 @@ cleartmp_start()
 load_rc_config $name
 run_rc_command "$1"
 
-case ${OSTYPE} in
-FreeBSD)
-	# Remove X lock files, since they will prevent you from
-	# restarting X
-	#
-	rm -f /tmp/.X*-lock
-	rm -fr /tmp/.X11-unix
-	mkdir -m 1777 /tmp/.X11-unix
-	;;
-NetBSD)
-	;;
-esac
+# Remove X lock files, since they will prevent you from
+# restarting X
+#
+rm -f /tmp/.X*-lock
+rm -fr /tmp/.X11-unix
+mkdir -m 1777 /tmp/.X11-unix

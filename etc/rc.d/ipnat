@@ -14,15 +14,6 @@
 name="ipnat"
 rcvar=`set_rcvar`
 load_rc_config $name
-
-case ${OSTYPE} in
-NetBSD)
-	ipnat_flags=
-	ipnat_rules="/etc/ipnat.conf"
-	ipnat_program="/usr/sbin/ipnat"
-	;;
-esac
-
 start_precmd="ipnat_precmd"
 start_cmd="ipnat_start"
 stop_cmd="${ipnat_program} -F -C"
@@ -31,16 +22,6 @@ extra_commands="reload"
 
 ipnat_precmd()
 {
-	case ${OSTYPE} in
-	NetBSD)
-		if ! checkyesno ipfilter || [ ! -f /etc/ipf.conf ]; then
-			echo "Enabling ipfilter for NAT."
-			/sbin/ipf -E -Fa
-		fi
-		return 0
-		;;
-	esac
-
 	# Make sure ipfilter is loaded before continuing
 	if ! ${SYSCTL} net.inet.ipf.fr_pass >/dev/null 2>&1; then
 		if kldload ipl; then

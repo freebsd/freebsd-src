@@ -17,20 +17,12 @@
 . /etc/network.subr
 
 name="dhclient"
+rcvar=
 pidfile="/var/run/${name}.pid"
-case "${OSTYPE}" in
-FreeBSD)
-	rcvar=
-	start_precmd="dhclient_prestart"
-	start_postcmd="dhclient_poststart"
-	stop_precmd="dhclient_prestop"
-	stop_postcmd="dhclient_poststop"
-	;;
-NetBSD)
-	rcvar=$name
-	command="/sbin/${name}"
-	;;
-esac
+start_precmd="dhclient_prestart"
+start_postcmd="dhclient_poststart"
+stop_precmd="dhclient_prestop"
+stop_postcmd="dhclient_poststop"
 
 dhclient_common()
 {

@@ -14,15 +14,7 @@
 name="bootparamd"
 rcvar=`set_rcvar`
 required_files="/etc/bootparams"
-
-case ${OSTYPE} in
-FreeBSD)
-	command="/usr/sbin/${name}"
-	;;
-NetBSD)
-	command="/usr/sbin/rpc.${name}"
-	;;
-esac
+command="/usr/sbin/${name}"
 
 load_rc_config $name
 run_rc_command "$1"

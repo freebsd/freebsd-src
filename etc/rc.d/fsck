@@ -34,18 +34,12 @@ fsck_start()
 		trap : 3
 
 		echo "Starting file system checks:"
-		case ${OSTYPE} in
-		FreeBSD)
-			if checkyesno background_fsck; then
-				fsck -F -p
-			else
-				fsck -p
-			fi
-			;;
-		NetBSD)
+		if checkyesno background_fsck; then
+			fsck -F -p
+		else
 			fsck -p
-			;;
-		esac
+		fi
+		;;
 
 		case $? in
 		0)
@@ -60,8 +54,6 @@ fsck_start()
 			stop_boot
 			;;
 		8)
-		case ${OSTYPE} in
-		FreeBSD)
 			if checkyesno fsck_y_enable; then
 				echo "File system preen failed, trying fsck -y."
 				fsck -y
@@ -78,12 +70,6 @@ fsck_start()
 				stop_boot
 			fi
 			;;
-		NetBSD)
-			echo "Automatic file system check failed; help!"
-			stop_boot
-			;;
-		esac
-		;;
 		12)
 			echo "Boot interrupted."
 			stop_boot
