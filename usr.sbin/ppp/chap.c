@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.51 1999/06/02 15:58:55 brian Exp $
+ * $Id: chap.c,v 1.52 1999/06/09 08:47:29 brian Exp $
  *
  *	TODO:
  */
@@ -543,7 +543,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   struct chap *chap = &p->dl->chap;
   char *name, *key, *ans;
   int len, nlen;
-  u_char alen, end;
+  u_char alen;
 #ifdef HAVE_DES
   int lanman;
 #endif
@@ -694,6 +694,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         nlen = strlen(name);
 #ifndef NORADIUS
         if (*bundle->radius.cfg.file) {
+          u_char end;
+
           end = chap->challenge.local[*chap->challenge.local+1];
           chap->challenge.local[*chap->challenge.local+1] = '\0';
           radius_Authenticate(&bundle->radius, &chap->auth,
