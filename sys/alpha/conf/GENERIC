@@ -116,8 +116,8 @@ device		sio1	at isa0 port IO_COM2 irq 3 flags 0x50
 # PCI Ethernet NICs.
 device		de0		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device		wx0		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		le0		# Lance
+device		wx0		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus0		# MII bus support
@@ -154,5 +154,6 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ulpt0		# Printer
 #device		umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
+# USB Ethernet
 #device		aue0		# ADMtek USB ethernet
 #device		kue0		# Kawasaki LSI USB ethernet
