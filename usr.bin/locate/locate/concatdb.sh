@@ -30,7 +30,7 @@
 #
 # Sequence of databases is important.
 #
-# $Id$
+# $Id: concatdb.sh,v 1.5 1997/02/22 19:55:45 peter Exp $
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR=/usr/libexec}; export LIBEXECDIR
@@ -39,7 +39,7 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 
 umask 077			# protect temp files
 
-: ${TMPDIR=/tmp}; export TMPDIR; 
+TMPDIR=${TMPDIR:-/tmp}; export TMPDIR;
 if test X"$TMPDIR" = X -o ! -d "$TMPDIR"; then
 	TMPDIR=/tmp; export TMPDIR
 fi
