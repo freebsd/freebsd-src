@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: msg.c,v 1.4 1994/06/01 05:14:19 asami Exp $";
+static const char *rcsid = "$Id: msg.c,v 1.5 1995/05/30 03:50:06 rgrimes Exp $";
 #endif
 
 /*
@@ -99,5 +99,3 @@ y_or_n(Boolean def, const char *msg, ...)
     fclose(tty) ;
     return (ch == 'Y') ? TRUE : FALSE;
 }
-
-
