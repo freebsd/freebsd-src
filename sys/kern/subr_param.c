@@ -91,14 +91,6 @@ u_quad_t	sgrowsiz;			/* amount to grow stack */
 struct	buf *swbuf;
 
 /*
- * Total number of shared mutexes to protect all lockmgr locks.
- */
-#ifndef	LOCKMUTEX
-#define LOCKMUTEX	10
-#endif
-int	lock_nmtx = LOCKMUTEX;
-
-/*
  * Boot time overrides
  */
 void

@@ -781,6 +781,7 @@ kern/kern_malloc.c	standard
 kern/kern_mib.c		standard
 kern/kern_module.c	standard
 kern/kern_mutex.c	standard
+kern/kern_mtxpool.c	standard
 kern/kern_ntptime.c	standard
 kern/kern_physio.c	standard
 kern/kern_proc.c	standard
