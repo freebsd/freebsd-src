@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.137 1997/08/18 06:54:18 peter Exp $
+#	$Id: Makefile,v 1.138 1997/08/21 15:16:07 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -452,6 +452,8 @@ includes:
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} all installhdrs symlinks
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
+	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libobjc &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libstdc++ &&	${MAKE} beforeinstall
@@ -467,6 +469,7 @@ includes:
 	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libdisk &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
@@ -475,6 +478,7 @@ includes:
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/lib/libopie &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
@@ -487,7 +491,10 @@ includes:
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libvgl &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libz &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/usr.bin/f2c &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/usr.bin/lex &&		${MAKE} beforeinstall
 
 #
 # lib-tools - build tools to compile and install the libraries.
