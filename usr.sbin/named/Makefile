@@ -1,5 +1,6 @@
-# $Id: Makefile,v 1.19 1998/05/03 05:25:09 peter Exp $
+# $Id: Makefile,v 1.20 1998/06/04 07:25:52 bde Exp $
 
+USE_LIBBIND=	true
 .include "${.CURDIR}/Makefile.inc"
 
 .PATH:	${BIND_DIR}/bin/named
