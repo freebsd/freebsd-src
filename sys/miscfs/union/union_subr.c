@@ -807,8 +807,10 @@ union_copyup(un, docopy, cred, p)
 			(void) VOP_CLOSE(lvp, FREAD, cred, p);
 			(void) VOP_OPEN(uvp, FREAD, cred, p);
 		}
-		if (vn_canvmio(uvp) == TRUE)
-			error = vfs_object_create(uvp, p, cred);
+		if (un->un_openl) {
+			if (vn_canvmio(uvp) == TRUE)
+				error = vfs_object_create(uvp, p, cred);
+		}
 		un->un_openl = 0;
 	}
 
