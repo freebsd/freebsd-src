@@ -255,12 +255,11 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		    newtag->dt_lowaddr);
 		newtag->dt_highaddr = ulmax(parent->dt_highaddr,
 		    newtag->dt_highaddr);
-		/*
-		 * XXX Not really correct??? Probably need to honor boundary
-		 *     all the way up the inheritence chain.
-		 */
-		newtag->dt_boundary = ulmin(parent->dt_boundary,
-		    newtag->dt_boundary);
+                if (newtag->dt_boundary == 0)
+                        newtag->dt_boundary = parent->dt_boundary;
+                else if (parent->dt_boundary != 0)            
+			newtag->dt_boundary = ulmin(parent->dt_boundary,
+			    newtag->dt_boundary);
 		atomic_add_int(&parent->dt_ref_count, 1);
 	}
 
