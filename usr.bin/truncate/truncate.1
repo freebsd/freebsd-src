@@ -37,9 +37,9 @@
 .Bk -words
 .Fl s Xo
 .Sm off
-.Op + | -
+.Op Cm + | -
 .Ar size
-.Op K | M | G
+.Op Cm K | M | G
 .Sm on
 .Xc
 .Ek
@@ -69,20 +69,20 @@ Truncate files to the length of the file
 .Ar rfile .
 .It Fl s Xo
 .Sm off
-.Op + | -
+.Op Cm + | -
 .Ar size
-.Op K | M | G
+.Op Cm K | M | G
 .Sm on
 .Xc
 If the
 .Ar size
 argument is preceded by a plus sign
-.Pq Sq + ,
+.Pq Cm + ,
 files will be extended by this number of bytes.
 If the
 .Ar size
 argument is preceded by a dash
-.Pq Sq - ,
+.Pq Cm - ,
 file lengths will be reduced by no more than this number of bytes,
 to a minimum length of zero bytes.
 Otherwise, the
@@ -93,9 +93,10 @@ should be extended or reduced as appropriate.
 The
 .Ar size
 argument may be suffixed with one of
-.Sq K ,
-.Sq M ,
-.Sq G
+.Cm K ,
+.Cm M
+or
+.Cm G
 to indicate a multiple of
 Kilobytes, Megabytes or Gigabytes
 respectively.
