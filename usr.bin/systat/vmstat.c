@@ -472,7 +472,7 @@ showkre()
 	putfloat(avenrun[1], STATROW, STATCOL + 23, 6, 2, 0);
 	putfloat(avenrun[2], STATROW, STATCOL + 29, 6, 2, 0);
 	mvaddstr(STATROW, STATCOL + 53, buf);
-#define pgtokb(pg)	((pg) * s.v_page_size / 1024)
+#define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
 	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 8);
 	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 11, 8);
 	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 19, 9);
