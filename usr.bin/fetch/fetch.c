@@ -24,14 +24,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -655,7 +655,7 @@ main(int argc, char *argv[])
 	int c, e, r;
 
 	while ((c = getopt(argc, argv,
-	    "146AaB:bc:dFf:Hh:lMmnPpo:qRrS:sT:tUvw:")) != EOF)
+	    "146AaB:bc:dFf:Hh:lMmnPpo:qRrS:sT:tUvw:")) != -1)
 		switch (c) {
 		case '1':
 			once_flag = 1;
@@ -693,7 +693,7 @@ main(int argc, char *argv[])
 			f_filename = optarg;
 			break;
 		case 'H':
-			warnx("The -H option is now implicit, "
+			warnx("the -H option is now implicit, "
 			    "use -U to disable");
 			break;
 		case 'h':
