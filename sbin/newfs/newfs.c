@@ -211,6 +211,7 @@ main(argc, argv)
 	register int ch;
 	register struct partition *pp;
 	register struct disklabel *lp;
+	struct disklabel mfsfakelabel;
 	struct disklabel *getdisklabel();
 	struct partition oldpartition;
 	struct stat st;
@@ -356,6 +357,35 @@ main(argc, argv)
 		usage();
 
 	special = argv[0];
+	/* Copy the NetBSD way of faking up a disk label */
+        if (mfs && !strcmp(special, "swap")) {
+                /* 
+                 * it's an MFS, mounted on "swap."  fake up a label.
+                 * XXX XXX XXX
+                 */
+                fso = -1;       /* XXX; normally done below. */
+ 
+                memset(&mfsfakelabel, 0, sizeof(mfsfakelabel));
+                mfsfakelabel.d_secsize = 512;
+                mfsfakelabel.d_nsectors = 64;
+                mfsfakelabel.d_ntracks = 16;
+                mfsfakelabel.d_ncylinders = 16; 
+                mfsfakelabel.d_secpercyl = 1024;
+                mfsfakelabel.d_secperunit = 16384;
+                mfsfakelabel.d_rpm = 3600;
+                mfsfakelabel.d_interleave = 1;
+                mfsfakelabel.d_npartitions = 1;
+                mfsfakelabel.d_partitions[0].p_size = 16384;
+                mfsfakelabel.d_partitions[0].p_fsize = 1024;
+                mfsfakelabel.d_partitions[0].p_frag = 8;
+                mfsfakelabel.d_partitions[0].p_cpg = 16;
+
+                lp = &mfsfakelabel;
+                pp = &mfsfakelabel.d_partitions[0];
+
+                goto havelabel;
+        }
+
 	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
@@ -430,6 +460,7 @@ main(argc, argv)
 			fatal("%s: `%c' partition overlaps boot program",
 			      argv[0], *cp);
 	}
+havelabel:
 	if (fssize == 0)
 		fssize = pp->p_size;
 	if (fssize > pp->p_size && !mfs)
