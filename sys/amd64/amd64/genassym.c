@@ -37,8 +37,6 @@
  * $FreeBSD$
  */
 
-#include "opt_user_ldt.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
@@ -115,10 +113,7 @@ ASSYM(PCB_EBX, offsetof(struct pcb, pcb_ebx));
 ASSYM(PCB_EIP, offsetof(struct pcb, pcb_eip));
 ASSYM(TSS_ESP0, offsetof(struct i386tss, tss_esp0));
 
-#ifdef USER_LDT
 ASSYM(PCB_USERLDT, offsetof(struct pcb, pcb_ldt));
-#endif
-
 ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
 ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
 ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));
@@ -177,10 +172,7 @@ ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
 ASSYM(GD_SWITCHTICKS, offsetof(struct globaldata, gd_switchticks));
 ASSYM(GD_COMMON_TSSD, offsetof(struct globaldata, gd_common_tssd));
 ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
-
-#ifdef USER_LDT
 ASSYM(GD_CURRENTLDT, offsetof(struct globaldata, gd_currentldt));
-#endif
 
 ASSYM(GD_WITNESS_SPIN_CHECK, offsetof(struct globaldata, gd_witness_spin_check));
 

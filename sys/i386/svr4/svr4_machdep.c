@@ -503,7 +503,7 @@ svr4_sys_sysarch(p, v)
 	struct svr4_sys_sysarch_args *v;
 {
 	struct svr4_sys_sysarch_args *uap = v;
-#ifdef USER_LDT
+#if 0	/* USER_LDT */
 #if defined(__NetBSD__)
 	caddr_t sg = stackgap_init(p->p_emul);
 #else
@@ -511,12 +511,13 @@ svr4_sys_sysarch(p, v)
 #endif
 	int error;
 #endif
+
 	switch (uap->op) {
 	case SVR4_SYSARCH_FPHW:
 		return 0;
 
 	case SVR4_SYSARCH_DSCR:
-#ifdef USER_LDT
+#if 0	/* USER_LDT */
 #warning "USER_LDT doesn't work - are you sure you want this?"
 		{
 			struct i386_set_ldt_args sa, *sap;
