@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.84 1997/10/24 22:36:30 brian Exp $
+ * $Id: main.c,v 1.85 1997/10/26 01:03:14 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -173,14 +173,13 @@ TtyOldMode()
 void
 Cleanup(int excode)
 {
-  OsLinkdown();
-  OsCloseLink(1);
+  OsInterfaceDown(1);
+  HangupModem(1);
   nointr_sleep(1);
   if (mode & MODE_AUTO)
     DeleteIfRoutes(1);
   (void) unlink(pid_filename);
   (void) unlink(if_filename);
-  OsInterfaceDown(1);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
 
@@ -800,7 +799,6 @@ DoLoop()
 	  reconnectState = RECON_UNKNOWN;
 	  tries = 0;
 	} else {
-	  CloseModem();
 	  if (mode & MODE_BACKGROUND) {
 	    if (VarNextPhone == NULL || res == EX_SIG)
 	      Cleanup(EX_DIAL);	/* Tried all numbers - no luck */

@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.34 1997/10/24 22:36:27 brian Exp $
+ * $Id: chat.c,v 1.35 1997/10/26 01:02:22 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -638,9 +638,6 @@ DoChat(char *script)
 	SendString(*argv++);
       break;
     case ABORT:
-#ifdef notdef
-      HangupModem();
-#endif
     case NOMATCH:
       signal(SIGINT, oint);
       return (NOMATCH);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.59 1997/10/24 22:36:31 brian Exp $
+ * $Id: modem.c,v 1.60 1997/10/26 01:03:24 brian Exp $
  *
  *  TODO:
  */
@@ -75,6 +75,8 @@ static struct pppTimer ModemTimer;
 static struct mbuf *modemout;
 static struct mqueue OutputQueues[PRI_LINK + 1];
 static int dev_is_modem;
+
+static void CloseLogicalModem(void);
 
 void
 Enqueue(struct mqueue * queue, struct mbuf * bp)
@@ -266,22 +268,13 @@ IntToSpeed(int nspeed)
 }
 
 static time_t uptime;
+u_long OctetsIn, OctetsOut;
 
 void
 DownConnection()
 {
-  char ScriptBuffer[200];
-
   LogPrintf(LogPHASE, "Disconnected!\n");
-  if (uptime)
-    LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
-  uptime = 0;
-  strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
-  DoChat(ScriptBuffer);
-  if (!TermMode) {
-    CloseModem();
-    LcpDown();
-  }
+  LcpDown();
 }
 
 /*
@@ -309,10 +302,7 @@ ModemTimeout()
     change = ombits ^ mbits;
     if (change & TIOCM_CD) {
       if (Online) {
-	time(&uptime);
-	LogPrintf(LogPHASE, "*Connected!\n");
-	connect_count++;
-
+        LogPrintf(LogDEBUG, "ModemTimeout: offline -> online\n");
 	/*
 	 * In dedicated mode, start packet mode immediate after we detected
 	 * carrier.
@@ -320,18 +310,17 @@ ModemTimeout()
 	if (mode & MODE_DEDICATED)
 	  PacketMode();
       } else {
+        LogPrintf(LogDEBUG, "ModemTimeout: online -> offline\n");
 	reconnect(RECON_TRUE);
 	DownConnection();
       }
     }
+    else
+      LogPrintf(LogDEBUG, "ModemTimeout: Still %sline\n",
+                Online ? "on" : "off");
   } else if (!Online) {
     /* mbits was set to zero in OpenModem() */
-    time(&uptime);
-    LogPrintf(LogPHASE, "Connected!\n");
     mbits = TIOCM_CD;
-    connect_count++;
-  } else if (uptime == 0) {
-    time(&uptime);
   }
 }
 
@@ -426,7 +415,7 @@ OpenConnection(char *host, char *port)
       return (-1);
     }
   }
-  LogPrintf(LogPHASE, "Connected to %s:%s\n", host, port);
+  LogPrintf(LogPHASE, "Connecting to %s:%s\n", host, port);
 
   sock = socket(PF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
@@ -486,6 +475,15 @@ UnlockModem()
     LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
 }
 
+static void
+HaveModem()
+{
+  time(&uptime);
+  OctetsIn = OctetsOut = 0;
+  connect_count++;
+  LogPrintf(LogPHASE, "Connected!\n");
+}
+
 static struct termios modemios;
 
 int
@@ -499,6 +497,7 @@ OpenModem(int mode)
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (mode & MODE_DIRECT) {
+    HaveModem();
     if (isatty(0)) {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
       cp = ttyname(0);
@@ -511,6 +510,7 @@ OpenModem(int mode)
     } else {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
       SetVariable(0, 0, 0, VAR_DEVICE);
+      /* We don't call ModemTimeout() with this type of connection */
       return modem = 0;
     }
   } else {
@@ -524,6 +524,7 @@ OpenModem(int mode)
 	UnlockModem();
 	return (-1);
       }
+      HaveModem();
       LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
     } else {
       /* PPP over TCP */
@@ -537,6 +538,7 @@ OpenModem(int mode)
 	  *cp = ':';		/* Don't destroy VarDevice */
 	  if (modem < 0)
 	    return (-1);
+          HaveModem();
           LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
 	} else {
 	  *cp = ':';		/* Don't destroy VarDevice */
@@ -597,7 +599,8 @@ OpenModem(int mode)
       if (ioctl(modem, TIOCMGET, &mbits)) {
         LogPrintf(LogERROR, "OpenModem: Cannot get modem status: %s\n",
 		  strerror(errno));
-        CloseModem();
+        uptime = 0;
+        CloseLogicalModem();
 	return (-1);
       }
     LogPrintf(LogDEBUG, "OpenModem: modem control = %o\n", mbits);
@@ -606,7 +609,8 @@ OpenModem(int mode)
     if (oldflag < 0) {
       LogPrintf(LogERROR, "OpenModem: Cannot get modem flags: %s\n",
 		strerror(errno));
-      CloseModem();
+      uptime = 0;
+      CloseLogicalModem();
       return (-1);
     }
     (void) fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
@@ -670,15 +674,50 @@ UnrawModem(int modem)
   }
 }
 
+void ModemAddInOctets(int n)
+{
+  OctetsIn += n;
+}
+
+void ModemAddOutOctets(int n)
+{
+  OctetsOut += n;
+}
+
+static void
+ClosePhysicalModem()
+{
+  close(modem);
+  if (uptime) {
+    LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
+    LogPrintf(LogPHASE, "Modem: %d octets in, %d octets out\n",
+              OctetsIn, OctetsOut);
+    OctetsIn = OctetsOut = 0;
+    uptime = 0;
+  }
+  modem = -1;			/* Mark modem as closed */
+}
+
 void
 HangupModem(int flag)
 {
   struct termios tio;
 
+  LogPrintf(LogDEBUG, "Hangup modem (%s), uptime %ld\n",
+            modem >= 0 ? "open" : "closed", (long)uptime);
+  StopTimer(&ModemTimer);
+
+  if (modem < 0)
+    return;
+
+  if (TermMode) {
+    LogPrintf(LogDEBUG, "HangupModem: Not in 'term' mode\n");
+    return;
+  }
+
   if (!isatty(modem)) {
     mbits &= ~TIOCM_DTR;
-    close(modem);
-    modem = -1;			/* Mark as modem has closed */
+    ClosePhysicalModem();
     return;
   }
 
@@ -697,13 +736,6 @@ HangupModem(int flag)
    * directed to quit program.
    */
   if (modem >= 0 && (flag || !(mode & MODE_DEDICATED))) {
-    ModemTimeout();		/* XXX */
-    StopTimer(&ModemTimer);	/* XXX */
-
-    /*
-     * ModemTimeout() may call DownConection() to close the modem resulting
-     * in modem == -1.
-     */
     if (modem >= 0) {
       char ScriptBuffer[200];
 
@@ -711,7 +743,7 @@ HangupModem(int flag)
       DoChat(ScriptBuffer);
       tcflush(modem, TCIOFLUSH);
       UnrawModem(modem);
-      CloseModem();
+      CloseLogicalModem();
     }
   } else if (modem >= 0) {
     char ScriptBuffer[200];
@@ -729,11 +761,11 @@ HangupModem(int flag)
   }
 }
 
-void
-CloseModem()
+static void
+CloseLogicalModem()
 {
   if (modem >= 0) {
-    close(modem);
+    ClosePhysicalModem();
     if (Utmp) {
       struct utmp ut;
       strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
@@ -741,12 +773,11 @@ CloseModem()
       if (logout(ut.ut_line))
         logwtmp(ut.ut_line, "", ""); 
       else
-        LogPrintf(LogERROR, "CloseModem: No longer logged in on %s\n",
+        LogPrintf(LogERROR, "CloseLogicalModem: No longer logged in on %s\n",
 		  ut.ut_line);
       Utmp = 0;
     }
     UnlockModem();
-    modem = -1;
   }
 }
 
