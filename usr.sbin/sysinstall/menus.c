@@ -210,10 +210,14 @@ DMenu MenuIndex = {
     NULL,
     { { " Anon FTP",		"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
       { " Commit",		"Commit any pending actions (dangerous!)", NULL, installCustomCommit },
+#ifdef WITH_SYSCONS
       { " Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
+#endif
       { " Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { " Defaults, Load",	"Load default settings.",		NULL, dispatch_load_floppy },
+#ifdef WITH_MICE
       { " Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
+#endif
       { " Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
       { " Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { " Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
@@ -238,7 +242,7 @@ DMenu MenuIndex = {
       { " Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { " Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { " Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
-#if defined(__i386__) || defined(__ia64__)
+#ifdef WITH_SLICES
       { " Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
 #endif
       { " Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
@@ -267,11 +271,14 @@ DMenu MenuIndex = {
       { " NTP Menu",		"The NTP configuration menu.",		NULL, dmenuSubmenu, NULL, &MenuNTP },
       { " Options",		"The options editor.",			NULL, optionsEditor },
       { " Packages",		"The packages collection",		NULL, configPackages },
+#ifdef WITH_SLICES
       { " Partition",		"The disk Slice (PC-style partition) Editor",	NULL, diskPartitionEditor },
+#endif
       { " PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { " Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { " Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router_enable" },
       { " Security",		"Configure system security options", NULL, dmenuSubmenu, NULL, &MenuSecurity },
+#ifdef WITH_SYSCONS
       { " Syscons",		"The system console configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
 #ifndef PC98
       { " Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
@@ -283,6 +290,7 @@ DMenu MenuIndex = {
       { " Syscons, Screenmap",	"The console screenmap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
       { " Syscons, Ttys",       "The console terminal type menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsTtys },
 #endif
+#endif /* WITH_SYSCONS */
       { " Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "tzsetup" },
       { " TTYs",		"Configure system ttys.",		NULL, configEtcTtys, NULL, "ttys" },
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
@@ -316,7 +324,9 @@ DMenu MenuInitial = {
       { " Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
       { "Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "Doc",	"Installation instructions, README, etc.",	NULL, dmenuSubmenu, NULL, &MenuDocumentation },
+#ifdef WITH_SYSCONS
       { "Keymap",	"Select keyboard type",				NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+#endif
       { "Options",	"View/Set various installation options",	NULL, optionsEditor },
       { "Fixit",	"Repair mode with CDROM/DVD/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
@@ -349,6 +359,7 @@ DMenu MenuDocumentation = {
       { NULL } },
 };
 
+#ifdef WITH_MICE
 DMenu MenuMouseType = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 #ifdef PC98
@@ -467,6 +478,7 @@ DMenu MenuMouse = {
       { "6 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
       { NULL } },
 };
+#endif /* WITH_MICE */
 
 DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -1327,7 +1339,7 @@ DMenu MenuInstallCustom = {
     "INSTALL",
     { { "X Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { "2 Options",		"View/Set various installation options", NULL, optionsEditor },
-#if defined(__alpha__) || defined(__sparc64__)
+#ifndef WITH_SLICES
       { "3 Label",		"Label disk partitions",		NULL, diskLabelEditor },
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
@@ -1401,7 +1413,7 @@ DMenu MenuConfigure = {
 	NULL, configPackages },
       { " Root Password", "Set the system manager's password",
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
-#if defined(__i386__) || defined(__ia64__)
+#ifdef WITH_SLICES
       { " Fdisk",	"The disk Slice (PC-style partition) Editor",
 	NULL, diskPartitionEditor },
 #endif
@@ -1409,14 +1421,18 @@ DMenu MenuConfigure = {
 	NULL, diskLabelEditor },
       { " User Management",	"Add user and group information",
 	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
+#ifdef WITH_SYSCONS
       { " Console",	"Customize system console behavior",
 	NULL,	dmenuSubmenu, NULL, &MenuSyscons },
+#endif
       { " Time Zone",	"Set which time zone you're in",
 	NULL,	dmenuSystemCommand, NULL, "tzsetup" },
       { " Media",	"Change the installation media type",
 	NULL,	dmenuSubmenu, NULL, &MenuMedia },
+#ifdef WITH_MICE
       { " Mouse",	"Configure your mouse",
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
+#endif
       { " Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
       { " Security",	"Configure system security options",
@@ -1482,19 +1498,19 @@ DMenu MenuStartup = {
 	dmenuVarCheck, dmenuToggleVariable, NULL, "accounting_enable=YES" },
       { " lpd",		"This host has a printer and wants to run lpd.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "lpd_enable=YES" },
+#ifdef WITH_LINUX
       { " linux",	"This host wants to be able to run linux binaries.",
 	dmenuVarCheck, configLinux, NULL, VAR_LINUX_ENABLE "=YES" },
+#endif
 #ifdef __i386__
       { " SCO",		"This host wants to be able to run IBCS2 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "ibcs2_enable=YES" },
-#endif
-#if defined(__i386__) || defined(__sparc64__)
       { " SVR4",	"This host wants to be able to run SVR4 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "svr4_enable=YES" },
 #endif
 #ifdef __alpha__
       { " OSF/1",	"This host wants to be able to run DEC OSF/1 binaries.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "osf1_enable=YES" },
+	dmenuVarCheck, configOSF1, NULL, VAR_OSF1_ENABLE "=YES" },
 #endif
       { " quotas",	"This host wishes to check quotas on startup.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
@@ -2011,6 +2027,7 @@ DMenu MenuNTP = {
       { NULL } },
 };
 
+#ifdef WITH_SYSCONS
 DMenu MenuSyscons = {
     DMENU_NORMAL_TYPE,
     "System Console Configuration",
@@ -2262,6 +2279,7 @@ DMenu MenuSysconsFont = {
       { NULL } },
 };
 #endif /* PC98 */
+#endif /* WITH_SYSCONS */
 
 DMenu MenuUsermgmt = {
     DMENU_NORMAL_TYPE,
