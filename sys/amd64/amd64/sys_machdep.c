@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.30 1997/11/26 22:45:47 joerg Exp $
+ *	$Id: sys_machdep.c,v 1.31 1997/12/27 03:00:59 peter Exp $
  *
  */
 
@@ -253,7 +253,7 @@ done:
 #ifdef USER_LDT
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
- * current process.
+ * current process.  Do not staticize.
  */   
 void
 set_user_ldt(struct pcb *pcb)

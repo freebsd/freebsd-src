@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.14 1997/12/06 13:23:15 bde Exp $
+ * $Id: stallion.c,v 1.15 1997/12/16 17:40:09 eivind Exp $
  */
 
 /*****************************************************************************/
@@ -434,8 +434,8 @@ static int	stl_cd1400clkdivs[] = {
  *	externally visible functions.
  */
 
-int	stlprobe(struct isa_device *idp);
-int	stlattach(struct isa_device *idp);
+static int	stlprobe(struct isa_device *idp);
+static int	stlattach(struct isa_device *idp);
 
 STATIC	d_open_t	stlopen;
 STATIC	d_close_t	stlclose;
@@ -567,7 +567,7 @@ SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,stl_drvinit,NULL)
  *	they are done in the stlpciprobe() routine).
  */
 
-int stlprobe(struct isa_device *idp)
+static int stlprobe(struct isa_device *idp)
 {
 	unsigned int	status;
 
@@ -624,7 +624,7 @@ static int stl_findfreeunit()
  *	Allocate resources for and initialize the specified board.
  */
 
-int stlattach(struct isa_device *idp)
+static int stlattach(struct isa_device *idp)
 {
 	stlbrd_t	*brdp;
 

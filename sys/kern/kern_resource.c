@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.30 1998/01/19 12:39:00 bde Exp $
+ * $Id: kern_resource.c,v 1.31 1998/02/04 18:43:10 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -58,8 +58,8 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-int	donice __P((struct proc *curp, struct proc *chgp, int n));
-int	dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
+static int donice __P((struct proc *curp, struct proc *chgp, int n));
+static int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 /*
  * Resource controls and accounting.
@@ -186,7 +186,7 @@ setpriority(curp, uap)
 	return (error);
 }
 
-int
+static int
 donice(curp, chgp, n)
 	register struct proc *curp, *chgp;
 	register int n;
@@ -360,7 +360,7 @@ setrlimit(p, uap)
 	return (dosetrlimit(p, uap->which, &alim));
 }
 
-int
+static int
 dosetrlimit(p, which, limp)
 	struct proc *p;
 	u_int which;

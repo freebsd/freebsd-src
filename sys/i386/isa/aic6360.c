@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.35 1997/10/26 21:08:39 nate Exp $
+ * $Id: aic6360.c,v 1.36 1997/11/20 15:48:23 nate Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -706,7 +706,7 @@ static struct scsi_device aic_dev = {
 #include <pccard/slot.h>
 
 static int aicinit(struct pccard_devinfo *);		/* init device */
-void aicunload(struct pccard_devinfo *);		/* Disable driver */
+static void aicunload(struct pccard_devinfo *);		/* Disable driver */
 static int aic_card_intr(struct pccard_devinfo *);	/* Interrupt handler */
 
 static struct pccard_device aic_info = {
@@ -759,7 +759,7 @@ aicinit(struct pccard_devinfo *devi)
  * and ensure that any driver entry points such as
  * read and write do not hang.
  */
-void
+static void
 aicunload(struct pccard_devinfo *devi)
 {
 	printf("aic%d: unload\n", devi->isahd.id_unit);

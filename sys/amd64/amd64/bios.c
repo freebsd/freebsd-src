@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.8 1997/11/07 08:52:26 phk Exp $
+ *      $Id: bios.c,v 1.9 1998/01/01 13:26:55 msmith Exp $
  */
 
 /*
@@ -43,9 +43,9 @@
 #define BIOS_SIZE	0x20000
 
 /* exported lookup results */
-struct bios32_SDentry	PCIbios = {entry : 0};
-struct SMBIOS_table	*SMBIOStable = 0;
-struct DMI_table	*DMItable = 0;
+struct bios32_SDentry		PCIbios = {entry : 0};
+static struct SMBIOS_table	*SMBIOStable = 0;
+static struct DMI_table		*DMItable = 0;
 
 static caddr_t		bios32_SDCI = NULL;
 

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.16 1998/02/04 22:33:58 eivind Exp $
+ * $Id: vm_zone.c,v 1.17 1998/02/06 12:14:29 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -49,8 +49,8 @@ static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
  * zalloci, zfreei, are the interrupt/lock safe allocation/free routines.
  */
 
-struct vm_zone *zlist;
-int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
+static struct vm_zone *zlist;
+static int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
 
 /*
  * Create a zone, but don't allocate the zone structure.  If the
@@ -363,7 +363,7 @@ _zget(vm_zone_t z)
 	return item;
 }
 
-int
+static int
 sysctl_vm_zone SYSCTL_HANDLER_ARGS
 {
 	int error=0;

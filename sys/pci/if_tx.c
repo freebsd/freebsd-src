@@ -100,7 +100,7 @@
  */
 static u_long epic_pci_count;
 static epic_softc_t * epics[EPIC_MAX_DEVICES];
-struct pci_device txdevice = { 
+static struct pci_device txdevice = { 
 	"tx",
 	epic_pci_probe,
 	epic_pci_attach,

@@ -171,7 +171,7 @@
 #define ENOTHER_RAW	0x04		/* 'raw' access  (aka boodi mode) */
 #define ENOTHER_SWSL	0x08		/* in software service list */
 
-int en_dma = EN_DMA;			/* use DMA (switch off for dbg) */
+static int en_dma = EN_DMA;		/* use DMA (switch off for dbg) */
 
 /*
  * autoconfig attachments

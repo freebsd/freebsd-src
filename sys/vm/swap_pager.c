@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.86 1998/02/04 22:33:41 eivind Exp $
+ * $Id: swap_pager.c,v 1.87 1998/02/06 12:14:21 eivind Exp $
  */
 
 /*
@@ -110,7 +110,7 @@ static struct swpclean swap_pager_inuse;
 
 /* list of free pager clean structs */
 static struct swpclean swap_pager_free;
-int swap_pager_free_count;
+static int swap_pager_free_count;
 
 /* list of "named" anon region objects */
 static struct pagerlst swap_pager_object_list;

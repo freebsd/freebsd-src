@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.63 1997/12/15 01:14:10 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.64 1997/12/15 02:18:20 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -265,7 +265,7 @@ static struct {
 /* Bitmap of all available CPUs */
 u_int	all_cpus;
 
-/* AP uses this PTD during bootstrap */
+/* AP uses this PTD during bootstrap.  Do not staticize.  */
 pd_entry_t *bootPTD;
 
 /* Hotwire a 0->4MB V==P mapping */
@@ -689,10 +689,10 @@ static int default_data[7][5] =
 
 
 /* the bus data */
-bus_datum bus_data[NBUS];
+static bus_datum bus_data[NBUS];
 
 /* the IO INT data, one entry per possible APIC INTerrupt */
-io_int  io_apic_ints[NINTR];
+static io_int  io_apic_ints[NINTR];
 
 static int nintrs;
 
@@ -1984,12 +1984,13 @@ int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
 
 /* XXX maybe should be hw.ncpu */
-int smp_cpus = 1;	/* how many cpu's running */
+static int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_machdep, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
 
 int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
 SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
 
+/* Warning: Do not staticize.  Used from swtch.s */
 int do_page_zero_idle = 0; /* bzero pages for fun and profit in idleloop */
 SYSCTL_INT(_machdep, OID_AUTO, do_page_zero_idle, CTLFLAG_RW,
 	   &do_page_zero_idle, 0, "");
@@ -2092,6 +2093,7 @@ putfmtrr()
 #define CHECKSTATE_SYS	1
 #define CHECKSTATE_INTR	2
 
+/* Do not staticize.  Used from apic_vector.s */
 struct proc*	checkstate_curproc[NCPU];
 int		checkstate_cpustate[NCPU];
 u_long		checkstate_pc[NCPU];

@@ -36,11 +36,11 @@ int             sound_started = 0;
 
 int             sndtable_get_cardcount(void);
 int             snd_find_driver(int type);
-void            sndtable_init(void);
+static void     sndtable_init(void);
 int             sndtable_probe(int unit, struct address_info * hw_config);
 int             sndtable_init_card(int unit, struct address_info * hw_config);
-int             sndtable_identify_card(char *name);
-void            sound_chconf(int card_type, int ioaddr, int irq, int dma);
+static int      sndtable_identify_card(char *name);
+static void     sound_chconf(int card_type, int ioaddr, int irq, int dma);
 static void     start_services(void);
 static void     start_cards(void);
 struct address_info *sound_getconf(int card_type);
@@ -115,7 +115,7 @@ start_cards()
 	printf("Sound initialization complete\n");
 }
 
-void
+static void
 sndtable_init()
 {
     start_cards();
@@ -242,7 +242,7 @@ sndtable_get_cardcount(void)
     return num_audiodevs + num_mixers + num_synths + num_midis;
 }
 
-int
+static int
 sndtable_identify_card(char *name)
 {
     int  i, n = num_sound_drivers;
@@ -262,7 +262,7 @@ sndtable_identify_card(char *name)
     return 0;
 }
 
-void
+static void
 sound_chconf(int card_type, int ioaddr, int irq, int dma)
 {
     int   j, ptr = -1, n = num_sound_cards;

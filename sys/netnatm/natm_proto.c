@@ -53,7 +53,7 @@ extern	struct domain natmdomain;
 
 static	void natm_init __P((void));
 
-struct protosw natmsw[] = {
+static struct protosw natmsw[] = {
 { SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL5, PR_CONNREQUIRED,
   0,	0,	0,	0,
 #ifdef FREEBSD_USRREQS
@@ -98,13 +98,13 @@ struct protosw natmsw[] = {
 },
 };
 
-struct domain natmdomain =
+static struct domain natmdomain =
     { AF_NATM, "natm", natm_init, 0, 0, 
       natmsw, &natmsw[sizeof(natmsw)/sizeof(natmsw[0])], 0,
       0, 0, 0};
 
 struct	ifqueue natmintrq;       	/* natm packet input queue */
-int	natmqmaxlen = IFQ_MAXLEN;	/* max # of packets on queue */
+static int natmqmaxlen = IFQ_MAXLEN;	/* max # of packets on queue */
 #ifdef NATM_STAT
 u_int natm_sodropcnt = 0;		/* # mbufs dropped due to full sb */
 u_int natm_sodropbytes = 0;		/* # of bytes dropped */

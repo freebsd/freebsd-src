@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.47 1998/02/04 22:33:03 eivind Exp $
+ *	$Id: route.c,v 1.48 1998/02/06 12:13:48 eivind Exp $
  */
 
 #include "opt_inet.h"
@@ -724,7 +724,7 @@ rt_fixdelete(rn, vp)
  * changes this way.
  */
 #ifdef DEBUG
-int rtfcdebug = 0;
+static int rtfcdebug = 0;
 #endif
 
 static int

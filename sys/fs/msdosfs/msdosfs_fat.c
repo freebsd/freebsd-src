@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.14 1998/02/04 22:33:00 eivind Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.15 1998/02/06 12:13:46 eivind Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -69,15 +69,15 @@
 /*
  * Fat cache stats.
  */
-int fc_fileextends;		/* # of file extends			 */
-int fc_lfcempty;		/* # of time last file cluster cache entry
+static int fc_fileextends;	/* # of file extends			 */
+static int fc_lfcempty;		/* # of time last file cluster cache entry
 				 * was empty */
-int fc_bmapcalls;		/* # of times pcbmap was called		 */
+static int fc_bmapcalls;		/* # of times pcbmap was called		 */
 
 #define	LMMAX	20
-int fc_lmdistance[LMMAX];	/* counters for how far off the last
+static int fc_lmdistance[LMMAX];/* counters for how far off the last
 				 * cluster mapped entry was. */
-int fc_largedistance;		/* off by more than LMMAX		 */
+static int fc_largedistance;	/* off by more than LMMAX		 */
 
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	(FAT12(pmp) ? (cn) * 3 / 2 : (cn) * 2)

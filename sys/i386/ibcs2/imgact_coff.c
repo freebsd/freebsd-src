@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.27 1997/09/21 04:22:29 dyson Exp $
+ *	$Id: imgact_coff.c,v 1.28 1997/12/27 02:56:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,8 +53,8 @@
 
 extern struct sysentvec ibcs2_svr3_sysvec;
 
-extern int coff_load_file __P((struct proc *p, char *name));
-extern int exec_coff_imgact __P((struct image_params *imgp));
+static int coff_load_file __P((struct proc *p, char *name));
+static int exec_coff_imgact __P((struct image_params *imgp));
 
 static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 
@@ -148,7 +148,7 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 	return error;
 }
 
-int
+static int
 coff_load_file(struct proc *p, char *name)
 {
   	struct vmspace *vmspace = p->p_vmspace;
@@ -283,7 +283,7 @@ coff_load_file(struct proc *p, char *name)
   	return error;
 }
 
-int
+static int
 exec_coff_imgact(imgp)
 	struct image_params *imgp;
 {
@@ -475,5 +475,5 @@ exec_coff_imgact(imgp)
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-const struct execsw coff_execsw = { exec_coff_imgact, "coff" };
+static const struct execsw coff_execsw = { exec_coff_imgact, "coff" };
 TEXT_SET(execsw_set, coff_execsw);

@@ -104,7 +104,7 @@ extern int getchar __P((void));
 	extern u_short *Crtat;
 #endif /* PCVT_NETBSD */
 
-unsigned	__debug = 0; /*0xffe */
+static unsigned	__debug = 0; /*0xffe */
 static		__color;
 static		nrow;
 
@@ -780,7 +780,7 @@ pcmmap(Dev_t dev, int offset, int nprot)
 #if PCVT_KBD_FIFO
 
 u_char pcvt_kbd_fifo[PCVT_KBD_FIFO_SZ];
-int pcvt_kbd_wptr = 0;
+static int pcvt_kbd_wptr = 0;
 int pcvt_kbd_rptr = 0;
 short pcvt_kbd_count= 0;
 static u_char pcvt_timeout_scheduled = 0;

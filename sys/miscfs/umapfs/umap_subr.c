@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $Id: umap_subr.c,v 1.11 1997/08/02 14:32:24 bde Exp $
+ * $Id: umap_subr.c,v 1.12 1998/02/07 01:36:24 kato Exp $
  */
 
 #include <sys/param.h>
@@ -59,8 +59,8 @@
 
 #define	UMAP_NHASH(vp) \
 	(&umap_node_hashtbl[(((u_long)vp)>>LOG2_SIZEVNODE) & umap_node_hash])
-LIST_HEAD(umap_node_hashhead, umap_node) *umap_node_hashtbl;
-u_long umap_node_hash;
+static LIST_HEAD(umap_node_hashhead, umap_node) *umap_node_hashtbl;
+static u_long umap_node_hash;
 
 static u_long	umap_findid __P((u_long id, u_long map[][2], int nentries));
 static int	umap_node_alloc __P((struct mount *mp, struct vnode *lowervp,

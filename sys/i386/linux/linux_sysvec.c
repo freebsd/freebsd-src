@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.22 1998/02/04 22:32:28 eivind Exp $
+ *  $Id: linux_sysvec.c,v 1.23 1998/02/06 12:13:19 eivind Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -56,10 +56,14 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 
-int	linux_fixup __P((int **stack_base, struct image_params *iparams));
-int	elf_linux_fixup __P((int **stack_base, struct image_params *iparams));
-void	linux_prepsyscall __P((struct trapframe *tf, int *args, u_int *code, caddr_t *params));
-void    linux_sendsig __P((sig_t catcher, int sig, int mask, u_long code));
+static int	linux_fixup __P((int **stack_base,
+				 struct image_params *iparams));
+static int	elf_linux_fixup __P((int **stack_base,
+				     struct image_params *iparams));
+static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
+				       u_int *code, caddr_t *params));
+static void     linux_sendsig __P((sig_t catcher, int sig, int mask,
+				   u_long code));
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -94,7 +98,8 @@ int linux_to_bsd_signal[LINUX_NSIG] = {
 	SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGURG, SIGURG, 0
 };
 
-int linux_fixup(int **stack_base, struct image_params *imgp)
+static int
+linux_fixup(int **stack_base, struct image_params *imgp)
 {
 	int *argv, *envp;
 
@@ -109,7 +114,8 @@ int linux_fixup(int **stack_base, struct image_params *imgp)
 	return 0;
 }
 
-int elf_linux_fixup(int **stack_base, struct image_params *imgp)
+static int
+elf_linux_fixup(int **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
 	int *pos;
@@ -156,7 +162,7 @@ extern int _ucodesel, _udatasel;
  * specified pc, psl.
  */
 
-void
+static void
 linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 {
 	register struct proc *p = curproc;
@@ -349,7 +355,7 @@ linux_sigreturn(p, args)
 	return (EJUSTRETURN);
 }
 
-void
+static void
 linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 {
 	args[0] = tf->tf_ebx;
@@ -395,7 +401,7 @@ struct sysentvec elf_linux_sysvec = {
 /*
  * Installed either via SYSINIT() or via LKM stubs.
  */
-Elf32_Brandinfo linux_brand = {
+static Elf32_Brandinfo linux_brand = {
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.1",

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.6 1997/08/30 08:08:04 fsmp Exp $
+ *	$Id: intr_machdep.c,v 1.7 1997/09/28 15:48:34 mckay Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -83,7 +83,7 @@
 u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
-u_int*	intr_mptr[ICU_LEN];
+static u_int*	intr_mptr[ICU_LEN];
 int	intr_unit[ICU_LEN];
 
 static inthand_t *fastintr[ICU_LEN] = {

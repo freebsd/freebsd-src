@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.76 1998/02/04 22:33:37 eivind Exp $
+ * $Id: ufs_vnops.c,v 1.77 1998/02/06 12:14:19 eivind Exp $
  */
 
 #include "opt_quota.h"
@@ -2126,7 +2126,7 @@ ufs_missingop(ap)
 }
 
 /* Global vfs data structures for ufs. */
-vop_t **ufs_vnodeop_p;
+static vop_t **ufs_vnodeop_p;
 static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
@@ -2169,7 +2169,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 static struct vnodeopv_desc ufs_vnodeop_opv_desc =
 	{ &ufs_vnodeop_p, ufs_vnodeop_entries };
 
-vop_t **ufs_specop_p;
+static vop_t **ufs_specop_p;
 static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
@@ -2190,7 +2190,7 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 static struct vnodeopv_desc ufs_specop_opv_desc =
 	{ &ufs_specop_p, ufs_specop_entries };
 
-vop_t **ufs_fifoop_p;
+static vop_t **ufs_fifoop_p;
 static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
 	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },

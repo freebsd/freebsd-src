@@ -160,7 +160,7 @@ int atapi_attach (int ctlr, int unit, int port)
 #define PHASE_COMPLETED (ARI_IN | ARI_CMD)
 #define PHASE_ABORTED   0                       /* nonstandard - for NEC 260 */
 
-struct atapi atapitab[NWDC];
+static struct atapi atapitab[NWDC];
 
 static struct atapi_params *atapi_probe (int port, int unit);
 static int atapi_wait (int port, u_char bits_wanted);
