@@ -66,7 +66,7 @@ static db_varfcn_t db_show_local7;
 static int db_print_trap(struct trapframe *);
 
 extern char tl1_trap[];
-extern char tl0_trap_flushed[];
+extern char tl0_trap[];
 extern char tl0_trap_withstack[];
 extern char _start[];
 extern char _end[];
@@ -150,7 +150,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		if (name == NULL)
 			name = "(null)";
 		if (value == (u_long)tl1_trap ||
-		    value == (u_long)tl0_trap_flushed ||
+		    value == (u_long)tl0_trap ||
 		    value == (u_long)tl0_trap_withstack) {
 			nfp = db_get_value((db_addr_t)&fp->f_fp,
 			    sizeof(u_long), FALSE) + SPOFF;
@@ -180,7 +180,7 @@ db_print_trap(struct trapframe *tf)
 	db_printf("-- %s trap (%s) -- ", type & T_KERNEL ? "kernel" : "user",
 	    trap_msg[type & ~T_KERNEL]);
 	if ((type & T_KERNEL) == 0)
-		db_printf("tpc = %p, tnpc = %p ", tf->tf_tpc, tf->tf_tnpc);
+		db_printf("tpc=0x%lx, tnpc=0x%lx ", tf->tf_tpc, tf->tf_tnpc);
 	switch (type & ~T_KERNEL) {
 	case T_ALIGN:
 		mf = (struct mmuframe *)db_get_value((db_addr_t)&tf->tf_arg,
@@ -270,23 +270,3 @@ DB_SHOW_REG(local, 4)
 DB_SHOW_REG(local, 5)
 DB_SHOW_REG(local, 6)
 DB_SHOW_REG(local, 7)
-
-int
-db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
-{
-	return (-1);
-}
-
-
-int
-db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
-{
-	return (-1);
-}
-
-
-void
-db_md_list_watchpoints(void)
-{
-	return;
-}
