@@ -1245,13 +1245,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define PACKAGE_NAME "Heimdal"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Heimdal 0.6.1 (FreeBSD)"
+#define PACKAGE_STRING "Heimdal 0.6.3 (FreeBSD)"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "heimdal"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.6.1"
+#define PACKAGE_VERSION "0.6.3"
 
 /* Define if getlogin has POSIX flavour (and not BSD). */
 /* #undef POSIX_GETLOGIN */
@@ -1281,7 +1281,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "0.6.1"
+#define VERSION "0.6.3"
 
 /* Define if signal handlers return void. */
 #define VOID_RETSIGTYPE 1
