@@ -252,6 +252,10 @@
 	<literal>options APIC_IO</literal> kernel option has been
 	replaced by <literal>device apic</literal>.</para>
 
+      <para arch="pc98">Large changes have been made to the i386
+	machine-dependent code to improve interrupt routing and
+	handling.</para>
+
       <para arch="i386">An integer overflow that could cause kernel
         panics on PAE machines of certain large memory sizes has been
         corrected.</para>
@@ -259,7 +263,7 @@
       <para arch="i386,pc98">Floating point emulation in the kernel has
 	been removed.</para>
 
-      <para arch="i386">Problems with some Pentium 4 CPUs and some older
+      <para arch="i386,pc98">Problems with some Pentium 4 CPUs and some older
         Pentium Pro and Pentium II CPUs have been worked around.
         Typically these manifested themselves as memory corruption or
         unexplained crashes.</para>
