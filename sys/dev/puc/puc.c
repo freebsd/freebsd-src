@@ -1,3 +1,4 @@
+#define PUC_DEBUG
 /*	$NetBSD: puc.c,v 1.7 2000/07/29 17:43:38 jlam Exp $	*/
 
 /*-
@@ -94,54 +95,20 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+
+#define PUC_ENTRAILS	1
 #include <dev/puc/pucvar.h>
 
 #include <opt_puc.h>
 
-struct puc_softc {
-	const struct puc_device_description *sc_desc;
-
-	/* card-global dynamic data */
-	int			barmuxed;
-	int			irqrid;
-	struct resource		*irqres;
-	void			*intr_cookie;
-
-	struct {
-		struct resource	*res;
-	} sc_bar_mappings[PUC_MAX_BAR];
-
-	/* per-port dynamic data */
-        struct {
-		struct device	*dev;
-		/* filled in by bus_setup_intr() */
-		void		(*ihand)(void *);
-		void		*ihandarg;
-        } sc_ports[PUC_MAX_PORTS];
-};
 
 struct puc_device {
 	struct resource_list resources;
 	u_int serialfreq;
 };
 
-static int puc_pci_probe(device_t dev);
-static int puc_pci_attach(device_t dev);
 static void puc_intr(void *arg);
 
-static struct resource *puc_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
-static int puc_release_resource(device_t, device_t, int, int,
-    struct resource *);
-static int puc_get_resource(device_t, device_t, int, int, u_long *, u_long *);
-static int puc_setup_intr(device_t, device_t, struct resource *, int,
-    void (*)(void *), void *, void **);
-static int puc_teardown_intr(device_t, device_t, struct resource *,
-    void *);
-static int puc_read_ivar(device_t, device_t, int, uintptr_t *);
-
-static const struct puc_device_description *puc_find_description(uint32_t,
-    uint32_t, uint32_t, uint32_t);
 static void puc_config_superio(device_t);
 static void puc_config_win877(struct resource *);
 static int puc_find_free_unit(char *);
@@ -151,33 +118,11 @@ static void puc_print_win877(bus_space_tag_t, bus_space_handle_t, u_int,
 static void puc_print_resource_list(struct resource_list *);
 #endif
 
-static int
-puc_pci_probe(device_t dev)
-{
-	uint32_t v1, v2, d1, d2;
-	const struct puc_device_description *desc;
-
-	if ((pci_read_config(dev, PCIR_HEADERTYPE, 1) & 0x7f) != 0)
-		return (ENXIO);
-
-	v1 = pci_read_config(dev, PCIR_VENDOR, 2);
-	d1 = pci_read_config(dev, PCIR_DEVICE, 2);
-	v2 = pci_read_config(dev, PCIR_SUBVEND_0, 2);
-	d2 = pci_read_config(dev, PCIR_SUBDEV_0, 2);
-
-	desc = puc_find_description(v1, d1, v2, d2);
-	if (desc == NULL)
-		return (ENXIO);
-	device_set_desc(dev, desc->name);
-	return (0);
-}
-
-static int
-puc_pci_attach(device_t dev)
+int
+puc_attach(device_t dev, const struct puc_device_description *desc)
 {
 	char *typestr;
 	int bidx, childunit, i, irq_setup, rid;
-	uint32_t v1, v2, d1, d2;
 	struct puc_softc *sc;
 	struct puc_device *pdev;
 	struct resource *res;
@@ -185,11 +130,8 @@ puc_pci_attach(device_t dev)
 
 	sc = (struct puc_softc *)device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
-	v1 = pci_read_config(dev, PCIR_VENDOR, 2);
-	d1 = pci_read_config(dev, PCIR_DEVICE, 2);
-	v2 = pci_read_config(dev, PCIR_SUBVEND_0, 2);
-	d2 = pci_read_config(dev, PCIR_SUBDEV_0, 2);
-	sc->sc_desc = puc_find_description(v1, d1, v2, d2);
+	sc->sc_desc = desc;
+
 	if (sc->sc_desc == NULL)
 		return (ENXIO);
 
@@ -320,7 +262,7 @@ puc_pci_attach(device_t dev)
 		    sc->sc_desc->ports[i].type,
 		    sc->sc_desc->ports[i].bar,
 		    sc->sc_desc->ports[i].offset);
-		print_resource_list(&pdev->resources);
+		puc_print_resource_list(&pdev->resources);
 #endif
 		if (device_probe_and_attach(sc->sc_ports[i].dev) != 0) {
 			if (sc->barmuxed) {
@@ -358,7 +300,7 @@ puc_intr(void *arg)
 			(sc->sc_ports[i].ihand)(sc->sc_ports[i].ihandarg);
 }
 
-static const struct puc_device_description *
+const struct puc_device_description *
 puc_find_description(uint32_t vend, uint32_t prod, uint32_t svend, 
     uint32_t sprod)
 {
@@ -550,7 +492,7 @@ puc_print_resource_list(struct resource_list *rl)
 }
 #endif
 
-static struct resource *
+struct resource *
 puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
@@ -583,14 +525,14 @@ puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (retval);
 }
 
-static int
+int
 puc_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
 	return (0);
 }
 
-static int
+int
 puc_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
@@ -624,7 +566,7 @@ puc_get_resource(device_t dev, device_t child, int type, int rid,
 	return (ENXIO);
 }
 
-static int
+int
 puc_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 	       void (*ihand)(void *), void *arg, void **cookiep)
 {
@@ -645,7 +587,7 @@ puc_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 	return (ENXIO);
 }
 
-static int
+int
 puc_teardown_intr(device_t dev, device_t child, struct resource *r,
 		  void *cookie)
 {
@@ -663,7 +605,7 @@ puc_teardown_intr(device_t dev, device_t child, struct resource *r,
 	return (ENXIO);
 }
 
-static int
+int
 puc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
 	struct puc_device *pdev;
@@ -682,29 +624,5 @@ puc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	return (0);
 }
 
-static device_method_t puc_pci_methods[] = {
-    /* Device interface */
-    DEVMETHOD(device_probe,		puc_pci_probe),
-    DEVMETHOD(device_attach,		puc_pci_attach),
+devclass_t puc_devclass;
 
-    DEVMETHOD(bus_alloc_resource,	puc_alloc_resource),
-    DEVMETHOD(bus_release_resource,	puc_release_resource),
-    DEVMETHOD(bus_get_resource,		puc_get_resource),
-    DEVMETHOD(bus_read_ivar,		puc_read_ivar),
-    DEVMETHOD(bus_setup_intr,		puc_setup_intr),
-    DEVMETHOD(bus_teardown_intr,	puc_teardown_intr),
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
-    DEVMETHOD(bus_driver_added,		bus_generic_driver_added),
-    { 0, 0 }
-};
-
-static driver_t puc_pci_driver = {
-	"puc",
-	puc_pci_methods,
-	sizeof(struct puc_softc),
-};
-
-static devclass_t puc_devclass;
-
-DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
-DRIVER_MODULE(puc, cardbus, puc_pci_driver, puc_devclass, 0, 0);
