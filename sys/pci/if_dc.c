@@ -1176,7 +1176,7 @@ dc_setfilt_21143(sc)
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_crc_le(sc, (caddr_t)&etherbroadcastaddr);
+		h = dc_crc_le(sc, (caddr_t)ifp->if_broadcastaddr);
 		sp[h >> 4] |= 1 << (h & 0xF);
 	}
 
@@ -1372,7 +1372,7 @@ dc_setfilt_xircom(sc)
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_crc_le(sc, (caddr_t)&etherbroadcastaddr);
+		h = dc_crc_le(sc, (caddr_t)ifp->if_broadcastaddr);
 		sp[h >> 4] |= 1 << (h & 0xF);
 	}
 
