@@ -50,36 +50,46 @@ struct rpb {
 	u_int64_t	rpb_max_asn;		/*  38:   (16) */
 	char		rpb_ssn[16];		/*  40: only first 10 valid */
 
-#define	ST_ADU			1		/* Alpha Demo. Unit (?) */
-#define	ST_DEC_4000		2		/* "Cobra" (?) */
-#define	ST_DEC_7000		3		/* "Ruby" (?) */
+#define	ST_ADU			1		/* Alpha Demo. Unit */
+#define	ST_DEC_4000		2		/* "Cobra/Fang" (?) */
+#define	ST_DEC_7000		3		/* "Ruby/Laser" (?) */
 #define	ST_DEC_3000_500		4		/* "Flamingo" family (TC) */
+						/* 5 = "Mannequin" simulator */
 #define	ST_DEC_2000_300		6		/* "Jensen" (EISA/ISA) */
 #define	ST_DEC_3000_300		7		/* "Pelican" (TC) */
 #define	ST_AVALON_A12		8		/* XXX Avalon Multicomputer */
-#define	ST_DEC_2100_A500	9		/* "Sable" (?) */
-#define	ST_DEC_APXVME_64	10		/* "AXPvme" (VME?) */
-#define	ST_DEC_AXPPCI_33	11		/* "NoName" (PCI/ISA) */
+#define	ST_DEC_2100_A500	9		/* "Sable" (EISA/PCI) */
+#define	ST_DEC_APXVME_64	10		/* "AXPvme" (VME) */
+#define	ST_DEC_AXPPCI_33	11		/* "NoName" (PCI/ISA/PCMCIA) */
 #define	ST_DEC_21000		12		/* "TurboLaser" (PCI/EISA) */
 #define	ST_DEC_2100_A50		13		/* "Avanti" (PCI/ISA) */
 #define	ST_DEC_MUSTANG		14		/* "Mustang" (?) */
-#define	ST_DEC_KN20AA		15		/* kn20aa (PCI/EISA) */
-#define	ST_DEC_1000		17		/* "Mikasa" (PCI/ISA?) */
+#define	ST_DEC_KN20AA		15		/* "Alcor" (PCI/EISA) */
+						/* 16 = cancelled */
+#define	ST_DEC_1000		17		/* "Mikasa" (PCI/EISA) */
+#define ST_DEC_EB64		18		/* EB64 (PCI/ISA?) */
 #define	ST_EB66			19		/* EB66 (PCI/ISA?) */
 #define	ST_EB64P		20		/* EB64+ (PCI/ISA?) */
 #define	ST_ALPHABOOK1		21		/* Alphabook (?) */
 #define	ST_DEC_4100		22		/* "Rawhide" (PCI/EISA) */
-#define	ST_DEC_EV45_PBP		23		/* "Lego" (?) */
-#define	ST_DEC_2100A_A500	24		/* "Lynx" (?) */
+#define	ST_DEC_EV45_PBP		23		/* "K2" (PCI/ISA) */
+#define	ST_DEC_2100A_A500	24		/* "Lynx" (EISA/PCI) */
+#define ST_DEC_ALPHAXL		25		/* AlphaXL (PCI/ISA) */
 #define	ST_EB164		26		/* EB164 (PCI/ISA) */
-#define	ST_DEC_1000A		27		/* "Noritake" (?) */
-#define	ST_DEC_ALPHAVME_224	28		/* "Cortex" (?) */
+#define	ST_DEC_1000A		27		/* "Noritake" (PCI/EISA) */
+#define	ST_DEC_ALPHAVME_224	28		/* "Cortex" (VME) */
+						/* 29 = unused */
 #define	ST_DEC_550		30		/* "Miata" (PCI/ISA) */
-#define	ST_DEC_EV56_PBP		32		/* "Takara" (?) */
-#define	ST_DEC_ALPHAVME_320	33		/* "Yukon" (VME?) */
-#define	ST_DEC_6600		34		/* "Monet/Goldrush" */
-#define	ST_DEC_CUSCO		36		/* "CUSCO" */
+#define ST_DEC_XXM		31		/* "XXM" ?? */
+#define	ST_DEC_EV56_PBP		32		/* "Takara" (PCI/ISA) */
+#define	ST_DEC_ALPHAVME_320	33		/* "Yukon" (VME) */
+#define	ST_DEC_6600		34		/* "Tsunami/Typhoon" (PCI) */
+#define ST_DEC_WILDFIRE		35		/* "Wildfire" (PCI)" */
+#define	ST_DEC_CUSCO		36		/* "Cusco" */
 #define	ST_DEC_EIGER		37		/* "Eiger" */
+#define ST_DEC_TITAN		38		/* "Titan" ES45 (PCI) */
+#define ST_DEC_MARVEL		39		/* "Marvel" (PCI) */
+						/* 40 = "Phoenix" (cPCI) */
 
 /*
  * System types for Alpha Processor Inc. machines
