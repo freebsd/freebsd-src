@@ -352,7 +352,7 @@ sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("sigreturn: rflags = 0x%x\n", rflags);
+		printf("sigreturn: rflags = 0x%lx\n", rflags);
 		return (EINVAL);
 	}
 

@@ -562,7 +562,8 @@ trap_fatal(frame, eva)
 	struct trapframe *frame;
 	vm_offset_t eva;
 {
-	int code, type, ss, esp;
+	int code, type, ss;
+	long esp;
 	struct soft_segment_descriptor softseg;
 
 	code = frame->tf_err;
@@ -574,13 +575,13 @@ trap_fatal(frame, eva)
 			type, trap_msg[type],
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 	if (type == T_PAGEFLT) {
-		printf("fault virtual address	= 0x%x\n", eva);
+		printf("fault virtual address	= 0x%lx\n", eva);
 		printf("fault code		= %s %s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
-	printf("instruction pointer	= 0x%x:0x%x\n",
+	printf("instruction pointer	= 0x%lx:0x%lx\n",
 	       frame->tf_cs & 0xffff, frame->tf_rip);
         if (ISPL(frame->tf_cs) == SEL_UPL) {
 		ss = frame->tf_ss & 0xffff;
@@ -589,9 +590,9 @@ trap_fatal(frame, eva)
 		ss = GSEL(GDATA_SEL, SEL_KPL);
 		esp = (long)&frame->tf_rsp;
 	}
-	printf("stack pointer	        = 0x%x:0x%x\n", ss, esp);
-	printf("frame pointer	        = 0x%x:0x%x\n", ss, frame->tf_rbp);
-	printf("code segment		= base 0x%x, limit 0x%x, type 0x%x\n",
+	printf("stack pointer	        = 0x%x:0x%lx\n", ss, esp);
+	printf("frame pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rbp);
+	printf("code segment		= base 0x%lx, limit 0x%x, type 0x%x\n",
 	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
 	printf("			= DPL %d, pres %d, long %d, def32 %d, gran %d\n",
 	       softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_long, softseg.ssd_def32,
@@ -605,7 +606,7 @@ trap_fatal(frame, eva)
 		printf("nested task, ");
 	if (frame->tf_rflags & PSL_RF)
 		printf("resume, ");
-	printf("IOPL = %d\n", (frame->tf_rflags & PSL_IOPL) >> 12);
+	printf("IOPL = %ld\n", (frame->tf_rflags & PSL_IOPL) >> 12);
 	printf("current process		= ");
 	if (curproc) {
 		printf("%lu (%s)\n",
