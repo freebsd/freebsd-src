@@ -108,8 +108,6 @@
  *
  */
 
-#include "ctx.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -130,8 +128,6 @@ static int     waitvb(int port);
 
 /* state flags */
 #define   OPEN        (0x01)	/* device is open */
-
-#define   UNIT(x) ((x) & 0x07)
 
 static int	ctxprobe(struct isa_device *devp);
 static int	ctxattach(struct isa_device *devp);
@@ -168,7 +164,7 @@ static struct cdevsw ctx_cdevsw = {
  *  Per unit shadow registers (because the dumb hardware is RO)
 */
 
-static struct ctx_soft_registers {
+struct ctx_soft_registers {
 	u_char *lutp;
 	u_char  cp0;
 	u_char  cp1;
@@ -176,7 +172,7 @@ static struct ctx_soft_registers {
 	int     iobase;
 	caddr_t maddr;
 	int     msize;
-}       ctx_sr[NCTX];
+};
 
 
 static int
@@ -196,15 +192,18 @@ static int
 ctxattach(struct isa_device * devp)
 {
 	struct ctx_soft_registers *sr;
+	dev_t dev;
 
-	sr = &(ctx_sr[devp->id_unit]);
+	sr = malloc(sizeof *sr, M_DEVBUF, M_WAITOK | M_ZERO);
 	sr->cp0 = 0;	/* zero out the shadow registers */
 	sr->cp1 = 0;	/* and the open flag.  wait for  */
 	sr->flag = 0;	/* open to malloc the LUT space  */
 	sr->iobase = devp->id_iobase;
 	sr->maddr = devp->id_maddr;
 	sr->msize = devp->id_msize;
-	make_dev(&ctx_cdevsw, 0, 0, 0, 0600, "ctx%d", devp->id_unit);
+	dev = make_dev(&ctx_cdevsw, 0, 0, 0, 0600, "ctx%d", devp->id_unit);
+	dev->si_drv1 = sr;
+	
 	return (1);
 }
 
@@ -212,16 +211,9 @@ static int
 ctxopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct ctx_soft_registers *sr;
-	u_char  unit;
 	int     i;
 
-	unit = UNIT(minor(dev));
-
-	/* minor number out of range? */
-
-	if (unit >= NCTX)
-		return (ENXIO);
-	sr = &(ctx_sr[unit]);
+	sr = dev->si_drv1;
 
 	if (sr->flag != 0)	/* someone has already opened us */
 		return (EBUSY);
@@ -266,24 +258,23 @@ ctxopen(dev_t dev, int flags, int fmt, struct thread *td)
 static int
 ctxclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	int     unit;
+	struct ctx_soft_registers *sr;
 
-	unit = UNIT(minor(dev));
-	ctx_sr[unit].flag = 0;
-	free(ctx_sr[unit].lutp, M_DEVBUF);
-	ctx_sr[unit].lutp = NULL;
+	sr = dev->si_drv1;
+	sr->flag = 0;
+	free(sr->lutp, M_DEVBUF);
+	sr->lutp = NULL;
 	return (0);
 }
 
 static int
 ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 {
-	int     unit, status = 0;
+	int     status = 0;
 	int     page, count, offset;
 	struct ctx_soft_registers *sr;
 
-	unit = UNIT(minor(dev));
-	sr = &(ctx_sr[unit]);
+	sr = dev->si_drv1;
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
@@ -328,12 +319,11 @@ ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 static int
 ctxread(dev_t dev, struct uio * uio, int ioflag)
 {
-	int     unit, status = 0;
+	int     status = 0;
 	int     page, count, offset;
 	struct ctx_soft_registers *sr;
 
-	unit = UNIT(minor(dev));
-	sr = &(ctx_sr[unit]);
+	sr = dev->si_drv1;
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
@@ -377,12 +367,11 @@ static int
 ctxioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int     error;
-	int     unit, i;
+	int     i;
 	struct ctx_soft_registers *sr;
 
 	error = 0;
-	unit = UNIT(minor(dev));
-	sr = &(ctx_sr[unit]);
+	sr = dev->si_drv1;
 
 	switch (cmd) {
 	case CTX_LIVE:
