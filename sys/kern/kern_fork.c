@@ -643,7 +643,7 @@ rm_at_fork(function)
  */
 void
 fork_exit(callout, arg, frame)
-	void *callout(void *, struct trapframe *);
+	void (*callout)(void *, struct trapframe *);
 	void *arg;
 	struct trapframe *frame;
 {
@@ -666,7 +666,7 @@ fork_exit(callout, arg, frame)
          * have this call a non-return function to stay in kernel mode.
          * initproc has its own fork handler, but it does return.
          */
-	(*callout)(arg, frame);
+	callout(arg, frame);
 
 	/*
 	 * Check if a kernel thread misbehaved and returned from its main
