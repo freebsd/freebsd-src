@@ -28,6 +28,10 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef __OpenBSD__
+#include <net/if_types.h>
+#include <net/route.h>
+#endif
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
