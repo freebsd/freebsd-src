@@ -3,7 +3,7 @@
 # Move the dict stuff out to its own dist
 if [ -d ${RD}/trees/bin/usr/share/dict ]; then
 	tar -cf - -C ${RD}/trees/bin/usr/share/dict . |
-		tar -xf - -C ${RD}/trees/dict/usr/share/dict &&
+		tar -xpf - -C ${RD}/trees/dict/usr/share/dict &&
 	rm -rf ${RD}/trees/bin/usr/share/dict;
 fi
 
