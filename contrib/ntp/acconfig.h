@@ -1,1 +1,0 @@
-#undef ULONG_CONST
