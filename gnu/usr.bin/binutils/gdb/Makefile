@@ -41,7 +41,6 @@ m2-exp.tab.c: $(.CURDIR)/m2-exp.y
 
 
 CFLAGS+= -I$(.CURDIR)/. -I/usr/include/readline -I$(.CURDIR)/../bfd
-CFLAGS+= -DTRAD_CORE
 LDADD+= -lreadline  -ltermcap
 
 .if exists(${.CURDIR}/../libiberty/obj)
