@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.32 1997/11/06 19:29:20 phk Exp $
+ * $Id: sys_generic.c,v 1.33 1997/11/23 10:30:50 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -539,7 +539,7 @@ select(p, uap)
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv;
-	int s, ncoll, error, timo;
+	int s, ncoll, error, timo, term;
 	u_int nbufbytes, ncpbytes, nfdbits;
 
 	if (uap->nd < 0)
@@ -600,12 +600,11 @@ select(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		s = splclock();
-		timevaladd(&atv, &time);
-		timo = hzto(&atv);
-		splx(s);
+		timo = tvtohz(&atv);
 	} else
 		timo = 0;
+	if (timo)
+		term = timo + ticks;
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
@@ -613,9 +612,7 @@ retry:
 	if (error || p->p_retval[0])
 		goto done;
 	s = splhigh();
-	/* this should be timercmp(&time, &atv, >=) */
-	if (uap->tv && (time.tv_sec > atv.tv_sec ||
-	    (time.tv_sec == atv.tv_sec && time.tv_usec >= atv.tv_usec))) {
+	if (timo && term <= ticks) {
 		splx(s);
 		goto done;
 	}
@@ -706,7 +703,7 @@ poll(p, uap)
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv;
-	int s, ncoll, error = 0, timo;
+	int s, ncoll, error = 0, timo, term;
 	size_t ni;
 
 	if (SCARG(uap, nfds) > p->p_fd->fd_nfiles) {
@@ -728,20 +725,19 @@ poll(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		s = splclock();
-		timevaladd(&atv, &time);
-		timo = hzto(&atv);
-		splx(s);
+		timo = tvtohz(&atv);
 	} else
 		timo = 0;
+	if (timo)
+		term = timo + ticks;
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
 	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
 	if (error || p->p_retval[0])
 		goto done;
-	s = splhigh();
-	if (timo && timercmp(&time, &atv, >=)) {
+	s = splhigh(); 
+	if (timo && term <= ticks) {
 		splx(s);
 		goto done;
 	}

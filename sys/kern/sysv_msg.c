@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.16 1997/08/02 14:31:37 bde Exp $ */
+/*	$Id: sysv_msg.c,v 1.17 1997/11/06 19:29:24 phk Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -272,7 +272,7 @@ msgctl(p, uap)
 		msqptr->msg_perm.mode = (msqptr->msg_perm.mode & ~0777) |
 		    (msqbuf.msg_perm.mode & 0777);
 		msqptr->msg_qbytes = msqbuf.msg_qbytes;
-		msqptr->msg_ctime = time.tv_sec;
+		msqptr->msg_ctime = time_second;
 		break;
 
 	case IPC_STAT:
@@ -390,7 +390,7 @@ msgget(p, uap)
 		msqptr->msg_lrpid = 0;
 		msqptr->msg_stime = 0;
 		msqptr->msg_rtime = 0;
-		msqptr->msg_ctime = time.tv_sec;
+		msqptr->msg_ctime = time_second;
 	} else {
 #ifdef MSG_DEBUG_OK
 		printf("didn't find it and wasn't asked to create it\n");
@@ -732,7 +732,7 @@ msgsnd(p, uap)
 	msqptr->msg_cbytes += msghdr->msg_ts;
 	msqptr->msg_qnum++;
 	msqptr->msg_lspid = p->p_pid;
-	msqptr->msg_stime = time.tv_sec;
+	msqptr->msg_stime = time_second;
 
 	wakeup((caddr_t)msqptr);
 	p->p_retval[0] = 0;
@@ -954,7 +954,7 @@ msgrcv(p, uap)
 	msqptr->msg_cbytes -= msghdr->msg_ts;
 	msqptr->msg_qnum--;
 	msqptr->msg_lrpid = p->p_pid;
-	msqptr->msg_rtime = time.tv_sec;
+	msqptr->msg_rtime = time_second;
 
 	/*
 	 * Make msgsz the actual amount that we'll be returning.

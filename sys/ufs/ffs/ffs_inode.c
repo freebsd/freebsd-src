@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.38 1998/03/19 22:49:42 dyson Exp $
+ * $Id: ffs_inode.c,v 1.39 1998/03/26 20:53:49 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -79,7 +79,6 @@ ffs_update(vp, access, modify, waitfor)
 	struct buf *bp;
 	struct inode *ip;
 	int error;
-	time_t tv_sec;
 
 	ip = VTOI(vp);
 	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
@@ -92,29 +91,17 @@ ffs_update(vp, access, modify, waitfor)
 	    (waitfor != MNT_WAIT))
 		return (0);
 	/*
-	 * Use a copy of the current time to get consistent timestamps
-	 * (a_access and a_modify are sometimes aliases for &time).
-	 *
-	 * XXX in 2.0, a_access and a_modify are often pointers to the
-	 * same copy of `time'.  This is not as good.  Some callers forget
-	 * to make a copy; others make a copy too early (before the i/o
-	 * has completed)...
-	 *
-	 * XXX there should be a function or macro for reading the time
-	 * (e.g., some machines may require splclock()).
-	 * XXX there are: they're called get{micro|nano}time
+	 * XXX: Some callers make a copy too early (before the i/o has
+	 * completed)...
 	 */
-	tv_sec = time.tv_sec;
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime =
-		    (access == &time ? tv_sec : access->tv_sec);
+		ip->i_atime = access->tv_sec;
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime =
-		    (modify == &time ? tv_sec : modify->tv_sec);
+		ip->i_mtime = modify->tv_sec;
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE)
-		ip->i_ctime = tv_sec;
+		ip->i_ctime = time_second;
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_fs;
 	/*
@@ -184,7 +171,7 @@ ffs_truncate(vp, length, flags, cred, p)
 		return (EINVAL);
 	if (length > fs->fs_maxfilesize)
 		return (EFBIG);
-	gettime(&tv);
+	getmicrotime(&tv);
 	if (ovp->v_type == VLNK &&
 	    (oip->i_size < ovp->v_mount->mnt_maxsymlinklen || oip->i_din.di_blocks == 0)) {
 #ifdef DIAGNOSTIC

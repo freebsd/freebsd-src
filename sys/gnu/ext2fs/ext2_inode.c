@@ -109,7 +109,7 @@ ext2_update(vp, access, modify, waitfor)
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE) {
-		ip->i_ctime = time.tv_sec;
+		ip->i_ctime = time_second;
 	}
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_e2fs;
@@ -171,7 +171,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	    return EFBIG;
 
 	oip = VTOI(ovp);
-	gettime(&tv);
+	getmicrotime(&tv);
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
 #if DIAGNOSTIC

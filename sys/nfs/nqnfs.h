@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
- * $Id: nqnfs.h,v 1.13 1997/02/22 09:42:52 peter Exp $
+ * $Id: nqnfs.h,v 1.14 1997/08/16 19:16:05 wollman Exp $
  */
 
 
@@ -161,20 +161,20 @@ struct nqm {
  * Client side macros that check for a valid lease.
  */
 #define	NQNFS_CKINVALID(v, n, f) \
- ((time.tv_sec > (n)->n_expiry && \
+ ((time_second > (n)->n_expiry && \
  VFSTONFS((v)->v_mount)->nm_timeouts < VFSTONFS((v)->v_mount)->nm_deadthresh) \
   || ((f) == ND_WRITE && ((n)->n_flag & NQNFSWRITE) == 0))
 
 #define	NQNFS_CKCACHABLE(v, f) \
- ((time.tv_sec <= VTONFS(v)->n_expiry || \
+ ((time_second <= VTONFS(v)->n_expiry || \
   VFSTONFS((v)->v_mount)->nm_timeouts >= VFSTONFS((v)->v_mount)->nm_deadthresh) \
    && (VTONFS(v)->n_flag & NQNFSNONCACHE) == 0 && \
    ((f) == ND_READ || (VTONFS(v)->n_flag & NQNFSWRITE)))
 
 #define	NQNFS_NEEDLEASE(v, p) \
-		(time.tv_sec > VTONFS(v)->n_expiry ? \
+		(time_second > VTONFS(v)->n_expiry ? \
 		 ((VTONFS(v)->n_flag & NQNFSEVICTED) ? 0 : nqnfs_piggy[p]) : \
-		 (((time.tv_sec + NQ_RENEWAL) > VTONFS(v)->n_expiry && \
+		 (((time_second + NQ_RENEWAL) > VTONFS(v)->n_expiry && \
 		   nqnfs_piggy[p]) ? \
 		   ((VTONFS(v)->n_flag & NQNFSWRITE) ? \
 		    ND_WRITE : nqnfs_piggy[p]) : 0))

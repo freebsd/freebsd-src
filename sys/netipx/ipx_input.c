@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.14 1997/06/26 19:35:46 jhay Exp $
+ * $Id: ipx_input.c,v 1.15 1998/02/09 06:10:19 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
+
+#include <machine/random.h>
 
 int	ipxcksum = 0;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, checksum, CTLFLAG_RW,
@@ -105,7 +107,7 @@ ipx_init()
 	ipx_broadnet = *(union ipx_net *)allones;
 	ipx_broadhost = *(union ipx_host *)allones;
 
-	ipx_pexseq = time.tv_usec;
+	read_random((char *)&ipx_pexseq, sizeof ipx_pexseq);
 	ipxintrq.ifq_maxlen = ipxqmaxlen;
 	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;
 	ipxrawpcb.ipxp_next = ipxrawpcb.ipxp_prev = &ipxrawpcb;

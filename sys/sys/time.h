@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.20 1998/03/04 10:26:44 dufault Exp $
+ * $Id: time.h,v 1.21 1998/03/26 20:53:36 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -221,11 +221,11 @@ struct clockinfo {
 
 #ifdef KERNEL
 extern struct timecounter *timecounter;
+extern time_t	time_second;
 
 void	forward_timecounter __P((void));
 void	getmicrotime __P((struct timeval *tv));
 void	getnanotime __P((struct timespec *tv));
-#define	gettime(xxx) getmicrotime(xxx)	/* XXX be compatible */
 void	init_timecounter __P((struct timecounter *tc));
 int	itimerfix __P((struct timeval *tv));
 int	itimerdecr __P((struct itimerval *itp, int usec));
@@ -235,6 +235,7 @@ void	second_overflow __P((u_int32_t *psec));
 void	set_timecounter __P((struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
+int	tvtohz __P((struct timeval *));
 #else /* !KERNEL */
 #include <time.h>
 

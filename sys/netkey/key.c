@@ -1254,7 +1254,7 @@ key_getspi(type, vers, src, dst, lowval, highval, spi)
 	 * reasons.  This is another task that key_reaper can
 	 * do once we have it coded.
 	 */
-	secassoc->lifetime1 += time.tv_sec + maxlarvallifetime;
+	secassoc->lifetime1 += time_second + maxlarvallifetime;
 
 	if (!(keynode = key_addnode(indx, secassoc))) {
 	  DPRINTF(IDL_ERROR,("key_getspi: can't add node\n"));
@@ -1498,7 +1498,7 @@ key_acquire(type, src, dst)
     if (addrpart_equal(dst, ap->target) &&
 	(etype == ap->type)) {
       DPRINTF(IDL_EVENT,("acquire message previously sent!\n"));
-      if (ap->expiretime < time.tv_sec) {
+      if (ap->expiretime < time_second) {
 	DPRINTF(IDL_EVENT,("acquire message has expired!\n"));
 	ap->count = 0;
 	break;
@@ -1508,7 +1508,7 @@ key_acquire(type, src, dst)
 	break;
       }
       return(0);
-    } else if (ap->expiretime < time.tv_sec) {
+    } else if (ap->expiretime < time_second) {
       /*
        *  Since we're already looking at the list, we may as
        *  well delete expired entries as we scan through the list.
@@ -1594,7 +1594,7 @@ key_acquire(type, src, dst)
     }
     DPRINTF(IDL_GROSS_EVENT,("Updating acquire counter,  expiration time\n"));
     ap->count++;
-    ap->expiretime = time.tv_sec + maxacquiretime;
+    ap->expiretime = time_second + maxacquiretime;
   }
   DPRINTF(IDL_EVENT,("key_acquire: done! success=%d\n",success));
   return(success ? 0 : -1);

@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.33 1997/12/16 17:40:23 eivind Exp $ */
+/*	$Id: sysv_shm.c,v 1.34 1998/02/09 06:09:25 eivind Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -170,7 +170,7 @@ shm_delete_mapping(p, shmmap_s)
 	if (result != KERN_SUCCESS)
 		return EINVAL;
 	shmmap_s->shmid = -1;
-	shmseg->shm_dtime = time.tv_sec;
+	shmseg->shm_dtime = time_second;
 	if ((--shmseg->shm_nattch <= 0) &&
 	    (shmseg->shm_perm.mode & SHMSEG_REMOVED)) {
 		shm_deallocate_segment(shmseg);
@@ -281,7 +281,7 @@ shmat(p, uap)
 	shmmap_s->va = attach_va;
 	shmmap_s->shmid = uap->shmid;
 	shmseg->shm_lpid = p->p_pid;
-	shmseg->shm_atime = time.tv_sec;
+	shmseg->shm_atime = time_second;
 	shmseg->shm_nattch++;
 	p->p_retval[0] = attach_va;
 	return 0;
@@ -389,7 +389,7 @@ shmctl(p, uap)
 		shmseg->shm_perm.mode =
 		    (shmseg->shm_perm.mode & ~ACCESSPERMS) |
 		    (inbuf.shm_perm.mode & ACCESSPERMS);
-		shmseg->shm_ctime = time.tv_sec;
+		shmseg->shm_ctime = time_second;
 		break;
 	case IPC_RMID:
 		error = ipcperm(cred, &shmseg->shm_perm, IPC_M);
@@ -512,7 +512,7 @@ shmget_allocate_segment(p, uap, mode)
 	shmseg->shm_cpid = p->p_pid;
 	shmseg->shm_lpid = shmseg->shm_nattch = 0;
 	shmseg->shm_atime = shmseg->shm_dtime = 0;
-	shmseg->shm_ctime = time.tv_sec;
+	shmseg->shm_ctime = time_second;
 	shm_committed += btoc(size);
 	shm_nused++;
 	if (shmseg->shm_perm.mode & SHMSEG_WANTED) {
