@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.19 1995/07/09 08:12:27 joerg Exp $
+ * $Id: if.h,v 1.20 1995/08/16 16:13:39 bde Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -389,7 +389,6 @@ void	ifafree __P((struct ifaddr *));
 void	link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 
 int	loioctl __P((struct ifnet *, int, caddr_t));
-void	loopattach __P((void));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 void	lortrequest __P((int, struct rtentry *, struct sockaddr *));

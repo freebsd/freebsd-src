@@ -62,6 +62,11 @@
 
 #include <net/if_tun.h>
 
+#ifdef __FreeBSD__
+static void tunattach __P((caddr_t));
+PSEUDO_SET(tunattach, if_tun);
+#endif
+
 #define TUNDEBUG	if (tundebug) printf
 int	tundebug = 0;
 
@@ -76,7 +81,6 @@ d_rdwr_t tunwrite;
 d_ioctl_t tunioctl;
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
 d_select_t tunselect;
-void	tunattach __P((void));
 
 static struct cdevsw tuncdevsw =
 { tunopen,      tunclose,       tunread,        tunwrite,
@@ -86,8 +90,9 @@ extern dev_t tuncdev;
 
 static int tuninit __P((int));
 
-void
-tunattach(void)
+static void
+tunattach(udata)
+	caddr_t udata;
 {
 	register int i;
 	struct ifnet *ifp;
@@ -120,10 +125,6 @@ tunattach(void)
 #endif
 	}
 }
-
-#ifdef __FreeBSD__
-PSEUDO_SET(tunattach, if_tun);
-#endif
 
 /*
  * tunnel open - must be superuser & the device must be
