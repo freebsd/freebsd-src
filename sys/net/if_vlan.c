@@ -498,30 +498,31 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	/*
 	 * If the parent supports the VLAN_MTU capability,
 	 * i.e. can Tx/Rx larger than ETHER_MAX_LEN frames,
-	 * enable it.
+	 * use it.
+	 * First of all, enable Tx/Rx of such extended frames on the
+	 * parent if it's disabled and we're the first to attach.
 	 */
 	p->if_nvlans++;
-	if (p->if_nvlans == 1 && (p->if_capabilities & IFCAP_VLAN_MTU) != 0) {
-		/*
-		 * Enable Tx/Rx of VLAN-sized frames.
-		 */
-		p->if_capenable |= IFCAP_VLAN_MTU;
-		if (p->if_flags & IFF_UP) {
-			struct ifreq ifr;
-			int error;
+	if (p->if_nvlans == 1 &&
+	    (p->if_capabilities & IFCAP_VLAN_MTU) &&
+	    (p->if_capenable & IFCAP_VLAN_MTU) == 0) {
+		struct ifreq ifr;
+		int error;
 
-			ifr.ifr_flags = p->if_flags;
-			error = (*p->if_ioctl)(p, SIOCSIFFLAGS,
-			    (caddr_t) &ifr);
-			if (error) {
-				p->if_nvlans--;
-				if (p->if_nvlans == 0)
-					p->if_capenable &= ~IFCAP_VLAN_MTU;
-				return (error);
-			}
+		ifr.ifr_reqcap = p->if_capenable | IFCAP_VLAN_MTU;
+		error = (*p->if_ioctl)(p, SIOCSIFCAP, (caddr_t) &ifr);
+		if (error) {
+			p->if_nvlans--;
+			return (error);
 		}
+	}
+	if (p->if_capenable & IFCAP_VLAN_MTU) {
+		/*
+		 * No need to fudge the MTU since the parent can
+		 * handle extended frames.
+		 */
 		ifv->ifv_mtufudge = 0;
-	} else if ((p->if_capabilities & IFCAP_VLAN_MTU) == 0) {
+	} else {
 		/*
 		 * Fudge the MTU by the encapsulation size.  This
 		 * makes us incompatible with strictly compliant
@@ -621,16 +622,15 @@ vlan_unconfig(struct ifnet *ifp)
 
 		p->if_nvlans--;
 		if (p->if_nvlans == 0) {
-			/*
-			 * Disable Tx/Rx of VLAN-sized frames.
-			 */
-			p->if_capenable &= ~IFCAP_VLAN_MTU;
-			if (p->if_flags & IFF_UP) {
-				struct ifreq ifr;
+			struct ifreq ifr;
 
-				ifr.ifr_flags = p->if_flags;
-				(*p->if_ioctl)(p, SIOCSIFFLAGS, (caddr_t) &ifr);
-			}
+			/*
+			 * Try to disable Tx/Rx of VLAN-sized frames.
+			 * This may have no effect for some interfaces,
+			 * but only the parent driver knows that.
+			 */
+			ifr.ifr_reqcap = p->if_capenable & ~IFCAP_VLAN_MTU;
+			(*p->if_ioctl)(p, SIOCSIFCAP, (caddr_t) &ifr);
 		}
 	}
 
