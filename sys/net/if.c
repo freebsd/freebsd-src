@@ -79,6 +79,8 @@
 #include <netinet/if_ether.h>
 #endif
 
+void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
+
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 
 static void	if_attachdomain(void *);
@@ -978,6 +980,10 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 		KNOTE_UNLOCKED(&ifp->if_klist, link);
 		if (ifp->if_nvlans != 0)
 			(*vlan_link_state_p)(ifp, link);
+
+		if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
+		    IFP2AC(ifp)->ac_netgraph != NULL)
+			(*ng_ether_link_state_p)(ifp, link_state);
 	}
 }
 
