@@ -467,9 +467,9 @@ main(argc, argv)
 	struct stat sb;
 	char *pwd;
 #endif
-	char mdpath[MAXPATHLEN + 1];
-	char obpath[MAXPATHLEN + 1];
-	char cdpath[MAXPATHLEN + 1];
+	char mdpath[MAXPATHLEN];
+	char obpath[MAXPATHLEN];
+	char cdpath[MAXPATHLEN];
     	char *machine = getenv("MACHINE");
 	char *machine_arch = getenv("MACHINE_ARCH");
 	char *machine_cpu = getenv("MACHINE_CPU");
@@ -936,7 +936,7 @@ ReadMakefile(p, q)
 	char *fname = p;		/* makefile to read */
 	extern Lst parseIncPath;
 	FILE *stream;
-	char *name, path[MAXPATHLEN + 1];
+	char *name, path[MAXPATHLEN];
 
 	if (!strcmp(fname, "-")) {
 		Parse_File("(stdin)", stdin);
