@@ -36,9 +36,10 @@ static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/mbuf.h>
+#include <sys/sysctl.h>
 
 #include <stdio.h>
 #include "netstat.h"
@@ -82,17 +83,28 @@ mbpr(mbaddr)
 	register int totmem, totfree, totmbufs;
 	register int i;
 	register struct mbtypes *mp;
+	int name[3];
+	size_t mbstatlen;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_IPC;
+	name[2] = KIPC_MBSTAT;
+	mbstatlen = sizeof mbstat;
+
+	if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
+		warn("sysctl: retrieving mbstat");
+		return;
+	}
+#undef MSIZE
+#define MSIZE		(mbstat.m_msize)
+#undef MCLBYTES
+#define	MCLBYTES	(mbstat.m_mclbytes)
 
 	if (nmbtypes != 256) {
 		warnx("unexpected change to mbstat; check source");
 		return;
 	}
-	if (mbaddr == 0) {
-		warnx("mbstat: symbol not in namelist");
-		return;
-	}
-	if (kread(mbaddr, (char *)&mbstat, sizeof (mbstat)))
-		return;
+
 	totmbufs = 0;
 	for (mp = mbtypes; mp->mt_name; mp++)
 		totmbufs += mbstat.m_mtypes[mp->mt_type];
