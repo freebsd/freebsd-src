@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.22 1995/02/14 22:48:01 se Exp $
+**  $Id: ncr.c,v 1.23 1995/02/14 23:33:36 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl13 95/02/09"
+#define	NCR_PATCHLEVEL	"pl14 95/02/15"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -54,7 +54,7 @@
 **
 **	Configuration and Debugging
 **
-**	May be overwritten in <arch/conf/XXXXX>
+**	May be overwritten in <arch/conf/xxxx>
 **
 **==========================================================
 */
@@ -1089,11 +1089,12 @@ struct ncb {
 	*/
 	u_char		disc;
 
+#ifdef NCR_IOMAPPED
 	/*
-	**	lockout of execption handler call while starting command.
+	**	address of the ncr control registers in io space
 	*/
-	u_char		lock;
 	u_short		port;
+#endif
 };
 
 /*==========================================================
@@ -1243,7 +1244,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.22 1995/02/14 22:48:01 se Exp $\n";
+	"\n$Id: ncr.c,v 1.23 1995/02/14 23:33:36 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3475,16 +3476,9 @@ ncr_intr(np)
 	ncb_p np;
 {
 	int n = 0;
+	int oldspl = splbio();
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("[");
-
-	/* XXX only for debug */
-	if (bio_imask & ~cpl) {
-		if (!np->lock)
-			printf ("ncr_intr(%d): unmasked bio-irq: 0x%x.\n",
-				np->unit, bio_imask & ~cpl);
-		np->lock++; /* only one of 256 ... */
-	};
 
 	if (INB(nc_istat) & (INTF|SIP|DIP)) {
 		/*
@@ -3500,6 +3494,7 @@ ncr_intr(np)
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("]\n");
 
+	splx (oldspl);
 	return (n);
 }
 
