@@ -828,6 +828,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	char *cp;
 	struct bios_smap *smapbase, *smap, *smapend;
 	u_int32_t smapsize;
+	quad_t dcons_addr, dcons_size;
 
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
@@ -973,6 +974,13 @@ next_run:
 	pte = CMAP1;
 
 	/*
+	 * Get dcons buffer address
+	 */
+	if (getenv_quad("dcons.addr", &dcons_addr) == 0 ||
+	    getenv_quad("dcons.size", &dcons_size) == 0)
+		dcons_addr = 0;
+
+	/*
 	 * physmap is in bytes, so when converting to page boundaries,
 	 * round up the start address and round down the end address.
 	 */
@@ -991,6 +999,14 @@ next_run:
 			 */
 			if (pa >= 0x100000 && pa < first)
 				continue;
+
+ 			/*
+ 			 * block out dcons buffer
+ 			 */
+ 			if (dcons_addr > 0
+ 			    && pa >= trunc_page(dcons_addr)
+ 			    && pa < dcons_addr + dcons_size)
+ 				continue;
 
 			page_bad = FALSE;
 
