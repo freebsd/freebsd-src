@@ -35,7 +35,7 @@
  * We are working with the vendor so I can release the code, please don't
  * ask me for it.  When/if I can release it, I will.
  *
- * Version 1.1, Feb 1, 1995.
+ * Version 1.3, June 23, 1995.
  *
  */
 
@@ -74,6 +74,7 @@ struct spigot_softc {
 
 /* flags in softc */
 #define	OPEN		0x01
+#define	ALIVE		0x02
 
 #define	UNIT(dev) minor(dev)
 
@@ -118,13 +119,18 @@ int
 spigot_probe(struct isa_device *devp)
 {
 int			status;
+struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 
-	spigot_registerdev(devp);
+	ss->flags = 0;
+	ss->maddr = (char *)0;
 
-	if(devp->id_iobase != 0xad6 || inb(0xad9) == 0xff) 	/* ff if board isn't there??? */
-		status = 0;
-	else
-		status = 1;
+	if(devp->id_iobase != 0xad6 || inb(0xad9) == 0xff) 
+		status = 0;	/* not found */
+	else {
+		status = 1;	/* found */
+		ss->flags |= ALIVE;
+		spigot_registerdev(devp);
+	}
 
 	return(status);
 }
@@ -132,10 +138,10 @@ int			status;
 int
 spigot_attach(struct isa_device *devp)
 {
-	struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
+struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
+
 	kdc_spigot[devp->id_unit].kdc_state = DC_UNKNOWN;
 
-	ss->flags = 0;
 	ss->maddr = devp->id_maddr;
 
 	return 1;
@@ -146,9 +152,12 @@ spigot_open(dev_t dev, int flag)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 
+	if((ss->flags & ALIVE) == 0)
+		return ENXIO;
 
 	if(ss->flags & OPEN)
 		return EBUSY;
+
 	ss->flags |= OPEN;
 	ss->p = 0;
 	ss->signal_num = 0;
@@ -244,8 +253,10 @@ spigot_mmap(dev_t dev, int offset, int nprot)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
-	if(offset != 0)
+	if(offset != 0) {
+		printf("spigot mmap offset = 0x%x\n", offset);
 		return 0;
+	}
 
 	if(nprot & PROT_EXEC)
 		return 0;
