@@ -204,6 +204,7 @@ enum tokens {
 
 	TOK_UID,
 	TOK_GID,
+	TOK_JAIL,
 	TOK_IN,
 	TOK_LIMIT,
 	TOK_KEEPSTATE,
@@ -304,6 +305,7 @@ struct _s_x rule_actions[] = {
 struct _s_x rule_options[] = {
 	{ "uid",		TOK_UID },
 	{ "gid",		TOK_GID },
+	{ "jail",		TOK_JAIL },
 	{ "in",			TOK_IN },
 	{ "limit",		TOK_LIMIT },
 	{ "keep-state",		TOK_KEEPSTATE },
@@ -1282,6 +1284,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				else
 					printf(" gid %u", cmd32->d[0]);
 			    }
+				break;
+
+			case O_JAIL:
+				printf(" jail %d", cmd32->d[0]);
 				break;
 
 			case O_VERREVPATH:
@@ -3293,6 +3299,22 @@ read_options:
 			if (grp == NULL)
 				errx(EX_DATAERR, "gid \"%s\" nonexistent", *av);
 			cmd32->d[0] = grp->gr_gid;
+			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
+			ac--; av++;
+		    }
+			break;
+
+		case TOK_JAIL:
+			NEED1("jail requires argument");
+		    {
+			char *end;
+			int jid;
+
+			cmd->opcode = O_JAIL;
+			jid = (int)strtol(*av, &end, 0);
+			if (jid < 0 || *end != '\0')
+				errx(EX_DATAERR, "jail requires prison ID");
+			cmd32->d[0] = (unsigned int)jid;
 			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
