@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.111 1998/11/09 07:00:14 peter Exp $
+ * $Id: nfs_vnops.c,v 1.112 1998/11/13 02:39:09 msmith Exp $
  */
 
 
@@ -1668,13 +1668,16 @@ nfs_rename(ap)
 	}
 
 	/* 
-	 * We can't presume too much on the server's access control method(s), and
-	 * it may use rules based on filenames or locations.  Moving to a more
-	 * restrictive location would be harmless, but moving to a less restrictive
-	 * location you would be forced to wait for the cache entry to time out.
+	 * We can't presume too much on the server's access control method(s),
+	 * and it may use rules based on filenames or locations.  Moving to a
+	 * more restrictive location would be harmless, but moving to a less
+	 * restrictive location you would be forced to wait for the cache
+	 * entry to time out.
 	 */
-	VTONFS(fvp)->n_modestamp = 0;
-	VTONFS(tvp)->n_modestamp = 0;
+	if (fvp->v_data)
+		VTONFS(fvp)->n_modestamp = 0;
+	if (tvp != NULL)
+		VTONFS(tvp)->n_modestamp = 0;
 
 out:
 	if (tdvp == tvp)
