@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.49 1998/08/10 14:27:34 bde Exp $
+ * $Id: subr_prf.c,v 1.50 1998/09/06 06:25:04 ache Exp $
  */
 
 #include <sys/param.h>
@@ -62,12 +62,22 @@
 
 struct	tty *constty;			/* pointer to console "window" tty */
 
+struct putchar_arg {
+	int flags;
+	struct tty *tty;
+};
+
+struct snprintf_arg {
+	char *str;
+	size_t remain;
+};
+
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 static void  logpri __P((int level));
 static void  msglogchar(int c, void *dummyarg);
-struct putchar_arg {int flags; struct tty *tty; };
 static void  putchar __P((int ch, void *arg));
 static char *ksprintn __P((u_long num, int base, int *len));
+static void  snprintf_func __P((int ch, void *arg));
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
 static int msgbufmapped;		/* Set when safe to use msgbuf */
@@ -326,6 +336,49 @@ vsprintf(char *buf, const char *cfmt, va_list ap)
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
 	return retval;
+}
+
+/*
+ * Scaled down version of snprintf(3).
+ */
+int
+snprintf(char *str, size_t size, const char *format, ...)
+{
+	int retval;
+	va_list ap;
+
+	va_start(ap, format);
+	retval = vsnprintf(str, size, format, ap);
+	va_end(ap);
+	return(retval);
+}
+
+/*
+ * Scaled down version of vsnprintf(3).
+ */
+int
+vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{
+	struct snprintf_arg info;
+	int retval;
+
+	info.str = str;
+	info.remain = size;
+	retval = kvprintf(format, snprintf_func, &info, 10, ap);
+	if (info.remain >= 1)
+		*info.str++ = '\0';
+	return retval;
+}
+
+static void
+snprintf_func(int ch, void *arg)
+{
+	struct snprintf_arg *const info = arg;
+
+	if (info->remain >= 2) {
+		*info->str++ = ch;
+		info->remain--;
+	}
 }
 
 /*

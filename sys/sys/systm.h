@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.77 1998/10/09 01:44:09 msmith Exp $
+ * $Id: systm.h,v 1.78 1998/10/30 05:41:15 msmith Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -107,9 +107,11 @@ int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 void	log __P((int, const char *, ...)) __printflike(2, 3);
 void	logwakeup __P((void));
 int	printf __P((const char *, ...)) __printflike(1, 2);
+int	snprintf __P((char *, size_t, const char *, ...)) __printflike(3, 4);
 int	sprintf __P((char *buf, const char *, ...)) __printflike(2, 3);
 void	uprintf __P((const char *, ...)) __printflike(1, 2);
 void	vprintf __P((const char *, _BSD_VA_LIST_)) __printflike(1, 0);
+int	vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_)) __printflike(3, 0);
 int     vsprintf __P((char *buf, const char *, _BSD_VA_LIST_)) __printflike(2, 0);
 void	ttyprintf __P((struct tty *, const char *, ...)) __printflike(2, 3);
 
