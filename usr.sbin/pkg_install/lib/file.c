@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.24.2.7 1998/10/09 00:01:34 jkh Exp $";
+	"$Id: file.c,v 1.24.2.8 1998/10/14 18:52:55 jkh Exp $";
 #endif
 
 /*
@@ -487,8 +487,8 @@ unpack(char *pkg, char *flist)
 	}
     }
     else
-	strcpy(args, "z");
-    strcat(args, "xpf");
+	strcpy(args, "-z");
+    strcat(args, " -xpf");
     if (vsystem("tar %s %s %s", args, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;
