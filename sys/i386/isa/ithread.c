@@ -52,6 +52,7 @@
 #include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <sys/random.h>
+#include <sys/resourcevar.h>
 #include <sys/time.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
@@ -141,7 +142,13 @@ sched_ithd(void *cookie)
 /*		membar_lock(); */
 		ir->it_proc->p_stat = SRUN;
 		setrunqueue(ir->it_proc);
-		need_resched();
+		if (!cold) {
+			if (curproc != PCPU_GET(idleproc))
+				setrunqueue(curproc);
+			curproc->p_stats->p_ru.ru_nvcsw++;
+			mi_switch();
+		} else
+			need_resched();
 	}
 	else {
 		CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
