@@ -1,7 +1,7 @@
 /* 
  * interface dc to the bc numeric routines
  *
- * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998, 2000 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can either send email to this
- * program's author (see below) or write to: The Free Software Foundation,
- * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
+ * program's author (see below) or write to:
+ *   The Free Software Foundation, Inc.
+ *   59 Temple Place, Suite 330
+ *   Boston, MA 02111 USA
  */
 
 /* This should be the only module that knows the internals of type dc_num */
@@ -33,17 +35,22 @@
 #else
 # define UCHAR_MAX ((unsigned char)~0)
 #endif
-#include "bcdefs.h"
-#include "proto.h"
-#include "global.h"
+#include <stdlib.h>
+#include "number.h"
 #include "dc.h"
 #include "dc-proto.h"
 
 #ifdef __GNUC__
-# define ATTRIB(x) __attribute__(x)
-#else
+# if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__-0 >= 7) 
+#  define ATTRIB(x) __attribute__(x)
+# endif
+#endif
+#ifndef ATTRIB
 # define ATTRIB(x)
 #endif
+
+/* Forward prototype */
+static void out_char (int);
 
 /* there is no POSIX standard for dc, so we'll take the GNU definitions */
 int std_only = FALSE;
@@ -61,7 +68,7 @@ dc_add DC_DECLARG((a, b, kscale, result))
 	int kscale ATTRIB((unused)) DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	bc_add(CastNum(a), CastNum(b), (bc_num *)result, 0);
 	return DC_SUCCESS;
 }
@@ -76,7 +83,7 @@ dc_sub DC_DECLARG((a, b, kscale, result))
 	int kscale ATTRIB((unused)) DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	bc_sub(CastNum(a), CastNum(b), (bc_num *)result, 0);
 	return DC_SUCCESS;
 }
@@ -91,7 +98,7 @@ dc_mul DC_DECLARG((a, b, kscale, result))
 	int kscale DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	bc_multiply(CastNum(a), CastNum(b), (bc_num *)result, kscale);
 	return DC_SUCCESS;
 }
@@ -106,7 +113,7 @@ dc_div DC_DECLARG((a, b, kscale, result))
 	int kscale DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	if (bc_divide(CastNum(a), CastNum(b), (bc_num *)result, kscale)){
 		fprintf(stderr, "%s: divide by zero\n", progname);
 		return DC_DOMAIN_ERROR;
@@ -126,8 +133,8 @@ dc_divrem DC_DECLARG((a, b, kscale, quotient, remainder))
 	dc_num *quotient DC_DECLSEP
 	dc_num *remainder DC_DECLEND
 {
-	init_num((bc_num *)quotient);
-	init_num((bc_num *)remainder);
+	bc_init_num((bc_num *)quotient);
+	bc_init_num((bc_num *)remainder);
 	if (bc_divmod(CastNum(a), CastNum(b),
 						(bc_num *)quotient, (bc_num *)remainder, kscale)){
 		fprintf(stderr, "%s: divide by zero\n", progname);
@@ -146,7 +153,7 @@ dc_rem DC_DECLARG((a, b, kscale, result))
 	int kscale DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	if (bc_modulo(CastNum(a), CastNum(b), (bc_num *)result, kscale)){
 		fprintf(stderr, "%s: remainder by zero\n", progname);
 		return DC_DOMAIN_ERROR;
@@ -162,10 +169,10 @@ dc_modexp DC_DECLARG((base, expo, mod, kscale, result))
 	int kscale DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	if (bc_raisemod(CastNum(base), CastNum(expo), CastNum(mod),
 					(bc_num *)result, kscale)){
-		if (is_zero(CastNum(mod)))
+		if (bc_is_zero(CastNum(mod)))
 			fprintf(stderr, "%s: remainder by zero\n", progname);
 		return DC_DOMAIN_ERROR;
 	}
@@ -182,7 +189,7 @@ dc_exp DC_DECLARG((a, b, kscale, result))
 	int kscale DC_DECLSEP
 	dc_num *result DC_DECLEND
 {
-	init_num((bc_num *)result);
+	bc_init_num((bc_num *)result);
 	bc_raise(CastNum(a), CastNum(b), (bc_num *)result, kscale);
 	return DC_SUCCESS;
 }
@@ -198,10 +205,10 @@ dc_sqrt DC_DECLARG((value, kscale, result))
 {
 	bc_num tmp;
 
-	tmp = copy_num(CastNum(value));
+	tmp = bc_copy_num(CastNum(value));
 	if (!bc_sqrt(&tmp, kscale)){
 		fprintf(stderr, "%s: square root of negative number\n", progname);
-		free_num(&tmp);
+		bc_free_num(&tmp);
 		return DC_DOMAIN_ERROR;
 	}
 	*((bc_num *)result) = tmp;
@@ -231,7 +238,7 @@ dc_num2int DC_DECLARG((value, discard_p))
 {
 	long result;
 
-	result = num2long(CastNum(value));
+	result = bc_num2long(CastNum(value));
 	if (discard_p == DC_TOSS)
 		dc_free_num(&value);
 	return (int)result;
@@ -247,8 +254,8 @@ dc_int2data DC_DECLARG((value))
 {
 	dc_data result;
 
-	init_num((bc_num *)&result.v.number);
-	int2num((bc_num *)&result.v.number, value);
+	bc_init_num((bc_num *)&result.v.number);
+	bc_int2num((bc_num *)&result.v.number, value);
  	result.dc_type = DC_NUMBER;
 	return result;
 }
@@ -279,11 +286,11 @@ dc_getnum DC_DECLARG((input, ibase, readahead))
 	int		decimal;
 	int		c;
 
-	init_num(&tmp);
-	init_num(&build);
-	init_num(&base);
-	result = copy_num(_zero_);
-	int2num(&base, ibase);
+	bc_init_num(&tmp);
+	bc_init_num(&build);
+	bc_init_num(&base);
+	result = bc_copy_num(_zero_);
+	bc_int2num(&base, ibase);
 	c = (*input)();
 	while (isspace(c))
 		c = (*input)();
@@ -303,15 +310,15 @@ dc_getnum DC_DECLARG((input, ibase, readahead))
 		else
 			break;
 		c = (*input)();
-		int2num(&tmp, digit);
+		bc_int2num(&tmp, digit);
 		bc_multiply(result, base, &result, 0);
 		bc_add(result, tmp, &result, 0);
 	}
 	if (c == '.'){
-		free_num(&build);
-		free_num(&tmp);
-		divisor = copy_num(_one_);
-		build = copy_num(_zero_);
+		bc_free_num(&build);
+		bc_free_num(&tmp);
+		divisor = bc_copy_num(_one_);
+		build = bc_copy_num(_zero_);
 		decimal = 0;
 		for (;;){
 			c = (*input)();
@@ -321,7 +328,7 @@ dc_getnum DC_DECLARG((input, ibase, readahead))
 				digit = 10 + c - 'A';
 			else
 				break;
-			int2num(&tmp, digit);
+			bc_int2num(&tmp, digit);
 			bc_multiply(build, base, &build, 0);
 			bc_add(build, tmp, &build, 0);
 			bc_multiply(divisor, base, &divisor, 0);
@@ -334,9 +341,9 @@ dc_getnum DC_DECLARG((input, ibase, readahead))
 	if (negative)
 		bc_sub(_zero_, result, &result, 0);
 
-	free_num(&tmp);
-	free_num(&build);
-	free_num(&base);
+	bc_free_num(&tmp);
+	bc_free_num(&build);
+	bc_free_num(&base);
 	if (readahead)
 		*readahead = c;
 	full_result.v.number = (dc_num)result;
@@ -353,7 +360,7 @@ dc_numlen DC_DECLARG((value))
 	bc_num num = CastNum(value);
 
 	/* is this right??? */
-	return num->n_len + num->n_scale;
+	return num->n_len + num->n_scale - (*num->n_value == '\0');
 }
 
 /* return the scale factor of the passed dc_num
@@ -377,7 +384,7 @@ dc_tell_scale DC_DECLARG((value, discard_p))
 void
 dc_math_init DC_DECLVOID()
 {
-	init_numbers();
+	bc_init_numbers();
 }
 
 /* print out a dc_num in output base obase to stdout;
@@ -391,9 +398,10 @@ dc_out_num DC_DECLARG((value, obase, newline_p, discard_p))
 	dc_newline newline_p DC_DECLSEP
 	dc_discard discard_p DC_DECLEND
 {
-	out_num(CastNum(value), obase, out_char);
+	out_char('\0'); /* clear the column counter */
+	bc_out_num(CastNum(value), obase, out_char, 0);
 	if (newline_p == DC_WITHNL)
-		out_char('\n');
+		putchar ('\n');
 	if (discard_p == DC_TOSS)
 		dc_free_num(&value);
 }
@@ -403,7 +411,7 @@ dc_out_num DC_DECLARG((value, obase, newline_p, discard_p))
  * if discard_p is DC_TOSS then deallocate the value after use
  */
 void
-dc_dump_num DC_DECLARG((value, discard_p))
+dc_dump_num DC_DECLARG((dcvalue, discard_p))
 	dc_num dcvalue DC_DECLSEP
 	dc_discard discard_p DC_DECLEND
 {
@@ -415,9 +423,9 @@ dc_dump_num DC_DECLARG((value, discard_p))
 	bc_num obase;
 	bc_num digit;
 
-	init_num(&value);
-	init_num(&obase);
-	init_num(&digit);
+	bc_init_num(&value);
+	bc_init_num(&obase);
+	bc_init_num(&digit);
 
 	/* we only handle the integer portion: */
 	bc_divide(CastNum(dcvalue), _one_, &value, 0);
@@ -427,14 +435,14 @@ dc_dump_num DC_DECLARG((value, discard_p))
 	if (discard_p == DC_TOSS)
 		dc_free_num(&dcvalue);
 
-	int2num(&obase, 1+UCHAR_MAX);
+	bc_int2num(&obase, 1+UCHAR_MAX);
 	do {
 		(void) bc_divmod(value, obase, &value, &digit, 0);
 		cur = dc_malloc(sizeof *cur);
-		cur->digit = (int)num2long(digit);
+		cur->digit = (int)bc_num2long(digit);
 		cur->link = top_of_stack;
 		top_of_stack = cur;
-	} while (!is_zero(value));
+	} while (!bc_is_zero(value));
 
 	for (cur=top_of_stack; cur; cur=next) {
 		putchar(cur->digit);
@@ -442,9 +450,9 @@ dc_dump_num DC_DECLARG((value, discard_p))
 		free(cur);
 	}
 
-	free_num(&digit);
-	free_num(&obase);
-	free_num(&value);
+	bc_free_num(&digit);
+	bc_free_num(&obase);
+	bc_free_num(&value);
 }
 
 /* deallocate an instance of a dc_num */
@@ -452,7 +460,7 @@ void
 dc_free_num DC_DECLARG((value))
 	dc_num *value DC_DECLEND
 {
-	free_num((bc_num *)value);
+	bc_free_num((bc_num *)value);
 }
 
 /* return a duplicate of the number in the passed value */
@@ -498,15 +506,14 @@ int out_col = 0;
    It keeps track of the number of characters output and may
    break the output with a "\<cr>". */
 
-void
+static void
 out_char (ch)
-     char ch;
+     int ch;
 {
 
-  if (ch == '\n')
+  if (ch == '\0')
     {
       out_col = 0;
-      putchar ('\n');
     }
   else
     {
@@ -547,17 +554,16 @@ rt_error (mesg, va_alist)
 #endif
 {
   va_list args;
-  char error_mesg [255];
 
+  fprintf (stderr, "Runtime error: ");
 #ifdef HAVE_STDARG_H
   va_start (args, mesg);
 #else
   va_start (args);
 #endif
-  vsprintf (error_mesg, mesg, args);
+  vfprintf (stderr, mesg, args);
   va_end (args);
-  
-  fprintf (stderr, "Runtime error: %s\n", error_mesg);
+  fprintf (stderr, "\n");
 }
 
 
@@ -581,15 +587,14 @@ rt_warn (mesg, va_alist)
 #endif
 {
   va_list args;
-  char error_mesg [255];
 
+  fprintf (stderr, "Runtime warning: ");
 #ifdef HAVE_STDARG_H
   va_start (args, mesg);
 #else
   va_start (args);
 #endif
-  vsprintf (error_mesg, mesg, args);
+  vfprintf (stderr, mesg, args);
   va_end (args);
-
-  fprintf (stderr, "Runtime warning: %s\n", error_mesg);
+  fprintf (stderr, "\n");
 }

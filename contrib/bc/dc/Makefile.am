@@ -7,4 +7,8 @@ noinst_HEADERS = dc.h dc-proto.h dc-regdef.h
 INCLUDES = -I$(srcdir)/.. -I$(srcdir)/../h
 LDADD = ../lib/libbc.a
 
+MAINTAINERCLEANFILES = Makefile.in
+
+CFLAGS = @CFLAGS@ -Wall -funsigned-char
+
 $(PROGRAMS): $(LDADD)

@@ -1,7 +1,7 @@
 /* util.c: Utility routines for bc. */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991-1994, 1997, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -308,7 +310,7 @@ run_code()
 
 void
 out_char (ch)
-     char ch;
+     int ch;
 {
   if (ch == '\n')
     {
@@ -335,7 +337,7 @@ out_char (ch)
 
 void
 out_schar (ch)
-     char ch;
+     int ch;
 {
   if (ch == '\n')
     {
@@ -620,6 +622,10 @@ lookup (name, namekind)
       yyerror ("Too many variables");
       exit (1);
     }
+
+  yyerror ("End of util.c/lookup() reached.  Please report this bug.");
+  exit (1);
+  /* not reached */
 }
 
 
@@ -632,6 +638,13 @@ welcome()
   printf ("For details type `warranty'. \n");
 }
 
+/* Print out the version information. */
+void
+show_bc_version()
+{
+  printf("%s %s\n%s\n", PACKAGE, VERSION, BC_COPYRIGHT);
+}
+
 
 /* Print out the warranty information. */
 
@@ -639,19 +652,22 @@ void
 warranty(prefix)
      char *prefix;
 {
-  printf ("\n%s%s\n\n", prefix, BC_VERSION);
-  printf ("%s%s%s%s%s%s%s%s%s%s%s",
-"    This program is free software; you can redistribute it and/or modify\n",
-"    it under the terms of the GNU General Public License as published by\n",
-"    the Free Software Foundation; either version 2 of the License , or\n",
-"    (at your option) any later version.\n\n",
-"    This program is distributed in the hope that it will be useful,\n",
-"    but WITHOUT ANY WARRANTY; without even the implied warranty of\n",
-"    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n",
-"    GNU General Public License for more details.\n\n",
-"    You should have received a copy of the GNU General Public License\n",
-"    along with this program. If not, write to the Free Software\n",
-"    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.\n\n");
+  printf ("\n%s", prefix);
+  show_bc_version ();
+  printf ("\n"
+"    This program is free software; you can redistribute it and/or modify\n"
+"    it under the terms of the GNU General Public License as published by\n"
+"    the Free Software Foundation; either version 2 of the License , or\n"
+"    (at your option) any later version.\n\n"
+"    This program is distributed in the hope that it will be useful,\n"
+"    but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+"    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+"    GNU General Public License for more details.\n\n"
+"    You should have received a copy of the GNU General Public License\n"
+"    along with this program. If not, write to\n\n"
+"       The Free Software Foundation, Inc.\n"
+"       59 Temple Place, Suite 330\n"
+"       Boston, MA 02111, USA.\n\n");
 }
 
 /* Print out the limits of this program. */
@@ -664,8 +680,6 @@ limits()
   printf ("BC_SCALE_MAX    = %d\n",  BC_SCALE_MAX);
   printf ("BC_STRING_MAX   = %d\n",  BC_STRING_MAX);
   printf ("MAX Exponent    = %ld\n", (long) LONG_MAX);
-  printf ("MAX code        = %ld\n", (long) BC_MAX_SEGS * (long) BC_SEG_SIZE);
-  printf ("multiply digits = %ld\n", (long) LONG_MAX / (long) 90);
   printf ("Number of vars  = %ld\n", (long) MAX_STORE);
 #ifdef OLD_EQ_OP
   printf ("Old assignment operatiors are valid. (=-, =+, ...)\n");
@@ -808,18 +822,18 @@ rt_error (mesg, va_alist)
 #endif
 {
   va_list args;
-  char error_mesg [255];
 
+  fprintf (stderr, "Runtime error (func=%s, adr=%d): ",
+	   f_names[pc.pc_func], pc.pc_addr);
 #ifndef VARARGS   
   va_start (args, mesg);
 #else
   va_start (args);
 #endif
-  vsprintf (error_mesg, mesg, args);
+  vfprintf (stderr, mesg, args);
   va_end (args);
   
-  fprintf (stderr, "Runtime error (func=%s, adr=%d): %s\n",
-	   f_names[pc.pc_func], pc.pc_addr, error_mesg);
+  fprintf (stderr, "\n");
   runtime_error = TRUE;
 }
 
@@ -844,16 +858,16 @@ rt_warn (mesg, va_alist)
 #endif
 {
   va_list args;
-  char error_mesg [255];
 
+  fprintf (stderr, "Runtime warning (func=%s, adr=%d): ",
+	   f_names[pc.pc_func], pc.pc_addr);
 #ifndef VARARGS   
   va_start (args, mesg);
 #else
   va_start (args);
 #endif
-  vsprintf (error_mesg, mesg, args);
+  vfprintf (stderr, mesg, args);
   va_end (args);
 
-  fprintf (stderr, "Runtime warning (func=%s, adr=%d): %s\n",
-	   f_names[pc.pc_func], pc.pc_addr, error_mesg);
+  fprintf (stderr, "\n");
 }

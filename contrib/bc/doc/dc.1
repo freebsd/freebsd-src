@@ -2,7 +2,7 @@
 .\" dc.1 - the *roff document processor source for the dc manual
 .\"
 .\" This file is part of GNU dc.
-.\" Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
+.\" Copyright (C) 1994, 1997, 1998, 2000 Free Software Foundation, Inc.
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by
@@ -15,8 +15,10 @@
 .\" GNU General Public License for more details.
 .\"
 .\" You should have received a copy of the GNU General Public License
-.\" along with this program; see the file COPYING.  If not, write to
-.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\" along with this program; see the file COPYING.  If not, write to:
+.\"   The Free Software Foundation, Inc.
+.\"   59 Temple Place, Suite 330
+.\"   Boston, MA 02111 USA
 .\"
 .TH DC 1 "1997-03-25" "GNU Project"
 .ds dc \fIdc\fP
@@ -24,7 +26,10 @@
 .SH NAME
 dc \- an arbitrary precision calculator
 .SH SYNOPSIS
-dc
+dc [-V] [--version] [-h] [--help]
+   [-e scriptexpression] [--expression=scriptexpression]
+   [-f scriptfile] [--file=scriptfile]
+   [file ...]
 .SH DESCRIPTION
 .PP
 \*(Dc is a reverse-polish desk calculator which supports
@@ -52,6 +57,43 @@ as it is a binary operator for subtraction instead.
 To enter two numbers in succession,
 separate them with spaces or newlines.
 These have no meaning as commands.
+.SH OPTIONS
+\*(Dc may be invoked with the following command-line options:
+.TP
+.B -V
+.TP
+.B --version
+Print out the version of \*(dc that is being run and a copyright notice,
+then exit.
+.TP
+.B -h
+.TP
+.B --help
+Print a usage message briefly summarizing these command-line options
+and the bug-reporting address,
+then exit.
+.TP
+.B -e \fIscript\fP
+.TP
+.BI --expression= script
+Add the commands in
+.I script
+to the set of commands to be run while processing the input.
+.TP
+.B -f \fIscript-file\fP
+.TP
+.BI --file= script-file
+Add the commands contained in the file
+.I script-file
+to the set of commands to be run while processing the input.
+.PP
+If any command-line parameters remain after processing the above,
+these parameters are interpreted as the names of input files to
+be processed.
+A file name of
+.B -
+refers to the standard input stream.
+The standard input will processed if no file names are specified.
 .PD
 .SH
 Printing Commands
@@ -149,7 +191,7 @@ and any fractional part of this exponent will be ignored.
 The third value popped is the base which gets exponentiated,
 which should be an integer.
 For small integers this is like the sequence \fBSm^Lm%\fP,
-but, unlike \fB^\fP, this command will work with arbritrarily large exponents.
+but, unlike \fB^\fP, this command will work with arbitrarily large exponents.
 .TP
 .B v
 Pops one value,
@@ -415,7 +457,7 @@ Miscellaneous
 .TP
 .B !
 Will run the rest of the line as a system command.
-Note that parsing of the !<, !=, and !> commands take precidence,
+Note that parsing of the !<, !=, and !> commands take precedence,
 so if you want to run a command starting with <, =, or > you will
 need to add a space after the !.
 .TP
@@ -443,5 +485,4 @@ was later popped.
 BUGS
 .PP
 Email bug reports to
-.BR bug-gnu-utils@prep.ai.mit.edu .
-Be sure to include the word ``dc'' somewhere in the ``Subject:'' field.
+.BR bug-dc@gnu.org .

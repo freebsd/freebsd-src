@@ -16,11 +16,13 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+    along with this program; see the file COPYING.  If not, write to:
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -43,7 +45,7 @@
        }
 
 /* Extensions over POSIX bc.
-   a) NAME was LETTER.  This grammer allows longer names.
+   a) NAME was LETTER.  This grammar allows longer names.
       Single letter names will still work.
    b) Relational_expression allowed only one comparison.
       This grammar has added boolean expressions with
@@ -61,7 +63,7 @@
    j) limits statement to print the processor's limits.
 */
 
-%token <i_value> NEWLINE AND OR NOT
+%token <i_value> ENDOFLINE AND OR NOT
 %token <s_value> STRING NAME NUMBER
 /*     '-', '+' are tokens themselves		*/
 /*     '=', '+=',  '-=', '*=', '/=', '%=', '^=' */
@@ -79,7 +81,7 @@
 /*     'warranty', 'halt', 'last', 'continue', 'print', 'limits'   */
 %token <i_value> Warranty, Halt, Last, Continue, Print, Limits
 /*     'history' */
-%token <i_value> UNARY_MINUS History
+%token <i_value> UNARY_MINUS HistoryVar
 
 /* Types of all other things. */
 %type <i_value> expression return_expression named_expression opt_expression
@@ -87,7 +89,7 @@
 %type <a_value> opt_parameter_list opt_auto_define_list define_list
 %type <a_value> opt_argument_list argument_list
 %type <i_value> program input_item semicolon_list statement_list
-%type <i_value> statement function   statement_or_error
+%type <i_value> statement function statement_or_error required_eol
 
 /* precedence */
 %left OR
@@ -107,24 +109,24 @@ program			: /* empty */
 			      $$ = 0;
 			      if (interactive && !quiet)
 				{
-				  printf ("%s\n", BC_VERSION);
+				  show_bc_version ();
 				  welcome ();
 				}
 			    }
 			| program input_item
 			;
-input_item		: semicolon_list NEWLINE
+input_item		: semicolon_list ENDOFLINE
 			    { run_code (); }
 			| function
 			    { run_code (); }
-			| error NEWLINE
+			| error ENDOFLINE
 			    {
 			      yyerrok;
 			      init_gen ();
 			    }
 			;
 opt_newline		: /* empty */
-			| NEWLINE
+			| ENDOFLINE
 			    { warn ("newline not allowed"); }
 			;
 semicolon_list		: /* empty */
@@ -136,8 +138,8 @@ semicolon_list		: /* empty */
 statement_list		: /* empty */
 			    { $$ = 0; }
 			| statement_or_error
-			| statement_list NEWLINE
-			| statement_list NEWLINE statement_or_error
+			| statement_list ENDOFLINE
+			| statement_list ENDOFLINE statement_or_error
 			| statement_list ';'
 			| statement_list ';' statement
 			;
@@ -190,9 +192,7 @@ statement 		: Warranty
 			    { exit (0); }
 			| Halt
 			    { generate ("h"); }
-			| Return
-			    { generate ("0R"); }
-			| Return '(' return_expression ')'
+			| Return return_expression
 			    { generate ("R"); }
 			| For 
 			    {
@@ -201,13 +201,12 @@ statement 		: Warranty
 			    }
 			  '(' opt_expression ';'
 			    {
-			      if ($4 > 1)
+			      if ($4 & 2)
 				warn ("Comparison in first for expression");
+			      if ($4 >= 0)
+				generate ("p");
 			      $4 = next_label++;
-			      if ($4 < 0)
-				sprintf (genstr, "N%1d:", $4);
-			      else
-				sprintf (genstr, "pN%1d:", $4);
+			      sprintf (genstr, "N%1d:", $4);
 			      generate (genstr);
 			    }
 			  opt_expression ';'
@@ -223,9 +222,9 @@ statement 		: Warranty
 			    }
 			  opt_expression ')'
 			    {
-			      if ($10 > 1)
+			      if ($10 & 2 )
 				warn ("Comparison in third for expression");
-			      if ($10 < 0)
+			      if ($10 & 16)
 				sprintf (genstr, "J%1d:N%1d:", $4, $7);
 			      else
 				sprintf (genstr, "pJ%1d:N%1d:", $4, $7);
@@ -300,7 +299,7 @@ opt_else		: /* nothing */
 			    }
 			  opt_newline statement
 function 		: Define NAME '(' opt_parameter_list ')' opt_newline
-     			  '{' NEWLINE opt_auto_define_list 
+     			  '{' required_eol opt_auto_define_list 
 			    {
 			      /* Check auto list against parameter list? */
 			      check_params ($4,$9);
@@ -313,7 +312,7 @@ function 		: Define NAME '(' opt_parameter_list ')' opt_newline
 			      $1 = next_label;
 			      next_label = 1;
 			    }
-			  statement_list /* NEWLINE */ '}'
+			  statement_list /* ENDOFLINE */ '}'
 			    {
 			      generate ("0R]");
 			      next_label = $1;
@@ -325,7 +324,7 @@ opt_parameter_list	: /* empty */
 			;
 opt_auto_define_list 	: /* empty */ 
 			    { $$ = NULL; }
-			| Auto define_list NEWLINE
+			| Auto define_list ENDOFLINE
 			    { $$ = $2; } 
 			| Auto define_list ';'
 			    { $$ = $2; } 
@@ -349,7 +348,7 @@ opt_argument_list	: /* empty */
 			;
 argument_list 		: expression
 			    {
-			      if ($1 > 1) warn ("comparison in argument");
+			      if ($1 & 2) warn ("comparison in argument");
 			      $$ = nextarg (NULL,0,FALSE);
 			    }
 			| NAME '[' ']'
@@ -360,7 +359,7 @@ argument_list 		: expression
 			    }
 			| argument_list ',' expression
 			    {
-			      if ($3 > 1) warn ("comparison in argument");
+			      if ($3 & 2) warn ("comparison in argument");
 			      $$ = nextarg ($1,0,FALSE);
 			    }
 			| argument_list ',' NAME '[' ']'
@@ -370,9 +369,18 @@ argument_list 		: expression
 			      $$ = nextarg ($1,1,FALSE);
 			    }
 			;
+
+/* Expression lval meanings!  (Bits mean something!)
+ *  0 => Top op is assignment.
+ *  1 => Top op is not assignment.
+ *  2 => Comparison is somewhere in expression.
+ *  4 => Expression is in parenthesis.
+ * 16 => Empty optional expression.
+ */
+
 opt_expression 		: /* empty */
 			    {
-			      $$ = -1;
+			      $$ = 16;
 			      warn ("Missing expression in for statement");
 			    }
 			| expression
@@ -384,8 +392,10 @@ return_expression	: /* empty */
 			    }
 			| expression
 			    {
-			      if ($1 > 1)
+			      if ($1 & 2)
 				warn ("comparison in return expresion");
+			      if (!($1 & 4))
+				warn ("return expression requires parenthesis");
 			    }
 			;
 expression		:  named_expression ASSIGN_OP 
@@ -401,7 +411,7 @@ expression		:  named_expression ASSIGN_OP
 			    }
 			  expression
 			    {
-			      if ($4 > 1) warn("comparison in assignment");
+			      if ($4 & 2) warn("comparison in assignment");
 			      if ($2 != '=')
 				{
 				  sprintf (genstr, "%c", $2);
@@ -426,7 +436,7 @@ expression		:  named_expression ASSIGN_OP
 			    {
 			      sprintf (genstr, "DZ%d:p1N%d:", $2, $2);
 			      generate (genstr);
-			      $$ = $1 | $4;
+			      $$ = ($1 | $4) & ~4;
 			    }
 			| expression OR
 			    {
@@ -442,11 +452,11 @@ expression		:  named_expression ASSIGN_OP
 			      sprintf (genstr, "B%d:0J%d:N%d:1N%d:",
 				       $2, tmplab, $2, tmplab);
 			      generate (genstr);
-			      $$ = $1 | $4;
+			      $$ = ($1 | $4) & ~4;
 			    }
 			| NOT expression
 			    {
-			      $$ = $2;
+			      $$ = $2 & ~4;
 			      warn("! operator");
 			      generate ("!");
 			    }
@@ -481,37 +491,37 @@ expression		:  named_expression ASSIGN_OP
 			| expression '+' expression
 			    {
 			      generate ("+");
-			      $$ = $1 | $3;
+			      $$ = ($1 | $3) & ~4;
 			    }
 			| expression '-' expression
 			    {
 			      generate ("-");
-			      $$ = $1 | $3;
+			      $$ = ($1 | $3) & ~4;
 			    }
 			| expression '*' expression
 			    {
 			      generate ("*");
-			      $$ = $1 | $3;
+			      $$ = ($1 | $3) & ~4;
 			    }
 			| expression '/' expression
 			    {
 			      generate ("/");
-			      $$ = $1 | $3;
+			      $$ = ($1 | $3) & ~4;
 			    }
 			| expression '%' expression
 			    {
 			      generate ("%");
-			      $$ = $1 | $3;
+			      $$ = ($1 | $3) & ~4;
 			    }
 			| expression '^' expression
 			    {
 			      generate ("^");
-			      $$ = $1 | $3;
+			      $$ = ($1 | $3) & ~4;
 			    }
 			| '-' expression  %prec UNARY_MINUS
 			    {
 			      generate ("n");
-			      $$ = $2;
+			      $$ = $2 & ~4;
 			    }
 			| named_expression
 			    {
@@ -539,7 +549,7 @@ expression		:  named_expression ASSIGN_OP
 			      free ($1);
 			    }
 			| '(' expression ')'
-			    { $$ = $2 | 1; }
+			    { $$ = $2 | 5; }
 			| NAME '(' opt_argument_list ')'
 			    {
 			      $$ = 1;
@@ -623,7 +633,7 @@ named_expression	: NAME
 			    { $$ = 1; }
 			| Scale
 			    { $$ = 2; }
-			| History
+			| HistoryVar
 			    { $$ = 3;
 			      warn ("History variable");
 			    }
@@ -631,6 +641,13 @@ named_expression	: NAME
 			    { $$ = 4;
 			      warn ("Last variable");
 			    }
+			;
+
+
+required_eol		: { warn ("End of line required"); }
+			| ENDOFLINE
+			| required_eol ENDOFLINE
+			  { warn ("Too many end of lines"); }
 			;
 
 %%
