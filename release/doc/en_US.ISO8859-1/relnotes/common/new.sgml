@@ -111,6 +111,10 @@
     <sect3>
       <title>Network Interface Support</title>
 
+      <para arch="i386,pc98">The &man.em.4; driver now supports the
+        Intel 82545EM and 82545EB chips.  It also has VLAN
+        support.</para>
+
       <para arch="i386">The &man.rp.4; driver has been updated to
         version 3.02 and can now be built as a module.</para>
 
@@ -173,6 +177,9 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
+      it to just print out the dump size estimates and exit.</para>
 
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> flag to break at
