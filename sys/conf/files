@@ -585,8 +585,12 @@ pci/adv_pci.c		optional adv device-driver
 pci/adw_pci.c		optional adw device-driver
 pci/ahc_pci.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
-pci/brooktree848.c	optional bktr device-driver
-pci/bt848_i2c.c		optional bktr device-driver
+dev/bktr/bktr_core.c	optional bktr device-driver
+dev/bktr/bktr_i2c.c	optional bktr device-driver
+dev/bktr/bktr_card.c	optional bktr device-driver
+dev/bktr/bktr_tuner.c	optional bktr device-driver
+dev/bktr/bktr_audio.c	optional bktr device-driver
+dev/bktr/bktr_os.c	optional bktr device-driver
 pci/bt_pci.c		optional bt device-driver
 pci/dpt_pci.c		optional pci dpt device-driver
 pci/cy_pci.c		optional cy device-driver
