@@ -49,7 +49,7 @@ trap : 3	# shouldn't be needed
 bootmode=$1
 
 HOME=/
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export HOME PATH
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
