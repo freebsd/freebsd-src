@@ -48,42 +48,91 @@ static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #define	USPS	1000000		/* number of microseconds in a second */
 #endif
 
+#ifndef _THREAD_SAFE
+#ifndef USE_NANOSLEEP
 #define	setvec(vec, a) \
 	vec.sv_handler = a; vec.sv_mask = vec.sv_onstack = 0
 
-#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
 static int ringring;
 #endif
 
 static void
 sleephandler()
 {
-#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
+#ifndef USE_NANOSLEEP
 	ringring = 1;
 #endif
 }
+#endif	/* _THREAD_SAFE */
 
 
 void
 usleep(useconds)
 	unsigned int useconds;
 {
-#if defined(_THREAD_SAFE) || defined(USE_NANOSLEEP)
+#ifdef _THREAD_SAFE
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
-	struct sigvec vec, ovec;
 
 	if (useconds) {
 		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 		time_to_sleep.tv_sec = useconds / 1000000;
-		setvec(vec, sleephandler);
-		(void) sigvec(SIGALRM, &vec, &ovec);
 		do {
 			nanosleep(&time_to_sleep, &time_remaining);
 			time_to_sleep = time_remaining;
 		} while (time_to_sleep.tv_sec != 0 &&
 			 time_to_sleep.tv_nsec != 0);
-		(void) sigvec(SIGALRM, &ovec, (struct sigvec *)0);
+	}
+#else
+#ifdef USE_NANOSLEEP
+	struct timespec time_to_sleep;
+	struct timespec time_remaining;
+	struct sigaction act, oact;
+	sigset_t mask, omask;
+	int alarm_blocked;
+
+	if (useconds != 0) {
+		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
+		time_to_sleep.tv_sec = useconds / 1000000;
+
+		/* Block SIGALRM while fiddling with it */
+		sigemptyset(&mask);
+		sigaddset(&mask, SIGALRM);
+		sigprocmask(SIG_BLOCK, &mask, &omask);
+
+		/* Was SIGALRM blocked already? */
+		alarm_blocked = sigismember(&omask, SIGALRM);
+
+		if (!alarm_blocked) {
+			/*
+			 * Set up handler to interrupt signanosleep only if
+			 * SIGALRM was unblocked. (Save some syscalls)
+			 */
+			memset(&act, 0, sizeof(act));
+			act.sa_handler = sleephandler;
+			sigaction(SIGALRM, &act, &oact);
+		}
+
+		/*
+		 * signanosleep() uses the given mask for the lifetime of
+		 * the syscall only - it resets on return.  Note that the
+		 * Old sleep explicitly unblocks SIGALRM during the sleep,
+		 * we don't do that now since we don't depend on SIGALRM
+		 * to end the timout.  If the process blocks SIGALRM, it
+		 * gets what it asks for.
+		 */
+
+		do {
+			signanosleep(&time_to_sleep, &time_remaining, &mask);
+			time_to_sleep = time_remaining;
+		} while (time_to_sleep.tv_sec != 0 &&
+			 time_to_sleep.tv_nsec != 0);
+
+		if (!alarm_blocked) {
+			/* Unwind */
+			sigaction(SIGALRM, &oact, (struct sigaction *)0);
+			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
+		}
 	}
 #else
 	register struct itimerval *itp;
@@ -125,5 +174,6 @@ usleep(useconds)
 	(void) sigvec(SIGALRM, &ovec, (struct sigvec *)0);
 	(void) sigsetmask(omask);
 	(void) setitimer(ITIMER_REAL, &oitv, (struct itimerval *)0);
-#endif
+#endif	/* USE_NANOSLEEP */
+#endif	/* _THREAD_SAFE */
 }
