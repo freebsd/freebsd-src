@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.19 1995/04/09 06:23:12 rgrimes Exp $
+ *  $Id: ft.c,v 1.20 1995/04/12 20:47:43 wollman Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -103,6 +103,9 @@ extern int in_fdc(int);			/* read fdc registers */
 extern int out_fdc(int, int);		/* write fdc registers */
 
 extern int hz;				/* system clock rate */
+
+/* Flags in isadev struct */
+#define	FT_PROBE	0x1		/* allow for "dangerous" tape probes */
 
 /* Type of tape attached */
 /* use numbers that don't interfere with the possible floppy types */
@@ -494,21 +497,29 @@ ftattach(isadev, fdup, unithasfd)
 	goto out;
   }
 
-  /*
-   *  FT_INSIGHT - insight style
-   *
-   *  Since insight requires turning the drive motor on, we will not
-   *  perform this probe if a floppy drive was already found with the
-   *  the given unit and controller.
-   */
-  if (unithasfd) goto out;
-  tape_start(ftu, 1);
-  if (tape_status(ftu) >= 0) {
+  if(isadev->id_flags & FT_PROBE) {
+    /*
+     * Insight probe is dangerous, since it requires the motor being
+     * enabled and therefore risks attached floppy disk drives to jam.
+     * Probe only if explicitly requested by a flag 0x1 from config
+     */
+    
+    /*
+     *  FT_INSIGHT - insight style
+     *
+     *  Since insight requires turning the drive motor on, we will not
+     *  perform this probe if a floppy drive was already found with the
+     *  the given unit and controller.
+     */
+    if (unithasfd) goto out;
+    tape_start(ftu, 1);
+    if (tape_status(ftu) >= 0) {
 	ft->type = FT_INSIGHT;
 	ftreq_hwinfo(ftu, &hw);
 	goto out;
+    }
   }
-
+  
 out:
   tape_end(ftu);
   if (ft->type != NO_TYPE) {
