@@ -160,6 +160,7 @@ static int	grab_mcontext(struct thread *, mcontext_t *, int);
 void		asm_panic(char *);
 
 long		Maxmem = 0;
+long		realmem = 0;
 
 struct pmap	ofw_pmap;
 extern int	ofmsr;
@@ -197,6 +198,7 @@ cpu_startup(void *dummy)
 #endif
 	printf("real memory  = %ld (%ld MB)\n", ptoa(Maxmem),
 	    ptoa(Maxmem) / 1048576);
+	realmem = Maxmem;
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
