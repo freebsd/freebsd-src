@@ -1328,6 +1328,9 @@ an_ioctl(ifp, command, data)
 			break;
 #ifdef ANCACHE
 		if (sc->areq.an_type == AN_RID_ZERO_CACHE) {
+			error = suser(td);
+			if (error)
+				break;
 			sc->an_sigitems = sc->an_nextitem = 0;
 			break;
 		} else if (sc->areq.an_type == AN_RID_READ_CACHE) {
