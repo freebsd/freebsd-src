@@ -13,7 +13,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mixer.c,v 1.7 1997/09/29 06:38:49 charnier Exp $";
+	"$Id: mixer.c,v 1.8 1997/10/01 06:34:09 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 	else if (!strcmp(argv[0], "mixer3"))
 		name = strdup("/dev/mixer2");
 
-	if (argc > 1 && !strcmp(argv[1], "-f")) {
+	if (argc > 2 && strcmp(argv[1], "-f") == 0) {
 		name = strdup(argv[2]);
 		argc -= 2; argv += 2;
 	}
