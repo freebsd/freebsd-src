@@ -52,7 +52,7 @@ etherfind -n -t
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_ef.c	1.6 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 2.2.2.2 2002/02/22 15:32:53 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 2.2.2.3 2002/06/27 14:29:17 darrenr Exp $";
 #endif
 
 static	int	etherf_open __P((char *));
@@ -97,7 +97,7 @@ int	cnt, *dir;
 	struct	protoent *p = NULL;
 	char	src[16], dst[16], sprt[16], dprt[16];
 	char	lbuf[128], len[8], prot[8], time[8], *s;
-	int	slen, extra = 0, i, n;
+	int	slen, extra = 0, i;
 
 	if (!fgets(lbuf, sizeof(lbuf) - 1, efp))
 		return 0;
@@ -108,10 +108,10 @@ int	cnt, *dir;
 
 	bzero(&pkt, sizeof(pkt));
 
-	if ((n = sscanf(lbuf, "%s %s %s %s %s %s", len, prot, src, dst,
-			sprt, dprt)) != 6)
-		if ((n = sscanf(lbuf, "%s %s %s %s %s %s %s", time,
-				len, prot, src, dst, sprt, dprt)) != 7)
+	if (sscanf(lbuf, "%s %s %s %s %s %s", len, prot, src, dst,
+		   sprt, dprt) != 6)
+		if (sscanf(lbuf, "%s %s %s %s %s %s %s", time,
+			   len, prot, src, dst, sprt, dprt) != 7)
 			return -1;
 
 	ip->ip_p = atoi(prot);

@@ -22,6 +22,68 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.29	28/8/2002 - Released
+
+Make substantial changes to the FTP proxy to improve reliability, security
+and functionality.
+
+don't send ICMP errors/TCP RST's in response to blocked proxy packets
+
+fix potential memory leaks when unloading ipfilter from kernel
+
+fix bug in SIOCGNATL handler that did not preserve the expected
+byte order from earlier versions in the port number
+
+set do not fragment flag in generated packets according to system flags,
+where available.
+
+preserve filter rule number and group number in state structure
+
+fix bug in ipmon printing of p/P/b/B
+
+make some changes to the kmem.c code for IRIX compatibility
+
+add code to specifically handle ip.tun* interfaces on Solaris
+
+3.4.28	6/6/2002 - Released
+
+Fix for H.323 proxy to work on little endian boxes
+
+IRIX: Update installation documentation
+      add route lock patch
+
+allow use of groups > 65535
+
+create a new packet info summary for packets going through ipfr_fastroute()
+so that where details are different (RST/ICMP errors), the packet now gets
+correctly NAT'd, etc.
+
+fix the FTP proxy so that checks for TCP sequence numbers outside the
+normal offset due to data changes use absolute numbers
+
+make it possible to remove rules in ipftest
+
+Update installing onto OpenBSD and split into two directories:
+OpenBSD-2 and OpenBSD-3
+
+fix error in printout out the protocol in NAT rules
+
+always unlock ipfilter if locking fails half way through in ipfs
+
+fix problems with TCP window scaling
+
+update of man pages for ipnat(4) and ipftest(1)
+
+3.4.27	28/04/2002 - Released
+
+fix calculation of 2's complmenent 16 bit checksum for user space
+
+add mbuflen() to usespace compiles.
+
+add more #ifdef complexity for platform portability
+
+add OpenBSD 3.1 diffs
+
 3.4.26	25/04/2002 - Released
 
 fix parsing and printing of NAT rules with regression tests.
