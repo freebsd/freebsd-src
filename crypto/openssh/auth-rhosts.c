@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rhosts.c,v 1.15 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$OpenBSD: auth-rhosts.c,v 1.16 2000/10/03 18:03:03 markus Exp $");
 
 #include "packet.h"
 #include "ssh.h"
@@ -154,6 +154,9 @@ auth_rhosts(struct passwd *pw, const char *client_user)
 	static const char *rhosts_files[] = {".shosts", ".rhosts", NULL};
 	unsigned int rhosts_file_index;
 
+	/* no user given */
+	if (pw == NULL)
+		return 0;
 	/* Switch to the user's uid. */
 	temporarily_use_uid(pw->pw_uid);
 	/*

@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp-server.8,v 1.2 2000/09/07 20:27:53 deraadt Exp $
+.\" $OpenBSD: sftp-server.8,v 1.3 2000/10/13 17:20:44 aaron Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl. All rights reserved.
 .\"
@@ -36,21 +36,21 @@ is a program that speaks the server side of SFTP protocol
 to stdout and expects client requests from stdin.
 .Nm
 is not intended to be called directly, but from
-.Xr sshd 8 
+.Xr sshd 8
 using the
 .Cm Subsystem
 option.
 See
-.Xr sshd 8 
+.Xr sshd 8
 for more information.
-.Sh HISTORY
-.Nm
-first appeared in
-.Ox 2.8 .
-.Sh AUTHOR
-Markus Friedl <markus@openbsd.org>
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-keygen 1 ,
-.Xr sshd 8 ,
+.Xr sshd 8
+.Sh AUTHOR
+Markus Friedl <markus@openbsd.org>
+.Sh HISTORY
+.Nm
+first appeared in
+.Ox 2.8 .

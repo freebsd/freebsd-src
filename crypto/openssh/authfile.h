@@ -10,8 +10,12 @@
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
  */
+
+/* $OpenBSD: authfile.h,v 1.5 2000/10/16 09:38:44 djm Exp $ */
+
 #ifndef AUTHFILE_H
 #define AUTHFILE_H
+
 
 /*
  * Saves the authentication (private) key in a file, encrypting it with

@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: log-server.c,v 1.16 2000/09/07 20:27:52 deraadt Exp $");
+RCSID("$OpenBSD: log-server.c,v 1.17 2000/09/12 20:53:10 markus Exp $");
 
 #include <syslog.h>
 #include "packet.h"
@@ -62,7 +62,9 @@ log_init(char *av0, LogLevel level, SyslogFacility facility, int on_stderr)
 	case SYSLOG_LEVEL_FATAL:
 	case SYSLOG_LEVEL_INFO:
 	case SYSLOG_LEVEL_VERBOSE:
-	case SYSLOG_LEVEL_DEBUG:
+	case SYSLOG_LEVEL_DEBUG1:
+	case SYSLOG_LEVEL_DEBUG2:
+	case SYSLOG_LEVEL_DEBUG3:
 		log_level = level;
 		break;
 	default:
@@ -138,8 +140,16 @@ do_log(LogLevel level, const char *fmt, va_list args)
 	case SYSLOG_LEVEL_VERBOSE:
 		pri = LOG_INFO;
 		break;
-	case SYSLOG_LEVEL_DEBUG:
-		txt = "debug";
+	case SYSLOG_LEVEL_DEBUG1:
+		txt = "debug1";
+		pri = LOG_DEBUG;
+		break;
+	case SYSLOG_LEVEL_DEBUG2:
+		txt = "debug2";
+		pri = LOG_DEBUG;
+		break;
+	case SYSLOG_LEVEL_DEBUG3:
+		txt = "debug3";
 		pri = LOG_DEBUG;
 		break;
 	default:

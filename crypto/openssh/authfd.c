@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.27 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.29 2000/10/09 21:51:00 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -52,9 +52,14 @@ RCSID("$FreeBSD$");
 #include "authfd.h"
 #include "kex.h"
 #include "dsa.h"
+#include "compat.h"
 
 /* helper */
 int	decode_reply(int type);
+
+/* macro to check for "agent failure" message */
+#define agent_failed(x) \
+    ((x == SSH_AGENT_FAILURE) || (x == SSH_COM_AGENT2_FAILURE))
 
 /* Returns the number of the authentication fd, or -1 if there is none. */
 
@@ -238,7 +243,7 @@ ssh_get_first_identity(AuthenticationConnection *auth, char **comment, int versi
 
 	/* Get message type, and verify that we got a proper answer. */
 	type = buffer_get_char(&auth->identities);
-	if (type == SSH_AGENT_FAILURE) {
+	if (agent_failed(type)) {
 		return NULL;
 	} else if (type != code2) {
 		fatal("Bad authentication reply message type: %d", type);
@@ -337,7 +342,7 @@ ssh_decrypt_challenge(AuthenticationConnection *auth,
 	}
 	type = buffer_get_char(&buffer);
 
-	if (type == SSH_AGENT_FAILURE) {
+	if (agent_failed(type)) {
 		log("Agent admitted failure to authenticate using the key.");
 	} else if (type != SSH_AGENT_RSA_RESPONSE) {
 		fatal("Bad authentication response: %d", type);
@@ -361,20 +366,24 @@ ssh_agent_sign(AuthenticationConnection *auth,
     unsigned char **sigp, int *lenp,
     unsigned char *data, int datalen)
 {
+	extern int datafellows;
 	Buffer msg;
 	unsigned char *blob;
 	unsigned int blen;
-	int type;
+	int type, flags = 0;
 	int ret = -1;
 
 	if (dsa_make_key_blob(key, &blob, &blen) == 0)
 		return -1;
 
+	if (datafellows & SSH_BUG_SIGBLOB)
+		flags = SSH_AGENT_OLD_SIGNATURE;
+
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_AGENTC_SIGN_REQUEST);
 	buffer_put_string(&msg, blob, blen);
 	buffer_put_string(&msg, data, datalen);
-	buffer_put_int(&msg, 0);				/* flags, unused */
+	buffer_put_int(&msg, flags);
 	xfree(blob);
 
 	if (ssh_request_reply(auth, &msg, &msg) == 0) {
@@ -382,7 +391,7 @@ ssh_agent_sign(AuthenticationConnection *auth,
 		return -1;
 	}
 	type = buffer_get_char(&msg);
-	if (type == SSH_AGENT_FAILURE) {
+	if (agent_failed(type)) {
 		log("Agent admitted failure to sign using the key.");
 	} else if (type != SSH2_AGENT_SIGN_RESPONSE) {
 		fatal("Bad authentication response: %d", type);
@@ -529,6 +538,7 @@ decode_reply(int type)
 {
 	switch (type) {
 	case SSH_AGENT_FAILURE:
+	case SSH_COM_AGENT2_FAILURE:
 		log("SSH_AGENT_FAILURE");
 		return 0;
 	case SSH_AGENT_SUCCESS:

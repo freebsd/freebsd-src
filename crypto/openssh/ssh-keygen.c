@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.31 2000/09/07 20:27:54 deraadt Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.32 2000/10/09 21:30:44 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -26,6 +26,9 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.31 2000/09/07 20:27:54 deraadt Exp $");
 #include "dsa.h"
 #include "authfile.h"
 #include "uuencode.h"
+
+#include "buffer.h"
+#include "bufaux.h"
 
 /* Number of bits in the RSA/DSA key.  This value can be changed on the command line. */
 int bits = 1024;
@@ -104,8 +107,10 @@ try_load_key(char *filename, Key *k)
 	return success;
 }
 
-#define SSH_COM_MAGIC_BEGIN "---- BEGIN SSH2 PUBLIC KEY ----"
-#define SSH_COM_MAGIC_END   "---- END SSH2 PUBLIC KEY ----"
+#define SSH_COM_PUBLIC_BEGIN		"---- BEGIN SSH2 PUBLIC KEY ----"
+#define SSH_COM_PUBLIC_END  		"---- END SSH2 PUBLIC KEY ----"
+#define SSH_COM_PRIVATE_BEGIN		"---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----"
+#define	SSH_COM_PRIVATE_KEY_MAGIC	0x3f6ff9eb                                          
 
 void
 do_convert_to_ssh2(struct passwd *pw)
@@ -127,16 +132,81 @@ do_convert_to_ssh2(struct passwd *pw)
 		exit(1);
 	}
 	dsa_make_key_blob(k, &blob, &len);
-	fprintf(stdout, "%s\n", SSH_COM_MAGIC_BEGIN);
+	fprintf(stdout, "%s\n", SSH_COM_PUBLIC_BEGIN);
 	fprintf(stdout,
-	    "Comment: \"%d-bit DSA, converted from openssh by %s@%s\"\n",
-	    BN_num_bits(k->dsa->p),
+	    "Comment: \"%d-bit %s, converted from OpenSSH by %s@%s\"\n",
+	    key_size(k), key_type(k),
 	    pw->pw_name, hostname);
 	dump_base64(stdout, blob, len);
-	fprintf(stdout, "%s\n", SSH_COM_MAGIC_END);
+	fprintf(stdout, "%s\n", SSH_COM_PUBLIC_END);
 	key_free(k);
 	xfree(blob);
 	exit(0);
+}
+
+void
+buffer_get_bignum_bits(Buffer *b, BIGNUM *value)
+{
+	int bits = buffer_get_int(b);
+	int bytes = (bits + 7) / 8;
+	if (buffer_len(b) < bytes)
+		fatal("buffer_get_bignum_bits: input buffer too small");
+	BN_bin2bn((unsigned char *)buffer_ptr(b), bytes, value);
+	buffer_consume(b, bytes);
+}
+
+Key *
+do_convert_private_ssh2_from_blob(char *blob, int blen)
+{
+	Buffer b;
+	DSA *dsa;
+	Key *key = NULL;
+	int ignore, magic, rlen;
+	char *type, *cipher;
+
+	buffer_init(&b);
+	buffer_append(&b, blob, blen);
+
+	magic  = buffer_get_int(&b);
+	if (magic != SSH_COM_PRIVATE_KEY_MAGIC) {
+		error("bad magic 0x%x != 0x%x", magic, SSH_COM_PRIVATE_KEY_MAGIC);
+		buffer_free(&b);
+		return NULL;
+	}
+	ignore = buffer_get_int(&b);
+	type   = buffer_get_string(&b, NULL);
+	cipher = buffer_get_string(&b, NULL);
+	ignore = buffer_get_int(&b);
+	ignore = buffer_get_int(&b);
+	ignore = buffer_get_int(&b);
+	xfree(type);
+
+	if (strcmp(cipher, "none") != 0) {
+		error("unsupported cipher %s", cipher);
+		xfree(cipher);
+		buffer_free(&b);
+		return NULL;
+	}
+	xfree(cipher);
+
+	key = key_new(KEY_DSA);
+	dsa = key->dsa;
+	dsa->priv_key = BN_new();
+	if (dsa->priv_key == NULL) {
+		error("alloc priv_key failed");
+		key_free(key);
+		return NULL;
+	}
+	buffer_get_bignum_bits(&b, dsa->p);
+	buffer_get_bignum_bits(&b, dsa->g);
+	buffer_get_bignum_bits(&b, dsa->q);
+	buffer_get_bignum_bits(&b, dsa->pub_key);
+	buffer_get_bignum_bits(&b, dsa->priv_key);
+	rlen = buffer_len(&b);
+	if(rlen != 0)
+		error("do_convert_private_ssh2_from_blob: remaining bytes in key blob %d", rlen);
+	buffer_free(&b);
+	return key;
 }
 
 void
@@ -148,7 +218,7 @@ do_convert_from_ssh2(struct passwd *pw)
 	char blob[8096];
 	char encoded[8096];
 	struct stat st;
-	int escaped = 0;
+	int escaped = 0, private = 0, ok;
 	FILE *fp;
 
 	if (!have_identity)
@@ -172,6 +242,8 @@ do_convert_from_ssh2(struct passwd *pw)
 			escaped++;
 		if (strncmp(line, "----", 4) == 0 ||
 		    strstr(line, ": ") != NULL) {
+			if (strstr(line, SSH_COM_PRIVATE_BEGIN) != NULL)
+				private = 1;
 			fprintf(stderr, "ignore: %s", line);
 			continue;
 		}
@@ -188,9 +260,20 @@ do_convert_from_ssh2(struct passwd *pw)
 		fprintf(stderr, "uudecode failed.\n");
 		exit(1);
 	}
-	k = dsa_key_from_blob(blob, blen);
-	if (!key_write(k, stdout))
-		fprintf(stderr, "key_write failed");
+	k = private ?
+	    do_convert_private_ssh2_from_blob(blob, blen) :
+	    dsa_key_from_blob(blob, blen);
+	if (k == NULL) {
+		fprintf(stderr, "decode blob failed.\n");
+		exit(1);
+	}
+	ok = private ?
+	    PEM_write_DSAPrivateKey(stdout, k->dsa, NULL, NULL, 0, NULL, NULL) :
+	    key_write(k, stdout);
+	if (!ok) {
+		fprintf(stderr, "key write failed");
+		exit(1);
+	}
 	key_free(k);
 	fprintf(stdout, "\n");
 	fclose(fp);

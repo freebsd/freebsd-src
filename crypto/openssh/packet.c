@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: packet.c,v 1.35 2000/09/07 20:27:52 deraadt Exp $");
+RCSID("$OpenBSD: packet.c,v 1.38 2000/10/12 14:21:12 markus Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -45,7 +45,6 @@ RCSID("$OpenBSD: packet.c,v 1.35 2000/09/07 20:27:52 deraadt Exp $");
 #include "bufaux.h"
 #include "ssh.h"
 #include "crc32.h"
-#include "cipher.h"
 #include "getput.h"
 
 #include "compress.h"
@@ -59,6 +58,7 @@ RCSID("$OpenBSD: packet.c,v 1.35 2000/09/07 20:27:52 deraadt Exp $");
 #include <openssl/dh.h>
 #include <openssl/hmac.h>
 #include "buffer.h"
+#include "cipher.h"
 #include "kex.h"
 #include "hmac.h"
 
@@ -161,11 +161,14 @@ packet_set_ssh2_format(void)
 void
 packet_set_connection(int fd_in, int fd_out)
 {
+	Cipher *none = cipher_by_name("none");
+	if (none == NULL)
+		fatal("packet_set_connection: cannot load cipher 'none'");
 	connection_in = fd_in;
 	connection_out = fd_out;
 	cipher_type = SSH_CIPHER_NONE;
-	cipher_set_key(&send_context, SSH_CIPHER_NONE, (unsigned char *) "", 0);
-	cipher_set_key(&receive_context, SSH_CIPHER_NONE, (unsigned char *) "", 0);
+	cipher_init(&send_context, none, (unsigned char *) "", 0, NULL, 0);
+	cipher_init(&receive_context, none, (unsigned char *) "", 0, NULL, 0);
 	if (!initialized) {
 		initialized = 1;
 		buffer_init(&input);
@@ -326,28 +329,18 @@ packet_encrypt(CipherContext * cc, void *dest, void *src,
  */
 
 void
-packet_decrypt(CipherContext * cc, void *dest, void *src,
-    unsigned int bytes)
+packet_decrypt(CipherContext *context, void *dest, void *src, unsigned int bytes)
 {
-	int i;
-
-	if ((bytes % 8) != 0)
-		fatal("packet_decrypt: bad ciphertext length %d", bytes);
-
 	/*
 	 * Cryptographic attack detector for ssh - Modifications for packet.c
 	 * (C)1998 CORE-SDI, Buenos Aires Argentina Ariel Futoransky(futo@core-sdi.com)
 	 */
-
-	if (cc->type == SSH_CIPHER_NONE || compat20) {
-		i = DEATTACK_OK;
-	} else {
-		i = detect_attack(src, bytes, NULL);
-	}
-	if (i == DEATTACK_DETECTED)
+	if (!compat20 &&
+	    context->cipher->number != SSH_CIPHER_NONE &&
+	    detect_attack(src, bytes, NULL) == DEATTACK_DETECTED)
 		packet_disconnect("crc32 compensation attack: network attack detected");
 
-	cipher_decrypt(cc, dest, src, bytes);
+	cipher_decrypt(context, dest, src, bytes);
 }
 
 /*
@@ -358,14 +351,15 @@ packet_decrypt(CipherContext * cc, void *dest, void *src,
 
 void
 packet_set_encryption_key(const unsigned char *key, unsigned int keylen,
-    int cipher)
+    int number)
 {
+	Cipher *cipher = cipher_by_number(number);
+	if (cipher == NULL)
+		fatal("packet_set_encryption_key: unknown cipher number %d", number);
 	if (keylen < 20)
-		fatal("keylen too small: %d", keylen);
-
-	/* All other ciphers use the same key in both directions for now. */
-	cipher_set_key(&receive_context, cipher, key, keylen);
-	cipher_set_key(&send_context, cipher, key, keylen);
+		fatal("packet_set_encryption_key: keylen too small: %d", keylen);
+	cipher_init(&receive_context, cipher, key, keylen, NULL, 0);
+	cipher_init(&send_context, cipher, key, keylen, NULL, 0);
 }
 
 /* Starts constructing a packet to send. */
@@ -553,7 +547,7 @@ packet_send2()
 		mac  = &kex->mac[MODE_OUT];
 		comp = &kex->comp[MODE_OUT];
 	}
-	block_size = enc ? enc->block_size : 8;
+	block_size = enc ? enc->cipher->block_size : 8;
 
 	cp = buffer_ptr(&outgoing_packet);
 	type = cp[5] & 0xff;
@@ -588,7 +582,7 @@ packet_send2()
 	if (padlen < 4)
 		padlen += block_size;
 	buffer_append_space(&outgoing_packet, &cp, padlen);
-	if (enc && enc->type != SSH_CIPHER_NONE) {
+	if (enc && enc->cipher->number != SSH_CIPHER_NONE) {
 		/* random padding */
 		for (i = 0; i < padlen; i++) {
 			if (i % 4 == 0)
@@ -614,7 +608,7 @@ packet_send2()
 		    buffer_len(&outgoing_packet),
 		    mac->key, mac->key_len
 		);
-		DBG(debug("done calc HMAC out #%d", seqnr));
+		DBG(debug("done calc MAC out #%d", seqnr));
 	}
 	/* encrypt packet and append to output buffer. */
 	buffer_append_space(&output, &cp, buffer_len(&outgoing_packet));
@@ -637,10 +631,10 @@ packet_send2()
 			fatal("packet_send2: no KEX");
 		if (mac->md != NULL)
 			mac->enabled = 1;
-		DBG(debug("cipher_set_key_iv send_context"));
-		cipher_set_key_iv(&send_context, enc->type,
-		    enc->key, enc->key_len,
-		    enc->iv, enc->iv_len);
+		DBG(debug("cipher_init send_context"));
+		cipher_init(&send_context, enc->cipher,
+		    enc->key, enc->cipher->key_len,
+		    enc->iv, enc->cipher->block_size);
 		clear_enc_keys(enc, kex->we_need);
 		if (comp->type != 0 && comp->enabled == 0) {
 			comp->enabled = 1;
@@ -841,7 +835,7 @@ packet_read_poll2(int *payload_len_ptr)
 		comp = &kex->comp[MODE_IN];
 	}
 	maclen = mac && mac->enabled ? mac->mac_len : 0;
-	block_size = enc ? enc->block_size : 8;
+	block_size = enc ? enc->cipher->block_size : 8;
 
 	if (packet_length == 0) {
 		/*
@@ -894,8 +888,8 @@ packet_read_poll2(int *payload_len_ptr)
 		    mac->key, mac->key_len
 		);
 		if (memcmp(macbuf, buffer_ptr(&input), mac->mac_len) != 0)
-			packet_disconnect("Corrupted HMAC on input.");
-		DBG(debug("HMAC #%d ok", seqnr));
+			packet_disconnect("Corrupted MAC on input.");
+		DBG(debug("MAC #%d ok", seqnr));
 		buffer_consume(&input, mac->mac_len);
 	}
 	if (++seqnr == 0)
@@ -939,10 +933,10 @@ packet_read_poll2(int *payload_len_ptr)
 			fatal("packet_read_poll2: no KEX");
 		if (mac->md != NULL)
 			mac->enabled = 1;
-		DBG(debug("cipher_set_key_iv receive_context"));
-		cipher_set_key_iv(&receive_context, enc->type,
-		    enc->key, enc->key_len,
-		    enc->iv, enc->iv_len);
+		DBG(debug("cipher_init receive_context"));
+		cipher_init(&receive_context, enc->cipher,
+		    enc->key, enc->cipher->key_len,
+		    enc->iv, enc->cipher->block_size);
 		clear_enc_keys(enc, kex->we_need);
 		if (comp->type != 0 && comp->enabled == 0) {
 			comp->enabled = 1;

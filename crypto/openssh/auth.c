@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth.c,v 1.10 2000/09/07 21:13:36 markus Exp $");
+RCSID("$OpenBSD: auth.c,v 1.11 2000/10/11 20:27:23 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -42,7 +42,6 @@ RCSID("$FreeBSD$");
 #include "pty.h"
 #include "packet.h"
 #include "buffer.h"
-#include "cipher.h"
 #include "mpaux.h"
 #include "servconf.h"
 #include "compat.h"

@@ -12,11 +12,10 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.47 2000/09/07 21:13:37 markus Exp $");
+RCSID("$OpenBSD: readconf.c,v 1.49 2000/10/11 20:27:23 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
-#include "cipher.h"
 #include "readconf.h"
 #include "match.h"
 #include "xmalloc.h"
@@ -107,7 +106,8 @@ typedef enum {
 	oBatchMode, oCheckHostIP, oStrictHostKeyChecking, oCompression,
 	oCompressionLevel, oKeepAlives, oNumberOfPasswordPrompts, oTISAuthentication,
 	oUsePrivilegedPort, oLogLevel, oCiphers, oProtocol, oIdentityFile2,
-	oGlobalKnownHostsFile2, oUserKnownHostsFile2, oDSAAuthentication
+	oGlobalKnownHostsFile2, oUserKnownHostsFile2, oDSAAuthentication,
+	oKbdInteractiveAuthentication, oKbdInteractiveDevices
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -123,6 +123,8 @@ static struct {
 	{ "useprivilegedport", oUsePrivilegedPort },
 	{ "rhostsauthentication", oRhostsAuthentication },
 	{ "passwordauthentication", oPasswordAuthentication },
+	{ "kbdinteractiveauthentication", oKbdInteractiveAuthentication },
+	{ "kbdinteractivedevices", oKbdInteractiveDevices },
 	{ "rsaauthentication", oRSAAuthentication },
 	{ "dsaauthentication", oDSAAuthentication },
 	{ "skeyauthentication", oSkeyAuthentication },
@@ -295,6 +297,14 @@ parse_flag:
 	case oPasswordAuthentication:
 		intptr = &options->password_authentication;
 		goto parse_flag;
+
+	case oKbdInteractiveAuthentication:
+		intptr = &options->kbd_interactive_authentication;
+		goto parse_flag;
+
+	case oKbdInteractiveDevices:
+		charptr = &options->kbd_interactive_devices;
+		goto parse_string;
 
 	case oDSAAuthentication:
 		intptr = &options->dsa_authentication;
@@ -684,6 +694,8 @@ initialize_options(Options * options)
 	options->afs_token_passing = -1;
 #endif
 	options->password_authentication = -1;
+	options->kbd_interactive_authentication = -1;
+	options->kbd_interactive_devices = NULL;
 	options->rhosts_rsa_authentication = -1;
 	options->fallback_to_rsh = -1;
 	options->use_rsh = -1;
@@ -760,6 +772,8 @@ fill_default_options(Options * options)
 #endif /* AFS */
 	if (options->password_authentication == -1)
 		options->password_authentication = 1;
+	if (options->kbd_interactive_authentication == -1)
+		options->kbd_interactive_authentication = 0;
 	if (options->rhosts_rsa_authentication == -1)
 		options->rhosts_rsa_authentication = 1;
 	if (options->fallback_to_rsh == -1)

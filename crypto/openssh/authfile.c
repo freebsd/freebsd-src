@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfile.c,v 1.19 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$OpenBSD: authfile.c,v 1.20 2000/10/11 20:27:23 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -48,7 +48,6 @@ RCSID("$FreeBSD$");
 #include "xmalloc.h"
 #include "buffer.h"
 #include "bufaux.h"
-#include "cipher.h"
 #include "ssh.h"
 #include "key.h"
 
@@ -69,8 +68,8 @@ save_private_key_rsa(const char *filename, const char *passphrase,
 	Buffer buffer, encrypted;
 	char buf[100], *cp;
 	int fd, i;
-	CipherContext cipher;
-	int cipher_type;
+	CipherContext ciphercontext;
+	Cipher *cipher;
 	u_int32_t rand;
 
 	/*
@@ -78,9 +77,11 @@ save_private_key_rsa(const char *filename, const char *passphrase,
 	 * to another cipher; otherwise use SSH_AUTHFILE_CIPHER.
 	 */
 	if (strcmp(passphrase, "") == 0)
-		cipher_type = SSH_CIPHER_NONE;
+		cipher = cipher_by_number(SSH_CIPHER_NONE);
 	else
-		cipher_type = SSH_AUTHFILE_CIPHER;
+		cipher = cipher_by_number(SSH_AUTHFILE_CIPHER);
+	if (cipher == NULL)
+		fatal("save_private_key_rsa: bad cipher");
 
 	/* This buffer is used to built the secret part of the private key. */
 	buffer_init(&buffer);
@@ -117,7 +118,7 @@ save_private_key_rsa(const char *filename, const char *passphrase,
 	buffer_put_char(&encrypted, 0);
 
 	/* Store cipher type. */
-	buffer_put_char(&encrypted, cipher_type);
+	buffer_put_char(&encrypted, cipher->number);
 	buffer_put_int(&encrypted, 0);	/* For future extension */
 
 	/* Store public key.  This will be in plain text. */
@@ -129,11 +130,10 @@ save_private_key_rsa(const char *filename, const char *passphrase,
 	/* Allocate space for the private part of the key in the buffer. */
 	buffer_append_space(&encrypted, &cp, buffer_len(&buffer));
 
-	cipher_set_key_string(&cipher, cipher_type, passphrase);
-	cipher_encrypt(&cipher, (unsigned char *) cp,
-		       (unsigned char *) buffer_ptr(&buffer),
-		       buffer_len(&buffer));
-	memset(&cipher, 0, sizeof(cipher));
+	cipher_set_key_string(&ciphercontext, cipher, passphrase);
+	cipher_encrypt(&ciphercontext, (unsigned char *) cp,
+	    (unsigned char *) buffer_ptr(&buffer), buffer_len(&buffer));
+	memset(&ciphercontext, 0, sizeof(ciphercontext));
 
 	/* Destroy temporary data. */
 	memset(buf, 0, sizeof(buf));
@@ -314,7 +314,8 @@ load_private_key_rsa(int fd, const char *filename,
 	off_t len;
 	Buffer buffer, decrypted;
 	char *cp;
-	CipherContext cipher;
+	CipherContext ciphercontext;
+	Cipher *cipher;
 	BN_CTX *ctx;
 	BIGNUM *aux;
 
@@ -365,10 +366,10 @@ load_private_key_rsa(int fd, const char *filename,
 		xfree(buffer_get_string(&buffer, NULL));
 
 	/* Check that it is a supported cipher. */
-	if (((cipher_mask1() | SSH_CIPHER_NONE | SSH_AUTHFILE_CIPHER) &
-	     (1 << cipher_type)) == 0) {
-		debug("Unsupported cipher %.100s used in key file %.200s.",
-		      cipher_name(cipher_type), filename);
+	cipher = cipher_by_number(cipher_type);
+	if (cipher == NULL) {
+		debug("Unsupported cipher %d used in key file %.200s.",
+		    cipher_type, filename);
 		buffer_free(&buffer);
 		goto fail;
 	}
@@ -377,11 +378,10 @@ load_private_key_rsa(int fd, const char *filename,
 	buffer_append_space(&decrypted, &cp, buffer_len(&buffer));
 
 	/* Rest of the buffer is encrypted.  Decrypt it using the passphrase. */
-	cipher_set_key_string(&cipher, cipher_type, passphrase);
-	cipher_decrypt(&cipher, (unsigned char *) cp,
-		       (unsigned char *) buffer_ptr(&buffer),
-		       buffer_len(&buffer));
-
+	cipher_set_key_string(&ciphercontext, cipher, passphrase);
+	cipher_decrypt(&ciphercontext, (unsigned char *) cp,
+	    (unsigned char *) buffer_ptr(&buffer), buffer_len(&buffer));
+	memset(&ciphercontext, 0, sizeof(ciphercontext));
 	buffer_free(&buffer);
 
 	check1 = buffer_get_char(&decrypted);

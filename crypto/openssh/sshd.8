@@ -188,6 +188,8 @@ The server sends verbose debug output to the system
 log, and does not put itself in the background.
 The server also will not fork and will only process one connection.
 This option is only intended for debugging for the server.
+Multiple -d options increases the debugging level.
+Maximum is 3.
 .It Fl f Ar configuration_file
 Specifies the name of the configuration file.
 The default is
@@ -256,12 +258,13 @@ file.
 .It Fl Q
 Do not print an error message if RSA support is missing.
 .It Fl V Ar client_protocol_id
-SSH2 compatibility mode.
+SSH-2 compatibility mode.
 When this option is specified
 .Nm
 assumes the client has sent the supplied version string
 and skips the
 Protocol Version Identification Exchange.
+This option is not intended to be called directly.
 .It Fl 4
 Forces
 .Nm
@@ -301,6 +304,14 @@ can be used as
 wildcards in the patterns.
 Only group names are valid; a numerical group ID isn't recognized.
 By default login is allowed regardless of the primary group.
+.Pp
+.It Cm AllowTcpForwarding
+Specifies whether TCP forwarding is permitted.
+The default is
+.Dq yes .
+Note that disabling TCP forwarding does not improve security unless
+users are also denied shell access, as they can always install their
+own forwarders.
 .Pp
 .It Cm AllowUsers
 This keyword can be followed by a number of user names, separated
@@ -450,7 +461,8 @@ Specifies whether Kerberos authentication is allowed.
 This can be in the form of a Kerberos ticket, or if
 .Cm PasswordAuthentication
 is yes, the password provided by the user will be validated through
-the Kerberos KDC.  To use this option, the server needs a 
+the Kerberos KDC.
+To use this option, the server needs a
 Kerberos servtab which allows the verification of the KDC's identity.
 Default is
 .Dq yes .
@@ -458,8 +470,7 @@ Default is
 If set then if password authentication through Kerberos fails then
 the password will be validated via any additional local mechanism
 such as
-.Pa /etc/passwd
-or SecurID.
+.Pa /etc/passwd .
 Default is
 .Dq yes .
 .It Cm KerberosTgtPassing
@@ -515,7 +526,7 @@ The default is 10.
 Alternatively, random early drop can be enabled by specifying
 the three colon separated values
 .Dq start:rate:full
-(e.g. "10:30:60").
+(e.g., "10:30:60").
 .Nm
 will refuse connection attempts with a probabillity of
 .Dq rate/100
@@ -642,8 +653,9 @@ directory or files world-writable.
 The default is
 .Dq yes .
 .It Cm Subsystem
-Configures an external subsystem (e.g. file transfer daemon).
-Arguments should be a subsystem name and a command to execute upon subsystem request. 
+Configures an external subsystem (e.g., file transfer daemon).
+Arguments should be a subsystem name and a command to execute upon subsystem
+request.
 The command
 .Xr sftp-server 8
 implements the
