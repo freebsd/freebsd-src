@@ -52,6 +52,56 @@ __FBSDID("$FreeBSD$");
  * Fetch an int from the user's address space.
  */
 
+ENTRY(casuptr)
+#ifdef MULTIPROCESSOR
+	/* XXX Probably not appropriate for non-Hydra SMPs */
+	stmfd	sp!, {r0, r14}
+	bl	_C_LABEL(cpu_number)
+	ldr	r2, .Lcpu_info
+	ldr	r2, [r2, r0, lsl #2]
+	ldr	r2, [r2, #CI_CURPCB]
+	ldmfd	sp!, {r0, r14}
+#else
+	ldr	r3, .Lcurpcb
+	ldr	r3, [r3]
+#endif
+
+#ifdef DIAGNOSTIC
+	teq	r3, #0x00000000
+	beq	.Lfusupcbfault
+#endif
+	stmfd	sp!, {r4}
+	adr	r4, .Lfusufault
+	str	r4, [r3, #PCB_ONFAULT]
+	ldmfd	sp!, {r4}
+	ldrt	r3, [r0]
+	cmp	r3, r1
+	movne	r0, r3
+	movne	pc, lr
+	strt	r2, [r0]
+	mov	r0, r1
+#ifdef MULTIPROCESSOR
+	/* XXX Probably not appropriate for non-Hydra SMPs */
+	stmfd	sp!, {r0, r14}
+	bl	_C_LABEL(cpu_number)
+	ldr	r2, .Lcpu_info
+	ldr	r2, [r2, r0, lsl #2]
+	ldr	r2, [r2, #CI_CURPCB]
+	ldmfd	sp!, {r0, r14}
+#else
+	ldr	r3, .Lcurpcb
+	ldr	r3, [r3]
+#endif
+	mov	r1, #0x00000000
+	str	r1, [r3, #PCB_ONFAULT]
+	mov	pc, lr
+
+	
+/*
+ * fuword(caddr_t uaddr);
+ * Fetch an int from the user's address space.
+ */
+
 ENTRY(fuword32)
 ENTRY(fuword)
 #ifdef MULTIPROCESSOR
@@ -254,6 +304,7 @@ fusupcbfaulttext:
  * Store an int in the user's address space.
  */
 
+ENTRY(suword32)
 ENTRY(suword)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
@@ -282,8 +333,6 @@ ENTRY(suword)
 	str	r0, [r2, #PCB_ONFAULT]
 	mov	pc, lr
 
-ENTRY(suword32)
-	adr	pc, _C_LABEL(suword)
 /*
  * suswintr(caddr_t uaddr, short x);
  * Store a short in the user's address space.  Can be called during an
