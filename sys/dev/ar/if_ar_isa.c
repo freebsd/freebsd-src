@@ -101,11 +101,14 @@ static int
 ar_isa_probe(device_t device)
 {
 	int error;
-	u_long membase, memsize, port_start, port_count;
+	u_long membase, memsize;
+	struct ar_hardc *hc;
 
 	error = ISA_PNP_PROBE(device_get_parent(device), device, ar_ids);
 	if(error == ENXIO || error == 0)
 		return (error);
+
+	hc = (struct ar_hardc *)device_get_softc(device);
 
 	if((error = ar_allocate_ioport(device, 0, ARC_IO_SIZ))) {
 		return (ENXIO);
@@ -117,17 +120,14 @@ ar_isa_probe(device_t device)
 	 * XXX For now I just check the undocumented ports
 	 * for "570". We will probably have to do more checking.
 	 */
-	error = bus_get_resource(device, SYS_RES_IOPORT, 0, &port_start,
-	    &port_count);
-
-	if((inb(port_start + AR_ID_5) != '5') ||
-	   (inb(port_start + AR_ID_7) != '7') ||
-	   (inb(port_start + AR_ID_0) != '0')) {
+	if((ar_inb(hc, AR_ID_5) != '5') ||
+	   (ar_inb(hc, AR_ID_7) != '7') ||
+	   (ar_inb(hc, AR_ID_0) != '0')) {
 		ar_deallocate_resources(device);
 		return (ENXIO);
 	}
 	membase = bus_get_resource_start(device, SYS_RES_MEMORY, 0);
-	memsize = inb(port_start + AR_REV);
+	memsize = ar_inb(hc, AR_REV);
 	memsize = 1 << ((memsize & AR_WSIZ_MSK) >> AR_WSIZ_SHFT);
 	memsize *= ARC_WIN_SIZ;
 	error = bus_set_resource(device, SYS_RES_MEMORY, 0, membase, memsize);
@@ -153,12 +153,8 @@ ar_isa_attach(device_t device)
 	hc = (struct ar_hardc *)device_get_softc(device);
 	if(ar_allocate_ioport(device, 0, ARC_IO_SIZ))
 		return (ENXIO);
-	hc->bt = rman_get_bustag(hc->res_ioport);
-	hc->bh = rman_get_bushandle(hc->res_ioport);
 
-	hc->iobase = rman_get_start(hc->res_ioport);
-
-	tmp = inb(hc->iobase + AR_BMI);
+	tmp = ar_inb(hc, AR_BMI);
 	hc->bustype = tmp & AR_BUS_MSK;
 	hc->memsize = (tmp & AR_MEM_MSK) >> AR_MEM_SHFT;
 	hc->memsize = 1 << hc->memsize;
@@ -167,13 +163,13 @@ ar_isa_attach(device_t device)
 	hc->interface[1] = hc->interface[0];
 	hc->interface[2] = hc->interface[0];
 	hc->interface[3] = hc->interface[0];
-	tmp = inb(hc->iobase + AR_REV);
+	tmp = ar_inb(hc, AR_REV);
 	hc->revision = tmp & AR_REV_MSK;
 	hc->winsize = 1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT);
 	hc->winsize *= ARC_WIN_SIZ;
 	hc->winmsk = hc->winsize - 1;
-	hc->numports = inb(hc->iobase + AR_PNUM);
-	hc->handshake = inb(hc->iobase + AR_HNDSH);
+	hc->numports = ar_inb(hc, AR_PNUM);
+	hc->handshake = ar_inb(hc, AR_HNDSH);
 
 	if(ar_allocate_memory(device, 0, hc->winsize))
 		return (ENXIO);
@@ -226,12 +222,6 @@ ar_isa_attach(device_t device)
 
 	return (0);
 }
-
-
-
-
-
-
 
 /*
  ********************************* END ************************************
