@@ -22,7 +22,7 @@
 # optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.11 1995/03/31 14:06:02 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.12 1995/04/01 19:51:40 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -521,8 +521,8 @@ p_command:
 p_status:
 	mvi	0xc0		call scsisig	# CDO|IOO|!MSGO
 
-	mvi	SCBARRAY+14	call inb
-	jmp	ITloop
+	mvi	SCBARRAY+14	call inb_first
+	jmp	p_mesgin_done
 
 #  Message out phase.  If there is no active message, but the target
 #  took us into this phase anyway, build a no-op message and send it.
@@ -531,12 +531,14 @@ p_mesgout:
 	mvi	0xa0		call scsisig	# CDO|!IOO|MSGO
 	mvi	0x8		call mk_mesg	# build NOP message
 
+	clr     STCNT+2
+	clr     STCNT+1
+
 #  Set up automatic PIO transfer from MSG_START.  Bit 3 in
 #  SXFRCTL0 (SPIOEN) is already on.
 #
 	mvi	SINDEX,MSG_START+0
 	mov	DINDEX,MSG_LEN
-	clr	A
 
 #  When target asks for a byte, drop ATN if it's the last one in
 #  the message.  Otherwise, keep going until the message is exhausted.
@@ -569,14 +571,13 @@ p_mesgout2:
 #  an SPIORDY that hadn't dropped yet.
 #
 p_mesgout3:
-	call	one_stcnt
+	mvi	STCNT+0, 0x01	
 	mov	SCSIDATL,SINDIR
 
 p_mesgout4:
 	test	SSTAT0,0x4	jz p_mesgout4	# SDONE
 	dec	DINDEX
-	inc	A
-	cmp	MSG_LEN,A	jne p_mesgout2
+	test	DINDEX,0xff	jnz p_mesgout2
 
 #  If the next bus phase after ATN drops is a message out, it means
 #  that the target is requesting that the last message(s) be resent.
@@ -625,6 +626,7 @@ p_mesgin:
 #  extra work in the kernel driver to ensure that the entry was removed 
 #  before the command complete code tried processing it.
 
+# First check for residuals
 	test	SCBARRAY+15,0xff	jnz resid
 	test	SCBARRAY+16,0xff	jnz resid
 	test	SCBARRAY+17,0xff	jnz resid
@@ -657,7 +659,7 @@ complete:
 # dma the resid directly to the host (slick, but a ton of instructions), or
 # have the sequencer pause itself when it encounters a non-zero resid 
 # (unecessary pause just to flag the command -- yuck, but takes few instructions
-# and since it shouldn't happen that offten is good enough for our purposes).  
+# and since it shouldn't happen that often is good enough for our purposes).  
 
 resid:
 	mvi	INTSTAT,RESIDUAL
@@ -751,42 +753,32 @@ p_mesgin5:
 	and     SAVED_TCL,0xf7
 	and     A,0x08,SBLKCTL			# B Channel??
 	or      SAVED_TCL,A
-	call	inb_last			# Ack
-
-# Here we "snoop" the bus looking for a SIMPLE QUEUE TAG message.
-# If we get one, we use the tag returned to switch to the proper
-# SCB.  Otherwise, we just use the findSCB method.
-p_mesgin5_loop:
-	test	SSTAT1,0x08	jnz use_findSCB	  # BUSFREE
-	test	SSTAT1,0x01	jz p_mesgin5_loop # REQINIT
-	and	A,0xe0,SCSISIGI			# CDI|IOI|MSGI
-	cmp	A,0xe0		jne use_findSCB # Still p_mesgin?
-	mvi	A	call inb_first
-	cmp	A,0x20  je get_tag		# Simple Tag message?
-use_findSCB:
-	mov	ALLZEROS	call findSCB    # Have to search
-
-#  If a active message is present after calling findSCB, then either it
-#  or the driver is trying to abort the command.  Either way, something
-#  untoward has happened and we should just leave it alone.
-#
+	call	inb_last			# ACK
+	mov	ALLZEROS	call findSCB    
 setup_SCB:
 	and	SCBARRAY+0,0xfb			# clear disconnect bit in SCB
-	or	FLAGS,0xc0			# make note of IDENTIFY
+	or	FLAGS,IDENTIFY_SEEN		# make note of IDENTIFY
 
 	call	sg_scb2ram			# implied restore pointers
 						#   required on reselect
 	jmp	ITloop
-
 get_tag:
+	mvi	A		call inb_first
+	cmp	A,0x20  	jne return	# Simple Tag message?
 	mvi	A		call inb_next
+	call			inb_last
 	test	A,0xf0		jnz abort_tag	# Tag in range?
 	mov	SCBPTR,A
 	mov	A,SAVED_TCL
 	cmp	SCBARRAY+1,A		jne abort_tag
 	test	SCBARRAY+0,TAG_ENB	jz  abort_tag
-	call	inb_last			# ACK
-	jmp	setup_SCB
+	ret
+abort_tag:
+	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
+	call	scsisig
+	mvi	INTSTAT,ABORT_TAG 		# let driver know
+	mvi	0xd		call mk_mesg	# ABORT TAG message
+	ret
 
 #  Message reject?  Let the kernel driver handle this.  If we have an 
 #  outstanding WDTR or SDTR negotiation, assume that it's a response from 
@@ -821,12 +813,6 @@ p_mesgin_done:
 	call	inb_last			# ack & turn auto PIO back on
 	jmp	ITloop
 
-abort_tag:
-	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
-	call	scsisig
-	mvi	INTSTAT,ABORT_TAG 		# let driver know
-	mvi	0xd		call mk_mesg	# ABORT TAG message
-	jmp	p_mesgin_done
 
 #  Bus free phase.  It might be useful to interrupt the device
 #  driver if we aren't expecting this.  For now, make sure that
@@ -880,18 +866,6 @@ mk_mesg:
 mk_mesg1:
 	mvi	SEQCTL,0x10	ret		# !PAUSEDIS|FASTMODE
 
-#  Input byte in Automatic PIO mode.  The address to store the byte
-#  in should be in SINDEX.  DINDEX will be used by this routine.
-#
-inb:
-	test	SSTAT0,0x2	jz inb		# SPIORDY
-	mov	DINDEX,SINDEX
-	call	one_stcnt			# xfer one byte
-	mov	DINDIR,SCSIDATL
-inb1:
-	test	SSTAT0,0x4	jz inb1		# SDONE - wait to "finish"
-	ret
-
 #  Carefully read data in Automatic PIO mode.  I first tried this using
 #  Manual PIO mode, but it gave me continual underrun errors, probably
 #  indicating that I did something wrong, but I feel more secure leaving
@@ -910,13 +884,15 @@ inb1:
 #  use the same calling convention as inb.
 #
 inb_first:
+	clr	STCNT+2
+	clr	STCNT+1
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		# read byte directly from bus
 
 inb_next:
 	mov	DINDEX,SINDEX			# save SINDEX
 
-	call	one_stcnt			# xfer one byte
+        mvi     STCNT+0,1			# xfer one byte
 	mov	NONE,SCSIDATL			# dummy read from latch to ACK
 inb_next1:
 	test	SSTAT0,0x4	jz inb_next1	# SDONE
@@ -925,36 +901,11 @@ inb_next2:
 	mov	DINDIR,SCSIBUSL	ret		# read byte directly from bus
 
 inb_last:
-	call	one_stcnt			# ACK with dummy read
+	mvi	STCNT+0,1			# ACK with dummy read
 	mov	NONE,SCSIDATL
 inb_last1:
 	test	SSTAT0,0x4	jz inb_last1	# wait for completion
 	ret
-
-#  Output byte in Automatic PIO mode.  The byte to output should be
-#  in SINDEX.  If DROPATN's high bit is set, then ATN will be dropped
-#  before the byte is output.
-#
-outb:
-	test	SSTAT0,0x2	jz outb		# SPIORDY
-	call	one_stcnt			# xfer one byte
-
-	test	DROPATN,0x80	jz outb1
-	mvi	CLRSINT1,0x40			# CLRATNO
-	clr	DROPATN
-outb1:
-	mov	SCSIDATL,SINDEX
-outb2:
-	test	SSTAT0,0x4	jz outb2	# SDONE
-	ret
-
-#  Write the value "1" into the STCNT registers, for Automatic PIO
-#  transfers.
-#
-one_stcnt:
-	clr	STCNT+2
-	clr	STCNT+1
-	mvi	STCNT+0,1	ret
 
 #  DMA data transfer.  HADDR and HCNT must be loaded first, and
 #  SINDEX should contain the value to load DFCNTRL with - 0x3d for
@@ -1078,6 +1029,7 @@ findSCB:
 	mov	SCBPTR,SINDEX			# switch to new SCB
 	cmp	SCBARRAY+1,A	jne findSCB1	# target ID/channel/lun match?
 	test	SCBARRAY+0,0x4	jz findSCB1	# should be disconnected
+	test	SCBARRAY+0,TAG_ENB jnz get_tag
 	ret
 
 findSCB1:
