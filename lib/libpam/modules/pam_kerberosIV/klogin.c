@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -38,7 +40,7 @@ static const char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";
 #ifdef KERBEROS
 #include <sys/param.h>
 #include <sys/syslog.h>
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 
 #include <err.h>
