@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 .if exists(${.OBJDIR}/../libunix)
 LIBUNIX=	$(.OBJDIR)/../libunix/libunix.a
 .else
@@ -18,7 +20,6 @@ LIBUUCP=	$(.CURDIR)/../libuucp/libuucp.a
 
 VERSION=        1.06.1
 owner=		uucp
-group=          uucp
 bindir=		/usr/bin
 sbindir=        /usr/sbin
 libxdir=        /usr/libexec/uucp

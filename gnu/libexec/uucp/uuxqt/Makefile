@@ -3,7 +3,7 @@
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)
-BINGRP=         $(group)
+BINGRP=         uucp
 BINMODE=        6550
 
 PROG=		uuxqt
