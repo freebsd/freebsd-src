@@ -66,9 +66,75 @@
 #include "tun.h"
 #include "ip.h"
 
-static const char * const TcpFlags[] = {
-  "FIN", "SYN", "RST", "PSH", "ACK", "URG"
+
+#define OPCODE_QUERY	0
+#define OPCODE_IQUERY	1
+#define OPCODE_STATUS	2
+
+struct dns_header {
+  u_short id;
+  unsigned qr : 1;
+  unsigned opcode : 4;
+  unsigned aa : 1;
+  unsigned tc : 1;
+  unsigned rd : 1;
+  unsigned ra : 1;
+  unsigned z : 3;
+  unsigned rcode : 4;
+  u_short qdcount;
+  u_short ancount;
+  u_short nscount;
+  u_short arcount;
 };
+
+static const char *
+dns_Qclass2Txt(u_short qclass)
+{
+  static char failure[6];
+  struct {
+    u_short id;
+    const char *txt;
+  } qtxt[] = {
+    /* rfc1035 */
+    { 1, "IN" }, { 2, "CS" }, { 3, "CH" }, { 4, "HS" }, { 255, "*" }
+  };
+  int f;
+
+  for (f = 0; f < sizeof qtxt / sizeof *qtxt; f++)
+    if (qtxt[f].id == qclass)
+      return qtxt[f].txt;
+
+  snprintf(failure, sizeof failure, "<0x%02x>", qclass);
+  return failure;
+}
+
+static const char *
+dns_Qtype2Txt(u_short qtype)
+{
+  static char failure[6];
+  struct {
+    u_short id;
+    const char *txt;
+  } qtxt[] = {
+    /* rfc1035/rfc1700 */
+    { 1, "A" }, { 2, "NS" }, { 3, "MD" }, { 4, "MF" }, { 5, "CNAME" },
+    { 6, "SOA" }, { 7, "MB" }, { 8, "MG" }, { 9, "MR" }, { 10, "NULL" },
+    { 11, "WKS" }, { 12, "PTR" }, { 13, "HINFO" }, { 14, "MINFO" },
+    { 15, "MX" }, { 16, "TXT" }, { 17, "RP" }, { 18, "AFSDB" },
+    { 19, "X25" }, { 20, "ISDN" }, { 21, "RT" }, { 22, "NSAP" },
+    { 23, "NSAP-PTR" }, { 24, "SIG" }, { 25, "KEY" }, { 26, "PX" },
+    { 27, "GPOS" }, { 28, "AAAA" }, { 252, "AXFR" }, { 253, "MAILB" },
+    { 254, "MAILA" }, { 255, "*" }
+  };
+  int f;
+
+  for (f = 0; f < sizeof qtxt / sizeof *qtxt; f++)
+    if (qtxt[f].id == qtype)
+      return qtxt[f].txt;
+
+  snprintf(failure, sizeof failure, "<0x%02x>", qtype);
+  return failure;
+}
 
 static __inline int
 PortMatch(int op, u_short pport, u_short rport)
@@ -309,26 +375,82 @@ IcmpError(struct ip *pip, int code)
 }
 #endif
 
+static void
+ip_LogDNS(const struct udphdr *uh, const char *direction)
+{
+  struct dns_header header;
+  const u_short *pktptr;
+  const u_char *ptr;
+  u_short *hptr;
+  int len;
+
+  ptr = (const char *)uh + sizeof *uh;
+  len = ntohs(uh->uh_ulen) - sizeof *uh;
+  if (len < sizeof header + 5)		/* rfc1024 */
+    return;
+
+  pktptr = (const u_short *)ptr;
+  hptr = (u_short *)&header;
+  ptr += sizeof header;
+  len -= sizeof header;
+
+  while (pktptr < (const u_short *)ptr) {
+    *hptr++ = ntohs(*pktptr);	/* Careful of macro side-effects ! */
+    pktptr++;
+  }
+
+  if (header.opcode == OPCODE_QUERY && header.qr == 0) {
+    /* rfc1035 */
+    char name[MAXHOSTNAMELEN + 1], *n;
+    const char *qtype, *qclass;
+    const u_char *end;
+
+    n = name;
+    end = ptr + len - 4;
+    if (end - ptr > MAXHOSTNAMELEN)
+      end = ptr + MAXHOSTNAMELEN;
+    while (ptr < end) {
+      len = *ptr++;
+      if (len > end - ptr)
+        len = end - ptr;
+      if (n != name)
+        *n++ = '.';
+      memcpy(n, ptr, len);
+      ptr += len;
+      n += len;
+    }
+    *n = '\0';
+    qtype = dns_Qtype2Txt(ntohs(*(const u_short *)end));
+    qclass = dns_Qclass2Txt(ntohs(*(const u_short *)(end + 2)));
+
+    log_Printf(LogDNS, "%sbound query %s %s %s\n",
+               direction, qclass, qtype, name);
+  }
+}
+
 /*
  *  For debugging aid.
  */
 int
 PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 {
+  static const char *const TcpFlags[] = {
+    "FIN", "SYN", "RST", "PSH", "ACK", "URG"
+  };
   struct ip *pip;
   struct tcphdr *th;
   struct udphdr *uh;
   struct icmp *icmph;
   char *ptop;
-  int mask, len, n;
-  int pri = 0;
-  int logit, loglen;
+  int mask, len, n, pri, logit, loglen, result;
   char logbuf[200];
 
-  logit = log_IsKept(LogTCPIP) && filter->logok;
+  logit = (log_IsKept(LogTCPIP) || log_IsKept(LogDNS)) && filter->logok;
   loglen = 0;
+  pri = 0;
 
-  pip = (struct ip *) cp;
+  pip = (struct ip *)cp;
+  uh = NULL;
 
   if (logit && loglen < sizeof logbuf) {
     snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ", filter->name);
@@ -471,17 +593,22 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     if (direction == 0)
       IcmpError(pip, pri);
 #endif
-    return (-1);
+    result = -1;
   } else {
     /* Check Keep Alive filter */
-    if (logit) {
+    if (logit && log_IsKept(LogTCPIP)) {
       if (FilterCheck(pip, &bundle->filter.alive))
         log_Printf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       else
         log_Printf(LogTCPIP, "%s\n", logbuf);
     }
-    return (pri);
+    result = pri;
   }
+
+  if (uh && ntohs(uh->uh_dport) == 53 && log_IsKept(LogDNS))
+    ip_LogDNS(uh, filter->name);
+
+  return result;
 }
 
 struct mbuf *

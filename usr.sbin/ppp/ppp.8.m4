@@ -2020,6 +2020,8 @@ files.
 Log Chat lines containing the string "CONNECT".
 .It Li Debug
 Log debug information.
+.It Li DNS
+Log DNS QUERY packets.
 .It Li HDLC
 Dump HDLC packet in hex.
 .It Li ID0
