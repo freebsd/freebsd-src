@@ -30,21 +30,26 @@
 .Nd "adjusts the kernel time if the machine runs wall CMOS clock"
 .Sh SYNOPSIS
 .Nm adjkerntz
+.Fl i
+.Nm adjkerntz
+.Fl a
 .Sh DESCRIPTION
 .Nm Adjkerntz
-daemon
 fixes kernel time (makes it UTC) using the current wall CMOS clock value,
 the current time zone rule and the kernel timezone value. The adjustment is
 enabled only if the file
 .Pa /etc/wall_cmos_clock
 exists, in other cases it is assumed that the machine runs UTC CMOS clock and
 .Nm adjkerntz
-does nothing and exits immediately.
+does nothing.
 .Pp
-The adjustment is usually needed at boot stage and when a time zone
-change occurs.
-.Nm Adjkerntz
-started in
+The adjustment is needed at boot stage and when a time zone
+change occurs, so
+.Nm adjkerntz
+can be called in two forms:
+.Bl -tag -width 4n
+.It Cm Fl i
+initialization call from
 .Pa /etc/rc
 (before any daemons are started).
 .Nm Adjkerntz
@@ -53,16 +58,21 @@ makes the first adjustment and the initial time zone offset is stored into
 kernel variable
 for following subsequent
 .Nm adjkerntz
-time zone change spying.
-When time zone changes occur,
+calls.
+.It Cm Fl a
+This form is needed, when time zone changes occur.
 .Nm Adjkerntz
 uses the previously stored
 time zone offset and the changed time zone rule to
-produce the new time zone offset, fix RTC clock and store the new
+produce the new time zone offset, fix the RTC clock and store the new
 offset into
 .Pa adjkerntz
 kernel variable
 too.
+It is recommended to use this form in root's
+.Xr crontab 5
+every half of a hour from 0am to 4am
+since this times matches most modern time zone changes.
 .Pp
 .Nm Adjkerntz
 clears the kernel timezone structure and makes kernel always run at UTC
@@ -81,7 +91,7 @@ is used.
 .Sh FILES
 .Bl -tag -width /etc/wall_cmos_clock -compact
 .It Pa /etc/localtime
-current zoneinfo file, see
+Current zoneinfo file, see
 .Xr /usr/sbin/tzsetup
 and
 .Xr zic 8 .
@@ -93,6 +103,7 @@ absence indicates UTC CMOS clock.
 .Xr tzset 3 ,
 .Xr zic 8 ,
 .Xr rc 8 ,
+.Xr crontab 5 ,
 .Xr sysctl 8 ,
 .Xr /usr/sbin/tzsetup
 .Sh DIAGNOSTICS
