@@ -136,10 +136,12 @@ main (argc, argv)
 	prevline = malloc(MAXLINELEN);
 	thisline = malloc(MAXLINELEN);
 	if (prevline == NULL || thisline == NULL)
-		errx(1, "malloc");
+		err(1, "malloc");
 
 	if (getline(prevline, MAXLINELEN, ifp) == NULL)
 		exit(0);
+	if (!cflag && uflag && dflag)
+		show(ofp, prevline);
 
 	while (getline(thisline, MAXLINELEN, ifp)) {
 		/* If requested get the chosen fields + character offsets. */
@@ -158,15 +160,19 @@ main (argc, argv)
 			comp = strcoll(t1, t2);
 
 		if (comp) {
-			show(ofp, prevline);
+			if (cflag || !dflag || !uflag)
+				show(ofp, prevline);
 			t1 = prevline;
 			prevline = thisline;
+			if (!cflag && uflag && dflag)
+				show(ofp, prevline);
 			thisline = t1;
 			repeats = 0;
 		} else
 			++repeats;
 	}
-	show(ofp, prevline);
+	if (cflag || !dflag || !uflag)
+		show(ofp, prevline);
 	exit(0);
 }
 
@@ -253,7 +259,7 @@ obsolete(argv)
 		 */
 		len = strlen(ap);
 		if ((start = p = malloc(len + 3)) == NULL)
-			errx(1, "malloc");
+			err(1, "malloc");
 		*p++ = '-';
 		*p++ = ap[0] == '+' ? 's' : 'f';
 		(void)strcpy(p, ap + 1);
