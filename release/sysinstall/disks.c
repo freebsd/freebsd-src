@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.2 1995/05/05 23:47:40 jkh Exp $
+ * $Id: disks.c,v 1.3 1995/05/06 09:34:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -216,9 +216,12 @@ get_partition_type(struct chunk *c)
     return PART_NONE;
 }
 
+#define MAX_MOUNT_NAME	12
+
 #define PART_PART_COL	0
 #define PART_MOUNT_COL	8
-#define PART_NEWFS_COL	32
+#define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 4)
+#define PART_NEWFS_COL	(PART_SIZE_COL + 8)
 #define PART_OFF	40
 
 static void
@@ -243,6 +246,10 @@ print_fbsd_chunks(void)
 	attrset(A_NORMAL);
 
 	attrset(A_UNDERLINE);
+	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF),
+		 "Size");
+
+	attrset(A_UNDERLINE);
 	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF),
 		 "Newfs");
 	attrset(A_NORMAL);
@@ -253,7 +260,8 @@ print_fbsd_chunks(void)
 
     for (i = 0; fbsd_chunk_info[i].d; i++) {
 	if (i == current_chunk)
-	    attrset(A_BOLD);
+	    attrset(ColorDisplay ? A_BOLD : A_UNDERLINE);
+	/* Is it a slice entry displayed at the top? */
 	if (fbsd_chunk_info[i].type == PART_SLICE) {
 	    sz = space_free(fbsd_chunk_info[i].c);
 	    mvprintw(srow++, 0,
@@ -261,7 +269,10 @@ print_fbsd_chunks(void)
 		     fbsd_chunk_info[i].d->name,
 		     fbsd_chunk_info[i].c->name, sz, (sz / 2048));
 	}
+	/* Otherwise it's a swap or filesystem entry, at the bottom */
 	else {
+	    char *mountpoint, *newfs;
+
 	    /* Go for two columns */
 	    if (prow == (CHUNK_PART_START_ROW + 9))
 		pcol = PART_OFF;
@@ -269,21 +280,25 @@ print_fbsd_chunks(void)
 		pcol = 0;
 	    mvaddstr(prow, pcol + PART_PART_COL, fbsd_chunk_info[i].c->name);
 	    if (fbsd_chunk_info[i].type == PART_FILESYSTEM) {
-		char *mountpoint, *newfs;
-
-		if (fbsd_chunk_info[i].c->private) {
-		    mountpoint = ((PartInfo *)fbsd_chunk_info[i].c->private)->mountpoint;
-		    newfs = ((PartInfo *)fbsd_chunk_info[i].c->private)->newfs ? "Y" : "N";
+		if (fbsd_chunk_info[i].p) {
+		    mountpoint = fbsd_chunk_info[i].p->mountpoint;
+		    newfs = fbsd_chunk_info[i].p->newfs ? "Y" : "N";
 		}
 		else {
-		    mountpoint = "?";
-		    newfs = "";
+		    mountpoint = " ";
+		    newfs = " ";
 		}
-		mvaddstr(prow, pcol + PART_MOUNT_COL, mountpoint);
-		mvaddstr(prow, pcol + PART_NEWFS_COL, newfs);
 	    }
-	    else
-		mvaddstr(prow, pcol + PART_MOUNT_COL, "swap");
+	    else {
+		mountpoint = "swap";
+		newfs = " ";
+	    }
+	    for (i = 0; i < MAX_MOUNT_NAME && mountpoint[i]; i++)
+		mvaddch(prow, pcol + PART_MOUNT_COL + i, mountpoint[i]);
+	    mvprintw(prow, pcol + PART_SIZE_COL, "%4dMB",
+		     fbsd_chunk_info[i].c->size ?
+		     fbsd_chunk_info[i].c->size / 2048 : 0);
+	    mvaddstr(prow, pcol + PART_NEWFS_COL, newfs);
 	    ++prow;
 	}
 	if (i == current_chunk)
