@@ -1,16 +1,18 @@
 # $FreeBSD$
 #
-# All library objects contain rcsid strings by default; they may be
+# All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, delete -DLIBC_RCS and -DSYSLIBC_RCS
-# from CFLAGS below.  To remove these strings from just the system call
-# stubs, remove just -DSYSLIBC_RCS from CFLAGS.
+# not contain these strings, add -DSTRIP_FBSDID (see <sys/cdefs.h>) to CFLAGS
+# below.  Note, there are no IDs for syscall stubs whose sources are generated.
+# To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
+# (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
+# system call stubs.
 LIB=c_r
 SHLIB_MAJOR= 5
 SHLIB_MINOR= 0
-CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS -I${.CURDIR}/../libc/include
-CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE -I${.CURDIR}/uthread
-CFLAGS+=-I${.CURDIR}/../../include
+CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
+CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/uthread \
+	-I${.CURDIR}/../../include
 
 # Uncomment this if you want libc_r to contain debug information for
 # thread locking.
