@@ -227,6 +227,8 @@ PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
 TCP_COMPAT_42		opt_compat.h
 TCPDEBUG
+TCP_DROP_SYNFIN		opt_tcp_input.h
+TCP_RESTRICT_RST	opt_tcp_input.h
 IPFILTER		opt_ipfilter.h
 IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LKM		opt_ipfilter.h
