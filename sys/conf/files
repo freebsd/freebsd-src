@@ -509,6 +509,7 @@ dev/sound/pci/ds1.c	optional pcm pci
 dev/sound/pci/emu10k1.c	optional pcm pci
 dev/sound/pci/es137x.c	optional pcm pci
 dev/sound/pci/fm801.c	optional pcm pci
+dev/sound/pci/ich.c	optional pcm pci
 dev/sound/pci/maestro.c optional pcm pci
 dev/sound/pci/neomagic.c optional pcm pci
 dev/sound/pci/solo.c	optional pcm pci
@@ -529,6 +530,7 @@ dev/sound/pcm/feeder_fmt.c	optional pcm
 dev/sound/pcm/feeder_rate.c	optional pcm
 dev/sound/pcm/mixer.c	optional pcm
 dev/sound/pcm/mixer_if.m	optional pcm
+dev/sound/pcm/sndstat.c	optional pcm
 dev/sound/pcm/sound.c	optional pcm
 dev/sound/pcm/vchan.c	optional pcm
 #dev/sound/usb/upcm.c	optional pcm usb
