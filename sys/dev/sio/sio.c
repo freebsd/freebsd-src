@@ -413,7 +413,7 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
-TUNABLE_INT("machdep.conspeed", &comdefaultrate);
+/* TUNABLE_INT("machdep.conspeed", &comdefaultrate); */
 
 #define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
 #define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
