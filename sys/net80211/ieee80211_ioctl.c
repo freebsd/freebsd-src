@@ -301,7 +301,8 @@ ieee80211_cfgget(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case WI_RID_SCAN_RES:			/* compatibility interface */
 		if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
-		    ic->ic_state == IEEE80211_S_SCAN) {
+		    ic->ic_state == IEEE80211_S_SCAN &&
+		    (ic->ic_flags & IEEE80211_F_ASCAN)) {
 			error = EINPROGRESS;
 			break;
 		}
