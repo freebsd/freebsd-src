@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)devname.3	8.2 (Berkeley) 4/29/95
-.\"     $Id$
+.\"     $Id: devname.3,v 1.4 1999/07/12 20:46:25 nik Exp $
 .\"
 .Dd April 29, 1995
 .Dt DEVNAME 3
@@ -54,11 +54,9 @@ and a file type matching the one encoded in
 .Fa type
 which must be one of S_IFBLK or S_IFCHR.
 If no device matches the specified values, or no information is
-available, NULL is returned.
-.Pp
-The traditional display for applications when no device is
-found is the string
-.Dq ?? .
+available, the string
+.Dq ??
+is returned.
 .Sh SEE ALSO
 .Xr stat 2 ,
 .Xr dev_mkdb 8
