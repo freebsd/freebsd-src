@@ -493,7 +493,7 @@
       environment via the <option>-u</option>, <option>-g</option>,
       and <option>-G</option> options respectively. &merged;</para>
 
-    <para>The dev_db utility is unnecessary due to the mandatory
+    <para>The dev_mkdb utility is unnecessary due to the mandatory
       presence of devfs, and has been removed.</para>
 
     <para>&man.dhclient.8; now polls the state of network interfaces
