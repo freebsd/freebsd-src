@@ -102,7 +102,7 @@ static struct fd_type fd_types_288m[] = {
 	{ FDF_3_820 },
 	{ FDF_3_800 },
 	{ FDF_3_720 },
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 static struct fd_type fd_types_144m[] = {
@@ -126,7 +126,7 @@ static struct fd_type fd_types_144m[] = {
 	{ FDF_3_1480 },
 	{ FDF_3_1640 },
 #endif
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 #else
 	{ FDF_3_1722 },
 	{ FDF_3_1476 },
@@ -135,7 +135,7 @@ static struct fd_type fd_types_144m[] = {
 	{ FDF_3_820 },
 	{ FDF_3_800 },
 	{ FDF_3_720 },
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 #endif
 };
 
@@ -153,7 +153,7 @@ static struct fd_type fd_types_12m[] = {
 #if 0
 	{ FDF_5_1280 },
 #endif
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 #else
 	{ FDF_5_1200 },
 	{ FDF_5_1230 },
@@ -164,20 +164,20 @@ static struct fd_type fd_types_12m[] = {
 	{ FDF_5_720 },
 	{ FDF_5_360 | FL_2STEP },
 	{ FDF_5_640 },
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 #endif
 };
 
 static struct fd_type fd_types_720k[] =
 {
 	{ FDF_3_720 },
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 static struct fd_type fd_types_360k[] =
 {
 	{ FDF_5_360 },
-	{ 0 }
+	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 
