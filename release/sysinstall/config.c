@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.58 1996/11/09 18:12:12 jkh Exp $
+ * $Id: config.c,v 1.59 1996/11/09 19:25:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -378,12 +378,6 @@ configResolv(void)
 
     if (!RunningAsInit || file_readable("/etc/resolv.conf"))
 	return;
-
-    if (Mkdir("/etc")) {
-	msgConfirm("Unable to create /etc directory.  Network configuration\n"
-		   "files will therefore not be written!");
-	return;
-    }
 
     cp = variable_get(VAR_NAMESERVER);
     if (!cp || !*cp)
