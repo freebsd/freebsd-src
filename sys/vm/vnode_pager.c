@@ -478,6 +478,7 @@ vnode_pager_input_smlfs(object, m)
 			runningbufspace += bp->b_runningbufspace;
 
 			/* do the input */
+			bp->b_offset = dbtob(bp->b_blkno);
 			VOP_SPECSTRATEGY(bp->b_vp, bp);
 
 			/* we definitely need to be at splvm here */
@@ -801,7 +802,6 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/* build a minimal buffer header */
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = bdone;
-	/* B_PHYS is not set, but it is nice to fill this in */
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 	bp->b_rcred = crhold(curthread->td_ucred);
@@ -817,6 +817,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	cnt.v_vnodepgsin += count;
 
 	/* do the input */
+	bp->b_offset = dbtob(bp->b_blkno);
 	if (dp->v_type == VCHR)
 		VOP_SPECSTRATEGY(bp->b_vp, bp);
 	else
