@@ -1346,10 +1346,17 @@ getvirginlabel(void)
 		warn("cannot open %s", namebuf);
 		return (NULL);
 	}
-	if (ioctl(f, DIOCGDINFO, &lab) < 0) {
-		warn("ioctl DIOCGDINFO");
-		close(f);
-		return (NULL);
+
+	/*
+	 * Try to use the new get-virgin-label ioctl.  If it fails,
+	 * fallback to the old get-disdk-info ioctl.
+	 */
+	if (ioctl(f, DIOCGDVIRGIN, &lab) < 0) {
+	    if (ioctl(f, DIOCGDINFO, &lab) < 0) {
+		    warn("ioctl DIOCGDINFO");
+		    close(f);
+		    return (NULL);
+	    }
 	}
 	close(f);
 	lab.d_boot0 = NULL;
