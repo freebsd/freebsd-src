@@ -2263,7 +2263,7 @@ ffs_fserr(fs, inum, cp)
 
 /*
  * This function provides the capability for the fsck program to
- * update an active filesystem. Six operations are provided:
+ * update an active filesystem. Eleven operations are provided:
  *
  * adjrefcnt(inode, amt) - adjusts the reference count on the
  *	specified inode by the specified amount. Under normal
@@ -2271,6 +2271,8 @@ ffs_fserr(fs, inum, cp)
  *	the count to zero will cause the inode to be freed.
  * adjblkcnt(inode, amt) - adjust the number of blocks used to
  *	by the specifed amount.
+ * adjndir, adjbfree, adjifree, adjffree, adjnumclusters(amt) -
+ *	adjust the superblock summary.
  * freedirs(inode, count) - directory inodes [inode..inode + count - 1]
  *	are marked as free. Inodes should never have to be marked
  *	as in use.
@@ -2291,6 +2293,21 @@ SYSCTL_PROC(_vfs_ffs, FFS_ADJ_REFCNT, adjrefcnt, CTLFLAG_WR|CTLTYPE_STRUCT,
 
 static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_BLKCNT, adjblkcnt, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Adjust Inode Used Blocks Count");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_NDIR, adjndir, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Adjust number of directories");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_NBFREE, adjnbfree, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Adjust number of free blocks");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_NIFREE, adjnifree, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Adjust number of free inodes");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_NFFREE, adjnffree, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Adjust number of free frags");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_NUMCLUSTERS, adjnumclusters, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Adjust number of free clusters");
 
 static SYSCTL_NODE(_vfs_ffs, FFS_DIR_FREE, freedirs, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Free Range of Directory Inodes");
@@ -2451,6 +2468,56 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;
 		}
+		break;
+
+	/*
+	 * Adjust superblock summaries.  fsck(8) is expected to
+	 * submit deltas when necessary.
+	 */
+	case FFS_ADJ_NDIR:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust number of directories by %jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		fs->fs_cstotal.cs_ndir += cmd.value;
+		break;
+	case FFS_ADJ_NBFREE:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust number of free blocks by %+jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		fs->fs_cstotal.cs_nbfree += cmd.value;
+		break;
+	case FFS_ADJ_NIFREE:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust number of free inodes by %+jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		fs->fs_cstotal.cs_nifree += cmd.value;
+		break;
+	case FFS_ADJ_NFFREE:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust number of free frags by %+jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		fs->fs_cstotal.cs_nffree += cmd.value;
+		break;
+	case FFS_ADJ_NUMCLUSTERS:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust number of free clusters by %+jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value);
+		}
+#endif /* DEBUG */
+		fs->fs_cstotal.cs_numclusters += cmd.value;
 		break;
 
 	default:
