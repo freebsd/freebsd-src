@@ -19,7 +19,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "system.h"
 #include <stdio.h>
+#ifdef __FreeBSD__
+#include <gnuregex.h>
+#else
 #include "regex.h"
+#endif
 
 #define TAB_WIDTH 8
 
