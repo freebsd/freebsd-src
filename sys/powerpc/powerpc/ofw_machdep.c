@@ -46,6 +46,8 @@ static const char rcsid[] =
 #include <sys/malloc.h>
 #include <sys/stat.h>
 
+#include <net/ethernet.h>
+
 #include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
@@ -54,6 +56,7 @@ static const char rcsid[] =
 
 #include <machine/powerpc.h>
 #include <machine/ofw_machdep.h>
+#include <powerpc/ofw/ofw_pci.h>
 
 #define	OFMEM_REGIONS	32
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
@@ -165,4 +168,13 @@ ppc_boot(str)
 {
 
 	OF_boot(str);
+}
+
+void
+OF_getetheraddr(device_t dev, u_char *addr)
+{
+	phandle_t	node;
+
+	node = ofw_pci_find_node(dev);
+	OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN);
 }
