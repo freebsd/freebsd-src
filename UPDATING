@@ -8,6 +8,12 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020501:
+	The ephemeral port range change that was previously mentioned
+	in this document has been reverted, so any changes it required
+	to your system may be reverted as well.  Those who missed the
+	change should ignore this notice.
+
 20020421:
 	inetd_enable was changed back to YES, to match the defaults
 	earlier in the 4.0-stable branch.  This change restores the
