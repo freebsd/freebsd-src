@@ -435,6 +435,8 @@ init_private(void)
 			_thr_stack_default = THR_STACK32_DEFAULT;
 			_thr_stack_initial = THR_STACK32_INITIAL;
 		}
+		_pthread_attr_default.guardsize_attr = _thr_guard_default;
+		_pthread_attr_default.stacksize_attr = _thr_stack_default;
 		init_once = 1;	/* Don't do this again. */
 	} else {
 		/*
