@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: deflate.c,v 1.1 1997/12/03 10:23:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -343,6 +343,8 @@ DeflateDictSetup(u_short proto, struct mbuf *mi)
         break;			/* Done */
       LogPrintf(LogERROR, "DeflateDictSetup: inflate returned %d (%s)\n",
                 res, InputState.cx.msg ? InputState.cx.msg : "");
+      LogPrintf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
+                InputState.cx.avail_in, InputState.cx.avail_out);
       CcpSendResetReq(&CcpFsm);
       mbfree(mi_head);		/* lose our allocated ``head'' buf */
       return;
@@ -383,39 +385,50 @@ DeflateDispOpts(struct lcp_opt *o)
 }
 
 static void
-DeflateGetOpts(struct lcp_opt *o)
+DeflateGetInputOpts(struct lcp_opt *o)
 {
   o->id = TY_DEFLATE;
   o->len = 4;
-  o->data[1] = '\0';
-}
-
-static void
-DeflateGetInputOpts(struct lcp_opt *o)
-{
-  DeflateGetOpts(o);
   o->data[0] = ((iWindowSize-8)<<4)+8;
+  o->data[1] = '\0';
 }
 
 static void
 DeflateGetOutputOpts(struct lcp_opt *o)
 {
-  DeflateGetOpts(o);
+  o->id = TY_DEFLATE;
+  o->len = 4;
   o->data[0] = ((oWindowSize-8)<<4)+8;
+  o->data[1] = '\0';
+}
+
+static void
+PppdDeflateGetInputOpts(struct lcp_opt *o)
+{
+  o->id = TY_PPPD_DEFLATE;
+  o->len = 4;
+  o->data[0] = ((iWindowSize-8)<<4)+8;
+  o->data[1] = '\0';
+}
+
+static void
+PppdDeflateGetOutputOpts(struct lcp_opt *o)
+{
+  o->id = TY_PPPD_DEFLATE;
+  o->len = 4;
+  o->data[0] = ((oWindowSize-8)<<4)+8;
+  o->data[1] = '\0';
 }
 
 static int
 DeflateSetOpts(struct lcp_opt *o, int *sz)
 {
-  if (o->id != TY_DEFLATE || o->len != 4 ||
-      (o->data[0]&15) != 8 || o->data[1] != '\0') {
-    DeflateGetOpts(o);
+  if (o->len != 4 || (o->data[0]&15) != 8 || o->data[1] != '\0') {
     return MODE_REJ;
   }
   *sz = (o->data[0] >> 4) + 8;
   if (*sz > 15) {
     *sz = 15;
-    DeflateGetOpts(o);
     return MODE_NAK;
   }
 
@@ -425,13 +438,41 @@ DeflateSetOpts(struct lcp_opt *o, int *sz)
 static int
 DeflateSetInputOpts(struct lcp_opt *o)
 {
-  return DeflateSetOpts(o, &iWindowSize);
+  int res;
+  res = DeflateSetOpts(o, &iWindowSize);
+  if (res != MODE_ACK)
+    DeflateGetInputOpts(o);
+  return res;
 }
 
 static int
 DeflateSetOutputOpts(struct lcp_opt *o)
 {
-  return DeflateSetOpts(o, &oWindowSize);
+  int res;
+  res = DeflateSetOpts(o, &oWindowSize);
+  if (res != MODE_ACK)
+    DeflateGetOutputOpts(o);
+  return res;
+}
+
+static int
+PppdDeflateSetInputOpts(struct lcp_opt *o)
+{
+  int res;
+  res = DeflateSetOpts(o, &iWindowSize);
+  if (res != MODE_ACK)
+    PppdDeflateGetInputOpts(o);
+  return res;
+}
+
+static int
+PppdDeflateSetOutputOpts(struct lcp_opt *o)
+{
+  int res;
+  res = DeflateSetOpts(o, &oWindowSize);
+  if (res != MODE_ACK)
+    PppdDeflateGetOutputOpts(o);
+  return res;
 }
 
 static int
@@ -475,8 +516,31 @@ DeflateTermOutput(void)
   deflateEnd(&OutputState.cx);
 }
 
+const struct ccp_algorithm PppdDeflateAlgorithm = {
+  TY_PPPD_DEFLATE,	/* pppd (wrongly) expects this ``type'' field */
+  ConfPppdDeflate,
+  DeflateDispOpts,
+  {
+    PppdDeflateGetInputOpts,
+    PppdDeflateSetInputOpts,
+    DeflateInitInput,
+    DeflateTermInput,
+    DeflateResetInput,
+    DeflateInput,
+    DeflateDictSetup
+  },
+  {
+    PppdDeflateGetOutputOpts,
+    PppdDeflateSetOutputOpts,
+    DeflateInitOutput,
+    DeflateTermOutput,
+    DeflateResetOutput,
+    DeflateOutput
+  },
+};
+
 const struct ccp_algorithm DeflateAlgorithm = {
-  TY_DEFLATE,
+  TY_DEFLATE,		/* rfc 1979 */
   ConfDeflate,
   DeflateDispOpts,
   {

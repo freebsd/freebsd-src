@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.20 1997/11/22 03:37:25 brian Exp $
+ * $Id: ccp.c,v 1.21 1997/12/03 10:23:44 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -80,21 +80,24 @@ struct fsm CcpFsm = {
 
 static char const *cftypes[] = {
   /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
-   "OUI",	/* 0: OUI */
-   "PRED1",	/* 1: Predictor type 1 */
-   "PRED2",	/* 2: Predictor type 2 */
-   "PUDDLE",	/* 3: Puddle Jumber */
-   "???", "???", "???", "???", "???", "???",
-   "???", "???", "???", "???", "???", "???",
-   "HWPPC",	/* 16: Hewlett-Packard PPC */
-   "STAC",	/* 17: Stac Electronics LZS */
-   "MSPPC",	/* 18: Microsoft PPC */
-   "GAND",	/* 19: Gandalf FZA */
-   "V42BIS",	/* 20: ARG->DATA.42bis compression */
-   "BSD",	/* 21: BSD LZW Compress */
-   "???",
-   "???",
-   "DEFLATE",	/* 24: PPP Deflate */
+  "OUI",		/* 0: OUI */
+  "PRED1",		/* 1: Predictor type 1 */
+  "PRED2",		/* 2: Predictor type 2 */
+  "PUDDLE",		/* 3: Puddle Jumber */
+  "???", "???", "???", "???", "???", "???",
+  "???", "???", "???", "???", "???", "???",
+  "HWPPC",		/* 16: Hewlett-Packard PPC */
+  "STAC",		/* 17: Stac Electronics LZS (rfc1974) */
+  "MSPPC",		/* 18: Microsoft PPC */
+  "GAND",		/* 19: Gandalf FZA (rfc1993) */
+  "V42BIS",		/* 20: ARG->DATA.42bis compression */
+  "BSD",		/* 21: BSD LZW Compress */
+  "???",
+  "LZS-DCP",		/* 23: LZS-DCP Compression Protocol (rfc1967) */
+  "MAGNALINK/DEFLATE",	/* 24: Magnalink Variable Resource (rfc1975) */
+			/* 24: Deflate (according to pppd-2.3.1) */
+  "DCE",		/* 25: Data Circuit-Terminating Equip (rfc1976) */
+  "DEFLATE",		/* 26: Deflate (rfc1979) */
 };
 
 #define NCFTYPES (sizeof(cftypes)/sizeof(char *))
@@ -107,9 +110,11 @@ protoname(int proto)
   return cftypes[proto];
 }
 
+/* We support these algorithms, and Req them in the given order */
 static const struct ccp_algorithm *algorithm[] = {
+  &DeflateAlgorithm,
   &Pred1Algorithm,
-  &DeflateAlgorithm
+  &PppdDeflateAlgorithm
 };
 
 static int in_algorithm = -1;
