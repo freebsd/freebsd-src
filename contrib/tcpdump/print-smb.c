@@ -893,7 +893,7 @@ void nbt_udp137_print(const uchar *data, int length)
 	      p += 2;
 	    }
 	  } else {
-	    print_data(p,rdlen);
+	    print_data(p, min(rdlen, length - ((const uchar *)p - data)));
 	    p += rdlen;
 	  }
 	}
