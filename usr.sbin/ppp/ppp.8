@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.41 1997/06/20 23:43:34 brian Exp $
+.\" $Id: ppp.8,v 1.42 1997/06/25 19:30:03 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1664,7 +1664,7 @@ is taken before starting at the first number again.  A value of
 .Dq random
 may be used here too.
 
-.It set server|socket TcpPort|LocalName|none
+.It set server|socket TcpPort|LocalName|none [mask]
 Normally, when not in interactive mode,
 .Nm
 listens to a tcp socket for incoming command connections.  The
@@ -1679,7 +1679,9 @@ Using this command, you can specify your own port number, a
 local domain socket (specified as an absolute file name), or
 you can tell
 .Nm
-not to accept any command connections.  See also the use of
+not to accept any command connections.  If a local domain socket
+is specified, you may also specify an octal mask that should be
+set before creating the socket.  See also the use of
 the
 .Dv USR1
 signal.
