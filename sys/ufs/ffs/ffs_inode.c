@@ -77,7 +77,7 @@ ffs_update(vp, waitfor)
 	struct vnode *vp;
 	int waitfor;
 {
-	register struct fs *fs;
+	struct fs *fs;
 	struct buf *bp;
 	struct inode *ip;
 	int error;
@@ -137,16 +137,16 @@ ffs_truncate(vp, length, flags, cred, td)
 	struct ucred *cred;
 	struct thread *td;
 {
-	register struct vnode *ovp = vp;
+	struct vnode *ovp = vp;
 	ufs_daddr_t lastblock;
-	register struct inode *oip;
+	struct inode *oip;
 	ufs_daddr_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
 	ufs_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	register struct fs *fs;
+	struct fs *fs;
 	struct buf *bp;
 	int offset, size, level;
 	long count, nblocks, blocksreleased = 0;
-	register int i;
+	int i;
 	int aflags, error, allerror;
 	off_t osize;
 
@@ -349,7 +349,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	 * All whole direct blocks or frags.
 	 */
 	for (i = NDADDR - 1; i > lastblock; i--) {
-		register long bsize;
+		long bsize;
 
 		bn = oip->i_db[i];
 		if (bn == 0)
@@ -430,16 +430,16 @@ done:
  */
 static int
 ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
-	register struct inode *ip;
+	struct inode *ip;
 	ufs_daddr_t lbn, lastbn;
 	ufs_daddr_t dbn;
 	int level;
 	long *countp;
 {
-	register int i;
+	int i;
 	struct buf *bp;
-	register struct fs *fs = ip->i_fs;
-	register ufs_daddr_t *bap;
+	struct fs *fs = ip->i_fs;
+	ufs_daddr_t *bap;
 	struct vnode *vp;
 	ufs_daddr_t *copy = NULL, nb, nlbn, last;
 	long blkcount, factor;

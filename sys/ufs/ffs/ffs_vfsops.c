@@ -143,7 +143,7 @@ ffs_mount(mp, path, data, ndp, td)
 	struct vnode	*devvp;
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
-	register struct fs *fs;
+	struct fs *fs;
 	int error, flags;
 	mode_t accessmode;
 
@@ -374,11 +374,11 @@ ffs_mount(mp, path, data, ndp, td)
  */
 int
 ffs_reload(mp, cred, td)
-	register struct mount *mp;
+	struct mount *mp;
 	struct ucred *cred;
 	struct thread *td;
 {
-	register struct vnode *vp, *nvp, *devvp;
+	struct vnode *vp, *nvp, *devvp;
 	struct inode *ip;
 	void *space;
 	struct buf *bp;
@@ -537,14 +537,14 @@ SYSCTL_INT(_debug, OID_AUTO, bigcgs, CTLFLAG_RW, &bigcgs, 0, "");
  */
 int
 ffs_mountfs(devvp, mp, td, malloctype)
-	register struct vnode *devvp;
+	struct vnode *devvp;
 	struct mount *mp;
 	struct thread *td;
 	struct malloc_type *malloctype;
 {
-	register struct ufsmount *ump;
+	struct ufsmount *ump;
 	struct buf *bp;
-	register struct fs *fs;
+	struct fs *fs;
 	dev_t dev;
 	void *space;
 	int error, i, blks, size, ronly;
@@ -850,8 +850,8 @@ ffs_unmount(mp, mntflags, td)
 	int mntflags;
 	struct thread *td;
 {
-	register struct ufsmount *ump = VFSTOUFS(mp);
-	register struct fs *fs;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	struct fs *fs;
 	int error, flags;
 
 	flags = 0;
@@ -919,11 +919,11 @@ ffs_unmount(mp, mntflags, td)
  */
 int
 ffs_flushfiles(mp, flags, td)
-	register struct mount *mp;
+	struct mount *mp;
 	int flags;
 	struct thread *td;
 {
-	register struct ufsmount *ump;
+	struct ufsmount *ump;
 	int error;
 
 	ump = VFSTOUFS(mp);
@@ -973,11 +973,11 @@ ffs_flushfiles(mp, flags, td)
 int
 ffs_statfs(mp, sbp, td)
 	struct mount *mp;
-	register struct statfs *sbp;
+	struct statfs *sbp;
 	struct thread *td;
 {
-	register struct ufsmount *ump;
-	register struct fs *fs;
+	struct ufsmount *ump;
+	struct fs *fs;
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
@@ -1320,11 +1320,11 @@ restart:
  */
 int
 ffs_fhtovp(mp, fhp, vpp)
-	register struct mount *mp;
+	struct mount *mp;
 	struct fid *fhp;
 	struct vnode **vpp;
 {
-	register struct ufid *ufhp;
+	struct ufid *ufhp;
 	struct fs *fs;
 
 	ufhp = (struct ufid *)fhp;
@@ -1344,8 +1344,8 @@ ffs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
-	register struct inode *ip;
-	register struct ufid *ufhp;
+	struct inode *ip;
+	struct ufid *ufhp;
 
 	ip = VTOI(vp);
 	ufhp = (struct ufid *)fhp;
@@ -1376,8 +1376,8 @@ ffs_sbupdate(mp, waitfor)
 	struct ufsmount *mp;
 	int waitfor;
 {
-	register struct fs *dfs, *fs = mp->um_fs;
-	register struct buf *bp;
+	struct fs *dfs, *fs = mp->um_fs;
+	struct buf *bp;
 	int blks;
 	void *space;
 	int i, size, error, allerror = 0;
