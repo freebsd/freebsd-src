@@ -35,16 +35,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)pt_file.c	8.3 (Berkeley) 7/3/94
- *
- * $Id: pt_file.c,v 1.5 1997/02/22 14:32:56 peter Exp $
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/syslog.h>

@@ -35,16 +35,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.c	8.2 (Berkeley) 3/27/94
- *
- * $Id$
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <regex.h>
 #include <sys/types.h>
 #include <sys/param.h>

@@ -41,24 +41,23 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)mount_portal.c	8.6 (Berkeley) 4/26/95";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: mount_portal.c,v 1.11 1997/03/24 05:53:12 imp Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/wait.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <sys/syslog.h>
 #include <sys/mount.h>
 
 #include <err.h>
 #include <errno.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

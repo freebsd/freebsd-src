@@ -35,15 +35,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)pt_tcp.c	8.5 (Berkeley) 4/28/95
- *
- * $Id: pt_tcp.c,v 1.5 1997/03/11 12:35:00 peter Exp $
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <errno.h>
+#include <stdlib.h>
 #include <strings.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/syslog.h>
@@ -59,7 +61,7 @@
  * Create a TCP socket connected to the
  * requested host and port.
  * Some trailing suffix values have special meanings.
- * An unrecognised suffix is an error.
+ * An unrecognized suffix is an error.
  */
 int portal_tcp(pcr, key, v, kso, fdp)
 	struct portal_cred *pcr;
