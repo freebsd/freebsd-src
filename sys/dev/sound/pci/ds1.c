@@ -567,8 +567,9 @@ ds_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	sc->ctrlbase = error? 0 : (u_int32_t)segs->ds_addr;
 
 	if (bootverbose) {
-		printf("ds1: setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
-		       (unsigned long)segs->ds_len);
+		printf("ds1: setmap (%lx, %lx), nseg=%d, error=%d\n",
+		       (unsigned long)segs->ds_addr, (unsigned long)segs->ds_len,
+		       nseg, error);
 	}
 }
 
@@ -613,10 +614,12 @@ ds_init(struct sc_info *sc)
 
 	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
 		return -1;
-	if (bus_dmamap_load(sc->parent_dmat, map, buf, memsz, ds_setmap, sc, 0))
+	if (bus_dmamap_load(sc->parent_dmat, map, buf, memsz, ds_setmap, sc, 0)
+	    || !sc->ctrlbase) {
+		device_printf(sc->dev, "pcs=%d, rcs=%d, ecs=%d, ws=%d, memsz=%d\n",
+			      pcs, rcs, ecs, ws, memsz);
 		return -1;
-	if (!sc->ctrlbase)
-		return -1;
+	}
 
 	cb = 0;
 	t = buf;
