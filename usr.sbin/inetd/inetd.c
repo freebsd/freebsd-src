@@ -403,12 +403,16 @@ main(int argc, char **argv)
 	 *   getaddrinfo(). But getaddrinfo() requires at least one of
 	 *   hostname or servname is non NULL.
 	 *   So when hostname is NULL, set dummy value to servname.
+	 *   Since getaddrinfo() doesn't accept numeric servname, and
+	 *   we doesn't use ai_socktype of struct addrinfo returned
+	 *   from getaddrinfo(), we set dummy value to ai_socktype.
 	 */
-	servname = (hostname == NULL) ? "discard" /* dummy */ : NULL;
+	servname = (hostname == NULL) ? "0" /* dummy */ : NULL;
 
 	bzero(&hints, sizeof(struct addrinfo));
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;	/* dummy */
 	error = getaddrinfo(hostname, servname, &hints, &res);
 	if (error != 0) {
 		syslog(LOG_ERR, "-a %s: %s", hostname, gai_strerror(error));
