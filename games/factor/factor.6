@@ -34,12 +34,13 @@
 .\"
 .\"	@(#)factor.6	8.1 (Berkeley) 5/31/93
 .\"
+.\"	$Id:$
 .\"
 .\" By: Landon Curt Noll   chongo@toad.com,   ...!{sun,tolsoft}!hoptoad!chongo
 .\"
 .\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
 .\"
-.TH FACTOR 6 "May 31, 1993"
+.TH FACTOR 6 "Jan 7, 1999"
 .UC 7
 .SH NAME
 factor, primes \- factor a number, generate primes
@@ -54,10 +55,11 @@ The
 .I factor
 utility will factor integers between 0 and ULONG_MAX (4294967295 on 32
 bit architectures, 18446744073709551615 on 64 bit ones), inclusive.
-When a number is factored, it is printed, followed by a ``:'', and the
-list of factors on a single line.  Factors are listed in ascending
-order, and are preceded by a space.  If a factor divides a value more
-than once, it will be printed more than once.
+When a number is factored, it is printed, followed by a ``:'',
+and the list of factors on a single line.
+Factors are listed in ascending order, and are preceded by a space.
+If a factor divides a value more than once, it will be printed
+more than once.
 .PP
 When
 .I factor
