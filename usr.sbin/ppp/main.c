@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.115 1997/12/30 23:22:29 brian Exp $
+ * $Id: main.c,v 1.116 1998/01/08 23:47:52 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -33,9 +33,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <net/if.h>
-#ifdef __FreeBSD__
-#include <net/if_var.h>
-#endif
 #include <net/if_tun.h>
 
 #include <errno.h>
