@@ -197,6 +197,19 @@ tracing packet flow, statistics, etc.:
 ngctl mkpeer fxp0: tee lower right
 ngctl connect fxp0: lower upper left
 .Ed
+.Sh BUGS
+The automatic KLD module loading mechanism that works for most
+other netgraph node types does not work for the
+.Nm
+node type,
+because
+.Nm
+nodes are not created on demand; instead, they are created when
+Ethernet interfaces are attached or when the KLD is first loaded.
+Therefore, if the KLD is not statically compiled into the kernel,
+it is necessary to load the KLD manually in order to bring the
+.Nm
+nodes into existence.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netgraph 4 ,
