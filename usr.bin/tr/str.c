@@ -93,6 +93,13 @@ next(s)
 		if (s->str[0] == '-' && genrange(s, is_octal))
 			return (next(s));
 		return (1);
+	case RANGE:
+		if (s->cnt-- == 0) {
+			s->state = NORMAL;
+			return (next(s));
+		}
+		++s->lastch;
+		return (1);
 	case SEQUENCE:
 		if (s->cnt-- == 0) {
 			s->state = NORMAL;
@@ -200,7 +207,6 @@ genclass(s)
 
 	if ((cp->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
 		err(1, "genclass() malloc");
-	bzero(p, (NCHARS + 1) * sizeof(int));
 	for (cnt = 0, func = cp->func; cnt < NCHARS; ++cnt)
 		if ((func)(cnt))
 			*p++ = cnt;
@@ -290,24 +296,24 @@ genrange(STR *s, int was_octal)
 		s->str = savestart;
 		return (0);
 	}
+	if (octal) {
+		s->cnt = stopval - s->lastch + 1;
+		s->state = RANGE;
+		--s->lastch;
+		return (1);
+	}
 	if ((s->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
 		err(1, "genrange() malloc");
-	bzero(p, (NCHARS + 1) * sizeof(int));
-	if (octal) {
-		for (cnt = s->lastch; cnt <= stopval; cnt++)
+	for (cnt = 0; cnt < NCHARS; cnt++)
+		if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
+		    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
 			*p++ = cnt;
-	} else {
-		for (cnt = 0; cnt < NCHARS; cnt++)
-			if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
-			    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
-				*p++ = cnt;
-	}
 	*p = OOBCH;
 	n = p - s->set;
 
 	s->cnt = 0;
 	s->state = SET;
-	if (!octal && n > 1)
+	if (n > 1)
 		mergesort(s->set, n, sizeof(*(s->set)), charcoll);
 	return (1);
 }

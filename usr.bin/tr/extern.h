@@ -40,7 +40,7 @@
 
 typedef struct {
 	enum { STRING1, STRING2 } which;
-	enum { EOS, INFINITE, NORMAL, SEQUENCE,
+	enum { EOS, INFINITE, NORMAL, RANGE, SEQUENCE,
 	       SET, SET_UPPER, SET_LOWER } state;
 	int	 cnt;			/* character count */
 	int	 lastch;		/* last character */
