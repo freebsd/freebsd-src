@@ -1,5 +1,5 @@
 #
-#	$Id$
+#	$Id: Makefile,v 1.118 1997/02/23 15:50:34 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -401,7 +401,7 @@ includes:
 	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/eBones/lib/libkadm &&	${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE}	all beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
