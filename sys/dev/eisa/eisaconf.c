@@ -621,5 +621,5 @@ static driver_t eisa_driver = {
 	1,			/* no softc */
 };
 
-DRIVER_MODULE(eisa, isab, eisa_driver, eisa_devclass, 0, 0);
+DRIVER_MODULE(eisa, eisab, eisa_driver, eisa_devclass, 0, 0);
 DRIVER_MODULE(eisa, nexus, eisa_driver, eisa_devclass, 0, 0);
