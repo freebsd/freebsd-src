@@ -1,7 +1,7 @@
 #	@(#)Makefile	5.6 (Berkeley) 3/5/91
-#
+# $FreeBSD$
+
 PROG=	keyinit
-MAN1=   keyinit.1
 SRCS=	skeyinit.c
 
 CFLAGS+= -D_SKEY_INTERNAL

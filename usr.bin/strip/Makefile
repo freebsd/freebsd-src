@@ -1,8 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	strip
+MAN=	strip.1aout
 BINDIR= /usr/libexec/aout
-MAN1aout=strip.1aout
 CLEANFILES += maybe_stripped
 
 all: maybe_stripped
