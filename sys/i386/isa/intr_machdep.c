@@ -162,32 +162,41 @@ int
 isa_nmi(cd)
 	int cd;
 {
+	int retval = 0;
 #ifdef PC98
  	int port = inb(0x33);
+
+	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
 	if (epson_machine_id == 0x20)
 		epson_outb(0xc16, epson_inb(0xc16) | 0x1);
 	if (port & NMI_PARITY) {
-		panic("BASE RAM parity error, likely hardware failure.");
+		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
+		retval = 1;
 	} else if (port & NMI_EPARITY) {
-		panic("EXTENDED RAM parity error, likely hardware failure.");
+		log(LOG_CRIT, "EXTENDED RAM parity error, likely hardware failure.");
+		retval = 1;
 	} else {
-		printf("\nNMI Resume ??\n");
-		return(0);
+		log(LOG_CRIT, "\nNMI Resume ??\n");
 	}
 #else /* IBM-PC */
 	int isa_port = inb(0x61);
 	int eisa_port = inb(0x461);
 
+	log(LOG_CRIT, "NMI ISA %x, EISA %x\n", isa_port, eisa_port);
 #if NMCA > 0
 	if (MCA_system && mca_bus_nmi())
 		return(0);
 #endif
 	
-	if (isa_port & NMI_PARITY)
-		panic("RAM parity error, likely hardware failure.");
+	if (isa_port & NMI_PARITY) {
+		log(LOG_CRIT, "RAM parity error, likely hardware failure.");
+		retval = 1;
+	}
 
-	if (isa_port & NMI_IOCHAN)
-		panic("I/O channel check, likely hardware failure.");
+	if (isa_port & NMI_IOCHAN) {
+		log(LOG_CRIT, "I/O channel check, likely hardware failure.");
+		retval = 1;
+	}
 
 	/*
 	 * On a real EISA machine, this will never happen.  However it can
@@ -195,20 +204,24 @@ isa_nmi(cd)
 	 * error handling (very rare).  Save them from a meaningless panic.
 	 */
 	if (eisa_port == 0xff)
-		return(0);
+		return(retval);
 
-	if (eisa_port & ENMI_WATCHDOG)
-		panic("EISA watchdog timer expired, likely hardware failure.");
+	if (eisa_port & ENMI_WATCHDOG) {
+		log(LOG_CRIT, "EISA watchdog timer expired, likely hardware failure.");
+		retval = 1;
+	}
 
-	if (eisa_port & ENMI_BUSTIMER)
-		panic("EISA bus timeout, likely hardware failure.");
+	if (eisa_port & ENMI_BUSTIMER) {
+		log(LOG_CRIT, "EISA bus timeout, likely hardware failure.");
+		retval = 1;
+	}
 
-	if (eisa_port & ENMI_IOSTATUS)
-		panic("EISA I/O port status error.");
-
-	printf("\nNMI ISA %x, EISA %x\n", isa_port, eisa_port);
-	return(0);
+	if (eisa_port & ENMI_IOSTATUS) {
+		log(LOG_CRIT, "EISA I/O port status error.");
+		retval = 1;
+	}
 #endif
+	return(retval);
 }
 
 /*
