@@ -56,6 +56,7 @@
 #include "sys/tty.h"
 #include "sys/file.h"
 #include "sys/conf.h"
+#include "sys/vnode.h"
 
 #include "cons.h"
 
@@ -105,14 +106,25 @@ cninit()
 	(*cp->cn_init)(cp);
 }
 
+static struct vnode	*cnopenvp = NULLVP;
+
+
 cnopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
 	struct proc *p;
 {
+	int		error;
+
+
 	if (cn_tab == NULL)
 		return (0);
 	dev = cn_tab->cn_dev;
+	if (cnopenvp == NULLVP)
+		if ((error = getdevvp(dev, &cnopenvp, VCHR))) {
+			printf("cnopen: getdevvp returned %d !\n", error);
+			return(error);
+		}
 	return ((*cdevsw[major(dev)].d_open)(dev, flag, mode, p));
 }
  
@@ -121,10 +133,21 @@ cnclose(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
+	int		error;
+
+
 	if (cn_tab == NULL)
 		return (0);
 	dev = cn_tab->cn_dev;
-	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));
+	if (vcount(cnopenvp) <= 1)
+		error = (*cdevsw[major(dev)].d_close)(dev, flag, mode, p);
+	else
+		error = 0;
+	if (error == 0) {
+		vrele(cnopenvp);
+		cnopenvp = NULLVP;
+	return(error);
+	}
 }
  
 cnread(dev, uio, flag)
