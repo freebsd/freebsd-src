@@ -380,10 +380,10 @@ INSTALLKERNEL= ${_kernel}
 #
 buildkernel:
 	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding kernel(s)"
-	@echo "--------------------------------------------------------------"
 .for _kernel in ${BUILDKERNELS}
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Kernel build for ${_kernel} started on `LC_TIME=C date`"
+	@echo "--------------------------------------------------------------"
 	@echo "===> ${_kernel}"
 	mkdir -p ${KRNLOBJDIR}
 .if !defined(NO_KERNELCONFIG)
@@ -400,6 +400,9 @@ buildkernel:
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel all
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Kernel build for ${_kernel} completed on `LC_TIME=C date`"
+	@echo "--------------------------------------------------------------"
 .endfor
 
 #
