@@ -622,6 +622,7 @@ calcru(p, up, sp, ip)
 	u_int64_t uut = 0, sut = 0, iut = 0;
 	int s;
 	struct timeval tv;
+	struct bintime bt;
 	struct kse *ke;
 	struct ksegrp *kg;
 
@@ -643,7 +644,6 @@ calcru(p, up, sp, ip)
 				tt = 1;
 			}
 		
-			tu = p->p_runtime;
 			if (ke == curthread->td_kse) {
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
@@ -652,19 +652,15 @@ calcru(p, up, sp, ip)
 		 * XXXKSE use a different test due to threads on other 
 		 * processors also being 'current'.
 		 */
-				microuptime(&tv);
-				if (timevalcmp(&tv, PCPU_PTR(switchtime), <))
-					printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-			    		    (long)PCPU_GET(switchtime.tv_sec),
-					    PCPU_GET(switchtime.tv_usec),
-			    		    (long)tv.tv_sec, tv.tv_usec);
-				else
-					tu += (tv.tv_usec
-						- PCPU_GET(switchtime.tv_usec))
-						+ (tv.tv_sec
-						  - PCPU_GET(switchtime.tv_sec))
-					      * (int64_t)1000000;
+				
+				binuptime(&bt);
+				bintime_sub(&bt, PCPU_PTR(switchtime));
+				bintime_add(&bt, &p->p_runtime);
+			} else {
+				bt = p->p_runtime;
 			}
+			bintime2timeval(&bt, &tv);
+			tu = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
 			ptu = ke->ke_uu + ke->ke_su + ke->ke_iu;
 			if (tu < ptu || (int64_t)tu < 0) {
 				/* XXX no %qd in kernel.  Truncate. */

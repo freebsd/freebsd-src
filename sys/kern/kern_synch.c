@@ -693,7 +693,7 @@ wakeup_one(ident)
 void
 mi_switch()
 {
-	struct timeval new_switchtime;
+	struct bintime new_switchtime;
 	struct thread *td = curthread;	/* XXX */
 	register struct proc *p = td->td_proc;	/* XXX */
 #if 0
@@ -711,20 +711,9 @@ mi_switch()
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
 	 */
-	microuptime(&new_switchtime);
-	if (timevalcmp(&new_switchtime, PCPU_PTR(switchtime), <)) {
-#if 0
-		/* XXX: This doesn't play well with sched_lock right now. */
-		printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-		    PCPU_GET(switchtime.tv_sec), PCPU_GET(switchtime.tv_usec),
-		    new_switchtime.tv_sec, new_switchtime.tv_usec);
-#endif
-		new_switchtime = PCPU_GET(switchtime);
-	} else {
-		p->p_runtime += (new_switchtime.tv_usec - PCPU_GET(switchtime.tv_usec)) +
-		    (new_switchtime.tv_sec - PCPU_GET(switchtime.tv_sec)) *
-		    (int64_t)1000000;
-	}
+	binuptime(&new_switchtime);
+	bintime_add(&p->p_runtime, &new_switchtime);
+	bintime_sub(&p->p_runtime, PCPU_PTR(switchtime));
 
 #ifdef DDB
 	/*
@@ -783,8 +772,8 @@ mi_switch()
 	sched_lock.mtx_lock = (uintptr_t)td;
 	CTR3(KTR_PROC, "mi_switch: new proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
-	if (PCPU_GET(switchtime.tv_sec) == 0)
-		microuptime(PCPU_PTR(switchtime));
+	if (PCPU_GET(switchtime.sec) == 0)
+		binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 }
 

@@ -534,6 +534,7 @@ fill_kinfo_proc(p, kp)
 	struct thread *td;
 	struct tty *tp;
 	struct session *sp;
+	struct timeval tv;
 
 	bzero(kp, sizeof(*kp));
 
@@ -598,7 +599,8 @@ fill_kinfo_proc(p, kp)
 	kp->ki_traceflag = p->p_traceflag;
 	kp->ki_pid = p->p_pid;
 	/* vvv XXXKSE */
-	kp->ki_runtime = p->p_runtime;
+	bintime2timeval(&p->p_runtime, &tv);
+	kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
 	kp->ki_pctcpu = p->p_kse.ke_pctcpu;
 	kp->ki_estcpu = td->td_ksegrp->kg_estcpu;
 	kp->ki_slptime = td->td_ksegrp->kg_slptime;

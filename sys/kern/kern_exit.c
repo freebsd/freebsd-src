@@ -330,7 +330,7 @@ exit1(td, rv)
 	 * counted somewhere if possible.
 	 */
 	mtx_lock_spin(&sched_lock);
-	microuptime(PCPU_PTR(switchtime));
+	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 	mtx_unlock_spin(&sched_lock);
 
