@@ -49,7 +49,7 @@
 /* Node type name. This should be unique among all netgraph node types */
 #define NG_PPPOE_NODE_TYPE	"pppoe"
 
-#define NGM_PPPOE_COOKIE		939032003
+#define NGM_PPPOE_COOKIE		1089893072
 
 /* Number of active sessions we can handle */
 #define	PPPOE_NUM_SESSIONS		16 /* for now */
@@ -61,6 +61,10 @@
 #define NG_PPPOE_HOOK_S_LEADIN	"service" /* PADO responses from PADI */
 #define NG_PPPOE_HOOK_C_LEADIN	"client"  /* Connect message starts this */
 #define NG_PPPOE_HOOK_DEBUG	"debug"
+
+/* Mode names */
+#define	NG_PPPOE_STANDARD	"standard"
+#define	NG_PPPOE_NONSTANDARD	"3Com"
 
 /**********************************************************************
  * Netgraph commands understood by this node type.
@@ -77,7 +81,9 @@ enum cmd {
 	NGM_PPPOE_SERVICE  = 8,	/* additional Service to advertise (in PADO) */
 	NGM_PPPOE_ACNAME   = 9,	/* AC_NAME for informational purposes */
 	NGM_PPPOE_GET_STATUS = 10, /* data in/out */
-	NGM_PPPOE_SESSIONID  = 11  /* Session_ID for informational purposes */
+	NGM_PPPOE_SESSIONID  = 11,  /* Session_ID for informational purposes */
+	NGM_PPPOE_SETMODE  = 12, /* set to standard or 3Com mode */
+	NGM_PPPOE_GETMODE  = 13, /* see current mode */
 };
 
 /***********************
