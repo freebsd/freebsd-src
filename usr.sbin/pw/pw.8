@@ -2,14 +2,40 @@
 .\"	David L. Nugent.
 .\"	Password Maintenance
 .\"
-.\"	$Id: pw.8,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by David L. Nugent.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
 .\"
-.Dd November 13, 1996
+.\" THIS SOFTWARE IS PROVIDED BY THE DAVID L. NUGENT ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DAVID L. NUGENT BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: pw.8,v 1.1.1.2 1996/12/09 23:55:19 joerg Exp $
+.\"
+.Dd December 9, 1996
 .Dt PW 8
 .Os
 .Sh NAME
 .Nm pw
-.Nd create, remove and modify system users and groups
+.Nd create, remove, modify & display system users and groups
 .Sh SYNOPSIS
 .Nm pw
 .Ar useradd
@@ -30,6 +56,8 @@
 .Op Fl o
 .Op Fl L Ar class
 .Op Fl h Ar fd
+.Op Fl N
+.Op Fl P
 .Nm pw
 .Ar useradd
 .Op name|uid
@@ -68,17 +96,24 @@
 .Op Fl l Ar name
 .Op Fl m
 .Op Fl k Ar dir
+.Op Fl w Ar method
 .Op Fl s Ar shell
 .Op Fl L Ar class
 .Op Fl h Ar fd
+.Op Fl N
+.Op Fl P
 .Nm pw
 .Ar usershow
 .Op name|uid
 .Op Fl n Ar name
 .Op Fl u Ar uid
 .Op Fl F
-.Op Fl p
+.Op Fl P
 .Op Fl a
+.Nm pw
+.Ar usernext
+.Op Fl C Ar config
+.Op Fl q
 .Nm pw
 .Ar groupadd
 .Op group|gid
@@ -86,8 +121,11 @@
 .Op Fl q
 .Op Fl n Ar group
 .Op Fl g Ar gid
+.Op Fl M Ar members
 .Op Fl o
 .Op Fl h Ar fd
+.Op Fl N
+.Op Fl P
 .Nm pw
 .Ar groupdel
 .Op Fl n Ar name
@@ -100,14 +138,22 @@
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl l Ar name
+.Op Fl M Ar members
+.Op Fl m Ar newmembers
 .Op Fl h Ar fd
+.Op Fl N
+.Op Fl P
 .Nm pw
 .Ar groupshow
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl F
-.Op Fl p
+.Op Fl P
 .Op Fl a
+.Nm pw
+.Ar groupnext
+.Op Fl C Ar config
+.Op Fl q
 .Sh DESCRIPTION
 .Nm pw
 is a command-line based editor for the system
@@ -138,9 +184,10 @@ and
 may be combined or provided separately with
 .Ar add ,
 .Ar del ,
-.Ar mod
-or
+.Ar mod ,
 .Ar show ,
+or
+.Ar next ,
 and may be specified in either order (ie. showuser, usershow, show user and user show
 are all considered to be the same thing).
 This flexibility is useful for interactive scripts which call
@@ -151,11 +198,11 @@ id as an alternative to using the
 .Fl n Ar name ,
 .Fl u Ar uid ,
 .Fl g Ar gid
-switches.
+options.
 .Pp
-The following flags are common to most modes of operation:
+The following flags are common to all modes of operation:
 .Pp
-.Bl -tag -width "-C config"
+.Bl -tag -width "-G grouplist"
 .It Fl C Ar config
 By default,
 .Nm pw
@@ -163,12 +210,11 @@ reads the file
 .Pa /etc/pw.conf
 to obtain policy information on how new user accounts and groups are to be created,
 and the
-.Fl c
-option overrides this to read a different file.
+.Fl C
+option specifies a different configuration file.
 Most of the contents in the configuration file may be overridden via command line
 options, but it may be more useful to set up standard information for addition of
-new accounts in the configuration
-file.
+new accounts in the configuration file.
 .It Fl q
 Use of this option causes
 .Nm pw
@@ -176,6 +222,14 @@ to suppress error messages, which may be useful in interactive environments wher
 is preferable to interpret status codes returned by
 .Nm pw
 rather than messing up a carefully formatted display.
+.It Fl N
+This option is available in add and modify operations, and causes
+.Nm pw
+to skip updating the user/group databases and instead print the result
+of the operation without actually performing it.
+You may use the
+.Fl P
+option to switch between standard passwd and readable formats.
 .El
 .Pp
 .Sh USER OPTIONS
@@ -185,7 +239,7 @@ and
 .Ar usermod ,
 commands:
 .Pp
-.Bl -tag -width "-C config"
+.Bl -tag -width "-G grouplist"
 .It Fl n Ar name
 Specifies the user/account name.
 .It Fl u Ar uid
@@ -215,7 +269,7 @@ then you should
 .Em not
 use the
 .Ql Fl u
-switch.
+option.
 .El
 .Pp
 Options available with both
@@ -276,6 +330,11 @@ Note: a user should not be added to their primary group in
 .Pa /etc/group .
 Also, group membership changes do not take effect immediately for current logins,
 only logins subsequent to the change.
+.It Fl L Ar class
+This option sets the login class for the user being created.
+See
+.Xr login.conf 5
+for more information on user classes.
 .It Fl m
 This option instructs
 .Nm pw
@@ -383,31 +442,32 @@ It is possible to use
 to create a new account that duplicates an existing user id.
 While this is normally considered an error and will be rejected, the
 .Ql Fl o
-switch overrides the check for duplicates and allows the duplication of the user id.
-This may be useful if you allow the same user to login under different contexts
-(different group allocations, different home directory, different shell) while
-providing basically the same permissions for access to the user's files in each
-account.
+option overrides the check for duplicates and allows the duplication of
+the user id.
+This may be useful if you allow the same user to login under
+different contexts (different group allocations, different home
+directory, different shell) while providing basically the same
+permissions for access to the user's files in each account.
 .Pp
 The
 .Ar useradd
 command also has the ability to set new user and group defaults by using the
 .Ql Fl D
-switch.
+option.
 Instead of adding a new user,
 .Nm pw
 writes a new set of defaults to its configuration file,
 .Pa /etc/pw.conf .
 When using the
 .Ql Fl D
-switch, you must not use either
+option, you must not use either
 .Ql Fl n Ar name
 or
 .Ql Fl u Ar uid
 or an error will result.
 Use of
 .Ql Fl D
-adds switches and changes the meaning of several command line switches in the
+changes the meaning of several command line switches in the
 .Ar useradd
 command.
 These are:
@@ -417,7 +477,7 @@ Set default values in
 .Pa /etc/pw.conf
 configuration file, or a different named configuration file if the
 .Ql Fl C Ar config
-switch is used.
+option is used.
 .It Fl b Ar dir
 Sets the root directory in which user home directories are created.
 The default value for this is
@@ -451,15 +511,16 @@ is a comma-separated list of group names or ids, or a mixture of both, and are a
 stored in
 .Pa /etc/pw.conf
 by their symbolic names.
+.It Fl L Ar class
+This option sets the default login class for new users.
 .It Fl k Ar dir
 Sets the default
 .Em skeleton
 directory, from which prototype shell and other initialization files are copied when
 .Nm pw
 creates a user's home directory.
-.It Fl u Ar min,max
-.It Fl i Ar min,max
-These switches set the minimum and maximum user and group ids allocated for new accounts
+.It Fl u Ar min,max , Fl i Ar min,max
+These options set the minimum and maximum user and group ids allocated for new accounts
 and groups created by
 .Nm pw .
 The default values for each is 1000 minimum and 32000 maximum.
@@ -474,7 +535,7 @@ some system daemons).
 .It Fl w Ar method
 The
 .Ql Fl w
-switch sets the default method used to set passwords for newly created user accounts.
+option sets the default method used to set passwords for newly created user accounts.
 .Ar method
 is one of:
 .Pp
@@ -507,13 +568,13 @@ to render the account accessible with a password.
 .Pp
 The
 .Ar userdel
-command has only three valid switches. The
+command has only three valid options. The
 .Ql Fl n Ar name
 and
 .Ql Fl u Ar uid
-switches have already been covered above.
-The additional switch is:
-.Bl -tag -width flag
+options have already been covered above.
+The additional option is:
+.Bl -tag -width "-G grouplist"
 .It Fl r
 This tells
 .Nm pw
@@ -545,41 +606,56 @@ By default, the format is identical to the format used in
 .Pa /etc/master.passwd
 with the password field replaced with a
 .Ql \&* .
-Class, account and password expiration fields will be blank or zero zero unless the user
-running
-.Nm pw
-has root privileges, as the secure password file where these reside is not accessible
-to non-root users.
 If the
-.Ql Fl p
-switch is used, then
+.Ql Fl P
+option is used, then
 .Nm pw
 outputs the account details in a more human readable form.
 The
 .Ql Fl a
-switch lists all users currently on file.
+option lists all users currently on file.
+.Pp
+The command
+.Ar usernext
+returns the next available user and group ids separated by a colon.
+This is normally of interest only to interactive scripts or front-ends
+that use
+.Nm pw .
 .Pp
 .Sh GROUP OPTIONS
 The
 .Ql Fl C Ar config
 and
 .Ql Fl q
-options (explained at the start of the previous section) are available with the
-.Ar groupadd
-and
-.Ar groupmod
-commands.
+options (explained at the start of the previous section) are available
+with the group manipulation commands.
 Other common options to all group-related commands are:
-.Bl -tag -width "-n name"
+.Bl -tag -width "-m newmembers"
 .It Fl n Ar name
 Specifies the group name.
 .It Fl g Ar gid
 Specifies the group numeric id.
 .Pp
-As with the account name and id fields, you will usually only need to supply one of
-these, as the group name implies the uid and vice versa.
-You will only need to use both when setting a specific group id against a new group
-or when changing the uid of an existing group.
+As with the account name and id fields, you will usually only need
+to supply one of these, as the group name implies the uid and vice
+versa.
+You will only need to use both when setting a specific group id
+against a new group or when changing the uid of an existing group.
+.It Fl M Ar memberlist
+This option provides an alternative way to add existing users to a
+new group (in groupadd) or replace an existing membership list (in
+groupmod).
+.Ar memberlist
+is a comma separated list of valid and existing user names or uids.
+.It Fl m Ar newmembers
+Similar to
+.Op M ,
+this option allows the
+.Em addition
+of existing users to a group without first replacing the existing list of
+members.
+Login names or user ids may be used, and duplicated users are automatically
+and silently eliminated.
 .El
 .Pp
 .Ar groupadd
@@ -592,9 +668,9 @@ There is rarely any need to duplicate a group id.
 .Pp
 The
 .Ar groupmod
-command adds one additional switch:
+command adds one additonal option:
 .Pp
-.Bl -tag -width "-l name"
+.Bl -tag -width "-m newmembers"
 .It Fl l Ar name
 This option allows changing of an existing group name to
 .Ql \&name .
@@ -612,6 +688,78 @@ replacing
 .Ql Fl u Ar uid
 to specify the group id.
 .Pp
+The command
+.Ar groupnext
+returns the next available group id on standard output.
+.Sh DIAGNOSTICS
+.Nm pw
+returns EXIT_SUCCESS on successful operation, otherwise one of the
+following exit codes defined by
+.Xr sysexits 3
+as follows:
+.Bl -tag -width xxxx
+.It EX_USAGE
+.Bl -bullet -compact
+.It
+Command line syntax errors (invalid keyword, unknown option)
+.El
+.It EX_NOPERM
+.Bl -bullet -compact
+.It
+Attempting to run one of the update modes as non-root.
+.El
+.It EX_OSERR
+.Bl -bullet -compact
+.It
+Memory allocation error.
+.It
+Read error from password file descriptor.
+.El
+.It EX_DATAERR
+.Bl -bullet -compact
+.It
+Bad or invalid data provided or missing on the command line or
+via the password flie descriptor.
+.It
+Attempted to remove, rename root account or change its uid.
+.El
+.It EX_OSFILE
+.Bl -bullet -compact
+.It
+Skeleton directory is invalid or does not exist.
+.It
+Base home directory is invalid or does not exist.
+.It
+Invalid or non-existant shell specified.
+.El
+.It EX_NOUSER
+.Bl -bullet -compact
+.It
+User, user id, group or group id specified does not exist.
+.It
+User or group recorded added or modified unexpectedly disappeared.
+.El
+.It EX_SOFTWARE
+.Bl -bullet -compact
+.It
+No more group or user ids available within specified range.
+.El
+.It EX_IOERR
+.Bl -bullet -compact
+.It
+Unable to rewrite configuration file.
+.It
+Error updating group or user database files.
+.It
+Update error for passwd or group database files.
+.El
+.It EX_CONFIG
+.Bl -bullet -compact
+.It
+No base home directory configured.
+.El
+.El
+.Pp
 .Sh NOTES
 For a summary of options available with each command, you can use
 .Dl pw [command] help
@@ -624,6 +772,8 @@ lists all available options for the useradd operation.
 The user database
 .It Pa /etc/passwd 
 A Version 7 format password file
+.It Pa /etc/login.conf
+The user capabilities database
 .It Pa /etc/group
 The group database
 .It Pa /etc/master.passwd.new
@@ -642,12 +792,14 @@ Pw default options file
 .Xr passwd 5 ,
 .Xr pw.conf 5 ,
 .Xr pwd_mkdb 8 ,
+.Xr login.conf 5 ,
 .Xr vipw 8
 .Sh HISTORY
 .Nm pw
-was written to mimic many of the options used in the Linux
+was written to mimic many of the options used in the SYSV
 .Em shadow
-suite, but is modified for passwd and group fields specific to
+support suite, but is modified for passwd and group fields specific to
 the
 .Bx 4.4
-operating system.
+operating system, and combines all of the major elements
+into a single command.
