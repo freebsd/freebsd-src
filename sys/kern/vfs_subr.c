@@ -793,7 +793,7 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
-	lockinit(&vp->v_lock, PVFS, "vnlock", 0, LK_NOPAUSE);
+	lockinit(&vp->v_lock, PVFS, "vnlock", VLKTIMEOUT, LK_NOPAUSE);
 	insmntque(vp, mp);
 	*vpp = vp;
 	vp->v_usecount = 1;
