@@ -397,12 +397,7 @@ mdstart_vnode(struct md_s *sc)
 		}
 		VOP_UNLOCK(sc->vnode, 0, curproc);
 		bp->bio_resid = auio.uio_resid;
-
-		if (error) {
-			bp->bio_error = error;
-			bp->bio_flags |= BIO_ERROR;
-		}
-		biofinish(bp, &sc->stats, 0);
+		biofinish(bp, &sc->stats, error);
 	}
 	return;
 }
