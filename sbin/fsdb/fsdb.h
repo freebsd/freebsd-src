@@ -30,10 +30,10 @@
  * $FreeBSD$
  */
 
-extern int bread __P((int fd, char *buf, daddr_t blk, long size));
-extern void bwrite __P((int fd, char *buf, daddr_t blk, long size));
-extern void rwerror __P((char *mesg, daddr_t blk));
-extern int reply __P((char *question));
+extern int bread(int fd, char *buf, daddr_t blk, long size);
+extern void bwrite(int fd, char *buf, daddr_t blk, long size);
+extern void rwerror(char *mesg, daddr_t blk);
+extern int reply(char *question);
 
 extern long dev_bsize;
 extern long secsize;
@@ -48,15 +48,15 @@ struct cmdtable {
 	unsigned int flags;
 #define	FL_RO	0x0000		/* for symmetry */
 #define	FL_WR	0x0001		/* wants to write */
-	int (*handler) __P((int argc, char *argv[]));
+	int (*handler)(int argc, char *argv[]);
 };
 extern struct dinode *curinode;
 extern ino_t curinum;
 
-int argcount __P((struct cmdtable *cmdp, int argc, char *argv[]));
-char **crack __P((char *line, int *argc));
-char **recrack __P((char *line, int *argc, int argc_max));
-void printstat __P((const char *cp, ino_t inum, struct dinode *dp));
-int printactive __P((int doblocks));
-int checkactive __P((void));
-int checkactivedir __P((void));
+int argcount(struct cmdtable *cmdp, int argc, char *argv[]);
+char **crack(char *line, int *argc);
+char **recrack(char *line, int *argc, int argc_max);
+void printstat(const char *cp, ino_t inum, struct dinode *dp);
+int printactive(int doblocks);
+int checkactive(void);
+int checkactivedir(void);

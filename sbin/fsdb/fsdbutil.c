@@ -49,14 +49,12 @@ static const char rcsid[] =
 #include "fsdb.h"
 #include "fsck.h"
 
-static int charsperline __P((void));
-static int printindir __P((ufs_daddr_t blk, int level, char *bufp));
-static void printblocks __P((ino_t inum, struct dinode *dp));
+static int charsperline(void);
+static int printindir(ufs_daddr_t blk, int level, char *bufp);
+static void printblocks(ino_t inum, struct dinode *dp);
 
 char **
-crack(line, argc)
-	char *line;
-	int *argc;
+crack(char *line, int *argc)
 {
     static char *argv[8];
     int i;
@@ -74,10 +72,7 @@ crack(line, argc)
 }
 
 char **
-recrack(line, argc, argc_max)
-	char *line;
-	int *argc;
-	int argc_max;
+recrack(char *line, int *argc, int argc_max)
 {
     static char *argv[8];
     int i;
@@ -97,10 +92,7 @@ recrack(line, argc, argc_max)
 }
 
 int
-argcount(cmdp, argc, argv)
-	struct cmdtable *cmdp;
-	int argc;
-	char *argv[];
+argcount(struct cmdtable *cmdp, int argc, char *argv[])
 {
     if (cmdp->minargc == cmdp->maxargc)
 	warnx("command `%s' takes %u arguments, got %u", cmdp->cmd,
@@ -114,10 +106,7 @@ argcount(cmdp, argc, argv)
 }
 
 void
-printstat(cp, inum, dp)
-	const char *cp;
-	ino_t inum;
-	struct dinode *dp;
+printstat(const char *cp, ino_t inum, struct dinode *dp)
 {
     struct group *grp;
     struct passwd *pw;
@@ -189,7 +178,7 @@ printstat(cp, inum, dp)
  */
 
 static int
-charsperline()
+charsperline(void)
 {
 	int columns;
 	char *cp;
@@ -210,10 +199,7 @@ charsperline()
  * Recursively print a list of indirect blocks.
  */
 static int
-printindir(blk, level, bufp)
-	ufs_daddr_t blk;
-	int level;
-	char *bufp;
+printindir(ufs_daddr_t blk, int level, char *bufp)
 {
     struct bufarea buf, *bp;
     char tempbuf[32];		/* enough to print an ufs_daddr_t */
@@ -267,9 +253,7 @@ printindir(blk, level, bufp)
  * Print the block pointers for one inode.
  */
 static void
-printblocks(inum, dp)
-	ino_t inum;
-	struct dinode *dp;
+printblocks(ino_t inum, struct dinode *dp)
 {
     char *bufp;
     int i, j, nfrags;
@@ -307,7 +291,7 @@ printblocks(inum, dp)
 
 
 int
-checkactive()
+checkactive(void)
 {
     if (!curinode) {
 	warnx("no current inode\n");
@@ -317,7 +301,7 @@ checkactive()
 }
 
 int
-checkactivedir()
+checkactivedir(void)
 {
     if (!curinode) {
 	warnx("no current inode\n");
@@ -331,8 +315,7 @@ checkactivedir()
 }
 
 int
-printactive(doblocks)
-	int doblocks;
+printactive(int doblocks)
 {
     if (!checkactive())
 	return 1;

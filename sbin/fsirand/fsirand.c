@@ -51,15 +51,13 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static void usage __P((void));
-int fsirand __P((char *));
+static void usage(void) __dead2;
+int fsirand(char *);
 
 int printonly = 0, force = 0, ignorelabel = 0;
 
 int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+main(int argc, char *argv[])
 {
 	int n, ex = 0;
 	struct rlimit rl;
@@ -104,8 +102,7 @@ main(argc, argv)
 }
 
 int
-fsirand(device)
-	char *device;
+fsirand(char *device)
 {
 	static struct dinode *inodebuf;
 	static size_t oldibufsize;
@@ -282,7 +279,7 @@ fsirand(device)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, 
 		"usage: fsirand [-b] [-f] [-p] special [special ...]\n");
