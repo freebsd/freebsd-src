@@ -32,7 +32,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 /*

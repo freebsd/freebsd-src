@@ -42,7 +42,6 @@
 #include <vm/vm_param.h>
 
 #include <limits.h>
-#include <db.h>
 #include <stdlib.h>
 #include <machine/pmap.h>
 #include "kvm_private.h"
