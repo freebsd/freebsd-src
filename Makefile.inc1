@@ -754,7 +754,7 @@ _btxld=		usr.sbin/btxld
 
 .if (defined(RESCUE) || \
     defined(RELEASEDIR)) && \
-    (${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101)
+    ( ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101 )
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
 
