@@ -42,6 +42,8 @@ extern	int	busdma_swi_pending;
 extern	vm_offset_t	kstack0;
 extern	vm_offset_t	kstack0_phys;
 
+extern	u_long	ns_per_tick;
+
 struct fpreg;
 struct proc;
 struct reg;
