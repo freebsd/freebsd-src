@@ -7,5 +7,6 @@ DPADD=	${LIBKVM}
 LDADD=	-lkvm
 BINGRP=	kmem
 BINMODE=2555
+WARNS?=	6
 
 .include <bsd.prog.mk>

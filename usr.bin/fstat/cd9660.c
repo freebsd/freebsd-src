@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "fstat.h"
 
 int
-isofs_filestat(vp, fsp)
-	struct vnode *vp;
-	struct filestat *fsp;
+isofs_filestat(struct vnode *vp, struct filestat *fsp)
 {
 	struct iso_node isonode;
 

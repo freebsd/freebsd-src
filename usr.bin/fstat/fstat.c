@@ -156,9 +156,7 @@ void usage(void);
 
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	struct passwd *passwd;
 	int arg, ch, what;
@@ -320,8 +318,7 @@ int	Pid;
  * print open files attributed to this process
  */
 void
-dofiles(kp)
-	struct kinfo_proc *kp;
+dofiles(struct kinfo_proc *kp)
 {
 	int i;
 	struct file file;
@@ -408,8 +405,7 @@ dofiles(kp)
 }
 
 void
-dommap(kp)
-	struct kinfo_proc *kp;
+dommap(struct kinfo_proc *kp)
 {
 	vm_map_t map;
 	struct vmspace vmspace;
@@ -466,10 +462,7 @@ dommap(kp)
 }
 
 void
-vtrans(vp, i, flag)
-	struct vnode *vp;
-	int i;
-	int flag;
+vtrans(struct vnode *vp, int i, int flag)
 {
 	struct vnode vn;
 	struct filestat fst;
@@ -573,9 +566,7 @@ vtrans(vp, i, flag)
 }
 
 int
-ufs_filestat(vp, fsp)
-	struct vnode *vp;
-	struct filestat *fsp;
+ufs_filestat(struct vnode *vp, struct filestat *fsp)
 {
 	struct inode inode;
 
@@ -607,9 +598,7 @@ ufs_filestat(vp, fsp)
 }
 
 int
-devfs_filestat(vp, fsp)
-	struct vnode *vp;
-	struct filestat *fsp;
+devfs_filestat(struct vnode *vp, struct filestat *fsp)
 {
 	struct devfs_dirent devfs_dirent;
 	struct mount mount;
@@ -640,9 +629,7 @@ devfs_filestat(vp, fsp)
 }
 
 int
-nfs_filestat(vp, fsp)
-	struct vnode *vp;
-	struct filestat *fsp;
+nfs_filestat(struct vnode *vp, struct filestat *fsp)
 {
 	struct nfsnode nfsnode;
 	mode_t mode;
@@ -690,8 +677,7 @@ nfs_filestat(vp, fsp)
 
 
 char *
-getmnton(m)
-	struct mount *m;
+getmnton(struct mount *m)
 {
 	static struct mount mount;
 	static struct mtab {
@@ -718,10 +704,7 @@ getmnton(m)
 }
 
 void
-pipetrans(pi, i, flag)
-	struct pipe *pi;
-	int i;
-	int flag;
+pipetrans(struct pipe *pi, int i, int flag)
 {
 	struct pipe pip;
 	char rw[3];
@@ -750,9 +733,7 @@ bad:
 }
 
 void
-socktrans(sock, i)
-	struct socket *sock;
-	int i;
+socktrans(struct socket *sock, int i)
 {
 	static const char *stypename[] = {
 		"unused",	/* 0 */
@@ -879,15 +860,14 @@ bad:
  * associated dev_t
  */
 dev_t
-dev2udev(dev)
-	struct cdev *dev;
+dev2udev(struct cdev *dev)
 {
 	struct cdev si;
 
 	if (KVM_READ(dev, &si, sizeof si)) {
 		return si.si_udev;
 	} else {
-		dprintf(stderr, "can't convert cdev *%x to a dev_t\n", dev);
+		dprintf(stderr, "can't convert cdev *%p to a dev_t\n", dev);
 		return -1;
 	}
 }
@@ -897,8 +877,7 @@ dev2udev(dev)
  *	print name of protocol number
  */
 void
-getinetproto(number)
-	int number;
+getinetproto(int number)
 {
 	static int isopen;
 	struct protoent *pe;
@@ -912,8 +891,7 @@ getinetproto(number)
 }
 
 int
-getfname(filename)
-	const char *filename;
+getfname(const char *filename)
 {
 	struct stat statbuf;
 	DEVS *cur;
@@ -934,7 +912,7 @@ getfname(filename)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
  "usage: fstat [-fmnv] [-p pid] [-u user] [-N system] [-M core] [file ...]\n");
