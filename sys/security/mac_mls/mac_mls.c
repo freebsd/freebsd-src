@@ -435,6 +435,16 @@ mac_mls_copy_single(struct mac_mls *labelfrom, struct mac_mls *labelto)
 	labelto->mm_flags |= MAC_MLS_FLAG_SINGLE;
 }
 
+static void
+mac_mls_copy(struct mac_mls *source, struct mac_mls *dest)
+{
+
+	if (source->mm_flags & MAC_MLS_FLAG_SINGLE)
+		mac_mls_copy_single(source, dest);
+	if (source->mm_flags & MAC_MLS_FLAG_RANGE)
+		mac_mls_copy_range(source, dest);
+}
+
 /*
  * Policy module operations.
  */
@@ -622,7 +632,7 @@ mac_mls_relabel_vnode(struct ucred *cred, struct vnode *vp,
 	source = SLOT(label);
 	dest = SLOT(vnodelabel);
 
-	mac_mls_copy_single(source, dest);
+	mac_mls_copy(source, dest);
 }
 
 static void
@@ -748,7 +758,7 @@ mac_mls_relabel_socket(struct ucred *cred, struct socket *socket,
 	source = SLOT(newlabel);
 	dest = SLOT(socketlabel);
 
-	mac_mls_copy_single(source, dest);
+	mac_mls_copy(source, dest);
 }
 
 static void
@@ -760,7 +770,7 @@ mac_mls_relabel_pipe(struct ucred *cred, struct pipe *pipe,
 	source = SLOT(newlabel);
 	dest = SLOT(pipelabel);
 
-	mac_mls_copy_single(source, dest);
+	mac_mls_copy(source, dest);
 }
 
 static void
@@ -867,7 +877,15 @@ mac_mls_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
 	source = SLOT(oldmbuflabel);
 	dest = SLOT(newmbuflabel);
 
-	mac_mls_copy_single(source, dest);
+	/*
+	 * Because the source mbuf may not yet have been "created",
+	 * just initialized, we do a conditional copy.  Since we don't
+	 * allow mbufs to have ranges, do a KASSERT to make sure that
+	 * doesn't happen.
+	 */
+	KASSERT((source->mm_flags & MAC_MLS_FLAG_RANGE) == 0,
+	    ("mac_mls_create_mbuf_from_mbuf: source mbuf has range"));
+	mac_mls_copy(source, dest);
 }
 
 static void
@@ -951,8 +969,7 @@ mac_mls_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
 	source = SLOT(newlabel);
 	dest = SLOT(ifnetlabel);
 
-	mac_mls_copy_single(source, dest);
-	mac_mls_copy_range(source, dest);
+	mac_mls_copy(source, dest);
 }
 
 static void
@@ -1031,8 +1048,7 @@ mac_mls_relabel_cred(struct ucred *cred, struct label *newlabel)
 	source = SLOT(newlabel);
 	dest = SLOT(&cred->cr_label);
 
-	mac_mls_copy_single(source, dest);
-	mac_mls_copy_range(source, dest);
+	mac_mls_copy(source, dest);
 }
 
 /*

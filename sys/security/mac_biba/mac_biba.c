@@ -447,6 +447,16 @@ mac_biba_copy_single(struct mac_biba *labelfrom, struct mac_biba *labelto)
 	labelto->mb_flags |= MAC_BIBA_FLAG_SINGLE;
 }
 
+static void
+mac_biba_copy(struct mac_biba *source, struct mac_biba *dest)
+{
+
+	if (source->mb_flags & MAC_BIBA_FLAG_SINGLE)
+		mac_biba_copy_single(source, dest);
+	if (source->mb_flags & MAC_BIBA_FLAG_RANGE)
+		mac_biba_copy_range(source, dest);
+}
+
 /*
  * Policy module operations.
  */
@@ -631,7 +641,7 @@ mac_biba_relabel_vnode(struct ucred *cred, struct vnode *vp,
 	source = SLOT(label);
 	dest = SLOT(vnodelabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy(source, dest);
 }
 
 static void
@@ -643,7 +653,7 @@ mac_biba_update_devfsdirent(struct devfs_dirent *devfs_dirent,
 	source = SLOT(vnodelabel);
 	dest = SLOT(direntlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy(source, dest);
 }
 
 static void
@@ -757,7 +767,7 @@ mac_biba_relabel_socket(struct ucred *cred, struct socket *socket,
 	source = SLOT(newlabel);
 	dest = SLOT(socketlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy(source, dest);
 }
 
 static void
@@ -769,7 +779,7 @@ mac_biba_relabel_pipe(struct ucred *cred, struct pipe *pipe,
 	source = SLOT(newlabel);
 	dest = SLOT(pipelabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy(source, dest);
 }
 
 static void
@@ -912,7 +922,15 @@ mac_biba_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
 	source = SLOT(oldmbuflabel);
 	dest = SLOT(newmbuflabel);
 
-	mac_biba_copy_single(source, dest);
+	/*
+	 * Because the source mbuf may not yet have been "created",
+	 * just initialiezd, we do a conditional copy.  Since we don't
+	 * allow mbufs to have ranges, do a KASSERT to make sure that
+	 * doesn't happen.
+	 */
+	KASSERT((source->mb_flags & MAC_BIBA_FLAG_RANGE) == 0,
+	    ("mac_biba_create_mbuf_from_mbuf: source mbuf has range"));
+	mac_biba_copy(source, dest);
 }
 
 static void
@@ -996,8 +1014,7 @@ mac_biba_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
 	source = SLOT(newlabel);
 	dest = SLOT(ifnetlabel);
 
-	mac_biba_copy_single(source, dest);
-	mac_biba_copy_range(source, dest);
+	mac_biba_copy(source, dest);
 }
 
 static void
@@ -1076,8 +1093,7 @@ mac_biba_relabel_cred(struct ucred *cred, struct label *newlabel)
 	source = SLOT(newlabel);
 	dest = SLOT(&cred->cr_label);
 
-	mac_biba_copy_single(source, dest);
-	mac_biba_copy_range(source, dest);
+	mac_biba_copy(source, dest);
 }
 
 /*
