@@ -345,7 +345,7 @@ struct dn_pipe {		/* a pipe */
      * When the tx clock come from an interface (if_name[0] != '\0'), its name
      * is stored below, whereas the ifp is filled when the rule is configured.
      */
-    char if_name[16];
+    char if_name[IFNAMSIZ];
     struct ifnet *ifp ;
     int ready ; /* set if ifp != NULL and we got a signal from it */
 
