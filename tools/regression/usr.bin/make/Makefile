@@ -21,9 +21,6 @@ NIL=
 SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
 all:
-	@if [ ! -x ./shell_test ] ; then \
-		${INSTALL} -m 555 ${.CURDIR}/shell_test.sh shell_test ; \
-	fi
 	@echo '1..17'
 	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
 	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
@@ -271,7 +268,7 @@ shell_1_sh:
 .if make(shell_2)
 # Test if we can replace the shell specification. We do this by using
 # a shell scripts that prints us its arguments and standard input as the shell
-shell_2:
+shell_2: shell_test
 	@${SMAKE} -B shell_2B | \
 		diff -u ${.CURDIR}/regress.shell_2B.out - || false
 	@${SMAKE} -j1 shell_2j | \
@@ -298,5 +295,6 @@ failure:
 	@echo "not ok # Test failed: regression detected.  See above."
 	@false
 
-clean:
-	rm -f shell_test
+CLEANFILES= shell_test
+
+.include <bsd.obj.mk>
