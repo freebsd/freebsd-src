@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: fsm.c,v 1.9 1997/02/22 16:10:13 peter Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -350,7 +350,7 @@ struct mbuf *bp;
     return;
   case ST_CLOSING:
   case ST_STOPPING:
-logprintf("## state = %d\n", fp->state);
+    logprintf("## state = %d\n", fp->state);
     pfree(bp);
     return;
   }

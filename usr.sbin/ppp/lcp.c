@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.13 1997/03/13 21:22:06 brian Exp $
+ * $Id: lcp.c,v 1.14 1997/05/05 23:45:15 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -350,7 +350,7 @@ struct fsm *fp;
 #ifdef VERBOSE
   fprintf(stderr, "%s: LayerFinish\r\n", fp->name);
 #endif
-  Prompt(1);
+  Prompt();
   LogPrintf(LOG_LCP_BIT, "%s: LayerFinish\n", fp->name);
 #ifdef notdef
   OsCloseLink(0);
@@ -359,7 +359,7 @@ struct fsm *fp;
 #endif
   NewPhase(PHASE_DEAD);
   StopAllTimers();
-  OsInterfaceDown(0);
+  (void)OsInterfaceDown(0);
 }
 
 static void
@@ -388,7 +388,7 @@ struct fsm *fp;
   StopAllTimers();
   OsLinkdown();
   NewPhase(PHASE_TERMINATE);
-  Prompt(1);
+  Prompt();
 }
 
 void
