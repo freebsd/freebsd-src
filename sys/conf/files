@@ -401,6 +401,7 @@ dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
 dev/ath/ath_rate/amrr/amrr.c 	optional ath_rate_amrr
 dev/ath/ath_rate/onoe/onoe.c 	optional ath_rate_onoe
+dev/ath/ath_rate/sample/sample.c 	optional ath_rate_sample
 dev/ath/if_ath.c		optional ath
 dev/ath/if_ath_pci.c		optional ath pci
 dev/awi/am79c930.c		optional awi
