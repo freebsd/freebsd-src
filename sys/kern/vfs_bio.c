@@ -886,10 +886,12 @@ ibwrite(struct buf * bp)
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	if (bp->b_vp->v_type == VCHR)
-		VOP_SPECSTRATEGY(bp->b_vp, bp);
-	else
+	if (bp->b_vp->v_type == VCHR) {
+		if (!buf_prewrite(bp->b_vp, bp))
+			VOP_SPECSTRATEGY(bp->b_vp, bp);
+	} else {
 		VOP_STRATEGY(bp->b_vp, bp);
+	}
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = bufwait(bp);

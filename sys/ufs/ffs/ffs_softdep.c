@@ -202,6 +202,7 @@ static	void add_to_worklist(struct worklist *);
 /*
  * Exported softdep operations.
  */
+static	int softdep_disk_prewrite(struct vnode *vp, struct buf *bp);
 static	void softdep_disk_io_initiation(struct buf *);
 static	void softdep_disk_write_complete(struct buf *);
 static	void softdep_deallocate_dependencies(struct buf *);
@@ -1152,6 +1153,7 @@ softdep_initialize()
 	softdep_fsync_hook = softdep_fsync;
 
 	/* initialise bioops hack */
+	bioops.io_prewrite = softdep_disk_prewrite;
 	bioops.io_start = softdep_disk_io_initiation;
 	bioops.io_complete = softdep_disk_write_complete;
 	bioops.io_deallocate = softdep_deallocate_dependencies;
@@ -3412,6 +3414,34 @@ handle_workitem_freefile(freefile)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
+
+static int
+softdep_disk_prewrite(struct vnode *vp, struct buf *bp)
+{
+	int error;
+
+	if (bp->b_iocmd != BIO_WRITE) 
+		return (0);
+	if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
+	    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
+	    (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
+		panic("softdep_disk_prewrite: bad I/O");
+	bp->b_flags &= ~B_VALIDSUSPWRT;
+	if (LIST_FIRST(&bp->b_dep) != NULL)
+		buf_start(bp);
+	mp_fixme("This should require the vnode lock.");
+	if ((vp->v_vflag & VV_COPYONWRITE) &&
+	    vp->v_rdev->si_copyonwrite &&
+	    (error = (*vp->v_rdev->si_copyonwrite)(vp, bp)) != 0 &&
+	    error != EOPNOTSUPP) {
+		bp->b_io.bio_error = error;
+		bp->b_io.bio_flags |= BIO_ERROR;
+		biodone(&bp->b_io);
+		return (1);
+	}
+	return (0);
+}
+
 
 /*
  * Disk writes.
