@@ -67,10 +67,11 @@ static int ad1816mix_init(snd_mixer *m);
 static int ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int ad1816mix_setrecsrc(snd_mixer *m, u_int32_t src);
 static snd_mixer ad1816_mixer = {
-    "ad1816 mixer",
-    ad1816mix_init,
-    ad1816mix_set,
-    ad1816mix_setrecsrc,
+    	"ad1816 mixer",
+    	ad1816mix_init,
+	NULL,
+    	ad1816mix_set,
+    	ad1816mix_setrecsrc,
 };
 
 static devclass_t pcm_devclass;
@@ -108,6 +109,14 @@ static pcm_channel ad1816_chantemplate = {
 	ad1816chan_trigger,
 	ad1816chan_getptr,
 	ad1816chan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 #define AD1816_MUTE 31		/* value for mute */
@@ -566,7 +575,6 @@ static int
 ad1816_attach(device_t dev)
 {
 	struct ad1816_info *ad1816;
-    	snddev_info *d = device_get_softc(dev);
     	void *ih;
     	char status[SND_STATUSLEN];
 
@@ -581,7 +589,7 @@ ad1816_attach(device_t dev)
 
     	if (!ad1816_alloc_resources(ad1816, dev)) goto no;
     	ad1816_init(ad1816, dev);
-    	mixer_init(d, &ad1816_mixer, ad1816);
+    	mixer_init(dev, &ad1816_mixer, ad1816);
 	bus_setup_intr(dev, ad1816->irq, INTR_TYPE_TTY, ad1816_intr, ad1816, &ih);
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,

@@ -125,6 +125,14 @@ static pcm_channel csa_chantemplate = {
 	csachan_trigger,
 	csachan_getptr,
 	csachan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -780,7 +788,6 @@ pcmcsa_probe(device_t dev)
 static int
 pcmcsa_attach(device_t dev)
 {
-	snddev_info *devinfo;
 	struct csa_info *csa;
 	csa_res *resp;
 	int unit;
@@ -788,7 +795,6 @@ pcmcsa_attach(device_t dev)
 	struct ac97_info *codec;
 	struct sndcard_func *func;
 
-	devinfo = device_get_softc(dev);
 	csa = malloc(sizeof(*csa), M_DEVBUF, M_NOWAIT);
 	if (csa == NULL)
 		return (ENOMEM);
@@ -820,7 +826,7 @@ pcmcsa_attach(device_t dev)
 	codec = ac97_create(dev, csa, NULL, csa_rdcd, csa_wrcd);
 	if (codec == NULL)
 		return (ENXIO);
-	if (mixer_init(devinfo, &ac97_mixer, codec) == -1)
+	if (mixer_init(dev, &ac97_mixer, codec) == -1)
 		return (ENXIO);
 
 	snprintf(status, SND_STATUSLEN, "at irq %ld", rman_get_start(resp->irq));

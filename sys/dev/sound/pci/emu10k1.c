@@ -113,6 +113,7 @@ struct sc_info {
 
 /* channel interface */
 static void *emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int emupchan_free(void *data);
 static int emupchan_setdir(void *data, int dir);
 static int emupchan_setformat(void *data, u_int32_t format);
 static int emupchan_setspeed(void *data, u_int32_t speed);
@@ -140,9 +141,7 @@ static int emu_init(struct sc_info *);
 static void emu_intr(void *);
 static void *emu_malloc(struct sc_info *sc, u_int32_t sz);
 static void *emu_memalloc(struct sc_info *sc, u_int32_t sz);
-#ifdef notyet
 static int emu_memfree(struct sc_info *sc, void *buf);
-#endif
 static int emu_memstart(struct sc_info *sc, void *buf);
 #ifdef EMUDEBUG
 static void emu_vdump(struct sc_info *sc, struct emu_voice *v);
@@ -195,6 +194,14 @@ static pcm_channel emu_chantemplate = {
 	emupchan_trigger,
 	emupchan_getptr,
 	emupchan_getcaps,
+	emupchan_free, 		/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static pcm_channel emur_chantemplate = {
@@ -206,6 +213,14 @@ static pcm_channel emur_chantemplate = {
 	emurchan_trigger,
 	emurchan_getptr,
 	emurchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 static int adcspeed[8] = {48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000};
@@ -676,6 +691,15 @@ emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
+emupchan_free(void *data)
+{
+	struct sc_pchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+
+	return emu_memfree(sc, ch->buffer->buf);
+}
+
+static int
 emupchan_setdir(void *data, int dir)
 {
 	return 0;
@@ -709,7 +733,7 @@ static int
 emupchan_trigger(void *data, int go)
 {
 	struct sc_pchinfo *ch = data;
-	struct sc_info *sc  = ch->parent;
+	struct sc_info *sc = ch->parent;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
@@ -1039,7 +1063,6 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz)
 	return buf;
 }
 
-#ifdef notyet
 static int
 emu_memfree(struct sc_info *sc, void *buf)
 {
@@ -1064,7 +1087,6 @@ emu_memfree(struct sc_info *sc, void *buf)
 	free(blk, M_DEVBUF);
 	return 0;
 }
-#endif
 
 static int
 emu_memstart(struct sc_info *sc, void *buf)
@@ -1341,14 +1363,12 @@ emu_pci_probe(device_t dev)
 static int
 emu_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct sc_info *sc;
 	struct ac97_info *codec;
 	int		i, mapped;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -1405,7 +1425,7 @@ emu_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, sc, NULL, emu_rdcd, emu_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,

@@ -36,14 +36,17 @@ typedef struct _pcm_channel pcm_channel;
 typedef int (mix_set_t)(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 typedef int (mix_recsrc_t)(snd_mixer *m, u_int32_t src);
 typedef int (mix_init_t)(snd_mixer *m);
+typedef int (mix_uninit_t)(snd_mixer *m);
 
 struct _snd_mixer {
 	char name[64];
 	mix_init_t *init;
+	mix_uninit_t *uninit;
 	mix_set_t *set;
 	mix_recsrc_t *setrecsrc;
 
 	void *devinfo;
+	int busy;
 	u_int32_t devs;
 	u_int32_t recdevs;
 	u_int32_t recsrc;
@@ -70,6 +73,7 @@ struct _snd_dbuf {
 	int fmt, blksz, blkcnt;
 	int underflow, overrun;
 	bus_dmamap_t dmamap;
+	bus_dma_tag_t parent_dmat;
 	struct selinfo sel;
 };
 
@@ -116,6 +120,7 @@ typedef int (pcmchan_setspeed_t)(void *data, u_int32_t speed);
 typedef int (pcmchan_setblocksize_t)(void *data, u_int32_t blocksize);
 typedef int (pcmchan_trigger_t)(void *data, int go);
 typedef int (pcmchan_getptr_t)(void *data);
+typedef int (pcmchan_free_t)(void *data);
 typedef pcmchan_caps *(pcmchan_getcaps_t)(void *data);
 
 struct _pcm_channel {
@@ -127,6 +132,15 @@ struct _pcm_channel {
 	pcmchan_trigger_t *trigger;
 	pcmchan_getptr_t *getptr;
 	pcmchan_getcaps_t *getcaps;
+	pcmchan_free_t *free;
+	void *nop1;
+	void *nop2;
+	void *nop3;
+	void *nop4;
+	void *nop5;
+	void *nop6;
+	void *nop7;
+
 	pcm_feeder *feeder;
 	struct pcm_feederdesc *feederdesc;
 	u_int32_t align;
@@ -149,7 +163,7 @@ typedef void (pcm_swap_t)(void *data, int dir);
 struct _snddev_info {
 	pcm_channel *play, *rec, **aplay, **arec, fakechan;
 	int *ref;
-	unsigned playcount, reccount, chancount;
+	unsigned playcount, reccount, chancount, maxchans;
 	snd_mixer mixer;
 	u_long magic;
 	unsigned flags;

@@ -45,8 +45,9 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 };
 
 int
-mixer_init(snddev_info *d, snd_mixer *m, void *devinfo)
+mixer_init(device_t dev, snd_mixer *m, void *devinfo)
 {
+    	snddev_info *d = device_get_softc(dev);
 	if (d == NULL) return -1;
 	d->mixer = *m;
 	d->mixer.devinfo = devinfo;
@@ -63,9 +64,23 @@ mixer_init(snddev_info *d, snd_mixer *m, void *devinfo)
 }
 
 int
-mixer_reinit(snddev_info *d)
+mixer_uninit(device_t dev)
 {
 	int i;
+    	snddev_info *d = device_get_softc(dev);
+	if (d == NULL) return -1;
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+		mixer_set(d, i, 0);
+	mixer_setrecsrc(d, SOUND_MASK_MIC);
+	if (d->mixer.uninit != NULL) d->mixer.uninit(&d->mixer);
+	return 0;
+}
+
+int
+mixer_reinit(device_t dev)
+{
+	int i;
+    	snddev_info *d = device_get_softc(dev);
 	if (d == NULL) return -1;
 	if (d->mixer.init != NULL && d->mixer.init(&d->mixer) == 0) {
 		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
@@ -75,7 +90,7 @@ mixer_reinit(snddev_info *d)
 	} else return -1;
 }
 
-int
+static int
 mixer_set(snddev_info *d, unsigned dev, unsigned lev)
 {
 	if (d == NULL || d->mixer.set == NULL) return -1;
@@ -88,7 +103,7 @@ mixer_set(snddev_info *d, unsigned dev, unsigned lev)
 	} else return -1;
 }
 
-int
+static int
 mixer_get(snddev_info *d, int dev)
 {
 	if (d == NULL) return -1;
@@ -97,7 +112,7 @@ mixer_get(snddev_info *d, int dev)
 	else return -1;
 }
 
-int
+static int
 mixer_setrecsrc(snddev_info *d, u_int32_t src)
 {
 	if (d == NULL || d->mixer.setrecsrc == NULL) return -1;
@@ -107,7 +122,7 @@ mixer_setrecsrc(snddev_info *d, u_int32_t src)
 	return 0;
 }
 
-int
+static int
 mixer_getrecsrc(snddev_info *d)
 {
 	if (d == NULL) return -1;
@@ -152,6 +167,20 @@ mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
 		return (v != -1)? 0 : ENXIO;
 	}
 	return ENXIO;
+}
+
+int
+mixer_busy(snddev_info *d, int busy)
+{
+	if (d == NULL) return -1;
+	d->mixer.busy = busy;
+}
+
+int
+mixer_isbusy(snddev_info *d)
+{
+	if (d == NULL) return -1;
+	return d->mixer.busy;
 }
 
 void

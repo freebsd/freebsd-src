@@ -850,11 +850,18 @@ chn_dma_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 int
 chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat)
 {
-	if (bus_dmamem_alloc(parent_dmat, (void **)&b->buf,
+	b->parent_dmat = parent_dmat;
+	if (bus_dmamem_alloc(b->parent_dmat, (void **)&b->buf,
 			     BUS_DMA_NOWAIT, &b->dmamap)) return -1;
-	if (bus_dmamap_load(parent_dmat, b->dmamap, b->buf,
+	if (bus_dmamap_load(b->parent_dmat, b->dmamap, b->buf,
 			    b->bufsize, chn_dma_setmap, b, 0)) return -1;
 	return 0;
+}
+
+void
+chn_freebuf(snd_dbuf *b)
+{
+	bus_dmamem_free(b->parent_dmat, b->buf, b->dmamap);
 }
 
 static void
@@ -1148,6 +1155,21 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 	/* And the secondary buffer. */
 	bs->buf = NULL;
 	bs->bufsize = 0;
+	return 0;
+}
+
+int
+chn_kill(pcm_channel *c)
+{
+	chn_trigger(c, PCMTRIG_ABORT);
+	while (chn_removefeeder(c) == 0);
+	free(c->feeder->desc, M_DEVBUF);
+	free(c->feeder, M_DEVBUF);
+	if (c->free)
+		c->free(c->devinfo);
+	else
+		chn_freebuf(&c->buffer);
+	c->flags |= CHN_F_DEAD;
 	return 0;
 }
 

@@ -112,6 +112,14 @@ static pcm_channel via_chantemplate = {
 	viachan_trigger,
 	viachan_getptr,
 	viachan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 
@@ -137,7 +145,6 @@ void dma_cb(void *p, bus_dma_segment_t *bds, int a, int b)
 static int
 via_attach(device_t dev)
 {
-	snddev_info	*d;
 	struct via_info *via = 0;
 	struct ac97_info *codec;
 	char		status[SND_STATUSLEN];
@@ -152,7 +159,6 @@ via_attach(device_t dev)
 	u_int16_t	v;
 	bus_dmamap_t	sgd_dma_map;
 
-	d = device_get_softc(dev);
 	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -199,7 +205,7 @@ via_attach(device_t dev)
 		via_read_codec, via_write_codec);
 	if (!codec) goto bad;
 
-	mixer_init(d, &ac97_mixer, codec);
+	mixer_init(dev, &ac97_mixer, codec);
 
 	/*
 	 *  The mixer init resets the codec.  So enabling VRA must be done

@@ -165,6 +165,7 @@ int fkchan_setup(pcm_channel *c);
 
 int pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
+int pcm_unregister(device_t dev);
 int pcm_setstatus(device_t dev, char *str);
 u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
