@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.60 1997/06/23 19:18:13 brian Exp $
+ * $Id: command.c,v 1.61 1997/06/23 23:10:07 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -191,11 +191,17 @@ char **argv;
   FILE *oVarTerm;
 
 #ifdef SHELL_ONLY_INTERACTIVELY
+  /* we're only allowed to shell when we run ppp interactively */
   if (mode != MODE_INTER) {
     LogPrintf(LogWARN, "Can only start a shell in interactive mode\n");
     return 1;
   }
-#else
+#endif
+#ifdef NO_SHELL_IN_AUTO_INTERACTIVE
+  /*
+   * we want to stop shell commands when we've got a telnet connection
+   * to an auto mode ppp
+   */
   if ((mode & (MODE_AUTO|MODE_INTER)) == (MODE_AUTO|MODE_INTER)) {
     LogPrintf(LogWARN,  "Shell is not allowed interactively in auto mode\n");
     return 1;
