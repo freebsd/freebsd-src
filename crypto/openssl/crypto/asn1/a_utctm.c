@@ -193,7 +193,8 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 	{
 	char *p;
 	struct tm *ts;
-#if defined(THREADS) && !defined(WIN32)
+#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__)
+
 	struct tm data;
 #endif
 
@@ -202,7 +203,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 	if (s == NULL)
 		return(NULL);
 
-#if defined(THREADS) && !defined(WIN32)
+#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__)
 	gmtime_r(&t,&data); /* should return &data, but doesn't on some systems, so we don't even look at the return value */
 	ts=&data;
 #else
@@ -248,10 +249,10 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 	p=(char *)s->data;
 	if ((p == NULL) || (s->length < 14))
 		{
-		p=Malloc(20);
+		p=OPENSSL_malloc(20);
 		if (p == NULL) return(NULL);
 		if (s->data != NULL)
-			Free(s->data);
+			OPENSSL_free(s->data);
 		s->data=(unsigned char *)p;
 		}
 
@@ -264,3 +265,84 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 #endif
 	return(s);
 	}
+
+
+int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t)
+	{
+	struct tm *tm;
+	int offset;
+	int year;
+
+#define g2(p) (((p)[0]-'0')*10+(p)[1]-'0')
+
+	if (s->data[12] == 'Z')
+		offset=0;
+	else
+		{
+		offset = g2(s->data+13)*60+g2(s->data+15);
+		if (s->data[12] == '-')
+			offset = -offset;
+		}
+
+	t -= offset*60; /* FIXME: may overflow in extreme cases */
+
+#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__)
+	{ struct tm data; gmtime_r(&t, &data); tm = &data; }
+#else
+	tm = gmtime(&t);
+#endif
+	
+#define return_cmp(a,b) if ((a)<(b)) return -1; else if ((a)>(b)) return 1
+	year = g2(s->data);
+	if (year < 50)
+		year += 100;
+	return_cmp(year,              tm->tm_year);
+	return_cmp(g2(s->data+2) - 1, tm->tm_mon);
+	return_cmp(g2(s->data+4),     tm->tm_mday);
+	return_cmp(g2(s->data+6),     tm->tm_hour);
+	return_cmp(g2(s->data+8),     tm->tm_min);
+	return_cmp(g2(s->data+10),    tm->tm_sec);
+#undef g2
+#undef return_cmp
+
+	return 0;
+	}
+
+
+#if 0
+time_t ASN1_UTCTIME_get(const ASN1_UTCTIME *s)
+	{
+	struct tm tm;
+	int offset;
+
+	memset(&tm,'\0',sizeof tm);
+
+#define g2(p) (((p)[0]-'0')*10+(p)[1]-'0')
+	tm.tm_year=g2(s->data);
+	if(tm.tm_year < 50)
+		tm.tm_year+=100;
+	tm.tm_mon=g2(s->data+2)-1;
+	tm.tm_mday=g2(s->data+4);
+	tm.tm_hour=g2(s->data+6);
+	tm.tm_min=g2(s->data+8);
+	tm.tm_sec=g2(s->data+10);
+	if(s->data[12] == 'Z')
+		offset=0;
+	else
+		{
+		offset=g2(s->data+13)*60+g2(s->data+15);
+		if(s->data[12] == '-')
+			offset= -offset;
+		}
+#undef g2
+
+	return mktime(&tm)-offset*60; /* FIXME: mktime assumes the current timezone
+	                               * instead of UTC, and unless we rewrite OpenSSL
+				       * in Lisp we cannot locally change the timezone
+				       * without possibly interfering with other parts
+	                               * of the program. timegm, which uses UTC, is
+				       * non-standard.
+	                               * Also time_t is inappropriate for general
+	                               * UTC times because it may a 32 bit type. */
+	}
+#endif

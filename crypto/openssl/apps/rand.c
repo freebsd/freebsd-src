@@ -62,7 +62,7 @@ int MAIN(int argc, char **argv)
 			else
 				badopt = 1;
 			}
-		else if (isdigit(argv[i][0]))
+		else if (isdigit((unsigned char)argv[i][0]))
 			{
 			if (num < 0)
 				{
@@ -101,7 +101,15 @@ int MAIN(int argc, char **argv)
 	if (outfile != NULL)
 		r = BIO_write_filename(out, outfile);
 	else
+		{
 		r = BIO_set_fp(out, stdout, BIO_NOCLOSE | BIO_FP_TEXT);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	if (r <= 0)
 		goto err;
 

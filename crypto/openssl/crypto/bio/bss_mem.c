@@ -61,11 +61,11 @@
 #include "cryptlib.h"
 #include <openssl/bio.h>
 
-static int mem_write(BIO *h,char *buf,int num);
-static int mem_read(BIO *h,char *buf,int size);
-static int mem_puts(BIO *h,char *str);
-static int mem_gets(BIO *h,char *str,int size);
-static long mem_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int mem_write(BIO *h, const char *buf, int num);
+static int mem_read(BIO *h, char *buf, int size);
+static int mem_puts(BIO *h, const char *str);
+static int mem_gets(BIO *h, char *str, int size);
+static long mem_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int mem_new(BIO *h);
 static int mem_free(BIO *data);
 static BIO_METHOD mem_method=
@@ -163,14 +163,14 @@ static int mem_read(BIO *b, char *out, int outl)
 		}
 	} else if (bm->length == 0)
 		{
-		if (b->num != 0)
+		ret = b->num;
+		if (ret != 0)
 			BIO_set_retry_read(b);
-		ret= b->num;
 		}
 	return(ret);
 	}
 
-static int mem_write(BIO *b, char *in, int inl)
+static int mem_write(BIO *b, const char *in, int inl)
 	{
 	int ret= -1;
 	int blen;
@@ -198,7 +198,7 @@ end:
 	return(ret);
 	}
 
-static long mem_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long mem_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	long ret=1;
 	char **pptr;
@@ -208,15 +208,20 @@ static long mem_ctrl(BIO *b, int cmd, long num, char *ptr)
 	switch (cmd)
 		{
 	case BIO_CTRL_RESET:
-		if (bm->data != NULL) {
+		if (bm->data != NULL)
+			{
 			/* For read only case reset to the start again */
 			if(b->flags & BIO_FLAGS_MEM_RDONLY) 
-					bm->data -= bm->max - bm->length;
-			else {
+				{
+				bm->data -= bm->max - bm->length;
+				bm->length = bm->max;
+				}
+			else
+				{
 				memset(bm->data,0,bm->max);
 				bm->length=0;
+				}
 			}
-		}
 		break;
 	case BIO_CTRL_EOF:
 		ret=(long)(bm->length == 0);
@@ -300,7 +305,7 @@ static int mem_gets(BIO *bp, char *buf, int size)
 	return(ret);
 	}
 
-static int mem_puts(BIO *bp, char *str)
+static int mem_puts(BIO *bp, const char *str)
 	{
 	int n,ret;
 

@@ -65,11 +65,12 @@
 int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
 	{
 	unsigned char *p;
+	int objsize;
 
 	if ((a == NULL) || (a->data == NULL)) return(0);
 
-	if (pp == NULL)
-		return(ASN1_object_size(0,a->length,V_ASN1_OBJECT));
+	objsize = ASN1_object_size(0,a->length,V_ASN1_OBJECT);
+	if (pp == NULL) return objsize;
 
 	p= *pp;
 	ASN1_put_object(&p,0,a->length,V_ASN1_OBJECT,V_ASN1_UNIVERSAL);
@@ -77,7 +78,7 @@ int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
 	p+=a->length;
 
 	*pp=p;
-	return(a->length);
+	return(objsize);
 	}
 
 int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
@@ -190,24 +191,13 @@ int i2a_ASN1_OBJECT(BIO *bp, ASN1_OBJECT *a)
 
 ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, unsigned char **pp,
 	     long length)
-	{
-	ASN1_OBJECT *ret=NULL;
+{
 	unsigned char *p;
 	long len;
 	int tag,xclass;
 	int inf,i;
-
-	/* only the ASN1_OBJECTs from the 'table' will have values
-	 * for ->sn or ->ln */
-	if ((a == NULL) || ((*a) == NULL) ||
-		!((*a)->flags & ASN1_OBJECT_FLAG_DYNAMIC))
-		{
-		if ((ret=ASN1_OBJECT_new()) == NULL) return(NULL);
-		}
-	else	ret=(*a);
-
+	ASN1_OBJECT *ret = NULL;
 	p= *pp;
-
 	inf=ASN1_get_object(&p,&len,&tag,&xclass,length);
 	if (inf & 0x80)
 		{
@@ -220,10 +210,36 @@ ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, unsigned char **pp,
 		i=ASN1_R_EXPECTING_AN_OBJECT;
 		goto err;
 		}
+	ret = c2i_ASN1_OBJECT(a, &p, len);
+	if(ret) *pp = p;
+	return ret;
+err:
+	ASN1err(ASN1_F_D2I_ASN1_OBJECT,i);
+	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
+		ASN1_OBJECT_free(ret);
+	return(NULL);
+}
+ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, unsigned char **pp,
+	     long len)
+	{
+	ASN1_OBJECT *ret=NULL;
+	unsigned char *p;
+	int i;
+
+	/* only the ASN1_OBJECTs from the 'table' will have values
+	 * for ->sn or ->ln */
+	if ((a == NULL) || ((*a) == NULL) ||
+		!((*a)->flags & ASN1_OBJECT_FLAG_DYNAMIC))
+		{
+		if ((ret=ASN1_OBJECT_new()) == NULL) return(NULL);
+		}
+	else	ret=(*a);
+
+	p= *pp;
 	if ((ret->data == NULL) || (ret->length < len))
 		{
-		if (ret->data != NULL) Free(ret->data);
-		ret->data=(unsigned char *)Malloc(len ? (int)len : 1);
+		if (ret->data != NULL) OPENSSL_free(ret->data);
+		ret->data=(unsigned char *)OPENSSL_malloc(len ? (int)len : 1);
 		ret->flags|=ASN1_OBJECT_FLAG_DYNAMIC_DATA;
 		if (ret->data == NULL)
 			{ i=ERR_R_MALLOC_FAILURE; goto err; }
@@ -249,7 +265,7 @@ ASN1_OBJECT *ASN1_OBJECT_new(void)
 	{
 	ASN1_OBJECT *ret;
 
-	ret=(ASN1_OBJECT *)Malloc(sizeof(ASN1_OBJECT));
+	ret=(ASN1_OBJECT *)OPENSSL_malloc(sizeof(ASN1_OBJECT));
 	if (ret == NULL)
 		{
 		ASN1err(ASN1_F_ASN1_OBJECT_NEW,ERR_R_MALLOC_FAILURE);
@@ -270,19 +286,19 @@ void ASN1_OBJECT_free(ASN1_OBJECT *a)
 	if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_STRINGS)
 		{
 #ifndef CONST_STRICT /* disable purely for compile-time strict const checking. Doing this on a "real" compile will cause memory leaks */
-		if (a->sn != NULL) Free((void *)a->sn);
-		if (a->ln != NULL) Free((void *)a->ln);
+		if (a->sn != NULL) OPENSSL_free((void *)a->sn);
+		if (a->ln != NULL) OPENSSL_free((void *)a->ln);
 #endif
 		a->sn=a->ln=NULL;
 		}
 	if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_DATA)
 		{
-		if (a->data != NULL) Free(a->data);
+		if (a->data != NULL) OPENSSL_free(a->data);
 		a->data=NULL;
 		a->length=0;
 		}
 	if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC)
-		Free(a);
+		OPENSSL_free(a);
 	}
 
 ASN1_OBJECT *ASN1_OBJECT_create(int nid, unsigned char *data, int len,

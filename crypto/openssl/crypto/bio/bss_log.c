@@ -110,14 +110,26 @@
 #define LOG_DAEMON	OPC$M_NM_NTWORK
 #endif
 
-static int MS_CALLBACK slg_write(BIO *h,char *buf,int num);
-static int MS_CALLBACK slg_puts(BIO *h,char *str);
-static long MS_CALLBACK slg_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int MS_CALLBACK slg_write(BIO *h, const char *buf, int num);
+static int MS_CALLBACK slg_puts(BIO *h, const char *str);
+static long MS_CALLBACK slg_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int MS_CALLBACK slg_new(BIO *h);
 static int MS_CALLBACK slg_free(BIO *data);
-static void xopenlog(BIO* bp, const char* name, int level);
+static void xopenlog(BIO* bp, char* name, int level);
 static void xsyslog(BIO* bp, int priority, const char* string);
 static void xcloselog(BIO* bp);
+#ifdef WIN32
+LONG	(WINAPI *go_for_advapi)()	= RegOpenKeyEx;
+HANDLE	(WINAPI *register_event_source)()	= NULL;
+BOOL	(WINAPI *deregister_event_source)()	= NULL;
+BOOL	(WINAPI *report_event)()	= NULL;
+#define DL_PROC(m,f)	(GetProcAddress( m, f ))
+#ifdef UNICODE
+#define DL_PROC_X(m,f) DL_PROC( m, f "W" )
+#else
+#define DL_PROC_X(m,f) DL_PROC( m, f "A" )
+#endif
+#endif
 
 static BIO_METHOD methods_slg=
 	{
@@ -153,40 +165,60 @@ static int MS_CALLBACK slg_free(BIO *a)
 	return(1);
 	}
 	
-static int MS_CALLBACK slg_write(BIO *b, char *in, int inl)
+static int MS_CALLBACK slg_write(BIO *b, const char *in, int inl)
 	{
 	int ret= inl;
-	char* buf= in;
+	char* buf;
 	char* pp;
-	int priority;
+	int priority, i;
+	static struct
+		{
+		int strl;
+		char str[10];
+		int log_level;
+		}
+	mapping[] =
+		{
+		{ 6, "PANIC ", LOG_EMERG },
+		{ 6, "EMERG ", LOG_EMERG },
+		{ 4, "EMR ", LOG_EMERG },
+		{ 6, "ALERT ", LOG_ALERT },
+		{ 4, "ALR ", LOG_ALERT },
+		{ 5, "CRIT ", LOG_CRIT },
+		{ 4, "CRI ", LOG_CRIT },
+		{ 6, "ERROR ", LOG_ERR },
+		{ 4, "ERR ", LOG_ERR },
+		{ 8, "WARNING ", LOG_WARNING },
+		{ 5, "WARN ", LOG_WARNING },
+		{ 4, "WAR ", LOG_WARNING },
+		{ 7, "NOTICE ", LOG_NOTICE },
+		{ 5, "NOTE ", LOG_NOTICE },
+		{ 4, "NOT ", LOG_NOTICE },
+		{ 5, "INFO ", LOG_INFO },
+		{ 4, "INF ", LOG_INFO },
+		{ 6, "DEBUG ", LOG_DEBUG },
+		{ 4, "DBG ", LOG_DEBUG },
+		{ 0, "", LOG_ERR } /* The default */
+		};
 
-	if((buf= (char *)Malloc(inl+ 1)) == NULL){
+	if((buf= (char *)OPENSSL_malloc(inl+ 1)) == NULL){
 		return(0);
 	}
 	strncpy(buf, in, inl);
 	buf[inl]= '\0';
 
-	if(strncmp(buf, "ERR ", 4) == 0){
-		priority= LOG_ERR;
-		pp= buf+ 4;
-	}else if(strncmp(buf, "WAR ", 4) == 0){
-		priority= LOG_WARNING;
-		pp= buf+ 4;
-	}else if(strncmp(buf, "INF ", 4) == 0){
-		priority= LOG_INFO;
-		pp= buf+ 4;
-	}else{
-		priority= LOG_ERR;
-		pp= buf;
-	}
+	i = 0;
+	while(strncmp(buf, mapping[i].str, mapping[i].strl) != 0) i++;
+	priority = mapping[i].log_level;
+	pp = buf + mapping[i].strl;
 
 	xsyslog(b, priority, pp);
 
-	Free(buf);
+	OPENSSL_free(buf);
 	return(ret);
 	}
 
-static long MS_CALLBACK slg_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long MS_CALLBACK slg_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	switch (cmd)
 		{
@@ -200,7 +232,7 @@ static long MS_CALLBACK slg_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(0);
 	}
 
-static int MS_CALLBACK slg_puts(BIO *bp, char *str)
+static int MS_CALLBACK slg_puts(BIO *bp, const char *str)
 	{
 	int n,ret;
 
@@ -211,9 +243,29 @@ static int MS_CALLBACK slg_puts(BIO *bp, char *str)
 
 #if defined(WIN32)
 
-static void xopenlog(BIO* bp, const char* name, int level)
+static void xopenlog(BIO* bp, char* name, int level)
 {
-	bp->ptr= (char *)RegisterEventSource(NULL, name);
+	if ( !register_event_source )
+		{
+		HANDLE	advapi;
+		if ( !(advapi = GetModuleHandle("advapi32")) )
+			return;
+		register_event_source = (HANDLE (WINAPI *)())DL_PROC_X(advapi,
+			"RegisterEventSource" );
+		deregister_event_source = (BOOL (WINAPI *)())DL_PROC(advapi,
+			"DeregisterEventSource");
+		report_event = (BOOL (WINAPI *)())DL_PROC_X(advapi,
+			"ReportEvent" );
+		if ( !(register_event_source && deregister_event_source &&
+				report_event) )
+			{
+			register_event_source = NULL;
+			deregister_event_source = NULL;
+			report_event = NULL;
+			return;
+			}
+		}
+	bp->ptr= (char *)register_event_source(NULL, name);
 }
 
 static void xsyslog(BIO *bp, int priority, const char *string)
@@ -225,16 +277,22 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 
 	switch (priority)
 		{
+	case LOG_EMERG:
+	case LOG_ALERT:
+	case LOG_CRIT:
 	case LOG_ERR:
 		evtype = EVENTLOG_ERROR_TYPE;
 		break;
 	case LOG_WARNING:
 		evtype = EVENTLOG_WARNING_TYPE;
 		break;
+	case LOG_NOTICE:
 	case LOG_INFO:
+	case LOG_DEBUG:
 		evtype = EVENTLOG_INFORMATION_TYPE;
 		break;
-	default:
+	default:		/* Should never happen, but set it
+				   as error anyway. */
 		evtype = EVENTLOG_ERROR_TYPE;
 		break;
 		}
@@ -243,15 +301,15 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 	lpszStrings[0] = pidbuf;
 	lpszStrings[1] = string;
 
-	if(bp->ptr)
-		ReportEvent(bp->ptr, evtype, 0, 1024, NULL, 2, 0,
+	if(report_event && bp->ptr)
+		report_event(bp->ptr, evtype, 0, 1024, NULL, 2, 0,
 				lpszStrings, NULL);
 }
 	
 static void xcloselog(BIO* bp)
 {
-	if(bp->ptr)
-		DeregisterEventSource((HANDLE)(bp->ptr));
+	if(deregister_event_source && bp->ptr)
+		deregister_event_source((HANDLE)(bp->ptr));
 	bp->ptr= NULL;
 }
 
@@ -259,7 +317,7 @@ static void xcloselog(BIO* bp)
 
 static int VMS_OPC_target = LOG_DAEMON;
 
-static void xopenlog(BIO* bp, const char* name, int level)
+static void xopenlog(BIO* bp, char* name, int level)
 {
 	VMS_OPC_target = level; 
 }
@@ -294,7 +352,7 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 	lib$sys_fao(&fao_cmd, &len, &buf_dsc, priority_tag, string);
 
 	/* we know there's an 8 byte header.  That's documented */
-	opcdef_p = (struct opcdef *) Malloc(8 + len);
+	opcdef_p = (struct opcdef *) OPENSSL_malloc(8 + len);
 	opcdef_p->opc$b_ms_type = OPC$_RQ_RQST;
 	memcpy(opcdef_p->opc$z_ms_target_classes, &VMS_OPC_target, 3);
 	opcdef_p->opc$l_ms_rqstid = 0;
@@ -307,7 +365,7 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 
 	sys$sndopr(opc_dsc, 0);
 
-	Free(opcdef_p);
+	OPENSSL_free(opcdef_p);
 }
 
 static void xcloselog(BIO* bp)
@@ -316,7 +374,7 @@ static void xcloselog(BIO* bp)
 
 #else /* Unix */
 
-static void xopenlog(BIO* bp, const char* name, int level)
+static void xopenlog(BIO* bp, char* name, int level)
 {
 	openlog(name, LOG_PID|LOG_CONS, level);
 }

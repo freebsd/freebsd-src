@@ -59,11 +59,11 @@
 #ifndef HEADER_ASN1_MAC_H
 #define HEADER_ASN1_MAC_H
 
+#include <openssl/asn1.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-#include <openssl/asn1.h>
 
 #ifndef ASN1_MAC_ERR_LIB
 #define ASN1_MAC_ERR_LIB	ERR_LIB_ASN1
@@ -340,7 +340,7 @@ err:\
 
 /* New macros */
 #define M_ASN1_New_Malloc(ret,type) \
-	if ((ret=(type *)Malloc(sizeof(type))) == NULL) \
+	if ((ret=(type *)OPENSSL_malloc(sizeof(type))) == NULL) \
 		{ c.line=__LINE__; goto err2; }
 
 #define M_ASN1_New(arg,func) \

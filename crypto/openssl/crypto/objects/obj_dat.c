@@ -79,9 +79,9 @@ static ASN1_OBJECT *ln_objs[1];
 static ASN1_OBJECT *obj_objs[1];
 #endif
 
-static int sn_cmp(ASN1_OBJECT **a, ASN1_OBJECT **b);
-static int ln_cmp(ASN1_OBJECT **a, ASN1_OBJECT **b);
-static int obj_cmp(ASN1_OBJECT **a, ASN1_OBJECT **b);
+static int sn_cmp(const void *a, const void *b);
+static int ln_cmp(const void *a, const void *b);
+static int obj_cmp(const void *a, const void *b);
 #define ADDED_DATA	0
 #define ADDED_SNAME	1
 #define ADDED_LNAME	2
@@ -96,11 +96,17 @@ typedef struct added_obj_st
 static int new_nid=NUM_NID;
 static LHASH *added=NULL;
 
-static int sn_cmp(ASN1_OBJECT **ap, ASN1_OBJECT **bp)
-	{ return(strcmp((*ap)->sn,(*bp)->sn)); }
+static int sn_cmp(const void *a, const void *b)
+	{
+	const ASN1_OBJECT * const *ap = a, * const *bp = b;
+	return(strcmp((*ap)->sn,(*bp)->sn));
+	}
 
-static int ln_cmp(ASN1_OBJECT **ap, ASN1_OBJECT **bp)
-	{ return(strcmp((*ap)->ln,(*bp)->ln)); }
+static int ln_cmp(const void *a, const void *b)
+	{ 
+	const ASN1_OBJECT * const *ap = a, * const *bp = b;
+	return(strcmp((*ap)->ln,(*bp)->ln));
+	}
 
 static unsigned long add_hash(ADDED_OBJ *ca)
 	{
@@ -128,7 +134,8 @@ static unsigned long add_hash(ADDED_OBJ *ca)
 		ret=a->nid;
 		break;
 	default:
-		abort();
+		/* abort(); */
+		return 0;
 		}
 	ret&=0x3fffffffL;
 	ret|=ca->type<<30L;
@@ -161,7 +168,8 @@ static int add_cmp(ADDED_OBJ *ca, ADDED_OBJ *cb)
 	case ADDED_NID:
 		return(a->nid-b->nid);
 	default:
-		abort();
+		/* abort(); */
+		return 0;
 		}
 	return(1); /* should not get here */
 	}
@@ -188,7 +196,7 @@ static void cleanup3(ADDED_OBJ *a)
 	{
 	if (--a->obj->nid == 0)
 		ASN1_OBJECT_free(a->obj);
-	Free(a);
+	OPENSSL_free(a);
 	}
 
 void OBJ_cleanup(void)
@@ -220,13 +228,13 @@ int OBJ_add_object(ASN1_OBJECT *obj)
 	if (added == NULL)
 		if (!init_added()) return(0);
 	if ((o=OBJ_dup(obj)) == NULL) goto err;
-	ao[ADDED_NID]=(ADDED_OBJ *)Malloc(sizeof(ADDED_OBJ));
+	ao[ADDED_NID]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ));
 	if ((o->length != 0) && (obj->data != NULL))
-		ao[ADDED_DATA]=(ADDED_OBJ *)Malloc(sizeof(ADDED_OBJ));
+		ao[ADDED_DATA]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ));
 	if (o->sn != NULL)
-		ao[ADDED_SNAME]=(ADDED_OBJ *)Malloc(sizeof(ADDED_OBJ));
+		ao[ADDED_SNAME]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ));
 	if (o->ln != NULL)
-		ao[ADDED_LNAME]=(ADDED_OBJ *)Malloc(sizeof(ADDED_OBJ));
+		ao[ADDED_LNAME]=(ADDED_OBJ *)OPENSSL_malloc(sizeof(ADDED_OBJ));
 
 	for (i=ADDED_DATA; i<=ADDED_NID; i++)
 		{
@@ -237,7 +245,7 @@ int OBJ_add_object(ASN1_OBJECT *obj)
 			aop=(ADDED_OBJ *)lh_insert(added,ao[i]);
 			/* memory leak, buit should not normally matter */
 			if (aop != NULL)
-				Free(aop);
+				OPENSSL_free(aop);
 			}
 		}
 	o->flags&= ~(ASN1_OBJECT_FLAG_DYNAMIC|ASN1_OBJECT_FLAG_DYNAMIC_STRINGS|
@@ -246,8 +254,8 @@ int OBJ_add_object(ASN1_OBJECT *obj)
 	return(o->nid);
 err:
 	for (i=ADDED_DATA; i<=ADDED_NID; i++)
-		if (ao[i] != NULL) Free(ao[i]);
-	if (o != NULL) Free(o);
+		if (ao[i] != NULL) OPENSSL_free(ao[i]);
+	if (o != NULL) OPENSSL_free(o);
 	return(NID_undef);
 	}
 
@@ -365,7 +373,7 @@ int OBJ_obj2nid(ASN1_OBJECT *a)
 		if (adp != NULL) return (adp->obj->nid);
 		}
 	op=(ASN1_OBJECT **)OBJ_bsearch((char *)&a,(char *)obj_objs,NUM_OBJ,
-		sizeof(ASN1_OBJECT *),(int (*)())obj_cmp);
+		sizeof(ASN1_OBJECT *),obj_cmp);
 	if (op == NULL)
 		return(NID_undef);
 	return((*op)->nid);
@@ -400,7 +408,7 @@ ASN1_OBJECT *OBJ_txt2obj(const char *s, int no_name)
 	/* Work out total size */
 	j = ASN1_object_size(0,i,V_ASN1_OBJECT);
 
-	if((buf=(unsigned char *)Malloc(j)) == NULL) return NULL;
+	if((buf=(unsigned char *)OPENSSL_malloc(j)) == NULL) return NULL;
 
 	p = buf;
 	/* Write out tag+length */
@@ -410,7 +418,7 @@ ASN1_OBJECT *OBJ_txt2obj(const char *s, int no_name)
 	
 	p=buf;
 	op=d2i_ASN1_OBJECT(NULL,&p,i);
-	Free(buf);
+	OPENSSL_free(buf);
 	return op;
 	}
 
@@ -504,7 +512,7 @@ int OBJ_ln2nid(const char *s)
 		if (adp != NULL) return (adp->obj->nid);
 		}
 	op=(ASN1_OBJECT **)OBJ_bsearch((char *)&oo,(char *)ln_objs,NUM_LN,
-		sizeof(ASN1_OBJECT *),(int (*)())ln_cmp);
+		sizeof(ASN1_OBJECT *),ln_cmp);
 	if (op == NULL) return(NID_undef);
 	return((*op)->nid);
 	}
@@ -523,23 +531,23 @@ int OBJ_sn2nid(const char *s)
 		if (adp != NULL) return (adp->obj->nid);
 		}
 	op=(ASN1_OBJECT **)OBJ_bsearch((char *)&oo,(char *)sn_objs,NUM_SN,
-		sizeof(ASN1_OBJECT *),(int (*)())sn_cmp);
+		sizeof(ASN1_OBJECT *),sn_cmp);
 	if (op == NULL) return(NID_undef);
 	return((*op)->nid);
 	}
 
-static int obj_cmp(ASN1_OBJECT **ap, ASN1_OBJECT **bp)
+static int obj_cmp(const void *ap, const void *bp)
 	{
 	int j;
-	ASN1_OBJECT *a= *ap;
-	ASN1_OBJECT *b= *bp;
+	ASN1_OBJECT *a= *(ASN1_OBJECT **)ap;
+	ASN1_OBJECT *b= *(ASN1_OBJECT **)bp;
 
 	j=(a->length - b->length);
         if (j) return(j);
 	return(memcmp(a->data,b->data,a->length));
         }
 
-char *OBJ_bsearch(char *key, char *base, int num, int size, int (*cmp)())
+char *OBJ_bsearch(char *key, char *base, int num, int size, int (*cmp)(const void *, const void *))
 	{
 	int l,h,i,c;
 	char *p;
@@ -631,7 +639,7 @@ int OBJ_create(char *oid, char *sn, char *ln)
 	i=a2d_ASN1_OBJECT(NULL,0,oid,-1);
 	if (i <= 0) return(0);
 
-	if ((buf=(unsigned char *)Malloc(i)) == NULL)
+	if ((buf=(unsigned char *)OPENSSL_malloc(i)) == NULL)
 		{
 		OBJerr(OBJ_F_OBJ_CREATE,OBJ_R_MALLOC_FAILURE);
 		return(0);
@@ -643,7 +651,7 @@ int OBJ_create(char *oid, char *sn, char *ln)
 	ok=OBJ_add_object(op);
 err:
 	ASN1_OBJECT_free(op);
-	Free(buf);
+	OPENSSL_free(buf);
 	return(ok);
 	}
 

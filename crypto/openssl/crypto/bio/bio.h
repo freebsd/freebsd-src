@@ -59,13 +59,16 @@
 #ifndef HEADER_BIO_H
 #define HEADER_BIO_H
 
+#ifndef NO_FP_API
+# include <stdio.h>
+#endif
+#include <stdarg.h>
+
+#include <openssl/crypto.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <openssl/crypto.h>
 
 /* These are the 'types' of BIOs */
 #define BIO_TYPE_NONE		0
@@ -88,6 +91,7 @@ extern "C" {
 #define BIO_TYPE_NULL_FILTER	(17|0x0200)
 #define BIO_TYPE_BER		(18|0x0200)		/* BER -> bin filter */
 #define BIO_TYPE_BIO		(19|0x0400)		/* (half a) BIO pair */
+#define BIO_TYPE_LINEBUFFER	(20|0x0200)		/* filter */
 
 #define BIO_TYPE_DESCRIPTOR	0x0100	/* socket, fd, connect or accept */
 #define BIO_TYPE_FILTER		0x0200
@@ -207,19 +211,23 @@ extern "C" {
 #define BIO_method_name(b)		((b)->method->name)
 #define BIO_method_type(b)		((b)->method->type)
 
+typedef struct bio_st BIO;
+
+typedef void bio_info_cb(struct bio_st *, int, const char *, int, long, long);
+
 #ifndef WIN16
 typedef struct bio_method_st
 	{
 	int type;
 	const char *name;
-	int (*bwrite)();
-	int (*bread)();
-	int (*bputs)();
-	int (*bgets)();
-	long (*ctrl)();
-	int (*create)();
-	int (*destroy)();
-	long (*callback_ctrl)();
+	int (*bwrite)(BIO *, const char *, int);
+	int (*bread)(BIO *, char *, int);
+	int (*bputs)(BIO *, const char *);
+	int (*bgets)(BIO *, char *, int);
+	long (*ctrl)(BIO *, int, long, void *);
+	int (*create)(BIO *);
+	int (*destroy)(BIO *);
+        long (*callback_ctrl)(BIO *, int, bio_info_cb *);
 	} BIO_METHOD;
 #else
 typedef struct bio_method_st
@@ -237,7 +245,7 @@ typedef struct bio_method_st
 	} BIO_METHOD;
 #endif
 
-typedef struct bio_st
+struct bio_st
 	{
 	BIO_METHOD *method;
 	/* bio, mode, argp, argi, argl, ret */
@@ -257,7 +265,9 @@ typedef struct bio_st
 	unsigned long num_write;
 
 	CRYPTO_EX_DATA ex_data;
-	} BIO;
+	};
+
+DECLARE_STACK_OF(BIO)
 
 typedef struct bio_f_buffer_ctx_struct
 	{
@@ -454,8 +464,8 @@ int BIO_read_filename(BIO *b,const char *name);
 size_t BIO_ctrl_pending(BIO *b);
 size_t BIO_ctrl_wpending(BIO *b);
 #define BIO_flush(b)		(int)BIO_ctrl(b,BIO_CTRL_FLUSH,0,NULL)
-#define BIO_get_info_callback(b,cbp) (int)BIO_ctrl(b,BIO_CTRL_GET_CALLBACK,0,(void (**)())(cbp))
-#define BIO_set_info_callback(b,cb) (int)BIO_callback_ctrl(b,BIO_CTRL_SET_CALLBACK,(void (*)())(cb))
+#define BIO_get_info_callback(b,cbp) (int)BIO_ctrl(b,BIO_CTRL_GET_CALLBACK,0,(bio_info_cb **)(cbp))
+#define BIO_set_info_callback(b,cb) (int)BIO_callback_ctrl(b,BIO_CTRL_SET_CALLBACK,(bio_info_cb *)(cb))
 
 /* For the BIO_f_buffer() type */
 #define BIO_buffer_get_num_lines(b) BIO_ctrl(b,BIO_CTRL_GET,0,NULL)
@@ -465,17 +475,13 @@ size_t BIO_ctrl_wpending(BIO *b);
 #define BIO_get_write_buf_size(b,size) (size_t)BIO_ctrl(b,BIO_C_GET_WRITE_BUF_SIZE,size,NULL)
 #define BIO_make_bio_pair(b1,b2)   (int)BIO_ctrl(b1,BIO_C_MAKE_BIO_PAIR,0,b2)
 #define BIO_destroy_bio_pair(b)    (int)BIO_ctrl(b,BIO_C_DESTROY_BIO_PAIR,0,NULL)
+#define BIO_shutdown_wr(b) (int)BIO_ctrl(b, BIO_C_SHUTDOWN_WR, 0, NULL)
 /* macros with inappropriate type -- but ...pending macros use int too: */
 #define BIO_get_write_guarantee(b) (int)BIO_ctrl(b,BIO_C_GET_WRITE_GUARANTEE,0,NULL)
 #define BIO_get_read_request(b)    (int)BIO_ctrl(b,BIO_C_GET_READ_REQUEST,0,NULL)
 size_t BIO_ctrl_get_write_guarantee(BIO *b);
 size_t BIO_ctrl_get_read_request(BIO *b);
 int BIO_ctrl_reset_read_request(BIO *b);
-
-#ifdef NO_STDIO
-#define NO_FP_API
-#endif
-
 
 /* These two aren't currently implemented */
 /* int BIO_get_ex_num(BIO *bio); */
@@ -487,6 +493,7 @@ int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 unsigned long BIO_number_read(BIO *bio);
 unsigned long BIO_number_written(BIO *bio);
 
+# ifndef NO_FP_API
 #  if defined(WIN16) && defined(_WINDLL)
 BIO_METHOD *BIO_s_file_internal(void);
 BIO *BIO_new_file_internal(char *filename, char *mode);
@@ -502,21 +509,24 @@ BIO *BIO_new_fp(FILE *stream, int close_flag);
 #    define BIO_new_file_internal	BIO_new_file
 #    define BIO_new_fp_internal		BIO_s_file
 #  endif /* FP_API */
+# endif
 BIO *	BIO_new(BIO_METHOD *type);
 int	BIO_set(BIO *a,BIO_METHOD *type);
 int	BIO_free(BIO *a);
+void	BIO_vfree(BIO *a);
 int	BIO_read(BIO *b, void *data, int len);
 int	BIO_gets(BIO *bp,char *buf, int size);
 int	BIO_write(BIO *b, const void *data, int len);
 int	BIO_puts(BIO *bp,const char *buf);
 long	BIO_ctrl(BIO *bp,int cmd,long larg,void *parg);
-long	BIO_callback_ctrl(BIO *bp,int cmd,void (*fp)());
+long BIO_callback_ctrl(BIO *b, int cmd, void (*fp)(struct bio_st *, int, const char *, int, long, long));
 char *	BIO_ptr_ctrl(BIO *bp,int cmd,long larg);
 long	BIO_int_ctrl(BIO *bp,int cmd,long larg,int iarg);
 BIO *	BIO_push(BIO *b,BIO *append);
 BIO *	BIO_pop(BIO *b);
 void	BIO_free_all(BIO *a);
 BIO *	BIO_find_type(BIO *b,int bio_type);
+BIO *	BIO_next(BIO *b);
 BIO *	BIO_get_retry_BIO(BIO *bio, int *reason);
 int	BIO_get_retry_reason(BIO *bio);
 BIO *	BIO_dup_chain(BIO *in);
@@ -545,6 +555,9 @@ BIO_METHOD *BIO_s_bio(void);
 BIO_METHOD *BIO_s_null(void);
 BIO_METHOD *BIO_f_null(void);
 BIO_METHOD *BIO_f_buffer(void);
+#ifdef VMS
+BIO_METHOD *BIO_f_linebuffer(void);
+#endif
 BIO_METHOD *BIO_f_nbio_test(void);
 /* BIO_METHOD *BIO_f_ber(void); */
 
@@ -553,6 +566,7 @@ int BIO_sock_non_fatal_error(int error);
 int BIO_fd_should_retry(int i);
 int BIO_fd_non_fatal_error(int error);
 int BIO_dump(BIO *b,const char *bytes,int len);
+int BIO_dump_indent(BIO *b,const char *bytes,int len,int indent);
 
 struct hostent *BIO_gethostbyname(const char *name);
 /* We might want a thread-safe interface too:
@@ -592,7 +606,10 @@ void BIO_copy_next_retry(BIO *b);
 
 long BIO_ghbn_ctrl(int cmd,int iarg,char *parg);
 
-int BIO_printf(BIO *bio, ...);
+int BIO_printf(BIO *bio, const char *format, ...);
+int BIO_vprintf(BIO *bio, const char *format, va_list args);
+int BIO_snprintf(char *buf, size_t n, const char *format, ...);
+int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args);
 
 /* BEGIN ERROR CODES */
 /* The following lines are auto generated by the script mkerr.pl. Any changes
@@ -627,6 +644,8 @@ int BIO_printf(BIO *bio, ...);
 #define BIO_F_CONN_CTRL					 127
 #define BIO_F_CONN_STATE				 115
 #define BIO_F_FILE_CTRL					 116
+#define BIO_F_LINEBUFFER_CTRL				 129
+#define BIO_F_MEM_READ					 128
 #define BIO_F_MEM_WRITE					 117
 #define BIO_F_SSL_NEW					 118
 #define BIO_F_WSASTARTUP				 119
@@ -637,6 +656,7 @@ int BIO_printf(BIO *bio, ...);
 #define BIO_R_BAD_HOSTNAME_LOOKUP			 102
 #define BIO_R_BROKEN_PIPE				 124
 #define BIO_R_CONNECT_ERROR				 103
+#define BIO_R_EOF_ON_MEMORY_BIO				 127
 #define BIO_R_ERROR_SETTING_NBIO			 104
 #define BIO_R_ERROR_SETTING_NBIO_ON_ACCEPTED_SOCKET	 105
 #define BIO_R_ERROR_SETTING_NBIO_ON_ACCEPT_SOCKET	 106

@@ -92,6 +92,7 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
 {
 	int str_type;
 	int ret;
+	char free_out;
 	int outform, outlen;
 	ASN1_STRING *dest;
 	unsigned char *p;
@@ -180,14 +181,16 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
 	}
 	if(!out) return str_type;
 	if(*out) {
+		free_out = 0;
 		dest = *out;
 		if(dest->data) {
 			dest->length = 0;
-			Free(dest->data);
+			OPENSSL_free(dest->data);
 			dest->data = NULL;
 		}
 		dest->type = str_type;
 	} else {
+		free_out = 1;
 		dest = ASN1_STRING_type_new(str_type);
 		if(!dest) {
 			ASN1err(ASN1_F_ASN1_MBSTRING_COPY,
@@ -228,8 +231,8 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
 		cpyfunc = cpy_utf8;
 		break;
 	}
-	if(!(p = Malloc(outlen + 1))) {
-		ASN1_STRING_free(dest);
+	if(!(p = OPENSSL_malloc(outlen + 1))) {
+		if(free_out) ASN1_STRING_free(dest);
 		ASN1err(ASN1_F_ASN1_MBSTRING_COPY,ERR_R_MALLOC_FAILURE);
 		return -1;
 	}
@@ -258,8 +261,8 @@ static int traverse_string(const unsigned char *p, int len, int inform,
 			value |= *p++;
 			len -= 2;
 		} else if(inform == MBSTRING_UNIV) {
-			value = *p++ << 24;
-			value |= *p++ << 16;
+			value = ((unsigned long)*p++) << 24;
+			value |= ((unsigned long)*p++) << 16;
 			value |= *p++ << 8;
 			value |= *p++;
 			len -= 4;
@@ -382,9 +385,16 @@ static int is_printable(unsigned long value)
 	/* Note: we can't use 'isalnum' because certain accented 
 	 * characters may count as alphanumeric in some environments.
 	 */
+#ifndef CHARSET_EBCDIC
 	if((ch >= 'a') && (ch <= 'z')) return 1;
 	if((ch >= 'A') && (ch <= 'Z')) return 1;
 	if((ch >= '0') && (ch <= '9')) return 1;
 	if ((ch == ' ') || strchr("'()+,-./:=?", ch)) return 1;
+#else /*CHARSET_EBCDIC*/
+	if((ch >= os_toascii['a']) && (ch <= os_toascii['z'])) return 1;
+	if((ch >= os_toascii['A']) && (ch <= os_toascii['Z'])) return 1;
+	if((ch >= os_toascii['0']) && (ch <= os_toascii['9'])) return 1;
+	if ((ch == os_toascii[' ']) || strchr("'()+,-./:=?", os_toebcdic[ch])) return 1;
+#endif /*CHARSET_EBCDIC*/
 	return 0;
 }
