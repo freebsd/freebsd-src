@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.50 1996/10/12 19:38:50 alex Exp $
+ *	$Id: ip_fw.c,v 1.51 1996/10/12 19:49:36 bde Exp $
  */
 
 /*
@@ -299,7 +299,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	 * first adress
 	 */
 	if (rif != NULL)
-		ia = rif->if_addrlist;
+		ia = rif->if_addrhead.tqh_first;
 
 	/*
 	 * Go down the chain, looking for enlightment
@@ -347,7 +347,8 @@ ip_fw_chk(struct ip **pip, int hlen,
 		if (!(f->fw_flg & IP_FW_F_IFNAME) && f->fw_via_ip.s_addr) {
 			int match = 0;
 
-			for (ia_p = ia; ia_p != NULL; ia_p = ia_p->ifa_next) {
+			for (ia_p = ia; ia_p != NULL; 
+			     ia_p = ia_p->ifa_link.tqe_next) {
 				if ((ia_p->ifa_addr == NULL))
 					continue;
 				if (ia_p->ifa_addr->sa_family != AF_INET)

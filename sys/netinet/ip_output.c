@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44 1996/10/22 22:26:02 sos Exp $
+ *	$Id: ip_output.c,v 1.45 1996/11/11 04:56:19 fenner Exp $
  */
 
 #define _IP_VHL
@@ -227,7 +227,8 @@ ip_output(m0, opt, ro, flags, imo)
 		if (ip->ip_src.s_addr == INADDR_ANY) {
 			register struct in_ifaddr *ia;
 
-			for (ia = in_ifaddr; ia; ia = ia->ia_next)
+			for (ia = in_ifaddrhead.tqh_first; ia;
+			     ia = ia->ia_link.tqe_next)
 				if (ia->ia_ifp == ifp) {
 					ip->ip_src = IA_SIN(ia)->sin_addr;
 					break;

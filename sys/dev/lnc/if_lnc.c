@@ -1212,7 +1212,7 @@ lnc_init(struct lnc_softc *sc)
 
 	/* Check that interface has valid address */
 
-	if (!sc->arpcom.ac_if.if_addrlist)
+	if (TAILQ_EMPTY(&sc->arpcom.ac_if.if_addrhead))	/* XXX unlikely */
 		return;
 
 	/* Shut down interface */

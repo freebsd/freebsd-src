@@ -173,25 +173,21 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	     * Find the end of the interface's addresses
 	     * and link our new one on the end 
 	     */
-	    if (( ifa = ifp->if_addrlist ) != NULL ) {
-		for ( ; ifa->ifa_next; ifa = ifa->ifa_next )
-		    ;
-		ifa->ifa_next = (struct ifaddr *)aa;
-	    } else {
-		ifp->if_addrlist = (struct ifaddr *)aa;
-	    }
+	    ifa = (struct ifaddr *)aa;
+	    TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+
 	    /*
 	     * Add a reference for the linking into the ifp_if_addrlist.
 	     */
-	    aa->aa_ifa.ifa_refcnt++;
+	    ifa->ifa_refcnt++;
 
 	    /*
 	     * As the at_ifaddr contains the actual sockaddrs,
 	     * and the ifaddr itself, link them al together correctly.
 	     */
-	    aa->aa_ifa.ifa_addr = (struct sockaddr *)&aa->aa_addr;
-	    aa->aa_ifa.ifa_dstaddr = (struct sockaddr *)&aa->aa_addr;
-	    aa->aa_ifa.ifa_netmask = (struct sockaddr *)&aa->aa_netmask;
+	    ifa->ifa_addr = (struct sockaddr *)&aa->aa_addr;
+	    ifa->ifa_dstaddr = (struct sockaddr *)&aa->aa_addr;
+	    ifa->ifa_netmask = (struct sockaddr *)&aa->aa_netmask;
 
 	    /*
 	     * Set/clear the phase 2 bit.
@@ -285,23 +281,8 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	 * remove the ifaddr from the interface
 	 */
 	ifa0 = (struct ifaddr *)aa;
-	if (( ifa = ifp->if_addrlist ) == ifa0 ) {
-	    ifp->if_addrlist = ifa->ifa_next;
-	} else {
-	    while ( ifa->ifa_next && ( ifa->ifa_next != ifa0 )) {
-		ifa = ifa->ifa_next;
-	    }
+	TAILQ_REMOVE(&ifp->if_addrhead, ifa0, ifa_link);
 
- 	    /*
-	     * if we found it, remove it, otherwise we screwed up.
-	     * decrement the reference count by one.
-	     */
-	    if ( ifa->ifa_next ) {
-		ifa = ifa->ifa_next = ifa0->ifa_next;
-	    } else {
-		panic( "at_control" );
-	    }
-	}
 	/*
 	 * refs goes from 1->0 if no external refs. note.. 
 	 * This will not free it ... looks for -1.

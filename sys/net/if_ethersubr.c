@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.27 1996/11/18 04:55:44 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.28 1996/12/10 07:29:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -197,7 +197,7 @@ ether_output(ifp, m0, dst, rt0)
 	     * ifaddr is the first thing in at_ifaddr
 	     */
 	    if ((aa = (struct at_ifaddr *)at_ifawithnet(
-			(struct sockaddr_at *)dst, ifp->if_addrlist))
+			(struct sockaddr_at *)dst, &ifp->if_addrhead))
 		== 0)
 		goto bad;
 	    
@@ -653,15 +653,15 @@ ether_ifattach(ifp)
 	ifp->if_mtu = ETHERMTU;
 	if (ifp->if_baudrate == 0)
 	    ifp->if_baudrate = 10000000;
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
-		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
-		    sdl->sdl_family == AF_LINK) {
-			sdl->sdl_type = IFT_ETHER;
-			sdl->sdl_alen = ifp->if_addrlen;
-			bcopy((caddr_t)((struct arpcom *)ifp)->ac_enaddr,
-			      LLADDR(sdl), ifp->if_addrlen);
-			break;
-		}
+	ifa = ifnet_addrs[ifp->if_index - 1];
+	if (ifa == 0) {
+		printf("ether_ifattach: no lladdr!\n");
+		return;
+	}
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	sdl->sdl_type = IFT_ETHER;
+	sdl->sdl_alen = ifp->if_addrlen;
+	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 }
 
 static u_char ether_ipmulticast_min[6] = 

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.25 1996/08/06 21:14:04 phk Exp $
+ * $Id: if_el.c,v 1.26 1996/09/06 23:07:32 phk Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -191,21 +191,6 @@ el_attach(struct isa_device *idev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	/* Put the station address in the ifa address list's AF_LINK
-	 * entry, if any.
-	 */
-	ifa = ifp->if_addrlist;
-	while ((ifa != NULL) && (ifa->ifa_addr != NULL) &&
-	  (ifa->ifa_addr->sa_family != AF_LINK))
-		ifa = ifa->ifa_next;
-	if((ifa != NULL) && (ifa->ifa_addr != NULL)) {
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDR_LEN;
-		sdl->sdl_slen = 0;
-		bcopy(sc->arpcom.ac_enaddr,LLADDR(sdl),ETHER_ADDR_LEN);
-	}
-
 	/* Print out some information for the user */
 	printf("el%d: 3c501 address %6D\n",idev->id_unit,
 	  sc->arpcom.ac_enaddr, ":");
@@ -278,7 +263,7 @@ el_init(int unit)
 	base = sc->el_base;
 
 	/* If address not known, do nothing. */
-	if(ifp->if_addrlist == (struct ifaddr *)0)
+	if(TAILQ_EMPTY(&ifp->if_addrhead)) /* XXX unlikely */
 		return;
 
 	s = splimp();

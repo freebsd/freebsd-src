@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.22 1996/10/07 19:06:07 davidg Exp $
+ *	$Id: in_pcb.c,v 1.23 1996/10/30 06:13:09 peter Exp $
  */
 
 #include <sys/param.h>
@@ -147,7 +147,7 @@ in_pcbbind(inp, nam)
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error;
 
-	if (in_ifaddr == 0)
+	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
@@ -289,7 +289,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 		return (EAFNOSUPPORT);
 	if (sin->sin_port == 0)
 		return (EADDRNOTAVAIL);
-	if (in_ifaddr) {
+	if (!TAILQ_EMPTY(&in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
 		 * use the primary local address.
@@ -301,10 +301,10 @@ in_pcbladdr(inp, nam, plocal_sin)
 #define sintosa(sin)	((struct sockaddr *)(sin))
 #define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
 		if (sin->sin_addr.s_addr == INADDR_ANY)
-		    sin->sin_addr = IA_SIN(in_ifaddr)->sin_addr;
+		    sin->sin_addr = IA_SIN(in_ifaddrhead.tqh_first)->sin_addr;
 		else if (sin->sin_addr.s_addr == (u_long)INADDR_BROADCAST &&
-		  (in_ifaddr->ia_ifp->if_flags & IFF_BROADCAST))
-		    sin->sin_addr = satosin(&in_ifaddr->ia_broadaddr)->sin_addr;
+		  (in_ifaddrhead.tqh_first->ia_ifp->if_flags & IFF_BROADCAST))
+		    sin->sin_addr = satosin(&in_ifaddrhead.tqh_first->ia_broadaddr)->sin_addr;
 	}
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		register struct route *ro;
@@ -349,7 +349,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 				ia = ifatoia(ifa_ifwithnet(sintosa(sin)));
 			sin->sin_port = fport;
 			if (ia == 0)
-				ia = in_ifaddr;
+				ia = in_ifaddrhead.tqh_first;
 			if (ia == 0)
 				return (EADDRNOTAVAIL);
 		}
@@ -366,7 +366,8 @@ in_pcbladdr(inp, nam, plocal_sin)
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				for (ia = in_ifaddr; ia; ia = ia->ia_next)
+				for (ia = in_ifaddrhead.tqh_first; ia; 
+				     ia = ia->ia_link.tqe_next)
 					if (ia->ia_ifp == ifp)
 						break;
 				if (ia == 0)

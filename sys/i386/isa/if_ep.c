@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.52 1996/07/27 12:40:31 amurai Exp $
+ *  $Id: if_ep.c,v 1.53 1996/09/06 23:07:33 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -655,25 +655,6 @@ ep_attach(sc)
     ether_ifattach(ifp);
     }
 
-    /* device attach does transition from UNCONFIGURED to IDLE state */
-
-    /*
-     * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
-     * We need to do this so bpf's can get the hardware addr of this card.
-     * netstat likes this too!
-     */
-    ifa = ifp->if_addrlist;
-    while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	   (ifa->ifa_addr->sa_family != AF_LINK))
-	ifa = ifa->ifa_next;
-
-    if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = ETHER_ADDR_LEN;
-	sdl->sdl_slen = 0;
-	bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-    }
     /* we give some initial parameters */
     sc->rx_avg_pkt = 128;
 

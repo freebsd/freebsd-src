@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.38 1996/12/10 18:03:51 wollman Exp $
+ * $Id: if.h,v 1.40 1996/12/11 20:38:14 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -73,7 +73,10 @@ struct	socket;
 struct	ether_header;
 #endif
 
-#include <sys/queue.h>		/* get LIST macros */
+#include <sys/queue.h>		/* get TAILQ macros */
+
+TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
+TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 
 /*
  * Structure describing information about an interface
@@ -127,11 +130,7 @@ struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
-#if 0
-	LIST_HEAD(, ifaddr) if_addrlist;
-#else
-	struct	ifaddr *if_addrlist;	/* linked list of addresses per if */
-#endif
+	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
         int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
@@ -168,7 +167,6 @@ struct ifnet {
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 };
 typedef void if_init_f_t __P((void *));
-TAILQ_HEAD(ifnethead, ifnet);
 
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
@@ -310,11 +308,7 @@ struct ifaddr {
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
-#if 0
-	LIST_ENTRY(ifaddr) ifa_link;
-#else
-	struct	ifaddr *ifa_next;	/* next address for interface */
-#endif
+	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		__P((int, struct rtentry *, struct sockaddr *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
