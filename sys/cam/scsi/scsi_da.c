@@ -763,37 +763,6 @@ dastrategy(struct bio *bp)
 	return;
 }
 
-/* For 2.2-stable support */
-#ifndef ENOIOCTL
-#define ENOIOCTL -1
-#endif
-
-static int
-daioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
-{
-	struct cam_periph *periph;
-	struct da_softc *softc;
-	int error;
-
-	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
-	softc = (struct da_softc *)periph->softc;
-
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("daioctl\n"));
-
-	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
-		return (error); /* error code from tsleep */
-	}	
-
-	error = cam_periph_ioctl(periph, cmd, addr, daerror);
-
-	cam_periph_unlock(periph);
-	
-	return (error);
-}
-
 static int
 dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
@@ -1205,7 +1174,6 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk.d_open = daopen;
 	softc->disk.d_close = daclose;
 	softc->disk.d_strategy = dastrategy;
-	softc->disk.d_ioctl = daioctl;
 	softc->disk.d_dump = dadump;
 	softc->disk.d_name = "da";
 	softc->disk.d_drv1 = periph;
