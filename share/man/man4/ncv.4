@@ -37,7 +37,8 @@
 The
 .Nm
 driver provides access to the
-.Tn SCSI bus
+.Tn SCSI
+bus
 connected to an NCR 53C500 based
 PC-Card
 .Tn SCSI
@@ -47,7 +48,7 @@ bus.
 .Pp
 The following devices are currently supported:
 .Pp
-.Bl -item -compact
+.Bl -bullet -compact
 .It
 I-O DATA PCSC-DV
 .It
@@ -68,18 +69,12 @@ RATOC REX-9530, REX-5572 (SCSI only)
 .Sh DIAGNOSTICS
 The following error messages are sometimes returned:
 .Bl -diag
-.It
-SCSI BUS RESET failed
-.Pp
+.It "SCSI BUS RESET failed"
 Usually returned when a failure occurs during
 the bus reset.
-.It
-CMD_NOP failed
-.Pp
+.It "CMD_NOP failed"
 No operation or the operation has failed.
-.It
-CMD_NOP|CMD_DMA
-.Pp
+.It "CMD_NOP|CMD_DMA"
 A failure occurred during the
 .Tn DMA
 read/write operations.
@@ -101,8 +96,7 @@ when any of the previously noted failures occur.
 The
 .Nm
 device driver has been developed for
-.Nx
-pc98
+.Nx Ns / Ns Tn pc98
 and ported to
 .Fx .
 The
@@ -114,12 +108,12 @@ with
 and merged in
 .Fx 4.2 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
 .An Naofumi Honda .
 This manual page was written by
-.An -nosplit
 .An Tom Rhodes Aq trhodes@FreeBSD.org
 and
 .An Noriaki Mitsunaga Aq non@FreeBSD.org .
