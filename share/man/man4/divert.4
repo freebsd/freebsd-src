@@ -50,9 +50,10 @@ and the IP address set to the (first) address of
 the interface on which the packet was received (if the packet
 was incoming) or
 .Dv INADDR_ANY
-(if the packet was outgoing). In the case of an incoming packet the interface
-name will also be placed in the 8 bytes following the address,
-(assuming it fits).
+(if the packet was outgoing).
+The interface name (if defined
+for the packet) will be placed in the 8 bytes following the address,
+if it fits.
 .Sh WRITING PACKETS
 Writing to a divert socket is similar to writing to a raw IP socket;
 the packet is injected ``as is'' into the normal kernel IP packet
