@@ -224,6 +224,9 @@ void	ed_hpp_set_physical_link(struct ed_softc *);
 void	ed_hpp_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
 u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
+void	ed_disable_16bit_access(struct ed_softc *);
+void	ed_enable_16bit_access(struct ed_softc *);
+
 driver_intr_t	edintr;
 
 extern devclass_t ed_devclass;
