@@ -170,6 +170,13 @@ mediaInitCDROM(Device *dev)
 		    return FALSE;
 		}
 	    }
+	    if ((cp = property_find(cd_attr, "CD_VOLUME")) != NULL) {
+		dev->volume = atoi(cp);
+		/* XXX - Sanity check the volume here? */
+		msgDebug("CD Volume %d initialized!\n", dev->volume);
+	    } else {
+		dev->volume = 0;
+	    }
 	}
     }
     if (cd_attr)
