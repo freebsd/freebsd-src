@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: main.c,v 1.16 1997/12/13 20:38:19 pst Exp $	*/
 /*	$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $	*/
 
 /*
@@ -44,7 +44,7 @@ __COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id$");
+__RCSID("$Id: main.c,v 1.16 1997/12/13 20:38:19 pst Exp $");
 __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #endif
 #endif /* not lint */
@@ -54,6 +54,8 @@ __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
  */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <err.h>
 #include <locale.h>
@@ -78,8 +80,9 @@ main(argc, argv)
 	int ch, top, rval;
 	long port;
 	struct passwd *pw = NULL;
-	char *cp, *ep, homedir[MAXPATHLEN];
+	char *cp, *ep, homedir[MAXPATHLEN], *s;
 	int dumbterm;
+	char *src_addr = NULL;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -131,7 +134,10 @@ main(argc, argv)
 
 	cp = strrchr(argv[0], '/');
 	cp = (cp == NULL) ? argv[0] : cp + 1;
-	if (getenv("FTP_PASSIVE_MODE") || strcmp(cp, "pftp") == 0)
+	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL
+	    && strcasecmp(s, "yes") == 0)
+		passivemode = 1;
+	if (strcmp(cp, "pftp") == 0)
 		passivemode = 1;
 	else if (strcmp(cp, "gate-ftp") == 0)
 		gatemode = 1;
@@ -163,7 +169,7 @@ main(argc, argv)
 	if (isatty(fileno(stdout)) && !dumbterm)
 		progress = 1;		/* progress bar on if tty is usable */
 
-	while ((ch = getopt(argc, argv, "adeginpP:tvVU")) != -1) {
+	while ((ch = getopt(argc, argv, "adeginpP:s:tUvV")) != -1) {
 		switch (ch) {
 		case 'a':
 			anonftp = 1;
@@ -204,8 +210,17 @@ main(argc, argv)
 				ftpport = htons(port);
 			break;
 
+		case 's':
+			dobind = 1;
+			src_addr = optarg;
+			break;
+
 		case 't':
 			trace = 1;
+			break;
+
+		case 'U':
+		        restricted_data_ports = 0;
 			break;
 
 		case 'v':
@@ -214,10 +229,6 @@ main(argc, argv)
 
 		case 'V':
 			verbose = 0;
-			break;
-
-		case 'U':
-		        restricted_data_ports = 0;
 			break;
 
 		default:
@@ -231,6 +242,21 @@ main(argc, argv)
 	proxy = 0;	/* proxy not active */
 	crflag = 1;	/* strip c.r. on ascii gets */
 	sendport = -1;	/* not using ports */
+
+	if (dobind) {
+		memset((void *)&bindto, 0, sizeof(bindto));
+		if (inet_aton(src_addr, &bindto.sin_addr) == 1)
+			bindto.sin_family = AF_INET;
+		else {
+			struct hostent *hp = gethostbyname(src_addr);
+			if (hp == NULL)
+				errx(1, "%s: %s", src_addr, hstrerror(h_errno));
+			bindto.sin_family = hp->h_addrtype;
+			memcpy(&bindto.sin_addr, hp->h_addr_list[0],
+				MIN(hp->h_length,sizeof(bindto.sin_addr)));
+		}
+	}
+
 	/*
 	 * Set up the home directory in case we're globbing.
 	 */
@@ -260,18 +286,21 @@ main(argc, argv)
 			if (rval >= 0)		/* -1 == connected and cd-ed */
 				exit(rval);
 		} else {
-			char *xargv[5];
+			char *xargv[4], **xargp = xargv;
 
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+			(void)&xargp;
+#endif
 			if (setjmp(toplevel))
 				exit(0);
 			(void)signal(SIGINT, (sig_t)intr);
 			(void)signal(SIGPIPE, (sig_t)lostpeer);
-			xargv[0] = __progname;
-			xargv[1] = argv[0];
-			xargv[2] = argv[1];
-			xargv[3] = argv[2];
-			xargv[4] = NULL;
-			setpeer(argc+1, xargv);
+			*xargp++ = __progname;
+			*xargp++ = argv[0];		/* host */
+			if (argc > 1)
+				*xargp++ = argv[1];	/* port */
+			*xargp = NULL;
+			setpeer(xargp-xargv, xargv);
 		}
 	}
 #ifndef SMALL
@@ -685,7 +714,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: %s [-adeginptvV] [host [port]]\n"
+	    "usage: %s [-adeginptUvV] [-P port] [-s src_addr] [host [port]]\n"
 	    "       %s host:path[/]\n"
 	    "       %s ftp://host[:port]/path[/]\n"
 	    "       %s http://host[:port]/file\n",
