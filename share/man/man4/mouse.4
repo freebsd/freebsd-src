@@ -37,11 +37,12 @@
 .Sh DESCRIPTION
 The mouse drivers
 .Xr mse 4 ,
-.Xr psm 4
+.Xr psm 4 ,
+.Xr ums 4
 and
 .Xr sysmouse 4
 provide user programs with movement and button state information of the mouse.
-Currently there are specific device drivers for bus, InPort and PS/2 mice.
+Currently there are specific device drivers for bus, InPort, PS/2, and USB mice.
 The serial mouse is not directly supported by a dedicated driver, but
 it is accessible via the serial device driver or via
 .Xr moused 8 
@@ -169,6 +170,7 @@ is the type of interface:
 .Dv MOUSE_IF_BUS ,
 .Dv MOUSE_IF_INPORT ,
 .Dv MOUSE_IF_PS2 ,
+.Dv MOUSE_IF_USB ,
 .Dv MOUSE_IF_SYSMOUSE
 or
 .Dv MOUSE_IF_UNKNOWN .
@@ -369,12 +371,15 @@ bus and InPort mouse device
 PS/2 mouse device
 .It Pa /dev/sysmouse
 virtual mouse device
+.It Pa /dev/ums%d
+USB mouse device
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr mse 4 ,
 .Xr psm 4 ,
 .Xr sysmouse 4 ,
+.Xr ums 4 ,
 .Xr moused 8
 .\".Sh HISTORY
 .Sh AUTHORS
