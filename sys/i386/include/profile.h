@@ -39,6 +39,12 @@
 
 #ifdef KERNEL
 /*
+ * Config generates something to tell the compiler to align functions on 16
+ * byte boundaries.  A strict alignment is good for keeping the tables small.
+ */
+#define	FUNCTION_ALIGNMENT	16
+
+/*
  * The kernel uses assembler stubs instead of unportable inlines.
  * This is mainly to save a little time when profiling is not enabled,
  * which is the usual case for the kernel.
@@ -49,7 +55,7 @@
 #ifdef GUPROF
 #define	CALIB_SCALE	1000
 #define	KCOUNT(p,index)	((p)->kcount[(index) \
-			 / (HISTFRACTION * sizeof(*(p)->kcount))])
+			 / (HISTFRACTION * sizeof(HISTCOUNTER))])
 #define	MCOUNT_DECL(s)
 #define	MCOUNT_ENTER(s)
 #define	MCOUNT_EXIT(s)
@@ -61,6 +67,8 @@
 #endif /* GUPROF */
 
 #else /* !KERNEL */
+
+#define	FUNCTION_ALIGNMENT	4
 
 #define	_MCOUNT_DECL static __inline void _mcount
 

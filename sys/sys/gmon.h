@@ -68,12 +68,7 @@ struct gmonhdr {
  * addresses, so that each counter belongs to a unique function.
  * A lower density of counters would give less resolution but a
  * higher density would be wasted.
- *
- * Assume that function addresses are at least 4-byte-aligned.
- * It would be better to get the linker to align functions more
- * strictly so that we could use smaller tables.
  */
-#define	FUNCTION_ALIGNMENT	4
 #define	HISTFRACTION	(FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER) == 0 \
 			 ? 1 : FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER))
 
