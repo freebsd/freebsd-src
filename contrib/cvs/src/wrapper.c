@@ -30,8 +30,6 @@
   wildcard	[option value][option value]...
 
   where option is one of
-  -f		from cvs filter		value: path to filter
-  -t		to cvs filter		value: path to filter
   -m		update methodology	value: MERGE or COPY
   -k		default -k rcs option to use on import or add
 

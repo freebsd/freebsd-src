@@ -1,11 +1,12 @@
 dnl configure.in for cvs
-AC_INIT([Concurrent Versions System (CVS)],[1.11.5],[bug-cvs@gnu.org],[cvs])
+AC_INIT([Concurrent Versions System (CVS)],[1.11.15],[bug-cvs@gnu.org],[cvs])
 AC_CONFIG_SRCDIR(src/cvs.h)
-AM_INIT_AUTOMAKE([gnu 1.5 dist-bzip2 no-define])
-AC_PREREQ(2.53)
+AM_INIT_AUTOMAKE([gnu 1.7.9 dist-bzip2 no-define])
+AC_PREREQ(2.58)
 
 AC_PREFIX_PROGRAM(cvs)
 AM_CONFIG_HEADER(config.h)
+AM_MAINTAINER_MODE
 
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -71,8 +72,18 @@ AC_EXEEXT
 
 AC_PATH_PROG(PERL, perl, no)
 AC_PATH_PROG(CSH, csh, no)
-AC_PATH_PROG(PR, pr, no)
+# for contrib/rcs2log.sh & src/cvsbug.in.
+AC_PATH_PROG(MKTEMP, mktemp, mktemp)
+if test x"$MKTEMP" = xmktemp; then
+	MKTEMP_SH_FUNCTION=$srcdir/mktemp.sh
+else
+	MKTEMP_SH_FUNCTION=/dev/null
+fi
+AC_SUBST_FILE(MKTEMP_SH_FUNCTION)
+# for src/cvsbug.in
+AC_PATH_PROG(SENDMAIL, sendmail, no, [$PATH:/usr/sbin:/usr/lib])
 # For diff/util.c
+AC_PATH_PROG(PR, pr, no)
 if test x"$PR" != xno; then
 	AC_DEFINE_UNQUOTED([PR_PROGRAM], ["$PR"], [Path to the pr utility])
 fi
@@ -174,6 +185,26 @@ AC_REPLACE_FUNCS(\
 	valloc \
 	waitpid \
 )
+
+
+
+dnl
+dnl Begin GNULIB stuff.
+dnl
+
+dnl We always want to use the GNULIB getpass, so define its name to something
+dnl that won't conflict with system declarations.
+AC_DEFINE([getpass], [cvs_getpass],
+  [We want to always use the GNULIB version of getpass which we have in lib,
+   so define getpass to something that won't conflict with any existing system
+   declarations.])
+
+dnl
+dnl End GNULIB stuff.
+dnl
+
+
+
 AC_CHECK_FUNCS(\
 	fchdir \
 	fchmod \
@@ -183,7 +214,6 @@ AC_CHECK_FUNCS(\
 	getgroups \
 	getopt \
 	getpagesize \
-	getpassphrase \
 	gettimeofday \
 	initgroups \
 	login \
@@ -349,18 +379,20 @@ if test -n "$krb_h"; then
        LDFLAGS=$hold_ldflags
   else
        AC_CHECK_LIB(krb,printf,[krb_lib=yes krb_libdir=])
+       AC_CHECK_FUNC(krb_recvauth,[krb_lib=yes krb_libdir=])
   fi
   if test -n "$krb_lib"; then
     AC_DEFINE([HAVE_KERBEROS], 1,
 	      [Define if you have MIT Kerberos version 4 available.])
     test -n "${krb_libdir}" && LIBS="${LIBS} -L${krb_libdir}"
-    LIBS="${LIBS} -lkrb"
     # Put -L${krb_libdir} in LDFLAGS temporarily so that it appears before
     # -ldes in the command line.  Don't do it permanently so that we honor
     # the user's setting for LDFLAGS
     hold_ldflags=$LDFLAGS
     test -n "${krb_libdir}" && LDFLAGS="$LDFLAGS -L${krb_libdir}"
     AC_CHECK_LIB(des,printf,[LIBS="${LIBS} -ldes"])
+    AC_CHECK_LIB(krb,krb_recvauth)
+    AC_CHECK_LIB(krb4,krb_recvauth)
     LDFLAGS=$hold_ldflags
     if test -n "$krb_incdir"; then
       includeopt="${includeopt} -I$krb_incdir"
@@ -396,8 +428,21 @@ AC_ARG_WITH(
     [--with-editor],
     [The default text editor CVS should use for log messages
      (default autoselects)]), ,
-  [with_editor="vi emacs pico edit"])
+  [with_editor=yes])
 
+# If --with-editor was supplied with an argument, let it override $EDITOR from
+# the user's environment.  We need to unset EDITOR here because AC_CHECK_PROGS
+# will let the value of EDITOR ride when it is set rather than searching.  We
+# ignore the --without-editor case since it will be caught below.
+if test -n "$EDITOR" && test yes != $with_editor; then
+  AS_UNSET([EDITOR])
+fi
+
+# Set the default when --with-editor wasn't supplied or when it was supplied
+# without an argument.
+if test yes = $with_editor; then
+  with_editor="vim vi emacs nano pico edit"
+fi
 
 if echo $with_editor |grep ^/ >/dev/null; then
   # If $with_editor is an absolute path, issue a warning if the executable
@@ -409,31 +454,40 @@ if echo $with_editor |grep ^/ >/dev/null; then
   if ! test -f $with_editor \
       || ! test -x $with_editor; then
     # warn the user that they may encounter problems
-    AC_MSG_WARN([$with_editor is not a path to an executable file])
+    AC_MSG_WARN([\`$with_editor' is not a path to an executable file])
   fi
 elif test no != "${with_editor}"; then
   # Search for an editor
-  AC_CHECK_PROGS([EDITOR], [$with_editor])
+  AC_CHECK_PROGS([EDITOR], [$with_editor], [no])
+    if test no = "${EDITOR}"; then
+      AC_MSG_ERROR([
+    Failed to find a text file editor.  CVS cannot be compiled
+    without a default log message editor.  Searched for
+    \`$with_editor'.  Try \`configure --with-editor'.])
+    fi
 else
-  AC_MSG_CHECKING([for an editor])
-  AC_MSG_RESULT([no])
+  AC_MSG_ERROR([
+    CVS cannot be compiled without a default log message editor.
+    Try \`configure --with-editor'.])
 fi
 
-if test -n "${EDITOR}"; then
-  dnl FIXME - Using --without-editor will probably break a compile at
-  dnl the moment, but maybe it is reasonable for someone to want to
-  dnl compile a CVS executable that refuses to run if no $EDITOR,
-  dnl $CVS_EDITOR, or -e option is specified?  Making a preliminary
-  dnl design decision in this direction, subject to discussion.
-  AC_DEFINE_UNQUOTED(
-    [EDITOR_DFLT], ["$EDITOR"],
-    [The default editor to use, if one does not specify the "-e" option
-     to cvs, or does not have an EDITOR environment variable.  If this
-     is not set to an absolute path to an executable, use the shell to
-     find where the editor actually is.  This allows sites with
-     /usr/bin/vi or /usr/ucb/vi to work equally well (assuming that their
-     PATH is reasonable).])
-fi
+dnl FIXME - Using --without-editor will probably break a compile at
+dnl the moment, but maybe it is reasonable for someone to want to
+dnl compile a CVS executable that refuses to run if no $EDITOR,
+dnl $CVS_EDITOR, or -e option is specified?  Making a preliminary
+dnl design decision in this direction, subject to discussion.
+dnl
+dnl Still don't know if the above would be useful, but we shouldn't
+dnl be able to get here any longer without $EDITOR defined due to the
+dnl error checking above.
+AC_DEFINE_UNQUOTED(
+  [EDITOR_DFLT], ["$EDITOR"],
+  [The default editor to use, if one does not specify the "-e" option
+   to cvs, or does not have an EDITOR environment variable.  If this
+   is not set to an absolute path to an executable, use the shell to
+   find where the editor actually is.  This allows sites with
+   /usr/bin/vi or /usr/ucb/vi to work equally well (assuming that their
+   PATH is reasonable).])
 
 dnl
 dnl done finding an editor
@@ -454,7 +508,7 @@ AC_ARG_WITH(
 
 AC_MSG_CHECKING([for temporary directory])
 if test -z "$with_tmpdir" || test yes = "$with_tmpdir"; then
-  for with_tmpdir in "$TMPDIR" "$TMP" "$TEMP" /tmp /var/tmp no; do
+  for with_tmpdir in /tmp /var/tmp no; do
     if test -d "$with_tmpdir" && test -x "$with_tmpdir" \
         && test -w "$with_tmpdir" && test -r "$with_tmpdir"; then
       break
@@ -633,7 +687,7 @@ if test no != "$enable_password_authenticated_client"; then
        method in the CVS client (default)])
   else
     AC_MSG_WARN(
-      [--enable-password-authenticated-server is meaningless with
+      [--enable-password-authenticated-client is meaningless with
        the CVS client disabled (--disable-client)])
   fi
 fi
@@ -741,6 +795,73 @@ fi # enable_server
 
 
 dnl
+dnl begin --enable-case-sensitivity
+dnl
+
+AC_ARG_ENABLE(
+  [case-sensitivity],
+  AC_HELP_STRING(
+    [--enable-case-sensitivity],
+    [Force CVS to expect a case sensitive file system.  Enabling this on a case
+     insensitive system should have little effect on the server or client
+     operation, though client users may ocassionally be suprised that the CVS
+     server appears to be case sensitive.  Disabling this for a case sensitive
+     server disables server support for case insensitive clients, which can
+     confuse all users of case insensitive clients contacting the server.
+     Disabling this for a case sensitive client will cause the client to ask
+     servers to behave case insensitively, which could cause confusion for
+     users, but also probably no real harm.  (default autoselects based on the
+     case sensitivity of the file system containing the current working
+     directory)]),
+    [case "$enable_case_sensitivity" in
+       yes | no | auto) ;;
+       *)
+          AC_MSG_ERROR([Unrecognized argument to --enable-case-sensitivity: \`$enable_case_sensitivity'.  Acceptable values are \`yes', \`no', and \`auto'.])
+          ;;
+     esac],
+  [enable_case_sensitivity=auto])
+
+acx_forced=' (forced)'
+AC_MSG_CHECKING([for a case sensitive file system])
+if test $enable_case_sensitivity = auto; then
+  dnl
+  dnl Check for a case insensitive filesystem, like Mac OS X and Windows have.
+  dnl
+  AC_CACHE_VAL([acx_cv_case_sensitive],
+  [ rm -f ac_TEST_filenames_CASE_sensitive
+    echo foo >ac_test_filenames_case_sensitive
+    if test -f ac_TEST_filenames_CASE_sensitive; then
+      acx_cv_case_sensitive=no
+    else
+      acx_cv_case_sensitive=yes
+    fi
+    rm ac_test_filenames_case_sensitive
+  ])
+  enable_case_sensitivity=$acx_cv_case_sensitive
+  acx_forced=
+fi
+AC_MSG_RESULT([$enable_case_sensitivity$acx_forced])
+if test $enable_case_sensitivity = no; then
+  AC_DEFINE([FILENAMES_CASE_INSENSITIVE], [1],
+            [Define if this executable will be running on case insensitive
+             file systems.  In the client case, this means that it will request
+             that the server pretend to be case insensitive if it isn't
+             already.])
+  dnl Compile fncase.c (containing fncase() & fncmp()) to handle file name
+  dnl comparisons on case insensitive filesystems.
+  AC_LIBOBJ(fncase)
+fi
+
+dnl
+dnl end --enable-case-sensitivity
+dnl
+
+
+dnl
+dnl begin --enable-encryption
+dnl
+
+dnl
 dnl Use --enable-encryption to turn on encryption support, but ignore this
 dnl option unless either client or server is enabled.
 dnl
@@ -757,7 +878,7 @@ if test "$enable_encryption" = yes; then
       [Define to enable encryption support.])
   else
     AC_MSG_WARN(
-      [--enable-encryption is meaningless with neither the CVS client
+      [--enable-encryption is meaningless when neither the CVS client
        nor the CVS server is enabled (--disable-client and --disable-server).])
   fi
 fi
@@ -849,6 +970,7 @@ dnl end --enable-*
 dnl
 
 
+
 dnl For the moment we will assume that all systems which have
 dnl the unixyness to run configure are unixy enough to do the
 dnl PreservePermissions stuff.  I have this sinking feeling that
@@ -856,11 +978,9 @@ dnl things won't be that simple, before long.
 dnl AC_DEFINE(PRESERVE_PERMISSIONS_SUPPORT, 1,
 dnl [Define if this system supports chown(), link(), and friends.])
 
-dnl On cygwin32, we configure like a Unix system, but we use the
-dnl Windows support code in lib/fncase.c to handle the case
-dnl insensitive file system.  We also need some support libraries.  We
-dnl do this at the end so that the new libraries are added at the end
-dnl of LIBS.
+dnl On cygwin32, we configure like a Unix system, but we need some support
+dnl libraries.  We do this at the end so that the new libraries are added at
+dnl the end of LIBS.
 dnl
 dnl FIXME: We should be trying to meet the autoconf ideal of checking for
 dnl the properties of the system rather than the name of the os here.  In other
@@ -870,7 +990,6 @@ AC_CACHE_CHECK(for cygwin32, ccvs_cv_sys_cygwin32,
 [AC_TRY_COMPILE([], [return __CYGWIN32__;],
 ccvs_cv_sys_cygwin32=yes, ccvs_cv_sys_cygwin32=no)])
 if test $ccvs_cv_sys_cygwin32 = yes; then
-  AC_LIBOBJ(fncase)
   LIBS="$LIBS -ladvapi32"
 
   dnl On Windows you can only change file times if you can write to
@@ -898,6 +1017,7 @@ AC_CONFIG_FILES(contrib/log, [chmod +x contrib/log])
 AC_CONFIG_FILES(contrib/log_accum, [chmod +x contrib/log_accum])
 AC_CONFIG_FILES(contrib/mfpipe, [chmod +x contrib/mfpipe])
 AC_CONFIG_FILES(contrib/pvcs2rcs, [chmod +x contrib/pvcs2rcs])
+AC_CONFIG_FILES(contrib/rcs2log:contrib/rcs2log.sh, [chmod +x contrib/rcs2log])
 AC_CONFIG_FILES(contrib/rcslock, [chmod +x contrib/rcslock])
 AC_CONFIG_FILES(contrib/sccs2rcs, [chmod +x contrib/sccs2rcs])
 AC_CONFIG_FILES(src/cvsbug, [chmod +x src/cvsbug])
@@ -921,3 +1041,19 @@ AC_CONFIG_FILES([Makefile \
 
 dnl and we're done
 AC_OUTPUT
+
+
+
+# Report the state of this version of CVS if this is from dev.
+m4_bmatch(m4_defn([AC_PACKAGE_VERSION]),  [[0-9]*\.[0-9]*\.[0-9]*\.[0-9]],
+[    cat <<EOF
+
+You are about to use an unreleased version of CVS.  Be sure to
+read the relevant mailing lists, most importantly <info-cvs@gnu.org>.
+
+Below you will find information on the status of this version of CVS.
+
+
+EOF
+    sed -n '/^\* Status/,$p' $srcdir/BUGS
+])

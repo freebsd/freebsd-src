@@ -1,3 +1,51 @@
+2004-02-12  Derek Price  <derek@ximbiot.com>
+
+	Close issue #162.
+	* cvs.1: Remove references to the removed global -l option.
+	(Original patch from Ville Skyttä <scop@cvshome.org>.)
+
+2004-02-12  Derek Price  <derek@ximbiot.com>
+
+	Close issue #161.
+	* cvs.1, cvs.5: A couple of spelling fixes.
+	(Patch from Ville Skyttä <scop@cvshome.org>.)
+
+2004-01-30  Derek Price  <derek@ximbiot.com>
+
+	Close issue #146.
+	* cvs.1: Reference `cvs --help diff' rather than the rcsdiff man page.
+	Use consistent spelling of `initialization'.
+	(Patch from Ville Skyttä <scop@cvshome.org>.)
+
+2003-05-21  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerate with Automake version 1.7.5.
+
+2003-04-10  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.in: Regenerated.
+
+2003-03-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notice.
+
+	* Makefile.in: Regenerated.
+
+2003-03-05  Mark D. Baushke  <mdb@cvshome.org>
+
+	* cvs.1 (CVS_LOCAL_BRANCH_NUM): Backout CVS_LOCAL_BRANCH_NUM feature.
+
+	* cvs.1 (CVS_LOCAL_BRANCH_NUM): Document new environment variable.
+
+2003-02-26  Larry Jones  <lawrence.jones@eds.com>
+
+	* cvs.1: Note using "cvs" in .cvsrc for global options.
+	(Patch from "Mark D. Baushke" <mdb@cvshome.org>).
+
+2003-02-25  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
 2002-09-24  Derek Price  <derek@ximbiot.com>
 
 	* Makefile.in: Regenerated using Automake 1.6.3.

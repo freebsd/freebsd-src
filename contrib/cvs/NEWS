@@ -1,16 +1,358 @@
-Changes since 1.11.4:
+Changes since 1.11.14:
+**********************
 
-* Fixed a security hole by which users with read only access could gain
-write access.  The Common Vulnerabilities and Exposures project (cve.mitre.org)
-has assigned the name CAN-2003-0015 to this issue.  See
+SERVER SECURITY ISSUES
+
+* Piped checkouts of paths above $CVSROOT no longer work.  Previously, clients
+  could have requested the contents of RCS archive files anywhere on a CVS
+  server.
+
+CLIENT SECURITY ISSUES
+
+* Clients now check paths from the server to verify that they are within one of
+  the sandboxes the user requested be updated.  Previously, a trojan server
+  could have written or overwritten files anywhere the user had access,
+  presenting a serious security risk.
+
+GENERAL USER ISSUES
+
+* Method options (used by WinCVS & CVS 1.12.7+) in CVSROOTs are ignored.
+
+* Configure no longer checks the $TMPDIR, $TMP, & $TEMP variables to set the
+  default temporary directory.
+
+* CVS on Cygwin correctly handles X:\ style paths.
+
+* Import now uses backslash rather than slash on Windows when checking for
+  "CVS" directories to ignore in import commands.
+
+* Relative paths containing up-references (`..') should now work in
+  client/server mode (client fix).
+
+* A race condition between the ordering of messages from CVS and messages from
+  called scripts in client/server mode has been removed (server fix).
+
+* Resurrected files now get their modes and timestamps set correctly and a
+  longstanding bug involving resurrection of an uncommitted removal has been
+  fixed (server fix).
+
+* Some resurrection (cvs add) status messages have changed slightly.
+
+* `cvs release' now works with Kerberos or GSSAPI encryption enabled (server
+  fix).
+
+* File resurrection from a previously existing revision no longer just reports
+  that it works (server fix).
+
+* Misc error & status message corrections.
+
+* Diffing of locally added files against arbitrary revisions in an RCS archive
+  is now allowed when a file of the same name exists or used to exist on some
+  branch (server fix).
+
+* Misc documentation fixes.
+
+Changes from 1.11.13 to 1.11.14:
+********************************
+
+GENERAL USER ISSUES
+
+* Imports will now always ignore directories and files named `CVS' to avoid
+  violating assumptions made by other parts of CVS.
+
+* A problem with `cvs release' of subdirs that could corrupt CVS/Entries files
+  has been fixed (client/server).
+
+* The CVS server's protocol check for unused data from the client is no longer
+  called automatically at program exit in order to avoid potential recursive
+  calls to error when the first close is due to memory allocation or similar
+  problems that cause calls to error() to fail.  The check is still made when
+  the server program exits normally.
+
+* The spec file has been updated to work with more recent versions of RPM.
+
+* Several memory leaks have been plugged (client/server).
+
+DEVELOPER ISSUES
+
+* Misc cosmetic, readability, and commenting fixes.
+
+Changes from 1.11.12 to 1.11.13:
+********************************
+
+GENERAL USER ISSUES
+
+* Several memory leaks have been plugged.
+
+* Thanks to Ville Skyttä the man page has a few less spelling errors and is
+  slightly more accurate.
+
+* An unlikely potential segfault when using the :fork: connection method has
+  been fixed.
+
+* The CVS server has had the protocol check for unused data from the client
+  partially restored.
+
+* A fix has been included that should avoid a very rare race condition that
+  could cause a CVS server to exit with a "broken pipe" message.
+
+* A minor problem with the nmake build file that was preventing the source from
+  compiling under Windows has been fixed.
+
+* Tests have been added to the test suite.
+
+DEVELOPER ISSUES
+
+* Misc cosmetic, readability, and commenting fixes.
+
+Changes from 1.11.11 to 1.11.12:
+********************************
+
+GENERAL USER ISSUES
+
+* Infinite alias loops in the modules file are now checked for and avoided.
+
+* Clients on case insensitive systems now preserve the case of directories in
+  CVS/Entries, in addition to files, for use in communications with the CVS
+  server.
+
+* Some previously untested behavior is now being tested.
+
+* Server support for case insensitive clients has been removed in favor of the
+  server relying on the client to preserve the case of checked out files, as
+  per the CVS client/server protocol spec.  This is not as drastic as it may
+  sound, as all of the current tests still pass without modification when run
+  from a case insensitive client to a case sensitive server.  This change
+  disables little previous functionality, enables access to more of the
+  possible namespace to users on systems with case insensitive file systems,
+  fixes a few bugs, and in the end this should provide a major stability
+  improvement.
+
+* Thanks to Ville Skyttä the man page is a bit more accurate.
+
+* Thanks to Ville Skyttä some unused variables were removed from the log_accum
+  Perl script in contrib.
+
+* Thanks to Alexey Mahotkin, a bug that prevented CVS from being compiled with
+  Kerberos 4 authentication enabled has been fixed.
+
+* A minor bug that caused CVS to fail to report an inifinte alias loop in the
+  modules file when portions of the alias definition contained trailing slashes
+  has been fixed.
+
+* A bug in the gzip code that could cause heap corruption and segfaults in CVS
+  servers talking to clients less than 1.8 and some modern third-party CVS
+  clients has been fixed.
+
+* mktemp.sh is now included with the source distribution so that the rcs2log
+  and cvsbug executables may be run on systems which do not contain an
+  implementation of mktemp.
+
+* Misc documentation fixes.
+
+Changes from 1.11.10 to 1.11.11:
+********************************
+
+SERVER SECURITY ISSUES
+
+* pserver can no longer be configured to run as root via the
+  $CVSROOT/CVSROOT/passwd file, so if your passwd file is compromised, it no
+  longer leads directly to a root hack.  Attempts to root will also be logged
+  via the syslog.
+
+Changes from 1.11.9 to 1.11.10:
+*******************************
+
+SERVER SECURITY ISSUES
+
+* Malformed module requests could cause the CVS server to attempt to create
+  directories and possibly files at the root of the filesystem holding the CVS
+  repository.  Filesystem permissions usually prevent the creation of these
+  misplaced directories, but nevertheless, the CVS server now rejects the
+  malformed requests.
+
+GENERAL USER ISSUES
+
+* Case insensitive clients using a case sensitive server can now use a
+  `cvs rm -f file; cvs add FILE' command sequence to add a file with the same
+  name in a new case.
+
+* CVSROOTs which contain a symlink to a real repository should work.
+
+* The configure script now tests whether it is building CVS on a case
+  insensitive file system.  If it is, CVS assumes that all file systems on this
+  platform will be case insensitive.  This is useful for getting the case
+  insensitivity flag set correctly when compiling on Mac OS X and under Cygwin
+  on Windows.  Autodetection can be overridden using the
+  --disable-case-sensitivity and --enable-case-sensitivity arguments to
+  configure.
+
+* A behavior change in `cvs up -jrev1 -jrev2' for modified files with a base
+  revision of rev2 (ie, checked-out version matches rev2 and file has been
+  modified).  The operation is no longer ignored and instead is passed to
+  diff3.  This will potentially re-apply the diffs between the two revisions to
+  a modified local file.  Status messages like from a standard merge have also
+  been added when the file would not or does not change due to this merge
+  request ("[file] already contains the changes between [revisions]...").
+
+* A bug which could stop `cvs admin -mTAG:message' from recursing has been
+  fixed.
+
+* Misc documentation cleanup and fixes.
+
+* Some of the contrib scripts, some of the documentation, and sanity.sh were
+  modified to use and recommend more portable commands rather than using and
+  recommending commands which were not compatible with the POSIX 1003.1-2001
+  specification.
+
+DEVELOPER ISSUES
+
+* A new set of tests to test issues specific to case insensitive clients and
+  servers has also been added.
+
+* Support has been added to the test suite to support testing over a :ext: link
+  to another machine, subject to some stringent requirements.  This support can
+  be used, for instance, to test the operation of a case insensitive client
+  against a case sensitive server.  Please see the comments in TEST and the
+  src/sanity.sh test script itself for more.
+
+* We've standardized on Automake 1.7.9 to get a bug fix.  See the note below
+  on the Autoconf upgrade for more details.
+
+* We've standardized on Autoconf version 2.58 to avoid a bug and get at a few
+  new macros.  Again, this should only really affect developers, though it is
+  possible that CVS will now compile on a few new platforms.  Please see the
+  section of the INSTALL file about using the autotools if you are compiling
+  CVS yourself.
+
+Changes from 1.11.8 to 1.11.9:
+
+* CVS now knows how to report, as well as record, `P' record types.
+
+* When running the `cvs history' command, clients will now send the
+  long-accepted `-e' option, for all records, rather than explicitly requesting
+  `P' record types, a request which servers prior to 1.11.7 will reject with a
+  fatal error message.
+
+* A problem with locating files requested by case insensitive clients which was
+  accidentally introduced in 1.11.6 as part of a fix for a data loss problem
+  involving `cvs add's from case insensitive clients has been fixed.  The
+  relevant error message was `cvs [<command> aborted]: filE,v is ambiguous;
+  could mean FILE,v or file,v'.
+
+* Attempts to use the global `-l' option, removed from both client and server
+  as of version 1.11.6, will now elicit a warning rather than a fatal error
+  from the server.
+
+Changes from 1.11.7 to 1.11.8:
+
+* A problem in the CVS getpass library that could cause passwords to echo on
+  some systems has been fixed.
+
+Changes from 1.11.6 to 1.11.7:
+
+* A segfault that could occur in very rare cases where the stat of a file
+  failed during a diff has been fixed.
+
+* Any user with write privleges to the CVSROOT/checkoutlist file could pass
+arbitrary format strings directly through to a printf function.  This was
+probably bad and has been fixed.  White space at the beginning of error strings
+in checkoutlist is now ignored properly.
+
+* In client/server mode, most messages from CVS now contain the actual
+command name rather than the generic "server".
+
+* A long-standing bug that prevented most client/server updates from being
+logged in the history file has been fixed.
+
+* Updates done via a patch ("P" status) are now logged in the history file
+by default and the corresponding "P" history record type is now documented.
+If you're setting the LogHistory option in your CVSROOT/config file, you may
+want to add "P" to the list of record types.
+
+* CVS now will always compile and its own getpass() function (originally from
+GNULIB) in favor of any system one that may exist.  This avoids some problems
+with long passwords on some systems and updates us to POSIX.2 compliance, since
+getpass() was removed from the POSIX.2 specification.
+
+* A bug that allowed a write lock to be created in a directory despite
+there being existing read locks when using LockDir in CVSROOT/config has
+been fixed.
+
+* A bug with short patches (`rdiff -s') which caused rdiff to sometimes report
+differences that did not exist has been fixed.
+
+* Some minor corrections were made to the diff code to keep diff & rdiff from
+printing diff headers with empty change texts when two files have different
+revision numbers but the same content.
+
+* The global '-l' option, which suppressed history logging, has been removed
+from both client and server.
+
+Changes from 1.11.5 to 1.11.6:
+
+* A warning message is now issued if an administrative file contains
+more than one DEFAULT entry.
+
+* An error running a verifymsg script (such as referencing an unset user
+variable or the script not existing) now causes the verification to
+fail.
+
+* Errors in administrative files commands (like unset user variables)
+are no longer reported unless the command is actually executed.
+
+* When a file is initially checked out, its last access time is now set
+to the current time rather than being set to the time the file was last
+checked in like the modification time is.
+
+* The Checkin.prog and Update.prog functionality has been removed.  This
+fuctionality previously allowed executables to be specified in the modules file
+to be run at update and checkin time, but users could edit these files on a per
+workspace basis, creating a security hole.
+
+* contrib/rcs2log and src/cvsbug now use the BSD mktemp program to create
+their temp files and directories on systems which provide it.
+
+* Corrected the path in a failed write error message.
+
+* Autoconf and Automake are no longer run automatically unless you run
+configure with --enable-maintainer-mode.  Accordingly, noautomake.sh is
+no longer needed and has been removed.
+
+* We've standardized on Automake version 1.7.5 and Autoconf version 2.57 to get
+at a few new macros.  Again, this should only really affect developers.  See
+the section of the INSTALL file about using the autotools if you are compiling
+CVS yourself.
+
+Changes from 1.11.4 to 1.11.5:
+
+* Fixed a security hole in the CVS server by which users with read only access
+could gain write access.  This issue does not affect client builds.  The
+Common Vulnerabilities and Exposures project (cve.mitre.org) has assigned the
+name CAN-2003-0015 to this issue.  See
 <http://cve.mitre.org/cgi-bin/cvename.cgi?name=CAN-2003-0015> for more
 information.
+
+* Fixed some bugs where revision numbers starting with 0 (like 0.3)
+weren't correctly handled.  (CVS doesn't normally use such revision
+numbers, but users may be able to force it to do so and old RCS files
+might.)
 
 Changes from 1.11.3 to 1.11.4:
 
 * Some minor changes to allow the code to compile on Windows platforms.
 
 Changes from 1.11.2 to 1.11.3:
+
+* The tag/rtag code has been fixed to once again lock just a single
+directory at a time.
+
+* There was a bug where certain error conditions could cause the server
+to go into an infinite loop.  There was also a bug that caused a
+compressed connection from an older client to hang on shutdown.  These
+bugs have been fixed.
+
+* Fixed a bug that caused the server to reject most watch commands.
 
 * When waiting for another user's lock, the message timestamps are now
 in UTC rather than the server's local time.
@@ -23,6 +365,12 @@ They are cleaner, less bug prone, and will hopfully allow me to start updating
 sanity.sh to use Autotest and Autoshell.  Again, this should only really affect
 developers.  See the section of the INSTALL file about using the autotools if
 you are compiling CVS yourself.
+
+* Fixed a bug in the log/rlog code when a revision range crosses a
+branch point.
+
+* Fixed a bug where filenames starting with - would be misinterpreted as
+options when using client/server mode.
 
 Changes from 1.11.1p1 to 1.11.2:
 
@@ -61,6 +409,12 @@ Changes from 1.11.1 to 1.11.1p1:
 * Read only access was broken - now fixed.
 
 Changes from 1.11 to 1.11.1:
+
+* There was a locking bug in the tag/rtag code that could lose changes
+made to a file while the tag operation was in progress.  This has been
+fixed, but all of the directories being tagged are now locked for the
+entire duration of the tag operation rather than only one directory at a
+time.
 
 * The "cvs diff" command now accepts the -y/--side=by-side and -T/
 --initial-tab options.  (To use these options with a remote repository,
