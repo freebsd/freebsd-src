@@ -630,8 +630,8 @@ sbappendaddr(sb, asa, m0, control)
 	register struct mbuf *m, *n;
 	int space = asa->sa_len;
 
-if (m0 && (m0->m_flags & M_PKTHDR) == 0)
-panic("sbappendaddr");
+	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
+		panic("sbappendaddr");
 	if (m0)
 		space += m0->m_pkthdr.len;
 	for (n = control; n; n = n->m_next) {
