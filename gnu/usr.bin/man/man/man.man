@@ -184,6 +184,17 @@ These variables specify the preferred language for manual pages.
 (See the
 .Fl o
 option above.)
+.It Ev MACHINE
+As some manual pages are intended only for specific architectures,
+.Nm
+searches any subdirectories,
+with the same name as the current architecture,
+in every directory which it searches.
+Machine specific areas are checked before general areas.
+The current machine type may be overridden by setting the environment
+variable
+.Ev MACHINE
+to the name of a specific architecture.
 .It Ev MANPATH
 If
 .Ev MANPATH

@@ -20,7 +20,7 @@
 
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <errno.h>
 #ifdef __FreeBSD__
@@ -74,6 +74,7 @@ extern int do_system_command ();
 
 char *prognam;
 static char *pager;
+static char *machine;
 static char *manp;
 static char *manpathlist[MAXDIRS];
 static char *section;
@@ -495,6 +496,12 @@ man_getopt (argc, argv)
   if (debug)
     fprintf (stderr, "\nusing %s as pager\n", pager);
 
+  if ((machine = getenv ("MACHINE")) == NULL)
+    machine = MACHINE;
+
+  if (debug)
+    fprintf (stderr, "\nusing %s architecture\n", machine);
+
   if (manp == NULL)
     {
       if ((manp = manpath (0)) == NULL)
@@ -662,6 +669,15 @@ convert_name (name, to_cat)
       *t1 = '\0';
       t2 = strrchr (to_name, '/');
       *t1 = '/';
+
+      /* Skip architecture part (if present). */
+      if (t2 != NULL && (t1 - t2 < 5 || *(t2 + 1) != 'm' || *(t2 + 3) != 'n'))
+	{
+	  t1 = t2;
+	  *t1 = '\0';
+	  t2 = strrchr (to_name, '/');
+	  *t1 = '/';
+	}
     }
 
   if (t2 == NULL)
@@ -1469,6 +1485,22 @@ try_section (path, section, name, glob)
   register int cat;
   register char **names;
   register char **np;
+  static int arch_search;
+  char buf[FILENAME_MAX];
+
+  if (!arch_search)
+    {
+      snprintf(buf, sizeof(buf), "%s/man%s/%s", path, section, machine);
+      if (is_directory (buf) == 1)
+	{
+	  snprintf(buf, sizeof(buf), "%s/%s", machine, name);
+	  arch_search++;
+	  found = try_section (path, section, buf, glob);
+	  arch_search--;
+	  if (found && !findall)   /* only do this architecture... */
+	    return found;
+	}
+    }
 
   if (debug)
     {
