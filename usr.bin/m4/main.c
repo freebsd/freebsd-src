@@ -174,8 +174,6 @@ static int do_look_ahead(int, const char *);
 
 static void enlarge_stack(void);
 
-int main(int, char *[]);
-
 int
 main(int argc, char *argv[])
 {
