@@ -292,6 +292,11 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		if (mp->mnt_flag & MNT_SOFTDEP)
 			mp->mnt_flag &= ~MNT_ASYNC;
 		/*
+		 * Keep MNT_ACLS flag if it is stored in superblock.
+		 */
+		if ((fs->fs_flags & FS_ACLS) != 0)
+			mp->mnt_flag |= MNT_ACLS;
+		/*
 		 * If not updating name, process export requests.
 		 */
 		if (args.fspec == 0)
