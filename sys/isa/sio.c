@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.132 1995/12/30 03:52:58 bde Exp $
+ *	$Id: sio.c,v 1.133 1996/01/04 21:11:37 wollman Exp $
  */
 
 #include "sio.h"
@@ -279,8 +279,10 @@ void	siopoll		__P((void));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 
+#ifdef COM_ESP
 static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
 				     Port_t esp_port));
+#endif
 static	int	sioattach	__P((struct isa_device *dev));
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
@@ -369,7 +371,6 @@ static	struct speedtab comspeedtab[] = {
 	{ -1,		-1 }
 };
 
-static	char	chardev[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 static struct kern_devconf kdc_sio[NSIO] = { {
 	0, 0, 0,		/* filled in by dev_attach */
 	driver_name, 0, { MDDT_ISA, 0, "tty" },
@@ -801,7 +802,6 @@ sioattach(isdp)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
-	char		name[32];
 	int		s;
 	int		unit;
 
@@ -1050,25 +1050,21 @@ determined_type: ;
 	dev = makedev(CDEV_MAJOR, 0);
 	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-		/* path, name, devsw, minor, type, uid, gid, perm */
-	sprintf(name, "ttyd%c", chardev[unit]);
-	com->devfs_token_ttyd = devfs_add_devsw("/", name, &sio_cdevsw,
-		unit, DV_CHR, 0, 0, 0600);
-	sprintf(name, "ttyid%c", chardev[unit]);
-	com->devfs_token_ttyi = devfs_add_devsw("/", name, &sio_cdevsw,
-		unit | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0600);
-	sprintf(name, "ttyld%c", chardev[unit]);
-	com->devfs_token_ttyl = devfs_add_devsw("/", name, &sio_cdevsw,
-		unit | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0600);
-	sprintf(name, "cuaa%c", chardev[unit]);
-	com->devfs_token_cuaa = devfs_add_devsw("/", name, &sio_cdevsw,
-		unit | CALLOUT_MASK, DV_CHR, 0, 0, 0660);
-	sprintf(name, "cuaia%c", chardev[unit]);
-	com->devfs_token_cuai = devfs_add_devsw("/", name, &sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0660);
-	sprintf(name, "cuala%c", chardev[unit]);
-	com->devfs_token_cual = devfs_add_devsw("/", name, &sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0660);
+		/* devsw, minor, type, uid, gid, perm, fmt, ... */
+	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
+		unit, DV_CHR, 0, 0, 0600, "ttyd%n", unit);
+	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
+		unit | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0600, "ttyid%n", unit);
+	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
+		unit | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0600, "ttyld%n", unit);
+	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
+		unit | CALLOUT_MASK, DV_CHR, 0, 0, 0660, "cuaa%n", unit);
+	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0660,
+		"cuaia%n", unit);
+	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0660,
+		"cuala%n", unit);
 #endif
 	return (1);
 }
