@@ -28,13 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yppasswd_private.x,v 1.2 1997/07/28 18:31:11 wpaul Exp $
  */
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id: yppasswd_private.x,v 1.2 1997/07/28 18:31:11 wpaul Exp $";
+%static const char rcsid[] =
+%	"$Id: yppasswd_private.x,v 1.4 1997/07/29 15:43:18 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
