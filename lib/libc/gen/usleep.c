@@ -44,10 +44,12 @@ static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #endif
 
 #ifndef _THREAD_SAFE
+static int alarm_termination;
+
 static void
 sleephandler()
 {
-	return;
+	alarm_termination++;
 }
 #endif	/* _THREAD_SAFE */
 
@@ -66,7 +68,7 @@ usleep(useconds)
 		do {
 			nanosleep(&time_to_sleep, &time_remaining);
 			time_to_sleep = time_remaining;
-		} while (time_to_sleep.tv_sec != 0 &&
+		} while (time_to_sleep.tv_sec != 0 ||
 			 time_to_sleep.tv_nsec != 0);
 	}
 #else
@@ -92,6 +94,7 @@ usleep(useconds)
 		sigaction(SIGALRM, &act, &oact);
 		mask = omask;
 		sigdelset(&mask, SIGALRM);
+		alarm_termination = 0;
 
 		/*
 		 * signanosleep() uses the given mask for the lifetime of
@@ -102,8 +105,9 @@ usleep(useconds)
 		do {
 			signanosleep(&time_to_sleep, &time_remaining, &mask);
 			time_to_sleep = time_remaining;
-		} while (time_to_sleep.tv_sec != 0 &&
-			 time_to_sleep.tv_nsec != 0);
+		} while (!alarm_termination &&
+			 (time_to_sleep.tv_sec != 0 ||
+			  time_to_sleep.tv_nsec != 0));
 
 		/* Unwind */
 		sigaction(SIGALRM, &oact, (struct sigaction *)0);
