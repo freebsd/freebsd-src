@@ -56,19 +56,20 @@ extern int dvsend(int, char *, char, int);
 static void
 usage(void)
 {
-	fprintf(stderr, "fwcontrol [-g gap_count] [-b pri_req] [-c node]"
-		" [-r] [-t] [-d node] [-l file] [-R file] [-S file]\n");
-	fprintf(stderr, "\t-g: broadcast gap_count by phy_config packet\n");
 	fprintf(stderr,
-		"\t-b: set PRIORITY_BUDGET register on all supported nodes\n");
-	fprintf(stderr, "\t-c: read configuration ROM\n");
-	fprintf(stderr, "\t-r: bus reset\n");
-	fprintf(stderr, "\t-t: read topology map\n");
-	fprintf(stderr, "\t-d: hex dump of configuration ROM\n");
-	fprintf(stderr,
-		"\t-l: load and parse hex dump file of configuration ROM\n");
-	fprintf(stderr, "\t-R: Receive DV stream\n");
-	fprintf(stderr, "\t-S: Send DV stream\n");
+		"fwcontrol [-g gap_count] [-o node] [-b pri_req] [-c node]"
+			" [-r] [-t] [-d node] [-l file] [-R file] [-S file]\n"
+		"\t-g: broadcast gap_count by phy_config packet\n"
+		"\t-o: send link-on packet to the node\n"
+		"\t-s: write RESET_START register on the node\n"
+		"\t-b: set PRIORITY_BUDGET register on all supported nodes\n"
+		"\t-c: read configuration ROM\n"
+		"\t-r: bus reset\n"
+		"\t-t: read topology map\n"
+		"\t-d: hex dump of configuration ROM\n"
+		"\t-l: load and parse hex dump file of configuration ROM\n"
+		"\t-R: Receive DV stream\n"
+		"\t-S: Send DV stream\n");
 	exit(0);
 }
 
@@ -116,10 +117,12 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 
         asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 16);
 	asyreq->req.len = 16;
+#if 0
+	asyreq->req.type = FWASREQNODE;
+	asyreq->pkt.mode.rreqq.dst = FWLOCALBUS | node;
+#else
 	asyreq->req.type = FWASREQEUI;
 	asyreq->req.dst.eui = eui;
-#if 0
-	asyreq->pkt.mode.rreqq.dst = htons(FWLOCALBUS | node);
 #endif
 	asyreq->pkt.mode.rreqq.tlrt = 0;
 	if (read)
@@ -165,9 +168,48 @@ send_phy_config(int fd, int root_node, int gap_count)
 	printf("send phy_config root_node=%d gap_count=%d\n",
 						root_node, gap_count);
 
-	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
+	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
        		err(1, "ioctl");
-	}
+	free(asyreq);
+}
+
+static void
+send_link_on(int fd, int node)
+{
+        struct fw_asyreq *asyreq;
+
+	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 12);
+	asyreq->req.len = 12;
+	asyreq->req.type = FWASREQNODE;
+	asyreq->pkt.mode.common.tcode = FWTCODE_PHY;
+	asyreq->pkt.mode.ld[1] |= (1 << 30) | ((node & 0x3f) << 24);
+	asyreq->pkt.mode.ld[2] = ~asyreq->pkt.mode.ld[1];
+
+	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
+       		err(1, "ioctl");
+	free(asyreq);
+}
+
+static void
+reset_start(int fd, int node)
+{
+        struct fw_asyreq *asyreq;
+
+	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 16);
+	asyreq->req.len = 16;
+	asyreq->req.type = FWASREQNODE;
+	asyreq->pkt.mode.wreqq.dst = FWLOCALBUS | (node & 0x3f);
+	asyreq->pkt.mode.wreqq.tlrt = 0;
+	asyreq->pkt.mode.wreqq.tcode = FWTCODE_WREQQ;
+
+	asyreq->pkt.mode.wreqq.dest_hi = 0xffff;
+	asyreq->pkt.mode.wreqq.dest_lo = 0xf0000000 | RESET_START;
+
+	asyreq->pkt.mode.wreqq.data = htonl(0x1);
+
+	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
+       		err(1, "ioctl");
+	free(asyreq);
 }
 
 static void
@@ -390,12 +432,19 @@ main(int argc, char **argv)
 		list_dev(fd);
 	}
 
-	while ((ch = getopt(argc, argv, "g:b:rtc:d:l:R:S:")) != -1)
+	while ((ch = getopt(argc, argv, "g:o:s:b:rtc:d:l:R:S:")) != -1)
 		switch(ch) {
 		case 'g':
-			/* gap count */
 			tmp = strtol(optarg, NULL, 0);
 			send_phy_config(fd, -1, tmp);
+			break;
+		case 'o':
+			tmp = strtol(optarg, NULL, 0);
+			send_link_on(fd, tmp);
+			break;
+		case 's':
+			tmp = strtol(optarg, NULL, 0);
+			reset_start(fd, tmp);
 			break;
 		case 'b':
 			tmp = strtol(optarg, NULL, 0);
