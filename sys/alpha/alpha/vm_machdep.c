@@ -393,6 +393,7 @@ vunmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
+	vm_page_lock_queues();
 	for (addr = (caddr_t)trunc_page(bp->b_data);
 	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE) {
@@ -400,6 +401,7 @@ vunmapbuf(bp)
 		pmap_kremove((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 	}
+	vm_page_unlock_queues();
 
 	bp->b_data = bp->b_saveaddr;
 }
