@@ -155,6 +155,7 @@ exec_aout_imgact(imgp)
 	/*
 	 * text/data/bss must not exceed limits
 	 */
+	mtx_assert(&Giant, MA_OWNED);
 	if (/* text can't exceed maximum text size */
 	    a_out->a_text > MAXTSIZ ||
 
@@ -248,13 +249,17 @@ aout_coredump(p, vp, limit)
 	register struct vnode *vp;
 	off_t limit;
 {
-	register struct ucred *cred = p->p_ucred;
+	register struct ucred *cred;
 	register struct vmspace *vm = p->p_vmspace;
 	int error;
 
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
 	fill_kinfo_proc(p, &p->p_addr->u_kproc);
+	PROC_LOCK(p);
+	cred = p->p_ucred;
+	crhold(cred);
+	PROC_UNLOCK(p);
 	error = cpu_coredump(p, vp, cred);
 	if (error == 0)
 		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
@@ -266,6 +271,7 @@ aout_coredump(p, vp, limit)
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
+	crfree(cred);
 	return (error);
 }
 

@@ -722,7 +722,7 @@ elf_coredump(p, vp, limit)
 	register struct vnode *vp;
 	off_t limit;
 {
-	register struct ucred *cred = p->p_ucred;
+	register struct ucred *cred;
 	int error = 0;
 	struct sseg_closure seginfo;
 	void *hdr;
@@ -754,6 +754,10 @@ elf_coredump(p, vp, limit)
 	if (hdr == NULL) {
 		return EINVAL;
 	}
+	PROC_LOCK(p);
+	cred = p->p_ucred;
+	crhold(cred);
+	PROC_UNLOCK(p);
 	error = elf_corehdr(p, vp, cred, seginfo.count, hdr, hdrsize);
 
 	/* Write the contents of all of the writable segments. */
@@ -774,6 +778,7 @@ elf_coredump(p, vp, limit)
 			php++;
 		}
 	}
+	crfree(cred);
 	free(hdr, M_TEMP);
 	
 	return error;
