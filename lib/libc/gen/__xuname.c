@@ -43,14 +43,21 @@ static const char rcsid[] =
 #include <errno.h>
 
 int
-uname(name)
-	struct utsname *name;
+__xuname(int namesize, void *namebuf)
 {
 	int mib[2], rval;
 	size_t len;
 	char *p;
 	int oerrno;
+	struct xutsname {
+		char	sysname[namesize];	/* Name of this OS. */
+		char	nodename[namesize];	/* Name of this network node. */
+		char	release[namesize];	/* Release level. */
+		char	version[namesize];	/* Version level. */
+		char	machine[namesize];	/* Hardware type. */
+	} *name;
 
+	name = (struct xutsname *)namebuf;
 	rval = 0;
 
 	mib[0] = CTL_KERN;

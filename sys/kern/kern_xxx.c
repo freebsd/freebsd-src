@@ -138,6 +138,14 @@ oquota(p, uap)
 }
 #endif /* COMPAT_43 */
 
+/*
+ * This is the FreeBSD-1.1 compatable uname(2) interface.  These
+ * days it is done in libc as a wrapper around a bunch of sysctl's.
+ * This must maintain the old 1.1 binary ABI.
+ */
+#if SYS_NMLN != 32
+#error "FreeBSD-1.1 uname syscall has been broken"
+#endif
 #ifndef _SYS_SYSPROTO_H_
 struct uname_args {
         struct utsname  *name;
