@@ -2,7 +2,7 @@
  * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  * Copyright (c) 1996 Alex Nash
- * Copyright (c) 2000-2001 Luigi Rizzo
+ * Copyright (c) 2000-2002 Luigi Rizzo
  *
  * Redistribution and use in source forms, with and without modification,
  * are permitted provided that this entire comment appears intact.
@@ -1109,15 +1109,14 @@ ip_fw_chk(struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
 
 #define BRIDGED	(cookie == &bridgeCookie)
 	if (cookie == NULL) {	/* this is a bridged packet */
-		bridgeCookie = 0;
-		cookie = &bridgeCookie;
-		eh = (struct ether_header *)next_hop;
-		if ( (*m)->m_pkthdr.len >= sizeof(struct ip) &&
-				ntohs(eh->ether_type) == ETHERTYPE_IP)
-			hlen = ip->ip_hl << 2;
-	} else {
+	    bridgeCookie = 0;
+	    cookie = &bridgeCookie;
+	    eh = (struct ether_header *)next_hop;
+	    if ( (*m)->m_pkthdr.len >= sizeof(struct ip) &&
+			ntohs(eh->ether_type) == ETHERTYPE_IP)
 		hlen = ip->ip_hl << 2;
-	}
+	} else
+	    hlen = ip->ip_hl << 2;
 
 	/* Grab and reset cookie */
 	skipto = *cookie;
@@ -1130,7 +1129,7 @@ ip_fw_chk(struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
 	    proto = ip->ip_p;
 	    src_ip = ip->ip_src;
 	    dst_ip = ip->ip_dst;
-	    if (BRIDGED) { /* not yet... */
+	    if (BRIDGED) { /* bridged packets are as on the wire */
 		ip_off = ntohs(ip->ip_off);
 		ip_len = ntohs(ip->ip_len);
 	    } else {
@@ -1225,6 +1224,81 @@ again:
 		if (f->fw_number == IPFW_DEFAULT_RULE)
 		    goto got_match ;
 
+		/* Check if rule only valid for bridged packets */
+		if ((f->fw_flg & IP_FW_BRIDGED) != 0 && !(BRIDGED))
+		    continue;
+#undef BRIDGED
+
+		if (oif) {
+		    /* Check direction outbound */
+		    if (!(f->fw_flg & IP_FW_F_OUT))
+			continue;
+		} else {
+		    /* Check direction inbound */
+		    if (!(f->fw_flg & IP_FW_F_IN))
+			continue;
+		}
+
+		if (f->fw_flg & IP_FW_F_MAC) {
+		    u_int32_t *want, *mask, *hdr;
+
+		    if (eh == NULL) /* header not available */
+			continue;
+
+		    want = (void *)&(f->fw_mac_hdr);
+		    mask = (void *)&(f->fw_mac_mask);
+		    hdr = (void *)eh;
+
+		    if ( want[0] != (hdr[0] & mask[0]) )
+			continue;
+		    if ( want[1] != (hdr[1] & mask[1]) )
+			continue;
+		    if ( want[2] != (hdr[2] & mask[2]) )
+			continue;
+		    if (f->fw_flg & IP_FW_F_SRNG) {
+			u_int16_t type = ntohs(eh->ether_type);
+			if (type < (u_int16_t)(f->fw_mac_type) ||
+				type > (u_int16_t)(f->fw_mac_mask_type) )
+			    continue;
+		    } else {
+			if ((u_int16_t)(f->fw_mac_type) != (eh->ether_type &
+				(u_int16_t)(f->fw_mac_mask_type)) )
+			    continue;
+		    }
+		}
+
+		/* Interface check */
+		if ((f->fw_flg & IF_FW_F_VIAHACK) == IF_FW_F_VIAHACK) {
+			struct ifnet *const iface = oif ? oif : rif;
+
+			/* Backwards compatibility hack for "via" */
+			if (!iface || !iface_match(iface,
+			    &f->fw_in_if, f->fw_flg & IP_FW_F_OIFNAME))
+				continue;
+		} else {
+			/* Check receive interface */
+			if ((f->fw_flg & IP_FW_F_IIFACE)
+			    && (!rif || !iface_match(rif,
+			      &f->fw_in_if, f->fw_flg & IP_FW_F_IIFNAME)))
+				continue;
+			/* Check outgoing interface */
+			if ((f->fw_flg & IP_FW_F_OIFACE)
+			    && (!oif || !iface_match(oif,
+			      &f->fw_out_if, f->fw_flg & IP_FW_F_OIFNAME)))
+				continue;
+		}
+
+		/*
+		 * For packets which matched the MAC check, we do not need
+		 * to continue, this is a valid match.
+		 * For not-ip packets, the rule does not apply.
+		 */
+		if (f->fw_flg & IP_FW_F_MAC)
+			goto rnd_then_got_match;
+
+		if (hlen == 0)
+			continue;
+
 		/*
 		 * dynamic rules are checked at the first keep-state or
 		 * check-state occurrence.
@@ -1248,65 +1322,35 @@ again:
 			continue ;
 		}
 
-		/* Check if rule only valid for bridged packets */
-		if ((f->fw_flg & IP_FW_BRIDGED) != 0 && !(BRIDGED))
-			continue;
-
-		if (oif) {
-			/* Check direction outbound */
-			if (!(f->fw_flg & IP_FW_F_OUT))
-				continue;
-		} else {
-			/* Check direction inbound */
-			if (!(f->fw_flg & IP_FW_F_IN))
-				continue;
-		}
-
 		/* Fragments */
 		if ((f->fw_flg & IP_FW_F_FRAG) && offset == 0 )
 			continue;
 
+		/*
+		 * For matching addresses, tif != NULL means we matched
+		 * the address we requested (either "me" or addr/mask).
+		 * Then the check for "xxx" or "not xxx" can be done
+		 * with an XOR.
+		 */
+
+		/* source address --	mandatory */
 		if (f->fw_flg & IP_FW_F_SME) {
 			INADDR_TO_IFP(src_ip, tif);
-			if (tif == NULL)
-				continue;
-		}
+		} else
+			(int)tif = f->fw_src.s_addr ==
+			    (src_ip.s_addr & f->fw_smsk.s_addr);
+		if ( ((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ (tif == NULL) )
+			continue;
+		
+		/* dst address --	mandatory */
 		if (f->fw_flg & IP_FW_F_DME) {
 			INADDR_TO_IFP(dst_ip, tif);
-			if (tif == NULL)
-				continue;
-		}
-		/* If src-addr doesn't match, not this rule. */
-		if (((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ ((src_ip.s_addr
-		    & f->fw_smsk.s_addr) != f->fw_src.s_addr))
+		} else
+			(int)tif = f->fw_dst.s_addr ==
+			    (dst_ip.s_addr & f->fw_dmsk.s_addr);
+		if ( ((f->fw_flg & IP_FW_F_INVDST) != 0) ^ (tif == NULL) )
 			continue;
-
-		/* If dest-addr doesn't match, not this rule. */
-		if (((f->fw_flg & IP_FW_F_INVDST) != 0) ^ ((dst_ip.s_addr
-		    & f->fw_dmsk.s_addr) != f->fw_dst.s_addr))
-			continue;
-
-		/* Interface check */
-		if ((f->fw_flg & IF_FW_F_VIAHACK) == IF_FW_F_VIAHACK) {
-			struct ifnet *const iface = oif ? oif : rif;
-
-			/* Backwards compatibility hack for "via" */
-			if (!iface || !iface_match(iface,
-			    &f->fw_in_if, f->fw_flg & IP_FW_F_OIFNAME))
-				continue;
-		} else {
-			/* Check receive interface */
-			if ((f->fw_flg & IP_FW_F_IIFACE)
-			    && (!rif || !iface_match(rif,
-			      &f->fw_in_if, f->fw_flg & IP_FW_F_IIFNAME)))
-				continue;
-			/* Check outgoing interface */
-			if ((f->fw_flg & IP_FW_F_OIFACE)
-			    && (!oif || !iface_match(oif,
-			      &f->fw_out_if, f->fw_flg & IP_FW_F_OIFNAME)))
-				continue;
-		}
-
+		
 		/* Check IP header values */
 		if (f->fw_ipflg & IP_FW_IF_IPOPT && !ipopts_match(ip, f))
 			continue;
@@ -1577,7 +1621,7 @@ got_match:
 	    && !IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		switch (f->fw_reject_code) {
 		case IP_FW_REJECT_RST:
-		  {
+		    {
 			/* XXX warning, this code writes into the mbuf */
 			struct tcphdr *const tcp =
 				(struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
@@ -1603,7 +1647,7 @@ got_match:
 			}
 			*m = NULL;
 			break;
-		  }
+		    }
 		default:	/* Send an ICMP unreachable using code */
 			icmp_error(*m, ICMP_UNREACH,
 			    f->fw_reject_code, 0L, 0);
@@ -1617,7 +1661,6 @@ dropit:
 	 * Finally, drop the packet.
 	 */
 	return(IP_FW_PORT_DENY_FLAG);
-#undef BRIDGED
 }
 
 /*
@@ -1813,6 +1856,9 @@ check_ipfw_struct(struct ip_fw *frwl)
 		dprintf(("%s undefined flag bits set (flags=%x)\n",
 		    err_prefix, frwl->fw_flg));
 		return (EINVAL);
+	}
+	if ( (frwl->fw_flg & IP_FW_F_MAC) ) {	/* match MAC address */
+		return 0;
 	}
 	if (frwl->fw_flg == IP_FW_F_CHECK_S) {
 		/* check-state */
