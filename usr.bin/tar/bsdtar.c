@@ -66,11 +66,11 @@ struct option {
 #include "bsdtar.h"
 
 #ifdef linux
-#define _PATH_DEFTAPE "/dev/st0"
+#define	_PATH_DEFTAPE "/dev/st0"
 #endif
 
 #ifndef _PATH_DEFTAPE
-#define _PATH_DEFTAPE "/dev/tape"
+#define	_PATH_DEFTAPE "/dev/tape"
 #endif
 
 static int		 bsdtar_getopt(struct bsdtar *, const char *optstring,
@@ -115,6 +115,7 @@ static const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
 #define	OPTION_NO_SAME_PERMISSIONS 21
 #define	OPTION_NULL 24
 #define	OPTION_ONE_FILE_SYSTEM 27
+#define	OPTION_TOTALS 28
 #define	OPTION_VERSION 30
 
 static const struct option tar_longopts[] = {
@@ -155,6 +156,7 @@ static const struct option tar_longopts[] = {
 	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
 	{ "same-permissions",   no_argument,       NULL, 'p' },
 	{ "to-stdout",          no_argument,       NULL, 'O' },
+	{ "totals",		no_argument,       NULL, OPTION_TOTALS },
 	{ "unlink",		no_argument,       NULL, 'U' },
 	{ "unlink-first",	no_argument,       NULL, 'U' },
 	{ "update",             no_argument,       NULL, 'u' },
@@ -379,6 +381,9 @@ main(int argc, char **argv)
 				    opt, mode);
 			mode = opt;
 			bsdtar->verbose++;
+			break;
+		case OPTION_TOTALS: /* GNU tar */
+			bsdtar->option_totals++;
 			break;
 		case 'U': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_UNLINK;
