@@ -1119,6 +1119,23 @@ usb_match_device(const struct usb_devno *tbl, u_int nentries, u_int sz,
 	return (NULL);
 }
 
+/*
+ * usbd_ratecheck() can limit the number of error messages that occurs.
+ * When a device is unplugged it may take up to 0.25s for the hub driver
+ * to notice it.  If the driver continuosly tries to do I/O operations
+ * this can generate a large number of messages.
+ */
+int
+usbd_ratecheck(struct timeval *last)
+{
+#if 0
+	static struct timeval errinterval = { 0, 2500000 }; /* 0.25 s*/
+
+	return (ratecheck(last, &errinterval));
+#endif
+	return (1);
+}
+
 #if defined(__FreeBSD__)
 int
 usbd_driver_load(module_t mod, int what, void *arg)
