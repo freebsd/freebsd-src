@@ -1774,7 +1774,7 @@ buf_daemon()
 	/*
 	 * This process needs to be suspended prior to shutdown sync.
 	 */
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, bufdaemonproc,
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, bufdaemonproc,
 	    SHUTDOWN_PRI_LAST);
 
 	/*
@@ -1788,7 +1788,7 @@ buf_daemon()
 	bd_flushinc = 1;
 
 	for (;;) {
-		kproc_suspend_loop(bufdaemonproc);
+		kthread_suspend_check(bufdaemonproc);
 
 		bd_request = 0;
 

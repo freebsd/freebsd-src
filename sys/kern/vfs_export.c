@@ -1012,11 +1012,11 @@ sched_sync(void)
 
 	mtx_enter(&Giant, MTX_DEF);
 
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, p,
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_LAST);   
 
 	for (;;) {
-		kproc_suspend_loop(p);
+		kthread_suspend_check(p);
 
 		starttime = time_second;
 
