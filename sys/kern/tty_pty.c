@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.15 1995/07/22 16:45:08 bde Exp $
+ * $Id: tty_pty.c,v 1.16 1995/07/31 21:01:25 bde Exp $
  */
 
 /*
@@ -312,9 +312,11 @@ ptcclose(dev)
 	 * sense for ptys.  Recover by doing everything that a normal
 	 * ttymodem() would have done except for sending a SIGHUP.
 	 */
-	tp->t_state &= ~(TS_CARR_ON | TS_CONNECTED);
-	tp->t_state |= TS_ZOMBIE;
-	ttyflush(tp, FREAD | FWRITE);
+	if (tp->t_state & TS_ISOPEN) {
+		tp->t_state &= ~(TS_CARR_ON | TS_CONNECTED);
+		tp->t_state |= TS_ZOMBIE;
+		ttyflush(tp, FREAD | FWRITE);
+	}
 
 	tp->t_oproc = 0;		/* mark closed */
 	tp->t_session = 0;
