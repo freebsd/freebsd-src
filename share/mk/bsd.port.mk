@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.108 1995/01/30 10:06:56 jkh Exp $
+# $Id: bsd.port.mk,v 1.109 1995/02/01 21:47:57 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -75,9 +75,20 @@
 #				  during a build.  User can then decide to skip this port by
 #				  setting ${BATCH}, or compiling only the interactive ports
 #				  by setting ${INTERACTIVE}.
+# EXEC_DEPENDS	- A list of "prog:dir" pairs of other ports this
+#				  package depends on.  "prog" is the name of an
+#				  executable.  make will search your $PATH for it and go
+#				  into "dir" to do a "make all install" if it's not found.
+# LIB_DEPENDS	- A list of "lib:dir" pairs of other ports this package
+#				  depends on.  "lib" is the name of a shared library.
+#				  make will use "ldconfig -r" to search for the
+#				  library.  Note that lib can be any regular expression,
+#				  and you need two backslashes in front of dots (.) to
+#				  supress its special meaning (e.g., use
+#				  "foo\\.2\\.:${PORTSDIR}/utils/foo" to match "libfoo.2.*").
 # DEPENDS		- A list of other ports this package depends on being
-#				  made first, relative to ${PORTSDIR} (e.g. x11/tk, lang/tcl,
-#				  etc).
+#				  made first.  Use this for things that don't fall into
+#				  the above two categories.
 # EXTRACT_CMD	- Command for extracting archive (default: tar).
 # EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).
 # EXTRACT_ARGS	- Arguments to ${EXTRACT_CMD} (default: -C ${WRKDIR} -xzf).
@@ -137,7 +148,7 @@ PREFIX?=		${X11BASE}
 PREFIX?=		/usr/local
 .endif
 .if defined(USE_GMAKE)
-DEPENDS+=               ${PORTSDIR}/devel/gmake
+EXEC_DEPENDS+=               gmake:${PORTSDIR}/devel/gmake
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
@@ -354,7 +365,71 @@ package: pre-package
 .endif
 
 .if !target(depends)
-depends:
+depends: exec_depends lib_depends misc_depends
+
+exec_depends:
+.if defined(EXEC_DEPENDS)
+.if defined(NO_DEPENDS)
+# Just print out messages
+	@for i in ${EXEC_DEPENDS}; do \
+		prog=`echo $$i | sed -e 's/:.*//'`; \
+		dir=`echo $$i | sed -e 's/.*://'`; \
+		echo "===>  ${DISTNAME} depends on executable:  $$prog ($$dir)"; \
+	done
+.else
+	@for i in ${EXEC_DEPENDS}; do \
+		prog=`echo $$i | sed -e 's/:.*//'`; \
+		dir=`echo $$i | sed -e 's/.*://'`; \
+		if which -s "$$prog"; then \
+			echo "===>  ${DISTNAME} depends on executable: $$prog - found"; \
+		else \
+			echo "===>  ${DISTNAME} depends on executable: $$prog - not found"; \
+			echo "===>  Verifying build for $$prog in $$dir"; \
+			if [ ! -d "$$dir" ]; then \
+				echo ">> No directory for $$prog.  Skipping.."; \
+			else \
+				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
+				echo "===>  Returning to build of ${DISTNAME}"; \
+			fi; \
+		fi; \
+	done
+.endif
+.else
+	@${DO_NADA}
+.endif
+
+lib_depends:
+.if defined(LIB_DEPENDS)
+.if defined(NO_DEPENDS)
+# Just print out messages
+	@for i in ${LIB_DEPENDS}; do \
+		lib=`echo $$i | sed -e 's/:.*//'`; \
+		dir=`echo $$i | sed -e 's/.*://'`; \
+		echo "===>  ${DISTNAME} depends on shared library:  $$lib ($$dir)"; \
+	done
+.else
+	@for i in ${LIB_DEPENDS}; do \
+		lib=`echo $$i | sed -e 's/:.*//'`; \
+		dir=`echo $$i | sed -e 's/.*://'`; \
+		if ldconfig -r | grep -q -e "-l$$lib"; then \
+			echo "===>  ${DISTNAME} depends on shared library: $$lib - found"; \
+		else \
+			echo "===>  ${DISTNAME} depends on shared library: $$lib - not found"; \
+			echo "===>  Verifying build for $$lib in $$dir"; \
+			if [ ! -d "$$dir" ]; then \
+				echo ">> No directory for $$lib.  Skipping.."; \
+			else \
+				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
+				echo "===>  Returning to build of ${DISTNAME}"; \
+			fi; \
+		fi; \
+	done
+.endif
+.else
+	@${DO_NADA}
+.endif
+
+misc_depends:
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
@@ -368,7 +443,10 @@ depends:
 	done
 	@echo "===>  Returning to build of ${DISTNAME}"
 .endif
+.else
+	@${DO_NADA}
 .endif
+
 .endif
 
 .if !target(pre-build)
