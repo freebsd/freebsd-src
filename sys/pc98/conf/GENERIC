@@ -92,54 +92,12 @@ device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
 
-#
 # WD33C93 SCSI card (55/92 like board)
-#
-
-options	BS_TARG_SAFEMODE
-
+options 	BS_TARG_SAFEMODE
 device		bs	1
-# PC-9801-92
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0"
-# SC-98
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x10000"
-# HA-55BS2 and later
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x20000"
-# ELECOM type
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x30000"
-# SMIT
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.iomem="0xdd000"
-#hint.bs.0.iosiz="0x1000"
-#hint.bs.0.flags="0x40000"
-# Logitec LHA-20x
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x50000"
 
 # PC-9801-100
-device	aic
+device		aic
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
@@ -175,66 +133,9 @@ device		card
 device		pcic
 
 # Serial (COM) ports
-#
 options 	COM_MULTIPORT
-#
-# COM1
+#options 	COM_ESP		# ESP98
 device		sio
-# COM2 (2nd CCU)
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0x238"
-#hint.sio.1.irq="5"
-#hint.sio.1.flags="0x12000010"
-# PC-9861K, PC-9801-101, MDC-926Rs
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0x0B1"
-#hint.sio.1.irq="5"
-#hint.sio.1.flags="0x01000000"
-#hint.sio.2.at="isa"
-#hint.sio.2.port="0x0B9"
-#hint.sio.2.irq="6"
-#hint.sio.2.flags="0x02000000"
-# PC-9801-120 (PnP off)
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0x8b0"
-#hint.sio.1.irq="5"
-#hint.sio.1.flags="0x11000000"
-# MC-16550II, MC-RS98
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0xd2"
-#hint.sio.1.irq="5"
-#hint.sio.1.flags="0x14000101"
-#hint.sio.2.at="isa"
-#hint.sio.2.port="0x8d2"
-#hint.sio.2.flags="0x14000101"
-# RSB-2000, RSB-3000, B98-02
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0xb0"
-#hint.sio.1.flags="0x15000101"
-#hint.sio.2.at="isa"
-#hint.sio.2.port="0xb1"
-#hint.sio.2.flags="0x15000101"
-# RSB-384
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0xb0"
-#hint.sio.1.flags="0x16000000"
-#hint.sio.2.at="isa"
-#hint.sio.2.port="0xb1"
-#hint.sio.2.flags="0x16000000"
-# RSA-98III
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0x50e0"
-#hint.sio.1.irq="5"
-#hint.sio.1.flags="0x18000101"
-#hint.sio.2.at="isa"
-#hint.sio.2.port="0x51e0"
-#hint.sio.2.flags="0x18000101"
-# ESP98
-#options 	COM_ESP
-#hint.sio.1.at="isa"
-#hint.sio.1.port="0x18b0"
-#hint.sio.1.irq="5"
-#hint.sio.1.flags="0x19000000"
 
 device		mse
 
@@ -270,44 +171,11 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.
-#
+
 # DP8390 NIC
-#
-# ed0: generic driver/EtherEZ98
-# ed1: LANEED LD-BDN
-# ed2: EGY-98
-# ed3: LGY-98
-# ed4: ICM-IF-2766/EN-2298-T
-# ed5: SIC-98
-# ed6: PC-9801-108
-# ed7: LA-98
-# ed8: C-NET(98)
-# ed9: C-NET(98)E/L
-# ed10: EC/EP-98X
-# ed11: SIU-98-D
-#
-# XXX convert to hints
-#device ed0 at isa? port 0x00d0 irq 6
-##device ed0 at isa? port 0x10d0 irq 6 iomem 0xc8000    # SMC EtherEZ98
-#device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
-#device ed1 at isa? port 0x00d8 irq 6 flags 0x200000
-#device ed3 at isa? port 0x00d0 irq 6 flags 0x400000
-#device ed4 at isa? port 0x56d0 irq 5 flags 0x500000
-#device ed2 at isa? port 0x00d8 irq 6 flags 0x300000
-#device ed7 at isa? port 0x00d0 irq 6 flags 0x900000
-#device ed6 at isa? port 0x0770 irq 6 flags 0x800000
-#device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
-#device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
-#device ed10 at isa? port 0x00d0 irq 3 flags 0xd10000
-#device ed11 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 32768 flags 0x610000
-#
+#device		 ed
+
 # MB86960A NIC
-#
-# fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
-# fe1: C-NET(98)P2/C-NET(9N)E
-#
-# FE_8BIT_SUPPORT is needed to support LAC-98
-#
 options 	FE_8BIT_SUPPORT		# LAC-98 support
 device		fe
 
@@ -331,6 +199,7 @@ device		awi
 device		xe
 
 
+# The VoxWare sound drivers
 #device	snd
 #device	sb
 #device	sbxvi
@@ -366,7 +235,7 @@ device		faith	1	# IPv6-to-IPv4 relaying (translation)
 # Be aware of the administrative consequences of enabling this!
 device		bpf		# Berkeley packet filter
 
-#device		compat_atdisk	#IBM-PC HDD support
+#device		compat_atdisk	# IBM-PC HDD support
 
 # USB support
 #device		uhci		# UHCI PCI->USB interface
