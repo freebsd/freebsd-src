@@ -496,10 +496,12 @@ sk_vpd_read(sc)
 
 	pos += sizeof(res);
 	sc->sk_vpd_prodname = malloc(res.vr_len + 1, M_DEVBUF, M_NOWAIT);
-	for (i = 0; i < res.vr_len; i++)
-		sc->sk_vpd_prodname[i] = sk_vpd_readbyte(sc, i + pos);
-	sc->sk_vpd_prodname[i] = '\0';
-	pos += i;
+	if (sc->sk_vpd_prodname != NULL) {
+		for (i = 0; i < res.vr_len; i++)
+			sc->sk_vpd_prodname[i] = sk_vpd_readbyte(sc, i + pos);
+		sc->sk_vpd_prodname[i] = '\0';
+	}
+	pos += res.vr_len;
 
 	sk_vpd_read_res(sc, &res, pos);
 
@@ -1781,7 +1783,8 @@ skc_attach(dev)
 	}
 
 	/* Announce the product name and more VPD data if there. */
-	device_printf(dev, "%s rev. %s(0x%x)\n", pname, revstr, sc->sk_rev);
+	device_printf(dev, "%s rev. %s(0x%x)\n",
+		pname != NULL ? pname : "<unknown>", revstr, sc->sk_rev);
 
 	if (bootverbose) {
 		if (sc->sk_vpd_readonly != NULL &&
