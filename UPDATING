@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030115:
+	A new version of the wi driver has been imported into the tree.
+	One now must have device wlan in the config file for it to operate
+	properly.
+
 20021222:
  	For a period after the GCC 3.2.1 import (from 12/04 to 12/22), GCC
  	used an incompatible form of ABI for returning structures and unions
