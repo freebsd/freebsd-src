@@ -985,9 +985,9 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	VM_OBJECT_LOCK(object);
 	while ((backing_object = object->backing_object) != NULL) {
 		VM_OBJECT_LOCK(backing_object);
+		offset += object->backing_object_offset;
 		VM_OBJECT_UNLOCK(object);
 		object = backing_object;
-		offset += object->backing_object_offset;
 		if (object->size < OFF_TO_IDX(offset + size))
 			size = IDX_TO_OFF(object->size) - offset;
 	}
@@ -1096,9 +1096,9 @@ shadowlookup:
 			if (backing_object == NULL)
 				goto unlock_tobject;
 			VM_OBJECT_LOCK(backing_object);
+			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			VM_OBJECT_UNLOCK(tobject);
 			tobject = backing_object;
-			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			goto shadowlookup;
 		}
 		/*
