@@ -61,11 +61,6 @@ options		ICMP_BANDLIM		#Rate limit bad replies
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
-# Optionally these may need tweaked, (defaults shown):
-#options 	NCPU=2			# number of CPUs
-#options 	NBUS=4			# number of busses
-#options 	NAPIC=1			# number of IO APICs
-#options 	NINTR=24		# number of INTs
 
 device		isa
 device		pci
