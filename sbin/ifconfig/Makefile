@@ -4,5 +4,6 @@ PROG=	ifconfig
 MAN8=	ifconfig.8
 DPADD=  ${LIBKVM} ${LIBIPX}
 LDADD=  -lkvm -lipx
+CFLAGS+=	-DNS
 
 .include <bsd.prog.mk>
