@@ -74,7 +74,8 @@ static int	umapfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
 static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 static int	umapfs_extattrctl __P((struct mount *mp, int cmd,
-				       const char *attrname, caddr_t arg,
+				       struct vnode *filename_vp,
+				       int namespace, const char *attrname,
 				       struct proc *p));
 
 /*
@@ -430,15 +431,16 @@ umapfs_vptofh(vp, fhp)
 }
 
 static int
-umapfs_extattrctl(mp, cmd, attrname, arg, p)
+umapfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, p)
 	struct mount *mp;
 	int cmd;
+	struct vnode *filename_vp;
+	int namespace;
 	const char *attrname;
-	caddr_t arg;
 	struct proc *p;
 {
-	return (VFS_EXTATTRCTL(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, cmd, attrname,
-	    arg, p));
+	return (VFS_EXTATTRCTL(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, cmd,
+	    filename_vp, namespace, attrname, p));
 } 
 
 
