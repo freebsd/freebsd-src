@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1997/05/28 15:47:10 wpaul Exp $
+# $Id: Makefile,v 1.2 1997/05/29 13:59:22 wpaul Exp $
 
 PROG=	rpc.ypupdated
 SRCS=	ypupdate_prot_svc.c ypupdated_main.c \
@@ -16,7 +16,8 @@ CFLAGS+= -I${.CURDIR}/../../libexec/ypxfr
 
 #CFLAGS+= -DYP
 
-LDADD+= -lrpcsvc
+DPADD=	${LIBRPCSVC}
+LDADD=	-lrpcsvc
 
 CLEANFILES= ypupdate_prot_svc.c ypupdate_prot.h
 
