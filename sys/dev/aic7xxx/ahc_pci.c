@@ -34,11 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.14 1999/05/25 20:12:32 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.15 1999/05/26 16:59:17 gibbs Exp $
  */
 
-#include <pci.h>
-#if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -1615,5 +1613,3 @@ ahc_aha398XX_setup(device_t dev, char *channel, ahc_chip *chip,
 	*flags |= AHC_LARGE_SEEPROM;
 	return (0);
 }
-
-#endif /* NPCI > 0 */

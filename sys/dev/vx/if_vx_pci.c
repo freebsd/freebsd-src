@@ -29,9 +29,6 @@
  * $FreeBSD$
  */
 
-#include "pci.h"
-#if NPCI > 0
-
 #include "vx.h"
 #if NVX > 0
 
@@ -141,4 +138,3 @@ static struct pci_device vxdevice = {
 COMPAT_PCI_DRIVER (vx, vxdevice);
 
 #endif	/* NVX */
-#endif	/* NPCI */

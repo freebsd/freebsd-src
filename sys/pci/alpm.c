@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpm.c,v 1.3 1999/05/08 21:59:37 dfr Exp $
+ *	$Id: alpm.c,v 1.4 1999/05/09 17:06:38 peter Exp $
  *
  */
 
@@ -54,9 +54,6 @@
 #include "smbus_if.h"
 
 #include "alpm.h"
-#include "pci.h"
-
-#if (NALPM > 0 && NPCI > 0)
 
 #define ALPM_DEBUG(x)	if (alpm_debug) (x)
 
@@ -676,4 +673,3 @@ error:
 }
 
 DRIVER_MODULE(alsmb, root, alsmb_driver, alsmb_devclass, 0, 0);
-#endif

@@ -147,7 +147,6 @@
 
 #include "meteor.h"
 
-#if NMETEOR > 0
 #include "opt_devfs.h"
 #include "opt_meteor.h"
 
@@ -171,11 +170,8 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#include "pci.h"
-#if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-#endif
 #include <machine/ioctl_meteor.h>
 #include <pci/meteor_reg.h>
 
@@ -2134,5 +2130,3 @@ meteor_mmap(dev_t dev, vm_offset_t offset, int nprot)
 
 	return i386_btop(vtophys(mtr->bigbuf) + offset);
 }
-
-#endif /* NMETEOR > 0 */

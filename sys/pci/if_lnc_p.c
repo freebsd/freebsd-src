@@ -17,11 +17,8 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.9 1999/05/09 17:06:55 peter Exp $
+ *	$Id: if_lnc_p.c,v 1.10 1999/05/10 22:39:37 paul Exp $
  */
-
-#include "pci.h"
-#if NPCI > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -97,6 +94,3 @@ lnc_pci_attach(config_id, unit)
 
 	return;
 }
-
-#endif /* NPCI > 0 */
-

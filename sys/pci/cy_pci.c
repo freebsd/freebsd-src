@@ -24,15 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.14 1999/05/09 17:06:43 peter Exp $
+ *	$Id: cy_pci.c,v 1.15 1999/05/10 10:23:38 bde Exp $
  */
 
 /*
  * Cyclades Y PCI serial interface driver
  */
-
-#include "pci.h"
-#if NPCI > 0
 
 #include "opt_cy_pci_fastintr.h"
 
@@ -155,5 +152,3 @@ fail:
 	/* XXX should release any allocated virtual memory */
 	return;
 }
-
-#endif /* NPCI > 0 */
