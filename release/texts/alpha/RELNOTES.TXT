@@ -55,6 +55,10 @@ A bug in the machine-dependent code for AlphaServer 1000 and 1000A
 has been fixed that caused only EV4-equipped AS1000 and EV5-equipped
 AS1000A to work.
 
+The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
+Privacy (WEP) encryption, settable via ancontrol(8).
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -89,6 +93,11 @@ indent(1) has gained some new formatting options.
 
 sysinstall now uses some more intuitive defaults thanks to some new
 dialog support functions.
+
+rm(1) -v now displays the entire pathname of a file being
+removed.
+
+lpr(1), lpq(1), and lpd(8) have received a few minor enhancements.
 
 
 2. Supported Configurations
