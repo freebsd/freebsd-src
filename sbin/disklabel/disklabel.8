@@ -104,7 +104,7 @@ addition,
 can install bootstrap code.
 .Ss Raw or in-core label
 .Pp
-The disk label is resident close to or at the beginning of each disk partition.
+The disk label resides close to or at the beginning of each disk slice.
 For faster access, the kernel maintains a copy in core at all times.  By
 default, most
 .Nm
@@ -123,7 +123,7 @@ All
 forms require a disk device name, which should always be the raw
 device name representing the disk or slice.  For example
 .Pa da0
-represents the entire disk irregardless of any DOS partitioning,
+represents the entire disk regardless of any DOS partitioning,
 and
 .Pa da0s1
 represents a slice.  Some devices, most notably
@@ -245,8 +245,9 @@ recognize a
 disklabel.  Older systems may require what is known as a
 .Dq dangerously dedicated
 disklabel, which creates a fake DOS partition to work around problems older
-BIOSes have with modern disk geometries.  On newer systems you generally want
-to create a normal DOS slice using
+BIOSes have with modern disk geometries.
+On newer systems you generally want
+to create a normal DOS partition using
 .Ar fdisk
 and then create a
 .Fx
@@ -329,13 +330,14 @@ The final three forms of
 .Nm
 are used to install bootstrap code.  If you are creating a
 .Dq dangerously-dedicated
-partition for compatibility with older PC systems,
+slice for compatibility with older PC systems,
 you generally want to specify the raw disk name such as
 .Pa da0 .
-If you are creating a label within an existing DOS slice, you should specify
-the slice name such as
-.Pa da0s1 .
-Making a partition bootable can be tricky.  If you are using a normal DOS
+If you are creating a label within an existing DOS slice,
+you should specify
+the partition name such as
+.Pa da0s1a .
+Making a slice bootable can be tricky.  If you are using a normal DOS
 slice you typically install (or leave) a standard MBR on the base disk and
 then install the
 .Fx
@@ -454,26 +456,22 @@ slices.
 .Bl -enum
 .It
 Use
-.Ar fdisk
-to initialize the DOS partition table, creating a real whole-disk slice to
-hold the
-.Fx
-disklabel, and installing a master boot record.
+.Xr fdisk 8
+to initialize the hard disk, and create a slice table, referred to
+as the partition table in DOS.
+Here you will define disk slices for your system.
 .It
 Use
-.Ar disklabel
-to initialize a virgin
-.Fx
-disklabel and install
-.Fx
-boot blocks.
+.Xr disklabel 8
+to define and write partitions and mount points.
+You are not required to define the mount points here though,
+they can be defined later using
+.Xr mount 8 .
 .It
-Use
-.Ar disklabel
-to edit your newly created label, adding appropriate partitions.
-.It
-Finally newfs the filesystem partitions you created in the label.  A typical
-disklabel partitioning scheme would be to have an
+Finally use
+.Xr newfs 8
+to create a filesystem on the new partition.
+A typical partitioning scheme would be to have an
 .Dq a
 partition
 of approximately 128MB to hold the root filesystem, a
@@ -762,7 +760,7 @@ and possibly
 .Pa /boot/boot2 .
 On-disk and in-core labels are unchanged.
 .Pp
-.Dl disklabel -w -B /dev/da0s1 -b newboot1 -s newboot da2212
+.Dl disklabel -w -B /dev/da0s1 -b newboot1 -s newboot2 da2212
 .Pp
 Install a new label and bootstrap.
 The label is derived from disktab information for
