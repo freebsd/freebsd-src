@@ -69,6 +69,7 @@ struct ucred;
 struct uio;
 struct vnode;
 struct netexport;
+struct ufs_extattr_per_mount;
 
 /* This structure describes the UFS specific mount structure data. */
 struct ufsmount {
@@ -86,6 +87,7 @@ struct ufsmount {
 
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
+	struct	ufs_extattr_per_mount um_extattr;	/* extended attrs */
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
 	u_long	um_seqinc;			/* inc between seq blocks */

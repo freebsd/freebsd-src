@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ffs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
@@ -53,6 +55,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
@@ -78,6 +81,10 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_balloc_desc,		(vop_t *) ffs_balloc },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
+#ifdef FFS_EXTATTR
+	{ &vop_getextattr_desc, 	(vop_t *) ufs_vop_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ufs_vop_setextattr },
+#endif
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_vnodeop_opv_desc =

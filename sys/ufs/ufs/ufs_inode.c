@@ -39,6 +39,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ffs.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>
@@ -46,6 +47,7 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
@@ -80,6 +82,9 @@ ufs_inactive(ap)
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, 0);
+#endif
+#ifdef FFS_EXTATTR
+		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_p);
 #endif
 		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
 		ip->i_rdev = 0;
