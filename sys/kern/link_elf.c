@@ -956,17 +956,19 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	const Elf_Sym* es;
 	const Elf_Sym* best = 0;
 	int i;
+	u_long st_value;
 
 	for (i = 0, es = ef->ddbsymtab; i < ef->ddbsymcnt; i++, es++) {
 		if (es->st_name == 0)
 			continue;
-		if (off >= es->st_value) {
-			if (off - es->st_value < diff) {
-				diff = off - es->st_value;
+		st_value = es->st_value + (u_long)ef->address;
+		if (off >= st_value) {
+			if (off - st_value < diff) {
+				diff = off - st_value;
 				best = es;
 				if (diff == 0)
 					break;
-			} else if (off - es->st_value == diff) {
+			} else if (off - st_value == diff) {
 				best = es;
 			}
 		}
