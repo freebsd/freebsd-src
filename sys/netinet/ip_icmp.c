@@ -110,6 +110,10 @@ static int	icmplim_output = 1;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
 	&icmplim_output, 0, "");
 
+static char	reply_src[IFNAMSIZ+1];
+SYSCTL_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_RW,
+	&reply_src, IFNAMSIZ, "icmp reply source for non-local packets.");
+
 /*
  * ICMP broadcast echo sysctl
  */
@@ -618,6 +622,7 @@ icmp_reflect(m)
 {
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
+	struct ifnet *ifn;
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
@@ -656,6 +661,20 @@ icmp_reflect(m)
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    t.s_addr)
 				goto match;
+		}
+	}
+	/*
+	 * If the incoming packet was not addressed directly to us, use
+	 * designated interface for icmp replies specified by sysctl
+	 * net.inet.icmp.reply_src (default not set). Otherwise continue
+	 * with normal source selection.
+	 */
+	if (reply_src[0] != '\0' && (ifn = ifunit(reply_src))) {
+		TAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ia = ifatoia(ifa);
+			goto match;
 		}
 	}
 	/* 
