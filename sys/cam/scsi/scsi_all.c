@@ -656,6 +656,10 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 		num_tables = 1;
 	}
 
+	/* RBC is 'Simplified' Direct Access Device */
+	if (pd_type == T_RBC)
+		pd_type = T_DIRECT;
+
 	opmask = 1 << pd_type;
 
 	for (j = 0; j < num_tables; j++) {
