@@ -5,6 +5,10 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011204:
+	sos added VCD/SVCD support to ata driver and that needs the
+	kernel and burncd to be in sync.
+
 20011203:
 	The procfs pseudo-filesystem has now been converted to use the
 	pseudofs framework.  If you have 'options PROCFS' in your
