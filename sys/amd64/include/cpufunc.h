@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.31 1995/01/04 20:42:25 davidg Exp $
+ *	$Id: cpufunc.h,v 1.32 1995/02/14 06:51:31 phk Exp $
  */
 
 /*
@@ -325,13 +325,13 @@ void	outsb		__P((u_int port, void *addr, size_t cnt));
 void	outsl		__P((u_int port, void *addr, size_t cnt));
 void	outsw		__P((u_int port, void *addr, size_t cnt));
 void	outw		__P((u_int port, u_short data));
-void	void pmap_update  __P((void));
+void	pmap_update	__P((void));
 u_long	read_eflags	__P((void));
 u_long	rcr2		__P((void));
 void	write_eflags	__P((u_long ef));
 
 void	insque		__P((void *a, void *b));
-void	remque		__P((void *a))
+void	remque		__P((void *a));
 
 #endif	/* __GNUC__ */
 
