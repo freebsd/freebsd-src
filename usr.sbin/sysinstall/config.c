@@ -212,7 +212,8 @@ configFstab(dialogMenuItem *self)
 			chunk_list[nchunks++] = c2;
 		}
 	    }
-	    else if ((c1->type == fat || c1->type == efi) && c1->private_data)
+	    else if (((c1->type == fat || c1->type == efi || c1->type == part) &&
+		    c1->private_data) || (c1->type == part && c1->subtype == FS_SWAP))
 		chunk_list[nchunks++] = c1;
 	}
     }
