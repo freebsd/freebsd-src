@@ -172,40 +172,33 @@ fifo_open(ap)
 	struct vnode *vp = ap->a_vp;
 	struct fifoinfo *fip;
 	struct thread *td = ap->a_td;
+	struct ucred *cred = ap->a_cred;
 	struct socket *rso, *wso;
 	int error;
 
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
-		vp->v_fifoinfo = fip;
-		error = socreate(AF_LOCAL, &rso, SOCK_STREAM, 0,
-		    ap->a_td->td_ucred, ap->a_td);
-		if (error) {
-			free(fip, M_VNODE);
-			vp->v_fifoinfo = NULL;
-			return (error);
-		}
+		error = socreate(AF_LOCAL, &rso, SOCK_STREAM, 0, cred, td);
+		if (error)
+			goto fail1;
 		fip->fi_readsock = rso;
-		error = socreate(AF_LOCAL, &wso, SOCK_STREAM, 0,
-		    ap->a_td->td_ucred, ap->a_td);
-		if (error) {
-			(void)soclose(rso);
-			free(fip, M_VNODE);
-			vp->v_fifoinfo = NULL;
-			return (error);
-		}
+		error = socreate(AF_LOCAL, &wso, SOCK_STREAM, 0, cred, td);
+		if (error)
+			goto fail2;
 		fip->fi_writesock = wso;
 		error = unp_connect2(wso, rso);
 		if (error) {
 			(void)soclose(wso);
+fail2:
 			(void)soclose(rso);
+fail1:
 			free(fip, M_VNODE);
-			vp->v_fifoinfo = NULL;
 			return (error);
 		}
 		fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
 		rso->so_state |= SS_CANTRCVMORE;
+		vp->v_fifoinfo = fip;
 	}
 
 	/*
@@ -233,6 +226,10 @@ fifo_open(ap)
 		}
 	}
 	if (ap->a_mode & FWRITE) {
+		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
+			VI_UNLOCK(vp);
+			return (ENXIO);
+		}
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
@@ -244,8 +241,8 @@ fifo_open(ap)
 			}
 		}
 	}
-	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
-		if (fip->fi_writers == 0) {
+	if ((ap->a_mode & O_NONBLOCK) == 0) {
+		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0, td);
 			error = msleep(&fip->fi_readers, VI_MTX(vp),
 			    PCATCH | PSOCK, "fifoor", 0);
@@ -263,36 +260,24 @@ fifo_open(ap)
 			 * that we must wait for.
 			 */
 		}
-	}
-	if (ap->a_mode & FWRITE) {
-		if (ap->a_mode & O_NONBLOCK) {
-			if (fip->fi_readers == 0) {
-				VI_UNLOCK(vp);
+		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
+			VOP_UNLOCK(vp, 0, td);
+			error = msleep(&fip->fi_writers, VI_MTX(vp),
+			    PCATCH | PSOCK, "fifoow", 0);
+			vn_lock(vp,
+			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+			if (error) {
 				fip->fi_writers--;
 				if (fip->fi_writers == 0)
 					socantrcvmore(fip->fi_readsock);
-				return (ENXIO);
+				return (error);
 			}
-		} else {
-			if (fip->fi_readers == 0) {
-				VOP_UNLOCK(vp, 0, td);
-				error = msleep(&fip->fi_writers, VI_MTX(vp),
-				    PCATCH | PSOCK, "fifoow", 0);
-				vn_lock(vp,
-				    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
-				if (error) {
-					fip->fi_writers--;
-					if (fip->fi_writers == 0)
-						socantrcvmore(fip->fi_readsock);
-					return (error);
-				}
-				/*
-				 * We must have got woken up because we had
-				 * a reader.  That (and not still having one)
-				 * is the condition that we must wait for.
-				 */
-				return (0);
-			}
+			/*
+			 * We must have got woken up because we had
+			 * a reader.  That (and not still having one)
+			 * is the condition that we must wait for.
+			 */
+			return (0);
 		}
 	}
 	VI_UNLOCK(vp);
