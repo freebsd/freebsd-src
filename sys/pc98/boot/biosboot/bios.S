@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.5 1995/09/03 05:36:13 julian Exp $
+ *	$Id: bios.S,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
  */
 
 /*
@@ -293,16 +293,16 @@ ENTRY(memsize)
 	cmpb	$0x01, %bl
 	jnz	memcnv
 memext:
-	movb	0x11401, %al
+	movb	0xA1401 - BOOTSEG * 0x10, %al
 	shll	$7, %eax
 	xorl	%ebx, %ebx
-	movw	0x11594, %bx
+	movw	0xA1594 - BOOTSEG * 0x10, %bx
 	shll	$10, %ebx
 	addl	%ebx, %eax
 	jmp	xdone
 
 memcnv:
-	movb	0x11501, %al
+	movb	0xA1501 - BOOTSEG * 0x10, %al
 	andb	$0x07, %al
 	incl	%eax
 	shll	$7, %eax
