@@ -274,8 +274,10 @@ struct	cmd {
 	{ "nwkey",	NEXTARG,	set80211nwkey },	/* NetBSD */
 	{ "-nwkey",	0,		set80211wep },		/* NetBSD */
 #endif
-	{ "hwcsum",	IFCAP_HWCSUM,	setifcap },
-	{ "-hwcsum",	-IFCAP_HWCSUM,	setifcap },
+	{ "rxcsum",	IFCAP_RXCSUM,	setifcap },
+	{ "-rxcsum",	-IFCAP_RXCSUM,	setifcap },
+	{ "txcsum",	IFCAP_TXCSUM,	setifcap },
+	{ "-txcsum",	-IFCAP_TXCSUM,	setifcap },
 	{ "netcons",	IFCAP_NETCONS,	setifcap },
 	{ "-netcons",	-IFCAP_NETCONS,	setifcap },
 	{ "normal",	-IFF_LINK0,	setifflags },
@@ -1116,7 +1118,7 @@ setiflladdr(val, dummy, s, afp)
 "\20MULTICAST"
 
 #define	IFCAPBITS \
-"\002\1hwcsum\2netcons"
+"\003\1rxcsum\2txcsum\3netcons"
 
 /*
  * Print the status of the interface.  If an address family was
