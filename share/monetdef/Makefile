@@ -49,11 +49,11 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
 LATIN15LINKS=	af_ZA da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US \
-		es_ES fi_FI fr_CA fr_CH fr_FR is_IS is_IS it_IT \
+		es_ES fi_FI fr_CA fr_CH fr_FR is_IS is_IS it_IT it_CH \
 		nl_NL no_NO pt_PT sv_SE
 
 CHSRC=		de_CH
-CHLINKS=	fr_CH
+CHLINKS=	fr_CH it_CH
 
 .SUFFIXES: .src .out
 
