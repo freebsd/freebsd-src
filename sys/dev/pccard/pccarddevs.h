@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.75 2003/10/26 20:09:18 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.76 2003/10/26 22:22:34 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -604,6 +604,9 @@
 #define	PCMCIA_CIS_OLICOM_OC2220	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_OLICOM_OC2220	0x2022
 #define	PCMCIA_STR_OLICOM_OC2220	"GoCard Ethernet"
+#define	PCMCIA_CIS_OLICOM_OC2231	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_OLICOM_OC2231	0x3122
+#define	PCMCIA_STR_OLICOM_OC2231	"GoCard Combo Eth/Modem 288"
 #define	PCMCIA_CIS_OLICOM_OC2232	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_OLICOM_OC2232	0x3222
 #define	PCMCIA_STR_OLICOM_OC2232	"GoCard Combo Eth/Modem 336"
