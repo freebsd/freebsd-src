@@ -157,7 +157,7 @@ rm_tree(argv)
 	 */
 #define	SKIPPED	1
 
-	flags = FTS_PHYSICAL | FTS_NOCHDIR;
+	flags = FTS_PHYSICAL;
 	if (!needstat)
 		flags |= FTS_NOSTAT;
 	if (Wflag)
