@@ -73,6 +73,7 @@ getstr (lineptr, n, stream, terminator, offset, limit)
 	  errno = ENOMEM;
 	  return -1;
 	}
+      *lineptr[0] = '\0';
     }
 
   nchars_avail = *n - offset;

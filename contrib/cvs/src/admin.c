@@ -31,12 +31,12 @@ static const char *const admin_usage[] =
     "\t           (all names if omitted).\n",
     "\t-I         Run interactively.\n",
     "\t-k subst   Set keyword substitution mode:\n",
-    "\t   kv   (Default) Substitue keyword and value.\n",
-    "\t   kvl  Substitue keyword, value, and locker (if any).\n",
-    "\t   k    Substitue keyword only.\n",
+    "\t   kv   (Default) Substitute keyword and value.\n",
+    "\t   kvl  Substitute keyword, value, and locker (if any).\n",
+    "\t   k    Substitute keyword only.\n",
     "\t   o    Preserve original string.\n",
     "\t   b    Like o, but mark file as binary.\n",
-    "\t   v    Substitue value only.\n",
+    "\t   v    Substitute value only.\n",
     "\t-l[rev]    Lock revision (latest revision on branch,\n",
     "\t           latest revision on trunk if omitted).\n",
     "\t-L         Set strict locking.\n",
@@ -169,7 +169,7 @@ admin (argc, argv)
     while ((c = getopt (argc, argv,
 			"+ib::c:a:A:e::l::u::LUn:N:m:o:s:t::IqxV:k:")) != -1)
     {
-	if (c != 'k')
+	if (c != 'k' && c != 'q')
 	    only_k_option = 0;
 
 	switch (c)

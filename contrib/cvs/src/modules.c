@@ -657,19 +657,19 @@ module `%s' is a request for a file in a module which is not a directory",
     }
 #endif
 
-    /* write out the checkin/update prog files if necessary */
-#ifdef SERVER_SUPPORT
-    if (err == 0 && !noexec && m_type == CHECKOUT && server_expanding)
-    {
-	if (checkin_prog != NULL)
-	    server_prog (where ? where : mname, checkin_prog, PROG_CHECKIN);
-	if (update_prog != NULL)
-	    server_prog (where ? where : mname, update_prog, PROG_UPDATE);
-    }
-    else
-#endif
+    /* run/write out the checkin/update prog files if necessary */
     if (err == 0 && !noexec && m_type == CHECKOUT && run_module_prog)
     {
+#ifdef SERVER_SUPPORT
+	if (server_active) {
+	    if (checkin_prog != NULL)
+		server_prog (where ? where : mwhere ? mwhere : mname, checkin_prog, PROG_CHECKIN);
+	    if (update_prog != NULL)
+		server_prog (where ? where : mwhere ? mwhere : mname, update_prog, PROG_UPDATE);
+	}
+	else
+	{
+#endif
 	FILE *fp;
 
 	if (checkin_prog != NULL)
@@ -686,6 +686,9 @@ module `%s' is a request for a file in a module which is not a directory",
 	    if (fclose (fp) == EOF)
 		error (1, errno, "cannot close %s", CVSADM_UPROG);
 	}
+#ifdef SERVER_SUPPORT
+	}
+#endif
     }
 
     /* cd back to where we started */

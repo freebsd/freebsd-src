@@ -55,7 +55,7 @@ for vfile in *,v; do
 		exit
 	fi
         # get file into current dir and get stats
-        date=`rlog -r$rev $file | grep "^date: " | awk '{print $2; exit}' | sed -e 's/^19//'`
+        date=`rlog -r$rev $file | grep "^date: " | awk '{print $2; exit}' | sed -e 's/^19\|^20//'`
         time=`rlog -r$rev $file | grep "^date: " | awk '{print $3; exit}' | sed -e 's/;//'`
         author=`rlog -r$rev $file | grep "^date: " | awk '{print $5; exit}' | sed -e 's/;//'`
 	date="$date $time"

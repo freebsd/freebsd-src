@@ -1,18 +1,30 @@
 dnl configure.in for cvs
 AC_INIT(src/cvs.h)
-AM_INIT_AUTOMAKE(cvs, 1.11.1p1)
+AM_INIT_AUTOMAKE(cvs, 1.11.2)
 AC_PREREQ(2.13)
 AC_PREFIX_PROGRAM(cvs)
 AM_CONFIG_HEADER(config.h src/options.h)
 
-AC_PROG_AWK
 AC_PROG_CC
-AC_PROG_INSTALL
-AC_PROG_MAKE_SET
-# Automake's more advanced version of AC_PROG_RANLIB
+AM_PROG_CC_C_O
+
+dnl FIXME the next three calls should be avoided according to autoconf
+dnl philosophy.  for example, AC_CHECK_LIB should be used to look for crypt.
+dnl
+dnl These are here instead of later because they want to be called before
+dnl anything that calls a C compiler.
+AC_AIX
+AC_MINIX
+AC_ISC_POSIX
+if test "$ISC" = yes; then
+CFLAGS="$CFLAGS -D_SYSV3"
+LIBS="-lcrypt $LIBS"
+fi
+
 AC_PROG_RANLIB
 AC_PROG_YACC
 AC_PROG_LN_S
+AC_EXEEXT
 
 AC_PATH_PROG(PERL, perl, no)
 AC_PATH_PROG(CSH, csh, no)
@@ -26,6 +38,9 @@ dnl FIXME This is truly gross.
 missing_dir=`cd $ac_aux_dir && pwd`
 dnl FIXME I pulled this default list from sanity.sh.  Perhaps these lists
 dnl can be stored in one location?
+dnl
+dnl Yeah, put the value in a variable add it to the substitution list
+dnl then have configure create sanity.sh from sanity.sh.in...
 glocs="$PATH:/usr/local/bin:/usr/contrib/bin:/usr/gnu/bin:/local/bin:/local/gnu/bin:/gnu/bin"
 AC_PATH_PROGS(ROFF, groff roff, $missing_dir/missing roff, $glocs)
 AC_PATH_PROG(PS2PDF, ps2pdf, $missing_dir/missing ps2pdf)
@@ -66,21 +81,29 @@ AM_CONDITIONAL(MAKE_TARGETS_IN_VPATH, \
 		test $ccvs_cv_bsd_make_vpath_bug = no \
 		|| test $srcdir = .)
 
-AC_AIX
-AC_MINIX
-AC_ISC_POSIX
-if test "$ISC" = yes; then
-CFLAGS="$CFLAGS -D_SYSV3"
-LIBS="-lcrypt $LIBS"
-fi
-
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(errno.h unistd.h string.h memory.h utime.h fcntl.h ndbm.h \
-		 limits.h sys/file.h \
-                 sys/param.h sys/select.h sys/time.h sys/timeb.h \
-                 io.h direct.h sys/bsdtypes.h sys/resource.h syslog.h)
+AC_CHECK_HEADERS(\
+	errno.h \
+	direct.h \
+	fcntl.h \
+	io.h \
+	limits.h \
+	memory.h \
+	ndbm.h \
+	string.h \
+	syslog.h \
+	sys/bsdtypes.h \
+	sys/file.h \
+	sys/param.h \
+	sys/resource.h \
+	sys/select.h \
+	sys/time.h \
+	sys/timeb.h \
+	unistd.h \
+	utime.h\
+)
 AC_HEADER_STAT
 AC_HEADER_TIME
 
@@ -93,7 +116,17 @@ AC_TYPE_SIGNAL
 
 AC_STRUCT_ST_BLKSIZE
 AC_STRUCT_ST_RDEV
-AC_REPLACE_FUNCS(mkdir rename strstr dup2 strerror valloc waitpid memmove strtoul)
+AC_REPLACE_FUNCS(\
+	dup2 \
+	memmove \
+	mkdir \
+	rename \
+	strerror \
+	strstr \
+	strtoul\
+	valloc \
+	waitpid \
+)
 AC_CHECK_FUNCS(\
 	fchdir \
 	fchmod \
@@ -173,6 +206,9 @@ AC_FUNC_FNMATCH
 if test "$ac_cv_func_fnmatch_works" = no; then
   LIBOBJS="$LIBOBJS fnmatch.o"
 fi
+
+dnl for the buffer routine replacements
+AC_FUNC_MMAP
 
 # Try to find connect and gethostbyname.
 AC_CHECK_LIB(nsl, main,
@@ -319,6 +355,11 @@ dnl Windows support code in lib/fncase.c to handle the case
 dnl insensitive file system.  We also need some support libraries.  We
 dnl do this at the end so that the new libraries are added at the end
 dnl of LIBS.
+dnl
+dnl FIXME: We should be trying to meet the autoconf ideal of checking for
+dnl the properties of the system rather than the name of the os here.  In other
+dnl words, we should check the case sensitivty of the system and then for
+dnl the support functions we are using and which library we find them in.
 AC_CACHE_CHECK(for cygwin32, ccvs_cv_sys_cygwin32,
 [AC_TRY_COMPILE([], [return __CYGWIN32__;],
 ccvs_cv_sys_cygwin32=yes, ccvs_cv_sys_cygwin32=no)])
@@ -345,6 +386,7 @@ test -f src/options.h && (
 )
 
 AC_OUTPUT([Makefile \
+	  cvs.spec \
 	  contrib/Makefile \
 	  contrib/clmerge \
 	  contrib/cln_hist \
@@ -353,6 +395,7 @@ AC_OUTPUT([Makefile \
 	  contrib/log \
 	  contrib/log_accum \
 	  contrib/mfpipe \
+	  contrib/pvcs2rcs \
 	  contrib/rcslock \
 	  contrib/sccs2rcs \
 	  diff/Makefile \
@@ -363,12 +406,13 @@ AC_OUTPUT([Makefile \
 	  os2/Makefile \
 	  src/Makefile \
 	  src/cvsbug \
+	  src/version.h \
 	  tools/Makefile \
 	  vms/Makefile \
 	  windows-NT/Makefile \
 	  windows-NT/SCC/Makefile \
 	  zlib/Makefile],
-	  [chmod -f +x \
+	  [chmod +x \
 	  contrib/clmerge \
 	  contrib/cln_hist \
 	  contrib/commit_prep \
@@ -376,6 +420,7 @@ AC_OUTPUT([Makefile \
 	  contrib/log \
 	  contrib/log_accum \
 	  contrib/mfpipe \
+	  contrib/pvcs2rcs \
 	  contrib/rcslock \
 	  contrib/sccs2rcs \
 	  src/cvsbug])
