@@ -38,8 +38,10 @@
 
 #ifdef LOCALRAD
 #include "radlib.h"
+#include "radlib_vs.h"
 #else
 #include <radlib.h>
+#include <radlib_vs.h>
 #endif
 
 #include <errno.h>
@@ -86,6 +88,16 @@
 #include "datalink.h"
 #include "ncp.h"
 #include "bundle.h"
+#include "proto.h"
+
+#ifndef NODES
+struct mschap_request {
+  u_char ident;
+  u_char flags;
+  u_char lm_response[24];
+  u_char nt_response[24];
+};
+#endif
 
 /*
  * rad_continue_send_request() has given us `got' (non-zero).  Deal with it.
@@ -95,13 +107,13 @@ radius_Process(struct radius *r, int got)
 {
   char *argv[MAXARGS], *nuke;
   struct bundle *bundle;
-  int argc, addrs, width;
+  int argc, addrs, res, width;
   size_t len;
   struct ncprange dest;
   struct ncpaddr gw;
   const void *data;
   const char *stype;
-  u_int32_t ipaddr;
+  u_int32_t ipaddr, vendor;
   struct in_addr ip;
 
   r->cx.fd = -1;		/* Stop select()ing */
@@ -118,10 +130,11 @@ radius_Process(struct radius *r, int got)
 
     case RAD_ACCESS_REJECT:
       log_Printf(LogPHASE, "Radius(%s): REJECT received\n", stype);
-      if (r->cx.auth)
-        auth_Failure(r->cx.auth);
-      rad_close(r->cx.rad);
-      return;
+      if (!r->cx.auth) {
+        rad_close(r->cx.rad);
+        return;
+      }
+      break;
 
     case RAD_ACCESS_CHALLENGE:
       /* we can't deal with this (for now) ! */
@@ -156,40 +169,41 @@ radius_Process(struct radius *r, int got)
       return;
   }
 
-  /* So we've been accepted !  Let's see what we've got in our reply :-I */
+  /* Let's see what we've got in our reply */
   r->ip.s_addr = r->mask.s_addr = INADDR_NONE;
   r->mtu = 0;
   r->vj = 0;
-  while ((got = rad_get_attr(r->cx.rad, &data, &len)) > 0) {
-    switch (got) {
+  while ((res = rad_get_attr(r->cx.rad, &data, &len)) > 0) {
+    switch (res) {
       case RAD_FRAMED_IP_ADDRESS:
         r->ip = rad_cvt_addr(data);
-        log_Printf(LogPHASE, "        IP %s\n", inet_ntoa(r->ip));
+        log_Printf(LogPHASE, " IP %s\n", inet_ntoa(r->ip));
         break;
 
       case RAD_FILTER_ID:
         free(r->filterid);
         if ((r->filterid = rad_cvt_string(data, len)) == NULL) {
           log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(r->cx.rad));
+          auth_Failure(r->cx.auth);
           rad_close(r->cx.rad);
           return;
         }
-        log_Printf(LogPHASE, "        Filter \"%s\"\n", r->filterid);
+        log_Printf(LogPHASE, " Filter \"%s\"\n", r->filterid);
         break;
 
       case RAD_SESSION_TIMEOUT:
         r->sessiontime = rad_cvt_int(data);
-        log_Printf(LogPHASE, "        Session-Timeout %lu\n", r->sessiontime);
+        log_Printf(LogPHASE, " Session-Timeout %lu\n", r->sessiontime);
         break;
 
       case RAD_FRAMED_IP_NETMASK:
         r->mask = rad_cvt_addr(data);
-        log_Printf(LogPHASE, "        Netmask %s\n", inet_ntoa(r->mask));
+        log_Printf(LogPHASE, " Netmask %s\n", inet_ntoa(r->mask));
         break;
 
       case RAD_FRAMED_MTU:
         r->mtu = rad_cvt_int(data);
-        log_Printf(LogPHASE, "        MTU %lu\n", r->mtu);
+        log_Printf(LogPHASE, " MTU %lu\n", r->mtu);
         break;
 
       case RAD_FRAMED_ROUTING:
@@ -201,7 +215,7 @@ radius_Process(struct radius *r, int got)
 
       case RAD_FRAMED_COMPRESSION:
         r->vj = rad_cvt_int(data) == 1 ? 1 : 0;
-        log_Printf(LogPHASE, "        VJ %sabled\n", r->vj ? "en" : "dis");
+        log_Printf(LogPHASE, " VJ %sabled\n", r->vj ? "en" : "dis");
         break;
 
       case RAD_FRAMED_ROUTE:
@@ -214,11 +228,12 @@ radius_Process(struct radius *r, int got)
 
         if ((nuke = rad_cvt_string(data, len)) == NULL) {
           log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(r->cx.rad));
+          auth_Failure(r->cx.auth);
           rad_close(r->cx.rad);
           return;
         }
 
-        log_Printf(LogPHASE, "        Route: %s\n", nuke);
+        log_Printf(LogPHASE, " Route: %s\n", nuke);
         bundle = r->cx.auth->physical->dl->bundle;
         ip.s_addr = INADDR_ANY;
         ncprange_setip4host(&dest, ip);
@@ -258,19 +273,73 @@ radius_Process(struct radius *r, int got)
         }
         free(nuke);
         break;
+
+      case RAD_REPLY_MESSAGE:
+        free(r->repstr);
+        if ((r->repstr = rad_cvt_string(data, len)) == NULL) {
+          log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(r->cx.rad));
+          auth_Failure(r->cx.auth);
+          rad_close(r->cx.rad);
+          return;
+        }
+        log_Printf(LogPHASE, " Reply-Message \"%s\"\n", r->repstr);
+        break;
+
+      case RAD_VENDOR_SPECIFIC:
+        if ((res = rad_get_vendor_attr(&vendor, &data, &len)) <= 0) {
+          log_Printf(LogERROR, "rad_get_vendor_attr: %s (failing!)\n",
+                     rad_strerror(r->cx.rad));
+          auth_Failure(r->cx.auth);
+          rad_close(r->cx.rad);
+          return;
+        }
+
+	switch (vendor) {
+          case RAD_VENDOR_MICROSOFT:
+            switch (res) {
+              case RAD_MICROSOFT_MS_CHAP_ERROR:
+                free(r->errstr);
+                if ((r->errstr = rad_cvt_string(data, len)) == NULL) {
+                  log_Printf(LogERROR, "rad_cvt_string: %s\n",
+                             rad_strerror(r->cx.rad));
+                  auth_Failure(r->cx.auth);
+                  rad_close(r->cx.rad);
+                  return;
+                }
+                log_Printf(LogPHASE, " MS-CHAP-Error \"%s\"\n", r->errstr);
+                break;
+ 
+              default:
+                log_Printf(LogDEBUG, "Dropping MICROSOFT vendor specific "
+                           "RADIUS attribute %d\n", res);
+                break;
+            }
+            break;
+
+          default:
+            log_Printf(LogDEBUG, "Dropping vendor %lu RADIUS attribute %d\n",
+                       (unsigned long)vendor, res);
+            break;
+        }
+        break;
+
+      default:
+        log_Printf(LogDEBUG, "Dropping RADIUS attribute %d\n", res);
+        break;
     }
   }
 
-  if (got == -1) {
+  if (res == -1) {
     log_Printf(LogERROR, "rad_get_attr: %s (failing!)\n",
                rad_strerror(r->cx.rad));
     auth_Failure(r->cx.auth);
-    rad_close(r->cx.rad);
-  } else {
+  } else if (got == RAD_ACCESS_REJECT)
+    auth_Failure(r->cx.auth);
+  else {
     r->valid = 1;
     auth_Success(r->cx.auth);
-    rad_close(r->cx.rad);
   }
+  rad_close(r->cx.rad);
 }
 
 /*
@@ -358,15 +427,24 @@ radius_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 void
 radius_Init(struct radius *r)
 {
-  r->valid = 0;
-  r->cx.fd = -1;
-  *r->cfg.file = '\0';;
   r->desc.type = RADIUS_DESCRIPTOR;
   r->desc.UpdateSet = radius_UpdateSet;
   r->desc.IsSet = radius_IsSet;
   r->desc.Read = radius_Read;
   r->desc.Write = radius_Write;
+  r->cx.fd = -1;
+  r->cx.rad = NULL;
   memset(&r->cx.timer, '\0', sizeof r->cx.timer);
+  r->cx.auth = NULL;
+  r->valid = 0;
+  r->vj = 0;
+  r->ip.s_addr = INADDR_ANY;
+  r->mask.s_addr = INADDR_NONE;
+  r->routes = NULL;
+  r->mtu = DEF_MTU;
+  r->repstr = NULL;
+  r->errstr = NULL;
+  *r->cfg.file = '\0';;
   log_Printf(LogDEBUG, "Radius: radius_Init\n");
 }
 
@@ -382,6 +460,10 @@ radius_Destroy(struct radius *r)
   route_DeleteAll(&r->routes);
   free(r->filterid);
   r->filterid = NULL;
+  free(r->repstr);
+  r->repstr = NULL;
+  free(r->errstr);
+  r->errstr = NULL;
   if (r->cx.fd != -1) {
     r->cx.fd = -1;
     rad_close(r->cx.rad);
@@ -401,6 +483,9 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   char hostname[MAXHOSTNAMELEN];
   struct hostent *hp;
   struct in_addr hostaddr;
+#ifndef NODES
+  struct mschap_request msreq;
+#endif
 
   if (!*r->cfg.file)
     return;
@@ -439,20 +524,54 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     return;
   }
 
-  if (challenge != NULL) {
-    /* We're talking CHAP */
-    if (rad_put_attr(r->cx.rad, RAD_CHAP_PASSWORD, key, klen) != 0 ||
-        rad_put_attr(r->cx.rad, RAD_CHAP_CHALLENGE, challenge, clen) != 0) {
-      log_Printf(LogERROR, "CHAP: rad_put_string: %s\n",
+  switch (authp->physical->link.lcp.want_auth) {
+  case PROTO_PAP:
+    /* We're talking PAP */
+    if (rad_put_attr(r->cx.rad, RAD_USER_PASSWORD, key, klen) != 0) {
+      log_Printf(LogERROR, "PAP: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
       return;
     }
-  } else if (rad_put_attr(r->cx.rad, RAD_USER_PASSWORD, key, klen) != 0) {
-    /* We're talking PAP */
-    log_Printf(LogERROR, "PAP: rad_put_string: %s\n", rad_strerror(r->cx.rad));
-    rad_close(r->cx.rad);
-    return;
+    break;
+
+  case PROTO_CHAP:
+    switch (authp->physical->link.lcp.want_authtype) {
+    case 0x5:
+      if (rad_put_attr(r->cx.rad, RAD_CHAP_PASSWORD, key, klen) != 0 ||
+          rad_put_attr(r->cx.rad, RAD_CHAP_CHALLENGE, challenge, clen) != 0) {
+        log_Printf(LogERROR, "CHAP: rad_put_string: %s\n",
+                   rad_strerror(r->cx.rad));
+        rad_close(r->cx.rad);
+        return;
+      }
+      break;
+
+#ifndef NODES
+    case 0x80:
+      if (klen != 50) {
+        log_Printf(LogERROR, "CHAP80: Unrecognised length %d\n", klen);
+        rad_close(r->cx.rad);
+        return;
+      }
+      rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
+                          RAD_MICROSOFT_MS_CHAP_CHALLENGE, challenge, clen);
+      msreq.ident = *key;
+      msreq.flags = 0x01;
+      memcpy(msreq.lm_response, key + 1, 24);
+      memcpy(msreq.nt_response, key + 25, 24);
+      rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
+                          RAD_MICROSOFT_MS_CHAP_RESPONSE, &msreq, 50);
+      break;
+
+    case 0x81:
+#endif
+    default:
+      log_Printf(LogERROR, "CHAP: Unrecognised type 0x%02x\n", 
+                 authp->physical->link.lcp.want_authtype);
+      rad_close(r->cx.rad);
+      return;
+    }
   }
 
   if (gethostname(hostname, sizeof hostname) != 0)
@@ -481,7 +600,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     for (slot = 1; (ttyp = getttyent()); ++slot)
       if (!strcmp(ttyp->ty_name, authp->physical->name.base)) {
         if (rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
-          log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+          log_Printf(LogERROR, "rad_put: rad_put_int: %s\n",
                       rad_strerror(r->cx.rad));
           rad_close(r->cx.rad);
           endttyent();
@@ -490,6 +609,11 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
         break;
       }
     endttyent();
+  } else if (rad_put_int(r->cx.rad, RAD_NAS_PORT, 0) != 0) {
+    log_Printf(LogERROR, "rad_put: rad_put_int: %s\n",
+                rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
   }
 
 
@@ -673,6 +797,8 @@ radius_Show(struct radius *r, struct prompt *p)
     prompt_Printf(p, "           Netmask: %s\n", inet_ntoa(r->mask));
     prompt_Printf(p, "               MTU: %lu\n", r->mtu);
     prompt_Printf(p, "                VJ: %sabled\n", r->vj ? "en" : "dis");
+    prompt_Printf(p, "           Message: %s\n", r->repstr ? r->repstr : "");
+    prompt_Printf(p, "     Error Message: %s\n", r->errstr ? r->errstr : "");
     if (r->routes)
       route_ShowSticky(p, r->routes, "            Routes", 16);
   } else
