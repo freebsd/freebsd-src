@@ -105,9 +105,10 @@ __FBSDID("$FreeBSD$");
 
 struct puc_device {
 	struct resource_list resources;
+	int	port;
+	int	regshft;
 	u_int	serialfreq;
 	u_int	subtype;
-	int	regshft;
 };
 
 static void puc_intr(void *arg);
@@ -331,6 +332,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 			    &rle->res->r_bushandle);
 		}
 
+		pdev->port = i + 1;
 		pdev->serialfreq = sc->sc_desc.ports[i].serialfreq;
 		pdev->subtype = sc->sc_desc.ports[i].type &
 		    PUC_PORT_SUBTYPE_MASK;
@@ -598,11 +600,14 @@ puc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	case PUC_IVAR_FREQ:
 		*result = pdev->serialfreq;
 		break;
-	case PUC_IVAR_SUBTYPE:
-		*result = pdev->subtype;
+	case PUC_IVAR_PORT:
+		*result = pdev->port;
 		break;
 	case PUC_IVAR_REGSHFT:
 		*result = pdev->regshft;
+		break;
+	case PUC_IVAR_SUBTYPE:
+		*result = pdev->subtype;
 		break;
 	default:
 		return (ENOENT);
