@@ -86,7 +86,7 @@ static const char rcsid[] =
  *
  * We make TABSIZE large to reduce the overhead of inner loop setup.
  */
-char table[TABSIZE];	 /* Eratosthenes sieve of odd numbers */
+static char table[TABSIZE];	 /* Eratosthenes sieve of odd numbers */
 
 /*
  * prime[i] is the (i-1)th prime.
@@ -103,18 +103,16 @@ extern ubig *pr_limit;		/* largest prime in the prime array */
  * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
  */
 extern char pattern[];
-extern int pattern_size;	/* length of pattern array */
+extern size_t pattern_size;	/* length of pattern array */
 
-int	hflag;
+static int	hflag;
 
-void	primes(ubig, ubig);
-ubig	read_num_buf(void);
-void	usage(void);
+static void	primes(ubig, ubig);
+static ubig	read_num_buf(void);
+static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	ubig start;		/* where to start generating */
 	ubig stop;		/* don't generate at or above this value */
@@ -184,15 +182,15 @@ main(argc, argv)
 	if (start > stop)
 		errx(1, "start value must be less than stop value.");
 	primes(start, stop);
-	exit(0);
+	return (0);
 }
 
 /*
  * read_num_buf --
  *	This routine returns a number n, where 0 <= n && n <= BIG.
  */
-ubig
-read_num_buf()
+static ubig
+read_num_buf(void)
 {
 	ubig val;
 	char *p, buf[100];		/* > max number of digits. */
@@ -221,10 +219,8 @@ read_num_buf()
 /*
  * primes - sieve and print primes from start up to and but not including stop
  */
-void
-primes(start, stop)
-	ubig start;	/* where to start generating */
-	ubig stop;	/* don't generate at or above this value */
+static void
+primes(ubig start, ubig stop)
 {
 	char *q;		/* sieve spot */
 	ubig factor;		/* index and factor */
@@ -334,8 +330,8 @@ primes(start, stop)
 	}
 }
 
-void
-usage()
+static void
+usage(void)
 {
 	(void)fprintf(stderr, "usage: primes [-h] [start [stop]]\n");
 	exit(1);
