@@ -18,3 +18,17 @@ e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scr
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_x86_64_path} \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    "${NATIVE_EMULATION}" "" ${NATIVE_EMULATION} "${TARGET_TUPLE}"
+
+X86_EMULATION=	elf_i386_fbsd
+_i386_path=	\"${TOOLS_PREFIX}/usr/lib/i386\"
+EMS+=		${X86_EMULATION}
+LDSCRIPTS+=	${X86_EMULATION}.x ${X86_EMULATION}.xbn ${X86_EMULATION}.xn ${X86_EMULATION}.xr \
+		${X86_EMULATION}.xs ${X86_EMULATION}.xu ${X86_EMULATION}.xc ${X86_EMULATION}.xsc
+SRCS+=		e${X86_EMULATION}.c
+CLEANFILES+=	e${X86_EMULATION}.c
+
+e${X86_EMULATION}.c: emulparams/${X86_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
+    genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_i386_path} \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    "${X86_EMULATION}" "" ${X86_EMULATION} "${TARGET_TUPLE}"
