@@ -73,7 +73,7 @@ OBJCOPY?=	objcopy
 .if ${CC} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .endif
-CFLAGS+=	${COPTS} -D_KERNEL
+CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
