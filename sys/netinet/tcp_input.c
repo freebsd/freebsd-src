@@ -319,7 +319,7 @@ present:
 		if (so->so_state & SS_CANTRCVMORE)
 			m_freem(q->tqe_m);
 		else
-			sbappend(&so->so_rcv, q->tqe_m);
+			sbappendstream(&so->so_rcv, q->tqe_m);
 		free(q, M_TSEGQ);
 		tcp_reass_qsize--;
 		q = nq;
@@ -1072,7 +1072,7 @@ after_listen:
 				m_freem(m);
 			} else {
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
-				sbappend(&so->so_rcv, m);
+				sbappendstream(&so->so_rcv, m);
 			}
 			sorwakeup(so);
 			if (DELAY_ACK(tp)) {
@@ -2092,7 +2092,7 @@ dodata:							/* XXX */
 			if (so->so_state & SS_CANTRCVMORE)
 				m_freem(m);
 			else
-				sbappend(&so->so_rcv, m);
+				sbappendstream(&so->so_rcv, m);
 			sorwakeup(so);
 		} else {
 			thflags = tcp_reass(tp, th, &tlen, m);

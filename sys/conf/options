@@ -509,6 +509,8 @@ PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 # Polling device handling
 DEVICE_POLLING		opt_global.h
 
+SOCKBUF_DEBUG		opt_global.h
+
 # options for ubsec driver
 UBSEC_DEBUG		opt_ubsec.h
 UBSEC_RNDTEST		opt_ubsec.h

@@ -92,6 +92,9 @@ struct socket {
 		u_long	sb_mbmax;	/* max chars of mbufs to use */
 		long	sb_lowat;	/* low water mark */
 		struct	mbuf *sb_mb;	/* the mbuf chain */
+		struct	mbuf *sb_mbtail; /* the last mbuf in the chain */
+		struct	mbuf *sb_lastrecord;	/* first mbuf of last record in
+						 * socket buffer */
 		struct	selinfo sb_sel;	/* process selecting read/write */
 		short	sb_flags;	/* flags, see below */
 		short	sb_timeo;	/* timeout for read/write */
@@ -119,6 +122,13 @@ struct socket {
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
 };
+
+#define SB_EMPTY_FIXUP(sb) do {						\
+	if ((sb)->sb_mb == NULL) {					\
+		(sb)->sb_mbtail = NULL;					\
+		(sb)->sb_lastrecord = NULL;				\
+	}								\
+} while (/*CONSTCOND*/0)
 
 /*
  * Socket state bits.
@@ -330,6 +340,7 @@ int	holdsock __P((struct filedesc *fdp, int fdes, struct file **fpp));
 int	sockargs __P((struct mbuf **mp, caddr_t buf, int buflen, int type));
 int	getsockaddr __P((struct sockaddr **namp, caddr_t uaddr, size_t len));
 void	sbappend __P((struct sockbuf *sb, struct mbuf *m));
+void	sbappendstream(struct sockbuf *sb, struct mbuf *m);
 int	sbappendaddr __P((struct sockbuf *sb, struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control));
 int	sbappendcontrol __P((struct sockbuf *sb, struct mbuf *m0,
@@ -406,6 +417,18 @@ void	sowakeup __P((struct socket *so, struct sockbuf *sb));
 int	accept_filt_add __P((struct accept_filter *filt));
 int	accept_filt_del __P((char *name));
 struct accept_filter *	accept_filt_get __P((char *name));
+
+#ifdef SOCKBUF_DEBUG
+void	sblastrecordchk(struct sockbuf *, const char *, int);
+#define	SBLASTRECORDCHK(sb)	sblastrecordchk((sb), __FILE__, __LINE__)
+
+void	sblastmbufchk(struct sockbuf *, const char *, int);
+#define	SBLASTMBUFCHK(sb)	sblastmbufchk((sb), __FILE__, __LINE__)
+#else
+#define	SBLASTRECORDCHK(sb)      /* nothing */
+#define	SBLASTMBUFCHK(sb)        /* nothing */
+#endif /* SOCKBUF_DEBUG */
+
 #ifdef ACCEPT_FILTER_MOD
 int accept_filt_generic_mod_event __P((module_t mod, int event, void *data));
 SYSCTL_DECL(_net_inet_accf);
