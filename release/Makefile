@@ -195,20 +195,10 @@ MFSLABEL=		minimum3
 BIGBOOTLABEL=		minimum2
 .endif
 .elif ${TARGET_ARCH} == "alpha"
-DRIVERSIZE=		1440
-BOOTSIZE=		1440
-FIXITSIZE=		2880
 MFSSIZE=		4320
-BIGBOOTSIZE=		2880
-DRIVERINODE=		40000
-BOOTINODE=		80000
-FIXITINODE=		40000
 MFSINODE=		8000
-DRIVERLABEL=		fd1440
-BOOTLABEL=		fd1440
-FIXITLABEL=		minimum2
 MFSLABEL=		auto
-BIGBOOTLABEL=		minimum2
+NO_FLOPPIES=
 .elif ${TARGET_ARCH} == "sparc64"
 DISKLABEL=		sunlabel
 BIGBOOTSIZE=		4096
@@ -711,9 +701,6 @@ release.9:
 .endif
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
-.if ${TARGET_ARCH} == "alpha" && !defined(NO_FLOPPIES)
-	rm -rf ${RD}/mfsfd/stand/help/*
-.endif
 	@mkdir -p ${RD}/mfsroot
 .if defined(SMALLBOOTSIZE)
 .if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
