@@ -1,4 +1,4 @@
-/*	$NetBSD: param.h,v 1.1 2002/01/18 20:39:24 thorpej Exp $	*/
+/*	$NetBSD: param.h,v 1.2 2002/02/05 03:04:26 thorpej Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -67,11 +67,9 @@
 #define WCHAR	INT
 
 /*
- * long double only in ANSI C.
- *
  * And the sparc64 long double code generation is broken.
  */
-#if !defined(__sparc64__) && defined(__STDC__)
+#if !defined(__sparc64__)
 typedef	long double ldbl_t;
 #else
 typedef	double	ldbl_t;
@@ -80,9 +78,4 @@ typedef	double	ldbl_t;
 /*
  * Some traditional compilers are not able to assign structures.
  */
-#ifdef __STDC__
 #define STRUCT_ASSIGN(dest, src)	(dest) = (src)
-#else
-#define STRUCT_ASSIGN(dest, src)	(void)memcpy(&(dest), &(src), \
-						     sizeof (dest));
-#endif
