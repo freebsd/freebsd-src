@@ -122,4 +122,9 @@ struct ioc_alloc_unit {
  */
 #define TARGCTLIOALLOCUNIT	_IOWR('C', 7, struct ioc_alloc_unit)
 #define TARGCTLIOFREEUNIT	_IOW('C', 8, struct ioc_alloc_unit)
+
+/*
+ * Set/clear debugging for this target mode instance
+ */
+#define	TARGIODEBUG		_IOW('C', 9, int)
 #endif /* _CAM_SCSI_SCSI_TARGETIO_H_ */

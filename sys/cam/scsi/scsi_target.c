@@ -489,7 +489,7 @@ targctor(struct cam_periph *periph, void *arg)
 	softc->inq_data->version = 2;
 	softc->inq_data->response_format = 2; /* SCSI2 Inquiry Format */
 	softc->inq_data->flags =
-	    cpi->hba_inquiry & (PI_SDTR_ABLE|PI_WIDE_16|PI_WIDE_32);
+	    cpi->hba_inquiry & (PI_SDTR_ABLE|PI_WIDE_16|PI_WIDE_32|PI_TAG_ABLE);
 	softc->inq_data->additional_length = softc->inq_data_len - 4;
 	strncpy(softc->inq_data->vendor, "FreeBSD ", SID_VENDOR_SIZE);
 	strncpy(softc->inq_data->product, "TM-PT           ", SID_PRODUCT_SIZE);
@@ -548,8 +548,8 @@ targopen(dev_t dev, int flags, int fmt, struct proc *p)
 	s = splsoftcam();
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL) {
-		return (ENXIO);
         	splx(s);
+		return (ENXIO);
 	}
 	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
 		splx(s);
@@ -819,6 +819,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 				TAILQ_REMOVE(&softc->unknown_atio_queue,
 					     ccbh, periph_links.tqe);
 				/* Requeue the ATIO back to the controller */
+				ccbh->ccb_flags = TARG_CCB_NONE;
 				xpt_action((union ccb *)ccbh);
 				ccbh = TAILQ_FIRST(&softc->unknown_atio_queue);
 			}
@@ -889,6 +890,39 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		}
 		break;
 	}
+#ifdef	CAMDEBUG
+	case TARGIODEBUG:
+	{
+		union ccb ccb;
+		bzero (&ccb, sizeof ccb);
+		if (xpt_create_path(&ccb.ccb_h.path, periph,
+		    xpt_path_path_id(periph->path),
+		    xpt_path_target_id(periph->path),
+		    xpt_path_lun_id(periph->path)) != CAM_REQ_CMP) {
+			error = EINVAL;
+			break;
+		}
+		if (*((int *)addr)) {
+			ccb.cdbg.flags = CAM_DEBUG_PERIPH;
+		} else {
+			ccb.cdbg.flags = CAM_DEBUG_NONE;
+		}
+		xpt_setup_ccb(&ccb.ccb_h, ccb.ccb_h.path, 0);
+		ccb.ccb_h.func_code = XPT_DEBUG;
+		ccb.ccb_h.path_id = xpt_path_path_id(ccb.ccb_h.path);
+		ccb.ccb_h.target_id = xpt_path_target_id(ccb.ccb_h.path);
+		ccb.ccb_h.target_lun = xpt_path_lun_id(ccb.ccb_h.path);
+		ccb.ccb_h.cbfcnp = targdone;
+		xpt_action(&ccb);
+		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			error = EIO;
+		} else {
+			error = 0;
+		}
+		xpt_free_path(ccb.ccb_h.path);
+		break;
+	}
+#endif
 	default:
 		error = ENOTTY;
 		break;
@@ -1267,14 +1301,18 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			    MIN(desc->data_increment, 32);
 		}
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-			  ("Buffer command: data %x: datacnt %d\n",
-			   (intptr_t)desc->data, desc->data_increment));
+			  ("Buffer command: data %p: datacnt %d\n",
+			   desc->data, desc->data_increment));
 		TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
 				  periph_links.tqe);
 	}
-	if (TAILQ_FIRST(&softc->work_queue) != NULL) {
+	atio = (struct ccb_accept_tio *)TAILQ_FIRST(&softc->work_queue);
+	if (atio != NULL) {
+		int priority;
+
+		priority = (atio->ccb_h.flags & CAM_DIS_DISCONNECT) ? 0 : 1;
 		splx(s);
-		xpt_schedule(periph, /*XXX priority*/1);
+		xpt_schedule(periph, priority);
 	} else 
 		splx(s);
 }
@@ -1353,10 +1391,23 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 		start_ccb->ccb_h.ccb_flags = TARG_CCB_NONE;
 		start_ccb->ccb_h.ccb_atio = atio;
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-			  ("Sending a CTIO\n"));
+			  ("Sending a CTIO (flags 0x%x)\n", csio->ccb_h.flags));
 		TAILQ_INSERT_TAIL(&softc->pending_queue, &csio->ccb_h,
 				  periph_links.tqe);
 		xpt_action(start_ccb);
+		/*
+		 * If the queue was frozen waiting for the response
+		 * to this ATIO (for instance disconnection was disallowed),
+		 * then release it now that our response has been queued.
+		 */
+		if ((atio->ccb_h.flags & CAM_DEV_QFRZN) != 0) {
+			cam_release_devq(periph->path,
+					 /*relsim_flags*/0,
+					 /*reduction*/0,
+					 /*timeout*/0,
+					 /*getcount_only*/0); 
+			atio->ccb_h.flags &= ~CAM_DEV_QFRZN;
+		}
 		s = splbio();
 		ccbh = TAILQ_FIRST(&softc->work_queue);
 		splx(s);
@@ -1378,6 +1429,12 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		return;
 	}
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+		("targdone %x\n", done_ccb->ccb_h.func_code));
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+		("targdone %x\n", done_ccb->ccb_h.func_code));
+
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 	{
@@ -1385,6 +1442,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		struct targ_cmd_desc *descr;
 		struct initiator_state *istate;
 		u_int8_t *cdb;
+		int priority;
 
 		atio = &done_ccb->atio;
 		descr = (struct targ_cmd_desc*)atio->ccb_h.ccb_descr;
@@ -1398,6 +1456,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		if (atio->sense_len != 0) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+				  ("ATIO with sense_len\n"));
 
 			/*
 			 * We had an error in the reception of
@@ -1416,6 +1476,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			&& istate->pending_ua != 0
 			&& cdb[0] != INQUIRY) {
 
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+			    ("pending_ca %d pending_ua %dn", istate->pending_ca,			    istate->pending_ua));
+			     
 			/* Pending UA, tell initiator */
 			/* Direction is always relative to the initator */
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
@@ -1451,6 +1514,10 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			if (pending_ca == CA_UNIT_ATTN)
 				istate->pending_ua = UA_NONE;
 
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+				("cdb[..] = %x %x %x %x %x %x\n",
+				  cdb[0], cdb[1], cdb[2], cdb[3],
+				  cdb[4], cdb[5]));
 			/*
 			 * Determine the type of incoming command and
 			 * setup our buffer for a response.
@@ -1518,8 +1585,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				atio->ccb_h.flags &= ~CAM_DIR_MASK;
 				atio->ccb_h.flags |= CAM_DIR_IN;
 				descr->data = softc->inq_data;
-				descr->data_resid = MIN(softc->inq_data_len,
-						       inq->length);
+				descr->data_resid =
+				    MIN(softc->inq_data_len,
+					SCSI_CDB6_LEN(inq->length));
 				descr->data_increment = descr->data_resid;
 				descr->timeout = 5 * 1000;
 				break;
@@ -1559,8 +1627,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			 		offsetof(struct scsi_sense_data,
 						 extra_len)
 				      + sense->extra_len;
-				descr->data_resid = MIN(descr->data_resid,
-						       rsense->length);
+				descr->data_resid =
+				    MIN(descr->data_resid,
+					SCSI_CDB6_LEN(rsense->length));
 				descr->data_increment = descr->data_resid;
 				descr->timeout = 5 * 1000;
 				descr->status = SCSI_STATUS_OK;
@@ -1624,9 +1693,16 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		/* Queue us up to receive a Continue Target I/O ccb. */
-		TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
-				  periph_links.tqe);
-		xpt_schedule(periph, /*priority*/1);
+		if ((atio->ccb_h.flags & CAM_DIS_DISCONNECT) != 0) {
+			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
+					  periph_links.tqe);
+			priority = 0;
+		} else {
+			TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
+					  periph_links.tqe);
+			priority = 1;
+		}
+		xpt_schedule(periph, priority);
 		break;
 	}
 	case XPT_CONT_TARGET_IO:
@@ -1679,6 +1755,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			istate->pending_ca = CA_NONE;
 			softc->istate[csio->init_id].pending_ca = CA_NONE;
 			done_ccb->ccb_h.status &= ~CAM_SENT_SENSE;
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+				  ("Sent Sense\n"));
 		}
 		done_ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 
@@ -1721,6 +1799,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Returning ATIO to target\n"));
+				atio->ccb_h.ccb_flags = TARG_CCB_NONE;
 				xpt_action((union ccb *)atio);
 				break;
 			}
@@ -1785,6 +1864,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					 /*getcount_only*/0);
 		break;
 	}
+	case XPT_DEBUG:
+		wakeup(&done_ccb->ccb_h.cbfcnp);
+		break;
 	default:
 		panic("targdone: Impossible xpt opcode %x encountered.",
 		      done_ccb->ccb_h.func_code);
@@ -2172,6 +2254,7 @@ abort_pending_transactions(struct cam_periph *periph, u_int initiator_id,
 				free(atio, M_DEVBUF);
 			} else {
 				/* Return the ATIO back to the controller */
+				atio->ccb_h.ccb_flags = TARG_CCB_NONE;
 				xpt_action((union ccb *)atio);
 			}
 		}
