@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.61 2001/12/31 15:55:51 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.63 2002/01/02 20:58:12 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -117,7 +117,7 @@ struct usb_softc {
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 
-	struct proc    *sc_event_thread;
+	struct proc	*sc_event_thread;
 
 	char		sc_dying;
 };
@@ -336,7 +336,7 @@ usb_create_event_thread(void *arg)
 }
 
 /*
- * Add a task to be performed by the event thread.  This function can be
+ * Add a task to be performed by the task thread.  This function can be
  * called from any context and the task will be executed in a process
  * context ASAP.
  */
@@ -350,8 +350,9 @@ usb_add_task(usbd_device_handle dev, struct usb_task *task)
 		DPRINTFN(2,("usb_add_task: task=%p\n", task));
 		TAILQ_INSERT_TAIL(&usb_all_tasks, task, next);
 		task->onqueue = 1;
-	} else
+	} else {
 		DPRINTFN(3,("usb_add_task: task=%p on q\n", task));
+	}
 	wakeup(&usb_all_tasks);
 	splx(s);
 }
@@ -384,6 +385,9 @@ usb_event_thread(void *arg)
 	 * In case this controller is a companion controller to an
 	 * EHCI controller we need to wait until the
 	 * EHCI controller has grabbed the port.
+	 * XXX It would be nicer to do this with a tsleep(), but I don't
+	 * know how to synchronize the creation of the threads so it
+	 * will work.
 	 */
 	usb_delay_ms(sc->sc_bus, 500);
 
@@ -846,7 +850,7 @@ usb_activate(device_ptr_t self, enum devact act)
 
 	case DVACT_DEACTIVATE:
 		sc->sc_dying = 1;
-		if (dev && dev->cdesc && dev->subdevs) {
+		if (dev != NULL && dev->cdesc != NULL && dev->subdevs != NULL) {
 			for (i = 0; dev->subdevs[i]; i++)
 				rv |= config_deactivate(dev->subdevs[i]);
 		}
@@ -866,11 +870,11 @@ usb_detach(device_ptr_t self, int flags)
 	sc->sc_dying = 1;
 
 	/* Make all devices disconnect. */
-	if (sc->sc_port.device)
+	if (sc->sc_port.device != NULL)
 		usb_disconnect_port(&sc->sc_port, self);
 
 	/* Kill off event thread. */
-	if (sc->sc_event_thread) {
+	if (sc->sc_event_thread != NULL) {
 		wakeup(&sc->sc_bus->needs_explore);
 		if (tsleep(sc, PWAIT, "usbdet", hz * 60))
 			printf("%s: event thread didn't die\n",
