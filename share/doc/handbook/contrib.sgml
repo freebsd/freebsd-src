@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.108 1996/07/23 20:02:48 peter Exp $ -->
+<!-- $Id: contrib.sgml,v 1.109 1996/07/24 23:46:48 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -242,6 +242,7 @@
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
+	  <item>Masachika ISHIZUKA &lt;ishizuka@isis.min.ntt.jp&gt;
 	  <item>Masafumi Nakane &lt;max@sfc.wide.ad.jp&gt;
 	  <item>Matt Bartley &lt;mbartley@lear35.cytex.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
