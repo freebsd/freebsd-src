@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.45 1994/11/17 07:09:21 jkh Exp $
+#	$Id: Makefile,v 1.46 1994/11/17 07:11:30 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -27,7 +27,10 @@ CPIO1+= ftp rsh sed telnet rlogin grep
 
 CPIO2=  etc/services etc/protocols
 
-CPIO3=	bininst
+# bininst MUST be the last file on the cpio floppy.  It's used to detect
+# a successful extraction.
+CPIO3=	miscfuncs.sh instdist.sh netinst.sh bininst
+
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
 CLEANFILES+=	boot_flp boot.flp cpio_flp_1
