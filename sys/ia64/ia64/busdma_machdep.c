@@ -29,7 +29,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 

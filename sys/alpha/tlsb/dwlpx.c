@@ -64,7 +64,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
