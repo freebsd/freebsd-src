@@ -155,6 +155,13 @@ units.
 .It "ft	12 inches
 .It "mile	5280 ft
 .El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/units.lib -compact
+.It Pa /usr/share/misc/units.lib
+the standard units library
+.El
+.Sh AUTHORS
+.An Adrian Mariano Aq adrian@cam.cornell.edu
 .Sh BUGS
 The effect of including a '/' in a prefix is surprising.
 .Pp
@@ -172,10 +179,3 @@ of the units converted and on the length of the data file.
 The program should use a hash table to store units so that
 it doesn't take so long to load the units list and check
 for duplication.
-.Sh FILES
-.Bl -tag -width /usr/share/misc/units.lib -compact
-.It Pa /usr/share/misc/units.lib
-the standard units library
-.El
-.Sh AUTHORS
-.An Adrian Mariano Aq adrian@cam.cornell.edu

@@ -74,6 +74,12 @@ to be of type
 otherwise it will simply display the branding of
 .Ar file .
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command
+fails if a file does not exist, is too short, fails to brand properly,
+or the brand requested is not one of the known types and the
+.Fl f
+option is not set.
 .Sh EXAMPLES
 The following is an example of a typical usage
 of the
@@ -82,12 +88,6 @@ command:
 .Pp
 .Dl % brandelf file
 .Dl % brandelf -t Linux file
-.Sh EXIT STATUS
-Exit status is 0 on success, and 1 if the command
-fails if a file does not exist, is too short, fails to brand properly,
-or the brand requested is not one of the known types and the
-.Fl f
-option is not set.
 .Sh SEE ALSO
 .Rs
 .%A The Santa Cruz Operation, Inc.

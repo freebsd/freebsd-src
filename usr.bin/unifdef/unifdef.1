@@ -270,9 +270,11 @@ utility works nicely with the
 .Fl D Ns Ar sym
 option of
 .Xr diff 1 .
-.Sh SEE ALSO
-.Xr cpp 1 ,
-.Xr diff 1
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 if the output is an exact copy of the input,
+1 if not, and 2 if in trouble.
 .Sh DIAGNOSTICS
 .Bl -item
 .It
@@ -294,11 +296,17 @@ Premature
 .Tn EOF
 in comment.
 .El
-.Sh EXIT STATUS
+.Sh SEE ALSO
+.Xr cpp 1 ,
+.Xr diff 1
+.Sh HISTORY
 The
 .Nm
-utility exits 0 if the output is an exact copy of the input,
-1 if not, and 2 if in trouble.
+command appeared in
+.Bx 4.3 .
+.Tn ANSI\~C
+support was added in
+.Fx 4.7 .
 .Sh BUGS
 Expression evaluation is very limited.
 .Pp
@@ -314,11 +322,3 @@ different points in the source file.
 The text-mode and ignore functionality does not correspond to modern
 .Xr cpp 1
 behaviour.
-.Sh HISTORY
-The
-.Nm
-command appeared in
-.Bx 4.3 .
-.Tn ANSI\~C
-support was added in
-.Fx 4.7 .

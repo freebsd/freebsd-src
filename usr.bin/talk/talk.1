@@ -129,16 +129,6 @@ to find the recipient's tty
 .Xr who 1 ,
 .Xr write 1 ,
 .Xr talkd 8
-.Sh BUGS
-The version of
-.Nm
-released with
-.Bx 4.3
-uses a protocol that
-is incompatible with the protocol used in the version released with
-.Bx 4.2 .
-.Pp
-Multibyte characters are not recognized.
 .Sh HISTORY
 The
 .Nm
@@ -161,3 +151,13 @@ making
 unsuitable for use in configurations where
 .Xr talkd 8
 was bound to the loopback interface (normally for security reasons).
+.Sh BUGS
+The version of
+.Nm
+released with
+.Bx 4.3
+uses a protocol that
+is incompatible with the protocol used in the version released with
+.Bx 4.2 .
+.Pp
+Multibyte characters are not recognized.

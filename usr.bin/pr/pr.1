@@ -360,17 +360,17 @@ and
 .Fl n
 require that both arguments, if present, not be separated from the option
 letter.
-.Sh ERRORS
-If
-.Nm
-receives an interrupt while printing to a terminal, it
-flushes all accumulated error messages to the screen before
-terminating.
 .Sh EXIT STATUS
 The
 .Nm
 utility exits 0 on success, and 1 if an error occurs.
 .Sh DIAGNOSTICS
+If
+.Nm
+receives an interrupt while printing to a terminal, it
+flushes all accumulated error messages to the screen before
+terminating.
+.Pp
 Error messages are written to standard error during the printing
 process (if output is redirected) or after all successful
 file printing is complete (when printing to a terminal).

@@ -178,6 +178,13 @@ Use the
 library instead of
 .Xr mmap 2 .
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width LOCATE_PATH -compact
+.It Pa LOCATE_PATH
+path to the locate database if set and not empty, ignored if the
+.Fl d
+option was specified.
+.El
 .Sh FILES
 .Bl -tag -width /etc/periodic/weekly/310.locate -compact
 .It Pa /var/db/locate.database
@@ -186,13 +193,6 @@ locate database
 Script to update the locate database
 .It Pa /etc/periodic/weekly/310.locate
 Script that starts the database rebuild
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width LOCATE_PATH -compact
-.It Pa LOCATE_PATH
-path to the locate database if set and not empty, ignored if the
-.Fl d
-option was specified.
 .El
 .Sh SEE ALSO
 .Xr find 1 ,

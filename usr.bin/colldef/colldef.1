@@ -250,6 +250,13 @@ The backslash character
 is used for continuation.
 In this case, no characters are permitted
 after the backslash character.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/share/locale/ Ns Ao Ar language Ac Ns Pa /LC_COLLATE
+The standard shared location for collation orders
+under the locale
+.Aq Ar language .
+.El
 .Sh EXIT STATUS
 The
 .Nm
@@ -259,13 +266,6 @@ utility exits with the following values:
 No errors were found and the output was successfully created.
 .It Li !=0
 Errors were found.
-.El
-.Sh FILES
-.Bl -tag -width indent
-.It Pa /usr/share/locale/ Ns Ao Ar language Ac Ns Pa /LC_COLLATE
-The standard shared location for collation orders
-under the locale
-.Aq Ar language .
 .El
 .Sh SEE ALSO
 .Xr mklocale 1 ,

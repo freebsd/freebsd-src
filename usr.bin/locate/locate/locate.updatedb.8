@@ -50,17 +50,17 @@ script.
 The contents of the newly built database can be controlled by the
 .Pa /etc/locate.rc
 file.
+.Sh ENVIRONMENT
+.Bl -tag -width /var/db/locate.database -compact
+.It Pa LOCATE_CONFIG
+path to the configuration file
+.El
 .Sh FILES
 .Bl -tag -width /var/db/locate.database -compact
 .It Pa /var/db/locate.database
 the default database
 .It Pa /etc/locate.rc
 the configuration file
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width /var/db/locate.database -compact
-.It Pa LOCATE_CONFIG
-path to the configuration file
 .El
 .Sh SEE ALSO
 .Xr locate 1 ,

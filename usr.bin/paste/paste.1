@@ -110,6 +110,8 @@ is specified for one or more of the input files, the standard
 input is used; standard input is read one line at a time, circularly,
 for each instance of
 .Sq Fl .
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 List the files in the current directory in three columns:
 .Pp
@@ -132,8 +134,6 @@ for use in the
 environment variable:
 .Pp
 .Dl "find / -name bin -type d | paste -s -d : -"
-.Sh EXIT STATUS
-.Ex -std
 .Sh SEE ALSO
 .Xr cut 1 ,
 .Xr lam 1
