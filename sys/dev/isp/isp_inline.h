@@ -45,7 +45,8 @@ isp_prtstst(sp)
 	ispstatusreq_t *sp;
 {
 	char buf[172];
-	sprintf(buf, "states=>");
+	buf[0] = 0;
+	STRNCAT(buf, "states=>", sizeof buf);
 	if (sp->req_state_flags & RQSF_GOT_BUS) {
 		STRNCAT(buf, " GOT_BUS", sizeof buf);
 	}
