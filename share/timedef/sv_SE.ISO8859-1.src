@@ -62,7 +62,7 @@ Lördag
 #
 # c_fmt
 #
-%a %e %b %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -74,4 +74,23 @@ pm
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %Ex %Y %X %Z
+#
+# Long month names (alternative)
+#
+Januari
+Februari
+Mars
+April
+Maj
+Juni
+Juli
+Augusti
+September
+Oktober
+November
+December
+#
+# Ex_fmt
+#
+%e %b

@@ -63,7 +63,7 @@
 #
 # c_fmt
 #
-%a %b/%e %T %Y
+%a %Ex %T %Y
 #
 # am
 #
@@ -76,3 +76,22 @@
 # date_fmt
 #
 %Y年%b月%e日 %A %X %Z
+#
+# Long month names (alternative)
+#
+1月
+2月
+3月
+4月
+5月
+6月
+7月
+8月
+9月
+10月
+11月
+12月
+#
+# Ex_fmt
+#
+%b/%e

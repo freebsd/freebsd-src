@@ -1,5 +1,6 @@
 # This is a Hungarian LC_TIME file for ISO 8859-2 code-table
 # Made by Gabor Zahemszky <zgabor@CoDe.hu>
+# $FreeBSD$
 #
 # Short month names
 #
@@ -62,7 +63,7 @@ Szombat
 #
 # c_fmt
 #
-%a %b %e %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -74,4 +75,23 @@ du
 #
 # date_fmt
 #
-%Y %b %e %a %X %Z
+%Y %Ex %a %X %Z
+#
+# Long months names (alternative)
+#
+Január
+Február
+Március
+Április
+Május
+Június
+Július
+Augusztus
+Szeptember
+Október
+November
+December
+#
+# Ex_fmt
+#
+%b %e
