@@ -362,6 +362,7 @@ stf_output(ifp, m, dst, rt)
 	/* just in case */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
+		ifp->if_oerrors++;
 		return ENETDOWN;
 	}
 
@@ -373,13 +374,16 @@ stf_output(ifp, m, dst, rt)
 	ia6 = stf_getsrcifa6(ifp);
 	if (ia6 == NULL) {
 		m_freem(m);
+		ifp->if_oerrors++;
 		return ENETDOWN;
 	}
 
 	if (m->m_len < sizeof(*ip6)) {
 		m = m_pullup(m, sizeof(*ip6));
-		if (!m)
+		if (!m) {
+			ifp->if_oerrors++;
 			return ENOBUFS;
+		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
@@ -394,6 +398,7 @@ stf_output(ifp, m, dst, rt)
 		in4 = GET_V4(&dst6->sin6_addr);
 	else {
 		m_freem(m);
+		ifp->if_oerrors++;
 		return ENETUNREACH;
 	}
 
@@ -424,8 +429,10 @@ stf_output(ifp, m, dst, rt)
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
-	if (m == NULL)
+	if (m == NULL) {
+		ifp->if_oerrors++;
 		return ENOBUFS;
+	}
 	ip = mtod(m, struct ip *);
 
 	bzero(ip, sizeof(*ip));
@@ -458,10 +465,12 @@ stf_output(ifp, m, dst, rt)
 		rtalloc(&sc->sc_ro);
 		if (sc->sc_ro.ro_rt == NULL) {
 			m_freem(m);
+			ifp->if_oerrors++;
 			return ENETUNREACH;
 		}
 	}
 
+	ifp->if_opackets++;
 	return ip_output(m, NULL, &sc->sc_ro, 0, NULL);
 }
 
