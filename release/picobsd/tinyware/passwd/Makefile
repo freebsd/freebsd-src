@@ -57,19 +57,6 @@ BINMODE=4555
 LINKS=${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS=passwd.1 yppasswd.1
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS4)
-SRCS+=	kpasswd_standalone.c
-.PATH:	${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
-	${.CURDIR}/../../usr.bin/rlogin ${.CURDIR}/../../usr.bin/passwd \
-	${.CURDIR}/../../crypto/kerberosIV/kadmin
-
-CFLAGS+=	-DKERBEROS
-# XXX not defined: ${LIBKADM}, ${LIBCOM_ERR}
-DPADD=	${LIBKADM} ${LIBKRB} ${LIBCRYPTO} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} ${LIBUTIL}
-LDADD=	-lkadm -lkrb -lcrypto -lcrypt -lrpcsvc -lcom_err -lutil
-DISTRIBUTION=	krb4
-.endif
-
 beforeinstall:
 .for i in passwd yppasswd
 	[ ! -e ${DESTDIR}${BINDIR}/$i ] || \
