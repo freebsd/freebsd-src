@@ -43,12 +43,9 @@
  * per-IOMMU state
  */
 struct iommu_state {
-	vm_offset_t		is_ptsb;	/* TSB physical address */
-	u_int64_t		*is_tsb;	/* TSB virtual address */
 	int			is_tsbsize;	/* 0 = 8K, ... */
 	u_int64_t		is_dvmabase;
 	int64_t			is_cr;		/* IOMMU control register value */
-	struct rman		is_dvma_rman;	/* DVMA map for this instance */
 
 	vm_offset_t		is_flushpa[2];
 	volatile int64_t	*is_flushva[2];
@@ -71,12 +68,14 @@ struct iommu_state {
 	bus_addr_t		is_dtag;	/* tag diagnostics access */
 	bus_addr_t		is_ddram;	/* data ram diag. access */
 	bus_addr_t		is_dqueue;	/* LRU queue diag. access */
-	bus_addr_t		is_dva;	/* VA diag. register */
+	bus_addr_t		is_dva;		/* VA diag. register */
 	bus_addr_t		is_dtcmp;	/* tag compare diag. access */
+
+	STAILQ_ENTRY(iommu_state)	is_link;
 };
 
 /* interfaces for PCI/SBUS code */
-void iommu_init(char *, struct iommu_state *, int, u_int32_t);
+void iommu_init(char *, struct iommu_state *, int, u_int32_t, int);
 void iommu_reset(struct iommu_state *);
 void iommu_enter(struct iommu_state *, vm_offset_t, vm_offset_t, int);
 void iommu_remove(struct iommu_state *, vm_offset_t, size_t);

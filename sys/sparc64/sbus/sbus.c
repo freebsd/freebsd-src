@@ -297,7 +297,6 @@ sbus_probe(device_t dev)
 	bus_size_t size;
 	char *name, *cname, *t;
 	phandle_t child, node = nexus_get_node(dev);
-	u_long da;
 	u_int64_t mr;
 	int intr, clock, rid, vec, i;
 
@@ -421,7 +420,12 @@ sbus_probe(device_t dev)
 		panic("sbus_probe: couldn't malloc iommu name");
 	snprintf(name, 32, "%s dvma", device_get_name(dev));
 
-	iommu_init(name, &sc->sc_is, 0, -1);
+	/*
+	 * Note: the SBus IOMMU ignores the high bits of an address, so a NULL
+	 * DMA pointer will be translated by the first page of the IOTSB.
+	 * To detect bugs we'll allocate and ignore the first entry.
+	 */
+	iommu_init(name, &sc->sc_is, 0, -1, 1);
 
 	/* Enable the over-temperature and power-fail intrrupts. */
 	rid = 0;
@@ -445,18 +449,6 @@ sbus_probe(device_t dev)
 
 	/* Initialize the counter-timer. */
 	sparc64_counter_init(sc->sc_bustag, sc->sc_bushandle, SBR_TC0);
-
-#ifdef INVARIANTS
-	da = sc->sc_is.is_dvmabase / IO_PAGE_SIZE;
-	/*
-	 * Note: the SBUS IOMMU ignores the high bits of an address, so a NULL
-	 * DMA pointer will be translated by the first page of the IOTSB.
-	 * To detect bugs we'll allocate and ignore the first entry.
-	 */
-	if (rman_reserve_resource(&sc->sc_is.is_dvma_rman, da, da, 1, 0,
-	    NULL) == NULL)
-		panic("sbus_probe: can't toss first dvma page");
-#endif /* INVARIANTS */
 
 	/*
 	 * Loop through ROM children, fixing any relative addresses
