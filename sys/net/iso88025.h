@@ -109,6 +109,15 @@ struct iso88025_sockaddr_data {
 	u_char fc;
 };
 
+struct iso88025_sockaddr_dl_data {
+	u_short	 trld_rcf;
+	u_short	*trld_route[RIF_MAX_LEN];
+};
+
+#define SDL_ISO88025(s)		((struct iso88025_sockaddr_dl_data *)	\
+				 ((s)->sdl_data + min((s)->sdl_nlen +	\
+				  (s)->sdl_alen + (s)->sdl_slen, 12)))
+
 /*
  * Structure of a 48-bit iso 802.5 address.
  *  ( We could also add the 16 bit addresses as a union)
