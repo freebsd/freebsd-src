@@ -40,10 +40,10 @@ struct _snd_mixer {
 	const char *name;
 	void *devinfo;
 	int busy;
-	int muted;
+	int hwvol_muted;
 	int hwvol_mixer;
 	int hwvol_step;
-	u_int32_t mute_level;
+	u_int32_t hwvol_mute_level;
 	u_int32_t devs;
 	u_int32_t recdevs;
 	u_int32_t recsrc;
