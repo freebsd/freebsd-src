@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: mixer
-# REQUIRE: LOGIN usbd
+# BEFORE: LOGIN
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
