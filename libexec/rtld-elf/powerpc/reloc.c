@@ -489,3 +489,29 @@ init_pltgot(Obj_Entry *obj)
 	 */
 	__syncicache(pltcall, 72 + N * 8);
 }
+
+void
+allocate_initial_tls(Obj_Entry *list)
+{
+	register Elf_Addr **tp __asm__("r2");
+
+	/*
+	* Fix the size of the static TLS block by using the maximum
+	* offset allocated so far and adding a bit for dynamic modules to
+	* use.
+	*/
+
+	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+	tp = (Elf_Addr **) ((char *) allocate_tls(list, 0, 8, 8) + 0x7008);
+}
+
+void*
+__tls_get_addr(tls_index* ti)
+{
+	register Elf_Addr **tp __asm__("r2");
+	char *p;
+
+	p = tls_get_addr_common(tp, ti->ti_module, ti->ti_offset);
+	return p + 0x8000;
+}
