@@ -125,7 +125,6 @@ afddetach(struct ata_device *atadev)
 	bioq_remove(&fdp->queue, bp);
 	biofinish(bp, NULL, ENXIO);
     }
-    disk_invalidate(&fdp->disk);
     disk_destroy(fdp->dev);
     devstat_remove_entry(&fdp->stats);
     ata_free_name(atadev);

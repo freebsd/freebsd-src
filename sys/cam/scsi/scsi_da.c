@@ -567,7 +567,6 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
 		/* Invalidate our pack information. */
-		disk_invalidate(&softc->disk);
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
 	}
 	splx(s);
