@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.67 1996/07/13 05:44:51 jkh Exp $
+ * $Id: dist.c,v 1.68 1996/08/03 10:10:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -428,8 +428,10 @@ distExtract(char *parent, Distribution *me)
 	/* We have one or more chunks, go pick them up */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 	for (chunk = 0; chunk < numchunks; chunk++) {
-	    int n, retval;
+	    int n, retval, last_msg;
 	    char prompt[80];
+
+	    last_msg = 0;
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
@@ -459,8 +461,12 @@ distExtract(char *parent, Distribution *me)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
-			total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
+
+		if (seconds != last_msg) {
+		    last_msg = seconds;
+		    msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
+			    total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
+		}
 		retval = write(fd2, buf, n);
 		if (retval != n) {
 		    mediaDevice->close(mediaDevice, fd);
