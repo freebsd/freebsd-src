@@ -116,7 +116,7 @@ acl_detach(struct ieee80211com *ic)
 	FREE(as, M_DEVBUF);
 }
 
-static inline struct acl *
+static __inline struct acl *
 _find_acl(struct aclstate *as, const u_int8_t *macaddr)
 {
 	struct acl *acl;
