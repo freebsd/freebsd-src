@@ -57,9 +57,10 @@
 
 #if NGUSC > 0
 
-#define LOGICALID_PCM  0x0000561e
-#define LOGICALID_OPL  0x0300561e
-#define LOGICALID_MIDI 0x0400561e
+#define LOGICALID_NOPNP 0
+#define LOGICALID_PCM   0x0000561e
+#define LOGICALID_OPL   0x0300561e
+#define LOGICALID_MIDI  0x0400561e
 
 /* Interrupt handler.  */
 struct gusc_ihandler {
@@ -477,23 +478,41 @@ find_masterdev(sc_p scp)
 }
 #endif /* notyet */
 
-static int io_range[3] = {0x10, 0x4, 0x4};
+static int io_range[3]  = {0x10, 0x8  , 0x4  };
+static int io_offset[3] = {0x0 , 0x100, 0x10c};
 static int
 alloc_resource(sc_p scp)
 {
-	int i;
+	int i, base, lid, flags;
 #if notyet
 	device_t dev;
 #endif /* notyet */
 
-	switch(isa_get_logicalid(scp->dev)) {
+	flags = 0;
+	if (isa_get_vendorid(scp->dev))
+		lid = isa_get_logicalid(scp->dev);
+	else {
+		lid = LOGICALID_NOPNP;
+		flags = device_get_flags(scp->dev);
+	}
+	switch(lid) {
 	case LOGICALID_PCM:
-	default:		/* XXX Non-PnP */
+	case LOGICALID_NOPNP:		/* XXX Non-PnP */
+		if (lid == LOGICALID_NOPNP)
+			base = isa_get_port(scp->dev);
+		else
+			base = 0;
 		for (i = 0 ; i < sizeof(scp->io) / sizeof(*scp->io) ; i++) {
 			if (scp->io[i] == NULL) {
 				scp->io_rid[i] = i;
-				scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
-								0, ~0, io_range[i], RF_ACTIVE);
+				if (base == 0)
+					scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
+									0, ~0, io_range[i], RF_ACTIVE);
+				else
+					scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
+									base + io_offset[i],
+									base + io_offset[i] + io_range[i] - 1
+									, io_range[i], RF_ACTIVE);
 				if (scp->io[i] == NULL)
 					return (1);
 				scp->io_alloced[i] = 0;
@@ -510,8 +529,14 @@ alloc_resource(sc_p scp)
 		for (i = 0 ; i < sizeof(scp->drq) / sizeof(*scp->drq) ; i++) {
 			if (scp->drq[i] == NULL) {
 				scp->drq_rid[i] = i;
-				scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],
-								 0, ~0, 1, RF_ACTIVE);
+				if (base == 0 || i == 0)
+					scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],
+									 0, ~0, 1, RF_ACTIVE);
+				else if ((flags & DV_F_DUAL_DMA) != 0)
+					/* XXX The secondary drq is specified in the flag. */
+					scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],
+									 flags & DV_F_DRQ_MASK,
+									 flags & DV_F_DRQ_MASK, 1, RF_ACTIVE);
 				if (scp->drq[i] == NULL)
 					return (1);
 				scp->drq_alloced[i] = 0;
@@ -559,14 +584,21 @@ alloc_resource(sc_p scp)
 static int
 release_resource(sc_p scp)
 {
-	int i;
+	int i, lid, flags;
 #if notyet
 	device_t dev;
 #endif /* notyet */
 
-	switch(isa_get_logicalid(scp->dev)) {
+	flags = 0;
+	if (isa_get_vendorid(scp->dev))
+		lid = isa_get_logicalid(scp->dev);
+	else {
+		lid = LOGICALID_NOPNP;
+		flags = device_get_flags(scp->dev);
+	}
+	switch(lid) {
 	case LOGICALID_PCM:
-	default:		/* XXX Non-PnP */
+	case LOGICALID_NOPNP:		/* XXX Non-PnP */
 		for (i = 0 ; i < sizeof(scp->io) / sizeof(*scp->io) ; i++) {
 			if (scp->io[i] != NULL) {
 				bus_release_resource(scp->dev, SYS_RES_IOPORT, scp->io_rid[i], scp->io[i]);
