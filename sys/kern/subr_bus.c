@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.22 1999/05/14 09:13:43 dfr Exp $
+ *	$Id: subr_bus.c,v 1.23 1999/05/14 11:22:42 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -409,7 +409,7 @@ devclass_get_name(devclass_t dc)
 device_t
 devclass_get_device(devclass_t dc, int unit)
 {
-    if (unit < 0 || unit >= dc->maxunit)
+    if (dc == NULL || unit < 0 || unit >= dc->maxunit)
 	return NULL;
     return dc->devices[unit];
 }
