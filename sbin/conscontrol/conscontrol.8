@@ -78,6 +78,11 @@ Add or delete a physical device from the logical console.
 The device must support low-level console operations.
 Adding a device will place it at the front of the list of console
 devices; the first device is used for the high level console.
+.Pp
+.Ar console
+is the name of a console device in
+.Pa /dev ;
+the name of the directory may be omitted.
 .It Cm mute on | off
 Change the state of console muting.
 All console output is suppressed when console muting is
