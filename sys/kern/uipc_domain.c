@@ -71,6 +71,7 @@ static void	pfslowtimo(void *);
 
 struct domain *domains;		/* registered protocol domains */
 struct mtx dom_mtx;		/* domain list lock */
+MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
 /*
  * Add a new protocol domain to the list of supported domains
@@ -129,8 +130,6 @@ domaininit(void *dummy)
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(socket_zone, maxsockets);
-
-	mtx_init(&dom_mtx, "domain list lock", NULL, MTX_DEF);
 
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
