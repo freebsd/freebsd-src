@@ -90,6 +90,7 @@ main(int argc, char *argv[])
 	int ch, ktrlen, size;
 	void *m;
 	int trpoints = ALL_POINTS;
+	int drop_logged;
 
 	(void) setlocale(LC_CTYPE, "");
 
@@ -133,7 +134,17 @@ main(int argc, char *argv[])
 		errx(1, "%s", strerror(ENOMEM));
 	if (!freopen(tracefile, "r", stdin))
 		err(1, "%s", tracefile);
+	drop_logged = 0;
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
+		if (ktr_header.ktr_type & KTR_DROP) {
+			ktr_header.ktr_type &= ~KTR_DROP;
+			if (!drop_logged) {
+				(void)printf("%6d %-8.*s Events dropped.\n",
+				    ktr_header.ktr_pid, MAXCOMLEN,
+				    ktr_header.ktr_comm);
+				drop_logged = 1;
+			}
+		}
 		if (trpoints & (1<<ktr_header.ktr_type))
 			dumpheader(&ktr_header);
 		if ((ktrlen = ktr_header.ktr_len) < 0)
@@ -148,6 +159,7 @@ main(int argc, char *argv[])
 			errx(1, "data too short");
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
+		drop_logged = 0;
 		switch (ktr_header.ktr_type) {
 		case KTR_SYSCALL:
 			ktrsyscall((struct ktr_syscall *)m);
