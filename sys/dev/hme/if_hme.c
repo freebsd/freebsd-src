@@ -1404,11 +1404,9 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 {
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	struct ifmultiaddr *inm;
-	struct sockaddr_dl *sdl;
 	u_int32_t crc;
 	u_int32_t hash[4];
 	u_int32_t macc;
-	int len;
 
 	/* Clear hash table */
 	hash[3] = hash[2] = hash[1] = hash[0] = 0;
@@ -1457,8 +1455,8 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	TAILQ_FOREACH(inm, &sc->sc_arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
-		sdl = (struct sockaddr_dl *)inm->ifma_addr;
-		crc = ether_crc32_le(sdl, ETHER_ADDR_LEN);
+		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		    inm->ifma_addr), ETHER_ADDR_LEN);
 
 		/* Just want the 6 most significant bits. */
 		crc >>= 26;
