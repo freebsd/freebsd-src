@@ -67,18 +67,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootconfig.h>
 
 #ifdef CPU_XSCALE_80200
-#include <arm/xscale/i80200reg.h>
-#include <arm/xscale/i80200var.h>
+#include <arm/xscale/i80200/i80200reg.h>
+#include <arm/xscale/i80200/i80200var.h>
 #endif
 
 #ifdef CPU_XSCALE_80321
-#include <arm/xscale/i80321reg.h>
-#include <arm/xscale/i80321var.h>
+#include <arm/xscale/i80321/i80321reg.h>
+#include <arm/xscale/i80321/i80321var.h>
 #endif
 
 #ifdef CPU_XSCALE_IXP425
-#include <arm/xscale/ixp425reg.h>
-#include <arm/xscale/ixp425var.h>
+#include <arm/xscale/ixp425/ixp425reg.h>
+#include <arm/xscale/ixp425/ixp425var.h>
 #endif
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321)
@@ -1099,7 +1099,6 @@ set_cpufuncs()
 #ifdef CPU_XSCALE_80321
 	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
 	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0) {
-		i80321_icu_init();
 
 		/*
 		 * Reset the Performance Monitoring Unit to a
