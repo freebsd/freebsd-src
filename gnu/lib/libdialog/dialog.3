@@ -11,9 +11,9 @@
 .\" nor does the author assume any responsibility for damages incurred with
 .\" its use.
 .\"
-.\" $Id: dialog.3,v 1.6 1997/04/13 12:36:42 bde Exp $
+.\" $Id: dialog.3,v 1.7 1998/06/06 05:50:46 jkoshy Exp $
 .\"
-.Dd December 18, 1995
+.Dd October 2, 1998
 .Dt dialog 3
 .Os FreeBSD 2
 .Sh NAME
@@ -43,7 +43,9 @@
 .Nm use_helpfile ,
 .Nm use_helpline ,
 .Nm get_helpline ,
-.Nm restore_helpline
+.Nm restore_helpline ,
+.Nm dialog_ftree ,
+.Nm dialog_tree
 .Nd Provide a simple ncurses-based "GUI" interface.
 .Sh DESCRIPTION
 The dialog library attempts to provide a fairly simplistic set of
@@ -381,6 +383,65 @@ Initialize the dialog library (call this routine before any other dialog API cal
 
 Shut down the dialog library (call this if you need to get back to sanity).
 
+.Ft "int"
+.Fn dialog_ftree "unsigned char *filename" "unsigned char FS" \
+"unsigned char *title" "unsigned char *prompt" "int height" "int width" \
+"int menu_height" "unsigned char **result"
+
+\fBdialog_ftree\fR shows a tree described by the data from the file
+\fBfilename\fR.  The data in the file should look like \fBfind(1)\fR output.
+For the \fBfind(1)\fR output, the field separator \fBFS\fR will be \fB\'/\'\fR.  If
+\fBheight\fR and \fBwidth\fR are positive numbers, they set the absolute
+size of the whole \fBdialog_ftree\fR box. If \fBheight\fR and
+\fBwidth\fR are negative numbers, the size of the \fBdialog_ftree\fR box
+will be calculated automatically. \fBmenu_height\fR sets the height of the
+tree subwindow inside the \fBdialog_ftree\fR box and must be set. 
+\fBtitle\fR is shown centered on the upper border of the \fBdialog_ftree\fR
+box.  \fBprompt\fR is shown inside the \fBdialog_ftree\fR box above the tree
+subwindow and can contain \fB\'\\n\'\fR to split lines.  One can navigate in
+the tree by pressing \fBUP/DOWN\fR or \fB\'+\'/\'-\'\fR, \fBPG_UP/PG_DOWN\fR or
+\fB\'b\'/SPACE\fR and \fBHOME/END\fR or \fB\'g\'/\'G\'\fR. A leaf of the
+tree is selected by pressing \fBTAB\fR or \fBLEFT/RIGHT\fR the \fBOK\fR
+button and pressing \fBENTER\fR. filename may contain data like
+\fBfind(1)\fR output, as well as like the output of \fBfind(1)\fR with
+\fB-d\fR option. Some of the transient paths to the leaves of the tree may
+be absent. Such data is corrected when fed from filename.
+
+The function returns 0 and a pointer to the selected leaf (to the path to
+the leaf from the root of the tree) into result, if the \fBOK\fR button was
+selected. The memory allocated for the building of the tree is freed on
+exiting \fBdialog_ftree\fR. The memory for the result line should be freed
+later manually, if necessary. If the \fBCancel\fR button was selected, the
+function returns 1. In case of exiting \fBdialog_ftree\fR on \fBESC\fR, the
+function returns -1.
+
+.Ft "int" 
+.Fo dialog_tree 
+.Fa "unsigned char **names" 
+.Fa "int size"
+.Fa "unsigned char FS" 
+.Fa "unsigned char *title" 
+.Fa "unsigned char *prompt"
+.Fa "int height" 
+.Fa "int width" 
+.Fa "int menu_height"
+.Fa "unsigned char **result"
+.Fc
+
+\fBdialog_tree\fR displays the tree very much like \fBdialog_ftree\fR does,
+with some exceptions. The source data for the building of the tree is an
+array \fBnames\fR of paths to the leaves (should be similar to \fBfind(1)\fR
+output) of the size \fBsize\fR. However, there is no correction of data like
+in \fBdialog_ftree\fR. Thus, to display a correct tree, the array must
+already contain correct data. Besides, in each session every unique use of
+\fBdialog_tree\fR is kept in memory, and later, when calling
+\fBdialog_tree\fR with the same \fBnames\fR, \fBsize\fR, \fBFS\fR,
+\fBheight\fR, \fBwidth\fR and \fBmenu_height\fR the position of the cursor
+in the tree subwindow is restored.
+
+The function returns the same results as \fBdialog_ftree\fR. If 0 is
+returned, result will contain a pointer from the array \fBnames\fR.
+
 .Sh SEE ALSO
 .Xr dialog 1 ,
 .Xr ncurses 3
@@ -388,14 +449,17 @@ Shut down the dialog library (call this if you need to get back to sanity).
 .Sh AUTHORS
 The primary author would appear to be Savio Lam <lam836@cs.cuhk.hk> with contributions over
 the years by Stuart Herbert <S.Herbert@sheffield.ac.uk>, Marc van Kempen <wmbfmk@urc.tue.nl>,
-Andrey Chernov <ache@freebsd.org> and Jordan Hubbard <jkh@freebsd.org>.
+Andrey Chernov <ache@freebsd.org>, Jordan Hubbard <jkh@freebsd.org> and
+Anatoly A. Orehovsky <tolik@mpeks.tomsk.su>.
 
 .Sh HISTORY
 These functions appeared in
 .Em FreeBSD-2.0
 as the \fBdialog(1)\fR command and were soon split into library
 and command by Andrey Chernov.  Marc van Kempen implemented most of the
-extra controls and objects and Jordan Hubbard added the dialogMenuItem
-renovations and this man page.
+extra controls and objects, Jordan Hubbard added the dialogMenuItem
+renovations and this man page and Anatoly A. Orehovsky implemented
+dialog_ftree() and dialog_tree().
+
 .Sh BUGS
 Sure!

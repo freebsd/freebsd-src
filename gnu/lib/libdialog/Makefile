@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.22 1998/09/26 12:29:57 jkh Exp $
+# $Id: Makefile,v 1.23 1998/09/28 00:52:53 jkh Exp $
 
 LIB=    dialog
 MAN3=	dialog.3
@@ -32,6 +32,7 @@ MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 init_dialog.3 dialog.3 end_dialog.3 \
 	dialog.3 use_helpfile.3 dialog.3 use_helpline.3 \
 	dialog.3 get_helpline.3 dialog.3 restore_helpline.3 \
-	dialog.3 dialog_msgbox.3
+	dialog.3 dialog_msgbox.3 dialog.3 dialog_ftree.3 \
+	dialog.3 dialog_tree.3
 
 .include <bsd.lib.mk>
