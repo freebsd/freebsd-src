@@ -220,7 +220,9 @@ ffs_mount( mp, path, data, ndp, p)
 				VOP_UNLOCK(devvp, 0, p);
 			}
 
+			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
+				fs->fs_flags |= FS_UNCLEAN;
 				if (mp->mnt_flag & MNT_FORCE) {
 					printf(
 "WARNING: %s was not properly dismounted\n",
