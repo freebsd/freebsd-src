@@ -1,13 +1,12 @@
 #
-#	$Id: Makefile,v 1.3 1999/01/09 21:50:56 jdp Exp $
+#	$Id: Makefile,v 1.4 1999/03/12 17:33:26 jdp Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-elf
-CFLAGS+=	-Wall
+CFLAGS+=	-elf -Wall -fkeep-inline-functions
 LDFLAGS+=	-elf
 NOMAN=		true
 NOPIC=		true
