@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: memalloc.c,v 1.9 1998/05/18 06:43:57 charnier Exp $";
 #endif /* not lint */
 
 #include "shell.h"
@@ -268,7 +268,7 @@ char *
 growstackstr() {
 	int len = stackblocksize();
 	if (herefd >= 0 && len >= 1024) {
-		xwrite(herefd, stackblock(), len);
+		xwrite(herefd, stackblock(), rmquotes(stackblock(), len));
 		sstrnleft = len - 1;
 		return stackblock();
 	}
