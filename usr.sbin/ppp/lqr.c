@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.3 1995/04/17 04:21:35 amurai Exp $
+ * $Id: lqr.c,v 1.4 1995/05/30 03:50:44 rgrimes Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -31,6 +31,7 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "vars.h"
+#include "main.h"
 
 struct pppTimer LqrTimer;
 
@@ -107,19 +108,19 @@ SendLqrReport()
       /*
        * XXX: Should implement LQM strategy
        */
-      LogPrintf(LOG_PHASE, "** Too many ECHO packets are lost. **\n");
+      LogPrintf(LOG_PHASE, "** 1 Too many ECHO packets are lost. **\n");
+      lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
       LcpClose();
-      Cleanup(EX_ERRDEAD);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
-      HdlcOutput(PRI_URGENT, PROTO_LQR, bp);
+      HdlcOutput(PRI_LINK, PROTO_LQR, bp);
       lqrsendcnt++;
     }
   } else if (lqmmethod & LQM_ECHO) {
     if (echoseq - gotseq > 5) {
-      LogPrintf(LOG_PHASE, "** Too many ECHO packets are lost. **\n");
+      LogPrintf(LOG_PHASE, "** 2 Too many ECHO packets are lost. **\n");
+      lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
       LcpClose();
-      Cleanup(EX_ERRDEAD);
     } else
       SendEchoReq();
   }
@@ -210,6 +211,12 @@ StartLqm()
   } else {
     LogPrintf(LOG_LQM, "LQR is not activated.\n");
   }
+}
+
+void
+StopLqrTimer(void)
+{
+    StopTimer(&LqrTimer);
 }
 
 void

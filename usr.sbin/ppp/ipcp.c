@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.4 1995/05/30 03:50:38 rgrimes Exp $
+ * $Id: ipcp.c,v 1.4.4.1 1995/08/26 12:11:41 davidg Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -120,9 +120,9 @@ ReportIpcpStatus()
   struct fsm *fp = &IpcpFsm;
 
   printf("%s [%s]\n", fp->name, StateNames[fp->state]);
-  printf(" his side: %s, %x\n",
+  printf(" his side: %s, %lx\n",
      inet_ntoa(icp->his_ipaddr), icp->his_compproto);
-  printf(" my  side: %s, %x\n",
+  printf(" my  side: %s, %lx\n",
      inet_ntoa(icp->want_ipaddr), icp->want_compproto);
   printf("connected: %d secs, idle: %d secs\n\n", ipConnectSecs, ipIdleSecs);
   printf("Defaults:\n");

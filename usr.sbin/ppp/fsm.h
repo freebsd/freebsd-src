@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.2 1995/02/26 12:17:28 amurai Exp $
+ * $Id: fsm.h,v 1.4 1995/02/27 03:17:58 amurai Exp $
  *
  *	TODO:
  */
@@ -116,7 +116,7 @@ u_char ReqBuff[200];
 
 u_char *ackp, *nakp, *rejp;
 
-extern char *StateNames[];
+extern char const *StateNames[];
 extern void FsmInit __P((struct fsm *));
 extern void NewState __P((struct fsm *, int));
 extern void FsmOutput __P((struct fsm *, u_int, u_int, u_char *, int));

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.9 1995/09/02 17:20:53 amurai Exp $
+ * $Id: modem.c,v 1.6.4.2 1995/10/06 11:24:44 davidg Exp $
  *
  *  TODO:
  */
@@ -27,8 +27,10 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <errno.h>
+#include <time.h>
 #include "hdlc.h"
 #include "lcp.h"
+#include "ip.h"
 #include "modem.h"
 #include "vars.h"
 
@@ -52,8 +54,10 @@ extern void PacketMode();
 #define	Online	(mbits & TIOCM_CD)
 
 static struct mbuf *modemout;
-static struct mqueue OutputQueues[PRI_URGENT+1];
+static struct mqueue OutputQueues[PRI_LINK+1];
 static int dev_is_modem;
+
+#undef QDEBUG
 
 void
 Enqueue(queue, bp)
@@ -80,7 +84,8 @@ struct mqueue *queue;
 #ifdef QDEBUG
   logprintf("Dequeue: len = %d\n", queue->qlen);
 #endif
-  if (bp = queue->top) {
+  bp = queue->top;
+  if (bp) {
     queue->top = queue->top->pnext;
     queue->qlen--;
     if (queue->top == NULL) {
@@ -600,6 +605,7 @@ int flag;
   }
 }
 
+void
 CloseModem()
 {
   if (modem >= 3)
@@ -624,6 +630,10 @@ int count;
 
   bp = mballoc(count, MB_MODEM);
   bcopy(ptr, MBUF_CTOP(bp), count);
+
+  /* Should be NORMAL and LINK only.
+   * All IP frames get here marked NORMAL.
+  */
   Enqueue(&OutputQueues[pri], bp);
 }
 
@@ -649,7 +659,7 @@ ModemQlen()
   int len = 0;
   int i;
 
-  for ( i = PRI_NORMAL; i <= PRI_URGENT; i ++ ) {
+  for ( i = PRI_NORMAL; i <= PRI_LINK; i ++ ) {
         queue = &OutputQueues[i];
 	len += queue->qlen;
   }
@@ -664,13 +674,15 @@ int fd;
   struct mqueue *queue;
   int nb, nw, i;
 
+    if (modemout == NULL && ModemQlen() == 0)
+      IpStartOutput();
   if (modemout == NULL) {
-    i = 0;
-    for (queue = &OutputQueues[PRI_URGENT]; queue >= OutputQueues; queue--) {
+    i = PRI_LINK;
+    for (queue = &OutputQueues[PRI_LINK]; queue >= OutputQueues; queue--) {
       if (queue->top) {
 	modemout = Dequeue(queue);
 #ifdef QDEBUG
-	if (i < 2) {
+	if (i > PRI_NORMAL) {
 	  struct mqueue *q;
 
 	  q = &OutputQueues[0];
@@ -680,13 +692,13 @@ int fd;
 #endif
 	break;
       }
-      i++;
+      i--;
     }
   }
   if (modemout) {
     nb = modemout->cnt;
     if (nb > 1600) nb = 1600;
-    if (fd == 0) fd = 1;
+    if (fd == 0) fd = 1;	/* XXX WTFO!  This is bogus */
     nw = write(fd, MBUF_CTOP(modemout), nb);
 #ifdef QDEBUG
     logprintf("wrote: %d(%d)\n", nw, nb);

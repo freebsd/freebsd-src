@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: hdlc.h,v 1.2 1995/02/26 12:17:31 amurai Exp $
  *
  *	TODO:
  */
@@ -45,15 +45,22 @@
 /*
  *  Output priority
  */
+/* PRI_NORMAL and PRI_FAST have meaning only on the IP queue.
+ * All IP frames have the same priority once they are compressed.
+ * IP frames stay on the IP queue till they can be sent on the
+ * link. They are compressed at that time.
+*/
 #define	PRI_NORMAL	0	/* Normal priority */
-#define	PRI_FAST	1	/* Fast (interructive) */
-#define	PRI_URGENT	2	/* Urgent (LQR packets) */
+#define	PRI_FAST	1	/* Fast (interractive) */
+#define	PRI_LINK	1	/* Urgent (LQR packets) */
 
 unsigned char EscMap[33];
 
 void HdlcInit __P((void));
+void HdlcErrorCheck __P((void));
 void HdlcInput __P((struct mbuf *bp));
 void HdlcOutput __P((int pri, u_short proto, struct mbuf *bp));
 void AsyncOutput __P((int pri, struct mbuf *bp, int proto));
-
+u_short HdlcFcs __P((u_short, u_char *, int));
+void DecodePacket __P((u_short, struct mbuf *));
 #endif

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.2 1995/02/26 12:17:46 amurai Exp $
+ * $Id: modem.h,v 1.4 1995/02/27 03:18:22 amurai Exp $
  *
  *	TODO:
  */
@@ -33,8 +33,13 @@ extern void DownModem __P((int));
 extern void WriteModem __P((int, char *, int));
 extern void ModemStartOutput __P((int));
 extern int OpenModem __P((int));
+extern void CloseModem __P((void));
 extern int ModemSpeed __P((void));
 extern int ModemQlen __P((void));
 extern int DialModem __P((void));
-
+extern int SpeedToInt __P((speed_t));
+extern speed_t IntToSpeed __P((int));
+extern void ModemTimeout __P((void));
+extern void DownConnection __P((void));
+extern void ModemOutput __P((int, struct mbuf *));
 #endif
