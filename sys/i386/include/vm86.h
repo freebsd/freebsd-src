@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.4 1997/11/20 18:43:55 bde Exp $
+ *	$Id: vm86.h,v 1.5 1998/03/23 19:52:57 jlemon Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -37,12 +37,12 @@ typedef union {
 	u_long	r_ex;
 	struct {
 		u_short	r_x;
-		u_short	:16;
+		u_int	:16;
 	} r_w;
 	struct {
 		u_char	r_l;
 		u_char	r_h;
-		u_short	:16;
+		u_int	:16;
 	} r_b;
 } reg86_t;
 

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 1.3 1998/06/07 17:12:15 dfr Exp $
+ * $Id: ip_fil.h,v 1.4 1998/06/08 06:04:11 bde Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -82,8 +82,8 @@
 #define	SIOCINSFR	SIOCINAFR
 
 typedef	struct	fr_ip	{
-	u_char	fi_v:4;		/* IP version */
-	u_char	fi_fl:4;	/* packet flags */
+	u_int	fi_v:4;		/* IP version */
+	u_int	fi_fl:4;	/* packet flags */
 	u_char	fi_tos;
 	u_char	fi_ttl;
 	u_char	fi_p;

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id$
+ *      $Id: btreg.h,v 1.6 1997/02/22 09:38:43 peter Exp $
  */
 
 #ifndef _BTREG_H_
@@ -80,7 +80,7 @@ struct bt_ccb {
 #define		BT_TARGET_CCB		0x01	/* SCSI Target CCB */
 #define		BT_INIT_SCAT_GATH_CCB	0x02	/* SCSI Initiator w/sg */
 #define		BT_RESET_CCB		0x81	/* SCSI Bus reset */
-	unsigned char:3, data_in:1, data_out:1,:3;
+	unsigned :3, data_in:1, data_out:1,:3;
 	unsigned char scsi_cmd_length;
 	unsigned char req_sense_length;
 	unsigned long data_length;

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_devar.h,v 1.26 1998/02/11 01:28:29 thorpej Exp $	*/
-/*	$Id: if_devar.h,v 1.5 1998/03/08 16:54:00 peter Exp $ */
+/*	$Id: if_devar.h,v 1.6 1998/06/07 17:12:37 dfr Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -270,7 +270,7 @@ typedef struct {
 	    u_int32_t gpr_gpdata;
 	    u_int8_t gpr_actmask;
 	    u_int8_t gpr_actdata;
-	    u_int8_t gpr_default : 1;
+	    u_int    gpr_default : 1;
 	} un_gpr;
 	struct {
 	    u_int32_t mii_mediamask;
