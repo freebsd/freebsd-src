@@ -94,11 +94,9 @@ static void	zsstop __P((struct tty *tp, int flag));
 
 int		zs_cngetc __P((dev_t));
 void		zs_cnputc __P((dev_t, int));
-static void	zs_cnpollc __P((dev_t, int));
 
 struct consdev zs_cons = {
-	NULL, NULL, NULL, zs_cngetc, NULL, zs_cnputc,
-	NULL, 0, CN_NORMAL,
+	NULL, NULL, NULL, zs_cngetc, NULL, zs_cnputc, NULL, NULL, 0, CN_NORMAL
 };
 
 static caddr_t zs_console_addr;
