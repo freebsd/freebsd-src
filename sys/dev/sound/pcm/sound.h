@@ -52,10 +52,9 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#if __FreeBSD_version > 500000
-#include <sys/bio.h>
-#endif
+#if __FreeBSD_version < 500000
 #include <sys/buf.h>
+#endif
 #include <machine/clock.h>	/* for DELAY */
 #include <machine/resource.h>
 #include <machine/bus.h>
