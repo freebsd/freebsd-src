@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.24 1998/03/19 22:48:05 dyson Exp $
+ * $Id: kern_physio.c,v 1.25 1998/03/28 10:33:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -176,7 +176,7 @@ minphys(bp)
 	if (bdsw && bdsw->d_maxio) {
 		maxphys = bdsw->d_maxio;
 	}
-	if (bp->b_kvasize < maxphys)
+	if (bp->b_kvasize && (bp->b_kvasize < maxphys))
 		maxphys = bp->b_kvasize;
 
 	if(((vm_offset_t) bp->b_data) & PAGE_MASK) {
