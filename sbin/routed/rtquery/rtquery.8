@@ -46,15 +46,27 @@ undocumented extension to the RIP protocol supported by
 When querying gated, the
 .Em poll
 command is preferred over the
-.I Request
+.Em request
 command because the response is not subject to Split Horizon and/or
-Poisoned Reverse, and because some versions of gated do not answer
-the Request command.  Routed does not answer the Poll command, but
-recognizes Requests coming from rtquery and so answers completely.
+Poisoned Reverse, and because some versions of
+.Xr gated 8
+do not answer
+the
+.Em request
+command.
+.Nm Routed
+does not answer the
+.Em poll
+command, but
+recognizes
+.Em request
+commands coming from
+.Nm
+and so answers completely.
 .Pp
-.Em Rtquery
+.Nm Rtquery
 is also used to turn tracing on or off in
-.Em routed .
+.Nm routed .
 .Pp
 Options supported by
 .Nm rtquery :
@@ -108,7 +120,11 @@ dumps the daemon's routing table to the current tracefile.
 .Sh SEE ALSO
 .Xr gated 8 ,
 .Xr routed 8
-.br
-RFC\ 1058 - Routing Information Protocol, RIPv1
-.br
-RFC\ 1723 - Routing Information Protocol, RIPv2
+.Rs
+.%T Routing Information Protcol, RIPV1
+.%O RFC1058
+.Re
+.Rs
+.%T Routing Information Protocol, RIPv2
+.%O RFC1723
+.Re
