@@ -39,6 +39,7 @@
 #include <sys/md5.h>
 #include <sys/devicestat.h>
 #include <sys/interrupt.h>
+#include <sys/bus.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
@@ -48,7 +49,6 @@
 #include <machine/ipl.h>
 
 #include <cam/cam.h>
-#include <cam/cam_conf.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_sim.h>
@@ -4088,7 +4088,7 @@ xptnextfreepathid(void)
 {
 	struct cam_eb *bus;
 	path_id_t pathid;
-	struct cam_sim_config *sim_conf;
+	char *strval;
 
 	pathid = 0;
 	bus = TAILQ_FIRST(&xpt_busses);
@@ -4105,17 +4105,10 @@ retry:
 	 * Ensure that this pathid is not reserved for
 	 * a bus that may be registered in the future.
 	 */
-	sim_conf = cam_sinit;
-	while (sim_conf->sim_name != NULL) {
-
-		if (IS_SPECIFIED(sim_conf->pathid)
-		 && (pathid == sim_conf->pathid)) {
-			++pathid;
-			/* Start the search over */
-			goto retry;
-		} else {
-			sim_conf++;
-		}
+	if (resource_string_value("scbus", pathid, "at", &strval) == 0) {
+		++pathid;
+		/* Start the search over */
+		goto retry;
 	}
 	return (pathid);
 }
@@ -4123,37 +4116,38 @@ retry:
 static path_id_t
 xptpathid(const char *sim_name, int sim_unit, int sim_bus)
 {
-	struct cam_sim_config *sim_conf;
 	path_id_t pathid;
+	int i, dunit, val;
+	char buf[32], *strval;
 
 	pathid = CAM_XPT_PATH_ID;
-	for (sim_conf = cam_sinit; sim_conf->sim_name != NULL; sim_conf++) {
-
-		if (!IS_SPECIFIED(sim_conf->pathid))
+	snprintf(buf, sizeof(buf), "%s%d", sim_name, sim_unit);
+	i = -1;
+	while ((i = resource_locate(i, "scbus")) != -1) {
+		dunit = resource_query_unit(i);
+		if (dunit < 0)		/* unwired?! */
 			continue;
-			
-		if (!strcmp(sim_name, sim_conf->sim_name)
-		 && (sim_unit == sim_conf->sim_unit)) {
-
-			if (IS_SPECIFIED(sim_conf->sim_bus)) {
-				if (sim_bus == sim_conf->sim_bus) {
-					pathid = sim_conf->pathid;
-					break;
-				}
-			} else if (sim_bus == 0) {
-				/* Unspecified matches bus 0 */
-				pathid = sim_conf->pathid;
+		if (resource_string_value("scbus", dunit, "at", &strval) != 0)
+			continue;
+		if (strcmp(buf, strval) != 0)
+			continue;
+		if (resource_int_value("scbus", dunit, "bus", &val) == 0) {
+			if (sim_bus == val) {
+				pathid = dunit;
 				break;
-			} else {
-				printf("Ambiguous scbus configuration for %s%d "
-				       "bus %d, cannot wire down.  The kernel "
-				       "config entry for scbus%d should "
-				       "specify a controller bus.\n"
-				       "Scbus will be assigned dynamically.\n",
-				       sim_name, sim_unit, sim_bus,
-				       sim_conf->pathid);
-                             break;
 			}
+		} else if (sim_bus == 0) {
+			/* Unspecified matches bus 0 */
+			pathid = dunit;
+			break;
+		} else {
+			printf("Ambiguous scbus configuration for %s%d "
+			       "bus %d, cannot wire down.  The kernel "
+			       "config entry for scbus%d should "
+			       "specify a controller bus.\n"
+			       "Scbus will be assigned dynamically.\n",
+			       sim_name, sim_unit, sim_bus, dunit);
+			break;
 		}
 	}
 
