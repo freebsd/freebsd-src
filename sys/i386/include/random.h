@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.4 1996/01/30 22:54:53 mpp Exp $
+ * $Id: random.h,v 1.5 1996/06/14 11:01:04 asami Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -48,29 +48,27 @@
  */
 
 #ifndef _MACHINE_RANDOM_H_
-#define _MACHINE_RANDOM_H_ 1
+#define	_MACHINE_RANDOM_H_
 
-#if defined(KERNEL)
-#ifdef PC98
-#include <pc98/pc98/icu.h>
-#include <pc98/pc98/pc98_device.h>
-#else
-#include <i386/isa/icu.h>
-#include <i386/isa/isa_device.h>
-#endif
-#endif
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 #define	MEM_SETIRQ	_IOW('r', 1, u_int16_t)	/* set interrupt */
 #define	MEM_CLEARIRQ	_IOW('r', 2, u_int16_t)	/* clear interrupt */
 #define	MEM_RETURNIRQ	_IOR('r', 3, u_int16_t)	/* return interrupt */
 
-#if defined(KERNEL)
+#ifdef KERNEL
+
+/* XXX include from the wrong place(s) for inthand2_t. */
+#ifdef PC98
+#include <pc98/pc98/pc98_device.h>
+#else
+#include <i386/isa/isa_device.h>
+#endif
 
 /* Interrupts to be used in the randomizing process */
 
-extern inthand2_t *sec_intr_handler[ICU_LEN];
-extern int sec_intr_unit[ICU_LEN];
+extern inthand2_t *sec_intr_handler[];
+extern int sec_intr_unit[];
 
 /* Exported functions */
 
@@ -90,6 +88,6 @@ u_int read_random_unlimited(char *buf, u_int size);
 u_int write_random(const char *buf, u_int nbytes);
 #endif
 
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* !_MACHINE_RANDOM_H_ */
