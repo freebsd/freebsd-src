@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.4 1994/08/21 04:41:53 paul Exp $
+ * $Id: mount.h,v 1.5 1994/08/22 14:09:51 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -396,6 +396,7 @@ struct nfs_args {
  */
 int	dounmount __P((struct mount *, int, struct proc *));
 struct	mount *getvfs __P((fsid_t *));      /* return vfs given fsid */
+int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int	vfs_export			    /* process mount export info */
 	  __P((struct mount *, struct netexport *, struct export_args *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
