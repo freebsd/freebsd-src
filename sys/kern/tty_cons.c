@@ -148,6 +148,7 @@ cninit(void)
 	best_cn = NULL;
 	SET_FOREACH(list, cons_set) {
 		cn = *list;
+		cnremove(cn);
 		if (cn->cn_probe == NULL)
 			continue;
 		cn->cn_probe(cn);
