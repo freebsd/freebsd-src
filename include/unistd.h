@@ -58,7 +58,7 @@ typedef	__ssize_t	ssize_t;
 #endif
 
 #ifndef _UID_T_DECLARED
-typedef	__uid_t_	uid_t;
+typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED
 #endif
 
