@@ -408,18 +408,6 @@ struct pthread_spinlock {
 	NULL, NULL, 0, 0 }
 
 /*
- * Semaphore definitions.
- */
-struct sem {
-#define	SEM_MAGIC	((u_int32_t) 0x09fa4012)
-	u_int32_t	magic;
-	pthread_mutex_t	lock;
-	pthread_cond_t	gtzero;
-	u_int32_t	count;
-	u_int32_t	nwaiters;
-};
-
-/*
  * Cleanup definitions.
  */
 struct pthread_cleanup {
