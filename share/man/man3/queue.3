@@ -564,7 +564,7 @@ STAILQ_FOREACH(np, &head, entries)
 					/* TailQ Deletion. */
 while (!STAILQ_EMPTY(&head)) {
 	n1 = STAILQ_HEAD(&head);
-	TAILQ_REMOVE_HEAD(&head, entries);
+	STAILQ_REMOVE_HEAD(&head, entries);
 	free(n1);
 }
 					/* Faster TailQ Deletion. */
