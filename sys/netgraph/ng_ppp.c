@@ -1016,6 +1016,10 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	struct ng_ppp_frag *qent;
 	int i, diff, inserted;
 
+	/* Stats */
+	priv->bundleStats.recvFrames++;
+	priv->bundleStats.recvOctets += m->m_pkthdr.len;
+
 	/* Extract fragment information from MP header */
 	if (priv->conf.recvShortSeq) {
 		u_int16_t shdr;
