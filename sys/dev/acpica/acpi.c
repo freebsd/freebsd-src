@@ -1346,9 +1346,8 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    AcpiUtReleaseMutex(ACPI_MTX_HARDWARE);
 
 	    /* Re-enable ACPI hardware on wakeup from sleep state 4. */
-	    if (state >= ACPI_STATE_S4) {
-		acpi_Disable(sc);
-		acpi_Enable(sc);
+	    if (state == ACPI_STATE_S4) {
+		AcpiEnable();
 	    }
 	} else {
 	    status = AcpiEnterSleepState((UINT8)state);
