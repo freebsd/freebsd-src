@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1997/02/22 16:08:30 peter Exp $
+# $Id: Makefile,v 1.6 1998/05/03 05:14:56 peter Exp $
 
 .include "${.CURDIR}/../named/Makefile.inc"
 
@@ -6,14 +6,12 @@
 .PATH:	${BIND_DIR}/doc/man
 
 PROG=	nslookup
-SRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c commands.c
+SRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c commands.l
 MAN8=	nslookup.8
 
 CFLAGS+=-D_PATH_HELPFILE=\"${DESTHELP}/nslookup.help\"
 LDADD+=	-ll
 DPADD+=	${LIBL}
-
-CLEANFILES+= commands.c lex.yy.c lex.yy.o
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
