@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.5 1998/10/18 15:31:23 peter Exp $
+ *      $Id: elf.h,v 1.6 1999/02/07 23:49:55 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -121,11 +121,13 @@ __ElfType(Auxinfo);
 #ifdef KERNEL
 
 /*
- * On the i386 we load the dynamic linker at a fixed address,
- * below where the executable itself is loaded.  This is the
- * standard SVR4 location for it.
+ * On the i386 we load the dynamic linker where a userland call
+ * to mmap(0, ...) would put it.  The rationale behind this
+ * calculation is that it leaves room for the heap to grow to
+ * its maximum allowed size.
  */
-#define ELF_RTLD_ADDR(vmspace)	0x08000000
+#define ELF_RTLD_ADDR(vmspace) \
+    (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
 
 #endif /* KERNEL */
 #endif /* !_MACHINE_ELF_H_ */
