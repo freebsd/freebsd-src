@@ -641,8 +641,8 @@ u_int32_t cam_debug_delay;
 #endif
 
 /* Pointers to software interrupt handlers */
-void *camnet_ih;
-void *cambio_ih;
+static void *camnet_ih;
+static void *cambio_ih;
 
 #if defined(CAM_DEBUG_FLAGS) && !defined(CAMDEBUG)
 #error "You must have options CAMDEBUG to use options CAM_DEBUG_FLAGS"
