@@ -49,16 +49,26 @@ Set the socket through which this filter should communicate with sendmail.
 <tr>
 <th valign="top" align=left>RETURN VALUES</th> 
 
-<td>smfi_setconn will not fail on an invalid address.  The failure will 
-only be detected in <a href="smfi_main.html">smfi_main</a></td>
+<td>smfi_setconn will not fail on an invalid address.
+The failure will only be detected in <a href="smfi_main.html">smfi_main</a></td>.
+Nevertheless, smfi_setconn may fail for other reasons, e.g.,
+due to a lack of memory.
 </tr>
 
 <tr>
 <th valign="top" align=left>NOTES</th> 
 
 <td>
-<ul><li>If possible, filters should not run as root when communicating over unix/local domain sockets.
-    <li>Unix/local sockets should have their permissions set to 0600 (read/write permission only for the socket's owner).
+<ul>
+  <li>If possible, filters should not run as root when communicating
+	over unix/local domain sockets.
+  <li>Unix/local sockets should have their permissions set to
+	0600 (read/write permission only for the socket's owner) or
+	0660 (read/write permission for the socket's owner and group)
+	which is useful if the sendmail RunAsUser option is used.
+	The permissions for a unix/local domain socket are determined as
+	usual by <code>umask</code>, which should be set to 007 or 077
+	before calling <code>smfi_setconn()</code>.
 </ul>
 </td>
 </tr>
@@ -67,11 +77,11 @@ only be detected in <a href="smfi_main.html">smfi_main</a></td>
 
 <hr size="1">
 <font size="-1">
-Copyright (c) 2000 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <br>
 By using this file, you agree to the terms and conditions set
-forth in the <a href="LICENSE.txt">LICENSE</a>.
+forth in the LICENSE.
 </font>
 </body>
 </html>

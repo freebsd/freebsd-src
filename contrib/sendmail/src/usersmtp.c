@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.8 2002/12/12 17:40:07 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.9 2003/03/15 23:57:52 gshapiro Exp $")
 
 #include <sysexits.h>
 
@@ -2823,6 +2823,7 @@ smtpgetstat(m, mci, e)
 	ENVELOPE *e;
 {
 	int r;
+	int off;
 	int status, xstat;
 	char *enhsc;
 
@@ -2844,13 +2845,12 @@ smtpgetstat(m, mci, e)
 	else
 		status = EX_PROTOCOL;
 	if (bitset(MCIF_ENHSTAT, mci->mci_flags) &&
-	    (r = isenhsc(SmtpReplyBuffer + 4, ' ')) > 0)
-		r += 5;
+	    (off = isenhsc(SmtpReplyBuffer + 4, ' ')) > 0)
+		off += 5;
 	else
-		r = 4;
-	e->e_statmsg = sm_rpool_strdup_x(e->e_rpool, &SmtpReplyBuffer[r]);
-	mci_setstat(mci, xstat, ENHSCN(enhsc, smtptodsn(r)),
-		    SmtpReplyBuffer);
+		off = 4;
+	e->e_statmsg = sm_rpool_strdup_x(e->e_rpool, &SmtpReplyBuffer[off]);
+	mci_setstat(mci, xstat, ENHSCN(enhsc, smtptodsn(r)), SmtpReplyBuffer);
 	if (LogLevel > 1 && status == EX_PROTOCOL)
 	{
 		sm_syslog(LOG_CRIT, e->e_id,

@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.887.2.20 2003/02/07 17:57:44 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.887.2.22 2003/03/06 18:38:08 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -128,6 +128,7 @@ int		SyslogPrefixLen; /* estimated length of syslog prefix */
 {									\
 	if (extraprivs &&						\
 	    OpMode != MD_DELIVER && OpMode != MD_SMTP &&		\
+	    OpMode != MD_ARPAFTP &&					\
 	    OpMode != MD_VERIFY && OpMode != MD_TEST)			\
 	{								\
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,		\
@@ -392,6 +393,7 @@ main(argc, argv, envp)
 # endif /* ! OPTIONS */
 #endif /* _FFR_QUARANTINE */
 
+	/* Set to 0 to allow -b; need to check optarg before using it! */
 	opterr = 0;
 	while ((j = getopt(argc, argv, OPTIONS)) != -1)
 	{
@@ -442,6 +444,13 @@ main(argc, argv, envp)
 			break;
 
 		  case 'L':
+			if (optarg == NULL)
+			{
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "option requires an argument -- '%c'",
+						     (char) j);
+				return EX_USAGE;
+			}
 			j = SM_MIN(strlen(optarg), 24) + 1;
 			sysloglabel = xalloc(j);
 			(void) sm_strlcpy(sysloglabel, optarg, j);
