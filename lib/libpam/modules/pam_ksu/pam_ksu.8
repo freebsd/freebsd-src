@@ -65,17 +65,26 @@ the identity of a user
 .Pq Fn pam_sm_authenticate ,
 and determine whether or not the user is authorized to obtain the
 privileges of the target account.
-If the target account is `root', then the Kerberos 5 principal used
-for authentication and authorization will be the `root' instance of
-the current user, e.g. `user/root@REAL.M'.
+If the target account is
+.Dq root ,
+then the Kerberos 5 principal used
+for authentication and authorization will be the
+.Dq root
+instance of
+the current user, e.g.\&
+.Dq Li user/root@REAL.M .
 Otherwise, the principal will simply be the current user's default
-principal, e.g. `user@REAL.M'.
+principal, e.g.\&
+.Dq Li user@REAL.M .
 .Pp
-The user is prompted for a password if necessary.  Authorization is performed
+The user is prompted for a password if necessary.
+Authorization is performed
 by comparing the Kerberos 5 principal with those listed in the
 .Pa .k5login
 file in the target account's home directory
-.Pq e.g. /root/.k5login for root .
+(e.g.\&
+.Pa /root/.k5login
+for root).
 .Pp
 The following options may be passed to the authentication module:
 .Bl -tag -width ".Cm use_first_pass"
