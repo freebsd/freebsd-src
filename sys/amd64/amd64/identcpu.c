@@ -553,32 +553,32 @@ printcpuinfo(void)
 			 */
 			printf("\n  Features=0x%b", cpu_feature,
 			"\020"
-			"\001FPU"
-			"\002VME"
+			"\001FPU"	/* Integral FPU */
+			"\002VME"	/* Extended VM86 mode support */
 			"\003DE"
-			"\004PSE"
-			"\005TSC"
-			"\006MSR"
-			"\007PAE"
-			"\010MCE"
-			"\011CX8"
-			"\012APIC"
+			"\004PSE"	/* 4MByte page tables */
+			"\005TSC"	/* Timestamp counter */
+			"\006MSR"	/* Machine specific registers */
+			"\007PAE"	/* Physical address extension */
+			"\010MCE"	/* Machine Check support */
+			"\011CX8"	/* CMPEXCH8 instruction */
+			"\012APIC"	/* SMP local APIC */
 			"\013oldMTRR"
 			"\014SEP"
 			"\015MTRR"
-			"\016PGE"
+			"\016PGE"	/* PG_G (global bit) support */
 			"\017MCA"
-			"\020CMOV"
-			"\021PAT"
-			"\022PSE36"
-			"\023<b18>"
+			"\020CMOV"	/* CMOV instruction */
+			"\021PAT"	/* Page attributes table */
+			"\022PSE36"	/* 36 bit address space support */
+			"\023PN"	/* Processor Serial number */
 			"\024<b19>"
 			"\025<b20>"
 			"\026<b21>"
 			"\027<b22>"
-			"\030MMX"
-			"\031FXSR"
-			"\032<b25>"
+			"\030MMX"	/* MMX instructions */
+			"\031FXSR"	/* FXSAVE/FXRSTOR */
+			"\032XMM"	/* Katami SIMD/MMX2 instructions */
 			"\033<b26>"
 			"\034<b27>"
 			"\035<b28>"
