@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.1 1995/12/12 08:57:21 gibbs Exp $
+ *      $Id: bt.c,v 1.2 1995/12/13 14:32:59 bde Exp $
  */
 
 /*
@@ -538,7 +538,7 @@ bt_adapter_info(unit)
  * Catch an interrupt from the adaptor
  */
 void
-btintr(arg)
+bt_intr(arg)
 	void	*arg;
 {
 	BT_MBI *wmbi;
@@ -552,7 +552,7 @@ btintr(arg)
 	bt = (struct bt_data *)arg;
 
 #ifdef UTEST
-	printf("btintr ");
+	printf("bt_intr ");
 #endif
 	/*
 	 * First acknowlege the interrupt, Then if it's
@@ -1429,7 +1429,7 @@ bt_poll(bt, xs, ccb)
 		 */
 		stat = inb(BT_INTR_PORT);
 		if (stat & BT_ANY_INTR) {
-			btintr((void *)bt);
+			bt_intr((void *)bt);
 		}
 		if (xs->flags & ITSDONE) {
 			break;
@@ -1457,7 +1457,7 @@ bt_poll(bt, xs, ccb)
 			 */
 			stat = inb(BT_INTR_PORT);
 			if (stat & BT_ANY_INTR) {
-				btintr((void *)bt);
+				bt_intr((void *)bt);
 			}
 			if (xs->flags & ITSDONE) {
 				break;
