@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.11 1995/05/30 08:09:58 rgrimes Exp $
+ * $Id: tcp_subr.c,v 1.12 1995/06/19 16:45:33 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -303,18 +303,17 @@ tcp_close(tp)
 	register struct rtentry *rt;
 
 	/*
-	 * If we sent enough data to get some meaningful characteristics,
-	 * save them in the routing entry.  'Enough' is arbitrarily
-	 * defined as the sendpipesize (default 4K) * 16.  This would
-	 * give us 16 rtt samples assuming we only get one sample per
-	 * window (the usual case on a long haul net).  16 samples is
-	 * enough for the srtt filter to converge to within 5% of the correct
-	 * value; fewer samples and we could save a very bogus rtt.
+	 * If we got enough samples through the srtt filter,
+	 * save the rtt and rttvar in the routing entry.
+	 * 'Enough' is arbitrarily defined as the 16 samples.
+	 * 16 samples is enough for the srtt filter to converge
+	 * to within 5% of the correct value; fewer samples and
+	 * we could save a very bogus rtt.
 	 *
 	 * Don't update the default route's characteristics and don't
 	 * update anything that the user "locked".
 	 */
-	if (SEQ_LT(tp->iss + so->so_snd.sb_hiwat * 16, tp->snd_max) &&
+	if (tp->t_rttupdated >= 16 &&
 	    (rt = inp->inp_route.ro_rt) &&
 	    ((struct sockaddr_in *)rt_key(rt))->sin_addr.s_addr != INADDR_ANY) {
 		register u_long i = 0;
