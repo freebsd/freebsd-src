@@ -36,6 +36,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #include <dev/sound/isa/sb.h>
 #include <dev/sound/chip.h>
 
+#include <isa/isavar.h>
+
 #include "mixer_if.h"
 
 #define MSS_DEFAULT_BUFSZ (4096)
@@ -1127,7 +1129,7 @@ msschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->dir = dir;
 	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, mss->bufsize) == -1) return NULL;
-	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? mss->drq1 : mss->drq2);
+	sndbuf_dmasetup(ch->buffer, (dir == PCMDIR_PLAY)? mss->drq1 : mss->drq2);
 	return ch;
 }
 
@@ -1177,7 +1179,7 @@ msschan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	sndbuf_isadma(ch->buffer, go);
+	sndbuf_dma(ch->buffer, go);
 	mss_lock(mss);
 	mss_trigger(ch, go);
 	mss_unlock(mss);
@@ -1188,7 +1190,7 @@ static int
 msschan_getptr(kobj_t obj, void *data)
 {
 	struct mss_chinfo *ch = data;
-	return sndbuf_isadmaptr(ch->buffer);
+	return sndbuf_dmaptr(ch->buffer);
 }
 
 static struct pcmchan_caps *

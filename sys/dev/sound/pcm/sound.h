@@ -64,7 +64,6 @@
 #include <sys/sbuf.h>
 #include <sys/soundcard.h>
 #include <sys/sysctl.h>
-#include <isa/isavar.h>
 #include <sys/kobj.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -104,12 +103,6 @@ struct snd_mixer;
 #define	PCM_SOFTC_SIZE	512
 
 #define SND_STATUSLEN	64
-/* descriptor of audio device */
-#ifndef ISADMA_WRITE
-#define ISADMA_WRITE B_WRITE
-#define ISADMA_READ B_READ
-#define ISADMA_RAW B_RAW
-#endif
 
 #define PCM_MODVER	1
 
