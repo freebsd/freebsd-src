@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.121 1998/04/29 06:59:08 dyson Exp $
+ * $Id: vm_map.c,v 1.122 1998/05/01 02:25:29 dyson Exp $
  */
 
 /*
@@ -1924,10 +1924,16 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	return (TRUE);
 }
 
+/*
+ * Split the pages in a map entry into a new object.  This affords
+ * easier removal of unused pages, and keeps object inheritance from
+ * being a negative impact on memory usage.
+ */
 static void
 vm_map_split(entry)
 	vm_map_entry_t entry;
 {
+	vm_page_t m;
 	vm_object_t orig_object, new_object;
 	vm_offset_t s, e;
 	vm_pindex_t offidxstart, offidxend, idx;
@@ -1970,7 +1976,7 @@ vm_map_split(entry)
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
 		m->dirty = VM_PAGE_BITS_ALL;
-		PAGE_WAKEUP(m);
+		m->flags |= PG_BUSY;
 	}
 
 	if (orig_object->type == OBJT_SWAP) {
@@ -1984,6 +1990,13 @@ vm_map_split(entry)
 		    new_object, OFF_TO_IDX(new_object->paging_offset),
 			offidxstart, 0);
 		vm_object_pip_wakeup(orig_object);
+	}
+
+	for (idx = 0; idx < size; idx++) {
+		m = vm_page_lookup(new_object, idx);
+		if (m) {
+			PAGE_WAKEUP(m);
+		}
 	}
 
 	entry->object.vm_object = new_object;
