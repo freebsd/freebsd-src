@@ -674,9 +674,11 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	char *endp;
 	long tempid;
 
-	if (*elem == '\0')
-		tempid = 0L;
-	else {
+	if (*elem == '\0') {
+		warnx("Invalid (zero-length) process id");
+		optfatal = 1;
+		return (0);		/* Do not add this value. */
+	} else {
 		errno = 0;
 		tempid = strtol(elem, &endp, 10);
 		if (*endp != '\0' || tempid < 0 || elem == endp) {
@@ -786,6 +788,9 @@ add_list(struct listinfo *inf, const char *argp)
 	char *cp, *endp;
 	int toolong;
 	char elemcopy[PATH_MAX];
+
+	if (*argp == 0)
+		    inf->addelem(inf, elemcopy);
 
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
