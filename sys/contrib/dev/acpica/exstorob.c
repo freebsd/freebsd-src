@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 44 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -182,7 +182,6 @@ AcpiExStoreBufferToBuffer (
         ACPI_MEMSET (TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
         ACPI_MEMCPY (TargetDesc->Buffer.Pointer, Buffer, Length);
     }
-
     else
     {
         /*
@@ -198,7 +197,6 @@ AcpiExStoreBufferToBuffer (
     /* Copy flags */
 
     TargetDesc->Buffer.Flags = SourceDesc->Buffer.Flags;
-
     return (AE_OK);
 }
 
@@ -239,16 +237,17 @@ AcpiExStoreStringToString (
      */
     if (Length < TargetDesc->String.Length)
     {
-        /* Clear old string and copy in the new one */
-
-        ACPI_MEMSET (TargetDesc->String.Pointer, 0, TargetDesc->String.Length);
+        /* 
+         * String will fit in existing buffer.
+         * Clear old string and copy in the new one 
+         */
+        ACPI_MEMSET (TargetDesc->String.Pointer, 0, TargetDesc->String.Length + 1);
         ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
-
     else
     {
         /*
-         * Free the current buffer, then allocate a buffer
+         * Free the current buffer, then allocate a new buffer
          * large enough to hold the value
          */
         if (TargetDesc->String.Pointer &&
@@ -260,16 +259,18 @@ AcpiExStoreStringToString (
             ACPI_MEM_FREE (TargetDesc->String.Pointer);
         }
 
-        TargetDesc->String.Pointer = ACPI_MEM_ALLOCATE ((ACPI_SIZE) Length + 1);
+        TargetDesc->String.Pointer = ACPI_MEM_CALLOCATE ((ACPI_SIZE) Length + 1);
         if (!TargetDesc->String.Pointer)
         {
             return (AE_NO_MEMORY);
         }
 
-        TargetDesc->String.Length = Length;
         ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
 
+    /* Set the new target length */
+
+    TargetDesc->String.Length = Length;
     return (AE_OK);
 }
 

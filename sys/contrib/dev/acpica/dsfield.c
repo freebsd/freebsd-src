@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 66 $
+ *              $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -204,6 +204,7 @@ AcpiDsCreateBufferField (
                             Flags, WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
+        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -350,13 +351,13 @@ AcpiDsGetFieldNames (
                             WalkState, &Info->FieldNode);
             if (ACPI_FAILURE (Status))
             {
+                ACPI_REPORT_NSERROR ((char *) &Arg->Named.Name, Status);
                 if (Status != AE_ALREADY_EXISTS)
                 {
                     return_ACPI_STATUS (Status);
                 }
 
-                ACPI_REPORT_ERROR (("Field name [%4.4s] already exists in current scope\n",
-                                &Arg->Named.Name));
+                /* Already exists, ignore error */
             }
             else
             {
@@ -380,7 +381,7 @@ AcpiDsGetFieldNames (
             if (Position > ACPI_UINT32_MAX)
             {
                 ACPI_REPORT_ERROR (("Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n",
-                    &Info->FieldNode->Name));
+                        (char *) &Info->FieldNode->Name));
                 return_ACPI_STATUS (AE_SUPPORT);
             }
 
@@ -440,6 +441,7 @@ AcpiDsCreateField (
                         ACPI_NS_SEARCH_PARENT, WalkState, &RegionNode);
         if (ACPI_FAILURE (Status))
         {
+            ACPI_REPORT_NSERROR (Arg->Common.Value.Name, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -527,13 +529,11 @@ AcpiDsInitFieldObjects (
                             WalkState, &Node);
             if (ACPI_FAILURE (Status))
             {
+                ACPI_REPORT_NSERROR ((char *) &Arg->Named.Name, Status);
                 if (Status != AE_ALREADY_EXISTS)
                 {
                     return_ACPI_STATUS (Status);
                 }
-
-                ACPI_REPORT_ERROR (("Field name [%4.4s] already exists in current scope\n",
-                                &Arg->Named.Name));
 
                 /* Name already exists, just ignore this error */
 
@@ -590,6 +590,7 @@ AcpiDsCreateBankField (
                         ACPI_NS_SEARCH_PARENT, WalkState, &RegionNode);
         if (ACPI_FAILURE (Status))
         {
+            ACPI_REPORT_NSERROR (Arg->Common.Value.Name, Status);
             return_ACPI_STATUS (Status);
         }
     }
@@ -602,6 +603,7 @@ AcpiDsCreateBankField (
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -662,6 +664,7 @@ AcpiDsCreateIndexField (
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -673,6 +676,7 @@ AcpiDsCreateIndexField (
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.DataRegisterNode);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
         return_ACPI_STATUS (Status);
     }
 
@@ -680,7 +684,6 @@ AcpiDsCreateIndexField (
 
     Arg = Arg->Common.Next;
     Info.FieldFlags = Arg->Common.Value.Integer8;
-
 
     /* Each remaining arg is a Named Field */
 

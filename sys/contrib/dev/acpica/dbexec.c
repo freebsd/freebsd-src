@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 44 $
+ *              $Revision: 45 $
  *
  ******************************************************************************/
 
@@ -363,7 +363,8 @@ AcpiDbExecute (
         if (ReturnObj.Length)
         {
             AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
-                AcpiGbl_DbMethodInfo.Pathname, ReturnObj.Pointer, ReturnObj.Length);
+                AcpiGbl_DbMethodInfo.Pathname, ReturnObj.Pointer, 
+                (UINT32) ReturnObj.Length);
             AcpiDbDumpObject (ReturnObj.Pointer, 1);
         }
         else
@@ -408,7 +409,7 @@ AcpiDbMethodThread (
             if (ReturnObj.Length)
             {
                 AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
-                    Info->Pathname, ReturnObj.Pointer, ReturnObj.Length);
+                    Info->Pathname, ReturnObj.Pointer, (UINT32) ReturnObj.Length);
                 AcpiDbDumpObject (ReturnObj.Pointer, 1);
             }
         }
