@@ -83,16 +83,6 @@ struct an_req {
 #define AN_RID_READ_CACHE	0x0400
 #endif
 
-struct an_80211_hdr {
-	u_int16_t		frame_ctl;
-	u_int16_t		dur_id;
-	u_int8_t		addr1[6];
-	u_int8_t		addr2[6];
-	u_int8_t		addr3[6];
-	u_int16_t		seq_ctl;
-	u_int8_t		addr4[6];
-};
-
 #define AN_FCTL_VERS		0x0002
 #define AN_FCTL_FTYPE		0x000C
 #define AN_FCTL_STYPE		0x00F0
@@ -121,15 +111,6 @@ struct an_80211_hdr {
 #define AN_STYPE_MGMT_AUTH	0x00B0	/* authentication */
 #define AN_STYPE_MGMT_DEAUTH	0x00C0	/* deauthentication */
 
-struct an_mgmt_hdr {
-	u_int16_t		frame_ctl;
-	u_int16_t		duration;
-	u_int8_t		dst_addr[6];
-	u_int8_t		src_addr[6];
-	u_int8_t		bssid[6];
-	u_int16_t		seq_ctl;
-};
-
 /* 
  * Aironet IEEE signal strength cache
  *
@@ -157,10 +138,9 @@ struct an_ltv_key {
 	u_int16_t       kindex;
 	u_int8_t        mac[6];
 	u_int16_t       klen;
-	u_int8_t        key[16];  /* 40-bit keys */
+	u_int8_t        key[16];  /* 128-bit keys */
 };
 
-#ifndef _KERNEL
 struct an_ltv_stats {
 	u_int16_t		an_fudge;
 	u_int16_t		an_len;			/* 0x00 */
@@ -265,6 +245,9 @@ struct an_ltv_stats {
 	u_int32_t		an_rsvd[10];
 };
 
+/*
+ * General configuration information.
+ */
 struct an_ltv_genconfig {
 	/* General configuration. */
 	u_int16_t		an_len;			/* 0x00 */
@@ -336,7 +319,6 @@ struct an_ltv_genconfig {
 	u_int8_t		an_magic_packet_ctl;	/* 0x99 */
 	u_int16_t		an_rsvd9;
 };
-#endif
 
 #define AN_OPMODE_IBSS_ADHOC			0x0000
 #define AN_OPMODE_INFRASTRUCTURE_STATION	0x0001
@@ -396,7 +378,13 @@ struct an_ltv_genconfig {
 #define AN_HOME_NETWORK				0x0001
 #define AN_HOME_INSTALL_AP			0x0002
 
-#ifndef _KERNEL
+/*
+ * Valid SSID list. You can specify up to three SSIDs denoting
+ * the service sets that you want to join. The first SSID always
+ * defaults to "tsunami" which is a handy way to detect the
+ * card.
+ */
+
 struct an_ltv_ssidlist {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
@@ -408,6 +396,9 @@ struct an_ltv_ssidlist {
 	char			an_ssid3[32];
 };
 
+/*
+ * Valid AP list.
+ */
 struct an_ltv_aplist {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
@@ -417,12 +408,18 @@ struct an_ltv_aplist {
 	u_int8_t		an_ap4[8];
 };
 
+/*
+ * Driver name.
+ */
 struct an_ltv_drvname {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
 	u_int8_t		an_drvname[16];
 };
 
+/*
+ * Frame encapsulation.
+ */
 struct an_rid_encap {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
@@ -453,6 +450,9 @@ struct an_rid_encap {
 #define AN_TXENCAP_RFC1024	0x0000
 #define AN_TXENCAP_80211	0x0002
 
+/*
+ * Card capabilities (read only).
+ */
 struct an_ltv_caps {
 	u_int16_t		an_len;			/* 0x00 */
 	u_int16_t		an_type;		/* XXXX */
@@ -482,6 +482,9 @@ struct an_ltv_caps {
 	u_int16_t		an_req_hw_support;	/* 0x80 */
 };
 
+/*
+ * Access point (read only)
+ */
 struct an_ltv_apinfo {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
@@ -489,12 +492,26 @@ struct an_ltv_apinfo {
 	u_int16_t		an_airo_addr;
 };
 
+/*
+ * Radio info (read only).
+ */
 struct an_ltv_radioinfo {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
 	/* ??? */
 };
 
+/*
+ * Status (read only). Note: the manual claims this RID is 108 bytes
+ * long (0x6A is the last datum, which is 2 bytes long) however when
+ * this RID is read from the NIC, it returns a length of 110. To be
+ * on the safe side, this structure is padded with an extra 16-bit
+ * word. (There is a misprint in the manual which says the macaddr
+ * field is 8 bytes long.)
+ *
+ * Also, the channel_set and current_channel fields appear to be
+ * reversed. Either that, or the hop_period field is unused.
+ */
 struct an_ltv_status {
 	u_int16_t		an_len;			/* 0x00 */
 	u_int16_t		an_type;		/* 0xXX */
@@ -538,6 +555,9 @@ struct an_ltv_status {
 #define AN_STATUS_OPMODE_ASSOCIATED		0x0020
 #define AN_STATUS_OPMODE_ERROR			0x8000
 
+/*
+ * WEP Key
+ */
 struct an_ltv_wepkey {
 	u_int16_t		an_len;			/* 0x00 */
 	u_int16_t		an_type;		/* 0xXX */
@@ -564,8 +584,6 @@ struct an_ltv_wepkey {
 #define AN_RID_WEP_TEMP	        0xFF15  /* Temporary Key */
 #define AN_RID_WEP_PERM	        0xFF16  /* Perminant Key */
 #define AN_RID_ACTUALCFG	0xFF20	/* Current configuration settings */
-#define AN_RID_WEP_VOLATILE	0xFF15	/* Volatile WEP Key */
-#define AN_RID_WEP_PERSISTENT	0xFF16	/* Persistent WEP Key */
 
 /*
  * Reporting (read only)
@@ -574,6 +592,9 @@ struct an_ltv_wepkey {
 #define AN_RID_AP_INFO		0xFF01	/* Access point info */
 #define AN_RID_RADIO_INFO	0xFF02	/* Radio info */
 #define AN_RID_STATUS		0xFF50	/* Current status info */
+#define AN_RID_BEACONS_HST	0xFF51	
+#define AN_RID_BUSY_HST		0xFF52	
+#define AN_RID_RETRIES_HST	0xFF53	
 
 /*
  * Statistics
@@ -584,7 +605,31 @@ struct an_ltv_wepkey {
 #define AN_RID_32BITS_CUM	0xFF68	/* Cumulative 32-bit stats counters */
 #define AN_RID_32BITS_DELTA	0xFF69	/* 32-bit stats (since last clear) */
 #define AN_RID_32BITS_DELTACLR	0xFF6A	/* 32-bit stats, clear on read */
-#endif
 
+/*
+ * LEAP
+ */
+
+#define AN_RID_LEAPUSERNAME	0xFF23	/* Username */
+#define AN_RID_LEAPPASSWORD	0xFF24	/* Password */
+
+/*
+ * OTHER Unknonwn for now
+ */
+
+#define AN_RID_MOD		0xFF17
+#define AN_RID_OPTIONS		0xFF18
+#define AN_RID_FACTORY_CONFIG	0xFF18
+
+/*
+ *   FreeBSD fake RID
+ */
+#define AN_RID_MONITOR_MODE	0x0001	/* Set monitor mode for driver */
+#define AN_MONITOR			 1
+#define AN_MONITOR_ANY_BSS		 2
+#define AN_MONITOR_INCLUDE_BEACON	 4
+#define AN_MONITOR_AIRONET_HEADER	 8
+
+#define DLT_AIRONET_HEADER 	120	/* Just something for now */
 
 #endif
