@@ -210,6 +210,7 @@ brpint			1|2 brquart
 brfloz			1|20 brpint
 brpeck			554.84 in3 fuzz
 brbushel		4 brpeck
+brhundredweight		112 lb
 
 / Energy Work
 
@@ -330,6 +331,12 @@ block			512 byte
 kbyte			1024 byte
 megabyte		1024 kbyte
 gigabyte		1024 megabyte
+terabyte		1024 gigabyte
+petabyte		1024 terabyte
+exabyte			1024 petabyte
+zettabyte		1024 exabyte
+yottabyte		1024 zettabyte
+kilobyte		kbyte
 meg			megabyte
 
 
