@@ -1,30 +1,154 @@
-Sun Mar 14 02:38:07 PST 1999 Jeff Law  (law@cygnus.com)
+Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
 
-	* egcs-1.1.2 Released.
+	* gcc-2.95.1 Released.
 
-Fri Mar  5 01:13:45 1999  H.J. Lu  (hjl@gnu.org)
+1999-08-08  Alexandre Oliva  <oliva@dcc.unicamp.br>
 
-	* config/linuxlibc1.mt (MT_CFLAGS): Add -D_G_STDIO_USES_LIBIO
-	-D_G_HAVE_WEAK_SYMBOL.
+	* streambuf.h (ios::streamsize): Declare as _IO_ssize_t, as in the 
+	global scope.
 
-	* genops.c: Add the proper weak alias if _G_STDIO_USES_LIBIO
-	and _G_HAVE_WEAK_SYMBOL are defined.
-	* iofclose.c: Likewise.
-	* iofeof.c: Likewise.
-	* ioferror.c: Likewise.
-	* iogetc.c: Likewise.
-	* ioputc.c: Likewise.
-	* iovsprintf.c: Likewise.
-	* iovsscanf.c: Likewise.
+1999-08-07  Andreas Schwab  <schwab@suse.de>
 
-Mon Nov 23 09:44:26 1998  Richard Henderson <rth@cygnus.com>
+	* iostream.cc: Add missing calls to isfx and setup a cleanup
+	region for the locked stream.
+	* iostream.h: Likewise.
+	* isgetline.cc: Likewise.
+	* isgetsb.cc: Likewise.
+	* isscan.cc: Likewise.
 
-        * configure.in: Append mh-ppcpic and mh-elfalphapic as appropriate.
+Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Mon Jun 28 09:25:23 1999  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* configure.in (post-target): Use "$(topsrcdir)", not "$(srcdir)/..".
+
+1999-05-20  Angela Marie Thomas <angela@cygnus.com>
+
+	* configure.in: Test for ${compiler_name}.exe as well.
+
+1999-05-17  Mark Kettenis  <kettenis@gnu.org>
+
+	* libioP.h: Only include libc-lock.h if _IO_MTSAFE_IO is defined.
+
+1999-05-12  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* configure.in (compiler_name): Don't do the skip-this-dir thing
+	if we're reconfiguring.
+
+1999-04-29  Nathan Sidwell  <nathan@acm.org>
+
+	* streambuf.h (ios::~ios): Use operator delete[] to remove _arrays.
+
+Mon Apr 12 19:22:44 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* filedoalloc.c (_POSIX_SOURCE): Remove definition.
+	* fileops.c (_POSIX_SOURCE): Likewise.
+	* iopopen.c (_POSIX_SOURCE): Likewise.
+	* procbuf.cc (_POSIX_SOURCE): Likewise.
+	* libioP.h (_POSIX_SOURCE): And define it here.
+	* stdiostream.cc: Include libioP.h before others.
+
+Fri Apr  2 15:11:58 1999  H.J. Lu  (hjl@gnu.org)
+
+	* libio/configure.in (gxx_include_dir): Handle it.
+	* libio/Makefile.in: Likewise.
+
+Wed Mar 24 22:36:45 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* configure.in (EXEEXT): Define.
+	(compiler_name): Use.
+
+1999-03-24  Alexandre Oliva  <oliva@dcc.unicamp.br>
+
+	* gen-params (CONFIG_NM): `test ... -o ...' is not portable.
+
+Thu Mar 11 01:07:55 1999  Franz Sirl <Franz.Sirl-kernel@lauterbach.com>
+
+	* configure.in: Cleanup and add mh-*pic handling for arm, powerpc
+
+Fri Mar  5 01:15:15 1999  H.J. Lu  (hjl@gnu.org)
+
+        * config/linuxlibc1.mt (MT_CFLAGS): Add -D_G_STDIO_USES_LIBIO
+        -D_G_HAVE_WEAK_SYMBOL.
+
+        * genops.c: Add the proper weak alias if _G_STDIO_USES_LIBIO
+        and _G_HAVE_WEAK_SYMBOL are defined.
+        * iofclose.c: Likewise.
+        * iofeof.c: Likewise.
+        * ioferror.c: Likewise.
+        * iogetc.c: Likewise.
+        * ioputc.c: Likewise.
+        * iovsprintf.c: Likewise.
+        * iovsscanf.c: Likewise.
+
+Sun Feb 28 22:39:17 1999  Geoffrey Noer  <noer@cygnus.com>
+
+	* configure.in: Check cygwin*, not cygwin32*.
+
+Wed Feb 10 09:25:48 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* gen-params (VTABLE_LABEL_PREFIX): Handle windows32. 
+
+Wed Feb  3 22:05:41 1999  H.J. Lu  (hjl@gnu.org)
+			  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.in (iostream.list): Remove dependency on
+	stamp-picdir.
+	($(LIBIOSTREAM_DEP)): Depend on stamp-picdir.
+	($(LIBIO_FILES)): Similarly.
+
+	* config.shared (all): Make $(PICDIR) concurrent.
+
+1998-11-26  Manfred Hollstein  <manfred@s-direktnet.de>
+
+	* configure.in (compiler_name): Add check to detect if this
+	language's compiler has been built.
+
+1998-10-12  Alexandre Oliva  <oliva@dcc.unicamp.br>
+
+	* config.shared (depend.new): Delete libc-lock.h from
+	dependencies, and fix _G_config.h -> $(_G_CONFIG_H) rule.
+	* depend: Rebuilt.
+	
+Sun Oct 11 01:51:42 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* config.shared (depend.new): Fix typo.
+	* depend: Rebuilt.
+
+1998-09-09  Manfred Hollstein  <manfred@s-direktnet.de>
+
+	* configure.in (INSTALLDIR): Fix comment about changing INSTALLDIR's
+	value; don't change its value if --enable-version-specific-runtime-libs
+	has been specified.
+
+Wed Sep  2 21:05:39 1998  H.J. Lu  (hjl@gnu.org)
+
+	* configure.in: Fix INSTALLDIR replacement for cross-compile.
+
+Sun Aug 30 22:27:02 1998  Lutz Wohlrab <lutz.wohlrab@informatik.tu-chemnitz.de>
+
+        * dbz/Makefile.in: Avoid assumptions about "tr" behaves when
+        LANG is set to something other than English.
+
+Sun Aug 30 22:17:00 1998  H.J. Lu  (hjl@gnu.org)
+
+	* config.shared: Set libsubdir.
 
 1998-08-25 14:34  Ulrich Drepper  <drepper@cygnus.com>
 
 	* libio/iogetline.c (_IO_getline_info): Don't read anything for
 	N == 0.  Patch by HJ Lu.
+
+1998-08-23  Mark Mitchell  <mark@markmitchell.com>
+
+	* iomanip.h: Use __extension__ for `extern' explicit template
+	instantiations.
 
 1998-08-17  Ulrich Drepper  <drepper@cygnus.com>
 
