@@ -599,7 +599,9 @@ funsetownlst(sigiolst)
 			SLIST_REMOVE(&pg->pg_sigiolst, sigio, sigio, sio_pgsigio);
 			PGRP_UNLOCK(pg);
 			crfree(sigio->sio_ucred);
+			mtx_lock(&Giant);
 			FREE(sigio, M_SIGIO);
+			mtx_unlock(&Giant);
 			PGRP_LOCK(pg);
 		} else /* if (p != NULL) */ {
 			KASSERT(sigio->sio_pgid > 0, ("Pgrp sigio in proc sigio list"));
@@ -607,7 +609,9 @@ funsetownlst(sigiolst)
 			SLIST_REMOVE(&p->p_sigiolst, sigio, sigio, sio_pgsigio);
 			PROC_UNLOCK(p);
 			crfree(sigio->sio_ucred);
+			mtx_lock(&Giant);
 			FREE(sigio, M_SIGIO);
+			mtx_unlock(&Giant);
 			PROC_LOCK(p);
 		}
 	}
