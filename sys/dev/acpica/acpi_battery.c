@@ -241,3 +241,19 @@ acpi_battery_register(int type, int phys_unit)
 
     return (0);
 }
+
+int
+acpi_battery_remove(int type, int phys_unit)
+{
+    struct acpi_batteries *bp, *tmp;
+
+    TAILQ_FOREACH_SAFE(bp, &acpi_batteries, link, tmp) {
+	if (bp->battdesc.type == type && bp->battdesc.phys_unit == phys_unit) {
+	    TAILQ_REMOVE(&acpi_batteries, bp, link);
+	    acpi_batteries_units--;
+	    free(bp, M_ACPIBATT);
+	    return (0);
+	}
+    }
+    return (ENOENT);
+}
