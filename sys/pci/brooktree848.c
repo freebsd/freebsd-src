@@ -1,4 +1,4 @@
-/* BT848 1.3-ALPHA  Driver for Brooktree's Bt848 based cards.
+/* BT848 1.20 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -182,6 +182,15 @@
                            interrupts from a PCI device by default,
                            Added Luigi's, ioctl's BT848_SLNOTCH, 
                            BT848_GLNOTCH (set luma notch and get luma not)
+1.20            10/5/97    Keith Sklower <sklower@CS.Berkeley.EDU> submitted
+                           a patch to fix compilation of the BSDI's PCI
+                           interface. 
+                           Hideyuki Suzuki <hideyuki@sat.t.u-tokyo.ac.jp>
+                           Submitted a patch for Japanese cable channels
+                           Joao Carlos Mendes Luis jonny@gta.ufrj.br
+                           Submitted general ioctl to set video broadcast
+                           formats (PAL, NTSC, etc..) previously we depended
+                           on the Bt848 auto video detect feature.
 */
 
 #define DDB(x) x
@@ -251,7 +260,7 @@ typedef u_long ioctl_cmd_t;
 
 typedef u_char bool_t;
 
-#define BKTPRI (PZERO+8)|PCATCH
+#define BKTRPRI (PZERO+8)|PCATCH
 
 static void	bktr_intr __P((void *arg));
 
@@ -285,7 +294,6 @@ static void	bktr_intr __P((void *arg));
 static bktr_reg_t brooktree[ NBKTR ];
 #define BROOKTRE_NUM(mtr)	((bktr - &brooktree[0])/sizeof(bktr_reg_t))
 
-#define BKTRPRI (PZERO+8)|PCATCH
 #define UNIT(x)		((x) & 0x0f)
 #define MINOR(x)	((x >> 4) & 0x0f)
 #define ATTACH_ARGS	pcici_t tag, int unit
@@ -327,6 +335,8 @@ static struct cdevsw bktr_cdevsw =
 #define ATTACH_ARGS \
    struct device * const parent, struct device * const self, void * const aux
 
+#define PCI_COMMAND_STATUS_REG PCI_COMMAND
+
 static void bktr_attach( ATTACH_ARGS );
 #define NBKTR bktrcd.cd_ndevs
 #define brooktree *((bktr_ptr_t *)bktrcd.cd_devs)
@@ -335,7 +345,6 @@ static int bktr_spl;
 static int bktr_intr_returning_1(void *arg) { bktr_intr(arg); return (1);}
 #define disable_intr() { bktr_spl = splhigh(); }
 #define enable_intr() { splx(bktr_spl); }
-static int bktr_intr_returning_1(void *arg) { bktr_intr(arg); return (1);}
 
 static int
 bktr_pci_match(pci_devaddr_t *pa)
@@ -872,7 +881,7 @@ bktr_intr( void *arg )
 #endif /* STATUS_SUM */
 	/*	printf( " STATUS %x %x %x \n",
 		dstatus, bktr_status, bt848->risc_count );
-		*/
+		*/		
 	/* if risc was disabled re-start process again */
 	if ( !(bktr_status & BT848_INT_RISC_EN) ||
 	     ((bktr_status & (BT848_INT_FBUS   |
@@ -1396,6 +1405,38 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		*(u_short *)arg = temp;
 		break;
 
+        case BT848SFMT:		/* set input format */
+		temp = *(unsigned long*)arg & BT848_IFORM_FORMAT;
+		bt848->iform &= ~BT848_IFORM_FORMAT;
+		bt848->iform |= temp;
+		switch( temp ) {
+		case BT848_IFORM_F_AUTO:
+			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
+			METEOR_AUTOMODE;
+			break;
+
+		case BT848_IFORM_F_NTSCM:
+		case BT848_IFORM_F_NTSCJ:
+		case BT848_IFORM_F_PALM:
+			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
+			METEOR_NTSC;
+			bt848->adelay = 0x68;
+			bt848->bdelay = 0x5d;
+			bktr->format_params = FORMAT_PARAMS_NTSC525;
+			break;
+
+		case BT848_IFORM_F_PALBDGHI:
+		case BT848_IFORM_F_PALN:
+		case BT848_IFORM_F_SECAM:
+		case BT848_IFORM_F_RSVD:
+			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
+				METEOR_PAL;
+			bt848->adelay = 0x7f;
+			bt848->bdelay = 0x72;
+			bktr->format_params = FORMAT_PARAMS_PAL625;
+		}
+		break;
+
 	case METEORSFMT:	/* set input format */
 		switch(*(unsigned long *)arg & METEOR_FORM_MASK ) {
 		case 0:		/* default */
@@ -1434,6 +1475,11 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		*(u_long *)arg = bktr->flags & METEOR_FORM_MASK;
 		break;
 
+
+	case BT848GFMT:		/* get input format */
+	        *(u_long *)arg = bt848->iform & BT848_IFORM_FORMAT;
+		break;
+ 
 	case METEORSCOUNT:	/* (re)set error counts */
 		cnt = (struct meteor_counts *) arg;
 		bktr->fifo_errors = cnt->fifo_errors;
@@ -3790,6 +3836,32 @@ int     jpnbcst[] = {
 #undef IF_FREQ
 #undef OFFSET
 
+/*
+ * Japanese Cable Channels:
+ *
+ *  1:  91.25MHz -  3: 103.25MHz
+ *  4: 171.25MHz -  7: 189.25MHz
+ *  8: 193.25MHz - 12: 217.25MHz
+ * 13: 109.25MHz - 21: 157.25MHz
+ * 22: 165.25MHz
+ * 23: 223.25MHz - 63: 463.25MHz
+ *
+ * IF freq: 45.75 mHz
+ */
+#define OFFSET  6.00
+#define IF_FREQ 45.75
+int     jpncable[] = {
+	63,     (int)(IF_FREQ * FREQFACTOR),    0,
+	23,     (int)(223.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	22,     (int)(165.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	13,     (int)(109.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 8,     (int)(193.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 4,     (int)(171.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 1,     (int)( 91.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
+	 0
+};
+#undef IF_FREQ
+#undef OFFSET
 
 int* freqTable[] = {
 	NULL,
@@ -3797,7 +3869,9 @@ int* freqTable[] = {
 	irccable,
 	hrccable,
 	weurope,
-	jpnbcst
+	jpnbcst,
+	jpncable
+	
 };
 
 
