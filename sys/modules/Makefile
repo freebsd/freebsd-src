@@ -25,6 +25,7 @@ SUBDIR=	accf_data \
 	dcons_crom \
 	dummynet \
 	ed \
+	em \
 	ext2fs \
 	fdesc \
 	firewire \
@@ -121,7 +122,6 @@ SUBDIR+=ipfilter
 SUBDIR+=ar \
 	bktr \
 	coff \
-	em \
 	fpu \
 	gnufpu \
 	hifn \
