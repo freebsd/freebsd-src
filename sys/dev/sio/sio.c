@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.195 1998/01/24 02:54:25 eivind Exp $
+ *	$Id: sio.c,v 1.196 1998/02/13 12:45:56 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1517,7 +1517,7 @@ siointr1(com)
 	int_ctl = inb(com->intr_ctl_port);
 	int_ctl_new = int_ctl;
 
-	while (TRUE) {
+	while (!com->gone) {
 		line_status = inb(com->line_status_port);
 
 		/* input event? (check first to help avoid overruns) */
