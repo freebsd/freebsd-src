@@ -64,43 +64,43 @@
 /*
  * Local static data
  */
-static char *warnlun =
+static const char warnlun[] =
     "WARNING- cannot determine Expanded LUN capability- limiting to one LUN";
-static char *portshift =
+static const char portshift[] =
     "Target %d Loop ID 0x%x (Port 0x%x) => Loop 0x%x (Port 0x%x)";
-static char *portdup =
+static const char portdup[] =
     "Target %d duplicates Target %d- killing off both";
-static char *retained = 
+static const char retained[] = 
     "Retaining Loop ID 0x%x for Target %d (Port 0x%x)";
 #ifdef	ISP2100_FABRIC
-static char *lretained =
+static const char lretained[] =
     "Retained login of Target %d (Loop ID 0x%x) Port 0x%x";
-static char *plogout =
+static const char plogout[] =
     "Logging out Target %d at Loop ID 0x%x (Port 0x%x)";
-static char *plogierr =
+static const char plogierr[] =
     "Command Error in PLOGI for Port 0x%x (0x%x)";
-static char *nopdb =
+static const char nopdb[] =
     "Could not get PDB for Device @ Port 0x%x";
-static char *pdbmfail1 =
+static const char pdbmfail1[] =
     "PDB Loop ID info for Device @ Port 0x%x does not match up (0x%x)";
-static char *pdbmfail2 =
+static const char pdbmfail2[] =
     "PDB Port info for Device @ Port 0x%x does not match up (0x%x)";
-static char *ldumped =
+static const char ldumped[] =
     "Target %d (Loop ID 0x%x) Port 0x%x dumped after login info mismatch";
 #endif
-static char *notresp =
+static const char notresp[] =
   "Not RESPONSE in RESPONSE Queue (type 0x%x) @ idx %d (next %d) nlooked %d";
-static char *xact1 =
+static const char xact1[] =
     "HBA attempted queued transaction with disconnect not set for %d.%d.%d";
-static char *xact2 =
+static const char xact2[] =
     "HBA attempted queued transaction to target routine %d on target %d bus %d";
-static char *xact3 =
+static const char xact3[] =
     "HBA attempted queued cmd for %d.%d.%d when queueing disabled";
-static char *pskip =
+static const char pskip[] =
     "SCSI phase skipped for target %d.%d.%d";
-static char *topology =
+static const char topology[] =
     "Loop ID %d, AL_PA 0x%x, Port ID 0x%x, Loop State 0x%x, Topology '%s'";
-static char *finmsg =
+static const char finmsg[] =
     "(%d.%d.%d): FIN dl%d resid%d STS 0x%x SKEY %c XS_ERR=0x%x";
 /*
  * Local function prototypes.
@@ -186,7 +186,7 @@ isp_reset(isp)
 			 */
 			ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
 			mbs.param[0] = MBOX_ABOUT_FIRMWARE;
-			isp_mboxcmd(isp, &mbs, MBLOGNONE);
+			isp_mboxcmd(isp, &mbs, MBOX_COMMAND_ERROR);
 			/*
 			 * This *shouldn't* fail.....
 			 */
@@ -229,7 +229,7 @@ isp_reset(isp)
 		 * XXX: Should probably do some bus sensing.
 		 */
 	} else if (IS_ULTRA2(isp)) {
-		static char *m = "bus %d is in %s Mode";
+		static const char m[] = "bus %d is in %s Mode";
 		u_int16_t l;
 		sdparam *sdp = isp->isp_param;
 
@@ -729,10 +729,12 @@ isp_init(isp)
 	if (IS_DUALBUS(isp)) {
 		isp_setdfltparm(isp, 1);
 	}
-	if (IS_FC(isp)) {
-		isp_fibre_init(isp);
-	} else {
-		isp_scsi_init(isp);
+	if ((isp->isp_confopts & ISP_CFG_NOINIT) == 0) {
+		if (IS_FC(isp)) {
+			isp_fibre_init(isp);
+		} else {
+			isp_scsi_init(isp);
+		}
 	}
 }
 
@@ -1288,16 +1290,16 @@ isp_fclink_test(isp, usdelay)
 		 */
 		enano = NANOTIME_SUB(&hrb, &hra);
 
+		isp_prt(isp, ISP_LOGDEBUG3, "usec%d: 0x%lx->0x%lx enano %lu",
+		    count, (long) GET_NANOSEC(&hra), (long) GET_NANOSEC(&hrb),
+		    (enano > ((u_int64_t)0xffffffff))? 0xffffffff :
+		    (unsigned long) (enano & 0xffffffff));
+
 		/*
 		 * If the elapsed time is less than 1 millisecond,
 		 * delay a period of time up to that millisecond of
 		 * waiting.
-		 */
-		isp_prt(isp, ISP_LOGDEBUG3, "usec%d: 0x%lx->0x%lx enano %u",
-		    count, (long) GET_NANOSEC(&hra), (long) GET_NANOSEC(&hrb),
-		    enano);
-
-		/*
+		 *
 		 * This peculiar code is an attempt to try and avoid
 		 * invoking u_int64_t math support functions for some
 		 * platforms where linkage is a problem.
@@ -2531,7 +2533,7 @@ isp_intr(arg)
 			int obits, i = 0;
 			if ((obits = isp->isp_mboxbsy) != 0) {
 				isp->isp_mboxtmp[i++] = mbox;
-				for (i = 1; i < 8; i++) {
+				for (i = 1; i < MAX_MAILBOX; i++) {
 					if ((obits & (1 << i)) == 0) {
 						continue;
 					}
@@ -4305,6 +4307,8 @@ isp_setdfltparm(isp, channel)
 			    (u_int32_t) (fcp->isp_portwwn >> 32),
 			    (u_int32_t) (fcp->isp_portwwn & 0xffffffff));
 		}
+		fcp->isp_nodewwn = ISP_NODEWWN(isp);
+		fcp->isp_portwwn = ISP_PORTWWN(isp);
 		return;
 	}
 
