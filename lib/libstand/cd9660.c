@@ -43,7 +43,7 @@
 
 #include "stand.h"
 
-static int	cd9660_open(char *path, struct open_file *f);
+static int	cd9660_open(const char *path, struct open_file *f);
 static int	cd9660_close(struct open_file *f);
 static int	cd9660_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	cd9660_write(struct open_file *f, void *buf, size_t size, size_t *resid);
@@ -91,7 +91,7 @@ isonum_732(p)
 
 static int
 pnmatch(path, pp)
-	char *path;
+	const char *path;
 	struct ptable_ent *pp;
 {
 	char *cp;
@@ -110,7 +110,7 @@ pnmatch(path, pp)
 
 static int
 dirmatch(path, dp)
-	char *path;
+	const char *path;
 	struct iso_directory_record *dp;
 {
 	char *cp;
@@ -148,7 +148,7 @@ dirmatch(path, dp)
 
 static int
 cd9660_open(path, f)
-	char *path;
+	const char *path;
 	struct open_file *f;
 {
 	struct file *fp = 0;

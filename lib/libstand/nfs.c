@@ -43,7 +43,6 @@
 #include "stand.h"
 #include "net.h"
 #include "netif.h"
-#include "nfs.h"
 #include "rpc.h"
 
 #define NFS_DEBUGxx
@@ -102,7 +101,7 @@ struct nfs_iodesc {
  * XXX interactions with tftp? See nfswrapper.c for a confusing
  *     issue.
  */
-int		nfs_open(char *path, struct open_file *f);
+int		nfs_open(const char *path, struct open_file *f);
 static int	nfs_close(struct open_file *f);
 static int	nfs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	nfs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
@@ -180,7 +179,7 @@ nfs_getrootfh(d, path, fhp)
 int
 nfs_lookupfh(d, name, newfd)
 	struct nfs_iodesc *d;
-	char *name;
+	const char *name;
 	struct nfs_iodesc *newfd;
 {
 	register int len, rlen;
@@ -353,8 +352,8 @@ nfs_readdata(d, off, addr, len)
  * return zero or error number
  */
 int
-nfs_open(path, f)
-	char *path;
+nfs_open(upath, f)
+	const char *upath;
 	struct open_file *f;
 {
 	static struct nfs_iodesc nfs_root_node;
@@ -370,6 +369,7 @@ nfs_open(path, f)
 	int nlinks = 0;
 #endif
 	int error;
+	char *path;
 
 #ifdef NFS_DEBUG
  	if (debug)
@@ -400,7 +400,11 @@ nfs_open(path, f)
 	currfd = &nfs_root_node;
 	newfd = 0;
 
-	cp = path;
+	cp = path = strdup(upath);
+	if (path == NULL) {
+	    error = ENOMEM;
+	    goto out;
+	}
 	while (*cp) {
 		/*
 		 * Remove extra separators
@@ -496,13 +500,15 @@ nfs_open(path, f)
 out:
 	if (newfd)
 		free(newfd);
+	if (path)
+		free(path);
 #else
         /* allocate file system specific data structure */
         currfd = malloc(sizeof(*currfd));
         currfd->iodesc = desc;
         currfd->off = 0;
 
-        error = nfs_lookupfh(&nfs_root_node, path, currfd);
+        error = nfs_lookupfh(&nfs_root_node, upath, currfd);
 #endif
 	if (!error) {
 		f->f_fsdata = (void *)currfd;
