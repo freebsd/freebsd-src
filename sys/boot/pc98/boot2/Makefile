@@ -11,7 +11,7 @@ BINMODE=	444
 CFLAGS=		-elf -Os -fno-builtin -fforce-addr -fdata-sections \
 		-malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-mpreferred-stack-boundary=2 -mrtd \
-		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
+		-D_KERNEL -DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
 CFLAGS+=	-I${.CURDIR}/../../..
