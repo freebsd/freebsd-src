@@ -45,7 +45,7 @@ LDIRS=	cam net netatalk netatm netgraph netinet netinet6 \
 
 LNOHEADERDIRS=	fs isofs ufs dev
 
-LSUBDIRS=	cam/scsi dev/ic dev/ppbus dev/usb dev/wi \
+LSUBDIRS=	cam/scsi dev/ic dev/ppbus dev/usb dev/wi fs/devfs \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
 	ufs/ffs ufs/ufs
