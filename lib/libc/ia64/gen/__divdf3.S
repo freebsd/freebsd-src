@@ -1,5 +1,3 @@
-// $FreeBSD$
-
 //  
 // Copyright (c) 2000, Intel Corporation
 // All rights reserved.
@@ -28,6 +26,7 @@
 //
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
   .section .text
 
