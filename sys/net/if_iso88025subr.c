@@ -91,8 +91,10 @@ static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
 void
 iso88025_ifattach(struct ifnet *ifp)
 {
-    struct ifaddr *ifa = NULL;
+    struct ifaddr *ifa;
     struct sockaddr_dl *sdl;
+
+    ifa = NULL;
 
     ifp->if_type = IFT_ISO88025;
     ifp->if_addrlen = ISO88025_ADDR_LEN;
@@ -288,7 +290,6 @@ iso88025_output(ifp, m, dst, rt0)
 	{
 		u_int8_t	*cp;
 
-		snap_type = 0;
 		bcopy((caddr_t)&(satoipx_addr(dst).x_host), (caddr_t)edst,
 		      ISO88025_ADDR_LEN);
 
@@ -393,6 +394,7 @@ iso88025_output(ifp, m, dst, rt0)
 	return (error);
 
 bad:
+	ifp->if_oerrors++;
 	if (m)
 		m_freem(m);
 	return (error);
@@ -517,6 +519,7 @@ iso88025_input(ifp, th, m)
 		}
 		break;
 	}
+#ifdef ISO
 	case LLC_ISO_LSAP:
 		switch (l->llc_control) {
 		case LLC_UI:
@@ -536,10 +539,13 @@ iso88025_input(ifp, th, m)
 		case LLC_TEST_P:
 		{
 			struct sockaddr sa;
-			struct arpcom *ac = (struct arpcom *)ifp;
+			struct arpcom *ac;
 			struct iso88025_sockaddr_data *th2;
 			int i;
-			u_char c = l->llc_dsap;
+			u_char c;
+
+			ac = (struct arpcom *)ifp;
+			c = l->llc_dsap;
 
 			if (th->iso88025_shost[0] & TR_RII) { /* XXX */
 				printf("iso88025_input: dropping source routed LLC_TEST\n");
@@ -572,6 +578,7 @@ iso88025_input(ifp, th, m)
 			break;
 		}
 		break;
+#endif	/* ISO */
 	default:
 		printf("iso88025_input: unknown dsap 0x%x\n", l->llc_dsap);
 		ifp->if_noproto++;
