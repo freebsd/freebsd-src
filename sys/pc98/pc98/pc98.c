@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.37 1997/08/13 11:00:49 kato Exp $
+ *	$Id: pc98.c,v 1.38 1997/08/21 08:24:19 kato Exp $
  */
 
 /*
@@ -141,10 +141,14 @@ haveseen(dvp, tmpdvp, checkbits)
 	u_int	checkbits;
 {
 	/*
-	 * Only check against devices that have already been found and are not
-	 * unilaterally allowed to conflict anyway.
+	 * Ignore all conflicts except IRQ ones if conflicts are allowed.
 	 */
-	if (tmpdvp->id_alive && !dvp->id_conflicts) {
+	if (dvp->id_conflicts)
+		checkbits &= ~(CC_DRQ | CC_IOADDR | CC_MEMADDR);
+	/*
+	 * Only check against devices that have already been found.
+	 */
+	if (tmpdvp->id_alive) {
 		char const *whatnot;
 
 		whatnot = checkbits & CC_ATTACH ? "attach" : "prob";
@@ -531,9 +535,8 @@ config_isadev_c(isdp, mp, reconfig)
 			 * a check for IRQs in the next group of checks.
 			 */
 			checkbits |= CC_IRQ;
-			if (haveseen_isadev(isdp, checkbits)) {
+			if (haveseen_isadev(isdp, checkbits))
 				return;
-			}
 			isdp->id_alive = id_alive;
 		}
 		(*dp->attach)(isdp);
@@ -1058,4 +1061,3 @@ struct isa_device *find_isadev(table, driverp, unit)
 
 	return (table);
 }
-
