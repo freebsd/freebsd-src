@@ -400,7 +400,10 @@ options			NETGRAPH_FRAME_RELAY
 options			NETGRAPH_HOLE
 options			NETGRAPH_IFACE
 options			NETGRAPH_LMI
+options			NETGRAPH_PPP
+options			NETGRAPH_PPPOE
 options			NETGRAPH_RFC1490
+options			NETGRAPH_SOCKET
 options			NETGRAPH_TEE
 options			NETGRAPH_TTY
 options			NETGRAPH_UI
