@@ -43,14 +43,8 @@
 #define IRX_CH 0x24
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/mbuf.h>
-#include <sys/mman.h> 
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/signalvar.h> 
 #include <sys/malloc.h>
 #include <sys/sockio.h>
 #include <sys/bus.h>
@@ -59,15 +53,10 @@
 #include <sys/endian.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
 
 #if __FreeBSD_version < 500000
 #include <machine/clock.h>		/* for DELAY() */
 #endif
-
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
@@ -75,8 +64,6 @@
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
-
-#include <dev/firewire/iec68113.h>
 
 #undef OHCI_DEBUG
 

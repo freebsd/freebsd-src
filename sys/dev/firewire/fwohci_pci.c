@@ -45,8 +45,10 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#if __FreeBSD_version >= 501102
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#endif
 #include <machine/resource.h>
 
 #if __FreeBSD_version < 500000
