@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.9 1997/01/17 08:53:49 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.10 1997/01/19 09:59:42 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -157,9 +157,8 @@ tcpOpenDialog(Device *devp)
     char		title[80];
 
     if (!RunningAsInit) {
-	if (isDebug())
-	    msgDebug("Running multi-user, assuming that the network is already up\n");
-	return DITEM_SUCCESS;
+	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
+	    return DITEM_SUCCESS;
     }
     save = savescr();
     dialog_clear_norefresh();
