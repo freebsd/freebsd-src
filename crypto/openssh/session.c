@@ -611,7 +611,7 @@ do_login(Session *s, const char *command)
 	struct passwd * pw = s->pw;
 	pid_t pid = getpid();
 #ifdef HAVE_LOGIN_CAP
-	char *fname;
+	const char *fname;
 #endif /* HAVE_LOGIN_CAP */
 #ifdef __FreeBSD__
 #define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
