@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.21 1994/03/14 21:54:01 davidg Exp $
+ *	$Id: pmap.c,v 1.22 1994/03/30 02:17:45 davidg Exp $
  */
 
 /*
@@ -773,7 +773,8 @@ pmap_remove_entry(pmap, pv, va)
 {
 	pv_entry_t npv;
 	int wired;
-	disable_intr();
+	int s;
+	s = splimp();
 	if (pmap == pv->pv_pmap && va == pv->pv_va) {
 		npv = pv->pv_next;
 		if (npv) {
@@ -794,7 +795,7 @@ pmap_remove_entry(pmap, pv, va)
 			free_pv_entry(npv);
 		} 
 	}
-	enable_intr();
+	splx(s);
 }
 
 /*
@@ -1704,12 +1705,13 @@ pmap_testbit(pa, bit)
 {
 	register pv_entry_t pv;
 	pt_entry_t *pte;
+	int s;
 
 	if (!pmap_is_managed(pa))
 		return FALSE;
 
 	pv = pa_to_pvh(pa);
-	disable_intr();
+	s = splimp();
 
 	/*
 	 * Not found, check current mappings returning
@@ -1725,23 +1727,23 @@ pmap_testbit(pa, bit)
 			if (bit & PG_M ) {
 				if (pv->pv_va >= USRSTACK) {
 					if (pv->pv_va < USRSTACK+(UPAGES*NBPG)) {
-						enable_intr();
+						splx(s);
 						return TRUE;
 					}
 					else if (pv->pv_va < UPT_MAX_ADDRESS) {
-						enable_intr();
+						splx(s);
 						return FALSE;
 					}
 				}
 			}
 			pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 			if ((int) *pte & bit) {
-				enable_intr();
+				splx(s);
 				return TRUE;
 			}
 		}
 	}
-	enable_intr();
+	splx(s);
 	return(FALSE);
 }
 
@@ -1764,7 +1766,7 @@ pmap_changebit(pa, bit, setem)
 		return;
 
 	pv = pa_to_pvh(pa);
-	disable_intr();
+	s = splimp();
 
 	/*
 	 * Loop over all current mappings setting/clearing as appropos
@@ -1795,7 +1797,7 @@ pmap_changebit(pa, bit, setem)
 			}
 		}
 	}
-	enable_intr();
+	splx(s);
 	/*
 	 * tlbflush only if we need to
 	 */
