@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.37 1998/04/06 08:26:01 phk Exp $
+ *  $Id: linux_misc.c,v 1.38 1998/05/17 11:52:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -613,6 +613,37 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
     bsd_args.pos = linux_args.pos;
     bsd_args.pad = 0;
     return mmap(p, &bsd_args);
+}
+
+int     
+linux_mremap(struct proc *p, struct linux_mremap_args *args)
+{
+	struct munmap_args /* {
+		void *addr;
+		size_t len;
+	} */ bsd_args; 
+	int error = 0;
+ 
+#ifdef DEBUG
+	printf("Linux-emul(%d): mremap(%08x, %08x, %08x, %08x)\n",
+	p->p_pid, args->addr, args->old_len, args->new_len, args->flags);
+#endif
+	args->new_len = round_page(args->new_len);
+	args->old_len = round_page(args->old_len);
+
+	if (args->new_len > args->old_len) {
+		p->p_retval[0] = 0;
+		return ENOMEM;
+	}
+
+	if (args->new_len < args->old_len) {
+		bsd_args.addr = args->addr + args->new_len;
+		bsd_args.len = args->old_len - args->new_len;
+		error = munmap(p, &bsd_args);
+	}
+
+	p->p_retval[0] = error ? 0 : (int)args->addr;
+	return error;
 }
 
 int
