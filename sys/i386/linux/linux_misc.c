@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.3 1995/11/06 12:52:24 davidg Exp $
+ *  $Id: linux_misc.c,v 1.4 1995/11/22 07:43:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 #include <sys/vnode.h>
 #include <sys/wait.h>
 
+#include <vm/vm.h>
 #include <vm/vm_kern.h>
 
 #include <machine/cpu.h>
