@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.77 2001/05/27 22:20:30 gshapiro Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.78 2001/06/26 18:52:21 gshapiro Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.77 2001/05/27 22:20:30 gshapiro Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.78 2001/06/26 18:52:21 gshapiro Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -768,7 +768,7 @@ smtp(nullserver, d_flags, e)
 				if (bitnset(D_ETRNONLY, d_flags) &&
 				    nullserver == NULL)
 					break;
-				continue;
+				/* FALLTHROUGH */
 
 			  default:
 				if (++badcommands > MAXBADCOMMANDS)

@@ -18,7 +18,9 @@ the latest updates.
 1. Read this README file, especially this introduction, and the DIRECTORY
    PERMISSIONS sections.
 
-2. Read sendmail/README, especially:
+2. Read the INSTALL file in this directory.
+
+3. Read sendmail/README, especially:
    a. the introduction
    b. the BUILDING SENDMAIL section
    c. the relevant part(s) of the OPERATING SYSTEM AND COMPILE QUIRKS section
@@ -27,8 +29,10 @@ the latest updates.
 
    d. devtools/README
    e. devtools/Site/README
+   f. mail.local/README
+   g. smrsh/README
 
-3. Read cf/README.
+4. Read cf/README.
 
 Sendmail is a trademark of Sendmail, Inc.
 
@@ -107,7 +111,10 @@ each directory in the file's path.
 There are other files you should read.  Rooted in this directory are:
 
   FAQ
-	Answers to Frequently Asked Questions.
+	The FAQ (frequently answered questions) is no longer maintained
+	with the sendmail release.  It is available at
+	http://www.sendmail.org/faq/ .  The file FAQ is a reminder of
+	this and a pointer to the web page.
   INSTALL
 	Installation instructions for building and installing sendmail.
   KNOWNBUGS
@@ -385,4 +392,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.71.4.6 $, Last updated $Date: 2000/06/29 04:18:43 $
+$Revision: 8.71.4.8 $, Last updated $Date: 2001/07/31 22:42:46 $
