@@ -101,12 +101,19 @@ gw_ret:
 	;;
 }
 gw_ret_ia32:
-	mov		ar.rnat=r0
-	mov		ar.rsc=0xc
-	mov		ar.pfs=r0
+{	.mfb
+	flushrs
+	nop		0
+	nop		0
 	;;
+}
+{	.mfb
+	nop		0
+	nop		0
 	br.ia.sptk	b6
 	;;
+}
+
 
 ENTRY(break_sigtramp, 0)
 {	.mib
@@ -509,33 +516,24 @@ epc_syscall_setup_ia32:
 {	.mmi
 	mov		r30=ar.bspstore
 	;;
-	mov		ar.bspstore=r21
+	mov		ar.unat=r17
 	dep		r30=0,r30,0,9
 	;;
 }
 {	.mmi
 	mov		ar.k6=r30
-	mov		ar.unat=r17
-	mov		r11=r26
+	mov		ar.bspstore=r21
+	mov		r11=r0
 	;;
 }
-
-	ld8		r16=[r14],16
-	ld8		r17=[r15],16
+{	.mmi
+	ld8		r16=[r14],64
+	ld8		r17=[r15],80
+	mov		r13=r0
 	;;
-	ld8		r18=[r14],16
-	ld8		r19=[r15],16
-	;;
-	ld8		r20=[r14],16
-	ld8		r21=[r15],16
-	;;
-	ld8		r22=[r14],16
-	ld8		r23=[r15],16
-	;;
-	ld8		r24=[r14],16
-	ld8		r25=[r15],16
-	;;
-	ld8		r26=[r14],16
+}
+ 
+	ld8		r24=[r14],32
 	ld8		r27=[r15],16
 	;;
 	ld8		r28=[r14],16
@@ -544,18 +542,27 @@ epc_syscall_setup_ia32:
 	ld8		r30=[r14],40
 	ld8		r31=[r15],40
 	;;
-	ld8		r2=[r14],16
-	ld8		r3=[r15],8
+
+{	.mmi
+	ld8		r2=[r14]
+	ld8		r3=[r15]
+	mov		r14=r0
 	;;
+}
+{	.mmi
 	mov		ar.csd=r2
 	mov		ar.ssd=r3
+	mov		r15=r0
 	;;
+}
+
 	mov		r2=ar.k5
-	mov		psr.l=r11
+	mov		psr.l=r26
 	;;
 	srlz.d
 	add		r2=gw_ret_ia32-ia64_gateway_page,r2
 	;;
+	mov		ar.rsc=0x0
 	mov		b7=r2
 	br.ret.sptk	b7
 	;;
