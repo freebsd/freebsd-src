@@ -30,7 +30,8 @@
 
 #include <sys/bus.h>
 
-void OF_getetheraddr(device_t dev, u_char *addr);
+int  OF_decode_addr(phandle_t, int *, bus_addr_t *);
+void OF_getetheraddr(device_t, u_char *);
 void cpu_shutdown(void *);
 void openfirmware_exit(void *);
 
