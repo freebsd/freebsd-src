@@ -694,6 +694,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_start = p->p_stats->p_start;
 		timevaladd(&kp->ki_start, &boottime);
 		kp->ki_rusage = p->p_stats->p_ru;
+		calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime,
+		    NULL);
 		kp->ki_childstime = p->p_stats->p_cru.ru_stime;
 		kp->ki_childutime = p->p_stats->p_cru.ru_utime;
 		/* Some callers want child-times in a single value */
