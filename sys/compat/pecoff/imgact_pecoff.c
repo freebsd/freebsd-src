@@ -149,7 +149,7 @@ pecoff_fixup(register_t ** stack_base, struct image_params * imgp)
 	struct pecoff_imghdr *ap;
 	register_t     *pos;
 
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);
+	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 	ap = (struct pecoff_imghdr *) imgp->auxargs;
 	if (copyout(ap, pos, len)) {
 		return 0;
@@ -157,7 +157,7 @@ pecoff_fixup(register_t ** stack_base, struct image_params * imgp)
 	free(ap, M_TEMP);
 	imgp->auxargs = NULL;
 	(*stack_base)--;
-	suword(*stack_base, (long) imgp->argc);
+	suword(*stack_base, (long) imgp->args->argc);
 	return 0;
 }
 
@@ -299,8 +299,6 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 	 * Initialize part of the common data
 	 */
 	imgp->proc = td->td_proc;
-	imgp->userspace_argv = NULL;
-	imgp->userspace_envv = NULL;
 	imgp->execlabel = NULL;
 	imgp->attr = &attr;
 	imgp->firstpage = NULL;
@@ -418,8 +416,6 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
 	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc), imgp->vp,
 	    peofs + PECOFF_HDR_SIZE, (caddr_t) sh, scnsiz);
-	if ((error = exec_extract_strings(imgp)) != 0)
-		goto fail;
 	exec_new_vmspace(imgp, &pecoff_sysvec);
 	vmspace = imgp->proc->p_vmspace;
 	for (i = 0; i < fp->f_nscns; i++) {

@@ -117,15 +117,15 @@ osf1_freebsd_fixup(long **stack_base, struct image_params *imgp)
 	Osf_Auxargs *args;
 
 	args = (Osf_Auxargs *)imgp->auxargs;
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);
+	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 
 	arginfo = (struct ps_strings *)PS_STRINGS;
 
 	sz = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
-	destp -= imgp->stringspace;
+	destp -= imgp->args->stringspace;
 
 	destp -= strlen(args->executable)+2;
 	copyout(args->executable, destp, strlen(args->executable)+1);
@@ -143,6 +143,6 @@ osf1_freebsd_fixup(long **stack_base, struct image_params *imgp)
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
 	(*stack_base)--;
-	**stack_base = (long)imgp->argc;
+	**stack_base = (long)imgp->args->argc;
 	return 0;
 }

@@ -97,7 +97,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	    (curthread->td_proc->p_flag & P_SA) == 0,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
 	args = (Elf64_Auxargs *)imgp->auxargs;
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);
+	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 
 	if (args->trace)
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
@@ -120,7 +120,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (register_t)imgp->argc;
+	**stack_base = (register_t)imgp->args->argc;
 	return 0;
 }
 
@@ -154,8 +154,8 @@ exec_linux_imgact_try(imgp)
 		if ((error = exec_shell_imgact(imgp)) == 0) {
 			char *rpath = NULL;
 
-			linux_emul_find(FIRST_THREAD_IN_PROC(imgp->proc), NULL,
-			    imgp->interpreter_name, &rpath, 0);
+			linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
+			    imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0);
 			if (rpath != imgp->interpreter_name) {
 				int len = strlen(rpath) + 1;
 
