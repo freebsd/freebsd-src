@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.4.2.5 1997/06/10 09:43:20 brian Exp $
+ * $Id: defs.h,v 1.4.2.6 1997/06/13 02:08:56 brian Exp $
  *
  *	TODO:
  */
@@ -69,6 +69,7 @@
 #define MODE_BACKGROUND 64	/* Background mode. */
 
 
+#define	EX_SIG		-1
 #define	EX_NORMAL	0
 #define	EX_START	1
 #define	EX_SOCK		2

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.12 1997/06/10 09:44:06 brian Exp $
+ * $Id: modem.c,v 1.24.2.13 1997/06/11 03:59:33 brian Exp $
  *
  *  TODO:
  */
@@ -207,7 +207,9 @@ void
 DownConnection()
 {
   LogPrintf(LogPHASE, "Disconnected!\n");
-  LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
+  if (uptime)
+    LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
+  uptime = 0;
   if (!TermMode) {
     CloseModem();
     LcpDown();
@@ -711,19 +713,23 @@ DialModem()
 
   strncpy(ScriptBuffer, VarDialScript,sizeof(ScriptBuffer)-1);
   ScriptBuffer[sizeof(ScriptBuffer)-1] = '\0';
-  if (DoChat(ScriptBuffer) > 0) {
+  if ((excode = DoChat(ScriptBuffer)) > 0) {
     if (VarTerm)
       fprintf(VarTerm, "dial OK!\n");
     strncpy(ScriptBuffer, VarLoginScript,sizeof(ScriptBuffer)-1);
-    if (DoChat(ScriptBuffer) > 0) {
+    if ((excode = DoChat(ScriptBuffer)) > 0) {
       if (VarTerm)
         fprintf(VarTerm, "login OK!\n");
       return EX_DONE;
+    } else if (excode == -1)
+      excode = EX_SIG;
+    else {
+      LogPrintf(LogWARN, "DialModem: login failed.\n");
+      excode = EX_NOLOGIN;
     }
-    LogPrintf(LogWARN, "DialModem: login failed.\n");
     ModemTimeout();	/* Dummy call to check modem status */
-    excode = EX_NOLOGIN;
-  }
+  } else if (excode == -1)
+    excode = EX_SIG;
   else {
     LogPrintf(LogWARN, "DialModem: dial failed.\n");
     excode = EX_NODIAL;
