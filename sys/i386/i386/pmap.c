@@ -609,7 +609,7 @@ pmap_invalidate_all(pmap_t pmap)
 	 * interrupts disabled here.
 	 * XXX we may need to hold schedlock to get a coherent pm_active
 	 */
-	if (td->td_critnest == 1 && td->td_savecrit != (critical_t)-1)
+	if (td->td_critnest == 1)
 		cpu_critical_exit(td->td_savecrit);
 	if (pmap->pm_active == -1 || pmap->pm_active == all_cpus) {
 		invltlb();	/* global */
