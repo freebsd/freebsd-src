@@ -48,7 +48,8 @@ static const char rcsid[] =
 
 #ifdef COLORLS
 #include <ctype.h>
-#include <curses.h>
+#include <termcap.h>
+#include <term.h>       /* for tparm */
 #endif
 #include <err.h>
 #include <errno.h>
@@ -58,9 +59,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef COLORLS
-#include <term.h>
-#endif
 #include <time.h>
 #include <unistd.h>
 
@@ -94,6 +92,7 @@ typedef enum Colors {
 char *defcolors = "4x5x2x3x1x464301060203";
 
 static int colors[C_NUMCOLORS][2];
+static int color_printed = 0;
 #endif
 
 void
@@ -159,12 +158,12 @@ printlong(dp)
 			printtime(sp->st_mtime);
 #ifdef COLORLS
 		if (f_color)
-			(void)colortype(sp->st_mode);
+			color_printed = colortype(sp->st_mode);
 #endif
 		if (f_octal || f_octal_escape) (void)prn_octal(p->fts_name);
 		else (void)printf("%s", p->fts_name);
 #ifdef COLORLS
-		if (f_color)
+		if (f_color && color_printed)
 			endcolor();
 #endif
 		if (f_type)
@@ -280,12 +279,12 @@ printaname(p, inodefield, sizefield)
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
 #ifdef COLORLS
 	if (f_color)
-		(void)colortype(sp->st_mode);
+		color_printed = colortype(sp->st_mode);
 #endif
 	chcnt += (f_octal || f_octal_escape) ? prn_octal(p->fts_name)
 	                                     : printf("%s", p->fts_name);
 #ifdef COLORLS
-	if (f_color)
+	if (f_color && color_printed)
 		endcolor();
 #endif
 	if (f_type)
@@ -352,6 +351,13 @@ printtype(mode)
 }
 
 #ifdef COLORLS
+int putch(c)
+	int c;
+{
+	return putc(c, stdout);
+}
+
+
 void
 printcolor(c)
        Colors c;
@@ -361,21 +367,20 @@ printcolor(c)
 	if (colors[c][0] != -1) {
 		ansiseq = tparm(ansi_fgcol, colors[c][0]);
 		if (ansiseq)
-			putp(ansiseq);
+			tputs(ansiseq, 1, putch);
 	}
 
 	if (colors[c][1] != -1) {
 		ansiseq = tparm(ansi_bgcol, colors[c][1]);
 		if (ansiseq)
-			putp(ansiseq);
+			tputs(ansiseq, 1, putch);
 	}
 }
 
 void
 endcolor()
 {
-	if (ansi_coloff)
-		putp(ansi_coloff);
+	tputs(ansi_coloff, 1, putch);
 }
 
 int
@@ -439,7 +444,7 @@ char *cs;
 		}
 		for (j = 0 ; j < 2 ; j++) {
 			if ((c[j] < '0' || c[j] > '7') &&
-			    tolower(c[j]) != 'x') {
+			    tolower((unsigned char)c[j]) != 'x') {
 				fprintf(stderr,
 					"error: invalid character '%c' in LSCOLORS env var\n",
 					c[j]);
@@ -451,6 +456,14 @@ char *cs;
 			    colors[i][j] = c[j]-'0';
 		}
 	}
+}
+
+/* ARGSUSED */
+void colorquit(sig)
+	int sig;
+{
+	endcolor();
+	exit(1);
 }
 #endif /*COLORLS*/
  
