@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id$
+ **      $Id: userconfig.c,v 1.31 1995/09/06 03:36:36 jkh Exp $
  **/
 
 /**
@@ -1049,7 +1049,8 @@ drawline(int row, int detail, DEV_LIST *list, int inverse, char *dhelp)
 {
     char	lbuf[90],nb[70],db[20],ib[16],pb[16];
     
-    strcpy(nb,list->name);
+    strncpy(nb,list->name,58);
+    nb[58] = '\0';
     if ((list->comment == DEV_ZOOMED) && (list->next))
 	if (list->next->comment == DEV_DEVICE)	/* only mention if there's something hidden */
 	    strcat(nb,"  (Collapsed)");
@@ -1804,7 +1805,7 @@ userconfig(void)
 
 	    case KEY_DEL:
 
-		dp = ofsent(actofs,active);	/* get current device */
+		dp = ofsent(actofs,alist);	/* get current device */
 		if (dp)				/* paranoia... */
 		{
 		    if (dp->attrib & FLG_MANDATORY)	/* can't be deleted */
