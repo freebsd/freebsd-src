@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.71 1996/10/03 06:01:33 jkh Exp $
+ * $Id: dist.c,v 1.72 1996/10/06 14:45:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,6 +91,7 @@ static Distribution DESDistTable[] = {
 /* The /usr/src distribution */
 static Distribution SrcDistTable[] = {
 { "sbase",	"/usr/src",		&SrcDists,	DIST_SRC_BASE,		NULL		},
+{ "scontrib",	"/usr/src",		&SrcDists,	DIST_SRC_CONTRIB,	NULL		},
 { "sgnu",	"/usr/src",		&SrcDists,	DIST_SRC_GNU,		NULL		},
 { "setc",	"/usr/src",		&SrcDists,	DIST_SRC_ETC,		NULL		},
 { "sgames",	"/usr/src",		&SrcDists,	DIST_SRC_GAMES,		NULL		},
