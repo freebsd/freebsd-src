@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.37 1997/06/13 00:04:58 brian Exp $
+.\" $Id: ppp.8,v 1.38 1997/06/13 02:07:32 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1382,7 +1382,7 @@ machine/network.
 .It close
 Close the current connection (but don't quit).
 
-.It delete ALL | dest gateway [mask]
+.It delete ALL | dest [gateway [mask]]
 If
 .Dq ALL
 is specified, all entries in the routing table created by
