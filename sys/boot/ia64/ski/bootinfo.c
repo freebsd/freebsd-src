@@ -35,7 +35,92 @@
 #include <machine/bootinfo.h>
 #include "bootstrap.h"
 
+/*
+ * Return a 'boothowto' value corresponding to the kernel arguments in
+ * (kargs) and any relevant environment variables.
+ */
+static struct 
+{
+    const char	*ev;
+    int		mask;
+} howto_names[] = {
+    {"boot_askname",	RB_ASKNAME},
+    {"boot_cdrom",	RB_CDROM},
+    {"boot_userconfig",	RB_CONFIG},
+    {"boot_ddb",	RB_KDB},
+    {"boot_gdb",	RB_GDB},
+    {"boot_single",	RB_SINGLE},
+    {"boot_verbose",	RB_VERBOSE},
+    {NULL,	0}
+};
+
 extern char *ski_fmtdev(void *vdev);
+
+int
+bi_getboothowto(char *kargs)
+{
+    char	*cp;
+    int		howto;
+    int		active;
+    int		i;
+    
+    /* Parse kargs */
+    howto = 0;
+    if (kargs  != NULL) {
+	cp = kargs;
+	active = 0;
+	while (*cp != 0) {
+	    if (!active && (*cp == '-')) {
+		active = 1;
+	    } else if (active)
+		switch (*cp) {
+		case 'a':
+		    howto |= RB_ASKNAME;
+		    break;
+		case 'c':
+		    howto |= RB_CONFIG;
+		    break;
+		case 'C':
+		    howto |= RB_CDROM;
+		    break;
+		case 'd':
+		    howto |= RB_KDB;
+		    break;
+		case 'm':
+		    howto |= RB_MUTE;
+		    break;
+		case 'g':
+		    howto |= RB_GDB;
+		    break;
+		case 'h':
+		    howto |= RB_SERIAL;
+		    break;
+		case 'r':
+		    howto |= RB_DFLTROOT;
+		    break;
+		case 's':
+		    howto |= RB_SINGLE;
+		    break;
+		case 'v':
+		    howto |= RB_VERBOSE;
+		    break;
+		default:
+		    active = 0;
+		    break;
+		}
+	    cp++;
+	}
+    }
+    /* get equivalents from the environment */
+    for (i = 0; howto_names[i].ev != NULL; i++)
+	if (getenv(howto_names[i].ev) != NULL)
+	    howto |= howto_names[i].mask;
+    if (!strcmp(getenv("console"), "comconsole"))
+	howto |= RB_SERIAL;
+    if (!strcmp(getenv("console"), "nullconsole"))
+	howto |= RB_MUTE;
+    return(howto);
+}
 
 /*
  * Copy the environment into the load area starting at (addr).
@@ -150,7 +235,7 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(struct bootinfo *bi, struct preloaded_file *fp)
+bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
 {
     char			*rootdevname;
     struct ski_devdesc		*rootdev;
@@ -160,6 +245,17 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp)
     char			*kernelname;
     vm_offset_t			ssym, esym;
     struct file_metadata	*md;
+
+    /*
+     * Version 1 bootinfo.
+     */
+    bi->bi_magic = BOOTINFO_MAGIC;
+    bi->bi_version = 1;
+
+    /*
+     * Calculate boothowto.
+     */
+    bi->bi_boothowto = bi_getboothowto(fp->f_args);
 
     /* 
      * Allow the environment variable 'rootdev' to override the supplied device 
