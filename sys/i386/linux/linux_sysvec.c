@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.34 1998/09/17 22:08:29 msmith Exp $
+ *  $Id: linux_sysvec.c,v 1.35 1998/10/05 16:37:36 jfieber Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -427,19 +427,25 @@ struct sysentvec elf_linux_sysvec = {
 /*
  * Installed either via SYSINIT() or via LKM stubs.
  */
-Elf32_Brandinfo linux_brand = {
+static Elf32_Brandinfo linux_brand = {
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
 					&elf_linux_sysvec
 				 };
 
-Elf32_Brandinfo linux_glibc2brand = {
+static Elf32_Brandinfo linux_glibc2brand = {
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.2",
 					&elf_linux_sysvec
 				 };
+
+Elf32_Brandinfo *linux_brandlist[] = {
+					&linux_brand,
+					&linux_glibc2brand,
+					NULL
+				};
 
 #ifndef LKM
 /*
@@ -452,8 +458,16 @@ static void
 linux_elf_init(dummy)
 	void *dummy;
 {
-	if ((elf_insert_brand_entry(&linux_brand) < 0) ||
-	    (elf_insert_brand_entry(&linux_glibc2brand) < 0))
+	Elf32_Brandinfo **brandinfo;
+	int error;
+
+	error = 0;
+
+	for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL; ++brandinfo)
+		if (elf_insert_brand_entry(*brandinfo) < 0)
+			error = 1;
+
+	if (error)
 		printf("cannot insert Linux elf brand handler\n");
 	else if (bootverbose)
 		printf("Linux-ELF exec handler installed\n");
