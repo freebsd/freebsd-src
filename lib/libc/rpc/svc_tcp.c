@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_tcp.c,v 1.4 1995/12/07 12:50:56 bde Exp $";
+static char *rcsid = "$Id: svc_tcp.c,v 1.5 1996/06/08 22:54:57 jraynard Exp $";
 #endif
 
 /*
@@ -82,9 +82,9 @@ static enum xprt_stat	rendezvous_stat();
 static struct xp_ops svctcp_rendezvous_op = {
 	rendezvous_request,
 	rendezvous_stat,
-	abort,
-	abort,
-	abort,
+	(bool_t (*)())abort,
+	(bool_t (*)())abort,
+	(bool_t (*)())abort,
 	svctcp_destroy
 };
 

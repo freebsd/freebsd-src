@@ -34,6 +34,7 @@ static char *rcsid = "rpc_dtablesize.c,v 1.1 1994/08/07 18:36:02 wollman Exp";
 #endif
 
 #include <sys/types.h>
+#include <unistd.h>
 
 /*
  * Cache the result of getdtablesize(), so we don't have to do an
@@ -50,7 +51,7 @@ static char *rcsid = "rpc_dtablesize.c,v 1.1 1994/08/07 18:36:02 wollman Exp";
  * that. Clamping this function at 256 is a kludge, but it'll have to
  * do until select()'s descriptor table size can be adjusted dynamically.
  */
-_rpc_dtablesize()
+int _rpc_dtablesize(void)
 {
 	static int size;
 
