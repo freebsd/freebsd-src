@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.3 1995/04/17 14:35:07 dufault Exp $
+ *	$Id: scsi.c,v 1.4 1995/04/28 19:24:39 dufault Exp $
  */
 
 #include <stdio.h>
@@ -68,6 +68,7 @@ int modeflag;
 int editflag;
 int modepage = 0; /* Read this mode page */
 int pagectl = 0;  /* Mode sense page control */
+int seconds = 2;
 
 void usage(void)
 {
@@ -80,9 +81,9 @@ void usage(void)
 "  scsi -f device -m page [-P pc]                   # To read mode pages\n"
 "  scsi -f device -p [-b bus] [-l lun]              # To probe all devices\n"
 "  scsi -f device -r [-b bus] [-t targ] [-l lun]    # To reprobe a device\n"
-"  scsi -f device [-v] -c cmd_fmt [arg0 ... argn] \\ # To send a command...\n"
-"                 -o count out_fmt [arg0 ... argn]  #   EITHER (for data out)\n"
-"                 -i count in_fmt                   #   OR (for data in)\n"
+"  scsi -f device [-v] [-s seconds] -c cmd_fmt [arg0 ... argn] # A command...\n"
+"                 -o count out_fmt [arg0 ... argn]  #   EITHER (data out)\n"
+"                 -i count in_fmt                   #   OR     (data in)\n"
 "\n"
 "\"out_fmt\" can be \"-\" to read output data from stdin;\n"
 "\"in_fmt\" can be \"-\" to write input data to stdout;\n"
@@ -106,7 +107,7 @@ void procargs(int *argc_p, char ***argv_p)
 	fflag = 0;
 	commandflag = 0;
 	debugflag = 0;
-	while ((ch = getopt(argc, argv, "ceprvf:d:b:t:l:z:m:P:")) != EOF) {
+	while ((ch = getopt(argc, argv, "ceprvf:d:b:t:l:z:m:P:s:")) != EOF) {
 		switch (ch) {
 		case 'p':
 			probe_all = 1;
@@ -150,6 +151,9 @@ void procargs(int *argc_p, char ***argv_p)
 			break;
 		case 'P':
 			pagectl = strtol(optarg, 0, 0);
+			break;
+		case 's':
+			seconds = strtol(optarg, 0, 0);
 			break;
 		case 'm':
 			modeflag = 1;
@@ -270,7 +274,8 @@ enum data_phase {none = 0, in, out};
 
 /* do_cmd: Send a command to a SCSI device
  */
-void do_cmd(int fd, char *fmt, int argc, char **argv)
+static void
+do_cmd(int fd, char *fmt, int argc, char **argv)
 {
 	struct get_hook h;
 	scsireq_t *scsireq = scsireq_new();
@@ -344,6 +349,9 @@ void do_cmd(int fd, char *fmt, int argc, char **argv)
 		}
 	}
 
+
+	scsireq->timeout = seconds * 1000;
+
 	if (scsireq_enter(fd, scsireq) == -1)
 	{
 		scsi_debug(stderr, -1, scsireq);
@@ -371,7 +379,8 @@ void do_cmd(int fd, char *fmt, int argc, char **argv)
 	}
 }
 
-static void freeze_ioctl(int fd, int op, void *data)
+static void
+freeze_ioctl(int fd, int op, void *data)
 {
 	if (ioctl(fd, SCIOCFREEZE, 0) == -1) {
 		if (errno == ENODEV) {
