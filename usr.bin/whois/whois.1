@@ -40,7 +40,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAdgimQrR6
+.Op Fl aAdgilmQrR6
 .Op Fl c Ar country-code | Fl h Ar host
 .Op Fl p Ar port
 .Ar name ...
@@ -108,7 +108,8 @@ Registry for Internet Numbers
 If a query to
 .Tn ARIN
 references
-.Tn APNIC
+.Tn APNIC ,
+.Tn LACNIC ,
 or
 .Tn RIPE ,
 that server will be queried also, provided that the
@@ -148,7 +149,12 @@ can be looked up by prefixing
 to the
 .Tn NIC
 handle in the query.)
-.Pp
+.It Fl l
+Use the Latin American and Caribbean IP address Regional Registry
+.Pq Tn LACNIC
+database.
+It contains network numbers used in much of Latin America and the
+Caribbean.
 .It Fl m
 Use the Route Arbiter Database
 .Pq Tn RADB
