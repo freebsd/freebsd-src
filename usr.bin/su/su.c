@@ -93,8 +93,6 @@ static const char rcsid[] =
 	}							\
 } while (0)
 
-#define	ARGSTR	"-flmc:"
-
 enum tristate { UNSET, YES, NO };
 
 static pam_handle_t *pamh = NULL;
@@ -129,7 +127,7 @@ main(int argc, char *argv[])
 	user = "root";
 	iscsh = UNSET;
 
-	while ((ch = getopt(argc, argv, ARGSTR)) != -1)
+	while ((ch = getopt(argc, argv, "-flmc:")) != -1)
 		switch ((char)ch) {
 		case 'f':
 			fastlogin = 1;
@@ -442,7 +440,8 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: su [-] [-flm] [-c class] [login [args]]");
+	(void)fprintf(stderr,
+	    "usage: su [-] [-flm] [-c class] [login [args]]\n");
 	exit(1);
 }
 
