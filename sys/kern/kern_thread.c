@@ -1069,7 +1069,7 @@ thread_single_end(void)
 	 * to continue however as this is a bad place to stop.
 	 */
 	if ((p->p_numthreads != 1) && (!P_SHOULDSTOP(p))) {
-		while (( td = TAILQ_FIRST(&p->p_suspended))) {
+		while ((td = TAILQ_FIRST(&p->p_suspended))) {
 			thread_unsuspend_one(td);
 		}
 	}
