@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
-.\"	$Id$
+.\"	$Id: df.1,v 1.9 1997/02/22 14:02:56 peter Exp $
 .\"
 .Dd May 8, 1995
 .Dt DF 1
@@ -40,7 +40,7 @@
 .Nd display free disk space
 .Sh SYNOPSIS
 .Nm df
-.Op Fl ink
+.Op Fl ikn
 .Op Fl t Ar type
 .Op Ar file | Ar filesystem ...
 .Sh DESCRIPTION
@@ -77,24 +77,30 @@ will not request new statistics from the filesystems, but will respond
 with the possibly stale statistics that were previously obtained.
 .It Fl t
 Only print out statistics for filesystems of the specified types.
-The recognized types are:
-ufs, nfs, mfs, lfs, msdos, fdesc, portal, kernfs, procfs, afs, isofs,
-iso9660fs, cdfs, and cd9660,
-along with the aggregates:
-all (the default),
-local (ufs, mfs, lfs, msdos, cd9660),
-and misc (fdesc, portal, kernfs, procfs).
-The names isofs, iso9660fs, cdfs, and cd9660 are aliases to each other
-all of them refering to the same type of file system.
-The string ``no'' may be prepended to a type to get its complement
-(e.g. ``nonfs'' to get non-NFS filesystems).  The first
-.Fl t
-option overrides the default, additional such options will add to
-(or subtract from) the current set of types; e.g. either
-``df -t ufs -t lfs''
-or
-``df -t local -t nomfs''
-will display statistics for UFS and LFS filesystems.
+More than one type may be specified in a comma separated list.
+The list of filesystem types can be prefixed with
+.Dq no
+to specify the filesystem types for which action should
+.Em not
+be taken.
+For example, the
+.Nm df
+command:
+.Bd -literal -offset indent
+df -t nonfs,mfs
+.Ed
+.Pp
+lists all filesystems except those of type
+.Tn NFS
+and
+.Tn MFS .
+The
+.Xr sysctl 8
+command can be used to find out the types of filesystems
+that are available on the system:
+.Bd -literal -offset indent
+sysctl vfs
+.Ed
 .El
 .Sh ENVIRONMENT VARIABLES
 .Bl -tag -width BLOCKSIZE
@@ -117,7 +123,8 @@ flags are ignored if a file or filesystem is specified.
 .Xr getmntinfo 3 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
-.Xr quot 8
+.Xr quot 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 A
 .Nm df
