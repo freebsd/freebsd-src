@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.85 1997/05/03 22:23:13 joerg Exp $
+ *      $Id: scsiconf.c,v 1.86 1997/05/19 17:32:07 jmz Exp $
  */
 
 #include "opt_scsi.h"
@@ -439,6 +439,10 @@ static struct scsidevs knowndevs[] =
 #if NSD > 0
 	{
 		T_DIRECT, T_DIRECT, T_FIXED, "*", "*", "*",
+		"sd", SC_ONE_LU
+	},
+	{
+		T_DIRECT, T_DIRECT, T_REMOV, "*", "*", "*",
 		"sd", SC_ONE_LU
 	},
 #endif /* NSD */
