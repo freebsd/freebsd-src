@@ -713,7 +713,7 @@ digi_disc_optim(struct tty *tp, struct termios *t, struct digi_p *port)
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
 
-int
+static int
 digiopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct digi_softc *sc;
@@ -878,7 +878,7 @@ out:
 	return (error);
 }
 
-int
+static int
 digiclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int mynor;
@@ -958,7 +958,7 @@ digihardclose(struct digi_p *port)
 	splx(s);
 }
 
-int
+static int
 digiread(dev_t dev, struct uio *uio, int flag)
 {
 	int mynor;
@@ -984,7 +984,7 @@ digiread(dev_t dev, struct uio *uio, int flag)
 	return (error);
 }
 
-int
+static int
 digiwrite(dev_t dev, struct uio *uio, int flag)
 {
 	int mynor;

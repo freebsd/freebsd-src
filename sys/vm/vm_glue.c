@@ -269,7 +269,7 @@ vm_proc_dispose(struct proc *p)
 /*
  * Allow the U area for a process to be prejudicially paged out.
  */
-void
+static void
 vm_proc_swapout(struct proc *p)
 {
 	vm_object_t upobj;
@@ -292,7 +292,7 @@ vm_proc_swapout(struct proc *p)
 /*
  * Bring the U area for a specified process back in.
  */
-void
+static void
 vm_proc_swapin(struct proc *p)
 {
 	vm_page_t ma[UAREA_PAGES];

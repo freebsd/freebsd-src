@@ -226,7 +226,7 @@ static struct cdevsw ch_cdevsw = {
 	/* flags */	0,
 };
 
-void
+static void
 chinit(void)
 {
 	cam_status status;

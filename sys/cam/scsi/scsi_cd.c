@@ -302,7 +302,7 @@ struct cdchanger {
 
 static STAILQ_HEAD(changerlist, cdchanger) changerq;
 
-void
+static void
 cdinit(void)
 {
 	cam_status status;

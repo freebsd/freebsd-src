@@ -339,7 +339,7 @@ amr_submit_bio(struct amr_softc *sc, struct bio *bio)
 /********************************************************************************
  * Accept an open operation on the control device.
  */
-int
+static int
 amr_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
@@ -354,7 +354,7 @@ amr_open(dev_t dev, int flags, int fmt, struct thread *td)
 /********************************************************************************
  * Accept the last close on the control device.
  */
-int
+static int
 amr_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
@@ -369,7 +369,7 @@ amr_close(dev_t dev, int flags, int fmt, struct thread *td)
 /********************************************************************************
  * Handle controller-specific control operations.
  */
-int
+static int
 amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct amr_softc		*sc = (struct amr_softc *)dev->si_drv1;
@@ -1300,7 +1300,7 @@ amr_releasecmd(struct amr_command *ac)
 /********************************************************************************
  * Allocate a new command cluster and initialise it.
  */
-void
+static void
 amr_alloccmd_cluster(struct amr_softc *sc)
 {
     struct amr_command_cluster	*acc;
@@ -1326,7 +1326,7 @@ amr_alloccmd_cluster(struct amr_softc *sc)
 /********************************************************************************
  * Free a command cluster
  */
-void
+static void
 amr_freecmd_cluster(struct amr_command_cluster *acc)
 {
     struct amr_softc	*sc = acc->acc_command[0].ac_sc;

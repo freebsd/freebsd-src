@@ -2298,7 +2298,7 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 /*
  * common ioctls
  */
-int
+static int
 common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 {
         int                           pixfmt;
@@ -2544,7 +2544,7 @@ dump_bt848( bktr_ptr_t bktr )
 #define BKTR_TEST_RISC_STATUS_BIT2 (1 << 30)
 #define BKTR_TEST_RISC_STATUS_BIT3 (1 << 31)
 
-bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
+static bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
     int i;
     bktr_clip_t * clip_node;
     bktr->clip_start = -1;
@@ -2571,7 +2571,7 @@ bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
     return TRUE;
 }	
 
-bool_t getline(bktr_reg_t *bktr, int x ) {
+static bool_t getline(bktr_reg_t *bktr, int x ) {
     int i, j;
     bktr_clip_t * clip_node ;
     

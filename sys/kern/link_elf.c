@@ -154,7 +154,7 @@ struct r_debug r_debug;
 /*
  * Function for the debugger to set a breakpoint on to gain control.
  */
-void
+static void
 r_debug_state(struct r_debug *dummy_one __unused,
 	      struct link_map *dummy_two __unused)
 {
@@ -975,7 +975,7 @@ elf_hash(const char *name)
     return h;
 }
 
-int
+static int
 link_elf_lookup_symbol(linker_file_t lf, const char* name, c_linker_sym_t* sym)
 {
     elf_file_t ef = (elf_file_t) lf;

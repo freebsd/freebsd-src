@@ -1162,7 +1162,7 @@ fe_xmit (struct fe_softc *sc)
  *  2) that the IFF_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
-void
+static void
 fe_start (struct ifnet *ifp)
 {
 	struct fe_softc *sc = ifp->if_softc;

@@ -5532,7 +5532,7 @@ request_cleanup(resource, islocked)
  * Awaken processes pausing in request_cleanup and clear proc_waiting
  * to indicate that there is no longer a timer running.
  */
-void
+static void
 pause_timer(arg)
 	void *arg;
 {
@@ -5841,7 +5841,7 @@ softdep_deallocate_dependencies(bp)
 /*
  * Function to handle asynchronous write errors in the filesystem.
  */
-void
+static void
 softdep_error(func, error)
 	char *func;
 	int error;

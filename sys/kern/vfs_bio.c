@@ -3455,7 +3455,7 @@ tryagain:
 }
 
 /* Return pages associated with this buf to the vm system */
-void
+static void
 vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;

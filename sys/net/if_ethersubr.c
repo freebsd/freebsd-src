@@ -1005,7 +1005,7 @@ ether_ioctl(ifp, command, data)
 	return (error);
 }
 
-int
+static int
 ether_resolvemulti(ifp, llsa, sa)
 	struct ifnet *ifp;
 	struct sockaddr **llsa;

@@ -4362,7 +4362,7 @@ io_resume:
 /**********************************************************
  * TAG operations
  **********************************************************/
-int
+static int
 scsi_low_alloc_qtag(cb)
 	struct slccb *cb;
 {
@@ -4399,7 +4399,7 @@ found:
 #endif	/* SCSI_LOW_ALT_QTAG_ALLOCATE */
 }
 	
-int
+static int
 scsi_low_dealloc_qtag(cb)
 	struct slccb *cb;
 {
@@ -4430,7 +4430,7 @@ scsi_low_dealloc_qtag(cb)
 	return 0;
 }
 
-struct slccb *
+static struct slccb *
 scsi_low_revoke_ccb(slp, cb, fdone)
 	struct scsi_low_softc *slp;
 	struct slccb *cb;
@@ -4483,7 +4483,7 @@ scsi_low_revoke_ccb(slp, cb, fdone)
 	}
 }
 
-void
+static void
 scsi_low_reset_nexus_lun(slp, li, fdone)
 	struct scsi_low_softc *slp;
 	struct lun_info *li;

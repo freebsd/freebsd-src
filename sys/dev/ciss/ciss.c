@@ -2479,7 +2479,7 @@ ciss_find_periph(struct ciss_softc *sc, int target)
  *
  * XXX is this strictly correct?
  */
-int
+static int
 ciss_name_device(struct ciss_softc *sc, int target)
 {
     struct cam_periph	*periph;

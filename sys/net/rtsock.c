@@ -894,7 +894,7 @@ rt_ifannouncemsg(ifp, what)
 /*
  * This is used in dumping the kernel table via sysctl().
  */
-int
+static int
 sysctl_dumpentry(rn, vw)
 	struct radix_node *rn;
 	void *vw;
@@ -933,7 +933,7 @@ sysctl_dumpentry(rn, vw)
 	return (error);
 }
 
-int
+static int
 sysctl_iflist(af, w)
 	int	af;
 	register struct	walkarg *w;
