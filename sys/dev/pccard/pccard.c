@@ -248,8 +248,6 @@ pccard_attach_card(device_t dev)
 				pccard_function_disable(pf);
 		}
 	}
-	if (sc->sc_enabled_count == 0)
-		pccard_detach_card(dev, 0);
 	return (0);
 }
 
@@ -974,11 +972,6 @@ pccard_driver_added(device_t dev, driver_t *driver)
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
 	device_t child;
-
-	if (sc->sc_enabled_count == 0) {
-		CARD_REPROBE_CARD(device_get_parent(dev), dev);
-		return;
-	}
 
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
