@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.114 1998/11/03 21:07:51 msmith Exp $
+ **      $Id: userconfig.c,v 1.115 1998/11/04 13:37:43 peter Exp $
  **/
 
 /**
@@ -340,7 +340,11 @@ static DEV_INFO device_info[] = {
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 {"rl",          "RealTek 8129/8139 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"mx",          "Macronix PMAC ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"pn",          "Lite-On 82c168/82c169 PNIC adapter",	FLG_FIXED,	CLS_NETWORK},
 {"tl",          "Texas Instruments ThunderLAN ethernet adapter", FLG_FIXED, CLS_NETWORK},
+{"vr",          "VIA Rhine/Rhine II ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"wb",          "Winbond W89C840F ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"xl",          "3COM 3C90x PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
@@ -2454,7 +2458,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.114 1998/11/03 21:07:51 msmith Exp $
+ *      $Id: userconfig.c,v 1.115 1998/11/04 13:37:43 peter Exp $
  */
 
 #include "scbus.h"
