@@ -185,8 +185,6 @@ uiomove(void *cp, int n, struct uio *uio)
 		n -= cnt;
 	}
 out:
-	if (td != curthread) printf("uiomove: IT CHANGED!");
-	td = curthread;	/* Might things have changed in copyin/copyout? */
 	if (td) {
 		mtx_lock_spin(&sched_lock);
 		td->td_flags = (td->td_flags & ~TDF_DEADLKTREAT) | save;
