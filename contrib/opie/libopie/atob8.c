@@ -1,7 +1,7 @@
 /* atob8.c: The opieatob8() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_otpkey for binary arg.
 	Modified by cmetz for OPIE 2.3. Return the output variable.
 	    Don't check parameters.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
@@ -27,10 +28,11 @@ License Agreement applies to this software.
 
 /* Convert 8-byte hex-ascii string to binary array
  */
-char *opieatob8 FUNCTION((out, in), char *out AND char *in)
+char *opieatob8 FUNCTION((out, in), struct opie_otpkey *outkey AND char *in)
 {
   register int i;
   register int val;
+  unsigned char *out = (unsigned char *)outkey;
 
   for (i = 0; i < 8; i++) {
     while (*in == ' ' || *in == '\t')

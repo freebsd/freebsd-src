@@ -2,7 +2,7 @@
 # Makefile.source and Makefile: Directions for building and installing OPIE.
 #
 # %%% portions-copyright-cmetz-96
-# Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+# Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 # Reserved. The Inner Net License Version 2 applies to these portions of
 # the software.
 # You should have received a copy of the license with this software. If
@@ -15,6 +15,9 @@
 #
 #	History:
 #
+#	Modified by cmetz for OPIE 2.4. Add libmissing to include header path.
+#		Renamed realclean to distclean. Added opieauto rules. Made
+#		system program install more tolerant of non-existent files.
 #	Modified by cmetz for OPIE 2.31. Moved logwtmp.o into libopie.
 #	Modified by cmetz for OPIE 2.3. Removed manual config -- it's
 #		Autoconf or bust. Replaced user configuration options
@@ -80,9 +83,9 @@ SHELL=/bin/sh
 OWNER=0
 GROUP=bin
 
-#  Where should the OPIE standard and extended databases be stored?
+# Where should the OPIE standard and extended databases be stored?
 #
-#  Some sites might want to put this elsewhere. If you want to use an old
+# Some sites might want to put this elsewhere. If you want to use an old
 # S/Key database, you should create a link from /etc/skeykeys to /etc/opiekeys.
 KEY_FILE=/etc/opiekeys
 
@@ -115,10 +118,11 @@ SU=@SU@
 ALT_SU=@ALT_SU@
 LOGIN=@LOGIN@
 LOCK_DIR=@LOCK_DIR@
+OPIEAUTO=@OPIEAUTO@
 
 BACKUP=opie.old
 
-CFLAGS=$(DEBUG)
+CFLAGS=$(DEBUG) -Ilibmissing
 
 LFLAGS=-Llibopie -Llibmissing -lopie $(LIBS) -lmissing -lopie
 LDEPS=libmissing/libmissing.a libopie/libopie.a
@@ -128,17 +132,19 @@ all:	client server
 ifdefs:	
 	egrep '^#*if*def' *.c *.h | cut -f2 -d: | sort | uniq
 
-client: libopie/libopie.a libmissing/libmissing.a opietest-passed opiekey opiegen
+client: libopie/libopie.a libmissing/libmissing.a opietest-passed opiekey opiegen $(OPIEAUTO)
 
 client-install: client
 	@echo "Installing OPIE client software..."
 	@echo "Copying OPIE key-related files"
 	@if test ! -d $(LOCALBIN); then $(MKDIR) $(LOCALBIN); chmod 755 $(LOCALBIN); fi 
-	@cp opiekey $(LOCALBIN)
+	@cp opiekey $(OPIEAUTO) $(LOCALBIN)
 	@$(CHOWN) $(OWNER) $(LOCALBIN)/opiekey
+	@if test ! -z "$(OPIEAUTO)"; then $(CHOWN) $(OWNER) $(LOCALBIN)/opieauto; fi
 	@chgrp $(GROUP) $(LOCALBIN)/opiekey
 	@echo "Changing file permissions"
 	@chmod 0511 $(LOCALBIN)/opiekey
+	@if test ! -z "$(OPIEAUTO)"; then chmod 0511 $(LOCALBIN)/opieauto; fi
 	@echo "Symlinking aliases to opiekey"
 	@-ln -s $(LOCALBIN)/opiekey $(LOCALBIN)/otp-md4
 	@-ln -s $(LOCALBIN)/opiekey $(LOCALBIN)/otp-md5
@@ -160,32 +166,75 @@ server-install: server
 	@chmod 0555 $(LOCALBIN)/opieinfo
 	@chmod 4511 $(LOCALBIN)/opiepasswd
 	@echo "Installing OPIE system programs..."
-	@if test ! $(EXISTS) $(LOGIN).$(BACKUP); then echo "Renaming existing $(LOGIN) to $(LOGIN).$(BACKUP)"; mv $(LOGIN) $(LOGIN).$(BACKUP); echo "Clearing permissions on old $(LOGIN)"; chmod 0 $(LOGIN).$(BACKUP); fi
-	@echo "Copying opielogin to $(LOGIN)"
-	@cp opielogin $(LOGIN)
-	@echo "Changing ownership of $(LOGIN)"
-	@$(CHOWN) $(OWNER) $(LOGIN)
-	@chgrp $(GROUP) $(LOGIN)
-	@echo "Changing file permissions of $(LOGIN)"
-	@chmod 4111 $(LOGIN)
-	@if test ! $(EXISTS) $(SU).$(BACKUP); then echo "Renaming existing su to su.$(BACKUP)"; mv $(SU) $(SU).$(BACKUP); echo "Clearing permissions on old su"; chmod 0 $(SU).$(BACKUP); fi
-	@-if test ! -z "$(ALT_SU)"; then if test ! $(EXISTS) $(ALT_SU).$(BACKUP); then echo "Renaming existing su to su.$(BACKUP)"; mv $(ALT_SU) $(ALT_SU).$(BACKUP); fi; echo "Copying opiesu to su"; cp opiesu $(ALT_SU); echo "Changing ownership"; $(CHOWN) $(OWNER) $(ALT_SU); chgrp $(GROUP) $(ALT_SU); echo "Changing file permissions"; chmod 4111 $(ALT_SU); echo "Clearning permissions on old su"; chmod 0 $(ALT_SU).$(BACKUP); fi
-	@echo "Copying opiesu to su"
-	@cp opiesu $(SU)
-	@echo "Changing ownership of su"
-	@$(CHOWN) $(OWNER) $(SU)
-	@chgrp $(GROUP) $(SU)
-	@echo "Changing file permissions of su"
-	@chmod 4111 $(SU)
-	@if test ! $(EXISTS) $(FTPD).$(BACKUP); then echo "Renaming existing ftp daemon to $(FTPD).$(BACKUP)"; mv $(FTPD) $(FTPD).$(BACKUP); echo "Clearing permissions on old ftp daemon"; chmod 0 $(FTPD).$(BACKUP); fi
-	@echo "Copying OPIE ftp daemon"
-	@cp opieftpd $(FTPD)
-	@echo "Changing ownership of ftpd"
-	@$(CHOWN) $(OWNER) $(FTPD)
-	@chgrp $(GROUP) $(FTPD)
-	@echo "Changing file permissions of ftpd"
-	@chmod 0100 $(FTPD)
-	@echo "Making sure OPIE database file exists"
+	@if test ! -z $(LOGIN); \
+	then \
+		if test ! $(EXISTS) $(LOGIN).$(BACKUP); \
+		then \
+			echo "Renaming existing $(LOGIN) to $(LOGIN).$(BACKUP)"; \
+			mv $(LOGIN) $(LOGIN).$(BACKUP); \
+			echo "Clearing permissions on $(LOGIN)"; \
+			chmod 0 $(LOGIN).$(BACKUP); \
+		fi; \
+		echo "Copying OPIE login to $(LOGIN)"; \
+		cp opielogin $(LOGIN); \
+		echo "Changing ownership of $(LOGIN)"; \
+		$(CHOWN) $(OWNER) $(LOGIN); \
+		chgrp $(GROUP) $(LOGIN); \
+		echo "Changing file permissions of $(LOGIN)"; \
+		chmod 4111 $(LOGIN); \
+	fi
+	@if test ! -z $(SU); \
+	then \
+		if test ! $(EXISTS) $(SU).$(BACKUP); \
+		then \
+			echo "Renaming existing $(SU) to $(SU).$(BACKUP)"; \
+			mv $(SU) $(SU).$(BACKUP); \
+			echo "Clearing permissions on $(SU)"; \
+			chmod 0 $(SU).$(BACKUP); \
+		fi; \
+		echo "Copying OPIE su to $(SU)"; \
+		cp opiesu $(SU); \
+		echo "Changing ownership of $(SU)"; \
+		$(CHOWN) $(OWNER) $(SU); \
+		chgrp $(GROUP) $(SU); \
+		echo "Changing file permissions of $(SU)"; \
+		chmod 4111 $(SU); \
+	fi
+	@if test ! -z $(ALT_SU); \
+	then \
+		if test ! $(EXISTS) $(ALT_SU).$(BACKUP); \
+		then \
+			echo "Renaming existing $(ALT_SU) to $(ALT_SU).$(BACKUP)"; \
+			mv $(ALT_SU) $(ALT_SU).$(BACKUP); \
+			echo "Clearing permissions on $(ALT_SU)"; \
+			chmod 0 $(ALT_SU).$(BACKUP); \
+		fi; \
+		echo "Copying OPIE su to $(ALT_SU)"; \
+		cp opiesu $(ALT_SU); \
+		echo "Changing ownership of $(ALT_SU)"; \
+		$(CHOWN) $(OWNER) $(ALT_SU); \
+		chgrp $(GROUP) $(ALT_SU); \
+		echo "Changing file permissions of $(ALT_SU)"; \
+		chmod 4111 $(ALT_SU); \
+	fi
+	@if test ! -z $(FTPD); \
+	then \
+		if test ! $(EXISTS) $(FTPD).$(BACKUP); \
+		then \
+			echo "Renaming existing $(FTPD) to $(FTPD).$(BACKUP)"; \
+			mv $(FTPD) $(FTPD).$(BACKUP); \
+			echo "Clearing permissions on $(FTPD).$(BACKUP)"; \
+			chmod 0 $(FTPD).$(BACKUP); \
+		fi; \
+		echo "Copying OPIE ftp daemon to $(FTPD)"; \
+		cp opieftpd $(FTPD); \
+		echo "Changing ownership of $(FTPD)"; \
+		$(CHOWN) $(OWNER) $(FTPD); \
+		chgrp $(GROUP) $(FTPD); \
+		echo "Changing file permissions of $(FTPD)"; \
+		chmod 0100 $(FTPD); \
+	fi
+	@echo "Making sure OPIE database file exists";
 	@touch $(KEY_FILE)
 	@echo "Changing permissions of OPIE database file"
 	@chmod 0644 $(KEY_FILE)
@@ -230,16 +279,18 @@ libmissing/libmissing.a: libmissing/*.c
 
 clean:
 	-rm -f *.o opiekey opiegen opielogin opiepasswd opiesu opieftpd
-	-rm -f opieserv opieinfo opietest *core* opietest-passed
+	-rm -f opieserv opieinfo opietest opieauto *core* opietest-passed
 	-rm -f Makefile.munge configure.munger y.tab.c .gdb*
 	(cd libopie ; $(MAKE) clean)
 	(cd libmissing ; $(MAKE) clean)
 
-realclean: clean
+realclean: distclean
+
+distclean: clean
 	-rm -f *~ core* "\#*\#" Makefile make.log
 	-rm -f config.log config.status config.cache config.h
-	(cd libopie ; $(MAKE) realclean)
-	(cd libmissing ; $(MAKE) realclean)
+	(cd libopie ; $(MAKE) distclean)
+	(cd libmissing ; $(MAKE) distclean)
 
 opiekey:	opiekey.o $(LDEPS)
 		$(CC) $(CFLAGS) opiekey.o $(LFLAGS) -o opiekey
@@ -270,3 +321,7 @@ opieinfo:	opieinfo.o $(LDEPS)
 
 opietest:	opietest.o $(LDEPS)
 		$(CC) $(CFLAGS) opietest.o $(LFLAGS) -o opietest
+
+opieauto:	opieauto.o $(LDEPS)
+		$(CC) $(CFLAGS) opieauto.o $(LFLAGS) -o opieauto
+
