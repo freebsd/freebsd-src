@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.27 1995/03/28 19:22:39 phk Exp $
+#	$Id: Makefile,v 1.28 1995/04/14 21:26:47 joerg Exp $
 #
 
 PROG=	boot
@@ -15,7 +15,7 @@ CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 # force usage of serial console instead of keyboard probing
 #CFLAGS+=	-DFORCE_COMCONSOLE
 
-CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
+CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
 DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
 LDADD=		-lc
@@ -50,6 +50,10 @@ boot1:		boot.nohdr
 
 boot2:		boot.nohdr
 	dd if=boot.nohdr of=boot2 bs=512 skip=1
+	dd if=boot2 skip=14 of=sizetest
+	if [ -s sizetest ] ; then \
+		echo "*** Boot2 is too BIG ***" ; exit 2 ; \
+	fi
 
 all:		boot1 boot2
 
