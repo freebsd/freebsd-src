@@ -53,7 +53,6 @@
  */
 
 #include "opt_clock.h"
-#include "opt_apm.h"
 #include "opt_mca.h"
 
 #include <sys/param.h>
@@ -67,6 +66,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/cons.h>
+#include <sys/power.h>
 
 #include <machine/clock.h>
 #ifdef CLK_CALIBRATION_LOOP
@@ -1019,7 +1019,6 @@ startrtclock()
 	 * Curse Intel for leaving the counter out of the I/O APIC.
 	 */
 
-#ifdef DEV_APM
 	/*
 	 * We can not use the TSC if we support APM. Precise timekeeping
 	 * on an APM'ed machine is at best a fools pursuit, since 
@@ -1030,13 +1029,11 @@ startrtclock()
 	 * We don't know at this point whether APM is going to be used
 	 * or not, nor when it might be activated.  Play it safe.
 	 */
-	{
-	int disabled = 0;
-	resource_int_value("apm", 0, "disabled", &disabled);
-	if (disabled == 0)
+	if (power_pm_get_type() == POWER_PM_TYPE_APM) {
+		if (bootverbose)
+			printf("TSC initialization skipped: APM enabled.\n");
 		return;
 	}
-#endif /* DEV_APM */
 
 	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
