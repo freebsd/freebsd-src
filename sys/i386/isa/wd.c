@@ -231,7 +231,7 @@ wdattach(struct isa_device *dvp)
 		if(wdgetctlr(unit, du) == 0)  {
 			int i, blank;
 			char c;
-			printf(" %d:<", unit);
+			printf("wd%d: unit %d type ", unit, unit);
 			for (i = blank = 0 ; i < sizeof(du->dk_params.wdp_model); i++) {
 				char c = du->dk_params.wdp_model[i];
 
@@ -246,13 +246,12 @@ wdattach(struct isa_device *dvp)
 				else
 					printf("%c", c);
 			}
-			printf(">");
+			printf("\n");
 			du->dk_unit = unit;
 		}
 		else {
 			/* old ST506 controller */
-			printf(" %d:<wdgetctlr failed, assuming OK>",
-			       unit);
+			printf("wd%d: unit %d type old ST506\n", unit, unit);
 		}
 	}
 	return(1);
