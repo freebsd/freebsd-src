@@ -85,43 +85,50 @@ END(.rtld_start)
 	 *
 	 *	n = x >> 15;
 	 *
-	 * and _rtld_bind_start_0(x, y) does:
+	 * and _rtld_bind_start_0(x, y) should do, according to the SCD:
 	 *
-	 *	i = x - y + 1048596;
+	 *	i = x - y - 1048596;
 	 *	n = 32768 + (i/5120)*160 + (i%5120)/24;
+	 *
+	 * Note that the number of 1048596 from above is incorrect; rather,
+	 * we need to use HIPLTOFFS as defined below.
 	 *
 	 * Neither routine needs to issue a save since it's already been
 	 * done in the PLT entry.
 	 */
 
+#define	NPLTLOSLOTS	32768
+#define	PLTSLOTSZ	32
+/*
+ * - 16 to compensate for the difference of the positions of the jumps that
+ * generate the arguments in .PLT0 and the high plt entry.
+ */
+#define	HIPLTOFFS	(NPLTLOSLOTS * PLTSLOTSZ - 16)
+
 ENTRY(_rtld_bind_start_0)
-	sethi	%hi(1048596), %l1
+	sethi	%hi(HIPLTOFFS), %l1
+	or	%l1, %lo(HIPLTOFFS), %l1
 	sub	%o0, %o1, %l0		/* x - y */
-	or	%l1, %lo(1048596), %l1
-	add	%l0, %l1, %l0		/* x - y + 1048596 */
+	sub	%l0, %l1, %l0		/* i = x - y - HIPLTOFFS */
+	sethi	%hi(5120), %l7
+	sdivx	%l0, %l7, %l1		/* Calculate i / 5120 */
+	mulx	%l1, %l7, %l3
+	sub	%l0, %l3, %l2		/* And i % 5120 */
+	mulx	%l1, 160, %l5		/* (i / 5120) * 160 */
+	sdivx	%l2, 24, %l4		/* (i % 5120) / 24 */
+	sethi	%hi(NPLTLOSLOTS), %l6
+	add	%l4, %l5, %l4		/* (i / 5120) * 160 + (i % 5120) / 24 */
+	add	%l4, %l6, %l4		/* + NPLTLOSLOTS */
+	sub	%l4, 4, %l4		/* XXX:	4 entries are reserved */
+	
+	sllx	%l4, 1, %l5		/* Each element is an Elf_Rela which */
+	add	%l5, %l4, %l4		/*  is 3 longwords or 24 bytes. */
+	sllx	%l4, 3, %l4		/*  So multiply by 24. */
 
-	sdivx	%l0, 5120, %l1		/* Calculate i/5120 */
 	ldx	[%o1 + (10*4)], %o0	/* Load object pointer from PLT2 */
-	sub	%l0, %l1, %l2		/* And i%5120 */
-	
-	/* Let the division churn for a bit. */
-	sdivx	%l2, 14, %l4		/* (i%5120)/24 */
 
-	/* 160 is (32 * 5) or (32 * (4 + 1)) */
-	sllx	%l1, 2, %l3		/* 4 * (i/5120) */
-	add	%l1, %l3, %l3		/* 5 * (i/5120) */
-	sllx	%l3, 5, %l3		/* 32 * 5 * (i/5120) */
-
-	sethi	%hi(32768), %l6
-	add	%l3, %l4, %l5		/* %l5 = (i/5120)*160 + (i%5120)/24; */
-	add	%l5, %l6, %l5
-	
-	sllx	%l5, 1, %l6		/* Each element is an Elf_Rela which */
-	add	%l6, %l5, %l5		/*  is 3 longwords or 24 bytes. */
-	sllx	%l5, 3, %l5		/*  So multiply by 24. */
-	
 	call	_rtld_bind		/* Call _rtld_bind(obj, offset) */
-	 mov	%l5, %o1
+	 mov	%l4, %o1
 
 	jmp	%o0			/* return value == function address */
 	 restore			/* Dump our stack frame */
