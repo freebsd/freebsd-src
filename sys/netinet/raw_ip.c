@@ -249,7 +249,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 	struct ip *ip;
 	int error;
 	struct inpcb *inp = sotoinpcb(so);
-	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
+	int flags = ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
+	    IP_ALLOWBROADCAST;
 
 	/*
 	 * If the user handed us a complete IP packet, use it.
