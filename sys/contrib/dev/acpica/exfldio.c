@@ -572,7 +572,8 @@ AcpiAmlWriteFieldDataWithUpdateRule (
 
         /* Check if update rule needs to be applied (not if mask is all ones) */
 
-        if (((1 << BitGranularity) -1) & ~Mask)
+        /* The left shift drops the bits we want to ignore. */
+        if ((~Mask << (sizeof(Mask) * 8 - BitGranularity)) != 0)
         {
             /*
              * Read the current contents of the byte/word/dword containing
