@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.6 1997/05/24 17:34:51 brian Exp $
+ * $Id: lcp.c,v 1.10.2.7 1997/05/26 00:52:21 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -574,12 +574,16 @@ int mode;
       switch (mode) {
       case MODE_REQ:
 	if (LcpInfo.want_magic) {
-	  /* XXX: Shoud validate magic number */
-	  if (magic == LcpInfo.want_magic)
-	    logprintf("magic is same!! %x, %x, %x\n",
-		magic, LcpInfo.want_magic, LcpInfo.his_magic);
-	  LcpInfo.his_magic = magic;
-	  bcopy(cp, ackp, length); ackp += length;
+	  /* Validate magic number */
+	  if (magic == LcpInfo.want_magic) {
+	    LogPrintf(LOG_LCP_BIT, "Magic is same (%08x)\n", magic);
+	    LcpInfo.want_magic = GenerateMagic();
+	    bcopy(cp, nakp, 6);
+            nakp += 6;
+          } else {
+	    LcpInfo.his_magic = magic;
+	    bcopy(cp, ackp, length); ackp += length;
+          }
 	} else {
 	  LcpInfo.my_reject |= (1 << type);
 	  goto reqreject;
