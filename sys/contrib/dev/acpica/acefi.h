@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acefi.h - OS specific defines, etc.
- *       $Revision: 7 $
+ *       $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -127,6 +127,19 @@
 /* _int64 works for both IA32 and IA64 */
 
 #define COMPILER_DEPENDENT_UINT64   unsigned __int64
+
+/*
+ * Calling conventions:
+ *
+ * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
+ * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
+ * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
+ */
+#define ACPI_SYSTEM_XFACE
+#define ACPI_EXTERNAL_XFACE
+#define ACPI_INTERNAL_XFACE
+#define ACPI_INTERNAL_VAR_XFACE
 
 /* warn C4142: redefinition of type */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 95 $
+ *              $Revision: 96 $
  *
  *****************************************************************************/
 
@@ -206,7 +206,7 @@ AcpiUtTrackStackPtr (
  *
  ****************************************************************************/
 
-void
+void  ACPI_INTERNAL_VAR_XFACE
 AcpiUtDebugPrint (
     UINT32                  RequestedDebugLevel,
     UINT32                  LineNumber,
@@ -283,7 +283,7 @@ AcpiUtDebugPrint (
  *
  ****************************************************************************/
 
-void
+void  ACPI_INTERNAL_VAR_XFACE
 AcpiUtDebugPrintRaw (
     UINT32                  RequestedDebugLevel,
     UINT32                  LineNumber,

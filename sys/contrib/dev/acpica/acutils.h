@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 129 $
+ *       $Revision: 130 $
  *
  *****************************************************************************/
 
@@ -444,7 +444,7 @@ AcpiUtDumpBuffer (
     UINT32                  Display,
     UINT32                  componentId);
 
-void
+void ACPI_INTERNAL_VAR_XFACE
 AcpiUtDebugPrint (
     UINT32                  RequestedDebugLevel,
     UINT32                  LineNumber,
@@ -452,7 +452,7 @@ AcpiUtDebugPrint (
     char                    *Format,
     ...) ACPI_PRINTF_LIKE_FUNC;
 
-void
+void ACPI_INTERNAL_VAR_XFACE
 AcpiUtDebugPrintRaw (
     UINT32                  RequestedDebugLevel,
     UINT32                  LineNumber,

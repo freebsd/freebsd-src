@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 56 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -149,6 +149,9 @@ AcpiEvSystemMemoryRegionSetup (
     void                    *HandlerContext,
     void                    **RegionContext)
 {
+    ACPI_OPERAND_OBJECT     *RegionDesc = (ACPI_OPERAND_OBJECT *) Handle;
+    ACPI_MEM_SPACE_CONTEXT  *LocalRegionContext;
+
     ACPI_FUNCTION_TRACE ("EvSystemMemoryRegionSetup");
 
 
@@ -165,12 +168,18 @@ AcpiEvSystemMemoryRegionSetup (
 
     /* Activate.  Create a new context */
 
-    *RegionContext = ACPI_MEM_CALLOCATE (sizeof (ACPI_MEM_SPACE_CONTEXT));
-    if (!(*RegionContext))
+    LocalRegionContext = ACPI_MEM_CALLOCATE (sizeof (ACPI_MEM_SPACE_CONTEXT));
+    if (!(LocalRegionContext))
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
+    /* Save the region length and address for use in the handler */
+
+    LocalRegionContext->Length  = RegionDesc->Region.Length;
+    LocalRegionContext->Address = RegionDesc->Region.Address;
+
+    *RegionContext = LocalRegionContext;
     return_ACPI_STATUS (AE_OK);
 }
 
