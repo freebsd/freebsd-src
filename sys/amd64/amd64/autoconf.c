@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.48 1995/12/12 08:50:15 gibbs Exp $
+ *	$Id: autoconf.c,v 1.49 1995/12/13 15:12:13 julian Exp $
  */
 
 /*
@@ -89,9 +89,6 @@
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
-static int	setdumpdev __P((dev_t dev));
-static void	setroot __P((void));
-
 #ifdef MFS_ROOT
 extern struct vfsops	mfs_vfsops;
 #endif
@@ -111,6 +108,11 @@ extern int	cd9660_mountroot __P((void *));
 extern int	msdosfs_mountroot __P((void *));
 #endif
 
+static void	configure_finish __P((void));
+static void	configure_start __P((void));
+static int	setdumpdev __P((dev_t dev));
+static void	setroot __P((void));
+
 #ifdef CD9660
 /* We need to try out all our potential CDROM drives, so we need a table. */
 static struct {
@@ -124,8 +126,6 @@ static struct {
 	{ 0, 0}
 };
 
-static void	configure_finish __P((void));
-static void	configure_start __P((void));
 static int	find_cdrom_root __P((void *));
 
 static int
