@@ -52,6 +52,7 @@ static struct pfsnode *pfshead;
 static int pfsvplock;
 
 extern int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+extern int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
 /*
  * allocate a pfsnode/vnode pair.  the vnode is
@@ -177,6 +178,7 @@ loop:
 
 	case Pprocstat:
 	case Pprocstatus:
+	case Pcmdline:
 		/* fallthrough */
 		
 	case Pmeminfo:
@@ -252,6 +254,9 @@ linprocfs_rw(ap)
 	pfs->pfs_lockowner = curproc->p_pid;
 
 	switch (pfs->pfs_type) {
+	case Pcmdline:
+		rtval = procfs_docmdline(curp, p, pfs, uio);
+		break;
 	case Pmem:
 		rtval = procfs_domem(curp, p, pfs, uio);
 		break;
