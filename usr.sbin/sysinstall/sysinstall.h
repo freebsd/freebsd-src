@@ -187,6 +187,7 @@
 #define VAR_ROUTER			"router"
 #define VAR_ROUTER_ENABLE		"router_enable"
 #define VAR_ROUTERFLAGS			"router_flags"
+#define VAR_SENDMAIL_ENABLE		"sendmail_enable"
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
@@ -459,7 +460,7 @@ extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu
 extern DMenu            MenuSysconsTtys;        /* System console terminal type menu            */
 #endif
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
-extern DMenu		MenuSendmail;		/* Sendmail configuration menu			*/
+extern DMenu		MenuMTA;		/* MTA selection menu				*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
@@ -526,6 +527,8 @@ extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configInetd(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
+extern int	configMTAPostfix(dialogMenuItem *self);
+extern int	configMTAExim(dialogMenuItem *self);
 extern int	configRpcBind(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
 extern int	configSecurityProfile(dialogMenuItem *self);
@@ -856,6 +859,7 @@ extern int 	variable_cmp(char *var, char *value);
 extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt, int dirty);
 extern int 	variable_check(char *data);
+extern int 	variable_check2(char *data);
 extern int	dump_variables(dialogMenuItem *self);
 extern void	free_variables(void);
 extern void     pvariable_set(char *var);
