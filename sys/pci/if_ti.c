@@ -1482,7 +1482,7 @@ static int ti_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, PCIM_CMD_MEMEN);
+	pci_enable_io(dev, SYS_RES_MEMORY);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 	if (!(command & PCIM_CMD_MEMEN)) {
