@@ -18,7 +18,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mailstats.c	8.28 (Berkeley) 9/14/1998";
+static char sccsid[] = "@(#)mailstats.c	8.29 (Berkeley) 1/25/1999";
 #endif /* not lint */
 
 #ifndef NOT_SENDMAIL
@@ -283,7 +283,7 @@ main(argc, argv)
 		       frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
 		close(fd);
 		fd = open(sfile, O_RDWR | O_TRUNC);
-		if (fd > 0)
+		if (fd >= 0)
 			close(fd);
 	}
 	else
