@@ -926,6 +926,18 @@ struct dc_softc {
 #define DC_DEVICEID_RS7112	0x1803
 
 /*
+ * Not sure who this vendor should be, so we'll go with HAWKING until
+ * I can locate the right one.
+ */
+#define DC_VENDORID_HAWKING	0x17b3
+
+/*
+ * Sure looks like an abocom device ID, but it found on my hawking PN672TX
+ * card.  Use that for now, and upgrade later.
+ */
+#define DC_DEVICEID_HAWKING_PN672TX 0xab08
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */
