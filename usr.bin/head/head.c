@@ -130,14 +130,15 @@ head(fp, cnt)
 	FILE *fp;
 	register int cnt;
 {
-	register int ch;
+	char *cp;
+	int error, readlen;
 
-	while (cnt && (ch = getc(fp)) != EOF) {
-			if (putchar(ch) == EOF)
-				err(1, "stdout");
-			if (ch == '\n')
-				cnt--;
-		}
+	while (cnt && (cp = fgetln(fp, &readlen)) != NULL) {
+		error = fwrite(cp, sizeof(char), readlen, stdout);
+		if (error != readlen)
+			err(1, "stdout");
+		cnt--;
+	}
 }
 
 void
