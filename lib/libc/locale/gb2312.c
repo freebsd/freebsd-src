@@ -100,7 +100,7 @@ _GB2312_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	int i, len, ocount;
 	size_t ncopy;
 
-	gs = (_GB2312State *)gs;
+	gs = (_GB2312State *)ps;
 
 	if (s == NULL) {
 		s = "";
