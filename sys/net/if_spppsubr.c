@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.28 1997/10/11 11:25:28 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.29 1997/12/15 20:31:08 eivind Exp $
  */
 
 #include "opt_ipx.h"
@@ -2877,15 +2877,6 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			}
 			break;
 		}
-		if (name_len != sppp_strnlen(sp->hisauth.name, AUTHNAMELEN)
-		    || bcmp(name, sp->hisauth.name, name_len) != 0) {
-			log(LOG_INFO, "%s%d: chap challenge, his name ");
-			sppp_print_string(name, name_len);
-			addlog(" != expected ");
-			sppp_print_string(sp->hisauth.name,
-					  sppp_strnlen(sp->hisauth.name, AUTHNAMELEN));
-			addlog("\n");
-		}    
 		
 		if (debug) {
 			log(LOG_DEBUG,
@@ -2929,6 +2920,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 		x = splimp();
 		sp->pp_flags &= ~PP_NEEDAUTH;
 		if (sp->myauth.proto == PPP_CHAP &&
+		    (sp->lcp.opts & (1 << LCP_OPT_AUTH_PROTO)) &&
 		    (sp->lcp.protos & (1 << IDX_CHAP)) == 0) {
 			/*
 			 * We are authenticator for CHAP but didn't
@@ -3342,6 +3334,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 		x = splimp();
 		sp->pp_flags &= ~PP_NEEDAUTH;
 		if (sp->myauth.proto == PPP_PAP &&
+		    (sp->lcp.opts & (1 << LCP_OPT_AUTH_PROTO)) &&
 		    (sp->lcp.protos & (1 << IDX_PAP)) == 0) {
 			/*
 			 * We are authenticator for PAP but didn't
