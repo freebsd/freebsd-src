@@ -2709,6 +2709,10 @@ device		cue
 # the Netgear EA101, the D-Link DSB-650, the SMC 2102USB
 # and 2104USB, and the Corega USB-T.
 device		kue
+#
+# RealTek RTL8150 USB to fast ethernet. Supports the Melco LUA-KTX
+# and the GREEN HOUSE GH-USB100B.
+device		rue
 
 # debugging options for the USB subsystem
 #

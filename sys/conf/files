@@ -281,6 +281,7 @@ dev/mii/xmphy.c		optional miibus
 dev/mii/lxtphy.c	optional miibus
 dev/mii/qsphy.c		optional miibus
 dev/mii/acphy.c		optional miibus
+dev/mii/ruephy.c	optional miibus
 miibus_if.o		optional miibus					\
 	dependency	"miibus_if.c miibus_if.h"			\
 	compile-with	"${NORMAL_C}"					\
@@ -1214,6 +1215,7 @@ dev/usb/uscanner.c	optional uscanner
 dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
+dev/usb/if_rue.c	optional rue
 isa_if.o		optional isa					\
 	dependency	"isa_if.c isa_if.h"				\
 	compile-with	"${NORMAL_C}"					\
