@@ -1,17 +1,17 @@
 #!/bin/sh
 # install2.fs disk 'install'
-# Simplified, interactive 386bsd installation script.
+# Simplified, interactive FreeBSD installation script.
 # D.E. Silvia (dsilvia@net.com)
 #
-# Installs balance of basic 386bsd system.
+# Heavily hacked on for support of FreeBSD
+# by Rodney W. Grimes (rgrimes@cdrom.com) 1993/08/11
+#
+# Installs balance of basic FreeBSD system.
 #
 
 mount -at ufs
-bin/rm /.profile
 echo -n "Verbose installation? [n] "
 read resp
-
-echo Copying to disk.
 case $resp in
 	y*)
 		cpioverbose=v
@@ -21,7 +21,14 @@ case $resp in
 		;;
 esac
 
-cat inst2.cpio.gz | usr/bin/gunzip | cpio -idalmu${cpioverbose}
+echo Copying to disk.
+cd /
+cat mnt/inst2.cpio.gz | mnt/usr/bin/gunzip | cpio -idalmu${cpioverbose}
+cd /mnt
+ls .profile install | cpio -pdalmu${cpioverbose} /
+cd /dev
+sh MAKEDEV all
+cd /
 
 sync
 
