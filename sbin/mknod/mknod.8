@@ -28,7 +28,7 @@
 .\"     @(#)mknod.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2003
+.Dd March 1, 2005
 .Dt MKNOD 8
 .Os
 .Sh NAME
@@ -41,6 +41,14 @@
 .Ar major minor
 .Op Ar owner : Ns Ar group
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Nm
+utility is deprecated on modern
+.Fx
+systems.
+.Ef
+.Pp
 The
 .Nm
 utility creates device special files.
@@ -118,9 +126,22 @@ The
 .Xr chown 8 Ns - Ns
 like functionality is specific to
 .Fx .
+.Pp
+As of
+.Fx 4.0 ,
+block devices were deprecated in favour of character
+devices.
+As of
+.Fx 5.0 ,
+device nodes are managed by the device file system
+.Xr devfs 5 ,
+making the
+.Nm
+utility superfluous.
 .Sh SEE ALSO
 .Xr mkfifo 1 ,
 .Xr mknod 2 ,
+.Xr devfs 5 ,
 .Xr chown 8
 .Sh HISTORY
 A
