@@ -149,20 +149,21 @@ static int nge_probe(device_t);
 static int nge_attach(device_t);
 static int nge_detach(device_t);
 
-static int nge_alloc_jumbo_mem(struct nge_softc *);
-static void nge_free_jumbo_mem(struct nge_softc *);
-static void *nge_jalloc(struct nge_softc *);
-static void nge_jfree(void *, void *);
-
 static int nge_newbuf(struct nge_softc *, struct nge_desc *, struct mbuf *);
 static int nge_encap(struct nge_softc *, struct mbuf *, u_int32_t *);
+#ifdef NGE_FIXUP_RX
+static __inline void nge_fixup_rx (struct mbuf *);
+#endif
 static void nge_rxeof(struct nge_softc *);
 static void nge_txeof(struct nge_softc *);
 static void nge_intr(void *);
 static void nge_tick(void *);
+static void nge_tick_locked(struct nge_softc *);
 static void nge_start(struct ifnet *);
+static void nge_start_locked(struct ifnet *);
 static int nge_ioctl(struct ifnet *, u_long, caddr_t);
 static void nge_init(void *);
+static void nge_init_locked(struct nge_softc *);
 static void nge_stop(struct nge_softc *);
 static void nge_watchdog(struct ifnet *);
 static void nge_shutdown(device_t);
@@ -441,9 +442,7 @@ nge_mii_readreg(sc, frame)
 	struct nge_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
-
-	s = splimp();
+	int			i, ack;
 
 	/*
 	 * Set up frame for RX.
@@ -518,8 +517,6 @@ fail:
 	SIO_SET(NGE_MEAR_MII_CLK);
 	DELAY(1);
 
-	splx(s);
-
 	if (ack)
 		return(1);
 	return(0);
@@ -534,9 +531,7 @@ nge_mii_writereg(sc, frame)
 	struct nge_mii_frame	*frame;
 	
 {
-	int			s;
 
-	s = splimp();
 	/*
 	 * Set up frame for TX.
 	 */
@@ -569,8 +564,6 @@ nge_mii_writereg(sc, frame)
 	 * Turn off xmit.
 	 */
 	SIO_CLR(NGE_MEAR_MII_DIR);
-
-	splx(s);
 
 	return(0);
 }
@@ -680,6 +673,7 @@ nge_setmulti(sc)
 	u_int32_t		h = 0, i, filtsave;
 	int			bit, index;
 
+	NGE_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
@@ -791,21 +785,17 @@ static int
 nge_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct nge_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
 	const char		*sep = "";
 
-	s = splimp();
-
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct nge_softc));
 
-	mtx_init(&sc->nge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	NGE_LOCK_INIT(sc, device_get_nameunit(dev));
 	/*
 	 * Map control/status registers.
 	 */
@@ -835,16 +825,6 @@ nge_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->nge_irq, INTR_TYPE_NET,
-	    nge_intr, sc, &sc->nge_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
-		printf("nge%d: couldn't set up irq\n", unit);
-		goto fail;
-	}
-
 	/* Reset the adapter. */
 	nge_reset(sc);
 
@@ -863,7 +843,6 @@ nge_attach(dev)
 
 	if (sc->nge_ldata == NULL) {
 		printf("nge%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
 		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
 		error = ENXIO;
@@ -871,25 +850,11 @@ nge_attach(dev)
 	}
 	bzero(sc->nge_ldata, sizeof(struct nge_list_data));
 
-	/* Try to allocate memory for jumbo buffers. */
-	if (nge_alloc_jumbo_mem(sc)) {
-		printf("nge%d: jumbo buffer allocation failed\n",
-                    sc->nge_unit);
-		contigfree(sc->nge_ldata,
-		    sizeof(struct nge_list_data), M_DEVBUF);
-		bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
-		error = ENXIO;
-		goto fail;
-	}
-
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nge_ioctl;
 	ifp->if_start = nge_start;
 	ifp->if_watchdog = nge_watchdog;
@@ -941,8 +906,6 @@ nge_attach(dev)
 	    
 		} else {
 			printf("nge%d: MII without any PHY!\n", sc->nge_unit);
-			nge_free_jumbo_mem(sc);
-			bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);
 			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
 			bus_release_resource(dev, NGE_RES, NGE_RID, 
 					 sc->nge_res);
@@ -955,12 +918,23 @@ nge_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_handle_init(&sc->nge_stat_ch);
+	callout_init(&sc->nge_stat_ch, CALLOUT_MPSAFE);
+
+	/*
+	 * Hookup IRQ last.
+	 */
+	error = bus_setup_intr(dev, sc->nge_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    nge_intr, sc, &sc->nge_intrhand);
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
+		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
+		printf("nge%d: couldn't set up irq\n", unit);
+	}
 
 fail:
 
-	splx(s);
-	mtx_destroy(&sc->nge_mtx);
+	if (error)
+		NGE_LOCK_DESTROY(sc);
 	return(error);
 }
 
@@ -970,15 +944,14 @@ nge_detach(dev)
 {
 	struct nge_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+	NGE_LOCK(sc);
 	nge_reset(sc);
 	nge_stop(sc);
+	NGE_UNLOCK(sc);
 	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
@@ -990,10 +963,8 @@ nge_detach(dev)
 	bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
 
 	contigfree(sc->nge_ldata, sizeof(struct nge_list_data), M_DEVBUF);
-	nge_free_jumbo_mem(sc);
 
-	splx(s);
-	mtx_destroy(&sc->nge_mtx);
+	NGE_LOCK_DESTROY(sc);
 
 	return(0);
 }
@@ -1068,6 +1039,7 @@ nge_list_rx_init(sc)
 	}
 
 	cd->nge_rx_prod = 0;
+	sc->nge_head = sc->nge_tail = NULL;
 
 	return(0);
 }
@@ -1082,36 +1054,16 @@ nge_newbuf(sc, c, m)
 	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
-	caddr_t			*buf = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("nge%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->nge_unit);
-			return(ENOBUFS);
-		}
+		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m_new == NULL)
+			return (ENOBUFS);
+		m = m_new;
+	} else
+		m->m_data = m->m_ext.ext_buf;
 
-		/* Allocate the jumbo buffer */
-		buf = nge_jalloc(sc);
-		if (buf == NULL) {
-#ifdef NGE_VERBOSE
-			printf("nge%d: jumbo allocation failed "
-			    "-- packet dropped!\n", sc->nge_unit);
-#endif
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
-		/* Attach the buffer to the mbuf */
-		m_new->m_data = (void *)buf;
-		m_new->m_len = m_new->m_pkthdr.len = NGE_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, NGE_JUMBO_FRAMELEN, nge_jfree,
-		    (struct nge_softc *)sc, 0, EXT_NET_DRV);
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = NGE_JUMBO_FRAMELEN;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
 	m_adj(m_new, sizeof(u_int64_t));
 
@@ -1123,124 +1075,26 @@ nge_newbuf(sc, c, m)
 	return(0);
 }
 
-static int
-nge_alloc_jumbo_mem(sc)
-	struct nge_softc	*sc;
-{
-	caddr_t			ptr;
-	register int		i;
-	struct nge_jpool_entry   *entry;
-
-	/* Grab a big chunk o' storage. */
-	sc->nge_cdata.nge_jumbo_buf = contigmalloc(NGE_JMEM, M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
-
-	if (sc->nge_cdata.nge_jumbo_buf == NULL) {
-		printf("nge%d: no memory for jumbo buffers!\n", sc->nge_unit);
-		return(ENOBUFS);
-	}
-
-	SLIST_INIT(&sc->nge_jfree_listhead);
-	SLIST_INIT(&sc->nge_jinuse_listhead);
-
-	/*
-	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array.
-	 */
-	ptr = sc->nge_cdata.nge_jumbo_buf;
-	for (i = 0; i < NGE_JSLOTS; i++) {
-		sc->nge_cdata.nge_jslots[i] = ptr;
-		ptr += NGE_JLEN;
-		entry = malloc(sizeof(struct nge_jpool_entry), 
-		    M_DEVBUF, M_NOWAIT);
-		if (entry == NULL) {
-			printf("nge%d: no memory for jumbo "
-			    "buffer queue!\n", sc->nge_unit);
-			return(ENOBUFS);
-		}
-		entry->slot = i;
-		SLIST_INSERT_HEAD(&sc->nge_jfree_listhead,
-		    entry, jpool_entries);
-	}
-
-	return(0);
-}
-
-static void
-nge_free_jumbo_mem(sc)
-	struct nge_softc	*sc;
-{
-	register int		i;
-	struct nge_jpool_entry   *entry;
-
-	for (i = 0; i < NGE_JSLOTS; i++) {
-		entry = SLIST_FIRST(&sc->nge_jfree_listhead);
-		SLIST_REMOVE_HEAD(&sc->nge_jfree_listhead, jpool_entries);
-		free(entry, M_DEVBUF);
-	}
-
-	contigfree(sc->nge_cdata.nge_jumbo_buf, NGE_JMEM, M_DEVBUF);
-
+#ifdef NGE_FIXUP_RX
+static __inline void
+nge_fixup_rx(m)
+	struct mbuf		*m;
+{  
+        int			i;
+        uint16_t		*src, *dst;
+   
+	src = mtod(m, uint16_t *);
+	dst = src - 1;
+   
+	for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
+		*dst++ = *src++;
+   
+	m->m_data -= ETHER_ALIGN;
+   
 	return;
-}
-
-/*
- * Allocate a jumbo buffer.
- */
-static void *
-nge_jalloc(sc)
-	struct nge_softc	*sc;
-{
-	struct nge_jpool_entry   *entry;
-	
-	entry = SLIST_FIRST(&sc->nge_jfree_listhead);
-	
-	if (entry == NULL) {
-#ifdef NGE_VERBOSE
-		printf("nge%d: no free jumbo buffers\n", sc->nge_unit);
+}  
 #endif
-		return(NULL);
-	}
 
-	SLIST_REMOVE_HEAD(&sc->nge_jfree_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->nge_jinuse_listhead, entry, jpool_entries);
-	return(sc->nge_cdata.nge_jslots[entry->slot]);
-}
-
-/*
- * Release a jumbo buffer.
- */
-static void
-nge_jfree(buf, args)
-	void			*buf;
-	void			*args;
-{
-	struct nge_softc	*sc;
-	int		        i;
-	struct nge_jpool_entry   *entry;
-
-	/* Extract the softc struct pointer. */
-	sc = args;
-
-	if (sc == NULL)
-		panic("nge_jfree: can't find softc pointer!");
-
-	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)buf
-	     - (vm_offset_t)sc->nge_cdata.nge_jumbo_buf) / NGE_JLEN;
-
-	if ((i < 0) || (i >= NGE_JSLOTS))
-		panic("nge_jfree: asked to free buffer that we don't manage!");
-
-	entry = SLIST_FIRST(&sc->nge_jinuse_listhead);
-	if (entry == NULL)
-		panic("nge_jfree: buffer not in use!");
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->nge_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->nge_jfree_listhead, entry, jpool_entries);
-
-	return;
-}
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -1255,11 +1109,11 @@ nge_rxeof(sc)
 	int			i, total_len = 0;
 	u_int32_t		rxstat;
 
+	NGE_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 	i = sc->nge_cdata.nge_rx_prod;
 
 	while(NGE_OWNDESC(&sc->nge_ldata->nge_rx_list[i])) {
-		struct mbuf		*m0 = NULL;
 		u_int32_t		extsts;
 
 #ifdef DEVICE_POLLING
@@ -1277,6 +1131,22 @@ nge_rxeof(sc)
 		cur_rx->nge_mbuf = NULL;
 		total_len = NGE_RXBYTES(cur_rx);
 		NGE_INC(i, NGE_RX_LIST_CNT);
+
+		if (rxstat & NGE_CMDSTS_MORE) {
+			m->m_len = total_len;
+			if (sc->nge_head == NULL) {
+				m->m_pkthdr.len = total_len;
+				sc->nge_head = sc->nge_tail = m;
+			} else {
+				m->m_flags &= ~M_PKTHDR;
+				sc->nge_head->m_pkthdr.len += total_len;
+				sc->nge_tail->m_next = m;
+				sc->nge_tail = m;
+			}
+			nge_newbuf(sc, cur_rx, NULL);
+			continue;
+		}
+
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -1285,16 +1155,41 @@ nge_rxeof(sc)
 		 */
 		if (!(rxstat & NGE_CMDSTS_PKT_OK)) {
 			ifp->if_ierrors++;
+			if (sc->nge_head != NULL) {
+				m_freem(sc->nge_head);
+				sc->nge_head = sc->nge_tail = NULL;
+			}
 			nge_newbuf(sc, cur_rx, m);
 			continue;
 		}
+
+		/* Try conjure up a replacement mbuf. */
+
+		if (nge_newbuf(sc, cur_rx, NULL)) {
+			ifp->if_ierrors++;
+			if (sc->nge_head != NULL) {
+				m_freem(sc->nge_head);
+				sc->nge_head = sc->nge_tail = NULL;
+			}
+			nge_newbuf(sc, cur_rx, m);
+			continue;
+		}
+
+		if (sc->nge_head != NULL) {
+			m->m_len = total_len;
+			m->m_flags &= ~M_PKTHDR;
+			sc->nge_tail->m_next = m;
+			m = sc->nge_head;
+			m->m_pkthdr.len += total_len;
+			sc->nge_head = sc->nge_tail = NULL;
+		} else
+			m->m_pkthdr.len = m->m_len = total_len;
 
 		/*
 		 * Ok. NatSemi really screwed up here. This is the
 		 * only gigE chip I know of with alignment constraints
 		 * on receive buffers. RX buffers must be 64-bit aligned.
 		 */
-#ifdef __i386__
 		/*
 		 * By popular demand, ignore the alignment problems
 		 * on the Intel x86 platform. The performance hit
@@ -1303,27 +1198,12 @@ nge_rxeof(sc)
 		 * the time, especially with jumbo frames. We still
 		 * need to fix up the alignment everywhere else though.
 		 */
-		if (nge_newbuf(sc, cur_rx, NULL) == ENOBUFS) {
-#endif
-			m0 = m_devget(mtod(m, char *), total_len,
-			    ETHER_ALIGN, ifp, NULL);
-			nge_newbuf(sc, cur_rx, m);
-			if (m0 == NULL) {
-				printf("nge%d: no receive buffers "
-				    "available -- packet dropped!\n",
-				    sc->nge_unit);
-				ifp->if_ierrors++;
-				continue;
-			}
-			m = m0;
-#ifdef __i386__
-		} else {
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = m->m_len = total_len;
-		}
+#ifdef NGE_FIXUP_RX
+		nge_fixup_rx(m);
 #endif
 
 		ifp->if_ipackets++;
+		m->m_pkthdr.rcvif = ifp;
 
 		/* Do IP checksum checking. */
 		if (extsts & NGE_RXEXTSTS_IPPKT)
@@ -1347,8 +1227,9 @@ nge_rxeof(sc)
 			VLAN_INPUT_TAG(ifp, m,
 			    ntohs(extsts & NGE_RXEXTSTS_VTCI), continue);
 		}
-
+		NGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		NGE_LOCK(sc);
 	}
 
 	sc->nge_cdata.nge_rx_prod = i;
@@ -1369,6 +1250,7 @@ nge_txeof(sc)
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
+	NGE_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/*
@@ -1423,13 +1305,22 @@ nge_tick(xsc)
 	void			*xsc;
 {
 	struct nge_softc	*sc;
-	struct mii_data		*mii;
-	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
+
+	NGE_LOCK(sc);
+	nge_tick_locked(sc);
+	NGE_UNLOCK(sc);
+}
+
+static void
+nge_tick_locked(sc)
+	struct nge_softc	*sc;
+{
+	struct mii_data		*mii;
+	struct ifnet		*ifp;
+
+	NGE_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->nge_tbi) {
@@ -1441,7 +1332,7 @@ nge_tick(xsc)
 				nge_miibus_statchg(sc->nge_miibus);
 				sc->nge_link++;
 				if (ifp->if_snd.ifq_head != NULL)
-					nge_start(ifp);
+					nge_start_locked(ifp);
 			}
 		}
 	} else {
@@ -1457,13 +1348,11 @@ nge_tick(xsc)
 					printf("nge%d: gigabit link up\n",
 					    sc->nge_unit);
 				if (ifp->if_snd.ifq_head != NULL)
-					nge_start(ifp);
+					nge_start_locked(ifp);
 			}
 		}
 	}
-	sc->nge_stat_ch = timeout(nge_tick, sc, hz);
-
-	splx(s);
+	callout_reset(&sc->nge_stat_ch, hz, nge_tick, sc);
 
 	return;
 }
@@ -1476,12 +1365,14 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct  nge_softc *sc = ifp->if_softc;
 
+	NGE_LOCK(sc);
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
 		cmd = POLL_DEREGISTER;
 	}
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		CSR_WRITE_4(sc, NGE_IER, 1);
+		NGE_UNLOCK(sc);
 		return;
 	}
 
@@ -1496,7 +1387,7 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	nge_rxeof(sc);
 	nge_txeof(sc);
 	if (ifp->if_snd.ifq_head != NULL)
-		nge_start(ifp);
+		nge_start_locked(ifp);
 
 	if (sc->rxcycles > 0 || cmd == POLL_AND_CHECK_STATUS) {
 		u_int32_t	status;
@@ -1512,9 +1403,10 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & NGE_ISR_SYSERR) {
 			nge_reset(sc);
-			nge_init(sc);
+			nge_init_locked(sc);
 		}
 	}
+	NGE_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1529,12 +1421,16 @@ nge_intr(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
+	NGE_LOCK(sc);
 #ifdef DEVICE_POLLING
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING) {
+		NGE_UNLOCK(sc);
 		return;
+	}
 	if ((ifp->if_capenable & IFCAP_POLLING) &&
 	    ether_poll_register(nge_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, NGE_IER, 0);
+		NGE_UNLOCK(sc);
 		nge_poll(ifp, 0, 1);
 		return;
 	}
@@ -1543,6 +1439,7 @@ nge_intr(arg)
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		nge_stop(sc);
+		NGE_UNLOCK(sc);
 		return;
 	}
 
@@ -1581,7 +1478,7 @@ nge_intr(arg)
 		if (status & NGE_ISR_SYSERR) {
 			nge_reset(sc);
 			ifp->if_flags &= ~IFF_RUNNING;
-			nge_init(sc);
+			nge_init_locked(sc);
 		}
 
 #if 0
@@ -1592,7 +1489,7 @@ nge_intr(arg)
 		 */
 		if (status & NGE_IMR_PHY_INTR) {
 			sc->nge_link = 0;
-			nge_tick(sc);
+			nge_tick_locked(sc);
 		}
 #endif
 	}
@@ -1601,13 +1498,15 @@ nge_intr(arg)
 	CSR_WRITE_4(sc, NGE_IER, 1);
 
 	if (ifp->if_snd.ifq_head != NULL)
-		nge_start(ifp);
+		nge_start_locked(ifp);
 
 	/* Data LED off for TBI mode */
 
 	if(sc->nge_tbi)
 		CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
 			    & ~NGE_GPIO_GP3_OUT);
+
+	NGE_UNLOCK(sc);
 
 	return;
 }
@@ -1694,6 +1593,18 @@ nge_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct nge_softc	*sc;
+
+	sc = ifp->if_softc;
+	NGE_LOCK(sc);
+	nge_start_locked(ifp);
+	NGE_UNLOCK(sc);
+}
+
+static void
+nge_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct nge_softc	*sc;
 	struct mbuf		*m_head = NULL;
 	u_int32_t		idx;
 
@@ -1743,14 +1654,23 @@ nge_init(xsc)
 	void			*xsc;
 {
 	struct nge_softc	*sc = xsc;
+
+	NGE_LOCK(sc);
+	nge_init_locked(sc);
+	NGE_UNLOCK(sc);
+}
+
+static void
+nge_init_locked(sc)
+	struct nge_softc	*sc;
+{
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
-	int			s;
+
+	NGE_LOCK_ASSERT(sc);
 
 	if (ifp->if_flags & IFF_RUNNING)
 		return;
-
-	s = splimp();
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1779,7 +1699,6 @@ nge_init(xsc)
 		printf("nge%d: initialization failed: no "
 			"memory for rx buffers\n", sc->nge_unit);
 		nge_stop(sc);
-		(void)splx(s);
 		return;
 	}
 
@@ -1883,7 +1802,7 @@ nge_init(xsc)
 		}
 	}
 
-	nge_tick(sc);
+	nge_tick_locked(sc);
 
 	/*
 	 * Enable the delivery of PHY interrupts based on
@@ -1925,8 +1844,6 @@ nge_init(xsc)
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
-
-	(void)splx(s);
 
 	return;
 }
@@ -2050,9 +1967,7 @@ nge_ioctl(ifp, command, data)
 	struct nge_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			s, error = 0;
-
-	s = splimp();
+	int			error = 0;
 
 	switch(command) {
 	case SIOCSIFMTU:
@@ -2075,6 +1990,7 @@ nge_ioctl(ifp, command, data)
 		}
 		break;
 	case SIOCSIFFLAGS:
+		NGE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -2092,18 +2008,21 @@ nge_ioctl(ifp, command, data)
 					    NGE_RXFILTCTL_ALLMULTI);
 			} else {
 				ifp->if_flags &= ~IFF_RUNNING;
-				nge_init(sc);
+				nge_init_locked(sc);
 			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				nge_stop(sc);
 		}
 		sc->nge_if_flags = ifp->if_flags;
+		NGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		NGE_LOCK(sc);
 		nge_setmulti(sc);
+		NGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -2126,8 +2045,6 @@ nge_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
-
 	return(error);
 }
 
@@ -2142,13 +2059,16 @@ nge_watchdog(ifp)
 	ifp->if_oerrors++;
 	printf("nge%d: watchdog timeout\n", sc->nge_unit);
 
+	NGE_LOCK(sc);
 	nge_stop(sc);
 	nge_reset(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
-	nge_init(sc);
+	nge_init_locked(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
-		nge_start(ifp);
+		nge_start_locked(ifp);
+
+	NGE_UNLOCK(sc);
 
 	return;
 }
@@ -2165,6 +2085,7 @@ nge_stop(sc)
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
 
+	NGE_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 	if (sc->nge_tbi) {
@@ -2173,7 +2094,7 @@ nge_stop(sc)
 		mii = device_get_softc(sc->nge_miibus);
 	}
 
-	untimeout(nge_tick, sc, sc->nge_stat_ch);
+	callout_stop(&sc->nge_stat_ch);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(ifp);
 #endif
@@ -2231,8 +2152,10 @@ nge_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	NGE_LOCK(sc);
 	nge_reset(sc);
 	nge_stop(sc);
+	NGE_UNLOCK(sc);
 
 	return;
 }
