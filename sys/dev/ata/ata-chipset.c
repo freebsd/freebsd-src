@@ -924,21 +924,21 @@ ata_promise_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_PDC20246,  0, PROLD, 0x00,	ATA_UDMA2, "Promise" },
-     { ATA_PDC20262,  0, PRNEW, 0x00,	ATA_UDMA4, "Promise" },
-     { ATA_PDC20263,  0, PRNEW, 0x00,	ATA_UDMA4, "Promise" },
-     { ATA_PDC20265,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise" },
-     { ATA_PDC20267,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise" },
-     { ATA_PDC20268,  0, PRTX,  PRTX4,	ATA_UDMA5, "Promise TX2" },
-     { ATA_PDC20268R, 0, PRTX,  PRTX4,	ATA_UDMA5, "Promise TX2" },
-     { ATA_PDC20269,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20271,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20275,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20276,  0, PRTX,  PRSX6K, ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20277,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
-#if notyet
-     { ATA_PDC20376,  0, PRCH,  0x00,	ATA_UDMA6, "Promise SATA" },
-     { ATA_PDC20621,  0, PRCH,  0x00,	ATA_UDMA6, "Promise SX4000" },
+    {{ ATA_PDC20246,  0, PROLD, 0x00,	ATA_UDMA2, "Promise PDC20246" },
+     { ATA_PDC20262,  0, PRNEW, 0x00,	ATA_UDMA4, "Promise PDC20262" },
+     { ATA_PDC20263,  0, PRNEW, 0x00,	ATA_UDMA4, "Promise PDC20263" },
+     { ATA_PDC20265,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise PDC20265" },
+     { ATA_PDC20267,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise PDC20267" },
+     { ATA_PDC20268,  0, PRTX,  PRTX4,	ATA_UDMA5, "Promise PDC20268" },
+     { ATA_PDC20268R, 0, PRTX,  0x00,	ATA_UDMA5, "Promise PDC20268R" },
+     { ATA_PDC20269,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20269" },
+     { ATA_PDC20271,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20271" },
+     { ATA_PDC20275,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20275" },
+     { ATA_PDC20276,  0, PRTX,  PRSX6K, ATA_UDMA6, "Promise PDC20276" },
+     { ATA_PDC20277,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20277" },
+#if 0
+     { ATA_PDC20376,  0, PRCH,  0x00,	ATA_SDMA6, "Promise PDC20376" },
+     { ATA_PDC20621,  0, PRCH,  0x00,	ATA_SDMA6, "Promise SX4000" },
 #endif
      { 0, 0, 0, 0, 0, 0}};
     char *desc, buffer[64];
@@ -972,7 +972,7 @@ ata_promise_ident(device_t dev)
 	}
 	else {
 	    start = end = 0;
-	    desc = "Promise TX2";
+	    desc = "Promise PDC20268";
 	}
     }
     else 
@@ -1644,17 +1644,17 @@ ata_via_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_VIA82C586, 0x02, VIA33,  0x00,   ATA_UDMA2, "VIA 82C586b" },
+    {{ ATA_VIA82C586, 0x02, VIA33,  0x00,   ATA_UDMA2, "VIA 82C586B" },
      { ATA_VIA82C586, 0x00, VIA33,  0x00,   ATA_WDMA2, "VIA 82C586" },
-     { ATA_VIA82C596, 0x12, VIA66,  VIACLK, ATA_UDMA4, "VIA 82C596b" },
+     { ATA_VIA82C596, 0x12, VIA66,  VIACLK, ATA_UDMA4, "VIA 82C596B" },
      { ATA_VIA82C596, 0x00, VIA33,  0x00,   ATA_UDMA2, "VIA 82C596" },
-     { ATA_VIA82C686, 0x40, VIA100, VIABUG, ATA_UDMA5, "VIA 82C686b"},
-     { ATA_VIA82C686, 0x10, VIA66,  VIACLK, ATA_UDMA4, "VIA 82C686a" },
+     { ATA_VIA82C686, 0x40, VIA100, VIABUG, ATA_UDMA5, "VIA 82C686B"},
+     { ATA_VIA82C686, 0x10, VIA66,  VIACLK, ATA_UDMA4, "VIA 82C686A" },
      { ATA_VIA82C686, 0x00, VIA33,  0x00,   ATA_UDMA2, "VIA 82C686" },
      { ATA_VIA8231,   0x00, VIA100, VIABUG, ATA_UDMA5, "VIA 8231" },
      { ATA_VIA8233,   0x00, VIA100, 0x00,   ATA_UDMA5, "VIA 8233" },
-     { ATA_VIA8233C,  0x00, VIA100, 0x00,   ATA_UDMA5, "VIA 8233c" },
-     { ATA_VIA8233A,  0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8233a" },
+     { ATA_VIA8233C,  0x00, VIA100, 0x00,   ATA_UDMA5, "VIA 8233C" },
+     { ATA_VIA8233A,  0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8233A" },
      { ATA_VIA8235,   0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8235" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
@@ -1831,7 +1831,8 @@ static struct ata_chip_id *
 ata_match_chip(device_t dev, struct ata_chip_id *index)
 {
     while (index->chiptype != 0) {
-	if (ata_find_dev(dev, index->chiptype, index->chiprev))
+	if (pci_get_devid(dev) == index->chiptype &&
+	    pci_get_revid(dev) >= index->chiprev)
 	    return index;
 	index++;
     }
