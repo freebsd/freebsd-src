@@ -116,6 +116,7 @@ union sockunion pasv_addr;
 int	daemon_mode;
 int	data;
 int	dataport;
+int	hostinfo = 1;	/* print host-specific info in messages */
 int	logged_in;
 struct	passwd *pw;
 char	*homedir;
@@ -299,7 +300,8 @@ main(int argc, char *argv[], char **envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "46a:AdDElmMoOp:P:rRSt:T:u:UvW")) != -1) {
+	while ((ch = getopt(argc, argv,
+	                    "46a:AdDEhlmMoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			enable_v4 = 1;
@@ -329,6 +331,10 @@ main(int argc, char *argv[], char **envp)
 
 		case 'E':
 			noepsv = 1;
+			break;
+
+		case 'h':
+			hostinfo = 0;
 			break;
 
 		case 'l':
@@ -638,7 +644,10 @@ main(int argc, char *argv[], char **envp)
 	(void) gethostname(hostname, MAXHOSTNAMELEN - 1);
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
-	reply(220, "%s FTP server (%s) ready.", hostname, version);
+	if (hostinfo)
+		reply(220, "%s FTP server (%s) ready.", hostname, version);
+	else
+		reply(220, "FTP server ready.");
 	for (;;)
 		(void) yyparse();
 	/* NOTREACHED */
@@ -2228,8 +2237,11 @@ statcmd(void)
 	char hname[NI_MAXHOST];
 	int ispassive;
 
-	lreply(211, "%s FTP server status:", hostname);
-	printf("     %s\r\n", version);
+	if (hostinfo) {
+		lreply(211, "%s FTP server status:", hostname);
+		printf("     %s\r\n", version);
+	} else
+		lreply(211, "FTP server status:");
 	printf("     Connected to %s", remotehost);
 	if (!getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
 			 hname, sizeof(hname) - 1, NULL, 0, NI_NUMERICHOST)) {
