@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: termcap.h,v 1.4 1994/12/10 22:01:25 ache Exp $ */
+/* $Id: termcap.h,v 1.5 1995/08/04 06:39:54 ache Exp $ */
 
 #ifndef _TERMCAP_H_
 #define _TERMCAP_H_
@@ -45,8 +45,6 @@ extern int tputs __P((const char *, int, int (*)(int)));
 
 extern char *tgoto __P((const char *, int, int));
 extern char *tparm __P((const char *, ...));
-
-extern void _set_ospeed __P((long speed));
 
 __END_DECLS
 
