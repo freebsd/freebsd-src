@@ -1953,7 +1953,6 @@ hint.pca.0.port="0x040"
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
-# dgm: Digiboard PC/Xem driver (obsolete)
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
@@ -2018,9 +2017,9 @@ hint.pca.0.port="0x040"
 
 # Notes on the Digiboard driver:
 #
-# The following flag values have special meanings:
-#	0x01 - alternate layout of pins (dgb & dgm)
-#	0x02 - use the windowed PC/Xe in 64K mode (dgb only)
+# The following flag values have special meanings in dgb:
+#	0x01 - alternate layout of pins
+#	0x02 - use the windowed PC/Xe in 64K mode
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -2106,10 +2105,6 @@ options 	NDGBPORTS=16		# Defaults to 16*NDGB
 hint.dgb.0.at="isa"
 hint.dgb.0.port="0x220"
 hint.dgb.0.maddr="0xfc000"
-device		dgm
-hint.dgm.0.at="isa"
-hint.dgm.0.port="0x104"
-hint.dgm.0.maddr="0xd0000"
 device		digi
 hint.digi.0.at="isa"
 hint.digi.0.port="0x104"
