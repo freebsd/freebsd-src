@@ -1,0 +1,91 @@
+#!/bin/sh -
+#
+
+# This is sysconfig - a file full of useful variables that you can set 
+# to change the default startup behavior of your system.
+#
+#	$Id$
+
+# Set to screen saver desired:  blank, green, snake, star (or NO for none)
+saver=NO
+
+# Set to alternate default keyboard map file or NO if none.
+keymap=NO
+
+# Set to the host you'd like set as your default router, or NO of none.
+defaultrouter=NO
+
+# These are the flags you'd like to start the routing daemon with
+routedflags=-q
+
+# timed flags, or NO if you don't want to start the time daemon
+timedflags=NO
+
+# xntpd flags, or NO if you don't want to start the xntpd daemon
+xntpdflags="NO"
+tickadj="-Aq"	# this is inoperative unless xntpd is enabled; NO to disable
+
+# Set to the site you'd like to syncronize your clock from (gatekeeper.dec.com,
+# for example) or NO for no such site.
+ntpdate="NO"
+
+# Set to YES if you want to run rwhod
+rwhod=NO
+
+# Default sendmail flags.  -bd is pretty mandatory, -q<n>m sets the queue scan
+# time in minutes.  If set to NO, don't start sendmail at all.
+sendmail_flags="-bd -q30m"
+
+# Set to appropriate flags if you want to use AMD
+amdflags="NO"
+
+# Set to YES if this machine will be an NFS client
+nfs_client=NO
+
+# Set to YES if this machine will be an NFS server
+nfs_server=NO
+
+# Set to appropriate flags if you want to start NIS for a client
+nis_clientflags="NO"
+
+# Set to appropriate flags if you want to start NIS for a server
+nis_serverflags="NO"
+
+# Set to appropriate flags for yppasswdd, if you wish to run it.
+# Typical flags might be "-m /var/yp/master.passwd -s -f"
+yppasswddflags="NO"
+
+# Set to YES if you wish to run a name server
+name_server=NO
+
+# Set to YES if you want to run the X-10 power controller daemon
+xtend=NO
+
+# Set to YES if you want kernel crashdumps to be saved for debugging
+savecore=NO
+
+# Set to YES if you want to run Kerberos authentication
+kerberos_server=NO
+
+# Set to YES if you want to run gated
+gated=NO
+
+# Set to YES if you wish to check quotas.  NOTE:  For now this probably
+# doesn't work and should be left disabled.
+check_quotas=NO
+
+# Set to YES to turn on accounting.  NOTE: For now this probably
+# doesn't work and should be left disabled.
+accounting=NO
+
+
+# This stuff needed for proper daemons tuning, comsat f.e.
+# See profile and csh.login also.
+# Uncomment next line if you want to setup your 8-bit locale at program
+# startup automatically
+# ENABLE_STARTUP_LOCALE=; export ENABLE_STARTUP_LOCALE
+# Uncomment next line to activate russian locale
+# LANG=ru_SU.KOI8-R; export LANG
+# Uncomment next line to activate italian locale
+# LANG=it_IT.ISO8859-1; export LANG
+# For full list of locales, check /usr/share/locale/*
