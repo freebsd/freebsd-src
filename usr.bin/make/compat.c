@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.9 1998/05/12 11:54:12 wosch Exp $
+ *	$Id: compat.c,v 1.10 1998/05/13 05:50:42 jb Exp $
  */
 
 #ifndef lint
@@ -129,7 +129,10 @@ CompatInterrupt (signo)
 	}
 
     }
-    exit (signo);
+    if (signo == SIGQUIT)
+	exit(signo);
+    (void) signal(signo, SIG_DFL);
+    (void) kill(getpid(), signo);
 }
 
 /*-
