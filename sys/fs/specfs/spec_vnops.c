@@ -65,7 +65,6 @@ static int	spec_fsync __P((struct  vop_fsync_args *));
 static int	spec_getpages __P((struct vop_getpages_args *));
 static int	spec_inactive __P((struct  vop_inactive_args *));
 static int	spec_ioctl __P((struct vop_ioctl_args *));
-static int	spec_lookup __P((struct vop_lookup_args *));
 static int	spec_open __P((struct vop_open_args *));
 static int	spec_poll __P((struct vop_poll_args *));
 static int	spec_print __P((struct vop_print_args *));
@@ -90,7 +89,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) spec_badop },
-	{ &vop_lookup_desc,		(vop_t *) spec_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) spec_badop },
 	{ &vop_mknod_desc,		(vop_t *) spec_badop },
 	{ &vop_open_desc,		(vop_t *) spec_open },
@@ -130,22 +128,6 @@ spec_vnoperate(ap)
 }
 
 static void spec_getpages_iodone __P((struct buf *bp));
-
-/*
- * Trivial lookup routine that always fails.
- */
-static int
-spec_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-
-	*ap->a_vpp = NULL;
-	return (ENOTDIR);
-}
 
 /*
  * Open a special file.
