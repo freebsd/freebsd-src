@@ -93,7 +93,7 @@ Release Name:  Which release to attempt to load from installation media.
 
 Browser Package:  Which package to load for an HTML browser.
 
-    By default, this is set to lynx but may also be set to any other
+    By default, this is set to links but may also be set to any other
     text capable HTML browser for which a package exists.  If you set this
     to an X based browser, you will not be able to use it if you're running
     in text mode! :)
