@@ -127,7 +127,7 @@ main(int argc, char **argv)
 	        strcmp(username, "root") != 0) {
 	    	    strncpy(aname, username, sizeof(aname));
 		    strncpy(inst, "root", sizeof(inst));
-	        } else {
+	    } else {
 		    pwd = getpwuid(uid);
 
 		    if (pwd == (struct passwd *) NULL) {
@@ -137,7 +137,7 @@ main(int argc, char **argv)
 		    } else
 			strncpy(aname, pwd->pw_name, sizeof(aname));
 	    }
-	    if (!*name)
+	    if (!*aname)
 	        return 0;
 	    if (!k_isname(aname)) {
 	        errx(1, "%s", "bad Kerberos name format");
