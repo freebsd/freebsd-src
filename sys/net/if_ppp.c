@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.39 1997/02/22 09:41:03 peter Exp $ */
+/* $Id: if_ppp.c,v 1.40 1997/03/24 11:52:29 bde Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -125,6 +125,9 @@
 #endif
 
 struct ppp_softc ppp_softc[NPPP];
+
+/* XXX layering violation */
+extern void	pppasyncattach __P((void *));
 
 static void	pppattach __P((void *));
 PSEUDO_SET(pppattach, if_ppp);
@@ -206,6 +209,11 @@ pppattach(dummy)
 #endif
     }
     register_netisr(NETISR_PPP, pppintr);
+    /*
+     * XXX layering violation - if_ppp can work over any lower level
+     * transport that cares to attach to it.
+     */
+    pppasyncattach(dummy);
 }
 
 /*
