@@ -330,15 +330,57 @@ constant(char *name, int arg)
     case 'L':
 	break;
     case 'M':
+	if (strEQ(name, "MSG_CTLFLAGS"))
+#ifdef MSG_CTLFLAGS
+	    return MSG_CTLFLAGS;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_CTLIGNORE"))
+#ifdef MSG_CTLIGNORE
+	    return MSG_CTLIGNORE;
+#else
+	    goto not_there;
+#endif
 	if (strEQ(name, "MSG_CTRUNC"))
-#if defined(MSG_CTRUNC) || defined(HAS_GNULIBC) /* XXX it's an enum */
+#if defined(MSG_TRUNC) || defined(HAS_MSG_CTRUNC) /* might be an enum */
 	    return MSG_CTRUNC;
 #else
 	    goto not_there;
 #endif
 	if (strEQ(name, "MSG_DONTROUTE"))
-#if defined(MSG_DONTROUTE) || defined(HAS_GNULIBC) /* XXX it's an enum */
+#if defined(MSG_DONTROUTE) || defined(HAS_MSG_DONTROUTE) /* might be an enum */
 	    return MSG_DONTROUTE;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_DONTWAIT"))
+#ifdef MSG_DONTWAIT
+	    return MSG_DONTWAIT;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_EOF"))
+#ifdef MSG_EOF
+	    return MSG_EOF;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_EOR"))
+#ifdef MSG_EOR
+	    return MSG_EOR;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_ERRQUEUE"))
+#ifdef MSG_ERRQUEUE
+	    return MSG_ERRQUEUE;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_FIN"))
+#ifdef MSG_FIN
+	    return MSG_FIN;
 #else
 	    goto not_there;
 #endif
@@ -348,21 +390,51 @@ constant(char *name, int arg)
 #else
 	    goto not_there;
 #endif
+	if (strEQ(name, "MSG_NOSIGNAL"))
+#ifdef MSG_NOSIGNAL
+	    return MSG_NOSIGNAL;
+#else
+	    goto not_there;
+#endif
 	if (strEQ(name, "MSG_OOB"))
-#if defined(MSG_OOB) || defined(HAS_GNULIBC) /* XXX it's an enum */
+#if defined(MSG_OOB) || defined(HAS_MSG_OOB) /* might be an enum */
 	    return MSG_OOB;
 #else
 	    goto not_there;
 #endif
 	if (strEQ(name, "MSG_PEEK"))
-#if defined(MSG_PEEK) || defined(HAS_GNULIBC) /* XXX it's an enum */
+#if defined(MSG_PEEK) || defined(HAS_MSG_PEEK) /* might be an enum */
 	    return MSG_PEEK;
 #else
 	    goto not_there;
 #endif
 	if (strEQ(name, "MSG_PROXY"))
-#if defined(MSG_PROXY) || defined(HAS_GNULIBC) /* XXX it's an enum */
+#if defined(MSG_PROXY) || defined(HAS_MSG_PROXY) /* might be an enum */
 	    return MSG_PROXY;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_RST"))
+#ifdef MSG_RST
+	    return MSG_RST;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_SYN"))
+#ifdef MSG_SYN
+	    return MSG_SYN;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_TRUNC"))
+#ifdef MSG_TRUNC
+	    return MSG_TRUNC;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "MSG_WAITALL"))
+#ifdef MSG_WAITALL
+	    return MSG_WAITALL;
 #else
 	    goto not_there;
 #endif
@@ -522,6 +594,36 @@ constant(char *name, int arg)
     case 'R':
 	break;
     case 'S':
+	if (strEQ(name, "SCM_CONNECT"))
+#ifdef SCM_CONNECT
+	    return SCM_CONNECT;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "SCM_CREDENTIALS"))
+#ifdef SCM_CREDENTIALS
+	    return SCM_CREDENTIALS;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "SCM_CREDS"))
+#ifdef SCM_CREDS
+	    return SCM_CREDS;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "SCM_RIGHTS"))
+#if defined(SCM_RIGHTS) || defined(HAS_SCM_RIGHTS) /* might be an enum */
+	    return SCM_RIGHTS;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "SCM_TIMESTAMP"))
+#ifdef SCM_TIMESTAMP
+	    return SCM_TIMESTAMP;
+#else
+	    goto not_there;
+#endif
 	if (strEQ(name, "SOCK_DGRAM"))
 #ifdef SOCK_DGRAM
 	    return SOCK_DGRAM;

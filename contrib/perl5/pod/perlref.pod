@@ -2,6 +2,12 @@
 
 perlref - Perl references and nested data structures
 
+=head1 NOTE
+
+This is complete documentation about all aspects of references.
+For a shorter, tutorial introduction to just the essential features,
+see L<perlreftut>.
+
 =head1 DESCRIPTION
 
 Before release 5 of Perl it was difficult to represent complex data
@@ -89,7 +95,9 @@ a list of references!
     @list = \($a, @b, %c);	# same thing!
 
 As a special case, C<\(@foo)> returns a list of references to the contents
-of C<@foo>, not a reference to C<@foo> itself.  Likewise for C<%foo>.
+of C<@foo>, not a reference to C<@foo> itself.  Likewise for C<%foo>,
+except that the key references are to copies (since the keys are just
+strings rather than full-fledged scalars).
 
 =item 3.
 
@@ -448,7 +456,7 @@ symbolic references.  Lexical variables (declared with my()) aren't in
 a symbol table, and thus are invisible to this mechanism.  For example:
 
     local $value = 10;
-    $ref = \$value;
+    $ref = "value";
     {
 	my $value = 20;
 	print $$ref;
@@ -551,7 +559,7 @@ access to those variables even though it doesn't get run until later,
 such as in a signal handler or a Tk callback.
 
 Using a closure as a function template allows us to generate many functions
-that act similarly.  Suppopose you wanted functions named after the colors
+that act similarly.  Suppose you wanted functions named after the colors
 that generated HTML font changes for the various colors:
 
     print "Be ", red("careful"), "with that ", green("light");

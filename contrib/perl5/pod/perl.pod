@@ -20,6 +20,7 @@ of sections:
 
     perl		Perl overview (this section)
     perldelta		Perl changes since previous version
+    perl5004delta	Perl changes in version 5.004
     perlfaq		Perl frequently asked questions
     perltoc		Perl documentation table of contents
 
@@ -29,6 +30,7 @@ of sections:
     perlre		Perl regular expressions
     perlrun		Perl execution and options
     perlfunc		Perl builtin functions
+    perlopentut		Perl open() tutorial
     perlvar		Perl predefined variables
     perlsub		Perl subroutines
     perlmod		Perl modules: how they work
@@ -38,6 +40,7 @@ of sections:
     perllocale		Perl locale support
 
     perlref		Perl references
+    perlreftut		Perl references short introduction
     perldsc		Perl data structures intro
     perllol		Perl data structures: lists of lists
     perltoot		Perl OO tutorial
@@ -45,6 +48,7 @@ of sections:
     perltie		Perl objects hidden behind simple variables
     perlbot		Perl OO tricks and examples
     perlipc		Perl interprocess communication
+    perlthrtut		Perl threads tutorial
 
     perldebug		Perl debugging
     perldiag		Perl diagnostic messages
@@ -68,8 +72,8 @@ of sections:
 (If you're intending to read these straight through for the first time,
 the suggested order will tend to reduce the number of forward references.)
 
-By default, all of the above manpages are installed in the 
-F</usr/local/man/> directory.  
+By default, all of the above manpages are installed in the
+F</usr/local/man/> directory.
 
 Extensive additional documentation for Perl modules is available.  The
 default configuration for perl will place this additional documentation
@@ -116,9 +120,9 @@ BASIC-PLUS.)  Expression syntax corresponds quite closely to C
 expression syntax.  Unlike most Unix utilities, Perl does not
 arbitrarily limit the size of your data--if you've got the memory,
 Perl can slurp in your whole file as a single string.  Recursion is of
-unlimited depth.  And the tables used by hashes (previously called
+unlimited depth.  And the tables used by hashes (sometimes called
 "associative arrays") grow as necessary to prevent degraded
-performance.  Perl uses sophisticated pattern matching techniques to
+performance.  Perl can use sophisticated pattern matching techniques to
 scan large amounts of data very quickly.  Although optimized for
 scanning text, Perl can also deal with binary data, and can make dbm
 files look like hashes.  Setuid Perl scripts are safer than C programs
@@ -239,6 +243,79 @@ optimized C code.
 
 Okay, that's I<definitely> enough hype.
 
+=head1 AVAILABILITY
+
+Perl is available for the vast majority of operating system platforms,
+including most Unix-like platforms. The following situation is as of
+February 1999 and Perl 5.005_03.
+
+The following platforms are able to build Perl from the standard
+source code distribution available at
+F<http://www.perl.com/CPAN/src/index.html>
+
+        AIX             Linux           SCO ODT/OSR
+        A/UX            MachTen         Solaris
+        BeOS            MPE/iX          SunOS
+        BSD/OS          NetBSD          SVR4
+        DG/UX           NextSTEP        Tru64 UNIX      3)
+        DomainOS        OpenBSD         Ultrix
+        DOS DJGPP 1)    OpenSTEP        UNICOS
+        DYNIX/ptx       OS/2            VMS
+        FreeBSD         OS390     2)    VOS
+        HP-UX           PowerMAX        Windows 3.1     1)
+        Hurd            QNX             Windows 95      1) 4)
+        IRIX                            Windows 98      1) 4)
+                                        Windows NT      1) 4)
+
+        1) in DOS mode either the DOS or OS/2 ports can be used
+        2) formerly known as MVS
+        3) formerly known as Digital UNIX and before that DEC OSF/1
+        4) compilers: Borland, Cygwin32, Mingw32 EGCS/GCC, VC++
+
+The following platforms have been known to build Perl from the source
+but for the Perl release 5.005_03 we haven't been able to verify them,
+either because the hardware/software platforms are rather rare or
+because we don't have an active champion on these platforms, or both.
+					
+        3b1             FPS             Plan 9
+        AmigaOS         GENIX           PowerUX
+        ConvexOS        Greenhills      RISC/os
+        CX/UX           ISC             Stellar
+        DC/OSx          MachTen 68k     SVR2
+        DDE SMES        MiNT            TI1500
+        DOS EMX         MPC             TitanOS
+        Dynix           NEWS-OS         UNICOS/mk
+        EP/IX           Opus            Unisys Dynix
+        ESIX    			Unixware
+
+The following platforms are planned to be supported in the standard
+source code distribution of the Perl release 5.006 but are not
+supported in the Perl release 5.005_03:
+
+        BS2000
+	Netware
+	Rhapsody
+        VM/ESA
+
+The following platforms have their own source code distributions and
+binaries available via F<http://www.perl.com/CPAN/ports/index.html>.
+
+				Perl release
+
+	AS/400			5.003
+	MacOS			5.004
+	Netware			5.003_07
+	Tandem Guardian		5.004
+
+The following platforms have only binaries available via
+F<http://www.perl.com/CPAN/ports/index.html>.
+
+				Perl release
+
+	Acorn RISCOS		5.005_02
+	AOS			5.002
+	LynxOS			5.004_02
+
 =head1 ENVIRONMENT
 
 See L<perlrun>.
@@ -247,14 +324,13 @@ See L<perlrun>.
 
 Larry Wall <F<larry@wall.org>>, with the help of oodles of other folks.
 
-If your Perl success stories and testimonials may be of help to others 
-who wish to advocate the use of Perl in their applications, 
-or if you wish to simply express your gratitude to Larry and the 
+If your Perl success stories and testimonials may be of help to others
+who wish to advocate the use of Perl in their applications,
+or if you wish to simply express your gratitude to Larry and the
 Perl developers, please write to <F<perl-thanks@perl.org>>.
 
 =head1 FILES
 
- "/tmp/perl-e$$"	temporary file for -e commands
  "@INC"			locations of perl libraries
 
 =head1 SEE ALSO
@@ -296,9 +372,10 @@ and syswrite().)
 
 While none of the built-in data types have any arbitrary size limits
 (apart from memory size), there are still a few arbitrary limits:  a
-given variable name may not be longer than 255 characters, and no
-component of your PATH may be longer than 255 if you use B<-S>.  A regular
-expression may not compile to more than 32767 bytes internally.
+given variable name may not be longer than 251 characters.  Line numbers
+displayed by diagnostics are internally stored as short integers,
+so they are limited to a maximum of 65535 (higher numbers usually being
+affected by wraparound).
 
 You may mail your bug reports (be sure to include full configuration
 information as output by the myconfig program in the perl source tree,

@@ -92,7 +92,7 @@ $n_name if you import the fields.  Array references are available as
 regular array variables, so for example C<@{ $net_obj-E<gt>aliases()
 }> would be simply @n_aliases.
 
-The getnet() funtion is a simple front-end that forwards a numeric
+The getnet() function is a simple front-end that forwards a numeric
 argument to getnetbyaddr(), and the rest
 to getnetbyname().
 

@@ -1,6 +1,6 @@
 /*    doop.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -352,7 +352,8 @@ do_vop(I32 optype, SV *sv, SV *left, SV *right)
     len = leftlen < rightlen ? leftlen : rightlen;
     lensave = len;
     if (SvOK(sv) || SvTYPE(sv) > SVt_PVMG) {
-	dc = SvPV_force(sv, PL_na);
+	STRLEN n_a;
+	dc = SvPV_force(sv, n_a);
 	if (SvCUR(sv) < len) {
 	    dc = SvGROW(sv, len + 1);
 	    (void)memzero(dc + SvCUR(sv), len - SvCUR(sv) + 1);
@@ -491,7 +492,7 @@ do_kv(ARGSproto)
 	    RETURN;
 	}
 
-	if (!SvRMAGICAL(keys) || !mg_find((SV*)keys,'P'))
+	if (! SvTIED_mg((SV*)keys, 'P'))
 	    i = HvKEYS(keys);
 	else {
 	    i = 0;

@@ -1,12 +1,13 @@
 #!./perl
 
-print "1..36\n";
+print "1..39\n";
 
 chdir('op') || die "sysio.t: cannot look for myself: $!";
 
 open(I, 'sysio.t') || die "sysio.t: cannot find myself: $!";
 
-$reopen = ($^O eq 'VMS' || $^O eq 'os2' || $^O eq 'MSWin32' || $^O eq 'dos');
+$reopen = ($^O eq 'VMS' || $^O eq 'os2' || $^O eq 'MSWin32' || $^O eq 'dos' ||
+	   $^O eq 'mpeix');
 
 $x = 'abc';
 
@@ -151,6 +152,21 @@ if ($reopen) {  # must close file to update EOF marker for stat
 print 'not ' unless (-s $outfile == 7);
 print "ok 28\n";
 
+# with implicit length argument
+print 'not ' unless (syswrite(O, $x) == 3);
+print "ok 29\n";
+
+# $a still intact
+print 'not ' unless ($x eq "abc");
+print "ok 30\n";
+
+# $outfile should have grown now
+if ($reopen) {  # must close file to update EOF marker for stat
+  close O; open(O, ">>$outfile") || die "sysio.t: cannot write $outfile: $!";
+}
+print 'not ' unless (-s $outfile == 10);
+print "ok 31\n";
+
 close(O);
 
 open(I, $outfile) || die "sysio.t: cannot read $outfile: $!";
@@ -158,30 +174,30 @@ open(I, $outfile) || die "sysio.t: cannot read $outfile: $!";
 $b = 'xyz';
 
 # reading too much only return as much as available
-print 'not ' unless (sysread(I, $b, 100) == 7);
-print "ok 29\n";
+print 'not ' unless (sysread(I, $b, 100) == 10);
+print "ok 32\n";
 # this we should have
-print 'not ' unless ($b eq '#!ererl');
-print "ok 30\n";
+print 'not ' unless ($b eq '#!ererlabc');
+print "ok 33\n";
 
 # test sysseek
 
 print 'not ' unless sysseek(I, 2, 0) == 2;
-print "ok 31\n";
+print "ok 34\n";
 sysread(I, $b, 3);
 print 'not ' unless $b eq 'ere';
-print "ok 32\n";
+print "ok 35\n";
 
 print 'not ' unless sysseek(I, -2, 1) == 3;
-print "ok 33\n";
+print "ok 36\n";
 sysread(I, $b, 4);
 print 'not ' unless $b eq 'rerl';
-print "ok 34\n";
+print "ok 37\n";
 
 print 'not ' unless sysseek(I, 0, 0) eq '0 but true';
-print "ok 35\n";
+print "ok 38\n";
 print 'not ' if defined sysseek(I, -1, 1);
-print "ok 36\n";
+print "ok 39\n";
 
 close(I);
 

@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..10\n";
+print "1..12\n";
 
 print join(':',1..5) eq '1:2:3:4:5' ? "ok 1\n" : "not ok 1\n";
 
@@ -45,4 +45,13 @@ foreach ('09'..'08') {
 }
 print "not " unless join(",", @y) eq join(",", @x);
 print "ok 10\n";
+
+# check bounds
+@a = 0x7ffffffe..0x7fffffff;
+print "not " unless "@a" eq "2147483646 2147483647";
+print "ok 11\n";
+
+@a = -0x7fffffff..-0x7ffffffe;
+print "not " unless "@a" eq "-2147483647 -2147483646";
+print "ok 12\n";
 

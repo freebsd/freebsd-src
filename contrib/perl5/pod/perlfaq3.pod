@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq3 - Programming Tools ($Revision: 1.29 $, $Date: 1998/08/05 11:57:04 $)
+perlfaq3 - Programming Tools ($Revision: 1.33 $, $Date: 1998/12/29 20:12:12 $)
 
 =head1 DESCRIPTION
 
@@ -102,6 +102,10 @@ on your hardware, operating system, and the load on your machine):
          for:  4 secs ( 3.97 usr  0.01 sys =  3.98 cpu)
          map:  6 secs ( 4.97 usr  0.00 sys =  4.97 cpu)
 
+Be aware that a good benchmark is very hard to write.  It only tests the
+data you give it, and really proves little about differing complexities
+of contrasting algorithms.
+
 =head2 How do I cross-reference my Perl programs?
 
 The B::Xref module, shipped with the new, alpha-release Perl compiler
@@ -122,23 +126,57 @@ shouldn't need to reformat.  The habit of formatting your code as you
 write it will help prevent bugs.  Your editor can and should help you
 with this.  The perl-mode for emacs can provide a remarkable amount of
 help with most (but not all) code, and even less programmable editors
-can provide significant assistance.
+can provide significant assistance.  Tom swears by the following
+settings in vi and its clones:
 
-If you are used to using I<vgrind> program for printing out nice code
+    set ai sw=4
+    map ^O {^M}^[O^T
+
+Now put that in your F<.exrc> file (replacing the caret characters
+with control characters) and away you go.  In insert mode, ^T is
+for indenting, ^D is for undenting, and ^O is for blockdenting --
+as it were.  If you haven't used the last one, you're missing
+a lot.  A more complete example, with comments, can be found at
+http://www.perl.com/CPAN-local/authors/id/TOMC/scripts/toms.exrc.gz
+
+If you are used to using the I<vgrind> program for printing out nice code
 to a laser printer, you can take a stab at this using
 http://www.perl.com/CPAN/doc/misc/tips/working.vgrind.entry, but the
 results are not particularly satisfying for sophisticated code.
 
-=head2 Is there a ctags for Perl?
+The a2ps at http://www.infres.enst.fr/~demaille/a2ps/ does lots of things
+related to generating nicely printed output of documents.
 
-There's a simple one at
+=head2 Is there a etags/ctags for perl?
+
+With respect to the source code for the Perl interpreter, yes.
+There has been support for etags in the source for a long time.
+Ctags was introduced in v5.005_54 (and probably 5.005_03).
+After building perl, type 'make etags' or 'make ctags' and both
+sets of tag files will be built.
+
+Now, if you're looking to build a tag file for perl code, then there's
+a simple one at
 http://www.perl.com/CPAN/authors/id/TOMC/scripts/ptags.gz which may do
-the trick.
+the trick.  And if not, it's easy to hack into what you want.
+
+=head2 Is there an IDE or Windows Perl Editor?
+
+If you're on Unix, you already have an IDE -- Unix itself.
+You just have to learn the toolbox.  If you're not, then you
+probably don't have a toolbox, so may need something else.
+
+PerlBuilder (XXX URL to follow) is an integrated development
+environment for Windows that supports Perl development.  Perl programs
+are just plain text, though, so you could download emacs for Windows
+(XXX) or vim for win32 (http://www.cs.vu.nl/~tmgil/vi.html).  If
+you're transferring Windows files to Unix, be sure to transfer in
+ASCII mode so the ends of lines are appropriately converted.
 
 =head2 Where can I get Perl macros for vi?
 
 For a complete version of Tom Christiansen's vi configuration file,
-see http://www.perl.com/CPAN/authors/Tom_Christiansen/scripts/toms.exrc,
+see http://www.perl.com/CPAN/authors/Tom_Christiansen/scripts/toms.exrc.gz,
 the standard benchmark file for vi emulators.  This runs best with nvi,
 the current version of vi out of Berkeley, which incidentally can be built
 with an embedded Perl interpreter -- see http://www.perl.com/CPAN/src/misc.
@@ -155,7 +193,7 @@ context-sensitive help, and other nifty things.
 
 Note that the perl-mode of emacs will have fits with C<"main'foo">
 (single quote), and mess up the indentation and hilighting.  You
-should be using C<"main::foo"> in new Perl code anyway, so this
+are probably using C<"main::foo"> in new Perl code anyway, so this
 shouldn't be an issue.
 
 =head2 How can I use curses with Perl?
@@ -236,7 +274,7 @@ wasn't a good solution anyway.
 
 When it comes to time-space tradeoffs, Perl nearly always prefers to
 throw memory at a problem.  Scalars in Perl use more memory than
-strings in C, arrays take more that, and hashes use even more.  While
+strings in C, arrays take more than that, and hashes use even more.  While
 there's still a lot to be done, recent releases have been addressing
 these issues.  For example, as of 5.004, duplicate hash keys are
 shared amongst all hashes using them, so require no reallocation.
@@ -278,10 +316,15 @@ No, Perl's garbage collection system takes care of this.
 
 You can't.  On most operating systems, memory allocated to a program
 can never be returned to the system.  That's why long-running programs
-sometimes re-exec themselves.  Some operating systems (notably, FreeBSD)
-allegedly reclaim large chunks of memory that is no longer used, but
-it doesn't appear to happen with Perl (yet).  The Mac appears to be the
-only platform that will reliably (albeit, slowly) return memory to the OS.
+sometimes re-exec themselves.  Some operating systems (notably,
+FreeBSD and Linux) allegedly reclaim large chunks of memory that is no
+longer used, but it doesn't appear to happen with Perl (yet).  The Mac
+appears to be the only platform that will reliably (albeit, slowly)
+return memory to the OS.
+
+We've had reports that on Linux (Redhat 5.1) on Intel, C<undef
+$scalar> will return memory to the system, while on Solaris 2.6 it
+won't.  In general, try it yourself and see.
 
 However, judicious use of my() on your variables will help make sure
 that they go out of scope so that Perl can free up their storage for
@@ -314,8 +357,7 @@ the internal server API, so modules written in Perl can do just about
 anything a module written in C can.  For more on mod_perl, see
 http://perl.apache.org/
 
-With the FCGI module (from CPAN), a Perl executable compiled with sfio
-(see the F<INSTALL> file in the distribution) and the mod_fastcgi
+With the FCGI module (from CPAN) and the mod_fastcgi
 module (available from http://www.fastcgi.com/) each of your perl
 scripts becomes a permanent CGI daemon process.
 
@@ -325,8 +367,8 @@ care.
 
 See http://www.perl.com/CPAN/modules/by-category/15_World_Wide_Web_HTML_HTTP_CGI/ .
 
-A non-free, commerical product, ``The Velocity Engine for Perl'',
-(http://www.binevolve.com/ or http://www.binevolve.com/bine/vep) might
+A non-free, commercial product, ``The Velocity Engine for Perl'',
+(http://www.binevolve.com/ or 
 also be worth looking at.  It will allow you to increase the performance
 of your perl scripts, upto 25 times faster than normal CGI perl by
 running in persistent perl mode, or 4 to 5 times faster without any
@@ -353,12 +395,12 @@ source.  Security through obscurity, the name for hiding your bugs
 instead of fixing them, is little security indeed.
 
 You can try using encryption via source filters (Filter::* from CPAN),
-but crackers might be able to decrypt it.  You can try using the byte
-code compiler and interpreter described below, but crackers might be
-able to de-compile it.  You can try using the native-code compiler
-described below, but crackers might be able to disassemble it.  These
-pose varying degrees of difficulty to people wanting to get at your
-code, but none can definitively conceal it (this is true of every
+but any decent programmer will be able to decrypt it.  You can try using
+the byte code compiler and interpreter described below, but the curious
+might still be able to de-compile it.  You can try using the native-code
+compiler described below, but crackers might be able to disassemble it.
+These pose varying degrees of difficulty to people wanting to get at
+your code, but none can definitively conceal it (this is true of every
 language, not just Perl).
 
 If you're concerned about people profiting from your code, then the
@@ -407,6 +449,14 @@ packaging, and once you see the size of what it makes (well, unless
 you use a shared I<libperl.so>), you'll probably want a complete
 Perl install anyway.
 
+=head2 How can I compile Perl into Java?
+
+You can't.  Not yet, anyway.  You can integrate Java and Perl with the
+Perl Resource Kit from O'Reilly and Associates.  See
+http://www.oreilly.com/catalog/prkunix/ for more information.
+The Java interface will be supported in the core 5.006 release
+of Perl.
+
 =head2 How can I get C<#!perl> to work on [MS-DOS,NT,...]?
 
 For OS/2 just use
@@ -420,12 +470,15 @@ F<INSTALL> file in the source distribution for more information).
 
 The Win95/NT installation, when using the ActiveState port of Perl,
 will modify the Registry to associate the C<.pl> extension with the
-perl interpreter.  If you install another port (Gurusaramy Sarathy's
-is the recommended Win95/NT port), or (eventually) build your own
-Win95/NT Perl using WinGCC, then you'll have to modify the Registry
-yourself.
+perl interpreter.  If you install another port (Gurusamy Sarathy's is
+the recommended Win95/NT port), or (eventually) build your own
+Win95/NT Perl using a Windows port of gcc (e.g., with cygwin32 or
+mingw32), then you'll have to modify the Registry yourself.  In
+addition to associating C<.pl> with the interpreter, NT people can
+use: C<SET PATHEXT=%PATHEXT%;.PL> to let them run the program
+C<install-linux.pl> merely by typing C<install-linux>.
 
-Macintosh perl scripts will have the the appropriate Creator and
+Macintosh perl scripts will have the appropriate Creator and
 Type, so that double-clicking them will invoke the perl application.
 
 I<IMPORTANT!>: Whatever you do, PLEASE don't get frustrated, and just
@@ -494,6 +547,9 @@ shell, or MPW, is much like Unix shells in its support for several
 quoting variants, except that it makes free use of the Mac's non-ASCII
 characters as control characters.
 
+Using qq(), q(), and qx(), instead of "double quotes", 'single
+quotes', and `backticks`, may make one-liners easier to write.
+
 There is no general solution to all of this.  It is a mess, pure and
 simple.  Sucks to be away from Unix, huh? :-)
 
@@ -514,7 +570,7 @@ when it runs fine on the command line'', see these sources:
         http://www.boutell.com/faq/
 
     CGI FAQ
-        http://www.webthing.com/page.cgi/cgifaq
+		http://www.webthing.com/tutorials/cgifaq.html		
 
     HTTP Spec
         http://www.w3.org/pub/WWW/Protocols/HTTP/
@@ -529,6 +585,7 @@ when it runs fine on the command line'', see these sources:
     CGI Security FAQ
         http://www.go2net.com/people/paulp/cgi-security/safe-cgi.txt
 
+Also take a look at L<perlfaq9>
 
 =head2 Where can I learn about object-oriented Perl programming?
 
@@ -580,11 +637,11 @@ information, see L<ExtUtils::MakeMaker>.
 
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as an integrated part of the Standard Distribution
-of Perl or of its documentation (printed or otherwise), this works is
+of Perl or of its documentation (printed or otherwise), this work is
 covered under Perl's Artistic Licence.  For separate distributions of
 all or part of this FAQ outside of that, see L<perlfaq>.
 
@@ -593,3 +650,4 @@ domain.  You are permitted and encouraged to use this code and any
 derivatives thereof in your own programs for fun or for profit as you
 see fit.  A simple comment in the code giving credit to the FAQ would
 be courteous but is not required.
+

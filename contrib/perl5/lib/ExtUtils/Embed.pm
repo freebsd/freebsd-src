@@ -416,7 +416,7 @@ This will print arguments for linking with B<libperl.a>, B<DynaLoader> and
 extensions found in B<$Config{static_ext}>.  This includes libraries
 found in B<$Config{libs}> and the first ModuleName.a library
 for each extension that is found by searching B<@INC> or the path 
-specifed by the B<-I> option.  
+specified by the B<-I> option.  
 In addition, when ModuleName.a is found, additional linker arguments
 are picked up from the B<extralibs.ld> file in the same directory.
 

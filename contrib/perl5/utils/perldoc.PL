@@ -91,7 +91,7 @@ Options:
     -F   Arguments are file names, not modules
     -v	 Verbosely describe what's going on
     -X	 use index if present (looks for pod.idx at $Config{archlib})
-
+    -q   Search the text of questions (not answers) in perlfaq[1-9]
 
 PageName|ModuleName...
          is the name of a piece of documentation that you want to look at. You 
@@ -188,7 +188,7 @@ sub minus_f_nocase {
      if (!$opt_i or $Is_VMS or $Is_MSWin32 or $Is_Dos or $^O eq 'os2') {
         # on a case-forgiving file system or if case is important 
 	# that is it all we can do
-	warn "Ignored $file: unreadable\n" if -f _;
+	warn "Ignored $path: unreadable\n" if -f _;
 	return '';
      }
      local *DIR;
@@ -227,7 +227,7 @@ sub minus_f_nocase {
  	    return "" unless $found;
  	    push @p, $cip;
  	    return "@p" if -f "@p" and -r _;
-	    warn "Ignored $file: unreadable\n" if -f _;
+	    warn "Ignored @p: unreadable\n" if -f _;
  	}
      }
      return "";
@@ -408,6 +408,9 @@ if ($opt_f) {
    my $perlfunc = shift @found;
    open(PFUNC, $perlfunc) or die "Can't open $perlfunc: $!";
 
+   # Functions like -r, -e, etc. are listed under `-X'.
+   my $search_string = ($opt_f =~ /^-[rwxoRWXOeszfdlpSbctugkTBMAC]$/) ? 'I<-X' : $opt_f ;
+
    # Skip introduction
    while (<PFUNC>) {
        last if /^=head2 Alphabetical Listing of Perl Functions/;
@@ -417,7 +420,7 @@ if ($opt_f) {
    my $found = 0;
    my @pod;
    while (<PFUNC>) {
-       if (/^=item\s+\Q$opt_f\E\b/o)  {
+       if (/^=item\s+\Q$search_string\E\b/o)  {
 	   $found = 1;
        } elsif (/^=item/) {
 	   last if $found > 1;
@@ -456,7 +459,7 @@ if ($opt_q) {
    my @pod;
 
    while (<>) {
-      if (/^=head2\s+.*$opt_q/oi) {
+      if (/^=head2\s+.*(?:$opt_q)/oi) {
 	 $found = 1;
 	 push @pod, "=head1 Found in $ARGV\n\n" unless $found_in{$ARGV}++;
       } elsif (/^=head2/) {

@@ -52,8 +52,14 @@ sitearch=$sitelib
 eagain='EAGAIN'
 rd_nodata='-1'
 
-if [ "X$usethreads" = "X$define" ]; then
-    set `echo X "$libswanted "| sed -e 's/ c / gthreads c /'`
-    shift
-    libswanted="$*"
-fi
+# This script UU/usethreads.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use threads.
+cat > UU/usethreads.cbu <<'EOCBU'
+case "$usethreads" in
+$define|true|[yY]*)
+        set `echo X "$libswanted "| sed -e 's/ c / gthreads c /'`
+        shift
+        libswanted="$*"
+	;;
+esac
+EOCBU

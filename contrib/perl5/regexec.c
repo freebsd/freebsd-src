@@ -62,7 +62,7 @@
  *
  ****    Alterations to Henry's code are...
  ****
- ****    Copyright (c) 1991-1997, Larry Wall
+ ****    Copyright (c) 1991-1999, Larry Wall
  ****
  ****    You may distribute under the terms of either the GNU General Public
  ****    License or the Artistic License, as specified in the README file.
@@ -1573,6 +1573,7 @@ regmatch(regnode *prog)
 	    sayYES;			/* Success! */
 	case SUSPEND:
 	    n = 1;
+	    PL_reginput = locinput;
 	    goto do_ifmatch;	    
 	case UNLESSM:
 	    n = 0;
@@ -1768,25 +1769,26 @@ regrepeat_hard(regnode *p, I32 max, I32 *lp)
     register char *scan;
     register char *start;
     register char *loceol = PL_regeol;
-    I32 l = -1;
+    I32 l = 0;
+    I32 count = 0, res = 1;
+
+    if (!max)
+	return 0;
 
     start = PL_reginput;
-    while (PL_reginput < loceol && (scan = PL_reginput, regmatch(p))) {
-	if (l == -1) {
+    while (PL_reginput < loceol && (scan = PL_reginput, res = regmatch(p))) {
+	if (!count++) {
 	    *lp = l = PL_reginput - start;
 	    if (max != REG_INFTY && l*max < loceol - scan)
 		loceol = scan + l*max;
-	    if (l == 0) {
+	    if (l == 0)
 		return max;
-	    }
 	}
     }
-    if (PL_reginput < loceol)
+    if (!res)
 	PL_reginput = scan;
-    else
-	scan = PL_reginput;
     
-    return (scan - start)/l;
+    return count;
 }
 
 /*

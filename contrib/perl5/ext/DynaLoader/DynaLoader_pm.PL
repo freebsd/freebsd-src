@@ -101,7 +101,8 @@ push(@dl_library_path, split(/:/, $ENV{LD_LIBRARY_PATH}))
 
 
 # No prizes for guessing why we don't say 'bootstrap DynaLoader;' here.
-boot_DynaLoader('DynaLoader') if defined(&boot_DynaLoader);
+boot_DynaLoader('DynaLoader') if defined(&boot_DynaLoader) &&
+                                !defined(&dl_load_file);
 
 
 if ($dl_debug) {

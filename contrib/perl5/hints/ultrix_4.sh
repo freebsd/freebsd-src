@@ -34,16 +34,16 @@ case "$cc" in
 *gcc*) ;;
 *)
     case "$osvers" in
-    *4.1*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3200" ;;
-    *4.2*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3200"
+    *4.1*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3400" ;;
+    *4.2*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3400"
 		# Prototypes sometimes cause compilation errors in 4.2.
 		prototype=undef   
 		case "$myuname" in
 		*risc*)  d_volatile=undef ;;
 		esac
 		;;
-    *4.3*)	ccflags="$ccflags -std1 -DLANGUAGE_C -Olimit 3200" ;;
-    *)	ccflags="$ccflags -std -Olimit 3200" ;;
+    *4.3*)	ccflags="$ccflags -std1 -DLANGUAGE_C -Olimit 3400" ;;
+    *)	ccflags="$ccflags -std -Olimit 3400" ;;
     esac
     ;;
 esac

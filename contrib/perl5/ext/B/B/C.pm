@@ -13,7 +13,7 @@ use Exporter ();
 
 use B qw(minus_c sv_undef walkoptree walksymtable main_root main_start peekop
 	 class cstring cchar svref_2object compile_stats comppadlist hash
-	 threadsv_names);
+	 threadsv_names main_cv init_av);
 use B::Asmdata qw(@specialsv_name);
 
 use FileHandle;
@@ -44,7 +44,7 @@ my ($init, $decl, $symsect, $binopsect, $condopsect, $copsect, $cvopsect,
     $gvopsect, $listopsect, $logopsect, $loopsect, $opsect, $pmopsect,
     $pvopsect, $svopsect, $unopsect, $svsect, $xpvsect, $xpvavsect,
     $xpvhvsect, $xpvcvsect, $xpvivsect, $xpvnvsect, $xpvmgsect, $xpvlvsect,
-    $xrvsect, $xpvbmsect, $xpviosect);
+    $xrvsect, $xpvbmsect, $xpviosect, $bootstrap);
 
 sub walk_and_save_optree;
 my $saveoptree_callback = \&walk_and_save_optree;
@@ -596,10 +596,15 @@ sub B::CV::save {
 	warn sprintf("No definition for sub %s::%s (unable to autoload)\n",
 		     $cvstashname, $cvname); # debug
     }
-    $symsect->add(sprintf("xpvcvix%d\t%s, %u, 0, %d, %s, 0, Nullhv, Nullhv, %s, s\\_%x, $xsub, $xsubany, Nullgv, Nullgv, %d, s\\_%x, (CV*)s\\_%x, 0",
+    $symsect->add(sprintf("xpvcvix%d\t%s, %u, 0, %d, %s, 0, Nullhv, Nullhv, %s, s\\_%x, $xsub, $xsubany, Nullgv, Nullgv, %d, s\\_%x, (CV*)s\\_%x, 0x%x",
 			  $xpvcv_ix, cstring($pv), length($pv), $cv->IVX,
 			  $cv->NVX, $startfield, ${$cv->ROOT}, $cv->DEPTH,
-			  $$padlist, ${$cv->OUTSIDE}));
+                        $$padlist, ${$cv->OUTSIDE}, $cv->CvFLAGS));
+
+    if (${$cv->OUTSIDE} == ${main_cv()}){
+	$init->add(sprintf("CvOUTSIDE(s\\_%x)=PL_main_cv;",$$cv));
+    }
+
     if ($$gv) {
 	$gv->save;
 	$init->add(sprintf("CvGV(s\\_%x) = s\\_%x;",$$cv,$$gv));
@@ -691,7 +696,7 @@ sub B::GV::save {
 	}
 	my $gvfilegv = $gv->FILEGV;
 	if ($$gvfilegv) {
-	    $init->add(sprintf("GvFILEGV($sym) = s\\_%x;",$$gvfilegv));
+	    $init->add(sprintf("GvFILEGV($sym) = (GV*)s\\_%x;",$$gvfilegv));
 #	    warn "GV::save GvFILEGV(*$name)\n"; # debug
 	    $gvfilegv->save;
 	}
@@ -847,6 +852,7 @@ sub output_all {
 		    $cvopsect, $loopsect, $copsect, $svsect, $xpvsect,
 		    $xpvavsect, $xpvhvsect, $xpvcvsect, $xpvivsect, $xpvnvsect,
 		    $xpvmgsect, $xpvlvsect, $xrvsect, $xpvbmsect, $xpviosect);
+    $bootstrap->output(\*STDOUT, "/* bootstrap %s */\n");
     $symsect->output(\*STDOUT, "#define %s\n");
     print "\n";
     output_declarations();
@@ -1046,30 +1052,61 @@ sub save_object {
     foreach $sv (@_) {
 	svref_2object($sv)->save;
     }
-}
+}       
+
+sub Dummy_BootStrap { }            
 
 sub B::GV::savecv {
     my $gv = shift;
     my $cv = $gv->CV;
     my $name = $gv->NAME;
-    if ($$cv && !objsym($cv) && !($name eq "bootstrap" && $cv->XSUB)) {
+    if ($$cv) {
+	if ($name eq "bootstrap" && $cv->XSUB) {
+	    my $file = $cv->FILEGV->SV->PV;
+	    $bootstrap->add($file);
+	    my $name = $gv->STASH->NAME.'::'.$name;
+	    no strict 'refs';
+            *{$name} = \&Dummy_BootStrap;   
+	    $cv = $gv->CV;
+	}
 	if ($debug_cv) {
 	    warn sprintf("saving extra CV &%s::%s (0x%x) from GV 0x%x\n",
 			 $gv->STASH->NAME, $name, $$cv, $$gv);
 	}
+      my $package=$gv->STASH->NAME;
+      # This seems to undo all the ->isa and prefix stuff we do below
+      # so disable again for now
+      if (0 && ! grep(/^$package$/,@unused_sub_packages)){
+          warn sprintf("omitting cv in superclass %s", $gv->STASH->NAME) 
+              if $debug_cv;
+          return ;
+      }
 	$gv->save;
     }
+    elsif ($name eq 'ISA')
+     {
+      $gv->save;
+     }
+
 }
+
+
 
 sub save_unused_subs {
     my %search_pack;
     map { $search_pack{$_} = 1 } @_;
+    @unused_sub_packages=@_;
     no strict qw(vars refs);
     walksymtable(\%{"main::"}, "savecv", sub {
 	my $package = shift;
 	$package =~ s/::$//;
+	return 0 if ($package =~ /::::/);  # skip ::::ISA::CACHE etc.
 	#warn "Considering $package\n";#debug
 	return 1 if exists $search_pack{$package};
+      #sub try for a partial match
+      if (grep(/^$package\:\:/,@unused_sub_packages)){ 
+          return 1;   
+      }       
 	#warn "    (nothing explicit)\n";#debug
 	# Omit the packages which we use (and which cause grief
 	# because of fancy "goto &$AUTOLOAD" stuff).
@@ -1079,10 +1116,21 @@ sub save_unused_subs {
 	    || $package eq "SelectSaver") {
 	    return 0;
 	}
-	my $m;
-	foreach $m (qw(new DESTROY TIESCALAR TIEARRAY TIEHASH)) {
+	foreach my $u (keys %search_pack) {
+	    if ($package =~ /^${u}::/) {
+		warn "$package starts with $u\n";
+		return 1
+	    }
+	    if ($package->isa($u)) {
+		warn "$package isa $u\n";
+		return 1
+	    }
+	    return 1 if $package->isa($u);
+	}
+	foreach my $m (qw(new DESTROY TIESCALAR TIEARRAY TIEHASH)) {
 	    if (defined(&{$package."::$m"})) {
 		warn "$package has method $m: -u$package assumed\n";#debug
+              push @unused_sub_package, $package;
 		return 1;
 	    }
 	}
@@ -1091,14 +1139,25 @@ sub save_unused_subs {
 }
 
 sub save_main {
+    warn "Walking tree\n";
+    my $curpad_nam = (comppadlist->ARRAY)[0]->save;
     my $curpad_sym = (comppadlist->ARRAY)[1]->save;
+    my $init_av    = init_av->save;
+    my $inc_hv     = svref_2object(\%INC)->save;
+    my $inc_av     = svref_2object(\@INC)->save;
     walkoptree(main_root, "save");
     warn "done main optree, walking symtable for extras\n" if $debug_cv;
     save_unused_subs(@unused_sub_packages);
 
     $init->add(sprintf("PL_main_root = s\\_%x;", ${main_root()}),
 	       sprintf("PL_main_start = s\\_%x;", ${main_start()}),
-	       "PL_curpad = AvARRAY($curpad_sym);");
+	       "PL_curpad = AvARRAY($curpad_sym);",
+	       "PL_initav = $init_av;",
+	       "GvHV(PL_incgv) = $inc_hv;",
+	       "GvAV(PL_incgv) = $inc_av;",
+               "av_store(CvPADLIST(PL_main_cv),0,SvREFCNT_inc($curpad_nam));",
+               "av_store(CvPADLIST(PL_main_cv),1,SvREFCNT_inc($curpad_sym));");
+    warn "Writing output\n";
     output_boilerplate();
     print "\n";
     output_all("perl_init");
@@ -1118,7 +1177,7 @@ sub init_sections {
 		    xpviv => \$xpvivsect, xpvnv => \$xpvnvsect,
 		    xpvmg => \$xpvmgsect, xpvlv => \$xpvlvsect,
 		    xrv => \$xrvsect, xpvbm => \$xpvbmsect,
-		    xpvio => \$xpviosect);
+		    xpvio => \$xpviosect, bootstrap => \$bootstrap);
     my ($name, $sectref);
     while (($name, $sectref) = splice(@sections, 0, 2)) {
 	$$sectref = new B::Section $name, \%symtable, 0;

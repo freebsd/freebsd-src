@@ -199,7 +199,7 @@ pre-defined things are C<BEGIN>, C<END>, C<AUTOLOAD>, and C<DESTROY>--plus all t
 functions mentioned in L<perltie>.  The 5.005 release adds C<INIT>
 to this list.
 
-=head2 Private Variables via C<my()>
+=head2 Private Variables via my()
 
 Synopsis:
 
@@ -381,7 +381,7 @@ unqualified and unqualifiable.
 This does not work with object methods, however; all object methods have
 to be in the symbol table of some package to be found.
 
-=head2 Peristent Private Variables
+=head2 Persistent Private Variables
 
 Just because a lexical variable is lexically (also called statically)
 scoped to its enclosing block, C<eval>, or C<do> FILE, this doesn't mean that
@@ -580,6 +580,28 @@ Perl will print
     3 . . .
     This is a test only a test.
     The array has 6 elements: 0, 1, 2, undef, undef, 5
+
+Note also that when you C<local>ize a member of a composite type that
+B<does not exist previously>, the value is treated as though it were
+in an lvalue context, i.e., it is first created and then C<local>ized.
+The consequence of this is that the hash or array is in fact permanently
+modified. For instance, if you say
+
+    %hash = ( 'This' => 'is', 'a' => 'test' );
+    @ary  = ( 0..5 );
+    {
+    	local($ary[8]) = 0;
+    	local($hash{'b'}) = 'whatever';
+    }
+    printf "%%hash has now %d keys, \@ary %d elements.\n",
+        scalar(keys(%hash)), scalar(@ary);
+
+Perl will print
+
+    %hash has now 3 keys, @ary 9 elements.
+
+The above behavior of local() on non-existent members of composite
+types is subject to change in future.
 
 =head2 Passing Symbol Table Entries (typeglobs)
 
@@ -825,7 +847,8 @@ if you call it like a builtin function, then it behaves like a builtin
 function.  If you call it like an old-fashioned subroutine, then it
 behaves like an old-fashioned subroutine.  It naturally falls out from
 this rule that prototypes have no influence on subroutine references
-like C<\&foo> or on indirect subroutine calls like C<&{$subref}>.
+like C<\&foo> or on indirect subroutine calls like C<&{$subref}> or
+C<$subref-E<gt>()>. 
 
 Method calls are not influenced by prototypes either, because the
 function to be called is indeterminate at compile time, because it depends
@@ -863,8 +886,10 @@ unbackslashed C<@> or C<%> eats all the rest of the arguments, and forces
 list context.  An argument represented by C<$> forces scalar context.  An
 C<&> requires an anonymous subroutine, which, if passed as the first
 argument, does not require the "C<sub>" keyword or a subsequent comma.  A
-C<*> does whatever it has to do to turn the argument into a reference to a
-symbol table entry.
+C<*> allows the subroutine to accept a bareword, constant, scalar expression,
+typeglob, or a reference to a typeglob in that slot.  The value will be
+available to the subroutine either as a simple scalar, or (in the latter
+two cases) as a reference to the typeglob.
 
 A semicolon separates mandatory arguments from optional arguments.
 (It is redundant before C<@> or C<%>.)

@@ -1,6 +1,6 @@
 /*    run.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -77,6 +77,7 @@ debop(OP *o)
 {
 #ifdef DEBUGGING
     SV *sv;
+    STRLEN n_a;
     deb("%s", op_name[o->op_type]);
     switch (o->op_type) {
     case OP_CONST:
@@ -87,7 +88,7 @@ debop(OP *o)
 	if (cGVOPo->op_gv) {
 	    sv = NEWSV(0,0);
 	    gv_fullname3(sv, cGVOPo->op_gv, Nullch);
-	    PerlIO_printf(Perl_debug_log, "(%s)", SvPV(sv, PL_na));
+	    PerlIO_printf(Perl_debug_log, "(%s)", SvPV(sv, n_a));
 	    SvREFCNT_dec(sv);
 	}
 	else

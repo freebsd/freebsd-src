@@ -243,7 +243,7 @@ a file called Some/Module.pm and start with this template:
     # non-exported package globals go here
     use vars      qw(@more $stuff);
 
-    # initalize package globals, first exported ones
+    # initialize package globals, first exported ones
     $Var1   = '';
     %Hashit = ();
 

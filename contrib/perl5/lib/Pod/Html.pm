@@ -11,6 +11,8 @@ use Cwd;
 
 use Carp;
 
+use locale;	# make \w work right in non-ASCII lands
+
 use strict;
 
 use Config;
@@ -300,18 +302,20 @@ sub pod2html {
     open(HTML, ">$htmlfile")
 	    || die "$0: cannot open $htmlfile file for output: $!\n";
 
-    # put a title in the HTML file
-    $title = '';
-    TITLE_SEARCH: {
-	for (my $i = 0; $i < @poddata; $i++) { 
-	    if ($poddata[$i] =~ /^=head1\s*NAME\b/m) {
-		for my $para ( @poddata[$i, $i+1] ) { 
-		    last TITLE_SEARCH if ($title) = $para =~ /(\S+\s+-+.*\S)/s;
-		}
-	    } 
+    # put a title in the HTML file if one wasn't specified
+    if ($title eq '') {
+	TITLE_SEARCH: {
+	    for (my $i = 0; $i < @poddata; $i++) { 
+		if ($poddata[$i] =~ /^=head1\s*NAME\b/m) {
+		    for my $para ( @poddata[$i, $i+1] ) { 
+			last TITLE_SEARCH
+			    if ($title) = $para =~ /(\S+\s+-+.*\S)/s;
+		    }
+		} 
 
-	} 
-    } 
+	    } 
+	}
+    }
     if (!$title and $podfile =~ /\.pod$/) {
 	# probably a split pod so take first =head[12] as title
 	for (my $i = 0; $i < @poddata; $i++) { 
@@ -1371,9 +1375,6 @@ sub process_L {
 	# LREF: a la HREF L<show this text|man/section>
 	$linktext = $1 if s:^([^|]+)\|::;
 
-	# a :: acts like a /
-	s,::,/,;
-
 	# make sure sections start with a /
 	s,^",/",g;
 	s,^,/,g if (!m,/, && / /);
@@ -1397,6 +1398,11 @@ sub process_L {
     if ($page eq "") {
 	$link = "#" . htmlify(0,$section);
 	$linktext = $section unless defined($linktext);
+    } elsif ( $page =~ /::/ ) {
+	$linktext  = ($section ? "$section" : "$page");
+	$page =~ s,::,/,g;
+	$link = "$htmlroot/$page.html";
+	$link .= "#" . htmlify(0,$section) if ($section);
     } elsif (!defined $pages{$page}) {
 	warn "$0: $podfile: cannot resolve L<$str> in paragraph $paragraph: no such page '$page'\n";
 	$link = "";

@@ -176,23 +176,23 @@ provides the methods below.
 
 =item STORE this, index, value
 
-Store datum I<value> into I<index> for the tied array assoicated with
+Store datum I<value> into I<index> for the tied array associated with
 object I<this>. If this makes the array larger then
 class's mapping of C<undef> should be returned for new positions.
 
 =item FETCH this, index
 
-Retrieve the datum in I<index> for the tied array assoicated with
+Retrieve the datum in I<index> for the tied array associated with
 object I<this>.
 
 =item FETCHSIZE this
 
-Returns the total number of items in the tied array assoicated with
+Returns the total number of items in the tied array associated with
 object I<this>. (Equivalent to C<scalar(@array)>).
 
 =item STORESIZE this, count
 
-Sets the total number of items in the tied array assoicated with
+Sets the total number of items in the tied array associated with
 object I<this> to be I<count>. If this makes the array larger then
 class's mapping of C<undef> should be returned for new positions.
 If the array becomes smaller then entries beyond count should be
@@ -205,7 +205,7 @@ Can be used to optimize allocation. This method need do nothing.
 
 =item CLEAR this
 
-Clear (remove, delete, ...) all values from the tied array assoicated with
+Clear (remove, delete, ...) all values from the tied array associated with
 object I<this>.
 
 =item DESTROY this
@@ -227,7 +227,7 @@ and return it.
 
 =item UNSHIFT this, LIST 
 
-Insert LIST elements at the begining of the array, moving existing elements
+Insert LIST elements at the beginning of the array, moving existing elements
 up to make room.
 
 =item SPLICE this, offset, length, LIST
