@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.12 1997/02/22 09:34:49 peter Exp $
+ *	$Id: md_var.h,v 1.13 1997/03/22 18:53:08 kato Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -57,6 +57,8 @@ struct	reg;
 void	bcopyb __P((const void *from, void *to, size_t len));
 void	cpu_reset __P((void));
 void	cpu_halt __P((void));
+void	cpu_switch_load_fs __P((void)) __asm(__STRING(cpu_switch_load_fs));
+void	cpu_switch_load_gs __P((void)) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret __P((void)) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault __P((void)) __asm(__STRING(doreti_iret_fault));
 void	doreti_popl_ds __P((void)) __asm(__STRING(doreti_popl_ds));
