@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.37 1997/05/08 14:04:37 peter Exp $
+	$Id: syscalls.master,v 1.38 1997/05/08 14:07:11 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -460,4 +460,5 @@
 310	UNIMPL	NOHIDE	getsid
 311	UNIMPL	NOHIDE	setresuid
 312	UNIMPL	NOHIDE	setresgid
-; utrace should be moved here.
+313	STD	BSD	{ int signanosleep(const struct timespec *rqtp, \
+			    struct timespec *rmtp, sigset_t *mask); }
