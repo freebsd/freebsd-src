@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.25 1998/02/22 15:09:46 ache Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.26 1998/02/23 09:59:08 ache Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -446,14 +446,14 @@ mountmsdosfs(devvp, mp, p, argp)
 	if (!(argp->flags & MSDOSFSMNT_GEMDOSFS)) {
 #endif
 #ifdef PC98
-		if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
-		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1
-		    && bsp->bs50.bsBootSectSig0 != 0	    /* PC98 DOS 3.3x */
-		    || bsp->bs50.bsBootSectSig1 != 0
-		    && bsp->bs50.bsBootSectSig0 != 0x90     /* PC98 DOS 5.0  */
-		    || bsp->bs50.bsBootSectSig1 != 0x3d
-		    && bsp->bs50.bsBootSectSig0 != 0x46     /* PC98 DOS 3.3B */
-		    || bsp->bs50.bsBootSectSig1 != 0xfa) {
+		if ((bsp->bs50.bsBootSectSig0 != BOOTSIG0
+		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1)
+		    && (bsp->bs50.bsBootSectSig0 != 0       /* PC98 DOS 3.3x */
+		    || bsp->bs50.bsBootSectSig1 != 0)
+		    && (bsp->bs50.bsBootSectSig0 != 0x90    /* PC98 DOS 5.0  */
+		    || bsp->bs50.bsBootSectSig1 != 0x3d)
+		    && (bsp->bs50.bsBootSectSig0 != 0x46    /* PC98 DOS 3.3B */
+		    || bsp->bs50.bsBootSectSig1 != 0xfa)) {
 #else
 		if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
 		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
