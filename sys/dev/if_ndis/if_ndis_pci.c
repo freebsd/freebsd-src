@@ -208,7 +208,7 @@ ndis_attach_pci(dev)
 					error = ENXIO;
 					goto fail;
 				}
-				if (rle->rid == PCIR_BAR(2)) {
+				if (sc->ndis_res_mem) {
 					sc->ndis_altmem_rid = rle->rid;
 					sc->ndis_res_altmem =
 					    bus_alloc_resource(dev,
