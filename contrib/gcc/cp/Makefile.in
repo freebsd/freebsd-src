@@ -1,5 +1,5 @@
 # Makefile for GNU C++ compiler.
-#   Copyright (C) 1987, 88, 90-4, 1995 Free Software Foundation, Inc.
+#   Copyright (C) 1987, 88, 90-5, 1998 Free Software Foundation, Inc.
 
 #This file is part of GNU CC.
 
@@ -54,10 +54,10 @@ T_CFLAGS =
 X_CPPFLAGS =
 T_CPPFLAGS =
 
-CC = cc
-BISON = bison
+CC = @CC@
+BBISON = `if [ -f ../../bison/bison ] ; then echo ../../bison/bison -L $(srcdir)/../../bison/ ;  else echo bison ; fi`
 BISONFLAGS =
-LEX = flex
+LEX = `if [ -f ../../flex/flex ] ; then echo ../../flex/flex ;  else echo flex ; fi`
 LEXFLAGS =
 AR = ar
 AR_FLAGS = rc
@@ -83,14 +83,21 @@ GCC_CFLAGS=$(INTERNAL_CFLAGS) $(X_CFLAGS) $(T_CFLAGS) $(CFLAGS)
 # These are used because `configure' appends `cross-make'
 # to the makefile when making a cross-compiler.
 
-target= ... `configure' substitutes actual target name here.
-xmake_file= ... `configure' substitutes actual x- file name here.
-tmake_file= ... `configure' substitutes actual t- file name here.
+# We don't use cross-make.  Instead we use the tools
+# from the build tree, if they are available.
+# program_transform_name and objdir are set by configure.in.
+program_transform_name =
+objdir = .
+
+target=@target@
+xmake_file=@dep_host_xmake_file@
+tmake_file=@dep_tmake_file@
 #version=`sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < $(srcdir)/version.c`
 #mainversion=`sed -e 's/.*\"\([0-9]*\.[0-9]*\).*/\1/' < $(srcdir)/version.c`
 
 # Directory where sources are, from where we are.
-srcdir = .
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 # Additional system libraries to link with.
 CLIB=
@@ -113,16 +120,21 @@ all: all.indirect
 
 # sed inserts variable overrides after the following line.
 ####target overrides
+@target_overrides@
 ####host overrides
+@host_overrides@
 ####cross overrides
+@cross_defines@
+@cross_overrides@
 ####build overrides
-
+@build_overrides@
+#
 # Now figure out from those variables how to compile and link.
 
-all.indirect: Makefile ../cc1plus
+all.indirect: Makefile ../cc1plus$(exeext)
 
 # IN_GCC tells obstack.h that we are using gcc's <stddef.h> file.
-INTERNAL_CFLAGS = $(CROSS) -DIN_GCC
+INTERNAL_CFLAGS = $(CROSS) -DIN_GCC @extra_c_flags@
 
 # This is the variable actually used when we compile.
 ALL_CFLAGS = $(INTERNAL_CFLAGS) $(X_CFLAGS) $(T_CFLAGS) $(CFLAGS) $(XCFLAGS)
@@ -150,33 +162,37 @@ INCLUDES = -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I$(srcdir)/../config
 .c.o:
 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
 
+# The only suffixes we want for implicit rules are .c and .o.
+.SUFFIXES:
+.SUFFIXES: .c .o
+
 # This tells GNU make version 3 not to export all the variables
 # defined in this file into the environment.
 .NOEXPORT:
-
+#
 # Lists of files for various purposes.
 
 # Language-specific object files for g++
 
 CXX_OBJS = call.o decl.o errfn.o expr.o pt.o sig.o typeck2.o \
- class.o decl2.o error.o gc.o lex.o parse.o ptree.o spew.o typeck.o cvt.o \
- edsel.o except.o init.o method.o search.o tree.o xref.o repo.o
+ class.o decl2.o error.o lex.o parse.o ptree.o rtti.o spew.o typeck.o cvt.o \
+ except.o friend.o init.o method.o search.o semantics.o tree.o xref.o \
+ repo.o @extra_cxx_objs@
 
 # Language-independent object files.
 OBJS = `cat ../stamp-objlist` ../c-common.o ../c-pragma.o
 OBJDEPS = ../stamp-objlist ../c-common.o ../c-pragma.o
 
-compiler: ../cc1plus
-../cc1plus: $(P) $(CXX_OBJS) $(OBJDEPS) $(LIBDEPS)
-	rm -f ../cc1plus$(exeext)
+compiler: ../cc1plus$(exeext)
+../cc1plus$(exeext): $(P) $(CXX_OBJS) $(OBJDEPS) $(LIBDEPS)
 	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
 	      $(CXX_OBJS) $(OBJS) $(LIBS)
 
 Makefile: $(srcdir)/Makefile.in $(srcdir)/../configure
 	cd ..; $(SHELL) config.status
 
-native: config.status ../cc1plus
-
+native: config.status ../cc1plus$(exeext)
+#
 # Compiling object files from source files.
 
 # Note that dependencies on obstack.h are not written
@@ -188,15 +204,18 @@ RTL_H = $(srcdir)/../rtl.h $(srcdir)/../rtl.def \
 	$(srcdir)/../machmode.h $(srcdir)/../machmode.def
 TREE_H = $(srcdir)/../tree.h $(srcdir)/../real.h $(srcdir)/../tree.def \
 	$(srcdir)/../machmode.h $(srcdir)/../machmode.def
-CXX_TREE_H = $(TREE_H) cp-tree.h tree.def
+CXX_TREE_H = $(TREE_H) cp-tree.h cp-tree.def
 PARSE_H = $(srcdir)/parse.h
 PARSE_C = $(srcdir)/parse.c
+EXPR_H = $(srcdir)/../expr.h ../insn-codes.h
 
-parse.o : $(PARSE_C) $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h lex.h
+parse.o : $(PARSE_C) $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h lex.h \
+	$(srcdir)/../except.h $(srcdir)/../output.h $(srcdir)/../system.h \
+	$(srcdir)/../toplev.h
 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(BIG_SWITCHFLAG) \
   `echo $(PARSE_C) | sed 's,^\./,,'`
 
-CONFLICTS = expect 5 shift/reduce conflicts and 38 reduce/reduce conflicts.
+CONFLICTS = expect 26 shift/reduce conflicts and 42 reduce/reduce conflicts.
 $(PARSE_H) : $(PARSE_C)
 $(PARSE_C) : $(srcdir)/parse.y
 	@echo $(CONFLICTS)
@@ -221,35 +240,61 @@ $(srcdir)/hash.h:
 		$(srcdir)/gxx.gperf >$(srcdir)/hash.h
 
 spew.o : spew.c $(CONFIG_H) $(CXX_TREE_H) \
-  $(PARSE_H) $(srcdir)/../flags.h lex.h
+  $(PARSE_H) $(srcdir)/../flags.h lex.h $(srcdir)/../system.h
 lex.o : lex.c $(CONFIG_H) $(CXX_TREE_H) \
-  $(PARSE_H) input.c $(srcdir)/../flags.h hash.h lex.h $(srcdir)/../c-pragma.h
+  $(PARSE_H) input.c $(srcdir)/../flags.h hash.h lex.h \
+  $(srcdir)/../c-pragma.h $(srcdir)/../system.h $(srcdir)/../toplev.h \
+  $(srcdir)/../output.h
 decl.o : decl.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
-  lex.h decl.h $(srcdir)/../stack.h
+  lex.h decl.h $(srcdir)/../stack.h $(srcdir)/../output.h  \
+  $(srcdir)/../except.h $(srcdir)/../system.h $(srcdir)/../toplev.h
 decl2.o : decl2.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
-  lex.h decl.h
-typeck2.o : typeck2.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h
-typeck.o : typeck.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H)
-class.o : class.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h
-call.o : call.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h class.h
-init.o : init.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H)
-method.o : method.c $(CONFIG_H) $(CXX_TREE_H) class.h
-cvt.o : cvt.c $(CONFIG_H) $(CXX_TREE_H) class.h
-search.o : search.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../stack.h $(srcdir)/../flags.h
-tree.o : tree.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h
-ptree.o : ptree.c $(CONFIG_H) $(CXX_TREE_H)
-gc.o : gc.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h
-except.o : except.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H)
+  lex.h decl.h $(EXPR_H) $(srcdir)/../except.h \
+  $(srcdir)/../output.h $(srcdir)/../except.h $(srcdir)/../system.h \
+  $(srcdir)/../toplev.h $(srcdir)/../dwarf2out.h $(srcdir)/../dwarfout.h
+typeck2.o : typeck2.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+typeck.o : typeck.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
+  $(EXPR_H) $(srcdir)/../system.h $(srcdir)/../toplev.h
+class.o : class.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+call.o : call.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+friend.o : friend.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+init.o : init.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
+  $(EXPR_H) $(srcdir)/../system.h $(srcdir)/../toplev.h
+method.o : method.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h \
+  $(srcdir)/../toplev.h
+cvt.o : cvt.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h
+search.o : search.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../stack.h \
+  $(srcdir)/../flags.h $(srcdir)/../system.h $(srcdir)/../toplev.h
+tree.o : tree.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+ptree.o : ptree.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h
+rtti.o : rtti.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+except.o : except.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
+  $(srcdir)/../except.h $(srcdir)/../system.h $(srcdir)/../toplev.h
 expr.o : expr.c $(CONFIG_H) $(CXX_TREE_H) $(RTL_H) $(srcdir)/../flags.h \
-  $(srcdir)/../expr.h ../insn-codes.h
-edsel.o : edsel.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../stack.h $(srcdir)/../flags.h
-xref.o : xref.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../input.h
-pt.o : pt.c $(CONFIG_H) $(CXX_TREE_H) decl.h $(PARSE_H)
-error.o : error.c $(CONFIG_H) $(CXX_TREE_H)
-errfn.o : errfn.c $(CONFIG_H) $(CXX_TREE_H)
-sig.o : sig.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h
-repo.o : repo.c $(CONFIG_H) $(CXX_TREE_H)
-
+  $(EXPR_H) $(srcdir)/../system.h $(srcdir)/../toplev.h
+xref.o : xref.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../input.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+pt.o : pt.c $(CONFIG_H) $(CXX_TREE_H) decl.h $(PARSE_H) lex.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+error.o : error.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h \
+  $(srcdir)/../toplev.h
+errfn.o : errfn.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h \
+  $(srcdir)/../toplev.h
+sig.o : sig.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
+  $(srcdir)/../system.h $(srcdir)/../toplev.h
+repo.o : repo.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h \
+  $(srcdir)/../toplev.h
+semantics.o: semantics.c $(CONFIG_H) $(CXX_TREE_H) lex.h \
+  $(srcdir)/../except.h $(srcdir)/../system.h $(srcdir)/../toplev.h
+  
+
+#
 # These exist for maintenance purposes.
 
 # Update the tags table.
@@ -263,3 +308,32 @@ TAGS: force
 .PHONY: TAGS
 
 force:
+
+g++FAQ.info:	$(srcdir)/g++FAQ.texi
+	$(MAKEINFO) --no-split -o ./g++FAQ.info $(srcdir)/g++FAQ.texi
+
+# Preprocess the texi file so that the final document will have
+# hyperlinks.
+# It would be nice if texi2html could do something like this itself.
+
+# Assumption 1: the FAQ puts all http: and ftp: links in a @file{...}.
+# Assumption 2: newsgroups are like @file{comp.foo}
+# Assumption 3: email addresses match the regexp shown.
+
+g++FAQ.html:	$(srcdir)/g++FAQ.texi
+	mkdir work
+	sed -e 's?@file{\([fth]*p://[^}]*\)}?@strong{<A HREF="\1">\1</A>}?' \
+	    -e 's?@file{\(comp\.[-a-z+.]*\)}?<A HREF="news:\1">\1</A>?' \
+	    -e 's?@file{\(gnu\.[-a-z+.]*\)}?<A HREF="news:\1">\1</A>?' \
+	    -e 's?\([.+a-zA-Z0-9-]*@@[.a-zA-Z0-9-]*[a-zA-Z0-9]\)?<A HREF="mailto:\1">\1</A>?' \
+	    $(srcdir)/g++FAQ.texi > work/g++FAQ.texi
+	cd work; texi2html g++FAQ.texi
+	mv work/*.html .
+	rm -r work
+
+# Make plain-text form.
+
+g++FAQ.txt:	$(srcdir)/g++FAQ.texi
+	$(MAKEINFO) --no-split --no-headers -o - $(srcdir)/g++FAQ.texi |\
+		sed '/^Concept Index/,$$d' > g++FAQ.txt
+

@@ -1,6 +1,6 @@
 /* Definitions for IBM PS2 running AIX/386.
-   From: Minh Tran-Le <TRANLE@intellicorp.com>
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1996 Free Software Foundation, Inc.
+   Contributed by Minh Tran-Le <TRANLE@intellicorp.com>.
 
 This file is part of GNU CC.
 
@@ -27,7 +27,7 @@ Boston, MA 02111-1307, USA.  */
 #include "svr3.h"
 
 /* Use the ATT assembler syntax.
-   This overrides at least one macro (ASM_OUTPUT_LABELREF) from svr3.h.  */
+   This overrides at least one macro (USER_LABEL_PREFIX) from svr3.h.  */
 
 #include "i386/att.h"
 
@@ -44,10 +44,10 @@ Boston, MA 02111-1307, USA.  */
 
 /* Specify predefined symbols in preprocessor.  */
 
-#define CPP_PREDEFINES "-Dps2 -Dunix -Di386 -Asystem(unix) -Asystem(aix) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dps2 -Dunix -Asystem(aix)"
 
-#define CPP_SPEC \
-  "%{posix:-D_POSIX_SOURCE}%{!posix:-DAIX} -D_I386 -D_AIX -D_MBCS"
+#define CPP_SPEC "%(cpp_cpu) \
+  %{posix:-D_POSIX_SOURCE}%{!posix:-DAIX} -D_I386 -D_AIX -D_MBCS"
 
 /* special flags for the aix assembler to generate the short form for all
    qualifying forward reference */
@@ -132,8 +132,7 @@ const_section ()							\
 
 # undef EXTRA_SECTION_FUNCTIONS
 # define EXTRA_SECTION_FUNCTIONS				\
-  CONST_SECTION_FUNCTION					\
-  BSS_SECTION_FUNCTION
+  CONST_SECTION_FUNCTION
 
 /* for collect2 */
 # define OBJECT_FORMAT_COFF

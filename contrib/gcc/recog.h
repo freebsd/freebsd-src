@@ -1,5 +1,5 @@
 /* Declarations for interface to insn recognizer and insn-output.c.
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1996, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -18,45 +18,51 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* Add prototype support.  */
-#ifndef PROTO
-#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
-#define PROTO(ARGS) ARGS
-#else
-#define PROTO(ARGS) ()
-#endif
-#endif
+#include "gansidecl.h"
 
-/* Recognize an insn and return its insn-code,
-   which is the sequence number of the DEFINE_INSN that it matches.
-   If the insn does not match, return -1.  */
+extern void init_recog			PROTO((void));
+extern void init_recog_no_volatile	PROTO((void));
+extern int recog_memoized		PROTO((rtx));
+extern int check_asm_operands		PROTO((rtx));
+extern int validate_change		PROTO((rtx, rtx *, rtx, int));
+extern int apply_change_group		PROTO((void));
+extern int num_validated_changes	PROTO((void));
+extern void cancel_changes		PROTO((int));
+extern int constrain_operands		PROTO((int, int));
+extern int memory_address_p		PROTO((enum machine_mode, rtx));
+extern int strict_memory_address_p	PROTO((enum machine_mode, rtx));
+extern int validate_replace_rtx		PROTO((rtx, rtx, rtx));
+extern int validate_replace_src		PROTO((rtx, rtx, rtx));
+extern int reg_fits_class_p		PROTO((rtx, enum reg_class, int,
+					       enum machine_mode));
+extern rtx *find_single_use		PROTO((rtx, rtx, rtx *));
 
-extern int recog_memoized PROTO((rtx));
+extern int general_operand		PROTO((rtx, enum machine_mode));
+extern int address_operand		PROTO((rtx, enum machine_mode));
+extern int register_operand		PROTO((rtx, enum machine_mode));
+extern int scratch_operand		PROTO((rtx, enum machine_mode));
+extern int immediate_operand		PROTO((rtx, enum machine_mode));
+extern int const_int_operand		PROTO((rtx, enum machine_mode));
+extern int cosnt_double_operand		PROTO((rtx, enum machine_mode));
+extern int nonimmediate_operand		PROTO((rtx, enum machine_mode));
+extern int nonmemory_operand		PROTO((rtx, enum machine_mode));
+extern int push_operand			PROTO((rtx, enum machine_mode));
+extern int memory_operand		PROTO((rtx, enum machine_mode));
+extern int indirect_operand		PROTO((rtx, enum machine_mode));
+extern int mode_independent_operand	PROTO((rtx, enum machine_mode));
+extern int comparison_operator		PROTO((rtx, enum machine_mode));
 
-/* Determine whether a proposed change to an insn or MEM will make it
-   invalid.  Make the change if not.  */
+extern int offsettable_memref_p		PROTO((rtx));
+extern int offsettable_nonstrict_memref_p	PROTO((rtx));
+extern int offsettable_address_p	PROTO((int, enum machine_mode, rtx));
+extern int mode_dependent_address_p	PROTO((rtx));
 
-extern int validate_change PROTO((rtx, rtx *, rtx, int));
-
-/* Apply a group of changes if valid.  */
-
-extern int apply_change_group PROTO((void));
-
-/* Return the number of changes so far in the current group.   */
-
-extern int num_validated_changes PROTO((void));
-
-/* Retract some changes.  */
-
-extern void cancel_changes PROTO((int));
+extern int recog			PROTO((rtx, rtx, int *));
+extern void add_clobbers		PROTO((rtx, int));
+extern void insn_extract		PROTO((rtx));
 
 /* Nonzero means volatile operands are recognized.  */
-
 extern int volatile_ok;
-
-/* Extract the operands from an insn that has been recognized.  */
-
-extern void insn_extract PROTO((rtx));
 
 /* The following vectors hold the results from insn_extract.  */
 
@@ -73,12 +79,6 @@ extern rtx *recog_dup_loc[];
 /* Indexed by N, gives the operand number that was duplicated in the
    Nth duplicate-appearance of an operand.  */
 extern char recog_dup_num[];
-
-#ifndef __STDC__
-#ifndef const
-#define const
-#endif
-#endif
 
 /* Access the output function for CODE.  */
 

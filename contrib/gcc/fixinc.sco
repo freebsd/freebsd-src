@@ -6,6 +6,8 @@
 #   Based on fixinc.svr4 script by Ron Guilmette (rfg@ncd.com) (SCO
 #   modifications by Ian Lance Taylor (ian@airs.com)).
 #
+# Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+#
 # This file is part of GNU CC.
 # 
 # GNU CC is free software; you can redistribute it and/or modify
@@ -169,6 +171,9 @@ while [ $# != 0 ]; do
   shift; shift
 done
 
+# We shouldn't stay in the directory we just copied.
+cd ${INPUT}
+
 # Fix first broken decl of getcwd present on some svr4 systems.
 
 file=stdlib.h
@@ -289,6 +294,113 @@ if [ -r ${LIB}/$file ]; then
     rm ${LIB}/$file
   fi
 fi
+
+# This function is borrowed from fixinclude.svr4
+# The OpenServer math.h defines struct exception, which conflicts with
+# the class exception defined in the C++ file std/stdexcept.h.  We
+# redefine it to __math_exception.  This is not a great fix, but I
+# haven't been able to think of anything better.
+#
+# OpenServer's math.h declares abs as inline int abs...  Unfortunately,
+# we blow over that one (with C++ linkage) and stick a new one in stdlib.h
+# with C linkage.   So we eat the one out of math.h.
+file=math.h
+base=`basename $file`
+if [ -r ${LIB}/$file ]; then
+  file_to_fix=${LIB}/$file
+else
+  if [ -r ${INPUT}/$file ]; then
+    file_to_fix=${INPUT}/$file
+  else
+    file_to_fix=""
+  fi
+fi
+if [ \! -z "$file_to_fix" ]; then
+  echo Checking $file_to_fix
+  sed -e '/struct exception/i\
+#ifdef __cplusplus\
+#define exception __math_exception\
+#endif'\
+      -e '/struct exception/a\
+#ifdef __cplusplus\
+#undef exception\
+#endif' \
+      -e 's@inline int abs(int [a-z][a-z]*) {.*}@extern "C" int abs(int);@' \
+ $file_to_fix > /tmp/$base
+  if cmp $file_to_fix /tmp/$base >/dev/null 2>&1; then \
+    true
+  else
+    echo Fixed $file_to_fix
+    rm -f ${LIB}/$file
+    cp /tmp/$base ${LIB}/$file
+    chmod a+r ${LIB}/$file
+  fi
+  rm -f /tmp/$base
+fi
+
+#
+# Also, the static functions lstat() and fchmod() in <sys/stat.h> 
+# cause G++ grief since they're not wrapped in "if __cplusplus".   
+# Fix that up now.
+#
+file=sys/stat.h
+if [ -r $file ] && [ ! -r ${LIB}/$file ]; then
+  cp $file ${LIB}/$file >/dev/null 2>&1 || echo "Can't copy $file"
+  chmod +w ${LIB}/$file 2>/dev/null
+  chmod a+r ${LIB}/$file 2>/dev/null
+fi
+
+if [ -r ${LIB}/$file ]; then
+  echo Fixing $file, static definitions not C++-aware.
+  sed -e '/^static int[ 	]*/i\
+#if __cplusplus\
+extern "C"\
+{\
+#endif /* __cplusplus */ \
+' \
+-e '/^}$/a\
+#if __cplusplus\
+}\
+#endif /* __cplusplus */ \
+' ${LIB}/$file > ${LIB}/${file}.sed
+  rm -f ${LIB}/$file; mv ${LIB}/${file}.sed ${LIB}/$file
+  if cmp $file ${LIB}/$file >/dev/null 2>&1; then
+    rm -f ${LIB}/$file
+  fi
+fi
+
+# This fix has the regex modified from the from fixinc.wrap
+# Avoid the definition of the bool type in the following files when using
+# g++, since it's now an official type in the C++ language.
+for file in term.h tinfo.h
+do
+  if [ -r $INPUT/$file ]; then
+    echo Checking $INPUT/$file
+    w='[	 ]'
+    if grep "typedef$w.*char$w.*bool$w*;" $INPUT/$file >/dev/null
+    then
+      echo Fixed $file
+      rm -f $LIB/$file
+      cat << __EOF__ >$LIB/$file
+#ifndef _CURSES_H_WRAPPER
+#ifdef __cplusplus
+# define bool __curses_bool_t
+#endif
+#include_next <$file>
+#ifdef __cplusplus
+# undef bool
+#endif
+#define _CURSES_H_WRAPPER
+#endif /* _CURSES_H_WRAPPER */
+__EOF__
+      # Define _CURSES_H_WRAPPER at the end of the wrapper, not the start,
+      # so that if #include_next gets another instance of the wrapper,
+      # this will follow the #include_next chain until we arrive at
+      # the real system include file.
+      chmod a+r $LIB/$file
+    fi
+  fi
+done
 
 echo 'Removing unneeded directories:'
 cd $LIB

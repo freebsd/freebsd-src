@@ -1,5 +1,5 @@
-/* Definitions for Intel 386 running system V with gnu tools
-   Copyright (C) 1988, 1993, 1994 Free Software Foundation, Inc.
+/* Definitions for Intel 386 using GAS.
+   Copyright (C) 1988, 1993, 1994, 1996 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -56,8 +56,8 @@ Boston, MA 02111-1307, USA.  */
 
 /* Specify predefined symbols in preprocessor.  */
 
-#define CPP_PREDEFINES "-Dunix -Di386 -Asystem(unix) -Acpu(i386) -Amachine(i386)"
-#define CPP_SPEC "%{posix:-D_POSIX_SOURCE}"
+#define CPP_PREDEFINES "-Dunix"
+#define CPP_SPEC "%(cpp_cpu) %{posix:-D_POSIX_SOURCE}"
 
 /* Allow #sccs in preprocessor.  */
 
@@ -71,27 +71,33 @@ Boston, MA 02111-1307, USA.  */
 
 #define TARGET_MEM_FUNCTIONS
 
-#if 0  /* People say gas uses the log as the arg to .align.  */
-/* When using gas, .align N aligns to an N-byte boundary.  */
+/* In the past there was confusion as to what the argument to .align was
+   in GAS.  For the last several years the rule has been this: for a.out
+   file formats that argument is LOG, and for all other file formats the
+   argument is 1<<LOG.
 
+   However, GAS now has .p2align and .balign pseudo-ops so to remove any
+   doubt or guess work, and since this file is used for both a.out and other
+   file formats, we use one of them.  */
+
+#ifdef HAVE_GAS_BALIGN_AND_P2ALIGN 
 #undef ASM_OUTPUT_ALIGN
-#define ASM_OUTPUT_ALIGN(FILE,LOG)	\
-     if ((LOG)!=0) fprintf ((FILE), "\t.align %d\n", 1<<(LOG))
+#define ASM_OUTPUT_ALIGN(FILE,LOG) \
+  if ((LOG)!=0) fprintf ((FILE), "\t.balign %d\n", 1<<(LOG))
 #endif
 
-/* Align labels, etc. at 4-byte boundaries.
-   For the 486, align to 16-byte boundary for sake of cache.  */
+/* A C statement to output to the stdio stream FILE an assembler
+   command to advance the location counter to a multiple of 1<<LOG
+   bytes if it is within MAX_SKIP bytes.
 
-#undef ASM_OUTPUT_ALIGN_CODE
-#define ASM_OUTPUT_ALIGN_CODE(FILE) \
-  fprintf ((FILE), "\t.align %d,0x90\n", i386_align_jumps)
+   This is used to align code labels according to Intel recommendations.  */
 
-/* Align start of loop at 4-byte boundary.  */
-
-#undef ASM_OUTPUT_LOOP_ALIGN
-#define ASM_OUTPUT_LOOP_ALIGN(FILE) \
-  fprintf ((FILE), "\t.align %d,0x90\n", i386_align_loops)
-
+#ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
+#  define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP) \
+     if ((LOG)!=0) \
+       if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
+       else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP))
+#endif
 
 /* A C statement or statements which output an assembler instruction
    opcode to the stdio stream STREAM.  The macro-operand PTR is a
@@ -126,8 +132,8 @@ Boston, MA 02111-1307, USA.  */
 
    GAS requires the %cl argument, so override i386/unix.h. */
 
-#undef AS3_SHIFT_DOUBLE
-#define AS3_SHIFT_DOUBLE(a,b,c,d) AS3 (a,b,c,d)
+#undef SHIFT_DOUBLE_OMITS_COUNT
+#define SHIFT_DOUBLE_OMITS_COUNT 0
 
 /* Print opcodes the way that GAS expects them. */
 #define GAS_MNEMONICS 1
