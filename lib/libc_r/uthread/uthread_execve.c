@@ -37,7 +37,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak execve=_execve
+__weak_reference(_execve, execve);
 
 int 
 _execve(const char *name, char *const * argv, char *const * envp)

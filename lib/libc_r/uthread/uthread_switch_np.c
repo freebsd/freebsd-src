@@ -37,8 +37,8 @@
 #include "pthread_private.h"
 
 
-#pragma weak	pthread_switch_add_np=_pthread_switch_add_np
-#pragma weak	pthread_switch_delete_np=_pthread_switch_delete_np
+__weak_reference(_pthread_switch_add_np, pthread_switch_add_np);
+__weak_reference(_pthread_switch_delete_np, pthread_switch_delete_np);
 
 int
 _pthread_switch_add_np(pthread_switch_routine_t routine)

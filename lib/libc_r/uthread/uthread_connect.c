@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	connect=_connect
+__weak_reference(_connect, connect);
 
 int
 _connect(int fd, const struct sockaddr * name, socklen_t namelen)

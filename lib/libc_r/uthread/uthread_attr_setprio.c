@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_attr_setprio=_pthread_attr_setprio
+__weak_reference(_pthread_attr_setprio, pthread_attr_setprio);
 
 int
 _pthread_attr_setprio(pthread_attr_t *attr, int priority)

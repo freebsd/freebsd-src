@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	flock=_flock
+__weak_reference(_flock, flock);
 
 int
 _flock(int fd, int operation)

@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_getprio=_pthread_getprio
+__weak_reference(_pthread_getprio, pthread_getprio);
 
 int
 _pthread_getprio(pthread_t pthread)

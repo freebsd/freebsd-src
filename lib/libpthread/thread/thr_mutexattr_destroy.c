@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_mutexattr_destroy=_pthread_mutexattr_destroy
+__weak_reference(_pthread_mutexattr_destroy, pthread_mutexattr_destroy);
 
 int
 _pthread_mutexattr_destroy(pthread_mutexattr_t *attr)

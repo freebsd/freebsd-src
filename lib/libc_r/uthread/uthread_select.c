@@ -43,7 +43,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	select=_select
+__weak_reference(_select, select);
 
 int 
 _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,

@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sendto=_sendto
+__weak_reference(_sendto, sendto);
 
 ssize_t
 _sendto(int fd, const void *msg, size_t len, int flags, const struct

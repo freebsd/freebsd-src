@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	getdirentries=_getdirentries
+__weak_reference(_getdirentries, getdirentries);
 
 int
 _getdirentries(int fd, char *buf, int nbytes, long *basep)

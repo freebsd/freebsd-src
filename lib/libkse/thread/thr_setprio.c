@@ -34,7 +34,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_setprio=_pthread_setprio
+__weak_reference(_pthread_setprio, pthread_setprio);
 
 int
 _pthread_setprio(pthread_t pthread, int prio)

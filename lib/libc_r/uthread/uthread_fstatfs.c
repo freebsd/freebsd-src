@@ -40,7 +40,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	fstatfs=_fstatfs
+__weak_reference(_fstatfs, fstatfs);
 
 int
 _fstatfs(int fd, struct statfs * buf)

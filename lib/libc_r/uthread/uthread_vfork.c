@@ -3,7 +3,7 @@
  */
 #include <unistd.h>
 
-#pragma weak	vfork=_vfork
+__weak_reference(_vfork, vfork);
 
 int
 _vfork(void)

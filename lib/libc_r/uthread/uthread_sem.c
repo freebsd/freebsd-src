@@ -42,15 +42,15 @@
 		goto RETURN;			\
 	}
 
-#pragma weak	sem_init=_sem_init
-#pragma weak	sem_destroy=_sem_destroy
-#pragma weak	sem_open=_sem_open
-#pragma weak	sem_close=_sem_close
-#pragma weak	sem_unlink=_sem_unlink
-#pragma weak	sem_wait=_sem_wait
-#pragma weak	sem_trywait=_sem_trywait
-#pragma weak	sem_post=_sem_post
-#pragma weak	sem_getvalue=_sem_getvalue
+__weak_reference(_sem_init, sem_init);
+__weak_reference(_sem_destroy, sem_destroy);
+__weak_reference(_sem_open, sem_open);
+__weak_reference(_sem_close, sem_close);
+__weak_reference(_sem_unlink, sem_unlink);
+__weak_reference(_sem_wait, sem_wait);
+__weak_reference(_sem_trywait, sem_trywait);
+__weak_reference(_sem_post, sem_post);
+__weak_reference(_sem_getvalue, sem_getvalue);
 
 
 int

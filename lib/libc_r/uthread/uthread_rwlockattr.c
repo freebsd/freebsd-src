@@ -32,10 +32,10 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_rwlockattr_destroy=_pthread_rwlockattr_destroy
-#pragma weak	pthread_rwlockattr_getpshared=_pthread_rwlockattr_getpshared
-#pragma weak	pthread_rwlockattr_init=_pthread_rwlockattr_init
-#pragma weak	pthread_rwlockattr_setpshared=_pthread_rwlockattr_setpshared
+__weak_reference(_pthread_rwlockattr_destroy, pthread_rwlockattr_destroy);
+__weak_reference(_pthread_rwlockattr_getpshared, pthread_rwlockattr_getpshared);
+__weak_reference(_pthread_rwlockattr_init, pthread_rwlockattr_init);
+__weak_reference(_pthread_rwlockattr_setpshared, pthread_rwlockattr_setpshared);
 
 int
 _pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)

@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	bind=_bind
+__weak_reference(_bind, bind);
 
 int
 _bind(int fd, const struct sockaddr * name, socklen_t namelen)

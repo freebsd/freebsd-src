@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pthread_kill=_pthread_kill
+__weak_reference(_pthread_kill, pthread_kill);
 
 int
 _pthread_kill(pthread_t pthread, int sig)

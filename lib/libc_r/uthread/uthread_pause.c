@@ -33,7 +33,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	pause=_pause
+__weak_reference(_pause, pause);
 
 int
 _pause(void)

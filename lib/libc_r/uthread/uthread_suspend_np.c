@@ -37,7 +37,7 @@
 
 static void	finish_suspension(void *arg);
 
-#pragma weak	pthread_suspend_np=_pthread_suspend_np
+__weak_reference(_pthread_suspend_np, pthread_suspend_np);
 
 /* Suspend a thread: */
 int

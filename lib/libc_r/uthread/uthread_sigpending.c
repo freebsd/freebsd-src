@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak	sigpending=_sigpending
+__weak_reference(_sigpending, sigpending);
 
 int
 _sigpending(sigset_t * set)
