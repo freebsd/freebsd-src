@@ -194,9 +194,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHm";
+    static char command_chars[] = "\f qh?en#sdkriIutHmS";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -218,8 +218,9 @@ char *argv[];
 #define CMD_selftog	15
 #define CMD_thrtog	16
 #define CMD_viewtog	17
+#define CMD_viewsys	18
 #ifdef ORDER
-#define CMD_order       18
+#define CMD_order       19
 #endif
 
     /* set the buffer for stdout */
@@ -1001,6 +1002,9 @@ restart:
 				display_header(Yes);
 				d_header = i_header;
 				reset_display();
+				break;
+			    case CMD_viewsys:
+				ps.system = !ps.system;
 				break;
 #ifdef ORDER
 			    case CMD_order:
