@@ -13,8 +13,8 @@ CLEANFILES=	ftperr.h httperr.h
 
 .if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
 CFLAGS+=	-DWITH_SSL
-DPADD=		${LIBCRYPTO} ${LIBSSL}
-LDADD=		-lcrypto -lssl
+DPADD=		${LIBSSL} ${LIBCRYPTO}
+LDADD=		-lssl -lcrypto
 .endif
 
 NO_WERROR=	yes
