@@ -141,6 +141,7 @@ static void psycho_write_config(device_t, u_int, u_int, u_int, u_int, u_int32_t,
     int);
 static int psycho_route_interrupt(device_t, device_t, int);
 static int psycho_intr_pending(device_t, int);
+static u_int32_t psycho_guess_ino(device_t, phandle_t, u_int, u_int);
 static bus_space_handle_t psycho_get_bus_handle(device_t dev, enum sbbt_id id,
     bus_space_handle_t childhdl, bus_space_tag_t *tag);
 
@@ -167,6 +168,7 @@ static device_method_t psycho_methods[] = {
 
 	/* sparcbus interface */
 	DEVMETHOD(sparcbus_intr_pending,	psycho_intr_pending),
+	DEVMETHOD(sparcbus_guess_ino,	psycho_guess_ino),
 	DEVMETHOD(sparcbus_get_bus_handle,	psycho_get_bus_handle),
 
 	{ 0, 0 }
@@ -336,7 +338,6 @@ psycho_attach(device_t dev)
 	struct upa_regs *reg;
 	struct ofw_pci_bdesc obd;
 	struct psycho_desc *desc;
-	vm_paddr_t pcictl_offs;
 	phandle_t node;
 	u_int64_t csr;
 	u_long mlen;
@@ -374,13 +375,25 @@ psycho_attach(device_t dev)
 			panic("psycho_attach: %d not enough registers", nreg);
 		sc->sc_basepaddr = (vm_paddr_t)UPA_REG_PHYS(&reg[2]);
 		mlen = UPA_REG_SIZE(&reg[2]);
-		pcictl_offs = UPA_REG_PHYS(&reg[0]);
+		sc->sc_pcictl = UPA_REG_PHYS(&reg[0]) - sc->sc_basepaddr;
+		switch (sc->sc_pcictl) {
+		case PSR_PCICTL0:
+			sc->sc_half = 0;
+			break;
+		case PSR_PCICTL1:
+			sc->sc_half = 1;
+			break;
+		default:
+			panic("psycho_attach: bogus pci control register "
+			    "location");
+		}
 	} else {
 		if (nreg <= 0)
 			panic("psycho_attach: %d not enough registers", nreg);
 		sc->sc_basepaddr = (vm_paddr_t)UPA_REG_PHYS(&reg[0]);
 		mlen = UPA_REG_SIZE(reg);
-		pcictl_offs = sc->sc_basepaddr + PSR_PCICTL0;
+		sc->sc_pcictl = PSR_PCICTL0;
+		sc->sc_half = 0;
 	}
 
 	/*
@@ -415,17 +428,14 @@ psycho_attach(device_t dev)
 		sc->sc_bustag = osc->sc_bustag;
 		sc->sc_bushandle = osc->sc_bushandle;
 	}
-	if (pcictl_offs < sc->sc_basepaddr)
-		panic("psycho_attach: bogus pci control register location");
-	sc->sc_pcictl = pcictl_offs - sc->sc_basepaddr;
 	csr = PSYCHO_READ8(sc, PSR_CS);
 	sc->sc_ign = 0x7c0; /* APB IGN is always 0x7c */
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO)
 		sc->sc_ign = PSYCHO_GCSR_IGN(csr) << 6;
 
-	device_printf(dev, "%s, impl %d, version %d, ign %#x\n",
+	device_printf(dev, "%s, impl %d, version %d, ign %#x, bus %c\n",
 	    desc->pd_name, (int)PSYCHO_GCSR_IMPL(csr),
-	    (int)PSYCHO_GCSR_VERS(csr), sc->sc_ign);
+	    (int)PSYCHO_GCSR_VERS(csr), sc->sc_ign, 'A' + sc->sc_half);
 
 	/*
 	 * Setup the PCI control register
@@ -1270,6 +1280,31 @@ psycho_intr_pending(device_t dev, int intr)
 		return (0);
 	}
 	return (diag != 0);
+}
+
+static u_int32_t
+psycho_guess_ino(device_t dev, phandle_t node, u_int slot, u_int pin)
+{
+	struct psycho_softc *sc = (struct psycho_softc *)device_get_softc(dev);
+	bus_addr_t intrmap;
+
+	/*
+	 * If this is not for one of our direct children (i.e. we are mapping
+	 * at our node), tell the interrupt mapper to go on - we need the
+	 * slot number of the device or it's topmost parent bridge to guess
+	 * the INO.
+	 */
+	if (node != sc->sc_node)
+		return (255);
+	/*
+	 * Actually guess the INO. We always assume that this is a non-OBIO
+	 * device, and use from the slot number to determine it.
+	 * We only need to do this on e450s, it seems; here, the slot numbers
+	 * for bus A are one-based, while those for bus B seemingly have an
+	 * offset of 2 (hence the factor of 3 below).
+	 */
+	intrmap = PSR_PCIA0_INT_MAP + 8 * (slot - 1 + 3 * sc->sc_half);
+	return (INTINO(PSYCHO_READ8(sc, intrmap)) + pin - 1);
 }
 
 static bus_space_handle_t

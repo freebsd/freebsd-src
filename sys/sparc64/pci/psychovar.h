@@ -61,6 +61,9 @@ struct psycho_softc {
 #define	PSYCHO_MODE_SABRE	1
 #define	PSYCHO_MODE_PSYCHO	2
 
+	/* Bus A or B of a psycho pair? */
+	int				sc_half;
+
 	struct iommu_state		*sc_is;
 	u_int32_t			sc_dvmabase;
 

@@ -32,8 +32,8 @@
 #define	ORIR_NOTFOUND	0xffffffff
 
 typedef int obr_callback_t(phandle_t, u_int8_t *, int, u_int8_t *, int,
-    u_int8_t **, int *);
+    u_int8_t **, int *, void *);
 
-u_int32_t ofw_bus_route_intr(phandle_t, int, obr_callback_t *);
+u_int32_t ofw_bus_route_intr(phandle_t, int, obr_callback_t *, void *);
 
 #endif /* !_MACHINE_OFW_BUS_H_ */

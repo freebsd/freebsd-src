@@ -112,7 +112,7 @@ static struct resource *ebus_alloc_resource(device_t, device_t, int, int *,
     u_long, u_long, u_long, u_int);
 static struct resource_list *ebus_get_resource_list(device_t, device_t);
 
-static struct ebus_devinfo *ebus_setup_dinfo(struct ebus_softc *,
+static struct ebus_devinfo *ebus_setup_dinfo(device_t, struct ebus_softc *,
     phandle_t, char *);
 static void ebus_destroy_dinfo(struct ebus_devinfo *);
 static int ebus_print_res(struct ebus_devinfo *);
@@ -200,7 +200,7 @@ ebus_probe(device_t dev)
 		if ((OF_getprop_alloc(node, "name", 1, (void **)&cname)) == -1)
 			continue;
 
-		if ((edi = ebus_setup_dinfo(sc, node, cname)) == NULL) {
+		if ((edi = ebus_setup_dinfo(dev, sc, node, cname)) == NULL) {
 			device_printf(dev, "<%s>: incomplete\n", cname);
 			free(cname, M_OFWPROP);
 			continue;
@@ -363,7 +363,8 @@ ebus_get_resource_list(device_t dev, device_t child)
 }
 
 static struct ebus_devinfo *
-ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
+ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
+    char *name)
 {
 	struct ebus_devinfo *edi;
 	struct isa_regs *reg;
@@ -398,7 +399,8 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	for (i = 0; i < nintr; i++) {
-		intr = ofw_bus_route_intr(node, intrs[i], ofw_pci_orb_callback);
+		intr = ofw_bus_route_intr(node, intrs[i], ofw_pci_orb_callback,
+		    dev);
 		if (intr == ORIR_NOTFOUND) {
 			panic("ebus_setup_dinfo: could not map ebus "
 			    "interrupt %d", intrs[i]);
