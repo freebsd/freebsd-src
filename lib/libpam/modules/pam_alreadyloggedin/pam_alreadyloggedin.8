@@ -1,0 +1,99 @@
+.\" Copyright (c) 2002 Brian Fundakowski Feldman
+.\" All rights reserved.
+.\" Copyright (c) 2002 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 6, 2002
+.Dt PAM_ALREADYLOGGEDIN 8
+.Os
+.Sh NAME
+.Nm pam_alreadyloggedin
+.Nd Already-logged-in PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_alreadyloggedin
+.Op Ar options
+.Sh DESCRIPTION
+The Already-logged-in authentication service module for PAM,
+.Nm
+provides functionality for only one PAM category:
+authentication.
+In terms of the
+.Ar module-type
+parameter, this is the
+.Dq Li auth
+feature.
+It also provides null functions for other PAM categories.
+.Ss Already-logged-in Authentication Module
+The Already-logged-in authentication component
+.Pq Fn pam_sm_authenticate ,
+returns success if and only if the target user's ID is identical to a current login specified in the
+.Xr utmp 5
+database and verified with matching permissions on that login's respective terminal in
+.Pa /dev .
+If a user shows up in
+.Xr w 8
+output, they will generally be allowed to authenticate using this method.
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -width ".Cm restrict_tty Ns = Ns Ar ttyfoo*"
+.It Cm no_root
+Never allow login with a target user ID of zero.
+.It Cm restrict_tty Ns = Ns Ar ttyglob*
+Only allow login if the terminal device currently being authenticated on matches
+.Ar ttyglob* .
+The
+.Ar ttyglob*
+argument is specified as a shell glob, and checked using the
+.Xr fnmatch 3 
+function.
+.El
+.Sh SEE ALSO
+.Xr fnmatch 3 ,
+.Xr getuid 2 ,
+.Xr stat 2 ,
+.Xr utmp 5 ,
+.Xr w 8 ,
+.Xr pam.conf 5 ,
+.Xr pam 8
+.Sh AUTHORS
+The
+.Nm
+module and this manual page were developed for the FreeBSD Project by
+NAI Labs and ThinkSec AS, the Security Research Division of Network
+Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

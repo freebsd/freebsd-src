@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 MODULES		 =
+MODULES		+= pam_alreadyloggedin
 MODULES		+= pam_deny
 MODULES		+= pam_ftp
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
