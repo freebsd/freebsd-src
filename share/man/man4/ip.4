@@ -368,9 +368,9 @@ ip->ip_off = offset;
 If the header source address is set to 
 .Dv INADDR_ANY ,
 the kernel will choose an appropriate address.
-.Sh DIAGNOSTICS
+.Sh ERRORS
 A socket operation may fail with one of the following errors returned:
-.Bl -tag -width [EADDRNOTAVAIL]
+.Bl -tag -width Er
 .It Bq Er EISCONN
 when trying to establish a connection on a socket which
 already has one, or when trying to send a datagram with the destination
