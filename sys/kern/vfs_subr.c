@@ -739,15 +739,16 @@ vcanrecycle(struct vnode *vp)
 
 	/* We should be able to immediately acquire this */
 	/* XXX This looks like it should panic if it fails */
-	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0)
+	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0) {
+		VI_UNLOCK(vp);
 		return (EWOULDBLOCK);
+	}
 	/*
 	 * Don't recycle if we still have cached pages.
 	 */
 	if (VOP_GETVOBJECT(vp, &object) == 0 &&
 	     (object->resident_page_count ||
 	      object->ref_count)) {
-		VOP_UNLOCK(vp, 0, td);
 		error = EBUSY;
 		goto done;
 	}
