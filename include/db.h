@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)db.h	8.4 (Berkeley) 2/21/94
+ *	@(#)db.h	8.7 (Berkeley) 6/16/94
  */
 
 #ifndef _DB_H_
@@ -41,9 +41,27 @@
 
 #include <limits.h>
 
+#ifdef __DBINTERFACE_PRIVATE
+#include <compat.h>
+#endif
+
 #define	RET_ERROR	-1		/* Return values. */
 #define	RET_SUCCESS	 0
 #define	RET_SPECIAL	 1
+
+#ifndef	__BIT_TYPES_DEFINED__
+#define	__BIT_TYPES_DEFINED__
+typedef	__signed char		   int8_t;
+typedef	unsigned char		 u_int8_t;
+typedef	short			  int16_t;
+typedef	unsigned short		u_int16_t;
+typedef	int			  int32_t;
+typedef	unsigned int		u_int32_t;
+#ifdef WE_DONT_NEED_QUADS
+typedef	long long		  int64_t;
+typedef	unsigned long long	u_int64_t;
+#endif
+#endif
 
 #define	MAX_PAGE_NUMBER	0xffffffff	/* >= # of pages in a file */
 typedef u_int32_t	pgno_t;
