@@ -246,6 +246,10 @@ cis_strcmp(char *db, char *cis)
 		db++;
 	} else {
 		/* otherwise, matching by strncmp() */
+		if (n != strlen(cis)) {
+			return -1;
+		}
+
 		return strncmp(db, cis, n);
 	}
 	p = xmalloc(n);
