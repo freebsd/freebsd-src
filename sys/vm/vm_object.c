@@ -194,7 +194,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	int incr;
 
 	TAILQ_INIT(&object->memq);
-	TAILQ_INIT(&object->shadow_head);
+	LIST_INIT(&object->shadow_head);
 
 	object->root = NULL;
 	object->type = type;
@@ -475,7 +475,7 @@ vm_object_deallocate(vm_object_t object)
 			     object->type == OBJT_SWAP)) {
 				vm_object_t robject;
 
-				robject = TAILQ_FIRST(&object->shadow_head);
+				robject = LIST_FIRST(&object->shadow_head);
 				KASSERT(robject != NULL,
 				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
@@ -513,7 +513,7 @@ doterm:
 		temp = object->backing_object;
 		if (temp != NULL) {
 			VM_OBJECT_LOCK(temp);
-			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
+			LIST_REMOVE(object, shadow_list);
 			temp->shadow_count--;
 			temp->generation++;
 			VM_OBJECT_UNLOCK(temp);
@@ -1123,7 +1123,7 @@ vm_object_shadow(
 	result->backing_object = source;
 	if (source != NULL) {
 		VM_OBJECT_LOCK(source);
-		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
+		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 		source->generation++;
 		if (length < source->size)
@@ -1193,7 +1193,7 @@ vm_object_split(vm_map_entry_t entry)
 	if (source != NULL) {
 		vm_object_reference(source);	/* Referenced by new_object */
 		VM_OBJECT_LOCK(source);
-		TAILQ_INSERT_TAIL(&source->shadow_head,
+		LIST_INSERT_HEAD(&source->shadow_head,
 				  new_object, shadow_list);
 		source->shadow_count++;
 		source->generation++;
@@ -1568,20 +1568,12 @@ vm_object_collapse(vm_object_t object)
 			 * backing_object->backing_object moves from within 
 			 * backing_object to within object.
 			 */
-			TAILQ_REMOVE(
-			    &backing_object->shadow_head, 
-			    object,
-			    shadow_list
-			);
+			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
 			backing_object->generation++;
 			if (backing_object->backing_object) {
 				VM_OBJECT_LOCK(backing_object->backing_object);
-				TAILQ_REMOVE(
-				    &backing_object->backing_object->shadow_head,
-				    backing_object, 
-				    shadow_list
-				);
+				LIST_REMOVE(backing_object, shadow_list);
 				backing_object->backing_object->shadow_count--;
 				backing_object->backing_object->generation++;
 				VM_OBJECT_UNLOCK(backing_object->backing_object);
@@ -1589,7 +1581,7 @@ vm_object_collapse(vm_object_t object)
 			object->backing_object = backing_object->backing_object;
 			if (object->backing_object) {
 				VM_OBJECT_LOCK(object->backing_object);
-				TAILQ_INSERT_TAIL(
+				LIST_INSERT_HEAD(
 				    &object->backing_object->shadow_head,
 				    object, 
 				    shadow_list
@@ -1641,11 +1633,7 @@ vm_object_collapse(vm_object_t object)
 			 * it, since its reference count is at least 2.
 			 */
 			VM_OBJECT_LOCK(backing_object);
-			TAILQ_REMOVE(
-			    &backing_object->shadow_head,
-			    object,
-			    shadow_list
-			);
+			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
 			backing_object->generation++;
 			VM_OBJECT_UNLOCK(backing_object);
@@ -1654,7 +1642,7 @@ vm_object_collapse(vm_object_t object)
 			if ((object->backing_object = new_backing_object) != NULL) {
 				vm_object_reference(new_backing_object);
 				VM_OBJECT_LOCK(new_backing_object);
-				TAILQ_INSERT_TAIL(
+				LIST_INSERT_HEAD(
 				    &new_backing_object->shadow_head,
 				    object,
 				    shadow_list
