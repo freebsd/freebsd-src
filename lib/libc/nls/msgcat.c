@@ -320,6 +320,7 @@ catclose(catd)
 static char     *_errowner = "Message Catalog System";
 
 #define CORRUPT() {                                            \
+	(void)fclose(cat->fp);                                 \
 	(void)fprintf(stderr, "%s: corrupt file.", _errowner); \
 	free(cat);                                             \
 	NLRETERR(EFTYPE);                                      \
@@ -327,6 +328,7 @@ static char     *_errowner = "Message Catalog System";
 
 #define NOSPACE() {                                              \
 	saverr = errno;                                          \
+	(void)fclose(cat->fp);                                   \
 	(void)fprintf(stderr, "%s: no more memory.", _errowner); \
 	free(cat);                                               \
 	errno = saverr;                                          \
@@ -379,12 +381,14 @@ loadCat(catpath)
 		CORRUPT();
 
 	if (header.majorVer != MCMajorVer) {
+		(void)fclose(cat->fp);
 		free(cat);
 		(void)fprintf(stderr, "%s: %s is version %ld, we need %ld.\n",
 		    _errowner, catpath, header.majorVer, MCMajorVer);
 		NLRETERR(EFTYPE);
 	}
 	if (header.numSets <= 0) {
+		(void)fclose(cat->fp);
 		free(cat);
 		(void)fprintf(stderr, "%s: %s has %ld sets!\n",
 		    _errowner, catpath, header.numSets);
@@ -421,7 +425,9 @@ loadCat(catpath)
 			int     res;
 
 			if ((res = loadSet(cat, set)) <= 0) {
+				saverr = errno;
 				__nls_free_resources(cat, i);
+				errno = saverr;
 				if (res < 0)
 					NOSPACE();
 				CORRUPT();
