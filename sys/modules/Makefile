@@ -9,7 +9,7 @@ _randomdev=	randomdev
 SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
 	cam ccd cd9660 coda cue dc fdesc fxp if_disc if_ef \
 	if_ppp if_sl if_tap if_tun ipfilter ipfw ispfw joy kernfs kue \
-	md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
+	md mfs mii mlx mly msdos ncp netgraph nfs ntfs nullfs \
 	nwfs oldcard pcic portal procfs ${_randomdev} \
 	rl rp sf sis sk sn sound ste syscons ti tl twe tx \
 	udbp ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
