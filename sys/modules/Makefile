@@ -25,7 +25,6 @@ SUBDIR=	3dfx \
 	ed \
 	fdescfs \
 	fdc \
-	firewire \
 	fxp \
 	gx \
 	if_disc \
@@ -146,6 +145,7 @@ SUBDIR+=aac \
 	el \
 	em \
 	fe \
+	firewire \
 	fpu \
 	gnufpu \
 	hea \
@@ -201,6 +201,7 @@ SUBDIR+=aic \
 
 .if ${MACHINE} == "pc98"
 SUBDIR+=pmc \
+	firewire \
 	snc
 .endif
 
