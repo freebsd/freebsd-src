@@ -65,7 +65,7 @@
 	     <para>Cyrex 5530</para>
 	   </listitem>
 	   <listitem>
-	     <para>HighPoint HPT366, HPT370</para>
+	     <para>HighPoint HPT366 ATA66, HPT370 ATA100, HPT372 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>Intel PIIX, PIIX3, PIIX4</para>
@@ -77,7 +77,7 @@
 		<para>Promise ATA100 OEM chip (pdc20265)</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Fasttrak-33, -66, -100</para>
+		<para>Promise Fasttrak-33, -66, -100 TX2/TX4</para>
 	   </listitem>
 	   <listitem>
 		<para>Promise Ultra-33, -66, -100</para>
@@ -86,10 +86,16 @@
 		<para>ServerWorks ROSB4 ATA33</para>
 	   </listitem>
 	   <listitem>
+	        <para>SiS 530, 540, 620</para>
+	   </listitem>
+	   <listitem>
+	        <para>SiS 630, 633, 635, 730, 733, 735</para>
+	   </listitem>
+	   <listitem>
 		<para>SiS 5591</para>
 	   </listitem>
 	   <listitem>
-		<para>VIA 82C586 ATA33, 82C686a ATA66, 82C686b ATA100</para>
+		<para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
 	   </listitem>
       </itemizedlist>
     </para>
