@@ -131,7 +131,7 @@ print_isa(struct devconf *dc)
 
 	if(id->id_msize) {
 		if(id->id_msize < 0) {
-			printf(" iosiz ?", id->id_msize);
+			printf(" iosiz ?");
 		} else {
 			printf(" iosiz %d", id->id_msize);
 		}
@@ -143,15 +143,26 @@ print_isa(struct devconf *dc)
 }
 
 static void
+print_eisa_resvaddrs(struct resvlist *list)
+{
+	resvaddr_t *rp;
+
+	for (rp = list->lh_first; rp; rp = rp->links.le_next)
+		printf(" %#lx-%#lx%s", rp->addr, rp->addr + rp->size - 1,
+			rp->links.le_next ? "," : "");
+}
+
+static void
 print_eisa(struct devconf *dc)
 {
 	struct eisa_device *e_dev = (struct eisa_device *)dc->dc_data;
-	printf("%s%ld\tat eisa0 slot %d # %#x-%#x",
-		dc->dc_name,              
-		dc->dc_unit,              
-		e_dev->ioconf.slot,
-		e_dev->ioconf.iobase,
-		e_dev->ioconf.iobase + e_dev->ioconf.iosize - 1);
+
+	printf("%s%d\tat eisa0 slot %d #",
+		dc->dc_name,
+		dc->dc_unit,
+		e_dev->ioconf.slot);
+	print_eisa_resvaddrs(&e_dev->ioconf.ioaddrs);
+	print_eisa_resvaddrs(&e_dev->ioconf.maddrs);
 	if(e_dev->ioconf.irq)
 		printf(" irq %d", ffs(e_dev->ioconf.irq) - 1);
 }
@@ -169,8 +180,8 @@ print_pci(struct devconf *dc)
 
 	struct pci_externalize_buffer *pd =
 		(struct pci_externalize_buffer *)dc->dc_data;
-
-	u_long	data, pin, line;
+	u_long	data;
+	int	pin, line;
 
 	printf("%s%d\tat pci%d:%d",
 		dc->dc_name, dc->dc_unit,
