@@ -1,6 +1,6 @@
 #ifndef lint
 static char *rcsid =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.9 1996/08/21 04:31:28 peter Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.10 1996/08/21 05:59:19 peter Exp $ (LBL)";
 #endif
 
 /*
@@ -427,7 +427,7 @@ main(int argc, char **argv)
 	to->sin_family = AF_INET;
 	to->sin_addr.s_addr = inet_addr(av[0]);
 	if (to->sin_addr.s_addr != -1) {
-		(void) strcpy(hnamebuf, av[0]);
+		(void) strncpy(hnamebuf, av[0], sizeof(hnamebuf));
 		hostname = hnamebuf;
 	} else {
 		hp = gethostbyname(av[0]);
@@ -867,9 +867,9 @@ inetname(struct in_addr in)
 
 	if (first && !nflag) {
 		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+		if (gethostname(domain, sizeof(domain)) == 0 &&
 		    (cp = strchr(domain, '.')))
-			(void) strcpy(domain, cp + 1);
+			(void) strncpy(domain, cp + 1, sizeof(domain));
 		else
 			domain[0] = 0;
 	}
@@ -884,7 +884,7 @@ inetname(struct in_addr in)
 		}
 	}
 	if (cp)
-		(void) strcpy(line, cp);
+		(void) strncpy(line, cp, sizeof(line));
 	else {
 		in.s_addr = ntohl(in.s_addr);
 #define C(x)	((x) & 0xff)
