@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.25 1997/06/18 06:30:34 charnier Exp $";
+	"$Id: route.c,v 1.26 1997/07/18 09:05:12 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -338,9 +338,10 @@ routename(sa)
 				cp = hp->h_name;
 			}
 		}
-		if (cp)
-			strncpy(line, cp, sizeof line);
-		else {
+		if (cp) {
+			strncpy(line, cp, sizeof(line) - 1);
+			line[sizeof(line) - 1] = '\0';
+		} else {
 			/* XXX - why not inet_ntoa()? */
 #define C(x)	(unsigned)((x) & 0xff)
 			in.s_addr = ntohl(in.s_addr);
@@ -656,7 +657,7 @@ newroute(argc, argv)
 		if (af == AF_INET && *gateway && hp && hp->h_addr_list[1]) {
 			hp->h_addr_list++;
 			bcopy(hp->h_addr_list[0], &so_gate.sin.sin_addr,
-			    hp->h_length);
+			    MIN(hp->h_length, sizeof(so_gate.sin.sin_addr)));
 		} else
 			break;
 	}
@@ -918,7 +919,8 @@ netdone:
 	if (hp) {
 		*hpp = hp;
 		su->sin.sin_family = hp->h_addrtype;
-		bcopy(hp->h_addr, (char *)&su->sin.sin_addr, hp->h_length);
+		bcopy(hp->h_addr, (char *)&su->sin.sin_addr, 
+				MIN(hp->h_length, sizeof(su->sin.sin_addr)));
 		return (1);
 	}
 	errx(EX_NOHOST, "bad address: %s", s);
