@@ -300,7 +300,7 @@ while 1 {
     if {$CTMmail != ""} {
 	puts "Mailing delta"
 	flush stdout
-	exec $CTMSW/ctm_smail -m 50000 -c 300000 $CTMdest/${nm}.gz $CTMmail >&@ stdout
+	exec $CTMSW/ctm_smail -m 50000 -c 3000000 $CTMdest/${nm}.gz $CTMmail >&@ stdout
     }
 
     # If we did an absolute delta: stop.
