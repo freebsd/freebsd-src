@@ -19,7 +19,7 @@ fulldirs="common compiler"
 stripdirs="generate acpisrc"
 stripfiles="16bit.h Makefile README a16find.c a16utils.asm	\
 	a16utils.obj adisasm.h acdos16.h acintel.h aclinux.h	\
-	acmsvc.h acwin.h acwin64.h readme.txt"
+	acmsvc.h acnetbsd.h acwin.h acwin64.h readme.txt"
 	
 # files to update paths in
 src_update_files="acpi.h acpiosxf.h"
