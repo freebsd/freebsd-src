@@ -350,7 +350,7 @@ ptctor(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_OTHER);
 
 	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
@@ -457,7 +457,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
  
 		cgd = (struct ccb_getdev *)arg;
 
-		if (cgd->pd_type != T_PROCESSOR)
+		if (SID_TYPE(&cgd->inq_data) != T_PROCESSOR)
 			break;
 
 		/*
