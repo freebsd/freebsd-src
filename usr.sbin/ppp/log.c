@@ -131,7 +131,32 @@ LogPrintf(int lev, char *fmt,...)
 void
 LogDumpBp(int lev, char *hdr, struct mbuf * bp)
 {
-  LogDumpBuff(lev, hdr, MBUF_CTOP(bp), bp->cnt);
+  if (LogIsKept(lev)) {
+    char buf[49];
+    char *b;
+    u_char *ptr;
+    int f;
+
+    if (hdr && *hdr)
+      LogPrintf(lev, "%s\n", hdr);
+
+    b = buf;
+    do {
+      f = bp->cnt;
+      ptr = MBUF_CTOP(bp);
+      while (f--) {
+	sprintf(b, " %02x", (int) *ptr++);
+        b += 3;
+        if (b == buf + sizeof buf - 1) {
+          LogPrintf(lev, buf);
+          b = buf;
+        }
+      }
+    } while ((bp = bp->next) != NULL);
+
+    if (b > buf)
+      LogPrintf(lev, buf);
+  }
 }
 
 void
@@ -143,7 +168,7 @@ LogDumpBuff(int lev, char *hdr, u_char * ptr, int n)
     int f;
 
     if (hdr && *hdr)
-      LogPrintf(lev, "%s", hdr);
+      LogPrintf(lev, "%s\n", hdr);
     while (n > 0) {
       b = buf;
       for (f = 0; f < 16 && n--; f++, b += 3)
