@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
+
+extern struct uart_ops uart_sa1110_ops;
+
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
