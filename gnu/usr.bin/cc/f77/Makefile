@@ -1,6 +1,4 @@
-#
-# $Id: Makefile,v 1.6 1999/04/18 09:39:37 obrien Exp $
-#
+#	$Id: Makefile,v 1.7 1999/04/18 09:42:56 obrien Exp $
 
 .include "../Makefile.inc"
 

@@ -1,13 +1,11 @@
-#
-# $Id: Makefile,v 1.10 1999/04/04 16:36:31 obrien Exp $
-#
+#	$Id: Makefile,v 1.11 1999/04/18 09:39:38 obrien Exp $
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}/cp ${GCCDIR}
 
-PROG =	c++
-SRCS =	gcc.c g++spec.c
+PROG=	c++
+SRCS=	gcc.c g++spec.c
 LINKS=	${BINDIR}/c++ ${BINDIR}/g++
 LINKS+=	${BINDIR}/c++ ${BINDIR}/CC
 NOMAN=	1

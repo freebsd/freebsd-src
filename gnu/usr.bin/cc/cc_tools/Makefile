@@ -1,6 +1,4 @@
-#
-# $Id: Makefile,v 1.34 1999/07/28 07:22:06 obrien Exp $
-#
+#	$Id: Makefile,v 1.35 1999/08/14 22:40:01 obrien Exp $
 
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk
@@ -12,7 +10,7 @@
 # ../Makefile.inc will put an absolute path to our objdir in CFLAGS.
 # Prevent mkdep from using it, so that we don't have to give rules for
 # aliases of generated headers.
-#
+
 CFLAGS+=	-I.
 
 .include "../Makefile.inc"
@@ -78,14 +76,14 @@ GENSRCS+=	genrtl.c genrtl.h
 # C hash codes
 c-gperf.h: c-parse.gperf
 	gperf -p -j1 -i 1 -g -o -t -G -N is_reserved_word -k1,3,$$ \
-		${GCCDIR}/c-parse.gperf > ${.TARGET}
+	    ${GCCDIR}/c-parse.gperf > ${.TARGET}
 GENSRCS+=	c-gperf.h
 
 #-----------------------------------------------------------------------
 # C++ hash codes
 hash.h: gxx.gperf
 	gperf -p -j1 -g -o -t -N is_reserved_word '-k1,4,7,$$' \
-		${GCCDIR}/cp/gxx.gperf >hash.h
+	    ${GCCDIR}/cp/gxx.gperf >hash.h
 GENSRCS+=	hash.h
 
 #-----------------------------------------------------------------------
@@ -155,6 +153,10 @@ tconfig.h:
 
 tm.h:
 	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"' > ${.TARGET}
+.if ${GCC_ARCH} == "i386"
+	echo '#include "${GCC_ARCH}/att.h"' >> ${.TARGET}
+.endif
+	echo '#include "svr4.h"' >> ${.TARGET}
 	echo '#include "${GCC_ARCH}/freebsd.h"' >> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/perform.h"' >> ${.TARGET}
