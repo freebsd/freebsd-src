@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.31 1999/01/26 02:49:51 julian Exp $
+ *	$Id: machdep.c,v 1.32 1999/02/22 15:13:33 bde Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -199,6 +199,27 @@ int	unknownmem;		/* amount of memory with an unknown use */
 int	ncpus;			/* number of cpus */
 
 vm_offset_t phys_avail[10];
+
+static int
+sysctl_hw_physmem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0, alpha_ptob(physmem), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "I", "");
+
+static int
+sysctl_hw_usermem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0,
+		alpha_ptob(physmem - cnt.v_wire_count), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "I", "");
 
 SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
@@ -1227,7 +1248,7 @@ remrq(p)
 			REMRQ(rtqs, whichrtqs, pri, p);
 		} else {
 			/* idle priority */
-			REMRQ(rtqs, whichrtqs, pri, p);
+			REMRQ(idqs, whichidqs, pri, p);
 		}
 	}
 }
