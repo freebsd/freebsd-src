@@ -48,8 +48,10 @@ enum {
 	NGM_ATM_GET_STATS,		/* get global statistics */
 
 	/* messages from the node */
-	NGM_ATM_CARRIER_CHANGE = 1000,	/* carrier changed */
+	NGM_ATM_CARRIER_CHANGE = 1000,	/* UNUSED: carrier changed */
 	NGM_ATM_VCC_CHANGE,		/* permanent VCC changed */
+	NGM_ATM_ACR_CHANGE,		/* ABR ACR has changed */
+	NGM_ATM_IF_CHANGE,		/* interface state change */
 };
 
 /*
@@ -198,14 +200,16 @@ struct ngm_atm_stats {
 	  { NULL }						\
 	}
 
-struct ngm_atm_carrier_change {
+struct ngm_atm_if_change {
 	uint32_t	node;
-	uint32_t	state;
+	uint8_t		carrier;
+	uint8_t		running;
 };
-#define NGM_ATM_CARRIER_CHANGE_INFO 				\
+#define NGM_ATM_IF_CHANGE_INFO 					\
 	{							\
 	  { "node",	&ng_parse_hint32_type },		\
-	  { "state",	&ng_parse_uint32_type },		\
+	  { "carrier",	&ng_parse_uint8_type },			\
+	  { "running",	&ng_parse_uint8_type },			\
 	  { NULL }						\
 	}
 
@@ -221,6 +225,21 @@ struct ngm_atm_vcc_change {
 	  { "vci",	&ng_parse_uint16_type },		\
 	  { "vpi",	&ng_parse_uint8_type },			\
 	  { "state",	&ng_parse_uint8_type },			\
+	  { NULL }						\
+	}
+
+struct ngm_atm_acr_change {
+	uint32_t	node;
+	uint16_t	vci;
+	uint8_t		vpi;
+	uint32_t	acr;
+};
+#define NGM_ATM_ACR_CHANGE_INFO					\
+	{							\
+	  { "node",	&ng_parse_hint32_type },		\
+	  { "vci",	&ng_parse_uint16_type },		\
+	  { "vpi",	&ng_parse_uint8_type },			\
+	  { "acr",	&ng_parse_uint32_type },		\
 	  { NULL }						\
 	}
 
