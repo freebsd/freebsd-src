@@ -212,7 +212,6 @@ main(argc, argv)
 #ifdef KERBEROS
 		case 'x':
 			doencrypt = 1;
-			des_set_key(cred.session, schedule);
 			break;
 #endif
 #endif
@@ -295,10 +294,11 @@ try_connect:
 			dest_realm = krb_realmofhost(host);
 
 #ifdef CRYPT
-		if (doencrypt)
+		if (doencrypt) {
 			rem = krcmd_mutual(&host, sp->s_port, user, term, 0,
 			    dest_realm, &cred, schedule);
-		else
+			des_set_key(cred.session, schedule);
+		} else
 #endif /* CRYPT */
 			rem = krcmd(&host, sp->s_port, user, term, 0,
 			    dest_realm);
