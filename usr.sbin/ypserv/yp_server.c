@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.9 1996/04/28 04:38:52 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.10 1996/05/31 16:01:51 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -295,9 +295,11 @@ static void ypxfr_callback(rval,addr,transid,prognum,port)
 	timeout.tv_usec = 0;
 	addr->sin_port = htons(port);
 
-	if ((clnt = clntudp_create(addr, prognum, 1, timeout, &sock)) == NULL)
-		yp_error("%s", clnt_spcreateerror("failed to establish \
-callback handle"));
+	if ((clnt = clntudp_create(addr,prognum,1,timeout,&sock)) == NULL) {
+		yp_error("%s: %s", inet_ntoa(addr->sin_addr),
+		    clnt_spcreateerror("failed to establish callback handle"));
+		return;
+	}
 
 	ypxfr_resp.status = rval;
 	ypxfr_resp.transid = transid;
