@@ -57,8 +57,6 @@ procfs_doregs(curp, p, pfs, uio)
 {
 	int error;
 	struct reg r;
-	char *kv;
-	int kl;
 
 	/* Can't trace a process that's currently exec'ing. */ 
 	if ((p->p_flag & P_INEXEC) != 0)
@@ -70,7 +68,7 @@ procfs_doregs(curp, p, pfs, uio)
 
 	error = procfs_read_regs(p, &r);
 	if (error == 0)
-		error = uiomove(&r, sizeof(r), uio);
+		error = uiomove_frombuf(&r, sizeof(r), uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
