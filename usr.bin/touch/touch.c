@@ -31,6 +31,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1993\n\
