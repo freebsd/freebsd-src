@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 # Make command line options:
-#	-DMAKE_KERBEROS5 to build Kerberos5
+#	-DNO_KERBEROS Do not build Heimdal (Kerberos 5)
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
 #	-DNOCRYPT will prevent building of crypt versions
@@ -61,7 +61,7 @@ SUBDIR+= games
 SUBDIR+= gnu
 .endif
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && !defined(NO_OPENSSL) && defined(MAKE_KERBEROS5)
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
 SUBDIR+= kerberos5
 .endif
 .if exists(${.CURDIR}/libexec)
@@ -697,7 +697,7 @@ _fortran= gnu/usr.bin/cc/f771
 .endif
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+    !defined(NOCRYPT) && !defined(NO_KERBEROS)
 _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
     kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
@@ -784,7 +784,7 @@ _prebuild_libs=
 
 _generic_libs=	gnu/lib
 
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+.if !defined(NOCRYPT) && !defined(NO_KERBEROS)
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libgssapi
 _prebuild_libs+=	kerberos5/lib/libkrb5
