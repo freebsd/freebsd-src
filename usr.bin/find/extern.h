@@ -56,7 +56,9 @@ PLAN	*c_depth __P((void));
 PLAN	*c_exec __P((char ***, int));
 PLAN	*c_execdir __P((char ***));
 PLAN	*c_follow __P((void));
+#if !defined(__NetBSD__)
 PLAN	*c_fstype __P((char *));
+#endif
 PLAN	*c_group __P((char *));
 PLAN	*c_inum __P((char *));
 PLAN	*c_links __P((char *));
