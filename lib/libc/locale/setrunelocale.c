@@ -64,11 +64,13 @@ extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
 extern int __emulated_sputrune(rune_t, char *, size_t, char **);
 extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int	_none_mbsinit(const mbstate_t *);
 extern size_t	_none_wcrtomb(char * __restrict, wchar_t,
     mbstate_t * __restrict);
 
@@ -108,6 +110,7 @@ __setrunelocale(const char *encoding)
 	    const char * __restrict, size_t, mbstate_t * __restrict);
 	static size_t (*Cached__wcrtomb)(char * __restrict, wchar_t,
 	    mbstate_t * __restrict);
+	static int (*Cached__mbsinit)(const mbstate_t *);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
@@ -117,6 +120,7 @@ __setrunelocale(const char *encoding)
 		__mb_cur_max = 1;
 		__mbrtowc = _none_mbrtowc;
 		__wcrtomb = _none_wcrtomb;
+		__mbsinit = _none_mbsinit;
 		return (0);
 	}
 
@@ -129,6 +133,7 @@ __setrunelocale(const char *encoding)
 		__mb_cur_max = Cached__mb_cur_max;
 		__mbrtowc = Cached__mbrtowc;
 		__wcrtomb = Cached__wcrtomb;
+		__mbsinit = Cached__mbsinit;
 		return (0);
 	}
 
@@ -154,6 +159,7 @@ __setrunelocale(const char *encoding)
 
 	__mbrtowc = NULL;
 	__wcrtomb = NULL;
+	__mbsinit = NULL;
 	rl->sputrune = __emulated_sputrune;
 	rl->sgetrune = __emulated_sgetrune;
 	if (strcmp(rl->encoding, "NONE") == 0)
@@ -186,6 +192,7 @@ __setrunelocale(const char *encoding)
 		CachedRuneLocale = _CurrentRuneLocale;
 		Cached__mb_cur_max = __mb_cur_max;
 		Cached__mbrtowc = __mbrtowc;
+		Cached__mbsinit = __mbsinit;
 		Cached__wcrtomb = __wcrtomb;
 		(void)strcpy(ctype_encoding, encoding);
 	} else

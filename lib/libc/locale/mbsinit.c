@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
 
+extern int (*__mbsinit)(const mbstate_t *);
+
 int
-mbsinit(const mbstate_t *ps __unused)
+mbsinit(const mbstate_t *ps)
 {
 
-	/*
-	 * Stateful multibyte conversion is not supported; there are no
-	 * states other than the initial state.
-	 */
-
-	return (1);
+	return (__mbsinit(ps));
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+ * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -38,22 +38,29 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)big5.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <runetype.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int	_BIG5_init(_RuneLocale *);
 size_t	_BIG5_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
+int	_BIG5_mbsinit(const mbstate_t *);
 size_t	_BIG5_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+typedef struct {
+	int	count;
+	u_char	bytes[2];
+} _BIG5State;
 
 int
 _BIG5_init(_RuneLocale *rl)
@@ -61,9 +68,17 @@ _BIG5_init(_RuneLocale *rl)
 
 	__mbrtowc = _BIG5_mbrtowc;
 	__wcrtomb = _BIG5_wcrtomb;
+	__mbsinit = _BIG5_mbsinit;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 2;
 	return (0);
+}
+
+int
+_BIG5_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_BIG5State *)ps)->count == 0);
 }
 
 static __inline int
@@ -76,14 +91,28 @@ _big5_check(u_int c)
 
 size_t
 _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
+	_BIG5State *bs;
 	wchar_t wc;
-	int i, len;
+	int i, len, ocount;
+	size_t ncopy;
 
-	if (s == NULL)
-		/* Reset to initial shift state (no-op) */
-		return (0);
+	bs = (_BIG5State *)ps;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(bs->bytes) - bs->count);
+	memcpy(bs->bytes + bs->count, s, ncopy);
+	ocount = bs->count;
+	bs->count += ncopy;
+	s = (char *)bs->bytes;
+	n = bs->count;
+
 	if (n == 0 || (size_t)(len = _big5_check(*s)) > n)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
@@ -93,7 +122,8 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		wc = (wc << 8) | (unsigned char)*s++;
 	if (pwc != NULL)
 		*pwc = wc;
-	return (wc == L'\0' ? 0 : len);
+	bs->count = 0;
+	return (wc == L'\0' ? 0 : len - ocount);
 }
 
 size_t
