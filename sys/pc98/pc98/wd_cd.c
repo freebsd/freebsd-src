@@ -378,7 +378,6 @@ acdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
         cdp->flags |= F_BOPEN;
     else
         ++cdp->refcnt;
-    dev->si_bsize_phys = cdp->block_size;
     if (!(flags & O_NONBLOCK) && acd_read_toc(cdp) && !(flags & FWRITE))
         printf("acd%d: read_toc failed\n", cdp->unit);
     return 0;
@@ -442,15 +441,13 @@ acdstrategy(struct bio *bp)
 static void 
 acd_start(struct acd *cdp)
 {
-    struct bio *bp = bioq_first(&cdp->bio_queue);
+    struct bio *bp = bioq_takefirst(&cdp->bio_queue);
     u_long lba, blocks;
     int cmd;
     int count;
 
     if (!bp)
         return;
-
-    bioq_remove(&cdp->bio_queue, bp);
 
     /* Should reject all queued entries if media have changed. */
     if (cdp->flags & F_MEDIA_CHANGED) {
