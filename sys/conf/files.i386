@@ -107,6 +107,8 @@ dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
+dev/puc/puc.c			optional	puc
+dev/puc/pucdata.c		optional	puc
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc

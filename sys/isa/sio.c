@@ -41,6 +41,7 @@
 #include "opt_sio.h"
 #include "card.h"
 #include "pci.h"
+#include "puc.h"
 #include "sio.h"
 
 /*
@@ -79,6 +80,9 @@
 #if NPCI > 0
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#endif
+#if NPUC > 0
+#include <dev/puc/pucvar.h>
 #endif
 #include <machine/lock.h>
 
@@ -329,6 +333,11 @@ static	void	sio_pci_kludge_unit __P((device_t dev));
 static	int	sio_pci_probe __P((device_t dev));
 #endif /* NPCI > 0 */
 
+#if NPUC > 0
+static	int	sio_puc_attach __P((device_t dev));
+static	int	sio_puc_probe __P((device_t dev));
+#endif /* NPUC > 0 */
+
 static char driver_name[] = "sio";
 
 /* table and macro for fast conversion from a unit number to its com struct */
@@ -382,6 +391,22 @@ static driver_t sio_pci_driver = {
 	sizeof(struct com_s),
 };
 #endif /* NPCI > 0 */
+
+#if NPUC > 0
+static device_method_t sio_puc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		sio_puc_probe),
+	DEVMETHOD(device_attach,	sio_puc_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t sio_puc_driver = {
+	driver_name,
+	sio_puc_methods,
+	sizeof(struct com_s),
+};
+#endif /* NPUC > 0 */
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -636,6 +661,32 @@ sio_pci_probe(dev)
 	return (sioprobe(dev, id->rid, 0UL));
 }
 #endif /* NPCI > 0 */
+
+#if NPUC > 0
+static int
+sio_puc_attach(dev)
+	device_t	dev;
+{
+	u_int rclk;
+
+	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
+	    &rclk) != 0)
+		rclk = DEFAULT_RCLK;
+	return (sioattach(dev, 0, rclk));
+}
+
+static int
+sio_puc_probe(dev)
+	device_t	dev;
+{
+	u_int rclk;
+
+	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
+	    &rclk) != 0)
+		rclk = DEFAULT_RCLK;
+	return (sioprobe(dev, 0, rclk));
+}
+#endif /* NPUC */
 
 static struct isa_pnp_id sio_ids[] = {
 	{0x0005d041, "Standard PC COM port"},	/* PNP0500 */
@@ -3362,4 +3413,7 @@ DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
 #endif
 #if NPCI > 0
 DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);
+#endif
+#if NPUC > 0
+DRIVER_MODULE(sio, puc, sio_puc_driver, sio_devclass, 0, 0);
 #endif
