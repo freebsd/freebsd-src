@@ -120,7 +120,7 @@ void	 usage(void);
 char	 slash[] = "/";
 char	 bshell[] = _PATH_BSHELL;
 
-#define	OPTIONS	"alnDL"
+#define	OPTIONS	"aDLln"
 
 int
 main(int argc, char *argv[])
