@@ -548,9 +548,10 @@ ofstat(p, uap)
 		panic("ofstat");
 		/*NOTREACHED*/
 	}
-	cvtstat(&ub, &oub);
-	if (error == 0)
+	if (error == 0) {
+		cvtstat(&ub, &oub);
 		error = copyout((caddr_t)&oub, (caddr_t)uap->sb, sizeof (oub));
+	}
 	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
