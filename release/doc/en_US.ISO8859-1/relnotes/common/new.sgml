@@ -239,7 +239,7 @@
 
       <warning>
 	<para>This driver should be considered experimental and
-	  and should be used with some caution.</para>
+	  should be used with some caution.</para>
       </warning>
 
       <note>
@@ -503,6 +503,23 @@
         start values for following connections from or to the same
         source or destination.  Similar information that used to be
         stored in the routing table has been removed.</para>
+
+    <para>The TCP implementation in &os; now includes
+      protection against a certain class of TCP MSS resource
+      exhaustion attacks, in the form of limits on the size and rate
+      of TCP segments.  The first limit sets the minimum allowed
+      maximum TCP segment size, and is controlled by the
+      <varname>net.inet.tcp.minmss</varname> sysctl variable (the
+      default value is <literal>216</literal> bytes).  The second
+      limit is set by the
+      <varname>net.inet.tcp.minmssoverload</varname> variable, and
+      controls the maximum rate of connections whose average segment
+      size is less than <varname>net.inet.tcp.minmss</varname>.
+      Connections exceeding this packet rate are reset and dropped.
+      Because this feature was added late in the &release.base;
+      release cycle, connection rate limiting is disabled by default,
+      but can be enabled manually by assigning a non-zero value to
+      <varname>net.inet.tcp.minmssoverload</varname>.</para>
 
     </sect3>
 
@@ -853,7 +870,7 @@
       to 8.3.7. &merged;</para>
 
     <para><application>GCC</application> has been updated from 3.2.2 to
-      a 3.3.3 post-release snapshot from 6 November 2003.
+      a 3.3.3 pre-release snapshot from 6 November 2003.
 
       <note>
         <para>Previous versions of <application>GCC</application>
