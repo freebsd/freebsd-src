@@ -167,7 +167,11 @@
 #define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif
 
+#ifdef __FreeBSD__
+#define NBPF 1
+#else
 #include "bpf.h"
+#endif
 #if NBPF > 0
 #include <net/bpf.h>
 #ifdef __FreeBSD__
