@@ -805,6 +805,14 @@ parse_doption(const char *doption)
 #endif
 		return (1);			/* successfully parsed */
 	}
+	if (strcmp(doption, "oldorder") == 0) {
+#ifdef TRY_NEWORDER
+		dbg_new_order = 0;
+#else
+		warnx("NOTE: The code for 'neworder' was not compiled in.");
+#endif
+		return (1);			/* successfully parsed */
+	}
 
 	warnx("Unknown -D (debug) option: '%s'", doption);
 	return (0);				/* failure */
