@@ -138,24 +138,19 @@ main(int argc, char **argv)
 static void
 do_confstr(const char *name, int key)
 {
-	char *buf;
 	size_t len;
 
 	len = confstr(key, 0, 0);
 	if (len == (size_t)-1)
 		err(EX_OSERR, "confstr: %s", name);
 	
-	if (len == 0) {
+	if (len == 0)
 		printf("undefined\n");
-	} else {
-		buf = malloc(len);
-		if (buf != NULL) {
-			confstr(key, buf, len);
-			printf("%s\n", buf);
-			free(buf);
-		}
-		else
-			err(EX_OSERR, "malloc: confstr");
+	else {
+		char buf[len + 1];
+
+		confstr(key, buf, len);
+		printf("%s\n", buf);
 	}
 }
 
