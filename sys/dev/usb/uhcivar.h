@@ -1,4 +1,4 @@
-/*	$NetBSD: uhcivar.h,v 1.32 2000/08/13 16:18:09 augustss Exp $	*/
+/*	$NetBSD: uhcivar.h,v 1.33 2002/02/11 11:41:30 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -83,6 +83,7 @@ typedef struct uhci_intr_info {
 struct uhci_xfer {
 	struct usbd_xfer xfer;
 	uhci_intr_info_t iinfo;
+	struct usb_task	abort_task;
 	int curframe;
 };
 
@@ -166,6 +167,7 @@ typedef struct uhci_softc {
 	u_int8_t sc_saved_sof;
 	u_int16_t sc_saved_frnum;
 
+	char sc_softwake;
 	char sc_isreset;
 	char sc_suspend;
 	char sc_dying;
