@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.232 1997/04/09 19:44:58 mpp Exp $ -->
+<!-- $Id: contrib.sgml,v 1.233 1997/04/10 05:23:25 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -173,41 +173,6 @@ groups of people:
       two groups, we both want essentially the same thing: More
       BSD based operating systems on people's computers!  We wish
       the NetBSD group every success in their endeavors.
-
-  <sect><heading>Hardware contributors</heading>
-
-    <p>A special thank-you to Walnut Creek CDROM for providing
-      the Pentium P5-90 and 486/DX2-66 EISA/VL systems that are
-      being used for our development work, to say nothing of the
-      network access and other donations of hardware resources.
-      It would have been impossible to do this release without
-      their support.
-
-      TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
-      fileservers, twelve Ethernets, two routers and an ATM
-      switch for debugging the diskless code.  They also keep a
-      couple of FreeBSD hackers alive and busy.  Thanks!
-
-      Thanks also to Dermot McDonnell for his donation of a
-      Toshiba XM3401B CDROM drive.  It has been most useful!
-
-      Thanks to &a.chuck; who
-      contributed his floppy tape streamer for experimental
-      work.
-
-      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to &a.wilko;,
-      for providing us with a Wangtek and
-      an Archive QIC-02 tape drive, in order to give us the hardware
-      to improve the <tt>wt</tt> driver.
-
-      Thanks go to Ernst Winter &lt;ewinter@lobo.muc.de&gt;, for
-      contributing a 2.88 MB floppy drive to the project.  Hopefully,
-      this will increase the pressure for rewriting the floppy disk
-      driver. ;-)
-
-      Also see <ref id="donors" name="the donor's gallery"> for
-      a list of people who have donated funding or services to the FreeBSD
-      Project.
 
     <sect><heading>Additional FreeBSD contributors<label
 	id="contrib:additional"></heading>
