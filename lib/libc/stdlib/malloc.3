@@ -34,13 +34,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.14 1997/08/27 06:40:34 phk Exp $
+.\"     $Id: malloc.3,v 1.15 1997/09/18 06:51:22 charnier Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
 .Os FreeBSD 2
 .Sh NAME
-.Nm malloc, calloc, realloc, free
+.Nm malloc, calloc, realloc, free, reallocf
 .Nd general purpose memory allocation functions
 .Sh SYNOPSIS
 .Fd #include <stdlib.h>
@@ -54,6 +54,8 @@
 .Fn free "void *ptr"
 .Ft char *
 .Va malloc_options;
+.Ft void *
+.Fn reallocf "void *ptr" "size_t size"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -109,6 +111,14 @@ function behaves identically to
 for the specified size.
 .Pp
 The
+.Fn reallocf
+function call is identical to the realloc function call, except that it
+will free the passed pointer when the requested memory cannot be allocated.
+This is a FreeBSD
+specific API designed to ease the problems with traditional coding styles
+for realloc causing memory leaks in libraries.
+.Pp
+The
 .Fn free
 function causes the allocated memory referenced by
 .Fa ptr
@@ -141,13 +151,15 @@ The process will call
 in these cases.
 .It J
 Each byte of new memory allocated by
-.Fn malloc
+.Fn malloc ,
+.Fn realloc
 or
-.Fn realloc
+.Fn freealloc
 as well as all memory returned by
-.Fn free
-or 
+.Fn free ,
 .Fn realloc
+or
+.Fn reallocf
 will be initialized to 0xd0.
 This options also sets the
 .Dq R
@@ -158,9 +170,11 @@ Pass a hint to the kernel about pages unused by the allocation functions.
 This will help performance if the system is paging excessively.  This
 option is on by default.
 .It R
-Cause the
+Causes the
 .Fn realloc
-function to always reallocate memory even if the initial allocation was
+and
+.Fn reallocf
+functions to always reallocate memory even if the initial allocation was
 sufficiently large.
 This can substantially aid in compacting memory.
 .It U
@@ -247,7 +261,9 @@ a NULL pointer is returned.
 .Pp
 The
 .Fn realloc
-function returns a pointer, possibly identical to
+and
+.Fn reallocf
+functions return a pointer, possibly identical to
 .Fa ptr ,
 to the allocated memory
 if successful; otherwise a NULL pointer is returned, in which case the
@@ -421,4 +437,5 @@ The present allocation implementation started out as a filesystem for a
 drum attached to a 20bit binary challenged computer which was built 
 with discrete germanium transistors.  It has since graduated to 
 handle primary storage rather than secondary.
-It first appeared in its new shape and ability in FreeBSD release 2.2.
+It first appeared in its new shape and ability in
+.Fx 2.2 .
