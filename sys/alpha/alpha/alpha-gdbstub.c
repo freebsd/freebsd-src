@@ -160,14 +160,14 @@ strcpy (char *dst, const char *src)
 static int
 putDebugChar (int c)		/* write a single character      */
 {
-  siocnputc (REMOTE_DEV, c);
+  siogdbputc (c);
   return 1;
 }
 
 static int
 getDebugChar (void)		/* read and return a single char */
 {
-  return siocngetc (REMOTE_DEV);
+  return siogdbgetc ();
 }
 
 static const char hexchars[]="0123456789abcdef";
