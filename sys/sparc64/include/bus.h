@@ -1020,6 +1020,7 @@ struct bus_dma_tag {
 	int		dt_map_count;
 	bus_dma_lock_t	*dt_lockfunc;
 	void *		*dt_lockfuncarg;
+	bus_dma_segment_t *dt_segments;
 
 	struct bus_dma_methods	*dt_mt;
 };
