@@ -1,6 +1,3 @@
-/*	$NetBSD: whereis.c,v 1.11 2002/06/11 06:06:21 itojun Exp $	*/
-/*	$FreeBSD$	*/
-
 /*-
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,13 +31,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
+#ifndef lint
+static char copyright[] =
+"@(#) Copyright (c) 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
 
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)whereis.c	8.3 (Berkeley) 5/4/95";
+#endif /* not lint */
+__RCSID("$NetBSD: whereis.c,v 1.11 2002/06/11 06:06:21 itojun Exp $");
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
