@@ -229,9 +229,20 @@ acct_process(td)
 	struct vnode *vp;
 	int t, ret;
 
+	/*
+	 * Lockless check of accounting condition before doing the hard
+	 * work.
+	 */
+	if (acctp == NULLVP)
+		return (0);
+
 	mtx_lock(&acct_mtx);
 
-	/* If accounting isn't enabled, don't bother */
+	/*
+	 * If accounting isn't enabled, don't bother.  Have to check again
+	 * once we own the lock in case we raced with disabling of accounting
+	 * by another thread.
+	 */
 	vp = acctp;
 	if (vp == NULLVP) {
 		mtx_unlock(&acct_mtx);
