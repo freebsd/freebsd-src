@@ -31,6 +31,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)ipx_ntoa.c";
 #endif /* LIBC_SCCS and not lint */
