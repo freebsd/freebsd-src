@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.3.6.1 1997/07/03 07:12:40 charnier Exp $";
+	"$Id: util.c,v 1.3.6.2 1998/03/08 09:08:20 jkh Exp $";
 #endif
 #endif /* not lint */
 
@@ -79,7 +79,8 @@ match(pw, user)
 	 * XXX
 	 * Why do we skip asterisks!?!?
 	 */
-	(void)strcpy(p = tbuf, pw->pw_gecos);
+	(void)strncpy(p = tbuf, pw->pw_gecos, sizeof(tbuf));
+	tbuf[sizeof(tbuf) - 1] = '\0';
 	if (*p == '*')
 		++p;
 
@@ -87,13 +88,18 @@ match(pw, user)
 	if ((p = strtok(p, ",")) == NULL)
 		return(0);
 
-	for (t = name; (*t = *p) != '\0'; ++p)
-		if (*t == '&') {
-			(void)strcpy(t, pw->pw_name);
-			while (*++t);
-		}
-		else
+	for (t = name; t < &name[sizeof(name) - 1] && (*t = *p) != '\0'; ++p) {
+		if (*t == '&') { 
+			(void)strncpy(t, pw->pw_name, 
+			    sizeof(name) - (t - name));
+			name[sizeof(name) - 1] = '\0';
+			while (t < &name[sizeof(name) - 1] && *++t)
+				continue;
+		} else {
 			++t;
+		}
+	}
+	*t = '\0';
 	for (t = name; (p = strtok(t, "\t ")) != NULL; t = NULL)
 		if (!strcasecmp(p, user))
 			return(1);
@@ -267,7 +273,7 @@ prphone(num)
 {
 	register char *p;
 	int len;
-	static char pbuf[15];
+	static char pbuf[20];
 
 	/* don't touch anything if the user has their own formatting */
 	for (p = num; *p; ++p)
@@ -346,22 +352,28 @@ userinfo(pn, pw)
 	pn->shell = strdup(pw->pw_shell);
 
 	/* why do we skip asterisks!?!? */
-	(void)strcpy(bp = tbuf, pw->pw_gecos);
+	(void)strncpy(bp = tbuf, pw->pw_gecos, sizeof(tbuf));
+	tbuf[sizeof(tbuf) - 1] = '\0';
 	if (*bp == '*')
 		++bp;
 
 	/* ampersands get replaced by the login name */
 	if (!(p = strsep(&bp, ",")))
 		return;
-	for (t = name; (*t = *p) != '\0'; ++p)
+	for (t = name; t < &name[sizeof(name) - 1] && (*t = *p) != '\0'; ++p) {
 		if (*t == '&') {
-			(void)strcpy(t, pw->pw_name);
+			(void)strncpy(t, pw->pw_name, 
+			    sizeof(name) - (t - name));
+			name[sizeof(name) - 1] = '\0';
 			if (islower(*t))
 				*t = toupper(*t);
-			while (*++t);
-		}
-		else
+			while (t < &name[sizeof(name) - 1] && *++t)
+				continue;
+		} else {
 			++t;
+		}
+	}
+	*t = '\0';
 	pn->realname = strdup(name);
 	pn->office = ((p = strsep(&bp, ",")) && *p) ?
 	    strdup(p) : NULL;
@@ -369,7 +381,7 @@ userinfo(pn, pw)
 	    strdup(p) : NULL;
 	pn->homephone = ((p = strsep(&bp, ",")) && *p) ?
 	    strdup(p) : NULL;
-	(void)sprintf(tbuf,"%s/%s", _PATH_MAILDIR, pw->pw_name);
+	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_MAILDIR, pw->pw_name);
 	pn->mailrecv = -1;		/* -1 == not_valid */
 	if (stat(tbuf, &sb) < 0) {
 		if (errno != ENOENT) {
@@ -396,9 +408,10 @@ hide(pw)
 	if (!pw->pw_dir)
 		return 0;
 
-	sprintf (buf, "%s/.nofinger", pw->pw_dir);
+	snprintf(buf, sizeof(buf), "%s/.nofinger", pw->pw_dir);
+	buf[sizeof(buf) - 1] = '\0';
 
-	if (access (buf, F_OK) == 0)
+	if (access(buf, F_OK) == 0)
 		return 1;
 
 	return 0;
