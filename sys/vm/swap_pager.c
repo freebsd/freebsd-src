@@ -1542,8 +1542,10 @@ swp_pager_async_iodone(bp)
 				 * be overridden by the original caller of
 				 * getpages so don't play cute tricks here.
 				 *
-				 * XXX it may not be legal to free the page
-				 * here as this messes with the object->memq's.
+				 * XXX IT IS NOT LEGAL TO FREE THE PAGE HERE
+				 * AS THIS MESSES WITH object->memq, and it is
+				 * not legal to mess with object->memq from an
+				 * interrupt.
 				 */
 
 				m->valid = 0;

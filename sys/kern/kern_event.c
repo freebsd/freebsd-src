@@ -333,7 +333,7 @@ kevent(struct proc *p, struct kevent_args *uap)
 	struct filedesc* fdp = p->p_fd;
 	struct kevent *kevp;
 	struct kqueue *kq;
-	struct file *fp;
+	struct file *fp = NULL;
 	struct timespec ts;
 	int i, n, nerrors, error;
 
@@ -342,10 +342,12 @@ kevent(struct proc *p, struct kevent_args *uap)
 	    (fp->f_type != DTYPE_KQUEUE))
 		return (EBADF);
 
+	fhold(fp);
+
 	if (uap->timeout != NULL) {
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
-			return error;
+			goto done;
 		uap->timeout = &ts;
 	}
 
@@ -357,7 +359,7 @@ kevent(struct proc *p, struct kevent_args *uap)
 		error = copyin(uap->changelist, kq->kq_kev,
 		    n * sizeof(struct kevent));
 		if (error)
-			return (error);
+			goto done;
 		for (i = 0; i < n; i++) {
 			kevp = &kq->kq_kev[i];
 			kevp->flags &= ~EV_SYSFLAGS;
@@ -373,7 +375,7 @@ kevent(struct proc *p, struct kevent_args *uap)
 					uap->nevents--;
 					nerrors++;
 				} else {
-					return (error);
+					goto done;
 				}
 			}
 		}
@@ -382,10 +384,14 @@ kevent(struct proc *p, struct kevent_args *uap)
 	}
 	if (nerrors) {
         	p->p_retval[0] = nerrors;
-		return (0);
+		error = 0;
+		goto done;
 	}
 
 	error = kqueue_scan(fp, uap->nevents, uap->eventlist, uap->timeout, p);
+done:
+	if (fp != NULL)
+		fdrop(fp, p);
 	return (error);
 }
 
@@ -417,6 +423,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 		if ((u_int)kev->ident >= fdp->fd_nfiles ||
 		    (fp = fdp->fd_ofiles[kev->ident]) == NULL)
 			return (EBADF);
+		fhold(fp);
 
 		if (kev->ident < fdp->fd_knlistsize) {
 			SLIST_FOREACH(kn, &fdp->fd_knlist[kev->ident], kn_link)
@@ -438,8 +445,10 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 		}
 	}
 
-	if (kn == NULL && ((kev->flags & EV_ADD) == 0))
-		return (ENOENT);
+	if (kn == NULL && ((kev->flags & EV_ADD) == 0)) {
+		error = ENOENT;
+		goto done;
+	}
 
 	/*
 	 * kn now contains the matching knote, or NULL if no match
@@ -448,13 +457,19 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 
 		if (kn == NULL) {
 			kn = knote_alloc();
-			if (kn == NULL)
-				return (ENOMEM);
-			if (fp != NULL)
-				fhold(fp);
+			if (kn == NULL) {
+				error = ENOMEM;
+				goto done;
+			}
 			kn->kn_fp = fp;
 			kn->kn_kq = kq;
 			kn->kn_fop = fops;
+
+			/*
+			 * apply reference count to knode structure, so
+			 * do not release it at the end of this routine.
+			 */
+			fp = NULL;
 
 			kn->kn_sfflags = kev->fflags;
 			kn->kn_sdata = kev->data;
@@ -506,6 +521,8 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 	}
 
 done:
+	if (fp != NULL)
+		fdrop(fp, p);
 	return (error);
 }
 
