@@ -2,29 +2,14 @@
    The FreeBSD Russian Documentation Project
 
    $FreeBSD$
-   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.3 2004/08/03 13:27:38 den Exp $
+   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.4 2004/08/11 10:04:26 den Exp $
 
-   Original revision: 1.19
+   Original revision: 1.21
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-
-<!ENTITY % freebsd PUBLIC "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
-%freebsd;
-
-<!ENTITY % authors PUBLIC "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-
-<!ENTITY % teams PUBLIC "-//FreeBSD//ENTITIES DocBook Team Entities//EN">
-%teams;
-
-<!ENTITY % mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//RU">
-%mailing-lists;
-
-<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//RU">
-%trademarks;
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//RU">
+%articles.ent;
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
@@ -33,7 +18,6 @@
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
 <!ENTITY release.4last "4.10-RELEASE">
 <!ENTITY release.5branchpoint "5.3-RELEASE">
-
 ]>
 
 <article lang="ru">
@@ -161,13 +145,13 @@
 
     <para>Дополнительную информацию по процессу создания релизов &os;
       можно найти на <ulink
-      url="http://www.FreeBSD.org/releng/index.html">веб страницы
+      url="&url.base;/releng/index.html">веб страницы
       выпуска релизов</ulink> и в статье <ulink
-      url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/articles/releng/index.html"><quote>Выпуск
+      url="&url.articles.releng;/index.html"><quote>Выпуск
       релизов &os;</quote></ulink>.  Специфичную информацию по
       будущей ветви разработки 5-STABLE можно найти в статье
       <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/5-roadmap/index.html"><quote>Дорога
+      url="&url.articles.5-roadmap;/index.html"><quote>Дорога
       к 5-STABLE</quote></ulink>.</para>
 
   </sect1>
@@ -190,7 +174,7 @@
 	  <quote>fine-grained locking</quote> различных подсистем
 	  ядра для увеличения количества потоков выполнения, которые
 	  могут работать в ядре.  Дополнительную информацию можно
-	  найти на странице <ulink url="http://www.FreeBSD.org/smp/">FreeBSD
+	  найти на странице <ulink url="&url.base;/smp/index.html">FreeBSD
 	  SMP проекта</ulink>.</para>
       </listitem>
 
@@ -332,9 +316,9 @@
 
       <listitem>
 	<para>Документация (такая как <ulink
-	  url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/index.html">Руководство</ulink>
+	  url="&url.books.handbook;/index.html">Руководство</ulink>
 	  &os; и <ulink
-	  url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/faq/index.html">FAQ</ulink>)
+	  url="&url.books.faq;/index.html">FAQ</ulink>)
 	  могут не отражать изменения, недавно внесенные в &os;
 	  &release.5x;.</para>
       </listitem>
@@ -384,7 +368,7 @@
     <para>&a.security-officer; продолжит поддержку релизов, выпущенных
       их ветви 4-STABLE в соответствии с опубликованной политикой,
       которую можно найти на <ulink
-      url="http://www.FreeBSD.org/ru/security/index.html">странице
+      url="&url.base;/ru/security/index.html">странице
       безопасности</ulink> веб сайта &os;.  Обычно два последних
       релиза из ветви поддерживаются в соответствии с сообщениями
       и исправлениями безопасности.  По собственному усмотрению
