@@ -193,17 +193,19 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 {
 	int error, pid;
 
+	sx_xlock(&allproc_lock);
 	pid = randompid;
 	error = sysctl_handle_int(oidp, &pid, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
-		pid = PID_MAX - 100;
-	else if (pid < 2)			/* NOP */
-		pid = 0;
-	else if (pid < 100)			/* Make it reasonable */
-		pid = 100;
-	randompid = pid;
+	if (error == 0 && req->newptr != NULL) {
+		if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
+			pid = PID_MAX - 100;
+		else if (pid < 2)			/* NOP */
+			pid = 0;
+		else if (pid < 100)			/* Make it reasonable */
+			pid = 100;
+		randompid = pid;
+	}
+	sx_xunlock(&allproc_lock);
 	return (error);
 }
 
@@ -245,6 +247,8 @@ fork1(td, flags, procp)
 	struct thread *td2;
 	struct kse *ke2;
 	struct ksegrp *kg2;
+	struct sigacts *newsigacts;
+	struct procsig *newprocsig;
 
 	GIANT_REQUIRED;
 
@@ -292,6 +296,9 @@ fork1(td, flags, procp)
 		return (0);
 	}
 
+	/* Allocate new proc. */
+	newproc = uma_zalloc(proc_zone, M_WAITOK);
+
 	/*
 	 * Although process entries are dynamically created, we still keep
 	 * a global limit on the maximum number we will create.  Don't allow
@@ -299,48 +306,34 @@ fork1(td, flags, procp)
 	 * exceed the limit. The variable nprocs is the current number of
 	 * processes, maxproc is the limit.
 	 */
-	uid = p1->p_ucred->cr_ruid;
+	sx_xlock(&allproc_lock);
+	uid = td->td_ucred->cr_ruid;
 	if ((nprocs >= maxproc - 10 && uid != 0) || nprocs >= maxproc) {
+		sx_xunlock(&allproc_lock);
+		uma_zfree(proc_zone, newproc);
 		tsleep(&forksleep, PUSER, "fork", hz / 2);
 		return (EAGAIN);
 	}
+	/*
+	 * Increment the count of procs running with this uid. Don't allow
+	 * a nonprivileged user to exceed their current limit.
+	 */
+	PROC_LOCK(p1);
+	ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
+		(uid != 0) ? p1->p_rlimit[RLIMIT_NPROC].rlim_cur : 0);
+	PROC_UNLOCK(p1);
+	if (!ok) {
+		sx_xunlock(&allproc_lock);
+		uma_zfree(proc_zone, newproc);
+		tsleep(&forksleep, PUSER, "fork", hz / 2);
+		return (EAGAIN);
+	}
+
 	/*
 	 * Increment the nprocs resource before blocking can occur.  There
 	 * are hard-limits as to the number of processes that can run.
 	 */
 	nprocs++;
-
-	/*
-	 * Increment the count of procs running with this uid. Don't allow
-	 * a nonprivileged user to exceed their current limit.
-	 */
-	ok = chgproccnt(p1->p_ucred->cr_ruidinfo, 1,
-		(uid != 0) ? p1->p_rlimit[RLIMIT_NPROC].rlim_cur : 0);
-	if (!ok) {
-		/*
-		 * Back out the process count
-		 */
-		nprocs--;
-		tsleep(&forksleep, PUSER, "fork", hz / 2);
-		return (EAGAIN);
-	}
-
-	/* Allocate new proc. */
-	newproc = uma_zalloc(proc_zone, M_WAITOK);
-
-	/*
-	 * Setup linkage for kernel based threading
-	 */
-	if((flags & RFTHREAD) != 0) {
-		newproc->p_peers = p1->p_peers;
-		p1->p_peers = newproc;
-		newproc->p_leader = p1->p_leader;
-	} else {
-		newproc->p_peers = NULL;
-		newproc->p_leader = newproc;
-	}
-
-	newproc->p_vmspace = NULL;
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -349,7 +342,6 @@ fork1(td, flags, procp)
 	 * If RFHIGHPID is set (used during system boot), do not allocate
 	 * low-numbered pids.
 	 */
-	sx_xlock(&allproc_lock);
 	trypid = lastpid + 1;
 	if (flags & RFHIGHPID) {
 		if (trypid < 10) {
@@ -426,6 +418,33 @@ again:
 	sx_xunlock(&allproc_lock);
 
 	/*
+	 * Malloc things while we don't hold any locks.
+	 */
+	if (flags & RFSIGSHARE) {
+		MALLOC(newsigacts, struct sigacts *,
+		    sizeof(struct sigacts), M_SUBPROC, M_WAITOK);
+		newprocsig = NULL;
+	} else {
+		newsigacts = NULL;
+		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
+		    M_SUBPROC, M_WAITOK);
+	}
+
+	/*
+	 * Copy filedesc.
+	 * XXX: This is busted.  fd*() need to not take proc
+	 * arguments or something.
+	 */
+	if (flags & RFCFDG)
+		fd = fdinit(td);
+	else if (flags & RFFDG) {
+		FILEDESC_LOCK(p1->p_fd);
+		fd = fdcopy(td);
+		FILEDESC_UNLOCK(p1->p_fd);
+	} else
+		fd = fdshare(p1);
+
+	/*
 	 * Make a proc table entry for the new process.
 	 * Start by zeroing the section of proc that is zero-initialized,
 	 * then copy the section that is copied directly from the parent.
@@ -445,7 +464,10 @@ again:
 	bzero(&kg2->kg_startzero,
 	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
 
+	mtx_init(&p2->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	PROC_LOCK(p2);
 	PROC_LOCK(p1);
+
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) RANGEOF(struct proc, p_startcopy, p_endcopy));
 	bcopy(&td->td_kse->ke_startcopy, &ke2->ke_startcopy,
@@ -455,7 +477,6 @@ again:
 	bcopy(&td->td_ksegrp->kg_startcopy, &kg2->kg_startcopy,
 	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
 #undef RANGEOF
-	PROC_UNLOCK(p1);
 
 	/*
 	 * XXXKSE Theoretically only the running thread would get copied 
@@ -464,8 +485,6 @@ again:
 	 */
 	proc_linkup(p2, kg2, ke2, td2);
 
-	mtx_init(&p2->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	PROC_LOCK(p2);
 	/* note.. XXXKSE no pcb or u-area yet */
 
 	/*
@@ -479,9 +498,28 @@ again:
 	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
 	mtx_unlock_spin(&sched_lock);
-	PROC_LOCK(p1);
-	p2->p_ucred = crhold(p1->p_ucred);
+	p2->p_ucred = crhold(td->td_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
+
+	/*
+	 * Setup linkage for kernel based threading
+	 */
+	if((flags & RFTHREAD) != 0) {
+		/*
+		 * XXX: This assumes a leader is a parent or grandparent of
+		 * all processes in a task.
+		 */
+		if (p1->p_leader != p1)
+			PROC_LOCK(p1->p_leader);
+		p2->p_peers = p1->p_peers;
+		p1->p_peers = p2;
+		p2->p_leader = p1->p_leader;
+		if (p1->p_leader != p1)
+			PROC_UNLOCK(p1->p_leader);
+	} else {
+		p2->p_peers = NULL;
+		p2->p_leader = p2;
+	}
 
 	pargs_hold(p2->p_args);
 
@@ -489,15 +527,6 @@ again:
 		p2->p_procsig = p1->p_procsig;
 		p2->p_procsig->ps_refcnt++;
 		if (p1->p_sigacts == &p1->p_uarea->u_sigacts) {
-			struct sigacts *newsigacts;
-
-			PROC_UNLOCK(p1);
-			PROC_UNLOCK(p2);
-			/* Create the shared sigacts structure */
-			MALLOC(newsigacts, struct sigacts *,
-			    sizeof(struct sigacts), M_SUBPROC, M_WAITOK);
-			PROC_LOCK(p2);
-			PROC_LOCK(p1);
 			/*
 			 * Set p_sigacts to the new shared structure.
 			 * Note that this is updating p1->p_sigacts at the
@@ -505,15 +534,12 @@ again:
 			 * the shared p_procsig->ps_sigacts.
 			 */
 			p2->p_sigacts  = newsigacts;
+			newsigacts = NULL;
 			*p2->p_sigacts = p1->p_uarea->u_sigacts;
 		}
 	} else {
-		PROC_UNLOCK(p1);
-		PROC_UNLOCK(p2);
-		MALLOC(p2->p_procsig, struct procsig *, sizeof(struct procsig),
-		    M_SUBPROC, M_WAITOK);
-		PROC_LOCK(p2);
-		PROC_LOCK(p1);
+		p2->p_procsig = newprocsig;
+		newprocsig = NULL;
 		bcopy(p1->p_procsig, p2->p_procsig, sizeof(*p2->p_procsig));
 		p2->p_procsig->ps_refcnt = 1;
 		p2->p_sigacts = NULL;	/* finished in vm_forkproc() */
@@ -523,25 +549,13 @@ again:
 	else
 	        p2->p_sigparent = SIGCHLD;
 
-	/* bump references to the text vnode (for procfs) */
+	/* Bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;
-	PROC_UNLOCK(p1);
-	PROC_UNLOCK(p2);
 	if (p2->p_textvp)
 		VREF(p2->p_textvp);
-
-	if (flags & RFCFDG)
-		fd = fdinit(td);
-	else if (flags & RFFDG) {
-		FILEDESC_LOCK(p1->p_fd);
-		fd = fdcopy(td);
-		FILEDESC_UNLOCK(p1->p_fd);
-	} else
-		fd = fdshare(p1);
-	sx_xlock(&proctree_lock);
-	PGRP_LOCK(p1->p_pgrp);
-	PROC_LOCK(p2);
 	p2->p_fd = fd;
+	PROC_UNLOCK(p1);
+	PROC_UNLOCK(p2);
 
 	/*
 	 * If p_limit is still copy-on-write, bump refcnt,
@@ -549,13 +563,17 @@ again:
 	 * (If PL_SHAREMOD is clear, the structure is shared
 	 * copy-on-write.)
 	 */
-	PROC_LOCK(p1);
 	if (p1->p_limit->p_lflags & PL_SHAREMOD)
 		p2->p_limit = limcopy(p1->p_limit);
 	else {
 		p2->p_limit = p1->p_limit;
 		p2->p_limit->p_refcnt++;
 	}
+
+	sx_xlock(&proctree_lock);
+	PGRP_LOCK(p1->p_pgrp);
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
 
 	/*
 	 * Preserve some more flags in subprocess.  PS_PROFIL has already
@@ -570,36 +588,13 @@ again:
 		p2->p_flag |= P_PPWAIT;
 
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
-	PROC_UNLOCK(p1);
-	PROC_UNLOCK(p2);
 	PGRP_UNLOCK(p1->p_pgrp);
-	sx_xunlock(&proctree_lock);
-
-	/*
-	 * Attach the new process to its parent.
-	 *
-	 * If RFNOWAIT is set, the newly created process becomes a child
-	 * of init.  This effectively disassociates the child from the
-	 * parent.
-	 */
-	if (flags & RFNOWAIT)
-		pptr = initproc;
-	else
-		pptr = p1;
-	sx_xlock(&proctree_lock);
-	PROC_LOCK(p2);
-	p2->p_pptr = pptr;
-	PROC_UNLOCK(p2);
-	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
-	sx_xunlock(&proctree_lock);
-	PROC_LOCK(p2);
 	LIST_INIT(&p2->p_children);
 	LIST_INIT(&td2->td_contested); /* XXXKSE only 1 thread? */
 
 	callout_init(&p2->p_itcallout, 0);
 	callout_init(&td2->td_slpcallout, 1); /* XXXKSE */
 
-	PROC_LOCK(p1);
 #ifdef KTRACE
 	/*
 	 * Copy traceflag and tracefile if enabled.  If not inherited,
@@ -608,13 +603,8 @@ again:
 	 */
 	if ((p1->p_traceflag & KTRFAC_INHERIT) && p2->p_tracep == NULL) {
 		p2->p_traceflag = p1->p_traceflag;
-		if ((p2->p_tracep = p1->p_tracep) != NULL) {
-			PROC_UNLOCK(p1);
-			PROC_UNLOCK(p2);
+		if ((p2->p_tracep = p1->p_tracep) != NULL)
 			VREF(p2->p_tracep);
-			PROC_LOCK(p2);
-			PROC_LOCK(p1);
-		}
 	}
 #endif
 
@@ -632,8 +622,39 @@ again:
 	 */
 	_PHOLD(p1);
 	PROC_UNLOCK(p1);
-	PROC_UNLOCK(p2);
 
+	/*
+	 * Attach the new process to its parent.
+	 *
+	 * If RFNOWAIT is set, the newly created process becomes a child
+	 * of init.  This effectively disassociates the child from the
+	 * parent.
+	 */
+	if (flags & RFNOWAIT)
+		pptr = initproc;
+	else
+		pptr = p1;
+	p2->p_pptr = pptr;
+	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
+	PROC_UNLOCK(p2);
+	sx_xunlock(&proctree_lock);
+
+	/*
+	 * XXXKSE: In KSE, there would be a race here if one thread was
+	 * dieing due to a signal (or calling exit1() for that matter) while
+	 * another thread was calling fork1().  Not sure how KSE wants to work
+	 * around that.  The problem is that up until the point above, if p1
+	 * gets killed, it won't find p2 in its list in order for it to be
+	 * reparented.  Alternatively, we could add a new p_flag that gets set
+	 * before we reparent all the children that we check above and just
+	 * use init as our parent if that if that flag is set.  (Either that
+	 * or abort the fork if the flag is set since our parent died trying
+	 * to fork us (which is evil)).
+	 */
+
+	KASSERT(newprocsig == NULL, ("unused newprocsig"));
+	if (newsigacts != NULL)
+		FREE(newsigacts, M_SUBPROC);
 	/*
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
