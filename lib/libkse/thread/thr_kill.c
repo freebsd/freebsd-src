@@ -83,6 +83,26 @@ pthread_kill(pthread_t pthread, int sig)
 				sigaddset(&pthread->sigpend,sig);
 			break;
 
+		case PS_SELECT_WAIT:
+		case PS_FDR_WAIT:
+		case PS_FDW_WAIT:
+		case PS_SLEEP_WAIT:
+			if (!sigismember(&pthread->sigmask, sig) &&
+			    (_thread_sigact[sig - 1].sa_handler != SIG_IGN)) {
+				/* Flag the operation as interrupted: */
+				pthread->interrupted = 1;
+
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+				/* Return the signal number: */
+				pthread->signo = sig;
+			} else {
+				/* Increment the pending signal count: */
+				sigaddset(&pthread->sigpend,sig);
+			}
+			break;
+
 		default:
 			/* Increment the pending signal count: */
 			sigaddset(&pthread->sigpend,sig);
