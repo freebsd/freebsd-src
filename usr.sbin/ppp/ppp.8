@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.13 1996/01/30 13:50:10 mpp Exp $
+.\" $Id: ppp.8,v 1.14 1996/03/08 09:03:08 ache Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -9,7 +9,8 @@
 Point to Point Protocol (aka iijppp)
 .Sh SYNOPSIS
 .Nm
-.Op Fl auto \*(Ba Fl direct Fl dedicated
+.Op Fl auto | Fl direct | Fl dedicated
+.Op Ar system
 .Sh DESCRIPTION
 This is a user process
 .Em PPP
