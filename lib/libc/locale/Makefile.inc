@@ -4,7 +4,8 @@
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
 
-SRCS+=	ansi.c big5.c collate.c collcmp.c euc.c frune.c isctype.c \
+SRCS+=	ansi.c big5.c collate.c collcmp.c euc.c frune.c fix_grouping.c \
+	isctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mbrune.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \

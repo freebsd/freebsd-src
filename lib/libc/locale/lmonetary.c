@@ -26,15 +26,17 @@
  * $FreeBSD$
  */
 
+#include <limits.h>
 #include "lmonetary.h"
 #include "ldpart.h"
 
 extern int __mlocale_changed;
+extern const char * __fix_locale_grouping_str(const char *);
 
 #define LCMONETARY_SIZE (sizeof(struct lc_monetary_T) / sizeof(char *))
 
 static char	empty[] = "";
-static char     numempty[] = "-1";
+static char     numempty[] = { CHAR_MAX, '\0'};
 
 static const struct lc_monetary_T _C_monetary_locale = {
 	empty ,		/* int_curr_symbol */
@@ -62,11 +64,13 @@ int
 __monetary_load_locale(const char *name) {
 
 	int ret;
+	__mlocale_changed = 1;
 	ret = __part_load_locale(name, &_monetary_using_locale,
 		monetary_locale_buf, "LC_MONETARY", LCMONETARY_SIZE,
 		(const char **)&_monetary_locale);
 	if (!ret)
-		__mlocale_changed = 1;
+		_monetary_locale.mon_grouping =
+		     __fix_locale_grouping_str(_monetary_locale.mon_grouping);
 	return ret;
 }
 

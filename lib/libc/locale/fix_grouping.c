@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001 Alexey Zelkin
+ * Copyright (c) 2001 Alexey Zelkin
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,58 +27,42 @@
  */
 
 #include <limits.h>
-#include "lnumeric.h"
-#include "ldpart.h"
 
-extern int __nlocale_changed;
-extern const char * __fix_locale_grouping_str(const char *);
+static const char nogrouping[] = { CHAR_MAX, '\0' };
 
-#define LCNUMERIC_SIZE (sizeof(struct lc_numeric_T) / sizeof(char *))
+/*
+ * "3;3;-1" -> "\003\003\177"
+ * NOTE: one digit numbers assumed!
+ */
 
-static char     numempty[] = { CHAR_MAX, '\0' };
+const char *
+__fix_locale_grouping_str(const char *str) {
 
-static const struct lc_numeric_T _C_numeric_locale = {
-	".",     /* decimal_point */
-	"",      /* thousands_sep */
-	numempty /* grouping */
-};
+	char *src, *dst;
 
-static struct lc_numeric_T _numeric_locale;
-static int _numeric_using_locale;
-static char *	numeric_locale_buf;
+	if (str == 0) {
+		return nogrouping;
+	}
+	for (src = (char*)str, dst = (char*)str; *src; src++) {
+		char cur;
 
-int
-__numeric_load_locale(const char *name) {
+		/* input string examples: "3;3", "3;2;-1" */
+		if (*src == ';')
+			continue;
+	
+		if (*src == '-' && *(src+1) == '1') {
+			*dst++ = CHAR_MAX;
+			src++;
+			continue;
+		}
 
-	int ret;
+		if (!isdigit(*src)) {
+			/* broken grouping string */
+			return nogrouping;
+		}
 
-	__nlocale_changed = 1;
-	ret = __part_load_locale(name, &_numeric_using_locale,
-		numeric_locale_buf, "LC_NUMERIC", LCNUMERIC_SIZE,
-		(const char **)&_numeric_locale);
-	if (!ret)
-		_numeric_locale.grouping =
-			__fix_locale_grouping_str(_numeric_locale.grouping);
-	return ret;
+		*dst++ = *src - '0';
+	}
+	*dst = '\0';
+	return str;
 }
-
-struct lc_numeric_T *
-__get_current_numeric_locale(void) {
-
-	return (_numeric_using_locale
-		? &_numeric_locale
-		: (struct lc_numeric_T *)&_C_numeric_locale);
-}
-
-#ifdef LOCALE_DEBUG
-void
-numericdebug(void) {
-printf(	"decimal_point = %s\n"
-	"thousands_sep = %s\n"
-	"grouping = %s\n",
-	_numeric_locale.decimal_point,
-	_numeric_locale.thousands_sep,
-	_numeric_locale.grouping
-);
-}
-#endif /* LOCALE_DEBUG */
