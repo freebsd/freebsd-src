@@ -47,7 +47,7 @@
 This is an easy interface to the resource-management functions.
 It hides the indirection through the parent's method table.
 This function generally should be called in attach, but (except in some
-race cases) never earlier.
+rare cases) never earlier.
 .Pp
 Its arguments are as follows:
 .Bl -item
@@ -87,14 +87,21 @@ and
 are the start/end addresses of the resource.
 If you specify values of
 .Dv 0
-for start and
+for
+.Fa start
+and
 .Dv ~0
-for end, the default values for the bus are calculated.
+for
+.Fa end
+and
+.Dv 1
+for
+.Fa count ,
+the default values for the bus are calculated.
 .It
 .Fa count
 is the size of the resource, e.g. the size of an I/O port (often
-.Dv 1
-on PCI and device-dependent on ISA and PCCARD).
+.Dv 1, but some devices override this).
 If you specified the default values for
 .Fa start
 and
@@ -112,7 +119,7 @@ You can set one or more of these flags:
 .It Dv RF_ALLOCATED
 resource has been reserved.
 The resource still needs to be activated with
-.Xr rman_activate_resource 9 .
+.Xr bus_activate_resource 9 .
 .It Dv RF_ACTIVE
 activate resource atomically.
 .It Dv RF_SHAREABLE
@@ -148,6 +155,7 @@ should be saved in the softc of the device after these calls.
 			0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
 .Ed
 .Sh SEE ALSO
+.Xr bus_activate_resource 9 ,
 .Xr bus_release_resource 9 ,
 .Xr device 9 ,
 .Xr driver 9
