@@ -364,15 +364,10 @@ ether_output_frame(ifp, m)
 #ifdef BRIDGE
 	if (do_bridge && BDG_USED(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
-		struct ifnet *oifp = ifp ;
 
 		m->m_pkthdr.rcvif = NULL;
 		eh = mtod(m, struct ether_header *);
 		m_adj(m, ETHER_HDR_LEN);
-		ifp = bridge_dst_lookup(eh);
-		if (ifp > BDG_FORWARD && !BDG_SAMECLUSTER(ifp, oifp)) {
-			printf("ether_out_frame: bad output if\n");
-		}
 		m = bdg_forward(m, eh, ifp);
 		if (m != NULL)
 			m_freem(m);
@@ -448,7 +443,7 @@ ether_input(ifp, eh, m)
 			struct mbuf *oldm = m ;
 
 			save_eh = *eh ; /* because it might change */
-			m = bdg_forward(&m, eh, bif);	/* needs forwarding */
+			m = bdg_forward(m, eh, bif);	/* needs forwarding */
 			/*
 			 * Do not continue if bdg_forward() processed our
 			 * packet (and cleared the mbuf pointer m) or if
