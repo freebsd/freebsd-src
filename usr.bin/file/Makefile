@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id: Makefile,v 1.4 1995/07/25 00:36:03 bde Exp $
+# @(#)$Id: Makefile,v 1.5 1996/08/17 22:27:08 wosch Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -23,17 +23,17 @@
 # 4. This notice may not be removed or altered.
 #
 # Hacked and dismembered for bmake (Geoff Rehmet).
-MAGIC=		/etc/magic
+
+MAGICDIR=	/usr/share/misc
 MAGICOWN=	bin
 MAGICGRP=	bin
 MAGICMODE=	444
 
-
-CFLAGS+=	-DMAGIC='"$(MAGIC)"'
+CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"'
 
 PROG=		file
 SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  print.c
+		compress.c is_tar.c  print.c international.c
 
 MAN1=		file.1
 MAN5=		magic.5
@@ -44,16 +44,17 @@ MAGFILES=	$(.CURDIR)/Magdir/Header\
 		$(.CURDIR)/Magdir/Localstuff\
 		$(.CURDIR)/Magdir/[a-z]*
 
-
 all:	file magic
 
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
-# called from /usr/src/etc/Makefile 
+beforeinstall:
+	$(INSTALL) $(COPY) -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) \
+	    magic $(DESTDIR)$(MAGICDIR)/magic
+
 etc-magic:
-	${INSTALL} -c -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) magic \
-	$(DESTDIR)$(MAGIC)
+	rm -f ${DESTDIR}/etc/magic
+	ln -s ${MAGICDIR}/magic ${DESTDIR}/etc/magic
 
 .include <bsd.prog.mk>
-
