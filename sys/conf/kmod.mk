@@ -95,7 +95,7 @@ CFLAGS+=	-DKLD_MODULE
 # such paths after -nostdinc.  It doesn't seem to be possible to
 # add to the front of `make' variable.
 _ICFLAGS:=	${CFLAGS:M-I*}
-CFLAGS+=	-nostdinc -I- ${_ICFLAGS}
+CFLAGS+=	-nostdinc -I- ${INCLMAGIC} ${_ICFLAGS}
 
 # Add -I paths for system headers.  Individual KLD makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be

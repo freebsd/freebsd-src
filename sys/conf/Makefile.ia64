@@ -48,7 +48,7 @@ SIZE?=		size
 OBJCOPY?=	objcopy
 
 COPTFLAGS?=-O
-INCLUDES= -nostdinc -I- -I. -I$S
+INCLUDES= -nostdinc -I- ${INCLMAGIC} -I. -I$S
 # This hack is to allow kernel compiles to succeed on machines w/out srcdist
 .if exists($S/../include)
 INCLUDES+= -I$S/../include
