@@ -1111,8 +1111,9 @@ printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
  * Return the root of a filesystem.
  */
 static int
-ext2_root(mp, vpp, td)
+ext2_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {
