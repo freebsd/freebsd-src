@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.75 1998/05/17 18:53:17 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.76 1998/05/17 22:12:08 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -550,7 +550,7 @@ mp_enable(u_int boot_addr)
 	POSTCODE(MP_ENABLE_POST);
 
 	/* turn on 4MB of V == P addressing so we can get to MP table */
-	*(int *)PTD = PG_V | PG_RW | ((u_long)KPTphys & PG_FRAME);
+	*(int *)PTD = PG_V | PG_RW | ((uintptr_t)(void *)KPTphys & PG_FRAME);
 	invltlb();
 
 	/* examine the MP table for needed info, uses physical addresses */
@@ -1680,8 +1680,8 @@ start_all_aps(u_int boot_addr)
 		bcopy(PTD, newptd, PAGE_SIZE);	/* inc prv page pde */
 
 		/* set up 0 -> 4MB P==V mapping for AP boot */
-		newptd[0] = (pd_entry_t) (PG_V | PG_RW |
-						((u_long)KPTphys & PG_FRAME));
+		newptd[0] = (void *)(uintptr_t)(PG_V | PG_RW |
+		    ((uintptr_t)(void *)KPTphys & PG_FRAME));
 
 		/* store PTD for this AP's boot sequence */
 		myPTD = (pd_entry_t *)vtophys(newptd);
