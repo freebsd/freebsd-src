@@ -942,6 +942,7 @@ static int
 gdc_blank_display(video_adapter_t *adp, int mode)
 {
     int s;
+    static int standby = 0;
 
     if (!gdc_init_done)
 	return ENXIO;
@@ -950,10 +951,9 @@ gdc_blank_display(video_adapter_t *adp, int mode)
     switch (mode) {
     case V_DISPLAY_SUSPEND:
     case V_DISPLAY_STAND_BY:
-	/*
-	 * FIXME: I don't know how to put the display into `suspend'
-	 * or `stand-by' mode via GDC... 
-	 */
+	outb(0x09a2, 0x80 | 0x40);		/* V/H-SYNC mask */
+	if (inb(0x09a2) == (0x80 | 0x40))
+	    standby = 1;
 	/* FALL THROUGH */
 
     case V_DISPLAY_BLANK:
@@ -965,7 +965,7 @@ gdc_blank_display(video_adapter_t *adp, int mode)
 	} else {
 	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
 		;
-	    outb(TEXT_GDC + 2, 0xc);		/* text off */
+	    outb(TEXT_GDC + 8, 0x0e);		/* DISP off */
 	}
 	break;
 
@@ -978,7 +978,11 @@ gdc_blank_display(video_adapter_t *adp, int mode)
 	} else {
 	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
 		;
-	    outb(TEXT_GDC + 2, 0xd);		/* text on */
+	    outb(TEXT_GDC + 8, 0x0f);		/* DISP on */
+	}
+	if (standby) {
+	    outb(0x09a2, 0x00);			/* V/H-SYNC unmask */
+	    standby = 0;
 	}
 	break;
     }
