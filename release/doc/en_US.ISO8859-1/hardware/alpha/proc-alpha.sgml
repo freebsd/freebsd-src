@@ -160,6 +160,14 @@
     distribution CDROM.  Earlier versions needed booting from a
     2 disk floppy set.</para>
 
+    <para>In order to be bootable the root partition (partition a)
+    must be at offset 0 of the disk drive. This means you have to 
+    use the installer's partitioning menu and start with assigning 
+    partiton a at offset 0 to the root partition. Subsequently layout
+    the rest of the partitions to your liking. If you do not adhere
+    to this rule the install will proceed just fine, but the system
+    will not be bootable from the freshly installed disk.</para>
+
     <para>If you don't have/want a local disk drive you can boot via
     the Ethernet.  This assumes an Ethernet adapter/chip that is
     recognized by the SRM console. Generally speaking this boils down to
