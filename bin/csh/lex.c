@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)lex.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: lex.c,v 1.6 1997/02/22 14:02:01 peter Exp $";
+	"$Id: lex.c,v 1.7 1997/08/07 21:42:11 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -1508,7 +1508,7 @@ again:
 		    goto again;
 		}
 		if (c > 0)
-		    memcpy(fbuf[buf] + off, ttyline, c * sizeof(Char));
+		    memmove(fbuf[buf] + off, ttyline, c * sizeof(Char));
 		numleft = 0;
 	    }
 	    else {
