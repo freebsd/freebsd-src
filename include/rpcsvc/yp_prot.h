@@ -26,11 +26,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yp_prot.h,v 1.6 1997/02/23 09:17:33 peter Exp $
  */
 
 #ifndef _RPCSVC_YP_PROT_H_
 #define _RPCSVC_YP_PROT_H_
+
+#include <rpc/rpc.h>
 
 /*
  * YPSERV PROTOCOL:

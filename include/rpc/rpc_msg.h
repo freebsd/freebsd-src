@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id$
+ *	$Id: rpc_msg.h,v 1.8 1997/02/23 09:17:24 peter Exp $
  */
 
 /*
@@ -40,6 +40,9 @@
 
 #ifndef _RPC_RPCMSG_H
 #define _RPC_RPCMSG_H
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <rpc/auth.h>
 
 #define RPC_MSG_VERSION		((u_long) 2)
 #define RPC_SERVICE_PORT	((u_short) 2048)

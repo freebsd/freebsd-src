@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id$
+ *	$Id: svc.h,v 1.9 1997/02/23 09:17:24 peter Exp $
  */
 
 /*
@@ -40,6 +40,11 @@
 #ifndef _RPC_SVC_H
 #define _RPC_SVC_H
 #include <sys/cdefs.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <rpc/auth.h>
+#include <rpc/rpc_msg.h>
+#include <netinet/in.h>
 
 /*
  * This interface must manage two items concerning remote procedure calling:

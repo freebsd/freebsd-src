@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
  *	from: @(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id$
+ *	$Id: svc_auth.h,v 1.6 1997/02/23 09:17:25 peter Exp $
  */
 
 /*
@@ -39,6 +39,10 @@
 
 #ifndef _RPC_SVCAUTH_H
 #define _RPC_SVCAUTH_H
+#include <sys/cdefs.h>
+#include <rpc/auth.h>
+#include <rpc/svc.h>
+#include <rpc/rpc_msg.h>
 
 /*
  * Server side authenticator
