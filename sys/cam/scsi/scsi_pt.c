@@ -544,7 +544,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 				  /*sense_len*/SSD_FULL_SIZE,
 				  /*timeout*/softc->io_timeout);
 
-		start_ccb->ccb_h.ccb_state = PT_CCB_BUFFER_IO;
+		start_ccb->ccb_h.ccb_state = PT_CCB_BUFFER_IO_UA;
 
 		/*
 		 * Block out any asyncronous callbacks

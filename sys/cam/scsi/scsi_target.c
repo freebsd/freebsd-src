@@ -1011,10 +1011,8 @@ targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 		 * then honor that request.  Otherwise, it's up to the
 		 * user to perform any error recovery.
 		 */
-		error = cam_periph_runccb(ccb,
-					  /* error handler */NULL,
-					  /* cam_flags */ 0,
-					  /* sense_flags */SF_RETRY_UA,
+		error = cam_periph_runccb(ccb, /* error handler */NULL,
+					  CAM_RETRY_SELTO, SF_RETRY_UA,
 					  &softc->device_stats);
 
 		if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO)
@@ -2041,8 +2039,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		/* "SCSI parity error" */
 		fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
 			   SSD_KEY_HARDWARE_ERROR, 0x47, 0x00);
-		set_ca_condition(periph, csio->init_id,
-					       CA_CMD_SENSE);
+		set_ca_condition(periph, csio->init_id, CA_CMD_SENSE);
 		csio->resid = csio->dxfer_len;
 		error = EIO;
 		break;
@@ -2054,9 +2051,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		if (sense != 0) {
 			copy_sense(softc, istate, (u_int8_t *)&csio->sense_data,
 				   csio->sense_len);
-			set_ca_condition(periph,
-						       csio->init_id,
-						       CA_CMD_SENSE);
+			set_ca_condition(periph, csio->init_id, CA_CMD_SENSE);
 		}
 		csio->resid = csio->dxfer_len;
 		error = EIO;
@@ -2065,8 +2060,7 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		/* "Initiator detected error message received" */
 		fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
 			   SSD_KEY_HARDWARE_ERROR, 0x48, 0x00);
-		set_ca_condition(periph, csio->init_id,
-					       CA_CMD_SENSE);
+		set_ca_condition(periph, csio->init_id, CA_CMD_SENSE);
 		csio->resid = csio->dxfer_len;
 		error = EIO;
 		break;
