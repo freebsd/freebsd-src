@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -39,13 +41,13 @@ static char sccsid[] = "@(#)wwchild.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include "ww.h"
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 void
 wwchild()
 {
-	extern errno;
 	int olderrno;
 	register struct ww **wp;
 	union wait w;

@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -40,7 +42,7 @@ static char sccsid[] = "@(#)ttoutput.c	8.1 (Berkeley) 6/6/93";
 
 #include "ww.h"
 #include "tt.h"
-#include <sys/errno.h>
+#include <errno.h>
 
 /*
  * Buffered output package.
@@ -51,7 +53,6 @@ ttflush()
 {
 	register char *p;
 	register n = tt_obp - tt_ob;
-	extern errno;
 
 	if (n == 0)
 		return;
