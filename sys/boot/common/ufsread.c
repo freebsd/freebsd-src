@@ -122,9 +122,6 @@ lookup(const char *path)
 	return dt == DT_REG ? ino : 0;
 }
 
-#ifndef __sparc64__
-#define UFS1_ONLY
-#endif
 #ifdef UFS1_ONLY
 
 static ssize_t
