@@ -7,10 +7,7 @@ MAN=	rshd.8
 
 WFORMAT=0
 
-DPADD+=	${LIBUTIL}
-LDADD+= -lutil
-
-DPADD+=	${LIBUTIL} ${LIBPAM}
-LDADD+= -lutil ${MINUSLPAM}
+DPADD=	${LIBUTIL} ${LIBPAM}
+LDADD=	-lutil ${MINUSLPAM}
 
 .include <bsd.prog.mk>
