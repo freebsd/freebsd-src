@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.h,v 1.4 1998/09/02 02:51:12 jdp Exp $
+ *      $Id: rtld.h,v 1.5 1998/09/04 19:03:57 dfr Exp $
  */
 
 #ifndef RTLD_H /* { */
@@ -33,6 +33,8 @@
 #include <link.h>
 #include <elf.h>
 #include <stddef.h>
+
+#include "rtld_machdep.h"
 
 #ifndef STANDARD_LIBRARY_PATH
 #define STANDARD_LIBRARY_PATH	"/usr/lib/elf:/usr/lib"
@@ -85,7 +87,7 @@ typedef struct Struct_Obj_Entry {
     size_t phsize;		/* Size of program header in bytes */
 
     /* Items from the dynamic section. */
-    Elf_Addr *got;		/* GOT table */
+    Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
     const Elf_Rel *rel;		/* Relocation entries */
     unsigned long relsize;	/* Size in bytes of relocation info */
     const Elf_Rela *rela;	/* Relocation entries with addend */
@@ -132,11 +134,13 @@ extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
  * Function declarations.
  */
 int do_copy_relocations(Obj_Entry *);
-int reloc_non_plt(Obj_Entry *, Obj_Entry *);
-int reloc_plt(Obj_Entry *, bool);
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, bool);
+void init_pltgot(Obj_Entry *);
+int reloc_non_plt(Obj_Entry *, Obj_Entry *);
+int reloc_plt(Obj_Entry *, bool);
+void _rtld_bind_start(void);
 const Elf_Sym *symlook_obj(const char *, unsigned long,
   const Obj_Entry *, bool);
 
