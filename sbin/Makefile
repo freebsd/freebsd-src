@@ -29,11 +29,7 @@ SUBDIR=	adjkerntz \
 	ifconfig \
 	init \
 	ip6fw \
-	ipf \
-	ipfs \
-	ipfstat \
 	ipfw \
-	ipmon \
 	kldconfig \
 	kldload \
 	kldstat \
@@ -79,6 +75,14 @@ SUBDIR=	adjkerntz \
 	tunefs \
 	umount \
 	vinum
+
+.if !defined(NO_IPFILTER)
+SUBDIR+=ipf \
+	ipfs \
+	ipfstat \
+	ipmon \
+	ipnat
+.endif
 
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=cxconfig \
