@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.14 1998/03/23 05:49:45 jkh Exp $
+ * $Id: index.c,v 1.38.2.16 1998/07/23 19:33:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,7 +43,7 @@
 #include "sysinstall.h"
 
 /* Macros and magic values */
-#define MAX_MENU	12
+#define MAX_MENU	8
 #define _MAX_DESC	55
 
 static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
@@ -60,7 +60,10 @@ static char *descrs[] = {
     "already marked, it will be unmarked or deleted (if installed).\n"
     "To search for a package by name, press ESC.  To select a category,\n"
     "press RETURN.  NOTE:  The All category selection creates a very large\n"
-    "submenu.  If you select it, please be patient while it comes up.",
+    "submenu.  If you select it, please be patient while it comes up.\n\n"
+    "If a package you're looking for is not listed here and you are\n"
+    "installing from CD, please check the other CD(s) after installation\n"
+    "since the sheer number of packages means they no longer all fit on one.\n",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -100,6 +103,7 @@ static char *descrs[] = {
     "networking", "Networking utilities.",
     "news", "USENET News support software.",
     "numeric", "Mathematical computation software.",
+    "offix", "An office automation suite of sorts.",
     "orphans", "Packages without a home elsewhere.",
     "perl5", "Utilities/modules for the PERL5 language..",
     "pilot", "Software support for the USR Palm Pilot(tm).",
@@ -107,6 +111,7 @@ static char *descrs[] = {
     "print", "Utilities for dealing with printing.",
     "printing", "Utilities for dealing with printing.",
     "programming", "Software development utilities and libraries.",
+    "python", "Software related to the python language.",
     "russian", "Ported software for the Russian market.",
     "security", "System security software.",
     "shells", "Various shells (tcsh, bash, etc).",
