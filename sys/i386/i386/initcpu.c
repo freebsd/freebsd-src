@@ -60,6 +60,7 @@ static void init_6x86(void);
 #ifdef I686_CPU
 static void	init_6x86MX(void);
 static void	init_ppro(void);
+static void	init_mendocino(void);
 #endif
 
 #ifdef I486_CPU
@@ -450,6 +451,47 @@ init_ppro(void)
 	wrmsr(0x1b, apicbase);
 #endif
 }
+
+/*
+ * Initialize BBL_CR_CTL3 (Control register 3: used to configure the
+ * L2 cache).
+ */
+void
+init_mendocino(void)
+{
+#ifdef CPU_PPRO2CELERON
+	u_long	eflags;
+	u_int64_t	bbl_cr_ctl3;
+
+	eflags = read_eflags();
+	disable_intr();
+
+	load_cr0(rcr0() | CR0_CD | CR0_NW);
+	wbinvd();
+
+	bbl_cr_ctl3 = rdmsr(0x11e);
+
+	/* If the L2 cache is configured, do nothing. */
+	if (!(bbl_cr_ctl3 & 1)) {
+		bbl_cr_ctl3 = 0x134052bLL;
+
+		/* Set L2 Cache Latency (Default: 5). */
+#ifdef	CPU_CELERON_L2_LATENCY
+#if CPU_L2_LATENCY > 15
+#error invalid CPU_L2_LATENCY.
+#endif
+		bbl_cr_ctl3 |= CPU_L2_LATENCY << 1;
+#else
+		bbl_cr_ctl3 |= 5 << 1;
+#endif
+		wrmsr(0x11e, bbl_cr_ctl3);
+	}
+
+	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
+	write_eflags(eflags);
+#endif /* CPU_PPRO2CELERON */
+}
+	
 #endif /* I686_CPU */
 
 void
@@ -484,9 +526,16 @@ initializecpu(void)
 		init_6x86MX();
 		break;
 	case CPU_686:
-		if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
-			(cpu_id & 0xff0) == 0x610)
-			init_ppro();
+		if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
+			switch (cpu_id & 0xff0) {
+			case 0x610:
+				init_ppro();
+				break;
+			case 0x660:
+				init_mendocino();
+				break;
+			}
+		}
 		break;
 #endif
 	default:
