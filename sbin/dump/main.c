@@ -453,9 +453,9 @@ main(argc, argv)
 	for (i = 0; i < ntrec; i++)
 		writeheader(maxino - 1);
 	if (pipeout)
-		msg("%ld tape blocks\n", spcl.c_tapea);
+		msg("DUMP: %ld tape blocks\n", spcl.c_tapea);
 	else
-		msg("%ld tape blocks on %d volumes(s)\n",
+		msg("DUMP: %ld tape blocks on %d volumes(s)\n",
 		    spcl.c_tapea, spcl.c_volume);
 
 	/* report dump performance, avoid division through zero */
