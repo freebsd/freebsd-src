@@ -30,8 +30,6 @@ MNT=/mnt
 if [ "x$1" = "x-b" ]; then
 	dd if=/dev/zero of=${IMG} bs=512 count=1024
 	MD=`mdconfig -a -t vnode -f ${IMG}`
-	# XXX - hack to give time for device name to show up
-	sleep 5
 	sunlabel -w -B -b $4/boot/boot1 ${MD} auto
 	newfs -O1 -o space -m 0 /dev/${MD}c
 	mount /dev/${MD}c ${MNT}
