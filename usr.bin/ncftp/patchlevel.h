@@ -1,4 +1,6 @@
-v1.8.5 - September 20, 1994.  Better support for term.
+v1.8.6 - October 30, 1994.  Tweaks for Solaris in sys.h.
+
+v1.8.5 - September 20, 1994.  Better(?) support for term.
 
 v1.8.4 - September 19, 1994.  Bug in Makefile fixed.  Bug involving getwd
   fixed.
