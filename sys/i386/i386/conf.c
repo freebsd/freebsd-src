@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.27 1994/08/18 22:34:39 wollman Exp $
+ *	$Id: conf.c,v 1.28 1994/08/19 11:45:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -269,7 +269,9 @@ struct bdevsw	bdevsw[] =
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*13*/
 	  lkmdump,	lkmsize,	NULL },
 #endif
-	{ 0, } /* block major 14 is reserved for local use */
+	/* block device 14 is reserved for local use */
+	{ noopen,	noclose,	nostrategy,	noioctl,	/*14*/
+	  nodump,	(p_size_t *)0,	NULL }
 /*
  * If you need a bdev major number, please contact the FreeBSD team
  * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
@@ -327,27 +329,6 @@ extern struct	tty pt_tty[];
 #define	pt_tty		NULL
 #define	ptcselect	(d_select_t *)enxio
 #define	ptsstop		(d_stop_t *)nullop
-#endif
-
-#include "com.h"
-#if NCOM > 0
-d_open_t comopen;
-d_close_t comclose;
-d_rdwr_t comread;
-d_rdwr_t comwrite;
-d_ioctl_t comioctl;
-d_select_t comselect;
-#define comreset	(d_reset_t *)enxio
-extern	struct tty com_tty[];
-#else
-#define comopen		(d_open_t *)enxio
-#define comclose	(d_close_t *)enxio
-#define comread		(d_rdwr_t *)enxio
-#define comwrite	(d_rdwr_t *)enxio
-#define comioctl	(d_ioctl_t *)enxio
-#define comreset	(d_reset_t *)enxio
-#define comselect	(d_select_t *)enxio
-#define	com_tty		NULL
 #endif
 
 /* /dev/klog */
@@ -448,19 +429,6 @@ d_ioctl_t bpfioctl;
 #define	bpfwrite	(d_rdwr_t *)enxio
 #define	bpfselect	(d_select_t *)enxio
 #define	bpfioctl	(d_ioctl_t *)enxio
-#endif
-
-#include "lpa.h"
-#if NLPA > 0
-d_open_t lpaopen;
-d_close_t lpaclose;
-d_rdwr_t lpawrite;
-d_ioctl_t lpaioctl;
-#else
-#define lpaopen		(d_open_t *)enxio
-#define lpaclose	(d_close_t *)enxio
-#define lpawrite	(d_rdwr_t *)enxio
-#define lpaioctl	(d_ioctl_t *)enxio
 #endif
 
 #include "speaker.h"
@@ -650,9 +618,9 @@ struct cdevsw	cdevsw[] =
  	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
  	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
  	  seltrue,	nommap,		NULL },
-	{ lpaopen,	lpaclose,	noread,		lpawrite,	/*25*/
-	  lpaioctl,	nullstop,	nullreset,	NULL,	/* lpa */
-	  seltrue,	nommap,		NULL },
+	{ noopen,	noclose,	noread,		nowrite,	/*25*/
+	  noioctl,	nostop,		noreset,	NULL,	/* unused */
+	  noselect,	nommap,		nostrat },
 	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
 	  spkrioctl,    nostop,         nullreset,      NULL,	/* spkr */
 	  seltrue,	nommap,		NULL },
@@ -692,7 +660,10 @@ struct cdevsw	cdevsw[] =
 	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*38*/
 	  lkmioctl,	lkmstop,	lkmreset,	NULL,
 	  lkmselect,	lkmmmap,	NULL },
-	{ 0, } /* character device 32 is reserved for local use */
+	/* character device 39 is reserved for local use */
+	{ noopen,	noclose,	noread,		nowrite,	/*39*/
+	  noioctl,	nostop,		noreset,	NULL,
+	  noselect,	nommap,		nostrat }
 /*
  * If you need a cdev major number, please contact the FreeBSD team
  * by sending mail to `freebsd-hackers@freefall.cdrom.com'.
