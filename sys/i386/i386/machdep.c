@@ -417,6 +417,7 @@ again:
 		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
 			mb_map_size);
 		mb_map->system_map = 1;
+		mbutltop = mbutl;
 	}
 
 	/*

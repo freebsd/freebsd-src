@@ -63,6 +63,8 @@
 #define	mtocl(x)	(((uintptr_t)(x) - (uintptr_t)mbutl) >> MCLSHIFT)
 #define	cltom(x)	((caddr_t)((uintptr_t)mbutl + \
 			    ((uintptr_t)(x) << MCLSHIFT)))
+#define mcl_valid(x)	((uintptr_t)(x) >= (uintptr_t)mbutl &&		\
+			 (uintptr_t)(x) < (uintptr_t)mbutltop)
 
 /*
  * Header present at the beginning of every mbuf.
@@ -388,6 +390,10 @@ union mcluster {
 		(void)m_clalloc(1, _mhow);				\
 	_mp = (caddr_t)mclfree;						\
 	if (_mp != NULL) {						\
+		KASSERT(mcl_valid(_mp),					\
+			("MCLALLOC junk pointer: %x < %x < %x.",	\
+			(uintptr_t)mbutl, (uintptr_t)_mp,		\
+			(uintptr_t)mbutltop));				\
 		KASSERT(mclrefcnt[mtocl(_mp)] == 0,			\
 			("free cluster with refcount %d.",		\
 			mclrefcnt[mtocl(_mp)]));			\
@@ -421,6 +427,10 @@ union mcluster {
 #define	MCLFREE1(p) do {						\
 	union mcluster *_mp = (union mcluster *)(p);			\
 									\
+	KASSERT(mcl_valid(_mp),						\
+		("MCLFREE1 junk pointer: %x < %x < %x.",		\
+		(uintptr_t)mbutl, (uintptr_t)_mp,			\
+		(uintptr_t)mbutltop));					\
 	KASSERT(mclrefcnt[mtocl(_mp)] > 0,				\
 		("freeing free cluster, refcount: %d.",			\
 		mclrefcnt[mtocl(_mp)]));				\
@@ -563,6 +573,7 @@ extern	struct mbstat	 mbstat;
 extern	u_long		 mbtypes[MT_NTYPES]; /* per-type mbuf allocations */
 extern	int		 mbuf_wait;	/* mbuf sleep time */
 extern	struct mbuf	*mbutl;		/* virtual address of mclusters */
+extern	struct mbuf	*mbutltop;	/* highest address of mclusters */
 extern	char		*mclrefcnt;	/* cluster reference counts */
 extern	union mcluster	*mclfree;
 extern	struct mbuf	*mmbfree;

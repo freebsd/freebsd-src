@@ -57,6 +57,7 @@ static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
 struct mbuf *mbutl;
+struct mbuf *mbutltop;
 char	*mclrefcnt;
 struct mbstat mbstat;
 u_long	mbtypes[MT_NTYPES];
@@ -229,6 +230,7 @@ m_mballoc(nmb, how)
 	if (p == NULL)
 		return (0);
 
+	mbutltop += nbytes;
 	nmb = nbytes / MSIZE;
 	for (i = 0; i < nmb; i++) {
 		((struct mbuf *)p)->m_next = mmbfree;
@@ -378,6 +380,8 @@ m_clalloc_fail:
 		}
 		return (0);
 	}
+
+	mbutltop += ctob(npg);
 
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree;
