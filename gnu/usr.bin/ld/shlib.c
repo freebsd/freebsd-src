@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.12 1995/03/04 17:46:09 nate Exp $
+ *	$Id: shlib.c,v 1.13 1995/03/19 21:20:09 nate Exp $
  */
 
 #include <sys/param.h>
@@ -169,17 +169,19 @@ int	n1, n2;
 
 /*
  * Search directories for a shared library matching the given
- * major and minor version numbers.
+ * major and minor version numbers.  See search_lib_dir() below for
+ * the detailed matching rules.
  *
- * MAJOR == -1 && MINOR == -1	--> find highest version
- * MAJOR != -1 && MINOR == -1   --> find highest minor version
- * MAJOR == -1 && MINOR != -1   --> invalid
- * MAJOR != -1 && MINOR != -1   --> find highest micro version
+ * As soon as a directory with an acceptable match is found, the search
+ * terminates.  Subsequent directories are not searched for a better
+ * match.  This is in conformance with the SunOS searching rules.  Also,
+ * it avoids a lot of directory searches that are virtually guaranteed to
+ * be fruitless.
+ *
+ * The return value is a full pathname to the matching library.  The
+ * string is dynamically allocated.  If no matching library is found, the
+ * function returns NULL.
  */
-
-/* Not interested in devices right now... */
-#undef major
-#undef minor
 
 char *
 findshlib(name, majorp, minorp, do_dot_a)
@@ -187,93 +189,126 @@ char	*name;
 int	*majorp, *minorp;
 int	do_dot_a;
 {
-	int		dewey[MAXDEWEY];
-	int		ndewey;
-	int		tmp[MAXDEWEY];
 	int		i;
-	int		len;
-	char		*lname, *path = NULL;
-	int		major = *majorp, minor = *minorp;
-
-	len = strlen(name);
-	lname = (char *)alloca(len + sizeof("lib"));
-	sprintf(lname, "lib%s", name);
-	len += 3;
-
-	ndewey = 0;
 
 	for (i = 0; i < n_search_dirs; i++) {
-		DIR		*dd = opendir(search_dirs[i]);
-		struct dirent	*dp;
-		int		found_dot_a = 0;
+		char	*path;
 
-		if (dd == NULL)
-			continue;
-
-		while ((dp = readdir(dd)) != NULL) {
-			int	n, might_take_it = 0;
-
-			if (do_dot_a && path == NULL &&
-					dp->d_namlen == len + 2 &&
-					strncmp(dp->d_name, lname, len) == 0 &&
-					(dp->d_name+len)[0] == '.' &&
-					(dp->d_name+len)[1] == 'a') {
-
-				path = concat(search_dirs[i], "/", dp->d_name);
-				found_dot_a = 1;
-			}
-
-			if (dp->d_namlen < len + 4)
-				continue;
-			if (strncmp(dp->d_name, lname, len) != 0)
-				continue;
-			if (strncmp(dp->d_name+len, ".so.", 4) != 0)
-				continue;
-
-			if ((n = getdewey(tmp, dp->d_name+len+4)) == 0)
-				continue;
-
-			if (major != -1 && found_dot_a) { /* XXX */
-				free(path);
-				path = NULL;
-				found_dot_a = 0;
-			}
-
-			if (major == -1 && minor == -1) {
-				might_take_it = 1;
-			} else if (major != -1 && minor == -1) {
-				if (tmp[0] == major)
-					might_take_it = 1;
-			} else if (major != -1 && minor != -1) {
-				if (tmp[0] == major)
-					if (n == 1 || tmp[1] >= minor)
-						might_take_it = 1;
-			}
-
-			if (!might_take_it)
-				continue;
-
-			if (cmpndewey(tmp, n, dewey, ndewey) <= 0)
-				continue;
-
-			/* We have a better version */
-			if (path)
-				free(path);
-			path = concat(search_dirs[i], "/", dp->d_name);
-			found_dot_a = 0;
-			bcopy(tmp, dewey, sizeof(dewey));
-			ndewey = n;
-			*majorp = dewey[0];
-			*minorp = dewey[1];
-		}
-		closedir(dd);
-
-		if (found_dot_a)
-			/*
-			 * There's a .a archive here.
-			 */
+		path = search_lib_dir(search_dirs[i], name, majorp, minorp,
+			do_dot_a);
+		if(path != NULL)
 			return path;
 	}
 
-	return path;
+	return NULL;
+}
+
+/*
+ * Search a given directory for a library (preferably shared) satisfying
+ * the given criteria.
+ *
+ * The matching rules are as follows:
+ *
+ *	if(*majorp == -1)
+ *		find the library with the highest major version;
+ *	else
+ *		insist on a major version identical to *majorp;
+ *
+ *	Always find the library with the highest minor version;
+ *	if(*minorp != -1)
+ *		insist on a minor version >= *minorp;
+ *
+ * It is invalid to specify a specific minor number while wildcarding
+ * the major number.
+ *
+ * The actual major and minor numbers found are returned via the pointer
+ * arguments.
+ *
+ * A suitable shared library is always preferred over a static (.a) library.
+ * If do_dot_a is false, then a static library will not be accepted in
+ * any case.
+ *
+ * The return value is a full pathname to the matching library.  The
+ * string is dynamically allocated.  If no matching library is found, the
+ * function returns NULL.
+ */
+
+char *
+search_lib_dir(dir, name, majorp, minorp, do_dot_a)
+	char		*dir;
+	char		*name;
+	int		*majorp;
+	int		*minorp;
+	int		do_dot_a;
+{
+	int		namelen;
+	DIR		*dd;
+	struct dirent	*dp;
+	int		best_dewey[MAXDEWEY];
+	int		best_ndewey;
+	char		dot_a_name[MAXNAMLEN+1];
+	char		dot_so_name[MAXNAMLEN+1];
+
+	if((dd = opendir(dir)) == NULL)
+		return NULL;
+
+	namelen = strlen(name);
+	best_ndewey = 0;
+	dot_a_name[0] = '\0';
+	dot_so_name[0] = '\0';
+
+	while((dp = readdir(dd)) != NULL) {
+		char *extension;
+
+		if(strlen(dp->d_name) < 3 + namelen + 2 ||	/* lib+xxx+.a */
+		   strncmp(dp->d_name, "lib", 3) != 0 ||
+		   strncmp(dp->d_name + 3, name, namelen) != 0 ||
+		   dp->d_name[3+namelen] != '.')
+			continue;
+
+		extension = dp->d_name + 3 + namelen + 1;	/* a or so.* */
+
+		if(strncmp(extension, "so.", 3) == 0) {
+			int cur_dewey[MAXDEWEY];
+			int cur_ndewey;
+
+			cur_ndewey = getdewey(cur_dewey, extension+3);
+			if(cur_ndewey == 0)	/* No version number */
+				continue;
+
+			if(*majorp != -1) {	/* Need exact match on major */
+				if(cur_dewey[0] != *majorp)
+					continue;
+				if(*minorp != -1) {  /* Need minor >= minimum */
+					if(cur_ndewey < 2 ||
+					   cur_dewey[1] < *minorp)
+						continue;
+				}
+			}
+
+			if(cmpndewey(cur_dewey, cur_ndewey, best_dewey,
+			   best_ndewey) <= 0)	/* No better than prior match */
+				continue;
+
+			/* We found a better match */
+			strcpy(dot_so_name, dp->d_name);
+			bcopy(cur_dewey, best_dewey,
+				cur_ndewey * sizeof best_dewey[0]);
+			best_ndewey = cur_ndewey;
+		} else if(do_dot_a && strcmp(extension, "a") == 0)
+			strcpy(dot_a_name, dp->d_name);
+	}
+	closedir(dd);
+
+	if(dot_so_name[0] != '\0') {
+		*majorp = best_dewey[0];
+		if(best_ndewey >= 2)
+			*minorp = best_dewey[1];
+		return concat(dir, "/", dot_so_name);
+	}
+
+	if(dot_a_name[0] != '\0')
+		return concat(dir, "/", dot_a_name);
+
+	return NULL;
 }
