@@ -107,6 +107,8 @@ struct atpic_intsrc {
 	struct intsrc at_intsrc;
 	int	at_irq;		/* Relative to PIC base. */
 	inthand_t *at_intr;
+	u_long	at_count;
+	u_long	at_straycount;
 };
 
 static void atpic_enable_source(struct intsrc *isrc);
@@ -277,28 +279,37 @@ i8259_init(struct atpic *pic, int slave)
 void
 atpic_startup(void)
 {
+	struct atpic_intsrc *ai;
+	int i;
 
 	/* Start off with all interrupts disabled. */
 	imen = 0xffff;
 	i8259_init(&atpics[MASTER], 0);
 	i8259_init(&atpics[SLAVE], 1);
 	atpic_enable_source((struct intsrc *)&atintrs[ICU_SLAVEID]);
+
+	/* Install low-level interrupt handlers for all of our IRQs. */
+	for (i = 0; i < sizeof(atintrs) / sizeof(struct atpic_intsrc); i++) {
+		if (i == ICU_SLAVEID)
+			continue;
+		ai = &atintrs[i];
+		ai->at_intsrc.is_count = &ai->at_count;
+		ai->at_intsrc.is_straycount = &ai->at_straycount;
+		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
+		    ai->at_irq, ai->at_intr, SDT_SYSIGT, SEL_KPL, 0);
+	}
 }
 
 static void
 atpic_init(void *dummy __unused)
 {
-	struct atpic_intsrc *ai;
 	int i;
 
 	/* Loop through all interrupt sources and add them. */
 	for (i = 0; i < sizeof(atintrs) / sizeof(struct atpic_intsrc); i++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		ai = &atintrs[i];
-		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
-		    ai->at_irq, ai->at_intr, SDT_SYSIGT, SEL_KPL, 0);
-		intr_register_source(&ai->at_intsrc);
+		intr_register_source(&atintrs[i].at_intsrc);
 	}
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
@@ -311,7 +322,12 @@ atpic_handle_intr(void *cookie, struct intrframe iframe)
 
 	KASSERT(vec < ICU_LEN, ("unknown int %d\n", vec));
 	isrc = &atintrs[vec].at_intsrc;
-	if (vec == 7 || vec == 15) {
+
+	/*
+	 * If we don't have an ithread, see if this is a spurious
+	 * interrupt.
+	 */
+	if (isrc->is_ithread == NULL && (vec == 7 || vec == 15)) {
 		int port, isr;
 
 		/*
