@@ -70,23 +70,14 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.26 1997/10/18 00:56:23 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.27 1997/10/18 01:20:28 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
 
-#include "opt_ppp.h"
+#include "opt_ppp.h"		/* XXX for ppp_defs.h */
 
-#define VJC
-#define PPP_COMPRESS
-
-#ifdef PPP_FILTER
-#include "bpfilter.h"
-#if NBPFILTER == 0
-#error "PPP_FILTER requires bpf"
-#endif
-#endif
-
+#define VJC			/* XXX for ppp_defs.h */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -96,11 +87,14 @@
 #include <sys/socket.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>
-#include <sys/kernel.h>
 #include <sys/conf.h>
 
 
-#undef KERNEL	/* so that vnode.h does not try to include vnode_if.h */
+/*
+ * XXX stop <sys/vnode.h> from including <vnode_if.h>.  <vnode_if.h> doesn't
+ * exist if we are an LKM.
+ */
+#undef KERNEL
 # include <sys/vnode.h>
 #define KERNEL
 
@@ -108,20 +102,9 @@
 #include <i386/isa/intr_machdep.h>
 #endif
 
-#include <net/if.h>
-#include <net/if_types.h>
-
-#ifdef VJC
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <net/slcompress.h>
-#endif
-
 #ifdef PPP_FILTER
 #include <net/bpf.h>
 #endif
-#include <net/ppp_defs.h>
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
 
@@ -580,10 +563,7 @@ static u_short fcstab[256] = {
  * Calculate a new FCS given the current FCS and the new data.
  */
 static u_short
-pppfcs(fcs, cp, len)
-    register u_short fcs;
-    register u_char *cp;
-    register int len;
+pppfcs(u_short fcs, u_char *cp, int len)
 {
     while (len--)
 	fcs = PPP_FCS(fcs, *cp++);
