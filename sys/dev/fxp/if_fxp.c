@@ -701,7 +701,6 @@ fxp_attach(device_t dev)
 	sc->fxp_desc.rx_head = sc->fxp_desc.rx_tail = NULL;
 	for (i = 0; i < FXP_NRFABUFS; i++) {
 		rxp = &sc->fxp_desc.rx_list[i];
-		rxp->rx_mbuf = NULL;
 		error = bus_dmamap_create(sc->fxp_mtag, 0, &rxp->rx_map);
 		if (error) {
 			device_printf(dev, "can't create DMA map for RX\n");
