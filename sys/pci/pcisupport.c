@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.84 1998/12/19 16:05:19 foxfair Exp $
+**  $Id: pcisupport.c,v 1.85 1998/12/23 14:28:37 foxfair Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -342,11 +342,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	/* XXX need info on the MVP3 -- any takers? */
 	case 0x30401106:
 		return("VIA 82C586B ACPI interface");
-	/* XXX New info added-in */
-        case 0x05711106:
-		return("VIA 82C586B IDE controller");
-	case 0x30381106:
-		return("VIA 82C586B USB controller");
 	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
 	/* totally. Please let me know if anything wrong.            -F */
 	case 0x05981106:
