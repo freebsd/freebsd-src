@@ -252,7 +252,6 @@ all)
 
 std)
 	mknod console	c 0 0;	chmod 600 console
-	mknod drum	c 4 0;	chmod 640 drum;		chgrp kmem drum
 	mknod kmem	c 2 1;	chmod 640 kmem;		chgrp kmem kmem
 	mknod mem	c 2 0;	chmod 640 mem;		chgrp kmem mem
 	mknod null	c 2 2;	chmod 666 null
@@ -277,10 +276,9 @@ std)
 
 jail)
 	sh MAKEDEV std pty0
-	rm mem kmem drum pci io klog	# for security
+	rm mem kmem pci io klog		# for security
 	ln -sf null mem			# for libkvm (ab)users
 	ln -sf null kmem		# --//--
-	ln -sf null drum		# --//--
 	;;
 
 mach-4)
