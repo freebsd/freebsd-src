@@ -97,9 +97,13 @@ static TAILQ_HEAD(acpi_powerconsumer_list, acpi_powerconsumer)
 	acpi_powerconsumers;
 
 static ACPI_STATUS	acpi_pwr_register_consumer(ACPI_HANDLE consumer);
+#ifdef notyet
 static ACPI_STATUS	acpi_pwr_deregister_consumer(ACPI_HANDLE consumer);
+#endif /* notyet */
 static ACPI_STATUS	acpi_pwr_register_resource(ACPI_HANDLE res);
+#ifdef notyet
 static ACPI_STATUS	acpi_pwr_deregister_resource(ACPI_HANDLE res);
+#endif /* notyet */
 static void		acpi_pwr_reference_resource(ACPI_OBJECT *obj,
 						    void *arg);
 static ACPI_STATUS	acpi_pwr_switch_power(void);
@@ -191,6 +195,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     return_ACPI_STATUS (status);
 }
 
+#ifdef notyet
 /*
  * Deregister a power resource.
  */
@@ -220,6 +225,7 @@ acpi_pwr_deregister_resource(ACPI_HANDLE res)
 
     return_ACPI_STATUS (AE_OK);
 }
+#endif /* notyet */
 
 /*
  * Register a power consumer.  
@@ -253,6 +259,7 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
     return_ACPI_STATUS (AE_OK);
 }
 
+#ifdef notyet
 /*
  * Deregister a power consumer.
  *
@@ -282,6 +289,7 @@ acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
 
     return_ACPI_STATUS (AE_OK);
 }
+#endif /* notyet */
 
 /*
  * Set a power consumer to a particular power state.
