@@ -594,9 +594,8 @@ passout:
 			} while ((m = m0) != NULL);
 			if (error) {
 				/* Reclaim remaining fragments */
-				for (; m; m = m0) {
+				for (m = m0; m; m = m0) {
 					m0 = m->m_nextpkt;
-					m->m_nextpkt = NULL;
 					m_freem(m);
 				}
 			} else
