@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.67 1994/10/01 02:56:02 davidg Exp $
+ *	$Id: machdep.c,v 1.68 1994/10/02 01:32:53 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -160,13 +160,8 @@ extern int pager_map_size;
 void
 cpu_startup()
 {
-	register int unixsize;
 	register unsigned i;
-	register struct pte *pte;
-	int mapaddr, j;
 	register caddr_t v;
-	int maxbufs, base, residual;
-	extern long Usrptsize;
 	extern void (*netisrs[32])(void);
 	vm_offset_t minaddr, maxaddr;
 	vm_size_t size = 0;
@@ -424,7 +419,7 @@ identifycpu()
 	}
 #endif
 	if(cpu_id)
-		printf("  Id = 0x%x",cpu_id);
+		printf("  Id = 0x%lx",cpu_id);
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
 	printf("\n");	/* cpu speed would be nice, but how? */
@@ -493,7 +488,7 @@ sendsig(catcher, sig, mask, code)
 	register int *regs;
 	register struct sigframe *fp;
 	struct sigacts *psp = p->p_sigacts;
-	int oonstack, frmtrap;
+	int oonstack;
 
 	regs = p->p_md.md_regs;
         oonstack = psp->ps_sigstk.ss_flags & SA_ONSTACK;
@@ -816,7 +811,7 @@ dumpsys()
 	if ((minor(dumpdev)&07) != 1)
 		return;
 	dumpsize = Maxmem;
-	printf("\ndumping to dev %x, offset %d\n", dumpdev, dumplo);
+	printf("\ndumping to dev %lx, offset %ld\n", dumpdev, dumplo);
 	printf("dump ");
 	switch ((*bdevsw[major(dumpdev)].d_dump)(dumpdev)) {
 
@@ -1175,8 +1170,8 @@ void
 init386(first)
 	int first;
 {
-	extern lgdt(), lidt(), lldt(), etext; 
-	int x, *pi;
+	extern lgdt(), lidt(), lldt();
+	int x;
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	extern int sigcode,szsigcode;
@@ -1512,7 +1507,8 @@ ptrace_getregs (struct proc *p, unsigned int *addr) {
 	int error;
 	struct reg regs = {0};
 
-	if (error = fill_regs (p, &regs))
+	error = fill_regs (p, &regs);
+	if (error)
 		return error;
 	  
 	return copyout (&regs, addr, sizeof (regs));
@@ -1523,7 +1519,8 @@ ptrace_setregs (struct proc *p, unsigned int *addr) {
 	int error;
 	struct reg regs = {0};
 
-	if (error = copyin (addr, &regs, sizeof(regs)))
+	error = copyin (addr, &regs, sizeof(regs));
+	if (error)
 		return error;
 
 	return set_regs (p, &regs);
@@ -1531,7 +1528,6 @@ ptrace_setregs (struct proc *p, unsigned int *addr) {
 
 int
 fill_regs(struct proc *p, struct reg *regs) {
-	int error;
 	struct trapframe *tp;
 	void *ptr = (char*)p->p_addr +
 		((char*) p->p_md.md_regs - (char*) kstack);
@@ -1556,7 +1552,6 @@ fill_regs(struct proc *p, struct reg *regs) {
 
 int
 set_regs (struct proc *p, struct reg *regs) {
-	int error;
 	struct trapframe *tp;
 	void *ptr = (char*)p->p_addr +
 		((char*) p->p_md.md_regs - (char*) kstack);
