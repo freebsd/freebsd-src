@@ -127,11 +127,8 @@ char		*copy_string(char *);
 Boolean		suffix(char *, char *);
 void		nuke_suffix(char *);
 void		str_lowercase(char *);
-char		*basename_of(char *);
 char		*strconcat(char *, char *);
 char		*get_string(char *, int, FILE *);
-int		s_strlcpy(char *, const char *, size_t);
-int		s_strlcat(char *, const char *, size_t);
 
 /* File */
 Boolean		fexists(char *);

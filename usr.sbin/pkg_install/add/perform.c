@@ -440,7 +440,7 @@ pkg_do(char *pkg)
 		continue;
 	    if (Verbose)
 		printf("Attempting to record dependency on package '%s'\n", p->name);
-	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename_of(p->name),
+	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename(p->name),
 	    	    REQUIRED_BY_FNAME);
 	    cfile = fopen(contents, "a");
 	    if (!cfile)
