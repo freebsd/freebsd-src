@@ -1,0 +1,69 @@
+How to use smartcards with OpenSSH?
+
+OpenSSH contains experimental support for authentication using
+Cyberflex smartcards and TODOS card readers. To enable this you
+need to:
+
+(1) install sectok
+
+	$ cd /usr/src/lib/libsectok
+	$ make obj depend all install includes
+	$ cd /usr/src/usr.bin/sectok
+	$ make obj depend all install
+
+(2) enable SMARTCARD support in OpenSSH:
+
+	$ vi /usr/src/usr.bin/ssh/Makefile.inc
+	and uncomment
+		CFLAGS+=	-DSMARTCARD
+		LDADD+=	-lsectok
+
+(3) load the Java Cardlet to the Cyberflex card:
+
+	$ sectok
+	sectok> login -d
+	sectok> jload /usr/libdata/ssh/Ssh.bin
+	sectok> quit
+
+(4) load a RSA key to the card:
+
+	please don't use your production RSA keys, since
+	with the current version of sectok/ssh-keygen
+	the private key file is still readable
+
+	$ ssh-keygen -f /path/to/rsakey -U 1
+	(where 1 is the reader number, you can also try 0)
+
+	In spite of the name, this does not generate a key.
+	It just loads an already existing key on to the card.
+
+(5) optional:
+
+	Change the card password so that only you can
+	read the private key:
+
+	$ sectok
+	sectok> login -d
+	sectok> setpass
+	sectok> quit
+
+	This prevents reading the key but not use of the
+	key by the card applet.
+
+	Do not forget the passphrase.  There is no way to
+	recover if you do.
+
+	IMPORTANT WARNING: If you attempt to login with the
+	wrong passphrase three times in a row, you will
+	destroy your card.
+
+(6) tell the ssh client to use the card reader:
+
+	$ ssh -I 1 otherhost
+
+(7) or tell the agent (don't forget to restart) to use the smartcard:
+
+	$ ssh-add -s 1
+
+-markus,
+Tue Jul 17 23:54:51 CEST 2001

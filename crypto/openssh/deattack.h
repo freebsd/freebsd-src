@@ -1,4 +1,4 @@
-/*	$OpenBSD: deattack.h,v 1.5 2001/01/29 01:58:15 niklas Exp $	*/
+/*	$OpenBSD: deattack.h,v 1.7 2001/06/26 17:27:23 markus Exp $	*/
 
 /*
  * Cryptographic attack detector for ssh - Header file
@@ -26,5 +26,5 @@
 #define DEATTACK_OK		0
 #define DEATTACK_DETECTED	1
 
-int     detect_attack(u_char *buf, u_int32_t len, u_char IV[8]);
+int	 detect_attack(u_char *, u_int32_t, u_char[8]);
 #endif
