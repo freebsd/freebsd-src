@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.13 1995/10/07 04:31:28 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.14 1995/10/18 04:05:16 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -202,10 +202,15 @@ Boot:
 
 	Not yet!  We'd like to add support for this someday, but
 	are still lacking anyone to actually do the work.
-	Ongoing work with Linux's PCEMU utility may bring this
+	Ongoing work with Linux's DOSEMU utility may bring this
 	much closer to being a reality sometime soon.  Send mail
 	to hackers@freebsd.org if you're interested in joining
 	this effort!
+
+	However, there's a nice application available in the
+	<ref id="ports" name="The Ports Collection"> called pcemu,
+	that allows you to run many basic MS-DOS text-mode binaries
+	by entirely emulating an 8088 CPU.
 
 
 
@@ -244,7 +249,9 @@ Boot:
 	    <item>Adaptec 274X/284X/2940 <!-- 3940 (in 2.1) --> 
               (Narrow/Wide/Twin)
 	      series EISA/VLB/PCI SCSI controllers
-	    <item>Adaptec AIC-6260 and AIC-6360 based boards,
+	    <item>Adaptec
+	      <!-- AIC-6260 and - actually not working, joerg -->
+	      AIC-6360 based boards,
 	      which includes the AHA-152x and SoundBlaster SCSI
 	      cards.
 
@@ -366,6 +373,8 @@ Boot:
 
 	    <item>BOCA IOAT66 6 port serial card using shared IRQ.
 
+	    <item>BOCA 2016 16 port serial card using shared IRQ.
+
 	    <item>Cyclades Cyclom-y Serial Board.
 
 	    <item>STB 4 port card using shared IRQ.
@@ -453,12 +462,14 @@ Boot:
 
 	  You will also need, at minimum, as many 1.44MB or 1.2MB
 	  floppies as it takes to hold all files in the bin
-	  (binary distribution) directory.  THESE floppies *must*
+	  (binary distribution) directory.  THESE floppies <bf>must</bf>
 	  be formatted using MS-DOS, using with the FORMAT
 	  command in MS-DOS or the File Manager format command in
 	  Microsoft Windows(tm).  Factory preformatted floppies
 	  will also work well, provided that they haven't been
-	  previously used for something else.
+	  previously used for something else.  Note that only media
+	  without any defects are usable for these floppies; there
+	  is no kind of bad sector remapping available for them.
 
 	  Many problems reported by our users in the past have
 	  resulted from the use of improperly formatted media, so
