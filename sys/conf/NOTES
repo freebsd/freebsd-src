@@ -1941,6 +1941,15 @@ hint.gusc.0.drq="1"
 hint.gusc.0.flags="0x13"
 
 #
+# IEEE-488 hardware:
+#	pcii:	PCIIA cards (uPD7210 based isa cards)
+device	pcii
+hint.pcii.0.at="isa"
+hint.pcii.0.port="0x2e1"
+hint.pcii.0.irq="5"
+hint.pcii.0.drq="1"
+
+#
 # Miscellaneous hardware:
 #
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
