@@ -71,7 +71,7 @@ int eval = EX_OK;			/* sysexits.h error value. */
 
 void		deliver __P((int, char *, int));
 void		e_to_sys __P((int));
-__dead void	err __P((const char *, ...));
+void		err __P((const char *, ...)) __dead2;
 void		notifybiff __P((char *));
 int		store __P((char *));
 void		usage __P((void));

@@ -85,7 +85,7 @@ long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
 
 static long numarg __P((int, char *, long, long, int *, char ***));
-static __dead void missingarg __P((int, char *));
+static void missingarg __P((int, char *)) __dead2;
 
 int
 main(argc, argv)
@@ -507,7 +507,7 @@ bad:
 	exit(X_ABORT);
 }
 
-static __dead void
+static void
 missingarg(letter, meaning)
 	int letter;
 	char *meaning;

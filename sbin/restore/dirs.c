@@ -737,7 +737,7 @@ inotablookup(ino)
 /*
  * Clean up and exit
  */
-__dead void
+void
 done(exitcode)
 	int exitcode;
 {

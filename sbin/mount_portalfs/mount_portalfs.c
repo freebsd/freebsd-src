@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_portal.c	8.4 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_portal.c,v 1.6 1996/05/13 17:43:09 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static __dead void usage __P((void)) __dead2;
+static void usage __P((void)) __dead2;
 
 static sig_atomic_t readcf;	/* Set when SIGHUP received */
 

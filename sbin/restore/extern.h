@@ -45,7 +45,7 @@ void		 createlinks __P((void));
 long		 deletefile __P((char *, ino_t, int));
 void		 deleteino __P((ino_t));
 ino_t		 dirlookup __P((const char *));
-__dead void 	 done __P((int));
+void 	 	 done __P((int)) __dead2;
 void		 dumpsymtable __P((char *, long));
 void	 	 extractdirs __P((int));
 int		 extractfile __P((char *));

@@ -80,18 +80,15 @@ typedef struct { int _jb[_JBLEN + 1]; } jmp_buf[1];
 
 __BEGIN_DECLS
 int	setjmp __P((jmp_buf));
-__dead
 void	longjmp __P((jmp_buf, int)) __dead2;
 
 #ifndef _ANSI_SOURCE
 int	sigsetjmp __P((sigjmp_buf, int));
-__dead
 void	siglongjmp __P((sigjmp_buf, int)) __dead2;
 #endif /* not ANSI */
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 int	_setjmp __P((jmp_buf));
-__dead
 void	_longjmp __P((jmp_buf, int)) __dead2;
 void	longjmperror __P((void));
 #endif /* neither ANSI nor POSIX */

@@ -117,8 +117,8 @@ struct	winsize winsize;
 
 void		catch_child __P((int));
 void		copytochild __P((int));
-__dead void	doit __P((long));
-__dead void	done __P((int));
+void		doit __P((long)) __dead2;
+void		done __P((int)) __dead2;
 void		echo __P((char));
 u_int		getescape __P((char *));
 void		lostpeer __P((int));
@@ -130,7 +130,7 @@ void		sendwindow __P((void));
 void		setsignal __P((int));
 void		sigwinch __P((int));
 void		stop __P((char));
-__dead void	usage __P((void));
+void		usage __P((void)) __dead2;
 void		writer __P((void));
 void		writeroob __P((int));
 
@@ -428,7 +428,7 @@ setsignal(sig)
 	(void)sigsetmask(omask);
 }
 
-__dead void
+void
 done(status)
 	int status;
 {
@@ -889,7 +889,7 @@ warning(fmt, va_alist)
 }
 #endif
 
-__dead void
+void
 usage()
 {
 	(void)fprintf(stderr,
