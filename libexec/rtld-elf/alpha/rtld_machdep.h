@@ -60,4 +60,19 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 /* Lazy binding entry point, called via PLT. */
 void _rtld_bind_start_old(void);
 
+#define round(size, align) \
+	(((size) + (align) - 1) & ~((align) - 1))
+#define calculate_first_tls_offset(size, align) \
+	round(16, align)
+#define calculate_tls_offset(prev_offset, prev_size, size, align) \
+	round(prev_offset + prev_size, align)
+#define calculate_tls_end(off, size) 	((off) + (size))
+
+typedef struct {
+    unsigned long ti_module;
+    unsigned long ti_offset;
+} tls_index;
+
+extern void *__tls_get_addr(tls_index *ti);
+
 #endif

@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <machine/sysarch.h>
 
 #include <dlfcn.h>
 #include <err.h>
@@ -199,6 +200,111 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		}
 		break;
 
+	    case R_X86_64_TPOFF64:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    /*
+		     * We lazily allocate offsets for static TLS as we
+		     * see the first relocation that references the
+		     * TLS block. This allows us to support (small
+		     * amounts of) static TLS in dynamically loaded
+		     * modules. If we run out of space, we generate an
+		     * error.
+		     */
+		    if (!defobj->tls_done) {
+			if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+			    _rtld_error("%s: No space available for static "
+					"Thread Local Storage", obj->path);
+			    goto done;
+			}
+		    }
+
+		    *where = (Elf_Addr) (def->st_value - defobj->tlsoffset +
+					 rela->r_addend);
+		}
+		break;
+
+	    case R_X86_64_TPOFF32:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    /*
+		     * We lazily allocate offsets for static TLS as we
+		     * see the first relocation that references the
+		     * TLS block. This allows us to support (small
+		     * amounts of) static TLS in dynamically loaded
+		     * modules. If we run out of space, we generate an
+		     * error.
+		     */
+		    if (!defobj->tls_done) {
+			if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+			    _rtld_error("%s: No space available for static "
+					"Thread Local Storage", obj->path);
+			    goto done;
+			}
+		    }
+
+		    *where32 = (Elf32_Addr) (def->st_value -
+					     defobj->tlsoffset +
+					     rela->r_addend);
+		}
+		break;
+
+	    case R_X86_64_DTPMOD64:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    *where += (Elf_Addr) defobj->tlsindex;
+		}
+		break;
+
+	    case R_X86_64_DTPOFF64:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    *where += (Elf_Addr) (def->st_value + rela->r_addend);
+		}
+		break;
+
+	    case R_X86_64_DTPOFF32:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    *where32 += (Elf32_Addr) (def->st_value + rela->r_addend);
+		}
+		break;
+
 	    case R_X86_64_RELATIVE:
 		*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
 		break;
@@ -264,4 +370,28 @@ reloc_jmpslots(Obj_Entry *obj)
     }
     obj->jmpslots_done = true;
     return 0;
+}
+
+void
+allocate_initial_tls(Obj_Entry *objs)
+{
+    /*
+     * Fix the size of the static TLS block by using the maximum
+     * offset allocated so far and adding a bit for dynamic modules to
+     * use.
+     */
+    tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
+    amd64_set_fsbase(allocate_tls(objs, 0,
+				  2*sizeof(Elf_Addr), sizeof(Elf_Addr)));
+}
+
+void *__tls_get_addr(tls_index *ti)
+{
+    Elf_Addr** segbase;
+    Elf_Addr* dtv;
+
+    __asm __volatile("movq %%fs:0, %0" : "=r" (segbase));
+    dtv = segbase[1];
+
+    return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
 }

@@ -53,6 +53,7 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
+#include "rtld_tls.h"
 
 #ifndef COMPAT_32BIT
 #define PATH_RTLD	"/libexec/ld-elf.so.1"
@@ -181,6 +182,12 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dllockinit,
     (func_ptr_type) &dlinfo,
     (func_ptr_type) &_rtld_thread_init,
+#ifdef __i386__
+    (func_ptr_type) &___tls_get_addr,
+#endif
+    (func_ptr_type) &__tls_get_addr,
+    (func_ptr_type) &_rtld_allocate_tls,
+    (func_ptr_type) &_rtld_free_tls,
     NULL
 };
 
@@ -190,6 +197,15 @@ static func_ptr_type exports[] = {
  */
 char *__progname;
 char **environ;
+
+/*
+ * Globals to control TLS allocation.
+ */
+size_t tls_last_offset;		/* Static TLS offset of last module */
+size_t tls_last_size;		/* Static TLS size of last module */
+size_t tls_static_space;	/* Static TLS space allocated */
+int tls_dtv_generation = 1;	/* Used to detect when dtv size changes  */
+int tls_max_index = 1;		/* Largest module index allocated */
 
 /*
  * Fill in a DoneList with an allocation large enough to hold all of
@@ -229,6 +245,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Elf_Auxinfo *aux;
     Elf_Auxinfo *auxp;
     const char *argv0;
+    Objlist_Entry *entry;
     Obj_Entry *obj;
     Obj_Entry **preload_tail;
     Objlist initlist;
@@ -392,6 +409,17 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     dbg("initializing thread locks");
     lockdflt_init();
+
+    /* setup TLS for main thread */
+    dbg("initializing initial thread local storage");
+    STAILQ_FOREACH(entry, &list_main, link) {
+	/*
+	 * Allocate all the initial objects out of the static TLS
+	 * block even if they didn't ask for it.
+	 */
+	allocate_tls_offset(entry->obj);
+    }
+    allocate_initial_tls(obj_list);
 
     /* Make a list of init functions to call. */
     objlist_init(&initlist);
@@ -728,6 +756,14 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 
 	case PT_DYNAMIC:
 	    obj->dynamic = (const Elf_Dyn *) ph->p_vaddr;
+	    break;
+
+	case PT_TLS:
+	    obj->tlsindex = 1;
+	    obj->tlssize = ph->p_memsz;
+	    obj->tlsalign = ph->p_align;
+	    obj->tlsinitsize = ph->p_filesz;
+	    obj->tlsinit = (void*) ph->p_vaddr;
 	    break;
 	}
     }
@@ -2441,4 +2477,310 @@ unref_dag(Obj_Entry *root)
 	elm->obj->refcount--;
 }
 
+/*
+ * Common code for MD __tls_get_addr().
+ */
+void *
+tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
+{
+    Elf_Addr* dtv = *dtvp;
 
+    /* Check dtv generation in case new modules have arrived */
+    if (dtv[0] != tls_dtv_generation) {
+	Elf_Addr* newdtv;
+	int to_copy;
+
+	newdtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
+	to_copy = dtv[1];
+	if (to_copy > tls_max_index)
+	    to_copy = tls_max_index;
+	memcpy(&newdtv[2], &dtv[2], to_copy * sizeof(Elf_Addr));
+	newdtv[0] = tls_dtv_generation;
+	newdtv[1] = tls_max_index;
+	free(dtv);
+	*dtvp = newdtv;
+    }
+
+    /* Dynamically allocate module TLS if necessary */
+    if (!dtv[index + 1])
+	dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
+
+    return (void*) (dtv[index + 1] + offset);
+}
+
+/* XXX not sure what variants to use for arm and powerpc. */
+
+#if defined(__ia64__) || defined(__alpha__)
+
+/*
+ * Allocate Static TLS using the Variant I method.
+ */
+void *
+allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
+{
+    Obj_Entry *obj;
+    size_t size;
+    char *tls;
+    Elf_Addr *dtv, *olddtv;
+    Elf_Addr addr;
+    int i;
+
+    assert(tcbsize == 16);
+    assert(tcbalign == 16);
+
+    size = tls_static_space;
+
+    tls = malloc(size);
+    dtv = malloc((tls_max_index + 2) * sizeof(Elf_Addr));
+
+    *(Elf_Addr**) tls = dtv;
+
+    dtv[0] = tls_dtv_generation;
+    dtv[1] = tls_max_index;
+
+    if (oldtls) {
+	/*
+	 * Copy the static TLS block over whole.
+	 */
+	memcpy(tls + tcbsize, oldtls + tcbsize, tls_static_space - tcbsize);
+
+	/*
+	 * If any dynamic TLS blocks have been created tls_get_addr(),
+	 * move them over.
+	 */
+	olddtv = *(Elf_Addr**) oldtls;
+	for (i = 0; i < olddtv[1]; i++) {
+	    if (olddtv[i+2] < (Elf_Addr)oldtls ||
+		olddtv[i+2] > (Elf_Addr)oldtls + tls_static_space) {
+		dtv[i+2] = olddtv[i+2];
+		olddtv[i+2] = 0;
+	    }
+	}
+
+	/*
+	 * We assume that all tls blocks are allocated with the same
+	 * size and alignment.
+	 */
+	free_tls(oldtls, tcbsize, tcbalign);
+    } else {
+	for (obj = objs; obj; obj = obj->next) {
+	    if (obj->tlsoffset) {
+		addr = (Elf_Addr)tls + obj->tlsoffset;
+		memset((void*) (addr + obj->tlsinitsize),
+		       0, obj->tlssize - obj->tlsinitsize);
+		if (obj->tlsinit)
+		    memcpy((void*) addr, obj->tlsinit,
+			   obj->tlsinitsize);
+		dtv[obj->tlsindex + 1] = addr;
+	    } else if (obj->tlsindex) {
+		dtv[obj->tlsindex + 1] = 0;
+	    }
+	}
+    }
+
+    return tls;
+}
+
+void
+free_tls(void *tls, size_t tcbsize, size_t tcbalign)
+{
+    size_t size;
+    Elf_Addr* dtv;
+    int dtvsize, i;
+    Elf_Addr tlsstart, tlsend;
+
+    /*
+     * Figure out the size of the initial TLS block so that we can
+     * find stuff which __tls_get_addr() allocated dynamically.
+     */
+    size = tls_static_space;
+
+    dtv = ((Elf_Addr**)tls)[0];
+    dtvsize = dtv[1];
+    tlsstart = (Elf_Addr) tls;
+    tlsend = tlsstart + size;
+    for (i = 0; i < dtvsize; i++) {
+	if (dtv[i+2] < tlsstart || dtv[i+2] > tlsend) {
+	    free((void*) dtv[i+2]);
+	}
+    }
+
+    free((void*) tlsstart);
+}
+
+#endif
+
+#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__)
+
+/*
+ * Allocate Static TLS using the Variant II method.
+ */
+void *
+allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
+{
+    Obj_Entry *obj;
+    size_t size;
+    char *tls;
+    Elf_Addr *dtv, *olddtv;
+    Elf_Addr segbase, oldsegbase, addr;
+    int i;
+
+    size = round(tls_static_space, tcbalign);
+
+    assert(tcbsize >= 2*sizeof(Elf_Addr));
+    tls = malloc(size + tcbsize);
+    dtv = malloc((tls_max_index + 2) * sizeof(Elf_Addr));
+
+    segbase = (Elf_Addr)(tls + size);
+    ((Elf_Addr*)segbase)[0] = segbase;
+    ((Elf_Addr*)segbase)[1] = (Elf_Addr) dtv;
+
+    dtv[0] = tls_dtv_generation;
+    dtv[1] = tls_max_index;
+
+    if (oldtls) {
+	/*
+	 * Copy the static TLS block over whole.
+	 */
+	oldsegbase = (Elf_Addr) oldtls;
+	memcpy((void *)(segbase - tls_static_space),
+	       (const void *)(oldsegbase - tls_static_space),
+	       tls_static_space);
+
+	/*
+	 * If any dynamic TLS blocks have been created tls_get_addr(),
+	 * move them over.
+	 */
+	olddtv = ((Elf_Addr**)oldsegbase)[1];
+	for (i = 0; i < olddtv[1]; i++) {
+	    if (olddtv[i+2] < oldsegbase - size || olddtv[i+2] > oldsegbase) {
+		dtv[i+2] = olddtv[i+2];
+		olddtv[i+2] = 0;
+	    }
+	}
+
+	/*
+	 * We assume that this block was the one we created with
+	 * allocate_initial_tls().
+	 */
+	free_tls(oldtls, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
+    } else {
+	for (obj = objs; obj; obj = obj->next) {
+	    if (obj->tlsoffset) {
+		addr = segbase - obj->tlsoffset;
+		memset((void*) (addr + obj->tlsinitsize),
+		       0, obj->tlssize - obj->tlsinitsize);
+		if (obj->tlsinit)
+		    memcpy((void*) addr, obj->tlsinit, obj->tlsinitsize);
+		dtv[obj->tlsindex + 1] = addr;
+	    } else if (obj->tlsindex) {
+		dtv[obj->tlsindex + 1] = 0;
+	    }
+	}
+    }
+
+    return (void*) segbase;
+}
+
+void
+free_tls(void *tls, size_t tcbsize, size_t tcbalign)
+{
+    size_t size;
+    Elf_Addr* dtv;
+    int dtvsize, i;
+    Elf_Addr tlsstart, tlsend;
+
+    /*
+     * Figure out the size of the initial TLS block so that we can
+     * find stuff which ___tls_get_addr() allocated dynamically.
+     */
+    size = round(tls_static_space, tcbalign);
+
+    dtv = ((Elf_Addr**)tls)[1];
+    dtvsize = dtv[1];
+    tlsend = (Elf_Addr) tls;
+    tlsstart = tlsend - size;
+    for (i = 0; i < dtvsize; i++) {
+	if (dtv[i+2] < tlsstart || dtv[i+2] > tlsend) {
+	    free((void*) dtv[i+2]);
+	}
+    }
+
+    free((void*) tlsstart);
+}
+
+#endif
+
+/*
+ * Allocate TLS block for module with given index.
+ */
+void *
+allocate_module_tls(int index)
+{
+    Obj_Entry* obj;
+    char* p;
+
+    for (obj = obj_list; obj; obj = obj->next) {
+	if (obj->tlsindex == index)
+	    break;
+    }
+    if (!obj) {
+	_rtld_error("Can't find module with TLS index %d", index);
+	die();
+    }
+
+    p = malloc(obj->tlssize);
+    memcpy(p, obj->tlsinit, obj->tlsinitsize);
+    memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
+
+    return p;
+}
+
+bool
+allocate_tls_offset(Obj_Entry *obj)
+{
+    size_t off;
+
+    if (obj->tls_done)
+	return true;
+
+    if (obj->tlssize == 0) {
+	obj->tls_done = true;
+	return true;
+    }
+
+    if (obj->tlsindex == 1)
+	off = calculate_first_tls_offset(obj->tlssize, obj->tlsalign);
+    else
+	off = calculate_tls_offset(tls_last_offset, tls_last_size,
+				   obj->tlssize, obj->tlsalign);
+
+    /*
+     * If we have already fixed the size of the static TLS block, we
+     * must stay within that size. When allocating the static TLS, we
+     * leave a small amount of space spare to be used for dynamically
+     * loading modules which use static TLS.
+     */
+    if (tls_static_space) {
+	if (calculate_tls_end(off, obj->tlssize) > tls_static_space)
+	    return false;
+    }
+
+    tls_last_offset = obj->tlsoffset = off;
+    tls_last_size = obj->tlssize;
+    obj->tls_done = true;
+
+    return true;
+}
+
+void *
+_rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
+{
+    return allocate_tls(obj_list, oldtls, tcbsize, tcbalign);
+}
+
+void
+_rtld_free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
+{
+    free_tls(tcb, tcbsize, tcbalign);
+}

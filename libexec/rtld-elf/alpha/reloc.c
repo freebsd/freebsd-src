@@ -505,3 +505,25 @@ init_pltgot(Obj_Entry *obj)
 		obj->pltgot[3] = (Elf_Addr) obj;
 	}
 }
+
+void
+allocate_initial_tls(Obj_Entry *list)
+{
+    void *tls;
+
+    /*
+     * Fix the size of the static TLS block by using the maximum
+     * offset allocated so far and adding a bit for dynamic modules to
+     * use.
+     */
+    tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+    tls = allocate_tls(list, 0, 16, 16);
+    alpha_pal_wrunique((u_int64_t) tls);
+}
+
+void *__tls_get_addr(tls_index* ti)
+{
+    Elf_Addr** tp = (Elf_Addr**) alpha_pal_rdunique();
+
+    return tls_get_addr_common(tp, ti->ti_module, ti->ti_offset);
+}

@@ -259,6 +259,61 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		break;
 	}
 
+	case R_IA64_DTPMOD64LSB: {
+		const Elf_Sym *def;
+		const Obj_Entry *defobj;
+
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+				  false, cache);
+		if (def == NULL)
+			return -1;
+
+		store64(where, defobj->tlsindex);
+		break;
+	}
+
+	case R_IA64_DTPREL64LSB: {
+		const Elf_Sym *def;
+		const Obj_Entry *defobj;
+
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+				  false, cache);
+		if (def == NULL)
+			return -1;
+
+		store64(where, def->st_value + rela->r_addend);
+		break;
+	}
+
+	case R_IA64_TPREL64LSB: {
+		const Elf_Sym *def;
+		const Obj_Entry *defobj;
+
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+				  false, cache);
+		if (def == NULL)
+			return -1;
+
+		/*
+		 * We lazily allocate offsets for static TLS as we
+		 * see the first relocation that references the
+		 * TLS block. This allows us to support (small
+		 * amounts of) static TLS in dynamically loaded
+		 * modules. If we run out of space, we generate an
+		 * error.
+		 */
+		if (!defobj->tls_done) {
+			if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+				_rtld_error("%s: No space available for static "
+				    "Thread Local Storage", obj->path);
+				return -1;
+			}
+		}
+
+		store64(where, defobj->tlsoffset + def->st_value + rela->r_addend);
+		break;
+	}
+
 	case R_IA64_NONE:
 		break;
 
@@ -534,4 +589,26 @@ init_pltgot(Obj_Entry *obj)
 	pltres[0] = (Elf_Addr) obj;
 	pltres[1] = FPTR_TARGET(_rtld_bind_start);
 	pltres[2] = FPTR_GP(_rtld_bind_start);
+}
+
+void
+allocate_initial_tls(Obj_Entry *list)
+{
+    register Elf_Addr** tp __asm__("r13");
+
+    /*
+     * Fix the size of the static TLS block by using the maximum
+     * offset allocated so far and adding a bit for dynamic modules to
+     * use.
+     */
+    tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+    tp = allocate_tls(list, 0, 16, 16);
+}
+
+void *__tls_get_addr(unsigned long module, unsigned long offset)
+{
+    register Elf_Addr** tp __asm__("r13");
+
+    return tls_get_addr_common(tp, module, offset);
 }
