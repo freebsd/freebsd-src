@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.4 1994/10/03 03:48:38 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.5 1994/10/09 01:14:51 pst Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -40,7 +40,7 @@ here, please send email to:
 
 
 Some of the instructions here will also refer to auxiliary utilities
-in the /usr/src/contrib/FAQ directory.  CDROM purchasers and net folks
+in the /usr/src/share/FAQ directory.  CDROM purchasers and net folks
 who've grabbed the FreeBSD 2.0 `srcdist' will have these files.  If
 you don't have the source distribution, then you can either grab the
 whole thing from:
@@ -79,20 +79,25 @@ developers.  For more information, send to
 <majordomo@FreeBSD.ORG> and include a single line saying
 ``help'' in the body of your message.
 
-FreeBSD-announce:  For announcements about or on FreeBSD.
-FreeBSD-hackers:   Useful for persons wishing to work on the internals. 
-FreeBSD-questions: General questions on FreeBSD. 
-FreeBSD-bugs:      Where bugs should be sent.
-FreeBSD-SCSI:      Mailing list for SCSI developers. 
-FreeBSD-current:   This list is for persons wishing to run FreeBSD-current
+freebsd-announce:  For announcements about or on FreeBSD.
+freebsd-hackers:   Useful for persons wishing to work on the internals. 
+freebsd-questions: General questions on FreeBSD. 
+freebsd-bugs:      Where bugs should be sent.
+freebsd-SCSI:      Mailing list for SCSI developers. 
+freebsd-current:   This list is for persons wishing to run FreeBSD-current
                    and carries announcements and discussions on current.
+freebsd-security:  For issues dealing with system security. 
+freebsd-platforms: Deals with ports to non-intel platforms
+freebsd-ports:     Discussion of /usr/ports/???
+freebsd-fs:        Discussion of FreeBSD Filesystems
+
 
 The FreeBSD-commit list has been broken up into groups dealing with different
 areas of intrest.  
 
 Please see also the FreeBSD mailing list FAQ in:
 
-        /usr/src/contrib/FAQ/FreeBSD.mailing-list.FAQ
+        /usr/src/share/FAQ/FreeBSD.mailing-list.FAQ
 
 0.3:  What are the various FreeBSD news groups? 
 
@@ -246,7 +251,7 @@ Buslogic             BT-445 Series <VLB> (but see section 1.5)
                      BT-747 Series <EISA>
                      BT-964 Series <PCI>
 Future Domain        TMC-8xx/950 Series <ISA> 
-Generic              NCR 53C810 based controllers <PCI> 
+PCI Generic          NCR 53C810 based controllers <PCI> 
 ProAudioSpectrum     Zilog 5380 based controllers <ISA>
                      SCSI-2 controllers <ISA>
 Seagate              ST-01/02 Series <ISA>
@@ -440,7 +445,7 @@ here.
 5.1:  I've heard of something called FreeBSD-current.  How do I run it, and
       where can I get more information?
 
-Read the file /usr/src/contrib/FAQ/OTHER-FAQS/FreeBSD.current.policy,
+Read the file /usr/src/share/FAQ/FreeBSD.current.policy,
 it will tell you all you need to know.
 
 
@@ -455,10 +460,10 @@ mail or news).  First, pick up the sup_bin.tgz package from:
 
         ftp.FreeBSD.ORG:pub/FreeBSD/packages
 
-Second, read the file /usr/src/contrib/FAQ/FreeBSD.sup.faq.
+Second, read the file /usr/src/share/FAQ/FreeBSD.sup.faq.
 
 This file describes how to setup sup on your machine.  You may also
-want to look at /usr/src/contrib/FAQ/FreeBSD.*.supfile,
+want to look at /usr/src/share/FAQ/FreeBSD.*.supfile,
 which are a set of supfiles for supping from FreeBSD.ORG. 
 
 
@@ -644,23 +649,9 @@ Yes.  See the man pages for slattach(8) and/or pppd(8) if you're using
 FreeBSD to connect to another site.  If you're using FreeBSD as a
 server for other machines, look at the man page for sliplogin(8).
 You may also want to take a look at the slip FAQ in:
-             FAQ/Slip.FAQ
+             /usr/src/share/FAQ/Slip.FAQ
 
-8.4:  How do I set up NTP?
-
-NTP configuration is so complex and widely variable from site to site
-that it would be impossible to make a blanket statement here.  Your
-best bet is to ask whoever's in charge of NTP at your site or network
-provider; chances are that they are running a similar version of NTP
-to the one that we provide, and they can probably provide you with the
-right configuration files to get things going.
-
-If you can't find anyone in charge, you should examine the files in
-/usr/src/contrib/xntpd/doc and see if they help any.  If not, you
-could ask on the comp.protocols.time.ntp newsgroup, or the
-<ntp@ni.umd.edu> mailing-list.
-
-8.5:  How do I get my network set up?  I don't see how to make my
+8.4:  How do I get my network set up?  I don't see how to make my
       /dev/ed0 device!
 
 In the Berkeley networking framework, network interfaces are only
@@ -672,18 +663,18 @@ BSD-related operating system; with few significant exceptions,
 administering networking on FreeBSD is basically the same as on SunOS
 4.0 or Ultrix.
 
-8.6:  How do I get my 3C503 to use the other network port?
+8.5:  How do I get my 3C503 to use the other network port?
 
 Use `ifconfig ed0' to see whether the ALTPHYS flag is set, and then
 use either `ifconfig ed0 altphys' if it was off, or `ifconfig ed0
 -altphys' if it was on.
 
-8.7:  I'm having problems with NFS to/from FreeBSD and my Wuffotronics
+8.6:  I'm having problems with NFS to/from FreeBSD and my Wuffotronics
       Workstation / generic NFS appliance, where should I look first?
 
 Certain PC network cards are better than others (to put it mildly) and
 can sometimes cause problems with network intensive applications like
-NFS.  See /usr/src/contrib/FAQ/OTHER-FAQS/NFS for more information on this
+NFS.  See /usr/src/share/FAQ/NFS.FAQ for more information on this
 topic.
 
 8.8:  I want to enable IP multicast support on my FreeBSD box, how do I do it?
