@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.46 1996/06/17 09:04:50 jkh Exp $
+ * $Id: ftp_strat.c,v 1.20 1996/07/06 02:03:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -128,19 +128,22 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
+    hostname = variable_get(VAR_FTP_HOST);
+    dir = variable_get(VAR_FTP_DIR);
+    if (!hostname || !dir)
+	msgFatal("Missing FTP host or directory specification - something's wrong!");
+
     user = variable_get(VAR_FTP_USER);
     if (!user || !*user) {
 	snprintf(password, BUFSIZ, "installer@%s", variable_get(VAR_HOSTNAME));
 	login_name = "anonymous";
     }
-    else {
+    else
 	login_name = user;
-	strcpy(password, variable_get(VAR_FTP_PASS) ? variable_get(VAR_FTP_PASS) : login_name);
-    }
-    hostname = variable_get(VAR_FTP_HOST);
-    dir = variable_get(VAR_FTP_DIR);
-    if (!hostname || !dir)
-	msgFatal("Missing FTP host or directory specification - something's wrong!");
+    if (variable_get(VAR_FTP_PASS))
+	strcpy(password, variable_get(VAR_FTP_PASS));
+    else
+	sprintf(password, "%s@%s", login_name, hostname);
     retries = 0;
 retry:
     msgNotify("Logging in as %s..", login_name);
