@@ -140,8 +140,8 @@ struct pargs {
  *      * - not yet protected
  *      a - only touched by curproc or parent during fork/wait
  *      b - created at fork, never changes
- *      	(exception aiods switch vmspaces, but they are also
- *      	marked 'P_SYSTEM' so hopefully it will be left alone)
+ *		(exception aiods switch vmspaces, but they are also
+ *		marked 'P_SYSTEM' so hopefully it will be left alone)
  *      c - locked by proc mtx
  *      d - locked by allproc_lock lock
  *      e - locked by proctree_lock lock
@@ -175,14 +175,14 @@ struct trapframe;
  *
  * The first is the thread. It might be though of as a "Kernel
  * Schedulable Entity Context".
- * This structure contains all the information as to where a thread of 
+ * This structure contains all the information as to where a thread of
  * execution is now, or was when it was suspended, why it was suspended,
  * and anything else that will be needed to restart it when it is
  * rescheduled. Always associated with a KSE when running, but can be
  * reassigned to an equivalent KSE  when being restarted for
  * load balancing. Each of these is associated with a kernel stack
  * and a pcb.
- * 
+ *
  * It is important to remember that a particular thread structure only
  * exists as long as the system call or kernel entrance (e.g. by pagefault)
  * which it is currently executing. It should therefore NEVER be referenced
@@ -199,7 +199,7 @@ struct trapframe;
  */
 struct thread;
 
-/* 
+/*
  * The second structure is the Kernel Schedulable Entity. (KSE)
  * It represents the ability to take a slot in the scheduler queue.
  * As long as this is scheduled, it could continue to run any threads that
@@ -230,7 +230,7 @@ struct ksegrp;
  * All KSEGs under one process see, and have the same access to, these
  * resources (e.g. files, memory, sockets, permissions kqueues).
  * A process may compete for CPU cycles on the same basis as a
- * forked process cluster by spawning several KSEGRPs. 
+ * forked process cluster by spawning several KSEGRPs.
  */
 struct proc;
 
@@ -241,10 +241,10 @@ struct proc;
  RUNQ: --->KSE---KSE--...               SLEEPQ:[]---THREAD---THREAD---THREAD
 	   |   /                               []---THREAD
 	   KSEG---THREAD--THREAD--THREAD       []
-	                                       []---THREAD---THREAD
+					       []---THREAD---THREAD
 
   (processors run THREADs from the KSEG until they are exhausted or
-  the KSEG exhausts its quantum) 
+  the KSEG exhausts its quantum)
 
 With PER-CPU run queues:
 KSEs on the separate run queues directly
@@ -269,9 +269,9 @@ struct thread {
 	TAILQ_ENTRY(thread) td_kglist;	/* All threads in this ksegrp */
 
 	/* The two queues below should someday be merged */
-	TAILQ_ENTRY(thread) td_slpq; 	/* (j) Sleep queue. XXXKSE */ 
-	TAILQ_ENTRY(thread) td_lockq; 	/* (j) Lock queue. XXXKSE */ 
-	TAILQ_ENTRY(thread) td_runq; 	/* (j) Run queue(s). XXXKSE */ 
+	TAILQ_ENTRY(thread) td_slpq;	/* (j) Sleep queue. XXXKSE */
+	TAILQ_ENTRY(thread) td_lockq;	/* (j) Lock queue. XXXKSE */
+	TAILQ_ENTRY(thread) td_runq;	/* (j) Run queue(s). XXXKSE */
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 
@@ -324,7 +324,7 @@ struct thread {
 		TDS_RUNQ,
 		TDS_RUNNING
 	} td_state;
-	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
+	register_t	td_retval[2];	/* (k) Syscall aux returns. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
@@ -336,7 +336,7 @@ struct thread {
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* Scheduler specific data */
 };
-/* flags kept in td_flags */ 
+/* flags kept in td_flags */
 #define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
 #define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
@@ -360,7 +360,7 @@ struct thread {
 #define	TDI_LOCK	0x0008	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x0010	/* Awaiting interrupt. */
 
-#define	TD_CAN_UNBIND(td) 					\
+#define	TD_CAN_UNBIND(td)					\
     (((td)->td_flags & TDF_CAN_UNBIND) == TDF_CAN_UNBIND &&	\
      ((td)->td_upcall != NULL))
 
@@ -478,17 +478,17 @@ struct ksegrp {
 	TAILQ_HEAD(, kse_upcall) kg_upcalls;	/* All upcalls in the group */
 #define	kg_startzero kg_estcpu
 	u_int		kg_estcpu;	/* Sum of the same field in KSEs. */
- 	u_int		kg_slptime;	/* (j) How long completely blocked. */
+	u_int		kg_slptime;	/* (j) How long completely blocked. */
 	struct thread	*kg_last_assigned; /* (j) Last thread assigned to a KSE */
 	int		kg_runnable;	/* (j) Num runnable threads on queue. */
 	int		kg_runq_kses;	/* (j) Num KSEs on runq. */
-	int		kg_idle_kses;	/* (j) Num KSEs on iq */ 
+	int		kg_idle_kses;	/* (j) Num KSEs on iq */
 	int		kg_numupcalls;	/* (j) Num upcalls */
 	int		kg_upsleeps;	/* (c) Num threads in kse_release() */
 	struct kse_thr_mailbox *kg_completed; /* (c) completed thread mboxes */
 #define	kg_endzero kg_pri_class
 
-#define	kg_startcopy 	kg_endzero
+#define	kg_startcopy	kg_endzero
 	u_char		kg_pri_class;	/* (j) Scheduling class. */
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
@@ -539,7 +539,7 @@ struct proc {
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
-	pid_t		p_oppid; 	/* (c + e) Save ppid in ptrace. XXX */
+	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
