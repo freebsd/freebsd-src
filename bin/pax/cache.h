@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)cache.h	8.1 (Berkeley) 5/31/93
- *	$Id: cache.h,v 1.4 1997/02/22 14:04:22 peter Exp $
+ * $FreeBSD$
  */
 
 /*

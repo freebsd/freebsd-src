@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)echo.c	8.2 (Berkeley) 5/4/95
- *	$Id: echo.c,v 1.7 1997/02/22 13:58:59 peter Exp $
+ * $FreeBSD$
  */
 
 /*

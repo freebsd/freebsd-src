@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- *	$Id: dd.h,v 1.10 1999/06/20 14:58:51 green Exp $
+ * $FreeBSD$
  */
 
 /* Input/output stream state. */

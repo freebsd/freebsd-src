@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tables.h	8.1 (Berkeley) 5/31/93
- *	$Id: tables.h,v 1.5 1997/02/22 14:04:44 peter Exp $
+ * $FreeBSD$
  */
 
 /*

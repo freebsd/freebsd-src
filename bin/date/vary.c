@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vary.c,v 1.5 1999/03/09 09:38:54 brian Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <time.h>
