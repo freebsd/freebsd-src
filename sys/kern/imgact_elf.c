@@ -203,7 +203,8 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		}
 
 		off = offset - trunc_page(offset);
-		error = copyout((caddr_t)data_buf + off, (caddr_t)start, end - start);
+		error = copyout((caddr_t)data_buf + off, (caddr_t)start,
+		    end - start);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
 		if (error) {
 			return (KERN_FAILURE);
@@ -372,7 +373,8 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	 */
 	copy_len = (offset + filsz) - trunc_page_ps(offset + filsz, pagesize);
 	map_addr = trunc_page_ps((vm_offset_t)vmaddr + filsz, pagesize);
-	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, pagesize) - map_addr;
+	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, pagesize) -
+	    map_addr;
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
@@ -557,7 +559,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 			 * first segment.
 			 */
 			if (numsegs == 0)
-  				base_addr = trunc_page(phdr[i].p_vaddr + rbase);
+  				base_addr = trunc_page(phdr[i].p_vaddr +
+				    rbase);
 			numsegs++;
 		}
 	}
@@ -811,7 +814,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if ((error = __elfN(load_file)
 			     (imgp->proc, interp, &addr,
 			      &imgp->entry_addr, pagesize)) != 0) {
-				uprintf("ELF interpreter %s not found\n", path);
+				uprintf("ELF interpreter %s not found\n",
+				    path);
 				free(path, M_TEMP);
 				goto fail;
 			}
