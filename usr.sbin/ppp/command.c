@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.4 1995/04/16 13:38:38 amurai Exp $
+ * $Id: command.c,v 1.5 1995/05/30 03:50:30 rgrimes Exp $
  *
  */
 #include <ctype.h>
@@ -161,7 +161,7 @@ struct cmdtab Commands[] = {
   { "enable",  NULL,    EnableCommand,	LOCAL_AUTH,
   	"Enable option",		StrOption},
   { "passwd",  NULL,	LocalAuthCommand,LOCAL_NO_AUTH,
-  	"Password for manupilation", StrOption},
+  	"Password for manipulation", StrOption},
   { "load",    NULL,    LoadCommand,	LOCAL_AUTH,
   	"Load settings",		StrRemote},
   { "save",    NULL,    SaveCommand,	LOCAL_AUTH,
@@ -244,8 +244,9 @@ static int ShowAuthKey()
 static int ShowVersion()
 {
   extern char *VarVersion[];
+  extern char *VarLocalVersion[];
 
-  printf("%s\n", VarVersion);
+  printf("%s - %s \n", VarVersion, VarLocalVersion);
   return(1);
 }
 
@@ -629,6 +630,12 @@ char **argv;
 	&DefHisAddress.ipaddr, &DefHisAddress.mask, &DefHisAddress.width);
       if (--argc > 0) {
         ifnetmask = GetIpAddr(*argv);
+    	if (--argc > 0) {
+      		ParseAddr(argc, argv++,
+		        &DefTriggerAddress.ipaddr,
+			&DefTriggerAddress.mask, 
+			&DefTriggerAddress.width);
+	}
       }
     }
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.4 1995/03/11 15:18:47 amurai Exp $
+ * $Id: main.c,v 1.5 1995/05/30 03:50:47 rgrimes Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -43,7 +43,7 @@
 #include "filter.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
-#define LAUTH_M2 "Warning: All manipulation is allowed by anyone in a world\n"
+#define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -553,10 +553,11 @@ DoLoop()
   u_char *cp;
   u_char rbuff[MAX_MRU];
   int dial_up;
+  int qlen;
 
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
-    fprintf(stderr, "Packet mode enabled\n");
+    LogPrintf(LOG_PHASE, "Packet mode enabled\n");
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (!modem)
@@ -602,10 +603,11 @@ DoLoop()
          }
        }
     }
+    qlen = ModemQlen();
     if (modem) {
       FD_SET(modem, &rfds);
       FD_SET(modem, &efds);
-      if (ModemQlen() > 0) {
+      if (qlen > 0) {
 	FD_SET(modem, &wfds);
       }
     }
@@ -622,8 +624,12 @@ DoLoop()
     usleep(TICKUNIT);
     TimerService();
 #endif
-
-    FD_SET(tun_in, &rfds);
+    if ( qlen < 20 ) {
+      /*
+       *  If there are many packets queued, wait until they are drained.
+       */
+        FD_SET(tun_in, &rfds);
+    }
     if (netfd > -1) {
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
@@ -742,12 +748,6 @@ DoLoop()
     }
 
     if (FD_ISSET(tun_in, &rfds)) {	/* something to read from tun */
-      /*
-       *  If there are many packets queued, wait until they are drained.
-       */
-      if (ModemQlen() > 5)
-	continue;
-
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
 	perror("read from tun");

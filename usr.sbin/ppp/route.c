@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.2 1995/02/26 12:17:56 amurai Exp $
+ * $Id: route.c,v 1.3 1995/05/30 03:50:56 rgrimes Exp $
  *
  */
 #include <sys/types.h>
@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include "log.h"
 
 static int IfIndex;
 
@@ -108,7 +109,8 @@ struct in_addr mask;
   rtmes.m_rtm.rtm_msglen = nb;
   wb = write(s, &rtmes, nb);
   if (wb < 0) {
-    perror("write");
+     LogPrintf(LOG_TCPIP, "Already set route addr dst=%x, gateway=%x\n"
+         ,dst.s_addr, gateway.s_addr);
   }
 #ifdef DEBUG
   logprintf("wrote %d: dst = %x, gateway = %x\n", nb, dst.s_addr, gateway.s_addr);
