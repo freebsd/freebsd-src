@@ -65,6 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/proc.h>
+#include <sys/namei.h>
+#include <sys/fcntl.h>
+#include <sys/vnode.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -100,6 +104,10 @@ __FBSDID("$FreeBSD$");
 #define FUNC void(*)(void)
 
 static struct mtx ndis_interlock;
+static char ndis_filepath[MAXPATHLEN];
+
+SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
+        MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
 
 __stdcall static void ndis_initwrap(ndis_handle,
 	ndis_driver_object *, void *, void *);
@@ -272,6 +280,7 @@ ndis_libinit()
 {
 	mtx_init(&ndis_interlock, "ndislock", MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
+	strcpy(ndis_filepath, "/compat/ndis");
 
 	return(0);
 }
@@ -2323,12 +2332,50 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 	ndis_physaddr		highestaddr;
 {
 	char			*afilename = NULL;
+	struct thread		*td = curthread;
+	struct nameidata	nd;
+	int			flags, error;
+	struct vattr		vat;
+	struct vattr		*vap = &vat;
+	ndis_fh			*fh;
+	char			path[MAXPATHLEN];
 
-	ndis_unicode_to_ascii(filename->nus_buf, filename->nus_len, &afilename);
-	printf("ndis_open_file(\"%s\", %ju)\n", afilename,
-	    highestaddr.np_quad);
+	ndis_unicode_to_ascii(filename->nus_buf,
+	    filename->nus_len, &afilename);
+
+	sprintf(path, "%s/%s", ndis_filepath, afilename);
 	free(afilename, M_DEVBUF);
-	*status = NDIS_STATUS_FILE_NOT_FOUND;
+
+	fh = malloc(sizeof(ndis_fh), M_TEMP, M_NOWAIT);
+	if (fh == NULL) {
+		*status = NDIS_STATUS_RESOURCES;
+		return;
+	}
+
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
+
+	flags = FREAD;
+	error = vn_open(&nd, &flags, 0, -1);
+	if (error) {
+		mtx_unlock(&Giant);
+		*status = NDIS_STATUS_FILE_NOT_FOUND;
+		free(fh, M_TEMP);
+		return;
+	}
+
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	/* Get the file size. */
+	VOP_GETATTR(nd.ni_vp, vap, NOCRED, td);
+	VOP_UNLOCK(nd.ni_vp, 0, td);
+	mtx_unlock(&Giant);
+
+	fh->nf_vp = nd.ni_vp;
+	fh->nf_map = NULL;
+	*filehandle = fh;
+	*filelength = fh->nf_maplen = vap->va_size & 0xFFFFFFFF;
+	*status = NDIS_STATUS_SUCCESS;
 	return;
 }
 
@@ -2338,8 +2385,46 @@ ndis_map_file(status, mappedbuffer, filehandle)
 	void			**mappedbuffer;
 	ndis_handle		filehandle;
 {
+	ndis_fh			*fh;
+	struct thread		*td = curthread;
+	int			error, resid;
 
-	*status = NDIS_STATUS_ALREADY_MAPPED;
+	if (filehandle == NULL) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
+
+	fh = (ndis_fh *)filehandle;
+
+	if (fh->nf_vp == NULL) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
+
+	if (fh->nf_map != NULL) {
+		*status = NDIS_STATUS_ALREADY_MAPPED;
+		return;
+	}
+
+	fh->nf_map = malloc(fh->nf_maplen, M_DEVBUF, M_NOWAIT);
+
+	if (fh->nf_map == NULL) {
+		*status = NDIS_STATUS_RESOURCES;
+		return;
+	}
+
+	mtx_lock(&Giant);
+	error = vn_rdwr(UIO_READ, fh->nf_vp, fh->nf_map, fh->nf_maplen, 0,
+	    UIO_SYSSPACE, 0, td->td_ucred, NOCRED, &resid, td);
+	mtx_unlock(&Giant);
+
+	if (error)
+		*status = NDIS_STATUS_FAILURE;
+	else {
+		*status = NDIS_STATUS_SUCCESS;
+		*mappedbuffer = fh->nf_map;
+	}
+
 	return;
 }
 
@@ -2347,6 +2432,14 @@ __stdcall static void
 ndis_unmap_file(filehandle)
 	ndis_handle		filehandle;
 {
+	ndis_fh			*fh;
+	fh = (ndis_fh *)filehandle;
+
+	if (fh->nf_map == NULL)
+		return;
+	free(fh->nf_map, M_DEVBUF);
+	fh->nf_map = NULL;
+
 	return;
 }
 
@@ -2354,6 +2447,28 @@ __stdcall static void
 ndis_close_file(filehandle)
 	ndis_handle		filehandle;
 {
+	struct thread		*td = curthread;
+	ndis_fh			*fh;
+
+	if (filehandle == NULL)
+		return;
+
+	fh = (ndis_fh *)filehandle;
+	if (fh->nf_map != NULL) {
+		free(fh->nf_map, M_DEVBUF);
+		fh->nf_map = NULL;
+	}
+
+	if (fh->nf_vp == NULL)
+		return;
+
+	mtx_lock(&Giant);
+	vn_close(fh->nf_vp, FREAD, td->td_ucred, td);
+	mtx_unlock(&Giant);
+
+	fh->nf_vp = NULL;
+	free(fh, M_DEVBUF);
+
 	return;
 }
 
