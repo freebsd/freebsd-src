@@ -638,7 +638,7 @@ struct BookEntry *p;
 }
 
 
-#define UpdateSearchStatus\
+#define UpdateSearchStatus \
 {\
   if (post) ShowCurrentMove(pnt,node->f,node->t);\
   if (pnt > TrPnt[1])\
