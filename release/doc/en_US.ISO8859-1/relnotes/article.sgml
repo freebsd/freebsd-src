@@ -1011,7 +1011,7 @@
       has been updated to 2.2.1. &merged;</para>
 
     <para>The supported release of <application>KDE</application>
-      has been updated to 3.1.1a. &merged;</para>
+      has been updated to 3.1.2. &merged;</para>
 
     <para>There is no longer a separate <filename>krb5</filename>
       distribution.  The Kerberos 5 libraries and utilities have been
