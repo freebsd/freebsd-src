@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
 #else
 static const char rcsid[] =
-	"$Id: print.c,v 1.14 1997/08/07 22:28:24 steve Exp $";
+	"$Id: print.c,v 1.15 1998/04/21 22:02:01 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -127,7 +127,7 @@ printlong(dp)
 			printtime(sp->st_ctime);
 		else
 			printtime(sp->st_mtime);
-		if (f_octal) (void)prn_octal(p->fts_name);
+		if (f_octal || f_octal_escape) (void)prn_octal(p->fts_name);
 		else (void)printf("%s", p->fts_name);
 		if (f_type)
 			(void)printtype(sp->st_mode);
@@ -223,7 +223,8 @@ printaname(p, inodefield, sizefield)
 	if (f_size)
 		chcnt += printf("%*qd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
-	chcnt += f_octal ? prn_octal(p->fts_name) : printf("%s", p->fts_name);
+	chcnt += (f_octal || f_octal_escape) ? prn_octal(p->fts_name)
+	                                     : printf("%s", p->fts_name);
 	if (f_type)
 		chcnt += printtype(sp->st_mode);
 	return (chcnt);
@@ -304,9 +305,9 @@ printlink(p)
 		return;
 	}
 	path[lnklen] = '\0';
-	if (f_octal) {
-	    (void)printf(" -> ");
-	    (void)prn_octal(path);
+	if (f_octal || f_octal_escape) {
+	        (void)printf(" -> ");
+	        (void)prn_octal(path);
 	}
 	else (void)printf(" -> %s", path);
 }
