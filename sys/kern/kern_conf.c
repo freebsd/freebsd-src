@@ -74,11 +74,20 @@ int devfs_present;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
+/* XXX: This is a hack */
+void disk_dev_synth(dev_t dev);
+
 struct cdevsw *
 devsw(dev_t dev)
 {
 	if (dev->si_devsw)
 		return (dev->si_devsw);
+	/* XXX: Hack around our backwards disk code */
+	disk_dev_synth(dev);
+	if (dev->si_devsw)
+		return (dev->si_devsw);
+	if (devfs_present)
+		printf("WARNING: devsw() called on %s %u/%u\n", dev->si_name, major(dev), minor(dev));
         return(cdevsw[major(dev)]);
 }
 
@@ -283,6 +292,7 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	if (dev->si_flags & SI_NAMED) {
 		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
 		    dev->si_name);
+		panic("don't do that");
 		return (dev);
 	}
 	va_start(ap, fmt);
@@ -350,6 +360,7 @@ destroy_dev(dev_t dev)
 	if (!(dev->si_flags & SI_NAMED)) {
 		printf( "WARNING: Driver mistake: destroy_dev on %d/%d\n",
 		    major(dev), minor(dev));
+		panic("don't do that");
 		return;
 	}
 		

@@ -32,6 +32,50 @@ static d_psize_t diskpsize;
 
 static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
 
+void disk_dev_synth(dev_t dev);
+
+void
+disk_dev_synth(dev_t dev)
+{
+	struct disk *dp;
+	int u, s, p;
+	dev_t pdev;
+
+	LIST_FOREACH(dp, &disklist, d_list) {
+		if (major(dev) != dp->d_devsw->d_maj)
+			continue;
+		u = dkunit(dev);
+		p = RAW_PART;
+		s = WHOLE_DISK_SLICE;
+		pdev = makedev(dp->d_devsw->d_maj, dkmakeminor(u, s, p));
+		s = dkslice(dev);
+		p = dkpart(dev);
+		if (s == WHOLE_DISK_SLICE && p == RAW_PART) {
+			/* XXX: actually should not happen */
+			dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%d", 
+				dp->d_devsw->d_name, u);
+			dev_depends(pdev, dev);
+			return;
+		}
+		if (s == COMPATIBILITY_SLICE) {
+			dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%d%c", 
+				dp->d_devsw->d_name, u, 'a' + p);
+			dev_depends(pdev, dev);
+			return;
+		}
+		dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+		    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d%c", 
+			dp->d_devsw->d_name, u, s - BASE_SLICE + 1, 'a' + p);
+		dev_depends(pdev, dev);
+		if (p == RAW_PART) 
+			make_dev_alias(dev, "%s%ds%d",
+			    dp->d_devsw->d_name, u, s - BASE_SLICE + 1);
+		return;
+	}
+}
+
 static void
 disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -86,9 +130,18 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 				p = name[i] - 'a';
 		}
 
-		*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
-		    UID_ROOT, GID_OPERATOR, 0640, name);
+		if (s >= BASE_SLICE)
+			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d%c",
+			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1, p + 'a');
+		else
+			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, name);
 		dev_depends(pdev, *dev);
+		if (s >= BASE_SLICE && p == RAW_PART) {
+			make_dev_alias(*dev, "%s%ds%d", 
+			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1);
+		}
 		return;
 	}
 }
