@@ -34,8 +34,8 @@ SDIRS=	md2 md5 sha mdc2 hmac ripemd \
 GENERAL=Makefile README crypto-lib.com install.com
 
 LIB= $(TOP)/libcrypto.a
-LIBSRC=	cryptlib.c mem.c mem_dbg.c cversion.c ex_data.c tmdiff.c cpt_err.c ebcdic.c
-LIBOBJ= cryptlib.o mem.o mem_dbg.o cversion.o ex_data.o tmdiff.o cpt_err.o ebcdic.o
+LIBSRC=	cryptlib.c mem.c mem_dbg.c cversion.c ex_data.c tmdiff.c cpt_err.c ebcdic.c uid.c
+LIBOBJ= cryptlib.o mem.o mem_dbg.o cversion.o ex_data.o tmdiff.o cpt_err.o ebcdic.o uid.o
 
 SRC= $(LIBSRC)
 
@@ -90,7 +90,8 @@ links:
 
 lib:	$(LIBOBJ)
 	$(AR) $(LIB) $(LIBOBJ)
-	$(RANLIB) $(LIB)
+	@echo You may get an error following this line.  Please ignore.
+	- $(RANLIB) $(LIB)
 	@touch lib
 
 libs:
@@ -197,3 +198,6 @@ tmdiff.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
 tmdiff.o: ../include/openssl/opensslv.h ../include/openssl/safestack.h
 tmdiff.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
 tmdiff.o: ../include/openssl/tmdiff.h cryptlib.h
+uid.o: ../include/openssl/crypto.h ../include/openssl/opensslv.h
+uid.o: ../include/openssl/safestack.h ../include/openssl/stack.h
+uid.o: ../include/openssl/symhacks.h
