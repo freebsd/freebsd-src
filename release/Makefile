@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.47 1997/06/22 10:20:21 jkh Exp $
+#	$Id: Makefile,v 1.246.2.48 1997/06/22 17:22:21 jkh Exp $
 #
 # How to roll a release:
 #
@@ -547,7 +547,7 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
-doRELEASE:  release.1 release.2 release.3 release.4 release.5 ${DOCREL} \
+doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 		release.6 release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
