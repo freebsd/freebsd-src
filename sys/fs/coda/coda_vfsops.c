@@ -288,7 +288,6 @@ coda_root(vfsp, vpp, td)
     struct coda_mntinfo *mi = vftomi(vfsp);
     struct vnode **result;
     int error;
-    struct thread *td = curthread;    /* XXX - bnoble */
     struct proc *p = td->td_proc;
     CodaFid VFid;
     static const CodaFid invalfid = INVAL_FID;
