@@ -237,6 +237,25 @@ struct	cmd {
 	{ "vlandev",	NEXTARG,	setvlandev },
 	{ "-vlandev",	NEXTARG,	unsetvlandev },
 #endif
+#ifdef USE_IEEE80211
+	{ "ssid",	NEXTARG,	set80211ssid },
+	{ "nwid",	NEXTARG,	set80211ssid },
+	{ "stationname", NEXTARG,	set80211stationname },
+	{ "station",	NEXTARG,	set80211stationname },	/* BSD/OS */
+	{ "channel",	NEXTARG,	set80211channel },
+	{ "authmode",	NEXTARG,	set80211authmode },
+	{ "powersavemode", NEXTARG,	set80211powersavemode },
+	{ "powersave",	1,		set80211powersave },
+	{ "-powersave",	0,		set80211powersave },
+	{ "powersavesleep", NEXTARG,	set80211powersavesleep },
+	{ "wepmode",	NEXTARG,	set80211wepmode },
+	{ "wep",	1,		set80211wep },
+	{ "-wep",	0,		set80211wep },
+	{ "weptxkey",	NEXTARG,	set80211weptxkey },
+	{ "wepkey",	NEXTARG,	set80211wepkey },
+	{ "nwkey",	NEXTARG,	set80211nwkey },	/* NetBSD */
+	{ "-nwkey",	0,		set80211wep },		/* NetBSD */
+#endif
 	{ "normal",	-IFF_LINK0,	setifflags },
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
@@ -304,6 +323,9 @@ struct	afswtch {
 #endif
 #ifdef USE_VLANS
 	{ "vlan", AF_UNSPEC, vlan_status, NULL, NULL, },  /* XXX not real!! */
+#endif
+#ifdef USE_IEEE80211
+	{ "ieee80211", AF_UNSPEC, ieee80211_status, NULL, NULL, },  /* XXX not real!! */
 #endif
 #endif
 	{ 0,	0,	    0,		0 }
@@ -1092,6 +1114,10 @@ status(afp, addrcount, sdl, ifm, ifam)
 #ifdef USE_VLANS
 	if (allfamilies || afp->af_status == vlan_status)
 		vlan_status(s, NULL);
+#endif
+#ifdef USE_IEEE80211
+	if (allfamilies || afp->af_status == ieee80211_status)
+		ieee80211_status(s, NULL);
 #endif
 	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 

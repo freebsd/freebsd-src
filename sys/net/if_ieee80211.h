@@ -229,4 +229,43 @@ struct ieee80211_nwkey {
 #define	SIOCS80211NWKEY		 _IOW('i', 232, struct ieee80211_nwkey)
 #define	SIOCG80211NWKEY		_IOWR('i', 233, struct ieee80211_nwkey)
 
+#define IEEE80211_WEP_NOSUP	-1
+#define IEEE80211_WEP_OFF	0
+#define IEEE80211_WEP_ON	1
+#define IEEE80211_WEP_MIXED	2
+
+#define IEEE80211_AUTH_NONE	0
+#define IEEE80211_AUTH_OPEN	1
+#define IEEE80211_AUTH_SHARED	2
+
+#define IEEE80211_POWERSAVE_NOSUP	-1
+#define IEEE80211_POWERSAVE_OFF		0
+#define IEEE80211_POWERSAVE_CAM		1
+#define IEEE80211_POWERSAVE_PSP		2
+#define IEEE80211_POWERSAVE_PSP_CAM	3
+#define IEEE80211_POWERSAVE_ON		IEEE80211_POWERSAVE_CAM
+
+/* the first member must be matched with struct ifreq */
+struct ieee80211req {
+	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
+	u_int16_t	i_type;			/* req type */
+	int16_t		i_val;			/* Index or simple value */
+	int16_t		i_len;			/* Index or simple value */
+	void		*i_data;		/* Extra data */
+};
+#define	SIOCS80211		 _IOW('i', 234, struct ieee80211req)
+#define	SIOCG80211		_IOWR('i', 235, struct ieee80211req)
+
+#define IEEE80211_IOC_SSID		1
+#define IEEE80211_IOC_NUMSSIDS		2
+#define IEEE80211_IOC_WEP		3
+#define IEEE80211_IOC_WEPKEY		4
+#define IEEE80211_IOC_NUMWEPKEYS	5
+#define IEEE80211_IOC_WEPTXKEY		6
+#define IEEE80211_IOC_AUTHMODE		7
+#define IEEE80211_IOC_STATIONNAME	8
+#define IEEE80211_IOC_CHANNEL		9
+#define IEEE80211_IOC_POWERSAVE		10
+#define IEEE80211_IOC_POWERSAVESLEEP	11
+
 #endif /* !_NET_IF_IEEE80211_H_ */

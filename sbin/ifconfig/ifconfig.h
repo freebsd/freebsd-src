@@ -49,3 +49,17 @@ extern void setvlantag(const char *, int, int, const struct afswtch *rafp);
 extern void setvlandev(const char *, int, int, const struct afswtch *rafp);
 extern void unsetvlandev(const char *, int, int, const struct afswtch *rafp);
 extern void vlan_status(int s, struct rt_addrinfo *);
+
+extern void set80211ssid(const char *, int, int, const struct afswtch *rafp);
+extern void set80211stationname(const char *, int, int, const struct afswtch *rafp);
+extern void set80211channel(const char *, int, int, const struct afswtch *rafp);
+extern void set80211authmode(const char *, int, int, const struct afswtch *rafp);
+extern void set80211powersave(const char *, int, int, const struct afswtch *rafp);
+extern void set80211powersavemode(const char *, int, int, const struct afswtch *rafp);
+extern void set80211powersavesleep(const char *, int, int, const struct afswtch *rafp);
+extern void set80211wepmode(const char *, int, int, const struct afswtch *rafp);
+extern void set80211wep(const char *, int, int, const struct afswtch *rafp);
+extern void set80211weptxkey(const char *, int, int, const struct afswtch *rafp);
+extern void set80211wepkey(const char *, int, int, const struct afswtch *rafp);
+extern void set80211nwkey(const char *, int, int, const struct afswtch *rafp);
+extern void ieee80211_status(int s, struct rt_addrinfo *);
