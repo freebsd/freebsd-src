@@ -220,18 +220,6 @@ LX98:	ldgp	$29,0($27);	\
 #define MCOUNT_EXIT(s) \
 	(void)_alpha_pal_swpipl(s);
 #define	MCOUNT_DECL(s)	u_long s;
-#ifdef GUPROF
-struct gmonparam;
-
-void	nullfunc_loop_profiled(void);
-void	nullfunc_profiled(void);
-void	startguprof(struct gmonparam *p);
-void	stopguprof(struct gmonparam *p);
-#else
-#define startguprof(p)
-#define stopguprof(p)
-#endif /* GUPROF */
-
 #else /* !_KERNEL */
 typedef u_long	uintfptr_t;
 #endif
