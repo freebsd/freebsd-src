@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: expr.1,v 1.6 1997/02/22 14:03:37 peter Exp $
 .\"
 .Dd July 3, 1993
 .Dt EXPR 1
@@ -41,13 +41,13 @@
 .Ar expression
 .Sh DESCRIPTION
 The
-.Nm expr
+.Nm
 utility evaluates 
 .Ar expression
 and writes the result on standard output.
 .Pp
 All operators are separate arguments to the
-.Nm expr
+.Nm
 utility.
 Characters special to the command interpreter must be escaped.
 .Pp
@@ -55,26 +55,26 @@ Operators are listed below in order of increasing precedence.
 Operators with equal precedence are grouped within { } symbols.
 .Bl -tag -width indent
 .It Ar expr1 Li | Ar expr2
-Returns the evaluation of 
+Return the evaluation of 
 .Ar expr1 
 if it is neither an empty string nor zero;
 otherwise, returns the evaluation of
 .Ar expr2 .
 .It Ar expr1 Li & Ar expr2
-Returns the evaluation of
+Return the evaluation of
 .Ar expr1
 if neither expression evaluates to an empty string or zero;
 otherwise, returns zero.
 .It Ar expr1 Li "{=, >, >=, <, <=, !=}" Ar expr2
-Returns the results of integer comparison if both arguments are integers; 
+Return the results of integer comparison if both arguments are integers; 
 otherwise, returns the results of string comparison using the locale-specific
 collation sequence.
 The result of each comparison is 1 if the specified relation is true,
 or 0 if the relation is false.
 .It Ar expr1 Li "{+, -}" Ar expr2
-Returns the results of addition or subtraction of integer-valued arguments.
+Return the results of addition or subtraction of integer-valued arguments.
 .It Ar expr1 Li "{*, /, %}" Ar expr2
-Returns the results of multiplication, integer division, or remainder of integer-valued arguments.
+Return the results of multiplication, integer division, or remainder of integer-valued arguments.
 .It Ar expr1 Li : Ar expr2
 The 
 .Dq \:
@@ -115,9 +115,9 @@ The following example returns the number of characters in variable a.
 .El
 .Sh DIAGNOSTICS
 The
-.Nm expr 
+.Nm
 utility exits with one of the following values:
-.Bl -tag -width Ds -compact
+.Bl -tag -width indent -compact
 .It 0
 the expression is neither an empty string nor 0.
 .It 1
@@ -127,6 +127,6 @@ the expression is invalid.
 .El
 .Sh STANDARDS
 The
-.Nm expr
+.Nm
 utility conforms to
 .St -p1003.2 .
