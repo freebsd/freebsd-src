@@ -94,10 +94,10 @@ typedef struct {
 } svr4_sigset_t;
 
 struct svr4_sigaction {
-	int		sa_flags;
-	svr4_sig_t	sa_handler;
-	svr4_sigset_t	sa_mask;
-	int 		sa_reserved[2];
+	int		ssa_flags;
+	svr4_sig_t	ssa_handler;
+	svr4_sigset_t	ssa_mask;
+	int 		ssa_reserved[2];
 };
 
 struct svr4_sigaltstack {

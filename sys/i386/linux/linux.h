@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.26 1998/12/30 21:19:59 sos Exp $
+ *	$Id: linux.h,v 1.27 1999/04/29 04:37:56 luoqi Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -50,10 +50,10 @@ typedef int linux_pid_t;
 typedef unsigned long linux_sigset_t;
 typedef void (*linux_handler_t)(int);
 typedef struct {
-	void (*sa_handler)(int);
-	linux_sigset_t sa_mask;
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
+	void (*lsa_handler)(int);
+	linux_sigset_t lsa_mask;
+	unsigned long lsa_flags;
+	void (*lsa_restorer)(void);
 } linux_sigaction_t;
 typedef int linux_key_t;
 

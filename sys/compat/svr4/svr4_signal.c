@@ -187,24 +187,24 @@ svr4_to_bsd_sigaction(ssa, bsa)
 	struct sigaction *bsa;
 {
 
-	bsa->sa_handler = (sig_t) ssa->sa_handler;
-	svr4_to_bsd_sigset(&ssa->sa_mask, &bsa->sa_mask);
+	bsa->sa_handler = (sig_t) ssa->ssa_handler;
+	svr4_to_bsd_sigset(&ssa->ssa_mask, &bsa->sa_mask);
 	bsa->sa_flags = 0;
-	if ((ssa->sa_flags & SVR4_SA_ONSTACK) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_ONSTACK) != 0)
 		bsa->sa_flags |= SA_ONSTACK;
-	if ((ssa->sa_flags & SVR4_SA_RESETHAND) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_RESETHAND) != 0)
 		bsa->sa_flags |= SA_RESETHAND;
-	if ((ssa->sa_flags & SVR4_SA_RESTART) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_RESTART) != 0)
 		bsa->sa_flags |= SA_RESTART;
-	if ((ssa->sa_flags & SVR4_SA_SIGINFO) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_SIGINFO) != 0)
 		DPRINTF(("svr4_to_bsd_sigaction: SA_SIGINFO ignored\n"));
-	if ((ssa->sa_flags & SVR4_SA_NOCLDSTOP) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_NOCLDSTOP) != 0)
 		bsa->sa_flags |= SA_NOCLDSTOP;
-	if ((ssa->sa_flags & SVR4_SA_NODEFER) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_NODEFER) != 0)
 		bsa->sa_flags |= SA_NODEFER;
-	if ((ssa->sa_flags & SVR4_SA_NOCLDWAIT) != 0)
+	if ((ssa->ssa_flags & SVR4_SA_NOCLDWAIT) != 0)
 		bsa->sa_flags |= SA_NOCLDWAIT;
-	if ((ssa->sa_flags & ~SVR4_SA_ALLBITS) != 0)
+	if ((ssa->ssa_flags & ~SVR4_SA_ALLBITS) != 0)
 		DPRINTF(("svr4_to_bsd_sigaction: extra bits ignored\n"));
 }
 
@@ -214,19 +214,19 @@ bsd_to_svr4_sigaction(bsa, ssa)
 	struct svr4_sigaction *ssa;
 {
 
-	ssa->sa_handler = (svr4_sig_t) bsa->sa_handler;
-	bsd_to_svr4_sigset(&bsa->sa_mask, &ssa->sa_mask);
-	ssa->sa_flags = 0;
+	ssa->ssa_handler = (svr4_sig_t) bsa->sa_handler;
+	bsd_to_svr4_sigset(&bsa->sa_mask, &ssa->ssa_mask);
+	ssa->ssa_flags = 0;
 	if ((bsa->sa_flags & SA_ONSTACK) != 0)
-		ssa->sa_flags |= SVR4_SA_ONSTACK;
+		ssa->ssa_flags |= SVR4_SA_ONSTACK;
 	if ((bsa->sa_flags & SA_RESETHAND) != 0)
-		ssa->sa_flags |= SVR4_SA_RESETHAND;
+		ssa->ssa_flags |= SVR4_SA_RESETHAND;
 	if ((bsa->sa_flags & SA_RESTART) != 0)
-		ssa->sa_flags |= SVR4_SA_RESTART;
+		ssa->ssa_flags |= SVR4_SA_RESTART;
 	if ((bsa->sa_flags & SA_NODEFER) != 0)
-		ssa->sa_flags |= SVR4_SA_NODEFER;
+		ssa->ssa_flags |= SVR4_SA_NODEFER;
 	if ((bsa->sa_flags & SA_NOCLDSTOP) != 0)
-		ssa->sa_flags |= SVR4_SA_NOCLDSTOP;
+		ssa->ssa_flags |= SVR4_SA_NOCLDSTOP;
 }
 
 void

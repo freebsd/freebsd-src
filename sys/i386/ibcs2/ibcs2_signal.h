@@ -83,9 +83,9 @@ typedef long	ibcs2_sigset_t;
 typedef void	(*ibcs2_sig_t) __P((int));
 
 struct ibcs2_sigaction {
-	ibcs2_sig_t	sa_handler;
-	ibcs2_sigset_t	sa_mask;
-	int		sa_flags;
+	ibcs2_sig_t	isa_handler;
+	ibcs2_sigset_t	isa_mask;
+	int		isa_flags;
 };
 
 #define IBCS2_SIG_DFL		((ibcs2_sig_t)0)
