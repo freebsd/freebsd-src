@@ -139,9 +139,6 @@ int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struc
 int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dorlimit __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
-/* Return 1 if process has special kernel digging privileges */
-int procfs_kmemaccess __P((struct proc *));
-
 /* functions to check whether or not files should be displayed */
 int procfs_validfile __P((struct proc *));
 int procfs_validfpregs __P((struct proc *));
