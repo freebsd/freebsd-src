@@ -102,6 +102,7 @@ int	inverse;
 int	longfmt;
 int	matchargs;
 int	fullmatch;
+int	cflags = REG_EXTENDED;
 kvm_t	*kd;
 pid_t	mypid;
 
@@ -174,7 +175,7 @@ main(int argc, char **argv)
 	pidfromfile = -1;
 	execf = coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:M:N:P:U:d:fg:j:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:M:N:P:U:d:fg:ij:lns:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -212,6 +213,9 @@ main(int argc, char **argv)
 		case 'g':
 			makelist(&pgrplist, LT_PGRP, optarg);
 			criteria = 1;
+			break;
+		case 'i':
+			cflags |= REG_ICASE;
 			break;
 		case 'j':
 			makelist(&jidlist, LT_GENERIC, optarg);
@@ -285,7 +289,7 @@ main(int argc, char **argv)
 	 * Refine the selection.
 	 */
 	for (; *argv != NULL; argv++) {
-		if ((rv = regcomp(&reg, *argv, REG_EXTENDED)) != 0) {
+		if ((rv = regcomp(&reg, *argv, cflags)) != 0) {
 			regerror(rv, &reg, buf, sizeof(buf));
 			errx(STATUS_BADUSAGE, "bad expression: %s", buf);
 		}
@@ -477,9 +481,9 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-flnvx] [-d delim]";
+		ustr = "[-filnvx] [-d delim]";
 	else
-		ustr = "[-signal] [-fnvx]";
+		ustr = "[-signal] [-finvx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
