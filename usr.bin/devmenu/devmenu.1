@@ -1,0 +1,124 @@
+.\"
+.\" Copyright 1995 Massachusetts Institute of Technology
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby
+.\" granted, provided that both the above copyright notice and this
+.\" permission notice appear in all copies, that both the above
+.\" copyright notice and this permission notice appear in all
+.\" supporting documentation, and that the name of M.I.T. not be used
+.\" in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  M.I.T. makes
+.\" no representations about the suitability of this software for any
+.\" purpose.  It is provided "as is" without express or implied
+.\" warranty.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+.\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+.\" SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.Dd April 13, 1995
+.Dt DEVMENU 1
+.Os FreeBSD 2.1
+.Sh NAME
+.Nm devmenu
+.Nd present a menu of available devices
+.Sh SYNOPSIS
+.Nm lsdev
+.Op Fl c Ar class
+.Op Fl f Ar outfile
+.Op Fl h Ar helpfile
+.Op Fl t Ar title
+.Op Fl nid
+.Op Ar name ...
+.Sh DESCRIPTION
+The
+.Nm
+program uses the
+.Xr dialog 3
+library to present a menu of available devices meeting some set of
+criteria.  The list of devices is obtained using the
+.Xr sysctl 3
+device configuration database
+.Pq Dq devconf ,
+and intersected with the list of
+.Ar name s
+if one was specified on the command line.  The following command-line
+flags are supported:
+.Bl -tag -width mhmhelpfile
+.It Fl c Ar class
+specifies a class of devices to further restrict the available
+choices.  Multiple
+.Fl c
+options can be specified, in which case the union of the specified
+classes is used.  The following classes are currently supported:
+.Bl -tag -width parallel
+.It Li cpu
+a processor
+.It Li bus
+a system bus, or a peripheral bus
+.It Li disk
+a read-write disk drive
+.It Li rodisk
+a read-only disk drive (e.g., CD-ROM)
+.It Li display
+a display device (usually there is only one)
+.It Li serial
+a serial port or multiport controller
+.It Li parallel
+a parallel printer port
+.It Li netif
+a network interface
+.It Li misc
+everything else
+.El
+.Pp
+.It Fl f Ar outfile
+specifies the name a file where the name of the selected device is
+written.  If no file is specified, the name is written on the standard
+output.
+.It Fl h Ar helpfile
+can be used to specify the name of a file to be displayed when the
+user presses the `?' key.
+.It Fl t Ar title
+specifies the title of the window passed to the
+.Xr dialog 3
+library when creating the menu.
+.El
+.Pp
+In addition, there are three flags to request special menus with
+unique prompt text and possibly pseudo-devices (but this is not yet
+implemented).  These are:
+.Bl -tag -width xxx
+.It Fl n
+requests a menu of network interfaces
+.It Fl i
+requests a menu of possible installation media (i.e., disks, CD-ROMs,
+and tapes)
+.It Fl d
+requests a menu of disks
+.El
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr lsdev 8
+.Sh AUTHOR
+The
+.Nm
+program was written by Garrett A. Wollman at the MIT Laboratory for
+Computer Science.
+.Sh HISTORY
+A
+.Nm
+command first appeared in
+.Tn FreeBSD
+2.1.
