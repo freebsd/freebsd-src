@@ -133,7 +133,7 @@ fw_noderesolve_nodeid(struct firewire_comm *fc, int dst)
 	int s;
 
 	s = splfw();
-	TAILQ_FOREACH(fwdev, &fc->devices, link)
+	STAILQ_FOREACH(fwdev, &fc->devices, link)
 		if (fwdev->dst == dst)
 			break;
 	splx(s);
@@ -153,8 +153,8 @@ fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 eui)
 	int s;
 
 	s = splfw();
-	TAILQ_FOREACH(fwdev, &fc->devices, link)
-		if (fwdev->eui.hi == eui.hi && fwdev->eui.lo == eui.lo)
+	STAILQ_FOREACH(fwdev, &fc->devices, link)
+		if (FW_EUI64_EQUAL(fwdev->eui, eui))
 			break;
 	splx(s);
 
@@ -366,14 +366,18 @@ firewire_attach( device_t dev )
 #else
 	sc->dev[i] = d;
 #endif
-	sc->fc->timeouthandle = timeout((timeout_t *)sc->fc->timeout, (void *)sc->fc, hz * 10);
-
-	callout_init(&sc->fc->busprobe_callout
 #if __FreeBSD_version >= 500000
-						, /* mpsafe? */ 0);
+#define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)
 #else
-						);
+#define CALLOUT_INIT(x) callout_init(x)
 #endif
+	CALLOUT_INIT(&sc->fc->timeout_callout);
+	CALLOUT_INIT(&sc->fc->bmr_callout);
+	CALLOUT_INIT(&sc->fc->retry_probe_callout);
+	CALLOUT_INIT(&sc->fc->busprobe_callout);
+
+	callout_reset(&sc->fc->timeout_callout, hz * 10,
+			(void *)sc->fc->timeout, (void *)sc->fc);
 
 	/* Locate our children */
 	bus_generic_probe(dev);
@@ -426,7 +430,10 @@ firewire_detach( device_t dev )
 	}
 #endif
 	/* XXX xfree_free and untimeout on all xfers */
-	untimeout((timeout_t *)sc->fc->timeout, sc->fc, sc->fc->timeouthandle);
+	callout_stop(&sc->fc->timeout_callout);
+	callout_stop(&sc->fc->bmr_callout);
+	callout_stop(&sc->fc->retry_probe_callout);
+	callout_stop(&sc->fc->busprobe_callout);
 	free(sc->fc->topology_map, M_DEVBUF);
 	free(sc->fc->speed_map, M_DEVBUF);
 	bus_generic_detach(dev);
@@ -451,7 +458,7 @@ fw_busreset(struct firewire_comm *fc)
 
 	switch(fc->status){
 	case FWBUSMGRELECT:
-		untimeout((timeout_t *)fw_try_bmr, (void *)fc, fc->bmrhandle);
+		callout_stop(&fc->bmr_callout);
 		break;
 	default:
 		break;
@@ -612,7 +619,7 @@ void fw_init(struct firewire_comm *fc)
 	CSRARC(fc, SPED_MAP) = 0x3f1 << 16;
 	CSRARC(fc, SPED_MAP + 4) = 1;
 
-	TAILQ_INIT(&fc->devices);
+	STAILQ_INIT(&fc->devices);
 	STAILQ_INIT(&fc->pending);
 
 /* Initialize csr ROM work space */
@@ -1049,8 +1056,8 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 			CSRARC(fc, BUS_MGR_ID) = fc->set_bmr(fc, fc->irm);
 		} else {
 			fc->status = FWBUSMGRELECT;
-			fc->bmrhandle = timeout((timeout_t *)fw_try_bmr,
-							(void *)fc, hz / 8);
+			callout_reset(&fc->bmr_callout, hz/8,
+				(void *)fw_try_bmr, (void *)fc);
 		}
 	} else {
 		fc->status = FWBUSMGRDONE;
@@ -1085,15 +1092,15 @@ fw_bus_probe(struct firewire_comm *fc)
  * Invalidate all devices, just after bus reset. Devices 
  * to be removed has not been seen longer time.
  */
-	for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL; fwdev = next) {
-		next = TAILQ_NEXT(fwdev, link);
-		if(fwdev->status != FWDEVINVAL){
+	for (fwdev = STAILQ_FIRST(&fc->devices); fwdev != NULL; fwdev = next) {
+		next = STAILQ_NEXT(fwdev, link);
+		if (fwdev->status != FWDEVINVAL) {
 			fwdev->status = FWDEVINVAL;
 			fwdev->rcnt = 0;
-		}else if(fwdev->rcnt < FW_MAXDEVRCNT){
+		} else if(fwdev->rcnt < FW_MAXDEVRCNT) {
 			fwdev->rcnt ++;
-		}else{
-			TAILQ_REMOVE(&fc->devices, fwdev, link);
+		} else {
+			STAILQ_REMOVE(&fc->devices, fwdev, fw_device, link);
 			free(fwdev, M_DEVBUF);
 		}
 	}
@@ -1146,12 +1153,9 @@ loop:
 		fc->ongoaddr = CSRROMOFF + 0x10;
 		addr = 0xf0000000 | fc->ongoaddr;
 	}else if(fc->ongodev == NULL){
-		for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL;
-			fwdev = TAILQ_NEXT(fwdev, link)){
-			if(fwdev->eui.hi == fc->ongoeui.hi && fwdev->eui.lo == fc->ongoeui.lo){
+		STAILQ_FOREACH(fwdev, &fc->devices, link)
+			if (FW_EUI64_EQUAL(fwdev->eui, fc->ongoeui))
 				break;
-			}
-		}
 		if(fwdev != NULL){
 			fwdev->dst = fc->ongonode;
 			fwdev->status = FWDEVATTACHED;
@@ -1177,7 +1181,7 @@ loop:
 #endif
 
 		pfwdev = NULL;
-		TAILQ_FOREACH(tfwdev, &fc->devices, link) {
+		STAILQ_FOREACH(tfwdev, &fc->devices, link) {
 			if (tfwdev->eui.hi > fwdev->eui.hi ||
 					(tfwdev->eui.hi == fwdev->eui.hi &&
 					tfwdev->eui.lo > fwdev->eui.lo))
@@ -1185,9 +1189,9 @@ loop:
 			pfwdev = tfwdev;
 		}
 		if (pfwdev == NULL)
-			TAILQ_INSERT_HEAD(&fc->devices, fwdev, link);
+			STAILQ_INSERT_HEAD(&fc->devices, fwdev, link);
 		else
-			TAILQ_INSERT_AFTER(&fc->devices, pfwdev, fwdev, link);
+			STAILQ_INSERT_AFTER(&fc->devices, pfwdev, fwdev, link);
 
 		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
 			linkspeed[fwdev->speed],
@@ -1479,8 +1483,7 @@ fw_attach_dev(struct firewire_comm *fc)
 	struct firewire_dev_comm *fdc;
 	u_int32_t spec, ver;
 
-	for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL;
-			fwdev = TAILQ_NEXT(fwdev, link)){
+	STAILQ_FOREACH(fwdev, &fc->devices, link) {
 		if(fwdev->status == FWDEVINIT){
 			spec = getcsrdata(fwdev, CSRKEY_SPEC);
 			if(spec == 0)
@@ -1567,8 +1570,8 @@ fw_attach_dev(struct firewire_comm *fc)
 		printf("fw_attach_dev: %d pending handlers called\n", i);
 	if (fc->retry_count > 0) {
 		printf("retry_count = %d\n", fc->retry_count);
-		fc->retry_probe_handle = timeout((timeout_t *)fc->ibr,
-							(void *)fc, hz*2);
+		callout_reset(&fc->retry_probe_callout, hz*2,
+					(void *)fc->ibr, (void *)fc);
 	}
 	return;
 }

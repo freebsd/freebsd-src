@@ -841,8 +841,7 @@ error:
 		devinfo->status = 0;	/* XXX */
 		devinfo->eui.hi = sc->fc->eui.hi;
 		devinfo->eui.lo = sc->fc->eui.lo;
-		for (fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
-			fwdev = TAILQ_NEXT(fwdev, link)) {
+		STAILQ_FOREACH(fwdev, &sc->fc->devices, link) {
 			if(len < FW_MAX_DEVLST){
 				devinfo = &fwdevlst->dev[len++];
 				devinfo->dst = fwdev->dst;
@@ -861,12 +860,9 @@ error:
 				(sc->fc->topology_map->crc_len + 1) * 4);
 		break;
 	case FW_GCROM:
-		for (fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
-			fwdev = TAILQ_NEXT(fwdev, link)) {
-			if (fwdev->eui.hi == crom_buf->eui.hi && 
-					fwdev->eui.lo == crom_buf->eui.lo)
+		STAILQ_FOREACH(fwdev, &sc->fc->devices, link)
+			if (FW_EUI64_EQUAL(fwdev->eui, crom_buf->eui))
 				break;
-		}
 		if (fwdev == NULL) {
 			err = FWNODE_INVAL;
 			break;
