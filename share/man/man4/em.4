@@ -1,39 +1,37 @@
 .\" Copyright (c) 2001 Intel Corporation
 .\" All rights reserved.
-.\" Redistribution and use in source and binary forms of the Software, with or without 
-.\" modification, are permitted provided that the following conditions 
+.\" Redistribution and use in source and binary forms of the Software, with or without
+.\" modification, are permitted provided that the following conditions
 .\" are met:
-.\" 1. Redistributions of source code of the Software may retain the above 
+.\" 1. Redistributions of source code of the Software may retain the above
 .\" copyright notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form of the Software may reproduce the 
-.\" above copyright notice, this list of conditions and the following 
-.\" disclaimer in the documentation and/or other materials provided with the 
+.\" 2. Redistributions in binary form of the Software may reproduce the
+.\" above copyright notice, this list of conditions and the following
+.\" disclaimer in the documentation and/or other materials provided with the
 .\" distribution.
-.\" 3. Neither the name of the Intel Corporation nor the names of its contributors 
-.\" shall be used to endorse or promote products derived from this Software 
+.\" 3. Neither the name of the Intel Corporation nor the names of its contributors
+.\" shall be used to endorse or promote products derived from this Software
 .\" without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR ITS CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
-.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
-.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
-.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR ITS CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-
-
-.Dd October, 2001
+.\"
+.Dd December 8, 2001
 .Dt EM 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm em
-.Nd
-Intel(R) PRO/1000 gigabit ethernet driver for the FreeBSD operating system
+.Nd Intel(R) PRO/1000 gigabit ethernet driver for the FreeBSD operating system
 .Sh SYNOPSIS
 .Cd "device em"
 .Sh DESCRIPTION
@@ -43,12 +41,14 @@ driver provides support for PCI gigabit ethernet adapters based on
 the Intel 82542, 82543 and 82544 ethernet controller chip.
 The driver supports Transmit/Receive checksum offload
 and jumbo frames only on 82543 and 82544-based adapters.
-For a list of supported adapters, see the README 
+For a list of supported adapters, see the
+.Pa README
 included with the driver.
 .Pp
-For questions related to hardware requirements, 
-refer to the documentation supplied with your Intel PRO/1000 adapter. 
-All hardware requirements listed apply to use with FreeBSD.
+For questions related to hardware requirements,
+refer to the documentation supplied with your Intel PRO/1000 adapter.
+All hardware requirements listed apply to use with
+.Fx .
 .Pp
 Support for jumbo frames is provided via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
@@ -59,48 +59,46 @@ The maximum MTU size for jumbo frames is 9000.
 The
 .Nm
 driver supports the following media types:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It autoselect
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
 Enables auto-negotiation for speed and duplex.
-.It 10baseT/UTP
+.It Cm 10baseT/UTP
 Sets 10Mbps operation.
 The
-.Ar mediaopt
+.Cm mediaopt
 option can also be used to select either
-.Ar full-duplex
+.Cm full-duplex
 or
-.Ar half-duplex
+.Cm half-duplex
 modes.
-.It 100baseTX
+.It Cm 100baseTX
 Sets 100Mbps operation.
 The
-.Ar mediaopt
+.Cm mediaopt
 option can also be used to select either
-.Ar full-duplex
+.Cm full-duplex
 or
-.Ar half-duplex
+.Cm half-duplex
 modes.
-.It 1000baseSX
+.It Cm 1000baseSX
 Sets 1000Mbps operation.
-Only 
-.Ar full-duplex
+Only
+.Cm full-duplex
 mode is supported at this speed.
-.It 1000baseTX
+.It Cm 1000baseTX
 Sets 1000Mbps operation.
-Only 
-.Ar full-duplex
+Only
+.Cm full-duplex
 mode is supported at this speed.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It full-duplex
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
 Forces full duplex operation
-.It half-duplex
+.It Cm half-duplex
 Forces half duplex operation.
 .El
 .Pp
@@ -120,26 +118,29 @@ The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .El
 .Sh SUPPORT
-For additional information regarding building and installation, 
-see the README included with the driver. For general information and support, 
-go to the Intel support Website at:
-.Ar http://support.intel.com.
+For additional information regarding building and installation,
+see the
+.Pa README
+included with the driver.
+For general information and support,
+go to the Intel support Website at
+.Pa http://support.intel.com .
 .Pp
-If an issue is identified with the released source code on the supported kernel 
-with a supported adapter, email the specific information related to the 
-issue to freebsdnic@mailbox.intel.com.
-.El
+If an issue is identified with the released source code on the supported kernel
+with a supported adapter, email the specific information related to the
+issue to
+.Aq freebsdnic@mailbox.intel.com .
 .Sh SEE ALSO
 .Xr arp 4 ,
-.Xr netintro 4 , 
-.Xr vlan 4 ,
+.Xr netintro 4 ,
 .Xr ng_ether 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 4.4 .
+.Fx 5.0 .
 .Sh AUTHORS
 The
 .Nm
