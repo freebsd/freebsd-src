@@ -80,7 +80,7 @@ void	putfsent __P((const struct statfs *));
 /* From mount_ufs.c. */
 int	mount_ufs __P((int, char * const *));
 
-/* Map from mount otions to printable formats. */
+/* Map from mount options to printable formats. */
 static struct opt {
 	int o_opt;
 	const char *o_name;
@@ -141,7 +141,7 @@ main(argc, argv)
 			break;
 		case 't':
 			if (vfslist != NULL)
-				errx(1, "only one -t option may be specified.");
+				errx(1, "only one -t option may be specified");
 			vfslist = makevfslist(optarg);
 			vfstype = optarg;
 			break;
@@ -209,10 +209,10 @@ main(argc, argv)
 		if (init_flags & MNT_UPDATE) {
 			if ((mntbuf = getmntpt(*argv)) == NULL)
 				errx(1,
-				    "unknown special file or file system %s.",
+				    "unknown special file or file system %s",
 				    *argv);
 			if ((fs = getfsfile(mntbuf->f_mntonname)) == NULL)
-				errx(1, "can't find fstab entry for %s.",
+				errx(1, "can't find fstab entry for %s",
 				    *argv);
 			/* If it's an update, ignore the fstab file options. */
 			fs->fs_mntops = NULL;
@@ -221,10 +221,10 @@ main(argc, argv)
 			if ((fs = getfsfile(*argv)) == NULL &&
 			    (fs = getfsspec(*argv)) == NULL)
 				errx(1,
-				    "%s: unknown special file or file system.",
+				    "%s: unknown special file or file system",
 				    *argv);
 			if (BADTYPE(fs->fs_type))
-				errx(1, "%s has unknown file system type.",
+				errx(1, "%s has unknown file system type",
 				    *argv);
 			mntonname = fs->fs_file;
 		}
@@ -283,7 +283,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 
 	if (realpath(name, mntpath) != NULL && stat(mntpath, &sb) == 0) {
 		if (!S_ISDIR(sb.st_mode)) {
-			warnx("%s: Not a directory", mntpath);
+			warnx("%s: not a directory", mntpath);
 			return (1);
 		}
 	} else {
@@ -314,7 +314,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	/*
 	 * XXX
 	 * The mount_mfs (newfs) command uses -o to select the
-	 * optimisation mode.  We don't pass the default "-o rw"
+	 * optimization mode.  We don't pass the default "-o rw"
 	 * for that reason.
 	 */
 	if (flags & MNT_UPDATE)
@@ -355,10 +355,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 			char *cp;
 			for (edir = edirs; *edir; edir++)
 				len += strlen(*edir) + 2;	/* ", " */
-			if ((cp = malloc(len)) == NULL) {
-				warn(NULL);
-				exit(1);
-			}
+			if ((cp = malloc(len)) == NULL)
+				errx(1, "malloc failed");
 			cp[0] = '\0';
 			for (edir = edirs; *edir; edir++) {
 				strcat(cp, *edir);
@@ -485,7 +483,7 @@ makevfslist(fslist)
 		if (*nextcp == ',')
 			i++;
 	if ((av = malloc((size_t)(i + 2) * sizeof(char *))) == NULL) {
-		warn(NULL);
+		warnx("malloc failed");
 		return (NULL);
 	}
 	nextcp = fslist;
@@ -510,7 +508,7 @@ catopt(s0, s1)
 	if (s0 && *s0) {
 		i = strlen(s0) + strlen(s1) + 1 + 1;
 		if ((cp = malloc(i)) == NULL)
-			err(1, NULL);
+			errx(1, "malloc failed");
 		(void)snprintf(cp, i, "%s,%s", s0, s1);
 	} else
 		cp = strdup(s1);

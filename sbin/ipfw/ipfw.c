@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.16 1998/05/15 12:33:37 danny Exp $
+ * $Id: ipfw.c,v 1.34.2.17 1998/08/04 13:55:45 thepish Exp $
  *
  */
 
@@ -50,7 +50,7 @@
 int 		lineno = -1;
 
 int 		s;				/* main RAW socket 	   */
-int 		do_resolv=0;			/* Would try to resolv all */
+int 		do_resolv=0;			/* Would try to resolve all */
 int		do_acct=0;			/* Show packet/byte count  */
 int		do_time=0;			/* Show time stamps        */
 int		do_quiet=0;			/* Be quiet in add and flush  */
@@ -174,7 +174,7 @@ show_ipfw(struct ip_fw *chain)
 	int ndp = IP_FW_GETNDSTP(chain);
 
 	if (do_resolv)
-		setservent(1/*stayopen*/);
+		setservent(1/*stay open*/);
 
 	printf("%05u ", chain->fw_number);
 
@@ -1182,7 +1182,7 @@ ipfw_main(ac,av)
 
 	ac -= optind;
 	if (*(av+=optind)==NULL) {
-		 show_usage("Bad arguments");
+		 show_usage("bad arguments");
 	}
 
 	if (!strncmp(*av, "add", strlen(*av))) {
@@ -1226,7 +1226,7 @@ ipfw_main(ac,av)
 		do_acct++;
 		list(--ac,++av);
 	} else {
-		show_usage("Bad arguments");
+		show_usage("bad arguments");
 	}
 	return 0;
 }

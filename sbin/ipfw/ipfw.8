@@ -9,7 +9,7 @@
 .Oo
 .Fl q
 .Oc
-file
+.Ar file
 .Nm ipfw
 .Oo
 .Fl f
@@ -110,7 +110,8 @@ Don't ask for confirmation for commands that can cause problems if misused
 .Ar Note ,
 if there is no tty associated with the process, this is implied.
 .It Fl q
-While adding, zeroing or flushing, be quiet about actions (implies '-f').
+While adding, zeroing or flushing, be quiet about actions (implies
+.Fl f Ns ).
 This is useful for adjusting rules by executing multiple ipfw commands in a
 script (e.g. sh /etc/rc.firewall), or by processing a file of many ipfw rules,
 across a remote login session.  If a flush is performed in normal
@@ -337,7 +338,7 @@ interface can only be tested on outgoing packets. So
 .Ar out
 is required (and
 .Ar in
-invalid) whenver
+invalid) whenever
 .Ar xmit
 is used. Specifying
 .Ar via
@@ -508,12 +509,15 @@ are not.
 .Pp
 Port aliases containing dashes cannot be first in a list.
 .Sh AUTHORS
-Ugen J. S. Antsilevich,
-Poul-Henning Kamp,
-Alex Nash,
-Archie Cobbs.
-API based upon code written by Daniel Boulet for BSDI.
+.An Ugen J. S. Antsilevich ,
+.An Poul-Henning Kamp ,
+.An Alex Nash ,
+.An Archie Cobbs .
+.An Archie Cobbs .
+API based upon code written by
+.An Daniel Boulet
+for BSDI.
 .Sh HISTORY
-.Nm
+.Nm Ipfw
 first appeared in
 .Fx 2.0 .

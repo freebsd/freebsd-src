@@ -82,7 +82,7 @@ getmntopts(options, m0, flagp, altflagp)
 				break;
 		}
 
-		/* Save flag, or fail if option is not recognised. */
+		/* Save flag, or fail if option is not recognized. */
 		if (m->m_option) {
 			thisflagp = m->m_altloc ? altflagp : flagp;
 			if (negative == m->m_inverse)
