@@ -49,10 +49,12 @@ static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #define	FTP_NAMES
 #include <arpa/ftp.h>
@@ -187,7 +189,7 @@ static FILE	*getdatasock __P((char *));
 static char	*gunique __P((char *));
 static void	 lostconn __P((int));
 static int	 receive_data __P((FILE *, FILE *));
-static void	 send_data __P((FILE *, FILE *, off_t));
+static void	 send_data __P((FILE *, FILE *, off_t, off_t, int));
 static struct passwd *
 		 sgetpwnam __P((char *));
 static char	*sgetsave __P((char *));
@@ -739,7 +741,8 @@ retrieve(cmd, name)
 #ifdef STATS
 	time(&start);
 #endif
-	send_data(fin, dout, st.st_blksize);
+	send_data(fin, dout, st.st_blksize, st.st_size,
+		  restart_point == 0 && cmd == 0 && S_ISREG(st.st_mode));
 #ifdef STATS
 	if (cmd == 0 && guest && stats)
 		logxfer( name, st.st_size, start);
@@ -857,6 +860,23 @@ getdatasock(mode)
 	if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&on, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 #endif
+#ifdef TCP_NOPUSH
+	/*
+	 * Turn off push flag to keep sender TCP from sending short packets
+	 * at the boundaries of each write().  Should probably do a SO_SNDBUF
+	 * to set the send buffer size as well, but that may not be desirable
+	 * in heavy-load situations.
+	 */
+	on = 1;
+	if (setsockopt(s, IPPROTO_TCP, TCP_NOPUSH, (char *)&on, sizeof on) < 0)
+		syslog(LOG_WARNING, "setsockopt (TCP_NOPUSH): %m");
+#endif
+#ifdef SO_SNDBUF
+	on = 65536;
+	if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char *)&on, sizeof on) < 0)
+		syslog(LOG_WARNING, "setsockopt (SO_SNDBUF): %m");
+#endif
+
 	return (fdopen(s, mode));
 bad:
 	/* Return the real value of errno (close may change it) */
@@ -941,17 +961,20 @@ dataconn(name, size, mode)
 
 /*
  * Tranfer the contents of "instr" to "outstr" peer using the appropriate
- * encapsulation of the data subject * to Mode, Structure, and Type.
+ * encapsulation of the data subject to Mode, Structure, and Type.
  *
  * NB: Form isn't handled.
  */
 static void
-send_data(instr, outstr, blksize)
+send_data(instr, outstr, blksize, filesize, isreg)
 	FILE *instr, *outstr;
 	off_t blksize;
+	off_t filesize;
+	int isreg;
 {
 	int c, cnt, filefd, netfd;
-	char *buf;
+	char *buf, *bp;
+	size_t len;
 
 	transflag++;
 	if (setjmp(urgcatch)) {
@@ -981,13 +1004,45 @@ send_data(instr, outstr, blksize)
 
 	case TYPE_I:
 	case TYPE_L:
+		/*
+		 * isreg is only set if we are not doing restart and we
+		 * are sending a regular file
+		 */
+		netfd = fileno(outstr);
+		filefd = fileno(instr);	
+
+		if (isreg && filesize < (off_t)16 * 1024 * 1024) {
+			buf = mmap(0, filesize, PROT_READ, MAP_SHARED, filefd,
+				   (off_t)0);
+			if (!buf) {
+				syslog(LOG_WARNING, "mmap(%lu): %m",
+				       (unsigned long)filesize);
+				goto oldway;
+			}
+			bp = buf;
+			len = filesize;
+			do {
+				cnt = write(netfd, bp, len);
+				len -= cnt;
+				bp += cnt;
+				if (cnt > 0) byte_count += cnt;
+			} while(cnt > 0 && len > 0);
+
+			transflag = 0;
+			munmap(buf, (size_t)filesize);
+			if (cnt < 0)
+				goto data_err;
+			reply(226, "Transfer complete.");
+			return;
+		}
+
+oldway:
 		if ((buf = malloc((u_int)blksize)) == NULL) {
 			transflag = 0;
 			perror_reply(451, "Local resource failure: malloc");
 			return;
 		}
-		netfd = fileno(outstr);
-		filefd = fileno(instr);
+				
 		while ((cnt = read(filefd, buf, (u_int)blksize)) > 0 &&
 		    write(netfd, buf, cnt) == cnt)
 			byte_count += cnt;
