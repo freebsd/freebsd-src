@@ -96,6 +96,10 @@ static timeout_t	pckbd_timeout;
 static int
 pckbdprobe(device_t dev)
 {
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	device_set_desc(dev, "PC-98 Keyboard");
 
 	return pckbd_probe_unit(device_get_unit(dev), isa_get_port(dev),

@@ -132,6 +132,10 @@ gdcprobe(device_t dev)
 {
 	gdc_softc_t *sc;
 
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	device_set_desc(dev, "Generic GDC");
 	sc = device_get_softc(dev);
 	return gdc_probe_unit(device_get_unit(dev), sc, device_get_flags(dev));
