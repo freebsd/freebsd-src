@@ -422,7 +422,7 @@ dev/pccard/card_if.m	optional pccard
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
-dev/pccard/power_if.m	optional pccbb
+dev/pccard/power_if.m	optional cardbus
 dev/pccard/power_if.m	optional pccard
 dev/pci/eisa_pci.c	optional pci
 dev/pci/fixup_pci.c	optional pci
