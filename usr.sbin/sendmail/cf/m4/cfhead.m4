@@ -128,7 +128,9 @@ define(`confMAILER_NAME', ``MAILER-DAEMON'')
 define(`confFROM_LINE', `From $g  $d')
 define(`confOPERATORS', `.:%@!^/[]+')
 define(`confSMTP_LOGIN_MSG', `$j Sendmail $v/$Z; $b')
-define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_) $.by $j ($v/$Z)$?r with $r$. id $i$?u for $u$.; $b')
+define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
+          $.by $j ($v/$Z)$?r with $r$.
+	  id $i$?u for $u$.; $b')
 define(`confSEVEN_BIT_INPUT', `False')
 define(`confEIGHT_BIT_HANDLING', `pass8')
 define(`confALIAS_WAIT', `10')
@@ -154,4 +156,4 @@ define(`confMIME_FORMAT_ERRORS', `True')
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward')
 
 divert(0)dnl
-VERSIONID(`@(#)cfhead.m4	8.6 (Berkeley) 6/19/96')
+VERSIONID(`@(#)cfhead.m4	8.7 (Berkeley) 11/20/96')
