@@ -1,0 +1,74 @@
+
+Problems compiling Kerberos
+===========================
+
+Many compilers require a switch to become ANSI compliant. Since kth-krb
+is written in ANSI C it is necessary to specify the name of the compiler
+to be used and the required switch to make it ANSI compliant. This is
+most easily done when running configure using the `env' command. For
+instance to build under HP-UX using the native compiler do:
+
+     datan$ env CC="cc -Ae" ./configure
+
+In general `gcc' works. The following combinations have also been
+verified to successfully compile the distribution:
+
+`HP-UX'
+     `cc -Ae'
+
+`Digital UNIX'
+     `cc -std1'
+
+`AIX'
+     `xlc'
+
+`Solaris 2.x'
+     `cc' (unbundled one)
+
+`IRIX'
+     `cc'
+
+Linux problems
+--------------
+
+Some systems have lost `/usr/include/ndbm.h' which is necessary to
+build kth-krb correctly. There is a `ndbm.h.Linux' right next to the
+source distribution.
+
+There has been reports of non-working `libdb' on some Linux
+distributions.  If that happens, use the `--without-berkeley-db' when
+configuring.
+
+HP-UX problems
+--------------
+
+The shared library `/usr/lib/libndbm.sl' doesn't exist on all systems.
+To make problems even worse, there is never an archive version for
+static linking either. Therefore, when building "truly portable"
+binaries first install GNU gdbm or Berkeley DB, and make sure that you
+are linking against that library.
+
+Cray problems
+-------------
+
+`rlogind' won't work on Crays until `forkpty()' has been ported, in the
+mean time use `telnetd'.
+
+AIX problems
+------------
+
+`gcc' version 2.7.2.1 has a bug which makes it miscompile
+`appl/telnet/telnetd/sys_term.c' (and possibily `appl/bsd/forkpty.c'),
+if used with too much optimization.
+
+C2 problems
+-----------
+
+The programs that checks passwords works with `passwd', OTP, and
+Kerberos paswords. This is problem if you use C2 security (or use some
+other password database), that normally keeps passwords in some obscure
+place. If you want to use Kerberos with C2 security you will have to
+think about what kind of changes are necessary. See also the discussion
+about Digital's SIA and C2 security, see *Note Digital SIA::.
+
+
