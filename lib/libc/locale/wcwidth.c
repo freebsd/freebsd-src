@@ -52,7 +52,12 @@ int
 wcwidth(wc)
         wchar_t wc;
 {
-	int width = __maskrune(wc, _CTYPE_SWM);
+	int width;
+
+	if (wc == 0)
+		return (0);
+
+	width = __maskrune(wc, _CTYPE_SWM);
 
 	/* 0 is autowidth (default) */
 	return (width ? (int)((unsigned)width >> _CTYPE_SWS)
