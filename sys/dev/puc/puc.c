@@ -159,15 +159,8 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 
 	sc->irqres = res;
 	sc->irqrid = rid;
-#ifdef PUC_FASTINTR
 	irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
-	    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->intr_cookie);
-#else
-	irq_setup = ENXIO;
-#endif
-	if (irq_setup != 0)
-		irq_setup = BUS_SETUP_INTR(device_get_parent(dev), dev, res,
-		    INTR_TYPE_TTY, puc_intr, sc, &sc->intr_cookie);
+	    INTR_TYPE_TTY, puc_intr, sc, &sc->intr_cookie);
 	if (irq_setup != 0)
 		return (ENXIO);
 
@@ -457,7 +450,8 @@ puc_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 	int i;
 	struct puc_softc *sc;
 
-printf("puc_setup_intr()\n");
+	if (flags & INTR_FAST)
+		return (ENXIO);
 	sc = (struct puc_softc *)device_get_softc(dev);
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		if (sc->sc_ports[i].dev == child) {
@@ -479,7 +473,6 @@ puc_teardown_intr(device_t dev, device_t child, struct resource *r,
 	int i;
 	struct puc_softc *sc;
 
-printf("puc_teardown_intr()\n");
 	sc = (struct puc_softc *)device_get_softc(dev);
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		if (sc->sc_ports[i].dev == child) {
