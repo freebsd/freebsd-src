@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.5 1994/08/18 22:35:20 wollman Exp $
+ * $Id: if.h,v 1.6 1994/08/21 05:11:40 paul Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -175,6 +175,7 @@ struct ifnet {
 #define	IFF_LINK0	0x1000		/* per link layer defined bit */
 #define	IFF_LINK1	0x2000		/* per link layer defined bit */
 #define	IFF_LINK2	0x4000		/* per link layer defined bit */
+#define	IFF_ALTPHYS	IFF_LINK2	/* use alternate physical connection */
 #define	IFF_MULTICAST	0x8000		/* supports multicast */
 
 /* flags set internally only: */
