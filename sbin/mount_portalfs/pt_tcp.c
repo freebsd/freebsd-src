@@ -36,7 +36,7 @@
  *
  *	@(#)pt_tcp.c	8.5 (Berkeley) 4/28/95
  *
- * $Id: pt_tcp.c,v 1.4 1997/02/22 14:32:56 peter Exp $
+ * $Id: pt_tcp.c,v 1.5 1997/03/11 12:35:00 peter Exp $
  */
 
 #include <stdio.h>
@@ -131,7 +131,7 @@ int portal_tcp(pcr, key, v, kso, fdp)
 		s_port = htons(s_port);
 	}
 #ifdef DEBUG
-	printf ("port number for %s is %d\n", port, s_port);
+	printf ("port number for %s is %d\n", port, ntohs(s_port));
 #endif
 
 	memset(&sain, 0, sizeof(sain));
