@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.37 1994/09/14 15:30:44 jkh Exp $
+# $Id: bsd.port.mk,v 1.38 1994/09/19 00:41:03 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -214,7 +214,7 @@ build: configure pre-build
 		if [ ! -d ${PORTSDIR}/$$i ]; then \
 			echo ">> No directory for ${PORTSDIR}/$$i.  Skipping.."; \
 		else \
-			(cd ${PORTSDIR}/$$i; ${MAKE}) ; \
+			(cd ${PORTSDIR}/$$i; ${MAKE} all install) ; \
 		fi \
 	done
 	@echo "===>  Returning to build of ${DISTNAME}"
