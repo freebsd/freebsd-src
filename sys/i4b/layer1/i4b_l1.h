@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 10 16:42:27 2001]
+ *      last edit-date: [Tue Jan 23 17:04:57 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -37,39 +37,6 @@
 #define _I4B_L1_H_
 
 #include <i4b/include/i4b_l3l4.h>
-
-/*---------------------------------------------------------------------------
- *	kernel config file flags definition
- *---------------------------------------------------------------------------*/
-#define FLAG_TELES_S0_8		1
-#define FLAG_TELES_S0_16	2
-#define FLAG_TELES_S0_163	3
-#define FLAG_AVM_A1		4
-#define FLAG_TELES_S0_163_PnP	5
-#define FLAG_CREATIX_S0_PnP	6
-#define FLAG_USR_ISDN_TA_INT	7
-#define FLAG_DRN_NGO		8
-#define FLAG_SWS		9
-#define FLAG_AVM_A1_PCMCIA	10
-#define FLAG_DYNALINK		11
-#define FLAG_BLMASTER		12
-#define FLAG_ELSA_QS1P_ISA	13
-#define FLAG_ELSA_QS1P_PCI	14
-#define FLAG_SIEMENS_ITALK	15
-#define	FLAG_ELSA_MLIMC		16
-#define	FLAG_ELSA_MLMCALL	17
-#define FLAG_ITK_IX1		18
-#define FLAG_AVMA1PCI     	19
-#define FLAG_ELSA_PCC16		20
-#define FLAG_AVM_PNP		21
-#define FLAG_SIEMENS_ISURF2	22
-#define FLAG_ASUSCOM_IPAC	23
-#define FLAG_WINBOND_6692	24
-#define FLAG_TELES_S0_163C	25
-#define FLAG_ACER_P10		26
-#define FLAG_TELEINT_NO_1	27
-#define FLAG_CCD_HFCS_PCI	28
-#define FLAG_NETJET_S		29
 
 #define SEC_DELAY		1000000	/* one second DELAY for DELAY*/
 

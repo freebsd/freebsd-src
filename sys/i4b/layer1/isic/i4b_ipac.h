@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ipac.h - definitions for the Siemens IPAC PSB2115 chip
  *	==========================================================
  *
- *	$Id: i4b_ipac.h,v 1.1 2000/03/07 14:12:26 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:00:58 1999]
+ *      last edit-date: [Wed Jan 24 09:10:09 2001]
  *
  *---------------------------------------------------------------------------
  */

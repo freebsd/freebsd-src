@@ -26,9 +26,7 @@
  *	i4b_itk_ix1.c - ITK ix1 micro passive card driver for isdn4bsd
  *	--------------------------------------------------------------
  *
- *	$Id: i4b_itk_ix1.c,v 1.1 2000/08/24 14:08:41 hm Exp $
- *
- *      last edit-date: [Thu Aug 24 15:44:33 2000]
+ *      last edit-date: [Wed Jan 24 09:27:06 2001]
  *
  * $FreeBSD$
  *
@@ -70,15 +68,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
-
 #include <net/if.h>
 
 #include <machine/i4b_ioctl.h>
-
+#include <machine/i4b_trace.h>
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
-
 
 /* Register offsets */
 #define	ITK_ISAC_DATA	0
@@ -207,7 +203,6 @@ isic_probe_itkix1(device_t dev)
 
 	sc = &l1_sc[unit];			/* get pointer to softc */
 	sc->sc_unit = unit;			/* set unit */
-	sc->sc_flags = FLAG_ITK_IX1;		/* set flags */
 	
 	#if defined(ITK_PROBE_DEBUG)
 	printf("Allocating io base...");

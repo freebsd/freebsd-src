@@ -31,7 +31,7 @@
  *	  been put here, except the chip spesific "PnP" setup.
  *
  *
- *      last edit-date: [Wed Jul 19 09:41:07 2000]
+ *      last edit-date: [Tue Jan 23 16:03:33 2001]
  *
  *      $Id: i4b_ihfc_pnp.c,v 1.9 2000/09/19 13:50:36 hm Exp $
  *
@@ -91,9 +91,9 @@ const struct ihfc_pnp_ids
 }
 	ihfc_pnp_ids[] =
 {
-	{ 0x10262750, FLAG_TELES_S0_163C, HFC_S	, 2, 0x200 , 0x2d},
-	{ 0x20262750, FLAG_TELES_S0_163C, HFC_SP, 0, 0x000 , 0x0f},
-	{ 0x1411d805, FLAG_ACER_P10	, HFC_S	, 1, 0x300 , 0x0e},
+	{ 0x10262750, CARD_TYPEP_16_3C,   HFC_S,  2, 0x200, 0x2d},
+	{ 0x20262750, CARD_TYPEP_16_3C,   HFC_SP, 0, 0x000, 0x0f},
+	{ 0x1411d805, CARD_TYPEP_ACERP10, HFC_S,  1, 0x300, 0x0e},
 	{ 0 }
 };
 
@@ -290,7 +290,7 @@ ihfc_isa_probe(device_t dev)
 	{
 		S_DLP     = IHFC_DLP;		/* set D-priority	*/
 		S_HFC	  = HFC_1;		/* set chip type	*/
-		S_I4BFLAG = FLAG_TELEINT_NO_1;	/* set flag		*/
+		S_I4BFLAG = CARD_TYPEP_TELEINT_NO_1; /* set flag	*/
 		S_NTMODE  = IHFC_NTMODE;	/* set mode		*/
 		S_STDEL   = 0x00;		/* set delay (not used)	*/
 
