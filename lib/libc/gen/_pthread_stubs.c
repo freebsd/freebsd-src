@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 __weak_reference(_pthread_cond_init_stub,	_pthread_cond_init);
 __weak_reference(_pthread_cond_signal_stub,	_pthread_cond_signal);
 __weak_reference(_pthread_cond_wait_stub,	_pthread_cond_wait);
+__weak_reference(_pthread_cond_destroy_stub,	_pthread_cond_destroy);
 __weak_reference(_pthread_getspecific_stub,	_pthread_getspecific);
 __weak_reference(_pthread_key_create_stub,	_pthread_key_create);
 __weak_reference(_pthread_key_delete_stub,	_pthread_key_delete);
@@ -87,6 +88,12 @@ _pthread_cond_signal_stub(pthread_cond_t *cond)
 
 int
 _pthread_cond_wait_stub(pthread_cond_t *cond, pthread_mutex_t *mutex)
+{
+	return (0);
+}
+
+int
+_pthread_cond_destroy_stub(pthread_cond_t *cond)
 {
 	return (0);
 }
