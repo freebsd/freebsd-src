@@ -326,9 +326,7 @@
   <sect2 id="ethernet">
     <title>Ethernet Interfaces</title>
 
-    <para arch="i386,pc98,alpha,amd64">Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
-    AIC-6915 Fast Ethernet controller chip (&man.sf.4; driver)
-    </para>
+    &hwlist.sf;
 
     <para arch="i386,pc98,amd64">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
     1 and Tigon 2 chipsets (&man.ti.4; driver)</para>
@@ -634,8 +632,7 @@
     (&man.ste.4; driver)
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4; driver)
-    </para>
+    &hwlist.sk;
 
     <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
 
@@ -643,16 +640,13 @@
 
     &hwlist.aue;
 
-    <para arch="i386,pc98,amd64">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)</para>
+    &hwlist.cue;
 
-    <para arch="i386,pc98,amd64">Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs
-    (&man.kue.4; driver)</para>
+    &hwlist.kue;
 
-    <para arch="i386,pc98,amd64">ASIX Electronics AX88172-based USB Ethernet NICs
-      (&man.axe.4; driver)</para>
+    &hwlist.axe;
 
-    <para arch="i386,pc98,amd64">RealTek RTL8150-based USB Ethernet NICs
-      (&man.rue.4; driver)</para>
+    &hwlist.rue;
 
     &hwlist.udav;
 
@@ -675,8 +669,7 @@
 
     &hwlist.xl;
 
-    <para arch="i386,pc98,amd64">3Com 3C59X series NICs (&man.vx.4; driver)
-    </para>
+    &hwlist.vx;
 
     <para arch="i386,amd64">Crystal Semiconductor CS89x0-based NICs 
     (&man.cs.4; driver)
@@ -699,9 +692,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">Gigabit Ethernet cards based on the Level 1
-    LXT1001 NetCellerator controller (&man.lge.4; driver)
-    </para>
+    &hwlist.lge;
 
     &hwlist.txp;
 
@@ -726,6 +717,8 @@
     <para arch="alpha,i386,pc98,amd64">RealTek RTL8139C+, RTL8169, RTL8169S and
       RTL8110S based PCI Fast Ethernet and Gigabit Ethernet
       controllers (&man.re.4; driver)</para>
+
+    &hwlist.ixgb;
 
   </sect2>
 
