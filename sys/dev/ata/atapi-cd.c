@@ -233,6 +233,7 @@ acd_init_lun(struct ata_device *atadev)
     cdp->device = atadev;
     cdp->lun = ata_get_lun(&acd_lun_map);
     cdp->block_size = 2048;
+    cdp->disk_size = -1;			/* hack for GEOM SOS */
     cdp->slot = -1;
     cdp->changer_info = NULL;
     return cdp;
@@ -518,16 +519,11 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 	acd_prevent_allow(cdp, 0);
 	cdp->flags &= ~F_LOCKED;
     }
-    pp->mediasize = (off_t)cdp->disk_size * (off_t)cdp->block_size;
-    pp->sectorsize = cdp->block_size;
 
-    track = pp->index;
-
-    if (track) {
+    if ((track = pp->index)) {
 	pp->sectorsize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
-        pp->mediasize = 
-		ntohl(cdp->toc.tab[track].addr.lba) -
-		ntohl(cdp->toc.tab[track - 1].addr.lba);
+        pp->mediasize = ntohl(cdp->toc.tab[track].addr.lba) -
+			ntohl(cdp->toc.tab[track - 1].addr.lba);
     }
     else {
 	pp->sectorsize = cdp->block_size;
@@ -950,6 +946,7 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, struct thread *td)
 
     case CDRIOCSETBLOCKSIZE:
 	cdp->block_size = *(int *)addr;
+	pp->sectorsize = cdp->block_size;	/* hack for GEOM SOS */
 	acd_set_ioparm(cdp);
 	break;
 
@@ -1013,7 +1010,6 @@ acd_geom_start(struct bio *bp)
 
     /* GEOM classes must do their own request limiting */
     if (bp->bio_length <= cdp->iomax) {
-
 	mtx_lock(&cdp->queue_mtx);
 	bp->bio_pblkno = bp->bio_offset / bp->bio_to->sectorsize;
 	bioq_disksort(&cdp->queue, bp);
