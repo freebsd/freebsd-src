@@ -42,11 +42,12 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.39 1996/05/18 03:36:38 dyson Exp $
+ * 	$Id: pmap.h,v 1.40 1996/06/08 11:21:19 bde Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
+
 
 /*
  * Page-directory and page-table entires follow this format, with a few
@@ -113,6 +114,9 @@
 #define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
 
 #ifndef LOCORE
+
+#include <sys/queue.h>
+
 typedef unsigned int *pd_entry_t;
 typedef unsigned int *pt_entry_t;
 
@@ -158,17 +162,24 @@ pmap_kextract(vm_offset_t va)
 }
 #endif
 
+struct vm_page;
+
 /*
  * Pmap stuff
  */
+struct	pv_entry;
+typedef struct {
+	int	pv_list_count;
+	TAILQ_HEAD(,pv_entry)	pv_list;
+} pv_table_t;
 
 struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
-	short			pm_dref;	/* page directory ref count */
-	short			pm_count;	/* pmap reference count */
+	pv_table_t		pm_pvlist;	/* list of mappings in pmap */
+	int			pm_count;	/* reference count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	struct	vm_map		*pm_map;	/* map that owns this pmap */
+	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
 };
 
 typedef struct pmap	*pmap_t;
@@ -177,14 +188,16 @@ typedef struct pmap	*pmap_t;
 extern pmap_t		kernel_pmap;
 #endif
 
+
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
 typedef struct pv_entry {
-	struct pv_entry	*pv_next;	/* next pv_entry */
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
+	TAILQ_ENTRY(pv_entry)	pv_list;
+	TAILQ_ENTRY(pv_entry)	pv_plist;
 	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 
@@ -200,7 +213,7 @@ extern pt_entry_t *CMAP1;
 extern vm_offset_t avail_end;
 extern vm_offset_t avail_start;
 extern vm_offset_t phys_avail[];
-extern pv_entry_t *pv_table;	/* array of entries, one per page */
+pv_table_t *pv_table;
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.52 1996/06/16 20:37:26 dyson Exp $
+ * $Id: vm_fault.c,v 1.53 1996/07/02 02:07:59 dyson Exp $
  */
 
 /*
@@ -102,10 +102,6 @@ int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
-
-int vm_fault_free_1;
-int vm_fault_copy_save_1;
-int vm_fault_copy_save_2;
 
 /*
  *	vm_fault:
@@ -282,7 +278,7 @@ RetryFault:;
 			}
 
 			queue = m->queue;
-			vm_page_unqueue_nowakeup(m);
+			vm_page_unqueue(m,0);
 
 			/*
 			 * Mark page busy for other processes, and the pagedaemon.
@@ -297,8 +293,7 @@ RetryFault:;
 
 			m->flags |= PG_BUSY;
 
-			if (m->valid &&
-				((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
 			}
@@ -401,19 +396,17 @@ readrest:
 
 			if (rv == VM_PAGER_OK) {
 				/*
-				 * Found the page. Leave it busy while we play
-				 * with it.
-				 */
-
-				/*
 				 * Relookup in case pager changed page. Pager
 				 * is responsible for disposition of old page
 				 * if moved.
 				 */
-				m = vm_page_lookup(object, pindex);
-				if( !m) {
-					UNLOCK_AND_DEALLOCATE;
-					goto RetryFault;
+				if ((m->object != object) || (m->pindex != pindex) ||
+					(m->flags & PG_TABLED) == 0) {
+					m = vm_page_lookup(object, pindex);
+					if( !m) {
+						UNLOCK_AND_DEALLOCATE;
+						goto RetryFault;
+					}
 				}
 
 				hardfault++;
@@ -485,9 +478,26 @@ readrest:
 			}
 			first_m = NULL;
 
-			if ((m->flags & PG_ZERO) == 0)
-				vm_page_zero_fill(m);
-			cnt.v_zfod++;
+			if ((m->flags & PG_ZERO) == 0) {
+				if (vm_page_zero_count) {
+					vm_page_protect(m, VM_PROT_NONE);
+					PAGE_WAKEUP(m);
+					vm_page_free(m);
+					m = vm_page_alloc(object, pindex, VM_ALLOC_ZERO);
+					if (!m)
+						panic("vm_fault: missing zero page");
+					/*
+					 * This should not be true, but just in case...
+					 */
+					if ((m->flags & PG_ZERO) == 0) {
+						vm_page_zero_fill(m);
+						cnt.v_zfod++;
+					}
+				} else {
+					vm_page_zero_fill(m);
+					cnt.v_zfod++;
+				}
+			}
 			break;
 		} else {
 			if (object != first_object) {
@@ -565,7 +575,6 @@ readrest:
 				first_m = m;
 				m->dirty = VM_PAGE_BITS_ALL;
 				m = NULL;
-				++vm_fault_copy_save_1;
 			} else {
 				/*
 				 * Oh, well, lets copy it.
@@ -639,7 +648,6 @@ readrest:
 								PAGE_WAKEUP(m);
 								vm_page_free(m);
 								m = NULL;
-								++vm_fault_free_1;
 								tm->dirty = VM_PAGE_BITS_ALL;
 								first_m->dirty = VM_PAGE_BITS_ALL;
 							}
@@ -651,7 +659,6 @@ readrest:
 							vm_page_rename(m, other_object, other_pindex);
 							m->dirty = VM_PAGE_BITS_ALL;
 							m->valid = VM_PAGE_BITS_ALL;
-							++vm_fault_copy_save_2;
 						}
 					}
 				}
@@ -660,9 +667,9 @@ readrest:
 			if (m) {
 				if (m->queue != PQ_ACTIVE)
 					vm_page_activate(m);
-			/*
-			 * We no longer need the old page or object.
-			 */
+				/*
+				 * We no longer need the old page or object.
+				 */
 				PAGE_WAKEUP(m);
 			}
 
@@ -1091,7 +1098,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	endpindex = pindex + (rahead + 1);
 	if (endpindex > object->size)
 		endpindex = object->size;
-	while (tpindex <  endpindex) {
+	while (tpindex < endpindex) {
 		if ( vm_page_lookup(object, tpindex)) {
 			break;
 		}	
