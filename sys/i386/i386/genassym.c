@@ -42,6 +42,7 @@
 #include <stddef.h>
 
 #include <sys/param.h>
+#include <sys/assym.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/errno.h>
@@ -73,150 +74,140 @@
 #include <machine/globaldata.h>
 #include <machine/vm86.h>
 
-#define	OS(s, m)	((u_int)offsetof(struct s, m))
+ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
+ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
+ASSYM(P_ADDR, offsetof(struct proc, p_addr));
+ASSYM(P_STAT, offsetof(struct proc, p_stat));
+ASSYM(P_WCHAN, offsetof(struct proc, p_wchan));
 
-int	main __P((void));
-int	printf __P((const char *, ...));
-
-int
-main()
-{
-
-	printf("#define\tP_VMSPACE %#x\n", OS(proc, p_vmspace));
-	printf("#define\tVM_PMAP %#x\n", OS(vmspace, vm_pmap));
-	printf("#define\tPM_ACTIVE %#x\n", OS(pmap, pm_active));
-	printf("#define\tP_ADDR %#x\n", OS(proc, p_addr));
-	printf("#define\tP_STAT %#x\n", OS(proc, p_stat));
-	printf("#define\tP_WCHAN %#x\n", OS(proc, p_wchan));
 #ifdef SMP
-	printf("#define\tP_ONCPU %#x\n", OS(proc, p_oncpu));
-	printf("#define\tP_LASTCPU %#x\n", OS(proc, p_lastcpu));
+ASSYM(P_ONCPU, offsetof(struct proc, p_oncpu));
+ASSYM(P_LASTCPU, offsetof(struct proc, p_lastcpu));
 #endif
-	printf("#define\tSSLEEP %d\n", SSLEEP);
-	printf("#define\tSRUN %d\n", SRUN);
-	printf("#define\tV_TRAP %#x\n", OS(vmmeter, v_trap));
-	printf("#define\tV_SYSCALL %#x\n", OS(vmmeter, v_syscall));
-	printf("#define\tV_INTR %#x\n", OS(vmmeter, v_intr));
-	printf("#define\tUPAGES %d\n", UPAGES);
-	printf("#define\tPAGE_SIZE %d\n", PAGE_SIZE);
-	printf("#define\tNPTEPG %d\n", NPTEPG);
-	printf("#define\tNPDEPG %d\n", NPDEPG);
-	printf("#define\tPDESIZE %d\n", PDESIZE);
-	printf("#define\tPTESIZE %d\n", PTESIZE);
-	printf("#define\tNKPDE %d\n", NKPDE);
-	printf("#define\tNKPT %d\n", NKPT);
-	printf("#define\tPAGE_SHIFT %d\n", PAGE_SHIFT);
-	printf("#define\tPAGE_MASK %d\n", PAGE_MASK);
-	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
-	printf("#define\tUSRSTACK %#x\n", USRSTACK);
-	printf("#define\tVM_MAXUSER_ADDRESS %#x\n", VM_MAXUSER_ADDRESS);
-	printf("#define\tKERNBASE %#x\n", KERNBASE);
-	printf("#define\tMCLBYTES %d\n", MCLBYTES);
-	printf("#define\tPCB_CR3 %#x\n", OS(pcb, pcb_cr3));
-	printf("#define\tPCB_EDI %#x\n", OS(pcb, pcb_edi));
-	printf("#define\tPCB_ESI %#x\n", OS(pcb, pcb_esi));
-	printf("#define\tPCB_EBP %#x\n", OS(pcb, pcb_ebp));
-	printf("#define\tPCB_ESP %#x\n", OS(pcb, pcb_esp));
-	printf("#define\tPCB_EBX %#x\n", OS(pcb, pcb_ebx));
-	printf("#define\tPCB_EIP %#x\n", OS(pcb, pcb_eip));
-	printf("#define\tTSS_ESP0 %#x\n", OS(i386tss, tss_esp0));
+
+ASSYM(SSLEEP, SSLEEP);
+ASSYM(SRUN, SRUN);
+ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
+ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
+ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
+ASSYM(UPAGES, UPAGES);
+ASSYM(PAGE_SIZE, PAGE_SIZE);
+ASSYM(NPTEPG, NPTEPG);
+ASSYM(NPDEPG, NPDEPG);
+ASSYM(PDESIZE, PDESIZE);
+ASSYM(PTESIZE, PTESIZE);
+ASSYM(PAGE_SHIFT, PAGE_SHIFT);
+ASSYM(PAGE_MASK, PAGE_MASK);
+ASSYM(PDRSHIFT, PDRSHIFT);
+ASSYM(USRSTACK, USRSTACK);
+ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
+ASSYM(KERNBASE, KERNBASE);
+ASSYM(MCLBYTES, MCLBYTES);
+ASSYM(PCB_CR3, offsetof(struct pcb, pcb_cr3));
+ASSYM(PCB_EDI, offsetof(struct pcb, pcb_edi));
+ASSYM(PCB_ESI, offsetof(struct pcb, pcb_esi));
+ASSYM(PCB_EBP, offsetof(struct pcb, pcb_ebp));
+ASSYM(PCB_ESP, offsetof(struct pcb, pcb_esp));
+ASSYM(PCB_EBX, offsetof(struct pcb, pcb_ebx));
+ASSYM(PCB_EIP, offsetof(struct pcb, pcb_eip));
+ASSYM(TSS_ESP0, offsetof(struct i386tss, tss_esp0));
+
 #ifdef USER_LDT
-	printf("#define\tPCB_USERLDT %#x\n", OS(pcb, pcb_ldt));
+ASSYM(PCB_USERLDT, offsetof(struct pcb, pcb_ldt));
 #endif
-	printf("#define\tPCB_GS %#x\n", OS(pcb, pcb_gs));
-	printf("#define\tPCB_DR0 %#x\n", OS(pcb, pcb_dr0));
-	printf("#define\tPCB_DR1 %#x\n", OS(pcb, pcb_dr1));
-	printf("#define\tPCB_DR2 %#x\n", OS(pcb, pcb_dr2));
-	printf("#define\tPCB_DR3 %#x\n", OS(pcb, pcb_dr3));
-	printf("#define\tPCB_DR6 %#x\n", OS(pcb, pcb_dr6));
-	printf("#define\tPCB_DR7 %#x\n", OS(pcb, pcb_dr7));
-	printf("#define\tPCB_DBREGS %#x\n", PCB_DBREGS );
-	printf("#define\tPCB_EXT %#x\n", OS(pcb, pcb_ext));
+
+ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
+ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
+ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));
+ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
+ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
+ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
+ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
+ASSYM(PCB_DBREGS, PCB_DBREGS);
+ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
+
 #ifdef SMP
-	printf("#define\tPCB_MPNEST %#x\n", OS(pcb, pcb_mpnest));
+ASSYM(PCB_MPNEST, offsetof(struct pcb, pcb_mpnest));
 #endif
-	printf("#define\tPCB_SPARE %#x\n", OS(pcb, __pcb_spare));
-	printf("#define\tPCB_FLAGS %#x\n", OS(pcb, pcb_flags));
-	printf("#define\tPCB_SAVEFPU %#x\n", OS(pcb, pcb_savefpu));
-	printf("#define\tPCB_SAVEFPU_SIZE %u\n", sizeof(struct save87));
-	printf("#define\tPCB_ONFAULT %#x\n", OS(pcb, pcb_onfault));
+
+ASSYM(PCB_SPARE, offsetof(struct pcb, __pcb_spare));
+ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
+ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_savefpu));
+ASSYM(PCB_SAVEFPU_SIZE, sizeof(struct save87));
+ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+
 #ifdef SMP
-	printf("#define\tPCB_SIZE %u\n", sizeof(struct pcb));
+ASSYM(PCB_SIZE, sizeof(struct pcb));
 #endif
 
-	printf("#define\tTF_TRAPNO %#x\n", OS(trapframe, tf_trapno));
-	printf("#define\tTF_ERR %#x\n", OS(trapframe, tf_err));
-	printf("#define\tTF_CS %#x\n", OS(trapframe, tf_cs));
-	printf("#define\tTF_EFLAGS %#x\n", OS(trapframe, tf_eflags));
+ASSYM(TF_TRAPNO, offsetof(struct trapframe, tf_trapno));
+ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
+ASSYM(TF_CS, offsetof(struct trapframe, tf_cs));
+ASSYM(TF_EFLAGS, offsetof(struct trapframe, tf_eflags));
+ASSYM(SIGF_HANDLER, offsetof(struct sigframe, sf_ahu.sf_handler));
+ASSYM(SIGF_SC, offsetof(struct osigframe, sf_siginfo.si_sc));
+ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
+ASSYM(SC_PS, offsetof(struct osigcontext, sc_ps));
+ASSYM(SC_FS, offsetof(struct osigcontext, sc_fs));
+ASSYM(SC_GS, offsetof(struct osigcontext, sc_gs));
+ASSYM(SC_TRAPNO, offsetof(struct osigcontext, sc_trapno));
+ASSYM(UC_EFLAGS, offsetof(ucontext_t, uc_mcontext.mc_eflags));
+ASSYM(UC_GS, offsetof(ucontext_t, uc_mcontext.mc_gs));
+ASSYM(B_READ, B_READ);
+ASSYM(ENOENT, ENOENT);
+ASSYM(EFAULT, EFAULT);
+ASSYM(ENAMETOOLONG, ENAMETOOLONG);
+ASSYM(MAXPATHLEN, MAXPATHLEN);
+ASSYM(BOOTINFO_SIZE, sizeof(struct bootinfo));
+ASSYM(BI_VERSION, offsetof(struct bootinfo, bi_version));
+ASSYM(BI_KERNELNAME, offsetof(struct bootinfo, bi_kernelname));
+ASSYM(BI_NFS_DISKLESS, offsetof(struct bootinfo, bi_nfs_diskless));
+ASSYM(BI_ENDCOMMON, offsetof(struct bootinfo, bi_endcommon));
+ASSYM(NFSDISKLESS_SIZE, sizeof(struct nfs_diskless));
+ASSYM(BI_SIZE, offsetof(struct bootinfo, bi_size));
+ASSYM(BI_SYMTAB, offsetof(struct bootinfo, bi_symtab));
+ASSYM(BI_ESYMTAB, offsetof(struct bootinfo, bi_esymtab));
+ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
+ASSYM(GD_SIZEOF, sizeof(struct globaldata));
+ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
+ASSYM(GD_NPXPROC, offsetof(struct globaldata, gd_npxproc));
+ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
+ASSYM(GD_COMMON_TSS, offsetof(struct globaldata, gd_common_tss));
+ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
+ASSYM(GD_SWITCHTICKS, offsetof(struct globaldata, gd_switchticks));
+ASSYM(GD_COMMON_TSSD, offsetof(struct globaldata, gd_common_tssd));
+ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
 
-	printf("#define\tSIGF_HANDLER %#x\n", OS(sigframe, sf_ahu.sf_handler));
-	printf("#define\tSIGF_SC %#x\n", OS(osigframe, sf_siginfo.si_sc));
-	printf("#define\tSIGF_UC %#x\n", OS(sigframe, sf_uc));
-
-	printf("#define\tSC_PS %#x\n", OS(osigcontext, sc_ps));
-	printf("#define\tSC_FS %#x\n", OS(osigcontext, sc_fs));
-	printf("#define\tSC_GS %#x\n", OS(osigcontext, sc_gs));
-	printf("#define\tSC_TRAPNO %#x\n", OS(osigcontext, sc_trapno));
-
-	printf("#define\tUC_EFLAGS %#x\n",
-	    OS(__ucontext, uc_mcontext.mc_eflags));
-	printf("#define\tUC_GS %#x\n", OS(__ucontext, uc_mcontext.mc_gs));
-
-	printf("#define\tB_READ %#x\n", B_READ);
-	printf("#define\tENOENT %d\n", ENOENT);
-	printf("#define\tEFAULT %d\n", EFAULT);
-	printf("#define\tENAMETOOLONG %d\n", ENAMETOOLONG);
-	printf("#define\tMAXPATHLEN %d\n", MAXPATHLEN);
-
-	printf("#define\tBOOTINFO_SIZE %u\n", sizeof(struct bootinfo));
-	printf("#define\tBI_VERSION %#x\n", OS(bootinfo, bi_version));
-	printf("#define\tBI_KERNELNAME %#x\n", OS(bootinfo, bi_kernelname));
-	printf("#define\tBI_NFS_DISKLESS %#x\n", OS(bootinfo, bi_nfs_diskless));
-	printf("#define\tBI_ENDCOMMON %#x\n", OS(bootinfo, bi_endcommon));
-	printf("#define\tNFSDISKLESS_SIZE %u\n", sizeof(struct nfs_diskless));
-	printf("#define\tBI_SIZE %#x\n", OS(bootinfo, bi_size));
-	printf("#define\tBI_SYMTAB %#x\n", OS(bootinfo, bi_symtab));
-	printf("#define\tBI_ESYMTAB %#x\n", OS(bootinfo, bi_esymtab));
-	printf("#define\tBI_KERNEND %#x\n", OS(bootinfo, bi_kernend));
-
-	printf("#define\tGD_SIZEOF %u\n", sizeof(struct globaldata));
-	printf("#define\tGD_CURPROC %#x\n", OS(globaldata, gd_curproc));
-	printf("#define\tGD_NPXPROC %#x\n", OS(globaldata, gd_npxproc));
-	printf("#define\tGD_CURPCB %#x\n", OS(globaldata, gd_curpcb));
-	printf("#define\tGD_COMMON_TSS %#x\n", OS(globaldata, gd_common_tss));
-	printf("#define\tGD_SWITCHTIME %#x\n", OS(globaldata, gd_switchtime));
-	printf("#define\tGD_SWITCHTICKS %#x\n", OS(globaldata, gd_switchticks));
-	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, gd_common_tssd));
-	printf("#define\tGD_TSS_GDT %#x\n", OS(globaldata, gd_tss_gdt));
 #ifdef USER_LDT
-	printf("#define\tGD_CURRENTLDT %#x\n", OS(globaldata, gd_currentldt));
-#endif
-#ifdef SMP
-	printf("#define\tGD_CPUID %#x\n", OS(globaldata, gd_cpuid));
-	printf("#define\tGD_CPU_LOCKID %#x\n", OS(globaldata, gd_cpu_lockid));
-	printf("#define\tGD_OTHER_CPUS %#x\n", OS(globaldata, gd_other_cpus));
-	printf("#define\tGD_SS_EFLAGS %#x\n", OS(globaldata, gd_ss_eflags));
-	printf("#define\tGD_INSIDE_INTR %#x\n", OS(globaldata, gd_inside_intr));
-	printf("#define\tGD_PRV_CMAP1 %#x\n", OS(globaldata, gd_prv_CMAP1));
-	printf("#define\tGD_PRV_CMAP2 %#x\n", OS(globaldata, gd_prv_CMAP2));
-	printf("#define\tGD_PRV_CMAP3 %#x\n", OS(globaldata, gd_prv_CMAP3));
-	printf("#define\tGD_PRV_PMAP1 %#x\n", OS(globaldata, gd_prv_PMAP1));
-	printf("#define\tGD_PRV_CADDR1 %#x\n", OS(globaldata, gd_prv_CADDR1));
-	printf("#define\tGD_PRV_CADDR2 %#x\n", OS(globaldata, gd_prv_CADDR2));
-	printf("#define\tGD_PRV_CADDR3 %#x\n", OS(globaldata, gd_prv_CADDR3));
-	printf("#define\tGD_PRV_PADDR1 %#x\n", OS(globaldata, gd_prv_PADDR1));
-	printf("#define\tPS_IDLESTACK %#x\n", OS(privatespace, idlestack));
-	printf("#define\tPS_IDLESTACK_TOP %#x\n", sizeof(struct privatespace));
+ASSYM(GD_CURRENTLDT, offsetof(struct globaldata, gd_currentldt));
 #endif
 
-	printf("#define\tKCSEL %#x\n", GSEL(GCODE_SEL, SEL_KPL));
-	printf("#define\tKDSEL %#x\n", GSEL(GDATA_SEL, SEL_KPL));
 #ifdef SMP
-	printf("#define\tKPSEL %#x\n", GSEL(GPRIV_SEL, SEL_KPL));
+ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
+ASSYM(GD_CPU_LOCKID, offsetof(struct globaldata, gd_cpu_lockid));
+ASSYM(GD_OTHER_CPUS, offsetof(struct globaldata, gd_other_cpus));
+ASSYM(GD_SS_EFLAGS, offsetof(struct globaldata, gd_ss_eflags));
+ASSYM(GD_INSIDE_INTR, offsetof(struct globaldata, gd_inside_intr));
+ASSYM(GD_PRV_CMAP1, offsetof(struct globaldata, gd_prv_CMAP1));
+ASSYM(GD_PRV_CMAP2, offsetof(struct globaldata, gd_prv_CMAP2));
+ASSYM(GD_PRV_CMAP3, offsetof(struct globaldata, gd_prv_CMAP3));
+ASSYM(GD_PRV_PMAP1, offsetof(struct globaldata, gd_prv_PMAP1));
+ASSYM(GD_PRV_CADDR1, offsetof(struct globaldata, gd_prv_CADDR1));
+ASSYM(GD_PRV_CADDR2, offsetof(struct globaldata, gd_prv_CADDR2));
+ASSYM(GD_PRV_CADDR3, offsetof(struct globaldata, gd_prv_CADDR3));
+ASSYM(GD_PRV_PADDR1, offsetof(struct globaldata, gd_prv_PADDR1));
+ASSYM(PS_IDLESTACK, offsetof(struct privatespace, idlestack));
+ASSYM(PS_IDLESTACK_TOP, sizeof(struct privatespace));
 #endif
-	printf("#define\tBC32SEL %#x\n", GSEL(GBIOSCODE32_SEL, SEL_KPL));
-	printf("#define\tGPROC0_SEL %#x\n", GPROC0_SEL);
-	printf("#define\tVM86_FRAMESIZE %#x\n", sizeof(struct vm86frame));
 
-	return (0);
-}
+ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
+ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
+
+#ifdef SMP
+ASSYM(KPSEL, GSEL(GPRIV_SEL, SEL_KPL));
+#endif
+
+ASSYM(BC32SEL, GSEL(GBIOSCODE32_SEL, SEL_KPL));
+ASSYM(GPROC0_SEL, GPROC0_SEL);
+ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
