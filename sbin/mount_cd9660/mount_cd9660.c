@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <sys/../isofs/cd9660/cd9660_mount.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -176,7 +177,7 @@ main(int argc, char **argv)
 		errx(1, "cd9660 filesystem is not available");
 
 	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
-		err(1, NULL);
+		err(1, "%s", args.fspec);
 	exit(0);
 }
 
