@@ -260,6 +260,7 @@ read_plist(Package *pkg, FILE *fp)
 
     pkg->fmtver_maj = 1;
     pkg->fmtver_mnr = 0;
+    pkg->origin = NULL;
     while (fgets(pline, FILENAME_MAX, fp)) {
 	int len = strlen(pline);
 
