@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.11 1995/01/09 16:05:18 davidg Exp $
+ * $Id: ffs_inode.c,v 1.12 1995/03/04 03:24:42 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -249,7 +249,7 @@ ffs_truncate(ap)
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
-		allocbuf(bp, size, 0);
+		allocbuf(bp, size);
 		if (aflags & IO_SYNC)
 			bwrite(bp);
 		else

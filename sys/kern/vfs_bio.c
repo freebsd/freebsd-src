@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.35 1995/03/07 19:53:27 davidg Exp $
+ * $Id: vfs_bio.c,v 1.36 1995/03/16 18:12:47 bde Exp $
  */
 
 /*
@@ -439,12 +439,10 @@ brelse(struct buf * bp)
 						vm_page_protect(m, VM_PROT_NONE);
 						vm_page_free(m);
 					}
-#if 1
 					else if ((m->dirty & m->valid) == 0 &&
 						(m->flags & PG_REFERENCED) == 0 &&
 							!pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
 						vm_page_cache(m);
-#endif
 					else if ((m->flags & PG_ACTIVE) == 0) {
 						vm_page_activate(m);
 						m->act_count = 0;
@@ -628,7 +626,7 @@ fillbuf:
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	splx(s);
 	if (bp->b_bufsize) {
-		allocbuf(bp, 0, 0);
+		allocbuf(bp, 0);
 	}
 	bp->b_flags = B_BUSY;
 	bp->b_dev = NODEV;
@@ -809,7 +807,7 @@ loop:
 		}
 		splx(s);
 
-		if (!allocbuf(bp, size, 1)) {
+		if (!allocbuf(bp, size)) {
 			s = splbio();
 			goto loop;
 		}
@@ -826,7 +824,7 @@ geteblk(int size)
 	struct buf *bp;
 
 	while ((bp = getnewbuf(0, 0, 0)) == 0);
-	allocbuf(bp, size, 0);
+	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;
 	return (bp);
 }
@@ -843,14 +841,15 @@ geteblk(int size)
  * destroying information (unless, of course the buffer is shrinking).
  */
 int
-allocbuf(struct buf * bp, int size, int vmio)
+allocbuf(struct buf * bp, int size)
 {
 
 	int s;
 	int newbsize, mbsize;
 	int i;
+	int vmio = (bp->b_flags & B_VMIO) != 0;
 
-	if ((bp->b_flags & B_VMIO) == 0) {
+	if (!vmio) {
 		/*
 		 * Just get anonymous memory from the kernel
 		 */
