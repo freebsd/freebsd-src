@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.12 1999/11/21 09:36:48 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.20 2000/12/22 22:45:09 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,22 +33,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-
-#include <net/if.h>
-#include <net/if_var.h>
-
 #include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
 #include <pcap.h>
@@ -68,7 +53,7 @@ atm_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	u_short ethertype;
+	u_short ethertype, extracted_ethertype;
 
 	ts_print(&h->ts);
 
@@ -159,12 +144,14 @@ atm_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		/* ether_type not known, forward it to llc_print */
 		if (!eflag)
 			printf("%02x %02x %02x %02x-%02x-%02x %04x: ",
-			       p[0], p[1], p[2], /* dsap/ssap/ctrl */
-			       p[3], p[4], p[5], /* manufacturer's code */
+			       packetp[0], packetp[1], packetp[2], /* dsap/ssap/ctrl */
+			       packetp[3], packetp[4], packetp[5], /* manufacturer's code */
 			       ethertype);
-		if (!xflag && !qflag)
+		if (!xflag && !qflag) {
+		    extracted_ethertype = 0;
 		    /* default_print(p, caplen); */
-		    llc_print(p-8,length+8,caplen+8,"000000","000000");
+		    llc_print(p-8,length+8,caplen+8,"000000","000000", &extracted_ethertype);
+		}
 	}
 	if (xflag)
 		default_print(p, caplen);

@@ -246,7 +246,7 @@
 
 /* File types */
 typedef enum { NFNON=0, NFREG=1, NFDIR=2, NFBLK=3, NFCHR=4, NFLNK=5,
-	NFSOCK=6, NFFIFO=7 } nfstype;
+	NFSOCK=6, NFFIFO=7 } nfs_type;
 
 /* Structs for common parts of the rpc's */
 /*
@@ -295,7 +295,7 @@ typedef	struct nfs_uquad	nfsuint64;
  */
 union nfs_quadconvert {
 	u_int32_t lval[2];
-	u_quad_t  qval;
+	u_int64_t qval;
 };
 typedef union nfs_quadconvert	nfsquad_t;
 

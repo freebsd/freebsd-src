@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.40 1999/12/14 16:49:02 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.50 2000/12/23 20:48:13 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,16 +36,7 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <ctype.h>
 #include <netdb.h>
@@ -57,6 +48,7 @@ struct rtentry;
 #include "addrtoname.h"
 #include "ethertype.h"
 
+#include "ether.h"
 #include "fddi.h"
 
 /*
@@ -97,8 +89,6 @@ int	fddi_bitswap = 1;
  *
  *  - vj
  */
-
-#define FDDI_HDRLEN (sizeof(struct fddi_header))
 
 static u_char fddi_bit_swap[] = {
 	0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
@@ -291,10 +281,10 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 	 */
 	snapend = p + caplen;
 	/*
-	 * Actually, the only printer that uses packetp is print-bootp.c,
-	 * and it assumes that packetp points to an Ethernet header.  The
-	 * right thing to do is to fix print-bootp.c to know which link
-	 * type is in use when it excavates. XXX
+	 * Actually, the only printers that use packetp are print-arp.c
+	 * and print-bootp.c, and they assume that packetp points to an
+	 * Ethernet header.  The right thing to do is to fix them to know
+	 * which link type is in use when they excavate. XXX
 	 */
 	packetp = (u_char *)&ehdr;
 
@@ -310,14 +300,14 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 	extracted_ethertype = 0;
 	if ((fddip->fddi_fc & FDDIFC_CLFF) == FDDIFC_LLC_ASYNC) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, ESRC(&ehdr), EDST(&ehdr))
-		    == 0) {
+		if (llc_print(p, length, caplen, ESRC(&ehdr), EDST(&ehdr),
+		    &extracted_ethertype) == 0) {
 			/*
 			 * Some kinds of LLC packet we cannot
 			 * handle intelligently
 			 */
 			if (!eflag)
-				fddi_print(fddip, length,
+				fddi_print(fddip, length + FDDI_HDRLEN,
 				    ESRC(&ehdr), EDST(&ehdr));
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
@@ -331,7 +321,8 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 	else {
 		/* Some kinds of FDDI packet we cannot handle intelligently */
 		if (!eflag)
-			fddi_print(fddip, length, ESRC(&ehdr), EDST(&ehdr));
+			fddi_print(fddip, length + FDDI_HDRLEN, ESRC(&ehdr),
+			    EDST(&ehdr));
 		if (!xflag && !qflag)
 			default_print(p, caplen);
 	}
