@@ -147,7 +147,9 @@ extern uma_zone_t idt_nif_zone;
 extern uma_zone_t idt_vcc_zone;
 
 static int idt_atm_bearerclass(struct attr_bearer *);
+#ifdef T_ATM_BUFQUEUE
 static CONNECTION *idt_atm_harpconn(Cmn_unit *, Cmn_vcc *);
+#endif
 static int idt_atm_ioctl(int, caddr_t, caddr_t);
 
 static void idt_output(Cmn_unit *, Cmn_vcc *, KBuffer *);
@@ -211,6 +213,7 @@ idt_atm_ioctl(int code, caddr_t addr, caddr_t arg)
 	return (ENOSYS);
 }
 
+#ifdef T_ATM_BUFQUEUE
 /*******************************************************************************
  *
  *  Get connection pointer from Cmn_unit and Cmn_vcc
@@ -246,6 +249,7 @@ idt_atm_harpconn(Cmn_unit * cup, Cmn_vcc * cvp)
 
 	return (idt_connect_find(idt, vpi, vci));
 }
+#endif	/* T_ATM_BUFQUEUE */
 
 /*******************************************************************************
  *
@@ -757,10 +761,6 @@ idt_receive(nicstar_reg_t * idt, struct mbuf * m, int vpi, int vci)
 	/*
 	 * Schedule callback
 	 */
-	if (!_IF_QFULL(&atm_intrq)) {
-		IF_ENQUEUE(&atm_intrq, m);
-		schednetisr(NETISR_ATM);
-	} else {
+	if (! netisr_queue(NETISR_ATM, m))
 		KB_FREEALL(m);
-	}
 }
