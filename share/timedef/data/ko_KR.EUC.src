@@ -1,3 +1,12 @@
+# $Id: ru_SU.KOI8-R.src,v 1.7 1997/02/22 13:56:47 peter Exp $
+#
+# Choi Jun Ho <jazz.snu.ac.kr>
+# 26 Mar 1997
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
  1월
  2월
  3월
@@ -10,6 +19,9 @@
 10월
 11월
 12월
+#
+# Long month names
+#
 1월
 2월
 3월
@@ -22,6 +34,9 @@
 10월
 11월
 12월
+#
+# Short weekday names
+#
 일
 월
 화
@@ -29,6 +44,9 @@
 목
 금
 토
+#
+# Long weekday names
+#
 일요일
 월요일
 화요일
@@ -36,9 +54,27 @@
 목요일
 금요일
 토요일
+#
+# X_fmt
+#
 %H시 %M분 %S초
+#
+# x_fmt
+#
 %y/%m/%d
+#
+# c_fmt
+#
 %Y년 %b %e일 %a요일 %X
+#
+# am
+#
 오전
+#
+# pm
+#
 오후
+#
+# date_fmt
+#
 %Y년 %b %e일 %a요일 %X %Z
