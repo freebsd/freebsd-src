@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: popen.c,v 1.4.2.5 1998/05/15 16:09:38 ache Exp $";
+	"$Id: popen.c,v 1.14 1998/05/15 16:51:06 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -79,6 +79,7 @@ ftpd_popen(program, type)
 	FILE *iop;
 	int argc, gargc, pdes[2], pid;
 	char **pop, *argv[MAXUSRARGS], *gargv[MAXGLOBARGS];
+	static char *envtz[2] = {"TZ=", NULL};
 
 	if (((*type != 'r') && (*type != 'w')) || type[1])
 		return (NULL);
@@ -94,9 +95,11 @@ ftpd_popen(program, type)
 		return (NULL);
 
 	/* break up string into pieces */
-	for (argc = 0, cp = program; argc < MAXUSRARGS; cp = NULL)
+	for (argc = 0, cp = program; argc < MAXUSRARGS; cp = NULL) {
 		if (!(argv[argc++] = strtok(cp, " \t\n")))
 			break;
+	}
+	argv[argc - 1] = NULL;
 
 	/* glob each piece */
 	gargv[0] = argv[0];
@@ -118,8 +121,10 @@ ftpd_popen(program, type)
 	iop = NULL;
 #ifdef	INTERNAL_LS
 	fflush(NULL);
+	pid = (strcmp(gargv[0], _PATH_LS) == 0) ? fork() : vfork();
+#else
+	pid = vfork();
 #endif
-	pid = fork();
 	switch(pid) {
 	case -1:			/* error */
 		(void)close(pdes[0]);
@@ -141,8 +146,6 @@ ftpd_popen(program, type)
 			}
 			(void)close(pdes[1]);
 		}
-		/* since FTP protocol have no way to tell zone offset */
-		setenv("TZ", "", 1);
 #ifdef	INTERNAL_LS
 		if (strcmp(gargv[0], _PATH_LS) == 0) {
 			extern	int optreset;
@@ -150,10 +153,11 @@ ftpd_popen(program, type)
 			optreset = optind = optopt = 1;
 			/* Close syslogging to remove pwd.db missing msgs */
 			closelog();
+			setenv("TZ", "", 1);
 			exit(ls_main(gargc, gargv));
 		}
 #endif
-		execv(gargv[0], gargv);
+		execve(gargv[0], gargv, envtz);
 		_exit(1);
 	}
 	/* parent; assume fdopen can't fail...  */
