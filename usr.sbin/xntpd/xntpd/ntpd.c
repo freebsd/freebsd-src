@@ -28,7 +28,11 @@
 #include "ntp_stdlib.h"
 
 #ifdef LOCK_PROCESS
+#ifdef SYS_SOLARIS
+#include <sys/mman.h>
+#else
 #include <sys/lock.h>
+#endif
 #endif
 
 /*
@@ -139,7 +143,7 @@ main(argc, argv)
 			(void) dup2(0, 1);
 			(void) dup2(0, 2);
 #ifdef NTP_POSIX_SOURCE
-#if	defined(SOLARIS) || defined(SYS_PTX) || defined(SYS_AUX3) || defined(SYS_AIX)
+#if	defined(SOLARIS) || defined(SYS_PTX) || defined(SYS_AUX3) || defined(SYS_AIX) || defined(SYS_ULTRIX)
 			(void) setsid();
 #else
 			(void) setpgid(0, 0);
@@ -219,12 +223,22 @@ main(argc, argv)
 	if (rtprio(0, 120) < 0)
 	    syslog(LOG_ERR, "rtprio() error: %m");
 #else
-#if defined(PROCLOCK) && defined(LOCK_PROCESS)
+#if defined(LOCK_PROCESS)
+#if defined(MCL_CURRENT) && defined(MCL_FUTURE)
+	/*
+	 * lock the process into memory
+	 */
+	if (mlockall(MCL_CURRENT|MCL_FUTURE) < 0)
+	    syslog(LOG_ERR, "mlockall(): %m");
+#else
+#if defined(PROCLOCK)
 	/*
 	 * lock the process into memory
 	 */
 	if (plock(PROCLOCK) < 0)
 	    syslog(LOG_ERR, "plock(): %m");
+#endif
+#endif
 #endif
 #if defined(NTPD_PRIO) && NTPD_PRIO != 0
 	/*

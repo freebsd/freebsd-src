@@ -11,7 +11,7 @@ Guess.sh        script to figure out what machine and operating system
 autoconf        awesome script swiped from Jeff Johnson (who may have
                 swiped it from GNU) which delves deep into the system
                 files to reveal dark secrets necessary to port NTP to
-                everything exceptt sewing machines. Unfinished work.
+                everything except sewing machines. Unfinished work.
 
 makeconfig.sh   shell script that calles Guess.sh and then figures out
                 what compiler is available, then builds the

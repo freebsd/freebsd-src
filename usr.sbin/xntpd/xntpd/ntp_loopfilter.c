@@ -9,9 +9,6 @@
 
 #include "ntpd.h"
 #include "ntp_io.h"
-#if defined(KERNEL_PLL)
-#include "ntp_timex.h"
-#endif /* KERNEL_PLL */
 #include "ntp_unixtime.h"
 
 #if defined(PPS) || defined(PPSCLK) || defined(PPSPPS)
@@ -46,11 +43,11 @@
 
 #include "ntp_stdlib.h"
 
-#ifdef	KERNEL_PLL
-#ifndef	SYS_ntp_adjtime
-#define	SYS_ntp_adjtime	NTP_SYSCALL_ADJ
-#endif
-#endif	/* KERNEL_PLL */
+#ifdef KERNEL_PLL
+#include <sys/timex.h>
+#define ntp_gettime(t)  syscall(SYS_ntp_gettime, (t))
+#define ntp_adjtime(t)  syscall(SYS_ntp_adjtime, (t))
+#endif /* KERNEL_PLL */
 
 /*
  * The loop filter is implemented in slavish adherence to the
@@ -158,8 +155,8 @@ static	l_fp pps_delay;		/* pps tuning offset */
 #define PPS_MAXUPDATE 600	/* seconds after which we disbelieve timecode */
 #define	PPS_DEV	"/dev/pps"	/* pps port */
 #define PPS_FAC 3		/* pps shift (log2 trimmed samples) */
-#define	NPPS 12			/* pps filter size (1<<PPS_FAC+2*PPS_TRIM) */
-#define PPS_TRIM 2		/* samples trimmed from median filter */
+#define PPS_TRIM 6		/* samples trimmed from median filter */
+#define NPPS ((1 << PPS_FAC) + 2 * PPS_TRIM) /* pps filter size */
 #define PPS_XCPT "\377"		/* intercept character */
 
 #if defined(PPSCLK)
@@ -167,6 +164,7 @@ static	struct refclockio io;	/* given to the I/O handler */
 static	int pps_baud;		/* baud rate of PPS line */
 #endif /* PPSCLK */
 static	l_fp	pps_offset;	/* filtered pps offset */
+static	u_fp	pps_maxd;	/* pps dispersion */
 static	U_LONG	pps_time;	/* last pps sample time */
 static	U_LONG	nsamples;	/* number of pps samples collected */
 static	LONG	samples[NPPS];	/* median filter for pps samples */
@@ -206,6 +204,7 @@ static	void	pps_receive	P((struct recvbuf *));
 
 #if defined(KERNEL_PLL)
 extern int sigvec	P((int, struct sigvec *, struct sigvec *));
+extern int syscall	P((int, void *, ...));
 void pll_trap		P((void));
 
 static struct sigvec sigsys;	/* current sigvec status */
@@ -350,8 +349,8 @@ init_loopfilter()
 	}
     }
 #endif /* HAVE_BSD_TTYS */
-	fdpps = fd232;
 #endif /* HPUXGADGET */
+	fdpps = fd232;
 
 	/*
 	 * Insert in device list.
@@ -489,9 +488,10 @@ local_clock(fp_offset, peer)
 	 */
 	if (pps_control) {
 		last_offset = pps_offset;
+		sys_maxd = pps_maxd;
 		sys_stratum = 1;
 		sys_rootdelay = 0;
-		sys_rootdispersion = sys_maxd;
+		sys_rootdispersion = pps_maxd;
 	}
 #endif /* PPS || PPSCLK || PPSPPS */
 	
@@ -522,8 +522,24 @@ local_clock(fp_offset, peer)
 		ntv.maxerror = sys_rootdispersion + sys_rootdelay / 2;
 		ntv.esterror = sys_rootdispersion;
 		ntv.time_constant = time_constant;
+		ntv.shift = 0;
 		(void)ntp_adjtime(&ntv);
 		drift_comp = ntv.frequency;
+		if (ntv.shift != 0) {
+			char buf[128]; 
+			(void) sprintf(buf, "pps_freq=%s", fptoa(ntv.ybar, 3));
+			set_sys_var(buf, strlen(buf)+1, RO|DEF);
+			(void) sprintf(buf, "pps_disp=%s", fptoa(ntv.disp, 3));
+			set_sys_var(buf, strlen(buf)+1, RO|DEF);
+			(void) sprintf(buf, "pps_interval=%ld",1 << ntv.shift);
+			set_sys_var(buf, strlen(buf)+1, RO);
+			(void) sprintf(buf, "pps_intervals=%ld", ntv.calcnt);
+			set_sys_var(buf, strlen(buf)+1, RO);
+			(void) sprintf(buf, "pps_jitterexceeded=%ld", ntv.jitcnt);
+			set_sys_var(buf, strlen(buf)+1, RO);
+			(void) sprintf(buf, "pps_dispersionexceeded=%ld", ntv.discnt);
+			set_sys_var(buf, strlen(buf)+1, RO);
+		}
 #endif /* KERNEL_PLL */
 	} else {
 		if (offset < 0) {
@@ -725,6 +741,8 @@ loop_config(item, lfp_value, int_value)
 			    "loop_config: skew compensation %s too large",
 			    fptoa(tmp, 5));
 		} else {
+			char var[40];
+
 			drift_comp = tmp;
 
 #if defined(KERNEL_PLL)
@@ -751,6 +769,10 @@ loop_config(item, lfp_value, int_value)
 			syslog(LOG_NOTICE,
 				    "%susing kernel phase-lock loop",
 				    (pll_control) ? "" : "Not ");
+			(void)sprintf(var, "kernel_pll=%s", pll_control ? "true" : "false");
+
+			set_sys_var(var, strlen(var)+1, RO);
+
 #if DEBUG
 			if (debug)
 				printf("pll_control %d\n", pll_control);
@@ -873,6 +895,7 @@ int pps_sample(tsr)
 	int i, j;		/* temp ints */
 	LONG sort[NPPS];	/* temp array for sorting */
 	l_fp lftemp, ts;	/* l_fp temps */
+	u_fp utemp;		/* u_fp temp */
 	LONG ltemp;		/* long temp */
       
 	/*
@@ -934,14 +957,21 @@ int pps_sample(tsr)
 	}
 	lftemp.l_i = 0;
 	lftemp.l_f = sort[NPPS-1-PPS_TRIM] - sort[PPS_TRIM];
-	sys_maxd = LFPTOFP(&lftemp);
+	pps_maxd = LFPTOFP(&lftemp);
+	lftemp.l_i = 0;
+	lftemp.l_f = sort[NPPS-1] - sort[0];
+	utemp = LFPTOFP(&lftemp);
 #ifdef DEBUG
 	if (debug)
 	    printf("pps_filter: %s %s %s\n", lfptoa(&pps_delay, 6),
 		lfptoa(&pps_offset, 6), lfptoa(&lftemp, 5));
 #endif /* DEBUG */
-	record_peer_stats(&loopback_interface->sin, ctlsysstatus(), &pps_offset,
-	    sys_rootdelay, sys_rootdispersion);
+	/*
+	 * Note the peerstats file will contain the gross dispersion in
+	 * the delay field. Temporaty hack.
+	 */
+	record_peer_stats(&loopback_interface->sin, ctlsysstatus(),
+	    &pps_offset, utemp, pps_maxd);
 	return (0);
 }
 #endif /* PPS || PPSCLK || PPSPPS */

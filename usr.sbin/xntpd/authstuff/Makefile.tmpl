@@ -38,13 +38,13 @@ SOURCE=	authcert.c authspeed.c keyparity.c makeIPFP.c makePC1.c \
 all:	$(PROGRAM)
 
 authcert: $(CRTOBJS) $(LIB)
-	$(CC) $(COPTS) -o $@ $(CRTOBJS) $(LIB)
+	$(CC) $(COPTS) -o $@ $(CRTOBJS) $(LIB) $(COMPAT) $(RESLIB)
 
 authspeed: $(SPDOBJS) $(LIB)
 	$(CC) $(COPTS) -o $@ $(SPDOBJS) $(LIB) $(COMPAT) $(RESLIB)
 
 keyparity: $(PAROBJS) $(LIB)
-	$(CC) $(COPTS) -o $@ $(PAROBJS) $(LIB)
+	$(CC) $(COPTS) -o $@ $(PAROBJS) $(LIB) $(COMPAT) $(RESLIB)
 
 makeIPFP: $(IFPOBJS)
 	$(CC) $(COPTS) -o $@ $(IFPOBJS)
@@ -68,7 +68,7 @@ unixcert: $(UNXBJS)
 	$(CC) $(COPTS) -o $@ $(UNXBJS)
 
 md5:	$(MD5OBJS)
-	$(CC) $(COPTS) -o $@ $(MD5OBJS) $(LIB)
+	$(CC) $(COPTS) -o $@ $(MD5OBJS) $(LIB) $(COMPAT) $(RESLIB)
 
 tags:
 	ctags *.c *.h

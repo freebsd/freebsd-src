@@ -19,7 +19,7 @@
  * This driver supports the IRIG audio decoder. This clever gadget uses
  * a modified BSD audio driver for the Sun SPARCstation which provides
  * a timestamp, raw binary timecode, status byte and decoded ASCII
- # timecode. The data are represented in the structure:
+ * timecode. The data are represented in the structure:
  *
  * struct irig_time {
  *        struct timeval  stamp;      timestamp

@@ -25,7 +25,7 @@ l_fp	sys_reftime;		/* time we were last updated */
 l_fp	sys_refskew;		/* accumulated skew since last update */
 struct peer *sys_peer;		/* our current peer */
 u_char	sys_poll;		/* log2 of desired system poll interval */
-LONG	sys_clock;		/* second part of current time */
+extern LONG	sys_clock;	/* second part of current time - now in systime.c */
 LONG	sys_lastselect;		/* sys_clock at last synch-dist update */
 
 /*
@@ -49,6 +49,7 @@ U_LONG	sys_badlength;		/* packets with bad length */
 U_LONG	sys_processed;		/* packets processed */
 U_LONG	sys_badauth;		/* packets dropped because of authorization */
 U_LONG	sys_wanderhold;		/* sys_peer held to prevent wandering */
+U_LONG	sys_limitrejected;       /* pkts rejected due toclient count per net */
 
 /*
  * Imported from ntp_timer.c
@@ -372,6 +373,21 @@ receive(rbufp)
 	if (restrict & RES_DONTSERVE)
 		return;
 
+	/*
+	 * See if we only accept limited number of clients
+	 * from the net this guy is from.
+	 * Note: the flag is determined dynamically within restrictions()
+	 */
+	if (restrict & RES_LIMITED) {
+		extern U_LONG client_limit;
+
+		sys_limitrejected++;
+		syslog(LOG_NOTICE,
+		       "rejected mode %d request from %s - per net client limit (%d) exceeded",
+		       PKT_MODE(pkt->li_vn_mode),
+		       ntoa(&rbufp->recv_srcadr), client_limit);
+		return;
+	}
 	/*
 	 * Dump anything with a putrid stratum.  These will most likely
 	 * come from someone trying to poll us with ntpdc.
@@ -2165,4 +2181,5 @@ proto_clr_stats()
 	sys_badauth = 0;
 	sys_wanderhold = 0;
 	sys_stattime = current_time;
+	sys_limitrejected = 0;
 }

@@ -58,6 +58,7 @@
  * statsdir /var/NTP/
  * filegen peerstats [ file peerstats ] [ type day ] [ link ]
  * resolver /path/progname
+ * netlimit integer
  *
  * And then some.  See the manual page.
  */
@@ -94,6 +95,8 @@
 #define	CONFIG_PIDFILE		25
 #define	CONFIG_LOGFILE		26
 #define CONFIG_SETVAR		27
+#define CONFIG_CLIENTLIMIT	28
+#define CONFIG_CLIENTPERIOD	29
 
 #define	CONF_MOD_VERSION	1
 #define	CONF_MOD_KEY		2
@@ -114,6 +117,7 @@
 #define	CONF_RES_NOTRAP		8
 #define	CONF_RES_LPTRAP		9
 #define	CONF_RES_NTPPORT	10
+#define CONF_RES_LIMITED        11
 
 #define	CONF_TRAP_PORT		1
 #define	CONF_TRAP_INTERFACE	2
@@ -179,6 +183,8 @@ static	struct keyword keywords[] = {
 	{ "pidfile",		CONFIG_PIDFILE },
 	{ "logfile",		CONFIG_LOGFILE },
 	{ "setvar",		CONFIG_SETVAR },
+	{ "clientlimit",	CONFIG_CLIENTLIMIT },
+	{ "clientperiod",	CONFIG_CLIENTPERIOD },
 	{ "",			CONFIG_UNKNOWN }
 };
 
@@ -217,6 +223,7 @@ static	struct keyword res_keywords[] = {
 	{ "notrap",	CONF_RES_NOTRAP },
 	{ "lowpriotrap",	CONF_RES_LPTRAP },
 	{ "ntpport",	CONF_RES_NTPPORT },
+	{ "limited",    CONF_RES_LIMITED },
 	{ "",		CONFIG_UNKNOWN }
 };
 
@@ -817,9 +824,9 @@ getconfig(argc, argv)
 			errflg = 0;
 			if (ntokens >= 2) {
 				if (STREQ(tokens[1], "yes"))
-					mon_start();
+					mon_start(MON_ON);
 				else if (STREQ(tokens[1], "no"))
-					mon_stop();
+					mon_stop(MON_ON);
 				else
 					errflg++;
 			} else {
@@ -963,6 +970,10 @@ getconfig(argc, argv)
 					
 				case CONF_RES_NTPPORT:
 					peerkey |= RESM_NTPONLY;
+					break;
+					
+				case CONF_RES_LIMITED:
+					peerversion |= RES_LIMITED;
 					break;
 					
 				case CONFIG_UNKNOWN:
@@ -1412,6 +1423,60 @@ getconfig(argc, argv)
 			  {
 			    set_sys_var(tokens[1], strlen(tokens[1])+1, RW |
 					((((ntokens > 2) && !strcmp(tokens[2], "default"))) ? DEF : 0));
+			  }
+			break;
+			
+		case CONFIG_CLIENTLIMIT:
+			if (ntokens < 2)
+			  {
+			    syslog(LOG_ERR,
+				       "no value for clientlimit command - line ignored");
+			  }
+			else
+			  {
+			    U_LONG i;
+			    if (!atouint(tokens[1], &i) || !i)
+			      {
+				syslog(LOG_ERR,
+				       "illegal value for clientlimit command - line ignored");
+			      }
+			    else
+			      {
+				extern U_LONG client_limit;
+				char bp[80];
+
+				sprintf(bp, "client_limit=%d", i);
+				set_sys_var(bp, strlen(bp)+1, RO);
+				
+				client_limit = i;
+			      }
+			  }
+			break;
+
+		case CONFIG_CLIENTPERIOD:
+			if (ntokens < 2)
+			  {
+			    syslog(LOG_ERR,
+				       "no value for clientperiod command - line ignored");
+			  }
+			else
+			  {
+			    U_LONG i;
+			    if (!atouint(tokens[1], &i) || i < 64)
+			      {
+				syslog(LOG_ERR,
+				       "illegal value for clientperiod command - line ignored");
+			      }
+			    else
+			      {
+				extern U_LONG client_limit_period;
+				char bp[80];
+
+				sprintf(bp, "client_limit_period=%d", i);
+				set_sys_var(bp, strlen(bp)+1, RO);
+
+				client_limit_period = i;
+			      }
 			  }
 			break;
 		}
