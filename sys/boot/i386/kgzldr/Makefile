@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	kgzldr.o
+STRIP=
 BINMODE=${LIBMODE}
 BINDIR=	${LIBDIR}
 NOMAN=
