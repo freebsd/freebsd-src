@@ -26,15 +26,14 @@
  *
  *	i4b_ifpnp_isac.c - i4b Fritz PnP ISAC handler
  *	---------------------------------------------
- *
  *	$Id: i4b_ifpnp_isac.c,v 1.3 2000/05/29 15:41:41 hm Exp $ 
  *	$Ust: src/i4b/layer1-nb/ifpnp/i4b_ifpnp_isac.c,v 1.4 2000/04/18 08:03:05 ust Exp $
- *
- * $FreeBSD$
- *
  *      last edit-date: [Mon May 29 15:24:49 2000]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
@@ -42,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 
