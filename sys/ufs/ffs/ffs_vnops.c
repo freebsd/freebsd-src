@@ -227,7 +227,6 @@ loop:
 			 */
 			if (passes > 0 || !wait) {
 				if ((bp->b_flags & B_CLUSTEROK) && !wait) {
-					BUF_UNLOCK(bp);
 					(void) vfs_bio_awrite(bp);
 				} else {
 					bremfree(bp);
@@ -252,10 +251,9 @@ loop:
 			splx(s);
 			brelse(bp);
 			s = splbio();
-		} else {
-			BUF_UNLOCK(bp);
+		} else
 			vfs_bio_awrite(bp);
-		}
+
 		/*
 		 * Since we may have slept during the I/O, we need 
 		 * to start from a known point.
