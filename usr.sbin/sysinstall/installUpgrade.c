@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.44 1997/02/07 04:26:16 jkh Exp $
+ * $Id: installUpgrade.c,v 1.45 1997/03/07 16:39:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -339,7 +339,7 @@ media:
     }
 
     msgConfirm("OK!  At this stage, we've resurrected all the /etc files\n"
-	       "and moved each new copy over to /etc/update/<file> in case you want\n"
+	       "and moved each new copy over to /etc/upgrade/<file> in case you want\n"
 	       "to see what the new versions look like.  If you want to wander over\n"
 	       "to the Emergency Holographic Shell [ALT-F4] at this point to do\n"
 	       "that, now would be a good time.  When you're ready to reboot into\n"
