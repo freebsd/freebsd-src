@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.9 1996/03/26 02:29:11 asami Exp $ */
+/* $Id: ccd.c,v 1.10 1996/04/24 09:42:22 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -229,6 +229,13 @@ int	numccd = 0;
 static int ccd_devsw_installed = 0;
 
 /*
+ * Number of blocks to untouched in front of a component partition.
+ * This is to avoid violating its disklabel area when it starts at the
+ * beginning of the slice.
+ */
+#define CCD_OFFSET 16
+
+/*
  * Called by main() during pseudo-device attachment.  All we need
  * to do is allocate enough space for devices to be configured later, and
  * add devsw entries.
@@ -375,7 +382,7 @@ ccdinit(ccd, cpaths, p)
 			maxsecsize =
 			    ((dpart.disklab->d_secsize > maxsecsize) ?
 			    dpart.disklab->d_secsize : maxsecsize);
-			size = dpart.part->p_size;
+			size = dpart.part->p_size - CCD_OFFSET;
 		} else {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
@@ -879,7 +886,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbp->cb_buf.b_iodone = (void (*)(struct buf *))ccdiodone;
 	cbp->cb_buf.b_proc = bp->b_proc;
 	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
-	cbp->cb_buf.b_blkno = cbn + cboff;
+	cbp->cb_buf.b_blkno = cbn + cboff + CCD_OFFSET;
 	cbp->cb_buf.b_data = addr;
 	cbp->cb_buf.b_vp = ci->ci_vp;
 	if (cs->sc_ileave == 0)
