@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: histedit.c,v 1.5 1996/09/01 10:20:12 peter Exp $
+ *	$Id: histedit.c,v 1.6 1996/09/03 13:35:09 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,7 +57,6 @@ static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #include "mystring.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
-#endif
 #include "error.h"
 #include "eval.h"
 #include "memalloc.h"
@@ -77,7 +76,7 @@ STATIC char *fc_replace __P((const char *, char *, char *));
  * have changed (figures out what to do).
  */
 void
-histedit() 
+histedit()
 {
 
 #define editing (Eflag || Vflag)
@@ -92,7 +91,7 @@ histedit()
 			INTON;
 
 			if (hist != NULL)
-				sethistsize();
+				sethistsize(histsizeval());
 			else
 				out2str("sh: can't initialize history\n");
 		}
@@ -145,15 +144,14 @@ bad:
 
 
 void
-sethistsize()
+sethistsize(hs)
+	const char *hs;
 {
-	char *cp;
 	int histsize;
 
 	if (hist != NULL) {
-		cp = lookupvar("HISTSIZE");
-		if (cp == NULL || *cp == '\0' ||
-		   (histsize = atoi(cp)) < 0)
+		if (hs == NULL || *hs == '\0' ||
+		   (histsize = atoi(hs)) < 0)
 			histsize = 100;
 		history(hist, H_EVENT, histsize);
 	}
@@ -207,7 +205,7 @@ histcmd(argc, argv)
 
 	optreset = 1; optind = 1; /* initialize getopt */
 	while (not_fcnumber(argv[optind]) &&
-	      (ch = getopt(argc, argv, ":e:lnrs")) != EOF)
+	      (ch = getopt(argc, argv, ":e:lnrs")) != -1)
 		switch ((char)ch) {
 		case 'e':
 			editor = optarg;
@@ -418,14 +416,12 @@ fc_replace(s, p, r)
 
 int
 not_fcnumber(s)
-        char *s;
+	char *s;
 {
-	if (s == NULL) {
-		/* NULL is not a fc_number */
-		return (1);
-	}
-        if (*s == '-')
-                s++;
+	if (s == NULL)
+		return (0);
+	if (*s == '-')
+		s++;
 	return (!is_number(s));
 }
 
@@ -478,3 +474,17 @@ str_to_event(str, last)
 	}
 	return (he->num);
 }
+#else
+#include "error.h"
+
+int
+histcmd(argc, argv)
+	int argc;
+	char **argv;
+{
+
+	error("not compiled with history support");
+	/*NOTREACHED*/
+	return (0);
+}
+#endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)myhistedit.h	8.2 (Berkeley) 5/4/95
- *	$Id: myhistedit.h,v 1.2 1994/09/24 02:57:59 davidg Exp $
+ *	$Id: myhistedit.h,v 1.3 1996/09/01 10:21:00 peter Exp $
  */
 
 #include <histedit.h>
@@ -41,7 +41,7 @@ extern EditLine *el;
 extern int displayhist;
 
 void histedit __P((void));
-void sethistsize __P((void));
+void sethistsize __P((const char *));
 int histcmd __P((int, char **));
 int not_fcnumber __P((char *));
 int str_to_event __P((char *, int));

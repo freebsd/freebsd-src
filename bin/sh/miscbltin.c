@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.7 1996/09/03 14:15:54 peter Exp $
+ *	$Id: miscbltin.c,v 1.8 1996/09/03 14:24:44 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -75,8 +75,8 @@ extern char **argptr;		/* argument list for builtin command */
 
 int
 readcmd(argc, argv)
-	int argc;
-	char **argv; 
+	int argc __unused;
+	char **argv __unused;
 {
 	char **ap;
 	int backslash;
@@ -159,8 +159,8 @@ readcmd(argc, argv)
 
 int
 umaskcmd(argc, argv)
-	int argc;
-	char **argv; 
+	int argc __unused;
+	char **argv;
 {
 	char *ap;
 	int mask;
@@ -221,7 +221,7 @@ umaskcmd(argc, argv)
 			} while (*++ap != '\0');
 			umask(mask);
 		} else {
-			void *set; 
+			void *set;
 			if ((set = setmode (ap)) == 0)
 					error("Illegal number: %s", ap);
 
@@ -289,10 +289,10 @@ static const struct limits limits[] = {
 
 int
 ulimitcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
-	register int	c;
+	int	c;
 	quad_t val = 0;
 	enum { SOFT = 0x1, HARD = 0x2 }
 			how = SOFT | HARD;
@@ -320,14 +320,14 @@ ulimitcmd(argc, argv)
 	for (l = limits; l->name && l->option != what; l++)
 		;
 	if (!l->name)
-		error("internal error (%c)", what);
+		error("ulimit: internal error (%c)", what);
 
 	set = *argptr ? 1 : 0;
 	if (set) {
 		char *p = *argptr;
 
 		if (all || argptr[1])
-			error("too many arguments");
+			error("ulimit: too many arguments");
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
@@ -340,7 +340,7 @@ ulimitcmd(argc, argv)
 					break;
 			}
 			if (c)
-				error("bad number");
+				error("ulimit: bad number");
 			val *= l->factor;
 		}
 	}
@@ -348,7 +348,7 @@ ulimitcmd(argc, argv)
 		for (l = limits; l->name; l++) { 
 			char optbuf[40];
 			if (getrlimit(l->cmd, &limit) < 0)
-				error("can't get limit: %s", strerror(errno));
+				error("ulimit: can't get limit: %s", strerror(errno));
 			if (how & SOFT)
 				val = limit.rlim_cur;
 			else if (how & HARD)
@@ -373,22 +373,20 @@ ulimitcmd(argc, argv)
 	}
 
 	if (getrlimit(l->cmd, &limit) < 0)
-		error("can't get limit: %s", strerror(errno));
+		error("ulimit: can't get limit: %s", strerror(errno));
 	if (set) {
 		if (how & SOFT)
 			limit.rlim_cur = val;
 		if (how & HARD)
 			limit.rlim_max = val;
 		if (setrlimit(l->cmd, &limit) < 0)
-			error("bad limit: %s", strerror(errno));
+			error("ulimit: bad limit: %s", strerror(errno));
 	} else {
 		if (how & SOFT)
 			val = limit.rlim_cur;
 		else if (how & HARD)
 			val = limit.rlim_max;
-	}
 
-	if (!set) {
 		if (val == RLIM_INFINITY)
 			out1fmt("unlimited\n");
 		else

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mystring.c,v 1.3 1996/09/01 10:21:03 peter Exp $
+ *	$Id: mystring.c,v 1.4 1996/09/03 14:15:55 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mystring.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)mystring.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -76,9 +76,9 @@ char nullstr[1];		/* zero length string */
 
 void
 scopyn(from, to, size)
-	register char const *from;
-	register char *to;
-	register int size;
+	char const *from;
+	char *to;
+	int size;
 	{
 
 	while (--size > 0) {
@@ -95,8 +95,8 @@ scopyn(from, to, size)
 
 int
 prefix(pfx, string)
-	register char const *pfx;
-	register char const *string;
+	char const *pfx;
+	char const *string;
 	{
 	while (*pfx) {
 		if (*pfx++ != *string++)
@@ -129,7 +129,7 @@ number(s)
 
 int
 is_number(p)
-	register const char *p;
+	const char *p;
 	{
 	do {
 		if (! is_digit(*p))

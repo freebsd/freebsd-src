@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.3 1996/09/01 10:19:55 peter Exp $
+ *	$Id: error.h,v 1.4 1996/09/03 14:15:48 peter Exp $
  */
 
 /*
@@ -69,6 +69,7 @@ extern int exception;
 #define EXINT 0		/* SIGINT received */
 #define EXERROR 1	/* a generic error */
 #define EXSHELLPROC 2	/* execute a shell procedure */
+#define EXEXEC 3	/* command execution failed */
 
 
 /*
@@ -91,6 +92,7 @@ extern char *commandname;	/* name of command--printed on error */
 void exraise __P((int));
 void onint __P((void));
 void error __P((char *, ...));
+void exerror __P((int, char *, ...));
 char *errmsg __P((int, int));
 
 

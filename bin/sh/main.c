@@ -33,17 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.9 1996/10/29 03:12:47 steve Exp $
+ *	$Id: main.c,v 1.9.2.1 1997/08/03 18:44:27 steve Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
+static char const sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -73,13 +73,12 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #include "init.h"
 #include "mystring.h"
 #include "exec.h"
+#include "cd.h"
 
 #define PROFILE 0
 
 int rootpid;
 int rootshell;
-STATIC union node *curcmd;
-STATIC union node *prevcmd;
 extern int errno;
 #if PROFILE
 short profile_buf[16384];
@@ -100,7 +99,7 @@ STATIC char *find_dot_file __P((char *));
 int
 main(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	struct jmploc jmploc;
 	struct stackmark smark;
@@ -118,15 +117,30 @@ main(argc, argv)
 		 * exception EXSHELLPROC to clean up before executing
 		 * the shell procedure.
 		 */
-		if (exception == EXERROR)
-			exitstatus = 2;
-		if (exception == EXSHELLPROC) {
+		switch (exception) {
+		case EXSHELLPROC:
 			rootpid = getpid();
 			rootshell = 1;
 			minusc = NULL;
 			state = 3;
-		} else if (state == 0 || iflag == 0 || ! rootshell)
-			exitshell(2);
+			break;
+
+		case EXEXEC:
+			exitstatus = exerrno;
+			break;
+
+		case EXERROR:
+			exitstatus = 2;
+			break;
+
+		default:
+			break;
+		}
+
+		if (exception != EXSHELLPROC) {
+		    if (state == 0 || iflag == 0 || ! rootshell)
+			    exitshell(exitstatus);
+		}
 		reset();
 		if (exception == EXINT
 #if ATTY
@@ -157,6 +171,8 @@ main(argc, argv)
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
+	if (getpwd() == NULL && iflag)
+		out2str("sh: cannot determine working directory\n");
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
@@ -199,7 +215,7 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
  */
 
 void
-cmdloop(top) 
+cmdloop(top)
 	int top;
 {
 	union node *n;
@@ -236,6 +252,10 @@ cmdloop(top)
 			evaltree(n, 0);
 		}
 		popstackmark(&smark);
+		if (evalskip == SKIPFILE) {
+			evalskip = 0;
+			break;
+		}
 	}
 	popstackmark(&smark);		/* unnecessary */
 }
@@ -315,9 +335,9 @@ find_dot_file(basename)
 }
 
 int
-dotcmd(argc, argv)  
+dotcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	struct strlist *sp;
 	exitstatus = 0;
@@ -338,15 +358,18 @@ dotcmd(argc, argv)
 
 
 int
-exitcmd(argc, argv)  
+exitcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	extern int oexitstatus;
 
 	if (stoppedjobs())
 		return 0;
-	exitstatus = (argc > 1) ? number(argv[1]) : oexitstatus;
+	if (argc > 1)
+		exitstatus = number(argv[1]);
+	else
+		exitstatus = oexitstatus;
 	exitshell(exitstatus);
 	/*NOTREACHED*/
 	return 0;

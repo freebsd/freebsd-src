@@ -34,13 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- *	$Id: shell.h,v 1.5 1996/09/01 10:27:44 peter Exp $
+ *	$Id: shell.h,v 1.6 1996/10/31 07:15:57 ache Exp $
  */
 
 /*
  * The follow should be set to reflect the type of system you have:
  *	JOBS -> 1 if you have Berkeley job control, 0 otherwise.
- *	SYMLINKS -> 1 if your system includes symbolic links, 0 otherwise.
  *	SHORTNAMES -> 1 if your linker cannot handle long names.
  *	define BSD if you are running 4.2 BSD or later.
  *	define SYSV if you are running under System V.
@@ -53,7 +52,6 @@
 
 
 #define JOBS 1
-#define SYMLINKS 1
 #ifndef BSD
 #define BSD 1
 #endif
@@ -79,7 +77,7 @@ extern char nullstr[1];		/* null string */
 
 
 #ifdef DEBUG
-#define TRACE(param)	shtrace param
+#define TRACE(param)	trace param
 #else
 #define TRACE(param)
 #endif
