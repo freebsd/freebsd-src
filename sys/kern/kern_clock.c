@@ -199,9 +199,9 @@ hardclock(frame)
 	int need_softclock = 0;
 
 	CTR0(KTR_INTR, "hardclock fired");
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	hardclock_process(curthread, CLKF_USERMODE(frame));
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
 
 	/*
 	 * If no separate statistics clock is available, run it from here.
@@ -217,13 +217,13 @@ hardclock(frame)
 	 * Process callouts at a very low cpu priority, so we don't keep the
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
-	mtx_lock_spin(&callout_lock);
+	mtx_lock_spin_flags(&callout_lock, MTX_QUIET);
 	ticks++;
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
 		need_softclock = 1;
 	} else if (softticks + 1 == ticks)
 		++softticks;
-	mtx_unlock_spin(&callout_lock);
+	mtx_unlock_spin_flags(&callout_lock, MTX_QUIET);
 
 	/*
 	 * swi_sched acquires sched_lock, so we don't want to call it with
@@ -455,11 +455,11 @@ statclock(frame)
 {
 
 	CTR0(KTR_INTR, "statclock fired");
-	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	if (--pscnt == 0)
 		pscnt = psdiv;
 	statclock_process(curthread->td_kse, CLKF_PC(frame), CLKF_USERMODE(frame));
-	mtx_unlock_spin(&sched_lock);
+	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
 }
 
 /*
