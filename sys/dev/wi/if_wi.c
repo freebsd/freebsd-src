@@ -1186,16 +1186,19 @@ wi_write_record(sc, ltv)
 		case WI_RID_DEFLT_CRYPT_KEYS:
 		    {
 			int error;
+			int keylen;
 			struct wi_ltv_str	ws;
 			struct wi_ltv_keys	*wk =
 			    (struct wi_ltv_keys *)ltv;
 
+			keylen = wk->wi_keys[sc->wi_tx_key].wi_keylen;
+
 			for (i = 0; i < 4; i++) {
-				ws.wi_len = 4;
+				bzero(&ws, sizeof(ws));
+				ws.wi_len = (keylen > 5) ? 8 : 4;
 				ws.wi_type = WI_RID_P2_CRYPT_KEY0 + i;
 				memcpy(ws.wi_str,
-				    &wk->wi_keys[i].wi_keydat, 5);
-				ws.wi_str[5] = '\0';
+				    &wk->wi_keys[i].wi_keydat, keylen);
 				error = wi_write_record(sc,
 				    (struct wi_ltv_gen *)&ws);
 				if (error)
