@@ -93,6 +93,7 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 			      int prioceiling, int *old_ceiling)
 {
 	int ret = 0;
+	int tmp;
 
 	if ((mutex == NULL) || (*mutex == NULL))
 		ret = EINVAL;
@@ -100,12 +101,15 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		ret = EINVAL;
 	/* Lock the mutex: */
 	else if ((ret = pthread_mutex_lock(mutex)) == 0) {
-		/* Return the old ceiling and set the new ceiling: */
-		*old_ceiling = (*mutex)->m_prio;
+		tmp = (*mutex)->m_prio;
+		/* Set the new ceiling: */
 		(*mutex)->m_prio = prioceiling;
 
 		/* Unlock the mutex: */
 		ret = pthread_mutex_unlock(mutex);
+
+		/* Return the old ceiling: */
+		*old_ceiling = tmp;
 	}
 	return(ret);
 }

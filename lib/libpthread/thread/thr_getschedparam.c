@@ -42,7 +42,7 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 	struct sched_param *param)
 {
 	struct pthread *curthread = _get_curthread();
-	int ret;
+	int ret, tmp;
 
 	if ((param == NULL) || (policy == NULL))
 		/* Return an invalid argument error: */
@@ -55,8 +55,9 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 		THR_SCHED_LOCK(curthread, curthread);
 		param->sched_priority =
 		    THR_BASE_PRIORITY(pthread->base_priority);
-		*policy = pthread->attr.sched_policy;
+		tmp = pthread->attr.sched_policy;
 		THR_SCHED_UNLOCK(curthread, curthread);
+		*policy = tmp;
 		ret = 0;
 	}
 	/* Find the thread in the list of active threads. */
@@ -65,9 +66,10 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 		THR_SCHED_LOCK(curthread, pthread);
 		param->sched_priority =
 		    THR_BASE_PRIORITY(pthread->base_priority);
-		*policy = pthread->attr.sched_policy;
+		tmp = pthread->attr.sched_policy;
 		THR_SCHED_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
+		*policy = tmp;
 	}
 	return (ret);
 }
