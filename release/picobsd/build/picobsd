@@ -566,26 +566,14 @@ fail() {
     mtree)
 	echo "Error while making hierarchy in ${MFS_MOUNTPOINT}"
 	;;
-    makedevs)
-	echo "Error while making devices in ${MFS_MOUNTPOINT}"
-	;;
     crunch)
 	echo "Error while building ${name}."
-	;;
-    vnconfig2)
-	echo "Error while doing vnconfig of floppy.img on /dev/rvn${VNUM}..."
 	;;
     floppy_disklabel)
 	echo "Error while doing disklabel on of floppy.img size $FLOPPY_SIZE"
 	;;
-    kernel_compress)
-	echo "Error while copying compressed kernel to disk"
-	;;
-    mfs_compress)
-	echo "Error while copying compressed mfs image to disk"
-	;;
     missing_kernel)
-	echo "-> ERROR: you must build PICOBSD${suffix} kernel first"
+	echo "Error: you must build PICOBSD${suffix} kernel first"
 	;;
     "")
 	echo "User break"
