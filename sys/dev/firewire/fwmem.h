@@ -34,10 +34,10 @@
  * $FreeBSD$
  */
 
-struct fw_xfer * fwmem_read_quad(struct firewire_comm *,
-					int, u_int16_t, u_int32_t);
-struct fw_xfer * fwmem_read_block(struct firewire_comm *,
-					int, u_int16_t, u_int32_t, int);
+struct fw_xfer *fwmem_read_quad(struct firewire_comm *, u_int8_t, int,
+			u_int16_t, u_int32_t, void (*)(struct fw_xfer *));
+struct fw_xfer *fwmem_read_block(struct firewire_comm *, u_int8_t, int,
+			u_int16_t, u_int32_t, int, void (*)(struct fw_xfer *));
 d_open_t	fwmem_open;
 d_close_t	fwmem_close;
 d_ioctl_t	fwmem_ioctl;
