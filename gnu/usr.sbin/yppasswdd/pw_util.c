@@ -56,11 +56,16 @@ static char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <syslog.h>
 
-#include "pw_util.h"
+#include <pw_util.h>
 
+extern void reaper __P((int));
+extern void install_reaper __P((int));
 extern char *tempname;
 extern char *passfile;
+int pstat;
+pid_t pid;
 
 void
 pw_init()
@@ -85,7 +90,6 @@ pw_init()
 	(void)signal(SIGINT, SIG_IGN);
 	(void)signal(SIGPIPE, SIG_IGN);
 	(void)signal(SIGQUIT, SIG_IGN);
-	(void)signal(SIGTERM, SIG_IGN);
 	(void)signal(SIGTSTP, SIG_IGN);
 	(void)signal(SIGTTOU, SIG_IGN);
 
@@ -105,10 +109,14 @@ pw_lock()
 	 * Open should allow flock'ing the file; see 4.4BSD.	XXX
 	 */
 	lockfd = open(passfile, O_RDONLY, 0);
-	if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-		err(1, "%s", passfile);
-	if (flock(lockfd, LOCK_EX|LOCK_NB))
-		errx(1, "the password db file is busy");
+	if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1) {
+		syslog(LOG_NOTICE, "%s: %s", passfile, strerror(errno));
+		return (-1);
+	}
+	if (flock(lockfd, LOCK_EX|LOCK_NB)) {
+		syslog(LOG_NOTICE, "%s: the password db file is busy", passfile);
+		return(-1);
+	}
 	return (lockfd);
 }
 
@@ -120,13 +128,15 @@ pw_tmp()
 	char *p;
 
 	sprintf(path,"%s",passfile);
-	if (p = strrchr(path, '/'))
+	if ((p = strrchr(path, '/')))
 		++p;
 	else
 		p = path;
 	strcpy(p, "pw.XXXXXX");
-	if ((fd = mkstemp(path)) == -1)
-		err(1, "%s", path);
+	if ((fd = mkstemp(path)) == -1) {
+		syslog(LOG_ERR, "%s: %s", path, strerror(errno));
+		return(-1);
+	}
 	tempname = path;
 	return (fd);
 }
@@ -134,62 +144,25 @@ pw_tmp()
 int
 pw_mkdb()
 {
-	int pstat;
-	pid_t pid;
 
-	warnx("rebuilding the database...");
+	syslog(LOG_NOTICE, "rebuilding the database...");
 	(void)fflush(stderr);
+	/* Temporarily turn off SIGCHLD catching */
+	install_reaper(0);
 	if (!(pid = vfork())) {
 		execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
 		pw_error(_PATH_PWD_MKDB, 1, 1);
+		return(-1);
 	}
-	pid = waitpid(pid, &pstat, 0);
-	if (pid == -1 || !WIFEXITED(pstat) || WEXITSTATUS(pstat) != 0)
-		return (0);
-	warnx("done");
-	return (1);
-}
-
-void
-pw_edit(notsetuid)
-	int notsetuid;
-{
-	int pstat;
-	pid_t pid;
-	char *p, *editor;
-
-	if (!(editor = getenv("EDITOR")))
-		editor = _PATH_VI;
-	if (p = strrchr(editor, '/'))
-		++p;
-	else
-		p = editor;
-
-	if (!(pid = vfork())) {
-		if (notsetuid) {
-			(void)setgid(getgid());
-			(void)setuid(getuid());
-		}
-		execlp(editor, p, tempname, NULL);
-		_exit(1);
+	/* Handle this ourselves. */
+	reaper(SIGCHLD);
+	/* Put the handler back. Foo. */
+	install_reaper(1);
+	if (pid == -1 || !WIFEXITED(pstat) || WEXITSTATUS(pstat) != 0) {
+		return (-1);
 	}
-	pid = waitpid(pid, (int *)&pstat, 0);
-	if (pid == -1 || !WIFEXITED(pstat) || WEXITSTATUS(pstat) != 0)
-		pw_error(editor, 1, 1);
-}
-
-void
-pw_prompt()
-{
-	int c;
-
-	(void)printf("re-edit the password file? [y]: ");
-	(void)fflush(stdout);
-	c = getchar();
-	if (c != EOF && c != '\n')
-		while (getchar() != '\n');
-	if (c == 'n')
-		pw_error(NULL, 0, 0);
+	syslog(LOG_NOTICE, "done");
+	return (0);
 }
 
 void
@@ -197,10 +170,9 @@ pw_error(name, err, eval)
 	char *name;
 	int err, eval;
 {
-	if (err)
-		warn(name);
+	if (err && name != NULL)
+		syslog(LOG_ERR, "%s", name);
 
-	warnx("%s: unchanged", passfile);
+	syslog(LOG_NOTICE,"%s: unchanged", passfile);
 	(void)unlink(tempname);
-	exit(eval);
 }
