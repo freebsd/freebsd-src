@@ -1198,67 +1198,68 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 }
 
 
-SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
+static SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
 	0, 0, sysctl_kern_proc, "S,proc", "Return entire process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_GID, gid, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_GID, gid, CTLFLAG_RD,
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD,
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD,
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD,
 	sysctl_kern_proc, "Return process table, no threads");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
+	CTLFLAG_RW | CTLFLAG_ANYBODY,
 	sysctl_kern_proc_args, "Process argument list");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
 	sysctl_kern_proc_sv_name, "Process syscall vector name (ABI type)");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_GID | KERN_PROC_INC_THREAD), gid_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_GID | KERN_PROC_INC_THREAD), gid_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_PGRP | KERN_PROC_INC_THREAD), pgrp_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_PGRP | KERN_PROC_INC_THREAD), pgrp_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_RGID | KERN_PROC_INC_THREAD), rgid_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_RGID | KERN_PROC_INC_THREAD), rgid_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_SESSION | KERN_PROC_INC_THREAD), sid_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_SESSION | KERN_PROC_INC_THREAD),
+	sid_td, CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_TTY | KERN_PROC_INC_THREAD), tty_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_TTY | KERN_PROC_INC_THREAD), tty_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_UID | KERN_PROC_INC_THREAD), uid_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_UID | KERN_PROC_INC_THREAD), uid_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_RUID | KERN_PROC_INC_THREAD), ruid_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_RUID | KERN_PROC_INC_THREAD), ruid_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_PID | KERN_PROC_INC_THREAD), pid_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, (KERN_PROC_PID | KERN_PROC_INC_THREAD), pid_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
-
-SYSCTL_NODE(_kern_proc, (KERN_PROC_PROC | KERN_PROC_INC_THREAD), proc_td,
+static SYSCTL_NODE(_kern_proc, (KERN_PROC_PROC | KERN_PROC_INC_THREAD), proc_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Return process table, no threads");
