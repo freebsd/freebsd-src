@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.27 1996/10/27 13:29:22 wosch Exp $
+ * $Id: kern_fork.c,v 1.27.2.1 1997/02/13 08:17:17 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -275,6 +275,10 @@ again:
 		p2->p_limit->p_refcnt++;
 	}
 
+	/*
+	 * Preserve some flags in subprocess.
+	 */
+	p2->p_flag |= p1->p_flag & P_SUGID;
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
 	if (flags & RFPPWAIT)
