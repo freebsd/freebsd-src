@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.2 1999/01/11 17:32:22 yokota Exp $
+ * $Id: splash_bmp.c,v 1.3 1999/01/13 09:59:30 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,15 @@ SPLASH_DECODER(splash_bmp, bmp_decoder);
 static int 
 bmp_start(video_adapter_t *adp)
 {
+    /* currently only 256-color modes are supported XXX */
     static int		modes[] = {
+			M_VESA_CG640x480,
+			M_VESA_CG800x600,
+			M_VESA_CG1024x768,
+    			/*
+			 * As 320x200 doesn't generally look great,
+			 * it's least preferred here.
+			 */
 			M_VGA_CG320,
 			-1,
     };
@@ -107,6 +115,7 @@ bmp_splash(video_adapter_t *adp, int on)
 	/*
 	 * This is a kludge to fade the image away.  This section of the 
 	 * code takes effect only after the system is completely up.
+	 * FADE_TIMEOUT should be configurable.
 	 */
 	if (!cold) {
 	    getmicrotime(&tv);
@@ -192,9 +201,47 @@ typedef struct
     u_char	*data;			/* pointer to the raw data */
     u_char	*index;			/* running pointer to the data while drawing */
     u_char	*vidmem;		/* video memory allocated for drawing */
+    video_adapter_t *adp;
+    int		bank;
 } BMP_INFO;
 
 static BMP_INFO bmp_info;
+
+static void
+fill(BMP_INFO *info, int x, int y, int xsize, int ysize)
+{
+    u_char	*window;
+    int		banksize;
+    int		bank;
+    int		p;
+
+    banksize = info->adp->va_window_size;
+    bank = (info->swidth*y + x)/banksize;
+    window = (u_char *)info->adp->va_window;
+    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, bank*banksize);
+    while (ysize > 0) {
+	p = (info->swidth*y + x)%banksize;
+	for (; (p + xsize <= banksize) && ysize > 0; --ysize, ++y) {
+	    generic_bzero(window + p, xsize);
+	    p += info->swidth;
+	}
+	if (ysize <= 0)
+	    break;
+	if (p < banksize) {
+	    /* the last line crosses the window boundary */
+	    generic_bzero(window + p, banksize - p);
+	}
+	++bank;				/* next bank */
+	(*vidsw[info->adp->va_index]->set_win_org)(info->adp, bank*banksize);
+	if (p < banksize) {
+	    /* the remaining part of the last line */
+	    generic_bzero(window, p + xsize - banksize);
+	    ++y;
+	    --ysize;
+	}
+    }
+    info->bank = bank;
+}
 
 /*
 ** bmp_SetPix
@@ -207,6 +254,7 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 {
     int		sofs, bofs;
     u_char	tpv, mask;
+    int		newbank;
 
     /*
      * range check to avoid explosions
@@ -244,6 +292,12 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 	break;
 	
     case 8:
+	newbank = sofs/info->adp->va_window_size;
+	if (info->bank != newbank) {
+	    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, newbank*info->adp->va_window_size);
+	    info->bank = newbank;
+	}
+	sofs %= info->adp->va_window_size;
 	*(info->vidmem+sofs) = val;
 	break;
     }
@@ -409,9 +463,6 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
     int		pind;
 
     bmp_info.data = NULL;	/* assume setup failed */
-#if 0
-    bmp_info.vidmem = vidmem;	/* remember where */
-#endif
 
     /* check file ID */
     if (bmf->bmfh.bfType != 0x4d42) {
@@ -478,8 +529,13 @@ bmp_Draw(video_adapter_t *adp)
     
     /* clear the screen */
     bmp_info.vidmem = (u_char *)adp->va_window;
+    bmp_info.adp = adp;
     /* XXX; the following line is correct only for 8bpp modes */
-    bzero(bmp_info.vidmem, bmp_info.swidth * bmp_info.sheight);
+    /*
+    fill(&bmp_info, 0, 0, bmp_info.swidth, bmp_info.sheight);
+    */
+    (*vidsw[adp->va_index]->set_win_org)(adp, 0);
+    bmp_info.bank = 0;
 
     /* initialise the info structure for drawing */
     bmp_info.index = bmp_info.data;
