@@ -144,8 +144,6 @@ struct ng_pptpgre_ackp {
 	u_int16_t		xmitWin;	/* size of xmit window */
 	struct callout		sackTimer;	/* send ack timer */
 	struct callout		rackTimer;	/* recv ack timer */
-	node_p			*sackTimerPtr;	/* send ack timer pointer */
-	node_p			*rackTimerPtr;	/* recv ack timer pointer */
 	u_int32_t		winAck;		/* seq when xmitWin will grow */
 	pptptime_t		timeSent[PPTP_XMIT_WIN];
 #ifdef DEBUG_RAT
@@ -164,7 +162,6 @@ struct ng_pptpgre_private {
 	u_int32_t		xmitSeq;	/* last seq # we sent */
 	u_int32_t		recvAck;	/* last seq # peer ack'd */
 	u_int32_t		xmitAck;	/* last seq # we ack'd */
-	u_int			timers;		/* number of pending timers */
 	struct timeval		startTime;	/* time node was created */
 	struct ng_pptpgre_stats	stats;		/* node statistics */
 };
@@ -185,8 +182,10 @@ static void	ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout);
 static void	ng_pptpgre_stop_send_ack_timer(node_p node);
 static void	ng_pptpgre_start_recv_ack_timer(node_p node);
 static void	ng_pptpgre_stop_recv_ack_timer(node_p node);
-static void	ng_pptpgre_recv_ack_timeout(void *arg);
-static void	ng_pptpgre_send_ack_timeout(void *arg);
+static void	ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook,
+		    void *arg1, int arg2);
+static void	ng_pptpgre_send_ack_timeout(node_p node, hook_p hook,
+		    void *arg1, int arg2);
 static void	ng_pptpgre_reset(node_p node);
 static pptptime_t ng_pptpgre_time(node_p node);
 
@@ -282,8 +281,8 @@ ng_pptpgre_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Initialize state */
-	callout_init(&priv->ackp.sackTimer, 0);
-	callout_init(&priv->ackp.rackTimer, 0);
+	ng_callout_init(&priv->ackp.sackTimer);
+	ng_callout_init(&priv->ackp.rackTimer);
 
 	/* Done */
 	return (0);
@@ -410,15 +409,10 @@ ng_pptpgre_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	/* Reset node */
+	/* Reset node (stops timers) */
 	ng_pptpgre_reset(node);
 
-	/* If no timers remain, free private info as well */
-	if (priv->timers == 0) {
-		bzero(priv, sizeof(*priv));
-		FREE(priv, M_NETGRAPH);
-		NG_NODE_SET_PRIVATE(node, NULL);
-	}
+	FREE(priv, M_NETGRAPH);
 
 	/* Decrement ref count */
 	NG_NODE_UNREF(node);
@@ -707,7 +701,7 @@ badAck:
 		priv->recvSeq = seq;
 
 		/* We need to acknowledge this packet; do it soon... */
-		if (a->sackTimerPtr == NULL) {
+		if (!(callout_pending(&a->sackTimer))) {
 			int maxWait;
 
 			/* Take 1/4 of the estimated round trip time */
@@ -762,7 +756,6 @@ ng_pptpgre_start_recv_ack_timer(node_p node)
 
 	/* Compute how long until oldest unack'd packet times out,
 	   and reset the timer to that time. */
-	KASSERT(a->rackTimerPtr == NULL, ("%s: rackTimer", __func__));
 	remain = (a->timeSent[0] + a->ato) - ng_pptpgre_time(node);
 	if (remain < 0)
 		remain = 0;
@@ -771,20 +764,10 @@ ng_pptpgre_start_recv_ack_timer(node_p node)
 	a->timerStart = ng_pptpgre_time(node);
 #endif
 
-	/* Start new timer */
-	MALLOC(a->rackTimerPtr, node_p *, sizeof(node_p), M_NETGRAPH, M_NOWAIT);
-	if (a->rackTimerPtr == NULL) {
-		priv->stats.memoryFailures++;
-		return;			/* XXX potential hang here */
-	}
-	*a->rackTimerPtr = node;	/* ensures the correct timeout event */
-	NG_NODE_REF(node);
-	priv->timers++;
-
 	/* Be conservative: timeout can happen up to 1 tick early */
 	ticks = (((remain * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE) + 1;
-	callout_reset(&a->rackTimer, ticks,
-	    ng_pptpgre_recv_ack_timeout, a->rackTimerPtr);
+	ng_callout(&a->rackTimer, node, NULL, ticks,
+	    ng_pptpgre_recv_ack_timeout, NULL, 0);
 }
 
 /*
@@ -799,12 +782,7 @@ ng_pptpgre_stop_recv_ack_timer(node_p node)
 	if (!priv->conf.enableWindowing)
 		return;
 
-	if (callout_stop(&a->rackTimer)) {
-		FREE(a->rackTimerPtr, M_NETGRAPH);
-		priv->timers--;
-		NG_NODE_UNREF(node);
-	}
-	a->rackTimerPtr = NULL;
+	ng_uncallout(&a->rackTimer, node);
 }
 
 /*
@@ -813,33 +791,11 @@ ng_pptpgre_stop_recv_ack_timer(node_p node)
  * and reset/restart the recv ack timer.
  */
 static void
-ng_pptpgre_recv_ack_timeout(void *arg)
+ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	int s = splnet();
-	const node_p node = *((node_p *)arg);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 
-	/* This complicated stuff is needed to avoid race conditions */
-	FREE(arg, M_NETGRAPH);
-	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __func__));
-	KASSERT(priv != NULL, ("%s: priv=NULL", __func__));
-	priv->timers--;
-	if (NG_NODE_NOT_VALID(node)) {	/* shutdown race condition */
-		if (priv->timers == 0) {
-			FREE(priv, M_NETGRAPH);
-			NG_NODE_SET_PRIVATE(node, NULL);
-		}
-		NG_NODE_UNREF(node);
-		splx(s);
-		return;
-	}
-	if (arg != a->rackTimerPtr) {	/* timer stopped race condition */
-		NG_NODE_UNREF(node);
-		splx(s);
-		return;
-	}
-	a->rackTimerPtr = NULL;
 
 	/* Update adaptive timeout stuff */
 	priv->stats.recvAckTimeouts++;
@@ -861,8 +817,6 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 	priv->recvAck = priv->xmitSeq;		/* pretend we got the ack */
 	a->xmitWin = (a->xmitWin + 1) / 2;	/* shrink transmit window */
 	a->winAck = priv->recvAck + a->xmitWin;	/* reset win expand time */
-	NG_NODE_UNREF(node);
-	splx(s);
 }
 
 /*
@@ -876,21 +830,10 @@ ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout)
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 	int ticks;
 
-	/* Start new timer */
-	KASSERT(a->sackTimerPtr == NULL, ("%s: sackTimer", __func__));
-	MALLOC(a->sackTimerPtr, node_p *, sizeof(node_p), M_NETGRAPH, M_NOWAIT);
-	if (a->sackTimerPtr == NULL) {
-		priv->stats.memoryFailures++;
-		return;			/* XXX potential hang here */
-	}
-	*a->sackTimerPtr = node;	/* ensures the correct timeout event */
-	NG_NODE_REF(node);
-	priv->timers++;
-
 	/* Be conservative: timeout can happen up to 1 tick early */
 	ticks = (((ackTimeout * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE);
-	callout_reset(&a->sackTimer, ticks,
-	    ng_pptpgre_send_ack_timeout, a->sackTimerPtr);
+	ng_callout(&a->sackTimer, node, NULL, ticks,
+	    ng_pptpgre_send_ack_timeout, NULL, 0);
 }
 
 /*
@@ -902,12 +845,7 @@ ng_pptpgre_stop_send_ack_timer(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 
-	if (callout_stop(&a->sackTimer)) {
-		FREE(a->sackTimerPtr, M_NETGRAPH);
-		priv->timers--;
-		NG_NODE_UNREF(node);
-	}
-	a->sackTimerPtr = NULL;
+	ng_uncallout(&a->sackTimer, node);
 }
 
 /*
@@ -917,38 +855,10 @@ ng_pptpgre_stop_send_ack_timer(node_p node)
  * but apparently there haven't been any since. So send the ack now.
  */
 static void
-ng_pptpgre_send_ack_timeout(void *arg)
+ng_pptpgre_send_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	int s = splnet();
-	const node_p node = *((node_p *)arg);
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
-
-	/* This complicated stuff is needed to avoid race conditions */
-	FREE(arg, M_NETGRAPH);
-	KASSERT(node->nd_refs > 0, ("%s: no nd_refs", __func__));
-	KASSERT(priv != NULL, ("%s: priv=NULL", __func__));
-	priv->timers--;
-	if (NG_NODE_NOT_VALID(node)) {	/* shutdown race condition */
-		if (priv->timers == 0) {
-			FREE(priv, M_NETGRAPH);
-			NG_NODE_SET_PRIVATE(node, NULL);
-		}
-		NG_NODE_UNREF(node);
-		splx(s);
-		return;
-	}
-	if (a->sackTimerPtr != arg) {	/* timer stopped race condition */
-		NG_NODE_UNREF(node);
-		splx(s);
-		return;
-	}
-	a->sackTimerPtr = NULL;
-
 	/* Send a frame with an ack but no payload */
   	ng_pptpgre_xmit(node, NULL);
-	NG_NODE_UNREF(node);
-	splx(s);
 }
 
 /*************************************************************************
@@ -1014,4 +924,3 @@ ng_pptpgre_time(node_p node)
 	t += (pptptime_t)tv.tv_usec / (1000000 / PPTP_TIME_SCALE);
 	return(t);
 }
-
