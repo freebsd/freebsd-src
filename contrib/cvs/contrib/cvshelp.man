@@ -1,0 +1,562 @@
+.\" $Id: cvshelp.man,v 1.1.1.3 1995/08/28 16:20:28 jimb Exp $
+.\" Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
+.\" Full space in nroff; half space in troff
+.de SP
+.if n .sp
+.if t .sp .5
+..
+.\" Start a command example
+.de XS
+.SP
+.in +.5i
+.ft B
+.nf
+..
+.\" End a command example
+.de XE
+.fi
+.ft P
+.in -.5i
+.SP
+..
+.TH CVSHELP LOCAL "17 March 1991" FLUKE
+.SH NAME 
+cvshelp \- advice on using the Concurrent Versions System
+.SH DESCRIPTION
+This man page is based on experience using CVS.
+It is bound to change as we gain more experience.
+If you come up with better advice than is found here,
+contact the Software Technology
+Group and we will add it to this page.
+.SS "Getting Started"
+Use the following steps to prepare to use CVS:
+.TP
+\(bu
+Take a look at the CVS manual page to see what it can do for you, and
+if it fits your environment (or can possibly be made to fit your
+environment).
+.XS
+man cvs
+.XE
+If things look good, continue on...
+.TP
+\(bu
+Setup the master source repository.  Choose a directory with
+ample disk space available for source files.  This is where the RCS
+`,v' files will be stored.  Say you choose 
+.B /src/master
+as the root
+of your source repository.  Make the 
+.SB CVSROOT.adm 
+directory in the root of the source repository:
+.XS
+mkdir /src/master/CVSROOT.adm
+.XE
+.TP
+\(bu
+Populate this directory with the
+.I loginfo
+and
+.I modules
+files from the
+.B "/usr/doc/local/cvs"
+directory.  Edit these files to reflect your local source repository
+environment \- they may be quite small initially, but will grow as
+sources are added to your source repository.  Turn these files into
+RCS controlled files:
+.XS
+cd /src/master/CVSROOT.adm
+ci \-m'Initial loginfo file' loginfo
+ci \-m'Initial modules file' modules
+.XE
+.TP
+\(bu
+Run the command:
+.XS
+mkmodules /src/master/CVSROOT.adm
+.XE
+This will build the 
+.BR ndbm (3)
+file for the modules database.
+.TP
+\(bu
+Remember to edit the 
+.I modules 
+file manually when sources are checked
+in with 
+.B checkin
+or CVS
+.BR add .
+A copy of the 
+.I modules 
+file for editing can be retrieved with the command:
+.XS
+cvs checkout CVSROOT.adm
+.XE
+.TP
+\(bu
+Have all users of the CVS system set the 
+.SM CVSROOT 
+environment variable appropriately to reflect the placement of your
+source repository.  If the above example is used, the following
+commands can be placed in a
+.I .login 
+or 
+.I .profile 
+file:
+.XS
+setenv CVSROOT /src/master
+.XE
+for csh users, and
+.XS
+CVSROOT=/src/master; export CVSROOT
+.XE
+for sh users.
+.SS "Placing Locally Written Sources Under CVS Control"
+Say you want to place the `whizbang' sources under
+CVS control.  Say further that the sources have never 
+been under revision control before.
+.TP
+\(bu
+Move the source hierarchy (lock, stock, and barrel) 
+into the master source repository:
+.XS
+mv ~/whizbang $CVSROOT
+.XE
+.TP
+\(bu
+Clean out unwanted object files:
+.XS
+cd $CVSROOT/whizbang
+make clean
+.XE
+.TP
+\(bu
+Turn every file in the hierarchy into an RCS controlled file:
+.XS
+descend \-f 'ci \-t/dev/null \-m"Placed under CVS control" \-nV\fR\fIx\fR\fB_\fR\fIy\fR\fB *'
+.XE
+In this example, the initial release tag is \fBV\fIx\fB_\fIy\fR,
+representing version \fIx\fR.\fIy\fR.
+.LP
+You can use CVS on sources that are already under RCS control.
+The following example shows how.  
+In this example, the source package is called `skunkworks'.
+.TP
+\(bu
+Move the source hierarchy into the master source
+repository:
+.XS
+mv ~/skunkworks $CVSROOT
+.XE
+.TP
+\(bu
+Clean out unwanted object files:
+.XS
+cd $CVSROOT/skunkworks
+make clean
+.XE
+.TP
+\(bu
+Clean out unwanted working files, leaving only the RCS `,v' files:
+.XS
+descend \-r rcsclean
+.XE
+Note: If any working files have been checked out and changed,
+.B rcsclean
+will fail.  Check in the modified working files 
+and run the command again.
+.TP
+\(bu
+Get rid of 
+.SB RCS 
+subdirectories.  CVS does not use them.
+.XS
+descend \-r \-f 'mv RCS/*,v .'
+descend \-r \-f 'rmdir RCS'
+.XE
+.TP
+\(bu
+Delete any unwanted files that remain in the source hierarchy.  Then
+make sure all files are under RCS control:
+.XS
+descend \-f 'ci \-t/dev/null \-m"Placed under CVS control" \-n\fR\fItag\fR\fB *'
+.XE
+.I tag
+is the latest symbolic revision tag that you applied to your package
+(if any).  Note:  This command will probably generate lots of error
+messages (for directories and existing RCS files) that you can
+ignore.
+.SS "Placing a Third-Party Source Distribution Under CVS Control"
+The 
+.B checkin
+command checks third-party sources into CVS.  The 
+difference between third-party sources and locally
+written sources is that third-party sources must be checked into a
+separate branch (called the
+.IR "vendor branch" )
+of the RCS tree.  This makes it possible to merge local changes to
+the sources with later releases from the vendor.
+.TP
+\(bu
+Save the original distribution kit somewhere.  For example, if the
+master source repository is
+.B /src/master
+the distribution kit could be saved in
+.BR /src/dist .
+Organize the distribution directory so that each release 
+is clearly identifiable.
+.TP
+\(bu
+Unpack the package in a scratch directory, for example
+.BR ~/scratch .
+.TP
+\(bu
+Create a repository for the package.
+In this example, the package is called `Bugs-R-Us 4.3'.  
+.XS
+mkdir $CVSROOT/bugs
+.XE
+.TP
+\(bu
+Check in the unpacked files:
+.XS
+cd ~/scratch
+checkin \-m 'Bugs-R-Us 4.3 distribution' bugs VENDOR V4_3
+.XE
+There is nothing magic about the tag `VENDOR', which is applied to
+the vendor branch.  You can use whatever tag you want.  `VENDOR' is a
+useful convention.
+.TP
+\(bu
+Never modify vendor files before checking them in.
+Check in the files
+.I exactly
+as you unpacked them.
+If you check in locally modified files, future vendor releases may
+wipe out your local changes.
+.SS "Working With CVS-Controlled Sources"
+To use or edit the sources, you must check out a private copy.
+For the following examples, the master files are assumed to reside in 
+.BR "$CVSROOT/behemoth" .
+The working directory is
+.BR "~/work" .
+See
+.BR cvs (local) 
+for more details on the commands mentioned below.
+.TP
+.I "To Check Out Working Files
+Use CVS
+.BR checkout :
+.XS
+cd ~/work
+cvs checkout behemoth
+.XE
+There is nothing magic about the working directory.  CVS will check
+out sources anywhere you like.  Once you have a working copy of the
+sources, you can compile or edit them as desired.
+.TP
+.I "To Display Changes You Have Made"
+Use CVS
+.BR diff 
+to display detailed changes, equivalent to
+.BR rcsdiff (local).
+You can also use
+.BR cvscheck (local)
+to list files added, changed, and removed in
+the directory, but not yet 
+.BR commit ted.
+You must be in a directory containing working files.
+.TP
+.I "To Display Revision Information"
+Use CVS
+.BR log ,
+which is equivalent to
+.BR rlog (local).
+You must be in a directory containing working files.
+.TP
+.I "To Update Working Files"
+Use CVS
+.BR update 
+in a directory containing working files.
+This command brings your working files up 
+to date with changes checked into the
+master repository since you last checked out or updated
+your files.
+.TP
+.I "To Check In Your Changes"
+Use CVS
+.BR commit 
+in a directory containing working files.
+This command checks your changes into the master repository.
+You can specify files by name or use 
+.XS
+cvs commit \-a
+.XE
+to
+.B commit
+all the files you have changed.
+.TP
+.I "To Add a File"
+Add the file to the working directory.
+Use CVS
+.B add
+to mark the file as added.
+Use CVS
+.B commit
+to add the file to the master repository.
+.TP
+.I "To Remove a File"
+Remove the file from the working directory.
+Use CVS
+.B remove
+to mark the file as removed.
+Use CVS
+.B commit
+to move the file from its current location in the master repository 
+to the CVS
+.IR Attic 
+directory.
+.TP
+.I "To Add a Directory"
+Add the directory to the working directory.
+Use CVS
+.B add
+to add the directory to the master repository.
+.TP
+.I "To Remove a Directory"
+.br
+You shouldn't remove directories under CVS.  You should instead remove
+their contents and then prune them (using the
+.B \-f
+and 
+.B \-p
+options) when you 
+.B checkout 
+or 
+.B update 
+your working files.
+.TP
+.I "To Tag a Release"
+Use CVS
+.B tag
+to apply a symbolic tag to the latest revision of each file in the
+master repository.  For example:
+.XS
+cvs tag V2_1 behemoth
+.XE
+.TP
+.I "To Retrieve an Exact Copy of a Previous Release"
+During a CVS
+.B checkout
+or
+.BR update ,
+use the 
+.B \-r
+option to retrieve revisions associated with a symbolic tag.
+Use the
+.B \-f
+option to ignore all RCS files that do not contain the
+tag.
+Use the
+.B \-p
+option to prune directories that wind up empty because none
+of their files matched the tag.  Example:
+.XS
+cd ~/work
+cvs checkout \-r V2_1 \-f \-p behemoth
+.XE
+.SS "Logging Changes"
+It is a good idea to keep a change log together with the
+sources.  As a minimum, the change log should name and describe each
+tagged release.  The change log should also be under CVS control and
+should be tagged along with the sources.
+.LP
+.BR cvslog (local)
+can help.  This command logs
+changes reported during CVS 
+.B commit 
+operations.  It automatically
+updates a change log file in your working directory.  When you are
+finished making changes, you (optionally) edit the change log file and
+then commit it to the master repository.
+.LP
+Note: You must edit the change log to describe a new release
+and 
+.B commit
+it to the master repository
+.I before
+.BR tag ging
+the release using CVS.  Otherwise, the release description will not be
+included in the tagged package.
+.LP
+See
+.BR cvslog (local)
+for more information.
+.SS "Merging a Subsequent Third-Party Distribution"
+The initial steps in this process are identical to placing a
+third-party distribution under CVS for the first time: save the
+distribution kit and unpack the package in a scratch directory.  From
+that point the steps diverge.
+The following example considers release 5.0 of the
+Bugs-R-Us package.
+.TP
+\(bu
+Check in the sources after unpacking them:
+.XS
+cd ~/scratch
+checkin \-m 'Bugs-R-Us 5.0 distribution' bugs VENDOR V5_0 \\
+        | tee ~/WARNINGS
+.XE
+It is important to save the output of 
+.B checkin
+in a file
+because it lists the sources that have been locally modified.
+It is best to save the file in a different directory (for example,
+your home directory).  Otherwise, 
+.B checkin 
+will try to check it into the master repository.
+.TP
+\(bu
+In your usual working directory, check out a fresh copy of the
+distribution that you just checked in.
+.XS
+cd ~/work
+cvs checkout \-r VENDOR bugs
+.XE
+The
+.B checkout
+command shown above retrieves the latest revision on the vendor branch.
+.TP
+\(bu
+See the `WARNINGS' file for a list of all locally modified
+sources.
+For each locally modified source,
+look at the differences between 
+the new distribution and the latest local revision:
+.XS
+cvs diff \-r \fR\fILocalRev file\fR\fB
+.XE
+In this command,
+.I LocalRev 
+is the latest 
+numeric or symbolic revision 
+on the RCS trunk of
+.IR file .
+You can use CVS
+.B log
+to get the revision history.
+.TP
+\(bu
+If your local modifications to a file have been incorporated into
+the vendor's distribution, then you should reset the default RCS
+branch for that file to the vendor branch.  CVS doesn't provide a
+mechanism to do this.  You have to do it by hand in the master
+repository:
+.XS
+rcs \-bVENDOR \fR\fIfile\fR\fB,v
+.XE
+.TP
+\(bu
+If your local modifications need to be merged with the 
+new distribution, use CVS
+.B join
+to do it:
+.XS
+cvs join \-r VENDOR \fR\fIfile\fR\fB
+.XE
+The resulting file will be placed in your working directory.
+Edit it to resolve any overlaps.
+.TP
+\(bu
+Test the merged package.
+.TP
+\(bu
+Commit all modified files to the repository:
+.XS
+cvs commit \-a
+.XE
+.TP
+\(bu
+Tag the repository with a new local tag.
+.SS "Applying Patches to Third-Party Sources"
+Patches are handled in a manner very similar to complete
+third-party distributions.  This example considers patches applied to
+Bugs-R-Us release 5.0.
+.TP
+\(bu
+Save the patch files together with the distribution kit 
+to which they apply.  
+The patch file names should clearly indicate the patch
+level.
+.TP
+\(bu
+In a scratch directory, check out the last `clean' vendor copy \- the
+highest revision on the vendor branch with 
+.IR "no local changes" :
+.XS
+cd ~/scratch
+cvs checkout \-r VENDOR bugs
+.XE
+.TP
+\(bu
+Use 
+.BR patch (local)
+to apply the patches.  You should now have an image of the 
+vendor's software just as though you had received a complete,
+new release.
+.TP
+\(bu
+Proceed with the steps described for merging a subsequent third-party
+distribution.
+.TP
+\(bu
+Note: When you get to the step that requires you
+to check out the new distribution after you have
+checked it into the vendor branch, you should move to a different
+directory.  Do not attempt to 
+.B checkout 
+files in the directory in
+which you applied the patches.  If you do, CVS will try to merge the
+changes that you made during patching with the version being checked
+out and things will get very confusing.  Instead, 
+go to a different directory (like your working directory) and
+check out the files there.
+.SS "Advice to Third-Party Source Hackers"
+As you can see from the preceding sections, merging local changes
+into third-party distributions remains difficult, and probably
+always will.  This fact suggests some guidelines:
+.TP
+\(bu
+Minimize local changes.  
+.I Never
+make stylistic changes.
+Change makefiles only as much as needed for installation.  Avoid
+overhauling anything.  Pray that the vendor does the same.
+.TP
+\(bu
+Avoid renaming files or moving them around.
+.TP
+\(bu
+Put independent, locally written files like help documents, local
+tools, or man pages in a sub-directory called `local-additions'.
+Locally written files that are linked into an existing executable 
+should be added right in with the vendor's sources (not in a
+`local-additions' directory).
+If, in the future,
+the vendor distributes something
+equivalent to your locally written files 
+you can CVS
+.B remove
+the files from the `local-additions' directory at that time.
+.SH SEE ALSO
+.BR cvs (local),
+.BR checkin (local),
+.BR cvslog (local),
+.BR cvscheck (local)
+.SH AUTHOR
+Lowell Skoog
+.br
+Software Technology Group
+.br
+Technical Computing

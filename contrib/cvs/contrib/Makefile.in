@@ -1,0 +1,134 @@
+# Makefile for GNU CVS contributed sources.
+# Do not use this makefile directly, but only from `../Makefile'.
+# Copyright (C) 1986, 1988-1990 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# $CVSid: @(#)Makefile.in 1.6 94/10/22 $
+
+SHELL = /bin/sh
+
+srcdir     = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH      = @srcdir@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+# Where to install the executables.
+bindir = $(exec_prefix)/bin
+
+# Where to put the system-wide .cvsrc file
+libdir = $(prefix)/lib
+
+# Where to put the manual pages.
+mandir = $(prefix)/man
+
+# where to find command interpreters
+perl_path = @perl_path@
+csh_path = @csh_path@
+
+# Use cp if you don't have install.
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+DISTFILES = \
+	ChangeLog README .cvsignore intro.doc \
+	Makefile.in clmerge.pl cln_hist.pl commit_prep.pl cvs_acls.pl \
+	cvscheck.sh cvscheck.man cvshelp.man descend.sh descend.man \
+	dirfns.shar log.pl log_accum.pl mfpipe.pl rcs-to-cvs.sh rcs2log.sh \
+	rcslock.pl sccs2rcs.csh rcs2sccs.sh
+
+# files installed in $(libdir)/cvs/contrib
+#
+CONTRIB_FILES = README intro.doc cvscheck.man
+
+# things we actually build and install....
+#
+PROGS = rcs2log
+CONTRIB_PROGS = clmerge cln_hist commit_prep cvs_acls cvscheck log log_accum \
+	mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs
+
+.SUFFIXES: .pl .sh .csh
+
+.pl:
+	rm -f $@
+	sed -e 's,xPERL_PATHx,$(perl_path),' $< > $@-t
+	mv $@-t $@
+	chmod +x $@
+
+.csh:
+	rm -f $@
+	sed -e 's,xCSH_PATHx,$(csh_path),' $< > $@-t
+	mv $@-t $@
+	chmod +x $@
+
+.sh:
+	rm -f $@
+	cp $< $@
+	chmod +x $@
+
+all: Makefile $(PROGS) $(CONTRIB_PROGS)
+.PHONY: all
+
+install: all $(libdir)/cvs/contrib
+	for f in $(CONTRIB_FILES) ; do\
+		$(INSTALL_DATA) $(srcdir)/$$f $(libdir)/cvs/contrib/$$f; \
+	done
+	for f in $(CONTRIB_PROGS) ; do\
+		$(INSTALL_PROGRAM) $$f $(libdir)/cvs/contrib/$$f; \
+	done
+	for f in $(PROGS) ; do\
+		$(INSTALL_PROGRAM) $$f $(bindir)/$$f; \
+	done
+	@echo "You might consider running 'cvsinit' to upgrade your repository(s)...."
+.PHONY: install
+
+$(libdir)/cvs/contrib:
+	$(top_srcdir)/mkinstalldirs $(libdir)/cvs/contrib
+
+tags:
+.PHONY: tags
+
+TAGS:
+.PHONY: TAGS
+
+ls:
+	@echo $(DISTFILES)
+.PHONY: ls
+
+clean:
+	/bin/rm -f *.o core
+.PHONY: clean
+
+distclean: clean
+	rm -f Makefile elib/Makefile $(PROGS) $(CONTRIB_PROGS)
+.PHONY: distclean
+
+realclean: distclean
+.PHONY: realclean
+
+dist-dir:
+	mkdir ${DISTDIR}
+	for i in ${DISTFILES}; do \
+	  ln $(srcdir)/$${i} ${DISTDIR}; \
+	done
+	cd elib; ${MAKE} dist-dir DISTDIR="../${DISTDIR}/elib"
+.PHONY: dist-dir
+
+subdir = contrib
+Makefile: ../config.status Makefile.in
+	cd .. && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
