@@ -127,7 +127,7 @@ static struct	ng_bridge_host *ng_bridge_get(priv_p priv, const u_char *addr);
 static int	ng_bridge_put(priv_p priv, const u_char *addr, int linkNum);
 static void	ng_bridge_rehash(priv_p priv);
 static void	ng_bridge_remove_hosts(priv_p priv, int linkNum);
-static void	ng_bridge_timeout(void *arg);
+static void	ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2);
 static const	char *ng_bridge_nodename(node_p node);
 
 /* Ethernet broadcast */
@@ -299,7 +299,7 @@ ng_bridge_constructor(node_p node)
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	callout_init(&priv->timer, 0);
+	ng_callout_init(&priv->timer);
 
 	/* Allocate and initialize hash table, etc. */
 	MALLOC(priv->tab, struct ng_bridge_bucket *,
@@ -328,7 +328,7 @@ ng_bridge_constructor(node_p node)
 	priv->node = node;
 
 	/* Start timer; timer is always running while node is alive */
-	callout_reset(&priv->timer, hz, ng_bridge_timeout, priv->node);
+	ng_callout(&priv->timer, node, NULL, hz, ng_bridge_timeout, NULL, 0);
 
 	/* Done */
 	return (0);
@@ -959,26 +959,20 @@ ng_bridge_remove_hosts(priv_p priv, int linkNum)
  * If the node has the NGF_INVALID flag set, our job is to kill it.
  */
 static void
-ng_bridge_timeout(void *arg)
+ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const node_p node = arg;
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	int s, bucket;
+	int bucket;
 	int counter = 0;
 	int linkNum;
 
 	/* If node was shut down, this is the final lingering timeout */
-	s = splnet();
 	if (NG_NODE_NOT_VALID(node)) {
 		FREE(priv, M_NETGRAPH_BRIDGE);
 		NG_NODE_SET_PRIVATE(node, NULL);
 		NG_NODE_UNREF(node);
-		splx(s);
 		return;
 	}
-
-	/* Register a new timeout, keeping the existing node reference */
-	callout_reset(&priv->timer, hz, ng_bridge_timeout, node);
 
 	/* Update host time counters and remove stale entries */
 	for (bucket = 0; bucket < priv->numBuckets; bucket++) {
@@ -1032,8 +1026,8 @@ ng_bridge_timeout(void *arg)
 	KASSERT(priv->numLinks == counter,
 	    ("%s: links: %d != %d", __func__, priv->numLinks, counter));
 
-	/* Done */
-	splx(s);
+	/* Register a new timeout, keeping the existing node reference */
+	ng_callout(&priv->timer, node, NULL, hz, ng_bridge_timeout, NULL, 0);
 }
 
 /*
