@@ -1,9 +1,14 @@
 <!--
-	The "What's New" section of the release notes.  Within
-	each subsection (i.e. kernel, security, userland), list
-	items in chronological order, unless necessary to keep
-	related items together, such as multiple release notes
-	pertaining to a single program or module.
+	The "What's New" section of the release notes.  
+
+	Guidelines for new entries:
+
+	1.  If there is some obvious "keyword" associated with an
+	entry (such as a manpage entry or an application name), try to
+	put it at the start of the sentence.
+
+	2.  Within each subsection (i.e. kernel, security, userland),
+	list items in alphabetical order by these keywords.
 
 -->
 
@@ -88,7 +93,11 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
+    statistics.</para>
+
+    <para>&man.netstat.1; now has a <option>-S</option> flag to print
+    address numerically but port names symbolically.</para>
 
     <sect3>
       <title>Contributed Software</title>
