@@ -53,7 +53,7 @@ MAIN:{
     if ($opts{'a'}) {
 	usage()
 	    if ($opts{'c'} || $opts{'m'} || $opts{'t'});
-	$key = 'average';
+	$key = 'avg';
     } elsif ($opts{'c'}) {
 	usage()
 	    if ($opts{'m'} || $opts{'t'});
@@ -98,7 +98,7 @@ MAIN:{
 	    }
 	    $data{$name}->{'total'} += $entry{'total'};
 	    $data{$name}->{'count'} += $entry{'count'};
-	    $data{$name}->{'average'} =
+	    $data{$name}->{'avg'} =
 		$data{$name}->{'total'} / $data{$name}->{'count'};
 	} else {
 	    $data{$name} = \%entry;
@@ -120,11 +120,11 @@ MAIN:{
 	}
     }
     foreach (@list) {
-	printf("%12.0f %12.0f %12.0f %12.0f %s\n",
+	printf("%6.0f %12.0f %11.0f %5.0f %-40.40s\n",
 	       $data{$_}->{'max'},
 	       $data{$_}->{'total'},
 	       $data{$_}->{'count'},
-	       $data{$_}->{'average'},
+	       $data{$_}->{'avg'},
 	       $data{$_}->{'name'});
     }
 }
