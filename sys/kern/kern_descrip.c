@@ -1303,7 +1303,7 @@ fdcloseexec(td)
 /*
  * Internal form of close.
  * Decrement reference count on file structure.
- * Note: p may be NULL when closing a file
+ * Note: td may be NULL when closing a file
  * that was being passed in a message.
  */
 int
@@ -1311,7 +1311,6 @@ closef(fp, td)
 	register struct file *fp;
 	register struct thread *td;
 {
-	struct proc *p = td->td_proc;
 	struct vnode *vp;
 	struct flock lf;
 
@@ -1325,13 +1324,15 @@ closef(fp, td)
 	 * If the descriptor was in a message, POSIX-style locks
 	 * aren't passed with the descriptor.
 	 */
-	if (p && (p->p_flag & P_ADVLOCK) && fp->f_type == DTYPE_VNODE) {
+	if (td && (td->td_proc->p_flag & P_ADVLOCK) &&
+	    fp->f_type == DTYPE_VNODE) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
 		lf.l_type = F_UNLCK;
 		vp = (struct vnode *)fp->f_data;
-		(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &lf, F_POSIX);
+		(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
+		    F_UNLCK, &lf, F_POSIX);
 	}
 	return (fdrop(fp, td));
 }
