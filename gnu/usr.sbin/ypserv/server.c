@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.9 1995/07/14 01:56:49 wpaul Exp $
+**	$Id: server.c,v 1.7 1995/07/02 18:48:21 wpaul Exp $
 **
 */
 
@@ -808,8 +808,8 @@ int sig;
 {
     int st;
 
-    children--;
-    wait3(&st, WNOHANG, NULL);
+    while (wait3(&st, WNOHANG, NULL) > 0)
+	children--;
 }
 
 /*
@@ -861,7 +861,7 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
     switch(fork())
     {
 	case 0:
-	{
+	    {
 	    char g[11], t[11], p[11];
 
 	    sprintf (ypxfr_command, "%s/ypxfr", INSTDIR);
@@ -873,13 +873,10 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 		inet_ntoa(rqhost->sin_addr), p, xfr->map_parms.map, NULL);
 	    Perror("ypxfr execl(): %s",strerror(errno));
 	    exit(0);
-	}
+	    }
 	case -1:
-	{
 	    Perror("fork(): %s",strerror(errno));
 	    result.xfrstat = YPXFR_XFRERR;
-	    break;
-	}
 	default:
 	{
 	    result.xfrstat = YPXFR_SUCC;
