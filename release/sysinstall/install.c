@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.23 1995/05/18 13:20:53 jkh Exp $
+ * $Id: install.c,v 1.24 1995/05/18 14:11:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -173,15 +173,16 @@ make_filesystems(void)
 			}
 			else
 			    msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
-			if (Mount(dname, NULL)) {
+			if (Mount("/mnt", dname)) {
 			    msgConfirm("Unable to mount the root file system!  Giving up.");
 			    return;
 			}
 			else {
 			    extern int makedevs(void);
 
-			    chdir("/mnt");
-			    if (makedevs())
+			    if (Mkdir("/mnt/dev", NULL)
+				|| chdir("/mnt/dev")
+				|| makedevs())
 				msgConfirm("Failed to make some of the devices in /mnt!");
 			    chdir("/");
 			    break;
