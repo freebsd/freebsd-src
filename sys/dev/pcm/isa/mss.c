@@ -1182,6 +1182,7 @@ mss_detect(struct isa_device *dev)
 		    break;
 
 		case 0x83:	/* CS4236 */
+		case 0x03:	/* CS4236 on Intel PR440FX motherboard */
 		    name = "CS4236";
 		    d->bd_id = MD_CS4236;
 		    break ;
@@ -1291,6 +1292,8 @@ cs4236_probe(u_long csn, u_long vend_id)
 	s = "CS4237" ;
     else if (vend_id == 0x3642630e)
 	s = "CS4236" ;
+    else if (vend_id == 0x360b630e)
+	s = "CS4236" ;
     else if (vend_id == 0x3242630e)
 	s = "CS4232" ;
     if (s) {
@@ -1323,18 +1326,27 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
     snddev_last_probed = &tmp_d;
     if (d.flags & DV_PNP_SBCODEC) {
 	printf("CS423x use sb-compatible codec\n");
-    dev->id_iobase = d.port[2] ;
-    tmp_d = sb_op_desc ;
-    tmp_d.alt_base = d.port[0] - 4;
-    d.drq[1] = 4 ; /* disable, it is not used ... */
+	dev->id_iobase = d.port[2] ;
+	tmp_d = sb_op_desc ;
+	tmp_d.alt_base = d.port[0] - 4;
+	d.drq[1] = 4 ; /* disable, it is not used ... */
     } else {
-    /* mss-compatible codec */
-    dev->id_iobase = d.port[0] -4 ; /* XXX old mss have 4 bytes before... */
-    tmp_d = mss_op_desc ;
-    tmp_d.bd_id = MD_CS4232 ; /* to short-circuit the detect routine */
-    tmp_d.alt_base = d.port[2];
-    strcpy(tmp_d.name, name);
-    tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
+	/* mss-compatible codec */
+	dev->id_iobase = d.port[0] -4 ; /* XXX old mss have 4 bytes before... */
+	tmp_d = mss_op_desc ;
+	switch (vend_id) {
+	case 0x3742630e:	/* CS4237 */
+	case 0x3642630e:	/* CS4236 */
+	case 0x360b630e:	/* CS4236 on Intel PR440FX motherboard */
+	    tmp_d.bd_id = MD_CS4236 ; /* to short-circuit the detect routine */
+	    break;
+	default:
+	    tmp_d.bd_id = MD_CS4232 ; /* to short-circuit the detect routine */
+	    break;
+	}
+	tmp_d.alt_base = d.port[2];
+	strcpy(tmp_d.name, name);
+	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
     }
     write_pnp_parms( &d, ldn );
     enable_pnp_card();
@@ -1344,6 +1356,7 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
     dev->id_intr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
 
+    dev->id_alive = 1;
     pcmattach(dev);
 }
 
