@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.21 1997/10/03 18:09:17 wosch Exp $
+.\"	$Id: date.1,v 1.22 1997/12/11 02:38:55 brian Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -112,7 +112,7 @@ Adjust the minute, hour, month day, week day, month or year according to
 .Ar val .
 If
 .Ar val
-is preceeded with a plus or minus sign, the date is adjusted forwards
+is preceded with a plus or minus sign, the date is adjusted forwards
 or backwards according to the remaining string, otherwise the relevant
 part of the date is set.  The date can be adjusted as many times as
 required using these flags.  Flags are processed in the order given.
@@ -219,7 +219,7 @@ The command:
 date -v1d -v+1m -v-1d -v-fri
 .Ed
 .Pp
-will display the last friday of the month:
+will display the last Friday of the month:
 .Bd -literal -offset indent
 Fri Aug 29 04:31:11 BST 1997
 .Ed
