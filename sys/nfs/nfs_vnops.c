@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.120 1999/02/06 07:48:56 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.121 1999/02/13 08:01:59 dillon Exp $
  */
 
 
@@ -1409,7 +1409,8 @@ again:
 			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
+	if (error || (cnp->cn_flags & SAVESTART) == 0)
+		zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1601,12 +1602,14 @@ nfs_rename(ap)
 	}
 
 out:
+	VOP_ABORTOP(tdvp, tcnp);
 	if (tdvp == tvp)
 		vrele(tdvp);
 	else
 		vput(tdvp);
 	if (tvp)
 		vput(tvp);
+	VOP_ABORTOP(fdvp, fcnp);
 	vrele(fdvp);
 	vrele(fvp);
 	/*
@@ -1790,7 +1793,6 @@ nfs_symlink(ap)
 	nfsm_reqdone;
 	if (newvp)
 		vput(newvp);
-	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1799,6 +1801,12 @@ nfs_symlink(ap)
 	 */
 	if (error == EEXIST)
 		error = 0;
+	/*
+	 * cnp's buffer expected to be freed if SAVESTART not set or
+	 * if an error was returned.
+	 */
+	if (error || (cnp->cn_flags & SAVESTART) == 0)
+		zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -1883,7 +1891,8 @@ nfs_mkdir(ap)
 			vrele(newvp);
 	} else
 		*ap->a_vpp = newvp;
-	zfree(namei_zone, cnp->cn_pnbuf);
+	if (error || (cnp->cn_flags & SAVESTART) == 0)
+		zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
