@@ -398,119 +398,152 @@ static int
 amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
     struct amr_softc		*sc = (struct amr_softc *)dev->si_drv1;
-    int				*arg = (int *)addr;
-    struct amr_user_ioctl	*au = (struct amr_user_ioctl *)addr;
+    union {
+	void			*_p;
+	struct amr_user_ioctl	*au;
+#ifdef AMR_IO_COMMAND32
+	struct amr_user_ioctl32	*au32;
+#endif
+	int			*result;
+    } arg;
     struct amr_command		*ac;
     struct amr_mailbox_ioctl	*mbi;
     struct amr_passthrough	*ap;
-    void			*dp;
+    void			*dp, *au_buffer;
+    unsigned long		au_length;
+    unsigned char		*au_cmd;
+    int				*au_statusp, au_direction;
     int				error;
 
     debug_called(1);
+
+    arg._p = (void *)addr;
+
+    switch(cmd) {
+
+    case AMR_IO_VERSION:
+	debug(1, "AMR_IO_VERSION");
+	*arg.result = AMR_IO_VERSION_NUMBER;
+	return(0);
+
+#ifdef AMR_IO_COMMAND32
+    /*
+     * Accept ioctl-s from 32-bit binaries on non-32-bit
+     * platforms, such as AMD. LSI's MEGAMGR utility is
+     * the only example known today...	-mi
+     */
+    case AMR_IO_COMMAND32:
+	debug(1, "AMR_IO_COMMAND32 0x%x", arg.au32->au_cmd[0]);
+	au_cmd = arg.au32->au_cmd;
+	au_buffer = (void *)(u_int64_t)arg.au32->au_buffer;
+	au_length = arg.au32->au_length;
+	au_direction = arg.au32->au_direction;
+	au_statusp = &arg.au32->au_status;
+	break;
+#endif
+
+    case AMR_IO_COMMAND:
+	debug(1, "AMR_IO_COMMAND  0x%x", arg.au->au_cmd[0]);
+	au_cmd = arg.au->au_cmd;
+	au_buffer = (void *)arg.au->au_buffer;
+	au_length = arg.au->au_length;
+	au_direction = arg.au->au_direction;
+	au_statusp = &arg.au->au_status;
+	break;
+
+    default:
+	debug(1, "unknown ioctl 0x%lx", cmd);
+	return(ENOIOCTL);
+    }
 
     error = 0;
     dp = NULL;
     ap = NULL;
     ac = NULL;
-    switch(cmd) {
 
-    case AMR_IO_VERSION:
-	debug(1, "AMR_IO_VERSION");
-	*arg = AMR_IO_VERSION_NUMBER;
-	break;
+    /* handle inbound data buffer */
+    if (au_length != 0) {
+	if ((dp = malloc(au_length, M_DEVBUF, M_WAITOK)) == NULL)
+	    return(ENOMEM);
 
-    case AMR_IO_COMMAND:
-	debug(1, "AMR_IO_COMMAND  0x%x", au->au_cmd[0]);
-	/* handle inbound data buffer */
-	if (au->au_length != 0) {
-	    if ((dp = malloc(au->au_length, M_DEVBUF, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		break;
-	    }
-	    if ((error = copyin(au->au_buffer, dp, au->au_length)) != 0)
-		break;
-	    debug(2, "copyin %ld bytes from %p -> %p", au->au_length, au->au_buffer, dp);
-	}
-
-	if ((ac = amr_alloccmd(sc)) == NULL) {
-	    error = ENOMEM;
-	    break;
-	}
-
-	/* handle SCSI passthrough command */
-	if (au->au_cmd[0] == AMR_CMD_PASS) {
-	    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
-		error = ENOMEM;
-		break;
-	    }
-
-	    /* copy cdb */
-	    ap->ap_cdb_length = au->au_cmd[2];
-	    bcopy(&au->au_cmd[3], &ap->ap_cdb[0], ap->ap_cdb_length);
-
-	    /* build passthrough */
-	    ap->ap_timeout		= au->au_cmd[ap->ap_cdb_length + 3] & 0x07;
-	    ap->ap_ars			= (au->au_cmd[ap->ap_cdb_length + 3] & 0x08) ? 1 : 0;
-	    ap->ap_islogical		= (au->au_cmd[ap->ap_cdb_length + 3] & 0x80) ? 1 : 0;
-	    ap->ap_logical_drive_no	= au->au_cmd[ap->ap_cdb_length + 4];
-	    ap->ap_channel		= au->au_cmd[ap->ap_cdb_length + 5];
-	    ap->ap_scsi_id 		= au->au_cmd[ap->ap_cdb_length + 6];
-	    ap->ap_request_sense_length	= 14;
-	    ap->ap_data_transfer_length = au->au_length;
-	    /* XXX what about the request-sense area? does the caller want it? */
-
-	    /* build command */
-	    ac->ac_data = ap;
-	    ac->ac_length = sizeof(*ap);
-	    ac->ac_flags |= AMR_CMD_DATAOUT;
-	    ac->ac_ccb_data = dp;
-	    ac->ac_ccb_length = au->au_length;
-	    if (au->au_direction & AMR_IO_READ)
-		ac->ac_flags |= AMR_CMD_CCB_DATAIN;
-	    if (au->au_direction & AMR_IO_WRITE)
-		ac->ac_flags |= AMR_CMD_CCB_DATAOUT;
-
-	    ac->ac_mailbox.mb_command = AMR_CMD_PASS;
-
-	} else {
-	    /* direct command to controller */
-	    mbi = (struct amr_mailbox_ioctl *)&ac->ac_mailbox;
-
-	    /* copy pertinent mailbox items */
-	    mbi->mb_command = au->au_cmd[0];
-	    mbi->mb_channel = au->au_cmd[1];
-	    mbi->mb_param = au->au_cmd[2];
-	    mbi->mb_pad[0] = au->au_cmd[3];
-	    mbi->mb_drive = au->au_cmd[4];
-
-	    /* build the command */
-	    ac->ac_data = dp;
-	    ac->ac_length = au->au_length;
-	    if (au->au_direction & AMR_IO_READ)
-		ac->ac_flags |= AMR_CMD_DATAIN;
-	    if (au->au_direction & AMR_IO_WRITE)
-		ac->ac_flags |= AMR_CMD_DATAOUT;
-	}
-
-	/* run the command */
-	if ((error = amr_wait_command(ac)) != 0)
-	    break;
-
-	/* copy out data and set status */
-	if (au->au_length != 0)
-	    error = copyout(dp, au->au_buffer, au->au_length);
-	debug(2, "copyout %ld bytes from %p -> %p", au->au_length, dp, au->au_buffer);
-	if (dp != NULL)
-	    debug(2, "%16d", (int)dp);
-	au->au_status = ac->ac_status;
-	break;
-
-    default:
-	debug(1, "unknown ioctl 0x%lx", cmd);
-	error = ENOIOCTL;
-	break;
+	if ((error = copyin(au_buffer, dp, au_length)) != 0)
+	    goto out;
+	debug(2, "copyin %ld bytes from %p -> %p", au_length, au_buffer, dp);
     }
 
+    if ((ac = amr_alloccmd(sc)) == NULL) {
+	error = ENOMEM;
+	goto out;
+    }
+
+    /* handle SCSI passthrough command */
+    if (au_cmd[0] == AMR_CMD_PASS) {
+	if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
+	    error = ENOMEM;
+	    goto out;
+	}
+
+	/* copy cdb */
+	ap->ap_cdb_length = au_cmd[2];
+	bcopy(au_cmd + 3, ap->ap_cdb, ap->ap_cdb_length);
+
+	/* build passthrough */
+	ap->ap_timeout		= au_cmd[ap->ap_cdb_length + 3] & 0x07;
+	ap->ap_ars		= (au_cmd[ap->ap_cdb_length + 3] & 0x08) ? 1 : 0;
+	ap->ap_islogical	= (au_cmd[ap->ap_cdb_length + 3] & 0x80) ? 1 : 0;
+	ap->ap_logical_drive_no	= au_cmd[ap->ap_cdb_length + 4];
+	ap->ap_channel		= au_cmd[ap->ap_cdb_length + 5];
+	ap->ap_scsi_id 		= au_cmd[ap->ap_cdb_length + 6];
+	ap->ap_request_sense_length	= 14;
+	ap->ap_data_transfer_length	= au_length;
+	/* XXX what about the request-sense area? does the caller want it? */
+
+	/* build command */
+	ac->ac_data = ap;
+	ac->ac_length = sizeof(*ap);
+	ac->ac_flags |= AMR_CMD_DATAOUT;
+	ac->ac_ccb_data = dp;
+	ac->ac_ccb_length = au_length;
+	if (au_direction & AMR_IO_READ)
+	    ac->ac_flags |= AMR_CMD_CCB_DATAIN;
+	if (au_direction & AMR_IO_WRITE)
+	    ac->ac_flags |= AMR_CMD_CCB_DATAOUT;
+
+	ac->ac_mailbox.mb_command = AMR_CMD_PASS;
+
+    } else {
+	/* direct command to controller */
+	mbi = (struct amr_mailbox_ioctl *)&ac->ac_mailbox;
+
+	/* copy pertinent mailbox items */
+	mbi->mb_command = au_cmd[0];
+	mbi->mb_channel = au_cmd[1];
+	mbi->mb_param = au_cmd[2];
+	mbi->mb_pad[0] = au_cmd[3];
+	mbi->mb_drive = au_cmd[4];
+
+	/* build the command */
+	ac->ac_data = dp;
+	ac->ac_length = au_length;
+	if (au_direction & AMR_IO_READ)
+	    ac->ac_flags |= AMR_CMD_DATAIN;
+	if (au_direction & AMR_IO_WRITE)
+	    ac->ac_flags |= AMR_CMD_DATAOUT;
+    }
+
+    /* run the command */
+    if ((error = amr_wait_command(ac)) != 0)
+	goto out;
+
+    /* copy out data and set status */
+    if (au_length != 0)
+	error = copyout(dp, au_buffer, au_length);
+    debug(2, "copyout %ld bytes from %p -> %p", au_length, dp, au_buffer);
+    if (dp != NULL)
+	debug(2, "%16d", (int)dp);
+    *au_statusp = ac->ac_status;
+
+out:
     if (dp != NULL)
 	free(dp, M_DEVBUF);
     if (ap != NULL)
