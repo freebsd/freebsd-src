@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.2 1995/05/04 03:51:14 jkh Exp $
+ * $Id: devices.c,v 1.3 1995/05/04 19:48:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,7 +42,6 @@
  */
 
 #include "sysinstall.h"
-#include "libdisk.h"
 #include <ctype.h>
 
 /* Where we start displaying chunk information on the screen */
@@ -79,13 +78,13 @@ static struct chunk *chunk_info[10];
 static int current_chunk;
 
 static void
-record_chunks(char *disk, struct disk *d)
+record_chunks(struct disk *d)
 {
     struct chunk *c1;
     int i = 0;
     int last_free = 0;
     if (!d->chunks)
-	msgFatal("No chunk list found for %s!", disk);
+	msgFatal("No chunk list found for %s!", d->name);
     c1 = d->chunks->part;
     while (c1) {
 	if (c1->type == unused && c1->size > last_free) {
@@ -99,14 +98,15 @@ record_chunks(char *disk, struct disk *d)
 }
 
 static void
-print_chunks(char *disk, struct disk *d)
+print_chunks(struct disk *d)
 {
     int row;
     int i;
 
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
-    attrset(A_BOLD); addstr(disk); attrset(A_NORMAL);
+    attrset(A_BOLD); addstr(d->name); attrset(A_NORMAL);
+    attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
 	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
 	     d->bios_cyl, d->bios_hd, d->bios_sect);
@@ -129,42 +129,34 @@ print_chunks(char *disk, struct disk *d)
 static void
 print_command_summary()
 {
-    mvprintw(15, 0, "The following commands are supported (in upper or lower case):");
+    mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
+    mvprintw(16, 0, "A = Use Entire Disk        B = Scan For Bad Blocks");
     mvprintw(17, 0, "C = Create New Partition   D = Delete Partition");
-    mvprintw(18, 0, "B = Scan For Bad Blocks    U = Undo All Changes");
-    mvprintw(19, 0, "W = Write Changes          ESC = Proceed to next screen");
+    mvprintw(18, 0, "G = Set BIOS Geometry      U = Undo All Changes");
+    mvprintw(19, 0, "W = `Wizard' Mode          ESC = Proceed to next screen");
     mvprintw(21, 0, "The currently selected partition is displayed in ");
     attrset(A_BOLD); addstr("bold"); attrset(A_NORMAL);
-    mvprintw(22, 0, "Use F1 or `?' for help on this screen");
     move(0, 0);
 }
 
 struct disk *
-device_slice_disk(char *disk)
+device_slice_disk(struct disk *d)
 {
-    struct disk *d;
     char *p;
     int key = 0;
     Boolean chunking;
     char *msg = NULL;
-
-    d = Open_Disk(disk);
-    if (!d)
-	msgFatal("Couldn't open disk `%s'!", disk);
-    p = CheckRules(d);
-    if (p) {
-	msgConfirm(p);
-	free(p);
-    }
+    char name[40];
 
     dialog_clear();
     chunking = TRUE;
+    strncpy(name, d->name, 40);
     keypad(stdscr, TRUE);
 
-    record_chunks(disk, d);
+    record_chunks(d);
     while (chunking) {
 	clear();
-	print_chunks(disk, d);
+	print_chunks(d);
 	print_command_summary();
 	if (msg) {
 	    standout(); mvprintw(23, 0, msg); standend();
@@ -203,10 +195,16 @@ device_slice_disk(char *disk)
 	    systemDisplayFile("slice.hlp");
 	    break;
 
+	case 'A':
+	    All_FreeBSD(d);
+	    record_chunks(d);
+	    break;
+
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
 		msg = "Can only scan for bad blocks in FreeBSD partition.";
-	    else
+	    else if (strncmp(name, "sd", 2) ||
+		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\nAre you sure you want to do this on a SCSI disk?"))
 		chunk_info[current_chunk]->flags |= CHUNK_BAD144;
 	    break;
 
@@ -220,13 +218,13 @@ device_slice_disk(char *disk)
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify size for new FreeBSD partition");
-		if (val && (size = atoi(val)) > 0) {
+		if (val && (size = strtol(val, 0, 0)) > 0) {
 		    Create_Chunk(d, chunk_info[current_chunk]->offset,
 				 size,
 				 freebsd,
 				 3,
 				 chunk_info[current_chunk]->flags);
-		    record_chunks(disk, d);
+		    record_chunks(d);
 		}
 	    }
 	    break;
@@ -236,21 +234,36 @@ device_slice_disk(char *disk)
 		msg = "Partition is already unused!";
 	    else {
 		Delete_Chunk(d, chunk_info[current_chunk]);
-		record_chunks(disk, d);
+		record_chunks(d);
 	    }
+	    break;
+
+	case 'G':
+	    /* Set geometry */
 	    break;
 
 	case 'U':
 	    Free_Disk(d);
-	    d = Open_Disk(disk);
-	    record_chunks(disk, d);
+	    d = Open_Disk(name);
+	    if (!d)
+		msgFatal("Can't reopen disk %s!", name);
+	    record_chunks(d);
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure you want to write this to disk?"))
-		Write_Disk(d);
+	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
+		clear();
+		dialog_clear();
+		end_dialog();
+		DialogActive = FALSE;
+		slice_wizard(d);
+		clear();
+		dialog_clear();
+		DialogActive = TRUE;
+		record_chunks(d);
+	    }
 	    else
-		msg = "Write not confirmed";
+		msg = "Wise choice!";
 	    break;
 
 	case 27:	/* ESC */
@@ -258,9 +271,15 @@ device_slice_disk(char *disk)
 	    break;
 
 	default:
-	    msg = "Invalid character typed.";
+	    beep();
+	    msg = "Type F1 or ? for help";
 	    break;
 	}
+    }
+    p = CheckRules(d);
+    if (p) {
+	msgConfirm(p);
+	free(p);
     }
     clear();
     refresh();

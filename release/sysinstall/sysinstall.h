@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.5 1995/05/04 03:51:22 jkh Exp $
+ * $Id: sysinstall.h,v 1.6 1995/05/04 19:48:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,6 +49,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <dialog.h>
+#include "libdisk.h"
 
 /*** Defines ***/
 
@@ -171,6 +172,7 @@ extern int		CpioFD;	  /* The file descriptor for our CPIO floppy */
 extern int		DebugFD;  /* Where diagnostic output goes	*/
 extern Boolean		OnCDROM;  /* Are we running off of a CDROM?	*/
 extern Boolean		OnSerial; /* Are we on a serial console?	*/
+extern Boolean		SystemWasInstalled; /* Did we install it?       */ 
 extern Boolean		DialogActive; /* Is the dialog() stuff up?	*/
 extern Variable		*VarHead; /* The head of the variable chain	*/
 extern unsigned int	Dists;    /* Which distributions we want        */
@@ -207,6 +209,14 @@ extern void	systemChangeFont(char *font);
 extern void	systemChangeLang(char *lang);
 extern void	systemChangeTerminal(char *color, char *mono);
 extern void	systemChangeScreenmap(char *newmap);
+
+/* disks.c */
+extern void	partition_disk(struct disk *disks);
+extern int	write_disks(struct disk **disks);
+extern void	make_filesystems(struct disk **disks);
+extern void	cpio_extract(struct disk **disks);
+extern void	extract_dists(struct disk **disks);
+extern void	do_final_setup(struct disk **disks);
 
 /* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
@@ -248,7 +258,7 @@ extern int	mediaSetFS(char *str);
 
 /* devices.c */
 extern Device	*device_get_all(DeviceType type, int *ndevs);
-extern struct disk *device_slice_disk(char *disk);
+extern struct disk *device_slice_disk(struct disk *d);
 extern DMenu	*device_create_disk_menu(DMenu *menu, Device **rdevs,
 					 int (*func)());
 
@@ -267,6 +277,9 @@ extern void	lang_set_Japanese(char *str);
 extern void	lang_set_Russian(char *str);
 extern void	lang_set_Spanish(char *str);
 extern void	lang_set_Swedish(char *str);
+
+/* wizard.c */
+extern void	slice_wizard(struct disk *d);
 
 #endif
 /* _SYSINSTALL_H_INCLUDE */

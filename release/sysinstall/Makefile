@@ -7,7 +7,8 @@ CLEANFILES=	makedevs.c rtermcap
 SRCS =	globals.c	main.c		dmenu.c		menus.c	\
 	misc.c		msg.c		system.c	install.c \
 	termcap.c	makedevs.c	media.c		variable.c \
-	devices.c	dist.c		lang.c
+	devices.c	dist.c		lang.c		wizard.c \
+	disks.c
 
 CFLAGS += -Wall -g -I${.CURDIR}/../libdisk
 
