@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+SRCS+=	__sparc_utrap.c __sparc_utrap_fp_disabled.S __sparc_utrap_gen.S \
+	__sparc_utrap_install.c __sparc_utrap_setup.c
+
 MDASM+=	brk.S cerror.S exect.S pipe.S ptrace.S sbrk.S setlogin.S
 
 # Don't generate default code for these syscalls:
