@@ -1056,17 +1056,20 @@ osf1_setuid(td, uap)
 	struct proc *p;
 	int error;
 	uid_t uid;
+	struct uidinfo *uip;
 	struct ucred *newcred, *oldcred;
 
 	p = td->td_proc;
 	uid = SCARG(uap, uid);
 	newcred = crget();
+	uip = uifind(uid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
 	if ((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 &&
 	    uid != oldcred->cr_ruid && uid != oldcred->cr_svuid) {
 		PROC_UNLOCK(p);
+		uifree(uip);
 		crfree(newcred);
 		return (error);
 	}
@@ -1074,7 +1077,7 @@ osf1_setuid(td, uap)
 	crcopy(newcred, oldcred);
 	if (error == 0) {
 		if (uid != oldcred->cr_ruid) {
-			change_ruid(newcred, uid);
+			change_ruid(newcred, uip);
 			setsugid(p);
 		}
 		if (oldcred->cr_svuid != uid) {
@@ -1083,11 +1086,12 @@ osf1_setuid(td, uap)
 		}
 	}
 	if (newcred->cr_uid != uid) {
-		change_euid(newcred, uid);
+		change_euid(newcred, uip);
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+	uifree(uip);
 	crfree(oldcred);
 	return (0);
 }

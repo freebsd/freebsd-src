@@ -128,6 +128,7 @@ execve(td, uap)
 	struct proc *p = td->td_proc;
 	struct nameidata nd, *ndp;
 	struct ucred *newcred = NULL, *oldcred;
+	struct uidinfo *euip;
 	register_t *stack_base;
 	int error, len, i;
 	struct image_params image_params, *imgp;
@@ -303,6 +304,7 @@ interpret:
 	 * Malloc things before we need locks.
 	 */
 	newcred = crget();
+	euip = uifind(attr.va_uid);
 	i = imgp->endargs - imgp->stringbase;
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs))
 		newargs = pargs_alloc(i);
@@ -390,7 +392,7 @@ interpret:
 		 */
 		crcopy(newcred, oldcred);
 		if (attr.va_mode & VSUID)
-			change_euid(newcred, attr.va_uid);
+			change_euid(newcred, euip);
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
 		setugidsafety(td);
@@ -472,6 +474,7 @@ interpret:
 	/*
 	 * Free any resources malloc'd earlier that we didn't use.
 	 */
+	uifree(euip);
 	if (newcred == NULL)
 		crfree(oldcred);
 	else
