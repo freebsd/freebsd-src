@@ -2288,8 +2288,3 @@ struct bge_softc {
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
 };
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif
