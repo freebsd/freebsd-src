@@ -29,7 +29,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: usrdb.c,v 1.1.1.1 1994/09/26 21:22:57 davidg Exp $";
+static char rcsid[] = "$Id: usrdb.c,v 1.2 1995/05/30 03:51:42 rgrimes Exp $";
 #endif
 
 #include <sys/types.h>
@@ -37,6 +37,8 @@ static char rcsid[] = "$Id: usrdb.c,v 1.1.1.1 1994/09/26 21:22:57 davidg Exp $";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
 #include "extern.h"
 #include "pathnames.h"
 
@@ -171,7 +173,6 @@ usracct_update()
 	DB *saved_usracct_db;
 	DBT key, data;
 	BTREEINFO bti;
-	u_long uid;
 	int error, serr, nerr;
 
 	bzero(&bti, sizeof bti);
@@ -211,7 +212,6 @@ usracct_update()
 		warn("syncing process accounting summary");
 		error = -1;
 	}
-out:
 	if (DB_CLOSE(saved_usracct_db) < 0) {
 		warn("closing process accounting summary");
 		error = -1;
@@ -242,7 +242,7 @@ usracct_print()
 		if (t < 0.0001)		/* kill divide by zero */
 			t = 0.0001;
 
-		printf("%12.2lf%s ", t / 60.0, "cpu");
+		printf("%12.2f%s ", t / 60.0, "cpu");
 
 		/* ui->ui_calls is always != 0 */
 		if (dflag)

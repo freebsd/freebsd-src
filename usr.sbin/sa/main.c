@@ -33,7 +33,7 @@ static char copright[] =
 "@(#) Copyright (c) 1994 Christopher G. Demetriou\n\
  All rights reserved.\n";
 
-static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
+static char rcsid[] = "$Id: main.c,v 1.2 1995/05/30 03:51:39 rgrimes Exp $";
 #endif
 
 /*
@@ -48,6 +48,7 @@ static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "extern.h"
 #include "pathnames.h"
@@ -349,7 +350,7 @@ acct_load(pn, wr)
 			if (sflag || (mflag && !qflag))
 				usracct_add(&ci);
 		} else if (!qflag)
-			printf("%6u %12.2lf cpu %12quk mem %12qu io %s\n",
+			printf("%6lu %12.2f cpu %12quk mem %12qu io %s\n",
 			    ci.ci_uid,
 			    (ci.ci_utime + ci.ci_stime) / (double) AHZ,
 			    ci.ci_mem, ci.ci_io, ci.ci_comm);
