@@ -224,6 +224,8 @@ The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).  [MERGED]
 
+FDDI networking using Digital Equipment DEFPA PCI FDDI adapters is now
+supported.
 
 1.2. SECURITY FIXES
 -------------------
@@ -841,7 +843,7 @@ takers?
 2.3. FDDI
 ---------
 
-none on FreeBSD/alpha
+Digital Equipment DEFPA PCI adapters are supported.,
 
 
 2.4. ATM
