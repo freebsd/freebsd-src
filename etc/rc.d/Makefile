@@ -5,8 +5,8 @@
 
 FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz amd \
 	apm apmd archdep atm1 atm2 atm3 bgfsck bootparams ccd cleanvar \
-	cleartmp cron devd devfs dhclient diskless dmesg dumpon fsck \
-	hostname inetd initdiskless initrandom ip6fw ipfilter ipfs ipfw ipmon \
+	cleartmp cron devd devfs dhclient diskless dmesg dumpon early.sh fsck \
+	gbde hostname inetd initdiskless initrandom ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted isdnd jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
 	ldconfig local localdaemons lomac lpd \
