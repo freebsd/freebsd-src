@@ -35,7 +35,7 @@
 
 #include <machine/psl.h>
 
-#define	CRITICAL_FORK	(mfmsr() | PSL_EE | PSL_RI)
+struct thread;
 
 #ifdef __GNUC__
 
@@ -108,29 +108,8 @@ intr_restore(register_t msr)
 	mtmsr(msr);
 }
 
-static __inline critical_t
-cpu_critical_enter(void)
-{
-	u_int		msr;
-	critical_t	crit;
-
-	msr = mfmsr();
-	crit = (critical_t)msr;
-	msr &= ~(PSL_EE | PSL_RI);
-	mtmsr(msr);
-	
-	return (crit);
-}
-
 static __inline void
 restore_intr(unsigned int msr)
-{
-
-	mtmsr(msr);
-}
-
-static __inline void
-cpu_critical_exit(critical_t msr)
 {
 
 	mtmsr(msr);
@@ -152,6 +131,12 @@ powerpc_get_pcpup(void)
 
 	return(ret);
 }
+
+void	cpu_critical_enter(void);
+void	cpu_critical_exit(void);
+void	cpu_critical_fork_exit(void);
+void	cpu_thread_link(struct thread *td);
+
 
 #endif /* _KERNEL */
 

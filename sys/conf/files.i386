@@ -199,6 +199,7 @@ i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/busdma_machdep.c	standard
+i386/i386/critical.c		standard
 i386/i386/db_disasm.c		optional	ddb
 i386/i386/db_interface.c	optional	ddb
 i386/i386/db_trace.c		optional	ddb

@@ -802,11 +802,15 @@ cpu_idle(void)
 #ifndef SMP
 	if (cpu_idle_hlt) {
 		disable_intr();
-  		if (procrunnable())
+		if (procrunnable()) {
 			enable_intr();
-		else {
-			enable_intr();
-			__asm __volatile("hlt");
+		} else {
+			/*
+			 * we must absolutely guarentee that hlt is the
+			 * absolute next instruction after sti or we
+			 * introduce a timing window.
+			 */
+			__asm __volatile("sti; hlt");
 		}
 	}
 #endif
@@ -1693,12 +1697,17 @@ init386(first)
 
 	/*
 	 * Initialize mutexes.
+	 *
+	 * icu_lock: in order to allow an interrupt to occur in a critical
+	 * 	     section, to set pcpu->ipending (etc...) properly, we
+	 *	     must be able to get the icu lock, so it can't be
+	 *	     under witness.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
 	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&icu_lock, "icu", MTX_SPIN);
+	mtx_init(&icu_lock, "icu", MTX_SPIN | MTX_NOWITNESS);
 	mtx_lock(&Giant);
 
 	/* make ldt memory segments */

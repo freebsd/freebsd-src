@@ -28,6 +28,7 @@ sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard
 sparc64/sparc64/clock.c		standard
 sparc64/sparc64/counter.c	standard
+sparc64/sparc64/critical.c	standard
 sparc64/sparc64/db_disasm.c	optional	ddb
 sparc64/sparc64/db_interface.c	optional	ddb
 sparc64/sparc64/db_trace.c	optional	ddb

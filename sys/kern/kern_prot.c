@@ -338,10 +338,9 @@ getgroups(td, uap)
 	ngrp = cred->cr_ngroups;
 	error = copyout((caddr_t)cred->cr_groups, (caddr_t)uap->gidset,
 	    ngrp * sizeof(gid_t));
-	if (error)
-		return (error);
-	td->td_retval[0] = ngrp;
-	return (0);
+	if (error == 0)
+	    td->td_retval[0] = ngrp;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1112,11 +1111,9 @@ getresuid(td, uap)
 	struct getresuid_args *uap;
 {
 	struct ucred *cred;
-	struct proc *p = td->td_proc;
 	int error1 = 0, error2 = 0, error3 = 0;
 
-	mtx_lock(&Giant);
-	cred = p->p_ucred;
+	cred = td->td_ucred;
 	if (uap->ruid)
 		error1 = copyout((caddr_t)&cred->cr_ruid,
 		    (caddr_t)uap->ruid, sizeof(cred->cr_ruid));
@@ -1126,7 +1123,6 @@ getresuid(td, uap)
 	if (uap->suid)
 		error3 = copyout((caddr_t)&cred->cr_svuid,
 		    (caddr_t)uap->suid, sizeof(cred->cr_svuid));
-	mtx_unlock(&Giant);
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1147,11 +1143,9 @@ getresgid(td, uap)
 	struct getresgid_args *uap;
 {
 	struct ucred *cred;
-	struct proc *p = td->td_proc;
 	int error1 = 0, error2 = 0, error3 = 0;
 
-	mtx_lock(&Giant);
-	cred = p->p_ucred;
+	cred = td->td_ucred;
 	if (uap->rgid)
 		error1 = copyout((caddr_t)&cred->cr_rgid,
 		    (caddr_t)uap->rgid, sizeof(cred->cr_rgid));
@@ -1161,7 +1155,6 @@ getresgid(td, uap)
 	if (uap->sgid)
 		error3 = copyout((caddr_t)&cred->cr_svgid,
 		    (caddr_t)uap->sgid, sizeof(cred->cr_svgid));
-	mtx_unlock(&Giant);
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1233,6 +1226,8 @@ __setugid(td, uap)
 
 /*
  * Check if gid is a member of the group set.
+ *
+ * MPSAFE (cred must be held)
  */
 int
 groupmember(gid, cred)
@@ -1289,6 +1284,8 @@ suser_td(td)
 
 /*
  * wrapper to use if you have the thread on hand but not the proc.
+ *
+ * MPSAFE (cred must be held)
  */
 int
 suser_xxx_td(cred, td, flag)
@@ -1330,6 +1327,8 @@ suser_xxx(cred, proc, flag)
  * existing securelevel checks that occurred without a process/credential
  * context.  In the future this will be disallowed, so a kernel message
  * is displayed.
+ *
+ * MPSAFE
  */
 int
 securelevel_gt(struct ucred *cr, int level)
