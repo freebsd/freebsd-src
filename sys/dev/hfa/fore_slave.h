@@ -135,7 +135,6 @@ typedef volatile unsigned char	Fore_mem;	/* Slave memory */
  * PCI Identifiers
  */
 #define	FORE_VENDOR_ID		0x1127
-#define	FORE_PCA200E_ID		0x0300
 
 /*
  * PCA-200E PCI Configuration Space
