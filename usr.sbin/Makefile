@@ -101,7 +101,6 @@ SUBDIR=	IPXrouted \
 	sliplogin \
 	slstat \
 	spray \
-	sysinstall \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
@@ -196,6 +195,10 @@ SUBDIR+=boot98cfg
 
 .if ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=ofwdump
+.endif
+
+.if ${MACHINE} == "i386" || ${MACHINE} == "alpha" || ${MACHINE} == "pc98"
+SUBDIR+=	sysinstall
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
