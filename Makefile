@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.178 1998/05/16 22:20:44 jb Exp $
+#	$Id: Makefile,v 1.179 1998/05/18 03:28:02 jb Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -584,6 +584,10 @@ lib-tools:
 		usr.bin/mk_cmds		\
 		usr.bin/nm		\
 		usr.bin/ranlib		\
+		usr.bin/strip		\
+		usr.bin/objformat	\
+		usr.bin/env		\
+		gnu/usr.bin/binutils	\
 		usr.bin/uudecode
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
