@@ -478,8 +478,7 @@ struct pthread {
 #define	PTHREAD_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
 	char			*name;
-	u_int64_t		uniqueid; /* for gdb */
-	thr_id_t		thr_id;
+	long			thr_id;
 	sigset_t		savedsig;
 	int			signest; /* blocked signal netsting level */
 	int			ptdflags; /* used by other other threads

@@ -799,11 +799,11 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 
 	name = pthread->name ? pthread->name : "unknown";
 	if ((pthread->flags & PTHREAD_FLAGS_IN_CONDQ) != 0)
-		_thread_printf(2, "Thread (%s:%u) already on condq\n",
-		    pthread->name, pthread->uniqueid);
+		_thread_printf(2, "Thread (%s:%ld) already on condq\n",
+		    pthread->name, pthread->thr_id);
 	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0)
-		_thread_printf(2, "Thread (%s:%u) already on mutexq\n",
-		    pthread->name, pthread->uniqueid);
+		_thread_printf(2, "Thread (%s:%ld) already on mutexq\n",
+		    pthread->name, pthread->thr_id);
 	PTHREAD_ASSERT_NOT_IN_SYNCQ(pthread);
 	/*
 	 * For the common case of all threads having equal priority,

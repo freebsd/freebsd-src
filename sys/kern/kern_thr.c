@@ -118,11 +118,12 @@ thr_exit1(void)
  */
 int
 thr_create(struct thread *td, struct thr_create_args *uap)
-    /* ucontext_t *ctx, thr_id_t *id, int flags */
+    /* ucontext_t *ctx, long *id, int flags */
 {
 	struct kse *ke0;
 	struct thread *td0;
 	ucontext_t ctx;
+	long id;
 	int error;
 
 	if ((error = copyin(uap->ctx, &ctx, sizeof(ctx))))
@@ -135,7 +136,8 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	 * Try the copyout as soon as we allocate the td so we don't have to
 	 * tear things down in a failure case below.
 	 */
-	if ((error = copyout(&td0, uap->id, sizeof(thr_id_t)))) {
+	id = td0->td_tid;
+	if ((error = copyout(&id, uap->id, sizeof(long)))) {
 		thread_free(td0);
 		return (error);
 	}
@@ -163,7 +165,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 		kse_free(ke0);
 		thread_free(td0);
 		goto out;
-	} 
+	}
 
 	/* Link the thread and kse into the ksegrp and make it runnable. */
 	mtx_lock_spin(&sched_lock);
@@ -190,11 +192,13 @@ out:
 
 int
 thr_self(struct thread *td, struct thr_self_args *uap)
-    /* thr_id_t *id */
+    /* long *id */
 {
+	long id;
 	int error;
 
-	if ((error = copyout(&td, uap->id, sizeof(thr_id_t))))
+	id = td->td_tid;
+	if ((error = copyout(&id, uap->id, sizeof(long))))
 		return (error);
 
 	return (0);
@@ -223,7 +227,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 int
 thr_kill(struct thread *td, struct thr_kill_args *uap)
-    /* thr_id_t id, int sig */
+    /* long id, int sig */
 {
 	struct thread *ttd;
 	struct proc *p;
@@ -233,7 +237,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 	error = 0;
 	PROC_LOCK(p);
 	FOREACH_THREAD_IN_PROC(p, ttd) {
-		if (ttd == uap->id)
+		if (ttd->td_tid == uap->id)
 			break;
 	}
 	if (ttd == NULL) {
@@ -291,14 +295,13 @@ thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 
 int
 thr_wake(struct thread *td, struct thr_wake_args *uap)
-	/* thr_id_t id */
+	/* long id */
 {
-	struct thread *tdsleeper, *ttd;
+	struct thread *ttd;
 
-	tdsleeper = ((struct thread *)uap->id);
 	PROC_LOCK(td->td_proc);
 	FOREACH_THREAD_IN_PROC(td->td_proc, ttd) {
-		if (ttd == tdsleeper)
+		if (ttd->td_tid == uap->id)
 			break;
 	}
 	if (ttd == NULL) {
@@ -306,9 +309,9 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 		return (ESRCH);
 	}
 	mtx_lock_spin(&sched_lock);
-	tdsleeper->td_flags |= TDF_THRWAKEUP;
+	ttd->td_flags |= TDF_THRWAKEUP;
 	mtx_unlock_spin(&sched_lock);
-	wakeup_one((void *)tdsleeper);
+	wakeup_one((void *)ttd);
 	PROC_UNLOCK(td->td_proc);
 	return (0);
 }

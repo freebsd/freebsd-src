@@ -613,10 +613,10 @@
 428	MSTD	{ int __acl_aclcheck_link(const char *path, \
 		    acl_type_t type, struct acl *aclp); }
 429	MSTD	{ int sigwait(const sigset_t *set, int *sig); }
-430	MSTD	{ int thr_create(ucontext_t *ctx, thr_id_t *id, int flags); }
+430	MSTD	{ int thr_create(ucontext_t *ctx, long *id, int flags); }
 431	MSTD	{ void thr_exit(void); }
-432	MSTD	{ int thr_self(thr_id_t *id); }
-433	MSTD	{ int thr_kill(thr_id_t id, int sig); }
+432	MSTD	{ int thr_self(long *id); }
+433	MSTD	{ int thr_kill(long id, int sig); }
 434	MSTD	{ int _umtx_lock(struct umtx *umtx); }
 435	MSTD	{ int _umtx_unlock(struct umtx *umtx); }
 436	MSTD	{ int jail_attach(int jid); }
@@ -630,6 +630,6 @@
 		    long val, long *loc); }
 441	MNOSTD	{ int ksem_timedwait(semid_t id, struct timespec *abstime); }
 442	MSTD	{ int thr_suspend(const struct timespec *timeout); }
-443	MSTD	{ int thr_wake(thr_id_t id); }
+443	MSTD	{ int thr_wake(long id); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
