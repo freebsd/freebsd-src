@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.10 1996/04/18 10:34:07 ache Exp $
+#	$Id: security,v 1.11 1996/04/19 22:28:01 ache Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -20,7 +20,7 @@ echo "checking setuid files and devices:"
 # note that one of the original problem, the possibility of overrunning
 # the args to ls, is still here...
 #
-MP=`mount -t ufs | sed 's;/dev/;&r;' | awk '{ print $3 }'`
+MP=`mount -t ufs | grep -v " nosuid" | sed 's;/dev/;&r;' | awk '{ print $3 }'`
 set $MP
 while test $# -ge 1; do
 	mount=$1
