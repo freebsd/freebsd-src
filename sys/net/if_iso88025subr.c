@@ -306,13 +306,13 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct 
 		splx(s);
 		senderr(ENOBUFS);
 	}
+	if (m->m_flags & M_MCAST)
+		ifp->if_omcasts++;
 	IF_ENQUEUE(&ifp->if_snd, m);
         if ((ifp->if_flags & IFF_OACTIVE) == 0)
 		(*ifp->if_start)(ifp);
 	splx(s);
 	ifp->if_obytes += len + ISO88025_HDR_LEN + 8;
-	if (m->m_flags & M_MCAST)
-		ifp->if_omcasts++;
 	return (error);
 
 bad:
