@@ -73,7 +73,7 @@ struct ispmdvec {
 	void		(*dv_reset0) (struct ispsoftc *);
 	void		(*dv_reset1) (struct ispsoftc *);
 	void		(*dv_dregs) (struct ispsoftc *, const char *);
-	const u_int16_t	*dv_ispfw;	/* ptr to f/w */
+	u_int16_t	*dv_ispfw;	/* ptr to f/w */
 	u_int16_t	dv_conf1;
 	u_int16_t	dv_clock;	/* clock frequency */
 };
@@ -350,7 +350,8 @@ typedef struct ispsoftc {
 	u_int32_t		isp_maxluns;	/* maximum luns supported */
 
 	u_int32_t		isp_clock	: 8,	/* input clock */
-						: 5,
+						: 4,
+				isp_port	: 1,	/* 23XX only */
 				isp_failed	: 1,	/* board failed */
 				isp_open	: 1,	/* opened (ioctl) */
 				isp_touched	: 1,	/* board ever seen? */
@@ -395,6 +396,10 @@ typedef struct ispsoftc {
 	volatile u_int16_t	isp_lasthdls;	/* last handle seed */
 	volatile u_int16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile u_int16_t	isp_lastmbxcmd;	/* last mbox command sent */
+	volatile u_int16_t	isp_mbxwrk0;
+	volatile u_int16_t	isp_mbxwrk1;
+	volatile u_int16_t	isp_mbxwrk2;
+	void *			isp_mbxworkp;
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
@@ -772,6 +777,8 @@ void isp_prt(struct ispsoftc *, int level, const char *, ...);
  *	MBOX_NOTIFY_COMPLETE(struct ispsoftc *)	notification of mbox cmd donee
  *	MBOX_RELEASE(struct ispsoftc *)		release lock on mailbox regs
  *
+ *	FC_SCRATCH_ACQUIRE(struct ispsoftc *)	acquire lock on FC scratch area
+ *	FC_SCRATCH_RELEASE(struct ispsoftc *)	acquire lock on FC scratch area
  *
  *	SCSI_GOOD	SCSI 'Good' Status
  *	SCSI_CHECK	SCSI 'Check Condition' Status

@@ -496,10 +496,16 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
 	}
-	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2300 ||
-	    pci_get_devid(dev) == PCI_QLOGIC_ISP2312) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2300) {
 		mdvp = &mdvec_2300;
 		basetype = ISP_HA_FC_2300;
+		psize = sizeof (fcparam);
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
+		    PCI_MBOX_REGS2300_OFF;
+	}
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2312) {
+		mdvp = &mdvec_2300;
+		basetype = ISP_HA_FC_2312;
 		psize = sizeof (fcparam);
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2300_OFF;
@@ -535,6 +541,9 @@ isp_pci_attach(device_t dev)
 	 */
 	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN |
 		PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
+	if (IS_2300(isp)) {	/* per QLogic errata */
+		cmd &= ~PCIM_CMD_INVEN;
+	}
 	pci_write_config(dev, PCIR_COMMAND, cmd, 1);
 
 	/*
@@ -682,6 +691,13 @@ isp_pci_attach(device_t dev)
 	}
 	if (bootverbose)
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
+
+	/*
+	 * Last minute checks...
+	 */
+	if (IS_2312(isp)) {
+		isp->isp_port = pci_get_function(dev);
+	}
 
 	/*
 	 * Make sure we're in reset state.
@@ -852,6 +868,7 @@ isp_pci_rd_isr_2300(struct ispsoftc *isp, u_int16_t *isrp,
 	case ISPR2HST_MBX_OK:
 	case ISPR2HST_MBX_FAIL:
 	case ISPR2HST_ASYNC_EVENT:
+	case ISPR2HST_RIO_16:
 	case ISPR2HST_FPOST:
 	case ISPR2HST_FPOST_CTIO:
 		*isrp = r2hisr & 0xffff;
