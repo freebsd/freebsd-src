@@ -60,13 +60,6 @@ ${mc:T:R}.cf: ${mc}
 
 all: ${ALL}
 
-# Build the installed submit.cf from the sendmail distributed submit.mc.
-freebsd.submit.cf:	${SENDMAIL_CF_DIR}/cf/submit.mc
-	${RM} ${.TARGET}
-	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_M4_FLAGS} \
-	    ${SENDMAIL_CF_DIR}/m4/cf.m4 ${.ALLSRC} > ${.TARGET}
-	${CHMOD} ${ROMODE} ${.TARGET}
-
 install distribution:
 .if defined(SENDMAIL_MC) && defined(SENDMAIL_CF)
 	@echo ">>> ERROR: Both SENDMAIL_MC and SENDMAIL_CF cannot be set"
@@ -76,10 +69,7 @@ install distribution:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${.CURDIR}/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${SENDMAIL_CF_DIR}/cf/submit.mc \
-	    ${DESTDIR}/etc/mail/freebsd.submit.mc
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    freebsd.submit.cf ${DESTDIR}/etc/mail
+	    ${.CURDIR}/freebsd.submit.mc freebsd.submit.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 \
