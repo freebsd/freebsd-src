@@ -1,4 +1,4 @@
-TESTS = test corner ensor getch ncurses bs gdc hanoi knight rain worm \
+TESTS = test corner ensor getch ncurses hanoi knight rain worm \
 	over scroll2 battle newdemo scroll3 xmas copy firework testcurs \
 	scroll
 
@@ -16,8 +16,6 @@ corner: corner.c
 ensor: ensor.c
 getch: getch.c
 ncurses: ncurses.c
-bs: bs.c
-gdc: gdc.c
 hanoi: hanoi.c
 knight: knight.c
 rain: rain.c
