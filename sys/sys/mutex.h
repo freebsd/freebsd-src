@@ -97,7 +97,7 @@
  * [See below for descriptions]
  *
  */
-void	mtx_init(struct mtx *m, const char *description, int opts);
+void	mtx_init(struct mtx *m, const char *name, const char *type, int opts);
 void	mtx_destroy(struct mtx *m);
 void	mtx_sysinit(void *arg);
 void	mutex_init(void);
@@ -369,6 +369,11 @@ struct mtx_args {
 #define mtx_assert(m, what)
 #define GIANT_REQUIRED
 #endif	/* INVARIANTS */
+
+/*
+ * Common lock type names.
+ */
+#define	MTX_NETWORK_LOCK	"network driver"
 
 #endif	/* _KERNEL */
 #endif	/* !LOCORE */
