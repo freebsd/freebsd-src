@@ -75,7 +75,7 @@ sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		    sig != SIGINFO) {
 			/* Initialise the global signal action structure: */
 			gact.sa_mask = act->sa_mask;
-			gact.sa_flags = act->sa_flags | SA_RESTART;
+			gact.sa_flags = 0;
 
 			/*
 			 * Check if the signal handler is being set to
