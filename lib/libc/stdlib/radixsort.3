@@ -41,9 +41,9 @@
 .Fd #include <limits.h>
 .Fd #include <stdlib.h>
 .Ft int
-.Fn radixsort "u_char **base" "int nmemb" "u_char *table" "u_int endbyte"
+.Fn radixsort "const unsigned char **base" "int nmemb" "const unsigned char *table" "unsigned endbyte"
 .Ft int
-.Fn sradixsort "u_char **base" "int nmemb" "u_char *table" "u_int endbyte"
+.Fn sradixsort "const unsigned char **base" "int nmemb" "const unsigned char *table" "unsigned endbyte"
 .Sh DESCRIPTION
 The
 .Fn radixsort
