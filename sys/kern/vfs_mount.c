@@ -971,18 +971,18 @@ checkdirs(olddp, newdp)
 			continue;
 		}
 		nrele = 0;
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		if (fdp->fd_cdir == olddp) {
-			VREF(newdp);
+			vref(newdp);
 			fdp->fd_cdir = newdp;
 			nrele++;
 		}
 		if (fdp->fd_rdir == olddp) {
-			VREF(newdp);
+			vref(newdp);
 			fdp->fd_rdir = newdp;
 			nrele++;
 		}
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		mtx_unlock(&fdesc_mtx);
 		while (nrele--)
 			vrele(olddp);
@@ -990,7 +990,7 @@ checkdirs(olddp, newdp)
 	sx_sunlock(&allproc_lock);
 	if (rootvnode == olddp) {
 		vrele(rootvnode);
-		VREF(newdp);
+		vref(newdp);
 		rootvnode = newdp;
 	}
 }
