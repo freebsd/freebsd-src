@@ -31,14 +31,17 @@
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 /*
  * unset the secret key on local machine
  */
+
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 
 int
@@ -54,7 +57,7 @@ main(argc,argv)
 "keylogout by root would break all servers that use secure rpc!\n");
 			fprintf(stderr,
 "root may use keylogout -f to do this (at your own risk)!\n");
-			exit(-1);
+			exit(1);
 		}
 	}
 
