@@ -91,42 +91,6 @@ and
 except that they write rather than read.  The
 .Fa data
 argument supplies the value to be written.
-.It Dv PT_READ_U
-This request reads an
-.Vt int
-from the traced process' user structure.  The
-.Fa addr
-argument specifies the location of the int relative to the base of the
-user structure; it will usually be an integer value cast to
-.Vt caddr_t
-either explicitly or via the presence of a prototype for
-.Eo \&
-.Fn ptrace
-.Ec .
-Unlike
-.Dv PT_READ_I
-and
-.Dv PT_READ_D ,
-.Fa addr
-must be aligned on an
-.Vt int
-boundary.  The value read is returned as the return value from
-.Eo \&
-.Fn ptrace
-.Ec .
-.It Dv PT_WRITE_U
-This request writes an
-.Vt int
-into the traced process' user structure.
-.Fa addr
-specifies the offset, just as for
-.Dv PT_READ_U ,
-and
-.Fa data
-specifies the value to be written, just as for
-.Dv PT_WRITE_I
-and
-.Dv PT_WRITE_D .
 .It Dv PT_CONTINUE
 The traced process continues execution.
 .Fa addr
@@ -263,15 +227,6 @@ on itself.
 The
 .Fa request
 was not one of the legal requests.
-.It
-The
-.Fa addr
-to
-.Dv PT_READ_U
-or
-.Dv PT_WRITE_U
-was not
-.Vt int Ns \-aligned .
 .It
 The signal number (in
 .Fa data )
