@@ -247,7 +247,7 @@ read_files()
 	register struct device *dp;
 	struct device *save_dp;
 	register struct opt *op;
-	char *wd, *this, *needs, *special, *depends, *clean;
+	char *wd, *this, *needs, *special, *depends, *clean, *warn;
 	char fname[80];
 	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
@@ -270,7 +270,7 @@ next:
 	 *	[ dev* | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
-	 *	[ clean "file-list"]
+	 *	[ clean "file-list"] [ warning "text warning" ]
 	 */
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
@@ -322,6 +322,7 @@ next:
 	special = 0;
 	depends = 0;
 	clean = 0;
+	warn = 0;
 	configdep = 0;
 	needs = 0;
 	std = mandatory = 0;
@@ -398,6 +399,16 @@ nextparam:
 		special = ns(wd);
 		goto nextparam;
 	}
+	if (eq(wd, "warning")) {
+		next_quoted_word(fp, wd);
+		if (wd == 0) {
+			printf("%s: %s missing warning text string.\n",
+				fname, this);
+			exit(1);
+		}
+		warn = ns(wd);
+		goto nextparam;
+	}
 	nreqs++;
 	if (eq(wd, "local")) {
 		filetype = LOCAL;
@@ -464,6 +475,7 @@ invis:
 	tp->f_special = special;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
+	tp->f_warn = warn;
 	goto next;
 
 doneparam:
@@ -501,6 +513,7 @@ doneparam:
 	tp->f_special = special;
 	tp->f_depends = depends;
 	tp->f_clean = clean;
+	tp->f_warn = warn;
 	if (pf && pf->f_type == INVISIBLE)
 		pf->f_flags = 1;		/* mark as duplicate */
 	goto next;
@@ -689,6 +702,8 @@ do_rules(f)
 	for (ftp = ftab; ftp != 0; ftp = ftp->f_next) {
 		if (ftp->f_type == INVISIBLE)
 			continue;
+		if (ftp->f_warn)
+			printf("WARNING: %s\n", ftp->f_warn);
 		cp = (np = ftp->f_fn) + strlen(ftp->f_fn) - 1;
 		och = *cp;
 		if (ftp->f_flags & NO_IMPLCT_RULE) {
