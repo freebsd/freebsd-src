@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.42 1998/11/05 10:51:21 dg Exp $";
+	"$Id: syslogd.c,v 1.43 1998/12/04 06:49:20 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -1066,6 +1066,7 @@ cvthname(f)
 	struct sockaddr_in *f;
 {
 	struct hostent *hp;
+	sigset_t omask, nmask;
 	char *p;
 
 	dprintf("cvthname(%s)\n", inet_ntoa(f->sin_addr));
@@ -1074,8 +1075,12 @@ cvthname(f)
 		dprintf("Malformed from address\n");
 		return ("???");
 	}
+	sigemptyset(&nmask);
+	sigaddset(&nmask, SIGHUP);
+	sigprocmask(SIG_BLOCK, &nmask, &omask);
 	hp = gethostbyaddr((char *)&f->sin_addr,
 	    sizeof(struct in_addr), f->sin_family);
+	sigprocmask(SIG_SETMASK, &omask, NULL);
 	if (hp == 0) {
 		dprintf("Host name for your address (%s) unknown\n",
 			inet_ntoa(f->sin_addr));
