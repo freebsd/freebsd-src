@@ -103,25 +103,28 @@ random_read(dev_t dev __unused, struct uio *uio, int flag)
 {
 	int c, error = 0;
 
+	mtx_lock(&random_systat.lock);
+
 	/* Blocking logic */
 	while (!random_systat.seeded && !error) {
 		if (flag & IO_NDELAY)
 			error = EWOULDBLOCK;
 		else
-			error = tsleep(&random_systat,
+			error = msleep(&random_systat, &random_systat.lock,
 			    PUSER | PCATCH, "block", 0);
 	}
 
 	/* The actual read */
 	if (!error) {
-		mtx_lock(&random_systat.lock);
 		while (uio->uio_resid > 0 && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
 			c = (*random_systat.read)(random_buf, c);
 			error = uiomove(random_buf, c, uio);
 		}
-		mtx_unlock(&random_systat.lock);
 	}
+
+	mtx_unlock(&random_systat.lock);
+
 	return (error);
 }
 
