@@ -119,7 +119,7 @@ getpath(void)
 		err(1, "getting path: sysctl(%s) - size only", pathctl);
 	if ((path = malloc(sz + 1)) == NULL) {
 		errno = ENOMEM;
-		err(1, "allocating %u bytes for the path", sz+1);
+		err(1, "allocating %lu bytes for the path", (long)sz+1);
 	}
 	if (sysctl(mib, miblen, path, &sz, NULL, NULL) == -1)
 		err(1, "getting path: sysctl(%s)", pathctl);
