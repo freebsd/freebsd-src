@@ -200,9 +200,6 @@ get_dirlist ()
       if (*bp == '#' || *bp == '\n')
 	continue;
 
-      if (!strncmp ("MANBIN", bp, 6))
-	continue;
-
       if (!strncmp ("MANDATORY_MANPATH", bp, 17) ||
 	  !strncmp ("OPTIONAL_MANPATH", bp, 16))
 	{
