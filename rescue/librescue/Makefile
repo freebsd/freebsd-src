@@ -27,7 +27,6 @@ CFLAGS+=	-DPORTMAP
 CFLAGS+=	-DDES_BUILTIN
 CFLAGS+=	-DYP
 CFLAGS+=	-DHESIOD
-CFLAGS+=	-Wall -Wwrite-strings -Wpointer-arith
 
 .PATH: ${.CURDIR}/../../lib/libc/gen ${.CURDIR}/../../lib/libutil ${.CURDIR}/../../lib/libc/net ${.CURDIR}/../../lib/libc/stdlib
 
