@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)dirs.c	8.2 (Berkeley) 1/21/94";
+static char sccsid[] = "@(#)dirs.c	8.7 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,9 +45,9 @@ static char sccsid[] = "@(#)dirs.c	8.2 (Berkeley) 1/21/94";
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
+#include <ufs/ffs/fs.h>
 #include <protocols/dumprestore.h>
 
 #include <errno.h>
@@ -81,9 +81,10 @@ static struct inotab *inotab[HASHSIZE];
 struct modeinfo {
 	ino_t ino;
 	struct timeval timep[2];
-	short mode;
-	short uid;
-	short gid;
+	mode_t mode;
+	uid_t uid;
+	gid_t gid;
+	int flags;
 };
 
 /*
@@ -272,7 +273,7 @@ treescan(pname, ino, todo)
 	/*
 	 * a zero inode signals end of directory
 	 */
-	while (dp != NULL && dp->d_ino != 0) {
+	while (dp != NULL) {
 		locname[namelen] = '\0';
 		if (namelen + dp->d_namlen >= sizeof(locname)) {
 			fprintf(stderr, "%s%s: name exceeds %d char\n",
@@ -285,8 +286,6 @@ treescan(pname, ino, todo)
 		dp = rst_readdir(dirp);
 		bpt = rst_telldir(dirp);
 	}
-	if (dp == NULL)
-		fprintf(stderr, "corrupted directory: %s.\n", locname);
 }
 
 /*
@@ -334,7 +333,7 @@ searchdir(inum, name)
 	len = strlen(name);
 	do {
 		dp = rst_readdir(dirp);
-		if (dp == NULL || dp->d_ino == 0)
+		if (dp == NULL)
 			return (NULL);
 	} while (dp->d_namlen != len || strncmp(dp->d_name, name, len) != 0);
 	return (dp);
@@ -367,12 +366,13 @@ putdir(buf, size)
 			if (Bcvt)
 				swabst((u_char *)"ls", (u_char *) dp);
 			if (oldinofmt && dp->d_ino != 0) {
-#if BYTE_ORDER == BIG_ENDIAN
-				if (Bcvt)
-#else
-				if (!Bcvt)
-#endif
-					dp->d_namlen = dp->d_type;
+#				if BYTE_ORDER == BIG_ENDIAN
+					if (Bcvt)
+						dp->d_namlen = dp->d_type;
+#				else
+					if (!Bcvt)
+						dp->d_namlen = dp->d_type;
+#				endif
 				dp->d_type = DT_UNKNOWN;
 			}
 			i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
@@ -425,7 +425,7 @@ putent(dp)
 		(void) fwrite(dirbuf, 1, DIRBLKSIZ, df);
 		dirloc = 0;
 	}
-	bcopy((char *)dp, dirbuf + dirloc, (long)dp->d_reclen);
+	memmove(dirbuf + dirloc, dp, (long)dp->d_reclen);
 	prev = dirloc;
 	dirloc += dp->d_reclen;
 }
@@ -448,7 +448,7 @@ dcvt(odp, ndp)
 	register struct direct *ndp;
 {
 
-	bzero((char *)ndp, (long)(sizeof *ndp));
+	memset(ndp, 0, (long)(sizeof *ndp));
 	ndp->d_ino =  odp->d_ino;
 	ndp->d_type = DT_UNKNOWN;
 	(void) strncpy(ndp->d_name, odp->d_name, ODIRSIZ);
@@ -510,8 +510,8 @@ rst_readdir(dirp)
 			return (NULL);
 		}
 		dirp->dd_loc += dp->d_reclen;
-		if (dp->d_ino == 0 && strcmp(dp->d_name, "/") != 0)
-			continue;
+		if (dp->d_ino == 0 && strcmp(dp->d_name, "/") == 0)
+			return (NULL);
 		if (dp->d_ino >= maxino) {
 			dprintf(stderr, "corrupted directory: bad inum %d\n",
 				dp->d_ino);
@@ -636,6 +636,7 @@ setdirmodes(flags)
 			cp = myname(ep);
 			(void) chown(cp, node.uid, node.gid);
 			(void) chmod(cp, node.mode);
+			(void) chflags(cp, node.flags);
 			utimes(cp, node.timep);
 			ep->e_flags &= ~NEW;
 		}
@@ -728,11 +729,12 @@ allocinotab(ino, dip, seekpt)
 	if (mf == NULL)
 		return (itp);
 	node.ino = ino;
-	node.timep[0].tv_sec = dip->di_atime.tv_sec;
-	node.timep[0].tv_usec = dip->di_atime.tv_nsec / 1000;
-	node.timep[1].tv_sec = dip->di_mtime.tv_sec;
-	node.timep[1].tv_usec = dip->di_mtime.tv_nsec / 1000;
+	node.timep[0].tv_sec = dip->di_atime;
+	node.timep[0].tv_usec = dip->di_atimensec / 1000;
+	node.timep[1].tv_sec = dip->di_mtime;
+	node.timep[1].tv_usec = dip->di_mtimensec / 1000;
 	node.mode = dip->di_mode;
+	node.flags = dip->di_flags;
 	node.uid = dip->di_uid;
 	node.gid = dip->di_gid;
 	(void) fwrite((char *)&node, 1, sizeof(struct modeinfo), mf);
