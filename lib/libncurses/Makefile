@@ -210,38 +210,38 @@ CLEANFILES+=	${GENSRC} ${GENHDR} keys.tries make_hash term.h.new \
 	make_keys MKterm.h.awk comp_captab.c \
 	namehdr nameftr codeftr ${NAMESRC} ${CODESRC}
 
-SYMLINKS+=${LIBDIR}/libncurses.a ${LIBDIR}/libcurses.a
-SYMLINKS+=${LIBDIR}/libncurses.a ${LIBDIR}/libtermcap.a
-SYMLINKS+=${LIBDIR}/libncurses.a ${LIBDIR}/libtermlib.a
-SYMLINKS+=${LIBDIR}/libncurses.a ${LIBDIR}/libmytinfo.a
-SYMLINKS+=${LIBDIR}/libncurses.a ${LIBDIR}/libtinfo.a
+SYMLINKS+=libncurses.a ${LIBDIR}/libcurses.a
+SYMLINKS+=libncurses.a ${LIBDIR}/libtermcap.a
+SYMLINKS+=libncurses.a ${LIBDIR}/libtermlib.a
+SYMLINKS+=libncurses.a ${LIBDIR}/libmytinfo.a
+SYMLINKS+=libncurses.a ${LIBDIR}/libtinfo.a
 .if !defined(NOPIC)
 .if ${OBJFORMAT} == aout
-SYMLINKS+=${SHLIBDIR}/libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  ${SHLIBDIR}/libcurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=${SHLIBDIR}/libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=${SHLIBDIR}/libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  ${SHLIBDIR}/libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=${SHLIBDIR}/libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  ${SHLIBDIR}/libmytinfo.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=${SHLIBDIR}/libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  ${SHLIBDIR}/libtinfo.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	  libcurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	  libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	  libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	  libmytinfo.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	  libtinfo.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 .else
 # no need for major at all, it's an ld-time redirection only
-SYMLINKS+=${SHLIBDIR}/libncurses.so ${SHLIBDIR}/libcurses.so
-SYMLINKS+=${SHLIBDIR}/libncurses.so ${SHLIBDIR}/libtermcap.so
-SYMLINKS+=${SHLIBDIR}/libncurses.so ${SHLIBDIR}/libtermlib.so
-SYMLINKS+=${SHLIBDIR}/libncurses.so ${SHLIBDIR}/libmytinfo.so
-SYMLINKS+=${SHLIBDIR}/libncurses.so ${SHLIBDIR}/libtinfo.so
+SYMLINKS+=libncurses.so ${SHLIBDIR}/libcurses.so
+SYMLINKS+=libncurses.so ${SHLIBDIR}/libtermcap.so
+SYMLINKS+=libncurses.so ${SHLIBDIR}/libtermlib.so
+SYMLINKS+=libncurses.so ${SHLIBDIR}/libmytinfo.so
+SYMLINKS+=libncurses.so ${SHLIBDIR}/libtinfo.so
 .endif
 .endif
 .if !defined(NOPROFILE)
-SYMLINKS+=${LIBDIR}/libncurses_p.a ${LIBDIR}/libcurses_p.a
-SYMLINKS+=${LIBDIR}/libncurses_p.a ${LIBDIR}/libtermcap_p.a
-SYMLINKS+=${LIBDIR}/libncurses_p.a ${LIBDIR}/libtermlib_p.a
-SYMLINKS+=${LIBDIR}/libncurses_p.a ${LIBDIR}/libmytinfo_p.a
-SYMLINKS+=${LIBDIR}/libncurses_p.a ${LIBDIR}/libtinfo_p.a
+SYMLINKS+=libncurses_p.a ${LIBDIR}/libcurses_p.a
+SYMLINKS+=libncurses_p.a ${LIBDIR}/libtermcap_p.a
+SYMLINKS+=libncurses_p.a ${LIBDIR}/libtermlib_p.a
+SYMLINKS+=libncurses_p.a ${LIBDIR}/libmytinfo_p.a
+SYMLINKS+=libncurses_p.a ${LIBDIR}/libtinfo_p.a
 .endif
 
 beforeinstall:	${HEADERS}
