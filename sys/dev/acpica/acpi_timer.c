@@ -82,7 +82,8 @@ static int	acpi_timer_flags;
  * ]   software for time critical events and delays.
  * ]
  * ] Workaround: Read the register twice and compare.
- * ] Status: This will not be fixed in the PIIX4 or PIIX4E.
+ * ] Status: This will not be fixed in the PIIX4 or PIIX4E, it is fixed
+ * ] in the PIIX4M.
  *
  * The counter is in other words not latched to the PCI bus clock when
  * read.  Notice the workaround isn't:  We need to read until we have
@@ -210,8 +211,8 @@ acpi_timer_attach(device_t dev)
 }
 
 /*
- * Look at PCI devices as they go past, and if we detect a PIIX4, set 
- * the PIIX_WAR flag.
+ * Look at PCI devices as they go past, and if we detect a PIIX4 older than
+ * the PIIX4M, set the PIIX_WAR flag.
  *
  * XXX do we know that other timecounters work?  Interesting question.
  */
@@ -219,7 +220,8 @@ static int
 acpi_timer_pci_probe(device_t dev)
 {
     if ((pci_get_vendor(dev) == 0x8086) &&
-	(pci_get_device(dev) == 0x7113)) {
+	(pci_get_device(dev) == 0x7113) &&
+	(pci_get_revid(dev) < 0x03)) {
 	acpi_timer_flags |= TFLAG_NEED_PIIX_WAR;
 	device_printf(acpi_timer_dev, "enabling PIIX4 timer workaround\n");
     }
