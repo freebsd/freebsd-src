@@ -468,7 +468,7 @@ release rerelease:
 .endif
 	# Ensure md.ko is loaded if md(4) is not statically compiled into the kernel
 	-mdconfig 2>/dev/null
-	env -i /usr/sbin/chroot ${CHROOTDIR} /mk
+	env -i /usr/sbin/chroot `dirname ${_MK}` /`basename ${_MK}`
 
 clean:
 	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] release.10 \
