@@ -11,7 +11,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: authfd.h,v 1.11 2000/09/07 20:27:49 deraadt Exp $"); */
+/* RCSID("$OpenBSD: authfd.h,v 1.13 2000/10/09 21:51:00 markus Exp $"); */
 
 #ifndef AUTHFD_H
 #define AUTHFD_H
@@ -29,6 +29,7 @@
 #define SSH_AGENTC_REMOVE_RSA_IDENTITY		8
 #define SSH_AGENTC_REMOVE_ALL_RSA_IDENTITIES	9
 
+/* private OpenSSH extensions for SSH2 */
 #define SSH2_AGENTC_REQUEST_IDENTITIES		11
 #define SSH2_AGENT_IDENTITIES_ANSWER		12
 #define SSH2_AGENTC_SIGN_REQUEST		13
@@ -36,6 +37,12 @@
 #define SSH2_AGENTC_ADD_IDENTITY		17
 #define SSH2_AGENTC_REMOVE_IDENTITY		18
 #define SSH2_AGENTC_REMOVE_ALL_IDENTITIES	19
+
+/* additional error code for ssh.com's ssh-agent2 */
+#define SSH_COM_AGENT2_FAILURE                   102
+
+#define	SSH_AGENT_OLD_SIGNATURE			0x01
+
 
 typedef struct {
 	int     fd;

@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rsa.c,v 1.29 2000/09/07 21:13:36 markus Exp $");
+RCSID("$OpenBSD: auth-rsa.c,v 1.32 2000/10/14 12:19:45 markus Exp $");
 
 #include "rsa.h"
 #include "packet.h"
@@ -28,6 +28,10 @@ RCSID("$OpenBSD: auth-rsa.c,v 1.29 2000/09/07 21:13:36 markus Exp $");
 
 #include <openssl/rsa.h>
 #include <openssl/md5.h>
+
+
+/* import */
+extern ServerOptions options;
 
 /*
  * Session identifier that is used to bind key exchange and authentication
@@ -116,7 +120,6 @@ auth_rsa_challenge_dialog(RSA *pk)
 int
 auth_rsa(struct passwd *pw, BIGNUM *client_n)
 {
-	extern ServerOptions options;
 	char line[8192], file[1024];
 	int authenticated;
 	unsigned int bits;
@@ -124,6 +127,10 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 	unsigned long linenum = 0;
 	struct stat st;
 	RSA *pk;
+
+	/* no user given */
+	if (pw == NULL)
+		return 0;
 
 	/* Temporarily use the user's uid. */
 	temporarily_use_uid(pw->pw_uid);
@@ -224,6 +231,12 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 			}
 		} else
 			options = NULL;
+		/*
+		 * If our options do not allow this key to be used,
+		 * do not send challenge.
+		 */
+		if (!auth_parse_options(pw, options, linenum))
+			continue;
 
 		/* Parse the key from the line. */
 		if (!auth_rsa_read_key(&cp, &bits, pk->e, pk->n)) {
@@ -262,9 +275,8 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 		 * Break out of the loop if authentication was successful;
 		 * otherwise continue searching.
 		 */
-		authenticated = auth_parse_options(pw, options, linenum);
-		if (authenticated)
-			break;
+		authenticated = 1;
+		break;
 	}
 
 	/* Restore the privileged uid. */
@@ -277,6 +289,8 @@ auth_rsa(struct passwd *pw, BIGNUM *client_n)
 
 	if (authenticated)
 		packet_send_debug("RSA authentication accepted.");
+	else
+		auth_clear_options();
 
 	/* Return authentication result. */
 	return authenticated;

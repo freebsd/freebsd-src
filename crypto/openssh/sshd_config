@@ -37,6 +37,7 @@ PasswordAuthentication yes
 PermitEmptyPasswords no
 # Uncomment to disable s/key passwords 
 #SkeyAuthentication no
+#KbdInteractiveAuthentication yes
 
 # To change Kerberos options
 #KerberosAuthentication no

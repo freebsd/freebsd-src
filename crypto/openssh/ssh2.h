@@ -52,7 +52,7 @@
  *
  *     192-255  Local extensions
  */
-/* RCSID("$OpenBSD: ssh2.h,v 1.4 2000/09/07 20:27:54 deraadt Exp $"); */
+/* RCSID("$OpenBSD: ssh2.h,v 1.5 2000/10/11 04:02:17 provos Exp $"); */
 
 /* transport layer: generic */
 
@@ -72,6 +72,12 @@
 
 #define SSH2_MSG_KEXDH_INIT				30
 #define SSH2_MSG_KEXDH_REPLY				31
+
+/* dh-group-exchange */
+#define SSH2_MSG_KEX_DH_GEX_REQUEST			30
+#define SSH2_MSG_KEX_DH_GEX_GROUP			31
+#define SSH2_MSG_KEX_DH_GEX_INIT			32
+#define SSH2_MSG_KEX_DH_GEX_REPLY			33
 
 /* user authentication: generic */
 
