@@ -2220,7 +2220,7 @@ add_file (file_name, indx, fake)
       if (! symbol_table_frozen && debug_type == DEBUG_UNSPECIFIED)
 	debug_type = DEBUG_ECOFF;
     }
-  else
+  else if (debug_type == DEBUG_UNSPECIFIED)
     debug_type = DEBUG_NONE;
 
 #ifndef NO_LISTING

@@ -1,3 +1,22 @@
+2001-07-14  matthew green  <mrg@eterna.com.au>
+
+	* configure.in (i386-*-netbsdelf*): New target.
+	* configure: Regenerate.
+
+2001-07-07  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ecoff.c (add_file): Only set debug_type to DEBUG_NONE if it is
+	DEBUG_UNSPECIFIED.
+
+2001-06-27  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-arm.c (do_ldst): Use MVN to build simple inverted
+	constants.
+
+2000-06-20  Tom Rix <trix@redhat.com>
+
+	* config/tc-ppc.c (ppc_comm): Change default alignment to 4 bytes.
+
 2001-06-18  Philip Blundell  <philb@gnu.org>
 
 	* config/tc-arm.c (do_msr): Remove restriction on usage of

@@ -60,7 +60,7 @@ fi
 # these tools are built for the host environment
 # Note, the powerpc-eabi build depends on sim occurring before gdb in order to
 # know that we are building the simulator.
-host_tools="byacc flex bison binutils ld gas gcc cgen sid sim gdb make patch prms send-pr gprof gdbtest tgas etc expect dejagnu ash bash bzip2 m4 autoconf automake libtool ispell grep diff rcs cvssrc fileutils shellutils time textutils wdiff find emacs emacs19 uudecode hello tar gzip indent recode release sed utils guile perl apache inet gawk findutils snavigator libtool gettext zip"
+host_tools="texinfo byacc flex bison binutils ld gas gcc cgen sid sim gdb make patch prms send-pr gprof gdbtest tgas etc expect dejagnu ash bash bzip2 m4 autoconf automake libtool ispell grep diff rcs cvssrc fileutils shellutils time textutils wdiff find emacs emacs19 uudecode hello tar gzip indent recode release sed utils guile perl apache inet gawk findutils snavigator libtool gettext zip"
 
 # these libraries are built for the target environment, and are built after
 # the host libraries and the host tools (which may be a cross compiler)
@@ -127,6 +127,9 @@ appdirs=""
 # Work in distributions that contain no compiler tools, like Autoconf.
 if [ -d ${srcdir}/config ]; then
 case "${host}" in
+  alpha*-*-freebsd*)
+    host_makefile_frag="${host_makefile_frag} config/mh-fbsdaxp"
+    ;;
   m68k-hp-hpux*)
     host_makefile_frag="${host_makefile_frag} config/mh-hp300"
     ;;

@@ -2480,7 +2480,7 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 
 { "mtsrdin", X(31,114),	XRA_MASK,	PPC64,		{ RS, RB } },
 
-{ "clf",     X(31,118), XRB_MASK,	POWER,		{ RT, RA } },
+{ "clf",     X(31,118), XTO_MASK,	POWER,		{ RA, RB } },
 
 { "lbzux",   X(31,119),	X_MASK,		COM,		{ RT, RAL, RB } },
 
