@@ -136,7 +136,7 @@ static char *names = "pqrsPQRS";
  * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
  * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
  *
- * XXX: define and add mapping of upper minor bits to allow more 
+ * XXX: define and add mapping of upper minor bits to allow more
  *      than 256 ptys.
  */
 static dev_t
@@ -172,12 +172,12 @@ ptsopen(dev, flag, devtype, td)
 	int flag, devtype;
 	struct thread *td;
 {
-	register struct tty *tp;
+	struct tty *tp;
 	int error;
 	struct pt_ioctl *pti;
 
 	if (!dev->si_drv1)
-		return(ENXIO);	
+		return(ENXIO);
 	pti = dev->si_drv1;
 	tp = dev->si_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
@@ -214,7 +214,7 @@ ptsclose(dev, flag, mode, td)
 	int flag, mode;
 	struct thread *td;
 {
-	register struct tty *tp;
+	struct tty *tp;
 	int err;
 
 	tp = dev->si_tty;
@@ -232,8 +232,8 @@ ptsread(dev, uio, flag)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	register struct tty *tp = dev->si_tty;
-	register struct pt_ioctl *pti = dev->si_drv1;
+	struct tty *tp = dev->si_tty;
+	struct pt_ioctl *pti = dev->si_drv1;
 	struct pgrp *pg;
 	int error = 0;
 
@@ -296,7 +296,7 @@ ptswrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	register struct tty *tp;
+	struct tty *tp;
 
 	tp = dev->si_tty;
 	if (tp->t_oproc == 0)
@@ -312,7 +312,7 @@ static void
 ptsstart(tp)
 	struct tty *tp;
 {
-	register struct pt_ioctl *pti = tp->t_dev->si_drv1;
+	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 
 	if (tp->t_state & TS_TTSTOP)
 		return;
@@ -346,13 +346,13 @@ ptcopen(dev, flag, devtype, td)
 	int flag, devtype;
 	struct thread *td;
 {
-	register struct tty *tp;
+	struct tty *tp;
 	struct pt_ioctl *pti;
 
 	if (!dev->si_drv1)
 		ptyinit(dev);
 	if (!dev->si_drv1)
-		return(ENXIO);	
+		return(ENXIO);
 	tp = dev->si_tty;
 	if (tp->t_oproc)
 		return (EIO);
@@ -376,7 +376,7 @@ ptcclose(dev, flags, fmt, td)
 	int fmt;
 	struct thread *td;
 {
-	register struct tty *tp;
+	struct tty *tp;
 
 	tp = dev->si_tty;
 	(void)(*linesw[tp->t_line].l_modem)(tp, 0);
@@ -405,7 +405,7 @@ ptcread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	register struct tty *tp = dev->si_tty;
+	struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
 	char buf[BUFSIZ];
 	int error = 0, cc;
@@ -462,7 +462,7 @@ ptcread(dev, uio, flag)
 
 static	void
 ptsstop(tp, flush)
-	register struct tty *tp;
+	struct tty *tp;
 	int flush;
 {
 	struct pt_ioctl *pti = tp->t_dev->si_drv1;
@@ -490,7 +490,7 @@ ptcpoll(dev, events, td)
 	int events;
 	struct thread *td;
 {
-	register struct tty *tp = dev->si_tty;
+	struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
 	int revents = 0;
 	int s;
@@ -513,7 +513,7 @@ ptcpoll(dev, events, td)
 	if (events & (POLLOUT | POLLWRNORM))
 		if (tp->t_state & TS_ISOPEN &&
 		    ((pti->pt_flags & PF_REMOTE) ?
-		     (tp->t_canq.c_cc == 0) : 
+		     (tp->t_canq.c_cc == 0) :
 		     ((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
 		      (tp->t_canq.c_cc == 0 && (tp->t_lflag & ICANON)))))
 			revents |= events & (POLLOUT | POLLWRNORM);
@@ -526,7 +526,7 @@ ptcpoll(dev, events, td)
 		if (events & (POLLIN | POLLRDNORM))
 			selrecord(td, &pti->pt_selr);
 
-		if (events & (POLLOUT | POLLWRNORM)) 
+		if (events & (POLLOUT | POLLWRNORM))
 			selrecord(td, &pti->pt_selw);
 	}
 	splx(s);
@@ -537,12 +537,12 @@ ptcpoll(dev, events, td)
 static	int
 ptcwrite(dev, uio, flag)
 	dev_t dev;
-	register struct uio *uio;
+	struct uio *uio;
 	int flag;
 {
-	register struct tty *tp = dev->si_tty;
-	register u_char *cp = 0;
-	register int cc = 0;
+	struct tty *tp = dev->si_tty;
+	u_char *cp = 0;
+	int cc = 0;
 	u_char locbuf[BUFSIZ];
 	int cnt = 0;
 	struct pt_ioctl *pti = dev->si_drv1;
@@ -653,9 +653,9 @@ ptyioctl(dev, cmd, data, flag, td)
 	int flag;
 	struct thread *td;
 {
-	register struct tty *tp = dev->si_tty;
-	register struct pt_ioctl *pti = dev->si_drv1;
-	register u_char *cc = tp->t_cc;
+	struct tty *tp = dev->si_tty;
+	struct pt_ioctl *pti = dev->si_drv1;
+	u_char *cc = tp->t_cc;
 	int stop, error;
 
 	if (devsw(dev)->d_open == ptcopen) {
@@ -697,7 +697,7 @@ ptyioctl(dev, cmd, data, flag, td)
 		}
 
 		/*
-		 * The rest of the ioctls shouldn't be called until 
+		 * The rest of the ioctls shouldn't be called until
 		 * the slave is open.
 		 */
 		if ((tp->t_state & TS_ISOPEN) == 0)
