@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.23 1998/07/06 06:44:36 charnier Exp $";
+	"$Id: fdisk.c,v 1.24 1998/09/16 19:25:47 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -196,6 +196,7 @@ struct part_type
 	,{0x83, "Linux filesystem"}
 	,{0x93, "Amoeba filesystem"}
 	,{0x94, "Amoeba bad block table"}
+	,{0x9F, "BSD/OS"}
 	,{0xA5, "FreeBSD/NetBSD/386BSD"}
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
