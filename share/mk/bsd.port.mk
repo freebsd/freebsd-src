@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.210 1996/06/19 09:33:31 asami Exp $
+# $Id: bsd.port.mk,v 1.212 1996/06/20 23:52:45 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -249,7 +249,13 @@ cleandir: clean
 .endif
 .endif
 
+.if !target(distribute)
+distribute:
+	@cd ${.CURDIR} && ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
 .endif
+.endif
+# end of SRC_ENCAPSULATION defines
+
 
 # These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  They can, of course, be overridden
@@ -997,7 +1003,7 @@ pre-clean:
 clean: pre-clean
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
 .if !defined(NO_WRKDIR) && !exists(${.CURDIR}/obj)
-	${RM} -rf ${WRKDIR}
+	@${RM} -rf ${WRKDIR}
 .else
 	@${RM} -f ${WRKDIR}/.*_done
 .endif
