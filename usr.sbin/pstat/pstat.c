@@ -212,7 +212,7 @@ static const char hdr[] =
 static void
 ttymode_kvm(void)
 {
-	SLIST_HEAD(, tty) tl;
+	TAILQ_HEAD(, tty) tl;
 	struct tty *tp, tty;
 	struct xtty xt;
 
@@ -221,7 +221,7 @@ ttymode_kvm(void)
 	xt.xt_size = sizeof xt;
 	if (kvm_read(kd, nl[NL_TTY_LIST].n_value, &tl, sizeof tl) != sizeof tl)
 		errx(1, "kvm_read(): %s", kvm_geterr(kd));
-	tp = SLIST_FIRST(&tl);
+	tp = TAILQ_FIRST(&tl);
 	while (tp != NULL) {
 		if (kvm_read(kd, (u_long)tp, &tty, sizeof tty) != sizeof tty)
 			errx(1, "kvm_read(): %s", kvm_geterr(kd));
@@ -238,7 +238,7 @@ ttymode_kvm(void)
 		XT_COPY(olowat);
 #undef XT_COPY
 		ttyprt(&xt);
-		tp = tty.t_list.sle_next;
+		tp = TAILQ_NEXT(tp, t_list);
 	}
 }
 
