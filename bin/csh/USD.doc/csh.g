@@ -261,7 +261,7 @@ is usually used because it is easier to type.
 The
 .I chsh
 command is used to change the shell which you use on \s-2UNIX\s0.
-By default, you use an different version of the shell
+By default, you use a different version of the shell
 which resides in `/bin/sh'.
 You can change your shell to `/bin/csh' by doing
 .DS
