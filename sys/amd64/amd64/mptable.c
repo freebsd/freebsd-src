@@ -27,6 +27,7 @@
 
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
+#include "opt_swtch.h"
 
 #ifdef SMP
 #include <machine/smptests.h>
@@ -634,6 +635,12 @@ mp_enable(u_int boot_addr)
 	setidt(XSTATCLOCK_OFFSET, Xstatclock,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	
+#ifdef LAZY_SWITCH
+	/* install an inter-CPU IPI for lazy pmap release */
+	setidt(XLAZYPMAP_OFFSET, Xlazypmap,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif
+
 	/* install an inter-CPU IPI for all-CPU rendezvous */
 	setidt(XRENDEZVOUS_OFFSET, Xrendezvous,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -2598,7 +2605,7 @@ ap_init(void)
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
-	cpu_throw();	/* doesn't return */
+	cpu_throw(NULL, choosethread());	/* doesn't return */
 
 	panic("scheduler returned us to %s", __func__);
 }

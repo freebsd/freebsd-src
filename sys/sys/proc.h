@@ -889,8 +889,13 @@ void	setsugid(struct proc *p);
 void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);
 void	cpu_idle(void);
+#if defined(__i386__) || defined(__sparc64__)
+void	cpu_switch(struct thread *old, struct thread *new);
+void	cpu_throw(struct thread *old, struct thread *new) __dead2;
+#else
 void	cpu_switch(void);
 void	cpu_throw(void) __dead2;
+#endif
 void	unsleep(struct thread *);
 void	userret(struct thread *, struct trapframe *, u_int);
 

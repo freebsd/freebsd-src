@@ -102,6 +102,7 @@
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
 #include "opt_kstack_pages.h"
+#include "opt_swtch.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -184,6 +185,9 @@ struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 static struct mtx allpmaps_lock;
+#if defined(SMP) && defined(LAZY_SWITCH)
+static struct mtx lazypmap_lock;
+#endif
 
 vm_paddr_t avail_start;	/* PA of first available physical page */
 vm_paddr_t avail_end;	/* PA of last available physical page */
@@ -336,6 +340,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
+#if defined(SMP) && defined(LAZY_SWITCH)
+	mtx_init(&lazypmap_lock, "lazypmap", NULL, MTX_SPIN);
+#endif
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
@@ -1486,6 +1493,121 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 * Pmap allocation/deallocation routines.
  ***************************************************/
 
+#ifdef LAZY_SWITCH
+#ifdef SMP
+/*
+ * Deal with a SMP shootdown of other users of the pmap that we are
+ * trying to dispose of.  This can be a bit hairy.
+ */
+static u_int *lazymask;
+static u_int lazyptd;
+static volatile u_int lazywait;
+
+void pmap_lazyfix_action(void);
+
+void
+pmap_lazyfix_action(void)
+{
+	u_int mymask = PCPU_GET(cpumask);
+
+	if (rcr3() == lazyptd) {
+		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+#ifdef SWTCH_OPTIM_STATS
+		atomic_add_int(&lazy_flush_smpfixup, 1);
+	} else {
+		if (*lazymask & mymask)
+			lazy_flush_smpbadcr3++;
+		else
+			lazy_flush_smpmiss++;
+#endif
+	}
+	atomic_clear_int(lazymask, mymask);
+	atomic_store_rel_int(&lazywait, 1);
+}
+
+static void
+pmap_lazyfix_self(u_int mymask)
+{
+
+	if (rcr3() == lazyptd) {
+		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+#ifdef SWTCH_OPTIM_STATS
+		lazy_flush_fixup++;
+	} else {
+		if (*lazymask & mymask)
+			lazy_flush_smpbadcr3++;
+		else
+			lazy_flush_smpmiss++;
+#endif
+	}
+	atomic_clear_int(lazymask, mymask);
+}
+
+
+static void
+pmap_lazyfix(pmap_t pmap)
+{
+	u_int mymask = PCPU_GET(cpumask);
+	u_int mask;
+	register u_int spins;
+
+	while ((mask = pmap->pm_active) != 0) {
+		spins = 50000000;
+		mask = mask & -mask;	/* Find least significant set bit */
+		mtx_lock_spin(&lazypmap_lock);
+#ifdef PAE
+		lazyptd = vtophys(pmap->pm_pdpt);
+#else
+		lazyptd = vtophys(pmap->pm_pdir);
+#endif
+		if (mask == mymask) {
+			lazymask = &pmap->pm_active;
+			pmap_lazyfix_self(mymask);
+		} else {
+			atomic_store_rel_int((u_int *)&lazymask,
+			    (u_int)&pmap->pm_active);
+			atomic_store_rel_int(&lazywait, 0);
+			ipi_selected(mask, IPI_LAZYPMAP);
+			while (lazywait == 0) {
+				ia32_pause();
+				if (--spins == 0)
+					break;
+			}
+#ifdef SWTCH_OPTIM_STATS
+			lazy_flush_smpipi++;
+#endif
+		}
+		mtx_unlock_spin(&lazypmap_lock);
+		if (spins == 0)
+			printf("pmap_lazyfix: spun for 50000000\n");
+	}
+}
+
+#else	/* SMP */
+
+/*
+ * Cleaning up on uniprocessor is easy.  For various reasons, we're
+ * unlikely to have to even execute this code, including the fact
+ * that the cleanup is deferred until the parent does a wait(2), which
+ * means that another userland process has run.
+ */
+static void
+pmap_lazyfix(pmap_t pmap)
+{
+	u_int cr3;
+
+	cr3 = vtophys(pmap->pm_pdir);
+	if (cr3 == rcr3()) {
+		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		pmap->pm_active &= ~(PCPU_GET(cpumask));
+#ifdef SWTCH_OPTIM_STATS
+		lazy_flush_fixup++;
+#endif
+	}
+}
+#endif	/* SMP */
+#endif	/* LAZY_SWITCH */
+
 /*
  * Release any resources held by the given physical map.
  * Called when a pmap initialized by pmap_pinit is being released.
@@ -1507,6 +1629,9 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
+#ifdef LAZY_SWITCH
+	pmap_lazyfix(pmap);
+#endif
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
@@ -3321,9 +3446,10 @@ pmap_activate(struct thread *td)
 	pmap_t	pmap;
 	u_int32_t  cr3;
 
+	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 #if defined(SMP)
-	pmap->pm_active |= PCPU_GET(cpumask);
+	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
 #else
 	pmap->pm_active |= 1;
 #endif
@@ -3348,6 +3474,7 @@ pmap_activate(struct thread *td)
 #ifdef SWTCH_OPTIM_STATS
 	tlb_flush_count++;
 #endif
+	critical_exit();
 }
 
 vm_offset_t

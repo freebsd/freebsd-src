@@ -84,6 +84,9 @@
 
 #include "opt_ddb.h"
 #include "opt_witness.h"
+#ifdef __i386__
+#include "opt_swtch.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -294,6 +297,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #if defined(__i386__) && defined(APIC_IO)
 	{ "tlb", &lock_class_mtx_spin },
+#endif
+#if defined(__i386__) && defined(LAZY_SWITCH)
+	{ "lazypmap", &lock_class_mtx_spin },
 #endif
 #ifdef __sparc64__
 	{ "ipi", &lock_class_mtx_spin },
