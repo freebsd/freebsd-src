@@ -39,18 +39,14 @@
 #      include <machine/pio.h>
 #      define RB_GETC(q) getc(q)
 #   else /* BSD 4.4 Lite */
-#      include <machine/cpufunc.h>
 #      include <sys/devconf.h>
 #   endif
-#   define oproc_func_t void(*)(struct tty*)
 #endif
 #ifdef __bsdi__
 #   include <sys/ttystats.h>
 #   include <machine/inline.h>
 #   define tsleep(tp,pri,msg,x) ((tp)->t_state |= TS_WOPEN,\
 		ttysleep (tp, (caddr_t)&tp->t_rawq, pri, msg, x))
-#   define oproc_func_t int(*)()
-#   define timeout_func_t void(*)()
 #endif
 #if !defined (__FreeBSD__) || __FreeBSD__ >= 2
 #      define t_out t_outq
@@ -119,7 +115,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 		bzero (cx_tty[unit], sizeof (*cx_tty[unit]));
 		c->ttyp = cx_tty[unit];
 #endif
-		c->ttyp->t_oproc = (oproc_func_t) cxoproc;
+		c->ttyp->t_oproc = cxoproc;
 		c->ttyp->t_param = cxparam;
 	}
 #ifdef __bsdi__
@@ -806,7 +802,7 @@ int cxrinta (cx_chan_t *c)
 			c->stat->ibytes += len;
 			if (tp && (tp->t_state & TS_ISOPEN)) {
 				int i;
-				void (*rint)() = (void(*)())
+				int (*rint)(int, struct tty *) =
 					linesw[tp->t_line].l_rint;
 
 				for (i=0; i<len; ++i)
@@ -855,7 +851,7 @@ int cxrinta (cx_chan_t *c)
 
 	/* Handle received data. */
 	if ((risr & RIS_EOBUF) && tp && (tp->t_state & TS_ISOPEN)) {
-		void (*rint)() = (void(*)()) linesw[tp->t_line].l_rint;
+		int (*rint)(int, struct tty *) = linesw[tp->t_line].l_rint;
 		unsigned char *buf;
 		int i;
 
@@ -941,7 +937,7 @@ void cxmint (cx_chan_t *c)
 /*
  * Recover after lost transmit interrupts.
  */
-void cxtimeout (caddr_t a)
+void cxtimeout (void *a)
 {
 	cx_board_t *b;
 	cx_chan_t *c;
@@ -963,6 +959,6 @@ void cxtimeout (caddr_t a)
 			}
 			splx (s);
 		}
-	timeout ((timeout_func_t) cxtimeout, 0, hz*5);
+	timeout (cxtimeout, 0, hz*5);
 }
 #endif /* NCX */
