@@ -28,6 +28,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <stddef.h>
 
 static const char nogrouping[] = { CHAR_MAX, '\0' };
 
@@ -41,11 +42,11 @@ __fix_locale_grouping_str(const char *str) {
 	char *src, *dst;
 	char n;
 
-	if (str == 0) {
+	if (str == NULL || *str == '\0') {
 		return nogrouping;
 	}
-	for (src = (char*)str, dst = (char*)str; *src; src++) {
-		char cur;
+
+	for (src = (char*)str, dst = (char*)str; *src != '\0'; src++) {
 
 		/* input string examples: "3;3", "3;2;-1" */
 		if (*src == ';')
