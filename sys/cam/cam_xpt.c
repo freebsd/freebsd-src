@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.16 1999/07/11 06:20:46 jmg Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.17 1999/07/12 10:01:38 jmg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -196,9 +196,11 @@ struct xpt_quirk_entry {
 	u_int8_t quirks;
 #define	CAM_QUIRK_NOLUNS	0x01
 #define	CAM_QUIRK_NOSERIAL	0x02
+#define	CAM_QUIRK_HILUNS	0x04
 	u_int mintags;
 	u_int maxtags;
 };
+#define	CAM_SCSI2_MAXLUN	8
 
 typedef enum {
 	XPT_FLAG_OPEN		= 0x01
@@ -4838,7 +4840,9 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 			if ((lun_id != 0) || (device != NULL)) {
 				/* Try the next lun */
-				lun_id++;
+				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
+				    (device->quirk->quirks & CAM_QUIRK_HILUNS))
+					lun_id++;
 			}
 		} else {
 			struct cam_ed *device;
@@ -4847,7 +4851,9 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 			if ((device->quirk->quirks & CAM_QUIRK_NOLUNS) == 0) {
 				/* Try the next lun */
-				lun_id++;
+				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
+				    (device->quirk->quirks & CAM_QUIRK_HILUNS))
+					lun_id++;
 			}
 		}
 
