@@ -57,7 +57,7 @@ ConfigCmd(int ac, char **av)
 	char *const status = (char *) resp->data;
 	char *path;
 	char buf[NG_TEXTRESPONSE];
-	int nostat = 0, i, j;
+	int nostat = 0, i;
 
 	/* Get arguments */
 	if (ac < 2)
