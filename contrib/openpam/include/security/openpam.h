@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#12 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#14 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -65,6 +65,7 @@ pam_error(pam_handle_t *_pamh,
 
 int
 pam_get_authtok(pam_handle_t *_pamh,
+	int _item,
 	const char **_authtok,
 	const char *_prompt);
 
@@ -116,19 +117,26 @@ enum {
 /*
  * Log to syslog
  */
-void _openpam_log(int _level,
+void
+_openpam_log(int _level,
 	const char *_func,
 	const char *_fmt,
 	...);
 
-#if defined(__STDC__) && (__STDC_VERSION__ > 199901L)
+#if defined(__STDC__) && (__STDC_VERSION__ >= 199901L)
 #define openpam_log(lvl, fmt, ...) \
 	_openpam_log((lvl), __func__, fmt, __VA_ARGS__)
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && (__GNUC__ >= 2) && (__GNUC_MINOR__ >= 95)
+#define openpam_log(lvl, fmt, ...) \
+	_openpam_log((lvl), __func__, fmt, ##fmt)
+#elif defined(__GNUC__) && defined(__FUNCTION__)
 #define openpam_log(lvl, fmt...) \
-	_openpam_log((lvl), __func__, ##fmt)
+	_openpam_log((lvl), __FUNCTION__, ##fmt)
 #else
-extern openpam_log(int _level, const char *_format, ...);
+void
+openpam_log(int _level,
+	const char *_format,
+	...);
 #endif
 
 /*
@@ -189,12 +197,14 @@ struct pam_module {
  * Infrastructure for static modules using GCC linker sets.
  * You are not expected to understand this.
  */
-#if defined(__GNUC__) && !defined(__PIC__)
 #if defined(__FreeBSD__)
 #define PAM_SOEXT ".so"
 #else
-#error Static linking is not supported on your platform
+#ifndef NO_STATIC_MODULES
+#define NO_STATIC_MODULES
 #endif
+#endif
+#if defined(__GNUC__) && !defined(__PIC__) && !defined(NO_STATIC_MODULES)
 /* gcc, static linking */
 #include <sys/cdefs.h>
 #include <linker_set.h>
