@@ -109,6 +109,9 @@
 
 #define	MBOX_ENABLE_TARGET_MODE		0x55
 #define		ENABLE_TARGET_FLAG	0x8000
+#define		ENABLE_TQING_FLAG	0x0004
+#define		ENABLE_MANDATORY_DISC	0x0002
+#define	MBOX_GET_TARGET_STATUS		0x56
 
 /* These are for the ISP2100 FC cards */
 #define	MBOX_GET_LOOP_ID		0x20
@@ -480,6 +483,16 @@ typedef struct {
 #ifndef	ISP_EXEC_THROTTLE
 #define	ISP_EXEC_THROTTLE	16
 #endif
+
+/*
+ * About Firmware returns an 'attribute' word in mailbox 6.
+ */
+#define	ISP_FW_ATTR_TMODE	0x01
+#define	ISP_FW_ATTR_SCCLUN	0x02
+#define	ISP_FW_ATTR_FABRIC	0x04
+#define	ISP_FW_ATTR_CLASS2	0x08
+#define	ISP_FW_ATTR_FCTAPE	0x10
+#define	ISP_FW_ATTR_IP		0x20
 
 /*
  * FC (ISP2100) specific data structures
