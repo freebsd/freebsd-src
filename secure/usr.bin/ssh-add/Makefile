@@ -4,8 +4,8 @@
 PROG=	ssh-add
 SRCS=	ssh-add.c
 
-LDADD+=	${LIBSSH} -lcrypto
-DPADD+= ${LIBSSH} ${LIBCRYPTO}
+LDADD+=	-lssh -lcrypto -lz
+DPADD+= ${LIBSSH} ${LIBCRYPTO} ${LIBZ}
 
 .include <bsd.prog.mk>
 

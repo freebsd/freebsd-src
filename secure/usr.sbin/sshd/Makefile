@@ -38,7 +38,7 @@ DPADD+=	${LIBOPIE} ${LIBMD}
 CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 .endif
 
-LDADD+=	${LIBSSH} -lcrypt -lcrypto -lutil -lz -lwrap ${MINUSLPAM}
+LDADD+=	-lssh -lcrypt -lcrypto -lutil -lz -lwrap ${MINUSLPAM}
 DPADD+=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
 
 .include <bsd.prog.mk>

@@ -10,8 +10,6 @@ SRCS=   authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
 	cli.c rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c kexgex.c \
 	version.c
 
-INSTALL_PIC_ARCHIVE=	yes
-
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
