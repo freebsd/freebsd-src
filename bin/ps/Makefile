@@ -3,7 +3,7 @@
 
 PROG=	ps
 SRCS=	fmt.c keyword.c nlist.c print.c ps.c
-WARNS?=	5
+
 #
 # To support "lazy" ps for non root/wheel users
 # add -DLAZY_PS to the cflags.  This helps
