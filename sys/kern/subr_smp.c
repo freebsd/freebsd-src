@@ -112,8 +112,10 @@ mp_start(void *dummy)
 {
 
 	/* Probe for MP hardware. */
-	if (mp_probe_status == 0 || smp_disabled != 0)
+	if (mp_probe_status == 0 || smp_disabled != 0) {
+		mp_ncpus = 1;
 		return;
+	}
 
 	mtx_init(&smp_rv_mtx, "smp rendezvous", NULL, MTX_SPIN);
 	cpu_mp_start();
