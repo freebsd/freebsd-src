@@ -212,8 +212,8 @@ again:
 		stz = &tz;
 	}
 
-	/* if init, don't touch RTC at all */
-	if (init) {
+	/* if init and something will be changed, don't touch RTC at all */
+	if (init && (stv != NULL || kern_offset != offset)) {
 		mib[0] = CTL_MACHDEP;
 		mib[1] = CPU_DISRTCSET;
 		len = sizeof(disrtcset);
