@@ -232,7 +232,7 @@ acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child)
 	if (ACPI_FAILURE(status))
 		printf("WARNING: Unable to detach object data from %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(status));
-	status = AcpiAttachData(handle, acpi_fake_objhandler, child);
+	status = AcpiAttachData(handle, acpi_fake_objhandler, pci_child);
 	if (ACPI_FAILURE(status))
 		printf("WARNING: Unable to attach object data to %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(status));
@@ -261,8 +261,7 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
 		    dinfo->ap_dinfo.cfg.slot == slot) {
 			dinfo->ap_handle = handle;
 			acpi_pci_update_device(handle, devlist[i]);
-			free(devlist, M_TEMP);
-			return_ACPI_STATUS (AE_OK);
+			break;
 		}
 	}
 	free(devlist, M_TEMP);
