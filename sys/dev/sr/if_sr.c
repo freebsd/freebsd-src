@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.16 1998/10/22 05:58:39 bde Exp $
+ * $Id: if_sr.c,v 1.17 1998/12/16 18:42:38 phk Exp $
  */
 
 /*
@@ -270,7 +270,6 @@ struct	sr_hardc *srattach_pci(int unit, vm_offset_t plx_vaddr,
 void	srintr_hc(struct sr_hardc *hc);
 
 static int	srattach(struct sr_hardc *hc);
-static ointhand2_t	srintr;
 static void	sr_xmit(struct sr_softc *sc);
 static void	srstart(struct ifnet *ifp);
 static int	srioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
@@ -855,25 +854,6 @@ srattach(struct sr_hardc *hc)
 		SRC_SET_OFF(hc->iobase);
 
 	return 1;
-}
-
-/*
- * N2 Interrupt Service Routine
- *
- * First figure out which SCA gave the interrupt.
- * Process it.
- * See if there is other interrupts pending.
- * Repeat until there no interrupts remain.
- */
-static void
-srintr(int unit)
-{
-	struct sr_hardc *hc;
-
-	hc = &sr_hardc[unit];
-	srintr_hc(hc);
-
-	return;
 }
 
 void
