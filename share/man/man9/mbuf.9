@@ -33,7 +33,7 @@
 .Nd "memory management in the kernel IPC subsystem"
 .\"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
+.Fd #include <machine/param.h>
 .Fd #include <sys/mbuf.h>
 .\"
 .Ss Mbuf allocation macros
@@ -46,6 +46,8 @@
 .Fa "u_int size"
 .Fa "void (*free)(void *opt_args)"
 .Fa "void *opt_args"
+.Fa "short flags"
+.Fa "int type"
 .Fc
 .Fn MEXTFREE "struct mbuf *mbuf"
 .Fn MEXT_ADD_REF "struct mbuf *mbuf"
@@ -62,6 +64,7 @@
 .Fn M_TRAILINGSPACE "struct mbuf *mbuf"
 .Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
 .Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.Fn M_WRITABLE "struct mbuf *mbuf"
 .\"
 .Ss Mbuf allocation functions
 .Ft struct mbuf *
@@ -146,18 +149,19 @@ The mbuf flag bits are defined as follows:
 #define	M_EXT		0x0001	/* has associated external storage */
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
-#define	M_PROTO1	0x0008	/* protocol-specific */
-#define	M_PROTO2	0x0010	/* protocol-specific */
-#define	M_PROTO3	0x0020	/* protocol-specific */
-#define	M_PROTO4	0x0040	/* protocol-specific */
-#define	M_PROTO5	0x0080	/* protocol-specific */
+#define	M_RDONLY	0x0008	/* associated data marked read-only */
+#define	M_PROTO1	0x0010	/* protocol-specific */
+#define	M_PROTO2	0x0020 	/* protocol-specific */
+#define	M_PROTO3	0x0040	/* protocol-specific */
+#define	M_PROTO4	0x0080	/* protocol-specific */
+#define	M_PROTO5	0x0100	/* protocol-specific */
 
 /* mbuf pkthdr flags, also in m_flags */
-#define	M_BCAST		0x0100	/* send/received as link-level broadcast */
-#define	M_MCAST		0x0200	/* send/received as link-level multicast */
-#define	M_FRAG		0x0400	/* packet is fragment of larger packet */
-#define	M_FIRSTFRAG	0x0800	/* packet is first fragment */
-#define	M_LASTFRAG	0x1000	/* packet is last fragment */
+#define	M_BCAST		0x0200	/* send/received as link-level broadcast */
+#define	M_MCAST		0x0400	/* send/received as link-level multicast */
+#define	M_FRAG		0x0800	/* packet is fragment of larger packet */
+#define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
+#define	M_LASTFRAG	0x2000	/* packet is last fragment */
 .Ed
 .Pp
 The available mbuf types are defined as follows:
@@ -303,6 +307,24 @@ The new chain pointer or
 is in 
 .Fa mbuf
 after the call.
+.It Fn M_WRITABLE mbuf
+This macro will evaluate true if the mbuf is not marked
+.Dv M_RDONLY
+and if either the mbuf does not contain external storage or,
+if it does,
+then if the reference count of the storage is not greater than 1. 
+The
+.Dv M_RDONLY
+flag can be set in the mbuf's
+.Dv m_flags.
+This can be achieved during setup of the external storage,
+by passing the
+.Dv M_RDONLY
+bit as a
+.Ar flags
+argument to the
+.Fn MEXTADD
+macro, or can be directly set in individual mbufs.
 .El
 .Pp
 The functions are:
