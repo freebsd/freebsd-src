@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.21 1995/11/12 10:36:19 davidg Exp $
+ * $Id: cd9660_vnops.c,v 1.22 1995/11/20 03:57:50 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
 
+static int cd9660_setattr __P((struct vop_setattr_args *));
 static int cd9660_open __P((struct vop_open_args *));
 static int cd9660_close __P((struct vop_close_args *));
 static int cd9660_access __P((struct vop_access_args *));
@@ -69,18 +70,26 @@ static int cd9660_ioctl __P((struct vop_ioctl_args *));
 static int cd9660_select __P((struct vop_select_args *));
 static int cd9660_mmap __P((struct vop_mmap_args *));
 static int cd9660_seek __P((struct vop_seek_args *));
+struct isoreaddir;
+static int iso_uiodir __P((struct isoreaddir *idp, struct dirent *dp,
+			   off_t off));
+static int iso_shipdir __P((struct isoreaddir *idp));
 static int cd9660_readdir __P((struct vop_readdir_args *));
+static int cd9660_readlink __P((struct vop_readlink_args *ap));
 static int cd9660_abortop __P((struct vop_abortop_args *));
 static int cd9660_lock __P((struct vop_lock_args *));
 static int cd9660_unlock __P((struct vop_unlock_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
+static int cd9660_enotsupp __P((void));
 static int cd9660_islocked __P((struct vop_islocked_args *));
+
 #if 0
 /*
  * Mknod vnode call
  *  Actually remap the device number
  */
+static int
 cd9660_mknod(ndp, vap, cred, p)
 	struct nameidata *ndp;
 	struct ucred *cred;
@@ -135,7 +144,7 @@ cd9660_mknod(ndp, vap, cred, p)
 /*
  * Setattr call. Only allowed for block and character special devices.
  */
-int
+static int
 cd9660_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnodeop_desc *a_desc;
