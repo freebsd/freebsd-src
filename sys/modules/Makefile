@@ -15,7 +15,9 @@ SUBDIR=	3dfx \
 	aue \
 	bge \
 	bridge \
+	cam \
 	ccd \
+	cd9660 \
 	coda \
 	cue \
 	dc \
@@ -60,7 +62,6 @@ SUBDIR=	3dfx \
 	md \
 	mii \
 	mlx \
-	msdosfs \
 	nfsclient \
 	nfsserver \
 	nge \
@@ -86,7 +87,6 @@ SUBDIR=	3dfx \
 	snp \
 	ste \
 	sym \
-	syscons \
 	sysvipc \
 	ti \
 	tl \
@@ -119,6 +119,11 @@ SUBDIR=	3dfx \
 	wb \
 	xl
 
+.if ${MACHINE_ARCH} != "sparc64"
+SUBDIR+=msdosfs \
+	syscons
+.endif
+
 .if !defined(NO_IPFILTER) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=ipfilter
 .endif
@@ -139,10 +144,8 @@ SUBDIR+=aac \
 	asr \
 	atspeaker \
 	bktr \
-	cam \
 	cardbus \
 	cbb \
-	cd9660 \
 	ciss \
 	cm \
 	coff \
@@ -193,8 +196,6 @@ SUBDIR+=aic \
 	apm \
 	atspeaker \
 	bktr \
-	cam \
-	cd9660 \
 	coff \
 	em \
 	fe \
@@ -250,9 +251,7 @@ SUBDIR+=aic \
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=cam \
-	cd9660 \
-	linprocfs \
+SUBDIR+=linprocfs \
 	linux \
 	lomac \
 	osf1 \
