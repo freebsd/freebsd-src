@@ -92,6 +92,23 @@ typedef	__timer_t	timer_t;
 #include <sys/timespec.h>
 #endif /* __POSIX_VISIBLE >= 199309 */
 
+/* These macros are also in sys/time.h. */
+#if !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112
+#define CLOCK_REALTIME	0
+#ifdef __BSD_VISIBLE
+#define CLOCK_VIRTUAL	1
+#define CLOCK_PROF	2
+#endif
+#define CLOCK_MONOTONIC	4
+#endif /* !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112 */
+
+#if !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 200112
+#if __BSD_VISIBLE
+#define TIMER_RELTIME	0x0	/* relative timer */
+#endif
+#define TIMER_ABSTIME	0x1	/* absolute timer */
+#endif /* !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 200112 */
+
 struct tm {
 	int	tm_sec;		/* seconds after the minute [0-60] */
 	int	tm_min;		/* minutes after the hour [0-59] */
@@ -115,6 +132,7 @@ char *asctime(const struct tm *);
 clock_t clock(void);
 char *ctime(const time_t *);
 double difftime(time_t, time_t);
+/* XXX missing: getdate() */
 struct tm *gmtime(const time_t *);
 struct tm *localtime(const time_t *);
 time_t mktime(struct tm *);
@@ -130,6 +148,7 @@ void tzset(void);
 int clock_getres(clockid_t, struct timespec *);
 int clock_gettime(clockid_t, struct timespec *);
 int clock_settime(clockid_t, const struct timespec *);
+/* XXX missing: clock_nanosleep() */
 int nanosleep(const struct timespec *, struct timespec *);
 #endif /* __POSIX_VISIBLE >= 199309 */
 
@@ -146,7 +165,7 @@ char *strptime(const char * __restrict, const char * __restrict,
 #endif
 
 #if __BSD_VISIBLE
-char *timezone(int, int);
+char *timezone(int, int);	/* XXX XSI conflict */
 void tzsetwall(void);
 time_t timelocal(struct tm * const);
 time_t timegm(struct tm * const);
