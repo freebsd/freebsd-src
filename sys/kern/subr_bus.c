@@ -162,7 +162,10 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
     bzero(dl, sizeof *dl);
 
     /*
-     * Compile the driver's methods.
+     * Compile the driver's methods. Also increase the reference count
+     * so that the class doesn't get freed when the last instance
+     * goes. This means we can safely use static methods and avoids a
+     * double-free in devclass_delete_driver.
      */
     kobj_class_compile((kobj_class_t) driver);
 
@@ -986,7 +989,6 @@ device_set_driver(device_t dev, driver_t *driver)
 	    return ENOMEM;
 	}
 	bzero(dev->softc, driver->size);
-	driver->refs++;
     } else
 	kobj_init((kobj_t) dev, &null_class);
     return 0;
@@ -1842,11 +1844,6 @@ void
 bus_generic_driver_added(device_t dev, driver_t *driver)
 {
     device_t child;
-
-    /*
-     * Make sure the class has a valid ops table.
-     */
-    kobj_class_compile((kobj_class_t) driver);
 
     DEVICE_IDENTIFY(driver, dev);
     for (child = TAILQ_FIRST(&dev->children);
