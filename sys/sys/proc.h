@@ -459,6 +459,7 @@ struct kse_upcall {
 };
 
 #define	KUF_DOUPCALL	0x00001		/* Do upcall now, don't wait */
+#define	KUF_EXITING	0x00002		/* Upcall structure is exiting */
 
 /*
  * Kernel-scheduled entity group (KSEG).  The scheduler considers each KSEG to
@@ -900,11 +901,9 @@ struct	thread *thread_alloc(void);
 void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td);
 void	thread_free(struct thread *td);
-void	thread_getcontext(struct thread *td, ucontext_t *uc);
 void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
-int	thread_setcontext(struct thread *td, ucontext_t *uc);
 int	thread_single(int how);
 #define	SINGLE_NO_EXIT 0			/* values for 'how' */
 #define	SINGLE_EXIT 1
