@@ -24,7 +24,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #	From: sio.s 1.3 1999/01/10 14:48:03 rnordier
-#	$Id:$
+#	$Id: sio.s,v 1.1.1.1 1999/07/19 18:07:44 rnordier Exp $
 #
 
 		.set SIO_PRT,SIOPRT		# Base port

@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.1.1.1 1999/07/19 18:07:44 rnordier Exp $
+#	$Id: Makefile,v 1.2 1999/07/19 20:10:17 rnordier Exp $
 
 PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
-CFLAGS=	-fno-builtin -Os
+CFLAGS=	-fno-builtin -O2
 CFLAGS+=-DKZIP
 LDFLAGS=-nostdlib -static -r
 NOMAN=

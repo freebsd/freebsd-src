@@ -24,7 +24,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #	From: btx.s 1.10 1999/02/25 16:27:41 rnordier
-#	$Id:$
+#	$Id: crt.s,v 1.1.1.1 1999/07/19 18:07:44 rnordier Exp $
 #
 
 # Screen defaults and assumptions.
