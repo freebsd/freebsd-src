@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.17 1997/06/02 04:56:38 julian Exp $
+ * $Id: kern_conf.c,v 1.18 1997/08/02 14:31:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -179,7 +179,7 @@ cdevsw_make(struct bdevsw *from)
 	to->d_stop = nostop;
 	to->d_reset = nullreset;
 	to->d_devtotty = nodevtotty;
-	to->d_select = seltrue;
+	to->d_poll = seltrue;
 	to->d_mmap = nommap;
 	to->d_strategy = from->d_strategy;
 	to->d_name = from->d_name;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.40 1997/04/06 11:08:19 dufault Exp $
+ * $Id: kern_lkm.c,v 1.41 1997/08/02 14:31:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,7 @@ static	d_ioctl_t	lkmcioctl;
 static struct cdevsw lkmc_cdevsw = 
 	{ lkmcopen,	lkmcclose,	noread,		nowrite,	/*32*/
 	  lkmcioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		NULL,	"lkm",	NULL,	-1 };
+	  seltrue,	nommap,		NULL,	"lkm",	NULL,	-1 };
 
 
 /*ARGSUSED*/
