@@ -1,3 +1,4 @@
+.\"	$NetBSD: mount_msdos.8,v 1.13 1998/02/06 05:57:00 perry Exp $
 .\"
 .\" Copyright (c) 1993,1994 Christopher G. Demetriou
 .\" All rights reserved.
@@ -27,24 +28,29 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.5 1997/02/22 14:32:29 peter Exp $
+.\"	$Id: mount_msdos.8,v 1.6 1997/12/19 23:03:00 bde Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
-.Os FreeBSD 2.0
+.Os
 .Sh NAME
 .Nm mount_msdos
 .Nd mount an MS-DOS file system
 .Sh SYNOPSIS
-.Nm mount_msdos
+.Nm
+.Op Fl o Ar options
 .Op Fl u Ar uid
 .Op Fl g Ar gid
 .Op Fl m Ar mask
+.Op Fl s
+.Op Fl l
+.Op Fl 9
+.\".Op Fl G
 .Pa special
 .Pa node
 .Sh DESCRIPTION
 The
-.Nm mount_msdos
+.Nm
 command attaches the MS-DOS filesystem residing on
 the device
 .Pa special
@@ -60,17 +66,22 @@ contains the file system).
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl u
+.It Fl o Ar options
+Use the specified mount
+.Ar options ,
+as described in
+.Xr mount 8 .
+.It Fl u Ar uid
 Set the owner of the files in the file system to
 .Ar uid .
 The default owner is the owner of the directory
 on which the file system is being mounted.
-.It Fl g
+.It Fl g Ar gid
 Set the group of the files in the file system to
 .Ar gid .
 The default group is the group of the directory
 on which the file system is being mounted.
-.It Fl m
+.It Fl m Ar mask
 Specify the maximum file permissions for files
 in the file system.
 (For example, a mask of
@@ -86,20 +97,48 @@ Only the nine low-order bits of
 are used.
 The default mask is taken from the
 directory on which the file system is being mounted.
+.It Fl s
+Force behaviour to
+ignore and not generate Win'95 long filenames.
+.It Fl l
+Force listing and generation of
+Win'95 long filenames
+and separate creation/modification/access dates.
+.Pp
+If neither
+.Fl s
+nor
+.Fl l
+are given,
+.Nm
+searches the root directory of the filesystem to
+be mounted for any existing Win'95 long filenames.
+If no such entries are found,
+.Fl s
+is the default. Otherwise
+.Fl l
+is assumed.
+.It Fl 9
+Ignore the special Win'95 directory entries even
+if deleting or renaming a file. This forces
+.Fl s .
+.\".It Fl G
+.\"This option causes the filesystem to be interpreted as an Atari-Gemdos
+.\"filesystem. The differences to the msdos filesystem are minimal and
+.\"limited to the boot block. This option enforces
+.\".Fl s .
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
-.Xr fstab 5
+.Xr fstab 5 ,
+.Xr mount 8
 .Sh CAVEATS
-The
-.Nm msdos
-filesystem is not known to work reliably with filesystems created by versions
-of MS-DOS later than version 6.22.
-.Pp
-The limitations on file names imposed by MS-DOS are strange, at best.
-For instance, they are
-limited to single-case, 8 character names with 3 character extensions.
+The use of the
+.Fl 9
+flag could result in damaged filesystems,
+albeit the damage is in part taken care of by
+procedures similar to the ones used in Win'95.
 .Pp
 .Fx 2.1
 and earlier versions could not handle cluster sizes larger than 16K.
@@ -108,15 +147,18 @@ mounted file system.
 Cluster sizes larger than 16K are unavoidable for file system sizes
 larger than 1G, and also occur when filesystems larger than 1G are
 shrunk to smaller than 1G using FIPS.
-The warning:
 .Pp
-mountmsdosfs(): Warning: root directory is not a multiple of the clustersize in length
-.Pp
-is common when the cluster size is large and/or the filesystem has been
-shrunk, but it is not directly related to any known problems.
+The default handling for
+.Fl s
+and
+.Fl l
+will result in empty filesystems to be populated
+with short filenames only. To generate long filenames
+on empty DOS filesystems use
+.Fl l .
 .Sh HISTORY
 The
-.Nm mount_msdos
+.Nm
 utility first appeared in
 .Fx 2.0 .
 Its predecessor, the
@@ -125,4 +167,4 @@ utility appeared in
 .Fx 1.0 ,
 and was abandoned in favor
 of the more aptly-named
-.Nm mount_msdos .
+.Nm Ns .
