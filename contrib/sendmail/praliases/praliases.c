@@ -9,6 +9,8 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sm/gen.h>
@@ -21,8 +23,6 @@ SM_IDSTR(copyright,
 	The Regents of the University of California.  All rights reserved.\n")
 
 SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.93 2001/09/11 04:05:07 gshapiro Exp $")
-
-/* $FreeBSD$ */
 
 #include <sys/types.h>
 #include <ctype.h>
