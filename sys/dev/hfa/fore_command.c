@@ -105,7 +105,7 @@ fore_cmd_allocate(fup)
 	fup->fu_cmd_stat = (Q_status *) memp;
 
 	pmemp = vtophys(fup->fu_cmd_stat);
-	if (pmemp == NULL) {
+	if (pmemp == 0) {
 		return (1);
 	}
 	fup->fu_cmd_statd = pmemp;
@@ -458,7 +458,7 @@ fore_cmd_free(fup)
 	if (fup->fu_cmd_stat) {
 		atm_dev_free((volatile void *)fup->fu_cmd_stat);
 		fup->fu_cmd_stat = NULL;
-		fup->fu_cmd_statd = NULL;
+		fup->fu_cmd_statd = 0;
 	}
 
 	return;

@@ -94,7 +94,7 @@ fore_xmit_allocate(fup)
 	fup->fu_xmit_stat = (Q_status *) memp;
 
 	pmemp = vtophys(fup->fu_xmit_stat);
-	if (pmemp == NULL) {
+	if (pmemp == 0) {
 		return (1);
 	}
 	fup->fu_xmit_statd = pmemp;
@@ -120,7 +120,7 @@ fore_xmit_allocate(fup)
 		}
 
 		hxp->hxq_descr_dma = vtophys(hxp->hxq_descr);
-		if (hxp->hxq_descr_dma == NULL) {
+		if (hxp->hxq_descr_dma == 0) {
 			return (1);
 		}
 	}
@@ -356,7 +356,7 @@ fore_xmit_free(fup)
 	if (fup->fu_xmit_stat) {
 		atm_dev_free((volatile void *)fup->fu_xmit_stat);
 		fup->fu_xmit_stat = NULL;
-		fup->fu_xmit_statd = NULL;
+		fup->fu_xmit_statd = 0;
 	}
 
 	/*
@@ -369,7 +369,7 @@ fore_xmit_free(fup)
 		 * Free the transmit descriptor for this queue entry
 		 */
 		if (hxp->hxq_descr_dma) {
-			hxp->hxq_descr_dma = NULL;
+			hxp->hxq_descr_dma = 0;
 		}
 
 		if (hxp->hxq_descr) {
