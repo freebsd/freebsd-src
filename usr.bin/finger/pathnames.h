@@ -31,6 +31,7 @@
 #define	_PATH_FORWARD	".forward"
 #define	_PATH_PLAN	".plan"
 #define	_PATH_PROJECT	".project"
+#define _PATH_PUBLICKEY	".publickey"
 
 #ifndef _PATH_FINGERCONF
 #define _PATH_FINGERCONF "/etc/finger.conf"
