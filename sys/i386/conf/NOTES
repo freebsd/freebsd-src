@@ -462,6 +462,7 @@ hint.mse.0.irq="5"
 #       OC-3141, OC-3540, OC-3250
 # rdp:  RealTek RTL 8002-based pocket ethernet adapters
 # sbni:	Granch SBNI12-xx ISA and PCI adapters
+# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl:	Lucent Wavelan (ISA card only).
 
 # Order for ISA/EISA devices is important here
@@ -515,6 +516,11 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
+device		sr
+hint.sr.0.at="isa"
+hint.sr.0.port="0x300"
+hint.sr.0.irq="5"
+hint.sr.0.maddr="0xd0000"
 device		oltr
 hint.oltr.0.at="isa"
 device		wl
