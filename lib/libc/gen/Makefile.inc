@@ -1,10 +1,10 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.6 1997/08/13 07:41:44 peter Exp $
+#	$Id: Makefile.inc,v 1.22.2.7 1998/01/28 02:24:28 msmith Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
 
-SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
+SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c \
 	ctermid.c daemon.c devname.c disklabel.c err.c errlst.c \
 	exec.c fnmatch.c frexp.c fstab.c fts.c getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
@@ -39,7 +39,7 @@ errlst.o errlst.po:
 
 # Only build man pages with libc. 
 .if ${LIB} == "c"
-MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
+MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 \
 	gen/crypt.3 gen/ctermid.3 \
 	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
 	gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 gen/getbootfile.3 \
@@ -61,8 +61,6 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/config_open.3 \
 	gen/times.3 gen/timezone.3 gen/ttyname.3 gen/tzset.3 gen/ualarm.3 \
 	gen/uname.3 gen/unvis.3 gen/usleep.3 gen/utime.3 gen/valloc.3 gen/vis.3
 
-MLINKS+=config_open.3 config_next.3 config_open.3 config_close.3 \
-	config_open.3 config_skip.3
 MLINKS+=crypt.3 encrypt.3 crypt.3 setkey.3 crypt.3  des_setkey.3 \
 	crypt.3 des_cipher.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
