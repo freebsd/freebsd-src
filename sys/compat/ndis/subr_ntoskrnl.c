@@ -1852,6 +1852,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "RtlUnicodeStringToInteger",	(FUNC)ntoskrnl_unicode_to_int },
 	{ "sprintf",			(FUNC)sprintf },
 	{ "vsprintf",			(FUNC)vsprintf },
+	{ "_snprintf",			(FUNC)snprintf },
+	{ "_vsnprintf",			(FUNC)vsnprintf },
 	{ "DbgPrint",			(FUNC)ntoskrnl_dbgprint },
 	{ "DbgBreakPoint",		(FUNC)ntoskrnl_debugger },
 	{ "strncmp",			(FUNC)strncmp },
