@@ -96,7 +96,7 @@ main(argc, argv)
 			warnx("no changes made");
 			pw_error((char *)NULL, 0, 0);
 		}
-		if (pw_mkdb())
+		if (pw_mkdb((char *)NULL))
 			break;
 		pw_prompt();
 	}
