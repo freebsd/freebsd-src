@@ -1,10 +1,10 @@
-# $Id: Makefile,v 1.7 1997/12/17 19:57:35 bde Exp $
+#	$Id: Makefile,v 1.8 1999/04/05 07:10:13 obrien Exp $
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}/cp ${GCCDIR}
 
-INFO = gcc cpp gxxint
+INFO=	gcc cpp gxxint
 
 INFOSECTION=    "Gcc Documentation"
 INFOENTRY_gcc=  "* gcc: (gcc).			The EGCS GNU C compiler."

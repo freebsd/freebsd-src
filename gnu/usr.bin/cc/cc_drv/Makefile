@@ -1,6 +1,5 @@
-#
-# $Id: Makefile,v 1.1 1999/04/04 16:36:34 obrien Exp $
-#
+#	$Id: Makefile,v 1.2 1999/04/04 20:29:43 imp Exp $
+
 .include "../Makefile.inc"
 
 .PATH: ../cc_tools ${GCCDIR} 
