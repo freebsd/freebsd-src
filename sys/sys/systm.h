@@ -192,7 +192,8 @@ int	cr_cansee __P((struct ucred *u1, struct ucred *u2));
 
 char	*getenv __P((const char *name));
 int	getenv_int __P((const char *name, int *data));
-quad_t	getenv_quad __P((const char *name, quad_t *data));
+int	getenv_string __P((const char *name, char *data, int size));
+int	getenv_quad __P((const char *name, quad_t *data));
 
 #ifdef APM_FIXUP_CALLTODO 
 struct timeval;
