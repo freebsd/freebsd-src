@@ -69,7 +69,10 @@ sigwait(const sigset_t * set, int *sig)
 	sigdelset(&waitset, SIGINFO);
 
 	/* Check to see if a pending signal is in the wait mask. */
-	if (tempset = (_thread_run->sigpend & waitset)) {
+	tempset = _thread_run->sigpend;
+	tempset |= _process_sigpending;
+	tempset &= waitset;
+	if (tempset != 0) {
 		/* Enter a loop to find a pending signal: */
 		for (i = 1; i < NSIG; i++) {
 			if (sigismember (&tempset, i))
@@ -77,7 +80,10 @@ sigwait(const sigset_t * set, int *sig)
 		}
 
 		/* Clear the pending signal: */
-		sigdelset(&_thread_run->sigpend,i);
+		if (sigismember(&_thread_run->sigpend,i))
+			sigdelset(&_thread_run->sigpend,i);
+		else
+			sigdelset(&_process_sigpending,i);
 
 		/* Return the signal number to the caller: */
 		*sig = i;
@@ -104,7 +110,6 @@ sigwait(const sigset_t * set, int *sig)
 		}
 	}
 	if (ret == 0) {
-
 		/*
 		 * Save the wait signal mask.  The wait signal
 		 * mask is independent of the threads signal mask

@@ -147,6 +147,9 @@ fork(void)
 				}
 			}
 
+			/* Treat the current thread as the initial thread: */
+			_thread_initial = _thread_run;
+
 			/* Re-init the dead thread list: */
 			TAILQ_INIT(&_dead_list);
 

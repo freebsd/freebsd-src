@@ -94,7 +94,7 @@ sigsuspender (void *arg)
 static void
 sighandler (int signo)
 {
-	sigset_t set;
+	sigset_t set, suspend_set;
 	pthread_t self;
 
 	if ((signo >= 0) && (signo <= NSIG))
@@ -110,8 +110,15 @@ sighandler (int signo)
 		fifo_depth++;
 		printf ("  -> Suspender thread signal handler caught signal %d\n",
 			signo);
+
+		/* Get the current signal mask. */
 		sigprocmask (SIG_SETMASK, NULL, &set);
-		if (set != suspender_mask)
+
+		/* The handler should run with the current signal masked. */
+		suspend_set = suspender_mask;
+		sigaddset(&suspend_set, signo);
+
+		if (memcmp(&set, &suspend_set, sizeof(set)))
 			printf ("  >>> FAIL: sigsuspender signal handler running "
 				"with incorrect mask.\n");
 	}
@@ -180,13 +187,14 @@ int main (int argc, char *argv[])
 	sigaddset (&newset, SIGUSR2);
 	sigprocmask (SIG_SETMASK, &newset, NULL);
 
-	/* Install a signal handler for SIGUSR1 and SIGUSR2 */
+	/* Install a signal handler for SIGUSR1 */
 	sigemptyset (&act.sa_mask);
 	sigaddset (&act.sa_mask, SIGUSR1);
-	sigaddset (&act.sa_mask, SIGUSR2);
-	act.sa_handler = sighandler;
-	act.sa_flags = SA_RESTART;
 	sigaction (SIGUSR1, &act, NULL);
+
+	/* Install a signal handler for SIGUSR2 */
+	sigemptyset (&act.sa_mask);
+	sigaddset (&act.sa_mask, SIGUSR2);
 	sigaction (SIGUSR2, &act, NULL);
 
 	/*
@@ -231,7 +239,7 @@ int main (int argc, char *argv[])
 	sleep (1);
 	send_process_signal (SIGURG);
 	sleep (1);
-	if (sigcounts[SIGURG] != 3)
+	if (sigcounts[SIGURG] != 2)
 		printf ("FAIL: sigsuspend doesn't wake up for SIGURG.\n");
 
 	/*

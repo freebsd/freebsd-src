@@ -46,7 +46,6 @@ pthread_kill(pthread_t pthread, int sig)
 	if (sig < 0 || sig >= NSIG)
 		/* Invalid signal: */
 		ret = EINVAL;
-
 	/*
 	 * Ensure the thread is in the list of active threads, and the
 	 * signal is valid (signal 0 specifies error checking only) and
@@ -60,98 +59,7 @@ pthread_kill(pthread_t pthread, int sig)
 		 */
 		_thread_kern_sig_defer();
 
-		switch (pthread->state) {
-		case PS_SIGSUSPEND:
-			/*
-			 * Only wake up the thread if the signal is unblocked
-			 * and there is a handler installed for the signal.
-			 */
-			if (!sigismember(&pthread->sigmask, sig) &&
-			    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
-				/* Change the state of the thread to run: */
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-				/* Return the signal number: */
-				pthread->signo = sig;
-			}
-			/* Increment the pending signal count: */
-			sigaddset(&pthread->sigpend,sig);
-			break;
-
-		case PS_SIGWAIT:
-			/* Wake up the thread if the signal is blocked. */
-			if (sigismember(pthread->data.sigwait, sig)) {
-				/* Change the state of the thread to run: */
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-				/* Return the signal number: */
-				pthread->signo = sig;
-			} else
-				/* Increment the pending signal count. */
-				sigaddset(&pthread->sigpend,sig);
-			break;
-
-		case PS_FDR_WAIT:
-		case PS_FDW_WAIT:
-		case PS_POLL_WAIT:
-		case PS_SLEEP_WAIT:
-		case PS_SELECT_WAIT:
-			if (!sigismember(&pthread->sigmask, sig) &&
-			    (_thread_sigact[sig - 1].sa_handler != SIG_IGN)) {
-				/* Flag the operation as interrupted: */
-				pthread->interrupted = 1;
-
-				if (pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
-					PTHREAD_WORKQ_REMOVE(pthread);
-
-				/* Change the state of the thread to run: */
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-				/* Return the signal number: */
-				pthread->signo = sig;
-			} else {
-				/* Increment the pending signal count: */
-				sigaddset(&pthread->sigpend,sig);
-			}
-			break;
-
-		default:
-			/* Increment the pending signal count: */
-			sigaddset(&pthread->sigpend,sig);
-			break;
-		}
-
-
-		/*
-		 * Check that a custom handler is installed
-		 * and if the signal is not blocked:
-		 */
-		if (_thread_sigact[sig - 1].sa_handler != SIG_DFL &&
-		    _thread_sigact[sig - 1].sa_handler != SIG_IGN &&
-		    sigismember(&pthread->sigpend, sig) &&
-		    !sigismember(&pthread->sigmask, sig)) {
-			pthread_t pthread_saved = _thread_run;
-
-			/* Current thread inside critical region? */
-			if (_thread_run->sig_defer_count > 0)
-				pthread->sig_defer_count++;
-
-			_thread_run = pthread;
-
-			/* Clear the pending signal: */
-			sigdelset(&pthread->sigpend, sig);
-
-			/*
-			 * Dispatch the signal via the custom signal
-			 * handler:
-			 */
-			(*(_thread_sigact[sig - 1].sa_handler))(sig);
-
-			_thread_run = pthread_saved;
-
-			if (_thread_run->sig_defer_count > 0)
-				pthread->sig_defer_count--;
-		}
+		_thread_sig_send(pthread, sig);
 
 		/*
 		 * Undefer and handle pending signals, yielding if

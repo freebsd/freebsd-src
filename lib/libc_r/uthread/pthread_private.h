@@ -842,7 +842,12 @@ SCLASS	pthread_cond_t  _gc_cond
 /*
  * Array of signal actions for this process.
  */
-struct  sigaction _thread_sigact[NSIG];
+SCLASS struct  sigaction _thread_sigact[NSIG];
+
+/*
+ * Pending signals for this process.
+ */
+SCLASS sigset_t	_process_sigpending;
 
 /*
  * Scheduling queues:
@@ -911,7 +916,6 @@ int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)
 int     _thread_fd_lock(int, int, struct timespec *);
 int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
 void    _dispatch_signals(void);
-void    _thread_signal(pthread_t, int);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
 void	_mutex_notify_priochange(pthread_t);
@@ -947,8 +951,10 @@ void    _thread_kern_set_timeout(struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
 void    _thread_sig_handler(int, int, struct sigcontext *);
-void    _thread_sig_handle(int, struct sigcontext *);
+pthread_t _thread_sig_handle(int, struct sigcontext *);
 void	_thread_sig_init(void);
+void	_thread_sig_send(pthread_t pthread, int sig);
+void	_thread_sig_deliver(pthread_t pthread, int sig);
 void    _thread_start(void);
 void    _thread_start_sig_handler(void);
 void	_thread_seterrno(pthread_t,int);

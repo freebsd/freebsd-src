@@ -118,7 +118,7 @@ int main (int argc, char *argv[])
 	/* Initialize our signal counts. */
 	memset ((void *) sigcounts, 0, NSIG * sizeof (int));
 
-	/* Setupt our wait mask. */
+	/* Setup our wait mask. */
 	sigemptyset (&wait_mask);		/* Default action	*/
 	sigaddset (&wait_mask, SIGHUP);		/* terminate		*/
 	sigaddset (&wait_mask, SIGINT);		/* terminate		*/
@@ -250,7 +250,7 @@ int main (int argc, char *argv[])
 	if (sigcounts[SIGHUP] != 1)
 		printf ("FAIL: sigwait doesn't wake up for SIGHUP.\n");
 	/*
-	 * Add SIGHUP to all threads pending signals.  Since there is
+	 * Add SIGHUP to the process pending signals.  Since there is
 	 * a signal handler installed for SIGHUP and this signal is
 	 * blocked from the waiter thread and unblocked in the main
 	 * thread, the signal handler should be called once for SIGHUP.
@@ -259,11 +259,11 @@ int main (int argc, char *argv[])
 	/* Release the waiter thread and allow him to run. */
 	pthread_mutex_unlock (&waiter_mutex);
 	sleep (1);
-	if (sigcounts[SIGHUP] != 3)
+	if (sigcounts[SIGHUP] != 2)
 		printf ("FAIL: sigwait doesn't return for pending SIGHUP.\n");
 
 	/*
-	 * Repeat the above test using pthread_kill and SIGUSR1
+	 * Repeat the above test using pthread_kill and SIGUSR1.
 	 */
 	sigcounts[SIGUSR1] = 0;
  	pthread_mutex_lock (&waiter_mutex);
