@@ -107,22 +107,11 @@ sn_pccard_attach(device_t dev)
 	return (sn_attach(dev));
 }
 
-static int
-sn_pccard_detach(device_t dev)
-{
-	struct sn_softc *sc = device_get_softc(dev);
-
-	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
-	sn_deactivate(dev);
-	return 0;
-}
-
 static device_method_t sn_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	sn_pccard_detach),
+	DEVMETHOD(device_detach,	sn_detach),
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	sn_pccard_match),
