@@ -96,8 +96,29 @@ function.
 In all cases, the last component of the program name, a colon character,
 and a space are output.
 If the
-.Va fmt
+.Fa fmt
 argument is not NULL, the formatted error message is output.
+The output is terminated by a newline character.
+.Pp
+The
+.Fn err ,
+.Fn errc ,
+.Fn verr ,
+.Fn verrc ,
+.Fn warn ,
+.Fn warnc ,
+.Fn vwarn ,
+and
+.Fn vwarnc
+functions append an error message obtained from
+.Xr strerror 3
+based on a code or the global variable
+.Va errno ,
+preceeded by another colon and space unless the
+.Fa fmt
+argument is
+.Dv NULL .
+.Pp
 In the case of the
 .Fn errc ,
 .Fn verrc ,
@@ -105,11 +126,9 @@ In the case of the
 and
 .Fn vwarnc
 functions,
-the error message string affiliated with the
-.Va code
-argument is also output,
-preceded by another colon and space if necessary.
-In all cases, the output is followed by a newline character.
+the
+.Fa code
+argument is used to look up the error message.
 .Pp
 The
 .Fn err ,
@@ -119,11 +138,13 @@ and
 .Fn vwarn
 functions use the global variable
 .Va errno
-rather than the
-.Va code
-argument of the
-.Fn errc
-family
+to look up the error message.
+.Pp
+The
+.Fn errx
+and
+.Fn warnx
+functions do not append an error message.
 .Pp
 The
 .Fn err ,
@@ -146,7 +167,7 @@ The
 .Fn err_set_file
 function sets the output stream used by the other functions.
 Its
-.Va vfp
+.Fa vfp
 argument must be either a pointer to an open stream
 (possibly already converted to void *)
 or a null pointer
