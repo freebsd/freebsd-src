@@ -840,14 +840,14 @@ buf_isadma(snd_dbuf *b, int go)
 		switch (go) {
 		case PCMTRIG_START:
 			DEB(printf("buf 0x%p ISA DMA started\n", b));
-			isa_dmastart(b->dir | B_RAW, b->buf,
+			isa_dmastart(b->dir | ISADMA_RAW, b->buf,
 					b->bufsize, b->chan);
 			break;
 		case PCMTRIG_STOP:
 		case PCMTRIG_ABORT:
 			DEB(printf("buf 0x%p ISA DMA stopped\n", b));
 			isa_dmastop(b->chan);
-			isa_dmadone(b->dir | B_RAW, b->buf, b->bufsize,
+			isa_dmadone(b->dir | ISADMA_RAW, b->buf, b->bufsize,
 				    b->chan);
 			break;
 		}
@@ -1050,7 +1050,7 @@ chn_setdir(pcm_channel *c, int dir)
 	c->direction = dir;
 	r = c->setdir(c->devinfo, c->direction);
 	if (!r && ISA_DMA(&c->buffer))
-		c->buffer.dir = (dir == PCMDIR_PLAY)? B_WRITE : B_READ;
+		c->buffer.dir = (dir == PCMDIR_PLAY)? ISADMA_WRITE : ISADMA_READ;
 	return r;
 }
 

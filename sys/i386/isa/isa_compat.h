@@ -194,7 +194,7 @@ static struct old_isa_driver old_drivers[] = {
 	{ INTR_TYPE_TTY, &stlidriver },
 #endif
 #if NLORAN > 0
-	{ INTR_TYPE_TTY, &lorandriver },
+	{ INTR_TYPE_TTY | INTR_TYPE_FAST, &lorandriver },
 #endif
 
 /* BIO */
