@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.31 1995/10/24 06:47:57 ache Exp $
+ *	$Id: ld.c,v 1.32 1996/04/24 23:31:08 jdp Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -135,6 +135,7 @@ int			input_desc;
 
 /* The name of the file to write; "a.out" by default. */
 char		*output_filename;	/* Output file name. */
+char		*real_output_filename;	/* Output file name. */
 FILE		*outstream;		/* Output file descriptor. */
 struct exec	outheader;		/* Output file header. */
 int		magic;			/* Output file magic. */
@@ -424,6 +425,7 @@ classify_arg(arg)
 	case 'e':
 	case 'L':
 	case 'l':
+	case 'O':
 	case 'o':
 	case 'u':
 	case 'V':
@@ -695,6 +697,13 @@ decode_option(swt, arg)
 
 	case 'n':
 		magic = NMAGIC;
+		return;
+
+	case 'O':
+		output_filename = malloc(strlen(arg)+4);
+		strcpy(output_filename, arg);
+		strcat(output_filename, ".tmp");
+		real_output_filename = arg;
 		return;
 
 	case 'o':
@@ -2514,6 +2523,10 @@ write_output()
 	if (ferror(outstream) || fclose(outstream) != 0)
 		err(1, "write_output: %s", output_filename);
 	outstream = 0;
+	if (real_output_filename)
+		if (rename(output_filename, real_output_filename))
+			err(1, "rename output: %s to %s",
+				output_filename, real_output_filename);
 }
 
 /* Total number of symbols to be written in the output file. */
