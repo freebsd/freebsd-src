@@ -575,6 +575,10 @@ fas_nofault_end:
 
 	.globl	fas_fault
 ENTRY(fas_fault)
+	ldxa	[%g0] ASI_LSU_CTL_REG, %o0
+	or	%o0, LSU_IC | LSU_DC, %o0
+	stxa	%o0, [%g0] ASI_LSU_CTL_REG
+	membar	#Sync
 	retl
 	 mov	-1, %o0
 END(fas_fault)
