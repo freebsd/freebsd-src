@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wtreg.h,v 1.6 1996/01/08 12:46:15 joerg Exp $
+ * $Id: wtreg.h,v 1.7 1996/01/30 22:56:14 mpp Exp $
  *
  */
 
@@ -103,10 +103,6 @@
 #define TP_ILL          0x4000  /* Illegal command - should not happen! */
 #define TP_ST1          0x8000  /* Status byte 1 bits */
 #define TP_ST1MASK      0xff00  /* Status byte 1 mask */
-
-/* formats for printing flags and error values */
-#define WTDS_BITS "\20\1inuse\2read\3write\4start\5rmark\6wmark\7rew\10excep\11vol\12wo\13ro\14wany\15rany\16wp\17timer\20active"
-#define WTER_BITS "\20\1eof\2bnl\3uda\4eom\5wrp\6usl\7cni\11por\12erm\13bpe\14bom\15mbd\16ndt\17ill"
 
 /* device minor number */
 #define WT_BSIZE        0100    /* long block flag */
