@@ -38,6 +38,9 @@
 .Nd Universal Serial Bus
 .Sh SYNOPSIS
 .Cd "device usb"
+.Pp
+.Cd "#include <dev/usb/usb.h>"
+.Cd "#include <dev/usb/usbhid.h>"
 .Sh DESCRIPTION
 .Fx
 provides machine-independent bus support and drivers for
@@ -114,7 +117,17 @@ enumeration.
 .It Cd interface
 this is the interface number within a device that an interface driver
 attaches to.
+.It Cd vendor
+this is the 16 bit vendor id of the device.
+.It Cd product
+this is the 16 bit product id of the device.
+.It Cd release
+this is the 16 bit release (revision) number of the device.
 .El
+The first locator can be used to pin down a particular device
+according to its physical position in the device tree.
+The last three locators can be used to pin down a particular
+device according to what device it actually is.
 .Pp
 The bus enumeration of the
 .Tn USB
@@ -173,9 +186,7 @@ Should no such device exist an error is reported.
 struct usb_device_info {
         u_int8_t        bus;
         u_int8_t        addr;
-#       define USBDEVNAME_NR  4
-#       define USBDEVNAME_LEN 10
-        char            devnames[USBDEVNAME_NR][USBDEVNAME_LEN];
+        usb_event_cookie_t cookie;
         char            product[USB_MAX_STRING_LEN];
         char            vendor[USB_MAX_STRING_LEN];
         char            release[8];
@@ -189,6 +200,7 @@ struct usb_device_info {
         u_int8_t        lowspeed;
         int             power;
         int             nports;
+        char            devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
         u_int8_t        ports[16];
 #define USB_PORT_ENABLED      0xff
 #define USB_PORT_SUSPENDED    0xfe
@@ -282,16 +294,24 @@ Human Interface Devices
 .Sh SEE ALSO
 The
 .Tn USB
-specifications can be found at
-.Dv http://www.usb.org/developers/docs.htm .
+specifications can be found at:
+.D1 http://www.usb.org/developers/docs.htm .
 .Pp
+.Xr usb 3 ,
+.Xr aue 4 ,
+.Xr cue 4 ,
+.Xr kue 4 ,
 .Xr ohci 4 ,
 .Xr pci 4 ,
+.Xr ugen 4 ,
 .Xr uhci 4 ,
 .Xr uhid 4 ,
 .Xr ukbd 4 ,
+.Xr umass 4 ,
 .Xr ums 4 ,
 .Xr usbd 8 ,
+.Xr urio 4 ,
+.Xr uscanner 4 ,
 .Xr usbdevs 8
 .Sh HISTORY
 The
