@@ -840,8 +840,8 @@ tcp_notify(inp, error)
 	 * can never complete.
 	 */
 	if (tp->t_state == TCPS_ESTABLISHED &&
-	     (error == EHOSTUNREACH || error == ENETUNREACH ||
-	      error == EHOSTDOWN)) {
+	    (error == EHOSTUNREACH || error == ENETUNREACH ||
+	     error == EHOSTDOWN)) {
 		return inp;
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
 	    tp->t_softerror) {
@@ -922,7 +922,6 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
 			caddr_t inp_ppcb;
@@ -936,9 +935,9 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xt.xt_socket);
+			xt.xt_inp.inp_gencnt = inp->inp_gencnt;
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		}
-		INP_UNLOCK(inp);
 	}
 	if (!error) {
 		/*
