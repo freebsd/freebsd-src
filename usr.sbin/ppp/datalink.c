@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: datalink.c,v 1.1.2.1 1998/02/15 23:59:55 brian Exp $
  */
 
 #include <sys/param.h>
@@ -117,9 +117,10 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   struct datalink *dl = descriptor2datalink(d);
   int result;
 
+  result = 0;
   switch (dl->state) {
     case DATALINK_CLOSED:
-      return 0;
+      break;
 
     case DATALINK_OPENING:
       if (dl->dial_timer.state != TIMER_RUNNING) {
@@ -150,7 +151,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             datalink_StartDialTimer(dl, VarRedialTimeout);
         }
       }
-      return 0;
+      break;
 
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
