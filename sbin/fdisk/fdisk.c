@@ -150,6 +150,7 @@ struct part_type
 	,{0x0E, "Primary 'big' DOS (> 32MB, LBA)"}
 	,{0x0F, "Extended DOS, LBA"}
 	,{0x10, "OPUS"}
+	,{0x39, "plan9"}
 	,{0x40, "VENIX 286"}
 	,{0x4D, "QNX 4.2 Primary"}
 	,{0x4E, "QNX 4.2 Secondary"}
