@@ -165,7 +165,9 @@ struct icmp {
 #define		ICMP_TIMXCEED_INTRANS	0		/* ttl==0 in transit */
 #define		ICMP_TIMXCEED_REASS	1		/* ttl==0 in reass */
 #define	ICMP_PARAMPROB		12		/* ip header bad */
+#define		ICMP_PARAMPROB_ERRATPTR 0		/* error at param ptr */
 #define		ICMP_PARAMPROB_OPTABSENT 1		/* req. opt. absent */
+#define		ICMP_PARAMPROB_LENGTH 2			/* bad length */
 #define	ICMP_TSTAMP		13		/* timestamp request */
 #define	ICMP_TSTAMPREPLY	14		/* timestamp reply */
 #define	ICMP_IREQ		15		/* information request */
