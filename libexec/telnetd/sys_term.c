@@ -1497,7 +1497,7 @@ start_login(host, autologin, name)
 {
 	register char *cp;
 	register char **argv;
-	char **addarg();
+	char **addarg(), *user;
 	extern char *getenv();
 #ifdef	UTMPX
 	register int pid = getpid();
@@ -1667,7 +1667,12 @@ start_login(host, autologin, name)
 # endif
 	} else
 #endif
-	if (getenv("USER")) {
+	if (user = getenv("USER")) {
+	if (strchr(user, '-')) {
+			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
+			       user); 
+			fatal(net, "invalid user");
+		}
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
