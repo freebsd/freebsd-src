@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.2 1994/08/10 04:25:19 wollman Exp $
+#	$Id: Makefile,v 1.3 1994/08/28 17:48:43 bde Exp $
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 
@@ -33,4 +33,4 @@ NOMAN= noman
 		fi
 	@${RPCCOM} -c ${*F}.x -o ${.TARGET}
 
-OBJS+= ${RPCSRCS:R:S/$/_xdr.o/g}
+OBJS= ${RPCSRCS:R:S/$/_xdr.o/g}
