@@ -797,7 +797,7 @@ installConfigure(void)
 }
 
 int
-installFixupBin(dialogMenuItem *self)
+installFixupBase(dialogMenuItem *self)
 {
     Device **devs;
     char *cp;
@@ -843,19 +843,7 @@ installFixupBin(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
-int
-installPackage(dialogMenuItem *self, char *desc, char *package)
-{
-    WINDOW *w = savescr();
-    int i;
-
-    dialog_clear_norefresh();
-    msgNotify("Installing %s package...", desc);
-    i = package_add(package);
-    restorescr(w);
-    return i;
-}
-
+#ifndef X_AS_PKG
 /* Fix side-effects from the the XFree86 installation */
 int
 installFixupXFree(dialogMenuItem *self)
@@ -867,17 +855,16 @@ installFixupXFree(dialogMenuItem *self)
 	vsystem("chmod -R a+r /usr/X11R6");
 	vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
 
-#ifndef X_AS_PKG
 	/* Also do bogus minimal package registration so ports don't whine */
 	if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz")) {
 	    dialog_clear_norefresh();
 	    msgNotify("Installing package metainfo..");
 	    vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
 	}
-#endif
     }
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
+#endif
 
 #define	QUEUE_YES	1
 #define	QUEUE_NO	0

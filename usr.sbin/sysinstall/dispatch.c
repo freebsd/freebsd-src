@@ -88,7 +88,7 @@ static struct _word {
     { "installExpress",		installExpress		},
     { "installStandard",	installStandard		},
     { "installUpgrade",		installUpgrade		},
-    { "installFixupBin",	installFixupBin		},
+    { "installFixupBase",	installFixupBase	},
 #ifndef X_AS_PKG
     { "installFixupXFree",	installFixupXFree	},
 #endif
