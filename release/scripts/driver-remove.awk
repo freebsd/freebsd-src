@@ -1,6 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/awk -f
 # 
 # Copyright (c) 2000  "HOSOKAWA, Tatsumi" <hosokawa@FreeBSD.org>
+# Copyright (c) 2002  Ruslan Ermilov <ru@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,52 +28,59 @@
 # $FreeBSD$
 # 
 
-if ($#ARGV != 2) {
-    print STDERR "usage: driver-copy.pl config_file src_ko_dir dst_ko_dir\n";
-    exit 1;
-}
-
-$config = $ARGV[0];
-$srcdir = $ARGV[1];
-$dstdir = $ARGV[2];
-
-open CONFIG, "< $config" or die "Cannot open $config.\n";
-while (<CONFIG>) {
-    s/#.*$//;
-    if (/^(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+\"(.*)\"\s*$/) {
-	$flp{$2} = $3;
-	$dsc{$2} = $5;
-    }
-}
-close CONFIG;
-
--d $srcdir or die "Cannot find $srcdir directory.\n";
--d $dstdir or die "Cannot find $dstdir directory.\n";
-
-undef $/;
-
-foreach $f (sort keys %flp) {
-    if ($flp{$f} == 1) {
-	print STDERR "$f: There's nothing to do with driver on first floppy.\n";
-    }
-    elsif ($flp{$f} == 2) {
-	$srcfile = $srcdir . '/' . $f . '.ko';
-	$dstfile = $dstdir . '/' . $f . '.ko';
-	$dscfile = $dstdir . '/' . $f . '.dsc';
-	print STDERR "Copying $f.ko to $dstdir\n";
-	open SRC, "< $srcfile" or die "Cannot open $srcfile\n";
-	$file = <SRC>;
-	close SRC;
-	open DST, "> $dstfile" or die "Cannot open $dstfile\n";
-	print DST $file;
-	close DST;
-	open DSC, "> $dscfile" or die "Cannot open $dscfile\n";
-	print DSC $dsc{$f};
-	close DSC;
-    }
-    elsif ($flp{$f} == 3) {
-	# third driver floppy (currently not implemnted yet...)
-	print STDERR "3rd driver floppy support has not implemented yet\n";
+function usage()
+{
+	print "usage: driver-remove.awk config_file BOOTMFS" > "/dev/stderr";
 	exit 1;
-    }
+}
+
+function err(eval, fmt, what)
+{
+	printf "driver-remove.awk: " fmt ": %s\n", what, ERRNO > "/dev/stderr";
+	exit eval;
+}
+
+function readconfig(config)
+{
+	while ((getline < config) > 0) {
+		sub("#.*$", "");
+		if (split(gensub(/^(\w+)[ \t]+(\w+)[ \t]+([0-9]+)[ \t]+(\w+)[ \t]+\"(.*)\"[ \t]*$/,
+		    "\\1#\\2#\\3#\\4#\\5", "g"), arg, "#") == 5) {
+			if (arg[4] == "options")
+				options[arg[1]] = 1;
+			else
+				drivers[arg[1]] = 1;
+		}
+	}
+	if (ERRNO)
+		err(1, "reading %s", config);
+	close(config);
+}
+
+BEGIN {
+	if (ARGC != 3)
+		usage();
+
+	config = ARGV[1];
+	bootmfs = ARGV[2];
+
+	readconfig(config);
+
+	lines = 0;
+	while ((getline < bootmfs) > 0) {
+		if (/^device[ \t]+\w+/ &&
+		    gensub(/^device[ \t]+(\w+).*$/, "\\1", "g") in drivers)
+			continue;
+		if (/^options[ \t]+\w+/ &&
+		    gensub(/^options[ \t]+(\w+).*$/, "\\1", "g") in options)
+			continue;
+		line[lines++] = $0;
+	}
+	if (ERRNO)
+		err(1, "reading %s", bootmfs);
+	close(bootmfs);
+	printf "" > bootmfs;
+	for (i = 0; i < lines; i++)
+		print line[i] >> bootmfs;
+	close(bootmfs);
 }
