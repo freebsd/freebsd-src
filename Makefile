@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.30 1994/11/14 20:52:54 phk Exp $
+#	$Id: Makefile,v 1.31 1994/12/04 02:46:28 ache Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -103,7 +103,7 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 
-world:	hierarchy cleandist mk includes libraries tools
+world:	hierarchy cleandist mk includes lib-tools libraries tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -234,6 +234,18 @@ includes:
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE}	beforeinstall
+
+lib-tools:
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding tools needed to build the libraries
+	@echo "--------------------------------------------------------------"
+	@echo
+	cd ${.CURDIR}/usr.bin/ar && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/ranlib && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/nm && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 
 libraries:
 	@echo "--------------------------------------------------------------"
