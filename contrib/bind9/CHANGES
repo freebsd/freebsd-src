@@ -1,4 +1,8 @@
 
+	--- 9.3.0 released ---
+
+1711.	[func]		'rndc unfreeze' has been deprecated by 'rndc thaw'.
+
 	--- 9.3.0rc4 released ---
 
 1709.	[port]		solaris: add SMF support.
