@@ -28,11 +28,9 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>		/* for MAXPATHLEN */
+#include <sys/param.h>
 #include <errno.h>
-#if defined(sun) || defined(__NetBSD__)
-# include <limits.h>
-#endif
+#include <limits.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdio.h>
@@ -43,10 +41,6 @@
 #define ERR		(-2)
 #define EMOD		(-3)
 #define FATAL		(-4)
-
-#ifndef MAXPATHLEN
-# define MAXPATHLEN 255		/* _POSIX_PATH_MAX */
-#endif
 
 #define MINBUFSZ 512		/* minimum buffer size - must be > 0 */
 #define SE_MAX 30		/* max subexpressions in a regular expression */

@@ -96,7 +96,7 @@ int scripted = 0;		/* if set, suppress diagnostics */
 int sigflags = 0;		/* if set, signals received while mutex set */
 int sigactive = 0;		/* if set, signal handlers are enabled */
 
-char old_filename[MAXPATHLEN + 1] = "";	/* default filename */
+char old_filename[PATH_MAX] = "";	/* default filename */
 long current_addr;		/* current address in editor buffer */
 long addr_last;			/* last address in editor buffer */
 int lineno;			/* script line number */
@@ -948,9 +948,10 @@ get_filename()
 			ibufp++;
 			if ((n = get_shell_command()) < 0)
 				return NULL;
-			if (n) printf("%s\n", shcmd + 1);
+			if (n)
+				printf("%s\n", shcmd + 1);
 			return shcmd;
-		} else if (n - 1 > MAXPATHLEN) {
+		} else if (n > PATH_MAX - 1) {
 			sprintf(errmsg, "filename too long");
 			return  NULL;
 		}
@@ -961,7 +962,7 @@ get_filename()
 		return  NULL;
 	}
 #endif
-	REALLOC(file, filesz, MAXPATHLEN + 1, NULL);
+	REALLOC(file, filesz, PATH_MAX, NULL);
 	for (n = 0; *ibufp != '\n';)
 		file[n++] = *ibufp++;
 	file[n] = '\0';
@@ -1338,7 +1339,7 @@ has_trailing_escape(s, t)
 }
 
 
-/* strip_escapes: return copy of escaped string of at most length MAXPATHLEN */
+/* strip_escapes: return copy of escaped string of at most length PATH_MAX */
 char *
 strip_escapes(s)
 	char *s;
@@ -1348,7 +1349,7 @@ strip_escapes(s)
 
 	int i = 0;
 
-	REALLOC(file, filesz, MAXPATHLEN + 1, NULL);
+	REALLOC(file, filesz, PATH_MAX, NULL);
 	while (i < filesz - 1	/* Worry about a possible trailing escape */
 	       && (file[i++] = (*s == '\\') ? *++s : *s))
 		s++;
@@ -1391,7 +1392,7 @@ handle_hup(signo)
 	sigflags &= ~(1 << (signo - 1));
 	if (addr_last && write_file("ed.hup", "w", 1, addr_last) < 0 &&
 	    (s = getenv("HOME")) != NULL &&
-	    (n = strlen(s)) + 8 <= MAXPATHLEN &&	/* "ed.hup" + '/' */
+	    (n = strlen(s)) + 8 <= PATH_MAX &&	/* "ed.hup" + '/' */
 	    (hup = (char *) malloc(n + 10)) != NULL) {
 		strcpy(hup, s);
 		if (hup[n - 1] != '/')
