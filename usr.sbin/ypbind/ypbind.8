@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypbind.8,v 1.5.2.1 1997/03/06 08:01:03 mpp Exp $
+.\"	$Id: ypbind.8,v 1.5.2.2 1997/04/15 08:09:11 jmg Exp $
 .\"
 .Dd April 9, 1995
 .Dt YPBIND 8
@@ -44,7 +44,7 @@
 .Op Fl s
 .Op Fl S Ar domainname,server1,server2,...
 .Sh DESCRIPTION
-.Nm
+.Nm Ypbind
 is the process that maintains NIS binding information. At startup,
 it searches for an NIS server responsible for serving the system's
 default domain (as set by the
@@ -66,16 +66,15 @@ intervals. If it fails to receive a reply to one of these requests,
 .Nm
 assumes that the server is no longer running and resumes its network
 broadcasts until another binding is established.
-.Nm
+.Nm Ypbind
 will also log warning messages using the
 .Xr syslog 3
 facility each time it detects that a server has stopped responding,
 as well as when it has bound to a new server.
-.Pp
 .Sh OPTIONS
 The following options are supported by
 .Nm Ns :
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl ypset
 It is possible to force
 .Nm
@@ -98,17 +97,15 @@ This is similar to the
 flag, except that it only permits YPBINDPROC_SETDOM requests to be processed
 if they originated from the local host.
 .It Fl s
-The
-.Fl s
-flag causes
+Cause
 .Nm
 to run in secure mode: it will refuse to bind to any NIS server
 that is not running as root (i.e. that is not using privileged
 TCP ports).
 .It Fl S Ar domainname,server1,server2,server3,...
-The
-.Fl S
-flag allows the system administrator to lock ypbind to a particular
+Allow the system administrator to lock
+.Nm
+to a particular
 domain and group of NIS servers. Up to ten servers can be specified.
 There must not be any spaces between the commas in the domain/server
 specification. This option is used to insure that the system binds
@@ -148,12 +145,12 @@ will try broadcasting again. By contrast,
 will automatically maintain a binding for the default domain whether
 client programs reference it ot not.
 .Sh FILES
-.Bl -tag -width Pa -compact
+.Bl -tag -width /etc/rc.conf -compact
 .It Pa /var/yp/binding/[domainname].[version]
-The files used to hold binding information for each NIS domain.
-.It Pa /etc/sysconfig
-System configuration file where the system default domain and
-ypbind startup options are specified.
+the files used to hold binding information for each NIS domain
+.It Pa /etc/rc.conf
+system configuration file where the system default domain and
+ypbind startup options are specified
 .El
 .Sh SEE ALSO
 .Xr domainname 1 ,
@@ -162,4 +159,4 @@ ypbind startup options are specified.
 .Xr ypserv 8 ,
 .Xr ypset 8
 .Sh AUTHOR
-Theo de Raadt <deraadt@fsa.ca>
+.An Theo de Raadt Aq deraadt@fsa.ca
