@@ -1031,6 +1031,7 @@ libkern/index.c		standard
 libkern/inet_ntoa.c	standard
 libkern/mcount.c	optional	profiling-routine
 libkern/qsort.c		standard
+libkern/fnmatch.c	standard
 libkern/random.c	standard
 libkern/rindex.c	standard
 libkern/scanc.c		standard
