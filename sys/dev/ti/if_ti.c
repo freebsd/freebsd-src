@@ -1554,7 +1554,7 @@ ti_init_tx_ring(sc)
  * but we have to support the old way too so that Tigon 1 cards will
  * work.
  */
-void
+static void
 ti_add_mcast(sc, addr)
 	struct ti_softc		*sc;
 	struct ether_addr	*addr;
@@ -1584,7 +1584,7 @@ ti_add_mcast(sc, addr)
 	return;
 }
 
-void
+static void
 ti_del_mcast(sc, addr)
 	struct ti_softc		*sc;
 	struct ether_addr	*addr;

@@ -2108,7 +2108,7 @@ amd_linkSRB(struct amd_softc *amd)
 	}
 }
 
-void
+static void
 amd_EnDisableCE(struct amd_softc *amd, int mode, int *regval)
 {
 	if (mode == ENABLE_CE) {
@@ -2123,7 +2123,7 @@ amd_EnDisableCE(struct amd_softc *amd, int mode, int *regval)
 	DELAY(160);
 }
 
-void
+static void
 amd_EEpromOutDI(struct amd_softc *amd, int *regval, int Carry)
 {
 	u_int bval;

@@ -1372,7 +1372,7 @@ sis_rxeof(sc)
 	return;
 }
 
-void
+static void
 sis_rxeoc(sc)
 	struct sis_softc	*sc;
 {

@@ -2927,7 +2927,7 @@ static	struct scripth scripth0 = {
 **==========================================================
 */
 
-void ncr_script_fill (struct script * scr, struct scripth * scrh)
+static void ncr_script_fill (struct script * scr, struct scripth * scrh)
 {
 	int	i;
 	ncrcmd	*p;
@@ -4418,7 +4418,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 **==========================================================
 */
 
-void
+static void
 ncr_complete (ncb_p np, nccb_p cp)
 {
 	union ccb *ccb;
@@ -4590,7 +4590,7 @@ ncr_complete (ncb_p np, nccb_p cp)
 **==========================================================
 */
 
-void
+static void
 ncr_wakeup (ncb_p np, u_long code)
 {
 	/*
@@ -4720,7 +4720,7 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 **==========================================================
 */
 
-void
+static void
 ncr_init(ncb_p np, char * msg, u_long code)
 {
 	int	i;
@@ -5282,7 +5282,7 @@ static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
 **==========================================================
 */
 
-void ncr_exception (ncb_p np)
+static void ncr_exception (ncb_p np)
 {
 	u_char	istat, dstat;
 	u_short	sist;
@@ -5581,7 +5581,7 @@ void ncr_exception (ncb_p np)
 **----------------------------------------------------------
 */
 
-void ncr_int_sto (ncb_p np)
+static void ncr_int_sto (ncb_p np)
 {
 	u_long dsa, scratcha, diff;
 	nccb_p cp;
@@ -5849,7 +5849,7 @@ static int ncr_show_msg (u_char * msg)
 	return (1);
 }
 
-void ncr_int_sir (ncb_p np)
+static void ncr_int_sir (ncb_p np)
 {
 	u_char scntl3;
 	u_char chg, ofs, per, fak, wide;
@@ -6458,7 +6458,7 @@ static	nccb_p ncr_get_nccb
 **==========================================================
 */
 
-void ncr_free_nccb (ncb_p np, nccb_p cp)
+static void ncr_free_nccb (ncb_p np, nccb_p cp)
 {
 	/*
 	**    sanity
