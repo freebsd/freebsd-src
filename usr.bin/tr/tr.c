@@ -41,6 +41,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)tr.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <locale.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,6 +96,8 @@ main(argc, argv)
 {
 	register int ch, cnt, lastch, *p;
 	int cflag, dflag, sflag, isstring2;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	cflag = dflag = sflag = 0;
 	while ((ch = getopt(argc, argv, "cds")) != EOF)
