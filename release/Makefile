@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.339 1998/01/28 04:05:10 jkh Exp $
+#	$Id: Makefile,v 1.340 1998/02/01 06:35:44 pst Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -143,7 +143,8 @@ rerelease release:
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
 	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
-	  (cd $$i; make fetch DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
+	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
+	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
         done
 .endif
 .endif
