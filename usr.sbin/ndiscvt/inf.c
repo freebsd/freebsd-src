@@ -61,7 +61,7 @@ static void	dump_deviceids_pci	(void);
 static void	dump_deviceids_pcmcia	(void);
 static void	dump_pci_id	(const char *);
 static void	dump_pcmcia_id	(const char *);
-static void	dump_regvals	(void);
+/*static*/ void	dump_regvals	(void);
 static void	dump_paramreg	(const struct section *,
 				const struct reg *, int);
 
@@ -246,7 +246,8 @@ dump_deviceids_pci()
 	if (manf->vals[1] != NULL &&
 	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
 	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
-	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTamd64") == 0)) {
 		/* Handle Windows XP INF files. */
 		snprintf(xpsec, sizeof(xpsec), "%s.%s",
 		    manf->vals[0], manf->vals[1]);
@@ -325,7 +326,8 @@ dump_deviceids_pcmcia()
 	if (manf->vals[1] != NULL &&
 	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
 	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
-	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTamd64") == 0)) {
 		/* Handle Windows XP INF files. */
 		snprintf(xpsec, sizeof(xpsec), "%s.%s",
 		    manf->vals[0], manf->vals[1]);
@@ -557,7 +559,7 @@ dump_paramreg(const struct section *s, const struct reg *r, int devidx)
 	return;
 }
 
-static void
+/*static*/ void
 dump_regvals(void)
 {
 	struct assign *manf, *dev;
@@ -578,7 +580,8 @@ dump_regvals(void)
 	if (manf->vals[1] != NULL &&
 	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
 	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
-	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTamd64") == 0)) {
 		is_winxp++;
 		/* Handle Windows XP INF files. */
 		snprintf(sname, sizeof(sname), "%s.%s",
@@ -600,9 +603,15 @@ retry:
 			 * Look for section names with .NT, unless
 			 * this is a WinXP .INF file.
 			 */
+
 			if (is_winxp) {
 				sprintf(sname, "%s.NTx86", assign->vals[0]);
 				dev = find_assign(sname, "AddReg");
+				if (dev == NULL) {
+					sprintf(sname, "%s.NT",
+					    assign->vals[0]);
+					dev = find_assign(sname, "AddReg");
+				}
 				if (dev == NULL)
 					dev = find_assign(assign->vals[0],
 					    "AddReg");

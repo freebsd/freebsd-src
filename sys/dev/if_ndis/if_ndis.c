@@ -101,6 +101,13 @@ static __stdcall void ndis_linksts	(ndis_handle,
 	ndis_status, void *, uint32_t);
 static __stdcall void ndis_linksts_done	(ndis_handle);
 
+/* We need to wrap these functions for amd64. */
+
+static funcptr ndis_txeof_wrap;
+static funcptr ndis_rxeof_wrap;
+static funcptr ndis_linksts_wrap;
+static funcptr ndis_linksts_done_wrap;
+
 static void ndis_intr		(void *);
 static void ndis_intrtask	(void *);
 static void ndis_tick		(void *);
@@ -151,14 +158,27 @@ ndisdrv_modevent(mod, cmd, arg)
                 if (ndisdrv_loaded > 1)
 			break;
 		windrv_load(mod, (vm_offset_t)drv_data, 0);
+		windrv_wrap((funcptr)ndis_rxeof, &ndis_rxeof_wrap);
+		windrv_wrap((funcptr)ndis_txeof, &ndis_txeof_wrap);
+		windrv_wrap((funcptr)ndis_linksts, &ndis_linksts_wrap);
+		windrv_wrap((funcptr)ndis_linksts_done,
+		    &ndis_linksts_done_wrap);
 		break;
 	case MOD_UNLOAD:
 		ndisdrv_loaded--;
 		if (ndisdrv_loaded > 0)
 			break;
 		windrv_unload(mod, (vm_offset_t)drv_data, 0);
+		windrv_unwrap(ndis_rxeof_wrap);
+		windrv_unwrap(ndis_txeof_wrap);
+		windrv_unwrap(ndis_linksts_wrap);
+		windrv_unwrap(ndis_linksts_done_wrap);
 		break;
 	case MOD_SHUTDOWN:
+		windrv_unwrap(ndis_rxeof_wrap);
+		windrv_unwrap(ndis_txeof_wrap);
+		windrv_unwrap(ndis_linksts_wrap);
+		windrv_unwrap(ndis_linksts_done_wrap);
 		break;
 	default:
 		error = EINVAL;
@@ -418,8 +438,6 @@ ndis_attach(dev)
 
 	mtx_init(&sc->ndis_mtx, "ndis softc lock",
 	    MTX_NETWORK_LOCK, MTX_DEF);
-	mtx_init(&sc->ndis_intrmtx,
-	    "ndis irq lock", MTX_NETWORK_LOCK, MTX_DEF);
 
         /*
 	 * Hook interrupt early, since calling the driver's
@@ -476,8 +494,8 @@ ndis_attach(dev)
 	ndis_convert_res(sc);
 
 	/* Install our RX and TX interrupt handlers. */
-	sc->ndis_block->nmb_senddone_func = ndis_txeof;
-	sc->ndis_block->nmb_pktind_func = ndis_rxeof;
+	sc->ndis_block->nmb_senddone_func = ndis_txeof_wrap;
+	sc->ndis_block->nmb_pktind_func = ndis_rxeof_wrap;
 
 	/* Call driver's init routine. */
 	if (ndis_init_nic(sc)) {
@@ -510,6 +528,18 @@ ndis_attach(dev)
 
 	sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
 	    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
+
+	/* Allocate a pool of ndis_packets for TX encapsulation. */
+
+	NdisAllocatePacketPool(&i, &sc->ndis_txpool,
+	   sc->ndis_maxpkts, PROTOCOL_RESERVED_SIZE_IN_PACKET);
+
+	if (i != NDIS_STATUS_SUCCESS) {
+		sc->ndis_txpool = NULL;
+		device_printf(dev, "failed to allocate TX packet pool");
+		error = ENOMEM;
+		goto fail;
+	}
 
 	sc->ndis_txpending = sc->ndis_maxpkts;
 
@@ -748,8 +778,8 @@ nonettypes:
 	}
 
 	/* Override the status handler so we can detect link changes. */
-	sc->ndis_block->nmb_status_func = ndis_linksts;
-	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done;
+	sc->ndis_block->nmb_status_func = ndis_linksts_wrap;
+	sc->ndis_block->nmb_statusdone_func = ndis_linksts_done_wrap;
 fail:
 	if (error)
 		ndis_detach(dev);
@@ -778,8 +808,6 @@ ndis_detach(dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->ndis_mtx),
 	    ("ndis mutex not initialized"));
-	KASSERT(mtx_initialized(&sc->ndis_intrmtx),
-	    ("ndis interrupt mutex not initialized"));
 	NDIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_flags &= ~IFF_UP;
@@ -822,6 +850,9 @@ ndis_detach(dev)
 	if (!sc->ndis_80211)
 		ifmedia_removeall(&sc->ifmedia);
 
+	if (sc->ndis_txpool != NULL)
+		NdisFreePacketPool(sc->ndis_txpool);
+
 	ndis_unload_driver(sc);
 
 	/* Destroy the PDO for this device. */
@@ -839,7 +870,6 @@ ndis_detach(dev)
 #endif
 
 	mtx_destroy(&sc->ndis_mtx);
-	mtx_destroy(&sc->ndis_intrmtx);
 
 	return(0);
 }
@@ -1083,9 +1113,8 @@ ndis_intrtask(arg)
 	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	ndis_intrhand(sc);
 	KeLowerIrql(irql);
-	mtx_lock(&sc->ndis_intrmtx);
+
 	ndis_enable_intr(sc);
-	mtx_unlock(&sc->ndis_intrmtx);
 
 	return;
 }
@@ -1098,21 +1127,24 @@ ndis_intr(arg)
 	struct ifnet		*ifp;
 	int			is_our_intr = 0;
 	int			call_isr = 0;
+	uint8_t			irql;
+	ndis_miniport_interrupt	*intr;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
+	intr = sc->ndis_block->nmb_interrupt;
 
 	if (sc->ndis_block->nmb_miniportadapterctx == NULL)
 		return;
 
-	mtx_lock(&sc->ndis_intrmtx);
+	KeAcquireSpinLock(&intr->ni_dpccountlock, &irql);
 	if (sc->ndis_block->nmb_interrupt->ni_isrreq == TRUE)
 		ndis_isr(sc, &is_our_intr, &call_isr);
 	else {
 		ndis_disable_intr(sc);
 		call_isr = 1;
 	}
-	mtx_unlock(&sc->ndis_intrmtx);
+	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
 
 	if ((is_our_intr || call_isr))
 		ndis_sched(ndis_intrtask, ifp->if_softc, NDIS_SWI);
@@ -1258,7 +1290,7 @@ ndis_start(ifp)
 	struct mbuf		*m = NULL;
 	ndis_packet		**p0 = NULL, *p = NULL;
 	ndis_tcpip_csum		*csum;
-	int			pcnt = 0;
+	int			pcnt = 0, status;
 
 	sc = ifp->if_softc;
 
@@ -1280,7 +1312,11 @@ ndis_start(ifp)
 		if (m == NULL)
 			break;
 
-		sc->ndis_txarray[sc->ndis_txidx] = NULL;
+		NdisAllocatePacket(&status,
+		    &sc->ndis_txarray[sc->ndis_txidx], sc->ndis_txpool);
+
+		if (status != NDIS_STATUS_SUCCESS)
+			break;
 
 		if (ndis_mtop(m, &sc->ndis_txarray[sc->ndis_txidx])) {
 #if __FreeBSD_version >= 502114
