@@ -53,7 +53,10 @@
 #include <sys/stat.h>
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/sha2/sha2.h>
+#include <sys/param.h>
+#include <sys/linker.h>
 
+#define GBDEMOD "geom_bde"
 #define KASSERT(foo, bar) do { if(!(foo)) { warn bar ; exit (1); } } while (0)
 
 #include <geom/geom.h>
@@ -669,6 +672,12 @@ main(int argc, char **argv)
 	if (argc < 3)
 		usage("Too few arguments\n");
 
+       if ((i = kldfind(GBDEMOD)) < 0) {
+               /* need to load the gbde module */
+               if (kldload(GBDEMOD) < 0 || kldfind(GBDEMOD) < 0) {
+                       usage(GBDEMOD ": Kernel module not available");
+               }
+       }
 	doopen = 0;
 	if (!strcmp(argv[1], "attach")) {
 		action = ACT_ATTACH;
