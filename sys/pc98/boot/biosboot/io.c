@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.5 1996/10/23 07:24:32 asami Exp $
+ *	$Id: io.c,v 1.6 1996/11/09 00:18:03 asami Exp $
  */
 
 #include "boot.h"
@@ -176,11 +176,7 @@ isch(void)
 
 }
 
-#ifdef PC98
 static __inline unsigned
-#else
-static __inline unsigned
-#endif
 pword(unsigned physaddr)
 {
 #ifdef PC98
