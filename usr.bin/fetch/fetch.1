@@ -41,6 +41,7 @@
 .Op Fl B Ar bytes
 .Op Fl S Ar bytes
 .Op Fl T Ar seconds
+.Op Fl N Ar file
 .Op Fl o Ar file
 .Op Fl w Ar seconds
 .Op Fl h Ar host
@@ -119,6 +120,16 @@ Note that the
 and
 .Fl r
 flags are mutually exclusive.
+.It Fl N Ar file
+Use
+.Ar file
+instead of
+.Pa ~/.netrc
+to lookup login names and passwords for FTP sites.
+See
+.Xr ftp 1
+for a description of the file format.
+This feature is experimental.
 .It Fl n
 Don't preserve the modification time of the transferred file.
 .It Fl o Ar file
