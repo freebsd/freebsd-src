@@ -236,7 +236,8 @@ as follows:
 .El
 .
 .\" XXX
-.ne 7
+.if t \
+.  ne 7
 .
 .
 .Sh "TROFF IDIOSYNCRASIES"
@@ -2335,7 +2336,7 @@ macro always invokes the
 macro after eliminating the space unless another macro name follows it.
 If used as a request (i.e., the second form above in the
 .Sq Usage
-line,
+line),
 .Ql .Ns
 is identical to
 .Ql .No .
