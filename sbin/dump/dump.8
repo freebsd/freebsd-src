@@ -45,8 +45,8 @@
 .Op Fl 0123456789ackLnSu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
-.Op Fl D Ar dumpdates
 .Op Fl C Ar cachesize
+.Op Fl D Ar dumpdates
 .Op Fl d Ar density
 .Op Fl f Ar file
 .Op Fl h Ar level
@@ -80,7 +80,8 @@ option below for doing remote backups).
 A dump that is larger than the output medium is broken into
 multiple volumes.
 On most media the size is determined by writing until an
-end-of-media indication is returned.  This can be enforced
+end-of-media indication is returned.
+This can be enforced
 by using the
 .Fl a
 option.
@@ -103,7 +104,7 @@ as either its device-special file or its mount point
 The following options are supported by
 .Nm :
 .Bl -tag -width Ds
-.It Fl 0\-9
+.It Fl 0-9
 Dump levels.
 A level 0, full backup,
 guarantees the entire file system is copied
@@ -119,8 +120,9 @@ The default level is 0.
 .It Fl a
 .Dq auto-size .
 Bypass all tape length considerations, and enforce writing
-until an end-of-media indication is returned.  This fits best
-for most modern tape drives.  Use of this option is particularly
+until an end-of-media indication is returned.
+This fits best for most modern tape drives.
+Use of this option is particularly
 recommended when appending to an existing tape, or using a tape
 drive with hardware compression (where you can never be sure about
 the compression ratio).
@@ -132,8 +134,24 @@ This option overrides the calculation of tape size
 based on length and density.
 .It Fl b Ar blocksize
 The number of kilobytes per output block, except that if it is
-larger than 64, the command uses 64. (See the BUGS section.)
+larger than 64, the command uses 64.
+(See the
+.Sx BUGS
+section.)
 The default block size is 10.
+.It Fl C Ar cachesize
+Specify the cache size in megabytes.
+This will greatly improve performance
+at the cost of
+.Nm
+possibly not noticing changes in the file system between passes.
+It is
+recommended that you always use this option when dumping a snapshot.
+Beware that
+.Nm
+forks, and the actual memory use may be larger than the specified cache
+size.
+The recommended cache size is between 8 and 32 (megabytes).
 .It Fl c
 Change the defaults for use with a cartridge tape drive, with a density
 of 8000 bpi, and a length of 1700 feet.
@@ -143,16 +161,6 @@ Specify an alternate path to the
 file.
 The default is
 .Pa /etc/dumpdates .
-.It Fl C Ar cachesize
-Specify the cache size in megabytes.  This will greatly improve performance
-at the cost of
-.Nm
-possibly not noticing changes in the filesystem between passes.  It is
-recommended that you always use this option when dumping a snapshot.
-Beware that
-.Nm
-forks, and the actual memory use may be larger then the specified cache
-size.  The recommended cache size is between 8 and 32 (megabytes).
 .It Fl d Ar density
 Set tape density to
 .Ar density .
@@ -201,7 +209,8 @@ The default honor level is 1,
 so that incremental backups omit such files
 but full backups retain them.
 .It Fl k
-Use Kerberos authentication to talk to remote tape servers.  (Only
+Use Kerberos authentication to talk to remote tape servers.
+(Only
 available if this option was enabled when
 .Nm
 was compiled.)
@@ -222,6 +231,9 @@ notify all operators in the group
 .Dq operator
 by means similar to a
 .Xr wall 1 .
+.It Fl S
+Display an estimate of the backup size and the number of
+tapes required, and exit without actually performing the dump.
 .It Fl s Ar feet
 Attempt to calculate the amount of tape needed
 at a particular density.
@@ -230,9 +242,6 @@ If this amount is exceeded,
 prompts for a new tape.
 It is recommended to be a bit conservative on this option.
 The default tape length is 2300 feet.
-.It Fl S
-Display an estimate of the backup size and the number of
-tapes required, and exit without actually performing the dump.
 .It Fl T Ar date
 Use the specified date as the starting time for the dump
 instead of the time determined from looking in
@@ -299,7 +308,9 @@ option is set, all other options are ignored, and
 .Nm
 exits immediately.
 .It Fl w
-Is like W, but prints only those file systems which need to be dumped.
+Is like
+.Fl W ,
+but prints only those file systems which need to be dumped.
 .El
 .Pp
 Directories and regular files which have their
@@ -442,7 +453,8 @@ is written.
 .Pp
 Currently,
 .Xr physio 9
-slices all requests into chunks of 64 KB.  Therefore, it is
+slices all requests into chunks of 64 KB.
+Therefore, it is
 impossible to use a larger output block size, so
 .Nm
 will prevent this from happening.
@@ -472,7 +484,8 @@ for the operator running
 The
 .Nm
 utility cannot do remote backups without being run as root, due to its
-security history.  This will be fixed in a later version of
+security history.
+This will be fixed in a later version of
 .Fx .
 Presently, it works if you set it setuid (like it used to be), but this
 might constitute a security risk.

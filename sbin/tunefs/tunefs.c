@@ -96,27 +96,11 @@ main(int argc, char *argv[])
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "AL:a:e:f:l:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:L:l:m:n:o:ps:")) != -1)
 	  switch (ch) {
 	  case 'A':
 		found_arg = 1;
 		Aflag++;
-		break;
-	  case 'L':
-		found_arg = 1;
-		name = "volume label";
-		Lvalue = optarg;
-		i = -1;
-		while (isalnum(Lvalue[++i]));
-		if (Lvalue[i] != '\0') {
-			errx(10, "bad %s. Valid characters are alphanumerics.",
-			    name);
-		}
-		if (strlen(Lvalue) >= MAXVOLLEN) {
-			errx(10, "bad %s. Length is longer than %d.",
-			    name, MAXVOLLEN - 1);
-		}
-		Lflag = 1;
 		break;
 	  case 'a':
 		found_arg = 1;
@@ -143,6 +127,22 @@ main(int argc, char *argv[])
 		if (fvalue < 1)
 			errx(10, "%s must be >= 1 (was %s)", name, optarg);
 		fflag = 1;
+		break;
+	  case 'L':
+		found_arg = 1;
+		name = "volume label";
+		Lvalue = optarg;
+		i = -1;
+		while (isalnum(Lvalue[++i]));
+		if (Lvalue[i] != '\0') {
+			errx(10, "bad %s. Valid characters are alphanumerics.",
+			    name);
+		}
+		if (strlen(Lvalue) >= MAXVOLLEN) {
+			errx(10, "bad %s. Length is longer than %d.",
+			    name, MAXVOLLEN - 1);
+		}
+		Lflag = 1;
 		break;
 	  case 'l':
 		found_arg = 1;
@@ -376,8 +376,8 @@ void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: tunefs [-A] [-L volname] [-a enable | disable] [-e maxbpg]",
-"              [-f avgfilesize] [-l enable | disable] [-m minfree]",
+"usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
+"              [-L volname] [-l enable | disable] [-m minfree]",
 "              [-n enable | disable] [-o space | time] [-p]",
 "              [-s avgfpdir] special | filesystem");
 	exit(2);

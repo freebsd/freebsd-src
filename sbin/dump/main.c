@@ -128,9 +128,9 @@ main(int argc, char *argv[])
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kLns:ST:uWwD:C:"
+#define optstring "0123456789aB:b:C:cD:d:f:h:kLnSs:T:uWw"
 #else
-#define optstring "0123456789aB:b:cd:f:h:Lns:ST:uWwD:C:"
+#define optstring "0123456789aB:b:C:cD:d:f:h:LnSs:T:uWw"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -155,8 +155,16 @@ main(int argc, char *argv[])
 			    1L, 1000L);
 			break;
 
+		case 'C':
+			cachesize = numarg("cachesize", 0, 0) * 1024 * 1024;
+			break;
+
 		case 'c':		/* Tape is cart. not 9-track */
 			cartridge = 1;
+			break;
+
+		case 'D':
+			dumpdates = optarg;
 			break;
 
 		case 'd':		/* density, in bits per inch */
@@ -167,14 +175,6 @@ main(int argc, char *argv[])
 
 		case 'f':		/* output file */
 			tape = optarg;
-			break;
-
-		case 'D':
-			dumpdates = optarg;
-			break;
-
-		case 'C':
-			cachesize = numarg("cachesize", 0, 0) * 1024 * 1024;
 			break;
 
 		case 'h':
@@ -195,12 +195,12 @@ main(int argc, char *argv[])
 			notify = 1;
 			break;
 
-		case 's':		/* tape size, feet */
-			tsize = numarg("tape size", 1L, 0L) * 12 * 10;
-			break;
-
 		case 'S':               /* exit after estimating # of tapes */
 			just_estimate = 1;
+			break;
+
+		case 's':		/* tape size, feet */
+			tsize = numarg("tape size", 1L, 0L) * 12 * 10;
 			break;
 
 		case 'T':		/* time of last dump */
@@ -576,9 +576,9 @@ usage(void)
 #ifdef KERBEROS
 		"k"
 #endif
-		"nSu] [-B records] [-b blocksize] [-D dumpdates]\n"
-		"            [-d density] [-f file] [-h level] [-s feet]\n"
-		"            [-T date] [-C cachesizeMB] filesystem\n"
+		"LnSu] [-B records] [-b blocksize] [-C cachesize]\n"
+		"            [-D dumpdates] [-d density] [-f file] [-h level] [-s feet]\n"
+		"            [-T date] filesystem\n"
 		"       dump -W | -w\n");
 	exit(X_STARTUP);
 }
