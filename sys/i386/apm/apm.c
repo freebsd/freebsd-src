@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.26 1996/03/12 21:51:58 nate Exp $
+ *	$Id: apm.c,v 1.27 1996/03/13 00:41:38 nate Exp $
  */
 
 #include "apm.h"
@@ -59,8 +59,7 @@ struct apm_softc {
 	void 	*sc_devfs_token;
 };
 
-static struct apm_softc apm_softc[NAPM];
-static struct apm_softc *master_softc = NULL; 	/* XXX */
+static struct apm_softc apm_softc;
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
@@ -415,9 +414,8 @@ static void apm_processevent(struct apm_softc *);
 void
 apm_suspend(void)
 {
-	struct apm_softc *sc;
+	struct apm_softc *sc = &apm_softc;
 
-	sc = master_softc;      /* XXX */
 	if (!sc)
 		return;
 
@@ -431,9 +429,8 @@ apm_suspend(void)
 void
 apm_resume(void)
 {
-	struct apm_softc *sc;
+	struct apm_softc *sc = &apm_softc;
 
-	sc = master_softc;      /* XXX */
 	if (!sc)
 		return;
 
@@ -471,7 +468,7 @@ apm_get_info(struct apm_softc *sc, apm_info_t aip)
 void
 apm_cpu_idle(void)
 {
-	struct apm_softc *sc = master_softc;    /* XXX */
+	struct apm_softc *sc = &apm_softc;
 
 	if (sc->idle_cpu) {
 		if (sc->active) {
@@ -497,7 +494,7 @@ apm_cpu_idle(void)
 void
 apm_cpu_busy(void)
 {
-	struct apm_softc *sc = master_softc;	/* XXX */
+	struct apm_softc *sc = &apm_softc;
 
 	if (sc->idle_cpu && sc->active) {
 		__asm("movw $0x5306, %ax; lcall _apm_addr");
@@ -582,23 +579,19 @@ struct isa_driver apmdriver = {
 static int
 apmprobe(struct isa_device *dvp)
 {
-	int     unit = dvp->id_unit;
-
-	/*
-	 * XXX - This is necessary here so that we don't panic in the idle
-	 * loop because master_softc is unitialized.
-	 */
-	master_softc = &apm_softc[unit];
-  
+	if ( dvp->id_unit > 0 ) {
+		printf("apm: Only one APM driver supported.\n");
+		return 0;
+	}
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
 		return 0;
 	case APMINI_NOT32BIT:
-		printf("apm%d: 32bit connection is not supported.\n", unit);
+		printf("apm: 32bit connection is not supported.\n");
 		return 0;
 	case APMINI_CONNECTERR:
-		printf("apm%d: 32-bit connection error.\n", unit);
+		printf("apm: 32-bit connection error.\n");
 		return 0;
 	}
 
@@ -693,10 +686,8 @@ apm_processevent(struct apm_softc *sc)
 static int
 apmattach(struct isa_device *dvp)
 {
-	int	unit = dvp->id_unit;
-	char	name[32];
 #define APM_KERNBASE	KERNBASE
-	struct apm_softc	*sc = &apm_softc[unit];
+	struct apm_softc	*sc = &apm_softc;
 
 	sc->initialized = 0;
 	sc->active = 0;
@@ -717,13 +708,12 @@ apmattach(struct isa_device *dvp)
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
 	printf(" found APM BIOS version %04x\n",  apm_version);
-	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
-		unit, sc->cs32_base, sc->cs16_base, sc->ds_base);
-	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-		unit, sc->cs_entry, is_enabled(sc->idle_cpu),
+	printf("apm: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
+		sc->cs32_base, sc->cs16_base, sc->ds_base);
+	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
+		sc->cs_entry, is_enabled(sc->idle_cpu),
 		is_enabled(!sc->disabled));
-	printf("apm%d: CS_limit=%x, DS_limit=%x\n",
-		unit, sc->cs_limit, sc->ds_limit);
+	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
 	sc->cs_limit = 0xffff;
@@ -747,13 +737,12 @@ apmattach(struct isa_device *dvp)
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
 	if (sc->intversion >= INTVERSION(1, 1)) {
-		printf("apm%d: Engaged control %s\n",
-			unit, is_enabled(!sc->disengaged));
+		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
 	}
 
 	printf(" found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
-	printf("apm%d: Idling CPU %s\n", unit, is_enabled(sc->idle_cpu));
+	printf("apm: Idling CPU %s\n", is_enabled(sc->idle_cpu));
 
 	/* enable power management */
 	if (sc->disabled) {
@@ -791,9 +780,8 @@ apmattach(struct isa_device *dvp)
 	sc->initialized = 1;
 
 #ifdef DEVFS
-	sprintf(name,"apm%d",unit);
 	sc->sc_devfs_token = devfs_add_devsw(
-		"/",	name,	&apm_cdevsw,	unit,	DV_CHR,	0,  0, 0600);
+		"/",	"apm",	&apm_cdevsw,	0,	DV_CHR,	0,  0, 0600);
 #endif
 	return 0;
 }
@@ -801,14 +789,15 @@ apmattach(struct isa_device *dvp)
 static int
 apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	struct apm_softc *sc = &apm_softc[minor(dev)];
+	struct apm_softc *sc = &apm_softc;
 
-	if (minor(dev) >= NAPM) {
+	if (minor(dev) != 0 ) {
 		return (ENXIO);
 	}
 	if (!sc->initialized) {
-		return ENXIO;
+		return (ENXIO);
 	}
+
 	return 0;
 }
 
@@ -821,14 +810,14 @@ apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 static int
 apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
-	struct apm_softc *sc = &apm_softc[minor(dev)];
+	struct apm_softc *sc = &apm_softc;
 	int error = 0;
 
 #ifdef APM_DEBUG
-	printf("APM ioctl: minor = %d, cmd = 0x%x\n", minor(dev), cmd);
+	printf("APM ioctl: cmd = 0x%x\n", cmd);
 #endif
 
-	if (minor(dev) >= NAPM) {
+	if (minor(dev) != 0) {
 		return ENXIO;
 	}
 	if (!sc->initialized) {
