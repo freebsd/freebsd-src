@@ -81,7 +81,7 @@ struct spigot_softc {
 int	spigot_probe(struct isa_device *id);
 int	spigot_attach(struct isa_device *id);
 
-struct isa_driver	spidriver = {spigot_probe, spigot_attach, "spigot"};
+struct isa_driver	spigotdriver = {spigot_probe, spigot_attach, "spigot"};
 
 static struct kern_devconf kdc_spigot[NSPIGOT] = {
 	0,			/* kdc_next -> filled in by dev_attach() */
