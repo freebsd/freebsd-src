@@ -52,6 +52,8 @@ typedef struct elf_file {
     Elf_Hashelt	nchains;
     Elf_Hashelt	*buckets;
     Elf_Hashelt	*chains;
+    Elf_Rela	*rela;
+    size_t	relasz;
     char	*strtab;
     size_t	strsz;
     int		fd;
@@ -63,6 +65,10 @@ typedef struct elf_file {
 
 static int elf_loadimage(struct preloaded_file *mp, elf_file_t ef, vm_offset_t loadaddr);
 static int elf_lookup_symbol(struct preloaded_file *mp, elf_file_t ef, const char* name,	Elf_Sym* sym);
+#ifdef __sparc__
+static void elf_reloc_ptr(struct preloaded_file *mp, elf_file_t ef,
+    void *p, void *val, size_t len);
+#endif
 static int elf_parse_modmetadata(struct preloaded_file *mp, elf_file_t ef);
 static char	*fake_modname(const char *name);
 
@@ -491,6 +497,12 @@ nosyms:
 	case DT_SYMTAB:
 	    ef->symtab = (Elf_Sym*)(dp[i].d_un.d_ptr + off);
 	    break;
+	case DT_RELA:
+	    ef->rela = (Elf_Rela *)(dp[i].d_un.d_ptr + off);
+	    break;
+	case DT_RELASZ:
+	    ef->relasz = dp[i].d_un.d_val;
+	    break;
 	default:
 	    break;
 	}
@@ -566,26 +578,38 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef)
 
     modcnt = 0;
     while (p < p_stop) {
-	COPYOUT(p++, &v, sizeof(v));
-	COPYOUT(v + ef->off, &md, sizeof(md));
+	COPYOUT(p, &v, sizeof(v));
+#ifdef __sparc64__
+	elf_reloc_ptr(fp, ef, p, &v, sizeof(v));
+#else
+	v += ef->off;
+#endif
+	COPYOUT(v, &md, sizeof(md));
+#ifdef __sparc64__
+	elf_reloc_ptr(fp, ef, v, &md, sizeof(md));
+#else
+	md.md_cval += ef->off;
+	md.md_data += ef->off;
+#endif
+	p++;
 	switch(md.md_type) {
 	  case MDT_DEPEND:
 	    if (ef->kernel)		/* kernel must not depend on anything */
 	      break;
-	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
+	    s = strdupout((vm_offset_t)md.md_cval);
 	    minfolen = sizeof(*mdepend) + strlen(s) + 1;
 	    mdepend = malloc(minfolen);
 	    if (mdepend == NULL)
 		return ENOMEM;
-	    COPYOUT((vm_offset_t)(md.md_data + ef->off), mdepend, sizeof(*mdepend));
+	    COPYOUT((vm_offset_t)md.md_data, mdepend, sizeof(*mdepend));
 	    strcpy((char*)(mdepend + 1), s);
 	    free(s);
 	    file_addmetadata(fp, MODINFOMD_DEPLIST, minfolen, mdepend);
 	    free(mdepend);
 	    break;
 	  case MDT_VERSION:
-	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
-	    COPYOUT((vm_offset_t)(md.md_data + ef->off), &mver, sizeof(mver));
+	    s = strdupout((vm_offset_t)md.md_cval);
+	    COPYOUT((vm_offset_t)md.md_data, &mver, sizeof(mver));
 	    file_addmodule(fp, s, mver.mv_version, NULL);
 	    free(s);
 	    modcnt++;
@@ -657,3 +681,30 @@ elf_lookup_symbol(struct preloaded_file *fp, elf_file_t ef, const char* name,
     }
     return ENOENT;
 }
+
+#ifdef __sparc__
+/*
+ * Apply any intra-module relocations to the value. *p is the load address
+ * of the value and val/len is the value to be modified. This does NOT modify
+ * the image in-place, because this is done by kern_linker later on.
+ */
+static void
+elf_reloc_ptr(struct preloaded_file *mp, elf_file_t ef,
+    void *p, void *val, size_t len)
+{
+	Elf_Addr off = (Elf_Addr)p - ef->off, word;
+	size_t n;
+	Elf_Rela r;
+
+	for (n = 0; n < ef->relasz / sizeof(r); n++) {
+		COPYOUT(ef->rela + n, &r, sizeof(r));
+
+		if (r.r_offset >= off && r.r_offset < off + len &&
+		    ELF_R_TYPE(r.r_info) == R_SPARC_RELATIVE) {
+			word = ef->off + r.r_addend;
+			bcopy(&word, (char *)val + (r.r_offset - off),
+			    sizeof(word));
+		}
+	}
+}
+#endif
