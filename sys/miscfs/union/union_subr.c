@@ -304,7 +304,7 @@ union_newsize(vp, uppersz, lowersz)
  *		not locked, and will be dereferenced on return.
  *
  *	lowervp	Holds the new lowervp vnode to be stored in the
- *		union_node we are allocating.  uppervp is referenced but
+ *		union_node we are allocating.  lowervp is referenced but
  *		not locked, and will be dereferenced on return.
  * 
  *	cnp	Holds path component information to be coupled with
@@ -346,7 +346,6 @@ union_allocvp(vpp, mp, dvp, upperdvp, cnp, uppervp, lowervp, docache)
 {
 	int error;
 	struct union_node *un = 0;
-	struct vnode *xlowervp = NULLVP;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
 	struct proc *p = (cnp) ? cnp->cn_proc : curproc;
 	int hash = 0;
@@ -357,7 +356,7 @@ union_allocvp(vpp, mp, dvp, upperdvp, cnp, uppervp, lowervp, docache)
 		panic("union: unidentifiable allocation");
 
 	if (uppervp && lowervp && (uppervp->v_type != lowervp->v_type)) {
-		xlowervp = lowervp;
+		vrele(lowervp);
 		lowervp = NULLVP;
 	}
 
@@ -599,9 +598,6 @@ loop:
 	}
 
 out:
-	if (xlowervp)
-		vrele(xlowervp);
-
 	if (docache)
 		union_list_unlock(hash);
 
