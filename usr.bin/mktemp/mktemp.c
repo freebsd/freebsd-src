@@ -23,7 +23,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
@@ -35,27 +34,31 @@
  * more like the OpenBSD version - which was first to publish the interface.
  */
 
-#include <sys/types.h>
+#include <err.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <paths.h>
-#include <err.h>
 #include <string.h>
+#include <unistd.h>
+
+#ifndef lint
+static const char rcsid[] =
+	"$FreeBSD$";
+#endif /* not lint */
+
+static void usage __P((void));
 
 int
 main(int argc, char **argv)
 {
 	int c, fd, ret;
-	char *usage = "[-d] [-q] [-t prefix] [-u] [template ...]";
 	char *tmpdir, *prefix;
-	char *prog;
 	char *name;
 	int dflag, qflag, tflag, uflag;
 
 	ret = dflag = qflag = tflag = uflag = 0;
+	prefix = "mktemp";
 	name = NULL;
-	prog = argv[0];		/* XXX basename(argv[0]) */
 
 	while ((c = getopt(argc, argv, "dqt:u")) != -1)
 		switch (c) {
@@ -77,8 +80,7 @@ main(int argc, char **argv)
 			break;
 
 		default:
-			fprintf(stderr, "Usage: %s %s\n", prog, usage);
-			return (1);
+			usage();
 		}
 
 	argc -= optind;
@@ -86,8 +88,6 @@ main(int argc, char **argv)
 
 	if (tflag) {
 		tmpdir = getenv("TMPDIR");
-		if (prefix == NULL)
-			prefix = "mktemp";	/* shouldn't happen, but.. */
 		if (tmpdir == NULL)
 			asprintf(&name, "%s%s.XXXXXXXX", _PATH_TMP, prefix);
 		else
@@ -97,11 +97,10 @@ main(int argc, char **argv)
 			if (qflag)
 				return (1);
 			else
-				err(1, "cannot generate template");
+				errx(1, "cannot generate template");
 		}
 	} else if (argc < 1) {
-		fprintf(stderr, "Usage: %s %s\n", prog, usage);
-		return (1);
+		usage();
 	}
 		
 	/* generate all requested files */
@@ -140,4 +139,12 @@ main(int argc, char **argv)
 		name = NULL;
 	}
 	return (ret);
+}
+
+static void
+usage()
+{
+	fprintf(stderr,
+		"usage: mktemp [-d] [-q] [-t prefix] [-u] [template ...]\n");
+	exit (1);
 }
