@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36 1994/11/12 02:25:04 jkh Exp $
+#	$Id: Makefile,v 1.37 1994/11/12 05:47:28 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -122,7 +122,7 @@ release20:
 	( cd ${.CURDIR}/../etc ; \
 		${MAKE} distribution DESTDIR=${RELEASEDIR}/filesys \
 			NOCRYPT=yes SHARED=copies)
-	(cd ${RELEASEDIR/filesys}; \
+	(cd ${RELEASEDIR}/filesys; \
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
