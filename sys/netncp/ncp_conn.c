@@ -642,7 +642,7 @@ ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct ncp_conn_stat ncs;
 	struct ncp_conn *ncp;
-/*	struct ucred *cred = req->p->p_ucred;*/
+/*	struct ucred *cred = req->td->td_ucred;*/
 
 	error = 0;
 	sysctl_wire_old_buffer(req, 0);
