@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.83 1996/03/31 18:04:51 joerg Exp $
+ *	$Id: fd.c,v 1.84 1996/04/02 04:51:04 scrappy Exp $
  *
  */
 
@@ -246,9 +246,9 @@ static struct fd_data {
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
 	int	dkunit;		/* disk stats unit number */
-#ifdef	DEVFS
-	void	*bdev;
-	void	*cdev;
+#ifdef DEVFS
+	void	*bdevs[1 + NUMDENS + MAXPARTITIONS];
+	void	*cdevs[1 + NUMDENS + MAXPARTITIONS];
 #endif
 } fd_data[NFD];
 
@@ -567,10 +567,11 @@ fdattach(struct isa_device *dev)
 	int	fdsu, st0, st3, i, unithasfd;
 	struct isa_device *fdup;
 	int ic_type = 0;
-#ifdef	DEVFS
+#ifdef DEVFS
 	int	mynor;
-	char	name[64];
-#endif	/* DEVFS */
+	int	typemynor;
+	int	typesize;
+#endif
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
@@ -715,18 +716,12 @@ fdattach(struct isa_device *dev)
 			fd->type = FD_1200;
 			kdc_fd[fdu].kdc_description =
 				"1.2MB (1200K) 5.25in floppy disk drive";
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.1200",fdu);
-#endif	/* DEVFS */
 			break;
 		case RTCFDT_144M:
 			printf("1.44MB 3.5in\n");
 			fd->type = FD_1440;
 			kdc_fd[fdu].kdc_description =
 				"1.44MB (1440K) 3.5in floppy disk drive";
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.1440",fdu);
-#endif	/* DEVFS */
 			break;
 		case RTCFDT_288M:
 		case RTCFDT_288M_1:
@@ -734,47 +729,88 @@ fdattach(struct isa_device *dev)
 			fd->type = FD_1440;
 			kdc_fd[fdu].kdc_description =
 				"2.88MB (2880K) 3.5in floppy disk drive in 1.44 mode";
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.1440",fdu);
-#endif	/* DEVFS */
 			break;
 		case RTCFDT_360K:
 			printf("360KB 5.25in\n");
 			fd->type = FD_360;
 			kdc_fd[fdu].kdc_description =
 				"360KB 5.25in floppy disk drive";
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.360",fdu);
-#endif	/* DEVFS */
 			break;
 		case RTCFDT_720K:
 			printf("720KB 3.5in\n");
 			fd->type = FD_720;
 			kdc_fd[fdu].kdc_description =
 				"720KB 3.5in floppy disk drive";
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.720",fdu);
-#endif	/* DEVFS */
 			break;
 		default:
 			printf("unknown\n");
 			fd->type = NO_TYPE;
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.xxxx",fdu);
-#endif	/* DEVFS */
-			break;
+			dev_detach(&kdc_fd[fdu]);
+			continue;
 		}
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 #ifdef DEVFS
-		mynor = 8 * fdu;
-		fd->bdev = devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK,
-					    UID_ROOT, GID_OPERATOR, 0640,
-					    "%s", name + 1);
-		fd->cdev = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
-					    UID_ROOT, GID_OPERATOR, 0640,
-					    "%s", name);
-		devfs_link(fd->bdev, "fd%d", fdu);
-		devfs_link(fd->cdev, "rfd%d", fdu);
+		mynor = fdu << 6;
+		fd->bdevs[0] = devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK,
+						UID_ROOT, GID_OPERATOR, 0640,
+						"fd%d", fdu);
+		fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
+						UID_ROOT, GID_OPERATOR, 0640,
+						"rfd%d", fdu);
+		for (i = 1; i < 1 + NUMDENS; i++) {
+			/*
+			 * XXX this and the lookup in Fdopen() should be
+			 * data driven.
+			 */
+			switch (fd->type) {
+			case FD_360:
+				if (i != FD_360)
+					continue;
+				break;
+			case FD_720:
+				if (i != FD_720 && i != FD_800 && i != FD_820)
+					continue;
+				break;
+			case FD_1200:
+				if (i != FD_360 && i != FD_720 && i != FD_800
+				    && i != FD_820 && i != FD_1200
+				    && i != FD_1440 && i != FD_1480)
+					continue;
+				break;
+			case FD_1440:
+				if (i != FD_720 && i != FD_800 && i != FD_820
+				    && i != FD_1200 && i != FD_1440
+				    && i != FD_1480 && i != FD_1720)
+					continue;
+				break;
+			}
+			typemynor = mynor | i;
+			typesize = fd_types[i - 1].size / 2;
+			/*
+			 * XXX all these conversions give bloated code and
+			 * confusing names.
+			 */
+			if (typesize == 1476)
+				typesize = 1480;
+			if (typesize == 1722)
+				typesize = 1720;
+			fd->bdevs[i] =
+				devfs_add_devswf(&fd_bdevsw, typemynor, DV_BLK,
+						 UID_ROOT, GID_OPERATOR, 0640,
+						 "fd%d.%d", fdu, typesize);
+			fd->cdevs[i] =
+				devfs_add_devswf(&fd_cdevsw, typemynor, DV_CHR,
+						 UID_ROOT, GID_OPERATOR, 0640,
+						 "rfd%d.%d", fdu, typesize);
+		}
+		for (i = 0; i < MAXPARTITIONS; i++) {
+			fd->bdevs[1 + NUMDENS + i] =
+				devfs_link(fd->bdevs[0],
+					   "fd%d%c", fdu, 'a' + i);
+			fd->cdevs[1 + NUMDENS + i] =
+				devfs_link(fd->cdevs[0],
+					   "rfd%d%c", fdu, 'a' + i);
+		}
 #endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
