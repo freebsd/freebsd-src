@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.174 1995/05/24 01:26:23 jkh Exp $
+#	$Id: Makefile,v 1.175 1995/05/24 08:59:01 jkh Exp $
 #
 # How to roll a release:
 #
@@ -99,12 +99,6 @@ release:
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
-
-testftp:       ftp.c
-	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
-
-testftp:	ftp.c
-	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
 
 # Same as above, but assume that a build just fell over, has been corrected
 # and now we just want to pick up where we left off.
