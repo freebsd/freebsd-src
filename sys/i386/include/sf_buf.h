@@ -34,9 +34,10 @@
 struct vm_page;
 
 struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
+	LIST_ENTRY(sf_buf) list_entry;	/* list of buffers */
 	struct		vm_page *m;	/* currently mapped page */
 	vm_offset_t	kva;		/* va of mapping */
+	int		ref_count;	/* usage of this mapping */
 };
 
 static __inline vm_offset_t
