@@ -94,7 +94,7 @@ int linux_emul_find __P((struct thread *, caddr_t *, const char *, char *,
 
 #define DUMMY(s)							\
 int									\
-linux_ ## s(struct thread *p, struct linux_ ## s ## _args *args)		\
+linux_ ## s(struct thread *p, struct linux_ ## s ## _args *args)	\
 {									\
 	return (unsupported_msg(p, #s));				\
 }									\
