@@ -89,7 +89,7 @@ nwfs_ioctl(ap)
 		*(int*)data = nmp->name_space;
 		break;
 	    default:
-		error = EINVAL;
+		error = ENOTTY;
 	}
 	return (error);
 }

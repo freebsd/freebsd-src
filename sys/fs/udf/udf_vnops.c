@@ -359,7 +359,7 @@ static int
 udf_ioctl(struct vop_ioctl_args *a)
 {
 	printf("%s called\n", __FUNCTION__);
-	return (EOPNOTSUPP);
+	return (ENOTTY);
 }
 
 /*
