@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.9 1995/05/10 23:00:16 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.16 1995/08/01 09:49:27 jkh Exp $";
 #endif
 
 /*
@@ -23,14 +23,16 @@ static const char *rcsid = "$Id: file.c,v 1.9 1995/05/10 23:00:16 jkh Exp $";
  */
 
 #include "lib.h"
-#include <FtpLibrary.h>
+#include "ftp.h"
 #include <pwd.h>
+#include <time.h>
 
 /* Quick check to see if a file exists */
 Boolean
 fexists(char *fname)
 {
-    if (!access(fname, F_OK))
+    struct stat dummy;
+    if (!lstat(fname, &dummy))
 	return TRUE;
     return FALSE;
 }
@@ -67,6 +69,15 @@ isemptydir(char *fname)
 	(void)closedir(dirp);
 	return TRUE;
     }
+    return FALSE;
+}
+
+Boolean
+isfile(char *fname)
+{
+    struct stat sb;
+    if (stat(fname, &sb) != FAIL && S_ISREG(sb.st_mode))
+	return TRUE;
     return FALSE;
 }
 
@@ -151,52 +162,27 @@ fileURLFilename(char *fname, char *where, int max)
     return fname;
 }
 
-/*
- * Callback functions for fileGetURL - GetIO is called on I/O requests
- * and GetAbort when the transfer aborts.
- */
-
-/* Something they can use to keep track of the action */
-Boolean connectionAborted = FALSE;
-
-static int
-_fileGetIO(FTP *ftp, int n, char *s )
-{
-    printf("In IO: %s\n", s);
-    return 0;
-}
-
-static int
-_fileGetAbort(FTP *ftp, int n, char *s )
-{
-    /* No access or not found, exclude network or host unreachable */
-    if (abs(n) == 550 && FtpBadReply550(s)) {
-	connectionAborted = TRUE;
-	return 1;
-    }
-    return 0;
-}
-
 #define HOSTNAME_MAX	64
-
 /*
- * Try and fetch a file by URL, returning the name of the local
- * copy if fetched successfully.
+ * Try and fetch a file by URL, returning the fd of open
+ * file if fetched successfully.
  */
 char *
 fileGetURL(char *fname)
 {
-    static char out[FILENAME_MAX];
-    char *cp;
     char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname;
+    char pword[HOSTNAME_MAX + 40], *uname, *cp;
+    static char tmpl[40];
     struct passwd *pw;
-    FTP *ftp;
-    int i;
+    FTP_t ftp;
+    int fd, fd2, i, len = 0;
+    char ch;
+    time_t start, stop;
 
     if (!isURL(fname))
 	return NULL;
 
+    ftp = FtpInit();
     cp = fileURLHost(fname, host, HOSTNAME_MAX);
     if (!*cp) {
 	whinge("URL `%s' has bad host part!", fname);
@@ -208,10 +194,6 @@ fileGetURL(char *fname)
 	whinge("URL `%s' has bad filename part!", fname);
 	return NULL;
     }
-
-    FtpSetErrorHandler(&FtpInit, _fileGetAbort);
-    FtpSetFlag(&FtpInit, FTP_REST);
-    FtpSetTimeout(&FtpInit, 60);  /* XXX this may be too short */
 
     /* Maybe change to ftp if this doesn't work */
     uname = "anonymous";
@@ -227,26 +209,43 @@ fileGetURL(char *fname)
     if (Verbose)
 	printf("Trying to fetch %s from %s.\n", file, host);
 
-    FtpLogin(&ftp, host, uname, pword, NULL);
+    FtpOpen(ftp, host, uname, pword);
+    if (getenv("FTP_PASSIVE_MODE"))
+	FtpPassive(ftp, TRUE);
 
     strcpy(dir, file);
     for (i = strlen(dir); i && dir[i] != '/'; i--);
     dir[i] = '\0';
 
-    if (dir[0])
+    if (dir[0]) {
+	if (Verbose) printf("FTP: chdir to %s\n", dir);
 	FtpChdir(ftp, dir);
-    FtpBinary(ftp);
-
-    if ((cp = getenv("PKG_TMPDIR")) != NULL)
-	sprintf(out, "%s/instpkg-XXXXXX.tgz", cp);
-    else
-	strcpy(out, "/var/tmp/instpkg-XXXXXX.tgz");
-
-    FtpGet(ftp, basename_of(file), out);
-    FtpBye(ftp);
-    if (connectionAborted)
+    }
+    FtpBinary(ftp, TRUE);
+    if (Verbose) printf("FTP: trying to get %s\n", basename_of(file));
+    fd = FtpGet(ftp, basename_of(file));
+    if (fd < 0)
 	return NULL;
-    return out;
+    if ((cp = getenv("PKG_TMPDIR")) != NULL)
+	sprintf(tmpl, "%s/instpkg-XXXXXX.tgz", cp);
+    else
+	strcpy(tmpl, "/var/tmp/instpkg-XXXXXX.tgz");
+    fd2 = mkstemp(tmpl);
+    if (fd2 < 0) {
+	whinge("Unable to create a temporary file for ftp: %s", tmpl);
+	return NULL;
+    }
+    if (Verbose) printf("FTP: Trying to copy from ftp connection to temporary: %s\n", tmpl);
+    (void)time(&start);
+    while (read(fd, &ch, 1) == 1) {
+	++len;
+	write(fd2, &ch, 1);
+    }
+    (void)time(&stop);
+    if (Verbose) printf("FTP: Read %d bytes from connection, %d elapsed seconds.\n%FTP: Average transfer rate: %d bytes/second.\n", len, stop - start, len / ((stop - start) + 1));
+    FtpEOF(ftp);
+    FtpClose(ftp);
+    return tmpl;
 }
 
 char *
@@ -255,7 +254,7 @@ fileFindByPath(char *fname)
     static char tmp[FILENAME_MAX];
     char *cp;
 
-    if (fexists(fname)) {
+    if (fexists(fname) && isfile(fname)) {
 	strcpy(tmp, fname);
 	return tmp;
     }
@@ -264,7 +263,7 @@ fileFindByPath(char *fname)
 	char *cp2 = strsep(&cp, ":");
 
 	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
-	if (fexists(tmp))
+	if (fexists(tmp) && isfile(fname))
 	    return tmp;
     }
     return NULL;

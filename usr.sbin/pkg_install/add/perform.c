@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.25.2.2 1995/06/10 09:04:13 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.29 1995/08/17 00:35:41 jkh Exp $";
 #endif
 
 /*
@@ -117,7 +117,12 @@ pkg_do(char *pkg)
 		strcpy(pkg_fullname, tmp);
 	    }
 	}
-	Home = make_playpen(PlayPen, 0);
+	if (stat(pkg_fullname, &sb) == FAIL) {
+	    whinge("Can't stat package file '%s'.", pkg_fullname);
+	    goto bomb;
+	}
+	Home = make_playpen(PlayPen, sb.st_size * 4);
+	where_to = PlayPen;
 	sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
 	if (unpack(pkg_fullname, extract_contents)) {
 	    whinge("Unable to extract table of contents file from `%s' - not a package?.", pkg_fullname);
@@ -164,22 +169,16 @@ pkg_do(char *pkg)
 		goto bomb;
 	    }
 	}
-	else
-	    where_to = PlayPen;
+
 	/*
 	 * Apply a crude heuristic to see how much space the package will
 	 * take up once it's unpacked.  I've noticed that most packages
 	 * compress an average of 75%, so multiply by 4 for good measure.
 	 */
-	if (stat(pkg_fullname, &sb) == FAIL) {
-	    whinge("Can't stat package file '%s'.", pkg_fullname);
-	    goto bomb;
-	}
 
 	if (min_free(where_to) < sb.st_size * 4) {
-	    whinge("Projected size of %d exceeds free space in %s.",
-		   sb.st_size * 4, where_to);
-	    whinge("Not extracting %s, sorry!", pkg_fullname);
+	    whinge("Projected size of %d exceeds available free space.\nPlease set your PKG_TMPDIR variable to point to a location with more\nfree space and try again.", sb.st_size * 4);
+	    whinge("Not extracting %s\ninto %s, sorry!", pkg_fullname, where_to);
 	    goto bomb;
 	}
 

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.15 1995/05/10 23:00:06 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.17 1995/07/30 01:44:38 ache Exp $";
 #endif
 
 /*
@@ -91,7 +91,7 @@ pkg_do(char *pkg)
 	    isTMP = TRUE;
 	}
     }
-    else if (fexists(pkg)) {
+    else if (fexists(pkg) && isfile(pkg)) {
 	int len;
 
 	if (*pkg != '/') {
