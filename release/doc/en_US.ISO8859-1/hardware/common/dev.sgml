@@ -596,12 +596,9 @@
 
     &hwlist.bge;
 
-    <para arch="i386,pc98,alpha,ia64,amd64">Gigabit Ethernet NICs based on the
-    Intel 82542 and 82543 controller chips (&man.gx.4; and &man.em.4;
-    drivers), plus NICs supported by the Intel 82540EM, 82544,
-    82545EM, and 82546EB
-    controller chips (&man.em.4; driver only)
-    </para>
+    &hwlist.em;
+
+    &hwlist.gx;
 
     &hwlist.hme;
 
