@@ -21,9 +21,9 @@ ftperr.c:	ftp.errors
 	  | grep -v ^# \
 	  | sort \
 	  | while read NUM STRING; do \
-	    echo "    { $${NUM}, \"$${NUM} $${STRING}\" },"; \
+	    echo "    { $${NUM}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { 0, \"Unknown FTP error\" }" >> ${.TARGET}
+	@echo "    { -1, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
 httperr.c:	http.errors
@@ -36,9 +36,9 @@ httperr.c:	http.errors
 	  | grep -v ^# \
 	  | sort \
 	  | while read NUM STRING; do \
-	    echo "    { $${NUM}, \"$${NUM} $${STRING}\" },"; \
+	    echo "    { $${NUM}, \"$${STRING}\" },"; \
 	  done >> ${.TARGET}
-	@echo "    { 0, \"Unknown HTTP error\" }" >> ${.TARGET}
+	@echo "    { -1, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
 .include <bsd.lib.mk>

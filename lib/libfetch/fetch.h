@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: fetch.h,v 1.1.1.1 1998/07/09 16:52:41 des Exp $
  */
 
 #ifndef _FETCH_H_INCLUDED
@@ -46,7 +46,6 @@ struct url_s {
     char host[MAXHOSTNAMELEN+1];
     char *doc;
     int port;
-    char *lasterr;
 };
 
 typedef struct url_s url_t;
@@ -56,7 +55,7 @@ FILE	*fetchGetFile(url_t *, char *);
 FILE	*fetchPutFile(url_t *, char *);
 
 /* HTTP-specific functions */
-char	*fetchContentType(FILE *f);
+char	*fetchContentType(FILE *);
 FILE	*fetchGetHTTP(url_t *, char *);
 FILE	*fetchPutHTTP(url_t *, char *);
 
@@ -65,10 +64,14 @@ FILE	*fetchGetFTP(url_t *, char *);
 FILE	*fetchPutFTP(url_t *, char *);
 
 /* Generic functions */
-url_t	*fetchParseURL(char *URL);
-void	 fetchFreeURL(url_t *u);
+int	 fetchConnect(char *, int);
+url_t	*fetchParseURL(char *);
+void	 fetchFreeURL(url_t *);
 FILE	*fetchGetURL(char *, char *);
 FILE	*fetchPutURL(char *, char *);
 
+/* Error code and string */
+extern int fetchLastErrCode;
+extern const char *fetchLastErrText;
 
 #endif
