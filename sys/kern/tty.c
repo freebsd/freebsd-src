@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.68 1995/08/01 23:38:00 ache Exp $
+ * $Id: tty.c,v 1.69 1995/08/02 06:55:34 ache Exp $
  */
 
 /*-
@@ -1000,7 +1000,8 @@ ttioctl(tp, cmd, data, flag)
 		if (error)
 			return (error);
 		tp->t_timeout = *(int *)data * hz;
-		ttwwakeup(tp);
+		wakeup(TSA_OCOMPLETE(tp));
+		wakeup(TSA_OLOWAT(tp));
 		break;
 	case TIOCGDRAINWAIT:
 		*(int *)data = tp->t_timeout / hz;
