@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 42 $
+ *              $Revision: 44 $
  *
  ******************************************************************************/
 
@@ -118,9 +118,9 @@
 #include "acpi.h"
 #include "acdebug.h"
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbexec")
 
 
@@ -308,7 +308,7 @@ AcpiDbExecute (
     ACPI_BUFFER             ReturnObj;
 
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
     UINT32                  PreviousAllocations;
     UINT32                  Allocations;
 
@@ -335,7 +335,7 @@ AcpiDbExecute (
     AcpiOsSleep (0, 10);
 
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
 
     /* Memory allocation tracking */
 
@@ -368,7 +368,7 @@ AcpiDbExecute (
         }
         else
         {
-            AcpiOsPrintf ("No return object from execution of %s\n", 
+            AcpiOsPrintf ("No return object from execution of %s\n",
                 AcpiGbl_DbMethodInfo.Pathname);
         }
     }
@@ -513,6 +513,6 @@ AcpiDbCreateExecutionThreads (
 }
 
 
-#endif /* ENABLE_DEBUGGER */
+#endif /* ACPI_DEBUGGER */
 
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrc.c - Resource Descriptor disassembly
- *              $Revision: 3 $
+ *              $Revision: 5 $
  *
  ******************************************************************************/
 
@@ -121,7 +121,7 @@
 
 #ifdef ACPI_DISASSEMBLER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrc")
 
 
@@ -305,7 +305,7 @@ AcpiDmResourceDescriptor (
                 AcpiOsPrintf ("/*** Missing EndDependentFunctions descriptor */");
 
                 /*
-                 * We could fix the problem, but then the ASL would not match the AML 
+                 * We could fix the problem, but then the ASL would not match the AML
                  * So, we don't do this:
                  * AcpiDmEndDependentDescriptor (DescriptorBody, Length, Level);
                  */
@@ -391,7 +391,7 @@ AcpiDmResourceDescriptor (
  *
  * PARAMETERS:  Op          - Buffer Op to be examined
  *
- * RETURN:      TRUE if this Buffer Op contains a valid resource 
+ * RETURN:      TRUE if this Buffer Op contains a valid resource
  *              descriptor.
  *
  * DESCRIPTION: Walk a byte list to determine if it consists of a valid set
@@ -441,7 +441,7 @@ AcpiDmIsResourceDescriptor (
     }
 
     /*
-     * Walk the byte list.  Abort on any invalid descriptor ID or 
+     * Walk the byte list.  Abort on any invalid descriptor ID or
      * or length
      */
     for (CurrentByteOffset = 0; CurrentByteOffset < ByteCount; )

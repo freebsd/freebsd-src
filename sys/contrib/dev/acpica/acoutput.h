@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 87 $
+ *       $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -134,17 +134,19 @@
 #define ACPI_DISPATCHER             0x00000040
 #define ACPI_EXECUTER               0x00000080
 #define ACPI_RESOURCES              0x00000100
-#define ACPI_DEBUGGER               0x00000200
+#define ACPI_CA_DEBUGGER            0x00000200
 #define ACPI_OS_SERVICES            0x00000400
-
-#define ACPI_ALL_COMPONENTS         0x00000FFF
-
-#define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
+#define ACPI_CA_DISASSEMBLER        0x00000800
 
 /* Component IDs for ACPI tools and utilities */
 
 #define ACPI_COMPILER               0x00001000
 #define ACPI_TOOLS                  0x00002000
+
+#define ACPI_ALL_COMPONENTS         0x00003FFF
+
+#define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
+
 
 /* Component IDs reserved for ACPI drivers */
 
@@ -185,7 +187,8 @@
 
 #define ACPI_LV_ALLOCATIONS         0x00100000
 #define ACPI_LV_FUNCTIONS           0x00200000
-#define ACPI_LV_VERBOSITY2          0x00300000 | ACPI_LV_VERBOSITY1
+#define ACPI_LV_OPTIMIZATIONS       0x00400000
+#define ACPI_LV_VERBOSITY2          0x00700000 | ACPI_LV_VERBOSITY1
 #define ACPI_LV_ALL                 ACPI_LV_VERBOSITY2
 
 /* Trace verbosity level 3 [Threading, I/O, and Interrupts] */
@@ -235,6 +238,7 @@
 #define ACPI_DB_BFIELD              ACPI_DEBUG_LEVEL (ACPI_LV_BFIELD)
 #define ACPI_DB_TABLES              ACPI_DEBUG_LEVEL (ACPI_LV_TABLES)
 #define ACPI_DB_FUNCTIONS           ACPI_DEBUG_LEVEL (ACPI_LV_FUNCTIONS)
+#define ACPI_DB_OPTIMIZATIONS       ACPI_DEBUG_LEVEL (ACPI_LV_OPTIMIZATIONS)
 #define ACPI_DB_VALUES              ACPI_DEBUG_LEVEL (ACPI_LV_VALUES)
 #define ACPI_DB_OBJECTS             ACPI_DEBUG_LEVEL (ACPI_LV_OBJECTS)
 #define ACPI_DB_ALLOCATIONS         ACPI_DEBUG_LEVEL (ACPI_LV_ALLOCATIONS)
@@ -247,7 +251,6 @@
 #define ACPI_DB_INIT                ACPI_DEBUG_LEVEL (ACPI_LV_INIT)
 
 #define ACPI_DB_ALL                 ACPI_DEBUG_LEVEL (ACPI_LV_ALL)
-
 
 
 /* Defaults for DebugLevel, debug and normal */

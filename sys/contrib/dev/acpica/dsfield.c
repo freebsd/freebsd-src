@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 65 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -312,7 +312,7 @@ AcpiDsGetFieldNames (
         {
         case AML_INT_RESERVEDFIELD_OP:
 
-            Position = (ACPI_INTEGER) Info->FieldBitPosition 
+            Position = (ACPI_INTEGER) Info->FieldBitPosition
                         + (ACPI_INTEGER) Arg->Common.Value.Size;
 
             if (Position > ACPI_UINT32_MAX)
@@ -374,7 +374,7 @@ AcpiDsGetFieldNames (
 
             /* Keep track of bit position for the next field */
 
-            Position = (ACPI_INTEGER) Info->FieldBitPosition 
+            Position = (ACPI_INTEGER) Info->FieldBitPosition
                         + (ACPI_INTEGER) Arg->Common.Value.Size;
 
             if (Position > ACPI_UINT32_MAX)

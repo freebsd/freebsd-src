@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evevent - Fixed and General Purpose Even handling and dispatch
- *              $Revision: 88 $
+ *              $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -198,7 +198,7 @@ AcpiEvHandlerInitialize (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE ("EvInitialize");
+    ACPI_FUNCTION_TRACE ("EvHandlerInitialize");
 
 
     /* Install the SCI handler */
@@ -545,12 +545,12 @@ AcpiEvGpeInitialize (void)
             GpeRegisterInfo->BaseGpeNumber = (UINT8) (AcpiGbl_GpeBlockInfo[GpeBlock].BlockBaseNumber
                                                         + (ACPI_MUL_8 (i)));
 
-            ACPI_STORE_ADDRESS (GpeRegisterInfo->StatusAddress.Address, 
-                                (ACPI_GET_ADDRESS (AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress->Address) 
+            ACPI_STORE_ADDRESS (GpeRegisterInfo->StatusAddress.Address,
+                                (ACPI_GET_ADDRESS (AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress->Address)
                                     + i));
 
             ACPI_STORE_ADDRESS (GpeRegisterInfo->EnableAddress.Address,
-                                (ACPI_GET_ADDRESS (AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress->Address) 
+                                (ACPI_GET_ADDRESS (AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress->Address)
                                     + i
                                     + AcpiGbl_GpeBlockInfo[GpeBlock].RegisterCount));
 
@@ -599,7 +599,7 @@ AcpiEvGpeInitialize (void)
             ACPI_LODWORD (ACPI_GET_ADDRESS (AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress->Address))));
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "GPE Block%d Range GPE #%2.2X to GPE #%2.2X\n",
-            (INT32) GpeBlock, 
+            (INT32) GpeBlock,
             AcpiGbl_GpeBlockInfo[GpeBlock].BlockBaseNumber,
             AcpiGbl_GpeBlockInfo[GpeBlock].BlockBaseNumber +
                 ((AcpiGbl_GpeBlockInfo[GpeBlock].RegisterCount * 8) -1)));
