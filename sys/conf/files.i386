@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.220 1999/01/20 03:29:52 msmith Exp $
+#	$Id: files.i386,v 1.221 1999/02/10 02:41:23 des Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -40,7 +40,7 @@ i386/apm/apm_setup.s		optional	apm
 i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
 i386/eisa/3c5x9.c		optional	ep	device-driver
 i386/eisa/adv_eisa.c		optional	adv	device-driver
-i386/eisa/ahc_eisa.c		optional	ahc	device-driver	   \
+i386/eisa/ahc_eisa.c		optional	eisa ahc device-driver	   \
 	dependency	"aic7xxx_reg.h $S/i386/eisa/ahc_eisa.c"
 i386/eisa/ahb.c			optional	ahb	device-driver
 i386/eisa/bt_eisa.c		optional	bt	device-driver
