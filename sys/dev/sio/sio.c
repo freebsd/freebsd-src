@@ -551,8 +551,10 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x01017256, NULL},				/* USR0101 */
 	{0x30207256, NULL},				/* USR2030 */
 	{0x31307256, NULL},				/* USR3031 */
+	{0x7420b04e, NULL},				/* SUP2070 */
 	{0x8020b04e, NULL},				/* SUP2080 */
 	{0x8024b04e, NULL},				/* SUP2480 */
+	{0x6045f435, NULL},				/* MOT4560 */
 	{0}
 };
 
