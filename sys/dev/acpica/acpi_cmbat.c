@@ -132,6 +132,10 @@ acpi_cmbat_info_expired(struct timespec *lastupdated)
 		return (1);
 	}
 
+	if (!timespecisset(lastupdated)) {
+		return (1);
+	}
+
 	getnanotime(&curtime);
 	timespecsub(&curtime, lastupdated);
 	return ((curtime.tv_sec < 0 || curtime.tv_sec > BATTERY_INFO_EXPIRE));
@@ -277,22 +281,21 @@ end:
 static void
 acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
+	device_t	dev;
+	struct acpi_cmbat_softc	*sc;
+
+	dev = (device_t)context;
+	if ((sc = device_get_softc(dev)) == NULL) {
+		return;
+	}
 
 	switch (notify) {
-#if 0
-	/* XXX
-	 * AML method execution is somewhat heavy even using swi.
-	 * better to disable them until we fix the problem.
-	 */
 	case ACPI_BATTERY_BST_CHANGE:
-		AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-		    acpi_cmbat_get_bst, context);
+		timespecclear(&sc->bst_lastupdated);
 		break;
 	case ACPI_BATTERY_BIF_CHANGE:
-		AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-		    acpi_cmbat_get_bif, context);
+		timespecclear(&sc->bif_lastupdated);
 		break;
-#endif
 	default:
 		break;
 	}
