@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)vacation.1	8.1 (Berkeley) 6/16/93
+.\"	From: @(#)vacation.1	8.1 (Berkeley) 6/16/93
+.\"	$Id$
 .\"
 .Dd June 16, 1993
 .Dt VACATION 1
@@ -41,6 +42,8 @@
 .Nm vacation
 .Fl i
 .Op Fl r Ar interval
+.Nm vacation
+.Fl l
 .Nm vacation
 .Op Fl a Ar alias
 .Ar login
@@ -88,6 +91,10 @@ are quite
 dangerous, as it allows mailers to get into
 .Dq I am on vacation
 loops.
+.It Fl l
+Print the contents of the vacation database files.  For each entry,
+the address the reply has been sent to and the associated time will
+be printed to standard output.
 .El
 .Pp
 No message will be sent unless

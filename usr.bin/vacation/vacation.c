@@ -38,7 +38,9 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)vacation.c	8.2 (Berkeley) 1/26/94";
+static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
+static char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -85,6 +87,18 @@ DB *db;
 
 char from[MAXLINE];
 
+static int	isdelim		__P((int));
+static int	junkmail	__P((void));
+static void	listdb		__P((void));
+static int	nsearch		__P((char *, char *));
+static void	readheaders	__P((void));
+static int	recent		__P((void));
+static void	sendmessage	__P((char *));
+static void	setinterval	__P((time_t));
+static void	setreply	__P((void));
+static void	usage		__P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -94,11 +108,11 @@ main(argc, argv)
 	struct passwd *pw;
 	ALIAS *cur;
 	time_t interval;
-	int ch, iflag;
+	int ch, iflag, lflag;
 
-	opterr = iflag = 0;
+	opterr = iflag = lflag = 0;
 	interval = -1;
-	while ((ch = getopt(argc, argv, "a:Iir:")) != EOF)
+	while ((ch = getopt(argc, argv, "a:Iilr:")) != EOF)
 		switch((char)ch) {
 		case 'a':			/* alias */
 			if (!(cur = (ALIAS *)malloc((u_int)sizeof(ALIAS))))
@@ -110,6 +124,9 @@ main(argc, argv)
 		case 'I':			/* backward compatible */
 		case 'i':			/* init the database */
 			iflag = 1;
+			break;
+		case 'l':
+			lflag = 1;		/* list the database */
 			break;
 		case 'r':
 			if (isdigit(*optarg)) {
@@ -128,7 +145,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (argc != 1) {
-		if (!iflag)
+		if (!iflag && !lflag)
 			usage();
 		if (!(pw = getpwuid(getuid()))) {
 			syslog(LOG_ERR,
@@ -153,10 +170,12 @@ main(argc, argv)
 		exit(1);
 	}
 
-	if (interval != -1)
+	if (lflag)
+		listdb();
+	else if (interval != -1)
 		setinterval(interval);
 
-	if (iflag) {
+	if (iflag || lflag) {
 		(void)(db->close)(db);
 		exit(0);
 	}
@@ -183,6 +202,7 @@ main(argc, argv)
  * readheaders --
  *	read mail headers
  */
+static void
 readheaders()
 {
 	register ALIAS *cur;
@@ -199,7 +219,7 @@ readheaders()
 				for (p = buf + 5; *p && *p != ' '; ++p);
 				*p = '\0';
 				(void)strcpy(from, buf + 5);
-				if (p = index(from, '\n'))
+				if ((p = index(from, '\n')))
 					*p = '\0';
 				if (junkmail())
 					exit(0);
@@ -208,7 +228,7 @@ readheaders()
 		case 'P':		/* "Precedence:" */
 			cont = 0;
 			if (strncasecmp(buf, "Precedence", 10) ||
-			    buf[10] != ':' && buf[10] != ' ' && buf[10] != '\t')
+			    (buf[10] != ':' && buf[10] != ' ' && buf[10] != '\t'))
 				break;
 			if (!(p = index(buf, ':')))
 				break;
@@ -250,13 +270,16 @@ findme:			for (cur = names; !tome && cur; cur = cur->next)
  * nsearch --
  *	do a nice, slow, search of a string for a substring.
  */
+static int
 nsearch(name, str)
 	register char *name, *str;
 {
 	register int len;
 
 	for (len = strlen(name); *str; ++str)
-		if (*str == *name && !strncasecmp(name, str, len))
+		if (*str == *name &&
+		    !strncasecmp(name, str, len) &&
+		    isdelim((unsigned char)str[len]))
 			return(1);
 	return(0);
 }
@@ -265,15 +288,16 @@ nsearch(name, str)
  * junkmail --
  *	read the header and return if automagic/junk/bulk/list mail
  */
+static int
 junkmail()
 {
 	static struct ignore {
 		char	*name;
 		int	len;
 	} ignore[] = {
-		"-request", 8,		"postmaster", 10,	"uucp", 4,
-		"mailer-daemon", 13,	"mailer", 6,		"-relay", 6,
-		NULL, NULL,
+		{"-request", 8},	{"postmaster", 10},	{"uucp", 4},
+		{"mailer-daemon", 13},	{"mailer", 6},		{"-relay", 6},
+		{NULL, NULL},
 	};
 	register struct ignore *cur;
 	register int len;
@@ -287,8 +311,8 @@ junkmail()
 	 * From site!site!SENDER%site.domain%site.domain@site.domain
 	 */
 	if (!(p = index(from, '%')))
-		if (!(p = index(from, '@'))) {
-			if (p = rindex(from, '!'))
+		if (!((p = index(from, '@')))) {
+			if ((p = rindex(from, '!')))
 				++p;
 			else
 				p = from;
@@ -309,6 +333,7 @@ junkmail()
  *	find out if user has gotten a vacation message recently.
  *	use bcopy for machines with alignment restrictions
  */
+static int
 recent()
 {
 	DBT key, data;
@@ -337,6 +362,7 @@ recent()
  * setinterval --
  *	store the reply interval
  */
+static void
 setinterval(interval)
 	time_t interval;
 {
@@ -353,6 +379,7 @@ setinterval(interval)
  * setreply --
  *	store that this user knows about the vacation.
  */
+static void
 setreply()
 {
 	DBT key, data;
@@ -370,6 +397,7 @@ setreply()
  * sendmessage --
  *	exec sendmail to send the vacation file to sender
  */
+static void
 sendmessage(myname)
 	char *myname;
 {
@@ -411,9 +439,48 @@ sendmessage(myname)
 	fclose(sfp);
 }
 
+static void
 usage()
 {
-	syslog(LOG_NOTICE, "uid %u: usage: vacation [-i] [-a alias] login\n",
+	syslog(LOG_NOTICE, "uid %u: usage: vacation [-i [-rinterval]] [-l] [-a alias] login\n",
 	    getuid());
 	exit(1);
+}
+
+static void
+listdb()
+{
+	DBT key, data;
+	int rv;
+	time_t t;
+	char user[MAXLINE];
+
+	while((rv = db->seq(db, &key, &data, R_NEXT)) == 0) {
+		bcopy(key.data, user, key.size);
+		user[key.size] = '\0';
+		if (strcmp(user, VIT) == 0)
+			continue;
+		bcopy(data.data, &t, data.size);
+		printf("%-40s %-10s", user, ctime(&t));
+	}
+	if (rv == -1)
+		perror("IO error in database");
+}
+
+/*
+ * Is `c' a delimiting character for a recipient name?
+ */
+static int
+isdelim(c)
+	int c;
+{
+	/*
+	 * NB: don't use setlocale() before, headers are supposed to
+	 * consist only of ASCII (aka. C locale) characters.
+	 */
+	if (isalnum(c))
+		return(0);
+	if (c == '_' || c == '-' || c == '.')
+		return(0);
+	return(1);
 }
