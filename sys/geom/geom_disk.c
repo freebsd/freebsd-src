@@ -50,10 +50,11 @@
 #include <sys/stdint.h>
 #include <machine/md_var.h>
 
-
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <geom/geom.h>
+
+static struct mtx g_disk_done_mtx;
 
 static g_access_t g_disk_access;
 
@@ -64,7 +65,16 @@ struct g_class g_disk_class = {
 	G_CLASS_INITIALIZER
 };
 
-DECLARE_GEOM_CLASS(g_disk_class, g_disk);
+static void
+g_disk_init(void)
+{
+	mtx_unlock(&Giant);
+	g_add_class(&g_disk_class);
+	mtx_init(&g_disk_done_mtx, "g_disk_done", MTX_DEF, 0);
+	mtx_lock(&Giant);
+}
+
+DECLARE_GEOM_CLASS_INIT(g_disk_class, g_disk, g_disk_init);
 
 static void __inline
 g_disk_lock_giant(struct disk *dp)
@@ -154,32 +164,24 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 static void
 g_disk_done(struct bio *bp)
 {
-#ifdef maybe_not
-	struct disk *dp;
 
-	dp = bp->bio_disk;
-	bp->bio_completed = bp->bio_length - bp->bio_resid;
-	if (!(dp->d_flags & DISKFLAG_NOGIANT)) {
-		DROP_GIANT();
-		g_std_done(bp);
-		PICKUP_GIANT();
-	} else {
-		g_std_done(bp);
-	}
-#else
+	/* See "notes" for why we need a mutex here */
+	/* XXX: will witness accept a mix of Giant/unGiant drivers here ? */
+	mtx_lock(&g_disk_done_mtx);
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
 	g_std_done(bp);
-#endif
+	mtx_unlock(&g_disk_done_mtx);
 }
 
 static void
 g_disk_start(struct bio *bp)
 {
-	struct bio *bp2;
+	struct bio *bp2, *bp3;
 	dev_t dev;
 	struct disk *dp;
 	struct g_ioctl *gio;
 	int error;
+	off_t off;
 
 	dp = bp->bio_to->geom->softc;
 	dev = dp->d_dev;
@@ -193,20 +195,54 @@ g_disk_start(struct bio *bp)
 		/* fall-through */
 	case BIO_READ:
 	case BIO_WRITE:
+		if (dp->d_dev->si_iosize_max != 0)
+			dp->d_maxsize = dp->d_dev->si_iosize_max;
+#ifdef maybe
+		else
+			/*
+			 * XXX: Who knows how many drivers have undeclared
+			 * limitations ?
+			 */
+			dp->d_maxsize = DFLTPHYS;
+#endif
+		off = 0;
+		bp3 = NULL;
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
 			error = ENOMEM;
 			break;
 		}
-		bp2->bio_done = g_disk_done;
-		bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
-		bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
-		bp2->bio_bcount = bp2->bio_length;
-		bp2->bio_dev = dev;
-		bp2->bio_disk = dp;
-		g_disk_lock_giant(dp);
-		dp->d_strategy(bp2);
-		g_disk_unlock_giant(dp);
+		do {
+			bp2->bio_offset += off;
+			bp2->bio_length -= off;
+			bp2->bio_data -= off;
+			if (bp2->bio_length > dp->d_maxsize) {
+				/*
+				 * XXX: If we have a stripesize we should really
+				 * use it here.
+				 */
+				bp2->bio_length = dp->d_maxsize;
+				off += dp->d_maxsize;
+				/*
+				 * To avoid a race, we need to grab the next bio
+				 * before we schedule this one.  See "notes".
+				 */
+				bp3 = g_clone_bio(bp);
+				if (bp3 == NULL)
+					bp->bio_error = ENOMEM;
+			}
+			bp2->bio_done = g_disk_done;
+			bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
+			bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
+			bp2->bio_bcount = bp2->bio_length;
+			bp2->bio_dev = dev;
+			bp2->bio_disk = dp;
+			g_disk_lock_giant(dp);
+			dp->d_strategy(bp2);
+			g_disk_unlock_giant(dp);
+			bp2 = bp3;
+			bp3 = NULL;
+		} while (bp2 != NULL);
 		break;
 	case BIO_GETATTR:
 		if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
