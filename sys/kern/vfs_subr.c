@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/extattr.h>
 #include <sys/fcntl.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/mac.h>
@@ -3775,7 +3776,7 @@ vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, (void *)vp, msg);
 	if (vfs_badlock_ddb)
-		Debugger("lock violation");
+		kdb_enter("lock violation");
 }
 
 void
@@ -3884,7 +3885,7 @@ vop_strategy_pre(void *ap)
 			printf(
 			    "VOP_STRATEGY: bp is not locked but should be\n");
 		if (vfs_badlock_ddb)
-			Debugger("lock violation");
+			kdb_enter("lock violation");
 	}
 }
 

@@ -179,6 +179,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
@@ -256,7 +257,7 @@ __FBSDID("$FreeBSD$");
 		(void)printf("assertion \"%s\" failed: "	\
 			     "file \"%s\", line %d\n",		\
 			     #expression, __FILE__, __LINE__);	\
-	     Debugger("");					\
+	     kdb_enter("");					\
 	}							\
 }
 #else
