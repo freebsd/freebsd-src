@@ -111,7 +111,7 @@
   105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
   106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
-  115   '\'    '_'    fs     ns     '\'    '_'    fs     ns      O
+  115   '\'    '_'    fs     us     '\'    '_'    fs     us      O
   121   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   123   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   125   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O

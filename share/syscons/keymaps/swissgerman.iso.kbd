@@ -58,7 +58,7 @@
   050   'm'    'M'    cr     cr     230    230    nop    nop     C
   051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
   052   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
-  053   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
+  053   '-'    '_'    us     us     '-'    '_'    us     us      O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
@@ -89,7 +89,7 @@
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   083   del    ','    '.'    '.'    '.'    '.'    boot   boot    N
-  084   ns     ns     ns     ns     ns     ns     ns     ns      O
+  084   us     us     us     us     us     us     us     us      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   '<'    '>'    nop    nop    '\'    '\'    nop    nop     O
   087   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
