@@ -1832,6 +1832,13 @@ retry_space:
 	}
 
 done:
+	/*
+	 * If there was no error we have to clear p->p_retval[0]
+	 * because it may have been set by writev.
+	 */
+	if (error == 0) {
+		p->p_retval[0] = 0;
+	}
 	if (uap->sbytes != NULL) {
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
