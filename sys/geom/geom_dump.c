@@ -235,6 +235,7 @@ g_trace(int level, char *fmt, ...)
 	va_list ap;
 	struct sbuf *sb;
 
+	g_sanity(NULL);
 	if (!(g_debugflags & level))
 		return;
 	va_start(ap, fmt);
