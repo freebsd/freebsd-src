@@ -1,5 +1,5 @@
 FreeBSD 1.0
-INSTALLATION NOTES <1.00, 8 September 1993>
+INSTALLATION NOTES <2.00, 10 September 1993>
 
 These notes have been prepared from those written originally for NetBSD
 0.9. The conversion was done by someone who has had experience with
@@ -21,108 +21,103 @@ The FreeBSD 1.0 Release consists of the following elements:
 
 Bootable Kernel-copy floppies
 
-	These disks contain file systems, are bootable, and
-	have enough utilities on board to copy a new kernel
-	to your hard disk once you have it partitioned
-	for FreeBSD.  They make upgrading to a new kernel
-	easy, because all you have to do is get a new
-	kernel-copy floppy with a new kernel, boot from it,
-	and confirm that you want to have the kernel copied
-	to your disk.
+	These disks are bootable and have enough utilities on
+	board to copy a new kernel to a prepared hard disk.  While
+	they are primarily intended for installing FreeBSD, they
+	also make upgrading to a new kernel easy:  boot from it,
+	and copy a new kernel to disk.
 
-	There are currently two different kernel copy floppy
-	images, "kcopy-ah-floppy", and "kcopy-bt-floppy". The
-        first has the driver for the Adaptec 154x and 1742 host
-        adapter, the second has the drivers for the Bustek 742
-        and Ultrastore host adapter.  Either floppy can be used
-	for systems with MFM/RLL/IDE disk drives.
+	You must choose between one of two kernel-copy floppy
+	images, depending on your disk controller type.  The
+	"kcopy-ah-floppy" image supports the Adaptec 154x and 1742
+	SCSI adapters, while "kcopy-bt-floppy" supports the Bustek
+	742 and Ultrastore SCSI adapters.  For systems with only
+	MFM, RLL, ESDI or IDE disk controllers, either image can
+	be used.
 
 Installation floppies
 
-	These are currently two disks which contain the
-	software necessary to prepare your hard drive
-	for FreeBSD and install the FreeBSD distribution.
-	They are not bootable and must be used in
-	conjunction with one of the kernel-copy floppies.
-	These floppies are named "filesystem-floppy" and
-        "cpio-floppy".
+	In addition to a bootble floppy, currently two additional
+	disks are required to prepare your hard drive for FreeBSD
+	and to install the FreeBSD distribution.  Like the boot
+	floppies, these are distributed as binary images.  They are
+	are named "filesystem-floppy" and "cpio-floppy".
+
+	There is also an optional fourth installation disk referred
+	to as the "dos-floppy".  This can include any programs
+	from the tools directory.  For instance, add kermit if
+	this is needed for downloading files.  Unlike the binary
+	images which are written to a floppy via dd(1) or rawrite.exe,
+	these programs should be copied to a DOS formatted floppy
+	using 386BSD's `mcopy' command (or the `copy' command if
+	working from DOS).
 
 Upgrade floppies
 
-        There is work being done on upgrading from 386bsd to
-        FreeBSD. Presumably an announcement will be made on
-        one of the comp.os.386bsd newsgroups in due course.
-        This document ignores the existence of such floppies.
+	These facilitate upgrading to FreeBSD from any previous
+	patch-kit level of 386BSD 0.1.  Since they are currently
+	in BETA testing, they are not further mentioned in this
+	document.  However, they are currently available upon
+	request to FreeBSD-questions@freebsd.cdrom.com.
 
 FreeBSD distribution sets
 
-	These are collections of software, and include
-	both the binaries necessary to run the system
-	and the sources to the entire system.
+	These collections contain the complete FreeBSD system and
+	utilities.  There are three separate sets: the FreeBSD
+	binaries, the FreeBSD sources, and the DES sources+binaries.
+	The DES set contains only crypt(3) code and is subject to
+	U.S.A.  export restrictions.
 
-	FreeBSD 1.0 is split up into three different
-	distribution sets, one of which contains FreeBSD
-	binaries, one of which contains the FreeBSD source,
-	and the last of which contains the tools which
-	are needed for a ``secure'' system.  This last set
-	replaces certain binaries in the base binary distribution
-	with binaries that contain the DES crypt(3) code.
+	The binary distribution set can be found in the "binarydist"
+	subdirectory of the distribution. It is a single gzip'ed
+	tar archive split into files named bin_tgz.aa to bin_tgz.db
+	(i.e., 80 files all told), plus file CKSUMS.
 
-	The binary distribution set can be found in
-	the "binarydist" subdirectory of the distribution,
-	and is named bin.tar.gz.aa to bin.tar.gz.db (ie 80
-        files all told), plus file CKSUMS.
+	The source distribution sets can be found in under
+	"sourcedist" subdirectory of the distribution. It is
+	consists of files named src_tgz.aa to src_tgz.cp (i.e.,
+	68 files all told), plus file CKSUMS.
 
-	The source distribution sets can be found in
-	under "sourcedist" subdirectory of the distribution,
-        and is named src.tar.gz.aa to src.tar.gz.cp (ie 68
-        files all told), plus file CKSUMS.
-	
 	Finally, the security distribution set contains
 	usr/src/libcrypt/*, the source files for the DES encryption
-	algorithm, and the binaries which depend on it.
-	It can be found in the "securedist" subdirectory on
-        sites which choose to carry the complete FreeBSD
-        distribution.  The GAMMA release included more binaries in
-	this distribution than actually contain DES, this was an
-	error and will be corrected for the next release.
+	algorithm, and the binaries which depend on it.  It can
+	be found in the "securedist" subdirectory on sites which
+	choose to carry the complete FreeBSD distribution.
 
-	All of the files except the last files for each set
-	are 240,640 bytes long.  (The last file is just long
-	enough to contain the rest of the data for that
-	distribution set.)
+	The individual files in each collection are no more than
+	235 Kbytes in size.  (The last file is just long enough
+	to contain the rest of the data for that distribution
+	set.)
 
-	Put together, the files for a set comprise a
-	gzipped tar file.  If you don't want to
-	go through the install process, but want to
-	look at the contents of the files, you could use
-	the command, say for the binarydist files,
+	Each collection is a split, gzip'ed tar archive.  They
+	are reassembled and extracted by the install procedure.
+	However, to view them without installing, you can use, e.g.,
+	the command line:
 
 		cat bin* | gunzip | tar tvf - | more
 
-	or to extract the files themselves use
+	or to extract the files themselves:
 
 		cat bin* | gunzip | tar xvfp -
 
-	Using this method, the files are extracted,
-	"below" the current directory.  That is, if you
-	want to extract the binaries "into" your system,
-	i.e. replace the system binaries with them, you have
-	to run the "tar xvfp" from /.
+	Using this method, the files are extracted, "below" the
+	current directory.  That is, if you want to extract the
+	binaries "into" your system, i.e. replace the system
+	binaries with them, you have to run the "tar xvfp" from /.
 
-	In each of the distribution directories, there is
-	a file named "CKSUMS" which contains the checksums
-	of the files in that directory, as generated
-	by the cksum(1) command.  You can use cksum to
-	check the integrity of the archives, if you suspect
-	one of the files is corrupt and have access to a
-	cksum binary.  Note that the CKSUMS files are produced
-	using the BSD 4.4 version of cksum which is POSIX
-	compliant.  The values in this file will probably not
-	match with cksums from other systems.  FreeBSD uses the
-	new BSD 4.4 cksum routine.  A copy of the new cksum
-	binary that will run on 386bsd/Netbsd/FreeBSD can be
-	found in the "tools" subdirectory of the distribution.
+	In each of the distribution directories, there is a file
+	named "CKSUMS" which contains the checksums of the files
+	in that directory, as generated by the cksum(1) command.
+	You can use cksum to verify the integrity of the archives,
+	if you suspect one of the files is corrupted.
+
+	N.B.: The CKSUMS files are produced using the 4.4BSD 
+	version of cksum which is POSIX compliant.  The values in
+	this file will probably not match with cksums from other
+	systems.  FreeBSD uses the new 4.4BSD cksum routine.  A
+	copy of the new cksum binary that will run on
+	386bsd/Netbsd/FreeBSD can be found in the "tools" subdirectory
+	of the distribution.
 
 	
 System Requirements and Supported Devices:
@@ -131,7 +126,7 @@ System Requirements and Supported Devices:
 FreeBSD 1.0 runs on ISA (AT-Bus) and EISA systems, with 386 and 486
 processors, with or without math coprocessors.  It does NOT support
 Micro-channel systems, such as some IBM PS/2 systems.  The minimal
-configuration includes 4Meg of RAM, and a 60Meg hard disk, but to
+configuration includes 4Meg of RAM, and a 70Meg hard disk, but to
 install the entire system you'll need much more disk space, and to run
 X or compile the system more RAM is recommended.  (4Meg will actually
 allow you to run X and/or compile, but it's extremely slow.)
@@ -189,6 +184,7 @@ BT742 SCSI Cntlr.	0x330	12		 [kcopy-bt-floppy]
 
 UHA-14f	SCSI Cntlr. or
 UHA-34f SCSI Cntlr.	0x330	14	5        [kcopy-bt-floppy]
+(In FreeBSD GAMMA and before, UHA was on IRQ 11)
 
 SCSI Disks	sd[0-2]	automagically configured
 
@@ -204,7 +200,7 @@ Serial Ports	com0	0x3f8	4
 SMC/WD Ethernet or
 3COM 3c503	ed0	0x280	5	iomem 0xd8000
 
-NOTE for 386bsd users:- the we0 device for the WD80xxyy card has been
+NOTE for 386bsd users: the we0 device for the WD80xxyy card has been
 replaced with an ed0 device. The default settings of 2/280/d000 have
 been changed to 5/280/d800 as this address accomdates all of the boards.
 
@@ -221,8 +217,27 @@ Interruptless Parallel (Printer) Port
 		lpa0	0x378
 		lpa1	0x278
 
-NOTE you MUST disable the interrupt on the board or you will
-have problems using these drivers.
+N.B.: Disable the lpt interrupt on the board or you will
+have problems using the lpa drivers.
+
+Hard-Disk Storage Requirements 
+--------- ------- ------------
+
+The minimum base installation of FreeBSD requires a free hard disk
+partition with at least 16 MB free space.  This is only enough for
+the three installation disks, which don't support a multi-user
+shell.
+
+The full binary distribution  extracts to about 46 MB.
+The full source distribution extracts to about 72 MB.
+To recompile the sources requires an additional 55 MB.
+
+Since additional room is required for extracting the distributions,
+a full binary installation requires a minimum of about 70 MB (46
+MB extracted + 16 MB archived + 8 MB minimum swap).
+
+A complete source + binary distribution requires a minimum of
+about 210 MB (assuming a minimum 8 MB swap).
 
 
 Getting the System on to Useful Media:
@@ -235,7 +250,7 @@ Installation is supported from several media types, including:
 	NFS partitions
 	FTP
 
-No matter what you do, however, you'll need to have three disks (1.2M
+No matter what you do, however, you'll need at least three disks (1.2M
 or 1.44M) handy, on which you will put the kernel-copy image and the
 install (or upgrade) floppy images.
 
@@ -251,40 +266,46 @@ If you're using MFM/RLL/IDE disk controllers, you can use either
 kernel-copy floppy image.
 
 If you are using UNIX to make the floppies, you should use the command
-dd(1) to write the raw floppy images (ie kcopy-ah-floppy or
-kcopy-bt-floppy, filesystem-floppy and cpio-floppy) to the floppies. Use
-"man dd" or ask your system administrator for details on the correct
-set of arguments to use; it will be slightly different from system to
-system, and the exact set of necessary arguments to dd is beyond the
-scope of this document.
+dd(1) to write the raw floppy images (i.e., kcopy-ah-floppy or
+kcopy-bt-floppy, filesystem-floppy and cpio-floppy) to the floppies.
+For example, to write kcopy-ah-floppy to a 5.25" 1.2 Mb floppy
+disk under 386BSD, use:
 
-If you are using DOS to make the floppies, you should use the rawrite
-utility.  This can be found in the "tools" subdirectory of the distribution.
-It will write a raw image file to a disk, and the operation instructions
-are self-evident.  Such files are 1228800 bytes in size.  You can rawrite
-the images to either 1.2MB or 1.44MB floppies.
+	$ dd if=kcopy-ah-floppy of=/dev/fd0a bs=30b count=80
+
+or for a 3.5" 1.44 Mb floppy:
+
+	$ dd if=kcopy-ah-floppy of=/dev/fd0a bs=36b count=80
+
+If you are using DOS to make the floppies, use the rawrite.exe
+utility.  This can be found in the "tools" subdirectory of the
+distribution.  Copy or download  rawrite.exe and the binary images
+to a DOS disk, type "rawrite" under MS-DOS and follow the
+instructions.  Rawrite can write binary images to either 1.2MB or
+1.44MB floppies (which must be DOS formatted).
+
+Any other programs from the tools directory that might be needed
+for installing FreeBSD, such as kermit, should be copied to a DOS
+formatted floppy (1.2MB or 1.44MB).  Under 386BSD, they can be
+copied to floppy using the mcopy command.  Under DOS, use the DOS
+copy command.
 
 The steps necessary to prepare the distribution sets for installation
 depend on which method of installation you choose.  The various methods
 are explained below.
 
 To prepare for installing via MS-DOS floppies:
-(NOTE: At this stage you can only prepare to install these files, you
-cannot do the installation using "load_fd" as the mread program is not
-on the installation disks, nor will the "load_fd" allow itself to be
-terminated neatly and cleanly. No doubt this will be fixed in due
-course, watch the newsgroups inside comp.os.386bsd.)  Work is already
-in process to fix this.
 
 	To prepare FreeBSD for installaton from MS-DOS floppies, you
 	need to do the following:
 
-		Count the number of "<set>.tar.gz.xx" files
-		you have.  Call this number N.  You will
+		Count the number of "<set>_tgz.xx" files
+		you have (these are split, gzip'ed, tar 
+		archives).  Call this number N.  You will
 		need N/6 1.44M floppies, or N/5 1.2M
 		floppies to install the distribution
 		in this manner. For the set of bin files
-		(ie 80 files) and 1.2 Mb floppies you will
+		(i.e., 80 files) and 1.2 Mb floppies you will
 		need 16 disks.
 
 		Format all of the floppies, with MS-DOS.
@@ -293,33 +314,29 @@ in process to fix this.
 		(If you use "format /u" then the format
 		will run a tad faster).
 
-		Place all of the "<set>.tar.gz.xx" files on
-		the DOS disks.  (How you do this is up to
-		you.  You could, for instance, use a DOS
-		terminal program to download them on to
-		the floppies, or perhaps use a UNIX machine
-		capable of reading and writing DOS filesystems
-		to place the files on the disk.  The
-		possibilities are almost endless.) (If you are
-		working off a 386bsd or related system, you can
-		use "mwrite" to write the files to floppies -
-		this is tedious but it does work. Use commands
-		like this:-
+		Copy all of the "<set>_tgz.xx" files on
+		the DOS disks.  Under DOS use the DOS copy
+		command.    Under 386BSD, use, for instance, 
+		the make_floppies script:
 
-			for i in aa ab ac ad ae; do
-			mwrite bin.tar.gz.$i a:bintargz.$i; done
+			#!/bin/sh
+			N_PER_DISK=5
 
-		Unfortunately, when/if you can retrieve these
-		files back onto the new FreeBSD system, they 
-		will have the wrong filenames and the filenames
-		will be in upper case. How you fix this is
-		currently "left as an exercise for the reader")
+			x=$N_PER_DISK
+			for dist in bin_tgz.*; do
+				if [ $x -ge $N_PER_DISK ]; then
+					x=0
+					echo "Insert next disk"
+					echo "And press ENTER..."
+					read reply
+					mdel a:/\*
+				fi
+				mcopy $dist a:/
+				x=`expr $x + 1`
+			done
 
-		(One suggestion is to use "tar" rather than "mwrite"
-		when writing the floppies, and to modify the "load_fd"
-		definition in the /.profile file to use "tar" rather
-		than "mread" to get the files back).
-			
+	(Or you might use tar instead).
+
 	Once you have the files on DOS disks, you can proceed to the
 	next step in the installation process, viz preparing your hard
 	disk.
@@ -337,8 +354,8 @@ To prepare for installing via a tape:
 		tar cvf <tape_device> <files>
 
 	where "<tape_device>" is the name of the tape device
-	that describes the tape drive you're using (possibly
-	something like /dev/nrst0, but we make no guarantees 8-).
+	that describes the tape drive you're using (either
+	/dev/rst0 for SCSI tape, otherwise /dev/rwt0). 
 	If you can't figure it out, ask your system administrator.
 	"<files>" are the names of the "<set>.tar.gz.xx" files
 	which you want to be placed on the tape.
@@ -389,7 +406,8 @@ To prepare for installing via FTP:
 
 To upgrade:
 
-	(This is still to be tested.)
+	(The beta upgrade script is available on request from
+	FreeBSD-questions@freefall.cdrom.com)
 
 Preparing your Hard Disk for FreeBSD Installation:
 --------- ---- ---- ---- --- ------ ------------
@@ -407,87 +425,51 @@ geometry translation, BE SURE TO USE THE SAME PARAMETERS FOR FreeBSD AS
 FOR DOS!  If you do not, FreeBSD will not be able to properly coexist
 with DOS.
 
-Secondly, using the DOS "fdisk" program, repartition your hard drive to
-create a new FreeBSD partition of at least 60 Mbyte in size.  Note the
-starting location and size of this new partition; you will need this
-information when you install FreeBSD.  Once you have created the new
-partition, using a partition editor mark the new FreeBSD partition as
-having a type of 0xA5.
-
-Thirdly, using fdisk, set the other (ie non-FreeBSD) partition to be
-"active", then, after leaving fdisk, do whatever is necessary to
-restore order to that partition.  (If that partition used to contain
-DOS, this will probably involve invoking the DOS "format" command,
-probably in the manner of "format c:/s".  You will then have to restore
-your backed-up data to the partition.)
+Secondly, make sure your disk has at least 16 Mbytes free space (or 
+70 Mbytes for the complete binary distribition).
 
 You are now set to install FreeBSD on your hard drive.
-
 
 Installing the FreeBSD System:
 ---------- --- ------ ------
 
-Installing FreeBSD is a relatively complex process, but, if you have
-this document in hand and are careful to read and remember the
-information which is presented to you by the install program, it
-shouldn't be too much trouble.
+If DOS or OS/2 is already installed on the hard disk, installation should
+be easy.  By default FreeBSD is installed after the last DOS or OS/2
+partition.  Otherwise, you may need to specify your hard disk's geometry
+(i.e., number of cylinders, heads and sectors per track).
 
-Before you begin, you must know several of your hard disk's
-parameters.  You must know the number of sectors per track, the number
-of tracks per cylinder (i.e. the number of heads), the number of bytes
-per sector, and the number of cylinders on the disk.
+For computing partition sizes, it might help to have a calculator handy.
 
-If you are installing FreeBSD into a partition on your hard disk, you
-should have completed the section regarding the preparation of your
-hard disk, and you should know the size and offset from the beginning
-of the disk of the FreeBSD partition.
-
-(NOTE: The DOS fdisk counts in Megabytes or in percentage of disk
-space, but the FreeBSD system counts in cylinders, so you need to
-calculate carefully how many bytes there are to a cylinder, ie
-
-	bytes/sector * heads(=trks/cyl) * (sectors/trk)
-
-You are advised to align the FreeBSD partition on a cylinder boundary
-and to round down the megabyte size of DOS)
-
-Once you know the above information then you should be ready to proceed
-with the FreeBSD installation.  It is essential to have a pencil,
-paper, and calculator handy.
-
-That all being said, it's finally time to install the system!
+And it's finally time to install the system!
 
 The following is a walk-through of the steps necessary to get FreeBSD
 installed on your hard disk.  If you wish to stop the installation, you
-may hit Control-C at any prompt, but if you do, you'll have to begin
-again from scratch.
+may hit Control-C at any prompt and then type `halt'. 
 
-	Insert the kcopy-ah-floppy or kcopy-bt-floppy (as
-	appropriate) into the boot drive. Boot from it. It will
-	take a while to load the kernel from the floppy, probably
-	on the order of a minute or two.  After it is loaded,
-	it will present the message:
+	Boot from the kcopy-ah or kcopy-bt floppy, depending on
+	your hard disk controller type.
 
-	"Insert file system floppy"
+	When prompted to insert the filesystem floppy, remove the
+	kcopy floppy from the drive and insert filesystem floppy
+	and hit any key.
+	N.B.: The filesystem floppy must not be write protected.
+	
+	[When booting, if no message prompt appears after a
+	reasonable period of time, reboot and try it again.  If
+	this doesn't work, try disabling your CPU's internal and
+	external caches, and then try to boot again. If there is
+	still no message prompt, then you can't install FreeBSD
+	on your hardware.  If you were able to install 386bsd,
+	this is definitely a bug in our software; please report
+	it!  Please include your system configuration, and any
+	other relevant information in your bug report.]
 
-	If you do not see this message after a reasonable period of
-	time, reboot and try it again.  If it doesn't work, try
-	disabling your CPU's internal and external caches, and then
-	try to boot again. If you still don't see it, then you can't
-	install FreeBSD on your hardware.  If you were able to
-	install 386bsd, this is definitely a bug in our software;
-	please report it!  Please include your system configuration,
-	and any other relevant information in your bug report.
-
-	Once you have reached that prompt, remove the kcopy-xx-floppy
-	from the drive.  Make sure that the first installation
-	disk (ie the filesystem-floppy) is writable, insert it into
-	the disk drive, and hit any key.
-
-	You will then be presented with a copyright notice and a list
-	of the hardware that FreeBSD recognizes as being in your
-	machine. It would be sensible to make a note of the disk
-	values for cylinders, heads, sectors etc for later use.
+	The boot sequence continues after the filesystem floppy
+	has been inserted.   A copyright notice is displayed along
+	with a list of the hardware that FreeBSD recognizes as
+	being in your machine.  You might want to make a note of
+	the disk values for cylinders, heads, sectors etc for
+	later use.
 
 	After a short while (approximately 30 to 60 seconds), you
 	should see a welcome message and a prompt, asking if you
@@ -496,35 +478,36 @@ again from scratch.
 	If you wish to proceed, enter "y" and then return.
 
 	You will then be asked what type of disk drive you have.
-	The valid options are listed on the screen (eg SCSI, ESDI).
+	The valid options are listed on the screen (e.g., SCSI, ESDI).
 
 	You will then be asked for a label name for your disk.
 	This should be a short, one-word name for your disk,
 	e.g. "cp3100-mine" for a Conner Peripherals "3100" disk.
 	You needn't remember this name.
 
-	Next, you will be prompted for the geometry information you
-	were supposed to remember about your disk.  Enter it when the
-	install program asks for it.
+	Next, you will be prompted for the geometry information.
+	The default values should be correct, in which case just
+	hit ENTER to accept them.  Otherwise  enter the values
+	that were displayed during the boot sequence as they are
+	requested.
 
-	When asked for the size of the FreeBSD portion of the disk,
-	either input the number listed as the total size of your
-	disk, or multiply the number of cylinders in the FreeBSD
-	portion of your disk by the number of sectors per cylinder
-	(also listed by the install program) and input the result.
+	The default size of the FreeBSD portion of the disk
+	is the maximum available at the end of the disk (which may
+	be the whole disk).  Accept the default by hitting ENTER.
+	Otherwise, enter an appropriate value using the information
+	displayed.
 
 	If you are not installing on the whole disk, you will be
 	asked for the offset of the FreeBSD partition from the
-	beginning of the disk.  Again, calculate this number from
-	the information you recorded when partitioning your disk
-	with fdisk, and input the result.
+	beginning of the disk.  Again, hit ENTER to accept the
+	default, or enter a cylinder offset from the beginning of
+	the disk.
 
 	You will then be asked for the size of your root partition,
-	in cylinders. The suggested maximum size is 15 Mbytes - so 
-	you must divide 15,000,000 by the number that you get by
-	calculating 
-
-		(bytes/sector)*(sectors/trk)*(trks/cyl)
+	in cylinders. The suggested maximum size is 15 Mbytes
+	which is used as a default.  Accept this, or enter a
+	suitable value (after converting to cylinders using the
+	formula displayed).
 
 	Next, you will be asked for the size of your swap partition
 	- again, you must calculate this in cylinders.  You should
@@ -561,7 +544,7 @@ again from scratch.
 	files and then will print out an informative message and
 	place you at a "#" prompt.
 
-	Read the message and note which partition (eg sd0a or wd0a)
+	Read the message and note which partition (e.g., sd0a or wd0a)
 	you need to copy a kernel to.  Reboot the machine off the
 	kcopy-xx-floppy disk, but this time at the prompt asking
 	you to insert a file system floppy, do _not_ replace the
@@ -571,13 +554,13 @@ again from scratch.
 	kernel on the floppy to your hard disk.
 
 	At the next "kc>" prompt, enter the disk partition to which
-	you want to copy the kernel. (eg sd0a or wd0a).
+	you want to copy the kernel. (e.g., sd0a or wd0a).
 
 	It will work for a minute or two, then present you with
-	another "#" prompt.  Follow the instructions given, (ie
+	another "#" prompt.  Follow the instructions given, (i.e.,
 	halt the system) and reboot from the hard disk. You will
 	probably have to do a hardware reset or else your ethernet
-	card might not be recognised at reboot (eg if you have a
+	card might not be recognised at reboot (e.g., if you have a
 	WD8003EP card).
 
 	When the machine boots, a three-line banner should appear at
@@ -595,7 +578,7 @@ again from scratch.
 	will begin installing still more files on your hard disk.
 	This should take no more than 3 minutes.
 
-	You will be given (more) instructions, (eg to halt the
+	You will be given (more) instructions, (e.g., to halt the
 	system) and you should reboot the machine again, from the
 	hard drive and probably with a hardware reset to kick your
 	ethernet card back into life.
@@ -736,25 +719,29 @@ again from scratch.
 		where <serv_ipaddr> is the server's numeric IP address,
 		<dist_dir> is the path to the distribution files on
 		the server, and <tmp_dir> is the name of the local
-		temporary directory (eg /usr/distrib). Proceed as if
-		you had loaded the
-		files from tape, "cd"ing to the appropriate directories
-		and running "set_tmp_dir" and "extract" as appropriate.
+		temporary directory (e.g., /usr/distrib). Proceed as if
+		you had loaded the files from tape, "cd"ing to the
+		appropriate directories and running "set_tmp_dir" and
+		"extract" as appropriate.
 
 		If you are retrieving the distribution sets using ftp,
 		cd into the temp directory, and execute the command:
 
 			ftp <serv_ipaddr>
 
-		where <serv_ipaddr> is the server's
-		numeric IP address.  Get the files with FTP,
-		taking care to use binary mode to transfer
-		all files. A simple set of commands is
+		where <serv_ipaddr> is the server's numeric IP address.
+		Get the files with FTP, taking care to use binary mode
+		to transfer all files. A simple set of commands is
 
 			ftp <serv_ipaddr>
-			cd <where/the/binarydist/files/are>
+			user ftp
+			passwd <user-id>@
 			hash
 			binary
+			prompt
+			cd <where/the/binarydist/files/are>
+			mget *
+			cd <where/the/sourcedist/files/are>
 			mget *
 			quit
 
@@ -768,20 +755,20 @@ again from scratch.
 	installing the sourcedist. BEFORE YOU REBOOT AFTER INSTALLING
 	THE BINARYDIS, you must preserve the commands that do the
 	extracting. They are kept in the single-user-mode .profile
-	file called /.profile.  Proceed like this:-
+	file called /.profile.  Proceed like this:
 
 		mv /.profile /.profile.install
 		ln /root/.profile /.profile
 
 	When you are ready to install the sourcedist at some time
-	in the future, get into multi-user mode (ie the normal
-	means of running FreeBSD) and issue these commands:-
+	in the future, get into multi-user mode (i.e., the normal
+	means of running FreeBSD) and issue these commands:
 
 		cp /.profile.install /.profile
 		shutdown now
 
 	This will cause the system to go into single-user mode, and
-	the install profile will be active (ie you will find the
+	the install profile will be active (i.e., you will find the
 	commands load_fd, extract etc available to you again).
 
 
@@ -800,7 +787,11 @@ To configure the newly installed operating system, run the command
 "configure".
 
 Configure will ask for the machine's hostname, domain name, and other
-network configuration information.
+network configuration information. You should check that configure has
+set up the following files correctly:
+
+	/etc/netstart
+	/etc/myname
 
 Once you have supplied configure all that it requests, your machine
 will be configured well enough that when you reboot it it will be a
