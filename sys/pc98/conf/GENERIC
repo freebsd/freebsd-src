@@ -72,6 +72,7 @@ options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
 device		isa
 device		pci
 options 	COMPAT_OLDISA		# Old ISA driver shims
+#options 	PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
 
 # Floppy drives
 device		fdc
