@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.75 1997/04/07 07:16:05 peter Exp $
+ * $Id: vm_map.c,v 1.76 1997/04/13 01:48:35 dyson Exp $
  */
 
 /*
@@ -2454,8 +2454,12 @@ RetryLookup:;
 
 			if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
 					(void *)0, curproc)) {
+
+				vm_map_unlock_read(map);
+
 				if (share_map != map)
 					vm_map_unlock_read(map);
+
 				goto RetryLookup;
 			}
 			vm_object_shadow(
