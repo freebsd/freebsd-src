@@ -251,7 +251,10 @@ ncp_initlib(void){
 		return 0;
 	error = sysctlbyname("net.ncp.version", &kv, &kvlen, NULL, 0);
 	if (error) {
-		fprintf(stderr, "%s: kernel module is old, please recompile it.\n", __FUNCTION__);
+		if (errno == ENOENT)
+			fprintf(stderr, "Kernel module ncp is not loaded.\n");
+		else
+			fprintf(stderr, "%s: kernel module is old, please recompile it.\n", __FUNCTION__);
 		return error;
 	}
 	if (NCP_VERSION != kv) {
