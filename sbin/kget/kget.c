@@ -31,7 +31,9 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <isa/isa_device.h>
+#if 0
 #include <isa/pnp.h>
+#endif
 
 struct isa_device *id;
 struct pnp_cinfo *c;
@@ -111,6 +113,7 @@ main(int argc, char *argv[])
 		i+=sizeof(struct isa_device)+8;
 	}
 	free(buf);
+#if 0
 	/* Now, print the changes to PnP override table */
 	/* get the buffer size */
 	i=sysctlbyname(mib2,NULL,&len,NULL,NULL);
@@ -158,6 +161,7 @@ main(int argc, char *argv[])
 
 	} while ((i+=sizeof(struct pnp_cinfo))<len);
 	free(buf);
+#endif
 finish:
 	fprintf(fout,"q\n");
 	fclose(fout);
