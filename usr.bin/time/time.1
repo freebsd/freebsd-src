@@ -39,6 +39,8 @@
 .Nd time command execution
 .Sh SYNOPSIS
 .Nm
+.Op Fl a Ar file
+.Op Fl f Ar file
 .Op Fl l
 .Ar command
 .Sh DESCRIPTION
@@ -66,6 +68,28 @@ process.
 .Pp
 Available options:
 .Bl -tag -width Ds
+.It Fl a Ar file
+Append the output of
+.Nm
+to 
+.Ar file
+instead of writing to stderr.
+.It Fl f Ar file
+Write the output to 
+.Ar file
+instead of stderr.  If
+.Ar file
+exists, then 
+.Nm
+will overwrite the file if premissions permit such an operation.
+The output can be sent to stdout by giving
+a file name
+.Do
+-
+.Dc
+to the 
+.Fl f
+option.
 .It Fl l
 The contents of the
 .Em rusage
