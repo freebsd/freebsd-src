@@ -51,8 +51,9 @@ case "$daily_status_mail_rejects_enable" in
 		done
 		cat /var/log/maillog
 	    } |
-		perl -ne "print \"\$2\n\"
-		    if (/reject=/ and /^$start.*ruleset=check_\S+,\s+arg1=(<[^@]+@)?([^>,]+).*reject=/o);" |
+		fgrep 'reject=' |
+		egrep -e "^$start.*ruleset=check_[^[:space:]]+,[[:space:]]+arg1=(<[^@]+@)?([^>,]+).*reject=.*" |
+		sed -e 's/.*arg1=//' -e 's/.*@//' -e 's/[>[:space:]].*$//' |
 		sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
 	fi;;

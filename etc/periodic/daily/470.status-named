@@ -25,30 +25,30 @@ case "$daily_status_named_enable" in
 
 	start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
 	rc=$(catmsgs |
-	    perl -ne 'print "$2 from $1\n"
-		if (/^'"$start"'.*named\[\d+\]: denied [AI]XFR from \[(.*)\]\.\d+ for "(.*)"/);' |
-	    sort -f | uniq -ic | 
-	    perl -e '
-		use Socket;
+	    fgrep '^'"$start"'.*named\[[[:digit:]]\+\]: denied [AI]XFR from \[.*\]\.[[:digit:]]\+ for' | \
+	    sed -e 's/.*: denied [AI]XFR from \[\(.*\)\]\.[[:digit:]]* for "\(.*\)".*$/\2 from \1/'
+	    sort -f | uniq -ic | (
+		usedns=0
+		if [ X"${daily_status_named_usedns}" != X"" ]; then
+			case $daily_status_named_usedns in
+			[yY][eE][sS])   usedns=1 ;;
+			esac
+		fi
 
-		while (<STDIN>) {
-			if (/^.*from (.*)$/) {
-				$ip_addr = $1;
-				chomp;
-				if ($ARGV[0] =~ /^yes$/i) {
-					($host) = gethostbyaddr(inet_aton($ip_addr), AF_INET);
-				} else {
-					$host = "";
-				}
-
-				if ($host) {
-					print "$_ ($host)\n";
-				} else {
-					print "$_\n";
-				}
-			}
-		}
-	    ' $daily_status_named_usedns | tee /dev/stderr | wc -l)
+		while read line ;do
+			ipaddr=`echo "$line" | sed -e 's/^.*from //'`
+			if [ $usedns -eq 1 ]; then
+				name=`host "${ipaddr}" 2>/dev/null | \
+				   grep 'domain name pointer' | \
+				   sed -e 's/^.* //'`
+			fi
+			if [ X"${name}" != X"" ]; then
+				echo "${line} (${name})"
+			else
+				echo "${line}"
+			fi
+		done ) | \
+		tee /dev/stderr | wc -l)
 	[ $rc -gt 0 ] && rc=1
 	;;
 
