@@ -164,6 +164,7 @@ SUBDIR+=3dfx \
 	coff \
 	drm \
 	ed \
+	elink \
 	em \
 	ep \
 	fe \
