@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.180 1996/10/18 18:51:36 sos Exp $
+ *  $Id: syscons.c,v 1.181 1996/10/23 07:29:43 pst Exp $
  */
 
 #include "sc.h"
@@ -102,8 +102,7 @@ static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 static  int     	flags = 0;
 static  char        	init_done = COLD;
-static  u_short		buffer[ROW*COL];
-static	char		in_debugger = FALSE;
+static  u_short		sc_buffer[ROW*COL];
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
 static  char        	blink_in_progress = FALSE;
@@ -172,7 +171,9 @@ static int scprobe(struct isa_device *dev);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
-static u_int scgetc(int noblock);
+static u_int scgetc(u_int flags);
+#define SCGETC_CN	1
+#define SCGETC_NONBLOCK	2
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
@@ -392,8 +393,10 @@ scattach(struct isa_device *dev)
 
     scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 				     M_DEVBUF, M_NOWAIT);
-    /* copy screen to buffer */
-    bcopyw(buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+
+    /* copy temporary buffer to final buffer */
+    bcopyw(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+
     scp->cursor_pos = scp->cursor_oldpos =
 	scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
     scp->mouse_pos = scp->mouse_oldpos = 
@@ -569,7 +572,7 @@ scintr(int unit)
 	mark_all(cur_console);
     }
 
-    c = scgetc(1);
+    c = scgetc(SCGETC_NONBLOCK);
 
     cur_tty = VIRTUAL_TTY(get_scr_num());
     if (!(cur_tty->t_state & TS_ISOPEN))
@@ -1138,7 +1141,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case KIOCSOUND:     	/* make tone (*data) hz */
 	if (scp == cur_console) {
 	    if (*(int*)data) {
-		int pitch = TIMER_FREQ/(*(int*)data);
+		int pitch = timer_freq / *(int*)data;
 
 		/* set command for counter 2, 2 byte write */
 		if (acquire_timer2(TIMER_16BIT|TIMER_SQWAVE))
@@ -1370,10 +1373,8 @@ sccnputc(dev_t dev, int c)
 
     scp->term = kernel_console;
     current_default = &kernel_default;
-    if ((scp->scr_buf == buffer || in_debugger) &&
-	!(scp->status & UNKNOWN_MODE)) {
+    if (!(scp->status & UNKNOWN_MODE))
 	remove_cursor_image(scp);
-    }
     buf[0] = c;
     ansi_put(scp, buf, 1);
     kernel_console = scp->term;
@@ -1397,7 +1398,7 @@ int
 sccngetc(dev_t dev)
 {
     int s = spltty();       /* block scintr while we poll */
-    int c = scgetc(0);
+    int c = scgetc(SCGETC_CN);
     splx(s);
     return(c);
 }
@@ -1408,7 +1409,7 @@ sccncheckc(dev_t dev)
     int c, s;
 
     s = spltty();
-    c = scgetc(1);
+    c = scgetc(SCGETC_CN | SCGETC_NONBLOCK);
     splx(s);
     return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
 }
@@ -1444,6 +1445,7 @@ scrn_timer()
     /* should we just return ? */
     if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
 	timeout((timeout_func_t)scrn_timer, 0, hz/10);
+	splx(s);
 	return;
     }
 
@@ -2300,8 +2302,13 @@ scinit(void)
     current_default = &user_default;
     console[0] = &main_console;
     init_scp(console[0]);
-    console[0]->scr_buf = console[0]->mouse_pos = buffer;
-    console[0]->cursor_pos = console[0]->cursor_oldpos = buffer + hw_cursor;
+
+    /* copy screen to temporary buffer */
+    bcopyw(Crtat, sc_buffer,
+	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
+
+    console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
+    console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
     console[0]->xpos = hw_cursor % COL;
     console[0]->ypos = hw_cursor / COL;
     cur_console = console[0];
@@ -2440,12 +2447,13 @@ history_down_line(scr_stat *scp)
 }
 
 /*
- * scgetc(noblock) - get character from keyboard.
- * If noblock = 0 wait until a key is pressed.
- * Else return NOKEY.
+ * scgetc(flags) - get character from keyboard.
+ * If flags & SCGETC_CN, then avoid harmful side effects.
+ * If flags & SCGETC_NONBLOCK, then wait until a key is pressed, else
+ * return NOKEY if there is nothing there.
  */
 static u_int
-scgetc(int noblock)
+scgetc(u_int flags)
 {
     u_char scancode, keycode;
     u_int state, action;
@@ -2458,13 +2466,14 @@ next_code:
     /* first see if there is something in the keyboard port */
     if (inb(KB_STAT) & KB_BUF_FULL)
 	scancode = inb(KB_DATA);
-    else if (noblock)
+    else if (flags & SCGETC_NONBLOCK)
 	return(NOKEY);
     else
 	goto next_code;
 
     /* do the /dev/random device a favour */
-    add_keyboard_randomness(scancode);
+    if (!(flags & SCGETC_CN))
+	add_keyboard_randomness(scancode);
 
     if (cur_console->status & KBD_RAW_MODE)
 	return scancode;
@@ -2820,9 +2829,7 @@ next_code:
 		if (cur_console->smode.mode == VT_AUTO &&
 		    console[0]->smode.mode == VT_AUTO)
 		    switch_scr(cur_console, 0);
-		in_debugger = TRUE;
 		Debugger("manual escape to debugger");
-		in_debugger = FALSE;
 		return(NOKEY);
 #else
 		printf("No debugger in kernel\n");
