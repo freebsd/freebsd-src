@@ -1,5 +1,5 @@
 /*	$NetBSD: ffs.S,v 1.3 2003/04/05 23:27:15 bjh21 Exp $	*/
-/*
+/*-
  * Copyright (c) 2001 Christopher Gilbert
  * All rights reserved.
  *

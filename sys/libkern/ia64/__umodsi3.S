@@ -1,7 +1,8 @@
 .file "__umodsi3.s"
 
 // $FreeBSD$
-//  
+
+//-
 // Copyright (c) 2000, Intel Corporation
 // All rights reserved.
 //
