@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.4 1994/09/16 13:33:38 davidg Exp $
+ *	$Id: icu.h,v 1.5 1994/09/18 23:08:56 bde Exp $
  */
 
 /*
@@ -65,7 +65,7 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	SET_ICUS()	(outb(0x21, imen), outb(0xa1, imen >> 8))
 #endif
 
-#endif
+#endif /* LOCORE */
 
 /*
  * Interrupt enable bits - in normal order of priority (which we change)
