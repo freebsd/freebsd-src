@@ -745,38 +745,24 @@ sk_xmchash(addr)
 	return (~crc & ((1 << HASH_BITS) - 1));
 }
 
+/* gmchash is just a big endian crc */
 static u_int32_t
 sk_gmchash(addr)
 	const uint8_t *addr;
 {
-	u_int32_t crc;
-	u_int idx, bit;
-	uint8_t tmpData, data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
 	for (idx = 0; idx < 6; idx++) {
-		data = *addr++;
-
-		/* Change bit order in byte. */
-		tmpData = data;
-		for (bit = 0; bit < 8; bit++) {
-			if (tmpData & 1) {
-				data |=  1 << (7 - bit);
-			} else {
-				data &= ~(1 << (7 - bit));
-			}
-			tmpData >>= 1;
-		}
-
-		crc ^= (data << 24);
-		for (bit = 0; bit < 8; bit++) {
-			if (crc & 0x80000000) {
-				crc = (crc << 1) ^ GMAC_POLY;
-			} else {
-				crc <<= 1;
-			}
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
+			crc <<= 1;
+			if (carry)
+				crc = (crc ^ GMAC_POLY) | carry;
 		}
 	}
 
