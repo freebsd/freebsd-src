@@ -49,8 +49,8 @@ makes a tags file for
 .Xr ex 1
 from the specified C,
 Pascal, Fortran,
-.Tn YACC ,
-lex, and lisp sources.
+Yacc,
+Lex, and Lisp sources.
 A tags file gives the locations of specified objects in a group of files.
 Each line of the tags file contains the object name, the file in which it
 is defined, and a search pattern for the object definition, separated by
@@ -64,33 +64,35 @@ Depending upon the options provided to
 .Nm ,
 objects will consist of subroutines, typedefs, defines, structs,
 enums and unions.
-.Bl -tag -width Ds
+.Pp
+The following options are available:
+.Bl -tag -width indent
 .It Fl B
-use backward searching patterns
+Use backward searching patterns
 .Pq Li ?...? .
 .It Fl F
-use forward searching patterns
+Use forward searching patterns
 .Pq Li /.../
 (the default).
 .It Fl a
-append to
+Append to
 .Ar tags
 file.
 .It Fl d
-create tags for
+Create tags for
 .Li #defines
 that don't take arguments;
 .Li #defines
 that take arguments are tagged automatically.
 .It Fl f
-Places the tag descriptions in a file called
+Place the tag descriptions in a file called
 .Ar tagsfile .
 The default behaviour is to place them in a file called
 .Ar tags .
 .It Fl t
-create tags for typedefs, structs, unions, and enums.
+Create tags for typedefs, structs, unions, and enums.
 .It Fl u
-update the specified files in the
+Update the specified files in the
 .Ar tags
 file, that is, all
 references to them are deleted, and the new values are appended to the
@@ -112,7 +114,7 @@ ctags \-v files \&| sort \-f > index
 vgrind \-x index
 .Ed
 .It Fl w
-suppress warning diagnostics.
+Suppress warning diagnostics.
 .It Fl x
 .Nm
 produces a list of object
@@ -123,22 +125,22 @@ function index.
 .El
 .Pp
 Files whose names end in
-.Nm \&.c
+.Em \&.c
 or
-.Nm \&.h
+.Em \&.h
 are assumed to be C
 source files and are searched for C style routine and macro definitions.
 Files whose names end in
-.Nm \&.y
+.Em \&.y
 are assumed to be
-.Tn YACC
+Yacc
 source files.
 Files whose names end in
-.Nm \&.l
-are assumed to be lisp files if their
+.Em \&.l
+are assumed to be Lisp files if their
 first non-blank character is `;', `(', or `[',
 otherwise, they are
-treated as lex files.  Other files are first examined to see if they
+treated as Lex files.  Other files are first examined to see if they
 contain any Pascal or Fortran routine definitions, and, if not, are
 searched for C style definitions.
 .Pp
@@ -149,20 +151,20 @@ is created by prepending
 .Ar M
 to the name of the file, with the
 trailing
-.Nm \&.c
+.Em \&.c
 and any leading pathname components removed.  This
 makes use of
 .Nm
 practical in directories with more than one
 program.
 .Pp
-Yacc and lex files each have a special tag.
+Yacc and Lex files each have a special tag.
 .Ar Yyparse
 is the start
 of the second section of the yacc file, and
 .Ar yylex
 is the start of
-the second section of the lex file.
+the second section of the Lex file.
 .Sh FILES
 .Bl -tag -width tags -compact
 .It Pa tags
@@ -177,12 +179,12 @@ Duplicate objects are not considered errors.
 .Xr vi 1
 .Sh BUGS
 Recognition of
-.Nm functions  ,
-.Nm subroutines
+.Em functions  ,
+.Em subroutines
 and
-.Nm procedures
+.Em procedures
 for
-.Tn FORTRAN
+Fortran
 and Pascal is done is a very simpleminded way.  No attempt
 is made to deal with block structure; if you have two Pascal procedures
 in different blocks with the same name you lose.
@@ -191,7 +193,7 @@ doesn't
 understand about Pascal types.
 .Pp
 The method of deciding whether to look for C, Pascal or
-.Tn FORTRAN
+Fortran
 functions is a hack.
 .Pp
 .Nm Ctags
