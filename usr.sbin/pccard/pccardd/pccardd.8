@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: pccardd.8,v 1.12 1999/06/26 23:16:40 mpp Exp $
+.\"	$Id: pccardd.8,v 1.13 1999/06/29 23:59:15 hosokawa Exp $
 .\"
 .Dd November 1, 1994
 .Dt PCCARDD 8
@@ -35,6 +35,8 @@
 .Nm pccardd
 .Op Fl d
 .Op Fl v
+.Op Fl z
+.Op Fl i Ar IRQ
 .Op Fl f Ar configfile
 .Sh DESCRIPTION
 .Nm Pccardd
@@ -119,6 +121,11 @@ display error messages.
 .It Fl v
 After reading the configuration file, print out a summary
 of it.
+.It Fl z
+Delays running as a daemon slightly.
+.It Fl i Ar IRQ
+Configures an available IRQ.  It overrides the "irq" line in
+.Pa /etc/pccard.conf .
 .It Fl f Ar configfile
 Specifies a different configuration file to be used
 in placed of the default file
