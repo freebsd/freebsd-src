@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id$
+ * $Id: ffs_alloc.c,v 1.3 1994/08/02 07:54:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -433,7 +433,7 @@ ffs_reallocblks(ap)
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree)
-			VOP_UPDATE(vp, &time, &time, MNT_WAIT);
+			VOP_UPDATE(vp, &time, &time, 1);
 	}
 	if (ssize < len)
 		if (doasyncfree)
