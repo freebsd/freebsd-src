@@ -993,14 +993,7 @@ sioattach(dev, xrid, rclk)
 	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
 	tp->t_init_in.c_lflag = 0;
 	if (unit == comconsole) {
-		tp->t_init_in.c_iflag = TTYDEF_IFLAG;
-		tp->t_init_in.c_oflag = TTYDEF_OFLAG;
-		tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-		tp->t_init_in.c_lflag = TTYDEF_LFLAG;
-		tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
-		tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed =
-		tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed =
-		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = comdefaultrate;
+		ttyconsolemode(tp, comdefaultrate);
 	} else
 		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = TTYDEF_SPEED;
 	if (siosetwater(com, tp->t_init_in.c_ispeed) != 0) {
