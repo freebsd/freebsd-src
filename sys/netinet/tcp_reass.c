@@ -643,7 +643,7 @@ findpcb:
 
 #ifdef INET6
 	/* save packet options if user wanted */
-	if (inp->in6p_flags & INP_CONTROLOPTS) {
+	if (isipv6 && inp->in6p_flags & INP_CONTROLOPTS) {
 		if (inp->in6p_options) {
 			m_freem(inp->in6p_options);
 			inp->in6p_options = 0;
