@@ -158,6 +158,10 @@ const char *
 AcpiFormatException (
     ACPI_STATUS             Exception);
 
+ACPI_STATUS
+AcpiPurgeCachedObjects (
+    void);
+
 
 /*
  * ACPI Memory manager
@@ -248,6 +252,23 @@ AcpiGetHandle (
     ACPI_HANDLE             Parent,
     ACPI_STRING             Pathname,
     ACPI_HANDLE             *RetHandle);
+
+ACPI_STATUS
+AcpiAttachData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    *Data);
+
+ACPI_STATUS
+AcpiDetachData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler);
+
+ACPI_STATUS
+AcpiGetData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    **Data);
 
 
 /*
@@ -405,6 +426,11 @@ AcpiSetFirmwareWakingVector (
 ACPI_STATUS
 AcpiGetFirmwareWakingVector (
     ACPI_PHYSICAL_ADDRESS   *PhysicalAddress);
+
+
+ACPI_STATUS
+AcpiEnterSleepStatePrep (
+    UINT8 SleepState);
 
 ACPI_STATUS
 AcpiEnterSleepState (

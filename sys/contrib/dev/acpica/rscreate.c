@@ -266,9 +266,9 @@ AcpiRsCreatePciRoutingTable (
 
     if (BufferSizeNeeded > *OutputBufferLength)
     {
+        *OutputBufferLength = BufferSizeNeeded;
         return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
     }
-    *OutputBufferLength = BufferSizeNeeded;
 
     /*
      * Zero out the return buffer before proceeding
