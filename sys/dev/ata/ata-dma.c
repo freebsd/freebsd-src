@@ -35,6 +35,8 @@
 #include <sys/buf.h>
 #include <sys/malloc.h> 
 #include <sys/bus.h>
+#include <sys/disk.h>
+#include <sys/devicestat.h>
 #include <vm/vm.h>	     
 #include <vm/pmap.h>
 #if NPCI > 0
@@ -44,6 +46,7 @@
 #include <machine/apm_bios.h>
 #endif
 #include <dev/ata/ata-all.h>
+#include <dev/ata/ata-disk.h>
 
 /* prototypes */
 static void hpt366_timing(struct ata_softc *, int32_t, int32_t);
@@ -225,26 +228,34 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
-    case 0x05711106:	/* VIA Apollo 82c586 / 82c686 */
+    case 0x05711106:	/* VIA Apollo 82c571 / 82c586 / 82c686 */
 	devno = (scp->unit << 1) + ((device == ATA_MASTER) ? 0 : 1);
-	if (udmamode >= 2 && pci_read_config(scp->dev, 0x0d, 1) >= 0x20) {
+
+	/* UDMA4 mode only on rev 6 (VT82C686) hardware */
+	if (udmamode >= 4 && pci_read_config(scp->dev, 0x08, 1) == 0x06) {
 	    int8_t byte = pci_read_config(scp->dev, 0x53 - devno, 1);
 
 	    /* enable UDMA transfer modes setting by SETFEATURES cmd */
 	    pci_write_config(scp->dev, 0x53 - devno, (byte & 0x1c) | 0x40, 1);
-
-	    if (udmamode >= 4) {
-		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
-		if (bootverbose)
-		    printf("ata%d: %s: %s setting up UDMA4 mode on VIA chip\n",
-			   scp->lun, (device == ATA_MASTER) ? "master":"slave",
-			   (error) ? "failed" : "success");
-		if (!error) {
-		    scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA4;
-		    return 0;
-		}
+	    if (bootverbose)
+		printf("ata%d: %s: %s setting up UDMA4 mode on VIA chip\n",
+		       scp->lun, (device == ATA_MASTER) ? "master":"slave",
+		       (error) ? "failed" : "success");
+	    if (!error) {
+		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA4;
+		return 0;
 	    }
+	    pci_write_config(scp->dev, 0x53 - devno, byte, 1);
+	}
+
+	/* UDMA2 mode only on rev 1 and up (VT82C586, VT82C686) hardware */
+	if (udmamode >= 2 && pci_read_config(scp->dev, 0x08, 1) >= 0x01) {
+	    int8_t byte = pci_read_config(scp->dev, 0x53 - devno, 1);
+
+	    /* enable UDMA transfer modes setting by SETFEATURES cmd */
+	    pci_write_config(scp->dev, 0x53 - devno, (byte & 0x1c) | 0x40, 1);
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -252,6 +263,17 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
 		       (error) ? "failed" : "success");
 	    if (!error) {
+		if ((device == ATA_MASTER && scp->devices & ATA_ATA_MASTER) ||
+	    	    (device == ATA_SLAVE && scp->devices & ATA_ATA_SLAVE)) {
+	    	    struct ata_params *ap = ((struct ad_softc *)
+		      	(scp->dev_softc[(device==ATA_MASTER)?0:1]))->ata_parm;
+
+		    if ((pci_read_config(scp->dev, 0x08, 1) == 0x06) &&
+			(ap->udmamodes & 0x10) && !ap->cblid) {
+			pci_write_config(scp->dev, 0x53 - devno, 
+				     	 (byte & 0x1c) | 0x42, 1);
+		    }
+		}
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA2;
 		return 0;
 	    }
@@ -330,7 +352,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	pci_write_config(scp->dev, 0x60 + (devno << 2), 0x004fe924, 4);
 	break;
     
-    case 0x00041103:	/* HighPoint HPT366 IDE controller */
+    case 0x00041103:	/* HighPoint HPT366 controller */
 	/* no ATAPI devices for now */
 	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
 	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))

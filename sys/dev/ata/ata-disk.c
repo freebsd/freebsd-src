@@ -158,6 +158,7 @@ ad_attach(void *notused)
 		    free(adp, M_AD);
 		    continue;
 		}
+		adp->controller->dev_softc[(adp->unit==ATA_MASTER)?0:1] = adp;
 		adp->heads = adp->ata_parm->heads;
 		adp->sectors = adp->ata_parm->sectors;
 		adp->total_secs = 
@@ -197,9 +198,6 @@ ad_attach(void *notused)
 		/* use tagged queueing if supported (not yet) */
 		if ((adp->num_tags = (adp->ata_parm->queuelen & 0x1f) + 1))
 		    adp->flags |= AD_F_TAG_ENABLED;
-
-		/* store our softc */
-		adp->controller->dev_softc[(adp->unit==ATA_MASTER)?0:1] = adp;
 
 		bpack(adp->ata_parm->model, model_buf, sizeof(model_buf));
 		bpack(adp->ata_parm->revision, revision_buf, 
