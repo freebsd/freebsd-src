@@ -27,6 +27,7 @@ static const char rcsid[] =
 #include "create.h"
 
 #include <err.h>
+#include <libgen.h>
 #include <signal.h>
 #include <sys/syslimits.h>
 #include <sys/wait.h>

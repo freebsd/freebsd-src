@@ -143,8 +143,6 @@ pkg_do(char *pkg)
     }
     /* It's not an ininstalled package, try and find it among the installed */
     else {
-	char *tmp;
-
 	sprintf(log_dir, "%s/%s", LOG_DIR, pkg);
 	if (!fexists(log_dir)) {
 	    warnx("can't find package `%s' installed or in a file!", pkg);
