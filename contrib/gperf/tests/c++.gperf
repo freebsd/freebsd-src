@@ -1,5 +1,3 @@
-struct resword {char *name;};
-%%
 asm
 auto
 break
