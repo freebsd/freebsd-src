@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: if_altq.h,v 1.11 2003/07/10 12:07:50 kjc Exp $	*/
 
 /*
@@ -53,6 +54,12 @@ struct	ifaltq {
 #if (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
 	struct	mtx ifq_mtx;
 #endif
+
+	/* driver owned queue (used for bulk dequeue and prepend) UNLOCKED */
+	struct	mbuf *ifq_drv_head;
+	struct	mbuf *ifq_drv_tail;
+	int	ifq_drv_len;
+	int	ifq_drv_maxlen;
 
 	/* alternate queueing related fields */
 	int	altq_type;		/* discipline type */
