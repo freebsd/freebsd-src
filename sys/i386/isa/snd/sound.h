@@ -1,5 +1,3 @@
-/* uncomment the next line for -current with select->poll changes */
-#define USE_POLL
 /*
  * sound.h
  *
@@ -67,10 +65,9 @@
 #include <i386/isa/isa_device.h>
 #include <machine/clock.h>	/* for DELAY */
 
-#ifdef	USE_POLL
+/* To minimize changes with the code in 2.2.X */
 #include <sys/poll.h>
 #define d_select_t d_poll_t
-#endif
 
 #else
 struct isa_device { int dummy ; } ;
@@ -297,36 +294,6 @@ struct _snddev_info {
 #define NPCM_MAX	8	/* Number of supported devices */
 
 /*
- * Supported card ID numbers (were in soundcard.h...)
- */
-
-#define SNDCARD_ADLIB		1
-#define SNDCARD_SB		2
-#define SNDCARD_PAS		3
-#define SNDCARD_GUS		4
-#define SNDCARD_MPU401		5
-#define SNDCARD_SB16		6
-#define SNDCARD_SB16MIDI	7
-#define SNDCARD_UART6850	8
-#define SNDCARD_GUS16		9
-#define SNDCARD_MSS		10
-#define SNDCARD_PSS     	11
-#define SNDCARD_SSCAPE		12
-#define SNDCARD_PSS_MPU     	13
-#define SNDCARD_PSS_MSS     	14
-#define SNDCARD_SSCAPE_MSS	15
-#define SNDCARD_TRXPRO		16
-#define SNDCARD_TRXPRO_SB	17
-#define SNDCARD_TRXPRO_MPU	18
-#define SNDCARD_MAD16		19
-#define SNDCARD_MAD16_MPU	20
-#define SNDCARD_CS4232		21
-#define SNDCARD_CS4232_MPU	22
-#define SNDCARD_MAUI		23
-#define SNDCARD_PSEUDO_MSS	24	/* MSS without WSS regs.*/
-#define SNDCARD_AWE32           25
-
-/*
  * values used in bd_id for the mss boards
  */
 #define MD_AD1848	0x91
@@ -346,11 +313,7 @@ struct _snddev_info {
 /*
  * TODO: add some card classes rather than specific types.
  */
-#ifdef KERNEL
-#include <i386/isa/snd/soundcard.h>
-#else
-#include </sys/i386/isa/snd/soundcard.h>
-#endif
+#include <machine/soundcard.h>
 /*
  * many variables should be reduced to a range. Here define a macro
  */
@@ -469,12 +432,6 @@ int midiattach(struct isa_device * dev);
 int synthattach(struct isa_device * dev);
 
 /*
- * functions in isa.c
- */
-
-int isa_dmastatus(int chan);
-int isa_dmastop(int chan);
-/*
  *      DMA buffer calls
  */
 
@@ -543,5 +500,10 @@ int sb_getmixer (int io_base, u_int port);
     /* almost all modern cards do not have this set of registers,
      * so it is better to make this the default behaviour
      */
+
+/*
+ * the following flags are for PnP cards only and are undocumented
+ */
+#define DV_PNP_SBCODEC 0x1
 
 #endif

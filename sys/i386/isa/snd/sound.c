@@ -50,7 +50,13 @@
  *
  */
 
+#include "opt_devfs.h"
+
 #include <i386/isa/snd/sound.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
+
 
 #if NPCM > 0	/* from "snd.h" */
 
@@ -215,6 +221,29 @@ pcmattach(struct isa_device * dev)
     isadev = makedev(CDEV_MAJOR, 0);
     cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
+#ifdef DEVFS
+    /*
+     * XXX remember to store the returned tokens if you want to
+     * be able to remove the device later
+     */
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dsp%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dspW%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "audio%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "mixer%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "sndstat%n", dev->id_unit);
+#if 0 /* these two are still unsupported... */
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "midi%n", dev->id_unit);
+    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
+	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "sequencer%n", dev->id_unit);
+#endif
+#endif /* DEVFS */
+
     /*
      * should try and find a suitable value for id_id, otherwise
      * the interrupt is not registered and dispatched properly.
@@ -330,7 +359,7 @@ get_snddev_info(dev_t dev, int *unit)
     case SND_DEV_DSP :
     case SND_DEV_DSP16 :
     case SND_DEV_AUDIO :
-    case SND_DEV_SEQ : /* XXX goes here... */
+    case SND_DEV_SEQ : /* XXX when enabled... */
 	d = & pcm_info[u] ;
 	break ;
     case SND_DEV_SEQ2 :
@@ -687,7 +716,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    snd_chan_param *p = (snd_chan_param *)arg;
 	    d->play_speed = p->play_rate;
-	    d->rec_speed = p->play_rate; /* XXX */
+	    d->rec_speed = p->play_rate; /* XXX one speed allowed */
 	    if (p->play_format & SND_F_STEREO)
 		d->flags |= SND_F_STEREO ;
 	    else
@@ -975,6 +1004,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
      */
 
     case SOUND_MIXER_READ_DEVMASK :
+    case SOUND_MIXER_READ_CAPS :
     case SOUND_MIXER_READ_STEREODEVS :
 	*(int *)arg = d->mix_devs;
 	break ;
@@ -999,10 +1029,10 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 
 /*
  * we use the name 'select', but the new "poll" interface this is
- * really sndpoll. Second arg is not "rw" but "events"
+ * really sndpoll. Second arg for poll is not "rw" but "events"
  */
 int
-sndselect(dev_t i_dev, int rw, struct proc * p)
+sndselect(dev_t i_dev, int rw, struct proc *p)
 {
     int dev, unit, c = 1 /* default: success */ ;
     snddev_info *d ;
@@ -1011,39 +1041,24 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
     dev = minor(i_dev);
     d = get_snddev_info(dev, &unit);
     DEB(printf("sndselect dev 0x%04x rw 0x%08x\n",i_dev, rw));
-    if (d == NULL ) {
-#ifdef USE_POLL
-        return ( (rw & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
-#else
+    if (d == NULL ) /* should not happen! */
 	return (ENXIO) ;
-#endif
-    }
     if (d->select == NULL)
-#ifdef USE_POLL
         return ( (rw & (POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM)) | POLLHUP);
-#else
-	return 1 ; /* always success ? */
-#endif
     else if (d->select != sndselect )
 	return d->select(i_dev, rw, p);
     else {
 	/* handle it here with the generic code */
-
-	int lim ;
-	int revents = 0 ;
-
 	/*
 	 * if the user selected a block size, then we want to use the
 	 * device as a block device, and select will return ready when
 	 * we have a full block.
 	 * In all other cases, select will return when 1 byte is ready.
 	 */
-	lim = 1;
-#ifdef USE_POLL
+	int lim = 1;
+
+	int revents = 0 ;
 	if (rw & (POLLOUT | POLLWRNORM) ) {
-#else
-	if (rw == FWRITE) {
-#endif
 	    if ( d->flags & SND_F_HAS_SIZE )
 		lim = d->play_blocksize ;
 	    /* XXX fix the test here for half duplex devices */
@@ -1054,19 +1069,12 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 		c = d->dbuf_out.fl ;
 		if (c < lim) /* no space available */
 		    selrecord(p, & (d->wsel));
-#ifdef USE_POLL
 		else
 		    revents |= rw & (POLLOUT | POLLWRNORM);
-#endif
 		splx(flags);
 	    }
-#ifdef USE_POLL
         }
         if (rw & (POLLIN | POLLRDNORM)) {
-#else
-	    return c < lim ? 0 : 1 ;
-        } else if (rw == FREAD) {
-#endif
 	    if ( d->flags & SND_F_HAS_SIZE )
 		lim = d->rec_blocksize ;
 	    /* XXX fix the test here */
@@ -1079,24 +1087,15 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 		c = d->dbuf_in.rl ;
 		if (c < lim) /* no data available */
 		    selrecord(p, & (d->rsel));
-#ifdef USE_POLL
 		else
 		    revents |= rw & (POLLIN | POLLRDNORM);
-#endif
 		splx(flags);
 	    }
 	    DEB(printf("sndselect on read: %d >= %d flags 0x%08x\n",
 		c, lim, d->flags));
 	    return c < lim ? 0 : 1 ;
-#ifdef USE_POLL
 	}
 	return revents;
-#else
-	} else {
-	    DDB(printf("select on exceptions, unimplemented\n"));
-	    return 1;
-	}
-#endif
     }
     return ENXIO ; /* notreached */
 }
@@ -1198,7 +1197,7 @@ init_status(snddev_info *d)
     if (status_len != 0) /* only do init once */
 	return ;
     sprintf(status_buf,
-	"FreeBSD Audio Driver (980123) "  __DATE__ " " __TIME__ "\n"
+	"FreeBSD Audio Driver (980215) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {
