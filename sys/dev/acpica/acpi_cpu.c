@@ -807,13 +807,20 @@ acpi_cpu_idle()
     uint32_t	start_time, end_time;
     int		bm_active, i, asleep;
 
-    /* Look up our CPU id and to get our softc. */
-    sc = cpu_softc[PCPU_GET(cpuid)];
-    KASSERT(sc != NULL, ("NULL softc for %d", PCPU_GET(cpuid)));
-
     /* If disabled, return immediately. */
     if (cpu_cx_count == 0) {
 	ACPI_ENABLE_IRQS();
+	return;
+    }
+
+    /*
+     * Look up our CPU id to get our softc.  If it's NULL, we'll use C1
+     * since there is no ACPI processor object for this CPU.  This occurs
+     * for logical CPUs in the HTT case.
+     */
+    sc = cpu_softc[PCPU_GET(cpuid)];
+    if (sc == NULL) {
+	acpi_cpu_c1();
 	return;
     }
 
