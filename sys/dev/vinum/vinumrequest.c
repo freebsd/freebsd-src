@@ -237,7 +237,6 @@ vinumstart(struct buf *bp, int reviveok)
 	 */
 	if (vol != NULL) {
 	    vol->reads++;
-	    vol->bytes_read += bp->b_bcount;
 	    plexno = vol->preferred_plex;		    /* get the plex to use */
 	    if (plexno < 0) {				    /* round robin */
 		plexno = vol->last_plex_read;
@@ -273,7 +272,6 @@ vinumstart(struct buf *bp, int reviveok)
     {
 	if (vol != NULL) {
 	    vol->writes++;
-	    vol->bytes_written += bp->b_bcount;
 	    status = build_write_request(rq);		    /* Not all the subdisks are up */
 	} else {					    /* plex I/O */
 	    daddr_t diskstart;
@@ -365,12 +363,11 @@ launch_requests(struct request *rq, int reviveok)
 #endif
 
     /*
-     * We have a potential race condition here: between firing off each
-     * request, we need to check that we're not overloading the system,
-     * and possibly sleep.  But the bottom half releases the request
-     * when the active count goes to 0, so we need to set the total
-     * active count in advance.
+     * With the division of labour below (first count the requests, then
+     * issue them), it's possible that we don't need this splbio()
+     * protection.  But I'll try that some other time.
      */
+    s = splbio();
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
 	for (rqno = 0; rqno < rqg->count; rqno++) {
@@ -397,19 +394,13 @@ launch_requests(struct request *rq, int reviveok)
 	    if (++rqno >= rcount)
 		rqg = rqg->next;
 	    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {	    /* this subdisk is good, */
-		/* Check that we're not overloading things */
 		drive = &DRIVE[rqe->driveno];		    /* look at drive */
-		s = splbio();				    /* lock out the interrupt routines */
-		while ((drive->active >= DRIVE_MAXACTIVE)   /* it has too much to do already, */
-		||(vinum_conf.active >= VINUM_MAXACTIVE))   /* or too many requests globally */
-		    tsleep(&launch_requests, PRIBIO | PCATCH, "vinbuf", 0); /* wait for it to subside */
 		drive->active++;
 		if (drive->active >= drive->maxactive)
 		    drive->maxactive = drive->active;
 		vinum_conf.active++;
 		if (vinum_conf.active >= vinum_conf.maxactive)
 		    vinum_conf.maxactive = vinum_conf.active;
-		splx(s);
 
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
@@ -427,13 +418,12 @@ launch_requests(struct request *rq, int reviveok)
 #endif
 
 
-		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
-
 		/* fire off the request */
 		BUF_STRATEGY(&rqe->b, 0);
 	    }
 	}
     }
+    splx(s);
     return 0;
 }
 
@@ -800,7 +790,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     ubp = rqe->rqg->rq->bp;				    /* pointer to user buffer header */
 
     /* Initialize the buf struct */
-    bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
+    /* copy these flags from user bp */
+    bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_READ | B_ASYNC);
     bp->b_flags |= B_CALL;				    /* inform us when it's done */
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
