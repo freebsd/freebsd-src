@@ -190,10 +190,14 @@ network6_pass1() {
 		sysctl -w net.inet6.ip6.forwarding=0
 		sysctl -w net.inet6.ip6.accept_rtadv=1
 
-		ifconfig ${ipv6_network_interfaces} up
-		rtsol ${ipv6_network_interfaces}
-
-
+		case ${ipv6_network_interfaces} in
+		lo0|gif*|stf*|faith*)
+			;;
+		*)
+			ifconfig ${ipv6_network_interfaces} up
+			rtsol ${ipv6_network_interfaces}
+			;;
+		esac
 
 		# wait for DAD's completion (for global addrs)
 		sleep `sysctl -n net.inet6.ip6.dad_count`
