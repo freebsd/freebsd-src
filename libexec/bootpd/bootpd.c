@@ -105,22 +105,18 @@ SOFTWARE.
  * Externals, forward declarations, and global variables
  */
 
-#define P(args) args
+extern void dumptab(char *);
 
-extern void dumptab P((char *));
-
-PRIVATE void catcher P((int));
-PRIVATE int chk_access P((char *, int32 *));
+PRIVATE void catcher(int);
+PRIVATE int chk_access(char *, int32 *);
 #ifdef VEND_CMU
-PRIVATE void dovend_cmu P((struct bootp *, struct host *));
+PRIVATE void dovend_cmu(struct bootp *, struct host *);
 #endif
-PRIVATE void dovend_rfc1048 P((struct bootp *, struct host *, int32));
-PRIVATE void handle_reply P((void));
-PRIVATE void handle_request P((void));
-PRIVATE void sendreply P((int forward, int32 dest_override));
-PRIVATE void usage P((void));
-
-#undef	P
+PRIVATE void dovend_rfc1048(struct bootp *, struct host *, int32);
+PRIVATE void handle_reply(void);
+PRIVATE void handle_request(void);
+PRIVATE void sendreply(int forward, int32 dest_override);
+PRIVATE void usage(void);
 
 /*
  * IP port numbers for client and server obtained from /etc/services

@@ -28,15 +28,11 @@
 #include "patchlevel.h"
 #include "bootpd.h"
 
-#define P(args) args
-
 #ifdef DEBUG
-static void dump_generic P((FILE *, struct shared_bindata *));
-static void dump_host P((FILE *, struct host *));
-static void list_ipaddresses P((FILE *, struct in_addr_list *));
+static void dump_generic(FILE *, struct shared_bindata *);
+static void dump_host(FILE *, struct host *);
+static void list_ipaddresses(FILE *, struct in_addr_list *);
 #endif
-
-#undef P
 
 #ifndef	DEBUG
 void
