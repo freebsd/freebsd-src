@@ -33,6 +33,9 @@ extern int mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg);
 extern int mixer_busy(snd_mixer *m, int busy);
 extern int mixer_isbusy(snd_mixer *m);
 
+void mixer_hwmute(device_t dev);
+void mixer_hwstep(device_t dev, int left_step, int right_step);
+
 extern void change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval);
 
 void mix_setdevs(snd_mixer *m, u_int32_t v);

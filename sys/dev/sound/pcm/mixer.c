@@ -254,6 +254,42 @@ mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
 	return ENXIO;
 }
 
+static int hwvol_step = 5;
+SYSCTL_INT(_hw_snd, OID_AUTO, hwvol_step, CTLFLAG_RW, &hwvol_step, 0, "");
+
+static int hwvol_mixer = SOUND_MIXER_VOLUME;
+SYSCTL_INT(_hw_snd, OID_AUTO, hwvol_mixer, CTLFLAG_RW, &hwvol_mixer, 0, "");
+
+void
+mixer_hwmute(device_t dev)
+{
+    	snddev_info *d;
+
+	d = device_get_softc(dev);
+	mixer_set(d->mixer, hwvol_mixer, 0);
+}
+
+void
+mixer_hwstep(device_t dev, int left_step, int right_step)
+{
+    	snddev_info *d;
+	int level, left, right;
+
+	d = device_get_softc(dev);
+	level = mixer_get(d->mixer, hwvol_mixer);
+	if (level != -1) {
+		left = level & 0xff;
+		right = level >> 8;
+		left += left_step * hwvol_step;
+		if (left < 0)
+			left = 0;
+		right += right_step * hwvol_step;
+		if (right < 0)
+			right = 0;
+		mixer_set(d->mixer, hwvol_mixer, left | right << 8);
+	}
+}
+
 /*
  * The various mixers use a variety of bitmasks etc. The Voxware
  * driver had a very nice technique to describe a mixer and interface
