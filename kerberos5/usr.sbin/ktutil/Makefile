@@ -10,10 +10,11 @@ SRCS=		\
 		list.c				\
 		purge.c				\
 		remove.c			\
+		rename.c \
 		kadm5/private.h \
 		kadm5/admin.h \
 		kadm5/kadm5_err.h \
-		krb5_err.h heim_err.h
+		krb5_err.h heim_err.h k524_err.h
 
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
