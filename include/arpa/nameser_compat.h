@@ -43,15 +43,15 @@
 
 #include <machine/endian.h>
 
-#if !defined(BYTE_ORDER) || \
-    (BYTE_ORDER != BIG_ENDIAN && BYTE_ORDER != LITTLE_ENDIAN && \
-    BYTE_ORDER != PDP_ENDIAN)
+#if !defined(_BYTE_ORDER) || \
+    (_BYTE_ORDER != _BIG_ENDIAN && _BYTE_ORDER != _LITTLE_ENDIAN && \
+    _BYTE_ORDER != _PDP_ENDIAN)
 	/* you must determine what the correct bit order is for
 	 * your compiler - the next line is an intentional error
 	 * which will force your compiles to bomb until you fix
 	 * the above macros.
 	 */
-  error "Undefined or invalid BYTE_ORDER";
+#error "Undefined or invalid _BYTE_ORDER";
 #endif
 
 /*
@@ -63,7 +63,7 @@
 
 typedef struct {
 	unsigned	id :16;		/* query identification number */
-#if BYTE_ORDER == BIG_ENDIAN
+#if _BYTE_ORDER == _BIG_ENDIAN
 			/* fields in third byte */
 	unsigned	qr: 1;		/* response flag */
 	unsigned	opcode: 4;	/* purpose of message */
@@ -77,7 +77,7 @@ typedef struct {
 	unsigned	cd: 1;		/* checking disabled by resolver */
 	unsigned	rcode :4;	/* response code */
 #endif
-#if BYTE_ORDER == LITTLE_ENDIAN || BYTE_ORDER == PDP_ENDIAN
+#if _BYTE_ORDER == _LITTLE_ENDIAN || _BYTE_ORDER == _PDP_ENDIAN
 			/* fields in third byte */
 	unsigned	rd :1;		/* recursion desired */
 	unsigned	tc :1;		/* truncated message */
