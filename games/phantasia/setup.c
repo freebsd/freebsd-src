@@ -38,14 +38,14 @@
 /************************************************************************/
 
 static char *files[] = {		/* all files to create */
-	_PATH_MONST,
-	_PATH_PEOPLE,
-	_PATH_MESS,
-	_PATH_LASTDEAD,
-	_PATH_MOTD,
-	_PATH_GOLD,
-	_PATH_VOID,
-	_PATH_SCORE,
+	_SPATH_MONST,
+	_SPATH_PEOPLE,
+	_SPATH_MESS,
+	_SPATH_LASTDEAD,
+	_SPATH_MOTD,
+	_SPATH_GOLD,
+	_SPATH_VOID,
+	_SPATH_SCORE,
 	NULL,
 };
 
@@ -86,7 +86,7 @@ main(argc, argv)
 	if (stat(*filename, &fbuf) == 0)
 	    /* file exists; remove it */
 	    {
-	    if (!strcmp(*filename, _PATH_PEOPLE))
+	    if (!strcmp(*filename, _SPATH_PEOPLE))
 		/* do not reset character file if it already exists */
 		{
 		++filename;
@@ -111,8 +111,8 @@ main(argc, argv)
     Enrgyvoid.ev_active = TRUE;
     Enrgyvoid.ev_x = ROLL(-1.0e6, 2.0e6);
     Enrgyvoid.ev_y = ROLL(-1.0e6, 2.0e6);
-    if ((fp = fopen(_PATH_VOID, "w")) == NULL)
-	Error("Cannot update %s.\n", _PATH_VOID);
+    if ((fp = fopen(_SPATH_VOID, "w")) == NULL)
+	Error("Cannot update %s.\n", _SPATH_VOID);
     else
 	{
 	fwrite(&Enrgyvoid, SZ_VOIDSTRUCT, 1, fp);
@@ -120,8 +120,8 @@ main(argc, argv)
 	}
 
     /* create binary monster data base */
-    if ((Monstfp = fopen(_PATH_MONST, "w")) == NULL)
-	Error("Cannot update %s.\n", _PATH_MONST);
+    if ((Monstfp = fopen(_SPATH_MONST, "w")) == NULL)
+	Error("Cannot update %s.\n", _SPATH_MONST);
     else
 	{
 	if ((fp = fopen(monsterfile, "r")) == NULL)
@@ -160,8 +160,8 @@ main(argc, argv)
     printf("One line 'motd' ? ");
     if (fgets(Databuf, SZ_DATABUF, stdin) == NULL)
 	Databuf[0] = '\0';
-    if ((fp = fopen(_PATH_MOTD, "w")) == NULL)
-	Error("Cannot update %s.\n", _PATH_MOTD);
+    if ((fp = fopen(_SPATH_MOTD, "w")) == NULL)
+	Error("Cannot update %s.\n", _SPATH_MOTD);
     else
 	{
 	fwrite(Databuf, sizeof(char), strlen(Databuf), fp);
@@ -170,7 +170,7 @@ main(argc, argv)
 
     /* report compile-time options */
     printf("Compiled options:\n\n");
-    printf("Phantasia destination directory:  %s\n", _PATH_PHANTDIR);
+    printf("Phantasia destination directory:  %s\n", _SPATH_PHANTDIR);
     printf("Wizard: root UID: 0\n");
 
 #ifdef BSD41
