@@ -242,6 +242,15 @@
     <para>Idle zeroing of pages can be enabled with the
     <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
 
+    <para arch="i386">The load addresses of kernels has been exported to the
+    symbol table and various hard-coded constants removed so that
+    utilities such as &man.ps.1; can work with kernels compiled at
+    different addresses. &merged;</para>
+
+    <para arch="i386">A new <varname>KVA_SPACE</varname>kernel option
+    can be used to reconfigure the size of the kernel virtual address
+    space.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -689,6 +698,11 @@
       tables. &merged;</para>
 
       <para>Client-side NFS locks have been implemented.</para>
+
+      <para>The client-side and server-side of the NFS code in the
+      kernel used to be intertwined in various complex ways.  They
+      have been split apart for ease of maintenence and further
+      development.</para>
 
       <para>Support for file system Access Control Lists (ACLs) has been
       introduced, allowing more fine-grained control of discretionary
@@ -1490,7 +1504,8 @@
     <para>&man.find.1; now has the <option>-anewer</option>,
     <option>-cnewer</option>, <option>-mnewer</option>,
     <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
-    primaries for comparisons of file timestamps. &merged;</para>
+    primaries for comparisons of file timestamps.  The latter
+    primaries can be specified with various units of time. &merged;</para>
 
     <para>&man.tftpd.8; now takes the <option>-c</option> and
     <option>-C</option> options, which allow the server to
