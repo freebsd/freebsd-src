@@ -83,7 +83,8 @@ SUBDIR+=ipf \
 .if ${MACHINE_ARCH} == i386
 SUBDIR+=kget \
 	mount_nwfs \
-	mount_smbfs
+	mount_smbfs \
+	sconfig
 .endif
 
 .if exists(${.CURDIR}/${MACHINE})
