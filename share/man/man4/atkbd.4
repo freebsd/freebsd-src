@@ -166,6 +166,11 @@ keyboard is reset.
 .It bit 2 (ALT_SCANCODESET)
 Certain keyboards, such as those on some ThinkPad models, behave
 like the old XT keyboard and require this option.
+.It bit 3 (NO_PROBE_TEST)
+When this option is given, the
+.Nm
+driver will not test the keyboard port during the probe routine.
+Some machines hang during boot when this test is performed.
 .El
 .\".Sh FILES
 .Sh EXAMPLES
