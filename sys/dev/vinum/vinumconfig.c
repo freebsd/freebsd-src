@@ -1352,12 +1352,6 @@ config_plex(int update)
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
     }
-    if (plex->organization == plex_raid5) {		    /* RAID-5 plex, */
-	plex->lock = (struct rangelock *)
-	    Malloc(sizeof(struct rangelock) * INITIAL_LOCKS); /* allocate lock table */
-	bzero(plex->lock, sizeof(struct rangelock) * INITIAL_LOCKS); /* zero it */
-	plex->alloclocks = INITIAL_LOCKS;		    /* and note how many there are */
-    }
     /* Note the last plex we configured */
     current_plex = plexno;
     plex->state = state;				    /* set whatever state we chose */
