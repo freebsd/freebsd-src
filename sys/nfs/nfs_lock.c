@@ -102,7 +102,11 @@ nfs_dolock(ap)
 	 * the NLM protocol doesn't allow the server to return an error
 	 * on ranges, so we do it.
 	 */
-	if (fl->l_start < 0 || fl->l_len < 0)
+	if (fl->l_len < 0)
+		return (EINVAL);
+	if (fl->l_whence == SEEK_END)
+		return (EOPNOTSUPP);
+	if (fl->l_start < 0)
 		return (EINVAL);
 	if (fl->l_len != 0 && (fl->l_len - 1 > OFF_MAX - fl->l_start))
 		return (EOVERFLOW);
