@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../ntfs
+.PATH: ${.CURDIR}/../../fs/ntfs
 
 KMOD=	ntfs
 SRCS=	vnode_if.h \

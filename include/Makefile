@@ -40,13 +40,13 @@ LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
 
 LDIRS=	cam net netatalk netatm netgraph netinet netinet6 \
-	netipx netkey netnatm netncp netns netsmb nfs ntfs nwfs pccard posix4 \
+	netipx netkey netnatm netncp netns netsmb nfs pccard posix4 \
 	sys vm
 
 LNOHEADERDIRS=	fs isofs ufs dev
 
 LSUBDIRS=	cam/scsi dev/ppbus dev/usb dev/wi \
-	fs/fdescfs fs/fifofs fs/msdosfs fs/nullfs fs/portalfs \
+	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
 	ufs/ffs ufs/mfs ufs/ufs
 
