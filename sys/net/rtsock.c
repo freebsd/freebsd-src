@@ -108,10 +108,9 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 
 	if (sotorawcb(so) != 0)
 		return EISCONN;	/* XXX panic? */
-	MALLOC(rp, struct rawcb *, sizeof *rp, M_PCB, M_WAITOK); /* XXX */
+	MALLOC(rp, struct rawcb *, sizeof *rp, M_PCB, M_WAITOK|M_ZERO);
 	if (rp == 0)
 		return ENOBUFS;
-	bzero(rp, sizeof *rp);
 
 	/*
 	 * The splnet() is necessary to block protocols from sending
