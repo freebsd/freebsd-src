@@ -74,20 +74,8 @@ static void makesalt(char []);
 
 static char password_hash[] =		PASSWORD_HASH;
 
-enum {
-	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
-	PAM_OPT_NULLOK,
-	PAM_OPT_LOCAL_PASS,
-	PAM_OPT_NIS_PASS
-};
-
-static struct opttab other_options[] = {
-	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
-	{ "nullok",		PAM_OPT_NULLOK },
-	{ "local_pass",		PAM_OPT_LOCAL_PASS },
-	{ "nis_pass",		PAM_OPT_NIS_PASS },
-	{ NULL, 0 }
-};
+#define PAM_OPT_LOCAL_PASS	"local_pass"
+#define PAM_OPT_NIS_PASS	"nis_pass"
 
 char *tempname = NULL;
 
@@ -96,19 +84,14 @@ char *tempname = NULL;
  */
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 	login_cap_t *lc;
-	struct options options;
 	struct passwd *pwd;
 	int retval;
 	const char *pass, *user, *realpw, *prompt;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
+	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF)) {
 		pwd = getpwnam(getlogin());
 	} else {
 		retval = pam_get_user(pamh, &user, NULL);
@@ -124,7 +107,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		realpw = pwd->pw_passwd;
 		if (realpw[0] == '\0') {
 			if (!(flags & PAM_DISALLOW_NULL_AUTHTOK) &&
-			    pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+			    openpam_get_option(pamh, PAM_OPT_NULLOK))
 				return (PAM_SUCCESS);
 			realpw = "*";
 		}
@@ -160,10 +143,9 @@ pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
  */
 PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 	struct addrinfo hints, *res;
-	struct options options;
 	struct passwd *pwd;
 	struct timeval tp;
 	login_cap_t *lc;
@@ -171,10 +153,6 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	int retval;
 	const char *rhost, *tty, *user;
 	char rhostip[MAXHOSTNAMELEN] = "";
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
@@ -279,13 +257,12 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
  */
 PAM_EXTERN int
 pam_sm_chauthtok(pam_handle_t *pamh, int flags,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 #ifdef YP
 	struct ypclnt *ypclnt;
 	const char *yp_domain, *yp_server;
 #endif
-	struct options options;
 	char salt[SALTSIZE + 1];
 	login_cap_t * lc;
 	struct passwd *pwd, *old_pwd;
@@ -293,11 +270,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	char *encrypted;
 	int pfd, tfd, retval;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL))
+	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF))
 		pwd = getpwnam(getlogin());
 	else {
 		retval = pam_get_user(pamh, &user, NULL);
@@ -321,7 +294,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			return (pam_set_item(pamh, PAM_OLDAUTHTOK, ""));
 
 		if (pwd->pw_passwd[0] == '\0'
-		    && pam_test_option(&options, PAM_OPT_NULLOK, NULL)) {
+		    && openpam_get_option(pamh, PAM_OPT_NULLOK)) {
 			/*
 			 * No password case. XXX Are we giving too much away
 			 * by not prompting for a password?
@@ -338,7 +311,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		/* always encrypt first */
 		encrypted = crypt(old_pass, pwd->pw_passwd);
 		if (old_pass[0] == '\0' &&
-		    !pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+		    !openpam_get_option(pamh, PAM_OPT_NULLOK))
 			return (PAM_PERM_DENIED);
 		if (strcmp(encrypted, pwd->pw_passwd) != 0)
 			return (PAM_PERM_DENIED);
@@ -367,7 +340,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		}
 
 		if (getuid() != 0 && new_pass[0] == '\0' &&
-		    !pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+		    !openpam_get_option(pamh, PAM_OPT_NULLOK))
 			return (PAM_PERM_DENIED);
 
 		if ((old_pwd = pw_dup(pwd)) == NULL)
