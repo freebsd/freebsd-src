@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 SUBDIR=	\
-	bcmfw		\
 	bt3cfw		\
 	hccontrol	\
 	hcsecd		\
@@ -10,6 +9,8 @@ SUBDIR=	\
 	l2control	\
 	l2ping		\
 	rfcomm_pppd
-
+#  Add this when the legal question is answered
+#	bcmfw		\
+#
 .include <bsd.subdir.mk>
 
