@@ -143,7 +143,7 @@ rfork(p, uap)
 }
 
 
-int	nprocs = 1;		/* process 0 */
+int	nprocs = 1;				/* process 0 */
 static int nextpid = 0;
 
 /*
@@ -159,20 +159,20 @@ static int randompid = 0;
 static int
 sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 {
-		int error, pid;
+	int error, pid;
 
-		pid = randompid;
-		error = sysctl_handle_int(oidp, &pid, 0, req);
-		if (error || !req->newptr)
-			return (error);
-		if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
-			pid = PID_MAX - 100;
-		else if (pid < 2)			/* NOP */
-			pid = 0;
-		else if (pid < 100)			/* Make it reasonable */
-			pid = 100;
-		randompid = pid;
+	pid = randompid;
+	error = sysctl_handle_int(oidp, &pid, 0, req);
+	if (error || !req->newptr)
 		return (error);
+	if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
+		pid = PID_MAX - 100;
+	else if (pid < 2)			/* NOP */
+		pid = 0;
+	else if (pid < 100)			/* Make it reasonable */
+		pid = 100;
+	randompid = pid;
+	return (error);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
@@ -180,9 +180,9 @@ SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
 
 int
 fork1(p1, flags, procp)
-	struct proc *p1;				    /* parent proc */
+	struct proc *p1;			/* parent proc */
 	int flags;
-	struct proc **procp;				    /* child proc */
+	struct proc **procp;			/* child proc */
 {
 	struct proc *p2, *pptr;
 	uid_t uid;
@@ -292,7 +292,7 @@ fork1(p1, flags, procp)
 			trypid = 10;
 		}
 	} else {
-	if (randompid)
+		if (randompid)
 			trypid += arc4random() % randompid;
 	}
 retry:
