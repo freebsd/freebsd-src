@@ -741,16 +741,6 @@ addelem_uid(struct listinfo *inf, const char *elem)
 		return (0);			/* Do not add this value */
 	}
 
-	/*
-	 * XXX - In the following, should the warnings be fatal errors?
-	 *	Historically they have been warnings, but I expect errors
-	 *	would be more appropriate.  A warning message might be
-	 *	missed in a long `ps' listing, and the user would not
-	 *	realize that they had mistyped a userid.  Also, Solaris
-	 *	and Linux treat these as errors.  On the other hand, I
-	 *	can imagine that some users *might* be used to the
-	 *	present behavior.
-	 */
 	pwd = getpwnam(elem);
 	if (pwd == NULL) {
 		errno = 0;
@@ -767,7 +757,12 @@ addelem_uid(struct listinfo *inf, const char *elem)
 		}
 	}
 	if (pwd == NULL) {
-		/* XXX: optfatal = 1;		-- (see the above XXX) */
+		/*
+		 * These used to be treated as minor warnings (and the
+		 * option was simply ignored), but now they are fatal
+		 * errors (and the command will be aborted).
+		 */
+		optfatal = 1;
 		return (0);			/* Do not add this value */
 	}
 
