@@ -33,6 +33,3 @@ ATKBD_DFLT_KEYMAP	opt_atkbd.h
 SKI			opt_ski.h
 SKI_ROOT_FILESYSTEM	opt_ski.h
 SSC_NSECT		opt_ski.h
-
-# Device options
-DEV_ACPI		opt_acpi.h
