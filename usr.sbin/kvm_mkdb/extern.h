@@ -34,5 +34,4 @@
  */
 
 void	create_knlist __P((char *, DB *));
-void	error __P((char *));
-int	testdb __P(());
+int	testdb __P((char *));

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)testdb.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: testdb.c,v 1.3 1997/09/24 06:44:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,11 +54,12 @@ static const char rcsid[] =
 
 /* Return true if the db file is valid, else false */
 int
-testdb()
+testdb(uf)
+	char *uf;
 {
 	register DB *db;
 	register int cc, kd, ret, dbversionlen;
-	register char *cp, *uf;
+	register char *cp;
 	DBT rec;
 	struct nlist nitem;
 	char dbname[MAXPATHLEN], dbversion[_POSIX2_LINE_MAX];
@@ -70,7 +71,6 @@ testdb()
 	if ((kd = open(_PATH_KMEM, O_RDONLY, 0)) < 0)
 		goto close;
 
-	uf = (char *)getbootfile();
 	if ((cp = rindex(uf, '/')) != 0)
 		uf = cp + 1;
 	(void) snprintf(dbname, sizeof(dbname), "%skvm_%s.db", _PATH_VARDB, uf);
