@@ -112,10 +112,13 @@ struct listinfo {
 };
 
 static int needuser, needcomm, needenv;
-#if defined(LAZY_PS)
-static int forceuread=0;
+
+#ifdef LAZY_PS
+static int forceuread = 0;
+#define	OPT_LAZY_f	"f"
 #else
-static int forceuread=1;
+static int forceuread = 1;
+#define	OPT_LAZY_f		/* Ie, the `-f' option is not added. */
 #endif
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
@@ -150,11 +153,7 @@ static char Zfmt[] = "label";
 
 static kvm_t *kd;
 
-#if defined(LAZY_PS)
-#define	PS_ARGS	"AaCcefG:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
-#else
-#define	PS_ARGS	"AaCceG:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
-#endif
+#define	PS_ARGS	"AaCc" OPT_LAZY_f "G:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
 int
 main(int argc, char *argv[])
@@ -1100,9 +1099,10 @@ kludge_oldps_options(char *s)
 static void
 usage(void)
 {
+#define	SINGLE_OPTS	"[-aC" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-	    "usage: ps [-aCHhjlmrSTuvwXxZ] [-G gid[,gid]] [-O|o fmt]",
+	    "usage: ps " SINGLE_OPTS " [-G gid[,gid]] [-O|o fmt]",
 	    "          [-p pid[,pid]] [-t tty[,tty]] [-U user[,user]]",
 	    "          [-M core] [-N system]",
 	    "       ps [-L]");
