@@ -148,6 +148,13 @@
       jail.  More information can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>.</para>
 
+    <para>A potential low-bandwidth denial-of-service attack against
+      the &os; TCP stack has been prevented by limiting the number of
+      out-of-sequence TCP segments that can be held at one time.  More
+      details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -288,13 +295,6 @@
 	for authenticating TCP sessions.  &man.setkey.8; now includes
 	support for the TCP-MD5 class of security associations.
 	&merged;</para>
-
-      <para>The TCP segment reassembly queue now uses the UMA kernel
-	memory allocator and limits the maximum number of segments it
-	will hold, thus preventing a certain class of denial of
-	service attack.  Its behavior is controlled by the
-	<varname>net.inet.tcp.reass</varname> hierarchy of sysctl
-	variables.</para>
 
     </sect3>
 
