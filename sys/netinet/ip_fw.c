@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.14 1998/06/05 21:38:07 julian Exp $
+ *	$Id: ip_fw.c,v 1.51.2.15 1998/07/01 01:38:35 julian Exp $
  */
 
 /*
@@ -399,9 +399,10 @@ ip_fw_chk(struct ip **pip, int hlen,
 #ifdef	IPFW_DIVERT_RESTART
 	u_int16_t skipto = *cookie;
 #else
-	u_int16_t ignport = *cookie;
+	u_int16_t ignport = ntohs(*cookie);
 #endif
 
+	*cookie = 0;
 	/*
 	 * Go down the chain, looking for enlightment
 	 * #ifdef IPFW_DIVERT_RESTART
@@ -601,7 +602,7 @@ got_match:
 #ifdef IPFW_DIVERT_RESTART
 			*cookie = f->fw_number;
 #else
-			*cookie = f->fw_divert_port;
+			*cookie = htons(f->fw_divert_port);
 #endif /* IPFW_DIVERT_RESTART */
 			return(f->fw_divert_port);
 		case IP_FW_F_TEE:

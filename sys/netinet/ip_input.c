@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.15 1998/06/05 21:38:09 julian Exp $
+ * $Id: ip_input.c,v 1.50.2.16 1998/07/01 01:38:36 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -332,18 +332,19 @@ tooshort:
 
 #ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
-#ifdef IPDIVERT
 		u_short port;
 
+#ifdef IPDIVERT
 		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie, &m);
 		if (port) {			/* Divert packet */
 			frag_divert_port = port;
 			goto ours;
 		}
 #else
-		u_int16_t	dummy	= 0;
 		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &dummy, &m)) {
+		/* use port as a dummy argument */
+		port = 0;
+		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &port, &m)) {
 			m_freem(m);
 			m = NULL;
 		}
@@ -552,6 +553,8 @@ found:
 #ifdef IPDIVERT
 	/*
 	 * Divert reassembled packets to the divert protocol if required
+	 * If divert port is null then cookie should be too,
+	 * so we shouldn't need to clear them here. Assume ip_divert does so.
 	 */
 	if (frag_divert_port) {
 		ipstat.ips_delivered++;
@@ -559,12 +562,6 @@ found:
 		frag_divert_port = 0;
 		(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, hlen);
 		return;
-	}
-
-	/* Don't let packets divert themselves */
-	if (ip->ip_p == IPPROTO_DIVERT) {
-		ipstat.ips_noproto++;
-		goto bad;
 	}
 
 	/* Don't let packets divert themselves */
@@ -704,12 +701,10 @@ insert:
 	/*
 	 * Any fragment diverting causes the whole packet to divert
 	 */
-	if (frag_divert_port != 0) {
-		fp->ipq_divert = frag_divert_port;
+	fp->ipq_divert = frag_divert_port;
 #ifdef IPFW_DIVERT_RESTART
-		fp->ipq_div_cookie = ip_divert_cookie;
+	fp->ipq_div_cookie = ip_divert_cookie;
 #endif /* IPFW_DIVERT_RESTART */
-	}
 	frag_divert_port = 0;
 	ip_divert_cookie = 0;
 #endif
@@ -790,6 +785,10 @@ insert:
 	return ((struct ip *)ip);
 
 dropfrag:
+#ifdef IPDIVERT
+	frag_divert_port = 0;
+	ip_divert_cookie = 0;
+#endif
 	ipstat.ips_fragdropped++;
 	m_freem(m);
 	return (0);
