@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id$
+ * $Id: nfs_node.c,v 1.16 1997/02/22 09:42:36 peter Exp $
  */
 
 
@@ -199,11 +199,11 @@ nfs_inactive(ap)
 	np = VTONFS(ap->a_vp);
 	if (prtactive && ap->a_vp->v_usecount != 0)
 		vprint("nfs_inactive: pushing active", ap->a_vp);
-	if (ap->a_vp->v_type != VDIR)
+	if (ap->a_vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
-	else
+		np->n_sillyrename = (struct sillyrename *)0;
+	} else
 		sp = (struct sillyrename *)0;
-	np->n_sillyrename = (struct sillyrename *)0;
 	if (sp) {
 		/*
 		 * Remove the silly file that was rename'd earlier
