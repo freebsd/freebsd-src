@@ -397,6 +397,13 @@ explicitly.
 Other variables are used to override kernel tunable parameters.
 The following tunables are available:
 .Bl -tag -width Va
+.It Va kern.maxusers
+Set the size of a number of statically allocated system tables; see
+.Xr tuning 7
+for a description of how to select an appropriate value for this
+tunable.
+When set, this tunable replaces the value declared in the kernel
+compile-time configuration file.
 .It Va kern.ipc.nmbclusters
 Set the number of mbuf clusters to be allocated.
 The value cannot be set below the default
@@ -787,6 +794,7 @@ Unspecified error.
 .Sh SEE ALSO
 .Xr libstand 3 ,
 .Xr loader.conf 5 ,
+.Xr tuning 7 ,
 .Xr boot 8 ,
 .Xr btxld 8
 .Sh STANDARDS
