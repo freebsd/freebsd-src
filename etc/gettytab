@@ -8,8 +8,32 @@
 # The default gettytab entry, used to set defaults for all other
 # entries, and in cases where getty is called with no table name
 #
+# cb, ce and ck are desirable on most crt's.  The non-crt entries need to
+# be changed to turn them off (ce@:ce@:ck@:).
+#
+# Parity defaults to even.  There ought to be more alternative entries with
+# no parity.  The Pc entry already has no parity..  The different parities
+# are:
+#     (none): same as even except -inpck instead of inpck for login.
+#     ep:     getty will use raw mode (cs8 -parenb) (unless rw is set) and
+#             fake parity.  login will use even parity (cs7 parenb -parodd).
+#     op:     same as ep except odd parity (cs7 parenb parodd) for login.
+#             op overrides ep.
+#     ap:     same as ep except -inpck instead of inpck for login.
+#             ap overrides op and ep.
+#     np:     1. don't fake parity in getty.  The fake parity garbles
+#                characters on non-terminals (like pccons) that don't
+#                support parity.  It would probably better for getty not to
+#                try to fake parity.  It could just use cbreak mode so as
+#                as not to force cs8 and let the hardware handle the parity.
+#                login has to be rely on the hardware anyway.
+#             2. set PASS8, giving cs8 -parenb -istrip -inpck.
+#     np:ep:  same as np except inpck.
+#     np:op:  same as np:ep except for parodd (but parodd is overridden).
+#     np:ap:  same as np except istrip.
+#
 default:\
-	:ap:fd#1000:im=\r\n   FreeBSD (%h) (%t)\r\n\r\n:sp#1200:
+	:cb:ce:ck:fd#1000:im=\r\n   FreeBSD (%h) (%t)\r\n\r\n:sp#1200:
 
 #
 # Fixed speed entries
@@ -112,7 +136,7 @@ X|Xwindow|X window system:\
 	:fd@:nd@:cd@:rw:sp#9600:
 
 P|Pc|Pc console:\
-	:np:ap:sp#9600:
+	:np:sp#115200:
 
 #
 # Wierdo special case for fast crt's with hardcopy devices
