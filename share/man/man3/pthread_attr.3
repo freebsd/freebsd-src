@@ -32,6 +32,8 @@
 .Sh NAME
 .Nm pthread_attr_init ,
 .Nm pthread_attr_destroy ,
+.Nm pthread_attr_setstack ,
+.Nm pthread_attr_getstack ,
 .Nm pthread_attr_setstacksize ,
 .Nm pthread_attr_getstacksize ,
 .Nm pthread_attr_setguardsize ,
@@ -57,6 +59,10 @@
 .Fn pthread_attr_init "pthread_attr_t *attr"
 .Ft int
 .Fn pthread_attr_destroy "pthread_attr_t *attr"
+.Ft int
+.Fn pthread_attr_setstack "pthread_attr_t *attr" " void *stackaddr" "size_t stacksize"
+.Ft int
+.Fn pthread_attr_getstack "const pthread_attr_t * restrict attr" "void ** restrict stackaddr" "size_t * restrict stacksize"
 .Ft int
 .Fn pthread_attr_setstacksize "pthread_attr_t *attr" "size_t stacksize"
 .Ft int
@@ -138,6 +144,8 @@ Invalid value for
 .Pp
 The
 .Fn pthread_attr_setstacksize
+or
+.Fn pthread_attr_setstack
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
