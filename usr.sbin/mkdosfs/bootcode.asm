@@ -11,7 +11,7 @@
 ;;; (This is written in as86 syntax.  as86 is part of Bruce Evans'
 ;;; bcc package.)
 ;;;
-;;; $Id$
+;;; $Id: bootcode.asm,v 1.5 1997/11/07 00:18:24 joerg Exp $
 ;;; 
 ;;; This code must be linked to address 0x7c00 in order to function
 ;;; correctly (the BIOS boot address).
@@ -66,9 +66,9 @@ lp2:	xorb	ah, ah		; int 0x16, fnc 0x00 -- wait for keystroke
 	int	0x16
 	mov	ax, *0x40	; write 0x1234 to address 0x472 --
 	push	ax		; tell the BIOS that this is a warm boot
-	pop	dx
+	pop	ds
 	mov	0x72, *0x1234
-	jmpf	0xfff0,0xf000	; jump to CPU initialization code
+	int	0x19		; jump to CPU initialization code
 
 message:
 	.byte	7
@@ -95,8 +95,7 @@ message:
 
 	;; Adjust the value below after changing the length of
 	;; the code above!
-	.space	0x1fe-0x161	; pad to 512 bytes
+	.space	0x1fe-0x15e	; pad to 512 bytes
 
 	.byte	0x55, 0xaa	; yes, we are bootable (cheating :)
 	end
-	
