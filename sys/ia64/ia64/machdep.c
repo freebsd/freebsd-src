@@ -563,13 +563,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	}
 
 	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
- 
-	/* OUTPUT NOW ALLOWED */
-
-	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
 	boothowto = bootinfo.bi_boothowto;
@@ -588,6 +581,13 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose = 1;
+
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+ 
+	/* OUTPUT NOW ALLOWED */
 
 	/*
 	 * Wire things up so we can call the firmware.
