@@ -160,6 +160,13 @@ case ${moused_enable} in
 [Yy][Ee][Ss])
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
+	case ${mousechar_start} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' mousechar_start';  vidcontrol < ${viddev} -M ${mousechar_start}
+		;;
+	esac
 	vidcontrol < ${viddev} -m on
 	;;
 esac
@@ -170,6 +177,15 @@ if [ -n "${allscreens_flags}" ]; then
 	echo -n ' allscreens'
 	for ttyv in /dev/ttyv*; do
 		vidcontrol ${allscreens_flags} < ${ttyv} > ${ttyv} 2>&1
+	done
+fi
+
+# set this keyboard more for all virtual terminals
+#
+if [ -n "${allscreens_kbdflags}" ]; then
+	echo -n ' allscreens_kbd'
+	for ttyv in /dev/ttyv*; do
+		kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
 	done
 fi
 
