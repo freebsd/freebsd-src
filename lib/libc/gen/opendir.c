@@ -191,7 +191,7 @@ __opendir2(name, flags)
 				struct dirent *dp;
 
 				dp = (struct dirent *) ddptr;
-				if ((int)dp & 03)
+				if ((long)dp & 03L)
 					break;
 				if ((dp->d_reclen <= 0) ||
 				    (dp->d_reclen > (ddeptr + 1 - ddptr)))
