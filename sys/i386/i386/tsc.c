@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.3 1997/07/20 18:11:45 smp Exp smp $
+ *	$Id: clock.c,v 1.6 1997/07/22 18:36:06 smp Exp smp $
  */
 
 /*
@@ -829,33 +829,6 @@ resettodr()
 	writertc(RTC_STATUSB, rtc_statusb);
 }
 
-#ifdef APIC_IO
-
-/* XXX FIXME: from icu.s: */
-#ifdef NEW_STRATEGY
-
-extern u_int	ivectors[];
-extern u_int	vec[];
-extern void	vec8254	__P((void));
-extern u_int	Xintr8254;
-extern u_int	mask8254;
-
-#else /** NEW_STRATEGY */
-
-#if !defined(APIC_PIN0_TIMER)
-extern u_int	ivectors[];
-extern u_int	vec[];
-#endif
-
-#ifndef APIC_PIN0_TIMER
-extern void	vec8254	__P((void));
-extern u_int	Xintr8254;
-extern u_int	mask8254;
-#endif /* APIC_PIN0_TIMER */
-
-#endif /** NEW_STRATEGY */
-
-#endif /* APIC_IO */
 
 /*
  * Start both clocks running.
@@ -951,7 +924,7 @@ cpu_initclocks()
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
-	INTREN(IRQ0);
+	INTREN(APIC_IRQ0);
 #else /* APIC_PIN0_TIMER */
 	/* 8254 is traditionally on ISA IRQ0 */
 	if ((x = isa_apic_pin(0)) < 0) {
@@ -1027,7 +1000,11 @@ cpu_initclocks()
 	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
 		      /* unit */ 0);
+#ifdef APIC_IO
+	INTREN(APIC_IRQ8);
+#else
 	INTREN(IRQ8);
+#endif /* APIC_IO */
 
 	writertc(RTC_STATUSB, rtc_statusb);
 }

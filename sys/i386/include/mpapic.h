@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.7 1997/05/31 03:29:06 fsmp Exp $
+ *	$Id: mpapic.h,v 1.3 1997/07/22 18:31:51 smp Exp smp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -73,46 +73,6 @@ enum busTypes {
 #define ID_TO_CPU(ID)	(apic_id_to_logical[ID])
 #define IO_TO_ID(IO)	(io_num_to_apic_id[IO])
 #define ID_TO_IO(ID)	(apic_id_to_logical[ID])
-
-
-/*
- * inline functions to read/write the IO APIC
- * NOTES:
- *  unlike the local APIC, the IO APIC is accessed indirectly thru 2 registers.
- *  the select register is loaded with an index to the desired 'window' reg.
- *  the 'window' is accessed as a 32 bit unsigned.
- */
-
-/*
- * read 'reg' from 'apic'
- */
-static __inline u_int32_t
-io_apic_read(int apic, int reg)
-{
-	ioapic[apic]->ioregsel = reg;
-	return ioapic[apic]->iowin;
-}
-
-
-/*
- * write 'value' to 'reg' of 'apic'
- */
-static __inline void
-io_apic_write(int apic, int reg, u_int32_t value)
-{
-	ioapic[apic]->ioregsel = reg;
-	ioapic[apic]->iowin = value;
-}
-
-
-/*
- * send an EndOfInterrupt to the local APIC
- */
-static __inline void
-apic_eoi(void)
-{
-	lapic.eoi = 0;
-}
 
 
 /*
