@@ -735,7 +735,8 @@ static int ct_attach (device_t dev)
 		d->pp.pp_if.if_name	= "ct";
 #endif
 		d->pp.pp_if.if_mtu	= PP_MTU;
-		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
+					  IFF_NEEDSGIANT;
 		d->pp.pp_if.if_ioctl	= ct_sioctl;
 		d->pp.pp_if.if_start	= ct_ifstart;
 		d->pp.pp_if.if_watchdog	= ct_ifwatchdog;
