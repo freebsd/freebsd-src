@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: test.c,v 1.23 1999/08/16 09:44:09 sheldonh Exp $";
+	"$Id: test.c,v 1.24 1999/08/18 00:18:52 green Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -169,6 +169,13 @@ main(argc, argv)
 			errx(2, "missing ]");
 		argv[argc] = NULL;
 	}
+
+	/*
+	 * We need to set our real user and group so that when we call
+	 * access(2), it won't possibly return incorrect results.
+	 */
+	(void)setgid(getegid());
+	(void)setuid(geteuid());
 
 	t_wp = &argv[1];
 	res = !oexpr(t_lex(*t_wp));
@@ -328,12 +335,15 @@ filstat(nm, mode)
 	case FILWR:
 		return access(nm, W_OK) == 0;
 	case FILEX:
-               if (access(nm, X_OK) == 0) {
-                       if (getuid() == 0 && (s.st_mode & 0111) == 0)
-                               return 0;
-                       return 1;
-               }
-               return 1;
+		/*
+		 * We cannot simply use access(2) for this specific case
+		 * since it can always return false positives for root.
+		 */
+		if (access(nm, X_OK) != 0)
+			return 0;
+		if (S_ISDIR(s.st_mode) || getuid() != 0)
+			return 1;
+		return (s.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
 	case FILEXIST:
 		return access(nm, F_OK) == 0;
 	case FILREG:
