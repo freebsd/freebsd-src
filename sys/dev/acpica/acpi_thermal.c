@@ -551,9 +551,7 @@ acpi_tz_all_off(struct acpi_tz_softc *sc)
 static void
 acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 {
-    struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
     ACPI_HANDLE			cooler;
-    ACPI_STATUS			status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -567,12 +565,7 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s off\n",
 		     acpi_name(cooler)));
-    status = acpi_pwr_switch_consumer(cooler, ACPI_STATE_D3);
-    if (ACPI_FAILURE(status)) {
-	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
-		    "failed to deactivate %s - %s\n", acpi_name(cooler),
-		    AcpiFormatException(status));
-    }
+    acpi_pwr_switch_consumer(cooler, ACPI_STATE_D3);
 
     return_VOID;
 }
