@@ -50,28 +50,59 @@ union ip_fw_if {
  */
 
 struct ip_fw {
-    u_int64_t fw_pcnt,fw_bcnt;		/* Packet and byte counters */
-    struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
-    struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
-    u_short fw_number;			/* Rule number */
-    u_int fw_flg;			/* Operational Flags word */
-#define IP_FW_MAX_PORTS	10		/* A reasonable maximum */
-	union {
-	u_short fw_pts[IP_FW_MAX_PORTS];	/* Array of port numbers to match */
+    LIST_ENTRY(ip_fw) next;		/* bidirectional list of rules	*/
+    u_int fw_flg;			/* Operational Flags word	*/
+
+    u_int64_t fw_pcnt,fw_bcnt;		/* Packet and byte counters	*/
+    struct in_addr fw_src, fw_dst;	/* Source and dest. IP addr	*/
+    struct in_addr fw_smsk, fw_dmsk;	/* Mask for above addresses	*/
+    u_short fw_number;			/* Rule number			*/
+    u_char fw_prot;			/* IP protocol			*/
+#if 1
+    u_char fw_nports;			/* # of src/dst port in array   */
+#define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
+#define IP_FW_SETNSRCP(rule, n)		do {				\
+					    (rule)->fw_nports &= ~0x0f;	\
+					    (rule)->fw_nports |= (n);	\
+					} while (0)
+#define IP_FW_GETNDSTP(rule)		((rule)->fw_nports >> 4)
+#define IP_FW_SETNDSTP(rule, n)		do {				\
+					    (rule)->fw_nports &= ~0xf0;	\
+					    (rule)->fw_nports |= (n) << 4;\
+					} while (0)
+#define IP_FW_HAVEPORTS(rule)		((rule)->fw_nports != 0)
+#else
+    u_char __pad[1];
+u_int _nsrcp, _ndstp;
+#define IP_FW_GETNSRCP(rule)		(rule)->_nsrcp
+#define IP_FW_SETNSRCP(rule,n)		(rule)->_nsrcp = n
+#define IP_FW_GETNDSTP(rule)		(rule)->_ndstp
+#define IP_FW_SETNDSTP(rule,n)		(rule)->_ndstp = n
+#define IP_FW_HAVEPORTS(rule)		((rule)->_ndstp + (rule)->_nsrcp != 0)
+#endif
+#define IP_FW_MAX_PORTS	10		/* A reasonable maximum		*/
+    union {
+	u_short fw_pts[IP_FW_MAX_PORTS]; /* port numbers to match	*/
 #define IP_FW_ICMPTYPES_MAX	128
 #define IP_FW_ICMPTYPES_DIM	(IP_FW_ICMPTYPES_MAX / (sizeof(unsigned) * 8))
 	unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
-	} fw_uar;
-    u_int fw_ipflg;			/* IP flags word */
-    u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
-    u_short fw_iplen, fw_ipid;		/* IP length, identification */
+    } fw_uar;
+
+    u_int fw_ipflg;			/* IP flags word		*/
+
+    u_short fw_iplen, fw_ipid;		/* IP length, identification	*/
+
+    u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset		*/
     u_char fw_iptos, fw_ipntos;		/* IP type of service set/unset */
+
     u_char fw_ipttl;			/* IP time to live */
     u_int fw_ipver:4;			/* IP version */
     u_char fw_tcpopt,fw_tcpnopt;	/* TCP options set/unset */
+
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
-    u_int32_t fw_tcpseq, fw_tcpack;	/* TCP sequence and acknowledgement */
     u_short fw_tcpwin;			/* TCP window size */
+
+    u_int32_t fw_tcpseq, fw_tcpack;	/* TCP sequence and acknowledgement */
     long timestamp;			/* timestamp (tv_sec) of last match */
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
     union {
@@ -81,50 +112,28 @@ struct ip_fw {
 	u_short fu_reject_code;		/* REJECT response code */
 	struct sockaddr_in fu_fwd_ip;
     } fw_un;
-    u_char fw_prot;			/* IP protocol */
-	/*
-	 * N'of src ports and # of dst ports in ports array (dst ports
-	 * follow src ports; max of 10 ports in all; count of 0 means
-	 * match all ports)
-	 */
-    u_char fw_nports;
-    void *pipe_ptr;                    /* flow_set ptr for dummynet pipe */
-    void *next_rule_ptr ;              /* next rule in case of match */
+    void *pipe_ptr;			/* flow_set ptr for dummynet pipe */
+    void *next_rule_ptr ;		/* next rule in case of match */
     uid_t fw_uid;			/* uid to match */
     gid_t fw_gid;			/* gid to match */
     int fw_logamount;			/* amount to log */
     u_int64_t fw_loghighest;		/* highest number packet to log */
-};
 
-/*
- * extended ipfw structure... some fields in the original struct
- * can be used to pass parameters up/down, namely pointers
- *     void *pipe_ptr
- *     void *next_rule_ptr 
- * some others can be used to pass parameters down, namely counters etc.
- *     u_int64_t fw_pcnt,fw_bcnt;
- *     long timestamp;
- */
-
-struct ip_fw_ext {             /* extended structure */
-    struct ip_fw rule;      /* must be at offset 0 */
     long   dont_match_prob;        /* 0x7fffffff means 1.0, always fail */
     u_char dyn_type;  /* type for dynamic rule */
-#define DYN_KEEP_STATE	0		/* type for keep-state rules */
-    u_char _pad1 ;			/* for future use */
-    u_short _pad2 ;			/* for future use */
+#define	DYN_KEEP_STATE	0	/* type for keep-state rules	*/
+#define	DYN_LIMIT	1	/* type for limit connection rules */
+#define	DYN_LIMIT_PARENT 2	/* parent entry for limit connection rules */
+    /* following two fields are used to limit number of connections
+     * basing on either src,srcport,dst,dstport.
+     */
+    u_char limit_mask ;		/* mask type for limit rule, can have many */
+#define	DYN_SRC_ADDR	0x1
+#define	DYN_SRC_PORT	0x2
+#define	DYN_DST_ADDR	0x4
+#define	DYN_DST_PORT	0x8
+    u_short conn_limit ;	/* # of connections for limit rule */
 };
-
-#define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
-#define IP_FW_SETNSRCP(rule, n)		do {				\
-					  (rule)->fw_nports &= ~0x0f;	\
-					  (rule)->fw_nports |= (n);	\
-					} while (0)
-#define IP_FW_GETNDSTP(rule)		((rule)->fw_nports >> 4)
-#define IP_FW_SETNDSTP(rule, n)		do {				\
-					  (rule)->fw_nports &= ~0xf0;	\
-					  (rule)->fw_nports |= (n) << 4;\
-					} while (0)
 
 #define fw_divert_port	fw_un.fu_divert_port
 #define fw_skipto_rule	fw_un.fu_skipto_rule
@@ -134,20 +143,13 @@ struct ip_fw_ext {             /* extended structure */
 
 /**
  *
- *   chain_ptr -------------+
+ *   rule_ptr  -------------+
  *                          V
  *     [ next.le_next ]---->[ next.le_next ]---- [ next.le_next ]--->
  *     [ next.le_prev ]<----[ next.le_prev ]<----[ next.le_prev ]<---
- *  +--[ rule         ]  +--[ rule         ]  +--[ rule         ]
- *  |                    |                    |
- *  +->[ <ip_fw>      ]  +->[ <ip_fw>      ]  +->[ <ip_fw>      ]
+ *     [ <ip_fw> body ]     [ <ip_fw> body ]     [ <ip_fw> body ]
  *
  */
-
-struct ip_fw_chain {
-	LIST_ENTRY(ip_fw_chain) next;
-	struct ip_fw *rule;
-};
 
 /*
  * Flow mask/flow id for each queue.
@@ -166,7 +168,8 @@ struct ipfw_dyn_rule {
     struct ipfw_dyn_rule *next ;
 
     struct ipfw_flow_id id ;		/* (masked) flow id		*/
-    struct ip_fw_chain *chain ;		/* pointer to chain		*/
+    struct ip_fw *rule ;		/* pointer to rule		*/
+    struct ipfw_dyn_rule *parent ;	/* pointer to parent rule 	*/
     u_int32_t expire ;			/* expire time			*/
     u_int64_t pcnt, bcnt;		/* match counters		*/
     u_int32_t bucket ;			/* which bucket in hash table	*/
@@ -311,9 +314,9 @@ void ip_fw_init __P((void));
 /* Firewall hooks */
 struct ip;
 struct sockopt;
-typedef	int ip_fw_chk_t __P((struct ip **, int, struct ifnet *, u_int16_t *,
-	     struct mbuf **, struct ip_fw_chain **, struct sockaddr_in **));
-typedef	int ip_fw_ctl_t __P((struct sockopt *));
+typedef	int ip_fw_chk_t (struct ip **, int, struct ifnet *, u_int16_t *,
+	     struct mbuf **, struct ip_fw **, struct sockaddr_in **);
+typedef	int ip_fw_ctl_t (struct sockopt *);
 extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
 extern int fw_one_pass;
