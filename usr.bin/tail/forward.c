@@ -58,6 +58,11 @@ static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 
 static void rlines __P((FILE *, long, struct stat *));
 
+/* defines for inner loop actions */
+#define USE_SLEEP	0
+#define USE_KQUEUE	1
+#define ADD_EVENTS	2
+
 /*
  * forward -- display the file, from an offset, forward.
  *
@@ -87,8 +92,10 @@ forward(fp, style, off, sbp)
 	long off;
 	struct stat *sbp;
 {
-	int ch, add_events = 0, kq = -1;
+	int ch, kq = -1;
+	int action = USE_SLEEP;
 	struct kevent ev[2];
+	struct stat sb2;
 
 	switch(style) {
 	case FBYTES:
@@ -167,7 +174,7 @@ forward(fp, style, off, sbp)
 		kq = kqueue();
 		if (kq < 0)
 			err(1, "kqueue");
-		add_events = 1;
+		action = ADD_EVENTS;
 	}
 
 	for (;;) {
@@ -183,7 +190,8 @@ forward(fp, style, off, sbp)
 			break;
 		clearerr(fp);
 
-		if (add_events) {
+		switch (action) {
+		case ADD_EVENTS: {
 			int n = 0;
 			struct kevent *evp[2];
 			struct timespec ts = { 0, 0 };
@@ -202,27 +210,53 @@ forward(fp, style, off, sbp)
 			evp[n] = &ev[n];
 			n++;
 
-			if (kevent(kq, n, evp, 0, NULL, &ts) < 0)
-				err(1, "kevent");
-			add_events = 0;
+			if (kevent(kq, n, evp, 0, NULL, &ts) < 0) {
+				close(kq);
+				kq = -1;
+				action = USE_SLEEP;
+			} else {
+				action = USE_KQUEUE;
+			}
+			break;
 		}
 
-		if (kevent(kq, 0, NULL, 1, ev, NULL) < 0)
-			err(1, "kevent");
+		case USE_KQUEUE:
+			if (kevent(kq, 0, NULL, 1, ev, NULL) < 0)
+				err(1, "kevent");
 
-		if (ev->filter == EVFILT_VNODE) {
-			fp = freopen(fname, "r", fp);
-			if (fp == NULL) {
-				ierr();
-				break;
+			if (ev->filter == EVFILT_VNODE) {
+				/* file was rotated, wait until it reappears */
+				action = USE_SLEEP;
+			} else if (ev->data < 0) {
+				/* file shrank, reposition to end */
+				if (fseek(fp, 0L, SEEK_END) == -1) {
+					ierr();
+					return;
+				}
 			}
-			add_events = 1;
-		} else if (ev->data < 0) {
-			/* file shrank, reposition to end */
-			if (fseek(fp, 0L, SEEK_END) == -1) {
-				ierr();
-				return;
+			break;
+
+		case USE_SLEEP:
+                	(void) usleep(250000);
+	                clearerr(fp);
+
+			if (Fflag && fileno(fp) != STDIN_FILENO &&
+			    stat(fname, &sb2) != -1) {
+				if (sb2.st_ino != sbp->st_ino ||
+				    sb2.st_dev != sbp->st_dev ||
+				    sb2.st_rdev != sbp->st_rdev ||
+				    sb2.st_nlink == 0) {
+					fp = freopen(fname, "r", fp);
+					if (fp == NULL) {
+						ierr();
+						break;
+					}
+					*sbp = sb2;
+					if (kq != -1)
+						action = ADD_EVENTS;
+				}
 			}
+			break;
 		}
 	}
 }
