@@ -130,6 +130,7 @@ static struct simplelock spechash_slock;
 #endif
 struct nfs_public nfs_pub;	/* publicly exported FS */
 static vm_zone_t vnode_zone;
+int	prtactive = 0;		/* 1 => print out reclaim of active vnodes */
 
 /*
  * The workitem queue.
