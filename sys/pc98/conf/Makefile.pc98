@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.51 1999/01/18 11:00:29 kato Exp $
+#	$Id: Makefile.pc98,v 1.52 1999/01/20 08:29:48 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -156,6 +156,8 @@ hack.So: Makefile
 	${CC} -elf -shared -nostdlib hack.c -o hack.So
 	rm -f hack.c
 .endif
+
+.ORDER: setdefs.h setdef0.c setdef1.c
 
 setdef0.o: setdef0.c setdefs.h
 	${NORMAL_C}
