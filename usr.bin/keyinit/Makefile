@@ -9,7 +9,7 @@ CFLAGS+= -D_SKEY_INTERNAL
 BINOWN=	root
 BINMODE=4555
 
-DPADD=	${LIBSKEY} ${LIBMD}
-LDADD=	-lskey -lmd
+DPADD=	${LIBSKEY} ${LIBCRYPT} ${LIBMD}
+LDADD=	-lskey -lcrypt -lmd
 
 .include <bsd.prog.mk>
