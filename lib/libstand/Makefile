@@ -92,6 +92,21 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 	m4 -DNAME=__reml -DOP=rem -DS=true -DWORDSIZE=32 \
 		${.ALLSRC} > ${.TARGET}
 .endif
+.if ${MACHINE_ARCH} == "ia64"
+.PATH: ${.CURDIR}/../libc/ia64/string
+SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
+	memcpy.S memmove.S memset.c rindex.c strcat.c strchr.c \
+	strcmp.c strcpy.c strcspn.c strlen.c \
+	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
+	strspn.c strstr.c strtok.c swab.c
+
+.PATH: ${.CURDIR}/../libc/ia64/net
+SRCS+= htons.S ntohs.S htonl.S ntohl.S
+
+.PATH: ${.CURDIR}/../libc/ia64/gen
+SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
+SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
+.endif
 
 # _setjmp/_longjmp
 .PATH:	${.CURDIR}/${MACHINE_ARCH}
