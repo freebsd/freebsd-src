@@ -1486,8 +1486,8 @@ rc_wait0(nec, unit, chan, line)
 {
 	int rcnt;
 
-	for (rcnt = 100; rcnt && rcin(CD180_CCR); rcnt--)
-		DELAY(15);
+	for (rcnt = 50; rcnt && rcin(CD180_CCR); rcnt--)
+		DELAY(30);
 	if (rcnt == 0)
 		printf("rc%d/%d: channel command timeout, rc.c line: %d\n",
 		      unit, chan, line);
