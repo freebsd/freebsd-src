@@ -98,14 +98,6 @@
 #define KSTACK_PAGES    2
 #endif /* !KSTACK_PAGES */
 
-#ifndef UAREA_PAGES
-#define UAREA_PAGES	1
-#endif /* !UAREA_PAGES */
-
-#ifndef USPACE
-#define	USPACE		(UAREA_PAGES * PAGE_SIZE) /* total size of u-area */
-#endif
-
 #ifndef FPCONTEXTSIZE
 #define FPCONTEXTSIZE	(0x100)
 #endif
@@ -114,7 +106,7 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		(USPACE)
+#define USPACE_SVC_STACK_TOP		0
 #define USPACE_SVC_STACK_BOTTOM		(USPACE_SVC_STACK_TOP - 0x1000)
 #define USPACE_UNDEF_STACK_TOP		(USPACE_SVC_STACK_BOTTOM - 0x10)
 #define USPACE_UNDEF_STACK_BOTTOM	(FPCONTEXTSIZE + 10)
