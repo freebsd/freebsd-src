@@ -15,102 +15,46 @@
 .Nd memory disk
 .Sh SYNOPSIS
 .Cd device md
-.Pp
-To specify the default maximum size of
-.Xr malloc 9
-backed disks:
-.Cd options MD_NSECT=20000
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for two kinds of memory backed virtual disks:
-.Xr malloc 9
-backed
-and pre-loaded module backed.
-.Pp
-The
-.Xr malloc 9
-backed
-disks
-are severely limited in size by constraints imposed by
+driver provides support for four kinds of memory backed virtual disks:
+.Bl -tag -width preload
+.It Cm malloc
+Backing store is allocated using
 .Xr malloc 9 .
-The limit imposed depends on the amount of physical RAM in the machine,
-and covers all
-.Xr malloc 9
-backed instances of
+Only one malloc-bucket is used, which means that all
 .Nm
-devices.
-.Pp
-A sector filled with identical bytes does not consume storage,
-and therefore the storage allocated by a
-.Nm
-disk can be freed with a command such as this:
-.Bd -literal -offset indent
-dd if=/dev/zero of=/dev/md567
-.Ed
-.Pp
-The default maximum size of a
-.Nm
-disk
-backed by
-.Xr malloc 9
-is 20,000 sectors of 512 bytes each.
-This can be changed
-with the kernel option
-.Dv MD_NSECT .
-.Pp
-At boot time the
-.Nm
-driver will search for pre-loaded modules of type
+devices with
+.Cm malloc
+backing must share the malloc-per-bucket-quota.
+The exact size of this quota varies, in particular with amount of RAM in the 
+system.  The exact value can be determined with
+.Xr vmstat 8 .
+.It Cm preload
+A file loaded by 
+.Xr loader 8
+with type 
 .Sq md_image
-and instantiate a
-.Nm
-device for each of these modules.
-The type
+is used for backing store.
+For backwards compatibility the type
 .Sq mfs_root
-is also allowed for backward compatibility.
-These devices are backed by the RAM reserved by the
-.Xr loader 8 ,
-and as such not limited by the
-.Xr malloc 9
-size constraints.
-However, this also means that the storage cannot be released.
-For the same reason,
-the
-.Dq identical byte
-detection is not applicable.
+is also recognized.
+If the kernel is created with option
+.Cm MD_ROOT
+the first preloaded image found will become the root filesystem.
+.It Cm vnode
+A regular file is used as backing store.
+This allows for mounting ISO images without the tedious
+detour over actual physical media.
+.It Cm swap
+Backing store is allocated from swap space.
+.El
 .Pp
-The
-.Nm
-driver uses the
-.Dq almost-clone
-convention,
-whereby opening device number N creates device instance number N+1.
-.Pp
-The
-.Xr vmstat 8
-utility can be used to monitor memory usage by
-.Xr malloc 9
-backed
-.Nm
-disks,
-but not those backed by pre-loaded modules.
-.Sh EXAMPLES
-To mount a
-.Xr malloc 9
-backed
-.Nm
-device on
-.Pa /tmp :
-.Bd -literal
-if [ -e /dev/md0 -a -e /dev/md0c ]; then
-	disklabel -r -w md0 auto && \\
-	newfs /dev/md0c && \\
-	mount /dev/md0c /tmp && \\
-	chmod 1777 /tmp
-fi
-.Ed
+For more information, please see
+.Xr mdconfig 8 
 .Sh SEE ALSO
+.Xr mdconfig 8 ,
 .Xr disklabel 5 ,
 .Xr disklabel 8 ,
 .Xr fdisk 8 ,
@@ -127,6 +71,13 @@ for the MFS functionality previously used in PicoBSD
 and in the
 .Fx
 installation process.
+.Pp
+The
+.Nm
+driver did a hostile takeover of the
+.Xr vn 4
+driver in
+.Fx 5.0 .
 .Sh AUTHORS
 The
 .Nm
