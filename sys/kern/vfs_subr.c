@@ -2652,6 +2652,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		return (SYSCTL_OUT(req, 0,
 			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
+	sysctl_wire_old_buffer(req, 0);
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {

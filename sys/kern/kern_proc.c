@@ -1023,6 +1023,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		if (error)
 			return (error);
 	}
+	sysctl_wire_old_buffer(req, 0);
 	sx_slock(&allproc_lock);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
