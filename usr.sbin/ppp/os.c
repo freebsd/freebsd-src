@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.32 1997/11/11 22:58:12 brian Exp $
+ * $Id: os.c,v 1.33 1997/11/13 12:09:57 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -285,21 +285,6 @@ OsInterfaceDown(int final)
 
   close(s);
   return (0);
-}
-
-void
-OsSetInterfaceParams(int type, int mtu, int speed)
-{
-  struct tuninfo info;
-
-  info.type = type;
-  info.mtu = mtu;
-  if (VarPrefMTU != 0 && VarPrefMTU < mtu)
-    info.mtu = VarPrefMTU;
-  info.baudrate = speed;
-  if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
-    LogPrintf(LogERROR, "OsSetInterfaceParams: ioctl(TUNSIFINFO): %s\n",
-	      strerror(errno));
 }
 
 /*
