@@ -33,6 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #ifndef lint
 static const char copyright[] =
@@ -257,6 +258,10 @@ FILEDESC	*fp;
 						*p = 'a' + (ch - 'a' + 13) % 26;
 				}
 			}
+		if (fp->tbl.str_flags & STR_COMMENTS
+		    && line[0] == fp->tbl.str_delim
+		    && line[1] == fp->tbl.str_delim)
+			continue;
 		fputs(line, stdout);
 	}
 	(void) fflush(stdout);
@@ -1350,7 +1355,11 @@ FILEDESC	*list;
 		sp = Fortbuf;
 		in_file = FALSE;
 		while (fgets(sp, Fort_len, fp->inf) != NULL)
-			if (!STR_ENDSTRING(sp, fp->tbl))
+			if (fp->tbl.str_flags & STR_COMMENTS
+			    && sp[0] == fp->tbl.str_delim
+			    && sp[1] == fp->tbl.str_delim)
+				continue;
+			else if (!STR_ENDSTRING(sp, fp->tbl))
 				sp += strlen(sp);
 			else {
 				*sp = '\0';
