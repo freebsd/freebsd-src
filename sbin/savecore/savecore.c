@@ -88,8 +88,8 @@ __FBSDID("$FreeBSD$");
 /* The size of the buffer used for I/O. */
 #define	BUFFERSIZE	(1024*1024)
 
-int checkfor, compress, clear, force, keep, verbose;	/* flags */
-int nfound, nsaved, nerr;			/* statistics */
+static int checkfor, compress, clear, force, keep, verbose;	/* flags */
+static int nfound, nsaved, nerr;			/* statistics */
 
 extern FILE *zopen(const char *, const char *);
 
