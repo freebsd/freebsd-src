@@ -911,7 +911,7 @@ static int rl_attach(dev)
 		goto fail;
 	}
 
-	sc->rl_cdata.rl_rx_buf = contigmalloc(RL_RXBUFLEN + 32, M_DEVBUF,
+	sc->rl_cdata.rl_rx_buf = contigmalloc(RL_RXBUFLEN + 1518, M_DEVBUF,
 		M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->rl_cdata.rl_rx_buf == NULL) {
@@ -1120,8 +1120,13 @@ static void rl_rxeof(sc)
 		wrap = (sc->rl_cdata.rl_rx_buf + RL_RXBUFLEN) - rxbufpos;
 
 		if (total_len > wrap) {
+			/*
+			 * Fool m_devget() into thinking we want to copy
+			 * the whole buffer so we don't end up fragmenting
+			 * the data.
+			 */
 			m = m_devget(rxbufpos - RL_ETHER_ALIGN,
-			   wrap + RL_ETHER_ALIGN, 0, ifp, NULL);
+			    total_len + RL_ETHER_ALIGN, 0, ifp, NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
@@ -1130,14 +1135,6 @@ static void rl_rxeof(sc)
 				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-				if (m->m_len < sizeof(struct ether_header))
-					m = m_pullup(m,
-					    sizeof(struct ether_header));
-				if (m == NULL) {
-					printf("rl%d: m_pullup failed",
-					    sc->rl_unit);
-					ifp->if_ierrors++;
-				}
 			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
