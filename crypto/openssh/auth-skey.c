@@ -112,6 +112,7 @@ skey_fake_keyinfo(char *username)
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_BOOTTIME;
 		size = sizeof(boottime);
+		bzero(&boottime, sizeof(boottime));
 		if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
 			boottime.tv_sec != 0) {
 			secret = (char *)&boottime;
