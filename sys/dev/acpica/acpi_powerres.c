@@ -308,6 +308,10 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+    /* It's never ok to switch a non-existent consumer. */
+    if (consumer == NULL)
+	return_ACPI_STATUS (AE_NOT_FOUND);
+
     /* Find the consumer */
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
 	if (ACPI_FAILURE(status = acpi_pwr_register_consumer(consumer)))
