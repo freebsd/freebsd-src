@@ -37,13 +37,48 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-passwd.c,v 1.27 2002/05/24 16:45:16 stevesk Exp $");
-RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "log.h"
 #include "servconf.h"
 #include "auth.h"
 
+#if !defined(USE_PAM) && !defined(HAVE_OSF_SIA)
+/* Don't need any of these headers for the PAM or SIA cases */
+# ifdef HAVE_CRYPT_H
+#  include <crypt.h>
+# endif
+# ifdef WITH_AIXAUTHENTICATE
+#  include <login.h>
+# endif
+# ifdef __hpux
+#  include <hpsecurity.h>
+#  include <prot.h>
+# endif
+# ifdef HAVE_SECUREWARE
+#  include <sys/security.h>
+#  include <sys/audit.h>
+#  include <prot.h>
+# endif /* HAVE_SECUREWARE */
+# if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+#  include <shadow.h>
+# endif
+# if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
+#  include <sys/label.h>
+#  include <sys/audit.h>
+#  include <pwdadj.h>
+# endif
+# if defined(HAVE_MD5_PASSWORDS) && !defined(HAVE_MD5_CRYPT)
+#  include "md5crypt.h"
+# endif /* defined(HAVE_MD5_PASSWORDS) && !defined(HAVE_MD5_CRYPT) */
+
+# ifdef HAVE_CYGWIN
+#  undef ERROR
+#  include <windows.h>
+#  include <sys/cygwin.h>
+#  define is_winnt       (GetVersion() < 0x80000000)
+# endif
+#endif /* !USE_PAM && !HAVE_OSF_SIA */
 
 extern ServerOptions options;
 
@@ -54,13 +89,41 @@ extern ServerOptions options;
 int
 auth_password(Authctxt *authctxt, const char *password)
 {
+#if defined(USE_PAM)
+	if (*password == '\0' && options.permit_empty_passwd == 0)
+		return 0;
+	return auth_pam_password(authctxt, password);
+#elif defined(HAVE_OSF_SIA)
+	if (*password == '\0' && options.permit_empty_passwd == 0)
+		return 0;
+	return auth_sia_password(authctxt, password);
+#else
 	struct passwd * pw = authctxt->pw;
+	char *encrypted_password;
+	char *pw_password;
+	char *salt;
+#if defined(__hpux) || defined(HAVE_SECUREWARE)
+	struct pr_passwd *spw;
+#endif /* __hpux || HAVE_SECUREWARE */
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+	struct spwd *spw;
+#endif
+#if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
+	struct passwd_adjunct *spw;
+#endif
+#ifdef WITH_AIXAUTHENTICATE
+	char *authmsg;
+	char *loginmsg;
+	int reenter = 1;
+#endif
 
 	/* deny if no user. */
 	if (pw == NULL)
 		return 0;
-	if (pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
+#ifndef HAVE_CYGWIN
+       if (pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
 		return 0;
+#endif
 	if (*password == '\0' && options.permit_empty_passwd == 0)
 		return 0;
 #ifdef KRB5
@@ -70,6 +133,19 @@ auth_password(Authctxt *authctxt, const char *password)
 			return ret;
 		/* Fall back to ordinary passwd authentication. */
 	}
+#endif
+#ifdef HAVE_CYGWIN
+	if (is_winnt) {
+		HANDLE hToken = cygwin_logon_user(pw, password);
+
+		if (hToken == INVALID_HANDLE_VALUE)
+			return 0;
+		cygwin_set_impersonation_token(hToken);
+		return 1;
+	}
+#endif
+#ifdef WITH_AIXAUTHENTICATE
+	return (authenticate(pw->pw_name,password,&reenter,&authmsg) == 0);
 #endif
 #ifdef KRB4
 	if (options.kerberos_authentication == 1) {
@@ -85,20 +161,63 @@ auth_password(Authctxt *authctxt, const char *password)
 		return 0;
 	else
 		return 1;
-#else
-	/* Check for users with no password. */
-	if (strcmp(password, "") == 0 && strcmp(pw->pw_passwd, "") == 0)
-		return 1;
-	else {
-		/* Encrypt the candidate password using the proper salt. */
-		char *encrypted_password = crypt(password,
-		    (pw->pw_passwd[0] && pw->pw_passwd[1]) ?
-		    pw->pw_passwd : "xx");
-		/*
-		 * Authentication is accepted if the encrypted passwords
-		 * are identical.
-		 */
-		return (strcmp(encrypted_password, pw->pw_passwd) == 0);
-	}
 #endif
+	pw_password = pw->pw_passwd;
+
+	/*
+	 * Various interfaces to shadow or protected password data
+	 */
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+	spw = getspnam(pw->pw_name);
+	if (spw != NULL)
+		pw_password = spw->sp_pwdp;
+#endif /* defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW) */
+
+#if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
+	if (issecure() && (spw = getpwanam(pw->pw_name)) != NULL)
+		pw_password = spw->pwa_passwd;
+#endif /* defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW) */
+
+#ifdef HAVE_SECUREWARE
+	if ((spw = getprpwnam(pw->pw_name)) != NULL)
+		pw_password = spw->ufld.fd_encrypt;
+#endif /* HAVE_SECUREWARE */
+
+#if defined(__hpux) && !defined(HAVE_SECUREWARE)
+	if (iscomsec() && (spw = getprpwnam(pw->pw_name)) != NULL)
+		pw_password = spw->ufld.fd_encrypt;
+#endif /* defined(__hpux) && !defined(HAVE_SECUREWARE) */
+
+	/* Check for users with no password. */
+	if ((password[0] == '\0') && (pw_password[0] == '\0'))
+		return 1;
+
+	if (pw_password[0] != '\0')
+		salt = pw_password;
+	else
+		salt = "xx";
+
+#ifdef HAVE_MD5_PASSWORDS
+	if (is_md5_salt(salt))
+		encrypted_password = md5_crypt(password, salt);
+	else
+		encrypted_password = crypt(password, salt);
+#else /* HAVE_MD5_PASSWORDS */
+# if defined(__hpux) && !defined(HAVE_SECUREWARE)
+	if (iscomsec())
+		encrypted_password = bigcrypt(password, salt);
+	else
+		encrypted_password = crypt(password, salt);
+# else
+#  ifdef HAVE_SECUREWARE
+	encrypted_password = bigcrypt(password, salt);
+#  else
+	encrypted_password = crypt(password, salt);
+#  endif /* HAVE_SECUREWARE */
+# endif /* __hpux && !defined(HAVE_SECUREWARE) */
+#endif /* HAVE_MD5_PASSWORDS */
+
+	/* Authentication is accepted if the encrypted passwords are identical. */
+	return (strcmp(encrypted_password, pw_password) == 0);
+#endif /* !USE_PAM && !HAVE_OSF_SIA */
 }

@@ -11,13 +11,18 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: servconf.c,v 1.111 2002/06/20 23:05:55 markus Exp $");
-RCSID("$FreeBSD$");
 
 #if defined(KRB4)
 #include <krb.h>
 #endif
 #if defined(KRB5)
-#include <krb5.h>
+#ifdef HEIMDAL
+#include <krb.h>
+#else
+/* Bodge - but then, so is using the kerberos IV KEYFILE to get a Kerberos V
+ * keytab */
+#define KEYFILE "/etc/krb5.keytab"
+#endif
 #endif
 #ifdef AFS
 #include <kafs.h>
@@ -49,6 +54,11 @@ void
 initialize_server_options(ServerOptions *options)
 {
 	memset(options, 0, sizeof(*options));
+
+	/* Portable-specific options */
+	options->pam_authentication_via_kbd_int = -1;
+
+	/* Standard Options */
 	options->num_ports = 0;
 	options->ports_from_cmdline = 0;
 	options->listen_addrs = NULL;
@@ -102,7 +112,6 @@ initialize_server_options(ServerOptions *options)
 	options->macs = NULL;
 	options->protocol = SSH_PROTO_UNKNOWN;
 	options->gateway_ports = -1;
-	options->connections_period = 0;
 	options->num_subsystems = 0;
 	options->max_startups_begin = -1;
 	options->max_startups_rate = -1;
@@ -113,7 +122,6 @@ initialize_server_options(ServerOptions *options)
 	options->client_alive_count_max = -1;
 	options->authorized_keys_file = NULL;
 	options->authorized_keys_file2 = NULL;
-	options->check_mail = -1;
 
 	/* Needs to be accessable in many places */
 	use_privsep = -1;
@@ -122,6 +130,11 @@ initialize_server_options(ServerOptions *options)
 void
 fill_default_server_options(ServerOptions *options)
 {
+	/* Portable-specific options */
+	if (options->pam_authentication_via_kbd_int == -1)
+		options->pam_authentication_via_kbd_int = 0;
+
+	/* Standard Options */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
 		options->protocol = SSH_PROTO_1|SSH_PROTO_2;
 	if (options->num_host_key_files == 0) {
@@ -130,6 +143,8 @@ fill_default_server_options(ServerOptions *options)
 			options->host_key_files[options->num_host_key_files++] =
 			    _PATH_HOST_KEY_FILE;
 		if (options->protocol & SSH_PROTO_2) {
+			options->host_key_files[options->num_host_key_files++] =
+			    _PATH_HOST_RSA_KEY_FILE;
 			options->host_key_files[options->num_host_key_files++] =
 			    _PATH_HOST_DSA_KEY_FILE;
 		}
@@ -143,23 +158,21 @@ fill_default_server_options(ServerOptions *options)
 	if (options->server_key_bits == -1)
 		options->server_key_bits = 768;
 	if (options->login_grace_time == -1)
-		options->login_grace_time = 120;
+		options->login_grace_time = 600;
 	if (options->key_regeneration_time == -1)
 		options->key_regeneration_time = 3600;
 	if (options->permit_root_login == PERMIT_NOT_SET)
-		options->permit_root_login = PERMIT_NO;
+		options->permit_root_login = PERMIT_YES;
 	if (options->ignore_rhosts == -1)
 		options->ignore_rhosts = 1;
 	if (options->ignore_user_known_hosts == -1)
 		options->ignore_user_known_hosts = 0;
-	if (options->check_mail == -1)
-		options->check_mail = 1;
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->print_lastlog == -1)
 		options->print_lastlog = 1;
 	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 1;
+		options->x11_forwarding = 0;
 	if (options->x11_display_offset == -1)
 		options->x11_display_offset = 10;
 	if (options->x11_use_localhost == -1)
@@ -186,20 +199,9 @@ fill_default_server_options(ServerOptions *options)
 		options->rsa_authentication = 1;
 	if (options->pubkey_authentication == -1)
 		options->pubkey_authentication = 1;
-#if defined(KRB4) && defined(KRB5)
-	if (options->kerberos_authentication == -1)
-		options->kerberos_authentication =
-		    (access(KEYFILE, R_OK) == 0 ||
-		    (access(krb5_defkeyname, R_OK) == 0));
-#elif defined(KRB4)
-	if (options->kerberos_authentication == -1)
-		options->kerberos_authentication = (access(KEYFILE, R_OK) == 0);
-#elif defined(KRB5)
-	if (options->kerberos_authentication == -1)
-		options->kerberos_authentication =
-		    (access(krb5_defkeyname, R_OK) == 0);
-#endif
 #if defined(KRB4) || defined(KRB5)
+	if (options->kerberos_authentication == -1)
+		options->kerberos_authentication = 0;
 	if (options->kerberos_or_local_passwd == -1)
 		options->kerberos_or_local_passwd = 1;
 	if (options->kerberos_ticket_cleanup == -1)
@@ -251,14 +253,27 @@ fill_default_server_options(ServerOptions *options)
 	if (options->authorized_keys_file == NULL)
 		options->authorized_keys_file = _PATH_SSH_USER_PERMITTED_KEYS;
 
-	/* Turn privilege separation off by default */
+	/* Turn privilege separation on by default */
 	if (use_privsep == -1)
-		use_privsep = 0;
+		use_privsep = 1;
+
+#if !defined(HAVE_MMAP) || !defined(MAP_ANON)
+	if (use_privsep && options->compression == 1) {
+		error("This platform does not support both privilege "
+		    "separation and compression");
+		error("Compression disabled");
+		options->compression = 0;
+	}
+#endif
+
 }
 
 /* Keyword tokens. */
 typedef enum {
 	sBadOption,		/* == unknown option */
+	/* Portable-specific options */
+	sPAMAuthenticationViaKbdInt,
+	/* Standard Options */
 	sPort, sHostKeyFile, sServerKeyBits, sLoginGraceTime, sKeyRegenerationTime,
 	sPermitRootLogin, sLogFacility, sLogLevel,
 	sRhostsAuthentication, sRhostsRSAAuthentication, sRSAAuthentication,
@@ -284,7 +299,6 @@ typedef enum {
 	sHostbasedUsesNameFromPacketOnly, sClientAliveInterval,
 	sClientAliveCountMax, sAuthorizedKeysFile, sAuthorizedKeysFile2,
 	sUsePrivilegeSeparation,
-	sCheckMail, sVersionAddendum,
 	sDeprecated
 } ServerOpCodes;
 
@@ -293,6 +307,9 @@ static struct {
 	const char *name;
 	ServerOpCodes opcode;
 } keywords[] = {
+	/* Portable-specific options */
+	{ "PAMAuthenticationViaKbdInt", sPAMAuthenticationViaKbdInt },
+	/* Standard Options */
 	{ "port", sPort },
 	{ "hostkey", sHostKeyFile },
 	{ "hostdsakey", sHostKeyFile },					/* alias */
@@ -325,6 +342,7 @@ static struct {
 	{ "kbdinteractiveauthentication", sKbdInteractiveAuthentication },
 	{ "challengeresponseauthentication", sChallengeResponseAuthentication },
 	{ "skeyauthentication", sChallengeResponseAuthentication }, /* alias */
+	{ "checkmail", sDeprecated },
 	{ "listenaddress", sListenAddress },
 	{ "printmotd", sPrintMotd },
 	{ "printlastlog", sPrintLastLog },
@@ -358,8 +376,6 @@ static struct {
 	{ "authorizedkeysfile", sAuthorizedKeysFile },
 	{ "authorizedkeysfile2", sAuthorizedKeysFile2 },
 	{ "useprivilegeseparation", sUsePrivilegeSeparation},
-	{ "checkmail", sCheckMail },
-	{ "versionaddendum", sVersionAddendum },
 	{ NULL, sBadOption }
 };
 
@@ -438,6 +454,12 @@ process_server_config_line(ServerOptions *options, char *line,
 	charptr = NULL;
 	opcode = parse_token(arg, filename, linenum);
 	switch (opcode) {
+	/* Portable-specific options */
+	case sPAMAuthenticationViaKbdInt:
+		intptr = &options->pam_authentication_via_kbd_int;
+		goto parse_flag;
+
+	/* Standard Options */
 	case sBadOption:
 		return -1;
 	case sPort:
@@ -882,17 +904,6 @@ parse_flag:
 		    filename, linenum, arg);
 		while (arg)
 		    arg = strdelim(&cp);
-		break;
-
-	case sCheckMail:
-		intptr = &options->check_mail;
-		goto parse_flag;
-
-	case sVersionAddendum:
-		ssh_version_set_addendum(strtok(cp, "\n"));
-		do {
-			arg = strdelim(&cp);
-		} while (arg != NULL && *arg != '\0');
 		break;
 
 	default:

@@ -13,7 +13,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: readconf.c,v 1.100 2002/06/19 00:27:55 deraadt Exp $");
-RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -115,7 +114,6 @@ typedef enum {
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
 	oHostKeyAlgorithms, oBindAddress, oSmartcardDevice,
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
-	oVersionAddendum,
 	oDeprecated
 } OpCodes;
 
@@ -188,7 +186,6 @@ static struct {
 	{ "smartcarddevice", oSmartcardDevice },
 	{ "clearallforwardings", oClearAllForwardings },
 	{ "nohostauthenticationforlocalhost", oNoHostAuthenticationForLocalhost },
-	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
 };
 
@@ -202,9 +199,11 @@ add_local_forward(Options *options, u_short port, const char *host,
 		  u_short host_port)
 {
 	Forward *fwd;
+#ifndef HAVE_CYGWIN
 	extern uid_t original_real_uid;
 	if (port < IPPORT_RESERVED && original_real_uid != 0)
 		fatal("Privileged ports can only be forwarded by root.");
+#endif
 	if (options->num_local_forwards >= SSH_MAX_FORWARDS_PER_DIRECTION)
 		fatal("Too many local forwards (max %d).", SSH_MAX_FORWARDS_PER_DIRECTION);
 	fwd = &options->local_forwards[options->num_local_forwards++];
@@ -670,13 +669,6 @@ parse_int:
 			*intptr = value;
 		break;
 
-	case oVersionAddendum:
-		ssh_version_set_addendum(strtok(s, "\n"));
-		do {
-			arg = strdelim(&s);
-		} while (arg != NULL && *arg != '\0');
-		break;
-
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
 		    filename, linenum, keyword);
@@ -854,7 +846,7 @@ fill_default_options(Options * options)
 	if (options->batch_mode == -1)
 		options->batch_mode = 0;
 	if (options->check_host_ip == -1)
-		options->check_host_ip = 0;
+		options->check_host_ip = 1;
 	if (options->strict_host_key_checking == -1)
 		options->strict_host_key_checking = 2;	/* 2 is default */
 	if (options->compression == -1)

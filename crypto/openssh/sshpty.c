@@ -13,15 +13,25 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshpty.c,v 1.4 2001/12/19 07:18:56 deraadt Exp $");
-RCSID("$FreeBSD$");
 
-#include <libutil.h>
+#ifdef HAVE_UTIL_H
+# include <util.h>
+#endif /* HAVE_UTIL_H */
+
 #include "sshpty.h"
 #include "log.h"
+#include "misc.h"
 
 /* Pty allocated with _getpty gets broken if we do I_PUSH:es to it. */
 #if defined(HAVE__GETPTY) || defined(HAVE_OPENPTY)
 #undef HAVE_DEV_PTMX
+#endif
+
+#ifdef HAVE_PTY_H
+# include <pty.h>
+#endif
+#if defined(HAVE_DEV_PTMX) && defined(HAVE_SYS_STROPTS_H)
+# include <sys/stropts.h>
 #endif
 
 #ifndef O_NOCTTY
@@ -40,15 +50,19 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 {
 #if defined(HAVE_OPENPTY) || defined(BSD4_4)
 	/* openpty(3) exists in OSF/1 and some other os'es */
-	char buf[64];
+	char *name;
 	int i;
 
-	i = openpty(ptyfd, ttyfd, buf, NULL, NULL);
+	i = openpty(ptyfd, ttyfd, NULL, NULL, NULL);
 	if (i < 0) {
 		error("openpty: %.100s", strerror(errno));
 		return 0;
 	}
-	strlcpy(namebuf, buf, namebuflen);	/* possible truncation */
+	name = ttyname(*ttyfd);
+	if (!name)
+		fatal("openpty returns device for which ttyname fails.");
+
+	strlcpy(namebuf, name, namebuflen);	/* possible truncation */
 	return 1;
 #else /* HAVE_OPENPTY */
 #ifdef HAVE__GETPTY
@@ -73,23 +87,26 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 	}
 	return 1;
 #else /* HAVE__GETPTY */
-#ifdef HAVE_DEV_PTMX
+#if defined(HAVE_DEV_PTMX)
 	/*
 	 * This code is used e.g. on Solaris 2.x.  (Note that Solaris 2.3
 	 * also has bsd-style ptys, but they simply do not work.)
 	 */
 	int ptm;
 	char *pts;
+	mysig_t old_signal;
 
 	ptm = open("/dev/ptmx", O_RDWR | O_NOCTTY);
 	if (ptm < 0) {
 		error("/dev/ptmx: %.100s", strerror(errno));
 		return 0;
 	}
+	old_signal = mysignal(SIGCHLD, SIG_DFL);
 	if (grantpt(ptm) < 0) {
 		error("grantpt: %.100s", strerror(errno));
 		return 0;
 	}
+	mysignal(SIGCHLD, old_signal);
 	if (unlockpt(ptm) < 0) {
 		error("unlockpt: %.100s", strerror(errno));
 		return 0;
@@ -107,13 +124,20 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		close(*ptyfd);
 		return 0;
 	}
-	/* Push the appropriate streams modules, as described in Solaris pts(7). */
+#ifndef HAVE_CYGWIN
+	/*
+	 * Push the appropriate streams modules, as described in Solaris pts(7).
+	 * HP-UX pts(7) doesn't have ttcompat module.
+	 */
 	if (ioctl(*ttyfd, I_PUSH, "ptem") < 0)
 		error("ioctl I_PUSH ptem: %.100s", strerror(errno));
 	if (ioctl(*ttyfd, I_PUSH, "ldterm") < 0)
 		error("ioctl I_PUSH ldterm: %.100s", strerror(errno));
+#ifndef __hpux
 	if (ioctl(*ttyfd, I_PUSH, "ttcompat") < 0)
 		error("ioctl I_PUSH ttcompat: %.100s", strerror(errno));
+#endif
+#endif
 	return 1;
 #else /* HAVE_DEV_PTMX */
 #ifdef HAVE_DEV_PTS_AND_PTC
@@ -138,25 +162,27 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 	}
 	return 1;
 #else /* HAVE_DEV_PTS_AND_PTC */
-	/* BSD-style pty code. */
+#ifdef _CRAY
 	char buf[64];
 	int i;
-	const char *ptymajors = "pqrstuvwxyzabcdefghijklmnoABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	const char *ptyminors = "0123456789abcdef";
-	int num_minors = strlen(ptyminors);
-	int num_ptys = strlen(ptymajors) * num_minors;
+	int highpty;
 
-	for (i = 0; i < num_ptys; i++) {
-		snprintf(buf, sizeof buf, "/dev/pty%c%c", ptymajors[i / num_minors],
-			 ptyminors[i % num_minors]);
-		*ptyfd = open(buf, O_RDWR | O_NOCTTY);
+#ifdef _SC_CRAY_NPTY
+	highpty = sysconf(_SC_CRAY_NPTY);
+	if (highpty == -1)
+		highpty = 128;
+#else
+	highpty = 128;
+#endif
+
+	for (i = 0; i < highpty; i++) {
+		snprintf(buf, sizeof(buf), "/dev/pty/%03d", i);
+		*ptyfd = open(buf, O_RDWR|O_NOCTTY);
 		if (*ptyfd < 0)
 			continue;
-		snprintf(namebuf, namebuflen, "/dev/tty%c%c",
-		    ptymajors[i / num_minors], ptyminors[i % num_minors]);
-
+		snprintf(namebuf, namebuflen, "/dev/ttyp%03d", i);
 		/* Open the slave side. */
-		*ttyfd = open(namebuf, O_RDWR | O_NOCTTY);
+		*ttyfd = open(namebuf, O_RDWR|O_NOCTTY);
 		if (*ttyfd < 0) {
 			error("%.100s: %.100s", namebuf, strerror(errno));
 			close(*ptyfd);
@@ -165,6 +191,56 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 		return 1;
 	}
 	return 0;
+#else
+	/* BSD-style pty code. */
+	char buf[64];
+	int i;
+	const char *ptymajors = "pqrstuvwxyzabcdefghijklmnoABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	const char *ptyminors = "0123456789abcdef";
+	int num_minors = strlen(ptyminors);
+	int num_ptys = strlen(ptymajors) * num_minors;
+	struct termios tio;
+
+	for (i = 0; i < num_ptys; i++) {
+		snprintf(buf, sizeof buf, "/dev/pty%c%c", ptymajors[i / num_minors],
+			 ptyminors[i % num_minors]);
+		snprintf(namebuf, namebuflen, "/dev/tty%c%c",
+		    ptymajors[i / num_minors], ptyminors[i % num_minors]);
+
+		*ptyfd = open(buf, O_RDWR | O_NOCTTY);
+		if (*ptyfd < 0) {
+			/* Try SCO style naming */
+			snprintf(buf, sizeof buf, "/dev/ptyp%d", i);
+			snprintf(namebuf, namebuflen, "/dev/ttyp%d", i);
+			*ptyfd = open(buf, O_RDWR | O_NOCTTY);
+			if (*ptyfd < 0)
+				continue;
+		}
+
+		/* Open the slave side. */
+		*ttyfd = open(namebuf, O_RDWR | O_NOCTTY);
+		if (*ttyfd < 0) {
+			error("%.100s: %.100s", namebuf, strerror(errno));
+			close(*ptyfd);
+			return 0;
+		}
+		/* set tty modes to a sane state for broken clients */
+		if (tcgetattr(*ptyfd, &tio) < 0)
+			log("Getting tty modes for pty failed: %.100s", strerror(errno));
+		else {
+			tio.c_lflag |= (ECHO | ISIG | ICANON);
+			tio.c_oflag |= (OPOST | ONLCR);
+			tio.c_iflag |= ICRNL;
+
+			/* Set the new modes for the terminal. */
+			if (tcsetattr(*ptyfd, TCSANOW, &tio) < 0)
+				log("Setting tty modes for pty failed: %.100s", strerror(errno));
+		}
+
+		return 1;
+	}
+	return 0;
+#endif /* CRAY */
 #endif /* HAVE_DEV_PTS_AND_PTC */
 #endif /* HAVE_DEV_PTMX */
 #endif /* HAVE__GETPTY */
@@ -188,6 +264,33 @@ void
 pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 {
 	int fd;
+#ifdef USE_VHANGUP
+	void *old;
+#endif /* USE_VHANGUP */
+
+#ifdef _CRAY
+	if (setsid() < 0)
+		error("setsid: %.100s", strerror(errno));
+
+	fd = open(ttyname, O_RDWR|O_NOCTTY);
+	if (fd != -1) {
+		mysignal(SIGHUP, SIG_IGN);
+		ioctl(fd, TCVHUP, (char *)NULL);
+		mysignal(SIGHUP, SIG_DFL);
+		setpgid(0, 0);
+		close(fd);
+	} else {
+		error("Failed to disconnect from controlling tty.");
+	}
+
+	debug("Setting controlling tty using TCSETCTTY.");
+	ioctl(*ttyfd, TCSETCTTY, NULL);
+	fd = open("/dev/tty", O_RDWR);
+	if (fd < 0)
+		error("%.100s: %.100s", ttyname, strerror(errno));
+	close(*ttyfd);
+	*ttyfd = fd;
+#else /* _CRAY */
 
 	/* First disconnect from the old controlling tty. */
 #ifdef TIOCNOTTY
@@ -215,12 +318,26 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 	if (ioctl(*ttyfd, TIOCSCTTY, NULL) < 0)
 		error("ioctl(TIOCSCTTY): %.100s", strerror(errno));
 #endif /* TIOCSCTTY */
+#ifdef HAVE_NEWS4
+	if (setpgrp(0,0) < 0)
+		error("SETPGRP %s",strerror(errno));
+#endif /* HAVE_NEWS4 */
+#ifdef USE_VHANGUP
+	old = mysignal(SIGHUP, SIG_IGN);
+	vhangup();
+	mysignal(SIGHUP, old);
+#endif /* USE_VHANGUP */
 	fd = open(ttyname, O_RDWR);
-	if (fd < 0)
+	if (fd < 0) {
 		error("%.100s: %.100s", ttyname, strerror(errno));
-	else
+	} else {
+#ifdef USE_VHANGUP
+		close(*ttyfd);
+		*ttyfd = fd;
+#else /* USE_VHANGUP */
 		close(fd);
-
+#endif /* USE_VHANGUP */
+	}
 	/* Verify that we now have a controlling tty. */
 	fd = open(_PATH_TTY, O_WRONLY);
 	if (fd < 0)
@@ -229,6 +346,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 	else {
 		close(fd);
 	}
+#endif /* _CRAY */
 }
 
 /* Changes the window size associated with the pty. */

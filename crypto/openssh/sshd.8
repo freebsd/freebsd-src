@@ -35,7 +35,6 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $OpenBSD: sshd.8,v 1.184 2002/06/20 19:56:07 stevesk Exp $
-.\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD 8
 .Os
@@ -66,7 +65,7 @@ install and use as possible.
 .Nm
 is the daemon that listens for connections from clients.
 It is normally started at boot from
-.Pa /etc/rc.network .
+.Pa /etc/rc .
 It forks a new
 daemon for each incoming connection.
 The forked daemons handle
@@ -341,9 +340,8 @@ section).
 If the login is on a tty, records login time.
 .It
 Checks
-.Pa /etc/nologin and
-.Pa /var/run/nologin ;
-if one exists, it prints the contents and quits
+.Pa /etc/nologin ;
+if it exists, prints contents and quits
 (unless root).
 .It
 Changes to run with normal user privileges.
@@ -361,12 +359,11 @@ If
 exists, runs it; else if
 .Pa /etc/ssh/sshrc
 exists, runs
-it; otherwise runs
-.Xr xauth 1 .
+it; otherwise runs xauth.
 The
 .Dq rc
 files are given the X11
-authentication protocol and cookie (if applicable) in standard input.
+authentication protocol and cookie in standard input.
 .It
 Runs user's shell or command.
 .El
@@ -501,7 +498,7 @@ command="dump /home",no-pty,no-port-forwarding 1024 33 23.\|.\|.\|2323 backup.hu
 permitopen="10.2.1.55:80",permitopen="10.2.1.56:25" 1024 33 23.\|.\|.\|2323
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The
-.Pa /etc/ssh/ssh_known_hosts
+.Pa /etc/ssh/ssh_known_hosts ,
 and
 .Pa $HOME/.ssh/known_hosts
 files contain host public keys for all known hosts.
@@ -579,7 +576,7 @@ really used for anything; they are provided for the convenience of
 the user so their contents can be copied to known hosts files.
 These files are created using
 .Xr ssh-keygen 1 .
-.It Pa /etc/ssh/moduli
+.It Pa /etc/moduli
 Contains Diffie-Hellman groups used for the "Diffie-Hellman Group Exchange".
 .It Pa /var/run/sshd.pid
 Contains the process ID of the
@@ -682,7 +679,7 @@ The only valid use for user names that I can think
 of is in negative entries.
 .Pp
 Note that this warning also applies to rsh/rlogin.
-.It Pa /etc/ssh/shosts.equiv
+.It Pa /etc/shosts.equiv
 This is processed exactly as
 .Pa /etc/hosts.equiv .
 However, this file may be useful in environments that want to run both
@@ -695,9 +692,7 @@ and assignment lines of the form name=value.
 The file should be writable
 only by the user; it need not be readable by anyone else.
 .It Pa $HOME/.ssh/rc
-If this file exists, it is run with
-.Pa /bin/sh
-after reading the
+If this file exists, it is run with /bin/sh after reading the
 environment files but before starting the user's shell or command.
 It must not produce any output on stdout; stderr must be used
 instead.

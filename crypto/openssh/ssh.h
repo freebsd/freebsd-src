@@ -1,5 +1,4 @@
 /*	$OpenBSD: ssh.h,v 1.70 2002/06/03 12:04:07 deraadt Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -15,6 +14,16 @@
 
 #ifndef SSH_H
 #define SSH_H
+
+#include <netinet/in.h> /* For struct sockaddr_in */
+#include <pwd.h> /* For struct pw */
+#include <stdarg.h> /* For va_list */
+#include <syslog.h> /* For LOG_AUTH and friends */
+#include <sys/socket.h> /* For struct sockaddr_storage */
+#include "openbsd-compat/fake-socket.h" /* For struct sockaddr_storage */
+#ifdef HAVE_SYS_SELECT_H
+# include <sys/select.h>
+#endif
 
 /* Cipher used for encrypting authentication files. */
 #define SSH_AUTHFILE_CIPHER	SSH_CIPHER_3DES
@@ -50,6 +59,10 @@
  * default port if present.
  */
 #define SSH_SERVICE_NAME	"ssh"
+
+#if defined(USE_PAM) && !defined(SSHD_PAM_SERVICE)
+# define SSHD_PAM_SERVICE       __progname
+#endif
 
 /*
  * Name of the environment variable containing the pathname of the
@@ -91,13 +104,11 @@
  * sshd will change its privileges to this user and its
  * primary group.
  */
+#ifndef SSH_PRIVSEP_USER
 #define SSH_PRIVSEP_USER		"sshd"
+#endif
 
 /* Minimum modulus size (n) for RSA keys. */
 #define SSH_RSA_MINIMUM_MODULUS_SIZE	768
-
-#ifdef USE_PAM
-#include "auth-pam.h"
-#endif /* USE_PAM */
 
 #endif				/* SSH_H */

@@ -35,7 +35,6 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $OpenBSD: ssh.1,v 1.158 2002/06/20 19:56:07 stevesk Exp $
-.\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH 1
 .Os
@@ -100,7 +99,7 @@ depending on the protocol version used:
 First, if the machine the user logs in from is listed in
 .Pa /etc/hosts.equiv
 or
-.Pa /etc/ssh/shosts.equiv
+.Pa /etc/shosts.equiv
 on the remote machine, and the user names are
 the same on both sides, the user is immediately permitted to log in.
 Second, if
@@ -124,7 +123,7 @@ It means that if the login would be permitted by
 .Pa $HOME/.shosts ,
 .Pa /etc/hosts.equiv ,
 or
-.Pa /etc/ssh/shosts.equiv ,
+.Pa /etc/shosts.equiv ,
 and if additionally the server can verify the client's
 host key (see
 .Pa /etc/ssh/ssh_known_hosts
@@ -331,7 +330,6 @@ The user should not manually set
 .Ev DISPLAY .
 Forwarding of X11 connections can be
 configured on the command line or in configuration files.
-Take note that X11 forwarding can represent a security hazard.
 .Pp
 The
 .Ev DISPLAY
@@ -668,7 +666,7 @@ It is automatically set by
 to point to a value of the form
 .Dq hostname:n
 where hostname indicates
-the host where the shell runs, and n is an integer \*(>= 1.
+the host where the shell runs, and n is an integer >= 1.
 .Nm
 uses this special value to forward X11 connections over the secure
 channel.
@@ -895,8 +893,7 @@ or
 .Xr rsh 1 .
 .It Pa /etc/hosts.equiv
 This file is used during
-.Pa \&.rhosts
-authentication.
+.Pa \&.rhosts authentication.
 It contains
 canonical hosts names, one per line (the full format is described on
 the
@@ -908,7 +905,7 @@ same.
 Additionally, successful RSA host authentication is normally
 required.
 This file should only be writable by root.
-.It Pa /etc/ssh/shosts.equiv
+.It Pa /etc/shosts.equiv
 This file is processed exactly as
 .Pa /etc/hosts.equiv .
 This file may be useful to permit logins using
