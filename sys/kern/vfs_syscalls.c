@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.109 1998/11/03 08:01:47 peter Exp $
+ * $Id: vfs_syscalls.c,v 1.110 1998/11/03 14:29:09 peter Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -494,6 +494,8 @@ dounmount(mp, flags, p)
 		mp->mnt_flag |= async_flag;
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
 		    &mountlist_slock, p);
+		if (mp->mnt_kern_flag & MNTK_MWAIT)
+			wakeup((caddr_t)mp);
 		return (error);
 	}
 	CIRCLEQ_REMOVE(&mountlist, mp, mnt_list);
