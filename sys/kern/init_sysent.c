@@ -154,6 +154,7 @@ int	msgsys();
 int	shmsys();
 #else
 #endif
+int	ntp_adjtime();
 int	setgid();
 int	setegid();
 int	seteuid();
@@ -459,7 +460,7 @@ struct sysent sysent[] = {
 	{ 0, nosys },			/* 173 = nosys */
 	{ 0, nosys },			/* 174 = nosys */
 	{ 0, nosys },			/* 175 = nosys */
-	{ 1, nosys },			/* 176 = ntp_adjtime */
+	{ 1, ntp_adjtime },			/* 176 = ntp_adjtime */
 	{ 0, nosys },			/* 177 = nosys */
 	{ 0, nosys },			/* 178 = nosys */
 	{ 0, nosys },			/* 179 = nosys */
