@@ -22,27 +22,21 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.16 1997/03/21 20:14:15 mpp Exp $
+.\"	$Id: style.9,v 1.17 1997/04/09 19:03:14 mpp Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
-.Os FreeBSD 2.2
+.Os FreeBSD
 .Sh NAME
 .Nm style
 .Nd "Kernel source file style guide"
 .Sh DESCRIPTION
-This file contains an example of the preferred style for kernel source
-files in the
+This file specifies the preferred style for kernel source files in the
 .Tn FreeBSD
-source tree.
+source tree.  It is also a guide for preferred user land code style.
 .Bd -literal -offset 0i
 /*
- * Style guide for the 4BSD KNF (Kernel Normal Form).
- *
- *	@(#)style	1.14 (Berkeley) 4/28/95
- *
- *	$Id: style.9,v 1.16 1997/03/21 20:14:15 mpp Exp $
- *
+ * Style guide for the FreeBSD KNF (Kernel Normal Form).
  */
 
 /*
@@ -149,19 +143,39 @@ separate header file, e.g.
 .Pp
 Only use the __P macro from the include file <sys/cdefs.h> if the source
 file in general is (to be) compilable with a K&R Old testament compiler.
+Use of the __P macro in new code is discouraged, although modifications
+to existing files should be consistent with that file's conventions.
 .Pp
-Only the kernel has a name associated with the types, i.e. in the kernel
+In general code can be considered
+.Dq new code
+when it makes up about 50% or more of the file[s] involved.  This is enough
+to break precedents in the existing code and use the current style guidelines.
+.Pp
+The kernel has a name associated with parameter types, e.g., in the kernel
 use:
 .Bd -literal -offset 0i
-void function __P((int fd));
+void	function(int fd);
 .Ed
 .Pp
-in user land use:
+In header files visible to user land applications, prototypes that are
+visible must use either protected names or no names with the types.  It
+is preferable to use protected names.
+e.g., use:
 .Bd -literal -offset 0i
-	void function __P((int));
-
-static char	*function __P((int, const char *));
-static void	 usage __P((void));
+void	function(int);
+.Ed
+.Pp
+or:
+.Bd -literal -offset 0i
+void	function(int _fd);
+.Ed
+.Pp
+Prototypes may have an extra space after a tab to enable function names
+to line up:
+.Bd -literal -offset 0i
+static char	*function(int _arg, const char *_arg2, struct foo *_arg3,
+			  struct bar *_arg4);
+static void	 usage(void);
 
 /*
  * All major routines should have a comment briefly describing what
@@ -169,12 +183,8 @@ static void	 usage __P((void));
  * what the program does.
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	extern char *optarg;
-	extern int optind;
 	long num;
 	int ch;
 	char *ep;
@@ -211,15 +221,16 @@ have a NOTREACHED comment.
 
 .Ed
 .Pp
-Space after keywords (while, for, return, switch).  No braces are
+Space after keywords (if, while, for, return, switch).  No braces are
 used for control statements with zero or only a single statement.
-.Pp
 Forever loops are done with for's, not while's.
 .Bd -literal -offset 0i
-	for (p = buf; *p != '\e0'; ++p);
+	for (p = buf; *p != '\e0'; ++p)
+		;	/* nothing */
 	for (;;)
 		stmt;
-
+	if (val != NULL)
+		val = realloc(val, newsize);
 .Ed
 .Pp
 Parts of a for loop may be left empty.  Don't put declarations
@@ -231,6 +242,7 @@ inside blocks unless the routine is unusually complicated.
 	}
 .Ed
 .Pp
+Indentation is an 8 character tab.
 Second level indents are four spaces.
 .Bd -literal -offset 0i
 	while (cnt < 20)
@@ -238,6 +250,10 @@ Second level indents are four spaces.
 		    two lines + gets + indented + four + spaces +
 		    on + the + second + and + subsequent + lines.
 .Ed
+.Pp
+Do not add whitespace at the end of a line, and only use tabs then spaces
+to form the indentation.  Do not use more spaces than a tab will produce
+and do not use spaces in front of tabs.
 .Pp
 Closing and opening braces go on the same line as the else.
 Don't add braces that aren't necessary.
@@ -251,7 +267,16 @@ Don't add braces that aren't necessary.
 		stmt;
 .Ed
 .Pp
-No spaces after function names.
+No spaces after function names.  Commas have a space after them.  No spaces
+after
+.Sq \&(
+or
+.Sq \&[
+or preceding
+.Sq \&]
+or
+.Sq \&)
+characters.
 .Bd -literal -offset 0i
 	if (error = function(a1, a2))
 		exit(error);
@@ -280,9 +305,7 @@ The function type should be on a line by itself
 preceding the function.
 .Bd -literal -offset 0i
 static char *
-function(a1, a2, fl, a4)
-	int a1, a2, a4;	/* Declare ints, too, don't default them. */
-	float fl;	/* List in order declared, as much as possible. */
+function(int a1, int a2, float fl, int a4)
 {
 .Ed
 .Pp
@@ -294,26 +317,31 @@ keyword.
 .Pp
 Be careful to not obfuscate the code by initializing variables in
 the declarations.  Use this feature only thoughtfully.
+DO NOT use function calls in initializers!
 .Bd -literal -offset 0i
-	extern u_char one;
-	extern char two;
-	struct foo three, *four;
-	double five;
-	int *six, seven, eight();
-	char *nine, ten, eleven, twelve, thirteen, fourteen, fifteen;
-	char *overflow __P((void));
-	void *mymalloc __P((u_int));
+	struct foo one, *two;
+	double three;
+	int *four, five;
+	char *six, seven, eight, nine, ten, eleven, twelve;
+
+	four = myfunction();
 .Ed
 .Pp
-Casts and sizeof's are not followed by a space.
+Do not declare functions inside other functions; ANSI C says that
+such declarations have file scope regardless of the nesting of the
+declaration.  Hiding file declarations in what appears to be a local
+scope is undesirable and will elicit complaints from a good compiler.
+.Pp
+Casts and sizeof's are not followed by a space.  Note that
+.Xr indent 1
+does not understand this rule.
 .Pp
 NULL is the preferred null pointer constant.  Use NULL instead of 
 (type *)0 or (type *)NULL in contexts where the compiler knows the
 type, e.g., in assignments.  Use (type *)NULL in other contexts,
 in particular for all function args.  (Casting is essential for
 varadic args and is necessary for other args if the function prototype
-might not be in scope; since we pretend to support K&R compilers,
-most prototypes might not be in scope.)
+might not be in scope.)
 Test pointers
 against NULL, e.g., use:
 .Bd -literal -offset 0i
@@ -352,44 +380,31 @@ don't roll your own!
 }
 .Ed
 .Pp
-Don't use ANSI function declarations unless you absolutely have too,
-i.e. you're declaring functions with variable numbers of arguments.
-.Pp
-ANSI function return values and braces look like regular functions.
+Old-style function declarations look like this:
 .Bd -literal -offset 0i
-int
-function(int a1, int a2)
+static char *
+function(a1, a2, fl, a4)
+	int a1, a2;	/* Declare ints, too, don't default them. */
+	float fl;	/* Beware double vs. float prototype differences. */
+	int a4;		/* List in order declared. */
 {
-	...
-}
 .Ed
+.Pp
+Use ANSI function declarations unless you explicitly need K&R compatability.
 .Pp
 Variable numbers of arguments should look like this.
 .Bd -literal -offset 0i
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 void
-#if __STDC__
 vaf(const char *fmt, ...)
-#else
-vaf(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	STUFF;
 
-	va_end(ap);		/* No return needed for void functions. */
+	va_start(ap, fmt);
+	STUFF;
+	va_end(ap);
+	/* No return needed for void functions. */
 }
 
 static void
@@ -424,14 +439,16 @@ placed in a single set of braces.
 }
 .Ed
 .Pp
-Note that the policy regarding the usage of K&R versus ANSI function
-definitions could not be commonly agreed to.  While keeping the old
-form is more consistent with the existing code base, sticking to it
-defeats the migration to the more modern ANSI style.  For new code,
-chose what you feel is more important.  However, when modifying
-existing subsystems or files, stick with the style that is already
-there.
+New core kernel code should be reasonably compliant with the style guides.
+The guidelines for third-party maintained modules and device drivers are more
+relaxed but at a minimum should be internally consistant with their style.
+.Pp
+Stylistic changes (including whitespace changes) are hard on the source
+repository and are to be avoided without good reason.  Code that is
+approximately KNF compliant in the repository must not diverge from
+compliance.
 .Sh SEE ALSO
+.Xr indent 1 ,
 .Xr err 3 ,
 .Xr sysexits 3 ,
 .Xr warn 3
@@ -439,7 +456,7 @@ there.
 This man page is largely based on the src/admin/style/style file from
 the 
 .Tn BSD 
-4.4-Lite2 release, with a few updates to reflect the current
-practice and desire of the
+4.4-Lite2 release, with updates to reflect the current practice and
+desire of the
 .Tn FreeBSD
 project.
