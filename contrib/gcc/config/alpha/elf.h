@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha w/ELF.
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Richard Henderson (rth@tamu.edu).
 
 This file is part of GNU CC.
@@ -26,6 +26,7 @@ Boston, MA 02111-1307, USA.    */
 #define OBJECT_FORMAT_ELF
 
 #define DBX_DEBUGGING_INFO
+#define DWARF2_DEBUGGING_INFO
 
 #undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
@@ -36,7 +37,7 @@ Boston, MA 02111-1307, USA.    */
 #define CC1_SPEC  "%{G*}"
 
 #undef ASM_SPEC
-#define ASM_SPEC  "%{G*} %{relax:-relax}"
+#define ASM_SPEC  "%{G*} %{relax:-relax} %{gdwarf*:-no-mdebug}"
 
 #undef LINK_SPEC
 #define LINK_SPEC "-m elf64alpha %{G*} %{relax:-relax}		\
@@ -51,18 +52,21 @@ Boston, MA 02111-1307, USA.    */
 /* Output at beginning of assembler file.  */
 #undef ASM_FILE_START
 #define ASM_FILE_START(FILE)					\
-{								\
-  alpha_write_verstamp (FILE);					\
-  output_file_directive (FILE, main_input_filename);		\
+do {								\
+  if (write_symbols != DWARF2_DEBUG)				\
+    {								\
+      alpha_write_verstamp (FILE);				\
+      output_file_directive (FILE, main_input_filename);	\
+    }								\
   fprintf (FILE, "\t.set noat\n");				\
-  fprintf (FILE, "\t.set noreorder\n");                         \
-  if (TARGET_BWX | TARGET_MAX | TARGET_CIX)			\
+  fprintf (FILE, "\t.set noreorder\n");				\
+  if (TARGET_BWX | TARGET_MAX | TARGET_FIX | TARGET_CIX)	\
     {								\
       fprintf (FILE, "\t.arch %s\n",				\
                (alpha_cpu == PROCESSOR_EV6 ? "ev6"		\
                 : TARGET_MAX ? "pca56" : "ev56"));		\
     }								\
-}
+} while (0)
 
 extern void output_file_directive ();
 
@@ -81,8 +85,9 @@ extern void output_file_directive ();
 #else
 #define ASM_FILE_END(FILE)					\
 do {				 				\
-     fprintf ((FILE), "\t%s\t\"GCC: (GNU) %s\"\n",		\
-	      IDENT_ASM_OP, version_string);			\
+     if (!flag_no_ident)					\
+	fprintf ((FILE), "\t%s\t\"GCC: (GNU) %s\"\n",		\
+		 IDENT_ASM_OP, version_string);			\
    } while (0)
 #endif
 
@@ -436,20 +441,23 @@ void FN ()								\
    size_directive_output was set
    by ASM_DECLARE_OBJECT_NAME when it was run for the same decl.  */
 
-#define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	 \
-do {									 \
-     char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);			 \
-     if (!flag_inhibit_size_directive && DECL_SIZE (DECL)		 \
-         && ! AT_END && TOP_LEVEL					 \
-	 && DECL_INITIAL (DECL) == error_mark_node			 \
-	 && !size_directive_output)					 \
-       {								 \
-	 size_directive_output = 1;					 \
-	 fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);			 \
-	 assemble_name (FILE, name);					 \
-	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL))); \
-       }								 \
-   } while (0)
+#define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	\
+do {									\
+  char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);			\
+  if (!flag_inhibit_size_directive && DECL_SIZE (DECL)			\
+      && ! AT_END && TOP_LEVEL						\
+      && DECL_INITIAL (DECL) == error_mark_node				\
+      && !size_directive_output)					\
+    {									\
+      size_directive_output = 1;					\
+      fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+      assemble_name (FILE, name);					\
+      putc (',', FILE);							\
+      fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,				\
+	       int_size_in_bytes (TREE_TYPE (DECL)));			\
+      putc ('\n', FILE);						\
+    }									\
+} while (0)
 
 /* A table of bytes codes used by the ASM_OUTPUT_ASCII and
    ASM_OUTPUT_LIMITED_STRING macros.  Each byte in the table
@@ -520,3 +528,9 @@ do {									 \
 
 /* We support #pragma.  */
 #define HANDLE_SYSV_PRAGMA
+
+/* Undo the auto-alignment stuff from alpha.h.  ELF has unaligned data
+   pseudos natively.  */
+#undef UNALIGNED_SHORT_ASM_OP
+#undef UNALIGNED_INT_ASM_OP
+#undef UNALIGNED_DOUBLE_INT_ASM_OP
