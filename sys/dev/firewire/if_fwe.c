@@ -488,6 +488,8 @@ fwe_start(struct ifnet *ifp)
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	int s;
 
+	GIANT_REQUIRED;
+
 	FWEDEBUG(ifp, "starting\n");
 
 	if (fwe->dma_ch < 0) {
