@@ -268,11 +268,16 @@ g_io_deliver(struct bio *bp, int error)
 	struct g_provider *pp;
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
-	cp = bp->bio_from;
 	pp = bp->bio_to;
+	KASSERT(pp != NULL, ("NULL bio_to in g_io_deliver"));
+	cp = bp->bio_from;
+	if (cp == NULL) {
+		bp->bio_error = error;
+		bp->bio_done(bp);
+		return;
+	}
 	KASSERT(cp != NULL, ("NULL bio_from in g_io_deliver"));
 	KASSERT(cp->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
-	KASSERT(pp != NULL, ("NULL bio_to in g_io_deliver"));
 
 	g_trace(G_T_BIO,
 "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d off %jd len %jd",
