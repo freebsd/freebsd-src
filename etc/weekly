@@ -43,16 +43,20 @@ if [ -f /usr/lib/uucp/clean.weekly ]; then
 fi
 echo ""
 
-echo "Rotating messages:"
-cd /var/log
-if [ -f messages.2 ]; then mv -f messages.2 messages.3; fi
-if [ -f messages.1 ]; then mv -f messages.1 messages.2; fi
-if [ -f messages.0 ]; then mv -f messages.0 messages.1; fi
-mv -f messages   messages.0
-cp /dev/null  messages
-chmod 644 messages
-kill -1 `cat /var/run/syslog.pid`
-cd /
+# Due to a console sub system bug doing the kill -1 of syslogd
+# will lock up the console.  This has been disabled until that
+# is fixed.
+#
+#echo "Rotating messages:"
+#cd /var/log
+#if [ -f messages.2 ]; then mv -f messages.2 messages.3; fi
+#if [ -f messages.1 ]; then mv -f messages.1 messages.2; fi
+#if [ -f messages.0 ]; then mv -f messages.0 messages.1; fi
+#mv -f messages   messages.0
+#cp /dev/null  messages
+#chmod 644 messages
+#kill -1 `cat /var/run/syslog.pid`
+#cd /
 
 echo ""
 echo "Rebuilding locate database:"
