@@ -88,7 +88,11 @@ extern int h_errno;
 #define BYNAME 1
 #define	MAXALIASES	35
 
-#define	MAXPACKET	65536
+#if PACKETSZ > 1024
+#define	MAXPACKET	PACKETSZ
+#else
+#define	MAXPACKET	1024
+#endif
 
 typedef union {
 	HEADER	hdr;
