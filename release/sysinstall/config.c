@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.40 1997/04/19 23:54:46 jkh Exp $
+ * $Id: config.c,v 1.51.2.41 1997/04/28 06:22:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -300,9 +300,9 @@ readConfig(char *config, char **lines, int max)
 
 #define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 
-/* Load the environment from a sysconfig file */
+/* Load the environment from an rc.conf file */
 void
-configEnvironmentSysconfig(char *config)
+configEnvironmentRC_conf(char *config)
 {
     char *lines[MAX_LINES], *cp, *cp2;
     int i, j, nlines;
@@ -320,10 +320,10 @@ configEnvironmentSysconfig(char *config)
 	*cp++ = '\0';
 	(void)string_prune(lines[i]);
 	cp = string_skipwhite(string_prune(cp));
-	if ((cp2 = index(cp, '"')))	/* Eliminate leading quote if it's quoted */
+	if ((cp2 = index(cp, '"')) || (cp2 = index(cp, '\047')))	/* Eliminate leading quote if it's quoted */
 	    cp = cp2 + 1;
 	j = strlen(cp) - 1;
-	if (cp[j] == '"') /* And trailing one */
+	if (cp2 && cp[j] == *cp2) /* And trailing one */
 	    cp[j] = '\0';
 	if (strlen(cp))
 	    variable_set2(lines[i], cp);
@@ -356,11 +356,11 @@ configEnvironmentResolv(char *config)
 }
 
 /*
- * This sucks in /etc/sysconfig, substitutes anything needing substitution, then
+ * This sucks in /etc/rc.conf, substitutes anything needing substitution, then
  * writes it all back out.  It's pretty gross and needs re-writing at some point.
  */
 void
-configSysconfig(char *config)
+configRC_conf(char *config)
 {
     FILE *fp;
     char *lines[MAX_LINES], *cp;
@@ -381,9 +381,19 @@ configSysconfig(char *config)
 		continue;
 	    sstrncpy(line, lines[i], cp - lines[i]);
 	    if (!strcmp(line, v->name)) {
+		char *cp3, *comment = NULL;
+
+		/* If trailing comment, try and preserve it */
+		if ((cp3 = index(lines[i], '#')) != NULL) {
+		    comment = alloca(strlen(cp3) + 1);
+		    strcpy(comment, cp3);
+		}
 		free(lines[i]);
-		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
-		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
+		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? 0 : strlen(comment)) + 10);
+		if (comment)
+		    sprintf(lines[i], "%s=\"%s\"\t\t%s\n", v->name, v->value, comment);
+		else
+		    sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
 	    }
 	}
     }

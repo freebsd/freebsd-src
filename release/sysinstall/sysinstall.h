@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.29 1997/03/29 06:41:56 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.30 1997/04/19 06:55:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -180,7 +180,7 @@ typedef struct _dmenu {
     dialogMenuItem items[0];		/* Array of menu items		*/
 } DMenu;
 
-/* A sysconfig variable */
+/* An rc.conf variable */
 typedef struct _variable {
     struct _variable *next;
     char *name;
@@ -406,9 +406,9 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
 extern int	configFstab(void);
-extern void	configEnvironmentSysconfig(char *config);
+extern void	configEnvironmentRC_conf(char *config);
 extern void	configEnvironmentResolv(char *config);
-extern void	configSysconfig(char *config);
+extern void	configRC_conf(char *config);
 extern int	configRegister(dialogMenuItem *self);
 extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
@@ -421,7 +421,7 @@ extern int	configRouter(dialogMenuItem *self);
 extern int	configSamba(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
-extern int	configWriteSysconfig(dialogMenuItem *self);
+extern int	configWriteRC_conf(dialogMenuItem *self);
 #ifdef NETCON_EXTENTIONS
 extern int	configNovell(dialogMenuItem *self);
 #endif

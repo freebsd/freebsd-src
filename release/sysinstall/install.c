@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.40 1997/03/28 02:25:14 jkh Exp $
+ * $Id: install.c,v 1.134.2.41 1997/03/28 09:30:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -563,7 +563,7 @@ installNovice(dialogMenuItem *self)
     }
 
     /* Now would be a good time to checkpoint the configuration data */
-    configSysconfig("/etc/sysconfig");
+    configRC_conf("/etc/rc.conf");
     sync();
 
     if (directory_exists("/usr/X11R6")) {
@@ -992,8 +992,8 @@ installVarDefaults(dialogMenuItem *self)
 void
 installEnvironment(void)
 {
-    if (file_readable("/etc/sysconfig"))
-	configEnvironmentSysconfig("/etc/sysconfig");
+    if (file_readable("/etc/rc.conf"))
+	configEnvironmentRC_conf("/etc/rc.conf");
     if (file_readable("/etc/resolv.conf"))
 	configEnvironmentResolv("/etc/resolv.conf");
 }
