@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1998/03/07 16:13:57 wosch Exp $
+#	$Id: Makefile,v 1.13 1998/10/02 07:14:32 obrien Exp $
 
 GREP_LIBZ= YES
 GREP_FTS=  YES
@@ -7,7 +7,7 @@ PROG=	grep
 SRCS=   dfa.c grep.c getopt.c kwset.c obstack.c search.c
 CFLAGS+=-DGREP -DHAVE_STRING_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_UNISTD_H=1 \
 	-DHAVE_GETPAGESIZE=1 -DHAVE_MEMCHR=1 -DHAVE_STRERROR=1 \
-	-DHAVE_VALLOC=1
+	-DHAVE_VALLOC=1 -DHAVE_WORKING_MMAP=1
 
 LINKS+= ${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep
