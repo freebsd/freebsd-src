@@ -2049,7 +2049,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>By default, &man.inetd.8; is no longer run by &man.rc.8; at
       boot-time, although &man.sysinstall.8; gives the option of
-      enabling it during binary installations.  &man.inetd.8; can also
+      enabling it during binary installations.  &merged; &man.inetd.8; can also
       be enabled by adding the following line to
       <filename>/etc/rc.conf</filename>:</para>
 
@@ -2281,6 +2281,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/mergemaster.rc</filename> file and also prompts
       the user to run recommended commands (such as
       <command>newaliases</command>) as needed. &merged;</para>
+
+    <para>&man.mergemaster.8; now supports two new flags.
+      The <option>-p</option> flag enables a
+      <quote>pre-<literal>buildworld</literal></quote> mode to files
+      known to be essential to the success of the
+      <literal>buildworld</literal> and
+      <literal>installworld</literal> system updating steps.  The
+      <option>-C</option> flag, used after a successful
+      &man.mergemaster.8; run, compares options in
+      <filename>/etc/rc.conf</filename> to the default options in
+      <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
 
     <para>&man.moused.8; now takes a <option>-a</option> option to
       control mouse acceleration. &merged;</para>
