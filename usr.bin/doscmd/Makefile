@@ -9,7 +9,7 @@ SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
 	tty.c video.c xms.c
 
-CFLAGS+=	-DDISASSEMBLER
+CFLAGS+=	-DDISASSEMBLER -I${.OBJDIR}
 CLEANFILES=	${FONTFILES} ${FONTHDRS} emsdriv.sys redir.com
 
 .if ${OBJFORMAT} == "aout"
