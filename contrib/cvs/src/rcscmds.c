@@ -135,29 +135,10 @@ call_diff_add_arg (s)
 /* diff_run is imported from libdiff.a. */
 extern int diff_run PROTO ((int argc, char **argv, char *out));
 
-#if defined(__FreeBSD__) && defined(SERVER_SUPPORT)
-/* Some 4.4BSD Glue to hack stdout and stderr to call cvs_output */
-
-static
-int writehook(cookie, buf, len)
-	void		*cookie;	/* really [struct bufcookie *] */
-	const char	*buf;		/* characters to copy */
-	int		len;		/* length to copy */
-{
-	void (*fn)(const char *, size_t) =
-		(void (*)(const char *, size_t))cookie;
-
-	(*fn)(buf, len);
-
-	return 0;
-}
-#endif
-
 static int
 call_diff (out)
     char *out;
 {
-#if !defined(__FreeBSD__) || !defined(SERVER_SUPPORT)
     /* Try to keep the out-of-order bugs at bay (protocol_pipe for cvs_output
        with has "Index: foo" and such; stdout and/or stderr for diff's
        output).  I think the only reason that this used to not be such
@@ -170,55 +151,13 @@ call_diff (out)
 #if defined(SERVER_SUPPORT)
     /* only do this on the server if it's in protocol mode */
     if (error_use_protocol || server_active)
-	sleep (1);
+	usleep (50);
 #endif
 
     if (out == RUN_TTY)
 	return diff_run (call_diff_argc, call_diff_argv, NULL);
     else
 	return diff_run (call_diff_argc, call_diff_argv, out);
-#else
-    /* avoid that sleep "by any means necessary".. */
-    void *save_out, *save_err;
-    void *cookie_out, *cookie_err;
-    int rv;
-
-    /* XXX: the cvs_out*() funcs call the buf routines which can call
-       cvs_outerr(), and also calls malloc which might printf something.
-       FreeBSD's malloc doesn't do this at the moment, so recursion should
-       be avoided.  No guarantees for other BSD4.4-Lite* systems though. */
-    if (error_use_protocol || server_active) {
-	save_out = stdout->_write;
-	save_err = stderr->_write;
-	cookie_out = stdout->_cookie;
-	cookie_err = stderr->_cookie;
-
-	fflush(stdout);
-	fflush(stderr);
-
-	stdout->_write = writehook;
-	stderr->_write = writehook;
-	stdout->_cookie = cvs_output;
-	stderr->_cookie = cvs_outerr;
-    }
-
-    if (out == RUN_TTY)
-	rv = diff_run (call_diff_argc, call_diff_argv, NULL);
-    else
-	rv = diff_run (call_diff_argc, call_diff_argv, out);
-
-    if (error_use_protocol || server_active) {
-	fflush(stdout);
-	fflush(stderr);
-
-	stdout->_write = save_out;
-	stderr->_write = save_err;
-	stdout->_cookie = cookie_out;
-	stderr->_cookie = cookie_err;
-    }
-
-    return (rv);
-#endif
 }
 
 extern int diff3_run PROTO ((int argc, char **argv, char *out));
@@ -227,7 +166,6 @@ static int
 call_diff3 (out)
     char *out;
 {
-#if !defined(__FreeBSD__) || !defined(SERVER_SUPPORT)
     /* Try to keep the out-of-order bugs at bay (protocol_pipe for cvs_output
        with has "Index: foo" and such; stdout and/or stderr for diff's
        output).  I think the only reason that this used to not be such
@@ -240,55 +178,13 @@ call_diff3 (out)
 #if defined(SERVER_SUPPORT)
     /* only do this on the server if it's in protocol mode */
     if (error_use_protocol || server_active)
-	sleep (1);
+	usleep (50);
 #endif
 
     if (out == RUN_TTY)
 	return diff3_run (call_diff_argc, call_diff_argv, NULL);
     else
 	return diff3_run (call_diff_argc, call_diff_argv, out);
-#else
-    /* avoid that sleep "by any means necessary".. */
-    void *save_out, *save_err;
-    void *cookie_out, *cookie_err;
-    int rv;
-
-    /* XXX: the cvs_out*() funcs call the buf routines which can call
-       cvs_outerr(), and also calls malloc which might printf something.
-       FreeBSD's malloc doesn't do this at the moment, so recursion should
-       be avoided.  No guarantees for other BSD4.4-Lite* systems though. */
-    if (error_use_protocol || server_active) {
-	save_out = stdout->_write;
-	save_err = stderr->_write;
-	cookie_out = stdout->_cookie;
-	cookie_err = stderr->_cookie;
-
-	fflush(stdout);
-	fflush(stderr);
-
-	stdout->_write = writehook;
-	stderr->_write = writehook;
-	stdout->_cookie = cvs_output;
-	stderr->_cookie = cvs_outerr;
-    }
-
-    if (out == RUN_TTY)
-	rv = diff3_run (call_diff_argc, call_diff_argv, NULL);
-    else
-	rv = diff3_run (call_diff_argc, call_diff_argv, out);
-
-    if (error_use_protocol || server_active) {
-	fflush(stdout);
-	fflush(stderr);
-
-	stdout->_write = save_out;
-	stderr->_write = save_err;
-	stdout->_cookie = cookie_out;
-	stderr->_cookie = cookie_err;
-    }
-
-    return (rv);
-#endif
 }
 
 
