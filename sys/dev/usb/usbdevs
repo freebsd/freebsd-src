@@ -180,7 +180,7 @@ vendor AVM		0x057c	AVM GmbH
 vendor QUICKSHOT	0x057f	Quickshot
 vendor ROLAND		0x0582	Roland
 vendor ROCKFIRE		0x0583	Rockfire
-vendor RATOC		0x0584	RATOC Systems,Inc.
+vendor RATOC		0x0584	RATOC Systems, Inc.
 vendor ZYXEL		0x0586	ZyXEL Communication
 vendor ALCOR		0x058f	Alcor Micro
 vendor IOMEGA		0x059b	Iomega
@@ -398,9 +398,6 @@ product AGFA SNAPSCANE25	0x2095	SnapScan e25
 product AGFA SNAPSCANE26	0x2097	SnapScan e26
 product AGFA SNAPSCANE52	0x20fd	SnapScan e52
 
-/* Agiler products */
-product ELECOM MOUSE29UO	0x0002	mouse 29UO
-
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
 
@@ -501,13 +498,6 @@ product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
 product CYPRESS FMRADIO		0x1002	FM Radio
 
-/* D-Link products */
-/*product DLINK DSBS25		0x0100	DSB-S25 serial adapter*/
-product DLINK DSB650C		0x4000	10Mbps ethernet adapter
-product DLINK DSB650TX		0x4002	10/100 ethernet adapter
-product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
-product DLINK DSB650		0xABC1	10/100 ethernet adapter
-
 /* Daisy Technology products */
 product DAISY DMC		0x6901	PhotoClip Camera
 
@@ -522,9 +512,19 @@ product DIGI ACCELEPORT2	0x0002	AccelePort USB 2
 product DIGI ACCELEPORT4	0x0004	AccelePort USB 4
 product DIGI ACCELEPORT8	0x0008	AccelePort USB 8
 
+/* D-Link products */
+/*product DLINK DSBS25		0x0100	DSB-S25 serial adapter*/
+product DLINK DSB650C		0x4000	10Mbps ethernet adapter
+product DLINK DSB650TX		0x4002	10/100 ethernet adapter
+product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
+product DLINK DSB650		0xabc1	10/100 ethernet adapter
+
 /* EIZO products */
 product EIZO HUB		0x0000	hub
 product EIZO MONITOR		0x0001	monitor
+
+/* Elecom products */
+product ELECOM MOUSE29UO	0x0002	mouse 29UO
 
 /* Elsa products */
 product ELSA MODEM1		0x2265	ELSA Modem Board
@@ -712,7 +712,7 @@ product LINKSYS USB10T		0x2202	USB10T Ethernet
 product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
-product LINKSYS	USB10TX2	0x400b	USB10TX
+product LINKSYS USB10TX2	0x400b	USB10TX
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -1027,12 +1027,12 @@ product XIRLINK PCCAM		0x8080	IBM PC Camera
 /* Y-E Data products */
 product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
 
-/* Yano products */
-product YANO U640MO		0x0101	U640MO-03
-
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
 product	YAMAHA UX96		0x1008	UX96 MIDI I/F
+
+/* Yano products */
+product YANO U640MO		0x0101	U640MO-03
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
