@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <rune.h>
@@ -51,7 +52,9 @@ mblen(s, n)
 	if (s == 0 || *s == 0)
 		return (0);	/* No support for state dependent encodings. */
 
-	if (sgetrune(s, n, &e) == _INVALID_RUNE)
+	if (sgetrune(s, n, &e) == _INVALID_RUNE) {
+		errno = EILSEQ;
 		return (s - e);
+	}
 	return (e - s);
 }
