@@ -1,4 +1,5 @@
 #!/usr/local/bin/perl
+# $FreeBSD$
 
 use Config;
 use File::Basename qw(basename dirname);
@@ -528,7 +529,7 @@ sub inc_dirs
 sub build_preamble_if_necessary
 {
     # Increment $VERSION every time this function is modified:
-    my $VERSION     = 1;
+    my $VERSION     = 2;
     my $preamble    = "$Dest_dir/_h2ph_pre.ph";
 
     # Can we skip building the preamble file?
@@ -556,6 +557,9 @@ sub build_preamble_if_necessary
             if ($define{$_} =~ /^\d+$/) {
                 print PREAMBLE
                     "unless (defined &$_) { sub $_() { $define{$_} } }\n\n";
+            } elsif ($define{$_} =~ /^\w+$/) {
+                print PREAMBLE
+                    "unless (defined &$_) { sub $_() { &$define{$_} } }\n\n";
             } else {
                 print PREAMBLE
                     "unless (defined &$_) { sub $_() { \"",
@@ -576,8 +580,7 @@ sub _extract_cc_defines
 
     # Split compiler pre-definitions into `key=value' pairs:
     foreach (split /\s+/, $allsymbols) {
-        /(.*?)=(.*)/;
-        $define{$1} = $2;
+        /(.+?)=(.+)/ and $define{$1} = $2;
 
         if ($opt_D) {
             print STDERR "$_:  $1 -> $2\n";

@@ -1,8 +1,10 @@
 #!/usr/local/bin/perl
+# $FreeBSD$
 
 use Config;
 use File::Basename qw(&basename &dirname);
 use Cwd;
+use File::Spec::Functions;
 
 # List explicitly here the variables you want Configure to
 # generate.  Metaconfig only looks for shell variables, so you
@@ -23,7 +25,8 @@ open OUT, ">$file" or die "Can't create $file: $!";
 
 # extract patchlevel.h information
 
-open PATCH_LEVEL, "<../patchlevel.h" or open PATCH_LEVEL, "<patchlevel.h" or die "Can't open patchlevel.h: $!";
+open PATCH_LEVEL, "<" . catfile(updir, "patchlevel.h") or open PATCH_LEVEL, "<patchlevel.h"
+    or die "Can't open patchlevel.h: $!";
 
 my $patchlevel_date = (stat PATCH_LEVEL)[9];
 
@@ -35,8 +38,8 @@ my @patches;
 while (<PATCH_LEVEL>) {
     last if /^\s*}/;
     chomp;
-    s/^\s+,?"?//;
-    s/"?,?$//;
+    s/^\s+,?\s*"?//;
+    s/"?\s*,?$//;
     s/(['\\])/\\$1/g;
     push @patches, $_ unless $_ eq 'NULL';
 }
@@ -55,12 +58,14 @@ print "Extracting $file (with variable substitutions)\n";
 # In this section, perl variables will be expanded during extraction.
 # You can use $Config{...} to use Configure variables.
 
+my $extract_version = sprintf("v%vd", $^V);
+
 print OUT <<"!GROK!THIS!";
 $Config{startperl}
     eval 'exec $Config{perlpath} -S \$0 \${1+"\$@"}'
 	if \$running_under_some_shell;
 
-my \$config_tag1 = '$] - $Config{cf_time}';
+my \$config_tag1 = '$extract_version - $Config{cf_time}';
 
 my \$patchlevel_date = $patchlevel_date;
 my \$patch_tags = '$patch_tags';
@@ -74,6 +79,7 @@ my \@patches = (
 print OUT <<'!NO!SUBS!';
 
 use Config;
+use File::Spec;		# keep perlbug Perl 5.005 compatible
 use Getopt::Std;
 use strict;
 
@@ -86,7 +92,7 @@ BEGIN {
     $::HaveUtil = ($@ eq "");
 };
 
-my $Version = "1.26";
+my $Version = "1.28";
 
 # Changed in 1.06 to skip Mail::Send and Mail::Util if not available.
 # Changed in 1.07 to see more sendmail execs, and added pipe output.
@@ -117,6 +123,8 @@ my $Version = "1.26";
 # Changed in 1.24 Added '-F<file>' to save report HVDS 98-07-01
 # Changed in 1.25 Warn on failure to open save file. HVDS 98-07-12
 # Changed in 1.26 Don't require -t STDIN for -ok. HVDS 98-07-15
+# Changed in 1.27 Added Mac OS and File::Spec support CNANDOR 99-07-27
+# Changed in 1.28 Additional questions for Perlbugtron RFOLEY 20.03.2000
 
 # TODO: - Allow the user to re-name the file on mail failure, and
 #       make sure failure (transmission-wise) of Mail::Send is
@@ -124,10 +132,12 @@ my $Version = "1.26";
 #       - Test -b option
 
 my( $file, $usefile, $cc, $address, $perlbug, $testaddress, $filename,
-    $subject, $from, $verbose, $ed, $outfile,
+    $subject, $from, $verbose, $ed, $outfile, $Is_MacOS, $category, $severity, 
     $fh, $me, $Is_MSWin32, $Is_VMS, $msg, $body, $andcc, %REP, $ok);
 
-my $config_tag2 = "$] - $Config{cf_time}";
+my $perl_version = $^V ? sprintf("v%vd", $^V) : $];
+
+my $config_tag2 = "$perl_version - $Config{cf_time}";
 
 Init();
 
@@ -149,11 +159,43 @@ Send();
 
 exit;
 
+sub ask_for_alternatives {
+    my $name = shift;
+    my $default = shift;
+    my @alts = @_;
+    my $alt = "";
+    paraprint <<EOF;
+Please pick a \u$name from the following:
+
+    @alts
+
+EOF
+    my $err = 0;
+    my $joined_alts = join('|', @alts);
+    do {
+	if ($err++ > 5) {
+	    die "Invalid $name: aborting.\n";
+	}
+	print "Please enter a \u$name [$default]: ";
+	$alt = <>;
+	chomp $alt;
+	if ($alt =~ /^\s*$/) {
+	    $alt = $default;
+	}
+    } while ($alt !~ /^($joined_alts)$/i);
+    lc $alt;
+}
+
 sub Init {
     # -------- Setup --------
 
     $Is_MSWin32 = $^O eq 'MSWin32';
     $Is_VMS = $^O eq 'VMS';
+    $Is_MacOS = $^O eq 'MacOS';
+
+    @ARGV = split m/\s+/,
+        MacPerl::Ask('Provide command-line args here (-h for help):')
+        if $Is_MacOS && $MacPerl::Version =~ /App/;
 
     if (!getopts("dhva:s:b:f:F:r:e:SCc:to:n:")) { Help(); exit; };
 
@@ -196,6 +238,7 @@ sub Init {
     $ed = $::opt_e || $ENV{VISUAL} || $ENV{EDITOR} || $ENV{EDIT}
 	|| ($Is_VMS && "edit/tpu")
 	|| ($Is_MSWin32 && "notepad")
+	|| ($Is_MacOS && '')
 	|| "vi";
 
     # Not OK - provide build failure template by finessing OK report
@@ -232,8 +275,10 @@ EOF
 	    $::opt_C = 1; # don't send a copy to the local admin
 	    $::opt_s = 1; # we have a subject line
 	    $subject = ($::opt_n ? 'Not ' : '')
-		    . "OK: perl $] ${patch_tags}on"
+		    . "OK: perl $perl_version ${patch_tags}on"
 		    ." $::Config{'archname'} $::Config{'osvers'} $subject";
+	    $category = "install";
+	    $severity = "none";
 	    $ok = 1;
 	} else {
 	    Help();
@@ -255,6 +300,7 @@ EOF
     # My username
     $me = $Is_MSWin32 ? $ENV{'USERNAME'}
 	    : $^O eq 'os2' ? $ENV{'USER'} || $ENV{'LOGNAME'}
+	    : $Is_MacOS ? $ENV{'USER'}
 	    : eval { getpwuid($<) };	# May be missing
 
     $from = $::Config{'cf_email'}
@@ -307,6 +353,13 @@ EOF
 	my $guess;
 
 	$guess = $ENV{'REPLY-TO'} || $ENV{'REPLYTO'} || '';
+        if ($Is_MacOS) {
+            require Mac::InternetConfig;
+            $guess = $Mac::InternetConfig::InternetConfig{
+                Mac::InternetConfig::kICEmail()
+            };
+        }
+
 	unless ($guess) {
 	    my $domain;
 	    if ($::HaveUtil) {
@@ -415,6 +468,16 @@ EOF
 	}
     }
 
+    # Prompt for category of bug
+    $category ||= ask_for_alternatives("category", "core",
+				     qw(core docs install
+					library utilities));
+
+    # Prompt for severity of bug
+    $severity ||= ask_for_alternatives("severity", "low",
+				       qw(critical high medium
+					  low wishlist none));
+
     # Generate scratch file to edit report in
     $filename = filename();
 
@@ -452,7 +515,7 @@ EOF
 
     print REP <<EOF;
 This is a $reptype report for perl from $from,
-generated with the help of perlbug $Version running under perl $].
+generated with the help of perlbug $Version running under perl $perl_version.
 
 EOF
 
@@ -494,13 +557,19 @@ EOF
 sub Dump {
     local(*OUT) = @_;
 
-    print REP "\n---\n";
-    print REP "This perlbug was built using Perl $config_tag1\n",
+    print OUT <<EFF;
+---
+Flags:
+    category=$category
+    severity=$severity
+---
+EFF
+    print OUT "This perlbug was built using Perl $config_tag1\n",
 	    "It is being executed now by  Perl $config_tag2.\n\n"
 	if $config_tag2 ne $config_tag1;
 
     print OUT <<EOF;
-Site configuration information for perl $]:
+Site configuration information for perl $perl_version:
 
 EOF
     if ($::Config{cf_by} and $::Config{cf_time}) {
@@ -516,7 +585,7 @@ EOF
     print OUT <<EOF;
 
 ---
-\@INC for perl $]:
+\@INC for perl $perl_version:
 EOF
     for my $i (@INC) {
 	print OUT "    $i\n";
@@ -525,18 +594,21 @@ EOF
     print OUT <<EOF;
 
 ---
-Environment for perl $]:
+Environment for perl $perl_version:
 EOF
-    for my $env (sort
-	(qw(PATH LD_LIBRARY_PATH LANG PERL_BADLANG SHELL HOME LOGDIR LANGUAGE),
-	grep /^(?:PERL|LC_)/, keys %ENV)
-    ) {
+    my @env =
+        qw(PATH LD_LIBRARY_PATH LANG PERL_BADLANG SHELL HOME LOGDIR LANGUAGE);
+    push @env, $Config{ldlibpthname} if $Config{ldlibpthname} ne '';
+    push @env, grep /^(?:PERL|LC_|LANG)/, keys %ENV;
+    my %env;
+    @env{@env} = @env;
+    for my $env (sort keys %env) {
 	print OUT "    $env",
 		exists $ENV{$env} ? "=$ENV{$env}" : ' (unset)',
 		"\n";
     }
     if ($verbose) {
-	print OUT "\nComplete configuration data for perl $]:\n\n";
+	print OUT "\nComplete configuration data for perl $perl_version:\n\n";
 	my $value;
 	foreach (sort keys %::Config) {
 	    $value = $::Config{$_};
@@ -559,7 +631,15 @@ EOF
     }
 
 tryagain:
-    my $sts = system("$ed $filename");
+    my $sts = system("$ed $filename") unless $Is_MacOS;
+    if ($Is_MacOS) {
+        require ExtUtils::MakeMaker;
+        ExtUtils::MM_MacOS::launch_file($filename);
+        paraprint <<EOF;
+Press Enter when done.
+EOF
+        scalar <>;
+    }
     if ($sts) {
 	paraprint <<EOF;
 The editor you chose (`$ed') could apparently not be run!
@@ -783,7 +863,7 @@ Options:
   -v    Include Verbose configuration data in the report
   -f    File containing the body of the report. Use this to
         quickly send a prepared message.
-  -F	File to output the resulting mail message to, instead of mailing.
+  -F    File to output the resulting mail message to, instead of mailing.
   -S    Send without asking for confirmation.
   -a    Address to send the report to. Defaults to `$address'.
   -c    Address to send copy of report to. Defaults to `$cc'.
@@ -796,7 +876,7 @@ Options:
         this if you don't give it here.
   -e    Editor to use.
   -t    Test mode. The target address defaults to `$testaddress'.
-  -d	Data mode (the default if you redirect or pipe output.)
+  -d    Data mode (the default if you redirect or pipe output.)
         This prints out your configuration data, without mailing
         anything. You can use this with -v to get more complete data.
   -ok   Report successful build on this system to perl porters
@@ -815,11 +895,12 @@ EOF
 sub filename {
     my $dir = $Is_VMS ? 'sys$scratch:'
 	: ($Is_MSWin32 && $ENV{'TEMP'}) ? $ENV{'TEMP'}
-	: '/tmp/';
+        : $Is_MacOS ? $ENV{'TMPDIR'}
+	: '/tmp';
     $filename = "bugrep0$$";
-    $dir .= "\\" if $Is_MSWin32 and $dir !~ m|[\\/]$|;
-    $filename++ while -e "$dir$filename";
-    $filename = "$dir$filename";
+#    $dir .= "\\" if $Is_MSWin32 and $dir !~ m|[\\/]$|;
+    $filename++ while -e File::Spec->catfile($dir, $filename);
+    $filename = File::Spec->catfile($dir, $filename);
 }
 
 sub paraprint {
@@ -878,7 +959,7 @@ this checklist:
 
 =over 4
 
-=item What version of perl you are running?
+=item What version of Perl you are running?
 
 Type C<perl -v> at the command line to find out.
 
@@ -886,16 +967,16 @@ Type C<perl -v> at the command line to find out.
 
 Look at http://www.perl.com/ to find out.  If it is not the latest
 released version, get that one and see whether your bug has been
-fixed.  Note that bug reports about old versions of perl, especially
+fixed.  Note that bug reports about old versions of Perl, especially
 those prior to the 5.0 release, are likely to fall upon deaf ears.
 You are on your own if you continue to use perl1 .. perl4.
 
 =item Are you sure what you have is a bug?
 
 A significant number of the bug reports we get turn out to be documented
-features in perl.  Make sure the behavior you are witnessing doesn't fall
+features in Perl.  Make sure the behavior you are witnessing doesn't fall
 under that category, by glancing through the documentation that comes
-with perl (we'll admit this is no mean task, given the sheer volume of
+with Perl (we'll admit this is no mean task, given the sheer volume of
 it all, but at least have a look at the sections that I<seem> relevant).
 
 Be aware of the familiar traps that perl programmers of various hues
@@ -905,10 +986,10 @@ Check in L<perldiag> to see what any Perl error message(s) mean.
 If message isn't in perldiag, it probably isn't generated by Perl.
 Consult your operating system documentation instead.
 
-If you are on a non-UNIX platform check also L<perlport>, some
-features may not be implemented or work differently.
+If you are on a non-UNIX platform check also L<perlport>, as some
+features may be unimplemented or work differently.
 
-Try to study the problem under the perl debugger, if necessary.
+Try to study the problem under the Perl debugger, if necessary.
 See L<perldebug>.
 
 =item Do you have a proper test case?
@@ -930,7 +1011,7 @@ If you get a core dump (or equivalent), you may use a debugger
 (B<dbx>, B<gdb>, etc) to produce a stack trace to include in the bug
 report.  NOTE: unless your Perl has been compiled with debug info
 (often B<-g>), the stack trace is likely to be somewhat hard to use
-because it will most probably contain only the function names, not
+because it will most probably contain only the function names and not
 their arguments.  If possible, recompile your Perl with debug info and
 reproduce the dump and the stack trace.
 
@@ -938,8 +1019,8 @@ reproduce the dump and the stack trace.
 
 The easier it is to understand a reproducible bug, the more likely it
 will be fixed.  Anything you can provide by way of insight into the
-problem helps a great deal.  In other words, try to analyse the
-problem to the extent you feel qualified and report your discoveries.
+problem helps a great deal.  In other words, try to analyze the
+problem (to the extent you can) and report your discoveries.
 
 =item Can you fix the bug yourself?
 
@@ -973,14 +1054,14 @@ C<perlbug> at all on your system, be sure to include the entire output
 produced by running C<perl -V> (note the uppercase V).
 
 Whether you use C<perlbug> or send the email manually, please make
-your subject informative.  "a bug" not informative.  Neither is "perl
-crashes" nor "HELP!!!", these all are null information.  A compact
-description of what's wrong is fine.
+your Subject line informative.  "a bug" not informative.  Neither is
+"perl crashes" nor "HELP!!!".  These don't help.
+A compact description of what's wrong is fine.
 
 =back
 
 Having done your bit, please be prepared to wait, to be told the bug
-is in your code, or even to get no reply at all.  The perl maintainers
+is in your code, or even to get no reply at all.  The Perl maintainers
 are busy folks, so if your problem is a small one or if it is difficult
 to understand or already known, they may not respond with a personal reply.
 If it is important to you that your bug be fixed, do monitor the
@@ -1091,12 +1172,14 @@ Include verbose configuration data in the report.
 =head1 AUTHORS
 
 Kenneth Albanowski (E<lt>kjahds@kjahds.comE<gt>), subsequently I<doc>tored
-by Gurusamy Sarathy (E<lt>gsar@umich.eduE<gt>), Tom Christiansen
+by Gurusamy Sarathy (E<lt>gsar@activestate.comE<gt>), Tom Christiansen
 (E<lt>tchrist@perl.comE<gt>), Nathan Torkington (E<lt>gnat@frii.comE<gt>),
 Charles F. Randall (E<lt>cfr@pobox.comE<gt>), Mike Guy
 (E<lt>mjtg@cam.a.ukE<gt>), Dominic Dunlop (E<lt>domo@computer.orgE<gt>),
-Hugo van der Sanden (E<lt>hv@crypt0.demon.co.ukE<gt>), and
-Jarkko Hietaniemi (E<lt>jhi@iki.fiE<gt>).
+Hugo van der Sanden (E<lt>hv@crypt0.demon.co.ukE<gt>),
+Jarkko Hietaniemi (E<lt>jhi@iki.fiE<gt>), Chris Nandor
+(E<lt>pudge@pobox.comE<gt>), Jon Orwant (E<lt>orwant@media.mit.eduE<gt>,
+and Richard Foley (E<lt>richard@rfi.netE<gt>).
 
 =head1 SEE ALSO
 

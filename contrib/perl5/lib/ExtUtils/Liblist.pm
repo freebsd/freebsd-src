@@ -1,8 +1,10 @@
+# $FreeBSD$
 package ExtUtils::Liblist;
-use vars qw($VERSION);
+
+use 5.005_64;
 # Broken out of MakeMaker from version 4.11
 
-$VERSION = substr q$Revision: 1.1.1.2 $, 10;
+our $VERSION = substr q$Revision: 1.25 $, 10;
 
 use Config;
 use Cwd 'cwd';
@@ -108,13 +110,14 @@ sub _unix_os2_ext {
 	    } elsif (-f ($fullname="$thispth/lib$thislib.$so")
 		 && (($Config{'dlsrc'} ne "dl_dld.xs") || ($thislib eq "m"))){
 	    } elsif (-f ($fullname="$thispth/lib${thislib}_s$Config_libext")
+                 && (! $Config{'archname'} =~ /RM\d\d\d-svr4/)
 		 && ($thislib .= "_s") ){ # we must explicitly use _s version
 	    } elsif (-f ($fullname="$thispth/lib$thislib$Config_libext")){
 	    } elsif (-f ($fullname="$thispth/$thislib$Config_libext")){
 	    } elsif (-f ($fullname="$thispth/Slib$thislib$Config_libext")){
 	    } elsif ($^O eq 'dgux'
 		 && -l ($fullname="$thispth/lib$thislib$Config_libext")
-		 && readlink($fullname) =~ /^elink:/) {
+		 && readlink($fullname) =~ /^elink:/s) {
 		 # Some of DG's libraries look like misconnected symbolic
 		 # links, but development tools can follow them.  (They
 		 # look like this:
@@ -136,7 +139,7 @@ sub _unix_os2_ext {
 	    # Now update library lists
 
 	    # what do we know about this library...
-	    my $is_dyna = ($fullname !~ /\Q$Config_libext\E$/);
+	    my $is_dyna = ($fullname !~ /\Q$Config_libext\E\z/);
 	    my $in_perl = ($libs =~ /\B-l\Q$ {thislib}\E\b/s);
 
 	    # Do not add it into the list if it is already linked in
@@ -362,7 +365,7 @@ sub _vms_ext {
     return ('', '', $crtlstr, '');
   }
 
-  my(@dirs,@libs,$dir,$lib,%sh,%olb,%obj,$ldlib);
+  my(@dirs,@libs,$dir,$lib,%found,@fndlibs,$ldlib);
   my $cwd = cwd();
   my($so,$lib_ext,$obj_ext) = @Config{'so','lib_ext','obj_ext'};
   # List of common Unix library names and there VMS equivalents
@@ -430,28 +433,28 @@ sub _vms_ext {
         warn "\tChecking $name\n" if $verbose > 2;
         if (-f ($test = VMS::Filespec::rmsexpand($name))) {
           # It's got its own suffix, so we'll have to figure out the type
-          if    ($test =~ /(?:$so|exe)$/i)      { $type = 'sh'; }
-          elsif ($test =~ /(?:$lib_ext|olb)$/i) { $type = 'olb'; }
+          if    ($test =~ /(?:$so|exe)$/i)      { $type = 'SHR'; }
+          elsif ($test =~ /(?:$lib_ext|olb)$/i) { $type = 'OLB'; }
           elsif ($test =~ /(?:$obj_ext|obj)$/i) {
             warn "Note (probably harmless): "
 			 ."Plain object file $test found in library list\n";
-            $type = 'obj';
+            $type = 'OBJ';
           }
           else {
             warn "Note (probably harmless): "
 			 ."Unknown library type for $test; assuming shared\n";
-            $type = 'sh';
+            $type = 'SHR';
           }
         }
         elsif (-f ($test = VMS::Filespec::rmsexpand($name,$so))      or
                -f ($test = VMS::Filespec::rmsexpand($name,'.exe')))     {
-          $type = 'sh';
+          $type = 'SHR';
           $name = $test unless $test =~ /exe;?\d*$/i;
         }
         elsif (not length($ctype) and  # If we've got a lib already, don't bother
                ( -f ($test = VMS::Filespec::rmsexpand($name,$lib_ext)) or
                  -f ($test = VMS::Filespec::rmsexpand($name,'.olb'))))  {
-          $type = 'olb';
+          $type = 'OLB';
           $name = $test unless $test =~ /olb;?\d*$/i;
         }
         elsif (not length($ctype) and  # If we've got a lib already, don't bother
@@ -459,17 +462,18 @@ sub _vms_ext {
                  -f ($test = VMS::Filespec::rmsexpand($name,'.obj'))))  {
           warn "Note (probably harmless): "
 		       ."Plain object file $test found in library list\n";
-          $type = 'obj';
+          $type = 'OBJ';
           $name = $test unless $test =~ /obj;?\d*$/i;
         }
         if (defined $type) {
           $ctype = $type; $cand = $name;
-          last if $ctype eq 'sh';
+          last if $ctype eq 'SHR';
         }
       }
       if ($ctype) { 
-        eval '$' . $ctype . "{'$cand'}++";
-        die "Error recording library: $@" if $@;
+        # This has to precede any other CRTLs, so just make it first
+        if ($cand eq 'VAXCCURSE') { unshift @{$found{$ctype}}, $cand; }  
+        else                      { push    @{$found{$ctype}}, $cand; }
         warn "\tFound as $cand (really $test), type $ctype\n" if $verbose > 1;
         next LIB;
       }
@@ -478,15 +482,10 @@ sub _vms_ext {
 		 ."No library found for $lib\n";
   }
 
-  @libs = sort keys %obj;
-  # This has to precede any other CRTLs, so just make it first
-  if ($olb{VAXCCURSE}) {
-    push(@libs,"$olb{VAXCCURSE}/Library");
-    delete $olb{VAXCCURSE};
-  }
-  push(@libs, map { "$_/Library" } sort keys %olb);
-  push(@libs, map { "$_/Share"   } sort keys %sh);
-  $lib = join(' ',@libs);
+  push @fndlibs, @{$found{OBJ}}                      if exists $found{OBJ};
+  push @fndlibs, map { "$_/Library" } @{$found{OLB}} if exists $found{OLB};
+  push @fndlibs, map { "$_/Share"   } @{$found{SHR}} if exists $found{SHR};
+  $lib = join(' ',@fndlibs);
 
   $ldlib = $crtlstr ? "$lib $crtlstr" : $lib;
   warn "Result:\n\tEXTRALIBS: $lib\n\tLDLOADLIBS: $ldlib\n" if $verbose;
@@ -544,7 +543,7 @@ below.
 =head2 EXTRALIBS
 
 List of libraries that need to be linked with when linking a perl
-binary which includes this extension Only those libraries that
+binary which includes this extension. Only those libraries that
 actually exist are included.  These are written to a file and used
 when linking perl.
 
@@ -566,7 +565,7 @@ object file.  This list is used to create a .bs (bootstrap) file.
 =head1 PORTABILITY
 
 This module deals with a lot of system dependencies and has quite a
-few architecture specific B<if>s in the code.
+few architecture specific C<if>s in the code.
 
 =head2 VMS implementation
 
@@ -686,7 +685,7 @@ enable searching for default libraries specified by C<$Config{libs}>.
 
 The libraries specified may be a mixture of static libraries and
 import libraries (to link with DLLs).  Since both kinds are used
-pretty transparently on the win32 platform, we do not attempt to
+pretty transparently on the Win32 platform, we do not attempt to
 distinguish between them.
 
 =item *

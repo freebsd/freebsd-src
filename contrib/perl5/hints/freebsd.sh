@@ -1,3 +1,4 @@
+# $FreeBSD$
 # Original based on info from
 # Carl M. Fongheiser <cmf@ins.infonet.net>
 # Date: Thu, 28 Jul 1994 19:17:05 -0500 (CDT)
@@ -99,23 +100,11 @@ esac
 case "$osvers" in
 0.*|1.0*) ;;
 
-# allow a 2.2.* a.out --> 3.0 ELF to work.
-2.2*)	objformat=`objformat`
-	if [ x$objformat = xelf ]; then
-	    libpth="/usr/lib /usr/local/lib"
-            glibpth="/usr/lib /usr/local/lib"
-	    ldflags="-Wl,-E "
-	    lddlflags="-shared "
-	else
-	    if [ -e /usr/lib/aout ]; then
-		libpth="/usr/lib/aout /usr/local/lib /usr/lib"
-		glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
-	    fi
-	    lddlflags='-Bshareable'
-	fi
-	cccdlflags='-DPIC -fpic'
+1*|2*)	cccdlflags='-DPIC -fpic'
+	lddlflags="-Bshareable $lddlflags"
 	;;
-3.*|4.0*)
+
+*)
         objformat=`/usr/bin/objformat`
         if [ x$objformat = xelf ]; then
             libpth="/usr/lib /usr/local/lib"
@@ -124,17 +113,23 @@ case "$osvers" in
             lddlflags="-shared "
         else
             if [ -e /usr/lib/aout ]; then
-            libpth="/usr/lib/aout /usr/local/lib /usr/lib"
-            glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
-        fi
-        lddlflags='-Bshareable'
+                libpth="/usr/lib/aout /usr/local/lib /usr/lib"
+                glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
+            fi
+            lddlflags='-Bshareable'
         fi
         cccdlflags='-DPIC -fpic'
         ;;
+esac
 
-*)	cccdlflags='-DPIC -fpic'
-	lddlflags="-Bshareable $lddlflags"
-	;;
+case "$osvers" in
+0*|1*|2*|3*) ;;
+
+*)
+	if /usr/bin/file -L /usr/lib/libc.so | /usr/bin/grep -vq "not stripped" ; then
+	    usenm=false
+	fi
+        ;;
 esac
 
 cat <<'EOM' >&4
@@ -163,8 +158,8 @@ case "$osvers" in
     # the equivalent in the main Configure so we copy a little
     # from Configure XXX Configure should be fixed.
     if $test -r $src/patchlevel.h;then
-       patchlevel=`awk '/define[ 	]+PATCHLEVEL/ {print $3}' $src/patchlevel.h`
-       subversion=`awk '/define[ 	]+SUBVERSION/ {print $3}' $src/patchlevel.h`
+       patchlevel=`awk '/define[ 	]+PERL_VERSION/ {print $3}' $src/patchlevel.h`
+       subversion=`awk '/define[ 	]+PERL_SUBVERSION/ {print $3}' $src/patchlevel.h`
     else
        patchlevel=0
        subversion=0
@@ -180,22 +175,17 @@ esac
 cat > UU/usethreads.cbu <<'EOCBU'
 case "$usethreads" in
 $define|true|[yY]*)
-        lc_r=`/sbin/ldconfig -r|grep ':-lc_r'|awk '{print $NF}'`
+        lc_r=`/sbin/ldconfig -r|grep ':-lc_r'|awk '{print $NF}'|tail -1`
         case "$osvers" in  
-	2.2.8*|3.*|4.*)
-	      if [ ! -r "$lc_r" ]; then
-	      cat <<EOM >&4
-POSIX threads should be supported by FreeBSD $osvers --
-but your system is missing the shared libc_r.
-(/sbin/ldconfig -r doesn't find any).
+	0*|1*|2.0*|2.1*)   cat <<EOM >&4
+I did not know that FreeBSD $osvers supports POSIX threads.
 
-Consider using the latest STABLE release.
+Feel free to tell perlbug@perl.com otherwise.
 EOM
-		 exit 1
-	      fi
-	      ldflags="-pthread $ldflags"
+	      exit 1
 	      ;;
-        2.2*)
+
+        2.2.[0-7]*)
               cat <<EOM >&4
 POSIX threads are not supported well by FreeBSD $osvers.
 
@@ -208,13 +198,21 @@ or preferably to 3.something.
 EOM
 	      exit 1
 	      ;;
-	 *)   cat <<EOM >&4
-I did not know that FreeBSD $osvers supports POSIX threads.
 
-Feel free to tell perlbug@perl.com otherwise.
+	*)
+	      if [ ! -r "$lc_r" ]; then
+	      cat <<EOM >&4
+POSIX threads should be supported by FreeBSD $osvers --
+but your system is missing the shared libc_r.
+(/sbin/ldconfig -r doesn't find any).
+
+Consider using the latest STABLE release.
 EOM
-	      exit 1
+		 exit 1
+	      fi
+	      ldflags="-pthread $ldflags"
 	      ;;
+
 	esac
 
 	set `echo X "$libswanted "| sed -e 's/ c / c_r /'`
