@@ -1289,7 +1289,7 @@ bpfattach(ifp, dlt, hdrlen)
 	u_int dlt, hdrlen;
 {
 	struct bpf_if *bp;
-	bp = (struct bpf_if *)malloc(sizeof(*bp), M_BPF, M_DONTWAIT);
+	bp = (struct bpf_if *)malloc(sizeof(*bp), M_BPF, M_NOWAIT);
 	if (bp == 0)
 		panic("bpfattach");
 
