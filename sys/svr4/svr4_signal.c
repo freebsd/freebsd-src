@@ -46,7 +46,6 @@
 #define	svr4_sigmask(n)		(1 << (((n) - 1) & 31))
 #define	svr4_sigword(n)		(((n) - 1) >> 5)
 #define svr4_sigemptyset(s)	memset((s), 0, sizeof(*(s)))
-#define svr4_sigfillset(s)	memset((s), 0xffffffff, sizeof(*(s)))
 #define	svr4_sigismember(s, n)	((s)->bits[svr4_sigword(n)] & svr4_sigmask(n))
 #define	svr4_sigaddset(s, n)	((s)->bits[svr4_sigword(n)] |= svr4_sigmask(n))
 
@@ -54,6 +53,7 @@ void svr4_to_bsd_sigaction __P((const struct svr4_sigaction *,
 				struct sigaction *));
 void bsd_to_svr4_sigaction __P((const struct sigaction *,
 				struct svr4_sigaction *));
+void svr4_sigfillset __P((svr4_sigset_t *));
 
 int bsd_to_svr4_sig[SVR4_SIGTBLSZ] = {
 	SVR4_SIGHUP,
@@ -124,6 +124,18 @@ int svr4_to_bsd_sig[SVR4_SIGTBLSZ] = {
 };
 
 void
+svr4_sigfillset(s)
+	svr4_sigset_t *s;
+{
+	int i;
+
+	svr4_sigemptyset(s);
+	for (i = 0; i < SVR4_NSIG; i++) 
+		if (svr4_to_bsd_sig[i] != 0)
+			svr4_sigaddset(s, i);
+}
+
+void
 svr4_to_bsd_sigset(sss, bss)
 	const svr4_sigset_t *sss;
 	sigset_t *bss;
@@ -131,17 +143,12 @@ svr4_to_bsd_sigset(sss, bss)
 	int i, newsig;
 
 	SIGEMPTYSET(*bss);
-	bss->__bits[0] = sss->bits[0] & ~((1U << SVR4_SIGTBLSZ) - 1);
-	bss->__bits[1] = sss->bits[1];
-	bss->__bits[2] = sss->bits[2];
-	bss->__bits[3] = sss->bits[3];
-	for (i = 1; i <= SVR4_SIGTBLSZ; i++) {
-		if (svr4_sigismember(sss, i)) {
-			newsig = svr4_to_bsd_sig[_SIG_IDX(i)];
+	for (i = 0; i < SVR4_NSIG; i++)
+		if (svr4_sigismember(sss, i + 1)) {
+			newsig = svr4_to_bsd_sig[i];
 			if (newsig)
 				SIGADDSET(*bss, newsig);
 		}
-	}
 }
 
 void
@@ -259,6 +266,10 @@ svr4_sys_sigaction(p, uap)
 	caddr_t sg;
 	int error;
 
+	DPRINTF(("@@@ svr4_sys_sigaction(%d, %d, %d)\n", p->p_pid,
+			SCARG(uap, signum),
+			SVR4_SVR42BSD_SIG(SCARG(uap, signum))));
+	
 	sg = stackgap_init();
 	nisa = SCARG(uap, nsa);
 	oisa = SCARG(uap, osa);
@@ -277,6 +288,16 @@ svr4_sys_sigaction(p, uap)
 			return error;
 	} else
 		nbsa = NULL;
+
+#if defined(DEBUG_SVR4)
+	{
+		int i;
+		for (i = 0; i < 4; i++) 
+			DPRINTF(("\tssa_mask[%d] = %lx\n", i,
+						nisa->ssa_mask.bits[i]));
+		DPRINTF(("\tssa_handler = %lx\n", nisa->ssa_handler));
+	}
+#endif
 
 	SCARG(&sa, sig) = SVR4_SVR42BSD_SIG(SCARG(uap, signum));
 	SCARG(&sa, act) = nbsa;
@@ -353,11 +374,12 @@ svr4_sys_signal(p, uap)
 	struct svr4_sys_signal_args *uap;
 {
 	int signum;
-	int error, *retval;
+	int error, *retval = p->p_retval;
 	caddr_t sg = stackgap_init();
 
+	DPRINTF(("@@@ svr4_sys_signal(%d)\n", p->p_pid));
+
 	signum = SVR4_SVR42BSD_SIG(SVR4_SIGNO(SCARG(uap, signum)));
-	retval = p->p_retval;
 	if (signum <= 0 || signum > SVR4_NSIG)
 		return (EINVAL);
 
@@ -530,6 +552,7 @@ svr4_sys_sigpending(p, uap)
 	int *retval;
 	svr4_sigset_t sss;
 
+	DPRINTF(("@@@ svr4_sys_sigpending(%d)\n", p->p_pid));
 	retval = p->p_retval;
 	switch (SCARG(uap, what)) {
 	case 1:	/* sigpending */
@@ -542,6 +565,13 @@ svr4_sys_sigpending(p, uap)
 
 	case 2:	/* sigfillset */
 		svr4_sigfillset(&sss);
+#if defined(DEBUG_SVR4)
+		{
+			int i;
+			for (i = 0; i < 4; i++)
+				DPRINTF(("new sigset[%d] = %lx\n", i, (long)sss.bits[i]));
+		}
+#endif
 		break;
 
 	default:
@@ -605,9 +635,15 @@ svr4_sys_context(p, uap)
 		DPRINTF(("setcontext(%p)\n", uap->uc));
 		if ((error = copyin(uap->uc, &uc, sizeof(uc))) != 0)
 			return error;
-		DPRINTF(("uc_flags = %x\n", uc.uc_flags));
-		DPRINTF(("uc_sigmask = %x\n", uc.uc_sigmask));
-
+		DPRINTF(("uc_flags = %lx\n", uc.uc_flags));
+#if defined(DEBUG_SVR4)
+		{
+			int i;
+			for (i = 0; i < 4; i++)
+				DPRINTF(("uc_sigmask[%d] = %lx\n", i,
+							uc.uc_sigmask.bits[i]));
+		}
+#endif
 		return svr4_setcontext(p, &uc);
 
 	default:
