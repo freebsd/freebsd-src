@@ -608,7 +608,8 @@ product GRIFFIN IMATE		0x0405	iMate, ADB adapter
 product FREECOM DVD		0xfc01	Connector for DVD drive
 
 /* Future Technology Devices products */
-product FTDI SERIAL		0x8372	Serial converter
+product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial converter
+product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial converter
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
