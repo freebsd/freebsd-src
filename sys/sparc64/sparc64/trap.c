@@ -72,6 +72,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/clock.h>
+#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
@@ -592,7 +593,7 @@ syscall(struct trapframe *tf)
 		argp = args;
 		bcopy(&tf->tf_out[reg], args, sizeof(args[0]) * regcnt);
 		error = copyin((void *)(tf->tf_out[6] + SPOFF +
-		    offsetof(struct frame, f_pad[6])),
+		    offsetof(struct frame, fr_pad[6])),
 		    &args[regcnt], (narg - regcnt) * sizeof(args[0]));
 		if (error != 0)
 			goto bad;
