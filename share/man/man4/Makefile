@@ -18,7 +18,8 @@ MAN4=	ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 atkbdc.4 aue.4 blackhole.4 \
 	umass.4 ums.4 unix.4 update.4 usb.4 vga.4 vinum.4 vn.4 \
 	vpo.4 vr.4 wb.4 wx.4 worm.4 wst.4 xl.4 xpt.4 yp.4 zero.4 
 
-MLINKS=	fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
+MLINKS=	ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4
+MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
 MLINKS+=lp.4 plip.4
