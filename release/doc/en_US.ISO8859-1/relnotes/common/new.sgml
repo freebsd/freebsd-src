@@ -209,8 +209,8 @@
     <para>A kernel option <varname>ADAPTIVE_GIANT</varname>, which
       causes the Giant lock to also be treated in
       an adaptive fashion when adaptive mutexes are enabled,
-      has been added.  This improves performance of SMP machines
-      and is enabled by default on i386.</para>
+      has been added.  This improves the performance of SMP machines
+      and is enabled by default on the i386.</para>
 
     <para arch="i386">The &man.acpi.asus.4; driver has been added
       to use ACPI-controlled hardware features, such as hot keys and
@@ -240,7 +240,7 @@
       This behavior can be overridden by setting the loader tunable
       <varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
 
-    <para arch="amd64">The &man.agp.4; driver now supports AMD64 graphics
+    <para arch="amd64">The &man.agp.4; driver now supports the AMD64 graphics
       aperture relocation table (GART).</para>
 
     <para>The &man.bus.dma.9; interface now supports transparently honoring
@@ -250,7 +250,7 @@
       In addition, a set of sysctls <varname>hw.busdma.*</varname>
       for &man.bus.dma.9; statistics has been added.</para>
 
-    <para>The &man.contigmalloc.9; has been reimplemented
+    <para>The &man.contigmalloc.9; function has been reimplemented
       with an algorithm which stands a greatly-improved chance of working
       despite pressure from running programs.  The old algorithm can be used
       by setting a sysctl <varname>vm.old_contigmalloc</varname>.  More details
@@ -296,7 +296,7 @@
     <para>The <varname>hw.pci.allow_unsupported_io_range</varname>
       loader tunable has been removed.</para>
 
-    <para>&man.jail.2; now supports use of raw sockets from within a jail.
+    <para>&man.jail.2; now supports the use of raw sockets from within a jail.
       This feature is disabled by default, and controlled by using the
       <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
 
@@ -378,8 +378,8 @@
     <para arch="amd64">Loadable kernel modules now work and are
       enabled in the amd64 build.</para>
 
-    <para arch="amd64">A preliminary support for running 32-bit
-      Linux binaries on amd64.  This is enabled with the
+    <para arch="amd64">Preliminary support for running 32-bit
+      Linux binaries on amd64 has been added.  This feature is enabled with the
       <literal>COMPAT_LINUX32</literal> kernel option.</para>
 
     <para arch="i386">The <devicename>loran</devicename>
@@ -395,7 +395,7 @@
       This feature can be enabled by setting a new sysctl
       <varname>mac_bsdextended_firstmatch_enabled</varname>.</para>
 
-    <para>The &man.mac.bsdextended.4; policy now supports to log
+    <para>The &man.mac.bsdextended.4; policy can now log
       failed attempts to syslog's <literal>AUTHPRIV</literal> facility.
       This feature can be enabled by setting a new sysctl
       <varname>mac_bsdextended_logging</varname>.</para>
@@ -415,7 +415,8 @@
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.  &merged;</para>
 
-    <para arch="i386,pc98">A new kernel option <literal>MP_WATCHDOG</literal> which
+    <para arch="i386,pc98">A new kernel option <literal>MP_WATCHDOG</literal>
+      has been added; it
       allows one of the logical CPUs on a system to be used as a dedicated
       watchdog to cause a drop to the debugger and/or generate an NMI
       to the boot processor if the kernel ceases to respond.
@@ -542,8 +543,8 @@
       <devicename>stf0</devicename> to stdout.</para>
 
     <para>The &os; dynamic and static linker now support Thread Local Storage (TLS),
-      a <application>GCC</application> feature which allows
-      to add a <literal>__thread</literal> modifier
+      a <application>GCC</application> feature which supports
+      a <literal>__thread</literal> modifier
       to the declaration of global and static variables.
       This extra modifier means that the variable's value is
       thread-local; one thread changing its value will not
@@ -803,9 +804,9 @@
 	This allows &man.natd.8; to be bound to
 	different network interfaces and sharing of load.</para>
 
-      <para><literal>PFIL_HOOKS</literal> has always been
+      <para><literal>PFIL_HOOKS</literal> support is now always
 	compiled into the kernel, and the associated kernel compile
-	options are removed.  All of the packet filter subsystems
+	options have been removed.  All of the packet filter subsystems
 	that &os; supports now use the <literal>PFIL_HOOKS</literal>
 	framework.</para>
 
@@ -1141,9 +1142,9 @@
     <para>&man.dump.8; and &man.restore.8; now support
       a <option>-P</option> option to specify backup methods
       other than files and tapes.  The argument is passed to
-      a normal &man.sh.1; pipeline with either
+      a normal &man.sh.1; pipeline with either the
       <varname>$DUMP_VOLUME</varname> or <varname>$RESTORE_VOLUME</varname>
-      environment variable, respectively.
+      environment variable defined, respectively.
       For more information, see &man.dump.8; and &man.restore.8;.</para>
 
     <para>The &man.eeprom.8; utility to display and
@@ -1171,7 +1172,7 @@
       not <username>root</username>.  This is useful for matching anonymous FTP data
       traffic with a single &man.ipfw.8; rule with <literal>uid</literal>.</para>
 
-    <para>&man.ftw.3; and &man.nftw.3; functions have been implemented.
+    <para>The &man.ftw.3; and &man.nftw.3; functions have been implemented.
       These are used to traverse a directory hierarchy.</para>
 
     <para>The &man.geom.8; utility for operating on &man.geom.4; classes
@@ -1229,12 +1230,13 @@
       environment.</para>
 
     <para>&man.jail.8; now supports a <option>-l</option> option to
-      clean the environment.  The environment variables are discarded
+      clean the environment.  All environment variables are discarded
       except for <varname>HOME</varname>, <varname>SHELL</varname>,
       <varname>PATH</varname>, <varname>TERM</varname>, and
-      <varname>USER</varname> before running jailed program under
-      specific user's credentials as the &man.su.1; <option>-l</option>
-      option does.</para>
+      <varname>USER</varname> before running the jailed program under
+      specific user's credentials.  This behavior is similar to that
+      provided by the &man.su.1; <option>-l</option>
+      option.</para>
 
     <para>&man.kgdb.1;, a kernel debugging utility which uses
       <application>libgdb</application>
@@ -1806,10 +1808,10 @@
       containing known ports vulnerabilities and report them to the
       administrator.</para>
 
-    <para>&os; now adopts <application>Xorg</application> instead of
+    <para>&os; now uses <application>Xorg</application> instead of
       <application>XFree86</application> as the default X Window System.
       The supported release is <application>Xorg</application> X11R6.7.0.
-      Note that <application>XFree86</application> is also available in &os;
+      Note that <application>XFree86</application> is also available in the &os;
       Ports Collection (<filename role="package">x11/XFree86-4</filename>).</para>
   </sect2>
 
