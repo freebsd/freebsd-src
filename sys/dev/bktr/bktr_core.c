@@ -188,6 +188,17 @@ options	DEFAULT_TUNERTYPE=2	# TUNERTYPE_CABLEIRC
  */
 #define MULTIPLE_OPENS
 
+/* XXX Fixme: remove me??? */
+#define ORIGINAL_DELAYS_NOT
+
+/* XXX Fixme: anomolies still exist in the i2c code */
+#define EXTRA_START
+#define FUNNY_HI
+#define REALLY_ACK
+
+/* XXX attempt to hold sync on marginal signals, experimental */
+#define LOW_SYNC_NOT
+
 
 #include "pci.h"
 #if NPCI > 0
@@ -1084,7 +1095,7 @@ get_bktr_mem( int unit, unsigned size )
 
 
 /*
- * Initialize the 7116, 7196 and the RGB module.
+ * what should we do here?
  */
 static void
 bktr_init ( bktr_reg_t *bktr )
@@ -1115,7 +1126,6 @@ bktr_attach( pcici_t tag, int unit )
 		return ;
 	}
 
-	
 	bktr->tag = tag;
 	pci_map_mem(tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
 				&bktr->phys_base);
@@ -1129,7 +1139,7 @@ bktr_attach( pcici_t tag, int unit )
 	printf("bktr%d: attach: irq changed from %d to %d\n",
 		unit, (old_irq & 0xff), (new_irq & 0xff));
 #endif 
-				/* setup the interrupt handling routine */
+	/* setup the interrupt handling routine */
 	pci_map_int(tag, bktr_intr, (void*) bktr, &net_imask);
 	
 /*
@@ -1191,17 +1201,24 @@ end of setup up dma risc program
 		   METEOR_RGB16;
 #endif /* amancio */
 
-		bktr->flags = METEOR_INITALIZED | METEOR_AUTOMODE | METEOR_DEV0 | METEOR_RGB16;
+		bktr->flags = METEOR_INITALIZED | METEOR_AUTOMODE |
+			      METEOR_DEV0 | METEOR_RGB16;
 		bktr->dma_prog_loaded = 0;
 		bktr->cols = 640;
 		bktr->rows = 480;
 		bktr->depth = 2;		/* two bytes per pixel */
-		bktr->frames = 1;	/* one frame */
+		bktr->frames = 1;		/* one frame */
 		bt848 = bktr->base;
 		btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
 		*btl_reg = 0;
 		bt848[BKTR_GPIO_DMA_CTL] = 0;
 	}
+
+	/* defaults for the tuner section of the card */
+	bktr->tuner.frequency = 0;
+	bktr->tuner.channel = 0;
+	bktr->tuner.tunertype = DEFAULT_TUNERTYPE;
+
 #ifdef DEVFS
 	bktr->devfs_token = devfs_add_devswf(&bktr_cdevsw, unit,
 					     DV_CHR, 0, 0, 0644, "brooktree");
@@ -1219,6 +1236,9 @@ end of setup up dma risc program
 */
 
 
+/*
+ * 
+ */
 int
 bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 {
@@ -1230,7 +1250,7 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	volatile u_long *btl_reg;
 
 	unit = UNIT(minor(dev));
-	if (unit >= NBKTR)	/* unit out of range */
+	if (unit >= NBKTR)			/* unit out of range */
 		return(ENXIO);
 
 	bktr = &(brooktree[unit]);
@@ -1251,12 +1271,17 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	bt848 = bktr->base;
 
 	/* dump_bt848(bt848); */
-	*bt848 = 0x3;
+	*bt848 = 0x3;				/* bt848[ 0 ] */
 	*bt848 = 0xc0;
 
+#if defined( LOW_SYNC )
+	bt848[BKTR_ADC] = 0xa1;
+#else
 	bt848[BKTR_ADC] = 0x81;
+#endif /* LOW_SYNC */
 
 	bt848[BKTR_IFORM] = 0x69;
+	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
 	bt848[BKTR_COLOR_CTL] = 0x20;
 
@@ -1272,7 +1297,6 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	bt848[BKTR_VBI_PACK_DEL] = 0;
 
 	bzero((u_char *) bktr->bigbuf, 640*480*4);
-	bktr->flags |= METEOR_OPEN;
 	bktr->fifo_errors = 0;
 	bktr->dma_errors = 0;
 	bktr->frames_captured = 0;
@@ -1285,16 +1309,16 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	bktr->video.banksize = 0;
 	bktr->video.ramsize = 0;
 
-	/* defaults for the tuner section of the card */
-	bktr->tuner.frequency = 0;
-	bktr->tuner.tunertype = DEFAULT_TUNERTYPE;
-
 	btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
 	*btl_reg = 1 << 23;
 
 	return(0);
 }
 
+
+/*
+ * 
+ */
 int
 bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 {
@@ -1307,7 +1331,7 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 	int		temp;
 #endif
 	unit = UNIT(minor(dev));
-	if (unit >= NBKTR)	/* unit out of range */
+	if (unit >= NBKTR)			/* unit out of range */
 		return(ENXIO);
 
 	bktr = &(brooktree[unit]);
@@ -1428,7 +1452,8 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 
 	case TVTUNER_SETCHNL:
 		temp = tv_channel( bktr, (int)*(unsigned long *)arg );
-		if ( temp < 0 ) return EIO;
+		if ( temp < 0 )
+			return EINVAL;
 		*(unsigned long *)arg = temp;
 		break;
 
@@ -1437,7 +1462,10 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		break;
 
 	case TVTUNER_SETTYPE:
-		bktr->tuner.tunertype = *(unsigned long *)arg;
+		temp = *(unsigned long *)arg;
+		if ( (temp < TUNERTYPE_MIN) || (temp > TUNERTYPE_MAX) )
+			return EINVAL;
+		bktr->tuner.tunertype = temp;
 		break;
 
 	case TVTUNER_GETTYPE:
@@ -1451,7 +1479,8 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 
 	case TVTUNER_SETFREQ:
 		temp = tv_freq( bktr, (int)*(unsigned long *)arg );
-		if ( temp < 0 ) return EIO;
+		if ( temp < 0 )
+			return EINVAL;
 		*(unsigned long *)arg = temp;
 		break;
 
@@ -1747,6 +1776,14 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		*(int*)arg = tmp_int;
 		break;
 
+	case BT848_SCBARS:	/* set colorbar output */
+		bt848[BKTR_COLOR_CTL] |= 0x40;
+		break;
+
+	case BT848_CCBARS:	/* clear colorbar output */
+		bt848[BKTR_COLOR_CTL] &= ~0x40;
+		break;
+
 	case METEORSSIGNAL:
 		bktr->signal = *(int *) arg;
 		bktr->proc = pr;
@@ -2020,16 +2057,11 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 				*btl_reg =    1 << 23 |	  2 | 1;
 			}
 		}
-		
 		break;
-		default:
-#if 0
-/* XXX */
-		error = ENOTTY;
-		break;
-#else
+	/* end of METEORSETGEO */
+
+	default:
 		return ENODEV;
-#endif /* 0 */
 	}
 
 	return 0;
@@ -2066,12 +2098,14 @@ bktr_mmap( dev_t dev, int offset, int nprot )
  * tuner specific routines:
  */
 
-/** XXX FIXME: this should be a kernel option */
-#define IF_FREQUENCY		4575	/* M/N IF frequency */
-
 /* guaranteed address for any TSA5522 */
 #define TSA5522_WADDR		0xc2
 #define TSA5522_RADDR		0xc3
+
+/* EEProm */
+#define X24C01_WADDR		0xae		/* STB */
+#define X24C01_RADDR		0xaf
+
 
 /*
  * bit 7: CONTROL BYTE = 1
@@ -2106,15 +2140,6 @@ bktr_mmap( dev_t dev, int offset, int nprot )
 #error you must define a tuner type
 
 #endif /* XXXXXX_TUNER */
-
-/* scaling factor for frequencies expressed as ints */
-#define TEST_A_NOT
-
-#if defined( TEST_A )
-#define FREQFACTOR		16
-#else
-#define FREQFACTOR		100
-#endif
 
 
 /******************************* i2c primitives ******************************/
@@ -2179,20 +2204,20 @@ static int i2cWrite( i2c_regptr_t, u_char );
 /*
  * start an I2C bus transaction
  */
-static void
+static int
 i2cStart( i2c_regptr_t bti2c, int address )
 {
-
-#if 1
+#if defined( EXTRA_START )
 	/* ensure the proper starting state */
 	DataHi_ClockLo( bti2c, LDELAY );	/* release data */
 	DataHi_ClockHi( bti2c, LDELAY );	/* release clock */
-#endif
+#endif /* EXTRA_START */
+
 	DataLo_ClockHi( bti2c, LDELAY );	/* lower data */
 	DataLo_ClockLo( bti2c, LDELAY );	/* lower clock */
 
 	/* send the address of the device */
-	i2cWrite( bti2c, address );
+	return i2cWrite( bti2c, address );
 }
 
 /*
@@ -2201,6 +2226,7 @@ i2cStart( i2c_regptr_t bti2c, int address )
 static void
 i2cStop( i2c_regptr_t bti2c )
 {
+	DELAY( LDELAY );
 	DataLo_ClockLo( bti2c, LDELAY );	/* lower clock & data */
 	DataLo_ClockHi( bti2c, LDELAY );	/* release clock */
 	DataHi_ClockHi( bti2c, LDELAY );	/* release data */
@@ -2278,9 +2304,13 @@ i2cRead( i2c_regptr_t bti2c, int ack )
 		DataHi_ClockLo( bti2c, SDELAY );	/* release clock */
 	}
 
+#if defined( FUNNY_HI )
+	i2cHi( bti2c );
+#endif /* FUNNY_HI */
+#if defined( REALLY_ACK )
 	if ( ack )
 		i2cGrantAck( bti2c );			/* Grant ACK */
-
+#endif /* REALLY_ACK */
 	return byte;
 }
 
@@ -2304,11 +2334,134 @@ i2cWrite( i2c_regptr_t bti2c, u_char byte )
 #undef SDELAY
 #undef LDELAY
 
+
 /*************************** end of i2c primitives ***************************/
 
 
 #define I2C_REGADDR()		(i2c_regptr_t)&bktr->base[ BKTR_I2C_CONTROL ]
 
+
+/* scaling factor for frequencies expressed as ints */
+#define FREQFACTOR		16
+
+/*
+ * Format:
+ *	entry 0:         MAX legal channel
+ *	entry 1:         IF frequency
+ *			 expressed as fi{mHz} * 16,
+ *			 eg 45.75mHz == 45.75 * 16 = 732
+ *	entry 2:         [place holder/future]
+ *	entry 3:         base of channel record 0
+ *	entry 3 + (x*3): base of channel record 'x'
+ *	entry LAST:      NULL channel entry marking end of records
+ *
+ * Record:
+ *	int 0:		base channel
+ *	int 1:		frequency of base channel,
+ *			 expressed as fb{mHz} * 16,
+ *	int 2:		offset frequency between channels,
+ *			 expressed as fo{mHz} * 16,
+ */
+
+/*
+ * North American Broadcast Channels:
+ *
+ *  2:  55.25 mHz -  4:  67.25 mHz
+ *  5:  77.25 mHz -  6:	 83.25 mHz
+ *  7: 175.25 mHz - 13:	211.25 mHz
+ * 14: 471.25 mHz - 83:	885.25 mHz
+ *
+ * IF freq: 45.75 mHz
+ */
+int	nabcst[] = {
+	83,	(int)( 45.75 * FREQFACTOR),	0,
+	14,	(int)(471.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 7,	(int)(175.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 5,	(int)( 77.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 2,	(int)( 55.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 0
+};
+
+/*
+ * North American Cable Channels, IRC:
+ *
+ *  2:  55.25 mHz -  4:  67.25 mHz
+ *  5:  77.25 mHz -  6:  83.25 mHz
+ *  7: 175.25 mHz - 13: 211.25 mHz
+ * 14: 121.25 mHz - 22: 169.25 mHz
+ * 23: 217.25 mHz - 94: 643.25 mHz
+ * 95:  91.25 mHz - 99: 115.25 mHz
+ *
+ * IF freq: 45.75 mHz
+ */
+int	irccable[] = {
+	99,	(int)( 45.75 * FREQFACTOR),	0,
+	95,	(int)( 91.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	23,	(int)(217.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	14,	(int)(121.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 7,	(int)(175.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 5,	(int)( 77.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 2,	(int)( 55.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	 0
+};
+
+/*
+ * North American Cable Channels, HRC:
+ *
+ */
+int	hrccable[] = {
+	0, 0, 0,
+	0
+};
+
+/*
+ * Western European channels:
+ *
+ */
+int	weurope[] = {
+	0, 0, 0,
+	0
+};
+
+int* freqTable[] = {
+	NULL,
+	nabcst,
+	irccable,
+	hrccable,
+	weurope
+};
+
+
+#define TBL_CHNL	freqTable[ bktr->tuner.tunertype ][ x ]
+#define TBL_BASE_FREQ	freqTable[ bktr->tuner.tunertype ][ x + 1 ]
+#define TBL_OFFSET	freqTable[ bktr->tuner.tunertype ][ x + 2 ]
+static int
+frequency_lookup( bktr_reg_t* bktr, int channel )
+{
+	int	x;
+
+	/* check for "> MAX channel" */
+	x = 0;
+	if ( channel > TBL_CHNL )
+		return -1;
+
+	/* search the table for data */
+	for ( x = 3; TBL_CHNL; x += 3 ) {
+		if ( channel >= TBL_CHNL ) {
+			return
+			  (TBL_BASE_FREQ + ((channel-TBL_CHNL) * TBL_OFFSET));
+		}
+	}
+
+	/* not found, must be below the MIN channel */
+	return -1;
+}
+#undef TBL_OFFSET
+#undef TBL_BASE_FREQ
+#undef TBL_CHNL
+
+
+#define TBL_IF	freqTable[ bktr->tuner.tunertype ][ 1 ]
 /*
  * set the frequency of the tuner
  */
@@ -2332,23 +2485,15 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 	 * N = 16 * { fRF(pc) + fIF(pc) }
 	 * where:
 	 *  pc is picture carrier, fRF & fIF are in mHz
-	 */
-#if defined( TEST_A )
-	/*
+	 *
 	 * frequency is mHz * 16, eg. 55.25 mHz * 16 == 884
 	 */
-	N = (frequency + 732 /* 45.75 * 16 */);
-#else
-	/*
-	 * frequency is mHz to 2 decimal places, ie. 5525 == 55.25 mHz,
-	 */
-	N = 16 * ((frequency + IF_FREQUENCY) / FREQFACTOR);
-#endif
+	N = frequency + TBL_IF;
+
 	/* get the i2c register address */
 	bti2c = I2C_REGADDR();
 
 	/* send the data to the TSA5522 */
-	disable_intr();
 	i2cStart( bti2c, TSA5522_WADDR );
 
 	/* the data sheet wants the order set according to direction */
@@ -2366,132 +2511,12 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 	}
 
 	i2cStop( bti2c );
-	enable_intr();
 
 	bktr->tuner.frequency = frequency;
 
 	return 0;
 }
-
-
-/*
- * North American Broadcast Channels:
- *
- * IF freq: 45.75 mHz
- *
- * Chnl Freq
- *  2	 55.25 mHz
- *  3	 61.25 mHz
- *  4	 67.25 mHz
- * 
- *  5	 77.25 mHz
- *  6	 83.25 mHz
- * 
- *  7	175.25 mHz
- * 13	211.25 mHz
- * 
- * 14	471.25 mHz
- * 83	885.25 mHz
- */
-static int
-frequency_nabcst( int channel )
-{
-	/* legal channels are 2 thru 83 */
-	if ( channel > 83 )
-		return -1;
-
-	/* channels 14 thru 83 */
-	if ( channel >= 14 )
-#if defined( TEST_A )
-		return 7540 + ((channel-14) * 96 );
-#else
-		return 47125 + ((channel-14) * 600 );
-#endif
-	/* channels 7 thru 13 */
-	if ( channel >= 7 )
-#if defined( TEST_A )
-		return 2804 + ((channel-7) * 96 );
-#else
-		return 17525 + ((channel-7) * 600 );
-#endif
-	/* channels 5 thru 6 */
-	if ( channel >= 5 )
-#if defined( TEST_A )
-		return 1236 + ((channel-5) * 96 );
-#else
-		return 7725 + ((channel-5) * 600 );
-#endif
-	/* channels 2 thru 4 */
-	if ( channel >= 2 )
-#if defined( TEST_A )
-		return 884 + ((channel-2) * 96 );
-#else
-		return 5525 + ((channel-2) * 600 );
-#endif
-	/* legal channels are 2 thru 83 */
-	return -1;
-}
-
-
-/*
- * North American Cable Channels, IRC(?):
- *
- * IF freq: 45.75 mHz
- *
- * Chnl Freq
- *  2	 55.25 mHz
- *  3	 61.25 mHz
- *  4	 67.25 mHz
- *
- *  5	 77.25 mHz
- *  6	 83.25 mHz
- *
- *  7	175.25 mHz
- * 13	211.25 mHz
- *
- * 14	121.25 mHz
- * 22	169.25 mHz
- *
- * 23	217.25 mHz
- * 94	643.25 mHz
- *
- * 95	 91.25 mHz
- * 99	115.25 mHz
- */
-static int
-frequency_irccable( int channel )
-{
-	/* legal channels are 2 thru 99 */
-	if ( channel > 99 )
-		return -1;
-
-	/* channels 95 thru 99 */
-	if ( channel >= 95 )
-		return 9125 + ((channel-95) * 600 );
-
-	/* channels 23 thru 94 */
-	if ( channel >= 23 )
-		return 21725 + ((channel-23) * 600 );
-
-	/* channels 14 thru 22 */
-	if ( channel >= 14 )
-		return 12125 + ((channel-14) * 600 );
-
-	/* channels 7 thru 13 */
-	if ( channel >= 7 )
-		return 17525 + ((channel-7) * 600 );
-
-	/* channels 5 thru 6 */
-	if ( channel >= 5 )
-		return 7725 + ((channel-5) * 600 );
-
-	/* channels 2 thru 4 */
-	if ( channel >= 2 )
-		return 5525 + ((channel-2) * 600 );
-
-	/* legal channels are 2 thru 99 */
-	return -1;
-}
+#undef TBL_IF
 
 
 /*
@@ -2500,27 +2525,10 @@ frequency_irccable( int channel )
 static int
 tv_channel( bktr_reg_t* bktr, int channel )
 {
-	int frequency, status;
+	int frequency;
 
 	/* calculate the frequency according to tuner type */
-	switch ( bktr->tuner.tunertype ) {
-	case TUNERTYPE_NABCST:
-		frequency = frequency_nabcst( channel );
-		break;
-
-	case TUNERTYPE_CABLEIRC:
-		frequency = frequency_irccable( channel );
-		break;
-
-	/* FIXME: */
-	case TUNERTYPE_CABLEHRC:
-	case TUNERTYPE_WEUROPE:
-	default:
-		return -1;
-	}
-
-	/* check the result of channel to frequency conversion */
-	if ( frequency < 0 )
+	if ( (frequency = frequency_lookup( bktr, channel )) < 0 )
 		return -1;
 
 	/* set the new frequency */
@@ -2535,7 +2543,7 @@ tv_channel( bktr_reg_t* bktr, int channel )
 
 
 /*
- * set the channel of the tuner
+ * get the status of the tuner
  */
 static int
 tuner_status( bktr_reg_t* bktr )
@@ -2547,13 +2555,11 @@ tuner_status( bktr_reg_t* bktr )
 	bti2c = I2C_REGADDR();
 
 	/* send the request to the TSA5522 */
-	disable_intr();
 	i2cStart( bti2c, TSA5522_RADDR );
 
 	status = i2cRead( bti2c, 0 );	/* no ACK */
 
 	i2cStop( bti2c );
-	enable_intr();
 
 	return status;
 }
