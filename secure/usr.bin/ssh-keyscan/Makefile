@@ -4,8 +4,8 @@
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c
 
-LDADD+=	-lssh -lcrypto
-DPADD+=	${LIBSSH} ${LIBCRYPTO}
+DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
+LDADD+=	-lssh -lcrypto -lz
 
 .include <bsd.prog.mk>
 
