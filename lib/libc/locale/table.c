@@ -49,7 +49,7 @@ extern int	_none_init __P((char *, char **));
 
 _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,
-    "none",
+    "NONE",
     _none_sgetrune,
     _none_sputrune,
     0xFFFD,

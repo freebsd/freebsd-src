@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <rune.h>
@@ -44,30 +46,14 @@
 #include "setlocale.h"
 
 extern int		_none_init __P((_RuneLocale *));
-#ifdef XPG4
 extern int		_UTF2_init __P((_RuneLocale *));
 extern int		_EUC_init __P((_RuneLocale *));
 extern int		_BIG5_init __P((_RuneLocale *));
 extern int		_MSKanji_init __P((_RuneLocale *));
-extern int              _xpg4_setrunelocale __P((char *));
-#endif
 extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
 
-#ifdef XPG4
 int
 setrunelocale(encoding)
-	char *encoding;
-{
-	return _xpg4_setrunelocale(encoding);
-}
-#endif
-
-int
-#ifndef XPG4
-setrunelocale(encoding)
-#else
-_xpg4_setrunelocale(encoding)
-#endif
 	char *encoding;
 {
 	FILE *fp;
@@ -117,23 +103,18 @@ _xpg4_setrunelocale(encoding)
 	}
 	fclose(fp);
 
-#ifdef XPG4
-	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2"))
-		return(_UTF2_init(rl));
-#else
 	if (!rl->encoding[0])
 		return(EINVAL);
-#endif
 	else if (!strcmp(rl->encoding, "NONE"))
 		return(_none_init(rl));
-#ifdef XPG4
+	else if (!strcmp(rl->encoding, "UTF2"))
+		return(_UTF2_init(rl));
 	else if (!strcmp(rl->encoding, "EUC"))
 		return(_EUC_init(rl));
 	else if (!strcmp(rl->encoding, "BIG5"))
 		return(_BIG5_init(rl));
 	else if (!strcmp(rl->encoding, "MSKanji"))
 		return(_MSKanji_init(rl));
-#endif
 	else
 		return(EINVAL);
 }
