@@ -306,6 +306,7 @@ int sched_rr_get_interval(struct thread *td,
 {
 	int e;
 	struct thread *targettd;
+	struct timespec timespec;
 	struct proc *targetp;
 
 	mtx_lock(&Giant);
@@ -326,7 +327,10 @@ int sched_rr_get_interval(struct thread *td,
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
 		e = ksched_rr_get_interval(&td->td_retval[0], ksched, targettd,
-			uap->interval);
+			&timespec);
+		if (e == 0)
+			e = copyout(&timespec, uap->interval,
+			    sizeof(timespec));
 	}
 done2:
 	mtx_unlock(&Giant);
