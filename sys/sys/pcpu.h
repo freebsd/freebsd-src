@@ -52,7 +52,7 @@ struct pcpu {
 	struct thread	*pc_idlethread;		/* Idle thread */
 	struct thread	*pc_fpcurthread;	/* Fp state owner */
 	struct pcb	*pc_curpcb;		/* Current pcb */
-	struct timeval	pc_switchtime;	
+	struct bintime	pc_switchtime;	
 	int		pc_switchticks;
 	u_int		pc_cpuid;		/* This cpu number */
 	u_int		pc_cpumask;		/* This cpu mask */

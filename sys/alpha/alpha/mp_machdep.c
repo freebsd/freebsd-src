@@ -196,7 +196,7 @@ smp_init_secondary(void)
 	while (smp_started == 0)
 		; /* nothing */
 
-	microuptime(PCPU_PTR(switchtime));
+	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
 	/* ok, now grab sched_lock and enter the scheduler */

@@ -89,7 +89,7 @@ ia64_ap_startup(void)
 
 	__asm __volatile("ssm psr.ic|psr.i;; srlz.i;;");
 
-	microuptime(PCPU_PTR(switchtime));
+	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
 	mtx_lock_spin(&sched_lock);

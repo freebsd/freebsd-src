@@ -394,7 +394,7 @@ struct proc {
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
 	struct itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
-	u_int64_t	p_runtime;	/* (j) Real time in microsec. */
+	struct bintime	p_runtime;	/* (j) Real time. */
 	int		p_traceflag;	/* (j?) Kernel trace points. */
 	struct vnode	*p_tracep;	/* (j?) Trace to vnode. */
 	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
