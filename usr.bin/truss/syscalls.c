@@ -73,11 +73,19 @@ struct syscall syscalls[] = {
 	{ "readlink", 1, 3,
 	  { { String, 0 } , { Readlinkres | OUT, 1 }, { Int, 2 }}},
 	{ "lseek", 2, 3,
+#ifdef __LP64__
+	  { { Int, 0 }, {Quad, 2 }, { Whence, 3 }}},
+#else
 	  { { Int, 0 }, {Quad, 2 }, { Whence, 4 }}},
+#endif
 	{ "linux_lseek", 2, 3,
 	  { { Int, 0 }, {Int, 1 }, { Whence, 2 }}},
 	{ "mmap", 2, 6,
+#ifdef __LP64__
+	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 5}}},
+#else
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 6}}},
+#endif
 	{ "mprotect", 1, 3,
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}}},
 	{ "open", 1, 3,
@@ -234,22 +242,6 @@ get_string(int procfd, void *offset, int max) {
 
 
 /*
- * Gag.  This is really unportable.  Multiplication is more portable.
- * But slower, from the code I saw.
- */
-
-static long long
-make_quad(unsigned long p1, unsigned long p2) {
-  union {
-    long long ll;
-    unsigned long l[2];
-  } t;
-  t.l[0] = p1;
-  t.l[1] = p2;
-  return t.ll;
-}
-
-/*
  * Remove a trailing '|' in a string, useful for fixup after decoding
  * a "flags" argument.
  */
@@ -327,16 +319,19 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
       tmp2 += sprintf(tmp2, "]");
     }
   break;
+#ifdef __LP64__
+  case Quad:
+    asprintf(&tmp, "0x%lx", args[sc->offset]);
+    break;
+#else
   case Quad:
     {
-      unsigned long long t;
-      unsigned long l1, l2;
-      l1 = args[sc->offset];
-      l2 = args[sc->offset+1];
-      t = make_quad(l1, l2);
-      asprintf(&tmp, "0x%llx", t);
+      unsigned long long ll;
+      ll = *(unsigned long long *)(args + sc->offset);
+      asprintf(&tmp, "0x%llx", ll);
       break;
     }
+#endif
   case Ptr:
     asprintf(&tmp, "0x%lx", args[sc->offset]);
     break;
