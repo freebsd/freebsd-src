@@ -342,8 +342,8 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 	 */
 	adp->va_window = (vm_offset_t) ofwfb_static_window;
 
-	/* Enable future font-loading... */
-	adp->va_flags |= V_ADP_FONT;
+	/* Enable future font-loading and flag color support */
+	adp->va_flags |= V_ADP_FONT | V_ADP_COLOR;
 
 	ofwfb_blank_display(&sc->sc_va, V_DISPLAY_ON);
 
