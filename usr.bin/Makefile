@@ -49,6 +49,7 @@ SUBDIR=	alias \
 	du \
 	ee \
 	elf2aout \
+	elfdump \
 	enigma \
 	env \
 	expand \
