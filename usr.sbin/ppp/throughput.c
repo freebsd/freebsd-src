@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.5 1998/05/21 21:48:41 brian Exp $
+ *	$Id: throughput.c,v 1.6 1998/06/09 18:49:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -71,7 +71,7 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
     prompt_Printf(prompt, "  overall   %5ld bytes/sec\n",
                   (t->OctetsIn+t->OctetsOut)/secs_up);
     prompt_Printf(prompt, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
-    prompt_Printf(prompt, "  peak      %5d bytes/sec on %s\n",
+    prompt_Printf(prompt, "  peak      %5d bytes/sec on %s",
                   t->BestOctetsPerSecond, ctime(&t->BestOctetsPerSecondTime));
   } else
     prompt_Printf(prompt, "Overall %ld bytes/sec\n",
@@ -95,7 +95,7 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
-      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec on %s\n",
+      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec on %s",
                 (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond,
                 ctime(&t->BestOctetsPerSecondTime));
     else
