@@ -27,7 +27,7 @@ This file contains sparc64-specific installation instructions.
     exported via NFS.  The utilities on the root filesystem can then
     be used to partition the local disk on the &arch; machine and
     optionally to copy the &os; distribution to the local disk to make
-    a standalone machine.</para>
+    a stand-alone machine.</para>
 
   <sect2>
     <title>Preparation</title>
@@ -306,7 +306,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
           <literal>rp</literal> property in
           <filename>/etc/bootptab</filename> or the
           <literal>root-path</literal> parameter in
-          <filename>/dhcpd.conf</filename> (see &man.exports.5;).
+          <filename>dhcpd.conf</filename> (see &man.exports.5;).
           Copy the kernel to the directory you specified using
           <literal>bf</literal> and <literal>hd</literal> in the
           <filename>/etc/bootptab</filename> or the
@@ -365,12 +365,12 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       label the disks you want to use with &os; from Solaris.</para>
 
     <para>&os; disk labels must currently be created by hand, as
-      &man.sysinstall.8; is not yet available on &os;/&arch;. Plese
+      &man.sysinstall.8; is not yet available on &os;/&arch;. Please
       refer to the <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
       Handbook</ulink> for more information about labels and special
       partitions.</para>
 
-    <para>On &os;/&arch;, a Sun compatability label is embedded in the
+    <para>On &os;/&arch;, a Sun compatibility label is embedded in the
       &os; label; this is needed for the PROM to boot from disk. This
       imposes an additional restriction on the disk label format:
       partitions are required to start on a cylinder boundary.</para>
@@ -503,13 +503,13 @@ drivedata: 0
     <para>If you booted the kernel from the network, you downloaded a
       &man.tar.1; archive with the base system and exported it from
       the netboot server via NFS.  You can unpack this same archive
-      to your local disk to create a standalone system (remember to
+      to your local disk to create a stand-alone system (remember to
       copy the kernel over as well).</para>
 
     <para>If you booted from CDROM, the same archive is available in
       <filename>/root/</filename> on the CDROM.</para>
 
-     <para>Before booting the system standalone, you will want to edit
+     <para>Before booting the system stand-alone, you will want to edit
        <filename>/etc/fstab</filename> and
        <filename>/etc/rc.conf</filename> and set a
        <username>root</username> password.</para>
