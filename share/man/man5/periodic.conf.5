@@ -237,12 +237,12 @@ if you want the removed files to be reported in your daily output.
 Set to
 .Dq YES
 to run
-.Ic sendmail -bH
+.Nm sendmail Fl bH
 to automatically purge stale entries from
 .Xr sendmail 8 Ns 's
 host status cache.
 Files will be deleted using the same criteria as
-.Nm sendmail
+.Xr sendmail 8
 would normally use when determining whether to believe the cached information,
 as configured in
 .Pa /etc/mail/sendmail.cf .
@@ -279,7 +279,7 @@ file backed up and modifications to be displayed in your daily output.
 Set to
 .Dq YES
 if you want to run
-.Ic calendar -a
+.Nm calendar Fl a
 daily.
 .It Va daily_accounting_enable
 .Pq Vt bool
@@ -341,7 +341,7 @@ if you want to run
 (with the arguments supplied in
 .Va daily_status_disks_df_flags )
 and
-.Ic dump -W .
+.Nm dump Fl W .
 .It Va daily_status_disks_df_flags
 .Pq Vt str
 Set to the arguments for the
@@ -355,7 +355,7 @@ is set to
 Set to
 .Dq YES
 if you want to run
-.Ic netstat -i .
+.Nm netstat Fl i .
 .It Va daily_status_network_usedns
 .Pq Vt bool
 Set to
@@ -390,7 +390,7 @@ if you want to run
 Set to
 .Dq YES
 if you want to shorten the
-.Nm mailq
+.Xr mailq 1
 output when
 .Va daily_status_mailq_enable
 is set to
@@ -601,7 +601,7 @@ Set to
 if you want to run
 .Pa /usr/libexec/locate.updatedb .
 This script is run using
-.Ic nice -5
+.Nm nice Fl 5
 as user
 .An nobody ,
 and generates the table used by the

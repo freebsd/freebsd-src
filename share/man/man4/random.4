@@ -201,29 +201,30 @@ The sequence of numbers should also appear numerically uncorrelated,
 as simulation often assumes independence of its random inputs.
 Often it is desirable to reproduce
 the results of a simulation exactly,
-so that if the generator is seeded in the same way
+so that if the generator is seeded in the same way,
 it should produce the same results.
 A peripheral concern for simulation is
 the speed of a random number generator.
 .Pp
 Another issue in simulation is
-the size of the state associated with the random number generator and
+the size of the state associated with the random number generator, and
 how frequently it repeats itself.
 For example,
 a program which shuffles a pack of cards should have 52! possible outputs,
 which requires the random number generator to have 52! starting states.
 This means the seed should have at least log_2(52!) ~ 226 bits of state
 if the program is to stand a chance of outputting all possible sequences,
-and the program needs some unbiased way of generating these these bits.
+and the program needs some unbiased way of generating these bits.
 Again,
 the
 .Nm
 device could be used for seeding here,
-but in practice smaller seeds are usually considered acceptable.
+but in practice, smaller seeds are usually considered acceptable.
 .Pp
 .Fx
 provides two families of functions which are considered
-suitable for simulation. The
+suitable for simulation.
+The
 .Xr random 3
 family of functions provides a random integer
 between 0 to
@@ -246,8 +247,8 @@ The
 family of functions are also provided,
 which provide random floating point numbers in various ranges.
 .Pp
-Randomness as used for collision avoidance,
-for example in certain network protocols,
+Randomness that is used for collision avoidance
+(for example, in certain network protocols)
 has slightly different semantics again.
 It is usually expected that the numbers will be uniform,
 as this produces the lowest chances of collision.
@@ -260,7 +261,7 @@ unlike the previous cases.
 .Pp
 One final consideration for the seeding of random number generators
 is a bootstrapping problem.
-In some cases it may be difficult to find enough randomness to
+In some cases, it may be difficult to find enough randomness to
 seed a random number generator until a system is fully operational,
 but the system requires random numbers to become fully operational.
 There is no substitute for careful thought here,
@@ -281,16 +282,16 @@ it is known to be poor for simulation and
 absolutely unsuitable for cryptographic purposes,
 so its use is discouraged.
 .Sh FILES
-.Bl -tag -width /dev/random
+.Bl -tag -width ".Pa /dev/random"
 .It Pa /dev/random
 .El
 .Sh SEE ALSO
-.Xr RAND_add 3 ,
-.Xr RAND_bytes 3 ,
 .Xr arc4random 3 ,
 .Xr drand48 3 ,
 .Xr rand 3 ,
 .Xr random 3 ,
+.Xr RAND_add 3 ,
+.Xr RAND_bytes 3 ,
 .Xr sysctl 8
 .Sh HISTORY
 A

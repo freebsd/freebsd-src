@@ -128,9 +128,7 @@ and the global variable
 .Va errno
 is set to indicate the error.
 .Pp
-.Rv -std sem_close
-.Pp
-.Rv -std sem_unlink
+.Rv -std sem_close sem_unlink
 .Sh ERRORS
 The
 .Fn sem_open
@@ -204,9 +202,9 @@ The named semaphore does not exist.
 .Xr umask 2 ,
 .Xr unlink 2 ,
 .Xr sem_getvalue 3 ,
-.Xr sem_wait 3 ,
-.Xr sem_trywait 3 ,
 .Xr sem_post 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_wait 3 ,
 .Xr sem 4
 .Sh STANDARDS
 The
@@ -225,4 +223,5 @@ This implementation places strict requirements on the value of
 it must begin with a slash
 .Pq Ql / ,
 contain no other slash characters,
-and be less than 14 characters in length not including the terminating null.
+and be less than 14 characters in length
+not including the terminating null character.

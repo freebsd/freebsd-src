@@ -30,35 +30,37 @@
 .Sh NAME
 .Nm pthread_multi_np ,
 .Nm pthread_single_np
-.Nd switch betwen multi- and single-threaded scheduling modes
+.Nd "switch between multi- and single-threaded scheduling modes"
 .Sh LIBRARY
 .Lb libc_r
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft int
-.Fn pthread_multi_np "void"
+.Fn pthread_multi_np void
 .Ft int
-.Fn pthread_single_np "void"
+.Fn pthread_single_np void
 .Sh DESCRIPTION
 The
 .Fn pthread_single_np
-function call switches process to single-threaded mode, i.e.
-suspend all threads except current.
-Semantic of this function is similar to
-.Fn pthread_suspend_all_np .
+function switches the process to a single-threaded mode, i.e.,
+suspends all threads except the current.
+The semantics of this function is similar to
+.Xr pthread_suspend_all_np 3 .
 .Pp
 The
 .Fn pthread_multi_np
-function call switches process to multi-threaded mode, entered by
-.Fn pthread_single_np
-Semantic of this function is similar to
-.Fn pthread_resume_all_np .
+function switches the process to a multi-threaded mode.
+The semantics of this function is similar to
+.Xr pthread_resume_all_np 3 .
+.Sh RETURN VALUES
+The
+.Fn pthread_multi_np
+and
+.Nm pthread_single_np
+functions always return 0.
 .Sh SEE ALSO
 .Xr pthread_resume_all_np 3 ,
-.Xr pthread_single_all_np 3
+.Xr pthread_suspend_all_np 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .

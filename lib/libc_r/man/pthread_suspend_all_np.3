@@ -35,12 +35,13 @@
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft void
-.Fn pthread_suspend_all_np "void"
+.Fn pthread_suspend_all_np void
 .Sh DESCRIPTION
 The
 .Fn pthread_suspend_all_np
-function call causes all active thread to be suspended.
-The only exception is current thread, i.e. thread which called
+function causes all active threads to be suspended.
+The only exception is the current thread,
+the thread that called the
 .Fn pthread_suspend_all_np
 function.
 .Sh SEE ALSO
@@ -48,9 +49,5 @@ function.
 .Xr pthread_resume_np 3 ,
 .Xr pthread_suspend_np 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
-
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .

@@ -39,8 +39,8 @@
 .Sh DESCRIPTION
 The
 .Fn pthread_resume_np
-function called on suspended thread cause it to resume.
-If thread specified by
+function, called on a suspended thread, causes it to resume.
+If a thread specified by the
 .Fa tid
 argument is not suspended, no actions will be performed.
 .Sh RETURN VALUES
@@ -52,13 +52,13 @@ Otherwise, an error number is returned to indicate the error.
 The
 .Fn pthread_resume_np
 function will fail if:
-.Bl -tag -witdh Er
+.Bl -tag -width Er
 .It Bq Er EINVAL
-The value specified by
+The value specified by the
 .Fa tid
-is invalid
+argument is invalid.
 .It Bq ESRC
-No thread could be found corresponding to thread ID specified by
+No thread could be found corresponding to the thread ID specified by the
 .Fa tid
 argument.
 .El
@@ -68,9 +68,5 @@ argument.
 .Xr pthread_suspend_all_np 3 ,
 .Xr pthread_suspend_np 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
-
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .
