@@ -44,6 +44,7 @@ __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -91,10 +92,10 @@ static struct numbering_property numbering_properties[NP_LAST + 1] = {
 #define INT_STRLEN_MAXIMUM \
 	((sizeof (int) * CHAR_BIT - 1) * 302 / 1000 + 2)
 
-static void	filter __P((void));
-int		main __P((int, char *[]));
-static void	parse_numbering __P((const char *, int));
-static void	usage __P((void));
+static void	filter(void);
+int		main(int, char *[]);
+static void	parse_numbering(const char *, int);
+static void	usage(void);
 
 /*
  * Pointer to dynamically allocated input line buffer, and its size.
@@ -149,13 +150,6 @@ main(argc, argv)
 
 	(void)setlocale(LC_ALL, "");
 
-	/*
-	 * Note: this implementation strictly conforms to the XBD Utility
-	 * Syntax Guidelines and does not permit the optional `file' operand
-	 * to be intermingled with the options, which is defined in the
-	 * XCU specification (Issue 5) but declared an obsolescent feature that
-	 * will be removed from a future issue.  It shouldn't matter, though.
-	 */
 	while ((c = getopt(argc, argv, "pb:d:f:h:i:l:n:s:v:w:")) != -1) {
 		switch (c) {
 		case 'p':
@@ -171,10 +165,9 @@ main(argc, argv)
 				delim[1] = optarg[1];
 			/* at most two delimiter characters */
 			if (optarg[2] != '\0') {
-				(void)fprintf(stderr,
-				    "nl: invalid delim argument -- %s\n",
+				errx(EXIT_FAILURE,
+				    "invalid delim argument -- %s",
 				    optarg);
-				exit(EXIT_FAILURE);
 				/* NOTREACHED */
 			}
 			break;
@@ -188,22 +181,18 @@ main(argc, argv)
 			errno = 0;
 			val = strtol(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid incr argument -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid incr argument -- %s", optarg);
 			incr = (int)val;
 			break;
 		case 'l':
 			errno = 0;
 			uval = strtoul(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			    (uval == ULONG_MAX && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid num argument -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			    (uval == ULONG_MAX && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid num argument -- %s", optarg);
 			nblank = (unsigned int)uval;
 			break;
 		case 'n':
@@ -213,11 +202,9 @@ main(argc, argv)
 				format = FORMAT_RN;
 			} else if (strcmp(optarg, "rz") == 0) {
 				format = FORMAT_RZ;
-			} else {
-				(void)fprintf(stderr,
-				    "nl: illegal format -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			} else
+				errx(EXIT_FAILURE,
+				    "illegal format -- %s", optarg);
 			break;
 		case 's':
 			sep = optarg;
@@ -226,29 +213,23 @@ main(argc, argv)
 			errno = 0;
 			val = strtol(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid startnum value -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid startnum value -- %s", optarg);
 			startnum = (int)val;
 			break;
 		case 'w':
 			errno = 0;
 			val = strtol(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid width value -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid width value -- %s", optarg);
 			width = (int)val;
-			if (!(width > 0)) {
-				(void)fprintf(stderr,
-				    "nl: width argument must be > 0 -- %d\n",
+			if (!(width > 0))
+				errx(EXIT_FAILURE,
+				    "width argument must be > 0 -- %d",
 				    width);
-				 exit(EXIT_FAILURE);
-			}
 			break;
 		case '?':
 		default:
@@ -263,10 +244,8 @@ main(argc, argv)
 	case 0:
 		break;
 	case 1:
-		if (freopen(argv[0], "r", stdin) == NULL) {
-			perror(argv[0]);
-			exit(EXIT_FAILURE);
-		}
+		if (freopen(argv[0], "r", stdin) == NULL)
+			err(EXIT_FAILURE, "%s", argv[0]);
 		break;
 	default:
 		usage();
@@ -278,17 +257,13 @@ main(argc, argv)
 		val = LINE_MAX;
 	/* Allocate sufficient buffer space (including the terminating NUL). */
 	buffersize = (size_t)val + 1;
-	if ((buffer = malloc(buffersize)) == NULL) {
-		perror("cannot allocate input line buffer");
-		exit(EXIT_FAILURE);
-	}
+	if ((buffer = malloc(buffersize)) == NULL)
+		err(EXIT_FAILURE, "cannot allocate input line buffer");
 
 	/* Allocate a buffer suitable for preformatting line number. */
 	intbuffersize = max(INT_STRLEN_MAXIMUM, width) + 1;	/* NUL */
-	if ((intbuffer = malloc(intbuffersize)) == NULL) {
-		perror("cannot allocate preformatting buffer");
-		exit(EXIT_FAILURE);
-	}
+	if ((intbuffer = malloc(intbuffersize)) == NULL)
+		err(EXIT_FAILURE, "cannot allocate preformatting buffer");
 
 	/* Do the work. */
 	filter();
@@ -367,18 +342,14 @@ filter()
 		}
 		(void)printf("%s%s", sep, buffer);
 
-		if (ferror(stdout)) {
-			perror("output error");
-			exit(EXIT_FAILURE);
-		}
+		if (ferror(stdout))
+			err(EXIT_FAILURE, "output error");
 nextline:
 		;
 	}
 
-	if (ferror(stdin)) {
-		perror("input error");
-		exit(EXIT_FAILURE);
-	}
+	if (ferror(stdin))
+		err(EXIT_FAILURE, "input error");
 }
 
 /*
@@ -416,18 +387,16 @@ parse_numbering(argstr, section)
 			(void)regerror(error,
 			    &numbering_properties[section].expr,
 			    errorbuf, sizeof (errorbuf));
-			(void)fprintf(stderr,
-			    "nl: %s expr: %s -- %s\n",
+			errx(EXIT_FAILURE,
+			    "%s expr: %s -- %s",
 			    numbering_properties[section].name, errorbuf,
 			    &argstr[1]);
-			exit(EXIT_FAILURE);
 		}
 		break;
 	default:
-		(void)fprintf(stderr,
-		    "nl: illegal %s line numbering type -- %s\n",
+		errx(EXIT_FAILURE,
+		    "illegal %s line numbering type -- %s",
 		    numbering_properties[section].name, argstr);
-		exit(EXIT_FAILURE);
 	}
 }
 
