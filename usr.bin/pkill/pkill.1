@@ -95,16 +95,16 @@ file.
 Restrict matches to processes with a real group ID in the comma-separated
 list
 .Ar gid .
-.It Fl P Ar ppid
-Restrict matches to processes with a parent process ID in the
-comma-separated list
-.Ar ppid .
 .It Fl M Ar core
 Extract values associated with the name list from the specified core
 instead of the currently running system.
 .It Fl N Ar system
 Extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
+.It Fl P Ar ppid
+Restrict matches to processes with a parent process ID in the
+comma-separated list
+.Ar ppid .
 .It Fl U Ar uid
 Restrict matches to processes with a real user ID in the comma-separated
 list
