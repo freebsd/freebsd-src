@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2005 by David E. O'Brien <obrien@FreeBSD.org>.
  * Copyright (c) 2003,2004 by Quinton Dolan <q@onthenet.com.au>. 
  * All rights reserved.
  * 
@@ -215,6 +216,22 @@ static struct nve_type nve_devs[] = {
 	"NVIDIA nForce MCP2 Networking Adapter"},
 	{NVIDIA_VENDORID, NFORCE_MCPNET3_DEVICEID,
 	"NVIDIA nForce MCP3 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET4_DEVICEID,
+	"NVIDIA nForce MCP4 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET5_DEVICEID,
+	"NVIDIA nForce MCP5 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET6_DEVICEID,
+	"NVIDIA nForce MCP6 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET7_DEVICEID,
+	"NVIDIA nForce MCP7 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET8_DEVICEID,
+	"NVIDIA nForce MCP8 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET9_DEVICEID,
+	"NVIDIA nForce MCP9 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET10_DEVICEID,
+	"NVIDIA nForce MCP10 Networking Adapter"},
+	{NVIDIA_VENDORID, NFORCE_MCPNET11_DEVICEID,
+	"NVIDIA nForce MCP11 Networking Adapter"},
 	{0, 0, NULL}
 };
 
