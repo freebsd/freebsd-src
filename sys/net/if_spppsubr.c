@@ -4584,6 +4584,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	STDDCL;
 	struct ifaddr *ifa;
 	struct sockaddr_in *si;
+	struct in_ifaddr *ia;
 
 	/*
 	 * Pick the first AF_INET address from the list,
@@ -4634,6 +4635,9 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 
 		/* set new address */
 		si->sin_addr.s_addr = htonl(src);
+		ia = ifatoia(ifa);
+		LIST_REMOVE(ia, ia_hash);
+		LIST_INSERT_HEAD(INADDR_HASH(si->sin_addr.s_addr), ia, ia_hash);
 
 		/* add new route */
 		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);
