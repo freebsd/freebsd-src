@@ -13,14 +13,14 @@
 
 <!-- Architecture-specific customization -->
 
-<!ENTITY arch "alpha">
-<!ENTITY arch.print "Alpha/AXP">
+<!ENTITY arch "ia64">
+<!ENTITY arch.print "IA-64">
 
 ]>
 
 <article>
   &artheader;
   &sect.intro;
-  &sect.proc.alpha;
+  &sect.proc.ia64;
   &sect.dev;
 </article>
