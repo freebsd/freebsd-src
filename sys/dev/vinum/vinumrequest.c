@@ -238,10 +238,18 @@ vinumstart(struct buf *bp, int reviveok)
 	if (vol != NULL) {
 	    plexno = vol->preferred_plex;		    /* get the plex to use */
 	    if (plexno < 0) {				    /* round robin */
-		plexno = vol->last_plex_read;
-		vol->last_plex_read++;
-		if (vol->last_plex_read >= vol->plexes)	    /* got the the end? */
-		    vol->last_plex_read = 0;		    /* wrap around */
+		for (plexno = 0; plexno < vol->plexes; plexno++)
+		    if (abs(bp->b_blkno - PLEX[vol->plex[plexno]].last_addr) <= ROUNDROBIN_SWITCH)
+		        break;
+		if (plexno >= vol->plexes) {
+		    vol->last_plex_read++;
+		    if (vol->last_plex_read >= vol->plexes)
+			vol->last_plex_read = 0;
+		    plexno = vol->last_plex_read;
+		} else {
+		    vol->last_plex_read = plexno;
+		};
+		PLEX[vol->plex[plexno]].last_addr = bp->b_blkno;
 	    }
 	    status = build_read_request(rq, plexno);	    /* build a request */
 	} else {

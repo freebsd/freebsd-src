@@ -502,6 +502,7 @@ struct plex {
     int lockwaits;					    /* and number of waits for locks */
     off_t checkblock;					    /* block number for parity op */
     struct rangelock *lock;				    /* ranges of locked addresses */
+    daddr_t last_addr;					    /* last address read from this plex */
 };
 
 /*** Volume definitions ***/
@@ -627,6 +628,13 @@ enum parityop {
     rebuildparity,
     rebuildandcheckparity,				    /* rebuildparity with the -v option */
 };
+
+/*
+ * When doing round-robin reads from a multi-plex volume, switch to the
+ * next plex if the difference of the last read sector and the next sector
+ * to be read is this many sectors.
+ */
+#define ROUNDROBIN_SWITCH	128			    /* 64k */
 
 #ifdef VINUMDEBUG
 /* Debugging stuff */
