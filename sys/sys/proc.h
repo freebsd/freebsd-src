@@ -36,15 +36,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.12 1994/10/10 00:58:32 phk Exp $
+ * $Id: proc.h,v 1.13 1994/11/13 12:46:08 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
 #define	_SYS_PROC_H_
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
-#include <sys/select.h>			/* For struct selinfo. */
 #include <sys/rtprio.h>			/* For struct rtprio. */
+#include <sys/select.h>			/* For struct selinfo. */
+#include <sys/time.h>			/* For structs itimerval, timeval. */
 
 /*
  * One structure allocated per session.
@@ -157,7 +158,7 @@ struct	proc {
 
 	struct 	sysentvec *p_sysent; /* System call dispatch information. */
 
-	struct	rtprio p_rtprio; /* realtime priority */
+	struct	rtprio p_rtprio;	/* Realtime priority. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_thread
 	int	p_thread;	/* Id for this "thread"; Mach glue. XXX */
@@ -195,7 +196,7 @@ struct	proc {
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define P_EXEC		0x04000	/* Process called exec. */
-#define P_SWAPPING	0x40000	/* Process is being swapped */
+#define	P_SWAPPING	0x40000	/* Process is being swapped. */
 
 /* Should probably be changed into a hold count (They have. -DG). */
 #define	P_NOSWAP	0x08000	/* Another flag to prevent swap out. */
@@ -270,8 +271,9 @@ void	sleep __P((void *chan, int pri));
 int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
 void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
-__dead void cpu_exit __P((struct proc *));
-__dead void exit1 __P((struct proc *, int));
+
+__dead void cpu_exit __P((struct proc *)) __dead2;
+__dead void exit1 __P((struct proc *, int)) __dead2;
 void	fixjobc __P((struct proc *, struct pgrp *, int));
 int	acct_process __P((struct proc *));
 int	leavepgrp __P((struct proc *));
