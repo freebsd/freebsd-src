@@ -29,6 +29,8 @@
  *
  */
 
+#include "joy.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
