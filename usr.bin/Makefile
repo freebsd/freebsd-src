@@ -79,6 +79,9 @@ SUBDIR=	apply \
 	lastcomm \
 	ldd \
 	leave \
+	less \
+	lessecho \
+	lesskey \
 	lex \
 	limits \
 	locate \
