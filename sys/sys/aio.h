@@ -109,8 +109,7 @@ int	aio_error(const struct aiocb *);
 ssize_t	aio_return(struct aiocb *);
 
 /*
- * Cancel I/O -- implemented only to return AIO_NOTCANCELLED or
- *	AIO_ALLDONE.  No cancellation operation will occur.
+ * Cancel I/O
  */
 int	aio_cancel(int, struct aiocb *);
 
