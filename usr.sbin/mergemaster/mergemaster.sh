@@ -507,9 +507,9 @@ case "${RERUN}" in
         ;;
       esac
       make DESTDIR=${TEMPROOT} distrib-dirs &&
-      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj obj &&
-      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj all &&
-      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj DESTDIR=${TEMPROOT} \
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make obj &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make all &&
+      MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj make DESTDIR=${TEMPROOT} \
           distribution;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
