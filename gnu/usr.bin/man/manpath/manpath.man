@@ -13,7 +13,7 @@
 .\" Austin, Texas  78712
 .\"
 .\" $FreeBSD$
-.Dd Aug 16, 1999
+.Dd August 16, 1999
 .Dt MANPATH 1
 .Os
 .Sh NAME
