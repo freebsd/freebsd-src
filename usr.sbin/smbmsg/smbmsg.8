@@ -47,13 +47,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-command can be used to send or receive messages over an
+utility can be used to send or receive messages over an
 SMBus, see
 .Xr smbus 4 .
 .Pp
 The
 .Nm
-command has two different modi of operation.
+utility has two different modi of operation.
 The first form shown in the synopsis can be used to
 .Dq probe
 the devices on the SMBus.
@@ -166,7 +166,6 @@ If no
 .Fl c Ar cmd
 option has been provided, the following messages can be
 issued:
-.Pp
 .Bd -unfilled -offset indent
 .TS
 l r r.
@@ -185,7 +184,6 @@ option entirely.
 If a command value has been given using the
 .Fl c Ar cmd
 option, the following messages can be generated:
-.Pp
 .Bd -unfilled -offset indent
 .TS
 l l r r.
@@ -229,7 +227,8 @@ Issue a
 .Em read byte
 message to the device at slave address 0x70, using
 255 (0xff) as the command-byte to send to the device,
-and display the result using the custom format %d.
+and display the result using the custom format
+.Ql %d .
 .Pp
 .Dl "smbmsg -s 0xa0 -c 0 -o 1 0x80"
 .Pp
@@ -277,7 +276,7 @@ Diagnostic messages issued are supposed to be self-explanatory.
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 5.3 .
 .Sh AUTHORS
 The
