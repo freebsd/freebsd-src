@@ -1,4 +1,4 @@
-/* $Id: ccdconfig.c,v 1.6 1997/02/22 14:32:10 peter Exp $ */
+/* $Id: ccdconfig.c,v 1.7 1997/06/10 11:04:50 charnier Exp $ */
 
 /*	$NetBSD: ccdconfig.c,v 1.2.2.1 1995/11/11 02:43:35 thorpej Exp $	*/
 
@@ -161,6 +161,15 @@ main(argc, argv)
 	if (options > 1)
 		usage();
 
+	/*
+	 * Discard setgid privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (core != NULL || kernel != NULL || action != CCD_DUMP) {
+		setegid(getgid());
+		setgid(getgid());
+	}
+
 	switch (action) {
 		case CCD_CONFIG:
 		case CCD_UNCONFIG:
@@ -307,11 +316,16 @@ do_all(action)
 	char line[_POSIX2_LINE_MAX];
 	char *cp, **argv;
 	int argc, rval;
+	gid_t egid;
 
+	egid = getegid();
+	setegid(getgid());
 	if ((f = fopen(ccdconf, "r")) == NULL) {
+		setegid(egid);
 		warn("fopen: %s", ccdconf);
 		return (1);
 	}
+	setegid(egid);
 
 	while (fgets(line, sizeof(line), f) != NULL) {
 		argc = 0;
