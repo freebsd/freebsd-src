@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1995-1997 by Darren Reed.
+ * Copyright (C) 1995-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -42,7 +42,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_hx.c	1.1 3/9/96 (C) 1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_hx.c,v 2.0.2.8.2.1 1997/11/12 10:56:07 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_hx.c,v 2.1 1999/08/04 17:30:03 darrenr Exp $";
 #endif
 
 extern	int	opts;

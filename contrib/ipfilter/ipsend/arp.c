@@ -1,5 +1,5 @@
 /*
- * arp.c (C) 1995-1997 Darren Reed
+ * arp.c (C) 1995-1998 Darren Reed
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)arp.c	1.4 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: arp.c,v 2.0.2.6 1997/09/28 07:13:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: arp.c,v 2.1 1999/08/04 17:31:03 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <errno.h>
@@ -20,6 +20,7 @@ static const char rcsid[] = "@(#)$Id: arp.c,v 2.0.2.6 1997/09/28 07:13:25 darren
 #include <netdb.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <netinet/if_ether.h>
 #ifndef	ultrix
 #include <net/if_arp.h>
 #endif
@@ -27,6 +28,7 @@ static const char rcsid[] = "@(#)$Id: arp.c,v 2.0.2.6 1997/09/28 07:13:25 darren
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include "ipsend.h"
+#include "iplang/iplang.h"
 
 
 /*
@@ -71,6 +73,10 @@ char	*ether;
 	struct	hostent	*hp;
 	int	fd;
 
+#ifdef	IPSEND
+	if (arp_getipv4(ip, ether) == 0)
+		return 0;
+#endif
 	if (!bcmp(ipsave, ip, 4)) {
 		bcopy(ethersave, ether, 6);
 		return 0;

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 1993-1997 by Darren Reed.
+# Copyright (C) 1993-1998 by Darren Reed.
 #
 # Redistribution and use in source and binary forms are permitted
 # provided that this notice is preserved and due credit is given
@@ -67,7 +67,7 @@ install:
 
 bpf sunos4-bpf :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(BPF) $(SUNOS4)" "CC=$(CC)" \
-		"CFLAGS=$(CFLAGS) -DDOSOCKET" "LLIB=-ll"
+		"CFLAGS=$(CFLAGS) -DDOSOCKET -DIPSEND" "LLIB=-ll"
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(BPF) $(SUNOS4)" "CC=$(CC)" \
 		"CFLAGS=$(CFLAGS) -DDOSOCKET"
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(BPF) $(SUNOS4)" "CC=$(CC)" \
@@ -75,7 +75,7 @@ bpf sunos4-bpf :
 
 nit sunos4 sunos4-nit :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(NIT) $(SUNOS4)" "CC=$(CC)" \
-		"CFLAGS=$(CFLAGS) -DDOSOCKET" "LLIB=-ll"
+		"CFLAGS=$(CFLAGS) -DDOSOCKET -DIPSEND" "LLIB=-ll"
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(NIT) $(SUNOS4)" "CC=$(CC)" \
 		"CFLAGS=$(CFLAGS) -DDOSOCKET"
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(NIT) $(SUNOS4)" "CC=$(CC)" \
@@ -83,7 +83,8 @@ nit sunos4 sunos4-nit :
 
 dlpi sunos5 :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(SUNOS5)" "CC=$(CC)" \
-		CFLAGS="$(CFLAGS) -Dsolaris" "LIBS=-lsocket -lnsl" "LLIB=-ll"
+		CFLAGS="$(CFLAGS) -Dsolaris -DIPSEND" "LIBS=-lsocket -lnsl" \
+		"LLIB=-ll"
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(SUNOS5)" "CC=$(CC)" \
 		CFLAGS="$(CFLAGS) -Dsolaris" "LIBS=-lsocket -lnsl"
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(SUNOS5)" "CC=$(CC)" \
@@ -91,7 +92,7 @@ dlpi sunos5 :
 
 bsd-bpf :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(BPF) $(BSD)" "CC=$(CC)" \
-		"CFLAGS=$(CFLAGS) -DDOSOCKET" "LLIB=-ll"
+		"CFLAGS=$(CFLAGS) -DDOSOCKET -DIPSEND" "LLIB=-ll"
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(BPF) $(BSD)" "CC=$(CC)" \
 		"CFLAGS=$(CFLAGS) -DDOSOCKET"
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(BPF) $(BSD)" "CC=$(CC)" \
@@ -99,7 +100,7 @@ bsd-bpf :
 
 linuxrev :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(LINUX)" "CC=$(CC)" \
-		CFLAGS="$(CFLAGS) $(INC) -DDOSOCKET" $(LINUXK)
+		CFLAGS="$(CFLAGS) $(INC) -DDOSOCKET -DIPSEND" $(LINUXK)
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(LINUX)" "CC=$(CC)" \
 		CFLAGS="$(CFLAGS) $(INC) -DDOSOCKET" $(LINUXK)
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(LINUX)" "CC=$(CC)" \
@@ -119,7 +120,7 @@ linux20:
 
 ultrix :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(ULTRIX)" "CC=$(CC)" \
-		CFLAGS="$(CFLAGS)" "LIBS=" "LLIB=-ll"
+		CFLAGS="$(CFLAGS) -DIPSEND" "LIBS=" "LLIB=-ll"
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(ULTRIX)" "CC=$(CC)" \
 		CFLAGS="$(CFLAGS)" "LIBS="
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(ULTRIX)" "CC=$(CC)" \
@@ -127,7 +128,7 @@ ultrix :
 
 hpux9 :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
-		CFLAGS="$(CFLAGS)" "LIBS="
+		CFLAGS="$(CFLAGS) -DIPSEND" "LIBS="
 	make ipresend "ROBJS=$(ROBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
 		CFLAGS="$(CFLAGS)" "LIBS="
 	make iptest "TOBJS=$(TOBJS)" "UNIXOBJS=$(HPUX)" "CC=$(CC)" \
