@@ -100,7 +100,8 @@ static size_t lr_size, lr_length;
 static int last_code;
 
 #define isftpreply(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
-			 && isdigit(foo[2]) && foo[3] == ' ')
+			 && isdigit(foo[2]) \
+                         && (foo[3] == ' ' || foo[3] == '\0'))
 #define isftpinfo(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
 			&& isdigit(foo[2]) && foo[3] == '-')
 
@@ -238,11 +239,13 @@ _ftp_transfer(int cd, char *oper, char *file,
          * is IMHO the one and only weak point in the FTP protocol.
 	 */
 	ln = last_reply;
-	for (p = ln + 3; !isdigit(*p); p++)
+	for (p = ln + 3; *p && !isdigit(*p); p++)
 	    /* nothing */ ;
-	for (p--, i = 0; i < 6; i++) {
-	    p++; /* skip the comma */
+	for (i = 0; *p, i < 6; i++, p++)
 	    addr[i] = strtol(p, &p, 10);
+	if (i < 6) {
+	    e = 999;
+	    goto ouch;
 	}
 
 	/* seek to required offset */
