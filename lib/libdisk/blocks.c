@@ -35,8 +35,9 @@ read_block(int fd, daddr_t block, u_long sector_size)
 }
 
 int
-write_block(int fd, daddr_t block, void *foo, u_long sector_size)
+write_block(int fd, daddr_t block, const void *foo, u_long sector_size)
 {
+
 	if (-1 == lseek(fd, (off_t)block * sector_size, SEEK_SET))
 		return -1;
 	if (sector_size != write(fd, foo, sector_size))

@@ -32,7 +32,6 @@
 .Os
 .Sh NAME
 .Nm Open_Disk ,
-.Nm Clone_Disk ,
 .Nm Free_Disk ,
 .Nm Debug_Disk ,
 .Nm Set_Bios_Geom ,
@@ -56,7 +55,6 @@
 .Nm MakeDev ,
 .Nm MakeDevDisk ,
 .Nm ShowChunkFlags ,
-.Nm ChunkCanBeRoot ,
 .Nm chunk_n ,
 .Nm slice_type_name
 .Nd library interface to slice and partition labels
@@ -71,8 +69,6 @@
 .Fn slice_type_name "int type" "int subtype"
 .Ft struct disk *
 .Fn Open_Disk "const char *devname"
-.Ft struct disk *
-.Fn Clone_Disk "struct disk *disk"
 .Ft void
 .Fn Free_Disk "struct disk *disk"
 .Ft void
@@ -119,8 +115,6 @@
 .Fn MakeDevDisk "struct disk *d" "const char *path"
 .Ft char *
 .Fn ShowChunkFlags "struct chunk *c"
-.Ft char *
-.Fn ChunkCanBeRoot "struct chunk *c"
 .Sh DESCRIPTION
 .Nm Libdisk
 provides an interface to the low-level disk slice and partition labels.
@@ -211,11 +205,6 @@ it.
 .Pp
 .Fn Open_Disk
 will open the named disk, and return populated tree.
-.Pp
-.Fn Clone_Disk
-clones a copy of a tree.  Useful for
-.Dq Undo
-functionality.
 .Pp
 .Fn Free_Disk
 frees a tree made with
@@ -313,10 +302,6 @@ makes the device nodes for all chunks on this disk.
 .Pp
 .Fn ShowChunkFlags
 returns a string to show flags.
-.Pp
-.Fn ChunkCanBeRoot
-returns NULL if chunk can be
-.Ql / .
 .Pp
 Chunk name strings can be accessed directly using the external array
 .Va chunk_n .

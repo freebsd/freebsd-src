@@ -28,22 +28,13 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
-#define DOSPTYP_EXTENDED        5
-#define BBSIZE			8192
-#define SBSIZE			0
 #define DEF_RPM			3600
 #define DEF_INTERLEAVE	1
 
-#ifdef PC98
-#define WHERE(offset,disk) (offset)
-#else
-#define WHERE(offset,disk) (disk->flags & DISK_ON_TRACK ? offset + 63 : offset)
-#endif
-
 /* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
         I'm not sure which, so I leave it like it worked before. --schweikh */
-int
-Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
+static int
+Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const struct chunk *c1)
 {
 	struct disklabel *dl;
 	struct chunk *c2;
@@ -55,7 +46,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif
 
 	for(i = 0; i < BBSIZE/512; i++) {
-		p = read_block(fd, WHERE(i + c1->offset, new), 512);
+		p = read_block(fd, i + c1->offset, 512);
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
@@ -96,7 +87,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	/*
 	 * Add in defaults for superblock size, interleave, and rpms
 	 */
-	dl->d_sbsize = SBSIZE;
+	dl->d_sbsize = 0;
 	dl->d_interleave = DEF_INTERLEAVE;
 	dl->d_rpm = DEF_RPM;
 
@@ -120,12 +111,6 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	dl->d_interleave = 1;
 #endif
 
-#ifndef PC98
-	if(new->flags & DISK_ON_TRACK)
-		for(i=0;i<MAXPARTITIONS;i++)
-			if (dl->d_partitions[i].p_size)
-				dl->d_partitions[i].p_offset += 63;
-#endif
 	dl->d_magic = DISKMAGIC;
 	dl->d_magic2 = DISKMAGIC;
 	dl->d_checksum = dkcksum(dl);
@@ -148,15 +133,9 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif /*__alpha__*/
 
 	for(i=0;i<BBSIZE/512;i++) {
-		write_block(fd,WHERE(i + c1->offset, new), buf + 512 * i, 512);
+		write_block(fd, i + c1->offset, buf + 512 * i, 512);
 	}
 
-	return 0;
-}
-
-int
-Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
-{
 	return 0;
 }
 
@@ -189,7 +168,7 @@ Cfg_Boot_Mgr(u_char *mbr, int edd)
 #endif
 
 int
-Write_Disk(struct disk *d1)
+Write_Disk(const struct disk *d1)
 {
 	int fd,i;
 #ifdef __i386__
@@ -235,9 +214,9 @@ Write_Disk(struct disk *d1)
 
 	memset(s,0,sizeof s);
 #ifdef PC98
-	mbr = read_block(fd, WHERE(1, d1), d1->sector_size);
+	mbr = read_block(fd, 1, d1->sector_size);
 #else
-	mbr = read_block(fd, WHERE(0, d1), d1->sector_size);
+	mbr = read_block(fd, 0, d1->sector_size);
 #endif
 	dp = (struct dos_partition*)(mbr + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
@@ -256,10 +235,6 @@ Write_Disk(struct disk *d1)
 #endif
 			continue;
 		s[j]++;
-#endif
-#ifndef PC98
-		if (c1->type == extended)
-			ret += Write_Extended(fd, d1, old, c1);
 #endif
 		if (c1->type == freebsd)
 			ret += Write_FreeBSD(fd, d1, old, c1);
@@ -370,9 +345,9 @@ Write_Disk(struct disk *d1)
 
 #ifdef PC98
 	if (d1->bootipl)
-		write_block(fd, WHERE(0, d1), d1->bootipl, d1->sector_size);
+		write_block(fd, 0, d1->bootipl, d1->sector_size);
 
-	mbr = read_block(fd, WHERE(1, d1), d1->sector_size);
+	mbr = read_block(fd, 1, d1->sector_size);
 	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
 	for (c1 = d1->chunks->part; c1; c1 = c1->next)
@@ -380,13 +355,13 @@ Write_Disk(struct disk *d1)
 			 && (c1->offset == 0))
 			PC98_EntireDisk = 1;
 	if (PC98_EntireDisk == 0)
-		write_block(fd, WHERE(1, d1), mbr, d1->sector_size);
+		write_block(fd, 1, mbr, d1->sector_size);
 
 	if (d1->bootmenu)
 		for (i = 0; i * d1->sector_size < d1->bootmenu_size; i++)
-			write_block(fd, WHERE(2 + i, d1), &d1->bootmenu[i * d1->sector_size], d1->sector_size);
+			write_block(fd, 2 + i, &d1->bootmenu[i * d1->sector_size], d1->sector_size);
 #else
-	mbr = read_block(fd, WHERE(0, d1), d1->sector_size);
+	mbr = read_block(fd, 0, d1->sector_size);
 	if (d1->bootmgr) {
 		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
 		Cfg_Boot_Mgr(mbr, need_edd);
@@ -394,10 +369,10 @@ Write_Disk(struct disk *d1)
 	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
-	write_block(fd, WHERE(0, d1), mbr, d1->sector_size);
+	write_block(fd, 0, mbr, d1->sector_size);
 	if (d1->bootmgr && d1->bootmgr_size > d1->sector_size)
 	  for(i = 1; i * d1->sector_size <= d1->bootmgr_size; i++)
-	    write_block(fd, WHERE(i, d1), &d1->bootmgr[i * d1->sector_size], d1->sector_size);
+	    write_block(fd, i, &d1->bootmgr[i * d1->sector_size], d1->sector_size);
 #endif
 #endif
 
