@@ -49,57 +49,61 @@
 #include "camcontrol.h"
 
 typedef enum {
+	CAM_CMD_NONE		= 0x00000000,
+	CAM_CMD_DEVLIST		= 0x00000001,
+	CAM_CMD_TUR		= 0x00000002,
+	CAM_CMD_INQUIRY		= 0x00000003,
+	CAM_CMD_STARTSTOP	= 0x00000004,
+	CAM_CMD_RESCAN		= 0x00000005,
+	CAM_CMD_READ_DEFECTS	= 0x00000006,
+	CAM_CMD_MODE_PAGE	= 0x00000007,
+	CAM_CMD_SCSI_CMD	= 0x00000008,
+	CAM_CMD_DEVTREE		= 0x00000009,
+	CAM_CMD_USAGE		= 0x0000000a,
+	CAM_CMD_DEBUG		= 0x0000000b,
+	CAM_CMD_RESET		= 0x0000000c,
+	CAM_CMD_FORMAT		= 0x0000000d,
+	CAM_CMD_TAG		= 0x0000000e,
+	CAM_CMD_RATE		= 0x0000000f,
+	CAM_CMD_DETACH		= 0x00000010,
+} cam_cmdmask;
+
+typedef enum {
 	CAM_ARG_NONE		= 0x00000000,
-	CAM_ARG_DEVLIST		= 0x00000001,
-	CAM_ARG_TUR		= 0x00000002,
-	CAM_ARG_INQUIRY		= 0x00000003,
-	CAM_ARG_STARTSTOP	= 0x00000004,
-	CAM_ARG_RESCAN		= 0x00000005,
-	CAM_ARG_READ_DEFECTS	= 0x00000006,
-	CAM_ARG_MODE_PAGE	= 0x00000007,
-	CAM_ARG_SCSI_CMD	= 0x00000008,
-	CAM_ARG_DEVTREE		= 0x00000009,
-	CAM_ARG_USAGE		= 0x0000000a,
-	CAM_ARG_DEBUG		= 0x0000000b,
-	CAM_ARG_RESET		= 0x0000000c,
-	CAM_ARG_FORMAT		= 0x0000000d,
-	CAM_ARG_TAG		= 0x0000000e,
-	CAM_ARG_RATE		= 0x0000000f,
-	CAM_ARG_OPT_MASK	= 0x0000000f,
-	CAM_ARG_VERBOSE		= 0x00000010,
-	CAM_ARG_DEVICE		= 0x00000020,
-	CAM_ARG_BUS		= 0x00000040,
-	CAM_ARG_TARGET		= 0x00000080,
-	CAM_ARG_LUN		= 0x00000100,
-	CAM_ARG_EJECT		= 0x00000200,
-	CAM_ARG_UNIT		= 0x00000400,
-	CAM_ARG_FORMAT_BLOCK	= 0x00000800,
-	CAM_ARG_FORMAT_BFI	= 0x00001000,
-	CAM_ARG_FORMAT_PHYS	= 0x00002000,
-	CAM_ARG_PLIST		= 0x00004000,
-	CAM_ARG_GLIST		= 0x00008000,
-	CAM_ARG_GET_SERIAL	= 0x00010000,
-	CAM_ARG_GET_STDINQ	= 0x00020000,
-	CAM_ARG_GET_XFERRATE	= 0x00040000,
-	CAM_ARG_INQ_MASK	= 0x00070000,
-	CAM_ARG_MODE_EDIT	= 0x00080000,
-	CAM_ARG_PAGE_CNTL	= 0x00100000,
-	CAM_ARG_TIMEOUT		= 0x00200000,
-	CAM_ARG_CMD_IN		= 0x00400000,
-	CAM_ARG_CMD_OUT		= 0x00800000,
-	CAM_ARG_DBD		= 0x01000000,
-	CAM_ARG_ERR_RECOVER	= 0x02000000,
-	CAM_ARG_RETRIES		= 0x04000000,
-	CAM_ARG_START_UNIT	= 0x08000000,
-	CAM_ARG_DEBUG_INFO	= 0x10000000,
-	CAM_ARG_DEBUG_TRACE	= 0x20000000,
-	CAM_ARG_DEBUG_SUBTRACE	= 0x40000000,
-	CAM_ARG_DEBUG_CDB	= 0x80000000,
-	CAM_ARG_FLAG_MASK	= 0xfffffff0
+	CAM_ARG_VERBOSE		= 0x00000001,
+	CAM_ARG_DEVICE		= 0x00000002,
+	CAM_ARG_BUS		= 0x00000004,
+	CAM_ARG_TARGET		= 0x00000008,
+	CAM_ARG_LUN		= 0x00000010,
+	CAM_ARG_EJECT		= 0x00000020,
+	CAM_ARG_UNIT		= 0x00000040,
+	CAM_ARG_FORMAT_BLOCK	= 0x00000080,
+	CAM_ARG_FORMAT_BFI	= 0x00000100,
+	CAM_ARG_FORMAT_PHYS	= 0x00000200,
+	CAM_ARG_PLIST		= 0x00000400,
+	CAM_ARG_GLIST		= 0x00000800,
+	CAM_ARG_GET_SERIAL	= 0x00001000,
+	CAM_ARG_GET_STDINQ	= 0x00002000,
+	CAM_ARG_GET_XFERRATE	= 0x00004000,
+	CAM_ARG_INQ_MASK	= 0x00007000,
+	CAM_ARG_MODE_EDIT	= 0x00008000,
+	CAM_ARG_PAGE_CNTL	= 0x00010000,
+	CAM_ARG_TIMEOUT		= 0x00020000,
+	CAM_ARG_CMD_IN		= 0x00040000,
+	CAM_ARG_CMD_OUT		= 0x00080000,
+	CAM_ARG_DBD		= 0x00100000,
+	CAM_ARG_ERR_RECOVER	= 0x00200000,
+	CAM_ARG_RETRIES		= 0x00400000,
+	CAM_ARG_START_UNIT	= 0x00800000,
+	CAM_ARG_DEBUG_INFO	= 0x01000000,
+	CAM_ARG_DEBUG_TRACE	= 0x02000000,
+	CAM_ARG_DEBUG_SUBTRACE	= 0x04000000,
+	CAM_ARG_DEBUG_CDB	= 0x08000000,
 } cam_argmask;
 
 struct camcontrol_opts {
 	char 		*optname;	
+	cam_cmdmask	cmdnum;
 	cam_argmask	argnum;
 	const char	*subopt;
 };
@@ -112,35 +116,35 @@ static const char negotiate_opts[] = "acD:O:qR:T:UW:";
 
 struct camcontrol_opts option_table[] = {
 #ifndef MINIMALISTIC
-	{"tur", CAM_ARG_TUR, NULL},
-	{"inquiry", CAM_ARG_INQUIRY, "DSR"},
-	{"start", CAM_ARG_STARTSTOP | CAM_ARG_START_UNIT, NULL},
-	{"stop", CAM_ARG_STARTSTOP, NULL},
-	{"load", CAM_ARG_STARTSTOP | CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
-	{"eject", CAM_ARG_STARTSTOP | CAM_ARG_EJECT, NULL},
+	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
+	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
+	{"start", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT, NULL},
+	{"stop", CAM_CMD_STARTSTOP, CAM_ARG_NONE, NULL},
+	{"load", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
+	{"eject", CAM_CMD_STARTSTOP, CAM_ARG_EJECT, NULL},
 #endif /* MINIMALISTIC */
-	{"rescan", CAM_ARG_RESCAN, NULL},
-	{"reset", CAM_ARG_RESET, NULL},
+	{"rescan", CAM_CMD_RESCAN, CAM_ARG_NONE, NULL},
+	{"reset", CAM_CMD_RESET, CAM_ARG_NONE, NULL},
 #ifndef MINIMALISTIC
-	{"cmd", CAM_ARG_SCSI_CMD, scsicmd_opts},
-	{"command", CAM_ARG_SCSI_CMD, scsicmd_opts},
-	{"defects", CAM_ARG_READ_DEFECTS, readdefect_opts},
-	{"defectlist", CAM_ARG_READ_DEFECTS, readdefect_opts},
+	{"cmd", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
+	{"command", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
+	{"defects", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
+	{"defectlist", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
 #endif /* MINIMALISTIC */
-	{"devlist", CAM_ARG_DEVTREE, NULL},
+	{"devlist", CAM_CMD_DEVTREE, CAM_ARG_NONE, NULL},
 #ifndef MINIMALISTIC
-	{"periphlist", CAM_ARG_DEVLIST, NULL},
-	{"modepage", CAM_ARG_MODE_PAGE, "bdelm:P:"},
-	{"tags", CAM_ARG_TAG, "N:q"},
-	{"negotiate", CAM_ARG_RATE, negotiate_opts},
-	{"rate", CAM_ARG_RATE, negotiate_opts},
-	{"debug", CAM_ARG_DEBUG, "ITSc"},
-	{"format", CAM_ARG_FORMAT, "qwy"},
+	{"periphlist", CAM_CMD_DEVLIST, CAM_ARG_NONE, NULL},
+	{"modepage", CAM_CMD_MODE_PAGE, CAM_ARG_NONE, "bdelm:P:"},
+	{"tags", CAM_CMD_TAG, CAM_ARG_NONE, "N:q"},
+	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
+	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
+	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "ITSc"},
+	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qwy"},
 #endif /* MINIMALISTIC */
-	{"help", CAM_ARG_USAGE, NULL},
-	{"-?", CAM_ARG_USAGE, NULL},
-	{"-h", CAM_ARG_USAGE, NULL},
-	{NULL, 0, NULL}
+	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
+	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
+	{"-h", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
+	{NULL, 0, 0, NULL}
 };
 
 typedef enum {
@@ -149,11 +153,13 @@ typedef enum {
 	CC_OR_FOUND
 } camcontrol_optret;
 
+cam_cmdmask cmdlist;
 cam_argmask arglist;
 int bus, target, lun;
 
 
-camcontrol_optret getoption(char *arg, cam_argmask *argnum, char **subopt);
+camcontrol_optret getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum,
+			    char **subopt);
 #ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
 static int getdevtree(void);
@@ -194,7 +200,7 @@ static int scsiformat(struct cam_device *device, int argc, char **argv,
 #endif /* MINIMALISTIC */
 
 camcontrol_optret
-getoption(char *arg, cam_argmask *argnum, char **subopt)
+getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, char **subopt)
 {
 	struct camcontrol_opts *opts;
 	int num_matches = 0;
@@ -202,6 +208,7 @@ getoption(char *arg, cam_argmask *argnum, char **subopt)
 	for (opts = option_table; (opts != NULL) && (opts->optname != NULL);
 	     opts++) {
 		if (strncmp(opts->optname, arg, strlen(arg)) == 0) {
+			*cmdnum = opts->cmdnum;
 			*argnum = opts->argnum;
 			*subopt = (char *)opts->subopt;
 			if (++num_matches > 1)
@@ -3246,6 +3253,7 @@ main(int argc, char **argv)
 	int error = 0, optstart = 2;
 	int devopen = 1;
 
+	cmdlist = CAM_CMD_NONE;
 	arglist = CAM_ARG_NONE;
 
 	if (argc < 2) {
@@ -3256,7 +3264,7 @@ main(int argc, char **argv)
 	/*
 	 * Get the base option.
 	 */
-	optreturn = getoption(argv[1], &arglist, &subopt);
+	optreturn = getoption(argv[1], &cmdlist, &arglist, &subopt);
 
 	if (optreturn == CC_OR_AMBIGUOUS) {
 		warnx("ambiguous option %s", argv[1]);
@@ -3324,11 +3332,11 @@ main(int argc, char **argv)
 	 * For these options we do not parse optional device arguments and
 	 * we do not open a passthrough device.
 	 */
-	if (((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_RESCAN)
-	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_RESET)
-	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_DEVTREE)
-	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_USAGE)
-	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_DEBUG))
+	if ((cmdlist == CAM_CMD_RESCAN)
+	 || (cmdlist == CAM_CMD_RESET)
+	 || (cmdlist == CAM_CMD_DEVTREE)
+	 || (cmdlist == CAM_CMD_USAGE)
+	 || (cmdlist == CAM_CMD_DEBUG))
 		devopen = 0;
 
 #ifndef MINIMALISTIC
@@ -3444,64 +3452,64 @@ main(int argc, char **argv)
 	optind = optstart;
 	optreset = 1;
 
-	switch(arglist & CAM_ARG_OPT_MASK) {
+	switch(cmdlist) {
 #ifndef MINIMALISTIC
-		case CAM_ARG_DEVLIST:
+		case CAM_CMD_DEVLIST:
 			error = getdevlist(cam_dev);
 			break;
 #endif /* MINIMALISTIC */
-		case CAM_ARG_DEVTREE:
+		case CAM_CMD_DEVTREE:
 			error = getdevtree();
 			break;
 #ifndef MINIMALISTIC
-		case CAM_ARG_TUR:
+		case CAM_CMD_TUR:
 			error = testunitready(cam_dev, retry_count, timeout, 0);
 			break;
-		case CAM_ARG_INQUIRY:
+		case CAM_CMD_INQUIRY:
 			error = scsidoinquiry(cam_dev, argc, argv, combinedopt,
 					      retry_count, timeout);
 			break;
-		case CAM_ARG_STARTSTOP:
+		case CAM_CMD_STARTSTOP:
 			error = scsistart(cam_dev, arglist & CAM_ARG_START_UNIT,
 					  arglist & CAM_ARG_EJECT, retry_count,
 					  timeout);
 			break;
 #endif /* MINIMALISTIC */
-		case CAM_ARG_RESCAN:
+		case CAM_CMD_RESCAN:
 			error = dorescan_or_reset(argc, argv, 1);
 			break;
-		case CAM_ARG_RESET:
+		case CAM_CMD_RESET:
 			error = dorescan_or_reset(argc, argv, 0);
 			break;
 #ifndef MINIMALISTIC
-		case CAM_ARG_READ_DEFECTS:
+		case CAM_CMD_READ_DEFECTS:
 			error = readdefects(cam_dev, argc, argv, combinedopt,
 					    retry_count, timeout);
 			break;
-		case CAM_ARG_MODE_PAGE:
+		case CAM_CMD_MODE_PAGE:
 			modepage(cam_dev, argc, argv, combinedopt,
 				 retry_count, timeout);
 			break;
-		case CAM_ARG_SCSI_CMD:
+		case CAM_CMD_SCSI_CMD:
 			error = scsicmd(cam_dev, argc, argv, combinedopt,
 					retry_count, timeout);
 			break;
-		case CAM_ARG_DEBUG:
+		case CAM_CMD_DEBUG:
 			error = camdebug(argc, argv, combinedopt);
 			break;
-		case CAM_ARG_TAG:
+		case CAM_CMD_TAG:
 			error = tagcontrol(cam_dev, argc, argv, combinedopt);
 			break;
-		case CAM_ARG_RATE:
+		case CAM_CMD_RATE:
 			error = ratecontrol(cam_dev, retry_count, timeout,
 					    argc, argv, combinedopt);
 			break;
-		case CAM_ARG_FORMAT:
+		case CAM_CMD_FORMAT:
 			error = scsiformat(cam_dev, argc, argv,
 					   combinedopt, retry_count, timeout);
 			break;
 #endif /* MINIMALISTIC */
-		case CAM_ARG_USAGE:
+		case CAM_CMD_USAGE:
 			usage(1);
 			break;
 		default:
