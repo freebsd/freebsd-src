@@ -238,6 +238,12 @@ the packet has been received from
 .Pq Vt struct ifnet Va *rcvif ,
 and the total packet length
 .Pq Vt int Va len .
+Fields used in offloading checksum calculation to the hardware are kept in
+.Va m_pkthdr
+as well.
+See
+.Sx HARDWARE-ASSISTED CHECKSUM CALCULATION
+for details.
 .Pp
 If small enough, data is stored in the internal data buffer of an
 .Vt mbuf .
@@ -760,6 +766,164 @@ and attempts to restore the
 .Vt mbuf chain
 to its original state.
 .El
+.Sh HARDWARE-ASSISTED CHECKSUM CALCULATION
+This section currently applies to TCP/IP only.
+In order to save the host CPU resources, computing checksums is
+offloaded to the network interface hardware if possible.
+The
+.Va m_pkthdr
+member of the leading
+.Vt mbuf
+of a packet contains two fields used for that purpose,
+.Vt int Va csum_flags
+and
+.Vt int Va csum_data .
+The meaning of those fields depends on the direction a packet flows in,
+and on whether the packet is fragmented.
+Henceforth,
+.Va csum_flags
+or
+.Va csum_data
+of a packet
+will denote the corresponding field of the
+.Va m_pkthdr
+member of the leading
+.Vt mbuf
+in the
+.Vt mbuf chain
+containing the packet.
+.Pp
+On output, checksum offloading is attempted after the outgoing
+interface has been determined for a packet.
+The interface-specific field
+.Va ifnet.if_data.ifi_hwassist
+(see
+.Xr ifnet 9 )
+is consulted for the capabilities of the interface to assist in
+computing checksums.
+The
+.Va csum_flags
+field of the packet is set to indicate which actions the interface
+is supposed to perform on it.
+The actions unsupported by the network interface are done in the
+software prior to passing the packet down to the interface driver;
+such actions will never be requested through
+.Va csum_flags .
+.Pp
+The flags demanding a particular action from an interface are as follows:
+.Bl -tag -width ".Dv CSUM_TCP" -offset indent
+.It Dv CSUM_IP
+The IP header checksum is to be computed and stored in the
+corresponding field of the packet.
+The hardware is expected to know the format of an IP header
+to determine the offset of the IP checksum field.
+.It Dv CSUM_TCP
+The TCP checksum is to be computed. (See below.)
+.It Dv CSUM_UDP
+The UDP checksum is to be computed. (See below.)
+.El
+.Pp
+Should the TCP or UDP checksum be calculated in the hardware,
+the field
+.Va csum_data
+will contain the byte offset of the checksum field relative to the
+end of the IP header.
+In this case, the checksum field will be initially
+set by the TCP/IP module to the checksum of the pseudo header
+defined by the protocol specification.
+.Pp
+For outbound packets which have been fragmented
+by the host CPU, the following will also be true,
+regardless of the checksum flag settings:
+.Bl -bullet -offset indent
+.It
+all fragments will have the flag
+.Dv M_FRAG
+set in their
+.Va m_flags
+field;
+.It
+the first and the last fragments in the chain will have
+.Dv M_FIRSTFRAG
+or
+.Dv M_LASTFRAG
+set in their
+.Va m_flags ,
+correspondingly;
+.It
+the first fragment in the chain will have the total number
+of fragments contained in its
+.Va csum_data
+field.
+.El
+.Pp
+It is obvious that computing the TCP or UDP checksum cannot
+be offloaded for a packet fragmented by the host CPU.
+Consequently, there is no ambiguity in the meaning of
+.Va csum_data
+for an outgoing packet.
+.Pp
+On input, an interface indicates the actions it has performed
+on a packet by setting one or more of the following flags in
+.Va csum_flags
+associated with the packet:
+.Bl -tag -width ".Dv CSUM_IP_CHECKED" -offset indent
+.It Dv CSUM_IP_CHECKED
+The IP header checksum has been computed.
+.It Dv CSUM_IP_VALID
+The IP header has a valid checksum.
+This flag can appear only in combination with
+.Dv CSUM_IP_CHECKED .
+.It Dv CSUM_DATA_VALID
+The checksum of the data portion of the IP packet has been computed
+and stored in the field
+.Va csum_data
+in network byte order.
+.It Dv CSUM_PSEUDO_HDR
+Can be set only along with
+.Dv CSUM_DATA_VALID
+to indicate that the IP data checksum found in
+.Va csum_data
+allows for the pseudo header.
+Otherwise the checksum of the pseudo header must be calculated by
+the host CPU and added to
+.Va csum_data
+to obtain the final checksum to be used for validation purposes.
+.El
+.Pp
+If a particular network interface just indicates success or
+failure of TCP or UDP checksum validation without returning
+the exact value of the checksum to the host CPU, its driver can mark
+.Dv CSUM_DATA_VALID
+and
+.Dv CSUM_PSEUDO_HDR
+in
+.Va csum_flags ,
+and set
+.Va csum_data
+to
+.Li 0xFFFF
+hexadecimal to indicate a valid checksum.
+It's a peculiarity of the algorithm used that the Internet checksum
+calculated over any valid packet will be
+.Li 0xFFFF
+as long as the original checksum field is included.
+.Pp
+For inbound packets which are IP fragments, all
+.Va csum_data
+fields will be summed during reassembly to obtain the final checksum
+value passed to an upper layer in the
+.Va csum_data
+field of the reassembled packet.
+The
+.Va csum_flags
+fields of all fragments will be consolidated using logical AND
+to obtain the final value for
+.Va csum_flags .
+Thus, in order to successfully
+offload checksum computation for fragmented data,
+all fragments should have the same value of
+.Va csum_flags .
 .Sh STRESS TESTING
 When running a kernel compiled with the option
 .Dv MBUF_STRESS_TEST ,
@@ -791,6 +955,8 @@ should be tested with this feature.
 .El
 .Sh RETURN VALUES
 See above.
+.Sh SEE ALSO
+.Xr ifnet 9 .
 .Sh HISTORY
 .\" Please correct me if I'm wrong
 .Vt Mbufs
