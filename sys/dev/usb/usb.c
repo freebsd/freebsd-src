@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/uio.h>
 #endif
@@ -82,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -528,7 +528,7 @@ usbread(struct cdev *dev, struct uio *uio, int flag)
 		n = usb_get_next_event(&ue);
 		if (n != 0)
 			break;
-		if (flag & IO_NDELAY) {
+		if (flag & O_NONBLOCK) {
 			error = EWOULDBLOCK;
 			break;
 		}
