@@ -18,6 +18,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020307:	p9	FreeBSD-SA-02:13.openssh
+	OpenSSH off-by-one bug.
+
 20020223:	p8
 	zlib inflate error handling.
 	bzip2 updated to fix insecure permissions during symlink dereferencing
