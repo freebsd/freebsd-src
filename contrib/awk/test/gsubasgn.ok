@@ -1,4 +1,0 @@
-gawk: gsubasgn.awk:4: function test1 (r) { gsub(r, "x", test1) }
-gawk: gsubasgn.awk:4:                                        ^ gsub third parameter is not a changeable object
-gawk: gsubasgn.awk:8: function test2 () { gsub(/a/, "x", test2) }
-gawk: gsubasgn.awk:8:                                         ^ gsub third parameter is not a changeable object

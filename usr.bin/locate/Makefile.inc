@@ -1,3 +1,0 @@
-#	$Id$
-
-LIBEXECDIR?=	/usr/libexec

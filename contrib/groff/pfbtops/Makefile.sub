@@ -1,5 +1,0 @@
-PROG=pfbtops
-MAN1=pfbtops.n
-OBJS=pfbtops.o
-CSRCS=pfbtops.c
-XLIBS=$(LIBGROFF)
