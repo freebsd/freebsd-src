@@ -1,0 +1,243 @@
+	$NetBSD: syscalls.master,v 1.4 1995/03/14 15:12:52 scottb Exp $
+
+;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
+; System call name/number master file (or rather, slave, from IBCS2).
+; Processed to created ibcs2_sysent.c, ibcs2_syscalls.c and ibcs2_syscall.h.
+
+; Columns: number type nargs name altname/comments
+;	number	system call number, must be in order
+;	type	one of STD, OBSOL, UNIMPL, STD
+;	nargs	number of arguments
+;	name	name of syscall routine
+;	altname	name of system call if different
+;		for UNIMPL/OBSOL, name continues with comments
+
+#include <sys/param.h>
+#include <compat/ibcs2/ibcs2_types.h>
+#include <compat/ibcs2/ibcs2_signal.h>
+#include <compat/ibcs2/ibcs2_statfs.h>
+#include <sys/systm.h>
+#include <sys/signal.h>
+#include <sys/mount.h>
+#include <sys/syscallargs.h>
+#include <compat/ibcs2/ibcs2_syscallargs.h>
+
+; types:
+;	STD	always included
+;	STD	included on COMPAT #ifdef
+;	LIBSTD included on COMPAT #ifdef, and placed in syscall.h
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+0	NOARGS		{ int nosys(void); } syscall
+1	NOARGS		{ int exit(int rval); }
+2	NOARGS		{ int fork(void); }
+3	STD		{ int ibcs2_read(int fd, char *buf, u_int nbytes); }
+4	NOARGS		{ int write(int fd, char *buf, u_int nbytes); }
+5	STD		{ int ibcs2_open(char *path, int flags, int mode); }
+6	NOARGS		{ int close(int fd); }
+7	STD		{ int ibcs2_waitsys(int a1, int a2, int a3); }
+8	STD		{ int ibcs2_creat(char *path, int mode); }
+9	NOARGS		{ int link(char *path, char *link); }
+10	STD		{ int ibcs2_unlink(char *path); }
+11	STD		{ int ibcs2_execv(char *path, char **argp); }
+12	STD		{ int ibcs2_chdir(char *path); }
+13	STD		{ int ibcs2_time(ibcs2_time_t *tp); }
+14	STD		{ int ibcs2_mknod(char* path, int mode, int dev); }
+15	STD		{ int ibcs2_chmod(char *path, int mode); }
+16	STD		{ int ibcs2_chown(char *path, int uid, int gid); }
+17	NOARGS		{ int obreak(caddr_t nsize); }
+18	STD		{ int ibcs2_stat(char* path, struct ibcs2_stat *st); }
+19	NOARGS		{ long compat_43_lseek(int fd, long offset, \
+					       int whence); }
+20	NOARGS		{ pid_t getpid(void); }
+21	STD		{ int ibcs2_mount(char *special, char *dir, int flags, \
+				      int fstype, char *data, int len); }
+22	STD		{ int ibcs2_umount(char *name); }
+23	STD		{ int ibcs2_setuid(int uid); }
+24	NOARGS		{ uid_t getuid(void); }
+25	STD		{ int ibcs2_stime(long *timep); }
+26	UNIMPL		ibcs2_ptrace
+27	STD		{ int ibcs2_alarm(unsigned sec); }
+28	STD		{ int ibcs2_fstat(int fd, struct ibcs2_stat *st); }
+29	STD		{ int ibcs2_pause(void); }
+30	STD		{ int ibcs2_utime(char *path, \
+					  struct ibcs2_utimbuf *buf); }
+31	UNIMPL		was stty
+32	UNIMPL		was gtty
+33	STD		{ int ibcs2_access(char *path, int flags); }
+34	STD		{ int ibcs2_nice(int incr); }
+35	STD		{ int ibcs2_statfs(char *path, \
+					   struct ibcs2_statfs *buf, \
+					   int len, int fstype); }
+36	NOARGS		{ int sync(void); }
+37	STD		{ int ibcs2_kill(int pid, int signo); }
+38	STD		{ int ibcs2_fstatfs(int fd, struct ibcs2_statfs *buf, \
+					    int len, int fstype); }
+39	STD		{ int ibcs2_pgrpsys(int type, caddr_t dummy, int pid, \
+					    int pgid); }
+40	UNIMPL		ibcs2_xenix
+41	NOARGS		{ int dup(u_int fd); }
+42	NOARGS		{ int pipe(void); }
+43	STD		{ int ibcs2_times(struct tms *tp); }
+44	UNIMPL		profil
+45	STD		{ int ibcs2_plock(int cmd); }
+46	STD		{ int ibcs2_setgid(int gid); }
+47	NOARGS		{ gid_t getgid(void); }
+48	STD		{ int ibcs2_sigsys(int sig, ibcs2_sig_t fp); }
+#ifdef SYSVMSG
+49	STD		{ int ibcs2_msgsys(int which, int a2, int a3, int a4, \
+				     int a5, int a6); }
+#else
+49	UNIMPL		nosys
+#endif
+50	UNIMPL		ibcs2_sys3b
+51	UNIMPL		ibcs2_acct
+#ifdef SYSVSHM
+52	STD		{ int ibcs2_shmsys(int which, int a2, int a3, int a4); }
+#else
+52	UNIMPL		nosys
+#endif
+#ifdef SYSVSEM
+53	STD		{ int ibcs2_semsys(int which, int a2, int a3, int a4, \
+				     int a5); }
+#else
+53	UNIMPL		nosys
+#endif
+54	STD		{ int ibcs2_ioctl(int fd, int cmd, caddr_t data); }
+55	STD		{ int ibcs2_uadmin(int cmd, int func, caddr_t data); }
+56	UNIMPL		nosys
+57	STD		{ int ibcs2_utssys(int a1, int a2, int flag); }
+58	UNIMPL		nosys
+59	STD		{ int ibcs2_execve(char *path, char **argp, \
+					   char **envp); }
+60	NOARGS		{ int umask(int newmask); }
+61	NOARGS		{ int chroot(char *path); }
+62	STD		{ int ibcs2_fcntl(int fd, int cmd, char *arg); }
+63	STD		{ long ibcs2_ulimit(int cmd, int newlimit); }
+64	UNIMPL		reserved for unix/pc
+65	UNIMPL		reserved for unix/pc
+66	UNIMPL		reserved for unix/pc
+67	UNIMPL		reserved for unix/pc
+68	UNIMPL		reserved for unix/pc
+69	UNIMPL		reserved for unix/pc
+70	OBSOL		rfs_advfs
+71	OBSOL		rfs_unadvfs
+72	OBSOL		rfs_rmount
+73	OBSOL		rfs_rumount
+74	OBSOL		rfs_rfstart
+75	OBSOL		rfs_sigret
+76	OBSOL		rfs_rdebug
+77	OBSOL		rfs_rfstop
+78	UNIMPL		rfs_rfsys
+79	STD		{ int ibcs2_rmdir(char *path); }
+80	STD		{ int ibcs2_mkdir(char *path, int mode); }
+81	STD		{ int ibcs2_getdents(int fd, char *buf, int nbytes); }
+82	UNIMPL		nosys
+83	UNIMPL		nosys
+84	STD		{ int ibcs2_sysfs(int cmd, caddr_t d1, char *buf); }
+85	STD		{ int ibcs2_getmsg(int fd, struct ibcs2_stropts *ctl, \
+					  struct ibcs2_stropts *dat, \
+					  int *flags); }
+86	STD		{ int ibcs2_putmsg(int fd, struct ibcs2_stropts *ctl, \
+					  struct ibcs2_stropts *dat, \
+					  int flags); }
+87	STD		{ int ibcs2_poll(struct ibcs2_pollfd *fds, long nfds, \
+					int timeout); }
+88	UNIMPL		nosys
+89	UNIMPL		nosys
+90	STD		{ int ibcs2_symlink(char *path, char *link); }
+91	STD		{ int ibcs2_lstat(char *path, struct ibcs2_stat *st); }
+92	STD		{ int ibcs2_readlink(char *path, char *buf, int count); }
+93	UNIMPL		nosys
+94	UNIMPL		nosys
+95	UNIMPL		nosys
+96	UNIMPL		nosys
+97	UNIMPL		nosys
+98	UNIMPL		nosys
+99	UNIMPL		nosys
+100	UNIMPL		nosys
+101	UNIMPL		nosys
+102	UNIMPL		nosys
+103	NOARGS		{ int sigreturn(struct sigcontext *sigcntxp); }
+104	UNIMPL		nosys
+105	UNIMPL		nosys
+106	UNIMPL		nosys
+107	UNIMPL		nosys
+108	UNIMPL		nosys
+109	UNIMPL		nosys
+110	UNIMPL		nosys
+111	UNIMPL		nosys
+112	UNIMPL		nosys
+113	UNIMPL		nosys
+114	UNIMPL		nosys
+115	UNIMPL		nosys
+116	UNIMPL		nosys
+117	UNIMPL		nosys
+118	UNIMPL		nosys
+119	UNIMPL		nosys
+120	UNIMPL		nosys
+121	UNIMPL		nosys
+122	UNIMPL		nosys
+123	UNIMPL		nosys
+124	UNIMPL		nosys
+125	UNIMPL		nosys
+126	UNIMPL		nosys
+127	UNIMPL		nosys
+128	UNIMPL		nosys
+129	UNIMPL		xenix_xlocking
+130	UNIMPL		xenix_creatsem
+131	UNIMPL		xenix_opensem
+132	UNIMPL		xenix_sigsem
+133	UNIMPL		xenix_waitsem
+134	UNIMPL		xenix_nbwaitsem
+135	STD		{ int xenix_rdchk(int fd); }
+136	UNIMPL		nosys
+137	UNIMPL		nosys
+138	STD		{ int xenix_chsize(int fd, long size); }
+139	STD		{ int xenix_ftime(struct xenix_timeb *tp); }
+140	STD		{ int xenix_nap(int millisec); }
+141	UNIMPL		xenix_sdget
+142	UNIMPL		xenix_sdfree
+143	UNIMPL		xenix_sdenter
+144	UNIMPL		xenix_sdleave
+145	UNIMPL		xenix_sdgetv
+146	UNIMPL		xenix_sdwaitv
+147	UNIMPL		nosys
+148	UNIMPL		nosys
+149	UNIMPL		nosys
+150	UNIMPL		nosys
+151	UNIMPL		nosys
+152	UNIMPL		nosys
+153	UNIMPL		nosys
+154	UNIMPL		nosys
+155	UNIMPL		nosys
+156	UNIMPL		nosys
+157	UNIMPL		nosys
+158	UNIMPL		nosys
+159	UNIMPL		nosys
+160	UNIMPL		xenix_proctl
+161	UNIMPL		xenix_execseg
+162	UNIMPL		xenix_unexecseg
+163	UNIMPL		nosys
+164	NOARGS		{ int select(u_int nd, fd_set *in, fd_set *ou, \
+				     fd_set *ex, struct timeval *tv); }
+165	UNIMPL		xenix_eaccess
+166	UNIMPL		xenix_paccess
+167	STD		{ int ibcs2_sigaction(int sig, \
+					      struct ibcs2_sigaction *act, \
+					      struct ibcs2_sigaction *oact); }
+168	STD		{ int ibcs2_sigprocmask(int how, ibcs2_sigset_t *set, \
+					        ibcs2_sigset_t *oset); }
+169	STD		{ int ibcs2_sigpending(ibcs2_sigset_t *mask); }
+170	STD		{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
+171	STD		{ int ibcs2_getgroups(int gidsetsize, \
+					      ibcs2_gid_t *gidset); }
+172	STD		{ int ibcs2_setgroups(int gidsetsize, \
+					      ibcs2_gid_t *gidset); }
+173	STD		{ int ibcs2_sysconf(int name); }
+174	STD		{ int ibcs2_pathconf(char *path, int name); }
+175	STD		{ int ibcs2_fpathconf(int fd, int name); }
+176	STD		{ int ibcs2_rename(char *from, char *to); }
