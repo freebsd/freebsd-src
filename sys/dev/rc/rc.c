@@ -1476,12 +1476,7 @@ disc_optim(tp, t, rc)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	if (tp->t_line == SLIPDISC)
-		rc->rc_hotchar = 0xc0;
-	else if (tp->t_line == PPPDISC)
-		rc->rc_hotchar = 0x7e;
-	else
-		rc->rc_hotchar = 0;
+	rc->rc_hotchar = linesw[tp->t_line].l_hotchar;
 }
 
 static void
