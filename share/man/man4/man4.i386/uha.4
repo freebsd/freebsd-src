@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: uha.4,v 1.8 1997/02/22 13:25:45 peter Exp $
+.\"	$Id: uha.4,v 1.9 1998/04/29 17:09:40 andreas Exp $
 .Dd August 31, 1994
 .Dt UHA 4 i386
 .Os FreeBSD
@@ -34,11 +34,11 @@
 UltraStor SCSI host adapter driver
 .Sh SYNOPSIS
 For ULTRA 24F controllers in EISA mode:
-.Cd "controller uha0 at isa? bio irq ? vector uhaintr
+.Cd "controller uha0 at isa? bio irq ?"
 .Cd "controller scbus0
 .Pp
 For ULTRA 14F and 34F controllers:
-.Cd "controller uha0 at isa? port" \&"IO_UHA0\&" bio irq ? drq 5 vector uhaintr
+.Cd "controller uha0 at isa? port" \&"IO_UHA0\&" bio irq ? drq 5
 .Cd "controller scbus0
 .Pp
 For each disk:
