@@ -295,6 +295,7 @@ static void
 bpf_detachd(d)
 	struct bpf_d *d;
 {
+	int error;
 	struct bpf_d **p;
 	struct bpf_if *bp;
 
@@ -305,13 +306,17 @@ bpf_detachd(d)
 	 */
 	if (d->bd_promisc) {
 		d->bd_promisc = 0;
-		if (ifpromisc(bp->bif_ifp, 0))
+		error = ifpromisc(bp->bif_ifp, 0);
+		if (error != 0 && error != ENXIO) {
 			/*
+			 * ENXIO can happen if a pccard is unplugged
 			 * Something is really wrong if we were able to put
 			 * the driver into promiscuous mode, but can't
 			 * take it out.
 			 */
-			panic("bpf: ifpromisc failed");
+			printf("%s%d: ifpromisc failed %d\n",
+			    bp->bif_ifp->if_name, bp->bif_ifp->if_unit, error);
+		}
 	}
 	/* Remove d from the interface's descriptor list. */
 	p = &bp->bif_dlist;
