@@ -915,8 +915,8 @@ vm_fault_wire(map, start, end)
 	vm_offset_t start, end;
 {
 
-	register vm_offset_t va;
-	register pmap_t pmap;
+	vm_offset_t va;
+	pmap_t pmap;
 	int rv;
 
 	pmap = vm_map_pmap(map);
@@ -958,8 +958,8 @@ vm_fault_user_wire(map, start, end)
 	vm_offset_t start, end;
 {
 
-	register vm_offset_t va;
-	register pmap_t pmap;
+	vm_offset_t va;
+	pmap_t pmap;
 	int rv;
 
 	GIANT_REQUIRED;
@@ -1000,8 +1000,8 @@ vm_fault_unwire(map, start, end)
 	vm_offset_t start, end;
 {
 
-	register vm_offset_t va, pa;
-	register pmap_t pmap;
+	vm_offset_t va, pa;
+	pmap_t pmap;
 
 	pmap = vm_map_pmap(map);
 

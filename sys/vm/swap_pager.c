@@ -1502,7 +1502,7 @@ swp_pager_sync_iodone(bp)
 
 static void
 swp_pager_async_iodone(bp)
-	register struct buf *bp;
+	struct buf *bp;
 {
 	int s;
 	int i;

@@ -189,10 +189,10 @@ struct mmap_args {
 int
 mmap(p, uap)
 	struct proc *p;
-	register struct mmap_args *uap;
+	struct mmap_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
-	register struct file *fp = NULL;
+	struct filedesc *fdp = p->p_fd;
+	struct file *fp = NULL;
 	struct vnode *vp;
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -447,7 +447,7 @@ struct ommap_args {
 int
 ommap(p, uap)
 	struct proc *p;
-	register struct ommap_args *uap;
+	struct ommap_args *uap;
 {
 	struct mmap_args nargs;
 	static const char cvtbsdprot[8] = {
@@ -577,8 +577,8 @@ struct munmap_args {
 #endif
 int
 munmap(p, uap)
-	register struct proc *p;
-	register struct munmap_args *uap;
+	struct proc *p;
+	struct munmap_args *uap;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -649,7 +649,7 @@ mprotect(p, uap)
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
-	register vm_prot_t prot;
+	vm_prot_t prot;
 	int ret;
 
 	addr = (vm_offset_t) uap->addr;
@@ -694,7 +694,7 @@ minherit(p, uap)
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
-	register vm_inherit_t inherit;
+	vm_inherit_t inherit;
 	int ret;
 
 	addr = (vm_offset_t)uap->addr;
@@ -792,7 +792,7 @@ mincore(p, uap)
 	char *vec;
 	int error;
 	int vecindex, lastvecindex;
-	register vm_map_entry_t current;
+	vm_map_entry_t current;
 	vm_map_entry_t entry;
 	int mincoreinfo;
 	unsigned int timestamp;
@@ -830,9 +830,9 @@ RestartScan:
 	 * up the pages elsewhere.
 	 */
 	lastvecindex = -1;
-	for(current = entry;
-		(current != &map->header) && (current->start < end);
-		current = current->next) {
+	for (current = entry;
+	    (current != &map->header) && (current->start < end);
+	    current = current->next) {
 
 		/*
 		 * ignore submaps (for now) or null objects
@@ -854,7 +854,7 @@ RestartScan:
 		/*
 		 * scan this entry one page at a time
 		 */
-		while(addr < cend) {
+		while (addr < cend) {
 			/*
 			 * Check pmap first, it is likely faster, also
 			 * it can provide info as to whether we are the
@@ -904,7 +904,7 @@ RestartScan:
 			 * If we have skipped map entries, we need to make sure that
 			 * the byte vector is zeroed for those skipped entries.
 			 */
-			while((lastvecindex + 1) < vecindex) {
+			while ((lastvecindex + 1) < vecindex) {
 				error = subyte( vec + lastvecindex, 0);
 				if (error) {
 					mtx_unlock(&Giant);
@@ -945,7 +945,7 @@ RestartScan:
 	 * Zero the last entries in the byte vector.
 	 */
 	vecindex = OFF_TO_IDX(end - first_addr);
-	while((lastvecindex + 1) < vecindex) {
+	while ((lastvecindex + 1) < vecindex) {
 		error = subyte( vec + lastvecindex, 0);
 		if (error) {
 			mtx_unlock(&Giant);
