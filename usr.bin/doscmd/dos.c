@@ -2239,7 +2239,7 @@ int21_net(regcontext_t *REGS)
 	    return (ACCESS_DENIED);
 	case 0x08: /* Set redirected printer mode */
 	    debug(D_HALF, "Redirection is %s\n",
-		  R_DL ? "seperate jobs" : "combined");
+		  R_DL ? "separate jobs" : "combined");
 	    break;
 	case 0x09: /* Flush redirected printer output */
 	    break;

@@ -92,14 +92,14 @@ emuint(regcontext_t *REGS)
 
             /* 
              * XXX
-             * temporary backwards compatability with instbsdi.exe
+             * temporary backwards compatibility with instbsdi.exe
              * remove after a while.
              */
             fprintf(stderr, "***\n*** WARNING - unknown emuint function\n");
             fprintf(stderr, "*** Continuing; assuming instbsdi redirector.\n");
             fprintf(stderr, "*** Please install the new redirector");
             fprintf(stderr, " `redir.com' as soon as possible.\n");
-            fprintf(stderr, "*** This compatability hack is not permanent.\n");
+            fprintf(stderr, "*** This compatibility hack is not permanent.\n");
             fprintf(stderr, "***\n");
             PUSH(R_AX, REGS);
             R_BX = R_ES;
