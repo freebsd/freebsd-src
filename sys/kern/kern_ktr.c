@@ -185,7 +185,7 @@ static	struct tstate tstate;
 static	int db_ktr_verbose;
 static	int db_mach_vtrace(void);
 
-DB_COMMAND(tbuf, db_mach_tbuf)
+DB_SHOW_COMMAND(ktr_first, db_ktr_first)
 {
 
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
@@ -199,11 +199,11 @@ DB_COMMAND(tbuf, db_mach_tbuf)
 	return;
 }
 
-DB_COMMAND(tall, db_mach_tall)
+DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	int	c;
 
-	db_mach_tbuf(addr, have_addr, count, modif);
+	db_ktr_first(addr, have_addr, count, modif);
 	while (db_mach_vtrace()) {
 		c = cncheckc();
 		if (c != -1)
@@ -213,7 +213,7 @@ DB_COMMAND(tall, db_mach_tall)
 	return;
 }
 
-DB_COMMAND(tnext, db_mach_tnext)
+DB_SHOW_COMMAND(ktr_next, db_ktr_next)
 {
 
 	if (strcmp(modif, "v") == 0)
