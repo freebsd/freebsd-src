@@ -338,7 +338,10 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
     	case SND_DEV_AUDIO:
     	case SND_DEV_DSP:
     	case SND_DEV_DSP16:
-		return dsp_ioctl(d, chan, cmd, arg);
+		if (IOCGROUP(cmd) == 'M')
+			return mixer_ioctl(d, cmd, arg);
+		else
+			return dsp_ioctl(d, chan, cmd, arg);
 
     	default:
     		return ENXIO;
