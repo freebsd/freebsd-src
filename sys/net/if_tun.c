@@ -220,6 +220,17 @@ static void
 tunstart(struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
+	struct mbuf *m;
+
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_LOCK(&ifp->if_snd);
+		IFQ_POLL_NOLOCK(&ifp->if_snd, m);
+		if (m == NULL) {
+			IFQ_UNLOCK(&ifp->if_snd);
+			return;
+		}
+		IFQ_UNLOCK(&ifp->if_snd);
+	}
 
 	mtx_lock(&tp->tun_mtx);
 	if (tp->tun_flags & TUN_RWAIT) {
@@ -258,8 +269,11 @@ tuncreate(struct cdev *dev)
 	ifp->if_start = tunstart;
 	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_type = IFT_PPP;
-	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_softc = sc;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = 0;
+	IFQ_SET_READY(&ifp->if_snd);
+
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 	dev->si_drv1 = sc;
@@ -319,12 +333,14 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	mtx_lock(&tp->tun_mtx);
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
-	mtx_unlock(&tp->tun_mtx);
 
 	/*
 	 * junk all pending output
 	 */
-	IF_DRAIN(&ifp->if_snd);
+	s = splimp();
+	IFQ_PURGE(&ifp->if_snd);
+	splx(s);
+	mtx_unlock(&tp->tun_mtx);
 
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
@@ -623,10 +639,13 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		break;
 	case FIONREAD:
 		s = splimp();
-		if (tp->tun_if.if_snd.ifq_head) {
-			struct mbuf *mb = tp->tun_if.if_snd.ifq_head;
+		if (!IFQ_IS_EMPTY(&tp->tun_if.if_snd)) {
+			struct mbuf *mb;
+			IFQ_LOCK(&tp->tun_if.if_snd);
+			IFQ_POLL_NOLOCK(&tp->tun_if.if_snd, mb);
 			for( *(int *)data = 0; mb != 0; mb = mb->m_next)
 				*(int *)data += mb->m_len;
+			IFQ_UNLOCK(&tp->tun_if.if_snd);
 		} else
 			*(int *)data = 0;
 		splx(s);
@@ -678,7 +697,7 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 
 	s = splimp();
 	do {
-		IF_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
 			if (flag & IO_NDELAY) {
 				splx(s);
@@ -835,18 +854,22 @@ tunpoll(struct cdev *dev, int events, struct thread *td)
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
 	int		revents = 0;
+	struct mbuf	*m;
 
 	s = splimp();
 	TUNDEBUG(ifp, "tunpoll\n");
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (ifp->if_snd.ifq_len > 0) {
+		IFQ_LOCK(&ifp->if_snd);
+		IFQ_POLL_NOLOCK(&ifp->if_snd, m);
+		if (m != NULL) {
 			TUNDEBUG(ifp, "tunpoll q=%d\n", ifp->if_snd.ifq_len);
 			revents |= events & (POLLIN | POLLRDNORM);
 		} else {
 			TUNDEBUG(ifp, "tunpoll waiting\n");
 			selrecord(td, &tp->tun_rsel);
 		}
+		IFQ_UNLOCK(&ifp->if_snd);
 	}
 	if (events & (POLLOUT | POLLWRNORM))
 		revents |= events & (POLLOUT | POLLWRNORM);
