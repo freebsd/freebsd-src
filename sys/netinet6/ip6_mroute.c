@@ -1542,10 +1542,8 @@ register_send(ip6, mif, m)
 	if (i > len)
 		i = len;
 	mm = m_pullup(mm, i);
-	if (mm == NULL){
-		m_freem(mm);
+	if (mm == NULL)
 		return ENOBUFS;
-	}
 /* TODO: check it! */
 	mm->m_pkthdr.len = len + sizeof(struct ip6_hdr);
 
