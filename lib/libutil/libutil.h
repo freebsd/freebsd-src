@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id$
+ * $Id: libutil.h,v 1.1 1996/01/01 08:27:37 peter Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -39,6 +39,19 @@ int	logout __P((char *line));
 void	logwtmp __P((char *line, char *name, char *host));
 int	openpty __P((int *amaster, int *aslave, char *name,
 		     struct termios *termp, struct winsize *winp));
+int	forkpty __P((int *amaster, char *name,
+		     struct termios *termp, struct winsize *winp));
+char	*uu_lockerr __P((int uu_lockresult));
+int	uu_lock __P((char *ttyname));
+int	uu_unlock __P((char *ttyname));
+int	_secure_path __P((const char *path, uid_t uid, gid_t gid));
 __END_DECLS
+
+#define UU_LOCK_INUSE (1)
+#define UU_LOCK_OK (0)
+#define UU_LOCK_OPEN_ERR (-1)
+#define UU_LOCK_READ_ERR (-2)
+#define UU_LOCK_SEEK_ERR (-3)
+#define UU_LOCK_WRITE_ERR (-4)
 
 #endif /* !_LIBUTIL_H_ */
