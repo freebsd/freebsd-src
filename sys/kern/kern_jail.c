@@ -104,6 +104,13 @@ prison_ip(struct proc *p, int flag, u_int32_t *ip)
 			*ip = htonl(p->p_prison->pr_ip);
 		return (0);
 	}
+	if (tmp == INADDR_LOOPBACK) {
+		if (flag)
+			*ip = p->p_prison->pr_ip;
+		else
+			*ip = htonl(p->p_prison->pr_ip);
+		return (0);
+	}
 	if (p->p_prison->pr_ip != tmp)
 		return (1);
 	return (0);
@@ -120,7 +127,7 @@ prison_remote_ip(struct proc *p, int flag, u_int32_t *ip)
 		tmp = *ip;
 	else
 		tmp = ntohl(*ip);
-	if (tmp == 0x7f000001) {
+	if (tmp == INADDR_LOOPBACK) {
 		if (flag)
 			*ip = p->p_prison->pr_ip;
 		else
