@@ -116,6 +116,7 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 		fprintf(stderr, "config: %s isn't a directory.\n", p);
 		exit(2);
 	}
+#ifndef NO_CLOBBER_EVER
 	else if (!no_config_clobber) {
 		char tmp[strlen(p) + 8];
 
@@ -133,6 +134,7 @@ usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 			exit(2);
 		}
 	}
+#endif
 	loadaddress = -1;
 	dtab = NULL;
 	confp = &conf_list;
