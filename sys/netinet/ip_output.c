@@ -972,7 +972,7 @@ done:
 #endif /* IPSEC */
 	return (error);
 bad:
-	m_freem(m0);
+	m_freem(m);
 	goto done;
 }
 
