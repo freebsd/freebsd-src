@@ -59,10 +59,10 @@ static int lc_object_count = 0;
 static size_t internal_stringsz = 0;
 static char * internal_string = NULL;
 static size_t internal_arraysz = 0;
-static char ** internal_array = NULL;
+static const char ** internal_array = NULL;
 
 static char *
-allocstr(char *str)
+allocstr(const char *str)
 {
     char    *p;
 
@@ -77,10 +77,10 @@ allocstr(char *str)
 }
 
 
-static char **
+static const char **
 allocarray(size_t sz)
 {
-    char    **p;
+    static const char    **p;
 
     if (sz <= internal_arraysz)
 	p = internal_array;
@@ -100,12 +100,12 @@ allocarray(size_t sz)
  * Free using freearraystr()
  */
 
-static char **
-arrayize(char *str, const char *chars, int *size)
+static const char **
+arrayize(const char *str, const char *chars, int *size)
 {
     int	    i;
-    char    *ptr;
-    char    **res = NULL;
+    const char *ptr;
+    const char **res = NULL;
 
     /* count the sub-strings */
     for (i = 0, ptr = str; *ptr; i++) {
@@ -191,7 +191,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	const char  *dir;
 	char	    userpath[MAXPATHLEN];
 
-	static char *login_dbarray[] = { NULL, NULL, NULL };
+	static const char *login_dbarray[] = { NULL, NULL, NULL };
 
 	me = (name != NULL && strcmp(name, LOGIN_MECLASS) == 0);
 	dir = (!me || pwd == NULL) ? NULL : pwd->pw_dir;
@@ -224,7 +224,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	if (name == NULL || *name == '\0')
 	    name = LOGIN_DEFCLASS;
 
-	switch (cgetent(&lc->lc_cap, login_dbarray, (char*)name)) {
+	switch (cgetent(&lc->lc_cap, login_dbarray, name)) {
 	case -1:		/* Failed, entry does not exist */
 	    if (me)
 		break;	/* Don't retry default on 'me' */
@@ -242,7 +242,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	    /* fall-back to default class */
 	    name = LOGIN_DEFCLASS;
 	    msg = "%s: no default/fallback class '%s'";
-	    if (cgetent(&lc->lc_cap, login_dbarray, (char*)name) != 0 && r >= 0)
+	    if (cgetent(&lc->lc_cap, login_dbarray, name) != 0 && r >= 0)
 		break;
 	    /* FALLTHROUGH - just return system defaults */
 	case 0:		/* success! */
@@ -352,7 +352,7 @@ login_getcapstr(login_cap_t *lc, const char *cap, const char *def, const char *e
     if (lc == NULL || cap == NULL || lc->lc_cap == NULL || *cap == '\0')
 	return def;
 
-    if ((ret = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
+    if ((ret = cgetstr(lc->lc_cap, cap, &res)) == -1)
 	return def;
     return (ret >= 0) ? res : error;
 }
@@ -365,14 +365,14 @@ login_getcapstr(login_cap_t *lc, const char *cap, const char *def, const char *e
  * strings.
  */
 
-char **
+const char **
 login_getcaplist(login_cap_t *lc, const char *cap, const char *chars)
 {
-    char    *lstring;
+    const char *lstring;
 
     if (chars == NULL)
 	chars = ", \t";
-    if ((lstring = (char *)login_getcapstr(lc, cap, NULL, NULL)) != NULL)
+    if ((lstring = login_getcapstr(lc, cap, NULL, NULL)) != NULL)
 	return arrayize(lstring, chars, NULL);
     return NULL;
 }
@@ -390,18 +390,18 @@ const char *
 login_getpath(login_cap_t *lc, const char *cap, const char *error)
 {
     const char *str;
+    char *ptr;
+    int count;
 
-    if ((str = login_getcapstr(lc, cap, NULL, NULL)) == NULL)
-	str = error;
-    else {
-	char *ptr = (char *)str;
-
-	while (*ptr) {
-	    int count = strcspn(ptr, ", \t");
-	    ptr += count;
-	    if (*ptr)
-		*ptr++ = ':';
-	}
+    str = login_getcapstr(lc, cap, NULL, NULL);
+    if (str == NULL)
+	return error;
+    ptr = __DECONST(char *, str); /* XXXX Yes, very dodgy */
+    while (*ptr) {
+	count = strcspn(ptr, ", \t");
+	ptr += count;
+	if (*ptr)
+	    *ptr++ = ':';
     }
     return str;
 }
@@ -535,7 +535,7 @@ login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
      * If there's an error, return <error>.
      */
 
-    if ((r = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
+    if ((r = cgetstr(lc->lc_cap, cap, &res)) == -1)
 	return def;
     else if (r < 0) {
 	errno = ERANGE;
@@ -622,10 +622,10 @@ login_getcapnum(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
     /*
      * For BSDI compatibility, try for the tag=<val> first
      */
-    if ((r = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1) {
+    if ((r = cgetstr(lc->lc_cap, cap, &res)) == -1) {
 	long	lval;
 	/* string capability not present, so try for tag#<val> as numeric */
-	if ((r = cgetnum(lc->lc_cap, (char *)cap, &lval)) == -1)
+	if ((r = cgetnum(lc->lc_cap, cap, &lval)) == -1)
 	    return def; /* Not there, so return default */
 	else if (r >= 0)
 	    return (rlim_t)lval;
@@ -671,7 +671,7 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
     if (lc == NULL || lc->lc_cap == NULL)
 	return def;
 
-    if ((r = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
+    if ((r = cgetstr(lc->lc_cap, cap, &res)) == -1)
 	return def;
     else if (r < 0) {
 	errno = ERANGE;
@@ -739,7 +739,7 @@ login_getcapbool(login_cap_t *lc, const char *cap, int def)
 {
     if (lc == NULL || lc->lc_cap == NULL)
 	return def;
-    return (cgetcap(lc->lc_cap, (char *)cap, ':') != NULL);
+    return (cgetcap(lc->lc_cap, cap, ':') != NULL);
 }
 
 
@@ -767,14 +767,14 @@ const char *
 login_getstyle(login_cap_t *lc, const char *style, const char *auth)
 {
     int	    i;
-    char    **authtypes = NULL;
+    const char **authtypes = NULL;
     char    *auths= NULL;
     char    realauth[64];
 
-    static char *defauthtypes[] = { LOGIN_DEFSTYLE, NULL };
+    static const char *defauthtypes[] = { LOGIN_DEFSTYLE, NULL };
 
     if (auth != NULL && *auth != '\0') {
-	if (snprintf(realauth, sizeof realauth, "auth-%s", auth) < sizeof realauth)
+	if (snprintf(realauth, sizeof realauth, "auth-%s", auth) < (int)sizeof(realauth))
 	    authtypes = login_getcaplist(lc, realauth, NULL);
     }
 

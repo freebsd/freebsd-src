@@ -29,14 +29,16 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /*
  * Stub out what's in -lcrypt.
  */
 
 #pragma weak crypt_set_format
+/* ARGSUSED */
 int
-crypt_set_format(const char *f) {
+crypt_set_format(const char *f __unused) {
 
 	if (getenv("CRYPT_DEBUG") != NULL)
 		fprintf(stderr, "crypt_set_format: eek, stub called!\n");

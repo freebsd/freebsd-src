@@ -217,7 +217,7 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
      * which the admin and/or user may set an arbitrary set of env vars.
      */
     if (!paths) {
-	char	**set_env = login_getcaplist(lc, "setenv", ",");
+	const char	**set_env = login_getcaplist(lc, "setenv", ",");
 
 	if (set_env != NULL) {
 	    while (*set_env != NULL) {

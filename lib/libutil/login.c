@@ -52,8 +52,7 @@ static char sccsid[] = "@(#)login.c	8.1 (Berkeley) 6/4/93";
 #include <utmp.h>
 
 void
-login(ut)
-	struct utmp *ut;
+login(struct utmp *ut)
 {
 	struct ttyent *ty;
 	int fd;
