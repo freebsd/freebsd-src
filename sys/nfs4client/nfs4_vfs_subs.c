@@ -140,10 +140,4 @@ nfs4_vfsop_statfs(struct nfsv4_fattr *fap, struct statfs *sbp, struct mount *mp)
 	    fap->fa4_sfree / NFS_FABLKSIZE : 500000;
 	sbp->f_blocks = fap->fa4_valid & FA4V_STOTAL ?
 	    fap->fa4_stotal / NFS_FABLKSIZE : 1000000;
-
-	if (sbp != &mp->mnt_stat) {
-		sbp->f_type = mp->mnt_vfc->vfc_typenum;
-		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
-		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
-	}
 }

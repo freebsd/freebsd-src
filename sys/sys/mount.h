@@ -512,6 +512,8 @@ struct vfsops {
 	vfs_sysctl_t		*vfs_sysctl;
 };
 
+vfs_statfs_t	__vfs_statfs;
+
 #define VFS_MOUNT(MP, P)    (*(MP)->mnt_op->vfs_mount)(MP, P)
 #define VFS_OMOUNT(MP, PATH, DATA, P) \
 	(*(MP)->mnt_op->vfs_omount)(MP, PATH, DATA, P)
@@ -519,7 +521,7 @@ struct vfsops {
 #define VFS_UNMOUNT(MP, FORCE, P) (*(MP)->mnt_op->vfs_unmount)(MP, FORCE, P)
 #define VFS_ROOT(MP, VPP, P)	  (*(MP)->mnt_op->vfs_root)(MP, VPP, P)
 #define VFS_QUOTACTL(MP,C,U,A,P)  (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A, P)
-#define VFS_STATFS(MP, SBP, P)	  (*(MP)->mnt_op->vfs_statfs)(MP, SBP, P)
+#define VFS_STATFS(MP, SBP, P)	  __vfs_statfs((MP), (SBP), (P))
 #define VFS_SYNC(MP, WAIT, C, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, C, P)
 #define VFS_VGET(MP, INO, FLAGS, VPP) \
 	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)

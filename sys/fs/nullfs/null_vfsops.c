@@ -295,11 +295,6 @@ nullfs_statfs(mp, sbp, td)
 	sbp->f_bavail = mstat.f_bavail;
 	sbp->f_files = mstat.f_files;
 	sbp->f_ffree = mstat.f_ffree;
-	if (sbp != &mp->mnt_stat) {
-		bcopy(&mp->mnt_stat.f_fsid, &sbp->f_fsid, sizeof(sbp->f_fsid));
-		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
-		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
-	}
 	return (0);
 }
 
