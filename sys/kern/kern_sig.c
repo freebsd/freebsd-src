@@ -925,7 +925,7 @@ again:
 		hz = 0;
 
 	td->td_waitset = &waitset;
-	error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
+	error = msleep(&ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
 	td->td_waitset = NULL;
 	if (error == 0) /* surplus wakeup ? */
 		error = EINTR;
@@ -1153,7 +1153,7 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	SIG_CANTMASK(mask);
 	td->td_sigmask = mask;
 	signotify(td);
-	while (msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
+	while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
 	/* always return EINTR rather than ERESTART... */
@@ -1189,7 +1189,7 @@ osigsuspend(td, uap)
 	SIG_CANTMASK(mask);
 	SIGSETLO(td->td_sigmask, mask);
 	signotify(td);
-	while (msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
+	while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
 	/* always return EINTR rather than ERESTART... */
