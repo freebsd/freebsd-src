@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
+ *	@(#)igmp.c	8.2 (Berkeley) 5/3/95
  */
 
 /* Internet Group Management Protocol (IGMP) routines. */
@@ -286,12 +286,16 @@ igmp_sendreport(inm)
 	ip->ip_src.s_addr = INADDR_ANY;
 	ip->ip_dst = inm->inm_addr;
 
-	igmp = (struct igmp *)(ip + 1);
+	m->m_data += sizeof(struct ip);
+	m->m_len -= sizeof(struct ip);
+	igmp = mtod(m, struct igmp *);
 	igmp->igmp_type = IGMP_HOST_MEMBERSHIP_REPORT;
 	igmp->igmp_code = 0;
 	igmp->igmp_group = inm->inm_addr;
 	igmp->igmp_cksum = 0;
 	igmp->igmp_cksum = in_cksum(m, IGMP_MINLEN);
+	m->m_data -= sizeof(struct ip);
+	m->m_len += sizeof(struct ip);
 
 	imo = &simo;
 	bzero((caddr_t)imo, sizeof(*imo));

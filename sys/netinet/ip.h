@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ip.h	8.1 (Berkeley) 6/10/93
+ *	@(#)ip.h	8.2 (Berkeley) 6/1/94
  */
 
 /*
@@ -87,7 +87,7 @@ struct ip {
 #define	IPTOS_PREC_FLASH		0x60
 #define	IPTOS_PREC_IMMEDIATE		0x40
 #define	IPTOS_PREC_PRIORITY		0x20
-#define	IPTOS_PREC_ROUTINE		0x10
+#define	IPTOS_PREC_ROUTINE		0x00
 
 /*
  * Definitions for options.

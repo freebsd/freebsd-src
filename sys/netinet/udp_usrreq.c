@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
+ *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
  */
 
 #include <sys/param.h>
@@ -137,7 +137,7 @@ udp_input(m, iphlen)
 	/*
 	 * Checksum extended UDP header and data.
 	 */
-	if (udpcksum && uh->uh_sum) {
+	if (uh->uh_sum) {
 		((struct ipovly *)ip)->ih_next = 0;
 		((struct ipovly *)ip)->ih_prev = 0;
 		((struct ipovly *)ip)->ih_x1 = 0;
@@ -477,7 +477,7 @@ udp_usrreq(so, req, m, addr, control)
 	int s;
 
 	if (req == PRU_CONTROL)
-		return (in_control(so, (int)m, (caddr_t)addr,
+		return (in_control(so, (u_long)m, (caddr_t)addr,
 			(struct ifnet *)control));
 	if (inp == NULL && req != PRU_ATTACH) {
 		error = EINVAL;

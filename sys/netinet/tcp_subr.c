@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
+ *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
  */
 
 #include <sys/param.h>
@@ -73,7 +73,7 @@ void
 tcp_init()
 {
 
-	tcp_iss = 1;		/* wrong */
+	tcp_iss = random();	/* wrong, but better than a constant */
 	tcb.inp_next = tcb.inp_prev = &tcb;
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);

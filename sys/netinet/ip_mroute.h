@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
+ *	@(#)ip_mroute.h	8.2 (Berkeley) 4/28/95
  */
 
 /*
@@ -163,6 +163,7 @@ struct mrtstat {
 	u_long	mrts_no_route;		/* no route for packet's origin */
 	u_long	mrts_bad_tunnel;	/* malformed tunnel options */
 	u_long	mrts_cant_tunnel;	/* no room for tunnel options */
+	u_long	mrts_wrong_if;		/* arrived on the wrong interface */
 };
 
 
@@ -170,4 +171,3 @@ int	ip_mrouter_cmd __P((int, struct socket *, struct mbuf *));
 int	ip_mrouter_done __P((void));
 
 #endif /* KERNEL */
-

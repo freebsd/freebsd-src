@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1994
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1994, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
+ *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
  */
 
 #ifndef TUBA_INCLUDE
@@ -42,6 +42,8 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
+
+#include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
 #include <net/if.h>
 #include <net/route.h>
@@ -216,7 +218,7 @@ tcp_input(m, iphlen)
 {
 	register struct tcpiphdr *ti;
 	register struct inpcb *inp;
-	caddr_t optp = NULL;
+	u_char *optp = NULL;
 	int optlen;
 	int len, tlen, off;
 	register struct tcpcb *tp = 0;
@@ -281,7 +283,7 @@ tcp_input(m, iphlen)
 			ti = mtod(m, struct tcpiphdr *);
 		}
 		optlen = off - sizeof (struct tcphdr);
-		optp = mtod(m, caddr_t) + sizeof (struct tcpiphdr);
+		optp = mtod(m, u_char *) + sizeof (struct tcpiphdr);
 		/* 
 		 * Do quick retrieval of timestamp options ("options
 		 * prediction?").  If timestamp is the only option and it's
@@ -353,6 +355,17 @@ findpcb:
 			tcp_saveti = *ti;
 		}
 		if (so->so_options & SO_ACCEPTCONN) {
+			if ((tiflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
+				/*
+				 * Note: dropwithreset makes sure we don't
+				 * send a reset in response to a RST.
+				 */
+				if (tiflags & TH_ACK) {
+					tcpstat.tcps_badsyn++;
+					goto dropwithreset;
+				}
+				goto drop;
+			}
 			so = sonewconn(so, 0);
 			if (so == 0)
 				goto drop;
@@ -535,19 +548,21 @@ findpcb:
 		struct mbuf *am;
 		register struct sockaddr_in *sin;
 
+#ifdef already_done
 		if (tiflags & TH_RST)
 			goto drop;
 		if (tiflags & TH_ACK)
 			goto dropwithreset;
 		if ((tiflags & TH_SYN) == 0)
 			goto drop;
+#endif
 		/*
 		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
 		 * in_broadcast() should never return true on a received
 		 * packet with M_BCAST not set.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST) ||
-		    IN_MULTICAST(ti->ti_dst.s_addr))
+		    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 			goto drop;
 		am = m_get(M_DONTWAIT, MT_SONAME);	/* XXX */
 		if (am == NULL)
@@ -581,7 +596,7 @@ findpcb:
 			tp->iss = iss;
 		else
 			tp->iss = tcp_iss;
-		tcp_iss += TCP_ISSINCR/2;
+		tcp_iss += TCP_ISSINCR/4;
 		tp->irs = ti->ti_seq;
 		tcp_sendseqinit(tp);
 		tcp_rcvseqinit(tp);
@@ -733,7 +748,6 @@ trimthenstep6:
 			   ) {
 				todrop = ti->ti_len;
 				tiflags &= ~TH_FIN;
-				tp->t_flags |= TF_ACKNOW;
 			} else {
 				/*
 				 * Handle the case when a bound socket connects
@@ -743,6 +757,7 @@ trimthenstep6:
 				if (todrop != 0 || (tiflags & TH_ACK) == 0)
 					goto dropafterack;
 			}
+			tp->t_flags |= TF_ACKNOW;
 		} else {
 			tcpstat.tcps_rcvpartduppack++;
 			tcpstat.tcps_rcvpartdupbyte += todrop;
@@ -787,7 +802,7 @@ trimthenstep6:
 			if (tiflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(ti->ti_seq, tp->rcv_nxt)) {
-				iss = tp->rcv_nxt + TCP_ISSINCR;
+				iss = tp->snd_nxt + TCP_ISSINCR;
 				tp = tcp_close(tp);
 				goto findpcb;
 			}
@@ -1017,16 +1032,14 @@ trimthenstep6:
 		 * If the window gives us less than ssthresh packets
 		 * in flight, open exponentially (maxseg per packet).
 		 * Otherwise open linearly: maxseg per window
-		 * (maxseg^2 / cwnd per packet), plus a constant
-		 * fraction of a packet (maxseg/8) to help larger windows
-		 * open quickly enough.
+		 * (maxseg * (maxseg / cwnd) per packet).
 		 */
 		{
 		register u_int cw = tp->snd_cwnd;
 		register u_int incr = tp->t_maxseg;
 
 		if (cw > tp->snd_ssthresh)
-			incr = incr * incr / cw + incr / 8;
+			incr = incr * incr / cw;
 		tp->snd_cwnd = min(cw + incr, TCP_MAXWIN<<tp->snd_scale);
 		}
 		if (acked > so->so_snd.sb_cc) {
@@ -1289,7 +1302,7 @@ dropwithreset:
 	 * Don't bother to respond if destination was broadcast/multicast.
 	 */
 	if ((tiflags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST) ||
-	    IN_MULTICAST(ti->ti_dst.s_addr))
+	    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 		goto drop;
 	if (tiflags & TH_ACK)
 		tcp_respond(tp, ti, m, (tcp_seq)0, ti->ti_ack, TH_RST);

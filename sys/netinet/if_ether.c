@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
+ *	@(#)if_ether.c	8.2 (Berkeley) 9/26/94
  */
 
 /*
@@ -448,7 +448,7 @@ in_arpinput(m)
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
 			log(LOG_INFO, "arp info overwritten for %x by %s\n",
-			    isaddr.s_addr, ether_sprintf(ea->arp_sha));
+			    ntohl(isaddr.s_addr), ether_sprintf(ea->arp_sha));
 		bcopy((caddr_t)ea->arp_sha, LLADDR(sdl),
 			    sdl->sdl_alen = sizeof(ea->arp_sha));
 		if (rt->rt_expire)
@@ -539,7 +539,8 @@ arplookup(addr, create, proxy)
 	if ((rt->rt_flags & RTF_GATEWAY) || (rt->rt_flags & RTF_LLINFO) == 0 ||
 	    rt->rt_gateway->sa_family != AF_LINK) {
 		if (create)
-			log(LOG_DEBUG, "arptnew failed on %x\n", ntohl(addr));
+			log(LOG_DEBUG,
+				"arplookup couldn't create %x\n", ntohl(addr));
 		return (0);
 	}
 	return ((struct llinfo_arp *)rt->rt_llinfo);

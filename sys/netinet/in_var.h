@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
+ *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
  */
 
 /*
@@ -196,5 +196,5 @@ int	in_ifinit __P((struct ifnet *,
 struct	in_multi *in_addmulti __P((struct in_addr *, struct ifnet *));
 int	in_delmulti __P((struct in_multi *));
 void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
-int	in_control __P((struct socket *, int, caddr_t, struct ifnet *));
+int	in_control __P((struct socket *, u_long, caddr_t, struct ifnet *));
 #endif
