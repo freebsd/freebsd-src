@@ -46,6 +46,8 @@ int thr_create(ucontext_t *ctx, thr_id_t *id, int flags);
 int thr_self(thr_id_t *id);
 void thr_exit(void);
 int thr_kill(thr_id_t id, int sig);
+int thr_suspend(const struct timespec *timeout);
+int thr_wake(thr_id_t id);
 
 #endif /* !_KERNEL */
 
