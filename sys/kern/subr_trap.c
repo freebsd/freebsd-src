@@ -78,7 +78,6 @@ userret(td, frame, oticks)
             p->p_comm);
 #ifdef INVARIANTS
 	/* Check that we called signotify() enough. */
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(td) && ((td->td_flags & TDF_NEEDSIGCHK) == 0 ||
@@ -86,7 +85,6 @@ userret(td, frame, oticks)
 		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 #endif
 
 	/*
