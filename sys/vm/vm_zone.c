@@ -8,17 +8,10 @@
  * 1. Redistributions of source code must retain the above copyright
  *	notice immediately at the beginning of the file, without modification,
  *	this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *	notice, this list of conditions and the following disclaimer in the
- *	documentation and/or other materials provided with the distribution.
- * 3. Absolutely no warranty of function or purpose is made by the author
+ * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
- * 4. This work was done expressly for inclusion into FreeBSD.  Other use
- *	is allowed if this notation is included.
- * 5. Modifications may be freely made to this file if the above conditions
- *	are met.
  *
- * $Id: vm_zone.c,v 1.12 1997/12/14 05:17:41 dyson Exp $
+ * $Id: vm_zone.c,v 1.13 1997/12/15 05:16:09 dyson Exp $
  */
 
 #include <sys/param.h>
