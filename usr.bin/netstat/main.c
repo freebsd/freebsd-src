@@ -542,3 +542,33 @@ usage()
 "       %s [-M core] [-N system] [-p protocol]\n", prog);
 	exit(1);
 }
+
+void
+trimdomain(cp)
+	char *cp;
+{
+	static char domain[MAXHOSTNAMELEN + 1];
+	static int first = 1;
+	char *s;
+
+	if (first) {
+		first = 0;
+		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+		    (s = strchr(domain, '.')))
+			(void) strcpy(domain, s + 1);
+		else
+			domain[0] = 0;
+	}
+
+	if (domain[0]) {
+		while ((cp = strchr(cp, '.'))) {
+			if (!strcasecmp(cp + 1, domain)) {
+				*cp = 0;	/* hit it */
+				break;
+			} else {
+				cp++;
+			}
+		}
+	}
+}
+

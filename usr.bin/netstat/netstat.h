@@ -61,6 +61,7 @@ char	*prog;		/* program name */
 int	kread __P((u_long addr, char *buf, int size));
 char	*plural __P((int));
 char	*plurales __P((int));
+void	trimdomain __P((char *));
 
 void	protopr __P((u_long, char *));
 void	tcp_stats __P((u_long, char *));
@@ -70,7 +71,7 @@ void	icmp_stats __P((u_long, char *));
 void	igmp_stats __P((u_long, char *));
 void	protopr __P((u_long, char *));
 
-void	mbpr(u_long);
+void	mbpr __P((u_long));
 
 void	hostpr __P((u_long, u_long));
 void	impstats __P((u_long, u_long));
@@ -116,3 +117,4 @@ void	tp_stats __P((caddr_t, caddr_t));
 
 void	mroutepr __P((u_long, u_long, u_long));
 void	mrt_stats __P((u_long, u_long));
+

@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.9 1996/01/14 23:33:13 peter Exp $";
+	"$Id: route.c,v 1.10 1996/01/14 23:42:19 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -540,26 +540,14 @@ routename(in)
 	register char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
-	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1;
 
-	if (first) {
-		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
-			(void) strcpy(domain, cp + 1);
-		else
-			domain[0] = 0;
-	}
 	cp = 0;
 	if (!nflag) {
 		hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 			AF_INET);
 		if (hp) {
-			if ((cp = index(hp->h_name, '.')) &&
-			    !strcmp(cp + 1, domain))
-				*cp = 0;
 			cp = hp->h_name;
+			trimdomain(cp);
 		}
 	}
 	if (cp)
@@ -664,8 +652,10 @@ netname(in, mask)
 			mask >>= 1, net >>= 1;
 		if (!(np = getnetbyaddr(i, AF_INET)))
 			np = getnetbyaddr(net, AF_INET);
-		if (np)
+		if (np) {
 			cp = np->n_name;
+			trimdomain(cp);
+		}
 	}
 	if (cp)
 		strncpy(line, cp, sizeof(line) - 1);
