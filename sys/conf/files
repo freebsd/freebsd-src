@@ -196,6 +196,7 @@ dev/mii/miibus_if.m	optional miibus
 dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
+dev/nulldev/nulldev.c	standard
 dev/pccard/card_if.m	optional card
 dev/pccard/card_if.m	optional pccard
 dev/pccard/pccard.c	optional pccard
@@ -224,6 +225,11 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/randomdev/randomdev.c	optional randomdev
+dev/randomdev/yarrow.c	optional randomdev
+crypto/blowfish/bf_cbc.c	optional randomdev
+crypto/blowfish/bf_enc.c	optional randomdev
+crypto/blowfish/bf_skey.c	optional randomdev
 dev/rp/rp.c		optional rp
 dev/rp/rp_isa.c		optional rp isa
 dev/rp/rp_pci.c		optional rp pci
@@ -406,7 +412,6 @@ kern/kern_ntptime.c	standard
 kern/kern_physio.c	standard
 kern/kern_proc.c	standard
 kern/kern_prot.c	standard
-kern/kern_random.c	standard
 kern/kern_resource.c	standard
 kern/kern_shutdown.c	standard
 kern/kern_sig.c		standard
