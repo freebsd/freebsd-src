@@ -90,9 +90,11 @@ ia64_sal_init(struct sal_system_table *saltab)
 		}
 		case 5: {
 			struct sal_ap_wakeup_descriptor *dp;
+#ifdef SMP
 			struct ia64_sal_result sal;
 			struct ia64_fdesc *fptr = (void*)os_boot_rendez;
 			int ipi;
+#endif
 
 			dp = (struct sal_ap_wakeup_descriptor*)p;
 			KASSERT(dp->sale_mechanism == 0,
