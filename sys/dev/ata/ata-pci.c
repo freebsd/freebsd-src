@@ -75,7 +75,8 @@ ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 	return 0;
 
     for (i = 0; i < nchildren; i++) {
-	if (pci_get_devid(children[i]) == devid &&
+	if (pci_get_slot(dev) == pci_get_slot(child) &&
+	    pci_get_devid(children[i]) == devid &&
 	    pci_get_revid(children[i]) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
