@@ -35,6 +35,7 @@
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
 #include <rpcsvc/yppasswd.h>
+#include <rpcsvc/ypxfrd.h>
 #include <sys/types.h>
 #include <limits.h>
 #include <db.h>
@@ -52,7 +53,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.2 1996/05/01 02:39:54 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.9 1996/06/05 02:01:29 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -242,10 +243,20 @@ int yp_access(map, rqstp)
 
 	/* Check the map name if one was supplied. */
 	if (map != NULL) {
+		if (strchr(map, '/')) {
+			yp_error("embedded slash in map name \"%s\" -- \
+possible spoof attempt from %s:%d",
+				map, inet_ntoa(rqhost->sin_addr),
+				ntohs(rqhost->sin_port));
+		}
 		if ((strstr(map, "master.passwd.") ||
-		    rqstp->rq_proc == YPPROC_XFR) &&
-		    ntohs(rqhost->sin_port) > 1023) {
-			yp_error("Access to %s denied -- client not privileged", map);
+		    (rqstp->rq_prog == YPPROG &&
+		     rqstp->rq_proc == YPPROC_XFR) ||
+		    (rqstp->rq_prog == YPXFRD_FREEBSD_PROG &&
+		     rqstp->rq_proc == YPXFRD_GETMAP)) &&
+		     ntohs(rqhost->sin_port) >= IPPORT_RESERVED) {
+			yp_error("Access to %s denied -- client %s:%d \
+not privileged", map, inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
 			return(1);
 		}
 	}
