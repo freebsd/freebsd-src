@@ -383,11 +383,11 @@ insert(label, files, hosts, subcmds)
 	struct subcmd *subcmds;
 {
 	register struct cmd *c, *prev, *nc;
-	register struct namelist *h;
+	register struct namelist *h, *next_h;
 
 	files = expand(files, E_VARS|E_SHELL);
 	hosts = expand(hosts, E_ALL);
-	for (h = hosts; h != NULL; free(h), h = h->n_next) {
+	for (h = hosts; h != NULL; next_h = h->n_next, free(h), h = next_h) {
 		/*
 		 * Search command list for an update to the same host.
 		 */
