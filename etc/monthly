@@ -7,9 +7,24 @@ PATH=/bin:/usr/bin:/sbin:/usr/sbin
 host=`hostname -s`
 echo "Subject: $host monthly run output"
 
-echo ""
-echo "Doing login accounting:"
-ac -p | sort -nr +1
+W=/var/log/wtmp
+if [ -f $W ] ; then
+	# Work out what month it was yesterday
+	M=`date -v-1m +%h`
+
+	mv -f $W $W.$M
+	touch $W
+
+	if [ -x /usr/sbin/ac ] ; then
+		echo ""
+		echo "Doing login accounting:"
+
+		ac -p -w $W.$M | sort -nr +1
+	fi
+
+	rm -f $W.$M.gz
+	gzip $W.$M
+fi
 
 if [ -f /etc/monthly.local ]; then
     echo ""
