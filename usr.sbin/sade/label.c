@@ -310,6 +310,16 @@ record_label_chunks(Device **devs, Device *dev)
 		label_chunk_info[j].c = c1;
 		++j;
 	    }
+#ifdef __ia64__
+	    else if (c1->type == part) {
+		if (c1->subtype == FS_SWAP)
+		    label_chunk_info[j].type = PART_SWAP;
+		else
+		    label_chunk_info[j].type = PART_FILESYSTEM;
+		label_chunk_info[j].c = c1;
+		++j;
+	    }
+#endif
 	}
     }
     label_chunk_info[j].c = NULL;
@@ -545,7 +555,7 @@ print_label_chunks(void)
             ++pslice_count;
     }
     pslice_max = pslice_count;
-  
+
     /*** 4 line max for partition slices ***/
     if (pslice_max > PSLICE_SHOWABLE) {
         pslice_max = PSLICE_SHOWABLE;
@@ -615,18 +625,29 @@ print_label_chunks(void)
             if (i == pslice_focus)
                 pslice_focus_found = -1;
 
-	    if (sz >= 100 * ONE_GIG)
+	    if (label_chunk_info[i].c->type == whole) {
+		if (sz >= 100 * ONE_GIG)
+		    mvprintw(srow++, 0,
+			"Disk: %s\t\tFree: %d blocks (%dGB)",
+			label_chunk_info[i].c->disk->name, sz, (sz / ONE_GIG));
+		else
+		    mvprintw(srow++, 0,
+			"Disk: %s\t\tFree: %d blocks (%dMB)",
+			label_chunk_info[i].c->disk->name, sz, (sz / ONE_MEG));
+	    } else {
+		if (sz >= 100 * ONE_GIG)
 		    mvprintw(srow++, 0, 
 			"Disk: %s\tPartition name: %s\tFree: %d blocks (%dGB)",
 			label_chunk_info[i].c->disk->name,
 			label_chunk_info[i].c->name, 
 			sz, (sz / ONE_GIG));
-	    else
+		else
 		    mvprintw(srow++, 0, 
 			"Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
 			label_chunk_info[i].c->disk->name,
 			label_chunk_info[i].c->name, 
 			sz, (sz / ONE_MEG));
+	    }
 	    attrset(A_NORMAL);
 	    clrtoeol();
 	    move(0, 0);
@@ -1239,7 +1260,7 @@ diskLabel(Device *dev)
 	    clear_wins();
 	    break;
 
-
+#ifndef __ia64__
 	case '|':
 	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
 			  "This is an entirely undocumented feature which you are not\n"
@@ -1268,6 +1289,7 @@ diskLabel(Device *dev)
 	    else
 		msg = "A most prudent choice!";
 	    break;
+#endif
 
 	case '\033':	/* ESC */
 	case 'Q':
