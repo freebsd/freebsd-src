@@ -1048,7 +1048,9 @@ rl_attach(dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 	
 	callout_handle_init(&sc->rl_stat_ch);
 
@@ -1393,7 +1395,7 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	rl_rxeof(sc);
 	rl_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		rl_start(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -1475,7 +1477,7 @@ rl_intr(arg)
 
 	}
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		rl_start(ifp);
 
 #ifdef DEVICE_POLLING
@@ -1545,7 +1547,7 @@ rl_start(ifp)
 	RL_LOCK(sc);
 
 	while(RL_CUR_TXMBUF(sc) == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 

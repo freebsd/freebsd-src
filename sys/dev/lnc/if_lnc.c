@@ -863,7 +863,9 @@ lnc_attach_common(device_t dev)
 	sc->arpcom.ac_if.if_ioctl = lnc_ioctl;
 	sc->arpcom.ac_if.if_watchdog = lnc_watchdog;
 	sc->arpcom.ac_if.if_init = lnc_init;
-	sc->arpcom.ac_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&sc->arpcom.ac_if.if_snd, IFQ_MAXLEN);
+	sc->arpcom.ac_if.if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&sc->arpcom.ac_if.if_snd);
 
 	/* Extract MAC address from PROM */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
@@ -1213,7 +1215,7 @@ lnc_start(struct ifnet *ifp)
 
 	do {
 
-		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, head);
+		IFQ_DRV_DEQUEUE(&sc->arpcom.ac_if.if_snd, head);
 		if (!head)
 			return;
 
