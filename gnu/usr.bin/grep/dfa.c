@@ -1,5 +1,5 @@
 /* dfa.c - deterministic extended regexp routines for GNU
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1998 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,25 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA */
 
 /* Written June, 1988 by Mike Haertel
    Modified July, 1988 by Arthur David Olson to assist BMG speedups  */
+
+/* $FreeBSD$ */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 
+#include <sys/types.h>
 #ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
-#include <sys/types.h>
 extern char *calloc(), *malloc(), *realloc();
 extern void free();
 #endif
@@ -38,59 +44,140 @@ extern void free();
 #include <strings.h>
 #endif
 
+#ifndef DEBUG	/* use the same approach as regex.c */
+#undef assert
+#define assert(e)
+#endif /* DEBUG */
+
 #ifndef isgraph
-#define isgraph(C) (isprint((unsigned char)C) && !isspace((unsigned char)C))
+#define isgraph(C) (isprint(C) && !isspace(C))
 #endif
 
-#define ISALPHA(C) isalpha((unsigned char)C)
-#define ISUPPER(C) isupper((unsigned char)C)
-#define ISLOWER(C) islower((unsigned char)C)
-#define ISDIGIT(C) isdigit((unsigned char)C)
-#define ISXDIGIT(C) isxdigit((unsigned char)C)
-#define ISSPACE(C) isspace((unsigned char)C)
-#define ISPUNCT(C) ispunct((unsigned char)C)
-#define ISALNUM(C) isalnum((unsigned char)C)
-#define ISPRINT(C) isprint((unsigned char)C)
-#define ISGRAPH(C) isgraph((unsigned char)C)
-#define ISCNTRL(C) iscntrl((unsigned char)C)
-
-#include "dfa.h"
-#include <gnuregex.h>
-
-#if __STDC__
-typedef void *ptr_t;
+#if defined (STDC_HEADERS) || (!defined (isascii) && !defined (HAVE_ISASCII))
+#define ISALPHA(C) isalpha(C)
+#define ISUPPER(C) isupper(C)
+#define ISLOWER(C) islower(C)
+#define ISDIGIT(C) isdigit(C)
+#define ISXDIGIT(C) isxdigit(C)
+#define ISSPACE(C) isspace(C)
+#define ISPUNCT(C) ispunct(C)
+#define ISALNUM(C) isalnum(C)
+#define ISPRINT(C) isprint(C)
+#define ISGRAPH(C) isgraph(C)
+#define ISCNTRL(C) iscntrl(C)
 #else
-typedef char *ptr_t;
+#define ISALPHA(C) (isascii(C) && isalpha(C))
+#define ISUPPER(C) (isascii(C) && isupper(C))
+#define ISLOWER(C) (isascii(C) && islower(C))
+#define ISDIGIT(C) (isascii(C) && isdigit(C))
+#define ISXDIGIT(C) (isascii(C) && isxdigit(C))
+#define ISSPACE(C) (isascii(C) && isspace(C))
+#define ISPUNCT(C) (isascii(C) && ispunct(C))
+#define ISALNUM(C) (isascii(C) && isalnum(C))
+#define ISPRINT(C) (isascii(C) && isprint(C))
+#define ISGRAPH(C) (isascii(C) && isgraph(C))
+#define ISCNTRL(C) (isascii(C) && iscntrl(C))
 #endif
 
-static void	dfamust();
+/* If we (don't) have I18N.  */
+/* glibc defines _ */
+#ifndef _
+# ifdef HAVE_LIBINTL_H
+#  include <libintl.h>
+#  ifndef _
+#   define _(Str) gettext (Str)
+#  endif
+# else
+#  define _(Str) (Str)
+# endif
+#endif
 
 #ifdef __FreeBSD__
-static int collate_range_cmp (a, b)
-	int a, b;
-{
-	int r;
-	static char s[2][2];
+#include <gnuregex.h>
+#else
+#include "regex.h"
+#endif
+#include "dfa.h"
 
-	if ((unsigned char)a == (unsigned char)b)
+/* HPUX, define those as macros in sys/param.h */
+#ifdef setbit
+# undef setbit
+#endif
+#ifdef clrbit
+# undef clrbit
+#endif
+
+static void dfamust PARAMS ((struct dfa *dfa));
+
+static ptr_t xcalloc PARAMS ((size_t n, size_t s));
+static ptr_t xmalloc PARAMS ((size_t n));
+static ptr_t xrealloc PARAMS ((ptr_t p, size_t n));
+#ifdef DEBUG
+static void prtok PARAMS ((token t));
+#endif
+static int tstbit PARAMS ((int b, charclass c));
+static void setbit PARAMS ((int b, charclass c));
+static void clrbit PARAMS ((int b, charclass c));
+static void copyset PARAMS ((charclass src, charclass dst));
+static void zeroset PARAMS ((charclass s));
+static void notset PARAMS ((charclass s));
+static int equal PARAMS ((charclass s1, charclass s2));
+static int charclass_index PARAMS ((charclass s));
+static int looking_at PARAMS ((const char *s));
+static token lex PARAMS ((void));
+static void addtok PARAMS ((token t));
+static void atom PARAMS ((void));
+static int nsubtoks PARAMS ((int tindex));
+static void copytoks PARAMS ((int tindex, int ntokens));
+static void closure PARAMS ((void));
+static void branch PARAMS ((void));
+static void regexp PARAMS ((int toplevel));
+static void copy PARAMS ((position_set *src, position_set *dst));
+static void insert PARAMS ((position p, position_set *s));
+static void merge PARAMS ((position_set *s1, position_set *s2, position_set *m));
+static void delete PARAMS ((position p, position_set *s));
+static int state_index PARAMS ((struct dfa *d, position_set *s,
+			  int newline, int letter));
+static void build_state PARAMS ((int s, struct dfa *d));
+static void build_state_zero PARAMS ((struct dfa *d));
+static char *icatalloc PARAMS ((char *old, char *new));
+static char *icpyalloc PARAMS ((char *string));
+static char *istrstr PARAMS ((char *lookin, char *lookfor));
+static void ifree PARAMS ((char *cp));
+static void freelist PARAMS ((char **cpp));
+static char **enlist PARAMS ((char **cpp, char *new, size_t len));
+static char **comsubs PARAMS ((char *left, char *right));
+static char **addlists PARAMS ((char **old, char **new));
+static char **inboth PARAMS ((char **left, char **right));
+
+#ifdef __FreeBSD__
+static int
+collate_range_cmp(c1, c2)
+	int c1, c2;
+{
+	static char s1[2], s2[2];
+	int r;
+
+	if (c1 == c2)
 		return 0;
-	s[0][0] = a;
-	s[1][0] = b;
-	if ((r = strcoll(s[0], s[1])) == 0)
-		r = (unsigned char)a - (unsigned char)b;
+	s1[0] = c1;
+	s2[0] = c2;
+	if ((r = strcoll(s1, s2)) == 0)
+		r = c1 - c2;
+
 	return r;
 }
 #endif
 
 static ptr_t
 xcalloc(n, s)
-     int n;
+     size_t n;
      size_t s;
 {
   ptr_t r = calloc(n, s);
 
   if (!r)
-    dfaerror("Memory exhausted");
+    dfaerror(_("Memory exhausted"));
   return r;
 }
 
@@ -102,7 +189,7 @@ xmalloc(n)
 
   assert(n != 0);
   if (!r)
-    dfaerror("Memory exhausted");
+    dfaerror(_("Memory exhausted"));
   return r;
 }
 
@@ -115,11 +202,11 @@ xrealloc(p, n)
 
   assert(n != 0);
   if (!r)
-    dfaerror("Memory exhausted");
+    dfaerror(_("Memory exhausted"));
   return r;
 }
 
-#define CALLOC(p, t, n) ((p) = (t *) xcalloc((n), sizeof (t)))
+#define CALLOC(p, t, n) ((p) = (t *) xcalloc((size_t)(n), sizeof (t)))
 #define MALLOC(p, t, n) ((p) = (t *) xmalloc((n) * sizeof (t)))
 #define REALLOC(p, t, n) ((p) = (t *) xrealloc((ptr_t) (p), (n) * sizeof (t)))
 
@@ -261,7 +348,7 @@ charclass_index(s)
 }
 
 /* Syntax bits controlling the behavior of the lexical analyzer. */
-static int syntax_bits, syntax_bits_set;
+static reg_syntax_t syntax_bits, syntax_bits_set;
 
 /* Flag for case-folding letters into sets. */
 static int case_fold;
@@ -269,7 +356,7 @@ static int case_fold;
 /* Entry point to set syntax options. */
 void
 dfasyntax(bits, fold)
-     int bits;
+     reg_syntax_t bits;
      int fold;
 {
   syntax_bits_set = 1;
@@ -284,7 +371,7 @@ dfasyntax(bits, fold)
 
 static char *lexstart;		/* Pointer to beginning of input string. */
 static char *lexptr;		/* Pointer to next input character. */
-static lexleft;			/* Number of characters remaining. */
+static int lexleft;		/* Number of characters remaining. */
 static token lasttok;		/* Previous token returned; initially END. */
 static int laststart;		/* True if we're separated from beginning or (, |
 				   only by zero-width characters. */
@@ -298,12 +385,16 @@ static int minrep, maxrep;	/* Repeat counts for {m,n}. */
       if (eoferr != 0)	   	      \
 	dfaerror(eoferr);  	      \
       else		   	      \
-	return END;	   	      \
+	return lasttok = END;	      \
     (c) = (unsigned char) *lexptr++;  \
     --lexleft;		   	      \
   }
 
+#ifdef __STDC__
+#define FUNC(F, P) static int F(int c) { return P(c); }
+#else
 #define FUNC(F, P) static int F(c) int c; { return P(c); }
+#endif
 
 FUNC(is_alpha, ISALPHA)
 FUNC(is_upper, ISUPPER)
@@ -317,32 +408,42 @@ FUNC(is_print, ISPRINT)
 FUNC(is_graph, ISGRAPH)
 FUNC(is_cntrl, ISCNTRL)
 
+static int is_blank(c)
+int c;
+{
+   return (c == ' ' || c == '\t');
+}
+
 /* The following list maps the names of the Posix named character classes
    to predicate functions that determine whether a given character is in
    the class.  The leading [ has already been eaten by the lexical analyzer. */
 static struct {
-  char *name;
-  int (*pred)();
+  const char *name;
+  int (*pred) PARAMS ((int));
 } prednames[] = {
-  ":alpha:]", is_alpha,
-  ":upper:]", is_upper,
-  ":lower:]", is_lower,
-  ":digit:]", is_digit,
-  ":xdigit:]", is_xdigit,
-  ":space:]", is_space,
-  ":punct:]", is_punct,
-  ":alnum:]", is_alnum,
-  ":print:]", is_print,
-  ":graph:]", is_graph,
-  ":cntrl:]", is_cntrl,
-  0
+  { ":alpha:]", is_alpha },
+  { ":upper:]", is_upper },
+  { ":lower:]", is_lower },
+  { ":digit:]", is_digit },
+  { ":xdigit:]", is_xdigit },
+  { ":space:]", is_space },
+  { ":punct:]", is_punct },
+  { ":alnum:]", is_alnum },
+  { ":print:]", is_print },
+  { ":graph:]", is_graph },
+  { ":cntrl:]", is_cntrl },
+  { ":blank:]", is_blank },
+  { 0 }
 };
+
+/* Return non-zero if C is a `word-constituent' byte; zero otherwise.  */
+#define IS_WORD_CONSTITUENT(C) (ISALNUM(C) || (C) == '_')
 
 static int
 looking_at(s)
-     char *s;
+     const char *s;
 {
-  int len;
+  size_t len;
 
   len = strlen(s);
   if (lexleft < len)
@@ -373,7 +474,7 @@ lex()
 	  if (backslash)
 	    goto normal_char;
 	  if (lexleft == 0)
-	    dfaerror("Unfinished \\ escape");
+	    dfaerror(_("Unfinished \\ escape"));
 	  backslash = 1;
 	  break;
 
@@ -419,23 +520,33 @@ lex()
 	    }
 	  goto normal_char;
 
+	case '`':
+	  if (backslash && !(syntax_bits & RE_NO_GNU_OPS))
+	    return lasttok = BEGLINE;	/* FIXME: should be beginning of string */
+	  goto normal_char;
+
+	case '\'':
+	  if (backslash && !(syntax_bits & RE_NO_GNU_OPS))
+	    return lasttok = ENDLINE;	/* FIXME: should be end of string */
+	  goto normal_char;
+
 	case '<':
-	  if (backslash)
+	  if (backslash && !(syntax_bits & RE_NO_GNU_OPS))
 	    return lasttok = BEGWORD;
 	  goto normal_char;
 
 	case '>':
-	  if (backslash)
+	  if (backslash && !(syntax_bits & RE_NO_GNU_OPS))
 	    return lasttok = ENDWORD;
 	  goto normal_char;
 
 	case 'b':
-	  if (backslash)
+	  if (backslash && !(syntax_bits & RE_NO_GNU_OPS))
 	    return lasttok = LIMWORD;
 	  goto normal_char;
 
 	case 'B':
-	  if (backslash)
+	  if (backslash && !(syntax_bits & RE_NO_GNU_OPS))
 	    return lasttok = NOTLIMWORD;
 	  goto normal_char;
 
@@ -475,24 +586,24 @@ lex()
 	     {M,} - minimum count, maximum is infinity
 	     {,M} - 0 through M
 	     {M,N} - M through N */
-	  FETCH(c, "unfinished repeat count");
+	  FETCH(c, _("unfinished repeat count"));
 	  if (ISDIGIT(c))
 	    {
 	      minrep = c - '0';
 	      for (;;)
 		{
-		  FETCH(c, "unfinished repeat count");
+		  FETCH(c, _("unfinished repeat count"));
 		  if (!ISDIGIT(c))
 		    break;
 		  minrep = 10 * minrep + c - '0';
 		}
 	    }
 	  else if (c != ',')
-	    dfaerror("malformed repeat count");
+	    dfaerror(_("malformed repeat count"));
 	  if (c == ',')
 	    for (;;)
 	      {
-		FETCH(c, "unfinished repeat count");
+		FETCH(c, _("unfinished repeat count"));
 		if (!ISDIGIT(c))
 		  break;
 		maxrep = 10 * maxrep + c - '0';
@@ -502,11 +613,11 @@ lex()
 	  if (!(syntax_bits & RE_NO_BK_BRACES))
 	    {
 	      if (c != '\\')
-		dfaerror("malformed repeat count");
-	      FETCH(c, "unfinished repeat count");
+		dfaerror(_("malformed repeat count"));
+	      FETCH(c, _("unfinished repeat count"));
 	    }
 	  if (c != '}')
-	    dfaerror("malformed repeat count");
+	    dfaerror(_("malformed repeat count"));
 	  laststart = 0;
 	  return lasttok = REPMN;
 
@@ -556,11 +667,11 @@ lex()
 
 	case 'w':
 	case 'W':
-	  if (!backslash)
+	  if (!backslash || (syntax_bits & RE_NO_GNU_OPS))
 	    goto normal_char;
 	  zeroset(ccl);
 	  for (c2 = 0; c2 < NOTCHAR; ++c2)
-	    if (ISALNUM(c2))
+	    if (IS_WORD_CONSTITUENT(c2))
 	      setbit(c2, ccl);
 	  if (c == 'W')
 	    notset(ccl);
@@ -571,10 +682,10 @@ lex()
 	  if (backslash)
 	    goto normal_char;
 	  zeroset(ccl);
-	  FETCH(c, "Unbalanced [");
+	  FETCH(c, _("Unbalanced ["));
 	  if (c == '^')
 	    {
-	      FETCH(c, "Unbalanced [");
+	      FETCH(c, _("Unbalanced ["));
 	      invert = 1;
 	    }
 	  else
@@ -591,20 +702,25 @@ lex()
 		for (c1 = 0; prednames[c1].name; ++c1)
 		  if (looking_at(prednames[c1].name))
 		    {
+			int (*pred)() = prednames[c1].pred;
+			if (case_fold
+			    && (pred == is_upper || pred == is_lower))
+				pred = is_alpha;
+
 		      for (c2 = 0; c2 < NOTCHAR; ++c2)
-			if ((*prednames[c1].pred)(c2))
+			if ((*pred)(c2))
 			  setbit(c2, ccl);
 		      lexptr += strlen(prednames[c1].name);
 		      lexleft -= strlen(prednames[c1].name);
-		      FETCH(c1, "Unbalanced [");
+		      FETCH(c1, _("Unbalanced ["));
 		      goto skip;
 		    }
 	      if (c == '\\' && (syntax_bits & RE_BACKSLASH_ESCAPE_IN_LISTS))
-		FETCH(c, "Unbalanced [");
-	      FETCH(c1, "Unbalanced [");
+		FETCH(c, _("Unbalanced ["));
+	      FETCH(c1, _("Unbalanced ["));
 	      if (c1 == '-')
 		{
-		  FETCH(c2, "Unbalanced [");
+		  FETCH(c2, _("Unbalanced ["));
 		  if (c2 == ']')
 		    {
 		      /* In the case [x-], the - is an ordinary hyphen,
@@ -617,31 +733,28 @@ lex()
 		    {
 		      if (c2 == '\\'
 			  && (syntax_bits & RE_BACKSLASH_ESCAPE_IN_LISTS))
-			FETCH(c2, "Unbalanced [");
-		      FETCH(c1, "Unbalanced [");
+			FETCH(c2, _("Unbalanced ["));
+		      FETCH(c1, _("Unbalanced ["));
 		    }
 		}
 	      else
 		c2 = c;
 #ifdef __FreeBSD__
-	      { token c3;
+	      if (collate_range_cmp(c, c2) <= 0)
+	      {
+		token c3;
 
-		if (collate_range_cmp(c, c2) > 0) {
-		  FETCH(c2, "Invalid range");
-		  goto skip;
-		}
-
-		for (c3 = 0; c3 < NOTCHAR; ++c3)
-		  if (   collate_range_cmp(c, c3) <= 0
-		      && collate_range_cmp(c3, c2) <= 0
-		     ) {
+		for (c3 = 0; c3 < NOTCHAR; ++c3) {
+		  if (collate_range_cmp(c, c3) <= 0 &&
+		      collate_range_cmp(c3, c2) <= 0) {
 		    setbit(c3, ccl);
 		    if (case_fold)
 		      if (ISUPPER(c3))
-			setbit(tolower((unsigned char)c3), ccl);
-		      else if (ISLOWER(c3))
-			setbit(toupper((unsigned char)c3), ccl);
+			setbit(tolower(c3), ccl);
+		      else if (ISLOWER(c))
+			setbit(toupper(c3), ccl);
 		  }
+		}
 	      }
 #else
 	      while (c <= c2)
@@ -649,9 +762,9 @@ lex()
 		  setbit(c, ccl);
 		  if (case_fold)
 		    if (ISUPPER(c))
-		      setbit(tolower((unsigned char)c), ccl);
+		      setbit(tolower(c), ccl);
 		    else if (ISLOWER(c))
-		      setbit(toupper((unsigned char)c), ccl);
+		      setbit(toupper(c), ccl);
 		  ++c;
 		}
 #endif
@@ -675,10 +788,10 @@ lex()
 	    {
 	      zeroset(ccl);
 	      setbit(c, ccl);
-	      if (isupper((unsigned char)c))
-		setbit(tolower((unsigned char)c), ccl);
+	      if (isupper(c))
+		setbit(tolower(c), ccl);
 	      else
-		setbit(toupper((unsigned char)c), ccl);
+		setbit(toupper(c), ccl);
 	      return lasttok = CSET + charclass_index(ccl);
 	    }
 	  return c;
@@ -688,12 +801,13 @@ lex()
   /* The above loop should consume at most a backslash
      and some other character. */
   abort();
+  return END;	/* keeps pedantic compilers happy. */
 }
 
 /* Recursive descent parser for regular expressions. */
 
 static token tok;		/* Lookahead token. */
-static depth;			/* Current depth of a hypothetical stack
+static int depth;		/* Current depth of a hypothetical stack
 				   holding deferred productions.  This is
 				   used to determine the depth that will be
 				   required of the real stack later on in
@@ -761,12 +875,6 @@ addtok(t)
 
    The parser builds a parse tree in postfix form in an array of tokens. */
 
-#if __STDC__
-static void regexp(int);
-#else
-static void regexp();
-#endif
-
 static void
 atom()
 {
@@ -782,7 +890,7 @@ atom()
       tok = lex();
       regexp(0);
       if (tok != RPAREN)
-	dfaerror("Unbalanced (");
+	dfaerror(_("Unbalanced ("));
       tok = lex();
     }
   else
@@ -792,6 +900,7 @@ atom()
 /* Return the number of tokens in the given subexpression. */
 static int
 nsubtoks(tindex)
+int tindex;
 {
   int ntoks1;
 
@@ -902,7 +1011,7 @@ dfaparse(s, len, d)
   parens = 0;
 
   if (! syntax_bits_set)
-    dfaerror("No syntax specified");
+    dfaerror(_("No syntax specified"));
 
   tok = lex();
   depth = d->depth;
@@ -910,7 +1019,7 @@ dfaparse(s, len, d)
   regexp(1);
 
   if (tok != END)
-    dfaerror("Unbalanced )");
+    dfaerror(_("Unbalanced )"));
 
   addtok(END - d->nregexps);
   addtok(CAT);
@@ -949,7 +1058,7 @@ insert(p, s)
   position t1, t2;
 
   for (i = 0; i < s->nelem && p.index < s->elems[i].index; ++i)
-    ;
+    continue;
   if (i < s->nelem && p.index == s->elems[i].index)
     s->elems[i].constraint |= p.constraint;
   else
@@ -1082,7 +1191,9 @@ state_index(d, s, newline, letter)
    that position with the elements of its follow labeled with an appropriate
    constraint.  Repeat exhaustively until no funny positions are left.
    S->elems must be large enough to hold the result. */
-void
+static void epsclosure PARAMS ((position_set *s, struct dfa *d));
+
+static void
 epsclosure(s, d)
      position_set *s;
      struct dfa *d;
@@ -1484,7 +1595,7 @@ dfastate(s, d, trans)
   int state_newline;		/* New state on a newline transition. */
   int wants_letter;		/* New state wants to know letter context. */
   int state_letter;		/* New state on a letter transition. */
-  static initialized;		/* Flag for static initialization. */
+  static int initialized;	/* Flag for static initialization. */
   int i, j, k;
 
   /* Initialize the set of letters, if necessary. */
@@ -1492,7 +1603,7 @@ dfastate(s, d, trans)
     {
       initialized = 1;
       for (i = 0; i < NOTCHAR; ++i)
-	if (ISALNUM(i))
+	if (IS_WORD_CONSTITUENT(i))
 	  setbit(i, letters);
       setbit('\n', newline);
     }
@@ -1531,7 +1642,7 @@ dfastate(s, d, trans)
 
 	  /* If there are no characters left, there's no point in going on. */
 	  for (j = 0; j < CHARCLASS_INTS && !matches[j]; ++j)
-	    ;
+	    continue;
 	  if (j == CHARCLASS_INTS)
 	    continue;
 	}
@@ -1549,7 +1660,7 @@ dfastate(s, d, trans)
 	     matches. */
 	  intersectf = 0;
 	  for (k = 0; k < CHARCLASS_INTS; ++k)
-	    (intersect[k] = matches[k] & labels[j][k]) ? intersectf = 1 : 0;
+	    (intersect[k] = matches[k] & labels[j][k]) ? (intersectf = 1) : 0;
 	  if (! intersectf)
 	    continue;
 
@@ -1560,8 +1671,8 @@ dfastate(s, d, trans)
 	      /* Even an optimizing compiler can't know this for sure. */
 	      int match = matches[k], label = labels[j][k];
 
-	      (leftovers[k] = ~match & label) ? leftoversf = 1 : 0;
-	      (matches[k] = match & ~label) ? matchesf = 1 : 0;
+	      (leftovers[k] = ~match & label) ? (leftoversf = 1) : 0;
+	      (matches[k] = match & ~label) ? (matchesf = 1) : 0;
 	    }
 
 	  /* If there were leftovers, create a new group labeled with them. */
@@ -1625,12 +1736,8 @@ dfastate(s, d, trans)
       else
 	state_letter = state;
       for (i = 0; i < NOTCHAR; ++i)
-	if (i == '\n')
-	  trans[i] = state_newline;
-	else if (ISALNUM(i))
-	  trans[i] = state_letter;
-	else
-	  trans[i] = state;
+	trans[i] = (IS_WORD_CONSTITUENT(i)) ? state_letter : state;
+      trans['\n'] = state_newline;
     }
   else
     for (i = 0; i < NOTCHAR; ++i)
@@ -1688,7 +1795,7 @@ dfastate(s, d, trans)
 
 	      if (c == '\n')
 		trans[c] = state_newline;
-	      else if (ISALNUM(c))
+	      else if (IS_WORD_CONSTITUENT(c))
 		trans[c] = state_letter;
 	      else if (c < NOTCHAR)
 		trans[c] = state;
@@ -1822,12 +1929,12 @@ dfaexec(d, begin, end, newline, count, backref)
      int *count;
      int *backref;
 {
-  register s, s1, tmp;		/* Current state. */
+  register int s, s1, tmp;	/* Current state. */
   register unsigned char *p;	/* Current input character. */
-  register **trans, *t;		/* Copy of d->trans so it can be optimized
+  register int **trans, *t;	/* Copy of d->trans so it can be optimized
 				   into a register. */
-  static sbit[NOTCHAR];	/* Table for anding with d->success. */
-  static sbit_init;
+  static int sbit[NOTCHAR];	/* Table for anding with d->success. */
+  static int sbit_init;
 
   if (! sbit_init)
     {
@@ -1835,12 +1942,8 @@ dfaexec(d, begin, end, newline, count, backref)
 
       sbit_init = 1;
       for (i = 0; i < NOTCHAR; ++i)
-	if (i == '\n')
-	  sbit[i] = 4;
-	else if (ISALNUM(i))
-	  sbit[i] = 2;
-	else
-	  sbit[i] = 1;
+	sbit[i] = (IS_WORD_CONSTITUENT(i)) ? 2 : 1;
+      sbit['\n'] = 4;
     }
 
   if (! d->tralloc)
@@ -1853,30 +1956,21 @@ dfaexec(d, begin, end, newline, count, backref)
 
   for (;;)
     {
-      /* The dreaded inner loop. */
-      if ((t = trans[s]) != 0)
-	do
-	  {
-	    s1 = t[*p++];
-	    if (! (t = trans[s1]))
-	      goto last_was_s;
-	    s = t[*p++];
-	  }
-        while ((t = trans[s]) != 0);
-      goto last_was_s1;
-    last_was_s:
-      tmp = s, s = s1, s1 = tmp;
-    last_was_s1:
+      while ((t = trans[s]) != 0) { /* hand-optimized loop */
+	s1 = t[*p++];
+        if ((t = trans[s1]) == 0) {
+           tmp = s ; s = s1 ; s1 = tmp ; /* swap */
+           break;
+        }
+	s = t[*p++];
+      }
 
       if (s >= 0 && p <= (unsigned char *) end && d->fails[s])
 	{
 	  if (d->success[s] & sbit[*p])
 	    {
 	      if (backref)
-		if (d->states[s].backref)
-		  *backref = 1;
-		else
-		  *backref = 0;
+		*backref = (d->states[s].backref != 0);
 	      return (char *) p;
 	    }
 
@@ -1940,24 +2034,24 @@ dfacomp(s, len, d, searchflag)
 {
   if (case_fold)	/* dummy folding in service of dfamust() */
     {
-      char *copy;
+      char *lcopy;
       int i;
 
-      copy = malloc(len);
-      if (!copy)
-	dfaerror("out of memory");
+      lcopy = malloc(len);
+      if (!lcopy)
+	dfaerror(_("out of memory"));
 
       /* This is a kludge. */
       case_fold = 0;
       for (i = 0; i < len; ++i)
-	if (ISUPPER(s[i]))
-	  copy[i] = tolower((unsigned char)s[i]);
+	if (ISUPPER ((unsigned char) s[i]))
+	  lcopy[i] = tolower ((unsigned char) s[i]);
 	else
-	  copy[i] = s[i];
+	  lcopy[i] = s[i];
 
       dfainit(d);
-      dfaparse(copy, len, d);
-      free(copy);
+      dfaparse(lcopy, len, d);
+      free(lcopy);
       dfamust(d);
       d->cindex = d->tindex = d->depth = d->nleaves = d->nregexps = 0;
       case_fold = 1;
@@ -1995,9 +2089,10 @@ dfafree(d)
       free((ptr_t) d->trans[i]);
     else if (d->fails[i])
       free((ptr_t) d->fails[i]);
-  free((ptr_t) d->realtrans);
-  free((ptr_t) d->fails);
-  free((ptr_t) d->newlines);
+  if (d->realtrans) free((ptr_t) d->realtrans);
+  if (d->fails) free((ptr_t) d->fails);
+  if (d->newlines) free((ptr_t) d->newlines);
+  if (d->success) free((ptr_t) d->success);
   for (dm = d->musts; dm; dm = ndm)
     {
       ndm = dm->next;
@@ -2092,7 +2187,7 @@ icatalloc(old, new)
      char *new;
 {
   char *result;
-  int oldsize, newsize;
+  size_t oldsize, newsize;
 
   newsize = (new == NULL) ? 0 : strlen(new);
   if (old == NULL)
@@ -2122,7 +2217,7 @@ istrstr(lookin, lookfor)
      char *lookfor;
 {
   char *cp;
-  int len;
+  size_t len;
 
   len = strlen(lookfor);
   for (cp = lookin; *cp != '\0'; ++cp)
@@ -2158,7 +2253,7 @@ static char **
 enlist(cpp, new, len)
      char **cpp;
      char *new;
-     int len;
+     size_t len;
 {
   int i, j;
 
@@ -2210,7 +2305,7 @@ comsubs(left, right)
   char **cpp;
   char *lcp;
   char *rcp;
-  int i, len;
+  size_t i, len;
 
   if (left == NULL || right == NULL)
     return NULL;
@@ -2225,7 +2320,7 @@ comsubs(left, right)
       while (rcp != NULL)
 	{
 	  for (i = 1; lcp[i] != '\0' && lcp[i] == rcp[i]; ++i)
-	    ;
+	    continue;
 	  if (i > len)
 	    len = i;
 	  rcp = index(rcp + 1, *lcp);
@@ -2285,6 +2380,7 @@ inboth(left, right)
 	    }
 	  both = addlists(both, temp);
 	  freelist(temp);
+	  free(temp);
 	  if (both == NULL)
 	    return NULL;
 	}
@@ -2321,8 +2417,9 @@ struct dfa *dfa;
   token t;
   static must must0;
   struct dfamust *dm;
+  static char empty_string[] = "";
 
-  result = "";
+  result = empty_string;
   exact = 0;
   musts = (must *) malloc((dfa->tindex + 1) * sizeof *musts);
   if (musts == NULL)
@@ -2509,7 +2606,7 @@ struct dfa *dfa;
 	      resetmust(mp);
 	      mp->is[0] = mp->left[0] = mp->right[0] = t;
 	      mp->is[1] = mp->left[1] = mp->right[1] = '\0';
-	      mp->in = enlist(mp->in, mp->is, 1);
+	      mp->in = enlist(mp->in, mp->is, (size_t)1);
 	      if (mp->in == NULL)
 		goto done;
 	    }
