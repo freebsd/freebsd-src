@@ -813,8 +813,6 @@ ng_bridge_disconnect(hook_p hook)
 
 /*
  * Hash algorithm
- *
- * Only hashing bytes 3-6 of the Ethernet address is sufficient and fast.
  */
 #define HASH(addr,mask)		( (((const u_int16_t *)(addr))[0] 	\
 				 ^ ((const u_int16_t *)(addr))[1] 	\
