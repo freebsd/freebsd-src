@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.59 1999/07/03 08:18:27 kato Exp $
+$Id: majors.pc98,v 1.60 1999/07/08 12:07:14 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -46,6 +46,7 @@ blkdev	name		comments
 31	acd		ATAPI CDROM
 32	afd		ATAPI floppy
 33	ast		ATAPI tape
+34	arla		Arla (AFS-clone) driver
 100	??		entries from 100-127 are reserved for local use
 127	??		entries from 100-127 are reserved for local use
 
@@ -177,5 +178,6 @@ chrdev	name		comments
 125     digio           Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
 126	sync		Generic sync port support <phk>, <brian>
 127	fire		Firewire driver <ikob@koganei.wide.ad.jp>
+128	arla		Arla (AFS-clone) driver
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
