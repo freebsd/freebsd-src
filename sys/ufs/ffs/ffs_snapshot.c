@@ -301,11 +301,11 @@ restart:
 	 *
 	 * Recind nice scheduling while running with the filesystem suspended.
 	 */
-	if (td->td_ksegrp->kg_nice > 0) {
+	if (td->td_proc->p_nice > 0) {
 		PROC_LOCK(td->td_proc);
 		mtx_lock_spin(&sched_lock);
-		saved_nice = td->td_ksegrp->kg_nice;
-		sched_nice(td->td_ksegrp, 0);
+		saved_nice = td->td_proc->p_nice;
+		sched_nice(td->td_proc, 0);
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(td->td_proc);
 	}
@@ -665,7 +665,7 @@ out:
 	if (saved_nice > 0) {
 		PROC_LOCK(td->td_proc);
 		mtx_lock_spin(&sched_lock);
-		sched_nice(td->td_ksegrp, saved_nice);
+		sched_nice(td->td_proc, saved_nice);
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(td->td_proc);
 	}

@@ -1225,12 +1225,9 @@ unlock_and_continue:
 		}
 		sx_sunlock(&allproc_lock);
 		if (bigproc != NULL) {
-			struct ksegrp *kg;
 			killproc(bigproc, "out of swap space");
 			mtx_lock_spin(&sched_lock);
-			FOREACH_KSEGRP_IN_PROC(bigproc, kg) {
-				sched_nice(kg, PRIO_MIN); /* XXXKSE ??? */
-			}
+			sched_nice(bigproc, PRIO_MIN);
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(bigproc);
 			wakeup(&cnt.v_free_count);
