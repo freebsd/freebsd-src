@@ -17,7 +17,7 @@
 # upgrade             - Upgrade a.out (2.2.x/3.0) system to the new ELF way
 # most                - Build user commands, no libraries or include files.
 # installmost         - Install user commands, no libraries or include files.
-# aout-to-elf         - Upgrade an system from a.out to elf format (see below).
+# aout-to-elf         - Upgrade a system from a.out to elf format (see below).
 # aout-to-elf-build   - Build everything required to upgrade a system from
 #                       a.out to elf format (see below).
 # aout-to-elf-install - Install everything built by aout-to-elf-build (see
@@ -26,7 +26,7 @@
 #                       of each elf library sub-directory.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
-# the /usr/share/mk/sys.mk unless the -m argument is specified on the 
+# the /usr/share/mk/sys.mk unless the -m argument is specified on the
 # command line. By keeping this makefile simple, it doesn't matter too
 # much how different the installed mk files are from those in the source
 # tree. This makefile executes a child make process, forcing it to use
@@ -71,7 +71,7 @@
 # The aout->elf transition build is performed by doing a `make upgrade' (or
 # `make aout-to-elf') or in two steps by a `make aout-to-elf-build' followed
 # by a `make aout-to-elf-install', depending on user preference.
-# You need to have at least 320 Mb of free space for the object tree.
+# You need to have at least 320 MB of free space for the object tree.
 #
 # The upgrade process checks the installed release. If this is 3.0-CURRENT,
 # it is assumed that your kernel contains all the syscalls required by the
@@ -251,4 +251,3 @@ buildkernels:
 		 > _.${TARGET_ARCH}.${kernel} 2>&1
 .endif
 .endfor
-
