@@ -26,8 +26,6 @@
         ..
         isdn            mode=0700
         ..
-        kerberosIV
-        ..
         mail
         ..
         mtree

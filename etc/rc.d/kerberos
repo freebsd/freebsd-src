@@ -9,15 +9,6 @@
 
 . /etc/rc.subr
 
-name="kerberosIV"
-load_rc_config $name
-rcvar="kerberos4_server_enable"
-command="${kerberos4_server}"
-checkyesno kerberos_stash && stash='-n' || stash=
-command_args="${stash} >> /var/log/kerberos.log &"
-
-run_rc_command "$1"
-
 name="kerberos5"
 load_rc_config $name
 rcvar="kerberos5_server_enable"
