@@ -67,7 +67,7 @@ int	pfil_remove_hook __P((int (*func) __P((void *, int,
 	    struct ifnet *, int, struct mbuf **)), int, struct pfil_head *));
 
 /* XXX */
-#if defined(_KERNEL) && !defined(_LKM)
+#if defined(_KERNEL) && !defined(KLD_MODULE)
 #include "opt_ipfilter.h"
 #endif
 
