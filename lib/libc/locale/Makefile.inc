@@ -39,7 +39,7 @@ MLINKS+=btowc.3 wctob.3
 MLINKS+=isdigit.3 isnumber.3
 MLINKS+=iswalnum.3 iswalpha.3 iswalnum.3 iswascii.3 iswalnum.3 iswblank.3 \
 	iswalnum.3 iswcntrl.3 iswalnum.3 iswdigit.3 iswalnum.3 iswgraph.3 \
-	iswalnum.3 iswhexnumber.3 iswalnum.3 iswhexnumber.3 \
+	iswalnum.3 iswhexnumber.3 \
 	iswalnum.3 iswideogram.3 iswalnum.3 iswlower.3 iswalnum.3 iswnumber.3 \
 	iswalnum.3 iswphonogram.3 iswalnum.3 iswprint.3 iswalnum.3 iswpunct.3 \
 	iswalnum.3 iswrune.3 iswalnum.3 iswspace.3 iswalnum.3 iswspecial.3 \
