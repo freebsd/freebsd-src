@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.63 1995/09/03 05:43:28 julian Exp $
+ *	$Id: fd.c,v 1.64 1995/09/16 17:03:36 bde Exp $
  *
  */
 
@@ -65,6 +65,7 @@
 #include <machine/ioctl_fd.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <machine/cpu.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -368,11 +369,13 @@ static int
 fdc_err(fdcu_t fdcu, const char *s)
 {
 	fdc_data[fdcu].fdc_errs++;
-	if(fdc_data[fdcu].fdc_errs < FDC_ERRMAX)
-		printf("fdc%d: %s", fdcu, s);
-	else if(fdc_data[fdcu].fdc_errs == FDC_ERRMAX)
-		printf("fdc%d: too many errors, not logging any more\n",
-		       fdcu);
+	if(s) {
+		if(fdc_data[fdcu].fdc_errs < FDC_ERRMAX)
+			printf("fdc%d: %s", fdcu, s);
+		else if(fdc_data[fdcu].fdc_errs == FDC_ERRMAX)
+			printf("fdc%d: too many errors, not logging any more\n",
+			       fdcu);
+	}
 
 	return FD_FAILED;
 }
@@ -905,7 +908,7 @@ in_fdc(fdcu_t fdcu)
 		if (i == NE7_RQM)
 			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
-		return fdc_err(fdcu, "input ready timeout\n");
+		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
 #ifdef	DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
@@ -928,7 +931,7 @@ fd_in(fdcu_t fdcu, int *ptr)
 		if (i == NE7_RQM)
 			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
-		return fdc_err(fdcu, "input ready timeout\n");
+		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
 #ifdef	DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
@@ -956,7 +959,8 @@ out_fdc(fdcu_t fdcu, int x)
 	/* Check that the floppy controller is ready for a command */
 	i = 100000;
 	while ((inb(baseport+FDSTS) & NE7_RQM) == 0 && i-- > 0);
-	if (i <= 0) return fdc_err(fdcu, "output ready timeout\n");
+	if (i <= 0)
+		return fdc_err(fdcu, bootverbose? "output ready timeout\n": 0);
 
 	/* Send the command and return */
 	outb(baseport+FDDATA, x);
