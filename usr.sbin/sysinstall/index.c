@@ -16,8 +16,14 @@ _strdup(char *ptr)
 }
 
 static char *descrs[] = {
-    "Package Selection", "To select a package or category, move to it and select OK.\nTo remove a package, select it again.  To go to a previous menu, select\nUp or Cancel. To search for a package by name, press ESC.",
-    "Package Targets", "These are the packages you've selected for extraction.\n\nIf you're sure of these choices, select OK.\nIf not, select Cancel to go back to the package selection menu.\n",
+    "Package Selection",
+    "To select a package or category, move to it and press SPACE.\n"
+	"To remove a package from consideration, press SPACE again.\n"
+	    "To go to a previous menu, select UP item or Cancel. To search\n"
+		"for a package by name, press ESC.",
+    "Package Targets", "These are the packages you've selected for extraction.\n\n"
+	"If you're sure of these choices, select OK.\n"
+	    "If not, select Cancel to go back to the package selection menu.\n",
     "All", "All available packages in all categories.",
     "applications", "User application software.",
     "archivers", "Utilities for archiving and unarchiving data.",
@@ -141,7 +147,7 @@ index_register(PkgNodePtr top, char *where, IndexEntryPtr ptr)
 	top->kids = q;
     }
     p = new_pkg_node(ptr->name, PACKAGE);
-    p->desc = clip(ptr->comment, 56 - (strlen(ptr->name) / 2));
+    p->desc = clip(ptr->comment, 54 - (strlen(ptr->name) / 2));
     p->data = ptr;
     p->next = q->kids;
     q->kids = p;
@@ -382,6 +388,26 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
     return p;
 }
 
+/* Work function for seeing if name x is in result string y */
+static Boolean
+is_selected_in(char *name, char *result)
+{
+    while (result) {
+	char *cp;
+
+	cp = index(result, '\n');
+	if (cp)
+	   *cp++ = 0;
+	/* Were no options actually selected? */
+	if (!*result)
+	    return FALSE;
+	if (!strcmp(result, name))
+	    return TRUE;
+	result = cp;
+    }
+    return FALSE;
+}
+
 int
 index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 {
@@ -390,44 +416,63 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     PkgNodePtr sp, kp;
     char **nitems;
     char result[127];
+    Boolean hasPackages;
 
-    kp = top->kids;
-    n = curr = max = 0;
+    curr = max = 0;
+    hasPackages = FALSE;
     nitems = NULL;
-    if (kp && kp->name && plist) {
-	nitems = item_add_pair(nitems, "..", "RETURN TO PREVIOUS MENU.", &curr, &max);
-	++n;
-    }
+
+    n = 0;
+    kp = top->kids;
+    /* Figure out if this menu is full of "leaves" or "branches" */
     while (kp && kp->name) {
-	nitems = item_add_pair(nitems, kp->name, kp->desc, &curr, &max);
 	++n;
+	if (kp->type == PACKAGE) {
+	    hasPackages = TRUE;
+	    break;
+	}
 	kp = kp->next;
     }
     if (!n) {
 	msgConfirm("The %s menu is empty.", top->name);
 	return RET_DONE;
     }
-    nitems = item_add(nitems, NULL, &curr, &max);
+
     dialog_clear();
     while (1) {
-	rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
-			   (unsigned char **)nitems, result, pos, scroll);
-	if (!rval && plist && strcmp(result, "..")) {
+	n = 0;
+	kp = top->kids;
+	if (!hasPackages && kp && kp->name && plist) {
+	    nitems = item_add_pair(nitems, "UP", ".. RETURN TO PREVIOUS MENU ..", &curr, &max);
+	    ++n;
+	}
+	while (kp && kp->name) {
+	    nitems = item_add_pair(nitems, kp->name, kp->desc, &curr, &max);
+	    if (hasPackages) {
+		if (kp->type == PACKAGE)
+		    nitems = item_add(nitems, index_search(plist, kp->name, NULL) ? "ON" : "OFF", &curr, &max);
+		else
+		    nitems = item_add(nitems, "OFF", &curr, &max);
+	    }
+	    ++n;
+	    kp = kp->next;
+	}
+	nitems = item_add(nitems, NULL, &curr, &max);
+
+	if (hasPackages)
+	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
+				    (unsigned char **)nitems, result);
+	else	/* It's a categories menu */
+	    rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
+			       (unsigned char **)nitems, result, pos, scroll);
+	items_free(nitems, &curr, &max);
+	if (!rval && plist && strcmp(result, "UP")) {
 	    kp = top->kids;
 	    while (kp) {
-		if (!strcmp(kp->name, result)) {
-		    if (kp->type == PACKAGE) {
-			sp = index_search(plist, result, NULL);
-			if (sp) {
-			    if (!msgYesNo("%s is already selected -\ndo you wish to unselect it?", result)) {
-				standout();
-				mvprintw(23, 0, "Deleting package %s from selection list.\n", kp->name);
-				standend();
-				refresh();
-				index_delete(sp);
-			    }
-			}
-			else {
+		if (kp->type == PACKAGE) {
+		    sp = index_search(plist, kp->name, NULL);
+		    if (is_selected_in(kp->name, result)) {
+			if (!sp) {
 			    PkgNodePtr n = (PkgNodePtr)malloc(sizeof(PkgNode));
 			    
 			    if (n) {
@@ -441,13 +486,19 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 			    }
 			}
 		    }
-		    else {
-			int p, s;
-			
-			p = s = 0;
-			index_menu(kp, plist, &p, &s);
+		    else if (sp) {
+			standout();
+			mvprintw(23, 0, "Deleting package %s from selection list\n", kp->name);
+			standend();
+			refresh();
+			index_delete(sp);
 		    }
-		    break;
+		}
+		else if (!strcmp(kp->name, result)) {	/* Not a package, must be a directory */
+		    int p, s;
+		    
+		    p = s = 0;
+		    index_menu(kp, plist, &p, &s);
 		}
 		kp = kp->next;
 	    }
@@ -473,7 +524,6 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	}
 	else {
 	    dialog_clear();
-	    items_free(nitems, &curr, &max);
 	    return rval ? RET_FAIL : RET_SUCCESS;
 	}
     }
