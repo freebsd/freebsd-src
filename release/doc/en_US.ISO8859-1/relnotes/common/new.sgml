@@ -2221,6 +2221,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     address (as opposed to using every available one) via the
     <option>-b</option> option. &merged;</para>
 
+    <para>&man.syslogd.8; now accepts a <option>-c</option> flag to
+    disable repeated line compression. &merged;</para>
+
     <para>&man.tail.1; now has the ability to work on files longer
     than 2GB. &merged;</para>
 
@@ -2432,8 +2435,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The &man.more.1; command has been replaced by &man.less.1;,
       although it can still be run as
-      <command>more</command>.  <application>less</application> has
-      been imported at 3.5.8. &merged;</para>
+      <command>more</command>. &merged; Version 371 of <application>less</application> has
+      been imported.</para>
 
       <para><application>libpcap</application> has been updated to
       0.6.2. &merged;</para>
