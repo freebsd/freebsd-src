@@ -3553,7 +3553,7 @@ extattr_check_cred(struct vnode *vp, int attrnamespace,
 	/*
 	 * Kernel-invoked always succeeds.
 	 */
-	if (cred == NULL)
+	if (cred == NOCRED)
 		return (0);
 
 	/*
