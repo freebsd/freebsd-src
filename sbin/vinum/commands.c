@@ -54,6 +54,8 @@
 #include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <sys/types.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/wait.h>
 #include <readline/history.h>
 #include <readline/readline.h>
@@ -68,6 +70,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
     FILE *dfd;						    /* file descriptor for the config file */
     char buffer[BUFSIZE];				    /* read config file in here */
     struct _ioctl_reply *reply;
+    int ioctltype;					    /* for ioctl call */
 
     if (argc != 1) {					    /* wrong arg count */
 	fprintf(stderr, "Expecting 1 parameter, not %d\n", argc);
@@ -109,7 +112,8 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	}
     }
     fclose(dfd);					    /* done with the config file */
-    error = ioctl(superdev, VINUM_SAVECONFIG, NULL);	    /* save the config to disk */
+    ioctltype = 0;					    /* saveconfig after update */
+    error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
 	perror("Can't save Vinum config");
     make_devices();
@@ -304,9 +308,8 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 	    else
 		perror("Can't find vinum config");
 	} else {
+	    make_devices();				    /* recreate the /dev/vinum hierarchy */
 	    printf("\b Vinum configuration obliterated\n");
-	    system("rm -rf " VINUM_DIR "/" "*");	    /* remove the old /dev/vinum */
-	    syslog(LOG_NOTICE | LOG_KERN, "configuration obliterated");
 	    start_daemon();				    /* then restart the daemon */
 	}
     }
@@ -448,10 +451,11 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    fprintf(stderr, "Can't allocate memory for drive list\n");
 	    return;
 	}
-	token[0] = "read";				    /* make a read command of this mess */
-	tokens = 1;					    /* so far, it's the only token */
-
-	getdevs(&statinfo);				    /* find out what devices we have */
+	tokens = 0;					    /* no tokens yet */
+	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
+	    perror("Can't get device list");
+	    return;
+	}
 	namelist[0] = '\0';				    /* start with empty namelist */
 	enamelist = namelist;				    /* point to the end of the list */
 
@@ -459,7 +463,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
 	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
+&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0)	    /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
@@ -511,9 +515,26 @@ vinum_stop(int argc, char *argv[], char *arg0[])
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
     message->force = force;				    /* should we force the transition? */
-    if (argc == 0)					    /* stop everything */
-	fprintf(stderr, "stop must have an argument\n");
-    else {						    /* stop specified objects */
+    if (argc == 0) {					    /* stop vinum */
+	int fileid = 0;					    /* ID of Vinum kld */
+
+	close(superdev);				    /* we can't stop if we have vinum open */
+	fileid = kldfind(VINUMMOD);
+	if ((fileid < 0)				    /* no go */
+	||(kldunload(fileid) < 0))
+	    perror("Can't unload " VINUMMOD);
+	else {
+	    fprintf(stderr, VINUMMOD " unloaded\n");
+	    exit(0);
+	}
+
+	/* If we got here, the stop failed.  Reopen the superdevice. */
+	superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* reopen vinum superdevice */
+	if (superdev < 0) {
+	    perror("Can't reopen Vinum superdevice");
+	    exit(1);
+	}
+    } else {						    /* stop specified objects */
 	int i;
 	enum objecttype type;
 
@@ -1101,4 +1122,19 @@ vinum_setdaemon(int argc, char *argv[], char *argv0[])
     default:
 	fprintf(stderr, "Usage: \tsetdaemon [<bitmask>]\n");
     }
+}
+
+/* Save config info */
+void 
+vinum_saveconfig(int argc, char *argv[], char *argv0[])
+{
+    int ioctltype;
+
+    if (argc != 0) {
+	printf("Usage: saveconfig\n");
+	return;
+    }
+    ioctltype = 1;					    /* user saveconfig */
+    if (ioctl(superdev, VINUM_SAVECONFIG, &ioctltype) < 0)
+	fprintf(stderr, "Can't set daemon options: %s (%d)\n", strerror(errno), errno);
 }
