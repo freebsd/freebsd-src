@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.14 1997/12/28 13:36:06 phk Exp $
+ * $Id: asnames.h,v 1.15 1998/01/26 04:41:23 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -71,6 +71,7 @@
 #define _Xbnd				Xbnd
 #define _Xbpt				Xbpt
 #define _Xcpuast			Xcpuast
+#define _Xcpucheckstate			Xcpucheckstate
 #define _Xcpustop			Xcpustop
 #define _Xdbg				Xdbg
 #define _Xdiv				Xdiv
@@ -130,7 +131,6 @@
 #define _Xintr9				Xintr9
 #define _XintrRTC			XintrRTC
 #define _Xinvltlb			Xinvltlb
-#define _Xcpucheckstate			Xcpucheckstate
 #define _Xmchk				Xmchk
 #define _Xmissing			Xmissing
 #define _Xnmi				Xnmi
@@ -185,6 +185,12 @@
 #define _bootstrap_gdt			bootstrap_gdt
 #define _bzero				bzero
 #define _cam_imask			cam_imask
+#define _checkstate_cpus		checkstate_cpus
+#define _checkstate_cpustate		checkstate_cpustate
+#define _checkstate_curproc		checkstate_curproc
+#define _checkstate_need_ast		checkstate_need_ast
+#define _checkstate_pc			checkstate_pc
+#define _checkstate_pending_ast		checkstate_pending_ast
 #define _checkstate_probed_cpus		checkstate_probed_cpus
 #define _clock_lock			clock_lock
 #define _cnt				cnt
@@ -329,12 +335,6 @@
 #define _started_cpus			started_cpus
 #define _stopped_cpus			stopped_cpus
 #define _swi_vm				swi_vm
-#define _checkstate_cpus		checkstate_cpus
-#define _checkstate_cpustate		checkstate_cpustate
-#define _checkstate_curproc		checkstate_curproc
-#define _checkstate_pc			checkstate_pc
-#define _checkstate_need_ast		checkstate_need_ast
-#define _checkstate_pending_ast		checkstate_pending_ast
 #define _syscall			syscall
 #define _szsigcode			szsigcode
 #define _time				time
