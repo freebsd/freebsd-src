@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.54 1998/05/20 13:38:42 kato Exp $
+ *	$Id: clock.c,v 1.55 1998/05/28 13:51:39 kato Exp $
  */
 
 /*
@@ -194,8 +194,8 @@ static void rtc_outb __P((int));
 #endif
 static	u_int	tsc_present;
 
-static	unsigned i8254_get_timecount __P((void));
-static	unsigned tsc_get_timecount __P((void));
+static	unsigned i8254_get_timecount __P((struct timecounter *tc));
+static	unsigned tsc_get_timecount __P((struct timecounter *tc));
 static	void	set_timer_freq(u_int freq, int intr_freq);
 
 static struct timecounter tsc_timecounter[3] = {
@@ -1408,7 +1408,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
 
 static unsigned
-i8254_get_timecount(void)
+i8254_get_timecount(struct timecounter *tc)
 {
 	u_int count;
 	u_long ef;
@@ -1437,7 +1437,7 @@ i8254_get_timecount(void)
 }
 
 static unsigned
-tsc_get_timecount(void)
+tsc_get_timecount(struct timecounter *tc)
 {
 	return (rdtsc());
 }
