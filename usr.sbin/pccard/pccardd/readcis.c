@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: readcis.c,v 1.10 1997/10/06 11:36:08 charnier Exp $";
+	"$Id: readcis.c,v 1.11 1997/11/18 21:08:14 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -170,14 +170,19 @@ freecis(struct cis *cp)
 static void
 cis_info(struct cis *cp, unsigned char *p, int len)
 {
+	*cp->manuf = *cp->vers = *cp->add_info1 = *cp->add_info2 = '\0';
 	cp->maj_v = *p++;
 	cp->min_v = *p++;
+	if (*p == 0xff) return;
 	strncpy(cp->manuf, p, CIS_MAXSTR - 1);
 	while (*p++);
+	if (*p == 0xff) return;
 	strncpy(cp->vers, p, CIS_MAXSTR - 1);
 	while (*p++);
+	if (*p == 0xff) return;
 	strncpy(cp->add_info1, p, CIS_MAXSTR - 1);
 	while (*p++);
+	if (*p == 0xff) return;
 	strncpy(cp->add_info2, p, CIS_MAXSTR - 1);
 }
 
