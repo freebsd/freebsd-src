@@ -129,6 +129,8 @@ Int_Open_Disk(const char *name)
 	s = strtoul(a, &r, 0);
 	if (*r) { printf("BARF %d <%d>\n", __LINE__, *r); exit (0); }
 
+	d->sector_size = s;
+
 	if (Add_Chunk(d, 0, o / s, name, whole, 0, 0, "-"))
 		DPRINT(("Failed to add 'whole' chunk"));
 
