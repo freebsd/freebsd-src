@@ -262,7 +262,7 @@ void	 ldump(const char *_nfile, const char *_datafile, int _copies);
 void	 lastprinter(void);
 int	 lockchk(struct printer *_pp, char *_slockf);
 char	*lock_file_name(const struct printer *_pp, char *_buf, size_t _len);
-void	 lpd_gettime(struct timespec *_tsp, char *_strp, int _strsize);
+void	 lpd_gettime(struct timespec *_tsp, char *_strp, size_t _strsize);
 int	 nextprinter(struct printer *_pp, int *_error);
 const
 char	*pcaperr(int _error);
