@@ -436,15 +436,6 @@ release.5:
 		fi \
 	done \
 
-	# Create symlinks for the MD5-based crypt lib, too.  The
-	# automatically created links still point to the DES stuff,
-	# which went into its own distribution.
-	for i in ${RD}/trees/bin/usr/lib/libscrypt* ; do \
-		c=`echo $$i | sed -e 's/libscrypt/libcrypt/'` ; \
-		rm -f $$c ; \
-		ln -s `basename $$i` $$c ; \
-	done
-
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
