@@ -1368,6 +1368,7 @@ ENTRY(do_syscall, 0)
 	ld8	r14=[loc1]		// check tf_flags
 	;;
 	tbit.z p6,p0=r14,0		// check FRAME_SYSCALL bit
+	;;
 (p6)	add	sp=-16,loc1		// do a full restore if clear
 (p6)	br.dpnt.many exception_restore
 
