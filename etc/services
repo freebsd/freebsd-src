@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id: services,v 1.5 1994/02/04 02:23:06 wollman Exp $
+#	$Id: services,v 1.6 1994/02/27 19:45:37 wollman Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer
@@ -135,8 +135,8 @@ netnews		532/tcp		readnews
 netwall		533/udp				# -for emergency broadcasts
 uucp		540/tcp		uucpd		# uucp daemon
 remotefs	556/tcp		rfs_server rfs	# Brunhoff remote filesystem
-klogin		543/tcp				# Kerberized `rlogin' (v5)
-kshell		544/tcp				# Kerberized `rsh' (v5)
+#klogin		543/tcp				# Kerberized `rlogin' (v5)
+#kshell		544/tcp				# Kerberized `rsh' (v5)
 kerberos-adm	749/tcp				# Kerberos `kadmin' (v5)
 #
 webster		765/tcp				# Network dictionary
@@ -172,9 +172,9 @@ kerberos	750/udp		kdc	# Kerberos (server) udp
 kerberos	750/tcp		kdc	# Kerberos (server) tcp
 krbupdate	760/tcp		kreg	# Kerberos registration
 kpasswd		761/tcp		kpwd	# Kerberos "passwd"
-#klogin		543/tcp			# Kerberos rlogin
+klogin		543/tcp			# Kerberos rlogin
 eklogin		2105/tcp		# Kerberos encrypted rlogin
-#kshell		544/tcp		krcmd	# Kerberos remote shell
+kshell		544/tcp		krcmd	# Kerberos remote shell
 #
 supfilesrv	871/tcp			# for SUP
 supfiledbg	1127/tcp		# for SUP
