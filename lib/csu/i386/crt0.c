@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.8 1994/02/13 20:53:11 jkh Exp $
+ *	$Id: crt0.c,v 1.11 1994/08/05 17:53:07 wollman Exp $
  */
 
 
@@ -39,6 +39,9 @@ extern void exit();
 int _callmain();
 
 #include <sys/param.h>
+#ifdef STARTUP_LOCALE
+#include <locale.h>
+#endif
 
 #ifdef DYNAMIC
 #include <sys/types.h>
@@ -173,7 +176,10 @@ asm("eprol:");
 #ifdef MCRT0
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
-#endif MCRT0
+#endif /* MCRT0 */
+#ifdef STARTUP_LOCALE
+	(void) setlocale(LC_ALL, "");
+#endif
 
 asm ("__callmain:");		/* Defined for the benefit of debuggers */
 	exit(main(kfp->kargc, argv, environ));
