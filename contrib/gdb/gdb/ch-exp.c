@@ -55,11 +55,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "symfile.h" /* Required by objfiles.h.  */
 #include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
 
+#ifdef __GNUC__
+#define INLINE __inline__
+#endif
+
 typedef union
 
   {
     LONGEST lval;
-    unsigned LONGEST ulval;
+    ULONGEST ulval;
     struct {
       LONGEST val;
       struct type *type;
@@ -87,7 +91,7 @@ enum ch_terminal {
   CHARACTER_STRING_LITERAL,
   BIT_STRING_LITERAL,
   TYPENAME,
-  FIELD_NAME,
+  DOT_FIELD_NAME, /* '.' followed by <field name> */
   CASE,
   OF,
   ESAC,
@@ -131,13 +135,55 @@ enum ch_terminal {
 };
 
 /* Forward declarations. */
-static void parse_expr ();
-static void parse_primval ();
-static void parse_untyped_expr ();
-static int parse_opt_untyped_expr ();
-static void parse_if_expression_body PARAMS((void));
+
 static void write_lower_upper_value PARAMS ((enum exp_opcode, struct type *));
-static enum ch_terminal ch_lex ();
+static enum ch_terminal match_bitstring_literal PARAMS ((void));
+static enum ch_terminal match_integer_literal PARAMS ((void));
+static enum ch_terminal match_character_literal PARAMS ((void));
+static enum ch_terminal match_string_literal PARAMS ((void));
+static enum ch_terminal match_float_literal PARAMS ((void));
+static enum ch_terminal match_float_literal PARAMS ((void));
+static int decode_integer_literal PARAMS ((LONGEST *, char **));
+static int decode_integer_value PARAMS ((int, char **, LONGEST *));
+static char *match_simple_name_string PARAMS ((void));
+static void growbuf_by_size PARAMS ((int));
+static void parse_untyped_expr PARAMS ((void));
+static void parse_if_expression PARAMS ((void));
+static void parse_else_alternative PARAMS ((void));
+static void parse_then_alternative PARAMS ((void));
+static void parse_expr PARAMS ((void));
+static void parse_operand0 PARAMS ((void));
+static void parse_operand1 PARAMS ((void));
+static void parse_operand2 PARAMS ((void));
+static void parse_operand3 PARAMS ((void));
+static void parse_operand4 PARAMS ((void));
+static void parse_operand5 PARAMS ((void));
+static void parse_operand6 PARAMS ((void));
+static void parse_primval PARAMS ((void));
+static void parse_tuple PARAMS ((struct type *));
+static void parse_opt_element_list PARAMS ((struct type *));
+static void parse_tuple_element PARAMS ((struct type *));
+static void parse_named_record_element PARAMS ((void));
+static void parse_call PARAMS ((void));
+static struct type *parse_mode_or_normal_call PARAMS ((void));
+#if 0
+static struct type *parse_mode_call PARAMS ((void));
+#endif
+static void parse_unary_call PARAMS ((void));
+static int parse_opt_untyped_expr PARAMS ((void));
+static void parse_case_label PARAMS ((void));
+static int expect PARAMS ((enum ch_terminal, char *));
+static void parse_expr PARAMS ((void));
+static void parse_primval PARAMS ((void));
+static void parse_untyped_expr PARAMS ((void));
+static int parse_opt_untyped_expr PARAMS ((void));
+static void parse_if_expression_body PARAMS((void));
+static enum ch_terminal ch_lex PARAMS ((void));
+INLINE static enum ch_terminal PEEK_TOKEN PARAMS ((void));
+static enum ch_terminal peek_token_ PARAMS ((int));
+static void forward_token_ PARAMS ((void));
+static void require PARAMS ((enum ch_terminal));
+static int check_token PARAMS ((enum ch_terminal));
 
 #define MAX_LOOK_AHEAD 2
 static enum ch_terminal terminal_buffer[MAX_LOOK_AHEAD+1] = {
@@ -147,10 +193,7 @@ static YYSTYPE val_buffer[MAX_LOOK_AHEAD+1];
 
 /*int current_token, lookahead_token;*/
 
-#ifdef __GNUC__
-__inline__
-#endif
-static enum ch_terminal
+INLINE static enum ch_terminal
 PEEK_TOKEN()
 {
   if (terminal_buffer[0] == TOKEN_NOT_READ)
@@ -214,7 +257,7 @@ forward_token_()
 /* Skip the next token.
    if it isn't TOKEN, the parser is broken. */
 
-void
+static void
 require(token)
      enum ch_terminal token;
 {
@@ -227,7 +270,7 @@ require(token)
   FORWARD_TOKEN();
 }
 
-int
+static int
 check_token (token)
      enum ch_terminal token;
 {
@@ -240,8 +283,8 @@ check_token (token)
 /* return 0 if expected token was not found,
    else return 1.
 */
-int
-expect(token, message)
+static int
+expect (token, message)
      enum ch_terminal token;
      char *message;
 {
@@ -408,7 +451,9 @@ parse_unary_call ()
 
 /* Parse NAME '(' MODENAME ')'. */
 
-struct type *
+#if 0
+
+static struct type *
 parse_mode_call ()
 {
   struct type *type;
@@ -422,7 +467,9 @@ parse_mode_call ()
   return type;
 }
 
-struct type *
+#endif
+
+static struct type *
 parse_mode_or_normal_call ()
 {
   struct type *type;
@@ -486,9 +533,11 @@ static void
 parse_named_record_element ()
 {
   struct stoken label;
+  char buf[256];
 
   label = PEEK_LVAL ().sval;
-  expect (FIELD_NAME, "expected a field name here `%s'", lexptr);
+  sprintf (buf, "expected a field name here `%s'", lexptr);
+  expect (DOT_FIELD_NAME, buf);
   if (check_token (','))
     parse_named_record_element ();
   else if (check_token (':'))
@@ -500,12 +549,13 @@ parse_named_record_element ()
   write_exp_elt_opcode (OP_LABELED);
 }
 
-/* Returns one or nore TREE_LIST nodes, in reverse order. */
+/* Returns one or more TREE_LIST nodes, in reverse order. */
 
 static void
-parse_tuple_element ()
+parse_tuple_element (type)
+     struct type *type;
 {
-  if (PEEK_TOKEN () == FIELD_NAME)
+  if (PEEK_TOKEN () == DOT_FIELD_NAME)
     {
       /* Parse a labelled structure tuple. */
       parse_named_record_element ();
@@ -517,7 +567,32 @@ parse_tuple_element ()
       if (check_token ('*'))
 	{
 	  expect (')', "missing ')' after '*' case label list");
-	  error ("(*) not implemented in case label list");
+	  if (type)
+	    {
+	      if (TYPE_CODE (type) == TYPE_CODE_ARRAY)
+		{
+		  /* do this as a range from low to high */
+		  struct type *range_type = TYPE_FIELD_TYPE (type, 0);
+		  LONGEST low_bound, high_bound;
+		  if (get_discrete_bounds (range_type, &low_bound, &high_bound) < 0)
+		    error ("cannot determine bounds for (*)");
+		  /* lower bound */
+		  write_exp_elt_opcode (OP_LONG);
+		  write_exp_elt_type (range_type);
+		  write_exp_elt_longcst (low_bound);
+		  write_exp_elt_opcode (OP_LONG);
+		  /* upper bound */
+		  write_exp_elt_opcode (OP_LONG);
+		  write_exp_elt_type (range_type);
+		  write_exp_elt_longcst (high_bound);
+		  write_exp_elt_opcode (OP_LONG);
+		  write_exp_elt_opcode (BINOP_RANGE);
+		}
+	      else
+		error ("(*) in invalid context");
+	    }
+	  else
+	    error ("(*) only possible with modename in front of tuple (mode[..])");
 	}
       else
 	{
@@ -543,14 +618,15 @@ parse_tuple_element ()
 /* Matches:  a COMMA-separated list of tuple elements.
    Returns a list (of TREE_LIST nodes). */
 static void
-parse_opt_element_list ()
+parse_opt_element_list (type)
+     struct type *type;
 {
   arglist_len = 0;
   if (PEEK_TOKEN () == ']')
     return;
   for (;;)
     {
-      parse_tuple_element ();
+      parse_tuple_element (type);
       arglist_len++;
       if (PEEK_TOKEN () == ']')
 	break;
@@ -566,17 +642,21 @@ static void
 parse_tuple (mode)
      struct type *mode;
 {
+  struct type *type;
+  if (mode)
+    type = check_typedef (mode);
+  else
+    type = 0;
   require ('[');
   start_arglist ();
-  parse_opt_element_list ();
+  parse_opt_element_list (type);
   expect (']', "missing ']' after tuple");
   write_exp_elt_opcode (OP_ARRAY);
   write_exp_elt_longcst ((LONGEST) 0);
   write_exp_elt_longcst ((LONGEST) end_arglist () - 1);
   write_exp_elt_opcode (OP_ARRAY);
-  if (mode)
+  if (type)
     {
-      struct type *type = check_typedef (mode);
       if (TYPE_CODE (type) != TYPE_CODE_ARRAY
 	  && TYPE_CODE (type) != TYPE_CODE_STRUCT
 	  && TYPE_CODE (type) != TYPE_CODE_SET)
@@ -765,7 +845,7 @@ parse_primval ()
     {
       switch (PEEK_TOKEN ())
 	{
-	case FIELD_NAME:
+	case DOT_FIELD_NAME:
 	  write_exp_elt_opcode (STRUCTOP_STRUCT);
 	  write_exp_string (PEEK_LVAL ().sval);
 	  write_exp_elt_opcode (STRUCTOP_STRUCT);
@@ -2057,7 +2137,7 @@ ch_lex ()
 	  inputname = match_simple_name_string ();
 	  if (!inputname)
 	    return '.';
-	  return FIELD_NAME;
+	  return DOT_FIELD_NAME;
       }
 
     return (ILLEGAL_TOKEN);
@@ -2072,7 +2152,6 @@ write_lower_upper_value (opcode, type)
     write_exp_elt_opcode (opcode);
   else
     {
-      extern LONGEST type_lower_upper ();
       struct type *result_type;
       LONGEST val = type_lower_upper (opcode, type, &result_type);
       write_exp_elt_opcode (OP_LONG);

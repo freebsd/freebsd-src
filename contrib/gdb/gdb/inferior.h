@@ -1,6 +1,6 @@
 /* Variables that describe the inferior process running under GDB:
    Where it is, why it stopped, and how to step it.
-   Copyright 1986, 1989, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1992, 1996, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -34,34 +34,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    control to the inferior which you don't want showing up in your
    control variables.  */
 
-struct inferior_status {
-  enum target_signal stop_signal;
-  CORE_ADDR stop_pc;
-  bpstat stop_bpstat;
-  int stop_step;
-  int stop_stack_dummy;
-  int stopped_by_random_signal;
-  int trap_expected;
-  CORE_ADDR step_range_start;
-  CORE_ADDR step_range_end;
-  CORE_ADDR step_frame_address;
-  int step_over_calls;
-  CORE_ADDR step_resume_break_address;
-  int stop_after_trap;
-  int stop_soon_quietly;
-  CORE_ADDR selected_frame_address;
-  int selected_level;
-  char stop_registers[REGISTER_BYTES];
+struct inferior_status
+  {
+    enum target_signal stop_signal;
+    CORE_ADDR stop_pc;
+    bpstat stop_bpstat;
+    int stop_step;
+    int stop_stack_dummy;
+    int stopped_by_random_signal;
+    int trap_expected;
+    CORE_ADDR step_range_start;
+    CORE_ADDR step_range_end;
+    CORE_ADDR step_frame_address;
+    int step_over_calls;
+    CORE_ADDR step_resume_break_address;
+    int stop_after_trap;
+    int stop_soon_quietly;
+    CORE_ADDR selected_frame_address;
+    char stop_registers[REGISTER_BYTES];
 
-  /* These are here because if call_function_by_hand has written some
+    /* These are here because if call_function_by_hand has written some
      registers and then decides to call error(), we better not have changed
      any registers.  */
-  char registers[REGISTER_BYTES];
+    char registers[REGISTER_BYTES];
 
-  int breakpoint_proceeded;
-  int restore_stack_info;
-  int proceed_to_finish;
-};
+    int selected_level;
+    int breakpoint_proceeded;
+    int restore_stack_info;
+    int proceed_to_finish;
+  };
 
 /* This macro gives the number of registers actually in use by the
    inferior.  This may be less than the total number of registers,
@@ -91,6 +92,27 @@ extern char *inferior_io_terminal;
 
 extern int inferior_pid;
 
+/* This is only valid when inferior_pid is non-zero.
+
+   If this is 0, then exec events should be noticed and responded to
+   by the debugger (i.e., be reported to the user).
+
+   If this is > 0, then that many subsequent exec events should be
+   ignored (i.e., not be reported to the user).
+   */
+extern int inferior_ignoring_startup_exec_events;
+
+/* This is only valid when inferior_ignoring_startup_exec_events is
+   zero.
+
+   Some targets (stupidly) report more than one exec event per actual
+   call to an event() system call.  If only the last such exec event
+   need actually be noticed and responded to by the debugger (i.e.,
+   be reported to the user), then this is the number of "leading"
+   exec events which should be ignored.
+   */
+extern int inferior_ignoring_leading_exec_events;
+
 /* Inferior environment. */
 
 extern struct environ *inferior_environ;
@@ -100,9 +122,10 @@ extern struct environ *inferior_environ;
 extern char registers[];
 
 /* Array of validity bits (one per register).  Nonzero at position XXX_REGNUM
-   means that `registers' contains a valid copy of inferior register XXX.  */
+   means that `registers' contains a valid copy of inferior register XXX.
+   -1 if register value is not available. */
 
-extern char register_valid[NUM_REGS];
+extern SIGNED char register_valid[NUM_REGS];
 
 extern void clear_proceed_status PARAMS ((void));
 
@@ -114,13 +137,15 @@ extern void generic_mourn_inferior PARAMS ((void));
 
 extern void terminal_ours PARAMS ((void));
 
-extern int run_stack_dummy PARAMS ((CORE_ADDR, char [REGISTER_BYTES]));
+extern int run_stack_dummy PARAMS ((CORE_ADDR, char[REGISTER_BYTES]));
 
 extern CORE_ADDR read_pc PARAMS ((void));
 
 extern CORE_ADDR read_pc_pid PARAMS ((int));
 
 extern void write_pc PARAMS ((CORE_ADDR));
+
+extern void write_pc_pid PARAMS ((CORE_ADDR, int));
 
 extern CORE_ADDR read_sp PARAMS ((void));
 
@@ -149,7 +174,7 @@ extern void store_inferior_registers PARAMS ((int));
 
 extern void fetch_inferior_registers PARAMS ((int));
 
-extern void  solib_create_inferior_hook PARAMS ((void));
+extern void solib_create_inferior_hook PARAMS ((void));
 
 extern void child_terminal_info PARAMS ((char *, int));
 
@@ -161,11 +186,23 @@ extern void terminal_inferior PARAMS ((void));
 
 extern void terminal_init_inferior PARAMS ((void));
 
-/* From infptrace.c */
+extern void terminal_init_inferior_with_pgrp PARAMS ((int pgrp));
+
+/* From infptrace.c or infttrace.c */
 
 extern int attach PARAMS ((int));
 
-void detach PARAMS ((int));
+#if !defined(REQUIRE_ATTACH)
+#define REQUIRE_ATTACH attach
+#endif
+
+#if !defined(REQUIRE_DETACH)
+#define REQUIRE_DETACH(pid,siggnal) detach (siggnal)
+#endif
+
+extern void detach PARAMS ((int));
+
+int ptrace_wait PARAMS ((int, int *));
 
 extern void child_resume PARAMS ((int, int, enum target_signal));
 
@@ -175,15 +212,27 @@ extern void child_resume PARAMS ((int, int, enum target_signal));
 
 extern int call_ptrace PARAMS ((int, int, PTRACE_ARG3_TYPE, int));
 
+extern void pre_fork_inferior PARAMS ((void));
+
 /* From procfs.c */
 
-extern int proc_iterate_over_mappings PARAMS ((int (*) (int, CORE_ADDR)));
+extern int proc_iterate_over_mappings PARAMS ((int (*)(int, CORE_ADDR)));
+
+extern int procfs_first_available PARAMS ((void));
+
+extern int procfs_get_pid_fd PARAMS ((int));
 
 /* From fork-child.c */
 
 extern void fork_inferior PARAMS ((char *, char *, char **,
-				   void (*) (void),
-				   void (*) (int), char *));
+				   void (*)(void),
+				   void (*)(int),
+				   void (*)(void),
+				   char *));
+
+
+extern void
+clone_and_follow_inferior PARAMS ((int, int *));
 
 extern void startup_inferior PARAMS ((int));
 
@@ -250,8 +299,8 @@ extern int stopped_by_random_signal;
    minor way if this were changed to the address of the instruction and
    that address plus one.  But maybe not.).  */
 
-extern CORE_ADDR step_range_start; /* Inclusive */
-extern CORE_ADDR step_range_end; /* Exclusive */
+extern CORE_ADDR step_range_start;	/* Inclusive */
+extern CORE_ADDR step_range_end;/* Exclusive */
 
 /* Stack frame address as of when stepping command was issued.
    This is how we know when we step into a subroutine call,
@@ -310,15 +359,15 @@ extern int attach_flag;
    On most machines just see if the name is sigtramp (and if we have
    no name, assume we are not in sigtramp).  */
 #if !defined (IN_SIGTRAMP)
-#  if defined (SIGTRAMP_START)
-#    define IN_SIGTRAMP(pc, name) \
-       ((pc) >= SIGTRAMP_START   \
-        && (pc) < SIGTRAMP_END \
+#if defined (SIGTRAMP_START)
+#define IN_SIGTRAMP(pc, name) \
+       ((pc) >= SIGTRAMP_START(pc)   \
+        && (pc) < SIGTRAMP_END(pc) \
         )
-#  else
-#    define IN_SIGTRAMP(pc, name) \
+#else
+#define IN_SIGTRAMP(pc, name) \
        (name && STREQ ("_sigtramp", name))
-#  endif
+#endif
 #endif
 
 /* Possible values for CALL_DUMMY_LOCATION.  */
@@ -369,7 +418,7 @@ extern CORE_ADDR text_end;
    allocate other kinds of code on the stack.  */
 
 #define PC_IN_CALL_DUMMY(pc, sp, frame_address) \
-  ((sp) INNER_THAN (pc) && (frame_address != 0) && (pc) INNER_THAN (frame_address))
+  (INNER_THAN ((sp), (pc)) && (frame_address != 0) && INNER_THAN ((pc), (frame_address)))
 #endif /* On stack.  */
 
 #if CALL_DUMMY_LOCATION == AT_ENTRY_POINT
@@ -379,4 +428,46 @@ extern CORE_ADDR text_end;
 #endif /* At entry point.  */
 #endif /* No PC_IN_CALL_DUMMY.  */
 
-#endif	/* !defined (INFERIOR_H) */
+/* It's often not enough for our clients to know whether the PC is merely
+   somewhere within the call dummy.  They may need to know whether the
+   call dummy has actually completed.  (For example, wait_for_inferior
+   wants to know when it should truly stop because the call dummy has
+   completed.  If we're single-stepping because of slow watchpoints,
+   then we may find ourselves stopped at the entry of the call dummy,
+   and want to continue stepping until we reach the end.)
+
+   Note that this macro is intended for targets (like HP-UX) which
+   require more than a single breakpoint in their call dummies, and
+   therefore cannot use the CALL_DUMMY_BREAKPOINT_OFFSET mechanism.
+
+   If a target does define CALL_DUMMY_BREAKPOINT_OFFSET, then this
+   default implementation of CALL_DUMMY_HAS_COMPLETED is sufficient.
+   Else, a target may wish to supply an implementation that works in
+   the presense of multiple breakpoints in its call dummy.
+   */
+#if !defined(CALL_DUMMY_HAS_COMPLETED)
+#define CALL_DUMMY_HAS_COMPLETED(pc, sp, frame_address) \
+  PC_IN_CALL_DUMMY((pc), (sp), (frame_address))
+#endif
+
+/* If STARTUP_WITH_SHELL is set, GDB's "run"
+   will attempts to start up the debugee under a shell.
+   This is in order for argument-expansion to occur. E.g.,
+   (gdb) run *
+   The "*" gets expanded by the shell into a list of files.
+   While this is a nice feature, it turns out to interact badly
+   with some of the catch-fork/catch-exec features we have added.
+   In particular, if the shell does any fork/exec's before
+   the exec of the target program, that can confuse GDB.
+   To disable this feature, set STARTUP_WITH_SHELL to 0.
+   To enable this feature, set STARTUP_WITH_SHELL to 1.
+   The catch-exec traps expected during start-up will
+   be 1 if target is not started up with a shell, 2 if it is.
+   - RT
+   If you disable this, you need to decrement
+   START_INFERIOR_TRAPS_EXPECTED in tm.h. */
+#define STARTUP_WITH_SHELL 1
+#if !defined(START_INFERIOR_TRAPS_EXPECTED)
+#define START_INFERIOR_TRAPS_EXPECTED	2
+#endif
+#endif /* !defined (INFERIOR_H) */

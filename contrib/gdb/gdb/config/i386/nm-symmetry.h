@@ -43,5 +43,4 @@ extern int child_wait PARAMS ((int, struct target_waitstatus *));
 #define KERNEL_U_ADDR (VA_UAREA) /* ptx */
 #else
 #define KERNEL_U_ADDR (0x80000000 - (UPAGES * NBPG))	/* dynix */
-#define NO_PTRACE_H
 #endif

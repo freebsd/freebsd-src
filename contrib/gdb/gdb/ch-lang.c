@@ -26,6 +26,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "ch-lang.h"
 
+static value_ptr
+evaluate_subexp_chill PARAMS ((struct type *, struct expression *, int *, enum noside));
+
+static value_ptr
+value_chill_max_min PARAMS ((enum exp_opcode, value_ptr));
+
+static value_ptr
+value_chill_card PARAMS ((value_ptr));
+
+static value_ptr
+ value_chill_length PARAMS ((value_ptr));
+
+static struct type *
+chill_create_fundamental_type PARAMS ((struct objfile *, int));
+
+static void
+chill_printstr PARAMS ((GDB_FILE *stream, char *string, unsigned int length, int width, int force_ellipses));
+
+static void
+chill_printchar PARAMS ((int, GDB_FILE *));
 
 /* For now, Chill uses a simple mangling algorithm whereby you simply
    discard everything after the occurance of two successive CPLUS_MARKER
@@ -91,10 +111,11 @@ chill_printchar (c, stream)
   */
 
 static void
-chill_printstr (stream, string, length, force_ellipses)
+chill_printstr (stream, string, length, width, force_ellipses)
      GDB_FILE *stream;
      char *string;
      unsigned int length;
+     int width;
      int force_ellipses;
 {
   register unsigned int i;
@@ -310,7 +331,7 @@ struct type *builtin_type_chill_long;
 struct type *builtin_type_chill_ulong;
 struct type *builtin_type_chill_real;
 
-struct type ** const (chill_builtin_types[]) = 
+struct type ** CONST_PTR (chill_builtin_types[]) = 
 {
   &builtin_type_chill_bool,
   &builtin_type_chill_char,
@@ -608,6 +629,7 @@ const struct language_defn chill_language_defn = {
   evaluate_subexp_chill,
   chill_printchar,		/* print a character constant */
   chill_printstr,		/* function to print a string constant */
+  NULL,				/* Function to print a single char */
   chill_create_fundamental_type,/* Create fundamental type in this language */
   chill_print_type,		/* Print a type using appropriate syntax */
   chill_val_print,		/* Print a value using appropriate syntax */

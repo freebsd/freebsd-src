@@ -47,7 +47,7 @@ struct hashlink {
    a hashlink struct to hold the next pointer and the data. */
 
 #define BCACHE_DATA_ALIGNMENT \
-	(((char *) &BCACHE_DATA((struct hashlink*) 0) - (char *) 0))
+	(((char *) BCACHE_DATA((struct hashlink*) 0) - (char *) 0))
 
 struct bcache {
   struct obstack cache;

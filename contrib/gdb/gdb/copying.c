@@ -5,11 +5,11 @@
 #include "command.h"
 #include "gdbcmd.h"
 
-static void
-show_copying_command PARAMS ((char *, int));
+static void show_copying_command PARAMS ((char *, int));
 
-static void
-show_warranty_command PARAMS ((char *, int));
+static void show_warranty_command PARAMS ((char *, int));
+
+void _initialize_copying PARAMS ((void));
 
 extern int immediate_quit;
 static void
@@ -22,7 +22,7 @@ show_copying_command (ignore, from_tty)
   printf_filtered ("		       Version 2, June 1991\n");
   printf_filtered ("\n");
   printf_filtered (" Copyright (C) 1989, 1991 Free Software Foundation, Inc.\n");
-  printf_filtered ("                          675 Mass Ave, Cambridge, MA 02139, USA\n");
+  printf_filtered ("                       59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\n");
   printf_filtered (" Everyone is permitted to copy and distribute verbatim copies\n");
   printf_filtered (" of this license document, but changing it is not allowed.\n");
   printf_filtered ("\n");

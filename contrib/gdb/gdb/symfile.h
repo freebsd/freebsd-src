@@ -32,9 +32,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    to the single saved instance. */
 
 struct psymbol_allocation_list {
-  struct partial_symbol **list;	/* Pointer to first partial symbol pointer*/
-  struct partial_symbol **next;	/* Pointer to next avail storage for pointer */
-  int size;			/* Number of symbols */
+
+  /* Pointer to beginning of dynamically allocated array of pointers to
+   partial symbols.  The array is dynamically expanded as necessary to
+   accommodate more pointers. */
+
+  struct partial_symbol **list;
+
+  /* Pointer to next available slot in which to store a pointer to a partial
+     symbol. */
+
+  struct partial_symbol **next;
+
+  /* Number of allocated pointer slots in current dynamic array (not the
+     number of bytes of storage).  The "next" pointer will always point
+     somewhere between list[0] and list[size], and when at list[size] the
+     array will be expanded on the next attempt to store a pointer. */
+
+  int size;
 };
 
 /* Structure to keep track of symbol reading functions for various
@@ -94,6 +109,13 @@ struct sym_fns {
 
 };
 
+/* The default version of sym_fns.sym_offsets for readers that don't
+   do anything special.  */
+
+extern struct section_offsets *
+default_symfile_offsets PARAMS ((struct objfile *objfile, CORE_ADDR addr));
+
+
 extern void
 extend_psymbol_list PARAMS ((struct psymbol_allocation_list *,
 			     struct objfile *));
@@ -106,6 +128,14 @@ extern void
 add_psymbol_to_list PARAMS ((char *, int, namespace_enum, enum address_class,
 			     struct psymbol_allocation_list *, long, CORE_ADDR,
 			     enum language, struct objfile *));
+
+extern void
+add_psymbol_with_dem_name_to_list PARAMS ((char *, int, char *, int, namespace_enum, 
+                                           enum address_class,
+                                           struct psymbol_allocation_list *, 
+                                           long, CORE_ADDR,
+                                           enum language, struct objfile *));
+
 
 extern void init_psymbol_list PARAMS ((struct objfile *, int));
 
@@ -163,19 +193,76 @@ obconcat PARAMS ((struct obstack *obstackp, const char *, const char *,
 
 			/*   Variables   */
 
-/* whether to auto load solibs at startup time:  0/1. */
+/* whether to auto load solibs at startup time:  0/1. 
+
+   On all platforms, 0 means "don't auto load".
+
+   On HP-UX, > 0 means a threshhold, in megabytes, of symbol table which will
+   be auto loaded.  When the cumulative size of solib symbol table exceeds
+   this threshhold, solibs' symbol tables will not be loaded.
+
+   On other platforms, > 0 means, "always auto load".
+   */
 
 extern int auto_solib_add;
 
 /* From symfile.c */
 
+extern CORE_ADDR
+entry_point_address PARAMS ((void));
+
 extern struct partial_symtab *
 allocate_psymtab PARAMS ((char *, struct objfile *));
 
+extern void
+discard_psymtab PARAMS ((struct partial_symtab *));
+
 extern void find_lowest_section PARAMS ((bfd *, asection *, PTR));
+
+extern bfd * symfile_bfd_open PARAMS ((char *));
 
 /* Remote targets may wish to use this as their load function.  */
 extern void generic_load PARAMS ((char *name, int from_tty));
+
+/* Utility functions for overlay sections: */
+extern int overlay_debugging;
+extern int overlay_cache_invalid;
+
+/* return the "mapped" overlay section  containing the PC */
+extern asection * 
+find_pc_mapped_section PARAMS ((CORE_ADDR));
+
+/* return any overlay section containing the PC (even in its LMA region) */
+extern asection *
+find_pc_overlay PARAMS ((CORE_ADDR));
+
+/* return true if the section is an overlay */
+extern int
+section_is_overlay PARAMS ((asection *));
+
+/* return true if the overlay section is currently "mapped" */
+extern int
+section_is_mapped PARAMS ((asection *));
+
+/* return true if pc belongs to section's VMA */
+extern CORE_ADDR
+pc_in_mapped_range PARAMS ((CORE_ADDR, asection *));
+
+/* return true if pc belongs to section's LMA */
+extern CORE_ADDR
+pc_in_unmapped_range PARAMS ((CORE_ADDR, asection *));
+
+/* map an address from a section's LMA to its VMA */
+extern CORE_ADDR
+overlay_mapped_address PARAMS ((CORE_ADDR, asection *));
+
+/* map an address from a section's VMA to its LMA */
+extern CORE_ADDR
+overlay_unmapped_address PARAMS ((CORE_ADDR, asection *));
+
+/* convert an address in an overlay section (force into VMA range) */
+extern CORE_ADDR 
+symbol_overlayed_address PARAMS ((CORE_ADDR, asection *));
 
 /* From dwarfread.c */
 
@@ -183,6 +270,13 @@ extern void
 dwarf_build_psymtabs PARAMS ((struct objfile *, struct section_offsets *, int,
 			      file_ptr, unsigned int, file_ptr, unsigned int));
 
+/* From dwarf2read.c */
+
+extern int dwarf2_has_info PARAMS ((bfd *abfd));
+
+extern void dwarf2_build_psymtabs PARAMS ((struct objfile *,
+					   struct section_offsets *,
+					   int));
 /* From mdebugread.c */
 
 /* Hack to force structures to exist before use in parameter list.  */
@@ -202,10 +296,5 @@ elfmdebug_build_psymtabs PARAMS ((struct objfile *,
 				  const struct ecoff_debug_swap *,
 				  asection *,
 				  struct section_offsets *));
-
-/* From demangle.c */
-
-extern void
-set_demangling_style PARAMS ((char *));
 
 #endif	/* !defined(SYMFILE_H) */
