@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.104 1998/03/17 09:10:05 kato Exp $
+ *	$Id: vm_machdep.c,v 1.105 1998/03/23 19:52:42 jlemon Exp $
  */
 
 #include "npx.h"
@@ -847,8 +847,10 @@ cpu_reset()
 	 * Attempt to do a CPU reset via CPU reset port.
 	 */
 	disable_intr();
-	outb(0x37, 0x0f);		/* SHUT0 = 0. */
-	outb(0x37, 0x0b);		/* SHUT1 = 0. */
+	if ((inb(0x35) & 0xa0) != 0xa0) {
+		outb(0x37, 0x0f);		/* SHUT0 = 0. */
+		outb(0x37, 0x0b);		/* SHUT1 = 0. */
+	}
 	outb(0xf0, 0x00);		/* Reset. */
 #else
 	/*
