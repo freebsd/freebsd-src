@@ -113,7 +113,7 @@ mac_externalize_pipe_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(pipe_label, label, elements, outbuf, outbuflen);
+	MAC_EXTERNALIZE(pipe, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -123,7 +123,7 @@ mac_internalize_pipe_label(struct label *label, char *string)
 {
 	int error;
 
-	MAC_INTERNALIZE(pipe_label, label, string);
+	MAC_INTERNALIZE(pipe, label, string);
 
 	return (error);
 }
