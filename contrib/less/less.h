@@ -71,6 +71,9 @@
 #if HAVE_CTYPE_H
 #include <ctype.h>
 #endif
+#if HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -81,7 +84,7 @@
 #include <modes.h>
 #include <strings.h>
 #endif
-#if MSDOS_COMPILER==WIN32C
+#if MSDOS_COMPILER==WIN32C || OS2
 #include <io.h>
 #endif
 #if MSDOS_COMPILER==DJGPPC
@@ -137,13 +140,21 @@ void free();
 
 #define	BAD_LSEEK	((off_t)-1)
 
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif
+
+/*
+ * Upper bound on the string length of an integer converted to string.
+ * 302 / 1000 is ceil (log10 (2.0)).  Subtract 1 for the sign bit;
+ * add 1 for integer division truncation; add 1 more for a minus sign.
+ */
+#define INT_STRLEN_BOUND(t) ((sizeof(t) * CHAR_BIT - 1) * 302 / 1000 + 1 + 1)
+
 /*
  * Special types and constants.
  */
 typedef off_t		POSITION;
-#define PR_POSITION	"%lld"
-#define MAX_PRINT_POSITION 20
-#define MAX_PRINT_INT      10
 
 #define	NULL_POSITION	((POSITION)(-1))
 
@@ -180,7 +191,7 @@ typedef off_t		POSITION;
 #if MSDOS_COMPILER==MSOFTC
 #define	SET_BINARY(f)	_setmode(f, _O_BINARY);
 #else
-#if MSDOS_COMPILER
+#if MSDOS_COMPILER || OS2
 #define	SET_BINARY(f)	setmode(f, O_BINARY)
 #else
 #define	SET_BINARY(f)
@@ -283,6 +294,10 @@ struct textlist
 #define	AT_BLINK	(3)
 #define	AT_INVIS	(4)
 #define	AT_STANDOUT	(5)
+
+#if '0' == 240
+#define IS_EBCDIC_HOST 1
+#endif
 
 #if IS_EBCDIC_HOST
 /*
