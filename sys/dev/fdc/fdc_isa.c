@@ -57,9 +57,8 @@ static struct isa_pnp_id fdc_ids[] = {
 int
 fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 {
-	int ispnp, nports;
+	int nports = 6;
 
-	ispnp = (fdc->flags & FDC_ISPNP) != 0;
 	fdc->fdc_dev = dev;
 	fdc->rid_ioport = 0;
 	fdc->rid_irq = 0;
@@ -69,99 +68,89 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	/*
 	 * On standard ISA, we don't just use an 8 port range
 	 * (e.g. 0x3f0-0x3f7) since that covers an IDE control
-	 * register at 0x3f6.
+	 * register at 0x3f6.  So, on older hardware, we use
+	 * 0x3f0-0x3f5 and 0x3f7.  However, some BIOSs omit the
+	 * control port, while others start at 0x3f2.  Of the latter,
+	 * sometimes we have two resources, other times we have one.
+	 * We have to deal with the following cases:
 	 *
-	 * Isn't PC hardware wonderful.
+	 * 1:	0x3f0-0x3f5			# very rare
+	 * 2:	0x3f0				# hints -> 0x3f0-0x3f5,0x3f7
+	 * 3:	0x3f0-0x3f5,0x3f7		# Most common
+	 * 4:	0x3f2-0x3f5,0x3f7		# Second most common
+	 * 5:	0x3f2-0x3f5			# implies 0x3f7 too.
+	 * 6:	0x3f2-0x3f3,0x3f4-0x3f5,0x3f7	# becoming common
+	 * 7:	0x3f2-0x3f3,0x3f4-0x3f5		# rare
+	 *
+	 * The following code is generic for any value of 0x3fx :-)
 	 */
-	nports = ispnp ? 1 : 6;
 
 	/*
-	 * Some ACPI BIOSen have _CRS objects for the floppy device that
-	 * split the I/O port resource into several resources.  We detect
-	 * this case by checking if there are more than 2 IOPORT resources.
-	 * If so, we use the resource with the smallest start address as
-	 * the port RID and the largest start address as the control RID.
+	 * First, allocated the main range of ports.  In the best of
+	 * worlds, this is 4 or 6 ports.  In others, well, that's
+	 * why this function is so complicated.
 	 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 2) != 0) {
-		u_long min_start, max_start, tmp;
-		int i;
-
-		/* Find the min/max start addresses and their RIDs. */
-		max_start = 0ul;
-		min_start = ~0ul;
-		for (i = 0; bus_get_resource_count(dev, SYS_RES_IOPORT, i) > 0;
-		    i++) {
-			tmp = bus_get_resource_start(dev, SYS_RES_IOPORT, i);
-			KASSERT(tmp != 0, ("bogus resource"));
-			if (tmp < min_start) {
-				min_start = tmp;
-				fdc->rid_ioport = i;
-			}
-			if (tmp > max_start) {
-				max_start = tmp;
-				fdc->rid_ctl = i;
-			}
-		}
-	}
-
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 	    &fdc->rid_ioport, 0ul, ~0ul, nports, RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
-		device_printf(dev, "cannot reserve I/O port range (%d ports)\n",
-			      nports);
-		return ENXIO;
+		device_printf(dev, "cannot allocate I/O port (%d ports)\n",
+		    nports);
+		return (ENXIO);
 	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
 
 	/*
-	 * Some BIOSen report the device at 0x3f2-0x3f5,0x3f7
-	 * and some at 0x3f0-0x3f5,0x3f7. We detect the former
-	 * by checking the size and adjust the port address
-	 * accordingly.
+	 * Handle cases 4-7 above
 	 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
-		fdc->port_off = -2;
+	fdc->port_off = -(fdc->porth & 0x7);
 
 	/*
-	 * Register the control port range as rid 1 if it
-	 * isn't there already. Most PnP BIOSen will have
-	 * already done this but non-PnP configurations don't.
-	 *
-	 * And some (!!) report 0x3f2-0x3f5 and completely
-	 * leave out the control register!  It seems that some
-	 * non-antique controller chips have a different
-	 * method of programming the transfer speed which
-	 * doesn't require the control register, but it's
-	 * mighty bogus as the chip still responds to the
-	 * address for the control register.
+	 * Deal with case 6 and 7: FDSTS and FDSATA are in rid 1.
 	 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
-		u_long ctlstart;
-		/* Find the control port, usually 0x3f7 */
-		ctlstart = rman_get_start(fdc->res_ioport) + fdc->port_off + 7;
-		bus_set_resource(dev, SYS_RES_IOPORT, 1, ctlstart, 1);
+	if (rman_get_size(fdc->res_ioport) == 2) {
+		fdc->rid_sts = 1;
+		fdc->res_sts = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+		    &fdc->rid_sts, RF_ACTIVE);
+		if (fdc->res_sts == NULL) {
+			device_printf(dev, "Can't alloc rid 1");
+			fdc_release_resources(fdc);
+			return (ENXIO);
+		}
+		fdc->rid_ctl++;
+		fdc->sts_off = -4;
+		fdc->stst = rman_get_bustag(fdc->res_sts);
+		fdc->stsh = rman_get_bushandle(fdc->res_sts);
+	} else {
+		fdc->res_sts = NULL;
+		fdc->sts_off = fdc->port_off;
+		fdc->stst = fdc->portt;
+		fdc->stsh = fdc->porth;
 	}
 
 	/*
-	 * Now (finally!) allocate the control port.
+	 * allocate the control port.  For cases 1, 2, 5 and 7, we
+	 * fake it from the ioports resource.  XXX IS THIS THE RIGHT THING
+	 * TO DO, OR SHOULD WE CREATE A NEW RID? (I think we need a new rid)
 	 */
 	fdc->res_ctl = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 	    &fdc->rid_ctl, RF_ACTIVE);
-	if (fdc->res_ctl == 0) {
-		device_printf(dev,
-		    "cannot reserve control I/O port range (control port)\n");
-		return ENXIO;
+	if (fdc->res_ctl == NULL) {
+		fdc->ctl_off = 7 + fdc->port_off;
+		fdc->res_ctl = NULL;
+		fdc->ctlt = fdc->portt;
+		fdc->ctlh = fdc->porth;
+	} else {
+		fdc->ctl_off = 0;
+		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
+		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
 	}
-	fdc->ctlt = rman_get_bustag(fdc->res_ctl);
-	fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
-	fdc->ctl_off = 0;
 
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
-					      RF_ACTIVE | RF_SHAREABLE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (fdc->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt line\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
@@ -169,12 +158,13 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 		    &fdc->rid_drq, RF_ACTIVE | RF_SHAREABLE);
 		if (fdc->res_drq == 0) {
 			device_printf(dev, "cannot reserve DMA request line\n");
+			/* This is broken and doesn't work for ISA case */
 			fdc->flags |= FDC_NODMA;
 		} else
 			fdc->dmachan = rman_get_start(fdc->res_drq);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int

@@ -197,9 +197,18 @@ static struct fd_type *fd_native_types[] = {
 #define	FDCTL	7	/* Control Register (W) */
 
 /*
- * this is the secret PIO data port (offset from base)
+ * The YE-DATA PC Card floppies use PIO to read in the data rather than
+ * DMA due to the wild variability of DMA for the PC Card devices.  In
+ * addition, if we cannot setup the DMA resources for the ISA attachment,
+ * we'll use this same offset for data transfer.
+ *
+ * For this mode, offset 0 and 1 must be used to setup the transfer
+ * for this floppy.  This means they are only available on those systems
+ * that map them to the floppy drive.  Newer systems do not do this, and
+ * we should likely prohibit access to them (or disallow NODMA to be set).
  */
-#define FDC_YE_DATAPORT 6
+#define FDBCDR		0	/* And 1 */
+#define FD_YE_DATAPORT	6	/* Drive Data port */
 
 #define	FDI_DCHG	0x80	/* diskette has been changed */
 				/* requires drive and motor being selected */
@@ -335,6 +344,19 @@ fdin_rd(struct fdc_data *fdc)
 {
 
 	return bus_space_read_1(fdc->ctlt, fdc->ctlh, fdc->ctl_off);
+}
+
+/*
+ * Magic pseudo-DMA initialization for YE FDC. Sets count and
+ * direction.
+ */
+static void
+fdbcdr_wr(struct fdc_data *fdc, int iswrite, uint16_t count)
+{
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + FDBCDR,
+	    (count - 1) & 0xff);
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + FDBCDR + 1,
+	  ((iswrite ? 0x80 : 0) | (((count - 1) >> 8) & 0x7f)));
 }
 
 static int
@@ -634,18 +656,6 @@ fdc_intr(void *arg)
 }
 
 /*
- * Magic pseudo-DMA initialization for YE FDC. Sets count and
- * direction.
- */
-#define SET_BCDR(fdc,wr,cnt,port) \
-	do { \
-	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
-	    ((cnt)-1) & 0xff);						 \
-	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port + 1, \
-	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f))); \
-	} while (0)
-
-/*
  * fdc_pio(): perform programmed IO read/write for YE PCMCIA floppy.
  */
 static void
@@ -660,13 +670,13 @@ fdc_pio(struct fdc_data *fdc)
 	count = fdc->fd->fd_iosize;
 
 	if (bp->bio_cmd == BIO_READ) {
-		SET_BCDR(fdc, 0, count, 0);
+		fdbcdr_wr(fdc, 0, count);
 		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
-		    FDC_YE_DATAPORT, cptr, count);
+		    FD_YE_DATAPORT, cptr, count);
 	} else {
 		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
-		    FDC_YE_DATAPORT, cptr, count);
-		SET_BCDR(fdc, 0, count, 0);
+		    FD_YE_DATAPORT, cptr, count);
+		fdbcdr_wr(fdc, 0, count);	/* needed? */
 	}
 }
 
@@ -940,7 +950,7 @@ fdc_worker(struct fdc_data *fdc)
 	/* Do PIO if we have to */
 	if (fdc->flags & FDC_NODMA) {
 		if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_FMT))
-			SET_BCDR(fdc, 1, fd->fd_iosize, 0);
+			fdbcdr_wr(fdc, 1, fd->fd_iosize);
 		if (bp->bio_cmd & (BIO_WRITE|BIO_FMT))
 			fdc_pio(fdc);
 	}
@@ -1484,39 +1494,30 @@ fdc_release_resources(struct fdc_data *fdc)
 	device_t dev;
 
 	dev = fdc->fdc_dev;
-	if (fdc->fdc_intr) {
+	if (fdc->fdc_intr)
 		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
 		    fdc->fdc_intr);
-		fdc->fdc_intr = NULL;
-	}
-	if (fdc->res_irq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-					fdc->res_irq);
+	fdc->fdc_intr = NULL;
+	if (fdc->res_irq != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-				     fdc->res_irq);
-		fdc->res_irq = NULL;
-	}
-	if (fdc->res_ctl != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-					fdc->res_ctl);
+		    fdc->res_irq);
+	fdc->res_irq = NULL;
+	if (fdc->res_ctl != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-				     fdc->res_ctl);
-		fdc->res_ctl = NULL;
-	}
-	if (fdc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-					fdc->res_ioport);
+		    fdc->res_ctl);
+	fdc->res_ctl = NULL;
+	if (fdc->res_sts != NULL)
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_sts,
+		    fdc->res_sts);
+	fdc->res_sts = NULL;
+	if (fdc->res_ioport != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-				     fdc->res_ioport);
-		fdc->res_ioport = NULL;
-	}
-	if (fdc->res_drq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-					fdc->res_drq);
+		    fdc->res_ioport);
+	fdc->res_ioport = NULL;
+	if (fdc->res_drq != NULL)
 		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-				     fdc->res_drq);
-		fdc->res_drq = NULL;
-	}
+		    fdc->res_drq);
+	fdc->res_drq = NULL;
 }
 
 int
