@@ -12,19 +12,36 @@
 .Op Fl sx
 .Op Fl p Ar string
 .Op Ar file
-.\" .LP
-.\" red [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
+.LP
+.Nm red
+.Op Fl
+.Op Fl sx
+.Op Fl p Ar string
+.Op Ar file
 .Sh DESCRIPTION
 The
 .Nm
 utility is a line-oriented text editor.
 It is used to create, display, modify and otherwise manipulate text
 files.
-.\" .B red
-.\" is a restricted
-.\" .BR ed :
-.\" it can only edit files in the current
-.\" directory and cannot execute shell commands.
+When invoked as
+.Nm red ,
+the editor runs in
+.Qq restricted
+mode, in which the only difference is that the editor restricts the
+use of filenames which start with
+.Ql \&!
+(interpreted as shell commands by
+.Nm ed )
+or contain a
+.Ql \&/ .
+Note that editing outside of the current directory is only prohibited
+if the user does not have write access to the current directory.
+If a user has write access to the current directory, then symbolic
+links can be created in the current directory, in which case
+.Nm red
+will not stop the user from editing the file that the symbolic link
+points to.
 .Pp
 If invoked with a
 .Ar file
