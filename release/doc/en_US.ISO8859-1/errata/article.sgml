@@ -116,7 +116,13 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No advisories.</para>
+    <para>The implementation of the &man.realpath.3; function contains
+      a single-byte buffer overflow bug.  This may have various
+      impacts, depending on the application using &man.realpath.3; and
+      other factors.  This bug has been fixed on the &release.prev;
+      security fix branch and the &release.branch; development branch.  For
+      more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
 ]]>
 
   </sect1>
