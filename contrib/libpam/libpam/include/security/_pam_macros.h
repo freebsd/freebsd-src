@@ -9,7 +9,9 @@
 
 /* a 'safe' version of strdup */
 
-extern char *strdup(const char *s);
+#include <string.h>
+#include <stdlib.h>
+
 #define  x_strdup(s)  ( (s) ? strdup(s):NULL )
 
 /* Good policy to strike out passwords with some characters not just
@@ -61,8 +63,10 @@ do {                                              \
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 /*
  * This is for debugging purposes ONLY. DO NOT use on live systems !!!
@@ -80,37 +84,55 @@ static void _pam_output_debug_info(const char *file, const char *fn
 				   , const int line)
 {
     FILE *logfile;
-    int must_close = 1;
-    
-    if (!(logfile = fopen(_PAM_LOGFILE,"a"))) {
+    int must_close = 1, fd;
+   
+#ifdef O_NOFOLLOW
+    if ((fd = open(_PAM_LOGFILE, O_WRONLY|O_NOFOLLOW|O_APPEND)) != -1) {
+#else
+    if ((fd = open(_PAM_LOGFILE, O_WRONLY|O_APPEND)) != -1) {
+#endif
+	if (!(logfile = fdopen(fd,"a"))) {
+	    logfile = stderr;
+	    must_close = 0;
+	    close(fd);
+	}
+    } else {
         logfile = stderr;
-        must_close = 0;
+	must_close = 0;
     }
     fprintf(logfile,"[%s:%s(%d)] ",file, fn, line);
-    if (must_close) {
-        fflush(logfile);
+    fflush(logfile);
+    if (must_close)
         fclose(logfile);
-    }
 }
 
 static void _pam_output_debug(const char *format, ...)
 {
     va_list args;
     FILE *logfile;
-    int must_close = 1;
+    int must_close = 1, fd;
     
     va_start(args, format);
 
-    if (!(logfile = fopen(_PAM_LOGFILE,"a"))) {
-        logfile = stderr;
-        must_close = 0;
+#ifdef O_NOFOLLOW
+    if ((fd = open(_PAM_LOGFILE, O_WRONLY|O_NOFOLLOW|O_APPEND)) != -1) {
+#else
+    if ((fd = open(_PAM_LOGFILE, O_WRONLY|O_APPEND)) != -1) {
+#endif
+	if (!(logfile = fdopen(fd,"a"))) {
+	    logfile = stderr;
+	    must_close = 0;
+	    close(fd);
+	}
+    } else {
+	logfile = stderr;
+	must_close = 0;
     }
     vfprintf(logfile, format, args);
     fprintf(logfile, "\n");
-    if (must_close) {
-        fflush(logfile);
+    fflush(logfile);
+    if (must_close)
         fclose(logfile);
-    }
 
     va_end(args);
 }

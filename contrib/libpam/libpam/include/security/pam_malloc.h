@@ -1,9 +1,5 @@
-/* $Id: pam_malloc.h,v 1.1 1996/11/10 21:23:14 morgan Exp $
- *
- * $Log: pam_malloc.h,v $
- * Revision 1.1  1996/11/10 21:23:14  morgan
- * Initial revision
- *
+/*
+ * $Id: pam_malloc.h,v 1.2 2000/12/04 19:02:34 baggins Exp $
  */
 
 /*

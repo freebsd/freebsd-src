@@ -1,35 +1,7 @@
 /* pam_misc.c -- This is random stuff */
 
-/* $Id: pam_misc.c,v 1.9 1997/04/05 06:56:19 morgan Exp $
- *
- * $Log: pam_misc.c,v $
- * Revision 1.9  1997/04/05 06:56:19  morgan
- * enforce AUTHTOK restrictions
- *
- * Revision 1.8  1997/02/15 15:59:46  morgan
- * modified ..strCMP comment
- *
- * Revision 1.7  1996/12/01 03:14:13  morgan
- * use _pam_macros.h
- *
- * Revision 1.6  1996/11/10 20:05:52  morgan
- * name convention _pam_ enforced. Also modified _pam_strdup()
- *
- * Revision 1.5  1996/07/07 23:57:14  morgan
- * deleted debuggin function and replaced it with a static function
- * defined in pam_private.h
- *
- * Revision 1.4  1996/06/02 08:00:56  morgan
- * added StrTok function
- *
- * Revision 1.3  1996/05/21 04:36:58  morgan
- * added debugging information
- * replaced the _pam_log need for a local buffer with a call to vsyslog()
- * [Al Longyear had some segfaulting problems related to this]
- *
- * Revision 1.2  1996/03/16 21:55:13  morgan
- * changed pam_mkargv to _pam_mkargv
- *
+/*
+ * $Id: pam_misc.c,v 1.2 2001/01/22 06:07:29 agmorgan Exp $
  */
 
 #include <stdarg.h>
@@ -125,8 +97,7 @@ char *_pam_strdup(const char *x)
 	  for (i=0; x[i]; ++i);                       /* length of string */
 	  if ((new = malloc(++i)) == NULL) {
 	       i = 0;
-	       pam_system_log(NULL, NULL, LOG_CRIT,
-			      "_pam_strdup: failed to get memory");
+	       _pam_system_log(LOG_CRIT, "_pam_strdup: failed to get memory");
 	  } else {
 	       while (i-- > 0) {
 		    new[i] = x[i];
@@ -160,15 +131,15 @@ int _pam_mkargv(char *s, char ***argv, int *argc)
     l = strlen(s);
     if (l) {
 	if ((sbuf = sbuf_start = _pam_strdup(s)) == NULL) {
-	    pam_system_log(NULL, NULL, LOG_CRIT,
-			   "pam_mkargv: null returned by _pam_strdup");
+	    _pam_system_log(LOG_CRIT,
+			    "pam_mkargv: null returned by _pam_strdup");
 	    D(("arg NULL"));
 	} else {
 	    /* Overkill on the malloc, but not large */
 	    argvlen = (l + 1) * ((sizeof(char)) + sizeof(char *));
 	    if ((our_argv = argvbuf = malloc(argvlen)) == NULL) {
-		pam_system_log(NULL, NULL, LOG_CRIT,
-			       "pam_mkargv: null returned by malloc");
+		_pam_system_log(LOG_CRIT,
+				"pam_mkargv: null returned by malloc");
 	    } else {
 		char *tmp=NULL;
 
@@ -206,11 +177,15 @@ int _pam_mkargv(char *s, char ***argv, int *argc)
 
 void _pam_sanitize(pam_handle_t *pamh)
 {
+    int old_caller_is = pamh->caller_is;
+
     /*
      * this is for security. We reset the auth-tokens here.
      */
-    pam_set_item(pamh,PAM_AUTHTOK,NULL);
-    pam_set_item(pamh,PAM_OLDAUTHTOK,NULL);
+    __PAM_TO_MODULE(pamh);
+    pam_set_item(pamh, PAM_AUTHTOK, NULL);
+    pam_set_item(pamh, PAM_OLDAUTHTOK, NULL);
+    pamh->caller_is = old_caller_is;
 }
 
 /*
@@ -247,7 +222,7 @@ void _pam_parse_control(int *control_array, char *tok)
 	int act, len;
 
 	/* skip leading space */
-	while (isspace(*tok) && *++tok);
+	while (isspace((int)*tok) && *++tok);
 	if (!*tok)
 	    break;
 
@@ -264,21 +239,21 @@ void _pam_parse_control(int *control_array, char *tok)
 	}
 
 	/* observe '=' */
-	while (isspace(*tok) && *++tok);
+	while (isspace((int)*tok) && *++tok);
 	if (!*tok || *tok++ != '=') {
 	    error = "expecting '='";
 	    goto parse_error;
 	}
 	
 	/* skip leading space */
-	while (isspace(*tok) && *++tok);
+	while (isspace((int)*tok) && *++tok);
 	if (!*tok) {
 	    error = "expecting action";
 	    goto parse_error;
 	}
 
 	/* observe action type */
-	for (act=0; act<=-_PAM_ACTION_UNDEF; ++act) {
+	for (act=0; act < (-(_PAM_ACTION_UNDEF)); ++act) {
 	    len = strlen(_pam_token_actions[act]);
 	    if (!strncmp(_pam_token_actions[act], tok, len)) {
 		act *= -1;
@@ -296,7 +271,7 @@ void _pam_parse_control(int *control_array, char *tok)
 	     * cause looping problems.  So, for now, we will just
 	     * allow forward jumps.  (AGM 1998/1/7)
 	     */
-	    if (!isdigit(*tok)) {
+	    if (!isdigit((int)*tok)) {
 		error = "expecting jump number";
 		goto parse_error;
 	    }
@@ -305,7 +280,7 @@ void _pam_parse_control(int *control_array, char *tok)
 	    do {
 		act *= 10;
 		act += *tok - '0';      /* XXX - this assumes ascii behavior */
-	    } while (*++tok && isdigit(*tok));
+	    } while (*++tok && isdigit((int)*tok));
 	    if (! act) {
 		/* we do not allow 0 jumps.  There is a token ('ignore')
                    for that */
@@ -328,7 +303,7 @@ void _pam_parse_control(int *control_array, char *tok)
 
 parse_error:
     /* treat everything as bad */
-    pam_system_log(NULL, NULL, LOG_ERR, "pam_parse: %s; [...%s]", error, tok);
+    _pam_system_log(LOG_ERR, "pam_parse: %s; [...%s]", error, tok);
     for (ret=0; ret<_PAM_RETURN_VALUES; control_array[ret++]=_PAM_ACTION_BAD);
 
 }
