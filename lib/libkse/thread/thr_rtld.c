@@ -28,6 +28,7 @@
  * $FreeBSD$
  */
 #include <sys/cdefs.h>
+#include <stdlib.h>
 #include <rtld_lock.h>
 #include "thr_private.h"
 
@@ -39,6 +40,7 @@ static void  _thr_rtld_lock_release(void *);
 static int   _thr_rtld_set_flag(int);
 static int   _thr_rtld_clr_flag(int);
 
+#ifdef NOTYET
 static void *
 _thr_rtld_lock_create()
 {
@@ -113,6 +115,96 @@ _thr_rtld_clr_flag(int mask)
 		PANIC("No current thread in rtld call");
 	}
 	return (bits);
+}
+
+void
+_thr_rtld_init()
+{
+	struct RtldLockInfo li;
+        li.lock_create  = _thr_rtld_lock_create;
+        li.lock_destroy = _thr_rtld_lock_destroy;
+        li.rlock_acquire = _thr_rtld_rlock_acquire;
+        li.wlock_acquire = _thr_rtld_wlock_acquire;
+        li.lock_release  = _thr_rtld_lock_release;
+        li.thread_set_flag = _thr_rtld_set_flag;
+        li.thread_clr_flag = _thr_rtld_clr_flag;
+        li.at_fork = NULL;
+	_rtld_thread_init(&li);
+}
+
+void
+_thr_rtld_fini()
+{
+	_rtld_thread_init(NULL);
+}
+#endif
+
+struct rtld_kse_lock {
+	struct lock lck;
+	kse_critical_t crit;
+};
+
+static void *
+_thr_rtld_lock_create()
+{
+	struct rtld_kse_lock *l = malloc(sizeof(struct rtld_kse_lock));
+
+	_lock_init(&l->lck, LCK_ADAPTIVE, _kse_lock_wait, _kse_lock_wakeup);
+	return (l);
+}
+
+static void
+_thr_rtld_lock_destroy(void *lock)
+{
+	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+
+	_lock_destroy(&l->lck);
+	free(l);
+}
+
+static void
+_thr_rtld_rlock_acquire(void *lock)
+{
+	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+	kse_critical_t crit;
+
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(_get_curkse(), &l->lck);
+	l->crit = crit;
+}
+
+static void
+_thr_rtld_wlock_acquire(void *lock)
+{
+	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+	kse_critical_t crit;
+
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(_get_curkse(), &l->lck);
+	l->crit = crit;
+}
+
+static void
+_thr_rtld_lock_release(void *lock)
+{
+	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
+	kse_critical_t crit = l->crit;
+
+	KSE_LOCK_RELEASE(_get_curkse(), &l->lck);
+	_kse_critical_leave(crit);
+}
+
+
+static int
+_thr_rtld_set_flag(int mask)
+{
+	return (0);
+}
+
+static int
+_thr_rtld_clr_flag(int mask)
+{
+	return (0);
 }
 
 void
