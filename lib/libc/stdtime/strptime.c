@@ -88,6 +88,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 	int	i,
 		len;
 	int Ealternative, Oalternative;
+	struct lc_time_T *tptr = __get_current_time_locale();
 
 	ptr = fmt;
 	while (*ptr != 0) {
@@ -117,7 +118,7 @@ label:
 			break;
 
 		case '+':
-			buf = _strptime(buf, Locale->date_fmt, tm);
+			buf = _strptime(buf, tptr->date_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -168,7 +169,7 @@ label:
 		case 'f':
 			if (!Ealternative)
 				break;
-			buf = _strptime(buf, (c == 'f') ? Locale->Ef_fmt : Locale->EF_fmt, tm);
+			buf = _strptime(buf, (c == 'f') ? tptr->Ef_fmt : tptr->EF_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -192,13 +193,13 @@ label:
 			break;
 
 		case 'X':
-			buf = _strptime(buf, Locale->X_fmt, tm);
+			buf = _strptime(buf, tptr->X_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'x':
-			buf = _strptime(buf, Locale->x_fmt, tm);
+			buf = _strptime(buf, tptr->x_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -288,8 +289,8 @@ label:
 			 * XXX This is bogus if parsed before hour-related
 			 * specifiers.
 			 */
-			len = strlen(Locale->am);
-			if (strncasecmp(buf, Locale->am, len) == 0) {
+			len = strlen(tptr->am);
+			if (strncasecmp(buf, tptr->am, len) == 0) {
 				if (tm->tm_hour > 12)
 					return 0;
 				if (tm->tm_hour == 12)
@@ -298,8 +299,8 @@ label:
 				break;
 			}
 
-			len = strlen(Locale->pm);
-			if (strncasecmp(buf, Locale->pm, len) == 0) {
+			len = strlen(tptr->pm);
+			if (strncasecmp(buf, tptr->pm, len) == 0) {
 				if (tm->tm_hour > 12)
 					return 0;
 				if (tm->tm_hour != 12)
@@ -312,22 +313,22 @@ label:
 
 		case 'A':
 		case 'a':
-			for (i = 0; i < asizeof(Locale->weekday); i++) {
+			for (i = 0; i < asizeof(tptr->weekday); i++) {
 				if (c == 'A') {
-					len = strlen(Locale->weekday[i]);
+					len = strlen(tptr->weekday[i]);
 					if (strncasecmp(buf,
-							Locale->weekday[i],
+							tptr->weekday[i],
 							len) == 0)
 						break;
 				} else {
-					len = strlen(Locale->wday[i]);
+					len = strlen(tptr->wday[i]);
 					if (strncasecmp(buf,
-							Locale->wday[i],
+							tptr->wday[i],
 							len) == 0)
 						break;
 				}
 			}
-			if (i == asizeof(Locale->weekday))
+			if (i == asizeof(tptr->weekday))
 				return 0;
 
 			tm->tm_wday = i;
@@ -406,32 +407,32 @@ label:
 		case 'B':
 		case 'b':
 		case 'h':
-			for (i = 0; i < asizeof(Locale->month); i++) {
+			for (i = 0; i < asizeof(tptr->month); i++) {
 				if (Oalternative) {
 					if (c == 'B') {
-						len = strlen(Locale->alt_month[i]);
+						len = strlen(tptr->alt_month[i]);
 						if (strncasecmp(buf,
-								Locale->alt_month[i],
+								tptr->alt_month[i],
 								len) == 0)
 							break;
 					}
 				} else {
 					if (c == 'B') {
-						len = strlen(Locale->month[i]);
+						len = strlen(tptr->month[i]);
 						if (strncasecmp(buf,
-								Locale->month[i],
+								tptr->month[i],
 								len) == 0)
 							break;
 					} else {
-						len = strlen(Locale->mon[i]);
+						len = strlen(tptr->mon[i]);
 						if (strncasecmp(buf,
-								Locale->mon[i],
+								tptr->mon[i],
 								len) == 0)
 							break;
 					}
 				}
 			}
-			if (i == asizeof(Locale->month))
+			if (i == asizeof(tptr->month))
 				return 0;
 
 			tm->tm_mon = i;
