@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_subr.h,v 1.2 1999/05/06 15:43:20 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
  * All rights reserved.
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_subr.h,v 1.3 1999/02/02 01:54:54 semen Exp $
+ *	$Id: ntfs_subr.h,v 1.3 1999/04/20 21:06:43 semenu Exp $
  */
 
 #define	VA_LOADED		0x0001
@@ -92,8 +94,10 @@ struct timespec	ntfs_nttimetounix __P(( u_int64_t ));
 int ntfs_ntreaddir __P(( struct ntfsmount *, struct fnode *, u_int32_t, struct attr_indexentry **));
 wchar ntfs_toupper __P(( struct ntfsmount *, wchar ));
 int ntfs_uustricmp __P(( struct ntfsmount *, wchar *, int, wchar *, int ));
-int ntfs_uastricmp __P(( struct ntfsmount *, wchar *, int, char *, int ));
-int ntfs_uastrcmp __P(( struct ntfsmount *, wchar *, int, char *, int ));
+int ntfs_uastricmp __P(( struct ntfsmount *, const wchar *, int, const char *,
+    int ));
+int ntfs_uastrcmp __P(( struct ntfsmount *, const wchar *, int, const char *,
+    int ));
 int ntfs_runtovrun __P(( cn_t **, cn_t **, u_long *, u_int8_t *));
 int ntfs_attrtontvattr __P(( struct ntfsmount *, struct ntvattr **, struct attr * ));
 void ntfs_freentvattr __P(( struct ntvattr * ));
@@ -108,6 +112,6 @@ int ntfs_ntget __P((struct ntnode *));
 void ntfs_ntrele __P((struct ntnode *));
 void ntfs_ntput __P((struct ntnode *));
 int ntfs_loadntnode __P(( struct ntfsmount *, struct ntnode * ));
-int ntfs_ntlookupattr(struct ntfsmount *, char *, int, int *, char **);
+int ntfs_ntlookupattr(struct ntfsmount *, const char *, int, int *, char **);
 int ntfs_writentvattr_plain(struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *);
 int ntfs_writeattr_plain(struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *);
