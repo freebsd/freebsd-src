@@ -133,6 +133,7 @@ int	paranoid = 1;	  /* be extra careful about security */
 int	anon_only = 0;    /* Only anonymous ftp allowed */
 int	guest;
 int	dochroot;
+int	dowtmp = 1;
 int	stats;
 int	statfd = -1;
 int	type;
@@ -304,7 +305,7 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "46a:AdDElmMoOp:rRSt:T:u:Uv")) != -1) {
+	while ((ch = getopt(argc, argv, "46a:AdDElmMoOp:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			enable_v4 = 1;
@@ -401,6 +402,10 @@ main(argc, argv, envp)
 
 		case 'v':
 			ftpdebug++;
+			break;
+
+		case 'W':
+			dowtmp = 0;
 			break;
 
 		default:
@@ -1134,7 +1139,7 @@ end_login()
 {
 
 	(void) seteuid((uid_t)0);
-	if (logged_in)
+	if (logged_in && dowtmp)
 		ftpd_logwtmp(ttyline, "", NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
@@ -1381,7 +1386,9 @@ skip:
 #endif
 
 	/* open wtmp before chroot */
-	ftpd_logwtmp(ttyline, pw->pw_name, (struct sockaddr *)&his_addr);
+	if (dowtmp)
+		ftpd_logwtmp(ttyline, pw->pw_name,
+		    (struct sockaddr *)&his_addr);
 	logged_in = 1;
 
 	if (guest && stats && statfd < 0)
@@ -2475,7 +2482,7 @@ dologout(status)
 	 */
 	transflag = 0;
 
-	if (logged_in) {
+	if (logged_in && dowtmp) {
 		(void) seteuid((uid_t)0);
 		ftpd_logwtmp(ttyline, "", NULL);
 	}
