@@ -4,8 +4,6 @@
 LIB=		telnet
 
 INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
-NOPIC=		yes
 
 SRCS=		genget.c getent.c misc.c
 

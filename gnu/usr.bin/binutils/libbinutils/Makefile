@@ -14,9 +14,6 @@ CFLAGS+=	-DTARGET=\"${TARGET_ARCH}-unknown-freebsd\"
 CFLAGS+=	-DVERSION=\"${VERSION}\"
 CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
-NOPROFILE=	true
-NOPIC=		true
 INTERNALLIB=	true
-INTERNALSTATICLIB=true
 
 .include <bsd.lib.mk>

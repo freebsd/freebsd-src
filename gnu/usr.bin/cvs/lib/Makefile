@@ -9,9 +9,7 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH: ${CVSDIR}/man
 
 LIB=		cvs
-
-NOPROFILE=	yes
-NOPIC=		yes
+INTERNALLIB=	YES
 
 CFLAGS+= -I${.CURDIR} -I${CVSDIR}/src -DHAVE_CONFIG_H
 YFLAGS=
@@ -20,8 +18,5 @@ SRCS=	argmatch.c getdate.y getline.c \
 	getopt.c getopt1.c savecwd.c \
 	sighandle.c stripslash.c \
 	xgetwd.c yesno.c
-
-install:
-	@echo -n
 
 .include <bsd.lib.mk>

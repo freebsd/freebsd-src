@@ -3,11 +3,7 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/libparse
 
 LIB= parse
-NOPROFILE=              true
-NOPIC=                  true
 INTERNALLIB=            true
-INTERNALSTATICLIB=      true
-NOMAN=                  true
 
 SRCS=	clk_computime.c	clk_dcf7000.c	clk_hopf6021.c	clk_meinberg.c \
 	clk_rawdcf.c	clk_rcc8000.c	clk_schmid.c	clk_trimtaip.c \

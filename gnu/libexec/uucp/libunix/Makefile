@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 LIB=		unix
+INTERNALLIB=	YES
 SRCS = access.c addbas.c app3.c app4.c basnam.c bytfre.c corrup.c \
 	chmod.c cohtty.c cusub.c cwd.c detach.c efopen.c epopen.c \
 	exists.c failed.c filnam.c fsusg.c indir.c init.c isdir.c \
@@ -14,10 +15,5 @@ SRCS = access.c addbas.c app3.c app4.c basnam.c bytfre.c corrup.c \
 	unknwn.c uuto.c walk.c wldcrd.c work.c xqtfil.c xqtsub.c  ftw.c
 CFLAGS+=	-I$(.CURDIR)/../common_sources \
 		-DOWNER=\"$(owner)\" -DSBINDIR=\"$(libxdir)\"
-
-NOMAN=		noman
-NOPROFILE=	noprofile
-
-install:
 
 .include <bsd.lib.mk>

@@ -16,15 +16,13 @@ SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-I${GCCDIR}/config -I. -DIN_GCC \
 		-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-omit-frame-pointer
-NOMAN=		true
-NOPIC=		true
-NOPROFILE=	true
-INTERNALLIB=	true
 CLEANFILES+=	tm.h
 
 CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 
 all: ${OBJS} ${SOBJS}
+
+CLEANFILES+=	${OBJS} ${SOBJS}
 
 .if ${MACHINE_ARCH} == "alpha"
 crtbegin.o crtbegin.So:	crtbegin.s

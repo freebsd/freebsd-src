@@ -14,10 +14,7 @@ SRCS+=		archive.c archures.c bfd.c binary.c cache.c \
 		targmatch.h dwarf1.c dwarf2.c
 CFLAGS+=	-I${SRCDIR}/bfd
 CFLAGS+=	-DBFD_VERSION=\"${VERSION}\"
-NOPROFILE=	true
-NOPIC=		true
 INTERNALLIB=	true
-INTERNALSTATICLIB=true
 CLEANFILES+=	targmatch.h
 
 # If set, BINUTILSDISTDIR is the path to a directory containing the full GNU

@@ -9,10 +9,7 @@
 LIB=		opcodes
 SRCS+=		dis-buf.c disassemble.c
 CFLAGS+=	-I${SRCDIR}/opcodes -I${SRCDIR}/bfd
-NOPROFILE=	true
-NOPIC=		true
 INTERNALLIB=	true
-INTERNALSTATICLIB=true
 
 # If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
 # binutils release. FreeBSD only distributes the bits that are required to
