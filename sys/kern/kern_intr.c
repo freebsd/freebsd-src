@@ -331,9 +331,13 @@ ok:
 	/*
 	 * If the interrupt thread is already running, then just mark this
 	 * handler as being dead and let the ithread do the actual removal.
+	 *
+	 * During a cold boot while cold is set, msleep() does not sleep,
+	 * so we have to remove the handler here rather than letting the
+	 * thread do it.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (!TD_AWAITING_INTR(ithread->it_td)) {
+	if (!TD_AWAITING_INTR(ithread->it_td) && !cold) {
 		handler->ih_flags |= IH_DEAD;
 
 		/*
