@@ -1286,14 +1286,15 @@ pmap_pinit(pmap)
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL)
-		pmap->pm_pdir =
-			(pd_entry_t *)kmem_alloc_pageable(kernel_map, PAGE_SIZE);
+		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_pageable(kernel_map,
+		    NBPTD);
 
 	/*
 	 * allocate object for the ptes
 	 */
 	if (pmap->pm_pteobj == NULL)
-		pmap->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, PTDPTDI + 1);
+		pmap->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, PTDPTDI +
+		    NPGPTD);
 
 	/*
 	 * allocate the page directory page
@@ -1305,7 +1306,7 @@ pmap_pinit(pmap)
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
 
-	pmap_qenter((vm_offset_t) pmap->pm_pdir, &ptdpg, 1);
+	pmap_qenter((vm_offset_t)pmap->pm_pdir, &ptdpg, NPGPTD);
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_pdir, PAGE_SIZE);
 
@@ -3423,7 +3424,7 @@ pmap_pid_dump(int pid)
 			int i,j;
 			index = 0;
 			pmap = vmspace_pmap(p->p_vmspace);
-			for (i = 0; i < NPDEPG; i++) {
+			for (i = 0; i < NPDEPTD; i++) {
 				pd_entry_t *pde;
 				pt_entry_t *pte;
 				vm_offset_t base = i << PDRSHIFT;
@@ -3483,7 +3484,7 @@ pads(pm)
 
 	if (pm == kernel_pmap)
 		return;
-	for (i = 0; i < NPDEPG; i++)
+	for (i = 0; i < NPDEPTD; i++)
 		if (pm->pm_pdir[i])
 			for (j = 0; j < NPTEPG; j++) {
 				va = (i << PDRSHIFT) + (j << PAGE_SHIFT);

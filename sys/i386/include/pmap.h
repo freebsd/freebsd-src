@@ -101,9 +101,9 @@
 #endif
 #ifndef NKPDE
 #ifdef SMP
-#define NKPDE	(KVA_PAGES - 2)	/* addressable number of page tables/pde's */
+#define NKPDE	(KVA_PAGES - (NPGPTD + 1)) /* number of page tables/pde's */
 #else
-#define NKPDE	(KVA_PAGES - 1)	/* addressable number of page tables/pde's */
+#define NKPDE	(KVA_PAGES - NPGPTD)	/* number of page tables/pde's */
 #endif
 #endif
 
@@ -115,14 +115,14 @@
  *
  * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
-#define	APTDPTDI	(NPDEPG-1)	/* alt ptd entry that points to APTD */
+#define	APTDPTDI	(NPDEPG-NPGPTD)	/* alt ptd entry that points to APTD */
 #ifdef SMP
 #define MPPTDI		(APTDPTDI-1)	/* per cpu ptd entry */
 #define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
 #else
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #endif	/* SMP */
-#define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
+#define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
 #define	UMAXPTDI	(PTDPTDI-1)	/* ptd entry for user space end */
 #define	UMAXPTEOFF	(NPTEPG)	/* pte entry for user space end */
 
