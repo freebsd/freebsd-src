@@ -97,7 +97,10 @@ dev/aic7xxx/aic7xxx.c	optional ahc		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc
 dev/buslogic/bt.c	optional bt
+dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
+dev/buslogic/bt_eisa.c	optional bt eisa
+dev/buslogic/bt_pci.c	optional bt pci
 dev/ccd/ccd.c		optional ccd
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_scsi.c	optional dpt
@@ -660,7 +663,6 @@ dev/bktr/bktr_card.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_os.c	optional bktr pci
-pci/bt_pci.c		optional bt pci
 pci/cy_pci.c		optional cy pci
 pci/ida_pci.c		optional ida pci
 pci/if_al.c		optional al
@@ -809,7 +811,6 @@ isa_if.h		optional isa					\
 isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
 isa/pnp.c		optional pnp
-isa/bt_isa.c		optional bt isa
 dev/pcm/sound.c		optional pcm
 dev/pcm/ac97.c		optional pcm
 dev/pcm/dsp.c		optional pcm
