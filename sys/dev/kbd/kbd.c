@@ -53,6 +53,9 @@ typedef struct genkbd_softc {
 	struct selinfo	gkb_rsel;
 } genkbd_softc_t;
 
+static	SLIST_HEAD(, keyboard_driver) keyboard_drivers =
+ 	SLIST_HEAD_INITIALIZER(keyboard_drivers);
+
 /* local arrays */
 
 /*
@@ -150,6 +153,24 @@ kbd_set_maps(keyboard_t *kbd, keymap_t *keymap, accentmap_t *accmap,
 	kbd->kb_fkeytab_size = fkeymap_size;
 }
 
+/* declare a new keyboard driver */
+int
+kbd_add_driver(keyboard_driver_t *driver)
+{
+	if (SLIST_NEXT(driver, link))
+		return EINVAL;
+	SLIST_INSERT_HEAD(&keyboard_drivers, driver, link);
+	return 0;
+}
+
+int
+kbd_delete_driver(keyboard_driver_t *driver)
+{
+	SLIST_REMOVE(&keyboard_drivers, driver, keyboard_driver, link);
+	SLIST_NEXT(driver, link) = NULL;
+	return 0;
+}
+
 /* register a keyboard and associate it with a function table */
 int
 kbd_register(keyboard_t *kbd)
@@ -175,6 +196,13 @@ kbd_register(keyboard_t *kbd)
 	kbd->kb_callback.kc_func = NULL;
 	kbd->kb_callback.kc_arg = NULL;
 
+	SLIST_FOREACH(p, &keyboard_drivers, link) {
+		if (strcmp(p->name, kbd->kb_name) == 0) {
+			keyboard[index] = kbd;
+			kbdsw[index] = p->kbdsw;
+			return index;
+		}
+	}
 	list = (const keyboard_driver_t **)kbddriver_set.ls_items;
 	while ((p = *list++) != NULL) {
 		if (strcmp(p->name, kbd->kb_name) == 0) {
@@ -226,6 +254,10 @@ keyboard_switch_t
 	const keyboard_driver_t **list;
 	const keyboard_driver_t *p;
 
+	SLIST_FOREACH(p, &keyboard_drivers, link) {
+		if (strcmp(p->name, driver) == 0)
+			return p->kbdsw;
+	}
 	list = (const keyboard_driver_t **)kbddriver_set.ls_items;
 	while ((p = *list++) != NULL) {
 		if (strcmp(p->name, driver) == 0)
@@ -361,6 +393,10 @@ kbd_configure(int flags)
 	const keyboard_driver_t **list;
 	const keyboard_driver_t *p;
 
+	SLIST_FOREACH(p, &keyboard_drivers, link) {
+		if (p->configure != NULL)
+			(*p->configure)(flags);
+	}
 	list = (const keyboard_driver_t **)kbddriver_set.ls_items;
 	while ((p = *list++) != NULL) {
 		if (p->configure != NULL)
@@ -430,12 +466,18 @@ kbd_attach(keyboard_t *kbd)
 int
 kbd_detach(keyboard_t *kbd)
 {
+	dev_t dev;
+
 	if (kbd->kb_index >= keyboards)
 		return EINVAL;
 	if (keyboard[kbd->kb_index] != kbd)
 		return EINVAL;
 
-	/* XXX: unmake_dev() ? */
+	dev = makedev(kbd_cdevsw.d_maj, kbd->kb_index);
+	if (dev->si_drv1)
+		free(dev->si_drv1, M_DEVBUF);
+	destroy_dev(dev);
+
 	return 0;
 }
 

@@ -158,6 +158,7 @@ typedef struct keyboard_switch {
 
 /* keyboard driver */
 typedef struct keyboard_driver {
+    SLIST_ENTRY(keyboard_driver) link;
     char		*name;
     keyboard_switch_t	*kbdsw;
     int			(*configure)(int); /* backdoor for the console driver */
@@ -167,7 +168,7 @@ typedef struct keyboard_driver {
 
 #define KEYBOARD_DRIVER(name, sw, config)		\
 	static struct keyboard_driver name##_kbd_driver = { \
-		#name, &sw, config			\
+		{ NULL }, #name, &sw, config		\
 	};						\
 	DATA_SET(kbddriver_set, name##_kbd_driver);
 
@@ -176,6 +177,8 @@ extern keyboard_switch_t **kbdsw;
 extern struct linker_set kbddriver_set;
 
 /* functions for the keyboard driver */
+int			kbd_add_driver(keyboard_driver_t *driver);
+int			kbd_delete_driver(keyboard_driver_t *driver);
 int			kbd_register(keyboard_t *kbd);
 int			kbd_unregister(keyboard_t *kbd);
 keyboard_switch_t	*kbd_get_switch(char *driver);
