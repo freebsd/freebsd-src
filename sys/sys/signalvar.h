@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $Id: signalvar.h,v 1.19 1998/09/14 05:36:51 jdp Exp $
+ * $Id: signalvar.h,v 1.20 1998/11/11 10:04:13 truckman Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -55,11 +55,15 @@ struct	sigacts {
 	sigset_t ps_sigintr;		/* signals that interrupt syscalls */
 	sigset_t ps_sigreset;		/* signals that reset when caught */
 	sigset_t ps_signodefer;		/* signals not masked while handled */
+#ifndef COMPAT_LINUX_THREADS
 	sigset_t ps_oldmask;		/* saved mask from before sigpause */
+#endif /* COMPAT_LINUX_THREADS */
 	int	ps_flags;		/* signal flags, below */
 	struct	sigaltstack ps_sigstk;	/* sp & on stack state variable */
+#ifndef COMPAT_LINUX_THREADS
 	int	ps_sig;			/* for core dump/debugger XXX */
 	u_long	ps_code;		/* for core dump/debugger XXX */
+#endif /* COMPAT_LINUX_THREADS */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
 };
 

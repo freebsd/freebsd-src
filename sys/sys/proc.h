@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.61 1998/11/11 10:56:05 truckman Exp $
+ * $Id: proc.h,v 1.62 1998/11/13 17:53:55 dg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -47,6 +47,9 @@
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/select.h>			/* For struct selinfo. */
 #include <sys/signal.h>
+#ifdef COMPAT_LINUX_THREADS
+#include <sys/signalvar.h>
+#endif /* COMPAT_LINUX_THREADS */
 #ifndef KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
@@ -78,6 +81,19 @@ struct	pgrp {
 	int	pg_jobc;	/* # procs qualifying pgrp for job control */
 };
 
+#ifdef COMPAT_LINUX_THREADS
+struct	procsig {
+#define ps_begincopy ps_sigignore
+	sigset_t ps_sigignore;	/* Signals being ignored. */
+	sigset_t ps_sigcatch;	/* Signals being caught by user. */
+        int      ps_flag;
+	struct	 sigacts ps_sigacts;
+#define ps_endcopy ps_refcnt
+	int	 ps_refcnt;
+        int      ps_posix;
+};
+
+#endif /* COMPAT_LINUX_THREADS */
 /*
  * Description of a process.
  *
@@ -164,17 +180,34 @@ struct	proc {
 	char	p_pad3[2];		/* padding for alignment */
 	register_t p_retval[2];		/* syscall aux returns */
 	struct	sigiolst p_sigiolst;	/* list of sigio sources */
+#ifdef COMPAT_LINUX_THREADS
+	int	p_sigparent;		/* signal to parent on exit */
+	sigset_t p_oldsigmask;		/* saved mask from before sigpause */
+	int	p_sig;			/* for core dump/debugger XXX */
+        u_long	p_code;	  	        /* for core dump/debugger XXX */
+#endif /* COMPAT_LINUX_THREADS */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
 
 /* The following fields are all copied upon creation in fork. */
+#ifndef COMPAT_LINUX_THREADS
 #define	p_startcopy	p_sigmask
+#else
+#define	p_startcopy	p_procsig
+#endif /* COMPAT_LINUX_THREADS */
 
+#ifdef COMPAT_LINUX_THREADS
+	struct	procsig *p_procsig;
+#define p_sigignore p_procsig->ps_sigignore
+#define p_sigcatch p_procsig->ps_sigcatch
+#endif /* COMPAT_LINUX_THREADS */
 	sigset_t p_sigmask;	/* Current signal mask. */
+#ifndef COMPAT_LINUX_THREADS
 	sigset_t p_sigignore;	/* Signals being ignored. */
 	sigset_t p_sigcatch;	/* Signals being caught by user. */
 
+#endif /* COMPAT_LINUX_THREADS */
 	u_char	p_priority;	/* Process priority. */
 	u_char	p_usrpri;	/* User-priority based on p_cpu and p_nice. */
 	char	p_nice;		/* Process "nice" value. */
@@ -349,7 +382,11 @@ void	wakeup_one __P((void *chan));
 void	cpu_exit __P((struct proc *)) __dead2;
 void	exit1 __P((struct proc *, int)) __dead2;
 void	cpu_fork __P((struct proc *, struct proc *));
+#ifndef COMPAT_LINUX_THREADS
 int		fork1 __P((struct proc *, int));
+#else
+int	fork1 __P((struct proc *, int));
+#endif /* COMPAT_LINUX_THREADS */
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));

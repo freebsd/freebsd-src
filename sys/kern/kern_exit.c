@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.68 1998/11/10 09:16:29 peter Exp $
+ * $Id: kern_exit.c,v 1.69 1998/11/11 10:03:54 truckman Exp $
  */
 
 #include "opt_compat.h"
@@ -181,7 +181,9 @@ exit1(p, rv)
 	 */
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	p->p_flag |= P_WEXIT;
+#ifndef COMPAT_LINUX_THREADS
 	p->p_sigignore = ~0;
+#endif /* COMPAT_LINUX_THREADS */
 	p->p_siglist = 0;
 	if (timevalisset(&p->p_realtimer.it_value))
 		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
@@ -282,6 +284,9 @@ exit1(p, rv)
 		LIST_REMOVE(q, p_sibling);
 		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
 		q->p_pptr = initproc;
+#ifdef COMPAT_LINUX_THREADS
+		q->p_sigparent = 0;
+#endif /* COMPAT_LINUX_THREADS */
 		/*
 		 * Traced processes are killed
 		 * since their existence means someone is screwing up.
@@ -306,7 +311,11 @@ exit1(p, rv)
 	 * flag set, notify process 1 instead (and hope it will handle
 	 * this situation).
 	 */
+#ifndef COMPAT_LINUX_THREADS
 	if (p->p_pptr->p_flag & P_NOCLDWAIT) {
+#else
+	if (p->p_pptr->p_procsig->ps_flag & P_NOCLDWAIT) {
+#endif /* COMPAT_LINUX_THREADS */
 		struct proc *pp = p->p_pptr;
 		proc_reparent(p, initproc);
 		/*
@@ -318,7 +327,15 @@ exit1(p, rv)
 			wakeup((caddr_t)pp);
 	}
 
+#ifndef COMPAT_LINUX_THREADS
 	psignal(p->p_pptr, SIGCHLD);
+#else
+	if (p->p_sigparent && p->p_pptr != initproc) {
+	        psignal(p->p_pptr, p->p_sigparent);
+	} else {
+	        psignal(p->p_pptr, SIGCHLD);
+	}
+#endif /* COMPAT_LINUX_THREADS */
 	wakeup((caddr_t)p->p_pptr);
 #if defined(tahoe)
 	/* move this to cpu_exit */
@@ -421,6 +438,14 @@ loop:
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
+#ifdef COMPAT_LINUX_THREADS
+		#if 0
+		if ((p->p_sigparent != 0) ^ ((uap->options & WLINUXCLONE) != 0)) {
+			continue;
+		}
+		#endif
+
+#endif /* COMPAT_LINUX_THREADS */
 		nfound++;
 		if (p->p_stat == SZOMB) {
 			/* charge childs scheduling cpu usage to parent */
@@ -488,6 +513,14 @@ loop:
 			LIST_REMOVE(p, p_list);	/* off zombproc */
 			LIST_REMOVE(p, p_sibling);
 
+#ifdef COMPAT_LINUX_THREADS
+			if (--p->p_procsig->ps_refcnt == 0) {
+			        free(p->p_procsig, M_TEMP);
+				p->p_procsig = NULL;
+				p->p_sigacts = NULL;
+			}
+
+#endif /* COMPAT_LINUX_THREADS */
 			/*
 			 * Give machine-dependent layer a chance
 			 * to free anything that cpu_exit couldn't
@@ -543,6 +576,11 @@ proc_reparent(child, parent)
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 	child->p_pptr = parent;
+#ifdef COMPAT_LINUX_THREADS
+	#if 0
+	child->p_sigparent = 0;
+	#endif
+#endif /* COMPAT_LINUX_THREADS */
 }
 
 /*
