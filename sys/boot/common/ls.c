@@ -1,5 +1,5 @@
 /*
- * $Id: ls.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
+ * $Id: ls.c,v 1.3 1998/09/26 01:29:13 msmith Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 
@@ -61,7 +61,6 @@ command_ls(int argc, char *argv[])
     static char	buf[128];	/* must be long enough for full pathname */
     char	*path;
     int		result, ch;
-#ifdef VERBOSE_LS
     int		verbose;
 	
     verbose = 0;
@@ -79,7 +78,6 @@ command_ls(int argc, char *argv[])
     }
     argv += (optind - 1);
     argc -= (optind - 1);
-#endif
 
     if (argc < 2) {
 	path = "/";
@@ -107,11 +105,9 @@ command_ls(int argc, char *argv[])
 	result = CMD_ERROR;
 	goto out;
     }
-#ifdef VERBOSE_LS
     /* fixup path for stat()ing files */
     if (!strcmp(path, "/"))
 	path = "";
-#endif
 
     while ((size = read(fd, dirbuf, DIRBLKSIZ)) == DIRBLKSIZ) {
 	struct direct  *dp, *edp;
@@ -139,18 +135,14 @@ command_ls(int argc, char *argv[])
 		}
 				
 		if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..")) {
-#ifdef VERBOSE_LS /* too much UFS activity blows the heap out */
 		    if (verbose) {
 			/* stat the file, if possible */
 			sb.st_size = 0;
 			sprintf(buf, "%s/%s", path, dp->d_name);
-			/* ignore return */
-			if (stat(buf, &sb)) {
-			    printf("stat(%s) failed: %s\n", buf, strerror(errno));
-			    sb.st_size = -1;
-			}
+			/* ignore return, could be symlink, etc. */
+			if (stat(buf, &sb))
+			    sb.st_size = 0;
 			sprintf(buf, " %c %8d %s\n", typestr[dp->d_type], (int)sb.st_size, dp->d_name);
-#endif
 		    } else
 			sprintf(buf, " %c  %s\n", typestr[dp->d_type], dp->d_name);
 		    if (pager_output(buf))
