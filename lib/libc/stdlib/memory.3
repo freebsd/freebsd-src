@@ -46,7 +46,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <stdlib.h>
+.In stdlib.h
 .Ft void *
 .Fn malloc "size_t size"
 .Ft void
@@ -57,8 +57,8 @@
 .Fn calloc "size_t nelem" "size_t elsize"
 .Ft void *
 .Fn alloca "size_t size"
-.Fd #include <sys/types.h>
-.Fd #include <sys/mman.h>
+.In sys/types.h
+.In sys/mman.h
 .Ft void *
 .Fn mmap "void * addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
 .Sh DESCRIPTION
