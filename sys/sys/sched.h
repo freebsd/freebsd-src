@@ -31,7 +31,14 @@
 
 /*
  * General scheduling info.
+ *
+ * sched_load:
+ *	Total runnable non-ithread threads in the system.
+ *
+ * sched_runnable:
+ *	Runnable threads for this processor.
  */
+int	sched_load(void);
 int	sched_rr_interval(void);
 int	sched_runnable(void);
 
