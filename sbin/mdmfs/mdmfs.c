@@ -340,7 +340,7 @@ do_mdconfig_attach(const char *args, const enum md_types mdtype)
 	default:
 		abort();
 	}
-	rv = run(NULL, "%s -a %s%s -u %s%d", PATH_MDCONFIG, ta, args,
+	rv = run(NULL, "%s -a %s%s -u %s%d", _PATH_MDCONFIG, ta, args,
 	    mdname, unit);
 	if (rv)
 		errx(1, "mdconfig (attach) exited with error code %d", rv);
@@ -373,7 +373,7 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	default:
 		abort();
 	}
-	rv = run(&fd, "%s -a %s%s", PATH_MDCONFIG, ta, args);
+	rv = run(&fd, "%s -a %s%s", _PATH_MDCONFIG, ta, args);
 	if (rv)
 		errx(1, "mdconfig (attach) exited with error code %d", rv);
 
@@ -411,7 +411,7 @@ do_mdconfig_detach(void)
 {
 	int rv;
 
-	rv = run(NULL, "%s -d -u %s%d", PATH_MDCONFIG, mdname, unit);
+	rv = run(NULL, "%s -d -u %s%d", _PATH_MDCONFIG, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
 		warnx("mdconfig (detach) exited with error code %d (ignored)",
 		      rv);
@@ -425,7 +425,7 @@ do_mount(const char *args, const char *mtpoint)
 {
 	int rv;
 
-	rv = run(NULL, "%s%s /dev/%s%d %s", PATH_MOUNT, args,
+	rv = run(NULL, "%s%s /dev/%s%d %s", _PATH_MOUNT, args,
 	    mdname, unit, mtpoint);
 	if (rv)
 		errx(1, "mount exited with error code %d", rv);
@@ -475,7 +475,7 @@ do_newfs(const char *args)
 {
 	int rv;
 
-	rv = run(NULL, "%s%s /dev/%s%d", PATH_NEWFS, args, mdname, unit);
+	rv = run(NULL, "%s%s /dev/%s%d", _PATH_NEWFS, args, mdname, unit);
 	if (rv)
 		errx(1, "newfs exited with error code %d", rv);
 }
