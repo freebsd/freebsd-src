@@ -19,6 +19,7 @@ SUBDIR=	3dfx \
 	ccd \
 	cd9660 \
 	coda \
+	cryptodev \
 	cue \
 	dc \
 	de \
@@ -30,6 +31,7 @@ SUBDIR=	3dfx \
 	firewire \
 	fxp \
 	gx \
+	hifn \
 	if_disc \
 	if_ef \
 	if_gif \
@@ -94,6 +96,7 @@ SUBDIR=	3dfx \
 	twe \
 	tx \
 	txp \
+	ubsec \
 	ucom \
 	udbp \
 	ufm \
