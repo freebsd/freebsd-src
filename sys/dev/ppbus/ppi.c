@@ -23,9 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppi.c,v 1.1 1997/08/14 13:57:43 msmith Exp $
  *
  */
+#include "ppi.h"
+
+#if NPPI > 0
+
 #include <sys/types.h>
 
 #ifdef KERNEL
@@ -49,10 +53,16 @@
 #endif /*KERNEL */
 
 #include <dev/ppbus/ppbconf.h>
-#include <dev/ppbus/ppi.h>
 
-static int	nppi = 0;
+struct ppi_data {
+
+	int ppi_unit;
+
+	struct ppb_device ppi_dev;
+};
+
 #define MAXPPI	8			/* XXX not much better! */
+static int 	nppi = 0;
 static struct ppi_data *ppidata[MAXPPI];
 
 /*
@@ -63,14 +73,11 @@ static struct ppb_device	*ppiprobe(struct ppb_data *ppb);
 static int			ppiattach(struct ppb_device *dev);
 static void			ppiintr(int unit);
 
-#ifdef KERNEL
-
 static struct ppb_driver ppidriver = {
     ppiprobe, ppiattach, "ppi"
 };
 DATA_SET(ppbdriver_set, ppidriver);
 
-#endif /* KERNEL */
 
 static	d_open_t	ppiopen;
 static	d_close_t	ppiclose;
@@ -78,7 +85,7 @@ static	d_ioctl_t	ppiioctl;
 
 #define CDEV_MAJOR 14			/* XXX */
 static struct cdevsw ppi_cdevsw = 
-	{ ppiopen,	ppiclose,	noread,		nowrite,
+	{ ppiopen,	ppiclose,	noread,		nowrite,	/* 14 */
 	  ppiioctl,	nullstop,	nullreset,	nodevtotty,
 	  seltrue,	nommap,		nostrat,	"ppi",	NULL,	-1 };
 
@@ -141,6 +148,13 @@ ppiintr(int unit)
 static int
 ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
+	u_int unit = minor(dev);
+
+	if (unit >= nppi)
+		return (ENXIO);
+
+	printf("ppi open!\n");
+
 	return (EOPNOTSUPP);
 }
 
@@ -156,17 +170,66 @@ ppiioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 	return (EOPNOTSUPP);
 }
 
+#ifdef PPI_MODULE
+
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+MOD_DEV(ppi, LM_DT_CHAR, CDEV_MAJOR, &ppi_cdevsw);
+
+static int
+ppi_load(struct lkm_table *lkmtp, int cmd)
+{
+	struct ppb_data *ppb;
+	struct ppb_device *dev;
+	int i;
+
+	for (ppb = ppb_next_bus(NULL); ppb; ppb = ppb_next_bus(ppb)) {
+
+		dev = ppiprobe(ppb);
+		ppiattach(dev);
+
+		ppb_attach_device(dev);
+	}
+
+	return (0);
+}
+
+static int
+ppi_unload(struct lkm_table *lkmtp, int cmd)
+{
+	int i;
+
+	for (i = nppi-1; i > 0; i--) {
+		ppb_remove_device(&ppidata[i]->ppi_dev);
+		free(ppidata[i], M_TEMP);
+	}
+
+	return (0);
+}
+
+int
+ppi_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	DISPATCH(lkmtp, cmd, ver, ppi_load, ppi_unload, lkm_nullcmd);
+}
+
+#endif /* PPI_MODULE */
+
 static ppi_devsw_installed = 0;
 
-static void 	ppi_drvinit(void *unused)
+static void ppi_drvinit(void *unused)
 {
 	dev_t dev;
 
-	if( ! ppi_devsw_installed ) {
+	if (!ppi_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev, &ppi_cdevsw, NULL);
 		ppi_devsw_installed = 1;
     	}
 }
 
-SYSINIT(ppidev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, ppi_drvinit, NULL)
+SYSINIT(ppidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ppi_drvinit,NULL)
+
+#endif /* NPPI */
