@@ -693,7 +693,7 @@ kern/tty_compat.c	standard
 kern/tty_conf.c		standard
 kern/tty_cons.c		standard
 kern/tty_pty.c		optional pty
-kern/tty_snoop.c	count snp
+kern/tty_snoop.c	optional snp
 kern/tty_subr.c		standard
 kern/tty_tty.c		standard
 kern/uipc_accf.c	optional inet
