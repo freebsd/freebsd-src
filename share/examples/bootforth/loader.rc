@@ -13,15 +13,15 @@ include /boot/loader.4th
 \ Load the screen manipulation words
 
 cr .( - screen.4th...)
-s" /boot/screen.4th" fopen dup fload fclose
+s" /boot/screen.4th" O_RDONLY fopen dup fload fclose
 
 \ Load frame support
 cr .( - frames.4th...)
-s" /boot/frames.4th" fopen dup fload fclose
+s" /boot/frames.4th" O_RDONLY fopen dup fload fclose
 
 \ Load our little menu
 cr .( - menuconf.4th...)
-s" /boot/menuconf.4th" fopen dup fload fclose
+s" /boot/menuconf.4th" O_RDONLY fopen dup fload fclose
 
 \ Initialize loader.4th stuff
 
