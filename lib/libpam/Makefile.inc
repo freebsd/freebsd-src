@@ -25,5 +25,4 @@
 #	$FreeBSD$
 
 SHLIB_MAJOR=	2
-SHLIB_MINOR=	0
 

@@ -1,7 +1,6 @@
 # $FreeBSD$
 LIB=	vgl
 SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
 CFLAGS+=-Wall -I${.CURDIR}
 SRCS=	main.c simple.c bitmap.c text.c mouse.c keyboard.c
 INCS=	vgl.h

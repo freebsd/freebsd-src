@@ -4,7 +4,6 @@ MAINTAINER=ken@FreeBSD.ORG
 
 LIB=	devstat
 SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
 SRCS=	devstat.c
 INCS=	devstat.h
 
