@@ -627,7 +627,6 @@ pci_if.h		optional pci					\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/pci/pci_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"pci_if.h"
-pci/tek390.c		optional amd device-driver
 pci/simos.c		optional simos device-driver
 pci/alpm.c		optional alpm	device-driver
 pci/xrpu.c		optional xrpu device-driver
