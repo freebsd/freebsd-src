@@ -81,7 +81,6 @@ static void ad_attach(void *);
 static int32_t ad_getparam(struct ad_softc *);
 static void ad_start(struct ad_softc *);
 static void ad_timeout(struct ad_request *);
-static void ad_sleep(struct ad_softc *, int8_t *);
 static int8_t ad_version(u_int16_t);
 static void ad_drvinit(void);
 
@@ -291,7 +290,6 @@ adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     dl->d_ncylinders = adp->cylinders;
     dl->d_secpercyl = adp->sectors * adp->heads;
     dl->d_secperunit = adp->total_secs;
-    ad_sleep(adp, "adop2");
     return 0;
 }
 
@@ -650,17 +648,6 @@ ad_timeout(struct ad_request *request)
 	free(request, M_AD);
     }
     ata_reinit(adp->controller);
-}
-
-static void
-ad_sleep(struct ad_softc *adp, int8_t *mesg)
-{
-    int32_t s;
-
-    s = splbio();
-    while (adp->controller->active != ATA_IDLE)
-	tsleep((caddr_t)&adp->controller->active, PZERO - 1, mesg, 1);
-    splx(s);
 }
 
 static int8_t
