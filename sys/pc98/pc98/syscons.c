@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.107 1999/01/18 08:38:08 kato Exp $
+ *  $Id: syscons.c,v 1.108 1999/01/18 14:48:34 kato Exp $
  */
 
 #include "sc.h"
@@ -223,6 +223,11 @@ static void    		(*current_saver)(int blank) = none_saver;
        d_ioctl_t  	*sc_user_ioctl;
 
 static int		sticky_splash = FALSE;
+static struct 		{
+			    u_int8_t	cursor_start;
+			    u_int8_t	cursor_end;
+			    u_int8_t	shift_state;
+			} bios_value;
 
 /* OS specific stuff */
 #ifdef not_yet_done
@@ -292,6 +297,7 @@ static int sccngetch(int flags);
 static void sccnupdate(scr_stat *scp);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
+static void get_bios_values(void);
 static void sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
@@ -715,6 +721,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
     struct tty *tp = scdevtotty(dev);
     keyarg_t key;
+    int s;
 
     if (!tp)
 	return(ENXIO);
@@ -738,6 +745,12 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	(*linesw[tp->t_line].l_modem)(tp, 1);
     	if (minor(dev) == SC_MOUSE)
 	    mouse_level = 0;		/* XXX */
+	if (minor(dev) < MAXCONS && console[minor(dev)] && scrn_blanked) {
+	    s = spltty();
+	    sc_touch_scrn_saver();
+	    sc_clean_up(console[minor(dev)]);
+	    splx(s);
+	}
     }
     else
 	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
@@ -837,7 +850,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	break;
     case KBDIO_UNLOADING:
 	kbd = NULL;
-	kbd_release(thiskbd, (void *)keyboard);
+	kbd_release(thiskbd, (void *)&keyboard);
 	return 0;
     default:
 	return EINVAL;
@@ -1543,11 +1556,19 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return EINVAL;
 
     case VT_ACTIVATE:   	/* switch to screen *data */
+	s = spltty();
+	sc_clean_up(cur_console);
+	splx(s);
 	return switch_scr(scp, *(int *)data - 1);
 
     case VT_WAITACTIVE: 	/* wait for switch to occur */
 	if (*(int *)data > MAXCONS || *(int *)data < 0)
 	    return EINVAL;
+	s = spltty();
+	error = sc_clean_up(cur_console);
+	splx(s);
+	if (error)
+	    return error;
 	if (minor(dev) == *(int *)data - 1)
 	    return 0;
 	if (*(int *)data == 0) {
@@ -3760,6 +3781,8 @@ scinit(void)
 	return;
     init_done = WARM;
 
+    get_bios_values();
+
 #ifdef PC98
     if (pc98_machine_type & M_8M)
 	BELL_PITCH = 1339;
@@ -3856,6 +3879,7 @@ sc_clean_up(scr_stat *scp)
 {
     int error;
 
+    sc_touch_scrn_saver();
 #if NSPLASH > 0
     if ((error = wait_scrn_saver_stop()))
 	return error;
@@ -4017,13 +4041,8 @@ init_scp(scr_stat *scp)
 	current_default->std_color;
     scp->term.rev_color = current_default->rev_color;
     scp->border = BG_BLACK;
-#ifdef PC98
-    scp->cursor_start = 0;
-    scp->cursor_end = 0;
-#else
-    scp->cursor_start = *(u_int8_t *)pa_to_va(0x461);
-    scp->cursor_end = *(u_int8_t *)pa_to_va(0x460);
-#endif
+    scp->cursor_start = bios_value.cursor_start;
+    scp->cursor_end = bios_value.cursor_end;
     scp->mouse_xpos = scp->xsize*8/2;
     scp->mouse_ypos = scp->ysize*scp->font_size/2;
     scp->mouse_cut_start = scp->mouse_cut_end = NULL;
@@ -4034,7 +4053,7 @@ init_scp(scr_stat *scp)
     scp->bell_pitch = BELL_PITCH;
     scp->bell_duration = BELL_DURATION;
 #ifndef PC98
-    scp->status |= (*(u_int8_t *)pa_to_va(0x417) & 0x20) ? NLKED : 0;
+    scp->status |= (bios_value.shift_state & 0x20) ? NLKED : 0;
 #endif
     scp->status |= CURSOR_ENABLED;
     scp->pid = 0;
@@ -4048,6 +4067,20 @@ init_scp(scr_stat *scp)
 #ifdef KANJI
     scp->kanji_1st_char = 0;
     scp->kanji_type = KTYPE_ASCII;
+#endif
+}
+
+static void
+get_bios_values(void)
+{
+#ifdef PC98
+    bios_value.cursor_start = 0;
+    bios_value.cursor_end = 0;
+    bios_value.shift_state = 0;
+#else /* !PC98 */
+    bios_value.cursor_start = *(u_int8_t *)pa_to_va(0x461);
+    bios_value.cursor_end = *(u_int8_t *)pa_to_va(0x460);
+    bios_value.shift_state = *(u_int8_t *)pa_to_va(0x417);
 #endif
 }
 
