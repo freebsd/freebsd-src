@@ -50,7 +50,6 @@ static struct cdevsw sndstat_cdevsw = {
 	.d_close =	sndstat_close,
 	.d_read =	sndstat_read,
 	.d_name =	"sndstat",
-	.d_maj =	SND_CDEV_MAJOR,
 };
 
 struct sndstat_entry {

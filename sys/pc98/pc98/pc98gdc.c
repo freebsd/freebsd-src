@@ -113,7 +113,6 @@ static struct cdevsw gdc_cdevsw = {
 	.d_ioctl =	gdcioctl,
 	.d_mmap =	gdcmmap,
 	.d_name =	DRIVER_NAME,
-	.d_maj =	-1,
 };
 
 #endif /* FB_INSTALL_CDEV */

@@ -22,7 +22,6 @@
 4	*geom		GEOMetry
 19	*tw		X-10 power interface
 22	*fd		(/dev/stdin etc)
-30	*snd		sound driver system
 32	lkmc		Loadable Kernel Module Controller
 33	lkm		assigned to Loadable Kernel Modules
 34	lkm		assigned to Loadable Kernel Modules
@@ -54,7 +53,6 @@
 93	coda		CODA filesystem.
 96	altq		alternate queueing (including cbq, red, wfq)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
-99	*ct		Cronyx Tau-ISA serial adapters (driver name "ctau")
 115	dag		University of Waikato DAG network capture boards
 117	*acd		ATAPI CDROM
 119	*ast		ATAPI tape
