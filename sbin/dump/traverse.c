@@ -401,6 +401,14 @@ dumpino(union dinode *dp, ino_t ino)
 		dumpmap(dumpinomap, TS_BITS, ino);
 	}
 	CLRINO(ino, dumpinomap);
+	/*
+	 * Zero out the size of a snapshot so that it will be dumped
+	 * as a zero length file.
+	 */
+	if ((DIP(dp, di_flags) & SF_SNAPSHOT) != 0) {
+		DIP(dp, di_size) = 0;
+		DIP(dp, di_flags) &= ~SF_SNAPSHOT;
+	}
 	if (sblock->fs_magic == FS_UFS1_MAGIC) {
 		spcl.c_mode = dp->dp1.di_mode;
 		spcl.c_size = dp->dp1.di_size;
@@ -442,7 +450,6 @@ dumpino(union dinode *dp, ino_t ino)
 		/*
 		 * Check for short symbolic link.
 		 */
-#ifdef FS_44INODEFMT
 		if (DIP(dp, di_size) > 0 &&
 		    DIP(dp, di_size) < sblock->fs_maxsymlinklen) {
 			spcl.c_addr[0] = 1;
@@ -458,7 +465,6 @@ dumpino(union dinode *dp, ino_t ino)
 			writerec(buf, 0);
 			return;
 		}
-#endif
 		/* FALLTHROUGH */
 
 	case S_IFDIR:
