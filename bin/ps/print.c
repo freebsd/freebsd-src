@@ -265,14 +265,26 @@ state(KINFO *k, VARENT *ve)
 	(void)printf("%-*s", v->width, buf);
 }
 
+#define	scalepri(x)	((x) - PZERO)
+
 void
 pri(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%*d", v->width, k->ki_p->ki_pri.pri_level - PZERO);
+	(void)printf("%*d", v->width, scalepri(k->ki_p->ki_pri.pri_level));
 }
+
+void
+upr(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	(void)printf("%*d", v->width, scalepri(k->ki_p->ki_pri.pri_user));
+}
+#undef scalepri
 
 void
 uname(KINFO *k, VARENT *ve)
