@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.204 1995/10/03 01:12:59 jkh Exp $
+#	$Id: LINT,v 1.205 1995/10/10 04:03:12 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -722,7 +722,7 @@ device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
 device		scd0	at isa? port 0x230 bio
 # for the soundblaster 16 multicd - up to 4 devices
-controller      matcd0  at isa? port ? bio
+controller      matcd0  at isa? port 0x230 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
