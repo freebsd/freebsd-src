@@ -42,6 +42,19 @@
 #ifndef _SYS_GNU_EXT2FS_EXT2_EXTERN_H_
 #define	_SYS_GNU_EXT2FS_EXT2_EXTERN_H_
 
+/*
+ * Sysctl values for the ext2fs filesystem.
+ */
+#define	EXT2FS_CLUSTERREAD		1		/* cluster reading enabled */
+#define	EXT2FS_CLUSTERWRITE		2		/* cluster writing enable */
+#define	EXT2FS_MAXID			3		/* number of valid ext2fs ids */
+
+#define	EXT2FS_NAMES {\
+	{0, 0}, \
+	{ "doclusterread", CTLTYPE_INT }, \
+	{ "doculsterwrite", CTLTYPE_INT }, \
+}
+
 struct dinode;
 struct ext2_inode;
 struct inode;

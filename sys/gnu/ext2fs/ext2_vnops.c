@@ -236,24 +236,30 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 /*
  * Enabling cluster read/write operations.
  */
-#ifdef DEBUG
-#include <sys/sysctl.h>
-static int doclusterread = 1;
-SYSCTL_INT(_debug, 11, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
-static int doclusterwrite = 1;
-SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
-#endif
-
 #if defined(__FreeBSD__)
-#define doclusterwrite 1
-#define doclusterread 1
-#else
+static int doclusterread = 1;
+static int doclusterwrite = 1;
+#include <sys/sysctl.h>
+SYSCTL_NODE(_vfs, MOUNT_EXT2FS, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
+SYSCTL_INT(_vfs_ext2fs, EXT2FS_CLUSTERREAD, doclusterread,
+		   CTLFLAG_RW, &doclusterread, 0, "");
+SYSCTL_INT(_vfs_ext2fs, EXT2FS_CLUSTERWRITE, doclusterwrite,
+		   CTLFLAG_RW, &doclusterwrite, 0, "");
+#else /* !FreeBSD */
+#ifdef DEBUG
+static int doclusterread = 0;
+static int doclusterwrite = 1;
+#include <sys/sysctl.h>
+SYSCTL_INT(_debug, 11, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
+SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
+#else /* !DEBUG */
 /* doclusterwrite is being tested 
    note that reallocblks is called when it's on, but this is not implemented */
 #define doclusterwrite 0
 /* doclusterread should work with new pagemove */
 #define doclusterread 1
-#endif
+#endif /* DEBUG */
+#endif /* FreeBSD */
 
 #include <gnu/ext2fs/ext2_readwrite.c>
 
