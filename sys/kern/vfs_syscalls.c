@@ -4097,7 +4097,7 @@ fhstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs *sp, sb;
+	struct statfs *sp;
 	struct mount *mp;
 	struct vnode *vp;
 	fhandle_t fh;
@@ -4128,11 +4128,6 @@ fhstatfs(td, uap)
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
-	if (suser(td)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		sp = &sb;
-	}
 	return (copyout(sp, uap->buf, sizeof(*sp)));
 }
 
