@@ -54,7 +54,8 @@ enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
 #define CHUNK_START_ROW		5
 
 /* Where we keep track of MBR chunks */
-static struct chunk *chunk_info[16];
+#define	CHUNK_INFO_ENTRIES	16
+static struct chunk *chunk_info[CHUNK_INFO_ENTRIES];
 static int current_chunk;
 
 static void	diskPartitionNonInteractive(Device *dev);
@@ -285,6 +286,7 @@ diskPartition(Device *dev)
 {
     char *cp, *p;
     int rv, key = 0;
+    int i;
     Boolean chunking;
     char *msg = NULL;
 #ifdef PC98
@@ -529,6 +531,10 @@ diskPartition(Device *dev)
 	    break;
 	
 	case 'S':
+	    /* Clear active states so we won't have two */
+	    for (i = 0; (chunk_info[i] != NULL) && (i < CHUNK_INFO_ENTRIES); i++)
+		chunk_info[i]->flags &= !CHUNK_ACTIVE;
+
 	    /* Set Bootable */
 	    chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
 	    break;
