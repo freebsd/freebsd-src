@@ -413,7 +413,7 @@ mntsrv(rqstp, transp)
 		 * or a regular file if the -r option was specified
 		 * and it exists.
 		 */
-		if (realpath(rpcpath, dirpath) == 0 ||
+		if (realpath(rpcpath, dirpath) == NULL ||
 		    stat(dirpath, &stb) < 0 ||
 		    (!S_ISDIR(stb.st_mode) &&
 		     (dir_only || !S_ISREG(stb.st_mode))) ||
@@ -502,11 +502,16 @@ mntsrv(rqstp, transp)
 			svcerr_weakauth(transp);
 			return;
 		}
-		if (!svc_getargs(transp, xdr_dir, dirpath)) {
+		if (!svc_getargs(transp, xdr_dir, rpcpath)) {
 			syslog(LOG_NOTICE, "undecodable umount request from %s",
 			    inet_ntoa(saddrin));
 			svcerr_decode(transp);
 			return;
+		}
+		if (realpath(rpcpath, dirpath) == NULL) {
+			syslog(LOG_NOTICE, "umount request from %s "
+			    "for non existent path %s",
+			    inet_ntoa(saddrin), dirpath);
 		}
 		if (!svc_sendreply(transp, xdr_void, (caddr_t)NULL))
 			syslog(LOG_ERR, "can't send reply");
@@ -744,6 +749,9 @@ get_exportlist()
 	struct ucred anon;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
 	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
+
+	dirp = NULL;
+	dirplen = 0;
 
 	/*
 	 * First, get rid of the old list
@@ -1342,6 +1350,7 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 	char *cp, *endcp, *cpopt, savedc, savedc2;
 	int allflag, usedarg;
 
+	savedc2 = '\0';
 	cpopt = *cpp;
 	cpopt++;
 	cp = *endcpp;
