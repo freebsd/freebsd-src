@@ -1,4 +1,4 @@
-# @(#)aic7xxx.seq 1.30 94/11/09 jda
+# @(#)aic7xxx.seq 1.31 94/11/25 jda
 #
 # Adaptec 274x device driver for Linux.
 # Copyright (c) 1994 The University of Calgary Department of Computer Science.
@@ -17,9 +17,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-VERSION AIC7XXX_SEQ_VERSION 1.30
+VERSION AIC7XXX_SEQ_VERSION 1.31
 
-MAXSCB-1	= 0xf
+SCBMASK		= 0x1f
 
 SCSISEQ		= 0x00
 SXFRCTL0	= 0x01
@@ -159,12 +159,12 @@ SG_NEXT+3	= 0x55
 SCBCOUNT	= 0x56				# the actual number of SCBs
 ACTIVE_A	= 0x57
 
-#  Poll QINCNT for work - the lower three bits contain
+#  Poll QINCNT for work - the lower bits contain
 #  the number of entries in the Queue In FIFO.
 #
 start:
 	test	SCSISIGI,0x4	jnz reselect	# BSYI
-	test	QINCNT,MAXSCB-1	jz start
+	test	QINCNT,SCBMASK	jz start
 
 #  We have at least one queued SCB now.  Set the SCB pointer
 #  from the FIFO so we see the right bank of SCB registers,
@@ -194,7 +194,7 @@ active:
 #  into the message out phase since we have ATN asserted.  Prepare
 #  the message to send, locking out the device driver.  If the device
 #  driver hasn't beaten us with an ABORT or RESET message, then tack
-#  on a SDTR negotation if required.
+#  on an SDTR negotiation if required.
 #
 #  Messages are stored in scratch RAM starting with a flag byte (high bit
 #  set means active message), one length byte, and then the message itself.
@@ -663,7 +663,7 @@ bcopy:
 #  if there is no active message already.  SINDEX is returned intact.
 #
 mk_mesg:
-	mvi	SEQCTL,0x40			# PAUSEDIS
+	mvi	SEQCTL,0x50			# PAUSEDIS|FASTMODE
 	test	MSG_FLAGS,0x80	jnz mk_mesg1	# active message?
 
 	mvi	MSG_FLAGS,0x80			# if not, there is now
@@ -671,7 +671,7 @@ mk_mesg:
 	mov	MSG_START+0,SINDEX		# 1-byte message
 
 mk_mesg1:
-	clr	SEQCTL				# !PAUSEDIS
+	mvi	SEQCTL,0x10			# !PAUSEDIS|FASTMODE
 	ret
 
 #  Input byte in Automatic PIO mode.  The address to store the byte
@@ -765,14 +765,14 @@ dma2:
 #  We will be "done" DMAing when the transfer count goes to zero, or
 #  the target changes the phase (in light of this, it makes sense that
 #  the DMA circuitry doesn't ACK when PHASEMIS is active).  If we are
-#  doing a SCSI->Host transfer, flush the data FIFO.
+#  doing a SCSI->Host transfer, the data FIFO should be flushed auto-
+#  magically on STCNT=0 or a phase change, so just wait for FIFO empty
+#  status.
 #
 dma3:
 	test	SINDEX,0x4	jnz dma5	# DIRECTION
-	and	SINDEX,0xfe			# mask out FIFORESET
-	or	DFCNTRL,0x2,SINDEX		# FIFOFLUSH
 dma4:
-	test	DFCNTRL,0x2	jnz dma4	# FIFOFLUSHACK
+	test	DFSTATUS,0x1	jz dma4		# FIFOFLUSHACK
 
 #  Now shut the DMA enables off, and copy STCNT (ie. the underrun
 #  amount, if any) to the SCB registers; SG_COUNT will get copied to
@@ -811,14 +811,18 @@ initialize:
 #  with synchronous SCSI, if you do it later, you blow away some
 #  data in the SCSI FIFO that the target has already sent to you.
 #
-	mvi	SXFRCTL0,0xa			# SPIOEN|CLRCHN
+#  DFON is a 7870 bit enabling digital filtering of REQ and ACK signals.
+#
+	mvi	SXFRCTL0,0x8a			# DFON|SPIOEN|CLRCHN
 
 #  Set SCSI bus parity checking and the selection timeout value,
 #  and enable the hardware selection timer.  Set the SELTO interrupt
 #  to signal the driver.
 #
+#  STPWEN is 7870-specific, enabling an external termination power source.
+#
 	and	A,0x38,SCSICONF			# PARITY_ENB_A|SEL_TIM_A[10]
-	or	SXFRCTL1,0x4,A			# ENSTIMER
+	or	SXFRCTL1,0x5,A			# ENSTIMER|STPWEN
 	mvi	SIMODE1,0x84			# ENSELTIMO|ENSCSIPERR
 	
 #  Initialize scatter-gather pointers by setting up the working copy
@@ -846,7 +850,7 @@ assert1:
 
 #  Find out if disconnection is ok from the information the BIOS has left
 #  us.  The target ID should be in the upper four bits of SINDEX; A will
-#  contain either 0x40 (disconnection ok) or 0x00 (diconnection not ok)
+#  contain either 0x40 (disconnection ok) or 0x00 (disconnection not ok)
 #  on exit.
 #
 #  This is the only place the target ID is limited to three bits, so we
@@ -864,7 +868,7 @@ disconnect1:
 #  Locate the SCB matching the target ID in SELID and the lun in the lower
 #  three bits of SINDEX, and switch the SCB to it.  Have the kernel print
 #  a warning message if it can't be found, and generate an ABORT message
-#  to the target.  We keep the value of the t/c/l that we are trying to 
+#  to the target.  We keep the value of the t/c/l that we are trying to find
 #  in DINDEX so it is not overwritten during our check to see if we are
 #  at the last SCB.
 #
@@ -876,8 +880,8 @@ findSCB:
 	clr	SINDEX
 
 findSCB1:
-	mov	SCBPTR,SINDEX			# switch to new SCB
 	mov	A,DINDEX
+	mov	SCBPTR,SINDEX			# switch to new SCB
 	cmp	SCBARRAY+1,A	jne findSCB2	# target ID/channel/lun match?
 	test	SCBARRAY+0,0x4	jz findSCB2	# should be disconnected
 
@@ -1061,4 +1065,3 @@ mk_sdtr1:
 scsisig:
 	mov	SIGSTATE,SINDEX
 	mov	SCSISIGO,SINDEX	ret
-
