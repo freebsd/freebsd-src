@@ -197,7 +197,7 @@ getpackagesite(void)
     if (reldate == 400017)
 	strcat(sitepath, "/packages-4.0-release/Latest/");
     else if (reldate >= 400018)
-	strcat(sitepath, "/packages-4-current/Latest/");
+	strcat(sitepath, "/packages-4-stable/Latest/");
 
     return sitepath;
 
