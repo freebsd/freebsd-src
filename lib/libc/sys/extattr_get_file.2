@@ -131,13 +131,12 @@ calls return the number of bytes
 that were read or written from the
 .Fa iovp ,
 respectively.
-The
-.Fn extattr_delete_file
-call returns 0 on success.
 If any of the calls are unsuccessful, the value \-1 is returned
 and the global variable
 .Va errno
 is set to indicate the error.
+.Pp
+.Rv -std extattr_delete_file
 .Sh ERRORS
 The following errors may be returned by the system calls themselves.
 Additionally, the filesystem implementing the call may return any
