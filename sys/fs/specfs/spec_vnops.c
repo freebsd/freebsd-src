@@ -352,12 +352,25 @@ spec_fsync(ap)
 		return (0);
 
 	/*
+	 * MARK/SCAN initialization to avoid infinite loops
+	 */
+	s = splbio();
+        for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp;
+             bp = TAILQ_NEXT(bp, b_vnbufs)) {
+                bp->b_flags &= ~B_SCANNED;
+	}
+	splx(s);
+
+	/*
 	 * Flush all dirty buffers associated with a block device.
 	 */
 loop:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		if ((bp->b_flags & B_SCANNED) != 0)
+			continue;
+		bp->b_flags |= B_SCANNED;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
