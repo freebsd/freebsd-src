@@ -430,9 +430,10 @@ iso88025_output(ifp, m, dst, rt0)
 		}       
         }      
 
-	if (! IF_HANDOFF_ADJ(&ifp->if_snd, m, ifp, ISO88025_HDR_LEN + LLC_SNAPFRAMELEN) ) {
+	IFQ_HANDOFF_ADJ(ifp, m, ISO88025_HDR_LEN + LLC_SNAPFRAMELEN, error);
+	if (error) {
 		printf("iso88025_output: packet dropped QFULL.\n");
-		senderr(ENOBUFS);
+		ifp->if_oerrors++;
 	}
 	return (error);
 

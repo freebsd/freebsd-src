@@ -238,10 +238,7 @@ arc_output(ifp, m, dst, rt0)
 
 	BPF_MTAP(ifp, m);
 
-	if (!IF_HANDOFF(&ifp->if_snd, m, ifp)) {
-		m = 0;
-		senderr(ENOBUFS);
-	}
+	IFQ_HANDOFF(ifp, m, error);
 
 	return (error);
 

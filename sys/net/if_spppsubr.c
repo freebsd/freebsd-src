@@ -741,7 +741,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct sppp *sp = (struct sppp*) ifp;
 	struct ppp_header *h;
 	struct ifqueue *ifq = NULL;
-	int s, rv = 0;
+	int s, error, rv = 0;
 	int ipproto = PPP_IP;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
@@ -781,7 +781,6 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		s = splimp();
 	}
 
-	ifq = (struct ifqueue *)&ifp->if_snd;
 #ifdef INET
 	if (dst->sa_family == AF_INET) {
 		/* XXX Check mbuf length here? */
@@ -811,9 +810,11 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 
 		/*
 		 * Put low delay, telnet, rlogin and ftp control packets
-		 * in front of the queue.
+		 * in front of the queue or let ALTQ take care.
 		 */
-		if (_IF_QFULL(&sp->pp_fastq))
+		if (ALTQ_IS_ENABLED(&ifp->if_snd))
+			;
+		else if (_IF_QFULL(&sp->pp_fastq))
 			;
 		else if (ip->ip_tos & IPTOS_LOWDELAY)
 			ifq = &sp->pp_fastq;
@@ -939,7 +940,11 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
 	 */
-	if (! IF_HANDOFF_ADJ(ifq, m, ifp, 3)) {
+	if (ifq != NULL)
+		error = !(IF_HANDOFF_ADJ(ifq, m, ifp, 3));
+	else
+		IFQ_HANDOFF_ADJ(ifp, m, 3, error);
+	if (error) {
 		++ifp->if_oerrors;
 		splx (s);
 		return (rv? rv: ENOBUFS);
