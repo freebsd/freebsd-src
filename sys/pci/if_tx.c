@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.19 1998/12/09 01:12:18 eivind Exp $ */
+/*	$Id: if_tx.c,v 1.20 1998/12/14 06:32:56 dillon Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -1815,7 +1815,7 @@ epic_read_phy_register __P((
 
 	CSR_WRITE_4( sc, MIICTL, ((loc << 4) | 0x0601) );
 
-	for( i=0;i<0x1000;i++) if( !(CSR_READ_4( sc, MIICTL )&1) ) break;
+	for( i=0;i<0x100000;i++) if( !(CSR_READ_4( sc, MIICTL )&1) ) break;
 
 	return CSR_READ_4( sc, MIIDATA );
 }
@@ -1831,7 +1831,7 @@ epic_write_phy_register __P((
 	CSR_WRITE_4( sc, MIIDATA, val );
 	CSR_WRITE_4( sc, MIICTL, ((loc << 4) | 0x0602) );
 
-	for( i=0;i<0x1000;i++) if( !(CSR_READ_4( sc, MIICTL )&2) ) break;
+	for( i=0;i<0x100000;i++) if( !(CSR_READ_4( sc, MIICTL )&2) ) break;
 
 	return;
 }
