@@ -496,9 +496,9 @@
 	The userland support such as related ioctls and utilities including
 	sasc and sgsc has also been removed.</para>
 
-      <para>A new sysctl, <varname>kern.always_console_output</varname>
-	which makes outputs from the kernel go to the console despite
-	<varname>TIOCCONS</varname>.</para>
+      <para>A new sysctl, <varname>kern.always_console_output</varname>,
+	has been added.  It makes output from the kernel go to the console despite
+	the use of <varname>TIOCCONS</varname>.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -543,9 +543,9 @@
 	on a per-device basis.</para>
 
       <para>&man.fxp.4; now provides actual control over its capability
-	to receive extended Ethernet frames, <literal>VLAN_MTU</literal>.
-	It can be toggled from the userland with the aid of the options
-	<option>vlanmtu</option> and <option>-vlanmtu</option>
+	to receive extended Ethernet frames, indicated by the <literal>VLAN_MTU</literal> interface capability.
+	It can be toggled from userland with the aid of the
+	<option>vlanmtu</option> and <option>-vlanmtu</option> options
 	to &man.ifconfig.8;.</para>
 
       <para arch="i386,pc98">The <devicename>hea</devicename>
@@ -575,23 +575,23 @@
         RFC 1483 ATM LLC encapsulation, has been added.</para>
 
       <para>The &man.ng.hub.4; Netgraph node type, which supports
-        a simple packet distribution that acts like an Ethernet hub
+        a simple packet distribution that acts like an Ethernet hub,
         has been added.  &merged;</para>
 
       <para>The &man.ng.rfc1490.4; Netgraph node type now supports
-	Cisco style encapsulation which is often used alongside
+	Cisco style encapsulation, which is often used alongside
 	RFC 1490 in frame relay links.</para>
 
       <para>The &man.ng.sppp.4; Netgraph node type, which is a &man.netgraph.4
 	interface to the original &man.sppp.4 network module for synchronous
-	lines has been added.</para>
+	lines, has been added.</para>
 
-      <para>A new Netgraph method to allow restoration of some
-	behavior lost in the change from 4.x style &man.ng.tee.4;
+      <para>A new Netgraph method has been added to restore some
+	behavior lost in the change from 4.<replaceable>X</replaceable> style &man.ng.tee.4;
 	Netgraph nodes.</para>
 
       <para>The &man.ng.vlan.4; Netgraph node type, which supports
-        IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
+        IEEE 802.1Q VLAN tagging, has been added.  &merged;</para>
 
       <para>A bug that prevents VLAN support in the &man.nge.4; driver
         from working has been fixed.  &merged;</para>
@@ -601,7 +601,7 @@
 
 	<note>
 	  <para>Although the &man.pci.4; bus power state management
-	    has been enabled, it may cause problems on some systems.
+	    has been enabled by default, it may cause problems on some systems.
 	    This can be disabled by setting the tunable
 	    <varname>hw.pci.do_powerstate</varname> to 0.</para>
 	</note>
@@ -626,8 +626,8 @@
 	has been disabled as it does not work correctly and slows down
 	the transmission rate.  &merged;</para>
 
-      <para>The per-interface &man.polling.4; support has been
-	implemented.  All of the network drivers that support &man.polling.4;
+      <para>Interface &man.polling.4; support
+	can now be enabled on a per-interface basis.  All of the network drivers that support &man.polling.4;
 	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
 	&man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
 	now also support this capability and it can be controlled
@@ -638,7 +638,7 @@
       <title>Network Protocols</title>
 
       <para>The <literal>DA_OLD_QUIRKS</literal> kernel option,
-	which is for the CAM SCSI disk driver (&man.cam.4;)
+	which is for the CAM SCSI disk driver (&man.cam.4;),
 	has been removed.  &merged;</para>
 
       <para>The &man.gre.4; tunnel driver now supports WCCP version
@@ -666,7 +666,7 @@
 	is set to <literal>0</literal> IP options are ignored and passed unmodified,
 	set to <literal>1</literal> all IP options are processed (default),
 	and set to <literal>2</literal> all packets with
-	IP options are rejected with ICMP filter prohibited message,
+	IP options are rejected with an ICMP filter prohibited message,
 	respectively.</para>
 
       <para>Some bugs in the IPsec implementation from the KAME
@@ -735,8 +735,6 @@
         2018 have been added.  This improves TCP performance over
         connections with heavy packet loss.  SACK can be enabled with
         the sysctl <varname>net.inet.tcp.sack.enable</varname>.</para>
-
-      <para>&man.udav.4; driver now supports promiscuous mode.</para>
 
     </sect3>
 
@@ -834,20 +832,20 @@
 	class and several GEOM Gate userland utilities
 	(&man.ggatel.8;, &man.ggatec.8;,
 	and &man.ggated.8;) has been added.  It supports exporting
-	devices including not GEOM-aware ones through network.</para>
+	devices, including non GEOM-aware devices, through the network.</para>
 
       <para>A new <literal>GEOM_LABEL</literal>
 	class to detect volume labels on various file systems,
 	such as UFS, MSDOSFS (FAT12, FAT16, FAT32), and ISO9660,
 	has been added.</para>
 
-      <para>A new kernel option <literal>GEOM_GPT</literal>
-	which supports the ability to have a large
+      <para>A new <literal>GEOM_GPT</literal> kernel option,
+	which supports GPT partitions and the ability to have a large
 	number of partitions on a single disk, has been added into
 	<filename>GENERIC</filename> by default.</para>
 
       <para>A new <literal>GEOM_VINUM</literal> class to support
-	cooperation between &man.vinum.4; and &man.geom.4;,
+	cooperation between &man.vinum.4; and &man.geom.4;
 	has been added.</para>
 
       <para>A panic in the NFSv4 client has been fixed; this occurred
@@ -888,10 +886,11 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>ALTQ framework</application>
-	has been imported from the KAME snapshot as of 20040607.
+      <para>The <application>ALTQ framework</application>
+	has been imported from a KAME snapshot as of 20040607.
 	This import breaks ABI compatibility of
-	<varname>struct ifnet</varname>.
+	<varname>struct ifnet</varname> and requires all network
+	drives to be recompiled.
 	Additionally some of the networking drivers have been
 	modified to support the ALTQ framework.
 	Updated drivers are &man.bfe.4;, &man.em.4;, &man.fxp.4;,
@@ -913,16 +912,17 @@
     <para>&man.bsdlabel.8; now supports a <option>-f</option> option
       to work on files instead of disk partitions.</para>
 
-    <para>&man.bsdtar.1; is the default &man.tar.1; utility in &os;
-      base system now.  <filename>/usr/bin/tar</filename>
+    <para>&man.bsdtar.1; is now the default &man.tar.1; utility in the &os;
+      base system.  <filename>/usr/bin/tar</filename>
       has been a symlink pointing to
       <filename>/usr/bin/bsdtar</filename> by default.
-      To use <filename>/usr/bin/gtar</filename>, <varname>WITH_GTAR</varname>
+      To return to using <filename>/usr/bin/gtar</filename> by
+      default, the <varname>WITH_GTAR</varname>
       make variable can be used.</para>
 
-    <para>The <command>bthidcontrol</command> command and the
-      <command>bthidd</command> command, which support Bluetooth
-      HID (Human Interface Device), have been added.</para>
+    <para>The <command>bthidcontrol</command> and
+      <command>bthidd</command> commands, which support Bluetooth
+      HIDs (Human Interface Devices), have been added.</para>
 
     <para>&man.conscontrol.8; now supports
       <literal>set</literal> and <literal>unset</literal>
@@ -955,8 +955,8 @@
       a grand total of statistics for file systems.</para>
 
     <para>The <command>doscmd</command> utility has been
-      removed from the &os; base system, and has been available
-      in the &os; Ports Collection instead.</para>
+      removed from the &os; base system.  It is now available
+      the &os; Ports Collection instead.</para>
 
     <para>&man.dump.8; and &man.restore.8; now support
       a <option>-P</option> option to specify backup methods
@@ -1001,15 +1001,15 @@
     <para>&man.ifconfig.8; now prints the &man.polling.4; status
       on the interface.  &merged;</para>
 
-    <para>&man.ifconfig.8; now provides options,
-      <option>vlanmtu</option> and <option>-vlanmtu</option>,
-      allowing to control the capability of some Ethernet interfaces
+    <para>&man.ifconfig.8; now provides the
+      <option>vlanmtu</option> and <option>-vlanmtu</option> options,
+      which control the capability of some Ethernet interfaces
       to receive extended frames (i.e. frames containing more than
       1500 bytes of payload).</para>
 
-    <para>&man.ifconfig.8; now provides options,
-      <option>vlanhwtag</option> and <option>-vlanhwtag</option>,
-      allowing to control the capability of some Ethernet interfaces
+    <para>&man.ifconfig.8; now provides the
+      <option>vlanhwtag</option> and <option>-vlanhwtag</option> options,
+      which control the capability of some Ethernet interfaces
       to process VLAN tags in the hardware.</para>
 
     <para>&man.indent.1; now supports a <option>-ldi</option> option
