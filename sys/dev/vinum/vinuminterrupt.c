@@ -39,6 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinuminterrupt.c,v 1.7 1999/10/12 04:34:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -65,6 +66,7 @@ complete_rqe(struct buf *bp)
     struct request *rq;
     struct rqgroup *rqg;
     struct buf *ubp;					    /* user buffer */
+    struct drive *drive;
 
     rqe = (struct rqelement *) bp;			    /* point to the element element that completed */
     rqg = rqe->rqg;					    /* and the request group */
@@ -75,6 +77,12 @@ complete_rqe(struct buf *bp)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_iodone, (union rqinfou) rqe, ubp);
 #endif
+    drive = &DRIVE[rqe->driveno];
+    drive->active--;					    /* one less outstanding I/O on this drive */
+    vinum_conf.active--;				    /* one less outstanding I/O globally */
+    if ((drive->active == (DRIVE_MAXACTIVE - 1))	    /* we were at the drive limit */
+    ||(vinum_conf.active == VINUM_MAXACTIVE))		    /* or the global limit */
+	wakeup(&launch_requests);			    /* let another one at it */
     if ((bp->b_flags & B_ERROR) != 0) {			    /* transfer in error */
 	if (bp->b_error != 0)				    /* did it return a number? */
 	    rq->error = bp->b_error;			    /* yes, put it in. */
@@ -337,6 +345,14 @@ complete_raid5_write(struct rqelement *rqe)
 		    rqg->active++;			    /* another active request */
 		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
 		    drive = &DRIVE[rqe->driveno];	    /* drive to access */
+
+							    /* We can't sleep here, so we just increment the counters. */
+		    drive->active++;
+		    if (drive->active >= drive->maxactive)
+			drive->maxactive = drive->active;
+		    vinum_conf.active++;
+		    if (vinum_conf.active >= vinum_conf.maxactive)
+			vinum_conf.maxactive = vinum_conf.active;
 #if VINUMDEBUG
 		    if (debug & DEBUG_ADDRESSES)
 			log(LOG_DEBUG,
@@ -373,6 +389,15 @@ complete_raid5_write(struct rqelement *rqe)
     rqg->active++;					    /* another active request */
     rqe->b.b_vp->v_numoutput++;				    /* one more output going */
     drive = &DRIVE[rqe->driveno];			    /* drive to access */
+
+    /* We can't sleep here, so we just increment the counters. */
+    drive->active++;
+    if (drive->active >= drive->maxactive)
+	drive->maxactive = drive->active;
+    vinum_conf.active++;
+    if (vinum_conf.active >= vinum_conf.maxactive)
+	vinum_conf.maxactive = vinum_conf.active;
+
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
