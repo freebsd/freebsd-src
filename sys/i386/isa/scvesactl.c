@@ -23,14 +23,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvesactl.c,v 1.6 1998/10/01 11:39:17 yokota Exp $
+ * $Id: scvesactl.c,v 1.7 1998/12/07 21:58:22 archie Exp $
  */
 
 #include "sc.h"
 #include "opt_vesa.h"
 #include "opt_vm86.h"
 
-#if (NSC > 0 && defined(VESA) && defined(VM86)) || defined(VESA_MODULE)
+#if (NSC > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -137,4 +137,4 @@ vesa_unload_ioctl(void)
 	return 0;
 }
 
-#endif /* (NSC > 0 && VESA && VM86) || VESA_MODULE */
+#endif /* (NSC > 0 && VESA && VM86) || KLD_MODULE */

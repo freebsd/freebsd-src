@@ -1,10 +1,9 @@
-#	$Id: Makefile,v 1.2 1998/09/15 20:14:11 sos Exp $
+#	$Id: Makefile,v 1.3 1998/10/16 04:30:51 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/isa
 KMOD	=	vesa
 SRCS	=	vesa.c scvesactl.c sc.h opt_vesa.h opt_vm86.h
 NOMAN	=
-CFLAGS	+=	-DVESA_MODULE
 CLEANFILES +=	sc.h opt_vesa.h opt_vm86.h
 
 sc.h:
