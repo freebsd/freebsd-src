@@ -216,6 +216,7 @@ typedef int packetfunc_t __P((struct psm_softc *, unsigned char *,
 			      int *, int, mousestatus_t *));
 
 /* function prototypes */
+static void psmidentify __P((driver_t *, device_t));
 static int psmprobe __P((device_t));
 static int psmattach __P((device_t));
 static int psmdetach __P((device_t));
@@ -300,6 +301,7 @@ static struct {
 /* device driver declarateion */
 static device_method_t psm_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	psmidentify),
 	DEVMETHOD(device_probe,		psmprobe),
 	DEVMETHOD(device_attach,	psmattach),
 	DEVMETHOD(device_detach,	psmdetach),
@@ -313,14 +315,6 @@ static driver_t psm_driver = {
     psm_methods,
     sizeof(struct psm_softc),
 };
-
-#if notyet
-static struct isa_pnp_id psm_ids[] = {
-    { 0x130fd041, "PS/2 mouse port" },			/* PNP0F13 */
-    { 0x1303d041, "PS/2 port" },			/* PNP0313, XXX */
-    { 0 }
-};
-#endif
 
 #define CDEV_MAJOR        21
 
@@ -781,6 +775,14 @@ doopen(int unit, int command_byte)
 
 /* psm driver entry points */
 
+static void
+psmidentify(driver_t *driver, device_t parent)
+{
+
+    /* always add at least one child */
+    BUS_ADD_CHILD(parent, KBDC_RID_AUX, driver->name, 0);
+}
+
 #define endprobe(v)	{   if (bootverbose) 				\
 				--verbose;   				\
                             kbdc_set_device_mask(sc->kbdc, mask);	\
@@ -793,8 +795,6 @@ psmprobe(device_t dev)
 {
     int unit = device_get_unit(dev);
     struct psm_softc *sc = device_get_softc(dev);
-    uintptr_t irq;
-    uintptr_t flags;
     int stat[3];
     int command_byte;
     int mask;
@@ -805,17 +805,19 @@ psmprobe(device_t dev)
     kbdc_debug(TRUE);
 #endif
 
-#if notyet
-    /* check PnP IDs */
-    if (XXX_PNP_PROBE(device_get_parent(dev), dev, psm_ids) == ENXIO)
-	return ENXIO;
-#endif
-
-    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
-    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
+    /* see if IRQ is available */
+    rid = KBDC_RID_AUX;
+    sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				  RF_SHAREABLE | RF_ACTIVE);
+    if (sc->intr == NULL) {
+	if (bootverbose)
+            device_printf(dev, "unable to allocate IRQ\n");
+        return (ENXIO);
+    }
+    bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 
     sc->kbdc = atkbdc_open(device_get_unit(device_get_parent(dev)));
-    sc->config = flags & PSM_CONFIG_FLAGS;
+    sc->config = device_get_flags(dev) & PSM_CONFIG_FLAGS;
     /* XXX: for backward compatibility */
 #if defined(PSM_HOOKRESUME) || defined(PSM_HOOKAPM)
     sc->config |= 
@@ -1083,18 +1085,6 @@ psmprobe(device_t dev)
         endprobe(ENXIO);
     }
 
-    /* see if IRQ is available */
-    rid = 0;
-    sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, irq, 1,
-				  RF_ACTIVE);
-    if (sc->intr == NULL) {
-        printf("psm%d: unable to allocate the IRQ resource (%d).\n",
-	       unit, (int)irq);
-        endprobe(ENXIO);
-    } else {
-	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
-    }
-
     /* done */
     kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
     kbdc_lock(sc->kbdc, FALSE);
@@ -1106,7 +1096,6 @@ psmattach(device_t dev)
 {
     int unit = device_get_unit(dev);
     struct psm_softc *sc = device_get_softc(dev);
-    uintptr_t irq;
     int error;
     int rid;
 
@@ -1118,14 +1107,12 @@ psmattach(device_t dev)
     callout_handle_init(&sc->callout);
 
     /* Setup our interrupt handler */
-    rid = 0;
-    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
-    sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, irq, 1,
-				  RF_ACTIVE);
+    rid = KBDC_RID_AUX;
+    sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				  RF_SHAREABLE | RF_ACTIVE);
     if (sc->intr == NULL)
 	return (ENXIO);
-    error = BUS_SETUP_INTR(device_get_parent(dev), dev, sc->intr,
-			   INTR_TYPE_TTY, psmintr, sc, &sc->ih);
+    error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, psmintr, sc, &sc->ih);
     if (error) {
 	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 	return (error);
@@ -1166,8 +1153,8 @@ psmdetach(device_t dev)
     if (sc->state & PSM_OPEN)
 	return EBUSY;
 
-    rid = 0;
-    BUS_TEARDOWN_INTR(device_get_parent(dev), dev, sc->intr, sc->ih);
+    rid = KBDC_RID_AUX;
+    bus_teardown_intr(dev, sc->intr, sc->ih);
     bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 
     destroy_dev(sc->dev);
@@ -2783,3 +2770,91 @@ psmresume(device_t dev)
 }
 
 DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
+
+/*
+ * This sucks up assignments from PNPBIOS and ACPI.
+ */
+
+#define PSMCPNP_DRIVER_NAME		"psmcpnp"
+
+static	devclass_t			psmcpnp_devclass;
+
+static	device_probe_t			psmcpnp_probe;
+static	device_attach_t			psmcpnp_attach;
+
+static device_method_t psmcpnp_methods[] = {
+	DEVMETHOD(device_probe,		psmcpnp_probe),
+	DEVMETHOD(device_attach,	psmcpnp_attach),
+	
+	{ 0, 0 }
+};
+
+static driver_t psmcpnp_driver = {
+	PSMCPNP_DRIVER_NAME,
+	psmcpnp_methods,
+	1,			/* no softc */
+};
+
+static struct isa_pnp_id psmcpnp_ids[] = {
+	{ 0x130fd041, "PS/2 mouse port" },		/* PNP0F13 */
+	{ 0x1303d041, "PS/2 port" },			/* PNP0313, XXX */
+	{ 0 }
+};
+
+static int
+create_a_copy(device_t atkbdc, device_t me)
+{
+	device_t psm;
+	u_long irq;
+
+	irq = bus_get_resource_start(me, SYS_RES_IRQ, 0);
+	if (irq <= 0)
+		return ENXIO;	/* shouldn't happen */
+
+	psm = BUS_ADD_CHILD(atkbdc, 1, "psm", 0);
+	if (psm == NULL)
+		return ENXIO;
+
+	/* move our resource to the new copy */
+	bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
+	bus_delete_resource(me, SYS_RES_IRQ, 0);
+
+	/* ...then probe and attach it */
+	return device_probe_and_attach(psm);
+}
+
+static int
+psmcpnp_probe(device_t dev)
+{
+	device_t atkbdc;
+
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids))
+		return ENXIO;
+
+	/*
+	 * If we find an atkbdc device on the same bus,
+	 * create our copy there.
+	 */
+	atkbdc = device_find_child(device_get_parent(dev), ATKBDC_DRIVER_NAME,
+				   device_get_unit(dev));
+	if (atkbdc == NULL)
+		return ENXIO;
+
+	if (device_get_state(atkbdc) == DS_ATTACHED)
+		create_a_copy(atkbdc, dev);
+
+	/* keep quiet */
+	if (!bootverbose)
+		device_quiet(dev);
+	return 0;
+}
+
+static int
+psmcpnp_attach(device_t dev)
+{
+
+	return 0;
+}
+
+DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, psmcpnp_devclass, 0, 0);
+DRIVER_MODULE(psmcpnp, acpi, psmcpnp_driver, psmcpnp_devclass, 0, 0);

@@ -52,12 +52,14 @@ typedef struct {
 
 devclass_t	atkbd_devclass;
 
+static void	atkbdidentify(driver_t *driver, device_t dev);
 static int	atkbdprobe(device_t dev);
 static int	atkbdattach(device_t dev);
 static int	atkbdresume(device_t dev);
 static void	atkbd_isa_intr(void *arg);
 
 static device_method_t atkbd_methods[] = {
+	DEVMETHOD(device_identify,	atkbdidentify),
 	DEVMETHOD(device_probe,		atkbdprobe),
 	DEVMETHOD(device_attach,	atkbdattach),
 	DEVMETHOD(device_resume,	atkbdresume),
@@ -70,17 +72,38 @@ static driver_t atkbd_driver = {
 	sizeof(atkbd_softc_t),
 };
 
+static void
+atkbdidentify(driver_t *driver, device_t parent)
+{
+
+	/* always add at least one child */
+	BUS_ADD_CHILD(parent, KBDC_RID_KBD, driver->name, 0);
+}
+
 static int
 atkbdprobe(device_t dev)
 {
-	uintptr_t irq;
-	uintptr_t flags;
+	struct resource *res;
+	u_long irq;
+	int flags;
+	int rid;
 
 	device_set_desc(dev, "AT Keyboard");
 
 	/* obtain parameters */
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
+	flags = device_get_flags(dev);
+
+	/* see if IRQ is available */
+	rid = KBDC_RID_KBD;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				 RF_SHAREABLE | RF_ACTIVE);
+	if (res == NULL) {
+		if (bootverbose)
+			device_printf(dev, "unable to allocate IRQ\n");
+		return ENXIO;
+	}
+	irq = rman_get_start(res);
+	bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 
 	/* probe the device */
 	return atkbd_probe_unit(device_get_unit(dev),
@@ -93,16 +116,16 @@ atkbdattach(device_t dev)
 {
 	atkbd_softc_t *sc;
 	keyboard_t *kbd;
-	uintptr_t irq;
-	uintptr_t flags;
+	u_long irq;
+	int flags;
 	int rid;
 	int error;
 
 	sc = device_get_softc(dev);
 
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
-
+	rid = KBDC_RID_KBD;
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
+	flags = device_get_flags(dev);
 	error = atkbd_attach_unit(device_get_unit(dev), &kbd,
 				  device_get_unit(device_get_parent(dev)),
 				  irq, flags);
@@ -110,13 +133,16 @@ atkbdattach(device_t dev)
 		return error;
 
 	/* declare our interrupt handler */
-	rid = 0;
-	sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, irq, 1,
+	sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 				      RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, sc->intr, INTR_TYPE_TTY,
-		       atkbd_isa_intr, kbd, &sc->ih);
+	if (sc->intr == NULL)
+		return ENXIO;
+	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, atkbd_isa_intr,
+			       kbd, &sc->ih);
+	if (error)
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 
-	return 0;
+	return error;
 }
 
 static int
