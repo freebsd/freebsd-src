@@ -1,15 +1,7 @@
 # $FreeBSD$
 
-This script is a stopgap for building tuned 32 bit (but i386 ABI compatable)
-libraries for amd64 systems.  We *know* we have things like CMOV, SSE2 etc
-so take advantage of it.
+Set WITH_LIB32=yes in /etc/make.conf and do a buildworld/installworld.
 
-At some point libc would be configured to use the fast syscall/sysret
-instructions (instead of int 0x80) since we have a known minimum feature
-set and don't have to do runtime tests for it.
-
-libpthread could use the amd64 sysarch syscalls for setting %fs/%gs
-since we don't have USER_LDT.  This would be a heck of a lot easier than
-trying to run a real i386-built libc/libpthread.
-
-Again, this hack is a stopgap until something is integrated into world.
+Alternatively, if you have just done a buildworld/installworld, you
+might be able to 'make build32' and 'make install32' in the top of the
+/usr/src tree.
