@@ -1,11 +1,11 @@
 #!/bin/sh -
 #
-#	$Id:$
+#	$Id: monthly,v 1.6.2.2 1998/09/13 23:10:08 brian Exp $
 #	@(#)monthly	5.5 (Berkeley) 6/17/91
 #
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
-host=`hostname -s`
+host=`hostname`
 echo "Subject: $host monthly run output"
 
 W=/var/log/wtmp

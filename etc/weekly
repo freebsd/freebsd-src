@@ -1,12 +1,12 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#	$Id: weekly,v 1.17.2.1 1997/02/25 17:52:00 adam Exp $
+#	$Id: weekly,v 1.17.2.2 1998/01/10 00:06:55 steve Exp $
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH
 
-host=`hostname -s`
+host=`hostname`
 echo "Subject: $host weekly run output"
 
 #echo ""
