@@ -40,7 +40,7 @@
 
 #include <dev/sio/siovar.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 static	int	sio_pci_attach(device_t dev);
 static	void	sio_pci_kludge_unit(device_t dev);
