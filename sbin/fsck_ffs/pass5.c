@@ -216,11 +216,13 @@ pass5(void)
 			case DSTATE:
 			case DCLEAR:
 			case DFOUND:
+			case DZLINK:
 				newcg->cg_cs.cs_ndir++;
 				/* FALLTHROUGH */
 
 			case FSTATE:
 			case FCLEAR:
+			case FZLINK:
 				newcg->cg_cs.cs_nifree--;
 				setbit(cg_inosused(newcg), i);
 				break;
