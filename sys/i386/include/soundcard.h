@@ -77,6 +77,9 @@
 #define SNDCARD_MAUI		23
 #define SNDCARD_PSEUDO_MSS	24
 #define SNDCARD_AWE32           25
+#ifdef PC98
+#define SNDCARD_PCM86           26
+#endif
 
 /*
  * IOCTL Commands for /dev/sequencer
