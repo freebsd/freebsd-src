@@ -77,14 +77,18 @@ typedef struct {
 The elements of this structure are as follows:
 .Bl -tag -width indent
 .It Va bsize
-.Va Bsize
+The
+.Va bsize
+element
 defines the
 .Nm
 table bucket size, and is, by default, 256 bytes.
 It may be preferable to increase the page size for disk-resident tables
 and tables with large data items.
 .It Va ffactor
-.Va Ffactor
+The
+.Va ffactor
+element
 indicates a desired density within the
 .Nm
 table.
@@ -94,7 +98,9 @@ one bucket, determining when the
 table grows or shrinks.
 The default value is 8.
 .It Va nelem
-.Va Nelem
+The
+.Va nelem
+element
 is an estimate of the final size of the
 .Nm
 table.
@@ -110,7 +116,9 @@ This value is
 advisory, and the access method will allocate more memory rather
 than fail.
 .It Va hash
-.Va Hash
+The
+.Va hash
+element
 is a user defined
 .Nm
 function.
@@ -141,10 +149,11 @@ value specified when the tree was created is used.
 If the file already exists (and the
 .Dv O_TRUNC
 flag is not specified), the
-values specified for the parameters
+values specified for the
 .Va bsize , ffactor , lorder
 and
 .Va nelem
+arguments
 are
 ignored and the values specified when the tree was created are used.
 .Pp
