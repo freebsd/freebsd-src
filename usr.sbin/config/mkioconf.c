@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.37 1998/06/17 15:16:53 bde Exp $";
+	"$Id: mkioconf.c,v 1.38 1998/07/21 21:47:51 dfr Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -618,6 +618,7 @@ i386_ioconf()
 	int dev_id;
 	FILE *fp, *fp1;
 	static char *old_d_name;
+	int count;
 
 	fp = fopen(path("ioconf.c.new"), "w");
 	if (fp == 0)
@@ -694,6 +695,21 @@ i386_ioconf()
 	}
 	if (seen_scbus)
 		scbus_devtab(fp, fp1, &dev_id);
+
+	fprintf(fp, "\n");
+	fprintf(fp, "/*\n");
+	fprintf(fp, " * New bus architecture devices.\n");
+	fprintf(fp, " */\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "#include <sys/bus_private.h>\n");
+	fprintf(fp, "\n");
+	count = 0;
+	fprintf(fp, "struct config_device devtab[] = {\n");
+	fprintf(fp, "/* name, unit, resource count, resources */\n");
+	fprintf(fp, "{ 0, 0, 0, 0 }\n");
+	fprintf(fp, "};\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "int devtab_count = %d;\n", count);
 
 	/* XXX David did this differently!!! */
 	/* pseudo_ioconf(fp); */
