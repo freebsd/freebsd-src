@@ -1222,7 +1222,17 @@ pmap_kextract(vm_offset_t va)
 {
 	struct		pvo_entry *pvo;
 
+#ifdef UMA_MD_SMALL_ALLOC
+	/*
+	 * Allow direct mappings
+	 */
+	if (va < VM_MIN_KERNEL_ADDRESS) {
+		return (va);
+	}
+#endif
+
 	pvo = pmap_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
+	KASSERT(pvo != NULL, ("pmap_kextract: no addr found"));
 	if (pvo == NULL) {
 		return (0);
 	}
