@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1993/12/21 21:06:30 wollman Exp $
+# $Id: Makefile,v 1.3 1993/12/22 11:32:56 rgrimes Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -23,6 +23,6 @@ SRCS= ntpdate.c version.c
 beforedepend: version.c
 
 version.c: ${.CURDIR}/../VERSION
-	${.CURDIR}/../scripts/mkversion ntpdate
+	sh -e ${.CURDIR}/../scripts/mkversion ntpdate
 
 .include <bsd.prog.mk>
