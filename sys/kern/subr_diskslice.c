@@ -833,7 +833,7 @@ dsopen(dev, mode, flags, sspp, lp)
 		if (lp1->d_flags & D_BADSECT) {
 			if ((flags & DSO_BAD144) == 0) {
 				log(LOG_ERR,
-				    "%s: bad sector table no supported\n",
+				    "%s: bad sector table not supported\n",
 				    sname);
 				continue;
 			}
