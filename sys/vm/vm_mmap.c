@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.34 1995/12/17 07:19:57 bde Exp $
+ * $Id: vm_mmap.c,v 1.35 1996/01/19 03:59:59 dyson Exp $
  */
 
 /*
@@ -319,7 +319,7 @@ msync(p, uap, retval)
 	int *retval;
 {
 	vm_offset_t addr;
-	vm_size_t size;
+	vm_size_t size, pageoff;
 	int flags;
 	vm_map_t map;
 	int rv;
@@ -329,8 +329,18 @@ msync(p, uap, retval)
 	size = round_page((vm_size_t) uap->len);
 	flags = uap->flags;
 
-	if (((int) addr & PAGE_MASK) || addr + size < addr ||
-	    (flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
+	/*
+	 * Align the address to a page boundary,
+	 * and adjust the size accordingly.
+	 */
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+	if ((int)size < 0)
+		return(EINVAL);
+
+	if ((flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
 		return (EINVAL);
 
 	/*
@@ -385,15 +395,25 @@ munmap(p, uap, retval)
 	int *retval;
 {
 	vm_offset_t addr;
-	vm_size_t size;
+	vm_size_t size, pageoff;
 	vm_map_t map;
 
 	addr = (vm_offset_t) uap->addr;
-	if ((addr & PAGE_MASK) || uap->len < 0)
-		return (EINVAL);
-	size = (vm_size_t) round_page(uap->len);
+	size = (vm_size_t) uap->len;
+
+	/*
+	 * Align the address to a page boundary,
+	 * and adjust the size accordingly.
+	 */
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+	if ((int)size < 0)
+		return(EINVAL);
 	if (size == 0)
 		return (0);
+
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
@@ -442,17 +462,68 @@ mprotect(p, uap, retval)
 	int *retval;
 {
 	vm_offset_t addr;
-	vm_size_t size;
+	vm_size_t size, pageoff;
 	register vm_prot_t prot;
 
 	addr = (vm_offset_t) uap->addr;
-	if ((addr & PAGE_MASK) || uap->len < 0)
-		return (EINVAL);
 	size = (vm_size_t) uap->len;
 	prot = uap->prot & VM_PROT_ALL;
 
+	/*
+	 * Align the address to a page boundary,
+	 * and adjust the size accordingly.
+	 */
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+	if ((int)size < 0)
+		return(EINVAL);
+
 	switch (vm_map_protect(&p->p_vmspace->vm_map, addr, addr + size, prot,
 		FALSE)) {
+	case KERN_SUCCESS:
+		return (0);
+	case KERN_PROTECTION_FAILURE:
+		return (EACCES);
+	}
+	return (EINVAL);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct minherit_args {
+	caddr_t addr;
+	int len;
+	int inherit;
+};
+#endif
+int
+minherit(p, uap, retval)
+	struct proc *p;
+	struct minherit_args *uap;
+	int *retval;
+{
+	vm_offset_t addr;
+	vm_size_t size, pageoff;
+	register vm_inherit_t inherit;
+
+	addr = (vm_offset_t)uap->addr;
+	size = (vm_size_t)uap->len;
+	inherit = uap->inherit;
+
+	/*
+	 * Align the address to a page boundary,
+	 * and adjust the size accordingly.
+	 */
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+	if ((int)size < 0)
+		return(EINVAL);
+
+	switch (vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
+	    inherit)) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
@@ -536,13 +607,24 @@ mlock(p, uap, retval)
 	int *retval;
 {
 	vm_offset_t addr;
-	vm_size_t size;
+	vm_size_t size, pageoff;
 	int error;
 
 	addr = (vm_offset_t) uap->addr;
-	if ((addr & PAGE_MASK) || uap->addr + uap->len < uap->addr)
+	size = (vm_size_t) uap->len;
+	/*
+	 * Align the address to a page boundary,
+	 * and adjust the size accordingly.
+	 */
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+
+	/* disable wrap around */
+	if (addr + (int)size < addr)
 		return (EINVAL);
-	size = round_page((vm_size_t) uap->len);
+
 	if (atop(size) + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #ifdef pmap_wired_count
@@ -572,18 +654,29 @@ munlock(p, uap, retval)
 	int *retval;
 {
 	vm_offset_t addr;
-	vm_size_t size;
+	vm_size_t size, pageoff;
 	int error;
 
 	addr = (vm_offset_t) uap->addr;
-	if ((addr & PAGE_MASK) || uap->addr + uap->len < uap->addr)
+	size = (vm_size_t) uap->len;
+	/*
+	 * Align the address to a page boundary,
+	 * and adjust the size accordingly.
+	 */
+	pageoff = (addr & PAGE_MASK);
+	addr -= pageoff;
+	size += pageoff;
+	size = (vm_size_t) round_page(size);
+
+	/* disable wrap around */
+	if (addr + (int)size < addr)
 		return (EINVAL);
+
 #ifndef pmap_wired_count
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
 		return (error);
 #endif
-	size = round_page((vm_size_t) uap->len);
 
 	error = vm_map_pageable(&p->p_vmspace->vm_map, addr, addr + size, TRUE);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);

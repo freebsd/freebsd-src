@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.16 1995/12/26 16:03:32 joerg Exp $ */
+/*	$Id: sysv_shm.c,v 1.17 1996/01/05 16:38:03 wollman Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -565,9 +565,8 @@ shmsys(p, uap, retval)
 }
 
 void
-shmfork(p1, p2, isvfork)
+shmfork(p1, p2)
 	struct proc *p1, *p2;
-	int isvfork;
 {
 	struct shmmap_state *shmmap_s;
 	size_t size;

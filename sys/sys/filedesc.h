@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id: filedesc.h,v 1.6 1995/05/30 08:14:20 rgrimes Exp $
+ * $Id: filedesc.h,v 1.7 1995/11/04 10:35:17 bde Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_
@@ -100,6 +100,8 @@ int	fdalloc __P((struct proc *p, int want, int *result));
 int	fdavail __P((struct proc *p, int n));
 int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
 void	ffree __P((struct file *));
+struct	filedesc *fdinit __P((struct proc *p));
+struct	filedesc *fdshare __P((struct proc *p));
 struct	filedesc *fdcopy __P((struct proc *p));
 void	fdfree __P((struct proc *p));
 int	closef __P((struct file *fp,struct proc *p));
