@@ -29,7 +29,11 @@
  */
 
 #ifndef _MACHINE_SIGFRAME_H_
-#define _MACHINE_SIGFRAME_H_ 1
+#define	_MACHINE_SIGFRAME_H_
+
+/*
+ * Signal frames, arguments passed to application signal handlers.
+ */
 
 struct	osigframe {
 	/*
@@ -68,12 +72,16 @@ struct	osigframe {
 
 struct sigframe {
 	/*
-	 * The first three members may be used by applications.
+	 * The first four members may be used by applications.
+	 * NOTE: The 4th argument is undocumented, ill commented
+	 *       on and seems to be somewhat BSD "standard".
+	 *       Handlers installed with sigvec may be using it.
 	 */
 	register_t	sf_signum;
 	register_t	sf_siginfo;		/* code or pointer to sf_si */
 	register_t	sf_ucontext;		/* points to sf_uc */
-	register_t	__spare__;		/* Align sf_ahu */
+	char		*sf_addr;		/* undocumented 4th arg */
+
 	union {
 		__siginfohandler_t	*sf_action;
 		__sighandler_t		*sf_handler;
@@ -83,4 +91,4 @@ struct sigframe {
 	ucontext_t	sf_uc;		/* = *sf_ucontext */
 };
 
-#endif /* _MACHINE_SIGFRAME_H_ */
+#endif /* !_MACHINE_SIGFRAME_H_ */
