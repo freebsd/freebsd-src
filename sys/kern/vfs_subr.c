@@ -951,7 +951,6 @@ getnewvnode(tag, mp, vops, vpp)
 		freevnodes--;
 		mtx_unlock(&vnode_free_list_mtx);
 
-		cache_purge(vp);
 		VI_LOCK(vp);
 		vp->v_iflag |= VI_DOOMED;
 		vp->v_iflag &= ~VI_FREE;
@@ -2593,7 +2592,6 @@ vclean(vp, flags, td)
 		}
 		VI_UNLOCK(vp);
 	}
-
 	/*
 	 * Reclaim the vnode.
 	 */
@@ -2619,7 +2617,11 @@ vclean(vp, flags, td)
 		}
 		VI_UNLOCK(vp);
 	}
-
+	/*
+	 * Delete from old mount point vnode list.
+	 */
+	if (vp->v_mount != NULL)
+		insmntque(vp, (struct mount *)0);
 	cache_purge(vp);
 	VI_LOCK(vp);
 	if (VSHOULDFREE(vp))
@@ -2726,9 +2728,6 @@ vgonechrl(struct vnode *vp, struct thread *td)
 	ASSERT_VI_LOCKED(vp, "vgonechrl");
 	vx_lock(vp);
 	vclean(vp, 0, td);
-	VI_UNLOCK(vp);
-	insmntque(vp, (struct mount *) 0);
-	VI_LOCK(vp);
 	vp->v_op = spec_vnodeop_p;
 	vx_unlock(vp);
 	VI_UNLOCK(vp);
@@ -2759,11 +2758,6 @@ vgonel(vp, td)
 	vclean(vp, DOCLOSE, td);
 	VI_UNLOCK(vp);
 
-	/*
-	 * Delete from old mount point vnode list, if on one.
-	 */
-	if (vp->v_mount != NULL)
-		insmntque(vp, (struct mount *)0);
 	/*
 	 * If special device, remove it from special device alias list
 	 * if it is on one.
