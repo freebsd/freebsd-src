@@ -4,23 +4,11 @@
 .PATH: ${.CURDIR}/../../crypto/blowfish
 
 KMOD=	random
-SRCS=	bus_if.h device_if.h randomdev.c yarrow.c hash.c
+SRCS=	randomdev.c yarrow.c hash.c
 SRCS+=	bf_cbc.c bf_skey.c bf_enc.c
-SRCS+=	vnode_if.h opt_noblockrandom.h
+SRCS+=	bus_if.h device_if.h vnode_if.h
 NOMAN=	yes
 
 CFLAGS+= -I${.CURDIR}/../..
-
-# Uncomment the below macro to make a /dev/random that will not block at
-# boot time. Useful for personal workstations and the like where reboot
-# speed is paramount.
-#NOBLOCKRANDOM=	yes
-.if defined(NOBLOCKRANDOM)
-RANDOM_OPTS=     "\#define NOBLOCKRANDOM"
-.endif
-
-opt_noblockrandom.h:
-	touch opt_noblockrandom.h
-	echo $(RANDOM_OPTS) >> opt_noblockrandom.h
 
 .include <bsd.kmod.mk>
