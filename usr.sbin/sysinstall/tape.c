@@ -70,11 +70,13 @@ mediaGetTape(Device *dev, char *file, Boolean probe)
     if (!tapeInitted) {
 	WINDOW *w = savescr();
 
-	msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
+	msgDebug("Tape init routine called for %s (private dir is %s)\n", 
+	    dev->name, (char *)dev->private);
 	Mkdir(dev->private);
 	if (chdir(dev->private)) {
 	    msgConfirm("Unable to CD to %s before extracting tape!\n"
-		       "Tape media is not selected and thus cannot be installed from.", dev->private);
+		       "Tape media is not selected and thus cannot be installed from.", 
+		       (char *)dev->private);
 	    return (FILE *)IO_ERROR;
 	}
 	/* We know the tape is already in the drive, so go for it */
