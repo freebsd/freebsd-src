@@ -155,7 +155,7 @@ getcwd(pt, size)
 		/*
 		 * Build pointer to the parent directory, allocating memory
 		 * as necessary.  Max length is 3 for "../", the largest
-		 * possible component name, plus a trailing NULL.
+		 * possible component name, plus a trailing NUL.
 		 */
 		if (bup + 3  + MAXNAMLEN + 1 >= eup) {
 			if ((up = reallocf(up, upsize *= 2)) == NULL)
