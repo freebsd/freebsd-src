@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.54 1998/04/06 18:59:14 peter Exp $
+ *	$Id: genassym.c,v 1.55 1998/05/17 18:53:11 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -159,6 +159,9 @@ main()
 	printf("#define\tPCB_SAVEFPU %p\n", &pcb->pcb_savefpu);
 	printf("#define\tPCB_SAVEFPU_SIZE %d\n", sizeof pcb->pcb_savefpu);
 	printf("#define\tPCB_ONFAULT %p\n", &pcb->pcb_onfault);
+#ifdef SMP
+	printf("#define\tPCB_SIZE %d\n", sizeof(struct pcb));
+#endif
 
 	printf("#define\tTF_ES %p\n", &tf->tf_es);
 	printf("#define\tTF_DS %p\n", &tf->tf_ds);
