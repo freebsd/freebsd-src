@@ -4,7 +4,7 @@ PROG=		groff
 SRCS=		groff.cc pipeline.c
 CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
-DPADD+=		${LIBGROFF} ${LIBM}
+DPADD+=		${LIBGROFF} ${LIBMATH}
 
 MANDEPEND=	groff.1
 CLEANFILES+=	${MANDEPEND}

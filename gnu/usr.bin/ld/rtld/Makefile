@@ -26,8 +26,8 @@ realinstall:
 		:
 	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
 	-ln -f ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
-	mv -f ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
+	mv ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
 	chflags schg ${DESTDIR}${BINDIR}/${PROG}
-	-rm -f ${DESTDIR}${BINDIR}/${PROG}.old
+	-rm ${DESTDIR}${BINDIR}/${PROG}.old
 
 .include <bsd.prog.mk>

@@ -4,7 +4,7 @@ PROG=		tfmtodit
 SRCS=		tfmtodit.cc
 CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
-DPADD+=		${LIBGROFF} ${LIBM}
+DPADD+=		${LIBGROFF} ${LIBMATH}
 
 MANDEPEND=	tfmtodit.1
 CLEANFILES+=	${MANDEPEND}

@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)tty_subs.c	8.2 (Berkeley) 4/18/94";
 #include <sys/param.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>

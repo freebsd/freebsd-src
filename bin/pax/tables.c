@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 5/31/93";
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>

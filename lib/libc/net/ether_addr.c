@@ -147,6 +147,7 @@ int ether_ntohost(hostname, e)
 			ether_a = ether_ntoa(e);
 			if (yp_match(yp_domain, "ethers.byaddr", ether_a,
 				strlen(ether_a), &result, &resultlen)) {
+				free(result);
 				continue;
 			}
 			strncpy((char *)&buf, result, resultlen);
@@ -196,6 +197,7 @@ int ether_hostton(hostname, e)
 				continue;
 			if (yp_match(yp_domain, "ethers.byname", hostname,
 				strlen(hostname), &result, &resultlen)) {
+				free(result);
 				continue;
 			}
 			strncpy((char *)&buf, result, resultlen);

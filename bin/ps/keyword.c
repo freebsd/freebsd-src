@@ -57,7 +57,6 @@ static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 
 #ifdef NEWVM
 #include <sys/ucred.h>
-#include <sys/user.h>
 #include <sys/sysctl.h>
 #endif
 

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: print-ppp.c,v 1.18 94/06/10 17:01:37 mccanne Exp $ (LBL)";
+	"@(#)$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/print-ppp.c,v 1.2 1995/03/08 12:52:40 olah Exp $ (LBL)";
 #endif
 
 #ifdef PPP

@@ -40,28 +40,24 @@
  */
 
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)caesar.c    8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)caesar.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
-#include <errno.h>
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
 #include <unistd.h>
 
 #define	LINELENGTH	2048
 #define	ROTATE(ch, perm) \
-     isascii(ch) ? ( \
 	isupper(ch) ? ('A' + (ch - 'A' + perm) % 26) : \
-	    islower(ch) ? ('a' + (ch - 'a' + perm) % 26) : ch) : ch
+	    islower(ch) ? ('a' + (ch - 'a' + perm) % 26) : ch
 
 /*
  * letter frequencies (taken from some unix(tm) documentation)
@@ -73,15 +69,15 @@ double stdf[26] = {
 	2.62, 0.81, 1.88, 0.23,  2.07, 0.06,
 };
 
-void printit();
-
-void main(argc, argv)
+main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int ch, dot, i, nread, winnerdot = 0;
+	extern int errno;
+	register int ch, dot, i, nread, winnerdot;
 	register char *inbuf;
 	int obs[26], try, winner;
+	char *malloc(), *strerror();
 
 	if (argc > 1)
 		printit(argv[1]);
@@ -103,13 +99,11 @@ void main(argc, argv)
 		exit(1);
 	}
 	for (i = nread; i--;) {
-		ch = (unsigned char) inbuf[i];
-		if (isascii(ch)) {
-			if (islower(ch))
-				++obs[ch - 'a'];
-			else if (isupper(ch))
-				++obs[ch - 'A'];
-		}
+		ch = inbuf[i];
+		if (islower(ch))
+			++obs[ch - 'a'];
+		else if (isupper(ch))
+			++obs[ch - 'A'];
 	}
 
 	/*
@@ -132,7 +126,7 @@ void main(argc, argv)
 
 	for (;;) {
 		for (i = 0; i < nread; ++i) {
-			ch = (unsigned char) inbuf[i];
+			ch = inbuf[i];
 			putchar(ROTATE(ch, winner));
 		}
 		if (nread < LINELENGTH)
@@ -145,7 +139,7 @@ void main(argc, argv)
 	exit(0);
 }
 
-void printit(arg)
+printit(arg)
 	char *arg;
 {
 	register int ch, rot;

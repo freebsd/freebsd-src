@@ -136,12 +136,7 @@ struct ctlname {
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
 #define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
 #define KERN_DUMPDEV		29	/* dev_t: device to dump on */
-#define KERN_SOMAXCONN		30	/* int: max connections in listen q */
-#define KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
-#define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
-#define	KERN_USRSTACK		33	/* int: address of USRSTACK */
-#define	KERN_SOCKBUF_WASTE	34	/* int: reserved sockbuf space */
-#define KERN_MAXID              35      /* number of valid kern ids */
+#define KERN_MAXID              30      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -173,12 +168,7 @@ struct ctlname {
 	{ "bootfile", CTLTYPE_STRING }, \
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
-	{ "dumpdev", CTLTYPE_STRUCT },	/* we lie; don't print as int */ \
-	{ "somaxconn", CTLTYPE_INT }, \
-	{ "maxsockbuf", CTLTYPE_INT }, \
-	{ "ps_strings", CTLTYPE_INT }, \
-	{ "usrstack", CTLTYPE_INT }, \
-	{ "sockbuf_waste_factor", CTLTYPE_INT }, \
+	{ "dumpdev", CTLTYPE_STRUCT }, /* we lie; don't print as int */ \
 }
 
 /*

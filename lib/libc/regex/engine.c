@@ -686,7 +686,6 @@ sopno lev;			/* PLUS nesting level */
 	/* "can't happen" */
 	assert(nope);
 	/* NOTREACHED */
-	return "shut up gcc";
 }
 
 /*

@@ -43,8 +43,6 @@ static char *rcsid = "$Id: svc.c,v 1.2 1995/05/30 05:41:31 rgrimes Exp $";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#include <string.h>
-#include <stdlib.h>
 #include <sys/errno.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>

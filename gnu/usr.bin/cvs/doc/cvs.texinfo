@@ -1647,11 +1647,7 @@ int main(int argc,
         gencode();
     else
         fprintf(stderr, "No code generated.\n");
-<<<<<<< driver.c
-    exit(nerr == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
-=======
     exit(!!nerr);
->>>>>>> 1.6
 @}
 @end example
 

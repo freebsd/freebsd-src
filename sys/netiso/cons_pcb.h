@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: cons_pcb.h,v 1.3 1994/08/21 06:14:16 paul Exp $
+ * $Id: cons_pcb.h,v 1.4 1995/05/30 08:10:31 rgrimes Exp $
  */
 
 #ifndef _NETISO_CONS_PCB_H_
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/cons_pcb.h,v 1.3 1994/08/21 06:14:16 paul Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/cons_pcb.h,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/cons_pcb.h,v 1.4 1995/05/30 08:10:31 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/cons_pcb.h,v $ */
 
 /*
  * protocol control block for the connection oriented network service

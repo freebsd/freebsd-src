@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static  char rcsid[] =
-    "@(#)$Header: pcap-pf.c,v 1.32 94/06/10 17:41:01 mccanne Exp $ (LBL)";
+    "@(#)$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/pcap-pf.c,v 1.1.1.1 1995/01/20 04:13:03 jkh Exp $ (LBL)";
 #endif
 
 /*

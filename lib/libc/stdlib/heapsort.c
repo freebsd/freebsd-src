@@ -38,9 +38,10 @@
 static char sccsid[] = "@(#)heapsort.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
 #include <errno.h>
-#include <stddef.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 /*
  * Swap two areas of size number of bytes.  Although qsort(3) permits random

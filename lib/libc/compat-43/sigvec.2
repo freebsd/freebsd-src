@@ -102,9 +102,9 @@ must arrange to restore the previous context itself.
 When a signal is delivered to a process a new signal mask is
 installed for the duration of the process' signal handler
 (or until a
-.Xr sigblock 2
+.Xr sigblock
 or
-.Xr sigsetmask 2
+.Xr sigsetmask
 call is made).
 This mask is formed by taking the current signal mask,
 adding the signal to be delivered, and 
@@ -140,7 +140,7 @@ with names as in the include file
 .It Dv SIGQUIT No "	create core image" "	quit program"
 .It Dv SIGILL No "	create core image" "	illegal instruction"
 .It Dv SIGTRAP No "	create core image" "	trace trap"
-.It Dv SIGABRT No "	create core image" Xr 	abort 3
+.It Dv SIGABRT No "	create core image" Xr 	abort 2
 call (formerly
 .Dv SIGIOT )
 .It Dv SIGEMT No "	create core image" "	emulate instruction executed"
@@ -148,7 +148,7 @@ call (formerly
 .It Dv SIGKILL No "	terminate process" "	kill program"
 .It Dv SIGBUS No "	create core image" "	bus error"
 .It Dv SIGSEGV No "	create core image" "	segmentation violation"
-.It Dv SIGSYS No "	create core image" "	non-existent system call invoked"
+.It Dv SIGSYS No "	create core image" "	system call given invalid argument"
 .It Dv SIGPIPE No "	terminate process" "	write on a pipe with no reader"
 .It Dv SIGALRM No "	terminate process" "	real-time timer expired"
 .It Dv SIGTERM No "	terminate process" "	software termination signal"

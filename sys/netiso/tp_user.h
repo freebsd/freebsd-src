@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_user.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_user.h,v 1.3 1994/08/21 06:14:32 paul Exp $
+ * $Id: tp_user.h,v 1.4 1995/05/30 08:11:43 rgrimes Exp $
  */
 
 #ifndef _NETISO_TP_USER_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_user.h,v 1.3 1994/08/21 06:14:32 paul Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_user.h,v $
+ * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_user.h,v 1.4 1995/05/30 08:11:43 rgrimes Exp $
+ * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_user.h,v $
  *
  * These are the values a real-live user ;-) needs.
  */

@@ -376,7 +376,11 @@ static void FDECL1(assign_file_addresses, struct directory *, dpnt){
 	      dwpnt->name = NULL;
 	    } else {
 	      dwpnt->table = NULL;
-	      strcpy(whole_path, s_entry->whole_name);
+	      strcpy(whole_path, s_entry->filedir->whole_name);
+#ifndef VMS
+	      if(strlen(whole_path)) strcat(whole_path, "/");
+#endif
+	      strcat(whole_path, s_entry->name);
 	      dwpnt->name = strdup(whole_path);
 	    };
 	    dwpnt->next = NULL;
@@ -403,15 +407,8 @@ static void FDECL1(assign_file_addresses, struct directory *, dpnt){
 	      fprintf(stderr,"Reported file size is %d extents\n", s_entry->size);
 	      exit(1);
 	    };
-	  } else {
-	    /*
-	     * This is for zero-length files.  If we leave the extent 0,
-	     * then we get screwed, because many readers simply drop files
-	     * that have an extent of zero.  Thus we leave the size 0,
-	     * and just assign the extent number.
-	     */
-	    set_733(s_entry->isorec.extent, last_extent);
-	  }
+	  } else
+	    set_733(s_entry->isorec.extent, 0);
 	};
       };
     };

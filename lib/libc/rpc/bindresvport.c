@@ -41,8 +41,6 @@ static char *rcsid = "$Id: bindresvport.c,v 1.2 1995/05/30 05:41:13 rgrimes Exp 
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <unistd.h>
-#include <string.h>
 
 /*
  * Bind a socket to a privileged IP port

@@ -188,13 +188,6 @@ void open_kvm(int flags)
 		vmunix = _PATH_UNIX;
 	}
 #if defined(__NetBSD__) || (__FreeBSD__ >= 2)
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (vmunix != NULL || kmemf != NULL)
-		setgid(getgid());
-
 	kvm = kvm_openfiles(vmunix, kmemf, NULL, flags, errbuf);
 	if (kvm == NULL) {
 		fprintf(stderr, "%s: kvm_openfiles: %s\n", prog, errbuf);

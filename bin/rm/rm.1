@@ -118,26 +118,10 @@ removed.
 If an error occurs,
 .Nm rm
 exits with a value >0.
-.Sh NOTE
-.Nm rm
-use 
-.Xr getopt 3
-parsing routine. Getopt accept a
-.Sq Li --
-argument, which stop reading options, anything after this
-is not an option.
-So 
-.Nm rm
-handle files whose names begins with a
-.Sq Li - .
-Example:
-
-``$ rm -- -filename''.
 .Sh SEE ALSO
 .Xr rmdir 1 ,
 .Xr unlink 2 ,
 .Xr fts 3 ,
-.Xr getopt 3 ,
 .Xr symlink 7
 .Sh BUGS
 The

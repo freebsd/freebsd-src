@@ -4,7 +4,7 @@
 PROG=	ps
 SRCS=	fmt.c keyword.c nlist.c print.c ps.c
 CFLAGS+=-I/sys
-DPADD=	${LIBM} ${LIBKVM}
+DPADD=	${LIBMATH} ${LIBKVM}
 LDADD=	-lm -lkvm
 BINGRP=	kmem
 BINMODE=2555

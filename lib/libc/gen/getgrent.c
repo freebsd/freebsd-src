@@ -163,7 +163,7 @@ start_gr()
 		char *line;
 		size_t linelen;
 		_gr_yp_enabled = 0;
-		while((line = fgetln(_gr_fp, &linelen)) != NULL) {
+		while(line = fgetln(_gr_fp, &linelen)) {
 			if(line[0] == '+') {
 				if(line[1] && !_gr_yp_enabled) {
 					_gr_yp_enabled = 1;
@@ -301,7 +301,6 @@ grscan(search, gid, name)
 		return(1);
 	}
 	/* NOTREACHED */
-	return (0);
 }
 
 #ifdef YP
@@ -426,8 +425,7 @@ unpack:
 
 		strcpy(resultbuf, result);
 		free(result);
-		if((result = strchr(resultbuf, '\n')) != NULL)
-			*result = '\0';
+		if(result = strchr(resultbuf, '\n')) *result = '\0';
 		if (_gr_breakout_yp(gr, resultbuf))
 			return(1);
 		else

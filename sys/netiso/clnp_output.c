@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_output.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_output.c,v 1.3 1994/11/15 14:26:12 bde Exp $
+ * $Id: clnp_output.c,v 1.4 1995/05/30 08:10:22 rgrimes Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_output.c,v 1.3 1994/11/15 14:26:12 bde Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/clnp_output.c,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_output.c,v 1.4 1995/05/30 08:10:22 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_output.c,v $ */
 
 #include <sys/param.h>
 #include <sys/systm.h>

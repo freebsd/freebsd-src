@@ -25,7 +25,7 @@
  */
 #ifndef lint
 static  char rcsid[] =
-    "@(#)$Header: print-ipx.c,v 1.6 94/06/20 19:44:38 leres Exp $";
+    "@(#)$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/print-ipx.c,v 1.1 1995/03/08 12:52:34 olah Exp $";
 #endif
 
 #include <sys/param.h>

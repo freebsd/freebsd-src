@@ -42,7 +42,6 @@ static char sccsid[] = "@(#)subr.c	8.1 (Berkeley) 5/31/93";
 
 /*      Re-coding of advent in C: subroutines from main                 */
 
-#include <stdio.h>
 # include "hdr.h"
 
 /*              Statement functions     */

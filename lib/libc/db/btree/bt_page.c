@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993, 1994
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_page.c	8.3 (Berkeley) 7/14/94";
+static char sccsid[] = "@(#)bt_page.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -43,8 +43,7 @@ static char sccsid[] = "@(#)bt_page.c	8.3 (Berkeley) 7/14/94";
 #include "btree.h"
 
 /*
- * __bt_free --
- *	Put a page on the freelist.
+ * __BT_FREE -- Put a page on the freelist.
  *
  * Parameters:
  *	t:	tree
@@ -52,16 +51,13 @@ static char sccsid[] = "@(#)bt_page.c	8.3 (Berkeley) 7/14/94";
  *
  * Returns:
  *	RET_ERROR, RET_SUCCESS
- *
- * Side-effect:
- *	mpool_put's the page.
  */
 int
 __bt_free(t, h)
 	BTREE *t;
 	PAGE *h;
 {
-	/* Insert the page at the head of the free list. */
+	/* Insert the page at the start of the free list. */
 	h->prevpg = P_INVALID;
 	h->nextpg = t->bt_free;
 	t->bt_free = h->pgno;
@@ -71,8 +67,7 @@ __bt_free(t, h)
 }
 
 /*
- * __bt_new --
- *	Get a new page, preferably from the freelist.
+ * __BT_NEW -- Get a new page, preferably from the freelist.
  *
  * Parameters:
  *	t:	tree
@@ -90,9 +85,9 @@ __bt_new(t, npg)
 
 	if (t->bt_free != P_INVALID &&
 	    (h = mpool_get(t->bt_mp, t->bt_free, 0)) != NULL) {
-		*npg = t->bt_free;
-		t->bt_free = h->nextpg;
-		return (h);
+			*npg = t->bt_free;
+			t->bt_free = h->nextpg;
+			return (h);
 	}
 	return (mpool_new(t->bt_mp, npg));
 }

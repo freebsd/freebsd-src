@@ -57,15 +57,13 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
-#include <limits.h>
 #include <nlist.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <locale.h>
 #include <pwd.h>
+#include <unistd.h>
 
 #include "ps.h"
 
@@ -118,9 +116,7 @@ main(argc, argv)
 	uid_t uid;
 	int all, ch, flag, i, fmt, lineno, nentries;
 	int prtheader, wflag, what, xflg;
-	char *nlistf, *memf, *swapf, errbuf[_POSIX2_LINE_MAX];
-
-	(void) setlocale(LC_ALL, "");
+	char *nlistf, *memf, *swapf, errbuf[256];
 
 	if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&

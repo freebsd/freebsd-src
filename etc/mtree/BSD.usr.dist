@@ -43,8 +43,6 @@
 		..
 		hr_HR.ISO_8859-2
 		..
-		ru_SU.KOI8-R
-		..
         ..
         dict
         ..
@@ -180,6 +178,8 @@
                 ..
             ..
             sup
+            ..
+            syscons
             ..
         ..
 /set type=dir uname=games gname=bin mode=0755

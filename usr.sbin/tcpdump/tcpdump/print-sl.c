@@ -21,7 +21,7 @@
 
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: print-sl.c,v 1.28 94/06/10 17:01:38 mccanne Exp $ (LBL)";
+	"@(#)$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/print-sl.c,v 1.2 1995/03/08 12:52:41 olah Exp $ (LBL)";
 #endif
 
 #ifdef CSLIP

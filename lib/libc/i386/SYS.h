@@ -61,27 +61,13 @@
 #define PIC_GOTOFF(x)   x
 #endif
 
-#define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+#define	SYSCALL(x)	2: jmp cerror; ENTRY(x); lea SYS_/**/x,%eax; LCALL(7,0); jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
-
-/*
- * For the thread_safe versions, we prepend _thread_sys_ to the function
- * name so that the 'C' wrapper can go around the real name.
- */
-#ifdef _THREAD_SAFE	/* in case */
-#define	PSYSCALL(x,y)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(y); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
-#define	PRSYSCALL(x,y)	PSYSCALL(x,y); ret
-#endif
-
-#define	PSEUDO(x,y)	ENTRY(x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
-#define	CALL(x,y)	call CNAME(y); addl $4*x,%esp
+#define	PSEUDO(x,y)	ENTRY(x); lea SYS_/**/y, %eax; ; LCALL(7,0); ret
+#define	CALL(x,y)	call _/**/y; addl $4*x,%esp
 /* gas fucks up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
 
-#ifdef __ELF__
-#define KERNCALL	int $0x80	/* Faster */
-#else
-#define KERNCALL	LCALL(7,0)	/* The old way */
-#endif
-
 #define	ASMSTR		.asciz
+
+	.globl	cerror

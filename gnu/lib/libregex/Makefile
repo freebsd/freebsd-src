@@ -1,4 +1,4 @@
-# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.14 1995/03/12 23:21:29 ache Exp $
+# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/lib/libregex/Makefile,v 1.14 1995/03/12 23:21:29 ache Exp $
 
 
 LIB=	gnuregex
@@ -10,7 +10,7 @@ SUBDIR+= doc
 
 beforeinstall:
 	cmp -s ${.CURDIR}/regex.h ${DESTDIR}/usr/include/gnuregex.h || \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/regex.h ${DESTDIR}/usr/include/gnuregex.h
 
 .include <bsd.lib.mk>

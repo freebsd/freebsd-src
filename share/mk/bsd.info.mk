@@ -3,7 +3,7 @@
 BINMODE=        444
 BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
-MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
+MAKEINFOFLAGS?=	--no-split # simplify some things, e.g., compression
 
 .MAIN: all
 
@@ -66,7 +66,7 @@ obj:
 .endif
 
 clean:
-	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
+	rm -f ${INFO:S/$/.info*/g} [eE]rrs mklog ${CLEANFILES}
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj

@@ -6,13 +6,6 @@
 #
 #	$Id: sysconfig,v 1.14.4.8 1996/03/22 17:26:48 nate Exp $
 
-######################### Start Of Local Configuration Section ###########
-
-# Location of local startup directories.
-local_startup="/usr/local/etc/rc.d /usr/X11R6/etc/rc.d"
-
-######################### End Of Local Configuration Section #############
-
 ######################### Start Of Syscons Section #######################
 
 # Choose keyboard map from /usr/share/syscons/keymaps/* or NO if default.
@@ -46,7 +39,7 @@ blanktime=NO
 # Set to screen saver desired: blank, green, snake, star (or NO for none)
 saver=NO
 
-# General Russian setup for example:
+# General russian setup for example:
 # (koi8-r keyboard with cp866 screen font mapped to koi8-r)
 #
 # keymap=ru.koi8-r
@@ -77,47 +70,31 @@ defaultdomainname=NO
 #
 tcp_extensions=YES
 
-# If you're running PCNFSD or anything else which requires mountd to allow
-# non-root requests for NFS mounts, set this to YES.
-weak_mountd_authentication=NO
-
 #
 # Set to the list of network devices on this host.  You must have an
 # ifconfig_${network_interface} line for each interface listed here.
 # for example:
 #
 #	network_interfaces="ed0 sl0 lo0"
-#
 #	ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
 #	ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
-#	ifconfig_lo0="inet localhost"
 #
 network_interfaces="lo0"
-
 ifconfig_lo0="inet localhost"
 
 #
 # Set to the list of route add lines for this host.  You must have a
-# route_${static_routes} line for each static route listed here (unless
-# static_routes is set to "" - do NOT use ``NO'' to denote a lack of static
-# routes!).
+# route_${static_routes} line for each static route listed here.
 #
-#static_routes="foo multicast"
-#route_foo="woofo woofo-gw"
-#route_multicast="224.0.0.0 -netmask 0xf0000000 -interface 10.0.0.1"
-static_routes=""
+static_routes="multicast loopback"
+route_multicast="224.0.0.0 -netmask 0xf0000000 -interface ${hostname}"
+route_loopback="${hostname} localhost"
 
 # Set to the host you'd like set as your default router, or NO for none.
-# This is the same as adding a ``default'' entry to static_routes.
 defaultrouter=NO
 
-# This is the routing daemon you want to use.  Possible options are
-# currently NO (for none), `routed' and `gated'.  Also see `routerflags'
-# for startup flags.
-router=routed
-
 # These are the flags you'd like to start the routing daemon with
-routerflags=-q
+routedflags=-q
 
 # mrouted flags, or NO if you don't want to start mrouted. Needs kernel
 # options enabled before it will work.
@@ -132,7 +109,7 @@ xntpdflags="NO"
 # this is inoperative unless xntpd is enabled; NO to disable
 tickadjflags="-Aq"
 
-# Set to the site you'd like to synchronize your clock from (gatekeeper.dec.com,
+# Set to the site you'd like to syncronize your clock from (gatekeeper.dec.com,
 # for example) or NO for no such site.
 ntpdate="NO"
 
@@ -146,11 +123,8 @@ lpd=YES
 # time in minutes.  If set to NO, don't start sendmail at all.
 sendmail_flags="-bd -q30m"
 
-# Set to appropriate flags if you want to use AMD.  The commented-out entry
-# provides a reasonable default, using the sample amd.map config file from the
-# /usr/src/etc directory.
+# Set to appropriate flags if you want to use AMD
 amdflags="NO"
-#amdflags="-a /net -c 1800 -k i386 -d my.domain -l syslog /host /etc/amd.map"
 
 # Set to YES if this machine will be an NFS client
 nfs_client=NO
@@ -161,14 +135,14 @@ nfs_server=NO
 # Set to appropriate flags if you want to start NIS for a client
 nis_clientflags="NO"
 
-# Name of host to ypset to, if no YP server on this wire
+# Set to host to ypset to if you need to do that
 nis_ypsetflags="NO"
 
 # Set to appropriate flags if you want to start NIS for a server
 nis_serverflags="NO"
 
-# Set to appropriate flags for rpc.yppasswdd, if you wish to run it.
-# Typical flags might be "-t /var/yp/master.passwd -s -f"
+# Set to appropriate flags for yppasswdd, if you wish to run it.
+# Typical flags might be "-m /var/yp/master.passwd -s -f"
 yppasswddflags="NO"
 
 # Set to appropriate flags for named, if you have a full-time
@@ -203,13 +177,15 @@ kerberos_server=NO
 # If you want this host to be a gateway, set to YES.
 gateway=NO
 
-# If you want this host to be a firewall or otherwise filter IP, set to YES.
-firewall=NO
+# Set to YES if you want to run gated
+gated=NO
 
-# Set to YES if you wish to check quotas.
+# Set to YES if you wish to check quotas.  NOTE:  For now this probably
+# doesn't work and should be left disabled.
 check_quotas=NO
 
-# Set to YES to turn on accounting.
+# Set to YES to turn on accounting.  NOTE: For now this probably
+# doesn't work and should be left disabled.
 accounting=NO
 
 ######################### End Of Netconfig Section #######################

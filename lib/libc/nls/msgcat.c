@@ -260,7 +260,8 @@ nl_catd catd;
 {
     MCCatT	*cat = (MCCatT *) catd;
     MCSetT	*set;
-    int		i;
+    MCMsgT	*msg;
+    int		i, j;
 
     if (!cat) return -1;
 
@@ -294,7 +295,8 @@ int type;
     MCHeaderT	header;
     MCCatT	*cat;
     MCSetT	*set;
-    long	i;
+    MCMsgT	*msg;
+    long	i, j;
     off_t	nextSet;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));

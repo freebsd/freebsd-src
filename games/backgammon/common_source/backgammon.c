@@ -94,14 +94,14 @@ main()
 	srand(time(0));
 	go[5] = NIL;
 	fprintf(stdout, "Instructions? ");
-	fgets(s, 100, stdin);
+	gets(s);
 	if(*s == 'y')
 		instructions();
 	putchar('\n');
 	fprintf(stdout, "Opponent's level: b - beginner,\n");
 	fprintf(stdout, "i - intermediate, e - expert? ");
 	level='e';
-	fgets(s, 100, stdin);
+	gets(s);
 	if(*s == 'b')
 		level = 'b';
 	else if(*s == 'i')
@@ -109,12 +109,12 @@ main()
 	putchar('\n');
 	fprintf(stdout, "You will play brown.\n\n");
 	fprintf(stdout, "Would you like to roll your own dice? ");
-	fgets(s, 100, stdin);
+	gets(s);
 	putchar('\n');
 	if(*s == 'y')
 		nobroll = 1;
 	fprintf(stdout, "Would you like to go first? ");
-	fgets(s, 100, stdin);
+	gets(s);
 	putchar('\n');
 	if(*s == 'y')
 		goto nowhmove;
@@ -141,7 +141,7 @@ nowhmove:
 retry:
 	fprintf(stdout, "\nYour roll is %d  %d\n", die1, die2);
 	fprintf(stdout, "Move? ");
-	fgets(s, 100, stdin);
+	gets(s);
 	switch(*s) {
 		case '\0':			/* empty line */
 			fprintf(stdout, "Brown's move skipped.\n");
@@ -362,7 +362,7 @@ roll(who)
 
 	if(who == BROWN && nobroll) {
 		fprintf(stdout, "Roll? ");
-		fgets(s, 10, stdin);
+		gets(s);
 		n = sscanf(s, "%d%d", &die1, &die2);
 		if(n != 2 || die1 < 1 || die1 > 6 || die2 < 1 || die2 > 6)
 			fprintf(stdout, "Illegal - I'll do it!\n");

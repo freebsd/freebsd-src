@@ -57,7 +57,7 @@ prcopy(src, dest, len)
 	char *src, *dest;
 	int len;
 {
-	unsigned char ch;
+	int ch;
 
 	while (len--) {
 		ch = *src++;

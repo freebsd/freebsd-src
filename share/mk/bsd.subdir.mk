@@ -3,6 +3,14 @@
 
 .MAIN: all
 
+.if !defined(DEBUG_FLAGS)
+STRIP?=	-s
+.endif
+
+BINGRP?=	bin
+BINOWN?=	bin
+BINMODE?=	555
+
 _SUBDIRUSE: .USE
 	@for entry in ${SUBDIR}; do \
 		(if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
@@ -25,12 +33,34 @@ ${SUBDIR}::
 	fi; \
 	${MAKE} all
 
-
-.for __target in all clean cleandir obj depend maninstall lint tags 
-.if !target(__target)
-${__target}: _SUBDIRUSE
+.if !target(all)
+all: _SUBDIRUSE
 .endif
-.endfor
+
+.if !target(clean)
+clean: _SUBDIRUSE
+.endif
+
+.if !target(cleandir)
+cleandir: _SUBDIRUSE
+.endif
+
+.if !target(depend)
+depend: _SUBDIRUSE
+.endif
+
+.if !target (maninstall)
+maninstall: _SUBDIRUSE
+.endif
+
+DISTRIBUTION?=	bin
+.if !target(afterdistribute)
+afterdistribute:
+.endif
+.if !target(distribute)
+distribute: _SUBDIRUSE 
+	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
+.endif
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -44,11 +74,14 @@ afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
 .endif
 
-DISTRIBUTION?=	bin
-.if !target(afterdistribute)
-afterdistribute:
+.if !target(lint)
+lint: _SUBDIRUSE
 .endif
-.if !target(distribute)
-distribute: _SUBDIRUSE 
-	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
+
+.if !target(obj)
+obj: _SUBDIRUSE
+.endif
+
+.if !target(tags)
+tags: _SUBDIRUSE
 .endif

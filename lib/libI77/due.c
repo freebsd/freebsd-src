@@ -60,9 +60,5 @@ integer e_rdue(Void)
 }
 integer e_wdue(Void)
 {
-#ifdef ALWAYS_FLUSH
-	if (fflush(f__cf))
-		err(f__elist->cierr,errno,"write end");
-#endif
 	return(e_rdue());
 }

@@ -97,7 +97,7 @@ rd_I(n,w,len, base) Uint *n; int w; ftnlen len; register int base;
 #else
 rd_I(Uint *n, int w, ftnlen len, register int base)
 #endif
-{	longint x;
+{	long x;
 	int sign,ch;
 	char s[84], *ps;
 	ps=s; x=0;

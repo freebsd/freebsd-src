@@ -9,7 +9,7 @@ SUBDIR=	doc
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s com_err.h ${DESTDIR}/usr/include/com_err.h || \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 com_err.h \
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 com_err.h \
 	    ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

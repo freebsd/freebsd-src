@@ -43,11 +43,7 @@
 
 #include "SYS.h"
 
-#ifdef _THREAD_SAFE
-PSYSCALL(sigpending,_thread_sys_sigpending)
-#else
 SYSCALL(sigpending)
-#endif
 	movl	4(%esp),%ecx		# fetch pointer to...
 	movl	%eax,(%ecx)		# store old mask
 	xorl	%eax,%eax

@@ -720,7 +720,7 @@ static struct compiler default_compilers[] =
   {"@f2c",
    "f2c %{checksubscripts:-C} %{I2} %{onetrip} %{honorcase:-U} %{u} %{w}\
         %{ANSIC:-A} %{a} %{C++}\
-        %{c} %{E} %{ec} %{ext} %{f} %{72} %{g} %{h} %{i2} %{kr} %{krd}\
+        %{c} %{E} %{ec} %{ext} %{f} %{72} %{g} %{h} %{i2} %{kr}\
         %{P} %{p} %{r} %{r8} %{s} %{w8} %{z} %{N*}\
         %i %{!pipe: -o %g.c} %{pipe:-o -}|\n",
    "cpp -lang-c %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\

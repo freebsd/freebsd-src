@@ -60,10 +60,10 @@
 #define fputs outstr
 #define fflush flushout
 #define INITARGS(argv)
-#define warnx(a, b, c) {						\
-	char buf[64];							\
-	(void)snprintf(buf, sizeof(buf), a, b, c);			\
-	error(buf);							\
+#define warnx(a, b, c) {                                               \
+       char buf[64];                                                   \
+       (void)snprintf(buf, sizeof(buf), a, b, c);                       \
+       error(buf);                                                     \
 }
 #else
 #undef NULL

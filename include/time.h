@@ -100,13 +100,6 @@ time_t mktime __P((struct tm *));
 size_t strftime __P((char *, size_t, const char *, const struct tm *));
 time_t time __P((time_t *));
 
-#ifdef	_THREAD_SAFE
-int asctime_r __P((const struct tm *, char *, int));
-int	ctime_r __P((const time_t *, char *, int));
-int	gmtime_r __P((const time_t *, struct tm *));
-int localtime_r __P((const time_t *, struct tm *));
-#endif
-
 #ifndef _ANSI_SOURCE
 void tzset __P((void));
 #endif /* not ANSI */

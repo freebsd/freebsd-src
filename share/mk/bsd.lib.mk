@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.24.4.2 1996/05/29 22:38:30 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.24.4.1 1995/08/27 03:12:58 davidg Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -20,9 +20,22 @@ CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
 CFLAGS+= ${DEBUG_FLAGS}
 .endif
 
+RANTOUCH?=	${RANLIB} -t
+
+LIBDIR?=	/usr/lib
+LINTLIBDIR?=	/usr/libdata/lint
+LIBGRP?=	bin
+LIBOWN?=	bin
+LIBMODE?=	444
+SHLIBDIR?=	${LIBDIR}
+
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
 .endif
+
+BINGRP?=	bin
+BINOWN?=	bin
+BINMODE?=	555
 
 .MAIN: all
 
@@ -33,66 +46,66 @@ STRIP?=	-s
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .c.po:
 	${CC} -p ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .c.so:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
-.cc.o .C.o .cxx.o:
+.cc.o .cxx.o .C.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
-.cc.po .C.po .cxx.po:
+.cc.po .C.po .cxx.o:
 	${CXX} -p ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
-.cc.so .C.so .cxx.so:
+.cc.so .C.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .f.o:
 	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .f.po:
 	${FC} -p ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .f.so:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .s.o:
 	${CPP} -E ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	    ${AS} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .s.po:
 	${CPP} -E -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	    ${AS} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .s.so:
 	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	   ${AS} -k -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .S.o:
 	${CPP} -E ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
@@ -105,18 +118,18 @@ STRIP?=	-s
 .S.so:
 	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	   ${AS} -k -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .m.po:
 	${CC} ${CFLAGS} -p -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .m.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
 .if !defined(NOPROFILE) && !defined(INTERNALLIB)
@@ -152,7 +165,7 @@ _LIBSUBDIR: .USE
 	done
 .endif
 
-all: ${_LIBS} all-man _LIBSUBDIR # llib-l${LIB}.ln
+all: ${_LIBS} _LIBSUBDIR # llib-l${LIB}.ln
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
@@ -184,7 +197,7 @@ SOBJS+= ${OBJS:.o=.so}
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-	@${LD} -Bshareable -x \
+	@${LD} -Bshareable \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    `lorder ${SOBJS} | tsort` ${LDDESTDIR} ${LDADD}
 
@@ -238,9 +251,11 @@ realinstall: beforeinstall
 .if !defined(INTERNALLIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}.a
 .if !defined(NOPROFILE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
+	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 .endif
 .endif
 .if !defined(NOPIC)
@@ -253,6 +268,7 @@ realinstall: beforeinstall
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
 .endif
 .endif
 .if defined(LINKS) && !empty(LINKS)
@@ -296,7 +312,6 @@ tags: ${SRCS}
 .include <bsd.man.mk>
 .elif !target(maninstall)
 maninstall:
-all-man:
 .endif
 
 .if !target(obj)

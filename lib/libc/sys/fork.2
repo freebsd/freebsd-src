@@ -59,9 +59,9 @@ for instance, file pointers in file objects are shared between
 the child and the parent, so that an
 .Xr lseek 2
 on a descriptor in the child process can affect a subsequent
-.Xr read 2
+.Xr read
 or
-.Xr write 2
+.Xr write
 by the parent.
 This descriptor copying is also used by the shell to
 establish standard input and output for newly created processes

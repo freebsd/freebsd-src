@@ -1,4 +1,4 @@
-/* $Header: malloc.h,v 2.1 88/09/19 12:56:27 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/malloc.h,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/malloc.h,v 1.1.1.1 1994/05/24 10:07:47 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/malloc.h,v $ */
 
 char *Malloc();

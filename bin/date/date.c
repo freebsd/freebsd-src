@@ -54,7 +54,6 @@ static char sccsid[] = "@(#)date.c	8.1 (Berkeley) 5/31/93";
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <locale.h>
 
 #include "extern.h"
 
@@ -80,7 +79,6 @@ main(argc, argv)
 	char *endptr;
 	int set_timezone;
 
-	(void) setlocale(LC_TIME, "");
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
 	set_timezone = 0;
@@ -210,7 +208,7 @@ setthetime(p)
 
 	/* convert broken-down time to GMT clock time */
 	if ((tval = mktime(lt)) == -1)
-		errx(1, "nonexistent time");
+		badformat();
 
 	/* set the time */
 	if (nflag || netsettime(tval)) {

@@ -3,3 +3,4 @@
 
 SRCS+=	isinf.c infinity.c
 SRCS+=	_setjmp.S alloca.S fabs.S ldexp.c modf.S setjmp.S sigsetjmp.S
+SRCS+=	divsi3.S fixdfsi.S fixunsdfsi.S udivsi3.S

@@ -20,7 +20,7 @@ beforeinstall:
 	cd ${.CURDIR}; \
 	for m in ${HEADERS} ; do \
 	  cmp -s $$m ${DESTDIR}/usr/include/readline/$$m || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		$$m ${DESTDIR}/usr/include/readline ; \
 	done
 

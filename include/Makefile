@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.35 1996/02/14 15:17:53 wollman Exp $
+#	$Id: Makefile,v 1.25.4.2 1995/08/31 21:30:59 davidg Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -10,13 +10,14 @@ all depend lint tags:
 
 CLEANFILES=version vers.c
 SUBDIR= rpcsvc
+# XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h f2c.h fnmatch.h fstab.h fts.h glob.h grp.h strhash.h histedit.h \
 	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h ndbm.h \
-	netdb.h nl_types.h nlist.h paths.h pthread.h pwd.h ranlib.h regex.h \
-	regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h signal.h \
+	netdb.h nl_types.h nlist.h paths.h pwd.h ranlib.h regex.h regexp.h \
+	resolv.h rune.h runetype.h setjmp.h sgtty.h signal.h \
 	stab.h stddef.h stdio.h stdlib.h string.h strings.h struct.h \
-	sysexits.h tar.h time.h timers.h ttyent.h unistd.h utime.h \
+	sysexits.h tar.h time.h ttyent.h unistd.h utime.h \
 	utmp.h vis.h
 .if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
@@ -26,7 +27,7 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
 DIRS=	arpa protocols rpc
-LDIRS=	net netinet netipx nfs sys vm #netccitt netiso netns
+LDIRS=	net netccitt netinet netiso netns nfs sys vm
 LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
@@ -92,7 +93,6 @@ copies:
 	rm -rf ${DESTDIR}/usr/include/${LUDIR}
 	mkdir ${DESTDIR}/usr/include/${LUDIR}
 	chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/${LUDIR}
-	chmod 755 ${DESTDIR}/usr/include/${LUDIR}
 	@-for i in ${LDIRS} ${UDIRS}; do				\
 		${ECHO} ${SHARED} $$i;					\
 		rm -rf ${DESTDIR}/usr/include/$$i;			\

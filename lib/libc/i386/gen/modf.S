@@ -50,10 +50,10 @@
  */
 
 /* With CHOP mode on, frndint behaves as TRUNC does.  Useful. */
-
-#include "DEFS.h"
-
-ENTRY(modf)
+.text
+.globl _modf
+.type _modf,@function
+_modf:
 	pushl %ebp
 	movl %esp,%ebp
 	subl $16,%esp

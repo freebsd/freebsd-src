@@ -11,7 +11,7 @@ FORMDIR=${.CURDIR}/../obj
 FORMDIR=${.CURDIR}/..
 .endif
 
-LDADD = -L${FORMDIR} -lforms -lncurses -lmytinfo -ll
+LDADD = -L${FORMDIR} -lforms -ldialog -lncurses -lmytinfo -ll
 DPADD = ${LIBFORMS} ${LIBNCURSES}
 
 .include <bsd.prog.mk>

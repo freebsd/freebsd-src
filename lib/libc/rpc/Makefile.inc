@@ -21,4 +21,3 @@ MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3
 MAN5+= rpc/rpc.5
 MAN8+= rpc/rstat_svc.8
 
-MLINKS+=getrpcent.3 getrpcbyname.3 getrpcent.3 getrpcbynumber.3

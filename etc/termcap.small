@@ -55,7 +55,7 @@ cons50|ansil|ansi80x50:\
 	:li#50:tc=cons25:
 cons50-m|ansil-mono|ansi80x50-mono:\
 	:li#50:tc=cons25-m:
-# Syscons console with koi8-r Russian code table.
+# Syscons console with koi8-r russian code table.
 cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^XI^U0\215:\
 	:tc=cons25w:

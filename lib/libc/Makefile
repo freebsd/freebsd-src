@@ -6,8 +6,8 @@
 # from CFLAGS below.  To remove these strings from just the system call
 # stubs, remove just -DSYSLIBC_RCS from CFLAGS.
 LIB=c
-SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
+SHLIB_MAJOR= 2
+SHLIB_MINOR= 2
 CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS
 AINC=	-I${.CURDIR}/${MACHINE}
 CLEANFILES+=tags
@@ -53,7 +53,7 @@ libkern.${MACHINE}:: ${KMSRCS}
 .endif
 
 #beforeinstall: tags
-#	${INSTALL} ${COPY} -o bin -g bin -m 444 tags /var/db/libc.tags
+#	install -c -o bin -g bin -m 444 tags /var/db/libc.tags
 
 tags: ${SRCS}
 	ctags ${.ALLSRC:M*.c}

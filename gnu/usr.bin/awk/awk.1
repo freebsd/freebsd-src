@@ -1,11 +1,11 @@
 .ds PX \s-1POSIX\s+1
 .ds UX \s-1UNIX\s+1
 .ds AN \s-1ANSI\s+1
-.TH AWK 1 "Apr 18 1994" "Free Software Foundation" "Utility Commands"
+.TH GAWK 1 "Apr 18 1994" "Free Software Foundation" "Utility Commands"
 .SH NAME
-awk \- GNU awk pattern scanning and processing language
+gawk \- pattern scanning and processing language
 .SH SYNOPSIS
-.B awk
+.B gawk
 [ POSIX or GNU style options ]
 .B \-f
 .I program-file
@@ -13,7 +13,7 @@ awk \- GNU awk pattern scanning and processing language
 .B \-\^\-
 ] file .\^.\^.
 .br
-.B awk
+.B gawk
 [ POSIX or GNU style options ]
 [
 .B \-\^\-
@@ -35,7 +35,7 @@ of \*(UX
 also provides some GNU-specific extensions.
 .PP
 The command line consists of options to
-.I awk
+.I gawk
 itself, the AWK program text (if not supplied via the
 .B \-f
 or
@@ -57,7 +57,7 @@ for \*(PX mandated features.  Other implementations of the AWK language
 are likely to only accept the traditional one letter options.
 .PP
 Following the \*(PX standard,
-.IR awk -specific
+.IR gawk -specific
 options are supplied via arguments to the
 .B \-W
 option.  Multiple
@@ -135,9 +135,9 @@ flag sets the maximum record size.  These two flags and the
 option are from the AT&T Bell Labs research version of \*(UX
 .IR awk .
 They are ignored by
-.IR awk ,
+.IR gawk ,
 since
-.I awk
+.I gawk
 has no pre-defined limits.
 .TP \w'\fB\-\^\-copyright\fR'u+1n
 .PD 0
@@ -148,7 +148,7 @@ has no pre-defined limits.
 Run in
 .I compatibility
 mode.  In compatibility mode,
-.I awk
+.I gawk
 behaves identically to \*(UX
 .IR awk ;
 none of the GNU-specific extensions are recognized.
@@ -268,10 +268,10 @@ will be recognized in the same argument.
 .PD
 .B \-\^\-version
 Print version information for this particular copy of
-.I awk
+.I gawk
 on the error output.
 This is useful mainly for knowing if the current copy of
-.I awk
+.I gawk
 on your system
 is up to date with respect to whatever the Free Software Foundation
 is distributing.
@@ -341,10 +341,10 @@ all variable assignments specified via the
 .B \-v
 option are performed.
 Next,
-.I awk
+.I gawk
 compiles the program into an internal form.
 Then,
-.I awk
+.I gawk
 executes the code in the
 .B BEGIN
 block(s) (if any),
@@ -353,7 +353,7 @@ each file named in the
 .B ARGV
 array.
 If there are no files named on the command line,
-.I awk
+.I gawk
 reads the standard input.
 .PP
 If a filename on the command line has the form
@@ -374,11 +374,11 @@ a single data file.
 If the value of a particular element of
 .B ARGV
 is empty (\fB""\fR),
-.I awk
+.I gawk
 skips over it.
 .PP
 For each line in the input,
-.I awk
+.I gawk
 tests to see if it matches any
 .I pattern
 in the AWK program.
@@ -388,7 +388,7 @@ is executed.
 The patterns are tested in the order they occur in the program.
 .PP
 Finally, after all the input is exhausted,
-.I awk
+.I gawk
 executes the code in the
 .B END
 block(s) (if any).
@@ -403,7 +403,7 @@ runs; these will be described as needed and summarized below.
 .SS Fields
 .PP
 As each input line is read,
-.I awk
+.I gawk
 splits the line into
 .IR fields ,
 using the value of the
@@ -429,7 +429,7 @@ If the
 .B FIELDWIDTHS
 variable is set to a space separated list of numbers, each field is
 expected to have fixed width, and
-.I awk
+.I gawk
 will split up the record using the specified widths.  The value of
 .B FS
 is ignored.
@@ -480,7 +480,7 @@ AWK's built-in variables are:
 .TP \w'\fBFIELDWIDTHS\fR'u+1n
 .B ARGC
 The number of command line arguments (does not include options to
-.IR awk ,
+.IR gawk ,
 or the program source).
 .TP
 .B ARGIND
@@ -506,12 +506,12 @@ The array is indexed by the environment variables, each element being
 the value of that variable (e.g., \fBENVIRON["HOME"]\fP might be
 .BR /u/arnold ).
 Changing this array does not affect the environment seen by programs which
-.I awk
+.I gawk
 spawns via redirection or the
 .B system()
 function.
 (This may change in a future version of
-.IR awk .)
+.IR gawk .)
 .\" but don't hold your breath...
 .TP
 .B ERRNO
@@ -528,14 +528,14 @@ a string describing the error.
 .TP
 .B FIELDWIDTHS
 A white-space separated list of fieldwidths.  When set,
-.I awk
+.I gawk
 parses the input into fields of fixed width, instead of using the
 value of the
 .B FS
 variable as the field separator.
 The fixed field width facility is still experimental; expect the
 semantics to change as
-.I awk
+.I gawk
 evolves over time.
 .TP
 .B FILENAME
@@ -605,7 +605,7 @@ The input record separator, by default a newline.
 is exceptional in that only the first character of its string
 value is used for separating records.
 (This will probably change in a future release of
-.IR awk .)
+.IR gawk .)
 If
 .B RS
 is set to the null string, then records are separated by
@@ -739,7 +739,7 @@ Two strings are compared, of course, as strings.
 According to the \*(PX standard, even if two strings are
 numeric strings, a numeric comparison is performed.  However, this is
 clearly incorrect, and
-.I awk
+.I gawk
 does not do this.
 .PP
 Uninitialized variables have the numeric value 0 and the string value ""
@@ -1246,13 +1246,13 @@ into a file,
 or via
 .B getline
 from a file,
-.I awk
+.I gawk
 recognizes certain special filenames internally.  These filenames
 allow access to open file descriptors inherited from
-.IR awk 's
+.IR gawk 's
 parent process (usually the shell).
 Other special filenames provide access information about the running
-.B awk
+.B gawk
 process.
 The filenames are:
 .TP \w'\fB/dev/stdout\fR'u+1n
@@ -1468,7 +1468,7 @@ Non-alphabetic characters are left unchanged.
 .PP
 Since one of the primary uses of AWK programs is processing log files
 that contain time stamp information,
-.I awk
+.I gawk
 provides the following two functions for obtaining time stamps and
 formatting them.
 .PP
@@ -1496,11 +1496,11 @@ guaranteed to be available.
 A public-domain version of
 .IR strftime (3)
 and a man page for it are shipped with
-.IR awk ;
+.IR gawk ;
 if that version was used to build
-.IR awk ,
+.IR gawk ,
 then all of the conversions described in that man page are available to
-.IR awk.
+.IR gawk.
 .SS String Constants
 .PP
 String constants in AWK are sequences of characters enclosed
@@ -1643,12 +1643,12 @@ Addison-Wesley, 1988. ISBN 0-201-07981-X.
 Edition 0.15, published by the Free Software Foundation, 1993.
 .SH POSIX COMPATIBILITY
 A primary goal for
-.I awk
+.I gawk
 is compatibility with the \*(PX standard, as well as with the
 latest version of \*(UX
 .IR awk .
 To this end,
-.I awk
+.I gawk
 incorporates the following user visible
 features which are not described in the AWK book,
 but are part of
@@ -1679,7 +1679,7 @@ The
 option for implementation specific features is from the \*(PX standard.
 .PP
 When processing arguments,
-.I awk
+.I gawk
 uses the special option ``\fB\-\^\-\fP'' to signal the end of
 arguments.
 In compatibility mode, it will warn about, but otherwise ignore,
@@ -1696,7 +1696,7 @@ has it return the seed it was using, to allow keeping track
 of random number sequences. Therefore
 .B srand()
 in
-.I awk
+.I gawk
 also returns its current seed.
 .PP
 Other new features are:
@@ -1711,7 +1711,7 @@ array; the
 and
 .BR \ev
 escape sequences (done originally in
-.I awk
+.I gawk
 and fed back into AT&T's); the
 .B tolower()
 and
@@ -1726,13 +1726,13 @@ has some extensions to \*(PX
 They are described in this section.  All the extensions described here
 can be disabled by
 invoking
-.I awk
+.I gawk
 with the
 .B "\-W compat"
 option.
 .PP
 The following features of
-.I awk
+.I gawk
 are not available in
 \*(PX
 .IR awk .
@@ -1800,7 +1800,7 @@ or
 when closing a file or pipe, respectively.
 .PP
 When
-.I awk
+.I gawk
 is invoked with the
 .B "\-W compat"
 option,
@@ -1818,7 +1818,7 @@ has been specified.
 .ig
 .PP
 If
-.I awk
+.I gawk
 was compiled for debugging, it will
 accept the following additional options:
 .TP
@@ -1833,13 +1833,13 @@ or
 .IR bison (1)
 debugging output during program parsing.
 This option should only be of interest to the
-.I awk
+.I gawk
 maintainers, and may not even be compiled into
-.IR awk .
+.IR gawk .
 ..
 .SH HISTORICAL FEATURES
 There are two features of historical AWK implementations that
-.I awk
+.I gawk
 supports.
 First, it is possible to call the
 .B length()
@@ -1863,7 +1863,7 @@ a = length($0)
 .RE
 .PP
 This feature is marked as ``deprecated'' in the \*(PX standard, and
-.I awk
+.I gawk
 will issue a warning about its use if
 .B "\-W lint"
 is specified on the command line.
@@ -1887,14 +1887,14 @@ has not been specified.
 If
 .B POSIXLY_CORRECT
 exists in the environment, then
-.I awk
+.I gawk
 behaves exactly as if
 .B \-\-posix
 had been specified on the command line.
 If
 .B \-\-lint
 has been specified,
-.I awk
+.I gawk
 will issue a warning message to this effect.
 .SH BUGS
 The
@@ -1910,9 +1910,9 @@ and the associated
 and
 .B /dev/stderr
 files, you may get different output from
-.I awk
+.I gawk
 than you would get on a system without those files.  When
-.I awk
+.I gawk
 interprets these files internally, it synchronizes output to the standard
 output with output to
 .BR /dev/stdout ,
@@ -1921,11 +1921,11 @@ open files.
 Caveat Emptor.
 .SH VERSION INFORMATION
 This man page documents
-.IR awk ,
+.IR gawk ,
 version 2.15.
 .PP
 Starting with the 2.15 version of
-.IR awk ,
+.IR gawk ,
 the
 .BR \-c ,
 .BR \-V ,

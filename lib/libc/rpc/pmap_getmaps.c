@@ -47,7 +47,6 @@ static char *rcsid = "$Id: pmap_getmaps.c,v 1.2 1995/05/30 05:41:23 rgrimes Exp 
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include <net/if.h>
 #include <sys/ioctl.h>

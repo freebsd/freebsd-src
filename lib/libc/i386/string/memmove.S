@@ -54,10 +54,8 @@ ENTRY(memmove)
 	movl	12(%esp),%edi
 	movl	16(%esp),%esi
 	movl	20(%esp),%ecx
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax
-	jb	1f
+	cmpl	%esi,%edi	/* potentially overlapping? */
+	jnb	1f
 	cld			/* nope, copy forwards. */
 	shrl	$2,%ecx		/* copy by words */
 	rep
@@ -73,10 +71,10 @@ ENTRY(memmove)
 1:
 	addl	%ecx,%edi	/* copy backwards. */
 	addl	%ecx,%esi
+	std
+	andl	$3,%ecx		/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
-	andl	$3,%ecx		/* any fractional bytes? */
-	std
 	rep
 	movsb
 	movl	20(%esp),%ecx	/* copy remainder by words */

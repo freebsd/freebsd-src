@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #include <sys/syslimits.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

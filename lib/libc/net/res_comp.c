@@ -95,7 +95,7 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 	/*
 	 * fetch next label in domain name
 	 */
-	while (n = *cp++) {
+	while ((n = *cp++)) {
 		/*
 		 * Check for indirection
 		 */
@@ -110,14 +110,14 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 				return (-1);
 			checked += n + 1;
 			while (--n >= 0) {
-				if (((c = *cp++) == '.') || (c == '\\')) {
+				if ((c = *cp++) == '.') {
 					if (dn + n + 2 >= eom)
 						return (-1);
 					*dn++ = '\\';
 				}
 				*dn++ = c;
 				if (cp >= eomorig)	/* out of range */
-					return (-1);
+					return(-1);
 			}
 			break;
 
@@ -126,7 +126,7 @@ dn_expand(msg, eomorig, comp_dn, exp_dn, length)
 				len = cp - comp_dn + 1;
 			cp = msg + (((n & 0x3f) << 8) | (*cp & 0xff));
 			if (cp < msg || cp >= eomorig)	/* out of range */
-				return (-1);
+				return(-1);
 			checked += 2;
 			/*
 			 * Check for loops in the compressed name;
@@ -262,12 +262,12 @@ __dn_skipname(comp_dn, eom)
 			cp++;
 			break;
 		default:		/* illegal type */
-			return (-1);
+			return -1;
 		}
 		break;
 	}
 	if (cp > eom)
-		return (-1);
+		return -1;
 	return (cp - comp_dn);
 }
 
@@ -298,7 +298,7 @@ dn_find(exp_dn, msg, dnptrs, lastdnptr)
 	for (cpp = dnptrs; cpp < lastdnptr; cpp++) {
 		dn = exp_dn;
 		sp = cp = *cpp;
-		while (n = *cp++) {
+		while ((n = *cp++)) {
 			/*
 			 * check for indirection
 			 */
@@ -318,12 +318,11 @@ dn_find(exp_dn, msg, dnptrs, lastdnptr)
 					continue;
 				goto next;
 
-			case INDIR_MASK:	/* indirection */
-				cp = msg + (((n & 0x3f) << 8) | *cp);
-				break;
-
 			default:	/* illegal type */
 				return (-1);
+
+			case INDIR_MASK:	/* indirection */
+				cp = msg + (((n & 0x3f) << 8) | *cp);
 			}
 		}
 		if (*dn == '\0')
@@ -334,7 +333,11 @@ dn_find(exp_dn, msg, dnptrs, lastdnptr)
 }
 
 /*
- * Routines to insert/extract short/long's.
+ * Routines to insert/extract short/long's. Must account for byte
+ * order and non-alignment problems. This code at least has the
+ * advantage of being portable.
+ *
+ * used by sendmail.
  */
 
 u_int16_t

@@ -900,7 +900,6 @@ nfsd-keepalive	1110/udp   #Client status info
 supfiledbg	1127/tcp		# for SUP
 nfa		1155/tcp   #Network File Access		       
 nfa		1155/udp   #Network File Access		       
-phone		1167/udp   #conference calling
 lupa		1212/tcp
 lupa		1212/udp
 nerv		1222/tcp   #SNI R&D network		     

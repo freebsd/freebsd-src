@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_clnp.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_clnp.h,v 1.3 1994/08/21 06:14:23 paul Exp $
+ * $Id: tp_clnp.h,v 1.4 1995/05/30 08:11:02 rgrimes Exp $
  */
 
 #ifndef _NETISO_TP_CLNP_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_clnp.h,v 1.3 1994/08/21 06:14:23 paul Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_clnp.h,v $
+ * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_clnp.h,v 1.4 1995/05/30 08:11:02 rgrimes Exp $
+ * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_clnp.h,v $
  *
  * AF_ISO net-dependent structures and include files
  *

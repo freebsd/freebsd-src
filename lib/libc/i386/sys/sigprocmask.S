@@ -44,14 +44,9 @@
 #include "SYS.h"
 
 err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
+	jmp	cerror
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_sigprocmask)
-#else
 ENTRY(sigprocmask)
-#endif
 	movl	8(%esp),%ecx		# fetch new sigset pointer
 	cmpl	$0,%ecx			# check new sigset pointer
 	jne	1f			# if not null, indirect
@@ -60,8 +55,8 @@ ENTRY(sigprocmask)
 	jmp	2f
 1:	movl	(%ecx),%ecx		# fetch indirect  ...
 	movl	%ecx,8(%esp)		# to new mask arg
-2:	lea	SYS_sigprocmask,%eax
-	KERNCALL
+2:	movl	$ SYS_sigprocmask , %eax
+	LCALL(0x7,0)
 	jb	err
 	movl	12(%esp),%ecx		# fetch old mask requested
 	cmpl	$0,%ecx			# test if old mask requested

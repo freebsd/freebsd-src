@@ -3,7 +3,7 @@ package DB;
 # modified Perl debugger, to be run from Emacs in perldb-mode
 # Ray Lischner (uunet!mntgfx!lisch) as of 5 Nov 1990
 
-$header = '$Header: /home/cvs/386BSD/ports/lang/perl/emacs/perldb.pl,v 1.1.1.1 1993/08/23 21:29:46 nate Exp $';
+$header = '$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/emacs/perldb.pl,v 1.1.1.1 1994/09/10 06:27:50 gclarkii Exp $';
 #
 # This file is automatically included if you do perl -d.
 # It's probably not useful to include this yourself.
@@ -13,6 +13,9 @@ $header = '$Header: /home/cvs/386BSD/ports/lang/perl/emacs/perldb.pl,v 1.1.1.1 1
 # have a breakpoint.  It also inserts a do 'perldb.pl' before the first line.
 #
 # $Log: perldb.pl,v $
+# Revision 1.1.1.1  1994/09/10  06:27:50  gclarkii
+# Initial import of Perl 4.046 bmaked
+#
 # Revision 1.1.1.1  1993/08/23  21:29:46  nate
 # PERL!
 #

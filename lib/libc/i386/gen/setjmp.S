@@ -54,20 +54,10 @@
 #include "DEFS.h"
 #include "SYS.h"
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_setjmp)
-#else
 ENTRY(setjmp)
-#endif
-	PIC_PROLOGUE
 	pushl	$0
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigblock))
-#else
-	call	PIC_PLT(CNAME(sigblock))
-#endif
+	call	PIC_PLT(_sigblock)
 	popl	%edx
-	PIC_EPILOGUE
 	movl	4(%esp),%ecx 
 	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
@@ -81,21 +71,11 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_longjmp)
-#else
 ENTRY(longjmp)
-#endif
 	movl	4(%esp),%edx
-	PIC_PROLOGUE
 	pushl	24(%edx)
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigsetmask))
-#else
-	call	PIC_PLT(CNAME(sigsetmask))	/* XXX this is not reentrant */
-#endif
+	call	PIC_PLT(_sigsetmask)	/* XXX this is not reentrant */
 	popl	%eax
-	PIC_EPILOGUE
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx

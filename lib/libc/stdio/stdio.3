@@ -63,7 +63,7 @@ If a file can support positioning requests (such as a disk file, as opposed
 to a terminal) then a
 .Em file position indicator
 associated with the stream is positioned at the start of the file (byte
-zero), unless the file is opened with append mode. If append mode
+zero), unless the file is opened with appended mode. If append mode
 is used, the position indicator will be placed the end-of-file.
 The position indicator is maintained by subsequent reads, writes
 and positioning requests. All input occurs as if the characters
@@ -111,7 +111,7 @@ opened explicitly:
 (for reading conventional input),
 .It
 .Em standard output 
-(for writing conventional output), and
+(for writing conventional input), and
 .It
 .Em standard error
 (for writing diagnostic output).
@@ -229,7 +229,7 @@ feof	check and reset stream status
 ferror	check and reset stream status
 fflush	flush a stream
 fgetc	get next character or word from input stream
-fgetln	get a line from a stream
+fgetline	get a line from a stream
 fgetpos	reposition a stream
 fgets	get a line from a stream
 fileno	check and reset stream status

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: ethertype.h,v 1.2 94/06/14 20:03:27 leres Exp $ (LBL)
+ * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/ethertype.h,v 1.1.1.1 1995/01/20 04:13:05 jkh Exp $ (LBL)
  */
 
 /* Map between Ethernet protocol types and names */

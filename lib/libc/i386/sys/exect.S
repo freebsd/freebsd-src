@@ -51,6 +51,5 @@ ENTRY(exect)
 	orl	$ PSL_T,%edx
 	pushl	%edx
 	popf
-	KERNCALL
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))	/* exect(file, argv, env); */
+	LCALL(7,0)
+	jmp	cerror		/* exect(file, argv, env); */

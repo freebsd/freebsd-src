@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_back.c,v 1.2 1995/04/20 07:34:51 julian Exp $
+ *	$Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/miscfs/devfs/Attic/devfs_back.c,v 1.3 1995/05/30 08:06:49 rgrimes Exp $
  */
 
 #include "param.h"

@@ -59,10 +59,6 @@ static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 
 #include "local.h"
 #include "fvwrite.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 /* Define FLOATING_POINT to get floating point. */
 #define	FLOATING_POINT
@@ -306,7 +302,8 @@ vfprintf(fp, fmt0, ap)
 	u_quad_t uqval;		/* %q integers */
 	int base;		/* base for [diouxX] conversion */
 	int dprec;		/* a copy of prec if [diouxX], 0 otherwise */
-	int realsz;		/* field size expanded by dprec, sign, etc */
+	int fieldsz;		/* field size expanded by sign, etc */
+	int realsz;		/* field size expanded by dprec */
 	int size;		/* size of converted field or string */
 	char *xdigs;		/* digits for [xX] conversion */
 #define NIOV 8
@@ -369,25 +366,14 @@ vfprintf(fp, fmt0, ap)
 	    flags&SHORTINT ? (u_long)(u_short)va_arg(ap, int) : \
 	    (u_long)va_arg(ap, u_int))
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
-	if (cantwrite(fp)) {
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+	if (cantwrite(fp))
 		return (EOF);
-	}
 
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
-	    fp->_file >= 0) {
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+	    fp->_file >= 0)
 		return (__sbprintf(fp, fmt0, ap));
-	}
 
 	fmt = (char *)fmt0;
 	uio.uio_iov = iovp = iov;
@@ -707,13 +693,14 @@ number:			if ((dprec = prec) >= 0)
 		 * floating precision; finally, if LADJUST, pad with blanks.
 		 *
 		 * Compute actual size, so we know how much to pad.
-		 * size excludes decimal prec; realsz includes it.
+		 * fieldsz excludes decimal prec; realsz includes it.
 		 */
-		realsz = dprec > size ? dprec : size;
+		fieldsz = size;
 		if (sign)
-			realsz++;
+			fieldsz++;
 		else if (flags & HEXPREFIX)
-			realsz += 2;
+			fieldsz += 2;
+		realsz = dprec > fieldsz ? dprec : fieldsz;
 
 		/* right-adjusting blank padding */
 		if ((flags & (LADJUST|ZEROPAD)) == 0)
@@ -733,7 +720,7 @@ number:			if ((dprec = prec) >= 0)
 			PAD(width - realsz, zeroes);
 
 		/* leading zeroes from decimal precision */
-		PAD(dprec - size, zeroes);
+		PAD(dprec - fieldsz, zeroes);
 
 		/* the string or number proper */
 #ifdef FLOATING_POINT
@@ -795,12 +782,7 @@ number:			if ((dprec = prec) >= 0)
 done:
 	FLUSH();
 error:
-	if (__sferror(fp))
-		ret = EOF;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
-	return (ret);
+	return (__sferror(fp) ? EOF : ret);
 	/* NOTREACHED */
 }
 

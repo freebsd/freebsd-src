@@ -2,7 +2,7 @@
 #
 #  Examples to connect to IIJ Dialup PPP service
 #
-#	1) On IIJ service, both user side and server side address can
+#	1) On IIJ servive, both user side and server side address can
 #	   not be predicted by a customer. In this circumstance, you need
 #	   some trick to use on-demand dialup. See iij-demand for example.
 #
@@ -27,7 +27,7 @@ iij:
  set timeout 0
  dial
 #
-#  If you prefer to use PAP authentication, use this one.
+#  If you prefer to use PAP authentification, use this one.
 #
 #	% ppp iij-pap
 #
@@ -41,7 +41,7 @@ iij-pap:
  set openmode active
  dial
 #
-#  Use "% ppp iij-chap" for CHAP authentication
+#  Use "% ppp iij-chap" for CHAP authentification
 #
 iij-chap:
  set phone 0332425701

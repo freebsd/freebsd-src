@@ -19,9 +19,6 @@
 
 #include <errno.h>
 #include <stdio.h>
-#ifdef __FreeBSD__
-#include <locale.h>
-#endif
 
 #ifndef errno
 extern int errno;
@@ -56,7 +53,6 @@ extern char *memchr();
 #include <unistd.h>
 #else
 #define O_RDONLY 0
-#define STDIN_FILENO 0
 extern int open(), read(), close();
 #endif
 
@@ -94,16 +90,6 @@ memchr(vp, c, n)
   return 0;
 }
 #endif
-
-/* traverse a file hierarchy library */
-#ifdef HAVE_FTS
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fts.h>
-#endif
-
-/* don't search in binary files */
-int aflag;
 
 /* Define flags declared in grep.h. */
 char *matcher;
@@ -510,40 +496,6 @@ grepbuf(beg, lim)
   return nlines;
 }
 
-
-/*
- * try to guess if fd belong to a binary file 
- */
-
-int isBinaryFile(fd)
-     int fd;
-{
-#define BINARY_BUF_LEN 32
-  static unsigned char buf[BINARY_BUF_LEN];
-  int i, n;
-
-  /* pipe, socket, fifo */
-  if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1)
-    return(0);
-
- if ((n =(int) read(fd, buf, (size_t)BINARY_BUF_LEN)) == -1)
-   return(0);
-
-  /* look for non-printable chars */
-  for(i = 0; i < n; i++)
-    if (!isprint(buf[i]) && !isspace(buf[i]))
-      return(1);
-
-  /* reset fd to begin of file */
-  if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1)
-    return(0);
-
-  
-  return(0);
-}
-
-
-
 /* Search a given file.  Return a count of lines printed. */
 static int
 grep(fd)
@@ -552,10 +504,6 @@ grep(fd)
   int nlines, i;
   size_t residue, save;
   char *beg, *lim;
-
-  /* skip binary files */
-  if (aflag && isBinaryFile(fd))
-    return(0);
 
   reset(fd);
 
@@ -617,15 +565,8 @@ grep(fd)
 
 static char version[] = "GNU grep version 2.0";
 
-#ifdef HAVE_FTS
 #define USAGE \
-"usage: %s [-[AB] <num>] [-HRPS] [-CEFGLVabchilnqsvwx]\n\
-            [-e <expr>] [-f file] [files ...]\n"
-#else
-#define USAGE \
-"usage: %s [-[AB] <num>] [-CEFGLVabchilnqsvwx]\n\
-            [-e <expr>] [-f file] [files ...]\n"
-#endif
+  "usage: %s [-[[AB] ]<num>] [-[CEFGVchilnqsvwx]] [-[ef]] <expr> [<files...>]\n"
 
 static void
 usage()
@@ -664,16 +605,7 @@ main(argc, argv)
   FILE *fp;
   extern char *optarg;
   extern int optind;
-#ifdef HAVE_FTS
-  int Rflag, Hflag, Pflag, Lflag;
-  FTS *ftsp;
-  FTSENT *ftsent;
-  int fts_options;
-#endif
 
-#ifdef __FreeBSD__
-  (void) setlocale(LC_CTYPE, "");
-#endif
   prog = argv[0];
   if (prog && strrchr(prog, '/'))
     prog = strrchr(prog, '/') + 1;
@@ -686,20 +618,9 @@ main(argc, argv)
   list_files = 0;
   suppress_errors = 0;
   matcher = NULL;
-  aflag = 0;
-#ifdef HAVE_FTS
-  Rflag = Hflag = Pflag = Lflag = 0;
-#endif
 
-  while ((opt = getopt(argc, argv, 
-
-#ifndef HAVE_FTS
-"0123456789A:B:CEFGVX:abce:f:hiLlnqsvwxy"
-#else
-"0123456789A:B:CEFGHLPRSVX:abce:f:hiLlnqsvwxy?"
-#endif 
-
-)) != EOF)
+  while ((opt = getopt(argc, argv, "0123456789A:B:CEFGVX:bce:f:hiLlnqsvwxy"))
+	 != EOF)
     switch (opt)
       {
       case '0':
@@ -750,34 +671,6 @@ main(argc, argv)
 	if (matcher)
 	  fatal("matcher already specified", 0);
 	matcher = optarg;
-	break;
-
-#ifdef HAVE_FTS
-	/* symbolic links on the command line are followed */
-      case 'H': 
-	Hflag = 1;
-	Lflag = Pflag = 0;
-	break;
-
-	/* no symbolic links are followed */
-      case 'P':
-	Pflag = 1;
-	Hflag = Lflag = 0;
-	break;
-
-	/* traverse file hierarchies */
-      case 'R':
-	Rflag = 1;
-	break;
-
-	/* all symbolic links are followed */
-      case 'S':
-	Lflag = 1;
-	Hflag = Pflag = 0;
-	break;
-#endif
-      case 'a':
-	aflag = 1;
 	break;
       case 'b':
 	out_byte = 1;
@@ -876,126 +769,12 @@ main(argc, argv)
 
   (*compile)(keys, keycc);
 
-#ifndef HAVE_FTS
   if (argc - optind > 1 && !no_filenames)
-#else
-  if ((argc - optind > 1 || Rflag) && !no_filenames)
-#endif
     out_file = 1;
 
   status = 1;
 
-#if HAVE_FTS
-  if (Rflag) {
-    fts_options = FTS_PHYSICAL | FTS_NOCHDIR;
-
-    if (Hflag)
-      fts_options |= FTS_COMFOLLOW;
-
-    if (Lflag) {
-      fts_options |= FTS_LOGICAL;
-      fts_options &= ~FTS_PHYSICAL;
-    }
-
-    if (Pflag) {
-      fts_options &= ~FTS_LOGICAL & ~FTS_COMFOLLOW;
-      fts_options |= FTS_PHYSICAL;
-    }      
-  }
-
-  if (Rflag && optind < argc) {
-    int i;
-
-    /* replace "-" with "/dev/stdin" */
-    for (i = optind; i < argc; i++)
-      if (strcmp(argv[i], "-") == 0)
-	*(argv + i) = "/dev/stdin";
-
-    if ((ftsp = fts_open(argv + optind, fts_options,  
-			 (int(*)())NULL)) == NULL) {
-      if (!suppress_errors)
-	error("", errno);
-    } else {
-
-      while((ftsent = fts_read(ftsp)) != NULL) {
-	filename = ftsent->fts_accpath;
-
-	switch(ftsent->fts_info) {
-
-	  /* regular file */
-	case FTS_F:
-	  break;
-
-	  /* directory */
-	case FTS_D:
-	case FTS_DC:
-	case FTS_DP:
-	  continue; break;
-
-	  /* errors */
-	case FTS_DNR:
-	  error(filename, errno);
-	  continue; break;
-
-	case FTS_ERR:
-	case FTS_NS:
-	  error(filename, ftsent->fts_errno);
-	  continue; break;
-
-	  /* dead symlink */
-	case FTS_SLNONE:
-	  continue; break;
-
-	  /* symlink, don't skip */
-	case FTS_SL:
-	  break;
-
-	default:
-	  /* 
-	  if (!suppress_errors)
-	    fprintf(stderr, "%s: ignored\n", filename);
-	  continue; break;
-	  */
-
-	}
-
-	if ((desc = open(filename, O_RDONLY)) == -1) {
-	  error(filename, errno);
-	  continue;
-	}
-
-	count = grep(desc);
-	if (count_matches)
-	  {
-	    if (out_file)
-	      printf("%s:", filename);
-	    printf("%d\n", count);
-	  }
-	if (count)
-	  {
-	    status = 0;
-	    if (list_files == 1)
-	      printf("%s\n", filename);
-	  }
-	else if (list_files == -1)
-	  printf("%s\n", filename);
-
-	if (desc != STDIN_FILENO)
-	  close(desc);
-      }
-
-      if (fts_close(ftsp) == -1)
-	error("fts_close", errno);
-    }
-
-  /* ! Rflag */
-  } else
-
-#endif /* HAVE_FTS */
-
-  /* search in file names from arguments, not from stdin */
   if (optind < argc)
-
     while (optind < argc)
       {
 	desc = strcmp(argv[optind], "-") ? open(argv[optind], O_RDONLY) : 0;
@@ -1027,8 +806,6 @@ main(argc, argv)
 	  close(desc);
 	++optind;
       }
-
-  /* read input from stdin */
   else
     {
       filename = "(standard input)";

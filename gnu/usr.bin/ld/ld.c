@@ -3593,17 +3593,6 @@ write_file_syms(entry, syms_written_addr)
 		if (!(lsp->flags & LS_WRITE))
 			continue;
 
-		if (discard_locals == DISCARD_ALL ||
-		    discard_locals == DISCARD_L && lsp->flags & LS_L_SYMBOL) {
-			/*
-			 * The user wants to discard this symbol, but it
-			 * is referenced by a relocation.  We can still
-			 * save some file space by suppressing the unique
-			 * renaming of the symbol.
-			 */
-			lsp->flags &= ~LS_RENAME;
-		}
-
 		if (p->n_un.n_strx == 0)
 			name = NULL;
 		else if (!(lsp->flags & LS_RENAME))

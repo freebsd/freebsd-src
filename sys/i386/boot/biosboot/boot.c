@@ -104,7 +104,7 @@ boot(int drive)
 	/***************************************************************\
 	* As a default set it to the first partition of the boot	*
 	* floppy or hard drive						*
-	* Define BOOT_HD to boot sd0 when wd0 is also installed		*
+	* Define BOOT_HT to boot sd0 when wd0 is also installed		*
 	\***************************************************************/
 	part = 0;
 	unit = drive & 0x7f;

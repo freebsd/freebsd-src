@@ -13,7 +13,7 @@ reply.
 Finally, the procedure call returns to the client.
 .LP
 Routines that are used for Secure RPC (DES authentication) are described in
-.BR rpc_secure (3).
+.BR rpc_secure (3N).
 Secure RPC can be used only if DES encryption is available.
 .LP
 .ft B
@@ -646,7 +646,7 @@ client for the remote program
 .IR prognum ,
 version
 .IR versnum ;
-the client uses
+the client uses use
 .SM UDP/IP
 as a transport. The remote program is located at Internet
 address
@@ -700,7 +700,7 @@ client for the remote program
 .IR prognum ,
 on
 .IR versnum ;
-the client uses
+the client uses use
 .SM UDP/IP
 as a transport. The remote program is located at Internet
 address
@@ -725,7 +725,7 @@ out.
 The total time for the call to time out is specified by
 .BR clnt_call(\|) .
 .IP
-This allows the user to specify the maximum packet size for sending and receiving 
+This allows the user to specify the maximun packet size for sending and receiving 
 .SM UDP\s0-based
 .SM RPC
 messages.
@@ -1709,7 +1709,7 @@ This routine modifies the global variable
 .BR svc_fds(\|) .
 Service implementors usually do not need this routine.
 .SH SEE ALSO
-.BR rpc_secure (3),
+.BR rpc_secure (3N),
 .BR xdr (3)
 .br
 The following manuals:

@@ -7,7 +7,7 @@ CLEANFILES+=	expr.c y.tab.h
 
 expr.c:
 	${YACC} -d ${.IMPSRC}
-	mv -f y.tab.c expr.c
+	mv y.tab.c expr.c
 
 .include <bsd.prog.mk>
 

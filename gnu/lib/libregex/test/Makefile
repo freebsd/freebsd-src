@@ -1,5 +1,3 @@
-#	$Id$
-
 # Generated automatically from Makefile.in by configure.
 # Makefile for regex testing.
 #
@@ -67,7 +65,7 @@ regex: $(regex_o) $(common_o) $(test_o) main.o
 dregex.o: ../regex.c ../regex.h
 	rm -f $@
 	$(CC) $(ALL_CPPFLAGS) $(CFLAGS) -c ../$(srcdir)/regex.c
-	mv -f regex.o $@
+	mv regex.o $@
 
 # iregex is the interactive regex.
 iregex: $(common_o) $(regex_o) iregex.o

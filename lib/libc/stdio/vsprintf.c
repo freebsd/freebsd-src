@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)vsprintf.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <limits.h>
 
-int
 vsprintf(str, fmt, ap)
 	char *str;
 	const char *fmt;
@@ -50,7 +49,6 @@ vsprintf(str, fmt, ap)
 	int ret;
 	FILE f;
 
-	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = INT_MAX;

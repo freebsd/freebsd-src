@@ -170,7 +170,7 @@
 #ifndef MANPATH_MAIN
   static char *std_sections[] = 
     {
-       "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "9", "p", "o", NULL
+       "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL
     };
 #endif
 

@@ -36,14 +36,14 @@
 #		via the floppy disk controller)
 #
 # Disks:
-#	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
+#	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
-#	sd*	"SCSI disks"
-#	cd*	"SCSI CD-ROM disks"
-#	mcd*	"Mitsumi CD-ROM disks"
-#	scd*	"Sony CD-ROM disks"
-#	matcd*	"Matsushita (Panasonic) CD-ROM disks"
-#	wcd*	"IDE CD-ROM disks"
+#	sd*	"scsi disks"
+#	cd*	"scsi cdrom disks"
+#	mcd*	"mitsumi cdrom disks"
+#	scd*	"sony cdrom disks"
+#	matcd*	"Matsushita (panasonic) cdrom disks"
+#	wcd*	"IDE cdrom disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
 #
@@ -77,27 +77,25 @@
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
 #
-# PC-CARD (previously called PCMCIA) support
-#	card*	PC-CARD slots
-#
 # Special purpose devices:
-#	apm	Advanced Power Management BIOS
 #	bpf*	packet filter
 #	speaker	pc speaker
 #	tw*	xten power controller
-#	snd*	various sound cards
+#	snd*	various sound cards (generic entries)
+#	gusmax	A GUS MAX sound card (does various snd* entries)
+#	pas16	A ProAudio Spectrum 16 card (does various snd* entries)
+#	sb	A sound blaster card (any type)
 #	pcaudio PCM audio driver
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #	gsc	Genius GS-4500 hand scanner
 #	joy	pc joystick
 #	tun	Tunneling IP device
-#	spigot	Video Spigot video acquisition card
-#	meteor*	Matrox Meteor video acquisition card (pci)
-#	qcam*	Connectix QuickCam(tm) parallel port camera
+#	spigot	Video Spigot video aquisition card
+#	meteor*	Matrox Meteor video aquisition card (pci)
+#	qcam*	Connectix QuickCam parallel port camera
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
-#	perfmon	CPU performance-monitoring counters
 #
 #	$Id: MAKEDEV,v 1.95.4.11 1996/05/04 07:18:45 pst Exp $
 #
@@ -160,10 +158,6 @@ dkrawslice=1
 # Control bit for SCSI
 scsictl=536870912
 
-# Standard umasks
-disk_umask=037			# allow group operator to read disks
-tape_umask=017			# allow group operator to read/write tapes
-
 for i
 do
 case $i in
@@ -171,28 +165,26 @@ case $i in
 all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3	# bdev, disk
-	sh MAKEDEV cd0 mcd0 scd0 matcd0 wcd0			# bdev, cdrom
+	sh MAKEDEV cd0 mcd0 scd0 matcd0	wcd0			# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0					# bdev, tape
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
 	sh MAKEDEV lpt0 lpt1 lpt2				# cdev, printer
 	sh MAKEDEV pty0 ch0 tw0 bpf0				# cdev
-	sh MAKEDEV perfmon speaker pcaudio psm0 mse0		# cdev
+	sh MAKEDEV speaker pcaudio psm0 mse0			# cdev
 	sh MAKEDEV vty4						# cdev
 	sh MAKEDEV tun0						# cdev
 	;;
 std)
-	rm -f console drum mem kmem null random urandom zero io tty klog
-	rm -f stdin stdout stderr lkm
+	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
+	rm -f lkm
 	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
 	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
 	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
 	mknod mem	c 2 0;	chmod 640 mem;		chown root.kmem mem
 	mknod null	c 2 2;	chmod 666 null;		chown root.wheel null
-	mknod random	c 2 3;	chmod 644 random;	chown root.wheel random
-	mknod urandom	c 2 4;	chmod 644 urandom;	chown root.wheel urandom
 	mknod zero	c 2 12;	chmod 666 zero;		chown root.wheel zero
-	mknod io	c 2 14;	chmod 600 io;		chown root.wheel io
+	mknod io	c 2 14;	chmod 640 io;		chown root.kmem io
 	mknod tty	c 1 0;	chmod 666 tty;		chown root.wheel tty
 	mknod klog	c 7 0;	chmod 600 klog;		chown root.wheel klog
 	mknod stdin	c 22 0; chmod 666 stdin;	chown root.wheel stdin
@@ -219,7 +211,7 @@ mach-4)
 
 # Create device files for new Archive/Wangtek QIC-02 tape driver (vak)
 wt*)
-	umask $tape_umask
+	umask 7
 	u=`expr $i : '..\(.*\)'`
 	if [ x$u = x ]; then u=0; fi
 	rm -f r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
@@ -242,13 +234,13 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|sd*s*|vn*s*|wd*s*)
-	umask $disk_umask
+sd*s*|vn*s*|wd*s*|od*s*)
+	umask 37
 	case $i in
-	od*s*) name=od; blk=20; chr=70;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	wd*s*) name=wd; blk=0;  chr=3;;
 	vn*s*) name=vn; blk=15; chr=43;;
+	od*s*) name=od; blk=20; chr=70;;
 	esac
 	unit=`expr $i : '..\([0-9]*\)s'`
 	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
@@ -301,7 +293,7 @@ od*s*|sd*s*|vn*s*|wd*s*)
 	;;
 
 fd*)
-	umask $disk_umask
+	umask 2
 	unit=`expr $i : '..\(.*\)'`
 	name=fd; blk=2; chr=9
 	rm -f $name$unit* r$name$unit*
@@ -376,6 +368,7 @@ fd*)
 		# ln r${name}${unit}.360 r${name}${unit}48ds9
 
 		chgrp operator ${name}${unit}* r${name}${unit}*
+		chmod 640 ${name}${unit}* r${name}${unit}*
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -384,8 +377,9 @@ fd*)
 	umask 77
 	;;
 
+
 ft*)
-	umask $tape_umask
+	umask 2
 	unit=`expr $i : '..\(.*\)'`
 	name=ft; blk=2; chr=9
 	rm -f $name$unit* r$name$unit*
@@ -396,6 +390,7 @@ ft*)
 		ln ${name}${unit} ${name}${unit}a
 		ln r${name}${unit} r${name}${unit}a
 		chgrp operator ${name}${unit}* r${name}${unit}*
+		chmod 640 ${name}${unit}* r${name}${unit}*
 		;;
 	*)
 		echo bad unit for tape in: $i
@@ -404,13 +399,13 @@ ft*)
 	umask 77
 	;;
 
-od*|sd*|vn*|wd*)
-	umask $disk_umask
+sd*|vn*|wd*|od*)
+	umask 37
 	case $i in
-	od*) name=od; blk=20; chr=70;;
 	sd*) name=sd; blk=4;  chr=13;;
-	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
+	vn*) name=vn; blk=15; chr=43;;
+	od*) name=od; blk=20; chr=70;;
 	esac
 	unit=`expr $i : '..\(.*\)'`
 	case $unit in
@@ -420,7 +415,7 @@ od*|sd*|vn*|wd*)
 			sh MAKEDEV $name$unit$slicepartname
 		done
 		case $name in
-		od|sd)
+		sd|od)
 			rm -f r${name}${unit}.ctl
 			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
 			chmod 600 r${name}${unit}.ctl
@@ -478,6 +473,7 @@ worm*)
 	mknod r${name}${unit} c $chr ${unit}
 	rm -f r${name}${unit}.ctl
 	mknod r${name}${unit}.ctl c $chr `expr $unit + $scsictl `
+	chmod 600 r${name}${unit}.ctl
 	;;
 
 # SCSI processor type driver
@@ -493,6 +489,7 @@ pt[0-9]*)
 	mknod ${name}${unit} c $chr $unit
 	rm -f ${name}${unit}.ctl
 	mknod ${name}${unit}.ctl c $chr `expr $unit + $scsictl `
+	chmod 600 ${name}${unit}.ctl
 	;;
 
 pty*)
@@ -532,7 +529,7 @@ pty*)
 	;;
 
 st*)
-	umask $tape_umask
+	umask 2
 	unit=`expr $i : '..\(.*\)'`
 	chr=14
 
@@ -556,7 +553,10 @@ st*)
 					nrst${unit}.${mode} \
 					erst${unit}.${mode} \
 					st${unit}ctl.${mode}
-			chmod 600	st${unit}ctl.${mode}
+			chmod 640	rst${unit}.${mode}\
+					nrst${unit}.${mode} \
+					erst${unit}.${mode}
+			chmod 660	st${unit}ctl.${mode}
 		done
 		rm -f rst${unit}.ctl
 		mknod rst${unit}.ctl c $chr `expr $unit '*' 16 + $scsictl `
@@ -574,7 +574,7 @@ st*)
 	;;
 
 ch*)
-	umask 37
+	umask 2
 	unit=`expr $i : '..\(.*\)'`
 	case $i in
 	ch*) name=ch;  chr=17;;
@@ -584,6 +584,7 @@ ch*)
 	0|1|2|3|4|5|6)
 		mknod ${name}${unit}	c $chr `expr $unit '*' 16 + 0`
 		chgrp operator ${name}${unit}
+		chmod 640 ${name}${unit}
 		rm -f r${name}${unit}.ctl
 		mknod r${name}${unit}.ctl c $chr `expr $unit '*' 16 + $scsictl `
 		chmod 600 r${name}${unit}.ctl
@@ -596,7 +597,7 @@ ch*)
 	;;
 
 cd*|mcd*|scd*)
-	umask $disk_umask
+	umask 2
 	case $i in
 	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
 	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
@@ -610,6 +611,7 @@ cd*|mcd*|scd*)
 		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
 		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
 		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
 		case $name in
 		cd)
 			rm -f r${name}${unit}.ctl
@@ -890,8 +892,7 @@ mouse*)
 	if [ ! -c $name ]; then
 		$0 $name			# make the appropriate device
 	fi
-	rm -f mouse
-	ln -s $name mouse
+	ln -fs $name mouse
 	;;
 
 pcaudio)
@@ -913,7 +914,7 @@ socksys)
 snd*)
 #
 # changes from Linux voxware
-# minor		Linux			FreeBSD
+# minor		linux			freebsd
 # 8		sequencer2 (aka music0)	music0
 # 17		patmgr0			sequencer1
 # 33		patmgr1			sequencer2
@@ -927,13 +928,13 @@ snd*)
 	umask $snd_security_hole
 
 	if [ $unit = "0" ] ; then
-		rm -f mixer     ; ln -s mixer$unit mixer
-		rm -f sequencer ; ln -s sequencer$unit sequencer
-		rm -f dsp       ; ln -s dsp$unit dsp
-		rm -f audio     ; ln -s audio$unit audio
-		rm -f dspW      ; ln -s dspW$unit dspW
-		rm -f music	; ln -s music$unit music
-		rm -f pss       ; ln -s pss$unit pss
+		ln -fs mixer$unit mixer
+		ln -fs sequencer$unit sequencer
+		ln -fs dsp$unit dsp
+		ln -fs audio$unit audio
+		ln -fs dspW$unit dspW
+		ln -fs music$unit music
+		ln -fs pss$unit pss
 	fi
 
 	rm -f mixer$unit	# Mixer	[ Control ]
@@ -967,6 +968,18 @@ snd*)
 
 				# minor numbers 10-15 are unused
 	umask 77
+	;;
+
+# More specialized cases of snd driver.
+gusmax)
+	sh /dev/MAKEDEV snd0 snd1 snd2
+	ln -fs /dev/dsp2 /dev/dsp
+	;;
+pas16)
+	sh /dev/MAKEDEV snd0 snd1
+	;;
+sb)
+	sh /dev/MAKEDEV snd0
 	;;
 
 vat)
@@ -1023,6 +1036,7 @@ cronyx)
 	;;
 
 joy)
+	umask 2
 	rm -f joy0 joy1
 	mknod joy0 c 51 0
 	mknod joy1 c 51 1
@@ -1047,7 +1061,6 @@ meteor?)
 	unit=`expr $i : 'meteor\(.*\)'`
 	rm -f meteor$unit
 	mknod meteor$unit c 67 $unit
-	chown root.wheel meteor$unit
 	chmod 444 meteor$unit
 	;;
 
@@ -1162,10 +1175,6 @@ labpc*)
 			;;
 	esac
 	umask 77
-	;;
-
-perfmon)
-	mknod perfmon	c 2 32;	chmod 640 perfmon;	chown root.kmem perfmon
 	;;
 
 local)

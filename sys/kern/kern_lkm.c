@@ -191,8 +191,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 
 	switch(cmd) {
 	case LMRESERV:		/* reserve pages for a module */
-		if ((flag & FWRITE) == 0 || securelevel > 0)
-			/* only allow this if writing */
+		if ((flag & FWRITE) == 0) /* only allow this if writing */
 			return EPERM;
 
 		resrvp = (struct lmc_resrv *)data;
@@ -232,8 +231,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMLOADBUF:		/* Copy in; stateful, follows LMRESERV */
-		if ((flag & FWRITE) == 0 || securelevel > 0)
-			/* only allow this if writing */
+		if ((flag & FWRITE) == 0) /* only allow this if writing */
 			return EPERM;
 
 		loadbufp = (struct lmc_loadbuf *)data;
@@ -268,8 +266,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMUNRESRV:		/* discard reserved pages for a module */
-		if ((flag & FWRITE) == 0 || securelevel > 0)
-			/* only allow this if writing */
+		if ((flag & FWRITE) == 0) /* only allow this if writing */
 			return EPERM;
 
 		lkmunreserve();	/* coerce state to LKM_IDLE */
@@ -279,8 +276,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMREADY:		/* module loaded: call entry */
-		if ((flag & FWRITE) == 0 || securelevel > 0)
-			/* only allow this if writing */
+		if ((flag & FWRITE) == 0) /* only allow this if writing */
 			return EPERM;
 
 		switch (lkm_state) {
@@ -342,8 +338,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMUNLOAD:		/* unload a module */
-		if ((flag & FWRITE) == 0 || securelevel > 0)
-			/* only allow this if writing */
+		if ((flag & FWRITE) == 0) /* only allow this if writing */
 			return EPERM;
 
 		unloadp = (struct lmc_unload *)data;
@@ -829,6 +824,7 @@ _lkm_exec(lkmtp, cmd)
 	const struct execsw **execsw =
 		(const struct execsw **)&execsw_set.ls_items[0];
 
+#if 1
 	switch(cmd) {
 	case LKM_E_LOAD:
 		/* don't load twice! */
@@ -874,6 +870,9 @@ _lkm_exec(lkmtp, cmd)
 	case LKM_E_STAT:	/* no special handling... */
 		break;
 	}
+#else
+	err = EINVAL;
+#endif
 	return(err);
 }
 

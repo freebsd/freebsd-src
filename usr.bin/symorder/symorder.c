@@ -68,7 +68,7 @@ struct	exec exec;
 struct	stat stb;
 struct	nlist *newtab, *symtab;
 off_t	sa;
-int	nexclude, nsym, strtabsize, symfound, symkept, small, missing, clean;
+int	nexclude, nsym, strtabsize, symfound, symkept, small, missing;
 char	*kfile, *newstrings, *strings, asym[BUFSIZ];
 
 main(argc, argv)
@@ -84,11 +84,8 @@ main(argc, argv)
 	int ch, n, o;
 
 	xfilename = NULL;
-	while ((ch = getopt(argc, argv, "cmtx:")) != EOF)
+	while ((ch = getopt(argc, argv, "mtx:")) != EOF)
 		switch(ch) {
-		case 'c':
-			clean = 1;
-			break;
 		case 'm':
 			missing = 1;
 			break;
@@ -185,19 +182,15 @@ main(argc, argv)
 	    strtabsize - sizeof(int))
 		badfmt("corrupted string table");
 
-	i = n / sizeof(struct nlist);
-	if (!clean) {
-		newtab = (struct nlist *)malloc(n);
-		if (newtab == (struct nlist *)NULL)
-			error(NULL);
-		memset(newtab, 0, n);
+	newtab = (struct nlist *)malloc(n);
+	if (newtab == (struct nlist *)NULL)
+		error(NULL);
+	memset(newtab, 0, n);
 
-		reorder(symtab, newtab, i);
-		free((void *)symtab);
-		symtab = newtab;
-	} else {
-		symkept = i;
-	}
+	i = n / sizeof(struct nlist);
+	reorder(symtab, newtab, i);
+	free((void *)symtab);
+	symtab = newtab;
 
 	newstrings = malloc(strtabsize);
 	if (newstrings == NULL)
@@ -206,13 +199,8 @@ main(argc, argv)
 	for (symp = symtab; --i >= 0; symp++) {
 		if (symp->n_un.n_strx == 0)
 			continue;
-		if (inlist(symp) < 0) {
-			if (small)
-				continue;
-			if (clean && !savesymb(symp))
-				symp->n_type &= ~N_EXT;
-		} else if (clean)
-			symfound++;
+		if (small && inlist(symp) < 0)
+			continue;
 		symp->n_un.n_strx -= sizeof(int);
 		(void)strcpy(t, &strings[symp->n_un.n_strx]);
 		symp->n_un.n_strx = (t - newstrings) + sizeof(int);
@@ -250,20 +238,6 @@ main(argc, argv)
 			exit(NOTFOUNDEXIT);
 	}
 	exit(OKEXIT);
-}
-
-savesymb(s)
-	register struct nlist *s;
-{
-	if ((s->n_type & N_EXT) != N_EXT)
-		return 0;
-	switch (s->n_type & N_TYPE) {
-		case N_TEXT:
-		case N_DATA:	
-			return 0;
-		default:	
-			return 1;
-	}
 }
 
 reorder(st1, st2, entries)
@@ -349,6 +323,6 @@ error(n)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: symorder [-c] [-m] [-t] [-x excludelist] symlist file\n");
+	    "usage: symorder [-m] [-t] [-x excludelist] symlist file\n");
 	exit(ERREXIT);
 }

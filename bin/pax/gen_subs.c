@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <utmp.h>
 #include <unistd.h>
 #include <stdlib.h>

@@ -279,7 +279,7 @@ int deep_opt;
 	  nchar -= 1;
 	} else if(cpnt[0] == 0){
 	  if(MAYBE_ADD_CE_ENTRY(2)) add_CE_entry();
-	  Rock[ipnt++] = (cpnt == &symlink_buff[0] ? SL_ROOT : 0);
+	  Rock[ipnt++] = SL_ROOT;
 	  Rock[ipnt++] = 0;  /* length is zero */
 	  lenval += 2;
 	} else {

@@ -3,13 +3,22 @@
 grep, egrep, fgrep \- print lines matching a pattern
 .SH SYNOPOSIS
 .B grep
-[\-[AB] num]
-[\-HRPS]
-[\-CEFGLVabchilnqsvwx]
-[\-e expr]
-[\-f file]
-files...
-
+[
+.BR \- [[ AB "] ]\c"
+.I "num"
+]
+[
+.BR \- [ CEFGVBchilnsvwx ]
+]
+[
+.B \-e
+]
+.I pattern
+|
+.BI \-f file
+] [
+.I files...
+]
 .SH DESCRIPTION
 .PP
 .B Grep
@@ -93,9 +102,6 @@ Print the version number of
 to standard error.  This version number should
 be included in all bug reports (see below).
 .TP
-.B \-a
-Don't search in binary files.
-.TP
 .B \-b
 Print the byte offset within the input file before
 each line of output.
@@ -159,36 +165,6 @@ characters are letters, digits, and the underscore.
 .TP
 .B \-x
 Select only those matches that exactly match the whole line.
-
-.PP
-Following options only avaible if compiled with FTS library:
-.PD 0
-.TP
-.BI \-H
-If the 
-.I \-R
-option is specified, symbolic links on the command line
-are followed.  (Symbolic links encountered in the tree traversal
-are not followed.)
-.TP
-
-.BI \-L
-If the 
-.I \-R
-option is specified, all symbolic links are followed.
-.TP
-
-.BI \-P
-If the 
-.I \-R
-option is specified, no symbolic links are followed.
-.TP
-
-.BI \-R
-Search in the file hierarchies
-rooted in the files instead of just the files themselves.
-.TP
-
 .PD
 .SH "REGULAR EXPRESSIONS"
 .PP

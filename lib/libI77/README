@@ -147,10 +147,6 @@ and an attempt to skip input until the right namelist name is found;
 to omit this feature, compile rsne.c with -DNo_Bad_Namelist_Skip.
  3. Namelist writes now insert newlines before each variable; to omit
 this feature, compile xwsne.c with -DNo_Extra_Namelist_Newlines.
- 4. (Sept. 1995) When looking for the &name that starts namelist
-input, lines whose first non-blank character is something other
-than &, $, or ? are treated as comment lines and ignored, unless
-rsne.c is compiled with -DNo_Namelist_Comments.
 
 Nonstandard extension (Feb. 1993) to open: for sequential files,
 ACCESS='APPEND' (or access='anything else starting with "A" or "a"')
@@ -168,12 +164,6 @@ others and thus give no help in finding the bug of reading more
 than was written.  If you wish to have this behavior, compile
 uio.c with -DPad_UDread .
 
-If you want to be able to catch write failures (e.g., due to a
-disk being full) with an ERR= specifier, compile dfe.c, due.c,
-sfe.c, sue.c, and wsle.c with -DALWAYS_FLUSH.  This will lead to
-slower execution and more I/O, but should make ERR= work as
-expected, provided fflush returns an error return when its
-physical write fails.
 
 Carriage controls are meant to be interpreted by the UNIX col
 program (or a similar program).  Sometimes it's convenient to use
@@ -182,9 +172,3 @@ If you compile lwrite.c and wsfe.c with -DOMIT_BLANK_CC, formatted
 external output lines will have an initial ' ' quietly omitted,
 making use of the col program unnecessary with output that only
 has ' ' for carriage control.
-
-The Fortran 77 Standard leaves it up to the implementation whether
-formatted writes of floating-point numbers of absolute value < 1 have
-a zero before the decimal point.  By default, libI77 omits such
-superfluous zeros, but you can cause them to appear by compiling
-lwrite.c, wref.c, and wrtfmt.c with -DWANT_LEAD_0 .

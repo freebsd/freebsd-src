@@ -3,9 +3,9 @@
 # LICENSED MATERIALS - PROPERTY OF IBM
 # REFER TO COPYRIGHT INSTRUCTIONS FORM NUMBER G120-2083
 #
-.\"# $Header:if.4n_ca 1.5$ 
+.\"# $Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wiscman/if.4n,v 1.1.1.1 1994/05/30 19:08:12 rgrimes Exp $ 
 .\"# $ACIS:if.4n_ca 1.5$ 
-.\"# $Source: /ibm/acis/usr/man/man4/RCS/if.4n_ca,v $ 
+.\"# $Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wiscman/if.4n,v $ 
 .\" @(#)if.4n	1.2 87/08/23 3.2/4.3NFSSRC
 .\" @(#)if.4n	1.2 87/02/10 NFSSRC
 .\" @(#)if.4n 1.1 86/09/25 SMI;

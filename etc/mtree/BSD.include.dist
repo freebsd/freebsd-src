@@ -13,7 +13,13 @@
     ..
     net
     ..
+    netccitt
+    ..
     netinet
+    ..
+    netiso
+    ..
+    netns
     ..
     nfs
     ..

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993, 1994
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)page.h	8.2 (Berkeley) 5/31/94
+ *	@(#)page.h	8.1 (Berkeley) 6/6/93
  */
 
 /*
@@ -73,20 +73,20 @@
  * You might as well do this up front.
  */
 
-#define	PAIRSIZE(K,D)	(2*sizeof(u_int16_t) + (K)->size + (D)->size)
-#define BIGOVERHEAD	(4*sizeof(u_int16_t))
-#define KEYSIZE(K)	(4*sizeof(u_int16_t) + (K)->size);
-#define OVFLSIZE	(2*sizeof(u_int16_t))
+#define	PAIRSIZE(K,D)	(2*sizeof(u_short) + (K)->size + (D)->size)
+#define BIGOVERHEAD	(4*sizeof(u_short))
+#define KEYSIZE(K)	(4*sizeof(u_short) + (K)->size);
+#define OVFLSIZE	(2*sizeof(u_short))
 #define FREESPACE(P)	((P)[(P)[0]+1])
 #define	OFFSET(P)	((P)[(P)[0]+2])
 #define PAIRFITS(P,K,D) \
 	(((P)[2] >= REAL_KEY) && \
 	    (PAIRSIZE((K),(D)) + OVFLSIZE) <= FREESPACE((P)))
-#define PAGE_META(N)	(((N)+3) * sizeof(u_int16_t))
+#define PAGE_META(N)	(((N)+3) * sizeof(u_short))
 
 typedef struct {
 	BUFHEAD *newp;
 	BUFHEAD *oldp;
 	BUFHEAD *nextp;
-	u_int16_t next_addr;
+	u_short next_addr;
 }       SPLIT_RETURN;

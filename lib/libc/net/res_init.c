@@ -96,7 +96,7 @@ struct __res_state _res;
  * since it was noted that INADDR_ANY actually meant ``the first interface
  * you "ifconfig"'d at boot time'' and if this was a SLIP or PPP interface,
  * it had to be "up" in order for you to reach your own name server.  It
- * was later decided that since the recommended practice is to always 
+ * was later decided that since the recommended practice is to always
  * install local static routes through 127.0.0.1 for all your network
  * interfaces, that we could solve this problem without a code change.
  *
@@ -223,7 +223,8 @@ res_init()
 			    cp++;
 		    if ((*cp == '\0') || (*cp == '\n'))
 			    continue;
-		    strncpy(_res.defdname, cp, sizeof(_res.defdname) - 1);
+		    (void)strncpy(_res.defdname, cp,
+				  sizeof(_res.defdname) - 1);
 		    if ((cp = strpbrk(_res.defdname, " \t\n")) != NULL)
 			    *cp = '\0';
 		    havesearch = 0;
@@ -238,7 +239,8 @@ res_init()
 			    cp++;
 		    if ((*cp == '\0') || (*cp == '\n'))
 			    continue;
-		    strncpy(_res.defdname, cp, sizeof(_res.defdname) - 1);
+		    (void)strncpy(_res.defdname, cp,
+				  sizeof(_res.defdname) - 1);
 		    if ((cp = strchr(_res.defdname, '\n')) != NULL)
 			    *cp = '\0';
 		    /*
@@ -267,7 +269,7 @@ res_init()
 		}
 		/* read nameservers to query */
 		if (MATCH(buf, "nameserver") && nserv < MAXNS) {
-		    struct in_addr a;
+		   struct in_addr a;
 
 		    cp = buf + sizeof("nameserver") - 1;
 		    while (*cp == ' ' || *cp == '\t')
@@ -293,7 +295,7 @@ res_init()
 			    break;
 			net = cp;
 			while (*cp && !ISSORTMASK(*cp) && *cp != ';' &&
-			       isascii(*cp) && !isspace(*cp))
+			    isascii(*cp) && !isspace(*cp))
 				cp++;
 			n = *cp;
 			*cp = 0;
@@ -310,11 +312,11 @@ res_init()
 				if (inet_aton(net, &a)) {
 				    _res.sort_list[nsort].mask = a.s_addr;
 				} else {
-				    _res.sort_list[nsort].mask = 
+				    _res.sort_list[nsort].mask =
 					net_mask(_res.sort_list[nsort].addr);
 				}
 			    } else {
-				_res.sort_list[nsort].mask = 
+				_res.sort_list[nsort].mask =
 				    net_mask(_res.sort_list[nsort].addr);
 			    }
 			    nsort++;
@@ -329,7 +331,7 @@ res_init()
 		    continue;
 		}
 	    }
-	    if (nserv > 1) 
+	    if (nserv > 1)
 		_res.nscount = nserv;
 #ifdef RESOLVSORT
 	    _res.nsort = nsort;
@@ -349,7 +351,7 @@ res_init()
 
 #ifndef RFC1535
 		dots = 0;
-		for (cp = _res.defdname; *cp; cp++)
+		for (cp = _res.defdname;  *cp;  cp++)
 			dots += (*cp == '.');
 
 		cp = _res.defdname;
@@ -369,7 +371,7 @@ res_init()
 			printf(";;\t..END..\n");
 		}
 #endif /* DEBUG */
-#endif /* !RFC1535 */
+#endif /*!RFC1535*/
 	}
 
 	if ((cp = getenv("RES_OPTIONS")) != NULL)
@@ -395,7 +397,7 @@ res_setoptions(options, source)
 		while (*cp == ' ' || *cp == '\t')
 			cp++;
 		/* search for and process individual options */
-		if (!strncmp(cp, "ndots:", sizeof("ndots:") - 1)) {
+		if (!strncmp(cp, "ndots:", sizeof("ndots:")-1)) {
 			i = atoi(cp + sizeof("ndots:") - 1);
 			if (i <= RES_MAXNDOTS)
 				_res.ndots = i;
@@ -405,7 +407,7 @@ res_setoptions(options, source)
 			if (_res.options & RES_DEBUG)
 				printf(";;\tndots=%d\n", _res.ndots);
 #endif
-		} else if (!strncmp(cp, "debug", sizeof("debug") - 1)) {
+		} else if (!strncmp(cp, "debug", sizeof("debug")-1)) {
 #ifdef DEBUG
 			if (!(_res.options & RES_DEBUG)) {
 				printf(";; res_setoptions(\"%s\", \"%s\")..\n",
@@ -429,12 +431,12 @@ static u_int32_t
 net_mask(in)		/* XXX - should really use system's version of this */
 	struct in_addr in;
 {
-	register u_int32_t i = ntohl(in.s_addr);
+        register u_int32_t i = ntohl(in.s_addr);
 
-	if (IN_CLASSA(i))
-		return (htonl(IN_CLASSA_NET));
-	else if (IN_CLASSB(i))
-		return (htonl(IN_CLASSB_NET));
+        if (IN_CLASSA(i))
+                return (htonl(IN_CLASSA_NET));
+        else if (IN_CLASSB(i))
+                return (htonl(IN_CLASSB_NET));
 	return (htonl(IN_CLASSC_NET));
 }
 #endif

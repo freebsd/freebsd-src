@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: decnet.h,v 1.3 94/06/14 20:11:44 leres Exp $ (LBL)
+ * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/decnet.h,v 1.1 1995/03/08 12:52:11 olah Exp $ (LBL)
  */
 
 typedef unsigned char byte[1];		/* single byte field */

@@ -49,11 +49,6 @@
 #include <sys/signalvar.h>
 
 /*
- * Exported to userland via sysctl
- */
-int somaxconn = SOMAXCONN;
-
-/*
  * Socket operation routines.
  * These routines are called by the routines in
  * sys_socket.c or from a system process, and
@@ -130,9 +125,9 @@ solisten(so, backlog)
 	}
 	if (so->so_q == 0)
 		so->so_options |= SO_ACCEPTCONN;
-	if (backlog < 0 || backlog > somaxconn)
-		backlog = somaxconn;
-	so->so_qlimit = backlog;
+	if (backlog < 0)
+		backlog = 0;
+	so->so_qlimit = min(backlog, SOMAXCONN);
 	splx(s);
 	return (0);
 }

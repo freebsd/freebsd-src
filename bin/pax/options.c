@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
 #include <sys/mtio.h>
 #include <sys/param.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>

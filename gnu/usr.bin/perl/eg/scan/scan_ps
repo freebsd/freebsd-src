@@ -1,6 +1,6 @@
 #!/usr/bin/perl -P
 
-# $Header: /home/cvs/386BSD/ports/lang/perl/eg/scan/scan_ps,v 1.1.1.1 1993/08/23 21:29:45 nate Exp $
+# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/scan/scan_ps,v 1.1.1.1 1994/09/10 06:27:49 gclarkii Exp $
 
 # This looks for looping processes.
 

@@ -26,7 +26,7 @@ char copyright[] =
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.4 1995/05/30 03:51:25 rgrimes Exp $ (LBL)";
+    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/rarpd/rarpd.c,v 1.4.4.1 1995/08/05 08:04:30 davidg Exp $ (LBL)";
 #endif
 
 

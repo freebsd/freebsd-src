@@ -43,7 +43,7 @@ static char *rcsid = "$Id: svc_raw.c,v 1.2 1995/05/30 05:41:34 rgrimes Exp $";
  */
 
 #include <rpc/rpc.h>
-#include <stdlib.h>
+
 
 /*
  * This is the "network" that we will be moving data over

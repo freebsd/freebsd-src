@@ -1,5 +1,4 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id$
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
@@ -22,13 +21,11 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	getrlimit.o getrusage.o getsockname.o getsockopt.o gettimeofday.o \
 	getuid.o ioctl.o kill.o ktrace.o lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
-	madvise.o mincore.o minherit.o mkdir.o mkfifo.o mknod.o mlock.o \
-	mount.o \
+	madvise.o mincore.o mkdir.o mkfifo.o mknod.o mlock.o mount.o \
 	mprotect.o msgsys.o msync.o munlock.o munmap.o nfssvc.o \
 	ntp_adjtime.o open.o pathconf.o profil.o quotactl.o read.o \
 	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
-	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o \
-	setgid.o \
+	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
 	setgroups.o setitimer.o	setpgid.o setpriority.o	\
 	setregid.o setreuid.o setrlimit.o \
 	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
@@ -92,13 +89,11 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/getrlimit.2 sys/getrusage.2 sys/getsockname.2 sys/getsockopt.2 \
 	sys/gettimeofday.2 sys/getuid.2 sys/intro.2 sys/ioctl.2 sys/kill.2 \
 	sys/ktrace.2 sys/link.2 sys/listen.2 sys/lseek.2 sys/mkdir.2 \
-	sys/mkfifo.2 sys/mknod.2 sys/madvise.2 sys/mincore.2 sys/minherit.2 \
-	sys/mlock.2 \
+	sys/mkfifo.2 sys/mknod.2 sys/madvise.2 sys/mincore.2 sys/mlock.2 \
 	sys/mmap.2 sys/mount.2 sys/mprotect.2 sys/msync.2 sys/munmap.2 \
-	sys/ptrace.2 sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 \
-	sys/profil.2 sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 \
-	sys/recv.2 sys/rename.2 sys/revoke.2 sys/rmdir.2 \
-	sys/rtprio.2 sys/select.2 \
+	sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 sys/profil.2 \
+	sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 \
+	sys/rename.2 sys/revoke.2 sys/rmdir.2 sys/rtprio.2 sys/select.2 \
 	sys/semctl.2 sys/semget.2 sys/semop.2 \
 	sys/send.2 sys/setgroups.2 \
 	sys/setpgid.2 sys/setregid.2 sys/setreuid.2 \
@@ -109,6 +104,8 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/socketpair.2 sys/stat.2 sys/statfs.2 sys/swapon.2 sys/symlink.2 \
 	sys/sync.2 sys/syscall.2 sys/truncate.2 sys/umask.2 sys/unlink.2 \
 	sys/utimes.2 sys/vfork.2 sys/wait.2 sys/write.2
+
+# missing: ptrace.2
 
 MLINKS+=brk.2 sbrk.2
 MLINKS+=dup.2 dup2.2

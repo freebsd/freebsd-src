@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#)$Header: savefile.c,v 1.16 94/06/20 19:07:56 leres Exp $ (LBL)";
+    "@(#)$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/savefile.c,v 1.1.1.1 1995/01/20 04:13:03 jkh Exp $ (LBL)";
 #endif
 
 /*

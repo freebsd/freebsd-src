@@ -50,5 +50,4 @@ ENTRY(__ieee754_exp)
 	fld1
 	faddp				/* 2^(fract(x * log2(e))) */
 	fscale				/* e^x */
-	fstpl	%st(1)
 	ret

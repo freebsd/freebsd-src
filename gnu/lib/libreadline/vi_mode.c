@@ -174,7 +174,7 @@ rl_vi_redo (count, c)
 
   return (0);
 }
-    
+
 /* Yank the nth arg from the previous line into this line at point. */
 rl_vi_yank_arg (count, key)
      int count, key;
@@ -886,7 +886,7 @@ rl_vi_delete (count, key)
     end = rl_end;
 
   rl_kill_text (rl_point, end);
-  
+
   if (rl_point > 0 && rl_point == rl_end)
     rl_backward (1);
   return (0);

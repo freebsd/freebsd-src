@@ -1,8 +1,3 @@
-Note:
-	There is a feature which can be optionally compiled into
-mkisofs that allows you to merge arbitrary directory trees into the
-image you are creating.  You need to compile with -DADD_FILES for my
-changes to take effect.   Thanks to Ross Biro biro@yggdrasil.com.
 
 	This program requires a lot of virtual memory to run since it
 builds all of the directories in memory.  The exact requirements
@@ -10,9 +5,6 @@ depend upon a lot of things, but for Rock Ridge discs 12Mb would not
 be unreasonable.  Without RockRidge and without the translation
 tables, the requirements would be considerably less.
 
-	The cdwrite utility is maintained separately from mkisofs by
-yggdrasil.com.  It is enclosed here as a convenience, since the two programs
-are often useful together.  
 
 *****************************
 Notes for version 1.2.

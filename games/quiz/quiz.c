@@ -316,14 +316,11 @@ appdstr(s, tp, len)
 	if ((m = malloc(strlen(s) + len + 1)) == NULL)
 		err("%s", strerror(errno));
 	for (mp = m, sp = s; *mp++ = *sp++;);
-	mp--;
 
 	if (*(mp - 1) == '\\')
 		--mp;
-	memcpy(mp, tp, len);
-	mp[len] = '\0';
-	if (mp[len - 1] == '\n')
-		mp[len - 1] = '\0';
+	while ((ch = *mp++ = *tp++) && ch != '\n');
+	*mp = '\0';
 
 	free(s);
 	return (m);

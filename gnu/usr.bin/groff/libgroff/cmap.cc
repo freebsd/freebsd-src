@@ -19,9 +19,6 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #include <ctype.h>
-#ifdef __FreeBSD__
-#include <locale.h>
-#endif
 #include "cmap.h"
 
 cmap cmlower(CMAP_BUILTIN);
@@ -52,9 +49,6 @@ cmap_init::cmap_init()
   if (initialised)
     return;
   initialised = 1;
-#ifdef __FreeBSD__
-  (void) setlocale(LC_CTYPE, "");
-#endif
   for (int i = 0; i <= UCHAR_MAX; i++) {
     cmupper.v[i] = ISASCII(i) && islower(i) ? toupper(i) : i;
     cmlower.v[i] = ISASCII(i) && isupper(i) ? tolower(i) : i;

@@ -136,7 +136,7 @@ When a new file is created it is given the group of the directory
 which contains it.
 .Pp
 The new descriptor is set to remain open across
-.Xr execve 2
+.Xr execve
 system calls; see
 .Xr close 2
 and
@@ -146,26 +146,6 @@ The system imposes a limit on the number of file descriptors
 open simultaneously by one process.
 .Xr Getdtablesize 2
 returns the current system limit.
-.Pp
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn open
-is implemented as the
-.Va open
-syscall.
-.Pp
-In the threaded library, the
-.Va open
-syscall is assembled to
-.Fn _thread_sys_open
-and
-.Fn open
-is implemented as a function which disables thread rescheduling
-and calls
-.Fn _thread_sys_open .
-Before returning,
-.Fn open
-enables thread rescheduling.
 .Sh ERRORS
 The named file is opened unless:
 .Bl -tag -width Er

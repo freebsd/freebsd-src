@@ -75,7 +75,7 @@ and data, which is why there are two requests: conceptually,
 .Dv PT_READ_I
 reads from the instruction space and
 .Dv PT_READ_D
-reads from the data space.  In the current FreeBSD implementation, these
+reads from the data space.  In the current NetBSD implementation, these
 two requests are completely identical.  The
 .Fa addr
 argument specifies the address (in the traced process' virtual address
@@ -145,61 +145,6 @@ The traced process terminates, as if
 had been used with
 .Dv SIGKILL
 given as the signal to be delivered.
-.It Dv PT_ATTACH
-This request allows a process to gain control of an otherwise unrelated
-process and begin tracing it.  It does not need any cooperation from
-the to-be-traced process.  In this case,
-.Fa pid
-specifies the process ID of the to-be-traced process, and the other two
-arguments are ignored.  This request requires that the target process
-must have the same real UID as the tracing process, and that it must
-not be executing a setuid or setgid executable.  (If the tracing
-process is running as root, these restrictions do not apply.)  The
-tracing process will see the newly-traced process stop and may then
-control it as if it had been traced all along.
-.It Dv PT_DETACH
-This request is like PT_CONTINUE, except that it does not allow
-specifying an alternate place to continue execution, and after it
-succeeds, the traced process is no longer traced and continues
-execution normally.
-.El
-.Pp
-Additionally, machine-specific requests can exist.  On the i386, these
-are:
-.Bl -tag -width 12n
-.It Dv PT_GETREGS
-This request reads the traced process' machine registers into the
-.Dq Li "struct reg"
-(defined in
-.Aq Pa machine/reg.h )
-pointed to by
-.Fa addr .
-.It Dv PT_SETREGS
-This request is the converse of
-.Dv PT_GETREGS ;
-it loads the traced process' machine registers from the
-.Dq Li "struct reg"
-(defined in
-.Aq Pa machine/reg.h )
-pointed to by
-.Fa addr .
-.It Dv PT_GETFPREGS
-This request reads the traced process' floating-point registers into
-the
-.Dq Li "struct fpreg"
-(defined in
-.Aq Pa machine/reg.h )
-pointed to by
-.Fa addr .
-.It Dv PT_SETFPREGS
-This request is the converse of
-.Dv PT_GETFPREGS ;
-it loads the traced process' floating-point registers from the
-.Dq Li "struct fpreg"
-(defined in
-.Aq Pa machine/reg.h )
-pointed to by
-.Fa addr .
 .El
 .Sh ERRORS
 Some requests can cause
@@ -219,10 +164,6 @@ No process having the specified process ID exists.
 .It Bq Er EINVAL
 .Bl -bullet -compact
 .It
-A process attempted to use
-.Dv PT_ATTACH
-on itself.
-.It
 The
 .Fa request
 was not one of the legal requests.
@@ -241,40 +182,12 @@ The signal number (in
 to
 .Dv PT_CONTINUE
 was neither 0 nor a legal signal number.
-.It
-.Dv PT_GETREGS ,
-.Dv PT_SETREGS ,
-.Dv PT_GETFPREGS ,
-or
-.Dv PT_SETFPREGS
-was attempted on a process with no valid register set.  (This is
-normally true only of system processes.)
-.El
-.It Bq Er EBUSY
-.Bl -bullet -compact
-.It
-.Dv PT_ATTACH
-was attempted on a process that was already being traced.
-.It
-A request attempted to manipulate a process that was being traced by
-some process other than the one making the request.
-.It
-A request (other than
-.Dv PT_ATTACH )
-specified a process that wasn't stopped.
 .El
 .It Bq Er EPERM
 .Bl -bullet -compact
 .It
-A request (other than
-.Dv PT_ATTACH )
+A request
 attempted to manipulate a process that wasn't being traced at all.
-.It
-An attempt was made to use
-.Dv PT_ATTACH
-on a process in violation of the requirements listed under
-.Dv PT_ATTACH
-above.
 .El
 .Sh SEE ALSO
 .Xr sigaction 2

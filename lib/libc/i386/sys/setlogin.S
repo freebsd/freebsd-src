@@ -43,17 +43,17 @@
 
 #include "SYS.h"
 
-.globl	CNAME(_logname_valid)		/* in getlogin() */
+.globl	__logname_valid		/* in getlogin() */
 
 SYSCALL(setlogin)
 #ifdef PIC
 	PIC_PROLOGUE
 	pushl	%eax
-	movl	PIC_GOT(CNAME(_logname_valid)),%eax
+	movl	PIC_GOT(__logname_valid),%eax
 	movl	$0,(%eax)
 	popl	%eax
 	PIC_EPILOGUE
 #else
-	movl	$0,CNAME(_logname_valid)
+	movl	$0,__logname_valid
 #endif
 	ret				/* setlogin(name) */

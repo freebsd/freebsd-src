@@ -21,7 +21,7 @@
 
 #if !defined(lint) && !defined(__GNUC__)
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpslice/util.c,v 1.2 1995/08/23 05:19:00 pst Exp $ (LBL)";
+    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpslice/util.c,v 1.1.4.1 1995/10/06 11:54:22 davidg Exp $ (LBL)";
 #endif
 
 #include "tcpslice.h"

@@ -5,7 +5,7 @@
 INFOFILES= dir
 
 install:
-	${INSTALL} -c -g ${BINGRP} -o ${BINOWN} -m 444 ${INFOFILES} \
+	install ${COPY} -g ${BINGRP} -o ${BINOWN} -m 444 ${INFOFILES} \
 		${DESTDIR}${INFODIR}
 
 clean cleandir obj:

@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rec_search.c	8.4 (Berkeley) 7/14/94";
+static char sccsid[] = "@(#)rec_search.c	8.3 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -91,8 +91,9 @@ __rec_search(t, recno, op)
 			total += r->nrecs;
 		}
 
-		BT_PUSH(t, pg, index - 1);
-		
+		if (__bt_push(t, pg, index - 1) == RET_ERROR)
+			return (NULL);
+
 		pg = r->pgno;
 		switch (op) {
 		case SDELETE:

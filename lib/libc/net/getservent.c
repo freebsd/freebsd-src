@@ -41,12 +41,6 @@ static char sccsid[] = "@(#)getservent.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef YP
-#include <rpc/rpc.h>
-#include <rpcsvc/yp_prot.h>
-#include <rpcsvc/ypclnt.h>
-static int serv_stepping_yp = 0;
-#endif
 
 #define	MAXALIASES	35
 
@@ -55,53 +49,6 @@ static char line[BUFSIZ+1];
 static struct servent serv;
 static char *serv_aliases[MAXALIASES];
 int _serv_stayopen;
-
-#ifdef YP
-static int
-_getypservent(line)
-	char *line;
-{
-	static char *key = NULL;
-	static int keylen;
-	static char *yp_domain = NULL;
-	char *lastkey, *result;
-	int resultlen;
-	int rv;
-
-	if(!yp_domain) {
-		if(yp_get_default_domain(&yp_domain))
-			return (0);
-	}
-
-	if (!serv_stepping_yp) {
-		if (key)
-			free(key);
-		if ((rv = yp_first(yp_domain, "services.byname", &key, &keylen,
-			     &result, &resultlen))) {
-			serv_stepping_yp = 0;
-			return(0);
-		}
-		serv_stepping_yp = 1;
-	} else {
-		lastkey = key;
-		rv = yp_next(yp_domain, "services.byname", key, keylen, &key,
-			     &keylen, &result, &resultlen);
-		free(lastkey);
-		if (rv) {
-			serv_stepping_yp = 0;
-			return (0);
-		}
-	}
-
-	strncpy(line, result, BUFSIZ - 1);
-	/* getservent() expects lines terminated with \n -- make it happy */
-	strcat(line, "\n");
-
-	free(result);
-
-	return(1);
-}
-#endif
 
 void
 setservent(f)
@@ -130,25 +77,11 @@ getservent()
 	char *p;
 	register char *cp, **q;
 
-#ifdef YP
-	if (serv_stepping_yp && _getypservent(line)) {
-		p = (char *)&line;
-		goto unpack;
-	}
-tryagain:
-#endif
 	if (servf == NULL && (servf = fopen(_PATH_SERVICES, "r" )) == NULL)
 		return (NULL);
 again:
 	if ((p = fgets(line, BUFSIZ, servf)) == NULL)
 		return (NULL);
-#ifdef YP
-	if (*p == '+') {
-		if (!_getypservent(&line))
-			goto tryagain;
-	}
-unpack:
-#endif
 	if (*p == '#')
 		goto again;
 	cp = strpbrk(p, "#\n");

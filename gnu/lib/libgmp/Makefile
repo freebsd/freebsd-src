@@ -53,10 +53,10 @@ cre-conv-tab: gmp-mparam.h
 
 gmp-mparam.h: cre-mparam
 	./cre-mparam > tmp-${.TARGET}
-	mv -f tmp-${.TARGET} ${.TARGET}
+	mv tmp-${.TARGET} ${.TARGET}
 
 mp_bases.c: cre-conv-tab
 	./cre-conv-tab > tmp-${.TARGET}
-	mv -f tmp-${.TARGET} ${.TARGET}
+	mv tmp-${.TARGET} ${.TARGET}
 
 .include <bsd.lib.mk>

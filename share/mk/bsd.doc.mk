@@ -16,11 +16,6 @@ ROFF?=          groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
 ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
 .endif
 SOELIM?=	soelim
-SOELIMPP=	sed ${SOELIMPPARGS}
-SOELIMPPARGS0=	${SRCS} ${EXTRA}
-SOELIMPPARGS1=	${SOELIMPPARGS0:S/^/-e\\ \'s:\(\.so[\\ \\	][\\ \\	]*\)\(/}
-SOELIMPPARGS2=	${SOELIMPPARGS1:S/$/\)\$:\1${SRCDIR}\/\2:\'/}
-SOELIMPPARGS=	${SOELIMPPARGS2:S/\\'/'/g}
 TBL?=		tbl
 
 DOC?=		paper
@@ -88,7 +83,7 @@ obj:
 
 clean:
 	rm -f ${DOC}.${PRINTER} ${DOC}.ps ${DOC}.ascii \
-		${DOC}.ps.gz ${DOC}.ascii.gz Errs errs mklog ${CLEANFILES}
+		${DOC}.ps.gz ${DOC}.ascii.gz [eE]rrs mklog ${CLEANFILES}
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
@@ -117,7 +112,7 @@ afterinstall:
 
 .endif
 
-DISTRIBUTION?=	doc
+DISTRIBUTION?=	bin
 .if !target(distribute)
 distribute:
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
@@ -133,15 +128,8 @@ BINMODE=        444
 SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
-${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
-# XXX ${.ALLSRC} doesn't work unless there are a lot of .PATH.foo statements.
-ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
-${DFILE}::	${SRCS}
-.if defined(USE_SOELIMPP)
-	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${GZIPCMD} > ${.TARGET}
-.else
+${DFILE}:	${SRCS}
 	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
-.endif
 .else
 .if !defined(NODOCCOMPRESS)
 ${DFILE}:	${DOC}.${PRINTER}

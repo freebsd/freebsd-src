@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/version.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/version.h,v 1.2 1995/05/30 05:02:40 rgrimes Exp $
  *
  * $Log: version.h,v $
+ * Revision 1.2  1995/05/30  05:02:40  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/19  14:21:52  paul
  * b-maked patch-2.10
  *

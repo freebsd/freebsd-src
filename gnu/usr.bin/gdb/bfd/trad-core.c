@@ -117,7 +117,7 @@ trad_unix_core_file_p (abfd)
 	bfd_set_error (bfd_error_system_call);
 	return 0;
       }
-    if (PAGE_SIZE * (UPAGES + u.u_dsize
+    if (NBPG * (UPAGES + u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
 		- u.u_tsize
 #endif
@@ -127,7 +127,7 @@ trad_unix_core_file_p (abfd)
 	return 0;
       }
 #ifndef TRAD_CORE_ALLOW_ANY_EXTRA_SIZE
-    if (PAGE_SIZE * (UPAGES + u.u_dsize + u.u_ssize)
+    if (NBPG * (UPAGES + u.u_dsize + u.u_ssize)
 #ifdef TRAD_CORE_EXTRA_SIZE_ALLOWED
 	/* Some systems write the file too big.  */
 	+ TRAD_CORE_EXTRA_SIZE_ALLOWED
@@ -187,26 +187,26 @@ trad_unix_core_file_p (abfd)
   core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
   core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
 
-  core_datasec (abfd)->_raw_size =  PAGE_SIZE * u.u_dsize
+  core_datasec (abfd)->_raw_size =  NBPG * u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
-    - PAGE_SIZE * u.u_tsize
+    - NBPG * u.u_tsize
 #endif
       ;
-  core_stacksec (abfd)->_raw_size = PAGE_SIZE * u.u_ssize;
-  core_regsec (abfd)->_raw_size = PAGE_SIZE * UPAGES; /* Larger than sizeof struct u */
+  core_stacksec (abfd)->_raw_size = NBPG * u.u_ssize;
+  core_regsec (abfd)->_raw_size = NBPG * UPAGES; /* Larger than sizeof struct u */
 
   /* What a hack... we'd like to steal it from the exec file,
      since the upage does not seem to provide it.  FIXME.  */
 #ifdef HOST_DATA_START_ADDR
   core_datasec (abfd)->vma = HOST_DATA_START_ADDR;
 #else
-  core_datasec (abfd)->vma = HOST_TEXT_START_ADDR + (PAGE_SIZE * u.u_tsize);
+  core_datasec (abfd)->vma = HOST_TEXT_START_ADDR + (NBPG * u.u_tsize);
 #endif
 
 #ifdef HOST_STACK_START_ADDR
   core_stacksec (abfd)->vma = HOST_STACK_START_ADDR;
 #else
-  core_stacksec (abfd)->vma = HOST_STACK_END_ADDR - (PAGE_SIZE * u.u_ssize);
+  core_stacksec (abfd)->vma = HOST_STACK_END_ADDR - (NBPG * u.u_ssize);
 #endif
 
   /* This is tricky.  As the "register section", we give them the entire
@@ -225,10 +225,10 @@ trad_unix_core_file_p (abfd)
      using minor trickery to get around the offset-or-absolute-addr problem. */
   core_regsec (abfd)->vma = 0 - (int) u.u_ar0;
 
-  core_datasec (abfd)->filepos = PAGE_SIZE * UPAGES;
-  core_stacksec (abfd)->filepos = (PAGE_SIZE * UPAGES) + PAGE_SIZE * u.u_dsize
+  core_datasec (abfd)->filepos = NBPG * UPAGES;
+  core_stacksec (abfd)->filepos = (NBPG * UPAGES) + NBPG * u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
-    - PAGE_SIZE * u.u_tsize
+    - NBPG * u.u_tsize
 #endif
       ;
   core_regsec (abfd)->filepos = 0; /* Register segment is the upage */

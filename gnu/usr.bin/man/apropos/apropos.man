@@ -1,4 +1,4 @@
-.\" Man page for apropos an whatis
+.\" Man page for apropos
 .\"
 .\" Copyright (c) 1990, 1991, John W. Eaton.
 .\"
@@ -15,19 +15,13 @@
 .TH apropos 1 "Jan 15, 1991"
 .LO 1
 .SH NAME
-apropos, whatis \- search the whatis database
+apropos \- search the whatis database for strings
 .SH SYNOPSIS
 .BI apropos
 keyword ...
-
-.BI whatis
-keyword ...
 .SH DESCRIPTION
-.B apropos 
-searches a set of database files containing short descriptions
+apropos searches a set of database files containing short descriptions
 of system commands for keywords and displays the result on the
 standard output.
-.B whatis
-display only complete word matches.
 .SH "SEE ALSO"
-man(1), makewhatis(1).
+whatis(1), man(1).

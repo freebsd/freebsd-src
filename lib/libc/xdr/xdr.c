@@ -44,7 +44,6 @@ static char *rcsid = "$Id: xdr.c,v 1.2 1995/05/30 05:42:03 rgrimes Exp $";
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>

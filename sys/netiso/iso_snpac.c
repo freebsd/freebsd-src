@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.c	8.1 (Berkeley) 6/10/93
- * $Id: iso_snpac.c,v 1.3 1994/12/13 22:33:05 wollman Exp $
+ * $Id: iso_snpac.c,v 1.4 1995/05/30 08:10:58 rgrimes Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.3 1994/12/13 22:33:05 wollman Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/iso_snpac.c,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso_snpac.c,v 1.4 1995/05/30 08:10:58 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso_snpac.c,v $ */
 
 #ifdef ISO
 

@@ -45,12 +45,6 @@ bind_tuple(hash_table *htable, char *name,
 {
 	struct Tuple *tuple;
 
-	/* First check to see if we've been bound in already */
-	if (hash_search(htable, tuple->name, NULL, NULL)) {
-		warn("Duplicate tuple name, %s, skipping", name);
-		return (ST_ERROR);
-	}
-
 	tuple = malloc(sizeof (struct Tuple));
 	if (!tuple) {
 		warn("Couldn't allocate memory for new tuple");
@@ -61,8 +55,10 @@ bind_tuple(hash_table *htable, char *name,
 	tuple->type = type;
 	tuple->addr = fn;
 
-	/* Insert it */
-	hash_search(htable, tuple->name, tuple, NULL);
+	if (hash_search(htable, tuple->name, tuple, NULL)) {
+		warn("Duplicate tuple name, %s, skipping", name);
+		return (ST_ERROR);
+	}
 
 #ifdef DEBUG
 	debug_dump_table(htable);

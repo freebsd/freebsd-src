@@ -8,7 +8,7 @@ MAN6=	cribbage.6
 HIDEGAME=hidegame
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/cribbage.n \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/cribbage.n \
 	    ${DESTDIR}/usr/share/games/cribbage.instr
 
 .include <bsd.prog.mk>

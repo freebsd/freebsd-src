@@ -967,8 +967,7 @@ dosetenv(v, t)
 	importpath(lp);
 	dohash(NULL, NULL);
     }
-    else if (eq(vp, STRLANG) || eq(vp, STRLC_CTYPE) ||
-	     eq(vp, STRLC_ALL) || eq(vp, STRLC_COLLATE)) {
+    else if (eq(vp, STRLANG) || eq(vp, STRLC_CTYPE)) {
 #ifdef NLS
 	int     k;
 
@@ -1016,8 +1015,7 @@ dounsetenv(v, t)
 		if (!Gmatch(name, *v))
 		    continue;
 		maxi = 1;
-		if (eq(name, STRLANG) || eq(name, STRLC_CTYPE) ||
-		    eq(name, STRLC_ALL) || eq(name, STRLC_COLLATE)) {
+		if (eq(name, STRLANG) || eq(name, STRLC_CTYPE)) {
 #ifdef NLS
 		    int     k;
 
@@ -1027,7 +1025,6 @@ dounsetenv(v, t)
 		    AsciiOnly = k > 0377;
 #else
 		    AsciiOnly = getenv("LANG") == NULL &&
-			getenv("LC_ALL") == NULL &&
 			getenv("LC_CTYPE") == NULL;
 #endif				/* NLS */
 		}

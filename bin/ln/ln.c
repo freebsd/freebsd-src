@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 #include <string.h>
 #include <unistd.h>
 
+int	dirflag;			/* Undocumented directory flag. */
 int	fflag;				/* Unlink existing files. */
 int	sflag;				/* Symbolic, not hard, link. */
 					/* System link call. */
@@ -71,8 +72,11 @@ main(argc, argv)
 	int ch, exitval;
 	char *sourcedir;
 
-	while ((ch = getopt(argc, argv, "fs")) != EOF)
+	while ((ch = getopt(argc, argv, "Ffs")) != EOF)
 		switch (ch) {
+		case 'F':
+			dirflag = 1;	/* XXX: deliberately undocumented. */
+			break;
 		case 'f':
 			fflag = 1;
 			break;
@@ -123,10 +127,9 @@ linkit(target, source, isdir)
 			warn("%s", target);
 			return (1);
 		}
-		/* Only symbolic links to directories. */
-		if (S_ISDIR(sb.st_mode)) {
-			errno = EISDIR;
-			warn("%s", target);
+		/* Only symbolic links to directories, unless -F option used. */
+		if (!dirflag && (sb.st_mode & S_IFMT) == S_IFDIR) {
+			warnx("%s: is a directory", target);
 			return (1);
 		}
 	}

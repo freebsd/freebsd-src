@@ -497,8 +497,6 @@ ether_ifattach(ifp)
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
 	ifp->if_mtu = ETHERMTU;
-	if (ifp->if_baudrate == 0)
-	    ifp->if_baudrate = 10000000;
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
 		    sdl->sdl_family == AF_LINK) {

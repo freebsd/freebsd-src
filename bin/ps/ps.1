@@ -186,29 +186,46 @@ fields to exceed 100%.
 .It %mem
 The percentage of real memory used by this process.
 .It flags
-The flags associated with the process as in
+The flags (in hexadecimal) associated with the process as in
 the include file
 .Aq Pa sys/proc.h :
-.Bl -column P_NOCLDSTOP P_NOCLDSTOP
-.It Dv "P_ADVLOCK" Ta No "0x00001	Process may hold a POSIX advisory lock"
-.It Dv "P_CONTROLT" Ta No "0x00002	Has a controlling terminal"
-.It Dv "P_INMEM" Ta No "0x00004		Loaded into memory"
-.It Dv "P_NOCLDSTOP" Ta No "0x00008	No SIGCHLD when children stop"
-.It Dv "P_PPWAIT" Ta No "0x00010	Parent is waiting for child to exec/exit"
-.It Dv "P_PROFIL" Ta No "0x00020	Has started profiling"
-.It Dv "P_SELECT" Ta No "0x00040	Selecting; wakeup/waiting danger"
-.It Dv "P_SINTR" Ta No "0x00080		Sleep is interruptible"
-.It Dv "P_SUGID" Ta No "0x00100		Had set id privileges since last exec"
-.It Dv "P_SYSTEM" Ta No "0x00200	System proc: no sigs, stats or swapping"
-.It Dv "P_TIMEOUT" Ta No "0x00400	Timing out during sleep"
-.It Dv "P_TRACED" Ta No "0x00800	Debugged process being traced"
-.It Dv "P_WAITED" Ta No "0x01000	Debugging process has waited for child"
-.It Dv "P_WEXIT" Ta No "0x02000		Working on exiting"
-.It Dv "P_EXEC" Ta No "0x04000		Process called exec"
-.It Dv "P_NOSWAP" Ta No "0x08000	Another flag to prevent swap out"
-.It Dv "P_PHYSIO" Ta No "0x10000	Doing physical I/O"
-.It Dv "P_OWEUPC" Ta No "0x20000	Owe process an addupc() call at next ast"
-.It Dv "P_SWAPPING" Ta No "0x40000	Process is being swapped"
+.Bl -column SNOCLDSTOP SNOCLDSTOP
+.It Dv "SLOAD" Ta No "0x0000001	in core"
+.It Dv "SSYS" Ta No "0x0000002	swapper or pager process"
+.It Dv "SLOCK" Ta No "0x0000004	process being swapped out"
+.It Dv "SSWAP" Ta No "0x0000008	save area flag"
+.It Dv "STRC" Ta No "0x0000010	process is being traced"
+.It Dv "SWTED" Ta No "0x0000020	another tracing flag"
+.It Dv "SSINTR" Ta No "0x0000040	sleep is interruptible"
+.It Dv "SKEEP" Ta No "0x0000100	another flag to prevent swap out"
+.It Dv "SOMASK" Ta No "0x0000200	restore old mask after taking signal"
+.It Dv "SWEXIT" Ta No "0x0000400	working on exiting"
+.It Dv "SPHYSIO" Ta No "0x0000800	doing physical"
+.Tn I/O
+.It Dv "SVFORK" Ta No "0x0001000	process resulted from"
+.Xr vfork 2
+.It Dv "SVFDONE" Ta No "0x0002000	another"
+.Xr vfork
+flag
+.It Dv "SNOVM" Ta No "0x0004000	no vm, parent in a"
+.Xr vfork
+.It Dv "SPAGV" Ta No "0x0008000	init data space on demand, from vnode"
+.It Dv "SSEQL" Ta No "0x0010000	user warned of sequential vm behavior"
+.It Dv "SUANOM" Ta No "0x0020000	user warned of random vm behavior"
+.It Dv "STIMO" Ta No "0x0040000	timing out during sleep"
+.It Dv "SNOCLDSTOP" Ta No "0x0080000	no"
+.Dv SIGCHLD
+when children stop
+.It Dv "SCTTY" Ta No "0x0100000	has a controlling terminal"
+.It Dv "SOWEUPC" Ta No "0x0200000	owe process an addupc() call at next ast"
+.\" the routine addupc is not documented in the man pages
+.It Dv "SSEL" Ta No "0x0400000	selecting; wakeup/waiting danger"
+.It Dv "SEXEC" Ta No "0x0800000	process called"
+.Xr exec 2
+.It Dv "SHPUX" Ta No "0x1000000	\\*(tNHP-UX\\*(sP process
+.Pq Dv HPUXCOMPAT
+.It Dv "SULOCK" Ta No "0x2000000	locked in core after swap error"
+.It Dv "SPTECHG" Ta No "0x4000000	pte's for process have changed"
 .El
 .It lim
 The soft limit on memory used, specified via a call to

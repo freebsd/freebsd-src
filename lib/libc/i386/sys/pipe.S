@@ -43,11 +43,7 @@
 
 #include "SYS.h"
 
-#ifdef _THREAD_SAFE
-PSYSCALL(pipe,_thread_sys_pipe)
-#else
 SYSCALL(pipe)
-#endif
 	movl	4(%esp),%ecx
 	movl	%eax,(%ecx)
 	movl	%edx,4(%ecx)

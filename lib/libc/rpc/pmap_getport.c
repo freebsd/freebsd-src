@@ -45,7 +45,6 @@ static char *rcsid = "$Id: pmap_getport.c,v 1.2 1995/05/30 05:41:24 rgrimes Exp 
 #include <rpc/pmap_clnt.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <unistd.h>
 
 static struct timeval timeout = { 5, 0 };
 static struct timeval tottimeout = { 60, 0 };

@@ -237,7 +237,7 @@ sub parse_subdir {
 	next if $file eq "." || $file eq "..";
 
 	# fo_09-o.bar0
-	if ($file !~ /^[\w\-\+\[\.]+\.\w+$/) {
+	if ($file !~ /^[\w\-\[\.]+\.\w+$/) {
 	    &garbage("$mandir/$file", "Assume garbage")
 		unless -d "$mandir/$file";
 	    next;
@@ -294,7 +294,7 @@ sub parse_subdir {
     foreach $file (readdir(D)) {
 	next if $file =~ /^(\.|\.\.)$/;	# skip current and parent directory
 
-	if ($file !~ /^[\w\-\+\[\.]+\.\w+$/) {
+	if ($file !~ /^[\w\-\[\.]+\.\w+$/) {
 	    &garbage("$catdir/$file", "Assume garbage")
 		unless -d "$catdir/$file";
 	    next;

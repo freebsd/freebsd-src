@@ -1,5 +1,5 @@
-/* $Header: /home/ncvs/src/sys/netiso/xebec/llparse.h,v 1.1.1.1 1994/05/24 10:07:50 rgrimes Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/xebec/llparse.h,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llparse.h,v 1.2 1995/05/30 08:11:59 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llparse.h,v $ */
 
 	/************************************************************
 		attributes stack garbage

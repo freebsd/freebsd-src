@@ -1,5 +1,5 @@
-/* $Header$ */
-/* $Source$ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_states.init,v 1.1.1.1 1994/05/24 10:07:29 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_states.init,v $ */
 {0x3,0x0},
 {0x6,0x1},
 {0x6,0x2},

@@ -49,7 +49,7 @@
 #define DBM_REPLACE     1
 
 /*
- * The db(3) support for ndbm always appends this suffix to the
+ * The db(3) support for ndbm(3) always appends this suffix to the
  * file name to avoid overwriting the user's original database.
  */
 #define	DBM_SUFFIX	".db"

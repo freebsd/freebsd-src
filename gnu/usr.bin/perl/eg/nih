@@ -1,7 +1,7 @@
 eval "exec /usr/bin/perl -Spi.bak $0 $*"
 	if $running_under_some_shell;
 
-# $Header: /home/cvs/386BSD/ports/lang/perl/eg/nih,v 1.1.1.1 1993/08/23 21:29:43 nate Exp $
+# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/nih,v 1.1.1.1 1994/09/10 06:27:47 gclarkii Exp $
 
 # This script makes #! scripts directly executable on machines that don't
 # support #!.  It edits in place any scripts mentioned on the command line.

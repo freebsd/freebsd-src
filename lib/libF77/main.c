@@ -10,21 +10,15 @@
 #endif
 
 #ifndef KR_headers
-#undef VOID
 #include "stdlib.h"
 #endif
-
-#ifndef VOID
-#define VOID void
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #ifdef NO__STDC
 #define ONEXIT onexit
-extern VOID f_exit();
+extern void f_exit();
 #else
 #ifndef KR_headers
 extern void f_exit(void);
@@ -35,13 +29,13 @@ extern int atexit(void (*)(void));
 #else
 #ifndef NO_ONEXIT
 #define ONEXIT onexit
-extern VOID f_exit();
+extern void f_exit();
 #endif
 #endif
 #endif
 
 #ifdef KR_headers
-extern VOID f_init(), sig_die();
+extern void f_init(), sig_die();
 extern int MAIN__();
 #define Int /* int */
 #else
@@ -50,37 +44,37 @@ extern int MAIN__(void);
 #define Int int
 #endif
 
-static VOID sigfdie(Int n)
+static void sigfdie(Int n)
 {
 sig_die("Floating Exception", 1);
 }
 
 
-static VOID sigidie(Int n)
+static void sigidie(Int n)
 {
 sig_die("IOT Trap", 1);
 }
 
 #ifdef SIGQUIT
-static VOID sigqdie(Int n)
+static void sigqdie(Int n)
 {
 sig_die("Quit signal", 1);
 }
 #endif
 
 
-static VOID sigindie(Int n)
+static void sigindie(Int n)
 {
 sig_die("Interrupt", 0);
 }
 
-static VOID sigtdie(Int n)
+static void sigtdie(Int n)
 {
 sig_die("Killed", 0);
 }
 
 #ifdef SIGTRAP
-static VOID sigtrdie(Int n)
+static void sigtrdie(Int n)
 {
 sig_die("Trace trap", 1);
 }

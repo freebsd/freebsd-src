@@ -34,7 +34,7 @@
     ..
     mail            uname=bin
     ..
-    msgs            uname=daemon
+    msgs            uname=bin
     ..
     preserve        uname=bin
     ..

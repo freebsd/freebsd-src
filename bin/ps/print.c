@@ -49,7 +49,6 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 
 #ifdef NEWVM
 #include <sys/ucred.h>
-#include <sys/user.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #else
@@ -419,7 +418,7 @@ wchan(k, ve)
 		(void)printf("%-*s", v->width, "-");
 }
 
-#define pgtok(a)        (((a)*getpagesize())/1024)
+#define pgtok(a)        (((a)*NBPG)/1024)
 
 void
 vsize(k, ve)
@@ -575,7 +574,7 @@ getpmem(k)
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	szptudot = UPAGES;
 	/* XXX don't have info about shared */
-	fracmem = ((float)e->e_vm.vm_rssize + szptudot)/getpagesize()/mempages;
+	fracmem = ((float)e->e_vm.vm_rssize + szptudot)/CLSIZE/mempages;
 #endif
 	return (100.0 * fracmem);
 }
@@ -612,7 +611,7 @@ maxrss(k, ve)
 
 	v = ve->var;
 #ifndef NEWVM	/* not yet */
-	if (KI_PROC(k)->p_maxrss != (RLIM_INFINITY/PAGE_SIZE))
+	if (KI_PROC(k)->p_maxrss != (RLIM_INFINITY/NBPG))
 		(void)printf("%*d", v->width, pgtok(KI_PROC(k)->p_maxrss));
 	else
 #endif

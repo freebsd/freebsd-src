@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /home/cvs/386BSD/ports/lang/perl/t/op/push.t,v 1.1.1.1 1993/08/23 21:30:03 nate Exp $
+# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/push.t,v 1.1.1.1 1994/09/10 06:27:43 gclarkii Exp $
 
 @tests = split(/\n/, <<EOF);
 0 3,			0 1 2,		3 4 5 6 7

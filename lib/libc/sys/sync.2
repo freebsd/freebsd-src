@@ -53,7 +53,7 @@ As information in the cache is lost after a system crash a
 call is issued
 frequently
 by the user process
-.Xr update 4
+.Xr update 8
 (about every 30 seconds). 
 .Pp
 The function
@@ -62,8 +62,8 @@ may be used to synchronize individual file descriptor
 attributes.
 .Sh SEE ALSO
 .Xr fsync 2 ,
-.Xr update 4 ,
-.Xr sync 8
+.Xr sync 8 ,
+.Xr update 8
 .Sh BUGS
 .Fn Sync
 may return before the buffers are completely flushed.

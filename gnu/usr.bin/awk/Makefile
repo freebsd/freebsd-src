@@ -11,3 +11,4 @@ DPADD+= ${LIBGNUREGEX} ${LIBM}
 LDADD+= -lgnuregex -lm
 
 .include <bsd.prog.mk>
+#.include "../../usr.bin/Makefile.inc"

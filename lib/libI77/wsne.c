@@ -11,6 +11,8 @@ s_wsne(cilist *a)
 {
 	int n;
 
+	if(!f__init)
+		f_init();
 	if(n=c_le(a))
 		return(n);
 	f__reading=0;
