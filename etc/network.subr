@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.53 1999/08/10 09:45:31 des Exp $
+#	$Id: rc.network,v 1.54 1999/08/19 21:15:16 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -106,8 +106,8 @@ network_pass1() {
 	    ppp_command="-${ppp_mode} ";
 
 	    # Switch on alias mode?
-	    if [ "X$ppp_alias" = X"YES" ]; then
-		ppp_command="${ppp_command} -alias";
+	    if [ "X$ppp_nat" = X"YES" ]; then
+		ppp_command="${ppp_command} -nat";
 	    fi
 
 	    echo -n 'Starting ppp: '; ppp ${ppp_command} -quiet ${ppp_profile}
