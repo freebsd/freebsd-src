@@ -33,9 +33,14 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
+#include <machine/_limits.h>
 #include <machine/asm.h>
 
 RCSID("$FreeBSD$")
+
+#define	FP_ILOGB0	(-__INT_MAX)
+#define	FP_ILOGBNAN	__INT_MAX
+#define	FP_ILOGBINF	__INT_MAX
 
 ENTRY(ilogb)
 	pushl	%ebp
@@ -44,10 +49,35 @@ ENTRY(ilogb)
 
 	fldl	8(%ebp)
 	fxtract
-	fstp	%st
+	fstp	%st(0)
 
 	fistpl	-4(%ebp)
 	movl	-4(%ebp),%eax
 
+	/* fistpl yields __INT_MIN for NaN, Inf and 0. */
+	cmpl	$__INT_MIN,%eax
+	je	.L2
+
+.L1:
 	leave
 	ret
+
+.L2:
+	fldl	8(%ebp)
+	fldz
+	fucompp
+	fnstsw	%ax
+	sahf
+	jp	.L3
+	jz	.L4
+
+	movl	$FP_ILOGBINF,%eax
+	jmp	.L1
+
+.L3:
+	movl	$FP_ILOGBNAN,%eax
+	jmp	.L1
+
+.L4:
+	movl	$FP_ILOGB0,%eax
+	jmp	.L1
