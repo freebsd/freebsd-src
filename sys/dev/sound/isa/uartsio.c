@@ -228,7 +228,7 @@ uartsio_attach(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = &midi_info[unit];
+	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
 
 	/* Fill the midi info. */
 	bcopy(&uartsio_op_desc, devinfo, sizeof(uartsio_op_desc));
@@ -262,9 +262,6 @@ uartsio_attach(device_t dev)
 	uartsio_readport(scp, com_iir);
 	uartsio_readport(scp, com_data);
 
-	/* Increase the number of midi devices. */
-	nmidi++;
-
 	/* Now we can handle the interrupts. */
 	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, uartsio_intr, scp, &scp->ih);
 
@@ -284,11 +281,6 @@ uartsio_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
 	unit = MIDIUNIT(i_dev);
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("uartsio_ioctl: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("uartsio_ioctl: unit %d is not configured.\n", unit));
@@ -299,7 +291,7 @@ uartsio_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	switch (cmd) {
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
-		if (synthinfo->device > nmidi + nsynth || synthinfo->device != unit)
+		if (synthinfo->device != unit)
 			return (ENXIO);
 		bcopy(&uartsio_synthinfo, synthinfo, sizeof(uartsio_synthinfo));
 		synthinfo->device = unit;
@@ -307,7 +299,7 @@ uartsio_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_MIDI_INFO:
 		midiinfo = (struct midi_info *)arg;
-		if (midiinfo->device > nmidi + nsynth || midiinfo->device != unit)
+		if (midiinfo->device != unit)
 			return (ENXIO);
 		bcopy(&uartsio_midiinfo, midiinfo, sizeof(uartsio_midiinfo));
 		midiinfo->device = unit;

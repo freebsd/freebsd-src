@@ -112,8 +112,11 @@ static int csamidi_readdata(sc_p scp);
 static int csamidi_writedata(sc_p scp, u_int32_t value);
 static u_int32_t csamidi_readio(sc_p scp, u_long offset);
 static void csamidi_writeio(sc_p scp, u_long offset, u_int32_t data);
+/* Not used in this file. */
+#if notdef
 static u_int32_t csamidi_readmem(sc_p scp, u_long offset);
 static void csamidi_writemem(sc_p scp, u_long offset, u_int32_t data);
+#endif /* notdef */
 static int csamidi_allocres(sc_p scp, device_t dev);
 static void csamidi_releaseres(sc_p scp, device_t dev);
 
@@ -189,7 +192,7 @@ csamidi_attach(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = &midi_info[unit];
+	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
 
 	/* Fill the midi info. */
 	bcopy(&csamidi_op_desc, devinfo, sizeof(csamidi_op_desc));
@@ -203,9 +206,6 @@ csamidi_attach(device_t dev)
 	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
 	midibuf_init(&devinfo->midi_dbuf_in);
 	midibuf_init(&devinfo->midi_dbuf_out);
-
-	/* Increase the number of midi devices. */
-	nmidi++;
 
 	/* Enable interrupt. */
 	if (bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, csamidi_intr, scp, &scp->ih)) {
@@ -230,11 +230,6 @@ csamidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
 	unit = MIDIUNIT(i_dev);
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("csamidi_ioctl: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
-
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
 		DEB(printf("csamidi_ioctl: unit %d is not configured.\n", unit));
@@ -245,7 +240,7 @@ csamidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	switch (cmd) {
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
-		if (synthinfo->device > nmidi + nsynth || synthinfo->device != unit)
+		if (synthinfo->device != unit)
 			return (ENXIO);
 		bcopy(&csamidi_synthinfo, synthinfo, sizeof(csamidi_synthinfo));
 		synthinfo->device = unit;
@@ -253,7 +248,7 @@ csamidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_MIDI_INFO:
 		midiinfo = (struct midi_info *)arg;
-		if (midiinfo->device > nmidi + nsynth || midiinfo->device != unit)
+		if (midiinfo->device != unit)
 			return (ENXIO);
 		bcopy(&csamidi_midiinfo, midiinfo, sizeof(csamidi_midiinfo));
 		midiinfo->device = unit;
@@ -482,6 +477,8 @@ csamidi_writeio(sc_p scp, u_long offset, u_int32_t data)
 		bus_space_write_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset, data);
 }
 
+/* Not used in this file. */
+#if notdef
 static u_int32_t
 csamidi_readmem(sc_p scp, u_long offset)
 {
@@ -493,6 +490,7 @@ csamidi_writemem(sc_p scp, u_long offset, u_int32_t data)
 {
 	bus_space_write_4(rman_get_bustag(scp->mem), rman_get_bushandle(scp->mem), offset, data);
 }
+#endif /* notdef */
 
 /* Allocates resources. */
 static int
