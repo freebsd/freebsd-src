@@ -45,6 +45,7 @@ extern int _DYNAMIC;
 extern void _init(void);
 extern void _fini(void);
 extern int main(int, char **, char **);
+extern void __sparc64_utrap_setup(void);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -97,6 +98,7 @@ _start(char **ap,
 				__progname = s + 1;
 	}
 
+	__sparc_utrap_setup();
 #if 0
 	/*
 	 * If the kernel or a shared library wants us to call
