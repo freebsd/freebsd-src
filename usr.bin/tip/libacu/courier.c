@@ -1,3 +1,6 @@
+/*	$OpenBSD: courier.c,v 1.9 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: courier.c,v 1.7 1997/02/11 09:24:16 mrg Exp $	*/
+
 /*
  * Copyright (c) 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,16 +35,18 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)courier.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] = "$OpenBSD: courier.c,v 1.9 2001/10/24 18:38:58 millert Exp $";
 #endif /* not lint */
 
 /*
  * Routines for calling up on a Courier modem.
  * Derived from Hayes driver.
  */
-#include "tipconf.h"
 #include "tip.h"
-#include "acucommon.h"
+#include <sys/ioctl.h>
 #include <stdio.h>
 
 #define	MAXRETRY	5
@@ -50,30 +55,35 @@ static	void sigALRM();
 static	int timeout = 0;
 static	int connected = 0;
 static	jmp_buf timeoutbuf, intbuf;
-static	int coursync();
+static	int coursync(), cour_connect(), cour_swallow();
+void	cour_nap();
 
+void cour_disconnect __P((void));
+
+int
 cour_dialer(num, acu)
-	register char *num;
+	char *num;
 	char *acu;
 {
-	register char *cp;
-#if ACULOG
+	char *cp;
+#ifdef ACULOG
 	char line[80];
 #endif
-	static int cour_connect(), cour_swallow();
+	struct termios cntrl;
 
 	if (boolean(value(VERBOSE)))
 		printf("Using \"%s\"\n", acu);
 
-	acu_hupcl ();
-
+	tcgetattr(FD, &cntrl);
+	cntrl.c_cflag |= HUPCL;
+	tcsetattr(FD, TCSAFLUSH, &cntrl);
 	/*
 	 * Get in synch.
 	 */
 	if (!coursync()) {
 badsynch:
 		printf("can't synchronize with courier\n");
-#if ACULOG
+#ifdef ACULOG
 		logent(value(HOST), num, "courier", "can't synch up");
 #endif
 		return (0);
@@ -84,7 +94,7 @@ badsynch:
 	if (boolean(value(VERBOSE)))
 		cour_verbose_read();
 #endif
-	ioctl(FD, TIOCFLUSH, 0);	/* flush any clutter */
+	tcflush(FD, TCIOFLUSH);
 	cour_write(FD, "AT C1 E0 H0 Q0 X6 V1\r", 21);
 	if (!cour_swallow("\r\nOK\r\n"))
 		goto badsynch;
@@ -96,9 +106,9 @@ badsynch:
 	cour_write(FD, num, strlen(num));
 	cour_write(FD, "\r", 1);
 	connected = cour_connect();
-#if ACULOG
+#ifdef ACULOG
 	if (timeout) {
-		sprintf(line, "%d second dial timeout",
+		(void)sprintf(line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "cour", line);
 	}
@@ -108,6 +118,7 @@ badsynch:
 	return (connected);
 }
 
+void
 cour_disconnect()
 {
 	 /* first hang up the modem*/
@@ -118,6 +129,7 @@ cour_disconnect()
 	close(FD);
 }
 
+void
 cour_abort()
 {
 	cour_write(FD, "\r", 1);	/* send anything to abort the call */
@@ -134,8 +146,8 @@ sigALRM()
 
 static int
 cour_swallow(match)
-  register char *match;
-  {
+	char *match;
+{
 	sig_t f;
 	char c;
 
@@ -222,8 +234,12 @@ again:
 			for (bm = baud_msg ; bm->msg ; bm++)
 				if (strcmp(bm->msg,
 				    dialer_buf+sizeof("CONNECT")-1) == 0) {
-					if (!acu_setspeed(bm->baud))
-						goto error;
+					struct termios	cntrl;
+
+					tcgetattr(FD, &cntrl);
+					cfsetospeed(&cntrl, bm->baud);
+					cfsetispeed(&cntrl, bm->baud);
+					tcsetattr(FD, TCSAFLUSH, &cntrl);
 					signal(SIGALRM, f);
 #ifdef DEBUG
 					if (boolean(value(VERBOSE)))
@@ -239,9 +255,7 @@ again:
 			putchar(c);
 #endif
 	}
-error1:
 	printf("%s\r\n", dialer_buf);
-error:
 	signal(SIGALRM, f);
 	return (0);
 }
@@ -258,7 +272,7 @@ coursync()
 	char buf[40];
 
 	while (already++ < MAXRETRY) {
-		ioctl(FD, TIOCFLUSH, 0);	/* flush any clutter */
+		tcflush(FD, TCIOFLUSH);
 		cour_write(FD, "\rAT Z\r", 6);	/* reset modem */
 		bzero(buf, sizeof(buf));
 		sleep(1);
@@ -269,8 +283,8 @@ coursync()
 			buf[len] = '\0';
 			printf("coursync: (\"%s\")\n\r", buf);
 #endif
-			if (index(buf, '0') || 
-		   	   (index(buf, 'O') && index(buf, 'K')))
+			if (strchr(buf, '0') || 
+		   	   (strchr(buf, 'O') && strchr(buf, 'K')))
 				return(1);
 		}
 		/*
@@ -292,6 +306,7 @@ coursync()
 	return (0);
 }
 
+static void
 cour_write(fd, cp, n)
 int fd;
 char *cp;
@@ -301,11 +316,11 @@ int n;
 	if (boolean(value(VERBOSE)))
 		write(1, cp, n);
 #endif
-	acu_flush ();
+	tcdrain(fd);
 	cour_nap();
 	for ( ; n-- ; cp++) {
 		write(fd, cp, 1);
-		acu_flush ();
+		tcdrain(fd);
 		cour_nap();
 	}
 }
@@ -326,9 +341,14 @@ cour_verbose_read()
 }
 #endif
 
+/* Give the courier 50 milliseconds between characters */
+void
 cour_nap()
 {
-	acu_nap (50);
-}
+	struct timespec ts;
 
-/* end of courier.c */
+	ts.tv_sec = 0;
+	ts.tv_nsec = 50 * 1000000;
+
+	nanosleep(&ts, NULL);
+}

@@ -1,3 +1,6 @@
+/*	$OpenBSD: hayes.c,v 1.8 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: hayes.c,v 1.6 1997/02/11 09:24:17 mrg Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,7 +35,10 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)hayes.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] = "$OpenBSD: hayes.c,v 1.8 2001/10/24 18:38:58 millert Exp $";
 #endif /* not lint */
 
 /*
@@ -58,8 +64,10 @@ static char sccsid[] = "@(#)hayes.c	8.1 (Berkeley) 6/6/93";
  * mode only. This would make it consistent with normal
  * interactive use thru the command 'tip dialer'.
  */
-#include "tipconf.h"
 #include "tip.h"
+
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #define	min(a,b)	((a < b) ? a : b)
 
@@ -76,14 +84,16 @@ static char dumbuf[DUMBUFLEN];
 #define	FAILED		4
 static	int state = IDLE;
 
+int
 hay_dialer(num, acu)
-	register char *num;
+	char *num;
 	char *acu;
 {
-	register char *cp;
-	register int connected = 0;
+	char *cp;
+	int connected = 0;
 	char dummy;
-#if ACULOG
+	struct termios cntrl;
+#ifdef ACULOG
 	char line[80];
 #endif
 	if (hay_sync() == 0)		/* make sure we can talk to the modem */
@@ -91,12 +101,17 @@ hay_dialer(num, acu)
 	if (boolean(value(VERBOSE)))
 		printf("\ndialing...");
 	fflush(stdout);
-	acu_hupcl ();
-	acu_flush ();
+	tcgetattr(FD, &cntrl);
+	cntrl.c_cflag |= HUPCL;
+	tcsetattr(FD, TCSANOW, &cntrl);
+	tcflush(FD, TCIOFLUSH);
 	write(FD, "ATv0\r", 5);	/* tell modem to use short status codes */
 	gobble("\r");
 	gobble("\r");
 	write(FD, "ATTD", 4);	/* send dial command */
+	for (cp = num; *cp; cp++)
+		if (*cp == '=')
+			*cp = ',';
 	write(FD, num, strlen(num));
 	state = DIALING;
 	write(FD, "\r", 1);
@@ -113,10 +128,10 @@ hay_dialer(num, acu)
 		state = FAILED;
 		return (connected);	/* lets get out of here.. */
 	}
-	ioctl(FD, TIOCFLUSH, 0);
-#if ACULOG
+	tcflush(FD, TCIOFLUSH);
+#ifdef ACULOG
 	if (timeout) {
-		sprintf(line, "%d second dial timeout",
+		(void)sprintf(line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "hayes", line);
 	}
@@ -127,11 +142,9 @@ hay_dialer(num, acu)
 }
 
 
+void
 hay_disconnect()
 {
-	char c;
-	int len, rlen;
-
 	/* first hang up the modem*/
 #ifdef DEBUG
 	printf("\rdisconnecting modem....\n\r");
@@ -142,10 +155,9 @@ hay_disconnect()
 	goodbye();
 }
 
+void
 hay_abort()
 {
-
-	char c;
 
 	write(FD, "\r", 1);	/* send anything to abort the call */
 	hay_disconnect();
@@ -162,7 +174,7 @@ sigALRM()
 
 static char
 gobble(match)
-	register char *match;
+	char *match;
 {
 	char c;
 	sig_t f;
@@ -196,8 +208,9 @@ gobble(match)
 	return (status);
 }
 
+static void
 error_rep(c)
-	register char c;
+	char c;
 {
 	printf("\n\r");
 	switch (c) {
@@ -236,16 +249,17 @@ error_rep(c)
 /*
  * set modem back to normal verbose status codes.
  */
+void
 goodbye()
 {
-	int len, rlen;
+	int len;
 	char c;
 
-	ioctl(FD, TIOCFLUSH, &len);	/* get rid of trash */
+	tcflush(FD, TCIOFLUSH);
 	if (hay_sync()) {
 		sleep(1);
 #ifndef DEBUG
-		ioctl(FD, TIOCFLUSH, 0);
+		tcflush(FD, TCIOFLUSH);
 #endif
 		write(FD, "ATH0\r", 5);		/* insurance */
 #ifndef DEBUG
@@ -273,13 +287,14 @@ goodbye()
 		printf("read (%d): %s\r\n", rlen, dumbuf);
 #endif
 	}
-	ioctl(FD, TIOCFLUSH, 0);	/* clear the input buffer */
+	tcflush(FD, TCIOFLUSH);
 	ioctl(FD, TIOCCDTR, 0);		/* clear DTR (insurance) */
 	close(FD);
 }
 
 #define MAXRETRY	5
 
+int
 hay_sync()
 {
 	int len, retry = 0;
@@ -290,8 +305,8 @@ hay_sync()
 		ioctl(FD, FIONREAD, &len);
 		if (len) {
 			len = read(FD, dumbuf, min(len, DUMBUFLEN));
-			if (index(dumbuf, '0') || 
-		   	(index(dumbuf, 'O') && index(dumbuf, 'K')))
+			if (strchr(dumbuf, '0') || 
+		   	(strchr(dumbuf, 'O') && strchr(dumbuf, 'K')))
 				return(1);
 #ifdef DEBUG
 			dumbuf[len] = '\0';

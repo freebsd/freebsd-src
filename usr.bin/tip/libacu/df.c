@@ -1,3 +1,6 @@
+/*	$OpenBSD: df.c,v 1.5 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: df.c,v 1.4 1995/10/29 00:49:51 pk Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,19 +35,22 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)df.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] = "$OpenBSD: df.c,v 1.5 2001/10/24 18:38:58 millert Exp $";
 #endif /* not lint */
 
 /*
  * Dial the DF02-AC or DF03-AC
  */
 
-#include "tipconf.h"
 #include "tip.h"
 
 static jmp_buf Sjbuf;
 static void timeout();
 
+int
 df02_dialer(num, acu)
 	char *num, *acu;
 {
@@ -52,6 +58,7 @@ df02_dialer(num, acu)
 	return (df_dialer(num, acu, 0));
 }
 
+int
 df03_dialer(num, acu)
 	char *num, *acu;
 {
@@ -59,16 +66,19 @@ df03_dialer(num, acu)
 	return (df_dialer(num, acu, 1));
 }
 
+int
 df_dialer(num, acu, df03)
 	char *num, *acu;
 	int df03;
 {
-	register int f = FD;
-	int speed = 0, rw = 2;
+	int f = FD;
+	struct termios cntrl;
+	int speed = 0;
 	char c = '\0';
 
-	acu_hupcl ();
-
+	tcgetattr(f, &cntrl);
+	cntrl.c_cflag |= HUPCL;
+	tcsetattr(f, TCSANOW, &cntrl);
 	if (setjmp(Sjbuf)) {
 		printf("connection timed out\r\n");
 		df_disconnect();
@@ -81,8 +91,12 @@ df_dialer(num, acu, df03)
 	if (df03) {
 		int st = TIOCM_ST;	/* secondary Transmit flag */
 
-		if ((speed = acu_getspeed ()) != B1200) {	/* must dial at 1200 baud */
-			acu_setspeed (B1200);
+		tcgetattr(f, &cntrl);
+		speed = cfgetospeed(&cntrl);
+		if (speed != B1200) {	/* must dial at 1200 baud */
+			cfsetospeed(&cntrl, B1200);
+			cfsetispeed(&cntrl, B1200);
+			tcsetattr(f, TCSAFLUSH, &cntrl);
 			ioctl(f, TIOCMBIC, &st); /* clear ST for 300 baud */
 		} else
 			ioctl(f, TIOCMBIS, &st); /* set ST for 1200 baud */
@@ -90,30 +104,32 @@ df_dialer(num, acu, df03)
 #endif
 	signal(SIGALRM, timeout);
 	alarm(5 * strlen(num) + 10);
-	ioctl(f, TIOCFLUSH, &rw);
+	tcflush(f, TCIOFLUSH);
 	write(f, "\001", 1);
 	sleep(1);
 	write(f, "\002", 1);
 	write(f, num, strlen(num));
 	read(f, &c, 1);
 #ifdef TIOCMSET
-	if (df03 && speed) {
-		acu_setspeed (speed);
+	if (df03 && speed != B1200) {
+		cfsetospeed(&cntrl, speed);
+		cfsetispeed(&cntrl, speed);
+		tcsetattr(f, TCSAFLUSH, &cntrl);
 	}
 #endif
 	return (c == 'A');
 }
 
+void
 df_disconnect()
 {
-	int rw = 2;
-
 	write(FD, "\001", 1);
 	sleep(1);
-	ioctl(FD, TIOCFLUSH, &rw);
+	tcflush(FD, TCIOFLUSH);
 }
 
 
+void
 df_abort()
 {
 

@@ -1,3 +1,6 @@
+/*	$OpenBSD: vars.c,v 1.2 1996/06/26 05:40:50 deraadt Exp $	*/
+/*	$NetBSD: vars.c,v 1.3 1994/12/08 09:31:19 jtc Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,10 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vars.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] = "$OpenBSD: vars.c,v 1.2 1996/06/26 05:40:50 deraadt Exp $";
 #endif /* not lint */
 
-#include "tipconf.h"
 #include "tip.h"
 #include "pathnames.h"
 
@@ -67,10 +72,6 @@ value_t vtable[] = {
 	  "ho",		(char *)&HO },
 	{ "log",	STRING|INIT,		(READ|WRITE)<<ROOT,
 	  NOSTR,	_PATH_ACULOG },
-	{ "login",	STRING|IREMOTE|INIT,		(READ|WRITE)<<PUBLIC,
-	  "li",	(char *)&LI },
-	{ "logout",	STRING|IREMOTE|INIT,		(READ|WRITE)<<PUBLIC,
-	  "lo",	(char *)&LO },
 	{ "phones",	STRING|INIT|IREMOTE,	READ<<PUBLIC,
 	  NOSTR,	(char *)&PH },
 	{ "prompt",	CHAR,			(READ|WRITE)<<PUBLIC,
