@@ -23,7 +23,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ftok.3,v 1.1 1995/05/01 08:53:16 joerg Exp $
+.\"	$Id: ftok.3,v 1.2 1996/01/30 18:12:32 mpp Exp $
 .Dd June 24, 1994
 .Os
 .Dt ftok 3
@@ -42,7 +42,7 @@ This function is available from the compatibility library, libcompat.
 The
 .Fn ftok
 function attempts to create a unique key suitable for use with the
-.Xr msgget 2 ,
+.Xr msgget 3 ,
 .Xr semget 2
 and
 .Xr shmget 2
@@ -64,9 +64,9 @@ function will return -1 if
 .Fa path
 does not exist or if it cannot be accessed by the calling process.
 .Sh SEE ALSO
-.Xr msgget 2 ,
 .Xr semget 2 ,
-.Xr shmget 2
+.Xr shmget 2 ,
+.Xr msgget 3
 .Sh HISTORY
 The
 .Fn ftok
