@@ -255,4 +255,11 @@ softdep_sync_metadata(ap)
 
 	return (0);
 }
+
+int
+softdep_slowdown(vp)
+	struct vnode *vp;
+{
+	panic("softdep_slowdown called");
+}
 #endif	/* SOFTUPDATES not configured in */

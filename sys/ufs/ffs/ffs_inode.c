@@ -178,7 +178,7 @@ ffs_truncate(vp, length, flags, cred, p)
 #endif
 	ovp->v_lasta = ovp->v_clen = ovp->v_cstart = ovp->v_lastw = 0;
 	if (DOINGSOFTDEP(ovp)) {
-		if (length > 0) {
+		if (length > 0 || softdep_slowdown(ovp)) {
 			/*
 			 * If a file is only partially truncated, then
 			 * we have to clean up the data structures
@@ -286,7 +286,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, ((length > 0) ? 0 : 1));
+	allerror = UFS_UPDATE(ovp, 1);
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration
