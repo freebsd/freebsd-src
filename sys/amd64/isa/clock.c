@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/kdb.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
@@ -293,8 +293,18 @@ DELAY(int n)
 	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
 	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
 	 * multiplications and divisions to scale the count take a while).
+	 *
+	 * However, if ddb is active then use a fake counter since reading
+	 * the i8254 counter involves acquiring a lock.  ddb must not go
+	 * locking for many reasons, but it calls here for at least atkbd
+	 * input.
 	 */
-	prev_tick = getit();
+#ifdef KDB
+	if (kdb_active)
+		prev_tick = 1;
+	else
+#endif
+		prev_tick = getit();
 	n -= 0;			/* XXX actually guess no initial overhead */
 	/*
 	 * Calculate (n * (timer_freq / 1e6)) without using floating point
@@ -321,7 +331,15 @@ DELAY(int n)
 			     / 1000000;
 
 	while (ticks_left > 0) {
-		tick = getit();
+#ifdef KDB
+		if (kdb_active) {
+			inb(0x84);
+			tick = prev_tick - 1;
+			if (tick <= 0)
+				tick = timer0_max_count;
+		} else
+#endif
+			tick = getit();
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
@@ -366,17 +384,10 @@ sysbeep(int pitch, int period)
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
-#ifdef KDB
-	if (!kdb_active)
-#endif
-		mtx_lock_spin(&clock_lock);
+	mtx_lock_spin(&clock_lock);
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
-#ifdef KDB
-	if (!kdb_active)
-#endif
-		mtx_unlock_spin(&clock_lock);
-
+	mtx_unlock_spin(&clock_lock);
 	if (!beeping) {
 		/* enable counter2 output to speaker */
 		outb(IO_PPI, inb(IO_PPI) | 3);
