@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id$
+ *	$Id: mount.h,v 1.39 1997/02/22 09:45:35 peter Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -214,12 +214,11 @@ struct mount {
  * Sysctl CTL_VFS definitions.
  *
  * Second level identifier specifies which filesystem. Second level
- * identifier VFS_GENERIC returns information about all filesystems.
+ * identifier VFS_VFSCONF returns information about all filesystems.
+ * Second level identifier VFS_GENERIC is non-terminal.
  */
-#ifdef notyet
+#define	VFS_VFSCONF		0	/* get configured filesystems */
 #define	VFS_GENERIC		0	/* generic filesystem information */
-#endif
-#define VFS_OVFSCONF	0	/* for backward compatibility w/ FreeBSD 2.1 */
 /*
  * Third level identifiers for VFS_GENERIC are given below; third
  * level identifiers for specific filesystems are given in their
@@ -228,7 +227,6 @@ struct mount {
 #define VFS_MAXTYPENUM	1	/* int: highest defined filesystem type */
 #define VFS_CONF	2	/* struct: vfsconf for filesystem given
 				   as next argument */
-#define VFS_VFSCONF	3	/* for backward compatibility w/ FreeBSD 2.1 */
 
 /*
  * Flags for various system call interfaces.
@@ -272,6 +270,14 @@ struct vfsconf {
 	int	vfc_refcount;		/* number mounted of this type */
 	int	vfc_flags;		/* permanent flags */
 	struct	vfsconf *vfc_next;	/* next in list */
+};
+
+struct ovfsconf {
+	void	*vfc_vfsops;
+	char	vfc_name[32];
+	int	vfc_index;
+	int	vfc_refcount;
+	int	vfc_flags;
 };
 
 /*
@@ -422,14 +428,24 @@ int	fstatfs __P((int, struct statfs *));
 int	getfh __P((const char *, fhandle_t *));
 int	getfsstat __P((struct statfs *, long, int));
 int	getmntinfo __P((struct statfs **, int));
+#ifdef _NEW_VFSCONF
 int	mount __P((const char *, const char *, int, void *));
+#else
+int	mount __P((int, const char *, int, void *));
+#endif
 int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
 
 /* C library stuff */
-struct	vfsconf *getvfsbyname __P((const char *));
-struct	vfsconf *getvfsbytype __P((int));
-struct	vfsconf *getvfsent __P((void));
+#ifdef _NEW_VFSCONF
+#define	getvfsbyname(name, vfsp)	new_getvfsbyname((name), (vfsp))
+int	new_getvfsbyname __P((const char *, struct vfsconf *));
+#else
+#define	vfsconf	ovfsconf
+struct	ovfsconf *getvfsbyname __P((const char *));
+struct	ovfsconf *getvfsbytype __P((int));
+struct	ovfsconf *getvfsent __P((void));
+#endif
 void	setvfsent __P((int));
 void	endvfsent __P((void));
 int	vfsisloadable __P((const char *));
