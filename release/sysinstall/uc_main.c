@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.13.4.2 1997/01/15 04:50:22 jkh Exp $
+ * $Id: uc_main.c,v 1.13.4.3 1997/01/19 09:59:43 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -190,7 +190,7 @@ uc_open(char *name){
 	kern->core = mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
 			  MAP_SHARED, kd, 0);
 	kern->incore = 0;
-	if (kern->core == MAP_FAILED) {
+	if (kern->core == NULL) {
 	    free(kern);
 	    msgDebug("uc_open: Unable to mmap from %s.\n", kname);
 	    return NULL;
