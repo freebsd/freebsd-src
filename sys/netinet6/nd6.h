@@ -354,10 +354,6 @@ union nd_opts {
 #define nd_opts_pi_end		nd_opt_each.pi_end
 #define nd_opts_rh		nd_opt_each.rh
 #define nd_opts_mtu		nd_opt_each.mtu
-#define nd_opts_adv		nd_opt_each.adv
-#define nd_opts_hai		nd_opt_each.hai
-#define nd_opts_src_addrlist	nd_opt_each.src_addrlist
-#define nd_opts_tgt_addrlist	nd_opt_each.tgt_addrlist
 #define nd_opts_search		nd_opt_each.search
 #define nd_opts_last		nd_opt_each.last
 #define nd_opts_done		nd_opt_each.done
