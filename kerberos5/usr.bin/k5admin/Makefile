@@ -43,11 +43,11 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		${_krb4libs} \
 		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lmd -lcom_err \
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err \
 		-L${SLOBJDIR} -lsl -lreadline
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMD} ${LIBCOM_ERR} \
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
 		${LIBSL} ${LIBREADLINE}
 MAN=		k5admin.8
 
