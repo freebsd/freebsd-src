@@ -84,7 +84,7 @@ i[3456]86-*-sco* | i[3456]86-*-isc*)
   HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi` -lc `if [ -f ../gcc/crtend.o ]; then echo ../gcc/crtend.o; else ${CC} -print-file-name=crtend.o; fi` /lib/crtn.o'
   ;;
 
-i[3456]86-*-linux*aout* | i[3456]86-*-linuxoldld)
+i[3456]86-*-linux*aout* | i[3456]86-*-linux*oldld)
   HOSTING_CRT0=/usr/lib/crt0.o
   ;;
 
