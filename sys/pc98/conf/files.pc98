@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.15 1997/09/18 08:13:49 kato Exp $
+#	$Id: files.pc98,v 1.9.2.16 1998/01/11 12:45:37 kato Exp $
 #
 aicasm				optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -218,6 +218,7 @@ i386/isa/atapi.c		optional	atapi	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
+i386/isa/wfd.c			optional	wfd	device-driver
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.12 1997/09/14 06:26:40 kato Exp $
+ *	$Id: wd.c,v 1.9.2.13 1997/11/04 03:07:59 kato Exp $
  */
 
 /* TODO:
@@ -392,7 +392,7 @@ reset_ok:
 		du->dk_error = inb(du->dk_port + wd_error);
 
 	/* printf("Error : %x\n", du->dk_error); */
-	if(du->dk_error != 0x01) {
+	if(du->dk_error != 0x01 && du->dk_error != 0) {
 		if(du->dk_error & 0x80) { /* drive 1 failure */ 
 
 			/* first set the DRV bit */

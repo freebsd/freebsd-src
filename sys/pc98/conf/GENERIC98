@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.13 1998/01/15 08:17:56 kato Exp $
+#	$Id: GENERIC98,v 1.8.2.14 1998/01/30 15:57:37 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -73,7 +73,8 @@ disk		wd0	at wdc0 drive 0
 
 options		ATAPI	# Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
-device		wcd0	#IDE CD-ROM
+device		wcd0		#IDE CD-ROM
+device		wfd0		#IDE floppy (LS-120)
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is sufficient
 # for any number of installed devices.
