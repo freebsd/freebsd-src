@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.49 2000/10/10 05:05:07 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.51 2001/09/17 21:57:54 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -58,7 +58,10 @@ struct	arphdr {
 	u_short	ar_hrd;		/* format of hardware address */
 #define ARPHRD_ETHER 	1	/* ethernet hardware format */
 #define ARPHRD_IEEE802	6	/* token-ring hardware format */
+#define ARPHRD_ARCNET	7	/* arcnet hardware format */
 #define ARPHRD_FRELAY 	15	/* frame relay hardware format */
+#define ARPHRD_STRIP 	23	/* Ricochet Starmode Radio hardware format */
+#define ARPHRD_IEEE1394	24	/* IEEE 1394 (FireWire) hardware format */
 	u_short	ar_pro;		/* format of protocol address */
 	u_char	ar_hln;		/* length of hardware address */
 	u_char	ar_pln;		/* length of protocol address */
@@ -79,117 +82,86 @@ struct	arphdr {
 	u_char	ar_tha[];	/* target hardware address */
 	u_char	ar_tpa[];	/* target protocol address */
 #endif
+#define ar_sha(ap)	(((const caddr_t)((ap)+1))+0)
+#define ar_spa(ap)	(((const caddr_t)((ap)+1))+  (ap)->ar_hln)
+#define ar_tha(ap)	(((const caddr_t)((ap)+1))+  (ap)->ar_hln+(ap)->ar_pln)
+#define ar_tpa(ap)	(((const caddr_t)((ap)+1))+2*(ap)->ar_hln+(ap)->ar_pln)
 };
 
 #define ARP_HDRLEN	8
 
-/*
- * Ethernet Address Resolution Protocol.
- *
- * See RFC 826 for protocol description.  Structure below is adapted
- * to resolving internet addresses.  Field names used correspond to 
- * RFC 826.
- */
-struct	ether_arp {
-	struct	arphdr ea_hdr;	/* fixed-size header */
-	u_char	arp_sha[6];	/* sender hardware address */
-	u_char	arp_spa[4];	/* sender protocol address */
-	u_char	arp_tha[6];	/* target hardware address */
-	u_char	arp_tpa[4];	/* target protocol address */
-};
-#define	arp_hrd	ea_hdr.ar_hrd
-#define	arp_pro	ea_hdr.ar_pro
-#define	arp_hln	ea_hdr.ar_hln
-#define	arp_pln	ea_hdr.ar_pln
-#define	arp_op	ea_hdr.ar_op
-
-#define ETHER_ARP_HDRLEN	(ARP_HDRLEN + 6 + 4 + 6 + 4)	
-
-#define SHA(ap) ((ap)->arp_sha)
-#define THA(ap) ((ap)->arp_tha)
-#define SPA(ap) ((ap)->arp_spa)
-#define TPA(ap) ((ap)->arp_tpa)
-
-/* Compatibility */
-#ifndef REVARP_REQUEST
-#define REVARP_REQUEST		3
-#endif
-#ifndef REVARP_REPLY
-#define REVARP_REPLY		4
-#endif
+#define HRD(ap) ((ap)->ar_hrd)
+#define HLN(ap) ((ap)->ar_hln)
+#define PLN(ap) ((ap)->ar_pln)
+#define OP(ap)  ((ap)->ar_op)
+#define PRO(ap) ((ap)->ar_pro)
+#define SHA(ap) (ar_sha(ap))
+#define SPA(ap) (ar_spa(ap))
+#define THA(ap) (ar_tha(ap))
+#define TPA(ap) (ar_tpa(ap))
 
 static u_char ezero[6];
 
 void
-arp_print(register const u_char *bp, u_int length, u_int caplen)
+arp_print(const u_char *bp, u_int length, u_int caplen)
 {
-	register const struct ether_arp *ap;
-	register const struct ether_header *eh;
-	register u_short pro, hrd, op;
+	const struct arphdr *ap;
+	u_short pro, hrd, op;
 
-	ap = (struct ether_arp *)bp;
-	if ((u_char *)(ap + 1) > snapend) {
-		printf("[|arp]");
-		return;
-	}
-	if (length < ETHER_ARP_HDRLEN) {
+	ap = (const struct arphdr *)bp;
+	TCHECK(*ap);
+	if ((const u_char *)(ar_tpa(ap) + PLN(ap)) > snapend) {
 		(void)printf("truncated-arp");
-		default_print((u_char *)ap, length);
+		default_print((const u_char *)ap, length);
 		return;
 	}
 
-	pro = EXTRACT_16BITS(&ap->arp_pro);
-	hrd = EXTRACT_16BITS(&ap->arp_hrd);
-	op = EXTRACT_16BITS(&ap->arp_op);
+	pro = EXTRACT_16BITS(&PRO(ap));
+	hrd = EXTRACT_16BITS(&HRD(ap));
+	op = EXTRACT_16BITS(&OP(ap));
 
-	if ((pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL)
-	    || ap->arp_hln != sizeof(SHA(ap))
-	    || ap->arp_pln != sizeof(SPA(ap))) {
+	if (pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL) {
 		(void)printf("arp-#%d for proto #%d (%d) hardware #%d (%d)",
-				op, pro, ap->arp_pln,
-				hrd, ap->arp_hln);
+				op, pro, PLN(ap), hrd, HLN(ap));
 		return;
 	}
 	if (pro == ETHERTYPE_TRAIL)
 		(void)printf("trailer-");
-	eh = (struct ether_header *)packetp;
 	switch (op) {
 
 	case ARPOP_REQUEST:
 		(void)printf("arp who-has %s", ipaddr_string(TPA(ap)));
-		if (memcmp((char *)ezero, (char *)THA(ap), 6) != 0)
-			(void)printf(" (%s)", etheraddr_string(THA(ap)));
+		if (memcmp((const char *)ezero, (const char *)THA(ap), HLN(ap)) != 0)
+			(void)printf(" (%s)",
+			    linkaddr_string(THA(ap), HLN(ap)));
 		(void)printf(" tell %s", ipaddr_string(SPA(ap)));
-		if (memcmp((char *)ESRC(eh), (char *)SHA(ap), 6) != 0)
-			(void)printf(" (%s)", etheraddr_string(SHA(ap)));
 		break;
 
 	case ARPOP_REPLY:
 		(void)printf("arp reply %s", ipaddr_string(SPA(ap)));
-		if (memcmp((char *)ESRC(eh), (char *)SHA(ap), 6) != 0)
-			(void)printf(" (%s)", etheraddr_string(SHA(ap)));
-		(void)printf(" is-at %s", etheraddr_string(SHA(ap)));
-		if (memcmp((char *)EDST(eh), (char *)THA(ap), 6) != 0)
-			(void)printf(" (%s)", etheraddr_string(THA(ap)));
+		(void)printf(" is-at %s", linkaddr_string(SHA(ap), HLN(ap)));
 		break;
 
-	case REVARP_REQUEST:
+	case ARPOP_REVREQUEST:
 		(void)printf("rarp who-is %s tell %s",
-			etheraddr_string(THA(ap)),
-			etheraddr_string(SHA(ap)));
+			linkaddr_string(THA(ap), HLN(ap)),
+			linkaddr_string(SHA(ap), HLN(ap)));
 		break;
 
-	case REVARP_REPLY:
+	case ARPOP_REVREPLY:
 		(void)printf("rarp reply %s at %s",
-			etheraddr_string(THA(ap)),
+			linkaddr_string(THA(ap), HLN(ap)),
 			ipaddr_string(TPA(ap)));
 		break;
 
 	default:
 		(void)printf("arp-#%d", op);
-		default_print((u_char *)ap, caplen);
+		default_print((const u_char *)ap, caplen);
 		return;
 	}
 	if (hrd != ARPHRD_ETHER)
 		printf(" hardware #%d", hrd);
+	return;
+trunc:
+	(void)printf("[|arp]");
 }

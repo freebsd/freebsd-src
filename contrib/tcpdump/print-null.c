@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.40 2000/12/16 22:00:50 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.41 2001/07/05 18:54:15 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -115,6 +115,7 @@ null_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	const struct ip *ip;
 	u_int family;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	memcpy((char *)&family, (char *)p, sizeof(family));
@@ -162,5 +163,8 @@ null_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	if (xflag)
 		default_print((const u_char *)ip, caplen - NULL_HDRLEN);
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
 

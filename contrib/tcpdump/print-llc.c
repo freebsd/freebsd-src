@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.32 2000/12/18 07:55:36 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.43 2001/10/08 21:25:22 fenner Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include "extract.h"			/* must come after interface.h */
 
 #include "llc.h"
+#include "ethertype.h"
 
 static struct tok cmd2str[] = {
 	{ LLC_UI,	"ui" },
@@ -83,23 +84,47 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 	memcpy((char *)&llc, (char *)p, min(caplen, sizeof(llc)));
 
 	if (llc.ssap == LLCSAP_GLOBAL && llc.dsap == LLCSAP_GLOBAL) {
+		/*
+		 * This is an Ethernet_802.3 IPX frame; it has an
+		 * 802.3 header (i.e., an Ethernet header where the
+		 * type/length field is <= ETHERMTU, i.e. it's a length
+		 * field, not a type field), but has no 802.2 header -
+		 * the IPX packet starts right after the Ethernet header,
+		 * with a signature of two bytes of 0xFF (which is
+		 * LLCSAP_GLOBAL).
+		 *
+		 * (It might also have been an Ethernet_802.3 IPX at
+		 * one time, but got bridged onto another network,
+		 * such as an 802.11 network; this has appeared in at
+		 * least one capture file.)
+		 */
 		ipx_print(p, length);
 		return (1);
-	}
-
-	/* Cisco Discovery Protocol  - SNAP & ether type 0x2000 */
-	if(llc.ssap == LLCSAP_SNAP && llc.dsap == LLCSAP_SNAP &&
-		llc.llcui == LLC_UI && 
-		llc.ethertype[0] == 0x20 && llc.ethertype[1] == 0x00 ) {
-		    cdp_print( p, length, caplen, esrc, edst);
-		    return (1);
 	}
 
 	if (llc.ssap == LLCSAP_8021D && llc.dsap == LLCSAP_8021D) {
 		stp_print(p, length);
 		return (1);
 	}
-	if (llc.ssap == 0xf0 && llc.dsap == 0xf0
+
+	if (llc.ssap == LLCSAP_IPX && llc.dsap == LLCSAP_IPX &&
+	    llc.llcui == LLC_UI) {
+		/*
+		 * This is an Ethernet_802.2 IPX frame, with an 802.3
+		 * header and an 802.2 LLC header with the source and
+		 * destination SAPs being the IPX SAP.
+		 *
+		 * Skip DSAP, LSAP, and control field.
+		 */
+		p += 3;
+		length -= 3;
+		caplen -= 3;
+		ipx_print(p, length);
+		return (1);
+	}
+
+#ifdef TCPDUMP_DO_SMB
+	if (llc.ssap == LLCSAP_NETBEUI && llc.dsap == LLCSAP_NETBEUI
 	    && (!(llc.llcu & LLC_S_FMT) || llc.llcu == LLC_U_FMT)) {
 		/*
 		 * we don't actually have a full netbeui parser yet, but the
@@ -140,9 +165,10 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 			length -= 2;
 			caplen -= 2;
 		}
-		netbeui_print(control, p, p + min(caplen, length));
+		netbeui_print(control, p, length);
 		return (1);
 	}
+#endif
 	if (llc.ssap == LLCSAP_ISONS && llc.dsap == LLCSAP_ISONS
 	    && llc.llcui == LLC_UI) {
 		isoclns_print(p + 3, length - 3, caplen - 3, esrc, edst);
@@ -151,6 +177,8 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 
 	if (llc.ssap == LLCSAP_SNAP && llc.dsap == LLCSAP_SNAP
 	    && llc.llcui == LLC_UI) {
+		u_int32_t orgcode;
+
 		if (caplen < sizeof(llc)) {
 			(void)printf("[|llc-snap]");
 			default_print((u_char *)p, caplen);
@@ -163,16 +191,51 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		length -= sizeof(llc);
 		p += sizeof(llc);
 
-		/* This is an encapsulated Ethernet packet */
-		et = EXTRACT_16BITS(&llc.ethertype[0]);
-		ret = ether_encap_print(et, p, length, caplen,
-		    extracted_ethertype);
-		if (ret)
-			return (ret);
+		orgcode = EXTRACT_24BITS(&llc.llc_orgcode[0]);
+		et = EXTRACT_16BITS(&llc.llc_ethertype[0]);
+		switch (orgcode) {
+		case OUI_ENCAP_ETHER:
+		case OUI_CISCO_90:
+			/*
+			 * This is an encapsulated Ethernet packet,
+			 * or a packet bridged by some piece of
+			 * Cisco hardware; the protocol ID is
+			 * an Ethernet protocol type.
+			 */
+			ret = ether_encap_print(et, p, length, caplen,
+			    extracted_ethertype);
+			if (ret)
+				return (ret);
+			break;
+
+		case OUI_APPLETALK:
+			if (et == ETHERTYPE_ATALK) {
+				/*
+				 * No, I have no idea why Apple used one
+				 * of their own OUIs, rather than
+				 * 0x000000, and an Ethernet packet
+				 * type, for Appletalk data packets,
+				 * but used 0x000000 and an Ethernet
+				 * packet type for AARP packets.
+				 */
+				ret = ether_encap_print(et, p, length, caplen,
+				    extracted_ethertype);
+				if (ret)
+					return (ret);
+			}
+			break;
+
+		case OUI_CISCO:
+			if (et == ETHERTYPE_CISCO_CDP) {
+				cdp_print(p, length, caplen, esrc, edst);
+				return 1;
+			}
+			break;
+		}
 	}
 
 	if ((llc.ssap & ~LLC_GSAP) == llc.dsap) {
-		if (eflag)
+		if (eflag || esrc == NULL || edst == NULL)
 			(void)printf("%s ", llcsap_string(llc.dsap));
 		else
 			(void)printf("%s > %s %s ",
@@ -180,7 +243,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 					etheraddr_string(edst),
 					llcsap_string(llc.dsap));
 	} else {
-		if (eflag)
+		if (eflag || esrc == NULL || edst == NULL)
 			(void)printf("%s > %s ",
 				llcsap_string(llc.ssap & ~LLC_GSAP),
 				llcsap_string(llc.dsap));
@@ -220,14 +283,6 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 				length -= 3;
 				caplen -= 3;
 			}
-		}
-
-		if (cmd == LLC_UI && f == 'C') {
-			/*
-			 * we don't have a proper ipx decoder yet, but there
-			 * is a partial one in the smb code
-			 */
-			ipx_netbios_print(p,p+min(caplen,length));
 		}
 	} else {
 		char f;
