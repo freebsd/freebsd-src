@@ -263,7 +263,7 @@ DECODE_PROTOTYPE(bar)
 		int type;
 		int reg;
 		u_int32_t bar;
-		u_int32_t start, len;
+		u_int32_t len;
 		struct resource *res;
 
 		reg = *(u_int16_t*)tupledata;
@@ -359,7 +359,7 @@ cardbus_read_tuple_exrom(device_t dev, struct resource *mem, u_int32_t *start,
 		data = image + READROM(image, 16, CARDBUS_EXROM_DATA_PTR);
 		imagesize = READROM(data, 16, CARDBUS_EXROM_DATA_IMAGE_LENGTH);
 
-		if(imagesize == 0) {
+		if (imagesize == 0) {
 			/*
 			 * XXX some ROMs seem to have this as zero,
 			 * can we assume this means 1 block?
@@ -376,7 +376,7 @@ cardbus_read_tuple_exrom(device_t dev, struct resource *mem, u_int32_t *start,
 			*off += *len+2;
 			return 0;
 		}
-
+		image += imagesize;
 		romnum++;
 	} while ((READROM(data, 8, CARDBUS_EXROM_DATA_INDICATOR) & 0x80) == 0);
 	device_printf(dev, "Cannot read CIS: Not enough images of rom\n");
