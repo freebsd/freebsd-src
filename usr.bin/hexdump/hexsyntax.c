@@ -60,8 +60,7 @@ newsyntax(argc, argvp)
 	    strcmp(p, "hd") == 0) {
 		/* "Canonical" format, implies -C. */
 		add("\"%08.8_Ax\n\"");
-		add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \"");
-		add(" 8/1 \"%02x \" ");
+		add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \" 8/1 \"%02x \" ");
 		add("\"  |\" 16/1 \"%_p\" \"|\\n\"");
 	}
 	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) != EOF)
@@ -76,8 +75,7 @@ newsyntax(argc, argvp)
 			break;
 		case 'C':
 			add("\"%08.8_Ax\n\"");
-			add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \"");
-			add(" 8/1 \"%02x \" ");
+			add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \" 8/1 \"%02x \" ");
 			add("\"  |\" 16/1 \"%_p\" \"|\\n\"");
 			break;
 		case 'd':
