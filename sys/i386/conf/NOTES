@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.447 1998/07/20 20:00:30 msmith Exp $
+#	$Id: LINT,v 1.448 1998/08/03 19:14:31 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1167,6 +1167,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # bktr: Bt848 capture boards (http://www.freebsd.org/~fsmp/HomeAuto/Bt848.html)
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
+# dgm: Digiboard PC/Xem driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
@@ -1232,8 +1233,8 @@ device pca0 at isa? port IO_TIMER1 tty
 # Notes on the Digiboard driver:
 #
 # The following flag values have special meanings:
-#	0x01 - alternate layout of pins
-#	0x02 - use the windowed PC/Xe in 64K mode
+#	0x01 - alternate layout of pins (dgb & dgm)
+#	0x02 - use the windowed PC/Xe in 64K mode (dgb only)
 
 # Notes on the Specialix SI/XIO driver:
 #  **This is NOT a Specialix supported Driver!**
@@ -1272,6 +1273,7 @@ device		joy0	at isa? port "IO_GAME"
 device          alog0   at isa? port 0x260 tty irq 5 vector alogintr
 device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
+device		dgm0	at isa? port 0x104 iomem 0xd00000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 device          rp0     at isa? port 0x280 tty
