@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.5 1998/10/15 17:46:18 ken Exp $
+ *      $Id: cam_periph.c,v 1.6 1998/10/22 22:16:48 ken Exp $
  */
 
 #include <sys/param.h>
@@ -490,24 +490,14 @@ cam_periph_unlock(struct cam_periph *periph)
 int
 cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 {
-	int flags, numbufs, i;
+	int numbufs, i;
+	int flags[CAM_PERIPH_MAXMAPS];
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
 	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
 
 	switch(ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
-		if (ccb->cdm.pattern_buf_len > MAXPHYS) {
-			printf("cam_periph_mapmem: attempt to map %u bytes, "
-			       "which is greater than MAXPHYS(%d)\n",
-			       ccb->cdm.pattern_buf_len, MAXPHYS);
-			return(E2BIG);
-		} else if (ccb->cdm.match_buf_len > MAXPHYS) {
-			printf("cam_periph_mapmem: attempt to map %u bytes, "
-			       "which is greater than MAXPHYS(%d)\n",
-			       ccb->cdm.match_buf_len, MAXPHYS);
-			return(E2BIG);
-		}
 		if (ccb->cdm.match_buf_len == 0) {
 			printf("cam_periph_mapmem: invalid match buffer "
 			       "length 0\n");
@@ -529,18 +519,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		}
 		break;
 	case XPT_SCSI_IO:
-		if (ccb->csio.dxfer_len > MAXPHYS) {
-			printf("cam_periph_mapmem: attempt to map %u bytes, "
-			       "which is greater than MAXPHYS(%d)\n",
-				ccb->csio.dxfer_len, MAXPHYS);
-			return(E2BIG);
-		}
-
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
-		lengths[0] = ccb->csio.dxfer_len;;
+		lengths[0] = ccb->csio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
@@ -549,32 +532,40 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		break; /* NOTREACHED */
 	}
 
-	/* this keeps the current process from getting swapped */
 	/*
-	 * XXX KDM should I use P_NOSWAP instead?
+	 * Check the transfer length and permissions first, so we don't
+	 * have to unmap any previously mapped buffers.
 	 */
-	curproc->p_flag |= P_PHYSIO;
-
 	for (i = 0; i < numbufs; i++) {
-		flags = 0;
+
+		flags[i] = 0;
+
+		/*
+		 * The userland data pointer passed in may not be page
+		 * aligned.  vmapbuf() truncates the address to a page
+		 * boundary, so if the address isn't page aligned, we'll
+		 * need enough space for the given transfer length, plus
+		 * whatever extra space is necessary to make it to the page
+		 * boundary.
+		 */
+		if ((lengths[i] +
+		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > MAXPHYS){
+			printf("cam_periph_mapmem: attempt to map %u bytes, "
+			       "which is greater than MAXPHYS(%d)\n",
+			       lengths[i] +
+			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK),
+			       MAXPHYS);
+			return(E2BIG);
+		}
 
 		if (dirs[i] & CAM_DIR_IN) {
-			flags = B_READ;
+			flags[i] = B_READ;
 			if (useracc(*data_ptrs[i], lengths[i], B_READ) == 0){
 				printf("cam_periph_mapmem: error, "
 					"address %p, length %lu isn't "
 					"user accessible for READ\n",
 					(void *)*data_ptrs[i],
 					(u_long)lengths[i]);
-				/*
-				 * If we've already mapped one or more
-				 * buffers for this CCB, unmap it (them).
-				 */
-				if (i > 0)
-					cam_periph_unmapmem(ccb, mapinfo);
-				else
-					curproc->p_flag &= ~P_PHYSIO;
-
 				return(EACCES);
 			}
 		}
@@ -584,26 +575,27 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * is all 0's, and so it is "set" all the time.
 		 */
 		if (dirs[i] & CAM_DIR_OUT) {
-			flags |= B_WRITE;
+			flags[i] |= B_WRITE;
 			if (useracc(*data_ptrs[i], lengths[i], B_WRITE) == 0){
 				printf("cam_periph_mapmem: error, "
 					"address %p, length %lu isn't "
 					"user accessible for WRITE\n",
 					(void *)*data_ptrs[i],
 					(u_long)lengths[i]);
-				/*
-				 * If we've already mapped one or more
-				 * buffers for this CCB, unmap it (them).
-				 */
-				if (i > 0)
-					cam_periph_unmapmem(ccb, mapinfo);
-				else
-					curproc->p_flag &= ~P_PHYSIO;
 
 				return(EACCES);
 			}
 		}
 
+	}
+
+	/* this keeps the current process from getting swapped */
+	/*
+	 * XXX KDM should I use P_NOSWAP instead?
+	 */
+	curproc->p_flag |= P_PHYSIO;
+
+	for (i = 0; i < numbufs; i++) {
 		/*
 		 * Get the buffer.
 		 */
@@ -615,11 +607,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
 
-		/* set the transfer length, we know it's < 64K */
+		/* set the transfer length, we know it's < MAXPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
 		/* set the flags */
-		mapinfo->bp[i]->b_flags = flags | B_PHYS | B_BUSY;
+		mapinfo->bp[i]->b_flags = flags[i] | B_PHYS | B_BUSY;
 
 		/* map the buffer into kernel memory */
 		vmapbuf(mapinfo->bp[i]);
