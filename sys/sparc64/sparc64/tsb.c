@@ -30,6 +30,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_pmap.h"
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -38,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h> 
@@ -64,6 +66,33 @@
 
 CTASSERT((1 << TTE_SHIFT) == sizeof(struct tte));
 
+#ifdef PMAP_STATS
+static long tsb_nrepl;
+static long tsb_nlookup_k;
+static long tsb_nlookup_u;
+static long tsb_nenter_k;
+static long tsb_nenter_u;
+static long tsb_nforeach;
+
+SYSCTL_DECL(_debug_pmap_stats);
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nrepl, CTLFLAG_RD, &tsb_nrepl, 0,
+    "Number of TSB replacements");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nlookup_k, CTLFLAG_RD,
+    &tsb_nlookup_k, 0, "Number of calls to tsb_tte_lookup(), kernel pmap");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nlookup_u, CTLFLAG_RD,
+    &tsb_nlookup_u, 0, "Number of calls to tsb_tte_lookup(), user pmap");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nenter_k, CTLFLAG_RD,
+    &tsb_nenter_k, 0, "Number of calls to tsb_tte_enter()");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nenter_u, CTLFLAG_RD,
+    &tsb_nenter_u, 0, "Number of calls to tsb_tte_enter()");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nforeach, CTLFLAG_RD,
+    &tsb_nforeach, 0, "Number of calls to tsb_foreach()");
+
+#define	TSB_STATS_INC(var)	atomic_add_long(&var, 1)
+#else
+#define	TSB_STATS_INC(var)
+#endif
+
 struct tte *tsb_kernel;
 vm_offset_t tsb_kernel_phys;
 
@@ -75,6 +104,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 	u_int i;
 
 	if (pm == kernel_pmap) {
+		TSB_STATS_INC(tsb_nlookup_k);
 		tp = tsb_kvtotte(va);
 		CTR3(KTR_TSB,
 		    "tsb_tte_lookup: kernel va=%#lx tp=%#lx data=%#lx",
@@ -84,6 +114,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 			return (tp);
 		}
 	} else {
+		TSB_STATS_INC(tsb_nlookup_u);
 		va = trunc_page(va);
 		bucket = tsb_vtobucket(pm, va);
 		CTR3(KTR_TSB, "tsb_tte_lookup: ctx=%#lx va=%#lx bucket=%p",
@@ -115,11 +146,13 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 	int i;
 
 	if (pm == kernel_pmap) {
+		TSB_STATS_INC(tsb_nenter_k);
 		tp = tsb_kvtotte(va);
 		*tp = tte;
 		return (tp);
 	}
 
+	TSB_STATS_INC(tsb_nenter_u);
 	bucket = tsb_vtobucket(pm, va);
 	CTR4(KTR_TSB, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx bucket=%p",
 	    pm->pm_context, va, tte.tte_data, bucket);
@@ -144,6 +177,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 	if (tp == NULL)
 		tp = rtp;
 	if ((tp->tte_data & TD_V) != 0) {
+		TSB_STATS_INC(tsb_nrepl);
 		ova = tte_get_va(*tp);
 		if ((tp->tte_data & TD_PV) != 0) {
 			om = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
