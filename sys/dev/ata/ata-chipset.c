@@ -1491,39 +1491,42 @@ ata_sis_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SIS963, 0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" },	/* south */
-     { ATA_SIS962, 0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" },	/* south */
+    {{ ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" },	/* south */
+     { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" },	/* south */
 
-     { ATA_SIS755, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 755" },	/* ext south */
-     { ATA_SIS752, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 752" },	/* unknown */
-     { ATA_SIS751, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 751" },	/* unknown */
-     { ATA_SIS750, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 750" },	/* unknown */
-     { ATA_SIS748, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 748" },	/* unknown */
-     { ATA_SIS746, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 746" },	/* ext south */
-     { ATA_SIS745, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 745" },	/* 1chip */
-     { ATA_SIS740, 0x00, SIS_SOUTH, 0, ATA_UDMA5, "SiS 740" },	/* ext south */
-     { ATA_SIS735, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 735" },	/* 1chip */
-     { ATA_SIS733, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 733" },	/* 1chip */
-     { ATA_SIS730, 0x00, SIS100OLD, 0, ATA_UDMA5, "SiS 730" },	/* 1chip */
+     { ATA_SIS755,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 755" },	/* ext south */
+     { ATA_SIS752,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 752" },	/* unknown */
+     { ATA_SIS751,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 751" },	/* unknown */
+     { ATA_SIS750,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 750" },	/* unknown */
+     { ATA_SIS748,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 748" },	/* unknown */
+     { ATA_SIS746,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 746" },	/* ext south */
+     { ATA_SIS745,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 745" },	/* 1chip */
+     { ATA_SIS740,  0x00, SIS_SOUTH, 0, ATA_UDMA5, "SiS 740" },	/* ext south */
+     { ATA_SIS735,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 735" },	/* 1chip */
+     { ATA_SIS733,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 733" },	/* 1chip */
+     { ATA_SIS730,  0x00, SIS100OLD, 0, ATA_UDMA5, "SiS 730" },	/* 1chip */
 
-     { ATA_SIS658, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 658" },	/* ext south */
-     { ATA_SIS655, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 655" },	/* ext south */
-     { ATA_SIS652, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 652" },	/* unknown */
-     { ATA_SIS651, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 651" },	/* ext south */
-     { ATA_SIS650, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 650" },	/* ext south */
-     { ATA_SIS648, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 648" },	/* ext south */
-     { ATA_SIS646, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645DX" },/* ext south */
-     { ATA_SIS645, 0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645" },	/* ext south */
-     { ATA_SIS640, 0x00, SIS_SOUTH, 0, ATA_UDMA4, "SiS 640" },	/* ext south */
-     { ATA_SIS635, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" },	/* 1chip */
-     { ATA_SIS633, 0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 633" },	/* unknown */
-     { ATA_SIS630, 0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S" }, /* 1chip */
-     { ATA_SIS630, 0x00, SIS66,	    0, ATA_UDMA4, "SiS 630" },	/* 1chip */
-     { ATA_SIS620, 0x00, SIS66,	    0, ATA_UDMA4, "SiS 620" },	/* 1chip */
+     { ATA_SIS658,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 658" },	/* ext south */
+     { ATA_SIS655,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 655" },	/* ext south */
+     { ATA_SIS652,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 652" },	/* unknown */
+     { ATA_SIS651,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 651" },	/* ext south */
+     { ATA_SIS650,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 650" },	/* ext south */
+     { ATA_SIS648,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 648" },	/* ext south */
+     { ATA_SIS646,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645DX" },/* ext south */
+     { ATA_SIS645,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645" },	/* ext south */
+     { ATA_SIS640,  0x00, SIS_SOUTH, 0, ATA_UDMA4, "SiS 640" },	/* ext south */
+     { ATA_SIS635,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" },	/* 1chip */
+     { ATA_SIS633,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 633" },	/* unknown */
+     { ATA_SIS630,  0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S" }, /* 1chip */
+     { ATA_SIS630,  0x00, SIS66,     0, ATA_UDMA4, "SiS 630" },	/* 1chip */
+     { ATA_SIS620,  0x00, SIS66,     0, ATA_UDMA4, "SiS 620" },	/* 1chip */
 
-     { ATA_SIS550, 0x00, SIS66,	    0, ATA_UDMA5, "SiS 550" },
-     { ATA_SIS540, 0x00, SIS66,	    0, ATA_UDMA4, "SiS 540" },
-     { ATA_SIS530, 0x00, SIS66,	    0, ATA_UDMA4, "SiS 530" },
+     { ATA_SIS550,  0x00, SIS66,     0, ATA_UDMA5, "SiS 550" },
+     { ATA_SIS540,  0x00, SIS66,     0, ATA_UDMA4, "SiS 540" },
+     { ATA_SIS530,  0x00, SIS66,     0, ATA_UDMA4, "SiS 530" },
+
+     { ATA_SIS5513, 0xc2, SIS33,     0, ATA_UDMA2, "SiS 5313" },
+     { ATA_SIS5513, 0x00, SIS33,     0, ATA_WDMA2, "SiS 5313" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
@@ -1564,6 +1567,8 @@ ata_sis_chipinit(device_t dev)
 	return ENXIO;
     
     switch (ctlr->chip->cfg1) {
+    case SIS33:
+	break;
     case SIS66:
     case SIS100OLD:
 	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 1) | 0x04, 1);
@@ -1649,7 +1654,8 @@ ata_sis_setmode(struct ata_device *atadev, int mode)
 	    break;
 	    }
 	case SIS100OLD:
-	case SIS66: {
+	case SIS66:
+	case SIS33: {
 	    u_int16_t timings[] =
 		{ 0x0c0b, 0x0607, 0x0404, 0x0303, 0x0301, 0x0404, 0x0303,
 		  0x0301, 0xf301, 0xd301, 0xb301, 0xa301, 0x9301, 0x8301 };
