@@ -220,7 +220,9 @@ static	void	pps_receive	P((struct recvbuf *));
 #define MOD_BITS (MOD_OFFSET | MOD_MAXERROR | MOD_ESTERROR | \
     MOD_STATUS | MOD_TIMECONST)
 extern int sigvec	P((int, struct sigvec *, struct sigvec *));
+#ifndef NTP_SYSCALLS_LIBC
 extern int syscall	P((int, void *, ...));
+#endif /* no NTP syscalls in libc */
 void pll_trap		P((void));
 
 static int pll_status;		/* status bits for kernel pll */
