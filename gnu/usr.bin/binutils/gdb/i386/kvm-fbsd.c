@@ -176,7 +176,7 @@ struct frame_info *fr;
                return (read_memory_integer (fr->frame + 8 + oEIP, 4));
 
        case tf_interrupt:
-               return (read_memory_integer (fr->frame + 16 + oEIP, 4));
+               return (read_memory_integer (fr->frame + 12 + oEIP, 4));
 
        case tf_syscall:
                return (read_memory_integer (fr->frame + 8 + oEIP, 4));
