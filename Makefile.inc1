@@ -171,6 +171,7 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
+		CFLAGS="-nostdinc ${CFLAGS}" \
 		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.6.0 \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
@@ -199,7 +200,7 @@ WMAKEENV=	${CROSSENV} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
+WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 -DNO_WERROR
 
 # install stage
 IMAKEENV=	${CROSSENV} \
@@ -291,7 +292,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
+	cd ${.CURDIR}; ${WMAKE} SHARED=copies includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
