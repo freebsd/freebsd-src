@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.9 1998/12/12 20:56:53 dillon Exp $
+	$Id: bootpd.c,v 1.12 1999/04/25 22:23:30 imp Exp $
 
 ************************************************************************/
 
@@ -162,7 +162,8 @@ char *progname;
 char *chdir_path;
 struct in_addr my_ip_addr;
 
-char *hostname, default_hostname[MAXHOSTNAMELEN + 1];
+static const char *hostname;
+static char default_hostname[MAXHOSTNAMELEN];
 
 /* Flags set by signal catcher. */
 PRIVATE int do_readtab = 0;
@@ -182,7 +183,7 @@ char *bootpd_dump = DUMPTAB_FILE;
  * main server loop is started.
  */
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -255,10 +256,11 @@ main(argc, argv)
 	stmp = NULL;
 	timeout = &actualtimeout;
 
-	if (gethostname(default_hostname, MAXHOSTNAMELEN) < 0) {
+	if (gethostname(default_hostname, sizeof(default_hostname) - 1) < 0) {
 		report(LOG_ERR, "bootpd: can't get hostname\n");
 		exit(1);
 	}
+	default_hostname[sizeof(default_hostname) - 1] = '\0';
 	hostname = default_hostname;
 
 	/*
@@ -571,6 +573,7 @@ main(argc, argv)
 			break;
 		}
 	}
+	return 0;
 }
 
 

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.4.2.1 1999/03/24 23:39:14 nate Exp $
+#	$Id: Makefile,v 1.6 1999/04/09 00:28:31 jdp Exp $
 #
 PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c map_object.c malloc.c xmalloc.c debug.c \
