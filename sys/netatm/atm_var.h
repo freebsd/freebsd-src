@@ -113,10 +113,6 @@ int		atm_dev_inst(struct stack_defn **, Atm_connvc *);
 void		atm_dev_lower(int, void *, int, int);
 void *		atm_dev_alloc(u_int, u_int, u_int);
 void		atm_dev_free(volatile void *);
-#if defined(sun4m)
-void *		atm_dma_map(caddr_t, int, int);
-void		atm_dma_free(caddr_t, int);
-#endif
 KBuffer *	atm_dev_compress(KBuffer *);
 Cmn_vcc *	atm_dev_vcc_find(Cmn_unit *, u_int, u_int, u_int);
 void		atm_dev_pdu_print(Cmn_unit *, Cmn_vcc *, KBuffer *, char *);
