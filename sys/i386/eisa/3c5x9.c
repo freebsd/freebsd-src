@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: 3c5x9.c,v 1.1 1996/02/26 01:01:37 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -271,7 +271,8 @@ ep_eisa_attach(e_dev)
 	/*
 	 * Set the eisa config selected media type
 	 */
-	sc->ep_connector = inw(eisa_ioport->addr + EISA_BPROM_MEDIA_CONF);
+	sc->ep_connector = inw(eisa_ioport->addr + EISA_BPROM_MEDIA_CONF)
+			   >> ACF_CONNECTOR_BITS;
 
 	if(eisa_reg_intr(e_dev, irq, ep_intr, (void *)sc, &net_imask,
 			 /*shared ==*/level_intr)) {
