@@ -734,7 +734,9 @@ ng_ing_rcvdata(hook_p hook, item_p item)
 	struct ifqueue  *xmitq_p;
 	int s;
 	struct mbuf *m;
+#ifdef THIS_DOESNT_COMPILE
 	meta_p meta;
+#endif
 	
 	NGI_GET_M(item, m);
 	NGI_GET_META(item, meta);
