@@ -91,6 +91,7 @@ struct gettyflags {
 #define IC	gettystrs[27].value
 #define AC	gettystrs[28].value
 #define AL	gettystrs[29].value
+#define DF	gettystrs[30].value
 
 /*
  * Numeric definitions.

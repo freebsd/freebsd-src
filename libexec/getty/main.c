@@ -769,7 +769,7 @@ putf(cp)
 			(void)time(&t);
 			if (Lo)
 				(void)setlocale(LC_TIME, Lo);
-			(void)strftime(db, sizeof(db), "%+", localtime(&t));
+			(void)strftime(db, sizeof(db), DF, localtime(&t));
 			puts(db);
 			break;
 
