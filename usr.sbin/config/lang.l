@@ -215,10 +215,18 @@ include(const char *fname, int ateof)
 {
 	FILE *fp;
 	struct incl *in;
+	char *fnamebuf;
 
 	fp = fopen(fname, "r");
+	if (fp == NULL && fname[0] != '.' && fname[0] != '/') {
+		asprintf(&fnamebuf, "../../conf/%s", fname);
+		if (fnamebuf != NULL) {
+			fp = fopen(fnamebuf, "r");
+			free(fnamebuf);
+		}
+	}
 	if (fp == NULL) {
-		yyerror("cannot open file");
+		yyerror("cannot open included file");
 		return (-1);
 	}
 	in = malloc(sizeof(*in));
