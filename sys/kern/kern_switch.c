@@ -82,14 +82,15 @@ setrunqueue(struct proc *p)
 	u_int8_t pri;
 
 	KASSERT(p->p_stat == SRUN, ("setrunqueue: proc not SRUN"));
-	if (p->p_rtprio.type == RTP_PRIO_REALTIME) {
-		pri = p->p_rtprio.prio;
-		q = &rtqueues[pri];
-		rtqueuebits |= 1 << pri;
-	} else if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
+	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
 		pri = p->p_priority >> 2;
 		q = &queues[pri];
 		queuebits |= 1 << pri;
+	} else if (p->p_rtprio.type == RTP_PRIO_REALTIME ||
+		   p->p_rtprio.type == RTP_PRIO_FIFO) {
+		pri = p->p_rtprio.prio;
+		q = &rtqueues[pri];
+		rtqueuebits |= 1 << pri;
 	} else if (p->p_rtprio.type == RTP_PRIO_IDLE) {
 		pri = p->p_rtprio.prio;
 		q = &idqueues[pri];
@@ -114,13 +115,14 @@ remrunqueue(struct proc *p)
 	u_int8_t pri;
 
 	pri = p->p_rqindex;
-	if (p->p_rtprio.type == RTP_PRIO_REALTIME) {
-		q = &rtqueues[pri];
-		which = &rtqueuebits;
-	} else if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
+	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
 		q = &queues[pri];
 		which = &queuebits;
-	} else if (p->p_rtprio.type == RTP_PRIO_REALTIME) {
+	} else if (p->p_rtprio.type == RTP_PRIO_REALTIME ||
+		   p->p_rtprio.type == RTP_PRIO_FIFO) {
+		q = &rtqueues[pri];
+		which = &rtqueuebits;
+	} else if (p->p_rtprio.type == RTP_PRIO_IDLE) {
 		q = &idqueues[pri];
 		which = &idqueuebits;
 	} else {
