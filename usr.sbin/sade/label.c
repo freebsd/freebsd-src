@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.45 1996/04/28 03:27:08 jkh Exp $
+ * $Id: label.c,v 1.46 1996/04/28 22:54:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -228,8 +228,10 @@ record_label_chunks(Device **devs)
     label_chunk_info[j].c = NULL;
     if (here >= j)
 	here = j  ? j - 1 : 0;
-    if (ChunkWin)
+    if (ChunkWin) {
 	wclear(ChunkWin);
+	wrefresh(ChunkWin);
+    }
     else
 	ChunkWin = newwin(CHUNK_ROW_MAX - ChunkPartStartRow, 76, ChunkPartStartRow, 0);
 }
@@ -508,6 +510,10 @@ diskLabel(char *str)
 	    clrtoeol();
 	    beep();
 	    msg = NULL;
+	}
+	else {
+	    move(23, 0);
+	    clrtoeol();
 	}
 	key = toupper(getch());
 	switch (key) {
