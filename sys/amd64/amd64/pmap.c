@@ -2200,10 +2200,10 @@ pmap_change_wiring(pmap, va, wired)
 	pte = pmap_pte(pmap, va);
 	if (wired && (*pte & PG_W) == 0) {
 		pmap->pm_stats.wired_count++;
-		*pte |= PG_W;
+		atomic_set_long(pte, PG_W);
 	} else if (!wired && (*pte & PG_W) != 0) {
 		pmap->pm_stats.wired_count--;
-		*pte &= ~PG_W;
+		atomic_clear_long(pte, PG_W);
 	}
 }
 
