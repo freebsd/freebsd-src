@@ -369,7 +369,9 @@ file_load_dependancies(struct loaded_module *base_file)
 	if (mod_findmodule(NULL, dmodname) == NULL) {
 	    printf("loading required module '%s'\n", dmodname);
 	    error = mod_load(dmodname, 0, NULL);
-	    if (error && error != EEXIST)
+	    if (error == EEXIST)
+		error = 0;
+	    if (error != 0)
 		break;
 	}
 	md = metadata_next(md, MODINFOMD_DEPLIST);
