@@ -3368,7 +3368,7 @@ process_command (argc, argv)
       int len;
       int optc = 1;
       int new_argc;
-      char **new_argv;
+      const char **new_argv;
       char *envopts;
 
       while (isspace (*temp))
@@ -3381,7 +3381,7 @@ process_command (argc, argv)
 	if ((isspace (envopts[i])) && ! (isspace (envopts[i+1])))
 	  optc++;
 
-      new_argv = (char **) alloca ((optc + argc) * sizeof(char *));
+      new_argv = (const char **) alloca ((optc + argc) * sizeof(char *));
 
       for (i = 0, new_argc = 1; new_argc <= optc; new_argc++)
 	{
