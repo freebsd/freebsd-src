@@ -34,10 +34,10 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.8,v 1.25 1999/08/15 08:06:12 mpp Exp $
+.\" $Id: vinum.8,v 1.10 1999/07/02 07:46:13 grog Exp grog $
 .\"
 .Dd 28 March 1999
-.Dt VINUM 8
+.Dt vinum 8
 .Os
 .Sh NAME
 .Nm vinum
@@ -251,6 +251,12 @@ Set the state of the object to \fIstate\fP\|
 .Op value
 .in +1i
 Set dæmon configuration.
+.in
+.Cd setstate
+.Ar state
+.Op Ar volume | plex | subdisk | drive
+.in +1i
+Set state without influencing other objects, for diagnostic purposes only.
 .in
 .Cd start
 .in +1i
@@ -1063,6 +1069,16 @@ sets a variable bitmask for the
 dæmon.  This command is temporary and will be replaced.  Currently, the bit mask
 may contain the bits 1 (log every action to syslog) and 4 (don't update
 configuration).  Option bit 4 can be useful for error recovery.
+.It Nm setstate
+.Ar state
+.Op Ar volume | plex | subdisk | drive
+.Pp
+.Nm setstate
+sets the state of the specified objects to the specified state.  This bypasses
+the usual consistency mechanism of
+.Nm
+and should be used only for recovery purposes.  It is possible to crash the
+system by incorrect use of this command.
 .It Nm start
 .Op volume | plex | subdisk
 .Pp
@@ -2394,7 +2410,7 @@ plexes.
 - directory containing device nodes for
 .Nm
 subdisks.
-.Sh ENVIRONMENT
+.Sh ENVIRONMENT VARIABLES
 .Bl -hang
 .It VINUM_HISTORY
 The name of the log file, by default /var/log/vinum_history.
@@ -2408,16 +2424,16 @@ The name of the editor to use for editing configuration files, by default
 .Xr strftime 3 ,
 .Xr vinum 4 ,
 .Xr disklabel 8 ,
-.Xr newfs 8
+.Xr newfs 8 ,
 .Pa http://www.lemis.com/vinum.html ,
 .Pa http://www.lemis.com/vinum-debugging.html .
-.Sh AUTHORS
+.Sh AUTHOR
 .An Greg Lehey Aq grog@lemis.com .
 .Sh HISTORY
 The
 .Nm
 command first appeared in
-.Fx 3.0 .
+.Fx 3.0.
 The RAID-5 component of
 .Nm
 was developed by Cybernet Inc. 
