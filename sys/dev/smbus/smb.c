@@ -194,6 +194,9 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	device_t smbdev = IIC_DEVICE(minor(dev));
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 	device_t parent = device_get_parent(smbdev);
+	char buf[SMB_MAXBLOCKSIZE];
+	char c;
+	short w;
 
 	int error = 0;
 	struct smbcmd *s = (struct smbcmd *)data;
@@ -234,37 +237,66 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		break;
 
 	case SMB_READB:
-		if (s->data.byte_ptr)
+		if (s->data.byte_ptr) {
 			error = smbus_error(smbus_readb(parent, s->slave,
-						s->cmd, s->data.byte_ptr));
+						s->cmd, &c));
+			if (error)
+				break;
+			error = copyout(&c, s->data.byte_ptr,
+					sizeof(*(s->data.byte_ptr)));
+		}
 		break;
 
 	case SMB_READW:
-		if (s->data.word_ptr)
+		if (s->data.word_ptr) {
 			error = smbus_error(smbus_readw(parent, s->slave,
-						s->cmd, s->data.word_ptr));
+						s->cmd, &w));
+			if (error == 0) {
+				error = copyout(&w, s->data.word_ptr,
+						sizeof(*(s->data.word_ptr)));
+			}
+		}
 		break;
 
 	case SMB_PCALL:
-		if (s->data.process.rdata)
+		if (s->data.process.rdata) {
+
 			error = smbus_error(smbus_pcall(parent, s->slave, s->cmd,
-				s->data.process.sdata, s->data.process.rdata));
+				s->data.process.sdata, &w));
+			if (error)
+				break;
+			error = copyout(&w, s->data.process.rdata,
+					sizeof(*(s->data.process.rdata)));
+		}
+		
 		break;
 
 	case SMB_BWRITE:
-		if (s->count && s->data.byte_ptr)
+		if (s->count && s->data.byte_ptr) {
+			if (s->count > SMB_MAXBLOCKSIZE)
+				s->count = SMB_MAXBLOCKSIZE;
+			error = copyin(s->data.byte_ptr, buf, s->count);
+			if (error)
+				break;
 			error = smbus_error(smbus_bwrite(parent, s->slave,
-						s->cmd, s->count, s->data.byte_ptr));
+						s->cmd, s->count, buf));
+		}
 		break;
 
 	case SMB_BREAD:
-		if (s->count && s->data.byte_ptr)
+		if (s->count && s->data.byte_ptr) {
+			if (s->count > SMB_MAXBLOCKSIZE)
+				s->count = SMB_MAXBLOCKSIZE;
 			error = smbus_error(smbus_bread(parent, s->slave,
-						s->cmd, s->count, s->data.byte_ptr));
+						s->cmd, s->count, buf));
+			if (error)
+				break;
+			error = copyout(buf, s->data.byte_ptr, s->count);
+		}
 		break;
 		
 	default:
-		error = ENODEV;
+		error = ENOTTY;
 	}
 
 	/* release the bus */
