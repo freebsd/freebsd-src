@@ -197,6 +197,10 @@ static const char *const print_stats_idt77252[] = {
 	"tx_load_err:",
 	NULL
 };
+static const char *const print_stats_virtual[] = {
+	"dummy:",
+	NULL
+};
 static const char *const *const print_stats[] = {
 	[ATM_DEVICE_UNKNOWN] =		NULL,
 	[ATM_DEVICE_PCA200E] =		print_stats_pca200e,
@@ -212,6 +216,7 @@ static const char *const *const print_stats[] = {
 	[ATM_DEVICE_IDTABR155] =	print_stats_idt77252,
 	[ATM_DEVICE_PROATM25] =		print_stats_idt77252,
 	[ATM_DEVICE_PROATM155] =	print_stats_idt77252,
+	[ATM_DEVICE_VIRTUAL] =		print_stats_virtual,
 };
 
 struct diagif_list diagif_list = TAILQ_HEAD_INITIALIZER(diagif_list);
@@ -219,16 +224,22 @@ struct diagif_list diagif_list = TAILQ_HEAD_INITIALIZER(diagif_list);
 /*
  * Fetch a phy sysctl
  */
-static void
-phy_fetch(const char *ifname, const char *var, void *val, size_t len)
+static int
+phy_fetch(const char *ifname, const char *var, void *val, size_t len,
+    int err_fatal)
 {
 	char *str;
 
 	if (asprintf(&str, "hw.atm.%s.phy_%s", ifname, var) == -1)
 		err(1, NULL);
-	if (sysctlbyname(str, val, &len, NULL, NULL) == -1)
-		err(1, "%s", str);
+	if (sysctlbyname(str, val, &len, NULL, NULL) == -1) {
+		if (err_fatal || errno != ENOENT)
+			err(1, "%s", str);
+		free(str);
+		return (-1);
+	}
 	free(str);
+	return (0);
 }
 
 /*
@@ -283,16 +294,19 @@ diagif_fetch(void)
 			strcpy(d->ifname, mib.ifmd_name);
 			TAILQ_INSERT_TAIL(&diagif_list, d, link);
 
-			phy_fetch(d->ifname, "loopback", &d->phy_loopback,
-			    sizeof(d->phy_loopback));
-			phy_fetch(d->ifname, "type", &d->phy_type,
-			    sizeof(d->phy_type));
-			phy_fetch(d->ifname, "name", &d->phy_name,
-			    sizeof(d->phy_name));
-			phy_fetch(d->ifname, "state", &d->phy_state,
-			    sizeof(d->phy_state));
-			phy_fetch(d->ifname, "carrier", &d->phy_carrier,
-			    sizeof(d->phy_carrier));
+			if (phy_fetch(d->ifname, "type", &d->phy_type,
+			    sizeof(d->phy_type), 0) == 0) {
+				d->phy_present = 1;
+				phy_fetch(d->ifname, "loopback",
+				    &d->phy_loopback,
+				    sizeof(d->phy_loopback), 1);
+				phy_fetch(d->ifname, "name", &d->phy_name,
+				    sizeof(d->phy_name), 1);
+				phy_fetch(d->ifname, "state", &d->phy_state,
+				    sizeof(d->phy_state), 1);
+				phy_fetch(d->ifname, "carrier", &d->phy_carrier,
+				    sizeof(d->phy_carrier), 1);
+			}
 		}
 	}
 }
@@ -543,9 +557,11 @@ diag_list(int argc, char *argv[])
 static void
 phy_show_line(const struct diagif *aif)
 {
-	printf("%-6u%-9s%-5u%-25s0x%-9x\n",
-	    aif->index, aif->ifname, aif->phy_type, aif->phy_name,
-	    aif->phy_loopback);
+	printf("%-6u%-9s", aif->index, aif->ifname);
+	if (aif->phy_present)
+		printf("%-5u%-25s0x%-9x", aif->phy_type,
+		    aif->phy_name, aif->phy_loopback);
+	printf("\n");
 }
 
 static void
@@ -570,6 +586,26 @@ diag_phy_show(int argc, char *argv[])
 		errx(1, "no ATM interfaces found");
 
 	diag_loop(argc, argv, phy_show_text, phy_show_line);
+}
+
+/*
+ * Make sure the interface exists and has a phy
+ */
+static struct diagif *
+diagif_get_phy(const char *arg)
+{
+	struct diagif *aif;
+
+	diagif_fetch();
+	TAILQ_FOREACH(aif, &diagif_list, link)
+		if (strcmp(aif->ifname, arg) == 0)
+			break;
+	if (aif == NULL)
+		errx(1, "no such interface: %s", arg);
+	if (!aif->phy_present)
+		errx(1, "interface %s has no phy", arg);
+
+	return (aif);
 }
 
 static void
@@ -622,6 +658,8 @@ diag_phy_set(int argc, char *argv[])
 		errx(1, "value too large");
 	reg[2] = res;
 
+	(void)diagif_get_phy(argv[0]);
+
 	if (asprintf(&str, "hw.atm.%s.phy_regs", argv[0]) == -1)
 		err(1, NULL);
 
@@ -654,6 +692,8 @@ diag_phy_print(int argc, char *argv[])
 
 	if (argc != 1)
 		errx(1, "need device name for 'diag phy print'");
+
+	(void)diagif_get_phy(argv[0]);
 
 	if (asprintf(&str, "hw.atm.%s.phy_regs", argv[0]) == -1)
 		err(1, NULL);
@@ -778,6 +818,8 @@ diag_phy_stats(int argc, char *argv[])
 
 	if (argc != 1)
 		errx(1, "need device name for 'diag phy stats'");
+
+	(void)diagif_get_phy(argv[0]);
 
 	if (asprintf(&str, "hw.atm.%s.phy_stats", argv[0]) == -1)
 		err(1, NULL);
