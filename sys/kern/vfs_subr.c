@@ -204,7 +204,7 @@ static struct synclist *syncer_workitem_pending;
  *	vp->v_synclist
  *	sync_vnode_count
  *	syncer_delayno
- *	syncer_shutdown_iter
+ *	syncer_state
  *	syncer_workitem_pending
  *	syncer_worklist_len
  *	rushjob
@@ -225,19 +225,13 @@ static int stat_rush_requests;	/* number of times I/O speeded up */
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
 
 /*
- * Tell the syncer to make three passes through the work list before
- * shutting down (unless it runs out of work and shuts down sooner).
- *
- * Run at 8 times normal speed when shutting down the syncer.  With
- * the default settings, the syncer will take approximately 12
- * seconds to shut down, which is less than the default 60 timeout
- * in kproc_shutdown().
+ * When shutting down the syncer, run it at four times normal speed.
  */
-#define SYNCER_SHUTDOWN_ITER_LIMIT	(3*SYNCER_MAXDELAY)
-#define SYNCER_SHUTDOWN_SPEEDUP		7
+#define SYNCER_SHUTDOWN_SPEEDUP		4
 static int sync_vnode_count;
-static int syncer_shutdown_iter;
 static int syncer_worklist_len;
+static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
+    syncer_state;
 
 /*
  * Number of vnodes we want to exist at any one time.  This is mostly used
@@ -1495,6 +1489,21 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 	mtx_unlock(&sync_mtx);
 }
 
+static int
+sysctl_vfs_worklist_len(SYSCTL_HANDLER_ARGS)
+{
+	int error, len;
+
+	mtx_lock(&sync_mtx);
+	len = syncer_worklist_len - sync_vnode_count;
+	mtx_unlock(&sync_mtx);
+	error = SYSCTL_OUT(req, &len, sizeof(len));
+	return (error);
+}
+
+SYSCTL_PROC(_vfs, OID_AUTO, worklist_len, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
+    sysctl_vfs_worklist_len, "I", "Syncer thread worklist length");
+
 struct  proc *updateproc;
 static void sched_sync(void);
 static struct kproc_desc up_kp = {
@@ -1516,39 +1525,71 @@ sched_sync(void)
 	struct mount *mp;
 	long starttime;
 	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);
+	static int dummychan;
+	int last_work_seen;
+	int net_worklist_len;
+	int syncer_final_iter;
 
 	mtx_lock(&Giant);
+	last_work_seen = -1;
+	syncer_final_iter = 0;
+	syncer_state = SYNCER_RUNNING;
+	starttime = time_second;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, syncer_shutdown, td->td_proc,
 	    SHUTDOWN_PRI_LAST);
 
 	for (;;) {
 		mtx_lock(&sync_mtx);
-		/*
-		 * Make one more full pass through the work list after
-		 * the only vnodes remaining on the work list are the
-		 * syncer vnodes.
-		 */
-		if (syncer_shutdown_iter > SYNCER_MAXDELAY &&
-		    syncer_worklist_len == sync_vnode_count)
-			syncer_shutdown_iter = SYNCER_MAXDELAY;
-		if (syncer_shutdown_iter == 0) {
+		if (syncer_state == SYNCER_FINAL_DELAY &&
+		    syncer_final_iter == 0) {
 			mtx_unlock(&sync_mtx);
 			kthread_suspend_check(td->td_proc);
 			mtx_lock(&sync_mtx);
 		}
+		net_worklist_len = syncer_worklist_len - sync_vnode_count;
+		if (syncer_state != SYNCER_RUNNING && starttime != time_second)
+			printf("%d ", net_worklist_len);
 		starttime = time_second;
 
 		/*
 		 * Push files whose dirty time has expired.  Be careful
 		 * of interrupt race on slp queue.
+		 *
+		 * Skip over empty worklist slots when shutting down.
 		 */
-		slp = &syncer_workitem_pending[syncer_delayno];
-		syncer_delayno += 1;
-		if (syncer_delayno == syncer_maxdelay)
-			syncer_delayno = 0;
-		next = &syncer_workitem_pending[syncer_delayno];
+		do {
+			slp = &syncer_workitem_pending[syncer_delayno];
+			syncer_delayno += 1;
+			if (syncer_delayno == syncer_maxdelay)
+				syncer_delayno = 0;
+			next = &syncer_workitem_pending[syncer_delayno];
+			/*
+			 * If the worklist has wrapped since the
+			 * it was emptied of all but syncer vnodes, 
+			 * switch to the FINAL_DELAY state and run
+			 * for one more second.
+			 */
+			if (syncer_state == SYNCER_SHUTTING_DOWN &&
+			    net_worklist_len == 0 &&
+			    last_work_seen == syncer_delayno) {
+				syncer_state = SYNCER_FINAL_DELAY;
+				syncer_final_iter = SYNCER_SHUTDOWN_SPEEDUP;
+			}
+		} while (syncer_state != SYNCER_RUNNING && LIST_EMPTY(slp) &&
+		    syncer_worklist_len > 0);
 
+		/*
+		 * Keep track of the last time there was anything
+		 * on the worklist other than syncer vnodes.
+		 * Return to the SHUTTING_DOWN state if any
+		 * new work appears.
+		 */
+		if (net_worklist_len > 0) {
+			last_work_seen = syncer_delayno;
+			if (syncer_state == SYNCER_FINAL_DELAY)
+				syncer_state = SYNCER_SHUTTING_DOWN;
+		}
 		while ((vp = LIST_FIRST(slp)) != NULL) {
 			if (VOP_ISLOCKED(vp, NULL) != 0 ||
 			    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
@@ -1588,8 +1629,8 @@ sched_sync(void)
 			VI_UNLOCK(vp);
 			mtx_lock(&sync_mtx);
 		}
-		if (syncer_shutdown_iter > 0)
-			syncer_shutdown_iter--;
+		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
+			syncer_final_iter--;
 		mtx_unlock(&sync_mtx);
 
 		/*
@@ -1613,10 +1654,13 @@ sched_sync(void)
 			rushjob -= 1;
 			mtx_unlock(&sync_mtx);
 			continue;
-		} else if (syncer_shutdown_iter > 0)
-			rushjob = SYNCER_SHUTDOWN_SPEEDUP;
+		}
 		mtx_unlock(&sync_mtx);
 		/*
+		 * Just sleep for a short period if time between
+		 * iterations when shutting down to allow some I/O
+		 * to happen.
+		 *
 		 * If it has taken us less than a second to process the
 		 * current work, then wait. Otherwise start right over
 		 * again. We can still lose time if any single round
@@ -1624,7 +1668,10 @@ sched_sync(void)
 		 * matter as we are just trying to generally pace the
 		 * filesystem activity.
 		 */
-		if (time_second == starttime)
+		if (syncer_state != SYNCER_RUNNING)
+			tsleep(&dummychan, PPAUSE, "syncfnl",
+			    hz / SYNCER_SHUTDOWN_SPEEDUP);
+		else if (time_second == starttime)
 			tsleep(&lbolt, PPAUSE, "syncer", 0);
 	}
 }
@@ -1664,9 +1711,8 @@ syncer_shutdown(void *arg, int howto)
 	td = FIRST_THREAD_IN_PROC(updateproc);
 	sleepq_remove(td, &lbolt);
 	mtx_lock(&sync_mtx);
-	if (rushjob < SYNCER_SHUTDOWN_SPEEDUP)
-		rushjob = SYNCER_SHUTDOWN_SPEEDUP;
-	syncer_shutdown_iter = SYNCER_SHUTDOWN_ITER_LIMIT;
+	syncer_state = SYNCER_SHUTTING_DOWN;
+	rushjob = 0;
 	mtx_unlock(&sync_mtx);
 	kproc_shutdown(arg, howto);
 }
