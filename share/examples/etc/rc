@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.29 1994/09/15 02:21:39 phk Exp $
+#	$Id: rc,v 1.1 1994/09/19 21:28:18 wollman Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -87,7 +87,6 @@ echo 'starting network'
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -f /var/spool/uucp/.Temp/*
-# don't add .[a-z]* to rm, because of .adjkerntz file name
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
 echo -n 'starting system logger'
