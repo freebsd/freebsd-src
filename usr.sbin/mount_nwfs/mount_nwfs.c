@@ -53,7 +53,6 @@
 
 #define	NWFS_VFSNAME	"nwfs"
 
-extern char *__progname;
 static char mount_point[MAXPATHLEN + 1];
 static void usage(void);
 static int parsercfile(struct ncp_conn_loginfo *li, struct nwfs_args *mdata);
@@ -134,7 +133,7 @@ main(int argc, char *argv[]) {
 			while (*p != '/' && *p != 0) *p1++ = *p++;
 			*p1 = 0;
 			if (strlen(tmp) > NCP_VOLNAME_LEN) {
-				warnx("volume name too long: %s\n", tmp);
+				warnx("volume name too long: %s", tmp);
 				break;
 			}
 			ncp_str_upper(strcpy(mdata.mounted_vol,tmp));
@@ -160,7 +159,7 @@ main(int argc, char *argv[]) {
 		} while(0);
 		if (error)
 			errx(EX_DATAERR, 
-			    "an error occured while parsing '%s'",
+			    "an error occurred while parsing '%s'",
 			    argv[argc - 2]);
 	}
 	if (ncp_li_readrc(&li)) return 1;
@@ -168,7 +167,7 @@ main(int argc, char *argv[]) {
 		parsercfile(&li,&mdata);
 		rc_close(ncp_rc);
 	}
-	while ((opt = getopt(argc, argv, STDPARAM_OPT"V:c:d:f:g:l:n:o:u:w:")) != EOF) {
+	while ((opt = getopt(argc, argv, STDPARAM_OPT"V:c:d:f:g:l:n:o:u:w:")) != -1) {
 		switch (opt) {
 		    case STDPARAM_ARGS:
 			if (ncp_li_arg(&li, opt, optarg)) {	
@@ -177,7 +176,7 @@ main(int argc, char *argv[]) {
 			break;
 		    case 'V':
 			if (strlen(optarg) > NCP_VOLNAME_LEN)
-				errx(EX_DATAERR, "volume too long: %s\n", optarg);
+				errx(EX_DATAERR, "volume too long: %s", optarg);
 			ncp_str_upper(strcpy(mdata.mounted_vol,optarg));
 			break;
 		    case 'u': {
@@ -227,7 +226,7 @@ main(int argc, char *argv[]) {
 				else if (strcasecmp(nsp, "NFS") == 0)
 					mdata.flags |= NWFS_MOUNT_NO_NFS;
 				else
-					errx(EX_DATAERR, "Unknown namespace '%s'", nsp);
+					errx(EX_DATAERR, "unknown namespace '%s'", nsp);
 			}
 			break;
 		    };
@@ -318,14 +317,14 @@ main(int argc, char *argv[]) {
 		return 1;
 	li.opt |= NCP_OPT_WDOG;
 	/* well, now we can try to login, or use already established connection */
-	error = ncp_li_login(&li,&connHandle);
+	error = ncp_li_login(&li, &connHandle);
 	if (error) {
 		ncp_error("cannot login to server %s", error, li.server);
 		exit(1);
 	}
 	error = ncp_conn2ref(connHandle, &mdata.connRef);
 	if (error) {
-		ncp_error("could not convert handle to refernce.", error);
+		ncp_error("could not convert handle to reference", error);
 		ncp_disconnect(connHandle);
 		exit(1);
 	}
@@ -333,7 +332,7 @@ main(int argc, char *argv[]) {
 	mdata.version = NWFS_VERSION;
 	error = mount(NWFS_VFSNAME, mdata.mount_point, mntflags, (void*)&mdata);
 	if (error) {
-		ncp_error("mount error: %s", errno);
+		ncp_error("mount error: %s", error, mdata.mount_point);
 		ncp_disconnect(connHandle);
 		exit(1);
 	}
@@ -346,19 +345,14 @@ main(int argc, char *argv[]) {
 }
 
 static void
-usage(void) {
-	printf("usage: %s [connection options] [options] \n"
-	       "       /server:user/volume[/path] mount-point\n\n", __progname);
-	printf(
-	    "see ncplogin(1) for details on connection options\n"
-	    "    -A host        Netware/IP host address\n"
-	    "    -u uid         uid the mounted files get\n"
-	    "    -g gid         gid the mounted files get\n"
-	    "    -f mode        permission the files get\n"
-	    "    -d mode        permission the dirs get\n"
-	    "    -h             print this help text\n"
-	    "    -v             print nwfs version number\n"
-	    "\n"
-	);
-	exit(1);
+usage(void)
+{
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	"usage: mount_nwfs [-Chv] -S server -U user [-connection options]",
+	"                  -V volume [-M mode] [-c case] [-d mode] [-f mode]",
+	"                  [-g gid] [-l locale] [-n os2] [-u uid] [-w scheme]",
+	"                  node",
+	"       mount_nwfs [-options] /server:user/volume[/path] node");
+
+	exit (1);
 }
