@@ -889,6 +889,7 @@ dqsync(vp, dq)
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
+	struct mount *mp;
 	int error;
 
 	if (dq == NODQUOT)
@@ -897,6 +898,7 @@ dqsync(vp, dq)
 		return (0);
 	if ((dqvp = dq->dq_ump->um_quotas[dq->dq_type]) == NULLVP)
 		panic("dqsync: file");
+	(void) vn_write_suspend_wait(dqvp, V_WAIT);
 	if (vp != dqvp)
 		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY, p);
 	while (dq->dq_flags & DQ_LOCK) {

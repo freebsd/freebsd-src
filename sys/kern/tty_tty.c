@@ -133,13 +133,19 @@ cttywrite(dev, uio, flag)
 {
 	struct proc *p = uio->uio_procp;
 	struct vnode *ttyvp = cttyvp(uio->uio_procp);
+	struct mount *mp;
 	int error;
 
 	if (ttyvp == NULL)
 		return (EIO);
+	mp = NULL;
+	if (ttyvp->v_type != VCHR &&
+	    (error = vn_start_write(ttyvp, &mp, V_WAIT | PCATCH)) != 0)
+		return (error);
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_WRITE(ttyvp, uio, flag, NOCRED);
 	VOP_UNLOCK(ttyvp, 0, p);
+	vn_finished_write(mp);
 	return (error);
 }
 

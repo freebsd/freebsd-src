@@ -383,6 +383,8 @@ fdesc_setattr(ap)
 {
 	struct filedesc *fdp = ap->a_p->p_fd;
 	struct vattr *vap = ap->a_vap;
+	struct vnode *vp;
+	struct mount *mp;
 	struct file *fp;
 	unsigned fd;
 	int error;
@@ -403,8 +405,11 @@ fdesc_setattr(ap)
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
-		error = VOP_SETATTR((struct vnode *) fp->f_data, ap->a_vap,
-		    ap->a_cred, ap->a_p);
+		vp = (struct vnode *)fp->f_data;
+		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+			return (error);
+		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_p);
+		vn_finished_write(mp);
 		break;
 
 	default:

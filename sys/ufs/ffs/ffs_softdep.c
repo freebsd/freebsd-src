@@ -508,7 +508,7 @@ softdep_process_worklist(matchmnt)
 {
 	struct proc *p = CURPROC;
 	struct worklist *wk;
-	struct fs *matchfs;
+	struct mount *mp;
 	int matchcnt, loopcount;
 
 	/*
@@ -517,9 +517,6 @@ softdep_process_worklist(matchmnt)
 	 */
 	filesys_syncer = p;
 	matchcnt = 0;
-	matchfs = NULL;
-	if (matchmnt != NULL)
-		matchfs = VFSTOUFS(matchmnt)->um_fs;
 	/*
 	 * There is no danger of having multiple processes run this
 	 * code. It is single threaded solely so that softdep_flushfiles
@@ -550,30 +547,42 @@ softdep_process_worklist(matchmnt)
 
 		case D_DIRREM:
 			/* removal of a directory entry */
-			if (WK_DIRREM(wk)->dm_mnt == matchmnt)
+			mp = WK_DIRREM(wk)->dm_mnt;
+			if (mp == matchmnt)
 				matchcnt += 1;
+			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_remove(WK_DIRREM(wk));
+			vn_finished_write(mp);
 			break;
 
 		case D_FREEBLKS:
 			/* releasing blocks and/or fragments from a file */
-			if (WK_FREEBLKS(wk)->fb_fs == matchfs)
+			mp = WK_FREEBLKS(wk)->fb_mnt;
+			if (mp == matchmnt)
 				matchcnt += 1;
+			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_freeblocks(WK_FREEBLKS(wk));
+			vn_finished_write(mp);
 			break;
 
 		case D_FREEFRAG:
 			/* releasing a fragment when replaced as a file grows */
-			if (WK_FREEFRAG(wk)->ff_fs == matchfs)
+			mp = WK_FREEFRAG(wk)->ff_mnt;
+			if (mp == matchmnt)
 				matchcnt += 1;
+			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_freefrag(WK_FREEFRAG(wk));
+			vn_finished_write(mp);
 			break;
 
 		case D_FREEFILE:
 			/* releasing an inode when its link count drops to 0 */
-			if (WK_FREEFILE(wk)->fx_fs == matchfs)
+			mp = WK_FREEFILE(wk)->fx_mnt;
+			if (mp == matchmnt)
 				matchcnt += 1;
+			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_freefile(WK_FREEFILE(wk));
+			vn_finished_write(mp);
 			break;
 
 		default:
@@ -1316,7 +1325,7 @@ newfreefrag(ip, blkno, size)
 	freefrag->ff_list.wk_type = D_FREEFRAG;
 	freefrag->ff_state = ip->i_uid & ~ONWORKLIST;	/* XXX - used below */
 	freefrag->ff_inum = ip->i_number;
-	freefrag->ff_fs = fs;
+	freefrag->ff_mnt = ITOV(ip)->v_mount;
 	freefrag->ff_devvp = ip->i_devvp;
 	freefrag->ff_blkno = blkno;
 	freefrag->ff_fragsize = size;
@@ -1333,7 +1342,8 @@ handle_workitem_freefrag(freefrag)
 {
 	struct inode tip;
 
-	tip.i_fs = freefrag->ff_fs;
+	tip.i_vnode = NULL;
+	tip.i_fs = VFSTOUFS(freefrag->ff_mnt)->um_fs;
 	tip.i_devvp = freefrag->ff_devvp;
 	tip.i_dev = freefrag->ff_devvp->v_rdev;
 	tip.i_number = freefrag->ff_inum;
@@ -1601,7 +1611,7 @@ softdep_setup_freeblocks(ip, length)
 	freeblks->fb_uid = ip->i_uid;
 	freeblks->fb_previousinum = ip->i_number;
 	freeblks->fb_devvp = ip->i_devvp;
-	freeblks->fb_fs = fs;
+	freeblks->fb_mnt = ITOV(ip)->v_mount;
 	freeblks->fb_oldsize = ip->i_size;
 	freeblks->fb_newsize = length;
 	freeblks->fb_chkcnt = ip->i_blocks;
@@ -1845,7 +1855,7 @@ softdep_freefile(pvp, ino, mode)
 	freefile->fx_mode = mode;
 	freefile->fx_oldinum = ino;
 	freefile->fx_devvp = ip->i_devvp;
-	freefile->fx_fs = ip->i_fs;
+	freefile->fx_mnt = ITOV(ip)->v_mount;
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
@@ -1949,13 +1959,13 @@ handle_workitem_freeblocks(freeblks)
 	int error, allerror = 0;
 	ufs_lbn_t baselbns[NIADDR], tmpval;
 
+	tip.i_fs = fs = VFSTOUFS(freeblks->fb_mnt)->um_fs;
 	tip.i_number = freeblks->fb_previousinum;
 	tip.i_devvp = freeblks->fb_devvp;
 	tip.i_dev = freeblks->fb_devvp->v_rdev;
-	tip.i_fs = freeblks->fb_fs;
 	tip.i_size = freeblks->fb_oldsize;
 	tip.i_uid = freeblks->fb_uid;
-	fs = freeblks->fb_fs;
+	tip.i_vnode = NULL;
 	tmpval = 1;
 	baselbns[0] = NDADDR;
 	for (i = 1; i < NIADDR; i++) {
@@ -2715,20 +2725,23 @@ static void
 handle_workitem_freefile(freefile)
 	struct freefile *freefile;
 {
+	struct fs *fs;
 	struct vnode vp;
 	struct inode tip;
 	struct inodedep *idp;
 	int error;
 
+	fs = VFSTOUFS(freefile->fx_mnt)->um_fs;
 #ifdef DEBUG
 	ACQUIRE_LOCK(&lk);
-	if (inodedep_lookup(freefile->fx_fs, freefile->fx_oldinum, 0, &idp))
+	if (inodedep_lookup(fs, freefile->fx_oldinum, 0, &idp))
 		panic("handle_workitem_freefile: inodedep survived");
 	FREE_LOCK(&lk);
 #endif
 	tip.i_devvp = freefile->fx_devvp;
 	tip.i_dev = freefile->fx_devvp->v_rdev;
-	tip.i_fs = freefile->fx_fs;
+	tip.i_fs = fs;
+	tip.i_vnode = &vp;
 	vp.v_data = &tip;
 	if ((error = ffs_freefile(&vp, freefile->fx_oldinum, freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
@@ -4419,14 +4432,18 @@ clear_remove(p)
 			mp = pagedep->pd_mnt;
 			ino = pagedep->pd_ino;
 			FREE_LOCK(&lk);
+			if (vn_start_write(NULL, &mp, V_WAIT | PCATCH) != 0)
+				return;
 			if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
 				softdep_error("clear_remove: vget", error);
+				vn_finished_write(mp);
 				return;
 			}
 			if ((error = VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p)))
 				softdep_error("clear_remove: fsync", error);
 			drain_output(vp, 0);
 			vput(vp);
+			vn_finished_write(mp);
 			return;
 		}
 	}
@@ -4486,8 +4503,11 @@ clear_inodedeps(p)
 		if (inodedep_lookup(fs, ino, 0, &inodedep) == 0)
 			continue;
 		FREE_LOCK(&lk);
+		if (vn_start_write(NULL, &mp, V_WAIT | PCATCH) != 0)
+			return;
 		if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
+			vn_finished_write(mp);
 			return;
 		}
 		if (ino == lastino) {
@@ -4499,6 +4519,7 @@ clear_inodedeps(p)
 			drain_output(vp, 0);
 		}
 		vput(vp);
+		vn_finished_write(mp);
 		ACQUIRE_LOCK(&lk);
 	}
 	FREE_LOCK(&lk);

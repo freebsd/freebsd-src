@@ -538,7 +538,8 @@ unp_bind(unp, nam, p)
 	struct proc *p;
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
-	register struct vnode *vp;
+	struct vnode *vp;
+	struct mount *mp;
 	struct vattr vattr;
 	int error, namelen;
 	struct nameidata nd;
@@ -552,6 +553,7 @@ unp_bind(unp, nam, p)
 		return EINVAL;
 	strncpy(buf, soun->sun_path, namelen);
 	buf[namelen] = 0;	/* null-terminate the string */
+restart:
 	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT, UIO_SYSSPACE,
 	    buf, p);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
@@ -559,14 +561,19 @@ unp_bind(unp, nam, p)
 	if (error)
 		return (error);
 	vp = nd.ni_vp;
-	if (vp != NULL) {
+	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
-		vrele(vp);
-		return (EADDRINUSE);
+		if (vp != NULL) {
+			vrele(vp);
+			return (EADDRINUSE);
+		}
+		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
+			return (error);
+		goto restart;
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
@@ -582,6 +589,7 @@ unp_bind(unp, nam, p)
 	unp->unp_vnode = vp;
 	unp->unp_addr = (struct sockaddr_un *)dup_sockaddr(nam, 1);
 	VOP_UNLOCK(vp, 0, p);
+	vn_finished_write(mp);
 	return (0);
 }
 

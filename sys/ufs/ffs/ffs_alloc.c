@@ -186,6 +186,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	*bpp = 0;
 	fs = ip->i_fs;
 #ifdef DIAGNOSTIC
+	if (ITOV(ip)->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
+		panic("ffs_realloccg: allocation on suspended filesystem");
 	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
 	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
 		printf(
@@ -763,6 +765,10 @@ ffs_hashalloc(ip, cg, pref, size, allocator)
 	long result;	/* XXX why not same type as we return? */
 	int i, icg = cg;
 
+#ifdef DIAGNOSTIC
+	if (ITOV(ip)->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
+		panic("ffs_hashalloc: allocation on suspended filesystem");
+#endif
 	fs = ip->i_fs;
 	/*
 	 * 1: preferred cylinder group
@@ -1311,9 +1317,13 @@ ffs_blkfree(ip, bno, size)
 	ufs_daddr_t blkno;
 	int i, error, cg, blk, frags, bbase;
 	u_int8_t *blksfree;
+	struct vnode *vp;
 
 	fs = ip->i_fs;
-	VOP_FREEBLKS(ip->i_devvp, fsbtodb(fs, bno), size);
+#ifdef DIAGNOSTIC
+	if ((vp = ITOV(ip)) != NULL && vp->v_mount != NULL &&
+	    (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED))
+		panic("ffs_blkfree: deallocation on suspended filesystem");
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
 		printf("dev=%s, bno = %ld, bsize = %ld, size = %ld, fs = %s\n",
@@ -1321,6 +1331,11 @@ ffs_blkfree(ip, bno, size)
 		    fs->fs_fsmnt);
 		panic("ffs_blkfree: bad size");
 	}
+#endif
+	if ((ip->i_devvp->v_flag & VCOPYONWRITE) &&
+	    ffs_snapblkfree(ip, bno, size))
+		return;
+	VOP_FREEBLKS(ip->i_devvp, fsbtodb(fs, bno), size);
 	cg = dtog(fs, bno);
 	if ((u_int)bno >= fs->fs_size) {
 		printf("bad block %ld, ino %lu\n",

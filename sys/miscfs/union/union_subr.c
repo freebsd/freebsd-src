@@ -747,6 +747,7 @@ union_copyup(un, docopy, cred, p)
 	struct proc *p;
 {
 	int error;
+	struct mount *mp;
 	struct vnode *lvp, *uvp;
 
 	/*
@@ -759,9 +760,12 @@ union_copyup(un, docopy, cred, p)
 	if (error)
 		return (error);
 
-	error = union_vn_create(&uvp, un, p);
-	if (error)
+	if ((error = vn_start_write(un->un_dirvp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
+	if ((error = union_vn_create(&uvp, un, p)) != 0) {
+		vn_finished_write(mp);
+		return (error);
+	}
 
 	lvp = un->un_lowervp;
 
@@ -785,6 +789,7 @@ union_copyup(un, docopy, cred, p)
 
 	}
 	VOP_UNLOCK(uvp, 0, p);
+	vn_finished_write(mp);
 	union_newupper(un, uvp);
 	KASSERT(uvp->v_usecount > 0, ("copy: uvp refcount 0: %d", uvp->v_usecount));
 	union_vn_close(uvp, FWRITE, cred, p);
@@ -910,11 +915,15 @@ union_mkshadow(um, dvp, cnp, vpp)
 	struct vattr va;
 	struct proc *p = cnp->cn_proc;
 	struct componentname cn;
+	struct mount *mp;
 
-	error = union_relookup(um, dvp, vpp, cnp, &cn,
-			cnp->cn_nameptr, cnp->cn_namelen);
-	if (error)
+	if ((error = vn_start_write(dvp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
+	if ((error = union_relookup(um, dvp, vpp, cnp, &cn,
+			cnp->cn_nameptr, cnp->cn_namelen)) != 0) {
+		vn_finished_write(mp);
+		return (error);
+	}
 
 	if (*vpp) {
 		if (cn.cn_flags & HASBUF) {
@@ -925,6 +934,7 @@ union_mkshadow(um, dvp, cnp, vpp)
 			vrele(*vpp);
 		else
 			vput(*vpp);
+		vn_finished_write(mp);
 		*vpp = NULLVP;
 		return (EEXIST);
 	}
@@ -950,6 +960,7 @@ union_mkshadow(um, dvp, cnp, vpp)
 		cn.cn_flags &= ~HASBUF;
 	}
 	/*vput(dvp);*/
+	vn_finished_write(mp);
 	return (error);
 }
 
@@ -973,10 +984,15 @@ union_mkwhiteout(um, dvp, cnp, path)
 	struct proc *p = cnp->cn_proc;
 	struct vnode *wvp;
 	struct componentname cn;
+	struct mount *mp;
 
-	error = union_relookup(um, dvp, &wvp, cnp, &cn, path, strlen(path));
-	if (error)
+	if ((error = vn_start_write(dvp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
+	error = union_relookup(um, dvp, &wvp, cnp, &cn, path, strlen(path));
+	if (error) {
+		vn_finished_write(mp);
+		return (error);
+	}
 
 	if (wvp) {
 		if (cn.cn_flags & HASBUF) {
@@ -987,6 +1003,7 @@ union_mkwhiteout(um, dvp, cnp, path)
 			vrele(wvp);
 		else
 			vput(wvp);
+		vn_finished_write(mp);
 		return (EEXIST);
 	}
 
@@ -998,6 +1015,7 @@ union_mkwhiteout(um, dvp, cnp, path)
 		zfree(namei_zone, cn.cn_pnbuf);
 		cn.cn_flags &= ~HASBUF;
 	}
+	vn_finished_write(mp);
 	return (error);
 }
 

@@ -103,12 +103,14 @@ vn_open(ndp, flagp, cmode)
 	int *flagp, cmode;
 {
 	struct vnode *vp;
+	struct mount *mp;
 	struct proc *p = ndp->ni_cnd.cn_proc;
 	struct ucred *cred = p->p_ucred;
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
 
+restart:
 	fmode = *flagp;
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
@@ -124,10 +126,19 @@ vn_open(ndp, flagp, cmode)
 			vap->va_mode = cmode;
 			if (fmode & O_EXCL)
 				vap->va_vaflags |= VA_EXCLUSIVE;
+			if (vn_start_write(ndp->ni_dvp, &mp, V_NOWAIT) != 0) {
+				NDFREE(ndp, NDF_ONLY_PNBUF);
+				vput(ndp->ni_dvp);
+				if ((error = vn_start_write(NULL, &mp,
+				    V_XSLEEP | PCATCH)) != 0)
+					return (error);
+				goto restart;
+			}
 			VOP_LEASE(ndp->ni_dvp, p, cred, LEASE_WRITE);
 			error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 					   &ndp->ni_cnd, vap);
 			vput(ndp->ni_dvp);
+			vn_finished_write(mp);
 			if (error) {
 				NDFREE(ndp, NDF_ONLY_PNBUF);
 				return (error);
@@ -293,10 +304,17 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
 {
 	struct uio auio;
 	struct iovec aiov;
+	struct mount *mp;
 	int error;
 
-	if ((ioflg & IO_NODELOCKED) == 0)
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		mp = NULL;
+		if (rw == UIO_WRITE &&
+		    vp->v_type != VCHR && vp->v_type != VBLK &&
+		    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+			return (error);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	}
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = base;
@@ -316,8 +334,10 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
 	else
 		if (auio.uio_resid && error == 0)
 			error = EIO;
-	if ((ioflg & IO_NODELOCKED) == 0)
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		vn_finished_write(mp);
 		VOP_UNLOCK(vp, 0, p);
+	}
 	return (error);
 }
 
@@ -368,6 +388,7 @@ vn_write(fp, uio, cred, flags, p)
 	int flags;
 {
 	struct vnode *vp;
+	struct mount *mp;
 	int error, ioflag;
 
 	KASSERT(uio->uio_procp == p, ("uio_procp %p is not p %p",
@@ -384,6 +405,10 @@ vn_write(fp, uio, cred, flags, p)
 	if ((fp->f_flag & O_FSYNC) ||
 	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SYNCHRONOUS)))
 		ioflag |= IO_SYNC;
+	mp = NULL;
+	if (vp->v_type != VCHR && vp->v_type != VBLK &&
+	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+		return (error);
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if ((flags & FOF_OFFSET) == 0)
@@ -394,6 +419,7 @@ vn_write(fp, uio, cred, flags, p)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, p);
+	vn_finished_write(mp);
 	return (error);
 }
 
@@ -647,6 +673,140 @@ vn_closefile(fp, p)
 	fp->f_ops = &badfileops;
 	return (vn_close(((struct vnode *)fp->f_data), fp->f_flag,
 		fp->f_cred, p));
+}
+
+/*
+ * Preparing to start a filesystem write operation. If the operation is
+ * permitted, then we bump the count of operations in progress and
+ * proceed. If a suspend request is in progress, we wait until the
+ * suspension is over, and then proceed.
+ */
+int
+vn_start_write(vp, mpp, flags)
+	struct vnode *vp;
+	struct mount **mpp;
+	int flags;
+{
+	struct mount *mp;
+	int error;
+
+	/*
+	 * If a vnode is provided, get and return the mount point that
+	 * to which it will write.
+	 */
+	if (vp != NULL) {
+		if ((error = VOP_GETWRITEMOUNT(vp, mpp)) != 0) {
+			*mpp = NULL;
+			if (error != EOPNOTSUPP)
+				return (error);
+			return (0);
+		}
+	}
+	if ((mp = *mpp) == NULL)
+		return (0);
+	/*
+	 * Check on status of suspension.
+	 */
+	while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
+		if (flags & V_NOWAIT)
+			return (EWOULDBLOCK);
+		error = tsleep(&mp->mnt_flag, (PUSER - 1) | (flags & PCATCH),
+		    "suspfs", 0);
+		if (error)
+			return (error);
+	}
+	if (flags & V_XSLEEP)
+		return (0);
+	mp->mnt_writeopcount++;
+	return (0);
+}
+
+/*
+ * Secondary suspension. Used by operations such as vop_inactive
+ * routines that are needed by the higher level functions. These
+ * are allowed to proceed until all the higher level functions have
+ * completed (indicated by mnt_writeopcount dropping to zero). At that
+ * time, these operations are halted until the suspension is over.
+ */
+int
+vn_write_suspend_wait(vp, flags)
+	struct vnode *vp;
+	int flags;
+{
+	struct mount *mp;
+	int error;
+
+	if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
+		if (error != EOPNOTSUPP)
+			return (error);
+		return (0);
+	}
+	/*
+	 * If we are not suspended or have not yet reached suspended
+	 * mode, then let the operation proceed.
+	 */
+	if (mp == NULL || (mp->mnt_kern_flag & MNTK_SUSPENDED) == 0)
+		return (0);
+	if (flags & V_NOWAIT)
+		return (EWOULDBLOCK);
+	/*
+	 * Wait for the suspension to finish.
+	 */
+	return (tsleep(&mp->mnt_flag, (PUSER - 1) | (flags & PCATCH),
+	    "suspfs", 0));
+}
+
+/*
+ * Filesystem write operation has completed. If we are suspending and this
+ * operation is the last one, notify the suspender that the suspension is
+ * now in effect.
+ */
+void
+vn_finished_write(mp)
+	struct mount *mp;
+{
+
+	if (mp == NULL)
+		return;
+	mp->mnt_writeopcount--;
+	if (mp->mnt_writeopcount < 0)
+		panic("vn_finished_write: neg cnt");
+	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0 &&
+	    mp->mnt_writeopcount <= 0)
+		wakeup(&mp->mnt_writeopcount);
+}
+
+/*
+ * Request a filesystem to suspend write operations.
+ */
+void
+vfs_write_suspend(mp)
+	struct mount *mp;
+{
+	struct proc *p = curproc;
+
+	if (mp->mnt_kern_flag & MNTK_SUSPEND)
+		return;
+	mp->mnt_kern_flag |= MNTK_SUSPEND;
+	if (mp->mnt_writeopcount > 0)
+		(void) tsleep(&mp->mnt_writeopcount, PUSER - 1, "suspwt", 0);
+	VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p);
+	mp->mnt_kern_flag |= MNTK_SUSPENDED;
+}
+
+/*
+ * Request a filesystem to resume write operations.
+ */
+void
+vfs_write_resume(mp)
+	struct mount *mp;
+{
+
+	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0)
+		return;
+	mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPENDED);
+	wakeup(&mp->mnt_writeopcount);
+	wakeup(&mp->mnt_flag);
 }
 
 static int
