@@ -30,8 +30,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NETGRAPH_ATM_NG_ATM_H
-#define _NETGRAPH_ATM_NG_ATM_H
+#ifndef _NETGRAPH_ATM_NG_ATM_H_
+#define _NETGRAPH_ATM_NG_ATM_H_
 
 #define NG_ATM_NODE_TYPE "atm"
 #define NGM_ATM_COOKIE	960802260
