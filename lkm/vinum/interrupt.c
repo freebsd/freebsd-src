@@ -69,14 +69,19 @@ complete_rqe(struct buf *bp)
     rqe = (struct rqelement *) bp;			    /* point to the element element that completed */
     rqg = rqe->rqg;					    /* and the request group */
     rq = rqg->rq;					    /* and the complete request */
+    ubp = rq->bp;					    /* user buffer */
 
+#ifdef DEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_iodone, rqe, ubp);
+#endif
     if ((bp->b_flags & B_ERROR) != 0) {			    /* transfer in error */
 	if (bp->b_error != 0)				    /* did it return a number? */
 	    rq->error = bp->b_error;			    /* yes, put it in. */
 	else if (rq->error == 0)			    /* no: do we have one already? */
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	if (rq->error == EIO)				    /* I/O error, */
-	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* take the subdisk down */
+	    set_sd_state(rqe->sdno, sd_crashed, setstate_force | setstate_noupdate); /* take the subdisk down */
     }
     /* Now update the statistics */
     if (bp->b_flags & B_READ) {				    /* read operation */
@@ -94,13 +99,12 @@ complete_rqe(struct buf *bp)
 	PLEX[rqe->rqg->plexno].writes++;
 	PLEX[rqe->rqg->plexno].bytes_written += bp->b_bcount;
     }
-    ubp = rq->bp;					    /* user buffer */
     rqg->active--;					    /* one less request active */
     if (rqg->active == 0)				    /* request group finished, */
 	rq->active--;					    /* one less */
     if (rq->active == 0) {				    /* request finished, */
 #if DEBUG
-	if (debug & 4) {
+	if (debug & DEBUG_RESID) {
 	    if (ubp->b_resid != 0)			    /* still something to transfer? */
 		Debugger("resid");
 

@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.c,v 1.17 1998/08/13 06:04:47 grog Exp grog $
+ * $Id: request.c,v 1.18 1998/08/31 23:45:35 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -73,6 +73,50 @@ int vinum_bounds_check(struct buf *bp, struct volume *vol);
 caddr_t allocdatabuf(struct rqelement *rqe);
 void freedatabuf(struct rqelement *rqe);
 
+#ifdef DEBUG
+struct rqinfo rqinfo[RQINFO_SIZE];
+struct rqinfo *rqip = rqinfo;
+
+void 
+logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
+{
+    BROKEN_GDB;
+    int s = splhigh();
+
+    vinum_conf.rqipp = &rqip;				    /* XXX for broken gdb */
+    vinum_conf.rqinfop = rqinfo;			    /* XXX for broken gdb */
+
+#if __FreeBSD__ < 3
+    rqip->timestamp = time;				    /* when did this happen? */
+#else
+    microtime(&rqip->timestamp);			    /* when did this happen? */
+#endif
+    rqip->type = type;
+    rqip->bp = ubp;					    /* user buffer */
+    switch (type) {
+    case loginfo_user_bp:
+    case loginfo_user_bpl:
+	bcopy(info.bp, &rqip->info.b, sizeof(struct buf));
+	break;
+
+    case loginfo_iodone:
+    case loginfo_rqe:
+    case loginfo_raid5_data:
+    case loginfo_raid5_parity:
+	bcopy(info.rqe, &rqip->info.rqe, sizeof(struct rqelement));
+	break;
+
+    case loginfo_unused:
+	break;
+    }
+    rqip++;
+    if (rqip >= &rqinfo[RQINFO_SIZE])			    /* wrap around */
+	rqip = rqinfo;
+    splx(s);
+}
+
+#endif
+
 void 
 vinumstrategy(struct buf *bp)
 {
@@ -82,6 +126,17 @@ vinumstrategy(struct buf *bp)
     int s;
     struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
     enum requeststatus status;
+
+    /* We may have changed the configuration in
+     * an interrupt context.  Update it now.  It
+     * could change again, so do it in a loop.
+     * XXX this is broken and contains a race condition.
+     * The correct way is to hand it off the the Vinum
+     * daemon, but I haven't found a name for it yet */
+    while (vinum_conf.flags & VF_DIRTYCONFIG) {		    /* config is dirty, save it now */
+	vinum_conf.flags &= ~VF_DIRTYCONFIG;		    /* turn it off */
+	save_config();
+    }
 
     switch (device->type) {
     case VINUM_SD_TYPE:
@@ -141,6 +196,11 @@ vinumstart(struct buf *bp, int reviveok)
     struct request *rq;					    /* build up our request here */
     int rqno;						    /* index in request list */
     enum requeststatus status;
+
+#if DEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_user_bp, bp, bp);
+#endif
 
     /* XXX In these routines, we're assuming that
      * we will always be called with bp->b_bcount
@@ -218,8 +278,8 @@ vinumstart(struct buf *bp, int reviveok)
 	    biodone(bp);
 	    freerq(rq);
 	    return -1;
-	}
-	return launch_requests(rq, reviveok);		    /* now start the requests if we can */
+	    }
+	return launch_requests(rq, reviveok);	    /* now start the requests if we can */
     } else
 	/* This is a write operation.  We write to all
 	 * plexes.  If this is a RAID 5 plex, we must also
@@ -248,8 +308,8 @@ vinumstart(struct buf *bp, int reviveok)
 		biodone(bp);
 	    freerq(rq);
 	    return -1;
-	}
-	return launch_requests(rq, reviveok);		    /* start the requests */
+	    }
+	return launch_requests (rq, reviveok);	    /* start the requests */
     }
 }
 
@@ -296,13 +356,16 @@ launch_requests(struct request *rq, int reviveok)
     }
 #if DEBUG
     if (debug & DEBUG_ADDRESSES)
-	printf("Request: %x\nWrite dev 0x%x, offset 0x%x, length %ld\n",
+	printf("Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 	    (u_int) rq,
+	    rq->bp->b_flags & B_READ ? "Read" : "Write",
 	    rq->bp->b_dev,
 	    rq->bp->b_blkno,
 	    rq->bp->b_bcount);				    /* XXX */
     vinum_conf.lastrq = (int) rq;
     vinum_conf.lastbuf = rq->bp;
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_user_bpl, rq->bp, rq->bp);
 #endif
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
@@ -328,6 +391,8 @@ launch_requests(struct request *rq, int reviveok)
 		    printf("  vinumstart sd %d numoutput %ld\n",
 			rqe->sdno,
 			rqe->b.b_vp->v_numoutput);
+		if (debug & DEBUG_LASTREQS)
+		    logrq(loginfo_rqe, rqe, rq->bp);
 #endif
 		/* fire off the request */
 		s = splbio();

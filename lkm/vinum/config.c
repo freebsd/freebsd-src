@@ -44,7 +44,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: config.c,v 1.17 1998/08/14 04:49:26 grog Exp grog $
+ * $Id: config.c,v 1.19 1998/10/05 02:48:15 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -488,7 +488,7 @@ get_empty_drive(void)
 
 /* Find the named drive in vinum_conf.drive, return a pointer
  * return the index in vinum_conf.drive.
- * Don't mark the drive as allocated (XXX MP)
+ * Don't mark the drive as allocated (XXX SMP)
  * If create != 0, create an entry if it doesn't exist
  */
 /* XXX check if we have it open from attach */
@@ -936,9 +936,10 @@ config_drive(void)
 	}
     }
 
-    if (drive->devicename[0] == '\0')
+    if (drive->devicename[0] == '\0') {
+	drive->state = drive_unallocated;		    /* deallocate the drive */
 	throw_rude_remark(EINVAL, "No device name for %s", drive->label.name);
-
+    }
 }
 
 /* Handle a subdisk definition.  We store the information in the global variable
