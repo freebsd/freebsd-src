@@ -156,12 +156,6 @@ static struct mtx mntid_mtx;
  */
 static struct mtx vnode_free_list_mtx;
 
-/*
- * For any iteration/modification of dev->si_hlist (linked through
- * v_specnext)
- */
-static struct mtx spechash_mtx;
-
 /* Publicly exported FS */
 struct nfs_public nfs_pub;
 
@@ -283,7 +277,6 @@ vntblinit(void *dummy __unused)
 	minvnodes = desiredvnodes / 4;
 	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
 	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
-	mtx_init(&spechash_mtx, "spechash", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
@@ -1899,9 +1892,9 @@ v_incr_usecount(struct vnode *vp, int delta)
 
 	vp->v_usecount += delta;
 	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
-		mtx_lock(&spechash_mtx);
+		dev_lock();
 		vp->v_rdev->si_usecount += delta;
-		mtx_unlock(&spechash_mtx);
+		dev_unlock();
 	}
 }
 
@@ -1975,13 +1968,13 @@ addalias(nvp, dev)
 {
 
 	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
-	dev_ref(dev);
-	nvp->v_rdev = dev;
 	VI_LOCK(nvp);
-	mtx_lock(&spechash_mtx);
+	dev_lock();
+	dev->si_refcount++;
+	nvp->v_rdev = dev;
 	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
 	dev->si_usecount += nvp->v_usecount;
-	mtx_unlock(&spechash_mtx);
+	dev_unlock();
 	VI_UNLOCK(nvp);
 }
 
@@ -2585,9 +2578,9 @@ vop_revoke(ap)
 	VI_UNLOCK(vp);
 	dev = vp->v_rdev;
 	for (;;) {
-		mtx_lock(&spechash_mtx);
+		dev_lock();
 		vq = SLIST_FIRST(&dev->si_hlist);
-		mtx_unlock(&spechash_mtx);
+		dev_unlock();
 		if (vq == NULL)
 			break;
 		vgone(vq);
@@ -2706,12 +2699,12 @@ vgonel(vp, td)
 	 */
 	VI_LOCK(vp);
 	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
-		mtx_lock(&spechash_mtx);
+		dev_lock();
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		vp->v_rdev->si_usecount -= vp->v_usecount;
-		mtx_unlock(&spechash_mtx);
 		dev_rel(vp->v_rdev);
 		vp->v_rdev = NULL;
+		dev_unlock();
 	}
 
 	/*
@@ -2751,13 +2744,13 @@ vfinddev(dev, vpp)
 {
 	struct vnode *vp;
 
-	mtx_lock(&spechash_mtx);
+	dev_lock();
 	SLIST_FOREACH(vp, &dev->si_hlist, v_specnext) {
 		*vpp = vp;
-		mtx_unlock(&spechash_mtx);
+		dev_unlock();
 		return (1);
 	}
-	mtx_unlock(&spechash_mtx);
+	dev_unlock();
 	return (0);
 }
 
@@ -2770,9 +2763,9 @@ vcount(vp)
 {
 	int count;
 
-	mtx_lock(&spechash_mtx);
+	dev_lock();
 	count = vp->v_rdev->si_usecount;
-	mtx_unlock(&spechash_mtx);
+	dev_unlock();
 	return (count);
 }
 
@@ -2785,9 +2778,9 @@ count_dev(dev)
 {
 	int count;
 
-	mtx_lock(&spechash_mtx);
+	dev_lock();
 	count = dev->si_usecount;
-	mtx_unlock(&spechash_mtx);
+	dev_unlock();
 	return(count);
 }
 
