@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: commands.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
  */
 
 #include <stand.h>
@@ -141,17 +141,6 @@ command_unset(int argc, char *argv[])
 	}
     }
     return(CMD_OK);
-}
-
-COMMAND_SET(panic, "panic", "test panic", command_panic);
-
-static int
-command_panic(int argc, char *argv[])
-{
-    char	*cp;
-    
-    cp = unargv(argc - 1, argv + 1);
-    panic(cp);
 }
 
 COMMAND_SET(echo, "echo", NULL, command_echo);
