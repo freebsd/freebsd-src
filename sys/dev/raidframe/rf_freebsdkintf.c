@@ -2789,7 +2789,7 @@ rf_create_configuration(ac,config,raidPtr)
 	}
 
 	for(i=0;i<RF_MAXDBGV;i++) {
-		config->debugVars[i][0] = NULL;
+		config->debugVars[i][0] = '\0';
 	}
 }
 
