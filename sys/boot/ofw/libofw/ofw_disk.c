@@ -70,7 +70,7 @@ ofwd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf,
     size_t *rsize)
 {
 	struct ofw_devdesc *dp = (struct ofw_devdesc *)devdata;
-	unsigned long pos;
+	daddr_t pos;
 	int n;
 	int i, j;
 
