@@ -11,8 +11,6 @@ SHIFT-TAB       Flyt til foregående objekt eller gruppe.
 VENSTRE PIL     Flyt til foregående objekt eller gruppe (det samme som
                 SHIFT-TAB).
 RETUR           Vælg objekt.
-ESC             Start en sub-shell til brug for diagnosticering. Exit
-                returnerer.
 PAGE UP         Gå en side op, i et tekstfelt.
 PAGE DOWN       Gå en side ned, i et tekstfelt.
 MELLEMRUM       I en "radio" eller flervalgs menu, skift status for det
