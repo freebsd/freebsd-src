@@ -1119,6 +1119,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	else
 	    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE,
 		     ATA_D_IBM | ATA_D_LBA | atadev->unit | ((lba>>24) &0xf));
+	atadev->channel->flags &= ~ATA_48BIT_ACTIVE;
     }
 
     switch (flags & ATA_WAIT_MASK) {
