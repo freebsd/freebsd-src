@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.5.4.1 1996/01/19 19:15:36 se Exp $
+**  $Id: pcireg.h,v 1.5.4.2 1996/06/26 04:36:50 davidg Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -173,11 +173,11 @@
 #define	PCI_SECONDARY_BUS_INSERT(x, y)	(((x) & ~PCI_SECONDARY_BUS_MASK) | ((y) <<  8))
 #define	PCI_SUBORDINATE_BUS_INSERT(x, y) (((x) & ~PCI_SUBORDINATE_BUS_MASK) | ((y) << 16))
 
-#define	PCI_PPB_IOBASE_EXTRACT(x)	(((x) << 8) & 0xFF00)
-#define	PCI_PPB_IOLIMIT_EXTRACT(x)	(((x) << 0) & 0xFF00)
+#define	PCI_PPB_IOBASE_EXTRACT(x)	(((x) << 8) & 0xF000)
+#define	PCI_PPB_IOLIMIT_EXTRACT(x)	(((x) << 0) & 0xF000 | 0x0FFF)
 
-#define	PCI_PPB_MEMBASE_EXTRACT(x)	(((x) << 16) & 0xFFFF0000)
-#define	PCI_PPB_MEMLIMIT_EXTRACT(x)	(((x) <<  0) & 0xFFFF0000)
+#define	PCI_PPB_MEMBASE_EXTRACT(x)	(((x) << 16) & 0xFFF00000)
+#define	PCI_PPB_MEMLIMIT_EXTRACT(x)	(((x) <<  0) & 0xFFF00000 | 0x000FFFFF)
 
 /*
 ** Interrupt configuration register
