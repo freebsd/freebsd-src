@@ -78,8 +78,8 @@ int	ffs_fsync(struct vop_fsync_args *);
 static int	ffs_getpages(struct vop_getpages_args *);
 static int	ffs_read(struct vop_read_args *);
 static int	ffs_write(struct vop_write_args *);
-static int	ffs_extread(struct vop_read_args *);
-static int	ffs_extwrite(struct vop_write_args *);
+static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred);
+static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred);
 static int	ffs_getextattr(struct vop_getextattr_args *);
 static int	ffs_setextattr(struct vop_setextattr_args *);
 
@@ -320,17 +320,17 @@ ffs_read(ap)
 	int ioflag;
 	vm_object_t object;
 
+	vp = ap->a_vp;
+	uio = ap->a_uio;
+	ioflag = ap->a_ioflag;
 	if (ap->a_ioflag & IO_EXT)
-		return (ffs_extread(ap));
+		return (ffs_extread(vp, uio, ioflag, ap->a_cred));
 
 	GIANT_REQUIRED;
 
-	vp = ap->a_vp;
 	seqcount = ap->a_ioflag >> 16;
 	ip = VTOI(vp);
 	mode = ip->i_mode;
-	uio = ap->a_uio;
-	ioflag = ap->a_ioflag;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
@@ -646,16 +646,16 @@ ffs_write(ap)
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
 	vm_object_t object;
 
+	vp = ap->a_vp;
+	uio = ap->a_uio;
+	ioflag = ap->a_ioflag;
 	if (ap->a_ioflag & IO_EXT)
-		return (ffs_extwrite(ap));
+		return (ffs_extwrite(vp, uio, ioflag, ap->a_cred));
 
 	GIANT_REQUIRED;
 
 	extended = 0;
 	seqcount = ap->a_ioflag >> 16;
-	ioflag = ap->a_ioflag;
-	uio = ap->a_uio;
-	vp = ap->a_vp;
 	ip = VTOI(vp);
 
 	object = vp->v_object;
@@ -991,20 +991,11 @@ ffs_getpages(ap)
 /*
  * Vnode op for extended attribute reading.
  */
-/* ARGSUSED */
 static int
-ffs_extread(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+ffs_extread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 {
-	struct vnode *vp;
 	struct inode *ip;
 	struct ufs2_dinode *dp;
-	struct uio *uio;
 	struct fs *fs;
 	struct buf *bp;
 	ufs_lbn_t lbn, nextlbn;
@@ -1012,17 +1003,13 @@ ffs_extread(ap)
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
 	mode_t mode;
-	int ioflag;
 
 	GIANT_REQUIRED;
 
-	vp = ap->a_vp;
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	dp = ip->i_din2;
 	mode = ip->i_mode;
-	uio = ap->a_uio;
-	ioflag = ap->a_ioflag;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ || fs->fs_magic != FS_UFS2_MAGIC)
@@ -1172,32 +1159,21 @@ ffs_extread(ap)
  * Vnode op for external attribute writing.
  */
 static int
-ffs_extwrite(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 {
-	struct vnode *vp;
-	struct uio *uio;
 	struct inode *ip;
 	struct ufs2_dinode *dp;
 	struct fs *fs;
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
-	int blkoffset, error, flags, ioflag, resid, size, xfersize;
+	int blkoffset, error, flags, resid, size, xfersize;
 
 	GIANT_REQUIRED;
 
-	vp = ap->a_vp;
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	dp = ip->i_din2;
-	uio = ap->a_uio;
-	ioflag = ap->a_ioflag;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE || fs->fs_magic != FS_UFS2_MAGIC)
@@ -1233,7 +1209,7 @@ ffs_extwrite(ap)
 		else
 			flags &= ~BA_CLRBUF;
 		error = UFS_BALLOC(vp, uio->uio_offset, xfersize,
-		    ap->a_cred, flags, &bp);
+		    ucred, flags, &bp);
 		if (error != 0)
 			break;
 		/*
@@ -1289,15 +1265,15 @@ ffs_extwrite(ap)
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
 	 */
-	if (resid > uio->uio_resid && ap->a_cred && 
-	    suser_cred(ap->a_cred, PRISON_ROOT)) {
+	if (resid > uio->uio_resid && ucred && 
+	    suser_cred(ucred, PRISON_ROOT)) {
 		ip->i_mode &= ~(ISUID | ISGID);
 		dp->di_mode = ip->i_mode;
 	}
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)UFS_TRUNCATE(vp, osize,
-			    IO_EXT | (ioflag&IO_SYNC), ap->a_cred, uio->uio_td);
+			    IO_EXT | (ioflag&IO_SYNC), ucred, uio->uio_td);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
