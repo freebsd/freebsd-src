@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.13 1995/08/30 01:34:28 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.14 1995/11/09 08:14:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -344,6 +344,7 @@ mfs_start(mp, flags, p)
 	register struct mfsnode *mfsp = VTOMFS(vp);
 	register struct buf *bp;
 	register caddr_t base;
+	register int gotsig = 0;
 
 	base = mfsp->mfs_baseoff;
 	while (mfsp->mfs_buflist != (struct buf *)(-1)) {
@@ -358,9 +359,18 @@ mfs_start(mp, flags, p)
 		 * otherwise we will loop here, as tsleep will always return
 		 * EINTR/ERESTART.
 		 */
-		if (tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0) &&
-		    dounmount(mp, 0, p) != 0)
-			CLRSIG(p, CURSIG(p));
+		/*
+		 * Note that dounmount() may fail if work was queued after
+		 * we slept. We have to jump hoops here to make sure that we
+		 * process any buffers after the sleep, before we dounmount()
+		 */
+		if (gotsig) {
+			gotsig = 0;
+			if (dounmount(mp, 0, p) != 0)
+				CLRSIG(p, CURSIG(p));	/* try sleep again.. */
+		}
+		else if (tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0))
+			gotsig++;	/* try to unmount in next pass */
 	}
 	return (0);
 }
