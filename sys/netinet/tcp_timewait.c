@@ -259,7 +259,7 @@ tcp_init()
 	uma_zone_set_max(tcpcb_zone, maxsockets);
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcptw_zone, maxsockets);
+	uma_zone_set_max(tcptw_zone, maxsockets / 5);
 	tcp_timer_init();
 	syncache_init();
 }
