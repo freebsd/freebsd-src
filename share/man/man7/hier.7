@@ -197,6 +197,9 @@ iso9660 filesystem
 C include files for kerberos authentication package;
 see
 .Xr kerberos 1
+.It Pa libmilter/
+C include files for libmilter,
+the sendmail mail filter API
 .It Pa machine/
 machine-specific C include files
 .It Pa msdosfs/
@@ -349,6 +352,12 @@ utilities to manipulate ELF executables
 utilities and filters for LP print system;
 see
 .Xr lpr 1
+.It Pa sendmail/
+the sendmail binary;
+see
+.Xr mailwrapper 8
+and
+.Xr sendmail 8
 .It Pa sm.bin/
 restricted shell for sendmail;
 see
@@ -704,6 +713,10 @@ and
 misc. printer and mail system spooling directories
 .Pp
 .Bl -tag -width Fl -compact
+.It Pa clientmqueue/
+undelivered submission mail queue;
+see
+.Xr sendmail 8
 .It Pa ftp/
 commonly ~ftp; the anonymous ftp root directory
 .It Pa mqueue/
