@@ -145,9 +145,10 @@ fwohci_pci_attach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-	int intr;
 	int latency, cache_line;
 	u_int16_t cmd;
+#if __FreeBSD_version < 500000
+	int intr;
 	/* For the moment, put in a message stating what is wrong */
 	intr = pci_read_config(self, PCIR_INTLINE, 1);
 	if (intr == 0 || intr == 255) {
@@ -155,8 +156,11 @@ fwohci_pci_attach(device_t self)
 #ifdef __i386__
 		device_printf(self, "Please switch PNP-OS to 'No' in BIOS\n");
 #endif
+#if 0
 		return ENXIO;
+#endif
 	}
+#endif
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
