@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.12 1995/12/10 19:07:59 bde Exp $
+ *	$Id: db_input.c,v 1.13 1996/05/08 04:28:34 gpalmer Exp $
  */
 
 /*
@@ -32,6 +32,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 
 #include <machine/cons.h>
@@ -52,6 +53,13 @@ static char *	db_lbuf_start;	/* start of input line buffer */
 static char *	db_lbuf_end;	/* end of input line buffer */
 static char *	db_lc;		/* current character */
 static char *	db_le;		/* one past last character */
+
+/*
+ * Simple input line history support.
+ */
+static char *	db_lhistory;
+static int	db_lhistlsize, db_lhistidx, db_lhistcur;
+#define DB_LHIST_NLINES 10
 
 #define	CTRL(c)		((c) & 0x1f)
 #define	isspace(c)	((c) == ' ' || (c) == '\t')
@@ -171,11 +179,46 @@ db_inputchar(c)
 		break;
 	    case CTRL('r'):
 		db_putstring("^R\n", 3);
+	    redraw:
 		if (db_le > db_lbuf_start) {
 		    db_putstring(db_lbuf_start, db_le - db_lbuf_start);
 		    db_putnchars(BACKUP, db_le - db_lc);
 		}
 		break;
+	    case CTRL('p'):
+		/* Make previous history line the active one. */
+		if (db_lhistcur >= 0) {
+		    bcopy(db_lhistory + db_lhistcur * db_lhistlsize,
+			  db_lbuf_start, db_lhistlsize);
+		    db_lhistcur--;
+		    goto hist_redraw;
+		}
+		break;
+	    case CTRL('n'):
+		/* Make next history line the active one. */
+		if (db_lhistcur < db_lhistidx - 1) {
+		    db_lhistcur += 2;
+		    bcopy(db_lhistory + db_lhistcur * db_lhistlsize,
+			  db_lbuf_start, db_lhistlsize);
+		} else {
+		    /*
+		     * ^N through tail of history, reset the
+		     * buffer to zero length.
+		     */
+		    *db_lbuf_start = '\0';
+		    db_lhistcur = db_lhistidx;
+		}
+
+	    hist_redraw:
+		db_putnchars(BACKUP, db_le - db_lbuf_start);
+		db_putnchars(BLANK, db_le - db_lbuf_start);
+		db_putnchars(BACKUP, db_le - db_lbuf_start);
+		db_le = index(db_lbuf_start, '\0');
+		if (db_le[-1] == '\r' || db_le[-1] == '\n')
+		    *--db_le = '\0';
+		db_lc = db_le;
+		goto redraw;
+
 	    case '\n':
 	    case '\r':
 		*db_le++ = c;
@@ -211,6 +254,20 @@ db_readline(lstart, lsize)
 	char *	lstart;
 	int	lsize;
 {
+	if (db_lhistory && lsize != db_lhistlsize) {
+		/* Should not happen, but to be sane, throw history away. */
+		FREE(db_lhistory, M_TEMP);
+		db_lhistory = 0;
+	}
+	if (db_lhistory == 0) {
+		/* Initialize input line history. */
+		db_lhistlsize = lsize;
+		db_lhistidx = -1;
+		MALLOC(db_lhistory, char *, lsize * DB_LHIST_NLINES,
+		       M_TEMP, M_NOWAIT);
+	}
+	db_lhistcur = db_lhistidx;
+
 	db_force_whitespace();	/* synch output position */
 
 	db_lbuf_start = lstart;
@@ -222,8 +279,20 @@ db_readline(lstart, lsize)
 	    continue;
 
 	db_printf("\n");	/* synch output position */
-
 	*db_le = 0;
+
+	if (db_le - db_lbuf_start > 1) {
+	    /* Maintain input line history for non-empty lines. */
+	    if (++db_lhistidx == DB_LHIST_NLINES) {
+		/* Rotate history. */
+		ovbcopy(db_lhistory + db_lhistlsize, db_lhistory,
+			db_lhistlsize * (DB_LHIST_NLINES - 1));
+		db_lhistidx--;
+	    }
+	    bcopy(lstart, db_lhistory + (db_lhistidx * db_lhistlsize),
+		  db_lhistlsize);
+	}
+
 	return (db_le - db_lbuf_start);
 }
 
