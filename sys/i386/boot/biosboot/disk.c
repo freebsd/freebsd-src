@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.9 1995/04/14 21:26:50 joerg Exp $
+ *	$Id: disk.c,v 1.10 1995/05/08 02:02:56 phk Exp $
  */
 
 /*
@@ -135,7 +135,7 @@ devopen(void)
 		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
 		bend = boff + bsize - 1 ;
-		if (bend / spt > 1024) {
+		if (bend / spc > 1024) {
 			printf("partition is out of reach from the bios\n");
 			return 1;
 		}
