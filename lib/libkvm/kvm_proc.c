@@ -762,7 +762,7 @@ kvm_getargv(kd, kp, nchr)
 	int oid[4];
 	int i;
 	size_t bufsz;
-	static int buflen;
+	static unsigned long buflen;
 	static char *buf, *p;
 	static char **bufp;
 	static int argc;
