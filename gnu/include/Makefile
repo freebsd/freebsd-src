@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1994/11/01 09:19:50 pst Exp $
+#	$Id: Makefile,v 1.1 1994/11/08 00:47:02 ache Exp $
 #
 all depend lint tags:
 
@@ -9,7 +9,7 @@ beforeinstall:
 	@${ECHO} installing ${FILES}
 	@-for i in ${FILES}; do \
 		cmp -s $$i ${DESTDIR}/usr/include/$$i || \
-		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
+		    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
 	done
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1995/03/18 08:34:42 rgrimes Exp $
+#	$Id: Makefile,v 1.8 1995/05/30 05:47:36 rgrimes Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -25,16 +25,16 @@ std_rqs.c:		${.CURDIR}/std_rqs.ct
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s ss.h ${DESTDIR}/usr/include/ss/ss.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ss.h \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ss.h \
 	    ${DESTDIR}/usr/include/ss
 	-cd ${.CURDIR}; cmp -s copyright.h \
 	    ${DESTDIR}/usr/include/ss/mit-sipb-copyright.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 copyright.h \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 copyright.h \
 	    ${DESTDIR}/usr/include/ss/mit-sipb-copyright.h
 	-cd ${.OBJDIR}; \
 	    if [ -f ss_err.h ]; then \
 		cmp -s ss_err.h ${DESTDIR}/usr/include/ss/ss_err.h || \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
 		${DESTDIR}/usr/include/ss; \
 	    else \
 		true; \

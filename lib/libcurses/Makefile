@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/2/94
-#	$Id: Makefile,v 1.4 1994/10/12 01:57:56 ache Exp $
+#	$Id: Makefile,v 1.5 1995/03/19 21:47:42 nate Exp $
 
 CFLAGS+=#-DTFILE=\"/dev/ttyp0\"
 CFLAGS+=-D_CURSES_PRIVATE -I${.CURDIR}
@@ -16,7 +16,7 @@ MAN3=	curses.3
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s curses.h ${DESTDIR}/usr/include/curses.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 curses.h \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 curses.h \
 	    ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/05/27 20:05:35 jkh Exp $
+# $Id: Makefile,v 1.6 1995/05/30 03:50:08 rgrimes Exp $
 
 PROG=   pkg_manage
 SRCS=   pkg_main.c pkg_manage.c pkg_ui.c version.c
@@ -20,7 +20,7 @@ afterinstall:
 	@cd ${.CURDIR}; \
 	for m in ${HELPS} ; do \
 	  cmp -s $$m ${DESTDIR}${HELPDIR}/$$m || \
-	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		$$m ${DESTDIR}${HELPDIR} ; \
 	done
 

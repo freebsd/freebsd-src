@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.9 1995/05/08 16:10:34 ache Exp $
+# $Id: Makefile,v 1.10 1995/07/05 15:04:47 dfr Exp $
 #
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
 	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \
@@ -37,7 +37,7 @@ beforeinstall:
 	cd ${.CURDIR}/include; \
 	for i in *.h; do \
 		cmp -s $$i ${DESTDIR}/usr/include/g++/$$i || \
-			install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
+			${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 			${DESTDIR}/usr/include/g++/$$i; \
 	done
 

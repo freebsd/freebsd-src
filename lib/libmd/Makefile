@@ -88,13 +88,13 @@ beforedepend:	md2hl.c md4hl.c md5hl.c
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s md2.h ${DESTDIR}/usr/include/md2.h || \
-	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 md2.h \
+	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 md2.h \
 	  ${DESTDIR}/usr/include
 	-cd ${.CURDIR}; cmp -s md4.h ${DESTDIR}/usr/include/md4.h || \
-	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 md4.h \
+	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 md4.h \
 	  ${DESTDIR}/usr/include
 	-cd ${.CURDIR}; cmp -s md5.h ${DESTDIR}/usr/include/md5.h || \
-	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 md5.h \
+	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 md5.h \
 	  ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
