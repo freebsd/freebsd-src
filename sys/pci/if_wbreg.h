@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wbreg.h,v 1.12 1998/11/29 06:40:50 wpaul Exp wpaul $
+ *	$Id: if_wbreg.h,v 1.2 1999/01/16 06:25:59 wpaul Exp $
  */
 
 /*
@@ -267,7 +267,7 @@ struct wb_desc {
 
 #define WB_MAXFRAGS		16
 #define WB_RX_LIST_CNT		64
-#define WB_TX_LIST_CNT		64
+#define WB_TX_LIST_CNT		128
 #define WB_MIN_FRAMELEN		60
 
 /*

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.8.2.3 1999/04/08 17:40:27 wpaul Exp $
+ *	$Id: if_mx.c,v 1.41 1999/05/06 15:07:10 wpaul Exp $
  */
 
 /*
@@ -76,11 +76,6 @@
 #include <net/bpf.h>
 #endif
 
-#include "opt_bdg.h"
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
@@ -99,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.8.2.3 1999/04/08 17:40:27 wpaul Exp $";
+	"$Id: if_mx.c,v 1.41 1999/05/06 15:07:10 wpaul Exp $";
 #endif
 
 /*
@@ -1406,6 +1401,9 @@ mx_attach(config_id, unit)
 	else
 		sc->mx_type = MX_TYPE_987x5;
 
+	/* Save the cache line size. */
+	sc->mx_cachesize = pci_conf_read(config_id, MX_PCI_CACHELEN) & 0xFF;
+
 	/* Reset the adapter. */
 	mx_reset(sc);
 
@@ -1754,44 +1752,21 @@ static void mx_rxeof(sc)
 
 #if NBPFILTER > 0
 		/*
-		 * Handle BPF listeners. Let the BPF user see the packet.
-		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m);
-#endif
-#ifdef BRIDGE
-		if (do_bridge) {
-			struct ifnet *bdg_ifp ;
-			bdg_ifp = bridge_in(m);
-			if (bdg_ifp == BDG_DROP)
-				goto dropit ;
-			if (bdg_ifp != BDG_LOCAL)
-		    		bdg_forward(&m, bdg_ifp);
-			if (bdg_ifp != BDG_LOCAL &&
-				bdg_ifp != BDG_BCAST &&
-				bdg_ifp != BDG_MCAST)
-				goto dropit ;
-			goto getit ;
-		}
-#endif
-		/*			
-		 * Don't pass packet up to the ether_input() layer unless it's
+		 * Handle BPF listeners. Let the BPF user see the packet, but
+		 * don't pass it up to the ether_input() layer unless it's
 		 * a broadcast packet, multicast packet, matches our ethernet
 		 * address or the interface is in promiscuous mode.
 		 */
-		if (ifp->if_flags & IFF_PROMISC &&
-		    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		    ETHER_ADDR_LEN) &&
-		    (eh->ether_dhost[0] & 1) == 0)) {
-#ifdef BRIDGE
-dropit:
-#endif
-			if (m)
+		if (ifp->if_bpf) {
+			bpf_mtap(ifp, m);
+			if (ifp->if_flags & IFF_PROMISC &&
+				(bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+						ETHER_ADDR_LEN) &&
+					(eh->ether_dhost[0] & 1) == 0)) {
 				m_freem(m);
-			continue;
+				continue;
+			}
 		}
-#ifdef BRIDGE
-getit:
 #endif
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
@@ -1843,7 +1818,7 @@ static void mx_txeof(sc)
 		cur_tx = sc->mx_cdata.mx_tx_head;
 		txstat = MX_TXSTATUS(cur_tx);
 
-		if ((txstat & MX_TXSTAT_OWN) || MX_TXOWN(cur_tx) == MX_UNSENT)
+		if (txstat & MX_TXSTAT_OWN)
 			break;
 
 		if (txstat & MX_TXSTAT_ERRSUM) {
@@ -1893,12 +1868,6 @@ static void mx_txeoc(sc)
 				mx_autoneg_mii(sc, MX_FLAG_DELAYTIMEO, 1);
 			else
 				mx_autoneg(sc, MX_FLAG_DELAYTIMEO, 1);
-		}
-	} else {
-		if (MX_TXOWN(sc->mx_cdata.mx_tx_head) == MX_UNSENT) {
-			MX_TXOWN(sc->mx_cdata.mx_tx_head) = MX_TXSTAT_OWN;
-			ifp->if_timer = 5;
-			CSR_WRITE_4(sc, MX_TXSTART, 0xFFFFFFFF);
 		}
 	}
 
@@ -2068,7 +2037,7 @@ static int mx_encap(sc, c, m_head)
 
 	c->mx_mbuf = m_head;
 	c->mx_lastdesc = frag - 1;
-	MX_TXCTL(c) |= MX_TXCTL_LASTFRAG;
+	MX_TXCTL(c) |= MX_TXCTL_LASTFRAG|MX_TXCTL_FINT;
 	MX_TXNEXT(c) = vtophys(&c->mx_nextdesc->mx_ptr->mx_frag[0]);
 	return(0);
 }
@@ -2093,6 +2062,9 @@ static void mx_start(ifp)
 		sc->mx_tx_pend = 1;
 		return;
 	}
+
+	if (ifp->if_flags & IFF_OACTIVE)
+		return;
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -2127,6 +2099,9 @@ static void mx_start(ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->mx_mbuf);
 #endif
+		MX_TXOWN(cur_tx) = MX_TXSTAT_OWN;
+		CSR_WRITE_4(sc, MX_TXSTART, 0xFFFFFFFF);
+
 	}
 
 	/*
@@ -2135,23 +2110,10 @@ static void mx_start(ifp)
 	if (cur_tx == NULL)
 		return;
 
-	/*
-	 * Place the request for the upload interrupt
-	 * in the last descriptor in the chain. This way, if
-	 * we're chaining several packets at once, we'll only
-	 * get an interupt once for the whole chain rather than
-	 * once for each packet.
-	 */
-	MX_TXCTL(cur_tx) |= MX_TXCTL_FINT;
 	sc->mx_cdata.mx_tx_tail = cur_tx;
 
-	if (sc->mx_cdata.mx_tx_head == NULL) {
+	if (sc->mx_cdata.mx_tx_head == NULL)
 		sc->mx_cdata.mx_tx_head = start_tx;
-		MX_TXOWN(start_tx) = MX_TXSTAT_OWN;
-		CSR_WRITE_4(sc, MX_TXSTART, 0xFFFFFFFF);
-	} else {
-		MX_TXOWN(start_tx) = MX_UNSENT;
-	}
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -2186,11 +2148,27 @@ static void mx_init(xsc)
 	/*
 	 * Set cache alignment and burst length.
 	 */
-	CSR_WRITE_4(sc, MX_BUSCTL, MX_BUSCTL_CONFIG);
+	CSR_WRITE_4(sc, MX_BUSCTL, MX_BUSCTL_MUSTBEONE|MX_BUSCTL_ARBITRATION);
+	MX_SETBIT(sc, MX_BUSCTL, MX_BURSTLEN_16LONG);
+	switch(sc->mx_cachesize) {
+	case 32:
+		MX_SETBIT(sc, MX_BUSCTL, MX_CACHEALIGN_32LONG);
+		break;
+	case 16:
+		MX_SETBIT(sc, MX_BUSCTL, MX_CACHEALIGN_16LONG);
+		break; 
+	case 8:
+		MX_SETBIT(sc, MX_BUSCTL, MX_CACHEALIGN_8LONG);
+		break;  
+	case 0:
+	default:
+		MX_SETBIT(sc, MX_BUSCTL, MX_CACHEALIGN_NONE);
+		break;
+	}
 
 	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_NO_RXCRC);
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_HEARTBEAT);
-	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_STORENFWD);
+	MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_STORENFWD);
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_TX_BACKOFF);
 
 	/*
@@ -2214,7 +2192,7 @@ static void mx_init(xsc)
 		mx_setmode(sc, sc->ifmedia.ifm_media, 0);
 
 	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_TX_THRESH);
-	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
+	/*MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);*/
 
 	if (IFM_SUBTYPE(sc->ifmedia.ifm_media) == IFM_10_T)
 		MX_SETBIT(sc, MX_NETCFG, MX_TXTHRESH_160BYTES);
