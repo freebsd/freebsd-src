@@ -33,7 +33,7 @@
  *
  *
  * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Fri Apr  7 10:16:58 1995]
- *
+ * $FreeBSD$
  */
 
 /*---------------------------------------------------------------------------
@@ -978,7 +978,7 @@ struct tty *pcconsp;		/* ptr to current device, see pcattach() */
 #endif /* PCVT_NETBSD */
 
 #if PCVT_EMU_MOUSE
-struct mousestat	mouse = {0};
+struct mousestat	mouse;
 struct mousedefs	mousedef = {0x3b, 0x3c, 0x3d, 0,     250000};
 #endif /* PCVT_EMU_MOUSE */	/*  F1,   F2,   F3,   false, 0.25 sec */
 
