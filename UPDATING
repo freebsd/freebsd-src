@@ -1,13 +1,21 @@
 Updating Information for FreeBSD STABLE users
 
 This file is maintained and copyrighted by M. Warner Losh
-<imp@village.org>.  Please send new entries directly to him.  See end
-of file for further details.  For commonly done items, please see the
-COMMON ITEMS: section later in the file.
+<imp@village.org>.  See end of file for further details.  For commonly
+done items, please see the COMMON ITEMS: section later in the file.
 
 A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
+
+20020421:
+	inetd_enable was changed back to YES, to match the defaults
+	earlier in the 4.0-stable branch.  This change restores the
+	daemons that were enabled prior to April 15th.
+
+20020420:
+	sendmail_enable was changed back to YES, to match the
+	defaults earlier in the 4.0-stable branch.
 
 20020415:
 	Many denizens of /etc were MFC'ed. While most of the changes
@@ -20,6 +28,11 @@ the common items quick how-tos, followed by entries for versions of
 	syslog.conf, newsyslog.conf, inetd.conf, your inetd_enable
 	setting in rc.conf[.local]; and anything else important
 	to your system.
+
+	The two most important changes to note: sendmail and inetd are
+	off by default now.  If you need them, please turn them back
+	on by adding sendmail_enable=YES and/or inetd_enable=YES to
+	/etc/rc.conf.
 
 20020411:
 	New sendmail startup scripts have been installed to make it
