@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.33 1995/05/30 08:03:18 rgrimes Exp $
+ *      $Id: ultra14f.c,v 1.34 1995/07/25 15:53:11 bde Exp $
  */
 
 #include <sys/types.h>
@@ -542,6 +542,7 @@ uha_attach(dev)
 {
 	int     unit = dev->id_unit;
 	struct uha_data *uha = uhadata[unit];
+	struct scsibus_data *scbus;
 
 	/*
 	 * fill in the prototype scsi_link.
@@ -552,11 +553,20 @@ uha_attach(dev)
 	uha->sc_link.device = &uha_dev;
 	uha->sc_link.flags = SDEV_BOUNCE;
 
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+                return 0;
+	scbus->adapter_link = &uha->sc_link;
+
 	kdc_uha[unit].kdc_state = DC_BUSY;
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	scsi_attachdevs(&(uha->sc_link));
+	scsi_attachdevs(scbus);
 
 	return 1;
 }

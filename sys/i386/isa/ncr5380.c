@@ -495,6 +495,7 @@ int nca_attach (struct isa_device *dev)
 {
 	int unit = dev->id_unit;
 	adapter_t *z = &ncadata[unit];
+	struct scsibus_data *scbus;
 
 	sprintf (nca_description, "%s SCSI controller", z->name);
 	printf ("nca%d: type %s%s\n", unit, z->name,
@@ -506,9 +507,18 @@ int nca_attach (struct isa_device *dev)
 	z->sc_link.adapter = &nca_switch;
 	z->sc_link.device = &nca_dev;
 
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+	        return 0;
+	scbus->adapter_link = &z->sc_link;
+
 	/* ask the adapter what subunits are present */
 	nca_kdc[unit].kdc_state = DC_BUSY;
-	scsi_attachdevs (&(z->sc_link));
+	scsi_attachdevs (scbus);
 
 	return (1);
 }
