@@ -419,6 +419,10 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp;
 
+	if (so->so_state & SS_ISDISCONNECTED) {
+		error = ECONNABORTED;
+		goto out;
+	}
 	COMMON_START();
 	in_setpeeraddr(so, nam);
 	COMMON_END(PRU_ACCEPT);
@@ -433,6 +437,10 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp;
 
+	if (so->so_state & SS_ISDISCONNECTED) {
+		error = ECONNABORTED;
+		goto out;
+	}
 	COMMON_START();
 	in6_mapped_peeraddr(so, nam);
 	COMMON_END(PRU_ACCEPT);
