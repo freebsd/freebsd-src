@@ -42,20 +42,24 @@ static const char rcsid[] =
 /*
  * Administrative tool to add a new user to the publickey database
  */
-#include <err.h>
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 #ifdef YP
+#include <sys/wait.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
-#include <sys/wait.h>
 #include <netdb.h>
 #endif	/* YP */
+#include <err.h>
 #include <pwd.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/resource.h>
+
+#include "extern.h"
 
 #ifdef YP
 #define MAXMAPNAMELEN 256
@@ -73,11 +77,8 @@ static const char rcsid[] =
 #endif
 
 #ifdef YP
-static char *basename();
-static char SHELL[] = "/bin/sh";
 static char YPDBPATH[]="/var/yp";
 static char PKMAP[] = "publickey.byname";
-static char UPDATEFILE[] = "updaters";
 #else
 static char PKFILE[] = "/etc/publickey";
 static char *err_string();
@@ -173,6 +174,7 @@ usage()
 /*
  * Set the entry in the public key file
  */
+int
 setpublicmap(name, public, secret)
 	char *name;
 	char *public;

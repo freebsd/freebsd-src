@@ -39,18 +39,22 @@ static const char rcsid[] =
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
 
+#include <sys/file.h>
+#include <rpc/rpc.h>
+#include <rpc/key_prot.h>
+#include <mp.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <rpc/rpc.h>
-#include <sys/file.h>
-#include <mp.h>
-#include <rpc/key_prot.h>
 
-static int adjust __P(( char[], char * ));
+#include "extern.h"
+
+static void adjust __P((char[], char *));
+static void getseed __P((char *, int, unsigned char *));
+
 /*
  * Generate a seed
  */
-static
+static void
 getseed(seed, seedsize, pass)
 	char *seed;
 	int seedsize;
@@ -66,12 +70,13 @@ getseed(seed, seedsize, pass)
 /*
  * Generate a random public/secret key pair
  */
+void
 genkeys(public, secret, pass)
 	char *public;
 	char *secret;
 	char *pass;
 {
-	int i;
+	unsigned int i;
 
 #   define BASEBITS (8*sizeof (short) - 1)
 #	define BASE		(1 << BASEBITS)
@@ -112,7 +117,7 @@ genkeys(public, secret, pass)
 /*
  * Adjust the input key so that it is 0-filled on the left
  */
-static
+static void
 adjust(keyout, keyin)
 	char keyout[HEXKEYBYTES+1];
 	char *keyin;
