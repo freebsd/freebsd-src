@@ -42,16 +42,13 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
  
 #include <net/ethernet.h> 
 #include <net/if.h> 
 #include <net/if_arp.h>
-#include <net/if_media.h>
 
 #include <machine/clock.h>
 
-#include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>
 #include <dev/pccard/pccardvar.h>
 
