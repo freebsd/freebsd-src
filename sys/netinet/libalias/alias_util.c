@@ -61,110 +61,100 @@ purposes);
 #include "alias_local.h"
 
 u_short
-LibAliasInternetChecksum(struct libalias *la, u_short *ptr, int nbytes)
+LibAliasInternetChecksum(struct libalias *la, u_short * ptr, int nbytes)
 {
-    int sum, oddbyte;
+	int sum, oddbyte;
 
-    sum = 0;
-    while (nbytes > 1)
-    {
-        sum += *ptr++;
-        nbytes -= 2;
-    }
-    if (nbytes == 1)
-    {
-        oddbyte = 0;
-        ((u_char *) &oddbyte)[0] = *(u_char *) ptr;
-        ((u_char *) &oddbyte)[1] = 0;
-        sum += oddbyte;
-    }
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
-    return(~sum);
+	sum = 0;
+	while (nbytes > 1) {
+		sum += *ptr++;
+		nbytes -= 2;
+	}
+	if (nbytes == 1) {
+		oddbyte = 0;
+		((u_char *) & oddbyte)[0] = *(u_char *) ptr;
+		((u_char *) & oddbyte)[1] = 0;
+		sum += oddbyte;
+	}
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+	return (~sum);
 }
 
 u_short
 IpChecksum(struct ip *pip)
 {
-    return( PacketAliasInternetChecksum((u_short *) pip,
-            (pip->ip_hl << 2)) );
+	return (PacketAliasInternetChecksum((u_short *) pip,
+	    (pip->ip_hl << 2)));
 
 }
 
 u_short
 TcpChecksum(struct ip *pip)
 {
-    u_short *ptr;
-    struct tcphdr *tc;
-    int nhdr, ntcp, nbytes;
-    int sum, oddbyte;
+	u_short *ptr;
+	struct tcphdr *tc;
+	int nhdr, ntcp, nbytes;
+	int sum, oddbyte;
 
-    nhdr = pip->ip_hl << 2;
-    ntcp = ntohs(pip->ip_len) - nhdr;
+	nhdr = pip->ip_hl << 2;
+	ntcp = ntohs(pip->ip_len) - nhdr;
 
-    tc = (struct tcphdr *) ((char *) pip + nhdr);
-    ptr = (u_short *) tc;
+	tc = (struct tcphdr *)((char *)pip + nhdr);
+	ptr = (u_short *) tc;
 
 /* Add up TCP header and data */
-    nbytes = ntcp;
-    sum = 0;
-    while (nbytes > 1)
-    {
-        sum += *ptr++;
-        nbytes -= 2;
-    }
-    if (nbytes == 1)
-    {
-        oddbyte = 0;
-        ((u_char *) &oddbyte)[0] = *(u_char *) ptr;
-        ((u_char *) &oddbyte)[1] = 0;
-        sum += oddbyte;
-    }
-
+	nbytes = ntcp;
+	sum = 0;
+	while (nbytes > 1) {
+		sum += *ptr++;
+		nbytes -= 2;
+	}
+	if (nbytes == 1) {
+		oddbyte = 0;
+		((u_char *) & oddbyte)[0] = *(u_char *) ptr;
+		((u_char *) & oddbyte)[1] = 0;
+		sum += oddbyte;
+	}
 /* "Pseudo-header" data */
-    ptr = (u_short *) &(pip->ip_dst);
-    sum += *ptr++;
-    sum += *ptr;
-    ptr = (u_short *) &(pip->ip_src);
-    sum += *ptr++;
-    sum += *ptr;
-    sum += htons((u_short) ntcp);
-    sum += htons((u_short) pip->ip_p);
+	ptr = (u_short *) & (pip->ip_dst);
+	sum += *ptr++;
+	sum += *ptr;
+	ptr = (u_short *) & (pip->ip_src);
+	sum += *ptr++;
+	sum += *ptr;
+	sum += htons((u_short) ntcp);
+	sum += htons((u_short) pip->ip_p);
 
 /* Roll over carry bits */
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
 
 /* Return checksum */
-    return((u_short) ~sum);
+	return ((u_short) ~ sum);
 }
 
 
 void
-DifferentialChecksum(u_short *cksum, u_short *new, u_short *old, int n)
+DifferentialChecksum(u_short * cksum, u_short * new, u_short * old, int n)
 {
-    int i;
-    int accumulate;
+	int i;
+	int accumulate;
 
-    accumulate = *cksum;
-    for (i=0; i<n; i++)
-    {
-        accumulate -= *new++;
-        accumulate += *old++;
-    }
+	accumulate = *cksum;
+	for (i = 0; i < n; i++) {
+		accumulate -= *new++;
+		accumulate += *old++;
+	}
 
-    if (accumulate < 0)
-    {
-        accumulate = -accumulate;
-        accumulate = (accumulate >> 16) + (accumulate & 0xffff);
-        accumulate += accumulate >> 16;
-        *cksum = (u_short) ~accumulate;
-    }
-    else
-    {
-        accumulate = (accumulate >> 16) + (accumulate & 0xffff);
-        accumulate += accumulate >> 16;
-        *cksum = (u_short) accumulate;
-    }
+	if (accumulate < 0) {
+		accumulate = -accumulate;
+		accumulate = (accumulate >> 16) + (accumulate & 0xffff);
+		accumulate += accumulate >> 16;
+		*cksum = (u_short) ~ accumulate;
+	} else {
+		accumulate = (accumulate >> 16) + (accumulate & 0xffff);
+		accumulate += accumulate >> 16;
+		*cksum = (u_short) accumulate;
+	}
 }
-
