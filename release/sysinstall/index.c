@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.39 1996/12/09 08:22:13 jkh Exp $
+ * $Id: index.c,v 1.40 1996/12/11 09:35:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -67,11 +67,13 @@ static char *descrs[] = {
     "If not, select Cancel to go back to the package selection menu.\n",
     "All", "All available packages in all categories.",
     "applications", "User application software.",
+    "astro", "Applications related to astronomy.",
     "archivers", "Utilities for archiving and unarchiving data.",
     "audio", "Audio utilities - most require a supported sound card.",
     "benchmarks", "Utilities for measuring system performance.",
     "benchmarking", "Utilities for measuring system performance.",
     "cad", "Computer Aided Design utilities.",
+    "chinese", "Ported software for the Chinese market.",
     "comms", "Communications utilities.",
     "databases", "Database software.",
     "devel", "Software development utilities and libraries.",
@@ -88,6 +90,7 @@ static char *descrs[] = {
     "libraries", "Software development libraries.",
     "mail", "Electronic mail packages and utilities.",
     "math", "Mathematical computation software.",
+    "mbone", "Applications and utilities for the mbone.",
     "misc", "Miscellaneous utilities.",
     "net", "Networking utilities.",
     "networking", "Networking utilities.",
@@ -106,6 +109,7 @@ static char *descrs[] = {
     "troff", "TROFF Text formatting utilities.",
     "utils", "Various user utilities.",
     "utilities", "Various user utilities.",
+    "vietnamese", "Ported software for the Vietnamese market.",
     "x11", "X Window System based utilities.",
     NULL, NULL,
 };
