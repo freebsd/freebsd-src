@@ -71,6 +71,16 @@ static int pcic_resume_reset =
 SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW, 
 	&pcic_resume_reset, 0, "");
 
+static int apm_pccard_resume =
+#ifdef APM_PCCARD_RESUME
+	1;
+#else
+	0;
+#endif
+
+SYSCTL_INT(_machdep_pccard, OID_AUTO, apm_pccard_resume, CTLFLAG_RW, 
+	&apm_pccard_resume, 0, "");
+
 #define	PCCARD_MEMSIZE	(4*1024)
 
 #define MIN(a,b)	((a)<(b)?(a):(b))
@@ -346,7 +356,7 @@ slot_suspend(void *arg)
 	struct pccard_dev *dp;
 
 	for (dp = sp->devices; dp; dp = dp->next)
-		(void) dp->drv->suspend(dp);
+		(void)dp->drv->suspend(dp);
 	if (!sp->suspend_power)
 		sp->ctrl->disable(sp);
 	return (0);
@@ -356,17 +366,32 @@ static int
 slot_resume(void *arg)
 {
 	struct slot *sp = arg;
-	struct pccard_dev *dp;
 
 	if (pcic_resume_reset)
 		sp->ctrl->resume(sp);
+	if (apm_pccard_resume) {
+		/* Fake card removal/insertion events */
+		if (sp->state == filled) {
+			int s;
 
-	if (!sp->suspend_power)
-		sp->ctrl->power(sp);
-	if (sp->irq)
-		sp->ctrl->mapirq(sp, sp->irq);
-	for (dp = sp->devices; dp; dp = dp->next)
-		(void) dp->drv->init(dp, 0);
+			s = splhigh();
+			disable_slot(sp);
+			sp->state = empty;
+			splx(s);
+			sp->insert_seq = 1;
+			sp->insert_ch = timeout(inserted, (void *)sp, hz);
+			selwakeup(&sp->selp);
+		}
+	} else {
+		struct pccard_dev *dp;
+
+		if (!sp->suspend_power)
+			sp->ctrl->power(sp);
+		if (sp->irq)
+			sp->ctrl->mapirq(sp, sp->irq);
+		for (dp = sp->devices; dp; dp = dp->next)
+			(void)dp->drv->init(dp, 0);
+	}
 	return (0);
 }
 #endif	/* NAPM > 0 */
