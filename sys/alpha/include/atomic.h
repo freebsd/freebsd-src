@@ -356,6 +356,7 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 
 	__asm __volatile (
 		"1:\tldl_l %0, %4\n\t"		/* load old value */
+		"zapnot  %0,0xf,%0\n\t"		/* Chop of signed bits */
 		"cmpeq %0, %2, %0\n\t"		/* compare */
 		"beq %0, 2f\n\t"		/* exit if not equal */
 		"mov %3, %0\n\t"		/* value to store */
