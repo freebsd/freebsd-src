@@ -38,7 +38,6 @@
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/mtio.h>
-#include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #include <machine/bus.h>
 #include <dev/ata/ata-all.h>
@@ -125,12 +124,12 @@ astattach(struct ata_device *atadev)
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_TAPE);
-    dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 0),
+    dev = make_dev(&ast_cdevsw, 2 * stp->lun,
 		   UID_ROOT, GID_OPERATOR, 0640, "ast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 256 * DEV_BSIZE;
     stp->dev1 = dev;
-    dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 1),
+    dev = make_dev(&ast_cdevsw, 2 * stp->lun + 1,
 		   UID_ROOT, GID_OPERATOR, 0640, "nast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 256 * DEV_BSIZE;
