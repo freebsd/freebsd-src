@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.26 1997/06/02 10:51:34 kato Exp $
+ *	$Id: sio.c,v 1.27 1997/06/04 10:27:53 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -441,7 +441,7 @@ static struct cdevsw sio_cdevsw = {
 };
 
 static	int	comconsole = -1;
-static	volatile speed_t	comdefaultrate = TTYDEF_SPEED;
+static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
 static	int	sio_timeout;
