@@ -60,6 +60,7 @@ int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
 #ifdef INVARIANT_SUPPORT
 void	_sx_assert(struct sx *sx, int what, const char *file, int line);
+#endif
 
 struct sx_args {
 	struct sx 	*sa_sx;
@@ -73,7 +74,6 @@ struct sx_args {
 	};								\
 	SYSINIT(name##_sx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_sysinit, &name##_args)
-#endif
 
 #define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
