@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.100 1998/08/24 07:47:39 dfr Exp $
+ * $Id: ip_input.c,v 1.101 1998/09/10 08:56:40 dfr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -224,9 +224,6 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
-#ifdef IPFIREWALL
-	ip_fw_init();
-#endif
 #ifdef IPNAT
         ip_nat_init(); 
 #endif

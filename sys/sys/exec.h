@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.17 1997/09/16 11:44:04 bde Exp $
+ * $Id: exec.h,v 1.18 1998/03/02 05:47:40 peter Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -78,6 +78,43 @@ struct execsw {
 
 int exec_map_first_page __P((struct image_params *));        
 void exec_unmap_first_page __P((struct image_params *));       
+
+int exec_register __P((const struct execsw *));
+int exec_unregister __P((const struct execsw *));
+
+#ifndef LKM
+#include <sys/module.h>
+#define EXEC_SET(name, execsw_arg) \
+	static int name ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
+	{ \
+		struct execsw *exec = (struct execsw *)data; \
+		int error = 0; \
+		switch (type) { \
+		case MOD_LOAD: \
+			/* printf(#name " module loaded\n"); */ \
+			error = exec_register(exec); \
+			if (error) \
+				printf(#name "register failed\n"); \
+			break; \
+		case MOD_UNLOAD: \
+			/* printf(#name " module unloaded\n"); */ \
+			error = exec_unregister(exec); \
+			if (error) \
+				printf(#name " unregister failed\n"); \
+			break; \
+		default: \
+			break; \
+		} \
+		return error; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)& execsw_arg \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
+#endif
 #endif
 
 #endif

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.35 1998/10/05 16:37:36 jfieber Exp $
+ *  $Id: linux_sysvec.c,v 1.36 1998/10/11 21:08:02 alex Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -52,6 +52,7 @@
 #include <vm/vm_extern.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <machine/cpu.h>
 
 #include <i386/linux/linux.h>
@@ -447,31 +448,49 @@ Elf32_Brandinfo *linux_brandlist[] = {
 					NULL
 				};
 
-#ifndef LKM
 /*
  * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
  * "proof of concept" stage and will be fixed shortly
  */
-static void linux_elf_init __P((void *dummy));
+static int linux_elf_modevent __P((module_t mod, modeventtype_t type, void *data));
 
-static void
-linux_elf_init(dummy)
-	void *dummy;
+static int
+linux_elf_modevent(module_t mod, modeventtype_t type, void *data)
 {
 	Elf32_Brandinfo **brandinfo;
 	int error;
 
 	error = 0;
 
-	for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL; ++brandinfo)
-		if (elf_insert_brand_entry(*brandinfo) < 0)
-			error = 1;
-
-	if (error)
-		printf("cannot insert Linux elf brand handler\n");
-	else if (bootverbose)
-		printf("Linux-ELF exec handler installed\n");
+	switch(type) {
+	case MOD_LOAD:
+		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
+		    ++brandinfo)
+			if (elf_insert_brand_entry(*brandinfo) < 0)
+				error = EINVAL;
+		if (error)
+			printf("cannot insert Linux elf brand handler\n");
+		else if (bootverbose)
+			printf("Linux-ELF exec handler installed\n");
+		break;
+	case MOD_UNLOAD:
+		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
+		    ++brandinfo)
+			if (elf_remove_brand_entry(*brandinfo) < 0)
+				error = EINVAL;
+		if (error)
+			printf("Could not deinstall ELF interpreter entry\n");
+		else if (bootverbose)
+			printf("Linux-elf exec handler removed\n");
+		break;
+	default:
+		break;
+	}
+	return error;
 }
-
-SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, linux_elf_init, NULL);
-#endif
+static moduledata_t linux_elf_mod = {
+	"linuxelf",
+	linux_elf_modevent,
+	0
+};
+DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.73 1998/09/10 02:27:52 tegge Exp $
+ * $Id: vnode.h,v 1.74 1998/09/11 18:50:16 rvb Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -256,10 +256,11 @@ extern int		vttoif_tab[];
 
 #define	NULLVP	((struct vnode *)NULL)
 
-#ifdef VFS_LKM
+#if defined(VFS_LKM) && !defined(KLD_MODULE)
 #define	VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
 #else
-#define	VNODEOP_SET(f) DATA_SET(vfs_opv_descs_,f)
+#define	VNODEOP_SET(f) \
+	SYSINIT(f##init, SI_SUB_VFS, SI_ORDER_SECOND, vfs_mod_opv_init, &f);
 #endif
 
 /*
@@ -487,7 +488,8 @@ void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
-void	vfs_opv_init __P((struct vnodeopv_desc **them));
+void	vfs_opv_init __P((struct vnodeopv_desc *opv));
+void	vfs_mod_opv_init __P((void *handle));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void 	vgone __P((struct vnode *vp));

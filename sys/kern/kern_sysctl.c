@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.76 1998/09/05 14:30:10 bde Exp $
+ * $Id: kern_sysctl.c,v 1.77 1998/09/05 17:13:27 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -82,6 +82,8 @@ sysctl_order_cmp(const void *a, const void *b)
 
 	pa = (struct sysctl_oid const * const *)a;
 	pb = (struct sysctl_oid const * const *)b;
+	if (*pa == NULL && *pb == NULL)
+		return 0;
 	if (*pa == NULL)
 		return (1);
 	if (*pb == NULL)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.85 1998/08/24 08:39:38 dfr Exp $
+ *	$Id: kern_exec.c,v 1.86 1998/09/04 08:06:55 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
+#include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
@@ -71,11 +72,10 @@ SYSCTL_INTPTR(_kern, KERN_PS_STRINGS, ps_strings, 0, &ps_strings, 0, "");
 static caddr_t usrstack = (caddr_t)USRSTACK;
 SYSCTL_INTPTR(_kern, KERN_USRSTACK, usrstack, 0, &usrstack, 0, "");
 /*
- * execsw_set is constructed for us by the linker.  Each of the items
- * is a pointer to a `const struct execsw', hence the double pointer here.
+ * Each of the items is a pointer to a `const struct execsw', hence the
+ * double pointer here.
  */
-static const struct execsw **execsw = 
-	(const struct execsw **)&execsw_set.ls_items[0];
+static const struct execsw **execsw;
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {
@@ -694,4 +694,65 @@ exec_check_permissions(imgp)
 		return (error);
 
 	return (0);
+}
+
+/*
+ * Exec handler registration
+ */
+int
+exec_register(execsw_arg)
+	const struct execsw *execsw_arg;
+{
+	const struct execsw **es, **xs, **newexecsw;
+	int count = 2;	/* New slot and trailing NULL */
+
+	if (execsw)
+		for (es = execsw; *es; es++)
+			count++;
+	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
+	if (newexecsw == NULL)
+		return ENOMEM;
+	xs = newexecsw;
+	if (execsw)
+		for (es = execsw; *es; es++)
+			*xs++ = *es;
+	*xs++ = execsw_arg;
+	*xs = NULL;
+	if (execsw)
+		free(execsw, M_TEMP);
+	execsw = newexecsw;
+	return 0;
+}
+
+int
+exec_unregister(execsw_arg)
+	const struct execsw *execsw_arg;
+{
+	const struct execsw **es, **xs, **newexecsw;
+	int count = 1;
+
+	if (execsw == NULL)
+		panic("unregister with no handlers left?\n");
+
+	for (es = execsw; *es; es++) {
+		if (*es == execsw_arg)
+			break;
+	}
+	if (*es == NULL)
+		return ENOENT;
+	for (es = execsw; *es; es++)
+		if (*es != execsw_arg)
+			count++;
+	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
+	if (newexecsw == NULL)
+		return ENOMEM;
+	xs = newexecsw;
+	for (es = execsw; *es; es++)
+		if (*es != execsw_arg)
+			*xs++ = *es;
+	*xs = NULL;
+	if (execsw)
+		free(execsw, M_TEMP);
+	execsw = newexecsw;
+	return 0;
 }

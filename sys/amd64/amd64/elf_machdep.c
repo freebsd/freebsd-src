@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.1 1998/10/09 20:35:45 peter Exp $
+ *      $Id: elf_machdep.c,v 1.2 1998/10/09 20:38:03 peter Exp $
  */
 
 #include <sys/param.h>
@@ -38,38 +38,61 @@
 
 /* Process one elf relocation with addend. */
 int
-elf_reloc(linker_file_t lf, const Elf_Rela *rela, const char *sym)
+elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
-	Elf_Addr *where = (Elf_Addr *) (relocbase + rela->r_offset);
+	Elf_Addr *where;
 	Elf_Addr addr, tmp_value;
+	Elf_Addr addend;
+	Elf_Word rtype;
+	const Elf_Rel *rel;
+	const Elf_Rela *rela;
 
-	switch (ELF_R_TYPE(rela->r_info)) {
+	switch (type) {
+	case ELF_RELOC_REL:
+		rel = (Elf_Rel *)data;
+		where = (Elf_Addr *) (relocbase + rel->r_offset);
+		addend = *where;
+		rtype = ELF_R_TYPE(rel->r_info);
+		break;
+	case ELF_RELOC_RELA:
+		rela = (Elf_Rela *)data;
+		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		break;
+	default:
+		panic("unknown reloc type %d\n", type);
+	}
 
-		case R_386_NONE:
+	switch (rtype) {
+
+		case R_386_NONE:	/* none */
 			break;
 
-		case R_386_32:
+		case R_386_32:		/* S + A */
+			if (sym == NULL)
+				return -1;
 			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
 			if (addr == NULL)
 				return -1;
-
-			addr += rela->r_addend;
+			addr += addend;
 			if (*where != addr)
 				*where = addr;
 			break;
 
-		case R_386_PC32:
+		case R_386_PC32:	/* S + A - P */
+			if (sym == NULL)
+				return -1;
 			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
 			if (addr == NULL)
 				return -1;
-
-			addr += *where - (Elf_Addr)where + rela->r_addend;
+			addr += addend - (Elf_Addr)where;
 			if (*where != addr)
 				*where = addr;
 			break;
 
-		case R_386_COPY:
+		case R_386_COPY:	/* none */
 			/*
 			 * There shouldn't be copy relocations in kernel
 			 * objects.
@@ -78,22 +101,25 @@ elf_reloc(linker_file_t lf, const Elf_Rela *rela, const char *sym)
 			return -1;
 			break;
 
-		case R_386_GLOB_DAT:
+		case R_386_GLOB_DAT:	/* S */
+			if (sym == NULL)
+				return -1;
 			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
 			if (addr == NULL)
 				return -1;
-
 			if (*where != addr)
 				*where = addr;
 			break;
 
-		case R_386_RELATIVE:
-			*where += relocbase;
+		case R_386_RELATIVE:	/* B + A */
+			addr = relocbase + addend;
+			if (*where != addr)
+				*where = addr;
 			break;
 
 		default:
 			printf("kldload: unexpected relocation type %d\n",
-			       ELF_R_TYPE(rela->r_info));
+			       rtype);
 			return -1;
 	}
 	return(0);
