@@ -23,10 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.c,v 1.1.1.2 1996/12/09 23:55:20 joerg Exp $
+ *	$Id: pw.c,v 1.1.1.3 1996/12/10 23:58:58 joerg Exp $
  */
 
 #include "pw.h"
+#include <paths.h>
+#include <sys/wait.h>
 
 static char    *progname = "pw";
 
@@ -58,16 +60,16 @@ main(int argc, char *argv[])
 	static const char *opts[W_NUM][M_NUM] =
 	{
 		{ /* user */
-			"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NP",
-			"C:qn:u:r",
-			"C:qn:u:c:d:e:p:g:G:mk:s:w:L:h:FNP",
+			"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
+			"C:qn:u:rY",
+			"C:qn:u:c:d:e:p:g:G:mk:s:w:L:h:FNPY",
 			"C:qn:u:FPa",
 			"C:q"
 		},
 		{ /* grp  */
-			"C:qn:g:h:M:pNP",
-			"C:qn:g:",
-			"C:qn:g:l:h:FM:m:NP",
+			"C:qn:g:h:M:pNPY",
+			"C:qn:g:Y",
+			"C:qn:g:l:h:FM:m:NPY",
 			"C:qn:g:FPa",
 			"C:q"
 		 }
@@ -150,7 +152,34 @@ main(int argc, char *argv[])
 	 * Now, let's do the common initialisation
 	 */
 	cnf = read_userconfig(getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL);
-	return funcs[which] (cnf, mode, &arglist);
+	ch = funcs[which] (cnf, mode, &arglist);
+
+	/*
+	 * If everything went ok, and we've been asked to update
+	 * the NIS maps, then do it now
+	 */
+	if (ch == EXIT_SUCCESS && getarg(&arglist, 'Y') != NULL) {
+		pid_t	pid;
+
+		fflush(NULL);
+		if (chdir(_PATH_YP) == -1)
+			perror("chdir(" _PATH_YP ")");
+		else if ((pid = fork()) == -1)
+			perror("fork()");
+		else if (pid == 0) {
+			/* Is make anywhere else? */
+			execlp("/usr/bin/make", "make", NULL);
+			_exit(1);
+		} else {
+			int   i;
+			waitpid(pid, &i, 0);
+			if ((i = WEXITSTATUS(i)) != 0)
+				cmderr(ch, "warning: make exited with status %d\n", i);
+			else
+				pw_log(cnf, mode, which, "NIS maps updated");
+		}
+	}
+	return ch;
 }
 
 static int
@@ -225,6 +254,7 @@ cmdhelp(int mode, int which)
 				"\t-o             duplicate uid ok\n"
 				"\t-L class       user class\n"
 				"\t-h fd          read password on fd\n"
+				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
 				"\t-D             set user defaults\n"
@@ -238,10 +268,12 @@ cmdhelp(int mode, int which)
 				"\t-u min,max     set min,max uids\n"
 				"\t-i min,max     set min,max gids\n"
 				"\t-w method      set default password method\n"
-				"\t-s shell       default shell\n",
+				"\t-s shell       default shell\n"
+				"\t-y path        set NIS passwd file path\n",
 				"usage: %s userdel [uid|name] [switches]\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
+				"\t-Y             update NIS maps\n"
 				"\t-r             remove home & contents\n",
 				"usage: %s usermod [uid|name] [switches]\n"
 				"\t-C config      configuration file\n"
@@ -261,6 +293,7 @@ cmdhelp(int mode, int which)
 				"\t-s shell       name of login shell\n"
 				"\t-w method      set new password using method\n"
 				"\t-h fd          read password on fd\n"
+				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: %s usershow [uid|name] [switches]\n"
 				"\t-n name        login name\n"
@@ -279,10 +312,12 @@ cmdhelp(int mode, int which)
 				"\t-g gid         group id\n"
 				"\t-M usr1,usr2   add users as group members\n"
 				"\t-o             duplicate gid ok\n"
+				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: %s groupdel [group|gid] [switches]\n"
 				"\t-n name        group name\n"
-				"\t-g gid         group id\n",
+				"\t-g gid         group id\n"
+				"\t-Y             update NIS maps\n",
 				"usage: %s groupmod [group|gid] [switches]\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
@@ -292,6 +327,7 @@ cmdhelp(int mode, int which)
 				"\t-M usr1,usr2   replaces users as group members\n"
 				"\t-m usr1,usr2   add users as group members\n"
 				"\t-l name        new group name\n"
+				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: %s groupshow [group|gid] [switches]\n"
 				"\t-n name        group name\n"

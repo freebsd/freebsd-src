@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.h,v 1.2 1996/12/19 15:22:42 davidn Exp $
+ *	$Id: pw.h,v 1.3 1996/12/21 15:35:42 davidn Exp $
  */
 
 #include <stdio.h>
@@ -72,6 +72,7 @@ struct userconf
 	int	default_password;	/* Default password for new users? */
 	int	reuse_uids;		/* Reuse uids? */
 	int	reuse_gids;		/* Reuse gids? */
+	char	*nispasswd;		/* Path to NIS version of the passwd file */
 	char	*dotdir;		/* Where to obtain skeleton files */
 	char	*newmail;		/* Mail to send to new accounts */
 	char	*logfile;		/* Where to log changes */
@@ -107,6 +108,10 @@ int addpwent(struct passwd * pwd);
 int delpwent(struct passwd * pwd);
 int chgpwent(char const * login, struct passwd * pwd);
 int fmtpwent(char *buf, struct passwd * pwd);
+
+int addnispwent(const char *path, struct passwd *pwd);
+int delnispwent(const char *path, const char *login);
+int chgnispwent(const char *path, const char *login, struct passwd *pwd);
 
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);

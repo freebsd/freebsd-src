@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pw.8,v 1.4 1996/12/11 00:07:19 joerg Exp $
+.\"	$Id: pw.8,v 1.5 1996/12/19 15:22:41 davidn Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW 8
@@ -52,10 +52,11 @@
 .Op Fl h Ar fd
 .Op Fl N
 .Op Fl P
+.Op Fl Y
 .Nm pw
 .Ar useradd
 .Op name|uid
-.Op Fl D
+.Fl D
 .Op Fl C Ar config
 .Op Fl q
 .Op Fl b Ar dir
@@ -68,12 +69,14 @@
 .Op Fl i Ar min,max
 .Op Fl w Ar method
 .Op Fl s Ar shell
+.Op Fl y Ar path
 .Nm pw
 .Ar userdel
 .Op name|uid
 .Op Fl n Ar name
 .Op Fl u Ar uid
 .Op Fl r
+.Op Fl Y
 .Nm pw
 .Ar usermod
 .Op name|uid
@@ -96,6 +99,7 @@
 .Op Fl h Ar fd
 .Op Fl N
 .Op Fl P
+.Op Fl Y
 .Nm pw
 .Ar usershow
 .Op name|uid
@@ -120,10 +124,12 @@
 .Op Fl h Ar fd
 .Op Fl N
 .Op Fl P
+.Op Fl Y
 .Nm pw
 .Ar groupdel
 .Op Fl n Ar name
 .Op Fl g Ar gid
+.Op Fl Y
 .Nm pw
 .Ar groupmod
 .Op Fl C Ar config
@@ -137,6 +143,7 @@
 .Op Fl h Ar fd
 .Op Fl N
 .Op Fl P
+.Op Fl Y
 .Nm pw
 .Ar groupshow
 .Op Fl n Ar name
@@ -194,7 +201,7 @@ id as an alternative to using the
 .Fl g Ar gid
 options.
 .Pp
-The following flags are common to all modes of operation:
+The following flags are common to all or most modes of operation:
 .Pp
 .Bl -tag -width "-G grouplist"
 .It Fl C Ar config
@@ -224,6 +231,19 @@ of the operation without actually performing it.
 You may use the
 .Fl P
 option to switch between standard passwd and readable formats.
+.It Fl Y
+Using this option with any of the update modes causes
+.Nm pw
+to run
+.Xr make 1
+after changing to the directory
+.Pa /var/yp .
+This is intended to allow automatic updating of the NIS database files.
+If separate passwd and group files are being used by NIS, then use the
+.Fl y Ar path
+option to specify the location of the NIS passwd database so that pw
+will automatically update it concurrently with the system password
+databases.
 .El
 .Pp
 .Sh USER OPTIONS
@@ -558,6 +578,12 @@ The
 method requires that the superuser use
 .Xr passwd 1
 to render the account accessible with a password.
+.It Fl y Ar path
+This sets the pathname of the database used by NIS if you are not sharing
+the information from
+.Pa /etc/master.passwd
+directly with NIS.
+You should only set this option on NIS servers.
 .El
 .Pp
 The
