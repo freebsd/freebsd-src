@@ -77,6 +77,14 @@
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
+/*
+ * set_disable contains one bit per set value (0..31).
+ * If the bit is set, all rules with the corresponding set
+ * are disabled. Set 31 is reserved for the default rule
+ * and CANNOT be disabled.
+ */
+static u_int32_t set_disable;
+
 static int fw_verbose;
 static int verbose_limit;
 
@@ -1371,6 +1379,9 @@ after_ip_checks:
 		int skip_or; /* skip rest of OR block */
 
 again:
+		if (set_disable & (1 << f->set) )
+			continue;
+
 		skip_or = 0;
 		for (l = f->cmd_len, cmd = f->cmd ; l > 0 ;
 		    l -= cmdlen, cmd += cmdlen) {
@@ -1863,6 +1874,8 @@ check_body:
 next_rule:;		/* try next rule		*/
 	    
 	}		/* end of outer for, scan rules */
+	printf("+++ ipfw: ouch!, skip past end of rules, denying packet\n");
+	return(IP_FW_PORT_DENY_FLAG);
 
 done:
 	/* Update statistics */
@@ -2042,34 +2055,86 @@ free_chain(struct ip_fw **chain, int kill_default)
 }
 
 /**
- * Remove all rules with given number.
+ * Remove all rules with given number, and also do set manipulation.
+ *
+ * The argument is an int. The low 16 bit are the
+ * rule or set number, the upper 16 bits are the
+ * function, namely:
+ * 
+ *      0       DEL_SINGLE_RULE
+ *      1       DELETE_RULESET
+ *      2       DISABLE_SET
+ *      3       ENABLE_SET
  */
 static int
-del_entry(struct ip_fw **chain, u_short rulenum)
+del_entry(struct ip_fw **chain, u_int32_t arg)
 {
 	struct ip_fw *prev, *rule;
 	int s;
+	
+	u_int16_t rulenum, cmd;
 
-	if (rulenum == IPFW_DEFAULT_RULE)
+	rulenum = arg & 0xffff;
+	cmd = (arg >> 16) & 0xffff;
+
+	if (cmd > 3)
+		return EINVAL;
+	if (cmd == 0 && rulenum == IPFW_DEFAULT_RULE)
 		return EINVAL;
 	
-	/*
-	 * locate first rule to delete
-	 */
-	for (prev = NULL, rule = *chain; rule && rule->rulenum < rulenum;
-	     prev = rule, rule = rule->next)
-		;
-	if (rule->rulenum != rulenum)
+	if (cmd != 0 && rulenum > 30) {
+		printf("ipfw: del_entry: invalid set number %d\n",
+			rulenum);
 		return EINVAL;
+	}
 
-	s = splimp(); /* no access to rules while removing */
-	flush_rule_ptrs(); /* more efficient to do outside the loop */
-	/*
-	 * prev remains the same throughout the cycle
-	 */
-	while (rule && rule->rulenum == rulenum)
-		rule = delete_rule(chain, prev, rule);
-	splx(s);
+	switch (cmd) {
+	case 0:	/* DEL_SINGLE_RULE */
+		/*
+		 * locate first rule to delete
+		 */
+		for (prev = NULL, rule = *chain;
+		    rule && rule->rulenum < rulenum;
+		     prev = rule, rule = rule->next)
+			;
+		if (rule->rulenum != rulenum)
+			return EINVAL;
+
+		s = splimp(); /* no access to rules while removing */
+		flush_rule_ptrs(); /* more efficient to do outside the loop */
+		/*
+		 * prev remains the same throughout the cycle
+		 */
+		while (rule && rule->rulenum == rulenum)
+			rule = delete_rule(chain, prev, rule);
+		splx(s);
+		break;
+
+	case 1:	/* DELETE_RULESET */
+		s = splimp(); /* no access to rules while removing */
+		flush_rule_ptrs(); /* more efficient to do outside the loop */
+		for (prev = NULL, rule = *chain; rule ; )
+			if (rule->set == rulenum)
+				rule = delete_rule(chain, prev, rule);
+			else {
+				prev = rule;
+				rule = rule->next;
+			}
+		splx(s);
+		break;
+
+	case 2:	/* DISABLE SET */
+		s = splimp();
+		set_disable |= 1 << rulenum;
+		splx(s);
+		break;
+
+	case 3:	/* ENABLE SET */
+		s = splimp();
+		set_disable &= ~(1 << rulenum);
+		splx(s);
+		break;
+	}
 	return 0;
 }
 
@@ -2379,6 +2444,11 @@ ipfw_ctl(struct sockopt *sopt)
 		for (rule = layer3_chain; rule ; rule = rule->next) {
 			int i = RULESIZE(rule);
 			bcopy(rule, bp, i);
+			/*
+			 * abuse 'next_rule' to store the set_disable word
+			 */
+			(u_int32_t)(((struct ip_fw *)bp)->next_rule) =
+				set_disable;
 			bp = (struct ip_fw *)((char *)bp + i);
 		}
 		if (ipfw_dyn_v) {
@@ -2446,6 +2516,12 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	case IP_FW_DEL: /* argument is an int, the rule number */
+		/*
+		 * IP_FW_DEL is used for deleting single rules,
+		 * set of rules, and manipulating set_disable.
+		 *
+		 * Everything is managed in del_entry();
+		 */
 		error = sooptcopyin(sopt, &rulenum, sizeof(int), sizeof(int));
 		if (error)
 			break;
@@ -2535,6 +2611,7 @@ ipfw_init(void)
 	default_rule.act_ofs = 0;
 	default_rule.rulenum = IPFW_DEFAULT_RULE;
 	default_rule.cmd_len = 1;
+	default_rule.set = 31;
 
 	default_rule.cmd[0].len = 1;
 	default_rule.cmd[0].opcode =

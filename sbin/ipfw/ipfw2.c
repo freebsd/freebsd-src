@@ -65,6 +65,7 @@ int		s,			/* main RAW socket */
 		do_sort,		/* field to sort results (0 = no) */
 		do_dynamic,		/* display dynamic rules */
 		do_expired,		/* display expired dynamic rules */
+		show_sets,		/* display rule sets */
 		verbose;
 
 #define	IP_MASK_ALL	0xffffffff
@@ -410,34 +411,45 @@ print_newports(ipfw_insn_u16 *cmd, int proto)
  *	proto == -1 disables the protocol check;
  *	proto == IPPROTO_ETHERTYPE looks up an internal table
  *	proto == <some value in /etc/protocols> matches the values there.
+ * Returns *end == s in case the parameter is not found.
  */
 static int
 strtoport(char *s, char **end, int base, int proto)
 {
-	char *s1, sep;
+	char *p, *buf;
+	char *s1;
 	int i;
 
+	*end = s;		/* default - not found */
 	if ( *s == '\0')
-		goto none;
-		
+		return 0;	/* not found */
+ 
 	if (isdigit(*s))
 		return strtol(s, end, base);
 
 	/*
-	 * find separator and replace with a '\0'
+	 * find separator. '\\' escapes the next char.
 	 */
-	for (s1 = s; *s1 && isalnum(*s1) ; s1++)
-		;
-	sep = *s1;
-	*s1 = '\0';
+	for (s1 = s; *s1 && (isalnum(*s1) || *s1 == '\\') ; s1++)
+		if (*s1 == '\\' && s1[1] != '\0')
+			s1++;
+
+	buf = malloc(s1 - s + 1);
+	if (buf == NULL)
+		return 0;
+
+	/*
+	 * copy into a buffer skipping backslashes
+	 */
+	for (p = s, i = 0; p != s1 ; p++)
+		if ( *p != '\\')
+			buf[i++] = *p;
+	buf[i++] = '\0';
 
 	if (proto == IPPROTO_ETHERTYPE) {
-		i = match_token(ether_types, s);
-		*s1 = sep;
-		if (i == -1) {	/* not found */
-			*end = s;
-			return 0;
-		} else {
+		i = match_token(ether_types, buf);
+		free(buf);
+		if (i != -1) {	/* found */
 			*end = s1;
 			return i;
 		}
@@ -448,16 +460,14 @@ strtoport(char *s, char **end, int base, int proto)
 		if (proto != 0)
 			pe = getprotobynumber(proto);
 		setservent(1);
-		se = getservbyname(s, pe ? pe->p_name : NULL);
-		*s1 = sep;
+		se = getservbyname(buf, pe ? pe->p_name : NULL);
+		free(buf);
 		if (se != NULL) {
 			*end = s1;
 			return ntohs(se->s_port);
 		}
 	}
-none:
-	*end = s;
-	return 0;
+	return 0;	/* not found */
 }
 
 /*
@@ -749,6 +759,14 @@ show_ipfw(struct ip_fw *rule)
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	int or_block = 0;	/* we are in an or block */
 
+	u_int32_t set_disable = (u_int32_t)(rule->next_rule);
+
+	if (set_disable & (1 << rule->set)) { /* disabled */
+		if (!show_sets)
+			return;
+		else
+			printf("# DISABLED ");
+	}
 	printf("%05u ", rule->rulenum);
 
 	if (do_acct)
@@ -766,6 +784,9 @@ show_ipfw(struct ip_fw *rule)
 			printf("			 ");
 		}
 	}
+
+	if (show_sets)
+		printf("set %d ", rule->set);
 
 	/*
 	 * first print actions
@@ -1332,6 +1353,23 @@ list(int ac, char *av[])
 	ac--;
 	av++;
 
+	if (ac && !strncmp(*av, "sets", strlen(*av)) ) {
+		int i;
+		u_int32_t set_disable;
+
+		nbytes = sizeof(struct ip_fw);
+		if ((data = malloc(nbytes)) == NULL)
+			err(EX_OSERR, "malloc");
+		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
+			err(EX_OSERR, "getsockopt(IP_FW_GET)");
+		set_disable = (u_int32_t)(((struct ip_fw *)data)->next_rule);
+
+		for (i = 0; i < 31; i++)
+			printf("%s set %d\n",
+			    set_disable & (1<<i) ? "disable" : "enable", i);
+		return;
+	}
+		
 	/* get rules or pipes from kernel, resizing array as necessary */
 	nbytes = nalloc;
 
@@ -1649,10 +1687,21 @@ delete(int ac, char *av[])
 	struct dn_pipe pipe;
 	int i;
 	int exitval = EX_OK;
+	int do_set = 0;
 
 	memset(&pipe, 0, sizeof pipe);
 
+	if (!strncmp(*av, "disable", strlen(*av)))
+		do_set = 2;	/* disable set */
+	else if (!strncmp(*av, "enable", strlen(*av)))
+		do_set = 3;	/* enable set */
 	av++; ac--;
+	if (!strncmp(*av, "set", strlen(*av))) {
+		if (do_set == 0)
+			do_set = 1;	/* delete set */
+		ac--; av++;
+	} else if (do_set != 0)
+		errx(EX_DATAERR, "missing 'set' keyword");
 
 	/* Rule number */
 	while (ac && isdigit(**av)) {
@@ -1671,7 +1720,7 @@ delete(int ac, char *av[])
 				    pipe.fs.fs_nr);
 			}
 		} else {
-			rulenum = i;
+			rulenum =  (i & 0xffff) | (do_set << 16);
 			i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rulenum,
 			    sizeof rulenum);
 			if (i) {
@@ -2192,6 +2241,15 @@ add(int ac, char *av[])
 		rule->rulenum = atoi(*av);
 		av++;
 		ac--;
+	}
+
+	/* [set N]	-- set number (0..30), optional */
+	if (ac > 1 && !strncmp(*av, "set", strlen(*av))) {
+		int set = strtoul(av[1], NULL, 10);
+		if (set < 0 || set > 30)
+			errx(EX_DATAERR, "illegal set %s", av[1]);
+		rule->set = set;
+		av += 2; ac -= 2;
 	}
 
 	/* [prob D]	-- match probability, optional */
@@ -2930,7 +2988,7 @@ ipfw_main(int ac, char **av)
 	do_force = !isatty(STDIN_FILENO);
 
 	optind = optreset = 1;
-	while ((ch = getopt(ac, av, "hs:adefNqtv")) != -1)
+	while ((ch = getopt(ac, av, "hs:adefNqStv")) != -1)
 		switch (ch) {
 		case 'h': /* help */
 			help();
@@ -2956,6 +3014,9 @@ ipfw_main(int ac, char **av)
 			break;
 		case 'q':
 			do_quiet = 1;
+			break;
+		case 'S':
+			show_sets = 1;
 			break;
 		case 't':
 			do_time = 1;
@@ -2999,7 +3060,9 @@ ipfw_main(int ac, char **av)
 		add(ac, av);
 	else if (do_pipe && !strncmp(*av, "config", strlen(*av)))
 		config_pipe(ac, av);
-	else if (!strncmp(*av, "delete", strlen(*av)))
+	else if (!strncmp(*av, "delete", strlen(*av))   ||
+	         !strncmp(*av, "disable", strlen(*av))  ||
+	         !strncmp(*av, "enable", strlen(*av)))
 		delete(ac, av);
 	else if (!strncmp(*av, "flush", strlen(*av)))
 		flush();
