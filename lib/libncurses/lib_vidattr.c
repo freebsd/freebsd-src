@@ -64,6 +64,8 @@ chtype		turn_off, turn_on;
 	T(("previous attribute was %s", _traceattr(previous_attr)));
 
 	if (newmode == A_NORMAL && exit_attribute_mode) {
+	    if((previous_attr & A_ALTCHARSET) && exit_alt_charset_mode)
+		    tputs(exit_alt_charset_mode, 1, outc);
 	    tputs(exit_attribute_mode, 1, outc);
 	    current_pair = -1;
 	    goto set_color;
