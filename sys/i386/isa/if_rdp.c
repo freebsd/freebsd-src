@@ -602,7 +602,6 @@ rdp_attach(struct isa_device *isa_dev)
 		ifp->if_softc = sc;
 		ifp->if_unit = unit;
 		ifp->if_name = "rdp";
-		ifp->if_output = ether_output;
 		ifp->if_start = rdp_start;
 		ifp->if_ioctl = rdp_ioctl;
 		ifp->if_watchdog = rdp_watchdog;
@@ -613,7 +612,7 @@ rdp_attach(struct isa_device *isa_dev)
 		/*
 		 * Attach the interface
 		 */
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	}
 
 	/*
@@ -807,9 +806,7 @@ outloop:
 	/*
 	 * Tap off here if there is a bpf listener.
 	 */
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m);
-	}
+	BPF_MTAP(ifp, m);
 
 	m_freem(m);
 
@@ -831,12 +828,6 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 	s = splimp();
 
 	switch (command) {
-
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 
 	case SIOCSIFFLAGS:
 		/*
@@ -873,7 +864,8 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 	(void) splx(s);
 	return (error);
@@ -1097,7 +1089,7 @@ rdp_rint(struct rdp_softc *sc)
 static void
 rdp_get_packet(struct rdp_softc *sc, unsigned len)
 {
-	struct ether_header *eh;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m;
 	u_char *packet_ptr;
 	size_t s;
@@ -1106,7 +1098,7 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
 	/*
@@ -1115,7 +1107,7 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	 * to the header. The +2 is to compensate for the alignment
 	 * fixup below.
 	 */
-	if ((len + 2) > MHLEN) {
+	if ((len + ETHER_ALIGN) > MHLEN) {
 		/* Attach an mbuf cluster */
 		MCLGET(m, M_DONTWAIT);
 
@@ -1130,8 +1122,7 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	 * The +2 is to longword align the start of the real packet.
 	 * This is important for NFS.
 	 */
-	m->m_data += 2;
-	eh = mtod(m, struct ether_header *);
+	m->m_data += ETHER_ALIGN;
 
 	/*
 	 * Get packet, including link layer address, from interface.
@@ -1139,7 +1130,7 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	outb(sc->baseaddr + lpt_control, Ctrl_LNibRead);
 	outb(sc->baseaddr + lpt_data, RdAddr + MAR);
 
-	packet_ptr = (u_char *)eh;
+	packet_ptr = mtod(m, u_char *);
 	if (sc->slow)
 		for (s = 0; s < len; s++, packet_ptr++)
 			*packet_ptr = RdByteA2(sc);
@@ -1151,13 +1142,7 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	outb(sc->baseaddr + lpt_control, Ctrl_SelData);
 	WrNib(sc, CMR1, CMR1_RDPAC);
 
-	/*
-	 * Remove link layer address.
-	 */
-	m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
-	m->m_data += sizeof(struct ether_header);
-
-	ether_input(&sc->arpcom.ac_if, eh, m);
+	(*ifp->if_input)(ifp, m);
 }
 
 /*

@@ -302,7 +302,7 @@ if_simloop(ifp, m, af, hlen)
 			m0.m_data = (char *)&af;
 			n = &m0;
 		}
-		bpf_mtap(ifp, n);
+		BPF_MTAP(ifp, n);
 	}
 
 	/* Strip away media header */

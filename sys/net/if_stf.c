@@ -430,7 +430,7 @@ stf_output(ifp, m, dst, rt)
 		m0.m_data = (char *)&af;
 		
 #ifdef HAVE_OLD_BPF
-		bpf_mtap(ifp, &m0);
+		BPF_MTAP(ifp, &m0);
 #else
 		bpf_mtap(ifp->if_bpf, &m0);
 #endif
@@ -684,7 +684,7 @@ in_stf_input(m, off)
 		m0.m_data = (char *)&af;
 		
 #ifdef HAVE_OLD_BPF
-		bpf_mtap(ifp, &m0);
+		BPF_MTAP(ifp, &m0);
 #else
 		bpf_mtap(ifp->if_bpf, &m0);
 #endif
