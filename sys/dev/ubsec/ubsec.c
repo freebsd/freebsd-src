@@ -190,7 +190,9 @@ ubsec_probe(device_t dev)
 	     pci_get_device(dev) == PCI_PRODUCT_BLUESTEEL_5601))
 		return (0);
 	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
-	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805 ||
+	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5801 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5802 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5820 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
@@ -206,6 +208,8 @@ ubsec_partname(struct ubsec_softc *sc)
 	switch (pci_get_vendor(sc->sc_dev)) {
 	case PCI_VENDOR_BROADCOM:
 		switch (pci_get_device(sc->sc_dev)) {
+		case PCI_PRODUCT_BROADCOM_5801:	return "Broadcom 5801";
+		case PCI_PRODUCT_BROADCOM_5802:	return "Broadcom 5802";
 		case PCI_PRODUCT_BROADCOM_5805:	return "Broadcom 5805";
 		case PCI_PRODUCT_BROADCOM_5820:	return "Broadcom 5820";
 		case PCI_PRODUCT_BROADCOM_5821:	return "Broadcom 5821";
@@ -577,13 +581,11 @@ ubsec_intr(void *arg)
 			for (i = 0; i < npkts; i++) {
 				if(q->q_stacked_mcr[i]) {
 					ubsec_callback(sc, q->q_stacked_mcr[i]);
-					ubsecstats.hst_opackets++;
 				} else {
 					break;
 				}
 			}
 			ubsec_callback(sc, q);
-			ubsecstats.hst_opackets++;
 		}
 
 		/*
@@ -1497,6 +1499,9 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 	struct cryptop *crp = (struct cryptop *)q->q_crp;
 	struct cryptodesc *crd;
 	struct ubsec_dma *dmap = q->q_dma;
+
+	ubsecstats.hst_opackets++;
+	ubsecstats.hst_obytes += dmap->d_alloc.dma_size;
 
 	ubsec_dma_sync(&dmap->d_alloc,
 	    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
