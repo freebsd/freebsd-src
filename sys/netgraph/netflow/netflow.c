@@ -220,7 +220,8 @@ bit_count(uint32_t v)
  * and insert flow entry.
  */
 static __inline int
-hash_insert(priv_p priv, int slot, struct flow_rec *r, int plen)
+hash_insert(priv_p priv, int slot, struct flow_rec *r, int plen,
+	uint8_t tcp_flags)
 {
 	struct flow_hash_entry	*h = priv->hash;
 	struct flow_entry	*fle;
@@ -239,8 +240,7 @@ hash_insert(priv_p priv, int slot, struct flow_rec *r, int plen)
 	bcopy(r, &fle->f.r, sizeof(struct flow_rec));
 	fle->f.bytes = plen;
 	fle->f.packets = 1;
-
-	priv->info.nfinfo_bytes += plen;
+	fle->f.tcp_flags = tcp_flags;
 
 	fle->f.first = fle->f.last = time_uptime;
 
@@ -521,7 +521,7 @@ ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
 	} else {	/* a new flow entry */
 
 		mtx_unlock(&priv->work_mtx);
-		return hash_insert(priv, slot, &r, plen);
+		return hash_insert(priv, slot, &r, plen, tcp_flags);
 
 	}
 
