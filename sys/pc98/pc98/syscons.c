@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.18 1997/07/10 10:49:43 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.19 1997/09/08 03:02:00 kato Exp $
  */
 
 #include "sc.h"
@@ -3791,7 +3791,7 @@ next_code:
     /* Check for make/break */
     action = key->map[state];
     if (scancode & 0x80) {      /* key released */
-	if (key->spcl & 0x80) {
+	if (key->spcl & (0x80>>state)) {
 	    switch (action) {
 	    case LSH:
 		shfts &= ~1;
