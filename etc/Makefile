@@ -1,7 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.64 1994/06/15 20:14:29 jkh Exp $
-
-NOOBJ=	noobj
+#	$Id: Makefile,v 1.65 1994/06/15 20:43:20 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -214,7 +212,10 @@ distribution: distrib-dirs
 .endif
 
 crunch:
-	@echo crunch target
+	crunchgen ${.CURDIR}/../contrib/crunch/examples/kcopy.conf
+	make -f kcopy.mk objs exe
+	crunchgen ${.CURDIR}/../contrib/crunch/examples/filesystem.conf
+	make -f filesystem.mk objs exe
 
 extract:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
