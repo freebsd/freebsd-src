@@ -268,7 +268,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 	}
 	a = (1 << c->align) - 1;
 	c->flags |= CHN_F_WRITING;
-	while (buf->uio_resid > 0) {
+	while ((c->smegcnt + buf->uio_resid) > a) {
 		s = spltty();
 		chn_dmaupdate(c);
 		splx(s);
@@ -282,10 +282,9 @@ chn_write(pcm_channel *c, struct uio *buf)
 			continue;
 		}
 		/* ensure we always have a whole number of samples */
-		l = min(b->fl, b->bufsize - b->fp);
-		if (l & a) panic("unaligned write %d, %d", l, a + 1);
-		l &= ~a;
-		w = c->feeder->feed(c->feeder, b->buf + b->fp, l, buf);
+		l = min(b->fl, b->bufsize - b->fp) & ~a;
+		if (l == 0) break;
+		w = c->feeder->feed(c->feeder, c, b->buf + b->fp, l, buf);
 		if (w == 0) panic("no feed");
 		s = spltty();
 		b->rl += w;
@@ -293,6 +292,12 @@ chn_write(pcm_channel *c, struct uio *buf)
 		b->fp = (b->fp + w) % b->bufsize;
 	      	splx(s);
 		if (b->rl && !b->dl) chn_stintr(c);
+	}
+	if ((ret == 0) && (buf->uio_resid > 0)) {
+		l = buf->uio_resid;
+		if ((c->smegcnt + l) >= SMEGBUFSZ) panic("resid overflow %d", l);
+		uiomove(c->smegbuf + c->smegcnt, l, buf);
+		c->smegcnt += l;
 	}
 	c->flags &= ~CHN_F_WRITING;
 	return ret;
@@ -418,7 +423,7 @@ chn_read(pcm_channel *c, struct uio *buf)
 		}
 		/* ensure we always have a whole number of samples */
 		l = min(b->rl, b->bufsize - b->rp) & DMA_ALIGN_MASK;
-		w = c->feeder->feed(c->feeder, b->buf + b->rp, l, buf);
+		w = c->feeder->feed(c->feeder, c, b->buf + b->rp, l, buf);
 		s = spltty();
 		b->rl -= w;
 		b->fl += w;
@@ -474,6 +479,7 @@ chn_resetbuf(pcm_channel *c)
 	u_int16_t data, *p;
 	u_int32_t i;
 
+	c->smegcnt = 0;
 	c->buffer.sample_size = 1;
 	c->buffer.sample_size <<= (c->hwfmt & AFMT_STEREO)? 1 : 0;
 	c->buffer.sample_size <<= (c->hwfmt & AFMT_16BIT)? 1 : 0;
