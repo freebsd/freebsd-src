@@ -437,12 +437,17 @@ ata_pci_intr(struct ata_softc *scp)
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
-    case 0x4d68105a:	/* Promise TX2 ATA100 */
-    case 0x6268105a:	/* Promise TX2v2 ATA100 */
 	if (!(ATA_INL(scp->r_bmio, (scp->channel ? 0x14 : 0x1c)) &
 	      (scp->channel ? 0x00004000 : 0x00000400)))
 	    return 1;
     	break;
+
+    case 0x4d68105a:	/* Promise TX2 ATA100 */
+    case 0x6268105a:	/* Promise TX2v2 ATA100 */
+	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (!(ATA_INB(scp->r_bmio, ATA_BDDEVSPEC_1) & 0x20))
+	    return 1;
+	break;
     }
 
     if (scp->flags & ATA_DMA_ACTIVE) {
