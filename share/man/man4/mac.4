@@ -60,6 +60,34 @@ Currently, the following MAC policy modules are shipped with
 .It Xr mac_seeotheruids 4 Ta "See-other-UIDs policy" Ta no Ta any time
 .It Xr mac_test 4 Ta "MAC testing policy" Ta no Ta any time
 .El
+.Ss MAC Support for UFS2 File Systems
+By default, file system enforcement of MAC policies relies on a single file
+system label
+(see
+.Sx "MAC Labels" )
+in order to make access control decisions for all the files in a particular
+file system.
+On most systems, this is not the most desirable configuration.
+In order to enable support for labeling files on an individual basis,
+the
+.Dq multilabel
+flag must be enabled on the file system.
+To set the
+.Dq multilabel
+flag, drop to single-user mode and unmount the file system,
+then execute the following command:
+.Pp
+.Dl "tunefs -l enable" Sy filesystem
+.Pp
+where
+.Sy filesystem
+is either the mount point
+(in
+.Xr fstab 5 )
+or the special file
+(in
+.Pa /dev )
+corresponding to the file system on which to enable multilabel support.
 .Ss MAC Labels
 Each system subject (processes, sockets, etc.) and each system object
 (file system objects, sockets, etc.) can carry with it a MAC label.
