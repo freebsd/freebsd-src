@@ -114,10 +114,6 @@
 #define	UPAGES		2		/* pages of u-area */
 #define	USPACE		(UPAGES * PAGE_SIZE) /* total size of u-area */
 
-#ifndef MSGBUFSIZE
-#define MSGBUFSIZE	PAGE_SIZE	/* default message buffer size */
-#endif
-
 /*
  * Constants related to network buffer management.
  * MCLBYTES must be no larger than CLBYTES (the software page size), and,
