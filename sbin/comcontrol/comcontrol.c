@@ -44,7 +44,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-	"usage: comcontrol <filename> [dtrwait <n>] [drainwait <n>]\n");
+	"usage: comcontrol <filename|-> [dtrwait [<n>]] [drainwait [<n>]]\n");
 	exit(1);
 }
 
@@ -54,14 +54,20 @@ main(int argc, char *argv[])
 	int	fd;
 	int     res = 0;
 	int     dtrwait = -1, drainwait = -1;
+	int     temp;
+	int     output = 0;
 
 	if (argc < 2)
 		usage();
 
-	fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
-	if (fd < 0) {
-		warn("couldn't open file %s", argv[1]);
-		return 1;
+	if (strcmp(argv[1], "-") == 0)
+		fd = STDIN_FILENO;
+	else {
+		fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
+		if (fd < 0) {
+			warn("couldn't open file %s", argv[1]);
+			return 1;
+		}
 	}
 
 	if (argc == 2) {
@@ -73,20 +79,39 @@ main(int argc, char *argv[])
 			res = 1;
 			warn("TIOCGDRAINWAIT");
 		}
-		printf("dtrwait %d drainwait %d\n", dtrwait, drainwait);
+		printf("dtrwait %d drainwait %d ", dtrwait, drainwait);
+		output = 1;
 	} else {
 		while (argv[2] != NULL) {
 			if (!strcmp(argv[2],"dtrwait")) {
+				if (argv[3] == NULL || !isdigit(argv[3][0])) {
+					if (ioctl(fd, TIOCMGDTRWAIT, &temp) < 0) {
+						res = 1;
+						temp = -1;
+						warn("TIOCMGDTRWAIT");
+					}
+					printf("dtrwait %d ", temp);
+					output = 1;
+					argv++;
+					continue;
+				}
 				if (dtrwait >= 0)
-					usage();
-				if (argv[3] == NULL || !isdigit(argv[3][0]))
 					usage();
 				dtrwait = atoi(argv[3]);
 				argv += 2;
 			} else if (!strcmp(argv[2],"drainwait")) {
+				if (argv[3] == NULL || !isdigit(argv[3][0])) {
+					if (ioctl(fd, TIOCGDRAINWAIT, &temp) < 0) {
+						res = 1;
+						temp = -1;
+						warn("TIOCGDRAINWAIT");
+					}
+					printf("drainwait %d ", temp);
+					argv++;
+					output = 1;
+					continue;
+				}
 				if (drainwait >= 0)
-					usage();
-				if (argv[3] == NULL || !isdigit(argv[3][0]))
 					usage();
 				drainwait = atoi(argv[3]);
 				argv += 2;
@@ -108,5 +133,7 @@ main(int argc, char *argv[])
 	}
 
 	close(fd);
+	if (output)
+		printf("\n");
 	return res;
 }
