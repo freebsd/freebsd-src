@@ -231,7 +231,7 @@ fwohci_pci_attach(device_t self)
 {
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
-	int rid, s;
+	int rid;
 #if __FreeBSD_version < 500000
 	int intr;
 	/* For the moment, put in a message stating what is wrong */
@@ -269,13 +269,6 @@ fwohci_pci_attach(device_t self)
 		return ENXIO;
 	}
 
-	sc->fc.bdev = device_add_child(self, "firewire", -1);
-	if (!sc->fc.bdev) {
-		device_printf(self, "Could not add firewire device\n");
-		fwohci_pci_detach(self);
-		return ENOMEM;
-	}
-	device_set_ivars(sc->fc.bdev, sc);
 
 	err = bus_setup_intr(self, sc->irq_res,
 #if FWOHCI_TASKQUEUE
@@ -330,23 +323,9 @@ fwohci_pci_attach(device_t self)
 		return EIO;
 	}
 
-	err = device_probe_and_attach(sc->fc.bdev);
-
-	if (err) {
-		device_printf(self, "probe_and_attach failed with err=%d\n",
-		    err);
-		fwohci_pci_detach(self);
-		return EIO;
-	}
-
-	/* XXX
-	 * Clear the bus reset event flag to start transactions even when
-	 * interrupt is disabled during the boot process.
-	 */
-	DELAY(250); /* 2 cycles */
-	s = splfw();
-	fwohci_poll((void *)sc, 0, -1);
-	splx(s);
+	/* probe and attach a child device(firewire) */
+	bus_generic_probe(self);
+	bus_generic_attach(self);
 
 	return 0;
 }
@@ -444,6 +423,42 @@ fwohci_pci_shutdown(device_t dev)
 	return 0;
 }
 
+static device_t
+fwohci_pci_add_child(device_t dev, int order, const char *name, int unit)
+{
+	struct fwohci_softc *sc;
+	device_t child;
+	int s, err = 0;
+
+	sc = (struct fwohci_softc *)device_get_softc(dev);
+	child = device_add_child(dev, name, unit);
+	if (child == NULL)
+		return (child);
+
+	sc->fc.bdev = child;
+	device_set_ivars(child, (void *)&sc->fc);
+
+	err = device_probe_and_attach(child);
+	if (err) {
+		device_printf(dev, "probe_and_attach failed with err=%d\n",
+		    err);
+		fwohci_pci_detach(dev);
+		device_delete_child(dev, child);
+		return NULL;
+	}
+
+	/* XXX
+	 * Clear the bus reset event flag to start transactions even when
+	 * interrupt is disabled during the boot process.
+	 */
+	DELAY(250); /* 2 cycles */
+	s = splfw();
+	fwohci_poll((void *)sc, 0, -1);
+	splx(s);
+
+	return (child);
+}
+
 static device_method_t fwohci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fwohci_pci_probe),
@@ -454,6 +469,7 @@ static device_method_t fwohci_methods[] = {
 	DEVMETHOD(device_shutdown,	fwohci_pci_shutdown),
 
 	/* Bus interface */
+	DEVMETHOD(bus_add_child,	fwohci_pci_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	{ 0, 0 }
@@ -467,5 +483,8 @@ static driver_t fwohci_driver = {
 
 static devclass_t fwohci_devclass;
 
+#ifdef FWOHCI_MODULE 
+MODULE_DEPEND(fwohci, firewire, 1, 1, 1);
+#endif
 DRIVER_MODULE(fwohci, pci, fwohci_driver, fwohci_devclass, 0, 0);
 DRIVER_MODULE(fwohci, cardbus, fwohci_driver, fwohci_devclass, 0, 0);
