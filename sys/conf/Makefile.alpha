@@ -121,13 +121,12 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD}
 	${SYSTEM_LD_TAIL}
 
-.if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
+.if !defined(NO_MODULES) && exists($S/modules)
 all:	modules
 
 modules:
-	@mkdir -p ${.CURDIR}/modules
-	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} obj
-	cd ${.CURDIR}/../../modules && ${MAKE} all
+	@mkdir -p ${.OBJDIR}/modules
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj all
 .endif
 
 .if !exists(.depend)
@@ -146,8 +145,8 @@ clean:
 	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
-.if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} clean
+.if !defined(NO_MODULES) && exists($S/modules)
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} clean
 .endif
 
 #lint: /tmp param.c
@@ -243,16 +242,15 @@ depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND} \
 	    mkdep -a -f .newdep ${ASM_CFLAGS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
 	mv -f .newdep .depend
-.if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	@mkdir -p ${.CURDIR}/modules
-	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} obj
-	cd ${.CURDIR}/../../modules && ${MAKE} depend
+.if !defined(NO_MODULES) && exists($S/modules)
+	@mkdir -p ${.OBJDIR}/modules
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj depend
 .endif
 
 cleandepend:
 	rm -f .depend
-.if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} cleandepend
+.if !defined(NO_MODULES) && exists($S/modules)
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} cleandepend
 .endif
 
 links:
@@ -280,15 +278,19 @@ install install.debug:
 .endif
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/install//} ${DESTDIR}/${KERNEL}
-.if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} install
+.if !defined(NO_MODULES) && exists($S/modules)
+.if !defined(NO_MODULES_OLD)
+	mkdir -p ${DESTDIR}/modules.old
+	cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old
+.endif
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
 .endif
 
 reinstall reinstall.debug:
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/reinstall//} ${DESTDIR}/${KERNEL}
-.if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} install
+.if !defined(NO_MODULES) && exists($S/modules)
+	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
 .endif
 
 config.o:
