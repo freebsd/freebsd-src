@@ -150,6 +150,7 @@ struct usbd_device {
 	const struct usbd_quirks     *quirks;  /* device quirks, always set */
 	struct usbd_hub	       *hub;           /* only if this is a hub */
 	device_ptr_t	       *subdevs;       /* sub-devices, 0 terminated */
+	uint8_t		       *ifacenums;     /* sub-device interfacenumbers */
 };
 
 struct usbd_interface {
