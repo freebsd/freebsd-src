@@ -482,10 +482,12 @@ fxp_attach(device_t dev)
 	 */
 	if (sc->chip != FXP_CHIP_82557) {
 		/*
-		 * If there is a valid cacheline size (8 or 16 dwords),
-		 * then turn on MWI.
+		 * If MWI is enabled in the PCI configuration, and there
+		 * is a valid cacheline size (8 or 16 dwords), then tell
+		 * the board to turn on MWI.
 		 */
-		if (pci_read_config(dev, PCIR_CACHELNSZ, 1) != 0)
+		if (val & PCIM_CMD_MWRICEN &&
+		    pci_read_config(dev, PCIR_CACHELNSZ, 1) != 0)
 			sc->flags |= FXP_FLAG_MWI_ENABLE;
 
 		/* turn on the extended TxCB feature */
@@ -1235,10 +1237,9 @@ fxp_tick(void *xsc)
 		sp->rx_rnr_errors = 0;
 		sp->rx_overrun_errors = 0;
 	}
-
 	if (sc->miibus != NULL)
 		mii_tick(device_get_softc(sc->miibus));
-
+	splx(s);
 	/*
 	 * Schedule another timeout one second from now.
 	 */
