@@ -1,6 +1,6 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)zdump.c	7.10";
+static char	elsieid[] = "@(#)zdump.c	7.20";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -10,10 +10,11 @@ static char	elsieid[] = "@(#)zdump.c	7.10";
 ** You can use this code to help in verifying other implementations.
 */
 
-#include "stdio.h"	/* for stdout, stderr */
+#include "stdio.h"	/* for stdout, stderr, perror */
 #include "string.h"	/* for strcpy */
 #include "sys/types.h"	/* for time_t */
 #include "time.h"	/* for struct tm */
+#include "stdlib.h"	/* for exit, malloc, atoi */
 
 #ifndef MAX_STRING_LENGTH
 #define MAX_STRING_LENGTH	1024
@@ -67,18 +68,32 @@ static char	elsieid[] = "@(#)zdump.c	7.10";
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 #endif /* !defined isleap */
 
+#ifndef GNUC_or_lint
+#ifdef lint
+#define GNUC_or_lint
+#endif /* defined lint */
+#ifndef lint
+#ifdef __GNUC__
+#define GNUC_or_lint
+#endif /* defined __GNUC__ */
+#endif /* !defined lint */
+#endif /* !defined GNUC_or_lint */
+
+#ifndef INITIALIZE
+#ifdef GNUC_or_lint
+#define INITIALIZE(x)	((x) = 0)
+#endif /* defined GNUC_or_lint */
+#ifndef GNUC_or_lint
+#define INITIALIZE(x)
+#endif /* !defined GNUC_or_lint */
+#endif /* !defined INITIALIZE */
+
 extern char **	environ;
 extern int	getopt();
 extern char *	optarg;
 extern int	optind;
 extern time_t	time();
 extern char *	tzname[2];
-extern void	tzset();
-
-#ifdef USG
-extern void	exit();
-extern void	perror();
-#endif /* defined USG */
 
 static char *	abbr();
 static long	delta();
@@ -92,16 +107,21 @@ main(argc, argv)
 int	argc;
 char *	argv[];
 {
-	register int	i, c;
-	register int	vflag;
-	register char *	cutoff;
-	register int	cutyear;
-	register long	cuttime;
-	time_t		now;
-	time_t		t, newt;
-	time_t		hibit;
-	struct tm	tm, newtm;
+	register int		i;
+	register int		c;
+	register int		vflag;
+	register char *		cutoff;
+	register int		cutyear;
+	register long		cuttime;
+	char **			fakeenv;
+	time_t			now;
+	time_t			t;
+	time_t			newt;
+	time_t			hibit;
+	struct tm		tm;
+	struct tm		newtm;
 
+	INITIALIZE(cuttime);
 	progname = argv[0];
 	vflag = 0;
 	cutoff = NULL;
@@ -132,25 +152,32 @@ char *	argv[];
 			longest = strlen(argv[i]);
 	for (hibit = 1; (hibit << 1) != 0; hibit <<= 1)
 		continue;
-	for (i = optind; i < argc; ++i) {
-		register char **	saveenv;
-		static char		buf[MAX_STRING_LENGTH];
-		char *			fakeenv[2];
+	{
+		register int	from;
+		register int	to;
 
-		if (strlen(argv[i]) + 4 > sizeof buf) {
-			(void) fflush(stdout);
-			(void) fprintf(stderr, "%s: argument too long -- %s\n",
-				progname, argv[i]);
-			(void) exit(EXIT_FAILURE);
+		for (i = 0;  environ[i] != NULL;  ++i)
+			continue;
+		fakeenv = (char **) malloc((size_t) ((i + 2) *
+			sizeof *fakeenv));
+		if (fakeenv == NULL ||
+			(fakeenv[0] = (char *) malloc((size_t) (longest +
+				4))) == NULL) {
+					(void) perror(progname);
+					(void) exit(EXIT_FAILURE);
 		}
-		(void) strcpy(buf, "TZ=");
-		(void) strcat(buf, argv[i]);
-		fakeenv[0] = buf;
-		fakeenv[1] = NULL;
-		saveenv = environ;
+		to = 0;
+		(void) strcpy(fakeenv[to++], "TZ=");
+		for (from = 0; environ[from] != NULL; ++from)
+			if (strncmp(environ[from], "TZ=", 3) != 0)
+				fakeenv[to++] = environ[from];
+		fakeenv[to] = NULL;
 		environ = fakeenv;
-		(void) tzset();
-		environ = saveenv;
+	}
+	for (i = optind; i < argc; ++i) {
+		static char	buf[MAX_STRING_LENGTH];
+
+		(void) strcpy(&fakeenv[0][3], argv[i]);
 		show(argv[i], now, FALSE);
 		if (!vflag)
 			continue;
@@ -268,14 +295,15 @@ struct tm *	oldp;
 	return result;
 }
 
+extern struct tm *	localtime();
+
 static void
 show(zone, t, v)
 char *	zone;
 time_t	t;
 int	v;
 {
-	struct tm *		tmp;
-	extern struct tm *	localtime();
+	struct tm *	tmp;
 
 	(void) printf("%-*s  ", longest, zone);
 	if (v)
@@ -298,10 +326,10 @@ abbr(tmp)
 struct tm *	tmp;
 {
 	register char *	result;
-	static char	nada[1];
+	static char	nada;
 
 	if (tmp->tm_isdst != 0 && tmp->tm_isdst != 1)
-		return nada;
+		return &nada;
 	result = tzname[tmp->tm_isdst];
-	return (result == NULL) ? nada : result;
+	return (result == NULL) ? &nada : result;
 }
