@@ -142,8 +142,7 @@ SUBDIR+=mld6query \
 .endif
 
 .if !defined(NO_IPFILTER)
-SUBDIR+=ipftest \
-	ipresend \
+SUBDIR+=ipresend \
 	ipsend \
 	iptest
 .endif
