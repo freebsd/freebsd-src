@@ -3029,7 +3029,11 @@ bufwait(register struct buf * bp)
 void
 bufdonebio(struct bio *bp)
 {
+
+	/* Device drivers may or may not hold giant, hold it here. */
+	mtx_lock(&Giant);
 	bufdone(bp->bio_caller2);
+	mtx_unlock(&Giant);
 }
 
 /*
