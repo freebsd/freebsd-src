@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.7.2.1 1997/09/03 06:49:48 jkh Exp $
+ * $Id: md5.c,v 1.7.2.2 1998/03/06 08:15:33 jkh Exp $
  *
  * Derived from:
  */
@@ -21,12 +21,16 @@
  *  documentation and/or software.
  */
 
-#include <sys/types.h>
-#include <md5.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
+#include <sys/types.h>
+#include <err.h>
+#include <md5.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -84,7 +88,7 @@ main(argc, argv)
 		while (optind < argc) {
 			p = MD5File(argv[optind], buf);
 			if (!p)
-				perror(argv[optind]);
+				warn("%s", argv[optind]);
 			else
 				printf("MD5 (%s) = %s\n", argv[optind], p);
 			optind++;
@@ -182,10 +186,8 @@ MDFilter(pipe)
 
 	MD5Init(&context);
 	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
-		if(pipe && (len != fwrite(buffer, 1, len, stdout))) {
-			perror("stdout");
-			exit(1);
-		}
+		if(pipe && (len != fwrite(buffer, 1, len, stdout)))
+			err(1, "stdout");
 		MD5Update(&context, buffer, len);
 	}
 	printf("%s\n", MD5End(&context,buf));

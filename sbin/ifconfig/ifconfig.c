@@ -38,11 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*
+#if 0
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
-*/
+#endif
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.30 1997/05/10 17:14:52 peter Exp $";
+	"$Id: ifconfig.c,v 1.19.2.1 1997/06/30 11:02:00 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -117,7 +117,6 @@ int	setipdst;
 int	doalias;
 int	clearaddr;
 int	newaddr = 1;
-int	allmedia;
 
 struct	afswtch;
 
@@ -219,8 +218,8 @@ struct	afswtch {
 	short af_af;
 	af_status *af_status;
 	af_getaddr *af_getaddr;
-	int af_difaddr;
-	int af_aifaddr;
+	u_long af_difaddr;
+	u_long af_aifaddr;
 	caddr_t af_ridreq;
 	caddr_t af_addreq;
 } afs[] = {
@@ -278,21 +277,11 @@ rt_xaddrs(cp, cplim, rtinfo)
 void
 usage()
 {
-	fputs("usage: ifconfig -a [ -m ] [ -d ] [ -u ] [ af ]\n", stderr);
-	fputs("       ifconfig -l [ -d ] [ -u ]\n", stderr);
-	fputs("       ifconfig [ -m ] interface\n", stderr);
-	fputs("        [ af [ address [ dest_addr ] ] [ netmask mask ] [ broadcast addr ]\n", stderr);
-	fputs("             [ alias ] [ delete ] ]\n", stderr);
-	fputs("        [ up ] [ down ]\n", stderr);
-	fputs("        [ metric n ]\n", stderr);
-	fputs("        [ mtu n ]\n", stderr);
-	fputs("        [ arp | -arp ]\n", stderr);
-	fputs("        [ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ]\n", stderr);
-#ifdef USE_IF_MEDIA
-	fputs("        [ media mtype ]\n", stderr);
-	fputs("        [ mediaopt mopts ]\n", stderr);
-	fputs("        [ -mediaopt mopts ]\n", stderr);
-#endif
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	"usage: ifconfig interface address_family [address [dest_address]]",
+	"                [parameters]",
+	"       ifconfig -a [-d] [-u] [address_family]",
+	"       ifconfig -l [-d] [-u] [address_family]");
 	exit(1);
 }
 
@@ -316,7 +305,7 @@ main(argc, argv)
 	int mib[6];
 
 	/* Parse leading line options */
-	all = allmedia = downonly = uponly = namesonly = 0;
+	all = downonly = uponly = namesonly = 0;
 	while ((c = getopt(argc, argv, "adlmu")) != -1) {
 		switch (c) {
 		case 'a':	/* scan all interfaces */
@@ -328,16 +317,11 @@ main(argc, argv)
 		case 'd':	/* restrict scan to "down" interfaces */
 			downonly++;
 			break;
-		case 'u':	/* restrict scan to "down" interfaces */
+		case 'u':	/* restrict scan to "up" interfaces */
 			uponly++;
 			break;
 		case 'm':	/* show media choices in status */
-#ifdef USE_IF_MEDIA
-			allmedia++;
-#else
-			fputs("WARNING: if_media not compiled in!\n", stderr);
-			usage();
-#endif
+			/* ignored for compatibility */
 			break;
 		default:
 			usage();
@@ -348,7 +332,7 @@ main(argc, argv)
 	argv += optind;
 
 	/* -l cannot be used with -a or -m */
-	if (namesonly && (all || allmedia))
+	if (namesonly && all)
 		usage();
 
 	/* nonsense.. */
@@ -371,7 +355,7 @@ main(argc, argv)
 			/* leave with afp non-zero */
 		}
 	} else {
-		/* not listsing, need an argument */
+		/* not listing, need an argument */
 		if (argc < 1)
 			usage();
 
@@ -454,10 +438,14 @@ main(argc, argv)
 			strncpy(name, sdl->sdl_data, sdl->sdl_nlen);
 			name[sdl->sdl_nlen] = '\0';
 			if (namesonly) {
-				if (need_nl)
-					putchar(' ');
-				fputs(name, stdout);
-				need_nl++;
+				if (afp == NULL ||
+					afp->af_status != ether_status ||
+					sdl->sdl_type == IFT_ETHER) {
+					if (need_nl)
+						putchar(' ');
+					fputs(name, stdout);
+					need_nl++;
+				}
 				continue;
 			}
 		} else {
@@ -503,10 +491,8 @@ ifconfig(argc, argv, afp)
 	ifr.ifr_addr.sa_family = afp->af_af;
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 
-	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0) {
-		perror("ifconfig: socket");
-		exit(1);
-	}
+	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
+		err(1, "socket");
 
 	while (argc > 0) {
 		register const struct cmd *p;
@@ -710,7 +696,7 @@ setifmetric(val, dummy, s, afp)
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_metric = atoi(val);
 	if (ioctl(s, SIOCSIFMETRIC, (caddr_t)&ifr) < 0)
-		perror("ioctl (set metric)");
+		warn("ioctl (set metric)");
 }
 
 void
@@ -723,7 +709,7 @@ setifmtu(val, dummy, s, afp)
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_mtu = atoi(val);
 	if (ioctl(s, SIOCSIFMTU, (caddr_t)&ifr) < 0)
-		perror("ioctl (set mtu)");
+		warn("ioctl (set mtu)");
 }
 
 #ifdef ISO
@@ -766,10 +752,8 @@ status(afp, addrcount, sdl, ifm, ifam)
 	ifr.ifr_addr.sa_family = afp->af_af;
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 
-	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0) {
-		perror("ifconfig: socket");
-		exit(1);
-	}
+	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
+		err(1, "socket");
 
 	/*
 	 * XXX is it we are doing a SIOCGIFMETRIC etc for one family.
@@ -778,12 +762,12 @@ status(afp, addrcount, sdl, ifm, ifam)
 	 * metric and mtu is printed on the global the flags line.
 	 */
 	if (ioctl(s, SIOCGIFMETRIC, (caddr_t)&ifr) < 0)
-		perror("ioctl (SIOCGIFMETRIC)");
+		warn("ioctl (SIOCGIFMETRIC)");
 	else
 		metric = ifr.ifr_metric;
 
 	if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0)
-		perror("ioctl (SIOCGIFMTU)");
+		warn("ioctl (SIOCGIFMTU)");
 	else
 		mtu = ifr.ifr_mtu;
 
@@ -1041,7 +1025,8 @@ in_getaddr(s, which)
 	if (inet_aton(s, &sin->sin_addr))
 		return;
 	if ((hp = gethostbyname(s)) != 0)
-		bcopy(hp->h_addr, (char *)&sin->sin_addr, hp->h_length);
+		bcopy(hp->h_addr, (char *)&sin->sin_addr, 
+		    MIN(hp->h_length, sizeof(sin->sin_addr)));
 	else if ((np = getnetbyname(s)) != 0)
 		sin->sin_addr = inet_makeaddr(np->n_net, INADDR_ANY);
 	else
@@ -1112,7 +1097,7 @@ at_getaddr(addr, which)
 	sat->sat_family = AF_APPLETALK;
 	sat->sat_len = sizeof(*sat);
 	if (which == MASK)
-		errx(1, "AppleTalk does not use netmasks\n");
+		errx(1, "AppleTalk does not use netmasks");
 	if (sscanf(addr, "%u.%u", &net, &node) != 2
 	    || net > 0xffff || node > 0xfe)
 		errx(1, "%s: illegal address", addr);
@@ -1222,9 +1207,9 @@ setnsellength(val)
 {
 	nsellength = atoi(val);
 	if (nsellength < 0)
-		errx(1, "Negative NSEL length is absurd");
+		errx(1, "negative NSEL length is absurd");
 	if (afp == 0 || afp->af_af != AF_ISO)
-		errx(1, "Setting NSEL length valid only for iso");
+		errx(1, "setting NSEL length valid only for iso");
 }
 
 void

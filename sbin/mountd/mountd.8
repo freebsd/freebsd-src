@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
-.\"	$Id: mountd.8,v 1.5.2.2 1997/04/09 20:31:32 guido Exp $
+.\"	$Id: mountd.8,v 1.5.2.3 1997/05/14 08:19:20 dfr Exp $
 .\"
 .Dd April 28, 1995
 .Dt MOUNTD 8
@@ -41,16 +41,15 @@
 .Tn NFS
 mount requests
 .Sh SYNOPSIS
-.Nm /sbin/mountd
-.Op Fl 2nr
+.Nm mountd
+.Op Fl 2dlnr
 .Op Ar exportsfile
 .Sh DESCRIPTION
-.Xr Mountd
+.Nm Mountd
 is the server for
 .Tn NFS
 mount requests from other client machines.
-.Xr Mountd
-listens for service requests at the port indicated in the
+It listens for service requests at the port indicated in the
 .Tn NFS
 server specification; see
 .%T "Network File System Protocol Specification" ,
@@ -58,26 +57,27 @@ RFC1094, Appendix A and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I.
 .Pp
-Options and operands available for
-.Nm mountd :
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl 2
-The
-.Fl 2
-option allows the administrator to force clients to use only the
-version 2 NFS protocol to mount filesystems from this server.
+Allow the administrator to force clients to use only the
+version 2
+.Tn NFS
+protocol to mount filesystems from this server.
+.It Fl d
+Output debugging information.
+.It Fl l
+Cause all succeeded
+.Nm
+requests to be logged.
 .It Fl n
-The
-.Fl n
-option allows non-root mount requests to be served.
+Allow non-root mount requests to be served.
 This should only be specified if there are clients such as PC's,
 that require it.
 It will automatically clear the vfs.nfs.nfs_privport sysctl flag, which
-controls if the kernel will accept nfs requests form reserved ports only.
+controls if the kernel will accept NFS requests form reserved ports only.
 .It Fl r
-The
-.Fl r
-option allows mount RPCs requests for regular files to be served.
+Allow mount RPCs requests for regular files to be served.
 Although this seems to violate the mount protocol specification,
 some diskless workstations do mount requests for
 their swapfiles and expect them to be regular files.
@@ -88,25 +88,29 @@ will have to be exported with the
 .Fl alldirs
 flag.
 .It Ar exportsfile
-The
-.Ar exportsfile
-argument specifies an alternate location
+Specify an alternate location
 for the exports file.
 .El
 .Pp
-When mountd is started,
+When
+.Nm
+is started,
 it loads the export host addresses and options into the kernel
 using the mount(2) system call.
 After changing the exports file,
-a hangup signal should be sent to the mountd daemon
+a hangup signal should be sent to the
+.Nm
+daemon
 to get it to reload the export information.
 After sending the SIGHUP
-(kill -HUP `cat /var/run/mountd.pid`),
-check the syslog output to see if mountd logged any parsing
+(kill \-s HUP `cat /var/run/mountd.pid`),
+check the syslog output to see if
+.Nm
+logged any parsing
 errors in the exports file.
 .Pp
 If
-.Nm mountd
+.Nm
 detects that the running kernel does not include
 .Tn NFS
 support, it will attempt to load a loadable kernel module containing
@@ -118,7 +122,7 @@ by way of
 If this fails, or no
 .Tn NFS
 LKM was available,
-.Nm mountd
+.Nm
 exits with an error.
 .Sh FILES
 .Bl -tag -width /var/run/mountd.pid -compact
@@ -138,6 +142,6 @@ the current list of remote mounted filesystems
 .Xr showmount 8
 .Sh HISTORY
 The
-.Nm mountd
+.Nm
 utility first appeared in
 .Bx 4.4 .

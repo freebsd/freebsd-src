@@ -246,7 +246,7 @@ kmem_setup()
 	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, L_SET);
 	(void)Read(kmem, &dumplo, sizeof(dumplo));
 	if (verbose)
-		(void)printf("dumplo = %d (%d * %d)\n",
+		(void)printf("dumplo = %ld (%ld * %d)\n",
 		    dumplo, dumplo/DEV_BSIZE, DEV_BSIZE);
 	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, L_SET);
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));

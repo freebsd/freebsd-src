@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mount_portal.8	8.3 (Berkeley) 3/27/94
-.\"
+.\"	$Id$
 .\"
 .Dd March 27, 1994
 .Dt MOUNT_PORTAL 8
@@ -50,12 +50,12 @@
 .Ar mount_point
 .Sh DESCRIPTION
 The
-.Nm mount_portal
+.Nm
 command attaches an instance of the portal daemon
 to the global filesystem namespace.
 The conventional mount point is
 .Pa /p .
-.PA /dev .
+.\" .PA /dev .
 This command is normally executed by
 .Xr mount 8
 at boot time.
@@ -132,6 +132,6 @@ fs/		file fs/
 This filesystem may not be NFS-exported.
 .Sh HISTORY
 The
-.Nm mount_portal
+.Nm
 utility first appeared in
 .Bx 4.4 .

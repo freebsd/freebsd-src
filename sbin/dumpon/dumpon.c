@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";*/
 static const char rcsid[] =
-	"$Id: dumpon.c,v 1.2 1995/05/30 06:08:58 rgrimes Exp $";
+	"$Id: dumpon.c,v 1.2.6.1 1997/08/26 13:15:01 jkh Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -107,10 +107,10 @@ main(int argc, char **argv)
 
 	if (verbose) {
 		if (stab.st_rdev == NODEV) {
-			printf("%s: crash dumps disabled\n", whoami);
+			printf("dumpon: crash dumps disabled\n");
 		} else {
-			printf("%s: crash dumps to %s (%lu, %lu)\n",
-			       whoami, argv[0],
+			printf("dumpon: crash dumps to %s (%lu, %lu)\n",
+			       argv[0],
 			       (unsigned long)major(stab.st_rdev),
 			       (unsigned long)minor(stab.st_rdev));
 		}
@@ -123,7 +123,7 @@ void
 usage()
 {
 	fprintf(stderr,
-		"usage: %s [-v] special_file\n"
-		"       %s [-v] off\n", whoami, whoami);
+		"usage: dumpon [-v] special_file\n"
+		"       dumpon [-v] off\n");
 	exit(EX_USAGE);
 }

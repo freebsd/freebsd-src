@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
 .Dd June 9, 1993
 .Dt REBOOT 8
@@ -52,7 +53,7 @@ stopping and restarting the system
 The
 .Nm halt
 and
-.Nm reboot
+.Nm
 utilities flush the file system cache to disk, send all running processes
 a SIGTERM (and subsequently a SIGKILL) and, respectively, halt or restart
 the system.
@@ -60,28 +61,20 @@ The action is logged, including entering a shutdown record into the login
 accounting file.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl n
-If the
-.Fl n
-option is specified,
-the file system cache is not flushed.
+The file system cache is not flushed.
 This option should probably not be used.
 .It Fl q
-If the
-.Fl q
-option is specified,
-the system is halted or restarted quickly and ungracefully, and only
+The system is halted or restarted quickly and ungracefully, and only
 the flushing of the file system cache is performed.
 This option should probably not be used.
 .It Fl p
-If the
-.Fl p
-option is specified, then the system will turn off the power
+The system will turn off the power
 if it can. This is of course likely to make 
-.Nm reboot
+.Nm
 rather similar to 
-.Nm halt.
+.Nm halt .
 .El
 .Pp
 The
@@ -91,7 +84,7 @@ and
 utilities are nothing more than aliases for the
 .Nm halt
 and
-.Nm reboot
+.Nm
 utilities.
 .Pp
 Normally, the
@@ -105,6 +98,6 @@ users advance warning of their impending doom.
 .Xr sync 8
 .Sh HISTORY
 A
-.Nm reboot
+.Nm
 command appeared in
 .At v6 .

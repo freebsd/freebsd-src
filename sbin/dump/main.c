@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id$
+ *		$Id: main.c,v 1.7.2.6 1997/10/15 18:30:35 markm Exp $
  */
 
 #ifndef lint
@@ -59,7 +59,6 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/1/95";
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <signal.h>
@@ -158,7 +157,7 @@ main(argc, argv)
 			 */
 			if ( ntrec > 64 ) {
 				msg("please choose a blocksize <= 64\n");
-				exit(X_ABORT);
+				exit(X_STARTUP);
 			}
 			break;
 
@@ -199,7 +198,7 @@ main(argc, argv)
 			if (spcl.c_ddate < 0) {
 				(void)fprintf(stderr, "bad time \"%s\"\n",
 				    optarg);
-				exit(X_ABORT);
+				exit(X_STARTUP);
 			}
 			Tflag = 1;
 			lastlevel = '?';
@@ -214,7 +213,7 @@ main(argc, argv)
 		case 'W':		/* what to do */
 		case 'w':
 			lastdump(ch);
-			exit(0);	/* do nothing else */
+			exit(X_FINOK);	/* do nothing else */
 
 		default:
 			usage();
@@ -224,7 +223,7 @@ main(argc, argv)
 
 	if (argc < 1) {
 		(void)fprintf(stderr, "Must specify disk or filesystem\n");
-		exit(X_ABORT);
+		exit(X_STARTUP);
 	}
 	disk = *argv++;
 	argc--;
@@ -233,12 +232,12 @@ main(argc, argv)
 		while (argc--)
 			(void)fprintf(stderr, " %s", *argv++);
 		(void)fprintf(stderr, "\n");
-		exit(X_ABORT);
+		exit(X_STARTUP);
 	}
 	if (Tflag && uflag) {
 	        (void)fprintf(stderr,
 		    "You cannot use the T and u flags together.\n");
-		exit(X_ABORT);
+		exit(X_STARTUP);
 	}
 	if (strcmp(tape, "-") == 0) {
 		pipeout++;
@@ -271,13 +270,13 @@ main(argc, argv)
 #ifdef RDUMP
 		if (index(tape, '\n')) {
 		    (void)fprintf(stderr, "invalid characters in tape\n");
-		    exit(X_ABORT);
+		    exit(X_STARTUP);
 		}
 		if (rmthost(host) == 0)
-			exit(X_ABORT);
+			exit(X_STARTUP);
 #else
 		(void)fprintf(stderr, "remote dump not enabled\n");
-		exit(X_ABORT);
+		exit(X_STARTUP);
 #endif
 	}
 	(void)setuid(getuid()); /* rmthost() is the only reason to be setuid */
@@ -338,7 +337,7 @@ main(argc, argv)
 
 	if ((diskfd = open(disk, O_RDONLY)) < 0) {
 		msg("Cannot open %s\n", disk);
-		exit(X_ABORT);
+		exit(X_STARTUP);
 	}
 	sync();
 	sblock = (struct fs *)sblock_buf;
@@ -423,7 +422,8 @@ main(argc, argv)
 	 * Allocate tape buffer.
 	 */
 	if (!alloctape())
-		quit("can't allocate tape buffers - try a smaller blocking factor.\n");
+		quit(
+	"can't allocate tape buffers - try a smaller blocking factor.\n");
 
 	startnewtape(1);
 	(void)time((time_t *)&(tstart_writing));
@@ -504,7 +504,7 @@ usage()
 		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
 		"            [-h level] [-s feet] [-T date] filesystem\n"
 		"       dump [-W | -w]\n");
-	exit(1);
+	exit(X_STARTUP);
 }
 
 /*
@@ -640,7 +640,7 @@ obsolete(argcp, argvp)
 	}
 
 	/* Copy remaining arguments. */
-	while (*nargv++ = *argv++);
+	while ((*nargv++ = *argv++));
 
 	/* Update argument count. */
 	*argcp = nargv - *argvp - 1;
