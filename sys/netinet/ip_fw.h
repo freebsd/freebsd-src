@@ -171,8 +171,11 @@ struct ip_fw_chain {
 #define IP_FW_F_GID	0x00400000	/* filter by gid			*/
 
 #define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
+#define IP_FW_F_SMSK	0x01000000	/* src-port + mask 			*/
+#define IP_FW_F_DMSK	0x02000000	/* dst-port + mask 			*/
+#define IP_FW_F_KEEP_S	0x04000000	/* keep state	 			*/
 
-#define IP_FW_F_MASK	0x00FFFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_MASK	0x03FFFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
