@@ -253,7 +253,7 @@
 171	STD	LINUX	{ int linux_getresgid(linux_gid_t *rgid, \
 				linux_gid_t *egid, linux_gid_t *sgid); }
 172	STD	LINUX	{ int linux_prctl(void); }
-173	STD	LINUX	{ int linux_rt_sigreturn(void); }
+173	STD	LINUX	{ int linux_rt_sigreturn(struct linux_ucontext *ucp); }
 174	STD	LINUX	{ int linux_rt_sigaction(int sig, \
 				linux_sigaction_t *act, \
 				linux_sigaction_t *oact, \
