@@ -8,6 +8,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.  */
 
+/*
+ * $FreeBSD$
+ */
+
 #include <assert.h>
 #include "cvs.h"
 #include "watch.h"
@@ -133,7 +137,7 @@ char *CVS_Username = NULL;
 
 /* Used to check that same repos is transmitted in pserver auth and in
    later CVS protocol.  Exported because root.c also uses. */
-char *Pserver_Repos = NULL;
+static char *Pserver_Repos = NULL;
 
 /* Should we check for system usernames/passwords?  Can be changed by
    CVSROOT/config.  */
@@ -339,6 +343,182 @@ fd_buffer_block (closure, block)
     fd->blocking = block;
 
     return 0;
+}
+
+/* Populate all of the directories between BASE_DIR and its relative
+   subdirectory DIR with CVSADM directories.  Return 0 for success or
+   errno value.  */
+static int create_adm_p PROTO((char *, char *));
+
+static int
+create_adm_p (base_dir, dir)
+    char *base_dir;
+    char *dir;
+{
+    char *dir_where_cvsadm_lives, *dir_to_register, *p, *tmp;
+    int retval, done;
+    FILE *f;
+
+    if (strcmp (dir, ".") == 0)
+	return 0;			/* nothing to do */
+
+    /* Allocate some space for our directory-munging string. */
+    p = malloc (strlen (dir) + 1);
+    if (p == NULL)
+	return ENOMEM;
+
+    dir_where_cvsadm_lives = malloc (strlen (base_dir) + strlen (dir) + 100);
+    if (dir_where_cvsadm_lives == NULL)
+	return ENOMEM;
+
+    /* Allocate some space for the temporary string in which we will
+       construct filenames. */
+    tmp = malloc (strlen (base_dir) + strlen (dir) + 100);
+    if (tmp == NULL)
+	return ENOMEM;
+
+    
+    /* We make several passes through this loop.  On the first pass,
+       we simply create the CVSADM directory in the deepest directory.
+       For each subsequent pass, we try to remove the last path
+       element from DIR, create the CVSADM directory in the remaining
+       pathname, and register the subdirectory in the newly created
+       CVSADM directory. */
+
+    retval = done = 0;
+
+    strcpy (p, dir);
+    strcpy (dir_where_cvsadm_lives, base_dir);
+    strcat (dir_where_cvsadm_lives, "/");
+    strcat (dir_where_cvsadm_lives, p);
+    dir_to_register = NULL;
+
+    while (1)
+    {
+	/* Create CVSADM. */
+	(void) sprintf (tmp, "%s/%s", dir_where_cvsadm_lives, CVSADM);
+	if ((CVS_MKDIR (tmp, 0777) < 0) && (errno != EEXIST))
+	{
+	    retval = errno;
+	    goto finish;
+	}
+
+	/* Create CVSADM_REP. */
+	(void) sprintf (tmp, "%s/%s", dir_where_cvsadm_lives, CVSADM_REP);
+	if (! isfile (tmp))
+	{
+	    /* Use Emptydir as the placeholder until the client sends
+	       us the real value.  This code is similar to checkout.c
+	       (emptydir_name), but the code below returns errors
+	       differently.  */
+
+	    char *empty;
+	    empty = malloc (strlen (CVSroot_directory)
+			    + sizeof (CVSROOTADM)
+			    + sizeof (CVSNULLREPOS)
+			    + 10);
+	    if (! empty)
+	    {
+		retval = ENOMEM;
+		goto finish;
+	    }
+
+	    /* Create the directory name. */
+	    (void) sprintf (empty, "%s/%s/%s", CVSroot_directory,
+			    CVSROOTADM, CVSNULLREPOS);
+
+	    /* Create the directory if it doesn't exist. */
+	    if (! isfile (empty))
+	    {
+		mode_t omask;
+		omask = umask (cvsumask);
+		if (CVS_MKDIR (empty, 0777) < 0)
+		{
+		    retval = errno;
+		    free (empty);
+		    goto finish;
+		}
+		(void) umask (omask);
+	    }
+	    
+	    
+	    f = CVS_FOPEN (tmp, "w");
+	    if (f == NULL)
+	    {
+		retval = errno;
+		free (empty);
+		goto finish;
+	    }
+	    /* Write the directory name to CVSADM_REP. */
+	    if (fprintf (f, "%s\n", empty) < 0)
+	    {
+		retval = errno;
+		fclose (f);
+		free (empty);
+		goto finish;
+	    }
+	    if (fclose (f) == EOF)
+	    {
+		retval = errno;
+		free (empty);
+		goto finish;
+	    }
+
+	    /* Clean up after ourselves. */
+	    free (empty);
+	}
+
+	/* Create CVSADM_ENT.  We open in append mode because we
+	   don't want to clobber an existing Entries file.  */
+	(void) sprintf (tmp, "%s/%s", dir_where_cvsadm_lives, CVSADM_ENT);
+	f = CVS_FOPEN (tmp, "a");
+	if (f == NULL)
+	{
+	    retval = errno;
+	    goto finish;
+	}
+	if (fclose (f) == EOF)
+	{
+	    retval = errno;
+	    goto finish;
+	}
+
+	if (dir_to_register != NULL)
+	{
+	    /* FIXME: Yes, this results in duplicate entries in the
+	       Entries.Log file, but it doesn't currently matter.  We
+	       might need to change this later on to make sure that we
+	       only write one entry.  */
+
+	    Subdir_Register ((List *) NULL, dir_where_cvsadm_lives,
+			     dir_to_register);
+	}
+
+	if (done)
+	    break;
+
+	dir_to_register = strrchr (p, '/');
+	if (dir_to_register == NULL)
+	{
+	    dir_to_register = p;
+	    strcpy (dir_where_cvsadm_lives, base_dir);
+	    done = 1;
+	}
+	else
+	{
+	    *dir_to_register = '\0';
+	    dir_to_register++;
+	    strcpy (dir_where_cvsadm_lives, base_dir);
+	    strcat (dir_where_cvsadm_lives, "/");
+	    strcat (dir_where_cvsadm_lives, p);
+	}
+    }
+
+  finish:
+    free (tmp);
+    free (dir_where_cvsadm_lives);
+    free (p);
+    return retval;
 }
 
 /*
@@ -563,6 +743,7 @@ serve_root (arg)
     char *env;
     char *path;
     int save_errno;
+    char *arg_dup;
     
     if (error_pending()) return;
 
@@ -574,9 +755,7 @@ serve_root (arg)
 	return;
     }
 
-    /* Sending "Root" twice is illegal.  It would also be nice to
-       check for the other case, in which there is no Root request
-       prior to a request which requires one.
+    /* Sending "Root" twice is illegal.
 
        The other way to handle a duplicate Root requests would be as a
        request to clear out all state and start over as if it was a
@@ -591,7 +770,29 @@ serve_root (arg)
 	return;
     }
 
-    set_local_cvsroot (arg);
+#ifdef AUTH_SERVER_SUPPORT
+    if (Pserver_Repos != NULL)
+    {
+	if (strcmp (Pserver_Repos, arg) != 0)
+	{
+	    if (alloc_pending (80 + strlen (Pserver_Repos) + strlen (arg)))
+		/* The explicitness is to aid people who are writing clients.
+		   I don't see how this information could help an
+		   attacker.  */
+		sprintf (pending_error_text, "\
+E Protocol error: Root says \"%s\" but pserver says \"%s\"",
+			 arg, Pserver_Repos);
+	}
+    }
+#endif
+    arg_dup = malloc (strlen (arg) + 1);
+    if (arg_dup == NULL)
+    {
+	pending_error = ENOMEM;
+	return;
+    }
+    strcpy (arg_dup, arg);
+    set_local_cvsroot (arg_dup);
 
     /* For pserver, this will already have happened, and the call will do
        nothing.  But for rsh, we need to do it now.  */
@@ -600,10 +801,15 @@ serve_root (arg)
     /* Now is a good time to read CVSROOT/options too. */
     parseopts(CVSroot_directory);
 
-    path = xmalloc (strlen (CVSroot_directory)
-		    + sizeof (CVSROOTADM)
-		    + sizeof (CVSROOTADM_HISTORY)
-		    + 10);
+    path = malloc (strlen (CVSroot_directory)
+		   + sizeof (CVSROOTADM)
+		   + sizeof (CVSROOTADM_HISTORY)
+		   + 10);
+    if (path == NULL)
+    {
+	pending_error = ENOMEM;
+	return;
+    }
     (void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
     if (!isaccessible (path, R_OK | X_OK))
     {
@@ -673,6 +879,73 @@ server_pathname_check (path)
     }
 }
 
+static int outside_root PROTO ((char *));
+
+/* Is file or directory REPOS an absolute pathname within the
+   CVSroot_directory?  If yes, return 0.  If no, set pending_error
+   and return 1.  */
+static int
+outside_root (repos)
+    char *repos;
+{
+    size_t repos_len = strlen (repos);
+    size_t root_len = strlen (CVSroot_directory);
+
+    /* I think isabsolute (repos) should always be true, and that
+       any RELATIVE_REPOS stuff should only be in CVS/Repository
+       files, not the protocol (for compatibility), but I'm putting
+       in the isabsolute check just in case.  */
+    if (!isabsolute (repos))
+    {
+	if (alloc_pending (repos_len + 80))
+	    sprintf (pending_error_text, "\
+E protocol error: %s is not absolute", repos);
+	return 1;
+    }
+
+    if (repos_len < root_len
+	|| strncmp (CVSroot_directory, repos, root_len) != 0)
+    {
+    not_within:
+	if (alloc_pending (strlen (CVSroot_directory)
+			   + strlen (repos)
+			   + 80))
+	    sprintf (pending_error_text, "\
+E protocol error: directory '%s' not within root '%s'",
+		     repos, CVSroot_directory);
+	return 1;
+    }
+    if (repos_len > root_len)
+    {
+	if (repos[root_len] != '/')
+	    goto not_within;
+	if (pathname_levels (repos + root_len + 1) > 0)
+	    goto not_within;
+    }
+    return 0;
+}
+
+static int outside_dir PROTO ((char *));
+
+/* Is file or directory FILE outside the current directory (that is, does
+   it contain '/')?  If no, return 0.  If yes, set pending_error
+   and return 1.  */
+static int
+outside_dir (file)
+    char *file;
+{
+    if (strchr (file, '/') != NULL)
+    {
+	if (alloc_pending (strlen (file)
+			   + 80))
+	    sprintf (pending_error_text, "\
+E protocol error: directory '%s' not within current directory",
+		     file);
+	return 1;
+    }
+    return 0;
+}
+	
 /*
  * Add as many directories to the temp directory as the client tells us it
  * will use "..", so we never try to access something outside the temp
@@ -712,12 +985,30 @@ dirswitch (dir, repos)
 {
     int status;
     FILE *f;
-    char *b;
     size_t dir_len;
 
     server_write_entries ();
 
     if (error_pending()) return;
+
+    /* Check for bad directory name.
+
+       FIXME: could/should unify these checks with server_pathname_check
+       except they need to report errors differently.  */
+    if (isabsolute (dir))
+    {
+	if (alloc_pending (80 + strlen (dir)))
+	    sprintf (pending_error_text,
+		     "E absolute pathname `%s' illegal for server", dir);
+	return;
+    }
+    if (pathname_levels (dir) > max_dotdot_limit)
+    {
+	if (alloc_pending (80 + strlen (dir)))
+	    sprintf (pending_error_text,
+		     "E protocol error: `%s' has too many ..", dir);
+	return;
+    }
 
     if (dir_name != NULL)
 	free (dir_name);
@@ -748,7 +1039,7 @@ dirswitch (dir, repos)
     strcat (dir_name, "/");
     strcat (dir_name, dir);
 
-    status = mkdir_p (dir_name);	
+    status = mkdir_p (dir_name);
     if (status != 0
 	&& status != EEXIST)
     {
@@ -758,16 +1049,20 @@ dirswitch (dir, repos)
 	return;
     }
 
-    /* Note that this call to Subdir_Register will be a noop if the parent
-       directory does not yet exist (for example, if the client sends
-       "Directory foo" followed by "Directory .", then the subdirectory does
-       not get registered, but if the client sends "Directory ." followed
-       by "Directory foo", then the subdirectory does get registered.
-       This seems pretty fishy, but maybe it is the way it needs to work.  */
-    b = strrchr (dir_name, '/');
-    *b = '\0';
-    Subdir_Register ((List *) NULL, dir_name, b + 1);
-    *b = '/';
+    /* We need to create adm directories in all path elements because
+       we want the server to descend them, even if the client hasn't
+       sent the appropriate "Argument xxx" command to match the
+       already-sent "Directory xxx" command.  See recurse.c
+       (start_recursion) for a big discussion of this.  */
+
+    status = create_adm_p (server_temp_dir, dir);
+    if (status != 0)
+    {
+	pending_error = status;
+	if (alloc_pending (80 + strlen (dir_name)))
+	    sprintf (pending_error_text, "E cannot create_adm_p %s", dir_name);
+	return;
+    }
 
     if ( CVS_CHDIR (dir_name) < 0)
     {
@@ -780,14 +1075,17 @@ dirswitch (dir, repos)
      * This is pretty much like calling Create_Admin, but Create_Admin doesn't
      * report errors in the right way for us.
      */
-    if (CVS_MKDIR (CVSADM, 0777) < 0)
+    if ((CVS_MKDIR (CVSADM, 0777) < 0) && (errno != EEXIST))
     {
-	if (errno == EEXIST)
-	    /* Don't create the files again.  */
-	    return;
 	pending_error = errno;
 	return;
     }
+    
+    /* The following will overwrite the contents of CVSADM_REP.  This
+       is the correct behavior -- mkdir_p may have written a
+       placeholder value to this file and we need to insert the
+       correct value. */
+
     f = CVS_FOPEN (CVSADM_REP, "w");
     if (f == NULL)
     {
@@ -867,24 +1165,8 @@ serve_directory (arg)
     status = buf_read_line (buf_from_net, &repos, (int *) NULL);
     if (status == 0)
     {
-	/* I think isabsolute (repos) should always be true, and that
-	   any RELATIVE_REPOS stuff should only be in CVS/Repository
-	   files, not the protocol (for compatibility), but I'm putting
-	   in the in isabsolute check just in case.  */
-	if (isabsolute (repos)
-	    && strncmp (CVSroot_directory,
-			repos,
-			strlen (CVSroot_directory)) != 0)
-	{
-	    if (alloc_pending (strlen (CVSroot_directory)
-			       + strlen (repos)
-			       + 80))
-		sprintf (pending_error_text, "\
-E protocol error: directory '%s' not within root '%s'",
-			 repos, CVSroot_directory);
+	if (outside_root (repos))
 	    return;
-	}
-
 	dirswitch (arg, repos);
 	free (repos);
     }
@@ -1058,8 +1340,6 @@ receive_file (size, file, gzipped)
 {
     int fd;
     char *arg = file;
-    pid_t gzip_pid = 0;
-    int gzip_status;
 
     /* Write the file.  */
     fd = CVS_OPEN (arg, O_WRONLY | O_CREAT | O_TRUNC, 0600);
@@ -1072,15 +1352,78 @@ receive_file (size, file, gzipped)
 	return;
     }
 
-    /*
-     * FIXME: This doesn't do anything reasonable with gunzip's stderr, which
-     * means that if gunzip writes to stderr, it will cause all manner of
-     * protocol violations.
-     */
     if (gzipped)
-	fd = filter_through_gunzip (fd, 0, &gzip_pid);
+    {
+	/* Using gunzip_and_write isn't really a high-performance
+	   approach, because it keeps the whole thing in memory
+	   (contiguous memory, worse yet).  But it seems easier to
+	   code than the alternative (and less vulnerable to subtle
+	   bugs).  Given that this feature is mainly for
+	   compatibility, that is the better tradeoff.  */
 
-    receive_partial_file (size, fd);
+	int toread = size;
+	char *filebuf;
+	char *p;
+
+	filebuf = malloc (size);
+	p = filebuf;
+	/* If NULL, we still want to read the data and discard it.  */
+
+	while (toread > 0)
+	{
+	    int status, nread;
+	    char *data;
+
+	    status = buf_read_data (buf_from_net, toread, &data, &nread);
+	    if (status != 0)
+	    {
+		if (status == -2)
+		    pending_error = ENOMEM;
+		else
+		{
+		    pending_error_text = malloc (80);
+		    if (pending_error_text == NULL)
+			pending_error = ENOMEM;
+		    else if (status == -1)
+		    {
+			sprintf (pending_error_text,
+				 "E premature end of file from client");
+			pending_error = 0;
+		    }
+		    else
+		    {
+			sprintf (pending_error_text,
+				 "E error reading from client");
+			pending_error = status;
+		    }
+		}
+		return;
+	    }
+
+	    toread -= nread;
+
+	    if (filebuf != NULL)
+	    {
+		memcpy (p, data, nread);
+		p += nread;
+	    }
+	}
+	if (filebuf == NULL)
+	{
+	    pending_error = ENOMEM;
+	    goto out;
+	}
+
+	if (gunzip_and_write (fd, file, filebuf, size))
+	{
+	    if (alloc_pending (80))
+		sprintf (pending_error_text,
+			 "E aborting due to compression error");
+	}
+	free (filebuf);
+    }
+    else
+	receive_partial_file (size, fd);
 
     if (pending_error_text)
     {
@@ -1094,29 +1437,24 @@ receive_file (size, file, gzipped)
 	/* else original string is supposed to be unchanged */
     }
 
+ out:
     if (close (fd) < 0 && !error_pending ())
     {
 	pending_error_text = malloc (40 + strlen (arg));
 	if (pending_error_text)
 	    sprintf (pending_error_text, "E cannot close %s", arg);
 	pending_error = errno;
-	if (gzip_pid)
-	    waitpid (gzip_pid, (int *) 0, 0);
 	return;
-    }
-
-    if (gzip_pid)
-    {
-	if (waitpid (gzip_pid, &gzip_status, 0) != gzip_pid)
-	    error (1, errno, "waiting for gunzip process %ld",
-		   (long) gzip_pid);
-	else if (gzip_status != 0)
-	    error (1, 0, "gunzip exited %d", gzip_status);
     }
 }
 
 /* Kopt for the next file sent in Modified or Is-modified.  */
 static char *kopt;
+
+/* Timestamp (Checkin-time) for next file sent in Modified or
+   Is-modified.  */
+static int checkin_time_valid;
+static time_t checkin_time;
 
 static void serve_modified PROTO ((char *));
 
@@ -1215,10 +1553,29 @@ serve_modified (arg)
 	return;
     }
 
+    if (outside_dir (arg))
+	return;
+
     if (size >= 0)
     {
 	receive_file (size, arg, gzipped);
 	if (error_pending ()) return;
+    }
+
+    if (checkin_time_valid)
+    {
+	struct utimbuf t;
+
+	memset (&t, 0, sizeof (t));
+	t.modtime = t.actime = checkin_time;
+	if (utime (arg, &t) < 0)
+	{
+	    pending_error = errno;
+	    if (alloc_pending (80 + strlen (arg)))
+		sprintf (pending_error_text, "E cannot utime %s", arg);
+	    return;
+	}
+	checkin_time_valid = 0;
     }
 
     {
@@ -1271,6 +1628,9 @@ serve_unchanged (arg)
     if (error_pending ())
 	return;
 
+    if (outside_dir (arg))
+	return;
+
     /* Rewrite entries file to have `=' in timestamp field.  */
     for (p = entries; p != NULL; p = p->next)
     {
@@ -1309,6 +1669,9 @@ serve_is_modified (arg)
     int found;
 
     if (error_pending ())
+	return;
+
+    if (outside_dir (arg))
 	return;
 
     /* Rewrite entries file to have `M' in timestamp field.  */
@@ -1446,6 +1809,34 @@ serve_kopt (arg)
     strcpy (kopt, arg);
 }
 
+static void serve_checkin_time PROTO ((char *));
+
+static void
+serve_checkin_time (arg)
+     char *arg;
+{
+    if (error_pending ())
+	return;
+
+    if (checkin_time_valid)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text,
+		     "E protocol error: duplicate Checkin-time request: %s",
+		     arg);
+	return;
+    }
+
+    checkin_time = get_date (arg, NULL);
+    if (checkin_time == (time_t)-1)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text, "E cannot parse date %s", arg);
+	return;
+    }
+    checkin_time_valid = 1;
+}
+
 static void
 server_write_entries ()
 {
@@ -1533,6 +1924,9 @@ serve_notify (arg)
 
     if (error_pending ()) return;
 
+    if (outside_dir (arg))
+	return;
+
     new = (struct notify_note *) malloc (sizeof (struct notify_note));
     if (new == NULL)
     {
@@ -1584,6 +1978,9 @@ serve_notify (arg)
     {
 	char *cp;
 
+	if (strchr (data, '+'))
+	    goto error;
+
 	new->type = data;
 	if (data[1] != '\t')
 	    goto error;
@@ -1623,7 +2020,7 @@ serve_notify (arg)
     }
     return;
   error:
-    pending_error_text = malloc (40);
+    pending_error_text = malloc (80);
     if (pending_error_text)
 	strcpy (pending_error_text,
 		"E Protocol error; misformed Notify request");
@@ -1683,6 +2080,8 @@ server_notify ()
 
 	Lock_Cleanup ();
     }
+
+    last_node = NULL;
 
     /* The code used to call fflush (stdout) here, but that is no
        longer necessary.  The data is now buffered in buf_to_net,
@@ -1928,6 +2327,9 @@ serve_questionable (arg)
 	buf_output0 (buf_to_net, "E Protocol error: 'Directory' missing");
 	return;
     }
+
+    if (outside_dir (arg))
+	return;
 
     if (!ign_name (arg))
     {
@@ -2882,8 +3284,8 @@ server_register (name, version, timestamp, options, tag, date, conflict)
     if (trace)
     {
 	(void) fprintf (stderr,
-			"%c-> server_register(%s, %s, %s, %s, %s, %s, %s)\n",
-			(server_active) ? 'S' : ' ', /* silly */
+			"%s-> server_register(%s, %s, %s, %s, %s, %s, %s)\n",
+			CLIENT_SERVER_STR,
 			name, version, timestamp ? timestamp : "", options,
 			tag ? tag : "", date ? date : "",
 			conflict ? conflict : "");
@@ -3349,6 +3751,12 @@ server_copy_file (file, update_dir, repository, newfile)
     char *repository;
     char *newfile;
 {
+    /* At least for now, our practice is to have the server enforce
+       noexec for the repository and the client enforce it for the
+       working directory.  This might want more thought, and/or
+       documentation in cvsclient.texi (other responses do it
+       differently).  */
+
     if (!supported_response ("Copy-file"))
 	return;
     buf_output0 (protocol, "Copy-file ");
@@ -3367,33 +3775,21 @@ server_modtime (finfo, vers_ts)
     Vers_TS *vers_ts;
 {
     char date[MAXDATELEN];
-    int year, month, day, hour, minute, second;
-    /* Note that these strings are specified in RFC822 and do not vary
-       according to locale.  */
-    static const char *const month_names[] =
-      {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-	 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    char outdate[MAXDATELEN];
 
     assert (vers_ts->vn_rcs != NULL);
 
     if (!supported_response ("Mod-time"))
 	return;
 
-    /* The only hard part about this routine is converting the date
-       formats.  In terms of functionality it all boils down to the
-       call to RCS_getrevtime.  */
     if (RCS_getrevtime (finfo->rcs, vers_ts->vn_rcs, date, 0) == (time_t) -1)
 	/* FIXME? should we be printing some kind of warning?  For one
 	   thing I'm not 100% sure whether this happens in non-error
 	   circumstances.  */
 	return;
-
-    sscanf (date, SDATEFORM, &year, &month, &day, &hour, &minute, &second);
-    sprintf (date, "%d %s %d %d:%d:%d -0000", day,
-	     month < 1 || month > 12 ? "???" : month_names[month - 1],
-	     year, hour, minute, second);
+    date_to_internet (outdate, date);
     buf_output0 (protocol, "Mod-time ");
-    buf_output0 (protocol, date);
+    buf_output0 (protocol, outdate);
     buf_output0 (protocol, "\n");
 }
 
@@ -3440,6 +3836,12 @@ server_updated (finfo, vers, updated, mode, checksum, filebuf)
 	struct buffer_data *list, *last;
 	unsigned long size;
 	char size_text[80];
+
+	/* The contents of the file will be in one of filebuf,
+	   list/last, or here.  */
+	unsigned char *file;
+	size_t file_allocated;
+	size_t file_used;
 
 	if (filebuf != NULL)
 	{
@@ -3549,6 +3951,11 @@ CVS server internal error: no mode in server_updated");
 	}
 
 	list = last = NULL;
+
+	file = NULL;
+	file_allocated = 0;
+	file_used = 0;
+
 	if (size > 0)
 	{
 	    /* Throughout this section we use binary mode to read the
@@ -3564,8 +3971,14 @@ CVS server internal error: no mode in server_updated");
 		 */
 		&& size > 100)
 	    {
-		int status, fd, gzip_status;
-		pid_t gzip_pid;
+		/* Basing this routine on read_and_gzip is not a
+		   high-performance approach.  But it seems easier
+		   to code than the alternative (and less
+		   vulnerable to subtle bugs).  Given that this feature
+		   is mainly for compatibility, that is the better
+		   tradeoff.  */
+
+		int fd;
 
 		/* Callers must avoid passing us a buffer if
                    file_gzip_level is set.  We could handle this case,
@@ -3578,22 +3991,13 @@ CVS server internal error: unhandled case in server_updated");
 		fd = CVS_OPEN (finfo->file, O_RDONLY | OPEN_BINARY, 0);
 		if (fd < 0)
 		    error (1, errno, "reading %s", finfo->fullname);
-		fd = filter_through_gzip (fd, 1, file_gzip_level, &gzip_pid);
-		f = fdopen (fd, "rb");
-		status = buf_read_file_to_eof (f, &list, &last);
-		size = buf_chain_length (list);
-		if (status == -2)
-		    (*protocol->memory_error) (protocol);
-		else if (status != 0)
-		    error (1, ferror (f) ? errno : 0, "reading %s",
-			   finfo->fullname);
-		if (fclose (f) == EOF)
+		if (read_and_gzip (fd, finfo->fullname, &file,
+				   &file_allocated, &file_used,
+				   file_gzip_level))
+		    error (1, 0, "aborting due to compression error");
+		size = file_used;
+		if (close (fd) < 0)
 		    error (1, errno, "reading %s", finfo->fullname);
-		if (waitpid (gzip_pid, &gzip_status, 0) == -1)
-		    error (1, errno, "waiting for gzip process %ld",
-			   (long) gzip_pid);
-		else if (gzip_status != 0)
-		    error (1, 0, "gzip exited %d", gzip_status);
 		/* Prepending length with "z" is flag for using gzip here.  */
 		buf_output0 (protocol, "z");
 	    }
@@ -3618,7 +4022,13 @@ CVS server internal error: unhandled case in server_updated");
 	sprintf (size_text, "%lu\n", size);
 	buf_output0 (protocol, size_text);
 
-	if (filebuf == NULL)
+	if (file != NULL)
+	{
+	    buf_output (protocol, file, file_used);
+	    free (file);
+	    file = NULL;
+	}
+	else if (filebuf == NULL)
 	    buf_append_data (protocol, list, last);
 	else
 	{
@@ -3641,7 +4051,11 @@ CVS server internal error: unhandled case in server_updated");
 	    /* But if we are joining, we'll need the file when we call
 	       join_file.  */
 	    && !joining ())
-	    CVS_UNLINK (finfo->file);
+	{
+	    if (CVS_UNLINK (finfo->file) < 0)
+		error (0, errno, "cannot remove temp file for %s",
+		       finfo->fullname);
+	}
     }
     else if (scratched_file != NULL && entries_line == NULL)
     {
@@ -4136,78 +4550,81 @@ struct request requests[] =
 #define REQ_LINE(n, f, s) {n, s}
 #endif
 
-  REQ_LINE("Root", serve_root, rq_essential),
-  REQ_LINE("Valid-responses", serve_valid_responses, rq_essential),
-  REQ_LINE("valid-requests", serve_valid_requests, rq_essential),
-  REQ_LINE("Repository", serve_repository, rq_optional),
-  REQ_LINE("Directory", serve_directory, rq_essential),
-  REQ_LINE("Max-dotdot", serve_max_dotdot, rq_optional),
-  REQ_LINE("Static-directory", serve_static_directory, rq_optional),
-  REQ_LINE("Sticky", serve_sticky, rq_optional),
-  REQ_LINE("Checkin-prog", serve_checkin_prog, rq_optional),
-  REQ_LINE("Update-prog", serve_update_prog, rq_optional),
-  REQ_LINE("Entry", serve_entry, rq_essential),
-  REQ_LINE("Kopt", serve_kopt, rq_optional),
-  REQ_LINE("Modified", serve_modified, rq_essential),
-  REQ_LINE("Is-modified", serve_is_modified, rq_optional),
+  REQ_LINE("Root", serve_root, RQ_ESSENTIAL | RQ_ROOTLESS),
+  REQ_LINE("Valid-responses", serve_valid_responses,
+	   RQ_ESSENTIAL | RQ_ROOTLESS),
+  REQ_LINE("valid-requests", serve_valid_requests,
+	   RQ_ESSENTIAL | RQ_ROOTLESS),
+  REQ_LINE("Repository", serve_repository, 0),
+  REQ_LINE("Directory", serve_directory, RQ_ESSENTIAL),
+  REQ_LINE("Max-dotdot", serve_max_dotdot, 0),
+  REQ_LINE("Static-directory", serve_static_directory, 0),
+  REQ_LINE("Sticky", serve_sticky, 0),
+  REQ_LINE("Checkin-prog", serve_checkin_prog, 0),
+  REQ_LINE("Update-prog", serve_update_prog, 0),
+  REQ_LINE("Entry", serve_entry, RQ_ESSENTIAL),
+  REQ_LINE("Kopt", serve_kopt, 0),
+  REQ_LINE("Checkin-time", serve_checkin_time, 0),
+  REQ_LINE("Modified", serve_modified, RQ_ESSENTIAL),
+  REQ_LINE("Is-modified", serve_is_modified, 0),
 
   /* The client must send this request to interoperate with CVS 1.5
      through 1.9 servers.  The server must support it (although it can
      be and is a noop) to interoperate with CVS 1.5 to 1.9 clients.  */
-  REQ_LINE("UseUnchanged", serve_enable_unchanged, rq_enableme),
+  REQ_LINE("UseUnchanged", serve_enable_unchanged, RQ_ENABLEME | RQ_ROOTLESS),
 
-  REQ_LINE("Unchanged", serve_unchanged, rq_essential),
-  REQ_LINE("Notify", serve_notify, rq_optional),
-  REQ_LINE("Questionable", serve_questionable, rq_optional),
-  REQ_LINE("Case", serve_case, rq_optional),
-  REQ_LINE("Argument", serve_argument, rq_essential),
-  REQ_LINE("Argumentx", serve_argumentx, rq_essential),
-  REQ_LINE("Global_option", serve_global_option, rq_optional),
-  REQ_LINE("Gzip-stream", serve_gzip_stream, rq_optional),
+  REQ_LINE("Unchanged", serve_unchanged, RQ_ESSENTIAL),
+  REQ_LINE("Notify", serve_notify, 0),
+  REQ_LINE("Questionable", serve_questionable, 0),
+  REQ_LINE("Case", serve_case, 0),
+  REQ_LINE("Argument", serve_argument, RQ_ESSENTIAL),
+  REQ_LINE("Argumentx", serve_argumentx, RQ_ESSENTIAL),
+  REQ_LINE("Global_option", serve_global_option, 0),
+  REQ_LINE("Gzip-stream", serve_gzip_stream, 0),
   REQ_LINE("wrapper-sendme-rcsOptions",
            serve_wrapper_sendme_rcs_options,
-           rq_optional),
-  REQ_LINE("Set", serve_set, rq_optional),
+           0),
+  REQ_LINE("Set", serve_set, RQ_ROOTLESS),
 #ifdef ENCRYPTION
 #  ifdef HAVE_KERBEROS
-  REQ_LINE("Kerberos-encrypt", serve_kerberos_encrypt, rq_optional),
+  REQ_LINE("Kerberos-encrypt", serve_kerberos_encrypt, 0),
 #  endif
 #  ifdef HAVE_GSSAPI
-  REQ_LINE("Gssapi-encrypt", serve_gssapi_encrypt, rq_optional),
+  REQ_LINE("Gssapi-encrypt", serve_gssapi_encrypt, 0),
 #  endif
 #endif
 #ifdef HAVE_GSSAPI
-  REQ_LINE("Gssapi-authenticate", serve_gssapi_authenticate, rq_optional),
+  REQ_LINE("Gssapi-authenticate", serve_gssapi_authenticate, 0),
 #endif
-  REQ_LINE("expand-modules", serve_expand_modules, rq_optional),
-  REQ_LINE("ci", serve_ci, rq_essential),
-  REQ_LINE("co", serve_co, rq_essential),
-  REQ_LINE("update", serve_update, rq_essential),
-  REQ_LINE("diff", serve_diff, rq_optional),
-  REQ_LINE("log", serve_log, rq_optional),
-  REQ_LINE("add", serve_add, rq_optional),
-  REQ_LINE("remove", serve_remove, rq_optional),
-  REQ_LINE("update-patches", serve_ignore, rq_optional),
-  REQ_LINE("gzip-file-contents", serve_gzip_contents, rq_optional),
-  REQ_LINE("status", serve_status, rq_optional),
-  REQ_LINE("rdiff", serve_rdiff, rq_optional),
-  REQ_LINE("tag", serve_tag, rq_optional),
-  REQ_LINE("rtag", serve_rtag, rq_optional),
-  REQ_LINE("import", serve_import, rq_optional),
-  REQ_LINE("admin", serve_admin, rq_optional),
-  REQ_LINE("export", serve_export, rq_optional),
-  REQ_LINE("history", serve_history, rq_optional),
-  REQ_LINE("release", serve_release, rq_optional),
-  REQ_LINE("watch-on", serve_watch_on, rq_optional),
-  REQ_LINE("watch-off", serve_watch_off, rq_optional),
-  REQ_LINE("watch-add", serve_watch_add, rq_optional),
-  REQ_LINE("watch-remove", serve_watch_remove, rq_optional),
-  REQ_LINE("watchers", serve_watchers, rq_optional),
-  REQ_LINE("editors", serve_editors, rq_optional),
-  REQ_LINE("init", serve_init, rq_optional),
-  REQ_LINE("annotate", serve_annotate, rq_optional),
-  REQ_LINE("noop", serve_noop, rq_optional),
-  REQ_LINE(NULL, NULL, rq_optional)
+  REQ_LINE("expand-modules", serve_expand_modules, 0),
+  REQ_LINE("ci", serve_ci, RQ_ESSENTIAL),
+  REQ_LINE("co", serve_co, RQ_ESSENTIAL),
+  REQ_LINE("update", serve_update, RQ_ESSENTIAL),
+  REQ_LINE("diff", serve_diff, 0),
+  REQ_LINE("log", serve_log, 0),
+  REQ_LINE("add", serve_add, 0),
+  REQ_LINE("remove", serve_remove, 0),
+  REQ_LINE("update-patches", serve_ignore, 0),
+  REQ_LINE("gzip-file-contents", serve_gzip_contents, 0),
+  REQ_LINE("status", serve_status, 0),
+  REQ_LINE("rdiff", serve_rdiff, 0),
+  REQ_LINE("tag", serve_tag, 0),
+  REQ_LINE("rtag", serve_rtag, 0),
+  REQ_LINE("import", serve_import, 0),
+  REQ_LINE("admin", serve_admin, 0),
+  REQ_LINE("export", serve_export, 0),
+  REQ_LINE("history", serve_history, 0),
+  REQ_LINE("release", serve_release, 0),
+  REQ_LINE("watch-on", serve_watch_on, 0),
+  REQ_LINE("watch-off", serve_watch_off, 0),
+  REQ_LINE("watch-add", serve_watch_add, 0),
+  REQ_LINE("watch-remove", serve_watch_remove, 0),
+  REQ_LINE("watchers", serve_watchers, 0),
+  REQ_LINE("editors", serve_editors, 0),
+  REQ_LINE("init", serve_init, RQ_ROOTLESS),
+  REQ_LINE("annotate", serve_annotate, 0),
+  REQ_LINE("noop", serve_noop, 0),
+  REQ_LINE(NULL, NULL, 0)
 
 #undef REQ_LINE
 };
@@ -4605,7 +5022,31 @@ error ENOMEM Virtual memory exhausted.\n");
 		     * "co".
 		     */
 		    continue;
-		(*rq->func) (cmd);
+
+		if (!(rq->flags & RQ_ROOTLESS)
+		    && CVSroot_directory == NULL)
+		{
+		    /* For commands which change the way in which data
+		       is sent and received, for example Gzip-stream,
+		       this does the wrong thing.  Since the client
+		       assumes that everything is being compressed,
+		       unconditionally, there is no way to give this
+		       error to the client without turning on
+		       compression.  The obvious fix would be to make
+		       Gzip-stream RQ_ROOTLESS (with the corresponding
+		       change to the spec), and that might be a good
+		       idea but then again I can see some settings in
+		       CVSROOT about what compression level to allow.
+		       I suppose a more baroque answer would be to
+		       turn on compression (say, at level 1), just
+		       enough to give the "Root request missing"
+		       error.  For now we just lose.  */
+		    if (alloc_pending (80))
+			sprintf (pending_error_text,
+				 "E Protocol error: Root request missing");
+		}
+		else
+		    (*rq->func) (cmd);
 		break;
 	    }
 	if (rq->name == NULL)
@@ -4637,48 +5078,74 @@ switch_to_user (username)
     pw = getpwnam (username);
     if (pw == NULL)
     {
+	/* Normally this won't be reached; check_password contains
+	   a similar check.  */
+
 	printf ("E Fatal error, aborting.\n\
 error 0 %s: no such user\n", username);
-	/* I'm doing this manually rather than via error_exit ()
-	   because I'm not sure whether we want to call server_cleanup.
-	   Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-
-	exit (EXIT_FAILURE);
+	/* Don't worry about server_cleanup; server_active isn't set yet.  */
+	error_exit ();
     }
 
-    /* FIXME?  We don't check for errors from initgroups, setuid, &c.
-       I think this mainly would come up if someone is trying to run
-       the server as a non-root user.  I think we should be checking for
-       errors and aborting (as with the error above from getpwnam) if
-       there is an error (presumably EPERM).  That means that pserver
-       should continue to work right if all of the "system usernames"
-       in CVSROOT/passwd match the user which the server is being run
-       as (in inetd.conf), but fail otherwise.  */
-
 #if HAVE_INITGROUPS
-    initgroups (pw->pw_name, pw->pw_gid);
+    if (initgroups (pw->pw_name, pw->pw_gid) < 0
+#  ifdef EPERM
+	/* At least on the system I tried, initgroups() only works as root.
+	   But we do still want to report ENOMEM and whatever other
+	   errors initgroups() might dish up.  */
+	&& errno != EPERM
+#  endif
+	)
+    {
+	/* This could be a warning, but I'm not sure I see the point
+	   in doing that instead of an error given that it would happen
+	   on every connection.  We could log it somewhere and not tell
+	   the user.  But at least for now make it an error.  */
+	printf ("error 0 initgroups failed: %s\n", strerror (errno));
+	/* Don't worry about server_cleanup; server_active isn't set yet.  */
+	error_exit ();
+    }
 #endif /* HAVE_INITGROUPS */
 
 #ifdef SETXID_SUPPORT
     /* honor the setgid bit iff set*/
     if (getgid() != getegid())
     {
-	setgid (getegid ());
+	if (setgid (getegid ()) < 0)
+	{
+	    /* See comments at setuid call below for more discussion.  */
+	    printf ("error 0 setuid failed: %s\n", strerror (errno));
+	    /* Don't worry about server_cleanup;
+	       server_active isn't set yet.  */
+	    error_exit ();
+	}
     }
     else
-#else
-    {
-	setgid (pw->pw_gid);
-    }
 #endif
+    {
+	if (setgid (pw->pw_gid) < 0)
+	{
+	    /* See comments at setuid call below for more discussion.  */
+	    printf ("error 0 setuid failed: %s\n", strerror (errno));
+	    /* Don't worry about server_cleanup;
+	       server_active isn't set yet.  */
+	    error_exit ();
+	}
+    }
     
-    setuid (pw->pw_uid);
+    if (setuid (pw->pw_uid) < 0)
+    {
+	/* Note that this means that if run as a non-root user,
+	   CVSROOT/passwd must contain the user we are running as
+	   (e.g. "joe:FsEfVcu:cvs" if run as "cvs" user).  This seems
+	   cleaner than ignoring the error like CVS 1.10 and older but
+	   it does mean that some people might need to update their
+	   CVSROOT/passwd file.  */
+	printf ("error 0 setuid failed: %s\n", strerror (errno));
+	/* Don't worry about server_cleanup; server_active isn't set yet.  */
+	error_exit ();
+    }
+
     /* We don't want our umask to change file modes.  The modes should
        be set by the modes used in the repository, and by the umask of
        the client.  */
@@ -5089,32 +5556,23 @@ pserver_authenticate_connection ()
     host_user = check_password (username, descrambled_password, repository);
     memset (descrambled_password, 0, strlen (descrambled_password));
     free (descrambled_password);
-    if (host_user)
-    {
-	printf ("I LOVE YOU\n");
-	fflush (stdout);
-    }
-    else
+    if (host_user == NULL)
     {
     i_hate_you:
 	printf ("I HATE YOU\n");
 	fflush (stdout);
-	/* I'm doing this manually rather than via error_exit ()
-	   because I'm not sure whether we want to call server_cleanup.
-	   Needs more investigation....  */
 
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-
-	exit (EXIT_FAILURE);
+	/* Don't worry about server_cleanup, server_active isn't set
+	   yet.  */
+	error_exit ();
     }
 
     /* Don't go any farther if we're just responding to "cvs login". */
     if (verify_and_exit)
     {
+	printf ("I LOVE YOU\n");
+	fflush (stdout);
+
 #ifdef SYSTEM_CLEANUP
 	/* Hook for OS-specific behavior, for example socket subsystems on
 	   NT and OS2 or dealing with windows and arguments on Mac.  */
@@ -5136,6 +5594,8 @@ pserver_authenticate_connection ()
     free (username);
     free (password);
 
+    printf ("I LOVE YOU\n");
+    fflush (stdout);
 #endif /* AUTH_SERVER_SUPPORT */
 }
 

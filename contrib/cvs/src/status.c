@@ -67,37 +67,38 @@ cvsstatus (argc, argv)
     wrap_setup ();
 
 #ifdef CLIENT_SUPPORT
-    if (client_active) {
-      start_server ();
+    if (client_active)
+    {
+	start_server ();
 
-      ign_setup ();
+	ign_setup ();
 
-      if (long_format)
-	send_arg("-v");
-      if (local)
-	send_arg("-l");
+	if (long_format)
+	    send_arg("-v");
+	if (local)
+	    send_arg("-l");
 
-      send_file_names (argc, argv, SEND_EXPAND_WILD);
+	/* For a while, we tried setting SEND_NO_CONTENTS here so this
+	   could be a fast operation.  That prevents the
+	   server from updating our timestamp if the timestamp is
+	   changed but the file is unmodified.  Worse, it is user-visible
+	   (shows "locally modified" instead of "up to date" if
+	   timestamp is changed but file is not).  And there is no good
+	   workaround (you might not want to run "cvs update"; "cvs -n
+	   update" doesn't update CVS/Entries; "cvs diff --brief" or
+	   something perhaps could be made to work but somehow that
+	   seems nonintuitive to me even if so).  Given that timestamps
+	   seem to have the potential to get munged for any number of
+	   reasons, it seems better to not rely too much on them.  */
 
-      /* For a while, we tried setting SEND_NO_CONTENTS here so this
-	 could be a fast operation.  That prevents the
-	 server from updating our timestamp if the timestamp is
-	 changed but the file is unmodified.  Worse, it is user-visible
-	 (shows "locally modified" instead of "up to date" if
-	 timestamp is changed but file is not).  And there is no good
-	 workaround (you might not want to run "cvs update"; "cvs -n
-	 update" doesn't update CVS/Entries; "cvs diff --brief" or
-	 something perhaps could be made to work but somehow that
-	 seems nonintuitive to me even if so).  Given that timestamps
-	 seem to have the potential to get munged for any number of
-	 reasons, it seems better to not rely too much on them.  */
+	send_files (argc, argv, local, 0, 0);
 
-      send_files (argc, argv, local, 0, 0);
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
 
-      send_to_server ("status\012", 0);
-      err = get_responses_and_close ();
+	send_to_server ("status\012", 0);
+	err = get_responses_and_close ();
 
-      return err;
+	return err;
     }
 #endif
 
@@ -242,7 +243,7 @@ status_fileproc (callerdat, finfo)
 	    }
 	    else
 	    {
-		if (isdigit (edata->tag[0]))
+		if (isdigit ((unsigned char) edata->tag[0]))
 		{
 		    cvs_output ("   Sticky Tag:\t\t", 0);
 		    cvs_output (edata->tag, 0);
@@ -288,20 +289,20 @@ status_fileproc (callerdat, finfo)
 	}
 	else if (!really_quiet)
 	    cvs_output ("   Sticky Options:\t(none)\n", 0);
+    }
 
-	if (long_format && vers->srcfile)
+    if (long_format && vers->srcfile)
+    {
+	List *symbols = RCS_symbols(vers->srcfile);
+
+	cvs_output ("\n   Existing Tags:\n", 0);
+	if (symbols)
 	{
-	    List *symbols = RCS_symbols(vers->srcfile);
-
-	    cvs_output ("\n   Existing Tags:\n", 0);
-	    if (symbols)
-	    {
-		xrcsnode = finfo->rcs;
-		(void) walklist (symbols, tag_list_proc, NULL);
-	    }
-	    else
-		cvs_output ("\tNo Tags Exist\n", 0);
+	    xrcsnode = finfo->rcs;
+	    (void) walklist (symbols, tag_list_proc, NULL);
 	}
+	else
+	    cvs_output ("\tNo Tags Exist\n", 0);
     }
 
     cvs_output ("\n", 0);

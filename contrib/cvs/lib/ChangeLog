@@ -1,3 +1,45 @@
+1999-03-26  Jim Kingdon  <http://www.cyclic.com>
+
+	* getopt.h: Don't declare the arguments to getopt.
+
+1999-02-09  Jim Kingdon  <http://www.cyclic.com>
+
+	* vasprintf.c: Removed; there is apparently no clean, portable
+	solution to the VA_LIST_IS_ARRAY problem (C9X drafts have va_copy,
+	but we aren't even assuming C90 yet!).
+	* Makefile.in (SOURCES): Remove vasprintf.c.
+	* build_lib.com: Remove vasprintf.c and vasprintf.obj.
+
+1999-01-26  Jim Kingdon  <http://www.cyclic.com>
+	and Joerg Bullmann  <http://www.glink.net.hk/~jb/MacCVSClient/>
+
+	* fnmatch.c: Use FOLD_FN_CHAR in two cases where it had been
+	omitted.
+
+1999-01-22  Jim Kingdon  <http://www.cyclic.com>
+
+	* fnmatch.c: Include system.h; FOLD_FN_CHAR has moved there from
+	config.h (from Alexey Milov).  Don't define our own FOLD_FN_CHAR;
+	that just masks cases in which we got the includes tangled up.
+
+1999-01-12  Jim Kingdon  <http://www.cyclic.com>
+
+	* memmove.c: Remove paragraph which contained the FSF's old
+	snail mail address; it has changed.
+
+1999-01-05  Jim Kingdon  <http://www.cyclic.com>
+
+	* md5.c, md5.h: Rename all the external interfaces to start with
+	cvs_* to avoid namespace pollution problems.  Include string.h
+	unconditionally, to avoid gcc -Wall warnings on memset.
+
+1998-12-29  Jim Kingdon  <http://www.cyclic.com>
+
+	* getdate.y (RelativeMonth): Add 1900 to tm_year, so that in 2000,
+	we pass 2000, not 100, to Convert.
+	(Convert): Add comment about Year argument.
+	* getdate.c: Regenerated using byacc.
+
 Tue Mar 24 16:08:00 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 	* Makefile.in (CFLAGS): Set to @CFLAGS@, not -g.

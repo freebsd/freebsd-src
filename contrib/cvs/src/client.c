@@ -148,6 +148,139 @@ static void handle_notified PROTO((char *, int));
 static size_t try_read_from_server PROTO ((char *, size_t));
 #endif /* CLIENT_SUPPORT */
 
+#ifdef CLIENT_SUPPORT
+
+/* We need to keep track of the list of directories we've sent to the
+   server.  This list, along with the current CVSROOT, will help us
+   decide which command-line arguments to send.  */
+List *dirs_sent_to_server = NULL;
+
+static int is_arg_a_parent_or_listed_dir PROTO((Node *, void *));
+
+static int
+is_arg_a_parent_or_listed_dir (n, d)
+    Node *n;
+    void *d;
+{
+    char *directory = n->key;	/* name of the dir sent to server */
+    char *this_argv_elem = (char *) d;	/* this argv element */
+
+    /* Say we should send this argument if the argument matches the
+       beginning of a directory name sent to the server.  This way,
+       the server will know to start at the top of that directory
+       hierarchy and descend. */
+
+    if (strncmp (directory, this_argv_elem, strlen (this_argv_elem)) == 0)
+	return 1;
+
+    return 0;
+}
+
+static int arg_should_not_be_sent_to_server PROTO((char *));
+
+/* Return nonzero if this argument should not be sent to the
+   server. */
+
+static int
+arg_should_not_be_sent_to_server (arg)
+    char *arg;
+{
+    /* Decide if we should send this directory name to the server.  We
+       should always send argv[i] if:
+
+       1) the list of directories sent to the server is empty (as it
+       will be for checkout, etc.).
+
+       2) the argument is "."
+
+       3) the argument is a file in the cwd and the cwd is checked out
+       from the current root
+
+       4) the argument lies within one of the paths in
+       dirs_sent_to_server.
+
+       4) */
+
+    if (list_isempty (dirs_sent_to_server))
+	return 0;		/* always send it */
+
+    if (strcmp (arg, ".") == 0)
+	return 0;		/* always send it */
+
+    /* We should send arg if it is one of the directories sent to the
+       server or the parent of one; this tells the server to descend
+       the hierarchy starting at this level. */
+    if (isdir (arg))
+    {
+	if (walklist (dirs_sent_to_server, is_arg_a_parent_or_listed_dir, arg))
+	    return 0;
+
+	/* If arg wasn't a parent, we don't know anything about it (we
+	   would have seen something related to it during the
+	   send_files phase).  Don't send it.  */
+	return 1;
+    }
+
+    /* Try to decide whether we should send arg to the server by
+       checking the contents of the corresponding CVSADM directory. */
+    {
+	char *t, *this_root;
+
+	/* Calculate "dirname arg" */
+	for (t = arg + strlen (arg) - 1; t >= arg; t--)
+	{
+	    if (ISDIRSEP(*t))
+		break;
+	}
+
+	/* Now we're either poiting to the beginning of the
+	   string, or we found a path separator. */
+	if (t >= arg)
+	{
+	    /* Found a path separator.  */
+	    char c = *t;
+	    *t = '\0';
+	    
+	    /* First, check to see if we sent this directory to the
+               server, because it takes less time than actually
+               opening the stuff in the CVSADM directory.  */
+	    if (walklist (dirs_sent_to_server, is_arg_a_parent_or_listed_dir,
+			  arg))
+	    {
+		*t = c;		/* make sure to un-truncate the arg */
+		return 0;
+	    }
+
+	    /* Since we didn't find it in the list, check the CVSADM
+               files on disk.  */
+	    this_root = Name_Root (arg, (char *) NULL);
+	    *t = c;
+	}
+	else
+	{
+	    /* We're at the beginning of the string.  Look at the
+               CVSADM files in cwd.  */
+	    this_root = Name_Root ((char *) NULL, (char *) NULL);
+	}
+
+	/* Now check the value for root. */
+	if (this_root && current_root
+	    && (strcmp (this_root, current_root) != 0))
+	{
+	    /* Don't send this, since the CVSROOTs don't match. */
+	    free (this_root);
+	    return 1;
+	}
+	free (this_root);
+    }
+    
+    /* OK, let's send it. */
+    return 0;
+}
+
+
+#endif /* CLIENT_SUPPORT */
+
 #if defined(CLIENT_SUPPORT) || defined(SERVER_SUPPORT)
 
 /* Shared with server.  */
@@ -710,25 +843,6 @@ int gzip_level;
  */
 int file_gzip_level;
 
-int filter_through_gzip (fd, dir, level, pidp)
-    int fd, dir, level;
-    pid_t *pidp;
-{
-    static char buf[5] = "-";
-    static char *gzip_argv[3] = { "gzip", buf };
-
-    sprintf (buf+1, "%d", level);
-    return filter_stream_through_program (fd, dir, &gzip_argv[0], pidp);
-}
-
-int filter_through_gunzip (fd, dir, pidp)
-    int fd, dir;
-    pid_t *pidp;
-{
-    static char *gunzip_argv[3] = { "gzip", "-d" };
-    return filter_stream_through_program (fd, dir, &gunzip_argv[0], pidp);
-}
-
 #endif /* CLIENT_SUPPORT or SERVER_SUPPORT */
 
 #ifdef CLIENT_SUPPORT
@@ -737,7 +851,7 @@ int filter_through_gunzip (fd, dir, pidp)
  * The Repository for the top level of this command (not necessarily
  * the CVSROOT, just the current directory at the time we do it).
  */
-static char *toplevel_repos;
+static char *toplevel_repos = NULL;
 
 /* Working directory when we first started.  Note: we could speed things
    up on some systems by using savecwd.h here instead of just always
@@ -770,6 +884,13 @@ handle_error (args, len)
 	return;
     }
     ++p;
+
+    /* Next we print the text of the message from the server.  We
+       probably should be prefixing it with "server error" or some
+       such, because if it is something like "Out of memory", the
+       current behavior doesn't say which machine is out of
+       memory.  */
+
     len -= p - args;
     something_printed = 0;
     for (; len > 0; --len)
@@ -807,7 +928,7 @@ handle_valid_requests (args, len)
 	    ;
 	else
 	{
-	    if (rq->status == rq_enableme)
+	    if (rq->flags & RQ_ENABLEME)
 	    {
 		/*
 		 * Server wants to know if we have this, to enable the
@@ -817,16 +938,17 @@ handle_valid_requests (args, len)
                 send_to_server ("\012", 0);
 	    }
 	    else
-		rq->status = rq_supported;
+		rq->flags |= RQ_SUPPORTED;
 	}
 	p = q;
     } while (q != NULL);
     for (rq = requests; rq->name != NULL; ++rq)
     {
-	if (rq->status == rq_essential)
+	if ((rq->flags & RQ_SUPPORTED)
+	    || (rq->flags & RQ_ENABLEME))
+	    continue;
+	if (rq->flags & RQ_ESSENTIAL)
 	    error (1, 0, "request `%s' not supported by server", rq->name);
-	else if (rq->status == rq_optional)
-	    rq->status = rq_not_supported;
     }
 }
 
@@ -1210,7 +1332,14 @@ copy_a_file (data, ent_list, short_pathname, filename)
     for(p = newname; *p; p++)
        if(*p == '.' || *p == '#') *p = '_';
 #endif
+    /* cvsclient.texi has said for a long time that newname must be in the
+       same directory.  Wouldn't want a malicious or buggy server overwriting
+       ~/.profile, /etc/passwd, or anything like that.  */
+    if (last_component (newname) != newname)
+	error (1, 0, "protocol error: Copy-file tried to specify directory");
 
+    if (unlink_file (newname) && !existence_error (errno))
+	error (0, errno, "unable to remove %s", newname);
     copy_file (filename, newname);
     free (newname);
 }
@@ -1317,6 +1446,23 @@ static int updated_seen;
 /* Filename from an "fname" tagged response within +updated/-updated.  */
 static char *updated_fname;
 
+/* This struct is used to hold data when reading the +importmergecmd
+   and -importmergecmd tags.  We put the variables in a struct only
+   for namespace issues.  FIXME: As noted above, we need to develop a
+   more systematic approach.  */
+static struct
+{
+    /* Nonzero if we have seen +importmergecmd and not -importmergecmd.  */
+    int seen;
+    /* Number of conflicts, from a "conflicts" tagged response.  */
+    int conflicts;
+    /* First merge tag, from a "mergetag1" tagged response.  */
+    char *mergetag1;
+    /* Second merge tag, from a "mergetag2" tagged response.  */
+    char *mergetag2;
+    /* Repository, from a "repository" tagged response.  */
+    char *repository;
+} importmergecmd;
 
 /* Nonzero if we should arrange to return with a failure exit status.  */
 static int failure_exit;
@@ -1367,7 +1513,7 @@ handle_checksum (args, len)
     stored_checksum_valid = 1;
 }
 
-static int stored_mode_valid;
+/* Mode that we got in a "Mode" response (malloc'd), or NULL if none.  */
 static char *stored_mode;
 
 static void handle_mode PROTO ((char *, int));
@@ -1377,12 +1523,9 @@ handle_mode (args, len)
     char *args;
     int len;
 {
-    if (stored_mode_valid)
-	error (1, 0, "protocol error: duplicate Mode");
     if (stored_mode != NULL)
-	free (stored_mode);
+	error (1, 0, "protocol error: duplicate Mode");
     stored_mode = xstrdup (args);
-    stored_mode_valid = 1;
 }
 
 /* Nonzero if time was specified in Mod-time.  */
@@ -1547,8 +1690,8 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	free (size_string);
 
 	/* Note that checking this separately from writing the file is
-	   a race condition: if the existing or lack thereof of the
-	   file changes between now and the actually calls which
+	   a race condition: if the existence or lack thereof of the
+	   file changes between now and the actual calls which
 	   operate on it, we lose.  However (a) there are so many
 	   cases, I'm reluctant to try to fix them all, (b) in some
 	   cases the system might not even have a system call which
@@ -1622,9 +1765,11 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	    /* The Mode, Mod-time, and Checksum responses should not carry
 	       over to a subsequent Created (or whatever) response, even
 	       in the error case.  */
-	    stored_mode_valid = 0;
 	    if (stored_mode != NULL)
+	    {
 		free (stored_mode);
+		stored_mode = NULL;
+	    }
 	    stored_modtime_valid = 0;
 	    stored_checksum_valid = 0;
 
@@ -1701,7 +1846,10 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 		read_from_server (buf, size);
 
 		if (use_gzip)
-		    gunzip_and_write (fd, short_pathname, buf, size);
+		{
+		    if (gunzip_and_write (fd, short_pathname, buf, size))
+			error (1, 0, "aborting due to compression error");
+		}
 		else if (write (fd, buf, size) != size)
 		    error (1, errno, "writing %s", short_pathname);
 	    }
@@ -1734,82 +1882,14 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	}
 	else if (data->contents == UPDATE_ENTRIES_PATCH)
 	{
-#ifdef DONT_USE_PATCH
-	    /* Hmm.  We support only Rcs-diff, and the server supports
-	       only Patched (or else it would have sent Rcs-diff instead).
+	    /* You might think we could just leave Patched out of
+	       Valid-responses and not get this response.  However, if
+	       memory serves, the CVS 1.9 server bases this on -u
+	       (update-patches), and there is no way for us to send -u
+	       or not based on whether the server supports "Rcs-diff".  
+
 	       Fall back to transmitting entire files.  */
 	    patch_failed = 1;
-#else /* Use patch.  */
-	    int retcode;
-	    char *backup;
-	    struct stat s;
-
-	    backup = xmalloc (strlen (filename) + 5);
-	    strcpy (backup, filename);
-	    strcat (backup, "~");
-	    (void) unlink_file (backup);
-	    if (!isfile (filename))
-	        error (1, 0, "patch original file %s does not exist",
-		       short_pathname);
-	    if ( CVS_STAT (temp_filename, &s) < 0)
-	        error (1, errno, "can't stat patch file %s", temp_filename);
-	    if (s.st_size == 0)
-	        retcode = 0;
-	    else
-	    {
-		/* This behavior (in which -b takes an argument) is
-		   supported by GNU patch 2.1.  Apparently POSIX.2
-		   specifies a -b option without an argument.  GNU
-		   patch 2.1.5 implements this and therefore won't
-		   work here.  GNU patch versions after 2.1.5 are said
-		   to have a kludge which checks if the last 4 args
-		   are `-b SUFFIX ORIGFILE PATCHFILE' and if so emit a
-		   warning (I think -s suppresses it), and then behave
-		   as CVS expects.
-
-		   Of course this is yet one more reason why in the long
-		   run we want Rcs-diff to replace Patched.  */
-
-	        run_setup (PATCH_PROGRAM);
-		run_arg ("-f");
-		run_arg ("-s");
-		run_arg ("-b");
-		run_arg ("~");
-		run_arg (filename);
-		run_arg (temp_filename);
-		retcode = run_exec (DEVNULL, RUN_TTY, RUN_TTY, RUN_NORMAL);
-	    }
-	    /* FIXME: should we really be silently ignoring errors?  */
-	    (void) unlink_file (temp_filename);
-	    if (retcode == 0)
-	    {
-		/* FIXME: should we really be silently ignoring errors?  */
-		(void) unlink_file (backup);
-	    }
-	    else
-	    {
-	        int old_errno = errno;
-		char *path_tmp;
-
-	        if (isfile (backup))
-		    rename_file (backup, filename);
-       
-		/* Get rid of the patch reject file.  */
-		path_tmp = xmalloc (strlen (filename) + 10);
-		strcpy (path_tmp, filename);
-		strcat (path_tmp, ".rej");
-		/* FIXME: should we really be silently ignoring errors?  */
-		(void) unlink_file (path_tmp);
-		free (path_tmp);
-
-		error (retcode == -1 ? 1 : 0, retcode == -1 ? old_errno : 0,
-		       "could not patch %s%s", filename,
-		       retcode == -1 ? "" : "; will refetch");
-
-		patch_failed = 1;
-	    }
-	    free (backup);
-#endif /* Use patch.  */
 	}
 	else
 	{
@@ -1842,15 +1922,16 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	    {
 		if (stored_checksum_valid)
 		{
-		    struct MD5Context context;
+		    struct cvs_MD5Context context;
 		    unsigned char checksum[16];
 
 		    /* We have a checksum.  Check it before writing
 		       the file out, so that we don't have to read it
 		       back in again.  */
-		    MD5Init (&context);
-		    MD5Update (&context, (unsigned char *) patchedbuf, patchedlen);
-		    MD5Final (checksum, &context);
+		    cvs_MD5Init (&context);
+		    cvs_MD5Update (&context,
+				   (unsigned char *) patchedbuf, patchedlen);
+		    cvs_MD5Final (checksum, &context);
 		    if (memcmp (checksum, stored_checksum, 16) != 0)
 		    {
 			error (0, 0,
@@ -1887,7 +1968,7 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	if (stored_checksum_valid && ! patch_failed)
 	{
 	    FILE *e;
-	    struct MD5Context context;
+	    struct cvs_MD5Context context;
 	    unsigned char buf[8192];
 	    unsigned len;
 	    unsigned char checksum[16];
@@ -1906,12 +1987,12 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	    if (e == NULL)
 	        error (1, errno, "could not open %s", short_pathname);
 
-	    MD5Init (&context);
+	    cvs_MD5Init (&context);
 	    while ((len = fread (buf, 1, sizeof buf, e)) != 0)
-		MD5Update (&context, buf, len);
+		cvs_MD5Update (&context, buf, len);
 	    if (ferror (e))
 		error (1, errno, "could not read %s", short_pathname);
-	    MD5Final (checksum, &context);
+	    cvs_MD5Final (checksum, &context);
 
 	    fclose (e);
 
@@ -1958,10 +2039,13 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	free (buf);
     }
 
-    if (stored_mode_valid)
+    if (stored_mode != NULL)
+    {
 	change_mode (filename, stored_mode, 1);
-    stored_mode_valid = 0;
-
+	free (stored_mode);
+	stored_mode = NULL;
+    }
+   
     if (stored_modtime_valid)
     {
 	struct utimbuf t;
@@ -2020,7 +2104,17 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	else if (local_timestamp == NULL)
 	{
 	    local_timestamp = file_timestamp;
-	    mark_up_to_date (filename);
+
+	    /* Checking for command_name of "commit" doesn't seem like
+	       the cleanest way to handle this, but it seem to roughly
+	       parallel what the :local: code which calls
+	       mark_up_to_date ends up amounting to.  Some day, should
+	       think more about what the Checked-in response means
+	       vis-a-vis both Entries and Base and clarify
+	       cvsclient.texi accordingly.  */
+
+	    if (!strcmp (command_name, "commit"))
+		mark_up_to_date (filename);
 	}
 
 	Register (ent_list, filename, vn, local_timestamp,
@@ -2263,7 +2357,20 @@ set_sticky (data, ent_list, short_pathname, filename)
     FILE *f;
 
     read_line (&tagspec);
-    f = open_file (CVSADM_TAG, "w+");
+
+    /* FIXME-update-dir: error messages should include the directory.  */
+    f = CVS_FOPEN (CVSADM_TAG, "w+");
+    if (f == NULL)
+    {
+	/* Making this non-fatal is a bit of a kludge (see dirs2
+	   in testsuite).  A better solution would be to avoid having
+	   the server tell us about a directory we shouldn't be doing
+	   anything with anyway (e.g. by handling directory
+	   addition/removal better).  */
+	error (0, errno, "cannot open %s", CVSADM_TAG);
+	free (tagspec);
+	return;
+    }
     if (fprintf (f, "%s\n", tagspec) < 0)
 	error (1, errno, "writing %s", CVSADM_TAG);
     if (fclose (f) == EOF)
@@ -2568,6 +2675,22 @@ send_repository (dir, repos, update_dir)
     if (client_prune_dirs)
 	add_prune_candidate (update_dir);
 
+    /* Add a directory name to the list of those sent to the
+       server. */
+    if (update_dir && (*update_dir != '\0')
+	&& (strcmp (update_dir, ".") != 0)
+	&& (findnode (dirs_sent_to_server, update_dir) == NULL))
+    {
+	Node *n;
+	n = getnode ();
+	n->type = UNKNOWN;
+	n->key = xstrdup (update_dir);
+	n->data = NULL;
+
+	if (addnode (dirs_sent_to_server, n))
+	    error (1, 0, "cannot add directory %s to list", n->key);
+    }
+
     /* 80 is large enough for any of CVSADM_*.  */
     adm_name = xmalloc (strlen (dir) + 80);
 
@@ -2762,47 +2885,55 @@ send_a_repository (dir, repository, update_dir)
 		 * directories (and cvs invoked on the containing
 		 * directory).  I'm not sure the latter case needs to
 		 * work.
+		 *
+		 * 21 Aug 1998: Well, Mr. Above-Comment-Writer, it
+		 * does need to work after all.  When we are using the
+		 * client in a multi-cvsroot environment, it will be
+		 * fairly common that we have the above case (e.g.,
+		 * cwd checked out from one repository but
+		 * subdirectory checked out from another).  We can't
+		 * assume that by walking up a directory in our wd we
+		 * necessarily walk up a directory in the repository.
 		 */
 		/*
 		 * This gets toplevel_repos wrong for "cvs update ../foo"
 		 * but I'm not sure toplevel_repos matters in that case.
 		 */
-		int slashes_in_update_dir;
-		int slashes_skipped;
-		char *p;
 
-		/*
-		 * Strip trailing slashes from the name of the update directory.
-		 * Otherwise, running `cvs update dir/' provokes the failure
-		 * `protocol error: illegal directory syntax in dir/' when
-		 * running in client/server mode.
-		 */
+		int repository_len, update_dir_len;
+
 		strip_trailing_slashes (update_dir);
 
-		slashes_in_update_dir = 0;
-		for (p = update_dir; *p != '\0'; ++p)
-		    if (*p == '/')
-			++slashes_in_update_dir;
+		repository_len = strlen (repository);
+		update_dir_len = strlen (update_dir);
 
-		slashes_skipped = 0;
-		p = repository + strlen (repository);
-		while (1)
+		/* Try to remove the path components in UPDATE_DIR
+                   from REPOSITORY.  If the path elements don't exist
+                   in REPOSITORY, or the removal of those path
+                   elements mean that we "step above"
+                   CVSroot_directory, set toplevel_repos to
+                   CVSroot_directory. */
+		if ((repository_len > update_dir_len)
+		    && (strcmp (repository + repository_len - update_dir_len,
+				update_dir) == 0)
+		    /* TOPLEVEL_REPOS shouldn't be above CVSroot_directory */
+		    && ((repository_len - update_dir_len)
+			> strlen (CVSroot_directory)))
 		{
-		    if (p == repository)
-			error (1, 0,
-			       "internal error: not enough slashes in %s",
-			       repository);
-		    if (*p == '/')
-			++slashes_skipped;
-		    if (slashes_skipped < slashes_in_update_dir + 1)
-			--p;
-		    else
-			break;
+		    /* The repository name contains UPDATE_DIR.  Set
+                       toplevel_repos to the repository name without
+                       UPDATE_DIR. */
+
+		    toplevel_repos = xmalloc (repository_len - update_dir_len);
+		    /* Note that we don't copy the trailing '/'.  */
+		    strncpy (toplevel_repos, repository,
+			     repository_len - update_dir_len - 1);
+		    toplevel_repos[repository_len - update_dir_len - 1] = '\0';
 		}
-		toplevel_repos = xmalloc (p - repository + 1);
-		/* Note that we don't copy the trailing '/'.  */
-		strncpy (toplevel_repos, repository, p - repository);
-		toplevel_repos[p - repository] = '\0';
+		else
+		{
+		    toplevel_repos = xstrdup (CVSroot_directory);
+		}
 	    }
 	}
     }
@@ -3047,10 +3178,61 @@ handle_mt (args, len)
 	case '+':
 	    if (strcmp (tag, "+updated") == 0)
 		updated_seen = 1;
+	    else if (strcmp (tag, "+importmergecmd") == 0)
+		importmergecmd.seen = 1;
 	    break;
 	case '-':
 	    if (strcmp (tag, "-updated") == 0)
 		updated_seen = 0;
+	    else if (strcmp (tag, "-importmergecmd") == 0)
+	    {
+		char buf[80];
+
+		/* Now that we have gathered the information, we can
+                   output the suggested merge command.  */
+
+		if (importmergecmd.conflicts == 0
+		    || importmergecmd.mergetag1 == NULL
+		    || importmergecmd.mergetag2 == NULL
+		    || importmergecmd.repository == NULL)
+		{
+		    error (0, 0,
+			   "invalid server: incomplete importmergecmd tags");
+		    break;
+		}
+
+		sprintf (buf, "\n%d conflicts created by this import.\n",
+			 importmergecmd.conflicts);
+		cvs_output (buf, 0);
+		cvs_output ("Use the following command to help the merge:\n\n",
+			    0);
+		cvs_output ("\t", 1);
+		cvs_output (program_name, 0);
+		if (CVSroot_cmdline != NULL)
+		{
+		    cvs_output (" -d ", 0);
+		    cvs_output (CVSroot_cmdline, 0);
+		}
+		cvs_output (" checkout -j", 0);
+		cvs_output (importmergecmd.mergetag1, 0);
+		cvs_output (" -j", 0);
+		cvs_output (importmergecmd.mergetag2, 0);
+		cvs_output (" ", 1);
+		cvs_output (importmergecmd.repository, 0);
+		cvs_output ("\n\n", 0);
+
+		/* Clear the static variables so that everything is
+                   ready for any subsequent importmergecmd tag.  */
+		importmergecmd.conflicts = 0;
+		free (importmergecmd.mergetag1);
+		importmergecmd.mergetag1 = NULL;
+		free (importmergecmd.mergetag2);
+		importmergecmd.mergetag2 = NULL;
+		free (importmergecmd.repository);
+		importmergecmd.repository = NULL;
+
+		importmergecmd.seen = 0;
+	    }
 	    break;
 	default:
 	    if (updated_seen)
@@ -3072,6 +3254,21 @@ handle_mt (args, len)
 		/* Swallow all other tags.  Either they are extraneous
 		   or they reflect future extensions that we can
 		   safely ignore.  */
+	    }
+	    else if (importmergecmd.seen)
+	    {
+		if (strcmp (tag, "conflicts") == 0)
+		    importmergecmd.conflicts = atoi (text);
+		else if (strcmp (tag, "mergetag1") == 0)
+		    importmergecmd.mergetag1 = xstrdup (text);
+		else if (strcmp (tag, "mergetag2") == 0)
+		    importmergecmd.mergetag2 = xstrdup (text);
+		else if (strcmp (tag, "repository") == 0)
+		    importmergecmd.repository = xstrdup (text);
+		/* Swallow all other tags.  Either they are text for
+                   which we are going to print our own version when we
+                   see -importmergecmd, or they are future extensions
+                   we can safely ignore.  */
 	    }
 	    else if (strcmp (tag, "newline") == 0)
 		printf ("\n");
@@ -3404,9 +3601,12 @@ get_responses_and_close ()
     {
 	time_t now;
 
-	(void) time (&now);
-	if (now == last_register_time)
+	for (;;)
+	{
+	    (void) time (&now);
+	    if (now != last_register_time) break;
 	    sleep (1);			/* to avoid time-stamp races */
+	}
     }
 
     return errs;
@@ -3424,7 +3624,7 @@ supported_request (name)
 
     for (rq = requests; rq->name; rq++)
 	if (!strcmp (rq->name, name))
-	    return rq->status == rq_supported;
+	    return (rq->flags & RQ_SUPPORTED) != 0;
     error (1, 0, "internal error: testing support for unknown option?");
     /* NOTREACHED */
     return 0;
@@ -3490,7 +3690,6 @@ recv_line (sock, resultp)
     int sock;
     char **resultp;
 {
-    int c;
     char *result;
     size_t input_index = 0;
     size_t result_size = 80;
@@ -3500,23 +3699,16 @@ recv_line (sock, resultp)
     while (1)
     {
 	char ch;
-	if (recv (sock, &ch, 1, 0) < 0)
+	int n;
+	n = recv (sock, &ch, 1, 0);
+	if (n <= 0)
 	    error (1, 0, "recv() from server %s: %s", CVSroot_hostname,
-		   SOCK_STRERROR (SOCK_ERRNO));
-	c = ch;
+		   n == 0 ? "EOF" : SOCK_STRERROR (SOCK_ERRNO));
 
-	if (c == EOF)
-	{
-	    free (result);
-
-	    /* It's end of file.  */
-	    error (1, 0, "end of file from server");
-	}
-
-	if (c == '\012')
+	if (ch == '\012')
 	    break;
 
-	result[input_index++] = c;
+	result[input_index++] = ch;
 	while (input_index + 1 >= result_size)
 	{
 	    result_size *= 2;
@@ -3533,6 +3725,28 @@ recv_line (sock, resultp)
     if (resultp == NULL)
 	free (result);
     return input_index;
+}
+
+/* Connect to a forked server process. */
+
+void
+connect_to_forked_server (tofdp, fromfdp)
+     int *tofdp, *fromfdp;
+{
+    /* This is pretty simple.  All we need to do is choose the correct
+       cvs binary and call piped_child. */
+
+    char *command[3];
+
+    command[0] = getenv ("CVS_SERVER");
+    if (! command[0])
+	command[0] = "cvs";
+    
+    command[1] = "server";
+    command[2] = NULL;
+
+    if (! piped_child (command, tofdp, fromfdp))
+	error (1, 0, "could not fork server process");
 }
 
 /* Connect to the authenticating server.
@@ -3960,6 +4174,13 @@ start_server ()
     int tofd, fromfd;
     char *log = getenv ("CVS_CLIENT_LOG");
 
+
+    /* Clear our static variables for this invocation. */
+    if (toplevel_repos != NULL)
+	free (toplevel_repos);
+    toplevel_repos = NULL;
+
+
     /* Note that generally speaking we do *not* fall back to a different
        way of connecting if the first one does not work.  This is slow
        (*really* slow on a 14.4kbps link); the clean way to have a CVS
@@ -4018,6 +4239,10 @@ start_server ()
 	    error (1, 0, "\
 the :server: access method is not supported by this port of CVS");
 #endif
+	    break;
+
+        case fork_method:
+	    connect_to_forked_server (&tofd, &fromfd);
 	    break;
 
 	default:
@@ -4119,7 +4344,11 @@ the :server: access method is not supported by this port of CVS");
 	free (last_update_dir);
     last_update_dir = NULL;
     stored_checksum_valid = 0;
-    stored_mode_valid = 0;
+    if (stored_mode != NULL)
+    {
+	free (stored_mode);
+	stored_mode = NULL;
+    }
 
     if (strcmp (command_name, "init") != 0)
     {
@@ -4648,9 +4877,10 @@ send_modified (file, short_pathname, vers)
     {
 	size_t newsize = 0;
 
-	read_and_gzip (fd, short_pathname, (unsigned char **)&buf,
-		       &bufsize, &newsize,
-		       file_gzip_level);
+	if (read_and_gzip (fd, short_pathname, (unsigned char **)&buf,
+			   &bufsize, &newsize,
+			   file_gzip_level))
+	    error (1, 0, "aborting due to compression error");
 
 	if (close (fd) < 0)
 	    error (0, errno, "warning: can't close %s", short_pathname);
@@ -5050,7 +5280,7 @@ send_file_names (argc, argv, flags)
     int i;
     int level;
     int max_level;
-
+    
     /* The fact that we do this here as well as start_recursion is a bit 
        of a performance hit.  Perhaps worth cleaning up someday.  */
     if (flags & SEND_EXPAND_WILD)
@@ -5090,6 +5320,9 @@ send_file_names (argc, argv, flags)
 	char buf[1];
 	char *p = argv[i];
 	char *line = NULL;
+
+	if (arg_should_not_be_sent_to_server (argv[i]))
+	    continue;
 
 #ifdef FILENAMES_CASE_INSENSITIVE
 	/* We want to send the file name as it appears
@@ -5224,7 +5457,7 @@ client_import_setup (repository)
  */
 int
 client_process_import_file (message, vfile, vtag, targc, targv, repository,
-                            all_files_binary)
+                            all_files_binary, modtime)
     char *message;
     char *vfile;
     char *vtag;
@@ -5232,6 +5465,9 @@ client_process_import_file (message, vfile, vtag, targc, targv, repository,
     char *targv[];
     char *repository;
     int all_files_binary;
+
+    /* Nonzero for "import -d".  */
+    int modtime;
 {
     char *update_dir;
     char *fullname;
@@ -5280,6 +5516,28 @@ client_process_import_file (message, vfile, vtag, targc, targv, repository,
 	else
 	    error (0, 0,
 		   "warning: ignoring -k options due to server limitations");
+    }
+    if (modtime)
+    {
+	if (supported_request ("Checkin-time"))
+	{
+	    struct stat sb;
+	    char *rcsdate;
+	    char netdate[MAXDATELEN];
+
+	    if (CVS_STAT (vfile, &sb) < 0)
+		error (1, errno, "cannot stat %s", fullname);
+	    rcsdate = date_from_time_t (sb.st_mtime);
+	    date_to_internet (netdate, rcsdate);
+	    free (rcsdate);
+
+	    send_to_server ("Checkin-time ", 0);
+	    send_to_server (netdate, 0);
+	    send_to_server ("\012", 1);
+	}
+	else
+	    error (0, 0,
+		   "warning: ignoring -d option due to server limitations");
     }
     send_modified (vfile, fullname, &vers);
     if (vers.options != NULL)
@@ -5466,27 +5724,15 @@ option_with_arg (option, arg)
 
    We then convert that to the format required in the protocol
    (including the "-D" option) and send it.  According to
-   cvsclient.texi, RFC 822/1123 format is preferred, but for now we
-   use the format that we always have, for
-   conservatism/laziness/paranoia.  As far as I know all servers
-   support the RFC 822/1123 format, so probably there would be no
-   particular danger in switching.  */
+   cvsclient.texi, RFC 822/1123 format is preferred.  */
 
 void
 client_senddate (date)
     const char *date;
 {
-    int year, month, day, hour, minute, second;
-    char buf[100];
+    char buf[MAXDATELEN];
 
-    if (sscanf (date, SDATEFORM, &year, &month, &day, &hour, &minute, &second)
-	!= 6)
-    {
-        error (1, 0, "client_senddate: sscanf failed on date");
-    }
-
-    sprintf (buf, "%d/%d/%d %d:%d:%d GMT", month, day, year,
-	     hour, minute, second);
+    date_to_internet (buf, (char *)date);
     option_with_arg ("-D", buf);
 }
 

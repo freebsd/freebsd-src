@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINAINER=	peter@FreeBSD.org
+
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${CVSDIR}/src
@@ -15,22 +17,23 @@ SRCS=	add.c admin.c buffer.c checkin.c checkout.c classify.c client.c \
 	expand_path.c fileattr.c filesubr.c find_names.c \
 	hardlink.c hash.c history.c \
 	ignore.c import.c lock.c log.c login.c logmsg.c main.c mkmodules.c \
-	modules.c myndbm.c no_diff.c parseinfo.c patch.c rcs.c rcscmds.c \
+	modules.c myndbm.c no_diff.c parseinfo.c patch.c prepend_args.c \
+	rcs.c rcscmds.c \
 	recurse.c release.c remove.c repos.c root.c rtag.c run.c scramble.c \
 	server.c status.c subr.c tag.c update.c vers_ts.c version.c watch.c \
 	wrapper.c zlib.c
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -DHAVE_CONFIG_H \
-	-I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff
+	 -I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff
 
 DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
-LDADD+=	-lkrb -ldes
-DPADD+=	${LIBKRB} ${LIBDES}
-DISTRIBUTION=	krb
+LDADD+=	-lkrb -ldes -lcom_err
+DPADD+=	${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
+DISTRIBUTION=	krb4
 # XXX do we want to mess with this?  It's probably not really worth it for
 # the public freebsd stuff, but others might want it.  It's an optional
 # feature anyway, the -x switch is needed to activate it.

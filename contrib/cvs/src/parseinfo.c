@@ -77,7 +77,7 @@ Parse_Info (infofile, repository, callproc, all)
 	    continue;
 
 	/* skip whitespace at beginning of line */
-	for (cp = line; *cp && isspace (*cp); cp++)
+	for (cp = line; *cp && isspace ((unsigned char) *cp); cp++)
 	    ;
 
 	/* if *cp is null, the whole line was blank */
@@ -85,13 +85,13 @@ Parse_Info (infofile, repository, callproc, all)
 	    continue;
 
 	/* the regular expression is everything up to the first space */
-	for (exp = cp; *cp && !isspace (*cp); cp++)
+	for (exp = cp; *cp && !isspace ((unsigned char) *cp); cp++)
 	    ;
 	if (*cp != '\0')
 	    *cp++ = '\0';
 
 	/* skip whitespace up to the start of the matching value */
-	while (*cp && isspace (*cp))
+	while (*cp && isspace ((unsigned char) *cp))
 	    cp++;
 
 	/* no value to match with the regular expression is an error */
@@ -357,6 +357,15 @@ warning: this CVS does not support PreservePermissions");
 		error (0, 0, "unrecognized value '%s' for TopLevelAdmin", p);
 		goto error_return;
 	    }
+	}
+	else if (strcmp (line, "LockDir") == 0)
+	{
+	    if (lock_dir != NULL)
+		free (lock_dir);
+	    lock_dir = xstrdup (p);
+	    /* Could try some validity checking, like whether we can
+	       opendir it or something, but I don't see any particular
+	       reason to do that now rather than waiting until lock.c.  */
 	}
 	else
 	{

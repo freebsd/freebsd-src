@@ -7,9 +7,6 @@
  * 
  * Print Log Information
  * 
- * This line exists solely to test some pcl-cvs/ChangeLog stuff.  You
- * can delete it, if indeed it's still here when you read it.  -Karl
- *
  * Prints the RCS "log" (rlog) information for the specified files.  With no
  * argument, prints the log information for all the files in the directory
  * (recursive by default).
@@ -233,8 +230,8 @@ cvslog (argc, argv)
 	for (i = 1; i < argc && argv[i][0] == '-'; i++)
 	  send_arg (argv[i]);
 
-	send_file_names (argc - i, argv + i, SEND_EXPAND_WILD);
 	send_files (argc - i, argv + i, local, 0, SEND_NO_CONTENTS);
+	send_file_names (argc - i, argv + i, SEND_EXPAND_WILD);
 
 	send_to_server ("log\012", 0);
         err = get_responses_and_close ();
@@ -591,11 +588,11 @@ log_fileproc (callerdat, finfo)
 
 		cvs_output ("\n\t", 2);
 		cp2 = cp;
-		while (! isspace (*cp2) && *cp2 != '\0')
+		while (! isspace ((unsigned char) *cp2) && *cp2 != '\0')
 		    ++cp2;
 		cvs_output (cp, cp2 - cp);
 		cp = cp2;
-		while (isspace (*cp) && *cp != '\0')
+		while (isspace ((unsigned char) *cp) && *cp != '\0')
 		    ++cp;
 	}
     }
@@ -734,7 +731,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 	    char *branch;
 
 	    /* Print just the head of the branch.  */
-	    if (isdigit (r->first[0]))
+	    if (isdigit ((unsigned char) r->first[0]))
 		nr->first = RCS_getbranch (rcs, r->first, 1);
 	    else
 	    {
@@ -761,7 +758,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 	}
 	else
 	{
-	    if (r->first == NULL || isdigit (r->first[0]))
+	    if (r->first == NULL || isdigit ((unsigned char) r->first[0]))
 		nr->first = xstrdup (r->first);
 	    else
 	    {
@@ -780,7 +777,7 @@ log_expand_revlist (rcs, revlist, default_branch)
 
 	    if (r->last == r->first)
 		nr->last = xstrdup (nr->first);
-	    else if (r->last == NULL || isdigit (r->last[0]))
+	    else if (r->last == NULL || isdigit ((unsigned char) r->last[0]))
 		nr->last = xstrdup (r->last);
 	    else
 	    {
@@ -1356,12 +1353,12 @@ version_compare (v1, v2, len)
 
 	while (*v1 == '0')
 	    ++v1;
-	for (d1 = 0; isdigit (v1[d1]); ++d1)
+	for (d1 = 0; isdigit ((unsigned char) v1[d1]); ++d1)
 	    ;
 
 	while (*v2 == '0')
 	    ++v2;
-	for (d2 = 0; isdigit (v2[d2]); ++d2)
+	for (d2 = 0; isdigit ((unsigned char) v2[d2]); ++d2)
 	    ;
 
 	if (d1 != d2)

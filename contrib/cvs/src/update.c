@@ -1,36 +1,38 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- * 
+ *
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
- * 
+ *
  * "update" updates the version in the present directory with respect to the RCS
  * repository.  The present version must have been created by "checkout". The
  * user can keep up-to-date by calling "update" whenever he feels like it.
- * 
+ *
  * The present version can be committed by "commit", but this keeps the version
  * in tact.
- * 
+ *
  * Arguments following the options are taken to be file names to be updated,
  * rather than updating the entire directory.
- * 
+ *
  * Modified or non-existent RCS files are checked out and reported as U
  * <user_file>
- * 
+ *
  * Modified user files are reported as M <user_file>.  If both the RCS file and
  * the user file have been modified, the user file is replaced by the result
  * of rcsmerge, and a backup file is written for the user in .#file.version.
  * If this throws up irreconcilable differences, the file is reported as C
  * <user_file>, and as M <user_file> otherwise.
- * 
+ *
  * Files added but not yet committed are reported as A <user_file>. Files
  * removed but not yet committed are reported as R <user_file>.
- * 
+ *
  * If the current directory contains subdirectories that hold concurrent
  * versions, these are updated too.  If the -d option was specified, new
  * directories added to the repository are automatically created and updated
  * as well.
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -284,11 +286,11 @@ update (argc, argv)
 
 	    if (failed_patches == NULL)
 	    {
-		send_file_names (argc, argv, SEND_EXPAND_WILD);
 		/* If noexec, probably could be setting SEND_NO_CONTENTS.
 		   Same caveats as for "cvs status" apply.  */
 		send_files (argc, argv, local, aflag,
 			    update_build_dirs ? SEND_BUILD_DIRS : 0);
+		send_file_names (argc, argv, SEND_EXPAND_WILD);
 	    }
 	    else
 	    {
@@ -304,10 +306,13 @@ update (argc, argv)
 		}
 
 		for (i = 0; i < failed_patches_count; i++)
-		    (void) unlink_file (failed_patches[i]);
-		send_file_names (failed_patches_count, failed_patches, 0);
+		    if (unlink_file (failed_patches[i]) < 0
+			&& !existence_error (errno))
+			error (0, errno, "cannot remove %s",
+			       failed_patches[i]);
 		send_files (failed_patches_count, failed_patches, local,
 			    aflag, update_build_dirs ? SEND_BUILD_DIRS : 0);
+		send_file_names (failed_patches_count, failed_patches, 0);
 	    }
 
 	    failed_patches = NULL;
@@ -486,9 +491,12 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     {
 	time_t now;
 
-	(void) time (&now);
-	if (now == last_register_time)
+	for (;;)
+	{
+	    (void) time (&now);
+	    if (now != last_register_time) break;
 	    sleep (1);			/* to avoid time-stamp races */
+	}
     }
 
     return (err);
@@ -631,15 +639,7 @@ update_fileproc (callerdat, finfo)
 		write_letter (finfo, 'C');
 		break;
 	    case T_NEEDS_MERGE:		/* needs merging */
-		if (noexec)
-		{
-		    retval = 1;
-		    write_letter (finfo, 'C');
-		}
-		else
-		{
-		    retval = merge_file (finfo, vers);
-		}
+		retval = merge_file (finfo, vers);
 		break;
 	    case T_MODIFIED:		/* locally modified */
 		retval = 0;
@@ -873,6 +873,28 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 	/* if we aren't building dirs, blow it off */
 	if (!update_build_dirs)
 	    return (R_SKIP_ALL);
+
+	/* Various CVS administrators are in the habit of removing
+	   the repository directory for things they don't want any
+	   more.  I've even been known to do it myself (on rare
+	   occasions).  Not the usual recommended practice, but we
+	   want to try to come up with some kind of
+	   reasonable/documented/sensible behavior.  Generally
+	   the behavior is to just skip over that directory (see
+	   dirs test in sanity.sh; the case which reaches here
+	   is when update -d is specified, and the working directory
+	   is gone but the subdirectory is still mentioned in
+	   CVS/Entries).  */
+	if (1
+#ifdef SERVER_SUPPORT
+	    /* In the remote case, the client should refrain from
+	       sending us the directory in the first place.  So we
+	       want to continue to give an error, so clients make
+	       sure to do this.  */
+	    && !server_active
+#endif
+	    && !isdir (repository))
+	    return R_SKIP_ALL;
 
 	if (noexec)
 	{
@@ -1285,11 +1307,14 @@ VERS: ", 0);
 	{
 	    Vers_TS *xvers_ts;
 
-	    if (revbuf != NULL)
+	    if (revbuf != NULL && !noexec)
 	    {
 		struct stat sb;
 
-		/* FIXME: We should have RCS_checkout return the mode.  */
+		/* FIXME: We should have RCS_checkout return the mode.
+		   That would also fix the kludge with noexec, above, which
+		   is here only because noexec doesn't write srcfile->path
+		   for us to stat.  */
 		if (stat (vers_ts->srcfile->path, &sb) < 0)
 		    error (1, errno, "cannot stat %s",
 			   vers_ts->srcfile->path);
@@ -1489,7 +1514,7 @@ struct patch_file_data
     /* Whether to compute the MD5 checksum.  */
     int compute_checksum;
     /* Data structure for computing the MD5 checksum.  */
-    struct MD5Context context;
+    struct cvs_MD5Context context;
     /* Set if the file has a final newline.  */
     int final_nl;
 };
@@ -1568,7 +1593,11 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     if (isfile (finfo->file))
         rename_file (finfo->file, backup);
     else
-        (void) unlink_file (backup);
+    {
+	if (unlink_file (backup) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", backup);
+    }
 
     file1 = xmalloc (strlen (finfo->file)
 		     + sizeof (CVSADM)
@@ -1617,10 +1646,10 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 	data.fp = e;
 	data.final_nl = 0;
 	data.compute_checksum = 1;
-	MD5Init (&data.context);
+	cvs_MD5Init (&data.context);
 
 	retcode = RCS_checkout (vers_ts->srcfile, (char *) NULL,
-				vers_ts->vn_rcs, (char *) NULL,
+				vers_ts->vn_rcs, vers_ts->vn_tag,
 				vers_ts->options, RUN_TTY,
 				patch_file_write, (void *) &data);
 
@@ -1630,7 +1659,7 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 	if (retcode != 0 || ! data.final_nl)
 	    fail = 1;
 	else
-	    MD5Final (checksum, &data.context);
+	    cvs_MD5Final (checksum, &data.context);
     }	  
 
     retcode = 0;
@@ -1755,9 +1784,15 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
 	retval = retcode;
     }
 
-    (void) unlink_file (backup);
-    (void) unlink_file (file1);
-    (void) unlink_file (file2);
+    if (unlink_file (backup) < 0
+	&& !existence_error (errno))
+	error (0, errno, "cannot remove %s", backup);
+    if (unlink_file (file1) < 0
+	&& !existence_error (errno))
+	error (0, errno, "cannot remove %s", file1);
+    if (unlink_file (file2) < 0
+	&& !existence_error (errno))
+	error (0, errno, "cannot remove %s", file2);
 
     free (backup);
     free (file1);
@@ -1783,7 +1818,7 @@ patch_file_write (callerdat, buffer, len)
     data->final_nl = (buffer[len - 1] == '\n');
 
     if (data->compute_checksum)
-	MD5Update (&data->context, (unsigned char *) buffer, len);
+	cvs_MD5Update (&data->context, (unsigned char *) buffer, len);
 }
 
 #endif /* SERVER_SUPPORT */
@@ -1859,7 +1894,8 @@ merge_file (finfo, vers)
 		      + 10);
     (void) sprintf (backup, "%s%s.%s", BAKPREFIX, finfo->file, vers->vn_user);
 
-    (void) unlink_file (backup);
+    if (unlink_file (backup) && !existence_error (errno))
+	error (0, errno, "unable to remove %s", backup);
     copy_file (finfo->file, backup);
     xchmod (finfo->file, 1);
 
@@ -1962,10 +1998,17 @@ merge_file (finfo, vers)
     }
 #endif
 
+    /* FIXME: the noexec case is broken.  RCS_merge could be doing the
+       xcmp on the temporary files without much hassle, I think.  */
     if (!noexec && !xcmp (backup, finfo->file))
     {
-	printf ("%s already contains the differences between %s and %s\n",
-		finfo->fullname, vers->vn_user, vers->vn_rcs);
+	cvs_output (finfo->fullname, 0);
+	cvs_output (" already contains the differences between ", 0);
+	cvs_output (vers->vn_user, 0);
+	cvs_output (" and ", 0);
+	cvs_output (vers->vn_rcs, 0);
+	cvs_output ("\n", 1);
+
 	history_write ('G', finfo->update_dir, vers->vn_rcs, finfo->file,
 		       finfo->repository);
 	retval = 0;
@@ -1974,8 +2017,7 @@ merge_file (finfo, vers)
 
     if (status == 1)
     {
-	if (!noexec)
-	    error (0, 0, "conflicts found in %s", finfo->fullname);
+	error (0, 0, "conflicts found in %s", finfo->fullname);
 
 	write_letter (finfo, 'C');
 
@@ -2326,7 +2368,9 @@ join_file (finfo, vers)
 		      + 10);
     (void) sprintf (backup, "%s%s.%s", BAKPREFIX, finfo->file, vers->vn_user);
 
-    (void) unlink_file (backup);
+    if (unlink_file (backup) < 0
+	&& !existence_error (errno))
+	error (0, errno, "cannot remove %s", backup);
     copy_file (finfo->file, backup);
     xchmod (finfo->file, 1);
 

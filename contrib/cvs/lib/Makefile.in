@@ -46,7 +46,6 @@ SOURCES = \
 	stripslash.c \
 	strtoul.c \
 	valloc.c \
-	vasprintf.c \
 	waitpid.c \
 	xgetwd.c \
 	yesno.c
