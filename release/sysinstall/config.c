@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.43 1997/04/29 09:14:05 jkh Exp $
+ * $Id: config.c,v 1.51.2.44 1997/05/05 06:41:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -795,28 +795,32 @@ configNFSServer(dialogMenuItem *self)
     if (!file_readable("/etc/exports")) {
 	WINDOW *w = savescr();
 
-	dialog_clear_norefresh();
-	msgConfirm("Operating as an NFS server means that you must first configure\n"
-		   "an /etc/exports file to indicate which hosts are allowed certain\n"
-		   "kinds of access to your local file systems.\n"
-		   "Press [ENTER] now to invoke an editor on /etc/exports\n");
-	vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
-	vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
-	vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
-	vsystem("echo '#/usr                huey louie dewie' >> /etc/exports");
-	vsystem("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
-	vsystem("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
-	vsystem("echo '#' >> /etc/exports");
-	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
-	vsystem("echo >> /etc/exports");
-	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
-	dialog_clear();
-	systemExecute(cmd);
-	restorescr(w);
+	if (file_readable("/etc/exports.disabled"))
+	    vsystem("mv /etc/exports.disabled /etc/exports");
+	else {
+	    dialog_clear_norefresh();
+	    msgConfirm("Operating as an NFS server means that you must first configure\n"
+		       "an /etc/exports file to indicate which hosts are allowed certain\n"
+		       "kinds of access to your local file systems.\n"
+		       "Press [ENTER] now to invoke an editor on /etc/exports\n");
+	    vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
+	    vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
+	    vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
+	    vsystem("echo '#/usr                huey louie dewie' >> /etc/exports");
+	    vsystem("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
+	    vsystem("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
+	    vsystem("echo '#' >> /etc/exports");
+	    vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
+	    vsystem("echo >> /etc/exports");
+	    sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
+	    dialog_clear();
+	    systemExecute(cmd);
+	    restorescr(w);
+	}
 	variable_set2(VAR_NFS_SERVER, "YES");
     }
     else if (variable_get(VAR_NFS_SERVER)) { /* We want to turn it off again? */
-	unlink("/etc/exports");
+	vsystem("mv -f /etc/exports /etc/exports.disabled");
 	variable_unset(VAR_NFS_SERVER);
     }
     return DITEM_SUCCESS;
