@@ -500,7 +500,7 @@ ArchStatMember (archive, member, hash)
 	} else {
 	    /* Try truncated name */
 	    char copy[AR_MAX_NAME_LEN+1];
-	    int len = strlen (member);
+	    size_t len = strlen (member);
 
 	    if (len > AR_MAX_NAME_LEN) {
 		len = AR_MAX_NAME_LEN;
@@ -793,7 +793,7 @@ ArchFindMember (archive, member, arhPtr, mode)
     int		  size;       /* Size of archive member */
     char	  *cp;	      /* Useful character pointer */
     char	  magic[SARMAG];
-    int		  len, tlen;
+    size_t	  len, tlen;
 
     arch = fopen (archive, mode);
     if (arch == NULL) {
