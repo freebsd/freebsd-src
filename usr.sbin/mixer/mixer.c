@@ -99,6 +99,10 @@ main(int argc, char *argv[])
 	if (foo >= SOUND_MIXER_NRDEVICES) {
 
 		if (!strcmp("+rec", argv[1]) || !strcmp("-rec", argv[1])) {
+			if (argc != 3) {
+				usage();
+				/* NOTREACHED */
+			}
 			for (dev = 0; dev < SOUND_MIXER_NRDEVICES && strcmp(names[dev], argv[2]); dev++);
 			if (dev >= SOUND_MIXER_NRDEVICES)
 				usage();
