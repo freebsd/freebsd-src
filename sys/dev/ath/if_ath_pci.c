@@ -152,6 +152,11 @@ ath_pci_attach(device_t dev)
 	}
 	sc->sc_st = rman_get_bustag(psc->sc_sr);
 	sc->sc_sh = rman_get_bushandle(psc->sc_sr);
+	/*
+	 * Mark device invalid so any interrupts (shared or otherwise)
+	 * that arrive before the HAL is setup are discarded.
+	 */
+	sc->sc_invalid = 1;
 
 	/*
 	 * Arrange interrupt line.
