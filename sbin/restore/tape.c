@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)tape.c	8.9 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: tape.c,v 1.13 1998/07/28 06:20:15 charnier Exp $";
+	"$Id: tape.c,v 1.14 1998/07/28 18:50:01 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1009,32 +1009,32 @@ gethead(buf)
 	long i;
 	union {
 		quad_t	qval;
-		long	val[2];
+		int32_t	val[2];
 	} qcvt;
 	union u_ospcl {
 		char dummy[TP_BSIZE];
 		struct	s_ospcl {
-			long	c_type;
-			long	c_date;
-			long	c_ddate;
-			long	c_volume;
-			long	c_tapea;
+			int32_t	c_type;
+			int32_t	c_date;
+			int32_t	c_ddate;
+			int32_t	c_volume;
+			int32_t	c_tapea;
 			u_short	c_inumber;
-			long	c_magic;
-			long	c_checksum;
+			int32_t	c_magic;
+			int32_t	c_checksum;
 			struct odinode {
 				unsigned short odi_mode;
 				u_short	odi_nlink;
 				u_short	odi_uid;
 				u_short	odi_gid;
-				long	odi_size;
-				long	odi_rdev;
+				int32_t	odi_size;
+				int32_t	odi_rdev;
 				char	odi_addr[36];
-				long	odi_atime;
-				long	odi_mtime;
-				long	odi_ctime;
+				int32_t	odi_atime;
+				int32_t	odi_mtime;
+				int32_t	odi_ctime;
 			} c_dinode;
-			long	c_count;
+			int32_t	c_count;
 			char	c_addr[256];
 		} s_ospcl;
 	} u_ospcl;
