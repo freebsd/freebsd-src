@@ -959,10 +959,10 @@ NODE *tree;
 		(void) setstate(state);
 
 	if (!tree)
-		srandom((unsigned int) (save_seed = (long) time((time_t *) 0)));
+		srandom((unsigned long) (save_seed = (long) time((time_t *) 0)));
 	else {
 		tmp = tree_eval(tree->lnode);
-		srandom((unsigned int) (save_seed = (long) force_number(tmp)));
+		srandom((unsigned long) (save_seed = (long) force_number(tmp)));
 		free_temp(tmp);
 	}
 	firstrand = 0;
