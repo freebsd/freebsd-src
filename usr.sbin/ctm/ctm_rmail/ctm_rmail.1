@@ -295,6 +295,44 @@ You can retrieve this delta via ftp.
 .Ed
 .Pp
 You are then on your own!
+.Sh ENVIRONMENT
+If deltas are to be applied then
+.Xr ctm 1
+and
+.Xr gunzip 1
+must be in your
+.Ev PATH .
+.Sh FILES
+.Bl -tag -width indent
+.It Pa QUEUEDIR/*
+Pieces of deltas encoded as mail messages waiting to be sent to the
+mailing list.
+.It Pa PIECEDIR/*
+Pieces of deltas waiting for the rest to arrive.
+.It Pa DELTADIR/*
+Completed deltas.
+.It Pa BASEDIR/.ctm_status
+File containing the name and number of the next delta to be applied to this
+source tree.
+.El
+.Sh EXIT STATUS
+The
+.Nm ctm_smail ,
+.Nm ctm_dequeue
+and
+.Nm ctm_rmail
+utilities return exit status 0 for success, and 1 for various failures.
+The
+.Nm ctm_rmail
+utility is expected to be called from a mail transfer program, and thus signals
+failure only when the input mail message should be bounced (preferably into
+your regular maildrop, not back to the sender).
+In short, failure to
+apply a completed delta with
+.Xr ctm
+is not considered an error important enough to bounce the mail, and
+.Nm ctm_rmail
+returns an exit status of 0.
 .Sh EXAMPLES
 To send delta 32 of
 .Em src-cur
@@ -417,45 +455,6 @@ undetectably altered by an attacker.
 Therefore it is recommended that you make use of
 GPG or PGP5 to verify the signatures if you
 receive your CTM deltas via email.
-.\" This next request is for sections 1, 6, 7 & 8 only
-.Sh ENVIRONMENT
-If deltas are to be applied then
-.Xr ctm 1
-and
-.Xr gunzip 1
-must be in your
-.Ev PATH .
-.Sh FILES
-.Bl -tag -width indent
-.It Pa QUEUEDIR/*
-Pieces of deltas encoded as mail messages waiting to be sent to the
-mailing list.
-.It Pa PIECEDIR/*
-Pieces of deltas waiting for the rest to arrive.
-.It Pa DELTADIR/*
-Completed deltas.
-.It Pa BASEDIR/.ctm_status
-File containing the name and number of the next delta to be applied to this
-source tree.
-.El
-.Sh EXIT STATUS
-The
-.Nm ctm_smail ,
-.Nm ctm_dequeue
-and
-.Nm ctm_rmail
-utilities return exit status 0 for success, and 1 for various failures.
-The
-.Nm ctm_rmail
-utility is expected to be called from a mail transfer program, and thus signals
-failure only when the input mail message should be bounced (preferably into
-your regular maildrop, not back to the sender).
-In short, failure to
-apply a completed delta with
-.Xr ctm
-is not considered an error important enough to bounce the mail, and
-.Nm ctm_rmail
-returns an exit status of 0.
 .Sh DIAGNOSTICS
 In normal operation,
 .Nm ctm_smail

@@ -43,14 +43,14 @@ the following two commands will create a binary for ARCS:
 ld -o a.out -M -N -Ttext 0x80900000 src.o
 elf2exe a.out a.exe
 .Ed
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 4.0 .
 .Sh BUGS
 The
 .Nm
 utility
 does not even attempt to verify that the input file matches the requirements
 for an ARC executable.
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Fx 4.0 .

@@ -106,12 +106,6 @@ The default is
 .It Fl h
 Display usage message and exit.
 .El
-.Sh BUGS
-Currently there is no way to select link key or PIN code based on which local
-device received the request.
-Everything is based on remote device BD_ADDR.
-Also might implement interface for external helpers to obtain link keys and
-PIN codes.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/bluetooth/hcsecd.conf" -compact
 .It Pa /etc/bluetooth/hcsecd.conf
@@ -126,3 +120,9 @@ PIN codes.
 .Xr hcseriald 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.Sh BUGS
+Currently there is no way to select link key or PIN code based on which local
+device received the request.
+Everything is based on remote device BD_ADDR.
+Also might implement interface for external helpers to obtain link keys and
+PIN codes.

@@ -305,6 +305,13 @@ and 2 if the file hierarchy did not match the specification.
 A status of 2 is converted to a status of 0 if the
 .Fl U
 option is used.
+.Sh FILES
+.Bl -tag -width /etc/mtree -compact
+.It Pa /etc/mtree
+system specification directory
+.El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 To detect system binaries that have been ``trojan horsed'', it is recommended
 that
@@ -336,13 +343,6 @@ for distributions and other such things; the files in
 were used to create almost all directories in this
 .Fx
 distribution.
-.Sh FILES
-.Bl -tag -width /etc/mtree -compact
-.It Pa /etc/mtree
-system specification directory
-.El
-.Sh EXIT STATUS
-.Ex -std
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,

@@ -195,17 +195,6 @@ file is specified on the command line,
 .Pa /usr/ports/INDEX-6
 is used.
 .El
-.Sh COMPATIBILITY
-The
-.Fl c
-option has been deprecated and is no longer supported.
-.Sh SEE ALSO
-.Xr fetch 1 ,
-.Xr pkg_add 1 ,
-.Xr pkg_create 1 ,
-.Xr pkg_delete 1 ,
-.Xr pkg_info 1 ,
-.Xr portupgrade 8
 .Sh FILES
 .Bl -tag -width /usr/ports/INDEX-6 -compact
 .It Pa /usr/ports/INDEX-6
@@ -227,6 +216,17 @@ the version numbers in the on-line ports collection:
 The following command compares two package version strings:
 .Pp
 .Dl % pkg_version -t 1.5 1.5.1
+.Sh COMPATIBILITY
+The
+.Fl c
+option has been deprecated and is no longer supported.
+.Sh SEE ALSO
+.Xr fetch 1 ,
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr portupgrade 8
 .Sh AUTHORS
 The
 .Nm
