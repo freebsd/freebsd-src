@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.22 1997/06/07 04:36:05 bde Exp $
+ *	$Id: pcb.h,v 1.23 1997/06/22 16:03:51 peter Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -45,6 +45,7 @@
  */
 #include <machine/tss.h>
 #include <machine/npx.h>
+#include <machine/pcb_ext.h>
 
 struct pcb {
 	int	pcb_cr3;
@@ -63,11 +64,8 @@ struct pcb {
 	u_long	pcb_mpnest;
 	int	pcb_fs;
 	int	pcb_gs;
-	u_long	__pcb_spare[5];	/* adjust to avoid core dump size changes */
-#if 0	/* some day we may switch between procs that have their own i386tss */
-	struct	i386tss pcb_tss;
-	u_char	pcb_iomap[NPORT/sizeof(u_char)]; /* i/o port bitmap */
-#endif
+	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
+	u_long	__pcb_spare[1];	/* adjust to avoid core dump size changes */
 };
 
 /*

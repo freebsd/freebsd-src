@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.83 1997/06/26 02:04:34 tegge Exp $
+ *	$Id: vm_machdep.c,v 1.84 1997/07/20 08:37:24 bde Exp $
  */
 
 #include "npx.h"
@@ -55,6 +55,7 @@
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
+#include <machine/pcb_ext.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -603,6 +604,13 @@ cpu_fork(p1, p2)
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
 	 */
 
+#ifdef VM86
+	/*
+	 * XXX don't copy the i/o pages.  this should probably be fixed.
+	 */
+	pcb2->pcb_ext = 0;
+#endif
+
 #ifdef USER_LDT
         /* Copy the LDT, if necessary. */
         if (pcb2->pcb_ldt != 0) {
@@ -650,15 +658,25 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
-#ifdef USER_LDT
-	struct pcb *pcb;
+#if defined(USER_LDT) || defined(VM86)
+	struct pcb *pcb = &p->p_addr->u_pcb; 
 #endif
 
 #if NNPX > 0
 	npxexit(p);
 #endif	/* NNPX */
+#ifdef VM86
+	if (pcb->pcb_ext != 0) {
+	        /* 
+		 * XXX do we need to move the TSS off the allocated pages 
+		 * before freeing them?  (not done here)
+		 */
+		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ext,
+		    ctob(IOPAGES + 1));
+		pcb->pcb_ext = 0;
+	}
+#endif
 #ifdef USER_LDT
-	pcb = &p->p_addr->u_pcb; 
 	if (pcb->pcb_ldt != 0) {
 		if (pcb == curpcb)
 			lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
