@@ -114,6 +114,8 @@ ep_pccard_identify(u_short id)
 	case 0x4b57: /* 3C574B */
 		return ("3Com 3C574B, Megahertz 3CCFE574BT or "
 		    "Fast Etherlink 3C574-TX");
+	case 0x2b57: /* 3CXSH572BT */
+		return ("3Com OfficeConnect 572BT");
 	case 0x9058: /* 3C589 */
 		return ("3Com Etherlink III 3C589");
 	case 0x2056: /* 3C562/3C563 */
@@ -128,11 +130,8 @@ ep_pccard_card_attach(struct ep_board *epb)
 	/* Determine device type and associated MII capabilities  */
 	switch (epb->prod_id) {
 	case 0x6055: /* 3C556 */
-		epb->mii_trans = 1;
-		return (1);
+	case 0x2b57: /* 3C572BT */
 	case 0x4057: /* 3C574 */
-		epb->mii_trans = 1;
-		return (1);
 	case 0x4b57: /* 3C574B */
 		epb->mii_trans = 1;
 		return (1);
