@@ -34,7 +34,6 @@
  * $FreeBSD$
  */
 
-#include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -732,9 +731,7 @@ tcp_attach(so, p)
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
-#ifdef INET6
 	inp->inp_vflag |= INP_IPV4;
-#endif
 	tp = tcp_newtcpcb(inp);
 	if (tp == 0) {
 		int nofd = so->so_state & SS_NOFDREF;	/* XXX */
