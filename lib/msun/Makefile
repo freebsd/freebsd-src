@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.5 1995/05/30 05:47:47 rgrimes Exp $
+#  $Id: Makefile,v 1.6 1995/10/02 20:02:05 wollman Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -95,11 +95,12 @@ SRCS=${COMMON_SRCS}
     SRCS:=${SRCS:S/${i:S/.S/.c/}/$i/}
 .endfor
 
-MAN3+=	man/acos.3 man/acosh.3 man/asin.3 man/asinh.3 man/atan.3 man/atan2.3 \
-	man/atanh.3 man/ceil.3 man/cos.3 man/cosh.3 man/erf.3 man/exp.3 \
-	man/fabs.3 man/floor.3 man/fmod.3 man/hypot.3 man/ieee.3 \
-	man/ieee_test.3 man/j0.3 man/lgamma.3 man/math.3 man/rint.3 man/sin.3 \
-	man/sinh.3 man/sqrt.3 man/tan.3 man/tanh.3
+MANSRC= ${.CURDIR}/man
+
+MAN3+=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
+	cos.3 cosh.3 erf.3 exp.3 fabs.3 floor.3 fmod.3 hypot.3 ieee.3 \
+	ieee_test.3 j0.3 lgamma.3 math.3 rint.3 sin.3 sinh.3 sqrt.3 \
+	tan.3 tanh.3
 
 MLINKS+=erf.3 erfc.3
 MLINKS+=exp.3 expm1.3 exp.3 log.3 exp.3 log10.3 exp.3 log1p.3 exp.3 pow.3
@@ -117,7 +118,7 @@ MLINKS+=sqrt.3 cbrt.3
 beforeinstall:
 	@${ECHO} Installing new math.h
 	@(cd ${.CURDIR}/src; cmp -s math.h ${DESTDIR}/usr/include/math.h || \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 444 math.h \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 math.h \
 		${DESTDIR}/usr/include/math.h;)
 
 .include <bsd.lib.mk>
