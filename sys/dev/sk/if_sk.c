@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.48 1999/07/06 21:37:42 wpaul Exp $
+ *	$Id: if_sk.c,v 1.1 1999/07/09 04:29:50 wpaul Exp $
  */
 
 /*
@@ -99,7 +99,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.48 1999/07/06 21:37:42 wpaul Exp $";
+	"$Id: if_sk.c,v 1.1 1999/07/09 04:29:50 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -1195,7 +1195,7 @@ sk_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, SK_PCI_LOIO,
-	    (u_short *)&(sc->sk_bhandle))) {
+	    (pci_port_t *)&(sc->sk_bhandle))) {
 		printf ("skc%d: couldn't map ports\n", unit);
 		goto fail;
         }
