@@ -2473,7 +2473,7 @@ myoob(void)
 void
 passive(void)
 {
-	int len;
+	int len, on;
 	char *p, *a;
 
 	if (pdata >= 0)		/* close old port if one set */
@@ -2484,13 +2484,16 @@ passive(void)
 		perror_reply(425, "Can't open passive connection");
 		return;
 	}
+	on = 1;
+	if (setsockopt(pdata, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+		syslog(LOG_WARNING, "pdata setsockopt (SO_REUSEADDR): %m");
 
 	(void) seteuid((uid_t)0);
 
 #ifdef IP_PORTRANGE
 	if (ctrl_addr.su_family == AF_INET) {
-	    int on = restricted_data_ports ? IP_PORTRANGE_HIGH
-					   : IP_PORTRANGE_DEFAULT;
+	    on = restricted_data_ports ? IP_PORTRANGE_HIGH
+				       : IP_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
 			    &on, sizeof(on)) < 0)
@@ -2499,8 +2502,8 @@ passive(void)
 #endif
 #ifdef IPV6_PORTRANGE
 	if (ctrl_addr.su_family == AF_INET6) {
-	    int on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
-					   : IPV6_PORTRANGE_DEFAULT;
+	    on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
+				       : IPV6_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
 			    &on, sizeof(on)) < 0)
@@ -2553,7 +2556,7 @@ pasv_error:
 void
 long_passive(char *cmd, int pf)
 {
-	int len;
+	int len, on;
 	char *p, *a;
 
 	if (pdata >= 0)		/* close old port if one set */
@@ -2591,6 +2594,9 @@ long_passive(char *cmd, int pf)
 		perror_reply(425, "Can't open passive connection");
 		return;
 	}
+	on = 1;
+	if (setsockopt(pdata, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+		syslog(LOG_WARNING, "pdata setsockopt (SO_REUSEADDR): %m");
 
 	(void) seteuid((uid_t)0);
 
@@ -2600,8 +2606,8 @@ long_passive(char *cmd, int pf)
 
 #ifdef IP_PORTRANGE
 	if (ctrl_addr.su_family == AF_INET) {
-	    int on = restricted_data_ports ? IP_PORTRANGE_HIGH
-					   : IP_PORTRANGE_DEFAULT;
+	    on = restricted_data_ports ? IP_PORTRANGE_HIGH
+				       : IP_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
 			    &on, sizeof(on)) < 0)
@@ -2610,8 +2616,8 @@ long_passive(char *cmd, int pf)
 #endif
 #ifdef IPV6_PORTRANGE
 	if (ctrl_addr.su_family == AF_INET6) {
-	    int on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
-					   : IPV6_PORTRANGE_DEFAULT;
+	    on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
+				       : IPV6_PORTRANGE_DEFAULT;
 
 	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
 			    &on, sizeof(on)) < 0)
