@@ -8,15 +8,19 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
-This is for the 4.6 release branch.  All entries since 4.5 are an
+This is for the 4.6 release branch.  All entries since 4.6 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.6-RELEASE-p2.
+By this count, we're at 4.6.1-RELEASE-p1.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020730:	p1	FreeBSD-SA-02:23.stdio.v1.2
+	A bug in the previous patch for the vulnerability described
+	in FreeBSD-SA-02:23.stdio was found and corrected.
 
 20020718:
 	"Hang in atprq" bugfix for ATAPI CDROMs.
