@@ -36,6 +36,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -542,6 +543,9 @@ atm_physif_ioctl(code, data, arg)
 			case MEDIA_OC12C:
 			case MEDIA_UTP155:
 				ifp->if_baudrate = 155000000;
+				break;
+			case MEDIA_UNKNOWN:
+				ifp->if_baudrate = 9600;
 				break;
 			}
 #endif
