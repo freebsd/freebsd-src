@@ -266,13 +266,6 @@ coda_open(struct vop_open_args *ap)
 	return (error);
     }
 /* grab (above) does this when it calls newvnode unless it's in the cache*/
-    if (vp->v_type == VREG) {
-    	error = VOP_CREATEVOBJECT(vp, cred, td);
-	if (error != 0) {
-	    printf("coda_open: VOP_CREATEVOBJECT() returns %d\n", error);
-	    vput(vp);
-	}
-    }
 
     return(error);
 }
@@ -430,17 +423,6 @@ printf("coda_rdwr: Internally Opening %p\n", vp);
 	    if (error) {
 		printf("coda_rdwr: VOP_OPEN on container failed %d\n", error);
 		return (error);
-	    }
-	    if (vp->v_type == VREG) {
-		error = VOP_CREATEVOBJECT(vp, cred, td);
-		if (error != 0) {
-		    printf("coda_rdwr: VOP_CREATEVOBJECT() returns %d\n", error);
-		    vput(vp);
-		}
-	    }
-	    if (error) {
-		MARK_INT_FAIL(CODA_RDWR_STATS);
-		return(error);
 	    }
 	    cfvp = cp->c_ovp;
 	}
@@ -1562,14 +1544,6 @@ printf("coda_readdir: Internally Opening %p\n", vp);
 		printf("coda_readdir: VOP_OPEN on container failed %d\n", error);
 		return (error);
 	    }
-	    if (vp->v_type == VREG) {
-		error = VOP_CREATEVOBJECT(vp, cred, td);
-		if (error != 0) {
-		    printf("coda_readdir: VOP_CREATEVOBJECT() returns %d\n", error);
-		    vput(vp);
-		}
-	    }
-	    if (error) return(error);
 	}
 	
 	/* Have UFS handle the call. */

@@ -1071,10 +1071,6 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	FILE_UNLOCK(fp);
 	FILEDESC_UNLOCK(fdp);
 
-	/* assert that vn_open created a backing object if one is needed */
-	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
-		("open: vmio vnode has no backing object after vn_open"));
-
 	VOP_UNLOCK(vp, 0, td);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
@@ -4119,13 +4115,7 @@ fhopen(td, uap)
 	error = VOP_OPEN(vp, fmode, td->td_ucred, td, -1);
 	if (error)
 		goto bad;
-	/*
-	 * Make sure that a VM object is created for VMIO support.
-	 */
-	if (vn_canvmio(vp) == TRUE) {
-		if ((error = VOP_CREATEVOBJECT(vp, td->td_ucred, td)) != 0)
-			goto bad;
-	}
+
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 
@@ -4176,8 +4166,6 @@ fhopen(td, uap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		fp->f_flag |= FHASLOCK;
 	}
-	if ((vp->v_type == VREG) && (VOP_GETVOBJECT(vp, NULL) != 0))
-		VOP_CREATEVOBJECT(vp, td->td_ucred, td);
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);

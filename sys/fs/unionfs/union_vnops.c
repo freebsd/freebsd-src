@@ -783,12 +783,6 @@ union_open(ap)
 		error = VOP_OPEN(tvp, mode, cred, td, -1);
 
 	/*
-	 * This is absolutely necessary or UFS will blow up.
-	 */
-        if (error == 0 && vn_canvmio(tvp) == TRUE)
-                error = VOP_CREATEVOBJECT(tvp, cred, td);
-
-	/*
 	 * Release any locks held.
 	 */
 	if (tvpisupper) {
