@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.58 1998/03/08 09:58:29 julian Exp $
+ *	$Id: mount.h,v 1.59 1998/03/28 10:33:22 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -40,8 +40,6 @@
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
-#include <net/radix.h>
-#include <sys/socket.h>		/* XXX for AF_MAX */
 
 typedef struct fsid { int32_t val[2]; } fsid_t;	/* file system id type */
 
@@ -414,7 +412,8 @@ struct vfsops {
 
 #ifdef KERNEL
 #include <net/radix.h>
-#include <sys/socket.h>		/* XXX for AF_MAX */
+
+#define	AF_MAX		30	/* XXX */
 
 /*
  * Network address lookup element
