@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdlib.h>
 #include <err.h>
+#include <locale.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
@@ -181,6 +182,8 @@ main(int argc, char *argv[])
 	int n;
 	int rval;
 	char *p;
+
+	setlocale(LC_ALL, "");
 
 	traceout = stderr;
 
