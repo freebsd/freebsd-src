@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.501 1999/08/04 17:30:00 jkh Exp $
+#	$Id: Makefile,v 1.502 1999/08/05 01:28:00 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -541,7 +541,13 @@ ftp.1:
 	@mkdir -p ${FD}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	@for i in ${DIST_DOCS}; do if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$$i ]; then cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; else cp ${.CURDIR}/texts/$${i} ${FD}; fi; done
+	@for i in ${DIST_DOCS}; do \
+	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
+	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; \
+          else \
+	     cp ${.CURDIR}/texts/$${i} ${FD}; \
+	  fi; \
+        done
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -568,7 +574,13 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-	@for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
+	@for i in ${DIST_DOCS}; do \
+	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
+	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${CD_DISC1}; \
+          else \
+	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
+	  fi; \
+        done
 .if !defined(NOPORTS)
 	@-rm -rf /usr/ports/distfiles/*
 	@mkdir -p ${CD_DISC1}/ports && \
