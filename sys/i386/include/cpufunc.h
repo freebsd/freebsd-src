@@ -98,6 +98,8 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
+#ifdef _KERNEL
+
 #define	HAVE_INLINE_FFS
 
 static __inline int
@@ -119,6 +121,8 @@ fls(int mask)
 {
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
 }
+
+#endif /* _KERNEL */
 
 static __inline void
 halt(void)
