@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=brian@FreeBSD.org
-
 PROG=	ppp
 SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	command.c datalink.c deflate.c defs.c exec.c filter.c fsm.c hdlc.c \
