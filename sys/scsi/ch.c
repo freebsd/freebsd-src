@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.43 1998/01/24 02:54:48 eivind Exp $
+ *      $Id: ch.c,v 1.44 1998/04/16 12:28:30 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -628,7 +628,7 @@ ch_getelemstatus(sc, first, count, data, datalen)
 	 * Send command to changer.
 	 */
 	return (scsi_scsi_cmd(sc->sc_link, (struct scsi_generic *)&cmd,
-	    sizeof(cmd), (u_char *)data, datalen, CHRETRIES, 100000, NULL, 0));
+	    sizeof(cmd), (u_char *)data, datalen, CHRETRIES, 100000, NULL, SCSI_DATA_IN));
 }
 
 
