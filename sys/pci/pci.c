@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57.2.4 1997/04/23 20:25:04 se Exp $
+**  $Id: pci.c,v 1.57.2.5 1997/07/11 18:16:18 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -981,7 +981,11 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
 	struct pcicb *link = pcicb;
 	unsigned    data ,paddr;
+#ifndef DPTOPT
 	vm_size_t   psize, poffs;
+#else
+	vm_size_t   psize, poffs, pend;
+#endif /* DPTOPT */
 	vm_offset_t vaddr;
 
 	/*
@@ -1024,6 +1028,9 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	*/
 
 	psize = -(data & PCI_MAP_MEMORY_ADDRESS_MASK);
+#ifdef DPTOPT
+	pend = paddr + psize -1;
+#endif /* DPTOPT */
 
 	if (!paddr || paddr == PCI_MAP_MEMORY_ADDRESS_MASK) {
 		paddr = pci_memalloc (pcicb, 0, psize);
@@ -1031,6 +1038,8 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 			printf ("pci_map_mem: not configured by bios.\n");
 			return (0);
 		};
+
+#ifndef DPTOPT
 		pci_register_memory (pcicb, paddr, paddr+psize-1);
 	};
 
@@ -1040,6 +1049,22 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 			"incompatible with its bridge's memrange 0x%x-0x%x\n",
 			(unsigned) paddr,
 			(unsigned) (paddr + psize - 1),
+#else
+		pci_register_memory (pcicb, paddr, pend);
+	};
+
+	if (!((pcicb->pcicb_membase <= paddr &&
+	       pend <= pcicb->pcicb_memlimit) || 
+	      (pcicb->pcicb_p_membase <= paddr &&
+	       pend <= pcicb->pcicb_p_memlimit))) {
+		printf ("pci_map_mem failed: device's memrange 0x%x-0x%x is "
+			"incompatible with its bridge's\n"
+			"\tmemrange 0x%x-0x%x and prefetchable memrange 0x%x-0x%x\n",
+			(unsigned) paddr,
+			(unsigned) (paddr + psize - 1),
+			(unsigned) pcicb->pcicb_p_membase,
+			(unsigned) pcicb->pcicb_p_memlimit,
+#endif /* DPTOPT */
 			(unsigned) pcicb->pcicb_membase,
 			(unsigned) pcicb->pcicb_memlimit);
 /*		return (0);*/

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.10.2.1 1997/06/20 10:27:43 kato Exp $
+ *	$Id: md_var.h,v 1.10.2.2 1997/09/13 16:19:06 joerg Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -46,6 +46,9 @@ extern	char	cpu_vendor[];
 extern	char	etext[];
 extern	char	kstack[];
 extern	void	(*netisrs[32]) __P((void));
+#ifdef DPTOPT
+extern	void	(*dptisrs[32]) __P((void));
+#endif /* DPTOPT */
 extern	int	nfs_diskless_valid;
 extern	char	sigcode[];
 extern	int	szsigcode;

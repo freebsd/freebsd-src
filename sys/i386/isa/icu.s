@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.26 1996/10/30 22:38:46 asami Exp $
+ *	$Id: icu.s,v 1.26.2.1 1996/12/29 22:06:49 bde Exp $
  */
 
 /*
@@ -54,17 +54,21 @@
 	.globl	_cpl
 _cpl:	.long	HWI_MASK | SWI_MASK	/* current priority (all off) */
 	.globl	_imen
-_imen:	.long	HWI_MASK		/* interrupt mask enable (all h/w off) */
+_imen:	.long	HWI_MASK	/* interrupt mask enable (all h/w off) */
 	.globl	_tty_imask
 _tty_imask:	.long	0
 	.globl	_bio_imask
 _bio_imask:	.long	0
+#ifdef DPTOPT
+	.globl	_dpt_imask
+_dpt_imask:	.long SWI_DPT_MASK
+#endif /* DPTOPT */
 	.globl	_net_imask
 _net_imask:	.long	0
 	.globl	_ipending
 _ipending:	.long	0
 	.globl	_netisr
-_netisr:	.long	0		/* set with bits for which queue to service */
+_netisr:	.long	0	/* set with bits for which queue to service */
 	.globl _netisrs
 _netisrs:
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
@@ -75,6 +79,21 @@ _netisrs:
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
 	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+#ifdef DPTOPT
+	.global _dptisr
+_dptisr:	.long	0	/* set with bits for which queue to service */
+	.globl	_dptisrs
+_dptisrs:
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+	.long	dummydptisr, dummydptisr, dummydptisr, dummydptisr
+
+#endif /* DPTOPT */
 vec:
 	.long	vec0, vec1, vec2, vec3, vec4, vec5, vec6, vec7
 	.long	vec8, vec9, vec10, vec11, vec12, vec13, vec14, vec15
@@ -332,10 +351,34 @@ swi_net_done:
 	ret
 
 	ALIGN_TEXT
+#ifdef DPTOPT
+swi_dpt:
+	MCOUNT
+	bsfl	_dptisr,%eax
+	je	swi_dpt_done
+swi_dpt_more:
+	btrl	%eax,_dptisr
+	jnc	swi_dpt_next
+	call	*_dptisrs(,%eax,4)
+swi_dpt_next:
+	bsfl	_dptisr,%eax
+	jne	swi_dpt_more
+swi_dpt_done:
+	ret
+
+	ALIGN_TEXT
+#endif /* DPTOPT */
 dummynetisr:
 	MCOUNT
-	ret	
+	ret
 
+#ifdef DPTOPT
+	ALIGN_TEXT
+dummydptisr:
+ 	MCOUNT
+ 	ret	
+	
+#endif /* DPTOPT */
 /*
  * XXX there should be a registration function to put the handler for the
  * attached driver directly in ihandlers.  Then this function will go away.

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.45 1998/03/02 02:47:33 jkh Exp $
+#	$Id: LINT,v 1.286.2.46 1998/03/02 07:26:16 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1151,11 +1151,46 @@ options	"EISA_SLOTS=12"
 #
 # The 'bktr' device is a PCI video capture board. It also has a TV tuner
 # on board.
+# The 'dpt' driver provides hardware RAID-{0,1,5} support, multi-initiator I/O
+# and is part of the DIO (Distributed I/O) option.  Only the PCI controllers
+# are supported.  the following options are controlled from here.
+# See sys/dev/dpt for debugging and other subtle options.
+#
+#   DPT_VERIFY_HINTR        Performs some strict hardware interrupts testing.
+#                           Increases interrupt latency so leave it off under
+#                           normal conditions.
+#   DPT_RESTRICTED_FREELIST Normally, the freelisat used by the DPT for queue
+#                           management grows dynamically.  On heavily loaded
+#                           systems this can consume 1-8MB of kernel memory.
+#                           Enabling this option resticts the number of queue 
+#                           slots to DPT_FREE_LIST_INCREMENT (64).
+#   DPT_TRACK_CCB_STATES    Enabling thos option will try to enforce sanity in
+#                           state transitions in the conntroller Command
+#                           Blocks.  It is a debugging/development option.
+#   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
+#                           phases of the CCB's, as well as all SCSI commands 
+#                           are timed and tallied.  Costs about 1us/command.
+#   DPT_FREELIST_IS_STACK   For optimat L{1,2} CPU cache utilization, enable 
+#                           this option.  It may invoke race conditions on some
+#                           motherboards.
+#   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT 
+#                           firmware.  With this option enabled, an independant
+#                           mechanism is run in the FreeBSD kernel.  Leave this
+#                           option enabled for now, as some hardware fails 
+#                           without it.
+#   DPT_TIMEOUT_FACTOR      Used to compute the excessive amount of time to
+#                           wait in case of a command that is too late.  It is
+#                           a multiplication factor.
+#  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
+#
+
+options DPT_MEASURE_PERFORMANCE
 
 controller	pci0
 controller	ahc1
 controller	ncr0
 controller	amd0
+controller	dpt0
 device		de0
 device		fxp0
 device		tx0
