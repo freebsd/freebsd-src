@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.68 1997/03/10 09:55:20 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.69 1997/03/10 11:55:17 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -139,7 +139,12 @@ the ports collection.
 2.1.6-RELEASE:                  199612
 2.1.7-RELEASE:                  199612
 2.2-RELEASE:                    220000
-3.0-current as of Feb 1997:     300000
+2.2.1-RELEASE:                  220000 (yes, no change)
+2.2-STABLE after 2.2.1-RELEASE: 220000 (yes, still no change)
+2.2-STABLE after texinfo-3.9:   221001
+2.2-STABLE after top:           221002
+2.2.2-RELEASE:                  222000
+3.0-current as of May 1997:     300000
 </verb></tscreen>
 	  The pattern used to be year followed by the month, but we
 	  decided to change it to a more straightforward major/minor
