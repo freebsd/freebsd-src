@@ -182,6 +182,8 @@ cron_popen(program, type, e)
 				setuid(e->uid);         /* we aren't root after this..*/
 #if defined(LOGIN_CAP)
 			}
+			if (lc != NULL)
+				login_close(lc);
 #endif
 			chdir(env_get("HOME", e->envp));
 		}
