@@ -556,7 +556,7 @@ in_arpinput(m)
 				ac->ac_if.if_name, ac->ac_if.if_unit);
 			else {
 			    log(LOG_ERR,
-				"arp: %6D attempts to modify permanent entry for %s on %s%d",
+				"arp: %6D attempts to modify permanent entry for %s on %s%d\n",
 				ea->arp_sha, ":", inet_ntoa(isaddr),
 				ac->ac_if.if_name, ac->ac_if.if_unit);
 			    goto reply;
