@@ -37,6 +37,8 @@
 #ifndef _SYS_DMAP_H_
 #define	_SYS_DMAP_H_
 
+typedef	int32_t	swblk_t;	/* swap offset */
+
 /*
  * Definitions for the mapping of vitual swap space to the physical swap
  * area - the disk map.

@@ -150,7 +150,6 @@ typedef	__pid_t		pid_t;		/* process id */
 typedef	__register_t	register_t;
 typedef	__int64_t	rlim_t;		/* resource limit (XXX not unsigned) */
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
-typedef	__int32_t	swblk_t;	/* swap offset */
 typedef	__u_register_t	u_register_t;
 
 #ifndef _UID_T_DECLARED
