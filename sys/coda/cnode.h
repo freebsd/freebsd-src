@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/cnode.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: cnode.h,v 1.4 1998/09/13 13:57:59 rvb Exp $
+ *  $Id: cnode.h,v 1.5 1998/11/11 20:32:20 rvb Exp $
  * 
  */
 
@@ -42,117 +42,6 @@
 /*
  * This code was written for the Coda file system at Carnegie Mellon University.
  * Contributers include David Steere, James Kistler, and M. Satyanarayanan.
- */
-
-/* 
- * HISTORY
- * $Log: cnode.h,v $
- * Revision 1.4  1998/09/13 13:57:59  rvb
- * Finish conversion of cfs -> coda
- *
- * Revision 1.3  1998/09/11 18:50:17  rvb
- * All the references to cfs, in symbols, structs, and strings
- * have been changed to coda.  (Same for CFS.)
- *
- * Revision 1.2  1998/09/02 19:09:53  rvb
- * Pass2 complete
- *
- * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
- * Very Preliminary Coda
- *
- * Revision 1.10  1998/08/28 18:12:25  rvb
- * Now it also works on FreeBSD -current.  This code will be
- * committed to the FreeBSD -current and NetBSD -current
- * trees.  It will then be tailored to the particular platform
- * by flushing conditional code.
- *
- * Revision 1.9  1998/08/18 17:05:24  rvb
- * Don't use __RCSID now
- *
- * Revision 1.8  1998/08/18 16:31:49  rvb
- * Sync the code for NetBSD -current; test on 1.3 later
- *
- * Revision 1.7  98/02/24  22:22:53  rvb
- * Fixes up mainly to flush iopen and friends
- * 
- * Revision 1.6  98/01/31  20:53:19  rvb
- * First version that works on FreeBSD 2.2.5
- * 
- * Revision 1.5  98/01/23  11:53:51  rvb
- * Bring RVB_CODA1_1 to HEAD
- * 
- * Revision 1.4.2.5  98/01/23  11:21:14  rvb
- * Sync with 2.2.5
- * 
- * Revision 1.4.2.4  98/01/22  13:03:38  rvb
- * Had Breaken ls .
- * 
- * Revision 1.4.2.3  97/12/19  14:26:09  rvb
- * session id
- * 
- * Revision 1.4.2.2  97/12/16  12:40:24  rvb
- * Sync with 1.3
- * 
- * Revision 1.4.2.1  97/12/06  17:41:28  rvb
- * Sync with peters coda.h
- * 
- * Revision 1.4  97/12/05  10:39:30  rvb
- * Read CHANGES
- * 
- * Revision 1.3.18.2  97/11/12  12:09:45  rvb
- * reorg pass1
- * 
- * Revision 1.3.18.1  97/10/29  16:06:31  rvb
- * Kill DYING
- * 
- * Revision 1.3  1996/12/12 22:11:03  bnoble
- * Fixed the "downcall invokes venus operation" deadlock in all known cases. 
- *  There may be more.
- *
- * Revision 1.2  1996/01/02 16:57:26  bnoble
- * Added support for Coda MiniCache and raw inode calls (final commit)
- *
- * Revision 1.1.2.1  1995/12/20 01:57:53  bnoble
- * Added CODA-specific files
- *
- * Revision 3.1.1.1  1995/03/04  19:08:23  bnoble
- * Branch for NetBSD port revisions
- *
- * Revision 3.1  1995/03/04  19:08:23  bnoble
- * Bump to major revision 3 to prepare for NetBSD port
- *
- * Revision 2.2  1994/12/06  13:39:18  dcs
- * Add a flag value to indicate a cnode was orphaned, e.g. the venus
- * that created it has exited. This will allow one to restart venus
- * even though some process may be cd'd into /coda.
- *
- * Revision 2.1  94/07/21  16:25:33  satya
- * Conversion to C++ 3.0; start of Coda Release 2.0
- * 
- * Revision 1.2.7.1  94/06/16  11:26:02  raiff
- * Branch for release beta-16Jun1994_39118
- * 
- * Revision 1.2  92/10/27  17:58:41  lily
- * merge kernel/latest and alpha/src/cfs
- * 
- * Revision 2.3  92/09/30  14:16:53  mja
- * 	Picked up fixed #ifdef _KERNEL. Also...
- * 
- * 	Substituted rvb's history blurb so that we agree with Mach 2.5 sources.
- * 	[91/02/09            jjk]
- * 
- * 	Added contributors blurb.
- * 	[90/12/13            jjk]
- * 
- * Revision 2.2  90/07/05  11:27:24  mrt
- * 	Created for the Coda File System.
- * 	[90/05/23            dcs]
- * 
- * Revision 1.4  90/05/31  17:02:16  dcs
- * Prepare for merge with facilities kernel.
- * 
- * 
- * 
  */
 
 #ifndef	_CNODE_H_
