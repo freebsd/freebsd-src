@@ -1,6 +1,6 @@
-#       $Id: Makefile,v 1.30 1998/04/28 07:16:24 ache Exp $
+#       $Id: Makefile.inc,v 1.1 1999/05/28 04:25:47 ache Exp $
 
-SHLIB_MAJOR= 4
+SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 RL_LIBRARY_VERSION= 4.0
 
