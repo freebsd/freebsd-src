@@ -1028,7 +1028,7 @@ svr4_sys_pgrpsys(td, uap)
 		 * This has already been initialized to the pid of
 		 * the session leader.
 		 */
-		*retval = (register_t) p->p_session->s_leader->p_pid;
+		*retval = (register_t) p->p_session->s_sid;
 		PROC_UNLOCK(p);
 		return 0;
 
