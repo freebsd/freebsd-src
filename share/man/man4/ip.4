@@ -164,15 +164,6 @@ control message from
 can be used directly as a control message for
 .Xr sendmsg 2 .
 .Pp
-.Dv IP_EVIL_INTENT can be used to specify that IP packets should have their
-EVIL option set as per RFC3514.
-The cmsghdr fields should have the following values:
-.Bd -literal
-cmsg_len = sizeof(struct in_addr)
-cmsg_level = IPPROTO_IP
-cmsg_type = IP_EVIL_INTENT
-.Ed
-.Pp
 .Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.

@@ -134,11 +134,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
 	&ip_sendsourcequench, 0,
 	"Enable the transmission of source quench packets");
 
-static int	hear_no_evil = 0;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, hear_no_evil, CTLFLAG_RW,
-	&hear_no_evil, 0,
-	"Drop all received EVIL packets.");
-
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
  * the Strong ES model described in RFC 1122, but since the routing table
@@ -410,15 +405,6 @@ ip_input(struct mbuf *m)
 		goto bad;
 	}
 	ip->ip_off = ntohs(ip->ip_off);
-
-	/*
-	 * Check for RFC3514 (EVIL) packets.
-	 */
-	if (ip->ip_off & IP_EF) {
-		ipstat.ips_evil++;
-		if (hear_no_evil)
-			goto bad;
-	}
 
 	/*
 	 * Check that the amount of data in the buffers
