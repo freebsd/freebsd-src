@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.50 1997/12/18 09:13:39 davidg Exp $
+ *	$Id: raw_ip.c,v 1.51 1998/01/27 09:15:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <vm/vm_zone.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -94,6 +95,8 @@ rip_init()
 	 */
 	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
 	ripcbinfo.porthashbase = hashinit(1, M_PCB, &ripcbinfo.porthashmask);
+	ripcbinfo.ipi_zone = zinit("ripcb", sizeof(struct inpcb),
+				   nmbclusters/4, ZONE_INTERRUPT, 0);
 }
 
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
