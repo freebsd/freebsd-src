@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * (C)opyright 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_fil.c,v 1.1.1.3 1997/04/03 10:10:52 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_fil.c,v 2.0.2.12 1997/05/24 07:39:56 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -15,7 +15,14 @@ static	char	rcsid[] = "$Id: ip_fil.c,v 1.1.1.3 1997/04/03 10:10:52 darrenr Exp $
 #endif
 
 #ifdef	__FreeBSD__
-#include <osreldate.h>
+# if defined(KERNEL) && !defined(_KERNEL)
+#  define	_KERNEL
+# endif
+# if defined(_KERNEL) && !defined(IPFILTER_LKM)
+#  include <sys/osreldate.h>
+# else
+#  include <osreldate.h>
+# endif
 #endif
 #ifndef	_KERNEL
 #include <stdio.h>
@@ -25,7 +32,12 @@ static	char	rcsid[] = "$Id: ip_fil.c,v 1.1.1.3 1997/04/03 10:10:52 darrenr Exp $
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
-#include <sys/ioctl.h>
+#if __FreeBSD_version >= 220000 && defined(_KERNEL)
+# include <sys/fcntl.h>
+# include <sys/filio.h>
+#else
+# include <sys/ioctl.h>
+#endif
 #include <sys/time.h>
 #ifdef	_KERNEL
 #include <sys/systm.h>
@@ -35,9 +47,6 @@ static	char	rcsid[] = "$Id: ip_fil.c,v 1.1.1.3 1997/04/03 10:10:52 darrenr Exp $
 #include <sys/dir.h>
 #include <sys/mbuf.h>
 #else
-#define	bcmp	memcmp
-#define	bzero(a,b)	memset(a,0,b)
-#define	bcopy(a,b,c)	memcpy(b,a,c)
 #include <sys/filio.h>
 #endif
 #include <sys/protosw.h>
@@ -46,6 +55,9 @@ static	char	rcsid[] = "$Id: ip_fil.c,v 1.1.1.3 1997/04/03 10:10:52 darrenr Exp $
 #include <net/if.h>
 #ifdef sun
 #include <net/af.h>
+#endif
+#if __FreeBSD_version >= 300000
+# include <net/if_var.h>
 #endif
 #include <net/route.h>
 #include <netinet/in.h>
@@ -57,17 +69,23 @@ static	char	rcsid[] = "$Id: ip_fil.c,v 1.1.1.3 1997/04/03 10:10:52 darrenr Exp $
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include <syslog.h>
-#include "ip_compat.h"
-#include "ip_fil.h"
-#include "ip_frag.h"
-#include "ip_nat.h"
-#include "ip_state.h"
+#ifndef	_KERNEL
+# include <syslog.h>
+#endif
+#include "netinet/ip_compat.h"
+#include "netinet/ip_fil.h"
+#include "netinet/ip_proxy.h"
+#include "netinet/ip_nat.h"
+#include "netinet/ip_frag.h"
+#include "netinet/ip_state.h"
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
+#if	!SOLARIS && defined(_KERNEL)
+extern	int	ip_optcopy __P((struct ip *, struct ip *));
+#endif
 
-extern	fr_flags, fr_active;
+
 extern	struct	protosw	inetsw[];
 #if	BSD < 199306
 static	int	(*fr_saveslowtimo) __P((void));
@@ -139,6 +157,7 @@ char *s;
 
 int iplattach()
 {
+	char *defpass;
 	int s, i;
 
 	SPLNET(s);
@@ -157,11 +176,21 @@ int iplattach()
 	/*
 	 * Set log buffer pointers for each of the log buffers
 	 */
+#ifdef	IPFILTER_LOG
 	for (i = 0; i <= 2; i++) {
 		iplh[i] = iplbuf[i];
 		iplt[i] = iplbuf[i];
 	}
+#endif
 	SPLX(s);
+	if (fr_pass & FR_PASS)
+		defpass = "pass";
+	else if (fr_pass & FR_BLOCK)
+		defpass = "block";
+	else
+		defpass = "no-match -> block";
+
+	printf("IP Filter: initialized.  Default = %s all\n", defpass);
 	return 0;
 }
 
@@ -258,7 +287,8 @@ caddr_t data;
  * Filter ioctl interface.
  */
 int iplioctl(dev, cmd, data, mode
-#if ((_BSDI_VERSION >= 199510) || (BSD >= 199506)) && defined(_KERNEL)
+#if ((_BSDI_VERSION >= 199510) || (BSD >= 199506) || (NetBSD >= 199511) || \
+     (__FreeBSD_version >= 220000)) && defined(_KERNEL)
 , p)
 struct proc *p;
 #else
@@ -278,10 +308,21 @@ int mode;
 #endif
 
 	SPLNET(s);
+
+	if (unit == IPL_LOGNAT) {
+		error = nat_ioctl(data, cmd, mode);
+		SPLX(s);
+		return error;
+	}
+	if (unit == IPL_LOGSTATE) {
+		error = fr_state_ioctl(data, cmd, mode);
+		SPLX(s);
+		return error;
+	}
 	switch (cmd) {
 	case FIONREAD :
 #ifdef IPFILTER_LOG
-		*(int *)data = iplused[unit];
+		*(int *)data = iplused[IPL_LOGIPF];
 #endif
 		break;
 #if !defined(IPFILTER_LKM) && defined(_KERNEL)
@@ -373,23 +414,12 @@ int mode;
 		else {
 			*(int *)data = iplused[unit];
 			iplh[unit] = iplt[unit] = iplbuf[unit];
-			iplused[unit] = 0;
+			iplused[unix] = 0;
 		}
 		break;
 #endif /* IPFILTER_LOG */
-	case SIOCADNAT :
-	case SIOCRMNAT :
-	case SIOCGNATS :
-	case SIOCGNATL :
-	case SIOCFLNAT :
-	case SIOCCNATL :
-		error = nat_ioctl(data, cmd, mode);
-		break;
 	case SIOCGFRST :
 		IWCOPY((caddr_t)ipfr_fragstats(), data, sizeof(ipfrstat_t));
-		break;
-	case SIOCGIPST :
-		IWCOPY((caddr_t)fr_statetstats(), data, sizeof(ips_stat_t));
 		break;
 	default :
 		error = EINVAL;
@@ -508,7 +538,8 @@ caddr_t data;
  * routines below for saving IP headers to buffer
  */
 int iplopen(dev, flags
-#if ((_BSDI_VERSION >= 199510) || (BSD >= 199506)) && defined(_KERNEL)
+#if ((_BSDI_VERSION >= 199510) || (BSD >= 199506) || (NetBSD >= 199511) || \
+     (__FreeBSD_version >= 220000)) && defined(_KERNEL)
 , devtype, p)
 int devtype;
 struct proc *p;
@@ -529,7 +560,8 @@ int flags;
 
 
 int iplclose(dev, flags
-#if ((_BSDI_VERSION >= 199510) || (BSD >= 199506)) && defined(_KERNEL)
+#if ((_BSDI_VERSION >= 199510) || (BSD >= 199506) || (NetBSD >= 199511) || \
+     (__FreeBSD_version >= 220000)) && defined(_KERNEL)
 , devtype, p)
 int devtype;
 struct proc *p;
@@ -699,6 +731,9 @@ struct tcpiphdr *ti;
 	struct tcphdr *tcp;
 	struct mbuf *m;
 	int tlen = 0;
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
+	struct route ro;
+#endif
 
 	if (ti->ti_flags & TH_RST)
 		return -1;		/* feedback loop */
@@ -710,6 +745,8 @@ struct tcpiphdr *ti;
 # endif
 	if (m == NULL)
 		return -1;
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
+#endif
 
 	if (ti->ti_flags & TH_SYN)
 		tlen = 1;
@@ -743,18 +780,29 @@ struct tcpiphdr *ti;
 	ip->ip_ttl = ip_defttl;
 # endif
 
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
+	bzero((char *)&ro, sizeof(ro));
+	(void) ip_output(m, (struct mbuf *)0, &ro, 0, 0);
+	if (ro.ro_rt)
+		RTFREE(ro.ro_rt);
+#else
 	/*
 	 * extra 0 in case of multicast
 	 */
 	(void) ip_output(m, (struct mbuf *)0, 0, 0, 0);
+#endif
 	return 0;
 }
 
 
-# ifndef	IPFILTER_LKM
+# if !defined(IPFILTER_LKM) && !(__FreeBSD_version >= 300000)
 #  if	BSD < 199306
+int iplinit __P((void));
+
 int
 #  else
+void iplinit __P((void));
+
 void
 #  endif
 iplinit()
