@@ -262,9 +262,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 	m->m_ext.ext_args = NULL;
 	m->m_ext.ext_size = MCLBYTES;
 	m->m_ext.ext_type = EXT_CLUSTER;
-	m->m_ext.ref_cnt = (u_int *)uma_find_refcnt(zone_clust,
-	    m->m_ext.ext_buf);
-	*(m->m_ext.ref_cnt) = 1;
+	m->m_ext.ref_cnt = NULL;	/* Lazy counter assign. */
 	mbstat.m_mclusts += 1;	/* XXX */
 	return (0);
 }
@@ -337,7 +335,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	m->m_ext.ext_args = NULL;
 	m->m_ext.ext_size = MCLBYTES;
 	m->m_ext.ext_type = EXT_PACKET;
-	*(m->m_ext.ref_cnt) = 1;
+	m->m_ext.ref_cnt = NULL;	/* Lazy counter assign. */
 
 	if (flags & M_PKTHDR) {
 		m->m_pkthdr.rcvif = NULL;
