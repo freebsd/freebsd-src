@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.11 1995/05/17 09:31:07 rgrimes Exp $
+#     $Id: BSD.local.dist,v 1.13 1995/06/17 03:14:29 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -49,6 +49,8 @@
         man7
         ..
         man8
+        ..
+        man9
         ..
         manl
         ..
