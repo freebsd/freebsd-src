@@ -24,13 +24,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id$
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <machine/console.h>
 #include "path.h"
 #include "lex.h"
@@ -80,15 +86,15 @@ int 		hex = 0;
 int 		number;
 char 		letter;
 
+static void usage __P((void));
 
 char *
 nextarg(int ac, char **av, int *indp, int oc)
 {
 	if (*indp < ac)
 		return(av[(*indp)++]);
-	fprintf(stderr, "%s: option requires two arguments -- %c\n", av[0], oc);
+	warnx("option requires two arguments -- %c", oc);
 	usage();
-	exit(1);
 	return("");
 }
 
@@ -210,7 +216,7 @@ get_key_definition_line(FILE* fd, keymap_t *map)
 }
 
 
-int
+void
 print_entry(FILE *fp, int value)
 {
 	int val = value & 0xFF;
@@ -297,7 +303,7 @@ print_entry(FILE *fp, int value)
 void
 print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
 {
-	int i, value;
+	int i;
 
 	/* print scancode number */
 	if (hex)
@@ -344,11 +350,11 @@ load_keymap(char *opt, int dumponly)
 
 	for (i=0; prefix[i]; i++) {
 		name = mkfullname(prefix[i], opt, postfix[i]);
-		if (fd = fopen(name, "r"))
+		if ((fd = fopen(name, "r")))
 			break;
 	}
 	if (fd == NULL) {
-		perror("keymap file not found");
+		warn("keymap file not found");
 		return;
 	}
 	memset(&map, 0, sizeof(map));
@@ -379,7 +385,7 @@ load_keymap(char *opt, int dumponly)
 		return;
 	}
 	if (ioctl(0, PIO_KEYMAP, &map) < 0) {
-		perror("setting keymap");
+		warn("setting keymap");
 		fclose(fd);
 		return;
 	}
@@ -392,10 +398,8 @@ print_keymap()
 	keymap_t map;
 	int i;
 
-	if (ioctl(0, GIO_KEYMAP, &map) < 0) {
-		perror("getting keymap");
-		exit(1);
-	}
+	if (ioctl(0, GIO_KEYMAP, &map) < 0)
+		err(1, "getting keymap");
     	printf(
 "#                                                         alt\n"
 "# scan                       cntrl          alt    alt   cntrl lock\n"
@@ -418,7 +422,7 @@ load_default_functionkeys()
 		strcpy(fkey.keydef, fkey_table[i]);
 		fkey.flen = strlen(fkey_table[i]);
 		if (ioctl(0, SETFKEY, &fkey) < 0)
-			perror("setting function key");
+			warn("setting function key");
 	}
 }
 
@@ -426,7 +430,6 @@ void
 set_functionkey(char *keynumstr, char *string)
 {
 	fkeyarg_t fkey;
-	int keynum;
 
 	if (!strcmp(keynumstr, "load") && !strcmp(string, "default")) {
 		load_default_functionkeys();
@@ -434,20 +437,19 @@ set_functionkey(char *keynumstr, char *string)
 	}
 	fkey.keynum = atoi(keynumstr);
 	if (fkey.keynum < 1 || fkey.keynum > NUM_FKEYS) {
-		fprintf(stderr,
-			"function key number must be between 1 and %d\n",
+		warnx("function key number must be between 1 and %d",
 			NUM_FKEYS);
 		return;
 	}
 	if ((fkey.flen = strlen(string)) > MAXFK) {
-		fprintf(stderr, "function key string too long (%d > %d)\n",
+		warnx("function key string too long (%d > %d)",
 			fkey.flen, MAXFK);
 		return;
 	}
 	strcpy(fkey.keydef, string);
 	fkey.keynum -= 1;
 	if (ioctl(0, SETFKEY, &fkey) < 0)
-		perror("setting function key");
+		warn("setting function key");
 }
 
 
@@ -461,7 +463,6 @@ set_bell_values(char *opt)
 	else if (!strcmp(opt, "normal"))
 		bell = 0, duration = 1, pitch = 800;
 	else {
-		int		n;
 		char		*v1;
 
 		bell = 0;
@@ -472,8 +473,7 @@ set_bell_values(char *opt)
 		pitch = strtol(opt, &v1, 0);
 		if ((pitch < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			fprintf(stderr,
-				"argument to -b must be DURATION.PITCH\n");
+			warnx("argument to -b must be DURATION.PITCH");
 			return;
 		}
 	}
@@ -511,8 +511,7 @@ struct	{
 		repeat = strtol(opt, &v1, 0);
 		if ((repeat < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			fprintf(stderr,
-				"argument to -r must be delay.repeat\n");
+			warnx("argument to -r must be delay.repeat");
 			return;
 		}
 		for (n = 0; n < ndelays - 1; n++)
@@ -526,7 +525,7 @@ badopt:
 	}
 
 	if (ioctl(0, KDSETRAD, rate) < 0)
-		perror("setting keyboard rate");
+		warn("setting keyboard rate");
 }
 
 
@@ -537,38 +536,28 @@ set_history(char *opt)
 
 	size = atoi(opt);
 	if ((*opt == '\0') || size < 0) {
-		fprintf(stderr, "argument must be a positive number\n");
+		warnx("argument must be a positive number");
 		return;
 	}
 	if (ioctl(0, CONS_HISTORY, &size) == -1)
-		perror("setting history buffer size");
+		warn("setting history buffer size");
 }
 
 
+static void
 usage()
 {
-	fprintf(stderr,
-"Usage: kbdcontrol -b duration.pitch   (set bell duration & pitch)\n"
-"                  -b normal | visual  (set bell to visual type)\n"
-"                  -d                  (dump keyboard map to stdout)\n"
-"                  -l filename         (load keyboard map file)\n"
-"                  -h <N>              (set history buffer size (in lines))\n"
-"                  -f <N> string       (set function key N to send <string>)\n"
-"                  -F                  (set function keys back to default)\n"
-"                  -r delay.repeat     (set keyboard delay & repeat rate)\n"
-"                  -r slow             (set keyboard delay & repeat to slow)\n"
-"                  -r normal           (set keyboard delay & repeat to normal)\n"
-"                  -r fast             (set keyboard delay & repeat to fast)\n"
-"                  -x                  (use hexadecimal numbers in -d option)\n"
-	);
+	fprintf(stderr, "%s\n%s\n%s\n",
+"usage: kbdcontrol [-dFx] [-b  duration.pitch | belltype]",
+"                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
+"                  [-h size] [-L mapfile]");
+	exit(1);
 }
 
 
 void
 main(int argc, char **argv)
 {
-	extern char	*optarg;
-	extern int	optind;
 	int		opt;
 
 	while((opt = getopt(argc, argv, "b:df:h:Fl:L:r:x")) != -1)
@@ -603,12 +592,9 @@ main(int argc, char **argv)
 				break;
 			default:
 				usage();
-				exit(1);
 		}
-	if ((optind != argc) || (argc == 1)) {
+	if ((optind != argc) || (argc == 1))
 		usage();
-		exit(1);
-	}
 	exit(0);
 }
 
