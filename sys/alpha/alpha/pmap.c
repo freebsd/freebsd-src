@@ -1787,6 +1787,12 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t va)
 	pmap->pm_stats.resident_count -= 1;
 	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&oldpte));
+		if ((oldpte & PG_FOW) == 0) {
+			if (pmap_track_modified(va))
+				vm_page_dirty(m);
+		}
+		if ((oldpte & PG_FOR) == 0)
+			vm_page_flag_set(m, PG_REFERENCED);
 		return pmap_remove_entry(pmap, m, va);
 	} else {
 		return pmap_unuse_pt(pmap, va, NULL);
@@ -1911,6 +1917,16 @@ pmap_remove_all(vm_page_t m)
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
 
+		/*
+		 * Update the vm_page_t clean and reference bits.
+		 */
+		if ((tpte & PG_FOW) == 0) {
+			if (pmap_track_modified(pv->pv_va))
+				vm_page_dirty(m);
+		}
+		if ((tpte & PG_FOR) == 0)
+			vm_page_flag_set(m, PG_REFERENCED);
+
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
@@ -1982,7 +1998,21 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 
 		if (pmap_pte_prot(pte) != newprot) {
-			pmap_pte_set_prot(pte, newprot);
+			pt_entry_t oldpte = *pte;
+			vm_page_t m = NULL;
+			if ((oldpte & PG_FOR) == 0) {
+				m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
+				vm_page_flag_set(m, PG_REFERENCED);
+				oldpte |= (PG_FOR | PG_FOE);
+			}
+			if ((oldpte & PG_FOW) == 0) {
+				m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
+				if (pmap_track_modified(sva))
+					vm_page_dirty(m);
+				oldpte |= PG_FOW;
+			}
+			oldpte = (oldpte & ~PG_PROT) | newprot;
+			*pte = oldpte;
 			pmap_invalidate_page(pmap, sva);
 		}
 
@@ -2066,6 +2096,19 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (mpte)
 			mpte->hold_count--;
 
+		/*
+		 * We might be turning off write access to the page,
+		 * so we go ahead and sense modify status.
+		 */
+		if (origpte & PG_MANAGED) {
+			if ((origpte & PG_FOW) != PG_FOW
+			    && pmap_track_modified(va)) {
+				vm_page_t om;
+				om = PHYS_TO_VM_PAGE(opa);
+				vm_page_dirty(om);
+			}
+		}
+
 		managed = origpte & PG_MANAGED;
 		goto validate;
 	} 
@@ -2105,9 +2148,13 @@ validate:
 
 	if (managed) {
 		/*
-		 * Set up referenced/modified emulation for the new mapping
+		 * Set up referenced/modified emulation for the new
+		 * mapping. Any old referenced/modified emulation
+		 * results for the old mapping will have been recorded
+		 * either in pmap_remove_pte() or above in the code
+		 * which handles protection and/or wiring changes.
 		 */
-		newpte |= origpte & (PG_FOR | PG_FOW | PG_FOE);
+		newpte |= (PG_FOR | PG_FOW | PG_FOE);
 	}
 
 	if (wired)
@@ -2218,7 +2265,7 @@ retry:
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | PG_KRE | PG_URE | PG_MANAGED;
+	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | PG_KRE | PG_URE | PG_MANAGED | PG_FOR | PG_FOE | PG_FOW;
 
 	alpha_pal_imb();			/* XXX overkill? */
 	return mpte;
