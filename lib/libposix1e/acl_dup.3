@@ -43,14 +43,14 @@ The
 .Fn acl_dup
 function returns a pointer to a copy of the ACL pointed to by the argument
 .Va acl .
-
+.Pp
 This function may cause memory to be allocated.  The caller should free any
 releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
 .Va (void*)acl_t
 as an argument.
-
+.Pp
 Any existing ACL pointers that refer to the ACL referred to by
 .Va acl
 shall continue to refer to the ACL.

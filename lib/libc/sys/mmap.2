@@ -232,7 +232,7 @@ parameters and
 .Fa fd
 was not open for writing.
 .It Bq Er EBADF
-.Fa Fd
+.Fa fd
 is not a valid open file descriptor.
 .It Bq Er EINVAL
 .Dv MAP_FIXED
@@ -264,6 +264,7 @@ parameter wasn't available, or the system has reached the per-process mmap
 limit specified in the vm.max_proc_mmap sysctl.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
+.El
 .Sh "SEE ALSO"
 .Xr madvise 2 ,
 .Xr mincore 2 ,

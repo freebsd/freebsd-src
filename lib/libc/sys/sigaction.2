@@ -269,13 +269,13 @@ The following is a list of all signals
 with names as in the include file
 .Aq Pa signal.h :
 .Bl -column SIGVTALARMXX "create core imagexxx"
-.It Sy "  NAME  " "	Default Action  " "	Description"
+.It Sy "NAME	Default Action	Description"
 .It Dv SIGHUP No "	terminate process" "	terminal line hangup"
 .It Dv SIGINT No "	terminate process" "	interrupt program"
 .It Dv SIGQUIT No "	create core image" "	quit program"
 .It Dv SIGILL No "	create core image" "	illegal instruction"
 .It Dv SIGTRAP No "	create core image" "	trace trap"
-.It Dv SIGABRT No "	create core image" Xr 	abort 3
+.It Dv SIGABRT No "	create core image" Ta Xr abort 3
 call (formerly
 .Dv SIGIOT )
 .It Dv SIGEMT No "	create core image" "	emulate instruction executed"
@@ -432,14 +432,14 @@ is set to indicated the reason.
 There are three possible prototypes the handler may match:
 .Bl -tag -offset indent -width short
 .It ANSI C:
-.Fd
-void handler(int);
+.Ft void
+.Fn handler int ;
 .It Traditional BSD style:
-.Fd
-void handler(int, int code, struct sigcontext *scp);
+.Ft void
+.Fn handler int "int code" "struct sigcontext *scp" ;
 .It POSIX SA_SIGINFO:
-.Fd
-void handler(int, siginfo_t *info, void *context);
+.Ft void
+.Fn handler int "siginfo_t *info" "void *context" ;
 .El
 .Pp
 The handler function should match the SA_SIGINFO prototype if the

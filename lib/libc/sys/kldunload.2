@@ -25,7 +25,6 @@
 .\"
 .\" $FreeBSD$
 .\"
-
 .Dd March 3, 1999
 .Dt KLDUNLOAD 2
 .Os FreeBSD
@@ -65,6 +64,7 @@ You don't have access to unlink the file from the kernel.
 The file was not found.
 .It Bq Er EBUSY
 You attempted to unload a file linked by the kernel.
+.El
 .Sh SEE ALSO
 .Xr kldfind 2 ,
 .Xr kldfirstmod 2 ,

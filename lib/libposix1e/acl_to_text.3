@@ -51,7 +51,7 @@ including the NULL terminator) in the location pointed to by
 The format of the text string returned by
 .Fn acl_to_text
 shall be the POSIX.1e long ACL form.
-
+.Pp
 This function allocates any memory necessary to contain the string and
 returns a pointer to the string.  The caller should free any releasable
 memory, when the new string is no longer required, by calling
@@ -83,7 +83,7 @@ to the corresponding value:
 Argument
 .Va acl
 does not point to a valid ACL.
-
+.Pp
 The ACL denoted by
 .Va acl
 contains one or more improperly formed ACL entries, or for some other
@@ -114,7 +114,7 @@ and development continues.
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,
 and so is unable to (easily) provide support for most of these features.
-
+.Pp
 .Fn acl_from_text
 and
 .Fn acl_to_text

@@ -63,7 +63,7 @@ Symbolic constants for each name value are found in the include file
 .Pp
 The available values are as follows:
 .Pp
-.Bl -tag -width "123456"
+.Bl -tag -width 6n
 .Pp
 .It Li _SC_ARG_MAX
 The maximum bytes of argument to
@@ -122,7 +122,7 @@ The maximum number of repeated occurrences of a regular expression
 permitted when using interval notation.
 .It Li _SC_2_VERSION
 The version of POSIX 1003.2 with which the system attempts to comply.
-.It Li _SC_2_C_BIND	
+.It Li _SC_2_C_BIND
 Return 1 if the system's C-language development facilities support the
 C-Language Bindings Option, otherwise \-1.
 .It Li _SC_2_C_DEV
@@ -170,6 +170,7 @@ In addition, the following error may be reported:
 The value of the
 .Fa name
 argument is invalid.
+.El
 .Sh SEE ALSO
 .Xr sysctl 3
 .Sh BUGS

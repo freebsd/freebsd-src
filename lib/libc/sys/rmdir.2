@@ -51,7 +51,7 @@ whose name is given by
 .Fa path .
 The directory must not have any entries other
 than
-.Ql \&.
+.Ql .\&
 and
 .Ql \&.. .
 .Sh RETURN VALUES
@@ -72,9 +72,9 @@ The named directory does not exist.
 Too many symbolic links were encountered in translating the pathname.
 .It Bq Er ENOTEMPTY
 The named directory contains files other than
-.Ql \&.
+.Ql .\&
 and
-.Ql \&..
+.Ql ..\&
 in it.
 .It Bq Er EACCES
 Search permission is denied for a component of the path prefix.
