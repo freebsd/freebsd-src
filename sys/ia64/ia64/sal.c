@@ -32,21 +32,15 @@
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+#include <machine/md_var.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
-
-struct ia64_fdesc {
-	u_int64_t	func;
-	u_int64_t	gp;
-};
 
 static struct ia64_fdesc sal_fdesc;
 static sal_entry_t	fake_sal;
 
 extern u_int64_t	ia64_pal_entry;
 sal_entry_t		*ia64_sal_entry = fake_sal;
-
-void os_boot_rendez(void);
 
 static struct ia64_sal_result
 fake_sal(u_int64_t a1, u_int64_t a2, u_int64_t a3, u_int64_t a4,
@@ -96,7 +90,6 @@ ia64_sal_init(struct sal_system_table *saltab)
 			struct sal_ap_wakeup_descriptor *dp;
 #ifdef SMP
 			struct ia64_sal_result result;
-			struct ia64_fdesc *fptr = (void*)os_boot_rendez;
 			int ipi;
 #endif
 
@@ -111,8 +104,10 @@ ia64_sal_init(struct sal_system_table *saltab)
 				mp_ipi_vector[ipi] = dp->sale_vector + ipi;
 
 			result = ia64_sal_entry(SAL_SET_VECTORS,
-			    SAL_OS_BOOT_RENDEZ, ia64_tpa(fptr->func),
-			    ia64_tpa(fptr->gp), 0, 0, 0, 0);
+			    SAL_OS_BOOT_RENDEZ,
+			    ia64_tpa(FDESC_FUNC(os_boot_rendez)),
+			    ia64_tpa(FDESC_GP(os_boot_rendez)),
+			    0, 0, 0, 0);
 
 			mp_hardware = 1;
 #endif
