@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elfcore.c,v 1.1 1998/10/19 19:42:18 jdp Exp $
+ *	$Id: elfcore.c,v 1.2 1998/11/01 06:35:36 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -484,7 +484,7 @@ readmap(pid_t pid)
 		int len;
 
 		len = 0;
-		n = sscanf(mapbuf + pos, "%x %x %*d %*d %*d %3[-rwx]"
+		n = sscanf(mapbuf + pos, "%x %x %*d %*d %*x %3[-rwx]"
 		    " %*d %*d %*x %*s %*s %16s%*[\n]%n",
 		    &start, &end, prot, type, &len);
 		if (n != 4)
