@@ -63,13 +63,18 @@
 #include <openssl/crypto.h>
 
 /* BEGIN ERROR CODES */
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 static ERR_STRING_DATA CRYPTO_str_functs[]=
 	{
 {ERR_PACK(0,CRYPTO_F_CRYPTO_GET_EX_NEW_INDEX,0),	"CRYPTO_get_ex_new_index"},
 {ERR_PACK(0,CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,0),	"CRYPTO_get_new_dynlockid"},
 {ERR_PACK(0,CRYPTO_F_CRYPTO_GET_NEW_LOCKID,0),	"CRYPTO_get_new_lockid"},
 {ERR_PACK(0,CRYPTO_F_CRYPTO_SET_EX_DATA,0),	"CRYPTO_set_ex_data"},
+{ERR_PACK(0,CRYPTO_F_DEF_ADD_INDEX,0),	"DEF_ADD_INDEX"},
+{ERR_PACK(0,CRYPTO_F_DEF_GET_CLASS,0),	"DEF_GET_CLASS"},
+{ERR_PACK(0,CRYPTO_F_INT_DUP_EX_DATA,0),	"INT_DUP_EX_DATA"},
+{ERR_PACK(0,CRYPTO_F_INT_FREE_EX_DATA,0),	"INT_FREE_EX_DATA"},
+{ERR_PACK(0,CRYPTO_F_INT_NEW_EX_DATA,0),	"INT_NEW_EX_DATA"},
 {0,NULL}
 	};
 
@@ -88,7 +93,7 @@ void ERR_load_CRYPTO_strings(void)
 	if (init)
 		{
 		init=0;
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 		ERR_load_strings(ERR_LIB_CRYPTO,CRYPTO_str_functs);
 		ERR_load_strings(ERR_LIB_CRYPTO,CRYPTO_str_reasons);
 #endif

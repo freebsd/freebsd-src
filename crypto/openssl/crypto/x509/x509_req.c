@@ -156,9 +156,9 @@ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req)
 	for(i = 0; i < sk_X509_ATTRIBUTE_num(sk); i++) {
 		attr = sk_X509_ATTRIBUTE_value(sk, i);
 		if(X509_REQ_extension_nid(OBJ_obj2nid(attr->object))) {
-			if(attr->set && sk_ASN1_TYPE_num(attr->value.set))
+			if(attr->single) ext = attr->value.single;
+			else if(sk_ASN1_TYPE_num(attr->value.set))
 				ext = sk_ASN1_TYPE_value(attr->value.set, 0);
-			else ext = attr->value.single;
 			break;
 		}
 	}
@@ -199,7 +199,7 @@ int X509_REQ_add_extensions_nid(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts,
 	if(!(attr->value.set = sk_ASN1_TYPE_new_null())) goto err;
 	if(!sk_ASN1_TYPE_push(attr->value.set, at)) goto err;
 	at = NULL;
-	attr->set = 1;
+	attr->single = 0;
 	attr->object = OBJ_nid2obj(nid);
 	if(!sk_X509_ATTRIBUTE_push(req->req_info->attributes, attr)) goto err;
 	return 1;
@@ -251,8 +251,8 @@ int X509_REQ_add1_attr(X509_REQ *req, X509_ATTRIBUTE *attr)
 }
 
 int X509_REQ_add1_attr_by_OBJ(X509_REQ *req,
-			ASN1_OBJECT *obj, int type,
-			unsigned char *bytes, int len)
+			const ASN1_OBJECT *obj, int type,
+			const unsigned char *bytes, int len)
 {
 	if(X509at_add1_attr_by_OBJ(&req->req_info->attributes, obj,
 				type, bytes, len)) return 1;
@@ -261,7 +261,7 @@ int X509_REQ_add1_attr_by_OBJ(X509_REQ *req,
 
 int X509_REQ_add1_attr_by_NID(X509_REQ *req,
 			int nid, int type,
-			unsigned char *bytes, int len)
+			const unsigned char *bytes, int len)
 {
 	if(X509at_add1_attr_by_NID(&req->req_info->attributes, nid,
 				type, bytes, len)) return 1;
@@ -269,8 +269,8 @@ int X509_REQ_add1_attr_by_NID(X509_REQ *req,
 }
 
 int X509_REQ_add1_attr_by_txt(X509_REQ *req,
-			char *attrname, int type,
-			unsigned char *bytes, int len)
+			const char *attrname, int type,
+			const unsigned char *bytes, int len)
 {
 	if(X509at_add1_attr_by_txt(&req->req_info->attributes, attrname,
 				type, bytes, len)) return 1;

@@ -81,20 +81,25 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+	ENGINE *e = NULL;
 	int i,badops=0, ret = 1;
-	BIO *in = NULL,*out = NULL, *key = NULL;
+	BIO *in = NULL,*out = NULL;
 	int verify=0,noout=0,pubkey=0;
 	char *infile = NULL,*outfile = NULL,*prog;
 	char *passargin = NULL, *passin = NULL;
 	char *spkac = "SPKAC", *spksect = "default", *spkstr = NULL;
 	char *challenge = NULL, *keyfile = NULL;
-	LHASH *conf = NULL;
+	CONF *conf = NULL;
 	NETSCAPE_SPKI *spki = NULL;
 	EVP_PKEY *pkey = NULL;
+	char *engine=NULL;
 
 	apps_startup();
 
 	if (!bio_err) bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+
+	if (!load_config(bio_err, NULL))
+		goto end;
 
 	prog=argv[0];
 	argc--;
@@ -136,6 +141,11 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			spksect= *(++argv);
 			}
+		else if (strcmp(*argv,"-engine") == 0)
+			{
+			if (--argc < 1) goto bad;
+			engine= *(++argv);
+			}
 		else if (strcmp(*argv,"-noout") == 0)
 			noout=1;
 		else if (strcmp(*argv,"-pubkey") == 0)
@@ -161,6 +171,7 @@ bad:
 		BIO_printf(bio_err," -noout         don't print SPKAC\n");
 		BIO_printf(bio_err," -pubkey        output public key\n");
 		BIO_printf(bio_err," -verify        verify SPKAC signature\n");
+		BIO_printf(bio_err," -engine e      use engine e, possibly a hardware device.\n");
 		goto end;
 		}
 
@@ -170,18 +181,13 @@ bad:
 		goto end;
 	}
 
+        e = setup_engine(bio_err, engine, 0);
+
 	if(keyfile) {
-		if(strcmp(keyfile, "-")) key = BIO_new_file(keyfile, "r");
-		else key = BIO_new_fp(stdin, BIO_NOCLOSE);
-		if(!key) {
-			BIO_printf(bio_err, "Error opening key file\n");
-			ERR_print_errors(bio_err);
-			goto end;
-		}
-		pkey = PEM_read_bio_PrivateKey(key, NULL, NULL, passin);
+		pkey = load_key(bio_err,
+				strcmp(keyfile, "-") ? keyfile : NULL,
+				FORMAT_PEM, 1, passin, e, "private key");
 		if(!pkey) {
-			BIO_printf(bio_err, "Error reading private key\n");
-			ERR_print_errors(bio_err);
 			goto end;
 		}
 		spki = NETSCAPE_SPKI_new();
@@ -194,7 +200,7 @@ bad:
 		if (outfile) out = BIO_new_file(outfile, "w");
 		else {
 			out = BIO_new_fp(stdout, BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 			{
 			    BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 			    out = BIO_push(tmpbio, out);
@@ -224,15 +230,16 @@ bad:
 		goto end;
 	}
 
-	conf = CONF_load_bio(NULL, in, NULL);
+	conf = NCONF_new(NULL);
+	i = NCONF_load_bio(conf, in, NULL);
 
-	if(!conf) {
+	if(!i) {
 		BIO_printf(bio_err, "Error parsing config file\n");
 		ERR_print_errors(bio_err);
 		goto end;
 	}
 
-	spkstr = CONF_get_string(conf, spksect, spkac);
+	spkstr = NCONF_get_string(conf, spksect, spkac);
 		
 	if(!spkstr) {
 		BIO_printf(bio_err, "Can't find SPKAC called \"%s\"\n", spkac);
@@ -251,7 +258,7 @@ bad:
 	if (outfile) out = BIO_new_file(outfile, "w");
 	else {
 		out = BIO_new_fp(stdout, BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 		    BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 		    out = BIO_push(tmpbio, out);
@@ -281,12 +288,12 @@ bad:
 	ret = 0;
 
 end:
-	CONF_free(conf);
+	NCONF_free(conf);
 	NETSCAPE_SPKI_free(spki);
 	BIO_free(in);
 	BIO_free_all(out);
-	BIO_free(key);
 	EVP_PKEY_free(pkey);
 	if(passin) OPENSSL_free(passin);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}

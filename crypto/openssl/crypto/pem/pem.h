@@ -59,15 +59,16 @@
 #ifndef HEADER_PEM_H
 #define HEADER_PEM_H
 
-#ifndef NO_BIO
+#ifndef OPENSSL_NO_BIO
 #include <openssl/bio.h>
 #endif
-#ifndef NO_STACK
+#ifndef OPENSSL_NO_STACK
 #include <openssl/stack.h>
 #endif
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/pem2.h>
+#include <openssl/e_os2.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -126,7 +127,8 @@ extern "C" {
 #define PEM_STRING_SSL_SESSION	"SSL SESSION PARAMETERS"
 #define PEM_STRING_DSAPARAMS	"DSA PARAMETERS"
 
-
+  /* Note that this structure is initialised by PEM_SealInit and cleaned up
+     by PEM_SealFinal (at least for now) */
 typedef struct PEM_Encode_Seal_st
 	{
 	EVP_ENCODE_CTX encode;
@@ -147,7 +149,7 @@ typedef struct pem_recip_st
 
 	int cipher;
 	int key_enc;
-	char iv[8];
+	/*	char iv[8]; unused and wrong size */
 	} PEM_USER;
 
 typedef struct pem_ctx_st
@@ -163,7 +165,8 @@ typedef struct pem_ctx_st
 
 	struct	{
 		int cipher;
-		unsigned char iv[8];
+	/* unused, and wrong size
+	   unsigned char iv[8]; */
 		} DEK_info;
 		
 	PEM_USER *originator;
@@ -171,7 +174,7 @@ typedef struct pem_ctx_st
 	int num_recipient;
 	PEM_USER **recipient;
 
-#ifndef NO_STACK
+#ifndef OPENSSL_NO_STACK
 	STACK *x509_chain;	/* certificate chain */
 #else
 	char *x509_chain;	/* certificate chain */
@@ -185,7 +188,8 @@ typedef struct pem_ctx_st
 	EVP_CIPHER *dec;	/* date encryption cipher */
 	int key_len;		/* key length */
 	unsigned char *key;	/* key */
-	unsigned char iv[8];	/* the iv */
+	/* unused, and wrong size
+	   unsigned char iv[8]; */
 
 	
 	int  data_enc;		/* is the data encrypted */
@@ -198,7 +202,7 @@ typedef struct pem_ctx_st
  * IMPLEMENT_PEM_rw(...) or IMPLEMENT_PEM_rw_cb(...)
  */
 
-#ifdef NO_FP_API
+#ifdef OPENSSL_NO_FP_API
 
 #define IMPLEMENT_PEM_read_fp(name, type, str, asn1) /**/
 #define IMPLEMENT_PEM_write_fp(name, type, str, asn1) /**/
@@ -275,7 +279,7 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 
 /* These are the same except they are for the declarations */
 
-#if defined(WIN16) || defined(NO_FP_API)
+#if defined(OPENSSL_SYS_WIN16) || defined(OPENSSL_NO_FP_API)
 
 #define DECLARE_PEM_read_fp(name, type) /**/
 #define DECLARE_PEM_write_fp(name, type) /**/
@@ -295,7 +299,7 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 
 #endif
 
-#ifndef NO_BIO
+#ifndef OPENSSL_NO_BIO
 #define DECLARE_PEM_read_bio(name, type) \
 	type *PEM_read_bio_##name(BIO *bp, type **x, pem_password_cb *cb, void *u);
 
@@ -483,11 +487,13 @@ int	PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher);
 int	PEM_do_header (EVP_CIPHER_INFO *cipher, unsigned char *data,long *len,
 	pem_password_cb *callback,void *u);
 
-#ifndef NO_BIO
+#ifndef OPENSSL_NO_BIO
 int	PEM_read_bio(BIO *bp, char **name, char **header,
 		unsigned char **data,long *len);
 int	PEM_write_bio(BIO *bp,const char *name,char *hdr,unsigned char *data,
 		long len);
+int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm, const char *name, BIO *bp,
+	     pem_password_cb *cb, void *u);
 char *	PEM_ASN1_read_bio(char *(*d2i)(),const char *name,BIO *bp,char **x,
 		pem_password_cb *cb, void *u);
 int	PEM_ASN1_write_bio(int (*i2d)(),const char *name,BIO *bp,char *x,
@@ -498,7 +504,7 @@ int	PEM_X509_INFO_write_bio(BIO *bp,X509_INFO *xi, EVP_CIPHER *enc,
 		unsigned char *kstr, int klen, pem_password_cb *cd, void *u);
 #endif
 
-#ifndef WIN16
+#ifndef OPENSSL_SYS_WIN16
 int	PEM_read(FILE *fp, char **name, char **header,
 		unsigned char **data,long *len);
 int	PEM_write(FILE *fp,char *name,char *hdr,unsigned char *data,long len);
@@ -524,6 +530,7 @@ void    PEM_SignUpdate(EVP_MD_CTX *ctx,unsigned char *d,unsigned int cnt);
 int	PEM_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
 		unsigned int *siglen, EVP_PKEY *pkey);
 
+int	PEM_def_callback(char *buf, int num, int w, void *key);
 void	PEM_proc_type(char *buf, int type);
 void	PEM_dek_info(char *buf, const char *type, int len, char *str);
 
@@ -548,7 +555,7 @@ DECLARE_PEM_rw(PKCS8, X509_SIG)
 
 DECLARE_PEM_rw(PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO)
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 
 DECLARE_PEM_rw_cb(RSAPrivateKey, RSA)
 
@@ -557,7 +564,7 @@ DECLARE_PEM_rw(RSA_PUBKEY, RSA)
 
 #endif
 
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 
 DECLARE_PEM_rw_cb(DSAPrivateKey, DSA)
 
@@ -567,7 +574,7 @@ DECLARE_PEM_rw(DSAparams, DSA)
 
 #endif
 
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 
 DECLARE_PEM_rw(DHparams, DH)
 

@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_SOCK
+#ifndef OPENSSL_NO_SOCK
 
 #include <stdio.h>
 #include <errno.h>
@@ -64,13 +64,13 @@
 #include "cryptlib.h"
 #include <openssl/bio.h>
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 #define SOCKET_PROTOCOL 0 /* more microsoft stupidity */
 #else
 #define SOCKET_PROTOCOL IPPROTO_TCP
 #endif
 
-#if (defined(VMS) && __VMS_VER < 70000000)
+#if (defined(OPENSSL_SYS_VMS) && __VMS_VER < 70000000)
 /* FIONBIO used as a switch to enable ioctl, and that isn't in VMS < 7.0 */
 #undef FIONBIO
 #endif
@@ -236,8 +236,20 @@ again:
 			c->state=ACPT_S_OK;
 			goto again;
 			}
+		BIO_clear_retry_flags(b);
+		b->retry_reason=0;
 		i=BIO_accept(c->accept_sock,&(c->addr));
+
+		/* -2 return means we should retry */
+		if(i == -2)
+			{
+			BIO_set_retry_special(b);
+			b->retry_reason=BIO_RR_ACCEPT;
+			return -1;
+			}
+
 		if (i < 0) return(i);
+
 		bio=BIO_new_socket(i,BIO_CLOSE);
 		if (bio == NULL) goto err;
 

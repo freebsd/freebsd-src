@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_SOCK
+#ifndef OPENSSL_NO_SOCK
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +65,7 @@
 #include "cryptlib.h"
 #include <openssl/bio.h>
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 #define SOCKET_PROTOCOL 0 /* more microsoft stupidity */
 #else
 #define SOCKET_PROTOCOL IPPROTO_TCP
@@ -79,10 +79,11 @@
 #define MAX_LISTEN  32
 #endif
 
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 static int wsa_init_done=0;
 #endif
 
+#if 0
 static unsigned long BIO_ghbn_hits=0L;
 static unsigned long BIO_ghbn_miss=0L;
 
@@ -93,6 +94,7 @@ static struct ghbn_cache_st
 	struct hostent *ent;
 	unsigned long order;
 	} ghbn_cache[GHBN_NUM];
+#endif
 
 static int get_ip(const char *str,unsigned char *ip);
 #if 0
@@ -230,6 +232,7 @@ int BIO_sock_error(int sock)
 		return(j);
 	}
 
+#if 0
 long BIO_ghbn_ctrl(int cmd, int iarg, char *parg)
 	{
 	int i;
@@ -267,6 +270,7 @@ long BIO_ghbn_ctrl(int cmd, int iarg, char *parg)
 		}
 	return(1);
 	}
+#endif
 
 #if 0
 static struct hostent *ghbn_dup(struct hostent *a)
@@ -345,6 +349,7 @@ static void ghbn_free(struct hostent *a)
 	if (a->h_name != NULL) OPENSSL_free(a->h_name);
 	OPENSSL_free(a);
 	}
+
 #endif
 
 struct hostent *BIO_gethostbyname(const char *name)
@@ -441,7 +446,7 @@ end:
 
 int BIO_sock_init(void)
 	{
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 	static struct WSAData wsa_state;
 
 	if (!wsa_init_done)
@@ -461,29 +466,41 @@ int BIO_sock_init(void)
 			return(-1);
 			}
 		}
-#endif /* WINDOWS */
+#endif /* OPENSSL_SYS_WINDOWS */
+#ifdef WATT32
+	extern int _watt_do_exit;
+	_watt_do_exit = 0;    /* don't make sock_init() call exit() */
+	if (sock_init())
+		return (-1);
+#endif
 	return(1);
 	}
 
 void BIO_sock_cleanup(void)
 	{
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 	if (wsa_init_done)
 		{
 		wsa_init_done=0;
+#ifndef OPENSSL_SYS_WINCE
 		WSACancelBlockingCall();
+#endif
 		WSACleanup();
 		}
 #endif
 	}
 
-#if !defined(VMS) || __VMS_VER >= 70000000
+#if !defined(OPENSSL_SYS_VMS) || __VMS_VER >= 70000000
 
 int BIO_socket_ioctl(int fd, long type, unsigned long *arg)
 	{
 	int i;
 
+#ifdef __DJGPP__
+	i=ioctlsocket(fd,type,(char *)arg);
+#else
 	i=ioctlsocket(fd,type,arg);
+#endif /* __DJGPP__ */
 	if (i < 0)
 		SYSerr(SYS_F_IOCTLSOCKET,get_last_socket_error());
 	return(i);
@@ -506,16 +523,16 @@ static int get_ip(const char *str, unsigned char ip[4])
 			{
 			ok=1;
 			tmp[num]=tmp[num]*10+c-'0';
-			if (tmp[num] > 255) return(-1);
+			if (tmp[num] > 255) return(0);
 			}
 		else if (c == '.')
 			{
 			if (!ok) return(-1);
-			if (num == 3) break;
+			if (num == 3) return(0);
 			num++;
 			ok=0;
 			}
-		else if ((num == 3) && ok)
+		else if (c == '\0' && (num == 3) && ok)
 			break;
 		else
 			return(0);
@@ -673,6 +690,7 @@ int BIO_accept(int sock, char **addr)
 	ret=accept(sock,(struct sockaddr *)&from,(void *)&len);
 	if (ret == INVALID_SOCKET)
 		{
+		if(BIO_sock_should_retry(ret)) return -2;
 		SYSerr(SYS_F_ACCEPT,get_last_socket_error());
 		BIOerr(BIO_F_BIO_ACCEPT,BIO_R_ACCEPT_ERROR);
 		goto end;

@@ -48,6 +48,14 @@ RANDFILE	= $dir/private/.rand	# private random number file
 
 x509_extensions	= usr_cert		# The extentions to add to the cert
 
+# Comment out the following two lines for the "traditional"
+# (and highly broken) format.
+name_opt 	= ca_default		# Subject Name options
+cert_opt 	= ca_default		# Certificate field options
+
+# Extension copying option: use with caution.
+# copy_extensions = copy
+
 # Extensions to add to a CRL. Note: Netscape communicator chokes on V2 CRLs
 # so this is commented out by default to leave a V1 CRL.
 # crl_extensions	= crl_ext
@@ -132,7 +140,7 @@ commonName			= Common Name (eg, YOUR name)
 commonName_max			= 64
 
 emailAddress			= Email Address
-emailAddress_max		= 40
+emailAddress_max		= 64
 
 # SET-ex3			= SET extension number 3
 
@@ -180,6 +188,9 @@ authorityKeyIdentifier=keyid,issuer:always
 # This stuff is for subjectAltName and issuerAltname.
 # Import the email address.
 # subjectAltName=email:copy
+# An alternative to produce certificates that aren't
+# deprecated according to PKIX.
+# subjectAltName=email:move
 
 # Copy subject details
 # issuerAltName=issuer:copy

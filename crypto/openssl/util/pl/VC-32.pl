@@ -4,7 +4,6 @@
 
 $ssl=	"ssleay32";
 $crypto="libeay32";
-$RSAref="RSAref32";
 
 $o='\\';
 $cp='copy nul+';	# Timestamps get stuffed otherwise
@@ -12,7 +11,7 @@ $rm='del';
 
 # C compiler stuff
 $cc='cl';
-$cflags=' /MD /W3 /WX /G5 /Ox /O2 /Ob2 /Gs0 /GF /Gy /nologo -DWIN32 -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -DDSO_WIN32';
+$cflags=' /MD /W3 /WX /G5 /Ox /O2 /Ob2 /Gs0 /GF /Gy /nologo -DOPENSSL_SYSNAME_WIN32 -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -DDSO_WIN32';
 $lflags="/nologo /subsystem:console /machine:I386 /opt:ref";
 $mlflags='';
 
@@ -22,11 +21,11 @@ $inc_def="inc32";
 
 if ($debug)
 	{
-	$cflags=" /MDd /W3 /WX /Zi /Yd /Od /nologo -DWIN32 -D_DEBUG -DL_ENDIAN -DWIN32_LEAN_AND_MEAN -DDEBUG -DDSO_WIN32";
+	$cflags=" /MDd /W3 /WX /Zi /Yd /Od /nologo -DOPENSSL_SYSNAME_WIN32 -D_DEBUG -DL_ENDIAN -DWIN32_LEAN_AND_MEAN -DDEBUG -DDSO_WIN32";
 	$lflags.=" /debug";
 	$mlflags.=' /debug';
 	}
-$cflags .= " -DWINNT" if $NT == 1;
+$cflags .= " -DOPENSSL_SYSNAME_WINNT" if $NT == 1;
 
 $obj='.obj';
 $ofile="/Fo";
@@ -92,7 +91,7 @@ if ($shlib)
 	{
 	$mlflags.=" $lflags /dll";
 #	$cflags =~ s| /MD| /MT|;
-	$lib_cflag=" /GD -D_WINDLL -D_DLL";
+	$lib_cflag=" -D_WINDLL";
 	$out_def="out32dll";
 	$tmp_def="tmp32dll";
 	}

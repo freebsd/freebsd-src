@@ -116,7 +116,7 @@
 #endif
 
 #if HAVE_LONG_LONG
-# if defined(WIN32) && !defined(__GNUC__)
+# if defined(OPENSSL_SYS_WIN32) && !defined(__GNUC__)
 # define LLONG _int64
 # else
 # define LLONG long long
@@ -483,7 +483,7 @@ fmtint(
 {
     int signvalue = 0;
     unsigned LLONG uvalue;
-    char convert[20];
+    char convert[DECIMAL_SIZE(value)+1];
     int place = 0;
     int spadlen = 0;
     int zpadlen = 0;
@@ -508,8 +508,8 @@ fmtint(
             (caps ? "0123456789ABCDEF" : "0123456789abcdef")
             [uvalue % (unsigned) base];
         uvalue = (uvalue / (unsigned) base);
-    } while (uvalue && (place < 20));
-    if (place == 20)
+    } while (uvalue && (place < sizeof convert));
+    if (place == sizeof convert)
         place--;
     convert[place] = 0;
 
@@ -641,8 +641,8 @@ fmtfp(
             (caps ? "0123456789ABCDEF"
               : "0123456789abcdef")[intpart % 10];
         intpart = (intpart / 10);
-    } while (intpart && (iplace < 20));
-    if (iplace == 20)
+    } while (intpart && (iplace < sizeof iplace));
+    if (iplace == sizeof iplace)
         iplace--;
     iconvert[iplace] = 0;
 
@@ -653,7 +653,7 @@ fmtfp(
               : "0123456789abcdef")[fracpart % 10];
         fracpart = (fracpart / 10);
     } while (fplace < max);
-    if (fplace == 20)
+    if (fplace == sizeof fplace)
         fplace--;
     fconvert[fplace] = 0;
 

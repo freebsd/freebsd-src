@@ -60,8 +60,7 @@
 #include "cryptlib.h"
 #include <openssl/lhash.h>
 #include <openssl/x509.h>
-
-static STACK_OF(CRYPTO_EX_DATA_FUNCS) *x509_store_meth=NULL;
+#include <openssl/x509v3.h>
 
 X509_LOOKUP *X509_LOOKUP_new(X509_LOOKUP_METHOD *method)
 	{
@@ -185,9 +184,23 @@ X509_STORE *X509_STORE_new(void)
 	ret->objs = sk_X509_OBJECT_new(x509_object_cmp);
 	ret->cache=1;
 	ret->get_cert_methods=sk_X509_LOOKUP_new_null();
-	ret->verify=NULL;
-	ret->verify_cb=NULL;
-	memset(&ret->ex_data,0,sizeof(CRYPTO_EX_DATA));
+	ret->verify=0;
+	ret->verify_cb=0;
+
+	ret->purpose = 0;
+	ret->trust = 0;
+
+	ret->flags = 0;
+
+	ret->get_issuer = 0;
+	ret->check_issued = 0;
+	ret->check_revocation = 0;
+	ret->get_crl = 0;
+	ret->check_crl = 0;
+	ret->cert_crl = 0;
+	ret->cleanup = 0;
+
+	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE, ret, &ret->ex_data);
 	ret->references=1;
 	ret->depth=0;
 	return ret;
@@ -230,7 +243,7 @@ void X509_STORE_free(X509_STORE *vfy)
 	sk_X509_LOOKUP_free(sk);
 	sk_X509_OBJECT_pop_free(vfy->objs, cleanup);
 
-	CRYPTO_free_ex_data(x509_store_meth,vfy,&vfy->ex_data);
+	CRYPTO_free_ex_data(CRYPTO_EX_INDEX_X509_STORE, vfy, &vfy->ex_data);
 	OPENSSL_free(vfy);
 	}
 
@@ -524,6 +537,21 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
 		}
 	return 0;
 }
+
+void X509_STORE_set_flags(X509_STORE *ctx, long flags)
+	{
+	ctx->flags |= flags;
+	}
+
+int X509_STORE_set_purpose(X509_STORE *ctx, int purpose)
+	{
+	return X509_PURPOSE_set(&ctx->purpose, purpose);
+	}
+
+int X509_STORE_set_trust(X509_STORE *ctx, int trust)
+	{
+	return X509_TRUST_set(&ctx->trust, trust);
+	}
 
 IMPLEMENT_STACK_OF(X509_LOOKUP)
 IMPLEMENT_STACK_OF(X509_OBJECT)

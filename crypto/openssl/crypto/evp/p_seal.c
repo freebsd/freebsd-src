@@ -59,14 +59,14 @@
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/rand.h>
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 #include <openssl/rsa.h>
 #endif
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 
-int EVP_SealInit(EVP_CIPHER_CTX *ctx, EVP_CIPHER *type, unsigned char **ek,
+int EVP_SealInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, unsigned char **ek,
 	     int *ekl, unsigned char *iv, EVP_PKEY **pubk, int npubk)
 	{
 	unsigned char key[EVP_MAX_KEY_LENGTH];
@@ -74,15 +74,16 @@ int EVP_SealInit(EVP_CIPHER_CTX *ctx, EVP_CIPHER *type, unsigned char **ek,
 	
 	if(type) {
 		EVP_CIPHER_CTX_init(ctx);
-		if(!EVP_EncryptInit(ctx,type,NULL,NULL)) return 0;
+		if(!EVP_EncryptInit_ex(ctx,type,NULL,NULL,NULL)) return 0;
 	}
-	if (npubk <= 0) return(0);
+	if ((npubk <= 0) || !pubk)
+		return 1;
 	if (RAND_bytes(key,EVP_MAX_KEY_LENGTH) <= 0)
-		return(0);
+		return 0;
 	if (EVP_CIPHER_CTX_iv_length(ctx))
 		RAND_pseudo_bytes(iv,EVP_CIPHER_CTX_iv_length(ctx));
 
-	if(!EVP_EncryptInit(ctx,NULL,key,iv)) return 0;
+	if(!EVP_EncryptInit_ex(ctx,NULL,NULL,key,iv)) return 0;
 
 	for (i=0; i<npubk; i++)
 		{
@@ -105,8 +106,10 @@ int inl;
 	}
 */
 
-void EVP_SealFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+int EVP_SealFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 	{
-	EVP_EncryptFinal(ctx,out,outl);
-	EVP_EncryptInit(ctx,NULL,NULL,NULL);
+	int i;
+	i = EVP_EncryptFinal_ex(ctx,out,outl);
+	EVP_EncryptInit_ex(ctx,NULL,NULL,NULL,NULL);
+	return i;
 	}

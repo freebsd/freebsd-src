@@ -59,24 +59,22 @@
 #ifndef HEADER_BN_H
 #define HEADER_BN_H
 
-#ifndef NO_FP_API
+#include <openssl/e_os2.h>
+#ifndef OPENSSL_NO_FP_API
 #include <stdio.h> /* FILE */
 #endif
-#include <openssl/opensslconf.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 #undef BN_LLONG /* experimental, so far... */
 #endif
 
 #define BN_MUL_COMBA
 #define BN_SQR_COMBA
 #define BN_RECURSION
-#define RECP_MUL_MOD
-#define MONT_MUL_MOD
 
 /* This next option uses the C libraries (2 word)/(1 word) function.
  * If it is not defined, I use my C version (which is slower).
@@ -89,7 +87,8 @@ extern "C" {
  * For machines with only one compiler (or shared libraries), this should
  * be on.  Again this in only really a problem on machines
  * using "long long's", are 32bit, and are not using my assembler code. */
-#if defined(MSDOS) || defined(WINDOWS) || defined(WIN32) || defined(linux)
+#if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS) || \
+    defined(OPENSSL_SYS_WIN32) || defined(linux)
 # ifndef BN_DIV2W
 #  define BN_DIV2W
 # endif
@@ -137,14 +136,14 @@ extern "C" {
 #define BN_MASK2h	(0xffffffff00000000LL)
 #define BN_MASK2h1	(0xffffffff80000000LL)
 #define BN_TBIT		(0x8000000000000000LL)
-#define BN_DEC_CONV	(10000000000000000000LL)
+#define BN_DEC_CONV	(10000000000000000000ULL)
 #define BN_DEC_FMT1	"%llu"
 #define BN_DEC_FMT2	"%019llu"
 #define BN_DEC_NUM	19
 #endif
 
 #ifdef THIRTY_TWO_BIT
-#if defined(WIN32) && !defined(__GNUC__)
+#if defined(OPENSSL_SYS_WIN32) && !defined(__GNUC__)
 #define BN_ULLONG	unsigned _int64
 #else
 #define BN_ULLONG	unsigned long long
@@ -155,7 +154,7 @@ extern "C" {
 #define BN_BYTES	4
 #define BN_BITS2	32
 #define BN_BITS4	16
-#ifdef _MSC_VER
+#ifdef OPENSSL_SYS_WIN32
 /* VC++ doesn't like the LL suffix */
 #define BN_MASK		(0xffffffffffffffffL)
 #else
@@ -240,18 +239,8 @@ typedef struct bignum_st
 	int flags;
 	} BIGNUM;
 
-/* Used for temp variables */
-#define BN_CTX_NUM	16
-#define BN_CTX_NUM_POS	12
-typedef struct bignum_ctx
-	{
-	int tos;
-	BIGNUM bn[BN_CTX_NUM];
-	int flags;
-	int depth;
-	int pos[BN_CTX_NUM_POS];
-	int too_many;
-	} BN_CTX;
+/* Used for temp variables (declaration hidden in bn_lcl.h) */
+typedef struct bignum_ctx BN_CTX;
 
 typedef struct bn_blinding_st
 	{
@@ -285,9 +274,6 @@ typedef struct bn_recp_ctx_st
 	int flags;
 	} BN_RECP_CTX;
 
-#define BN_to_montgomery(r,a,mont,ctx)	BN_mod_mul_montgomery(\
-	r,a,&((mont)->RR),(mont),ctx)
-
 #define BN_prime_checks 0 /* default: select number of iterations
 			     based on the size of the number */
 
@@ -310,17 +296,22 @@ typedef struct bn_recp_ctx_st
                                 /* b >= 100 */ 27)
 
 #define BN_num_bytes(a)	((BN_num_bits(a)+7)/8)
-#define BN_is_word(a,w)	(((a)->top == 1) && ((a)->d[0] == (BN_ULONG)(w)))
-#define BN_is_zero(a)	(((a)->top == 0) || BN_is_word(a,0))
-#define BN_is_one(a)	(BN_is_word((a),1))
-#define BN_is_odd(a)	(((a)->top > 0) && ((a)->d[0] & 1))
+
+/* Note that BN_abs_is_word does not work reliably for w == 0 */
+#define BN_abs_is_word(a,w) (((a)->top == 1) && ((a)->d[0] == (BN_ULONG)(w)))
+#define BN_is_zero(a)       (((a)->top == 0) || BN_abs_is_word(a,0))
+#define BN_is_one(a)        (BN_abs_is_word((a),1) && !(a)->neg)
+#define BN_is_word(a,w)     ((w) ? BN_abs_is_word((a),(w)) && !(a)->neg : \
+                                   BN_is_zero((a)))
+#define BN_is_odd(a)	    (((a)->top > 0) && ((a)->d[0] & 1))
+
 #define BN_one(a)	(BN_set_word((a),1))
 #define BN_zero(a)	(BN_set_word((a),0))
 
 /*#define BN_ascii2bn(a)	BN_hex2bn(a) */
 /*#define BN_bn2ascii(a)	BN_bn2hex(a) */
 
-BIGNUM *BN_value_one(void);
+const BIGNUM *BN_value_one(void);
 char *	BN_options(void);
 BN_CTX *BN_CTX_new(void);
 void	BN_CTX_init(BN_CTX *c);
@@ -338,45 +329,63 @@ BIGNUM *BN_new(void);
 void	BN_init(BIGNUM *);
 void	BN_clear_free(BIGNUM *a);
 BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b);
+void	BN_swap(BIGNUM *a, BIGNUM *b);
 BIGNUM *BN_bin2bn(const unsigned char *s,int len,BIGNUM *ret);
 int	BN_bn2bin(const BIGNUM *a, unsigned char *to);
-BIGNUM *BN_mpi2bn(unsigned char *s,int len,BIGNUM *ret);
+BIGNUM *BN_mpi2bn(const unsigned char *s,int len,BIGNUM *ret);
 int	BN_bn2mpi(const BIGNUM *a, unsigned char *to);
 int	BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
 int	BN_usub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
 int	BN_uadd(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
 int	BN_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
-int	BN_mod(BIGNUM *rem, const BIGNUM *m, const BIGNUM *d, BN_CTX *ctx);
+int	BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+int	BN_sqr(BIGNUM *r, const BIGNUM *a,BN_CTX *ctx);
+
 int	BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
-	       BN_CTX *ctx);
-int	BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
-int	BN_sqr(BIGNUM *r, BIGNUM *a,BN_CTX *ctx);
+	BN_CTX *ctx);
+#define BN_mod(rem,m,d,ctx) BN_div(NULL,(rem),(m),(d),(ctx))
+int	BN_nnmod(BIGNUM *r, const BIGNUM *m, const BIGNUM *d, BN_CTX *ctx);
+int	BN_mod_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m, BN_CTX *ctx);
+int	BN_mod_add_quick(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m);
+int	BN_mod_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m, BN_CTX *ctx);
+int	BN_mod_sub_quick(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, const BIGNUM *m);
+int	BN_mod_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
+	const BIGNUM *m, BN_CTX *ctx);
+int	BN_mod_sqr(BIGNUM *r, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
+int	BN_mod_lshift1(BIGNUM *r, const BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
+int	BN_mod_lshift1_quick(BIGNUM *r, const BIGNUM *a, const BIGNUM *m);
+int	BN_mod_lshift(BIGNUM *r, const BIGNUM *a, int n, const BIGNUM *m, BN_CTX *ctx);
+int	BN_mod_lshift_quick(BIGNUM *r, const BIGNUM *a, int n, const BIGNUM *m);
+
 BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w);
 BN_ULONG BN_div_word(BIGNUM *a, BN_ULONG w);
 int	BN_mul_word(BIGNUM *a, BN_ULONG w);
 int	BN_add_word(BIGNUM *a, BN_ULONG w);
 int	BN_sub_word(BIGNUM *a, BN_ULONG w);
 int	BN_set_word(BIGNUM *a, BN_ULONG w);
-BN_ULONG BN_get_word(BIGNUM *a);
+BN_ULONG BN_get_word(const BIGNUM *a);
+
 int	BN_cmp(const BIGNUM *a, const BIGNUM *b);
 void	BN_free(BIGNUM *a);
 int	BN_is_bit_set(const BIGNUM *a, int n);
 int	BN_lshift(BIGNUM *r, const BIGNUM *a, int n);
-int	BN_lshift1(BIGNUM *r, BIGNUM *a);
-int	BN_exp(BIGNUM *r, BIGNUM *a, BIGNUM *p,BN_CTX *ctx);
-int	BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-		   const BIGNUM *m,BN_CTX *ctx);
-int	BN_mod_exp_mont(BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-			const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+int	BN_lshift1(BIGNUM *r, const BIGNUM *a);
+int	BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,BN_CTX *ctx);
+
+int	BN_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
+	const BIGNUM *m,BN_CTX *ctx);
+int	BN_mod_exp_mont(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
+	const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
 int	BN_mod_exp_mont_word(BIGNUM *r, BN_ULONG a, const BIGNUM *p,
-			const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
-int	BN_mod_exp2_mont(BIGNUM *r, BIGNUM *a1, BIGNUM *p1,BIGNUM *a2,
-		BIGNUM *p2,BIGNUM *m,BN_CTX *ctx,BN_MONT_CTX *m_ctx);
-int	BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, BIGNUM *p,
-	BIGNUM *m,BN_CTX *ctx);
+	const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+int	BN_mod_exp2_mont(BIGNUM *r, const BIGNUM *a1, const BIGNUM *p1,
+	const BIGNUM *a2, const BIGNUM *p2,const BIGNUM *m,
+	BN_CTX *ctx,BN_MONT_CTX *m_ctx);
+int	BN_mod_exp_simple(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
+	const BIGNUM *m,BN_CTX *ctx);
+
 int	BN_mask_bits(BIGNUM *a,int n);
-int	BN_mod_mul(BIGNUM *ret, BIGNUM *a, BIGNUM *b, const BIGNUM *m, BN_CTX *ctx);
-#ifndef NO_FP_API
+#ifndef OPENSSL_NO_FP_API
 int	BN_print_fp(FILE *fp, const BIGNUM *a);
 #endif
 #ifdef HEADER_BIO_H
@@ -384,9 +393,9 @@ int	BN_print(BIO *fp, const BIGNUM *a);
 #else
 int	BN_print(void *fp, const BIGNUM *a);
 #endif
-int	BN_reciprocal(BIGNUM *r, BIGNUM *m, int len, BN_CTX *ctx);
-int	BN_rshift(BIGNUM *r, BIGNUM *a, int n);
-int	BN_rshift1(BIGNUM *r, BIGNUM *a);
+int	BN_reciprocal(BIGNUM *r, const BIGNUM *m, int len, BN_CTX *ctx);
+int	BN_rshift(BIGNUM *r, const BIGNUM *a, int n);
+int	BN_rshift1(BIGNUM *r, const BIGNUM *a);
 void	BN_clear(BIGNUM *a);
 BIGNUM *BN_dup(const BIGNUM *a);
 int	BN_ucmp(const BIGNUM *a, const BIGNUM *b);
@@ -396,24 +405,32 @@ char *	BN_bn2hex(const BIGNUM *a);
 char *	BN_bn2dec(const BIGNUM *a);
 int 	BN_hex2bn(BIGNUM **a, const char *str);
 int 	BN_dec2bn(BIGNUM **a, const char *str);
-int	BN_gcd(BIGNUM *r,BIGNUM *in_a,BIGNUM *in_b,BN_CTX *ctx);
-BIGNUM *BN_mod_inverse(BIGNUM *ret,BIGNUM *a, const BIGNUM *n,BN_CTX *ctx);
-BIGNUM *BN_generate_prime(BIGNUM *ret,int bits,int safe,BIGNUM *add,
-		BIGNUM *rem,void (*callback)(int,int,void *),void *cb_arg);
+int	BN_gcd(BIGNUM *r,const BIGNUM *a,const BIGNUM *b,BN_CTX *ctx);
+int	BN_kronecker(const BIGNUM *a,const BIGNUM *b,BN_CTX *ctx); /* returns -2 for error */
+BIGNUM *BN_mod_inverse(BIGNUM *ret,
+	const BIGNUM *a, const BIGNUM *n,BN_CTX *ctx);
+BIGNUM *BN_mod_sqrt(BIGNUM *ret,
+	const BIGNUM *a, const BIGNUM *n,BN_CTX *ctx);
+BIGNUM *BN_generate_prime(BIGNUM *ret,int bits,int safe,
+	const BIGNUM *add, const BIGNUM *rem,
+	void (*callback)(int,int,void *),void *cb_arg);
 int	BN_is_prime(const BIGNUM *p,int nchecks,
-		void (*callback)(int,int,void *),
-		BN_CTX *ctx,void *cb_arg);
+	void (*callback)(int,int,void *),
+	BN_CTX *ctx,void *cb_arg);
 int	BN_is_prime_fasttest(const BIGNUM *p,int nchecks,
-		void (*callback)(int,int,void *),BN_CTX *ctx,void *cb_arg,
-		int do_trial_division);
+	void (*callback)(int,int,void *),BN_CTX *ctx,void *cb_arg,
+	int do_trial_division);
 
 BN_MONT_CTX *BN_MONT_CTX_new(void );
 void BN_MONT_CTX_init(BN_MONT_CTX *ctx);
-int BN_mod_mul_montgomery(BIGNUM *r,BIGNUM *a,BIGNUM *b,BN_MONT_CTX *mont,
-			  BN_CTX *ctx);
-int BN_from_montgomery(BIGNUM *r,BIGNUM *a,BN_MONT_CTX *mont,BN_CTX *ctx);
+int BN_mod_mul_montgomery(BIGNUM *r,const BIGNUM *a,const BIGNUM *b,
+	BN_MONT_CTX *mont, BN_CTX *ctx);
+#define BN_to_montgomery(r,a,mont,ctx)	BN_mod_mul_montgomery(\
+	(r),(a),&((mont)->RR),(mont),(ctx))
+int BN_from_montgomery(BIGNUM *r,const BIGNUM *a,
+	BN_MONT_CTX *mont, BN_CTX *ctx);
 void BN_MONT_CTX_free(BN_MONT_CTX *mont);
-int BN_MONT_CTX_set(BN_MONT_CTX *mont,const BIGNUM *modulus,BN_CTX *ctx);
+int BN_MONT_CTX_set(BN_MONT_CTX *mont,const BIGNUM *mod,BN_CTX *ctx);
 BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to,BN_MONT_CTX *from);
 
 BN_BLINDING *BN_BLINDING_new(BIGNUM *A,BIGNUM *Ai,BIGNUM *mod);
@@ -429,12 +446,12 @@ void	BN_RECP_CTX_init(BN_RECP_CTX *recp);
 BN_RECP_CTX *BN_RECP_CTX_new(void);
 void	BN_RECP_CTX_free(BN_RECP_CTX *recp);
 int	BN_RECP_CTX_set(BN_RECP_CTX *recp,const BIGNUM *rdiv,BN_CTX *ctx);
-int	BN_mod_mul_reciprocal(BIGNUM *r, BIGNUM *x, BIGNUM *y,
-		BN_RECP_CTX *recp,BN_CTX *ctx);
+int	BN_mod_mul_reciprocal(BIGNUM *r, const BIGNUM *x, const BIGNUM *y,
+	BN_RECP_CTX *recp,BN_CTX *ctx);
 int	BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
-			const BIGNUM *m, BN_CTX *ctx);
-int	BN_div_recp(BIGNUM *dv, BIGNUM *rem, BIGNUM *m,
-		BN_RECP_CTX *recp, BN_CTX *ctx);
+	const BIGNUM *m, BN_CTX *ctx);
+int	BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
+	BN_RECP_CTX *recp, BN_CTX *ctx);
 
 /* library internal functions */
 
@@ -442,6 +459,7 @@ int	BN_div_recp(BIGNUM *dv, BIGNUM *rem, BIGNUM *m,
 	(a):bn_expand2((a),(bits)/BN_BITS2+1))
 #define bn_wexpand(a,words) (((words) <= (a)->dmax)?(a):bn_expand2((a),(words)))
 BIGNUM *bn_expand2(BIGNUM *a, int words);
+BIGNUM *bn_dup_expand(const BIGNUM *a, int words);
 
 #define bn_fix_top(a) \
         { \
@@ -453,15 +471,15 @@ BIGNUM *bn_expand2(BIGNUM *a, int words);
 		} \
 	}
 
-BN_ULONG bn_mul_add_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w);
-BN_ULONG bn_mul_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w);
-void     bn_sqr_words(BN_ULONG *rp, BN_ULONG *ap, int num);
+BN_ULONG bn_mul_add_words(BN_ULONG *rp, const BN_ULONG *ap, int num, BN_ULONG w);
+BN_ULONG bn_mul_words(BN_ULONG *rp, const BN_ULONG *ap, int num, BN_ULONG w);
+void     bn_sqr_words(BN_ULONG *rp, const BN_ULONG *ap, int num);
 BN_ULONG bn_div_words(BN_ULONG h, BN_ULONG l, BN_ULONG d);
-BN_ULONG bn_add_words(BN_ULONG *rp, BN_ULONG *ap, BN_ULONG *bp,int num);
-BN_ULONG bn_sub_words(BN_ULONG *rp, BN_ULONG *ap, BN_ULONG *bp,int num);
+BN_ULONG bn_add_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int num);
+BN_ULONG bn_sub_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int num);
 
 #ifdef BN_DEBUG
-  void bn_dump1(FILE *o, const char *a, BN_ULONG *b,int n);
+void bn_dump1(FILE *o, const char *a, const BN_ULONG *b,int n);
 # define bn_print(a) {fprintf(stderr, #a "="); BN_print_fp(stderr,a); \
    fprintf(stderr,"\n");}
 # define bn_dump(a,n) bn_dump1(stderr,#a,a,n);
@@ -491,11 +509,14 @@ void ERR_load_BN_strings(void);
 #define BN_F_BN_CTX_NEW					 106
 #define BN_F_BN_DIV					 107
 #define BN_F_BN_EXPAND2					 108
+#define BN_F_BN_EXPAND_INTERNAL				 120
 #define BN_F_BN_MOD_EXP2_MONT				 118
 #define BN_F_BN_MOD_EXP_MONT				 109
 #define BN_F_BN_MOD_EXP_MONT_WORD			 117
 #define BN_F_BN_MOD_INVERSE				 110
+#define BN_F_BN_MOD_LSHIFT_QUICK			 119
 #define BN_F_BN_MOD_MUL_RECIPROCAL			 111
+#define BN_F_BN_MOD_SQRT				 121
 #define BN_F_BN_MPI2BN					 112
 #define BN_F_BN_NEW					 113
 #define BN_F_BN_RAND					 114
@@ -510,10 +531,14 @@ void ERR_load_BN_strings(void);
 #define BN_R_DIV_BY_ZERO				 103
 #define BN_R_ENCODING_ERROR				 104
 #define BN_R_EXPAND_ON_STATIC_BIGNUM_DATA		 105
+#define BN_R_INPUT_NOT_REDUCED				 110
 #define BN_R_INVALID_LENGTH				 106
 #define BN_R_INVALID_RANGE				 115
+#define BN_R_NOT_A_SQUARE				 111
 #define BN_R_NOT_INITIALIZED				 107
 #define BN_R_NO_INVERSE					 108
+#define BN_R_P_IS_NOT_PRIME				 112
+#define BN_R_TOO_MANY_ITERATIONS			 113
 #define BN_R_TOO_MANY_TEMPORARY_VARIABLES		 109
 
 #ifdef  __cplusplus

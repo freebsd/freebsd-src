@@ -62,17 +62,19 @@
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 
+#ifndef OPENSSL_NO_DSA
 static int dsa_pkey2pkcs8(PKCS8_PRIV_KEY_INFO *p8inf, EVP_PKEY *pkey);
+#endif
 
 /* Extract a private key from a PKCS8 structure */
 
 EVP_PKEY *EVP_PKCS82PKEY (PKCS8_PRIV_KEY_INFO *p8)
 {
 	EVP_PKEY *pkey = NULL;
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 	RSA *rsa = NULL;
 #endif
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 	DSA *dsa = NULL;
 	ASN1_INTEGER *privkey;
 	ASN1_TYPE *t1, *t2, *param = NULL;
@@ -82,6 +84,7 @@ EVP_PKEY *EVP_PKCS82PKEY (PKCS8_PRIV_KEY_INFO *p8)
 #endif
 	X509_ALGOR *a;
 	unsigned char *p;
+	const unsigned char *cp;
 	int pkeylen;
 	char obj_tmp[80];
 
@@ -101,16 +104,17 @@ EVP_PKEY *EVP_PKCS82PKEY (PKCS8_PRIV_KEY_INFO *p8)
 	a = p8->pkeyalg;
 	switch (OBJ_obj2nid(a->algorithm))
 	{
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 		case NID_rsaEncryption:
-		if (!(rsa = d2i_RSAPrivateKey (NULL, &p, pkeylen))) {
+		cp = p;
+		if (!(rsa = d2i_RSAPrivateKey (NULL,&cp, pkeylen))) {
 			EVPerr(EVP_F_EVP_PKCS82PKEY, EVP_R_DECODE_ERROR);
 			return NULL;
 		}
 		EVP_PKEY_assign_RSA (pkey, rsa);
 		break;
 #endif
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 		case NID_dsa:
 		/* PKCS#8 DSA is weird: you just get a private key integer
 	         * and parameters in the AlgorithmIdentifier the pubkey must
@@ -163,9 +167,9 @@ EVP_PKEY *EVP_PKCS82PKEY (PKCS8_PRIV_KEY_INFO *p8)
 			EVPerr(EVP_F_EVP_PKCS82PKEY, EVP_R_DECODE_ERROR);
 			goto dsaerr;
 		}
-		p = param->value.sequence->data;
+		cp = p = param->value.sequence->data;
 		plen = param->value.sequence->length;
-		if (!(dsa = d2i_DSAparams (NULL, &p, plen))) {
+		if (!(dsa = d2i_DSAparams (NULL, &cp, plen))) {
 			EVPerr(EVP_F_EVP_PKCS82PKEY, EVP_R_DECODE_ERROR);
 			goto dsaerr;
 		}
@@ -239,7 +243,7 @@ PKCS8_PRIV_KEY_INFO *EVP_PKEY2PKCS8_broken(EVP_PKEY *pkey, int broken)
 	}
 	p8->pkey->type = V_ASN1_OCTET_STRING;
 	switch (EVP_PKEY_type(pkey->type)) {
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 		case EVP_PKEY_RSA:
 
 		if(p8->broken == PKCS8_NO_OCTET) p8->pkey->type = V_ASN1_SEQUENCE;
@@ -254,7 +258,7 @@ PKCS8_PRIV_KEY_INFO *EVP_PKEY2PKCS8_broken(EVP_PKEY *pkey, int broken)
 		}
 		break;
 #endif
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 		case EVP_PKEY_DSA:
 		if(!dsa_pkey2pkcs8(p8, pkey)) {
 			PKCS8_PRIV_KEY_INFO_free (p8);
@@ -296,7 +300,7 @@ PKCS8_PRIV_KEY_INFO *PKCS8_set_broken(PKCS8_PRIV_KEY_INFO *p8, int broken)
 	}
 }
 
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 static int dsa_pkey2pkcs8(PKCS8_PRIV_KEY_INFO *p8, EVP_PKEY *pkey)
 {
 	ASN1_STRING *params;

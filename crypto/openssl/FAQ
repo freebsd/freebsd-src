@@ -9,6 +9,7 @@ OpenSSL  -  Frequently Asked Questions
 * Where can I get a compiled version of OpenSSL?
 * Why aren't tools like 'autoconf' and 'libtool' used?
 * What is an 'engine' version?
+* How do I check the authenticity of the OpenSSL distribution?
 
 [LEGAL] Legal questions
 
@@ -29,17 +30,22 @@ OpenSSL  -  Frequently Asked Questions
 * Why can't I use OpenSSL certificates with SSL client authentication?
 * Why does my browser give a warning about a mismatched hostname?
 * How do I install a CA certificate into a browser?
+* Why is OpenSSL x509 DN output not conformant to RFC2253?
 
 [BUILD] Questions about building and testing OpenSSL
 
 * Why does the linker complain about undefined symbols?
 * Why does the OpenSSL test fail with "bc: command not found"?
 * Why does the OpenSSL test fail with "bc: 1 no implemented"?
+* Why does the OpenSSL test fail with "bc: stack empty"?
 * Why does the OpenSSL compilation fail on Alpha Tru64 Unix?
 * Why does the OpenSSL compilation fail with "ar: command not found"?
 * Why does the OpenSSL compilation fail on Win32 with VC++?
 * What is special about OpenSSL on Redhat?
+* Why does the OpenSSL compilation fail on MacOS X?
 * Why does the OpenSSL test suite fail on MacOS X?
+* Why does the OpenSSL test suite fail in BN_sqr test [on a 64-bit platform]?
+* Why does OpenBSD-i386 build fail on des-586.s with "Unimplemented segment type"?
 
 [PROG] Questions about programming with OpenSSL
 
@@ -53,6 +59,7 @@ OpenSSL  -  Frequently Asked Questions
 * Why can't the OpenSSH configure script detect OpenSSL?
 * Can I use OpenSSL's SSL library with non-blocking I/O?
 * Why doesn't my server application receive a client certificate?
+* Why does compilation fail due to an undefined symbol NID_uniqueIdentifier?
 
 ===============================================================================
 
@@ -61,7 +68,7 @@ OpenSSL  -  Frequently Asked Questions
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 0.9.6g was released on 9 August 2002.
+OpenSSL 0.9.7 was released on December 31, 2002.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
@@ -131,6 +138,19 @@ With version 0.9.6 OpenSSL was extended to interface to external crypto
 hardware. This was realized in a special release '0.9.6-engine'. With
 version 0.9.7 (not yet released) the changes were merged into the main
 development line, so that the special release is no longer necessary.
+
+* How do I check the authenticity of the OpenSSL distribution?
+
+We provide MD5 digests and ASC signatures of each tarball.
+Use MD5 to check that a tarball from a mirror site is identical:
+
+   md5sum TARBALL | awk '{print $1;}' | cmp - TARBALL.md5
+
+You can check authenticity using pgp or gpg. You need the OpenSSL team
+member public key used to sign it (download it from a key server). Then
+just do:
+
+   pgp TARBALL.asc
 
 [LEGAL] =======================================================================
 
@@ -222,6 +242,8 @@ support can be found at
   http://sunsolve.sun.com/pub-cgi/retrieve.pl?doc=fsrdb/27606&zone_32=SUNWski
 However, be warned that /dev/random is usually a blocking device, which
 may have some effects on OpenSSL.
+A third party /dev/random solution for Solaris is available at
+  http://www.cosy.sbg.ac.at/~andi/
 
 
 * Why do I get an "unable to write 'random state'" error message?
@@ -348,6 +370,13 @@ DO NOT DO THIS! This command will give away your CAs private key and
 reduces its security to zero: allowing anyone to forge certificates in
 whatever name they choose.
 
+* Why is OpenSSL x509 DN output not conformant to RFC2253?
+
+The ways to print out the oneline format of the DN (Distinguished Name) have
+been extended in version 0.9.7 of OpenSSL. Using the new X509_NAME_print_ex()
+interface, the "-nameopt" option could be introduded. See the manual
+page of the "openssl x509" commandline tool for details. The old behaviour
+has however been left as default for the sake of compatibility.
 
 [BUILD] =======================================================================
 
@@ -386,6 +415,17 @@ tests, get GNU bc from ftp://ftp.gnu.org or from your OS distributor.
 On some SCO installations or versions, bc has a bug that gets triggered
 when you run the test suite (using "make test").  The message returned is
 "bc: 1 not implemented".
+
+The best way to deal with this is to find another implementation of bc
+and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html
+for download instructions) can be safely used, for example.
+
+
+* Why does the OpenSSL test fail with "bc: stack empty"?
+
+On some DG/ux versions, bc seems to have a too small stack for calculations
+that the OpenSSL bntest throws at it.  This gets triggered when you run the
+test suite (using "make test").  The message returned is "bc: stack empty".
 
 The best way to deal with this is to find another implementation of bc
 and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html
@@ -489,6 +529,18 @@ IDEA:  5,214,703 25/05/2010
 RC5:   5,724,428 03/03/2015
 
 
+* Why does the OpenSSL compilation fail on MacOS X?
+
+If the failure happens when trying to build the "openssl" binary, with
+a large number of undefined symbols, it's very probable that you have
+OpenSSL 0.9.6b delivered with the operating system (you can find out by
+running '/usr/bin/openssl version') and that you were trying to build
+OpenSSL 0.9.7 or newer.  The problem is that the loader ('ld') in
+MacOS X has a misfeature that's quite difficult to go around.
+Look in the file PROBLEMS for a more detailed explanation and for possible
+solutions.
+
+
 * Why does the OpenSSL test suite fail on MacOS X?
 
 If the failure happens when running 'make test' and the RC4 test fails,
@@ -501,6 +553,34 @@ with /usr/lib/libcrypto.dylib and /usr/lib/libssl.dylib instead of the
 libraries you just built.
 Look in the file PROBLEMS for a more detailed explanation and for possible
 solutions.
+
+* Why does the OpenSSL test suite fail in BN_sqr test [on a 64-bit platform]?
+
+Failure in BN_sqr test is most likely caused by a failure to configure the
+toolkit for current platform or lack of support for the platform in question.
+Run './config -t' and './apps/openssl version -p'. Do these platform
+identifiers match? If they don't, then you most likely failed to run
+./config and you're hereby advised to do so before filing a bug report.
+If ./config itself fails to run, then it's most likely problem with your
+local environment and you should turn to your system administrator (or
+similar). If identifiers match (and/or no alternative identifier is
+suggested by ./config script), then the platform is unsupported. There might
+or might not be a workaround. Most notably on SPARC64 platforms with GNU
+C compiler you should be able to produce a working build by running
+'./config -m32'. I understand that -m32 might not be what you want/need,
+but the build should be operational. For further details turn to
+<openssl-dev@openssl.org>.
+
+* Why does OpenBSD-i386 build fail on des-586.s with "Unimplemented segment type"?
+
+As of 0.9.7 assembler routines were overhauled for position independence
+of the machine code, which is essential for shared library support. For
+some reason OpenBSD is equipped with an out-of-date GNU assembler which
+finds the new code offensive. To work around the problem, configure with
+no-asm (and sacrifice a great deal of performance) or upgrade /usr/bin/as.
+For your convenience a pre-compiled replacement binary is provided at
+http://www.openssl.org/~appro/i386-openbsd3-as, which is compiled from
+binutils-2.8 released in 1997.
 
 [PROG] ========================================================================
 
@@ -665,6 +745,14 @@ SSL_write() will try to continue any pending handshake.
 Due to the TLS protocol definition, a client will only send a certificate,
 if explicitly asked by the server. Use the SSL_VERIFY_PEER flag of the
 SSL_CTX_set_verify() function to enable the use of client certificates.
+
+
+* Why does compilation fail due to an undefined symbol NID_uniqueIdentifier?
+
+For OpenSSL 0.9.7 the OID table was extended and corrected. In earlier
+versions, uniqueIdentifier was incorrectly used for X.509 certificates.
+The correct name according to RFC2256 (LDAP) is x500UniqueIdentifier.
+Change your code to use the new name when compiling against OpenSSL 0.9.7.
 
 
 ===============================================================================

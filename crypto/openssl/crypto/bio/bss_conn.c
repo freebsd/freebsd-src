@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_SOCK
+#ifndef OPENSSL_NO_SOCK
 
 #include <stdio.h>
 #include <errno.h>
@@ -64,13 +64,13 @@
 #include "cryptlib.h"
 #include <openssl/bio.h>
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 #define SOCKET_PROTOCOL 0 /* more microsoft stupidity */
 #else
 #define SOCKET_PROTOCOL IPPROTO_TCP
 #endif
 
-#if (defined(VMS) && __VMS_VER < 70000000)
+#if (defined(OPENSSL_SYS_VMS) && __VMS_VER < 70000000)
 /* FIONBIO used as a switch to enable ioctl, and that isn't in VMS < 7.0 */
 #undef FIONBIO
 #endif
@@ -95,7 +95,7 @@ typedef struct bio_connect_st
 	/* called when the connection is initially made
 	 *  callback(BIO,state,ret);  The callback should return
 	 * 'ret'.  state is for compatibility with the ssl info_callback */
-	int (*info_callback)();
+	int (*info_callback)(const BIO *bio,int state,int ret);
 	} BIO_CONNECT;
 
 static int conn_write(BIO *h, const char *buf, int num);
@@ -236,7 +236,7 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 				}
 			c->state=BIO_CONN_S_CONNECT;
 
-#if defined(SO_KEEPALIVE) && !defined(MPE)
+#if defined(SO_KEEPALIVE) && !defined(OPENSSL_SYS_MPE)
 			i=1;
 			i=setsockopt(b->num,SOL_SOCKET,SO_KEEPALIVE,(char *)&i,sizeof(i));
 			if (i < 0)
@@ -519,7 +519,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
 			else if (num == 2)
 				{
 				char buf[16];
-				char *p = ptr;
+				unsigned char *p = ptr;
 
 				sprintf(buf,"%d.%d.%d.%d",
 					p[0],p[1],p[2],p[3]);
@@ -530,7 +530,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
 				}
 			else if (num == 3)
 				{
-				char buf[16];
+				char buf[DECIMAL_SIZE(int)+1];
 
 				sprintf(buf,"%d",*(int *)ptr);
 				if (data->param_port != NULL)
@@ -574,7 +574,8 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
 		if (data->param_hostname)
 			BIO_set_conn_hostname(dbio,data->param_hostname);
 		BIO_set_nbio(dbio,data->nbio);
-                (void)BIO_set_info_callback(dbio,data->info_callback);
+		/* FIXME: the cast of the function seems unlikely to be a good idea */
+                (void)BIO_set_info_callback(dbio,(bio_info_cb *)data->info_callback);
 		}
 		break;
 	case BIO_CTRL_SET_CALLBACK:
@@ -613,7 +614,7 @@ static long conn_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 		{
 	case BIO_CTRL_SET_CALLBACK:
 		{
-		data->info_callback=(int (*)())fp;
+		data->info_callback=(int (*)(const struct bio_st *, int, int))fp;
 		}
 		break;
 	default:

@@ -112,9 +112,9 @@
 #include <stdio.h>
 #include <errno.h>
 #define USE_SOCKETS
+#include "ssl_locl.h"
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
-#include "ssl_locl.h"
 
 static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 			 unsigned int len, int create_empty_fragment);
@@ -162,13 +162,13 @@ static int ssl3_read_n(SSL *s, int n, int max, int extend)
 
 	{
 		/* avoid buffer overflow */
-		int max_max = s->s3->rbuf_len - s->packet_length;
+		int max_max = s->s3->rbuf.len - s->packet_length;
 		if (max > max_max)
 			max = max_max;
 	}
 	if (n > max) /* does not happen */
 		{
-		SSLerr(SSL_F_SSL3_READ_N,SSL_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL3_READ_N,ERR_R_INTERNAL_ERROR);
 		return -1;
 		}
 
@@ -246,11 +246,11 @@ static int ssl3_get_record(SSL *s)
 		extra=SSL3_RT_MAX_EXTRA;
 	else
 		extra=0;
-	if (extra != s->s3->rbuf_len - SSL3_RT_MAX_PACKET_SIZE)
+	if (extra != s->s3->rbuf.len - SSL3_RT_MAX_PACKET_SIZE)
 		{
 		/* actually likely an application error: SLS_OP_MICROSOFT_BIG_SSLV3_BUFFER
 		 * set after ssl3_setup_buffers() was done */
-		SSLerr(SSL_F_SSL3_GET_RECORD, SSL_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL3_GET_RECORD, ERR_R_INTERNAL_ERROR);
 		return -1;
 		}
 
@@ -259,7 +259,7 @@ again:
 	if (	(s->rstate != SSL_ST_READ_BODY) ||
 		(s->packet_length < SSL3_RT_HEADER_LENGTH)) 
 		{
-		n=ssl3_read_n(s, SSL3_RT_HEADER_LENGTH, s->s3->rbuf_len, 0);
+		n=ssl3_read_n(s, SSL3_RT_HEADER_LENGTH, s->s3->rbuf.len, 0);
 		if (n <= 0) return(n); /* error or non-blocking */
 		s->rstate=SSL_ST_READ_BODY;
 
@@ -604,10 +604,10 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 			if (prefix_len <= 0)
 				goto err;
 
-			if (s->s3->wbuf_len < (size_t)prefix_len + SSL3_RT_MAX_PACKET_SIZE)
+			if (s->s3->wbuf.len < (size_t)prefix_len + SSL3_RT_MAX_PACKET_SIZE)
 				{
 				/* insufficient space */
-				SSLerr(SSL_F_DO_SSL3_WRITE, SSL_R_INTERNAL_ERROR);
+				SSLerr(SSL_F_DO_SSL3_WRITE, ERR_R_INTERNAL_ERROR);
 				goto err;
 				}
 			}
@@ -776,7 +776,7 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
 	int al,i,j,ret;
 	unsigned int n;
 	SSL3_RECORD *rr;
-	void (*cb)()=NULL;
+	void (*cb)(const SSL *ssl,int type2,int val)=NULL;
 
 	if (s->s3->rbuf.buf == NULL) /* Not initialized yet */
 		if (!ssl3_setup_buffers(s))
@@ -785,7 +785,7 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
 	if ((type && (type != SSL3_RT_APPLICATION_DATA) && (type != SSL3_RT_HANDSHAKE) && type) ||
 	    (peek && (type != SSL3_RT_APPLICATION_DATA)))
 		{
-		SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL3_READ_BYTES, ERR_R_INTERNAL_ERROR);
 		return -1;
 		}
 
@@ -957,6 +957,9 @@ start:
 			goto err;
 			}
 
+		if (s->msg_callback)
+			s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE, s->s3->handshake_fragment, 4, s, s->msg_callback_arg);
+
 		if (SSL_is_init_finished(s) &&
 			!(s->s3->flags & SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS) &&
 			!s->s3->renegotiate)
@@ -1001,6 +1004,9 @@ start:
 		int alert_descr = s->s3->alert_fragment[1];
 
 		s->s3->alert_fragment_len = 0;
+
+		if (s->msg_callback)
+			s->msg_callback(0, s->version, SSL3_RT_ALERT, s->s3->alert_fragment, 2, s, s->msg_callback_arg);
 
 		if (s->info_callback != NULL)
 			cb=s->info_callback;
@@ -1065,6 +1071,10 @@ start:
 			}
 
 		rr->length=0;
+
+		if (s->msg_callback)
+			s->msg_callback(0, s->version, SSL3_RT_CHANGE_CIPHER_SPEC, rr->data, 1, s, s->msg_callback_arg);
+
 		s->s3->change_cipher_spec=1;
 		if (!do_change_cipher_spec(s))
 			goto err;
@@ -1119,7 +1129,7 @@ start:
 	switch (rr->type)
 		{
 	default:
-#ifndef NO_TLS
+#ifndef OPENSSL_NO_TLS
 		/* TLS just ignores unknown message types */
 		if (s->version == TLS1_VERSION)
 			{
@@ -1137,7 +1147,7 @@ start:
 		 * of SSL3_RT_HANDSHAKE when s->in_handshake is set, but that
 		 * should not happen when type != rr->type */
 		al=SSL_AD_UNEXPECTED_MESSAGE;
-		SSLerr(SSL_F_SSL3_READ_BYTES,SSL_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL3_READ_BYTES,ERR_R_INTERNAL_ERROR);
 		goto f_err;
 	case SSL3_RT_APPLICATION_DATA:
 		/* At this point, we were expecting handshake data,
@@ -1243,7 +1253,7 @@ void ssl3_send_alert(SSL *s, int level, int desc)
 int ssl3_dispatch_alert(SSL *s)
 	{
 	int i,j;
-	void (*cb)()=NULL;
+	void (*cb)(const SSL *ssl,int type,int val)=NULL;
 
 	s->s3->alert_dispatch=0;
 	i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3->send_alert[0], 2, 0);
@@ -1258,6 +1268,9 @@ int ssl3_dispatch_alert(SSL *s)
 		 * we will not worry too much. */
 		if (s->s3->send_alert[0] == SSL3_AL_FATAL)
 			(void)BIO_flush(s->wbio);
+
+		if (s->msg_callback)
+			s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3->send_alert, 2, s, s->msg_callback_arg);
 
 		if (s->info_callback != NULL)
 			cb=s->info_callback;
