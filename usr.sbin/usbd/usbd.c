@@ -115,8 +115,8 @@ event_name_t event_names[] = {
 
 #define DEVICE_FIELD		0	/* descriptive field */
 
-#define PRODUCT_FIELD		1	/* selective fields */
-#define VENDOR_FIELD		2
+#define VENDOR_FIELD		1	/* selective fields */
+#define PRODUCT_FIELD		2
 #define RELEASE_FIELD		3
 #define CLASS_FIELD		4
 #define SUBCLASS_FIELD		5
@@ -129,8 +129,8 @@ event_name_t event_names[] = {
 typedef struct action_s {
 	char 	*name;		/* descriptive string */
 
-	int	product;	/* selection criteria */
-	int	vendor;
+	int	vendor;	/* selection criteria */
+	int	product;
 	int	release;
 	int	class;
 	int	subclass;
@@ -152,8 +152,8 @@ typedef int (*config_field_fn)	__P((action_t *action, char *args,
 					char **trail));
 
 int set_device_field(action_t *action, char *args, char **trail);
-int set_product_field(action_t *action, char *args, char **trail);
 int set_vendor_field(action_t *action, char *args, char **trail);
+int set_product_field(action_t *action, char *args, char **trail);
 int set_release_field(action_t *action, char *args, char **trail);
 int set_class_field(action_t *action, char *args, char **trail);
 int set_subclass_field(action_t *action, char *args, char **trail);
@@ -171,8 +171,8 @@ typedef struct config_field_s {
 config_field_t config_fields[] = {
 	{DEVICE_FIELD,		"device",	set_device_field},
 
-	{PRODUCT_FIELD,		"product",	set_product_field},
 	{VENDOR_FIELD,		"vendor",	set_vendor_field},
+	{PRODUCT_FIELD,		"product",	set_product_field},
 	{RELEASE_FIELD,		"release",	set_release_field},
 	{CLASS_FIELD,		"class",	set_class_field},
 	{SUBCLASS_FIELD,	"subclass",	set_subclass_field},
@@ -324,14 +324,14 @@ set_device_field(action_t *action, char *args, char **trail)
 	return(get_string(args, &action->name, trail));
 }
 int
-set_product_field(action_t *action, char *args, char **trail)
-{
-	return(get_integer(args, &action->product, trail));
-}
-int
 set_vendor_field(action_t *action, char *args, char **trail)
 {
 	return(get_integer(args, &action->vendor, trail));
+}
+int
+set_product_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->product, trail));
 }
 int
 set_release_field(action_t *action, char *args, char **trail)
@@ -530,9 +530,9 @@ print_event(struct usb_event *event)
 		timespec->tv_sec, timespec->tv_nsec,
 		devinfo->product, devinfo->vendor);
 
-	printf("  prdct=0x%04x vndr=0x%04x rlse=0x%04x "
+	printf("  vndr=0x%04x prdct=0x%04x rlse=0x%04x "
 	       "clss=0x%04x subclss=0x%04x prtcl=0x%04x\n",
-	       devinfo->productNo, devinfo->vendorNo, devinfo->releaseNo,
+	       devinfo->vendorNo, devinfo->productNo, devinfo->releaseNo,
 	       devinfo->class, devinfo->subclass, devinfo->protocol);
 }
 
@@ -552,10 +552,10 @@ print_action(action_t *action, int i)
 	    action->subclass != WILDCARD_INT ||
 	    action->protocol != WILDCARD_INT)
 		printf(" ");
-	if (action->product != WILDCARD_INT)
-		printf(" prdct=0x%04x", action->product);
 	if (action->vendor != WILDCARD_INT)
 		printf(" vndr=0x%04x", action->vendor);
+	if (action->product != WILDCARD_INT)
+		printf(" prdct=0x%04x", action->product);
 	if (action->release != WILDCARD_INT)
 		printf(" rlse=0x%04x", action->release);
 	if (action->class != WILDCARD_INT)
@@ -564,8 +564,8 @@ print_action(action_t *action, int i)
 		printf(" subclss=0x%04x", action->subclass);
 	if (action->protocol != WILDCARD_INT)
 		printf(" prtcl=0x%04x", action->protocol);
-	if (action->product != WILDCARD_INT ||
-	    action->vendor != WILDCARD_INT ||
+	if (action->vendor != WILDCARD_INT ||
+	    action->product != WILDCARD_INT ||
 	    action->release != WILDCARD_INT ||
 	    action->class != WILDCARD_INT ||
 	    action->subclass != WILDCARD_INT ||
@@ -598,10 +598,10 @@ find_action(struct usb_device_info *devinfo)
 	action_t *action;
 
 	STAILQ_FOREACH(action, &actions, next) {
-		if ((action->product == WILDCARD_INT ||
-		     action->product == devinfo->productNo) &&
-		    (action->vendor == WILDCARD_INT ||
+		if ((action->vendor == WILDCARD_INT ||
 		     action->vendor == devinfo->vendorNo) &&
+		    (action->product == WILDCARD_INT ||
+		     action->product == devinfo->productNo) &&
 		    (action->release == WILDCARD_INT ||
 		     action->release == devinfo->releaseNo) &&
 		    (action->class == WILDCARD_INT ||
