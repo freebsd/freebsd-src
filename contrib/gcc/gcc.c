@@ -3879,7 +3879,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
 		  0, 0, warn_std_ptr, 0);
       break;
     case OBJFMT_ELF:
-      add_prefix (&exec_prefixes, PREFIX"/libexec/elf/", "BINUTILS",
+      add_prefix (&exec_prefixes, PREFIX"/bin/", "BINUTILS",
 		  0, 0, warn_std_ptr, 0);
       break;
     case OBJFMT_UNKNOWN:
