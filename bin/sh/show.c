@@ -48,6 +48,9 @@ static const char rcsid[] =
 #else
 #include <varargs.h>
 #endif
+#if DEBUG == 2
+#include <errno.h>
+#endif
 
 #include "shell.h"
 #include "parser.h"
