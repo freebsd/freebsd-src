@@ -136,7 +136,10 @@ ihfc_ph_data_req(int unit, struct mbuf *m, int freeflag)
 	else
 	{
 		NDBGL1(L1_ERROR, "No frame out (unit = %d)", unit);
-		i4b_Dfreembuf(m);
+		if (m) i4b_Dfreembuf(m);
+
+		HFC_END;
+		return 0;
 	}
 
 	if (S_INTR_ACTIVE) S_INT_S1 |= 0x04;
