@@ -22,9 +22,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -68,7 +73,7 @@ main(int argc, char **argv)
 		}
 	}
 	if (argc > 1)
-		fprintf(stderr, "Unknown Subcommand.\n");
+		warnx("unknown subcommand");
 	return help_main(argc, argv);
 }
 
@@ -77,9 +82,8 @@ help_main(int argc, char **argv)
 {
 	int     i;
 
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\t%s <subcommand> <arg> ...\n", argv[0]);
-	fprintf(stderr, "Subcommands:\n");
+	fprintf(stderr, "usage: pccardc <subcommand> <arg> ...\n");
+	fprintf(stderr, "subcommands:\n");
 	for (i = 0; subcommands[i].name; i++)
 		fprintf(stderr, "\t%s\n\t\t%s\n",
 		    subcommands[i].name, subcommands[i].help);
