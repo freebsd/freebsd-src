@@ -89,7 +89,7 @@ sflag_print()
 #define	MAXREALNAME	20
 #define MAXHOSTNAME     17      /* in reality, hosts are never longer than 16 */
 	(void)printf("%-*s %-*s%s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
-	    "Name", " TTY  Idle  Login  Time",
+	    "Name", " TTY  Idle  Login  Time ", (gflag) ? "" :
 	    oflag ? "Office  Phone" : "Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
@@ -143,7 +143,10 @@ sflag_print()
 				(void)strftime(p, sizeof(p), "%R", lc);
 			}
 			(void)printf(" %-5.5s", p);
-office:			if (oflag) {
+office:
+			if (gflag)
+				goto no_gecos;
+			if (oflag) {
 				if (pn->office)
 					(void)printf(" %-7.7s", pn->office);
 				else if (pn->officephone)
@@ -153,6 +156,7 @@ office:			if (oflag) {
 					    prphone(pn->officephone));
 			} else
 				(void)printf(" %.*s", MAXHOSTNAME, w->host);
+no_gecos:
 			putchar('\n');
 		}
 	}
