@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_device.h,v 1.2 1994/09/01 02:01:41 se Exp $
+**  $Id: pci_device.h,v 2.0.0.3 94/09/15 19:23:53 wolf Exp $
 **
 **  #define   for pci based device drivers
 **
@@ -33,23 +33,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log: pci_device.h,v $
- * Revision 1.2  1994/09/01  02:01:41  se
- * Submitted by:	Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
- * Merged in changes required for NetBSD support (by mycroft@gnu.ai.mit.edu)
- * and support for multiple NCR chips.
- *
-**  Revision 2.0.0.1  94/08/18  23:06:43  wolf
-**  Copyright message.
-**  
-**  Revision 2.0  94/07/10  15:53:31  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.0  94/06/07  20:02:22  wolf
-**  Beta release.
-**  
-***************************************************************************
 */
 
 #ifndef __PCI_DEVICE_H__
@@ -66,8 +49,7 @@ struct pci_driver {
     int     (*probe )(pcici_t pci_ident);   /* test whether device is present */
     int     (*attach)(pcici_t pci_ident);   /* setup driver for a device */
     pcidi_t device_id;			    /* device pci id */
-    char    *name;			    /* device name */
-    char    *vendor;			    /* device long name */
+    char    *name;			    /* device (long) name */
     int     (*intr)(int);                   /* interupt handler */
 };
 
@@ -81,15 +63,20 @@ struct pci_driver {
 **  This is a first attempt to include the pci bus to 386bsd.
 **  So this structure may grow ..
 **
+**  Extended by Garrett Wollman <wollman@halloran-eldar.lcs.mit.edu>
+**  for future loadable drivers .
+**
 **-----------------------------------------------------------
 */
 
 struct pci_device {
-	struct pci_driver * pd_driver;
-	pcidi_t pd_device_id;			    /* device pci id */
-	const char *pd_name;	/* for future loadable drivers */
-	int pd_flags;
+	struct
+	pci_driver*	pd_driver;
+	pcidi_t		pd_device_id;	/* device pci id */
+	const char *	pd_name;	/* for future loadable drivers */
+	int		pd_flags;
 };
+
 #define PDF_LOADABLE	0x01
 #define PDF_COVERED	0x02
 

@@ -1,14 +1,16 @@
 /**************************************************************************
 **
-**  $Id: pcibios.h,v 1.2 1994/09/01 02:01:45 se Exp $
+**  $Id: pcibios.h,v 2.0.0.2 94/09/15 19:55:26 wolf Exp $
 **
-**  #define   for pci-bus bios functions.
+**  #define	for pci-bus bios functions.
+**  #define	for pci configuration space registers.
 **
 **  386bsd / FreeBSD
 **
 **-------------------------------------------------------------------------
 **
 ** Copyright (c) 1994 Wolfgang Stanglmeier.  All rights reserved.
+** Copyright (c) 1994 Charles Hannum.  All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
@@ -33,26 +35,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log: pcibios.h,v $
- * Revision 1.2  1994/09/01  02:01:45  se
- * Submitted by:	Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
- * Merged in changes required for NetBSD support (by mycroft@gnu.ai.mit.edu)
- * and support for multiple NCR chips.
- *
-**  Revision 2.0.0.1  94/08/18  23:05:36  wolf
-**  
-**  Copyright message.
-**  New function: pci_last_bus().
-**  Symbolic names for pci configuration space registers.
-**  
-**  Revision 2.0  94/07/10  15:53:32  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.0  94/06/07  20:02:23  wolf
-**  Beta release.
-**  
-***************************************************************************
 */
 
 #ifndef __PCIBIOS_H__
@@ -89,40 +71,117 @@ u_long pci_conf_read  (pcici_t tag, u_long reg		   );
 void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 
 
-/*
+/*------------------------------------------------------------------
+**
 **	Names for PCI configuration space registers.
-**	Copied from pcireg.h
+**
+**	Copyright (c) 1994 Charles Hannum.  All rights reserved.
+**
+**------------------------------------------------------------------
 */
 
+/*
+ * Device identification register; contains a vendor ID and a device ID.
+ * We have little need to distinguish the two parts.
+ */
 #define	PCI_ID_REG			0x00
 
+/*
+ * Command and status register.
+ */
 #define	PCI_COMMAND_STATUS_REG		0x04
+
+#define	PCI_COMMAND_IO_ENABLE		0x00000001
 #define	PCI_COMMAND_MEM_ENABLE		0x00000002
+#define	PCI_COMMAND_MASTER_ENABLE	0x00000004
+#define	PCI_COMMAND_SPECIAL_ENABLE	0x00000008
+#define	PCI_COMMAND_INVALIDATE_ENABLE	0x00000010
+#define	PCI_COMMAND_PALETTE_ENABLE	0x00000020
+#define	PCI_COMMAND_PARITY_ENABLE	0x00000040
+#define	PCI_COMMAND_STEPPING_ENABLE	0x00000080
+#define	PCI_COMMAND_SERR_ENABLE		0x00000100
+#define	PCI_COMMAND_BACKTOBACK_ENABLE	0x00000200
 
-#define PCI_CLASS_REV_REG		0x08
-#define PCI_MAJCLASS_OF(x)		(((x) >> 24) & 0xff)
-#define PCI_MINCLASS_OF(x)		(((x) >> 16) & 0xff)
-#define PCI_PROGINT_OF(x)		(((x) >>  8) & 0xff)
-#define PCI_REV_OF(x)			((x) & 0xff)
-enum pci_majclass { PCI_MJC_OLD = 0, PCI_MJC_STOR, PCI_MJC_NET,
-		      PCI_MJC_DISPLAY, PCI_MJC_MEDIA, PCI_MJC_MEM,
-		      PCI_MJC_BRIDGE };
-enum pci_old_minclass { PCI_MIN_OLD = 0, PCI_MIN_OVGA };
-enum pci_stor_minclass { PCI_MIN_SCSI = 0, PCI_MIN_IDE, PCI_MIN_FLOP,
-			   PCI_MIN_IPI, PCI_MIN_OSTOR };
-enum pci_net_minclass { PCI_MIN_ETHER = 0, PCI_MIN_TOKEN, PCI_MIN_FDDI,
-			  PCI_MIN_ONET };
-enum pci_disp_minclass { PCI_MIN_VGA = 0, PCI_MIN_XGA, PCI_MIN_ODISP };
-enum pci_media_minclass { PCI_MIN_VIDEO = 0, PCI_MIN_AUDIO, PCI_MIN_OMEDIA };
-enum pci_mem_minclass { PCI_MIN_RAM = 0, PCI_MIN_FLASH, PCI_MIN_OMEM };
-enum pci_bridge_minclass { PCI_MIN_HOST = 0, PCI_MIN_ISA, PCI_MIN_EISA,
-			     PCI_MIN_MC, PCI_MIN_PCI, PCI_MIN_PCMCIA,
-			     PCI_MIN_OBRIDGE };
+#define	PCI_STATUS_BACKTOBACK_OKAY	0x00800000
+#define	PCI_STATUS_PARITY_ERROR		0x01000000
+#define	PCI_STATUS_DEVSEL_FAST		0x00000000
+#define	PCI_STATUS_DEVSEL_MEDIUM	0x02000000
+#define	PCI_STATUS_DEVSEL_SLOW		0x04000000
+#define	PCI_STATUS_DEVSEL_MASK		0x06000000
+#define	PCI_STATUS_TARGET_TARGET_ABORT	0x08000000
+#define	PCI_STATUS_MASTER_TARGET_ABORT	0x10000000
+#define	PCI_STATUS_MASTER_ABORT		0x20000000
+#define	PCI_STATUS_SPECIAL_ERROR	0x40000000
+#define	PCI_STATUS_PARITY_DETECT	0x80000000
 
+/*
+ * Class register; defines basic type of device.
+ */
+#define	PCI_CLASS_REG			0x08
+
+#define	PCI_CLASS_MASK			0xff000000
+#define	PCI_SUBCLASS_MASK		0x00ff0000
+
+/* base classes */
+#define	PCI_CLASS_PREHISTORIC		0x00000000
+#define	PCI_CLASS_MASS_STORAGE		0x01000000
+#define	PCI_CLASS_NETWORK		0x02000000
+#define	PCI_CLASS_DISPLAY		0x03000000
+#define	PCI_CLASS_MULTIMEDIA		0x04000000
+#define	PCI_CLASS_MEMORY		0x05000000
+#define	PCI_CLASS_BRIDGE		0x06000000
+#define	PCI_CLASS_UNDEFINED		0xff000000
+
+/* 0x00 prehistoric subclasses */
+#define	PCI_SUBCLASS_PREHISTORIC_MISC	0x00000000
+#define	PCI_SUBCLASS_PREHISTORIC_VGA	0x00010000
+
+/* 0x01 mass storage subclasses */
+#define	PCI_SUBCLASS_MASS_STORAGE_SCSI	0x00000000
+#define	PCI_SUBCLASS_MASS_STORAGE_IDE	0x00010000
+#define	PCI_SUBCLASS_MASS_STORAGE_FLOPPY	0x00020000
+#define	PCI_SUBCLASS_MASS_STORAGE_IPI	0x00030000
+#define	PCI_SUBCLASS_MASS_STORAGE_MISC	0x00800000
+
+/* 0x02 network subclasses */
+#define	PCI_SUBCLASS_NETWORK_ETHERNET	0x00000000
+#define	PCI_SUBCLASS_NETWORK_TOKENRING	0x00010000
+#define	PCI_SUBCLASS_NETWORK_FDDI	0x00020000
+#define	PCI_SUBCLASS_NETWORK_MISC	0x00800000
+
+/* 0x03 display subclasses */
+#define	PCI_SUBCLASS_DISPLAY_VGA	0x00000000
+#define	PCI_SUBCLASS_DISPLAY_XGA	0x00010000
+#define	PCI_SUBCLASS_DISPLAY_MISC	0x00800000
+
+/* 0x04 multimedia subclasses */
+#define	PCI_SUBCLASS_MULTIMEDIA_VIDEO	0x00000000
+#define	PCI_SUBCLASS_MULTIMEDIA_AUDIO	0x00010000
+#define	PCI_SUBCLASS_MULTIMEDIA_MISC	0x00800000
+
+/* 0x05 memory subclasses */
+#define	PCI_SUBCLASS_MEMORY_RAM		0x00000000
+#define	PCI_SUBCLASS_MEMORY_FLASH	0x00010000
+#define	PCI_SUBCLASS_MEMORY_MISC	0x00800000
+
+/* 0x06 bridge subclasses */
+#define	PCI_SUBCLASS_BRIDGE_HOST	0x00000000
+#define	PCI_SUBCLASS_BRIDGE_ISA		0x00010000
+#define	PCI_SUBCLASS_BRIDGE_EISA	0x00020000
+#define	PCI_SUBCLASS_BRIDGE_MC		0x00030000
+#define	PCI_SUBCLASS_BRIDGE_PCI		0x00040000
+#define	PCI_SUBCLASS_BRIDGE_PCMCIA	0x00050000
+#define	PCI_SUBCLASS_BRIDGE_MISC	0x00800000
+
+/*
+ * Mapping registers
+ */
 #define	PCI_MAP_REG_START		0x10
 #define	PCI_MAP_REG_END			0x28
+
 #define	PCI_MAP_MEMORY			0x00000000
 #define	PCI_MAP_IO			0x00000001
+
 #define	PCI_MAP_MEMORY_TYPE_32BIT	0x00000000
 #define	PCI_MAP_MEMORY_TYPE_32BIT_1M	0x00000002
 #define	PCI_MAP_MEMORY_TYPE_64BIT	0x00000004
@@ -130,10 +189,21 @@ enum pci_bridge_minclass { PCI_MIN_HOST = 0, PCI_MIN_ISA, PCI_MIN_EISA,
 #define	PCI_MAP_MEMORY_CACHABLE		0x00000008
 #define	PCI_MAP_MEMORY_ADDRESS_MASK	0xfffffff0
 
+/*
+ * Interrupt configuration register
+ */
 #define	PCI_INTERRUPT_REG		0x3c
+
 #define	PCI_INTERRUPT_PIN_MASK		0x0000ff00
 #define	PCI_INTERRUPT_PIN_EXTRACT(x)	((((x) & PCI_INTERRUPT_PIN_MASK) >> 8) & 0xff)
+#define	PCI_INTERRUPT_PIN_NONE		0x00
+#define	PCI_INTERRUPT_PIN_A		0x01
+#define	PCI_INTERRUPT_PIN_B		0x02
+#define	PCI_INTERRUPT_PIN_C		0x03
+#define	PCI_INTERRUPT_PIN_D		0x04
+
 #define	PCI_INTERRUPT_LINE_MASK		0x000000ff
 #define	PCI_INTERRUPT_LINE_EXTRACT(x)	((((x) & PCI_INTERRUPT_LINE_MASK) >> 0) & 0xff)
+#define	PCI_INTERRUPT_LINE_INSERT(x,v)	(((x) & ~PCI_INTERRUPT_LINE_MASK) | ((v) << 0))
 
 #endif

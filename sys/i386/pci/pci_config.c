@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_config.c,v 1.2 1994/09/01 02:01:39 se Exp $
+**  $Id: pci_config.c,v 2.0.0.4 94/09/15 20:57:49 wolf Exp $
 **
 **  @PCI@ this should be part of "ioconf.c".
 **
@@ -33,24 +33,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log: pci_config.c,v $
- * Revision 1.2  1994/09/01  02:01:39  se
- * Submitted by:	Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
- * Merged in changes required for NetBSD support (by mycroft@gnu.ai.mit.edu)
- * and support for multiple NCR chips.
- *
-**  Revision 2.0.0.1  94/08/18  23:07:28  wolf
-**  Copyright message.
-**  Hook for DEC ethernet driver "de".
-**  
-**  Revision 2.0  94/07/10  15:53:30  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.0  94/06/07  20:04:37  wolf
-**  Beta release.
-**  
-***************************************************************************
 */
 
 #include <sys/types.h>
@@ -59,13 +41,15 @@
 
 #include "ncr.h"
 #if NNCR>0
-extern struct pci_driver ncrdevice;
+extern struct pci_driver ncr810_device;
+extern struct pci_driver ncr825_device;
 #endif
 
 #include "de.h"
 #if NDE > 0
 extern struct pci_driver dedevice;
 #endif
+
 extern struct pci_driver intel82378_device;
 extern struct pci_driver intel82424_device;
 extern struct pci_driver intel82375_device;
@@ -74,19 +58,24 @@ extern struct pci_driver intel82434_device;
 struct pci_device pci_devtab[] = {
 
 #if NNCR>0
-	{&ncrdevice, 0x00011000ul, "ncr", 0},
+	{&ncr810_device, 0x00011000ul, "ncr", 0},
+	{&ncr825_device, 0x00031000ul, "ncr", 0},
 #else
 	{0, 0x00011000ul, "ncr", PDF_LOADABLE},
+	{0, 0x00031000ul, "ncr", PDF_LOADABLE},
 #endif
+
 #if NDE>0
 	{&dedevice, 0x00011011ul, "de", 0}, /* FIXME!!! */
 #else
 	{0, 0x00011011ul, "de", PDF_LOADABLE}, /* FIXME!!! */
 #endif
+
 	{0, 0x10001042ul, "wd", PDF_COVERED},
+
 	{&intel82378_device, 0x04848086, "ichip", 0},
 	{&intel82424_device, 0x04838086, "ichip", 0},
 	{&intel82375_device, 0x04828086, "ichip", 0},
 	{&intel82434_device, 0x04a38086, "ichip", 0},
-	{0, 0, 0}
+	{0, 0, 0, 0}
 };
