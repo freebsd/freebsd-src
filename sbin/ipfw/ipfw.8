@@ -1212,7 +1212,7 @@ dynamic rule for the flow so that packets belonging to that session
 will be allowed through the firewall:
 .Pp
 .Dl "ipfw add check-state"
-.Dl "ipfw add allow tcp from my-subnet to any setup"
+.Dl "ipfw add allow tcp from my-subnet to any setup keep-state"
 .Dl "ipfw add deny tcp from any to any"
 .Pp
 A similar approach can be used for UDP, where an UDP packet coming
@@ -1220,7 +1220,7 @@ from the inside will install a dynamic rule to let the response through
 the firewall:
 .Pp
 .Dl "ipfw add check-state"
-.Dl "ipfw add allow udp from my-subnet to any"
+.Dl "ipfw add allow udp from my-subnet to any keep-state"
 .Dl "ipfw add deny udp from any to any"
 .Pp
 Dynamic rules expire after some time, which depends on the status
