@@ -108,7 +108,7 @@ struct kinfo_proc {
 	pid_t	ki_sid;			/* Process session ID */
 	pid_t	ki_tsid;		/* Terminal session ID */
 	short	ki_jobc;		/* job control counter */
-	udev_t	ki_tdev;		/* controlling tty dev */
+	dev_t	ki_tdev;		/* controlling tty dev */
 	sigset_t ki_siglist;		/* Signals arrived but not delivered */
 	sigset_t ki_sigmask;		/* Current signal mask */
 	sigset_t ki_sigignore;		/* Signals being ignored */

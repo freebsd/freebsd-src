@@ -55,7 +55,7 @@
  * scheme is:  <major><two digit minor><0 if release branch, otherwise 1>xx
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 502116	/* Master, propagated to newvers */
+#define __FreeBSD_version 502117	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -185,13 +185,8 @@
 #define	NBPW	sizeof(int)	/* number of bytes per word (integer) */
 
 #define	CMASK	022		/* default file mask: S_IWGRP|S_IWOTH */
-#ifdef _KERNEL
-#define	NOUDEV	(udev_t)(-1)	/* non-existent device */
-#define	NOMAJ	256		/* non-existent device */
-#define	NODEV	NULL		/* non-existent device */
-#else
+
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
-#endif
 
 #define	CBLOCK	128		/* Clist block size, must be a power of 2. */
 #define CBQSIZE	(CBLOCK/NBBY)	/* Quote bytes/cblock - can do better. */

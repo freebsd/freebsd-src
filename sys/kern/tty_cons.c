@@ -103,7 +103,7 @@ static STAILQ_HEAD(, cn_device) cn_devlist =
 	(cnd == NULL || cnd->cnd_vp == NULL ||				\
 	    (cnd->cnd_vp->v_type == VBAD && !cn_devopen(cnd, td, 1)))
 
-static udev_t	cn_udev_t;
+static dev_t	cn_udev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
 	&cn_udev_t, sizeof cn_udev_t, "T,struct cdev *", "");
 
@@ -371,9 +371,9 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (ocn_mute && !cn_mute && cn_is_open)
-		error = cnopen(NODEV, openflag, 0, curthread);
+		error = cnopen(NULL, openflag, 0, curthread);
 	else if (!ocn_mute && cn_mute && cn_is_open) {
-		error = cnclose(NODEV, openflag, 0, curthread);
+		error = cnclose(NULL, openflag, 0, curthread);
 		cn_is_open = 1;		/* XXX hack */
 	}
 	return (error);

@@ -186,7 +186,7 @@ static void coda_fbsd_clone(arg, name, namelen, dev)
 {
     int u;
 
-    if (*dev != NODEV)
+    if (*dev != NULL)
 	return;
     if (dev_stdclone(name,NULL,"cfs",&u) != 1)
 	return;

@@ -316,11 +316,10 @@ void	wakeup_one(void *chan) __nonnull(1);
 
 int major(struct cdev *x);
 int minor(struct cdev *x);
-udev_t dev2udev(struct cdev *x);
-struct cdev *udev2dev(udev_t x);
-int uminor(udev_t dev);
-int umajor(udev_t dev);
-udev_t makeudev(int x, int y);
+dev_t dev2udev(struct cdev *x);
+struct cdev *findcdev(dev_t x);
+int uminor(dev_t dev);
+int umajor(dev_t dev);
 
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);

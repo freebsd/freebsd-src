@@ -144,7 +144,7 @@ spec_open(ap)
 	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
 		return (ENXIO);
 
-	if (dev == NODEV)
+	if (dev == NULL)
 		return (ENXIO);
 
 	dsw = devsw(dev);

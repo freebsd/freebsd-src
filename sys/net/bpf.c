@@ -1578,7 +1578,7 @@ bpf_clone(arg, name, namelen, dev)
 {
 	int u;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (dev_stdclone(name, NULL, "bpf", &u) != 1)
 		return;

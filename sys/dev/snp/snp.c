@@ -406,7 +406,7 @@ snpopen(dev, flag, mode, td)
 	 * snp_tty == NULL  is for inactive snoop devices.
 	 */
 	snp->snp_tty = NULL;
-	snp->snp_target = NODEV;
+	snp->snp_target = NULL;
 
 	LIST_INSERT_HEAD(&snp_sclist, snp, snp_list);
 	return (0);
@@ -439,7 +439,7 @@ snp_detach(snp)
 		printf("snp%d: bad attached tty data\n", snp->snp_unit);
 
 	snp->snp_tty = NULL;
-	snp->snp_target = NODEV;
+	snp->snp_target = NULL;
 
 detach_notty:
 	selwakeuppri(&snp->snp_sel, PZERO + 1);
@@ -500,8 +500,8 @@ snpioctl(dev, cmd, data, flags, td)
 	snp = dev->si_drv1;
 	switch (cmd) {
 	case SNPSTTY:
-		tdev = udev2dev(*((udev_t *)data));
-		if (tdev == NODEV)
+		tdev = findcdev(*((dev_t *)data));
+		if (tdev == NULL)
 			return (snp_down(snp));
 
 		tp = snpdevtotty(tdev);
@@ -512,7 +512,7 @@ snpioctl(dev, cmd, data, flags, td)
 
 		s = spltty();
 
-		if (snp->snp_target == NODEV) {
+		if (snp->snp_target == NULL) {
 			tpo = snp->snp_tty;
 			if (tpo)
 				tpo->t_state &= ~TS_SNOOP;
@@ -540,7 +540,7 @@ snpioctl(dev, cmd, data, flags, td)
 		 * SNPGTTY happy, else we can't know what is device
 		 * major/minor for tty.
 		 */
-		*((udev_t *)data) = dev2udev(snp->snp_target);
+		*((dev_t *)data) = dev2udev(snp->snp_target);
 		break;
 
 	case FIONBIO:
@@ -609,7 +609,7 @@ snp_clone(arg, name, namelen, dev)
 {
 	int u, i;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (dev_stdclone(name, NULL, "snp", &u) != 1)
 		return;

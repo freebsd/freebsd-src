@@ -149,7 +149,7 @@ USB_ATTACH(ubtbcmfw)
 	USB_ATTACH_SETUP;
 	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
-	sc->sc_ctrl_dev = sc->sc_intr_in_dev = sc->sc_bulk_out_dev = NODEV;
+	sc->sc_ctrl_dev = sc->sc_intr_in_dev = sc->sc_bulk_out_dev = NULL;
 	sc->sc_intr_in_pipe = sc->sc_bulk_out_pipe = NULL;
 	sc->sc_flags = sc->sc_refcnt = sc->sc_dying = 0;
 
@@ -229,19 +229,19 @@ USB_DETACH(ubtbcmfw)
 	}
 
 	/* Destroy device nodes */
-	if (sc->sc_bulk_out_dev != NODEV) {
+	if (sc->sc_bulk_out_dev != NULL) {
 		destroy_dev(sc->sc_bulk_out_dev);
-		sc->sc_bulk_out_dev = NODEV;
+		sc->sc_bulk_out_dev = NULL;
 	}
 
-	if (sc->sc_intr_in_dev != NODEV) {
+	if (sc->sc_intr_in_dev != NULL) {
 		destroy_dev(sc->sc_intr_in_dev);
-		sc->sc_intr_in_dev = NODEV;
+		sc->sc_intr_in_dev = NULL;
 	}
 
-	if (sc->sc_ctrl_dev != NODEV) {
+	if (sc->sc_ctrl_dev != NULL) {
 		destroy_dev(sc->sc_ctrl_dev);
-		sc->sc_ctrl_dev = NODEV;
+		sc->sc_ctrl_dev = NULL;
 	}
 
 	/* Close pipes */

@@ -285,7 +285,7 @@ acct_process(td)
 	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)
 		acct.ac_tty = dev2udev(p->p_pgrp->pg_session->s_ttyp->t_dev);
 	else
-		acct.ac_tty = NOUDEV;
+		acct.ac_tty = NODEV;
 	SESS_UNLOCK(p->p_session);
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */

@@ -2622,7 +2622,7 @@ sc_change_cursor_shape(scr_stat *scp, int flags, int base, int height)
     }
 
     for (i = sc->first_vty; i < sc->first_vty + sc->vtys; ++i) {
-	if ((dev = SC_DEV(sc, i)) == NODEV)
+	if ((dev = SC_DEV(sc, i)) == NULL)
 	    continue;
 	if ((scp = sc_get_stat(dev)) == NULL)
 	    continue;
