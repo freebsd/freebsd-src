@@ -93,8 +93,7 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		/* Trap invalid actions: */
 		default:
 			/* Return an invalid argument: */
-			errno = EINVAL;
-			ret = -1;
+			ret = EINVAL;
 			break;
 		}
 		SIG_CANTMASK(curthread->sigmask);
