@@ -3715,11 +3715,8 @@ revoke(td, uap)
 		if (error)
 			goto out;
 	}
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-		goto out;
 	if (vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
-	vn_finished_write(mp);
 out:
 	vrele(vp);
 	return (error);
