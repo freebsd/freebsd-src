@@ -28,12 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <sys/types.h>
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -77,7 +77,7 @@ ray_printhex(u_int8_t *d, char *s, int len)
     	int i;
 
 	if (2 * len + strlen(s) * (len - 1) > sizeof(buf) - 1)
-		err(1, "Byte string too long");
+		errx(1, "byte string too long");
 
 	sprintf(buf, "%02x", *d);
 	for (p = buf + 2, i = 1; i < len; i++)
