@@ -431,7 +431,11 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
  */
 
 #define MEMO_SHIFT	4	/* 16 bytes minimum memory chunk */
+#ifndef __amd64__
 #define MEMO_PAGE_ORDER	0	/* 1 PAGE  maximum */
+#else
+#define MEMO_PAGE_ORDER	1	/* 2 PAGEs maximum on amd64 */
+#endif
 #if 0
 #define MEMO_FREE_UNUSED	/* Free unused pages immediately */
 #endif
@@ -440,8 +444,14 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
 #define MEMO_CLUSTER_SIZE	(1UL << MEMO_CLUSTER_SHIFT)
 #define MEMO_CLUSTER_MASK	(MEMO_CLUSTER_SIZE-1)
 
+#ifndef __amd64__
 #define get_pages()		malloc(MEMO_CLUSTER_SIZE, M_DEVBUF, M_NOWAIT)
 #define free_pages(p)		free((p), M_DEVBUF)
+#else
+#define get_pages()		contigmalloc(MEMO_CLUSTER_SIZE, M_DEVBUF, \
+				    0, 0, 1LL << 32, PAGE_SIZE, 1LL << 32)
+#define free_pages(p)		contigfree((p), MEMO_CLUSTER_SIZE, M_DEVBUF)
+#endif
 
 typedef u_long m_addr_t;	/* Enough bits to bit-hack addresses */
 
