@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.21 1995/05/28 03:04:58 jkh Exp $
+ * $Id: media.c,v 1.22 1995/05/29 11:01:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -232,7 +232,6 @@ mediaSetFTP(char *str)
     static Device ftpDevice;
     char *cp;
 
-    tcpDeviceSelect(NULL);
     dmenuOpenSimple(&MenuMediaFTP);
     cp = getenv("ftp");
     if (!cp)
@@ -244,9 +243,9 @@ mediaSetFTP(char *str)
 	else
 	    variable_set2("ftp", cp);
     }
-
+    tcpDeviceSelect(NULL);
     strcpy(ftpDevice.name, cp);
-    ftpDevice.type = DEVICE_TYPE_NETWORK;
+    ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
     ftpDevice.close = mediaCloseFTP;
@@ -282,12 +281,13 @@ mediaSetNFS(char *str)
     val = msgGetInput(NULL, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
     if (!val)
 	return 0;
-    strcpy(nfsDevice.name, "nfs");
+    tcpDeviceSelect(NULL);
+    strncpy(nfsDevice.name, val, DEV_NAME_MAX);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
     nfsDevice.shutdown = mediaShutdownNFS;
-    nfsDevice.private = strdup(val);
+    nfsDevice.private = mediaDevice;
     mediaDevice = &nfsDevice;
     return 1;
 }
