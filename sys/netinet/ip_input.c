@@ -43,11 +43,13 @@
 #include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 #include "opt_pfil_hooks.h"
 #include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
@@ -693,6 +695,9 @@ ours:
 			if (ip->ip_id == fp->ipq_id &&
 			    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
 			    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
+#ifdef MAC
+			    mac_fragment_match(m, fp) &&
+#endif
 			    ip->ip_p == fp->ipq_p)
 				goto found;
 
@@ -902,6 +907,10 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 		if ((t = m_get(M_DONTWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
+#ifdef MAC
+		mac_init_ipq(fp);
+		mac_create_ipq(m, fp);
+#endif
 		TAILQ_INSERT_HEAD(head, fp, ipq_list);
 		nipq++;
 		fp->ipq_ttl = IPFRAGTTL;
@@ -916,6 +925,10 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 		fp->ipq_div_cookie = 0;
 #endif
 		goto inserted;
+	} else {
+#ifdef MAC
+		mac_update_ipq(m, fp);
+#endif
 	}
 
 #define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
@@ -1028,6 +1041,10 @@ inserted:
 		m->m_pkthdr.csum_data += q->m_pkthdr.csum_data;
 		m_cat(m, q);
 	}
+#ifdef MAC
+	mac_create_datagram_from_ipq(fp, m);
+	mac_destroy_ipq(fp);
+#endif
 
 #ifdef IPDIVERT
 	/*
