@@ -64,9 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <amd64/ia32/ia32_util.h>
-#include <amd64/ia32/ia32_proto.h>
-#include <amd64/ia32/ia32_signal.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/ia32/ia32_signal.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
@@ -101,15 +101,16 @@ struct sysentvec ia32_freebsd_sysvec = {
 	MINSIGSTKSZ,
 	PAGE_SIZE,
 	0,
-	IA32_USRSTACK,
-	IA32_USRSTACK,
-	IA32_PS_STRINGS,
+	FREEBSD32_USRSTACK,
+	FREEBSD32_USRSTACK,
+	FREEBSD32_PS_STRINGS,
 	VM_PROT_ALL,
 	ia32_copyout_strings,
 	ia32_setregs
 };
 
 
+const char freebsd32_emul_path[] = "/compat/ia32";
 
 static Elf32_Brandinfo ia32_brand_info = {
 						ELFOSABI_FREEBSD,
@@ -132,14 +133,14 @@ ia32_copyout_strings(struct image_params *imgp)
 	u_int32_t *vectp;
 	char *stringp, *destp;
 	u_int32_t *stack_base;
-	struct ia32_ps_strings *arginfo;
+	struct freebsd32_ps_strings *arginfo;
 	int szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
-	arginfo = (struct ia32_ps_strings *)IA32_PS_STRINGS;
+	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));

@@ -44,6 +44,10 @@ struct freebsd32_ps_strings {
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
+#if defined(__amd64__) || defined(__ia64__)
+#include <compat/ia32/ia32_util.h>
+#endif
+
 #define FREEBSD32_PS_STRINGS	\
 	(FREEBSD32_USRSTACK - sizeof(struct freebsd32_ps_strings))
 
