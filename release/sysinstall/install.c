@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.33 1995/06/05 16:59:08 jkh Exp $
+ * $Id: install.c,v 1.70.2.34 1995/06/05 17:10:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -293,7 +293,7 @@ installCommit(char *str)
 
     msgNotify("Resurrecting /dev entries for slices..");
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!dev)
+    if (!devs)
 	msgFatal("Couldn't get a disk device list!");
     /* Resurrect the slices that the former clobbered */
     for (i = 0; devs[i]; i++) {
