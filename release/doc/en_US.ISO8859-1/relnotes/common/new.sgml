@@ -90,7 +90,7 @@
 
   <para>Typical release note items
     document recent security advisories issued after
-    &release.prev.historic;,
+    &release.prev;,
     new drivers or hardware support, new commands or options,
     major bug fixes, or contributed software upgrades.  They may also
     list changes to major ports/packages or release engineering
