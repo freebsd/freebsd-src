@@ -179,14 +179,14 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 
 #define ENDPTS6_EQ(a, b) (memcmp(a, b, sizeof(*a)) == 0)
 
-#define SYNCACHE_TIMEOUT(sc, slot) do {					\
-	sc->sc_rxtslot = slot;						\
-	sc->sc_rxttime = ticks + TCPTV_RTOBASE * tcp_backoff[slot];	\
-	TAILQ_INSERT_TAIL(&tcp_syncache.timerq[slot], sc, sc_timerq);	\
-	if (!callout_active(&tcp_syncache.tt_timerq[slot]))		\
-		callout_reset(&tcp_syncache.tt_timerq[slot],		\
-		    TCPTV_RTOBASE * tcp_backoff[slot],			\
-		    syncache_timer, (void *)((intptr_t)slot));		\
+#define SYNCACHE_TIMEOUT(sc, slot) do {				\
+	sc->sc_rxtslot = (slot);					\
+	sc->sc_rxttime = ticks + TCPTV_RTOBASE * tcp_backoff[(slot)];	\
+	TAILQ_INSERT_TAIL(&tcp_syncache.timerq[(slot)], sc, sc_timerq);	\
+	if (!callout_active(&tcp_syncache.tt_timerq[(slot)]))		\
+		callout_reset(&tcp_syncache.tt_timerq[(slot)],		\
+		    TCPTV_RTOBASE * tcp_backoff[(slot)],		\
+		    syncache_timer, (void *)((intptr_t)(slot)));	\
 } while (0)
 
 static void

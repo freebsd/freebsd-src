@@ -2044,14 +2044,14 @@ struct vpd_key {
 	bus_space_read_4(sc->bge_btag, sc->bge_bhandle, reg)
 
 #define BGE_SETBIT(sc, reg, x)	\
-	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) | x))
+	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) | (x)))
 #define BGE_CLRBIT(sc, reg, x)	\
-	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) & ~x))
+	CSR_WRITE_4(sc, reg, (CSR_READ_4(sc, reg) & ~(x)))
 
 #define PCI_SETBIT(dev, reg, x, s)	\
-	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) | x), s)
+	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) | (x)), s)
 #define PCI_CLRBIT(dev, reg, x, s)	\
-	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) & ~x), s)
+	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) & ~(x)), s)
 
 /*
  * Memory management stuff. Note: the SSLOTS, MSLOTS and JSLOTS

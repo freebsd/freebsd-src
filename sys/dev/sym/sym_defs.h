@@ -798,10 +798,10 @@ struct sym_tblsel {
 #define SCR_DSA_REL2	0x10000000
 
 #define SCR_LOAD_R(reg, how, n) \
-        (0xe1000000 | how | (SCR_REG_OFS2(REG(reg))) | (n))
+        (0xe1000000 | (how) | (SCR_REG_OFS2(REG(reg))) | (n))
 
 #define SCR_STORE_R(reg, how, n) \
-        (0xe0000000 | how | (SCR_REG_OFS2(REG(reg))) | (n))
+        (0xe0000000 | (how) | (SCR_REG_OFS2(REG(reg))) | (n))
 
 #define SCR_LOAD_ABS(reg, n)	SCR_LOAD_R(reg, SCR_NO_FLUSH2, n)
 #define SCR_LOAD_REL(reg, n)	SCR_LOAD_R(reg, SCR_NO_FLUSH2|SCR_DSA_REL2, n)

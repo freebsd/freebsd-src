@@ -148,8 +148,8 @@ static int      my_list_rx_init(struct my_softc *);
 static int      my_list_tx_init(struct my_softc *);
 static long     my_send_cmd_to_phy(struct my_softc *, int, int);
 
-#define MY_SETBIT(sc, reg, x) CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
-#define MY_CLRBIT(sc, reg, x) CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) & ~x)
+#define MY_SETBIT(sc, reg, x) CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
+#define MY_CLRBIT(sc, reg, x) CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) & ~(x))
 
 static device_method_t my_methods[] = {
 	/* Device interface */
