@@ -92,7 +92,7 @@ _thread_init(void)
 	int		mib[2];
 	struct clockinfo clockinfo;
 	struct sigaction act;
-	struct itimerval itimer;
+	struct sigaltstack alt;
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
@@ -133,7 +133,7 @@ _thread_init(void)
 
 	/*
 	 * Create a pipe that is written to by the signal handler to prevent
-	 * signals being missed in calls to _select: 
+	 * signals being missed in calls to _select:
 	 */
 	if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
 		/* Cannot create pipe, so abort: */
@@ -168,12 +168,12 @@ _thread_init(void)
 	else if ((_thread_initial = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
 		/*
 		 * Insufficient memory to initialise this application, so
-		 * abort: 
+		 * abort:
 		 */
 		PANIC("Cannot allocate memory for initial thread");
 	}
 	/* Allocate memory for the scheduler stack: */
-	else if ((_thread_kern_sched_stack = malloc(PAGE_SIZE * 10)) == NULL)
+	else if ((_thread_kern_sched_stack = malloc(SCHED_STACK_SIZE)) == NULL)
 		PANIC("Failed to allocate stack for scheduler");
 	else {
 		/* Zero the global kernel thread structure: */
@@ -217,8 +217,8 @@ _thread_init(void)
 
 		/* Setup the context for the scheduler: */
 		_setjmp(_thread_kern_sched_jb);
-		SET_STACK_JB(_thread_kern_sched_jb,
-		    _thread_kern_sched_stack + PAGE_SIZE*10 - sizeof(double));
+		SET_STACK_JB(_thread_kern_sched_jb, _thread_kern_sched_stack +
+		    SCHED_STACK_SIZE - sizeof(double));
 		SET_RETURN_ADDR_JB(_thread_kern_sched_jb, _thread_kern_scheduler);
 
 		/*
@@ -253,12 +253,9 @@ _thread_init(void)
 		/* Initialize last active: */
 		_thread_initial->last_active = (long) _sched_ticks;
 
-		/* Initialize the initial signal frame: */
-		_thread_initial->sigframes[0] = &_thread_initial->sigframe0;
-		_thread_initial->curframe = &_thread_initial->sigframe0;
-		_thread_initial->curframe->ctxtype = CTX_JB_NOSIG;
-		/* Set the base of the stack: */
-		_thread_initial->curframe->stackp = (unsigned long) USRSTACK;
+		/* Initialize the initial context: */
+		_thread_initial->curframe = NULL;
+		_thread_initial->ctxtype = CTX_JB_NOSIG;
 
 		/* Initialise the rest of the fields: */
 		_thread_initial->poll_data.nfds = 0;
@@ -276,13 +273,20 @@ _thread_init(void)
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
 		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_SIGINFO;
+		act.sa_flags = SA_SIGINFO | SA_ONSTACK;
 
 		/* Clear pending signals for the process: */
 		sigemptyset(&_process_sigpending);
 
 		/* Clear the signal queue: */
 		memset(_thread_sigq, 0, sizeof(_thread_sigq));
+
+		/* Create and install an alternate signal stack: */
+		alt.ss_sp = malloc(SIGSTKSZ);	/* recommended stack size */
+		alt.ss_size = SIGSTKSZ;
+		alt.ss_flags = 0;
+		if (_thread_sys_sigaltstack(&alt, NULL) != 0)
+			PANIC("Unable to install alternate signal stack");
 
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
@@ -295,7 +299,7 @@ _thread_init(void)
 			    &_thread_sigact[i - 1]) != 0) {
 				/*
 				 * Abort this process if signal
-				 * initialisation fails: 
+				 * initialisation fails:
 				 */
 				PANIC("Cannot read signal handler info");
 			}
@@ -313,7 +317,7 @@ _thread_init(void)
 		    _thread_sys_sigaction(SIGINFO,       &act, NULL) != 0 ||
 		    _thread_sys_sigaction(SIGCHLD,       &act, NULL) != 0) {
 			/*
-			 * Abort this process if signal initialisation fails: 
+			 * Abort this process if signal initialisation fails:
 			 */
 			PANIC("Cannot initialise signal handler");
 		}
@@ -335,7 +339,7 @@ _thread_init(void)
 		if ((_thread_dtablesize = getdtablesize()) < 0) {
 			/*
 			 * Cannot get the system defined table size, so abort
-			 * this process. 
+			 * this process.
 			 */
 			PANIC("Cannot get dtablesize");
 		}
@@ -346,7 +350,7 @@ _thread_init(void)
 
 			/*
 			 * Cannot allocate memory for the file descriptor
-			 * table, so abort this process. 
+			 * table, so abort this process.
 			 */
 			PANIC("Cannot allocate memory for file descriptor table");
 		}
@@ -354,13 +358,13 @@ _thread_init(void)
 		if ((_thread_pfd_table = (struct pollfd *) malloc(sizeof(struct pollfd) * _thread_dtablesize)) == NULL) {
 			/*
 			 * Cannot allocate memory for the file descriptor
-			 * table, so abort this process. 
+			 * table, so abort this process.
 			 */
 			PANIC("Cannot allocate memory for pollfd table");
 		} else {
 			/*
 			 * Enter a loop to initialise the file descriptor
-			 * table: 
+			 * table:
 			 */
 			for (i = 0; i < _thread_dtablesize; i++) {
 				/* Initialise the file descriptor table: */
@@ -374,14 +378,6 @@ _thread_init(void)
 					PANIC("Cannot initialize stdio file "
 					    "descriptor table entry");
 			}
-
-			/* Install the scheduling timer: */
-			itimer.it_interval.tv_sec = 0;
-			itimer.it_interval.tv_usec = _clock_res_usec;
-			itimer.it_value = itimer.it_interval;
-			if (setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL) != 0)
-				PANIC("Cannot set interval timer");
-
 		}
 	}
 
@@ -401,10 +397,10 @@ _thread_init(void)
 }
 
 /*
- * Special start up code for NetBSD/Alpha 
+ * Special start up code for NetBSD/Alpha
  */
 #if	defined(__NetBSD__) && defined(__alpha__)
-int 
+int
 main(int argc, char *argv[], char *env);
 
 int

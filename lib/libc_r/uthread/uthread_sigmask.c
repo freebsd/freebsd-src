@@ -81,6 +81,9 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 			break;
 		}
 
+		/* Increment the sequence number: */
+		_thread_run->sigmask_seqno++;
+
 		/*
 		 * Check if there are pending signals for the running
 		 * thread or process that aren't blocked:

@@ -60,7 +60,7 @@
 #endif
 
 /* Static function prototype definitions: */
-static void 
+static void
 thread_kern_poll(int wait_reqd);
 
 static void
@@ -77,7 +77,7 @@ static int	last_tick = 0;
  * return to a previous frame.
  */
 void
-_thread_kern_sched_frame(int frame)
+_thread_kern_sched_frame(struct pthread_signal_frame *psf)
 {
 	/*
 	 * Flag the pthread kernel as executing scheduler code
@@ -86,13 +86,8 @@ _thread_kern_sched_frame(int frame)
 	 */
 	_thread_kern_in_sched = 1;
 
-	/* Return to the specified frame: */
-	_thread_run->curframe = _thread_run->sigframes[frame];
-	_thread_run->sigframe_count = frame;
-
-	if (_thread_run->sigframe_count == 0)
-		/* Restore the threads priority: */
-		_thread_run->active_priority &= ~PTHREAD_SIGNAL_PRIORITY;
+	/* Restore the signal frame: */
+	_thread_sigframe_restore(_thread_run, psf);
 
 	/* Switch to the thread scheduler: */
 	___longjmp(_thread_kern_sched_jb, 1);
@@ -127,16 +122,16 @@ _thread_kern_sched(ucontext_t *scp)
 		_thread_kern_scheduler();
 	} else {
 		/* Save the state of the current thread: */
-		if (_setjmp(_thread_run->curframe->ctx.jb) == 0) {
+		if (_setjmp(_thread_run->ctx.jb) == 0) {
 			/* Flag the jump buffer was the last state saved: */
-			_thread_run->curframe->ctxtype = CTX_JB_NOSIG;
-			_thread_run->curframe->longjmp_val = 1;
+			_thread_run->ctxtype = CTX_JB_NOSIG;
+			_thread_run->longjmp_val = 1;
 		} else {
 			DBG_MSG("Returned from ___longjmp, thread %p\n",
 			    _thread_run);
 			/*
 			 * This point is reached when a longjmp() is called
-			 * to restore the state of a thread. 
+			 * to restore the state of a thread.
 			 *
 			 * This is the normal way out of the scheduler.
 			 */
@@ -147,7 +142,7 @@ _thread_kern_sched(ucontext_t *scp)
 				    PTHREAD_AT_CANCEL_POINT) == 0) &&
 				    ((_thread_run->cancelflags &
 				    PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
-					/* 
+					/*
 					 * Cancellations override signals.
 					 *
 					 * Stick a cancellation point at the
@@ -183,7 +178,6 @@ _thread_kern_sched_sig(void)
 void
 _thread_kern_scheduler(void)
 {
-	struct pthread_signal_frame *psf;
 	struct timespec	ts;
 	struct timeval	tv;
 	pthread_t	pthread, pthread_h;
@@ -205,7 +199,7 @@ _thread_kern_scheduler(void)
 	 * ready to run. This loop completes when there are no more threads
 	 * in the global list or when a thread has its state restored by
 	 * either a sigreturn (if the state was saved as a sigcontext) or a
-	 * longjmp (if the state was saved by a setjmp). 
+	 * longjmp (if the state was saved by a setjmp).
 	 */
 	while (!(TAILQ_EMPTY(&_thread_list))) {
 		/* Get the current time of day: */
@@ -229,7 +223,7 @@ _thread_kern_scheduler(void)
 			if (_thread_run->state != PS_RUNNING) {
 				/*
 				 * Save the current time as the time that the
-				 * thread became inactive: 
+				 * thread became inactive:
 				 */
 				_thread_run->last_inactive = (long)current_tick;
 				if (_thread_run->last_inactive <
@@ -266,7 +260,7 @@ _thread_kern_scheduler(void)
 
 			/*
 			 * States which do not depend on file descriptor I/O
-			 * operations or timeouts: 
+			 * operations or timeouts:
 			 */
 			case PS_DEADLOCK:
 			case PS_FDLR_WAIT:
@@ -326,10 +320,16 @@ _thread_kern_scheduler(void)
 		}
 
 		/*
+		 * Avoid polling file descriptors if there are none
+		 * waiting:
+		 */
+		if (TAILQ_EMPTY(&_workq) == 0) {
+		}
+		/*
 		 * Poll file descriptors only if a new scheduling signal
 		 * has occurred or if we have no more runnable threads.
 		 */
-		if (((current_tick = _sched_ticks) != last_tick) ||
+		else if (((current_tick = _sched_ticks) != last_tick) ||
 		    ((_thread_run->state != PS_RUNNING) &&
 		    (PTHREAD_PRIOQ_FIRST() == NULL))) {
 			/* Unprotect the scheduling queues: */
@@ -337,7 +337,7 @@ _thread_kern_scheduler(void)
 
 			/*
 			 * Poll file descriptors to update the state of threads
-			 * waiting on file I/O where data may be available: 
+			 * waiting on file I/O where data may be available:
 			 */
 			thread_kern_poll(0);
 
@@ -392,7 +392,7 @@ _thread_kern_scheduler(void)
 		if (add_to_prioq != 0) {
 			/*
 			 * Save the current time as the time that the
-			 * thread became inactive: 
+			 * thread became inactive:
 			 */
 			current_tick = _sched_ticks;
 			_thread_run->last_inactive = (long)current_tick;
@@ -445,7 +445,7 @@ _thread_kern_scheduler(void)
 			/*
 			 * Lock the pthread kernel by changing the pointer to
 			 * the running thread to point to the global kernel
-			 * thread structure: 
+			 * thread structure:
 			 */
 			_thread_run = &_thread_kern_thread;
 			DBG_MSG("No runnable threads, using kernel thread %p\n",
@@ -456,7 +456,7 @@ _thread_kern_scheduler(void)
 
 			/*
 			 * There are no threads ready to run, so wait until
-			 * something happens that changes this condition: 
+			 * something happens that changes this condition:
 			 */
 			thread_kern_poll(1);
 
@@ -524,7 +524,7 @@ _thread_kern_scheduler(void)
 
 			/*
 			 * Save the current time as the time that the thread
-			 * became active: 
+			 * became active:
 			 */
 			current_tick = _sched_ticks;
 			_thread_run->last_active = (long) current_tick;
@@ -532,7 +532,7 @@ _thread_kern_scheduler(void)
 			/*
 			 * Check if this thread is running for the first time
 			 * or running again after using its full time slice
-			 * allocation: 
+			 * allocation:
 			 */
 			if (_thread_run->slice_usec == -1) {
 				/* Reset the accumulated time slice period: */
@@ -551,36 +551,39 @@ _thread_kern_scheduler(void)
 			/*
 			 * Continue the thread at its current frame:
 			 */
-			psf = _thread_run->curframe;
-			switch(psf->ctxtype) {
+			switch(_thread_run->ctxtype) {
 			case CTX_JB_NOSIG:
-				___longjmp(psf->ctx.jb, psf->longjmp_val);
+				___longjmp(_thread_run->ctx.jb,
+				    _thread_run->longjmp_val);
 				break;
 			case CTX_JB:
-				__longjmp(psf->ctx.jb, psf->longjmp_val);
+				__longjmp(_thread_run->ctx.jb,
+				    _thread_run->longjmp_val);
 				break;
 			case CTX_SJB:
-				__siglongjmp(psf->ctx.sigjb, psf->longjmp_val);
+				__siglongjmp(_thread_run->ctx.sigjb,
+				    _thread_run->longjmp_val);
 				break;
 			case CTX_UC:
 				/* XXX - Restore FP regsisters? */
-				FP_RESTORE_UC(&psf->ctx.uc);
+				FP_RESTORE_UC(&_thread_run->ctx.uc);
 
 				/*
 				 * Do a sigreturn to restart the thread that
-				 * was interrupted by a signal: 
+				 * was interrupted by a signal:
 				 */
 				_thread_kern_in_sched = 0;
 
 #if NOT_YET
-				_setcontext(&psf->ctx.uc);
+				_setcontext(&_thread_run->ctx.uc);
 #else
 				/*
 				 * Ensure the process signal mask is set
 				 * correctly:
 				 */
-				psf->ctx.uc.uc_sigmask = _process_sigmask;
-				_thread_sys_sigreturn(&psf->ctx.uc);
+				_thread_run->ctx.uc.uc_sigmask =
+				    _process_sigmask;
+				_thread_sys_sigreturn(&_thread_run->ctx.uc);
 #endif
 				break;
 			}
@@ -800,14 +803,14 @@ thread_kern_poll(int wait_reqd)
 
 	/*
 	 * Wait for a file descriptor to be ready for read, write, or
-	 * an exception, or a timeout to occur: 
+	 * an exception, or a timeout to occur:
 	 */
 	count = _thread_sys_poll(_thread_pfd_table, nfds, timeout_ms);
 
 	if (kern_pipe_added != 0)
 		/*
 		 * Remove the pthread kernel pipe file descriptor
-		 * from the pollfd table: 
+		 * from the pollfd table:
 		 */
 		nfds = 1;
 	else
@@ -821,7 +824,7 @@ thread_kern_poll(int wait_reqd)
 	    (_thread_pfd_table[0].revents & POLLRDNORM))) {
 		/*
 		 * If the kernel read pipe was included in the
-		 * count: 
+		 * count:
 		 */
 		if (count > 0) {
 			/* Decrement the count of file descriptors: */
@@ -843,7 +846,7 @@ thread_kern_poll(int wait_reqd)
 		/*
 		 * Enter a loop to look for threads waiting on file
 		 * descriptors that are flagged as available by the
-		 * _poll syscall: 
+		 * _poll syscall:
 		 */
 		PTHREAD_WAITQ_SETACTIVE();
 		TAILQ_FOREACH(pthread, &_workq, qe) {
@@ -986,7 +989,7 @@ _thread_kern_set_timeout(const struct timespec * timeout)
 	if (timeout == NULL) {
 		/*
 		 * Set the wakeup time to something that can be recognised as
-		 * different to an actual time of day: 
+		 * different to an actual time of day:
 		 */
 		_thread_run->wakeup_time.tv_sec = -1;
 		_thread_run->wakeup_time.tv_nsec = -1;
@@ -1042,7 +1045,7 @@ _thread_kern_sig_undefer(void)
 		if (_sigq_check_reqd != 0)
 			_thread_kern_sched(NULL);
 
-		/* 
+		/*
 		 * Check for asynchronous cancellation before delivering any
 		 * pending signals:
 		 */
@@ -1071,7 +1074,7 @@ dequeue_signals(void)
 	int	num;
 
 	/*
-	 * Enter a loop to clear the pthread kernel pipe: 
+	 * Enter a loop to clear the pthread kernel pipe:
 	 */
 	while (((num = _thread_sys_read(_thread_kern_pipe[0], bufr,
 	    sizeof(bufr))) > 0) || (num == -1 && errno == EINTR)) {
