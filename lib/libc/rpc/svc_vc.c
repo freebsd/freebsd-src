@@ -357,10 +357,10 @@ again:
 	cd->maxrec = r->maxrec;
 
 	if (cd->maxrec != 0) {
-		flags = fcntl(sock, F_GETFL, 0);
+		flags = _fcntl(sock, F_GETFL, 0);
 		if (flags  == -1)
 			return (FALSE);
-		if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
+		if (_fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
 			return (FALSE);
 		if (cd->recvsize > cd->maxrec)
 			cd->recvsize = cd->maxrec;
@@ -488,7 +488,7 @@ read_vc(xprtp, buf, len)
 	cfp = (struct cf_conn *)xprt->xp_p1;
 
 	if (cfp->nonblock) {
-		len = read(sock, buf, (size_t)len);
+		len = _read(sock, buf, (size_t)len);
 		if (len < 0) {
 			if (errno == EAGAIN)
 				len = 0;
@@ -527,7 +527,7 @@ read_vc(xprtp, buf, len)
 		} else
 			goto fatal_err;
 	} else {
-		if ((len = read(sock, buf, (size_t)len)) > 0) {
+		if ((len = _read(sock, buf, (size_t)len)) > 0) {
 			gettimeofday(&cfp->last_recv_time, NULL);
 			return (len);
 		}
