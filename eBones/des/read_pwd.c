@@ -3,7 +3,7 @@
 /* 06-Apr-92 Luke Brennan    Support for VMS */
 
 /*-
- *	$Id: read_pwd.c,v 1.2 1994/07/19 19:22:05 g89r4222 Exp $
+ *	$Id: read_pwd.c,v 1.1.1.1 1994/09/30 14:49:51 csgr Exp $
  */
 
 #include "des_locl.h"
@@ -115,7 +115,7 @@ int des_read_pw_string(buf, length, prompt, verify)
 		s = getpass(prompt);
 		strncpy(buf, s, len);
 		if(verify) {
-			printf("\nVerifying password"); fflush(stdout);
+			printf("Verifying password\n"); fflush(stdout);
 			if(strncmp(getpass(prompt), buf, len) != 0) {
 				printf("\nVerify failure - try again\n");
 				fflush(stdout);
