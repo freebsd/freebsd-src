@@ -104,9 +104,9 @@ __FBSDID("$FreeBSD$");
 #define BIG_NEWFS_FRAG   2048U
 #define BIG_NEWFS_CPG    64U
 
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__)
 #define	NUMBOOT	2
-#elif defined(__alpha__) || defined(__powerpc__)
+#elif defined(__alpha__)
 #define	NUMBOOT	1
 #else
 #error	I do not know about this architecture.
@@ -557,7 +557,7 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	 * 1. One-piece bootstrap (alpha)
 	 *	up to d_bbsize bytes of ``xxboot'' go in bootarea, the rest
 	 *	is remembered and written later following the bootarea.
-	 * 2. Two-piece bootstraps (i386/ia64)
+	 * 2. Two-piece bootstraps (i386)
 	 *	up to d_secsize bytes of ``xxboot'' go in first d_secsize
 	 *	bytes of bootarea, remaining d_bbsize-d_secsize filled
 	 *	from ``bootxx''.
