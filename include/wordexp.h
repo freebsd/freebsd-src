@@ -38,11 +38,11 @@ typedef	__size_t	size_t;
 #endif
 
 typedef struct {
-	size_t	we_wordc;		/* count of words matched */
-	char	**we_wordv;		/* pointer to list of words */
-	size_t	we_offs;		/* slots to reserve in we_wordv */
-	char	*we_strings;		/* storage for wordv strings */
-	size_t	we_nbytes;		/* size of we_strings */
+	__size_t	we_wordc;	/* count of words matched */
+	char		**we_wordv;	/* pointer to list of words */
+	__size_t	we_offs;	/* slots to reserve in we_wordv */
+	char		*we_strings;	/* storage for wordv strings */
+	__size_t	we_nbytes;	/* size of we_strings */
 } wordexp_t;
 
 /*
