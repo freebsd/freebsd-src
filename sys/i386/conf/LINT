@@ -2322,6 +2322,8 @@ device		ukbd
 device		ulpt
 # USB Iomega Zip 100 Drive
 device		umass
+# USB modem support
+device		umodem
 # USB mouse
 device		ums
 #
