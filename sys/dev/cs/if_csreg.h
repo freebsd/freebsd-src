@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+#define CS_89x0_IO_PORTS	0x0020
+
 #define PP_ChipID 0x0000	/* offset   0h -> Corp -ID              */
 				/* offset   2h -> Model/Product Number  */
 				/* offset   3h -> Chip Revision Number  */

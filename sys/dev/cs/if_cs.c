@@ -33,18 +33,25 @@
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
  */
 
-/* #define	 CS_DEBUG */
-#include "cs.h"
+/*
+#define	 CS_DEBUG 
+ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/sockio.h>
-#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -53,17 +60,15 @@
 
 #include <net/bpf.h>
 
+#include <isa/isavar.h>
+
+#ifdef BRIDGE
+#include <net/bridge.h>
+#endif
+
 #include <machine/clock.h>
 
-#include <i386/isa/isa_device.h>
-#include <i386/isa/if_csreg.h>
-
-/* #include "pnp.h" */
-#define NPNP 0
-
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
+#include <dev/cs/if_csreg.h>
 
 #ifdef  CS_USE_64K_DMA
 #define CS_DMA_BUFFER_SIZE 65536
@@ -74,7 +79,7 @@
 /*
  * cs_softc: per line info and status
  */
-static struct cs_softc {
+struct cs_softc {
 
         /* Ethernet common code */
         struct arpcom arpcom;
@@ -87,36 +92,49 @@ static struct cs_softc {
 
         struct ifmedia media;		/* Media information */
 
-        int nic_addr; 			/* Base IO address of card */
-	int send_cmd;
-        int line_ctl;                   /* */
-        int send_underrun;
-        void *recv_ring;
+	int     port_rid;		/* resource id for port range */
+	int     port_used;		/* nonzero if ports used */
+	struct resource* port_res;	/* resource for port range */
+	int     mem_rid;  		/* resource id for memory range */
+        int     mem_used;  		/* nonzero if memory used */
+	struct resource* mem_res;	/* resource for memory range */
+        int     irq_rid;		/* resource id for irq */
+        struct resource* irq_res;	/* resource for irq */
+        void*   irq_handle;		/* handle for irq handler */
+
+        int 	nic_addr; 		/* Base IO address of card */
+	int	send_cmd;
+        int	line_ctl;		/* */
+        int	send_underrun;
+        void	*recv_ring;
 
         unsigned char *buffer;
         int buf_len;
-
-} cs_softc[NCS];
-
-#if NPNP > 0
-static u_long	cs_unit = NCS;
-#endif
+};
 
 static int	cs_recv_delay = 570;
 SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "");
 
+static int	cs_isa_probe		__P((device_t dev));
+static int	cs_isa_attach		__P((device_t dev));
+
+static int	cs_cs89x0_probe		__P((device_t dev));
+
+driver_intr_t	csintr;
+
 static int	cs_attach		__P((struct cs_softc *, int, int));
-static int	cs_attach_isa		__P((struct isa_device *));
+
 static void	cs_init			__P((void *));
-static ointhand2_t	csintr;
 static int	cs_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static int	cs_probe		__P((struct isa_device *));
-static int	cs_cs89x0_probe		__P((struct cs_softc *,
-					 u_int *, int *, int, int, int));
 static void	cs_start		__P((struct ifnet *));
 static void	cs_stop			__P((struct cs_softc *));
 static void	cs_reset		__P((struct cs_softc *));
 static void	cs_watchdog		__P((struct ifnet *));
+
+static int	cs_alloc_port(device_t dev, int rid, int size);
+static int	cs_alloc_memory(device_t dev, int rid, int size);
+static int	cs_alloc_irq(device_t dev, int rid, int flags);
+static void	cs_release_resources(device_t dev);
 
 static int	cs_mediachange	__P((struct ifnet *));
 static void	cs_mediastatus	__P((struct ifnet *, struct ifmediareq *));
@@ -137,12 +155,22 @@ static int	enable_aui(struct cs_softc *);
 static int	enable_bnc(struct cs_softc *);
 static int      cs_duplex_auto(struct cs_softc *);
 
-struct isa_driver csdriver = {
-	cs_probe,
-	cs_attach_isa,
-	CS_NAME,
-	0
+static device_method_t cs_methods[] = {
+        /* Device interface */
+        DEVMETHOD(device_probe,         cs_isa_probe),
+        DEVMETHOD(device_attach,        cs_isa_attach),
+        { 0, 0 }
 };
+
+static driver_t cs_driver = {
+        "cs",
+        cs_methods,
+        sizeof(struct cs_softc)
+};
+
+static devclass_t cs_devclass;
+
+DRIVER_MODULE(cs, isa, cs_driver, cs_devclass, 0, 0);
 
 static int
 get_eeprom_data( struct cs_softc *sc, int off, int len, int *buffer)
@@ -336,30 +364,42 @@ enable_bnc(struct cs_softc *sc)
 }
 
 static int
-cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
-			int *dev_drq, int iobase, int unit, int flags)
+cs_cs89x0_probe(device_t dev)
 {
+	int i;
+	int iobase;
+	int error;
+
+	u_long irq, junk;
+
+	struct cs_softc *sc = device_get_softc(dev);
+
 	unsigned rev_type = 0;
-	int i, irq=0;
+	char chip_revision;
 	int eeprom_buff[CHKSUM_LEN];
 	int chip_type, pp_isaint, pp_isadma;
-	char chip_revision;
+
+	error = cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
+	if (error)
+		return (error);
+
+	iobase=rman_get_start(sc->port_res);
 
 	if ((inw(iobase+ADD_PORT) & ADD_MASK) != ADD_SIG) {
 		/* Chip not detected. Let's try to reset it */
 		if (bootverbose)
-			printf(CS_NAME"%1d: trying to reset the chip.\n", unit);
+			device_printf(dev, "trying to reset the chip.\n");
 		outw(iobase+ADD_PORT, PP_SelfCTL);
 		i = inw(iobase+DATA_PORT);
 		outw(iobase+ADD_PORT, PP_SelfCTL);
 		outw(iobase+DATA_PORT, i | POWER_ON_RESET);
 		if ((inw(iobase+ADD_PORT) & ADD_MASK) != ADD_SIG)
-			return 0;
+			return (ENXIO);
 	}
 
 	outw(iobase+ADD_PORT, PP_ChipID);
 	if (inw(iobase+DATA_PORT) != CHIP_EISA_ID_SIG)
-		return 0;
+		return (ENXIO);
 
 	rev_type = cs_readreg(iobase, PRODUCT_ID_ADD);
 	chip_type = rev_type & ~REVISON_BITS;
@@ -367,6 +407,7 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
 
 	sc->nic_addr = iobase;
 	sc->chip_type = chip_type;
+
 	if(chip_type==CS8900) {
 		pp_isaint = PP_CS8900_ISAINT;
 		pp_isadma = PP_CS8900_ISADMA;
@@ -385,19 +426,23 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
         sc->isa_config   = 0;
         
 	/*
-	 * EEPROM
+	 * If no interrupt specified (or "?"), use what the board tells us.
+	 */
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &irq, &junk);
+
+	/*
+	 * Get data from EEPROM
 	 */
 	if((cs_readreg(iobase, PP_SelfST) & EEPROM_PRESENT) == 0) {
-		printf(CS_NAME"%1d: No EEPROM, assuming defaults.\n",
-			unit);
+		device_printf(dev, "No EEPROM, assuming defaults.\n");
 	} else {
 		if (get_eeprom_data(sc,START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
-			 printf(CS_NAME"%1d: EEPROM read failed, "
-				"assuming defaults..\n", unit);
+			device_printf(dev, "EEPROM read failed, "
+				"assuming defaults.\n");
 		} else {
 			if (get_eeprom_cksum(START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
-				printf( CS_NAME"%1d: EEPROM cheksum bad, "
-					"assuming defaults..\n", unit );
+				device_printf(dev, "EEPROM cheksum bad, "
+					"assuming defaults.\n");
 			} else {
                                 sc->auto_neg_cnf =
                                         eeprom_buff[AUTO_NEG_CNF_OFFSET/2];
@@ -417,48 +462,77 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
                                  * If no interrupt specified (or "?"),
                                  * use what the board tells us.
                                  */
-                                if (*dev_irq <= 0) {
-                                        irq = sc->isa_config & INT_NO_MASK;
+				if (error) {
+					irq = sc->isa_config & INT_NO_MASK;
                                         if (chip_type==CS8900) {
-						switch(irq) {
-                                                case 0: irq=10; break;
-                                                case 1: irq=11; break;
-                                                case 2: irq=12; break;
-                                                case 3: irq=5;  break;
-                                                default: printf(CS_NAME"%1d: invalid irq in EEPROM.\n",unit);
-						}
-						if (irq!=0)
-							*dev_irq=(u_short)(1<<irq);
+                                                switch(irq) {
+						 case 0:
+							irq=10;
+							error=0;
+							break;
+						 case 1:
+							irq=11;
+							error=0;
+							break;
+						 case 2:
+							irq=12;
+							error=0;
+							break;
+						 case 3:
+							irq=5;
+							error=0;
+							break;
+						 default:
+							device_printf(dev, "invalid irq in EEPROM.\n");
+							error=EINVAL;
+                                                }
 					} else {
-						if (irq!=0 && irq<=CS8920_NO_INTS)
-							*dev_irq=(u_short)(1<<irq);
+						if (irq>CS8920_NO_INTS) {
+							device_printf(dev, "invalid irq in EEPROM.\n");
+							error=EINVAL;
+						} else {
+							error=0;
+						}
 					}
-                                }
+
+					if (!error)
+						bus_set_resource(dev, SYS_RES_IRQ, 0,
+								irq, 1);
+				}
 			}
                 }
         }
 
-        if ((irq=ffs(*dev_irq))) {
-                irq--;
+	if (!error) {
                 if (chip_type == CS8900) {
 			switch(irq) {
-                        case  5: irq = 3; break;
-                        case 10: irq = 0; break;
-                        case 11: irq = 1; break;
-                        case 12: irq = 2; break;
-                        default: printf(CS_NAME"%1d: invalid irq\n", unit);
-                                return 0;
+				case  5:
+					irq = 3;
+					break;
+				case 10:
+					irq = 0;
+					break;
+				case 11:
+					irq = 1;
+					break;
+				case 12:
+					irq = 2;
+					break;
+				default:
+					error=EINVAL;
 			}
                 } else {
                         if (irq > CS8920_NO_INTS) {
-                                printf(CS_NAME"%1d: invalid irq\n", unit);
-                                return 0;
+                                error = EINVAL;
                         }
                 }
+	}
+
+	if (!error) {
                 cs_writereg(iobase, pp_isaint, irq);
 	} else {
-	       	printf(CS_NAME"%1d: invalid irq\n", unit);
-                return 0;
+	       	device_printf(dev, "Unknown or invalid irq\n");
+                return (ENXIO);
         }
         
         /*
@@ -473,18 +547,13 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
         */
 
 	if (bootverbose)
-		 printf(CS_NAME"%1d: model CS89%c0%s rev %c\n"
-			CS_NAME"%1d: media%s%s%s\n"
-			CS_NAME"%1d: irq %d drq %d\n",
-			unit,
+		 device_printf(dev, "CS89%c0%s rev %c media%s%s%s\n",
 			chip_type==CS8900 ? '0' : '2',
 			chip_type==CS8920M ? "M" : "",
 			chip_revision,
-			unit,
 			(sc->adapter_cnf & A_CNF_10B_T) ? " TP"  : "",
 			(sc->adapter_cnf & A_CNF_AUI)   ? " AUI" : "",
-			(sc->adapter_cnf & A_CNF_10B_2) ? " BNC" : "",
-			unit, (int)*dev_irq, (int)*dev_drq);
+			(sc->adapter_cnf & A_CNF_10B_2) ? " BNC" : "");
 
         if ((sc->adapter_cnf & A_CNF_EXTND_10B_2) &&
             (sc->adapter_cnf & A_CNF_LOW_RX_SQUELCH))
@@ -493,32 +562,153 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
                 sc->line_ctl = 0;
 
         
-	return PP_ISAIOB;
+	return 0;
 }
 
 /*
+ * Allocate a port resource with the given resource id.
+ */
+int cs_alloc_port(device_t dev, int rid, int size)
+{
+        struct cs_softc *sc = device_get_softc(dev);
+        struct resource *res;
+
+        res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+                                 0ul, ~0ul, size, RF_ACTIVE);
+        if (res) {
+                sc->port_rid = rid;
+                sc->port_res = res;
+                sc->port_used = size;
+                return (0);
+        } else {
+                return (ENOENT);
+        }
+}
+
+/*
+ * Allocate a memory resource with the given resource id.
+ */
+int cs_alloc_memory(device_t dev, int rid, int size)
+{
+        struct cs_softc *sc = device_get_softc(dev);
+        struct resource *res;
+
+        res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+                                 0ul, ~0ul, size, RF_ACTIVE);
+        if (res) {
+                sc->mem_rid = rid;
+                sc->mem_res = res;
+                sc->mem_used = size;
+                return (0);
+        } else {
+                return (ENOENT);
+        }
+}
+
+/*
+ * Allocate an irq resource with the given resource id.
+ */
+int cs_alloc_irq(device_t dev, int rid, int flags)
+{
+        struct cs_softc *sc = device_get_softc(dev);
+        struct resource *res;
+
+        res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+                                 0ul, ~0ul, 1, (RF_ACTIVE | flags));
+        if (res) {
+                sc->irq_rid = rid;
+                sc->irq_res = res;
+                return (0);
+        } else {
+                return (ENOENT);
+        }
+}
+
+/*
+ * Release all resources
+ */
+void cs_release_resources(device_t dev)
+{
+        struct cs_softc *sc = device_get_softc(dev);
+
+        if (sc->port_res) {
+                bus_release_resource(dev, SYS_RES_IOPORT,
+                                     sc->port_rid, sc->port_res);
+                sc->port_res = 0;
+        }
+        if (sc->mem_res) {
+                bus_release_resource(dev, SYS_RES_MEMORY,
+                                     sc->mem_rid, sc->mem_res);
+                sc->mem_res = 0;
+        }
+        if (sc->irq_res) {
+                bus_release_resource(dev, SYS_RES_IRQ,
+                                     sc->irq_rid, sc->irq_res);
+                sc->irq_res = 0;
+        }
+}
+
+static struct isa_pnp_id cs_ids[] = {
+	{ 0x4060630e, NULL },		/* CSC6040 */
+	{ 0x10104d24, NULL },		/* IBM EtherJet */
+	{ 0, NULL }
+};
+
+/*
  * Determine if the device is present
- *
- *   on entry:
- * 	a pointer to an isa_device struct
- *   on exit:
- *	NULL if device not found
- *	or # of i/o addresses used (if found)
  */
 static int
-cs_probe(struct isa_device *dev)
+cs_isa_probe(device_t dev)
 {
-	int nports;
+	int error = 0;
 
-	struct cs_softc *sc=&cs_softc[dev->id_unit];
+	struct cs_softc *sc = device_get_softc(dev);
 
-	nports=cs_cs89x0_probe(sc, &(dev->id_irq), &(dev->id_drq),
-			(dev->id_iobase), (dev->id_unit), (dev->id_flags));
+	bzero(sc, sizeof(struct cs_softc));
 
-	if (nports)
-		return (nports);
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, cs_ids);
 
-	return (0);
+	/* If the card had a PnP ID that didn't match any we know about */
+	if (error == ENXIO) {
+                goto end;
+        }
+
+        /* If we had some other problem. */
+        if (!(error == 0 || error == ENOENT)) {
+                goto end;
+        } 
+
+	error=cs_cs89x0_probe(dev);
+
+end:
+	if (error == 0)
+                error = cs_alloc_irq(dev, 0, 0);
+
+        cs_release_resources(dev);
+        return (error);
+}
+
+static int cs_isa_attach(device_t dev)
+{
+        struct cs_softc *sc = device_get_softc(dev);
+        int flags = device_get_flags(dev);
+        int error;
+        
+        if (sc->port_used > 0)
+                cs_alloc_port(dev, sc->port_rid, sc->port_used);
+        if (sc->mem_used)
+                cs_alloc_memory(dev, sc->mem_rid, sc->mem_used);
+        cs_alloc_irq(dev, sc->irq_rid, 0);
+                
+        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+                               csintr, sc, &sc->irq_handle);
+        if (error) {
+                cs_release_resources(dev);
+                return (error);
+        }              
+
+        return cs_attach(sc, device_get_unit(dev), flags);
 }
 
 /*
@@ -528,13 +718,14 @@ static int
 cs_attach(struct cs_softc *sc, int unit, int flags)
 {
         int media=0;
-/*	struct cs_softc *sc = &cs_softc[dev->id_unit]; */
 	struct ifnet *ifp = &(sc->arpcom.ac_if);
+
+	cs_stop( sc );
 
 	if (!ifp->if_name) {
 		ifp->if_softc=sc;
 		ifp->if_unit=unit;
-		ifp->if_name=csdriver.name;
+		ifp->if_name="cs";
 		ifp->if_output=ether_output;
 		ifp->if_start=cs_start;
 		ifp->if_ioctl=cs_ioctl;
@@ -610,7 +801,6 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 		cs_mediaset(sc, media);
 
 		if_attach(ifp);
-		cs_stop( sc );
 		ether_ifattach(ifp);
 	}
 
@@ -619,18 +809,7 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 		       ifp->if_unit, sc->arpcom.ac_enaddr, ":");
 
 	bpfattach(ifp, DLT_EN10MB, sizeof (struct ether_header));
-	return 1;
-}
-
-static int
-cs_attach_isa(struct isa_device *dev)
-{
-        int unit=dev->id_unit;
-        struct cs_softc *sc=&cs_softc[unit];
-        int flags=dev->id_flags;
-
-	dev->id_ointr = csintr;
-        return cs_attach(sc, unit, flags);
+	return (0);
 }
 
 /*
@@ -803,15 +982,17 @@ cs_get_packet(struct cs_softc *sc)
 }
 
 /*
- * Software calls interrupt handler
+ * Handle interrupts
  */
-static void
-csintr_sc(struct cs_softc *sc, int unit)
+void
+csintr(void *arg)
 {
+	struct cs_softc *sc = (struct cs_softc*) arg;
 	struct ifnet *ifp = &(sc->arpcom.ac_if);
 	int status;
 
 #ifdef CS_DEBUG
+	int unit = ifp->if_unit;
 	printf(CS_NAME"%1d: Interrupt.\n", unit);
 #endif
 
@@ -861,17 +1042,6 @@ csintr_sc(struct cs_softc *sc, int unit)
         if (!(ifp->if_flags & IFF_OACTIVE)) {
                 cs_start(ifp);
         }
-}
-
-/*
- * Handle interrupts
- */
-static void
-csintr(int unit)
-{
-	struct cs_softc *sc = &cs_softc[unit];
-
-	csintr_sc(sc, unit);
 }
 
 /*
@@ -1064,7 +1234,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	int s,error=0;
 
 #ifdef CS_DEBUG
-	printf(CS_NAME"%d: ioctl(%x)\n",sc->arpcom.ac_if.if_unit,command);
+	printf(CS_NAME"%d: ioctl(%lx)\n",sc->arpcom.ac_if.if_unit,command);
 #endif
 
 	s=splimp();
@@ -1131,7 +1301,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 static void
 cs_watchdog(struct ifnet *ifp)
 {
-	struct cs_softc *sc = &cs_softc[ifp->if_unit];
+	struct cs_softc *sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
 	log(LOG_ERR, CS_NAME"%d: device timeout\n", ifp->if_unit);
@@ -1237,152 +1407,3 @@ cs_mediaset(struct cs_softc *sc, int media)
 
 	return error;
 }
-
-
-#if NPNP > 0
-
-static struct cspnp_ids {
-	u_long	vend_id;
-	char 	*id_str;
-} cspnp_ids[]= {
-	{ 0x4060630e, "CSC6040" },
-	{ 0x10104d24, "IBM EtherJet" },
-	{ 0 }
-};
-
-static char *cs_pnp_probe(u_long, u_long);
-static void cs_pnp_attach(u_long, u_long, char *, struct isa_device *);
-
-struct pnp_device cs_pnp = {
-	"CS8920 based PnP Ethernet",
-	cs_pnp_probe,
-	cs_pnp_attach,
-	&cs_unit,
-	&net_imask	/* imask */
-};
-
-DATA_SET (pnpdevice_set, cs_pnp);
-
-struct csintr_list {
-	struct cs_softc *sc;
-	int unit;
-	struct csintr_list *next;
-};
-
-static struct csintr_list *csintr_head;
-
-static void csintr_pnp_add(struct cs_softc *sc, int unit);
-static void csintr_pnp(int unit);
-
-static void
-csintr_pnp_add(struct cs_softc *sc, int unit)
-{
-    struct csintr_list *intr;
-
-    if (!sc) return;
-
-    intr = malloc (sizeof (*intr), M_DEVBUF, M_WAITOK);
-    if (!intr) return;
-
-    intr->sc = sc;
-    intr->unit = unit;
-    intr->next = csintr_head;
-    csintr_head = intr;
-}
-
-/*
- * Interrupt handler for PNP installed card
- * We have to find the number of the card.
- */
-static void
-csintr_pnp(int unit)
-{
-    struct csintr_list *intr;
-
-    for (intr=csintr_head; intr; intr=intr->next) {
-	    if (intr->unit == unit)
-		csintr_sc(intr->sc, unit);
-		break;
-	}
-}
-
-static char *
-cs_pnp_probe(u_long csn, u_long vend_id)
-{
-    struct cspnp_ids *ids;
-    char	     *s=NULL;
-
-    for(ids = cspnp_ids; ids->vend_id != 0; ids++) {
-	if (vend_id == ids->vend_id) {
-	    s = ids->id_str;
-	    break;
-	}
-    }
-
-    if (s) {
-	struct pnp_cinfo d;
-	int ldn = 0;
-
-	read_pnp_parms(&d, ldn);
-	if (d.enable == 0) {
-	    printf("This is a %s, but LDN %d is disabled\n", s, ldn);
-	    return NULL ;
-	}
-	return s;
-    }
-
-    return NULL ;
-}
-
-static void
-cs_pnp_attach(u_long csn, u_long vend_id, char *name,
-	struct isa_device *dev)
-{
-
-    struct pnp_cinfo d;
-    int	ldn = 0;
-    int iobase, unit, flags;
-    u_int irq;
-    int drq;
-    struct cs_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
-
-    if (read_pnp_parms ( &d , ldn ) == 0 ) {
-	printf("failed to read pnp parms\n");
-	return;
-    }
-
-    write_pnp_parms( &d, ldn );
-    enable_pnp_card();
-
-    iobase = dev->id_iobase = d.port[0];
-    irq = dev->id_irq = (1 << d.irq[0] );
-    drq = dev->id_drq = d.drq[0];
-    dev->id_maddr = 0;
-    dev->id_ointr = csintr_pnp;
-    flags = dev->id_flags = 0;
-    unit = dev->id_unit;
-
-    if (dev->id_driver == NULL) {
-	dev->id_driver = &csdriver;
-	dev->id_id = isa_compat_nextid();
-    }
-
-    if (!sc) return;
-
-    bzero(sc, sizeof *sc);
-    if (cs_cs89x0_probe(sc, &irq, &drq, iobase, unit, flags) == 0
-	|| cs_attach(sc, unit, flags) == 0) {
-	    free(sc, M_DEVBUF);
-    } else {
-	if ((irq != dev->id_irq)
-	    || (drq != dev->id_drq)
-	    || (iobase != dev->id_iobase)
-	    || (unit != dev->id_unit)
-	    || (flags != dev->id_flags)
-		) {
-		printf("failed to pnp card parametars\n");
-	}
-    }
-    csintr_pnp_add(sc, dev->id_unit);
-}
-#endif /* NPNP */
