@@ -346,11 +346,17 @@ ip6_stats(off, name)
 {
 	struct ip6stat ip6stat;
 	int first, i;
+	int mib[4];
+	size_t len;
 
-	if (off == 0)
-		return;
+	mib[0] = CTL_NET;
+	mib[1] = PF_INET6;
+	mib[2] = IPPROTO_IPV6;
+	mib[3] = IPV6CTL_STATS;
 
-	if (kread(off, (char *)&ip6stat, sizeof (ip6stat)))
+	len = sizeof ip6stat;
+	memset(&ip6stat, 0, len);
+	if (sysctl(mib, 4, &ip6stat, &len, (void *)0, 0) < 0)
 		return;
 	printf("%s:\n", name);
 
@@ -816,10 +822,18 @@ icmp6_stats(off, name)
 {
 	struct icmp6stat icmp6stat;
 	register int i, first;
+	int mib[4];
+	size_t len;
 
-	if (off == 0)
+	mib[0] = CTL_NET;
+	mib[1] = PF_INET6;
+	mib[2] = IPPROTO_ICMPV6;
+	mib[3] = ICMPV6CTL_STATS;
+
+	len = sizeof icmp6stat;
+	memset(&icmp6stat, 0, len);
+	if (sysctl(mib, 4, &icmp6stat, &len, (void *)0, 0) < 0)
 		return;
-	kread(off, (char *)&icmp6stat, sizeof (icmp6stat));
 	printf("%s:\n", name);
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
