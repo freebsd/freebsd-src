@@ -82,7 +82,7 @@ int
 rule_main(int ac, char **av)
 {
 	struct cmd *c;
-	char ch;
+	int ch;
 
 	setprogname("devfs rule");
 	optreset = optind = 1;

@@ -59,7 +59,7 @@ main(int ac, char **av)
 {
 	const char *mountpt;
 	struct cmd *c;
-	char ch;
+	int ch;
 
 	mountpt = NULL;
 	while ((ch = getopt(ac, av, "m:")) != -1)

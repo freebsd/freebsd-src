@@ -150,9 +150,9 @@ main(argc, argv)
 	struct passwd *pw;
 	struct group *gr;
 	struct quotaname *auxdata;
-	int i, argnum, maxrun, errs;
+	int i, argnum, maxrun, errs, ch;
 	long done = 0;
-	char ch, *name;
+	char *name;
 
 	errs = maxrun = 0;
 	while ((ch = getopt(argc, argv, "aguvl:")) != -1) {
