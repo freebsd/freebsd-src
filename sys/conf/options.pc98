@@ -208,6 +208,7 @@ LINE30			opt_syscons.h
 DEV_NPX			opt_npx.h
 DEV_APM			opt_apm.h
 DEV_SPLASH		opt_splash.h
+DEV_MECIA		opt_mecia.h
 
 # SMB/CIFS requester
 NETSMB			opt_netsmb.h
