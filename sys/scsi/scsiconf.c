@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.50 1996/02/02 22:57:27 joerg Exp $
+ *      $Id: scsiconf.c,v 1.51 1996/02/02 22:59:47 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -191,6 +191,13 @@ static st_modes mode_tandberg3600 =
 	    {0, 0, QIC_150},				/* minor 8,9,10,11 */
 	    {0, 0, QIC_120}				/* minor 12,13,14,15 */
 	};
+static st_modes mode_tandberg4200 =
+	{
+	    {0, 0, 0},					/* minor 0,1,2,3 */
+	    {0, ST_Q_FORCE_VAR_MODE, 0},		/* minor 4,5,6,7 */
+	    {0, 0, QIC_150},				/* minor 8,9,10,11 */
+	    {0, 0, QIC_120}				/* minor 12,13,14,15 */
+	};
 static st_modes mode_archive2525 =
 	{
 	    {0, ST_Q_SNS_HLP, 0},			/* minor 0,1,2,3 */
@@ -258,6 +265,10 @@ static struct scsidevs knowndevs[] =
 	{
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "TANDBERG", " TDC 3600", "*",
 		"st", SC_ONE_LU, ST_Q_NEEDS_PAGE_0, mode_tandberg3600
+	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "TANDBERG", " TDC 42*", "*",
+		"st", SC_ONE_LU, ST_Q_SNS_HLP|ST_Q_NO_1024, mode_tandberg4200
 	},
 	{
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "VIPER 2525*", "-005",
