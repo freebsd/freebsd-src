@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.85 1998/03/30 08:28:48 jkh Exp $
+#	$Id: Makefile,v 1.246.2.86 1998/05/20 01:08:41 jkh Exp $
 #
 # How to roll a release:
 #
@@ -288,8 +288,8 @@ release.4:
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
-		crunchgen ${.CURDIR}/$${j}_crunch.conf && \
-		${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
+		  crunchgen ${.CURDIR}/$${j}_crunch.conf && \
+		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
@@ -301,7 +301,7 @@ release.4:
 #
 release.5:
 	# Handle some grief caused by the munition braindeadness.
-	for i in sbin/init bin/ed ; do \
+	for i in sbin/init bin/ed usr.sbin/ppp ; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done
