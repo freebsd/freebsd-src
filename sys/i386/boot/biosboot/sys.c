@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.9 1995/05/30 07:58:34 rgrimes Exp $
+ *	$Id: sys.c,v 1.9.4.1 1995/08/23 04:36:42 davidg Exp $
  */
 
 #include "boot.h"
@@ -37,6 +37,8 @@
 
 char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
 #endif
+
+static char biosdrivedigit;
 
 #define BUFSIZE 8192
 #define MAPBUFSIZE BUFSIZE
@@ -164,7 +166,8 @@ int
 openrd(void)
 {
 	char **devp, *cp = name;
-	int ret;
+	int biosdrive, ret;
+
 	/*******************************************************\
 	* If bracket given look for preceding device name	*
 	\*******************************************************/
@@ -176,6 +179,16 @@ openrd(void)
 	}
 	else
 	{
+		/*
+		 * Look for a BIOS drive number (a leading digit followed
+		 * by a colon).
+		 */
+		if (*(name + 1) == ':' && *name >= '0' && *name <= '9') {
+			biosdrivedigit = *name;
+			name += 2;
+		} else
+			biosdrivedigit = '\0';
+
 		if (cp++ != name)
 		{
 			for (devp = devs; *devp; devp++)
@@ -210,25 +223,33 @@ openrd(void)
 		if (!*cp)
 			return 1;
 	}
+	if (biosdrivedigit != '\0')
+		biosdrive = biosdrivedigit - '0';
+	else {
+		biosdrive = unit;
+#if BOOT_HD_BIAS > 0
+		/* XXX */
+		if (maj == 4)
+			biosdrive += BOOT_HD_BIAS;
+#endif
+	}
 	switch(maj)
 	{
-	case 1:
-		dosdev = unit | 0x80;
-		unit = 0;
-		break;
 	case 0:
 	case 4:
-		dosdev = unit | 0x80;
+		dosdev = biosdrive | 0x80;
 		break;
 	case 2:
-		dosdev = unit;
+		dosdev = biosdrive;
 		break;
-	case 3:
-		printf("Wangtek unsupported\n");
+	default:
+		printf("Unknown device\n");
 		return 1;
-		break;
 	}
+	printf("dosdev = %x, biosdrive = %d, unit = %d, maj = %d\n",
+		dosdev, biosdrive, unit, maj);
 	inode.i_dev = dosdev;
+
 	/***********************************************\
 	* Now we know the disk unit and part,		*
 	* Load disk info, (open the device)		*
