@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.7.2.1 1999/03/24 12:45:45 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.7.2.2 1999/03/26 14:19:40 luigi Exp $
  */
 
 /*
@@ -157,7 +157,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 		pipe->numbytes -= len;
 	    }
 	    pipe->r_len--; /* elements in queue */
-	    pipe->r_len_bytes -= ip->ip_len ;
+	    pipe->r_len_bytes -= len ;
 
 	    /*
 	     * to add delay jitter, must act here. A lower value
