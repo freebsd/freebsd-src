@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.10 1997/09/07 01:06:43 brian Exp $
+# $Id: ppp.conf.sample,v 1.5.2.11 1997/09/08 20:23:31 brian Exp $
 #
 #################################################################
 
@@ -46,40 +46,44 @@ multiphone:
  set phone 12345678|12345679:12345670|12345671
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp ocol: ppp"
 
-# If the peer requires to use CHAP, don't forget to supply authname
-# and authkey.
+# If the peer requires that you use CHAP or PAP, you must supply authname
+# and authkey.  Both are "accepted" by default, so you don't have to do
+# any more.
 #
-# If you'd like to use CHAP to authenticate with the peer, comment out
-# the line ``enable chap'' below. You also need to prepare /etc/ppp.secret.
-#
-# If the remote system sends its system name within the CHAP packet and it
-# is found in /etc/ppp.secret, then the secret key is taken from that file
-# and value of authkey specified here is ignored.
-#
-chapsite:
+PAPorCHAPsite:
  set phone 12345678
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
- deny pap
- accept chap
-# enable chap
  set authname MySystemName
  set authkey  OurSecretKey
 
-# Speaking PAP is like speaking CHAP
+# If you want the remote system to authenticate itself, you insist
+# that the peer uses CHAP (or PAP) with the "enable" keyword.  Both CHAP and
+# PAP are disabled by default.
+# When the peer authenticates itself, we use ppp.secret for verification.
 #
-papsite:
- set phone 12345678
- set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
- deny chap
- accept pap
-# enable pap
- set authname MyUserName
- set authkey  MyPassword
+# Ppp is launched with
+#
+#  ppp -direct CHAPserver
+#
+# Note:  We can supply a third field in ppp.secret specifying the IP address
+#        for that user.
+#
+CHAPserver:
+ enable chap
+ enable proxy
+ set ifaddr 192.244.176.44 292.244.184.31
+
+# If we wish to use /etc/passwd, we do this:
+PAPServerwithPASSWD:
+ enable pap
+ enable passwdauth
+ enable proxy
+ set ifaddr 192.244.176.44 292.244.184.31
 
 # On demand dialup example
 #  Here, we assume that local side use 192.244.185.226 and
 #  remote side use 192.244.176.44 as their IP address.
-#  You must supply -auto option to invoke PPP.
+#  You must supply -auto, -ddial or -background option to invoke PPP.
 #
 #  $ ppp -auto ondemand
 #
@@ -133,19 +137,6 @@ direct-server:
  set ifaddr 10.0.4.1 10.0.4.2
  enable lqr
  accept lqr
-
-# Example to validate incoming user with CHAP
-#  Invoke as ``ppp -direct users'' from login script. User's system name
-#  and secret-key must be registered into /etc/ppp.secret.
-#  IP address assigned to peer is registered in ppp.secret, then that
-#  value is used and value in ``ifaddr'' command has no effect.
-#
-users:
- disable pap
- enable chap
- enable  proxy
- set authname ppp-server
- set ifaddr 192.244.176.44 292.244.184.31
 
 # Example of Callback Request
 #
