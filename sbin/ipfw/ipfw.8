@@ -381,8 +381,8 @@ Also note that each packet is always checked against the complete ruleset,
 irrespective of the place where the check occurs, or the source of the packet.
 If a rule contains some match patterns or actions which are not valid
 for the place of invocation (e.g.\& trying to match a MAC header within
-.Cm ip_input()
-), the match pattern will not match, but a
+.Fn ip_input ) ,
+the match pattern will not match, but a
 .Cm not
 operator in front of such patterns
 .Em will
@@ -545,8 +545,8 @@ The logging only occurs if the sysctl variable
 .Em net.inet.ip.fw.verbose
 is set to 1
 (which is the default when the kernel is compiled with
-.Dv IPFIREWALL_VERBOSE
-) and the number of packets logged so far for that
+.Dv IPFIREWALL_VERBOSE )
+and the number of packets logged so far for that
 particular rule does not exceed the
 .Cm logamount
 parameter.
@@ -742,9 +742,9 @@ operator to reverse the result of the match, as in
 .Pp
 .Dl "ipfw add 100 allow ip from not 1.2.3.4 to any"
 .Pp
-Additionally, sets of alternative match patterns (
-.Em or-blocks
-) can be constructed by putting the patterns in
+Additionally, sets of alternative match patterns
+.Pq Em or-blocks
+can be constructed by putting the patterns in
 lists enclosed between parentheses ( ) or braces { }, and
 using the
 .Cm or
@@ -804,8 +804,8 @@ optionally followed by
 .Ar ports
 specifiers.
 .Pp
-The second format (
-.Em or-block
+The second format
+.Em ( or-block
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
@@ -1467,8 +1467,8 @@ a given
 .Em protocol
 between a
 .Em src-ip/src-port dst-ip/dst-port
-pair of addresses (
-.Em src
+pair of addresses
+.Em ( src
 and
 .Em dst
 are used here only to denote the initial match addresses, but they
@@ -1815,9 +1815,8 @@ the packets are dropped.
 A set of
 .Xr sysctl 8
 variables controls the behaviour of the firewall and
-associated modules (
-.Nm dummynet, bridge
-).
+associated modules
+.Pq Nm dummynet , bridge .
 These are shown below together with their default value
 (but always check with the
 .Xr sysctl 8
@@ -1966,8 +1965,7 @@ does not support the -c (compact) flag.
 will silently accept all non-IPv4 packets (which
 .Nm ipfw1
 will only see when
-.Em net.link.ether.bridge_ipfw=1 Ns
-).
+.Em net.link.ether.bridge_ipfw=1 ) .
 .Nm ipfw2
 will filter all packets (including non-IPv4 ones) according to the ruleset.
 To achieve the same behaviour as
