@@ -72,7 +72,7 @@ main(int argc, char **argv)
 	while ((i = getopt(argc, argv, "cI:")) != -1) {
 		switch (i) {
 		case 'c':
-			flag_c = !flag_c;
+			flag_c = 1;
 			break;
 		case 'I':
 			p = NULL;
