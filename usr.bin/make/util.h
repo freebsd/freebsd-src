@@ -84,7 +84,6 @@ void Finish(int);
 char *estrdup(const char *);
 void *emalloc(size_t);
 void *erealloc(void *, size_t);
-void enomem(void);
 int eunlink(const char *);
 
 #endif /* util_h_b7020fdb */
