@@ -183,7 +183,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, d->chancount);
 	/* XXX SND_DEV_NORESET? */
 	d->chancount++;
-    	if (d->chancount == d->maxchans)
+    	if (d->chancount == 1)
 		pcm_makelinks(NULL);
 	return 0;
 }
