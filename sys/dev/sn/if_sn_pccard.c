@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h> 
 #include <net/if_arp.h>
 
+#include <machine/bus.h>
+
 #include <dev/pccard/pccardvar.h>
 #include <dev/sn/if_snvar.h>
 
