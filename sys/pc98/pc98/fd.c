@@ -1936,7 +1936,7 @@ fd_in(struct fdc_data *fdc, int *ptr)
 #endif	/* FDC_DEBUG */
 }
 
-int
+static int
 out_fdc(struct fdc_data *fdc, int x)
 {
 	int i, j, step;
@@ -1964,7 +1964,7 @@ out_fdc(struct fdc_data *fdc, int x)
  * Block device driver interface functions (interspersed with even more
  * auxiliary functions).
  */
-int
+static int
 Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
@@ -2067,7 +2067,7 @@ Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 	return 0;
 }
 
-int
+static int
 fdclose(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
@@ -2080,7 +2080,7 @@ fdclose(dev_t dev, int flags, int mode, struct thread *td)
 	return (0);
 }
 
-void
+static void
 fdstrategy(struct bio *bp)
 {
 	long blknum, nblocks;
