@@ -82,8 +82,8 @@ aic_isa_alloc_resources(device_t dev)
 
 	if (isa_get_irq(dev) != -1) {
 		rid = 0;
-		sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-						0ul, ~0ul, 1, RF_ACTIVE);
+		sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+						    RF_ACTIVE);
 		if (!sc->sc_irq) {
 			device_printf(dev, "IRQ allocation failed\n");
 			aic_isa_release_resources(dev);
@@ -93,8 +93,8 @@ aic_isa_alloc_resources(device_t dev)
 
 	if (isa_get_drq(dev) != -1) {
 		rid = 0;
-		sc->sc_drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
-						0ul, ~0ul, 1, RF_ACTIVE);
+		sc->sc_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ, &rid,
+						    RF_ACTIVE);
 		if (!sc->sc_drq) {
 			device_printf(dev, "DRQ allocation failed\n");
 			aic_isa_release_resources(dev);

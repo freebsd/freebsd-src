@@ -78,14 +78,14 @@ iop_pci_attach(device_t dev)
     /* get resources */
     rid = 0x10;
     sc->r_mem = 
-	bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
+	bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
     if (!sc->r_mem)
 	return 0;
 
     rid = 0x00;
-    sc->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,
-				   1, RF_SHAREABLE | RF_ACTIVE);
+    sc->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+				       RF_SHAREABLE | RF_ACTIVE);
 
     /* now setup the infrastructure to talk to the device */
     pci_write_config(dev, PCIR_COMMAND,

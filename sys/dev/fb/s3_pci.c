@@ -498,8 +498,8 @@ s3pci_attach(device_t dev)
 	sc->enh_sh = rman_get_bushandle(sc->enh_res);
 
 	rid = PCI_BASE_MEMORY;
-	if (!(sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				 0, ~0, 1, RF_ACTIVE))) {
+	if (!(sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+				 RF_ACTIVE))) {
 
 		printf("%s: mem resource allocation failed!\n", __func__);
 		goto error;

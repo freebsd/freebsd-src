@@ -188,7 +188,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	printf("puc: name: %s\n", sc->sc_desc.name);
 #endif
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (!res)
 		return (ENXIO);
@@ -223,13 +223,13 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		type = (sc->sc_desc.ports[i].flags & PUC_FLAGS_MEMORY)
 		    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
 
-		res = bus_alloc_resource(dev, type, &rid, 0ul, ~0ul, 1,
+		res = bus_alloc_resource_any(dev, type, &rid,
 		    RF_ACTIVE);
 		if (res == NULL &&
 		    sc->sc_desc.ports[i].flags & PUC_FLAGS_ALTRES) {
 			type = (type == SYS_RES_IOPORT)
 			    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
-			res = bus_alloc_resource(dev, type, &rid, 0ul, ~0ul, 1,
+			res = bus_alloc_resource_any(dev, type, &rid,
 			    RF_ACTIVE);
 		}
 		if (res == NULL) {

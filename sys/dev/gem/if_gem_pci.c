@@ -175,16 +175,16 @@ gem_pci_attach(dev)
 	sc->sc_pci = 1;		/* XXX */
 
 	gsc->gsc_srid = PCI_GEM_BASEADDR;
-	gsc->gsc_sres = bus_alloc_resource(dev, SYS_RES_MEMORY, &gsc->gsc_srid,
-	    0, ~0, 1, RF_ACTIVE);
+	gsc->gsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &gsc->gsc_srid, RF_ACTIVE);
 	if (gsc->gsc_sres == NULL) {
 		device_printf(dev, "failed to allocate bus space resource\n");
 		return (ENXIO);
 	}
 
 	gsc->gsc_irid = 0;
-	gsc->gsc_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &gsc->gsc_irid, 0,
-	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	gsc->gsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+       	    &gsc->gsc_irid, RF_SHAREABLE | RF_ACTIVE);
 	if (gsc->gsc_ires == NULL) {
 		device_printf(dev, "failed to allocate interrupt resource\n");
 		goto fail_sres;

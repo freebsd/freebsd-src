@@ -314,20 +314,23 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 {
     	int pdma, rdma, ok = 1;
 	if (!mss->io_base)
-    		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
-						  0, ~0, 1, RF_ACTIVE);
+    		mss->io_base = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+						      &mss->io_rid, RF_ACTIVE);
 	if (!mss->irq)
-    		mss->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &mss->irq_rid,
-					      0, ~0, 1, RF_ACTIVE);
+    		mss->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+						  &mss->irq_rid, RF_ACTIVE);
 	if (!mss->drq1)
-    		mss->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ, &mss->drq1_rid,
-					       0, ~0, 1, RF_ACTIVE);
+    		mss->drq1 = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+						   &mss->drq1_rid,
+						   RF_ACTIVE);
     	if (mss->conf_rid >= 0 && !mss->conf_base)
-        	mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->conf_rid,
-						    0, ~0, 1, RF_ACTIVE);
+        	mss->conf_base = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+							&mss->conf_rid,
+							RF_ACTIVE);
     	if (mss->drq2_rid >= 0 && !mss->drq2)
-        	mss->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &mss->drq2_rid,
-					       0, ~0, 1, RF_ACTIVE);
+        	mss->drq2 = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+						   &mss->drq2_rid,
+						   RF_ACTIVE);
 
 	if (!mss->io_base || !mss->drq1 || !mss->irq) ok = 0;
 	if (mss->conf_rid >= 0 && !mss->conf_base) ok = 0;
@@ -705,8 +708,8 @@ mss_init(struct mss_info *mss, device_t dev)
     		/* end of reset */
 
 		rid = 0;
-    		alt = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-    				     0, ~0, 1, RF_ACTIVE);
+    		alt = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+					     RF_ACTIVE);
 		if (alt == NULL) {
 			printf("XXX couldn't init GUS PnP/MAX\n");
 			break;
@@ -1889,8 +1892,7 @@ azt2320_mss_mode(struct mss_info *mss, device_t dev)
 
 	rid = 0;
 	ret = -1;
-	sbport = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				    0, ~0, 1, RF_ACTIVE);
+	sbport = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (sbport) {
 		for (i = 0; i < 1000; i++) {
 			if ((port_rd(sbport, SBDSP_STATUS) & 0x80))

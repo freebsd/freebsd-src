@@ -136,16 +136,16 @@ hfa_alloc (device_t dev)
 	sc = (struct hfa_softc *)device_get_softc(dev);
 	error = 0;
 
-	sc->mem = bus_alloc_resource(dev, sc->mem_type, &sc->mem_rid,
-					   0, ~0, 1, RF_ACTIVE);
+	sc->mem = bus_alloc_resource_any(dev, sc->mem_type, &sc->mem_rid,
+					   RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "Unable to allocate memory resource.\n");
 		error = ENXIO;
 		goto fail;
 	}
 
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+					RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "Unable to allocate interrupt resource.\n");
 		error = ENXIO;

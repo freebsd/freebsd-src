@@ -132,8 +132,7 @@ eeprom_ebus_attach(device_t dev)
 	int rid, error;
 
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0UL, ~0UL, 1,
-	    RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);

@@ -197,11 +197,11 @@ aac_pci_attach(device_t dev)
 	 * Allocate the PCI register window.
 	 */
 	sc->aac_regs_rid = PCIR_BAR(0);
-	if ((sc->aac_regs_resource = bus_alloc_resource(sc->aac_dev,
-							SYS_RES_MEMORY,
-							&sc->aac_regs_rid,
-							0, ~0, 1,
-							RF_ACTIVE)) == NULL) {
+	if ((sc->aac_regs_resource = bus_alloc_resource_any(sc->aac_dev,
+							    SYS_RES_MEMORY,
+							    &sc->aac_regs_rid,
+							    RF_ACTIVE)) ==
+							    NULL) {
 		device_printf(sc->aac_dev,
 			      "couldn't allocate register window\n");
 		goto out;
@@ -213,10 +213,10 @@ aac_pci_attach(device_t dev)
 	 * Allocate and connect our interrupt.
 	 */
 	sc->aac_irq_rid = 0;
-	if ((sc->aac_irq = bus_alloc_resource(sc->aac_dev, SYS_RES_IRQ,
-			   		      &sc->aac_irq_rid, 0, ~0, 1,
-			   		      RF_SHAREABLE |
-					      RF_ACTIVE)) == NULL) {
+	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
+			   			  &sc->aac_irq_rid,
+			   			  RF_SHAREABLE |
+						  RF_ACTIVE)) == NULL) {
 		device_printf(sc->aac_dev, "can't allocate interrupt\n");
 		goto out;
 	}

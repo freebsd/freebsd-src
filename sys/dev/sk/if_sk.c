@@ -1550,8 +1550,7 @@ skc_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = SK_RID;
-	sc->sk_res = bus_alloc_resource(dev, SK_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->sk_res = bus_alloc_resource_any(dev, SK_RES, &rid, RF_ACTIVE);
 
 	if (sc->sk_res == NULL) {
 		printf("sk%d: couldn't map ports/memory\n", unit);
@@ -1564,7 +1563,7 @@ skc_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->sk_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->sk_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->sk_irq == NULL) {

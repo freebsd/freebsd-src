@@ -169,8 +169,8 @@ adv_pci_attach(device_t dev)
 	}
 
 	rid = PCI_BASEADR0;
-	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-				   RF_ACTIVE);
+	iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+				       RF_ACTIVE);
 	if (iores == NULL)
 		return ENXIO;
 
@@ -306,8 +306,8 @@ adv_pci_attach(device_t dev)
 	}
 
 	irqrid = 0;
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqrid, 0, ~0, 1,
-				    RF_SHAREABLE | RF_ACTIVE);
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqrid,
+					RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
 	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY, adv_intr, adv, &ih)) {
 		adv_free(adv);

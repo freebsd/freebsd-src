@@ -140,8 +140,8 @@ ata_attach(device_t dev)
 	return ENXIO;
 
     rid = ATA_IRQ_RID;
-    ch->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				   RF_SHAREABLE | RF_ACTIVE);
+    ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+				       RF_SHAREABLE | RF_ACTIVE);
     if (!ch->r_irq) {
 	ata_printf(ch, -1, "unable to allocate interrupt\n");
 	return ENXIO;

@@ -359,7 +359,7 @@ bfe_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	rid = BFE_PCI_MEMLO;
-	sc->bfe_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, 
+	sc->bfe_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 			RF_ACTIVE);
 	if (sc->bfe_res == NULL) {
 		printf ("bfe%d: couldn't map memory\n", unit);
@@ -374,7 +374,7 @@ bfe_attach(device_t dev)
 	/* Allocate interrupt */
 	rid = 0;
 
-	sc->bfe_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->bfe_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 			RF_SHAREABLE | RF_ACTIVE);
 	if (sc->bfe_irq == NULL) {
 		printf("bfe%d: couldn't map interrupt\n", unit);

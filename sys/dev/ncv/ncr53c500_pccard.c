@@ -175,8 +175,8 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 	}
 
 	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+					     RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		ncv_release_resource(dev);
 		return(ENOMEM);
@@ -193,8 +193,8 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 	}
 
 	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+					     RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		ncv_release_resource(dev);
 		return(ENOMEM);

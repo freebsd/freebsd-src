@@ -297,7 +297,7 @@ pcic_isa_probe(device_t dev)
 	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 0) == 0)
 		return (ENXIO);
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		/*
 		 * No IRQ specified, find one.  This can be due to the PnP

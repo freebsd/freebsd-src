@@ -212,8 +212,8 @@ en_pci_attach(device_t dev)
 	 * Map control/status registers.
 	 */
 	rid = PCI_CBMA;
-	scp->res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	scp->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 	if (scp->res == NULL) {
 		device_printf(dev, "could not map memory\n");
 		error = ENXIO;
@@ -228,7 +228,7 @@ en_pci_attach(device_t dev)
 	 * Allocate our interrupt.
 	 */
 	rid = 0;
-	scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	scp->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (scp->irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");

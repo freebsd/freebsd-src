@@ -700,8 +700,10 @@ alloc_resource(struct sbc_softc *scp)
 	for (i = 0 ; i < DRQ_MAX ; i++) {
 		if (scp->drq[i] == NULL) {
 			scp->drq_rid[i] = i;
-			scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],
-							 0, ~0, 1, RF_ACTIVE);
+			scp->drq[i] = bus_alloc_resource_any(scp->dev,
+							     SYS_RES_DRQ,
+							     &scp->drq_rid[i],
+							     RF_ACTIVE);
 			if (i == 0 && scp->drq[i] == NULL)
 				return (1);
 			scp->drq_alloced[i] = 0;
@@ -710,8 +712,10 @@ alloc_resource(struct sbc_softc *scp)
 	for (i = 0 ; i < IRQ_MAX ; i++) {
 	 	if (scp->irq[i] == NULL) {
 			scp->irq_rid[i] = i;
-			scp->irq[i] = bus_alloc_resource(scp->dev, SYS_RES_IRQ, &scp->irq_rid[i],
-							 0, ~0, 1, RF_ACTIVE);
+			scp->irq[i] = bus_alloc_resource_any(scp->dev,
+							     SYS_RES_IRQ,
+							     &scp->irq_rid[i],
+							     RF_ACTIVE);
 			if (i == 0 && scp->irq[i] == NULL)
 				return (1);
 			scp->irq_alloced[i] = 0;

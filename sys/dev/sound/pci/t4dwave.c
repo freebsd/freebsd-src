@@ -820,7 +820,8 @@ tr_pci_attach(device_t dev)
 
 	tr->regid = PCIR_BAR(0);
 	tr->regtype = SYS_RES_IOPORT;
-	tr->reg = bus_alloc_resource(dev, tr->regtype, &tr->regid, 0, ~0, 1, RF_ACTIVE);
+	tr->reg = bus_alloc_resource_any(dev, tr->regtype, &tr->regid,
+		RF_ACTIVE);
 	if (tr->reg) {
 		tr->st = rman_get_bustag(tr->reg);
 		tr->sh = rman_get_bushandle(tr->reg);
@@ -842,8 +843,8 @@ tr_pci_attach(device_t dev)
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	tr->irqid = 0;
-	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	tr->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &tr->irqid,
+				 RF_ACTIVE | RF_SHAREABLE);
 	if (!tr->irq || snd_setup_intr(dev, tr->irq, INTR_MPSAFE, tr_intr, tr, &tr->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;

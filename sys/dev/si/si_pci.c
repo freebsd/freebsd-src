@@ -77,9 +77,9 @@ si_pci_attach(device_t dev)
 		break;
 	}
 
-	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-					    &sc->sc_mem_rid,
-					    0, ~0, 1, RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+						&sc->sc_mem_rid,
+						RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "couldn't map memory\n");
 		goto fail;
@@ -88,8 +88,9 @@ si_pci_attach(device_t dev)
 	sc->sc_maddr = rman_get_virtual(sc->sc_mem_res);
 
 	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irq_rid,
-					    0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+						&sc->sc_irq_rid,
+						RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "couldn't map interrupt\n");
 		goto fail;

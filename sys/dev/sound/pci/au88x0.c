@@ -597,15 +597,15 @@ au88x0_pci_attach(device_t dev)
 		/* try memory-mapped I/O */
 		aui->aui_regid = PCIR_BAR(0);
 		aui->aui_regtype = SYS_RES_MEMORY;
-		aui->aui_reg = bus_alloc_resource(dev, aui->aui_regtype,
-		    &aui->aui_regid, 0, ~0, 1, RF_ACTIVE);
+		aui->aui_reg = bus_alloc_resource_any(dev, aui->aui_regtype,
+		    &aui->aui_regid, RF_ACTIVE);
 	}
 	if (aui->aui_reg == NULL && (config & PCIM_CMD_PORTEN)) {
 		/* fall back on port I/O */
 		aui->aui_regid = PCIR_BAR(0);
 		aui->aui_regtype = SYS_RES_IOPORT;
-		aui->aui_reg = bus_alloc_resource(dev, aui->aui_regtype,
-		    &aui->aui_regid, 0, ~0, 1, RF_ACTIVE);
+		aui->aui_reg = bus_alloc_resource_any(dev, aui->aui_regtype,
+		    &aui->aui_regid, RF_ACTIVE);
 	}
 	if (aui->aui_reg == NULL) {
 		/* both mmio and pio failed... */
@@ -618,8 +618,8 @@ au88x0_pci_attach(device_t dev)
 	/* IRQ mapping */
 	aui->aui_irqid = 0;
 	aui->aui_irqtype = SYS_RES_IRQ;
-	aui->aui_irq = bus_alloc_resource(dev, aui->aui_irqtype,
-	    &aui->aui_irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	aui->aui_irq = bus_alloc_resource_any(dev, aui->aui_irqtype,
+	    &aui->aui_irqid, RF_ACTIVE | RF_SHAREABLE);
 	if (aui->aui_irq == 0) {
 		device_printf(dev, "failed to map IRQ\n");
 		goto failed;

@@ -153,7 +153,7 @@ mecia_attach(device_t dev)
 	validunits++;
 
 	rid = 0;
-	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+	r = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (!r)
 		return (ENXIO);
 

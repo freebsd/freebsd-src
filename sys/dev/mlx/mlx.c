@@ -362,7 +362,8 @@ mlx_attach(struct mlx_softc *sc)
      * Allocate and connect our interrupt.
      */
     rid = 0;
-    sc->mlx_irq = bus_alloc_resource(sc->mlx_dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+    sc->mlx_irq = bus_alloc_resource_any(sc->mlx_dev, SYS_RES_IRQ, &rid,
+        RF_SHAREABLE | RF_ACTIVE);
     if (sc->mlx_irq == NULL) {
 	device_printf(sc->mlx_dev, "can't allocate interrupt\n");
 	mlx_free(sc);

@@ -747,7 +747,8 @@ mpu_allocres(sc_p scp, device_t dev)
 	}
 	if (scp->irq == NULL && !(device_get_flags(dev) & MPU_DF_NO_IRQ)) {
 		if (scp->irq_val == 0)
-			scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &scp->irq_rid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+			scp->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
+				&scp->irq_rid, RF_ACTIVE | RF_SHAREABLE);
 		else
 			scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &scp->irq_rid, scp->irq_val, scp->irq_val, 1, RF_ACTIVE | RF_SHAREABLE);
 		if (scp->irq == NULL)

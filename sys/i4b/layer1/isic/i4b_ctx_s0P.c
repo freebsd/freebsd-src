@@ -122,9 +122,9 @@ isic_attach_Cs0P(device_t dev)
 	sc->sc_resources.io_rid[1] = 1;
 	
 	if(!(sc->sc_resources.io_base[1] =
-			bus_alloc_resource(dev, SYS_RES_IOPORT,
-					&sc->sc_resources.io_rid[1],
-					0UL, ~0UL, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[1],
+					       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get io area 1 for Creatix / Teles PnP!\n", unit);
 		isic_detach_common(dev);
@@ -141,9 +141,9 @@ isic_attach_Cs0P(device_t dev)
 		sc->sc_resources.io_rid[2] = 2;
 	
 		if(!(sc->sc_resources.io_base[2] =
-				bus_alloc_resource(dev, SYS_RES_IOPORT,
+				bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 						&sc->sc_resources.io_rid[2],
-						0UL, ~0UL, 1, RF_ACTIVE)))
+						RF_ACTIVE)))
 		{
 			printf("isic%d: Could not get cfg io area for Compaq Microcom 610\n", unit);
 			isic_detach_common(dev);
@@ -187,9 +187,9 @@ isic_attach_Cs0P(device_t dev)
 	bus_set_resource(dev, SYS_RES_IOPORT, 2, iobase1-0x20, 0x40);
 
 	if(!(sc->sc_resources.io_base[2] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[2],
-				   0ul, ~0ul, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[2],
+				       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get io area 2 for Creatix / Teles PnP!\n", unit);
 		isic_detach_common(dev);
@@ -215,9 +215,9 @@ isic_attach_Cs0P(device_t dev)
 #endif
 
 	if(!(sc->sc_resources.io_base[3] =
-		bus_alloc_resource(dev,SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[3],
-				   0ul,~0ul, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev,SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[3],
+				       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get io area 3 for Creatix / Teles PnP!\n", unit);
 		isic_detach_common(dev);
@@ -231,9 +231,9 @@ isic_attach_Cs0P(device_t dev)
 	bus_set_resource(dev, SYS_RES_IOPORT, 4, iobase2, 0x40);
 
 	if(!(sc->sc_resources.io_base[4] =
-		bus_alloc_resource(dev,SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[4],
-				   0ul, ~0ul, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev,SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[4],
+				       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get io area 4 for Creatix / Teles PnP!\n", unit);
 		isic_detach_common(dev);
@@ -252,9 +252,9 @@ isic_attach_Cs0P(device_t dev)
 		bus_set_resource(dev, SYS_RES_IOPORT, 5, iocfg, 0x01);
 
 		if(!(sc->sc_resources.io_base[5] =
-			bus_alloc_resource(dev,SYS_RES_IOPORT,
-					   &sc->sc_resources.io_rid[5],
-					   0ul, ~0ul, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev,SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[5],
+					       RF_ACTIVE)))
 		{
 			printf("isic%d: Could not get cfg io area for Compaq Microcom 610!\n", unit);
 			isic_detach_common(dev);

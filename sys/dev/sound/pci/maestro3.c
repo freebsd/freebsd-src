@@ -1111,12 +1111,12 @@ m3_pci_attach(device_t dev)
 
 	sc->regid = PCIR_BAR(0);
 	sc->regtype = SYS_RES_MEMORY;
-	sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
-				     0, ~0, 1, RF_ACTIVE);
+	sc->reg = bus_alloc_resource_any(dev, sc->regtype, &sc->regid,
+					 RF_ACTIVE);
 	if (!sc->reg) {
 		sc->regtype = SYS_RES_IOPORT;
-		sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
-					     0, ~0, 1, RF_ACTIVE);
+		sc->reg = bus_alloc_resource_any(dev, sc->regtype, &sc->regid,
+						 RF_ACTIVE);
 	}
 	if (!sc->reg) {
 		device_printf(dev, "unable to allocate register space\n");
@@ -1126,8 +1126,8 @@ m3_pci_attach(device_t dev)
 	sc->sh = rman_get_bushandle(sc->reg);
 
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
-				     0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+					 RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq) {
 		device_printf(dev, "unable to allocate interrupt\n");
 		goto bad;

@@ -143,9 +143,9 @@ isic_probe_s08(device_t dev)
 	/* see if an io base was supplied */
 
 	if((sc->sc_resources.io_base[0] =
-			bus_alloc_resource(dev, SYS_RES_IOPORT,
-	                                   &sc->sc_resources.io_rid[0],
-	                                   0ul, ~0ul, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[0],
+					       RF_ACTIVE)))
 	{
 		/* the S0/8 is completely memory mapped ! */
 		
@@ -217,9 +217,9 @@ isic_probe_s08(device_t dev)
 	/* allocate our irq */
 
 	if(!(sc->sc_resources.irq =
-			bus_alloc_resource(dev, SYS_RES_IRQ,
-						&sc->sc_resources.irq_rid,
-						0ul, ~0ul, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IRQ,
+					       &sc->sc_resources.irq_rid,
+					       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not allocate irq for Teles S0/8!\n",unit);
 

@@ -212,7 +212,7 @@ amr_pci_attach(device_t dev)
      */
     rid = PCIR_BAR(0);
     rtype = AMR_IS_QUARTZ(sc) ? SYS_RES_MEMORY : SYS_RES_IOPORT;
-    sc->amr_reg = bus_alloc_resource(dev, rtype, &rid, 0, ~0, 1, RF_ACTIVE);
+    sc->amr_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (sc->amr_reg == NULL) {
 	device_printf(sc->amr_dev, "can't allocate register window\n");
 	goto out;
@@ -224,7 +224,8 @@ amr_pci_attach(device_t dev)
      * Allocate and connect our interrupt.
      */
     rid = 0;
-    sc->amr_irq = bus_alloc_resource(sc->amr_dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+    sc->amr_irq = bus_alloc_resource_any(sc->amr_dev, SYS_RES_IRQ, &rid,
+        RF_SHAREABLE | RF_ACTIVE);
     if (sc->amr_irq == NULL) {
         device_printf(sc->amr_dev, "can't allocate interrupt\n");
 	goto out;

@@ -584,12 +584,12 @@ au_pci_attach(device_t dev)
 #endif
 		regid[j] = PCIR_BAR(i);
 		type[j] = SYS_RES_MEMORY;
-		reg[j] = bus_alloc_resource(dev, type[j], &regid[j],
-					    0, ~0, 1, RF_ACTIVE);
+		reg[j] = bus_alloc_resource_any(dev, type[j], &regid[j],
+						RF_ACTIVE);
 		if (!reg[j]) {
 			type[j] = SYS_RES_IOPORT;
-			reg[j] = bus_alloc_resource(dev, type[j], &regid[j],
-						    0, ~0, 1, RF_ACTIVE);
+			reg[j] = bus_alloc_resource_any(dev, type[j], 
+							&regid[j], RF_ACTIVE);
 		}
 		if (reg[j]) {
 			au->st[i] = rman_get_bustag(reg[j]);
@@ -618,8 +618,8 @@ au_pci_attach(device_t dev)
 	au_wr(au, 0, AU_REG_IRQEN, 0, 4);
 
 	irqid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqid,
+				     RF_ACTIVE | RF_SHAREABLE);
 	if (!irq || snd_setup_intr(dev, irq, 0, au_intr, au, &ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;

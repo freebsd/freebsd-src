@@ -487,7 +487,8 @@ uartsio_allocres(sc_p scp, device_t dev)
 {
 	if (scp->irq == NULL) {
 		scp->irq_rid = 0;
-		scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &scp->irq_rid, 0, ~0, 1, RF_ACTIVE);
+		scp->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			&scp->irq_rid, RF_ACTIVE);
 	}
 	if (scp->irq == NULL)
 		return (1);

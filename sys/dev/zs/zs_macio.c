@@ -146,15 +146,15 @@ zs_macio_attach(device_t dev)
 	sc = device_get_softc(dev);
 	reg = macio_get_regs(dev);
 
-	sc->sc_memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_memrid,
-	    0, ~1, 1, RF_ACTIVE);
+	sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_memrid, RF_ACTIVE);
 	if (sc->sc_memres == NULL) {
 		device_printf(dev, "could not allocate memory\n");
 		goto error;
 	}
 	sc->sc_irqrid1 = 0;
-	sc->sc_irqres1 = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid1,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->sc_irqres1 = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->sc_irqrid1, RF_ACTIVE);
 	if (sc->sc_irqres1 == NULL) {
 		device_printf(dev, "could not allocate interrupt 1\n");
 		goto error;
@@ -165,8 +165,8 @@ zs_macio_attach(device_t dev)
 		goto error;
 	}
 	sc->sc_irqrid2 = 1;
-	sc->sc_irqres2 = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid2,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->sc_irqres2 = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->sc_irqrid2, RF_ACTIVE);
 	if (sc->sc_irqres2 == NULL) {
 		device_printf(dev, "could not allocate interrupt 2\n");
 		goto error;

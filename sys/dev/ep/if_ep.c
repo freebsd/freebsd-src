@@ -175,16 +175,15 @@ ep_alloc(device_t dev)
 	u_int16_t result;
 
 	rid = 0;
-	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->iobase = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	    RF_ACTIVE);
 	if (!sc->iobase) {
 		device_printf(dev, "No I/O space?!\n");
 		error = ENXIO;
 		goto bad;
 	}
 	rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->irq) {
 		device_printf(dev, "No irq?!\n");
 		error = ENXIO;

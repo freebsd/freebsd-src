@@ -1907,8 +1907,7 @@ dc_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	rid = DC_RID;
-	sc->dc_res = bus_alloc_resource(dev, DC_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->dc_res = bus_alloc_resource_any(dev, DC_RES, &rid, RF_ACTIVE);
 
 	if (sc->dc_res == NULL) {
 		printf("dc%d: couldn't map ports/memory\n", unit);
@@ -1921,7 +1920,7 @@ dc_attach(device_t dev)
 
 	/* Allocate interrupt. */
 	rid = 0;
-	sc->dc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->dc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->dc_irq == NULL) {

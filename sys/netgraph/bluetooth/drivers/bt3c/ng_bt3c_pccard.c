@@ -641,8 +641,8 @@ bt3c_pccard_attach(device_t dev)
 
 	/* Allocate IRQ */
 	sc->irq_rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-			0, ~0, 1, RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+			RF_ACTIVE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "Could not allocate IRQ\n");
 		goto bad;

@@ -177,7 +177,8 @@ rp_pciattach(device_t dev)
 	ctlp->bus_ctlp = NULL;
 
 	ctlp->io_rid[0] = 0x10;
-	ctlp->io[0] = bus_alloc_resource(dev, SYS_RES_IOPORT, &ctlp->io_rid[0], 0, ~0, 1, RF_ACTIVE);
+	ctlp->io[0] = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+		&ctlp->io_rid[0], RF_ACTIVE);
 	if(ctlp->io[0] == NULL) {
 		device_printf(dev, "ioaddr mapping failed for RocketPort(PCI).\n");
 		retval = ENXIO;

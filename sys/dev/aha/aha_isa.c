@@ -204,7 +204,7 @@ aha_isa_attach(device_t dev)
 	}
 
 	aha->irqrid = 0;
-	aha->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &aha->irqrid, 0, ~0, 1,
+	aha->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &aha->irqrid,
 	    RF_ACTIVE);
 	if (!aha->irq) {
 		device_printf(dev, "Unable to allocate excluse use of irq\n");
@@ -213,7 +213,7 @@ aha_isa_attach(device_t dev)
 	}
 
 	aha->drqrid = 0;
-	aha->drq = bus_alloc_resource(dev, SYS_RES_DRQ, &aha->drqrid, 0, ~0, 1,
+	aha->drq = bus_alloc_resource_any(dev, SYS_RES_DRQ, &aha->drqrid,
 	    RF_ACTIVE);
 	if (!aha->drq) {
 		device_printf(dev, "Unable to allocate drq\n");

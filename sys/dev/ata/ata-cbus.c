@@ -136,8 +136,8 @@ ata_cbus_attach(device_t dev)
     }
 
     rid = ATA_IRQ_RID;
-    if (!(ctlr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-					 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE))) {
+    if (!(ctlr->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					     RF_ACTIVE | RF_SHAREABLE))) {
 	device_printf(dev, "unable to alloc interrupt\n");
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);

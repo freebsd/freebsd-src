@@ -593,12 +593,11 @@ acpi_sysresource_attach(device_t dev)
      */
     for (i = 0; i < 100; i++) {
 	rid = i;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, 0);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, 0);
 	rid = i;
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, 0);
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 	rid = i;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				 RF_SHAREABLE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE);
     }
 
     return (0);

@@ -172,8 +172,8 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHC_PCI_MEMADDR;
-		regs = bus_alloc_resource(ahc->dev_softc, regs_type,
-					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(ahc->dev_softc, regs_type,
+					      &regs_id, RF_ACTIVE);
 		if (regs != NULL) {
 			ahc->tag = rman_get_bustag(regs);
 			ahc->bsh = rman_get_bushandle(regs);
@@ -204,8 +204,8 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHC_PCI_IOADDR;
-		regs = bus_alloc_resource(ahc->dev_softc, regs_type,
-					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+		regs = bus_alloc_resource_any(ahc->dev_softc, regs_type,
+					      &regs_id, RF_ACTIVE);
 		if (regs != NULL) {
 			ahc->tag = rman_get_bustag(regs);
 			ahc->bsh = rman_get_bushandle(regs);
@@ -245,8 +245,8 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 
 	zero = 0;
 	ahc->platform_data->irq =
-	    bus_alloc_resource(ahc->dev_softc, SYS_RES_IRQ, &zero,
-			       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	    bus_alloc_resource_any(ahc->dev_softc, SYS_RES_IRQ, &zero,
+				   RF_ACTIVE | RF_SHAREABLE);
 	if (ahc->platform_data->irq == NULL) {
 		device_printf(ahc->dev_softc,
 			      "bus_alloc_resource() failed to allocate IRQ\n");

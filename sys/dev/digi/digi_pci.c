@@ -177,13 +177,13 @@ digi_pci_attach(device_t dev)
 	pci_write_config(dev, 0x40, 0, 4);
 	pci_write_config(dev, 0x46, 0, 4);
 
-	sc->res.mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->res.mrid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->res.mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->res.mrid,
+	    RF_ACTIVE);
 
 #ifdef DIGI_INTERRUPT
 	sc->res.irqrid = 0;
-	sc->res.irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->res.irqrid,
-	    0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->res.irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->res.irqrid,
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->res.irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		return (ENXIO);

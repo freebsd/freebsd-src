@@ -417,8 +417,8 @@ pcn_probe(dev)
 			 * so we can read the chip ID register.
 			 */
 			rid = PCN_RID;
-			sc->pcn_res = bus_alloc_resource(dev, PCN_RES, &rid,
-			    0, ~0, 1, RF_ACTIVE);
+			sc->pcn_res = bus_alloc_resource_any(dev, PCN_RES, &rid,
+			    RF_ACTIVE);
 			if (sc->pcn_res == NULL) {
 				device_printf(dev,
 				    "couldn't map ports/memory\n");
@@ -547,8 +547,7 @@ pcn_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = PCN_RID;
-	sc->pcn_res = bus_alloc_resource(dev, PCN_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->pcn_res = bus_alloc_resource_any(dev, PCN_RES, &rid, RF_ACTIVE);
 
 	if (sc->pcn_res == NULL) {
 		printf("pcn%d: couldn't map ports/memory\n", unit);
@@ -561,7 +560,7 @@ pcn_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->pcn_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->pcn_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->pcn_irq == NULL) {

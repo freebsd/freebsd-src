@@ -188,9 +188,9 @@ isic_pnp_attach(device_t dev)
 
 	/* get io_base */
 	if(!(sc->sc_resources.io_base[0] =
-			bus_alloc_resource(dev, SYS_RES_IOPORT,
-						&sc->sc_resources.io_rid[0],
-						0UL, ~0UL, 1, RF_ACTIVE ) ))
+			bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[0],
+					       RF_ACTIVE ) ))
 	{
 		printf("isic_pnp_attach: Couldn't get my io_base.\n");
 		return ENXIO;                                       
@@ -203,9 +203,9 @@ isic_pnp_attach(device_t dev)
 	/* get irq, release io_base if we don't get it */
 
 	if(!(sc->sc_resources.irq =
-			bus_alloc_resource(dev, SYS_RES_IRQ,
-					   &sc->sc_resources.irq_rid,
-					   0UL, ~0UL, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IRQ,
+					       &sc->sc_resources.irq_rid,
+					       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get irq.\n",unit);
 		isic_detach_common(dev);

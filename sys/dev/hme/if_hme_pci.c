@@ -156,15 +156,15 @@ hme_pci_attach(device_t dev)
 	 *
 	 */
 	hsc->hsc_srid = PCI_HME_BASEADDR;
-	hsc->hsc_sres = bus_alloc_resource(dev, SYS_RES_MEMORY, &hsc->hsc_srid,
-	    0, ~0, 1, RF_ACTIVE);
+	hsc->hsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	    &hsc->hsc_srid, RF_ACTIVE);
 	if (hsc->hsc_sres == NULL) {
 		device_printf(dev, "could not map device registers\n");
 		return (ENXIO);
 	}
 	hsc->hsc_irid = 0;
-	hsc->hsc_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &hsc->hsc_irid, 0,
-	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	hsc->hsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
+	    &hsc->hsc_irid, RF_SHAREABLE | RF_ACTIVE);
 	if (hsc->hsc_ires == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		error = ENXIO;

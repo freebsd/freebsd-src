@@ -8747,8 +8747,8 @@ sym_pci_attach(device_t dev)
 	 */
 	if ((command & PCIM_CMD_MEMEN) != 0) {
 		int regs_id = SYM_PCI_MMIO;
-		np->mmio_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &regs_id,
-						  0, ~0, 1, RF_ACTIVE);
+		np->mmio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+						      &regs_id, RF_ACTIVE);
 	}
 	if (!np->mmio_res) {
 		device_printf(dev, "failed to allocate MMIO resources\n");
@@ -8764,8 +8764,8 @@ sym_pci_attach(device_t dev)
 	 *  Allocate the IRQ.
 	 */
 	i = 0;
-	np->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &i,
-					 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	np->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
+					     RF_ACTIVE | RF_SHAREABLE);
 	if (!np->irq_res) {
 		device_printf(dev, "failed to allocate IRQ resource\n");
 		goto attach_failed;
@@ -8778,8 +8778,8 @@ sym_pci_attach(device_t dev)
 	 */
 	if ((command & PCI_COMMAND_IO_ENABLE) != 0) {
 		int regs_id = SYM_PCI_IO;
-		np->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &regs_id,
-						0, ~0, 1, RF_ACTIVE);
+		np->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+						    &regs_id, RF_ACTIVE);
 	}
 	if (!np->io_res) {
 		device_printf(dev, "failed to allocate IO resources\n");
@@ -8800,8 +8800,8 @@ sym_pci_attach(device_t dev)
 		int regs_id = SYM_PCI_RAM;
 		if (np->features & FE_64BIT)
 			regs_id = SYM_PCI_RAM64;
-		np->ram_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &regs_id,
-						 0, ~0, 1, RF_ACTIVE);
+		np->ram_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+						     &regs_id, RF_ACTIVE);
 		if (!np->ram_res) {
 			device_printf(dev,"failed to allocate RAM resources\n");
 			goto attach_failed;

@@ -164,8 +164,8 @@ hme_sbus_attach(device_t dev)
 	 */
 	sc->sc_sebo = sc->sc_etxo = sc->sc_erxo = sc->sc_maco = sc->sc_mifo = 0;
 	hsc->hsc_seb_rid = 0;
-	hsc->hsc_seb_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &hsc->hsc_seb_rid, 0, ~0, 1, RF_ACTIVE);
+	hsc->hsc_seb_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &hsc->hsc_seb_rid, RF_ACTIVE);
 	if (hsc->hsc_seb_res == NULL) {
 		device_printf(dev, "cannot map SEB registers\n");
 		return (ENXIO);
@@ -174,8 +174,8 @@ hme_sbus_attach(device_t dev)
 	sc->sc_sebh = rman_get_bushandle(hsc->hsc_seb_res);
 
 	hsc->hsc_etx_rid = 1;
-	hsc->hsc_etx_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &hsc->hsc_etx_rid, 0, ~0, 1, RF_ACTIVE);
+	hsc->hsc_etx_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &hsc->hsc_etx_rid, RF_ACTIVE);
 	if (hsc->hsc_etx_res == NULL) {
 		device_printf(dev, "cannot map ETX registers\n");
 		goto fail_seb_res;
@@ -184,8 +184,8 @@ hme_sbus_attach(device_t dev)
 	sc->sc_etxh = rman_get_bushandle(hsc->hsc_etx_res);
 
 	hsc->hsc_erx_rid = 2;
-	hsc->hsc_erx_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &hsc->hsc_erx_rid, 0, ~0, 1, RF_ACTIVE);
+	hsc->hsc_erx_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &hsc->hsc_erx_rid, RF_ACTIVE);
 	if (hsc->hsc_erx_res == NULL) {
 		device_printf(dev, "cannot map ERX registers\n");
 		goto fail_etx_res;
@@ -194,8 +194,8 @@ hme_sbus_attach(device_t dev)
 	sc->sc_erxh = rman_get_bushandle(hsc->hsc_erx_res);
 
 	hsc->hsc_mac_rid = 3;
-	hsc->hsc_mac_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &hsc->hsc_mac_rid, 0, ~0, 1, RF_ACTIVE);
+	hsc->hsc_mac_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &hsc->hsc_mac_rid, RF_ACTIVE);
 	if (hsc->hsc_mac_res == NULL) {
 		device_printf(dev, "cannot map MAC registers\n");
 		goto fail_erx_res;
@@ -208,8 +208,8 @@ hme_sbus_attach(device_t dev)
 	 * range, so map try to kluge around it.
 	 */
 	hsc->hsc_mif_rid = 4;
-	hsc->hsc_mif_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &hsc->hsc_mif_rid, 0, ~0, 1, RF_ACTIVE);
+	hsc->hsc_mif_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &hsc->hsc_mif_rid, RF_ACTIVE);
 	if (hsc->hsc_mif_res == NULL) {
 		if (bus_get_resource(dev, SYS_RES_MEMORY, hsc->hsc_mif_rid,
 		    &start, &count) != 0) {
@@ -232,8 +232,8 @@ hme_sbus_attach(device_t dev)
 	}
 
 	hsc->hsc_irid = 0;
-	hsc->hsc_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &hsc->hsc_irid, 0,
-	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	hsc->hsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
+	    &hsc->hsc_irid, RF_SHAREABLE | RF_ACTIVE);
 	if (hsc->hsc_ires == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		error = ENXIO;

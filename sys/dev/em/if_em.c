@@ -1680,9 +1680,8 @@ em_allocate_pci_resources(struct adapter * adapter)
 	device_t        dev = adapter->dev;
 
 	rid = EM_MMBA;
-	adapter->res_memory = bus_alloc_resource(dev, SYS_RES_MEMORY,
-						 &rid, 0, ~0, 1,
-						 RF_ACTIVE);
+	adapter->res_memory = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+						     &rid, RF_ACTIVE);
 	if (!(adapter->res_memory)) {
 		printf("em%d: Unable to allocate bus resource: memory\n", 
 		       adapter->unit);
@@ -1707,9 +1706,10 @@ em_allocate_pci_resources(struct adapter * adapter)
 			rid += 4;
 		}
 
-		adapter->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,  
-							 &adapter->io_rid, 0, ~0, 1,
-							 RF_ACTIVE);   
+		adapter->res_ioport = bus_alloc_resource_any(dev, 
+							     SYS_RES_IOPORT,
+							     &adapter->io_rid,
+							     RF_ACTIVE);
 		if (!(adapter->res_ioport)) {
 			printf("em%d: Unable to allocate bus resource: ioport\n",
 			       adapter->unit);
@@ -1721,9 +1721,9 @@ em_allocate_pci_resources(struct adapter * adapter)
 	}
 
 	rid = 0x0;
-	adapter->res_interrupt = bus_alloc_resource(dev, SYS_RES_IRQ,
-						    &rid, 0, ~0, 1,
-						    RF_SHAREABLE | RF_ACTIVE);
+	adapter->res_interrupt = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+						        RF_SHAREABLE | 
+							RF_ACTIVE);
 	if (!(adapter->res_interrupt)) {
 		printf("em%d: Unable to allocate bus resource: interrupt\n", 
 		       adapter->unit);

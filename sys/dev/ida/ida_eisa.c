@@ -285,8 +285,8 @@ ida_eisa_attach(device_t dev)
 
 	ida->regs_res_type = SYS_RES_IOPORT;
 	ida->regs_res_id = 0;
-	ida->regs = bus_alloc_resource(dev, ida->regs_res_type,
-	    &ida->regs_res_id, 0, ~0, 1, RF_ACTIVE);
+	ida->regs = bus_alloc_resource_any(dev, ida->regs_res_type,
+	    &ida->regs_res_id, RF_ACTIVE);
 	if (ida->regs == NULL) {
 		device_printf(dev, "can't allocate register resources\n");
 		return (ENOMEM);
@@ -316,8 +316,8 @@ ida_eisa_attach(device_t dev)
 
 	rid = 0;
 	ida->irq_res_type = SYS_RES_IRQ;
-	ida->irq = bus_alloc_resource(dev, ida->irq_res_type, &rid,
-	    0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	ida->irq = bus_alloc_resource_any(dev, ida->irq_res_type, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (ida->irq == NULL) {
 		ida_free(ida);
 		return (ENOMEM);

@@ -504,8 +504,10 @@ alloc_resource(sc_p scp)
 		}
 		if (scp->irq == NULL) {
 			scp->irq_rid = 0;
-			scp->irq = bus_alloc_resource(scp->dev, SYS_RES_IRQ, &scp->irq_rid,
-						      0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+			scp->irq = 
+				bus_alloc_resource_any(scp->dev, SYS_RES_IRQ, 
+						       &scp->irq_rid,
+						       RF_ACTIVE|RF_SHAREABLE);
 			if (scp->irq == NULL)
 				return (1);
 			scp->irq_alloced = 0;
@@ -514,8 +516,11 @@ alloc_resource(sc_p scp)
 			if (scp->drq[i] == NULL) {
 				scp->drq_rid[i] = i;
 				if (base == 0 || i == 0)
-					scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],
-									 0, ~0, 1, RF_ACTIVE);
+					scp->drq[i] = 
+						bus_alloc_resource_any(
+							scp->dev, SYS_RES_DRQ,
+							&scp->drq_rid[i],
+							RF_ACTIVE);
 				else if ((flags & DV_F_DUAL_DMA) != 0)
 					/* XXX The secondary drq is specified in the flag. */
 					scp->drq[i] = bus_alloc_resource(scp->dev, SYS_RES_DRQ, &scp->drq_rid[i],

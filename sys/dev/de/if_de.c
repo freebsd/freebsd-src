@@ -5151,12 +5151,10 @@ tulip_pci_attach(device_t dev)
     sc->tulip_if.if_softc = sc;
 #if defined(TULIP_IOMAPPED)
     rid = PCI_CBIO;
-    res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			     0, ~0, 1, RF_ACTIVE);
+    res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 #else
     rid = PCI_CBMA;
-    res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-			     0, ~0, 1, RF_ACTIVE);
+    res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 #endif
     if (!res)
 	return ENXIO;
@@ -5219,8 +5217,8 @@ tulip_pci_attach(device_t dev)
 	    void *ih;
 
 	    rid = 0;
-	    res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				     0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	    res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					 RF_SHAREABLE | RF_ACTIVE);
 	    if (res == 0 || bus_setup_intr(dev, res, INTR_TYPE_NET,
 					   intr_rtn, sc, &ih)) {
 		printf("%s: couldn't map interrupt\n",

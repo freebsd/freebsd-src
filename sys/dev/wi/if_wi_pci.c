@@ -166,8 +166,8 @@ wi_pci_attach(device_t dev)
 
 		/* We have to do a magic PLX poke to enable interrupts */
 		sc->local_rid = WI_PCI_LOCALRES;
-		sc->local = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->local_rid, 0, ~0, 1, RF_ACTIVE);
+		sc->local = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+		    &sc->local_rid, RF_ACTIVE);
 		sc->wi_localtag = rman_get_bustag(sc->local);
 		sc->wi_localhandle = rman_get_bushandle(sc->local);
 		command = bus_space_read_4(sc->wi_localtag, sc->wi_localhandle,
@@ -180,8 +180,8 @@ wi_pci_attach(device_t dev)
 		sc->local = NULL;
 
 		sc->mem_rid = WI_PCI_MEMRES;
-		sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-					0, ~0, 1, RF_ACTIVE);
+		sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+					&sc->mem_rid, RF_ACTIVE);
 		if (sc->mem == NULL) {
 			device_printf(dev, "couldn't allocate memory\n");
 			wi_free(dev);

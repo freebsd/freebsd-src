@@ -230,8 +230,7 @@ cm_alloc_irq(dev, rid)
 	struct cm_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0ul, ~0ul, 1, RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (res) {
 		sc->irq_rid = rid;
 		sc->irq_res = res;

@@ -2065,8 +2065,8 @@ ti_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = TI_PCI_LOMEM;
-	sc->ti_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE|PCI_RF_DENSE);
+	sc->ti_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE|PCI_RF_DENSE);
 
 	if (sc->ti_res == NULL) {
 		printf ("ti%d: couldn't map memory\n", unit);
@@ -2081,7 +2081,7 @@ ti_attach(dev)
 	/* Allocate interrupt */
 	rid = 0;
 	
-	sc->ti_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->ti_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->ti_irq == NULL) {
