@@ -22,10 +22,9 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+# $FreeBSD$
 
 LIB=		pam_deny
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_deny.c
 MAN=		pam_deny.8
 
