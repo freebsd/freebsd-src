@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.66 1996/03/29 04:35:09 scrappy Exp $
+ * $Id: st.c,v 1.67 1996/04/01 02:12:53 scrappy Exp $
  */
 
 /*
@@ -334,11 +334,11 @@ stattach(struct scsi_link *sc_link)
 				 "rst%d.ctl", unit);
 	/** add links **/
 	st->devfs_token.rst = 
-		dev_link(st->devfs_token.rst_[0], "rst%ld", unit);
+		devfs_link(st->devfs_token.rst_[0], "rst%ld", unit);
 	st->devfs_token.nrst = 
-		dev_link(st->devfs_token.nrst_[0], "nrst%ld", unit);
+		devfs_link(st->devfs_token.nrst_[0], "nrst%ld", unit);
 	st->devfs_token.erst = 
-		dev_link(st->devfs_token.erst_[0], "erst%ld", unit);
+		devfs_link(st->devfs_token.erst_[0], "erst%ld", unit);
 #endif
 	return 0;
 }
