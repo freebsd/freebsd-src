@@ -8,6 +8,8 @@ SRCS=	pccard.c pcic.c pccard_beep.c pccard_nbk.c pcic_pci.c pcic_isa.c \
 	power_if.h card_if.h power_if.c card_if.c
 NOMAN=
 
+EXPORT_SYMS=	YES	# XXX evaluate
+
 .if ${MACHINE} == "pc98"
 CFLAGS += -DPC98
 SRCS += mecia.c

@@ -23,6 +23,8 @@ CFLAGS+=	-DUSES_LOCKMGR		# necessary until VM uses sx locks
 #CFLAGS+=	-DLOMAC_DEBUG_PIPE		# relatively cheap
 #CFLAGS+=	-DLOMAC_DEBUG_RECWD		# only happens once
 
+EXPORT_SYMS=	YES	# XXX evaluate
+
 .PATH:	${.CURDIR}/../../security/lomac
 
 load-all:	all
