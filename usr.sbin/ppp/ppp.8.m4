@@ -4721,7 +4721,8 @@ as they travel across the link.
 .Oo Op host
 .Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
-.Oc [ Ns Ar proto Op src lt|eq|gt Ar port
+.Oc [ Ns Ar proto
+.Op src lt|eq|gt Ar port
 .Op dst lt|eq|gt Ar port
 .Op estab
 .Op syn
