@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.37 1996/12/11 20:38:14 wollman Exp $
+ * $Id: if.c,v 1.38 1996/12/13 21:28:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -125,6 +125,7 @@ if_attach(ifp)
 	 * this unlikely case.
 	 */
 	TAILQ_INIT(&ifp->if_addrhead);
+	LIST_INIT(&ifp->if_multiaddrs);
 	microtime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
@@ -756,6 +757,183 @@ ifconf(cmd, data)
 	}
 	ifc->ifc_len -= space;
 	return (error);
+}
+
+/*
+ * Just like if_promisc(), but for all-multicast-reception mode.
+ */
+int
+if_allmulti(ifp, onswitch)
+	struct ifnet *ifp;
+	int onswitch;
+{
+	int error = 0;
+	int s = splimp();
+
+	if (onswitch) {
+		if (ifp->if_amcount++ == 0) {
+			ifp->if_flags |= IFF_ALLMULTI;
+			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, 0);
+		}
+	} else {
+		if (ifp->if_amcount > 1) {
+			ifp->if_amcount--;
+		} else {
+			ifp->if_amcount = 0;
+			ifp->if_flags &= ~IFF_ALLMULTI;
+			error = ifp->if_ioctl(ifp, SIOCSIFFLAGS, 0);
+		}
+	}
+	splx(s);
+	return error;
+}
+
+/*
+ * Add a multicast listenership to the interface in question.
+ * The link layer provides a routine which converts 
+ */
+int
+if_addmulti(ifp, sa)
+	struct ifnet *ifp;	/* interface to manipulate */
+	struct sockaddr *sa;	/* address to add */
+{
+	struct sockaddr *llsa, *dupsa;
+	int error, s;
+	struct ifmultiaddr *ifma;
+
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
+	     ifma = ifma->ifma_link.le_next) {
+		if (equal(sa, ifma->ifma_addr))
+			break;
+	}
+
+	if (ifma) {
+		ifma->ifma_refcount++;
+		return 0;
+	}
+
+	/*
+	 * Give the link layer a chance to accept/reject it, and also
+	 * find out which AF_LINK address this maps to, if it isn't one
+	 * already.
+	 */
+	if (ifp->if_resolvemulti) {
+		error = ifp->if_resolvemulti(ifp, &llsa, sa);
+		if (error) return error;
+	} else {
+		llsa = 0;
+	}
+
+	MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma, M_IFMADDR, M_WAITOK);
+	MALLOC(dupsa, struct sockaddr *, sa->sa_len, M_IFMADDR, M_WAITOK);
+	bcopy(sa, dupsa, sa->sa_len);
+
+	ifma->ifma_addr = dupsa;
+	ifma->ifma_lladdr = llsa;
+	ifma->ifma_ifp = ifp;
+	ifma->ifma_refcount = 1;
+	/*
+	 * Some network interfaces can scan the address list at
+	 * interrupt time; lock them out.
+	 */
+	s = splimp();
+	LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
+	splx(s);
+
+	if (llsa != 0) {
+		for (ifma = ifp->if_multiaddrs.lh_first; ifma;
+		     ifma = ifma->ifma_link.le_next) {
+			if (equal(ifma->ifma_addr, llsa))
+				break;
+		}
+		if (ifma) {
+			ifma->ifma_refcount++;
+		} else {
+			MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma,
+			       M_IFMADDR, M_WAITOK);
+			ifma->ifma_addr = llsa;
+			ifma->ifma_ifp = ifp;
+			ifma->ifma_refcount = 1;
+		}
+		s = splimp();
+		LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
+		splx(s);
+	}
+	/*
+	 * We are certain we have added something, so call down to the
+	 * interface to let them know about it.
+	 */
+	s = splimp();
+	ifp->if_ioctl(ifp, SIOCADDMULTI, 0);
+	splx(s);
+
+	return 0;
+}
+
+/*
+ * Remove a reference to a multicast address on this interface.  Yell
+ * if the request does not match an existing membership.
+ */
+int
+if_delmulti(ifp, sa)
+	struct ifnet *ifp;
+	struct sockaddr *sa;
+{
+	struct ifmultiaddr *ifma;
+	int s;
+
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
+	     ifma = ifma->ifma_link.le_next)
+		if (equal(sa, ifma->ifma_addr))
+			break;
+	if (ifma == 0)
+		return ENOENT;
+
+	if (ifma->ifma_refcount > 1) {
+		ifma->ifma_refcount--;
+		return 0;
+	}
+
+	sa = ifma->ifma_lladdr;
+	s = splimp();
+	LIST_REMOVE(ifma, ifma_link);
+	splx(s);
+	free(ifma->ifma_addr, M_IFMADDR);
+	free(ifma, M_IFMADDR);
+	if (sa == 0)
+		return 0;
+
+	/*
+	 * Now look for the link-layer address which corresponds to
+	 * this network address.  It had been squirreled away in
+	 * ifma->ifma_lladdr for this purpose (so we don't have
+	 * to call ifp->if_resolvemulti() again), and we saved that
+	 * value in sa above.  If some nasty deleted the
+	 * link-layer address out from underneath us, we can deal because
+	 * the address we stored was is not the same as the one which was
+	 * in the record for the link-layer address.  (So we don't complain
+	 * in that case.)
+	 */
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
+	     ifma = ifma->ifma_link.le_next)
+		if (equal(sa, ifma->ifma_addr))
+			break;
+	if (ifma == 0)
+		return 0;
+
+	if (ifma->ifma_refcount > 1) {
+		ifma->ifma_refcount--;
+		return 0;
+	}
+
+	s = splimp();
+	LIST_REMOVE(ifma, ifma_link);
+	splx(s);
+	free(ifma->ifma_addr, M_IFMADDR);
+	free(sa, M_IFMADDR);
+	free(ifma, M_IFMADDR);
+
+	return 0;
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");

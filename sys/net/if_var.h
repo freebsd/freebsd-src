@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.41 1996/12/13 21:28:37 wollman Exp $
+ *	$Id: if_var.h,v 1.1 1997/01/03 19:50:26 wollman Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_
@@ -77,6 +77,7 @@ struct	ether_header;
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
+LIST_HEAD(ifmultihead, ifmultiaddr);
 
 /*
  * Structure defining a queue for a network interface.
@@ -109,6 +110,8 @@ struct ifnet {
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
 	struct	if_data if_data;
+	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
+	int	if_amcount;		/* number of all-multicast requests */
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
 		__P((struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -131,6 +134,8 @@ struct ifnet {
 		__P((struct ifnet *, struct mbuf *));
 	void	(*if_init)		/* Init routine */
 		__P((void *));
+	int	(*if_resolvemulti)	/* validate/resolve multicast */
+		__P((struct ifnet *, struct sockaddr **, struct sockaddr *));
 	struct	ifqueue if_snd;		/* output queue */
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 };
@@ -252,6 +257,20 @@ struct ifaddr {
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
 
+/*
+ * Multicast address structure.  This is analogous to the ifaddr
+ * structure except that it keeps track of multicast addresses.
+ * Also, the reference count here is a count of requests for this
+ * address, not a count of pointers to this structure.
+ */
+struct ifmultiaddr {
+	LIST_ENTRY(ifmultiaddr) ifma_link;
+	struct	sockaddr *ifma_addr;
+	struct	sockaddr *ifma_lladdr;
+	struct	ifnet *ifma_ifp;
+	u_int	ifma_refcount;
+};
+
 #ifdef KERNEL
 #define	IFAFREE(ifa) \
 	if ((ifa)->ifa_refcnt <= 0) \
@@ -271,7 +290,10 @@ int	ether_output __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 int	ether_ioctl __P((struct ifnet *, int, caddr_t));
 
+int	if_addmulti __P((struct ifnet *, struct sockaddr *));
+int	if_allmulti __P((struct ifnet *, int));
 void	if_attach __P((struct ifnet *));
+int	if_delmulti __P((struct ifnet *, struct sockaddr *));
 void	if_down __P((struct ifnet *));
 void	if_up __P((struct ifnet *));
 #ifdef vax

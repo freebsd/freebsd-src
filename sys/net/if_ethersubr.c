@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.28 1996/12/10 07:29:48 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.29 1996/12/13 21:28:38 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -101,6 +101,8 @@ extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif NETATALK
 
+static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **, 
+				    struct sockaddr *));
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) { error = (e); goto bad;}
 
@@ -651,6 +653,7 @@ ether_ifattach(ifp)
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
 	ifp->if_mtu = ETHERMTU;
+	ifp->if_resolvemulti = ether_resolvemulti;
 	if (ifp->if_baudrate == 0)
 	    ifp->if_baudrate = 10000000;
 	ifa = ifnet_addrs[ifp->if_index - 1];
@@ -945,4 +948,52 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 		break;
 	}
 	return (error);
+}
+
+int
+ether_resolvemulti(ifp, llsa, sa)
+	struct ifnet *ifp;
+	struct sockaddr **llsa;
+	struct sockaddr *sa;
+{
+	struct sockaddr_dl *sdl;
+	struct sockaddr_in *sin;
+	u_char *e_addr;
+
+	switch(sa->sa_family) {
+	case AF_LINK:
+		sdl = (struct sockaddr_dl *)sa;
+		e_addr = LLADDR(sdl);
+		if ((e_addr[0] & 1) != 1)
+			return EADDRNOTAVAIL;
+		*llsa = 0;
+		return 0;
+
+#ifdef INET
+	case AF_INET:
+		sin = (struct sockaddr_in *)sa;
+		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+			return EADDRNOTAVAIL;
+		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
+		       M_WAITOK);
+		sdl->sdl_len = sizeof *sdl;
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = IFT_ETHER;
+		sdl->sdl_nlen = 0;
+		sdl->sdl_alen = ETHER_ADDR_LEN;
+		sdl->sdl_slen = 0;
+		e_addr = LLADDR(sdl);
+		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
+		*llsa = (struct sockaddr *)sdl;
+		return 0;
+#endif
+
+	default:
+		/* 
+		 * Well, the text isn't quite right, but it's the name
+		 * that counts...
+		 */
+		return EAFNOSUPPORT;
+	}
 }
