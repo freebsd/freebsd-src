@@ -1559,7 +1559,11 @@ END_DEBUG
 		ocb = sbp_dequeue_ocb(sdev, sbp_status);
 		if (ocb == NULL) {
 			sbp_show_sdev_info(sdev, 2);
+#if __FreeBSD_version >= 500000
 			printf("No ocb(%x) on the queue\n",
+#else
+			printf("No ocb(%lx) on the queue\n",
+#endif
 					ntohl(sbp_status->orb_lo));
 		}
 		break;
