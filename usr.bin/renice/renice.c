@@ -82,17 +82,12 @@ main(int argc, char *argv[])
 	if (strcmp(*argv, "-n") == 0) {
 		incr = 1;
 		argc--, argv++;
-		if (argc == 0)
+		if (argc < 2)
 			usage();
 	}
 	if (getnum("priority", *argv, &prio))
 		return (1);
-	prio = atoi(*argv);
 	argc--, argv++;
-	if (prio > PRIO_MAX)
-		prio = PRIO_MAX;
-	if (prio < PRIO_MIN)
-		prio = PRIO_MIN;
 	for (; argc > 0; argc--, argv++) {
 		if (strcmp(*argv, "-g") == 0) {
 			which = PRIO_PGRP;
