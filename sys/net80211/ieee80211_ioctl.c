@@ -1975,7 +1975,7 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		if (kid >= IEEE80211_WEP_NKID)
 			return EINVAL;
 		ic->ic_def_txkey = kid;
-		error = ERESTART;	/* push to hardware */
+		error = ENETRESET;	/* push to hardware */
 		break;
 	case IEEE80211_IOC_AUTHMODE:
 		switch (ireq->i_val) {
