@@ -49,7 +49,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.1 1996/02/25 19:27:59 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.5 1996/02/26 02:34:23 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -130,7 +130,7 @@ void load_securenets()
 		if (errno == ENOENT) {
 			securenets = (struct securenet *)malloc(sizeof(struct securenet));
 			securenets->net.s_addr = INADDR_ANY;
-			securenets->mask.s_addr = INADDR_BROADCAST;
+			securenets->mask.s_addr = INADDR_ANY;
 			securenets->next = NULL;
 			return;
 		} else {
