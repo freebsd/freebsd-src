@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.10 1994/12/13 15:57:34 ugen Exp $
+ * $Id: raw_ip.c,v 1.11 1995/01/12 10:53:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -53,12 +53,7 @@
 #include <netinet/ip_mroute.h>
 #include <netinet/in_pcb.h>
 
-#ifdef IPFIREWALL
 #include <netinet/ip_fw.h>
-#endif
-#ifdef IPACCT
-#include <netinet/ip_fw.h>
-#endif
 
 struct inpcb rawinpcb;
 
@@ -214,39 +209,44 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 		break;
 
-#ifdef IPFIREWALL
-	case IP_FW_ADD_BLK:
-	case IP_FW_ADD_FWD:
-	case IP_FW_DEL_BLK:
-	case IP_FW_DEL_FWD:
+	case IP_FW_ADD:
+	case IP_FW_DEL:
 	case IP_FW_FLUSH:
 	case IP_FW_POLICY:
+		if (ip_fw_ctl_ptr==NULL) {
+			if (*m)
+				(void)m_free(*m);
+			return(EINVAL);
+		}
 
 		if (op == PRCO_SETOPT) {
-			error=ip_fw_ctl(optname, *m); 
+			error=(*ip_fw_ctl_ptr)(optname, *m); 
 			if (*m)
 				(void)m_free(*m);
 		}
 		else
 			error=EINVAL;
 		return(error);
-#endif
-#ifdef IPACCT
+
 	case IP_ACCT_DEL:
 	case IP_ACCT_ADD:
 	case IP_ACCT_CLR:
 	case IP_ACCT_FLUSH:
 	case IP_ACCT_ZERO: 
+		if (ip_acct_ctl_ptr==NULL) {
+			if (*m)
+				(void)m_free(*m);
+			return(EINVAL);
+		}
 	
 		if (op = PRCO_SETOPT) {
-			error=ip_acct_ctl(optname, *m);
+			error=(*ip_acct_ctl_ptr)(optname, *m);
 			if (*m)
 				(void)m_free(*m);
 		}
 		else
 			error=EINVAL;
 		return(error);
-#endif
 
 	case IP_RSVP_ON:
 		error = ip_rsvp_init(so);

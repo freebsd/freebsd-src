@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.13 1994/12/13 23:08:11 wollman Exp $
+ * $Id: ip_input.c,v 1.14 1994/12/14 19:06:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -56,12 +56,7 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 
-#ifdef IPFIREWALL
 #include <netinet/ip_fw.h>
-#endif
-#ifdef IPACCT
-#include <netinet/ip_fw.h>
-#endif
 
 #include <sys/socketvar.h>
 struct socket *ip_rsvpd;
@@ -237,13 +232,21 @@ next:
 		} else
 			m_adj(m, ip->ip_len - m->m_pkthdr.len);
 	}
+	/*
+	 * IpHack's section.
+	 * Right now when no processing on packet has done
+	 * and it is still fresh out of network we do our black
+	 * deals with it.
+	 * - Firewall: deny/allow
+	 * - Wrap: fake packet's addr/port <unimpl.>
+	 * - Encapsulate: put it in another IP and send out. <unimp.>
+ 	 */
 
-#ifdef IPFIREWALL
-        if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-        && !ip_fw_chk(ip,m->m_pkthdr.rcvif,ip_fw_blk_chain) ) {
-                goto bad;
-        }
-#endif                            
+        if (ip_fw_chk_ptr!=NULL)
+		if (((char *)&(ip->ip_dst.s_addr))[0] != 127
+        	&& !(*ip_fw_chk_ptr)(ip,m->m_pkthdr.rcvif,ip_fw_chain) ) {
+                	goto bad;
+        	}
 
 	/*
 	 * Process options and, if not destined for us,
@@ -356,7 +359,6 @@ next:
 
 ours:
 
-#ifdef IPACCT
 		/*
 		 * If packet came to us we count it...
 		 * This way we count all incoming packets which has 
@@ -364,8 +366,8 @@ ours:
 		 * Do not convert ip_len to host byte order when 
 		 * counting,ppl already made it for us before..
 		 */
-		ip_acct_cnt(ip,m->m_pkthdr.rcvif,ip_acct_chain,0);
-#endif
+	if (ip_acct_cnt_ptr!=NULL)
+		(*ip_acct_cnt_ptr)(ip,m->m_pkthdr.rcvif,ip_acct_chain,0);
 
 	/*
 	 * If offset or IP_MF are set, must reassemble.
@@ -1049,14 +1051,6 @@ ip_forward(m, srcrt)
 			ip->ip_src.s_addr, ip->ip_dst.s_addr, ip->ip_ttl);
 #endif
 
-#ifdef IPFIREWALL
-	if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-	    && !ip_fw_chk(ip, m->m_pkthdr.rcvif, ip_fw_fwd_chain) ) {
-		ipstat.ips_cantforward++;
-		m_freem(m);
-		return;
-	} 
-#endif   
 
 	if (m->m_flags & M_BCAST || in_canforward(ip->ip_dst) == 0) {
 		ipstat.ips_cantforward++;

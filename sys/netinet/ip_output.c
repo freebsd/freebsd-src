@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.10 1994/12/12 17:20:54 ugen Exp $
+ * $Id: ip_output.c,v 1.11 1994/12/13 23:08:12 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -53,12 +53,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
-#ifdef IPFIREWALL
 #include <netinet/ip_fw.h>
-#endif
-#ifdef IPACCT
-#include <netinet/ip_fw.h>
-#endif
 
 #ifdef vax
 #include <machine/mtpr.h>
@@ -417,7 +412,6 @@ sendorfree:
 done:
 	if (ro == &iproute && (flags & IP_ROUTETOIF) == 0 && ro->ro_rt)
 		RTFREE(ro->ro_rt);
-#ifdef IPACCT
 	/*
 	 * Count outgoing packet,here we count both our packets and
 	 * those we forward.
@@ -426,8 +420,9 @@ done:
 	 * This is locally generated packet so it has not
 	 * incoming interface.
 	 */
-	ip_acct_cnt(ip,NULL,ip_acct_chain,1);
-#endif
+	if (ip_acct_cnt_ptr!=NULL)
+		(*ip_acct_cnt_ptr)(ip,NULL,ip_acct_chain,1);
+
 	return (error);
 bad:
 	m_freem(m0);
