@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 PROG=	banner
-CFLAGS+=-Wall
 MAN=	banner.6
+
+WARNS?=	2
 
 .include <bsd.prog.mk>
