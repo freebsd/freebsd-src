@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.1.1.1 1994/05/24 10:05:10 rgrimes Exp $
+ *	$Id: procfs_ctl.c,v 1.2 1994/08/02 07:45:10 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <miscfs/procfs/procfs.h>
+#include <sys/signal.h>               /* for sigmask() */
 
 /*
  * True iff process (p) is in trace wait state
@@ -185,6 +186,9 @@ procfs_control(curp, p, op)
 
 		/* not being traced any more */
 		p->p_flag &= ~P_TRACED;
+
+		/* remove pending SIGTRAP, else the process will die */
+		p->p_siglist &= ~sigmask (SIGTRAP);
 
 		/* give process back to original parent */
 		if (p->p_oppid != p->p_pptr->p_pid) {
