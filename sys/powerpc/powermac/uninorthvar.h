@@ -45,6 +45,7 @@ struct uninorth_softc {
 	int			sc_bus;
 	struct			uninorth_range sc_range[6];
 	int			sc_nrange;
+	int			sc_iostart;
 	struct			rman sc_io_rman;
 	struct			rman sc_mem_rman;
 	bus_space_tag_t		sc_iot;
