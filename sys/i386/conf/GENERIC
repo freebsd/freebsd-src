@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46.2.15 1996/07/16 08:44:57 davidg Exp $
+#	$Id: GENERIC,v 1.46.2.16 1996/07/16 08:45:50 davidg Exp $
 #
 
 machine		"i386"
@@ -110,7 +110,6 @@ device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
 # revision 1.20 of this file.
 device de0
 device fxp0
-device vx0
 device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
