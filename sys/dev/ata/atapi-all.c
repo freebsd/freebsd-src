@@ -28,9 +28,6 @@
  * $FreeBSD$
  */
 
-#include "atapicd.h"
-#include "atapist.h"
-#include "atapifd.h" 
 #include "opt_global.h"
 #include "opt_ata.h"
 #include <sys/param.h>
@@ -90,19 +87,19 @@ atapi_attach(struct ata_softc *scp, int device)
 		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
 
     switch (ATP_PARAM->device_type) {
-#if NATAPICD > 0
+#ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
 	if (acdattach(atp))
 	    goto notfound;
 	break; 
 #endif
-#if NATAPIFD > 0
+#ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
 	if (afdattach(atp))
 	    goto notfound;
 	break; 
 #endif
-#if NATAPIST > 0
+#ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
 	if (astattach(atp))
 	    goto notfound;
@@ -124,17 +121,17 @@ void
 atapi_detach(struct atapi_softc *atp)
 {
     switch (ATP_PARAM->device_type) {
-#if NATAPICD > 0
+#ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
 	acddetach(atp);
 	break; 
 #endif
-#if NATAPIFD > 0
+#ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
 	afddetach(atp);
 	break; 
 #endif
-#if NATAPIST > 0
+#ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
 	astdetach(atp);
 	break; 
@@ -215,17 +212,17 @@ void
 atapi_start(struct atapi_softc *atp)
 {
     switch (ATP_PARAM->device_type) {
-#if NATAPICD > 0
+#ifdef DEV_ATAPICD
     case ATAPI_TYPE_CDROM:
 	acd_start(atp);
 	break; 
 #endif
-#if NATAPIFD > 0
+#ifdef DEV_ATAPIFD
     case ATAPI_TYPE_DIRECT:
 	afd_start(atp);
 	break; 
 #endif
-#if NATAPIST > 0
+#ifdef DEV_ATAPIST
     case ATAPI_TYPE_TAPE:
 	ast_start(atp);
 	break; 
