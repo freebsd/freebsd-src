@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 vm_map_t kernel_map=0;
 vm_map_t kmem_map=0;
 vm_map_t exec_map=0;
+vm_map_t pipe_map;
 vm_map_t clean_map=0;
 vm_map_t buffer_map=0;
 

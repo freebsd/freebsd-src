@@ -43,24 +43,20 @@
  *
  * The constant PIPE_MINDIRECT is chosen to make sure that buffering will
  * happen for small transfers so that the system will not spend all of
- * its time context switching.  PIPE_SIZE is constrained by the
- * amount of kernel virtual memory.
+ * its time context switching.
  *
- * In order to limit the resource use of pipes, three sysctls exist:
+ * In order to limit the resource use of pipes, two sysctls exist:
  *
- * kern.ipc.maxpipes - A limit on the total number of pipes in the system.
- * Note that since pipes are bidirectional, the effective value is this
- * number divided by two.
- *
- * kern.ipc.maxpipekva - This value limits the amount of pageable memory that
- * can be used by pipes.  Whenever the amount in use exceeds this value,
- * all new pipes will be SMALL_PIPE_SIZE in size, rather than PIPE_SIZE.
- * Big pipe creation will be limited as well.
+ * kern.ipc.maxpipekva - This is a hard limit on the amount of pageable
+ * address space available to us in pipe_map.  Whenever the amount in use
+ * exceeds half of this value, all new pipes will be created with size
+ * SMALL_PIPE_SIZE, rather than PIPE_SIZE.  Big pipe creation will be limited
+ * as well.  This value is loader tunable only.
  *
  * kern.ipc.maxpipekvawired - This value limits the amount of memory that may
  * be wired in order to facilitate direct copies using page flipping.
  * Whenever this value is exceeded, pipes will fall back to using regular
- * copies.
+ * copies.  This value is sysctl controllable at all times.
  *
  * These values are autotuned in subr_param.c.
  *
@@ -182,9 +178,7 @@ static int amountpipekvawired;
 
 SYSCTL_DECL(_kern_ipc);
 
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipes, CTLFLAG_RW,
-	   &maxpipes, 0, "Max # of pipes");
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RW,
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RD,
 	   &maxpipekva, 0, "Pipe KVA limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekvawired, CTLFLAG_RW,
 	   &maxpipekvawired, 0, "Pipe KVA wired limit");
@@ -339,32 +333,29 @@ pipespace(cpipe, size)
 	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
 	       ("pipespace: pipe mutex locked"));
 
-	if (amountpipes > maxpipes) {
-		if (ppsratecheck(&lastfail, &curfail, 1))
-			printf("kern.maxpipes exceeded, please see tuning(7).\n");
-		return (ENOMEM);
-	}
-
-	npages = round_page(size)/PAGE_SIZE;
+	size = round_page(size);
+	npages = size / PAGE_SIZE;
 	/*
 	 * Create an object, I don't like the idea of paging to/from
 	 * kernel_object.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
 	object = vm_object_allocate(OBJT_DEFAULT, npages);
-	buffer = (caddr_t) vm_map_min(kernel_map);
+	buffer = (caddr_t) vm_map_min(pipe_map);
 
 	/*
 	 * Insert the object into the kernel map, and allocate kva for it.
 	 * The map entry is, by default, pageable.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
-	error = vm_map_find(kernel_map, object, 0,
+	error = vm_map_find(pipe_map, object, 0,
 		(vm_offset_t *) &buffer, size, 1,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	if (error != KERN_SUCCESS) {
 		vm_object_deallocate(object);
+		if (ppsratecheck(&lastfail, &curfail, 1))
+			printf("kern.maxpipekva exceeded, please see tuning(7).\n");
 		return (ENOMEM);
 	}
 
@@ -423,7 +414,7 @@ pipe_create(cpipep)
 	/*
 	 * Reduce to 1/4th pipe size if we're over our global max.
 	 */
-	if (amountpipekva > maxpipekva)
+	if (amountpipekva > maxpipekva / 2)
 		error = pipespace(cpipe, SMALL_PIPE_SIZE);
 	else
 		error = pipespace(cpipe, PIPE_SIZE);
@@ -697,8 +688,6 @@ pipe_build_write_buffer(wpipe, uio)
 			vm_page_lock_queues();
 			for (j = 0; j < i; j++) {
 				vm_page_unhold(wpipe->pipe_map.ms[j]);
-				atomic_subtract_int(&amountpipekvawired,
-					 	    PAGE_SIZE);
 			}
 			vm_page_unlock_queues();
 			return (EFAULT);
@@ -707,7 +696,6 @@ pipe_build_write_buffer(wpipe, uio)
 		m = PHYS_TO_VM_PAGE(paddr);
 		vm_page_lock_queues();
 		vm_page_hold(m);
-		atomic_add_int(&amountpipekvawired, PAGE_SIZE);
 		vm_page_unlock_queues();
 		wpipe->pipe_map.ms[i] = m;
 	}
@@ -730,7 +718,7 @@ pipe_build_write_buffer(wpipe, uio)
 		 */
 		wpipe->pipe_map.kva = kmem_alloc_nofault(kernel_map,
 			wpipe->pipe_buffer.size + PAGE_SIZE);
-		atomic_add_int(&amountpipekva,
+		atomic_add_int(&amountpipekvawired,
 		    wpipe->pipe_buffer.size + PAGE_SIZE);
 	}
 	pmap_qenter(wpipe->pipe_map.kva, wpipe->pipe_map.ms,
@@ -764,19 +752,19 @@ pipe_destroy_write_buffer(wpipe)
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
 
-		if (amountpipekva > maxpipekva) {
+		if (amountpipekvawired > maxpipekvawired / 2) {
+			/* Conserve address space */
 			vm_offset_t kva = wpipe->pipe_map.kva;
 			wpipe->pipe_map.kva = 0;
 			kmem_free(kernel_map, kva,
 				wpipe->pipe_buffer.size + PAGE_SIZE);
-			atomic_subtract_int(&amountpipekva,
+			atomic_subtract_int(&amountpipekvawired,
 			    wpipe->pipe_buffer.size + PAGE_SIZE);
 		}
 	}
 	vm_page_lock_queues();
 	for (i = 0; i < wpipe->pipe_map.npages; i++) {
 		vm_page_unhold(wpipe->pipe_map.ms[i]);
-		atomic_subtract_int(&amountpipekvawired, PAGE_SIZE);
 	}
 	vm_page_unlock_queues();
 	wpipe->pipe_map.npages = 0;
@@ -951,7 +939,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	 * so.
 	 */
 	if ((uio->uio_resid > PIPE_SIZE) &&
-		(amountpipekva < maxpipekva) &&
+		(amountpipekva < maxpipekva / 2) &&
 		(nbigpipe < LIMITBIGPIPES) &&
 		(wpipe->pipe_state & PIPE_DIRECTW) == 0 &&
 		(wpipe->pipe_buffer.size <= PIPE_SIZE) &&
@@ -998,7 +986,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0 &&
-		    amountpipekvawired < maxpipekvawired) { 
+		    amountpipekvawired + uio->uio_resid < maxpipekvawired) { 
 			error = pipe_direct_write(wpipe, uio);
 			if (error)
 				break;
@@ -1404,14 +1392,14 @@ pipe_free_kmem(cpipe)
 			atomic_subtract_int(&nbigpipe, 1);
 		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
 		atomic_subtract_int(&amountpipes, 1);
-		kmem_free(kernel_map,
-			(vm_offset_t)cpipe->pipe_buffer.buffer,
-			cpipe->pipe_buffer.size);
+		vm_map_remove(pipe_map,
+		    (vm_offset_t)cpipe->pipe_buffer.buffer,
+		    (vm_offset_t)cpipe->pipe_buffer.buffer + cpipe->pipe_buffer.size);
 		cpipe->pipe_buffer.buffer = NULL;
 	}
 #ifndef PIPE_NODIRECT
 	if (cpipe->pipe_map.kva != 0) {
-		atomic_subtract_int(&amountpipekva,
+		atomic_subtract_int(&amountpipekvawired,
 		    cpipe->pipe_buffer.size + PAGE_SIZE);
 		kmem_free(kernel_map,
 			cpipe->pipe_map.kva,
