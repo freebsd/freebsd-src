@@ -35,8 +35,13 @@
 static char sccsid[] = "@(#)fstab.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+
 #include <errno.h>
 #include <fstab.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +52,29 @@ static struct fstab _fs_fstab;
 static int LineNo = 0;
 
 static void error __P((int));
+static void fixfsfile __P((void));
 static int fstabscan __P((void));
+
+static void
+fixfsfile()
+{
+	static char buf[sizeof(_PATH_DEV) + MNAMELEN];
+	struct stat sb;
+	struct statfs sf;
+
+	if (strcmp(_fs_fstab.fs_file, "/") != 0)
+		return;
+	if (statfs("/", &sf) != 0)
+		return;
+	if (sf.f_mntfromname[0] == '/')
+		buf[0] = '\0';
+	else
+		strcpy(buf, _PATH_DEV);
+	strcat(buf, sf.f_mntfromname);
+	if (stat(buf, &sb) != 0 || !S_ISBLK(sb.st_mode))
+		return;
+	_fs_fstab.fs_spec = buf;
+}
 
 static int
 fstabscan()
@@ -69,6 +96,7 @@ fstabscan()
 		if (!strpbrk(p, " \t")) {
 			_fs_fstab.fs_spec = strsep(&p, ":\n");
 			_fs_fstab.fs_file = strsep(&p, ":\n");
+			fixfsfile();
 			_fs_fstab.fs_type = strsep(&p, ":\n");
 			if (_fs_fstab.fs_type) {
 				if (!strcmp(_fs_fstab.fs_type, FSTAB_XX))
@@ -96,6 +124,7 @@ fstabscan()
 		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
 			;
 		_fs_fstab.fs_file = cp;
+		fixfsfile();
 		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
 			;
 		_fs_fstab.fs_vfstype = cp;
