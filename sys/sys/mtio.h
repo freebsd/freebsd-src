@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.15 1998/12/22 17:17:17 mjacob Exp $
+ * $Id: mtio.h,v 1.16 1999/02/05 02:47:30 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -135,10 +135,10 @@ struct mtget {
 	u_int32_t mt_comp1;	/* compression type for mode 1 */
 	u_int32_t mt_comp2;	/* compression type for mode 2 */
 	u_int32_t mt_comp3;	/* compression type for mode 3 */
-#endif
-	daddr_t	mt_fileno;	/* file number of current position */
-	daddr_t	mt_blkno;	/* block number of current position */
 /* end not yet implemented */
+#endif
+	daddr_t	mt_fileno;	/* relative file number of current position */
+	daddr_t	mt_blkno;	/* relative block number of current position */
 };
 
 /* structure for MTIOCERRSTAT - tape get error status command */
@@ -166,7 +166,7 @@ struct scsi_tape_errors {
 		u_int32_t processed;	/* total # corrections succssful */
 		u_int32_t failures;	/* total # corrections/retries failed */
 		u_int64_t nbytes;	/* total # bytes processed */
-	} werr, rderr;
+	} wterr, rderr;
 };
 	
 union mterrstat {
