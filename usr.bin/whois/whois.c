@@ -79,6 +79,7 @@ static const char rcsid[] =
 
 const char *ip_whois[] = { RNICHOST, PNICHOST, NULL };
 
+static char *choose_server(char *);
 static void usage(void);
 static void whois(char *, struct addrinfo *, int);
 
@@ -88,7 +89,7 @@ main(int argc, char *argv[])
 	struct addrinfo hints, *res;
 	const char *host;
 	char *qnichost;
-	int ch, error, flags, i, j, use_qnichost;
+	int ch, error, flags, use_qnichost;
 
 #ifdef	SOCKS
 	SOCKSinit(argv[0]);
@@ -159,21 +160,7 @@ main(int argc, char *argv[])
 	}
 	while (argc--) {
 		if (use_qnichost) {
-			for (i = j = 0; (*argv)[i]; i++)
-				if ((*argv)[i] == '.')
-					j = i;
-			if (j != 0) {
-				if (isdigit(*(*argv + j + 1))) {
-					asprintf(&qnichost, "%s", ANICHOST);
-					if (qnichost == NULL)
-						err(1, "asprintf()");
-				} else {
-					asprintf(&qnichost, "%s%s",
-					    *argv + j + 1, QNICHOST_TAIL);
-					if (qnichost == NULL)
-						err(1, "asprintf()");
-				}
-
+			if ((qnichost = choose_server(*argv)) != NULL) {
 				memset(&hints, 0, sizeof(hints));
 				hints.ai_flags = 0;
 				hints.ai_family = AF_UNSPEC;
@@ -202,6 +189,33 @@ main(int argc, char *argv[])
 		freeaddrinfo(res);
 	}
 	exit(0);
+}
+
+/*
+ * This function will remove any trailing periods from domain, after which it
+ * returns a pointer to newly allocated memory containing the whois server to
+ * be queried, or a NULL if the correct server couldn't be determined.  The
+ * caller must remember to free(3) the allocated memory.
+ */
+static char *
+choose_server(char *domain)
+{
+	char *pos, *retval;
+
+	for (pos = strchr(domain, '\0'); pos > domain && *--pos == '.';)
+		*pos = '\0';
+	if (*domain == '\0')
+		errx(EX_USAGE, "can't search for a null string");
+	while (pos > domain && *pos != '.')
+		--pos;
+	if (isdigit(*++pos)) {
+		if (asprintf(&retval, "%s", ANICHOST) == -1)
+			err(1, "asprintf()");
+	} else {
+		if (asprintf(&retval, "%s%s", pos, QNICHOST_TAIL) == -1)
+			err(1, "asprintf()");
+	}
+	return (retval);
 }
 
 static void
