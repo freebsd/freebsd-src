@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.81 1996/09/14 11:54:57 bde Exp $
+ * $Id: vm_object.c,v 1.82 1996/09/28 03:33:26 dyson Exp $
  */
 
 /*
@@ -681,6 +681,8 @@ vm_object_pmap_remove(object, start, end)
 		if (p->pindex >= start && p->pindex < end)
 			vm_page_protect(p, VM_PROT_NONE);
 	}
+	if ((start == 0) && (object->size == end))
+		object->flags &= ~OBJ_WRITEABLE;
 }
 
 /*
@@ -695,7 +697,9 @@ vm_object_madvise(object, pindex, count, advise)
 	int count;
 	int advise;
 {
-	vm_pindex_t end;
+	int s;
+	vm_pindex_t end, tpindex;
+	vm_object_t tobject;
 	vm_page_t m;
 
 	if (object == NULL)
@@ -704,34 +708,60 @@ vm_object_madvise(object, pindex, count, advise)
 	end = pindex + count;
 
 	for (; pindex < end; pindex += 1) {
-		m = vm_page_lookup(object, pindex);
+
+relookup:
+		tobject = object;
+		tpindex = pindex;
+shadowlookup:
+		m = vm_page_lookup(tobject, tpindex);
+		if (m == NULL) {
+			if (tobject->type != OBJT_DEFAULT) {
+				continue;
+			}
+				
+			tobject = tobject->backing_object;
+			if ((tobject == NULL) || (tobject->ref_count != 1)) {
+				continue;
+			}
+			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
+			goto shadowlookup;
+		}
 
 		/*
 		 * If the page is busy or not in a normal active state,
 		 * we skip it.  Things can break if we mess with pages
 		 * in any of the below states.
 		 */
-		if (m == NULL || m->busy || (m->flags & PG_BUSY) ||
-			m->hold_count || m->wire_count ||
-			m->valid != VM_PAGE_BITS_ALL)
+		if (m->hold_count || m->wire_count ||
+			m->valid != VM_PAGE_BITS_ALL) {
 			continue;
+		}
+
+		if (m->busy || (m->flags & PG_BUSY)) {
+			s = splvm();
+			if (m->busy || (m->flags & PG_BUSY)) {
+				m->flags |= PG_WANTED;
+				tsleep(m, PVM, "madvpw", 0);
+			}
+			splx(s);
+			goto relookup;
+		}
 
 		if (advise == MADV_WILLNEED) {
 			if (m->queue != PQ_ACTIVE)
 				vm_page_activate(m);
-		} else if ((advise == MADV_DONTNEED) ||
-			((advise == MADV_FREE) &&
-				((object->type != OBJT_DEFAULT) &&
-					(object->type != OBJT_SWAP)))) {
+		} else if (advise == MADV_DONTNEED) {
 			vm_page_deactivate(m);
 		} else if (advise == MADV_FREE) {
+			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+			m->dirty = 0;
 			/*
-			 * Force a demand-zero on next ref
+			 * Force a demand zero if attempt to read from swap.
+			 * We currently don't handle vnode files correctly,
+			 * and will reread stale contents unnecessarily.
 			 */
 			if (object->type == OBJT_SWAP)
-				swap_pager_dmzspace(object, m->pindex, 1);
-			vm_page_protect(m, VM_PROT_NONE);
-			vm_page_free(m);
+				swap_pager_dmzspace(tobject, m->pindex, 1);
 		}
 	}	
 }
@@ -853,6 +883,7 @@ vm_object_qcollapse(object)
 					swap_pager_freespace(backing_object,
 					    backing_object_paging_offset_index + p->pindex, 1);
 				vm_page_rename(p, object, new_pindex);
+				vm_page_protect(p, VM_PROT_NONE);
 				p->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
@@ -968,7 +999,9 @@ vm_object_collapse(object)
 						PAGE_WAKEUP(p);
 						vm_page_free(p);
 					} else {
+						vm_page_protect(p, VM_PROT_NONE);
 						vm_page_rename(p, object, new_pindex);
+						p->dirty = VM_PAGE_BITS_ALL;
 					}
 				}
 			}
@@ -1299,13 +1332,18 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
 
-	if (prev_object->ref_count > 1 ||
-	    prev_object->backing_object != NULL) {
+	if (prev_object->backing_object != NULL) {
 		return (FALSE);
 	}
 
 	prev_size >>= PAGE_SHIFT;
 	next_size >>= PAGE_SHIFT;
+
+	if ((prev_object->ref_count > 1) &&
+	    (prev_object->size != prev_pindex + prev_size)) {
+		return (FALSE);
+	}
+
 	/*
 	 * Remove any pages that may still be in the object from a previous
 	 * deallocation.
@@ -1360,7 +1398,7 @@ _vm_object_in_map(map, object, entry)
 			}
 			tmpe = tmpe->next;
 		}
-	} else if (entry->is_sub_map || entry->is_a_map) {
+	} else if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
 		tmpm = entry->object.share_map;
 		tmpe = tmpm->header.next;
 		entcount = tmpm->nentries;

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.15 1996/07/30 03:08:11 dyson Exp $
+ * $Id: vm_map.h,v 1.15.2.1 1996/12/15 09:57:14 davidg Exp $
  */
 
 /*
@@ -104,17 +104,20 @@ struct vm_map_entry {
 	vm_offset_t end;		/* end address */
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
-	u_char is_a_map:1,		/* Is "object" a map? */
-	 is_sub_map:1,			/* Is "object" a submap? */
-	 copy_on_write:1,		/* is data copy-on-write */
-	 needs_copy:1,			/* does object need to be copied */
-	 nofault:1;			/* should never fault */
+	u_char eflags;			/* map entry flags */
 	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
 };
+
+#define MAP_ENTRY_IS_A_MAP		0x1
+#define MAP_ENTRY_IS_SUB_MAP		0x2
+#define MAP_ENTRY_COW			0x4
+#define MAP_ENTRY_NEEDS_COPY		0x8
+#define MAP_ENTRY_NOFAULT		0x10
+#define MAP_ENTRY_USER_WIRED		0x20
 
 /*
  *	Maps are doubly-linked lists of map entries, kept sorted
@@ -210,6 +213,13 @@ typedef struct {
 #define MAP_COPY_ON_WRITE 0x2
 #define MAP_NOFAULT 0x4
 
+/*
+ * vm_fault option flags
+ */
+#define VM_FAULT_NORMAL 0
+#define VM_FAULT_CHANGE_WIRING 1
+#define VM_FAULT_USER_WIRE 2
+
 #ifdef KERNEL
 extern vm_offset_t kentry_data;
 extern vm_size_t kentry_data_size;
@@ -230,6 +240,7 @@ int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_
 void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
 boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
 int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
+int vm_map_user_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
 int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
 int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_map_reference __P((vm_map_t));
@@ -238,6 +249,7 @@ void vm_map_simplify __P((vm_map_t, vm_offset_t));
 void vm_map_startup __P((void));
 int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
 void vm_map_madvise __P((vm_map_t, pmap_t, vm_offset_t, vm_offset_t, int));
+void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
 
 #endif
 #endif				/* _VM_MAP_ */
