@@ -1256,7 +1256,7 @@ isp_fclink_test(isp, waitdelay)
 		"F Port"
 	};
 	mbreg_t mbs;
-	int count, topo = -1;
+	int count;
 	u_int8_t lwfs;
 	fcparam *fcp;
 #if	defined(ISP2100_FABRIC)
@@ -1300,11 +1300,12 @@ isp_fclink_test(isp, waitdelay)
 	}
 	fcp->isp_loopid = mbs.param[1];
 	if (IS_2200(isp)) {
-		topo = (int) mbs.param[6];
-		if (topo < 0 || topo > 3)
-			topo = 0;
+		count = (int) mbs.param[6];
+		if (count < TOPO_NL_PORT || count > TOPO_PTP_STUB)
+			count = TOPO_PTP_STUB;
+		fcp->isp_topo = count;
 	} else {
-		topo = 0;
+		fcp->isp_topo = TOPO_NL_PORT;
 	}
 
 	/*
@@ -1317,14 +1318,14 @@ isp_fclink_test(isp, waitdelay)
 	if (isp_getpdb(isp, FL_PORT_ID, &pdb) == 0) {
 
 		if (IS_2100(isp))
-			topo = 1;
+			fcp->isp_topo = TOPO_FL_PORT;
 
 		fcp->isp_portid = mbs.param[2] | (((int)mbs.param[3]) << 16);
 		fcp->isp_onfabric = 1;
 		CFGPRINTF("%s: Loop ID %d, AL_PA 0x%x, Port ID 0x%x Loop State "
 		    "0x%x topology '%s'\n", isp->isp_name, fcp->isp_loopid,
 		    fcp->isp_alpa, fcp->isp_portid, fcp->isp_loopstate,
-		    toponames[topo]);
+		    toponames[fcp->isp_topo]);
 
 		/*
 		 * Make sure we're logged out of all fabric devices.
@@ -1346,7 +1347,7 @@ isp_fclink_test(isp, waitdelay)
 #endif
 	CFGPRINTF("%s: Loop ID %d, ALPA 0x%x Loop State 0x%x topology '%s'\n",
 	    isp->isp_name, fcp->isp_loopid, fcp->isp_alpa, fcp->isp_loopstate,
-	    toponames[topo]);
+	    toponames[fcp->isp_topo]);
 	return (0);
 }
 
@@ -1905,13 +1906,24 @@ ispscsicmd(xs)
 		fcparam *fcp = isp->isp_param;
 		struct lportdb *lp;
 #if	defined(ISP2100_FABRIC)
-		if (target >= FL_PORT_ID) {
-			/*
-			 * If we're not on a Fabric, we can't have a target
-			 * above FL_PORT_ID-1. If we're on a fabric, we
-			 * can't have a target less than FC_SNS_ID+1.
-			 */
-			if (fcp->isp_onfabric == 0 || target <= FC_SNS_ID) {
+		/*
+		 * If we're not on a Fabric, we can't have a target
+		 * above FL_PORT_ID-1. If we're on a fabric and
+		 * connected as an F-port, we can't have a target
+		 * less than FC_SNS_ID+1.
+		 */
+		if (fcp->isp_onfabric == 0) {
+			if (target >= FL_PORT_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+		} else {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+			if (fcp->isp_topo == TOPO_F_PORT &&
+			    target < FL_PORT_ID) {
 				XS_SETERR(xs, HBA_SELTIMEOUT);
 				return (CMD_COMPLETE);
 			}
@@ -2170,7 +2182,7 @@ isp_control(isp, ctl, arg)
 			mbs.param[1] = 10;
 			bus = 0;
 		}
-		isp->isp_sendmarker = 1 << bus;
+		isp->isp_sendmarker |= (1 << bus);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_dumpregs(isp, "isp_control SCSI bus reset failed");
@@ -2194,7 +2206,7 @@ isp_control(isp, ctl, arg)
 		}
 		PRINTF("%s: Target %d on Bus %d Reset Succeeded\n",
 		    isp->isp_name, tgt, bus);
-		isp->isp_sendmarker = 1 << bus;
+		isp->isp_sendmarker |= (1 << bus);
 		return (0);
 
 	case ISPCTL_ABORT_CMD:
@@ -2570,7 +2582,7 @@ isp_parse_async(isp, mbox)
 	case MBOX_COMMAND_COMPLETE:	/* sometimes these show up */
 		break;
 	case ASYNC_BUS_RESET:
-		isp->isp_sendmarker = (1 << bus);
+		isp->isp_sendmarker |= (1 << bus);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
 #endif
@@ -2604,7 +2616,7 @@ isp_parse_async(isp, mbox)
 	case ASYNC_TIMEOUT_RESET:
 		PRINTF("%s: timeout initiated SCSI bus reset of bus %d\n",
 		    isp->isp_name, bus);
-		isp->isp_sendmarker = (1 << bus);
+		isp->isp_sendmarker |= (1 << bus);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
 #endif
@@ -2612,7 +2624,7 @@ isp_parse_async(isp, mbox)
 
 	case ASYNC_DEVICE_RESET:
 		PRINTF("%s: device reset on bus %d\n", isp->isp_name, bus);
-		isp->isp_sendmarker = 1 << bus;
+		isp->isp_sendmarker |= (1 << bus);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
 #endif
@@ -2669,7 +2681,7 @@ isp_parse_async(isp, mbox)
 		 * XXX: Set up to renegotiate again!
 		 */
 		/* Can only be for a 1080... */
-		isp->isp_sendmarker = (1 << bus);
+		isp->isp_sendmarker |= (1 << bus);
 		break;
 
 	case ASYNC_CMD_CMPLT:
@@ -2720,7 +2732,7 @@ isp_parse_async(isp, mbox)
 		break;
 
 	case ASYNC_LOOP_RESET:
-		isp->isp_sendmarker = 1 << bus;
+		isp->isp_sendmarker = 1;
 		((fcparam *) isp->isp_param)->isp_fwstate = FW_CONFIG_WAIT;
 		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_NIL;
 		isp_mark_getpdb_all(isp);
