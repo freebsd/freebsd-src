@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.18 1996/03/27 21:16:32 ache Exp $
+ * $Id: modem.c,v 1.19 1996/03/27 21:40:55 ache Exp $
  *
  *  TODO:
  */
@@ -585,7 +585,7 @@ int flag;
     */
     if (modem)
     {
-	tcflush(modem, TIOCFLUSH);
+	tcflush(modem, TCIOFLUSH);
 	UnrawModem(modem);
 	close(modem);
     }
