@@ -98,7 +98,7 @@ static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 static int	ip_getmoptions
 	(struct sockopt *, struct ip_moptions *);
-static int	ip_pcbopts(int, struct mbuf **, struct mbuf *);
+static int	ip_pcbopts(struct inpcb *, int, struct mbuf *);
 static int	ip_setmoptions
 	(struct sockopt *, struct ip_moptions **);
 
@@ -1172,9 +1172,10 @@ ip_ctloutput(so, sopt)
 			m->m_len = sopt->sopt_valsize;
 			error = sooptcopyin(sopt, mtod(m, char *), m->m_len,
 					    m->m_len);
-			
-			return (ip_pcbopts(sopt->sopt_name, &inp->inp_options,
-					   m));
+			INP_LOCK(inp);
+			error = ip_pcbopts(inp, sopt->sopt_name, m);
+			INP_UNLOCK(inp);
+			return (error);
 		}
 
 		case IP_TOS:
@@ -1427,24 +1428,26 @@ ip_ctloutput(so, sopt)
  * with destination address if source routed.
  */
 static int
-ip_pcbopts(optname, pcbopt, m)
-	int optname;
-	struct mbuf **pcbopt;
-	register struct mbuf *m;
+ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 {
 	register int cnt, optlen;
 	register u_char *cp;
+	struct mbuf **pcbopt;
 	u_char opt;
+
+	INP_LOCK_ASSERT(inp);
+
+	pcbopt = &inp->inp_options;
 
 	/* turn off any old options */
 	if (*pcbopt)
 		(void)m_free(*pcbopt);
 	*pcbopt = 0;
-	if (m == (struct mbuf *)0 || m->m_len == 0) {
+	if (m == NULL || m->m_len == 0) {
 		/*
 		 * Only turning off any previous options.
 		 */
-		if (m)
+		if (m != NULL)
 			(void)m_free(m);
 		return (0);
 	}
