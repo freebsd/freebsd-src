@@ -296,8 +296,8 @@ sigbus(struct sigframe *sf)
 
     if ((int)sf->sf_siginfo != 0) {
         fatal("SIGBUS code %d, trapno: %d, err: %d\n",
-	    (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_tf.tf_trapno, 
-	    sf->sf_uc.uc_mcontext.mc_tf.tf_err);
+	    (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_trapno, 
+	    sf->sf_uc.uc_mcontext.mc_err);
     }
 
     addr = (u_char *)MAKEPTR(R_CS, R_IP);
