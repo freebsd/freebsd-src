@@ -1325,7 +1325,7 @@ psycho_dmamem_alloc_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	return (iommu_dvmamem_alloc_size(pdmat, ddmat, sc->sc_is, vaddr, flags,
 	    mapp, size));
 }
@@ -1347,7 +1347,7 @@ psycho_dmamem_free_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
 {
 	struct psycho_softc *sc;
 
-	sc = (struct psycho_softc *)pdmat->cookie;
+	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	iommu_dvmamem_free_size(pdmat, ddmat, sc->sc_is, vaddr, map, size);
 }
 

@@ -1093,9 +1093,9 @@ sparc64_dmamem_alloc_size(bus_dma_tag_t pt, bus_dma_tag_t dt, void **v, int f,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamem_alloc == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamem_alloc == NULL; lt = lt->dt_parent)
 		;
-	return ((*lt->dmamem_alloc_size)(lt, dt, v, f, m, s));
+	return ((*lt->dt_dmamem_alloc_size)(lt, dt, v, f, m, s));
 }
 #define	bus_dmamem_alloc_size(t, v, f, m, s)				\
 	sparc64_dmamem_alloc_size((t), (t), (v), (f), (m), (s))
@@ -1119,9 +1119,9 @@ sparc64_dmamem_free_size(bus_dma_tag_t pt, bus_dma_tag_t dt, void *v,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamem_free == NULL; lt = lt->parent)
+	for (lt = pt; lt->dt_dmamem_free == NULL; lt = lt->dt_parent)
 		;
-	(*lt->dmamem_free_size)(lt, dt, v, m, s);
+	(*lt->dt_dmamem_free_size)(lt, dt, v, m, s);
 }
 #define	bus_dmamem_free_size(t, v, m, s)				\
 	sparc64_dmamem_free_size((t), (t), (v), (m), (s))
