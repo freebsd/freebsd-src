@@ -199,7 +199,7 @@ block_map(f, file_block, disk_block_p)
 	int level;
 	int idx;
 	daddr_t ind_block_num;
-	daddr_t *ind_p;
+	u_int32_t *ind_p;
 	int rc;
 
 	/*
@@ -274,7 +274,7 @@ block_map(f, file_block, disk_block_p)
 			fp->f_blkno[level] = ind_block_num;
 		}
 
-		ind_p = (daddr_t *)fp->f_blk[level];
+		ind_p = (u_int32_t *)fp->f_blk[level];
 
 		if (level > 0) {
 			idx = file_block / fp->f_nindir[level - 1];
