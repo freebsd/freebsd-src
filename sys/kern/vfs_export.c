@@ -58,6 +58,7 @@ static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
 static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		    struct export_args *argp);
+static struct netcred *vfs_export_lookup(struct mount *, struct sockaddr *);
 
 /*
  * Network address lookup element
@@ -344,10 +345,8 @@ vfs_setpublicfs(mp, nep, argp)
  * to struct netcred so that the filesystem can examine it for
  * access rights (read/write/etc).
  */
-struct netcred *
-vfs_export_lookup(mp, nam)
-	register struct mount *mp;
-	struct sockaddr *nam;
+static struct netcred *
+vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 {
 	struct netexport *nep;
 	register struct netcred *np;
