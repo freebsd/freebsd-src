@@ -20,14 +20,17 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-null.c,v 1.7.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-null.c,v 1.13 2000/10/28 00:01:29 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>			/* optionally get BSD define */
 
 #include <string.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -39,35 +42,33 @@ static char nosup[] = "live packet capture not supported on this system";
 int
 pcap_stats(pcap_t *p, struct pcap_stat *ps)
 {
-
-	(void)sprintf(p->errbuf, "pcap_stats: %s", nosup);
+	(void)snprintf(p->errbuf, sizeof(p->errbuf), "pcap_stats: %s", nosup);
 	return (-1);
 }
 
 int
 pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
-
-	(void)sprintf(p->errbuf, "pcap_read: %s", nosup);
+	(void)snprintf(p->errbuf, sizeof(p->errbuf), "pcap_read: %s", nosup);
 	return (-1);
 }
 
 pcap_t *
 pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 {
-
-	(void)strcpy(ebuf, nosup);
+	(void)strlcpy(ebuf, nosup, PCAP_ERRBUF_SIZE);
 	return (NULL);
 }
 
 int
 pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 {
-
 	if (p->sf.rfile == NULL) {
-		(void)sprintf(p->errbuf, "pcap_setfilter: %s", nosup);
+		(void)snprintf(p->errbuf, sizeof(p->errbuf),
+		    "pcap_setfilter: %s", nosup);
 		return (-1);
 	}
-	p->fcode = *fp;
+	if (install_bpf_program(p, fp) < 0)
+		return (-1);
 	return (0);
 }
