@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.10 1994/08/23 07:52:29 paul Exp $
+ * $Id: wt.c,v 1.11 1994/09/16 13:33:51 davidg Exp $
  *
  */
 
@@ -61,7 +61,9 @@
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
+#include <sys/devconf.h>
 #include <vm/vm_param.h>
+
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>
 
@@ -209,6 +211,27 @@ int wtprobe (struct isa_device *id)
 	return (0);
 }
 
+static struct kern_devconf kdc_wt[NWT] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"wt", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* host adapters are always busy */
+	"Archive or Wangtek QIC-02/QIC-36 tape controller"
+} };
+
+static inline void
+wt_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_wt[id->id_unit] = kdc_wt[0];
+	kdc_wt[id->id_unit].kdc_unit = id->id_unit;
+	kdc_wt[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_wt[id->id_unit]);
+}
+
+
 /*
  * Device is found, configure it.
  */
@@ -223,6 +246,7 @@ int wtattach (struct isa_device *id)
 		printf ("wt%d: type <Wangtek>\n", t->unit);
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
+	wt_registerdev(id);
 	return (1);
 }
 

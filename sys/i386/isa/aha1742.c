@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.22 1994/09/16 13:33:34 davidg Exp $
+ *      $Id: aha1742.c,v 1.23 1994/10/19 01:58:51 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -319,8 +319,12 @@ struct scsi_device ahb_dev =
 
 static struct kern_devconf kdc_ahb[NAHB] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"ahb", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"ahb", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adapters are always ``in use'' */
+	"Adaptec 174x-series SCSI host adapter"
 } };
 
 static inline void
@@ -329,7 +333,7 @@ ahb_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_ahb[id->id_unit] = kdc_ahb[0];
 	kdc_ahb[id->id_unit].kdc_unit = id->id_unit;
-	kdc_ahb[id->id_unit].kdc_isa = id;
+	kdc_ahb[id->id_unit].kdc_parentdata = id;
 	dev_attach(&kdc_ahb[id->id_unit]);
 }
 

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.35 1994/10/19 00:09:45 wollman Exp $
+ *      $Id: sd.c,v 1.36 1994/10/20 00:08:31 phk Exp $
  */
 
 #define SPLSD splbio
@@ -137,8 +137,12 @@ sd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 
 static struct kern_devconf kdc_sd_template = {
 	0, 0, 0,		/* filled in by dev_attach */
-	"sd", 0, { "scsi", MDDT_SCSI, 0 },
-	sd_externalize, 0, sd_goaway, SCSI_EXTERNALLEN
+	"sd", 0, MDDC_SCSI,
+	sd_externalize, 0, sd_goaway, SCSI_EXTERNALLEN,
+	&kdc_scbus0,		/* XXX parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"SCSI disk"
 };
 
 static inline void

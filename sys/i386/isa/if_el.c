@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.6 1994/10/19 01:58:59 wollman Exp $
+ * $Id: if_el.c,v 1.7 1994/10/21 01:19:06 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -100,8 +100,12 @@ struct isa_driver eldriver = {
 
 static struct kern_devconf kdc_el[NEL] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"el", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"el", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* network interfaces are always busy */
+	"3Com 3C501 Ethernet adapter"
 } };
 
 static inline void

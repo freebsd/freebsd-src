@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.6 1994/08/13 03:50:10 wollman Exp $
+ * $Id: mse.c,v 1.7 1994/10/21 01:19:07 wollman Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -53,6 +53,7 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
+#include <sys/devconf.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -174,6 +175,26 @@ mseprobe(idp)
 	return (0);
 }
 
+static struct kern_devconf kdc_mse[NMSE] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"mse", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"ATI or Logitech bus mouse adapter"
+} };
+
+static inline void
+mse_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_mse[id->id_unit] = kdc_mse[0];
+	kdc_mse[id->id_unit].kdc_unit = id->id_unit;
+	kdc_mse[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_mse[id->id_unit]);
+}
+
 int
 mseattach(idp)
 	struct isa_device *idp;
@@ -181,6 +202,7 @@ mseattach(idp)
 	struct mse_softc *sc = &mse_sc[idp->id_unit];
 
 	sc->sc_port = idp->id_iobase;
+	mse_registerdev(idp);
 	return (1);
 }
 
