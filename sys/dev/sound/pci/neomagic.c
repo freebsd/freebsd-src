@@ -614,7 +614,7 @@ nm_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(sc, nm_rdcd, nm_wrcd);
+	codec = ac97_create(dev, sc, nm_rdcd, nm_wrcd);
 	if (codec == NULL) goto bad;
 	mixer_init(d, &ac97_mixer, codec);
 

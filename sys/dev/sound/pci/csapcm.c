@@ -326,10 +326,10 @@ csa_setcapturesamplerate(csa_res *resp, u_long ulOutRate)
 	/*
 	 * Fill in the VariDecimate control block.
 	 */
-	csa_writemem(resp, BA1_CSRC, 
+	csa_writemem(resp, BA1_CSRC,
 		     ((ulCorrectionPerSec << 16) & 0xFFFF0000) | (ulCorrectionPerGOF & 0xFFFF));
 	csa_writemem(resp, BA1_CCI, ulCoeffIncr);
-	csa_writemem(resp, BA1_CD, 
+	csa_writemem(resp, BA1_CD,
 	     (((BA1_VARIDEC_BUF_1 + (ulInitialDelay << 2)) << 16) & 0xFFFF0000) | 0x80);
 	csa_writemem(resp, BA1_CPI, ulPhiIncr);
 
@@ -788,7 +788,7 @@ pcmcsa_attach(device_t dev)
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
-	codec = ac97_create(csa, csa_rdcd, csa_wrcd);
+	codec = ac97_create(dev, csa, csa_rdcd, csa_wrcd);
 	if (codec == NULL)
 		return (ENXIO);
 	mixer_init(devinfo, &ac97_mixer, codec);

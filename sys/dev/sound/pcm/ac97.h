@@ -32,4 +32,4 @@ typedef void (ac97_write)(void *devinfo, int regno, u_int32_t data);
 extern snd_mixer ac97_mixer;
 struct ac97_info;
 
-struct ac97_info *ac97_create(void *devinfo, ac97_read *rd, ac97_write *wr);
+struct ac97_info *ac97_create(device_t dev, void *devinfo, ac97_read *rd, ac97_write *wr);
