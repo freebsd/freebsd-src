@@ -9,7 +9,7 @@
 .Op Fl i
 .Op Fl u
 .Op Fl a
-.Op Fl 0123
+.Op Fl 1234
 .Op Ar disk
 .Bl -tag -width time
 .Nm fdisk
@@ -66,7 +66,7 @@ is given.
 Change the active partition only.  Ignored if
 .Fl f
 is given.
-.It Fl 0123
+.It Fl 1234
 Operate on a single fdisk entry only.  Ignored if
 .Fl f
 is given.
@@ -133,19 +133,19 @@ An example follows:
 		
 	Warning: BIOS sector numbering starts with sector 1
 	Information from DOS bootblock is:
-	The data for partition 0 is:
+	The data for partition 1 is:
 	sysid 165,(FreeBSD/NetBSD/386BSD)
     	    start 495, size 380160 (185 Meg), flag 0
 		beg: cyl 1/ sector 1/ head 0;
 		end: cyl 768/ sector 33/ head 14
-	The data for partition 1 is:
+	The data for partition 2 is:
 	sysid 164,(unknown)
     	    start 378180, size 2475 (1 Meg), flag 0
 		beg: cyl 764/ sector 1/ head 0;
 		end: cyl 768/ sector 33/ head 14
-	The data for partition 2 is:
-	<UNUSED>
 	The data for partition 3 is:
+	<UNUSED>
+	The data for partition 4 is:
 	sysid 99,(ISC UNIX, other System V/386, GNU HURD or Mach)
     	    start 380656, size 224234 (109 Meg), flag 80
 		beg: cyl 769/ sector 2/ head 0;
@@ -330,7 +330,7 @@ Example (all of these are equivalent), for a disk with 1019 cylinders,
 .Xc
 Set the partition given by
 .Ar partition
-(0-3) to type
+(1-4) to type
 .Ar type ,
 starting at sector
 .Ar start
@@ -363,18 +363,18 @@ Note: the start offset will be rounded upwards to a head boundary if
 necessary, and the end offset will be rounded downwards to a cylinder
 boundary if necessary.
 .Pp
-Example: to clear partition 3 and mark it as unused:
+Example: to clear partition 4 and mark it as unused:
 .Pp
 .nf
-        p       3       0       0       0
+        p       4       0       0       0
 .fi
 .Pp
-Example: to set partition 0 to a FreeBSD partition, starting at sector 1
+Example: to set partition 1 to a FreeBSD partition, starting at sector 1
 for 2503871 sectors (note: these numbers will be rounded upwards and
 downwards to correspond to head and cylinder boundaries):
 .Pp
 .nf
-        p       0       165     1       2503871
+        p       1       165     1       2503871
 .fi
 .It Xo
 .Ic a
@@ -385,10 +385,10 @@ Make
 the active partition.  Can occur anywhere in the config file, but only
 one must be present.
 .Pp
-Example: to make partition 0 the active partition:
+Example: to make partition 1 the active partition:
 .Pp
 .nf
-        a       0
+        a       1
 .fi
 
 .El
