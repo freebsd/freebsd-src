@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.4 1998/07/16 13:38:35 dfr Exp $
+ *	$Id: dwlpx.c,v 1.5 1998/08/10 07:53:59 dfr Exp $
  */
 
 #include "opt_simos.h"
@@ -34,6 +34,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
+#include <machine/swiz.h>
 #include <alpha/tlsb/dwlpxreg.h>
 
 #include <alpha/tlsb/tlsbreg.h>
@@ -58,49 +59,18 @@ struct dwlpx_softc {
 
 #define DWLPX_SOFTC(dev)	(struct dwlpx_softc*) device_get_softc(dev)
 
-#define SPARSE_READ(kv)			(*(u_int32_t*) (kv))
-#define SPARSE_WRITE(kv, d)		(*(u_int32_t*) (kv) = (d))
-
-#define SPARSE_BYTE_OFFSET(o)		(((o) << 5) | ((o) & 3))
-#define SPARSE_WORD_OFFSET(o)		(((o) << 5) | ((o) & 2) | 0x8)
-#define SPARSE_LONG_OFFSET(o)		(((o) << 5) | 0x18)
-
-#define SPARSE_BYTE_ADDRESS(base, o)	((base) + SPARSE_BYTE_OFFSET(o))
-#define SPARSE_WORD_ADDRESS(base, o)	((base) + SPARSE_WORD_OFFSET(o))
-#define SPARSE_LONG_ADDRESS(base, o)	((base) + SPARSE_LONG_OFFSET(o))
-
-#define SPARSE_BYTE_EXTRACT(o, d)	((d) >> (8*((o) & 3)))
-#define SPARSE_WORD_EXTRACT(o, d)	((d) >> (8*((o) & 2)))
-#define SPARSE_LONG_EXTRACT(o, d)	(d)
-
-#define SPARSE_BYTE_INSERT(o, d)	((d) << (8*((o) & 3)))
-#define SPARSE_WORD_INSERT(o, d)	((d) << (8*((o) & 2)))
-#define SPARSE_LONG_INSERT(o, d)	(d)
-
-#define SPARSE_READ_BYTE(base, o)	\
-	SPARSE_BYTE_EXTRACT(o, SPARSE_READ(SPARSE_BYTE_ADDRESS(base, o)))
-
-#define SPARSE_READ_WORD(base, o)	\
-	SPARSE_WORD_EXTRACT(o, SPARSE_READ(SPARSE_WORD_ADDRESS(base, o)))
-
-#define SPARSE_READ_LONG(base, o)	\
-	SPARSE_READ(SPARSE_LONG_ADDRESS(base, o))
-
-#define SPARSE_WRITE_BYTE(base, o, d)	\
-	SPARSE_WRITE(SPARSE_BYTE_ADDRESS(base, o), SPARSE_BYTE_INSERT(o, d))
-
-#define SPARSE_WRITE_WORD(base, o, d)	\
-	SPARSE_WRITE(SPARSE_WORD_ADDRESS(base, o), SPARSE_WORD_INSERT(o, d))
-
-#define SPARSE_WRITE_LONG(base, o, d)	\
-	SPARSE_WRITE(SPARSE_LONG_ADDRESS(base, o), d)
-
 static alpha_chipset_inb_t	dwlpx_inb;
 static alpha_chipset_inw_t	dwlpx_inw;
 static alpha_chipset_inl_t	dwlpx_inl;
 static alpha_chipset_outb_t	dwlpx_outb;
 static alpha_chipset_outw_t	dwlpx_outw;
 static alpha_chipset_outl_t	dwlpx_outl;
+static alpha_chipset_readb_t	dwlpx_readb;
+static alpha_chipset_readw_t	dwlpx_readw;
+static alpha_chipset_readl_t	dwlpx_readl;
+static alpha_chipset_writeb_t	dwlpx_writeb;
+static alpha_chipset_writew_t	dwlpx_writew;
+static alpha_chipset_writel_t	dwlpx_writel;
 static alpha_chipset_maxdevs_t	dwlpx_maxdevs;
 static alpha_chipset_cfgreadb_t	dwlpx_cfgreadb;
 static alpha_chipset_cfgreadw_t	dwlpx_cfgreadw;
@@ -116,6 +86,12 @@ static alpha_chipset_t dwlpx_chipset = {
 	dwlpx_outb,
 	dwlpx_outw,
 	dwlpx_outl,
+	dwlpx_readb,
+	dwlpx_readw,
+	dwlpx_readl,
+	dwlpx_writeb,
+	dwlpx_writew,
+	dwlpx_writel,
 	dwlpx_maxdevs,
 	dwlpx_cfgreadb,
 	dwlpx_cfgreadw,
@@ -171,6 +147,49 @@ dwlpx_outl(u_int32_t port, u_int32_t data)
 {
 	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
 	SPARSE_WRITE_LONG(sc->io_base, port, data);
+}
+
+static u_int8_t
+dwlpx_readb(u_int32_t pa)
+{
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+	return SPARSE_READ_BYTE(sc->smem_base, pa);
+}
+
+static u_int16_t
+dwlpx_readw(u_int32_t pa)
+{
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+	return SPARSE_READ_WORD(sc->smem_base, pa);
+}
+
+static u_int32_t
+dwlpx_readl(u_int32_t pa)
+{
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+	return SPARSE_READ_LONG(sc->smem_base, pa);
+}
+
+static void
+dwlpx_writeb(u_int32_t pa, u_int8_t data)
+{
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+
+	SPARSE_WRITE_BYTE(sc->smem_base, pa, data);
+}
+
+static void
+dwlpx_writew(u_int32_t pa, u_int16_t data)
+{
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+	SPARSE_WRITE_WORD(sc->smem_base, pa, data);
+}
+
+static void
+dwlpx_writel(u_int32_t pa, u_int32_t data)
+{
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+	SPARSE_WRITE_LONG(sc->smem_base, pa, data);
 }
 
 static int
