@@ -115,11 +115,23 @@ static int
 zs_attach(device_t dev)
 {
 	struct zs_softc *sc = device_get_softc(dev);
+	struct cdev *cdev;
+	struct tty *tp;
+	int unit;
+
 	sc->dev = dev;
 	sc->channel = zsc_get_channel(dev);
 	sc->base = zsc_get_base(dev);
-	make_dev(&zs_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "zs%d", device_get_unit(dev));
+	unit = device_get_unit(dev);
+	cdev = make_dev(&zs_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600,
+	    "zs%d", unit);
+	tp = sc->tp = cdev->si_tty = ttyalloc();
+	cdev->si_drv1 = sc;
+	cdev->si_tty = tp;
+	tp->t_oproc = zsstart;
+	tp->t_param = zsparam;
+	tp->t_stop = zsstop;
+	tp->t_dev = cdev;
 	return 0;
 }
 
@@ -224,7 +236,6 @@ zs_cnattach(vm_offset_t base, vm_offset_t offset)
 	sprintf(zs_consdev.cn_name, "zs0");
 	zs_consdev.cn_unit = 0;
 	zs_consdev.cn_pri = CN_NORMAL;
-	make_dev(&zs_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "zs0");
 	cnadd(&zs_consdev);
 	return (0);
 }
@@ -259,20 +270,17 @@ zs_cnputc(struct consdev *cp, int c)
 static int
 zsopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	struct zs_softc *sc = ZS_SOFTC(minor(dev));
+	struct zs_softc *sc;
 	struct tty *tp;
 	int error = 0, setuptimeout = 0;
 	int s;
  
+	sc = dev->si_drv1;
 	if (!sc)
 		return ENXIO;
 
 	s = spltty();
-	tp = sc->tp = dev->si_tty = ttymalloc(sc->tp);
-	tp->t_oproc = zsstart;
-	tp->t_param = zsparam;
-	tp->t_stop = zsstop;
-	tp->t_dev = dev;
+	tp = dev->si_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
 		ttychars(tp);
