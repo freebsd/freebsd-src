@@ -126,11 +126,11 @@ void g_simdisk_xml_save(char *name, char *file);
 void g_simdisk_stop(char *name);
 void g_simdisk_restart(char *name);
 
-#define DECLARE_GEOM_METHOD(method, name) 	\
+#define DECLARE_GEOM_CLASS(class, name) 	\
 	void					\
 	name##_init(void)			\
 	{					\
-		g_add_method(&method);		\
+		g_add_class(&class);		\
 	}
 
 void g_sunlabel_init(void);

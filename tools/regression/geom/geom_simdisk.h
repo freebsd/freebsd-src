@@ -55,7 +55,7 @@ struct simdisk_softc {
 	TAILQ_HEAD(,bio)	sort;
 };
 
-extern struct g_method g_simdisk_method;
+extern struct g_class g_simdisk_class;
 
 struct sector * g_simdisk_findsector(struct simdisk_softc *sc, off_t off, int create);
 struct g_geom *g_simdisk_create(char *name, struct simdisk_softc *sc);
