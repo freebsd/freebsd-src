@@ -356,6 +356,17 @@ deget(pmp, dirclust, diroffset, depp)
 		 */
 		u_long size;
 
+		/*
+		 * XXX Sometimes, these arrives that . entry have cluster
+		 * number 0, when it shouldn't.  Use real cluster number
+		 * instead of what is written in directory entry.
+		 */
+		if ((diroffset == 0) && (ldep->de_StartCluster != dirclust)) {
+			printf("deget(): . entry at clust %ld != %ld\n",
+					dirclust, ldep->de_StartCluster);
+			ldep->de_StartCluster = dirclust;
+		}
+
 		nvp->v_type = VDIR;
 		if (ldep->de_StartCluster != MSDOSFSROOT) {
 			error = pcbmap(ldep, 0xffff, 0, &size, 0);
