@@ -816,7 +816,7 @@ reswitch:
 				goto reswitch;
 			}
 		case S_DIGITS:
-			if (ishex && iswxdigit(c) || iswdigit(c))
+			if ((ishex && iswxdigit(c)) || iswdigit(c))
 				gotmantdig = 1;
 			else {
 				state = S_FRAC;
@@ -827,13 +827,13 @@ reswitch:
 				commit = p;
 			break;
 		case S_FRAC:
-			if ((c == 'E' || c == 'e') && !ishex ||
-			    (c == 'P' || c == 'p') && ishex) {
+			if (((c == 'E' || c == 'e') && !ishex) ||
+			    ((c == 'P' || c == 'p') && ishex)) {
 				if (!gotmantdig)
 					goto parsedone;
 				else
 					state = S_EXP;
-			} else if (ishex && iswxdigit(c) || iswdigit(c)) {
+			} else if ((ishex && iswxdigit(c)) || iswdigit(c)) {
 				commit = p;
 				gotmantdig = 1;
 			} else
