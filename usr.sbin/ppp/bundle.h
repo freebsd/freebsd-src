@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.22 1999/05/31 23:57:33 brian Exp $
+ *	$Id: bundle.h,v 1.23 1999/06/02 00:46:52 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -48,6 +48,10 @@
 
 #define Enabled(b, o) ((b)->cfg.opt & (o))
 
+/* AutoAdjust() values */
+#define AUTO_UP		1
+#define AUTO_DOWN	2
+
 struct sockaddr_un;
 struct datalink;
 struct physical;
@@ -68,7 +72,7 @@ struct bundle {
     int fd;                   /* The /dev/XXXX descriptor */
   } dev;
 
-  u_long ifSpeed;             /* struct tuninfo speed */
+  u_long bandwidth;           /* struct tuninfo speed */
   struct iface *iface;        /* Interface information */
 
   int routing_seq;            /* The current routing sequence number */
@@ -95,13 +99,6 @@ struct bundle {
     char label[50];           /* last thing `load'ed */
     u_short mtu;              /* Interface mtu */
 
-    struct {                  /* We need/don't need another link when  */
-      struct {                /* more/less than                        */
-        int packets;          /* this number of packets are queued for */
-        int timeout;          /* this number of seconds                */
-      } max, min;
-    } autoload;
-
     struct {
       int timeout;            /* How long to leave the output queue choked */
     } choked;
@@ -127,13 +124,6 @@ struct bundle {
   struct {
     int fd;                   /* write status here */
   } notify;
-
-  struct {
-    struct pppTimer timer;
-    time_t done;
-    unsigned running : 1;
-    unsigned comingup : 1;
-  } autoload;
 
   struct {
     struct pppTimer timer;    /* choked output queue timer */
@@ -192,3 +182,6 @@ extern int bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
 extern void bundle_AdjustFilters(struct bundle *, struct in_addr *,
                                  struct in_addr *);
+extern void bundle_CalculateBandwidth(struct bundle *);
+extern void bundle_AutoAdjust(struct bundle *, int, int);
+extern int bundle_WantAutoloadTimer(struct bundle *);

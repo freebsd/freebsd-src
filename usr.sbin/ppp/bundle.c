@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.57 1999/06/22 11:31:42 brian Exp $
+ *	$Id: bundle.c,v 1.58 1999/07/27 23:43:58 brian Exp $
  */
 
 #include <sys/param.h>
@@ -87,12 +87,12 @@
 #include "ip.h"
 #include "iface.h"
 
-#define SCATTER_SEGMENTS 5	/* version, datalink, name, physical, device */
+#define SCATTER_SEGMENTS 6	/* version, datalink, name, physical,
+                                   throughput, device */
 #define SOCKET_OVERHEAD	100	/* additional buffer space for large */
                                 /* {recv,send}msg() calls            */
 
 static int bundle_RemainingIdleTime(struct bundle *);
-static int bundle_RemainingAutoLoadTime(struct bundle *);
 
 static const char *PhaseNames[] = {
   "Dead", "Establish", "Authenticate", "Network", "Terminate"
@@ -195,109 +195,11 @@ bundle_ClearQueues(void *v)
 }
 
 static void
-bundle_AutoLoadTimeout(void *v)
-{
-  struct bundle *bundle = (struct bundle *)v;
-
-  if (bundle->autoload.comingup) {
-    log_Printf(LogPHASE, "autoload: Another link is required\n");
-    /* bundle_Open() stops the timer */
-    bundle_Open(bundle, NULL, PHYS_AUTO, 0);
-  } else {
-    struct datalink *dl, *last;
-
-    timer_Stop(&bundle->autoload.timer);
-    for (last = NULL, dl = bundle->links; dl; dl = dl->next)
-      if (dl->physical->type == PHYS_AUTO && dl->state == DATALINK_OPEN)
-        last = dl;
-
-    if (last)
-      datalink_Close(last, CLOSE_STAYDOWN);
-  }
-}
-
-static void
-bundle_StartAutoLoadTimer(struct bundle *bundle, int up)
-{
-  struct datalink *dl;
-
-  timer_Stop(&bundle->autoload.timer);
-  bundle->autoload.comingup = up ? 1 : 0;
-
-  if (bundle->CleaningUp || bundle->phase != PHASE_NETWORK) {
-    dl = NULL;
-    bundle->autoload.running = 0;
-  } else if (up) {
-    for (dl = bundle->links; dl; dl = dl->next)
-      if (dl->state == DATALINK_CLOSED && dl->physical->type == PHYS_AUTO) {
-        if (bundle->cfg.autoload.max.timeout) {
-          bundle->autoload.timer.func = bundle_AutoLoadTimeout;
-          bundle->autoload.timer.name = "autoload up";
-          bundle->autoload.timer.load =
-            bundle->cfg.autoload.max.timeout * SECTICKS;
-          bundle->autoload.timer.arg = bundle;
-          timer_Start(&bundle->autoload.timer);
-          bundle->autoload.done = time(NULL) + bundle->cfg.autoload.max.timeout;
-        } else
-          bundle_AutoLoadTimeout(bundle);
-        break;
-      }
-    bundle->autoload.running = (dl || bundle->cfg.autoload.min.timeout) ? 1 : 0;
-  } else {
-    int nlinks;
-    struct datalink *adl;
-
-    for (nlinks = 0, adl = NULL, dl = bundle->links; dl; dl = dl->next)
-      if (dl->state == DATALINK_OPEN) {
-        if (dl->physical->type == PHYS_AUTO)
-          adl = dl;
-        if (++nlinks > 1 && adl) {
-          if (bundle->cfg.autoload.min.timeout) {
-            bundle->autoload.timer.func = bundle_AutoLoadTimeout;
-            bundle->autoload.timer.name = "autoload down";
-            bundle->autoload.timer.load =
-              bundle->cfg.autoload.min.timeout * SECTICKS;
-            bundle->autoload.timer.arg = bundle;
-            timer_Start(&bundle->autoload.timer);
-            bundle->autoload.done =
-              time(NULL) + bundle->cfg.autoload.min.timeout;
-          }
-          break;
-        }
-      }
-
-    bundle->autoload.running = 1;
-  }
-}
-
-static void
-bundle_StopAutoLoadTimer(struct bundle *bundle)
-{
-  timer_Stop(&bundle->autoload.timer);
-  bundle->autoload.done = 0;
-}
-
-static int
-bundle_RemainingAutoLoadTime(struct bundle *bundle)
-{
-  if (bundle->autoload.done)
-    return bundle->autoload.done - time(NULL);
-  return -1;
-}
-
-static void
 bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
 {
   bundle->phys_type.all |= dl->physical->type;
   if (dl->state == DATALINK_OPEN)
     bundle->phys_type.open |= dl->physical->type;
-
-  /* Note: We only re-add links that are DATALINK_OPEN */
-  if (dl->physical->type == PHYS_AUTO &&
-      bundle->autoload.timer.state == TIMER_STOPPED &&
-      dl->state != DATALINK_OPEN &&
-      bundle->phase == PHASE_NETWORK)
-    bundle->autoload.running = 1;
 
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL))
       != bundle->phys_type.open && bundle->idle.timer.state == TIMER_STOPPED)
@@ -314,6 +216,9 @@ bundle_LinksRemoved(struct bundle *bundle)
   for (dl = bundle->links; dl; dl = dl->next)
     bundle_LinkAdded(bundle, dl);
 
+  bundle_CalculateBandwidth(bundle);
+  mp_CheckAutoloadTimer(&bundle->ncp.mp);
+
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL))
       == bundle->phys_type.open)
     bundle_StopIdleTimer(bundle);
@@ -324,11 +229,12 @@ bundle_LayerUp(void *v, struct fsm *fp)
 {
   /*
    * The given fsm is now up
-   * If it's an LCP, adjust our phys_mode.open value.
-   * If it's an LCP set our mtu (if we're multilink, add up the link
-   * speeds and set the MRRU) and start our autoload timer.
-   * If it's an NCP, tell our -background parent to go away.
+   * If it's an LCP, adjust our phys_mode.open value and check the
+   * autoload timer.
+   * If it's the first NCP, calculate our bandwidth
    * If it's the first NCP, start the idle timer.
+   * If it's an NCP, tell our -background parent to go away.
+   * If it's the first NCP, start the autoload timer
    */
   struct bundle *bundle = (struct bundle *)v;
 
@@ -336,22 +242,12 @@ bundle_LayerUp(void *v, struct fsm *fp)
     struct physical *p = link2physical(fp->link);
 
     bundle_LinkAdded(bundle, p->dl);
-    if (bundle->ncp.mp.active) {
-      struct datalink *dl;
-
-      bundle->ifSpeed = 0;
-      for (dl = bundle->links; dl; dl = dl->next)
-        if (dl->state == DATALINK_OPEN)
-          bundle->ifSpeed += physical_GetSpeed(dl->physical);
-      tun_configure(bundle, bundle->ncp.mp.peer_mrru);
-      bundle->autoload.running = 1;
-    } else {
-      bundle->ifSpeed = physical_GetSpeed(p);
-      tun_configure(bundle, fsm2lcp(fp)->his_mru);
-    }
+    mp_CheckAutoloadTimer(&bundle->ncp.mp);
   } else if (fp->proto == PROTO_IPCP) {
+    bundle_CalculateBandwidth(fp->bundle);
     bundle_StartIdleTimer(bundle);
     bundle_Notify(bundle, EX_NORMAL);
+    mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
   }
 }
 
@@ -361,6 +257,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
   /*
    * The given FSM has been told to come down.
    * If it's our last NCP, stop the idle timer.
+   * If it's our last NCP, stop the autoload timer
    * If it's an LCP, adjust our phys_type.open value and any timers.
    * If it's an LCP and we're in multilink mode, adjust our tun
    * speed and make sure our minimum sequence number is adjusted.
@@ -368,25 +265,21 @@ bundle_LayerDown(void *v, struct fsm *fp)
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_IPCP)
+  if (fp->proto == PROTO_IPCP) {
     bundle_StopIdleTimer(bundle);
-  else if (fp->proto == PROTO_LCP) {
+    mp_StopAutoloadTimer(&bundle->ncp.mp);
+  } else if (fp->proto == PROTO_LCP) {
     bundle_LinksRemoved(bundle);  /* adjust timers & phys_type values */
     if (bundle->ncp.mp.active) {
       struct datalink *dl;
       struct datalink *lost;
 
-      bundle->ifSpeed = 0;
       lost = NULL;
       for (dl = bundle->links; dl; dl = dl->next)
         if (fp == &dl->physical->link.lcp.fsm)
           lost = dl;
-        else if (dl->state == DATALINK_OPEN)
-          bundle->ifSpeed += physical_GetSpeed(dl->physical);
 
-      if (bundle->ifSpeed)
-        /* Don't configure down to a speed of 0 */
-        tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru);
+      bundle_CalculateBandwidth(bundle);
 
       if (lost)
         mp_LinkLost(&bundle->ncp.mp, lost);
@@ -474,7 +367,6 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
 
   if (!others_active) {
     bundle_StopIdleTimer(bundle);
-    bundle_StopAutoLoadTimer(bundle);
     if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
         bundle->ncp.ipcp.fsm.state == ST_STARTING)
       fsm_Close(&bundle->ncp.ipcp.fsm);
@@ -502,7 +394,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
-  int result, want, queued, nlinks;
+  int result, queued, nlinks;
 
   result = 0;
 
@@ -512,27 +404,11 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
   if (nlinks) {
     queued = r ? bundle_FillQueues(bundle) : ip_QueueLen(&bundle->ncp.ipcp);
-    if (bundle->autoload.running) {
-      if (queued < bundle->cfg.autoload.max.packets) {
-        if (queued > bundle->cfg.autoload.min.packets)
-          bundle_StopAutoLoadTimer(bundle);
-        else if (bundle->autoload.timer.state != TIMER_RUNNING ||
-                 bundle->autoload.comingup)
-          bundle_StartAutoLoadTimer(bundle, 0);
-      } else if ((bundle_Phase(bundle) == PHASE_NETWORK || queued) &&
-                 (bundle->autoload.timer.state != TIMER_RUNNING ||
-                  !bundle->autoload.comingup))
-        bundle_StartAutoLoadTimer(bundle, 1);
-    }
 
     if (r && (bundle->phase == PHASE_NETWORK ||
               bundle->phys_type.all & PHYS_AUTO)) {
       /* enough surplus so that we can tell if we're getting swamped */
-      want = bundle->cfg.autoload.max.packets + nlinks * 2;
-      /* but at least 20 packets ! */
-      if (want < 20)
-        want = 20;
-      if (queued < want) {
+      if (queued < 20) {
         /* Not enough - select() for more */
         if (bundle->choked.timer.state == TIMER_RUNNING)
           timer_Stop(&bundle->choked.timer);	/* Not needed any more */
@@ -797,7 +673,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
 
   log_Printf(LogPHASE, "Using interface: %s\n", ifname);
 
-  bundle.ifSpeed = 0;
+  bundle.bandwidth = 0;
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
   bundle.CleaningUp = 0;
@@ -816,10 +692,6 @@ bundle_Create(const char *prefix, int type, const char **argv)
                    OPT_THROUGHPUT | OPT_UTMP;
   *bundle.cfg.label = '\0';
   bundle.cfg.mtu = DEF_MTU;
-  bundle.cfg.autoload.max.packets = 0;
-  bundle.cfg.autoload.max.timeout = 0;
-  bundle.cfg.autoload.min.packets = 0;
-  bundle.cfg.autoload.min.timeout = 0;
   bundle.cfg.choked.timeout = CHOKED_TIMEOUT;
   bundle.phys_type.all = type;
   bundle.phys_type.open = 0;
@@ -866,9 +738,6 @@ bundle_Create(const char *prefix, int type, const char **argv)
   memset(&bundle.idle.timer, '\0', sizeof bundle.idle.timer);
   bundle.idle.done = 0;
   bundle.notify.fd = -1;
-  memset(&bundle.autoload.timer, '\0', sizeof bundle.autoload.timer);
-  bundle.autoload.done = 0;
-  bundle.autoload.running = 0;
   memset(&bundle.choked.timer, '\0', sizeof bundle.choked.timer);
 #ifndef NORADIUS
   radius_Init(&bundle.radius);
@@ -901,7 +770,6 @@ bundle_Destroy(struct bundle *bundle)
    */
   timer_Stop(&bundle->idle.timer);
   timer_Stop(&bundle->choked.timer);
-  timer_Stop(&bundle->autoload.timer);
   mp_Down(&bundle->ncp.mp);
   ipcp_CleanInterface(&bundle->ncp.ipcp);
   bundle_DownInterface(bundle);
@@ -1074,10 +942,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
     fsm2initial(&bundle->ncp.ipcp.fsm);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_StopIdleTimer(bundle);
-    bundle_StopAutoLoadTimer(bundle);
-    bundle->autoload.running = 0;
-  } else
-    bundle->autoload.running = 1;
+  }
 }
 
 void
@@ -1088,7 +953,6 @@ bundle_Open(struct bundle *bundle, const char *name, int mask, int force)
    */
   struct datalink *dl;
 
-  timer_Stop(&bundle->autoload.timer);
   for (dl = bundle->links; dl; dl = dl->next)
     if (name == NULL || !strcasecmp(dl->name, name)) {
       if ((mask & dl->physical->type) &&
@@ -1098,8 +962,8 @@ bundle_Open(struct bundle *bundle, const char *name, int mask, int force)
         if (force)	/* Ignore redial timeout ? */
           timer_Stop(&dl->dial.timer);
         datalink_Up(dl, 1, 1);
-        if (mask == PHYS_AUTO)
-          /* Only one AUTO link at a time (see the AutoLoad timer) */
+        if (mask & PHYS_AUTO)
+          /* Only one AUTO link at a time */
           break;
       }
       if (name != NULL)
@@ -1149,16 +1013,29 @@ int
 bundle_ShowLinks(struct cmdargs const *arg)
 {
   struct datalink *dl;
+  struct pppThroughput *t;
+  int secs;
 
   for (dl = arg->bundle->links; dl; dl = dl->next) {
     prompt_Printf(arg->prompt, "Name: %s [%s, %s]",
                   dl->name, mode2Nam(dl->physical->type), datalink_State(dl));
     if (dl->physical->link.throughput.rolling && dl->state == DATALINK_OPEN)
-      prompt_Printf(arg->prompt, " weight %d, %Ld bytes/sec",
-                    dl->mp.weight,
+      prompt_Printf(arg->prompt, " bandwidth %d, %qu bps (%qu bytes/sec)",
+                    dl->mp.bandwidth ? dl->mp.bandwidth :
+                                       physical_GetSpeed(dl->physical),
+                    dl->physical->link.throughput.OctetsPerSecond * 8,
                     dl->physical->link.throughput.OctetsPerSecond);
     prompt_Printf(arg->prompt, "\n");
   }
+
+  t = &arg->bundle->ncp.mp.link.throughput;
+  secs = t->downtime ? 0 : throughput_uptime(t);
+  if (secs > t->SamplePeriod)
+    secs = t->SamplePeriod;
+  if (secs)
+    prompt_Printf(arg->prompt, "Currently averaging %qu bps (%qu bytes/sec)"
+                  " over the last %d secs\n", t->OctetsPerSecond * 8,
+                  t->OctetsPerSecond, secs);
 
   return 0;
 }
@@ -1178,27 +1055,12 @@ bundle_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, " Title:         %s\n", arg->bundle->argv[0]);
   prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
   prompt_Printf(arg->prompt, " Interface:     %s @ %lubps\n",
-                arg->bundle->iface->name, arg->bundle->ifSpeed);
+                arg->bundle->iface->name, arg->bundle->bandwidth);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
   prompt_Printf(arg->prompt, " Auth name:     %s\n",
                 arg->bundle->cfg.auth.name);
-  prompt_Printf(arg->prompt, " Auto Load:     Up after %ds of >= %d packets\n",
-                arg->bundle->cfg.autoload.max.timeout,
-                arg->bundle->cfg.autoload.max.packets);
-  prompt_Printf(arg->prompt, "                Down after %ds of <= %d"
-                " packets\n", arg->bundle->cfg.autoload.min.timeout,
-                arg->bundle->cfg.autoload.min.packets);
-  if (arg->bundle->autoload.timer.state == TIMER_RUNNING)
-    prompt_Printf(arg->prompt, "                %ds remaining 'till "
-                  "a link comes %s\n",
-                  bundle_RemainingAutoLoadTime(arg->bundle),
-                  arg->bundle->autoload.comingup ? "up" : "down");
-  else
-    prompt_Printf(arg->prompt, "                %srunning with %d"
-                  " packets queued\n", arg->bundle->autoload.running ?
-                  "" : "not ", ip_QueueLen(&arg->bundle->ncp.ipcp));
 
   prompt_Printf(arg->prompt, " Choked Timer:  %ds\n",
                 arg->bundle->cfg.choked.timeout);
@@ -1224,32 +1086,32 @@ bundle_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, " sendpipe:      ");
   if (arg->bundle->ncp.ipcp.cfg.sendpipe > 0)
-    prompt_Printf(arg->prompt, "%ld\n", arg->bundle->ncp.ipcp.cfg.sendpipe);
+    prompt_Printf(arg->prompt, "%-20ld", arg->bundle->ncp.ipcp.cfg.sendpipe);
   else
-    prompt_Printf(arg->prompt, "unspecified\n");
+    prompt_Printf(arg->prompt, "unspecified         ");
   prompt_Printf(arg->prompt, " recvpipe:      ");
   if (arg->bundle->ncp.ipcp.cfg.recvpipe > 0)
     prompt_Printf(arg->prompt, "%ld\n", arg->bundle->ncp.ipcp.cfg.recvpipe);
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
-  prompt_Printf(arg->prompt, " Sticky Routes: %s\n",
+  prompt_Printf(arg->prompt, " Sticky Routes: %-20.20s",
                 optval(arg->bundle, OPT_SROUTES));
   prompt_Printf(arg->prompt, " ID check:      %s\n",
                 optval(arg->bundle, OPT_IDCHECK));
-  prompt_Printf(arg->prompt, " Keep-Session:  %s\n",
+  prompt_Printf(arg->prompt, " Keep-Session:  %-20.20s",
                 optval(arg->bundle, OPT_KEEPSESSION));
   prompt_Printf(arg->prompt, " Loopback:      %s\n",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
+  prompt_Printf(arg->prompt, " PasswdAuth:    %-20.20s",
                 optval(arg->bundle, OPT_PASSWDAUTH));
   prompt_Printf(arg->prompt, " Proxy:         %s\n",
                 optval(arg->bundle, OPT_PROXY));
-  prompt_Printf(arg->prompt, " Proxyall:      %s\n",
+  prompt_Printf(arg->prompt, " Proxyall:      %-20.20s",
                 optval(arg->bundle, OPT_PROXYALL));
   prompt_Printf(arg->prompt, " Throughput:    %s\n",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
+  prompt_Printf(arg->prompt, " Utmp Logging:  %-20.20s",
                 optval(arg->bundle, OPT_UTMP));
   prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
                 optval(arg->bundle, OPT_IFACEALIAS));
@@ -1343,6 +1205,7 @@ bundle_DatalinkLinkin(struct bundle *bundle, struct datalink *dl)
   dl->next = NULL;
 
   bundle_LinkAdded(bundle, dl);
+  mp_CheckAutoloadTimer(&bundle->ncp.mp);
 }
 
 void
@@ -1483,6 +1346,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   if (dl) {
     bundle_DatalinkLinkin(bundle, dl);
     datalink_AuthOk(dl);
+    bundle_CalculateBandwidth(dl->bundle);
   } else
     close(link_fd);
 
@@ -1593,7 +1457,7 @@ bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
     /* First auto link, we need an interface */
     ipcp_InterfaceUp(&bundle->ncp.ipcp);
 
-  /* Regenerate phys_type and adjust autoload & idle timers */
+  /* Regenerate phys_type and adjust idle timer */
   bundle_LinksRemoved(bundle);
 
   return 1;
@@ -1739,4 +1603,110 @@ bundle_AdjustFilters(struct bundle *bundle, struct in_addr *my_ip,
   filter_AdjustAddr(&bundle->filter.out, my_ip, peer_ip);
   filter_AdjustAddr(&bundle->filter.dial, my_ip, peer_ip);
   filter_AdjustAddr(&bundle->filter.alive, my_ip, peer_ip);
+}
+
+void
+bundle_CalculateBandwidth(struct bundle *bundle)
+{
+  struct datalink *dl;
+  int mtu, sp;
+
+  bundle->bandwidth = 0;
+  mtu = 0;
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (dl->state == DATALINK_OPEN) {
+      if ((sp = dl->mp.bandwidth) == 0 &&
+          (sp = physical_GetSpeed(dl->physical)) == 0)
+        log_Printf(LogDEBUG, "%s: %s: Cannot determine bandwidth\n",
+                   dl->name, dl->physical->name.full);
+      else
+        bundle->bandwidth += sp;
+      if (!bundle->ncp.mp.active) {
+        mtu = dl->physical->link.lcp.his_mru;
+        break;
+      }
+    }
+
+  if(bundle->bandwidth == 0)
+    bundle->bandwidth = 115200;		/* Shrug */
+
+  if (bundle->ncp.mp.active)
+    mtu = bundle->ncp.mp.peer_mrru;
+  else if (!mtu)
+    mtu = 1500;
+
+#ifndef NORADIUS
+  if (bundle->radius.valid && bundle->radius.mtu && bundle->radius.mtu < mtu) {
+    log_Printf(LogLCP, "Reducing MTU to radius value %lu\n",
+               bundle->radius.mtu);
+    mtu = bundle->radius.mtu;
+  }
+#endif
+
+  tun_configure(bundle, mtu);
+}
+
+void
+bundle_AutoAdjust(struct bundle *bundle, int percent, int what)
+{
+  struct datalink *dl, *choice, *otherlinkup;
+
+  choice = otherlinkup = NULL;
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (dl->physical->type == PHYS_AUTO) {
+      if (dl->state == DATALINK_OPEN) {
+        if (what == AUTO_DOWN) {
+          if (choice)
+            otherlinkup = choice;
+          choice = dl;
+        }
+      } else if (dl->state == DATALINK_CLOSED) {
+        if (what == AUTO_UP) {
+          choice = dl;
+          break;
+        }
+      } else {
+        /* An auto link in an intermediate state - forget it for the moment */
+        choice = NULL;
+        break;
+      }
+    } else if (dl->state == DATALINK_OPEN && what == AUTO_DOWN)
+      otherlinkup = dl;
+
+  if (choice) {
+    if (what == AUTO_UP) {
+      log_Printf(LogPHASE, "%d%% saturation -> Opening link ``%s''\n",
+                 percent, choice->name);
+      datalink_Up(choice, 1, 1);
+      mp_StopAutoloadTimer(&bundle->ncp.mp);
+    } else if (otherlinkup) {	/* Only bring the second-last link down */
+      log_Printf(LogPHASE, "%d%% saturation -> Closing link ``%s''\n",
+                 percent, choice->name);
+      datalink_Down(choice, CLOSE_NORMAL);
+      mp_StopAutoloadTimer(&bundle->ncp.mp);
+    }
+  }
+}
+
+int
+bundle_WantAutoloadTimer(struct bundle *bundle)
+{
+  struct datalink *dl;
+  int autolink, opened;
+
+  if (bundle->phase == PHASE_NETWORK) {
+    for (autolink = opened = 0, dl = bundle->links; dl; dl = dl->next)
+      if (dl->physical->type == PHYS_AUTO) {
+        if (++autolink == 2 || (autolink == 1 && opened))
+          /* Two auto links or one auto and one open in NETWORK phase */
+          return 1;
+      } else if (dl->state == DATALINK_OPEN) {
+        opened++;
+        if (autolink)
+          /* One auto and one open link in NETWORK phase */
+          return 1;
+      }
+  }
+
+  return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.40 1999/06/10 09:06:30 brian Exp $
+ *	$Id: datalink.c,v 1.41 1999/06/18 13:49:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -543,10 +543,12 @@ datalink_NCPUp(struct datalink *dl)
       case MP_UP:
         /* First link in the bundle */
         auth_Select(dl->bundle, dl->peer.authname);
+        bundle_CalculateBandwidth(dl->bundle);
         /* fall through */
       case MP_ADDED:
         /* We're in multilink mode ! */
         dl->physical->link.ccp.fsm.open_mode = OPEN_PASSIVE;	/* override */
+        bundle_CalculateBandwidth(dl->bundle);
         break;
       case MP_FAILED:
         datalink_AuthNotOk(dl);
@@ -555,6 +557,7 @@ datalink_NCPUp(struct datalink *dl)
   } else if (bundle_Phase(dl->bundle) == PHASE_NETWORK) {
     log_Printf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
     datalink_NewState(dl, DATALINK_OPEN);
+    bundle_CalculateBandwidth(dl->bundle);
     (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
     return;
   } else {
