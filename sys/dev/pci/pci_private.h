@@ -73,4 +73,5 @@ int		pci_child_location_str_method(device_t cbdev, device_t child,
 int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
 		    char *buf, size_t buflen);
 int		pci_assign_interrupt_method(device_t dev, device_t child);
+int		pci_resume(device_t dev);
 #endif /* _PCI_PRIVATE_H_ */
