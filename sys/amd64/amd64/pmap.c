@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.42 1995/01/15 09:06:23 davidg Exp $
+ *	$Id: pmap.c,v 1.43 1995/01/24 09:56:32 davidg Exp $
  */
 
 /*
@@ -1192,7 +1192,6 @@ pmap_enter(pmap, va, pa, prot, wired)
 	register pt_entry_t *pte;
 	register pt_entry_t npte;
 	vm_offset_t opa;
-	int cacheable = 1;
 	int ptevalid = 0;
 
 	if (pmap == NULL)
@@ -1268,11 +1267,7 @@ pmap_enter(pmap, va, pa, prot, wired)
 			pv->pv_next = npv;
 		}
 		splx(s);
-		cacheable = 1;
-	} else {
-		cacheable = 0;
 	}
-
 
 	/*
 	 * Increment counters
@@ -1286,11 +1281,6 @@ validate:
 	 * Now validate mapping with desired protection/wiring.
 	 */
 	npte = (pt_entry_t) ((int) (pa | pte_prot(pmap, prot) | PG_V));
-	/*
-	 * for correctness:
-	 */
-	if (!cacheable)
-		(int) npte |= PG_N;
 
 	/*
 	 * When forking (copy-on-write, etc): A process will turn off write
