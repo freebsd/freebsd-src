@@ -30,6 +30,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "value.h"
 #include "inferior.h"
 
+#if defined(HAVE_GREGSET_T)
+#include <sys/procfs.h>
+#endif
+
 int kernel_debugging = 0;
 
 /* Size of elements in jmpbuf */
@@ -114,91 +118,29 @@ store_inferior_registers (regno)
   ptrace (PT_SETFPREGS, inferior_pid, (PTRACE_ARG3_TYPE) &fpregs, 0);
 }
 
-/* Extract the register values out of the core file and store
-   them where `read_register' will find them.
-   Extract the floating point state out of the core file and store
-   it where `float_info' will find it.
-
-   CORE_REG_SECT points to the register values themselves, read into memory.
-   CORE_REG_SIZE is the size of that area.
-   WHICH says which set of registers we are handling (0 = int, 2 = float
-         on machines where they are discontiguous).
-   REG_ADDR is the offset from u.u_ar0 to the register values relative to
-            core_reg_sect.  This is used with old-fashioned core files to
-	    locate the registers in a large upage-plus-stack ".reg" section.
-	    Original upage address X is at location core_reg_sect+x+reg_addr.
- */
-
-static void
-fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
-     char *core_reg_sect;
-     unsigned core_reg_size;
-     int which;
-     CORE_ADDR reg_addr;
-{
-#if 0				/* XXX laters */
-  register int regno;
-  register int cregno;
-  register int addr;
-  int bad_reg = -1;
-  int offset;
-  struct user *tmp_uaddr;
-
-  /* 
-   * First get virtual address of user structure. Then calculate offset.
-   */
-  memcpy(&tmp_uaddr,
-	 &((struct user *) core_reg_sect)->u_kproc.kp_proc.p_addr,
-	 sizeof(tmp_uaddr));
-  offset = -reg_addr - (int) tmp_uaddr;
-  
-  for (regno = 0; regno < NUM_REGS; regno++)
-    {
-      cregno = tregmap[regno];
-      if (cregno == tFS)
-        addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_fs);
-      else if (cregno == tGS)
-        addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_gs);
-      else
-        addr = offset + 4 * cregno;
-      if (addr < 0 || addr >= core_reg_size)
-	{
-	  if (bad_reg < 0)
-	    bad_reg = regno;
-	}
-      else
-	{
-	  supply_register (regno, core_reg_sect + addr);
-	}
-    }
-  if (bad_reg >= 0)
-    {
-      error ("Register %s not found in core file.", gdb_register_names[bad_reg]);
-    }
-
-  addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_savefpu);
-  memcpy (&pcb_savefpu, core_reg_sect + addr, sizeof pcb_savefpu);
-#endif
-}
-
-int
-kernel_u_size ()
-{
-  return (sizeof (struct user));
-}
-
-
-/* Register that we are able to handle aout (trad-core) file formats.  */
-
-static struct core_fns aout_core_fns =
-{
-  bfd_target_unknown_flavour,
-  fetch_core_registers,
-  NULL
-};
-
+#ifdef HAVE_GREGSET_T
 void
-_initialize_core_aout ()
+supply_gregset (gp)
+  gregset_t *gp;
 {
-  add_core_fns (&aout_core_fns);
+  int regno = 0;
+
+  /* These must be ordered the same as REGISTER_NAMES in
+     config/alpha/tm-alpha.h. */
+  for (regno = 0; regno < 31; regno++)
+    supply_register (regno, (char *)&gp->r_regs[regno]);
+  supply_register (PC_REGNUM, (char *)&gp->r_regs[regno]);
 }
+#endif	/* HAVE_GREGSET_T */
+
+#ifdef HAVE_FPREGSET_T
+void
+supply_fpregset (fp)
+  fpregset_t *fp;
+{
+  int regno = 0;
+
+  for (regno = 0; regno < 32; regno++)
+    supply_register (regno + 32, (char *)&fp->fpr_regs[regno]);
+}
+#endif	/* HAVE_FPREGSET_T */
