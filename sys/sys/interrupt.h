@@ -29,6 +29,9 @@
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 /*
  * Describe a hardware interrupt handler.
  *
@@ -59,6 +62,7 @@ struct	intrhand {
  * not be an actual kernel thread attached to a given source.
  */
 struct	ithd {
+	struct	mtx it_lock;
 	struct	proc *it_proc;		/* Interrupt process. */
 	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
 	TAILQ_HEAD(, intrhand) it_handlers; /* Interrupt handlers. */
