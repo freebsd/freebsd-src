@@ -209,7 +209,6 @@ int logopened = 0;
 
 static	u_long	seq = 0;
 
-volatile int signo;
 volatile sig_atomic_t seenalrm;
 volatile sig_atomic_t seenquit;
 volatile sig_atomic_t seenusr1;
@@ -464,7 +463,6 @@ main(argc, argv)
 			continue;
 		}
 
-		signo = 0;
 #ifdef HAVE_POLL_H
 		switch (poll(set, 2, INFTIM))
 #else
@@ -506,11 +504,10 @@ main(argc, argv)
 }
 
 void
-sighandler(sig)
-	int sig;
+sighandler(signo)
+	int signo;
 {
 
-	signo = sig;
 	switch (signo) {
 	case SIGALRM:
 		seenalrm++;
