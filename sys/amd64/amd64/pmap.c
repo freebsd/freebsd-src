@@ -197,6 +197,10 @@ static int nkpt;
 vm_offset_t kernel_vm_end;
 extern u_int32_t KERNend;
 
+#ifdef PAE
+static uma_zone_t pdptzone;
+#endif
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -248,7 +252,10 @@ static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
 static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
-static void *pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
+static void *pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
+#ifdef PAE
+static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
+#endif
 
 static pd_entry_t pdir4mb;
 
@@ -323,6 +330,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
 	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + (u_int)IdlePTD);
+#ifdef PAE
+	kernel_pmap->pm_pdpt = (pdpt_entry_t *) (KERNBASE + (u_int)IdlePDPT);
+#endif
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
@@ -504,11 +514,20 @@ pmap_set_opt(void)
 }
 
 static void *
-pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	*flags = UMA_SLAB_PRIV;
 	return (void *)kmem_alloc(kernel_map, bytes);
 }
+
+#ifdef PAE
+static void *
+pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	*flags = UMA_SLAB_PRIV;
+	return (contigmalloc(PAGE_SIZE, NULL, 0, 0x0ULL, 0xffffffffULL, 1, 0));
+}
+#endif
 
 /*
  *	Initialize the pmap module.
@@ -545,8 +564,14 @@ pmap_init(phys_start, phys_end)
 		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	uma_zone_set_allocf(pvzone, pmap_allocf);
+	uma_zone_set_allocf(pvzone, pmap_pv_allocf);
 	uma_prealloc(pvzone, initial_pvs);
+
+#ifdef PAE
+	pdptzone = uma_zcreate("PDPT", NPGPTD * sizeof(pdpt_entry_t), NULL,
+	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1, 0);
+	uma_zone_set_allocf(pdptzone, pmap_pdpt_allocf);
+#endif
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -1241,6 +1266,9 @@ pmap_pinit0(pmap)
 {
 
 	pmap->pm_pdir = (pd_entry_t *)(KERNBASE + (vm_offset_t)IdlePTD);
+#ifdef PAE
+	pmap->pm_pdpt = (pdpt_entry_t *)(KERNBASE + (vm_offset_t)IdlePDPT);
+#endif
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1265,9 +1293,18 @@ pmap_pinit(pmap)
 	 * No need to allocate page table space yet but we do need a valid
 	 * page directory table.
 	 */
-	if (pmap->pm_pdir == NULL)
+	if (pmap->pm_pdir == NULL) {
 		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_pageable(kernel_map,
 		    NBPTD);
+#ifdef PAE
+		pmap->pm_pdpt = uma_zalloc(pdptzone, M_WAITOK | M_ZERO);
+		KASSERT(((vm_offset_t)pmap->pm_pdpt &
+		    ((NPGPTD * sizeof(pdpt_entry_t)) - 1)) == 0,
+		    ("pmap_pinit: pdpt misaligned"));
+		KASSERT(pmap_kextract((vm_offset_t)pmap->pm_pdpt) < (4ULL<<30),
+		    ("pmap_pinit: pdpt above 4g"));
+#endif
+	}
 
 	/*
 	 * allocate object for the ptes
@@ -1310,6 +1347,9 @@ pmap_pinit(pmap)
 	for (i = 0; i < NPGPTD; i++) {
 		pa = VM_PAGE_TO_PHYS(ptdpg[i]);
 		pmap->pm_pdir[PTDPTDI + i] = pa | PG_V | PG_RW | PG_A | PG_M;
+#ifdef PAE
+		pmap->pm_pdpt[i] = pa | PG_V;
+#endif
 	}
 
 	pmap->pm_active = 0;
@@ -1485,6 +1525,10 @@ pmap_release(pmap_t pmap)
 	vm_page_lock_queues();
 	for (i = 0; i < NPGPTD; i++) {
 		m = TAILQ_FIRST(&object->memq);
+#ifdef PAE
+		KASSERT(VM_PAGE_TO_PHYS(m) == (pmap->pm_pdpt[i] & PG_FRAME),
+		    ("pmap_release: got wrong ptd page"));
+#endif
 		m->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_busy(m);
@@ -1680,7 +1724,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 	pt_entry_t oldpte;
 	vm_page_t m;
 
-	oldpte = atomic_readandclear_int(ptq);
+	oldpte = pte_load_clear(ptq);
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
 	/*
@@ -1846,7 +1890,7 @@ pmap_remove_all(vm_page_t m)
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pv->pv_pmap->pm_stats.resident_count--;
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		tpte = atomic_readandclear_int(pte);
+		tpte = pte_load_clear(pte);
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
 		if (tpte & PG_A)
@@ -3283,7 +3327,11 @@ pmap_activate(struct thread *td)
 #else
 	pmap->pm_active |= 1;
 #endif
+#ifdef PAE
+	cr3 = vtophys(pmap->pm_pdpt);
+#else
 	cr3 = vtophys(pmap->pm_pdir);
+#endif
 	/* XXXKSE this is wrong.
 	 * pmap_activate is for the current thread on the current cpu
 	 */

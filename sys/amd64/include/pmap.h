@@ -88,7 +88,11 @@
  * This **MUST** be a multiple of 4 (eg: 252, 256, 260, etc).
  */
 #ifndef KVA_PAGES
+#ifdef PAE
+#define KVA_PAGES	512
+#else
 #define KVA_PAGES	256
+#endif
 #endif
 
 /*
@@ -97,7 +101,11 @@
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 #ifndef NKPT
+#ifdef PAE
+#define	NKPT		120	/* actual number of kernel page tables */
+#else
 #define	NKPT		30	/* actual number of kernel page tables */
+#endif
 #endif
 #ifndef NKPDE
 #ifdef SMP
@@ -134,11 +142,24 @@
 
 #include <sys/queue.h>
 
-typedef u_int32_t pd_entry_t;
-typedef u_int32_t pt_entry_t;
+#ifdef PAE
+
+typedef uint64_t pdpt_entry_t;
+typedef uint64_t pd_entry_t;
+typedef uint64_t pt_entry_t;
+
+#define	PTESHIFT	(3)
+#define	PDESHIFT	(3)
+
+#else
+
+typedef uint32_t pd_entry_t;
+typedef uint32_t pt_entry_t;
 
 #define	PTESHIFT	(2)
 #define	PDESHIFT	(2)
+
+#endif
 
 /*
  * Address of current and alternate address space page table maps
@@ -149,6 +170,9 @@ extern pt_entry_t PTmap[], APTmap[];
 extern pd_entry_t PTD[], APTD[];
 extern pd_entry_t PTDpde[], APTDpde[];
 
+#ifdef PAE
+extern pdpt_entry_t *IdlePDPT;
+#endif
 extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
@@ -183,6 +207,30 @@ pmap_kextract(vm_offset_t va)
 }
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+
+#ifdef PAE
+
+static __inline pt_entry_t
+pte_load_clear(pt_entry_t *pte)
+{
+	pt_entry_t r;
+
+	r = *pte;
+	__asm __volatile(
+	    "1:\n"
+	    "\tcmpxchg8b %1\n"
+	    "\tjnz 1b"
+	    : "+A" (r)
+	    : "m" (*pte), "b" (0), "c" (0));
+	return (r);
+}
+
+#else
+
+#define	pte_load_clear(pte)	atomic_readandclear_int(pte)
+
+#endif
+
 #endif
 
 /*
@@ -202,6 +250,10 @@ struct pmap {
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
+#ifdef PAE
+	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
+						   table */
+#endif
 };
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
