@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ep.c,v 1.19 1995/01/24 20:53:45 davidg Exp $
+ *	$Id: if_ep.c,v 1.20 1995/03/23 06:53:38 davidg Exp $
  */
 
 /*
@@ -648,7 +648,6 @@ epintr(unit)
     struct mbuf *m;
 
 rescan:
-    /* outw(BASE + EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
 
     while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
 	if (status & (S_RX_COMPLETE | S_RX_EARLY)) {

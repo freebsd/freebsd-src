@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.26 1994/11/16 02:45:35 bde Exp $
+ *      $Id: aha1742.c,v 1.27 1994/11/26 23:10:03 ats Exp $
  */
 
 #include <sys/types.h>
@@ -29,6 +29,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/user.h>
+#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #else
 #define	NAHB	1
@@ -520,7 +521,7 @@ ahbprobe1(dev)
 	dev->id_drq = -1;	/* use EISA dma */
 
 	ahb_unit++;
-	return 0x1000;
+	return IO_EISASIZE;
 }
 
 /*
