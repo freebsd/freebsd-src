@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.27 1997/02/22 09:37:03 peter Exp $ */
+/* $Id: scd.c,v 1.28 1997/03/24 11:24:01 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -164,6 +164,7 @@ static int get_result(u_int unit, int result_len, u_char *result);
 static void print_error(int unit, int errcode);
 
 static void scd_start(int unit);
+static timeout_t scd_timeout;
 static void scd_doread(int state, struct scd_mbx *mbxin);
 
 static int scd_eject(int unit);
@@ -777,6 +778,12 @@ read_subcode(int unit, struct sony_subchannel_position_data *sc)
 static struct scd_mbx *mbxsave;
 
 static void
+scd_timeout(void *arg)
+{
+	scd_doread((int)arg, mbxsave);
+}
+
+static void
 scd_doread(int state, struct scd_mbx *mbxin)
 {
 	struct scd_mbx *mbx = (state!=SCD_S_BEGIN) ? mbxsave : mbxin;
@@ -802,7 +809,7 @@ loop:
 		goto trystat;
 
 	case SCD_S_WAITSTAT:
-		untimeout((timeout_func_t)scd_doread,(caddr_t)SCD_S_WAITSTAT);
+		untimeout(scd_timeout,(caddr_t)SCD_S_WAITSTAT);
 		if (mbx->count-- <= 0) {
 			printf("scd%d: timeout. drive busy.\n",unit);
 			goto harderr;
@@ -810,7 +817,7 @@ loop:
 
 trystat:
 		if (IS_BUSY(port)) {
-			timeout((timeout_func_t)scd_doread,
+			timeout(scd_timeout,
 			    (caddr_t)SCD_S_WAITSTAT,hz/100); /* XXX */
 			return;
 		}
@@ -849,18 +856,18 @@ nextblock:
 			goto writeparam;
 
 		mbx->count = 100;
-		timeout((timeout_func_t)scd_doread,
+		timeout(scd_timeout,
 			(caddr_t)SCD_S_WAITFIFO,hz/100); /* XXX */
 		return;
 
 	case SCD_S_WAITSPIN:
-		untimeout((timeout_func_t)scd_doread,(caddr_t)SCD_S_WAITSPIN);
+		untimeout(scd_timeout,(caddr_t)SCD_S_WAITSPIN);
 		if (mbx->count-- <= 0) {
 			printf("scd%d: timeout waiting for drive to spin up.\n", unit);
 			goto harderr;
 		}
 		if (!STATUS_BIT(port, SBIT_RESULT_READY)) {
-			timeout((timeout_func_t)scd_doread,
+			timeout(scd_timeout,
 				(caddr_t)SCD_S_WAITSPIN,hz/100); /* XXX */
 			return;
 		}
@@ -881,13 +888,13 @@ nextblock:
 		goto loop;
 
 	case SCD_S_WAITFIFO:
-		untimeout((timeout_func_t)scd_doread,(caddr_t)SCD_S_WAITFIFO);
+		untimeout(scd_timeout,(caddr_t)SCD_S_WAITFIFO);
 		if (mbx->count-- <= 0) {
 			printf("scd%d: timeout. write param not ready.\n",unit);
 			goto harderr;
 		}
 		if (!FSTATUS_BIT(port, FBIT_WPARAM_READY)) {
-			timeout((timeout_func_t)scd_doread,
+			timeout(scd_timeout,
 				(caddr_t)SCD_S_WAITFIFO,hz/100); /* XXX */
 			return;
 		}
@@ -900,7 +907,7 @@ writeparam:
 			XDEBUG(1, ("scd%d: spinning up drive ...\n", unit));
 			outb(port+OREG_COMMAND, CMD_SPIN_UP);
 			mbx->count = 300;
-			timeout((timeout_func_t)scd_doread,
+			timeout(scd_timeout,
 				(caddr_t)SCD_S_WAITSPIN,hz/100); /* XXX */
 			return;
 		}
@@ -924,12 +931,12 @@ writeparam:
 			DELAY(100);
 		}
 
-		timeout((timeout_func_t)scd_doread,
+		timeout(scd_timeout,
 			(caddr_t)SCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 
 	case SCD_S_WAITREAD:
-		untimeout((timeout_func_t)scd_doread,(caddr_t)SCD_S_WAITREAD);
+		untimeout(scd_timeout,(caddr_t)SCD_S_WAITREAD);
 		if (mbx->count-- <= 0) {
 			if (STATUS_BIT(port, SBIT_RESULT_READY))
 				goto got_param;
@@ -940,7 +947,7 @@ writeparam:
 			process_attention(unit);
 			if (!(cd->flags & SCDVALID))
 				goto changed;
-			timeout((timeout_func_t)scd_doread,
+			timeout(scd_timeout,
 				(caddr_t)SCD_S_WAITREAD,hz/100); /* XXX */
 			return;
 		}
@@ -961,7 +968,7 @@ got_data:
 		goto waitfor_param;
 
 	case SCD_S_WAITPARAM:
-		untimeout((timeout_func_t)scd_doread,(caddr_t)SCD_S_WAITPARAM);
+		untimeout(scd_timeout,(caddr_t)SCD_S_WAITPARAM);
 		if (mbx->count-- <= 0) {
 			printf("scd%d: timeout waiting for params\n",unit);
 			goto readerr;
@@ -969,7 +976,7 @@ got_data:
 
 waitfor_param:
 		if (!STATUS_BIT(port, SBIT_RESULT_READY)) {
-			timeout((timeout_func_t)scd_doread,
+			timeout(scd_timeout,
 				(caddr_t)SCD_S_WAITPARAM,hz/100); /* XXX */
 			return;
 		}
