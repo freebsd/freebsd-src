@@ -60,7 +60,7 @@ main(int argc, char *argv[])
 
 	sflag = 0;
 	while ((ch = getopt(argc, argv, "s")) != -1)
-		switch((char)ch) {
+		switch (ch) {
 		case 's':
 			sflag = 1;
 			break;
