@@ -56,7 +56,7 @@ static const char rcsid[] =
 #define USE_EXT_MODE	2
 #define USE_STD_MODE	3
 
-static void usage()
+static void usage(void)
 {
 	fprintf(stderr, "usage: lptcontrol -i | -p | -s | -e [-d device]\n");
 	exit(1);
@@ -77,7 +77,7 @@ int main (int argc, char * argv[])
 {
 	int		opt;
 	int		irq_status = IRQ_INVALID;
-	char		*device = DEFAULT_DEVICE;
+	const char	*device = DEFAULT_DEVICE;
 
 	while((opt = getopt(argc, argv, "ipesd:")) != -1)
 		switch(opt) {
