@@ -24,7 +24,7 @@
 #define _INST_INFO_H_INCLUDE
 
 #ifndef MAXINDEXSIZE
-#define MAXINDEXSIZE 60
+#define MAXINDEXSIZE 59
 #endif
 
 #ifndef MAXNAMESIZE
