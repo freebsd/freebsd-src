@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
+#include <limits.h>
 #include <runetype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +38,11 @@ __FBSDID("$FreeBSD$");
 size_t	_UTF8_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
 int	_UTF8_mbsinit(const mbstate_t *);
+size_t	_UTF8_mbsnrtowcs(wchar_t * __restrict, const char ** __restrict,
+	    size_t, size_t, mbstate_t * __restrict);
 size_t	_UTF8_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+size_t	_UTF8_wcsnrtombs(char * __restrict, const wchar_t ** __restrict,
+	    size_t, size_t, mbstate_t * __restrict);
 
 typedef struct {
 	wchar_t	ch;
@@ -52,6 +57,8 @@ _UTF8_init(_RuneLocale *rl)
 	__mbrtowc = _UTF8_mbrtowc;
 	__wcrtomb = _UTF8_wcrtomb;
 	__mbsinit = _UTF8_mbsinit;
+	__mbsnrtowcs = _UTF8_mbsnrtowcs;
+	__wcsnrtombs = _UTF8_wcsnrtombs;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 6;
 
@@ -188,6 +195,88 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
+_UTF8_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	_UTF8State *us;
+	const char *s;
+	size_t nchr;
+	wchar_t wc;
+	size_t nb;
+
+	us = (_UTF8State *)ps;
+
+	s = *src;
+	nchr = 0;
+
+	if (dst == NULL) {
+		/*
+		 * The fast path in the loop below is not safe if an ASCII
+		 * character appears as anything but the first byte of a
+		 * multibyte sequence. Check now to avoid doing it in the loop.
+		 */
+		if (nms > 0 && us->want > 0 && (signed char)*s > 0) {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		for (;;) {
+			if (nms > 0 && (signed char)*s > 0)
+				/*
+				 * Fast path for plain ASCII characters
+				 * excluding NUL.
+				 */
+				nb = 1;
+			else if ((nb = _UTF8_mbrtowc(&wc, s, nms, ps)) ==
+			    (size_t)-1)
+				/* Invalid sequence - mbrtowc() sets errno. */
+				return ((size_t)-1);
+			else if (nb == 0 || nb == (size_t)-2)
+				return (nchr);
+			s += nb;
+			nms -= nb;
+			nchr++;
+		}
+		/*NOTREACHED*/
+	}
+
+	/*
+	 * The fast path in the loop below is not safe if an ASCII
+	 * character appears as anything but the first byte of a
+	 * multibyte sequence. Check now to avoid doing it in the loop.
+	 */
+	if (nms > 0 && len > 0 && us->want > 0 && (signed char)*s > 0) {
+		errno = EILSEQ;
+		return ((size_t)-1);
+	}
+	while (len-- > 0) {
+		if (nms > 0 && (signed char)*s > 0) {
+			/*
+			 * Fast path for plain ASCII characters
+			 * excluding NUL.
+			 */
+			*dst = (wchar_t)*s;
+			nb = 1;
+		} else if ((nb = _UTF8_mbrtowc(dst, s, nms, ps)) ==
+		    (size_t)-1) {
+			*src = s;
+			return ((size_t)-1);
+		} else if (nb == (size_t)-2) {
+			*src = s + nms;
+			return (nchr);
+		} else if (nb == 0) {
+			*src = NULL;
+			return (nchr);
+		}
+		s += nb;
+		nms -= nb;
+		nchr++;
+		dst++;
+	}
+	*src = s;
+	return (nchr);
+}
+
+size_t
 _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
 	_UTF8State *us;
@@ -253,4 +342,78 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	*s = (wc & 0xff) | lead;
 
 	return (len);
+}
+
+size_t
+_UTF8_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	_UTF8State *us;
+	char buf[MB_LEN_MAX];
+	const wchar_t *s;
+	size_t nbytes;
+	size_t nb;
+
+	us = (_UTF8State *)ps;
+
+	if (us->want != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
+	s = *src;
+	nbytes = 0;
+
+	if (dst == NULL) {
+		while (nwc-- > 0) {
+			if (0 <= *s && *s < 0x80)
+				/* Fast path for plain ASCII characters. */
+				nb = 1;
+			else if ((nb = _UTF8_wcrtomb(buf, *s, ps)) ==
+			    (size_t)-1)
+				/* Invalid character - wcrtomb() sets errno. */
+				return ((size_t)-1);
+			if (*s == L'\0')
+				return (nbytes + nb - 1);
+			s++;
+			nbytes += nb;
+		}
+		return (nbytes);
+	}
+
+	while (len > 0 && nwc-- > 0) {
+		if (0 <= *s && *s < 0x80) {
+			/* Fast path for plain ASCII characters. */
+			nb = 1;
+			*dst = *s;
+		} else if (len > (size_t)MB_CUR_MAX) {
+			/* Enough space to translate in-place. */
+			if ((nb = (int)_UTF8_wcrtomb(dst, *s, ps)) < 0) {
+				*src = s;
+				return ((size_t)-1);
+			}
+		} else {
+			/*
+			 * May not be enough space; use temp. buffer.
+			 */
+			if ((nb = (int)_UTF8_wcrtomb(buf, *s, ps)) < 0) {
+				*src = s;
+				return ((size_t)-1);
+			}
+			if (nb > (int)len)
+				/* MB sequence for character won't fit. */
+				break;
+			memcpy(dst, buf, nb);
+		}
+		if (*s == L'\0') {
+			*src = NULL;
+			return (nbytes + nb - 1);
+		}
+		s++;
+		dst += nb;
+		len -= nb;
+		nbytes += nb;
+	}
+	*src = s;
+	return (nbytes);
 }
