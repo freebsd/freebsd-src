@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.76 1997/03/22 04:28:16 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.77 1997/03/29 04:35:26 bde Exp $
  */
 
 #include "npx.h"
@@ -54,6 +54,8 @@
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
+#include <machine/cpu.h>
+#include <machine/reg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -558,61 +560,83 @@ vm_fault_quick(v, prot)
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
- * Copy and update the kernel stack and pcb, making the child
- * ready to run, and marking it so that it can return differently
- * than the parent.  Returns 1 in the child process, 0 in the parent.
- * We currently double-map the user area so that the stack is at the same
- * address in each process; in the future we will probably relocate
- * the frame pointers on the stack after copying.
+ * Copy and update the pcb, set up the stack so that the child
+ * ready to run and return to user mode.
  */
-int
+void
 cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
 	struct pcb *pcb2 = &p2->p_addr->u_pcb;
-	int sp, offset;
-	volatile int retval;
-#ifdef USER_LDT
-	struct pcb *pcb = &p2->p_addr->u_pcb;
-#endif
 
 	/*
-	 * Copy pcb and stack from proc p1 to p2.
-	 * We do this as cheaply as possible, copying only the active
-	 * part of the stack.  The stack and pcb need to agree;
-	 * this is tricky, as the final pcb is constructed by savectx,
-	 * but its frame isn't yet on the stack when the stack is copied.
-	 * This should be done differently, with a single call
-	 * that copies and updates the pcb+stack,
-	 * replacing the bcopy and savectx.
+	 * copy current pcb, and save current context into it while it's
+	 * possibly in some writeback cache line.
 	 */
-
-	__asm __volatile("movl %%esp,%0" : "=r" (sp));
-	offset = sp - (int)kstack;
-
-	retval = 1;		/* return 1 in child */
-	bcopy((caddr_t)kstack + offset, (caddr_t)p2->p_addr + offset,
-	    (unsigned) ctob(UPAGES) - offset);
-	p2->p_md.md_regs = p1->p_md.md_regs;
-
-	*pcb2 = p1->p_addr->u_pcb;
+	bcopy(&p1->p_addr->u_pcb, pcb2, sizeof(struct pcb));
 	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
+	savectx(pcb2);	/* irrelevant? fp registers? */
+
+	/*
+	 * Create a new fresh stack for the new process.
+	 * Copy the trap frame for the return to user mode as if from a syscall.
+	 * This copies the user mode register values.
+	 */
+	p2->p_md.md_regs = (int *)(((struct trapframe *)
+		((int)p2->p_addr + (UPAGES * PAGE_SIZE))) - 1);
+	bcopy(p1->p_md.md_regs, p2->p_md.md_regs, sizeof(struct trapframe));
+
+	/*
+	 * Set registers for trampoline to user mode.  Leave space for the
+	 * return address on stack.  These are the kernel mode register values.
+	 */
+	/* XXX these overwrite most of the regs from savectx() above! */
+	pcb2->pcb_eip = (int)fork_trampoline;
+	pcb2->pcb_esi = (int)fork_return;
+	pcb2->pcb_ebx = (int)p2;
+	pcb2->pcb_esp = (int)p2->p_md.md_regs - sizeof(void *);
 
 #ifdef USER_LDT
         /* Copy the LDT, if necessary. */
-        if (pcb->pcb_ldt != 0) {
+        if (pcb2->pcb_ldt != 0) {
                 union descriptor *new_ldt;
-                size_t len = pcb->pcb_ldt_len * sizeof(union descriptor);
+                size_t len = pcb2->pcb_ldt_len * sizeof(union descriptor);
 
                 new_ldt = (union descriptor *)kmem_alloc(kernel_map, len);
-                bcopy(pcb->pcb_ldt, new_ldt, len);
-                pcb->pcb_ldt = (caddr_t)new_ldt;
+                bcopy(pcb2->pcb_ldt, new_ldt, len);
+                pcb2->pcb_ldt = (caddr_t)new_ldt;
         }
 #endif
 
-	retval = 0;		/* return 0 in parent */
-	savectx(pcb2);
-	return (retval);
+	/*
+	 * Now, cpu_switch() can schedule the new process.
+	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
+	 * containing the return address when exiting cpu_switch.
+	 * This will normally be to proc_trampoline(), which will have
+	 * %ebx loaded with the new proc's pointer.  proc_trampoline()
+	 * will set up a stack to call fork_return(p, frame); to complete
+	 * the return to user-mode.
+	 */
+}
+
+/*
+ * Intercept the return address from a freshly forked process that has NOT
+ * been scheduled yet.
+ *
+ * This is needed to make kernel threads stay in kernel mode.
+ */
+void
+cpu_set_fork_handler(p, func, arg)
+	struct proc *p;
+	void (*func) __P((void *));
+	void *arg;
+{
+	/*
+	 * Note that the trap frame follows the args, so the function
+	 * is really called like this:  func(arg, frame);
+	 */
+	p->p_addr->u_pcb.pcb_esi = (int) func;	/* function */
+	p->p_addr->u_pcb.pcb_ebx = (int) arg;	/* first arg */
 }
 
 void
