@@ -35,6 +35,7 @@
  */
 
 #include "opt_ktrace.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -100,6 +101,11 @@ uma_zone_t ithread_zone;
 static int active_procs;
 static int cached_procs;
 static int allocated_procs;
+
+int kstack_pages = KSTACK_PAGES;
+int uarea_pages = UAREA_PAGES;
+SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, uarea_pages, CTLFLAG_RD, &uarea_pages, 0, "");
 
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
