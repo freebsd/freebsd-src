@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.450 1999/01/08 00:33:21 jkh Exp $
+#	$Id: Makefile,v 1.451 1999/01/08 05:33:11 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -688,17 +688,8 @@ doMFSKERN:
 	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
 	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-.if ${MACHINE_ARCH} == "alpha"
-	@gzip -v ${RD}/image.${FSIMAGE}/kernel
-	@mv ${RD}/image.${FSIMAGE}/kernel.gz ${RD}/image.${FSIMAGE}/kernel.gz
-.else
-	@kzip -v ${RD}/image.${FSIMAGE}/kernel
-	@mv ${RD}/image.${FSIMAGE}/kernel.kz ${RD}/image.${FSIMAGE}/kernel
 .endif
-.else
-	@echo "Using gzip'd kernel for ${FSIMAGE}"
 	@gzip -v ${RD}/image.${FSIMAGE}/kernel
-.endif
 .if ${MACHINE_ARCH} == "i386"
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/image.${FSIMAGE}
 	@printf \\a\\a\\a >> ${RD}/image.${FSIMAGE}/boot.help
