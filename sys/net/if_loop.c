@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_loop.c,v 1.5 1994/08/02 07:46:17 davidg Exp $
  */
 
 /*
@@ -208,7 +208,7 @@ loioctl(ifp, cmd, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa;
-	register struct ifreq *ifr;
+	register struct ifreq *ifr = (struct ifreq *)data;
 	register int error = 0;
 
 	switch (cmd) {
@@ -225,7 +225,6 @@ loioctl(ifp, cmd, data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		ifr = (struct ifreq *)data;
 		if (ifr == 0) {
 			error = EAFNOSUPPORT;		/* XXX */
 			break;
@@ -241,6 +240,10 @@ loioctl(ifp, cmd, data)
 			error = EAFNOSUPPORT;
 			break;
 		}
+		break;
+
+	case SIOCSIFMTU:
+		ifp->if_mtu = ifr->ifr_mtu;
 		break;
 
 	default:
