@@ -348,7 +348,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	slice = 0;
 	while (1) {	/* a trick to allow us to use break */
 		error = g_getattr("MBR::type", cp, &i);
-		if (error || i != DOSPTYP_EXT)
+		if (error || (i != DOSPTYP_EXT && i != DOSPTYP_EXTLBA))
 			break;
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
 		if (error)
