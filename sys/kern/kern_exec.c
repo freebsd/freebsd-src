@@ -104,6 +104,7 @@ execve(p, uap)
 	register struct execve_args *uap;
 {
 	struct nameidata nd, *ndp;
+	struct ucred *newcred, *oldcred;
 	register_t *stack_base;
 	int error, len, i;
 	struct image_params image_params, *imgp;
@@ -274,13 +275,24 @@ interpret:
 	}
 
 	/*
+	 * XXX: Note, the whole execve() is incredibly racey right now
+	 * with regards to debugging and privilege/credential management.
+	 * In particular, it's possible to race during exec() to attach
+	 * debugging to a process that will gain privilege.
+	 *
+	 * This MUST be fixed prior to any release.
+	 */
+
+	/*
 	 * Implement image setuid/setgid.
 	 *
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 */
-	if ((((attr.va_mode & VSUID) && p->p_ucred->cr_uid != attr.va_uid) ||
-	     ((attr.va_mode & VSGID) && p->p_ucred->cr_gid != attr.va_gid)) &&
+	oldcred = p->p_ucred;
+	newcred = NULL;
+	if ((((attr.va_mode & VSUID) && oldcred->cr_uid != attr.va_uid) ||
+	     ((attr.va_mode & VSGID) && oldcred->cr_gid != attr.va_gid)) &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		PROC_UNLOCK(p);
@@ -288,7 +300,7 @@ interpret:
 		 * Turn off syscall tracing for set-id programs, except for
 		 * root.
 		 */
-		if (p->p_tracep && suser(p)) {
+		if (p->p_tracep && suser_xxx(oldcred, NULL, PRISON_ROOT)) {
 			p->p_traceflag = 0;
 			vrele(p->p_tracep);
 			p->p_tracep = NULL;
@@ -296,25 +308,49 @@ interpret:
 		/*
 		 * Set the new credentials.
 		 */
-		p->p_ucred = crcopy(p->p_ucred);
+		newcred = crdup(oldcred);
 		if (attr.va_mode & VSUID)
-			change_euid(p, attr.va_uid);
+			change_euid(newcred, attr.va_uid);
 		if (attr.va_mode & VSGID)
-			p->p_ucred->cr_gid = attr.va_gid;
+			change_egid(newcred, attr.va_gid);
 		setsugid(p);
 		setugidsafety(p);
 	} else {
-		if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
-		    p->p_ucred->cr_gid == p->p_cred->p_rgid)
+		if (oldcred->cr_uid == oldcred->cr_ruid &&
+		    oldcred->cr_gid == oldcred->cr_rgid)
 			p->p_flag &= ~P_SUGID;
 		PROC_UNLOCK(p);
 	}
 
 	/*
 	 * Implement correct POSIX saved-id behavior.
+	 *
+	 * XXX: It's not clear that the existing behavior is
+	 * POSIX-compliant.  A number of sourses indicate that the saved
+	 * uid/gid should only be updated if the new ruid is not equal to
+	 * the old ruid, or the new euid is not equal to the old euid and
+	 * the new euid is not equal to the old ruid.  The FreeBSD code
+	 * always updates the saved uid/gid.  Also, this code uses the new
+	 * (replaced) euid and egid as the source, which may or may not be
+	 * the right ones to use.
 	 */
-	p->p_cred->p_svuid = p->p_ucred->cr_uid;
-	p->p_cred->p_svgid = p->p_ucred->cr_gid;
+	if (oldcred->cr_svuid != oldcred->cr_uid ||
+	    oldcred->cr_svgid != oldcred->cr_gid) {
+		/*
+		 * Avoid allocating a newcred if we don't have one yet and
+		 * the saved uid/gid update would be a noop.
+		 */
+		if (newcred == NULL)
+			newcred = crdup(oldcred);
+		change_svuid(newcred, newcred->cr_uid);
+		change_svgid(newcred, newcred->cr_gid);
+	}
+	if (newcred != NULL) {
+		PROC_LOCK(p);
+		p->p_ucred = newcred;
+		PROC_UNLOCK(p);
+		crfree(oldcred);
+	}
 
 	/*
 	 * Store the vp for use in procfs

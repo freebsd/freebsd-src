@@ -621,7 +621,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	auio.uio_rw = UIO_READ;
 	auio.uio_procp = (struct proc *) p;
 
-	VOP_LEASE(backing_vnode, p, p->p_cred->pc_ucred, LEASE_WRITE);
+	VOP_LEASE(backing_vnode, p, p->p_ucred, LEASE_WRITE);
 	vn_lock(backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
 	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
 	    ump->um_extattr.uepm_ucred);
@@ -702,7 +702,7 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	 * Processes with privilege, but in jail, are not allowed to
 	 * configure extended attributes.
 	 */
-	if ((error = suser_xxx(p->p_cred->pc_ucred, p, 0))) {
+	if ((error = suser_xxx(p->p_ucred, p, 0))) {
 		if (filename_vp != NULL)
 			VOP_UNLOCK(filename_vp, 0, p);
 		return (error);

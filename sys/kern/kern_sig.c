@@ -97,14 +97,14 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
     "Log processes quitting on abnormal signals to syslog(3)");
 
 /*
- * Policy -- Can real uid ruid with ucred uc send a signal to process q?
+ * Policy -- Can ucred cr1 send SIGIO to process cr2?
  */
-#define CANSIGIO(ruid, uc, q) \
-	((uc)->cr_uid == 0 || \
-	    (ruid) == (q)->p_cred->p_ruid || \
-	    (uc)->cr_uid == (q)->p_cred->p_ruid || \
-	    (ruid) == (q)->p_ucred->cr_uid || \
-	    (uc)->cr_uid == (q)->p_ucred->cr_uid)
+#define CANSIGIO(cr1, cr2) \
+	((cr1)->cr_uid == 0 || \
+	    (cr2)->cr_ruid == (cr2)->cr_ruid || \
+	    (cr2)->cr_uid == (cr2)->cr_ruid || \
+	    (cr2)->cr_ruid == (cr2)->cr_uid || \
+	    (cr2)->cr_uid == (cr2)->cr_uid)
 
 int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
@@ -1612,7 +1612,7 @@ killproc(p, why)
 	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)",
 		p, p->p_pid, p->p_comm);
 	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
-		p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+		p->p_ucred ? p->p_ucred->cr_uid : -1, why);
 	psignal(p, SIGKILL);
 }
 
@@ -1649,7 +1649,7 @@ sigexit(p, sig)
 			log(LOG_INFO,
 			    "pid %d (%s), uid %d: exited on signal %d%s\n",
 			    p->p_pid, p->p_comm,
-			    p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
+			    p->p_ucred ? p->p_ucred->cr_uid : -1,
 			    sig &~ WCOREFLAG,
 			    sig & WCOREFLAG ? " (core dumped)" : "");
 	} else {
@@ -1869,8 +1869,7 @@ pgsigio(sigio, sig, checkctty)
 		
 	if (sigio->sio_pgid > 0) {
 		PROC_LOCK(sigio->sio_proc);
-		if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred,
-		             sigio->sio_proc))
+		if (CANSIGIO(sigio->sio_ucred, sigio->sio_proc->p_ucred))
 			psignal(sigio->sio_proc, sig);
 		PROC_UNLOCK(sigio->sio_proc);
 	} else if (sigio->sio_pgid < 0) {
@@ -1878,7 +1877,7 @@ pgsigio(sigio, sig, checkctty)
 
 		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred, p) &&
+			if (CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);
 			PROC_UNLOCK(p);

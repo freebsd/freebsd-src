@@ -258,7 +258,7 @@ fork1(p1, flags, procp)
 	 * exceed the limit. The variable nprocs is the current number of
 	 * processes, maxproc is the limit.
 	 */
-	uid = p1->p_cred->p_ruid;
+	uid = p1->p_ucred->cr_ruid;
 	if ((nprocs >= maxproc - 1 && uid != 0) || nprocs >= maxproc) {
 		tablefull("proc");
 		return (EAGAIN);
@@ -273,7 +273,7 @@ fork1(p1, flags, procp)
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
 	 */
-	ok = chgproccnt(p1->p_cred->p_uidinfo, 1,
+	ok = chgproccnt(p1->p_ucred->cr_ruidinfo, 1,
 		(uid != 0) ? p1->p_rlimit[RLIMIT_NPROC].rlim_cur : 0);
 	if (!ok) {
 		/*
@@ -409,15 +409,9 @@ again:
 	 * We start off holding one spinlock after fork: sched_lock.
 	 */
 	p2->p_spinlocks = 1;
-	PROC_UNLOCK(p2);
-	MALLOC(p2->p_cred, struct pcred *, sizeof(struct pcred),
-	    M_SUBPROC, M_WAITOK);
-	PROC_LOCK(p2);
 	PROC_LOCK(p1);
-	bcopy(p1->p_cred, p2->p_cred, sizeof(*p2->p_cred));
-	p2->p_cred->p_refcnt = 1;
 	crhold(p1->p_ucred);
-	uihold(p1->p_cred->p_uidinfo);
+	p2->p_ucred = p1->p_ucred;
 
 	if (p2->p_args)
 		p2->p_args->ar_ref++;

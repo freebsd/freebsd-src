@@ -958,13 +958,13 @@ linux_setgroups(p, uap)
 	struct proc *p;
 	struct linux_setgroups_args *uap;
 {
-	struct pcred *pc;
+	struct ucred *newcred, *oldcred;
 	linux_gid_t linux_gidset[NGROUPS];
 	gid_t *bsd_gidset;
 	int ngrp, error;
 
-	pc = p->p_cred;
 	ngrp = uap->gidsetsize;
+	oldcred = p->p_ucred;
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -972,22 +972,22 @@ linux_setgroups(p, uap)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_xxx(NULL, p, PRISON_ROOT)) != 0)
+	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		return (error);
 
 	if (ngrp >= NGROUPS)
 		return (EINVAL);
 
-	pc->pc_ucred = crcopy(pc->pc_ucred);
+	newcred = crdup(oldcred);
 	if (ngrp > 0) {
 		error = copyin((caddr_t)uap->gidset, (caddr_t)linux_gidset,
 			       ngrp * sizeof(linux_gid_t));
 		if (error)
 			return (error);
 
-		pc->pc_ucred->cr_ngroups = ngrp + 1;
+		newcred->cr_ngroups = ngrp + 1;
 
-		bsd_gidset = pc->pc_ucred->cr_groups;
+		bsd_gidset = newcred->cr_groups;
 		ngrp--;
 		while (ngrp >= 0) {
 			bsd_gidset[ngrp + 1] = linux_gidset[ngrp];
@@ -995,9 +995,11 @@ linux_setgroups(p, uap)
 		}
 	}
 	else
-		pc->pc_ucred->cr_ngroups = 1;
+		newcred->cr_ngroups = 1;
 
 	setsugid(p);
+	p->p_ucred = newcred;
+	crfree(oldcred);
 	return (0);
 }
 
@@ -1006,14 +1008,14 @@ linux_getgroups(p, uap)
 	struct proc *p;
 	struct linux_getgroups_args *uap;
 {
-	struct pcred *pc;
+	struct ucred *cred;
 	linux_gid_t linux_gidset[NGROUPS];
 	gid_t *bsd_gidset;
 	int bsd_gidsetsz, ngrp, error;
 
-	pc = p->p_cred;
-	bsd_gidset = pc->pc_ucred->cr_groups;
-	bsd_gidsetsz = pc->pc_ucred->cr_ngroups - 1;
+	cred = p->p_ucred;
+	bsd_gidset = cred->cr_groups;
+	bsd_gidsetsz = cred->cr_ngroups - 1;
 
 	/*
 	 * cr_groups[0] holds egid. Returning the whole set

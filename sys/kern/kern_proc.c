@@ -424,15 +424,15 @@ fill_kinfo_proc(p, kp)
 	kp->ki_textvp = p->p_textvp;
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
-	if (p->p_cred) {
-		kp->ki_uid = p->p_cred->pc_ucred->cr_uid;
-		kp->ki_ruid = p->p_cred->p_ruid;
-		kp->ki_svuid = p->p_cred->p_svuid;
-		kp->ki_ngroups = p->p_cred->pc_ucred->cr_ngroups;
-		bcopy(p->p_cred->pc_ucred->cr_groups, kp->ki_groups,
+	if (p->p_ucred) {
+		kp->ki_uid = p->p_ucred->cr_uid;
+		kp->ki_ruid = p->p_ucred->cr_ruid;
+		kp->ki_svuid = p->p_ucred->cr_svuid;
+		kp->ki_ngroups = p->p_ucred->cr_ngroups;
+		bcopy(p->p_ucred->cr_groups, kp->ki_groups,
 		    NGROUPS * sizeof(gid_t));
-		kp->ki_rgid = p->p_cred->p_rgid;
-		kp->ki_svgid = p->p_cred->p_svgid;
+		kp->ki_rgid = p->p_ucred->cr_rgid;
+		kp->ki_svgid = p->p_ucred->cr_svgid;
 	}
 	if (p->p_procsig) {
 		kp->ki_sigignore = p->p_procsig->ps_sigignore;
@@ -653,7 +653,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			case KERN_PROC_RUID:
 				if (p->p_ucred == NULL || 
-				    p->p_cred->p_ruid != (uid_t)name[0])
+				    p->p_ucred->cr_ruid != (uid_t)name[0])
 					continue;
 				break;
 			}

@@ -236,9 +236,11 @@ nfslockdans(p, ansp)
 
 	/* Let root, or someone who once was root (lockd generally
 	 * switches to the daemon uid once it is done setting up) make 
-	 * this call
+	 * this call.
+	 *
+	 * XXX This authorization check is probably not right.
 	 */
-	if ((error = suser(p)) != 0 && p->p_cred->p_svuid != 0)
+	if ((error = suser(p)) != 0 && p->p_ucred->cr_svuid != 0)
 		return (error);
 
 	/* the version should match, or we're out of sync */
