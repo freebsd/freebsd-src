@@ -199,7 +199,6 @@ the include file
 .It Dv "P_ADVLOCK" Ta No "0x00001	Process may hold a POSIX advisory lock"
 .It Dv "P_CONTROLT" Ta No "0x00002	Has a controlling terminal"
 .It Dv "P_INMEM" Ta No "0x00004		Loaded into memory"
-.It Dv "P_NOCLDSTOP" Ta No "0x00008	No SIGCHLD when children stop"
 .It Dv "P_PPWAIT" Ta No "0x00010	Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020	Has started profiling"
 .It Dv "P_SELECT" Ta No "0x00040	Selecting; wakeup/waiting danger"
@@ -213,6 +212,13 @@ the include file
 .It Dv "P_EXEC" Ta No "0x04000		Process called exec"
 .It Dv "P_OWEUPC" Ta No "0x20000	Owe process an addupc() call at next ast"
 .It Dv "P_SWAPPING" Ta No "0x40000	Process is being swapped"
+.It Dv "P_SWAPINREQ" Ta No "0x80000	Swapin request due to wakeup"
+.It Dv "P_KTHREADP" Ta No "0x200000	Process is really a kernel thread"
+.It Dv "P_DEADLKTREAT" Ta No "0x800000	Lock acquisition - deadlock treatment"
+.It Dv "P_JAILED" Ta No "0x1000000	Process is in jail"
+.It Dv "P_OLDMASK" Ta No "0x2000000	Need to restore mask before pause"
+.It Dv "P_ALTSTACK" Ta No "0x4000000	Have alternate signal stack"
+.It Dv "P_INEXEC" Ta No "0x8000000	Process is in execve()"
 .El
 .It lim
 The soft limit on memory used, specified via a call to
@@ -243,11 +249,6 @@ The first character indicates the run state of the process:
 Marks a process in disk (or other short term, uninterruptible) wait.
 .It I
 Marks a process that is idle (sleeping for longer than about 20 seconds).
-.It J
-Marks a process which is in
-.Xr jail 2 .
-The hostname of the prison can be found in
-.Ql Li /proc/<pid>/status .
 .It R
 Marks a runnable process.
 .It S
@@ -268,20 +269,13 @@ The process is in the foreground process group of its control terminal.
 The process has raised
 .Tn CPU
 scheduling priority.
-.It >
-The process has specified a soft limit on memory requirements and is
-currently exceeding that limit; such a process is (necessarily) not
-swapped.
-.It A
-the process has asked for random page replacement
-.Pf ( Dv MADV_RANDOM ,
-from
-.Xr madvise 2 ,
-for example,
-.Xr lisp 1
-in a garbage collect).
 .It E
 The process is trying to exit.
+.It J
+Marks a process which is in
+.Xr jail 2 .
+The hostname of the prison can be found in
+.Ql Li /proc/<pid>/status .
 .It L
 The process has pages locked in core (for example, for raw
 .Tn I/O ) .
@@ -290,15 +284,6 @@ The process has reduced
 .Tn CPU
 scheduling priority (see
 .Xr setpriority 2 ) .
-.It S
-The process has asked for
-.Tn FIFO
-page replacement
-.Pf ( Dv MADV_SEQUENTIAL ,
-from
-.Xr madvise 2 ,
-for example, a large image processing program using virtual memory to
-sequentially address voluminous data).
 .It s
 The process is a session leader.
 .It V
