@@ -148,6 +148,9 @@ wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict);
 int	wctob(wint_t);
 wchar_t	*wcstok(wchar_t * __restrict, const wchar_t * __restrict,
 	    wchar_t ** __restrict);
+long	 wcstol(const wchar_t * __restrict, wchar_t ** __restrict, int);
+unsigned long
+	 wcstoul(const wchar_t * __restrict, wchar_t ** __restrict, int);
 wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t);
 int	wmemcmp(const wchar_t *, const wchar_t *, size_t);
 wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
