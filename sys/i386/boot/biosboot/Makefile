@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36 1996/01/21 11:30:11 joerg Exp $
+#	$Id: Makefile,v 1.37 1996/02/03 21:12:27 joerg Exp $
 #
 
 PROG=	boot
@@ -12,9 +12,12 @@ CFLAGS=         -O2 \
 		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 
-# Force usage of serial console instead of keyboard probing.
+# Probe the keyboard and use the serial console if the keyboard isn't found.
+#CFLAGS+=	-DPROBE_KEYBOARD
+
+# Force use of the serial console (after probing the keyboard if
+# PROBE_KEYBOARD is defined).
 #CFLAGS+=	-DFORCE_COMCONSOLE
 
 # Assume hd(*,a) instead of wd(*,a) if the boot seems to happen from

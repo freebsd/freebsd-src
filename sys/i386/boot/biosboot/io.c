@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.16 1996/01/21 11:30:12 joerg Exp $
+ *	$Id: io.c,v 1.17 1996/03/08 06:11:33 bde Exp $
  */
 
 #include "boot.h"
@@ -153,6 +153,7 @@ loop:
 	return(c);
 }
 
+#ifdef PROBE_KEYBOARD
 /*
  * This routine uses an inb to an unused port, the time to execute that
  * inb is approximately 1.25uS.  This value is pretty constant across
@@ -170,6 +171,7 @@ delay1ms(void)
 	while (--i >= 0)
 		(void)inb(0x84);
 }
+#endif /* PROBE_KEYBOARD */
 
 static __inline unsigned
 pword(unsigned physaddr)
