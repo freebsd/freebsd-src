@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=	md
 NOPIC=	true
@@ -10,8 +10,6 @@ MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
 MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
 MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3
 MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
-MLINKS+=mdX.3 MDXInit.3 mdX.3 MDXUpdate.3 mdX.3 MDXFinal.3 mdX.3 MDXEnd.3 \
-	mdX.3 MDXFile.3 mdX.3 MDXData.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver
 CFLAGS+= -I${.CURDIR}
 
