@@ -488,9 +488,10 @@ loop:
 	VI_LOCK(devvp);
 	snaphead = &devvp->v_rdev->si_snapshots;
 	if ((xp = TAILQ_FIRST(snaphead)) != NULL) {
-		VI_LOCK(vp);
-		vp->v_vnlock = ITOV(xp)->v_vnlock;
+		struct lock *lkp = ITOV(xp)->v_vnlock;
 		VI_UNLOCK(devvp);
+		VI_LOCK(vp);
+		vp->v_vnlock = lkp;
 	} else {
 		struct lock *lkp;
 
@@ -1793,9 +1794,10 @@ ffs_snapshot_mount(mp)
 		 */
 		VI_LOCK(devvp);
 		if ((xp = TAILQ_FIRST(snaphead)) != NULL) {
-			VI_LOCK(vp);
-			vp->v_vnlock = ITOV(xp)->v_vnlock;
+			struct lock *lkp = ITOV(xp)->v_vnlock;
 			VI_UNLOCK(devvp);
+			VI_LOCK(vp);
+			vp->v_vnlock = lkp;
 		} else {
 			struct lock *lkp;
 
