@@ -164,7 +164,7 @@ typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
 #define SIG2OSIG(sig, osig)	osig = (sig).__bits[0]
 #define OSIG2SIG(osig, sig)	SIGEMPTYSET(sig); (sig).__bits[0] = osig
 
-extern __inline int
+static __inline int
 __sigisempty(sigset_t *set)
 {
 	int i;
@@ -176,7 +176,7 @@ __sigisempty(sigset_t *set)
 	return (1);
 }
 
-extern __inline int
+static __inline int
 __sigseteq(sigset_t *set1, sigset_t *set2)
 {
 	int i;
