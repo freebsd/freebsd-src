@@ -36,7 +36,7 @@
 .\"
 .\" $Id: vinum.4,v 1.9 1999/03/23 04:57:24 grog Exp grog $
 .\"
-.Dd 22 July 1998
+.Dd 28 March 1999
 .Dt vinum 4
 .Sh NAME
 .Nm vinum
@@ -651,6 +651,9 @@ Plexes may have the following states:
 .sp
 .ne 1i
 .Bl -hang -width 14n
+.It Li referenced
+A plex entry which has been referenced as part of a volume, but which is
+currently not known.
 .It Li faulty
 A plex which has gone completely down because of I/O errors.
 .It Li down
@@ -680,7 +683,10 @@ Subdisks can have the following states:
 .Bl -hang -width 14n
 .It Li empty
 A subdisk entry which has been created completely.  All fields are correct, and
-the disk has been updated, but there is no data on the disk.
+the disk has been updated, but the on the disk is not valid.
+.It Li referenced
+A subdisk entry which has been referenced as part of a plex, but which is
+currently not known.
 .It Li initializing
 A subdisk entry which has been created completely and which is currently being
 initialized.
@@ -729,7 +735,7 @@ Drives can have the following states:
 .Bl -hang -width 14n
 .It Li referenced
 At least one subdisk refers to the drive, but it is not currently accessible to
-the system.
+the system.  No device name is known.
 .It Li down
 The drive is not accessible.
 .It Li up
@@ -752,12 +758,6 @@ Kernels with the
 pseudo-device appear to work, but are not supported.  If you have trouble with
 this configuration, please first replace the kernel with a non-Vinum
 kernel and test with the kld module.
-.It
-It is necessary to initialize RAID-5 plexes.  Failure to do so will not impede
-normal operation, but it will cause complete corruption if one of the disks
-should fail.  I don't know any good way to enforce this initialization (or the
-even slower alternative of rebuilding the parity blocks).  If anybody has a good
-idea, I'd be grateful for input.
 .It
 Detection of differences between the version of the kernel and the kld is not
 yet implemented.
