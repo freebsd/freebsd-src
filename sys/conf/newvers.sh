@@ -56,7 +56,7 @@ for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
 do
 	if [ -r "$bsd_copyright" ]; then
 		COPYRIGHT=`sed \
-		    -e "s/\[year\]/$year/" \
+		    -e "s/\[year\]/1992-$year/" \
 		    -e 's/\[your name here\]\.* /The FreeBSD Project./' \
 		    -e 's/\[your name\]\.*/The FreeBSD Project./' \
 		    -e '/\[id for your version control system, if any\]/d' \
@@ -68,7 +68,7 @@ done
 # no copyright found, use a dummy
 if [ X"$COPYRIGHT" = X ]; then
 	COPYRIGHT="/*
- * Copyright (c) $year The FreeBSD Project.
+ * Copyright (c) 1992-$year The FreeBSD Project.
  * All rights reserved.
  *
  */"
