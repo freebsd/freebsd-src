@@ -71,7 +71,7 @@ static const char rcsid[] =
  *	service name			must be in /etc/services or must
  *					name a tcpmux service
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			must be in /etc/protocols
+ *	protocol			tcp[4][6][/faith,ttcp], udp[4][6]
  *	wait/nowait			single-threaded/multi-threaded
  *	user				user to run daemon as
  *	server program			full path name
@@ -95,7 +95,7 @@ static const char rcsid[] =
  * For RPC services
  *	service name/version		must be in /etc/rpc
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			must be in /etc/protocols
+ *	protocol			rpc/tcp, rpc/udp
  *	wait/nowait			single-threaded/multi-threaded
  *	user				user to run daemon as
  *	server program			full path name
