@@ -1463,7 +1463,7 @@ noport:
 			if (getnameinfo((struct sockaddr *)daddr,
 					daddr->su_len, hname,
 					sizeof(hname) - 1, NULL, 0,
-					NI_NUMERICHOST|NI_WITHSCOPEID)) {
+					NI_NUMERICHOST)) {
 				result = ERROR;
 			} else {
 				result = command("EPRT |%d|%s|%d|",
