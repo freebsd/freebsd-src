@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.354 1998/06/06 04:39:42 jkoshy Exp $
+#	$Id: Makefile,v 1.355 1998/06/07 21:53:01 jdp Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -131,7 +131,7 @@ rerelease release:
 # The first command will fail on a handful of files that have their schg
 # flags set.  But it greatly speeds up the next two commands.
 	-rm -rf ${CHROOTDIR}
-	chflags -R noschg ${CHROOTDIR}/.
+	-chflags -R noschg ${CHROOTDIR}/.
 	-rm -rf ${CHROOTDIR}
 .endif
 	-mkdir -p ${CHROOTDIR}
