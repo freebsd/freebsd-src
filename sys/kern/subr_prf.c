@@ -560,7 +560,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				width = n;
 			goto reswitch;
 		case 'b':
-			num = va_arg(ap, int);
+			num = (u_int)va_arg(ap, int);
 			p = va_arg(ap, char *);
 			for (q = ksprintn(nbuf, num, *p++, NULL); *q;)
 				PCHAR(*q--);
