@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.261 1996/06/07 15:50:08 ache Exp $
+#	$Id: LINT,v 1.262 1996/06/10 00:50:34 alex Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -51,7 +51,7 @@ options		OPEN_MAX=128
 # this is an expensive option, it consumes physical non-pageable ram.
 # A busy news server may benefit from 10,000 extra vnodes or so.
 #
-options		EXTRA_VNODES=1
+options		EXTRAVNODES=1
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
