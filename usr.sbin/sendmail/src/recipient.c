@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.116 (Berkeley) 8/17/96";
+static char sccsid[] = "@(#)recipient.c	8.118 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -474,8 +474,8 @@ recipient(a, sendq, aliaslevel, e)
 
 	if (tTd(29, 5))
 	{
-		printf("recipient: testing local?  cl=%d, rr5=%x\n\t",
-			ConfigLevel, RewriteRules[5]);
+		printf("recipient: testing local?  cl=%d, rr5=%lx\n\t",
+			ConfigLevel, (u_long) RewriteRules[5]);
 		printaddr(a, FALSE);
 	}
 	if (!bitset(QNOTREMOTE|QDONTSEND|QQUEUEUP|QVERIFIED, a->q_flags) &&
@@ -601,7 +601,7 @@ recipient(a, sendq, aliaslevel, e)
 	if (aliaslevel == 0)
 	{
 		int nrcpts = 0;
-		ADDRESS *only;
+		ADDRESS *only = NULL;
 
 		for (q = *sendq; q != NULL; q = q->q_next)
 		{
@@ -907,7 +907,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	volatile gid_t savedgid, gid;
 	char *volatile uname;
 	int rval = 0;
-	int sfflags = SFF_REGONLY;
+	volatile int sfflags = SFF_REGONLY;
 	struct stat st;
 	char buf[MAXLINE];
 #ifdef _POSIX_CHOWN_RESTRICTED
@@ -932,7 +932,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	if (tTd(27, 2))
 		printf("include(%s)\n", fname);
 	if (tTd(27, 4))
-		printf("   ruid=%d euid=%d\n", getuid(), geteuid());
+		printf("   ruid=%d euid=%d\n", (int) getuid(), (int) geteuid());
 	if (tTd(27, 14))
 	{
 		printf("ctladdr ");
@@ -940,7 +940,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	}
 
 	if (tTd(27, 9))
-		printf("include: old uid = %d/%d\n", getuid(), geteuid());
+		printf("include: old uid = %d/%d\n",
+		       (int) getuid(), (int) geteuid());
 
 	if (forwarding)
 		sfflags |= SFF_MUSTOWN|SFF_ROOTOK|SFF_NOSLINK;
@@ -985,7 +986,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 #endif
 
 	if (tTd(27, 9))
-		printf("include: new uid = %d/%d\n", getuid(), geteuid());
+		printf("include: new uid = %d/%d\n",
+		       (int) getuid(), (int) geteuid());
 
 	/*
 	**  If home directory is remote mounted but server is down,
@@ -1013,7 +1015,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		/* don't use this :include: file */
 		if (tTd(27, 4))
 			printf("include: not safe (uid=%d): %s\n",
-				uid, errstring(rval));
+				(int) uid, errstring(rval));
 	}
 	else
 	{
@@ -1053,7 +1055,8 @@ resetuid:
 #endif
 
 	if (tTd(27, 9))
-		printf("include: reset uid = %d/%d\n", getuid(), geteuid());
+		printf("include: reset uid = %d/%d\n",
+		       (int) getuid(), (int) geteuid());
 
 	if (rval == EOPENTIMEOUT)
 		usrerr("451 open timeout on %s", fname);
@@ -1083,7 +1086,7 @@ resetuid:
 		ctladdr->q_flags |= ca->q_flags & QBOGUSSHELL;
 		ctladdr->q_ruser = ca->q_ruser;
 	}
-	else
+	else if (!forwarding)
 	{
 		register struct passwd *pw;
 

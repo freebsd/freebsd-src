@@ -35,17 +35,17 @@
 # include "sendmail.h"
 
 #ifndef lint
-#ifdef SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.75 (Berkeley) 11/6/96 (with SMTP)";
+#if SMTP
+static char sccsid[] = "@(#)usersmtp.c	8.79 (Berkeley) 12/1/96 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.75 (Berkeley) 11/6/96 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.79 (Berkeley) 12/1/96 (without SMTP)";
 #endif
 #endif /* not lint */
 
 # include <sysexits.h>
 # include <errno.h>
 
-# ifdef SMTP
+# if SMTP
 
 /*
 **  USERSMTP -- run SMTP protocol from the user end.
@@ -155,7 +155,7 @@ smtpinit(m, mci, e)
 	**	My mother taught me to always introduce myself.
 	*/
 
-#if FFR_LMTP
+#if _FFR_LMTP
 	if (bitnset(M_ESMTP, m->m_flags) || bitnset(M_LMTP, m->m_flags))
 #else
 	if (bitnset(M_ESMTP, m->m_flags))
@@ -163,7 +163,7 @@ smtpinit(m, mci, e)
 		mci->mci_flags |= MCIF_ESMTP;
 
 tryhelo:
-#if FFR_LMTP
+#if _FFR_LMTP
 	if (bitnset(M_LMTP, m->m_flags))
 	{
 		smtpmessage("LHLO %s", m, mci, MyHostName);
@@ -188,7 +188,7 @@ tryhelo:
 		goto tempfail1;
 	else if (REPLYTYPE(r) == 5)
 	{
-#if FFR_LMTP
+#if _FFR_LMTP
 		if (bitset(MCIF_ESMTP, mci->mci_flags) &&
 		    !bitnset(M_LMTP, m->m_flags))
 #else
@@ -214,7 +214,7 @@ tryhelo:
 	if (p != NULL)
 		*p = '\0';
 	if (!bitnset(M_NOLOOPCHECK, m->m_flags) &&
-#if FFR_LMTP
+#if _FFR_LMTP
 	    !bitnset(M_LMTP, m->m_flags) &&
 #endif
 	    strcasecmp(&SmtpReplyBuffer[4], MyHostName) == 0)
@@ -418,7 +418,7 @@ smtpmailfrom(m, mci, e)
 		extern char MsgBuf[];
 
 		usrerr("%s does not support 8BITMIME", mci->mci_host);
-		mci_setstat(mci, EX_DATAERR, "5.6.3", MsgBuf);
+		mci_setstat(mci, EX_NOTSTICKY, "5.6.3", MsgBuf);
 		return EX_DATAERR;
 	}
 
@@ -505,25 +505,25 @@ smtpmailfrom(m, mci, e)
 	else if (r == 501)
 	{
 		/* syntax error in arguments */
-		mci_setstat(mci, EX_DATAERR, "5.5.2", SmtpReplyBuffer);
+		mci_setstat(mci, EX_NOTSTICKY, "5.5.2", SmtpReplyBuffer);
 		return EX_DATAERR;
 	}
 	else if (r == 553)
 	{
 		/* mailbox name not allowed */
-		mci_setstat(mci, EX_DATAERR, "5.1.3", SmtpReplyBuffer);
+		mci_setstat(mci, EX_NOTSTICKY, "5.1.3", SmtpReplyBuffer);
 		return EX_DATAERR;
 	}
 	else if (r == 552)
 	{
 		/* exceeded storage allocation */
-		mci_setstat(mci, EX_UNAVAILABLE, "5.2.2", SmtpReplyBuffer);
+		mci_setstat(mci, EX_NOTSTICKY, "5.2.2", SmtpReplyBuffer);
 		return EX_UNAVAILABLE;
 	}
 	else if (REPLYTYPE(r) == 5)
 	{
 		/* unknown error */
-		mci_setstat(mci, EX_UNAVAILABLE, "5.0.0", SmtpReplyBuffer);
+		mci_setstat(mci, EX_NOTSTICKY, "5.0.0", SmtpReplyBuffer);
 		return EX_UNAVAILABLE;
 	}
 
@@ -654,6 +654,7 @@ smtprcpt(to, m, mci, e)
 	}
 #endif
 
+	mci_setstat(mci, EX_PROTOCOL, "5.5.1", SmtpReplyBuffer);
 	return EX_PROTOCOL;
 }
 /*
@@ -719,6 +720,7 @@ smtpdata(m, mci, e)
 		}
 #endif
 		smtprset(m, mci, e);
+		mci_setstat(mci, EX_PROTOCOL, "5.5.1", SmtpReplyBuffer);
 		return (EX_PROTOCOL);
 	}
 
@@ -770,14 +772,14 @@ smtpdata(m, mci, e)
 	/* terminate the message */
 	fprintf(mci->mci_out, ".%s", m->m_eol);
 	if (TrafficLogFile != NULL)
-		fprintf(TrafficLogFile, "%05d >>> .\n", getpid());
+		fprintf(TrafficLogFile, "%05d >>> .\n", (int) getpid());
 	if (Verbose)
 		nmessage(">>> .");
 
 	/* check for the results of the transaction */
 	SmtpPhase = mci->mci_phase = "client DATA status";
 	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
-#if FFR_LMTP
+#if _FFR_LMTP
 	if (bitnset(M_LMTP, m->m_flags))
 		return EX_OK;
 #endif
@@ -833,7 +835,7 @@ datatimeout()
 **		The exit status corresponding to the reply code.
 */
 
-#if FFR_LMTP
+#if _FFR_LMTP
 
 int
 smtpgetstat(m, mci, e)
@@ -1183,7 +1185,8 @@ smtpmessage(f, m, mci, va_alist)
 	if (tTd(18, 1) || Verbose)
 		nmessage(">>> %s", SmtpMsgBuffer);
 	if (TrafficLogFile != NULL)
-		fprintf(TrafficLogFile, "%05d >>> %s\n", getpid(), SmtpMsgBuffer);
+		fprintf(TrafficLogFile, "%05d >>> %s\n",
+			(int) getpid(), SmtpMsgBuffer);
 	if (mci->mci_out != NULL)
 	{
 		fprintf(mci->mci_out, "%s%s", SmtpMsgBuffer,

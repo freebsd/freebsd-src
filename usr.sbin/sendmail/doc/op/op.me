@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.98 (Berkeley) 11/16/96
+.\"	@(#)op.me	8.100 (Berkeley) 12/1/96
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -68,7 +68,7 @@ Eric Allman
 InReference, Inc.
 eric@Sendmail.ORG
 .sp
-Version 8.98
+Version 8.100
 .sp
 For Sendmail Version 8.8
 .)l
@@ -5845,7 +5845,7 @@ to the list of recognized vendors by editing the routine
 .i setvendor
 in
 .i conf.c .
-Please send e-mail to sendmail@CS.Berkeley.EDU
+Please send e-mail to sendmail@Sendmail.ORG
 to register your vendor dialect.
 .)f
 You may use
@@ -6619,12 +6619,12 @@ you can set this flag to turn off special processing
 of UNIX-style
 .q "From "
 lines.
-.ip QUEUE
+.ip QUEUE\(dg
 This flag should be set to compile in the queueing code.
 If this is not set,
 mailers must accept the mail immediately
 or it will be returned to the sender.
-.ip SMTP
+.ip SMTP\(dg
 If set,
 the code to handle user and server SMTP will be compiled in.
 This is only necessary if your machine has some mailer
@@ -7156,7 +7156,7 @@ If you are porting to a new environment
 you may need to add some new tweaks.\**
 .(f
 \**If you do, please send updates to
-sendmail@CS.Berkeley.EDU.
+sendmail@Sendmail.ORG.
 .)f
 .sh 2 "Configuration in src/daemon.c"
 .pp
@@ -7686,7 +7686,7 @@ I appreciate their contribution as well.
 .pp
 Special thanks are reserved for Michael Corrigan and Christophe Wolfhugel,
 who besides being wonderful guinea pigs and contributors
-have also consented to be added to the ``sendmail@CS.Berkeley.EDU'' list
+have also consented to be added to the ``sendmail@Sendmail.ORG'' list
 and, by answering the bulk of the questions sent to that list,
 have freed me up to do other work.
 .++ A
@@ -8150,7 +8150,7 @@ A transcript of the current session.
 .\"Eric Allman
 .\"InReference, Inc.
 .\".sp
-.\"Version 8.98
+.\"Version 8.100
 .\".ce 0
 .bp 2
 .rs

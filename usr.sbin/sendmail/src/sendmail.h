@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.209 (Berkeley) 11/8/96
+ *	@(#)sendmail.h	8.216 (Berkeley) 12/1/96
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.209		11/8/96";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.216		12/1/96";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -68,7 +68,7 @@ static char SmailSccsId[] =	"@(#)sendmail.h	8.209		11/8/96";
 # include <syslog.h>
 # endif /* LOG */
 
-# ifdef DAEMON
+# if NETINET || NETUNIX || NETISO || NETNS || NETX25
 # include <sys/socket.h>
 # endif
 # if NETUNIX
@@ -277,8 +277,10 @@ struct mailer
 # define M_XDOT		'X'	/* use hidden-dot algorithm */
 # define M_LMTP		'z'	/* run Local Mail Transport Protocol */
 # define M_NOMX		'0'	/* turn off MX lookups */
+# define M_NONULLS	'1'	/* don't send null bytes */
 # define M_EBCDIC	'3'	/* extend Q-P encoding for EBCDIC */
 # define M_TRYRULESET5	'5'	/* use ruleset 5 after local aliasing */
+# define M_7BITHDRS	'6'	/* strip headers to 7 bits even in 8 bit path */
 # define M_7BITS	'7'	/* use 7-bit path */
 # define M_8BITS	'8'	/* force "just send 8" behaviour */
 # define M_MAKE8BIT	'9'	/* convert 7 -> 8 bit if appropriate */
@@ -984,7 +986,7 @@ extern int	safefile __P((char *, UID_T, GID_T, char *, int, int, struct stat *))
 **  we are forced to declare a supertype here.
 */
 
-#ifdef DAEMON
+# if NETINET || NETUNIX || NETISO || NETNS || NETX25
 union bigsockaddr
 {
 	struct sockaddr		sa;	/* general version */
@@ -1011,6 +1013,9 @@ EXTERN SOCKADDR RealHostAddr;	/* address of host we are talking to */
 
 extern char	*hostnamebyanyaddr __P((SOCKADDR *));
 extern char	*anynet_ntoa __P((SOCKADDR *));
+# if DAEMON
+extern bool	validate_connection __P((SOCKADDR *, char *, ENVELOPE *));
+# endif
 
 #endif
 
@@ -1160,6 +1165,7 @@ EXTERN bool	AllowBogusHELO;	/* allow syntax errors on HELO command */
 EXTERN bool	UserSubmission;	/* initial (user) mail submission */
 EXTERN uid_t	RunAsUid;	/* UID to become for bulk of run */
 EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
+EXTERN bool	IgnoreHostStatus;	/* ignore long term host status files */
 EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
 EXTERN bool	UnsafeGroupWrites;	/* group-writable files are unsafe */
 EXTERN bool	SingleLineFromHeader;	/* force From: header to be one line */
@@ -1315,6 +1321,7 @@ extern void	shorten_hostname __P((char []));
 extern int	waitfor __P((pid_t));
 extern void	proc_list_add __P((pid_t));
 extern void	proc_list_drop __P((pid_t));
+extern void	proc_list_clear __P((void));
 extern void	buffer_errors __P((void));
 extern void	flush_errors __P((bool));
 extern void	putline __P((char *, MCI *));
@@ -1336,7 +1343,7 @@ extern void	stripquotes __P((char *));
 extern int	include __P((char *, bool, ADDRESS *, ADDRESS **, int, ENVELOPE  *));
 extern void	unlockqueue __P((ENVELOPE *));
 extern void	xunlink __P((char *));
-extern void	runqueue __P((bool));
+extern bool	runqueue __P((bool, bool));
 extern int	getla __P((void));
 extern void	sendall __P((ENVELOPE *, int));
 extern void	queueup __P((ENVELOPE *, bool));
@@ -1349,12 +1356,12 @@ extern int	mailfile __P((char *, ADDRESS *, int, ENVELOPE *));
 extern void	loseqfile __P((ENVELOPE *, char *));
 extern int	prog_open __P((char **, int *, ENVELOPE *));
 extern bool	getcanonname __P((char *, int, bool));
-extern bool	validate_connection __P((SOCKADDR *, char *, ENVELOPE *));
 extern bool	path_is_dir __P((char *, bool));
 extern pid_t	dowork __P((char *, bool, bool, ENVELOPE *));
 
 extern const char	*errstring __P((int));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
+extern int		blocksignal __P((int));
 extern int		releasesignal __P((int));
 extern struct hostent	*sm_gethostbyname __P((char *));
 extern struct hostent	*sm_gethostbyaddr __P((char *, int, int));

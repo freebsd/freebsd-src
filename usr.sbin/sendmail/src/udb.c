@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.42 (Berkeley) 9/18/96 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.46 (Berkeley) 12/1/96 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.42 (Berkeley) 9/18/96 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.46 (Berkeley) 12/1/96 (without USERDB)";
 #endif
 #endif
 
@@ -210,6 +210,7 @@ udbexpand(a, sendq, aliaslevel, e)
 #endif
 
 		user = userbuf;
+		userbuf[0] = '\0';
 		usersize = sizeof userbuf;
 		userleft = sizeof userbuf - 1;
 
@@ -240,7 +241,8 @@ udbexpand(a, sendq, aliaslevel, e)
 			}
 			if (tTd(28, 80))
 				printf("udbexpand: match %.*s: %.*s\n",
-					key.size, key.data, info.size, info.data);
+					(int) key.size, (char *) key.data,
+					(int) info.size, (char *) info.data);
 
 			a->q_flags &= ~QSELFREF;
 			while (i == 0 && key.size == keylen &&
@@ -272,7 +274,7 @@ udbexpand(a, sendq, aliaslevel, e)
 					*p++ = ',';
 					userleft--;
 				}
-				bcopy(info.data, user, info.size);
+				bcopy(info.data, p, info.size);
 				user[info.size] = '\0';
 				userleft -= info.size;
 
@@ -817,6 +819,7 @@ _udbx_init()
 	{
 		char *spec;
 		int nopts;
+		int l;
 # if 0
 		auto int rcode;
 		int nmx;
@@ -934,9 +937,20 @@ _udbx_init()
 
 #ifdef NEWDB
 		  case '/':	/* look up remote name */
-			up->udb_dbname = spec;
+			l = strlen(spec);
+			if (l > 3 && strcmp(&spec[l - 3], ".db") == 0)
+			{
+				up->udb_dbname = spec;
+			}
+			else
+			{
+				up->udb_dbname = xalloc(l + 4);
+				strcpy(up->udb_dbname, spec);
+				strcat(up->udb_dbname, ".db");
+			}
 			errno = 0;
-			up->udb_dbp = dbopen(spec, O_RDONLY, 0644, DB_BTREE, NULL);
+			up->udb_dbp = dbopen(up->udb_dbname, O_RDONLY,
+					     0644, DB_BTREE, NULL);
 			if (up->udb_dbp == NULL)
 			{
 				if (tTd(28, 1))
@@ -944,7 +958,8 @@ _udbx_init()
 					int saveerrno = errno;
 
 					printf("dbopen(%s): %s",
-						spec, errstring(errno));
+						up->udb_dbname,
+						errstring(errno));
 					errno = saveerrno;
 				}
 				if (errno != ENOENT && errno != EACCES)
@@ -952,11 +967,16 @@ _udbx_init()
 #ifdef LOG
 					if (LogLevel > 2)
 						syslog(LOG_ERR, "dbopen(%s): %s",
-							spec, errstring(errno));
+							up->udb_dbname,
+							errstring(errno));
 #endif
 					up->udb_type = UDB_EOLIST;
+					if (up->udb_dbname != spec)
+						free(up->udb_dbname);
 					goto tempfail;
 				}
+				if (up->udb_dbname != spec)
+					free(up->udb_dbname);
 				break;
 			}
 			up->udb_type = UDB_DBFETCH;
@@ -978,7 +998,7 @@ badspec:
 		{
 			switch (up->udb_type)
 			{
-#ifdef DAEMON
+#if DAEMON
 			  case UDB_REMOTE:
 				printf("REMOTE: addr %s, timeo %d\n",
 					anynet_ntoa((SOCKADDR *) &up->udb_addr),
