@@ -27,6 +27,7 @@
 #
 
 PROG=	kldunload
+MAN=	kldunload.8
 
 CFLAGS+=-I${.CURDIR}/../../sys
 

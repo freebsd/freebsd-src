@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	route
+MAN=	route.8
 SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CFLAGS+=-DINET6

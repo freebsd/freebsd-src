@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	nfsiod
+MAN=	nfsiod.8
 CFLAGS+=-DNFS
 
 .include <bsd.prog.mk>

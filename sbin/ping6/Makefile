@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	ping6
+MAN=	ping6.8
 
 CFLAGS+=-DINET6 -DIPSEC
 

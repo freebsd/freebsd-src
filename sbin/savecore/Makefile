@@ -3,6 +3,7 @@
 
 PROG=	savecore
 SRCS=	savecore.c zopen.c
+MAN=	savecore.8
 
 ZOPENPATH= ${.CURDIR}/../../usr.bin/compress
 .PATH:	${ZOPENPATH}

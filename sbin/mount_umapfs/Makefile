@@ -3,6 +3,7 @@
 
 PROG=	mount_umap
 SRCS=	mount_umap.c getmntopts.c
+MAN=	mount_umap.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
