@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.18.2.1 1996/12/30 01:35:15 alex Exp $
+ * $Id: malloc.c,v 1.28 1997/07/02 19:33:23 phk Exp $
  *
  */
 
@@ -22,15 +22,6 @@
 #endif
 
 /*
- * Defining MALLOC_STATS will enable you to call malloc_dump() and set
- * the [dD] options in the MALLOC_OPTIONS environment variable.
- * It has no run-time performance hit.
- */
-#ifndef MALLOC_STATS
-#undef MALLOC_STATS
-#endif
-
-/*
  * What to use for Junk.  This is the byte value we use to fill with
  * when the 'J' option is enabled.
  */
@@ -41,7 +32,7 @@
  *
  * malloc_pageshift	pagesize = 1 << malloc_pageshift
  *			It's probably best if this is the native
- *			page size, but it shouldn't have to be.
+ *			page size, but it doesn't have to be.
  *
  * malloc_minsize	minimum size of an allocation in bytes.
  *			If this is too small it's too much work
@@ -51,27 +42,52 @@
  *
  */
 
-#if defined(__i386__) && defined(__FreeBSD__)
-#   define malloc_pageshift		12U
+#if defined(__FreeBSD__)
+#   if defined(__i386__)
+#       define malloc_pageshift		12U
+#       define malloc_minsize		16U
+#   endif
+#   define HAS_UTRACE
+#   if defined(_THREAD_SAFE)
+#       include <pthread.h>
+#       include "pthread_private.h"
+#       define THREAD_LOCK()		pthread_mutex_lock(&malloc_lock)
+#       define THREAD_UNLOCK()		pthread_mutex_unlock(&malloc_lock)
+        static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_INITIALIZER;
+        static pthread_mutex_t malloc_lock = &_malloc_lock;
+#   endif
+#endif /* __FreeBSD__ */
+
+#if defined(__sparc__) && defined(sun)
+#   define malloc_pageshirt		12U
 #   define malloc_minsize		16U
-#endif /* __i386__ && __FreeBSD__ */
+#   define MAP_ANON			(0)
+    static int fdzero;
+#   define MMAP_FD	fdzero
+#   define INIT_MMAP() \
+	{ if ((fdzero=open("/dev/zero", O_RDWR, 0000)) == -1) \
+	    wrterror("open of /dev/zero"); }
+#   define MADV_FREE			MADV_DONTNEED
+#endif /* __sparc__ */
 
 /* Insert your combination here... */
 #if defined(__FOOCPU__) && defined(__BAROS__)
 #   define malloc_pageshift		12U
 #   define malloc_minsize		16U
-#endif /* __i386__ && __FreeBSD__ */
+#endif /* __FOOCPU__ && __BAROS__ */
+
 
 /*
  * No user serviceable parts behind this point.
  */
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/mman.h>
 
 /*
  * This structure describes a page worth of chunks.
@@ -96,7 +112,7 @@ struct pgfree {
     struct pgfree	*prev;	/* prev run of free pages */
     void		*page;	/* pointer to free pages */
     void		*end;	/* pointer to end of free pages */
-    u_long		size;	/* number of bytes free */
+    size_t		size;	/* number of bytes free */
 };
 
 /*
@@ -122,10 +138,6 @@ struct pgfree {
 #define malloc_minsize			16U
 #endif
 
-#ifndef malloc_pageshift
-#error	"malloc_pageshift undefined"
-#endif
-
 #if !defined(malloc_pagesize)
 #define malloc_pagesize			(1U<<malloc_pageshift)
 #endif
@@ -144,8 +156,27 @@ struct pgfree {
 #define pageround(foo) (((foo) + (malloc_pagemask))&(~(malloc_pagemask)))
 #define ptr2index(foo) (((u_long)(foo) >> malloc_pageshift)-malloc_origo)
 
+#ifndef THREAD_LOCK
+#define THREAD_LOCK()
+#endif
+
+#ifndef THREAD_UNLOCK
+#define THREAD_UNLOCK()
+#endif
+
+#ifndef MMAP_FD
+#define MMAP_FD (-1)
+#endif
+
+#ifndef INIT_MMAP
+#define INIT_MMAP()
+#endif
+
 /* Set when initialization has been done */
 static unsigned malloc_started;	
+
+/* Recusion flag for public interface. */
+static int malloc_active;
 
 /* Number of free pages we cache */
 static unsigned malloc_cache = 16;
@@ -171,14 +202,17 @@ static int malloc_abort;
 /* Are we trying to die ?  */
 static int suicide;
 
-/* dump statistics */
-static int malloc_stats;
-
 /* always realloc ?  */
 static int malloc_realloc;
 
 /* pass the kernel a hint on free pages ?  */
 static int malloc_hint;
+
+/* xmalloc behaviour ?  */
+static int malloc_xmalloc;
+
+/* sysv behaviour for malloc(0) ?  */
+static int malloc_sysv;
 
 /* zero fill ?  */
 static int malloc_zero;
@@ -186,10 +220,11 @@ static int malloc_zero;
 /* junk fill ?  */
 static int malloc_junk;
 
+#ifdef HAS_UTRACE
+
 /* utrace ?  */
 static int malloc_utrace;
 
-#ifdef __FreeBSD__
 struct ut { void *p; size_t s; void *r; };
 
 void utrace __P((struct ut *, int));
@@ -197,9 +232,9 @@ void utrace __P((struct ut *, int));
 #define UTRACE(a, b, c) \
 	if (malloc_utrace) \
 		{struct ut u; u.p=a; u.s = b; u.r=c; utrace(&u, sizeof u);}
-#else /* !__FreeBSD__ */
+#else /* !HAS_UTRACE */
 #define UTRACE(a,b,c)
-#endif
+#endif /* HAS_UTRACE */
 
 /* my last break. */
 static void *malloc_brk;
@@ -213,6 +248,11 @@ char *malloc_options;
 /* Name of the current public function */
 static char *malloc_func;
 
+/* Macro for mmap */
+#define MMAP(size) \
+	mmap((caddr_t)0, (size), PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, \
+	    MMAP_FD, 0);
+
 /*
  * Necessary function declarations
  */
@@ -221,79 +261,17 @@ static void *imalloc(size_t size);
 static void ifree(void *ptr);
 static void *irealloc(void *ptr, size_t size);
 
-#ifdef MALLOC_STATS
-void
-malloc_dump(FILE *fd)
-{
-    struct pginfo **pd;
-    struct pgfree *pf;
-    int j;
-
-    pd = page_dir;
-
-    /* print out all the pages */
-    for(j=0;j<=last_index;j++) {
-	fprintf(fd, "%08lx %5d ", (j+malloc_origo) << malloc_pageshift, j);
-	if (pd[j] == MALLOC_NOT_MINE) {
-	    for(j++;j<=last_index && pd[j] == MALLOC_NOT_MINE;j++)
-		;
-	    j--;
-	    fprintf(fd, ".. %5d not mine\n",	j);
-	} else if (pd[j] == MALLOC_FREE) {
-	    for(j++;j<=last_index && pd[j] == MALLOC_FREE;j++)
-		;
-	    j--;
-	    fprintf(fd, ".. %5d free\n", j);
-	} else if (pd[j] == MALLOC_FIRST) {
-	    for(j++;j<=last_index && pd[j] == MALLOC_FOLLOW;j++)
-		;
-	    j--;
-	    fprintf(fd, ".. %5d in use\n", j);
-	} else if (pd[j] < MALLOC_MAGIC) {
-	    fprintf(fd, "(%p)\n", pd[j]);
-	} else {
-	    fprintf(fd, "%p %d (of %d) x %d @ %p --> %p\n",
-		pd[j], pd[j]->free, pd[j]->total,
-		pd[j]->size, pd[j]->page, pd[j]->next);
-	}
-    }
-
-    for(pf=free_list.next; pf; pf=pf->next) {
-	fprintf(fd, "Free: @%p [%p...%p[ %ld ->%p <-%p\n",
-		pf, pf->page, pf->end, pf->size, pf->prev, pf->next);
-	if (pf == pf->next) {
-		fprintf(fd, "Free_list loops.\n");
-		break;
-	}
-    }
-
-    /* print out various info */
-    fprintf(fd, "Minsize\t%d\n", malloc_minsize);
-    fprintf(fd, "Maxsize\t%d\n", malloc_maxsize);
-    fprintf(fd, "Pagesize\t%d\n", malloc_pagesize);
-    fprintf(fd, "Pageshift\t%d\n", malloc_pageshift);
-    fprintf(fd, "FirstPage\t%ld\n", malloc_origo);
-    fprintf(fd, "LastPage\t%ld %lx\n", last_index+malloc_pageshift,
-	(last_index + malloc_pageshift) << malloc_pageshift);
-    fprintf(fd, "Break\t%ld\n", (u_long)sbrk(0) >> malloc_pageshift);
-}
-#endif /* MALLOC_STATS */
-
 extern char *__progname;
 
 static void
 wrterror(char *p)
 {
     char *q = " error: ";
+    write(STDERR_FILENO, __progname, strlen(__progname));
+    write(STDERR_FILENO, malloc_func, strlen(malloc_func));
+    write(STDERR_FILENO, q, strlen(q));
+    write(STDERR_FILENO, p, strlen(p));
     suicide = 1;
-    write(2, __progname, strlen(__progname));
-    write(2, malloc_func, strlen(malloc_func));
-    write(2, q, strlen(q));
-    write(2, p, strlen(p));
-#ifdef MALLOC_STATS
-    if (malloc_stats)
-	malloc_dump(stderr);
-#endif /* MALLOC_STATS */
     abort();
 }
 
@@ -303,25 +281,11 @@ wrtwarning(char *p)
     char *q = " warning: ";
     if (malloc_abort)
 	wrterror(p);
-    write(2, __progname, strlen(__progname));
-    write(2, malloc_func, strlen(malloc_func));
-    write(2, q, strlen(q));
-    write(2, p, strlen(p));
+    write(STDERR_FILENO, __progname, strlen(__progname));
+    write(STDERR_FILENO, malloc_func, strlen(malloc_func));
+    write(STDERR_FILENO, q, strlen(q));
+    write(STDERR_FILENO, p, strlen(p));
 }
-
-#ifdef MALLOC_STATS
-static void
-malloc_exit()
-{
-    FILE *fd = fopen("malloc.out", "a");
-    char *q = "malloc() warning: Couldn't dump stats.\n";
-    if (fd) {
-        malloc_dump(fd);
-	fclose(fd);
-    } else
-	write(2, q, strlen(q));
-}
-#endif /* MALLOC_STATS */
 
 
 /*
@@ -384,8 +348,7 @@ extend_pgdir(u_long index)
      */
 
     /* Get new pages */
-    new = (struct pginfo**) mmap(0, i * malloc_pagesize, PROT_READ|PROT_WRITE,
-				 MAP_ANON|MAP_PRIVATE, -1, 0);
+    new = (struct pginfo**) MMAP(i * malloc_pagesize);
     if (new == (struct pginfo **)-1)
 	return 0;
 
@@ -414,6 +377,7 @@ malloc_init ()
     char *p, b[64];
     int i, j;
 
+    INIT_MMAP();
 
 #ifdef EXTRA_SANITY
     malloc_junk = 1;
@@ -437,16 +401,20 @@ malloc_init ()
 		case '<': malloc_cache   >>= 1; break;
 		case 'a': malloc_abort   = 0; break;
 		case 'A': malloc_abort   = 1; break;
-		case 'd': malloc_stats   = 0; break;
-		case 'D': malloc_stats   = 1; break;
 		case 'h': malloc_hint    = 0; break;
 		case 'H': malloc_hint    = 1; break;
 		case 'r': malloc_realloc = 0; break;
 		case 'R': malloc_realloc = 1; break;
 		case 'j': malloc_junk    = 0; break;
 		case 'J': malloc_junk    = 1; break;
+#ifdef HAS_UTRACE
 		case 'u': malloc_utrace  = 0; break;
 		case 'U': malloc_utrace  = 1; break;
+#endif
+		case 'v': malloc_sysv    = 0; break;
+		case 'V': malloc_sysv    = 1; break;
+		case 'x': malloc_xmalloc = 0; break;
+		case 'X': malloc_xmalloc = 1; break;
 		case 'z': malloc_zero    = 0; break;
 		case 'Z': malloc_zero    = 1; break;
 		default:
@@ -468,14 +436,16 @@ malloc_init ()
     if (malloc_zero)
 	malloc_junk=1;
 
-#ifdef MALLOC_STATS
-    if (malloc_stats)
-	atexit(malloc_exit);
-#endif /* MALLOC_STATS */
+    /*
+     * If we run with junk (or implicitly from above: zero), we want to
+     * force realloc() to get new storage, so we can DTRT with it.
+     */
+    if (malloc_junk)
+	malloc_realloc=1;
 
     /* Allocate one page for the page directory */
-    page_dir = (struct pginfo **) mmap(0, malloc_pagesize, PROT_READ|PROT_WRITE,
-				       MAP_ANON|MAP_PRIVATE, -1, 0);
+    page_dir = (struct pginfo **) MMAP(malloc_pagesize);
+
     if (page_dir == (struct pginfo **) -1)
 	wrterror("mmap(2) failed, check limits.\n");
 
@@ -487,9 +457,6 @@ malloc_init ()
     malloc_origo -= malloc_pageshift;
 
     malloc_ninfo = malloc_pagesize / sizeof *page_dir;
-
-    /* Been here, done that */
-    malloc_started++;
 
     /* Recalculate the cache size in bytes, and make sure it's nonzero */
 
@@ -504,6 +471,8 @@ malloc_init ()
      */
     px = (struct pgfree *) imalloc (sizeof *px);
 
+    /* Been here, done that */
+    malloc_started++;
 }
 
 /*
@@ -520,6 +489,7 @@ malloc_pages(size_t size)
     size = pageround(size);
 
     p = 0;
+
     /* Look for free pages before asking for more */
     for(pf = free_list.next; pf; pf = pf->next) {
 
@@ -725,9 +695,6 @@ imalloc(size_t size)
 {
     void *result;
 
-    if (!malloc_started)
-	malloc_init();
-
     if (suicide)
 	abort();
 
@@ -759,12 +726,7 @@ irealloc(void *ptr, size_t size)
     int i;
 
     if (suicide)
-	return 0;
-
-    if (!malloc_started) {
-	wrtwarning("malloc() has never been called.\n");
-	return 0;
-    }
+	abort();
 
     index = ptr2index(ptr);
 
@@ -833,7 +795,9 @@ irealloc(void *ptr, size_t size)
 
     if (p) {
 	/* copy the lesser of the two sizes, and free the old one */
-	if (osize < size)
+	if (!size || !osize)
+	    ;
+	else if (osize < size)
 	    memcpy(p, ptr, osize);
 	else
 	    memcpy(p, ptr, size);
@@ -1082,18 +1046,6 @@ ifree(void *ptr)
  * These are the public exported interface routines.
  */
 
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-static int malloc_lock;
-#define THREAD_LOCK() _thread_kern_sig_block(&malloc_lock);
-#define THREAD_UNLOCK() _thread_kern_sig_unblock(malloc_lock);
-#else
-#define THREAD_LOCK() 
-#define THREAD_UNLOCK()
-#endif
-
-static int malloc_active;
 
 void *
 malloc(size_t size)
@@ -1107,10 +1059,17 @@ malloc(size_t size)
         malloc_active--;
 	return (0);
     }
-    r = imalloc(size);
+    if (!malloc_started)
+	malloc_init();
+    if (malloc_sysv && !size)
+	r = 0;
+    else
+	r = imalloc(size);
     UTRACE(0, size, r);
     malloc_active--;
     THREAD_UNLOCK();
+    if (malloc_xmalloc && !r)
+	wrterror("out of memory.\n");
     return (r);
 }
 
@@ -1143,16 +1102,25 @@ realloc(void *ptr, size_t size)
         malloc_active--;
 	return (0);
     }
-    if (!ptr) {
-	r = imalloc(size);
-    } else if (ptr && !size) {
+    if (ptr && !malloc_started) {
+	wrtwarning("malloc() has never been called.\n");
+	ptr = 0;
+    }		
+    if (!malloc_started)
+	malloc_init();
+    if (malloc_sysv && !size) {
 	ifree(ptr);
 	r = 0;
+    } else if (!ptr) {
+	r = imalloc(size);
     } else {
         r = irealloc(ptr, size);
     }
     UTRACE(ptr, size, r);
     malloc_active--;
     THREAD_UNLOCK();
+    if (malloc_xmalloc && !r)
+	wrterror("out of memory.\n");
     return (r);
 }
+
