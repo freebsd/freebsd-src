@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.7 1996/11/13 20:05:39 phk Exp $
+#	$Id: Makefile,v 1.246.2.8 1996/11/14 08:04:50 phk Exp $
 #
 # How to roll a release:
 #
@@ -433,9 +433,9 @@ release.9:
 #
 release.10:
 	@for i in compat1x compat20 compat21; do \
-		mkdir ${RD}/dists/$i && ( cd ${RD}/dists/$i && \
-		uudecode ${.CURDIR}/compat/$i.tgz.uu && \
-		cp ${.CURDIR}/scripts/${i}-install.sh install.sh && \
+		mkdir ${RD}/dists/$$i && ( cd ${RD}/dists/$$i && \
+		uudecode ${.CURDIR}/compat/$$i.tgz.uu && \
+		cp ${.CURDIR}/scripts/$${i}-install.sh install.sh && \
 		md5 * > CHECKSUM.MD5 ); \
 	done
 
