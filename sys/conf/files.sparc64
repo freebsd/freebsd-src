@@ -18,6 +18,7 @@ dev/fb/creator.c		optional	creator sc
 dev/fb/fb.c			optional	sc
 dev/fb/splash.c			optional	splash
 dev/kbd/kbd.c			optional	sc
+dev/ofw/ofw_bus_if.m		standard
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
@@ -78,7 +79,7 @@ sparc64/sparc64/elf_machdep.c	standard
 sparc64/sparc64/exception.S	standard	no-obj
 sparc64/sparc64/eeprom.c	optional	eeprom
 sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
-sparc64/sparc64/eeprom_fhc.c	optional	eeprom fhc
+sparc64/sparc64/eeprom_sbus.c	optional	eeprom fhc
 sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
 sparc64/sparc64/gdb_machdep.c	optional	gdb
 sparc64/sparc64/identcpu.c	standard

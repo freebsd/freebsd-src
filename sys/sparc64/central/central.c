@@ -33,6 +33,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -42,11 +43,12 @@
 
 #include <sys/rman.h>
 
-#include <sparc64/central/centralvar.h>
 #include <sparc64/sbus/ofw_sbus.h>
 #include <sparc64/sbus/sbusreg.h>
 
 struct central_devinfo {
+	char			*cdi_compat;
+	char			*cdi_model;
 	char			*cdi_name;
 	char			*cdi_type;
 	phandle_t		cdi_node;
@@ -62,10 +64,13 @@ static int central_probe(device_t dev);
 static int central_attach(device_t dev);
 
 static void central_probe_nomatch(device_t dev, device_t child);
-static int central_read_ivar(device_t, device_t, int, uintptr_t *);
-static int central_write_ivar(device_t, device_t, int, uintptr_t);
 static struct resource *central_alloc_resource(device_t, device_t, int, int *,
     u_long, u_long, u_long, u_int);
+static ofw_bus_get_compat_t central_get_compat;
+static ofw_bus_get_model_t central_get_model;
+static ofw_bus_get_name_t central_get_name;
+static ofw_bus_get_node_t central_get_node;
+static ofw_bus_get_type_t central_get_type;
 
 static device_method_t central_methods[] = {
 	/* Device interface. */
@@ -75,14 +80,19 @@ static device_method_t central_methods[] = {
 	/* Bus interface. */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_probe_nomatch,	central_probe_nomatch),
-	DEVMETHOD(bus_read_ivar,	central_read_ivar),
-	DEVMETHOD(bus_write_ivar,	central_write_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	central_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_compat,	central_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	central_get_model),
+	DEVMETHOD(ofw_bus_get_name,	central_get_name),
+	DEVMETHOD(ofw_bus_get_node,	central_get_node),
+	DEVMETHOD(ofw_bus_get_type,	central_get_type),
 
 	{ NULL, NULL }
 };
@@ -138,8 +148,12 @@ central_attach(device_t dev)
 			    M_WAITOK | M_ZERO);
 			cdi->cdi_name = name;
 			cdi->cdi_node = child;
+			OF_getprop_alloc(child, "compatible", 1,
+			    (void **)&cdi->cdi_compat);
 			OF_getprop_alloc(child, "device_type", 1,
 			    (void **)&cdi->cdi_type);
+			OF_getprop_alloc(child, "model", 1,
+			    (void **)&cdi->cdi_model);
 			device_set_ivars(cdev, cdi);
 		} else
 			free(name, M_OFWPROP);
@@ -156,47 +170,6 @@ central_probe_nomatch(device_t dev, device_t child)
 	cdi = device_get_ivars(child);
 	device_printf(dev, "<%s> type %s (no driver attached)\n",
 	    cdi->cdi_name, cdi->cdi_type != NULL ? cdi->cdi_type : "unknown");
-}
-
-static int
-central_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct central_devinfo *cdi;
-
-	if ((cdi = device_get_ivars(child)) == 0)
-		return (ENOENT);
-	switch (which) {
-	case CENTRAL_IVAR_NAME:
-		*result = (uintptr_t)cdi->cdi_name;
-		break;
-	case CENTRAL_IVAR_NODE:
-		*result = cdi->cdi_node;
-		break;
-	case CENTRAL_IVAR_TYPE:
-		*result = (uintptr_t)cdi->cdi_type;
-		break;
-	default:
-		return (ENOENT);
-	}
-	return (0);
-}
-
-static int
-central_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct central_devinfo *cdi;
-
-	if ((cdi = device_get_ivars(child)) == 0)
-		return (ENOENT);
-	switch (which) {
-	case CENTRAL_IVAR_NAME:
-	case CENTRAL_IVAR_NODE:
-	case CENTRAL_IVAR_TYPE:
-		return (EINVAL);
-	default:
-		return (ENOENT);
-	}
-	return (0);
 }
 
 static struct resource *
@@ -230,4 +203,49 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 	return (res);
+}
+
+static const char *
+central_get_compat(device_t bus, device_t dev)
+{
+	struct central_devinfo *dinfo;
+ 
+	dinfo = device_get_ivars(dev);
+	return (dinfo->cdi_compat);
+}
+ 
+static const char *
+central_get_model(device_t bus, device_t dev)
+{
+	struct central_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->cdi_model);
+}
+
+static const char *
+central_get_name(device_t bus, device_t dev)
+{
+	struct central_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->cdi_name);
+}
+
+static phandle_t
+central_get_node(device_t bus, device_t dev)
+{
+	struct central_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->cdi_node);
+}
+
+static const char *
+central_get_type(device_t bus, device_t dev)
+{
+	struct central_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (dinfo->cdi_type);
 }

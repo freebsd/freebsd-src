@@ -58,19 +58,17 @@
 #include <sys/module.h>
 #include <sys/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
 #include <machine/idprom.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/eeprom.h>
 
 #include <dev/mk48txx/mk48txxreg.h>
-
-#include <sparc64/ebus/ebusvar.h>
 
 #include "clock_if.h"
 
@@ -78,12 +76,11 @@
  * clock (eeprom) attaches at the sbus or the ebus
  */
 
-static int eeprom_ebus_probe(device_t);
 static int eeprom_ebus_attach(device_t);
 
 static device_method_t eeprom_ebus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		eeprom_ebus_probe),
+	DEVMETHOD(device_probe,		eeprom_probe),
 	DEVMETHOD(device_attach,	eeprom_ebus_attach),
 
 	/* clock interface */
@@ -100,18 +97,6 @@ static driver_t eeprom_ebus_driver = {
 };
 
 DRIVER_MODULE(eeprom, ebus, eeprom_ebus_driver, eeprom_devclass, 0, 0);
-
-
-static int
-eeprom_ebus_probe(device_t dev)
-{
-
-	if (strcmp("eeprom", ebus_get_name(dev)) == 0) {
-		device_set_desc(dev, "EBus EEPROM/clock");
-		return (0);
-	}
-	return (ENXIO);
-}
 
 /*
  * Attach a clock (really `eeprom') to the ebus.
@@ -134,7 +119,7 @@ eeprom_ebus_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-	error = eeprom_attach(dev, ebus_get_node(dev), rman_get_bustag(res),
+	error = eeprom_attach(dev, rman_get_bustag(res),
 	    rman_get_bushandle(res));
 	return (error);
 }

@@ -48,8 +48,9 @@
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_private.h>
@@ -113,7 +114,7 @@ static pcib_write_config_t psycho_write_config;
 static pcib_route_interrupt_t psycho_route_interrupt;
 static ofw_pci_intr_pending_t psycho_intr_pending;
 static ofw_pci_get_bus_handle_t psycho_get_bus_handle;
-static ofw_pci_get_node_t psycho_get_node;
+static ofw_bus_get_node_t psycho_get_node;
 static ofw_pci_adjust_busrange_t psycho_adjust_busrange;
 
 static device_method_t psycho_methods[] = {
@@ -137,10 +138,12 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(pcib_write_config,	psycho_write_config),
 	DEVMETHOD(pcib_route_interrupt,	psycho_route_interrupt),
 
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	psycho_get_node),
+
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_intr_pending,	psycho_intr_pending),
 	DEVMETHOD(ofw_pci_get_bus_handle,	psycho_get_bus_handle),
-	DEVMETHOD(ofw_pci_get_node,	psycho_get_node),
 	DEVMETHOD(ofw_pci_adjust_busrange,	psycho_adjust_busrange),
 
 	{ 0, 0 }
@@ -840,7 +843,7 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	struct psycho_softc *sc = device_get_softc(bridge);
 	struct ofw_pci_register reg;
 	bus_addr_t intrmap;
-	phandle_t node = ofw_pci_get_node(dev);
+	phandle_t node = ofw_bus_get_node(dev);
 	ofw_pci_intr_t pintr, mintr;
 	u_int8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 

@@ -30,10 +30,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 
 #include <net/ethernet.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -63,7 +65,7 @@ OF_getetheraddr2(device_t dev, u_char *addr)
 {
 	phandle_t node;
 
-	node = ofw_pci_get_node(dev);
+	node = ofw_bus_get_node(dev);
 	if (node <= 0)
 	       return (-1);
 	return (OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN));
