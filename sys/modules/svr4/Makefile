@@ -45,6 +45,6 @@ opt_vmpage.h:
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/svr4.sh ${DESTDIR}/usr/bin/svr4
+		${.CURDIR}/svr4.sh ${DESTDIR}/usr/sbin/svr4
 
 .include <bsd.kmod.mk>
