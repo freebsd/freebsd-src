@@ -361,9 +361,8 @@ retry:
 		}
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
 			dotdothits++;
-			if (dvp->v_dd->v_id != dvp->v_ddid ||
+			if (dvp->v_dd == NULL ||
 			    (cnp->cn_flags & MAKEENTRY) == 0) {
-				dvp->v_ddid = 0;
 				CACHE_UNLOCK();
 				return (0);
 			}
@@ -373,7 +372,7 @@ retry:
 	}
 
 	hash = fnv_32_buf(cnp->cn_nameptr, cnp->cn_namelen, FNV1_32_INIT);
-	hash = fnv_32_buf(&dvp->v_id, sizeof(dvp->v_id), hash);
+	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
 	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		numchecks++;
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
@@ -481,13 +480,7 @@ cache_enter(dvp, vp, cnp)
 			return;
 		}
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
-			if (vp) {
-				dvp->v_dd = vp;
-				dvp->v_ddid = vp->v_id;
-			} else {
-				dvp->v_dd = dvp;
-				dvp->v_ddid = 0;
-			}
+			dvp->v_dd = vp;
 			return;
 		}
 	}
@@ -502,7 +495,8 @@ cache_enter(dvp, vp, cnp)
 		ncp->nc_flag = cnp->cn_flags & ISWHITEOUT ? NCF_WHITE : 0;
 	} else if (vp->v_type == VDIR) {
 		vp->v_dd = dvp;
-		vp->v_ddid = dvp->v_id;
+	} else {
+		vp->v_dd = NULL;
 	}
 
 	/*
@@ -515,7 +509,7 @@ cache_enter(dvp, vp, cnp)
 	len = ncp->nc_nlen = cnp->cn_namelen;
 	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
 	bcopy(cnp->cn_nameptr, ncp->nc_name, len);
-	hash = fnv_32_buf(&dvp->v_id, sizeof(dvp->v_id), hash);
+	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
 	ncpp = NCHHASH(hash);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (LIST_EMPTY(&dvp->v_cache_src)) {
@@ -565,25 +559,12 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL)
 
 /*
  * Invalidate all entries to a particular vnode.
- *
- * Remove all entries in the namecache relating to this vnode and
- * change the v_id.  We take the v_id from a global counter, since
- * it becomes a handy sequence number in crash-dumps that way.
- * No valid vnode will ever have (v_id == 0).
- *
- * XXX: Only time and the size of v_id prevents this from failing:
- * XXX: In theory we should hunt down all (struct vnode*, v_id)
- * XXX: soft references and nuke them, at least on the global
- * XXX: v_id wraparound.  The period of resistance can be extended
- * XXX: by incrementing each vnodes v_id individually instead of
- * XXX: using the global v_id.
  */
 void
 cache_purge(vp)
 	struct vnode *vp;
 {
 	struct namecache *ncp;
-	static u_long nextid;
 
 	CACHE_LOCK();
 	while (!LIST_EMPTY(&vp->v_cache_src)) {
@@ -594,20 +575,13 @@ cache_purge(vp)
 		 * We must reset v_dd of any children so they don't
 		 * continue to point to us.
 		 */
-		if ((cvp = ncp->nc_vp) && cvp->v_dd == vp) {
-			cvp->v_dd = cvp;
-			cvp->v_ddid = 0;
-		}
+		if ((cvp = ncp->nc_vp) && cvp->v_dd == vp)
+			cvp->v_dd = NULL;
 		cache_zap(ncp);
 	}
 	while (!TAILQ_EMPTY(&vp->v_cache_dst))
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
-	do
-		nextid++;
-	while (nextid == vp->v_id || !nextid);
-	vp->v_id = nextid;
-	vp->v_dd = vp;
-	vp->v_ddid = 0;
+	vp->v_dd = NULL;
 	CACHE_UNLOCK();
 }
 
@@ -843,7 +817,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			vp = vp->v_mount->mnt_vnodecovered;
 			continue;
 		}
-		if (vp->v_dd->v_id != vp->v_ddid) {
+		if (vp->v_dd == NULL) {
 			numfullpathfail1++;
 			error = ENOTDIR;
 			break;
