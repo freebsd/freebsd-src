@@ -665,7 +665,7 @@
     commands are supported for read-only access by the CD-ROM drivers
     (such as &man.cd.4;).  WORM/CD-R/CD-RW writing support is provided
     by &man.cdrecord.1;, which is a part of the
-    <port>sysutils/cdrtools</port> port in the Ports Collection.</para>
+    <filename role="package">sysutils/cdrtools</filename> port in the Ports Collection.</para>
 
     <para>The following CD-ROM type systems are supported at this
     time:

@@ -174,7 +174,7 @@
     <para>The release notes mentioned the new sbni device driver, but
       gave an incorrect reference to the program in the &os; Ports
       Collection used to configure the driver.  The correct filename for
-      the port is <port>sysutils/sbniconfig</port>.</para>
+      the port is <filename role="package">sysutils/sbniconfig</filename>.</para>
 
     <para>Linux emulation now requires <literal>options
       SYSVSEM</literal> in the kernel configuration.  This dependency
@@ -184,15 +184,15 @@
       <application>KDE</application> were accidentally omitted from
       the ISO images (and hence the official 4-CD set).  In prior
       releases, these packages could be installed using the
-      <port>x11/kde2</port> package.  These components can either be
+      <filename role="package">x11/kde2</filename> package.  These components can either be
       installed using the &os; Ports Collection or by downloading the
       binary packages from one of the &os; FTP servers.  The affected
       ports are:
-      <port>games/kdegames2</port>, <port>misc/kdeutils2</port>,
-      <port>editors/koffice</port>, <port>net/kdenetwork2</port>,
-      <port>graphics/kdegraphics2</port>, and
-      <port>audio/kdemultimedia2</port>.  Note that the 
-      <port>x11/kdelibs2</port> and <port>x11/kdebase2</port>
+      <filename role="package">games/kdegames2</filename>, <filename role="package">misc/kdeutils2</filename>,
+      <filename role="package">editors/koffice</filename>, <filename role="package">net/kdenetwork2</filename>,
+      <filename role="package">graphics/kdegraphics2</filename>, and
+      <filename role="package">audio/kdemultimedia2</filename>.  Note that the 
+      <filename role="package">x11/kdelibs2</filename> and <filename role="package">x11/kdebase2</filename>
       packages, which are frequently required by these other
       components, <emphasis>are</emphasis> included on disk 1 of the
       official 4-CD set.
@@ -208,7 +208,7 @@
 
     <para>A binary package containing <application>Samba</application>
       was accidentally omitted from the ISO images.  This software can
-      either be installed using the <port>net/samba</port> port in the
+      either be installed using the <filename role="package">net/samba</filename> port in the
       &os; Ports Collection or by downloading and installing its
       binary package from one of the &os; FTP servers.</para>
 ]]>

@@ -120,7 +120,7 @@
       これは, カーネルの仮想アドレス空間の大きさを再設定できるようにするためのものです.</para>
 
     <para>&os; の Linux バイナリ互換機能が
-      <port>emulators/linux_base-7</port> (RedHat 7.X エミュレーション) 
+      <filename role="package">emulators/linux_base-7</filename> (RedHat 7.X エミュレーション) 
       の実現に必要なカーネル機能に対応しました.</para>
 
     <para arch="alpha">ローダから変更できる変数 <varname>hw.physmem</varname>
@@ -309,7 +309,7 @@
         である Granch SBNI12 シリーズに対応しています.
         これらのデバイスの設定には,
         &os; Ports Collection に含まれている
-        <port>sysutil/sbniconfig</port> の port
+        <filename role="package">sysutil/sbniconfig</filename> の port
         が利用可能です.</para>
       
       <para>&man.sis.4; ドライバが新しく,
@@ -843,7 +843,7 @@
         <username>mailnull</username> というユーザを使用します.
         以前のように <username>mailnull</username> というユーザが存在しない場合には
         <username>daemon</username> というユーザが使われていました.
-        この変更により, ファイルや (<port>mail/majordomo</port> のような)
+        この変更により, ファイルや (<filename role="package">mail/majordomo</filename> のような)
         プログラムにメールを送信する際に許可属性の問題が起こることがあります.
         その場合は, 
         システムの <filename><replaceable>*</replaceable>.mc</filename>
@@ -854,7 +854,7 @@
       <para arch="i386"><application>smbfs</application>
         ユーザランドユーティリティのバージョン 1.4.3 が統合されました.
         &man.smbutil.1; および &man.mount.smbfs.8; はベースシステムに含まれており,
-        <port>net/smbfs</port> の port を使う必要はなくなっています.
+        <filename role="package">net/smbfs</filename> の port を使う必要はなくなっています.
         &man.mount.smbfs.8; は, たとえ <literal>LIBMCHAIN</literal> および
         <literal>LIBICONV</literal> がカーネルに組み込まれていなくとも,
         自動的に <filename>smbfs.ko</filename>
