@@ -9,6 +9,7 @@
 #
 #
 
+geom/geom_apple.c		standard
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
