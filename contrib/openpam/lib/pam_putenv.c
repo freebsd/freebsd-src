@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_putenv.c#6 $
+ * $P4: //depot/projects/openpam/lib/pam_putenv.c#7 $
  */
 
 #include <stdlib.h>
@@ -73,7 +73,8 @@ pam_putenv(pam_handle_t *pamh,
 
 	/* grow the environment list if necessary */
 	if (pamh->env_count == pamh->env_size) {
-		env = realloc(pamh->env, pamh->env_size * 2 + 1);
+		env = realloc(pamh->env,
+		    sizeof(char *) * (pamh->env_size * 2 + 1));
 		if (env == NULL)
 			return (PAM_BUF_ERR);
 		pamh->env = env;
