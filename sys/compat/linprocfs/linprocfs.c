@@ -86,12 +86,17 @@ __FBSDID("$FreeBSD$");
 extern int ncpus;
 #endif /* __alpha__ */
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
-#endif /* __i386__ */
+#endif /* __i386__ || __amd64__ */
 
+#include "opt_compat.h"
+#if !COMPAT_LINUX32				/* XXX */
 #include <machine/../linux/linux.h>
+#else
+#include <machine/../linux32/linux.h>
+#endif
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
@@ -251,9 +256,9 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 }
 #endif /* __alpha__ */
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 /*
- * Filler function for proc/cpuinfo (i386 version)
+ * Filler function for proc/cpuinfo (i386 & amd64 version)
  */
 static int
 linprocfs_docpuinfo(PFS_FILL_ARGS)
@@ -276,6 +281,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	};
 
 	switch (cpu_class) {
+#ifdef __i386__
 	case CPUCLASS_286:
 		class = 2;
 		break;
@@ -294,6 +300,11 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	default:
 		class = 0;
 		break;
+#else
+	default:
+		class = 6;
+		break;
+#endif
 	}
 
 	for (i = 0; i < mp_ncpus; ++i) {
@@ -331,7 +342,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 
 	return (0);
 }
-#endif /* __i386__ */
+#endif /* __i386__ || __amd64__ */
 
 /*
  * Filler function for proc/mtab
