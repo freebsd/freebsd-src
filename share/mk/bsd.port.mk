@@ -1,11 +1,12 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
+# ex:ts=4
 #
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.226 1996/09/24 06:48:22 asami Exp $
+# $Id: bsd.port.mk,v 1.227 1996/11/01 07:22:35 asami Exp $
 #
 # Please view me with 4 column tabs!
 
