@@ -36,11 +36,18 @@
 static char sccsid[] = "@(#)command.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+        "$Id$";
+#endif /* not lint */
+
 #include <sys/param.h>
-#include <stdio.h>
+
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
-#include <less.h>
+
+#include "less.h"
 #include "pathnames.h"
 
 #define	NO_MCA		0
@@ -55,10 +62,10 @@ extern int hit_eof;
 extern int sc_width;
 extern int sc_height;
 extern int sc_window;
+extern int horiz_off;
 extern int curr_ac;
 extern int ac;
 extern char **av;
-extern int quitting;
 extern int scroll;
 extern int screen_trashed;	/* The screen has been overwritten */
 
@@ -182,6 +189,13 @@ prompt()
 	lower_left();
 	clear_eol();
 	if (longprompt) {
+		/*
+		 * Get the current line/pos from the BOTTOM of the screen
+		 * even though that's potentially confusing for the user
+		 * when switching between NO_HORIZ_OFF and a valid horiz_off.
+		 * In exchange, it is sometimes easier for the user to tell
+		 * when a file is relatively short vs. long.
+		 */
 		so_enter();
 		putstr(current_name);
 		putstr(":");
@@ -348,6 +362,8 @@ commands()
 {
 	register int c;
 	register int action;
+	static int default_hscroll = 1;
+	static int saved_horiz_off = NO_HORIZ_OFF;
 
 	last_mca = 0;
 	scroll = (sc_height + 1) / 2;
@@ -359,11 +375,9 @@ commands()
 		/*
 		 * See if any signals need processing.
 		 */
-		if (sigs) {
+		if (sigs)
 			psignals();
-			if (quitting)
-				quit();
-		}
+
 		/*
 		 * Display prompt and accept a character.
 		 */
@@ -429,6 +443,34 @@ again:		if (sigs)
 		case A_B_LINE:		/* backward N (default 1) line */
 			CMD_EXEC;
 			backward(number <= 0 ? 1 : number, 0);
+			break;
+		case A_R_COL:		/* to the right N (default 1) cols */
+			/* XXX Should beep here rather than silently truncating
+			 * lines in line.c when we are about to exceed the
+			 * line buffer. */
+			if (number > 0)
+				default_hscroll = number;
+			horiz_off += default_hscroll;
+			repaint();
+			break;
+		case A_L_COL:		/* to the left N (default 1) cols */
+			if (number > 0)
+				default_hscroll = number;
+			if (horiz_off != 0 && horiz_off != NO_HORIZ_OFF) {
+				horiz_off -= default_hscroll;
+				if (horiz_off < 0)
+					horiz_off = 0;
+			} else
+				horiz_off = NO_HORIZ_OFF;
+			repaint();
+			break;
+		case A_HOME:
+			if (horiz_off != NO_HORIZ_OFF) {
+				saved_horiz_off = horiz_off;
+				horiz_off = NO_HORIZ_OFF;
+			} else
+				horiz_off = saved_horiz_off;
+			repaint();
 			break;
 		case A_F_SCROLL:	/* forward N lines */
 			CMD_EXEC;
