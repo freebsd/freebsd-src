@@ -50,8 +50,6 @@
 #define IIR_DRIVER_VERSION      1
 #define IIR_DRIVER_SUBVERSION   4
 
-#define IIR_CDEV_MAJOR          164
-
 /* OEM IDs */
 #define OEM_ID_ICP              0x941c
 #define OEM_ID_INTEL            0x8000
