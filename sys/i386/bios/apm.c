@@ -44,37 +44,20 @@
 #include <machine/pc/bios.h>
 #include <machine/vm86.h>
 
-static int apm_display __P((int newstate));
+#include <i386/apm/apm.h>
+
+/* Used by the apm_saver screen saver module */
+int apm_display __P((int newstate));
+struct apm_softc apm_softc;
+
 static void apm_resume __P((void));
 static int apm_bioscall(void);
 static int apm_check_function_supported __P((u_int version, u_int func));
 
 static u_long	apm_version;
 
-#define APM_NEVENTS 16
-#define APM_NPMEV   13
-
 int	apm_evindex;
 
-/* static data */
-struct apm_softc {
-	int	initialized, active, bios_busy;
-	int	always_halt_cpu, slow_idle_cpu;
-	int	disabled, disengaged;
-	int	standby_countdown, suspend_countdown;
-	u_int	minorversion, majorversion;
-	u_int	intversion, connectmode;
-	u_int	standbys, suspends;
-	struct bios_args bios;
-	struct apmhook sc_suspend;
-	struct apmhook sc_resume;
-	struct selinfo sc_rsel;
-	int	sc_flags;
-	int	event_count;
-	int	event_ptr;
-	struct	apm_event_info event_list[APM_NEVENTS];
-	u_char	event_filter[APM_NPMEV];
-};
 #define	SCFLAG_ONORMAL	0x0000001
 #define	SCFLAG_OCTL	0x0000002
 #define	SCFLAG_OPEN	(SCFLAG_ONORMAL|SCFLAG_OCTL)
@@ -83,7 +66,6 @@ struct apm_softc {
 #define APMDEV_NORMAL	0
 #define APMDEV_CTL	8
 
-static struct apm_softc apm_softc;
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
@@ -278,7 +260,7 @@ apm_suspend_system(int state)
  * If your laptop can control the display via APM, please inform me.
  *                            HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  */
-static int
+int
 apm_display(int newstate)
 {
 	struct apm_softc *sc = &apm_softc;
