@@ -95,6 +95,9 @@ MAN=	aac.4 \
 	mem.4 \
 	mlx.4 \
 	mly.4 \
+	mac_biba.4 \
+	mac_bsdextended.4 \
+	mac_mls.4 \
 	mouse.4 \
 	mtio.4 \
 	natm.4 \
