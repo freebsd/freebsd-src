@@ -1,3 +1,73 @@
+Version 2.5.1
+  - This is a bugfix release. No new features.
+
+Version 2.5
+  - The new option --label allows to specify a different name for input
+    from stdin. See the man or info pages for details.
+
+  - The internal lib/getopt* files are no longer used on systems providing
+    getopt functionality in their libc (e.g. glibc 2.2.x).
+    If you need the old getopt files, use --with-included-getopt.
+
+  - The new option --only-matching (-o) will print only the part of matching
+    lines that matches the pattern. This is useful, for example, to extract
+    IP addresses from log files.
+
+  - i18n bug fixed ([A-Z0-9] wouldn't match A in locales other than C on
+    systems using recent glibc builds
+
+  - GNU grep can now be built with autoconf 2.52.
+
+  - The new option --devices controls how grep handles device files. Its usage
+    is analogous to --directories.
+
+  - The new option --line-buffered fflush on everyline.  There is a noticeable
+    slow down when forcing line buffering.
+
+  - Back references  are now local to the regex.
+    grep -e '\(a\)\1' -e '\(b\)\1'
+    The last backref \1 in the second expression refer to \(b\)
+
+  - The new option --include=PATTERN will only search matching files
+    when recursing in directories
+
+  - The new option --exclude=PATTERN will skip matching files when
+    recursing in directories.
+
+  - The new option --color will use the environment variable GREP_COLOR
+    (default is red) to highlight the matching string.
+    --color takes an optional argument specifying when to colorize a line:
+      --color=always, --color=tty, --color=never
+
+  - The following changes are for POSIX.2 conformance:
+
+    . The -q or --quiet or --silent option now causes grep to exit
+      with zero status when a input line is selected, even if an error
+      also occurs.
+
+    . The -s or --no-messages option no longer affects the exit status.
+
+    . Bracket regular expressions like [a-z] are now locale-dependent.
+      For example, many locales sort characters in dictionary order,
+      and in these locales the regular expression [a-d] is not
+      equivalent to [abcd]; it might be equivalent to [aBbCcDd], for
+      example.  To obtain the traditional interpretation of bracket
+      expressions, you can use the C locale by setting the LC_ALL
+      environment variable to the value "C".
+
+  - The -C or --context option now requires an argument, partly for
+    consistency, and partly because POSIX.2 recommends against
+    optional arguments.
+
+  - The new -P or --perl-regexp option tells grep to interpert the pattern as
+    a Perl regular expression.
+
+  - The new option --max-count=num makes grep stop reading a file after num
+    matching lines.
+    New option -m; equivalent to --max-count.
+
+  - Translations for bg, ca, da, nb and tr have been added.
+
 Version 2.4.2
 
   - Added more check in configure to default the grep-${version}/src/regex.c
