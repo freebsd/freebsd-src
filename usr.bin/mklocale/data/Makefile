@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.16 1998/08/15 12:51:48 phk Exp $
+# $Id: Makefile,v 1.18 1999/06/05 03:04:00 julian Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -51,6 +51,8 @@ afterinstall:
 	ln -fs ../lt_LN.ISO_8859-2/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
 .endfor
+	ln -fs ../ja_JP.SJIS/LC_CTYPE \
+		${LOCALEDIR}/ja_JP.Shift_JIS/LC_CTYPE
 .endif
 
 .include <bsd.prog.mk>

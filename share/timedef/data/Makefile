@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.30 1999/03/20 11:48:55 foxfair Exp $
+# $Id: Makefile,v 1.28.2.2 1999/04/21 07:45:38 foxfair Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -41,6 +41,7 @@ LN_LINKS =      lt_LN.ASCII lt_LN.ISO_8859-2
 NL_LINKS =      nl_BE
 US_LINKS =      en_CA
 GB_LINKS =      en_AU
+JP_LINKS = 	ja_JP.Shift_JIS
 
 .SUFFIXES: .src .out
 
@@ -109,6 +110,10 @@ afterinstall:
 	for l in ${GB_LINKS}; do \
 		ln -fs ../en_GB.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+	done
+	for l in ${JP_LINKS}; do \
+		ln -fs ../ja_JP.SJIS/LC_TIME \
+		       ${LOCALEDIR}/$$l/LC_TIME; \
 	done
 
 .include <bsd.prog.mk>
