@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6 1998/10/19 09:12:41 dfr Exp $
+ *	$Id: main.c,v 1.7 1998/10/24 00:31:21 msmith Exp $
  */
 
 
@@ -63,6 +63,50 @@ memsize()
     return total;
 }
 
+static void
+extend_heap()
+{
+    struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
+    struct mddt *mddtp;
+    struct mddt_cluster *memc;
+    int i;
+    unsigned long total = 0;
+    unsigned long startpfn;
+    vm_offset_t startva;
+    vm_offset_t startpte;
+
+    /*
+     * Find the last usable memory cluster and add some of its pages
+     * to our address space.  The 256k allowed by the firmware isn't quite
+     * adequate for our needs.
+     */
+    mddtp = (struct mddt *)(((caddr_t)hwrpb) + hwrpb->rpb_memdat_off);
+    for (i = mddtp->mddt_cluster_cnt - 1; i >= 0; i--) {
+	memc = &mddtp->mddt_clusters[i];
+	if (!(memc->mddt_usage & (MDDT_NONVOLATILE | MDDT_PALCODE)))
+	    break;
+    }
+
+    /*
+     * We want to extend the heap from 256k to 512k.  With 8k pages
+     * (assumed), we need 32 pages.  We take pages from the end of the
+     * last usable memory region, taking care to avoid the memory used
+     * by the kernel's message buffer.  We allow 4 pages for the
+     * message buffer.
+     */
+    startpfn = memc->mddt_pfn + memc->mddt_pg_cnt - 4 - 32;
+    startva = 0x20040000;
+    startpte = 0x40000000
+	+ (((startva >> 23) & 0x3ff) << PAGE_SHIFT)
+	+ (((startva >> 13) & 0x3ff) << 3);
+
+    for (i = 0; i < 32; i++) {
+	u_int64_t pte;
+	pte = ((startpfn + i) << 32) | 0x1101;
+	*(u_int64_t *) (startpte + 8 * i) = pte;
+    }
+}
+
 void
 main(void)
 {
@@ -74,16 +118,16 @@ main(void)
      * alloc() is usable. The stack is buried inside us, so this is
      * safe.
      */
-    setheap((void *)end, (void *)0x20040000);
+    extend_heap();
+    setheap((void *)end, (void *)0x20080000);
 
 #ifdef LOADER
     /*
      * If this is the two stage disk loader, add the memory used by
      * the first stage to the heap.
      */
-#define STACK_SIZE 16384
     free_region((void *)PRIMARY_LOAD_ADDRESS,
-		(void *)SECONDARY_LOAD_ADDRESS - STACK_SIZE);
+		(void *)SECONDARY_LOAD_ADDRESS);
 #endif
 
     /* 

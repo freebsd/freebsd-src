@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: srmdisk.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  */
 
 /*
@@ -63,6 +63,7 @@ static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, void *vdev);
 static int	bd_close(struct open_file *f);
+static void	bd_print(int verbose);
 
 struct open_disk {
     int			od_fd;
@@ -84,7 +85,8 @@ struct devsw srmdisk = {
     bd_strategy, 
     bd_open, 
     bd_close, 
-    noioctl
+    noioctl,
+    bd_print
 };
 
 /*
@@ -117,6 +119,23 @@ bd_init(void)
     nbdinfo++;
 
     return (0);
+}
+
+/*
+ * Print information about disks
+ */
+static void
+bd_print(int verbose)
+{
+    int		i;
+    char	line[80];
+    
+    for (i = 0; i < nbdinfo; i++) {
+	sprintf(line, "    disk%d:   SRM drive %s", i, bdinfo[i].bd_name);
+	pager_output(line);
+	/* XXX more detail? */
+	pager_output("\n");
+    }
 }
 
 /*
