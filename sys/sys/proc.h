@@ -563,9 +563,9 @@ struct proc {
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 
 /* flags that control how threads may be suspended for some reason */
-#define	P_STOPPED_SGNL	0x10000	/* Stopped due to SIGSTOP/SIGTSTP */
-#define	P_STOPPED_TRACE	0x20000	/* Stopped because of tracing */
-#define	P_STOPPED_SNGL	0x40000	/* Only one thread can continue (not to user) */
+#define	P_STOPPED_SGNL	0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
+#define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing */
+#define	P_STOPPED_SNGL	0x80000	/* Only one thread can continue (not to user) */
 #define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait */
 #define	P_TRACED	0x00800	/* Debugged process being traced. */
 #define	P_STOPPED	(P_STOPPED_SGNL|P_STOPPED_SNGL|P_STOPPED_TRACE)
