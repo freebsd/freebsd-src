@@ -8,7 +8,7 @@
 # also pop up, but are easier to fix.
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-fformat-extensions -ansi
+		-fformat-extensions -std=c99
 #
 # The following flags are next up for working on:
 #	-W
