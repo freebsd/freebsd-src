@@ -413,6 +413,7 @@ update_sd_state(int sdno)
 	case sd_up:
 	case sd_reborn:
 	case sd_reviving:
+	case sd_empty:
 	    sd->state = sd_crashed;			    /* lost our drive */
 	    break;
 
