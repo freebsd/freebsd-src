@@ -50,7 +50,6 @@
 #define	cpu_swapout(p)
 #define	cpu_number()		0
 
-void	delay(int);
 #define	DELAY(n)		delay(n)
 
 extern char bootpath[];
