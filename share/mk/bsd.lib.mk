@@ -21,7 +21,9 @@ SHLIB_LINK?=	${SHLIB_NAME:R}
 SONAME?=	${SHLIB_NAME}
 .endif
 
+.if defined(CRUNCH_CFLAGS)
 CFLAGS+=	${CRUNCH_CFLAGS}
+.endif
 
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
