@@ -33,11 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,17 +87,8 @@ static void __setup_vars(int, char *, char *, char *, char **);
 static int __calc_left_pad(int, char *);
 static char *__format_grouped_double(double, int *, int, int, int);
 
-#if __STDC__
 ssize_t
 strfmon(char *s, size_t maxsize, const char *format, ...)
-#else
-ssize_t
-strfmon(s, maxsize, format, va_alist)
-        char    *s;
-        size_t  maxsize;
-        const char *format;
-        va_dcl
-#endif
 {
 	va_list		ap;
 	char 		*dst;		/* output destination pointer */
@@ -127,11 +114,7 @@ strfmon(s, maxsize, format, va_alist)
 	char		*tmpptr;	/* temporary vars */
 	int		*ntmp;
 
-#if __STDC__
         va_start(ap, format);
-#else
-        va_start(ap);
-#endif
 
 	lc = localeconv();
 	dst = s;

@@ -41,12 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int
-#if __STDC__
 setpgrp(pid_t pid, pid_t pgid)
-#else
-setpgrp(pid, pgid)
-	pid_t pid, pgid;
-#endif
 {
 	return(setpgid(pid, pgid));
 }

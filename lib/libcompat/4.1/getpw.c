@@ -38,13 +38,7 @@
 #include <stdio.h>
 
 int
-#if __STDC__
 getpw(uid_t uid, char *buf)
-#else
-getpw(uid, buf)
-     uid_t uid;
-     char *buf;
-#endif
 {
   struct passwd *pw;
 

@@ -54,11 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "un-namespace.h"
 
 #include "libc_private.h"
@@ -113,22 +109,11 @@ int writehook(cookie, buf, len)
  *	print message on log file; output is intended for syslogd(8).
  */
 void
-#if __STDC__
 syslog(int pri, const char *fmt, ...)
-#else
-syslog(pri, fmt, va_alist)
-	int pri;
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	vsyslog(pri, fmt, ap);
 	va_end(ap);
 }

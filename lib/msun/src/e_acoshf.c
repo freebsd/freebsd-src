@@ -20,20 +20,12 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const float
-#else
-static float
-#endif
 one	= 1.0,
 ln2	= 6.9314718246e-01;  /* 0x3f317218 */
 
-#ifdef __STDC__
-	float __ieee754_acoshf(float x)
-#else
-	float __ieee754_acoshf(x)
-	float x;
-#endif
+float
+__ieee754_acoshf(float x)
 {
 	float t;
 	int32_t hx;

@@ -33,33 +33,18 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include "local.h"
 
 int
-#if __STDC__
 asprintf(char **str, char const *fmt, ...)
-#else
-asprintf(str, fmt, va_alist)
-	char **str;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	int ret;
 	va_list ap;
 	FILE f;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
 	f._bf._base = f._p = (unsigned char *)malloc(128);

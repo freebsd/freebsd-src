@@ -42,32 +42,17 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <stdio.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "un-namespace.h"
 #include "libc_private.h"
 
-#if __STDC__
 int
 scanf(char const *fmt, ...)
-#else
-int
-scanf(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	int ret;
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	FLOCKFILE(stdin);
 	ret = __svfscanf(stdin, fmt, ap);
 	FUNLOCKFILE(stdin);

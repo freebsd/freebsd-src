@@ -40,13 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-#if __STDC__
 int
 getosreldate(void)
-#else
-int
-getosreldate()
-#endif
 {
 	int mib[2];
 	size_t size;
