@@ -51,8 +51,8 @@ ENTRY(siglongjmp)
 	PIC_PROLOGUE(%o3, %o2)
 	SET(CNAME(longjmp), %o2, %o3)
 	SET(CNAME(_longjmp), %o2, %o4)
-	ldx	[%o0 + _JB_SIGFLAG], %o1
-	movrnz	%o1, %o3, %o4
+	ldx	[%o0 + _JB_SIGFLAG], %o2
+	movrnz	%o2, %o3, %o4
 	jmp	%o4
 	 nop
 END(siglongjmp)
