@@ -2356,20 +2356,18 @@ vm_map_copy_entry(
 		 * Make a copy of the object.
 		 */
 		if ((src_object = src_entry->object.vm_object) != NULL) {
-
+			VM_OBJECT_LOCK(src_object);
 			if ((src_object->handle == NULL) &&
 				(src_object->type == OBJT_DEFAULT ||
 				 src_object->type == OBJT_SWAP)) {
-				VM_OBJECT_LOCK(src_object);
 				vm_object_collapse(src_object);
-				VM_OBJECT_UNLOCK(src_object);
 				if ((src_object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) {
+					VM_OBJECT_UNLOCK(src_object);
 					vm_object_split(src_entry);
 					src_object = src_entry->object.vm_object;
+					VM_OBJECT_LOCK(src_object);
 				}
 			}
-
-			VM_OBJECT_LOCK(src_object);
 			vm_object_reference_locked(src_object);
 			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
 			VM_OBJECT_UNLOCK(src_object);
