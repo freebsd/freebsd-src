@@ -9,6 +9,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20011102:
+	ipfw/bridge/dummynet features merged from current.
+
 20010914:
 	4.4 Released.
 
