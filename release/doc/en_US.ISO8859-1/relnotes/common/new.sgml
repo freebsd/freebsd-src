@@ -197,6 +197,13 @@
 
     <para>The dgm driver has been removed in favor of the digi driver.</para>
 
+    <para>Network device cloning has been implemented, and the &man.gif.4;
+    and &man.stf.4; devices have been modified to take advantage of it.
+    Thus, instead of specifying how many &man.gif.4; or &man.stf.4; devices
+    are available in kernel configuration files, &man.ifconfig.8;'s
+    <option>create</option> option should be used when another device
+    instance is desired.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -652,6 +659,9 @@
 
       <para>A new API has been added for sound cards with hardware
       volume control.</para>
+
+      <para arch="i386">A driver for the Intel 443MX, 810, 815, and 815E
+      integrated sound devices has been added.</para>
 
     </sect3>
 
