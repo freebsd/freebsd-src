@@ -41,9 +41,9 @@ static char sccsid[] = "@(#)sum2.c	8.1 (Berkeley) 6/6/93";
 int
 csum2(fd, cval, clen)
 	register int fd;
-	u_long *cval, *clen;
+	u_int32_t *cval, *clen;
 {
-	register u_long crc, total;
+	register u_int32_t crc, total;
 	register int nr;
 	register u_char *p;
 	u_char buf[8192];
