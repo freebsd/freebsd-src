@@ -39,11 +39,6 @@
  * contain a count of readers desiring the lock.  The algorithm requires
  * atomic "compare_and_store" and "add" operations, which we implement
  * using assembly language sequences in "rtld_start.S".
- *
- * These are spinlocks.  When spinning we call nanosleep() for 1
- * microsecond each time around the loop.  This will most likely yield
- * the CPU to other threads (including, we hope, the lockholder) allowing
- * them to make some progress.
  */
 
 #include <signal.h>
@@ -70,7 +65,6 @@ typedef struct Struct_Lock {
 	void *base;
 } Lock;
 
-static const struct timespec usec = { 0, 1000 };	/* 1 usec. */
 static sigset_t fullsigmask, oldsigmask;
 
 static void *
@@ -118,7 +112,7 @@ rlock_acquire(void *lock)
 
     atomic_add_int(&l->lock, RC_INCR);
     while (l->lock & WAFLAG)
-	    nanosleep(&usec, NULL);
+	    ;	/* Spin */
 }
 
 static void
@@ -132,7 +126,6 @@ wlock_acquire(void *lock)
 	if (cmp0_and_store_int(&l->lock, WAFLAG) == 0)
 	    break;
 	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
-	nanosleep(&usec, NULL);
     }
     oldsigmask = tmp_oldsigmask;
 }
