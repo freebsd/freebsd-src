@@ -106,7 +106,11 @@ struct wi_softc	{
 	u_int16_t		sc_procframe;
 	u_int16_t		sc_portnum;
 
-	u_int16_t		sc_dbm_adjust;
+	/* RSSI interpretation */
+	u_int16_t		sc_min_rssi;	/* clamp sc_min_rssi < RSSI */
+	u_int16_t		sc_max_rssi;	/* clamp RSSI < sc_max_rssi */
+	u_int16_t		sc_dbm_offset;	/* dBm ~ RSSI - sc_dbm_offset */
+
 	u_int16_t		sc_max_datalen;
 	u_int16_t		sc_system_scale;
 	u_int16_t		sc_cnfauthmode;
@@ -158,8 +162,19 @@ struct wi_softc	{
 	int			sc_false_syns;
 
 	u_int16_t		sc_txbuf[IEEE80211_MAX_LEN/2];
+
+	union {
+		struct wi_tx_radiotap_header th;
+		u_int8_t	pad[64];
+	} u_tx_rt;
+	union {
+		struct wi_rx_radiotap_header th;
+		u_int8_t	pad[64];
+	} u_rx_rt;
 };
 #define	sc_if			sc_ic.ic_if
+#define	sc_tx_th		u_tx_rt.th
+#define	sc_rx_th		u_rx_rt.th
 
 /* maximum consecutive false change-of-BSSID indications */
 #define	WI_MAX_FALSE_SYNS		10	
@@ -183,6 +198,17 @@ struct wi_card_ident {
 	char		*card_name;
 	u_int8_t	firm_type;
 };
+
+#define	WI_PRISM_MIN_RSSI	0x1b
+#define	WI_PRISM_MAX_RSSI	0x9a
+#define	WI_PRISM_DBM_OFFSET	100 /* XXX */
+
+#define	WI_LUCENT_MIN_RSSI	47
+#define	WI_LUCENT_MAX_RSSI	138
+#define	WI_LUCENT_DBM_OFFSET	149
+
+#define	WI_RSSI_TO_DBM(sc, rssi) (MIN((sc)->sc_max_rssi, \
+    MAX((sc)->sc_min_rssi, (rssi))) - (sc)->sc_dbm_offset)
 
 #if __FreeBSD_version < 500000
 /*
