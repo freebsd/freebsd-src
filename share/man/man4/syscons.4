@@ -263,16 +263,15 @@ the mouse.
 This option disables the ``debug'' key (by default, it is
 .Dv Alt-Esc ,
 or
-.Dv Ctl-PrintScreen
-).
+.Dv Ctl-PrintScreen ) .
 It will prevent the user from
 entering the kernel debugger DDB by pressing the key combination.
 DDB will still be invoked when the kernel panics or hits a break point
 if it is included in the kernel.
 .It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is
-.Dv Ctl-Alt-Del
-), so that the casual user may not accidentally reboot the system.
+.Dv Ctl-Alt-Del ) ,
+so that the casual user may not accidentally reboot the system.
 .It Dv SC_HISTORY_SIZE=N
 Sets the size of back scroll buffer to
 .Fa N

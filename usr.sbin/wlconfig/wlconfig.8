@@ -24,8 +24,8 @@ strength cache which may have been compiled into the driver.
 The
 .Ar ifname
 parameter specifies the wavelan interface name (eg.
-.Pa wl0
-).  If no other arguments are supplied, the current contents of the PSA
+.Pa wl0 ) .
+If no other arguments are supplied, the current contents of the PSA
 are interpreted and displayed.
 .Pp
 The
@@ -91,12 +91,12 @@ will be configured, but will not function.  The
 program should then be used to reconfigure the card to a sensible
 value.
 .Sh EXAMPLES
-Set the NWID to 0x1234 :
+Set the NWID to 0x1234:
 .Bd -literal -offset
 # wlconfig wl0 nwid 0x1234
 .Ed
 .Pp
-Show the current settings :
+Show the current settings:
 .Bd -literal -offset
 # wlconfig wl0
 Board type            : ISA
@@ -122,7 +122,7 @@ CRC-16                : 0x3c26
 CRC status            : OK
 .Ed
 .Pp
-Print a scaled version of the signal strength cache :
+Print a scaled version of the signal strength cache:
 .Bd -literal -offset
 # wlconfig wl0 cache scale
 .Ed
