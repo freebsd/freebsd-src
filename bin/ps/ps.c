@@ -341,7 +341,7 @@ main(argc, argv)
 	/*
 	 * select procs
 	 */
-	if ((kp = kvm_getprocs(kd, what, flag, &nentries)) == 0)
+	if ((kp = kvm_getprocs(kd, what, flag, &nentries)) == 0 || nentries < 0)
 		errx(1, "%s", kvm_geterr(kd));
 	if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
 		err(1, NULL);
