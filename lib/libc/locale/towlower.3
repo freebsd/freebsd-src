@@ -47,7 +47,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include \*[Lt]wctype.h\*[Gt]
+.In wctype.h
 .Ft wint_t
 .Fn towlower "wint_t wc"
 .Ft wint_t
@@ -68,7 +68,8 @@ function returns the corresponding counterpart if there is
 one; otherwise the argument is returned unchanged.
 .Sh SEE ALSO
 .Xr tolower 3 ,
-.Xr toupper 3
+.Xr toupper 3 ,
+.Xr wctrans 3
 .Sh STANDARDS
 The functions conform to
-.St -isoC99 .
+.St -p1003.1-2001 .
