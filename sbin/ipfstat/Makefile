@@ -5,7 +5,7 @@
 PROG=	ipfstat
 MAN=	ipfstat.8
 SRCS=	fils.c parse.c opt.c kmem.c facpri.c common.c
-CFLAGS+=-DIPL_NAME=\"/dev/ipl\" -DSTATETOP
+CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\" -DSTATETOP
 CFLAGS+=-I- -I${.CURDIR}/../../sys/netinet -I${.CURDIR}/../../sys
 CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
 
