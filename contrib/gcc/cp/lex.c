@@ -3381,7 +3381,12 @@ real_yylex ()
 		&& DECL_INITIAL (tmp) != NULL_TREE
 		&& TREE_CODE (DECL_INITIAL (tmp)) == STRING_CST)
 	      {
-		yylval.ttype = DECL_INITIAL (tmp);
+		tree stringval = DECL_INITIAL (tmp);
+	      
+		/* Copy the string value so that we won't clobber anything
+		   if we put something in the TREE_CHAIN of this one.  */
+		yylval.ttype = build_string (TREE_STRING_LENGTH (stringval),
+					     TREE_STRING_POINTER (stringval));
 		value = STRING;
 	      }
 	  }

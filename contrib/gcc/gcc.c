@@ -4364,6 +4364,16 @@ main (argc, argv)
   if (specs_file != 0 && strcmp (specs_file, "specs"))
     read_specs (specs_file);
 
+  /* We need to check standard_exec_prefix/just_machine_suffix/specs
+      for any override of as, ld and libraries. */
+   specs_file =(char *) alloca (strlen (standard_exec_prefix) +
+	strlen (just_machine_suffix) + sizeof ("specs"));
+   strcpy (specs_file, standard_exec_prefix);
+   strcat (specs_file, just_machine_suffix);
+   strcat (specs_file, "specs");
+   if (access (specs_file, R_OK) == 0)
+     read_specs (specs_file, TRUE);
+
   /* If not cross-compiling, look for startfiles in the standard places.  */
   /* The fact that these are done here, after reading the specs file,
      means that it cannot be found in these directories.

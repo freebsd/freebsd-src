@@ -1037,7 +1037,7 @@ stamp-crt:	crtstuff.c $(GCC_PASSES) $(CONFIG_H) gbl-ctors.h
 # compiled using PIC for use in shared libraries.
 crtbeginS.o crtendS.o: stamp-crtS ; @true
 
-stamp-crtS:	crtstuff.c $(GCC_PASSES) $(CONFIG_H) gbl-ctors.h
+stamp-crtS:	stamp-crt crtstuff.c $(GCC_PASSES) $(CONFIG_H) gbl-ctors.h
 	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(CRTSTUFF_T_CFLAGS) \
 	  -DCRT_BEGIN -finhibit-size-directive -fno-inline-functions \
 	  -g0 -c $(srcdir)/crtstuff.c -fPIC
@@ -1892,8 +1892,8 @@ $(srcdir)/cpp.dvi: cpp.texi
 	$(TEXI2DVI) $<
 
 $(srcdir)/INSTALL: install1.texi install.texi
-	$(MAKEINFO) -D INSTALLONLY --no-header --no-split \
-	  `echo $(srcdir)/install1.texi | sed 's,^\./,,'`
+	cd $(srcdir); $(MAKEINFO) -D INSTALLONLY --no-header \
+		--no-split install1.texi -o INSTALL
 
 # Deletion of files made during compilation.
 # There are four levels of this:
