@@ -65,6 +65,7 @@ struct md_ioctl {
 };
 
 #define MD_NAME		"md"
+#define MD_MODNAME	"g_md"
 #define MDCTL_NAME	"mdctl"
 #define MDIOVERSION	0
 
