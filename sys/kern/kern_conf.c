@@ -149,7 +149,7 @@ allocdev(void)
 		LIST_REMOVE(si, si_hash);
 	} else if (stashed >= DEVT_STASH) {
 		MALLOC(si, struct cdev *, sizeof(*si), M_DEVT,
-		    M_USE_RESERVE | M_ZERO);
+		    M_USE_RESERVE | M_ZERO | M_WAITOK);
 	} else {
 		si = devt_stash + stashed++;
 		bzero(si, sizeof *si);
