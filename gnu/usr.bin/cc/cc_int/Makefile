@@ -1,9 +1,9 @@
 #
-# $Id: Makefile,v 1.16 1999/04/04 16:36:34 obrien Exp $
+# $Id: Makefile,v 1.17 1999/04/06 20:08:01 obrien Exp $
 #
 .include "../Makefile.inc"
 
-.PATH: ../cc_tools ${GCCDIR}/config/${MACHINE_ARCH} ${GCCDIR}
+.PATH: ../cc_tools ${GCCDIR}/config/${GCC_ARCH} ${GCCDIR}
 
 SRCS=	c-common.c c-pragma.c \
 	caller-save.c calls.c combine.c convert.c cse.c \

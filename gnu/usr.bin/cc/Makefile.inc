@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.30 1999/04/18 09:41:49 obrien Exp $
+# $Id: Makefile.inc,v 1.31 1999/04/18 09:42:17 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -10,14 +10,20 @@ GCCDIR=		${.CURDIR}/../../../../contrib/egcs/gcc
 
 BISON?=		bison
 
+.if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
+GCC_ARCH=mips
+.else
+GCC_ARCH=${MACHINE_ARCH}
+.endif
+
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${MACHINE_ARCH}/${MACHINE_ARCH}.md
-OUT_FILE=	${MACHINE_ARCH}.c
-OUT_OBJ=	${MACHINE_ARCH}
+MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
+OUT_FILE=	${GCC_ARCH}.c
+OUT_OBJ=	${GCC_ARCH}
 target=		${MACHINE_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa
-.if (${MACHINE_ARCH} == "alpha") || (${MACHINE_ARCH} == "sparc")
+.if (${GCC_ARCH} == "alpha") || (${GCC_ARCH} == "sparc")
 USE_EGCS_HAIFA=1
 .endif
 
@@ -31,6 +37,14 @@ CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
 
 .if defined(USE_EGCS_HAIFA)
 CFLAGS+=	-DHAIFA
+.endif
+
+# If hw.machine_arch doesn't match ${MACHINE_ARCH}, then we're cross 
+# compiling.  gcc needs to know about this, so we set the -DCROSS_COMPILE
+# define.
+__M!=/sbin/sysctl -b hw.machine_arch
+.if ${__M} != ${MACHINE_ARCH}
+CFLAGS+=	-DCROSS_COMPILE
 .endif
 
 .if exists(${.OBJDIR}/../cc_tools)
