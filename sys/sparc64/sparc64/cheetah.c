@@ -46,6 +46,22 @@
 #include <machine/tlb.h>
 
 /*
+ * Enable level 1 caches.
+ */
+void
+cheetah_cache_enable(void)
+{
+}
+
+/*
+ * Flush all lines from the level 1 caches.
+ */
+void
+cheetah_cache_flush(void)
+{
+}
+
+/*
  * Flush a physical page from the data cache.
  */
 void

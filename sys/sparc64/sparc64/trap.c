@@ -345,6 +345,8 @@ trap(struct trapframe *tf)
 			    tf->tf_tpc < (u_long)fas_nofault_end &&
 			    *(u_int32_t *)tf->tf_tpc == MEMBARSYNC_INST &&
 			    ((u_int32_t *)tf->tf_tpc)[-2] == MEMBARSYNC_INST) {
+				cache_flush();
+				cache_enable();
 				tf->tf_tpc = (u_long)fas_fault;
 				tf->tf_tnpc = tf->tf_tpc + 4;
 				error = 0;

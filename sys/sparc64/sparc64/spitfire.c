@@ -42,6 +42,7 @@
 
 #include <machine/cache.h>
 #include <machine/cpufunc.h>
+#include <machine/lsu.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 
@@ -51,6 +52,32 @@ PMAP_STATS_VAR(spitfire_dcache_npage_inval);
 PMAP_STATS_VAR(spitfire_dcache_npage_inval_match);
 PMAP_STATS_VAR(spitfire_icache_npage_inval);
 PMAP_STATS_VAR(spitfire_icache_npage_inval_match);
+
+/*
+ * Enable the level 1 caches.
+ */
+void
+spitfire_cache_enable(void)
+{
+	u_long lsu;
+
+	lsu = ldxa(0, ASI_LSU_CTL_REG);
+	stxa_sync(0, ASI_LSU_CTL_REG, lsu | LSU_IC | LSU_DC);
+}
+
+/*
+ * Flush all lines from the level 1 caches.
+ */
+void
+spitfire_cache_flush(void)
+{
+	u_long addr;
+
+	for (addr = 0; addr < cache.dc_size; addr += cache.dc_linesize)
+		stxa_sync(addr, ASI_DCACHE_TAG, 0);
+	for (addr = 0; addr < cache.ic_size; addr += cache.ic_linesize)
+		stxa_sync(addr, ASI_ICACHE_TAG, 0);
+}
 
 /*
  * Flush a physical page from the data cache.
