@@ -232,7 +232,9 @@ all: _manpages
 
 .if !target(clean)
 clean:
+.if defined(CLEANFILES) && !empty(CLEANFILES)
 	rm -f ${CLEANFILES}
+.endif
 .if defined(LIB) && !empty(LIB)
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
 .if !defined(INTERNALLIB)
