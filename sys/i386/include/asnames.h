@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.35 1999/05/12 21:38:57 luoqi Exp $
+ * $Id: asnames.h,v 1.36 1999/07/10 15:27:56 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -132,6 +132,7 @@
 #define _Xintr9				Xintr9
 #define _XintrRTC			XintrRTC
 #define _Xinvltlb			Xinvltlb
+#define _Xrendezvous			Xrendezvous
 #define _Xmchk				Xmchk
 #define _Xmissing			Xmissing
 #define _Xnmi				Xnmi

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.44 1998/09/06 22:41:40 tegge Exp $
+ * $Id: smp.h,v 1.45 1999/04/28 01:04:07 luoqi Exp $
  *
  */
 
@@ -146,6 +146,11 @@ void	forward_roundrobin	__P((void));
 #ifdef	APIC_INTR_REORDER
 void	set_lapic_isrloc	__P((int, int));
 #endif /* APIC_INTR_REORDER */
+void	smp_rendezvous_action	__P((void));
+void	smp_rendezvous		__P((void (*)(void *), 
+				     void (*)(void *),
+				     void (*)(void *),
+				     void *arg));
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;
