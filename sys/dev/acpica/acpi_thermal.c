@@ -112,7 +112,9 @@ static int	acpi_tz_probe(device_t dev);
 static int	acpi_tz_attach(device_t dev);
 static int	acpi_tz_establish(struct acpi_tz_softc *sc);
 static void	acpi_tz_monitor(void *Context);
+#if 0
 static void	acpi_tz_all_off(struct acpi_tz_softc *sc);
+#endif
 static void	acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg);
 static void	acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg);
 static void	acpi_tz_getparam(struct acpi_tz_softc *sc, char *node,
@@ -293,8 +295,7 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    /* Power everything off and erase any existing state. */
-    acpi_tz_all_off(sc);
+    /* Erase any existing state. */
     for (i = 0; i < TZ_NUMLEVELS; i++)
 	if (sc->tz_zone.al[i].Pointer != NULL)
 	    AcpiOsFree(sc->tz_zone.al[i].Pointer);
@@ -342,11 +343,6 @@ acpi_tz_establish(struct acpi_tz_softc *sc)
     acpi_tz_sanity(sc, &sc->tz_zone.psv, "_PSV");
     for (i = 0; i < TZ_NUMLEVELS; i++)
 	acpi_tz_sanity(sc, &sc->tz_zone.ac[i], "_ACx");
-
-    /*
-     * Power off everything that we've just been given.
-     */
-    acpi_tz_all_off(sc);
 
     return_VALUE (0);
 }
@@ -490,6 +486,7 @@ acpi_tz_monitor(void *Context)
     return_VOID;
 }
 
+#if 0
 /*
  * Turn off all the cooling devices.
  */
@@ -517,6 +514,7 @@ acpi_tz_all_off(struct acpi_tz_softc *sc)
 
     return_VOID;
 }
+#endif
 
 /*
  * Given an object, verify that it's a reference to a device of some sort, 
@@ -634,9 +632,6 @@ acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS)
     return (0);
 }
 
-/*
- * Respond to a Notify event sent to the zone.
- */
 static void
 acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
@@ -675,21 +670,32 @@ acpi_tz_signal(struct acpi_tz_softc *sc, int flags)
 }
 
 /*
- * Poll the thermal zone.
+ * Notifies can be generated asynchronously but have also been seen to be
+ * triggered by other thermal methods.  One system generates a notify of
+ * 0x81 when the fan is turned on or off.  Another generates it when _SCP
+ * is called.  To handle these situations, we check the zone via
+ * acpi_tz_monitor() before evaluating changes to setpoints or the cooling
+ * policy.
  */
 static void
 acpi_tz_timeout(struct acpi_tz_softc *sc, int flags)
 {
+
+    /* Check the current temperature and take action based on it */
+    acpi_tz_monitor(sc);
+
     /* If requested, get the power profile settings. */
     if (flags & TZ_FLAG_GETPROFILE)
 	acpi_tz_power_profile(sc);
 
-    /* If requested, check for new devices/setpoints. */
-    if (flags & TZ_FLAG_GETSETTINGS)
+    /*
+     * If requested, check for new devices/setpoints.  After finding them,
+     * check if we need to switch fans based on the new values.
+     */
+    if (flags & TZ_FLAG_GETSETTINGS) {
 	acpi_tz_establish(sc);
-
-    /* Check the current temperature and take action based on it */
-    acpi_tz_monitor(sc);
+	acpi_tz_monitor(sc);
+    }
 
     /* XXX passive cooling actions? */
 }
