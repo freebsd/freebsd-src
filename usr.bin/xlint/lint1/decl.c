@@ -32,7 +32,8 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$NetBSD: decl.c,v 1.11 1995/10/02 17:34:16 jpo Exp $";
+static const char rcsid[] =
+  "$FreeBSD$"
 #endif
 
 #include <sys/param.h>
@@ -842,7 +843,7 @@ length(tp, name)
 	switch (tp->t_tspec) {
 	case FUNC:
 		/* compiler takes size of function */
-		lerror(msgs[12]);
+		lerror("%s", msgs[12]);
 		/* NOTREACHED */
 	case STRUCT:
 	case UNION:
