@@ -1,6 +1,15 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.4 1997/02/13 21:10:39 jmg Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.5 1997/03/17 01:44:40 jmg Exp $
  *
  * $Log: inp.c,v $
+ * Revision 1.5  1997/03/17 01:44:40  jmg
+ * fix compilation warnings in patch... (with slight modification)
+ *
+ * also remove -Wall that I acidentally committed last time I was here...
+ *
+ * Submitted-by: Philippe Charnier
+ *
+ * Closes PR#2998
+ *
  * Revision 1.4  1997/02/13 21:10:39  jmg
  * Fix a problem with patch in that is will always default, even when the
  * controlling terminal is closed.  Now the function ask() will return 1 when th
@@ -386,11 +395,11 @@ char *string;
     if (revision == Nullch)
 	return TRUE;
     patlen = strlen(revision);
-    if (strnEQ(string,revision,patlen) && isspace(string[patlen]))
+    if (strnEQ(string,revision,patlen) && isspace((unsigned char)string[patlen]))
 	return TRUE;
     for (s = string; *s; s++) {
-	if (isspace(*s) && strnEQ(s+1, revision, patlen) &&
-		isspace(s[patlen+1] )) {
+	if (isspace((unsigned char)*s) && strnEQ(s+1, revision, patlen) &&
+		isspace((unsigned char)s[patlen+1] )) {
 	    return TRUE;
 	}
     }
