@@ -23,7 +23,6 @@ dumpon_start()
 	[Nn][Oo] | '')
 		;;
 	[Aa][Uu][Tt][Oo])
-		memsize=$((`/sbin/sysctl -n hw.physmem` / 1024))
 		while read dev mp type more ; do
 			[ "${type}" = "swap" ] || continue
 			[ -c "${dev}" ] || continue
