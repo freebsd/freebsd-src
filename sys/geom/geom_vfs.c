@@ -141,6 +141,7 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 		g_wither_geom(gp, ENXIO);
 		return (error);
 	}
+	vnode_create_vobject(vp, pp->mediasize, curthread);
 	*cpp = cp;
 	bo = &vp->v_bufobj;
 	bo->bo_ops = g_vfs_bufops;
