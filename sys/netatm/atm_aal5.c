@@ -112,7 +112,8 @@ struct pr_usrreqs	atm_aal5_usrreqs = {
 	atm_aal5_sockaddr,		/* pru_sockaddr */
 	sosend,				/* pru_sosend */
 	soreceive,			/* pru_soreceive */
-	sopoll				/* pru_sopoll */
+	sopoll,				/* pru_sopoll */
+	pru_sosetlabel_null		/* pru_sosetlabel */
 };
 
 /*

@@ -652,5 +652,5 @@ struct pr_usrreqs div_usrreqs = {
 	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
 	div_disconnect, pru_listen_notsupp, div_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
-	div_sockaddr, sosend, soreceive, sopoll
+	div_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };

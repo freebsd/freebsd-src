@@ -79,7 +79,8 @@ static struct pr_usrreqs	ng_btsocket_hci_raw_usrreqs = {
 	ng_btsocket_hci_raw_sockaddr,	/* sockaddr */
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };
 
 /*
@@ -106,7 +107,8 @@ static struct pr_usrreqs	ng_btsocket_l2cap_raw_usrreqs = {
 	ng_btsocket_l2cap_raw_sockaddr,	/* sockaddr */
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };
 
 /*
@@ -133,7 +135,8 @@ static struct pr_usrreqs	ng_btsocket_l2cap_usrreqs = {
 	ng_btsocket_l2cap_sockaddr,	/* sockaddr */
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };
 
 /*
@@ -160,7 +163,8 @@ static struct pr_usrreqs	ng_btsocket_rfcomm_usrreqs = {
 	ng_btsocket_rfcomm_sockaddr,	/* sockaddr */
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };
 
 /* 

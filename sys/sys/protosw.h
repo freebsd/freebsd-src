@@ -232,6 +232,7 @@ struct pr_usrreqs {
 		    int *flagsp);
 	int	(*pru_sopoll)(struct socket *so, int events,
 		    struct ucred *cred, struct thread *td);
+	void	(*pru_sosetlabel)(struct socket *so);
 };
 
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
@@ -244,6 +245,7 @@ int	pru_listen_notsupp(struct socket *so, struct thread *td);
 int	pru_rcvd_notsupp(struct socket *so, int flags);
 int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
 int	pru_sense_null(struct socket *so, struct stat *sb);
+void	pru_sosetlabel_null(struct socket *so);
 
 #endif /* _KERNEL */
 

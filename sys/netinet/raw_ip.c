@@ -161,7 +161,7 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 	}
 #endif /*FAST_IPSEC*/
 #ifdef MAC
-	if (!policyfail && mac_check_socket_deliver(last->inp_socket, n) != 0)
+	if (!policyfail && mac_check_inpcb_deliver(last, n) != 0)
 		policyfail = 1;
 #endif
 	if (!policyfail) {
@@ -840,5 +840,5 @@ struct pr_usrreqs rip_usrreqs = {
 	pru_connect2_notsupp, in_control, rip_detach, rip_disconnect,
 	pru_listen_notsupp, rip_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, rip_send, pru_sense_null, rip_shutdown,
-	rip_sockaddr, sosend, soreceive, sopoll
+	rip_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };

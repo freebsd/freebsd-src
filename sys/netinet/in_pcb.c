@@ -36,10 +36,12 @@
 
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
@@ -161,26 +163,30 @@ in_pcballoc(so, pcbinfo, td)
 	struct thread *td;
 {
 	register struct inpcb *inp;
-#if defined(IPSEC) || defined(FAST_IPSEC)
 	int error;
-#endif
+
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	error = 0;
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT | M_ZERO);
 	if (inp == NULL)
 		return (ENOBUFS);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
+#ifdef MAC
+	error = mac_init_inpcb(inp, M_NOWAIT);
+	if (error != 0)
+		goto out;
+	mac_create_inpcb_from_socket(so, inp);
+#endif
 #if defined(IPSEC) || defined(FAST_IPSEC)
 #ifdef FAST_IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
 #else
 	error = ipsec_init_pcbpolicy(so, &inp->inp_sp);
 #endif
-	if (error != 0) {
-		uma_zfree(pcbinfo->ipi_zone, inp);
-		return error;
-	}
+	if (error != 0)
+		goto out;
 #endif /*IPSEC*/
 #if defined(INET6)
 	if (INP_SOCKAF(so) == AF_INET6) {
@@ -197,7 +203,12 @@ in_pcballoc(so, pcbinfo, td)
 	if (ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;
 #endif
-	return (0);
+#if defined(IPSEC) || defined(FAST_IPSEC) || defined(MAC)
+out:
+	if (error != 0)
+		uma_zfree(pcbinfo->ipi_zone, inp);
+#endif
+	return (error);
 }
 
 int
@@ -700,6 +711,9 @@ in_pcbdetach(inp)
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	INP_LOCK_DESTROY(inp);
+#ifdef MAC
+	mac_destroy_inpcb(inp);
+#endif
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
@@ -1216,6 +1230,25 @@ in_pcbremlists(inp)
 	}
 	LIST_REMOVE(inp, inp_list);
 	pcbinfo->ipi_count--;
+}
+
+/*
+ * A set label operation has occurred at the socket layer, propagate the
+ * label change into the in_pcb for the socket.
+ */
+void
+in_pcbsosetlabel(so)
+	struct socket *so;
+{
+#ifdef MAC
+	struct inpcb *inp;
+
+	/* XXX: Will assert socket lock when we have them. */
+	inp = (struct inpcb *)so->so_pcb;
+	INP_LOCK(inp);
+	mac_inpcb_sosetlabel(so, inp);
+	INP_UNLOCK(inp);
+#endif
 }
 
 int

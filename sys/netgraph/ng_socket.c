@@ -978,7 +978,8 @@ static struct pr_usrreqs ngc_usrreqs = {
 	ng_setsockaddr,
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };
 
 static struct pr_usrreqs ngd_usrreqs = {
@@ -1001,7 +1002,8 @@ static struct pr_usrreqs ngd_usrreqs = {
 	ng_setsockaddr,
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };
 
 /*

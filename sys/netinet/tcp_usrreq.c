@@ -816,7 +816,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	tcp_usr_connect, pru_connect2_notsupp, in_control, tcp_usr_detach,
 	tcp_usr_disconnect, tcp_usr_listen, tcp_peeraddr, tcp_usr_rcvd,
 	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
-	tcp_sockaddr, sosend, soreceive, sopoll
+	tcp_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };
 
 #ifdef INET6
@@ -825,7 +825,7 @@ struct pr_usrreqs tcp6_usrreqs = {
 	tcp6_usr_connect, pru_connect2_notsupp, in6_control, tcp_usr_detach,
 	tcp_usr_disconnect, tcp6_usr_listen, in6_mapped_peeraddr, tcp_usr_rcvd,
 	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
-	in6_mapped_sockaddr, sosend, soreceive, sopoll
+	in6_mapped_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };
 #endif /* INET6 */
 
