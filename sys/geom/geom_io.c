@@ -327,8 +327,8 @@ g_io_deliver(struct bio *bp, int error)
 		}
 		binuptime(&t1);
 		/* Raise the "inconsistent" flag for userland */
-		atomic_set_acq_int(&cp->stat->updating, 1);
-		atomic_set_acq_int(&pp->stat->updating, 1);
+		atomic_add_acq_int(&cp->stat->seq0, 1);
+		atomic_add_acq_int(&pp->stat->seq0, 1);
 		if (idx >= 0) {
 			/* Account the service time */
 			dt = t1;
@@ -360,8 +360,8 @@ g_io_deliver(struct bio *bp, int error)
 		bintime_add(&pp->stat->bt, &dt);
 		pp->stat->wentbusy = t1;
 		/* Mark the structures as consistent again */
-		atomic_store_rel_int(&cp->stat->updating, 0);
-		atomic_store_rel_int(&pp->stat->updating, 0);
+		atomic_add_acq_int(&cp->stat->seq1, 1);
+		atomic_add_acq_int(&pp->stat->seq1, 1);
 	}
 	cp->stat->nend++;
 	pp->stat->nend++;
