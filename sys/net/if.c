@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.12 1994/12/30 06:46:20 davidg Exp $
+ * $Id: if.c,v 1.13 1995/02/24 11:47:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -233,24 +233,33 @@ ifa_ifwithnet(addr)
 	    if (sdl->sdl_index && sdl->sdl_index <= if_index)
 		return (ifnet_addrs[sdl->sdl_index - 1]);
 	}
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
-	    for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
-		register char *cp, *cp2, *cp3;
+	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
+		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+			register char *cp, *cp2, *cp3;
 
-		if (ifa->ifa_addr->sa_family != af || ifa->ifa_netmask == 0)
-			next: continue;
-		cp = addr_data;
-		cp2 = ifa->ifa_addr->sa_data;
-		cp3 = ifa->ifa_netmask->sa_data;
-		cplim = ifa->ifa_netmask->sa_len + (char *)ifa->ifa_netmask;
-		while (cp3 < cplim)
-			if ((*cp++ ^ *cp2++) & *cp3++)
-				goto next;
-		if (ifa_maybe == 0 ||
-		    rn_refines((caddr_t)ifa->ifa_netmask,
-		    (caddr_t)ifa_maybe->ifa_netmask))
-			ifa_maybe = ifa;
-	    }
+			if (ifa->ifa_addr->sa_family != af || ifa->ifa_netmask == 0)
+				next: continue;
+#ifdef P2P_LOCALADDR_SHARE
+			if (ifp->if_flags & IFF_POINTOPOINT) {
+				if (equal(addr, ifa->ifa_addr))
+ 					return (ifa);
+			} else
+#endif /* P2P_LOCALADDR_SHARE */
+			{
+				cp = addr_data;
+				cp2 = ifa->ifa_addr->sa_data;
+				cp3 = ifa->ifa_netmask->sa_data;
+				cplim = ifa->ifa_netmask->sa_len + (char *)ifa->ifa_netmask;
+				while (cp3 < cplim)
+					if ((*cp++ ^ *cp2++) & *cp3++)
+						goto next;
+				if (ifa_maybe == 0 ||
+				    rn_refines((caddr_t)ifa->ifa_netmask,
+				    (caddr_t)ifa_maybe->ifa_netmask))
+					ifa_maybe = ifa;
+			}
+		}
+	}
 	return (ifa_maybe);
 }
 
@@ -298,15 +307,23 @@ ifaof_ifpforaddr(addr, ifp)
 				return (ifa);
 			continue;
 		}
-		cp = addr->sa_data;
-		cp2 = ifa->ifa_addr->sa_data;
-		cp3 = ifa->ifa_netmask->sa_data;
-		cplim = ifa->ifa_netmask->sa_len + (char *)ifa->ifa_netmask;
-		for (; cp3 < cplim; cp3++)
-			if ((*cp++ ^ *cp2++) & *cp3)
-				break;
-		if (cp3 == cplim)
-			return (ifa);
+#ifdef P2P_LOCALADDR_SHARE
+		if (ifp->if_flags & IFF_POINTOPOINT) {
+			if (equal(addr, ifa->ifa_dstaddr))
+				return (ifa);
+		} else
+#endif /* P2P_LOCALADDR_SHARE */
+		{
+			cp = addr->sa_data;
+			cp2 = ifa->ifa_addr->sa_data;
+			cp3 = ifa->ifa_netmask->sa_data;
+			cplim = ifa->ifa_netmask->sa_len + (char *)ifa->ifa_netmask;
+			for (; cp3 < cplim; cp3++)
+				if ((*cp++ ^ *cp2++) & *cp3)
+					break;
+			if (cp3 == cplim)
+				return (ifa);
+		}
 	}
 	return (ifa_maybe);
 }
