@@ -1449,7 +1449,7 @@ Rawhide has an embedded Symbios 810 Fast SCSI bus.
 
 Expansion:
 Rawhides are available with a 8 64-bit PCI / 3 EISA slot expansion backplanes
-(called 'Saddle' modules). There are 2 seperate PCI buses, PCI0 and PCI1.
+(called 'Saddle' modules). There are 2 separate PCI buses, PCI0 and PCI1.
 PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
 PCI/EISA bridge that drives things like the serial and parallel ports,
 keyboard/mouse etc. PCI1 has 4 PCI slots and an Symbios 810 SCSI chip. VGA
@@ -1513,7 +1513,7 @@ AS1200 has an embedded Symbios 810 Fast SCSI bus.
 Expansion:
 AS1200 has 5 64-bit PCI slots, one 1 32-bit PCI slot and one EISA slot
 (which is physically shared with one of the 64-bit PCI slots).
-There are 2 seperate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
+There are 2 separate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
 slot and the 2 top-most 64-bit PCI slots. PCI0 also has an Intel 82375EB
 PCI/EISA bridge that drives things like the serial and parallel ports, 
 keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an Symbios 810 SCSI chip. 

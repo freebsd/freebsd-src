@@ -424,7 +424,7 @@ cap_from_text(const char *buf_p)
 
 	/*
 	 * clase [SEP clause [SEP clause ...]]
-	 * Split into "clauses", which are seperated by a : or whitespace.
+	 * Split into "clauses", which are separated by a : or whitespace.
 	 *
 	 * clause = [caplist]actionlist
 	 * caplist = capabilityname[,capabilityname[, ...]]

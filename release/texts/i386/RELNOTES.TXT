@@ -281,7 +281,7 @@ The vinum(4) volume manager has received some bugfixes and enhancements.
 
 ICMP ECHO and TSTAMP replies are now rate limited.  TCP RSTs generated
 due to packets sent to open and unopen ports are now limited by
-seperate counters.  Each rate limiting queue now has its own
+separate counters.  Each rate limiting queue now has its own
 description.
 
 ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections, as
