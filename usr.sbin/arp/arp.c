@@ -526,9 +526,16 @@ print_entry(struct sockaddr_dl *sdl,
 			nflag = 1;
 	}
 	printf("%s (%s) at ", host, inet_ntoa(addr->sin_addr));
-	if (sdl->sdl_alen)
-		printf("%s", ether_ntoa((struct ether_addr *)LLADDR(sdl)));
-	else
+	if (sdl->sdl_alen) {
+		if (sdl->sdl_type == IFT_ETHER &&
+		    sdl->sdl_alen == ETHER_ADDR_LEN)
+			printf("%s", ether_ntoa((struct ether_addr *)LLADDR(sdl)));
+		else {
+			int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+
+			printf("%s", link_ntoa(sdl) + n);
+		}
+	} else
 		printf("(incomplete)");
 	if (if_indextoname(sdl->sdl_index, ifname) != NULL)
 		printf(" on %s", ifname);
@@ -568,6 +575,9 @@ print_entry(struct sockaddr_dl *sdl,
 	case IFT_L2VLAN:
 		printf(" [vlan]");
 		break;
+	case IFT_IEEE1394:
+                printf(" [firewire]");
+                break;
 	default:
 		break;
         }
