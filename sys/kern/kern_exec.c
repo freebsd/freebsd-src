@@ -266,6 +266,9 @@ kern_execve(td, fname, argv, envv, mac_p)
 		 */
 		p->p_flag &= ~P_SA;
 		td->td_mailbox = NULL;
+		mtx_lock_spin(&sched_lock);
+		td->td_flags &= ~TDF_SA;
+		mtx_unlock_spin(&sched_lock);
 		thread_single_end();
 	}
 	p->p_flag |= P_INEXEC;
