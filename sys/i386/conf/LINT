@@ -1726,7 +1726,7 @@ device		pci
 # based on the National Semiconductor DP83820 and DP83821 chipset. This
 # includes the SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante
 # FriendlyNet GigaNIX 1000TA and 1000TPC, the Addtron AEG320T, the
-# LinkSys EG1032 and EG1064, and the Surecom EP-320G-TX.
+# LinkSys EG1032 and EG1064, the Surecom EP-320G-TX and the Netgear GA622T.
 #
 # The 'pcn' device provides support for PCI fast ethernet adapters based
 # on the AMD Am79c97x chipsets, including the PCnet/FAST, PCnet/FAST+,
