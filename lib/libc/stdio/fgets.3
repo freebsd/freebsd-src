@@ -48,7 +48,7 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft char *
-.Fn fgets "char *str" "int size" "FILE *stream"
+.Fn fgets "char * restrict str" "int size" "FILE * restrict stream"
 .Ft char *
 .Fn gets "char *str"
 .Sh DESCRIPTION
@@ -163,4 +163,4 @@ The functions
 and
 .Fn gets
 conform to
-.St -isoC .
+.St -isoC-99 .

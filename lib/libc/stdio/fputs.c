@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
  */
 int
 fputs(s, fp)
-	const char *s;
-	FILE *fp;
+	const char * __restrict s;
+	FILE * __restrict fp;
 {
 	int retval;
 	struct __suio uio;

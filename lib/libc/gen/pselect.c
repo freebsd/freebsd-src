@@ -47,8 +47,9 @@ __weak_reference(__pselect, pselect);
  * and allows the user to specify a signal mask to apply during the select.
  */
 int
-__pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
-	const struct timespec *timo, const sigset_t *mask)
+__pselect(int count, fd_set * __restrict rfds, fd_set * __restrict wfds, 
+	fd_set * __restrict efds, const struct timespec * __restrict timo, 
+	const sigset_t * __restrict mask)
 {
 	sigset_t omask;
 	struct timeval tvtimo, *tvp;

@@ -60,8 +60,8 @@ eofread(cookie, buf, len)
 
 int
 vsscanf(str, fmt, ap)
-	const char *str;
-	const char *fmt;
+	const char * __restrict str;
+	const char * __restrict fmt;
 	__va_list ap;
 {
 	FILE f;

@@ -72,8 +72,7 @@ int	sigismember(const sigset_t *, int);
 int	sigpending(sigset_t *);
 int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict);
 int	sigsuspend(const sigset_t *);
-/* XXX missing restrict qualifier. */
-int	sigwait(const sigset_t *, int *);
+int	sigwait(const sigset_t * __restrict, int * __restrict);
 #endif
 
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600

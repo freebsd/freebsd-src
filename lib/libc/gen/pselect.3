@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In sys/select.h
 .Ft int
-.Fn pselect "int nfds" "fd_set *readfds" "fd_set *writefds" "fd_set *exceptfds" "const struct timespec *timeout" "const sigset_t *newsigmask"
+.Fn pselect "int nfds" "fd_set * restrict readfds" "fd_set * restrict writefds" "fd_set * restrict exceptfds" "const struct timespec * restrict timeout" "const sigset_t * restrict newsigmask"
 .Sh DESCRIPTION
 The
 .Fn pselect

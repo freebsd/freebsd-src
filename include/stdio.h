@@ -210,10 +210,6 @@ __END_DECLS
 __BEGIN_DECLS
 /*
  * Functions defined in ANSI C standard.
- *
- * XXX fgetpos(), fgets(), fopen(), fputs(), fread(), freopen(), fscanf(),
- * fwrite(), scanf(), sscanf(), vscanf(), and vsscanf() are missing the
- * restrict type-qualifier.
  */
 void	 clearerr(FILE *);
 int	 fclose(FILE *);
@@ -221,19 +217,19 @@ int	 feof(FILE *);
 int	 ferror(FILE *);
 int	 fflush(FILE *);
 int	 fgetc(FILE *);
-int	 fgetpos(FILE *, fpos_t *);
-char	*fgets(char *, int, FILE *);
-FILE	*fopen(const char *, const char *);
+int	 fgetpos(FILE * __restrict, fpos_t * __restrict);
+char	*fgets(char * __restrict, int, FILE * __restrict);
+FILE	*fopen(const char * __restrict, const char * __restrict);
 int	 fprintf(FILE * __restrict, const char * __restrict, ...);
 int	 fputc(int, FILE *);
-int	 fputs(const char *, FILE *);
-size_t	 fread(void *, size_t, size_t, FILE *);
-FILE	*freopen(const char *, const char *, FILE *);
-int	 fscanf(FILE *, const char *, ...);
+int	 fputs(const char * __restrict, FILE * __restrict);
+size_t	 fread(void * __restrict, size_t, size_t, FILE * __restrict);
+FILE	*freopen(const char * __restrict, const char * __restrict, FILE * __restrict);
+int	 fscanf(FILE * __restrict, const char * __restrict, ...);
 int	 fseek(FILE *, long, int);
 int	 fsetpos(FILE *, const fpos_t *);
 long	 ftell(FILE *);
-size_t	 fwrite(const void *, size_t, size_t, FILE *);
+size_t	 fwrite(const void * __restrict, size_t, size_t, FILE * __restrict);
 int	 getc(FILE *);
 int	 getchar(void);
 char	*gets(char *);
@@ -245,11 +241,11 @@ int	 puts(const char *);
 int	 remove(const char *);
 int	 rename(const char *, const char *);
 void	 rewind(FILE *);
-int	 scanf(const char *, ...);
+int	 scanf(const char * __restrict, ...);
 void	 setbuf(FILE * __restrict, char * __restrict);
 int	 setvbuf(FILE * __restrict, char * __restrict, int, size_t);
 int	 sprintf(char * __restrict, const char * __restrict, ...);
-int	 sscanf(const char *, const char *, ...);
+int	 sscanf(const char * __restrict, const char * __restrict, ...);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
@@ -262,10 +258,10 @@ int	 vsprintf(char * __restrict, const char * __restrict,
 #if __ISO_C_VISIBLE >= 1999
 int	 snprintf(char * __restrict, size_t, const char * __restrict,
 	    ...) __printflike(3, 4);
-int	 vscanf(const char *, __va_list) __scanflike(1, 0);
+int	 vscanf(const char * __restrict, __va_list) __scanflike(1, 0);
 int	 vsnprintf(char * __restrict, size_t, const char * __restrict,
 	    __va_list) __printflike(3, 0);
-int	 vsscanf(const char *, const char *, __va_list)
+int	 vsscanf(const char * __restrict, const char * __restrict, __va_list)
 	    __scanflike(2, 0);
 
 /*
