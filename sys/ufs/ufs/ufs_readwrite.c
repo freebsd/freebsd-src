@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.44 1998/03/07 21:36:42 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.45 1998/03/08 09:59:39 julian Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -585,7 +585,8 @@ ffs_getpages(ap)
 
 	if ((IDX_TO_OFF(ap->a_m[firstpage]->pindex) + size) >
 		obj->un_pager.vnp.vnp_size)
-		size = obj->un_pager.vnp.vnp_size - foff;
+		size = obj->un_pager.vnp.vnp_size -
+			IDX_TO_OFF(ap->a_m[firstpage]->pindex);
 
 	physoffset -= foff;
 	rtval = VOP_GETPAGES(dp, &ap->a_m[firstpage], size,
