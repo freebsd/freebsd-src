@@ -298,7 +298,6 @@ static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
 static void
 swp_sizecheck(void)
 {
-	GIANT_REQUIRED;
 
 	if (swap_pager_avail < nswap_lowat) {
 		if (swap_pager_almost_full == 0) {
@@ -585,8 +584,6 @@ swp_pager_getswapspace(int npages)
 	struct swdevt *sp;
 	int i;
 
-	GIANT_REQUIRED;
-
 	blk = SWAPBLK_NONE;
 	mtx_lock(&sw_dev_mtx);
 	sp = swdevhd;
@@ -668,23 +665,26 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
 {
 	struct swdevt *sp;
 
-	GIANT_REQUIRED;
-
-	sp = swp_pager_find_dev(blk);
-	
-	/* per-swap area stats */
-	sp->sw_used -= npages;
-
-	/*
-	 * If we are attempting to stop swapping on this device, we
-	 * don't want to mark any blocks free lest they be reused.
-	 */
-	if (sp->sw_flags & SW_CLOSING)
-		return;
-
-	blist_free(sp->sw_blist, blk - sp->sw_first, npages);
-	swap_pager_avail += npages;
-	swp_sizecheck();
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (blk >= sp->sw_first && blk < sp->sw_end) {
+			sp->sw_used -= npages;
+			/*
+			 * If we are attempting to stop swapping on
+			 * this device, we don't want to mark any
+			 * blocks free lest they be reused.  
+			 */
+			if ((sp->sw_flags & SW_CLOSING) == 0) {
+				blist_free(sp->sw_blist, blk - sp->sw_first,
+				    npages);
+				swap_pager_avail += npages;
+				swp_sizecheck();
+			}
+			mtx_unlock(&sw_dev_mtx);
+			return;
+		}
+	}
+	panic("Swapdev not found");
 }
 
 /*
