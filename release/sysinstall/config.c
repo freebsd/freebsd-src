@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.38 1995/11/06 12:49:21 jkh Exp $
+ * $Id: config.c,v 1.16.2.39 1995/11/07 10:45:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -487,7 +487,7 @@ configPorts(char *str)
     }
     if (dist) {
 	cp = msgGetInput("/usr/ports",
-			 "Where would you like to create the link tree?"
+			 "Where would you like to create the link tree?\n"
 			 "(press [ENTER] for default location).  The link tree should\n"
 			 "reside in a directory with as much free space as possible,\n"
 			 "as you'll need space to compile any ports.");
