@@ -85,11 +85,11 @@ is defined as both labels being able to satisfy the dominance requirements
 over one another.
 .Pp
 Three special label values exist:
-.Bl -column -offset indent ".Sy Label" ".Sy Comparison"
-.It Sy Label Ta Ta Sy Comparison
-.It Li mls/low Ta Ta dominated by all other labels
+.Bl -column -offset indent "mls/equal" "dominated by all other labels"
+.It Sy Label Ta Sy Comparison
+.It Li mls/low Ta dominated by all other labels
 .It Li mls/equal Ta equal to all other labels
-.It Li mls/high Ta Ta dominates all other labels
+.It Li mls/high Ta dominates all other labels
 .El
 .Pp
 The MLS model enforces the following basic restrictions:
