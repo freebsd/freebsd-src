@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.11 1997/11/22 06:19:59 msmith Exp $
+ *	$Id: if_ed_p.c,v 1.12 1998/02/27 22:29:36 se Exp $
  */
 
 #include "pci.h"
@@ -45,6 +45,7 @@ static struct _pcsid
 	{ 0x30008e2e,	"NE2000 PCI Ethernet (KTI)"		},
 	{ 0x19808c4a,	"NE2000 PCI Ethernet (Winbond W89C940)" },
 	{ 0x0e3410bd,	"NE2000 PCI Ethernet (Surecom NE-34)"	},
+	{ 0x09261106,	"NE2000 PCI Ethernet (VIA VT86C926)"	},
 	{ 0x00000000,	NULL					}
 };
 
