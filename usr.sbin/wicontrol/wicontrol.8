@@ -244,14 +244,10 @@ can either be normal text (i.e. "hello") or a series of hexadecimal
 digits (i.e. "0x1234512345"). For
 WaveLAN Turbo Silver cards, the key is restricted to 40 bits, hence
 the key can be either a 5 character text string or 10 hex digits.
-For WaveLAN Turbo Gold cards, the key can be up to 128 bits,
-which means the key can be specified as either a 16 character text
-string or 32 hex digits.
-.Pp
-Note: currently, the field in the structure used to program the key
-into the NIC is only 14 bytes long, not 16.
-I'm not sure how this is
-supposed to allow 128 bits of key info for the gold cards.
+For WaveLAN Turbo Gold cards, the key can also be 104 bits,
+which means the key can be specified as either a 13 character text
+string or 26 hex digits in addition to the formats supported by the
+Silver cards.
 .It Fl i Ar iface Fl T Ar 1|2|3|4
 Specify which of the four WEP encryption keys will be used to
 encrypt transmitted packets.
