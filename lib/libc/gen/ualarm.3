@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ualarm.3	8.2 (Berkeley) 4/19/94
-.\"     $Id$
+.\"     $Id: ualarm.3,v 1.5 1997/02/22 14:58:19 peter Exp $
 .\"
 .Dd April 19, 1994
 .Dt UALARM 3
@@ -71,16 +71,15 @@ microseconds have passed).
 When the signal has successfully been caught,
 .Fn ualarm
 returns the amount of time left on the clock.
-The maximum number of
-.Ar microseconds
-allowed
-is 2147483647.
+.Sh NOTES
+.Pp
+A microsecond is 0.000001 seconds.
 .Sh SEE ALSO
+.Xr alarm 3 ,
 .Xr getitimer 2 ,
 .Xr setitimer 2 ,
 .Xr sigpause 2 ,
 .Xr sigvec 2 ,
-.Xr alarm 3 ,
 .Xr signal 3 ,
 .Xr sleep 3 ,
 .Xr usleep 3
