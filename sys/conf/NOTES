@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.21 1993/10/23 22:55:43 jkh Exp $
+#	$Id: LINT,v 1.22 1993/10/31 00:20:35 jkh Exp $
 #
 
 machine		"i386"
@@ -28,7 +28,7 @@ options		"SYMTAB_SPACE=102452"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 options		"NCONS=8"		#number of syscons virtual consoles
-options		"FAT_CURSOR"		#block cursor in syscons
+options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"STAR_SAVER"		#syscons "stars" screen saver
 options		"SNAKE_SAVER"		#syscons "snake" screen saver
 options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
