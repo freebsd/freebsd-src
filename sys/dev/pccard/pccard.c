@@ -297,10 +297,15 @@ pccard_function_init(struct pccard_function *pf)
 {
 	struct pccard_config_entry *cfe;
 	int i;
+	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
+	struct resource_list *rl = &devi->resources;
+	struct resource *r = 0;
+	device_t bus;
 
 	if (pf->pf_flags & PFF_ENABLED)
 		panic("pccard_function_init: function is enabled");
 
+	bus = device_get_parent(pf->dev);
 	/* Remember which configuration entry we are using. */
 	for (cfe = STAILQ_FIRST(&pf->cfe_head); cfe != NULL;
 	    cfe = STAILQ_NEXT(cfe, cfe_list)) {
@@ -311,12 +316,18 @@ pccard_function_init(struct pccard_function *pf)
 			/* XXX kludge, need to not ignore start */
 			/* XXX start is a hint here, so this would break */
 			/* XXX modems */
+			/* XXX ALSO: should just ask for the range 0 to */
+			/* XXX 1 << decode bits - 1, so we have a layering */
+			/* XXX violation now */
 			cfe->iorid[i] = i;
-			cfe->iores[i] = bus_alloc_resource(pf->dev,
-			    SYS_RES_IOPORT, &cfe->iorid[i], 0x300, 0x3ff,
+			r = cfe->iores[i] = bus_alloc_resource(bus,
+			    SYS_RES_IOPORT, &cfe->iorid[i], 0x100, 0x3ff,
 			    cfe->iospace[i].length, 0);
 			if (cfe->iores[i] == 0)
 				goto not_this_one;
+			resource_list_add(rl, SYS_RES_IOPORT, cfe->iorid[i],
+			    rman_get_start(r), rman_get_end(r),
+			    cfe->iospace[i].length);
 			
 		}
 		if (cfe->num_memspace > 0) {
@@ -324,10 +335,12 @@ pccard_function_init(struct pccard_function *pf)
 		}
 		if (cfe->irqmask) {
 			cfe->irqrid = 0;
-			cfe->irqres = bus_alloc_resource(pf->dev, SYS_RES_IRQ,
+			cfe->irqres = bus_alloc_resource(bus, SYS_RES_IRQ,
 			    &cfe->irqrid, 10, 12, 1, 0);
 			if (cfe->irqres == 0)
 				goto not_this_one;
+			resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
+			    rman_get_start(r), rman_get_end(r), 1);
 		}
 		/* XXX Don't know how to deal with maxtwins */
 		/* If we get to here, we've allocated all we need */
@@ -335,13 +348,15 @@ pccard_function_init(struct pccard_function *pf)
 		break;
 	    not_this_one:;
 		for (i = 0; i < cfe->num_iospace; i++) {
+			resource_list_delete(rl, SYS_RES_IOPORT, i);
 			if (cfe->iores[i])
-				bus_release_resource(pf->dev, SYS_RES_IOPORT, 
+				bus_release_resource(bus, SYS_RES_IOPORT, 
 				    cfe->iorid[i], cfe->iores[i]);
 			cfe->iores[i] = NULL;
 		}
 		if (cfe->irqmask && cfe->irqres) {
-			bus_release_resource(pf->dev, SYS_RES_IRQ,
+			resource_list_delete(rl, SYS_RES_IRQ, cfe->irqrid);
+			bus_release_resource(bus, SYS_RES_IRQ,
 			    cfe->irqrid, cfe->irqres);
 			cfe->irqres = NULL;
 		}
@@ -840,6 +855,54 @@ pccard_driver_added(device_t dev, driver_t *driver)
 	 */
 }
 
+static struct resource *
+pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct pccard_ivar *ivar;
+	struct pccard_function *pf;
+
+	if (device_get_parent(child) == dev) {
+		ivar = PCCARD_IVAR(child);
+		pf = ivar->fcn;
+		switch (type) {
+		case SYS_RES_IRQ:
+			if (*rid > 0)
+				return NULL;
+			return (pf->cfe->irqres);
+		case SYS_RES_IOPORT:
+			if (*rid > 3)	/* XXX */
+				return NULL;
+			return (pf->cfe->iores[*rid]);
+		}
+	}
+	return (bus_generic_alloc_resource(dev, child, type, rid, start,
+	    end, count, flags));
+}
+
+static int
+pccard_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return bus_generic_release_resource(dev, child, type, rid, r);
+}
+
+static int
+pccard_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	/* XXX need to write to the COR to activate this */
+	return (bus_generic_activate_resource(dev, child, type, rid, r));
+}
+
+static int
+pccard_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	/* XXX need to write to the COR to deactivate this */
+	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -852,10 +915,10 @@ static device_method_t pccard_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pccard_print_child),
 	DEVMETHOD(bus_driver_added,	pccard_driver_added),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_alloc_resource,	pccard_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pccard_release_resource),
+	DEVMETHOD(bus_activate_resource, pccard_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pccard_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
