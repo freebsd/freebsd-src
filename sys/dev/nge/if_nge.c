@@ -1098,12 +1098,12 @@ static int nge_newbuf(sc, c, m)
 		}
 		/* Attach the buffer to the mbuf */
 		m_new->m_data = (void *)buf;
-		m_new->m_len = m_new->m_pkthdr.len = NGE_MCLBYTES;
-		MEXTADD(m_new, buf, NGE_MCLBYTES, nge_jfree,
+		m_new->m_len = m_new->m_pkthdr.len = NGE_JUMBO_FRAMELEN;
+		MEXTADD(m_new, buf, NGE_JUMBO_FRAMELEN, nge_jfree,
 		    (struct nge_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = NGE_MCLBYTES;
+		m_new->m_len = m_new->m_pkthdr.len = NGE_JUMBO_FRAMELEN;
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
@@ -1143,12 +1143,10 @@ static int nge_alloc_jumbo_mem(sc)
 	ptr = sc->nge_cdata.nge_jumbo_buf;
 	for (i = 0; i < NGE_JSLOTS; i++) {
 		sc->nge_cdata.nge_jslots[i] = ptr;
-		ptr += NGE_MCLBYTES;
+		ptr += NGE_JLEN;
 		entry = malloc(sizeof(struct nge_jpool_entry), 
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			free(sc->nge_cdata.nge_jumbo_buf, M_DEVBUF);
-			sc->nge_cdata.nge_jumbo_buf = NULL;
 			printf("nge%d: no memory for jumbo "
 			    "buffer queue!\n", sc->nge_unit);
 			return(ENOBUFS);
@@ -1169,8 +1167,8 @@ static void nge_free_jumbo_mem(sc)
 
 	for (i = 0; i < NGE_JSLOTS; i++) {
 		entry = SLIST_FIRST(&sc->nge_jfree_listhead);
-		free(entry, M_DEVBUF);
 		SLIST_REMOVE_HEAD(&sc->nge_jfree_listhead, jpool_entries);
+		free(entry, M_DEVBUF);
 	}
 
 	contigfree(sc->nge_cdata.nge_jumbo_buf, NGE_JMEM, M_DEVBUF);
