@@ -144,7 +144,7 @@ is \f3proto.x\f1, then the client side sample file is written to
 and the sample makefile to \f3makefile.proto\f1. 
 .LP
 The server created can be started both by the port monitors
-(for example, \f3inetd\f1 or \f3listen\f1)
+(for example, \f3inetd\f1)
 or by itself.
 When it is started by a port monitor,
 it creates servers only for the transport for which 
@@ -326,7 +326,7 @@ a non-zero value explicitly to override this default.
 .TP
 \f3\-I\f1
 Compile support for
-.BR inetd (1M)
+.BR inetd (8)
 in the server side stubs.
 Such servers can be self-started or can be started by \f3inetd\f1.
 When the server is self-started, it backgrounds itself by default.
@@ -363,8 +363,7 @@ To create a server that never exits, the appropriate argument is
 \f3\-K \-1\fP.
 .IP
 When monitoring for a server,
-some portmonitors, like
-.BR listen (1M),
+some portmonitors
 .I always
 spawn a new process in response to a service request.
 If it is known that a server will be used with such a monitor, the
@@ -541,8 +540,7 @@ use:
 .RE
 .SH "SEE ALSO"
 .BR cc (1B),
-.BR inetd (1M),
-.BR listen (1M),
+.BR inetd (8),
 .BR syslog (3),
 .BR rpc (3N),
 .\" .BR rpc_svc_calls (3N)
