@@ -77,7 +77,7 @@ static void cook_cat __P((FILE *));
 static void raw_cat __P((int));
 
 #ifndef NO_UDOM_SUPPORT
-static int udom_open __P((const char *path, int flags, int modes));
+static int udom_open __P((const char *path, int flags));
 #endif
 
 int
@@ -148,7 +148,7 @@ scanfiles(argv, cooked)
 			fd = open(path, O_RDONLY);
 #ifndef NO_UDOM_SUPPORT
 			if (fd < 0 && errno == EOPNOTSUPP)
-				fd = udom_open(path, O_RDONLY, 0);
+				fd = udom_open(path, O_RDONLY);
 #endif
 		}
 		if (fd < 0) {
@@ -272,10 +272,9 @@ raw_cat(rfd)
 #ifndef NO_UDOM_SUPPORT
 
 static int
-udom_open(path, flags, modes)
+udom_open(path, flags)
     const char *path;
     int flags;
-    int modes;
 {
 	struct sockaddr_un sou;
 	int fd;
