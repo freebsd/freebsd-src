@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.441 1999/01/03 02:18:55 jkh Exp $
+#	$Id: Makefile,v 1.442 1999/01/05 01:58:44 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -134,16 +134,6 @@ EXTRAS= cdrom.1 ftp.1
 DOCREL= doc.1
 .endif
 
-REDO?=		sysinstall
-REDOSED=	sed -e 's/dirs/release.1/' -e 's/trees/release.2/' \
-		    -e 's/kerns/release.3/' -e 's/sysinstall/release.4/' \
-		    -e 's/fixup/release.5/' -e 's/tarbin/release.6/' \
-		    -e 's/tarsrc/release.7/' -e 's/boot\.flp/release.8/' \
-		    -e 's/fixit\.flp/release.9/' -e 's/ftp/ftp.1/' \
-		    -e 's/cdrom/cdrom.1/' -e 's/doc/doc.1/'
-
-REDOREDO!=	echo ${REDO} | ${REDOSED}
-
 rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
@@ -238,19 +228,21 @@ rerelease release:
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
 	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
-	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
+	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
+	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
-	echo "(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
-	echo "make world"			>> ${CHROOTDIR}/mk
+	echo "	(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
+	echo "	make world"			>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
-	echo "make all install"			>> ${CHROOTDIR}/mk
+	echo "	make all install"		>> ${CHROOTDIR}/mk
 .endif
+	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
+	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make objlink"			>> ${CHROOTDIR}/mk
-	echo "(cd obj; rm -f ${REDOREDO})"	>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
