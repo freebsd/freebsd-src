@@ -700,10 +700,11 @@ static int
 bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
-    
+    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
+
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
+    return(bcache_strategy(&bcd, od->od_unit, rw, dblk+od->od_boff, size, buf, rsize));
 }
 
 static int 
@@ -728,18 +729,18 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, siz
 
 
     blks = size / BIOSDISK_SECSIZE;
-    DEBUG("read %d from %d+%d to %p", blks, od->od_boff, dblk, buf);
+    DEBUG("read %d from %d to %p", blks, dblk, buf);
 
     if (rsize)
 	*rsize = 0;
-    if (blks && bd_read(od, dblk + od->od_boff, blks, buf)) {
+    if (blks && bd_read(od, dblk, blks, buf)) {
 	DEBUG("read error");
 	return (EIO);
     }
 #ifdef BD_SUPPORT_FRAGS
-    DEBUG("bd_strategy: frag read %d from %d+%d+d to %p", 
-	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
-    if (fragsize && bd_read(od, dblk + od->od_boff + blks, 1, fragsize)) {
+    DEBUG("bd_strategy: frag read %d from %d+%d to %p", 
+	     fragsize, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
+    if (fragsize && bd_read(od, dblk + blks, 1, fragsize)) {
 	DEBUG("frag read error");
 	return(EIO);
     }
