@@ -34,10 +34,10 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
-.\" FreeBSD: src/lib/libc/stdio/scanf.3,v 1.17 2002/05/30 09:53:47 ru Exp
+.\" FreeBSD: src/lib/libc/stdio/scanf.3,v 1.24 2003/06/28 09:03:25 das Exp
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2002
+.Dd July 5, 2003
 .Dt WSCANF 3
 .Os
 .Sh NAME
@@ -174,7 +174,9 @@ and the next pointer is a pointer to a
 (rather than
 .Vt int ) ,
 that the conversion will be one of
-.Cm aefg
+.Cm a , e , f ,
+or
+.Cm g
 and the next pointer is a pointer to
 .Vt double
 (rather than
@@ -198,15 +200,11 @@ and the next pointer is a pointer to a
 .Vt int ) .
 .It Cm L
 Indicates that the conversion will be one of
-.Cm aef
+.Cm a , e , f ,
 or
 .Cm g
 and the next pointer is a pointer to
 .Vt "long double" .
-(This type is not implemented; although the argument is
-required to be a pointer to
-.Vt "long double" ,
-no additional precision is used in the conversion.)
 .It Cm j
 Indicates that the conversion will be one of
 .Cm dioux
@@ -303,29 +301,16 @@ the next pointer must be a pointer to
 Matches an optionally signed hexadecimal integer;
 the next pointer must be a pointer to
 .Vt "unsigned int" .
-.It Cm e , E , f , F , g , G
-Matches an optionally signed floating-point number;
-the next pointer must be a pointer to
-.Vt float .
-.It Cm a , A
-Matches a hexadecimal number represented in the style
-.Sm off
-.Oo \- Oc Li 0x Ar h Li \&. Ar hhh Cm p Oo \\*[Pm] Oc Ar d .
-.Sm on
-This is an exact conversion of the sign, exponent, mantissa internal
-floating point representation; the
-.Sm off
-.Oo \- Oc Li 0x Ar h Li \&. Ar hhh
-.Sm on
-portion represents exactly the mantissa; only denormalized
-mantissas have a zero value to the left of the hexadecimal
-point.
-The
-.Cm p
-is a literal character
-.Ql p ;
-the exponent is preceded by a positive or negative sign
-and is represented in decimal.
+.It Cm a , A , e , E , f , F , g , G
+Matches a floating-point number in the style of
+.Xr wcstod 3 .
+The next pointer must be a pointer to
+.Vt float
+(unless
+.Cm l
+or
+.Cm L
+is specified.)
 .It Cm s
 Matches a sequence of non-white-space wide characters;
 the next pointer must be a pointer to
