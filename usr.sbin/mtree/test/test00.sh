@@ -46,6 +46,23 @@ if [ -d ${TMP}/mt/foo ] ; then
 fi
 rmdir ${TMP}/mr/\?oo
 
+mkdir ${TMP}/mr/\#
+mtree -c -p ${TMP}/mr > ${TMP}/_
+if mtree -U -r -p ${TMP}/mt < ${TMP}/_ > /dev/null 2>&1 ; then
+	true
+else
+	echo "ERROR Mtree create fell for filename with '#' char" 1>&2
+	rm -rf ${TMP}
+	exit 1
+fi
+	
+if [ ! -d ${TMP}/mt/\# ] ; then
+	echo "ERROR Mtree update failed to create name with '#' char" 1>&2
+	rm -rf ${TMP}
+	exit 1
+fi
+rmdir ${TMP}/mr/\#
+
 echo Passed test 1>&2
 rm -rf ${TMP}
 exit 0
