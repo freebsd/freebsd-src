@@ -2697,6 +2697,7 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		wi_read_rid(sc, WI_RID_CURRENT_CHAN, &val, &buflen);
 		/* XXX validate channel */
 		ni->ni_chan = &ic->ic_channels[le16toh(val)];
+		ic->ic_ibss_chan = ni->ni_chan;
 #if NBPFILTER > 0
 		sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
 			htole16(ni->ni_chan->ic_freq);
