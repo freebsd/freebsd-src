@@ -36,7 +36,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2001
+.Dd December 20, 2002
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -111,7 +111,7 @@ are converted for output.
 These functions return the number of characters printed
 (not including the trailing
 .Ql \e0
-used to end output to strings),
+used to end output to strings) or a negative value if an output error occurs,
 except for
 .Fn snprintf
 and
@@ -767,6 +767,18 @@ for later interpolation by
 Always use the proper secure idiom:
 .Pp
 .Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
+.Sh ERRORS
+In addition to the errors documented for the
+.Xr write 2
+system call, the
+.Fn printf
+family of functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid wide character code was encountered.
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
 .Sh SEE ALSO
 .Xr printf 1 ,
 .Xr fmtcheck 3 ,
