@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.4 1995/02/26 05:14:51 bde Exp $
+**  $Id: pcibus.c,v 1.5 1995/03/21 23:06:07 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -48,8 +48,6 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
-
-extern int printf();
 
 #ifdef DENTARO
 
