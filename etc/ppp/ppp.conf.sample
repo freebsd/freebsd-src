@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.22 1997/11/09 17:54:27 brian Exp $
+# $Id: ppp.conf.sample,v 1.23 1997/11/10 21:27:36 brian Exp $
 #
 #################################################################
 
@@ -163,6 +163,23 @@ examples:
 # or don't trust the outside at all
 #
     alias deny_incoming yes
+#
+# I trust user brian to run ppp, so this goes in the `default' section:
+#
+    allow user brian
+#
+# But label `internet' contains passwords that even brian can't have, so
+# I empty out the user access list in that section:
+#
+    allow users
+#
+# I also may wish to set up my ppp login script so that it asks the client
+# for the label they wish to use.  I may only want user ``dodgy'' to access
+# their own label in direct mode:
+#
+dodgy:
+    allow user dodgy
+    allow mode direct
 #
 # If we don't want ICMP and DNS packets to keep the connection alive:
 #
