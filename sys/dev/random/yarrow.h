@@ -57,5 +57,3 @@ struct random_state {
 	} pool[2];		/* pool[0] is fast, pool[1] is slow */
 	u_int which;		/* toggle - sets the current insertion pool */
 };
-
-extern struct random_state random_state;
