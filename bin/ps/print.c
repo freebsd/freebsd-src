@@ -694,6 +694,8 @@ printval(void *bp, VAR *v)
 	*cp++ = '*';
 	while ((*cp++ = *fcp++));
 
+#define	CHKINF127(n)	(((n) > 127) && (v->flag & INF127) ? 127 : (n))
+
 	switch (v->type) {
 	case CHAR:
 		(void)printf(ofmt, v->width, *(char *)bp);
@@ -711,7 +713,7 @@ printval(void *bp, VAR *v)
 		(void)printf(ofmt, v->width, *(int *)bp);
 		break;
 	case UINT:
-		(void)printf(ofmt, v->width, *(u_int *)bp);
+		(void)printf(ofmt, v->width, CHKINF127(*(u_int *)bp));
 		break;
 	case LONG:
 		(void)printf(ofmt, v->width, *(long *)bp);
