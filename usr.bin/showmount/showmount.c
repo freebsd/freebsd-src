@@ -160,15 +160,15 @@ main(argc, argv)
 
 	if (rpcs & DODUMP)
 		if ((estat = tcp_callrpc(host, RPCPROG_MNT, mntvers,
-			RPCMNT_DUMP, xdr_void, (char *)0,
-			xdr_mntdump, (char *)&mntdump)) != 0) {
+			RPCMNT_DUMP, (xdrproc_t)xdr_void, (char *)0,
+			(xdrproc_t)xdr_mntdump, (char *)&mntdump)) != 0) {
 			clnt_perrno(estat);
 			errx(1, "can't do mountdump rpc");
 		}
 	if (rpcs & DOEXPORTS)
 		if ((estat = tcp_callrpc(host, RPCPROG_MNT, mntvers,
-			RPCMNT_EXPORT, xdr_void, (char *)0,
-			xdr_exports, (char *)&exports)) != 0) {
+			RPCMNT_EXPORT, (xdrproc_t)xdr_void, (char *)0,
+			(xdrproc_t)xdr_exports, (char *)&exports)) != 0) {
 			clnt_perrno(estat);
 			errx(1, "can't do exports rpc");
 		}
