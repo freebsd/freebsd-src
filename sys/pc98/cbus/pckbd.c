@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.2 1999/01/18 14:55:38 kato Exp $
+ *	$Id: pc98kbd.c,v 1.3 1999/01/19 12:41:26 kato Exp $
  */
 
 #include "pckbd.h"
@@ -254,7 +254,7 @@ pckbd_timeout(void *arg)
 		 */
 		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
 		if ((*kbdsw[kbd->kb_index]->check_char)(kbd))
-			(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
+			(*kbdsw[kbd->kb_index]->intr)(kbd);
 	}
 	splx(s);
 	timeout(pckbd_timeout, arg, hz/10);
