@@ -72,15 +72,12 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "timelocal.h"
 
-static char * _strptime(const char *, const char *, struct tm *);
-
-static pthread_mutex_t	gotgmt_mutex = PTHREAD_MUTEX_INITIALIZER;
-static int got_GMT;
+static char * _strptime(const char *, const char *, struct tm *, int *);
 
 #define asizeof(a)	(sizeof (a) / sizeof ((a)[0]))
 
 static char *
-_strptime(const char *buf, const char *fmt, struct tm *tm)
+_strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp)
 {
 	char	c;
 	const char *ptr;
@@ -117,7 +114,7 @@ label:
 			break;
 
 		case '+':
-			buf = _strptime(buf, tptr->date_fmt, tm);
+			buf = _strptime(buf, tptr->date_fmt, tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
@@ -140,13 +137,13 @@ label:
 			break;
 
 		case 'c':
-			buf = _strptime(buf, tptr->c_fmt, tm);
+			buf = _strptime(buf, tptr->c_fmt, tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'D':
-			buf = _strptime(buf, "%m/%d/%y", tm);
+			buf = _strptime(buf, "%m/%d/%y", tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
@@ -164,37 +161,37 @@ label:
 			goto label;
 
 		case 'F':
-			buf = _strptime(buf, "%Y-%m-%d", tm);
+			buf = _strptime(buf, "%Y-%m-%d", tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'R':
-			buf = _strptime(buf, "%H:%M", tm);
+			buf = _strptime(buf, "%H:%M", tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'r':
-			buf = _strptime(buf, tptr->ampm_fmt, tm);
+			buf = _strptime(buf, tptr->ampm_fmt, tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'T':
-			buf = _strptime(buf, "%H:%M:%S", tm);
+			buf = _strptime(buf, "%H:%M:%S", tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'X':
-			buf = _strptime(buf, tptr->X_fmt, tm);
+			buf = _strptime(buf, tptr->X_fmt, tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'x':
-			buf = _strptime(buf, tptr->x_fmt, tm);
+			buf = _strptime(buf, tptr->x_fmt, tm, GMTp);
 			if (buf == 0)
 				return 0;
 			break;
@@ -454,7 +451,7 @@ label:
 				return 0;
 			buf = cp;
 			gmtime_r(&t, tm);
-			got_GMT = 1;
+			*GMTp = 1;
 			}
 			break;
 
@@ -498,7 +495,7 @@ label:
 				zonestr[cp - buf] = '\0';
 				tzset();
 				if (0 == strcmp(zonestr, "GMT")) {
-				    got_GMT = 1;
+				    *GMTp = 1;
 				} else if (0 == strcmp(zonestr, tzname[0])) {
 				    tm->tm_isdst = 0;
 				} else if (0 == strcmp(zonestr, tzname[1])) {
@@ -521,20 +518,14 @@ strptime(const char * __restrict buf, const char * __restrict fmt,
     struct tm * __restrict tm)
 {
 	char *ret;
+	int gmt;
 
-	if (__isthreaded)
-		_pthread_mutex_lock(&gotgmt_mutex);
-
-	got_GMT = 0;
-	ret = _strptime(buf, fmt, tm);
-	if (ret && got_GMT) {
+	gmt = 0;
+	ret = _strptime(buf, fmt, tm, &gmt);
+	if (ret && gmt) {
 		time_t t = timegm(tm);
 		localtime_r(&t, tm);
-		got_GMT = 0;
 	}
 
-	if (__isthreaded)
-		_pthread_mutex_unlock(&gotgmt_mutex);
-
-	return ret;
+	return (ret);
 }
