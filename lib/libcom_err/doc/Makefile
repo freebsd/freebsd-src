@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 INFO=	com_err
 INFOSECTION= "Programming & development tools."

@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.19 1999/07/03 04:00:05 grog Exp grog $
+ * $FreeBSD$
  */
 
 #include <ctype.h>

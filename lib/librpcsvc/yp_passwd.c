@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_passwd.c,v 1.1 1996/11/16 20:52:13 wpaul Exp $
+ * $FreeBSD$
  */
 
 #include <stdlib.h>
@@ -40,7 +40,7 @@
 #include <netinet/in.h>
 
 #ifndef LINT
-static const char rcsid[] = "$Id: yp_passwd.c,v 1.1 1996/11/16 20:52:13 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

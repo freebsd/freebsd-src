@@ -1,4 +1,4 @@
-#	$Id: bsd.kern.mk,v 1.14 1999/01/29 06:22:19 dillon Exp $
+# $FreeBSD$
 
 #
 # Warning flags for compiling the kernel and components of the kernel.

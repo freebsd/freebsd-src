@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #include "defs.h"
@@ -41,7 +41,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)input.c	8.1 (Berkeley) 6/5/9
 #include <sys/cdefs.h>
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 1.5 $"
 
 static void input(struct sockaddr_in *, struct interface *, struct interface *,
 		  struct rip *, int);

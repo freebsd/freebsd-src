@@ -1,4 +1,4 @@
-/* $Id: kvm_alpha.c,v 1.1 1998/08/15 12:12:22 dfr Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: kvm_alpha.c,v 1.7.2.1 1997/11/02 20:34:26 mellon Exp $	*/
 
 /*

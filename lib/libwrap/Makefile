@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1999/03/14 17:56:11 markm Exp $
+# $FreeBSD$
 #
 
 MAINTAINER=markm@FreeBSD.org

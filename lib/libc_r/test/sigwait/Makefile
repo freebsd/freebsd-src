@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		sigwait
 SRCS=		sigwait.c

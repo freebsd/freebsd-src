@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1998/07/07 02:30:45 bde Exp $
+# $FreeBSD$
 
 SCRMAPS = koi8-r2cp866.scm iso-8859-1_to_cp437.scm
 

@@ -11,7 +11,7 @@
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $Id: math_private.h,v 1.4 1997/02/22 15:10:55 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MATH_PRIVATE_H_

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *      @(#) $Id: ilmid.c,v 1.3 1999/05/23 23:18:38 imp Exp $
+ *      @(#) $FreeBSD$
  *
  */
 
@@ -73,7 +73,7 @@
 #include <unistd.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: ilmid.c,v 1.3 1999/05/23 23:18:38 imp Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

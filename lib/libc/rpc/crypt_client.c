@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt_client.c,v 1.2 1997/05/28 05:05:10 wpaul Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -39,7 +39,7 @@
 #include <rpcsvc/crypt.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: crypt_client.c,v 1.2 1997/05/28 05:05:10 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 #ifndef KEYSERVSOCK

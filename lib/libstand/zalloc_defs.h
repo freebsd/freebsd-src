@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc_defs.h,v 1.4 1998/10/16 19:23:37 msmith Exp $
+ * $FreeBSD$
  */
 
 /*

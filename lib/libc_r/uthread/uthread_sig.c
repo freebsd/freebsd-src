@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_sig.c,v 1.17 1999/06/20 08:28:44 jb Exp $
+ * $FreeBSD$
  */
 #include <signal.h>
 #include <fcntl.h>

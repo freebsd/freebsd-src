@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #define	RIPCMDS
@@ -45,7 +45,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)trace.c	8.1 (Berkeley) 6/5/9
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 1.3 $"
 
 
 #ifdef sgi

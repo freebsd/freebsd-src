@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 #
 # The include file <bsd.docb.mk> handles installing SGML/docbook documents.
 #

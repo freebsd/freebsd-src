@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_addr.c,v 1.2 1999/05/20 23:52:15 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -53,7 +53,7 @@
 #include "libatm.h"
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_addr.c,v 1.2 1999/05/20 23:52:15 mks Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

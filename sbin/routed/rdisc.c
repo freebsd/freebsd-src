@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #include "defs.h"
@@ -43,7 +43,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)rdisc.c	8.1 (Berkeley) x/y/9
 #elif defined(__NetBSD__)
 __RCSID"$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 1.3 $"
 
 /* router advertisement ICMP packet */
 struct icmp_ad {

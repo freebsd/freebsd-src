@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.17 1998/04/30 13:15:31 ache Exp $ */
+/* $FreeBSD$ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.

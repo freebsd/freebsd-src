@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_socketpair.c,v 1.4 1998/04/29 09:59:27 jb Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/types.h>

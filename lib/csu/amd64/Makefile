@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.4 1999/03/12 17:33:26 jdp Exp $
+# $FreeBSD$
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c crti.S crtn.S

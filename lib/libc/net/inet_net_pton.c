@@ -17,7 +17,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char orig_rcsid[] = "From Id: inet_net_pton.c,v 1.8 1996/11/21 10:28:12 vixie Exp $";
-static const char rcsid[] = "$Id: inet_net_pton.c,v 1.4 1998/06/11 09:02:33 peter Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dlfcn.c,v 1.2 1998/03/07 19:57:05 jdp Exp $
+ * $FreeBSD$
  */
 
 /*

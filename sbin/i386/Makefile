@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/02/22 14:32:26 peter Exp $
+# $FreeBSD$
 
 SUBDIR=	comcontrol \
 	fdisk \

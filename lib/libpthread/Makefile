@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.17 1999/07/05 00:38:12 jasone Exp $
+# $FreeBSD$
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

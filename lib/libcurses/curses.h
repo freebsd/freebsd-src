@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)curses.h	8.3 (Berkeley) 7/27/94
- *	$Id: curses.h,v 1.14 1997/08/23 23:23:07 steve Exp $
+ * $FreeBSD$
  */
 
 #ifndef _CURSES_H_

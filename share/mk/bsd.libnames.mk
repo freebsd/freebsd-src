@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.21 1999/03/14 20:45:05 markm Exp $
+# $FreeBSD$
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 

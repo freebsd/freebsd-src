@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.h,v 1.2 1997/12/07 19:04:11 helbig Exp $
+ * $FreeBSD$
  */
 struct date {
 	int y;	/* year */

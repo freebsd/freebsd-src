@@ -34,7 +34,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: Makefile,v 1.1 1998/12/11 10:44:30 dfr Exp $
+# $FreeBSD$
 #
 # Copyright (c) 1993 Terrence R. Lambert.
 # All rights reserved.

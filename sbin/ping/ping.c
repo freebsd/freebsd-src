@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: ping.c,v 1.43 1999/04/25 22:33:30 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

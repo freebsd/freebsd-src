@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.24 1998/12/30 13:29:11 jkh Exp $
+# $FreeBSD$
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
