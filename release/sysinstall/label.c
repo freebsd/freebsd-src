@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.2 1995/05/16 11:37:16 jkh Exp $
+ * $Id: label.c,v 1.3 1995/05/17 14:39:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -211,6 +211,7 @@ get_mountpoint(struct chunk *parent, struct chunk *me)
 	    return NULL;
 	}
 	else if (!strcmp(val, "/")) {
+#if 0
 	    if (parent) {
 	    	if (parent->flags & CHUNK_PAST_1024) {
 		    msgConfirm("This region cannot be used for your root partition as\nit is past the 1024'th cylinder mark and the system would not be\nable to boot from it.  Please pick another location for your\nroot partition and try again!");
@@ -221,6 +222,7 @@ get_mountpoint(struct chunk *parent, struct chunk *me)
 		    return NULL;
 		}
 	    }
+#endif
 	    if (me)
 		me->flags |= CHUNK_IS_ROOT;
 	}
