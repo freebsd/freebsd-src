@@ -1104,11 +1104,12 @@ kludge_oldps_options(char *s)
 	 * of the oldps options -- option string NOT starting with a '-' --
 	 * then convert to 'T' (meaning *this* terminal, i.e. ttyname(0)).
 	 *
-	 * However, if a flag accepting a string argument is found in the
-	 * option string, the remainder of the string is the argument to
-	 * that flag; do not modify that argument.
+	 * However, if a flag accepting a string argument is found earlier
+	 * in the option string (including a possible `t' flag), then the
+	 * remainder of the string must be the argument to that flag; so
+	 * do not modify that argument.
 	 */
-	if (strcspn(s, "MNOoU") == len && *cp == 't' && *s != '-')
+	if (*cp == 't' && *s != '-' && strcspn(s, "MNOoUt") == len - 1)
 		*cp = 'T';
 	else {
 		/*
