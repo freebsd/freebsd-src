@@ -5,7 +5,7 @@ CFLAGS+=-DCSLIP -I. -I$(.CURDIR)/../tcpdump
 MAN1=	tcpslice.1
 SRCS=	version.c tcpslice.c gwtm2secs.c search.c \
 	savefile.c bpf_filter.c md.c util.c
-.PATH:	${.CURDIR}/../tcpdump /sys/net
+.PATH:	${.CURDIR}/../tcpdump ${.CURDIR}/../../sys/net
 CLEANFILES+=	version.c version.h
 
 version.c version.h: $(.CURDIR)/../tcpdump/VERSION
