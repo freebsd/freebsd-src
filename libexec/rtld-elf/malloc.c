@@ -50,6 +50,8 @@ static char *rcsid = "$FreeBSD$";
 #include <sys/types.h>
 #include <err.h>
 #include <paths.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
