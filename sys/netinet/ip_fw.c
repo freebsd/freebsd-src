@@ -922,6 +922,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ip_fw *f = NULL, *rule = NULL;
 	struct ip *ip = *pip;
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
+	struct ifnet *tif;
 	u_short offset = 0 ;
 	u_short src_port = 0, dst_port = 0;
 	struct in_addr src_ip, dst_ip; /* XXX */
@@ -1086,6 +1087,16 @@ again:
 		if ((f->fw_flg & IP_FW_F_FRAG) && offset == 0 )
 			continue;
 
+		if (f->fw_flg & IP_FW_F_SME) {
+			INADDR_TO_IFP(src_ip, tif);
+			if (tif == NULL)
+				continue;
+		}
+		if (f->fw_flg & IP_FW_F_DME) {
+			INADDR_TO_IFP(dst_ip, tif);
+			if (tif == NULL)
+				continue;
+		}
 		/* If src-addr doesn't match, not this rule. */
 		if (((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ ((src_ip.s_addr
 		    & f->fw_smsk.s_addr) != f->fw_src.s_addr))

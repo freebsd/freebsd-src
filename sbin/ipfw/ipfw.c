@@ -276,33 +276,37 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	else
 		printf(" %u", chain->fw_prot);
 
-	printf(" from %s", chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
+	if (chain->fw_flg & IP_FW_F_SME) {
+		printf(" from me");
+	} else { 
+		printf(" from %s", chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
 
-	adrt=ntohl(chain->fw_smsk.s_addr);
-	if (adrt==ULONG_MAX && do_resolv) {
-		adrt=(chain->fw_src.s_addr);
-		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
-		if (he==NULL) {
-			printf(inet_ntoa(chain->fw_src));
-		} else
-			printf("%s",he->h_name);
-	} else {
-		if (adrt!=ULONG_MAX) {
-			mb=mask_bits(chain->fw_smsk);
-			if (mb == 0) {
-				printf("any");
-			} else {
-				if (mb > 0) {
-					printf(inet_ntoa(chain->fw_src));
-					printf("/%d",mb);
+		adrt=ntohl(chain->fw_smsk.s_addr);
+		if (adrt==ULONG_MAX && do_resolv) {
+			adrt=(chain->fw_src.s_addr);
+			he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
+			if (he==NULL) {
+				printf(inet_ntoa(chain->fw_src));
+			} else
+				printf("%s",he->h_name);
+		} else {
+			if (adrt!=ULONG_MAX) {
+				mb=mask_bits(chain->fw_smsk);
+				if (mb == 0) {
+					printf("any");
 				} else {
-					printf(inet_ntoa(chain->fw_src));
-					printf(":");
-					printf(inet_ntoa(chain->fw_smsk));
+					if (mb > 0) {
+						printf(inet_ntoa(chain->fw_src));
+						printf("/%d",mb);
+					} else {
+						printf(inet_ntoa(chain->fw_src));
+						printf(":");
+						printf(inet_ntoa(chain->fw_smsk));
+					}
 				}
-			}
-		} else
-			printf(inet_ntoa(chain->fw_src));
+			} else
+				printf(inet_ntoa(chain->fw_src));
+		}
 	}
 
 	if (chain->fw_prot == IPPROTO_TCP || chain->fw_prot == IPPROTO_UDP) {
@@ -318,33 +322,37 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		}
 	}
 
-	printf(" to %s", chain->fw_flg & IP_FW_F_INVDST ? "not " : "");
-
-	adrt=ntohl(chain->fw_dmsk.s_addr);
-	if (adrt==ULONG_MAX && do_resolv) {
-		adrt=(chain->fw_dst.s_addr);
-		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
-		if (he==NULL) {
-			printf(inet_ntoa(chain->fw_dst));
-		} else
-			printf("%s",he->h_name);
+	if (chain->fw_flg & IP_FW_F_DME) {
+		printf(" to me");
 	} else {
-		if (adrt!=ULONG_MAX) {
-			mb=mask_bits(chain->fw_dmsk);
-			if (mb == 0) {
-				printf("any");
-			} else {
-				if (mb > 0) {
-					printf(inet_ntoa(chain->fw_dst));
-					printf("/%d",mb);
+		printf(" to %s", chain->fw_flg & IP_FW_F_INVDST ? "not " : "");
+
+		adrt=ntohl(chain->fw_dmsk.s_addr);
+		if (adrt==ULONG_MAX && do_resolv) {
+			adrt=(chain->fw_dst.s_addr);
+			he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
+			if (he==NULL) {
+				printf(inet_ntoa(chain->fw_dst));
+			} else
+				printf("%s",he->h_name);
+		} else {
+			if (adrt!=ULONG_MAX) {
+				mb=mask_bits(chain->fw_dmsk);
+				if (mb == 0) {
+					printf("any");
 				} else {
-					printf(inet_ntoa(chain->fw_dst));
-					printf(":");
-					printf(inet_ntoa(chain->fw_dmsk));
+					if (mb > 0) {
+						printf(inet_ntoa(chain->fw_dst));
+						printf("/%d",mb);
+					} else {
+						printf(inet_ntoa(chain->fw_dst));
+						printf(":");
+						printf(inet_ntoa(chain->fw_dmsk));
+					}
 				}
-			}
-		} else
-			printf(inet_ntoa(chain->fw_dst));
+			} else
+				printf(inet_ntoa(chain->fw_dst));
+		}
 	}
 
 	if (chain->fw_prot == IPPROTO_TCP || chain->fw_prot == IPPROTO_UDP) {
@@ -823,8 +831,8 @@ show_usage(const char *fmt, ...)
 "       reset|count|skipto num|divert port|tee port|fwd ip|\n"
 "       pipe num} [log [logamount count]]\n"
 "    proto: {ip|tcp|udp|icmp|<number>}\n"
-"    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
-"    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
+"    src: from [not] {me|any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
+"    dst: to [not] {me|any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "  extras:\n"
 "    uid {user id}\n"
 "    gid {group id}\n"
@@ -1716,7 +1724,12 @@ add(ac,av)
 	if (!ac)
 		show_usage("missing arguments");
 
-	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
+	if (ac && !strncmp(*av,"me",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_SME;
+		av++; ac--;
+	} else {
+		fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
+	}
 
 	if (ac && (isdigit(**av) || lookup_port(*av, rule.fw_prot, 1, 1) >= 0)) {
 		u_short nports = 0;
@@ -1743,7 +1756,12 @@ add(ac,av)
 	if (!ac)
 		show_usage("missing arguments");
 
-	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
+	if (ac && !strncmp(*av,"me",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_DME;
+		av++; ac--;
+	} else {
+		fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
+	}
 
 	if (ac && (isdigit(**av) || lookup_port(*av, rule.fw_prot, 1, 1) >= 0)) {
 		u_short	nports = 0;
