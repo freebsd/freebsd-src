@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.62 2003/08/07 19:33:11 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.63 2003/08/14 06:26:58 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -104,6 +104,7 @@
 #define	PCMCIA_VENDOR_IODATA2	0x028a	/* I-O DATA */
 #define	PCMCIA_VENDOR_ASUS	0x02aa	/* ASUS */
 #define	PCMCIA_VENDOR_SIEMENS	0x02ac	/* Siemens */
+#define	PCMCIA_VENDOR_MICROSOFT	0x02d2	/* Microsoft Corporation */
 #define	PCMCIA_VENDOR_NWN	0x0602	/* No Wires Needed */
 #define	PCMCIA_VENDOR_BREEZECOM	0x0a02	/* BreezeCOM */
 #define	PCMCIA_VENDOR_NEWMEDIA2	0x10cd	/* NewMedia */
@@ -493,6 +494,11 @@
 #define	PCMCIA_CIS_MELCO_LPC3_CLX	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_MELCO_LPC3_CLX	0x0301
 #define	PCMCIA_STR_MELCO_LPC3_CLX	"Melco LPC3-CLX Ethernet Adapter"
+
+/* Microsoft Products */
+#define	PCMCIA_CIS_MICROSOFT_MN_520	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_MICROSOFT_MN_520	0x0001
+#define	PCMCIA_STR_MICROSOFT_MN_520	"Microsoft MN-520 WLAN Card"
 
 /* Motorola Products */
 #define	PCMCIA_CIS_MOTOROLA_POWER144	{ NULL, NULL, NULL, NULL }
