@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.42 1996/04/23 01:29:17 jkh Exp $
+ * $Id: dist.c,v 1.43 1996/04/25 17:31:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -478,6 +478,8 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("You haven't selected any distributions to extract.");
 	return DITEM_FAILURE;
     }
+    dialog_clear();
+    msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
