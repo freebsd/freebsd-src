@@ -951,7 +951,7 @@ xptopen(dev_t dev, int flags, int fmt, struct thread *td)
 	 * We don't allow nonblocking access.
 	 */
 	if ((flags & O_NONBLOCK) != 0) {
-		printf("xpt%d: can't do nonblocking accesss\n", unit);
+		printf("xpt%d: can't do nonblocking access\n", unit);
 		return(ENODEV);
 	}
 
@@ -3842,7 +3842,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 
 		work_ccb = cam_ccbq_peek_ccb(&device->ccbq, CAMQ_HEAD);
 		if (work_ccb == NULL) {
-			printf("device on run queue with no ccbs???");
+			printf("device on run queue with no ccbs???\n");
 			splx(ospl);
 			continue;
 		}
@@ -6908,7 +6908,7 @@ camisr(void *V_queue)
 		splx(s);
 
 		CAM_DEBUG(ccb_h->path, CAM_DEBUG_TRACE,
-			  ("camisr"));
+			  ("camisr\n"));
 
 		runq = FALSE;
 
