@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.388 1998/09/19 11:43:05 jkh Exp $
+#	$Id: Makefile,v 1.389 1998/09/20 08:52:23 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -524,8 +524,10 @@ cdrom.1:
 	mkdir -p ${CD_DISC1} ${CD_DISC2}
 	cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
+.if ${MACHINE_ARCH} != "alpha"
 	ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD_DISC1}
+.endif
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
@@ -608,7 +610,8 @@ doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-doRELEASE:  release.1 release.2 ${DOCREL} release.5 release.6 release.7
+doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.5 \
+		release.6 release.7
 	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 .endif
@@ -660,7 +663,7 @@ installCRUNCH:
 #
 doKERNEL:
 	rm -f ${RD}/kernels/${KERNEL}
-	cd ${.CURDIR}/../sys/i386/conf && config ${KERNEL}
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
 	cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
