@@ -43,70 +43,68 @@
 
 void DRM(ctxbitmap_free)( drm_device_t *dev, int ctx_handle )
 {
-	if ( ctx_handle < 0 ) goto failed;
-	if ( !dev->ctx_bitmap ) goto failed;
-
-	if ( ctx_handle < DRM_MAX_CTXBITMAP ) {
-		DRM_LOCK;
-		clear_bit( ctx_handle, dev->ctx_bitmap );
-		dev->context_sareas[ctx_handle] = NULL;
-		DRM_UNLOCK;
+	if (ctx_handle < 0 || ctx_handle >= DRM_MAX_CTXBITMAP || 
+	    dev->ctx_bitmap == NULL) {
+		DRM_ERROR("Attempt to free invalid context handle: %d\n",
+		   ctx_handle);
 		return;
 	}
-failed:
-       	DRM_ERROR( "Attempt to free invalid context handle: %d\n",
-		   ctx_handle );
-       	return;
+
+	DRM_LOCK();
+	clear_bit(ctx_handle, dev->ctx_bitmap);
+	dev->context_sareas[ctx_handle] = NULL;
+	DRM_UNLOCK();
+	return;
 }
 
 int DRM(ctxbitmap_next)( drm_device_t *dev )
 {
 	int bit;
 
-	if(!dev->ctx_bitmap) return -1;
+	if (dev->ctx_bitmap == NULL)
+		return -1;
 
-	DRM_LOCK;
+	DRM_LOCK();
 	bit = find_first_zero_bit( dev->ctx_bitmap, DRM_MAX_CTXBITMAP );
-	if ( bit < DRM_MAX_CTXBITMAP ) {
-		set_bit( bit, dev->ctx_bitmap );
-	   	DRM_DEBUG( "drm_ctxbitmap_next bit : %d\n", bit );
-		if((bit+1) > dev->max_context) {
-			dev->max_context = (bit+1);
-			if(dev->context_sareas) {
-				drm_local_map_t **ctx_sareas;
-
-				ctx_sareas = DRM(realloc)(dev->context_sareas,
-						(dev->max_context - 1) * 
-						sizeof(*dev->context_sareas),
-						dev->max_context * 
-						sizeof(*dev->context_sareas),
-						DRM_MEM_MAPS);
-				if(!ctx_sareas) {
-					clear_bit(bit, dev->ctx_bitmap);
-					DRM_UNLOCK;
-					return -1;
-				}
-				dev->context_sareas = ctx_sareas;
-				dev->context_sareas[bit] = NULL;
-			} else {
-				/* max_context == 1 at this point */
-				dev->context_sareas = DRM(alloc)(
-						dev->max_context * 
-						sizeof(*dev->context_sareas),
-						DRM_MEM_MAPS);
-				if(!dev->context_sareas) {
-					clear_bit(bit, dev->ctx_bitmap);
-					DRM_UNLOCK;
-					return -1;
-				}
-				dev->context_sareas[bit] = NULL;
-			}
-		}
-		DRM_UNLOCK;
-		return bit;
+	if (bit >= DRM_MAX_CTXBITMAP) {
+		DRM_UNLOCK();
+		return -1;
 	}
-	DRM_UNLOCK;
-	return -1;
+
+	set_bit(bit, dev->ctx_bitmap);
+	DRM_DEBUG("drm_ctxbitmap_next bit : %d\n", bit);
+	if ((bit+1) > dev->max_context) {
+		dev->max_context = (bit+1);
+		if (dev->context_sareas != NULL) {
+			drm_local_map_t **ctx_sareas;
+
+			ctx_sareas = DRM(realloc)(dev->context_sareas,
+					(dev->max_context - 1) * 
+					sizeof(*dev->context_sareas),
+					dev->max_context * 
+					sizeof(*dev->context_sareas),
+					DRM_MEM_MAPS);
+			if (ctx_sareas == NULL) {
+				clear_bit(bit, dev->ctx_bitmap);
+				DRM_UNLOCK();
+				return -1;
+			}
+			dev->context_sareas = ctx_sareas;
+			dev->context_sareas[bit] = NULL;
+		} else {
+			/* max_context == 1 at this point */
+			dev->context_sareas = DRM(alloc)(dev->max_context * 
+			    sizeof(*dev->context_sareas), DRM_MEM_MAPS);
+			if (dev->context_sareas == NULL) {
+				clear_bit(bit, dev->ctx_bitmap);
+				DRM_UNLOCK();
+				return -1;
+			}
+			dev->context_sareas[bit] = NULL;
+		}
+	}
+	DRM_UNLOCK();
+	return bit;
 }
 
 int DRM(ctxbitmap_init)( drm_device_t *dev )
@@ -114,17 +112,16 @@ int DRM(ctxbitmap_init)( drm_device_t *dev )
 	int i;
    	int temp;
 
-	DRM_LOCK;
-	dev->ctx_bitmap = (atomic_t *) DRM(alloc)( PAGE_SIZE,
-							DRM_MEM_CTXBITMAP );
+	DRM_LOCK();
+	dev->ctx_bitmap = (atomic_t *)DRM(calloc)(1, PAGE_SIZE,
+	    DRM_MEM_CTXBITMAP);
 	if ( dev->ctx_bitmap == NULL ) {
-		DRM_UNLOCK;
+		DRM_UNLOCK();
 		return DRM_ERR(ENOMEM);
 	}
-	memset( (void *)dev->ctx_bitmap, 0, PAGE_SIZE );
 	dev->context_sareas = NULL;
 	dev->max_context = -1;
-	DRM_UNLOCK;
+	DRM_UNLOCK();
 
 	for ( i = 0 ; i < DRM_RESERVED_CONTEXTS ; i++ ) {
 		temp = DRM(ctxbitmap_next)( dev );
@@ -136,13 +133,12 @@ int DRM(ctxbitmap_init)( drm_device_t *dev )
 
 void DRM(ctxbitmap_cleanup)( drm_device_t *dev )
 {
-	DRM_LOCK;
-	if( dev->context_sareas ) DRM(free)( dev->context_sareas,
-					     sizeof(*dev->context_sareas) * 
-					     dev->max_context,
-					     DRM_MEM_MAPS );
+	DRM_LOCK();
+	if (dev->context_sareas != NULL)
+		DRM(free)(dev->context_sareas, sizeof(*dev->context_sareas) * 
+		    dev->max_context, DRM_MEM_MAPS);
 	DRM(free)( (void *)dev->ctx_bitmap, PAGE_SIZE, DRM_MEM_CTXBITMAP );
-	DRM_UNLOCK;
+	DRM_UNLOCK();
 }
 
 /* ================================================================
@@ -158,14 +154,14 @@ int DRM(getsareactx)( DRM_IOCTL_ARGS )
 	DRM_COPY_FROM_USER_IOCTL( request, (drm_ctx_priv_map_t *)data, 
 			   sizeof(request) );
 
-	DRM_LOCK;
+	DRM_LOCK();
 	if (dev->max_context < 0 || request.ctx_id >= (unsigned) dev->max_context) {
-		DRM_UNLOCK;
+		DRM_UNLOCK();
 		return DRM_ERR(EINVAL);
 	}
 
 	map = dev->context_sareas[request.ctx_id];
-	DRM_UNLOCK;
+	DRM_UNLOCK();
 
 	request.handle = map->handle;
 
@@ -184,22 +180,22 @@ int DRM(setsareactx)( DRM_IOCTL_ARGS )
 	DRM_COPY_FROM_USER_IOCTL( request, (drm_ctx_priv_map_t *)data,
 			   sizeof(request) );
 
-	DRM_LOCK;
+	DRM_LOCK();
 	TAILQ_FOREACH(list, dev->maplist, link) {
 		map=list->map;
-		if(map->handle == request.handle) {
+		if (map->handle == request.handle) {
 			if (dev->max_context < 0)
 				goto bad;
 			if (request.ctx_id >= (unsigned) dev->max_context)
 				goto bad;
 			dev->context_sareas[request.ctx_id] = map;
-			DRM_UNLOCK;
+			DRM_UNLOCK();
 			return 0;
 		}
 	}
 
 bad:
-	DRM_UNLOCK;
+	DRM_UNLOCK();
 	return DRM_ERR(EINVAL);
 }
 
@@ -249,7 +245,7 @@ int DRM(resctx)( DRM_IOCTL_ARGS )
 	DRM_COPY_FROM_USER_IOCTL( res, (drm_ctx_res_t *)data, sizeof(res) );
 
 	if ( res.count >= DRM_RESERVED_CONTEXTS ) {
-		memset( &ctx, 0, sizeof(ctx) );
+		bzero(&ctx, sizeof(ctx));
 		for ( i = 0 ; i < DRM_RESERVED_CONTEXTS ; i++ ) {
 			ctx.handle = i;
 			if ( DRM_COPY_TO_USER( &res.contexts[i],
