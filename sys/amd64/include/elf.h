@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: elf.h,v 1.1 1997/05/21 23:07:28 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -102,5 +102,11 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 #define R_386_GOTPC	10	/* Add PC-relative GOT table address. */
 
 #define R_386_COUNT	11	/* Count of defined relocation types. */
+
+/* Define "machine" characteristics */
+#define ELF_TARG_CLASS	ELFCLASS32
+#define ELF_TARG_DATA	ELFDATA2LSB
+#define ELF_TARG_MACH	EM_386
+#define ELF_TARG_VER	1
 
 #endif /* !_MACHINE_ELF_H_ */
