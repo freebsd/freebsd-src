@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.34 1996/06/08 07:02:18 jkh Exp $
+ * $Id: config.c,v 1.35 1996/06/12 14:20:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -420,14 +420,9 @@ skip:
 int
 configRoutedFlags(dialogMenuItem *self)
 {
-    if (variable_get(VAR_ROUTEDFLAGS)) {
-	variable_unset(VAR_ROUTEDFLAGS);
-	return DITEM_SUCCESS | DITEM_REDRAW;
-    }
-    else
-	return variable_get_value(VAR_ROUTEDFLAGS, 
-				  "Specify the flags for routed; -q is the default, -s is\n"
-				  "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
+    return variable_get_value(VAR_ROUTEDFLAGS, 
+			      "Specify the flags for routed; -q is the default, -s is\n"
+			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
