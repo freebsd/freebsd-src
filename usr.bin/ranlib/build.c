@@ -220,7 +220,7 @@ bad1:	(void)lseek(rfd, r_off, SEEK_SET);
 static void
 symobj()
 {
-	register RLIB *rp;
+	register RLIB *rp, *rpnext;
 	struct ranlib rn;
 	off_t ransize;
 	long size, stroff;
@@ -272,9 +272,14 @@ symobj()
 		error(tname);
 
 	/* Write out the string table. */
-	for (rp = rhead; rp; rp = rp->next)
+	for (rp = rhead; rp; rp = rpnext) {
 		if (!fwrite(rp->sym, rp->symlen, 1, fp))
 			error(tname);
+		rpnext = rp->next;
+		free(rp->sym);
+		free(rp);
+	}
+	rhead = NULL;
 
 	if (pad && !fwrite(&pad, sizeof(pad), 1, fp))
 		error(tname);
