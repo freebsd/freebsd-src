@@ -1,9 +1,11 @@
 # $FreeBSD$
 
+TARGET_TUPLE=	sparc64-unknown-freebsd
+
 .if ${TARGET_ARCH} == "sparc64"
-HOST=	sparc64-unknown-freebsd
+HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf32_sparc\"
-CFLAGS+= -DTARGET=\"sparc64-unknown-freebsd\"
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _sparc_path=	\"/usr/lib\"
 .else
 _sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
@@ -24,11 +26,11 @@ CLEANFILES+=	eelf32_sparc.c
 eelf64_sparc.c: emulparams/elf64_sparc.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_sparc_path} \
-	    ${HOST} sparc64-unknown-freebsd sparc64-unknown-freebsd \
-	    elf64_sparc "" elf64_sparc sparc64-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf64_sparc "" elf64_sparc ${TARGET_TUPLE}
 
 eelf32_sparc.c: emulparams/elf32_sparc.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_sparc_path} \
-	    ${HOST} sparc64-unknown-freebsd sparc64-unknown-freebsd \
-	    elf32_sparc "" elf32_sparc sparc64-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf32_sparc "" elf32_sparc ${TARGET_TUPLE}
