@@ -11,7 +11,7 @@
 
 name="background-fsck"
 rcvar="background_fsck"
-start_precmd="echo 'Starting background file system checks'"
+start_precmd="echo 'Starting background file system checks.'"
 start_cmd="nice -4 fsck -B -p 2>&1 | logger -p daemon.notice &"
 stop_cmd=":"
 
