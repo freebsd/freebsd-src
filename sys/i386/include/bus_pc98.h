@@ -65,7 +65,7 @@ typedef u_int bus_size_t;
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
-#define BUS_SPACE_IAT_MAXSIZE	32
+#define BUS_SPACE_IAT_MAXSIZE	33
 
 /*
  * Access methods for bus resources and address space.
