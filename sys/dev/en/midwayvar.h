@@ -90,7 +90,6 @@ struct cfdriver {
 
 #endif
 
-
 /*
  * softc
  */
@@ -161,6 +160,8 @@ struct en_softc {
     struct ifqueue indma;	/* mbufs being dma'd now */
     struct ifqueue q;		/* mbufs waiting for dma now */
   } rxslot[EN_MAXNRX];		/* recv info */
+
+  u_int8_t macaddr[6];		/* card unique mac address */
 
   /* stats */
   u_int32_t vtrash;		/* sw copy of counter */
