@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.22 1995/04/23 04:13:51 phk Exp $
+ * $Id: init_main.c,v 1.23 1995/05/04 08:21:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -294,7 +294,6 @@ main(framep)
 	VREF(fdp->fd_fd.fd_cdir);
 	VOP_UNLOCK(rootvnode);
 	fdp->fd_fd.fd_rdir = NULL;
-	swapinit();
 
 	/*
 	 * Now can look at time, having had a chance to verify the time

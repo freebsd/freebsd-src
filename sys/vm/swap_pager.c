@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.37 1995/05/07 06:36:59 dyson Exp $
+ * $Id: swap_pager.c,v 1.38 1995/05/10 18:56:02 davidg Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ struct swpagerclean {
 
 #define SWB_EMPTY (-1)
 
-struct swpclean swap_pager_done;	/* list of compileted page cleans */
+struct swpclean swap_pager_done;	/* list of completed page cleans */
 struct swpclean swap_pager_inuse;	/* list of pending page cleans */
 struct swpclean swap_pager_free;	/* list of free pager clean structs */
 struct pagerlst swap_pager_list;	/* list of "named" anon regions */
