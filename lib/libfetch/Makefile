@@ -1,6 +1,6 @@
 LIB=		fetch
 CFLAGS+=	-I${.CURDIR} -Wall
-SRCS=		fetch.c ftp.c http.c file.c base64.c
+SRCS=		fetch.c ftp.c http.c file.c
 MAN3=		fetch.3
 CLEANFILES+=	ftperr.c httperr.c
 
