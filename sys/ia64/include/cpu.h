@@ -70,14 +70,6 @@ struct clockframe {
 #define	CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 
 /*
- * Preempt the current process if in interrupt from user mode,
- * or after the current trap/syscall if in system mode.
- */
-#define	need_resched()		do { want_resched = 1; aston(); } while (0)
-
-#define	resched_wanted()	want_resched
-
-/*
  * Give a profiling tick to the current process when the user profiling
  * buffer pages are invalid.  On the hp300, request an ast to send us
  * through trap, marking the proc as needing a profiling tick.
@@ -88,18 +80,6 @@ struct clockframe {
 	aston();							\
 	mtx_unlock_spin(&sched_lock);				\
 } while (0)
-
-/*
- * Notify the current process (p) that it has a signal pending,
- * process as soon as possible.
- */
-#define	signotify(p)	aston()
-
-#define	aston()		PCPU_SET(astpending, 1)
-
-#ifdef _KERNEL
-extern u_int32_t want_resched;		/* resched() was called */
-#endif
 
 
 /*

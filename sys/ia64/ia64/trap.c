@@ -70,8 +70,6 @@
 #include <ddb/ddb.h>
 #endif
 
-u_int32_t want_resched;
-
 static int unaligned_fixup(struct trapframe *framep, struct proc *p);
 
 #ifdef WITNESS
@@ -95,7 +93,7 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 	}
 	mtx_lock_spin(&sched_lock);
 	p->p_pri.pri_level = p->p_pri.pri_user;
-	if (want_resched) {
+	if (resched_wanted()) {
 		/*
 		 * Since we are curproc, a clock interrupt could
 		 * change our priority without changing run queues
