@@ -455,6 +455,7 @@ ulpt_reset(struct ulpt_softc *sc)
 	 * UT_WRITE_CLASS_INTERFACE.  Many printers use the old one,
 	 * so we try both.
 	 */
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
 	if (usbd_do_request(sc->sc_udev, &req, 0)) {	/* 1.0 */
 		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 		(void)usbd_do_request(sc->sc_udev, &req, 0); /* 1.1 */
