@@ -327,6 +327,7 @@ IPTUNNEL		opt_ipx.h
 LIBMCHAIN
 NCP			opt_ncp.h
 NETATALK		opt_atalk.h
+NS			opt_ns.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
