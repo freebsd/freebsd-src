@@ -602,12 +602,6 @@ hpfs_reclaim(ap)
 
 	vfs_hash_remove(vp);
 
-	/* Purge old data structures associated with the inode. */
-	if (hp->h_devvp) {
-		vrele(hp->h_devvp);
-		hp->h_devvp = NULL;
-	}
-
 	mtx_destroy(&hp->h_interlock);
 
 	vp->v_data = NULL;
