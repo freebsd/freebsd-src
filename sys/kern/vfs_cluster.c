@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.62 1998/05/21 07:47:42 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.63 1998/07/04 20:45:32 julian Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -342,7 +342,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	if (bp == 0)
 		return tbp;
 
-	(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
+	bp->b_data = (char *)((vm_offset_t)bp->b_data |
+	    ((vm_offset_t)tbp->b_data & PAGE_MASK));
 	bp->b_flags = B_ASYNC | B_READ | B_CALL | B_BUSY | B_CLUSTER | B_VMIO;
 	bp->b_iodone = cluster_callback;
 	bp->b_blkno = blkno;
@@ -696,8 +697,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;
 		bp->b_offset = tbp->b_offset;
-		(vm_offset_t) bp->b_data |=
-			((vm_offset_t) tbp->b_data) & PAGE_MASK;
+		bp->b_data = (char *)((vm_offset_t)bp->b_data |
+		    ((vm_offset_t)tbp->b_data & PAGE_MASK));
 		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER |
 				(tbp->b_flags & (B_VMIO | B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
