@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.121 1997/05/04 22:33:17 andreas Exp $
+#	$Id: rc,v 1.122 1997/05/05 07:08:30 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -225,7 +225,7 @@ if [ "X${lpd_enable}" = X"YES" ]; then
 fi
 
 if [ "X${sendmail_enable}" = X"YES" -a -r /etc/sendmail.cf ]; then
-	echo -n ' sendmail';	sendmail ${sendmail_flags}
+	echo -n ' sendmail';	/usr/sbin/sendmail ${sendmail_flags}
 fi
 
 echo '.'
