@@ -51,6 +51,11 @@ struct ofwfb_softc {
 
 	vi_blank_display_t *sc_blank;
 	vi_putc_t	*sc_putc;
+	vi_set_border_t	*sc_set_border;
+
+#define OFWSC_MAXADDR	8
+	int		sc_num_pciaddrs;
+	struct ofw_pci_register sc_pciaddrs[OFWSC_MAXADDR];
 };
 
 #endif

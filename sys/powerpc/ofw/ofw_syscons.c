@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/limits.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
 #include <powerpc/ofw/ofw_syscons.h>
 #include <machine/nexusvar.h>
 
@@ -132,9 +134,11 @@ static video_switch_t ofwfbvidsw = {
  */
 static vi_blank_display_t ofwfb_blank_display8;
 static vi_putc_t ofwfb_putc8;
+static vi_set_border_t ofwfb_set_border8;
 
 static vi_blank_display_t ofwfb_blank_display32;
 static vi_putc_t ofwfb_putc32;
+static vi_set_border_t ofwfb_set_border32;
 
 VIDEO_DRIVER(ofwfb, ofwfbvidsw, ofwfb_configure);
 
@@ -209,6 +213,7 @@ ofwfb_configure(int flags)
 	phandle_t node;
 	int depth;
 	int disable;
+	int len;
 	char type[16];
 	static int done = 0;
 
@@ -230,14 +235,16 @@ ofwfb_configure(int flags)
         if (strcmp(type, "display") != 0)
                 return (0);
 
-	/* Only support 8-bit framebuffers */
+	/* Only support 8 and 32-bit framebuffers */
 	OF_getprop(node, "depth", &depth, sizeof(depth));
 	if (depth == 8) {
 		sc->sc_blank = ofwfb_blank_display8;
 		sc->sc_putc = ofwfb_putc8;
+		sc->sc_set_border = ofwfb_set_border8;
 	} else if (depth == 32) {
 		sc->sc_blank = ofwfb_blank_display32;
 		sc->sc_putc = ofwfb_putc32;
+		sc->sc_set_border = ofwfb_set_border32;
 	} else
 		return (0);
 
@@ -253,6 +260,22 @@ ofwfb_configure(int flags)
 	 * BAT-mapped so it can be accessed directly
 	 */
 	OF_getprop(node, "address", &sc->sc_addr, sizeof(sc->sc_addr));
+
+	/*
+	 * Get the PCI addresses of the adapter. The node may be the
+	 * child of the PCI device: in that case, try the parent for
+	 * the assigned-addresses property.
+	 */
+	len = OF_getprop(node, "assigned-addresses", sc->sc_pciaddrs,
+	          sizeof(sc->sc_pciaddrs));
+	if (len == -1) {
+		len = OF_getprop(OF_parent(node), "assigned-addresses", sc->sc_pciaddrs,
+		          sizeof(sc->sc_pciaddrs));
+	}
+
+	if (len != -1) {
+		sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
+	}
 
 	ofwfb_init(0, &sc->sc_va, 0);
 
@@ -402,7 +425,7 @@ ofwfb_load_font(video_adapter_t *adp, int page, int size, u_char *data,
 static int
 ofwfb_show_font(video_adapter_t *adp, int page)
 {
-	TODO;
+
 	return (0);
 }
 
@@ -421,10 +444,63 @@ ofwfb_load_palette(video_adapter_t *adp, u_char *palette)
 }
 
 static int
+ofwfb_set_border8(video_adapter_t *adp, int border)
+{
+	struct ofwfb_softc *sc;
+	int i, j;
+	uint8_t *addr;
+	uint8_t bground;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	bground = ofwfb_background(border);
+
+	/* Set top margin */
+	addr = (uint8_t *) sc->sc_addr;
+	for (i = 0; i < sc->sc_ymargin; i++) {
+		for (j = 0; j < sc->sc_width; j++) {
+			*(addr + j) = bground;
+		}
+		addr += sc->sc_stride;
+	}
+
+	/* bottom margin */
+	addr = (uint8_t *) sc->sc_addr + (sc->sc_height - sc->sc_ymargin)*sc->sc_stride;
+	for (i = 0; i < sc->sc_ymargin; i++) {
+		for (j = 0; j < sc->sc_width; j++) {
+			*(addr + j) = bground;
+		}
+		addr += sc->sc_stride;
+	}
+
+	/* remaining left and right borders */
+	addr = (uint8_t *) sc->sc_addr + sc->sc_ymargin*sc->sc_stride;
+	for (i = 0; i < sc->sc_height - 2*sc->sc_xmargin; i++) {
+		for (j = 0; j < sc->sc_xmargin; j++) {
+			*(addr + j) = bground;
+			*(addr + j + sc->sc_width - sc->sc_xmargin) = bground;
+		}
+		addr += sc->sc_stride;
+	}
+
+	return (0);
+}
+
+static int
+ofwfb_set_border32(video_adapter_t *adp, int border)
+{
+	/* XXX Be lazy for now and blank entire screen */
+	return (ofwfb_blank_display32(adp, border));
+}
+
+static int
 ofwfb_set_border(video_adapter_t *adp, int border)
 {
-	/* TODO; */
-	return (0);
+	struct ofwfb_softc *sc;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	return ((*sc->sc_set_border)(adp, border));
 }
 
 static int
@@ -518,8 +594,34 @@ static int
 ofwfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
     int prot)
 {
-	TODO;
-	return (0);
+	struct ofwfb_softc *sc;
+	int i;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	if (sc->sc_num_pciaddrs == 0)
+		return (ENOMEM);
+
+	/*
+	 * Make sure the requested address lies within the PCI device's assigned addrs
+	 */
+	for (i = 0; i < sc->sc_num_pciaddrs; i++)
+		if (offset >= sc->sc_pciaddrs[i].phys_lo &&
+		    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo)) {
+			*paddr = offset;
+			return (0);
+		}
+
+	/*
+	 * This might be a legacy VGA mem request: if so, just point it at the
+	 * framebuffer, since it shouldn't be touched
+	 */
+	if (offset < sc->sc_stride*sc->sc_height) {
+		*paddr = sc->sc_addr + offset;
+		return (0);
+	}
+
+	return (EINVAL);
 }
 
 static int
