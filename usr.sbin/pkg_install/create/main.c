@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.11.4.1 1995/10/09 11:16:24 jkh Exp $";
+static const char *rcsid = "$Id: main.c,v 1.12 1995/10/25 15:37:59 jkh Exp $";
 #endif
 
 /*
@@ -16,20 +16,21 @@ static const char *rcsid = "$Id: main.c,v 1.11.4.1 1995/10/09 11:16:24 jkh Exp $
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhvf:p:P:c:d:i:k:r:t:X:D:m:";
+static char Options[] = "YNOhvf:p:P:c:d:i:k:r:t:X:D:m:s:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
 char	*Desc		= NULL;
+char	*SrcDir		= NULL;
 char	*Display	= NULL;
 char	*Install	= NULL;
 char	*DeInstall	= NULL;
 char	*Contents	= NULL;
 char	*Require	= NULL;
-char	PlayPen[FILENAME_MAX];
 char	*ExcludeFrom	= NULL;
 char	*Mtree		= NULL;
 char	*Pkgdeps	= NULL;
+char	PlayPen[FILENAME_MAX];
 int	Dereference	= 0;
 int	PlistOnly	= 0;
 
@@ -61,6 +62,10 @@ main(int argc, char **argv)
 
 	case 'p':
 	    Prefix = optarg;
+	    break;
+
+	case 's':
+	    SrcDir = optarg;
 	    break;
 
 	case 'f':

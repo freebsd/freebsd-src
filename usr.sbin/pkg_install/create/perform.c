@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.31 1996/06/20 18:33:36 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.32 1996/07/30 10:48:12 jkh Exp $";
 #endif
 
 /*
@@ -83,6 +83,14 @@ pkg_perform(char **pkgs)
 	if (Verbose && !PlistOnly)
 	    printf(".\n");
     }
+
+    /* If a SrcDir override is set, add it now */
+    if (SrcDir) {
+	if (Verbose && !PlistOnly)
+	    printf("Using SrcDir value of %s\n", SrcDir);
+	add_plist(&plist, PLIST_SRC, SrcDir);
+    }
+
     /* Slurp in the packing list */
     read_plist(&plist, pkg_in);
 
