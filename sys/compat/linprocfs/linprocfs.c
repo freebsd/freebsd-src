@@ -91,6 +91,7 @@ extern int ncpus;
 
 #include <compat/linux/linux_mib.h>
 #include <fs/pseudofs/pseudofs.h>
+#include <fs/procfs/procfs.h>
 
 extern struct cdevsw *cdevsw[];
 
@@ -721,39 +722,56 @@ linprocfs_domodules(PFS_FILL_ARGS)
 static struct pfs_node linprocfs_proc_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
-	PFS_FILE(   "cmdline",	linprocfs_doproccmdline,NULL, NULL, PFS_RD),
-	PFS_SYMLINK("exe",	linprocfs_doexelink,	NULL, NULL, 0),
-     /* PFS_FILE(   "mem",	procfs_domem,		NULL, NULL, PFS_RDWR|PFS_RAW), */
-	PFS_FILE(   "stat",	linprocfs_doprocstat,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "status",	linprocfs_doprocstatus,	NULL, NULL, PFS_RD),
+	PFS_FILE(   "cmdline",	linprocfs_doproccmdline,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_SYMLINK("exe",	linprocfs_doexelink,
+	    NULL,	NULL,		NULL,	0),
+     /* PFS_FILE(   "mem",	procfs_domem,
+	    NULL,	NULL,		NULL,	PFS_RDWR|PFS_RAW), */
+	PFS_FILE(   "stat",	linprocfs_doprocstat,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "status",	linprocfs_doprocstatus,
+	    NULL,	NULL,		NULL,	PFS_RD),
 	PFS_LASTNODE
 };
 
 static struct pfs_node linprocfs_net_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
-	PFS_FILE(   "dev",	linprocfs_donetdev,	NULL, NULL, PFS_RD),
+	PFS_FILE(   "dev",	linprocfs_donetdev,
+	    NULL,	NULL,		NULL,	PFS_RD),
 	PFS_LASTNODE
 };
 
 static struct pfs_node linprocfs_root_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
-	/*	    name	flags uid  gid	mode  data */
-	PFS_FILE(   "cmdline",	linprocfs_docmdline,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "cpuinfo",	linprocfs_docpuinfo,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "devices",	linprocfs_dodevices,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "loadavg",	linprocfs_doloadavg,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "meminfo",	linprocfs_domeminfo,	NULL, NULL, PFS_RD),
+	PFS_FILE(   "cmdline",	linprocfs_docmdline,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "cpuinfo",	linprocfs_docpuinfo,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "devices",	linprocfs_dodevices,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "loadavg",	linprocfs_doloadavg,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "meminfo",	linprocfs_domeminfo,
+	    NULL,	NULL,		NULL,	PFS_RD),
 #if 0
-	PFS_FILE(   "mdodules",	linprocfs_domodules,	NULL, NULL, PFS_RD),
+	PFS_FILE(   "modules",	linprocfs_domodules,
+	    NULL,	NULL,		NULL,	PFS_RD),
 #endif
-	PFS_FILE(   "stat",	linprocfs_dostat,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "uptime",	linprocfs_douptime,	NULL, NULL, PFS_RD),
-	PFS_FILE(   "version",	linprocfs_doversion,	NULL, NULL, PFS_RD),
-	PFS_DIR(    "net",	linprocfs_net_nodes,	NULL, NULL, 0),
-	PFS_PROCDIR(		linprocfs_proc_nodes,	NULL, NULL, 0),
-	PFS_SYMLINK("self",	linprocfs_doselflink,	NULL, NULL, 0),
+	PFS_FILE(   "stat",	linprocfs_dostat,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "uptime",	linprocfs_douptime,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_FILE(   "version",	linprocfs_doversion,
+	    NULL,	NULL,		NULL,	PFS_RD),
+	PFS_DIR(    "net",	linprocfs_net_nodes,
+	    NULL,	NULL,		NULL,	0),
+	PFS_PROCDIR(		linprocfs_proc_nodes,
+	    NULL,	NULL,		NULL,	0),
+	PFS_SYMLINK("self",	linprocfs_doselflink,
+	    NULL,	NULL,		NULL,	0),
 	PFS_LASTNODE
 };
 
