@@ -1604,12 +1604,14 @@ acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
     param.page_length = 0x32;
     param.test_write = cuesheet->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_SESSION;
-    param.session_type = CDR_SESS_NONE;
+    param.session_type = cuesheet->session_type;
     param.fp = 0;
     param.packet_size = 0;
     param.track_mode = CDR_TMODE_AUDIO;
     param.datablock_type = CDR_DB_RAW;
-    param.session_format = CDR_SESS_CDROM;
+    param.session_format = cuesheet->session_format;
+    if (cdp->cap.burnproof) 
+	param.burnproof = 1;
     if ((error = acd_mode_select(cdp, (caddr_t)&param, param.page_length + 10)))
 	return error;
 
