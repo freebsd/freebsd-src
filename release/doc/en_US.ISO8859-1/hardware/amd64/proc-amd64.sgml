@@ -4,6 +4,25 @@
 <sect1 id="proc">
   <title>Supported Processors and Motherboards</title>
 
-  <para>We need to write this part.</para>
+  <para>&os;/&arch; has supported the &arch.print;
+    (<quote>Hammer</quote>) architecture since mid-2003.  It made its
+    first debut as an experimental release based on &os;
+    5.1-RELEASE.</para>
+
+  <para>As of this writing, this port supports the Athlon64
+    (<quote>Clawhammer</quote>) and Opteron
+    (<quote>Sledgehammer</quote>) machines.  The largest tested
+    memory configuration to date is 8GB.  There is no support for SMP
+    machines at present.</para>
+
+  <para>In many respects, &os;/&arch; is similar to &os;/i386, in
+    terms of drivers supported.  There may be some issues with 64-bit
+    cleanliness in some (particularly older) drivers.  Generally,
+    drivers that already function correctly on other 64-bit platforms
+    should work.</para>
+
+  <para>&os;/&arch; is still very much a work in progress.  Much work
+    is being done in the &os; Perforce repository and then merged to
+    the &os; CVS repository as it stabilizes.</para>
 
 </sect1>
