@@ -86,8 +86,8 @@ MAIN:{
 
     <table border=\"1\" cellpadding=\"3\">
       <tr>
-	<th>Architecture</th>
-	<th>Machine</th>
+        <th>Architecture</th>
+        <th>Machine</th>
 ";
     foreach my $branch (@BRANCHES) {
 	print("        <th>$branch</th>\n");
@@ -98,8 +98,8 @@ MAIN:{
 	foreach my $machine (sort(@{$ARCHES{$arch}})) {
 	    my $have_logs = 0;
 	    my $html =  "      <tr>
-	<td>$arch</td>
-	<td>$machine</td>
+        <td>$arch</td>
+        <td>$machine</td>
 ";
 	    foreach my $branch (@BRANCHES) {
 		my $log = "tinderbox-$branch-$arch-$machine";
@@ -139,8 +139,8 @@ MAIN:{
     <p class=\"update\">Last updated: $date</p>
     <p>
       <a href=\"http://validator.w3.org/check/referer\"><img
-	  src=\"valid-xhtml10.png\"
-	  alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
+          src=\"valid-xhtml10.png\"
+          alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
       <a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img
           src=\"valid-css.gif\"
           alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
