@@ -72,7 +72,7 @@ struct fs_ops *file_system[] = {
 extern struct file_format ia64_elf;
 
 struct file_format *file_formats[] = {
-/*	&ia64_elf, */
+	&ia64_elf,
 	NULL
 };
 
