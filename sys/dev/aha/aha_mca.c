@@ -87,9 +87,9 @@ aha_mca_probe (device_t dev)
 	mca_id_t	id = mca_get_id(dev);
 	uint32_t	iobase = 0;
 	uint32_t	iosize = 0;
-	uint8_t	drq = 0;
-	uint8_t	irq = 0;
-	uint8_t	pos;
+	uint8_t		drq = 0;
+	uint8_t		irq = 0;
+	uint8_t		pos;
 
 	desc = mca_match_id(id, aha_mca_devs);
 	if (!desc)
@@ -117,39 +117,36 @@ static int
 aha_mca_attach (device_t dev)
 {
 	struct aha_softc *	sc = device_get_softc(dev);
-	struct resource *	io = NULL;
-	struct resource *	irq = NULL;
-	struct resource *	drq = NULL;
-	int			error = 0;
+	int			error = ENOMEM;
 	int			unit = device_get_unit(dev);
-	int			rid;
 	void *			ih;
 
-	rid = 0;
-	io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-	if (!io) {
+	sc->portrid = 0;
+	sc->port = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->portrid,
+	    RF_ACTIVE);
+	if (sc->port == NULL) {
 		device_printf(dev, "No I/O space?!\n");
-		error = ENOMEM;
 		goto bad;
 	}
 
-	rid = 0;
-	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (irq == NULL) {
+	sc->irqrid = 0;
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
+	    RF_ACTIVE);
+	if (sc->irq == NULL) {
 		device_printf(dev, "No IRQ?!\n");
-		error = ENOMEM;
 		goto bad;
 	}
 
-	rid = 0;
-	drq = bus_alloc_resource_any(dev, SYS_RES_DRQ, &rid, RF_ACTIVE);
-	if (drq == NULL) {
+	sc->drqrid = 0;
+	sc->drq = bus_alloc_resource_any(dev, SYS_RES_DRQ, &sc->drqrid,
+	    RF_ACTIVE);
+	if (sc->drq == NULL) {
 		device_printf(dev, "No DRQ?!\n");
-		error = ENOMEM;
 		goto bad;
 	}
 
-	aha_alloc(sc, unit, rman_get_bustag(io), rman_get_bushandle(io));
+	aha_alloc(sc, unit, rman_get_bustag(sc->port),
+	    rman_get_bushandle(sc->port));
 	error = aha_probe(sc);
 	if (error) {
 		device_printf(dev, "aha_probe() failed!\n");
@@ -162,7 +159,7 @@ aha_mca_attach (device_t dev)
 		goto bad;
 	}
 
-	isa_dmacascade(rman_get_start(drq));
+	isa_dmacascade(rman_get_start(sc->drq));
 
 	error = bus_dma_tag_create(
 				/* parent	*/ NULL,
@@ -196,7 +193,8 @@ aha_mca_attach (device_t dev)
 		goto bad;
 	}
 
-	error = bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, aha_intr, sc, &ih);
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_CAM | INTR_ENTROPY,
+	    aha_intr, sc, &ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		goto bad;
@@ -206,14 +204,9 @@ aha_mca_attach (device_t dev)
 
 bad:
 	aha_free(sc);
-
-	if (io)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-	if (drq)
-		bus_release_resource(dev, SYS_RES_DRQ, 0, drq);
-
+	bus_free_resource(dev, SYS_RES_IOPORT, sc->port);
+	bus_free_resource(dev, SYS_RES_IRQ, sc->irq);
+	bus_free_resource(dev, SYS_RES_DRQ, sc->drq);
 	return (error);
 }
 
