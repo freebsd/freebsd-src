@@ -49,8 +49,8 @@ msysosak.o			optional	fla			\
 	no-implicit-rule
 #
 trlld.o				optional	oltr			\
-	dependency	"$S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
+	dependency	"$S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
 	no-implicit-rule
 #
 compat/linux/linux_file.c	optional	compat_linux
