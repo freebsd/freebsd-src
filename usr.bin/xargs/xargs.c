@@ -593,7 +593,7 @@ usage(void)
 {
 	fprintf(stderr,
 "usage: xargs [-0pt] [-E eofstr] [-I replstr [-R replacements]] [-J replstr]\n"
-"             [-L number] [-n number [-x] [-P maxprocs] [-s size]\n"
+"             [-L number] [-n number [-x]] [-P maxprocs] [-s size]\n"
 "             [utility [argument ...]]\n");
 	exit(1);
 }
