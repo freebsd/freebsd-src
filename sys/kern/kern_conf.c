@@ -93,7 +93,7 @@ chrtoblk(dev_t dev)
 
 struct cdevsw *
 devsw(dev_t dev)
-{       
+{
 	if (dev->si_devsw)
 		return (dev->si_devsw);
         return(cdevsw[major(dev)]);
@@ -119,26 +119,37 @@ cdevsw_add(struct cdevsw *newentry)
 	if (newentry->d_maj < 0 || newentry->d_maj >= NUMCDEVSW) {
 		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
 		    newentry->d_name, newentry->d_maj);
-		return EINVAL;
+		return (EINVAL);
+	}
+	if (newentry->d_bmaj >= NUMCDEVSW) {
+		printf("%s: ERROR: driver has bogus cdevsw->d_bmaj = %d\n",
+		    newentry->d_name, newentry->d_bmaj);
+		return (EINVAL);
+	}
+	if (newentry->d_bmaj >= 0 && (newentry->d_flags & D_DISK) == 0) {
+		printf("ERROR: \"%s\" bmaj but is not a disk\n",
+		    newentry->d_name);
+		return (EINVAL);
 	}
 
 	if (cdevsw[newentry->d_maj]) {
 		printf("WARNING: \"%s\" is usurping \"%s\"'s cdevsw[]\n",
 		    newentry->d_name, cdevsw[newentry->d_maj]->d_name);
 	}
+
 	cdevsw[newentry->d_maj] = newentry;
 
-	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) {
-		if (bmaj2cmaj[newentry->d_bmaj] != 254) {
-			printf("WARNING: \"%s\" is usurping \"%s\"'s bmaj\n",
-			    newentry->d_name, 
-			    cdevsw[bmaj2cmaj[newentry->d_bmaj]]->d_name);
-		}
-		bmaj2cmaj[newentry->d_bmaj] = newentry->d_maj;
-	}
+	if (newentry->d_bmaj < 0)
+		return (0);
 
-	return 0;
-} 
+	if (bmaj2cmaj[newentry->d_bmaj] != 254) {
+		printf("WARNING: \"%s\" is usurping \"%s\"'s bmaj\n",
+		    newentry->d_name,
+		    cdevsw[bmaj2cmaj[newentry->d_bmaj]]->d_name);
+	}
+	bmaj2cmaj[newentry->d_bmaj] = newentry->d_maj;
+	return (0);
+}
 
 /*
  *  Remove a cdevsw entry
@@ -155,11 +166,11 @@ cdevsw_remove(struct cdevsw *oldentry)
 
 	cdevsw[oldentry->d_maj] = NULL;
 
-	if (oldentry->d_bmaj >= 0 && oldentry->d_bmaj < NUMCDEVSW) 
+	if (oldentry->d_bmaj >= 0 && oldentry->d_bmaj < NUMCDEVSW)
 		bmaj2cmaj[oldentry->d_bmaj] = 254;
 
 	return 0;
-} 
+}
 
 int
 devsw_module_handler(module_t mod, int what, void* arg)
@@ -194,7 +205,7 @@ devsw_module_handler(module_t mod, int what, void* arg)
  * dev_t and u_dev_t primitives
  */
 
-int 
+int
 major(dev_t x)
 {
 	if (x == NODEV)
@@ -242,7 +253,7 @@ makedev(int x, int y)
 			return (si);
 	}
 	if (stashed >= DEVT_STASH) {
-		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT, 
+		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT,
 		    M_USE_RESERVE);
 		bzero(si, sizeof(*si));
 	} else if (LIST_FIRST(&dev_free)) {
@@ -266,7 +277,7 @@ freedev(dev_t dev)
 		return;
 	if (SLIST_FIRST(&dev->si_hlist))
 		return;
-	if (dev->si_devsw || dev->si_drv1 || dev->si_drv2) 
+	if (dev->si_devsw || dev->si_drv1 || dev->si_drv2)
 		return;
 	hash = dev->si_udev % DEVT_HASH;
 	LIST_REMOVE(dev, si_hash);
