@@ -156,7 +156,11 @@ typedef void (*vm_lowmem_handler_t)(void *, int);
 #define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
-/* Process events */
+/*
+ * Process events
+ * process_fork handlers are called without Giant.
+ * exit/exec handlers are called with Giant.
+ */
 struct proc;
 
 typedef void (*exitlist_fn)(void *, struct proc *);

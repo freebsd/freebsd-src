@@ -689,14 +689,16 @@ again:
 		cnt.v_rforkpages += p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize;
 	}
+	mtx_unlock(&Giant);
 
 	/*
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
 	 *   What if they have an error? XXX
+	 *
+	 * Handlers must be MPSAFE, or aquire Giant themselves if not.
 	 */
 	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
-	mtx_unlock(&Giant);
 
 	/*
 	 * Set the child start time and mark the process as being complete.
