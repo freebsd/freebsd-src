@@ -961,6 +961,7 @@ rescan0:
 		cnt.v_inactive_target - cnt.v_inactive_count;
 	page_shortage += addl_page_shortage;
 
+	vm_page_lock_queues();
 	/*
 	 * Scan the active queue for things we can deactivate. We nominally
 	 * track the per-page activity counter and use it to locate
@@ -1045,7 +1046,7 @@ rescan0:
 		}
 		m = next;
 	}
-
+	vm_page_unlock_queues();
 	s = splvm();
 
 	/*
@@ -1216,7 +1217,7 @@ vm_pageout_page_stats()
 		return;
 
 	s0 = splvm();
-
+	vm_page_lock_queues();
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
 	if (fullintervalcount < vm_pageout_full_stats_interval) {
@@ -1280,6 +1281,7 @@ vm_pageout_page_stats()
 
 		m = next;
 	}
+	vm_page_unlock_queues();
 	splx(s0);
 }
 
