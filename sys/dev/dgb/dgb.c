@@ -2028,7 +2028,7 @@ dgbstart(tp)
 			size=tail-head-LEAVE_FREE_CHARS;
 			if (size <0)
 			        size=0;
-		        } else {
+		        else {
 			        size=port->txbufsize-head;
 			        if(tail+port->txbufsize < head)
 				        size=0;
