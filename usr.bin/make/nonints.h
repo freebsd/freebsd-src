@@ -65,9 +65,9 @@ void For_Run(void);
 void Main_ParseArgLine(char *);
 int main(int, char **);
 char *Cmd_Exec(char *, char **);
-void Error(char *, ...);
-void Fatal(char *, ...);
-void Punt(char *, ...);
+void Error(const char *, ...);
+void Fatal(const char *, ...);
+void Punt(const char *, ...);
 void DieHorribly(void);
 int PrintAddr(void *, void *);
 void Finish(int);
@@ -81,7 +81,7 @@ void enomem(void);
 int eunlink(const char *);
 
 /* parse.c */
-void Parse_Error(int, char *, ...);
+void Parse_Error(int, const char *, ...);
 Boolean Parse_AnyExport(void);
 Boolean Parse_IsVar(char *);
 void Parse_DoVar(char *, GNode *);

@@ -1110,7 +1110,7 @@ bad:
  */
 /* VARARGS */
 void
-Error(char *fmt, ...)
+Error(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -1134,7 +1134,7 @@ Error(char *fmt, ...)
  */
 /* VARARGS */
 void
-Fatal(char *fmt, ...)
+Fatal(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -1165,7 +1165,7 @@ Fatal(char *fmt, ...)
  */
 /* VARARGS */
 void
-Punt(char *fmt, ...)
+Punt(const char *fmt, ...)
 {
 	va_list ap;
 
