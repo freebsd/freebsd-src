@@ -126,6 +126,9 @@ Spec:
 Config_spec:
 	ARCH Save_id
 	    = {
+		if (machinename != NULL)
+		    errx(1, "%s:%d: only one machine directive is allowed",
+			yyfile, yyline);
 		machinename = $2;
 	      } |
 	CPU Save_id
