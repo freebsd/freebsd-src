@@ -1,8 +1,6 @@
-/*	$NetBSD: kern_lkm.c,v 1.18 1994/06/29 06:32:31 cgd Exp $	*/
-
-/*
- * Copyright (c) 1994 Christopher G. Demetriou
+/*-
  * Copyright (c) 1992 Terrence R. Lambert.
+ * Copyright (c) 1994 Christopher G. Demetriou
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +49,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/sysent.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/lkm.h>
@@ -493,7 +492,7 @@ _lkm_syscall(lkmtp, cmd)
 	struct lkm_syscall *args = lkmtp->private.lkm_syscall;
 	int i;
 	int err = 0;
-	extern int nsysent;	/* from init_sysent.c */
+	extern struct sysentvec aout_sysvec;
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -504,26 +503,30 @@ _lkm_syscall(lkmtp, cmd)
 			/*
 			 * Search the table looking for a slot...
 			 */
-			for (i = 0; i < nsysent; i++)
-				if (sysent[i].sy_call == lkmnosys)
+			for (i = 0; i < aout_sysvec.sv_size; i++)
+				if (aout_sysvec.sv_table[i].sy_call == lkmnosys)
 					break;		/* found it! */
 			/* out of allocable slots? */
-			if (i == nsysent) {
+			if (i == aout_sysvec.sv_size) {
 				err = ENFILE;
 				break;
 			}
 		} else {				/* assign */
-			if (i < 0 || i >= nsysent) {
+			if (i < 0 || i >= aout_sysvec.sv_size) {
 				err = EINVAL;
 				break;
 			}
 		}
 
 		/* save old */
-		bcopy(&sysent[i], &(args->lkm_oldent), sizeof(struct sysent));
+		bcopy(&aout_sysvec.sv_table[i],
+		      &(args->lkm_oldent), 
+		      sizeof(struct sysent));
 
 		/* replace with new */
-		bcopy(args->lkm_sysent, &sysent[i], sizeof(struct sysent));
+		bcopy(args->lkm_sysent, 
+		      &aout_sysvec.sv_table[i],
+		      sizeof(struct sysent));
 
 		/* done! */
 		args->lkm_offset = i;	/* slot in sysent[] */
@@ -535,7 +538,9 @@ _lkm_syscall(lkmtp, cmd)
 		i = args->lkm_offset;
 
 		/* replace current slot contents with old contents */
-		bcopy(&(args->lkm_oldent), &sysent[i], sizeof(struct sysent));
+		bcopy(&(args->lkm_oldent), 
+		      &aout_sysvec.sv_table[i], 
+		      sizeof(struct sysent));
 
 		break;
 
