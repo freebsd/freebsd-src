@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.30 1995/10/07 10:13:41 bde Exp $
+ * $Id: ufs_vnops.c,v 1.31 1995/10/22 09:32:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -69,6 +69,12 @@
 static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct proc *));
 static int ufs_chown
 	__P((struct vnode *, uid_t, gid_t, struct ucred *, struct proc *));
+
+#if EXT2FS
+#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/ext2fs/ext2_fs.h>
+#include <gnu/ext2fs/ext2_fs_sb.h>
+#endif /* EXT2FS */
 
 union _qcvt {
 	quad_t qcvt;
@@ -667,7 +673,16 @@ ufs_remove(ap)
 		error = EPERM;
 		goto out;
 	}
-	if ((error = ufs_dirremove(dvp, ap->a_cnp)) == 0) {
+#if EXT2FS
+	if (IS_EXT2_VNODE(dvp)) {
+		error = ext2_dirremove(dvp, ap->a_cnp);
+	} else {
+		error = ufs_dirremove(dvp, ap->a_cnp);
+	}
+#else
+	error = ufs_dirremove(dvp, ap->a_cnp);
+#endif /* EXT2FS */
+	if (error == 0) {
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
 	}
@@ -726,8 +741,18 @@ ufs_link(ap)
 	ip->i_flag |= IN_CHANGE;
 	tv = time;
 	error = VOP_UPDATE(vp, &tv, &tv, 1);
-	if (!error)
+	if (!error) {
+#if EXT2FS
+		if (IS_EXT2_VNODE(tdvp)) {
+			error = ext2_direnter(ip, tdvp, cnp);
+		} else {
+			error = ufs_direnter(ip, tdvp, cnp);
+		}
+#else
 		error = ufs_direnter(ip, tdvp, cnp);
+#endif /* EXT2FS */
+	}
+
 	if (error) {
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
@@ -915,7 +940,15 @@ abortit:
 			goto bad;
 		if (xp != NULL)
 			vput(tvp);
+#if EXT2FS
+		if (IS_EXT2_VNODE(tdvp)) {
+			error = ext2_checkpath(ip, dp, tcnp->cn_cred);
+		} else {
+			error = ufs_checkpath(ip, dp, tcnp->cn_cred);
+		}
+#else
 		error = ufs_checkpath(ip, dp, tcnp->cn_cred);
+#endif /* EXT2FS */
 		if (error)
 			goto out;
 		if ((tcnp->cn_flags & SAVESTART) == 0)
@@ -954,7 +987,15 @@ abortit:
 			if (error)
 				goto bad;
 		}
+#if EXT2FS
+		if (IS_EXT2_VNODE(tdvp)) {
+			error = ext2_direnter(ip, tdvp, tcnp);
+		} else {
+			error = ufs_direnter(ip, tdvp, tcnp);
+		}
+#else
 		error = ufs_direnter(ip, tdvp, tcnp);
+#endif /* EXT2FS */
 		if (error) {
 			if (doingdirectory && newparent) {
 				dp->i_nlink--;
@@ -990,7 +1031,13 @@ abortit:
 		 * (both directories, or both not directories).
 		 */
 		if ((xp->i_mode&IFMT) == IFDIR) {
-			if (!ufs_dirempty(xp, dp->i_number, tcnp->cn_cred) ||
+#if EXT2FS
+			if (! (IS_EXT2_VNODE(ITOV(xp)) ? 
+					ext2_dirempty : ufs_dirempty)
+#else
+			if (! ufs_dirempty
+#endif /* EXT2FS */
+					 (xp, dp->i_number, tcnp->cn_cred) || 
 			    xp->i_nlink > 2) {
 				error = ENOTEMPTY;
 				goto bad;
@@ -1004,7 +1051,15 @@ abortit:
 			error = EISDIR;
 			goto bad;
 		}
+#if EXT2FS
+		if (IS_EXT2_VNODE(ITOV(dp))) {
+			error = ext2_dirrewrite(dp, ip, tcnp);
+		} else {
+			error = ufs_dirrewrite(dp, ip, tcnp);
+		}
+#else
 		error = ufs_dirrewrite(dp, ip, tcnp);
+#endif /* EXT2FS */
 		if (error)
 			goto bad;
 		/*
@@ -1096,6 +1151,11 @@ abortit:
 #				else
 					namlen = dirbuf.dotdot_namlen;
 #				endif
+#if EXT2FS
+				if(IS_EXT2_VNODE(fvp))
+					namlen = ((struct odirtemplate *)
+						    &dirbuf)->dotdot_namlen;
+#endif /* EXT2FS */
 				if (namlen != 2 ||
 				    dirbuf.dotdot_name[0] != '.' ||
 				    dirbuf.dotdot_name[1] != '.') {
@@ -1114,7 +1174,15 @@ abortit:
 				}
 			}
 		}
+#if EXT2FS
+		if (IS_EXT2_VNODE(fdvp)) {
+			error = ext2_dirremove(fdvp, fcnp);
+		} else {
+			error = ufs_dirremove(fdvp, fcnp);
+		}
+#else
 		error = ufs_dirremove(fdvp, fcnp);
+#endif /* EXT2FS */
 		if (!error) {
 			xp->i_nlink--;
 			xp->i_flag |= IN_CHANGE;
@@ -1228,13 +1296,28 @@ ufs_mkdir(ap)
 		goto bad;
 
 	/* Initialize directory with "." and ".." from static template. */
-	if (dvp->v_mount->mnt_maxsymlinklen > 0)
+	if (dvp->v_mount->mnt_maxsymlinklen > 0
+#if EXT2FS
+		/* omastertemplate is want we want for EXT2 */
+		&& !IS_EXT2_VNODE(dvp) 
+#endif /* EXT2FS */
+	)
 		dtp = &mastertemplate;
 	else
 		dtp = (struct dirtemplate *)&omastertemplate;
 	dirtemplate = *dtp;
 	dirtemplate.dot_ino = ip->i_number;
 	dirtemplate.dotdot_ino = dp->i_number;
+#if EXT2FS
+	/* note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE 
+	 * so let's just redefine it - for this function only
+	 */
+#undef  DIRBLKSIZ 
+#define DIRBLKSIZ (IS_EXT2_VNODE(dvp) ? \
+		   VTOI(dvp)->i_e2fs->s_blocksize : DEV_BSIZE)
+	if(IS_EXT2_VNODE(dvp))
+		dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
+#endif /* EXT2FS */
 	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
 	    sizeof (dirtemplate), (off_t)0, UIO_SYSSPACE,
 	    IO_NODELOCKED|IO_SYNC, cnp->cn_cred, (int *)0, (struct proc *)0);
@@ -1251,7 +1334,15 @@ ufs_mkdir(ap)
 	}
 
 	/* Directory set up, now install it's entry in the parent directory. */
+#if EXT2FS
+	if (IS_EXT2_VNODE(dvp)) {
+		error = ext2_direnter(ip, dvp, cnp);
+	} else {
+		error = ufs_direnter(ip, dvp, cnp);
+	}
+#else
 	error = ufs_direnter(ip, dvp, cnp);
+#endif /* EXT2FS */
 	if (error) {
 		dp->i_nlink--;
 		dp->i_flag |= IN_CHANGE;
@@ -1271,6 +1362,10 @@ out:
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 	vput(dvp);
 	return (error);
+#if EXT2FS
+#undef  DIRBLKSIZ
+#define DIRBLKSIZ  DEV_BSIZE
+#endif /* EXT2FS */
 }
 
 /*
@@ -1309,7 +1404,12 @@ ufs_rmdir(ap)
 	 */
 	error = 0;
 	if (ip->i_nlink != 2 ||
+#if EXT2FS
+	    !(IS_EXT2_VNODE(ITOV(ip)) ? ext2_dirempty : ufs_dirempty)
+	    		 (ip, dp->i_number, cnp->cn_cred)) {
+#else
 	    !ufs_dirempty(ip, dp->i_number, cnp->cn_cred)) {
+#endif /* EXT2FS */
 		error = ENOTEMPTY;
 		goto out;
 	}
@@ -1322,7 +1422,15 @@ ufs_rmdir(ap)
 	 * inode.  If we crash in between, the directory
 	 * will be reattached to lost+found,
 	 */
+#if EXT2FS
+	if (IS_EXT2_VNODE(dvp)) {
+		error = ext2_dirremove(dvp, cnp);
+	} else {
+		error = ufs_dirremove(dvp, cnp);
+	}
+#else
 	error = ufs_dirremove(dvp, cnp);
+#endif /* EXT2FS */
 	if (error)
 		goto out;
 	dp->i_nlink--;
@@ -2014,7 +2122,15 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	error = VOP_UPDATE(tvp, &tv, &tv, 1);
 	if (error)
 		goto bad;
+#if EXT2FS
+	if (IS_EXT2_VNODE(dvp)) {
+		error = ext2_direnter(ip, dvp, cnp);
+	} else {
+		error = ufs_direnter(ip, dvp, cnp);
+	}
+#else
 	error = ufs_direnter(ip, dvp, cnp);
+#endif  /* EXT2FS */
 	if (error)
 		goto bad;
 	if ((cnp->cn_flags & SAVESTART) == 0)
