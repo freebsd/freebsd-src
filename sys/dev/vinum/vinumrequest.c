@@ -107,6 +107,7 @@ vinumstrategy(struct buf *bp)
     int volno;
     struct volume *vol = NULL;
     struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
+    int s;						    /* spl */
 
     switch (device->type) {
     case VINUM_SD_TYPE:
@@ -147,7 +148,9 @@ vinumstrategy(struct buf *bp)
     case VINUM_PLEX_TYPE:
     case VINUM_RAWPLEX_TYPE:
 	bp->b_resid = bp->b_bcount;			    /* transfer everything */
+	s = splbio();
 	vinumstart(bp, 0);
+	splx(s);
 	return;
     }
 }
@@ -258,13 +261,8 @@ vinumstart(struct buf *bp, int reviveok)
 	    biodone(bp);
 	    freerq(rq);
 	    return -1;
-	} {						    /* XXX */
-	    int result;
-	    int s = splhigh();
-	    result = launch_requests(rq, reviveok);	    /* now start the requests if we can */
-	    splx(s);
-	    return result;
 	}
+	return launch_requests(rq, reviveok);		    /* now start the requests if we can */
     } else
 	/*
 	 * This is a write operation.  We write to all
