@@ -1509,6 +1509,13 @@ options 	DPT_RESET_HBA
 options 	DPT_ALLOW_MEMIO
 
 #
+# Compaq "CISS" RAID controllers (SmartRAID 5* series)
+# These controllers have a SCSI-like interface, and require the
+# CAM infrastructure.
+#
+device		ciss
+
+#
 # Mylex AcceleRAID and eXtremeRAID controllers with v6 and later
 # firmware.  These controllers have a SCSI-like interface, and require
 # the CAM infrastructure.

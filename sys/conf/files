@@ -288,6 +288,7 @@ dev/buslogic/bt_pci.c	optional bt pci
 dev/cardbus/cardbus.c	optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/ccd/ccd.c		optional ccd
+dev/ciss/ciss.c		optional ciss
 dev/cnw/if_cnw.c	optional cnw card
 #dev/cnw/if_cnw.c	optional cnw pccard
 dev/cs/if_cs.c		optional cs

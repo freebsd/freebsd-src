@@ -121,6 +121,7 @@ SUBDIR+=aac \
 	atspeaker \
 	bktr \
 	coff \
+	ciss \
 	el \
 	fe \
 	fpu \
