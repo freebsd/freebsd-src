@@ -12,12 +12,26 @@ crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
 crypto/des/des_enc.c		optional	crypto
+dev/fb/creator.c		optional	creator sc
+dev/fb/fb.c			optional	sc
+dev/fb/splash.c			optional	splash
+dev/kbd/kbd.c			optional	sc
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
 dev/ofw/openpromio.c		standard
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
+dev/syscons/scgfbrndr.c		optional	sc
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/syscons/syscons.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
 geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_sunlabel.c		standard
@@ -25,6 +39,7 @@ geom/geom_sunlabel_enc.c	standard
 libkern/ffs.c			standard
 kern/syscalls.c			optional	ktr
 sparc64/central/central.c	optional	central
+sparc64/creator/creator_upa.c	optional	creator sc
 sparc64/ebus/ebus.c		optional	ebus
 sparc64/fhc/fhc.c		optional	fhc
 sparc64/fhc/fhc_central.c	optional	fhc central
@@ -75,6 +90,7 @@ sparc64/sparc64/ofw_machdep.c	standard
 sparc64/sparc64/pmap.c		standard
 sparc64/sparc64/prof_machdep.c	optional	profiling-routine
 sparc64/sparc64/rwindow.c	standard
+sparc64/sparc64/sc_machdep.c	optional	sc
 sparc64/sparc64/spitfire.c	standard
 sparc64/sparc64/support.S	standard
 sparc64/sparc64/sys_machdep.c	standard
