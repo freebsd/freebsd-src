@@ -173,6 +173,7 @@ int
 procfs_doproccmdline(PFS_FILL_ARGS)
 {
 	struct ps_strings pstr;
+	char **ps_argvstr;
 	int error, i;
 
 	/*
@@ -199,10 +200,21 @@ procfs_doproccmdline(PFS_FILL_ARGS)
 		    sizeof(pstr));
 		if (error)
 			return (error);
+		if (pstr.ps_nargvstr > ARG_MAX)
+			return (E2BIG);
+		ps_argvstr = malloc(pstr.ps_nargvstr * sizeof(char *),
+		    M_TEMP, M_WAITOK);
+		error = copyin((void *)pstr.ps_argvstr, ps_argvstr,
+		    pstr.ps_nargvstr * sizeof(char *));
+		if (error) {
+			free(ps_argvstr, M_TEMP);
+			return (error);
+		}
 		for (i = 0; i < pstr.ps_nargvstr; i++) {
-			sbuf_copyin(sb, pstr.ps_argvstr[i], 0);
+			sbuf_copyin(sb, ps_argvstr[i], 0);
 			sbuf_printf(sb, "%c", '\0');
 		}
+		free(ps_argvstr, M_TEMP);
 	}
 
 	return (0);
