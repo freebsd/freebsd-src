@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 1998, 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: error.c,v 1.13 1998/02/17 21:19:44 bg Exp $");
+RCSID("$Id: error.c,v 1.15 2001/02/28 20:00:13 joda Exp $");
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,9 +62,9 @@ initialize_error_table_r(struct et_list **list,
 			 int num_errors,
 			 long base)
 {
-    struct et_list *et;
+    struct et_list *et, **end;
     struct foobar *f;
-    for (et = *list; et; et = et->next)
+    for (end = list, et = *list; et; end = &et->next, et = et->next)
         if (et->table->msgs == messages)
             return;
     f = malloc(sizeof(*f));
@@ -80,8 +75,8 @@ initialize_error_table_r(struct et_list **list,
     et->table->msgs = messages;
     et->table->n_msgs = num_errors;
     et->table->base = base;
-    et->next = *list;
-    *list = et;
+    et->next = NULL;
+    *end = et;
 }
 			
 

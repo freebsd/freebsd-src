@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,9 +31,9 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: roken_rename.h,v 1.3 1999/12/02 16:58:38 joda Exp $ */
+/* $Id: lex.h,v 1.1 2000/06/22 00:42:52 assar Exp $ */
 
-#ifndef __roken_rename_h__
-#define __roken_rename_h__
+void error_message (const char *, ...)
+__attribute__ ((format (printf, 1, 2)));
 
-#endif /* __roken_rename_h__ */
+int yylex(void);
