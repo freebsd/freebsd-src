@@ -87,10 +87,11 @@ int	maxtimeout = 5*TIMEOUT;
 #define	PKTSIZE	SEGSIZE+4
 char	buf[PKTSIZE];
 char	ackbuf[PKTSIZE];
-struct	sockaddr_in from;
+struct	sockaddr_storage from;
 int	fromlen;
 
 void	tftp __P((struct tftphdr *, int));
+static void unmappedaddr __P((struct sockaddr_in6 *));
 
 /*
  * Null-terminated directory prefix list for absolute pathname requests and
@@ -119,7 +120,8 @@ main(argc, argv)
 	register struct tftphdr *tp;
 	register int n;
 	int ch, on;
-	struct sockaddr_in sin;
+	struct sockaddr_storage me;
+	int len;
 	char *chroot_dir = NULL;
 	struct passwd *nobody;
 	char *chuser = "nobody";
@@ -244,9 +246,15 @@ main(argc, argv)
 			char *tempchroot;
 			struct stat sb;
 			int statret;
+			struct sockaddr_storage ss;
+			char hbuf[NI_MAXHOST];
 
-			tempchroot = inet_ntoa(from.sin_addr);
-			asprintf(&tempchroot, "%s/%s", chroot_dir, tempchroot);
+			memcpy(&ss, &from, from.ss_len);
+			unmappedaddr((struct sockaddr_in6 *)&ss);
+			getnameinfo((struct sockaddr *)&ss, ss.ss_len,
+				    hbuf, sizeof(hbuf), NULL, 0,
+				    NI_NUMERICHOST | NI_WITHSCOPEID);
+			asprintf(&tempchroot, "%s/%s", chroot_dir, hbuf);
 			statret = stat(tempchroot, &sb);
 			if ((sb.st_mode & S_IFDIR) &&
 			    (statret == 0 || (statret == -1 && ipchroot == 1)))
@@ -265,22 +273,37 @@ main(argc, argv)
 		setuid(nobody->pw_uid);
 	}
 
-	from.sin_family = AF_INET;
+	len = sizeof(me);
+	if (getsockname(0, (struct sockaddr *)&me, &len) == 0) {
+		switch (me.ss_family) {
+		case AF_INET:
+			((struct sockaddr_in *)&me)->sin_port = 0;
+			break;
+		case AF_INET6:
+			((struct sockaddr_in6 *)&me)->sin6_port = 0;
+			break;
+		default:
+			/* unsupported */
+			break;
+		}
+	} else {
+		memset(&me, 0, sizeof(me));
+		me.ss_family = from.ss_family;
+		me.ss_len = from.ss_len;
+	}
 	alarm(0);
 	close(0);
 	close(1);
-	peer = socket(AF_INET, SOCK_DGRAM, 0);
+	peer = socket(from.ss_family, SOCK_DGRAM, 0);
 	if (peer < 0) {
 		syslog(LOG_ERR, "socket: %m");
 		exit(1);
 	}
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	if (bind(peer, (struct sockaddr *)&sin, sizeof (sin)) < 0) {
+	if (bind(peer, (struct sockaddr *)&me, me.ss_len) < 0) {
 		syslog(LOG_ERR, "bind: %m");
 		exit(1);
 	}
-	if (connect(peer, (struct sockaddr *)&from, sizeof(from)) < 0) {
+	if (connect(peer, (struct sockaddr *)&from, from.ss_len) < 0) {
 		syslog(LOG_ERR, "connect: %m");
 		exit(1);
 	}
@@ -352,11 +375,12 @@ again:
 	}
 	ecode = (*pf->f_validate)(&filename, tp->th_opcode);
 	if (logging) {
-		char host[MAXHOSTNAMELEN];
+		char hbuf[NI_MAXHOST];
 
-		realhostname(host, sizeof(host) - 1, &from.sin_addr);
-		host[sizeof(host) - 1] = '\0';
-		syslog(LOG_INFO, "%s: %s request for %s: %s", host,
+		getnameinfo((struct sockaddr *)&from, from.ss_len,
+			    hbuf, sizeof(hbuf), NULL, 0, 
+			    NI_WITHSCOPEID);
+		syslog(LOG_INFO, "%s: %s request for %s: %s", hbuf,
 			tp->th_opcode == WRQ ? "write" : "read",
 			filename, errtomsg(ecode));
 	}
@@ -709,4 +733,25 @@ nak(error)
 	length += 5;
 	if (send(peer, buf, length, 0) != length)
 		syslog(LOG_ERR, "nak: %m");
+}
+
+/* translate IPv4 mapped IPv6 address to IPv4 address */
+static void
+unmappedaddr(struct sockaddr_in6 *sin6)
+{
+	struct sockaddr_in *sin4;
+	u_int32_t addr;
+	int port;
+
+	if (sin6->sin6_family != AF_INET6 ||
+	    !IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+		return;
+	sin4 = (struct sockaddr_in *)sin6;
+	addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
+	port = sin6->sin6_port;
+	memset(sin4, 0, sizeof(struct sockaddr_in));
+	sin4->sin_addr.s_addr = addr;
+	sin4->sin_port = port;
+	sin4->sin_family = AF_INET;
+	sin4->sin_len = sizeof(struct sockaddr_in);
 }

@@ -260,7 +260,7 @@ synchnet(f)
 {
 	int i, j = 0;
 	char rbuf[PKTSIZE];
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	int fromlen;
 
 	while (1) {
