@@ -221,12 +221,67 @@
       <para><application>gcc</application> has been updated to
 	2.95.4.</para>
 
+      <para><application>libpcap</application> has been updated to
+	0.7.1.</para>
+
       <para>The FTP daemon from NetBSD, otherwise known as
 	<application>lukemftpd</application> 1.2 beta 1, has been imported and is
 	available as &man.lukemftpd.8;.</para>
 
+      <para><application>OpenSSH</application> has been updated to
+	version 3.4p1.  Among the changes:
+	  <itemizedlist>
+	    <listitem>
+	      <para>The <filename>*2</filename> files are obsolete
+		(for example,
+		<filename>~/.ssh/known_hosts</filename> can hold the
+		contents of
+		<filename>~/.ssh/known_hosts2</filename>).</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; can import and export keys using
+		the SECSH Public Key File Format, for key exchange
+		with several commercial SSH implementations.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-add.1; now adds all three default keys.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; no longer defaults to a
+		specific key type; one must be specified with the
+		<option>-t</option> option.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>A <quote>privilege separation</quote> feature,
+		which uses unprivileged processes to contain and
+		restrict the effects of future compromises or
+		programming errors.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Several bugfixes, including closure of a
+		security hole that could lead to an integer overflow
+		and undesired privilege escalation.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>The default SSH protocol to use is now Version 2
+	        (with a fallback to Version 1), rather than Version 1
+	        (with a fallback to Version 2).</para>
+	    </listitem>
+
+	  </itemizedlist>
+	</para>
+
       <para><application>sendmail</application> has been updated 
 	from version 8.12.3 to version 8.12.5.</para>
+
+      <para><application>tcpdump</application> has been updated to
+	3.7.1.</para>
 
     </sect3>
 
