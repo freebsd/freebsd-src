@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_cd.h,v 1.6 1993/11/18 05:02:52 rgrimes Exp $
+ *	$Id: scsi_cd.h,v 1.7 1995/05/30 08:13:29 rgrimes Exp $
  */
 #ifndef	_SCSI_SCSI_CD_H
 #define _SCSI_SCSI_CD_H 1
@@ -28,18 +28,6 @@
 /*
  * SCSI command format
  */
-
-struct scsi_read_capacity_cd
-{
-	u_char	op_code;
-	u_char	byte2;
-	u_char	addr_3;	/* Most Significant */
-	u_char	addr_2;
-	u_char	addr_1;
-	u_char	addr_0;	/* Least Significant */
-	u_char	unused[3];
-	u_char	control;
-};
 
 struct scsi_pause
 {
