@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.1 1995/10/19 16:15:39 jkh Exp $
+ * $Id: installFinal.c,v 1.2 1995/10/20 07:02:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -85,7 +85,7 @@ static DMenu MenuSamba = {
 
 /* Do any final optional hackery */
 int
-installFinal(void)
+installFinal(char *unused)
 {
     int i, tval;
     char tbuf[256];

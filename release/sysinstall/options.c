@@ -52,7 +52,7 @@ ftpFlagCheck(Option opt)
         optionUnset(OPT_FTP_RESELECT);
     else if ((int)opt.aux == OPT_FTP_RESELECT && optionIsSet(OPT_FTP_ABORT))
         optionUnset(OPT_FTP_ABORT);
-    return NULL;
+    return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
 }
 
 static char *
@@ -179,7 +179,10 @@ value_of(Option opt)
 	return ival;
 
     case OPT_IS_FLAG:
-	return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
+	if (opt.check)
+	    return opt.check(opt);
+	else
+	    return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
 
     case OPT_IS_FUNC:
     case OPT_IS_VAR:

@@ -209,7 +209,7 @@ installUpgrade(char *str)
 	return RET_FAIL;
 
     /* Note that we're now upgrading */
-    variable_set2(SYSTEM_INSTALLED, "upgrade");
+    variable_set2(SYSTEM_STATE, "upgrade");
 
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
 	       "you will be expected to *Mount* any partitions you're interested in\n"
@@ -256,9 +256,8 @@ installUpgrade(char *str)
 	if (saved_etc) {
 	    msgNotify("Preserving /etc directory..");
 	    /* cp returns a bogus status, so we can't check the status meaningfully.  Bleah. */
-	    (void)vsystem("cp -pr /etc/* %s", saved_etc)) {
+	    (void)vsystem("cp -pr /etc/* %s", saved_etc);
 	}
-
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.205");
 	    if (system("chflags noschg /mnt/kernel && mv /mnt/kernel /mnt/kernel.205"))
@@ -284,7 +283,7 @@ installUpgrade(char *str)
 		  "/dev entries and such that a 2.1 system expects to see.  I'll also perform a\n"
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
-	if (installFixup() == RET_FAIL)
+	if (installFixup("upgrade") == RET_FAIL)
 	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
 		       "You may wish to examine the system a little more closely when\n"
 		       "it comes time to merge your /etc customizations back.");
@@ -293,7 +292,7 @@ installUpgrade(char *str)
     if (extractingBin)
 	configSysconfig();
 
-    if (installFinal() == RET_FAIL)
+    if (installFinal("upgrade") == RET_FAIL)
 	msgConfirm("Some of the final configuration stuff evidently failed, but\n"
 		   "the first stage of the upgrade should otherwise be considered\n"
 		   "a success!\n\n"
