@@ -568,14 +568,16 @@ in_arpinput(m)
 		}
 	/*
 	 * If bridging, fall back to using any inet address.
+	 * This is probably incorrect, the right way being try to match
+	 * addresses for interfaces in the same cluster, so if we
+	 * get here we should always drop the packet.
 	 */
 	if (!BRIDGE_TEST ||
 	    (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL) {
 		m_freem(m);
 		return;
 	}
-	ia = ifatoia(ifa);
-  match:
+match:
 	myaddr = ia->ia_addr.sin_addr;
 	if (!bcmp((caddr_t)ea->arp_sha, (caddr_t)ac->ac_enaddr,
 	    sizeof (ea->arp_sha))) {
