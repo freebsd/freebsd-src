@@ -44,11 +44,13 @@
 .Op Fl a Ar maxcontig
 .Op Fl d Ar rotdelay
 .Op Fl e Ar maxbpg
+.Op Fl f Ar avgfilesize
 .Op Fl m Ar minfree
 .Bk -words
 .Op Fl n Ar enable | disable
 .Op Fl o Ar optimize_preference
 .Op Fl p
+.Op Fl s Ar avgfpdir
 .Ek
 .Op Ar special | Ar filesystem
 .Sh DESCRIPTION
@@ -92,6 +94,8 @@ more frequently than if they were allowed to allocate all the blocks
 in a cylinder group before seeking elsewhere.
 For file systems with exclusively large files,
 this parameter should be set higher.
+.It Fl f Ar avgfilezsize
+Specify the expected average file size.
 .It Fl m Ar minfree
 Specify the percentage of space held back
 from normal users; the minimum free space threshold.
@@ -122,6 +126,8 @@ are on the selected file system.  More detailed information can be
 obtained in the
 .Xr dumpfs 8
 manual page.
+.It Fl s Ar avgfpdir
+Specify the expected number of files per directory.
 .El
 .Sh ERRORS
 If
