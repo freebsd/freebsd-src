@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.66.2.1 1996/11/21 16:41:35 phk Exp $
+#	$Id: termcap.src,v 1.69 1996/12/19 21:51:48 ache Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2525,6 +2525,62 @@ vt200-ws|vt220-ws|dec-vt220-ws|dec vt200 series; 132 col.; smooth scroll:\
 	:co#132:vt@:tc=vt200:
 vt200-em|vt220-em|dec-vt200-em|dec-vt220-em|vt200 emulation (without semigraphics ):\
 	:as@:ae@:ac@:tc=vt200:
+xterm-r5|xterm X11R5 version:\
+	:am:km:ms:xn:\
+	:co#80:it#8:li#24:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:F1=\E[23~:\
+	:F2=\E[24~:IC=\E[%d@:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:\
+	:al=\E[L:bl=^G:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:\
+	:cm=\E[%i%d;%dH:cr=^M:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:\
+	:dl=\E[M:do=^J:ei=:ho=\E[H:ic=\E[@:im=:k0=\EOq:k1=\E[11~:\
+	:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:kA=\E[30~:\
+	:kD=\E[3~:kE=\E[8~:kI=\E[2~:kL=\E[31~:kN=\E[6~:kP=\E[5~:\
+	:kb=^H:kd=\EOB:ke=\E[?1l\E>:kh=\E[7~:kl=\EOD:kr=\EOC:\
+	:ks=\E[?1h\E=:ku=\EOA:le=^H:md=\E[1m:me=\E[m:mr=\E[7m:\
+	:nd=\E[C:r1=\E>\E[1;3;4;5;6l\E[?7h\E[m\E[r\E[2J\E[H:\
+	:rc=\E8:\
+	:sc=\E7:se=\E[m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:up=\E[A:
+xterm-r6|xterm-old|xterm X11R6 version:\
+	:am:km:mi:ms:xn:\
+	:co#80:it#8:li#24:\
+	:*6=\E[4~:@0=\E[1~:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:\
+	:DO=\E[%dB:F1=\E[23~:F2=\E[24~:F3=\E[25~:F4=\E[26~:\
+	:F5=\E[28~:F6=\E[29~:F7=\E[31~:F8=\E[32~:F9=\E[33~:\
+	:FA=\E[34~:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:\
+	:as=^N:bl=^G:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:\
+	:cr=^M:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:\
+	:eA=\E)0:ei=\E[4l:ho=\E[H:im=\E[4h:\
+	:is=\E7\E[r\E[m\E[?7h\E[?1;3;4;6l\E[4l\E8\E>:k1=\EOP:\
+	:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:k7=\E[18~:\
+	:k8=\E[19~:k9=\E[20~:k;=\E[21~:kD=\E[3~:kI=\E[2~:kN=\E[6~:\
+	:kP=\E[5~:kb=^H:kd=\EOB:ke=\E[?1l\E>:kl=\EOD:kr=\EOC:\
+	:ks=\E[?1h\E=:ku=\EOA:le=^H:md=\E[1m:me=\E[m:ml=\El:\
+	:mr=\E[7m:mu=\Em:nd=\E[C:\
+	:r2=\E7\E[r\E[m\E[?7h\E[?1;3;4;6l\E[4l\E8\E>:rc=\E8:\
+	:sc=\E7:se=\E[m:sf=^J:so=\E[7m:sr=\EM:ta=^I:\
+	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[m:up=\E[A:\
+	:us=\E[4m:
+xterm-xf86-v32|xterm terminal emulator (X Window System):\
+	:am:km:mi:ms:xn:\
+	:co#80:it#8:li#24:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
+	:K1=\EOw:K2=\EOy:K3=\EOu:K4=\EOq:K5=\EOs:LE=\E[%dD:\
+	:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:cd=\E[J:\
+	:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:cr=^M:\
+	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:ec=\E[%dX:\
+	:ei=\E[4l:ho=\E[H:ic=\E[@:im=\E[4h:\
+	:is=\E7\E[r\E[m\E[?7h\E[?1;3;4;6l\E[4l\E8\E>:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:kD=\177:kI=\E[2~:\
+	:kN=\E[6~:kP=\E[5~:kb=^H:kd=\EOB:ke=\E[?1l\E>:kh=\EOH:\
+	:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:ku=\EOA:le=^H:md=\E[1m:\
+	:me=\E[m\017:mr=\E[7m:nd=\E[C:rc=\E8:sc=\E7:se=\E[27m:\
+	:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:te=\E[2J\E[?47l\E8:\
+	:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:us=\E[4m:\
+	:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++\054\054II00:\
+	:u6=\E[%i%d;%dR:u7=\E[6n:u8=\E[?1;2c:u9=\E[c:
 # @(#)termcap	X10/6.6	11/7/86, minus alternate screen, plus :cs
 xterm|vs100|xterm terminal emulator (X window system):\
 	:li#65:\
