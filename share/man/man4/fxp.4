@@ -38,8 +38,10 @@
 The
 .Nm
 driver provides support for the EtherExpress Pro/10, Pro/100B, and Pro/100+
-PCI Fast Ethernet adapters based on the Intel i82557, i82558, i82559
-or i82550 ethernet chips.
+PCI Fast Ethernet adapters based on the Intel i82557, i82558, i82559,
+i82550, or i82562 Ethernet chips.
+Many on-board network interfaces on Intel motherboards use these chips
+and are also supported.
 .Pp
 The
 .Nm
@@ -63,7 +65,7 @@ driver supports the following media options:
 Set full duplex operation
 .El
 .Pp
-Note that 100baseTX media type is only available on the Pro/100B and Pro/100+.
+Note that 100baseTX media type is not available on the Pro/10.
 For further information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
