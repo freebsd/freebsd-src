@@ -229,7 +229,25 @@ free(addr, type)
 		    addr, mem);
 
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
+#ifdef INVARIANTS
+		struct malloc_type **mtp = addr;
+#endif
 		size = slab->us_zone->uz_size;
+#ifdef INVARIANTS
+		/*
+		 * Cache a pointer to the malloc_type that most recently freed
+		 * this memory here.  This way we know who is most likely to
+		 * have stepped on it later.
+		 *
+		 * This code assumes that size is a multiple of 8 bytes for
+		 * 64 bit machines
+		 */
+		mtp = (struct malloc_type **)
+		    ((unsigned long)mtp & ~UMA_ALIGN_PTR);
+		mtp += (size - sizeof(struct malloc_type *)) /
+		    sizeof(struct malloc_type *);
+		*mtp = type;
+#endif
 		uma_zfree_arg(slab->us_zone, addr, slab);
 	} else {
 		size = slab->us_size;
@@ -398,7 +416,7 @@ kmeminit(dummy)
 
 		kmemzones[indx].kz_zone = uma_zcreate(name, size,
 #ifdef INVARIANTS
-		    trash_ctor, trash_dtor, trash_init, trash_fini,
+		    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
 #else
 		    NULL, NULL, NULL, NULL,
 #endif
