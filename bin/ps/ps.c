@@ -715,9 +715,10 @@ addelem_tty(struct listinfo *inf, const char *elem)
 {
 	const char *ttypath;
 	struct stat sb;
-	char pathbuf[PATH_MAX];
+	char pathbuf[PATH_MAX], pathbuf2[PATH_MAX];
 
 	ttypath = NULL;
+	pathbuf2[0] = '\0';
 	switch (*elem) {
 	case '/':
 		ttypath = elem;
@@ -732,28 +733,35 @@ addelem_tty(struct listinfo *inf, const char *elem)
 		strlcpy(pathbuf, _PATH_DEV, sizeof(pathbuf));
 		strlcat(pathbuf, elem, sizeof(pathbuf));
 		ttypath = pathbuf;
-		if (strncmp(pathbuf, _PATH_TTY, sizeof(_PATH_TTY)) == 0)
+		if (strncmp(pathbuf, _PATH_TTY, strlen(_PATH_TTY)) == 0)
 			break;
 		if (strcmp(pathbuf, _PATH_CONSOLE) == 0)
 			break;
-		if (stat(pathbuf, &sb) == 0 && S_ISCHR(sb.st_mode)) {
+		/* Check to see if /dev/tty${elem} exists */
+		strlcpy(pathbuf2, _PATH_TTY, sizeof(pathbuf2));
+		strlcat(pathbuf2, elem, sizeof(pathbuf2));
+		if (stat(pathbuf2, &sb) == 0 && S_ISCHR(sb.st_mode)) {
 			/* No need to repeat stat() && S_ISCHR() checks */
 			ttypath = NULL;	
 			break;
 		}
-		/* /dev/${elem} does not exist, so try /dev/tty${elem} */
-		strlcpy(pathbuf, _PATH_TTY, sizeof(pathbuf));
-		strlcat(pathbuf, elem, sizeof(pathbuf));
 		break;
 	}
 	if (ttypath) {
 		if (stat(ttypath, &sb) == -1) {
-			warn("%s", ttypath);
+			if (pathbuf2[0] != '\0')
+				warn("%s and %s", pathbuf2, ttypath);
+			else
+				warn("%s", ttypath);
 			optfatal = 1;
 			return (0);
 		}
 		if (!S_ISCHR(sb.st_mode)) {
-			warn("%s: Not a terminal", ttypath);
+			if (pathbuf2[0] != '\0')
+				warnx("%s and %s: Not a terminal", pathbuf2,
+				    ttypath);
+			else
+				warnx("%s: Not a terminal", ttypath);
 			optfatal = 1;
 			return (0);
 		}
