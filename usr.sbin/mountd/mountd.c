@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.13 1997/02/22 14:33:02 peter Exp $";
+	"$Id: mountd.c,v 1.14 1997/03/11 12:43:45 peter Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
+#include <sys/sysctl.h>
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
@@ -63,6 +64,7 @@ static const char rcsid[] =
 #endif
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
+#include <nfs/nfs.h>
 #include <ufs/ufs/ufsmount.h>
 #include <msdosfs/msdosfsmount.h>
 #include <isofs/cd9660/cd9660_mount.h>	/* XXX need isofs in include */
@@ -255,6 +257,7 @@ main(argc, argv)
 #ifdef __FreeBSD__
 	struct vfsconf vfc;
 	int error;
+	int mib[3];
 
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
@@ -314,6 +317,16 @@ main(argc, argv)
 		fclose(pidfile);
 	  }
 	}
+
+	mib[0] = CTL_VFS;
+	mib[1] = MOUNT_NFS;
+	mib[2] = NFS_NFSPRIVPORT;
+	if (sysctl(mib, 3, NULL, NULL,
+	    &resvport_only, sizeof(resvport_only)) != 0) {
+		syslog(LOG_ERR, "sysctl: %m");
+		exit(1);
+	}
+
 	if ((udptransp = svcudp_create(RPC_ANYSOCK)) == NULL ||
 	    (tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0)) == NULL) {
 		syslog(LOG_ERR, "Can't create socket");
