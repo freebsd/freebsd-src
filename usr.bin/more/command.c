@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)command.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id$";
+        "$Id: command.c,v 1.11 1999/05/30 18:06:52 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -364,6 +364,7 @@ commands()
 	register int action;
 	static int default_hscroll = 1;
 	static int saved_horiz_off = NO_HORIZ_OFF;
+	extern char *tagfile;
 
 	last_mca = 0;
 	scroll = (sc_height + 1) / 2;
@@ -569,6 +570,24 @@ again:		if (sigs)
 			start_mca(A_TAGFILE, "Tag: ");
 			c = getcc();
 			goto again;
+		case A_NEXTTAG:
+			if (number <= 0)
+				number = 1;
+			nexttag(number);
+			if (tagfile == NULL)
+				break;
+			if (edit(tagfile))
+				(void)tagsearch();
+			break;
+		case A_PREVTAG:
+			if (number <= 0)
+				number = 1;
+			prevtag(number);
+			if (tagfile == NULL)
+				break;
+			if (edit(tagfile))
+				(void)tagsearch();
+			break;
 		case A_FILE_LIST:		/* show list of file names */
 			CMD_EXEC;
 			showlist();
