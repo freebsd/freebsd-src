@@ -1,3 +1,5 @@
+/* Created by ./makestatetext on Wed Jan 5 10:05:30 CST 2000. Do not edit */
+
 /*-
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -33,9 +35,8 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $FreeBSD$
  */
-
-/* Created by ./makestatetext on Sun Aug 15 10:34:15 CST 1999. Do not edit */
 
 /* Drive state texts */
 char *drivestatetext[] =
