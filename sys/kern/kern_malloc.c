@@ -118,7 +118,13 @@ struct {
 };
 
 u_int vm_kmem_size;
-static struct mtx malloc_mtx;
+
+/*
+ * The malloc_mtx protects the kmemstatistics linked list as well as the
+ * mallochash.
+ */
+
+struct mtx malloc_mtx;
 
 #ifdef MALLOC_PROFILE
 uint64_t krequests[KMEM_ZSIZE + 1];
@@ -165,6 +171,7 @@ malloc(size, type, flags)
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
 		va = uma_zalloc(zone, flags);
+		mtx_lock(&ksp->ks_mtx);
 		if (va == NULL) 
 			goto out;
 
@@ -174,6 +181,7 @@ malloc(size, type, flags)
 		size = roundup(size, PAGE_SIZE);
 		zone = NULL;
 		va = uma_large_malloc(size, flags);
+		mtx_lock(&ksp->ks_mtx);
 		if (va == NULL)
 			goto out;
 	}
@@ -184,6 +192,7 @@ out:
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
 
+	mtx_unlock(&ksp->ks_mtx);
 	return ((void *) va);
 }
 
@@ -211,7 +220,9 @@ free(addr, type)
 	size = 0;
 
 	mem = (void *)((u_long)addr & (~UMA_SLAB_MASK));
+	mtx_lock(&malloc_mtx);
 	slab = hash_sfind(mallochash, mem);
+	mtx_unlock(&malloc_mtx);
 
 	if (slab == NULL)
 		panic("free: address %p(%p) has not been allocated.\n",
@@ -224,8 +235,10 @@ free(addr, type)
 		size = slab->us_size;
 		uma_large_free(slab);
 	}
+	mtx_lock(&ksp->ks_mtx);
 	ksp->ks_memuse -= size;
 	ksp->ks_inuse--;
+	mtx_unlock(&ksp->ks_mtx);
 }
 
 /*
@@ -246,8 +259,10 @@ realloc(addr, size, type, flags)
 	if (addr == NULL)
 		return (malloc(size, type, flags));
 
+	mtx_lock(&malloc_mtx);
 	slab = hash_sfind(mallochash,
 	    (void *)((u_long)addr & ~(UMA_SLAB_MASK)));
+	mtx_unlock(&malloc_mtx);
 
 	/* Sanity check */
 	KASSERT(slab != NULL,
@@ -413,6 +428,7 @@ malloc_init(data)
 
 	type->ks_next = kmemstatistics;	
 	kmemstatistics = type;
+	mtx_init(&type->ks_mtx, type->ks_shortdesc, "Malloc Stats", MTX_DEF);
 	mtx_unlock(&malloc_mtx);
 }
 
@@ -424,6 +440,7 @@ malloc_uninit(data)
 	struct malloc_type *t;
 
 	mtx_lock(&malloc_mtx);
+	mtx_lock(&type->ks_mtx);
 	if (type->ks_magic != M_MAGIC)
 		panic("malloc type lacks magic");
 
@@ -441,6 +458,7 @@ malloc_uninit(data)
 		}
 	}
 	type->ks_next = NULL;
+	mtx_destroy(&type->ks_mtx);
 	mtx_unlock(&malloc_mtx);
 }
 
@@ -465,8 +483,10 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 	for (type = kmemstatistics; type != NULL; type = type->ks_next)
 		cnt++;
 
+	mtx_unlock(&malloc_mtx);
 	bufsize = linesize * (cnt + 1);
 	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	mtx_lock(&malloc_mtx);
 
 	len = snprintf(p, linesize,
 	    "\n        Type  InUse MemUse HighUse Requests  Size(s)\n");
