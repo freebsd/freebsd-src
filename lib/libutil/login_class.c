@@ -126,7 +126,7 @@ static struct login_vars {
 };
 
 static char *
-substvar(char * var, const struct passwd * pwd, int hlen, int pch, int nlen)
+substvar(const char * var, const struct passwd * pwd, int hlen, int pch, int nlen)
 {
     char    *np = NULL;
 
@@ -137,12 +137,10 @@ substvar(char * var, const struct passwd * pwd, int hlen, int pch, int nlen)
 
 	if (pwd != NULL) {
 	    /* Count the number of ~'s in var to substitute */
-	    p = var;
-	    for (p = var; (p = strchr(p, '~')) != NULL; p++)
+	    for (p = (char *)var; (p = strchr(p, '~')) != NULL; p++)
 		++tildes;
 	    /* Count the number of $'s in var to substitute */
-	    p = var;
-	    for (p = var; (p = strchr(p, '$')) != NULL; p++)
+	    for (p = (char *)var; (p = strchr(p, '$')) != NULL; p++)
 		++dollas;
 	}
 
@@ -197,8 +195,8 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
 	++pch;
 
     while (vars->tag != NULL) {
-	char * var = paths ? login_getpath(lc, vars->tag, NULL)
-	    		   : login_getcapstr(lc, vars->tag, NULL, NULL);
+	const char * var = paths ? login_getpath(lc, vars->tag, NULL)
+				 : login_getcapstr(lc, vars->tag, NULL, NULL);
 
 	char * np  = substvar(var, pwd, hlen, pch, nlen);
 

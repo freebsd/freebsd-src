@@ -344,8 +344,8 @@ login_getuserclass(const struct passwd *pwd)
  * an error string on error.
  */
 
-char *
-login_getcapstr(login_cap_t *lc, const char *cap, char *def, char *error)
+const char *
+login_getcapstr(login_cap_t *lc, const char *cap, const char *def, const char *error)
 {
     char    *res;
     int	    ret;
@@ -373,7 +373,7 @@ login_getcaplist(login_cap_t *lc, const char *cap, const char *chars)
 
     if (chars == NULL)
 	chars = ", \t";
-    if ((lstring = login_getcapstr(lc, cap, NULL, NULL)) != NULL)
+    if ((lstring = (char *)login_getcapstr(lc, cap, NULL, NULL)) != NULL)
 	return arrayize(lstring, chars, NULL);
     return NULL;
 }
@@ -387,15 +387,15 @@ login_getcaplist(login_cap_t *lc, const char *cap, const char *chars)
  * If there is an error of any kind, return <error>.
  */
 
-char *
-login_getpath(login_cap_t *lc, const char *cap, char * error)
+const char *
+login_getpath(login_cap_t *lc, const char *cap, const char *error)
 {
-    char    *str;
+    const char *str;
 
-    if ((str = login_getcapstr(lc, (char*)cap, NULL, NULL)) == NULL)
+    if ((str = login_getcapstr(lc, cap, NULL, NULL)) == NULL)
 	str = error;
     else {
-	char *ptr = str;
+	char *ptr = (char *)str;
 
 	while (*ptr) {
 	    int count = strcspn(ptr, ", \t");
@@ -764,8 +764,8 @@ login_getcapbool(login_cap_t *lc, const char *cap, int def)
  *     login_getstyle(lc, "skey", "network");
  */
 
-char *
-login_getstyle(login_cap_t *lc, char *style, const char *auth)
+const char *
+login_getstyle(login_cap_t *lc, const char *style, const char *auth)
 {
     int	    i;
     char    **authtypes = NULL;
