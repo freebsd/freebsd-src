@@ -416,15 +416,13 @@ pcic_pci_probe(device_t dev)
 	itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 	if (itm != NULL)
 		desc = itm->descr;
-	if (desc == NULL) {
-		if (pci_get_class(dev) == PCIC_BRIDGE) {
-			subclass = pci_get_subclass(dev);
-			progif = pci_get_progif(dev);
-			if (subclass == PCIS_BRIDGE_PCMCIA && progif == 0)
-				desc = "Generic PCI-PCMCIA Bridge";
-			if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0)
-				desc = "YENTA PCI-CARDBUS Bridge";
-		}
+	if (desc == NULL && pci_get_class(dev) == PCIC_BRIDGE) {
+		subclass = pci_get_subclass(dev);
+		progif = pci_get_progif(dev);
+		if (subclass == PCIS_BRIDGE_PCMCIA && progif == 0)
+			desc = "Generic PCI-PCMCIA Bridge";
+		if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0)
+			desc = "YENTA PCI-CARDBUS Bridge";
 	}
 	if (desc == NULL)
 		return (ENXIO);
