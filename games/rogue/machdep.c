@@ -300,7 +300,7 @@ md_gct(rt_buf)
 struct rogue_time *rt_buf;
 {
 	struct tm *t, *localtime();
-	long seconds;
+	time_t seconds;
 
 	time(&seconds);
 	t = localtime(&seconds);
@@ -334,11 +334,11 @@ char *fname;
 struct rogue_time *rt_buf;
 {
 	struct stat sbuf;
-	long seconds;
+	time_t seconds;
 	struct tm *t;
 
 	stat(fname, &sbuf);
-	seconds = (long) sbuf.st_mtime;
+	seconds = sbuf.st_mtime;
 	t = localtime(&seconds);
 
 	rt_buf->year = t->tm_year;
