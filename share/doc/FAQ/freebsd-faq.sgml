@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.46 1996/07/01 21:07:49 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.47 1996/07/06 14:39:56 joerg Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2638,6 +2638,28 @@ domain foo.bar.edu
      j@uriah 192% 
 </verb>
 
+
+      </sect1>
+
+      <sect1>
+	<heading>I just booted a new kernel and now I'm getting ``Permission denied'' for all networking operations.</heading>
+        <p>
+          If you have compiled your kernel with the <tt/IPFIREWALL/ 
+          option, you need to be aware that the default policy as of
+          2.1.5R (this actually changed during 2.1-STABLE development) 
+          is to deny all packets that are not explicitly allowed.
+
+        <p>
+          If you had unintentionally misconfigured your system for
+          firewalling, you can restore network operability by typing
+          the following while logged in as root:
+
+        <verb>
+     ipfw add 65534 allow all from any to any
+        </verb>
+
+          For further information on configuring a FreeBSD firewall,
+          see the <url url="http://www.freebsd.org/handbook/handbook.html" name="FreeBSD Handbook.">
 
       </sect1>
 
