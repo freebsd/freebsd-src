@@ -23,10 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.7 1999/05/22 15:18:28 dfr Exp $
+ *	$Id: isavar.h,v 1.8 1999/05/28 09:25:02 dfr Exp $
  */
 
+#ifndef _ISA_ISAVAR_H_
+#define _ISA_ISAVAR_H_
+
 #include "isa_if.h"
+#include <isa/pnp.h>
+
+#ifdef KERNEL
 
 /*
  * ISA devices are partially ordered to ensure that devices which are
@@ -39,8 +45,8 @@
 #define ISA_ORDER_SPECULATIVE	1 /* legacy non-sensitive hardware */
 #define ISA_ORDER_PNP		2 /* plug-and-play hardware */
 
-#define	ISA_NPORT_IVARS	2
-#define	ISA_NMEM_IVARS	2
+#define	ISA_NPORT_IVARS	8
+#define	ISA_NMEM_IVARS	4
 #define	ISA_NIRQ_IVARS	2
 #define	ISA_NDRQ_IVARS	2
 
@@ -63,7 +69,11 @@ enum isa_device_ivars {
 	ISA_IVAR_IRQ_1,
 	ISA_IVAR_DRQ,
 	ISA_IVAR_DRQ_0 = ISA_IVAR_DRQ,
-	ISA_IVAR_DRQ_1
+	ISA_IVAR_DRQ_1,
+	ISA_IVAR_VENDORID,
+	ISA_IVAR_SERIAL,
+	ISA_IVAR_LOGICALID,
+	ISA_IVAR_COMPATID
 };
 
 extern intrmask_t isa_irq_pending(void);
@@ -97,3 +107,20 @@ ISA_ACCESSOR(drq, DRQ, int)
 ISA_ACCESSOR(maddr, MADDR, int)
 ISA_ACCESSOR(msize, MSIZE, int)
 ISA_ACCESSOR(flags, FLAGS, int)
+ISA_ACCESSOR(vendorid, VENDORID, int)
+ISA_ACCESSOR(serial, SERIAL, int)
+ISA_ACCESSOR(logicalid, LOGICALID, int)
+ISA_ACCESSOR(compatid, COMPATID, int)
+
+void	isa_dmacascade __P((int chan));
+void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
+void	isa_dmainit __P((int chan, u_int bouncebufsize));
+void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
+int	isa_dma_acquire __P((int chan));
+void	isa_dma_release __P((int chan));
+int	isa_dmastatus __P((int chan));
+int	isa_dmastop __P((int chan));
+
+#endif /* KERNEL */
+
+#endif /* !_ISA_ISAVAR_H_ */
