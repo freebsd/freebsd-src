@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkglue.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkglue.c,v 1.10.2.1 1997/09/16 06:57:09 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -377,6 +377,7 @@ vector()
 	fprintf(fp, "pci irqnn\\0\\\n");
 	dev_id = 6;
 	vector_devtab(fp, "bio", &dev_id);
+	vector_devtab(fp, "cam", &dev_id);
 	vector_devtab(fp, "tty", &dev_id);
 	vector_devtab(fp, "net", &dev_id);
 	vector_devtab(fp, "null", &dev_id);

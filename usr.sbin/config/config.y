@@ -12,6 +12,7 @@
 %token	AUTO
 %token	BIO
 %token	BUS
+%token	CAM
 %token	COMMA
 %token	CONFIG
 %token	CONFLICTS
@@ -637,6 +638,8 @@ Info:
 	      = { cur.d_mask = "tty"; } |
 	BIO 
 	      = { cur.d_mask = "bio"; } |
+	CAM 
+	      = { cur.d_mask = "cam"; } |
 	NET 
 	      = { cur.d_mask = "net"; } |
 	FLAGS NUMBER

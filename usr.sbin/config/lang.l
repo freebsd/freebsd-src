@@ -56,6 +56,7 @@ struct kt {
 #if MACHINE_I386
 	{ "bio",	BIO },
 	{ "bus",	BUS },
+	{ "cam",	CAM },
 	{ "conflicts",	CONFLICTS },
 #endif
 	{ "config",	CONFIG },
