@@ -34,7 +34,7 @@ divert(-1)
 #
 
 #
-#  This is a generic configuration file for 4.4 BSD-based systems.
+#  This is a generic configuration file for FreeBSD 4.X and later systems.
 #  If you want to customize it, copy it to a name appropriate for your
 #  environment and do the modifications there.
 #
@@ -45,7 +45,7 @@ divert(-1)
 
 divert(0)
 VERSIONID(`$FreeBSD$')
-OSTYPE(bsd4.4)
+OSTYPE(freebsd4)
 DOMAIN(generic)
 
 FEATURE(access_db, `hash -o /etc/mail/access')
