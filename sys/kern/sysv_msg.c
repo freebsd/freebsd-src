@@ -504,7 +504,7 @@ msgget(td, uap)
 				error = EEXIST;
 				goto done2;
 			}
-			if ((error = ipcperm(td, &msqptr->msg_perm, msgflg & 0700 ))) {
+			if ((error = ipcperm(td, &msqptr->msg_perm, msgflg & 0700))) {
 				DPRINTF(("requester doesn't have 0%o access\n",
 				    msgflg & 0700));
 				goto done2;
