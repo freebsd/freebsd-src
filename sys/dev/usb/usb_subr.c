@@ -794,6 +794,8 @@ usbd_probe_and_attach(parent, dev, port, addr)
 				found++;
 				ifaces[i] = 0; /* consumed */
 #elif defined(__FreeBSD__)
+				/* XXX FreeBSD can't handle multiple intfaces
+				 *     on 1 device yet */
 				return (USBD_NORMAL_COMPLETION);
 #endif
 			}
@@ -972,7 +974,7 @@ usbd_new_device(parent, bus, depth, lowspeed, port, up)
 		usbd_remove_device(dev, up);
 		return (r);
   	}
-  
+ 
   	return (USBD_NORMAL_COMPLETION);
 }
 
