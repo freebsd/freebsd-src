@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
  */
 struct proxy_entry
 {
+    struct libalias *la;
 #define PROXY_TYPE_ENCODE_NONE      1
 #define PROXY_TYPE_ENCODE_TCPSTREAM 2
 #define PROXY_TYPE_ENCODE_IPHDR     3
@@ -113,8 +114,6 @@ struct proxy_entry
     File scope variables
 */
 
-static struct proxy_entry *proxyList;
-
 
 
 /* Local (static) functions:
@@ -138,9 +137,9 @@ static struct proxy_entry *proxyList;
 static int IpMask(int, struct in_addr *);
 static int IpAddr(char *, struct in_addr *);
 static int IpPort(char *, int, int *);
-static void RuleAdd(struct proxy_entry *);
+static void RuleAdd(struct libalias *la, struct proxy_entry *);
 static void RuleDelete(struct proxy_entry *);
-static int RuleNumberDelete(int);
+static int RuleNumberDelete(struct libalias *la, int);
 static void ProxyEncodeTcpStream(struct alias_link *, struct ip *, int);
 static void ProxyEncodeIpHeader(struct ip *, int);
 
@@ -197,22 +196,23 @@ IpPort(char *s, int proto, int *port)
 }
 
 void
-RuleAdd(struct proxy_entry *entry)
+RuleAdd(struct libalias *la, struct proxy_entry *entry)
 {
     int rule_index;
     struct proxy_entry *ptr;
     struct proxy_entry *ptr_last;
 
-    if (proxyList == NULL)
+    if (la->proxyList == NULL)
     {
-        proxyList = entry;
+        la->proxyList = entry;
         entry->last = NULL;
         entry->next = NULL;
         return;
     }
+    entry->la = la;
 
     rule_index = entry->rule_index;
-    ptr = proxyList;
+    ptr = la->proxyList;
     ptr_last = NULL;
     while (ptr != NULL)
     {
@@ -220,10 +220,10 @@ RuleAdd(struct proxy_entry *entry)
         {
             if (ptr_last == NULL)
             {
-                entry->next = proxyList;
+                entry->next = la->proxyList;
                 entry->last = NULL;
-                proxyList->last = entry;
-                proxyList = entry;
+                la->proxyList->last = entry;
+                la->proxyList = entry;
                 return;
             }
 
@@ -245,10 +245,13 @@ RuleAdd(struct proxy_entry *entry)
 static void
 RuleDelete(struct proxy_entry *entry)
 {
+    struct libalias *la;
+ 
+    la = entry->la;
     if (entry->last != NULL)
         entry->last->next = entry->next;
     else
-        proxyList = entry->next;
+        la->proxyList = entry->next;
 
     if (entry->next != NULL)
         entry->next->last = entry->last;
@@ -257,13 +260,13 @@ RuleDelete(struct proxy_entry *entry)
 }
 
 static int
-RuleNumberDelete(int rule_index)
+RuleNumberDelete(struct libalias *la, int rule_index)
 {
     int err;
     struct proxy_entry *ptr;
 
     err = -1;
-    ptr = proxyList;
+    ptr = la->proxyList;
     while (ptr != NULL)
     {
         struct proxy_entry *ptr_next;
@@ -447,7 +450,7 @@ ProxyEncodeIpHeader(struct ip *pip,
 */
 
 int
-ProxyCheck(struct ip *pip,
+ProxyCheck(struct libalias *la, struct ip *pip,
            struct in_addr *proxy_server_addr,
            u_short *proxy_server_port)
 {
@@ -461,7 +464,7 @@ ProxyCheck(struct ip *pip,
     dst_port = ((struct tcphdr *) ((char *) pip + (pip->ip_hl << 2)))
         ->th_dport;
 
-    ptr = proxyList;
+    ptr = la->proxyList;
     while (ptr != NULL)
     {
         u_short proxy_port;
@@ -493,7 +496,7 @@ ProxyCheck(struct ip *pip,
 }
 
 void
-ProxyModify(struct alias_link *link,
+ProxyModify(struct libalias *la, struct alias_link *link,
             struct ip *pip,
             int maxpacketsize,
             int proxy_type)
@@ -516,7 +519,7 @@ ProxyModify(struct alias_link *link,
 */
 
 int
-PacketAliasProxyRule(const char *cmd)
+LibAliasProxyRule(struct libalias *la, const char *cmd)
 {
 /*
  * This function takes command strings of the form:
@@ -694,7 +697,7 @@ PacketAliasProxyRule(const char *cmd)
                 n = sscanf(token, "%d", &rule_to_delete);
                 if (n != 1)
                     return -1;
-                err = RuleNumberDelete(rule_to_delete);
+                err = RuleNumberDelete(la, rule_to_delete);
                 if (err)
                     return -1;
                 return 0;
@@ -831,7 +834,7 @@ PacketAliasProxyRule(const char *cmd)
     proxy_entry->src_mask = src_mask;
     proxy_entry->dst_mask = dst_mask;
 
-    RuleAdd(proxy_entry);
+    RuleAdd(la, proxy_entry);
 
     return 0;
 }

@@ -94,17 +94,15 @@ enum ftp_message_type {
     FTP_UNKNOWN_MESSAGE
 };
 
-static int ParseFtpPortCommand(char *, int);
-static int ParseFtpEprtCommand(char *, int);
-static int ParseFtp227Reply(char *, int);
-static int ParseFtp229Reply(char *, int);
-static void NewFtpMessage(struct ip *, struct alias_link *, int, int);
-
-static struct in_addr true_addr;	/* in network byte order. */
-static u_short true_port;		/* in host byte order. */
+static int ParseFtpPortCommand(struct libalias *la, char *, int);
+static int ParseFtpEprtCommand(struct libalias *la, char *, int);
+static int ParseFtp227Reply(struct libalias *la, char *, int);
+static int ParseFtp229Reply(struct libalias *la, char *, int);
+static void NewFtpMessage(struct libalias *la, struct ip *, struct alias_link *, int, int);
 
 void
 AliasHandleFtpOut(
+struct libalias *la,
 struct ip *pip,	  /* IP packet to examine/patch */
 struct alias_link *link, /* The link to go through (aliased port) */
 int maxpacketsize  /* The maximum size this packet can grow to (including headers) */)
@@ -136,24 +134,24 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
 /*
  * When aliasing a client, check for the PORT/EPRT command.
  */
-	    if (ParseFtpPortCommand(sptr, dlen))
+	    if (ParseFtpPortCommand(la, sptr, dlen))
 		ftp_message_type = FTP_PORT_COMMAND;
-	    else if (ParseFtpEprtCommand(sptr, dlen))
+	    else if (ParseFtpEprtCommand(la, sptr, dlen))
 		ftp_message_type = FTP_EPRT_COMMAND;
 	} else {
 /*
  * When aliasing a server, check for the 227/229 reply.
  */
-	    if (ParseFtp227Reply(sptr, dlen))
+	    if (ParseFtp227Reply(la, sptr, dlen))
 		ftp_message_type = FTP_227_REPLY;
-	    else if (ParseFtp229Reply(sptr, dlen)) {
+	    else if (ParseFtp229Reply(la, sptr, dlen)) {
 		ftp_message_type = FTP_229_REPLY;
-		true_addr.s_addr = pip->ip_src.s_addr;
+		la->true_addr.s_addr = pip->ip_src.s_addr;
 	    }
 	}
 
 	if (ftp_message_type != FTP_UNKNOWN_MESSAGE)
-	    NewFtpMessage(pip, link, maxpacketsize, ftp_message_type);
+	    NewFtpMessage(la, pip, link, maxpacketsize, ftp_message_type);
     }
 
 /* Track the msgs which are CRLF term'd for PORT/PASV FW breach */
@@ -170,7 +168,7 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
 }
 
 static int
-ParseFtpPortCommand(char *sptr, int dlen)
+ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 {
     char ch;
     int i, state;
@@ -228,15 +226,15 @@ ParseFtpPortCommand(char *sptr, int dlen)
     }
 
     if (state == 13) {
-	true_addr.s_addr = htonl(addr);
-	true_port = port;
+	la->true_addr.s_addr = htonl(addr);
+	la->true_port = port;
 	return 1;
     } else
 	return 0;
 }
 
 static int
-ParseFtpEprtCommand(char *sptr, int dlen)
+ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 {
     char ch, delim;
     int i, state;
@@ -315,15 +313,15 @@ ParseFtpEprtCommand(char *sptr, int dlen)
     }
 
     if (state == 13) {
-	true_addr.s_addr = htonl(addr);
-	true_port = port;
+	la->true_addr.s_addr = htonl(addr);
+	la->true_port = port;
 	return 1;
     } else
 	return 0;
 }
 
 static int
-ParseFtp227Reply(char *sptr, int dlen)
+ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 {
     char ch;
     int i, state;
@@ -381,15 +379,15 @@ ParseFtp227Reply(char *sptr, int dlen)
     }
 
     if (state == 13) {
-        true_port = port;
-        true_addr.s_addr = htonl(addr);
+        la->true_port = port;
+        la->true_addr.s_addr = htonl(addr);
 	return 1;
     } else
 	return 0;
 }
 
 static int
-ParseFtp229Reply(char *sptr, int dlen)
+ParseFtp229Reply(struct libalias *la, char *sptr, int dlen)
 {
     char ch, delim;
     int i, state;
@@ -452,14 +450,14 @@ ParseFtp229Reply(char *sptr, int dlen)
     }
 
     if (state == 7) {
-	true_port = port;
+	la->true_port = port;
 	return 1;
     } else
 	return 0;
 }
 
 static void
-NewFtpMessage(struct ip *pip,
+NewFtpMessage(struct libalias *la, struct ip *pip,
               struct alias_link *link,
               int maxpacketsize,
               int ftp_message_type)
@@ -467,15 +465,15 @@ NewFtpMessage(struct ip *pip,
     struct alias_link *ftp_link;
 
 /* Security checks. */
-    if (pip->ip_src.s_addr != true_addr.s_addr)
+    if (pip->ip_src.s_addr != la->true_addr.s_addr)
 	return;
 
-    if (true_port < IPPORT_RESERVED)
+    if (la->true_port < IPPORT_RESERVED)
 	return;
 
 /* Establish link to address and port found in FTP control message. */
-    ftp_link = FindUdpTcpOut(true_addr, GetDestAddress(link),
-                             htons(true_port), 0, IPPROTO_TCP, 1);
+    ftp_link = FindUdpTcpOut(la, la->true_addr, GetDestAddress(link),
+                             htons(la->true_port), 0, IPPROTO_TCP, 1);
 
     if (ftp_link != NULL)
     {

@@ -196,6 +196,7 @@ static u_char *AliasHandleName ( u_char *p, char *pmax ) {
 #define DGM_NEGATIVE_RES	0x16
 
 int AliasHandleUdpNbt(
+	struct libalias *la,
 	struct ip 		  	*pip,	 /* IP packet to examine/patch */
 	struct alias_link 	*link,
 	struct in_addr		*alias_address,
@@ -612,6 +613,7 @@ AliasHandleResource(
 }
 
 int AliasHandleUdpNbtNS(
+	struct libalias *la,
 	struct ip 		  	*pip,	 /* IP packet to examine/patch */
 	struct alias_link 	*link,
 	struct in_addr		*alias_address,
