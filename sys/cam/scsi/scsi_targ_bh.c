@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_targ_bh.c,v 1.1 1999/01/14 06:00:29 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -67,7 +67,7 @@ typedef enum {
 	TARGBH_CCB_WAITING
 } targbh_ccb_types;
 
-#define MAX_ACCEPT	16
+#define MAX_ACCEPT	8
 #define MAX_IMMEDIATE	16
 #define MAX_BUF_SIZE	256	/* Max inquiry/sense/mode page transfer */
 
@@ -117,10 +117,10 @@ static struct scsi_sense_data no_lun_sense_data =
 	SSD_CURRENT_ERROR|SSD_ERRCODE_VALID,
 	0,
 	SSD_KEY_NOT_READY, 
-	0, 0, 0, 0,
+	{ 0, 0, 0, 0 },
 	/*extra_len*/offsetof(struct scsi_sense_data, fru)
                    - offsetof(struct scsi_sense_data, extra_len),
-	0, 0, 0, 0,
+	{ 0, 0, 0, 0 },
 	/* Logical Unit Not Supported */
 	/*ASC*/0x25, /*ASCQ*/0
 };
@@ -137,8 +137,10 @@ static periph_dtor_t	targbhdtor;
 static periph_start_t	targbhstart;
 static void		targbhdone(struct cam_periph *periph,
 				   union ccb *done_ccb);
+#ifdef NOTYET
 static  int		targbherror(union ccb *ccb, u_int32_t cam_flags,
 				    u_int32_t sense_flags);
+#endif
 static struct targbh_cmd_desc*	targbhallocdescr(void);
 static void		targbhfreedescr(struct targbh_cmd_desc *buf);
 					
@@ -675,14 +677,19 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		break;
 	}
+	default:
+		panic("targbhdone: Unexpected ccb opcode");
+		break;
 	}
 }
 
+#ifdef NOTYET
 static int
 targbherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
 	return 0;
 }
+#endif
 
 static struct targbh_cmd_desc*
 targbhallocdescr()
