@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.88 1998/02/09 06:11:20 eivind Exp $
+ * $Id: swap_pager.c,v 1.89 1998/02/23 08:22:24 dyson Exp $
  */
 
 /*
@@ -144,7 +144,6 @@ static boolean_t
 					int *before, int *after));
 static int	swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static void	swap_pager_init __P((void));
-static void	swap_pager_sync __P((void));
 static void spc_free __P((swp_clean_t));
 
 struct pagerops swappagerops = {
@@ -1550,7 +1549,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	return (rv);
 }
 
-static void
+void
 swap_pager_sync()
 {
 	swp_clean_t spc;
