@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.55 1995/12/11 04:58:32 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.56 1995/12/14 09:55:14 phk Exp $
  */
 
 /*
@@ -210,7 +210,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	daddr_t reqblock;
 	int poff;
 	int bsize;
-	int pagesperblock;
+	int pagesperblock, blocksperpage;
 
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
@@ -222,26 +222,42 @@ vnode_pager_haspage(object, pindex, before, after)
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	pagesperblock = bsize / PAGE_SIZE;
-	reqblock = pindex / pagesperblock;
+	blocksperpage = 0;
+	if (pagesperblock > 0) {
+		reqblock = pindex / pagesperblock;
+	} else {
+		blocksperpage = (PAGE_SIZE / bsize);
+		reqblock = pindex * blocksperpage;
+	}
 	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn,
 		after, before);
 	if (err)
 		return TRUE;
 	if ( bn == -1)
 		return FALSE;
-	poff = pindex - (reqblock * pagesperblock);
-	if (before) {
-		*before *= pagesperblock;
-		*before += poff;
-	}
-	if (after) {
-		int numafter;
-		*after *= pagesperblock;
-		numafter = pagesperblock - (poff + 1);
-		if (IDX_TO_OFF(pindex + numafter) > object->un_pager.vnp.vnp_size) {
-			numafter = OFF_TO_IDX((object->un_pager.vnp.vnp_size - IDX_TO_OFF(pindex)));
+	if (pagesperblock > 0) {
+		poff = pindex - (reqblock * pagesperblock);
+		if (before) {
+			*before *= pagesperblock;
+			*before += poff;
 		}
-		*after += numafter;
+		if (after) {
+			int numafter;
+			*after *= pagesperblock;
+			numafter = pagesperblock - (poff + 1);
+			if (IDX_TO_OFF(pindex + numafter) > object->un_pager.vnp.vnp_size) {
+				numafter = OFF_TO_IDX((object->un_pager.vnp.vnp_size - IDX_TO_OFF(pindex)));
+			}
+			*after += numafter;
+		}
+	} else {
+		if (before) {
+			*before /= blocksperpage;
+		}
+
+		if (after) {
+			*after /= blocksperpage;
+		}
 	}
 	return TRUE;
 }
