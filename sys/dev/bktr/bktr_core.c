@@ -539,8 +539,9 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
 
 
 	if ( bootverbose ) {
-		printf("%s: buffer size %d, addr 0x%x\n",
-			bktr_name(bktr), BROOKTREE_ALLOC, vtophys(buf));
+		printf("%s: buffer size %d, addr %p\n",
+			bktr_name(bktr), BROOKTREE_ALLOC,
+			(void *)(uintptr_t)vtophys(buf));
 	}
 
 	if ( buf != 0 ) {
