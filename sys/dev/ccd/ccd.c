@@ -543,8 +543,8 @@ ccdinit(ccd, cpaths, p)
 	 */
 	devstat_add_entry(&cs->device_stats, "ccd", ccd->ccd_unit,
 			  ccg->ccg_secsize, DEVSTAT_ALL_SUPPORTED,
-			  DEVSTAT_TYPE_ASC0 |DEVSTAT_TYPE_IF_OTHER,
-			  DEVSTAT_PRIORITY_CCD);
+			  DEVSTAT_TYPE_STORARRAY |DEVSTAT_TYPE_IF_OTHER,
+			  DEVSTAT_PRIORITY_ARRAY);
 
 	cs->sc_flags |= CCDF_INITED;
 	cs->sc_cflags = ccd->ccd_flags;	/* So we can find out later... */

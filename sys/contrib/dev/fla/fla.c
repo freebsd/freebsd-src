@@ -326,7 +326,8 @@ flaattach (device_t dev)
 
 	devstat_add_entry(&softc[unit].stats, "fla", unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
-		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, 0x190);
+		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
+		DEVSTAT_PRIORITY_DISK);
 
 	sc->dev = disk_create(unit, &sc->disk, 0, &fla_cdevsw, &fladisk_cdevsw);
 	sc->dev->si_drv1 = sc;

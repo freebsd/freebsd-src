@@ -1398,7 +1398,7 @@ saregister(struct cam_periph *periph, void *arg)
 	 */
 	devstat_add_entry(&softc->device_stats, "sa", periph->unit_number, 0,
 	    DEVSTAT_BS_UNAVAILABLE, cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
-	    DEVSTAT_PRIORITY_SA);
+	    DEVSTAT_PRIORITY_TAPE);
 
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
