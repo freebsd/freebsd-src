@@ -247,7 +247,7 @@ static void rl_eeprom_putbyte(sc, addr)
 	d = addr | RL_EECMD_READ;
 
 	/*
-	 * Feed in each bit and stobe the clock.
+	 * Feed in each bit and strobe the clock.
 	 */
 	for (i = 0x400; i; i >>= 1) {
 		if (d & i) {
