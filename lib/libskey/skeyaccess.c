@@ -44,6 +44,7 @@
   * Token input with one-deep pushback.
   */
 static char *prev_token = 0;		/* push-back buffer */
+static char *line_pointer = NULL;
 static char *first_token();
 static int line_number;
 static void unget_token();
@@ -286,7 +287,10 @@ FILE   *fp;
 	if (buf[0])
 	    printf("rule: %s\n", buf);
 #endif
-	if (cp = strtok(buf, " \t"))
+	line_pointer = buf;
+	while ((cp = strsep(&line_pointer, " \t")) != NULL && *cp == '\0')
+		;
+	if (cp != NULL)
 	    return (cp);
     }
 }
@@ -308,7 +312,8 @@ static char *get_token()
     if (cp = prev_token) {
 	prev_token = 0;
     } else {
-	cp = strtok((char *) 0, " \t");
+	while ((cp = strsep(&line_pointer, " \t")) != NULL && *cp == '\0')
+		;
     }
     return (cp);
 }

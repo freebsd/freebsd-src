@@ -2106,7 +2106,7 @@ etob(out, e)
 char *out;
 char *e;
 {
-	char *word;
+	char *word, *cp;
 	int i, p, v,l, low,high;
 	char b[9];
 	char input[36];
@@ -2115,10 +2115,13 @@ char *e;
 		return -1;
 
 	strncpy(input,e,sizeof(input));
+	cp = input;
 	memset(b, 0, sizeof(b));
 	memset(out, 0, 8);
 	for(i=0,p=0;i<6;i++,p+=11){
-		if((word = strtok(i == 0 ? input : NULL," ")) == NULL)
+		while ((word = strsep(&cp, " ")) != NULL && *word == '\0')
+			;
+		if (word == NULL)
 			return -1;
 		l = strlen(word);
 		if(l > 4 || l < 1){
