@@ -47,7 +47,6 @@
 #include <pci/pcireg.h>
 
 #include <dev/firewire/firewire.h>
-#include <dev/firewire/firewirebusreg.h>
 #include <dev/firewire/firewirereg.h>
 
 #include <dev/firewire/fwohcireg.h>
