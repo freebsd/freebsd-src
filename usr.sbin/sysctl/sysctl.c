@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sysctl.c,v 1.3 1995/02/09 23:16:17 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@ static const char rcsid[] =
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/igmp_var.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -298,7 +299,8 @@ parse(string, flags)
 
 	case CTL_NET:
 		if (mib[1] == PF_INET) {
-			len = sysctl_inet(string, &bufp, mib, flags, &type);
+			len = sysctl_inet(string, &bufp, mib, flags, &type,
+					  &special);
 			if (len >= 0)
 				break;
 			return;
@@ -479,13 +481,14 @@ struct ctlname ipname[] = IPCTL_NAMES;
 struct ctlname icmpname[] = ICMPCTL_NAMES;
 struct ctlname udpname[] = UDPCTL_NAMES;
 struct ctlname tcpname[] = TCPCTL_NAMES;
+struct ctlname igmpname[] = IGMPCTL_NAMES;
 struct list inetlist = { inetname, IPPROTO_MAXID };
 struct list inetvars[] = {
 	{ ipname, IPCTL_MAXID },	/* ip */
 	{ icmpname, ICMPCTL_MAXID },	/* icmp */
-	{ 0, 0 },			/* igmp */
-	{ 0, 0 },			/* ggmp */
-	{ 0, 0 },
+	{ igmpname, IGMPCTL_MAXID },	/* igmp */
+	{ 0, 0 },			/* ggp */
+	{ 0, 0 },			/* ipencap */
 	{ 0, 0 },
 	{ tcpname, TCPCTL_MAXID },	/* tcp */
 	{ 0, 0 },
@@ -504,12 +507,14 @@ struct list inetvars[] = {
 /*
  * handle internet requests
  */
-sysctl_inet(string, bufpp, mib, flags, typep)
+int
+sysctl_inet(string, bufpp, mib, flags, typep, specialp)
 	char *string;
 	char **bufpp;
 	int mib[];
 	int flags;
 	int *typep;
+	int *specialp;
 {
 	struct list *lp;
 	int indx;
