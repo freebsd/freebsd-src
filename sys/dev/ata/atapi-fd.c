@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "apm.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -40,18 +39,15 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-fd.h>
 
+/* device structures */
 static	d_open_t	afdopen;
 static	d_close_t	afdclose;
 static	d_ioctl_t	afdioctl;
 static	d_strategy_t	afdstrategy;
-
 static struct cdevsw afd_cdevsw = {
 	/* open */	afdopen,
 	/* close */	afdclose,
@@ -72,6 +68,7 @@ static struct cdevsw afddisk_cdevsw;
 
 /* prototypes */
 int32_t afdattach(struct atapi_softc *);
+void afddetach(struct atapi_softc *);
 static int32_t afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
 static void afd_start(struct afd_softc *);
@@ -82,6 +79,7 @@ static int32_t afd_start_stop(struct afd_softc *, int32_t);
 static int32_t afd_prevent_allow(struct afd_softc *, int32_t);
 
 /* internal vars */
+static u_int32_t afd_lun_map = 0;
 MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
 
 int32_t 
@@ -89,7 +87,6 @@ afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
     dev_t dev;
-    static int32_t afdnlun = 0;
 
     fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT);
     if (!fdp) {
@@ -99,8 +96,9 @@ afdattach(struct atapi_softc *atp)
     bzero(fdp, sizeof(struct afd_softc));
     bufq_init(&fdp->buf_queue);
     fdp->atp = atp;
-    fdp->lun = afdnlun++;
+    fdp->lun = ata_get_lun(&afd_lun_map);
     fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    fdp->atp->driver = fdp;
 
     if (afd_sense(fdp)) {
 	free(fdp, M_AFD);
@@ -118,11 +116,25 @@ afdattach(struct atapi_softc *atp)
     dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
     dev->si_drv1 = fdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    fdp->dev = dev;
     if ((fdp->atp->devname = malloc(8, M_AFD, M_NOWAIT)))
         sprintf(fdp->atp->devname, "afd%d", fdp->lun);
     afd_describe(fdp);
     return 0;
 }
+
+void
+afddetach(struct atapi_softc *atp)
+{   
+    struct afd_softc *fdp = atp->driver;
+    
+    disk_invalidate(&fdp->disk);
+    disk_destroy(fdp->dev);
+    devstat_remove_entry(&fdp->stats);
+    free(fdp->atp->devname, M_AFD);
+    ata_free_lun(&afd_lun_map, fdp->lun);
+    free(fdp, M_AFD);
+}   
 
 static int32_t 
 afd_sense(struct afd_softc *fdp)
@@ -160,7 +172,7 @@ afd_describe(struct afd_softc *fdp)
 	printf("afd%d: <%.40s/%.8s> rewriteable drive at ata%d as %s\n",
 	       fdp->lun, ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
 	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
-	       fdp->atp->controller->lun,
+	       device_get_unit(fdp->atp->controller->dev),
 	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave");
 	printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
 	       fdp->lun, 
@@ -200,7 +212,7 @@ afd_describe(struct afd_softc *fdp)
 			 ((1024L * 1024L) / fdp->cap.sector_size),	
 	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
 	       fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
-	       fdp->atp->controller->lun,
+	       device_get_unit(fdp->atp->controller->dev),
 	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(fdp->atp->controller->mode[ATA_DEV(fdp->atp->unit)])
 	       );
@@ -364,7 +376,7 @@ static int32_t
 afd_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
-    struct afd_softc *fdp = request->driver;
+    struct afd_softc *fdp = request->device->driver;
 
     if (request->error || (bp->b_flags & B_ERROR)) {
 	bp->b_error = request->error;

@@ -57,7 +57,12 @@ int	fill_fpregs __P((struct proc *, struct fpreg *));
 int	set_fpregs __P((struct proc *, struct fpreg *));
 void	alpha_register_pci_scsi __P((int bus, int slot, struct cam_sim *sim));
 #ifdef _SYS_BUS_H_
-int	alpha_platform_setup_ide_intr(int chan, driver_intr_t *fn, void *arg);
+struct resource *alpha_platform_alloc_ide_intr(int chan);
+int	alpha_platform_release_ide_intr(int chan, struct resource *res);
+int	alpha_platform_setup_ide_intr(struct resource *res,
+				      driver_intr_t *fn, void *arg,
+				      void **cookiep);
+int	alpha_platform_teardown_ide_intr(struct resource *res, void *cookie);
 #endif
 void	alpha_platform_assign_pciintr(struct pcicfg *cfg);
 

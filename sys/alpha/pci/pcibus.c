@@ -140,22 +140,31 @@ alpha_platform_assign_pciintr(pcicfgregs *cfg)
 		platform.pci_intr_map((void *)cfg);
 }
 
-int
-alpha_platform_setup_ide_intr(int chan, driver_intr_t *fn, void *arg)
+struct resource *
+alpha_platform_alloc_ide_intr(int chan)
 {
-	if (platform.pci_setup_ide_intr)
-		return platform.pci_setup_ide_intr(chan, fn, arg);
-	else {
-		int irqs[2] = { 14, 15 };
-		void *junk;
-		struct resource *res;
-		res = isa_alloc_intr(0, 0, irqs[chan]);
-		if (res)
-			return isa_setup_intr(0, 0, res, INTR_TYPE_BIO,
-					      fn, arg, &junk);
-		else
-			return ENOMEM;
-	}
+	int irqs[2] = { 14, 15 };
+	return isa_alloc_intr(0, 0, irqs[chan]);
+}
+
+int
+alpha_platform_release_ide_intr(int chan, struct resource *res)
+{
+	return isa_release_intr(0, 0, res);
+}
+
+int
+alpha_platform_setup_ide_intr(struct resource *res,
+			      driver_intr_t *fn, void *arg,
+			      void **cookiep)
+{
+	return isa_setup_intr(0, 0, res, INTR_TYPE_BIO, fn, arg, cookiep);
+}
+
+int
+alpha_platform_teardown_ide_intr(struct resource *res, void *cookie)
+{
+	return isa_teardown_intr(0, 0, res, cookie);
 }
 
 static struct rman irq_rman, port_rman, mem_rman;

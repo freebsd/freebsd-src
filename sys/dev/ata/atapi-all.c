@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "apm.h"
 #include "atapicd.h"
 #include "atapist.h"
 #include "atapifd.h" 
@@ -41,9 +40,6 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <machine/clock.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 
@@ -59,6 +55,9 @@ static int8_t *atapi_skey2str(u_int8_t);
 int32_t acdattach(struct atapi_softc *);
 int32_t afdattach(struct atapi_softc *);
 int32_t astattach(struct atapi_softc *);
+void acddetach(struct atapi_softc *);
+void afddetach(struct atapi_softc *);
+void astdetach(struct atapi_softc *);
 
 /* internal vars */
 MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
@@ -73,7 +72,7 @@ atapi_attach(struct ata_softc *scp, int32_t device)
     struct atapi_softc *atp;
 
     if (!(atp = malloc(sizeof(struct atapi_softc), M_ATAPI, M_NOWAIT))) {
-	printf("atapi: failed to allocate driver storage\n");
+	ata_printf(scp, device, "failed to allocate driver storage\n");
 	return;
     }
     bzero(atp, sizeof(struct atapi_softc));
@@ -131,10 +130,38 @@ notfound:
     scp->dev_softc[ATA_DEV(device)] = atp;
 }
 
+void
+atapi_detach(struct ata_softc *scp, int32_t device)
+{
+    struct atapi_softc *atp = scp->dev_softc[ATA_DEV(device)];
+
+    switch (ATP_PARAM->device_type) {
+#if NATAPICD > 0
+    case ATAPI_TYPE_CDROM:
+	acddetach(atp);
+	break; 
+#endif
+#if NATAPIFD > 0
+    case ATAPI_TYPE_DIRECT:
+	afddetach(atp);
+	break; 
+#endif
+#if NATAPIST > 0
+    case ATAPI_TYPE_TAPE:
+	astdetach(atp);
+	break; 
+#endif
+    default:
+	return;
+    }
+    free(atp, M_ATAPI);
+    scp->dev_softc[ATA_DEV(device)] = NULL;
+}
+
 int32_t	  
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
 		int32_t count, int32_t flags, int32_t timeout,
-		atapi_callback_t callback, void *driver, struct buf *bp)
+		atapi_callback_t callback, void *unused, struct buf *bp)
 {
     struct atapi_request *request;
     int32_t error, s;
@@ -153,7 +180,6 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     if (callback) {
 	request->callback = callback;
 	request->bp = bp;
-	request->driver = driver;
     }
 
     s = splbio();
@@ -273,7 +299,7 @@ atapi_interrupt(struct atapi_request *request)
     if (reason == ATAPI_P_CMDOUT) {
 	if (!(atp->controller->status & ATA_S_DRQ)) {
 	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	    printf("%s: command interrupt, but no DRQ\n", atp->devname);
+	    printf("%s: command interrupt without DRQ\n", atp->devname);
 	    goto op_finished;
 	}
 	outsw(atp->controller->ioaddr + ATA_DATA, request->ccb,
@@ -469,7 +495,6 @@ atapi_read(struct atapi_request *request, int32_t length)
     if (request->bytecount < length) {
 	printf("%s: read data overrun %d/%d\n",
 	       request->device->devname, length, request->bytecount);
-
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 	     inw(request->device->controller->ioaddr + ATA_DATA);
     }
@@ -498,7 +523,6 @@ atapi_write(struct atapi_request *request, int32_t length)
     if (request->bytecount < length) {
 	printf("%s: write data underrun %d/%d\n",
 	       request->device->devname, length, request->bytecount);
-
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 	     outw(request->device->controller->ioaddr + ATA_DATA, 0);
     }
@@ -513,7 +537,7 @@ atapi_timeout(struct atapi_request *request)
     int32_t s = splbio();
 
     atp->controller->running = NULL;
-    printf("%s: atapi_timeout: cmd=%s - resetting\n", 
+    printf("%s: %s command timeout - resetting\n", 
 	   atp->devname, atapi_cmd2str(request->ccb[0]));
 
     if (request->flags & ATAPI_F_DMA_USED)
@@ -597,7 +621,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xbe: return ("READ_CD");
     default: {
 	static int8_t buffer[16];
-	sprintf(buffer, "Unknown CMD (0x%02x)", cmd);
+	sprintf(buffer, "unknown CMD (0x%02x)", cmd);
 	return buffer;
 	}
     }
