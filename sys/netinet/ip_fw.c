@@ -16,7 +16,6 @@
  * $FreeBSD$
  */
 
-#define STATEFUL       1
 #define        DEB(x)
 #define        DDB(x) x
 
@@ -986,9 +985,9 @@ ip_fw_chk(struct ip **pip, int hlen,
 	proto = ip->ip_p;
 	src_ip = ip->ip_src;
 	dst_ip = ip->ip_dst;
-	if (0 && BRIDGED) {
-	    offset = (NTOHS(ip->ip_off) & IP_OFFMASK);
-	    ip_len = NTOHS(ip->ip_len);
+	if (0 && BRIDGED) { /* not yet... */
+	    offset = (ntohs(ip->ip_off) & IP_OFFMASK);
+	    ip_len = ntohs(ip->ip_len);
 	} else {
 	    offset = (ip->ip_off & IP_OFFMASK);
 	    ip_len = ip->ip_len;
