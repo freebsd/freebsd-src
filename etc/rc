@@ -52,7 +52,7 @@ fi
 swapon -a
 
 if [ $1x = autobootx ]; then
-	echo Automatic reboot in progress...
+	echo Automatic boot in progress...
 	fsck -p
 	case $? in
 	0)
