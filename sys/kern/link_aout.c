@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.9 1998/08/12 08:44:21 dfr Exp $
+ *	$Id: link_aout.c,v 1.10 1998/08/16 01:21:51 bde Exp $
  */
+
+#define FREEBSD_AOUT	1
 
 #include <sys/param.h>
 #include <sys/kernel.h>
