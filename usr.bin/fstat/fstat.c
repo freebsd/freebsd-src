@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)fstat.c	8.1 (Berkeley) 6/6/93";
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/queue.h>
+#include <sys/pipe.h>
 #define	KERNEL
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
@@ -141,16 +142,23 @@ int maxfiles;
 
 kvm_t *kd;
 
-int ufs_filestat(), nfs_filestat();
-void dofiles(), getinetproto(), socktrans();
-void usage(), vtrans();
+void dofiles __P((struct kinfo_proc *kp));
+void vtrans __P((struct vnode *vp, int i, int flag));
+int  ufs_filestat __P((struct vnode *vp, struct filestat *fsp));
+int  nfs_filestat __P((struct vnode *vp, struct filestat *fsp));
+char *getmnton __P((struct mount *m));
+void pipetrans __P((struct pipe *pi, int i, int flag));
+void socktrans __P((struct socket *sock, int i));
+void getinetproto __P((int number));
+int  getfname __P((char *filename));
+void usage __P((void));
 
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	register struct passwd *passwd;
 	struct kinfo_proc *p, *plast;
 	int arg, ch, what;
@@ -298,8 +306,6 @@ dofiles(kp)
 	struct proc *p = &kp->kp_proc;
 	struct eproc *ep = &kp->kp_eproc;
 
-	extern char *user_from_uid();
-
 	Uname = user_from_uid(ep->e_ucred.cr_uid, 0);
 	Pid = p->p_pid;
 	Comm = p->p_comm;
@@ -354,6 +360,13 @@ dofiles(kp)
 			if (checkfile == 0)
 				socktrans((struct socket *)file.f_data, i);
 		}
+#ifdef DTYPE_PIPE
+		else if (file.f_type == DTYPE_PIPE) {
+			if (checkfile == 0)
+				pipetrans((struct pipe *)file.f_data, i,
+					file.f_flag);
+		}
+#endif
 		else {
 			dprintf(stderr,
 				"unknown file type %d for file %d of pid %d\n",
@@ -559,6 +572,38 @@ getmnton(m)
 }
 
 void
+pipetrans(pi, i, flag)
+	struct pipe *pi;
+	int i;
+	int flag;
+{
+	struct pipe pip;
+	char rw[3];
+
+	PREFIX(i);
+
+	/* fill in socket */
+	if (!KVM_READ(pi, &pip, sizeof(struct pipe))) {
+		dprintf(stderr, "can't read pipe at %x\n", pi);
+		goto bad;
+	}
+
+	printf("* pipe %8x <-> %8x", (int)pi, (int)pip.pipe_peer);
+	printf(" %6d", (int)pip.pipe_buffer.cnt);
+	rw[0] = '\0';
+	if (flag & FREAD)
+		strcat(rw, "r");
+	if (flag & FWRITE)
+		strcat(rw, "w");
+	printf(" %2s", rw);
+	putchar('\n');
+	return;
+
+bad:
+	printf("* error\n");
+}
+
+void
 socktrans(sock, i)
 	struct socket *sock;
 	int i;
@@ -715,6 +760,7 @@ getinetproto(number)
 	printf(" %s", cp);
 }
 
+int
 getfname(filename)
 	char *filename;
 {
