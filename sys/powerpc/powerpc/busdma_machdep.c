@@ -500,6 +500,35 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	return (error);
 }
 
+int
+bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
+			bus_dma_segment_t *segs, int *nsegs, int flags)
+{
+	int error = 0;
+
+	M_ASSERTPKTHDR(m0);
+
+	if (m0->m_pkthdr.len <= dmat->maxsize) {
+		int first = 1;
+		vm_offset_t lastaddr = 0;
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			if (m->m_len > 0) {
+				error = bus_dmamap_load_buffer(dmat,
+				    segs, m->m_data, m->m_len, NULL,
+				    flags, &lastaddr, nsegs, first);
+				first = 0;
+			}
+		}
+		++*nsegs;
+	} else {
+		error = EINVAL;
+	}
+
+	return (error);
+}
+
 /*
  * Like bus_dmamap_load(), but for uios.
  */
