@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.7 1995/10/22 19:16:01 bde Exp $
+#  $Id: Makefile,v 1.8 1996/02/09 00:45:39 mpp Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -132,7 +132,7 @@ MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 lgammaf.3 lgamma.3 gammaf.3
 MLINKS+=rint.3 rintf.3
 MLINKS+=sin.3 sinf.3
-MLIBKS+=sinh.3 sinhf.3
+MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
 MLINKS+=tan.3 tanf.3
 MLINKS+=tanh.3 tanhf.3
