@@ -190,8 +190,6 @@ findsaddr(register const struct sockaddr_in *to,
 				}
 				break;
 
-			default:
-				/* empty */
 			}
 
 			if (SALEN(sa) == 0)
