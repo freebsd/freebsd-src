@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.197 1996/03/31 10:02:09 asami Exp $
+# $Id: bsd.port.mk,v 1.198 1996/03/31 10:35:26 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -198,6 +198,7 @@ LOCALBASE?=		/usr/local
 X11BASE?=		/usr/X11R6
 DISTDIR?=		${PORTSDIR}/distfiles/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
+TEMPLATES?=		${PORTSDIR}/templates
 .if !defined(NO_WRKDIR)
 WRKDIR?=		${.CURDIR}/work
 .else
@@ -323,6 +324,7 @@ PKG_SUFX?=		.tgz
 PKG_DBDIR?=		/var/db/pkg
 
 ECHO?=		/bin/echo
+CAT+=		/bin/cat
 CP?=		/bin/cp
 ENV?=		/usr/bin/env
 RM?=		/bin/rm
@@ -974,9 +976,7 @@ checksum: fetch
 
 .if !target(package-name)
 package-name:
-.if !defined(NO_PACKAGE)
 	@${ECHO} ${PKGNAME}
-.endif
 .endif
 
 # Show (recursively) all the packages this package depends on.
@@ -1170,6 +1170,46 @@ describe:
 	@${ECHO} -n "|"
 	@${ECHO} -n `make package-depends|sort|uniq`
 	@${ECHO} ""
+.endif
+
+.if !target(readmes)
+readmes:	readme
+.endif
+
+.if !target(readme)
+readme:
+	@rm -f README.html
+	@make README.html
+.endif
+
+README.html:
+	@${ECHO_MSG} "===>  Creating README.html for ${PKGNAME}"
+	@${CAT} ${TEMPLATES}/README.port | \
+		${SED} -e 's%%PORT%%'`${ECHO} ${.CURDIR} | ${SED} -e 's.*/\([^/]*/[^/]*\)$$\1'`'g' \
+			-e 's%%PKG%%${PKGNAME}g' \
+			-e '/%%COMMENT%%/r${PKGDIR}/COMMENT' \
+			-e '/%%COMMENT%%/d' \
+			-e 's%%BUILD_DEPENDS%%'"`${MAKE} print-depends-list`"'' \
+			-e 's%%RUN_DEPENDS%%'"`${MAKE} print-package-depends`"'' \
+		>> $@
+
+.if !target(print-depends-list)
+print-depends-list:
+.if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || \
+	defined(LIB_DEPENDS) || defined(DEPENDS)
+	@${ECHO} -n 'This port requires package(s) "'
+	@${ECHO} -n `make depends-list | sort | uniq`
+	@${ECHO} '" to build.'
+.endif
+.endif
+
+.if !target(print-package-depends)
+print-package-depends:
+.if defined(RUN_DEPENDS) || defined(LIB_DEPENDS) || defined(DEPENDS)
+	@${ECHO} -n 'This port requires package(s) "'
+	@${ECHO} -n `make package-depends | sort | uniq`
+	@${ECHO} '" to run.'
+.endif
 .endif
 
 # Fake installation of package so that user can pkg_delete it later.
