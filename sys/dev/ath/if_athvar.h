@@ -173,7 +173,9 @@ struct ath_softc {
 				sc_hasdiversity : 1,/* rx diversity available */
 				sc_diversity : 1,/* enable rx diversity */
 				sc_hasveol : 1,	/* tx VEOL support */
-				sc_hastpc  : 1;	/* per-packet TPC support */
+				sc_hastpc  : 1,	/* per-packet TPC support */
+				sc_ledstate: 1,	/* LED on/off state */
+				sc_blinking: 1;	/* LED blink operation active */
 						/* rate tables */
 	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
@@ -181,17 +183,27 @@ struct ath_softc {
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
 	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
-	u_int8_t		sc_hwmap[32];	/* h/w rate ix to IEEE table */
-	u_int8_t		sc_hwflags[32];	/* " " " to radiotap flags */
+	struct {
+		u_int8_t	ieeerate;	/* IEEE rate */
+		u_int8_t	flags;		/* radiotap flags */
+		u_int16_t	ledon;		/* softled on time */
+		u_int16_t	ledoff;		/* softled off time */
+	} sc_hwmap[32];				/* h/w rate ix mappings */
 	u_int8_t		sc_protrix;	/* protection rate index */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[16];	/* bit map of key cache use */
 
-	u_int32_t		sc_beacons;	/* beacon count for LED mgmt */
-	u_int16_t		sc_ledstate;	/* LED on/off state */
-	u_int16_t		sc_ledpin;	/* GPIO pin for driving LED */
+	u_int			sc_ledpin;	/* GPIO pin for driving LED */
+	u_int			sc_ledon;	/* pin setting for LED on */
+	u_int			sc_ledidle;	/* idle polling interval */
+	u_int32_t		sc_ipackets;	/* last data packet count */
+	int			sc_ledevent;	/* time of last LED event */
+	u_int8_t		sc_rxrate;	/* current rx rate for LED */
+	u_int8_t		sc_txrate;	/* current tx rate for LED */
+	u_int16_t		sc_ledoff;	/* off time for current blink */
+	struct callout		sc_ledtimer;	/* led off timer */
 
 	struct bpf_if		*sc_drvbpf;
 	union {
