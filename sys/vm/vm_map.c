@@ -1882,8 +1882,11 @@ vm_map_clean(
 		 * to write out.
 		 * We invalidate (remove) all pages from the address space
 		 * anyway, for semantic correctness.
+		 *
+		 * note: certain anonymous maps, such as MAP_NOSYNC maps,
+		 * may start out with a NULL object.
 		 */
-		while (object->backing_object) {
+		while (object && object->backing_object) {
 			object = object->backing_object;
 			offset += object->backing_object_offset;
 			if (object->size < OFF_TO_IDX( offset + size))
