@@ -208,7 +208,7 @@ newfs /dev/da0s1a
 mount /dev/da0s1a /mnt
 cd /mnt
 
-restore rf /dev/rsa0
+restore rf /dev/sa0
 .Ed
 .Pp
 Note that
@@ -284,7 +284,7 @@ Read the backup from
 .Ar file
 may be a special device file
 like
-.Pa /dev/rsa0
+.Pa /dev/sa0
 (a tape drive),
 .Pa /dev/da1c
 (a disk drive),
@@ -417,7 +417,7 @@ This message lists the number of blocks that were skipped over.
 .El
 .Sh FILES
 .Bl -tag -width "./restoresymtable" -compact
-.It Pa /dev/rsa0
+.It Pa /dev/sa0
 the default tape drive
 .It Pa /tmp/rstdir*
 file containing directories on the tape.
