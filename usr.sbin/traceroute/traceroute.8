@@ -34,7 +34,7 @@
 .\"
 .\"     @(#)traceroute.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 6, 1993
+.Dd March 7, 1996
 .Dt TRACEROUTE 8
 .Os BSD 4.3
 .Sh NAME
@@ -42,6 +42,7 @@
 .Nd print the route packets take to network host
 .Sh SYNOPSIS
 .Nm traceroute
+.Op Fl g Ar gateway
 .Op Fl m Ar max_ttl
 .Op Fl n
 .Op Fl p Ar port
@@ -51,6 +52,7 @@
 .Op Fl s Ar src_addr
 .Ek
 .Op Fl t Ar tos
+.Op Fl v
 .Op Fl w Ar waittime
 .Ar host
 .Op Ar packetsize
@@ -73,6 +75,10 @@ name.
 .Pp
 Other options are:
 .Bl -tag -width Ds
+.It Fl g Ar gateway
+Add a loose-source-route IP option onto the ICMP packet to direct traffic
+to traverse the specified gateway.
+Multiple gateway options may be specified on the command line.
 .It Fl m Ar max_ttl
 Set the max time-to-live (max number of hops) used in outgoing probe
 packets.  The default is 30 hops (the same default used for
@@ -331,6 +337,6 @@ C. Philip Wood, Tim Seaver and Ken Adelman.
 .Xr ping 8
 .Sh HISTORY
 The
-.Nm
-command
-.Bt
+.Nm traceroute
+command first appeard in 4.4
+.Tn BSD
