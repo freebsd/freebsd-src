@@ -74,7 +74,7 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	*err = 0;
 
 	if (uc == NULL && thr->arch_id != NULL) {
-#ifndef COMPAT_32BIT
+#ifdef COMPAT_32BIT
 		 _amd64_set_gsbase(thr->arch_id);
 #endif
 		return (thr->arch_id);
