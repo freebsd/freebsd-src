@@ -15,12 +15,12 @@ opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
 opt_inet6.h:
-	echo "#define INET6 1" > opt_inet6.h
+	echo "#undef INET6" > opt_inet6.h
 
 opt_atalk.h:
-	echo "#define NETATALK 1" > opt_atalk.h
+	echo "#undef NETATALK" > opt_atalk.h
 
 opt_ipx.h:
-	echo "#define IPX 1" > opt_ipx.h
+	echo "#undef IPX" > opt_ipx.h
 
 .include <bsd.kmod.mk>
