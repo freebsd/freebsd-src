@@ -2,7 +2,7 @@
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
-KMOD	= pn
+KMOD	= if_pn
 SRCS	= if_pn.c pn.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= pn.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}

@@ -2,11 +2,12 @@
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
-KMOD	= vr
+KMOD	= if_vr
 SRCS	= if_vr.c vr.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
 CLEANFILES	+= vr.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
+KMODDEPS = miibus
 
 CFLAGS	+= ${DEBUG_FLAGS}
 
