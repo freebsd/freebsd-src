@@ -168,7 +168,7 @@ ip_output(m0, opt, ro, flags, imo)
 			break;
 
 		case PACKET_TAG_DIVERT:
-			args.divert_rule = (int)m0->m_data & 0xffff;
+			args.divert_rule = (intptr_t)m0->m_data & 0xffff;
 			break;
 
 		case PACKET_TAG_IPFORWARD:
