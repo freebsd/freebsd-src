@@ -69,7 +69,7 @@ struct cdev {
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;
-	LIST_ENTRY(cdev)	si_hash;
+	LIST_ENTRY(cdev)	si_hash;	/* UNUSED */
 	LIST_HEAD(,devfs_dirent)si_alist;
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
