@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wicontrol.8,v 1.6 1999/05/22 16:12:47 wpaul Exp $
+.\"	$Id: wicontrol.8,v 1.7 1999/07/28 13:33:36 sheldonh Exp $
 .\"
 .Dd April 21, 1999
 .Dt WICONTROL 8
@@ -77,7 +77,7 @@ the station name, whether the station is operating in ad-hoc (point
 to point) or BSS (service set) mode, and the network name of a service
 set to join (IBSS) if BSS mode is enabled. The
 .Nm
-command can also be used to view the current settings of these paremeters
+command can also be used to view the current settings of these parameters
 and to dump out the values of the card's statistics counters.
 .Pp
 The
@@ -91,7 +91,7 @@ The options are as follows:
 .Bl -tag -width Fl
 .It Fl i Ar iface Op Fl o
 Display the current settings of the specified WaveLAN/IEEE interface.
-This retrives the current card settings from the driver and prints them
+This retrieves the current card settings from the driver and prints them
 out. Using the additional
 .Fl o
 flag will cause
@@ -162,7 +162,7 @@ Set the
 for a specified interface. The legal values for
 .Ar port type
 are 1 (BSS mode) and 3 (ad-hoc) mode. In ad-hoc mode, the station can
-comminicate directly with any other stations within direct radio range
+communicate directly with any other stations within direct radio range
 (provided that they are also operating in ad-hoc mode). In BSS mode,
 hosts must associate with a service set controlled by an access point,
 which relays traffic between end stations. The default setting is 3
@@ -185,13 +185,13 @@ The
 can be any number from 350 to 2304. The default is 2304.
 .It Fl i Ar iface Fl r Ar RTS threshold
 Set the RTS/CTS threshold for a given interface. This controls the
-number of bytes used for the RTS/CTS handhake boundary. The
+number of bytes used for the RTS/CTS handshake boundary. The
 .Ar RTS threshold
 can be any value between 0 and 2047. The default is 2347.
 .It Fl i Ar iface Fl f Ar frequency
 Set the radio frequency of a given interface. The
 .Ar frequency
-should be specfied as a channel ID as shown in the table below. The
+should be specified as a channel ID as shown in the table below. The
 list of available frequencies is dependent on radio regulations specified
 by regional authorities. Recognized regulatory authorities include
 the FCC (United States), ETSI (Europe), France and Japan. Frequencies
