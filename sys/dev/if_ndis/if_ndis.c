@@ -172,10 +172,71 @@ static void
 ndis_setmulti(sc)
 	struct ndis_softc	*sc;
 {
-#ifdef notyet
-	uint32_t		ndis_filter;
-	int			len;
-#endif
+	struct ifnet		*ifp;
+	struct ifmultiaddr	*ifma;
+	int			len, mclistsz, error;
+	uint8_t			*mclist;
+
+	ifp = &sc->arpcom.ac_if;
+
+	if (!(ifp->if_flags & IFF_UP))
+		return;
+
+	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+		len = sizeof(sc->ndis_filter);
+		error = ndis_set_info(sc, OID_GEN_CURRENT_PACKET_FILTER,
+		    &sc->ndis_filter, &len);
+		if (error)
+			device_printf (sc->ndis_dev,
+			    "set filter failed: %d\n", error);
+		return;
+	}
+
+
+	len = sizeof(mclistsz);
+	ndis_get_info(sc, OID_802_3_MAXIMUM_LIST_SIZE, &mclistsz, &len);
+
+	mclist = malloc(ETHER_ADDR_LEN * mclistsz, M_TEMP, M_NOWAIT);
+
+	if (mclist == NULL) {
+		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+		goto out;
+	}
+
+	sc->ndis_filter |= NDIS_PACKET_TYPE_MULTICAST;
+
+	len = 0;
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+		    mclist + (ETHER_ADDR_LEN * len), ETHER_ADDR_LEN);
+		len++;
+		if (len > mclistsz) {
+			sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+			sc->ndis_filter &= ~NDIS_PACKET_TYPE_MULTICAST;
+			goto out;
+		}
+	}
+
+	len = len * ETHER_ADDR_LEN;
+	error = ndis_set_info(sc, OID_802_3_MULTICAST_LIST, mclist, &len);
+	if (error) {
+		device_printf (sc->ndis_dev, "set mclist failed: %d\n", error);
+		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+		sc->ndis_filter &= ~NDIS_PACKET_TYPE_MULTICAST;
+	}
+
+out:
+	free(mclist, M_TEMP);
+
+	len = sizeof(sc->ndis_filter);
+	error = ndis_set_info(sc, OID_GEN_CURRENT_PACKET_FILTER,
+	    &sc->ndis_filter, &len);
+	if (error)
+		device_printf (sc->ndis_dev, "set filter failed: %d\n", error);
+
 	return;
 }
 
@@ -1149,9 +1210,6 @@ ndis_init(xsc)
 	struct ndis_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	int			i, error;
-	uint32_t		ndis_filter = 0;
-
-	/*NDIS_LOCK(sc);*/
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1161,47 +1219,45 @@ ndis_init(xsc)
 	ndis_init_nic(sc);
 
 	/* Init our MAC address */
-#ifdef notdef
-	/*
-	 * Program the multicast filter, if necessary.
-	 */
-	ndis_setmulti(sc);
-#endif
 
 	/* Program the packet filter */
 
-	ndis_filter = NDIS_PACKET_TYPE_DIRECTED;
+	sc->ndis_filter = NDIS_PACKET_TYPE_DIRECTED;
 
 	if (ifp->if_flags & IFF_BROADCAST)
-		ndis_filter |= NDIS_PACKET_TYPE_BROADCAST;
+		sc->ndis_filter |= NDIS_PACKET_TYPE_BROADCAST;
 
 	if (ifp->if_flags & IFF_PROMISC)
-		ndis_filter |= NDIS_PACKET_TYPE_PROMISCUOUS;
+		sc->ndis_filter |= NDIS_PACKET_TYPE_PROMISCUOUS;
 
-	if (ifp->if_flags & IFF_MULTICAST)
-		ndis_filter |= NDIS_PACKET_TYPE_MULTICAST;
-
-	i = sizeof(ndis_filter);
+	i = sizeof(sc->ndis_filter);
 
 	error = ndis_set_info(sc, OID_GEN_CURRENT_PACKET_FILTER,
-	    &ndis_filter, &i);
-
-	sc->ndis_filter = ndis_filter;
+	    &sc->ndis_filter, &i);
 
 	if (error)
 		device_printf (sc->ndis_dev, "set filter failed: %d\n", error);
 
-	sc->ndis_txidx = 0;
-	sc->ndis_txpending = sc->ndis_maxpkts;
-	sc->ndis_link = 0;
+	/*
+	 * Program the multicast filter, if necessary.
+	 */
+	ndis_setmulti(sc);
 
 	ndis_enable_intr(sc);
 
 	if (sc->ndis_80211)
 		ndis_setstate_80211(sc);
 
+	NDIS_LOCK(sc);
+
+	sc->ndis_txidx = 0;
+	sc->ndis_txpending = sc->ndis_maxpkts;
+	sc->ndis_link = 0;
+
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
+
+	NDIS_UNLOCK(sc);
 
 	/*
 	 * Some drivers don't set this value. The NDIS spec says
@@ -1214,8 +1270,6 @@ ndis_init(xsc)
 
 	sc->ndis_stat_ch = timeout(ndis_tick, sc,
 	    hz * sc->ndis_block.nmb_checkforhangsecs);
-
-	/*NDIS_UNLOCK(sc);*/
 
 	return;
 }
@@ -1665,7 +1719,6 @@ ndis_ioctl(ifp, command, data)
 
 	/*NDIS_LOCK(sc);*/
 
-
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -1674,7 +1727,8 @@ ndis_ioctl(ifp, command, data)
 			    !(sc->ndis_if_flags & IFF_PROMISC)) {
 				sc->ndis_filter |=
 				    NDIS_PACKET_TYPE_PROMISCUOUS;
-				ndis_set_info(sc,
+				i = sizeof(sc->ndis_filter);
+				error = ndis_set_info(sc,
 				    OID_GEN_CURRENT_PACKET_FILTER,
 				    &sc->ndis_filter, &i);
 			} else if (ifp->if_flags & IFF_RUNNING &&
@@ -1682,7 +1736,8 @@ ndis_ioctl(ifp, command, data)
 			    sc->ndis_if_flags & IFF_PROMISC) {
 				sc->ndis_filter &=
 				    ~NDIS_PACKET_TYPE_PROMISCUOUS;
-				ndis_set_info(sc,
+				i = sizeof(sc->ndis_filter);
+				error = ndis_set_info(sc,
 				    OID_GEN_CURRENT_PACKET_FILTER,
 				    &sc->ndis_filter, &i);
 			} else
