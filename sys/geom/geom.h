@@ -61,9 +61,9 @@ struct g_event;
 struct thread;
 struct bio;
 struct sbuf;
+struct g_createargs;
 
-typedef struct g_geom * g_create_geom_t (struct g_class *mp,
-    struct g_provider *pp, char *name);
+typedef int g_create_geom_t (struct g_createargs *ca);
 typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
     int flags);
 #define G_TF_NORMAL		0
@@ -171,6 +171,26 @@ struct g_provider {
 	off_t			mediasize;
 };
 
+/*
+ * This gadget is used by userland to pinpoint a particular instance of
+ * something in the kernel.  The name is unreadable on purpose, people
+ * should not encounter it directly but use library functions to deal
+ * with it.
+ * If len is zero, "id" contains a cast of the kernel pointer where the
+ * entity is located, (likely derived from the "id=" attribute in the
+ * XML config) and the g_id*() functions will validate this before allowing
+ * it to be used.
+ * If len is non-zero, it is the strlen() of the name which is pointed to
+ * by "name".
+ */
+struct geomidorname {
+	u_int len;
+	union {
+		const char	*name;
+		uintptr_t	id;
+	} u;
+};
+
 /* geom_dump.c */
 void g_hexdump(void *ptr, int length);
 void g_trace(int level, char *, ...);
@@ -191,7 +211,6 @@ int g_access_abs(struct g_consumer *cp, int read, int write, int exclusive);
 int g_access_rel(struct g_consumer *cp, int read, int write, int exclusive);
 void g_add_class(struct g_class *mp);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
-struct g_geom *g_create_geomf(char *class, struct g_provider *, char *fmt, ...);
 void g_destroy_consumer(struct g_consumer *cp);
 void g_destroy_geom(struct g_geom *pp);
 void g_destroy_provider(struct g_provider *pp);
@@ -211,6 +230,10 @@ void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
+struct g_class *g_idclass(struct geomidorname *);
+struct g_geom *g_idgeom(struct geomidorname *);
+struct g_provider *g_idprovider(struct geomidorname *);
+
 
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
@@ -305,11 +328,36 @@ extern struct sx topology_lock;
 /*
  * IOCTLS for talking to the geom.ctl device.
  */
+
 struct geomgetconf {
 	char	*ptr;
 	u_int	len;
 };
 #define GEOMGETCONF _IOW('G',  0, struct geomgetconf)
+
+struct g_createargs {
+	/* Valid on call */
+	struct g_class		*class;
+	struct g_provider	*provider;
+	u_int			flag;
+	u_int			len;
+	void			*ptr;
+	/* Valid on return */
+	struct g_geom		*geom;
+};
+
+struct geomconfiggeom {
+	/* Valid on call */
+	struct geomidorname	class;
+	struct geomidorname	provider;
+	u_int			flag;
+	u_int			len;
+	void			*ptr;
+	/* Valid on return */
+	uintptr_t		geom;
+};
+#define GEOMCONFIGGEOM _IOW('G',  0, struct geomconfiggeom)
+
 
 /* geom_enc.c */
 uint16_t g_dec_be2(u_char *p);
