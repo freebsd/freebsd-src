@@ -62,7 +62,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_init.c,v 1.3 1994/08/02 07:55:21 davidg Exp $
  */
 
 /*
@@ -70,6 +70,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.6 1994/08/18 22:36:01 wollman Exp $
+ * $Id: vm_glue.c,v 1.7 1994/09/12 15:06:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -78,6 +78,7 @@
 #include <vm/vm_kern.h>
 
 #include <machine/stdarg.h>
+#include <machine/cpu.h>
 
 extern char kstack[];
 int	avefree = 0;		/* XXX */
@@ -306,14 +307,10 @@ faultin(p)
 struct proc *p;
 {
 	vm_offset_t i;
-	vm_offset_t vaddr, ptaddr;
-	vm_offset_t v, v1;
-	struct user *up;
+	vm_offset_t ptaddr;
 	int s;
-	int opflag;
 
 	if ((p->p_flag & P_INMEM) == 0) {
-		int rv0, rv1;
 		vm_map_t map;
 
 		++p->p_lock;
@@ -370,7 +367,6 @@ scheduler()
 	register int pri;
 	struct proc *pp;
 	int ppri;
-	vm_offset_t addr;
 	int lastidle, lastrun;
 	int curidle, currun;
 	int forceload;
@@ -487,9 +483,7 @@ swapout_threads()
 	int swapneeded = swapinreq;
 	extern int maxslp;
 	int runnablenow;
-	int s;
 
-swapmore:
 	runnablenow = 0;
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
@@ -577,11 +571,7 @@ void
 swapout(p)
 	register struct proc *p;
 {
-	vm_offset_t addr;
-	struct pmap *pmap = &p->p_vmspace->vm_pmap;
 	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_offset_t ptaddr;
-	int i;
 
 	++p->p_stats->p_ru.ru_nswap;
 	/*

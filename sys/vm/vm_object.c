@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.6 1994/08/27 16:14:39 davidg Exp $
+ * $Id: vm_object.c,v 1.7 1994/10/05 09:48:43 davidg Exp $
  */
 
 /*
@@ -77,6 +77,7 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/swap_pager.h>
 
 static void _vm_object_allocate(vm_size_t, vm_object_t);
 
@@ -188,7 +189,6 @@ vm_object_allocate(size)
 	vm_size_t	size;
 {
 	register vm_object_t	result;
-	int s;
 
 	result = (vm_object_t)
 		malloc((u_long)sizeof *result, M_VMOBJ, M_WAITOK);
@@ -437,7 +437,6 @@ vm_object_page_clean(object, start, end, syncio, de_queue)
 	boolean_t		de_queue;
 {
 	register vm_page_t	p, nextp;
-	int s;
 	int size;
 
 	if (object->pager == NULL)
@@ -1234,7 +1233,7 @@ vm_object_collapse(object)
 			 *	pages that shadow them.
 			 */
 
-			while (p = backing_object->memq.tqh_first) {
+			while ((p = backing_object->memq.tqh_first) != 0) {
 
 				new_offset = (p->offset - backing_offset);
 
@@ -1444,7 +1443,6 @@ vm_object_page_remove(object, start, end)
 {
 	register vm_page_t	p, next;
 	vm_offset_t size;
-	int cnt;
 	int s;
 
 	if (object == NULL)
@@ -1475,7 +1473,7 @@ again:
 		}
 	} else {
 		while (size > 0) {
-			while (p = vm_page_lookup(object, start)) {
+			while ((p = vm_page_lookup(object, start)) != 0) {
 				s = splhigh();
 				if (p->flags & PG_BUSY) {
 					p->flags |= PG_WANTED;
@@ -1627,7 +1625,7 @@ void vm_object_print(object, full)
 	printf("pager=0x%x+0x%x, shadow=(0x%x)+0x%x\n",
 	       (int) object->pager, (int) object->paging_offset,
 	       (int) object->shadow, (int) object->shadow_offset);
-	printf("cache: next=0x%x, prev=0x%x\n",
+	printf("cache: next=%p, prev=%p\n",
 	       object->cached_list.tqe_next, object->cached_list.tqe_prev);
 
 	if (!full)
@@ -1646,7 +1644,8 @@ void vm_object_print(object, full)
 			printf(",");
 		count++;
 
-		printf("(off=0x%x,page=0x%x)", p->offset, VM_PAGE_TO_PHYS(p));
+		printf("(off=0x%lx,page=0x%lx)", 
+			(u_long)p->offset, (u_long)VM_PAGE_TO_PHYS(p));
 	}
 	if (count != 0)
 		printf("\n");

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.5 1994/10/05 09:48:42 davidg Exp $
+ * $Id: vm_fault.c,v 1.6 1994/10/09 00:18:22 davidg Exp $
  */
 
 /*
@@ -76,12 +76,15 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
+#include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 
+int	vm_fault_additional_pages __P((vm_object_t, vm_offset_t, vm_page_t, int, int, vm_page_t *, int *));
 
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_AHEAD_MIN 1
@@ -131,7 +134,6 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	vm_page_t		old_m;
 	vm_object_t		next_object;
 	vm_page_t		marray[VM_FAULT_READ];
-	int			reqpage;
 	int			spl;
 	int			hardfault=0;
 
@@ -326,7 +328,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				(object->pager && object->pager->pg_type == PG_SWAP &&
 				!vm_pager_has_page(object->pager, offset+object->paging_offset)))) {
 				if (vaddr < VM_MAXUSER_ADDRESS && curproc && curproc->p_pid >= 48) /* XXX */ {
-					printf("Process %d killed by vm_fault -- out of swap\n", curproc->p_pid);
+					printf("Process %lu killed by vm_fault -- out of swap\n", (u_long)curproc->p_pid);
 					psignal(curproc, SIGKILL);
 					curproc->p_estcpu = 0;
 					curproc->p_nice = PRIO_MIN;
@@ -370,8 +372,10 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 * marray for the vm_page_t passed to the routine.
 			 */
 			cnt.v_pageins++;
-			faultcount = vm_fault_additional_pages(first_object, first_offset,
-				m, VM_FAULT_READ_BEHIND, VM_FAULT_READ_AHEAD, marray, &reqpage);
+			faultcount = vm_fault_additional_pages(
+				first_object, first_offset,
+				m, VM_FAULT_READ_BEHIND, VM_FAULT_READ_AHEAD,
+				marray, &reqpage);
 
 			/*
 			 *	Call the pager to retrieve the data, if any,
@@ -642,7 +646,8 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			copy_offset = first_offset
 				- copy_object->shadow_offset;
 			copy_m = vm_page_lookup(copy_object, copy_offset);
-			if (page_exists = (copy_m != NULL)) {
+			page_exists = (copy_m != NULL);
+			if (page_exists) {
 				if (copy_m->flags & (PG_BUSY|PG_VMIO)) {
 					/*
 					 *	If the page is being brought
@@ -1116,7 +1121,6 @@ vm_fault_page_lookup(object, offset, rtobject, rtoffset, rtm)
 	vm_page_t *rtm;
 {
 	vm_page_t m;
-	vm_object_t first_object = object;
 
 	*rtm = 0;
 	*rtobject = 0;
@@ -1169,7 +1173,6 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	int *reqpage;
 {
 	int i;
-	vm_page_t tmpm;
 	vm_object_t object;
 	vm_offset_t offset, startoffset, endoffset, toffset, size;
 	vm_object_t rtobject;
