@@ -58,6 +58,7 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -70,7 +71,6 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
-#include <machine/limits.h>
 #include <machine/stdarg.h>
 
 #include <vm/vm.h>

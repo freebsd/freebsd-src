@@ -49,6 +49,7 @@
 #include <sys/filedesc.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -66,8 +67,6 @@
 #include <sys/sx.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
-
-#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

@@ -104,7 +104,7 @@
 /* Machine type dependent parameters. */
 #include <machine/param.h>
 #ifndef _KERNEL
-#include <machine/limits.h>
+#include <sys/limits.h>
 #endif
 
 #ifndef _NO_NAMESPACE_POLLUTION

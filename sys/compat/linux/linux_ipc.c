@@ -32,11 +32,10 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
+#include <sys/limits.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
-
-#include <machine/limits.h>
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>

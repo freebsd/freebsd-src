@@ -48,6 +48,7 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
@@ -56,7 +57,6 @@
 #include <sys/mbuf.h>
 #include <sys/ctype.h>
 #include <sys/sysctl.h>
-#include <machine/limits.h>
 
 #include <net/netisr.h>
 

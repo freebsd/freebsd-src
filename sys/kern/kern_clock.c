@@ -60,10 +60,10 @@
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/limits.h>
 #include <sys/timetc.h>
 
 #include <machine/cpu.h>
-#include <machine/limits.h>
 
 #ifdef GPROF
 #include <sys/gmon.h>

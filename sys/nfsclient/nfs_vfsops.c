@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -73,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsdiskless.h>
-
-#include <machine/limits.h>
 
 MALLOC_DEFINE(M_NFSREQ, "NFS req", "NFS request header");
 MALLOC_DEFINE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");

@@ -42,9 +42,8 @@
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/limits.h>
 #include <sys/lockf.h>
-
-#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

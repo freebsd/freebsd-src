@@ -263,7 +263,7 @@ pckbd_timeout(void *arg)
 
 /* LOW-LEVEL */
 
-#include <machine/limits.h>
+#include <sys/limits.h>
 
 #define PC98KBD_DEFAULT	0
 

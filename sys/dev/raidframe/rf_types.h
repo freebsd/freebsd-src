@@ -64,8 +64,8 @@
  */
 
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <machine/endian.h>
-#include <machine/limits.h>
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define RF_IS_BIG_ENDIAN    1
