@@ -705,6 +705,10 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 			if (kmbx != NULL)
 				kse_wakeup(kmbx);
+			if (suspended_thread != NULL)
+				_thr_ref_delete(NULL, suspended_thread);
+			if (signaled_thread != NULL)
+				_thr_ref_delete(NULL, signaled_thread);
 			return (NULL);
 		} else if (!SIGISMEMBER(pthread->sigmask, sig)) {
 			/*
