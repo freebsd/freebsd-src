@@ -23,7 +23,7 @@ IMG=$6
 
 TMPFILE0=`mktemp -t nanobsd`
 TMPFILE1=`mktemp -t nanobsd`
-TMPDIR=`mktemp -d -t nanobsd`
+TMPMNT=`mktemp -d -t nanobsd`
 
 dd if=/dev/zero of=${TMPFILE0} count=${SECTS}
 MD=`mdconfig -a -t vnode -f ${TMPFILE0} -x ${SC} -y ${HD}`
@@ -42,10 +42,10 @@ rm -f ${TMPFILE1}
 bsdlabel -w -B ${MD}s1
 newfs -O1 -U ${MD}s1a
 newfs -O1 -U ${MD}s3
-mount /dev/${MD}s1a ${TMPDIR}
-(cd ${WD} && find . -print | cpio -dump ${TMPDIR}) || true
-df ${TMPDIR}
-umount ${TMPDIR}
+mount /dev/${MD}s1a ${TMPMNT}
+(cd ${WD} && find . -print | cpio -dump ${TMPMNT}) || true
+df ${TMPMNT}
+umount ${TMPMNT}
 dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 dd if=/dev/${MD} of=${IMG} bs=64k
 dd if=/dev/${MD}s1 of=${6}.s1 bs=64k
