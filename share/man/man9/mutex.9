@@ -477,66 +477,7 @@ access memory in userspace, such as
 .Xr fuword 9 ,
 etc.
 No locks are needed when calling these functions.
-.Ss Giant Lock Manipulation Macros
-The following macros are useful when dealing with the Giant
-lock:
-.Bl -tag -width GIANT_REQUIRED
-.It Dv GIANT_REQUIRED
-Macro used for a routine that wants to assert the Giant lock.
-.It Dv PICKUP_GIANT
-Allows a routine to hold the Giant lock and save it's
-.Xr witness 4
-lock order.
-.It Dv DROP_GIANT
-Allows a routine to drop the Giant lock and restore it's
-.Xr witness 4
-lock order.
-.El
-.Pp
-It should be noted that
-.Dv PICKUP_GIANT
-and
-.Dv DROP_GIANT
-have to be paired together and cannot operate on seperate levels,
-i.e. the following is incorrect and not possible:
-.Bd -literal
-void incorrect()
-{
-	initialization;
-
-	PICKUP_GIANT;
-
-	if (condition) {
-		/* stuff ... */
-
-		DROP_GIANT;
-	}
-}
-.Ed
-.Pp
-A correct way of calling
-.Dv PICKUP_GIANT
-and
-.Dv DROP_GIANT :
-.Bd -literal
-void correct()
-{
-	initialization;
-
-	PICKUP_GIANT;
-
-	if (condition) {
-		/* stuff ... */
-
-		/* more stuff ... */
-	}
-
-	DROP_GIANT;
-}
-.Ed
 .Sh SEE ALSO
-.Xr ddb 4 ,
-.Xr witness 4 ,
 .Xr condvar 9 ,
 .Xr msleep 9 ,
 .Xr mtx_pool 9 ,
@@ -548,9 +489,3 @@ functions appeared in
 .Bsx 4.1
 and
 .Fx 5.0 .
-.Sh AUTHORS
-This manual page is partially derived from its
-.Bsx
-counterpart with parts written by Jason Evans and improvements from
-Chuck Paterson, Doug Rabson, Matthew Dillon, Greg Lehey, Jake Burkholder
-and Sheldon Hearn.
