@@ -772,6 +772,7 @@ pcic_pci_ti_init(device_t dev)
 static int
 pcic_pci_topic_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+#ifdef THIS_BRAEKS_THINGS
 	device_t	dev = sp->sc->dev;
 	u_int32_t	scr;
 
@@ -781,7 +782,7 @@ pcic_pci_topic_func(struct pcic_slot *sp, enum pcic_intr_way way)
 	else
 		scr &= ~TOPIC_SOCKET_CTRL_SCR_IRQSEL;
 	pci_write_config(dev, TOPIC_SLOT_CTRL, scr, 4);
-
+#endif
 	return (pcic_pci_gen_func(sp, way));
 }
 
