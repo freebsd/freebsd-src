@@ -421,7 +421,6 @@ g_ccd_start(struct bio *bp)
 	caddr_t addr;
 	daddr_t bn;
 	int err;
-	int sent;
 	struct ccd_s *cs;
 
 	cs = bp->bio_to->geom->softc;
@@ -435,24 +434,14 @@ g_ccd_start(struct bio *bp)
 	 * Allocate component buffers and fire off the requests
 	 */
 	addr = bp->bio_data;
-	sent = 0;
 	for (bcount = bp->bio_length; bcount > 0; bcount -= rcount) {
 		err = ccdbuffer(cbp, cs, bp, bn, addr, bcount);
 		if (err) {
-			printf("ccdbuffer error %d\n", err);
-			if (!sent)
-				biofinish(bp, NULL, err);
-			else {
-				/*
-				 * XXX: maybe a race where the partners
-				 * XXX: we sent already have been in 
-				 * XXX: ccdiodone().  Single-threaded g_down
-				 * XXX: may protect against this.
-				 */
-				bp->bio_resid -= bcount;
+			bp->bio_completed += bcount;
+			if (bp->bio_error != 0)
 				bp->bio_error = err;
-				bp->bio_flags |= BIO_ERROR;
-			}
+			if (bp->bio_completed == bp->bio_length)
+				g_io_deliver(bp, bp->bio_error);
 			return;
 		}
 		rcount = cbp[0]->bio_length;
@@ -470,7 +459,6 @@ g_ccd_start(struct bio *bp)
 			if (cbp[0]->bio_cmd != BIO_READ) {
 				g_io_request(cbp[0], cbp[0]->bio_from);
 				g_io_request(cbp[1], cbp[1]->bio_from);
-				sent++;
 			} else {
 				int pick = cs->sc_pick;
 				daddr_t range = cs->sc_size / 16;
@@ -482,14 +470,12 @@ g_ccd_start(struct bio *bp)
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
 				g_io_request(cbp[pick], cbp[pick]->bio_from);
-				sent++;
 			}
 		} else {
 			/*
 			 * Not mirroring
 			 */
 			g_io_request(cbp[0], cbp[0]->bio_from);
-			sent++;
 		}
 		bn += btodb(rcount);
 		addr += rcount;
@@ -502,7 +488,7 @@ g_ccd_start(struct bio *bp)
 static int
 ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t addr, long bcount)
 {
-	struct ccdcinfo *ci, *ci2 = NULL;	/* XXX */
+	struct ccdcinfo *ci, *ci2 = NULL;
 	struct bio *cbp;
 	daddr_t cbn, cboff;
 	off_t cbc;
@@ -606,7 +592,8 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 	 * Fill in the component buf structure.
 	 */
 	cbp = g_clone_bio(bp);
-	/* XXX: check for NULL */
+	if (cbp == NULL)
+		return (ENOMEM);
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = dbtob(cbn + cboff + CCD_OFFSET);
 	cbp->bio_data = addr;
@@ -621,7 +608,8 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 
 	if (cs->sc_flags & CCDF_MIRROR) {
 		cbp = g_clone_bio(bp);
-		/* XXX: check for NULL */
+		if (cbp == NULL)
+			return (ENOMEM);
 		cbp->bio_done = cb[0]->bio_done = ccdiodone;
 		cbp->bio_offset = cb[0]->bio_offset;
 		cbp->bio_data = cb[0]->bio_data;
