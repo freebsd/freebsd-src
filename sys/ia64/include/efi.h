@@ -30,8 +30,8 @@
 #define _MACHINE_EFI_H_
 
 typedef u_int8_t	BOOLEAN;
-typedef int32_t		INTN;
-typedef u_int32_t	UINTN;
+typedef int64_t		INTN;
+typedef u_int64_t	UINTN;
 typedef int8_t		INT8;
 typedef u_int8_t	UINT8;
 typedef int16_t		INT16;
@@ -595,7 +595,7 @@ typedef struct _EFI_CONFIGURATION_TABLE {
 typedef struct _EFI_SYSTEM_TABLE {
 	EFI_TABLE_HEADER	Hdr;
 
-	CHAR16			FirmwareVendor;
+	CHAR16			*FirmwareVendor;
 	UINT32			FirmwareRevision;
 
 	EFI_HANDLE		ConsoleInHandle;
