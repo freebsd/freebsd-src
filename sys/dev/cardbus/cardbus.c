@@ -255,6 +255,7 @@ cardbus_detach_card(device_t dev, int flags)
 			DEVPRINTF((dev, "Detaching card: no cards to detach!\n"));
 			POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 		}
+		free(devlist, M_TEMP);
 		return ENOENT;
 	}
 
@@ -278,6 +279,7 @@ cardbus_detach_card(device_t dev, int flags)
 	}
 	if (err == 0)
 		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+	free(devlist, M_TEMP);
 	return err;
 }
 
@@ -317,6 +319,7 @@ cardbus_driver_added(device_t dev, driver_t *driver)
 
 	if (cardattached == 0)
 		POWER_DISABLE_SOCKET(bdev, dev);
+	free(devlist, M_TEMP);
 }
 
 /************************************************************************/
