@@ -144,7 +144,8 @@ struct nameidata {
 #define	ISUNICODE	0x100000 /* current component name is unicode*/
 #define	PDIRUNLOCK	0x200000 /* filesystem lookup() unlocked parent dir */
 #define	NOCROSSMOUNT	0x400000 /* do not cross mount points */
-#define	PARAMASK	0x3ffe00 /* mask of parameter descriptors */
+#define	NOMACCHECK	0x800000 /* do not perform MAC checks */
+#define	PARAMASK	0xfffe00 /* mask of parameter descriptors */
 
 /*
  * Initialization of an nameidata structure.
