@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.53 1998/10/02 04:51:10 msmith Exp $
+#	$Id: bsd.kmod.mk,v 1.54 1998/10/02 05:08:09 msmith Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -92,9 +92,18 @@ __initialized__:
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
-CFLAGS+=	${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL ${CWARNFLAGS}
+CFLAGS+=	${COPTS} -DKERNEL ${CWARNFLAGS}
 .if defined(KLDMOD)
 CFLAGS+=	-DKLD_MODULE
+.else
+CFLAGS+=	-DACTUALLY_LKM_NOT_KERNEL
+.endif
+
+# Damn bsd.own.mk is included too early.
+.if defined(KLDMOD)
+.if ${KMODDIR} == /lkm
+KMODDIR=	/modules
+.endif
 .endif
 
 # Don't use any standard or source-relative include directories.
@@ -114,9 +123,11 @@ CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
 
+.if !defined(KLDMOD)
 # XXX temporary until we build ELF kernels.
 CFLAGS+=	-aout
 LDFLAGS+=	-aout
+.endif
 
 .if defined(NOSHARED) && ( ${NOSHARED} != "no" && ${NOSHARED} != "NO" )
 LDFLAGS+= -static
@@ -128,6 +139,11 @@ EXPORT_SYMS?= _${KMOD}
 CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops
 SRCS+=	vnode_if.h
 CLEANFILES+=	vnode_if.h vnode_if.c
+.endif
+
+.if defined(KLDMOD) && ${OBJFORMAT} == elf
+CLEANFILES+=	setdef0.c setdef1.c setdefs.h
+CLEANFILES+=	setdef0.o setdef1.o
 .endif
 
 .if defined(PSEUDO_LKM)
@@ -144,9 +160,16 @@ PROG=	${KMOD}.o
 .endif
 .endif
 
-${PROG}: ${OBJS} ${DPADD} 
+${PROG}: ${OBJS} ${DPADD} ${KMODDEPS}
 .if defined(KLDMOD)
+.if ${OBJFORMAT} == elf
+	gensetdefs ${OBJS}
+	${CC} ${CFLAGS} -c setdef0.c
+	${CC} ${CFLAGS} -c setdef1.c
+	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${OBJS} setdef1.o  ${KMODDEPS}
+.else
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${OBJS} ${KMODDEPS}
+.endif
 .else
 	${LD} -r ${LDFLAGS:N-static} -o tmp.o ${OBJS}
 .if defined(EXPORT_SYMS)
@@ -156,6 +179,16 @@ ${PROG}: ${OBJS} ${DPADD}
 	rm -f symb.tmp
 .endif
 	mv tmp.o ${.TARGET}
+.endif
+
+.if defined(KMODDEPS)
+.for dep in ${KMODDEPS}
+CLEANFILES+=	${dep} ${dep}.c
+
+${dep}:
+	touch ${dep}.c
+	${CC} -shared ${CFLAGS} -o ${dep} ${dep}.c
+.endfor
 .endif
 
 .if !defined(NOMAN)
