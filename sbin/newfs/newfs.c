@@ -184,11 +184,8 @@ int	avgfilesize = AVFILESIZ;/* expected average file size */
 int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
-int	mntflags = MNT_ASYNC;	/* flags to be passed to mount */
 int	t_or_u_flag = 0;	/* user has specified -t or -u */
 u_long	memleft;		/* virtual memory available */
-caddr_t	membase;		/* start address of memory based filesystem */
-char	*filename;
 #ifdef COMPAT
 char	*disktype;
 int	unlabeled;
@@ -240,9 +237,6 @@ main(argc, argv)
 			disktype = optarg;
 			break;
 #endif
-		case 'F':
-			filename = optarg;
-			break;
 		case 'U':
 			Uflag = 1;
 			break;

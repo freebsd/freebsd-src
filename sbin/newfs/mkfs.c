@@ -119,8 +119,6 @@ extern int	sbsize;		/* superblock size */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
 extern u_long	memleft;	/* virtual memory available */
-extern caddr_t	membase;	/* start address of memory based filesystem */
-extern char *	filename;
 
 union {
 	struct fs fs;
