@@ -425,6 +425,10 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		{ T_WORM, SIP_MEDIA_REMOVABLE, "YAMAHA", "CDR100*", "*" },
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
 		/*
 		 * The 8200 doesn't like multi-lun probing, and probably
 		 * don't like serial number requests either.
