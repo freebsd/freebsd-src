@@ -13,8 +13,11 @@
 RCSID("$OpenBSD: servconf.c,v 1.101 2002/02/04 12:15:25 markus Exp $");
 RCSID("$FreeBSD$");
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB4)
 #include <krb.h>
+#endif
+#if defined(KRB5)
+#include <krb5.h>
 #endif
 #ifdef AFS
 #include <kafs.h>
@@ -178,9 +181,20 @@ fill_default_server_options(ServerOptions *options)
 		options->rsa_authentication = 1;
 	if (options->pubkey_authentication == -1)
 		options->pubkey_authentication = 1;
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB4) && defined(KRB5)
+	if (options->kerberos_authentication == -1)
+		options->kerberos_authentication =
+		    (access(KEYFILE, R_OK) == 0 ||
+		    (access(krb5_defkeyname, R_OK) == 0);
+#elif defined(KRB4)
 	if (options->kerberos_authentication == -1)
 		options->kerberos_authentication = (access(KEYFILE, R_OK) == 0);
+#elif defined(KRB5)
+	if (options->kerberos_authentication == -1)
+		options->kerberos_authentication =
+		    (access(krb5_defkeyname, R_OK) == 0);
+#endif
+#if defined(KRB4) || defined(KRB5)
 	if (options->kerberos_or_local_passwd == -1)
 		options->kerberos_or_local_passwd = 1;
 	if (options->kerberos_ticket_cleanup == -1)
