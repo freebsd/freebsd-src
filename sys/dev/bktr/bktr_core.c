@@ -1,4 +1,5 @@
-/* BT848 1.53 Driver for Brooktree's Bt848 based cards.
+$Id$
+/* BT848 1.54 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -307,6 +308,9 @@
                            Submitted by Fred Templin <templin@erg.sri.com>
                            Also fixed video_open defines and 878 support.
 
+1.54          18 Sep 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Changed tuner code to autodetect tuner i2c address.
+                           Addresses were incorrectly hardcoded.
 */
 
 #define DDB(x) x
@@ -646,39 +650,6 @@ static struct {
  * i2c things:
  */
 
-/* PLL on a Temic NTSC tuner: 4032FY5 */
-#define TEMIC_NTSC_WADDR	0xc0
-#define TEMIC_NTSC_RADDR	0xc1
-
-/* PLL on a Temic PAL I tuner: 4062FY5 */
-#define TEMIC_PALI_WADDR	0xc2
-#define TEMIC_PALI_RADDR	0xc3
-
-/* PLL on a Philips tuner */
-#define PHILIPS_NTSC_WADDR	0xc6
-#define PHILIPS_NTSC_RADDR	0xc7
-
-/* PLL on a the Philips FR1236MK2 tuner */
-#define PHILIPS_FR1236_NTSC_WADDR      0xc2
-#define PHILIPS_FR1236_NTSC_RADDR      0xc3
-
-/* PLL on a the Philips FR1236MK2 tuner */
-#define PHILIPS_FR1236_SECAM_WADDR      0xc0
-#define PHILIPS_FR1236_SECAM_RADDR      0xc1
-
-/* PLL on a the Philips FR1216MK2 tuner,
-   yes, the european version of the tuner is 1216 */
-#define PHILIPS_FR1216_PAL_WADDR	0xc2
-#define PHILIPS_FR1216_PAL_RADDR	0xc3
-
-/* guaranteed address for any TSA5522/3 (PLL on all(?) tuners) */
-#define TSA552x_WADDR		0xc2
-#define TSA552x_RADDR		0xc3
-
-#define PHILIPS_PAL_WADDR       0xc2
-#define PHILIPS_PAL_RADDR       0xc3
-
-
 #define TSA552x_CB_MSB		(0x80)
 #define TSA552x_CB_CP		(1<<6)
 #define TSA552x_CB_T2		(1<<5)
@@ -789,7 +760,6 @@ static struct {
 struct TUNER {
 	char*		name;
 	u_char		type;
-	u_char		pllAddr;
 	u_char		pllControl;
 	u_char		bandLimits[ 2 ];
 	u_char		bandAddrs[ 3 ];
@@ -800,7 +770,6 @@ static const struct TUNER tuners[] = {
 	/* NO_TUNER */
 	{ "<none>",				/* the 'name' */
 	   TTYPE_XXX,				/* input type */
-  	   0x00,				/* PLL write address */
  	   { 0x00,				/* control byte for PLL */
  	     0x00,
  	     0x00,
@@ -811,7 +780,6 @@ static const struct TUNER tuners[] = {
 	/* TEMIC_NTSC */
 	{ "Temic NTSC",				/* the 'name' */
 	   TTYPE_NTSC,				/* input type */
-	   TEMIC_NTSC_WADDR,			/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -822,7 +790,6 @@ static const struct TUNER tuners[] = {
 	/* TEMIC_PAL */
 	{ "Temic PAL",				/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-	   TEMIC_PALI_WADDR,			/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -833,7 +800,6 @@ static const struct TUNER tuners[] = {
 	/* TEMIC_SECAM */
 	{ "Temic SECAM",			/* the 'name' */
 	   TTYPE_SECAM,				/* input type */
-	   0x00,				/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -844,7 +810,6 @@ static const struct TUNER tuners[] = {
 	/* PHILIPS_NTSC */
 	{ "Philips NTSC",			/* the 'name' */
 	   TTYPE_NTSC,				/* input type */
-	   PHILIPS_NTSC_WADDR,			/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -855,7 +820,6 @@ static const struct TUNER tuners[] = {
 	/* PHILIPS_PAL */
 	{ "Philips PAL",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-  	   PHILIPS_PAL_WADDR,			/* PLL write address */
 	   { TSA552x_FCONTROL,			/* control byte for PLL */
 	     TSA552x_FCONTROL,
 	     TSA552x_FCONTROL,
@@ -866,7 +830,6 @@ static const struct TUNER tuners[] = {
 	/* PHILIPS_SECAM */
 	{ "Philips SECAM",			/* the 'name' */
 	   TTYPE_SECAM,				/* input type */
-	   0x00,				/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -877,7 +840,6 @@ static const struct TUNER tuners[] = {
 	/* TEMIC_PAL I */
 	{ "Temic PAL I",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-	   TEMIC_PALI_WADDR,			/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -888,7 +850,6 @@ static const struct TUNER tuners[] = {
 	/* PHILIPS_PAL */
 	{ "Philips PAL I",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-  	   TEMIC_PALI_WADDR,			/* PLL write address */
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
@@ -899,7 +860,6 @@ static const struct TUNER tuners[] = {
        /* PHILIPS_FR1236_NTSC */
        { "Philips FR1236 NTSC FM",             /* the 'name' */
           TTYPE_NTSC,                          /* input type */
-          PHILIPS_FR1236_NTSC_WADDR,           /* PLL write address */
 	  { TSA552x_SCONTROL,			/* control byte for PLL */
 	    TSA552x_SCONTROL,
 	    TSA552x_SCONTROL,
@@ -910,7 +870,6 @@ static const struct TUNER tuners[] = {
 	/* PHILIPS_FR1216_PAL */
 	{ "Philips FR1216 PAL" ,		/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-  	   PHILIPS_FR1216_PAL_WADDR,		/* PLL write address */
 	   { TSA552x_FCONTROL,			/* control byte for PLL */
 	     TSA552x_FCONTROL,
 	     TSA552x_FCONTROL,
@@ -921,7 +880,6 @@ static const struct TUNER tuners[] = {
 	/* PHILIPS_FR1236_SECAM */
 	{ "Philips FR1236 SECAM FM",		/* the 'name' */
 	   TTYPE_SECAM,				/* input type */
-  	   PHILIPS_FR1236_SECAM_WADDR,		/* PLL write address */
 	   { TSA552x_FCONTROL,			/* control byte for PLL */
 	     TSA552x_FCONTROL,
 	     TSA552x_FCONTROL,
@@ -965,6 +923,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_UNKNOWN,			/* the card id */
 	  "Unknown",				/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
 	   0,					/* dbx unknown */
 	   0,
 	   0,					/* EEProm unknown */
@@ -974,6 +933,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_MIRO,				/* the card id */
 	  "Miro TV",				/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
 	   0,					/* dbx unknown */
 	   0,
 	   0,					/* EEProm unknown */
@@ -983,6 +943,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_HAUPPAUGE,			/* the card id */
 	  "Hauppauge WinCast/TV",		/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
 	   0,					/* dbx is optional */
 	   0,
 	   PFC8582_WADDR,			/* EEProm type */
@@ -992,6 +953,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_STB,				/* the card id */
 	  "STB TV/PCI",				/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
 	   0,					/* dbx is optional */
 	   0,
 	   X24C01_WADDR,			/* EEProm type */
@@ -1001,6 +963,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_INTEL,				/* the card id */
 	  "Intel Smart Video III/VideoLogic Captivator PCI", /* the 'name' */
 	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
 	   0,
 	   0,
 	   0,
@@ -1010,6 +973,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_IMS_TURBO,			/* the card id */
 	  "IMS TV Turbo",			/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
 	   0,					/* dbx is optional */
 	   0,
 	   PFC8582_WADDR,			/* EEProm type */
@@ -1019,6 +983,7 @@ static const struct CARDTYPE cards[] = {
         {  CARD_AVER_MEDIA,			/* the card id */
           "AVer Media TV/FM",                   /* the 'name' */
            NULL,                                /* the tuner */
+	   0,					/* the tuner i2c address */
            0,                                   /* dbx is optional */
            0,
            0,                                   /* EEProm type */
@@ -2587,7 +2552,7 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 
 	case TVTUNER_GETSTATUS:
-		temp = i2cRead( bktr, TSA552x_RADDR );
+		temp = i2cRead( bktr, bktr->card.tuner_pllAddr + 1 );
 		*(unsigned long *)arg = temp & 0xff;
 		break;
 
@@ -4440,8 +4405,22 @@ static int check_for_i2c_devices( bktr_ptr_t bktr ){
   if ((i2c_all_0) || (i2c_all_absent)) return 0;
   else return 1;
 }
-#undef ABSENT
 
+/*
+ * Temic/Philips datasheets say tuners can be at i2c addresses 0xc0, 0xc2,
+ * 0xc4 or 0xc6, settable by links on the tuner
+ * Determine the actual address used on the TV card by probing read addresses
+ */
+static int locate_tuner_address( bktr_ptr_t bktr) {
+  if (i2cRead( bktr, 0xc1) != ABSENT) return 0xc0;
+  if (i2cRead( bktr, 0xc3) != ABSENT) return 0xc2;
+  if (i2cRead( bktr, 0xc5) != ABSENT) return 0xc4;
+  if (i2cRead( bktr, 0xc7) != ABSENT) return 0xc6;
+  return -1; /* no tuner found */
+}
+
+#undef ABSENT
+  
 /*
  * determine the card brand/model
  * OVERRIDE_CARD, OVERRIDE_TUNER, OVERRIDE_DBX and OVERRIDE_MSP
@@ -4459,7 +4438,7 @@ probeCard( bktr_ptr_t bktr, int verbose )
         int   any_i2c_devices;
 	u_char probe_eeprom[128];
 	u_long tuner_code = 0;
-
+	int tuner_i2c_address = -1;
 
         any_i2c_devices = check_for_i2c_devices( bktr );
 	bt848 = bktr->base;
@@ -4484,12 +4463,6 @@ probeCard( bktr_ptr_t bktr, int verbose )
 		goto checkTuner;
 	}
 
-	/* look for a tuner */
-	if ( i2cRead( bktr, TSA552x_RADDR ) == ABSENT ) {
-		bktr->card = cards[ (card = CARD_INTEL) ];
-		bktr->card.tuner = &tuners[ NO_TUNER ];
-		goto checkDBX;
-	}
 
 	/* look for a hauppauge card */
 	if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
@@ -4536,6 +4509,15 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	bktr->card = cards[ (card = CARD_MIRO) ];
 
 checkTuner:
+
+	/* look for a tuner */
+	tuner_i2c_address = locate_tuner_address( bktr );
+	if ( tuner_i2c_address == -1 ) {
+		bktr->card = cards[ (card = CARD_INTEL) ];
+		bktr->card.tuner = &tuners[ NO_TUNER ];
+		goto checkDBX;
+	}
+
 #if defined( OVERRIDE_TUNER )
 	bktr->card.tuner = &tuners[ OVERRIDE_TUNER ];
 	goto checkDBX;
@@ -4584,7 +4566,7 @@ checkTuner:
 	    a Phillips FI1236 MK2       PHILIPS_FR1236_NTSC
 	    b Phillips FI1246 MK2       PHILIPS_PALI
 	    c Phillips FI1256 MK2
-	    d Temic 4032FY5
+	    d Temic 4032FY5              TEMIC_NTSC
 	    e Temic 4002FH5              TEMIC_PAL
 	    f Temic 4062FY5              TEMIC_PALI
 	    10 Phillips FR1216 MK2
@@ -4617,6 +4599,10 @@ checkTuner:
 		 bktr->card.tuner = &tuners[ PHILIPS_PALI ];
 		 goto checkDBX;
 
+	       case 0xd:
+		 bktr->card.tuner = &tuners[ TEMIC_NTSC ];
+		 goto checkDBX;
+
                case 0xe:
 		 bktr->card.tuner = &tuners[ TEMIC_PAL];
 		 goto checkDBX;
@@ -4636,33 +4622,23 @@ checkTuner:
 
         /* At this point, a goto checkDBX has not occured */
         /* We have not been able to select a Tuner */
-	/* We could simply go for No Tuner, but by some guesswork */
-	/* we can try and select a suitable tuner */
-
-   
-        /* At address 0xc0/0xc1 is TEMIC NTSC and PHILIPS_FR1236_SECAM tuner*/
-	/* If we find a tuner at this address, assume it is TEMIC NTSC */
-	/* Sorry SECAM users */
-
-        if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
+        /* Some cards make use of the tuner address to */
+        /* identifty the make/model of tuner */
+        /* At address 0xc0/0xc1 we often find a TEMIC NTSC */
+        if ( i2cRead( bktr, 0xc1 ) != ABSENT ) {
             bktr->card.tuner = &tuners[ TEMIC_NTSC ];
             goto checkDBX;
         }
-   
-        /* At address 0xc6/0xc7 is the PHILIPS NTSC Tuner */
-	/* If we find a tuner at this address, assume it is PHILIPS NTSC */
-        /* PHILIPS NTSC Tuner is at address 0xc6 / 0xc7 */
-
-        if ( i2cRead( bktr, PHILIPS_NTSC_RADDR ) != ABSENT ) {
+  
+        /* At address 0xc6/0xc7 we often find a PHILIPS NTSC Tuner */
+        if ( i2cRead( bktr, 0xc7 ) != ABSENT ) {
             bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
             goto checkDBX;
         }
 
-        /* At address 0xc2/0xc3 is the TEMIC_PALI, PHILIPS_PAL, */
-	/* PHILIPS_FR_NTSC and PHILIPS_FR_PAL Tuners */
-        /* and we cannot tell which is which. */
+        /* Address 0xc2/0xc3 is default (or common address) for several */
+	/* tuners and we cannot tell which is which. */
         /* Default to No Tuner */
-
 
 	/* no tuner found */
 	bktr->card.tuner = &tuners[ NO_TUNER ];
@@ -4696,6 +4672,8 @@ checkMSP:
 		bktr->card.msp3400c = 1;
 
 checkEnd:
+
+	bktr->card.tuner_pllAddr = tuner_i2c_address;
 
 	if ( verbose ) {
 		printf( "%s", bktr->card.name );
@@ -5120,7 +5098,7 @@ tv_freq( bktr_ptr_t bktr, int frequency )
 	}
   
 	/* set the address of the PLL */
-	addr    = tuner->pllAddr;
+	addr    = bktr->card.tuner_pllAddr;
 	control = tuner->pllControl[ N ];
 	band    = tuner->bandAddrs[ N ];
 	if(!(band && control))			/* Don't try to set un-	*/

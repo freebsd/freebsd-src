@@ -27,6 +27,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -328,7 +330,6 @@ struct TVTUNER {
 struct TUNER {
 	char*		name;
 	u_char		type;
-	u_char		pllAddr;
 	u_char		pllControl[4];
 	u_char		bandLimits[ 2 ];
 	u_char		bandAddrs[ 4 ];        /* 3 first for the 3 TV 
@@ -343,7 +344,8 @@ struct TUNER {
 struct CARDTYPE {
 	unsigned int		card_id;	/* card id (from #define's) */
 	char*			name;
-	const struct TUNER*	tuner;
+	const struct TUNER*	tuner;		/* Tuner details */
+	u_char			tuner_pllAddr;	/* Tuner i2c address */
 	u_char			dbx;		/* Has DBX chip? */
 	u_char			msp3400c;	/* Has msp3400c chip? */
 	u_char			eepromAddr;
