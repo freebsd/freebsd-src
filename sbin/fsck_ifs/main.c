@@ -43,7 +43,6 @@ static const char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 
 #include <ufs/ufs/dinode.h>
@@ -53,10 +52,7 @@ static const char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #include <ctype.h>
 #include <err.h>
 #include <fstab.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "fsck.h"
 
@@ -75,11 +71,9 @@ main(argc, argv)
 {
 	int ch;
 	int ret, maxrun = 0;
-	extern char *optarg;
-	extern int optind;
 
 	sync();
-	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != EOF) {
+	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != -1) {
 		switch (ch) {
 		case 'p':
 			preen++;
