@@ -318,7 +318,8 @@ route_output(m, so)
 	if (genmask) {
 		struct radix_node *t;
 		t = rn_addmask((caddr_t)genmask, 0, 1);
-		if (t && Bcmp(genmask, t->rn_key, *(u_char *)genmask) == 0)
+		if (t && Bcmp((caddr_t *)genmask + 1, (caddr_t *)t->rn_key + 1,
+			      *(u_char *)t->rn_key - 1) == 0)
 			genmask = (struct sockaddr *)(t->rn_key);
 		else
 			senderr(ENOBUFS);
