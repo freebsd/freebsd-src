@@ -66,8 +66,8 @@ struct pollfd {
 #define	POLLRDBAND	0x0080		/* OOB/Urgent readable data */
 #define	POLLWRBAND	0x0100		/* OOB/Urgent data can be written */
 
-/* General FreeBSD extension (currently only supported for sockets): */
 #if __BSD_VISIBLE
+/* General FreeBSD extension (currently only supported for sockets): */
 #define	POLLINIGNEOF	0x2000		/* like POLLIN, except ignore EOF */
 #endif
 
