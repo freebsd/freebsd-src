@@ -5899,7 +5899,7 @@ debug_reload()
 	fprintf (stderr, ", inc by %d\n", reload_inc[r]);
 
       if (reload_nocombine[r])
-	fprintf (stderr, ", can combine", reload_nocombine[r]);
+	fprintf (stderr, ", can combine");
 
       if (reload_secondary_p[r])
 	fprintf (stderr, ", secondary_reload_p");
