@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $P4: //depot/projects/openpam/doc/Makefile#2 $
 #
 
 SUBDIR		 =

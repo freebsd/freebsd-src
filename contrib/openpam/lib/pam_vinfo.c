@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/pam_vinfo.c#4 $
  */
 
 #include <stdarg.h>
@@ -70,7 +70,7 @@ pam_vinfo(pam_handle_t *pamh,
 
 /**
  * The =pam_vinfo function passes its arguments to =pam_vprompt with a
- * =style argument of =PAM_TEXT_INFO, and discards the response.
+ * style argument of =PAM_TEXT_INFO, and discards the response.
  *
  * >pam_info
  * >pam_verror

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $P4: //depot/projects/openpam/modules/pam_permit/pam_permit.c#5 $
  */
 
 #include <sys/param.h>
