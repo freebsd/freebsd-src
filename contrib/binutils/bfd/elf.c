@@ -2869,6 +2869,11 @@ prep_headers (abfd)
   i_ehdrp->e_version = bed->s->ev_current;
   i_ehdrp->e_ehsize = bed->s->sizeof_ehdr;
 
+#ifdef __FreeBSD__
+  /* Quick and dirty hack to brand the file as a FreeBSD ELF file. */
+  strncpy((char *) &i_ehdrp->e_ident[8], "FreeBSD", EI_NIDENT-8);
+#endif
+
   /* no program header, for now. */
   i_ehdrp->e_phoff = 0;
   i_ehdrp->e_phentsize = 0;
