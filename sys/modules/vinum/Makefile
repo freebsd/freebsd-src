@@ -11,6 +11,6 @@ SRCS=	opt_vinum.h request.h vinum.c vinumconfig.c vinumdaemon.c \
 
 # If you remove -DVINUMDEBUG here, you must also do it in src/sbin/Makefile.
 # Otherwise a number of ioctls will fail.
-CFLAGS+=	-DVINUMDEBUG -g -O
+CFLAGS+=	-DVINUMDEBUG
 
 .include <bsd.kmod.mk>
