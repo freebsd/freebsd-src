@@ -56,7 +56,6 @@ coda/coda_vfsops.c	optional vcoda
 coda/coda_vnops.c	optional vcoda
 compat/linprocfs/linprocfs.c	 optional linprocfs
 contrib/dev/acpica/dbcmds.c	 optional acpica acpi_debug nowerror
-contrib/dev/acpica/dbdisasm.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dbdisply.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dbexec.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dbfileio.c	 optional acpica acpi_debug nowerror
@@ -65,6 +64,14 @@ contrib/dev/acpica/dbinput.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dbstats.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dbutils.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dbxface.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmbuffer.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmnames.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmopcode.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmresrc.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmresrcl.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmresrcs.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmutils.c	 optional acpica acpi_debug nowerror
+contrib/dev/acpica/dmwalk.c	 optional acpica acpi_debug nowerror
 contrib/dev/acpica/dsfield.c	 optional acpica nowerror
 contrib/dev/acpica/dsmethod.c	 optional acpica
 contrib/dev/acpica/dsmthdat.c	 optional acpica
@@ -122,8 +129,9 @@ contrib/dev/acpica/nsobject.c	 optional acpica
 contrib/dev/acpica/nssearch.c	 optional acpica
 contrib/dev/acpica/nsutils.c	 optional acpica
 contrib/dev/acpica/nswalk.c	 optional acpica
+contrib/dev/acpica/nsxfeval.c	 optional acpica nowerror
 contrib/dev/acpica/nsxfname.c	 optional acpica nowerror
-contrib/dev/acpica/nsxfobj.c	 optional acpica
+contrib/dev/acpica/nsxfobj.c	 optional acpica nowerror
 contrib/dev/acpica/psargs.c	 optional acpica
 contrib/dev/acpica/psfind.c	 optional acpica
 contrib/dev/acpica/psopcode.c	 optional acpica
@@ -146,7 +154,9 @@ contrib/dev/acpica/rsutils.c	 optional acpica
 contrib/dev/acpica/rsxface.c	 optional acpica
 contrib/dev/acpica/tbconvrt.c	 optional acpica
 contrib/dev/acpica/tbget.c	 optional acpica
+contrib/dev/acpica/tbgetall.c	 optional acpica
 contrib/dev/acpica/tbinstal.c	 optional acpica
+contrib/dev/acpica/tbrsdt.c	 optional acpica
 contrib/dev/acpica/tbutils.c	 optional acpica
 contrib/dev/acpica/tbxface.c	 optional acpica
 contrib/dev/acpica/tbxfroot.c	 optional acpica

@@ -135,6 +135,10 @@ AcpiEnableSubsystem (
     UINT32                  Flags);
 
 ACPI_STATUS
+AcpiInitializeObjects (
+    UINT32                  Flags);
+
+ACPI_STATUS
 AcpiTerminate (
     void);
 

@@ -145,7 +145,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20020611
+#define ACPI_CA_VERSION                 0x20020725
 
 /* Version of ACPI supported */
 
@@ -242,6 +242,15 @@
 /* Maximum SpaceIds for Operation Regions */
 
 #define ACPI_MAX_ADDRESS_SPACE          255
+
+/* Array sizes.  Used for range checking also */
+
+#define NUM_ACCESS_TYPES                6
+#define NUM_UPDATE_RULES                3
+#define NUM_LOCK_RULES                  2
+#define NUM_MATCH_OPS                   6
+#define NUM_OPCODES                     256
+#define NUM_FIELD_NAMES                 2
 
 /* RSDP checksums */
 

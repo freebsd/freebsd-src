@@ -10,21 +10,29 @@ KMOD=	acpi
 
 # ACPI CA sources
 CFLAGS+=   -I${.CURDIR}/../../contrib/dev/acpica
-SRCS+=	dsfield.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c dsutils.c
-SRCS+=	dswexec.c dswload.c dswscope.c dswstate.c evevent.c evmisc.c evregion.c
-SRCS+=	evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c exconfig.c exconvrt.c
-SRCS+=	excreate.c exdump.c exfield.c exfldio.c exmisc.c exmutex.c exnames.c
-SRCS+=	exoparg1.c exoparg2.c exoparg3.c exoparg6.c exprep.c exregion.c
-SRCS+=	exresnte.c exresolv.c exresop.c
-SRCS+=	exstore.c exstoren.c exstorob.c exsystem.c exutils.c hwacpi.c
-SRCS+=	hwgpe.c hwregs.c hwsleep.c hwtimer.c nsaccess.c nsalloc.c nsdump.c
-SRCS+=	nseval.c nsinit.c nsload.c nsnames.c nsobject.c nssearch.c nsutils.c
-SRCS+=	nswalk.c nsxfname.c nsxfobj.c psargs.c psfind.c psopcode.c psparse.c
-SRCS+=	psscope.c pstree.c psutils.c pswalk.c psxface.c rsaddr.c rscalc.c
-SRCS+=  rscreate.c rsdump.c rsio.c rsirq.c rslist.c rsmemory.c rsmisc.c
-SRCS+=  rsutils.c rsxface.c tbconvrt.c tbget.c tbinstal.c tbutils.c tbxface.c
-SRCS+=	tbxfroot.c utalloc.c utclib.c utcopy.c utdebug.c utdelete.c uteval.c
-SRCS+=	utglobal.c utinit.c utmath.c utmisc.c utobject.c utxface.c
+SRCS+=	dsfield.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c
+SRCS+=	dsutils.c dswexec.c dswload.c dswscope.c dswstate.c
+SRCS+=	evevent.c evmisc.c evregion.c evrgnini.c evsci.c
+SRCS+=	evxface.c evxfevnt.c evxfregn.c
+SRCS+=	exconfig.c exconvrt.c excreate.c exdump.c exfield.c
+SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c
+SRCS+=	exoparg2.c exoparg3.c exoparg6.c exprep.c exregion.c
+SRCS+=	exresnte.c exresolv.c exresop.c exstore.c exstoren.c
+SRCS+=	exstorob.c exsystem.c exutils.c
+SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c
+SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c
+SRCS+=	nsload.c nsnames.c nsobject.c nssearch.c nsutils.c
+SRCS+=	nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
+SRCS+=	psargs.c psfind.c psopcode.c psparse.c psscope.c
+SRCS+=	pstree.c psutils.c pswalk.c psxface.c
+SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsio.c
+SRCS+=	rsirq.c rslist.c rsmemory.c rsmisc.c rsutils.c
+SRCS+=	rsxface.c
+SRCS+=	tbconvrt.c tbget.c tbgetall.c tbinstal.c tbrsdt.c
+SRCS+=	tbutils.c tbxface.c tbxfroot.c
+SRCS+=	utalloc.c utclib.c utcopy.c utdebug.c utdelete.c
+SRCS+=	uteval.c utglobal.c utinit.c utmath.c utmisc.c
+SRCS+=	utobject.c utxface.c
 
 # OSD layer
 SRCS+=	acpi.c acpi_acad.c acpi_battery.c acpi_button.c acpi_cmbat.c acpi_cpu.c
@@ -46,8 +54,10 @@ CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 # Debugging support
 .if ACPI_DEBUG
 CFLAGS+=-DACPI_DEBUG
-SRCS+=	dbcmds.c dbdisasm.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
+SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
 SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c
+SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c
+SRCS+=	dmresrcs.c dmutils.c dmwalk.c
 opt_ddb.h: Makefile
 	echo '#define DDB 1'  >opt_ddb.h
 .else
