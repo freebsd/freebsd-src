@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.25 1997/10/04 00:14:39 brian Exp $
+ * $Id: ip.c,v 1.26 1997/10/26 01:02:52 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "mbuf.h"
@@ -55,6 +56,7 @@
 #include "ipcp.h"
 #include "vjcomp.h"
 #include "lcp.h"
+#include "modem.h"
 #include "ip.h"
 
 static struct pppTimer IdleTimer;

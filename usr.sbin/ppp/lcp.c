@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.39 1997/10/15 01:01:17 brian Exp $
+ * $Id: lcp.c,v 1.40 1997/10/26 01:02:57 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -56,6 +56,7 @@
 #include "chap.h"
 #include "async.h"
 #include "main.h"
+#include "ip.h"
 #include "modem.h"
 
 struct lcpstate LcpInfo;

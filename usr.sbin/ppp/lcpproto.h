@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcpproto.h,v 1.8 1997/08/25 00:29:16 brian Exp $
+ * $Id: lcpproto.h,v 1.9 1997/10/26 01:02:59 brian Exp $
  *
  *	TODO:
  */
@@ -37,12 +37,3 @@
 #define	PROTO_PAP	0xc023
 #define	PROTO_LQR	0xc025
 #define	PROTO_CHAP	0xc223
-
-extern void LcpInput(struct mbuf *);
-extern void PapInput(struct mbuf *);
-extern void LqpInput(struct mbuf *);
-extern void ChapInput(struct mbuf *);
-extern void IpInput(struct mbuf *);
-extern struct mbuf *VjCompInput(struct mbuf *, int);
-extern void IpcpInput(struct mbuf *);
-extern void LqrInput(struct mbuf *);

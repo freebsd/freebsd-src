@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.21 1997/10/24 22:36:29 brian Exp $
+ * $Id: defs.h,v 1.22 1997/10/26 01:02:33 brian Exp $
  *
  *	TODO:
  */
@@ -82,10 +82,5 @@ extern int tun_in;
 extern int tun_out;
 extern int netfd;
 extern char *dstsystem;
-
-#ifdef SIGALRM
-extern u_int nointr_sleep(u_int);
-extern void nointr_usleep(u_int);
-#endif
 
 extern void randinit(void);
