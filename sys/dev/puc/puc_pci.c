@@ -136,3 +136,129 @@ static driver_t puc_pci_driver = {
 
 DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
 DRIVER_MODULE(puc, cardbus, puc_pci_driver, puc_devclass, 0, 0);
+
+
+#define rdspio(indx)		(bus_space_write_1(bst, bsh, efir, indx), \
+				bus_space_read_1(bst, bsh, efdr))
+#define wrspio(indx,data)	(bus_space_write_1(bst, bsh, efir, indx), \
+				bus_space_write_1(bst, bsh, efdr, data))
+
+#ifdef PUC_DEBUG
+static void
+puc_print_win877(bus_space_tag_t bst, bus_space_handle_t bsh, u_int efir,
+	u_int efdr)
+{
+	u_char cr00, cr01, cr04, cr09, cr0d, cr14, cr15, cr16, cr17;
+	u_char cr18, cr19, cr24, cr25, cr28, cr2c, cr31, cr32;
+
+	cr00 = rdspio(0x00);
+	cr01 = rdspio(0x01);
+	cr04 = rdspio(0x04);
+	cr09 = rdspio(0x09);
+	cr0d = rdspio(0x0d);
+	cr14 = rdspio(0x14);
+	cr15 = rdspio(0x15);
+	cr16 = rdspio(0x16);
+	cr17 = rdspio(0x17);
+	cr18 = rdspio(0x18);
+	cr19 = rdspio(0x19);
+	cr24 = rdspio(0x24);
+	cr25 = rdspio(0x25);
+	cr28 = rdspio(0x28);
+	cr2c = rdspio(0x2c);
+	cr31 = rdspio(0x31);
+	cr32 = rdspio(0x32);
+	printf("877T: cr00 %x, cr01 %x, cr04 %x, cr09 %x, cr0d %x, cr14 %x, "
+	    "cr15 %x, cr16 %x, cr17 %x, cr18 %x, cr19 %x, cr24 %x, cr25 %x, "
+	    "cr28 %x, cr2c %x, cr31 %x, cr32 %x\n", cr00, cr01, cr04, cr09,
+	    cr0d, cr14, cr15, cr16, cr17,
+	    cr18, cr19, cr24, cr25, cr28, cr2c, cr31, cr32);
+}
+#endif
+
+int
+puc_config_win877(struct puc_softc *sc)
+{
+	u_char val;
+	u_int efir, efdr;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+        struct resource *res;
+
+	res = sc->sc_bar_mappings[0].res;
+
+	bst = rman_get_bustag(res);
+	bsh = rman_get_bushandle(res);
+
+	/* configure the first W83877TF */
+	bus_space_write_1(bst, bsh, 0x250, 0x89);
+	efir = 0x251;
+	efdr = 0x252;
+	val = rdspio(0x09) & 0x0f;
+	if (val != 0x0c) {
+		printf("conf_win877: Oops not a W83877TF\n");
+		return (ENXIO);
+	}
+
+#ifdef PUC_DEBUG
+	printf("before: ");
+	puc_print_win877(bst, bsh, efir, efdr);
+#endif
+
+	val = rdspio(0x16);
+	val |= 0x04;
+	wrspio(0x16, val);
+	val &= ~0x04;
+	wrspio(0x16, val);
+
+	wrspio(0x24, 0x2e8 >> 2);
+	wrspio(0x25, 0x2f8 >> 2);
+	wrspio(0x17, 0x03);
+	wrspio(0x28, 0x43);
+
+#ifdef PUC_DEBUG
+	printf("after: ");
+	puc_print_win877(bst, bsh, efir, efdr);
+#endif
+
+	bus_space_write_1(bst, bsh, 0x250, 0xaa);
+
+	/* configure the second W83877TF */
+	bus_space_write_1(bst, bsh, 0x3f0, 0x87);
+	bus_space_write_1(bst, bsh, 0x3f0, 0x87);
+	efir = 0x3f0;
+	efdr = 0x3f1;
+	val = rdspio(0x09) & 0x0f;
+	if (val != 0x0c) {
+		printf("conf_win877: Oops not a W83877TF\n");
+		return(ENXIO);
+	}
+
+#ifdef PUC_DEBUG
+	printf("before: ");
+	puc_print_win877(bst, bsh, efir, efdr);
+#endif
+
+	val = rdspio(0x16);
+	val |= 0x04;
+	wrspio(0x16, val);
+	val &= ~0x04;
+	wrspio(0x16, val);
+
+	wrspio(0x24, 0x3e8 >> 2);
+	wrspio(0x25, 0x3f8 >> 2);
+	wrspio(0x17, 0x03);
+	wrspio(0x28, 0x43);
+
+#ifdef PUC_DEBUG
+	printf("after: ");
+	puc_print_win877(bst, bsh, efir, efdr);
+#endif
+
+	bus_space_write_1(bst, bsh, 0x3f0, 0xaa);
+	return (0);
+}
+
+#undef rdspio
+#undef wrspio
+

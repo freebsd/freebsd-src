@@ -66,8 +66,11 @@
 
 #define	PUC_MAX_PORTS		12
 
+struct puc_softc;
+typedef int puc_init_t(struct puc_softc *sc);
 struct puc_device_description {
 	const char	*name;
+	puc_init_t	*init;
 	uint32_t	rval[4];
 	uint32_t	rmask[4];
 	struct {
@@ -89,7 +92,6 @@ struct puc_device_description {
 
 #define	PUC_PORT_VALID(desc, port) \
   ((port) < PUC_MAX_PORTS && (desc)->ports[(port)].type != PUC_PORT_TYPE_NONE)
-#define PUC_PORT_BAR_INDEX(bar)	(((bar) - PCIR_MAPS) / 4)
 
 #define PUC_MAX_BAR		6
 
@@ -122,6 +124,8 @@ struct puc_softc {
 	void			*intr_cookie;
 
 	struct {
+		int		used;
+		int 		bar;
 		struct resource	*res;
 	} sc_bar_mappings[PUC_MAX_BAR];
 
@@ -135,4 +139,6 @@ struct puc_softc {
 };
 
 #endif /* PUC_ENTRAILS */
+
+int puc_config_win877(struct puc_softc *);
 extern const struct puc_device_description puc_devices[];
