@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.28 1997/11/07 08:52:57 phk Exp $
+ * $Id: kern_resource.c,v 1.29 1997/12/16 17:40:17 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -76,7 +76,7 @@ getpriority(curp, uap)
 	struct proc *curp;
 	register struct getpriority_args *uap;
 {
-	register struct proc *p = 0;
+	register struct proc *p;
 	register int low = PRIO_MAX + 1;
 
 	switch (uap->which) {
@@ -120,7 +120,7 @@ getpriority(curp, uap)
 	}
 	if (low == PRIO_MAX + 1)
 		return (ESRCH);
-	p->p_retval[0] = low;
+	curp->p_retval[0] = low;
 	return (0);
 }
 
