@@ -10,4 +10,4 @@ Inntil disse forbedringene er utført, vil du kanskje finne det
 enklest å redigere /etc/sysconfig filen selv etter systemet er
 ferdig installert. Det er mange merknader i den filen som beskriver
 hva som må forandres, og ett par eksempler på eksisterende
-språk oppset.
+språk oppsett.
