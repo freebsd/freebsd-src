@@ -57,14 +57,14 @@ char	PC;
  * The number of affected lines is affcnt, and the routine
  * used to output one character is outc.
  */
-void
+int
 tputs(const char *cp, int affcnt, int (*outc)(int))
 {
 	register int i = 0;
 	register int mspc10;
 
 	if (cp == 0)
-		return;
+		return 0;
 
 	/*
 	 * Convert the number representing the delay.
@@ -104,9 +104,9 @@ tputs(const char *cp, int affcnt, int (*outc)(int))
 	 * not comprehensible, then don't try to delay.
 	 */
 	if (i == 0)
-		return;
+		return 0;
 	if (ospeed <= 0 || ospeed >= (sizeof tmspc10 / sizeof tmspc10[0]))
-		return;
+		return 0;
 
 	/*
 	 * Round up by a half a character frame,
@@ -119,4 +119,5 @@ tputs(const char *cp, int affcnt, int (*outc)(int))
 	i += mspc10 / 2;
 	for (i /= mspc10; i > 0; i--)
 		(*outc)(PC);
+	return 0;
 }
