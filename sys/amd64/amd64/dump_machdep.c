@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <vm/vm.h>
@@ -56,6 +57,7 @@ dumpsys(struct dumperinfo *di)
 	u_int count, left, u;
 	void *va;
 	int i, mb;
+	int c;
 
 	printf("Dumping %u MB\n", Maxmem / (1024*1024 / PAGE_SIZE));
 
@@ -104,6 +106,11 @@ dumpsys(struct dumperinfo *di)
 		count += left;
 		dumplo += left * PAGE_SIZE;
 		addr += left * PAGE_SIZE;
+		if ((c = cncheckc()) == 0x03) {
+			printf("\nDump aborted.\n");
+			return;
+		} else if (c != -1)
+			printf("[CTRL-C to abort] ");
 	}
 	if (i) 
 		printf("\nDump failed writing data (%d)\n", i);
