@@ -77,12 +77,12 @@ Sockets bound to the
 family utilize the following addressing structure:
 .Bd -literal -offset indent
 struct sockaddr_in6 {
-	u_int8_t	sin6_len;
-	u_int8_t	sin6_family;
-	u_int16_t	sin6_port;
-	u_int32_t	sin6_flowinfo;
+	uint8_t		sin6_len;
+	sa_family_t	sin6_family;
+	in_port_t	sin6_port;
+	uint32_t	sin6_flowinfo;
 	struct in6_addr	sin6_addr;
-	u_int32_t	sin6_scope_id;
+	uint32_t	sin6_scope_id;
 };
 .Ed
 .Pp
