@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.39 2000/06/01 14:29:00 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.40 2000/10/10 12:37:01 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -228,7 +228,7 @@ USB_ATTACH(uhid)
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
 
-	desc = 0;
+	desc = NULL;
 	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_USBDEV);
 	if (err) {
 		printf("%s: no report descriptor\n", USBDEVNAME(sc->sc_dev));
@@ -321,7 +321,8 @@ USB_DETACH(uhid)
 	destroy_dev(sc->dev);
 #endif
 
-	free(sc->sc_repdesc, M_USBDEV);
+	if (sc->sc_repdesc)
+		free(sc->sc_repdesc, M_USBDEV);
 
 	return (0);
 }
