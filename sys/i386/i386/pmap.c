@@ -315,6 +315,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * apic_map is the pt for where the local (CPU) apic is mapped in.
 	 */
 	SYSMAP(unsigned int *, apic_map, apic_base, 1)
+#if 1  /** XXX APIC_STRUCT */
+	lapic = (lapic_t*)apic_base;
+#endif  /** XXX APIC_STRUCT */
 #endif /* SMP || APIC_IO */
 
 #if defined(APIC_IO)
@@ -322,6 +325,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * io_apic_map is the pt for where the I/O apic is mapped in.
 	 */
 	SYSMAP(unsigned int *, io_apic_map, io_apic_base, 1)
+#if 1  /** XXX APIC_STRUCT */
+	ioapic = (ioapic_t*)io_apic_base;
+#endif  /** XXX APIC_STRUCT */
 #endif /* APIC_IO */
 
 	/*
