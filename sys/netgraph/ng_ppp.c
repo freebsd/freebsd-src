@@ -874,8 +874,8 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	const priv_p priv = node->private;
 	struct ng_ppp_frag frag0, *frag = &frag0;
 	struct ng_ppp_frag *qent, *qnext;
-	struct ng_ppp_frag *first = NULL, *last = NULL;
-	int diff, highSeq, nextSeq;
+	struct ng_ppp_frag *first, *last;
+	int diff, highSeq, nextSeq, inserted;
 	struct mbuf *tail;
 
 	/* Extract fragment information from MP header */
@@ -940,10 +940,12 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	m = NULL;
 
 	/* Add fragment to queue, which is reverse sorted by sequence number */
+	inserted = 0;
 	CIRCLEQ_FOREACH(qent, &priv->frags, f_qent) {
 		diff = MP_SEQ_DIFF(priv, frag->seq, qent->seq);
 		if (diff > 0) {
 			CIRCLEQ_INSERT_BEFORE(&priv->frags, qent, frag, f_qent);
+			inserted = 1;
 			break;
 		} else if (diff == 0) {	     /* should never happen! */
 			log(LOG_ERR, "%s: rec'd dup MP fragment\n", node->name);
@@ -956,34 +958,38 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 			return (EINVAL);
 		}
 	}
-	if (qent == NULL)
+	if (!inserted)
 		CIRCLEQ_INSERT_TAIL(&priv->frags, frag, f_qent);
 
-	/* Find the first fragment in the possibly newly completed frame */
-	for (nextSeq = frag->seq, qent = frag;
-	    qent != (void *) &priv->frags;
-	    qent = CIRCLEQ_PREV(qent, f_qent)) {
-		if (qent->seq != nextSeq)
-			goto pruneQueue;
-		if (qent->first) {
-			first = qent;
-			break;
-		}
-		nextSeq = (nextSeq - 1) & MP_SEQ_MASK(priv);
-	}
-
 	/* Find the last fragment in the possibly newly completed frame */
-	for (nextSeq = frag->seq, qent = frag;
-	    qent != (void *) &priv->frags;
-	    qent = CIRCLEQ_NEXT(qent, f_qent)) {
-		if (qent->seq != nextSeq)
-			goto pruneQueue;
+	last = NULL;
+	qent = frag;
+	nextSeq = frag->seq;
+	while (qent != (void *)&priv->frags && qent->seq == nextSeq) {
 		if (qent->last) {
 			last = qent;
 			break;
 		}
+		qent = CIRCLEQ_PREV(qent, f_qent);
 		nextSeq = (nextSeq + 1) & MP_SEQ_MASK(priv);
 	}
+	if (last == NULL)
+		goto incomplete;
+
+	/* Find the first fragment in the possibly newly completed frame */
+	first = NULL;
+	qent = frag;
+	nextSeq = frag->seq;
+	while (qent != (void *)&priv->frags && qent->seq == nextSeq) {
+		if (qent->first) {
+			first = qent;
+			break;
+		}
+		qent = CIRCLEQ_NEXT(qent, f_qent);
+		nextSeq = (nextSeq - 1) & MP_SEQ_MASK(priv);
+	}
+	if (first == NULL)
+		goto incomplete;
 
 	/* We have a complete frame, extract it from the queue */
 	for (tail = NULL, qent = first; qent != NULL; qent = qnext) {
@@ -1004,10 +1010,10 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 		FREE(qent, M_NETGRAPH);
 	}
 
-pruneQueue:
+incomplete:
 	/* Prune out stale entries in the queue */
 	for (qent = CIRCLEQ_LAST(&priv->frags); 
-	    qent != (void *) &priv->frags; qent = qnext) {
+	    qent != (void *)&priv->frags; qent = qnext) {
 		if (MP_SEQ_DIFF(priv, highSeq, qent->seq) <= MP_MAX_SEQ_LINGER)
 			break;
 		qnext = CIRCLEQ_PREV(qent, f_qent);
@@ -1526,11 +1532,11 @@ static void
 ng_ppp_free_frags(node_p node)
 {
 	const priv_p priv = node->private;
-	struct ng_ppp_frag *qent, *next;
+	struct ng_ppp_frag *qent, *qnext;
 
 	for (qent = CIRCLEQ_FIRST(&priv->frags);
-	    qent != (void *) &priv->frags; qent = next) {
-		next = CIRCLEQ_NEXT(qent, f_qent);
+	    qent != (void *)&priv->frags; qent = qnext) {
+		qnext = CIRCLEQ_NEXT(qent, f_qent);
 		NG_FREE_DATA(qent->data, qent->meta);
 		FREE(qent, M_NETGRAPH);
 	}
