@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.84 1999/01/08 00:14:21 jkh Exp $
+ * $Id: label.c,v 1.84.2.1 1999/02/05 22:20:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,7 +55,18 @@
 #define FS_MIN_SIZE			ONE_MEG
 
 /* The smallest root filesystem we're willing to create */
+#ifdef __alpha__
+#define ROOT_MIN_SIZE			32
+#else
 #define ROOT_MIN_SIZE			20
+#endif
+
+/* The default root filesystem size */
+#ifdef __alpha__
+#define ROOT_DEFAULT_SIZE		48
+#else
+#define ROOT_DEFAULT_SIZE		32
+#endif
 
 /* The smallest swap partition we want to create by default */
 #define SWAP_MIN_SIZE			16
@@ -758,7 +769,7 @@ diskLabel(Device *dev)
 		if (!rootdev) {
 		    cp = variable_get(VAR_ROOT_SIZE);
 		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
-					    (cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS,  CHUNK_IS_ROOT);
+					    (cp ? atoi(cp) : ROOT_DEFAULT_SIZE) * ONE_MEG, part, FS_BSDFFS,  CHUNK_IS_ROOT);
 		    if (!tmp) {
 			msgConfirm("Unable to create the root partition. Too big?");
 			clear_wins();
