@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.17 1996/06/03 03:11:39 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.18 1996/10/20 19:44:45 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.17 1996/06/03 03:11:39 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.18 1996/10/20 19:44:45 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -162,6 +162,7 @@ main(argc,argv)
 	char tempmap[MAXPATHLEN + 2];
 	char buf[MAXPATHLEN + 2];
 	DBT key, data;
+	int remoteport;
 
 	debug = 1;
 
@@ -332,6 +333,16 @@ the local domain name isn't set");
 	if (ypxfr_source_host == NULL)
 		ypxfr_source_host = ypxfr_master;
 
+	/*
+	 * Don't talk to ypservs on unprivileged ports.
+	 */
+	remoteport = getrpcport(ypxfr_source_host, YPPROG, YPVERS, IPPROTO_UDP);
+	if (remoteport >= IPPORT_RESERVED) {
+		yp_error("ypserv on %s not running on reserved port",
+						ypxfr_source_host);
+		ypxfr_exit(YPXFR_REFUSED, NULL);
+	}
+
 	if ((ypxfr_order = ypxfr_get_order(ypxfr_source_domain,
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
@@ -376,10 +387,18 @@ the local domain name isn't set");
 	snprintf(ypxfr_temp_map, sizeof(ypxfr_temp_map), "%s/%s/%s", yp_dir,
 		 ypxfr_dest_domain, tempmap);
 
-	if (getrpcport(ypxfr_master, YPXFRD_FREEBSD_PROG,
-					YPXFRD_FREEBSD_VERS, IPPROTO_TCP)) {
+	if ((remoteport = getrpcport(ypxfr_source_host, YPXFRD_FREEBSD_PROG,
+					YPXFRD_FREEBSD_VERS, IPPROTO_TCP))) {
+
+		/* Don't talk to rpc.ypxfrds on unprovileged ports. */
+		if (remoteport >= IPPORT_RESERVED) {
+			yp_error("rpc.ypxfrd on %s not using privileged port",
+							ypxfr_source_host);
+			ypxfr_exit(YPXFR_REFUSED, NULL);
+		}
+
 		/* Try to send using ypxfrd. If it fails, use old method. */
-		if (!ypxfrd_get_map(ypxfr_master, ypxfr_mapname,
+		if (!ypxfrd_get_map(ypxfr_source_host, ypxfr_mapname,
 					ypxfr_source_domain, ypxfr_temp_map))
 			goto leave;
 	}
