@@ -65,9 +65,6 @@ Do(char *path)
 	    ret |= 1;
 	    continue;
 	}
-	if((st.st_mode & S_IFMT) == S_IFDIR) {
-	    strcat(buf,"/");
-	}
 	pde[nde] = malloc(strlen(buf+bufp)+1);
         strcpy(pde[nde++],buf+bufp);
     }
@@ -83,7 +80,7 @@ Do(char *path)
 	}
 	switch(st.st_mode & S_IFMT) {
 	    case S_IFDIR:
-		i = printf("d %s %o %d %d - - -\n",	
+		i = printf("d %s %d %d %d - - -\n",	
 		    buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid);
 		if(!i) 
 		    exit(-1);

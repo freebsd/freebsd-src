@@ -25,6 +25,7 @@ Pass1(FILE *fd)
     int i,j,sep,cnt;
     u_char *md5=0,*trash=0;
     struct CTM_Syntax *sp;
+    int slashwarn=0;
 
     if(Verbose>3) 
 	printf("Pass1 -- Checking integrity of incomming CTM-patch\n");
@@ -86,19 +87,58 @@ Pass1(FILE *fd)
 
 	    switch (j & CTM_F_MASK) {
 		case CTM_F_Name: /* XXX check for garbage and .. */
-		case CTM_F_Uid:  /* XXX check for garbage */
-		case CTM_F_Gid:  /* XXX check for garbage */
-		case CTM_F_Mode:  /* XXX check for garbage */
 		    GETFIELD(p,sep);
+		    j = strlen(p);
+		    if(p[j-1] == '/' && !slashwarn)  {
+			fprintf(stderr,"Warning: contains trailing slash\n");
+			slashwarn++;
+		    }
+		    break;
+		case CTM_F_Uid:
+		    GETFIELD(p,sep);
+		    while(*p) {
+			if(!isdigit(*p)) {
+			    Fatal("Non-digit in uid.");
+			    return 32;
+			}
+			p++;
+		    }
+		    break;
+		case CTM_F_Gid:
+		    GETFIELD(p,sep);
+		    while(*p) {
+			if(!isdigit(*p)) {
+			    Fatal("Non-digit in gid.");
+			    return 32;
+			}
+			p++;
+		    }
+		    break;
+		case CTM_F_Mode:
+		    GETFIELD(p,sep);
+		    while(*p) {
+			if(!isdigit(*p)) {
+			    Fatal("Non-digit in mode.");
+			    return 32;
+			}
+			p++;
+		    }
 		    break;
 		case CTM_F_MD5:
-		    if(j & CTM_Q_MD5_Chunk)
+		    if(j & CTM_Q_MD5_Chunk) {
 			GETFIELDCOPY(md5,sep);  /* XXX check for garbage */
-		    else
+		    } else if(j & CTM_Q_MD5_Before) {
 			GETFIELD(p,sep);  /* XXX check for garbage */
+		    } else if(j & CTM_Q_MD5_After) {
+			GETFIELD(p,sep);  /* XXX check for garbage */
+		    } else {
+			fprintf(stderr,"List = 0x%x\n",j);
+			Fatal("Unqualified MD5.");
+			return 32;
+		    }
 		    break;
 		case CTM_F_Count:
-		    GETBYTECNT(cnt,sep);  /* XXX check for garbage */
+		    GETBYTECNT(cnt,sep);
 		    break;
 		case CTM_F_Bytes:
 		    if(cnt < 0) WRONG

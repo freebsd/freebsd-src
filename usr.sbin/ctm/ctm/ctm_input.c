@@ -57,11 +57,15 @@ Ffield(FILE *fd, MD5_CTX *ctx,u_char term)
     MD5Update(ctx,buf,l);
     if(buf[l-1] != term) {
         Fatal("Corrupt patch.");
-	fprintf(stderr,"Expected \"%s\" but didn't find it.\n",
-	    term == '\n' ? "\\n" : " ");
+	fprintf(stderr,"Expected \"%s\" but didn't find it {%02x}.\n",
+	    term == '\n' ? "\\n" : " ",buf[l-1]);
+	if(Verbose > 4)
+	    fprintf(stderr,"{%s}\n",buf);
 	return 0;
     }
     buf[--l] = '\0';
+    if(Verbose > 4)
+        fprintf(stderr,"<%s>\n",buf);
     return buf;
 }
 
@@ -69,16 +73,18 @@ int
 Fbytecnt(FILE *fd, MD5_CTX *ctx, u_char term)
 {
     u_char *p,*q;
-    int u_chars;
+    int u_chars=0;
 
     p = Ffield(fd,ctx,term);
     if(!p) return -1;
-    for(q=p;*q;q++)
+    for(q=p;*q;q++) {
 	if(!isdigit(*q)) {
 	    Fatal("Bytecount contains non-digit.");
 	    return -1;
 	}
-    u_chars=atoi(p);
+	u_chars *= 10;
+	u_chars += (*q - '0');
+    }
     if(u_chars > MAXSIZE) {
 	Fatal("Bytecount too large.");
 	return -1;
