@@ -113,7 +113,7 @@ ahc_pci_attach(device_t dev)
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
 				   (ahc->flags & AHC_39BIT_ADDRESSING)
-				   ? 0x7FFFFFFFFF
+				   ? 0x7FFFFFFFFFLL
 				   : BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
 				   /*filter*/NULL, /*filterarg*/NULL,
