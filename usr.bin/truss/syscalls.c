@@ -385,6 +385,16 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
   return tmp;
 }
 
+#define timespecsubt(tvp, uvp, vvp)					\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
+		(vvp)->tv_nsec = (tvp)->tv_nsec - (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+
 /*
  * print_syscall
  * Print (to outfile) the system call and its arguments.  Note that
@@ -396,26 +406,25 @@ void
 print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s_args) {
   int i;
   int len = 0;
-
-  struct timeval timediff;
+  struct timespec timediff;
 
   if (trussinfo->flags & FOLLOWFORKS)
     len += fprintf(trussinfo->outfile, "%5d:  ", trussinfo->pid);
 
   if (!strcmp(name, "execve") || !strcmp(name, "exit")) {
-    gettimeofday(&trussinfo->after, (struct timezone *)NULL);
+    clock_gettime(CLOCK_REALTIME, &trussinfo->after);
   }
 
   if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-    timersub(&trussinfo->after, &trussinfo->start_time, &timediff);
-    len += fprintf(trussinfo->outfile, "%d.%0.7d ",
-		   timediff.tv_sec, timediff.tv_usec);
+    timespecsubt(&trussinfo->after, &trussinfo->start_time, &timediff);
+    len += fprintf(trussinfo->outfile, "%d.%0.9d ",
+		   timediff.tv_sec, timediff.tv_nsec);
   }
 
   if (trussinfo->flags & RELATIVETIMESTAMPS) {
-    timersub(&trussinfo->after, &trussinfo->before, &timediff);
-    len += fprintf(trussinfo->outfile, "%d.%0.7d ",
-		   timediff.tv_sec, timediff.tv_usec);
+    timespecsubt(&trussinfo->after, &trussinfo->before, &timediff);
+    len += fprintf(trussinfo->outfile, "%d.%0.9d ",
+		   timediff.tv_sec, timediff.tv_nsec);
   }
 
   len += fprintf(trussinfo->outfile, "%s(", name);
