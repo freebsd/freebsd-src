@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.5 1998/05/23 22:27:53 brian Exp $
+ *	$Id: bundle.c,v 1.6 1998/05/23 22:28:19 brian Exp $
  */
 
 #include <sys/types.h>
@@ -41,11 +41,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -1349,8 +1351,10 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   niov = 1;
   iov[0].iov_len = strlen(Version) + 1;
   iov[0].iov_base = (char *)malloc(iov[0].iov_len);
-  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov) == -1)
+  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov) == -1) {
+    close(s);
     return;
+  }
 
   for (f = expect = 0; f < niov; f++)
     expect += iov[f].iov_len;
@@ -1358,7 +1362,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   /* Set up our message */
   cmsg->cmsg_len = sizeof cmsgbuf;
   cmsg->cmsg_level = SOL_SOCKET;
-  cmsg->cmsg_type = SCM_RIGHTS;
+  cmsg->cmsg_type = 0;
 
   memset(&msg, '\0', sizeof msg);
   msg.msg_name = (caddr_t)sun;
@@ -1378,13 +1382,22 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
       log_Printf(LogERROR, "Failed recvmsg: Got %d, not %d\n", f, expect);
     while (niov--)
       free(iov[niov].iov_base);
+    close(s);
     return;
   }
 
-  /* We've successfully received an open file descriptor through our socket */
-  link_fd = *(int *)CMSG_DATA(cmsg);
+  write(s, "!", 1);	/* ACK */
 
-  write(s, "!",1 );	/* ACK */
+  if (cmsg->cmsg_type == SCM_RIGHTS) {
+    /* We've successfully received an open file descriptor through our socket */
+    log_Printf(LogDEBUG, "Receiving non-tty device\n");
+    link_fd = *(int *)CMSG_DATA(cmsg);
+  } else {
+    /* It's a ``controlling'' tty device via CATPROG */
+    log_Printf(LogDEBUG, "Receiving tty device\n");
+    link_fd = dup(s);
+    fcntl(link_fd, F_SETFL, fcntl(link_fd, F_GETFL, 0) | O_NONBLOCK);
+  }
 
   if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
     log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
@@ -1405,6 +1418,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
     close(link_fd);
 
   free(iov[0].iov_base);
+  close(s);
 }
 
 void
@@ -1429,18 +1443,30 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   link_fd = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov);
 
   if (link_fd != -1) {
-    cmsg->cmsg_len = sizeof cmsgbuf;
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    *(int *)CMSG_DATA(cmsg) = link_fd;
-
     memset(&msg, '\0', sizeof msg);
+
     msg.msg_name = (caddr_t)sun;
     msg.msg_namelen = sizeof *sun;
     msg.msg_iov = iov;
     msg.msg_iovlen = niov;
-    msg.msg_control = cmsgbuf;
-    msg.msg_controllen = sizeof cmsgbuf;
+
+    if (link_fd == STDIN_FILENO && isatty(link_fd)) {
+      /*
+       * We can't transfer this tty descriptor.  If we do, then once the
+       * session leader exits, the descriptor becomes unusable by the
+       * other ppp process.  Instead, we'll fork() two `/bin/cat'
+       * processes.....
+       */
+      msg.msg_control = NULL;
+      msg.msg_controllen = 0;
+    } else {
+      cmsg->cmsg_len = sizeof cmsgbuf;
+      cmsg->cmsg_level = SOL_SOCKET;
+      cmsg->cmsg_type = SCM_RIGHTS;
+      *(int *)CMSG_DATA(cmsg) = link_fd;
+      msg.msg_control = cmsgbuf;
+      msg.msg_controllen = sizeof cmsgbuf;
+    }
 
     for (f = expect = 0; f < niov; f++)
       expect += iov[f].iov_len;
@@ -1453,6 +1479,70 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       log_Printf(LogERROR, "Failed sendmsg: %s\n", strerror(errno));
     /* We must get the ACK before closing the descriptor ! */
     read(s, &ack, 1);
+
+    if (link_fd == STDIN_FILENO && isatty(link_fd)) {
+      /* We use `/bin/cat' to keep the tty session id */
+      pid_t pid;
+      int status, len, fd;
+      char name[50], *tname;
+
+      tname = ttyname(link_fd);
+      len = strlen(_PATH_DEV);
+      if (!strncmp(tname, _PATH_DEV, len))
+        tname += len;
+        
+      log_Printf(LogPHASE, "%s: Using twin %s invocations\n", tname, CATPROG);
+
+      switch ((pid = fork())) {
+        case -1:
+          log_Printf(LogERROR, "fork: %s\n", strerror(errno));
+          break;
+        case 0:
+          if (fork())	/* Don't want to belong to the parent any more */
+            exit(0);
+          setsid();
+          log_Printf(LogPHASE, "%d: Continuing without controlling terminal\n",
+                     (int)getpid());
+          break;
+        default:
+          /* Parent does the execs .... */
+          timer_TermService();
+          waitpid(pid, &status, 0);
+
+          fcntl(3, F_SETFD, 1);		/* Set close-on-exec flag */
+          fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) & ~O_NONBLOCK);
+          fcntl(link_fd, F_SETFL, fcntl(link_fd, F_GETFL, 0) & ~O_NONBLOCK);
+          s = fcntl(s, F_DUPFD, 3);
+          link_fd = fcntl(link_fd, F_DUPFD, 3);
+          dup2(open(_PATH_DEVNULL, O_WRONLY|O_APPEND), STDERR_FILENO);
+
+          setuid(geteuid());
+
+          switch (fork()) {
+            case -1:
+              _exit(0);
+              break;
+            case 0:
+              dup2(link_fd, STDIN_FILENO);
+              dup2(s, STDOUT_FILENO);
+              snprintf(name, sizeof name, "%s <- %s", dl->name, tname);
+              break;
+            default:
+              dup2(s, STDIN_FILENO);
+              dup2(link_fd, STDOUT_FILENO);
+              snprintf(name, sizeof name, "%s -> %s", dl->name, tname);
+              break;
+          }
+          signal(SIGPIPE, SIG_DFL);
+          signal(SIGALRM, SIG_DFL);
+          for (fd = getdtablesize(); fd > 2; fd--)
+            close(fd);
+          execl(CATPROG, name, NULL);
+          _exit(0);
+          break;
+      }
+    }
+    close(s);
     close(link_fd);
   }
 
