@@ -74,11 +74,11 @@
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/bus.h>
 #include <machine/clock.h>
 #include <machine/ipl.h>
 #ifndef SMP
