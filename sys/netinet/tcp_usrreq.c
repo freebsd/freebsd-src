@@ -974,6 +974,7 @@ tcp_fill_info(tp, ti)
 	/*
 	 * FreeBSD-specific extension fields for tcp_info.
 	 */
+	ti->tcpi_rcv_space = tp->rcv_wnd;
 	ti->tcpi_snd_wnd = tp->snd_wnd;
 	ti->tcpi_snd_bwnd = tp->snd_bwnd;
 }
