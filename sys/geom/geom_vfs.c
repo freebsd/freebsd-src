@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT */
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
@@ -65,6 +66,7 @@ static void
 g_vfs_done(struct bio *bip)
 {
 	struct buf *bp;
+	int vfslocked;
 
 	if (bip->bio_error) {
 		printf("g_vfs_done():");
@@ -78,7 +80,9 @@ g_vfs_done(struct bio *bip)
 		bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount - bip->bio_completed;
 	g_destroy_bio(bip);
+	vfslocked = VFS_LOCK_GIANT(((struct mount *)NULL));
 	bufdone(bp);
+	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 void
