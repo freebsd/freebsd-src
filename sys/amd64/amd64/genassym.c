@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.33 1996/03/27 17:21:57 bde Exp $
+ *	$Id: genassym.c,v 1.34 1996/04/13 11:22:57 bde Exp $
  */
 
 #include <stdio.h>
@@ -103,19 +103,14 @@ main()
 	printf("#define\tV_SYSCALL %p\n", &vm->v_syscall);
 	printf("#define\tV_INTR %p\n", &vm->v_intr);
 	printf("#define\tUPAGES %d\n", UPAGES);
-	printf("#define\tCLSIZE %d\n", CLSIZE);
-	printf("#define\tNBPG %d\n", NBPG);
+	printf("#define\tPAGE_SIZE %d\n", PAGE_SIZE);
 	printf("#define\tNPTEPG %d\n", NPTEPG);
+	printf("#define\tNPDEPG %d\n", NPDEPG);
 	printf("#define\tPDESIZE %d\n", PDESIZE);
 	printf("#define\tPTESIZE %d\n", PTESIZE);
 	printf("#define\tNKPDE %d\n", NKPDE);
 	printf("#define\tNKPT %d\n", NKPT);
-	printf("#define\tKPTDI 0x%x\n", KPTDI);
-	printf("#define\tKSTKPTDI 0x%x\n", KSTKPTDI);
-	printf("#define\tKSTKPTEOFF 0x%x\n", KSTKPTEOFF);
-	printf("#define\tPTDPTDI 0x%x\n", PTDPTDI);
-	printf("#define\tAPTDPTDI 0x%x\n", APTDPTDI);
-	printf("#define\tPGSHIFT %d\n", PGSHIFT);
+	printf("#define\tPAGE_SHIFT %d\n", PAGE_SHIFT);
 	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
 	printf("#define\tUSRSTACK 0x%lx\n", USRSTACK);
 	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);

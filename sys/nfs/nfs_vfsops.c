@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.27 1996/02/13 18:16:29 wollman Exp $
+ * $Id: nfs_vfsops.c,v 1.28 1996/04/30 23:23:09 bde Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ static int nfs_iosize(nmp)
 	 * space.
 	 */
 	iosize = max(nmp->nm_rsize, nmp->nm_wsize);
-	if (iosize < NBPG) iosize = NBPG;
+	if (iosize < PAGE_SIZE) iosize = PAGE_SIZE;
 	return iosize;
 }
 

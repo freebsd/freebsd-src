@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.5 1995/12/07 12:47:43 davidg Exp $
+ * $Id: pdq_os.h,v 1.6 1996/01/30 22:59:57 mpp Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.6  1996/01/30  22:59:57  mpp
+ * Fix a bunch of spelling errors in the comment fields of
+ * a bunch of system include files.
+ *
  * Revision 1.5  1995/12/07 12:47:43  davidg
  * Untangled the vm.h include file spaghetti.
  *
@@ -97,7 +101,7 @@
 #define	PDQ_OS_PREFIX			"%s%d: "
 #define	PDQ_OS_PREFIX_ARGS		pdq->pdq_os_name, pdq->pdq_unit
 
-#define	PDQ_OS_PAGESIZE			NBPG
+#define	PDQ_OS_PAGESIZE			PAGE_SIZE
 #define	PDQ_OS_USEC_DELAY(n)		DELAY(n)
 #define	PDQ_OS_MEMZERO(p, n)		bzero((caddr_t)(p), (n))
 #define	PDQ_OS_VA_TO_PA(p)		vtophys(p)

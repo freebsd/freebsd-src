@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.19 1996/03/12 15:37:58 davidg Exp $
+ *	$Id: vmparam.h,v 1.20 1996/04/30 12:02:12 phk Exp $
  */
 
 
@@ -67,7 +67,7 @@
 #define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-#define USRTEXT		(1*NBPG)		/* base of user text XXX bogus */
+#define USRTEXT		(1*PAGE_SIZE)		/* base of user text XXX bogus */
 
 /*
  * Size of the Shared Memory Pages page table.
@@ -100,7 +100,7 @@
 
 #define	KERNBASE		VADDR(KPTDI, 0)
 
-#define KPT_MAX_ADDRESS		VADDR(PTDPTDI, APTDPTDI)
+#define KPT_MAX_ADDRESS		VADDR(PTDPTDI, KPTDI+NKPT)
 #define KPT_MIN_ADDRESS		VADDR(PTDPTDI, KPTDI)
 
 #define UPT_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)

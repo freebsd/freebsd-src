@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.67 1996/04/28 07:14:05 phk Exp $
+ *	$Id: locore.s,v 1.68 1996/04/30 11:58:56 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -53,7 +53,7 @@
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
 #include <machine/psl.h>
-#include <machine/pte.h>
+#include <machine/pmap.h>
 #include <machine/specialreg.h>
 
 #include "assym.s"
@@ -71,15 +71,9 @@
  * Within PTmap, the page directory can be found (third indirection).
  */
 	.globl	_PTmap,_PTD,_PTDpde
-	.set	_PTmap,PTDPTDI << PDRSHIFT
-	.set	_PTD,_PTmap + (PTDPTDI * NBPG)
+	.set	_PTmap,(PTDPTDI << PDRSHIFT)
+	.set	_PTD,_PTmap + (PTDPTDI * PAGE_SIZE)
 	.set	_PTDpde,_PTD + (PTDPTDI * PDESIZE)
-
-/*
- * Sysmap is the base address of the kernel page tables.
- * It is a bogus interface for kgdb and isn't used by the kernel itself.
- */
-	.set	_Sysmap,_PTmap + (KPTDI * NBPG)
 
 /*
  * APTmap, APTD is the alternate recursive pagemap.
@@ -87,7 +81,7 @@
  */
 	.globl	_APTmap,_APTD,_APTDpde
 	.set	_APTmap,APTDPTDI << PDRSHIFT
-	.set	_APTD,_APTmap + (APTDPTDI * NBPG)
+	.set	_APTD,_APTmap + (APTDPTDI * PAGE_SIZE)
 	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
 
 /*
@@ -150,11 +144,11 @@ _bdb_exists:	.long	0
 
 #define ALLOCPAGES(foo) \
 	movl	R(physfree), %esi ; \
-	movl	$((foo)*NBPG), %eax ; \
+	movl	$((foo)*PAGE_SIZE), %eax ; \
 	addl	%esi, %eax ; \
 	movl	%eax, R(physfree) ; \
 	movl	%esi, %edi ; \
-	movl	$((foo)*NBPG),%ecx ; \
+	movl	$((foo)*PAGE_SIZE),%ecx ; \
 	xorl	%eax,%eax ; \
 	cld ; \
 	rep ; \
@@ -168,7 +162,7 @@ _bdb_exists:	.long	0
  */
 #define	fillkpt		\
 1:	movl	%eax,(%ebx)	; \
-	addl	$NBPG,%eax	; /* increment physical address */ \
+	addl	$PAGE_SIZE,%eax	; /* increment physical address */ \
 	addl	$4,%ebx		; /* next pte */ \
 	loop	1b
 
@@ -286,7 +280,7 @@ NON_GPROF_ENTRY(btext)
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
 	/* set up bootstrap stack */
-	movl	$_kstack+UPAGES*NBPG,%esp	/* bootstrap stack end location */
+	movl	$_kstack+UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
 	xorl	%eax,%eax			/* mark end of frames */
 	movl	%eax,%ebp
 	movl	_proc0paddr,%eax
@@ -694,8 +688,8 @@ create_pagetables:
 over_symalloc:
 #endif
 
-	addl	$NBPG-1,%esi
-	andl	$~(NBPG-1),%esi
+	addl	$PAGE_SIZE-1,%esi
+	andl	$~(PAGE_SIZE-1),%esi
 	movl	%esi,R(_KERNend)	/* save end of kernel */
 	movl	%esi,R(physfree)	/* next free page is at end of kernel */
 
@@ -720,8 +714,8 @@ over_symalloc:
 /* Map read-only from zero to the end of the kernel text section */
 	movl	R(_KPTphys), %esi
 	movl	$R(_etext),%ecx
-	addl	$NBPG-1,%ecx
-	shrl	$PGSHIFT,%ecx
+	addl	$PAGE_SIZE-1,%ecx
+	shrl	$PAGE_SHIFT,%ecx
 	movl	$PG_V|PG_KR,%eax
 	movl	%esi, %ebx
 #ifdef BDE_DEBUGGER
@@ -736,7 +730,7 @@ map_read_write:
 	andl	$PG_FRAME,%eax
 	movl	R(_KERNend),%ecx
 	subl	%eax,%ecx
-	shrl	$PGSHIFT,%ecx
+	shrl	$PAGE_SHIFT,%ecx
 	orl	$PG_V|PG_KW,%eax
 	fillkpt
 
@@ -744,7 +738,7 @@ map_read_write:
 	movl	R(_IdlePTD), %eax
 	movl	$1, %ecx
 	movl	%eax, %ebx
-	shrl	$PGSHIFT-2, %ebx
+	shrl	$PAGE_SHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
 	orl	$PG_V|PG_KW, %eax
 	fillkpt
@@ -753,7 +747,7 @@ map_read_write:
 	movl	R(p0upt), %eax
 	movl	$1, %ecx
 	movl	%eax, %ebx
-	shrl	$PGSHIFT-2, %ebx
+	shrl	$PAGE_SHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
 	orl	$PG_V|PG_KW, %eax
 	fillkpt
@@ -762,7 +756,7 @@ map_read_write:
 	movl	R(upa), %eax
 	movl	$UPAGES, %ecx
 	movl	%eax, %ebx
-	shrl	$PGSHIFT-2, %ebx
+	shrl	$PAGE_SHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
 	orl	$PG_V|PG_KW, %eax
 	fillkpt
@@ -784,11 +778,11 @@ map_read_write:
 /* Map ISA hole */
 #define ISA_HOLE_START	  0xa0000
 #define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
-	movl	$ISA_HOLE_LENGTH>>PGSHIFT, %ecx
+	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	movl	$ISA_HOLE_START, %eax
 	movl	%eax, %ebx
 /* XXX 2 is magic for log2(PTESIZE). */
-	shrl	$PGSHIFT-2, %ebx
+	shrl	$PAGE_SHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
 /* XXX could load %eax directly with $ISA_HOLE_START|PG_V|PG_KW_PG_N. */
 	orl	$PG_V|PG_KW|PG_N, %eax
