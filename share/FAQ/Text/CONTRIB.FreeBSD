@@ -139,6 +139,7 @@ Sean Eric Fagan <sef@kithrup.com>
 Serge V. Vakulenko <vak@zebub.msk.su>
 Stefan Esser <se@MI.Uni-Koeln.DE>
 Stephen McKay <syssgm@devetir.qld.gov.au>
+Steve Gerakines <steve2@genesis.tiac.net>
 Steven Wallace <swallace@ece.uci.edu>
 Søren Schmidt <sos@login.dkuug.dk>
 Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
@@ -246,4 +247,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.4 1995/04/08 09:40:18 phk Exp $
+$Id: CONTRIB.FreeBSD,v 1.5 1995/04/11 03:14:50 martin Exp $
