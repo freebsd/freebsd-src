@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.59
+     Original revision: 1.1.2.82
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -26,6 +26,7 @@
 <!--  %mlists; -->
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY release.point "4.6.2-RELEASE">
 ]>
 
 <article>
@@ -33,9 +34,14 @@
 
 <!-- XXX Change release.current to release.prev when there's -->
 <!-- XXX a release on this branch. -->
-
-    <title>&os; &release.current; Errata</title>
-
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;/&release.point;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
     <corpauthor>
     Le projet &os;
     </corpauthor>
