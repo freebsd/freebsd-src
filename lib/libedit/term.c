@@ -1248,7 +1248,7 @@ term_echotc(el, argc, argv)
     }
 #endif
     else if (strcmp(*argv, "baud") == 0) {
-	(void) fprintf(el->el_outfile, "%ld\n", el->el_tty.t_speed);
+	(void) fprintf(el->el_outfile, "%lu\n", (u_long)el->el_tty.t_speed);
 	return 0;
     }
     else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
