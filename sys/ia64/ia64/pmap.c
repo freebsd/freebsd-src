@@ -2188,12 +2188,16 @@ int
 pmap_mincore(pmap_t pmap, vm_offset_t addr)
 {
 	pmap_t oldpmap;
-	struct ia64_lpte *pte;
+	struct ia64_lpte *pte, tpte;
 	int val = 0;
 	
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 	pte = pmap_find_vhpt(addr);
+	if (pte != NULL) {
+		tpte = *pte;
+		pte = &tpte;
+	}
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
 
