@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)getdomainname.2	6.7 (Berkeley) 3/10/91
-.\"	$Id: getdomainname.2,v 1.1 1993/10/25 03:11:30 rgrimes Exp $
+.\"	$Id: getdomainname.3,v 1.2 1996/02/11 22:33:32 mpp Exp $
 .\"
 .Dd March 10, 1991
 .Dt GETDOMAINNAME 3
@@ -83,8 +83,8 @@ invalid address.
 The caller tried to set the domainname and was not the super-user.
 .El
 .Sh SEE ALSO
-.Xr sysctl 2
-.Xr gethostid 3
+.Xr gethostid 3 ,
+.Xr sysctl 3
 .Sh BUGS
 Host names are limited to
 .Dv MAXHOSTNAMELEN

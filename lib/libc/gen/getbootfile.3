@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostname.3	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: getbootfile.3,v 1.2 1996/02/11 22:33:31 mpp Exp $
 .\"
 .Dd September 23, 1994
 .Dt GETBOOTFILE 3
@@ -48,7 +48,7 @@ The
 function retrieves the full pathname of the file from which the
 current kernel was loaded, and returns a static pointer to the name.
 A read/write interface to this information is available via the
-.Xr sysctl 2
+.Xr sysctl 3
 MIB variable
 .Dq Li kern.bootfile .
 .Sh RETURN VALUES
@@ -57,7 +57,7 @@ fails, a a null pointer is returned and an error code is
 placed in the global location
 .Va errno .
 .Sh SEE ALSO
-.Xr sysctl 2
+.Xr sysctl 3
 .Sh BUGS
 If the boot blocks have not been modified to pass this information into
 the kernel at boot time, the static string

@@ -170,9 +170,9 @@ function
 has no return value.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
-.It Pa /var/db/pwd.db
+.It Pa /etc/pwd.db
 The insecure password database file
-.It Pa /var/db/spwd.db
+.It Pa /etc/spwd.db
 The secure password database file
 .It Pa /etc/master.passwd
 The current password file
@@ -180,12 +180,12 @@ The current password file
 A Version 7 format password file
 .El
 .Sh SEE ALSO
-.Xr getlogin 3 ,
+.Xr getlogin 2 ,
 .Xr getgrent 3 ,
+.Xr yp 4 ,
 .Xr passwd 5 ,
 .Xr pwd_mkdb 8 ,
-.Xr vipw 8 ,
-.Xr yp 4
+.Xr vipw 8
 .Sh HISTORY
 The
 .Nm getpwent ,
