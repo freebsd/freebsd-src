@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,14 @@ expects the
 .Va statinfo
 structure to be allocated, and it also expects the
 .Va dinfo
-subelement to be allocated ahead of time.  The
+subelement to be allocated and zeroed prior to the first invocation of
+.Fn getdevs .
+The
+.Va dinfo
+subelement is used to store state between calls, and should not be modified
+after the first call to
+.Fn getdevs .
+The
 .Va dinfo
 subelement contains the following elements:
 .Bd -literal -offset indent
