@@ -27,6 +27,7 @@ __FBSDID("$FreeBSD$");
 int
 Track_Aligned(const struct disk *d, u_long offset)
 {
+
 	if (!d->bios_sect)
 		return 1;
 	if (offset % d->bios_sect)
@@ -37,6 +38,7 @@ Track_Aligned(const struct disk *d, u_long offset)
 u_long
 Prev_Track_Aligned(const struct disk *d, u_long offset)
 {
+
 	if (!d->bios_sect)
 		return offset;
 	return (offset / d->bios_sect) * d->bios_sect;
@@ -45,6 +47,7 @@ Prev_Track_Aligned(const struct disk *d, u_long offset)
 u_long
 Next_Track_Aligned(const struct disk *d, u_long offset)
 {
+
 	if (!d->bios_sect)
 		return offset;
 	return Prev_Track_Aligned(d, offset + d->bios_sect-1);
@@ -53,6 +56,7 @@ Next_Track_Aligned(const struct disk *d, u_long offset)
 static int
 Cyl_Aligned(const struct disk *d, u_long offset)
 {
+
 	if (!d->bios_sect || !d->bios_hd)
 		return 1;
 	if (offset % (d->bios_sect * d->bios_hd))
@@ -63,6 +67,7 @@ Cyl_Aligned(const struct disk *d, u_long offset)
 u_long
 Prev_Cyl_Aligned(const struct disk *d, u_long offset)
 {
+
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
 	return (offset / (d->bios_sect*d->bios_hd)) * d->bios_sect * d->bios_hd;
@@ -71,9 +76,10 @@ Prev_Cyl_Aligned(const struct disk *d, u_long offset)
 u_long
 Next_Cyl_Aligned(const struct disk *d, u_long offset)
 {
+
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
-	return Prev_Cyl_Aligned(d,offset + (d->bios_sect * d->bios_hd)-1);
+	return Prev_Cyl_Aligned(d,offset + (d->bios_sect * d->bios_hd) - 1);
 }
 
 /*
@@ -85,16 +91,17 @@ static void
 Rule_000(const struct disk *d, const struct chunk *c, char *msg)
 {
 #ifdef PC98
-	int i=0;
+	int i = 0;
 #else
-	int i=0,j=0;
+	int i = 0, j = 0;
 #endif
 	struct chunk *c1;
 
 	if (c->type != whole)
 		return;
 	for (c1 = c->part; c1; c1 = c1->next) {
-		if (c1->type != unused) continue;
+		if (c1->type != unused)
+			continue;
 #ifndef PC98
 		if (c1->flags & CHUNK_ACTIVE)
 			j++;
@@ -103,12 +110,12 @@ Rule_000(const struct disk *d, const struct chunk *c, char *msg)
 	}
 	if (i > NDOSPART)
 		sprintf(msg + strlen(msg),
-	"%d is too many children of the 'whole' chunk.  Max is %d\n",
-			i, NDOSPART);
+			"%d is too many children of the 'whole' chunk."
+			"  Max is %d\n", i, NDOSPART);
 #ifndef PC98
 	if (j > 1)
 		sprintf(msg + strlen(msg),
-	"Too many active children of 'whole'");
+			"Too many active children of 'whole'");
 #endif
 }
 
@@ -125,7 +132,8 @@ Rule_001(const struct disk *d, const struct chunk *c, char *msg)
 	if (c->type != whole && c->type != extended)
 		return;
 	for (c1 = c->part; c1; c1 = c1->next) {
-		if (c1->type == unused) continue;
+		if (c1->type == unused)
+			continue;
 		c1->flags |= CHUNK_ALIGN;
 #ifdef PC98
 		if (!Cyl_Aligned(d, c1->offset))
@@ -134,9 +142,11 @@ Rule_001(const struct disk *d, const struct chunk *c, char *msg)
 #endif
 			sprintf(msg + strlen(msg),
 #ifdef PC98
-		    "chunk '%s' [%ld..%ld] does not start on a cylinder boundary\n",
+				"chunk '%s' [%ld..%ld] does not start"
+				" on a cylinder boundary\n",
 #else
-		    "chunk '%s' [%ld..%ld] does not start on a track boundary\n",
+				"chunk '%s' [%ld..%ld] does not start"
+				" on a track boundary\n",
 #endif
 				c1->name, c1->offset, c1->end);
 		if ((c->type == whole || c->end == c1->end)
@@ -144,7 +154,8 @@ Rule_001(const struct disk *d, const struct chunk *c, char *msg)
 			;
 		else
 			sprintf(msg + strlen(msg),
-		    "chunk '%s' [%ld..%ld] does not end on a cylinder boundary\n",
+				"chunk '%s' [%ld..%ld] does not end"
+				" on a cylinder boundary\n",
 				c1->name, c1->offset, c1->end);
 	}
 }
@@ -168,7 +179,7 @@ Rule_002(const struct disk *d, const struct chunk *c, char *msg)
 	}
 	if (i > 1) {
 		sprintf(msg + strlen(msg),
-		    "Max one 'fat' allowed as child of 'whole'\n");
+			"Max one 'fat' allowed as child of 'whole'\n");
 	}
 }
 
@@ -191,7 +202,7 @@ Rule_003(const struct disk *d, const struct chunk *c, char *msg)
 	}
 	if (i > 1) {
 		sprintf(msg + strlen(msg),
-		    "Max one 'extended' allowed as child of 'whole'\n");
+			"Max one 'extended' allowed as child of 'whole'\n");
 	}
 }
 
@@ -203,7 +214,7 @@ Rule_003(const struct disk *d, const struct chunk *c, char *msg)
 static void
 Rule_004(const struct disk *d, const struct chunk *c, char *msg)
 {
-	int i=0,k=0;
+	int i = 0, k = 0;
 	struct chunk *c1;
 
 	if (c->type != freebsd)
@@ -218,11 +229,11 @@ Rule_004(const struct disk *d, const struct chunk *c, char *msg)
 	}
 	if (i > 7) {
 		sprintf(msg + strlen(msg),
-		    "Max seven partitions per freebsd slice\n");
+			"Max seven partitions per freebsd slice\n");
 	}
 	if (k > 1) {
 		sprintf(msg + strlen(msg),
-		    "Max one root partition child per freebsd slice\n");
+			"Max one root partition child per freebsd slice\n");
 	}
 }
 

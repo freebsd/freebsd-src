@@ -23,8 +23,10 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
-/* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
-        I'm not sure which, so I leave it like it worked before. --schweikh */
+/*
+ * XXX: A lot of hardcoded 512s probably should be foo->sector_size;
+ *	I'm not sure which, so I leave it like it worked before. --schweikh
+ */
 static int
 Write_FreeBSD(int fd, const struct disk *new, const struct chunk *c1)
 {
@@ -44,7 +46,7 @@ Write_FreeBSD(int fd, const struct disk *new, const struct chunk *c1)
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
 	Fill_Disklabel(dl, new, NULL, c1);
 
-	for (i = 0; i < BBSIZE/512; i++) {
+	for (i = 0; i < BBSIZE / 512; i++) {
 		if (write_block(fd, i + c1->offset, buf + 512 * i, 512) != 0)
 			return (1);
 	}
@@ -56,6 +58,7 @@ static void
 Write_Int32(u_int32_t *p, u_int32_t v)
 {
 	u_int8_t *bp = (u_int8_t *)p;
+
 	bp[0] = (v >> 0) & 0xff;
 	bp[1] = (v >> 8) & 0xff;
 	bp[2] = (v >> 16) & 0xff;
@@ -75,7 +78,7 @@ Write_Disk(const struct disk *d1)
 	strcpy(device, _PATH_DEV);
         strcat(device, d1->name);
 
-        fd = open(device,O_RDWR);
+        fd = open(device, O_RDWR);
         if (fd < 0)
                 return (1);
 
@@ -83,7 +86,7 @@ Write_Disk(const struct disk *d1)
 	mbr = read_block(fd, 0, 512);
 	if (mbr == NULL)
 		goto fail;
-	dp = (struct dos_partition*)(mbr + DOSPARTOFF);
+	dp = (struct dos_partition *)(mbr + DOSPARTOFF);
 	memcpy(work, dp, sizeof(work));
 	dp = work;
 	free(mbr);
@@ -102,7 +105,7 @@ Write_Disk(const struct disk *d1)
 		Write_Int32(&dp[j].dp_start, c1->offset);
 		Write_Int32(&dp[j].dp_size, c1->size);
 
-		i = 1024*d1->bios_sect*d1->bios_hd;
+		i = 1024 * d1->bios_sect * d1->bios_hd;
 		if (i == 0 || c1->offset >= i) {
 			/* Start */
 			dp[j].dp_ssect = 0xff;
@@ -138,11 +141,10 @@ Write_Disk(const struct disk *d1)
 			i -= dp[j].dp_ecyl;
 			dp[j].dp_esect |= i >> 2;
 		}
-
 #ifdef DEBUG
 		printf("S:%lu = (%x/%x/%x)  E:%lu = (%x/%x/%x)\n", c1->offset,
-		    dp[j].dp_scyl, dp[j].dp_shd, dp[j].dp_ssect, c1->end,
-		    dp[j].dp_ecyl, dp[j].dp_ehd, dp[j].dp_esect);
+		       dp[j].dp_scyl, dp[j].dp_shd, dp[j].dp_ssect, c1->end,
+		       dp[j].dp_ecyl, dp[j].dp_ehd, dp[j].dp_esect);
 #endif
 
 		dp[j].dp_typ = c1->subtype;
@@ -152,7 +154,7 @@ Write_Disk(const struct disk *d1)
 			dp[j].dp_flag = 0;
 	}
 
-	for(i = 0; i < NDOSPART; i++) {
+	for (i = 0; i < NDOSPART; i++) {
 		if (!s[i])
 			memset(dp + i, 0, sizeof(*dp));
 	}

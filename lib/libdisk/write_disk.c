@@ -24,16 +24,19 @@ __FBSDID("$FreeBSD$");
 #include "libdisk.h"
 
 void
-Fill_Disklabel(struct disklabel *dl, const struct disk *new, const struct disk *old, const struct chunk *c1)
+Fill_Disklabel(struct disklabel *dl, const struct disk *new,
+	       const struct disk *old, const struct chunk *c1)
 {
 	struct chunk *c2;
 	int j;
 
 	memset(dl, 0, sizeof *dl);
 
-	for(c2 = c1->part; c2; c2 = c2->next) {
-		if (c2->type == unused) continue;
-		if (!strcmp(c2->name, "X")) continue;
+	for (c2 = c1->part; c2; c2 = c2->next) {
+		if (c2->type == unused)
+			continue;
+		if (!strcmp(c2->name, "X"))
+			continue;
 		j = c2->name[strlen(c2->name) - 1] - 'a';
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART)
 			continue;
@@ -52,9 +55,9 @@ Fill_Disklabel(struct disklabel *dl, const struct disk *new, const struct disk *
 
 	dl->d_secsize = 512;
 	dl->d_secperunit = new->chunks->size;
-	dl->d_ncylinders =  new->bios_cyl;
-	dl->d_ntracks =  new->bios_hd;
-	dl->d_nsectors =  new->bios_sect;
+	dl->d_ncylinders = new->bios_cyl;
+	dl->d_ntracks = new->bios_hd;
+	dl->d_nsectors = new->bios_sect;
 	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors;
 
 	dl->d_npartitions = MAXPARTITIONS;
@@ -69,6 +72,4 @@ Fill_Disklabel(struct disklabel *dl, const struct disk *new, const struct disk *
 	dl->d_magic = DISKMAGIC;
 	dl->d_magic2 = DISKMAGIC;
 	dl->d_checksum = dkcksum(dl);
-
-	return;
 }
