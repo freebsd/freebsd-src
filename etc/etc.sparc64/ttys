@@ -31,8 +31,10 @@
 # If console is marked "insecure", then init will ask for the root password
 # when going to single-user mode.
 console	none				unknown	off secure
-# Openfirmware console
-ofwcons	"/usr/libexec/getty std.9600"	vt100	on  secure
+#
+screen	"/usr/libexec/getty Pc"		cons25	on  secure
+ttya	"/usr/libexec/getty 3wire.9600"	cons25	on  secure
+ttyb	"/usr/libexec/getty 3wire.9600"	cons25	off secure
 #
 #ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
@@ -46,8 +48,6 @@ ofwcons	"/usr/libexec/getty std.9600"	vt100	on  secure
 #ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
-ttya	"/usr/libexec/getty local.9600"	dialup	off secure
-ttyb	"/usr/libexec/getty local.9600"	dialup	off secure
 ttyd0	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd2	"/usr/libexec/getty std.9600"	dialup	off secure
