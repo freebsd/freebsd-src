@@ -38,7 +38,7 @@
 .\"     @(#)getc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2001
+.Dd October 10, 2002
 .Dt GETWC 3
 .Os
 .Sh NAME
@@ -70,8 +70,7 @@ The
 .Fn getwc
 function
 acts essentially identically to
-.Fn fgetwc ,
-but is a macro that expands in-line.
+.Fn fgetwc .
 .Pp
 The
 .Fn getwchar
@@ -103,6 +102,7 @@ until the condition is cleared with
 .Xr ferror 3 ,
 .Xr fopen 3 ,
 .Xr fread 3 ,
+.Xr getc 3 ,
 .Xr putwc 3 ,
 .Xr stdio 3 ,
 .Xr ungetwc 3
