@@ -812,8 +812,6 @@ main(int argc, char **argv)
 	} else {
 		if (!memcmp(dest, _PATH_DEV, strlen(_PATH_DEV)))
 			strcpy(dest, dest + strlen(_PATH_DEV));
-		if (strchr(dest, '/'))
-			usage("\"dest\" argument must be geom-name\n");
 	}
 
 	memset(&sc, 0, sizeof sc);
