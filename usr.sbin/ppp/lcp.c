@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.26 1997/08/20 23:47:45 brian Exp $
+ * $Id: lcp.c,v 1.27 1997/08/25 00:29:15 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -140,7 +140,7 @@ LcpReportTime()
     time_t t;
 
     time(&t);
-    LogPrintf(LogDEBUG, "LcpReportTime: %s", ctime(&t));
+    LogPrintf(LogDEBUG, "LcpReportTime: %s\n", ctime(&t));
   }
   StopTimer(&LcpReportTimer);
   LcpReportTimer.state = TIMER_STOPPED;

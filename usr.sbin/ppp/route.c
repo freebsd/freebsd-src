@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.17 1997/07/28 01:02:27 brian Exp $
+ * $Id: route.c,v 1.18 1997/08/25 00:29:26 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -67,7 +67,7 @@ OsSetRoute(int cmd,
 
   s = socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "OsSetRoute: socket: %s", strerror(errno));
+    LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
     return;
   }
   bzero(&rtmes, sizeof(rtmes));
@@ -218,7 +218,7 @@ ShowRoute()
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "sysctl: estimate: %s", strerror(errno));
+    LogPrintf(LogERROR, "ShowRoute: sysctl: estimate: %s\n", strerror(errno));
     return (1);
   }
   if (needed < 0)
@@ -227,7 +227,7 @@ ShowRoute()
   if (sp == NULL)
     return (1);
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "sysctl: getroute: %s", strerror(errno));
+    LogPrintf(LogERROR, "ShowRoute: sysctl: getroute: %s\n", strerror(errno));
     free(sp);
     return (1);
   }
@@ -248,7 +248,7 @@ ShowRoute()
       p_sockaddr(sa, 18);
       lp = (int *) (sa->sa_len + (char *) sa);
       if ((char *) lp < (char *) wp && *lp) {
-	LogPrintf(LogDEBUG, " flag = %x, rest = %d", rtm->rtm_flags, *lp);
+	LogPrintf(LogDEBUG, " flag = %x, rest = %d\n", rtm->rtm_flags, *lp);
 	wp = (u_char *) (lp + 1);
 	mask = 0;
 	for (nb = *(char *) lp; nb > 4; nb--) {
@@ -292,7 +292,8 @@ DeleteIfRoutes(int all)
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "sysctl: estimate: %s", strerror(errno));
+    LogPrintf(LogERROR, "DeleteIfRoutes: sysctl: estimate: %s\n",
+	      strerror(errno));
     return;
   }
   if (needed < 0)
@@ -303,7 +304,8 @@ DeleteIfRoutes(int all)
     return;
 
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "sysctl: getroute: %s", strerror(errno));
+    LogPrintf(LogERROR, "DeleteIfRoutes: sysctl: getroute: %s\n",
+	      strerror(errno));
     free(sp);
     return;
   }
@@ -329,7 +331,7 @@ DeleteIfRoutes(int all)
       lp = (int *) (sa->sa_len + (char *) sa);
       mask = 0;
       if ((char *) lp < (char *) wp && *lp) {
-	LogPrintf(LogDEBUG, "DeleteIfRoutes: flag = %x, rest = %d",
+	LogPrintf(LogDEBUG, "DeleteIfRoutes: flag = %x, rest = %d\n",
 		  rtm->rtm_flags, *lp);
 	wp = (u_char *) (lp + 1);
 	for (nb = *lp; nb > 4; nb--) {
@@ -368,7 +370,7 @@ GetIfIndex(char *name)
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "GetIfIndex: socket: %s", strerror(errno));
+    LogPrintf(LogERROR, "GetIfIndex: socket(): %s\n", strerror(errno));
     return (-1);
   }
   buffer = malloc(bufsize);	/* allocate first buffer */
@@ -386,7 +388,8 @@ GetIfIndex(char *name)
     ifconfs.ifc_len = bufsize;
     ifconfs.ifc_buf = buffer;
     if (ioctl(s, SIOCGIFCONF, &ifconfs) < 0) {
-      LogPrintf(LogERROR, "ioctl(SIOCGIFCONF): %s", strerror(errno));
+      LogPrintf(LogERROR, "GetIfIndex: ioctl(SIOCGIFCONF): %s\n",
+		strerror(errno));
       close(s);
       free(buffer);
       return (-1);

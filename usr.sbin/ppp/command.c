@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.74 1997/08/21 17:07:30 brian Exp $
+ * $Id: command.c,v 1.75 1997/08/25 00:29:08 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -296,7 +296,7 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
 
 	p = getpid();
 	if (daemon(1, 1) == -1) {
-	  LogPrintf(LogERROR, "%d: daemon: %s", p, strerror(errno));
+	  LogPrintf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
 	  exit(1);
 	}
       }

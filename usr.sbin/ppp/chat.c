@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.31 1997/08/17 22:47:07 brian Exp $
+ * $Id: chat.c,v 1.32 1997/08/25 00:29:07 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -188,7 +188,7 @@ ExpandString(char *str, char *result, int reslen, int sendmode)
 	result += strlen(result);
 	if (VarTerm)
 	  fprintf(VarTerm, "Phone: %s\n", phone);
-	LogPrintf(LogPHASE, "Phone: %s", phone);
+	LogPrintf(LogPHASE, "Phone: %s\n", phone);
 	break;
       case 'U':
 	strncpy(result, VarAuthName, reslen);
@@ -240,9 +240,9 @@ static void
 flush_log()
 {
   if (LogIsKept(LogCONNECT))
-    LogPrintf(LogCONNECT, "%s", logbuff);
+    LogPrintf(LogCONNECT, "%s\n", logbuff);
   else if (LogIsKept(LogCARRIER) && strstr(logbuff, "CARRIER"))
-    LogPrintf(LogCARRIER, "%s", logbuff);
+    LogPrintf(LogCARRIER, "%s\n", logbuff);
 
   clear_log();
 }
@@ -283,13 +283,13 @@ WaitforString(char *estr)
 #endif
   clear_log();
   (void) ExpandString(estr, buff, sizeof(buff), 0);
-  LogPrintf(LogCHAT, "Wait for (%d): %s --> %s", TimeoutSec, estr, buff);
+  LogPrintf(LogCHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
   str = buff;
   inp = inbuff;
 
   if (strlen(str) >= IBSIZE) {
     str[IBSIZE - 1] = 0;
-    LogPrintf(LogCHAT, "Truncating String to %d character: %s", IBSIZE, str);
+    LogPrintf(LogCHAT, "Truncating String to %d character: %s\n", IBSIZE, str);
   }
   nfds = modem + 1;
   s = str;
@@ -313,14 +313,14 @@ WaitforString(char *estr)
 	continue;
       sigsetmask(omask);
 #endif
-      LogPrintf(LogERROR, "select: %s", strerror(errno));
+      LogPrintf(LogERROR, "WaitForString: select(): %s\n", strerror(errno));
       *inp = 0;
       return (NOMATCH);
     } else if (i == 0) {	/* Timeout reached! */
       *inp = 0;
       if (inp != inbuff)
-	LogPrintf(LogCHAT, "Got: %s", inbuff);
-      LogPrintf(LogCHAT, "Can't get (%d).", timeout.tv_sec);
+	LogPrintf(LogCHAT, "Got: %s\n", inbuff);
+      LogPrintf(LogCHAT, "Can't get (%d).\n", timeout.tv_sec);
 #ifdef SIGALRM
       sigsetmask(omask);
 #endif
@@ -347,7 +347,7 @@ WaitforString(char *estr)
 	}
 	for (i = 0; i < numaborts; i++) {
 	  if (strstr(inbuff, AbortStrings[i])) {
-	    LogPrintf(LogCHAT, "Abort: %s", AbortStrings[i]);
+	    LogPrintf(LogCHAT, "Abort: %s\n", AbortStrings[i]);
 #ifdef SIGALRM
 	    sigsetmask(omask);
 #endif
@@ -357,7 +357,7 @@ WaitforString(char *estr)
 	}
       } else {
 	if (read(modem, &ch, 1) < 0) {
-	  LogPrintf(LogERROR, "read error: %s", strerror(errno));
+	  LogPrintf(LogERROR, "read error: %s\n", strerror(errno));
 	  *inp = '\0';
 	  return (NOMATCH);
 	}
@@ -387,7 +387,7 @@ WaitforString(char *estr)
 	    s1 = AbortStrings[i];
 	    len = strlen(s1);
 	    if ((len <= inp - inbuff) && (strncmp(inp - len, s1, len) == 0)) {
-	      LogPrintf(LogCHAT, "Abort: %s", s1);
+	      LogPrintf(LogCHAT, "Abort: %s\n", s1);
 	      *inp = 0;
 #ifdef SIGALRM
 	      sigsetmask(omask);
@@ -422,13 +422,14 @@ ExecStr(char *command, char *out)
     cp--;
   }
   if (snprintf(tmp, sizeof tmp, "%s %s", command, cp) >= sizeof tmp) {
-    LogPrintf(LogCHAT, "Too long string to ExecStr: \"%s\"", command);
+    LogPrintf(LogCHAT, "Too long string to ExecStr: \"%s\"\n", command);
     return;
   }
   (void) MakeArgs(tmp, vector, VECSIZE(vector));
 
   if (pipe(fids) < 0) {
-    LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s", strerror(errno));
+    LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
+	      strerror(errno));
     return;
   }
   pid = fork();
@@ -441,27 +442,27 @@ ExecStr(char *command, char *out)
     signal(SIGALRM, SIG_DFL);
     close(fids[0]);
     if (dup2(fids[1], 1) < 0) {
-      LogPrintf(LogCHAT, "dup2(fids[1], 1) in ExecStr: %s", strerror(errno));
+      LogPrintf(LogCHAT, "dup2(fids[1], 1) in ExecStr: %s\n", strerror(errno));
       return;
     }
     close(fids[1]);
     nb = open("/dev/tty", O_RDWR);
     if (dup2(nb, 0) < 0) {
-      LogPrintf(LogCHAT, "dup2(nb, 0) in ExecStr: %s", strerror(errno));
+      LogPrintf(LogCHAT, "dup2(nb, 0) in ExecStr: %s\n", strerror(errno));
       return;
     }
-    LogPrintf(LogCHAT, "exec: %s", command);
+    LogPrintf(LogCHAT, "exec: %s\n", command);
     /* switch back to original privileges */
     if (setgid(getgid()) < 0) {
-      LogPrintf(LogCHAT, "setgid: %s", strerror(errno));
+      LogPrintf(LogCHAT, "setgid: %s\n", strerror(errno));
       exit(1);
     }
     if (setuid(getuid()) < 0) {
-      LogPrintf(LogCHAT, "setuid: %s", strerror(errno));
+      LogPrintf(LogCHAT, "setuid: %s\n", strerror(errno));
       exit(1);
     }
     pid = execvp(command, vector);
-    LogPrintf(LogCHAT, "execvp failed for (%d/%d): %s", pid, errno, command);
+    LogPrintf(LogCHAT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
     exit(127);
   } else {
     close(fids[1]);
@@ -501,11 +502,10 @@ SendString(char *str)
     } else {
       (void) ExpandString(str, buff + 2, sizeof(buff) - 2, 1);
     }
-    if (strstr(str, "\\P")) {	/* Do not log the password itself. */
-      LogPrintf(LogCHAT, "sending: %s", str);
-    } else {
-      LogPrintf(LogCHAT, "sending: %s", buff + 2);
-    }
+    if (strstr(str, "\\P"))	/* Do not log the password itself. */
+      LogPrintf(LogCHAT, "sending: %s\n", str);
+    else
+      LogPrintf(LogCHAT, "sending: %s\n", buff + 2);
     cp = buff;
     if (DEV_IS_SYNC)
       bcopy("\377\003", buff, 2);	/* Prepend HDLC header */
@@ -530,7 +530,7 @@ ExpectString(char *str)
     ++timeout_next;
     return (MATCH);
   }
-  LogPrintf(LogCHAT, "Expecting %s", str);
+  LogPrintf(LogCHAT, "Expecting %s\n", str);
   while (*str) {
 
     /*

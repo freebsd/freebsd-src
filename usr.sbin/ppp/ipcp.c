@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.25 1997/08/20 23:47:44 brian Exp $
+ * $Id: ipcp.c,v 1.26 1997/08/25 00:29:14 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -302,8 +302,8 @@ IpcpOpen()
 static int
 AcceptableAddr(struct in_range * prange, struct in_addr ipaddr)
 {
-  LogPrintf(LogDEBUG, "requested = %x ", htonl(ipaddr.s_addr));
-  LogPrintf(LogDEBUG, "range = %x", htonl(prange->ipaddr.s_addr));
+  LogPrintf(LogDEBUG, "requested = %x\n", htonl(ipaddr.s_addr));
+  LogPrintf(LogDEBUG, "range = %x\n", htonl(prange->ipaddr.s_addr));
   LogPrintf(LogDEBUG, "/%x\n", htonl(prange->mask.s_addr));
   LogPrintf(LogDEBUG, "%x, %x\n", htonl(prange->ipaddr.s_addr & prange->
 		  mask.s_addr), htonl(ipaddr.s_addr & prange->mask.s_addr));
@@ -326,8 +326,6 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
   rejp = RejBuff;
 
   while (plen >= sizeof(struct fsmconfig)) {
-    if (plen < 0)
-      break;
     type = *cp;
     length = cp[1];
     if (type <= TY_IPADDR)
@@ -344,7 +342,6 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       switch (mode) {
       case MODE_REQ:
 	if (!AcceptableAddr(&DefHisAddress, ipaddr)) {
-
 	  /*
 	   * If destination address is not acceptable, insist to use what we
 	   * want to use.
@@ -353,7 +350,6 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	  bcopy(&IpcpInfo.his_ipaddr.s_addr, nakp + 2, length);
 	  nakp += length;
 	  break;
-
 	}
 	IpcpInfo.his_ipaddr = ipaddr;
 	bcopy(cp, ackp, length);
@@ -365,7 +361,8 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	  /*
 	   * Use address suggested by peer.
 	   */
-	  snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s ", tbuff, inet_ntoa(IpcpInfo.want_ipaddr));
+	  snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s ", tbuff,
+		   inet_ntoa(IpcpInfo.want_ipaddr));
 	  LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  IpcpInfo.want_ipaddr = ipaddr;
 	}
@@ -440,8 +437,8 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       ipaddr.s_addr = *lp;
       lp = (u_long *) (cp + 6);
       dstipaddr.s_addr = *lp;
-      LogPrintf(LogIPCP, "%s %s, ", tbuff, inet_ntoa(ipaddr));
-      LogPrintf(LogIPCP, "%s\n", inet_ntoa(dstipaddr));
+      snprintf(tbuff2, sizeof(tbuff2), "%s %s,", tbuff, inet_ntoa(ipaddr));
+      LogPrintf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
 
       switch (mode) {
       case MODE_REQ:
@@ -451,9 +448,9 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	ackp += length;
 	break;
       case MODE_NAK:
-	LogPrintf(LogIPCP, "%s changing address: %s ",
-		  tbuff, inet_ntoa(IpcpInfo.want_ipaddr));
-	LogPrintf(LogIPCP, "--> %s\n", inet_ntoa(ipaddr));
+        snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s", tbuff,
+		 inet_ntoa(IpcpInfo.want_ipaddr));
+	LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	IpcpInfo.want_ipaddr = ipaddr;
 	IpcpInfo.his_ipaddr = dstipaddr;
 	break;
@@ -486,7 +483,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 
 	  /*
 	   * So the client has got the DNS stuff wrong (first request) so
-	   * well tell 'em how it is
+	   * we'll tell 'em how it is
 	   */
 	  bcopy(cp, nakp, 2);	/* copy first two (type/length) */
 	  LogPrintf(LogIPCP, "MS NS req %d:%s->%s - nak\n",
