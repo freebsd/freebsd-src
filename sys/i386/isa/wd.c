@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.107 1996/05/02 10:43:10 phk Exp $
+ *	$Id: wd.c,v 1.108 1996/05/03 14:57:27 phk Exp $
  */
 
 /* TODO:
@@ -1617,15 +1617,14 @@ failed:
 #ifdef WDDEBUG
 	printf(
 "\nwd(%d,%d): wdgetctlr: gc %x cyl %d trk %d sec %d type %d sz %d model %s\n",
-	       du->dk_ctrlr, du->dk_unit, wp->wdp_config,
-	       wp->wdp_fixedcyl + wp->wdp_removcyl, wp->wdp_heads,
-	       wp->wdp_sectors, wp->wdp_cntype, wp->wdp_cnsbsz,
-	       wp->wdp_model);
+	       du->dk_ctrlr, du->dk_unit, wp->wdp_config, wp->wdp_cylinders,
+	       wp->wdp_heads, wp->wdp_sectors, wp->wdp_buffertype,
+	       wp->wdp_buffersize, wp->wdp_model);
 #endif
 
 	/* update disklabel given drive information */
 	du->dk_dd.d_secsize = DEV_BSIZE;
-	du->dk_dd.d_ncylinders = wp->wdp_fixedcyl + wp->wdp_removcyl /*+- 1*/ ;
+	du->dk_dd.d_ncylinders = wp->wdp_cylinders;	/* +- 1 */
 	du->dk_dd.d_ntracks = wp->wdp_heads;
 	du->dk_dd.d_nsectors = wp->wdp_sectors;
 	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;

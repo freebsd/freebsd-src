@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.10 1995/11/04 17:07:58 bde Exp $
+ *	$Id: wdreg.h,v 1.11 1996/01/28 22:16:20 wollman Exp $
  */
 
 /*
@@ -71,7 +71,7 @@
 #define	WDCS_INDEX	0x02		/* Index pulse from selected drive */
 #define	WDCS_ERR	0x01		/* Error detect bit. */
 
-#define WDCS_BITS	"\020\010busy\006rdy\006wrtflt\005seekdone\004drq\003ecc_cor\002index\001err"
+#define WDCS_BITS	"\020\010busy\007rdy\006wrtflt\005seekdone\004drq\003ecc_cor\002index\001err"
 #define WDERR_ABORT	0x04
 
 #define WDERR_BITS	"\020\010badblk\007uncorr\006id_crc\005no_id\003abort\002tr000\001no_dam"
@@ -111,23 +111,21 @@
  */
 struct wdparams {
 	/* drive info */
-	short	wdp_config;		/* general configuration */
-	short	wdp_fixedcyl;		/* number of non-removable cylinders */
-	short	wdp_removcyl;		/* number of removable cylinders */
+	short	wdp_config;		/* general configuration bits */
+	short	wdp_cylinders;		/* number of cylinders */
+	short	wdp_reserved;
 	short	wdp_heads;		/* number of heads */
 	short	wdp_unfbytespertrk;	/* number of unformatted bytes/track */
 	short	wdp_unfbytes;		/* number of unformatted bytes/sector */
-	short	wdp_sectors;		/* number of sectors */
-	short	wdp_minisg;		/* minimum bytes in inter-sector gap*/
-	short	wdp_minplo;		/* minimum bytes in postamble */
-	short	wdp_vendstat;		/* number of words of vendor status */
+	short	wdp_sectors;		/* number of sectors per track */
+	short	wdp_vendorunique[3];
 	/* controller info */
-	char	wdp_cnsn[20];		/* controller serial number */
-	short	wdp_cntype;		/* controller type */
+	char	wdp_serial[20];		/* serial number */
+	short	wdp_buffertype;		/* buffer type */
 #define	WDTYPE_SINGLEPORTSECTOR	1	 /* single port, single sector buffer */
 #define	WDTYPE_DUALPORTMULTI	2	 /* dual port, multiple sector buffer */
 #define	WDTYPE_DUALPORTMULTICACHE 3	 /* above plus track cache */
-	short	wdp_cnsbsz;		/* sector buffer size, in sectors */
+	short	wdp_buffersize;		/* buffer size, in 512-byte units */
 	short	wdp_necc;		/* ecc bytes appended */
 	char	wdp_rev[8];		/* firmware revision */
 	char	wdp_model[40];		/* model name */
