@@ -29,7 +29,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -41,6 +43,7 @@ MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
 int64_t		mca_info_size[SAL_INFO_TYPES];
 vm_offset_t	mca_info_block;
+struct mtx	mca_info_block_lock;
 
 SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RW, 0, "MCA container");
 
@@ -78,6 +81,7 @@ ia64_mca_save_state(int type)
 	struct mca_record_header *hdr;
 	struct sysctl_oid *oidp;
 	char *name, *state;
+	uint64_t seqnr;
 	size_t recsz, totsz;
 
 	/*
@@ -88,20 +92,48 @@ ia64_mca_save_state(int type)
 		return;
 
 	while (1) {
+		mtx_lock_spin(&mca_info_block_lock);
+
 		result = ia64_sal_entry(SAL_GET_STATE_INFO, type, 0,
 		    mca_info_block, 0, 0, 0, 0);
-		if (result.sal_status < 0)	/* any error records? */
+		if (result.sal_status < 0) {
+			mtx_unlock_spin(&mca_info_block_lock);
 			return;
+		}
 
 		hdr = (struct mca_record_header *)mca_info_block;
 		recsz = hdr->rh_length;
-		totsz = sizeof(struct sysctl_oid) + recsz + 16;
+		seqnr = hdr->rh_seqnr;
 
+		mtx_unlock_spin(&mca_info_block_lock);
+
+		totsz = sizeof(struct sysctl_oid) + recsz + 32;
 		oidp = malloc(totsz, M_MCA, M_WAITOK|M_ZERO);
 		state = (char*)(oidp + 1);
 		name = state + recsz;
+		sprintf(name, "%lld", (long long)seqnr);
 
-		sprintf(name, "%d", hdr->rh_seqnr);
+		mtx_lock_spin(&mca_info_block_lock);
+
+		/*
+		 * If the info block doesn't have our record anymore because
+		 * we temporarily unlocked it, get it again from SAL. I assume
+		 * that it's possible that we could get a different record.
+		 * I expect this to happen in a SMP configuration where the
+		 * record has been cleared by a different processor. So, if
+		 * we get a different record we simply abort with this record
+		 * and start over.
+		 */
+		if (seqnr != hdr->rh_seqnr) {
+			result = ia64_sal_entry(SAL_GET_STATE_INFO, type, 0,
+			    mca_info_block, 0, 0, 0, 0);
+			if (seqnr != hdr->rh_seqnr) {
+				mtx_unlock_spin(&mca_info_block_lock);
+				free(oidp, M_MCA);
+				continue;
+			}
+		}
+
 		bcopy((char*)mca_info_block, state, recsz);
 
 		oidp->oid_parent = &sysctl__hw_mca_children;
@@ -113,21 +145,27 @@ ia64_mca_save_state(int type)
 		oidp->oid_handler = mca_sysctl_handler;
 		oidp->oid_fmt = "S,MCA";
 		oidp->descr = "Error record";
+
 		sysctl_register_oid(oidp);
 
 		if (mca_count > 0) {
-			if (hdr->rh_seqnr < mca_first)
-				mca_first = hdr->rh_seqnr;
-			else if (hdr->rh_seqnr > mca_last)
-				mca_last = hdr->rh_seqnr;
+			if (seqnr < mca_first)
+				mca_first = seqnr;
+			else if (seqnr > mca_last)
+				mca_last = seqnr;
 		} else
-			mca_first = mca_last = hdr->rh_seqnr;
+			mca_first = mca_last = seqnr;
 
 		mca_count++;
 
-		/* Clear the record */
+		/*
+		 * Clear the state so that we get any other records when
+		 * they exist.
+		 */
 		result = ia64_sal_entry(SAL_CLEAR_STATE_INFO, type, 0, 0, 0,
 		    0, 0, 0);
+
+		mtx_unlock_spin(&mca_info_block_lock);
 	}
 }
 
@@ -167,6 +205,16 @@ ia64_mca_init(void)
 	if (bootverbose)
 		printf("MCA: allocated %d bytes for state information\n",
 		    max_size);
+
+	/*
+	 * Initialize the spin lock used to protect the info block. When APs
+	 * get launched, there's a short moment of contention, but in all other
+	 * cases it's not a hot spot. I think it's possible to have the MCA
+	 * handler be called on multiple processors at the same time, but that
+	 * should be rare. On top of that, performance is not an issue when
+	 * dealing with machine checks...
+	 */
+	mtx_init(&mca_info_block_lock, "MCA spin lock", NULL, MTX_SPIN);
 
 	/*
 	 * Get and save any processor and platfom error records. Note that in
