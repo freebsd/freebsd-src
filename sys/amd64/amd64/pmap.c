@@ -808,7 +808,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	m = NULL;
 	mtx_lock(&Giant);
 	if ((pa = pmap_extract(pmap, va)) != 0) {
-		m = PHYS_TO_VM_PAGE(pa & PG_FRAME);
+		m = PHYS_TO_VM_PAGE(pa);
 		vm_page_lock_queues();
 		vm_page_hold(m);
 		vm_page_unlock_queues();
@@ -1807,7 +1807,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				if ((pbits & PG_M) != 0 &&
 				    pmap_track_modified(sva)) {
 					if (m == NULL)
-						m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
+						m = PHYS_TO_VM_PAGE(pbits &
+						    PG_FRAME);
 					vm_page_dirty(m);
 					pbits &= ~PG_M;
 				}
@@ -1928,7 +1929,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (origpte & PG_MANAGED) {
 			if ((origpte & PG_M) && pmap_track_modified(va)) {
 				vm_page_t om;
-				om = PHYS_TO_VM_PAGE(opa & PG_FRAME);
+				om = PHYS_TO_VM_PAGE(opa);
 				vm_page_dirty(om);
 			}
 			pa |= PG_MANAGED;
@@ -2758,7 +2759,7 @@ pmap_mapdev(pa, size)
 	va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-	pa = pa & PG_FRAME;
+	pa = trunc_page(pa);
 	for (tmpva = va; size > 0; ) {
 		pmap_kenter(tmpva, pa);
 		size -= PAGE_SIZE;
