@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.31 1998/06/10 06:34:56 peter Exp $
+ * $Id: kernfs_vnops.c,v 1.32 1998/06/10 21:21:30 dfr Exp $
  */
 
 /*
@@ -524,7 +524,7 @@ kernfs_readdir(ap)
 		int a_ncookies;
 	} */ *ap;
 {
-	int error, i;
+	int error, i, off;
 	struct uio *uio = ap->a_uio;
 	struct kern_target *kt;
 	struct dirent d;
@@ -539,7 +539,12 @@ kernfs_readdir(ap)
 	if (ap->a_ncookies != NULL)
 		panic("kernfs_readdir: not hungry");
 
-	i = uio->uio_offset / UIO_MX;
+	off = (int)uio->uio_offset;
+	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
+	    uio->uio_resid < UIO_MX)
+		return (EINVAL);
+
+	i = (u_int)off / UIO_MX;
 	error = 0;
 	for (kt = &kern_targets[i];
 		uio->uio_resid >= UIO_MX && i < nkern_targets; kt++, i++) {
