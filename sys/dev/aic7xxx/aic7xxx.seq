@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.78 1998/09/15 07:24:16 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.79 1998/09/21 16:46:13 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -234,11 +234,12 @@ select_in:
 
 		/*
 		 * Setup the DMA for sending the identify and
-		 * command information.  We keep a count of the
-		 * number of bytes to send to the host in ARG_2.
+		 * command information.
 		 */
 		or	SEQ_FLAGS, CMDPHASE_PENDING;
-		mov	A, TMODE_CMDADDR_NEXT;
+
+		/* XXX If ring buffer is full, return busy or queue full */
+		mov     A, TQINPOS;
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			mvi	DINDEX, CCHADDR;
 			mvi	TMODE_CMDADDR call set_32byte_addr;
@@ -289,6 +290,7 @@ select_in:
 		 * Our first message must be one of IDENTIFY, ABORT, or
 		 * BUS_DEVICE_RESET.
 		 */
+		/* XXX May need to be more lax here for older initiators... */
 		test	DINDEX, MSG_IDENTIFYFLAG jz more_first_messages;
 		/* Store for host */
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
@@ -296,7 +298,6 @@ select_in:
 		} else {
 			mov	DFDAT, DINDEX;
 		}
-		mvi	ARG_2, 3;
 
 		/* Remember for disconnection decision */
 		test	DINDEX, MSG_IDENTIFY_DISCFLAG jnz . + 2;
@@ -337,7 +338,6 @@ select_in:
 		} else {
 			mov	DFDAT, DINDEX;
 		}
-		add	ARG_2, 2;
 		jmp	ident_messages_done;
 
 more_first_messages:
@@ -483,17 +483,6 @@ target_busfree:
 		jmp	poll_for_work;
 
 target_cmdphase:
-		/*
-		 * Add one for the terminating byte
-		 * and one for the command code.
-		 */
-		if ((ahc->features & AHC_CMD_CHAN) != 0) {
-			add	CCHCNT, 2, ARG_2;
-		} else {
-			add	HCNT[0], 2, ARG_2;
-			clr	HCNT[1];
-			clr	HCNT[2];
-		}
 		mvi	SCSISIGO, P_COMMAND|BSYO;
 		call	targ_inb;
 		mov	A, DINDEX;
@@ -506,19 +495,15 @@ target_cmdphase:
 
 		/*
 		 * Determine the number of bytes to read
-		 * based on the command group code using an adding
-		 * jump table.  Count is one less than the total
-		 * since we've already fetched the first byte.
+		 * based on the command group code via table lookup.
+		 * We reuse the first 8 bytes of the TARG_SCSIRATE
+		 * BIOS array for this table. Count is one less than
+		 * the total for the command since we've already fetched
+		 * the first byte.
 		 */
 		shr	A, CMD_GROUP_CODE_SHIFT;
 		add	SINDEX, TARG_SCSIRATE, A;
 		mov	A, SINDIR;
-
-		if ((ahc->features & AHC_CMD_CHAN) != 0) {
-			add	CCHCNT, A;
-		} else {
-			add	HCNT[0], A;
-		}
 
 		test	A, 0xFF jz command_phase_done;
 command_loop:
@@ -566,17 +551,28 @@ complete_target_cmd:
 		test	SEQ_FLAGS, TARG_CMD_PENDING	jnz . + 2;
 		mov	SCB_TAG jmp complete_post;
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
+			/* Set the valid byte */
+			mvi	CCSCBADDR, 24;
+			mov	CCSCBRAM, ALLONES;
+			mvi	CCHCNT, 28;
 			or	CCSCBCTL, CCSCBEN|CCSCBRESET;
 			test	CCSCBCTL, CCSCBDONE jz .;
 			clr	CCSCBCTL;
 		} else {
+			/* Set the valid byte */
+			or	DFCNTRL, FIFORESET;
+			mvi	DFWADDR, 3; /* Third 64bit word or byte 24 */
+			mov	DFDAT, ALLONES;
+			mvi	HCNT[0], 28;
+			clr	HCNT[1];
+			clr	HCNT[2];
 			or	DFCNTRL, HDMAEN|FIFOFLUSH;
 			call	dma_finish;
 		}
-		inc	TMODE_CMDADDR_NEXT;
-		cmp	TMODE_CMDADDR_NEXT, TMODE_NUMCMDS jne . + 2;
-		clr	TMODE_CMDADDR_NEXT;
-		mvi	TARGET_CMD_CMPLT jmp complete_post;
+		inc	TQINPOS;
+		test	SEQ_FLAGS, NO_DISCONNECT jz . + 2;
+		mvi	INTSTAT,TARGET_SYNC_CMD|CMDCMPLT ret;
+		mvi	INTSTAT,CMDCMPLT ret;
 	}
 initiator_select:
 	mvi	SPIOEN call	initialize_channel;
@@ -960,11 +956,7 @@ p_mesgout:
 	mov	SINDEX, MSG_OUT;
 	cmp	SINDEX, MSG_IDENTIFYFLAG jne p_mesgout_from_host;
 p_mesgout_identify:
-	if ((ahc->features & AHC_WIDE) != 0) {
-		and	SINDEX,0xf,SCB_TCL;	/* lun */
-	} else {
-		and	SINDEX,0x7,SCB_TCL;	/* lun */
-	}
+	and	SINDEX,LID,SCB_TCL;	/* lun */
 	and	A,DISCENB,SCB_CONTROL;	/* mask off disconnect privledge */
 	or	SINDEX,A;		/* or in disconnect privledge */
 	or	SINDEX,MSG_IDENTIFYFLAG;
@@ -1122,9 +1114,8 @@ complete_post:
 		inc 	QOUTPOS;
 	}
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		test	SEQ_FLAGS, NO_DISCONNECT jz . + 3;
-		mvi	INTSTAT,TARGET_SYNC_CMD|CMDCMPLT;
-		ret;
+		test	SEQ_FLAGS, NO_DISCONNECT jz . + 2;
+		mvi	INTSTAT,TARGET_SYNC_CMD|CMDCMPLT ret;
 	}
 	mvi	INTSTAT,CMDCMPLT ret;
 
