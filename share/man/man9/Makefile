@@ -88,6 +88,7 @@ MAN=	accept_filter.9 \
 	domain.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
+	EVENTHANDLER.9 \
 	extattr.9 \
 	fetch.9 \
 	g_access.9 \
@@ -448,6 +449,14 @@ MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
 MLINKS+=DRIVER_MODULE.9 MULTI_DRIVER_MODULE.9
+MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
+	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
+	EVENTHANDLER.9 eventhandler_deregister.9 \
+	EVENTHANDLER.9 EVENTHANDLER_INVOKE.9 \
+	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
+	EVENTHANDLER.9 eventhandler_register.9 \
+	EVENTHANDLER.9 eventhandler_find_list.9 \
+	EVENTHANDLER.9 eventhandler_prune_list.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fusword.9 \
