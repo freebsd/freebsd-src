@@ -406,9 +406,24 @@ esac
 # Mount NFS filesystems if present in /etc/fstab
 case "`mount -d -a -t nfs 2> /dev/null`" in
 *mount_nfs*)
-	echo -n 'Mounting NFS file systems:'
-	mount -a -t nfs
-	echo '.'
+	# Handle absent nfs client support
+	nfsclient_in_kernel=0
+	if sysctl vfs.nfs >/dev/null 2>&1; then
+		nfsclient_in_kernel=1
+	else
+		kldload nfsclient && nfsclient_in_kernel=1
+	fi
+
+	case ${nfsclient_in_kernel} in
+	1)
+		echo -n 'Mounting NFS file systems:'
+		mount -a -t nfs
+		echo '.'
+		;;
+	*)
+		echo 'Warning: nfs mount requested, but no nfs client in kernel'
+		;;
+	esac
 	;;
 esac
 

@@ -605,7 +605,16 @@ network_pass3() {
 	[Yy][Ee][Ss])
 		case ${nfs_server_enable} in
 		[Yy][Ee][Ss])
-			if [ -r /etc/exports ]; then
+			# Handle absent nfs server support
+			nfsserver_in_kernel=0
+			if sysctl vfs.nfsrv >/dev/null 2>&1; then
+				nfsserver_in_kernel=1
+			else
+				kldload nfsserver && nfsserver_in_kernel=1
+			fi
+
+			if [ -r /etc/exports -a \
+			    ${nfsserver_in_kernel} -eq 1 ]; then
 				echo -n ' mountd'
 
 				case ${weak_mountd_authentication} in
@@ -636,6 +645,8 @@ network_pass3() {
 					echo -n ' rpc.statd';	rpc.statd
 					;;
 				esac
+			else
+				echo -n ' Warning: nfs server failed'
 			fi
 			;;
 		*)
