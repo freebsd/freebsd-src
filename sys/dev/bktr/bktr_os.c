@@ -184,7 +184,7 @@ int bktr_debug = 0;
 #include <dev/bktr/bktr_audio.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_os.h>
-#if (NSMBUS > 0)
+#if defined(BKTR_USE_FREEBSD_SMBUS)
 #include <dev/bktr/bktr_i2c.h>
 #endif
 #endif
@@ -380,7 +380,7 @@ bktr_attach( device_t dev )
 
 
 	/* XXX call bt848_i2c dependent attach() routine */
-#if (NSMBUS > 0)
+#if defined(BKTR_USE_FREEBSD_SMBUS)
 	if (bt848_i2c_attach(unit, bktr, &bktr->i2c_sc))
 		printf("bktr%d: i2c_attach: can't attach\n", unit);
 #endif
@@ -931,7 +931,7 @@ bktr_attach( pcici_t tag, int unit )
 
 
 	/* XXX call bt848_i2c dependent attach() routine */
-#if (NSMBUS > 0)
+#if defined(BKTR_USE_FREEBSD_SMBUS)
 	if (bt848_i2c_attach(unit, bktr, &bktr->i2c_sc))
 		printf("bktr%d: i2c_attach: can't attach\n", unit);
 #endif
