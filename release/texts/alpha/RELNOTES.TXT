@@ -83,7 +83,7 @@ accept_filters, a kernel feature to reduce overheads when accepting
 and reading new connections on listening sockets, has been added.
 [MERGED]
 
-The ata(4) driver now has experimental support for ATA100 controllers.
+The ata(4) driver now has support for ATA100 controllers. [MERGED]
 
 AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it does
 not want to boot from CD or floppy but a transplanted disk that was
