@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.41 1995/11/04 15:08:15 jkh Exp $
+ * $Id: menus.c,v 1.42.2.42 1995/11/05 00:16:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -538,7 +538,7 @@ Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PROG, 0, dmenuFlagCheck		},
   { "link",		"Kit to reconfigure/rebuild X Servers [8.8MB]",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0, dmenuFlagCheck		},
-  { "ubin",		"rstart daemon (/usr/bin/rstartd) [2K]",
+  { "ubin",		"rstart daemon [2K]",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_UBIN, 0, dmenuFlagCheck		},
   { "pex",		"PEX fonts and libs needed by PEX apps [290K]",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0, dmenuFlagCheck		},

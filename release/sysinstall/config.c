@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.37 1995/11/05 02:22:46 jkh Exp $
+ * $Id: config.c,v 1.16.2.38 1995/11/06 12:49:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -383,10 +383,10 @@ skip:
 
 	(void)vsystem("hostname %s", hp);
 	fp = fopen("/etc/hosts", "w");
-	if (!index(cp, '.'))
+	if (!index(hp, '.'))
 	    cp2[0] = '\0';
 	else {
-	    strcpy(cp2, cp);
+	    strcpy(cp2, hp);
 	    *(index(cp2, '.')) = '\0';
 	}
 	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
