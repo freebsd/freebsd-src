@@ -473,7 +473,8 @@ release rerelease:
 	env -i /usr/sbin/chroot ${CHROOTDIR} /mk
 
 clean:
-	rm -rf boot_crunch release.[0-9]
+	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] ${FIXIT_TARGET} \
+	    ${EXTRAS}
 
 fetch-distfiles:
 	@for i in ${DOCPORTS}; do \
