@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.66 1998/11/26 14:00:08 bde Exp $
+ * $Id: kern_synch.c,v 1.67 1998/11/26 14:05:58 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -253,9 +253,10 @@ schedcpu(arg)
 {
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 	register struct proc *p;
-	register int s;
+	register int realstathz, s;
 	register unsigned int newcpu;
 
+	realstathz = stathz ? stathz : hz;
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		/*
 		 * Increment time in/out of memory and sleep time
@@ -277,13 +278,13 @@ schedcpu(arg)
 		 * p_pctcpu is only for ps.
 		 */
 #if	(FSHIFT >= CCPU_SHIFT)
-		p->p_pctcpu += (stathz == 100)?
+		p->p_pctcpu += (realstathz == 100)?
 			((fixpt_t) p->p_cpticks) << (FSHIFT - CCPU_SHIFT):
                 	100 * (((fixpt_t) p->p_cpticks)
-				<< (FSHIFT - CCPU_SHIFT)) / stathz;
+				<< (FSHIFT - CCPU_SHIFT)) / realstathz;
 #else
 		p->p_pctcpu += ((FSCALE - ccpu) *
-			(p->p_cpticks * FSCALE / stathz)) >> FSHIFT;
+			(p->p_cpticks * FSCALE / realstathz)) >> FSHIFT;
 #endif
 		p->p_cpticks = 0;
 		newcpu = (u_int) decay_cpu(loadfac, p->p_estcpu) + p->p_nice;
