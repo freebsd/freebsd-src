@@ -1540,7 +1540,7 @@ int15e820:
 	 * map page 1 R/W into the kernel page table so we can use it
 	 * as a buffer.  The kernel will unmap this page later.
 	 */
-	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1);
+	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
 
 	/*
 	 * get memory map with INT 15:E820
