@@ -66,7 +66,7 @@ options 	RANDOMDEV		#entropy device
 #options 	APIC_IO			# Symmetric (APIC) I/O
 # Optionally these may need tweaked, (defaults shown):
 #options 	NCPU=2			# number of CPUs
-#options 	NBUS=4			# number of busses
+#options 	NBUS=8			# number of busses
 #options 	NAPIC=1			# number of IO APICs
 #options 	NINTR=24		# number of INTs
 
@@ -225,7 +225,7 @@ device		xe
 # Pseudo devices - the number indicates how many units to allocated.
 device		loop		# Network loopback
 device		ether		# Ethernet support
-device		sl	1	# Kernel SLIP
+device		sl		# Kernel SLIP
 device		ppp	1	# Kernel PPP
 device		tun		# Packet tunnel.
 device		pty		# Pseudo-ttys (telnet etc)
