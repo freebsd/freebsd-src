@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.119 1999/04/16 21:22:23 peter Exp $
+ *	$Id: isa.c,v 1.120 1999/04/16 23:39:15 peter Exp $
  */
 
 /*
@@ -541,24 +541,18 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 		switch (type) {
 		case SYS_RES_IRQ:
 			id->id_irqres[rid] = 0;
-			id->id_irq[rid] = -1;
 			break;
 
 		case SYS_RES_DRQ:
 			id->id_drqres[rid] = 0;
-			id->id_drq[rid] = -1;
 			break;
 
 		case SYS_RES_MEMORY:
 			id->id_memres[rid] = 0;
-			id->id_maddr[rid] = 0;
-			id->id_msize[rid] = 0;
 			break;
 
 		case SYS_RES_IOPORT:
 			id->id_portres[rid] = 0;
-			id->id_port[rid] = 0;
-			id->id_portsize[rid] = 0;
 			break;
 
 		default:
