@@ -232,6 +232,8 @@ struct xsocket {
 	uid_t	so_uid;		/* XXX */
 };
 
+#ifdef _KERNEL
+
 /*
  * Macros for sockets and socket buffering.
  */
@@ -347,8 +349,6 @@ struct xsocket {
 	if (sb_notify(&(so)->so_snd))					\
 		sowakeup((so), &(so)->so_snd); 				\
 } while (0)
-
-#ifdef _KERNEL
 
 /*
  * Argument structure for sosetopt et seq.  This is in the KERNEL
