@@ -1,0 +1,102 @@
+#! /bin/sh -
+
+#
+#	$Id: stage1,v 1.4 1998/08/10 19:06:48 abial Exp $
+#
+
+set -e
+
+if [ "${TYPE}" = "dial" ]
+then
+	suffix="-D"
+fi
+if [ "${TYPE}" = "net" ]
+then
+	suffix="-N"
+fi
+if [ "${TYPE}" = "isp" ]
+then
+	suffix="-I"
+fi
+if [ "${TYPE}" = "router" ]
+then
+	suffix="-R"
+fi
+
+if [ ! -f ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel ]; then
+	echo "-> ERROR: you must build PICOBSD${suffix}.${SIZE} first"
+	exit 1
+fi
+
+echo "-> Preparing kernel..."
+cp -p ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel kernel
+if [ "${TYPE}" != "dial" ]
+then
+	echo "-> Preparing kvm database..."
+	mv /var/db/kvm_kernel.db /var/db/old.db
+	kvm_mkdb kernel
+	cp /var/db/kvm_kernel.db kvm_kernel.db
+	mv /var/db/old.db /var/db/kvm_kernel.db
+fi
+
+echo "-> Preparing MFS filesystem..."
+umount /dev/vn0 2> /dev/null || true
+umount /mnt 2> /dev/null || true
+vnconfig -u /dev/rvn0 2> /dev/null || true
+
+dd of=fs.PICOBSD if=/dev/zero count=${SIZE} bs=1k 2> /dev/null
+
+awk 'BEGIN {printf "%c%c", 85, 170}' | \
+                dd of=fs.PICOBSD obs=1 seek=510 conv=notrunc  2> /dev/null
+
+vnconfig -s labels -c /dev/rvn0 fs.PICOBSD 2>/dev/null
+#vnconfig -c /dev/rvn0 fs.PICOBSD 2>/dev/null
+if [ "X$?" != "X0" ]
+then
+	echo "-> Error while doing vnconfig of fs.PICOBSD on /dev/rvn0..."
+	echo "   Most probably your running kernel doesn't have the vn(4) device."
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+dd if=/usr/mdec/boot1 of=fs.PICOBSD conv=notrunc 2> /dev/null
+
+# This command does weird things on 2.2.x systems. In such case use normal
+# disktype here instead
+if [ "${TYPE}" != "router" ]
+then
+	disklabel -rw vn0 auto
+else
+	disklabel -rw /dev/rvn0 fd820
+fi
+if [ "X$?" != "X0" ]
+then
+	echo "-> Error while labeling fs.PICOBSD (vn0)..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+# You can save some space on MFS if you don't want so many inodes...
+if [ "${TYPE}" = "dial" ]
+then
+	newfs -i 10240 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+fi
+if [ "${TYPE}" = "router" ]
+then
+	newfs -i 12000 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+fi
+if [ "${TYPE}" = "net" ]
+then
+	newfs -i 16000 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+fi
+if [ "${TYPE}" = "isp" ]
+then
+	newfs -i 15000 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+fi
+mount /dev/vn0c /mnt
+if [ "X$?" != "X0" ]
+then
+	echo "-> Error while mounting fs.PICOBSD (/dev/vn0c) on /mnt..."
+	echo "-> Aborting $0"
+	exit 10
+fi

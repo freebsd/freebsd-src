@@ -1,0 +1,9 @@
+#!/bin/sh
+# $Id: login.en,v 1.2 1998/07/15 20:11:43 abial Exp $
+
+if [ "$2" != "root" ]
+then
+	exit
+fi
+cat /etc/motd
+exec -sh

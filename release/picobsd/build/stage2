@@ -1,0 +1,40 @@
+#! /bin/sh -
+
+#
+#	$Id: stage2,v 1.1.1.1 1998/07/14 07:30:51 abial Exp $
+#
+set -e
+
+if [ "${TYPE}" = "dial" ]
+then
+	suffix="-D"
+fi
+if [ "${TYPE}" = "net" ]
+then
+	suffix="-N"
+fi
+if [ "${TYPE}" = "isp" ]
+then
+	suffix="-I"
+fi
+
+
+if [ ! -f kernel ]; then
+	echo "-> ERROR: you must build PICOBSD${suffix}.${SIZE} kernel first"
+	exit 1
+fi
+
+echo "-> Preparing kernel with MFS filesystem inside..."
+df -ik /mnt
+umount /mnt 2>&1 >/dev/null
+fsck -p /dev/rvn0c
+vnconfig -u /dev/rvn0 2>&1 >/dev/null
+
+if [ ! -f ../tools/write_mfs_in_kernel/wmik ]; then
+	(cd ../tools/write_mfs_in_kernel; make)
+fi
+
+../tools/write_mfs_in_kernel/wmik kernel fs.PICOBSD
+kzip -v kernel
+rm fs.PICOBSD
+rm kernel

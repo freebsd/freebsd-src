@@ -1,0 +1,82 @@
+<HTML>
+<! $Id: bugs.html,v 1.3 1998/08/19 16:59:35 abial Exp $ >
+<HEAD>
+   <TITLE>History and Bug fixes</TITLE>
+</HEAD>
+<BODY>
+
+<center><h1>History and List of Bugfixes</h1></center>
+
+<p>This is the short release history of PicoBSD, as well as the list of bugs
+which were found. Some of them were already corrected, so that you should read
+the list before reporting a new one.</p>
+
+<p>We tried to make this software bug-free, but life is life... Sorry for the
+ inconvenience.</p>
+
+<h3>PicoBSD 0.4</h3>
+<ul>
+<li>
+	1998.08.19: PicoBSD 0.4 released.
+	<p>New features include: NATd,
+	netstat, DEVFS/SLICE instead of standard /dev, additional network
+	drivers, and several minor fixes. Distribution contains also
+	a collection of small versions of system programs (TinyWare), among
+	them custom init(8).</p>
+	<p>I added also the fourth type of setup - 'router' - which is a
+	specialized version of PicoBSD that focuses on providing as small
+	as possible router solution.</p>
+</li>
+</ul>
+<h3>PicoBSD 0.31</h3>
+<ul>
+<li>
+	1998.03.28: Some people reported that the binary files (*.flp) were
+	being corrupted during download because their browsers assumed that
+	these are text files. I changed the names to *.bin - their contents
+	 is the same.
+</li>
+<li>
+	1998.03.20: PicoBSD 0.31 released. New features include: SNMP daemon,
+	better creation of /kernel.config, some other minor fixes. Massive
+	changes in the building scripts. I also removed vn(4) driver from
+	"net" and "isp" floppies.
+</li>
+</ul>
+<h3>PicoBSD 0.3</h3>
+<p>The following bugs were found in this release of PicoBSD:</p>
+<ul>
+<li>	1998.02.27: A bug in kget(8) utility caused it to dump core in certain
+	situations. As a consequence, it wasn't possible to save the changes
+	made in UserConfig (-c). This will be corrected in the next release (or
+	bugfix issue).
+</li>
+<li>	1998.02.24: Wrongly sized MFS caused the passwd(1) on "net" type
+	floppy to fail because of lack of space for temporary files. This bug
+	affected only "net" floppies, and of course the scripts ("2000" looks
+	quite similar to "2200" :-(( ). Also, the 'update' script didn't work
+	as expected...
+<p>	This was fixed the same day, and the corrected files are: pb03en1.zip,
+	pb03pn1.zip, and pbsd-s031.tgz respectively. They are now under standard
+	links on the main page of PicoBSD project, so if you downloaded after
+	this date, you shouldn't worry.</p>
+<p>	Please check that you have the fixed versions - the archive name should
+	contain the tiny number, such as "pb03en<b>1</b>.zip", or
+	pbsd-s03<b>1</b>.tgz".</p>
+<li>
+	1998.02.15: PicoBSD 0.3 released. This is the first version that I can
+	truly recommend - previous one was too buggy... :-)
+</li>
+</li>
+</ul>
+
+<h5>Last modified:
+Wed Aug 19 08:53:04 CEST 1998
+</h5>
+
+<HR align="center" width="100%">
+<CENTER><h5>Any comments? Send them to
+<A HREF="mailto:abial@nask.pl">the author</A> </h5></CENTER>
+
+</BODY>
+</HTML>

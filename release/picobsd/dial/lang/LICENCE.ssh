@@ -1,0 +1,8 @@
+SSH is included here under different license than BSD one. Please see
+http://www.cs.hut.fi/ssh for details. In short, it permits non-commercial
+use only. Your usage may be further restricted by applicable local laws on
+using strong encryption methods.
+
+<abial@nask.pl>
+
+$Id: LICENCE.ssh,v 1.1.1.1 1998/07/14 07:30:41 abial Exp $
