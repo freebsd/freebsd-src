@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.11 1995/06/28 12:01:10 davidg Exp $
+ * $Id: lfs_vnops.c,v 1.12 1995/07/13 08:48:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -381,8 +381,8 @@ lfs_rmdir(ap)
 int
 lfs_link(ap)
 	struct vop_link_args /* {
-		struct vnode *a_vp;
 		struct vnode *a_tdvp;
+		struct vnode *a_vp;
 		struct componentname *a_cnp;
 	} */ *ap;
 {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.24 1995/05/30 08:15:39 rgrimes Exp $
+ * $Id: ufs_vnops.c,v 1.25 1995/06/28 07:06:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -666,8 +666,8 @@ out:
 int
 ufs_link(ap)
 	struct vop_link_args /* {
-		struct vnode *a_vp;
 		struct vnode *a_tdvp;
+		struct vnode *a_vp;
 		struct componentname *a_cnp;
 	} */ *ap;
 {

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.4 1995/05/03 23:04:26 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.5 1995/05/30 08:06:53 rgrimes Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -820,8 +820,8 @@ DBPRINT(("remove\n"));
  */
 int devfs_link(ap)
         struct vop_link_args /* {
-                struct vnode *a_vp;
                 struct vnode *a_tdvp;
+                struct vnode *a_vp;
                 struct componentname *a_cnp;
         } */ *ap;
 {
