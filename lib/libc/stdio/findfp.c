@@ -59,20 +59,21 @@ int	__sdidinit;
 
 #define	NDYNAMIC 10		/* add ten more whenever necessary */
 
-#define	std(flags, file) \
-	{0,0,0,flags,file,{0},0,__sF+file,__sclose,__sread,__sseek,__swrite}
-/*	 p r w flags file _bf z  cookie      close    read    seek    write */
+#define	std(handle, flags, file) \
+FILE handle = {0,0,0,flags,file,{0},0,&handle,__sclose,__sread,__sseek,__swrite}
+/*	       p r w flags file _bf z  cookie    close    read    seek    write */
 
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
 static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
-FILE __sF[3] = {
-	std(__SRD, STDIN_FILENO),		/* stdin */
-	std(__SWR, STDOUT_FILENO),		/* stdout */
-	std(__SWR|__SNBF, STDERR_FILENO)	/* stderr */
-};
-struct glue __sglue = { &uglue, 3, __sF };
+std(__stdin, __SRD, STDIN_FILENO);
+std(__stdout, __SWR, STDOUT_FILENO);
+std(__stderr, __SWR|__SNBF, STDERR_FILENO);
+
+static struct glue sglue2 = { &uglue, 1, &__stderr };
+static struct glue sglue1 = { &sglue2, 1, &__stdout };
+struct glue __sglue = { &sglue1, 1, &__stdin };
 static struct glue *lastglue = &uglue;
 
 static struct glue *	moreglue __P((int));
