@@ -58,6 +58,10 @@ struct istats {
 	uint32_t	itype_phys;
 	uint32_t	itype_err;
 	uint32_t	defrag;
+	uint32_t	mcc;
+	uint32_t	oec;
+	uint32_t	dcc;
+	uint32_t	cec;
 };
 
 /* Card memory layout parameters */

@@ -1245,7 +1245,6 @@ hatm_init(void *p)
 }
 
 enum {
-	CTL_STATS,
 	CTL_ISTATS,
 };
 
@@ -1262,10 +1261,6 @@ hatm_sysctl(SYSCTL_HANDLER_ARGS)
 
 	switch (arg2) {
 
-	  case CTL_STATS:
-		len = sizeof(uint32_t) * 4;
-		break;
-
 	  case CTL_ISTATS:
 		len = sizeof(sc->istats);
 		break;
@@ -1279,14 +1274,11 @@ hatm_sysctl(SYSCTL_HANDLER_ARGS)
 
 	switch (arg2) {
 
-	  case CTL_STATS:
-		ret[0] = READ4(sc, HE_REGO_MCC);
-		ret[1] = READ4(sc, HE_REGO_OEC);
-		ret[2] = READ4(sc, HE_REGO_DCC);
-		ret[3] = READ4(sc, HE_REGO_CEC);
-		break;
-
 	  case CTL_ISTATS:
+		sc->istats.mcc += READ4(sc, HE_REGO_MCC);
+		sc->istats.oec += READ4(sc, HE_REGO_OEC);
+		sc->istats.dcc += READ4(sc, HE_REGO_DCC);
+		sc->istats.cec += READ4(sc, HE_REGO_CEC);
 		bcopy(&sc->istats, ret, sizeof(sc->istats));
 		break;
 	}
@@ -1776,11 +1768,6 @@ hatm_attach(device_t dev)
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "istats", CTLFLAG_RD | CTLTYPE_OPAQUE, sc, CTL_ISTATS,
 	    hatm_sysctl, "LU", "internal statistics") == NULL)
-		goto failed;
-
-	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "stats", CTLFLAG_RD | CTLTYPE_OPAQUE, sc, CTL_STATS,
-	    hatm_sysctl, "LU", "card statistics") == NULL)
 		goto failed;
 
 #ifdef HATM_DEBUG
