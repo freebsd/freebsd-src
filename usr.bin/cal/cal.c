@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)cal.c	8.4 (Berkeley) 4/2/94";
 
 #include <ctype.h>
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,13 +92,10 @@ int sep1752[MAXDAYS] = {
 	SPACE,	SPACE,	SPACE,	SPACE,	SPACE,	SPACE,	SPACE,
 };
 
-char *month_names[12] = {
-	"January", "February", "March", "April", "May", "June",
-	"July", "August", "September", "October", "November", "December",
-};
+char *month_names[12];
 
-char *day_headings = "Su Mo Tu We Th Fr Sa";
-char *j_day_headings = " Su  Mo  Tu  We  Th  Fr  Sa";
+char day_headings[] = "                    ";
+char j_day_headings[] = "                           ";
 
 /* leap year -- account for gregorian reformation in 1752 */
 #define	leap_year(yr) \
@@ -135,8 +133,12 @@ main(argc, argv)
 	char **argv;
 {
 	struct tm *local_time;
+	static struct tm zero_tm;
 	time_t now;
-	int ch, month, year, yflag;
+	int ch, month, year, yflag, i;
+	char buf[40];
+
+	(void) setlocale(LC_TIME, "");
 
 	yflag = 0;
 	while ((ch = getopt(argc, argv, "jy")) != EOF)
@@ -173,6 +175,18 @@ main(argc, argv)
 		break;
 	default:
 		usage();
+	}
+
+	for (i = 0; i < 12; i++) {
+		zero_tm.tm_mon = i;
+		strftime(buf, sizeof(buf), "%B", &zero_tm);
+		month_names[i] = strdup(buf);
+	}
+	for (i = 0; i < 7; i++) {
+		zero_tm.tm_wday = i;
+		strftime(buf, sizeof(buf), "%a", &zero_tm);
+		strncpy(day_headings + i * 3, buf, 2);
+		strncpy(j_day_headings + i * 4 + 1, buf, 2);
 	}
 
 	if (month)
