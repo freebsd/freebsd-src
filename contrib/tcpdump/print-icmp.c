@@ -21,7 +21,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-icmp.c,v 1.38 96/09/26 23:36:44 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.43 1999/11/22 04:28:21 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -43,7 +47,6 @@ struct rtentry;
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -163,7 +166,7 @@ struct id_rdiscovery {
 };
 
 void
-icmp_print(register const u_char *bp, register const u_char *bp2)
+icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 {
 	register char *cp;
 	register const struct icmp *dp;
@@ -178,9 +181,11 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 	ip = (struct ip *)bp2;
 	str = buf;
 
+#if 0
         (void)printf("%s > %s: ",
 		ipaddr_string(&ip->ip_src),
 		ipaddr_string(&ip->ip_dst));
+#endif
 
 	TCHECK(dp->icmp_code);
 	switch (dp->icmp_type) {
@@ -348,6 +353,19 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 		break;
 	}
         (void)printf("icmp: %s", str);
+	if (vflag) {
+		if (TTEST2(*bp, plen)) {
+			if (in_cksum((u_short*)dp, plen, 0))
+				printf(" (wrong icmp csum)");
+		}
+	}
+ 	if (vflag > 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
+ 		bp += 8;
+ 		(void)printf(" for ");
+ 		ip = (struct ip *)bp;
+ 		snaplen = snapend - bp;
+ 		ip_print(bp, ntohs(ip->ip_len));
+ 	}
 	return;
 trunc:
 	fputs("[|icmp]", stdout);

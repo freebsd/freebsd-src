@@ -21,7 +21,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-rip.c,v 1.36 96/11/29 01:22:50 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rip.c,v 1.40 1999/11/22 04:24:28 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -100,8 +104,10 @@ rip_print(const u_char *dat, u_int length)
 	register int i, j, trunc;
 
 	i = min(length, snapend - dat) - sizeof(*rp);
-	if (i < 0)
+	if (i < 0) {
+		printf(" [|rip]");
 		return;
+	}
 
 	rp = (struct rip *)dat;
 	switch (rp->rip_cmd) {
@@ -116,7 +122,7 @@ rip_print(const u_char *dat, u_int length)
 			printf(" rip-resp %d[%d]:", j, length);
 		else
 			printf(" rip-resp %d:", j);
-		trunc = ((i / sizeof(*ni)) * sizeof(*ni) != i);
+		trunc = (i / sizeof(*ni)) != j;
 		ni = (struct rip_netinfo *)(rp + 1);
 		for (; (i -= sizeof(*ni)) >= 0; ++ni)
 			rip_entry_print(rp->rip_vers, ni);

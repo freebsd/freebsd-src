@@ -1,4 +1,4 @@
-.\" @(#) $Header: tcpdump.1,v 1.67 97/06/30 16:31:50 leres Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.72.2.2 2000/01/29 16:42:03 itojun Exp $ (LBL)
 .\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -27,7 +27,7 @@ tcpdump \- dump traffic on a network
 .na
 .B tcpdump
 [
-.B \-adeflnNOpqStvx
+.B \-adeflnNOpqRStvxX
 ] [
 .B \-c
 .I count
@@ -40,16 +40,21 @@ tcpdump \- dump traffic on a network
 [
 .B \-i
 .I interface
-] [
+]
+[
+.B \-m
+.I module
+]
+[
 .B \-r
 .I file
 ]
+.br
+.ti +8
 [
 .B \-s
 .I snaplen
 ]
-.br
-.ti +8
 [
 .B \-T
 .I type
@@ -58,6 +63,8 @@ tcpdump \- dump traffic on a network
 .B \-w
 .I file
 ]
+.br
+.ti +8
 [
 .I expression
 ]
@@ -146,6 +153,10 @@ Don't print domain name qualification of host names.  E.g.,
 if you give this flag then \fItcpdump\fP will print ``nic''
 instead of ``nic.ddn.mil''.
 .TP
+.B \-m
+Load SMI MIB module definitions from file \fImodule\fR. This option 
+can be used several times to load several MIB modules into tcpdump.
+.TP
 .B \-O
 Do not run the packet-matching code optimizer.  This is useful only
 if you suspect a bug in the optimizer.
@@ -184,9 +195,16 @@ specified \fItype\fR. Currently known types are
 \fBrpc\fR (Remote Procedure Call),
 \fBrtp\fR (Real-Time Applications protocol),
 \fBrtcp\fR (Real-Time Applications control protocol),
+\fBsnmp\fR (Simple Network Management Protocol),
 \fBvat\fR (Visual Audio Tool),
 and
 \fBwb\fR (distributed White Board).
+.TP
+.B \-R
+Assume ESP/AH packets to be based on old specification (RFC1825 to RFC1829).
+If specified, \fItcpdump\fP will not print replay prevention field.
+Since there is no protocol version field in ESP/AH specification,
+\fItcpdump\fP cannot deduce the version of ESP/AH protocol.
 .TP
 .B \-S
 Print absolute, rather than relative, TCP sequence numbers.
@@ -205,6 +223,13 @@ and type of service information in an IP packet is printed.
 Even more verbose output.  For example, additional fields are
 printed from NFS reply packets.
 .TP
+.B \-vvv
+Even more verbose output.  For example,
+telnet \fBSB\fP ... \fBSE\fP options
+are printed in full.  With
+.B \-X
+telnet options are printed in hex as well.
+.TP
 .B \-w
 Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.  They can later be printed with the \-r option.
@@ -215,6 +240,16 @@ Print each packet (minus its link level header) in hex.
 The smaller of the entire packet or
 .I snaplen
 bytes will be printed.
+.TP
+.B \-X
+When printing hex, print ascii too.  Thus if
+.B \-x
+is also set, the packet is printed in hex/ascii.
+This is very handy for analysing new protocols.
+Even if
+.B \-x
+is not also set, some parts of some packets may be printed
+in hex/ascii.
 .IP "\fI expression\fP"
 .RS
 selects which packets will be dumped.  If no \fIexpression\fP
@@ -263,6 +298,7 @@ protos are:
 .BR ether ,
 .BR fddi ,
 .BR ip ,
+.BR ip6 ,
 .BR arp ,
 .BR rarp ,
 .BR decnet ,
@@ -270,6 +306,8 @@ protos are:
 .BR sca ,
 .BR moprc ,
 .BR mopdl ,
+.BR icmp ,
+.BR icmp6 ,
 .B tcp
 and
 .BR udp .
@@ -307,14 +345,14 @@ To save typing, identical qualifier lists can be omitted.  E.g.,
 .LP
 Allowable primitives are:
 .IP "\fBdst host \fIhost\fR"
-True if the IP destination field of the packet is \fIhost\fP,
+True if the IPv4/v6 destination field of the packet is \fIhost\fP,
 which may be either an address or a name.
 .IP "\fBsrc host \fIhost\fR"
-True if the IP source field of the packet is \fIhost\fP.
+True if the IPv4/v6 source field of the packet is \fIhost\fP.
 .IP "\fBhost \fIhost\fP
-True if either the IP source or destination of the packet is \fIhost\fP.
+True if either the IPv4/v6 source or destination of the packet is \fIhost\fP.
 Any of the above host expressions can be prepended with the keywords,
-\fBip\fP, \fBarp\fP, or \fBrarp\fP as in:
+\fBip\fP, \fBarp\fP, \fBrarp\fP, or \fBip6\fP as in:
 .in +.5i
 .nf
 \fBip host \fIhost\fR
@@ -349,24 +387,26 @@ expression is
 .fi
 .in -.5i
 which can be used with either names or numbers for \fIhost / ehost\fP.)
+This syntax does not work in IPv6-enabled configuration at this moment.
 .IP "\fBdst net \fInet\fR"
-True if the IP destination address of the packet has a network
+True if the IPv4/v6 destination address of the packet has a network
 number of \fInet\fP. \fINet\fP may be either a name from /etc/networks
 or a network number (see \fInetworks(4)\fP for details).
 .IP "\fBsrc net \fInet\fR"
-True if the IP source address of the packet has a network
+True if the IPv4/v6 source address of the packet has a network
 number of \fInet\fP.
 .IP "\fBnet \fInet\fR"
-True if either the IP source or destination address of the packet has a network
+True if either the IPv4/v6 source or destination address of the packet has a network
 number of \fInet\fP.
 .IP "\fBnet \fInet\fR \fBmask \fImask\fR"
 True if the IP address matches \fInet\fR with the specific netmask.
 May be qualified with \fBsrc\fR or \fBdst\fR.
+Note that this syntax is not valid for IPv6 \fInet\fR.
 .IP "\fBnet \fInet\fR/\fIlen\fR"
-True if the IP address matches \fInet\fR a netmask \fIlen\fR bits wide.
+True if the IPv4/v6 address matches \fInet\fR a netmask \fIlen\fR bits wide.
 May be qualified with \fBsrc\fR or \fBdst\fR.
 .IP "\fBdst port \fIport\fR"
-True if the packet is ip/tcp or ip/udp and has a
+True if the packet is ip/tcp, ip/udp, ip6/tcp or ip6/udp and has a
 destination port value of \fIport\fP.
 The \fIport\fP can be a number or a name used in /etc/services (see
 .IR tcp (4P)
@@ -413,6 +453,29 @@ of protocol type \fIprotocol\fP.
 \fIicmp\fP, \fIigrp\fP, \fIudp\fP, \fInd\fP, or \fItcp\fP.
 Note that the identifiers \fItcp\fP, \fIudp\fP, and \fIicmp\fP are also
 keywords and must be escaped via backslash (\\), which is \\\\ in the C-shell.
+Note that this primitive does not chase protocol header chain.
+.IP "\fBip6 proto \fIprotocol\fR"
+True if the packet is an IPv6 packet of protocol type \fIprotocol\fP.
+Note that this primitive does not chase protocol header chain.
+.IP "\fBip6 protochain \fIprotocol\fR"
+True if the packet is IPv6 packet,
+and contains protocol header with type \fIprotocol\fR
+in its protocol header chain.
+For example,
+.in +.5i
+.nf
+\fBip6 protochain 6\fR
+.fi
+.in -.5i
+matches any IPv6 packet with TCP protocol header in the protocol header chain.
+The packet may contain, for example,
+authentication header, routing header, or hop-by-hop option header,
+between IPv6 header and TCP header.
+The BPF code emitted by this primitive is complex and
+cannot be optimized by BPF optimizer code in \fItcpdump\fP,
+so this can be somewhat slow.
+.IP "\fBip protochain \fIprotocol\fR"
+Equivalent to \fBip6 protochain \fIprotocol\fR, but this is for IPv4.
 .IP "\fBether broadcast\fR"
 True if the packet is an ethernet broadcast packet.  The \fIether\fP
 keyword is optional.
@@ -426,10 +489,12 @@ keyword is optional.
 This is shorthand for `\fBether[0] & 1 != 0\fP'.
 .IP "\fBip multicast\fR"
 True if the packet is an IP multicast packet.
+.IP "\fBip6 multicast\fR"
+True if the packet is an IPv6 multicast packet.
 .IP  "\fBether proto \fIprotocol\fR"
 True if the packet is of ether type \fIprotocol\fR.
 \fIProtocol\fP can be a number or a name like
-\fIip\fP, \fIarp\fP, or \fIrarp\fP.
+\fIip\fP, \fIip6\fP, \fIarp\fP, or \fIrarp\fP.
 Note these identifiers are also keywords
 and must be escaped via backslash (\\).
 [In the case of FDDI (e.g., `\fBfddi protocol arp\fR'), the
@@ -450,7 +515,7 @@ True if the DECNET destination address is
 .IP "\fBdecnet host \fIhost\fR"
 True if either the DECNET source or destination address is
 .IR host .
-.IP "\fBip\fR, \fBarp\fR, \fBrarp\fR, \fBdecnet\fR"
+.IP "\fBip\fR, \fBip6\fR, \fBarp\fR, \fBrarp\fR, \fBdecnet\fR"
 Abbreviations for:
 .in +.5i
 .nf
@@ -472,7 +537,7 @@ Note that
 Abbreviations for:
 .in +.5i
 .nf
-\fBip proto \fIp\fR
+\fBip proto \fIp\fR\fB or ip6 proto \fIp\fR
 .fi
 .in -.5i
 where \fIp\fR is one of the above protocols.
@@ -489,8 +554,10 @@ data inside the packet, use the following syntax:
 .fi
 .in -.5i
 \fIProto\fR is one of \fBether, fddi,
-ip, arp, rarp, tcp, udp, \fRor \fBicmp\fR, and
+ip, arp, rarp, tcp, udp, icmp\fR or \fBip6\fR, and
 indicates the protocol layer for the index operation.
+Note that \fItcp, udp\fR and other upper-layer protocol types only
+apply to IPv4, not IPv6 (this will be fixed in the future).
 The byte offset, relative to the indicated protocol layer, is
 given by \fIexpr\fR.
 \fISize\fR is optional and indicates the number of bytes in the
@@ -928,6 +995,27 @@ need to seriously investigate name server traffic.  `\fB\-s 128\fP'
 has worked well for me.
 
 .HD
+SMB/CIFS decoding
+.LP
+tcpdump now includes fairly extensive SMB/CIFS/NBT decoding for data
+on UDP/137, UDP/138 and TCP/139. Some primitive decoding of IPX and
+NetBEUI SMB data is also done. 
+
+By default a fairly minimal decode is done, with a much more detailed
+decode done if -v is used. Be warned that with -v a single SMB packet
+may take up a page or more, so only use -v if you really want all the
+gory details.
+
+If you are decoding SMB sessions containing unicode strings then you
+may wish to set the environment variable USE_UNICODE to 1. A patch to
+auto-detect unicode srings would be welcome.
+
+For information on SMB packet formats and what all te fields mean see
+www.cifs.org or the pub/samba/specs/ directory on your favourite
+samba.org mirror site. The SMB patches were written by Andrew Tridgell
+(tridge@samba.org).
+
+.HD
 NFS Requests and Replies
 .LP
 Sun NFS (Network File System) requests and replies are printed as:
@@ -1000,6 +1088,64 @@ NFS reply packets do not explicitly identify the RPC operation.  Instead,
 \fItcpdump\fP keeps track of ``recent'' requests, and matches them to the
 replies using the transaction ID.  If a reply does not closely follow the
 corresponding request, it might not be parsable.
+.HD
+AFS Request and Replies
+.LP
+Transarc AFS (Andrew File System) requests and replies are printed
+as:
+.HD
+.RS
+.nf
+.sp .5
+\fIsrc.sport > dst.dport: rx packet-type\fP
+\fIsrc.sport > dst.dport: rx packet-type service call call-name args\fP
+\fIsrc.sport > dst.dport: rx packet-type service reply call-name args\fP
+.sp .5
+\f(CW
+elvis.7001 > pike.afsfs:
+	rx data fs call rename old fid 536876964/1/1 ".newsrc.new"
+	new fid 536876964/1/1 ".newsrc"
+pike.afsfs > elvis.7001: rx data fs reply rename
+\fP
+.sp .5
+.fi
+.RE
+In the first line, host elvis sends a RX packet to pike.  This was
+a RX data packet to the fs (fileserver) service, and is the start of
+an RPC call.  The RPC call was a rename, with the old directory file id
+of 536876964/1/1 and an old filename of `.newsrc.new', and a new directory
+file id of 536876964/1/1 and a new filename of `.newsrc'.  The host pike
+responds with a RPC reply to the rename call (which was successful, because
+it was a data packet and not an abort packet).
+.LP
+In general, all AFS RPCs are decoded at least by RPC call name.  Most
+AFS RPCs have at least some of the arguments decoded (generally only
+the `interesting' arguments, for some definition of interesting).
+.LP
+The format is intended to be self-describing, but it will probably
+not be useful to people who are not familiar with the workings of
+AFS and RX.
+.LP
+If the -v (verbose) flag is given twice, additional information is printed,
+such as the the RX call ID, call number, sequence number, serial number,
+and the RX packet flags.
+.LP
+If the -v flag is given again, the security index and service id are printed.
+.LP
+Error codes are printed for abort packets, with the exception of Ubik
+beacon packets (because abort packets are used to signify a yes vote
+for the Ubik protocol).
+.LP
+Note that AFS requests are very large and many of the arguments won't
+be printed unless \fIsnaplen\fP is increased.  Try using `\fB-s 256\fP'
+to watch AFS traffic.
+.LP
+AFS reply packets do not explicitly identify the RPC operation.  Instead,
+\fItcpdump\fP keeps track of ``recent'' requests, and matches them to the
+replies using the call number and service ID.  If a reply does not closely
+follow the
+corresponding request, it might not be parsable.
+
 .HD
 KIP Appletalk (DDP in UDP)
 .LP
@@ -1190,6 +1336,9 @@ The current version is available via anonymous ftp:
 .RS
 .I ftp://ftp.ee.lbl.gov/tcpdump.tar.Z
 .RE
+.LP
+IPv6/IPsec support is added by WIDE/KAME project.
+This program uses Eric Young's SSLeay library, under specific configuration.
 .SH BUGS
 Please send bug reports to tcpdump@ee.lbl.gov.
 .LP
@@ -1218,3 +1367,14 @@ packets are encapsulated Ethernet packets.  This is true for IP, ARP,
 and DECNET Phase IV, but is not true for protocols such as ISO CLNS.
 Therefore, the filter may inadvertently accept certain packets that
 do not properly match the filter expression.
+.LP
+.BR "ip6 proto"
+should chase header chain, but at this moment it does not.
+.BR tcp
+or
+.BR udp
+should chase header chain too.
+.LP
+Arithmetic expression against transport layer headers, like \fBtcp[0]\fP,
+does not work against IPv6 packets.
+It only looks at IPv4 packets.

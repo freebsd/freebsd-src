@@ -21,7 +21,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-raw.c,v 1.22 96/12/10 23:18:58 leres Locked $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-raw.c,v 1.25 1999/11/21 09:37:00 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -44,7 +48,6 @@ struct rtentry;
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #include <pcap.h>
 #include <stdio.h>

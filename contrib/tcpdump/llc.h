@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: llc.h,v 1.6 97/06/13 02:06:07 leres Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.6.1.1 1999/10/07 23:47:10 mcr Exp $ (LBL)
  */
 
 /*

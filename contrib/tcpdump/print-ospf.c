@@ -23,7 +23,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-ospf.c,v 1.24 97/04/26 13:31:46 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.27 1999/11/21 09:36:58 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -507,9 +511,11 @@ ospf_print(register const u_char *bp, register u_int length,
 	op = (struct ospfhdr *)bp;
 	ip = (struct ip *)bp2;
 	/* Print the source and destination address  */
+#if 0
 	(void) printf("%s > %s:",
 	    ipaddr_string(&ip->ip_src),
 	    ipaddr_string(&ip->ip_dst));
+#endif
 
         /* XXX Before we do anything else, strip off the MD5 trailer */
         TCHECK(op->ospf_authtype);
