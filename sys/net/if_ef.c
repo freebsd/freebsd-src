@@ -215,6 +215,7 @@ ef_start(struct ifnet *ifp)
 	struct efnet *sc = (struct efnet*)ifp->if_softc;
 	struct ifnet *p;
 	struct mbuf *m;
+	int error;
 
 	ifp->if_flags |= IFF_OACTIVE;
 	p = sc->ef_ifp;
@@ -225,7 +226,8 @@ ef_start(struct ifnet *ifp)
 		if (m == 0)
 			break;
 		BPF_MTAP(ifp, m);
-		if (! IF_HANDOFF(&p->if_snd, m, p)) {
+		IFQ_HANDOFF(p, m, error);
+		if (error) {
 			ifp->if_oerrors++;
 			continue;
 		}
