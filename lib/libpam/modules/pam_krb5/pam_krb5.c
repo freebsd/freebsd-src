@@ -406,12 +406,15 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 
 	/* Retrieve the temporary cache */
 	retval = pam_get_data(pamh, "ccache", (const void **)&cache_name);
-	if (retval != PAM_SUCCESS)
+	if (retval != PAM_SUCCESS) {
+		retval = PAM_CRED_UNAVAIL;
 		goto cleanup3;
+	}
 	krbret = krb5_cc_resolve(pam_context, cache_name, &ccache_temp);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", cache_name,
 		    krb5_get_err_text(pam_context, krbret));
+		retval = PAM_SERVICE_ERR;
 		goto cleanup3;
 	}
 
