@@ -131,7 +131,7 @@ acpi_config_intr(device_t dev, ACPI_RESOURCE *res)
     }
     BUS_CONFIG_INTR(dev, irq, (trig == ACPI_EDGE_SENSITIVE) ?
 	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
-	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);	
+	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
 }
 
 /*
@@ -439,7 +439,11 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 			     "unimplemented Address64 resource\n"));
 	    break;
 	case ACPI_RSTYPE_EXT_IRQ:
-	    /* XXX special handling? */
+	    if (res->Data.ExtendedIrq.ProducerConsumer != ACPI_CONSUMER) {
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+		    "ignored ExtIRQ producer\n"));
+		break;
+	    }
 	    set->set_irq(dev, context,res->Data.ExtendedIrq.Interrupts,
 		res->Data.ExtendedIrq.NumberOfInterrupts,
 		res->Data.ExtendedIrq.EdgeLevel,
