@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.15 2004/09/20 12:49:48 den Exp $
 
-     Original revision: 1.761.2.9
+     Original revision: 1.761.2.10
 -->
 
 <articleinfo>
@@ -206,6 +206,13 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       обращайтесь к сообщению безопасности <ulink
       url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:13.linux.asc">FreeBSD-SA-04:13</ulink>.
       &merged;</para>
+
+    <para>Множество программных ошибок в <application>CVS</application>,
+      могущих привести к раскрытию информации, DoS, или
+      выполнению произвольного кода, были исправлены путем
+      обновления до <application>CVS</application> 1.11.17.
+      За дальнейшей информацией обращайтесь к сообщению безопасности <ulink
+      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:14.cvs.asc">FreeBSD-SA-04:14</ulink>. &merged;</para>
 
   </sect2>
 
