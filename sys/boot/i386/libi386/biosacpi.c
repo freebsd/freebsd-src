@@ -66,6 +66,7 @@ biosacpi_detect(void)
     sprintf(buf, "%d", revision);
     setenv("hint.acpi.0.revision", buf, 1);
     sprintf(buf, "%6s", rsdp->OemId);
+    buf[6] = '\0';
     setenv("hint.acpi.0.oem", buf, 1);
     sprintf(buf, "0x%08x", rsdp->RsdtPhysicalAddress);
     setenv("hint.acpi.0.rsdt", buf, 1);
