@@ -1716,111 +1716,19 @@ is set to
 these are the flags to pass to the
 .Xr lpd 8
 daemon.
-.It Va sendmail_enable
+.It Va mta_start_script
 .Pq Vt str
-If set to
-.Dq Li YES ,
-run the
-.Xr sendmail 8
-daemon at system boot time.
-If set to
-.Dq Li NONE ,
-do not run any
-.Xr sendmail 8
-daemons at system boot time.
-.It Va sendmail_flags
-.Pq Vt str
-If
-.Va sendmail_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr sendmail 8
-daemon.
-.It Va sendmail_submit_enable
-.Pq Vt bool
-If set to
-.Dq Li YES
-and
-.Va sendmail_enable
-is set to
-.Dq Li NO ,
-run
-.Xr sendmail 8
-using
-.Va sendmail_submit_flags
-instead of
-.Va sendmail_flags .
-This is intended to allow local mail submission via
-a localhost-only listening SMTP service required for running
-.Xr sendmail 8
-as a non-set-user-ID binary.
-.It Va sendmail_submit_flags
-.Pq Vt str
-If
-.Va sendmail_enable
-is set to
-.Dq Li NO
-and
-.Va sendmail_submit_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr sendmail 8
-daemon.
-.It Va sendmail_outbound_enable
-.Pq Vt bool
-If set to
-.Dq Li YES
-and both
-.Va sendmail_enable
-and
-.Va sendmail_submit_enable
-are set to
-.Dq Li NO ,
-run
-.Xr sendmail 8
-using
-.Va sendmail_outbound_flags
-instead of
-.Va sendmail_flags .
-This is intended to allow local mail queue management
-for systems that do not offer a listening SMTP service.
-.It Va sendmail_outbound_flags
-.Pq Vt str
-If both
-.Va sendmail_enable
-and
-.Va sendmail_submit_enable
-are set to
-.Dq Li NO
-and
-.Va sendmail_outbound_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr sendmail 8
-daemon.
-.It Va sendmail_msp_queue_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-start a client (MSP) queue runner
-.Xr sendmail 8
-daemon at system boot time.
-As of sendmail 8.12, a separate queue is used for command line
-submissions.
-The client queue runner assures that nothing is
-left behind in the submission queue.
-.It Va sendmail_msp_queue_flags
-.Pq Vt str
-If
-.Va sendmail_msp_queue_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr sendmail 8
-daemon.
+This variable specifies the full path to the script to run to start
+a mail transfer agent.
+The default is
+.Pa /etc/rc.sendmail .
+The
+.Va sendmail_*
+variables which
+.Pa /etc/rc.sendmail
+uses are documented in the
+.Xr rc.sendmail 8
+man page.
 .It Va dumpdev
 .Pq Vt str
 Indicates the device (usually a swap partition) to which a crash dump
@@ -2091,6 +1999,7 @@ Flags for
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
 .Xr rc 8 ,
+.Xr rc.sendmail 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
 .Xr rpc.lockd 8 ,
@@ -2098,7 +2007,6 @@ Flags for
 .Xr rpcbind 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
-.Xr sendmail 8 ,
 .Xr sshd 8 ,
 .Xr swapon 8 ,
 .Xr sysctl 8 ,
