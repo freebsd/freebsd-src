@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.22.2.18 1999/08/02 21:07:22 wpaul Exp $
+ *	$Id: if_xl.c,v 1.22.2.19 1999/08/02 21:58:41 wpaul Exp $
  */
 
 /*
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.22.2.18 1999/08/02 21:07:22 wpaul Exp $";
+	"$Id: if_xl.c,v 1.22.2.19 1999/08/02 21:58:41 wpaul Exp $";
 #endif
 
 /*
@@ -1919,7 +1919,7 @@ static void xl_rxeof(sc)
         struct ifnet		*ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len = 0;
-	u_int16_t		rxstat;
+	u_int32_t		rxstat;
 
 	ifp = &sc->arpcom.ac_if;
 
