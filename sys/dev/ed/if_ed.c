@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.73 1995/05/30 08:01:58 rgrimes Exp $
+ * $Id: if_ed.c,v 1.74 1995/07/25 22:18:54 bde Exp $
  */
 
 #include "ed.h"
@@ -1682,7 +1682,8 @@ ed_rint(unit)
 			ed_pio_readmem(sc, packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
-		if (len > ETHER_MAX_LEN+4) { /* len includes 4 byte header */
+		if (len > (ETHER_MAX_LEN + sizeof(struct ed_ring)) ||
+		    len < (ETHER_HDR_SIZE + sizeof(struct ed_ring))) {
 			/*
 			 * Length is a wild value. There's a good chance that
 			 * this was caused by the NIC being old and buggy.
@@ -1709,7 +1710,8 @@ ed_rint(unit)
 		 * the upper layer protocols can then figure out the length from
 		 * their own length field(s).
 		 */
-		if ((len <= MCLBYTES) &&
+		if ((len > sizeof(struct ed_ring)) &&
+		    (len <= MCLBYTES) &&
 		    (packet_hdr.next_packet >= sc->rec_page_start) &&
 		    (packet_hdr.next_packet < sc->rec_page_stop)) {
 			/*
