@@ -82,7 +82,8 @@
 #define XL_CAPS_PWRMGMT		0x2000
 
 #define XL_PACKET_SIZE 1540
-	
+#define XL_MAX_FRAMELEN	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN)
+
 /*
  * Register layouts.
  */
