@@ -56,6 +56,7 @@
 #include <vm/vm_extern.h>
 
 #include <machine/frame.h>
+#include <machine/limits.h>
 #include <machine/psl.h>
 #include <machine/sysarch.h>
 #include <machine/segments.h>
@@ -1048,7 +1049,11 @@ linux_getrlimit(p, uap)
 		return (error);
 
 	rlim.rlim_cur = (unsigned long)bsd.rlp->rlim_cur;
+	if (rlim.rlim_cur == ULONG_MAX)
+		rlim.rlim_cur = LONG_MAX;
 	rlim.rlim_max = (unsigned long)bsd.rlp->rlim_max;
+	if (rlim.rlim_max == ULONG_MAX)
+		rlim.rlim_max = LONG_MAX;
 	return (copyout(&rlim, uap->rlim, sizeof(rlim)));
 }
 
