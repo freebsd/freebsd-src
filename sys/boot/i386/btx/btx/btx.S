@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.2 1998/09/13 13:27:03 rnordier Exp $
+#	$Id: btx.s,v 1.3 1998/09/15 13:26:23 rnordier Exp $
 
 #
 # Memory layout.
@@ -100,7 +100,7 @@ btx_hdr:	.byte 0xeb			# Machine ID
 		.byte 0xe			# Header size
 		.ascii "BTX"			# Magic
 		.byte 0x0			# Major version
-		.byte 0x50			# Minor version
+		.byte 0x55			# Minor version
 		.byte 0x0			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
@@ -175,21 +175,16 @@ init.5: 	stosw				# Write entry
 		xorl %eax,%eax			# Start address
 init.6: 	movb $0x7,%al			# Set U:W:P flags
 		cmpwmr(btx_hdr+0x8,_cx) 	# Standard user page?
-		jb init.8			# Yes
+		jb init.7			# Yes
 		cmpwir(PAG_CNT-MEM_BTX>>0xc,_cx)# BTX memory?
-		ja init.8			# No
-		je init.7			# If first page
+		jae init.7			# No or first page
 		andb $~0x2,%al			# Clear W flag
-		cmpwir(PAG_CNT-MEM_ORG>>0xc,_cx)# BTX code?
-		je init.8			# Yes
-		cmpwir(PAG_CNT-MEM_USR>>0xc,_cx)# User memory?
-		jb init.8			# User page >= 1
-		ja init.7			# BTX page
-		tstbim(0x80,btx_hdr+0x7)	# Unmap user page 0?
+		cmpwir(PAG_CNT-MEM_USR>>0xc,_cx)# User page zero?
+		jne init.7			# No
+		tstbim(0x80,btx_hdr+0x7)	# Unmap it?
 		jz init.7			# No
 		andb $~0x1,%al			# Clear P flag
-init.7: 	andb $~0x4,%al			# Clear U flag
-init.8: 	stosw				# Set entry
+init.7: 	stosw				# Set entry
 		addw %dx,%ax			# Next address
 		loop init.6			# Till done
 #
@@ -206,8 +201,8 @@ init.8: 	stosw				# Set entry
 		o16				#  protected mode
 		orl $0x80000001,%eax		#  and enable
 		movl %eax,%cr0			#  paging
-		jmpfwi(SEL_SCODE,init.9)	# To 32-bit code
-init.9: 	xorl %ecx,%ecx			# Zero
+		jmpfwi(SEL_SCODE,init.8)	# To 32-bit code
+init.8: 	xorl %ecx,%ecx			# Zero
 		movb $SEL_SDATA,%cl		# To 32-bit
 		movl %cx,%ss			#  stack
 #
@@ -231,8 +226,8 @@ init.9: 	xorl %ecx,%ecx			# Zero
 		pushl %ecx			# Set ES
 		pushl %edx			# Set EAX
 		movb $0x7,%cl			# Set remaining
-init.10:	pushb $0x0			#  general
-		loop init.10			#  registers
+init.9:		pushb $0x0			#  general
+		loop init.9			#  registers
 		popa				#  and initialize
 		popl %es			# Initialize
 		popl %ds			#  user
