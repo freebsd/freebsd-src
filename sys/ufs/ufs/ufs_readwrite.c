@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.61 1999/07/25 02:07:16 bde Exp $
+ * $Id: ufs_readwrite.c,v 1.62 1999/08/01 06:04:52 alc Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -669,7 +669,7 @@ ffs_getpages(ap)
 		if (reqblkno == -1) {
 			if ((mreq->flags & PG_ZERO) == 0)
 				vm_page_zero_fill(mreq);
-			mreq->dirty = 0;
+			vm_page_undirty(mreq);
 			mreq->valid = VM_PAGE_BITS_ALL;
 			return VM_PAGER_OK;
 		} else {
