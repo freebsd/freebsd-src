@@ -35,12 +35,26 @@
  * $FreeBSD$
  */
 
+#include <assert.h>
 #include <ctype.h>
 #include <string.h>
 #include "y.tab.h"
 #include "config.h"
 
 #define YY_NO_UNPUT
+
+/*
+ * Data for returning to previous files from include files.
+ */
+struct incl {
+	struct	incl *in_prev; 	/* previous includes in effect, if any */
+	YY_BUFFER_STATE in_buf;	/* previous lex state */
+	const	char *in_fname;	/* previous file name */
+	int	in_lineno;	/* previous line number */
+	int	in_ateof;	/* token to insert at EOF */
+};
+static struct	incl *inclp;
+static const	char *lastfile;
 
 /*
  * Key word table
@@ -61,13 +75,17 @@ struct kt {
 	{ "profile",	PROFILE },
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
+	{ "include",	INCLUDE },
 	{ 0, 0 },
 };
 
 
+static int endinclude(void);
+int include(const char *, int);
 int kw_lookup(char *);
 int octal(char *);
 int hex(char *);
+int yyerror(const char *);
 
 %}
 WORD	[A-Za-z_][-A-Za-z_]*
@@ -145,6 +163,16 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 ";"		{	return SEMICOLON;		}
 ","		{	return COMMA;			}
 "="		{	BEGIN TOEOL; return EQUALS;	}
+<<EOF>>		{
+			int tok;
+
+			if (inclp == NULL)
+				return YY_NULL;
+			tok = endinclude();
+			if (tok != 0)
+				return tok;
+			/* otherwise continue scanning */
+		}
 .		{	return yytext[0];		}
 
 %%
@@ -185,4 +213,61 @@ hex(char *str)
 
 	(void) sscanf(str+2, "%x", &num);
 	return num;
+}
+
+
+/*
+ * Open the named file for inclusion at the current point.  Returns 0 on
+ * success (file opened and previous state pushed), nonzero on failure
+ * (fopen failed, complaint made).  The `ateof' parameter controls the
+ * token to be inserted at the end of the include file. If ateof == 0,
+ * then nothing is inserted.
+ */
+int
+include(const char *fname, int ateof)
+{
+	FILE *fp;
+	struct incl *in;
+
+	fp = fopen(fname, "r");
+	if (fp == NULL) {
+		yyerror("cannot open file");
+		return (-1);
+	}
+	in = malloc(sizeof(*in));
+	assert(in != NULL);
+	in->in_prev = inclp;
+	in->in_buf = YY_CURRENT_BUFFER;
+	in->in_fname = yyfile;
+	in->in_lineno = yyline;
+	in->in_ateof = ateof;
+	inclp = in;
+	yy_switch_to_buffer(yy_create_buffer(fp, YY_BUF_SIZE));
+	yyfile = fname;
+	yyline = 0;
+	return (0);
+}
+
+/*
+ * Terminate the most recent inclusion.
+ */
+static int
+endinclude()
+{
+	struct incl *in;
+	int ateof;
+
+	in = inclp;
+	assert(in != NULL);
+	inclp = in->in_prev;
+	lastfile = yyfile;
+	yy_delete_buffer(YY_CURRENT_BUFFER);
+	(void)fclose(yyin);
+	yy_switch_to_buffer(in->in_buf);
+	yyfile = in->in_fname;
+	yyline = in->in_lineno;
+	ateof  = in->in_ateof;
+	free(in);
+
+	return (ateof);
 }

@@ -17,6 +17,7 @@
 %token	OPTIONS
 %token	MAKEOPTIONS
 %token	SEMICOLON
+%token	INCLUDE
 
 %token	<str>	ID
 %token	<val>	NUMBER
@@ -77,13 +78,14 @@ char	*ident;
 char	*hints;
 int	hintmode;
 int	yyline;
+const	char *yyfile;
 struct  file_list *ftab;
 char	errbuf[80];
 int	maxusers;
 
 #define ns(s)	strdup(s)
-
-static void yyerror(const char *s);
+int include(const char *, int);
+void yyerror(const char *s);
 
 static char *
 devopt(char *dev)
@@ -147,11 +149,14 @@ Config_spec:
 	      = {
 		      hints = $2;
 		      hintmode = 1;
-		};
+	        } |
+	INCLUDE ID
+	      = { include($2, 0); };
 
 System_spec:
 	CONFIG System_id System_parameter_list
-	  = { errx(1, "line %d: root/dump/swap specifications obsolete", yyline);}
+	  = { errx(1, "%s:%d: root/dump/swap specifications obsolete",
+	      yyfile, yyline);}
 	  |
 	CONFIG System_id
 	  ;
@@ -178,7 +183,8 @@ Option:
 
 		newopt(&opt, $1, NULL);
 		if ((s = strchr($1, '=')))
-			errx(1, "line %d: The `=' in options should not be quoted", yyline);
+			errx(1, "%s:%d: The `=' in options should not be "
+			    "quoted", yyfile, yyline);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
@@ -229,16 +235,17 @@ Device_spec:
 		/* and the device part */
 		newdev($2, $3);
 		if ($3 == 0)
-			errx(1, "line %d: devices with zero units are not likely to be correct", yyline);
+			errx(1, "%s:%d: devices with zero units are not "
+			    "likely to be correct", yyfile, yyline);
 		} ;
 
 %%
 
-static void
+void
 yyerror(const char *s)
 {
 
-	errx(1, "line %d: %s", yyline + 1, s);
+	errx(1, "%s:%d: %s", yyfile, yyline + 1, s);
 }
 
 /*
