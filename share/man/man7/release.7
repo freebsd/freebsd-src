@@ -135,8 +135,8 @@ Sets up a suitable area to build CDROM images.
 Builds two ISO images (installation and
 .Dq live
 filesystem) from the CDROM release area
-(Disabled by default, see
-.Pa MAKE_ISOS
+(disabled by default, see
+.Va MAKE_ISOS
 below).
 .It Cm doc.1
 Builds all of the necessary tools to turn the
@@ -153,7 +153,7 @@ hardware guide, and installation instructions.
 .Sh ENVIRONMENT
 Variables that must be specified:
 .Bl -tag -width ".Va RELEASETAG"
-.It Ev CHROOTDIR
+.It Va CHROOTDIR
 The directory to be used as the
 .Xr chroot 8
 environment for the entire release build.
@@ -164,45 +164,45 @@ environment for the entire release build.
 .\" XXX: but at least it looks less like a decree and more like an estimate.
 This filesystem should have at least 2.3 gigabytes of free space on the
 i386 architecture.
-.It Ev BUILDNAME
+.It Va BUILDNAME
 The name of the release to be built.
 This is used to set the
-.Dv RELEASE
+.Va RELEASE
 value in
 .Pa sys/conf/newvers.sh ,
 which affects the output of
 .Xr uname 1 .
-.It Ev CVSROOT
+.It Va CVSROOT
 The location of the
 .Fx
 CVS repository.
-.It Ev RELEASETAG
+.It Va RELEASETAG
 The CVS tag corresponding to the release that is to be built.
 If undefined, the release will be built from the
 .Dv HEAD
 of the CVS tree
 (a
-.Dq -CURRENT snapshot ) .
+.Dq "-CURRENT snapshot" ) .
 .El
 .Pp
 Optional variables:
-.Bl -tag -width ".Ev RELEASEDISTFILES"
-.It Ev LOCAL_PATCHES
+.Bl -tag -width ".Va RELEASEDISTFILES"
+.It Va LOCAL_PATCHES
 A patch file against
 .Pa /usr/src
 that will be applied in the
 .Xr chroot 8
 environment before the release build begins.
-.It Ev PATCH_FLAGS
+.It Va PATCH_FLAGS
 Arguments for the
 .Xr patch 1
 command used to apply
-.Ev LOCAL_PATCHES
+.Va LOCAL_PATCHES
 patch file.
-.It Ev MAKE_ISOS
+.It Va MAKE_ISOS
 If defined, bootable ISO CDROM images will be created from the
 contents of the CDROM stage directory.
-.It Ev NODOC
+.It Va NODOC
 If set to
 .Dq Li YES
 then the documentation will not be built.
@@ -210,16 +210,16 @@ Due to the SGML-based
 toolchain and multiple languages supported by the
 .Fx
 Documentation Project, this may speed up the release build considerably.
-.It Ev NOPORTS
+.It Va NOPORTS
 If set to
 .Dq Li YES
 then the ports tree will be omitted from the release.
-.It Ev RELEASEDISTFILES
+.It Va RELEASEDISTFILES
 The directory where the distribution files for ports required by the
 release build can be found.
 This may save a significant amount of time over downloading the
 distfiles through a slow link.
-.It Ev RELEASENOUPDATE
+.It Va RELEASENOUPDATE
 If this variable is defined for
 .Dq Li "make rerelease" ,
 the source code will not be updated with
@@ -260,7 +260,7 @@ CDROM distribution is available in the
 directory.
 .Pp
 The following sequence of commands can be used to build a
-.Dq -CURRENT snapshot
+.Dq "-CURRENT snapshot"
 of a
 locally modified source tree:
 .Bd -literal -offset indent
@@ -286,21 +286,23 @@ make release CHROOTDIR=/local3/release BUILDNAME=5.0-SNAPSHOT \\
 .Xr chroot 8 ,
 .Xr mtree 8
 .Rs
-.%T FreeBSD Release Engineering
+.%T "FreeBSD Release Engineering"
 .%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/
 .Re
 .Rs
-.%T FreeBSD Release Engineering of Third Party Packages
+.%T "FreeBSD Release Engineering of Third Party Packages"
 .%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng-packages/
 .Re
 .Rs
-.%T FreeBSD Developers' Handbook
+.%T "FreeBSD Developers' Handbook"
 .%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/developers-handbook/
 .Re
 .Sh HISTORY
 .Fx
 1.x
-used a manual checklist, compiled by Rod Grimes, to produce a release.
+used a manual checklist, compiled by
+.An Rod Grimes ,
+to produce a release.
 Apart from being incomplete, the list put a lot of specific demands on
 available filesystems and was quite torturous to execute.
 .Pp
@@ -312,7 +314,7 @@ effort was spent getting
 into a shape where it could at least automate most of the tediousness
 of building a release in a sterile environment.
 .Pp
-With its almost 1000 revisions spread over multiple branches, the 
+With its almost 1000 revisions spread over multiple branches, the
 .Xr cvs 1
 log of
 .Pa src/release/Makefile
@@ -320,7 +322,7 @@ contains a vivid historical record of some
 of the hardships release engineers go through.
 .Sh AUTHORS
 .Pa src/release/Makefile
-was originally written by 
+was originally written by
 .An -nosplit
 .An Rod Grimes ,
 .An Jordan Hubbard ,
