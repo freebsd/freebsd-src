@@ -247,17 +247,13 @@ struct uma_zone {
 
 #define UMA_CACHE_INC	16	/* How much will we move data */
 
-#define UMA_ZFLAG_OFFPAGE	0x0001	/* Struct slab/freelist off page */
-#define UMA_ZFLAG_PRIVALLOC	0x0002	/* Zone has supplied it's own alloc */
-#define UMA_ZFLAG_INTERNAL	0x0004	/* Internal zone, no offpage no PCPU */
-#define UMA_ZFLAG_MALLOC	0x0008	/* Zone created by malloc */
-#define UMA_ZFLAG_NOFREE	0x0010	/* Don't free data from this zone */
-#define UMA_ZFLAG_FULL		0x0020	/* This zone reached uz_maxpages */
-#define UMA_ZFLAG_CACHEONLY	0x0040	/* Don't go to VM to allocate internal objs */
-#define	UMA_ZFLAG_HASH		0x0080	/* Look up slab via hash */
-
-/* This lives in uflags */
-#define UMA_ZONE_INTERNAL	0x1000	/* Internal zone for uflags */
+/*
+ * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
+ */
+#define UMA_ZFLAG_PRIVALLOC	0x1000		/* Use uz_allocf. */
+#define UMA_ZFLAG_INTERNAL	0x2000		/* No offpage no PCPU. */
+#define UMA_ZFLAG_FULL		0x4000		/* Reached uz_maxpages */
+#define UMA_ZFLAG_CACHEONLY	0x8000		/* Don't ask VM for buckets. */
 
 /* Internal prototypes */
 static __inline uma_slab_t hash_sfind(struct uma_hash *hash, u_int8_t *data);

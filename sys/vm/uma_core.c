@@ -236,7 +236,7 @@ bucket_init(void)
 		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
-	    	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
+	    	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 		for (; i <= ubz->ubz_entries; i += (1 << BUCKET_SHIFT))
 			bucket_size[i >> BUCKET_SHIFT] = j;
 	}
@@ -365,7 +365,7 @@ zone_timeout(uma_zone_t zone)
 	 * may be a little aggressive.  Should I allow for two collisions max?
 	 */
 
-	if (zone->uz_flags & UMA_ZFLAG_HASH &&
+	if (zone->uz_flags & UMA_ZONE_HASH &&
 	    zone->uz_pages / zone->uz_ppera >= zone->uz_hash.uh_hashsize) {
 		struct uma_hash newhash;
 		struct uma_hash oldhash;
@@ -540,7 +540,7 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 	mzone = 0;
 
 	/* We have to lookup the slab again for malloc.. */
-	if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+	if (zone->uz_flags & UMA_ZONE_MALLOC)
 		mzone = 1;
 
 	while (bucket->ub_cnt > 0)  {
@@ -666,7 +666,7 @@ zone_drain_common(uma_zone_t zone, int destroy)
 	 * We don't want to take pages from staticly allocated zones at this
 	 * time
 	 */
-	if (zone->uz_flags & UMA_ZFLAG_NOFREE || zone->uz_freef == NULL)
+	if (zone->uz_flags & UMA_ZONE_NOFREE || zone->uz_freef == NULL)
 		return;
 
 	ZONE_LOCK(zone);
@@ -705,7 +705,7 @@ zone_drain_common(uma_zone_t zone, int destroy)
 		zone->uz_pages -= zone->uz_ppera;
 		zone->uz_free -= zone->uz_ipers;
 
-		if (zone->uz_flags & UMA_ZFLAG_HASH)
+		if (zone->uz_flags & UMA_ZONE_HASH)
 			UMA_HASH_REMOVE(&zone->uz_hash, slab, slab->us_data);
 
 		SLIST_INSERT_HEAD(&freeslabs, slab, us_hlink);
@@ -726,9 +726,9 @@ finished:
 		flags = slab->us_flags;
 		mem = slab->us_data;
 
-		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE)
+		if (zone->uz_flags & UMA_ZONE_OFFPAGE)
 			uma_zfree_internal(slabzone, slab, NULL, 0);
-		if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+		if (zone->uz_flags & UMA_ZONE_MALLOC) {
 			vm_object_t obj;
 
 			if (flags & UMA_SLAB_KMEM)
@@ -781,7 +781,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 #endif
 	ZONE_UNLOCK(zone);
 
-	if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
+	if (zone->uz_flags & UMA_ZONE_OFFPAGE) {
 		slab = uma_zalloc_internal(slabzone, NULL, wait);
 		if (slab == NULL) {
 			ZONE_LOCK(zone);
@@ -796,7 +796,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 	 * Malloced items are zeroed in uma_zalloc.
 	 */
 
-	if ((zone->uz_flags & UMA_ZFLAG_MALLOC) == 0)
+	if ((zone->uz_flags & UMA_ZONE_MALLOC) == 0)
 		wait |= M_ZERO;
 	else
 		wait &= ~M_ZERO;
@@ -813,7 +813,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 
 		if (zone->uz_ppera > 1)
 			panic("UMA: Attemping to allocate multiple pages before vm has started.\n");
-		if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+		if (zone->uz_flags & UMA_ZONE_MALLOC)
 			panic("Mallocing before uma_startup2 has been called.\n");
 		if (uma_boot_free == 0)
 			panic("UMA: Ran out of pre init pages, increase UMA_BOOT_PAGES\n");
@@ -825,10 +825,10 @@ slab_zalloc(uma_zone_t zone, int wait)
 	}
 
 	/* Point the slab into the allocated memory */
-	if (!(zone->uz_flags & UMA_ZFLAG_OFFPAGE))
+	if (!(zone->uz_flags & UMA_ZONE_OFFPAGE))
 		slab = (uma_slab_t )(mem + zone->uz_pgoff);
 
-	if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+	if (zone->uz_flags & UMA_ZONE_MALLOC)
 		for (i = 0; i < zone->uz_ppera; i++)
 			vsetslab((vm_offset_t)mem + (i * PAGE_SIZE), slab);
 
@@ -864,7 +864,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 			    zone->uz_size);
 	ZONE_LOCK(zone);
 
-	if (zone->uz_flags & UMA_ZFLAG_HASH)
+	if (zone->uz_flags & UMA_ZONE_HASH)
 		UMA_HASH_INSERT(&zone->uz_hash, slab, mem);
 
 	zone->uz_pages += zone->uz_ppera;
@@ -1044,9 +1044,9 @@ zone_small_init(uma_zone_t zone)
 			return;
 		ipers = UMA_SLAB_SIZE / zone->uz_rsize;
 		if (ipers > zone->uz_ipers) {
-			zone->uz_flags |= UMA_ZFLAG_OFFPAGE;
-			if ((zone->uz_flags & UMA_ZFLAG_MALLOC) == 0)
-				zone->uz_flags |= UMA_ZFLAG_HASH;
+			zone->uz_flags |= UMA_ZONE_OFFPAGE;
+			if ((zone->uz_flags & UMA_ZONE_MALLOC) == 0)
+				zone->uz_flags |= UMA_ZONE_HASH;
 			zone->uz_ipers = ipers;
 		}
 	}
@@ -1081,9 +1081,9 @@ zone_large_init(uma_zone_t zone)
 	zone->uz_ppera = pages;
 	zone->uz_ipers = 1;
 
-	zone->uz_flags |= UMA_ZFLAG_OFFPAGE;
-	if ((zone->uz_flags & UMA_ZFLAG_MALLOC) == 0)
-		zone->uz_flags |= UMA_ZFLAG_HASH;
+	zone->uz_flags |= UMA_ZONE_OFFPAGE;
+	if ((zone->uz_flags & UMA_ZONE_MALLOC) == 0)
+		zone->uz_flags |= UMA_ZONE_HASH;
 
 	zone->uz_rsize = zone->uz_size;
 }
@@ -1114,21 +1114,12 @@ zone_ctor(void *mem, int size, void *udata)
 	zone->uz_align = arg->align;
 	zone->uz_free = 0;
 	zone->uz_pages = 0;
-	zone->uz_flags = 0;
+	zone->uz_flags = arg->flags;
 	zone->uz_allocf = page_alloc;
 	zone->uz_freef = page_free;
 
 	if (arg->flags & UMA_ZONE_ZINIT)
 		zone->uz_init = zero_init;
-
-	if (arg->flags & UMA_ZONE_INTERNAL)
-		zone->uz_flags |= UMA_ZFLAG_INTERNAL;
-
-	if (arg->flags & UMA_ZONE_MALLOC)
-		zone->uz_flags |= UMA_ZFLAG_MALLOC;
-
-	if (arg->flags & UMA_ZONE_NOFREE)
-		zone->uz_flags |= UMA_ZFLAG_NOFREE;
 
 	if (arg->flags & UMA_ZONE_VM)
 		zone->uz_flags |= UMA_ZFLAG_CACHEONLY;
@@ -1161,7 +1152,7 @@ zone_ctor(void *mem, int size, void *udata)
 	 * figure out where in each page it goes.  This calculates a right 
 	 * justified offset into the memory on an ALIGN_PTR boundary.
 	 */
-	if (!(zone->uz_flags & UMA_ZFLAG_OFFPAGE)) {
+	if (!(zone->uz_flags & UMA_ZONE_OFFPAGE)) {
 		int totsize;
 		int waste;
 
@@ -1197,7 +1188,7 @@ zone_ctor(void *mem, int size, void *udata)
 		}
 	}
 
-	if (zone->uz_flags & UMA_ZFLAG_HASH)
+	if (zone->uz_flags & UMA_ZONE_HASH)
 		hash_alloc(&zone->uz_hash);
 
 #ifdef UMA_DEBUG
@@ -1251,7 +1242,7 @@ zone_dtor(void *arg, int size, void *udata)
 		    zone->uz_name, zone->uz_free, zone->uz_pages);
 
 	ZONE_UNLOCK(zone);
-	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) != 0)
+	if (zone->uz_flags & UMA_ZONE_HASH)
 		hash_free(&zone->uz_hash);
 
 	ZONE_LOCK_FINI(zone);
@@ -1310,7 +1301,7 @@ uma_startup(void *bootmem)
 	args.uminit = zero_init;
 	args.fini = NULL;
 	args.align = 32 - 1;
-	args.flags = UMA_ZONE_INTERNAL;
+	args.flags = UMA_ZFLAG_INTERNAL;
 	/* The initial zone has no Per cpu queues so it's smaller */
 	zone_ctor(zones, sizeof(struct uma_zone), &args);
 
@@ -1347,12 +1338,12 @@ uma_startup(void *bootmem)
 	slabzone = uma_zcreate("UMA Slabs",
 				slabsize,
 				NULL, NULL, NULL, NULL,
-				UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
+				UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 
 	hashzone = uma_zcreate("UMA Hash",
 	    sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT,
 	    NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
+	    UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 
 	bucket_init();
 
@@ -1819,7 +1810,7 @@ zfree_start:
 			bucket->ub_cnt++;
 #ifdef INVARIANTS
 			ZONE_LOCK(zone);
-			if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+			if (zone->uz_flags & UMA_ZONE_MALLOC)
 				uma_dbg_free(zone, udata, item);
 			else
 				uma_dbg_free(zone, NULL, item);
@@ -1911,7 +1902,7 @@ zfree_internal:
 	 */
 	if (skip) {
 		ZONE_LOCK(zone);
-		if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+		if (zone->uz_flags & UMA_ZONE_MALLOC)
 			uma_dbg_free(zone, udata, item);
 		else
 			uma_dbg_free(zone, NULL, item);
@@ -1946,9 +1937,9 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 
 	ZONE_LOCK(zone);
 
-	if (!(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
+	if (!(zone->uz_flags & UMA_ZONE_MALLOC)) {
 		mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
-		if (zone->uz_flags & UMA_ZFLAG_HASH)
+		if (zone->uz_flags & UMA_ZONE_HASH)
 			slab = hash_sfind(&zone->uz_hash, mem);
 		else {
 			mem += zone->uz_pgoff;
@@ -2069,7 +2060,7 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	zone->uz_maxpages = pages;
 
 	zone->uz_allocf = obj_alloc;
-	zone->uz_flags |= UMA_ZFLAG_NOFREE | UMA_ZFLAG_PRIVALLOC;
+	zone->uz_flags |= UMA_ZONE_NOFREE | UMA_ZFLAG_PRIVALLOC;
 
 	ZONE_UNLOCK(zone);
 	mtx_unlock(&Giant);
