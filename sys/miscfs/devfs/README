@@ -5,7 +5,8 @@ options	DEVFS
 
 to your config file..
 expect it to be highly useless for a while,
-as the only device that registers itself is the floppy.
+as the only devices that register themselves are the floppy,
+the pcaudio stuff, speaker, null,mem,zero,io,kmem.
 
 it works like this:
 
@@ -17,8 +18,8 @@ a "devnode" struct, that holds information about the device
 (or directory) and a pointer to the vnode if one has been associated 
 with that node. The back node itself can be considered to be 
 a directory entry, and contains the default name of the device,
-and a link to the directory that holds it. The devnode can be
-considered the inode.
+and a link to the directory that holds it. It is sometimes refered
+to in the code as the dev_name. The devnode can be considered the inode.
 
 When you mount the devfs somewhere (you can mount it multiple times in
 multiple places), a front layer is created that contains a tree of 'front'
@@ -29,6 +30,11 @@ Think of this as a Transparency, layed over the top of the blueprint.
 
 The front and back nodes are identical in type, but the back nodes
 are reserved for kernel use only, and are protected from the user.
+The back plane has a mount structure and all that stuff, but it is in
+fact not really mounted. (and is thus not reachable via namei).
+Internal kernel routines can open devices in this plane
+even if the external devfs has not been mounted yet :)
+(e.g. to find the root device)
 
 To start with there is a 1:1 relationship between the front nodes
 and the backing nodes, however once the front plane has been created
@@ -61,6 +67,7 @@ without going via the cdevsw table.. they may not even have
 major/minor numbers.
 
 I see 'mount -u' as a possible solution to recovering a broken dev tree.
+(though umount+mount would do the same)
 
 Because non device nodes (directories and symlinks) have their own
 "devnode" structs on each layer, these may have different
@@ -96,30 +103,14 @@ effect of 're-propogating' through any backing nodes that find they
 have no front nodes in that plane.
 
 
-NOTES FOR RELEASE 1.1
+NOTES FOR RELEASE 1.2
 1/ this is very preliminary
-2/ Attempts to unmount a devfs structure while you are 'IN' in will
-result in a message "hanging vnode" and the system will panic.
-(in fact I see this even not being in it :(  )
-3/ the dates of all nodes is '0' i.e. 00:00 1st Jan 1970 UTC.
-It appears 'time' in the kernel hasn't been started at the time that
-the devfs is started up. (when the first device registers itself).
-The workaround is to interpret 0 to be the same as 'boottime'.
-This may actually become a 'feature'.
-5/notably, the VFS hasn't been started yet either so the devfs has to be careful
-to not use VFS features during probe time.
-6/ many features are not present yet..
+2/ the routines have greatly simplified since release 1.1
+(I guess the break did me good :)
+3/ many features are not present yet..
 e.g. symlinks, a comprehensive registration interface (only a crude one)
 ability to unlink and mv nodes.
-7/ I'm pretty sure my use of vnodes is bad and it may be 'losing'
+4/ I'm pretty sure my use of vnodes is bad and it may be 'losing'
 them, or alternatively, corrupting things.. I need a vnode specialist
 to look at this.
-8/ The back and front node structures have become very similar with time
-and I decided to merge them to a single structure, 
-which is called a "dev_name" struct, as they can be thought of
-as the analogue of a directory entry, except that they are linked
-together rather than in an array. The "devnode" struct can be considered
-analogous to the inodes of a UFS.
-There may still be artifacts in the code that reflect that the front and
-back nodes were once different structs.
 
