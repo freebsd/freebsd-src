@@ -806,13 +806,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			IEEE80211_SEND_MGMT(ic, ni,
 				IEEE80211_FC0_SUBTYPE_PROBE_RESP, 0);
 		}
-		if (allocbs) {
-			/* XXX just use free? */
-			if (ic->ic_opmode == IEEE80211_M_HOSTAP)
-				ieee80211_free_node(ic, ni);
-			else
-				ieee80211_unref_node(&ni);
-		}
+		if (allocbs)
+			ieee80211_free_node(ic, ni);
 		break;
 	}
 
