@@ -74,7 +74,7 @@ extern Distribution XF86ServerDistTable[];
 #define	DTE_PACKAGE(name, mask, flag, package)				\
 	{ name, mask, DIST_ ## flag, DT_PACKAGE, { package } }
 #define	DTE_SUBDIST(name, mask, flag, subdist)				\
-	{ name, mask, DIST_ ## flag, DT_SUBDIST, { my_dist: subdist } }
+	{ name, mask, DIST_ ## flag, DT_SUBDIST, { .my_dist = subdist } }
 
 #define	BASE_DIST	(&DistTable[0])
 
