@@ -1588,6 +1588,7 @@ setup(argc, argv)
 		 * defer diagnostics until processing is done
 		 */
 		if ((err = tmpfile()) == NULL) {
+			err = stderr;
 		       (void)fputs("Cannot defer diagnostic messages\n",stderr);
 		       return(1);
 		}
