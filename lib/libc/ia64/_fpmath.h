@@ -27,14 +27,29 @@
  * $FreeBSD$
  */
 
+#include <sys/endian.h>
+
 union IEEEl2bits {
 	long double	e;
 	struct {
-		unsigned long	manl	:64;
-		unsigned long	manh	:48;
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		unsigned int	manl	:32;
+		unsigned int	manh	:32;
 		unsigned int	exp	:15;
 		unsigned int	sign	:1;
+		unsigned long	junk	:48;
+#else /* _BIG_ENDIAN */
+		unsigned long	junk	:48;
+		unsigned int	sign	:1;
+		unsigned int	exp	:15;
+		unsigned int	manh	:32;
+		unsigned int	manl	:32;
+#endif
 	} bits;
 };
 
-#define	mask_nbit_l(u)	((u).bits.manl &= 0x7fffffffffffffff)
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#define	mask_nbit_l(u)	((u).bits.manh &= 0x7fffffff)
+#else /* _BIG_ENDIAN */
+#define	mask_nbit_l(u)	((u).bits.manh &= 0xffffff7f)
+#endif
