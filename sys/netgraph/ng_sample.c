@@ -45,10 +45,12 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 
 #include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_sample.h>
 #include <netgraph/netgraph.h>
 
@@ -66,6 +68,33 @@ static ng_rcvdata_t	ng_xxx_rcvdata;	 /* note these are both ng_rcvdata_t */
 static ng_rcvdata_t	ng_xxx_rcvdataq; /* note these are both ng_rcvdata_t */
 static ng_disconnect_t	ng_xxx_disconnect;
 
+/* Parse type for struct ngxxxstat */
+static const struct ng_parse_struct_info
+	ng_xxx_stat_type_info = NG_XXX_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_xxx_stat_type = {
+	&ng_parse_struct_type,
+	&ng_xxx_stat_type_info
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_xxx_cmdlist[] = {
+	{
+	  NGM_XXX_COOKIE,
+	  NGM_XXX_GET_STATUS,
+	  "getstatus",
+	  NULL,
+	  &ng_xxx_stat_type,
+	},
+	{
+	  NGM_XXX_COOKIE,
+	  NGM_XXX_SET_FLAG,
+	  "setflag",
+	  &ng_parse_int32_type,
+	  NULL
+	},
+	{ 0 }
+};
+
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
 	NG_VERSION,
@@ -80,7 +109,7 @@ static struct ng_type typestruct = {
 	ng_xxx_rcvdata,
 	ng_xxx_rcvdataq,
 	ng_xxx_disconnect,
-	NULL
+	ng_xxx_cmdlist
 };
 NETGRAPH_INIT(xxx, &typestruct);
 
@@ -161,8 +190,6 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 {
 	const xxx_p xxxp = node->private;
 	const char *cp;
-	char c = '\0';
-	int digits = 0;
 	int dlci = 0;
 	int chan;
 
@@ -297,12 +324,12 @@ static int
 ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	int dlci = -2;
-	int error;
 
 	if (hook->private) {
 		/* 
-		 * If it's dlci 1023, requeue it so that it's handled at a lower priority.
-		 * This is how a node decides to defer a data message.
+		 * If it's dlci 1023, requeue it so that it's handled
+		 * at a lower priority. This is how a node decides to
+		 * defer a data message.
 		 */
 		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
 		if (dlci == 1023) {
@@ -433,7 +460,7 @@ static int
 ng_xxx_disconnect(hook_p hook)
 {
 	if (hook->private)
-		((struct XXX_hookinfo *) (hook->private))->hook == NULL;
+		((struct XXX_hookinfo *) (hook->private))->hook = NULL;
 	if (hook->node->numhooks == 0)
 		ng_rmnode(hook->node);
 	return (0);

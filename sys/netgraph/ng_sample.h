@@ -72,4 +72,19 @@ struct ngxxxstat {
 	u_int   packets_out;	/* packets out towards downstream */
 };
 
+/*
+ * This is used to define the 'parse type' for a struct ngxxxstat, which
+ * is bascially a description of how to convert a binary struct ngxxxstat
+ * to an ASCII string and back.  See ng_parse.h for more info.
+ *
+ * This needs to be kept in sync with the above structure definition
+ */
+#define NG_XXX_STATS_TYPE_INFO	{				\
+	{							\
+	  { "packets_in",	&ng_parse_int32_type	},	\
+	  { "packets_out",	&ng_parse_int32_type	},	\
+	  { NULL },						\
+	}							\
+}
+
 #endif /* _NETGRAPH_SAMPLE_H_ */
