@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)renice.8	8.1 (Berkeley) 6/9/93
-.\"     $Id$
+.\"     $Id: renice.8,v 1.3 1999/07/12 20:23:54 nik Exp $
 .\"
 .Dd June 9, 1993
 .Dt RENICE 8
@@ -121,9 +121,9 @@ to map user names to user ID's
 .El
 .Sh SEE ALSO
 .Xr nice 1 ,
+.Xr rtprio 1 ,
 .Xr getpriority 2 ,
-.Xr setpriority 2 ,
-.Xr rtprio 1
+.Xr setpriority 2
 .Sh BUGS
 Non super-users can not increase scheduling priorities of their own processes,
 even if they were the ones that decreased the priorities in the first place.
