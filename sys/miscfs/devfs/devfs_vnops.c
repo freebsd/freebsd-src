@@ -1069,7 +1069,6 @@ devfs_symlink(struct vop_symlink_args *ap)
                 char *a_target;
         } */
 {
-	struct vnode *vp;
 	int error;
 	dn_p dnp;
 	union typeinfo by;
@@ -1084,12 +1083,11 @@ DBPRINT(("symlink\n"));
 	by.Slnk.namelen = strlen(ap->a_target);
 	dev_add_entry(ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by,
 		NULL, NULL, &nm_p);
-	if((error = devfs_dntovn(nm_p->dnp, &vp)) != 0) {
+	if((error = devfs_dntovn(nm_p->dnp, ap->a_vpp)) != 0) {
 		return (error);
 	}
-	VOP_SETATTR(vp, ap->a_vap, ap->a_cnp->cn_cred, ap->a_cnp->cn_proc);
-	*ap->a_vpp = NULL;
-	vput(vp);
+	VOP_SETATTR(*ap->a_vpp, ap->a_vap, ap->a_cnp->cn_cred,
+		ap->a_cnp->cn_proc);
 	return 0;
 }
 
