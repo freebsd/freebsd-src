@@ -69,14 +69,13 @@ static struct cdevsw ardisk_cdevsw;
 /* prototypes */
 static void ar_attach(struct ar_softc *);
 static void ar_done(struct bio *);
-static int ar_highpoint_conf(struct ad_softc *, struct ar_config *);
-static int32_t ar_promise_magic(struct promise_raid_conf *);
-static int ar_promise_conf(struct ad_softc *, struct ar_config *);
+static int ar_highpoint_conf(struct ad_softc *, struct ar_softc **);
+static int ar_promise_conf(struct ad_softc *, struct ar_softc **);
 static int ar_read(struct ad_softc *, u_int32_t, int, char *);
 
 /* internal vars */
 static int ar_init = 0;
-static struct ar_config ar_table;
+static struct ar_softc *ar_table[8];
 MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
   
 /* defines */
@@ -103,14 +102,10 @@ ar_probe(struct ad_softc *adp)
     case 0x4d38105a:
     case 0x4d30105a:
     case 0x0d30105a:
-	if (ar_promise_conf(adp, &ar_table))
-	    break;
-	return 0;
+	return (ar_promise_conf(adp, ar_table));
 
     case 0x00041103:
-	if (ar_highpoint_conf(adp, &ar_table))
-	    break;
-	return 0;
+	return (ar_highpoint_conf(adp, ar_table));
     }
     return 1;
 }
@@ -122,7 +117,7 @@ ar_attach(struct ar_softc *raid)
     int i;
 
     printf("ar%d: %luMB <ATA ",
-	   raid->lun, raid->total_secs / ((1024L*1024L)/DEV_BSIZE));
+	   raid->lun, raid->total_secs / ((1024L * 1024L) / DEV_BSIZE));
     switch (raid->flags & (AR_F_RAID_0 | AR_F_RAID_1 | AR_F_SPAN)) {
     case AR_F_RAID_0:
         printf("RAID0 "); break;
@@ -136,7 +131,7 @@ ar_attach(struct ar_softc *raid)
     	printf("unknown array 0x%x ", raid->flags);
 	return;
     }
-    printf("array> [%d/%d/%d] subdisks: \n",
+    printf("array> [%d/%d/%d] subdisks:\n",
     	   raid->cylinders, raid->heads, raid->sectors);
     for (i = 0; i < raid->num_subdisks; i++)
 	PRINT_AD(raid->subdisk[i]);
@@ -296,11 +291,11 @@ done:
 
 /* read the RAID info from a disk on a HighPoint controller */
 static int
-ar_highpoint_conf(struct ad_softc *adp, struct ar_config *raidp)
+ar_highpoint_conf(struct ad_softc *adp, struct ar_softc **raidp)
 {
     struct highpoint_raid_conf info;
     struct ar_softc *raid;
-    int array_done = 0, r;
+    int array;
 
     if (ar_read(adp, 0x09, DEV_BSIZE, (char *)&info)) {
 	if (bootverbose)
@@ -313,20 +308,20 @@ ar_highpoint_conf(struct ad_softc *adp, struct ar_config *raidp)
 	if (bootverbose)
 	    printf("HighPoint check1 failed\n");
 	return 1;
-    }   
+    }
 
     /* now convert HighPoint config info into our generic form */
-    for (r = 0; r < 8; r++) {
-	if (!raidp->raid[r]) {
-	    raidp->raid[r] = 
+    for (array = 0; array < 8; array++) {
+	if (!raidp[array]) {
+	    raidp[array] = 
 	        (struct ar_softc*)malloc(sizeof(struct ar_softc),M_AR,M_NOWAIT);
-	    if (!raidp->raid[r]) {
+	    if (!raidp[array]) {
 		printf("ar: failed to allocate raid config storage\n");
 		return 1;
 	    }
-	    bzero(raidp->raid[r], sizeof(struct ar_softc));
+	    bzero(raidp[array], sizeof(struct ar_softc));
 	}
-	raid = raidp->raid[r];
+	raid = raidp[array];
 
 	switch (info.type) {
 	case HPT_T_RAID_0:
@@ -345,53 +340,51 @@ ar_highpoint_conf(struct ad_softc *adp, struct ar_config *raidp)
 		raid->num_subdisks++;
     		if ((raid->num_subdisks + raid->num_mirrordisks) == 
 		    (info.raid_disks * 2))
-		    array_done = 1;
+		    raid->flags |= AR_F_CONF_DONE;
 		break;
 
 	    case (HPT_O_MIRROR | HPT_O_STRIPE):
-		if (raid->magic_1 && raid->magic_1 != info.magic_1)
+		if (raid->magic_1 && raid->magic_1 != info.magic_0)
 		    continue;
-		raid->magic_1 = info.magic_1;
+		raid->magic_1 = info.magic_0;
 		raid->flags |= (AR_F_RAID_0 | AR_F_RAID_1);
 		raid->mirrordisk[info.disk_number] = adp;
 		raid->num_mirrordisks++;
     		if ((raid->num_subdisks + raid->num_mirrordisks) ==
 		    (info.raid_disks * 2))
-		    array_done = 1;
+		    raid->flags |= AR_F_CONF_DONE;
 		break;
 
 	    default:
 		if (raid->magic_0 && raid->magic_0 != info.magic_0)
 		    continue;
 		raid->magic_0 = info.magic_0;
-		raid->magic_1 = 0xffffffff;
 		raid->flags |= AR_F_RAID_0;
 		raid->interleave = 1 << info.raid0_shift;
 		raid->subdisk[info.disk_number] = adp;
 		raid->num_subdisks++;
     		if (raid->num_subdisks == info.raid_disks)
-		    array_done = 1;
+		    raid->flags |= AR_F_CONF_DONE;
 	    }
 	    break;
 
 	case HPT_T_RAID_1:
 hpt_mirror:
-	    if (raid->magic_1 && raid->magic_1 != info.magic_1)
+	    if (raid->magic_0 && raid->magic_0 != info.magic_0)
 		continue;
-	    raid->magic_1 = info.magic_1;
-	    raid->magic_0 = 0xffffffff;
+	    raid->magic_0 = info.magic_0;
 	    raid->flags |= AR_F_RAID_1;
 	    if (info.disk_number == 0 && raid->num_subdisks == 0) {
 		raid->subdisk[raid->num_subdisks] = adp;
 		raid->num_subdisks = 1;
 	    }
-	    if (info.disk_number == 1 && raid->num_mirrordisks == 0) {
+	    if (info.disk_number != 0 && raid->num_mirrordisks == 0) {
 		raid->mirrordisk[raid->num_mirrordisks] = adp;
 		raid->num_mirrordisks = 1;
 	    }
     	    if ((raid->num_subdisks + 
 		 raid->num_mirrordisks) == (info.raid_disks * 2))
-		array_done = 1;
+		raid->flags |= AR_F_CONF_DONE;
 	    break;
 
 	case HPT_T_SPAN:
@@ -399,59 +392,41 @@ hpt_mirror:
 		continue;
 	    raid->magic_0 = info.magic_0;
 	    raid->flags |= AR_F_SPAN;
-	    raid->subdisk[raid->num_subdisks] = adp;
+	    raid->subdisk[info.disk_number] = adp;
 	    raid->num_subdisks++;
     	    if (raid->num_subdisks == info.raid_disks)
-		array_done = 1;
+		raid->flags |= AR_F_CONF_DONE;
 	    break;
 
 	default:
 	    printf("HighPoint unknown RAID type 0x%02x\n", info.type);
 	}
-	if (array_done) {
-		raid->lun = r;
-		raid->heads = 255;
-		raid->sectors = 63;
-		raid->cylinders = (info.total_secs - 9) / (63 * 255);
-		raid->total_secs = info.total_secs - (9 * raid->num_subdisks);
-		raid->offset = 10;
-		raid->reserved = 10;
-		ar_attach(raid);
-	    return 0;
-	}
-	break;
-    }
-    return 0;
-}
 
-static int32_t
-ar_promise_magic(struct promise_raid_conf *info)
-{
-    int i, j;
-    int32_t magic = 0;
-
-    for (i = 0; i < 4; i++) {
-	if ((info->raid[i].flags != PR_F_CONFED) || 
-	    (((info->raid[i].status & (PR_S_DEFINED|PR_S_ONLINE)) != 
-	      (PR_S_DEFINED|PR_S_ONLINE))))
-            continue;
-	for (j = 0; j < info->raid[i].total_disks; j++) {
-	    magic <<= 8;
-	    magic |= ((info->raid[i].disk[j].magic_0 & 0x00ff0000)>>16);
+	/* do we have a complete array to attach to ? */
+	if (raid->flags & AR_F_CONF_DONE) {
+	    raid->lun = array;
+	    raid->heads = 255;
+	    raid->sectors = 63;
+	    raid->cylinders = (info.total_secs - 9) / (63 * 255);
+	    raid->total_secs = info.total_secs - (9 * raid->num_subdisks);
+	    raid->offset = 10;
+	    raid->reserved = 10;
+	    ar_attach(raid);
 	}
+	return 0;
     }
-    return magic;
+    return 1;
 }
 
 /* read the RAID info from a disk on a Promise Fasttrak controller */
 static int
-ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
+ar_promise_conf(struct ad_softc *adp, struct ar_softc **raidp)
 {
     struct promise_raid_conf info;
     struct ar_softc *raid;
-    u_int32_t lba;
+    u_int32_t lba, magic;
     u_int32_t cksum, *ckptr;
-    int count, i, j, r; 
+    int count, disk_number, array; 
 
     lba = adp->total_secs - adp->sectors;
 
@@ -478,86 +453,76 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
     }
 
     /* now convert Promise config info into our generic form */
-    for (i = 0, r = 0; i < 4 && r < 8; i++) {
-	if ((info.raid[i].flags != PR_F_CONFED) || 
-	    (((info.raid[i].status & (PR_S_DEFINED|PR_S_ONLINE)) != 
-	      (PR_S_DEFINED|PR_S_ONLINE)))) {
-            continue;
-	}
+    if ((info.raid.flags != PR_F_CONFED) || 
+	(((info.raid.status & (PR_S_DEFINED|PR_S_ONLINE)) != 
+	  (PR_S_DEFINED|PR_S_ONLINE)))) {
+	return 1;
+    }
 
-	if (raidp->raid[r]) {
-	    if (ar_promise_magic(&info) != raidp->raid[r]->magic_0) {
-		r++;
-		i--;
-		continue;
-	    }
-	}
-	else {
-	    if (!(raidp->raid[r] = (struct ar_softc *)
-		  malloc(sizeof(struct ar_softc), M_AR, M_NOWAIT))) {
-		printf("ar: failed to allocate raid config storage\n");
-		return 1;
-	    }
-	    else
-		bzero(raidp->raid[r], sizeof(struct ar_softc));
-	}
-	raid = raidp->raid[r];
-	raid->magic_0 = ar_promise_magic(&info);
+    magic = (adp->controller->chiptype >> 16) | info.raid.array_number << 16;
 
-	switch (info.raid[i].type) {
-	case PR_T_STRIPE:
+    array = info.raid.array_number;
+    if (raidp[array]) {
+	if (magic != raidp[array]->magic_0)
+	    return 1;
+    }
+    else {
+	if (!(raidp[array] = (struct ar_softc *)
+	      malloc(sizeof(struct ar_softc), M_AR, M_NOWAIT))) {
+	    printf("ar: failed to allocate raid config storage\n");
+	    return 1;
+	}
+	else
+	    bzero(raidp[array], sizeof(struct ar_softc));
+    }
+    raid = raidp[array];
+    raid->magic_0 = magic;
+
+    switch (info.raid.type) {
+    case PR_T_STRIPE:
+	raid->flags |= AR_F_RAID_0;
+	raid->interleave = 1 << info.raid.raid0_shift;
+	break;
+
+    case PR_T_MIRROR:
+	raid->flags |= AR_F_RAID_1;
+	break;
+
+    case PR_T_SPAN:
+	raid->flags |= AR_F_SPAN;
+	break;
+
+    default:
+	printf("Promise unknown RAID type 0x%02x\n", info.raid.type);
+	return 1;
+    }
+
+    /* find out where this disk is in the defined array */
+    disk_number = info.raid.disk_number;
+    if (disk_number < info.raid.raid0_disks) {
+	raid->subdisk[disk_number] = adp;
+	raid->num_subdisks++;
+	if (raid->num_subdisks > 1 && !(raid->flags & AR_F_SPAN)) {
 	    raid->flags |= AR_F_RAID_0;
-	    raid->interleave = 1 << info.raid[i].raid0_shift;
-	    break;
-
-	case PR_T_MIRROR:
-	    raid->flags |= AR_F_RAID_1;
-	    break;
-
-	case PR_T_SPAN:
-	    raid->flags |= AR_F_SPAN;
-	    break;
-
-	default:
-	    printf("Promise unknown RAID type 0x%02x\n", info.raid[i].type);
+	    raid->interleave = 1 << info.raid.raid0_shift;
 	}
+    }
+    else {
+	raid->mirrordisk[disk_number - info.raid.raid0_disks] = adp;
+	raid->num_mirrordisks++;
+    }
 
-	/* find out where this disk is in the defined array */
-	/* first RAID0 / SPAN disks */
-	for (j = 0; j < info.raid[i].raid0_disks; j++) {
-	    if (adp->controller->channel == info.raid[i].disk[j].channel &&
-		ATA_DEV(adp->unit) == info.raid[i].disk[j].device) {
-		raid->subdisk[raid->num_subdisks] = adp;
-		raid->num_subdisks++;
-		if (raid->num_subdisks > 1 && !(raid->flags & AR_F_SPAN)) {
-		    raid->flags |= AR_F_RAID_0;
-		    raid->interleave = 1 << info.raid[i].raid0_shift;
-		}
-	    }
-	}
-
-	/* if any left they are RAID1 disks eventually in a RADI0+1 config */
-	for (; j < info.raid[i].total_disks; j++) {
-	    if (adp->controller->channel == info.raid[i].disk[j].channel &&
-		ATA_DEV(adp->unit) == info.raid[i].disk[j].device) {
-		raid->mirrordisk[raid->num_mirrordisks] = adp;
-		raid->num_mirrordisks++;
-	    }
-	}
-
-	/* do we have a complete array to attach to ? */
-	if (raid->num_subdisks + raid->num_mirrordisks ==
-	    info.raid[i].total_disks) {
-	    raid->lun = r;
-	    raid->heads = info.raid[i].heads + 1;
-	    raid->sectors = info.raid[i].sectors;
-	    raid->cylinders = info.raid[i].cylinders + 1;
-	    raid->total_secs = info.raid[i].total_secs;
-	    raid->offset = 0;
-	    raid->reserved = 63;
-	    ar_attach(raid);
-	}
-	r++;
+    /* do we have a complete array to attach to ? */
+    if (raid->num_subdisks + raid->num_mirrordisks == info.raid.total_disks) {
+	raid->flags |= AR_F_CONF_DONE;
+	raid->lun = array;
+	raid->heads = info.raid.heads + 1;
+	raid->sectors = info.raid.sectors;
+	raid->cylinders = info.raid.cylinders + 1;
+	raid->total_secs = info.raid.total_secs;
+	raid->offset = 0;
+	raid->reserved = 63;
+	ar_attach(raid);
     }
     return 0;
 }
