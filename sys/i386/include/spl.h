@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.4 1994/08/15 03:15:11 wollman Exp $
+ *	$Id: spl.h,v 1.5 1994/09/20 05:07:32 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
-#define _MACHINE_IPL_H_
+#define	_MACHINE_IPL_H_
 
 #include <machine/ipl.h>	/* XXX "machine" means cpu for i386 */
 
@@ -74,12 +74,11 @@
 
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 extern	unsigned cpl;		/* current priority level mask */
-extern	unsigned high_imask;	/* group of interrupts masked with splhigh() */
-extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
+extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	volatile unsigned netisr;
+extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
-extern  unsigned stat_imask;	/* interrupts masked with splstatclock() */
 
 /*
  * ipending has to be volatile so that it is read every time it is accessed
@@ -111,11 +110,11 @@ static __inline int name(void)			\
 GENSPL(splbio, cpl |= bio_imask)
 GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splstatclock, cpl |= stat_imask | SWI_CLOCK_MASK)
 GENSPL(splimp, cpl |= net_imask)
 GENSPL(splnet, cpl |= SWI_NET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
 GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
+GENSPL(splstatclock, cpl |= stat_imask)
 GENSPL(spltty, cpl |= tty_imask)
 
 static __inline void
@@ -136,6 +135,6 @@ splx(int ipl)
 
 #endif /* __GNUC__ */
 
-#endif /* LOCORE */
+#endif /* !LOCORE */
 
-#endif /* _MACHINE_IPL_H_ */
+#endif /* !_MACHINE_IPL_H_ */
