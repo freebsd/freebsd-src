@@ -998,7 +998,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
         log_Printf(LogERROR, "set enddisc: socket(): %s\n", strerror(errno));
         return 2;
       }
-      if (get_ether_addr(s, addr, &hwaddr)) {
+      if (arp_EtherAddr(s, addr, &hwaddr, 1)) {
         mp->cfg.enddisc.class = ENDDISC_MAC;
         memcpy(mp->cfg.enddisc.address, hwaddr.sdl_data + hwaddr.sdl_nlen,
                hwaddr.sdl_alen);
