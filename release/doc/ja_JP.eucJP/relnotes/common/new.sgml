@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.321
+    Original revision: 1.22.2.325
 -->
 
 <articleinfo>
@@ -153,6 +153,22 @@
     <sect3>
       <title>ネットワークプロトコル</title>
 
+      <para>IPsec 実装でハードウェア暗号化アクセラレータに対応した
+        カーネル &man.crypto.4; フレームワークが使えるようになりました。
+        有効にするには、<literal>FAST_IPSEC</literal>
+        カーネルオプションを指定します。
+
+        <note>
+          <para><literal>FAST_IPSEC</literal> オプションと
+            <literal>IPSEC</literal> オプションを同時に指定することはできません。</para>
+	</note>
+
+        <note>
+          <para>現時点では、<literal>FAST_IPSEC</literal> オプションは
+            IPv6 または <literal>INET6</literal> オプションと共存できません。
+            </para>
+	</note></para>
+
       <para>&man.gre.4; ドライバが追加されました。
         これは IP パケットを GRE (RFC 1701) や
         minimal IP encapsulation for Mobile IP (RFC 2004)
@@ -205,7 +221,8 @@
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para></para>
+      <para><application>BIND</application> がバージョン
+        8.3.4 に更新されました。</para>
     </sect3>
 
   </sect2>
@@ -228,6 +245,12 @@
       ファイル記述子の漏洩問題が修正されました。
       詳細はセキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink> をご覧ください。</para>
+
+    <para>バージョン 1.11.5 の統合により、<application>CVS</application>
+      にあったリモートから悪用可能なセキュリティ上の弱点が修正されました。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
+      をご覧ください。</para>
   </sect2>
 
   <sect2 id="userland">
@@ -250,6 +273,13 @@
     <para>&man.getconf.1; ユーティリティが追加されました。
       これは POSIX、X/Open パスの値、
       あるいはシステム設定変数の値を出力します。</para>
+
+    <para>&man.ipfw.8; に、(ファイアウォール機能そのものの有効化・無効化を含む)
+      &man.ipfw.4; におけるさまざまな制御を実現するため、
+      <literal>enable</literal> コマンド、
+      <literal>disable</literal> コマンドが追加されました。
+      これらは、従来の sysctl 変数よりもわかりやすく、
+      便利な操作手段を提供します。</para>
 
     <para>&man.make.1; に新しいオプション <option>-C</option> が追加されました。
       これは、ターゲットを構築する前に、
@@ -294,10 +324,16 @@
         がインストールされるようになりました。</para>
 
       <para><application>cvs</application> がバージョン
-	 1.11.2.1 の 2002 年 12 月 1 日時点のスナップショットに更新されました。</para>
+	 1.11.5 に更新されました。</para>
 
       <para><application>Heimdal Kerberos</application> がバージョン
 	0.5.1 に更新されました。</para>
+
+      <para><application>libz</application> がバージョン
+        1.1.4 に更新されました。</para>
+
+      <para><application>OpenSSH</application> がバージョン
+        3.5p1 に更新されました。</para>
 
       <para>タイムゾーンデータベースが
 	<filename>tzdata2002d</filename> release に更新されました。</para>
