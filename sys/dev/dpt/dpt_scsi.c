@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.32 1998/08/03 16:45:12 root Exp root $"
+#ident "$Id: dpt_scsi.c,v 1.8 1998/08/05 00:54:36 eivind Exp $"
 
 #define _DPT_C_
 
@@ -389,20 +389,14 @@ dpt_raid_busy(dpt_softc_t * dpt)
 */
 
 static void
-dpt_reset_hba(int minor)
+dpt_reset_hba(dpt_softc_t *dpt)
 {
-    dpt_softc_t      *dpt;
     eata_ccb_t       *ccb;
     int               ospl;
     dpt_ccb_t         dccb, *dccbp;
     int               result;
     struct scsi_xfer *xs;
     
-    if ((dpt = dpt_minor2softc(minor)) == NULL) {
-	printf("DPT:  Ignoring invalid minor %d in dpt_reset_hba\n", minor);
-	return;
-    }
-	
     /* Prepare a control block.  The SCSI command part is immaterial */
     dccb.xs = NULL;
     dccb.flags = 0;
@@ -3246,7 +3240,7 @@ static INLINE_Q void
 dpt_Qpush_free(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
 #ifdef DPT_FREELIST_IS_STACK
-	TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links)
+	TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links);
 #else
 	TAILQ_INSERT_TAIL(&dpt->free_ccbs, ccb, links);
 #endif
