@@ -30,4 +30,4 @@
 
 #define	NAME	ntohs
 
-#include <ia64/net/byte_swap_2.S>
+#include "byte_swap_2.S"
