@@ -2026,16 +2026,34 @@ device		iicsmb		# smb over i2c bridge
 
 device		pcf0	at isa? port 0x320 irq 5
 
-# ISDN4BSD section
+#---------------------------------------------------------------------------
+# ISDN4BSD
 #
 # See /usr/share/examples/isdn/ROADMAP for an introduction to isdn4bsd.
 #
-# i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
-# note that the ``options'' and ``device'' lines must BOTH be defined !
+# i4b passive ISDN cards support contains the following hardware drivers:
 #
-# Driver entries marked "(not supported yet!)" are not working currently
-# due to not being converted to newbus. We hope to get them back to support
-# in the near future.
+#       isic  - Siemens/Infineon ISDN ISAC/HSCX/IPAC chipset driver
+#       iwic  - Winbond W6692 PCI bus ISDN S/T interface controller
+#       ifpi  - AVM Fritz!Card PCI driver
+#       ihfc  - Cologne Chip HFC ISA/ISA-PnP chipset driver
+#       ifpnp - AVM Fritz!Card PnP driver 
+#       itjc  - Siemens ISAC / TJNet Tiger300/320 chipset
+#
+# i4b active ISDN cards support contains the following hardware drivers:
+#
+#       iavc  - AVM B1 PCI, AVM B1 ISA, AVM T1
+#
+# Note that the ``options'' (if given) and ``device'' lines must BOTH
+# be uncommented to enable support for a given card !
+#
+# In addition to a hardware driver (and probably an option) the mandatory
+# ISDN protocol stack devices and the mandatory support device must be 
+# enabled as well as one or more devices from the optional devices section.
+#
+#---------------------------------------------------------------------------
+# isic driver (Siemens/Infineon chipsets)
+#---------------------------------------------------------------------------
 #
 # ISA bus non-PnP Cards:
 # ----------------------
@@ -2056,12 +2074,12 @@ options 	TEL_S0_16_3
 options 	AVM_A1
 #device		isic0	at isa? port 0x340 irq 5 flags 4
 #
-# USRobotics Sportster ISDN TA intern (not supported yet!)
-#options 	USR_STI
+# USRobotics Sportster ISDN TA intern
+options 	USR_STI
 #device		isic0	at isa? port 0x268 irq 5 flags 7
 #
-# ITK ix1 Micro ( < V.3, non-PnP version ) (not supported yet!)
-#options 	ITKIX1
+# ITK ix1 Micro ( < V.3, non-PnP version )
+options 	ITKIX1
 #device		isic0	at isa? port 0x398 irq 10 flags 18
 #
 # ELSA PCC-16
@@ -2087,28 +2105,28 @@ options 	DRN_NGO
 options 	SEDLBAUER
 #device		isic
 #
-# Dynalink IS64PH (not supported yet!)
-#options 	DYNALINK 
+# Dynalink IS64PH
+options 	DYNALINK 
 #device		isic
 #
 # ELSA QuickStep 1000pro ISA
 options 	ELSA_QS1ISA
 #device		isic
 #
-# ITK ix1 Micro ( V.3, PnP version ) (not supported yet!)
-#options 	ITKIX1
+# ITK ix1 Micro ( V.3, PnP version )
+options 	ITKIX1
 #device		isic
-#
-# AVM Fritz!Card PnP (not supported yet!)
-#options 	AVM_PNP
-#device 	isic
 #
 # Siemens I-Surf 2.0
 options 	SIEMENS_ISURF2
 #device		isic
 #
 # Asuscom ISDNlink 128K ISAC
-#options 	ASUSCOM_IPAC
+options 	ASUSCOM_IPAC
+#device 	isic
+#
+# Eicon Diehl DIVA 2.0 and 2.02
+options       EICON_DIVA
 #device 	isic
 #
 # PCI bus Cards:
@@ -2118,26 +2136,59 @@ options 	SIEMENS_ISURF2
 options 	ELSA_QS1PCI
 #device		isic
 #
-# AVM Fritz!Card PCI
-options 	AVM_A1_PCI
-#device		isic
+#---------------------------------------------------------------------------
+#       ifpnp driver for AVM Fritz!Card ISA PnP
+#---------------------------------------------------------------------------
 #
-# PCMCIA Cards:
-# -------------
+# AVM Fritz!Card ISA PnP
+device ifpnp
 #
-# AVM PCMCIA Fritz!Card (not supported yet!)
-#options 	AVM_A1_PCMCIA
-#device		isic0	at isa? port 0x340 irq 5 flags 10
+#---------------------------------------------------------------------------
+#       ihfc driver for Cologne Chip ISA chipsets (experimental!)
+#---------------------------------------------------------------------------
 #
-# Active Cards:
-# -------------
+# Teles 16.3c ISA PnP
+# AcerISDN P10 ISA PnP
+# TELEINT ISDN SPEED No.1
+device ihfc
 #
-# Stollmann Tina-dd control device 
-# (driver under development, not fully functional!)
-device		tina0	at isa? port 0x260 irq 10
+#---------------------------------------------------------------------------
+#       ifpi driver for AVM Fritz!Card PCI 1.0 (2.0 unsupported!)
+#---------------------------------------------------------------------------
 #
-# ISDN Protocol Stack
-# -------------------
+# AVM Fritz!Card PCI 1.0
+device  ifpi
+#
+#---------------------------------------------------------------------------
+#       iwic driver for Winbond W6692 chipset
+#---------------------------------------------------------------------------
+#
+# ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
+device  iwic
+#
+#---------------------------------------------------------------------------
+#       itjc driver for Simens ISAC / TJNet Tiger300/320 chipset
+#---------------------------------------------------------------------------
+#
+# Traverse Technologies NETjet-S
+# Teles PCI-TJ
+device  itjc
+#
+#---------------------------------------------------------------------------
+#       iavc driver (AVM active cards, needs i4bcapi driver!)
+#---------------------------------------------------------------------------
+#
+pseudo-device   "i4bcapi"	2
+#
+# AVM B1 PCI
+device          iavc0
+#
+# AVM B1 ISA bus (PnP mode not supported!)
+#device  iavc0 at isa? port 0x150 irq 5
+#
+#
+# ISDN Protocol Stack (mandatory)
+# -------------------------------
 #
 # Q.921 / layer 2 - i4b passive cards D channel handling
 pseudo-device	"i4bq921"
@@ -2154,7 +2205,7 @@ pseudo-device	"i4b"
 # userland driver to do ISDN tracing (for passive cards only)
 pseudo-device	"i4btrc"	4
 #
-# userland driver to control the whole thing
+# userland driver to control the whole thing (mandatory)
 pseudo-device	"i4bctl"
 #
 # userland driver for access to raw B channel
@@ -2170,8 +2221,7 @@ options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
 #options	IPR_LOG=32
 #
-# network driver for sync PPP over ISDN; requires an equivalent
-# number of sppp pseudo-devices to be configured
+# network driver for sync PPP over ISDN
 pseudo-device	"i4bisppp"	4
 
 
