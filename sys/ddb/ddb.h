@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.14 1997/02/22 09:28:35 peter Exp $
+ *	$Id: ddb.h,v 1.15 1998/02/13 02:19:29 bde Exp $
  */
 
 /*
@@ -116,6 +116,7 @@ db_cmdfcn_t	db_print_cmd;
 db_cmdfcn_t	db_ps;
 db_cmdfcn_t	db_search_cmd;
 db_cmdfcn_t	db_set_cmd;
+db_cmdfcn_t	db_show_msgbuf;
 db_cmdfcn_t	db_show_regs;
 db_cmdfcn_t	db_single_step_cmd;
 db_cmdfcn_t	db_stack_trace_cmd;
