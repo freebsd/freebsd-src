@@ -1,4 +1,5 @@
 /* crypto/rsa/rsa_lib.c */
+/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -105,11 +106,7 @@ RSA *RSA_new_method(RSA_METHOD *meth)
 
 	if (default_RSA_meth == NULL)
 		{
-#ifdef RSAref
-		default_RSA_meth=RSA_PKCS1_RSAref();
-#else
-		default_RSA_meth=RSA_PKCS1_SSLeay();
-#endif
+		default_RSA_meth=RSA_PKCS1();
 		}
 	ret=(RSA *)Malloc(sizeof(RSA));
 	if (ret == NULL)

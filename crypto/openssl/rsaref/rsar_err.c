@@ -1,4 +1,5 @@
 /* rsaref/rsar_err.c */
+/* $FreeBSD$ */
 /* ====================================================================
  * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
  *
@@ -102,7 +103,7 @@ static ERR_STRING_DATA RSAREF_str_reasons[]=
 
 #endif
 
-void ERR_load_RSAREF_strings(void)
+void ERR_load_RSA_strings(void)
 	{
 	static int init=1;
 

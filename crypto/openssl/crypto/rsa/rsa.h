@@ -1,4 +1,5 @@
 /* crypto/rsa/rsa.h */
+/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -175,11 +176,8 @@ RSA_METHOD *RSA_set_method(RSA *rsa, RSA_METHOD *meth);
 /* This function needs the memory locking malloc callbacks to be installed */
 int RSA_memory_lock(RSA *r);
 
-/* If you have RSAref compiled in. */
-RSA_METHOD *RSA_PKCS1_RSAref(void);
-
 /* these are the actual SSLeay RSA functions */
-RSA_METHOD *RSA_PKCS1_SSLeay(void);
+RSA_METHOD *RSA_PKCS1(void);
 
 void	ERR_load_RSA_strings(void );
 
