@@ -865,10 +865,11 @@ pmap_extract(pmap, va)
  *	Routine:	pmap_extract_and_hold
  *	Function:
  *		Atomically extract and hold the physical page
- *		with the given pmap and virtual address. 
+ *		with the given pmap and virtual address pair
+ *		if that mapping permits the given protection.
  */
 vm_page_t
-pmap_extract_and_hold(pmap_t pmap, vm_offset_t va)
+pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	vm_paddr_t pa;
 	vm_page_t m;
