@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.181 1996/10/23 07:29:43 pst Exp $
+ *  $Id: syscons.c,v 1.182 1996/10/26 20:16:58 sos Exp $
  */
 
 #include "sc.h"
@@ -572,35 +572,40 @@ scintr(int unit)
 	mark_all(cur_console);
     }
 
-    c = scgetc(SCGETC_NONBLOCK);
+    /* 
+     * Loop while there is still input to get from the keyboard.
+     * I don't think this is nessesary, and it doesn't fix
+     * the Xaccel-2.1 keyboard hang, but it can't hurt.		XXX
+     */
+    while ((c = scgetc(SCGETC_NONBLOCK)) != NOKEY) {
 
-    cur_tty = VIRTUAL_TTY(get_scr_num());
-    if (!(cur_tty->t_state & TS_ISOPEN))
-	if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
-	    return;
+	cur_tty = VIRTUAL_TTY(get_scr_num());
+	if (!(cur_tty->t_state & TS_ISOPEN))
+	    if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
+		return;
 
-    switch (c & 0xff00) {
-    case 0x0000: /* normal key */
-	(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+	switch (c & 0xff00) {
+	case 0x0000: /* normal key */
+	    (*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+	    break;
+	case FKEY:  /* function key, return string */
+	    if (cp = get_fstr((u_int)c, (u_int *)&len)) {
+	    	while (len-- >  0)
+		    (*linesw[cur_tty->t_line].l_rint)(*cp++ & 0xFF, cur_tty);
+	    }
 	break;
-    case NOKEY: /* nothing there */
-	return;
-    case FKEY:  /* function key, return string */
-	if (cp = get_fstr((u_int)c, (u_int *)&len)) {
-	    while (len-- >  0)
-		(*linesw[cur_tty->t_line].l_rint)(*cp++ & 0xFF, cur_tty);
+	case MKEY:  /* meta is active, prepend ESC */
+	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
+	    (*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+	    break;
+	case BKEY:  /* backtab fixed sequence (esc [ Z) */
+	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
+	    (*linesw[cur_tty->t_line].l_rint)('[', cur_tty);
+	    (*linesw[cur_tty->t_line].l_rint)('Z', cur_tty);
+	    break;
 	}
-	break;
-    case MKEY:  /* meta is active, prepend ESC */
-	(*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
-	(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
-	break;
-    case BKEY:  /* backtab fixed sequence (esc [ Z) */
-	(*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
-	(*linesw[cur_tty->t_line].l_rint)('[', cur_tty);
-	(*linesw[cur_tty->t_line].l_rint)('Z', cur_tty);
-	break;
     }
+
     if (cur_console->status & MOUSE_ENABLED) {
 	cur_console->status &= ~MOUSE_VISIBLE;
 	remove_mouse_image(cur_console);
@@ -1441,6 +1446,16 @@ scrn_timer()
 {
     scr_stat *scp = cur_console;
     int s = spltty();
+
+    /* 
+     * With release 2.1 of the Xaccel server, the keyboard is left
+     * hanging pretty often. Apparently the interrupt from the
+     * keyboard is lost, and I don't know why (yet).
+     * This Ugly hack calls scintr if input is ready and
+     * conveniently hides the problem.			XXX
+     */
+    if (inb(KB_STAT) & KB_BUF_FULL)
+	scintr(0);
 
     /* should we just return ? */
     if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
@@ -2462,10 +2477,11 @@ scgetc(u_int flags)
     static u_int chr = 0;
 
 next_code:
-    kbd_wait();
-    /* first see if there is something in the keyboard port */
-    if (inb(KB_STAT) & KB_BUF_FULL)
+    /* check if there is anything in the keyboard buffer */
+    if (inb(KB_STAT) & KB_BUF_FULL) {
+	DELAY(25);
 	scancode = inb(KB_DATA);
+    }
     else if (flags & SCGETC_NONBLOCK)
 	return(NOKEY);
     else
@@ -2830,7 +2846,6 @@ next_code:
 		    console[0]->smode.mode == VT_AUTO)
 		    switch_scr(cur_console, 0);
 		Debugger("manual escape to debugger");
-		return(NOKEY);
 #else
 		printf("No debugger in kernel\n");
 #endif
