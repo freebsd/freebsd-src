@@ -1,4 +1,4 @@
-#	$Id: $
+#	$Id: Makefile,v 1.1.1.1 1999/07/19 18:07:44 rnordier Exp $
 
 PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
@@ -12,10 +12,10 @@ STRIP=
 .PATH:	${.CURDIR}/../../../kern
 
 M4?=	m4
-MFLAGS=
+M4FLAGS=
 
 BOOT_COMCONSOLE_PORT?=	0x3f8
-MFLAGS+=-DSIOPRT=${BOOT_COMCONSOLE_PORT}
+M4FLAGS+=-DSIOPRT=${BOOT_COMCONSOLE_PORT}
 
 all: kgzldr.o
 
@@ -23,7 +23,7 @@ kgzldr.o: ${OBJS}
 	${CC} ${LDFLAGS} -o ${.TARGET} ${OBJS}
 
 .s.o:
-	(cd ${.CURDIR}; ${M4} ${MFLAGS} ${.IMPSRC}) |\
+	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ${.IMPSRC}) |\
 		${AS} ${AFLAGS} -o ${.TARGET}
 
 .include <bsd.prog.mk>
