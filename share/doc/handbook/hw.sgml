@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.50 1996/12/03 23:40:11 mpp Exp $ -->
+<!-- $Id: hw.sgml,v 1.51 1996/12/05 03:30:59 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -316,8 +316,56 @@ Slippery when wet.  Beware of dog.
 	    </descrip>
 	  </p>
 
-<sect1><heading>* CPUs/FPUs</heading>
+<sect1><heading>CPUs/FPUs</heading>
+  <sect2><heading>* Pentium Pro class</heading>
+  <sect2><heading>Pentium class</heading>
+     <sect3><heading>Clock speeds</heading>
+     <p><em>Contributed by &a.rgrimes;.<newline>1 Octomber 1996.</em></p>
+       <p>Pentium class machines use different clock speeds for the various
+         parts of the system.  These being the speed of the CPU, external
+	 memory bus, and the PCI bus.  It is not always true that a "faster"
+	 processor will make a system faster than a "slower" one, due to
+	 the various clock speeds used.
+	 Below is a table showing the differences:
+       <p>
+       <tscreen><verb>
+         Rated External Clock  External to     PCI Bus
+          CPU  and Memory Bus  Internal Clock  Clock
+          MHZ  MHZ**           Multiplier      MHZ
+        
+	  60   60              1.0             30
+	  66   66              1.0             33
+          75   50              1.5             25
+          90   60              1.5             30
+          100  50*             2               25
+          100  66              1.5             33
+          120  60              2               30
+          133  66              2               33
+          150  60              2.5             30
+          166  66              2.5             33
+          180  60              3               30
+          200  66              3               33
+
+	 *  The Pentium 100 can be run at either 50MHz external clock with
+	    a multiplier of 2 or at 66MHz and a multiplier of 1.5.
+	 ** 66 Mhz may actually be 66.667 MHz, but don't assume so.
+       </verb></tscreen>
+       <p>As can be seen the best parts to be using are the 100, 133, 166
+         and 200, with the exception that at a mulitplier of 3 the CPU
+         starves for memory.
+  <sect2><heading>* 486 class</heading>
+  <sect2><heading>* 386 class</heading>
+  <sect2><heading>286 class</heading>
+    <p>Sorry, but FreeBSD does not run on 80286 machines.  It is nearly
+      impossible to run today's large full-featured UNIXes on such
+      hardware.
+
 <sect1><heading>* Memory</heading>
+  <p>The mininum amount of memory you must have to install FreeBSD is 5 MB.
+    Once your system is up and running you can <ref id="kernelconfig:building"
+    name="build a custom kernel"> that will use less memory.
+    If you use the boot4.flp you can get away with having only 4 MB.
+
 <sect1><heading>* BIOS</heading>
 
 <sect><heading>Input/Output Devices<label id="hw:io"></heading>
