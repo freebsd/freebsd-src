@@ -3463,3 +3463,25 @@ ed_ds_getmcaf(struct ed_softc *sc, uint32_t *mcaf)
 		af[index >> 3] |= 1 << (index & 7);
 	}
 }
+
+int
+ed_clear_memory(device_t dev)
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	int i;
+
+	/*
+	 * Now zero memory and verify that it is clear
+	 */
+	bzero(sc->mem_start, sc->mem_size);
+
+	for (i = 0; i < sc->mem_size; ++i) {
+		if (sc->mem_start[i]) {
+			device_printf(dev, "failed to clear shared memory at "
+			  "0x%jx - check configuration\n",
+			    (uintmax_t)rman_get_start(sc->mem_res) + i);
+			return (ENXIO);
+		}
+	}
+	return (0);
+}

@@ -206,6 +206,7 @@ int	ed_probe_HP_pclanp(device_t, int, int);
 
 int	ed_attach(device_t);
 int	ed_detach(device_t);
+int	ed_clear_memory(device_t);
 void	ed_stop(struct ed_softc *);
 void	ed_pio_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
 void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
