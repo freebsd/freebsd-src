@@ -1884,15 +1884,15 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 		if (events &
 		    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM |
 		     POLLRDBAND)) {
-			selrecord(td, &so->so_rcv.sb_sel);
 			SOCKBUF_LOCK(&so->so_rcv);
+			selrecord(td, &so->so_rcv.sb_sel);
 			so->so_rcv.sb_flags |= SB_SEL;
 			SOCKBUF_UNLOCK(&so->so_rcv);
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
-			selrecord(td, &so->so_snd.sb_sel);
 			SOCKBUF_LOCK(&so->so_snd);
+			selrecord(td, &so->so_snd.sb_sel);
 			so->so_snd.sb_flags |= SB_SEL;
 			SOCKBUF_UNLOCK(&so->so_snd);
 		}
