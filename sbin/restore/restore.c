@@ -32,11 +32,14 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)restore.c	8.3 (Berkeley) 9/13/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
 
@@ -163,7 +166,7 @@ removeoldleaves()
 	register ino_t i, mydirino;
 
 	vprintf(stdout, "Mark entries to be removed.\n");
-	if (ep = lookupino(WINO)) {
+	if ((ep = lookupino(WINO))) {
 		vprintf(stdout, "Delete whiteouts\n");
 		for ( ; ep != NULL; ep = nextep) {
 			nextep = ep->e_links;
@@ -451,7 +454,7 @@ nodeupdates(name, ino, type)
 		break;
 
 	/*
-	 * A hard link to a diirectory that has been removed.
+	 * A hard link to a directory that has been removed.
 	 * Ignore it.
 	 */
 	case NAMEFND:
@@ -651,7 +654,7 @@ createleaves(symtabfile)
 		/*
 		 * If the file is to be extracted, then the old file must
 		 * be removed since its type may change from one leaf type
-		 * to another (eg "file" to "character special").
+		 * to another (e.g. "file" to "character special").
 		 */
 		if ((ep->e_flags & EXTRACT) != 0) {
 			removeleaf(ep);
@@ -661,7 +664,7 @@ createleaves(symtabfile)
 		ep->e_flags &= ~(NEW|EXTRACT);
 		/*
 		 * We checkpoint the restore after every tape reel, so
-		 * as to simplify the amount of work re quired by the
+		 * as to simplify the amount of work required by the
 		 * 'R' command.
 		 */
 	next:
@@ -772,7 +775,7 @@ createlinks()
 	register ino_t i;
 	char name[BUFSIZ];
 
-	if (ep = lookupino(WINO)) {
+	if ((ep = lookupino(WINO))) {
 		vprintf(stdout, "Add whiteouts\n");
 		for ( ; ep != NULL; ep = ep->e_links) {
 			if ((ep->e_flags & NEW) == 0)
