@@ -55,30 +55,30 @@ Users may only trace their own processes.
 Only the super-user can trace setuid or setgid programs.
 .Pp
 The
-.Ar tracefile
+.Fa tracefile
 gives the pathname of the file to be used for tracing.
 The file must exist and be a regular file writable by the calling process.
 All trace records are always appended to the file,
 so the file must be truncated to zero length to discard
 previous trace data.
 If tracing points are being disabled (see KTROP_CLEAR below),
-.Ar tracefile
+.Fa tracefile
 may be NULL.
 .Pp
 The
-.Nm ops
+.Fa ops
 parameter specifies the requested ktrace operation.
 The defined operations are:
 .Bl -column KTRFLAG_DESCENDXXX -offset indent
-.It KTROP_SET	Enable trace points specified in Ar trpoints .
-.It KTROP_CLEAR	Disable trace points specified in Ar trpoints .
+.It KTROP_SET	Enable trace points specified in Fa trpoints .
+.It KTROP_CLEAR	Disable trace points specified in Fa trpoints .
 .It KTROP_CLEARFILE	Stop all tracing.
 .It KTRFLAG_DESCEND	The tracing change should apply to the
 specified process and all its current children.
 .El
 .Pp
 The
-.Nm trpoints
+.Fa trpoints
 parameter specifies the trace points of interest.
 The defined trace points are:
 .Bl -column KTRFAC_SYSCALLXXX -offset indent
@@ -107,27 +107,27 @@ struct ktr_header {
 .Ed
 .Pp
 The
-.Nm ktr_len
+.Va ktr_len
 field specifies the length of the 
-.Nm ktr_type
+.Va ktr_type
 data that follows this header.
 The
-.Nm ktr_pid
+.Va ktr_pid
 and
-.Nm ktr_comm
+.Va ktr_comm
 fields specify the process and command generating the record.
 The
-.Nm ktr_time
+.Va ktr_time
 field gives the time (with microsecond resolution)
 that the record was generated.
 The
-.Nm ktr_buf
+.Va ktr_buf
 is an internal kernel pointer and is not useful.
 .Pp
 The generic header is followed by 
-.Nm ktr_len
+.Va ktr_len
 bytes of a
-.Nm ktr_type
+.Va ktr_type
 record.
 The type specific records are defined in the
 .Aq Pa sys/ktrace.h

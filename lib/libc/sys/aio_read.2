@@ -41,13 +41,13 @@
 The
 .Fn aio_read
 function allows the calling process to read
-.Ar iocb->aio_nbytes
+.Fa iocb->aio_nbytes
 from the descriptor
-.Ar iocb->aio_fildes
+.Fa iocb->aio_fildes
 beginning at the offset
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 into the buffer pointed to by
-.Ar iocb->aio_buf .
+.Fa iocb->aio_buf .
 The call returns immediately after the read request has 
 been enqueued to the descriptor; the read may or may not have
 completed at the time the call returns.
@@ -55,16 +55,16 @@ completed at the time the call returns.
 If _POSIX_PRIORITIZED_IO is defined, and the descriptor supports it,
 then the enqueued operation is submitted at a priority equal to that
 of the calling process minus
-.Ar iocb->aio_reqprio .
+.Fa iocb->aio_reqprio .
 .Pp
 The
-.Ar iocb->aio_lio_opcode
+.Fa iocb->aio_lio_opcode
 is ignored by the
 .Fn aio_read
 call.
 .Pp
 The
-.Ar iocb
+.Fa iocb
 pointer may be subsequently used as an argument to
 .Fn aio_return
 and
@@ -76,20 +76,20 @@ If the request could not be enqueued (generally due to invalid arguments),
 then the call returns without having enqueued the request.
 .Pp
 If the request is successfully enqueued, the value of
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 can be modified during the request as context, so this value must
 not be referenced after the request is enqueued.
 .Sh RESTRICTIONS
 The Asynchronous I/O Control Block structure pointed to by
-.Ar iocb
+.Fa iocb
 and the buffer that the
-.Ar iocb->aio_buf
+.Fa iocb->aio_buf
 member of that structure references must remain valid until the
 operation has completed.  For this reason, use of auto (stack) variables
 for these objects is discouraged.
 .Pp
 The asynchronous I/O control buffer
-.Ar iocb
+.Fa iocb
 should be zeroed before the 
 .Fn aio_read
 call to avoid passing bogus context information to the kernel.
@@ -99,9 +99,9 @@ buffer contents after the request has been enqueued, but before the
 request has completed, are not allowed.
 .Pp
 If the file offset in
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 is past the offset maximum  for
-.Ar iocb->aio_fildes ,
+.Fa iocb->aio_fildes ,
 no I/O will occur.
 .Sh RETURN VALUES
 .Rv -std aio_read
@@ -126,34 +126,34 @@ call is made, or asynchronously, at any time thereafter.  If they
 are detected at call time,
 .Fn aio_read
 returns -1 and sets
-.Ar errno
+.Va errno
 appropriately; otherwise the
 .Fn aio_return
 function must be called, and will return -1, and
 .Fn aio_error
 must be called to determine the actual calue that would have been
 returned in
-.Ar errno .
+.Va errno .
 .Pp
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Ar iocb->aio_fildes
+.Fa iocb->aio_fildes
 is invalid.
 .It Bq Er EINVAL
 The offset
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 is not valid, the priority specified by
-.Ar iocb->aio_reqprio
+.Fa iocb->aio_reqprio
 is not a valid priority, or the number of bytes specified by
-.Ar iocb->aio_nbytes
+.Fa iocb->aio_nbytes
 is not valid.
 .It Bq Er EOVERFLOW
 The file is a regular file,
-.Ar iocb->aio_nbytes
+.Fa iocb->aio_nbytes
 is greater than zero, the starting offset in
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 is before the end of the file, but is at or beyond the
-.Ar iocb->aio_fildes
+.Fa iocb->aio_fildes
 offset maximum.
 .El
 .Pp
@@ -169,14 +169,14 @@ function is either one of the error returns from the
 call, or one of:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Ar iocb->aio_fildes
+.Fa iocb->aio_fildes
 is invalid for reading.
 .It Bq Er ECANCELED
 The request was explicitly cancelled via a call to
 .Fn aio_cancel .
 .It Bq Er EINVAL
 The offset
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 would be invalid.
 .El
 .Sh STANDARDS
@@ -196,7 +196,7 @@ manual page was written by
 .An Terry Lambert Aq terry@whistle.com .
 .Sh BUGS
 The value of
-.Ar iocb->aio_offset
+.Fa iocb->aio_offset
 is ignored.  Invalid information in 
-.Ar iocb->_aiocb_private
+.Fa iocb->_aiocb_private
 may confuse the kernel.

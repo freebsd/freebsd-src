@@ -343,15 +343,15 @@ returned and errno set.
 .Pp
 .Fn kevent
 returns the number of events placed in the
-.Ar eventlist ,
+.Fa eventlist ,
 up to the value given by
-.Ar nevents .
+.Fa nevents .
 If an error occurs while processing an element of the
-.Ar changelist
+.Fa changelist
 and there is enough room in the
-.Ar eventlist ,
+.Fa eventlist ,
 then the event will be placed in the
-.Ar eventlist
+.Fa eventlist
 with
 .Dv EV_ERROR
 set in
