@@ -44,32 +44,34 @@
  */
 
 #include <sys/param.h>
+#include <sys/bio.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
-#include <sys/kernel.h>
 #include <sys/stat.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/mount.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
-#include <sys/conf.h>
 
 #include <machine/limits.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
