@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.15 1997/04/17 11:17:29 kato Exp $
+ * $Id: null_vfsops.c,v 1.16 1997/04/17 11:24:57 kato Exp $
  */
 
 /*
@@ -149,8 +149,10 @@ nullfs_mount(mp, path, data, ndp, p)
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
 	if (lowerrootvp == VTONULL(mp->mnt_vnodecovered)->null_lowervp) {
-		error = EDEADLK;
-		return (error);
+#ifdef DIAGNOSTIC
+		printf("nullfs_mount: multi null mount?\n");
+#endif
+		return (EDEADLK);
 	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
@@ -293,7 +295,18 @@ nullfs_root(mp, vpp)
 	 */
 	vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	VREF(vp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (VOP_ISLOCKED(vp)) {
+		/*
+		 * XXX
+		 * Should we check type of node?
+		 */
+#ifdef DIAGNOSTIC
+		printf("nullfs_root: multi null mount?\n");
+#endif
+		vrele(vp);
+		return (EDEADLK);
+	} else
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	*vpp = vp;
 	return 0;
 }
