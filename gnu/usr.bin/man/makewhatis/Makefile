@@ -1,24 +1,15 @@
-.if exists(${.CURDIR}/obj)
-TARG=  ${.CURDIR}/obj/makewhatis
-.else
-TARG=  ${.CURDIR}/makewhatis
-.endif
+#       @(#)Makefile    5.6 (Berkeley) 6/23/90
 
-all:	${TARG}
+NOMAN=	noman
+CLEANFILES= makewhatis
 
-depend rcsfreeze tags all:
-	@echo -n
+beforeinstall: makewhatis
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	     ${.CURDIR}/makewhatis.sh ${DESTDIR}${BINDIR}/makewhatis
 
-cleandir: clean
-	cd ${.CURDIR}; rm -rf obj;
+.include <bsd.prog.mk>
 
-clean:
-	@rm -f ${TARG}
+makewhatis: makewhatis.sh
+	sed -e 's/%sections%/ "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL/' \
+	   ${.CURDIR}/makewhatis.sh > makewhatis
 
-install:
-	install -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
-
-${TARG}: ${.CURDIR}/makewhatis.sh
-	sed -e 's/%sections%/ "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL/' ${.CURDIR}/makewhatis.sh > ${TARG}
-
-.include "../Makefile.inc"
