@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.43 1996/09/05 18:05:06 bde Exp $
+#	$Id: bsd.lib.mk,v 1.44 1996/09/18 06:09:14 swallace Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -93,11 +93,11 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .m.po:
-	${CC} ${CFLAGS} -p -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} -fgnu-runtime -p -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .m.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} -fgnu-runtime -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
