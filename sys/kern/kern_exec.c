@@ -403,6 +403,8 @@ interpret:
 			mtx_unlock(&ktrace_mtx);
 		}
 #endif
+		/* Close any file descriptors 0..2 that reference procfs */
+		setugidsafety(td);
 		/* Make sure file descriptors 0..2 are in use.  */
 		error = fdcheckstd(td);
 		if (error != 0)
@@ -415,7 +417,6 @@ interpret:
 			change_euid(newcred, euip);
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
-		setugidsafety(td);
 		/*
 		 * Implement correct POSIX saved-id behavior.
 		 */
