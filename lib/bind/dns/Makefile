@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
-LIB_BIND_DIR=	${.CURDIR}/..
+LIB_BIND_REL=	..
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/lib/dns
 
 .include	"${LIB_BIND_DIR}/config.mk"
@@ -34,11 +35,12 @@ SRCS+=		acl.c adb.c byaddr.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c
 
 CFLAGS+=	-I${SRCDIR}/sec/dst/include -I${SRCDIR}/include -I${SRCDIR}
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/..
+CFLAGS+=	-I${.CURDIR}
 
 DPADD=		${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD=		${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
+.if defined(WANT_BIND_LIBS)
 DNSINCS=	${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/adb.h \
 		${SRCDIR}/include/dns/bit.h \
@@ -121,6 +123,7 @@ DSTINCS=	${SRCDIR}/sec/dst/include/dst/dst.h \
 DSTINCSDIR=	${INCLUDEDIR}/dst
 
 INCSGROUPS=	DNSINCS DSTINCS
+.endif
 
 .if defined(MAINTAINER_MODE)
 generate: ${.CURDIR}/dns/enumtype.h ${.CURDIR}/dns/enumclass.h \

@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
-LIB_BIND_DIR=	${.CURDIR}/..
+LIB_BIND_REL=	..
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/lib/isc
 
 .include	"${LIB_BIND_DIR}/config.mk"
@@ -35,11 +36,12 @@ SRCS+=		inet_pton.c \
 		symtab.c task.c taskpool.c timer.c version.c
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/pthreads/include
-CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR} -I${.CURDIR}/..
+CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR}
 
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
+.if defined(WANT_BIND_LIBS)
 INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/assertions.h \
 		${SRCDIR}/include/isc/base64.h \
@@ -120,5 +122,6 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		isc/platform.h
 
 INCSDIR=	${INCLUDEDIR}/isc
+.endif
 
 .include <bsd.lib.mk>

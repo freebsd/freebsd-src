@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
-LIB_BIND_DIR=	${.CURDIR}/..
+LIB_BIND_REL=	..
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/lib/isccc
 
 .include	"${LIB_BIND_DIR}/config.mk"
@@ -13,11 +14,12 @@ SRCS=		alist.c base64.c cc.c ccmsg.c \
 		lib.c \
 		result.c sexpr.c symtab.c version.c
 
-CFLAGS+=	-I${SRCDIR}/include -I${.CURDIR} -I${.CURDIR}/..
+CFLAGS+=	-I${SRCDIR}/include
 
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
+.if defined(WANT_BIND_LIBS)
 INCS=		${SRCDIR}/include/isccc/alist.h \
 		${SRCDIR}/include/isccc/base64.h \
 		${SRCDIR}/include/isccc/cc.h \
@@ -33,5 +35,6 @@ INCS=		${SRCDIR}/include/isccc/alist.h \
 		${SRCDIR}/include/isccc/version.h
 
 INCSDIR=	${INCLUDEDIR}/isccc
+.endif
 
 .include <bsd.lib.mk>
