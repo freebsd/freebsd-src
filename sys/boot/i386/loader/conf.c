@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: conf.c,v 1.2 1998/09/14 18:27:06 msmith Exp $
  */
 
 #include <stand.h>
@@ -43,7 +43,7 @@
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-    &biosdisk,
+/*    &biosdisk, 			XXX BTX */
     /* XXX network devices? */
     NULL
 };
@@ -65,7 +65,7 @@ struct fs_ops *file_system[] = {
 extern struct module_format	i386_aout;
 
 struct module_format *module_formats[] = {
-    &i386_aout,
+/*    &i386_aout,			XXX BTX */
     NULL
 };
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.2 1998/09/03 02:10:09 msmith Exp $
+ *	$Id: bootinfo.c,v 1.3 1998/09/14 18:27:05 msmith Exp $
  */
 
 #include <sys/reboot.h>
@@ -120,18 +120,18 @@ bi_copyenv(vm_offset_t addr)
     
     /* traverse the environment */
     for (ep = environ; ep != NULL; ep = ep->ev_next) {
-	vpbcopy(ep->ev_name, addr, strlen(ep->ev_name));
+	i386_copyin(ep->ev_name, addr, strlen(ep->ev_name));
 	addr += strlen(ep->ev_name);
-	vpbcopy("=", addr, 1);
+	i386_copyin("=", addr, 1);
 	addr++;
 	if (ep->ev_value != NULL) {
-	    vpbcopy(ep->ev_value, addr, strlen(ep->ev_value));
+	    i386_copyin(ep->ev_value, addr, strlen(ep->ev_value));
 	    addr += strlen(ep->ev_value);
 	}
-	vpbcopy("", addr, 1);
+	i386_copyin("", addr, 1);
 	addr++;
     }
-    vpbcopy("", addr, 1);
+    i386_copyin("", addr, 1);
     addr++;
 }
 
@@ -152,9 +152,9 @@ bi_copyenv(vm_offset_t addr)
  */
 #define MOD_STR(t, a, s) {				\
     u_int32_t ident = (t << 16) + strlen(s) + 1;	\
-    vpbcopy(&ident, a, sizeof(ident));			\
+    i386_copyin(&ident, a, sizeof(ident));		\
     a += sizeof(ident);					\
-    vpbcopy(s, a, strlen(s) + 1);			\
+    i386_copyin(s, a, strlen(s) + 1);			\
     a += strlen(s) + 1;					\
 }
 
@@ -163,9 +163,9 @@ bi_copyenv(vm_offset_t addr)
 
 #define MOD_VAR(t, a, s) {			\
     u_int32_t ident = (t << 16) + sizeof(s);	\
-    vpbcopy(&ident, a, sizeof(ident));		\
+    i386_copyin(&ident, a, sizeof(ident));	\
     a += sizeof(ident);				\
-    vpbcopy(&s, a, sizeof(s));			\
+    i386_copyin(&s, a, sizeof(s));		\
     a += sizeof(s);				\
 }
 
@@ -174,18 +174,18 @@ bi_copyenv(vm_offset_t addr)
 
 #define MOD_METADATA(a, mm) {							\
     u_int32_t ident = ((MODINFO_METADATA | mm->md_type) << 16) + mm->md_size;	\
-    vpbcopy(&ident, a, sizeof(ident));						\
+    i386_copyin(&ident, a, sizeof(ident));					\
     a += sizeof(ident);								\
-    vpbcopy(mm->md_data, a, mm->md_size);					\
+    i386_copyin(mm->md_data, a, mm->md_size);					\
     a += mm->md_size;								\
 }
 
-#define MOD_END(a) {			\
-    u_int32_t ident = 0;		\
-    vpbcopy(&ident, a, sizeof(ident));	\
-    a += sizeof(ident);			\
-    vpbcopy(&ident, a, sizeof(ident));	\
-    a += sizeof(ident);			\
+#define MOD_END(a) {				\
+    u_int32_t ident = 0;			\
+    i386_copyin(&ident, a, sizeof(ident));	\
+    a += sizeof(ident);				\
+    i386_copyin(&ident, a, sizeof(ident));	\
+    a += sizeof(ident);				\
 }
 
 vm_offset_t

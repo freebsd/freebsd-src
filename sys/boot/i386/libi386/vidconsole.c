@@ -26,24 +26,24 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id$
+ *	$Id: vidconsole.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <stand.h>
+#include <bootstrap.h>
+#include <btxv86.h>
+#include "libi386.h"
 
+#if KEYBOARD_PROBE
 #include <machine/cpufunc.h>
 
-#include "bootstrap.h"
-
-/* in vidconsole.S */
-extern void	vidputc(int c);
-extern int	kbdgetc(void);
-extern int	kbdiskey(void);
-
 static int	probe_keyboard(void);
+#endif
 static void	vidc_probe(struct console *cp);
 static int	vidc_init(int arg);
-static int	vidc_in(void);
+static void	vidc_putchar(int c);
+static int	vidc_getchar(void);
+static int	vidc_ischar(void);
 
 struct console vidconsole = {
     "vidconsole",
@@ -51,9 +51,9 @@ struct console vidconsole = {
     0,
     vidc_probe,
     vidc_init,
-    vidputc,
-    vidc_in,
-    kbdiskey
+    vidc_putchar,
+    vidc_getchar,
+    vidc_ischar
 };
 
 static void
@@ -61,11 +61,11 @@ vidc_probe(struct console *cp)
 {
     
     /* look for a keyboard */
-#if 0
-    if (probe_keyboard()) {
-#else
-    if (1) {
+#if KEYBOARD_PROBE
+    if (probe_keyboard())
 #endif
+    {
+	
 	cp->c_flags |= C_PRESENTIN;
     }
 
@@ -79,15 +79,41 @@ vidc_init(int arg)
     return(0);	/* XXX reinit? */
 }
 
-static int
-vidc_in(void)
+static void
+vidc_putchar(int c)
 {
-    if (kbdiskey()) {
-	return(kbdgetc());
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0xe00 | c;
+    v86.ebx = 0x7;
+    v86int();
+}
+
+static int
+vidc_getchar(void)
+{
+    if (vidc_ischar()) {
+	v86.ctl = 0;
+	v86.addr = 0x16;
+	v86.eax = 0x0;
+	v86int();
+	return(v86.eax);
     } else {
 	return(-1);
     }
 }
+
+static int
+vidc_ischar(void)
+{
+    v86.ctl = 0;
+    v86.addr = 0x16;
+    v86.eax = 0x100;
+    v86int();
+    return(v86.eax);
+}
+
+#if KEYBOARD_PROBE
 
 #define PROBE_MAXRETRY	5
 #define PROBE_MAXWAIT	400
@@ -197,3 +223,4 @@ probe_keyboard(void)
 
     return (1);
 }
+#endif /* KEYBOARD_PROBE */

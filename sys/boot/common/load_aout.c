@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
+ *	$Id: load_aout.c,v 1.3 1998/09/14 18:27:04 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -35,6 +35,7 @@
 #include <stand.h>
 #define _AOUT_INCLUDE_
 #include <nlist.h>
+#define FREEBSD_AOUT
 #include <link.h>
 
 #include "bootstrap.h"
