@@ -313,15 +313,15 @@ __objc_send_message_in_list (MethodList_t method_list, Class class, SEL op)
       Method_t mth = &method_list->method_list[i];
 
       if (mth->method_name && sel_eq (mth->method_name, op)
-	  && !hash_is_key_in_hash (__objc_load_methods, mth->method_name))
+	  && !hash_is_key_in_hash (__objc_load_methods, mth->method_imp))
 	{
-	  /* The method was found and wasn't previously executed. */
-	  (*mth->method_imp) ((id)class, mth->method_name);
-
 	  /* Add this method into the +load hash table */
 	  hash_add (&__objc_load_methods, mth->method_imp, mth->method_imp);
 
 	  DEBUG_PRINTF ("sending +load in class: %s\n", class->name);
+
+	  /* The method was found and wasn't previously executed. */
+	  (*mth->method_imp) ((id)class, mth->method_name);
 
 	  break;
 	}
@@ -599,9 +599,7 @@ __objc_exec_class (Module_t module)
 
   /* Scan the unclaimed category hash.  Attempt to attach any unclaimed
      categories to objects.  */
-  for (cell = &unclaimed_categories;
-       *cell;
-       ({ if (*cell) cell = &(*cell)->tail; }))
+  for (cell = &unclaimed_categories; *cell; )
     {
       Category_t category = (*cell)->head;
       Class class = objc_lookup_class (category->class_name);
@@ -630,6 +628,8 @@ __objc_exec_class (Module_t module)
              only done for root classes. */
           __objc_register_instance_methods_to_class(class);
 	}
+      else
+	cell = &(*cell)->tail;
     }
   
   if (unclaimed_proto_list && objc_lookup_class ("Protocol"))
