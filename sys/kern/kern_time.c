@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.15 1996/04/07 17:38:57 bde Exp $
+ * $Id: kern_time.c,v 1.16 1996/06/08 11:55:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -181,7 +181,7 @@ adjtime(p, uap, retval)
 	 * overshoot and start taking us away from the desired final time.
 	 */
 	ndelta = atv.tv_sec * 1000000 + atv.tv_usec;
-	if (ndelta > bigadj)
+	if (ndelta > bigadj || ndelta < -bigadj)
 		ntickdelta = 10 * tickadj;
 	else
 		ntickdelta = tickadj;
