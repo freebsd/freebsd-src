@@ -50,6 +50,8 @@
 #include <sys/mbuf.h>
 #include <sys/ctype.h>
 
+#include <machine/stdarg.h>
+
 #include <net/ethernet.h>
 
 #include <netinet/in.h>
@@ -117,6 +119,8 @@ static int	ng_parse_get_elem_pad(const struct ng_parse_type *type,
 
 /* Parsing helper functions */
 static int	ng_parse_skip_value(const char *s, int off, int *lenp);
+static int	ng_parse_append(char **cbufp, int *cbuflenp,
+			const char *fmt, ...);
 
 /* Poor man's virtual method calls */
 #define METHOD(t,m)	(ng_get_ ## m ## _method(t))
@@ -130,19 +134,6 @@ static ng_getAlign_t	*ng_get_getAlign_method(const struct ng_parse_type *t);
 
 #define ALIGNMENT(t)	(METHOD(t, getAlign) == NULL ? \
 				0 : INVOKE(t, getAlign)(t))
-
-/* For converting binary to string */
-#define NG_PARSE_APPEND(fmt, args...)				\
-		do {						\
-			int len;				\
-								\
-			len = snprintf((cbuf), (cbuflen),	\
-				fmt , ## args);			\
-			if (len >= (cbuflen))			\
-				return (ERANGE);		\
-			(cbuf) += len;				\
-			(cbuflen) -= len;			\
-		} while (0)
 
 /************************************************************************
 			PUBLIC FUNCTIONS
@@ -363,6 +354,7 @@ ng_int8_unparse(const struct ng_parse_type *type,
 {
 	const char *fmt;
 	int fval;
+	int error;
 	int8_t val;
 
 	bcopy(data + *off, &val, sizeof(int8_t));
@@ -385,7 +377,8 @@ ng_int8_unparse(const struct ng_parse_type *type,
 		return(0);
 #endif
 	}
-	NG_PARSE_APPEND(fmt, fval);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
+		return (error);
 	*off += sizeof(int8_t);
 	return (0);
 }
@@ -460,6 +453,7 @@ ng_int16_unparse(const struct ng_parse_type *type,
 {
 	const char *fmt;
 	int fval;
+	int error;
 	int16_t val;
 
 	bcopy(data + *off, &val, sizeof(int16_t));
@@ -482,7 +476,8 @@ ng_int16_unparse(const struct ng_parse_type *type,
 		return(0);
 #endif
 	}
-	NG_PARSE_APPEND(fmt, fval);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
+		return (error);
 	*off += sizeof(int16_t);
 	return (0);
 }
@@ -557,6 +552,7 @@ ng_int32_unparse(const struct ng_parse_type *type,
 {
 	const char *fmt;
 	long fval;
+	int error;
 	int32_t val;
 
 	bcopy(data + *off, &val, sizeof(int32_t));
@@ -579,7 +575,8 @@ ng_int32_unparse(const struct ng_parse_type *type,
 		return(0);
 #endif
 	}
-	NG_PARSE_APPEND(fmt, fval);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
+		return (error);
 	*off += sizeof(int32_t);
 	return (0);
 }
@@ -654,6 +651,7 @@ ng_int64_unparse(const struct ng_parse_type *type,
 	const char *fmt;
 	long long fval;
 	int64_t val;
+	int error;
 
 	bcopy(data + *off, &val, sizeof(int64_t));
 	switch ((intptr_t)type->info) {
@@ -675,7 +673,8 @@ ng_int64_unparse(const struct ng_parse_type *type,
 		return(0);
 #endif
 	}
-	NG_PARSE_APPEND(fmt, fval);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
+		return (error);
 	*off += sizeof(int64_t);
 	return (0);
 }
@@ -748,10 +747,14 @@ ng_string_unparse(const struct ng_parse_type *type,
 {
 	const char *const raw = (const char *)data + *off;
 	char *const s = ng_encode_string(raw, strlen(raw));
+	int error;
 
 	if (s == NULL)
 		return (ENOMEM);
-	NG_PARSE_APPEND("%s", s);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, "%s", s)) != 0) {
+		FREE(s, M_NETGRAPH_PARSE);
+		return (error);
+	}
 	*off += strlen(raw) + 1;
 	FREE(s, M_NETGRAPH_PARSE);
 	return (0);
@@ -913,10 +916,14 @@ ng_sizedstring_unparse(const struct ng_parse_type *type,
 	const char *const raw = (const char *)data + *off + 2;
 	const int slen = *((const u_int16_t *)(data + *off));
 	char *const s = ng_encode_string(raw, slen);
+	int error;
 
 	if (s == NULL)
 		return (ENOMEM);
-	NG_PARSE_APPEND("%s", s);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, "%s", s)) != 0) {
+		FREE(s, M_NETGRAPH_PARSE);
+		return (error);
+	}
 	FREE(s, M_NETGRAPH_PARSE);
 	*off += slen + 2;
 	return (0);
@@ -971,10 +978,13 @@ ng_ipaddr_unparse(const struct ng_parse_type *type,
 	const u_char *data, int *off, char *cbuf, int cbuflen)
 {
 	struct in_addr ip;
+	int error;
 
 	bcopy(data + *off, &ip, sizeof(ip));
-	NG_PARSE_APPEND("%d.%d.%d.%d", ((u_char *)&ip)[0],
-	    ((u_char *)&ip)[1], ((u_char *)&ip)[2], ((u_char *)&ip)[3]);
+	if ((error = ng_parse_append(&cbuf, &cbuflen, "%d.%d.%d.%d",
+	    ((u_char *)&ip)[0], ((u_char *)&ip)[1],
+	    ((u_char *)&ip)[2], ((u_char *)&ip)[3])) != 0)
+		return (error);
 	*off += sizeof(ip);
 	return (0);
 }
@@ -1382,7 +1392,9 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		return (ENOMEM);
 
 	/* Opening brace/bracket */
-	NG_PARSE_APPEND("%c", (ctype == CT_STRUCT) ? '{' : '[');
+	if ((error = ng_parse_append(&cbuf, &cbuflen, "%c",
+	    (ctype == CT_STRUCT) ? '{' : '[')) != 0)
+		goto fail;
 
 	/* Do each item */
 	for (index = 0; index < num; index++) {
@@ -1411,18 +1423,23 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		}
 
 		/* Print name= */
-		NG_PARSE_APPEND(" ");
+		if ((error = ng_parse_append(&cbuf, &cbuflen, " ")) != 0)
+			goto fail;
 		if (ctype != CT_STRUCT) {
 			if (index != nextIndex) {
 				nextIndex = index;
-				NG_PARSE_APPEND("%d=", index);
+				if ((error = ng_parse_append(&cbuf,
+				    &cbuflen, "%d=", index)) != 0)
+					goto fail;
 			}
 			nextIndex++;
 		} else {
 			const struct ng_parse_struct_field *const
 			    fields = type->info;
 
-			NG_PARSE_APPEND("%s=", fields[index].name);
+			if ((error = ng_parse_append(&cbuf,
+			    &cbuflen, "%s=", fields[index].name)) != 0)
+				goto fail;
 		}
 
 		/* Print value */
@@ -1438,9 +1455,15 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 	FREE(workBuf, M_NETGRAPH_PARSE);
 
 	/* Closing brace/bracket */
-	NG_PARSE_APPEND("%s%c",
-	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']');
+	if ((error = ng_parse_append(&cbuf, &cbuflen, "%s%c",
+	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']')) != 0)
+		goto fail;
 	return (0);
+
+fail:
+	/* Clean up after failure */
+	FREE(workBuf, M_NETGRAPH_PARSE);
+	return (error);
 }
 
 /*
@@ -1596,6 +1619,26 @@ ng_parse_get_elem_pad(const struct ng_parse_type *type,
 /************************************************************************
 			PARSING HELPER ROUTINES
  ************************************************************************/
+
+/*
+ * Append to a fixed length string buffer.
+ */
+static int
+ng_parse_append(char **cbufp, int *cbuflenp, const char *fmt, ...)
+{
+	va_list args;
+	int len;
+
+	va_start(args, fmt);
+	len = vsnprintf(*cbufp, *cbuflenp, fmt, args);
+	va_end(args);
+	if (len >= *cbuflenp)
+		return ERANGE;
+	*cbufp += len;
+	*cbuflenp -= len;
+
+	return (0);
+}
 
 /*
  * Skip over a value
