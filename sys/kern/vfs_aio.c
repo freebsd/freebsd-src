@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.43 1999/02/19 14:25:35 luoqi Exp $
+ * $Id: vfs_aio.c,v 1.44 1999/02/25 15:54:06 bde Exp $
  */
 
 /*
@@ -570,10 +570,10 @@ aio_process(struct aiocblist *aiocbe)
 	oublock_st = mycp->p_stats->p_ru.ru_oublock;
 	if (cb->aio_lio_opcode == LIO_READ) {
 		auio.uio_rw = UIO_READ;
-		error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred);
+		error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred, FOF_OFFSET);
 	} else {
 		auio.uio_rw = UIO_WRITE;
-		error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred);
+		error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred, FOF_OFFSET);
 	}
 	inblock_end = mycp->p_stats->p_ru.ru_inblock;
 	oublock_end = mycp->p_stats->p_ru.ru_oublock;
@@ -1709,7 +1709,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 	auio.uio_procp = p;
 
 	cnt = iocb.aio_nbytes;
-	error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred);
+	error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred, FOF_OFFSET);
 	if (error &&
 		(auio.uio_resid != cnt) &&
 		(error == ERESTART || error == EINTR || error == EWOULDBLOCK))
@@ -1775,7 +1775,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 	auio.uio_procp = p;
 
 	cnt = iocb.aio_nbytes;
-	error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred);
+	error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred, FOF_OFFSET);
 	if (error) {
 		if (auio.uio_resid != cnt) {
 			if (error == ERESTART || error == EINTR || error == EWOULDBLOCK)
