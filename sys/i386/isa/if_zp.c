@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.6.4.2 1996/02/28 16:22:43 nate Exp $
+ *	$Id: if_zp.c,v 1.6.4.3 1996/03/11 06:39:52 nate Exp $
  */
 /*-
  * TODO:
@@ -956,7 +956,7 @@ startagain:
 		  m->m_len / 4);
 	    if (m->m_len & 3)
 		outsb(BASE + EP_W1_TX_PIO_WR_1,
-		      mtod(m, caddr_t) + m->m_len / 4,
+		      mtod(m, caddr_t) + (m->m_len & (~3)),
 		      m->m_len & 3);
 	} else {
 #ifdef ZP_DEBUG
