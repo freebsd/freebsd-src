@@ -83,7 +83,7 @@ controller	ahc0		# AHA2940 and onboard AIC7xxx devices
 #controller	esp0
 controller	isp0		# Qlogic family
 controller	ncr0		# NCR/Symbios Logic
-#controller	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
+controller	sym0		# NCR/Symbios Logic (newer chipsets)
 
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
