@@ -532,17 +532,19 @@ run_rc_command()
 		eval _cmd=\$${rc_arg}_cmd _precmd=\$${rc_arg}_precmd \
 		    _postcmd=\$${rc_arg}_postcmd
 		if [ -n "$_cmd" ]; then
-			debug "run_rc_command: using XXX_cmd functions."
 					# if the precmd failed and force
 					# isn't set, exit
 					#
+			debug "run_rc_command: evaluating ${_precmd}()."
 			if ! eval $_precmd && [ -z "$rc_force" ]; then
 				return 1
 			fi
 
+			debug "run_rc_command: evaluating ${_cmd}()."
 			if ! eval $_cmd && [ -z "$rc_force" ]; then
 				return 1
 			fi
+			debug "run_rc_command: evaluating ${_postcmd}()."
 			eval $_postcmd
 			return 0
 		fi
@@ -600,6 +602,7 @@ run_rc_command()
 					# if the precmd failed and force
 					# isn't set, exit
 					#
+			debug "run_rc_command: evaluating ${_precmd}()."
 			if ! eval $_precmd && [ -z "$rc_force" ]; then
 				return 1
 			fi
@@ -632,6 +635,7 @@ $command $rc_flags $command_args"
 
 					# finally, run postcmd
 					#
+			debug "run_rc_command: evaluating ${_postcmd}()."
 			eval $_postcmd
 			;;
 
