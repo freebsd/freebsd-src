@@ -152,12 +152,11 @@ _http_new_chunk(struct httpio *io)
 	if (fetchDebug) {
 		io->total += io->chunksize;
 		if (io->chunksize == 0)
-			fprintf(stderr, "_http_fillbuf(): "
-			    "end of last chunk\n");
+			fprintf(stderr, "%s(): end of last chunk\n", __func__);
 		else
-			fprintf(stderr, "_http_fillbuf(): "
-			    "new chunk: %lu (%lu)\n",
-			    (unsigned long)io->chunksize, (unsigned long)io->total);
+			fprintf(stderr, "%s(): new chunk: %lu (%lu)\n",
+			    __func__, (unsigned long)io->chunksize,
+			    (unsigned long)io->total);
 	}
 #endif
 
