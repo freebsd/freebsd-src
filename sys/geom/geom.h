@@ -151,12 +151,10 @@ struct g_stat {
 		uint64_t	nmem;
 		uint64_t	nerr;
 		struct bintime	dt;
-	} ops[5];
+	} ops[3];
 #define G_STAT_IDX_READ		0
-#define G_STAT_IDX_WRITE	2
-#define G_STAT_IDX_DELETE	3
-#define G_STAT_IDX_GETATTR	4
-#define G_STAT_IDX_SETATTR	5
+#define G_STAT_IDX_WRITE	1
+#define G_STAT_IDX_DELETE	2
 };
 
 /*
@@ -173,8 +171,6 @@ struct g_consumer {
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
 	struct g_event		*event;
-
-	int			biocount;
 	int			spoiled;
 	struct g_stat		stat;
 };
