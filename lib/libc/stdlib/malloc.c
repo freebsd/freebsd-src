@@ -1081,8 +1081,6 @@ malloc(size_t size)
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
 	wrterror("out of memory.\n");
-    if (!r)
-	errno = ENOMEM;
     return (r);
 }
 
@@ -1135,8 +1133,6 @@ realloc(void *ptr, size_t size)
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
 	wrterror("out of memory.\n");
-    if (!r)
-	errno = ENOMEM;
     return (r);
 }
 
