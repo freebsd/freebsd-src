@@ -271,6 +271,9 @@ fddi_output(ifp, m, dst, rt0)
 		senderr(EAFNOSUPPORT);
 	}
 
+	/*
+	 * Add LLC header.
+	 */
 	if (type != 0) {
 		struct llc *l;
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
@@ -510,6 +513,7 @@ dropanyway:
 		m_freem(m);
 	return;
 }
+
 /*
  * Perform common duties while attaching to interface list
  */
@@ -534,7 +538,6 @@ fddi_ifattach(ifp)
 #ifdef IFF_NOTRAILERS
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
-	ifp->if_broadcastaddr = fddibroadcastaddr;
 	ifa = ifaddr_byindex(ifp->if_index);
 	if (ifa == NULL) {
 		printf("%s(): no lladdr for %s%d!\n", __FUNCTION__,
@@ -542,7 +545,6 @@ fddi_ifattach(ifp)
 		return;
 	}
 
-	ifa = ifaddr_byindex(ifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
