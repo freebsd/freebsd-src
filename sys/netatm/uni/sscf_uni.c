@@ -73,7 +73,7 @@ static int	sscf_uni_inst(struct stack_defn **, Atm_connvc *);
  * Local variables
  */
 
-static uma_zone_t	sscf_uni_zone;
+uma_zone_t	sscf_uni_zone;
 
 static struct stack_defn	sscf_uni_service = {
 	NULL,
