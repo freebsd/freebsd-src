@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.19 1998/09/05 14:13:06 phk Exp $
+# $Id: vnode_if.src,v 1.20 1999/03/27 03:08:07 eivind Exp $
 #
 
 #
@@ -485,8 +485,9 @@ vop_freeblks {
 };
 
 #
-# Needs work: no vp?
+#% bwrite	vp	L L L
 #
-#vop_bwrite {
-#	IN struct buf *bp;
-#};
+vop_bwrite {
+	IN struct vnode *vp;
+	IN struct buf *bp;
+};

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.200 1999/05/31 11:27:44 phk Exp $
+ * $Id: vfs_subr.c,v 1.201 1999/06/15 23:37:25 mckusick Exp $
  */
 
 /*
@@ -650,12 +650,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 					} else {
 						bremfree(bp);
 						bp->b_flags |= (B_BUSY | B_ASYNC);
-						VOP_BWRITE(bp);
+						VOP_BWRITE(bp->b_vp, bp);
 					}
 				} else {
 					bremfree(bp);
 					bp->b_flags |= B_BUSY;
-					(void) VOP_BWRITE(bp);
+					(void) VOP_BWRITE(bp->b_vp, bp);
 				}
 				break;
 			}
@@ -778,7 +778,7 @@ restartsync:
 					} else {
 						bp->b_flags &= ~B_ASYNC;
 					}
-					VOP_BWRITE(bp);
+					VOP_BWRITE(bp->b_vp, bp);
 				}
 				goto restartsync;
 			}
