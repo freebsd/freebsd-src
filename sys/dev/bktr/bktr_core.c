@@ -546,10 +546,10 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
-#include <pci/brktree_reg.h>
+#include <dev/bktr/bktr_reg.h>
 
 #if (NSMBUS > 0)
-#include <pci/bt848_i2c.h>
+#include <dev/bktr/bktr_i2c.h>
 #include <dev/smbus/smbconf.h>
 #include <dev/iicbus/iiconf.h>
 #include "smbus_if.h"

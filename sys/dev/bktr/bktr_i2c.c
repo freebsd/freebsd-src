@@ -55,9 +55,9 @@
 #include <pci/pcireg.h>
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
-#include <pci/brktree_reg.h>
+#include <dev/bktr/bktr_reg.h>
 
-#include <pci/bt848_i2c.h>
+#include <dev/bktr/bktr_i2c.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
