@@ -93,7 +93,7 @@ egetopt(int nargc, char * const *nargv, const char *ostr)
 		if ((eoptind >= nargc) ||
 		    ((*(place = nargv[eoptind]) != '-') && (*place != '+'))) {
 			place = emsg;
-			return (EOF);
+			return (-1);
 		}
 
 		delim = (int)*place;
@@ -103,7 +103,7 @@ egetopt(int nargc, char * const *nargv, const char *ostr)
 			 */
 			++eoptind;
 			place = emsg;
-			return (EOF);
+			return (-1);
 		}
 	}
 
@@ -114,10 +114,10 @@ egetopt(int nargc, char * const *nargv, const char *ostr)
 	    !(oli = strchr(ostr, eoptopt))) {
 		/*
 		 * if the user didn't specify '-' as an option,
-		 * assume it means EOF when by itself.
+		 * assume it means -1 when by itself.
 		 */
 		if ((eoptopt == (int)'-') && !*place)
-			return (EOF);
+			return (-1);
 		if (strchr(ostr, '#') && (isdigit(eoptopt) ||
 		    (((eoptopt == (int)'-') || (eoptopt == (int)'+')) &&
 		      isdigit(*place)))) {
