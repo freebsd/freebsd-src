@@ -95,7 +95,7 @@ time_t qtime;
  * bound is 10.  After every NQUESTS questions, statistics on the performance
  * so far are printed.
  */
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
