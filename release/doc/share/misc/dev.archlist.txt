@@ -67,6 +67,7 @@ ep	i386,pc98,amd64
 ex	i386,amd64
 fe	i386,pc98,amd64
 gem	sparc64
+gx	i386,pc98,alpha,amd64
 ida	i386
 ie	i386
 iir	i386,amd64
