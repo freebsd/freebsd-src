@@ -39,12 +39,15 @@
 .Dt RM 1
 .Os
 .Sh NAME
-.Nm rm
+.Nm rm ,
+.Nm unlink
 .Nd remove directory entries
 .Sh SYNOPSIS
 .Nm rm
 .Op Fl dfiPRrvW
 .Ar file ...
+.Nm unlink
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -115,6 +118,16 @@ It is an error to attempt to remove the files
 .Dq \&.
 or
 .Dq .. .
+.Pp
+When the utility is called as
+.Nm unlink ,
+only one argument,
+which must not be a directory,
+may be supplied.
+No options may be supplied in this simple mode of operation,
+which simply performs an
+.Xr unlink 2
+operation using the two passed arguments.
 .Pp
 The
 .Nm
@@ -198,3 +211,7 @@ A
 .Nm
 command appeared in
 .At v1 .
+The simplified
+.Nm unlink
+command conforms to
+.St -susv2 .
