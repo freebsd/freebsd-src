@@ -789,14 +789,6 @@ IVT_ENTRY(Reserved_7f00, 0x7f00)
 	TRAP(67)
 IVT_END(Reserved_7f00)
 
-	.section .data.vhpt,"aw"
-
-	.align	32768
-	.global ia64_vhpt
-	.size	ia64_vhpt, 32768
-ia64_vhpt:
-	.skip	32768
-
 	.text
 
 /*

@@ -77,21 +77,18 @@ kstack:	.space KSTACK_PAGES * PAGE_SIZE
  * register r8.
  */
 ENTRY(__start, 1)
+	mov	ar.rsc=0
 	movl	r16=ia64_vector_table	// set up IVT early
 	;;
 	mov	cr.iva=r16
-	movl	r16=ia64_vhpt+(1<<8)+(15<<2)+1	// and VHPT
-	;;
-	mov	cr.pta=r16
 	movl	r16=kstack
 	;;
 	srlz.i
 	;;
 	mov	r17=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
-	movl	gp=__gp			// find kernel globals
 	;;
 	add	sp=r16,r17		// proc0's stack
-	mov	ar.rsc=0		// turn off rse
+	movl	gp=__gp			// find kernel globals
 	;;
 	mov	ar.bspstore=r16		// switch backing store
 	movl	r16=pa_bootinfo
