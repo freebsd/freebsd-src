@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: ctm.FAQ,v 1.4 1995/03/01 05:41:14 phk Exp $
 #
 
 		Obtaining FreeBSD-current sources using CTM.
@@ -68,6 +68,15 @@ When you begin receiving your CTM updates in the mail, you may use the
 ctm_rmail program to unpack and apply them with.  You can actually use
 the ctm_rmail program directly from a entry in /etc/aliases if you
 want.  Check the "ctm_rmail" man page for more details.
+
+NOTE:
+-----
+
+No matter what method you use to get the CTM deltas, you should subscribe
+to the ctm-announce@freebsd.org mailing list.  In the future this will be
+the only place where announcements about the operation of the CTM system
+will be posted.  Send an email to majordomo@freebsd.org with a single
+line of "subscribe ctm-announce" to get added to the list.
 
 
 Starting off with CTM for the first time:
