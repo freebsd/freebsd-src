@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.16 1997/04/26 04:08:45 kato Exp $
+ *	$Id: identcpu.c,v 1.17 1997/04/26 11:45:07 peter Exp $
  */
 
 #include "opt_cpu.h"
@@ -87,7 +87,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 5x86",		CPUCLASS_486 },		/* CPU_M1SC */
 	{ "Cyrix 6x86",		CPUCLASS_486 },		/* CPU_M1 */
 	{ "Blue Lightning",	CPUCLASS_486 },		/* CPU_BLUE */
-	{ "Cyrix 6x86 MMX",	CPUCLASS_586 },		/* CPU_M2 (XXX) */
+	{ "Cyrix M2",		CPUCLASS_586 },		/* CPU_M2 */
 	{ "NexGen 586",		CPUCLASS_386 },		/* CPU_NX586 (XXX) */
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 };
@@ -264,7 +264,7 @@ printcpuinfo(void)
 			strcat(cpu_model, "Gx86");
 			break;
 		case 0x50:
-			strcat(cpu_model, "Enhanced 6x86 with MMX");
+			strcat(cpu_model, "M2");
 			break;
 		case 0xf0:
 			switch (cyrix_did & 0x0f) {
