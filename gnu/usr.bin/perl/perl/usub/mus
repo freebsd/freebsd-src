@@ -1,0 +1,135 @@
+#!/usr/bin/perl
+
+while (<>) {
+    if (s/^CASE\s+//) {
+	@fields = split;
+	$funcname = pop(@fields);
+	$rettype = "@fields";
+	@modes = ();
+	@types = ();
+	@names = ();
+	@outies = ();
+	@callnames = ();
+	$pre = "\n";
+	$post = '';
+
+	while (<>) {
+	    last unless /^[IO]+\s/;
+	    @fields = split(' ');
+	    push(@modes, shift(@fields));
+	    push(@names, pop(@fields));
+	    push(@types, "@fields");
+	}
+	while (s/^<\s//) {
+	    $pre .= "\t    $_";
+	    $_ = <>;
+	}
+	while (s/^>\s//) {
+	    $post .= "\t    $_";
+	    $_ = <>;
+	}
+	$items = @names;
+	$namelist = '$' . join(', $', @names);
+	$namelist = '' if $namelist eq '$';
+	print <<EOF;
+    case US_$funcname:
+	if (items != $items)
+	    fatal("Usage: &$funcname($namelist)");
+	else {
+EOF
+	if ($rettype eq 'void') {
+	    print <<EOF;
+	    int retval = 1;
+EOF
+	}
+	else {
+	    print <<EOF;
+	    $rettype retval;
+EOF
+	}
+	foreach $i (1..@names) {
+	    $mode = $modes[$i-1];
+	    $type = $types[$i-1];
+	    $name = $names[$i-1];
+	    if ($type =~ /^[A-Z]+\*$/) {
+		$cast = "*($type*)";
+	    }
+	    else {
+		$cast = "($type)";
+	    }
+	    $what = ($type =~ /^(struct\s+\w+|char|[A-Z]+)\s*\*$/ ? "get" : "gnum");
+	    $type .= "\t" if length($type) < 4;
+	    $cast .= "\t" if length($cast) < 8;
+	    $x = "\t" x (length($name) < 6);
+	    if ($mode =~ /O/) {
+		if ($what eq 'gnum') {
+		    push(@outies, "\t    str_numset(st[$i], (double) $name);\n");
+		    push(@callnames, "&$name");
+		}
+		else {
+		    push(@outies, "\t    str_set(st[$i], (char*) $name);\n");
+		    push(@callnames, "$name");
+		}
+	    }
+	    else {
+		push(@callnames, $name);
+	    }
+	    if ($mode =~ /I/) {
+	    print <<EOF;
+	    $type	$name =$x	$cast	str_$what(st[$i]);
+EOF
+	    }
+            elsif ($type =~ /char/) {
+            print <<EOF;
+	    char	${name}[133];
+EOF
+	    }
+	    else {
+		print <<EOF;
+	    $type	$name;
+EOF
+	    }
+	}
+	$callnames = join(', ', @callnames);
+	$outies = join("\n",@outies);
+	if ($rettype eq 'void') {
+	    print <<EOF;
+$pre	    (void)$funcname($callnames);
+EOF
+	}
+	else {
+	    print <<EOF;
+$pre	    retval = $funcname($callnames);
+EOF
+	}
+	if ($rettype =~ /^(struct\s+\w+|char)\s*\*$/) {
+	    print <<EOF;
+	    str_set(st[0], (char*) retval);
+EOF
+	}
+	elsif ($rettype =~ /^[A-Z]+\s*\*$/) {
+	    print <<EOF;
+	    str_nset(st[0], (char*) &retval, sizeof retval);
+EOF
+	}
+	else {
+	    print <<EOF;
+	    str_numset(st[0], (double) retval);
+EOF
+	}
+	print $outies if $outies;
+	print $post if $post;
+	if (/^END/) {
+	    print "\t}\n\treturn sp;\n";
+	}
+	else {
+	    redo;
+	}
+    }
+    elsif (/^END/) {
+	print "\t}\n\treturn sp;\n";
+    }
+    else {
+	print;
+    }
+}

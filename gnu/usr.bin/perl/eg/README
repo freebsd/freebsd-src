@@ -1,0 +1,22 @@
+Although supplied with the perl package, the perl scripts in this eg
+directory and its subdirectories are placed in the public domain, and
+you may do anything with them that you wish.
+
+This stuff is supplied on an as-is basis--little attempt has been made to make
+any of it portable.  It's mostly here to give you an idea of what perl code
+looks like, and what tricks and idioms are used.
+
+System administrators responsible for many computers will enjoy the items
+down in the g directory very much.  The scan directory contains the beginnings
+of a system to check on and report various kinds of anomalies.
+
+If you machine doesn't support #!, the first thing you'll want to do is
+replace the #! with a couple of lines that look like this:
+
+	eval "exec /usr/bin/perl -S $0 $*"
+		if $running_under_some_shell;
+
+being sure to include any flags that were on the #! line.  A supplied script
+called "nih" will translate perl scripts in place for you:
+
+	nih g/g??
