@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.45 1996/04/07 17:39:23 bde Exp $
+ * $Id: vm_glue.c,v 1.46 1996/04/08 03:42:01 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -394,6 +394,9 @@ faultin(p)
 		int error;
 
 		++p->p_lock;
+#if defined(SWAP_DEBUG)
+		printf("swapping in %d\n", p->p_pid);
+#endif
 
 		ptaddr = trunc_page((u_int) vtopte(kstack));
 		(void) vm_fault(map, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
@@ -562,11 +565,22 @@ retry:
 				(p->p_slptime <= 4))
 				continue;
 
+			vm_map_reference(&p->p_vmspace->vm_map);
+			/*
+			 * do not swapout a process that is waiting for VM
+			 * datastructures there is a possible deadlock.
+			 */
+			if (!lock_try_write(&p->p_vmspace->vm_map.lock)) {
+				vm_map_deallocate(&p->p_vmspace->vm_map);
+				continue;
+			}
+			vm_map_unlock(&p->p_vmspace->vm_map);
 			/*
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
 			swapout(p);
+			vm_map_deallocate(&p->p_vmspace->vm_map);
 			didswap++;
 			goto retry;
 		}
@@ -588,6 +602,9 @@ swapout(p)
 	vm_offset_t ptaddr;
 	int i;
 
+#if defined(SWAP_DEBUG)
+	printf("swapping out %d\n", p->p_pid);
+#endif
 	++p->p_stats->p_ru.ru_nswap;
 	/*
 	 * remember the process resident count
