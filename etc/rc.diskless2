@@ -34,11 +34,10 @@
 # as close as possible between 5-current and 4-stable.
 #   $1 = size
 #   $2 = mount point
-#   $3 = md unit number (ignored in pre 5.0 systems)
-#   $4 = (optional) bytes-per-inode
+#   $3 = (optional) bytes-per-inode
 mount_md() {
-	if [ -n "$4" ]; then
-		bpi="-i $4"
+	if [ -n "$3" ]; then
+		bpi="-i $3"
 	fi
 	/sbin/mount_mfs -s $1 -T qp120at -b 8192 -f 1024 $bpi dummy $2
 }
@@ -52,18 +51,37 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
-echo "+++ mfs_mount of /var"
-mount_md ${varsize:=65536} /var 1
+# If we do not have a writable /var, create a memory
+# filesystem for /var.  We don't have /usr yet so
+# use mkdir instead of touch to test.  We want mount
+# to record its mounts so we have to make sure /var/db
+# exists before doing the mount -a.
+#
+if (/bin/mkdir /var/.diskless 2> /dev/null); then
+	rmdir /var/.diskless
+else
+	echo "+++ mfs_mount of /var"
+	mount_md ${varsize:=65536} /var
+fi
 
-mount -a       # chown and chgrp are in /usr
+if [ ! -d /var/db ]; then
+	mkdir /var/db
+fi
 
+# Now we need the rest of our mounts, particularly /usr.
+#
+mount -a
+
+# Populate /var
+#
 echo "+++ populate /var using /etc/mtree/BSD.var.dist"
-/usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
+/usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var > /dev/null
+
 case ${sendmail_enable} in
 [Nn][Oo][Nn][Ee])
 	;;
 *)
-	/usr/sbin/mtree -deU -f /etc/mtree/BSD.sendmail.dist -p /
+	/usr/sbin/mtree -deU -f /etc/mtree/BSD.sendmail.dist -p / > /dev/null
 	;;
 esac
 
@@ -76,24 +94,44 @@ fi
 echo "+++ create lastlog"
 /usr/bin/touch /var/log/lastlog
 
+# Make sure our aliases database is uptodate, the aliases may have
+# been overriden in /conf.
+#
+/usr/bin/newaliases
+
 #
 # XXX make sure to create one dir for each printer as requested by lpd
 #
-
-# If /tmp is a symlink, assume it points to somewhere writable, like
-# /var/tmp, otherwise, use a small memory filesystem for /tmp.
-if [ ! -h /tmp ]; then
-	mount_md ${tmpsize:=20480} /tmp 2
+# If we do not have a writable /tmp, create a memory
+# filesystem for /tmp.  If /tmp is a symlink (e.g. to /var/tmp,
+# then it should already be writable).
+#
+if (/bin/mkdir /tmp/.diskless 2> /dev/null); then
+	rmdir /tmp/.diskless
+else
+	if [ -h /tmp ]; then
+		echo "*** /tmp is a symlink to a non-writable area!"
+		echo "dropping into shell, ^D to continue anyway."
+		/bin/sh
+	else
+		mount_md ${tmpsize:=20480} /tmp
+		chmod 01777 /tmp
+	fi
 fi
 
-# Extract a list of device entries, then copy them to a writable fs.
-# The list can be long, so if there is already a cpio archive prepared
-# for us, use that one instead.
+# If /dev has already been created in rc.diskless1 it will be writable
+# and we do nothing.  If /dev is not writable then we have to dup it as
+# a memory filesystem.
+#
+# note: /conf/dev.cpio.gz is no longer valid.  Use /conf/base/dev.cpio.gz
+# instead and it will be handled in rc.diskless1
 
-if [ -f /conf/dev.cpio.gz ] ; then
-	ln -s /conf/dev.cpio.gz /tmp/dev.cpio.gz
+if (/bin/mkdir /dev/.diskless 2> /dev/null); then
+	rmdir /dev/.diskless
 else
 	(cd /; find -x dev | cpio --create -H newc | gzip) > /tmp/dev.cpio.gz
+	mount_md 4096 /dev 512
+	(cd /; gzip -dc /tmp/dev.cpio.gz | cpio --extract -H newc -d )
+	rm -f /tmp/dev.cpio.gz
 fi
-mount_md 4096 /dev 3 512
-(cd /; gzip -dc /tmp/dev.cpio.gz | cpio --extract -H newc -d )
+
