@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.10 1996/10/01 23:44:03 jfieber Exp $
+#	$Id: bsd.sgml.mk,v 1.11 1996/10/06 21:55:18 wosch Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -55,7 +55,7 @@
 # If FORMATS is empty, nothing will be built or installed.
 # Use SGMLOPTS to pass extra flags to sgmlfmt(1).
 
-FORMATS?=	html ascii
+FORMATS?=	html latin1
 SGMLFLAGS+=	${SGMLOPTS}
 
 VOLUME?=	${.CURDIR:T}
