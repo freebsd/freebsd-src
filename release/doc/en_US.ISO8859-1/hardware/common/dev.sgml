@@ -1445,60 +1445,13 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Aironet 802.11b wireless adapters (&man.an.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Aironet 4500/4800 series
-	  (PCMCIA, PCI, and ISA adapters are all supported)</para>
-        </listitem>
-        <listitem>
-	  <para>Cisco Systems Aironet 340 and 350 series
-	  (PCMCIA, PCI, Mini-PCI, and ISA adapters are all supported)</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Wireless Ethernet adapter (rebadged Aironet)</para>
-	</listitem>
-      </itemizedlist>
+    <para arch="i386,pc98">Cisco/Aironet 802.11b wireless adapters (&man.an.4; driver)
     </para>
 
     <para arch="i386,pc98">Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Webgear Aviator</para>
-        </listitem>
-        <listitem>
-	  <para>Webgear Aviator Pro</para>
-        </listitem>
-        <listitem>
-	  <para>Raytheon Raylink PC Card</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">AMD Am79C930 and Harris (Intersil) based 802.11b cards (&man.awi.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>BayStack 650 and 660</para>
-	</listitem>
-        <listitem>
-	  <para>Farallon SkyLINE Wireless</para>
-	</listitem>
-        <listitem>
-	  <para>Icom SL-200</para>
-	</listitem>
-        <listitem>
-	  <para>MELCO WLI-PCM</para>
-	</listitem>
-        <listitem>
-	  <para>NEL SSMagic</para>
-	</listitem>
-        <listitem>
-	  <para>Netwave AirSurfer Plus and AirSurfer Pro</para>
-	</listitem>
-        <listitem>
-	  <para>ZoomAir 4000</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Atheros AR5210, AR5211, and AR5212-based
