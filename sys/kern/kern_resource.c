@@ -94,8 +94,6 @@ getpriority(td, uap)
 	int error = 0;
 	struct ksegrp *kg;
 
-	mtx_lock(&Giant);
-
 	switch (uap->which) {
 	case PRIO_PROCESS:
 		if (uap->who == 0)
@@ -168,7 +166,6 @@ getpriority(td, uap)
 	if (low == PRIO_MAX + 1 && error == 0)
 		error = ESRCH;
 	td->td_retval[0] = low;
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -191,8 +188,6 @@ setpriority(td, uap)
 	struct proc *curp = td->td_proc;
 	register struct proc *p;
 	int found = 0, error = 0;
-
-	mtx_lock(&Giant);
 
 	switch (uap->which) {
 	case PRIO_PROCESS:
@@ -260,7 +255,6 @@ setpriority(td, uap)
 	}
 	if (found == 0 && error == 0)
 		error = ESRCH;
-	mtx_unlock(&Giant);
 	return (error);
 }
 
