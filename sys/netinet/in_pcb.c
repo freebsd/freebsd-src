@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id$
+ *	$Id: in_pcb.c,v 1.27 1997/02/22 09:41:29 peter Exp $
  */
 
 #include <sys/param.h>
@@ -686,7 +686,7 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	/*
 	 * First look for an exact match.
 	 */
-	head = &pcbinfo->hashbase[(faddr.s_addr + lport + fport) % pcbinfo->hashsize];
+	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport, pcbinfo->hashmask)];
 	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
 		    inp->inp_fport == fport && inp->inp_lport == lport &&
@@ -696,7 +696,7 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	if (wildcard) {
 		struct inpcb *local_wild = NULL;
 
-		head = &pcbinfo->hashbase[(INADDR_ANY + lport) % pcbinfo->hashsize];
+		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
 		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
 			    inp->inp_fport == 0 && inp->inp_lport == lport) {
@@ -738,8 +738,8 @@ in_pcbinshash(inp)
 {
 	struct inpcbhead *head;
 
-	head = &inp->inp_pcbinfo->hashbase[(inp->inp_faddr.s_addr +
-		inp->inp_lport + inp->inp_fport) % inp->inp_pcbinfo->hashsize];
+	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
+		 inp->inp_lport, inp->inp_fport, inp->inp_pcbinfo->hashmask)];
 
 	LIST_INSERT_HEAD(head, inp, inp_hash);
 }
@@ -754,8 +754,8 @@ in_pcbrehash(inp)
 	s = splnet();
 	LIST_REMOVE(inp, inp_hash);
 
-	head = &inp->inp_pcbinfo->hashbase[(inp->inp_faddr.s_addr +
-		inp->inp_lport + inp->inp_fport) % inp->inp_pcbinfo->hashsize];
+	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
+		inp->inp_lport, inp->inp_fport, inp->inp_pcbinfo->hashmask)];
 
 	LIST_INSERT_HEAD(head, inp, inp_hash);
 	splx(s);
