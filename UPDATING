@@ -17,7 +17,8 @@ the common items quick how-tos, followed by entries for versions of
 	cd /usr/src/usr.sbin/mergemaster; make all install [clean]
 	Then use the new -C option to double-check your rc.conf settings.
 	You should also double-check settings in [defaults/]rc.conf,
-	syslog.conf, newsyslog.conf, and anything else important
+	syslog.conf, newsyslog.conf, inetd.conf, your inetd_enable
+	setting in rc.conf[.local]; and anything else important
 	to your system.
 
 20020411:
