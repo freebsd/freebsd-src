@@ -20,7 +20,7 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
-.if !defined(NOFORTH)
+.if !defined(NO_FORTH)
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386

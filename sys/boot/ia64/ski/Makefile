@@ -16,7 +16,7 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
 LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64
 
-.if !defined(NOFORTH)
+.if !defined(NO_FORTH)
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
 CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_ARCH}
