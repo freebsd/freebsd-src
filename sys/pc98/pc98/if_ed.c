@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.44 1998/03/30 12:10:02 kato Exp $
+ *	$Id: if_ed.c,v 1.45 1998/04/14 13:51:16 kato Exp $
  */
 
 /*
@@ -213,10 +213,10 @@ static void	ds_getmcaf	__P((struct ed_softc *, u_long *));
 
 static void	ed_get_packet	__P((struct ed_softc *, char *, /* u_short */ int, int));
 
-static void	ed_rint		__P((struct ed_softc *));
-static void	ed_xmit		__P((struct ed_softc *));
-static char *	ed_ring_copy	__P((struct ed_softc *, char *, char *,
-				  /* u_short */ int));
+static __inline void	ed_rint	__P((struct ed_softc *));
+static __inline void	ed_xmit	__P((struct ed_softc *));
+static __inline char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
+					  /* u_short */ int));
 static void	ed_hpp_set_physical_link __P((struct ed_softc *));
 static void	ed_hpp_readmem	__P((struct ed_softc *, int, unsigned char *,
 				    /* u_short */ int));
@@ -2738,7 +2738,7 @@ ed_init(xsc)
 /*
  * This routine actually starts the transmission on the interface
  */
-static inline void
+static __inline void
 ed_xmit(sc)
 	struct ed_softc *sc;
 {
@@ -2950,7 +2950,7 @@ outloop:
 /*
  * Ethernet interface receiver interrupt.
  */
-static inline void
+static __inline void
 ed_rint(sc)
 	struct ed_softc *sc;
 {
@@ -3413,7 +3413,7 @@ ed_ioctl(ifp, command, data)
  *	the ring buffer into a linear destination buffer. Takes into account
  *	ring-wrap.
  */
-static inline char *
+static __inline char *
 ed_ring_copy(sc, src, dst, amount)
 	struct ed_softc *sc;
 	char   *src;
