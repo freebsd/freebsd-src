@@ -36,9 +36,9 @@
 	.register	%g2, #ignore
 	.register	%g3, #ignore
 
-#if 0
-#define	IPI_WAIT(r1, r2, r3) \
-	ATOMIC_DEC_INT(r1, r2, r3) ; \
+#define	IPI_WAIT(r1, r2, r3, r4) \
+	lduw	[PCPU(CPUMASK)], r4 ;  \
+	ATOMIC_CLEAR_INT(r1, r2, r3, r4) ; \
 9:	lduw	[r1], r2 ; \
 	brnz,a,pn r2, 9b ; \
 	 nop
@@ -50,13 +50,21 @@
  * Trigger a softint at the desired level.
  */
 ENTRY(tl_ipi_level)
-	lduw	[%g5 + ILA_LEVEL], %g2
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "tl_ipi_level: cpuid=%d mid=%d d1=%#lx d2=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	lduw	[PCPU(CPUID)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	lduw	[PCPU(MID)], %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+	stx	%g4, [%g1 + KTR_PARM3]
+	stx	%g5, [%g1 + KTR_PARM4]
+9:
+#endif
 
 	mov	1, %g1
-	sllx	%g1, %g2, %g1
+	sllx	%g1, %g5, %g1
 	wr	%g1, 0, %asr20
-
-	IPI_WAIT(%g5, %g1, %g2)
 	retry
 END(tl_ipi_level)
 
@@ -113,7 +121,7 @@ ENTRY(tl_ipi_tlb_page_demap)
 	stxa	%g0, [%g2] ASI_IMMU_DEMAP
 	membar	#Sync
 
-2:	IPI_WAIT(%g5, %g1, %g2)
+2:	IPI_WAIT(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_page_demap)
 
@@ -156,7 +164,7 @@ ENTRY(tl_ipi_tlb_range_demap)
 	blt,a,pt %xcc, 1b
 	 nop
 
-	IPI_WAIT(%g5, %g1, %g2)
+	IPI_WAIT(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_range_demap)
 
@@ -179,6 +187,6 @@ ENTRY(tl_ipi_tlb_context_demap)
 	stxa	%g0, [%g1] ASI_IMMU_DEMAP
 	membar	#Sync
 
-	IPI_WAIT(%g5, %g1, %g2)
+	IPI_WAIT(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_context_demap)
