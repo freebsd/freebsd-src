@@ -325,6 +325,18 @@ ip_output(m0, opt, ro, flags, imo)
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
+		if (ip_mrouter && (flags & IP_FORWARDING) == 0) {
+			/*
+			 * XXX
+			 * delayed checksums are not currently
+			 * compatible with IP multicast routing
+			 */
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+				in_delayed_cksum(m);
+				m->m_pkthdr.csum_flags &=
+					~CSUM_DELAY_DATA;
+			}
+		}
 		IN_LOOKUP_MULTI(pkt_dst, ifp, inm);
 		if (inm != NULL &&
 		   (imo == NULL || imo->imo_multicast_loop)) {
