@@ -29,26 +29,30 @@
 .Os
 .Sh NAME
 .Nm puc
-.Nd PCI ``Universal'' Communications driver
+.Nd PCI
+.Dq Universal
+Communications driver
 .Sh SYNOPSIS
-.Cd device pci
-.Cd device puc
-.Cd device sio
-.Cd options PUC_FASTINTR
+.Cd "device pci"
+.Cd "device puc"
+.Cd "device sio"
+.Cd "options PUC_FASTINTR"
 .Sh DESCRIPTION
-This driver acts as a shim to connect pci serial ports to the
+This driver acts as a shim to connect PCI serial ports to the
 .Xr sio 4
 driver.
 .Pp
-The list of supported devices is in 
-.Em src/sys/dev/puc/pucdata.c.
+The list of supported devices is in
+.Pa sys/dev/puc/pucdata.c .
 Support for new cards should be added there.
 .Pp
-If the PUC_FASTINTR option is used the driver will try to use fast interrupts.
+If the
+.Dv PUC_FASTINTR
+option is used, the driver will try to use fast interrupts.
 This should lower the interrupt latency and should be used if the
 .Xr sio 4
 driver reports
-.Em silo overflow
+.Sy "silo overflow"
 errors.
 It cannot be used if the interrupt is shared.
 .Sh SEE ALSO
@@ -57,7 +61,7 @@ It cannot be used if the interrupt is shared.
 This driver took the idea from the
 .Nx
 .Xr puc 4
-driver and still use the same structure to describe cards to ease exchanging
+driver and still uses the same structure to describe cards, to ease exchanging
 card info.
 .Sh BUGS
 Only serial ports are supported through the
