@@ -36,9 +36,10 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mcount.c,v 1.9 1997/02/22 14:58:27 peter Exp $";
 #endif
 
+#ifndef __NETBSD_SYSCALLS
 #include <sys/param.h>
 #include <sys/gmon.h>
 #ifdef KERNEL
@@ -323,3 +324,5 @@ mexitcount(selfpc)
 	}
 }
 #endif /* GUPROF */
+
+#endif
