@@ -28,8 +28,17 @@
  */
 
 #include <i386/isa/sound/sound_config.h>
+#include <i386/include/md_var.h>
 
 #if defined(CONFIG_AUDIO) || defined(CONFIG_GUS)
+#ifdef ALLOW_POLL
+
+int
+DMAbuf_poll(int dev, struct fileinfo * file, int events, select_table * wait);
+#endif;
+
+static void
+reorganize_buffers(int dev, struct dma_buffparms * dmap);
 
 static int     *in_sleeper[MAX_AUDIO_DEV] = {NULL};
 static volatile struct snd_wait in_sleep_flag[MAX_AUDIO_DEV] = {{0}};
@@ -1379,7 +1388,7 @@ DMAbuf_reset_dma(int dev)
 {
 }
 
-#ifdef ALLOW_SELECT
+#ifdef ALLOW_POLL
 
 int
 DMAbuf_poll(int dev, struct fileinfo * file, int events, select_table * wait)
@@ -1500,7 +1509,7 @@ DMAbuf_select(int dev, struct fileinfo * file, int sel_type, select_table * wait
     return 0;
 }
 
-#endif				/* ALLOW_SELECT */
+#endif				/* ALLOW_POLL */
 #endif
 
 #else				/* CONFIG_AUDIO */

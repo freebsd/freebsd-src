@@ -93,7 +93,7 @@ typedef struct sound_os_info {
 #define PROCESS_ABORTING( f) (f.aborting || CURSIG(curproc))
 #define TIMED_OUT( f) (f.mode & WK_TIMEOUT)
 
-#ifdef ALLOW_SELECT
+#ifdef ALLOW_POLL
 typedef struct proc select_table;
 extern struct selinfo selinfo[];
 #endif

@@ -37,6 +37,11 @@
  */
 
 #define MAX_QUEUE_SIZE	4000
+int
+MIDIbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait);
+
+void
+drain_midi_queue(int dev);
 
 static int     *midi_sleeper[MAX_MIDI_DEV] = {NULL};
 static volatile struct snd_wait midi_sleep_flag[MAX_MIDI_DEV] = { {0}};
@@ -393,4 +398,32 @@ MIDIbuf_ioctl(int dev, struct fileinfo * file, u_int cmd, ioctl_arg arg)
 			return midi_devs[dev]->ioctl(dev, cmd, arg);
 		}
 }
+
+#ifdef ALLOW_POLL
+int
+MIDIbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait)
+{
+  int revents = 0;
+
+  dev = dev >> 4;
+
+  if (events & (POLLIN | POLLRDNORM))
+    if (!DATA_AVAIL (midi_in_buf[dev]))
+      selrecord(wait, &selinfo[dev]);
+    else
+      revents |= events & (POLLIN | POLLRDNORM);
+
+  if (events & (POLLOUT | POLLWRNORM))
+    if (SPACE_AVAIL (midi_out_buf[dev]))
+      selrecord(wait, &selinfo[dev]);
+    else
+      revents |= events & (POLLOUT | POLLWRNORM);
+
+  return revents;
+}
+
+#endif /* ALLOW_SELECT */
+
+
+
 #endif

@@ -67,6 +67,14 @@ static int      soundcard_configured = 0;
 static struct fileinfo files[SND_NDEVS];
 struct selinfo  selinfo[SND_NDEVS >> 4];
 
+int
+MIDIbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait);
+
+int
+audio_poll(int dev, struct fileinfo * file, int events, select_table * wait);
+
+int
+sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait);
 
 void sndintr    __P((int unit));
 int sndprobe    __P((struct isa_device *));
@@ -118,9 +126,8 @@ struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
 struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver = {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver = {sndprobe, sndattach, "mss"};
-
-/* XXX does this work ? lr 970714 */
-struct isa_driver sscapedriver = {sndprobe, sndattach, "ss_mss"};
+struct isa_driver sscapedriver = {sndprobe, sndattach, "sscape"};
+struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
 
 short ipri_to_irq(u_short ipri);
 
@@ -228,16 +235,16 @@ sndpoll(dev_t dev, int events, struct proc * p)
     dev = minor(dev);
 
     /* printf ("snd_select(dev=%d, rw=%d, pid=%d)\n", dev, rw, p->p_pid); */
-#ifdef ALLOW_SELECT
+#ifdef ALLOW_POLL
     switch (dev & 0x0f) {
-#ifdef EXCLUDE_SEQUENCER
+#ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
 	return sequencer_poll(dev, &files[dev], events, p);
 	break;
 #endif
 
-#ifdef EXCLUDE_MIDI
+#ifdef CONFIG_MIDI
     case SND_DEV_MIDIN:
 	return MIDIbuf_poll(dev, &files[dev], events, p);
 	break;
@@ -256,7 +263,7 @@ sndpoll(dev_t dev, int events, struct proc * p)
 	return 0;
     }
 
-#endif	/* ALLOW_SELECT */
+#endif	/* ALLOW_POLL */
     DEB(printf("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
 
     return 0 ;
@@ -307,12 +314,14 @@ driver_to_voxunit(struct isa_driver * driver)
 	return (SNDCARD_GUS16);
     else if (driver == &mssdriver)
 	return (SNDCARD_MSS);
+    else if (driver == &sscapedriver)
+	return(SNDCARD_SSCAPE);
+    else if (driver == &sscape_mssdriver)
+	return(SNDCARD_SSCAPE_MSS);
     else if (driver == &trixdriver)
 	return (SNDCARD_TRXPRO);
     else if (driver == &trixsbdriver)
 	return (SNDCARD_TRXPRO_SB);
-    else if (driver == &sscapedriver)
-	return (SNDCARD_SSCAPE_MSS);
     else
 	return (0);
 }
@@ -542,8 +551,7 @@ conf_printf(char *name, struct address_info * hw_config)
     if (!trace_init)
 	return;
 
-    printf("snd0: <%s> ", name);
-#if 0
+    printf("<%s> ", name);
     if (hw_config->io_base != -1 ) 
     printf("at 0x%03x", hw_config->io_base);
 
@@ -555,7 +563,7 @@ conf_printf(char *name, struct address_info * hw_config)
 	if (hw_config->dma2 != -1)
 	    printf(",%d", hw_config->dma2);
     }
-#endif
+
 
 }
 
@@ -565,10 +573,7 @@ conf_printf2(char *name, int base, int irq, int dma, int dma2)
     if (!trace_init)
 	return;
 
-    printf("snd0: <%s> ", name);
-#if 0
-    if (hw_config->io_base != -1 ) 
-    printf("at 0x%03x", hw_config->io_base);
+    printf("<%s> at 0x%03x", name, base);
 
     if (irq)
 	printf(" irq %d", irq);
@@ -578,7 +583,7 @@ conf_printf2(char *name, int base, int irq, int dma, int dma2)
 	if (dma2 != -1)
 	    printf(",%d", dma2);
     }
-#endif
+
 
 }
 
