@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.11 1995/01/14 10:24:48 bde Exp $
+ *	$Id: db_interface.c,v 1.12 1995/03/16 18:11:25 bde Exp $
  */
 
 /*
@@ -37,6 +37,8 @@
 
 #include <machine/md_var.h>
 #include <machine/segments.h>
+
+#include <machine/cons.h>	/* XXX: import cons_unavail */
 
 #include <ddb/ddb.h>
 
@@ -78,6 +80,10 @@ kdb_trap(type, code, regs)
 	if ((boothowto&RB_KDB) == 0)
 	    return(0);
 #endif
+
+	/* XXX: do not block forever while the console is in graphics mode */
+	if(cons_unavail)
+		return 0;
 
 	switch (type) {
 	    case T_BPTFLT:	/* breakpoint */
@@ -239,7 +245,11 @@ Debugger(msg)
 	const char *msg;
 {
 	static volatile u_char in_Debugger;
- 
+
+	/* XXX: do not block forever while the console is in graphics mode */
+	if(cons_unavail)
+		return;
+
 	if (!in_Debugger) {
 		in_Debugger = 1;
 		db_printf("Debugger(\"%s\")\n", msg);

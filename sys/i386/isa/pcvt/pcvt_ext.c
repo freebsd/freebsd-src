@@ -2427,8 +2427,19 @@ vgapage(int new_screen)
 				psignal(vsp->proc, vsp->smode.acqsig);
 		}
 		else
+		{	
 			/* we are committed */
 			vt_switch_pending = 0;
+#if PCVT_FREEBSD > 206
+			/*
+			 * XXX: If pcvt is acting as the systems console,
+			 * avoid panics going to the debugger while we are in
+			 * process mode.
+			 */
+			if(pcvt_is_console)
+				cons_unavail = 0;
+#endif
+		}
 	}
 	return 0;
 }
@@ -2498,6 +2509,15 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		vsp->proc = p;
 		vsp->pid = p->p_pid;
 
+#if PCVT_FREEBSD > 206
+		/*
+		 * XXX: If pcvt is acting as the systems console,
+		 * avoid panics going to the debugger while we are in
+		 * process mode.
+		 */
+		if(pcvt_is_console)
+			cons_unavail = (newmode.mode == VT_PROCESS);
+#endif
 		splx(opri);
 		return 0;
 
@@ -2564,9 +2584,16 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 							vsp->smode.acqsig);
 				}
 				else
+				{
 					/* we are committed */
 					vt_switch_pending = 0;
-				return 0;
+#if PCVT_FREEBSD > 206
+					/* XXX */
+					if(pcvt_is_console)
+						cons_unavail = 0;
+#endif
+					return 0;
+				}
 			}
 			break;
 			
@@ -2575,6 +2602,11 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			if(vsp->vt_status & VT_WAIT_ACK) {
 				vt_switch_pending = 0;
 				vsp->vt_status &= ~VT_WAIT_ACK;
+#if PCVT_FREEBSD > 206
+				/* XXX */
+				if(pcvt_is_console)
+					cons_unavail = 1;
+#endif
 				return 0;
 			}
 			break;

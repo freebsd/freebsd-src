@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.11 1995/03/16 18:12:40 bde Exp $
+ * $Id: subr_prf.c,v 1.12 1995/04/01 20:18:43 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <sys/tprintf.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <machine/cons.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -64,14 +65,14 @@
 #include <machine/kdbparam.h>
 #endif
 
+
 #define TOCONS	0x01
 #define TOTTY	0x02
 #define TOLOG	0x04
 
 struct	tty *constty;			/* pointer to console "window" tty */
 
-extern	cnputc();			/* standard console putc */
-int	(*v_putc)() = cnputc;		/* routine to putc on virtual console */
+void	(*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 
 void  logpri __P((int level));
 static void  putchar __P((int ch, int flags, struct tty *tp));
