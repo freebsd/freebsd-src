@@ -2123,10 +2123,10 @@ static void dc_tick(xsc)
 	if (sc->dc_flags & DC_REDUCED_MII_POLL) {
 		r = CSR_READ_4(sc, DC_ISR);
 		if (DC_IS_INTEL(sc)) {
-			if (r & DC_ISR_LINKFAIL) {
+			if (r & DC_ISR_LINKFAIL) 
 				sc->dc_link = 0;
+			if (sc->dc_link == 0)
 				mii_tick(mii);
-			}
 		} else {
 			if ((r & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT &&
 			    sc->dc_cdata.dc_tx_prod == 0)
