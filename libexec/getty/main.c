@@ -32,14 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "from: @(#)main.c	8.1 (Berkeley) 6/20/93";*/
-static char rcsid[] = "$Id: main.c,v 1.10.2.4 1997/06/03 13:01:44 davidn Exp $";
+#if 0
+static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -48,14 +51,12 @@ static char rcsid[] = "$Id: main.c,v 1.10.2.4 1997/06/03 13:01:44 davidn Exp $";
 #include <sys/resource.h>
 #include <sys/ttydefaults.h>
 #include <sys/utsname.h>
-#include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <time.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <libutil.h>
 #include <locale.h>
+#include <libutil.h>
+#include <signal.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -172,7 +173,7 @@ timeoverrun(signo)
 	int signo;
 {
 
-	syslog(LOG_ERR, "getty exiting due to excessive running time\n");
+	syslog(LOG_ERR, "getty exiting due to excessive running time");
 	exit(1);
 }
 

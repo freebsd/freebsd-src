@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
-.\"	$Id: gettytab.5,v 1.7.2.3 1996/12/31 05:50:26 msmith Exp $
+.\"	$Id: gettytab.5,v 1.7.2.4 1997/05/11 05:28:53 davidn Exp $
 .\" "
 .Dd April 19, 1994
 .Dt GETTYTAB 5
@@ -42,7 +42,7 @@
 .Nm gettytab
 .Sh DESCRIPTION
 The
-.Nm gettytab
+.Nm
 file
 is a simplified version of the
 .Xr termcap 5
@@ -51,7 +51,7 @@ used to describe terminal lines.
 The initial terminal login process
 .Xr getty 8
 accesses the
-.Nm gettytab
+.Nm
 file each time it starts, allowing simpler
 reconfiguration of terminal characteristics.
 Each entry in the data base
@@ -188,7 +188,8 @@ echo control chars as
 .It "Lo	str	C	the locale name used for \&%d in the banner message"
 .El
 .Pp
-The following capabilities are no longer supported by getty(8):
+The following capabilities are no longer supported by
+.Xr getty 8 Ns :
 .Bl -column Namexx /usr/bin/login Default
 .It "bd	num	0	backspace delay"
 .It "cb	bool	false	use crt backspace mode"
@@ -372,7 +373,7 @@ string is specified and a PPP link bringup sequence is recognized,
 getty will invoke the program referenced by the pp option.  This
 can be used to handle incoming PPP calls.
 .Pp
-.Nm getty
+.Nm Getty
 provides some basic intelligent modem handling by providing a chat
 script feature available via two capabilities:
 .Pp
@@ -385,7 +386,7 @@ Chat script to answer a call.
 .Pp
 A chat script is a set of expect/send string pairs.
 When a chat string starts,
-.Nm Getty
+.Nm getty
 will wait for the first string, and if it finds it, will send the
 second, and so on.
 Strings specified are separated by one or more tabs or spaces.
@@ -506,11 +507,11 @@ The
 capability is stupid.
 .Pp
 The
-.Xr termcap
+.Xr termcap 5
 format is horrid, something more rational should
 have been chosen.
 .Sh HISTORY
 The
-.Nm gettytab
+.Nm
 file format appeared in
 .Bx 4.2 .

@@ -32,24 +32,28 @@
  */
 
 #ifndef lint
-/*static char sccsid[] = "from: @(#)subr.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$Id: subr.c,v 1.6.2.3 1997/09/01 10:08:48 davidn Exp $";
+#if 0
+static char sccsid[] = "@(#)from: subr.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * Melbourne getty.
  */
 #define COMPAT_43
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/param.h>
-#include <syslog.h>
 #ifdef DEBUG
 #include <stdio.h>
 #endif
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <syslog.h>
 
 #include "gettytab.h"
 #include "pathnames.h"
@@ -802,8 +806,6 @@ portselector()
  * portselector. Selection is done by looking at how the character '\r'
  * is garbled at the different speeds.
  */
-#include <sys/time.h>
-
 const char *
 autobaud()
 {
