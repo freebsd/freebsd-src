@@ -137,6 +137,23 @@ IDTVEC(spuriousint)
 	ISR_VEC(6, apic_isr6)
 	ISR_VEC(7, apic_isr7)
 
+/*
+ * Local APIC periodic timer handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(timerint)
+	PUSH_FRAME
+
+	movq	lapic, %rdx
+	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
+
+	FAKE_MCOUNT(TF_EIP(%esp))
+
+	call	lapic_handle_timer
+	MEXITCOUNT
+	jmp	doreti
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
