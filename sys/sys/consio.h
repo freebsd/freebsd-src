@@ -116,6 +116,9 @@ typedef struct ssaver	ssaver_t;
 /* set the history (scroll back) buffer size (in lines) */
 #define CONS_HISTORY	_IOW('c', 9, int)
 
+/* clear the history (scroll back) buffer */
+#define CONS_CLRHIST	_IO('c', 10)
+
 /* mouse cursor ioctl */
 struct mouse_data {
 	int		x;
