@@ -79,7 +79,7 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 		sizeof(bdaddr_t), M_NOWAIT);
 	if (msg != NULL) {
 		bcopy(&l2cap->bdaddr, msg->data, sizeof(bdaddr_t));
-		NG_SEND_MSG_HOOK(error, node, msg, hook, NULL);
+		NG_SEND_MSG_HOOK(error, node, msg, hook, 0);
 	} else
 		error = ENOMEM;
 

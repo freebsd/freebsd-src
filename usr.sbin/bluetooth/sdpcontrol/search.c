@@ -76,7 +76,7 @@ print_service_class_id_list(uint8_t const *start, uint8_t const *end)
 
 	if (end - start < 2) {
 		fprintf(stderr, "Invalid Service Class ID List. " \
-				"Too short, len=%d\n", end - start);
+				"Too short, len=%zd\n", end - start);
 		return;
 	}
 
@@ -230,7 +230,7 @@ print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 		case SDP_DATA_UINT64:
 		case SDP_DATA_INT64:
 			SDP_GET64(value.uint64, start);
-			fprintf(stdout, "u/int64 %llu\n", value.uint64);
+			fprintf(stdout, "u/int64 %ju\n", value.uint64);
 			break;
 
 		case SDP_DATA_UINT128:
@@ -307,7 +307,7 @@ print_protocol_descriptor_list(uint8_t const *start, uint8_t const *end)
 
 	if (end - start < 2) {
 		fprintf(stderr, "Invalid Protocol Descriptor List. " \
-				"Too short, len=%d\n", end - start);
+				"Too short, len=%zd\n", end - start);
 		return;
 	}
 
@@ -381,7 +381,7 @@ print_bluetooth_profile_descriptor_list(uint8_t const *start, uint8_t const *end
 
 	if (end - start < 2) {
 		fprintf(stderr, "Invalid Bluetooth Profile Descriptor List. " \
-				"Too short, len=%d\n", end - start);
+				"Too short, len=%zd\n", end - start);
 		return;
 	}
 

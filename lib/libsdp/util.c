@@ -312,7 +312,7 @@ sdp_print(uint32_t level, uint8_t const *start, uint8_t const *end)
 			break;
 		case SDP_DATA_UINT64:
 			SDP_GET64(value.uint64, start);
-			printf("uint64 %llu\n", value.uint64);
+			printf("uint64 %ju\n", value.uint64);
 			break;
 
 		case SDP_DATA_UINT128:
@@ -342,7 +342,7 @@ sdp_print(uint32_t level, uint8_t const *start, uint8_t const *end)
 			break;
 		case SDP_DATA_INT64:
 			SDP_GET64(value.int64, start);
-			printf("int64 %lld\n", value.int64);
+			printf("int64 %ju\n", value.int64);
 			break;
 	
 		case SDP_DATA_UUID16:
