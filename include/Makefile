@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.45.2.5 1998/01/27 16:23:37 jdp Exp $
+#	$Id: Makefile,v 1.45.2.6 1998/01/28 13:35:09 jkh Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -76,7 +76,8 @@ installhdrs:
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
 		>> osreldate.h
 .endif
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 osreldate.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.OBJDIR}\osreldate.h \
 		${DESTDIR}/usr/include
 .for i in ${LFILES}
 	ln -sf sys/$i ${DESTDIR}/usr/include/$i
