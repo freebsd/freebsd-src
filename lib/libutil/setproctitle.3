@@ -27,17 +27,13 @@
 .Nm setproctitle
 .Nd set the process title for
 .Xr ps 1
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft void
 .Fn setproctitle "const char *fmt" "..."
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The
 .Fn setproctitle

@@ -31,18 +31,14 @@
 .Sh NAME
 .Nm login
 .Nd "log a new login record to the utmp and wtmp files"
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <utmp.h>
 .Fd #include <libutil.h>
 .Ft void
 .Fn login "struct utmp *ut"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The function
 .Fn login

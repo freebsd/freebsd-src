@@ -24,10 +24,12 @@
 .Dt LOGIN_CLASS 3
 .Sh NAME
 .Nm setclasscontext ,
-.Nm setusercontext ,
+.Nm setclassenvironment ,
 .Nm setclassresources ,
-.Nm setclassenvironment
+.Nm setusercontext
 .Nd functions for using the login class capabilities database.
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <login_cap.h>
@@ -39,12 +41,6 @@
 .Fn setclassresources "login_cap_t *lc"
 .Ft void
 .Fn setclassenvironment "login_cap_t *lc" "const struct passwd *pwd" "int paths"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 These functions provide a higher level interface to the login class
 database than those documented in
