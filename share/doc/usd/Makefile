@@ -12,7 +12,7 @@
 SUBDIR=	title contents 04.csh 07.mail 10.exref 11.vitut 12.vi 13.viref \
 	18.msdiffs 19.memacros 20.meref
 
-.if !defined(NOGAMES)
+.if exists(${.CURDIR}/../../../games) && !defined(NOGAMES)
 SUBDIR+=30.rogue 31.trek
 .endif
 
