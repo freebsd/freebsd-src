@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $Id: ufs_lookup.c,v 1.4 1995/07/29 11:43:23 bde Exp $
+ * $Id: ufs_lookup.c,v 1.5 1995/08/28 09:19:16 julian Exp $
  */
 
 #include <sys/param.h>
@@ -240,7 +240,7 @@ ufs_lookup(ap)
 		nchstats.ncs_2passes++;
 	}
 	prevoff = dp->i_offset;
-	endsearch = roundup(dp->i_size, DIRBLKSIZ);
+	endsearch = roundup2(dp->i_size, DIRBLKSIZ);
 	enduseful = 0;
 
 searchloop:
@@ -383,7 +383,7 @@ searchloop:
 		 * dp->i_offset + dp->i_count.
 		 */
 		if (slotstatus == NONE) {
-			dp->i_offset = roundup(dp->i_size, DIRBLKSIZ);
+			dp->i_offset = roundup2(dp->i_size, DIRBLKSIZ);
 			dp->i_count = 0;
 			enduseful = dp->i_offset;
 		} else {
@@ -392,7 +392,7 @@ searchloop:
 			if (enduseful < slotoffset + slotsize)
 				enduseful = slotoffset + slotsize;
 		}
-		dp->i_endoff = roundup(enduseful, DIRBLKSIZ);
+		dp->i_endoff = roundup2(enduseful, DIRBLKSIZ);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		/*
 		 * We return with the directory locked, so that
@@ -699,7 +699,7 @@ ufs_direnter(ip, dvp, cnp)
 			/* XXX should grow with balloc() */
 			panic("ufs_direnter: frag size");
 		else if (!error) {
-			dp->i_size = roundup(dp->i_size, DIRBLKSIZ);
+			dp->i_size = roundup2(dp->i_size, DIRBLKSIZ);
 			dp->i_flag |= IN_CHANGE;
 		}
 		return (error);
