@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.34 1995/04/14 01:35:59 wpaul Exp $
+ *	$Id: boot.c,v 1.35 1995/04/14 21:26:48 joerg Exp $
  */
 
 
@@ -77,12 +77,12 @@ boot(int drive)
 	if (probe_keyboard()) {
 		init_serial();
 		loadflags |= RB_SERIAL;
-		printf("\nNo keyboard found.\n");
+		printf("\nNo keyboard found.");
 	}
 #else
 	init_serial();
 	loadflags |= RB_SERIAL;
-	printf("\nSerial console forced.\n");
+	printf("\nSerial console forced.");
 #endif
 
 	/* Pick up the story from the Bios on geometry of disks */
@@ -141,9 +141,6 @@ loadprog(int howto)
 	long int bootdev;
 	int i;
 	unsigned pad;
-#ifdef REDUNDANT
-	unsigned char	tmpbuf[4096]; /* we need to load the first 4k here */
-#endif
 
 	read((void *)&head, sizeof(head));
 	if ( N_BADMAG(head)) {
@@ -168,41 +165,22 @@ loadprog(int howto)
 			, 'a'+part
 			, name
 			, addr);
-/*
- * With the current scheme of things, addr can never be less than ouraddr,
- * so this next bit of code is largely irrelevant. Taking it out saves lots
- * of space.
- */
-#ifdef REDUNDANT 
-	if(addr < ouraddr)
+	if(addr < 0x00100000)
 	{
-		if((addr + head.a_text + head.a_data) > ouraddr)
-		{
-			printf("kernel overlaps loader\n");
-			return;
-		}
-		if((addr + head.a_text + head.a_data + head.a_bss) > 0xa0000)
-		{
-			printf("bss exceeds 640k limit\n");
-			return;
-		}
+		/*
+		 * Bail out, instead of risking to damage the BIOS
+		 * variables, the loader, or the adapter memory area.
+		 * We don't support loading below 1 MB any more.
+		 */
+		printf("Start address too low\n");
+		return;
 	}
-#endif
 	printf("text=0x%x ", head.a_text);
 	/********************************************************/
 	/* LOAD THE TEXT SEGMENT				*/
-#ifdef REDUNDANT
-	/* don't clobber the first 4k yet (BIOS NEEDS IT) 	*/
 	/********************************************************/
-	read(tmpbuf,4096);
-	addr += 4096; 
-	xread(addr, head.a_text - 4096);
-	addr += head.a_text - 4096;
-#else
-	/* Assume we're loading high, so that the BIOS isn't in the way. */
 	xread((void *)addr, head.a_text);
 	addr += head.a_text;
-#endif
 
 	/********************************************************/
 	/* Load the Initialised data after the text		*/
@@ -221,23 +199,11 @@ loadprog(int howto)
 	printf("bss=0x%x ", head.a_bss);
 
 /*
- * This doesn't do us any good anymore either.
- * XXX however, we should be checking that we don't load over the top of
- * ourselves or into nonexistent memory.  A full symbol table is unlikely
- * to fit on 4MB machines.
+ * XXX however, we should be checking that we don't load ... into
+ * nonexistent memory.  A full symbol table is unlikely to fit on 4MB
+ * machines.
  */
-#ifdef REDUNDANT
-	if( (addr < ouraddr) && ((addr + head.a_bss) > ouraddr))
-	{
-		pbzero(addr,ouraddr - (int)addr);
-	}
-	else
-	{
-		pbzero(addr,head.a_bss);
-	}
-#else
 	pbzero((void *)addr,head.a_bss);
-#endif
 	addr += head.a_bss;
 
 	/* Pad to a page boundary. */
@@ -284,15 +250,6 @@ loadprog(int howto)
 	 * and controller bitfields to hold the slice number.
 	 */
 	bootdev = MAKEBOOTDEV(maj, (slice >> 4), slice & 0xf, unit, part);
-
-#ifdef REDUNDANT
-	/****************************************************************/
-	/* copy that first page and overwrite any BIOS variables	*/
-	/****************************************************************/
-	/* Under no circumstances overwrite precious BIOS variables! */
-	pcpy(tmpbuf, startaddr, 0x400);
-	pcpy(tmpbuf + 0x500, startaddr + 0x500, 4096 - 0x500);
-#endif
 
 	bootinfo.bi_version = BOOTINFO_VERSION;
 	bootinfo.bi_kernelname = name + ouraddr;
