@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.12 1996/08/04 20:13:07 phk Exp $
+ * $Id: kern_ktrace.c,v 1.13 1996/09/19 19:48:33 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -357,7 +357,6 @@ utrace(curp, uap, retval)
 	int *retval;
 {
 #ifdef KTRACE
-	register struct ktr_user *ktp;
 	struct ktr_header *kth;
 	struct proc *p = curproc;	/* XXX */
 	register caddr_t cp;
@@ -366,17 +365,14 @@ utrace(curp, uap, retval)
 		return (0);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_USER);
-	MALLOC(ktp, struct ktr_user *, sizeof(struct ktr_user) + uap->len,
-		M_KTRACE, M_WAITOK);
-	ktp->len = uap->len;
-	cp = (caddr_t)((char *)ktp + sizeof (struct ktr_user));
+	MALLOC(cp, caddr_t, uap->len, M_KTRACE, M_WAITOK);
 	if (!copyin(uap->addr, cp, uap->len)) {
-		kth->ktr_buf = (caddr_t)ktp;
-		kth->ktr_len = sizeof (struct ktr_user) + uap->len;
+		kth->ktr_buf = cp;
+		kth->ktr_len = uap->len;
 		ktrwrite(p->p_tracep, kth);
 	}
 	FREE(kth, M_KTRACE);
-	FREE(ktp, M_KTRACE);
+	FREE(cp, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 
 	return (0);
