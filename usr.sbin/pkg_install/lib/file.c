@@ -225,7 +225,7 @@ fileGetURL(const char *base, const char *spec)
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
 	/* XXX: need to handle .tgz also */
-	execl("/usr/bin/tar", "tar", Verbose ? "-xjvf" : "-xzf", "-",
+	execl("/usr/bin/tar", "tar", Verbose ? "-xjvf" : "-xjf", "-",
 	    (char *)0);
 	_exit(2);
     }
