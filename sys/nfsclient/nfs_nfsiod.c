@@ -83,13 +83,74 @@ static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
 SYSCTL_DECL(_vfs_nfs);
 
+/* Maximum number of seconds a nfsiod kthread will sleep before exiting */
+static unsigned int nfs_iodmaxidle = 120;
+SYSCTL_UINT(_vfs_nfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0, "");
+
+/* Maximum number of nfsiod kthreads */
+static unsigned int nfs_iodmax = 20;
+
 /* Minimum number of nfsiod kthreads to keep as spares */
 static unsigned int nfs_iodmin = 4;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, iodmin, CTLFLAG_RW, &nfs_iodmin, 0, "");
 
-/* Maximum number of seconds a nfsiod kthread will sleep before exiting */
-static int nfs_iodmaxidle = 120;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0, "");
+static int
+sysctl_iodmin(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+	int newmin;
+
+	newmin = nfs_iodmin;
+	error = sysctl_handle_int(oidp, &newmin, 0, req);
+	if (error || (req->newptr == NULL))
+		return (error);
+	if (newmin > nfs_iodmax)
+		return (EINVAL);
+	nfs_iodmin = newmin;
+	if (nfs_numasync >= nfs_iodmin)
+		return (0);
+	/*
+	 * If the current number of nfsiod is lower
+	 * than the new minimum, create some more.
+	 */
+	for (i = nfs_iodmin - nfs_numasync; i > 0; i--)
+		nfs_nfsiodnew();
+	return (0);
+}
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
+    sizeof (nfs_iodmin), sysctl_iodmin, "IU", "");
+
+
+static int
+sysctl_iodmax(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+	int iod, newmax;
+
+	newmax = nfs_iodmax;
+	error = sysctl_handle_int(oidp, &newmax, 0, req);
+	if (error || (req->newptr == NULL))
+		return (error);
+	if (newmax > NFS_MAXASYNCDAEMON)
+		return (EINVAL);
+	nfs_iodmax = newmax;
+	if (nfs_numasync <= nfs_iodmax)
+		return (0);
+	/*
+	 * If there are some asleep nfsiods that should
+	 * exit, wakeup() them so that they check nfs_iodmax
+	 * and exit.  Those who are active will exit as
+	 * soon as they finish I/O.
+	 */
+	iod = nfs_numasync - 1;
+	for (i = 0; i < nfs_numasync - nfs_iodmax; i++) {
+		if (nfs_iodwant[iod])
+			wakeup((caddr_t)&nfs_iodwant[iod]);
+		iod--;
+	}
+	return (0);
+}
+SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
+    sizeof (nfs_iodmax), sysctl_iodmax, "IU", "");
 
 int
 nfs_nfsiodnew(void)
@@ -97,8 +158,10 @@ nfs_nfsiodnew(void)
 	int error, i;
 	int newiod;
 
+	if (nfs_numasync >= nfs_iodmax)
+		return (-1);
 	newiod = -1;
-	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
+	for (i = 0; i < nfs_iodmax; i++)
 		if (nfs_asyncdaemon[i] == 0) {
 			nfs_asyncdaemon[i]++;
 			newiod = i;
@@ -163,9 +226,6 @@ nfssvc_iod(void *instance)
 	int error = 0;
 
 	mtx_lock(&Giant);
-	/*
-	 * Assign my position or return error if too many already running
-	 */
 	myiod = (int *)instance - nfs_asyncdaemon;
 	/*
 	 * Main loop
@@ -174,6 +234,8 @@ nfssvc_iod(void *instance)
 	    while (((nmp = nfs_iodmount[myiod]) == NULL
 		   || !TAILQ_FIRST(&nmp->nm_bufq))
 		   && error == 0) {
+		if (myiod >= nfs_iodmax)
+			goto finish;
 		if (nmp)
 			nmp->nm_bufqiods--;
 		nfs_iodwant[myiod] = curthread->td_proc;
@@ -213,13 +275,14 @@ nfssvc_iod(void *instance)
 		}
 	    }
 	}
+finish:
 	nfs_asyncdaemon[myiod] = 0;
 	if (nmp)
 	    nmp->nm_bufqiods--;
 	nfs_iodwant[myiod] = NULL;
 	nfs_iodmount[myiod] = NULL;
 	nfs_numasync--;
-	if (error == EWOULDBLOCK)
+	if ((error == 0) || (error == EWOULDBLOCK))
 		kthread_exit(0);
 	/* Abnormal termination */
 	kthread_exit(1);

@@ -1143,7 +1143,7 @@ again:
 	/*
 	 * Find a free iod to process this request.
 	 */
-	for (iod = 0; iod < NFS_MAXASYNCDAEMON; iod++)
+	for (iod = 0; iod < nfs_numasync; iod++)
 		if (nfs_iodwant[iod]) {
 			gotiod = TRUE;
 			break;
@@ -1156,6 +1156,19 @@ again:
 		iod = nfs_nfsiodnew();
 		if (iod != -1)
 			gotiod = TRUE;
+	}
+
+	if (gotiod) {
+		/*
+		 * Found one, so wake it up and tell it which
+		 * mount to process.
+		 */
+		NFS_DPF(ASYNCIO, ("nfs_asyncio: waking iod %d for mount %p\n",
+		    iod, nmp));
+		nfs_iodwant[iod] = (struct proc *)0;
+		nfs_iodmount[iod] = nmp;
+		nmp->nm_bufqiods++;
+		wakeup((caddr_t)&nfs_iodwant[iod]);
 	}
 
 	/*
@@ -1176,17 +1189,6 @@ again:
 	 * the buffer.
 	 */
 	if (gotiod) {
-		/*
-		 * Found one, so wake it up and tell it which
-		 * mount to process.
-		 */
-		NFS_DPF(ASYNCIO, ("nfs_asyncio: waking iod %d for mount %p\n",
-		    iod, nmp));
-		nfs_iodwant[iod] = (struct proc *)0;
-		nfs_iodmount[iod] = nmp;
-		nmp->nm_bufqiods++;
-		wakeup((caddr_t)&nfs_iodwant[iod]);
-
 		/*
 		 * Ensure that the queue never grows too large.  We still want
 		 * to asynchronize so we block rather then return EIO.
