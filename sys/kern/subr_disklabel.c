@@ -89,7 +89,7 @@ bioqdisksort(bioq, bp)
 	
 	if (td && td->td_ksegrp->kg_nice > 0) {
 		TAILQ_FOREACH(bn, &bioq->queue, bio_queue)
-			if (BIOTOBUF(bn)->b_vp != BIOTOBUF(bn)->b_vp)
+			if (BIOTOBUF(bp)->b_vp != BIOTOBUF(bn)->b_vp)
 				break;
 		if (bn != NULL) {
 			mtx_lock(&dksort_mtx);
