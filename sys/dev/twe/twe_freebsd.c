@@ -1014,8 +1014,10 @@ twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int err
 	}
     }
 
-    if (twe_start(tr) == EBUSY)
+    if (twe_start(tr) == EBUSY) {
+	tr->tr_sc->twe_state |= TWE_STATE_CTLR_BUSY;
 	twe_requeue_ready(tr);
+    }
 }
 
 static void
@@ -1037,8 +1039,10 @@ twe_map_request(struct twe_request *tr)
 
     debug_called(4);
 
-    if (sc->twe_state & TWE_STATE_FRZN)
+    if (sc->twe_state & (TWE_STATE_CTLR_BUSY | TWE_STATE_FRZN)) {
+	twe_requeue_ready(tr);
 	return (EBUSY);
+    }
 
     bus_dmamap_sync(sc->twe_cmd_dmat, sc->twe_cmdmap, BUS_DMASYNC_PREWRITE);
 
@@ -1079,8 +1083,8 @@ twe_map_request(struct twe_request *tr)
 	}
     } else
 	if ((error = twe_start(tr)) == EBUSY) {
+	    sc->twe_state |= TWE_STATE_CTLR_BUSY;
 	    twe_requeue_ready(tr);
-	    error = 0;
 	}
 
     return(error);
