@@ -142,7 +142,7 @@ bridge_stats() {
 		LINKNUM=`expr ${LINKNUM} + 1`
 	done
 	if [ "${LOCAL_IFACE}" != "" ]; then
-		echo "Local host interface ${ETHER}:"
+		echo "Local host interface ${LOCAL_IFACE}:"
 		bridge_linkstats ${LINKNUM}
 	fi
 }
