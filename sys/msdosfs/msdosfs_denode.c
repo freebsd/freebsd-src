@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.36 1998/05/17 11:53:06 phk Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.37 1998/05/17 18:00:45 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -274,7 +274,6 @@ deget(pmp, dirclust, diroffset, depp)
 	msdosfs_hashins(ldep);
 
 	ldep->de_pmp = pmp;
-	ldep->de_devvp = pmp->pm_devvp;
 	ldep->de_refcnt = 1;
 	/*
 	 * Copy the directory entry into the denode area of the vnode.
@@ -315,8 +314,18 @@ deget(pmp, dirclust, diroffset, depp)
 		/* leave the other fields as garbage */
 	} else {
 		error = readep(pmp, dirclust, diroffset, &bp, &direntptr);
-		if (error)
+		if (error) {
+			/*
+			 * The denode does not contain anything useful, so
+			 * it would be wrong to leave it on its hash chain.
+			 * Arrange for vput() to just forget about it.
+			 */
+			ldep->de_Name[0] = SLOT_DELETED;
+
+			vput(nvp);
+			*depp = NULL;
 			return (error);
+		}
 		DE_INTERNALIZE(ldep, direntptr);
 		brelse(bp);
 	}
@@ -348,6 +357,7 @@ deget(pmp, dirclust, diroffset, depp)
 	getmicrouptime(&tv);
 	SETHIGH(ldep->de_modrev, tv.tv_sec);
 	SETLOW(ldep->de_modrev, tv.tv_usec * 4294);
+	ldep->de_devvp = pmp->pm_devvp;
 	VREF(ldep->de_devvp);
 	*depp = ldep;
 	return (0);
