@@ -29,10 +29,47 @@
 #ifndef	_MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
-struct	clockframe {
-};
+#define	SPOFF	2047
 
 struct	trapframe {
+	u_long	tf_global[8];
+	u_long	tf_out[8];
+	u_long	tf_tnpc;
+	u_long	tf_tpc;
+	u_long	tf_tstate;
+	u_long	tf_type;
+	void	*tf_arg;
 };
+#define	tf_sp	tf_out[6]
+
+struct	mmuframe {
+	u_long	mf_sfar;
+	u_long	mf_sfsr;
+	u_long	mf_tar;
+};
+
+struct	kdbframe {
+	u_long	kf_fp;
+	u_long	kf_cfp;
+	u_long	kf_canrestore;
+	u_long	kf_cansave;
+	u_long	kf_cleanwin;
+	u_long	kf_cwp;
+	u_long	kf_otherwin;
+};
+
+struct	clockframe {
+	struct	trapframe cf_tf;
+};
+
+struct	frame {
+	u_long	f_local[8];
+	u_long	f_in[8];
+	u_long	f_pad[8];
+};
+#define	f_fp	f_in[6]
+#define	f_pc	f_in[7]
+
+int	kdb_trap(struct trapframe *tf);
 
 #endif /* !_MACHINE_FRAME_H_ */

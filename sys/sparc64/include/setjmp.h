@@ -26,51 +26,30 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#ifndef	_MACHINE_SETJMP_H_
+#define	_MACHINE_SETJMP_H_
 
-#include <machine/frame.h>
-#include <machine/trap.h>
+#define	_JBLEN	3
 
-#define	BYTE_MSF	(1)
+#define	_JB_FP	0
+#define	_JB_PC	1
+#define	_JB_SP	2
 
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
-
-struct db_regs {
-	u_long	dr_global[8];
+/*
+ * jmp_buf and sigjmp_buf are encapsulated in different structs to force
+ * compile-time diagnostics for mismatches.  The structs are the same
+ * internally to avoid some run-time errors for mismatches.
+ */
+#ifndef _ANSI_SOURCE
+struct	_sigjmp_buf {
+	long	_sjb[_JBLEN + 1];
 };
+typedef struct _sigjmp_buf sigjmp_buf[1];
+#endif
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
+struct	_jmp_buf {
+	long	_jb[_JBLEN + 1];
+};
+typedef struct _jmp_buf jmp_buf[1];
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
-
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
-
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+#endif /* !_MACHINE_SETJMP_H_ */

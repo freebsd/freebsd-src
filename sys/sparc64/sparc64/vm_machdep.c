@@ -31,10 +31,16 @@
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/unistd.h>
+#include <sys/user.h>
+
+#include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
 
 void
@@ -46,18 +52,46 @@ cpu_exit(struct proc *p)
 void
 cpu_fork(struct proc *p1, struct proc *p2, int flags)
 {
-	TODO;
+	struct trapframe *tf;
+	struct frame *fp;
+	struct pcb *pcb;
+
+	if ((flags & RFPROC) == 0)
+		return;
+	if (PCPU_GET(fpcurproc) == p1)
+		panic("cpu_fork: save fp state\n");
+
+	pcb = &p2->p_addr->u_pcb;
+	bcopy(&p1->p_addr->u_pcb, pcb, sizeof(*pcb));
+
+	tf = (struct trapframe *)((caddr_t)pcb + UPAGES * PAGE_SIZE) - 1;
+	bcopy(p1->p_frame, tf, sizeof(*tf));
+	p2->p_frame = tf;
+
+	fp = (struct frame *)tf - 1;
+	fp->f_local[0] = (u_long)fork_return;
+	fp->f_local[1] = (u_long)p2;
+	fp->f_local[2] = (u_long)tf;
+	pcb->pcb_fp = (u_long)fp - SPOFF;
+	pcb->pcb_pc = (u_long)fork_trampoline - 8;
 }
 
 void
 cpu_reset(void)
 {
+	OF_exit();
 }
 
 void
 cpu_set_fork_handler(struct proc *p, void (*func)(void *), void *arg)
 {
-	TODO;
+	struct frame *fp;
+	struct pcb *pcb;
+
+	pcb = &p->p_addr->u_pcb;
+	fp = (struct frame *)(pcb->pcb_fp + SPOFF);
+	fp->f_local[0] = (u_long)func;
+	fp->f_local[1] = (u_long)arg;
 }
 
 void

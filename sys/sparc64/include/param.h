@@ -85,15 +85,25 @@
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
 
-#define PAGE_SHIFT	13		/* LOG2(PAGE_SIZE) */
-#define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
-#define PAGE_MASK	(PAGE_SIZE-1)
-#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define	PAGE_SHIFT_8K	13
+#define	PAGE_SIZE_8K	(1<<PAGE_SHIFT_8K)
+#define	PAGE_MASK_8K	(PAGE_SIZE_8K-1)
 
-#define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
-#define PDRSHIFT	22		/* LOG2(NBPDR) */
-#define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
-#define PDRMASK		(NBPDR-1)
+#define	PAGE_SHIFT_64K	16
+#define	PAGE_SIZE_64K	(1<<PAGE_SHIFT_64K)
+#define	PAGE_MASK_64K	(PAGE_SIZE_64K-1)
+
+#define	PAGE_SHIFT_512K	19
+#define	PAGE_SIZE_512K	(1<<PAGE_SHIFT_512K)
+#define	PAGE_MASK_512K	(PAGE_SIZE_512K-1)
+
+#define	PAGE_SHIFT_4M	22
+#define	PAGE_SIZE_4M	(1<<PAGE_SHIFT_4M)
+#define	PAGE_MASK_4M	(PAGE_SIZE_4M-1)
+
+#define PAGE_SHIFT	PAGE_SHIFT_8K	/* LOG2(PAGE_SIZE) */
+#define PAGE_SIZE	PAGE_SIZE_8K	/* bytes/page */
+#define PAGE_MASK	PAGE_MASK_8K
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define DEV_BSIZE	(1<<DEV_BSHIFT)
@@ -126,32 +136,24 @@
  */
 
 /* clicks to bytes */
-#define ctob(x)	((x)<<PAGE_SHIFT)
+#define ctob(x)	((unsigned long)(x)<<PAGE_SHIFT)
 
 /* bytes to clicks */
-#define btoc(x)	(((unsigned)(x)+PAGE_MASK)>>PAGE_SHIFT)
+#define btoc(x)	(((unsigned long)(x)+PAGE_MASK)>>PAGE_SHIFT)
 
-/*
- * btodb() is messy and perhaps slow because `bytes' may be an off_t.  We
- * want to shift an unsigned type to avoid sign extension and we don't
- * want to widen `bytes' unnecessarily.  Assume that the result fits in
- * a daddr_t.
- */
+/* bytes to disk blocks */
 #define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
-	(sizeof (bytes) > sizeof(long) \
-	 ? (daddr_t)((unsigned long long)(bytes) >> DEV_BSHIFT) \
-	 : (daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT))
+	(daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT)
 
+/* disk blocks to bytes */
 #define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
-	((off_t)(db) << DEV_BSHIFT)
+	(off_t)((unsigned long)(db) << DEV_BSHIFT)
 
 /*
  * Mach derived conversion macros
  */
-#define trunc_page(x)		((unsigned long)(x) & ~PAGE_MASK)
 #define round_page(x)		(((unsigned long)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define trunc_4mpage(x)		((unsigned long)(x) & ~PDRMASK)
-#define round_4mpage(x)		((((unsigned long)(x)) + PDRMASK) & ~PDRMASK)
+#define trunc_page(x)		((unsigned long)(x) & ~PAGE_MASK)
 
 #define atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
 #define ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)

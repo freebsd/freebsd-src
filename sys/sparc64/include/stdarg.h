@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stdarg.h	8.2 (Berkeley) 9/27/93
+ *	from: NetBSD: stdarg.h,v 1.11 2000/07/23 21:36:56 mycroft Exp
  * $FreeBSD$
  */
 
