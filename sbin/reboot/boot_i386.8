@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.15 1999/01/06 14:19:09 rnordier Exp $
+.\" $Id: boot_i386.8,v 1.17 1999/03/16 13:16:11 rnordier Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -61,7 +61,7 @@ drive as a boot device.
 By default, a three-stage bootstrap is employed, and control is
 automatically passed from the boot blocks (bootstrap stages one and
 two) to a separate third-stage bootstrap program,
-.Pa /boot/loader .
+.Pa loader .
 This third stage provides more sophisticated control over the booting
 process than it is possible to achieve in the boot blocks, which are
 constrained by occupying limited fixed space on a given disk or slice.
@@ -77,15 +77,13 @@ or by hitting a key during a brief pause (while one of the characters
 or
 .Dv /
 is displayed) before
-.Pa /boot/loader
+.Pa loader
 is invoked.  Booting will also be attempted at stage two, if the
 third stage cannot be loaded.
 .Pp
-The remainder of this subsection deals only with the boot blocks.
-At present, documentation of the third stage is chiefly
-available through online help in the
-.Pa /boot/loader
-program itself.
+The remainder of this subsection deals only with the boot blocks.  The
+.Pa loader
+program is documented separately.
 .Pp
 After the boot blocks have been loaded,
 you should see a prompt similar to the following:
@@ -230,8 +228,12 @@ prompt.
 .Bl -tag -width /kernel.old.config -compact
 .It Pa /boot.config
 parameters for the boot blocks (optional)
+.It Pa /boot/boot1
+first stage bootstrap file
+.It Pa /boot/boot2
+second stage bootstrap file
 .It Pa /boot/loader
-third-stage bootstrap
+third stage bootstrap
 .It Pa /kernel
 default kernel
 .It Pa /kernel.old
@@ -244,6 +246,7 @@ typical non-default kernel (optional)
 .Xr config 8 ,
 .Xr disklabel 8 ,
 .Xr halt 8 ,
+.Xr loader 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8
 .Sh BUGS
