@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.167 1996/09/07 21:47:53 bde Exp $
+ *  $Id: syscons.c,v 1.168 1996/09/08 21:31:56 sos Exp $
  */
 
 #include "sc.h"
@@ -141,7 +141,6 @@ void    (*current_saver) __P((int blank)) = none_saver;
 #define VIRTUAL_TTY(x)  (sccons[x] = ttymalloc(sccons[x]))
 struct  CONSOLE_TTY 	(sccons[MAXCONS] = ttymalloc(sccons[MAXCONS]))
 struct  MOUSE_TTY 	(sccons[MAXCONS+1] = ttymalloc(sccons[MAXCONS+1]))
-static const int	nsccons = MAXCONS+2;
 struct  tty         	*sccons[MAXCONS+2];
 #else
 #define VIRTUAL_TTY(x)  &sccons[x]
@@ -154,6 +153,7 @@ static struct tty     	sccons[MAXCONS+2];
 #define MONO_BUF    	pa_to_va(0xB0000)
 #define CGA_BUF     	pa_to_va(0xB8000)
 u_short         	*Crtat;
+static const int	nsccons = MAXCONS+2;
 
 #define WRAPHIST(scp, pointer, offset)\
     ((scp->history) + ((((pointer) - (scp->history)) + (scp->history_size)\
