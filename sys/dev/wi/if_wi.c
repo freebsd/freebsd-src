@@ -146,7 +146,7 @@ static int  wi_mwrite_bap(struct wi_softc *, int, int, struct mbuf *, int);
 static int  wi_read_rid(struct wi_softc *, int, void *, int *);
 static int  wi_write_rid(struct wi_softc *, int, void *, int);
 
-static int  wi_newstate(void *, enum ieee80211_state);
+static int  wi_newstate(struct ieee80211com *, enum ieee80211_state, int);
 
 static int  wi_scan_ap(struct wi_softc *, u_int16_t, u_int16_t);
 static void wi_scan_result(struct wi_softc *, int, int);
@@ -312,7 +312,6 @@ wi_attach(device_t dev)
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_caps = IEEE80211_C_PMGT | IEEE80211_C_AHDEMO;
 	ic->ic_state = IEEE80211_S_INIT;
-	ic->ic_newstate = wi_newstate;
 
 	/*
 	 * Query the card for available channels and setup the
@@ -452,6 +451,9 @@ wi_attach(device_t dev)
 	 * Call MI attach routine.
 	 */
 	ieee80211_ifattach(ifp);
+	/* override state transition method */
+	sc->sc_newstate = ic->ic_newstate;
+	ic->ic_newstate = wi_newstate;
 	ieee80211_media_init(ifp, wi_media_change, wi_media_status);
 
 	return (0);
@@ -716,7 +718,7 @@ wi_init(void *arg)
 	ifp->if_flags &= ~IFF_OACTIVE;
 	if (ic->ic_opmode == IEEE80211_M_AHDEMO ||
 	    ic->ic_opmode == IEEE80211_M_HOSTAP)
-		wi_newstate(sc, IEEE80211_S_RUN);
+		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 
 	/* Enable interrupts */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
@@ -758,12 +760,13 @@ out:
 void
 wi_stop(struct ifnet *ifp, int disable)
 {
+	struct ieee80211com *ic = (struct ieee80211com *) ifp;
 	struct wi_softc *sc = ifp->if_softc;
 	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
-	ieee80211_new_state(ifp, IEEE80211_S_INIT, -1);
+	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 	if (sc->sc_enabled && !sc->wi_gone) {
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
 		wi_cmd(sc, WI_CMD_DISABLE | sc->sc_portnum, 0, 0, 0);
@@ -996,10 +999,11 @@ wi_watchdog(struct ifnet *ifp)
 
 	if (sc->sc_syn_timer) {
 		if (--sc->sc_syn_timer == 0) {
+			struct ieee80211com *ic = (struct ieee80211com *) ifp;
 			DPRINTF2(("wi_watchdog: %d false syns\n",
 			    sc->sc_false_syns));
 			sc->sc_false_syns = 0;
-			ieee80211_new_state(ifp, IEEE80211_S_RUN, -1);
+			ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 			sc->sc_syn_timer = 5;
 		}
 		ifp->if_timer = 1;
@@ -1244,7 +1248,7 @@ wi_sync_bssid(struct wi_softc *sc, u_int8_t new_bssid[IEEE80211_ADDR_LEN])
 	    sc->sc_false_syns >= WI_MAX_FALSE_SYNS)
 		return;
 
-	ieee80211_new_state(ifp, IEEE80211_S_RUN, -1);
+	ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 }
 
 static void
@@ -1547,7 +1551,7 @@ wi_info_intr(struct wi_softc *sc)
 				break;
 			/* FALLTHROUGH */
 		case WI_INFO_LINK_STAT_AP_CHG:
-			ieee80211_new_state(ifp, IEEE80211_S_RUN, -1);
+			ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 			break;
 		case WI_INFO_LINK_STAT_AP_INR:
 			sc->sc_flags &= ~WI_FLAGS_OUTRANGE;
@@ -1566,7 +1570,7 @@ wi_info_intr(struct wi_softc *sc)
 		case WI_INFO_LINK_STAT_DISCONNECTED:
 		case WI_INFO_LINK_STAT_ASSOC_FAILED:
 			if (ic->ic_opmode == IEEE80211_M_STA)
-				ieee80211_new_state(ifp, IEEE80211_S_INIT, -1);
+				ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 			break;
 		}
 		break;
@@ -2519,30 +2523,25 @@ wi_write_rid(struct wi_softc *sc, int rid, void *buf, int buflen)
 }
 
 static int
-wi_newstate(void *arg, enum ieee80211_state nstate)
+wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
-	struct wi_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = &ic->ic_if;
+	struct wi_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni = ic->ic_bss;
 	int buflen;
 	u_int16_t val;
 	struct wi_ssid ssid;
 	u_int8_t old_bssid[IEEE80211_ADDR_LEN];
-	enum ieee80211_state ostate;
-#ifdef WI_DEBUG
-	static const char *stname[] =
-	    { "INIT", "SCAN", "AUTH", "ASSOC", "RUN" };
-#endif /* WI_DEBUG */
 
-	ostate = ic->ic_state;
-	DPRINTF(("wi_newstate: %s -> %s\n", stname[ostate], stname[nstate]));
+	DPRINTF(("%s: %s -> %s\n", __func__,
+		ieee80211_state_name[ic->ic_state],
+		ieee80211_state_name[nstate]));
 
-	ic->ic_state = nstate;
 	switch (nstate) {
 	case IEEE80211_S_INIT:
 		ic->ic_flags &= ~IEEE80211_F_SIBSS;
 		sc->sc_flags &= ~WI_FLAGS_OUTRANGE;
-		return 0;
+		return (*sc->sc_newstate)(ic, nstate, arg);
 
 	case IEEE80211_S_RUN:
 		sc->sc_flags &= ~WI_FLAGS_OUTRANGE;
@@ -2584,8 +2583,8 @@ wi_newstate(void *arg, enum ieee80211_state nstate)
 		break;
 	}
 
-	/* skip standard ieee80211 handling */
-	return EINPROGRESS;
+	ic->ic_state = nstate;		/* NB: skip normal ieee80211 handling */
+	return 0;
 }
 
 static int
