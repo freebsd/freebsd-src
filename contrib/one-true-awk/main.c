@@ -56,6 +56,9 @@ int main(int argc, char *argv[])
 	const char *fs = NULL;
 
 	setlocale(LC_ALL, "");
+	setlocale(LC_COLLATE, "");
+	setlocale(LC_CTYPE, "");
+	setlocale(LC_MESSAGES, "");
 	cmdname = argv[0];
 	if (argc == 1) {
 		fprintf(stderr, "Usage: %s [-f programfile | 'program'] [-Ffieldsep] [-v var=value] [files]\n", cmdname);
