@@ -317,6 +317,8 @@ do {									\
 } while (0);
 
 /* supply our own hook for calling __main() from main() */
+#undef INVOKE__main
+#define INVOKE__main
 #undef GEN_CALL__MAIN
 #define GEN_CALL__MAIN \
   do {									\
