@@ -101,6 +101,8 @@
 #include <pci/pcivar.h>
 #include <pci/if_vxreg.h>
 
+static int eeprom_rdy __P((int unit));
+static int get_e __P((int unit, int offset));
 static int vxioctl __P((struct ifnet * ifp, int, caddr_t));
 static void vxmbuffill __P((caddr_t, int));
 static void vxmbufempty __P((struct vx_softc *));

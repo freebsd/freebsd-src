@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.37 1995/12/14 09:54:08 phk Exp $
+**  $Id: pci.c,v 1.38 1995/12/15 13:40:20 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -36,7 +36,7 @@
 ***************************************************************************
 */
 
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
 
 /*========================================================
@@ -1245,7 +1245,7 @@ getintdescbymptr (u_int irq, unsigned * mptr)
 
 static unsigned pci_mask0 = 0;
 
-int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
+int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr)
 {
 	u_int irq;
 	int result, oldspl;
@@ -1317,7 +1317,13 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 		*/
 
 		result = pcibus->pb_iattach
-			(irq, (void(*)()) func, (int) arg, maskptr);
+			/*
+			 * XXX if we get here, then `func' must be pci_int
+			 * so the bogus casts are almost OK since they just
+			 * undo the bogus casts that were needed to pass
+			 * pci_int and its arg to pci_map_int().
+			 */
+			(irq, (inthand2_t *) func, (int) arg, maskptr);
 		if (result) goto conflict;
 
 #ifdef NO_SHARED_IRQ
@@ -1335,7 +1341,8 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 		**	replace old handler by shared-int-handler.
 		*/
 
-		result = pcibus->pb_idetach (irq,(void(*)())tail->pcid_handler);
+		result = pcibus->pb_idetach (irq,
+					     (inthand2_t *) tail->pcid_handler);
 		if (result)
 			printf ("\tCANNOT DETACH INT HANDLER.\n");
 
@@ -1433,7 +1440,8 @@ int pci_unmap_int (pcici_t tag)
 		**	Remove the old handler.
 		*/
 
-		result = pcibus->pb_idetach (irq,(void(*)())this->pcid_handler);
+		result = pcibus->pb_idetach (irq,
+					     (inthand2_t *) this->pcid_handler);
 		if (result)
 			printf ("\tirq %d: cannot remove handler.\n", irq);
 
@@ -1451,7 +1459,7 @@ int pci_unmap_int (pcici_t tag)
 			printf ("\tirq %d: cannot remove handler.\n", irq);
 
 		result = pcibus->pb_iattach (irq,
-				(void(*)()) tail->pcid_handler,
+				(inthand2_t *) tail->pcid_handler,
 				(int) tail->pcid_argument,
 				tail->pcid_maskptr);
 

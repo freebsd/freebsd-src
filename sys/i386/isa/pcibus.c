@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.19 1995/10/17 23:30:11 se Exp $
+**  $Id: pcibus.c,v 1.20 1995/12/10 13:39:04 phk Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -102,10 +102,10 @@ static void
 pcibus_write (pcici_t tag, u_long reg, u_long data);
 
 static int
-pcibus_ihandler_attach (int irq, void(*ihandler)(), int arg, unsigned* maskp);
+pcibus_ihandler_attach (int irq, inthand2_t *func, int arg, unsigned* maskptr);
 
 static int
-pcibus_ihandler_detach (int irq, void(*handler)());
+pcibus_ihandler_detach (int irq, inthand2_t *func);
 
 static int
 pcibus_imask_include (int irq, unsigned* maskptr);
@@ -423,14 +423,14 @@ pcibus_write (pcici_t tag, u_long reg, u_long data)
 */
 
 static int
-pcibus_ihandler_attach (int irq, void(*func)(), int arg, unsigned * maskptr)
+pcibus_ihandler_attach (int irq, inthand2_t *func, int arg, unsigned * maskptr)
 {
 	int result;
 	result = register_intr(
 		irq,		    /* isa irq	    */
 		0,		    /* deviced??    */
 		0,		    /* flags?	    */
-		(inthand2_t*) func, /* handler	    */
+		func,		    /* handler	    */
 		maskptr,	    /* mask pointer */
 		arg);		    /* handler arg  */
 
@@ -445,13 +445,13 @@ pcibus_ihandler_attach (int irq, void(*func)(), int arg, unsigned * maskptr)
 }
 
 static int
-pcibus_ihandler_detach (int irq, void(*func)())
+pcibus_ihandler_detach (int irq, inthand2_t *func)
 {
 	int result;
 
 	INTRDIS ((1ul<<irq));
 
-	result = unregister_intr (irq, (inthand2_t*) func);
+	result = unregister_intr (irq, func);
 
 	if (result)
 		printf ("@@@ pcibus_ihandler_detach: result=%d\n", result);
