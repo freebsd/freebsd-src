@@ -46,6 +46,7 @@ components, including
 .Xr GEOM 4 ,
 and
 .Xr devfs 5 .
+.Pp
 Each disk device is described by a
 .Vt "struct disk"
 structure, which contains a variety of parameters for the disk device,
@@ -53,11 +54,17 @@ function pointers for various methods that may be performed on the device,
 as well as private data storage for the device driver.
 In addition, some fields are reserved for use by GEOM in managing access
 to the device and its statistics.
-Fields in the structure will generally be assumed not to change once the
-structure is submitted to
+Because of storage driver framework private data stored in
+.Vt "struct disk" ,
+instances of the structure should be allocated out of writable, pre-zero'd
+memory.
+.Pp
+Public fields in the structure will generally be assumed not to change once
+the structure is submitted to
 .Fn disk_create ,
 and so no explicit locking is employed; drivers that change the values of
 any of these fields do so at their own risk.
+.Pp
 Memory associated with the
 .Vt "struct disk"
 is owned by the device driver, but should not be released until after
