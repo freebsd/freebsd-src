@@ -198,7 +198,7 @@ aac_pci_attach(device_t dev)
 	/*
 	 * Allocate the PCI register window.
 	 */
-	sc->aac_regs_rid = 0x10;	/* first base address register */
+	sc->aac_regs_rid = PCIR_BAR(0);
 	if ((sc->aac_regs_resource = bus_alloc_resource(sc->aac_dev,
 							SYS_RES_MEMORY,
 							&sc->aac_regs_rid,
