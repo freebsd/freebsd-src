@@ -86,9 +86,7 @@ static const char rcsid[] =
 **		  sent to the host that sent the packet.
 */
 void
-ProcessPacket(rconn, client)
-	RMPCONN *rconn;
-	CLIENT *client;
+ProcessPacket(RMPCONN *rconn, CLIENT *client)
 {
 	struct rmp_packet *rmp;
 	RMPCONN *rconnout;
@@ -176,8 +174,7 @@ ProcessPacket(rconn, client)
 **		none.
 */
 int
-SendServerID(rconn)
-	RMPCONN *rconn;
+SendServerID(RMPCONN *rconn)
 {
 	struct rmp_packet *rpl;
 	char *src, *dst;
@@ -228,10 +225,7 @@ SendServerID(rconn)
 **		none.
 */
 int
-SendFileNo(req, rconn, filelist)
-	struct rmp_packet *req;
-	RMPCONN *rconn;
-	char *filelist[];
+SendFileNo(struct rmp_packet *req, RMPCONN *rconn, char *filelist[])
 {
 	struct rmp_packet *rpl;
 	char *src, *dst;
@@ -291,10 +285,7 @@ SendFileNo(req, rconn, filelist)
 **		none.
 */
 int
-SendBootRepl(req, rconn, filelist)
-	struct rmp_packet *req;
-	RMPCONN *rconn;
-	char *filelist[];
+SendBootRepl(struct rmp_packet *req, RMPCONN *rconn, char *filelist[])
 {
 	int retval;
 	char *filename, filepath[RMPBOOTDATA+1];
@@ -400,8 +391,7 @@ sendpkt:
 **		none.
 */
 int
-SendReadRepl(rconn)
-	RMPCONN *rconn;
+SendReadRepl(RMPCONN *rconn)
 {
 	int retval = 0;
 	RMPCONN *oldconn;
@@ -518,8 +508,7 @@ sendpkt:
 **		none.
 */
 int
-BootDone(rconn)
-	RMPCONN *rconn;
+BootDone(RMPCONN *rconn)
 {
 	RMPCONN *oldconn;
 	struct rmp_packet *rpl;
@@ -566,8 +555,7 @@ BootDone(rconn)
 **		none.
 */
 int
-SendPacket(rconn)
-	RMPCONN *rconn;
+SendPacket(RMPCONN *rconn)
 {
 	/*
 	 *  Set Ethernet Destination address to Source (BPF and the enet
