@@ -164,6 +164,7 @@ void	setstatclockrate __P((int hzrate));
 
 int	suser __P((struct proc *));
 int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
+int	u_cansee __P((struct ucred *u1, struct ucred *u2));
 
 char	*getenv __P((char *name));
 int	getenv_int __P((char *name, int *data));
