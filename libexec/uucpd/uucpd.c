@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uucpd.c,v 1.9 1997/02/22 14:22:39 peter Exp $
+ *	$Id: uucpd.c,v 1.10 1997/03/25 09:52:38 davidn Exp $
  */
 
 #ifndef lint
@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -117,7 +118,7 @@ void main(int argc, char **argv)
 
 void badlogin(char *name, struct sockaddr_in *sin)
 {
-	char remotehost[32];
+	char remotehost[MAXHOSTNAMELEN];
 	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
 		sizeof (struct in_addr), AF_INET);
 
@@ -127,6 +128,8 @@ void badlogin(char *name, struct sockaddr_in *sin)
 	} else
 		strncpy(remotehost, inet_ntoa(sin->sin_addr),
 		    sizeof (remotehost));
+
+	remotehost[sizeof remotehost - 1] = '\0';
 
 	syslog(LOG_NOTICE, "LOGIN FAILURE FROM %s", remotehost);
 	syslog(LOG_AUTHPRIV|LOG_NOTICE,
@@ -242,7 +245,7 @@ void dologout(void)
 void dologin(struct passwd *pw, struct sockaddr_in *sin)
 {
 	char line[32];
-	char remotehost[32];
+	char remotehost[MAXHOSTNAMELEN];
 	int f;
 	time_t cur_time;
 	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
