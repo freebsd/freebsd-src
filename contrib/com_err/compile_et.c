@@ -42,7 +42,6 @@
 
 RCSID("$Id: compile_et.c,v 1.12 1999/04/01 09:13:52 joda Exp $");
 
-#include <roken.h>
 #include <err.h>
 #include "parse.h"
 
