@@ -666,9 +666,7 @@ Source-Form Translation
           getenv()
           
    lib_newterm.c
-          
    lib_baudrate.c
-          
    lib_kernel.c
           various tty-manipulation and system calls
           

@@ -36,7 +36,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_update.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_update.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
 
 void
 update_panels(void)
@@ -45,9 +45,9 @@ update_panels(void)
 
   dBug(("--> update_panels"));
   pan = _nc_bottom_panel;
-  while(pan)
+  while(pan && pan->above)
     {
-      _nc_override(pan,P_UPDATE);
+      PANEL_UPDATE(pan,pan->above);
       pan = pan->above;
     }
 

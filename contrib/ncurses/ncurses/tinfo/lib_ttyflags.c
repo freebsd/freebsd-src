@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <term.h>	/* cur_term */
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.2 1999/07/24 22:36:12 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.3 1999/10/22 21:38:55 tom Exp $")
 
 #undef tabs
 
@@ -133,7 +133,7 @@ int reset_shell_mode(void)
 		if (SP)
 		{
 			_nc_keypad(FALSE);
-			fflush(SP->_ofp);
+			_nc_flush();
 			NC_BUFFERED(FALSE);
 		}
 		returnCode(_nc_set_tty_mode(&cur_term->Ottyb));

@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_nl.c,v 1.3 1998/10/14 15:14:08 Alexander.V.Lukyanov Exp $")
+MODULE_ID("$Id: lib_nl.c,v 1.4 1999/10/22 22:31:51 tom Exp $")
 
 #ifdef __EMX__
 #include <io.h>
@@ -57,8 +57,8 @@ int nl(void)
 	SP->_nl = TRUE;
 
 #ifdef __EMX__
-	fflush(SP->_ofp);
-	_fsetmode(SP->_ofp, "t");
+	_nc_flush();
+	_fsetmode(NC_OUTPUT, "t");
 #endif
 
 	returnCode(OK);
@@ -71,8 +71,8 @@ int nonl(void)
 	SP->_nl = FALSE;
 
 #ifdef __EMX__
-	fflush(SP->_ofp);
-	_fsetmode(SP->_ofp, "b");
+	_nc_flush();
+	_fsetmode(NC_OUTPUT, "b");
 #endif
 
 	returnCode(OK);

@@ -2,7 +2,7 @@
 #ifndef _CURSESW_H
 #define _CURSESW_H
 
-// $Id: cursesw.h,v 1.16 1999/07/31 09:46:43 juergen Exp $
+// $Id: cursesw.h,v 1.18 1999/10/23 15:16:53 tom Exp $
 
 #include <etip.h>
 #include <stdio.h>
@@ -933,7 +933,7 @@ public:
   // position.
 
   int            insch(int y, int x, chtype ch) {
-    return ::mvwinsch(w,y,x,ch); }
+    return ::mvwinsch(w,y,x,(char)ch); }
   // Move cursor to requested position and then insert the attributed
   // character before that position.
 
@@ -958,10 +958,10 @@ public:
   int            attron (chtype at) { return ::wattron (w, at); }
   // Switch on the window attributes;
   
-  int            attroff(chtype at) { return ::wattroff(w, at); }
+  int            attroff(chtype at) { return ::wattroff(w, (int) at); }
   // Switch off the window attributes;
 
-  int            attrset(chtype at) { return ::wattrset(w, at); }
+  int            attrset(chtype at) { return ::wattrset(w, (int) at); }
   // Set the window attributes;
 
   int            color_set(short color_pair_number, void* opts=NULL) {
@@ -1232,6 +1232,21 @@ public:
       useColors(); }                      
 };
 
+// These enum definitions really belong inside the NCursesPad class, but only
+// recent compilers support that feature.
+
+  typedef enum {
+    REQ_PAD_REFRESH = KEY_MAX + 1,
+    REQ_PAD_UP,
+    REQ_PAD_DOWN,
+    REQ_PAD_LEFT,
+    REQ_PAD_RIGHT,
+    REQ_PAD_EXIT
+  } Pad_Request;
+
+  const Pad_Request PAD_LOW  = REQ_PAD_REFRESH;   // lowest  op-code
+  const Pad_Request PAD_HIGH = REQ_PAD_EXIT;      // highest op-code
+
 // -------------------------------------------------------------------------
 // Pad Support. We allow an association of a pad with a "real" window
 // through which the pad may be viewed.
@@ -1248,20 +1263,8 @@ protected:
 
   NCursesWindow* Win(void) const {
     // Get the window into which the pad should be copied (if any)
-    return (viewSub?viewSub:(viewWin?viewWin:NULL));
+    return (viewSub?viewSub:(viewWin?viewWin:0));
   }
-
-  typedef enum {
-    REQ_PAD_REFRESH = KEY_MAX + 1,
-    REQ_PAD_UP,
-    REQ_PAD_DOWN,
-    REQ_PAD_LEFT,
-    REQ_PAD_RIGHT,
-    REQ_PAD_EXIT
-  } Pad_Request;
-
-  static const Pad_Request PAD_LOW  = REQ_PAD_REFRESH;   // lowest  op-code
-  static const Pad_Request PAD_HIGH = REQ_PAD_EXIT;      // highest op-code
 
   NCursesWindow* getWindow(void) const {
     return viewWin;
@@ -1341,9 +1344,6 @@ public:
 // will be framed (by a box() command) and the interior of the box is the
 // viewport subwindow. On the frame we display scrollbar sliders.
 class NCursesFramedPad : public NCursesPad {
-private:
-  static const char* const msg = "Operation not allowed";
-
 protected:
   virtual void OnOperation(int pad_req);
 
@@ -1361,12 +1361,12 @@ public:
   }
 
   void setWindow(NCursesWindow& view, int v_grid = 1, int h_grid = 1) {
-    err_handler(msg);
+    err_handler("Operation not allowed");
   }
   // Disable this call; the viewport is already defined
 
   void setSubWindow(NCursesWindow& sub) {
-    err_handler(msg);
+    err_handler("Operation not allowed");
   }
   // Disable this call; the viewport subwindow is already defined
 
