@@ -13,6 +13,7 @@ SRCS+=	archive.c archive64.c archures.c bfd.c binary.c cache.c \
 .if (${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "ia64" || ${TARGET_ARCH} == "sparc64")
 WARNS=	2
 .endif
+WARNS=0
 CFLAGS+= -I${SRCDIR}/bfd
 CFLAGS+= -DBFD_VERSION=\"${VERSION_DATE}\" -DBFD_VERSION_DATE=${VERSION_DATE}
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
