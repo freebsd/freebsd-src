@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.5 1995/03/16 18:14:52 bde Exp $
+ * $Id: in_pcb.h,v 1.6 1995/04/09 01:29:19 davidg Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
 #define _NETINET_IN_PCB_H_
+
+#include <sys/queue.h>
 
 /*
  * Common structure pcb for internet protocol implementation.
