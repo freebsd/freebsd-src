@@ -97,10 +97,10 @@ FreeBSD 2.1             |
     |   |                 NetBSD 1.3.1     |
     |  FreeBSD 2.2.1         |          OpenBSD 2.3
     |      |              NetBSD 1.3.2     |
-    |  FreeBSD 2.2.2         |             v
+    |  FreeBSD 2.2.2         |          OpenBSD 2.4
+    |      |              NetBSD 1.3.3     |
+    |  FreeBSD 2.2.5         |             v
     |      |                 v
-    |  FreeBSD 2.2.5
-    |      |
     |      v
     |  FreeBSD 2.2.6
     |      |
@@ -112,6 +112,8 @@ FreeBSD 2.1             |
     |
     |
 FreeBSD 3.0
+    |
+FreeBSD 3.1
     |
     v
 
@@ -225,6 +227,8 @@ FreeBSD 2.2.2		1997-06-xx [FBD]
 FreeBSD 2.2.5		1997-11-xx [FBD]
 FreeBSD 2.2.6		1998-03-xx [FBD]
 FreeBSD 2.2.7		1998-07-xx [FBD]
+FreeBSD 2.2.8		1998-11-29 [FBD]
+FreeBSD 3.0		1998-10-16 [FBD]
 
 
 
@@ -271,6 +275,7 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.ORG>
-URL: http://www.de.freebsd.org/de/ftp/unix-stammbaum
-$Date: 1998/08/13 10:10:10 $ $Revision: 1.8 $
+Copyright (c) 1997-1999 Wolfram Schneider <wosch@FreeBSD.ORG>
+URL: ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/misc/bsd-family-tree
+
+$Date: 1998/08/19 12:58:38 $ $Revision: 1.9 $
