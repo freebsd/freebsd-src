@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.30.2.2 1998/03/20 16:35:48 jkh Exp $
+ *	$Id: subr_diskslice.c,v 1.30.2.3 1998/04/24 11:52:31 obrien Exp $
  */
 
 #include <sys/param.h>
@@ -345,7 +345,8 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		return (0);
 
 	case DIOCGSLICEINFO:
-		*(struct diskslices *)data = *ssp;
+		bcopy(ssp, data, (char *)&ssp->dss_slices[ssp->dss_nslices] -
+				 (char *)ssp);
 		return (0);
 
 	case DIOCSBAD:
