@@ -5,6 +5,5 @@ PROG=	mountd
 MAN=	exports.5 netgroup.5 mountd.8
 
 WARNS?=	2
-CFLAGS+= -fno-builtin-log
 
 .include <bsd.prog.mk>
