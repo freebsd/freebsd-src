@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.24 1997/04/13 01:48:13 dyson Exp $
+ *	$Id: imgact_coff.c,v 1.25 1997/07/20 09:39:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -58,13 +58,8 @@ extern int exec_coff_imgact __P((struct image_params *imgp));
 static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 
 static int
-load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
-	struct vmspace *vmspace;
-	struct vnode *vp;
-	vm_offset_t offset;
-	caddr_t vmaddr;
-	size_t memsz, filsz;
-	vm_prot_t prot;
+load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
+		  caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	size_t map_len;
 	vm_offset_t map_offset;

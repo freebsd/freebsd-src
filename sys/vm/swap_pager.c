@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id$
+ * $Id: swap_pager.c,v 1.75 1997/02/22 09:48:06 peter Exp $
  */
 
 /*
@@ -280,11 +280,8 @@ swap_pager_swp_alloc(object, wait)
  * we should not wait for memory as it could resulting in deadlock.
  */
 static vm_object_t
-swap_pager_alloc(handle, size, prot, offset)
-	void *handle;
-	register vm_size_t size;
-	vm_prot_t prot;
-	vm_ooffset_t offset;
+swap_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
+		 vm_ooffset_t offset)
 {
 	vm_object_t object;
 
