@@ -32,42 +32,47 @@
 .Dt RESOURCE_INT_VALUE 9
 .Os FreeBSD
 .Sh NAME
-.Nm resource_int_value
+.Nm resource_int_value , resource_long_value , resource_string_value
 .Nd get a value from the hints mechanism
 .Sh SYNOPSIS
 .Fd #include <sys/bus.h>
 .Ft int
 .Fn resource_int_value "const char *name" "int unit" "const char *resname" "int *result"
-.Pp
 .Ft int
 .Fn resource_long_value "const char *name" "int unit" "const char *resname" "long *result"
-.Pp
 .Ft int
 .Fn resource_string_value "const char *name" "int unit" "const char *resname" "char **result"
 .Sh DESCRIPTION
+These functions fetch a value from the
+.Dq hints
+mechanism.
 .Pp
-Fetches a value from the hints mechanism.
-.Pp
-Its arguments are as follows:
-.Bl -item
-.It
-.Fa name
-Name of the device to get the value on.
-.It
-.Fa unit
-Unit number to get the device.
--1 is special and is used for wildcard entries.
-.Fa field
-is the name of the field.
-.Fa value
-is a pointer to the value.
+They take the following arguments:
+.Bl -tag -width "resname"
+.It Fa name
+name of the device to get the resource value from.
+.It Fa unit
+unit number of the device.
+\-1 is special and is used for wildcard entries.
+.It Fa resname
+resource name.
+.It Fa result
+pointer to a memory in which to store the resource value.
+.El
 .Sh RETURN VALUES
-0 on sucess, non-zero on failure.
-.\".Sh EXAMPLES
+If successful, functions return 0.
+Otherwise, a non\-zero error code is returned.
+.Sh ERRORS
+Functions will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOENT
+The resource could not be found.
+.It Bq Er EFTYPE
+Inappropriate resource type.
+.El
 .Sh SEE ALSO
-.Xr driver 9 ,
 .Xr device 9 ,
+.Xr driver 9
 .Sh AUTHORS
-.An -nosplit
-This man page was written by
+This manual page was written by
 .An Warner Losh Aq imp@FreeBSD.org .
