@@ -29,7 +29,7 @@
  *
  *	BSDI int17.c,v 2.2 1996/04/08 19:32:48 bostic Exp
  *
- * $Id: int17.c,v 1.3 1996/09/22 15:42:56 miff Exp $
+ * $Id: int17.c,v 1.1 1997/08/09 01:42:48 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -138,7 +138,7 @@ open_printer(int printer)
 		return;
 	    }
 	} else {
-	    sprintf(printer_name, "/dev/lp%d", printer);
+	    sprintf(printer_name, "/dev/lpt%d", printer);
 	    debug(D_PRINTER, "Opening device %s\n", printer_name);
 	    if ((fd = open(printer_name, O_WRONLY)) < 0) {
 		perror(printer_name);
