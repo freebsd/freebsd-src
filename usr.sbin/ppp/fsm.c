@@ -170,7 +170,7 @@ static void
 NewState(struct fsm *fp, int new)
 {
   log_Printf(fp->LogLevel, "%s: State change %s --> %s\n",
-	    fp->link->name, State2Nam(fp->state), State2Nam(new));
+             fp->link->name, State2Nam(fp->state), State2Nam(new));
   if (fp->state == ST_STOPPED && fp->StoppedTimer.state == TIMER_RUNNING)
     timer_Stop(&fp->StoppedTimer);
   fp->state = new;
@@ -201,8 +201,8 @@ fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count,
       case CODE_CONFIGACK:
       case CODE_CONFIGREJ:
       case CODE_CONFIGNAK:
-        (*fp->fn->DecodeConfig)(fp, ptr, count, MODE_NOP, NULL);
-        if (count < sizeof(struct fsmconfig))
+        (*fp->fn->DecodeConfig)(fp, ptr, ptr + count, MODE_NOP, NULL);
+        if (count < sizeof(struct fsm_opt_hdr))
           log_Printf(fp->LogLevel, "  [EMPTY]\n");
         break;
     }
@@ -470,15 +470,28 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   struct fsm_decode dec;
   int plen, flen;
   int ackaction = 0;
+  u_char *cp;
 
+  bp = m_pullup(bp);
   plen = m_length(bp);
   flen = ntohs(lhp->length) - sizeof *lhp;
   if (plen < flen) {
     log_Printf(LogWARN, "%s: FsmRecvConfigReq: plen (%d) < flen (%d)\n",
-	      fp->link->name, plen, flen);
+               fp->link->name, plen, flen);
     m_freem(bp);
     return;
   }
+
+  dec.ackend = dec.ack;
+  dec.nakend = dec.nak;
+  dec.rejend = dec.rej;
+  cp = MBUF_CTOP(bp);
+  (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_REQ, &dec);
+  if (flen < sizeof(struct fsm_opt_hdr))
+    log_Printf(fp->LogLevel, "  [EMPTY]\n");
+
+  if (dec.nakend == dec.nak && dec.rejend == dec.rej)
+    ackaction = 1;
 
   /* Check and process easy case */
   switch (fp->state) {
@@ -511,28 +524,12 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_STOPPING:
     m_freem(bp);
     return;
-  case ST_OPENED:
-    (*fp->fn->LayerDown)(fp);
-    break;
-  }
-
-  bp = m_pullup(bp);
-  dec.ackend = dec.ack;
-  dec.nakend = dec.nak;
-  dec.rejend = dec.rej;
-  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_REQ, &dec);
-  if (flen < sizeof(struct fsmconfig))
-    log_Printf(fp->LogLevel, "  [EMPTY]\n");
-
-  if (dec.nakend == dec.nak && dec.rejend == dec.rej)
-    ackaction = 1;
-
-  switch (fp->state) {
   case ST_STOPPED:
     FsmInitRestartCounter(fp, FSM_REQ_TIMER);
-    /* Fall through */
-
+    FsmSendConfigReq(fp);
+    break;
   case ST_OPENED:
+    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     break;
   }
@@ -609,6 +606,26 @@ static void
 FsmRecvConfigAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCA */
 {
+  struct fsm_decode dec;
+  int plen, flen;
+  u_char *cp;
+
+  plen = m_length(bp);
+  flen = ntohs(lhp->length) - sizeof *lhp;
+  if (plen < flen) {
+    m_freem(bp);
+    return;
+  }
+
+  bp = m_pullup(bp);
+  dec.ackend = dec.ack;
+  dec.nakend = dec.nak;
+  dec.rejend = dec.rej;
+  cp = MBUF_CTOP(bp);
+  (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_ACK, &dec);
+  if (flen < sizeof(struct fsm_opt_hdr))
+    log_Printf(fp->LogLevel, "  [EMPTY]\n");
+
   switch (fp->state) {
     case ST_CLOSED:
     case ST_STOPPED:
@@ -654,6 +671,7 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   struct fsm_decode dec;
   int plen, flen;
+  u_char *cp;
 
   plen = m_length(bp);
   flen = ntohs(lhp->length) - sizeof *lhp;
@@ -687,8 +705,9 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
   dec.rejend = dec.rej;
-  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_NAK, &dec);
-  if (flen < sizeof(struct fsmconfig))
+  cp = MBUF_CTOP(bp);
+  (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_NAK, &dec);
+  if (flen < sizeof(struct fsm_opt_hdr))
     log_Printf(fp->LogLevel, "  [EMPTY]\n");
 
   switch (fp->state) {
@@ -782,6 +801,7 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   struct fsm_decode dec;
   int plen, flen;
+  u_char *cp;
 
   plen = m_length(bp);
   flen = ntohs(lhp->length) - sizeof *lhp;
@@ -817,8 +837,9 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
   dec.rejend = dec.rej;
-  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_REJ, &dec);
-  if (flen < sizeof(struct fsmconfig))
+  cp = MBUF_CTOP(bp);
+  (*fp->fn->DecodeConfig)(fp, cp, cp + flen, MODE_REJ, &dec);
+  if (flen < sizeof(struct fsm_opt_hdr))
     log_Printf(fp->LogLevel, "  [EMPTY]\n");
 
   switch (fp->state) {
@@ -1052,12 +1073,12 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   if (lh.id != fp->reqid && codep->check_reqid &&
       Enabled(fp->bundle, OPT_IDCHECK)) {
     log_Printf(fp->LogLevel, "%s: Recv%s(%d), dropped (expected %d)\n",
-	      fp->link->name, codep->name, lh.id, fp->reqid);
+               fp->link->name, codep->name, lh.id, fp->reqid);
     return;
   }
 
   log_Printf(fp->LogLevel, "%s: Recv%s(%d) state = %s\n",
-	    fp->link->name, codep->name, lh.id, State2Nam(fp->state));
+             fp->link->name, codep->name, lh.id, State2Nam(fp->state));
 
   if (codep->inc_reqid && (lh.id == fp->reqid ||
       (!Enabled(fp->bundle, OPT_IDCHECK) && codep->check_reqid)))
@@ -1105,4 +1126,81 @@ fsm2initial(struct fsm *fp)
     fsm_Down(fp);
   if (fp->state > ST_INITIAL)
     fsm_Close(fp);
+}
+
+struct fsm_opt *
+fsm_readopt(u_char **cp)
+{
+  struct fsm_opt *o = (struct fsm_opt *)*cp;
+
+  if (o->hdr.len < sizeof(struct fsm_opt_hdr)) {
+    log_Printf(LogERROR, "Bad option length %d (out of phase?)\n", o->hdr.len);
+    return NULL;
+  }
+
+  *cp += o->hdr.len;
+
+  if (o->hdr.len > sizeof(struct fsm_opt)) {
+    o->hdr.len = sizeof(struct fsm_opt);
+    log_Printf(LogERROR, "Warning: Truncating option length to %d\n",
+               o->hdr.len);
+  }
+
+  return o;
+}
+
+static int
+fsm_opt(u_char *opt, int optlen, const struct fsm_opt *o)
+{
+  int cplen = o->hdr.len;
+
+  if (optlen < sizeof(struct fsm_opt_hdr))
+    optlen = 0;
+
+  if (cplen > optlen) {
+    log_Printf(LogERROR, "Can't REJ length %d - trunating to %d\n",
+      cplen, optlen);
+    cplen = optlen;
+  }
+  memcpy(opt, o, cplen);
+  if (cplen)
+    opt[1] = cplen;
+
+  return cplen;
+}
+
+void
+fsm_rej(struct fsm_decode *dec, const struct fsm_opt *o)
+{
+  if (!dec)
+    return;
+  dec->rejend += fsm_opt(dec->rejend, FSM_OPTLEN - (dec->rejend - dec->rej), o);
+}
+
+void
+fsm_ack(struct fsm_decode *dec, const struct fsm_opt *o)
+{
+  if (!dec)
+    return;
+  dec->ackend += fsm_opt(dec->ackend, FSM_OPTLEN - (dec->ackend - dec->ack), o);
+}
+
+void
+fsm_nak(struct fsm_decode *dec, const struct fsm_opt *o)
+{
+  if (!dec)
+    return;
+  dec->nakend += fsm_opt(dec->nakend, FSM_OPTLEN - (dec->nakend - dec->nak), o);
+}
+
+void
+fsm_opt_normalise(struct fsm_decode *dec)
+{
+  if (dec->rejend != dec->rej) {
+    /* rejects are preferred */
+    dec->ackend = dec->ack;
+    dec->nakend = dec->nak;
+  } else if (dec->nakend != dec->nak)
+    /* then NAKs */
+    dec->ackend = dec->ack;
 }
