@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 56 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -466,13 +466,6 @@ AcpiTbGetAllTables (
         "Hex dump of DSDT (After header), size %d (%x)\n",
         AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length));
     DUMP_BUFFER ((UINT8 *) (AcpiGbl_DSDT + 1), AcpiGbl_DSDT->Length);
-
-    /*
-     * Initialize the capabilities flags.
-     * Assumes that platform supports ACPI_MODE since we have tables!
-     */
-    AcpiGbl_SystemFlags |= AcpiHwGetModeCapabilities ();
-
 
     /* Always delete the RSDP mapping, we are done with it */
 
