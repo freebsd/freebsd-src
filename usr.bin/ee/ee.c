@@ -52,7 +52,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ee.c,v 1.10 1998/04/30 12:49:11 ache Exp $";
+	"$Id: ee.c,v 1.11 1998/10/01 21:18:18 obrien Exp $";
 #endif /* not lint */
 
 char *ee_copyright_message = 
@@ -64,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3  $Revision: 1.10 $";
+char *version = "@(#) ee, version 1.3  $Revision: 1.11 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -1897,7 +1897,7 @@ char *cmd_str;
 	int number;
 	int i;
 	char *ptr;
-	char *direction;
+	char *direction = NULL;
 	struct text *t_line;
 
 	ptr = cmd_str;
@@ -1968,7 +1968,7 @@ char *arguments[];
 {
 	char *buff;
 	int count;
-	struct files *temp_names;
+	struct files *temp_names = NULL;
 	char *name;
 	char *ptr;
 
@@ -3192,7 +3192,7 @@ struct menu_entries menu_list[];
 	int counter;
 	int length;
 	int input;
-	int temp;
+	int temp = 0;
 	int list_size;
 	int top_offset;		/* offset from top where menu items start */
 	int vert_pos;		/* vertical position			  */

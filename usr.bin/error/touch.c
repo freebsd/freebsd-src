@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: touch.c,v 1.4 1997/11/03 07:44:25 charnier Exp $";
+	"$Id: touch.c,v 1.5 1998/02/25 02:24:04 bde Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -512,7 +512,7 @@ execvarg(n_pissed_on, r_argc, r_argv)
 	char	***r_argv;
 {
 	Eptr	p;
-	char	*sep;
+	char	*sep = NULL;
 	int	fi;
 
 	(*r_argv) = (char **)Calloc(n_pissed_on + 3, sizeof(char *));
