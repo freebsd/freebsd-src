@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,7 +42,7 @@
  * includes overhead.  An mbuf may add a single "mbuf cluster" of size
  * MCLBYTES (also in machine/param.h), which has no additional overhead
  * and is used instead of the internal data area; this is done when
- * at least MINCLSIZE of data must be stored. Additionally, it is possible
+ * at least MINCLSIZE of data must be stored.  Additionally, it is possible
  * to allocate a separate buffer externally and attach it to the mbuf in
  * a way similar to that of mbuf clusters.
  */
@@ -52,10 +52,10 @@
 #define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
 
 #ifdef _KERNEL
-/*
- * Macros for type conversion
- * mtod(m, t)	- convert mbuf pointer to data pointer of correct type
- * dtom(x)	- convert data pointer within mbuf to mbuf pointer (XXX)
+/*-
+ * Macros for type conversion:
+ * mtod(m, t)	-- Convert mbuf pointer to data pointer of correct type.
+ * dtom(x)	-- Convert data pointer within mbuf to mbuf pointer (XXX).
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
@@ -130,12 +130,12 @@ struct mbuf {
 #define	m_dat		M_dat.M_databuf
 
 /*
- * mbuf flags
+ * mbuf flags.
  */
 #define	M_EXT		0x0001	/* has associated external storage */
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
-#define M_RDONLY	0x0008	/* associated data is marked read-only */
+#define	M_RDONLY	0x0008	/* associated data is marked read-only */
 #define	M_PROTO1	0x0010	/* protocol-specific */
 #define	M_PROTO2	0x0020	/* protocol-specific */
 #define	M_PROTO3	0x0040	/* protocol-specific */
@@ -143,7 +143,7 @@ struct mbuf {
 #define	M_PROTO5	0x0100	/* protocol-specific */
 
 /*
- * mbuf pkthdr flags (also stored in m_flags)
+ * mbuf pkthdr flags (also stored in m_flags).
  */
 #define	M_BCAST		0x0200	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0400	/* send/received as link-level multicast */
@@ -152,7 +152,7 @@ struct mbuf {
 #define	M_LASTFRAG	0x2000	/* packet is last fragment */
 
 /*
- * External buffer types: identify ext_buf type
+ * External buffer types: identify ext_buf type.
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
@@ -160,30 +160,30 @@ struct mbuf {
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 
 /*
- * Flags copied when copying m_pkthdr
+ * Flags copied when copying m_pkthdr.
  */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
 			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG|M_RDONLY)
 
 /*
- * Flags indicating hw checksum support and sw checksum requirements
+ * Flags indicating hw checksum support and sw checksum requirements.
  */
-#define CSUM_IP			0x0001		/* will csum IP */
-#define CSUM_TCP		0x0002		/* will csum TCP */
-#define CSUM_UDP		0x0004		/* will csum UDP */
-#define CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
-#define CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
+#define	CSUM_IP			0x0001		/* will csum IP */
+#define	CSUM_TCP		0x0002		/* will csum TCP */
+#define	CSUM_UDP		0x0004		/* will csum UDP */
+#define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
+#define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 
-#define CSUM_IP_CHECKED		0x0100		/* did csum IP */
-#define CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
-#define CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
-#define CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
+#define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
+#define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
+#define	CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
+#define	CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
 
-#define CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
-#define CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
+#define	CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
+#define	CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
 
 /*
- * mbuf types
+ * mbuf types.
  */
 #define	MT_NOTMBUF	0	/* USED INTERNALLY ONLY! Object is not mbuf */
 #define	MT_DATA		1	/* dynamic (data) allocation */
@@ -223,10 +223,10 @@ struct mbpstat {
 /*
  * General mbuf allocator statistics structure.
  * XXX: Modifications of these are not protected by any mutex locks nor by
- *	any atomic() manipulations. As a result, we may occasionally lose
- *	a count or two. Luckily, not all of these fields are modified at all
- *	and remain static, and those that are manipulated are only manipulated
- *	in failure situations, which do not occur (hopefully) very often.
+ * any atomic() manipulations.  As a result, we may occasionally lose
+ * a count or two.  Luckily, not all of these fields are modified at all
+ * and remain static, and those that are manipulated are only manipulated
+ * in failure situations, which do not occur (hopefully) very often.
  */
 struct mbstat {
 	u_long	m_drops;	/* times failed to allocate */
@@ -239,8 +239,8 @@ struct mbstat {
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
-	short	m_numtypes;	/* number of mbtypes (gives # elems in mbpstat's
-				   mb_mbtypes[] array. */
+	/* Number of mbtypes (gives # elems in mbpstat's mb_mbtypes[] array: */
+	short	m_numtypes;
 };
 
 /*
@@ -254,51 +254,43 @@ struct mbstat {
 #define	M_WAIT		M_TRYWAIT	/* XXX: Deprecated. */
 
 #ifdef _KERNEL
-/*
- * mbuf external reference count management macros
+/*-
+ * mbuf external reference count management macros.
  *
  * MEXT_IS_REF(m): true if (m) is not the only mbuf referencing
- *     the external buffer ext_buf
+ *     the external buffer ext_buf.
  *
- * MEXT_REM_REF(m): remove reference to m_ext object
+ * MEXT_REM_REF(m): remove reference to m_ext object.
  *
  * MEXT_ADD_REF(m): add reference to m_ext object already
- *     referred to by (m)
+ *     referred to by (m).
  */
-#define MEXT_IS_REF(m)	(*((m)->m_ext.ref_cnt) > 1)
+#define	MEXT_IS_REF(m)	(*((m)->m_ext.ref_cnt) > 1)
 
-#define MEXT_REM_REF(m) do {						\
+#define	MEXT_REM_REF(m) do {						\
 	KASSERT(*((m)->m_ext.ref_cnt) > 0, ("m_ext refcnt < 0"));	\
 	atomic_subtract_int((m)->m_ext.ref_cnt, 1);			\
 } while(0)
 
-#define MEXT_ADD_REF(m)	atomic_add_int((m)->m_ext.ref_cnt, 1)
+#define	MEXT_ADD_REF(m)	atomic_add_int((m)->m_ext.ref_cnt, 1)
 
 /*
  * mbuf, cluster, and external object allocation macros
- * (for compatibility purposes)
+ * (for compatibility purposes).
  */
-#define MGET(m, how, type) 						\
-	(m) = m_get((how), (type))
-
-#define MGETHDR(m, how, type)		 				\
-	(m) = m_gethdr((how), (type))
-
-#define	MCLGET(m, how)							\
-	m_clget((m), (how))
-
-#define MEXTADD(m, buf, size, free, args, flags, type) 			\
+#define	m_getclr		m_get_clrd
+#define	MGET(m, how, type)	(m) = m_get((how), (type))
+#define	MGETHDR(m, how, type)	(m) = m_gethdr((how), (type))
+#define	MCLGET(m, how)		m_clget((m), (how))
+#define	MEXTADD(m, buf, size, free, args, flags, type) 			\
     m_extadd((m), (caddr_t)(buf), (size), (free), (args), (flags), (type))
-
 #define	MFREE(m, n) do {						\
 	(n) = m_free((m));						\
 	(m) = NULL;							\
 } while (0)
 
-#define	m_getclr	m_get_clrd
-
 /*
- * MEXTFREE(m): disassociate (and possibly free) an external object from `m'
+ * MEXTFREE(m): disassociate (and possibly free) an external object from (m).
  * 
  * If the atomic_cmpset_int() returns 0, then we effectively do nothing
  * in terms of "cleaning up" (freeing the ext buf and ref. counter) as
@@ -315,22 +307,21 @@ struct mbstat {
 } while (0)
 
 /*
- * M_WRITABLE(m)
  * Evaluate TRUE if it's safe to write to the mbuf m's data region (this
  * can be both the local data payload, or an external buffer area,
  * depending on whether M_EXT is set).
  */
-#define M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (!((m)->m_flags  \
+#define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) && (!((m)->m_flags  \
 			    & M_EXT) || !MEXT_IS_REF(m)))
 
-/*
+/*-
  * Copy mbuf pkthdr from "from" to "to".
- * from must have M_PKTHDR set, and to must be empty.
- * aux pointer will be moved to `to'.
+ * "from" must have M_PKTHDR set, and "to" must be empty.
+ * aux pointer will be moved to "to".
  */
 #define	M_COPY_PKTHDR(to, from) do {					\
-	struct	mbuf *_mfrom = (from);					\
-	struct	mbuf *_mto = (to);					\
+	struct mbuf *_mfrom = (from);					\
+	struct mbuf *_mto = (to);					\
 									\
 	_mto->m_data = _mto->m_pktdat;					\
 	_mto->m_flags = _mfrom->m_flags & M_COPYFLAGS;			\
@@ -380,10 +371,10 @@ struct mbstat {
  * set to NULL.
  */
 #define	M_PREPEND(m, plen, how) do {					\
-	struct	mbuf **_mmp = &(m);					\
-	struct	mbuf *_mm = *_mmp;					\
-	int	_mplen = (plen);					\
-	int	__mhow = (how);						\
+	struct mbuf **_mmp = &(m);					\
+	struct mbuf *_mm = *_mmp;					\
+	int _mplen = (plen);						\
+	int __mhow = (how);						\
 									\
 	if (M_LEADINGSPACE(_mm) >= _mplen) {				\
 		_mm->m_data -= _mplen;					\
@@ -401,10 +392,10 @@ struct mbstat {
  */
 #define	MCHTYPE(m, t)	m_chtype((m), (t))
 
-/* length to m_copy to copy all */
+/* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
-/* compatibility with 4.3 */
+/* Compatibility with 4.3 */
 #define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
 
 /*
@@ -413,19 +404,19 @@ struct mbstat {
 struct mauxtag {
 	int	af;
 	int	type;
-	void*	p;
+	void	*p;
 };
 
-extern	int		max_datalen;	/* MHLEN - max_hdr */
-extern	int		max_hdr;	/* largest link + protocol header */
-extern	int		max_linkhdr;	/* largest link-level header */
-extern	int		max_protohdr;	/* largest protocol header */
-extern	struct mbpstat	mb_statpcpu[];	/* Per-CPU allocation stats. */
-extern	struct mbstat	mbstat;		/* General mbuf stats/infos. */
-extern	int		nmbclusters;	/* Maximum number of clusters */
-extern	int		nmbcnt;		/* Scale kmem_map for counter space */
-extern	int		nmbufs;		/* Maximum number of mbufs */
-extern	int		nsfbufs;	/* Number of sendfile(2) bufs */
+extern	int max_datalen;		/* MHLEN - max_hdr */
+extern	int max_hdr;			/* largest link + protocol header */
+extern	int max_linkhdr;		/* largest link-level header */
+extern	int max_protohdr;		/* largest protocol header */
+extern	struct mbpstat mb_statpcpu[];	/* Per-CPU allocation stats. */
+extern	struct mbstat mbstat;		/* General mbuf stats/infos. */
+extern	int nmbclusters;		/* Maximum number of clusters */
+extern	int nmbcnt;			/* Scale kmem_map for counter space */
+extern	int nmbufs;			/* Maximum number of mbufs */
+extern	int nsfbufs;			/* Number of sendfile(2) bufs */
 
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
