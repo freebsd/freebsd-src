@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.14 1997/12/19 09:03:23 dyson Exp $
+ * $Id: kern_subr.c,v 1.15 1998/01/06 05:15:41 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -141,7 +142,7 @@ uiomoveco(cp, n, uio, obj)
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
 			if (uio->uio_rw == UIO_READ) {
-				if (((cnt & PAGE_MASK) == 0) &&
+				if (vfs_ioopt && ((cnt & PAGE_MASK) == 0) &&
 					((((int) iov->iov_base) & PAGE_MASK) == 0) &&
 					((uio->uio_offset & PAGE_MASK) == 0) &&
 					((((int) cp) & PAGE_MASK) == 0)) {
@@ -190,6 +191,8 @@ uioread(n, uio, obj, nread)
 	int error;
 
 	*nread = 0;
+	if (vfs_ioopt > 1)
+		return 0;
 	error = 0;
 
 	while (n > 0 && uio->uio_resid) {

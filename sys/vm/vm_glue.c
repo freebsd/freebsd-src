@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.68 1997/12/06 02:23:30 dyson Exp $
+ * $Id: vm_glue.c,v 1.69 1997/12/11 02:10:55 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -448,7 +448,6 @@ retry:
 				continue;
 
 			++vm->vm_refcnt;
-			vm_map_reference(&vm->vm_map);
 			/*
 			 * do not swapout a process that is waiting for VM
 			 * data structures there is a possible deadlock.
@@ -456,7 +455,6 @@ retry:
 			if (lockmgr(&vm->vm_map.lock,
 					LK_EXCLUSIVE | LK_NOWAIT,
 					(void *)0, curproc)) {
-				vm_map_deallocate(&vm->vm_map);
 				vmspace_free(vm);
 				continue;
 			}
@@ -469,7 +467,6 @@ retry:
 				((action & VM_SWAP_IDLE) &&
 				 (p->p_slptime > swap_idle_threshold2))) {
 				swapout(p);
-				vm_map_deallocate(&vm->vm_map);
 				vmspace_free(vm);
 				didswap++;
 				goto retry;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.35 1997/12/06 02:23:27 dyson Exp $
+ * $Id: vm_extern.h,v 1.36 1997/12/31 02:35:29 alex Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -70,7 +70,7 @@ void kmem_free __P((vm_map_t, vm_offset_t, vm_size_t));
 void kmem_free_wakeup __P((vm_map_t, vm_offset_t, vm_size_t));
 void kmem_init __P((vm_offset_t, vm_offset_t));
 vm_offset_t kmem_malloc __P((vm_map_t, vm_size_t, boolean_t));
-vm_map_t kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t, boolean_t));
+vm_map_t kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t));
 void munmapfd __P((struct proc *, int));
 int pager_cache __P((vm_object_t, boolean_t));
 int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long));
@@ -86,7 +86,7 @@ int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, 
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_set_page_size __P((void));
 void vmmeter __P((void));
-struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t, int));
+struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t));
 struct vmspace *vmspace_fork __P((struct vmspace *));
 void vmspace_exec __P((struct proc *));
 void vmspace_unshare __P((struct proc *));

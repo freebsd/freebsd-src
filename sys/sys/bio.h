@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.43 1997/10/23 11:32:06 gibbs Exp $
+ * $Id: buf.h,v 1.44 1997/12/02 21:07:14 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -87,6 +87,7 @@ struct buf {
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
+	int	b_generation;	/* Generation count of buffer */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	int	b_validoff;		/* Offset in buffer of valid region. */

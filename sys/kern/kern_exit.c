@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.63 1997/12/08 01:06:36 sef Exp $
+ * $Id: kern_exit.c,v 1.64 1997/12/16 17:40:14 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -71,6 +71,7 @@
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
@@ -492,7 +493,7 @@ loop:
 			 * release while still running in process context.
 			 */
 			cpu_wait(p);
-			FREE(p, M_PROC);
+			zfree(proc_zone, p);
 			nprocs--;
 			return (0);
 		}

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.85 1998/01/12 01:44:41 dyson Exp $
+ *	$Id: vm_page.c,v 1.86 1998/01/17 09:16:59 dyson Exp $
  */
 
 /*
@@ -94,6 +94,7 @@ static vm_page_t vm_page_select_free __P((vm_object_t object,
  *	page structure.
  */
 
+static int vm_page_bucket_generation;	/* generation id for buckets */
 static struct pglist *vm_page_buckets;	/* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
@@ -404,6 +405,7 @@ vm_page_insert(m, object, pindex)
 
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
 	TAILQ_INSERT_TAIL(bucket, m, hashq);
+	vm_page_bucket_generation++;
 
 	/*
 	 * Now link into the object's list of backed pages.
@@ -412,6 +414,7 @@ vm_page_insert(m, object, pindex)
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	m->flags |= PG_TABLED;
 	m->object->page_hint = m;
+	m->object->generation++;
 
 	/*
 	 * And show that the object has one more resident page.
@@ -448,6 +451,7 @@ vm_page_remove(m)
 
 	bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
 	TAILQ_REMOVE(bucket, m, hashq);
+	vm_page_bucket_generation++;
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -460,6 +464,7 @@ vm_page_remove(m)
 	 */
 
 	m->object->resident_page_count--;
+	m->object->generation++;
 
 	m->flags &= ~PG_TABLED;
 }
@@ -480,6 +485,7 @@ vm_page_lookup(object, pindex)
 {
 	register vm_page_t m;
 	register struct pglist *bucket;
+	int curgeneration;
 	int s;
 
 	/*
@@ -488,15 +494,16 @@ vm_page_lookup(object, pindex)
 
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
 
-	s = splvm();
+restart:
+	curgeneration = vm_page_bucket_generation;
 	for (m = TAILQ_FIRST(bucket); m != NULL; m = TAILQ_NEXT(m,hashq)) {
+		if (curgeneration != vm_page_bucket_generation)
+			goto restart;
 		if ((m->object == object) && (m->pindex == pindex)) {
-			splx(s);
 			m->object->page_hint = m;
 			return (m);
 		}
 	}
-	splx(s);
 	return (NULL);
 }
 
@@ -786,6 +793,7 @@ vm_page_alloc(object, pindex, page_req)
 				if (cnt.v_cache_count > 0)
 					printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
 #endif
+				vm_pageout_deficit++;
 				pagedaemon_wakeup();
 				return (NULL);
 			}
@@ -807,6 +815,7 @@ vm_page_alloc(object, pindex, page_req)
 				if (cnt.v_cache_count > 0)
 					printf("vm_page_alloc(ZERO): missing pages on cache queue: %d\n", cnt.v_cache_count);
 #endif
+				vm_pageout_deficit++;
 				pagedaemon_wakeup();
 				return (NULL);
 			}
@@ -830,6 +839,7 @@ vm_page_alloc(object, pindex, page_req)
 				if (cnt.v_cache_count > 0)
 					printf("vm_page_alloc(SYSTEM): missing pages on cache queue: %d\n", cnt.v_cache_count);
 #endif
+				vm_pageout_deficit++;
 				pagedaemon_wakeup();
 				return (NULL);
 			}
@@ -845,6 +855,7 @@ vm_page_alloc(object, pindex, page_req)
 #endif
 		} else {
 			splx(s);
+			vm_pageout_deficit++;
 			pagedaemon_wakeup();
 			return (NULL);
 		}
@@ -883,8 +894,6 @@ vm_page_alloc(object, pindex, page_req)
 	/* XXX before splx until vm_page_insert is safe */
 	vm_page_insert(m, object, pindex);
 
-	splx(s);
-
 	/*
 	 * Don't wakeup too often - wakeup the pageout daemon when
 	 * we would be nearly out of memory.
@@ -894,7 +903,6 @@ vm_page_alloc(object, pindex, page_req)
 			(cnt.v_free_count < cnt.v_pageout_free_min))
 		pagedaemon_wakeup();
 
-	s = splvm();
 	if ((qtype == PQ_CACHE) &&
 		((page_req == VM_ALLOC_NORMAL) || (page_req == VM_ALLOC_ZERO)) &&
 		oldobject && (oldobject->type == OBJT_VNODE) &&

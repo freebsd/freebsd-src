@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.13 1997/12/15 05:16:09 dyson Exp $
+ * $Id: vm_zone.c,v 1.14 1997/12/22 11:48:13 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -38,6 +38,11 @@ static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
  *
  * Note that the initial implementation of this had coloring, and
  * absolutely no improvement (actually perf degradation) occurred.
+ *
+ * Note also that the zones are type stable.  The only restriction is
+ * that the first two longwords of a data structure can be changed
+ * between allocations.  Any data that must be stable between allocations
+ * must reside in areas after the first two longwords.
  *
  * zinitna, zinit, zbootinit are the initialization routines.
  * zalloc, zfree, are the interrupt/lock unsafe allocation/free routines.
@@ -183,6 +188,7 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->znalloc = 0;
 	simple_lock_init(&z->zlock);
 
+	bzero(item, nitems * z->zsize);
 	z->zitems = NULL;
 	for (i = 0; i < nitems; i++) {
 		((void **) item)[0] = z->zitems;
@@ -285,14 +291,16 @@ _zget(vm_zone_t z)
 		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
 		for (i = 0; ((i < z->zalloc) && (z->zpagecount < z->zpagemax));
 		     i++) {
+			vm_offset_t zkva;
 
 			m = vm_page_alloc(z->zobj, z->zpagecount,
 					  z->zallocflag);
 			if (m == NULL)
 				break;
 
-			pmap_kenter(z->zkva + z->zpagecount * PAGE_SIZE,
-				    VM_PAGE_TO_PHYS(m));
+			zkva = z->zkva + z->zpagecount * PAGE_SIZE;
+			pmap_kenter(zkva, VM_PAGE_TO_PHYS(m));
+			bzero((caddr_t) zkva, PAGE_SIZE);
 			z->zpagecount++;
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
@@ -314,13 +322,13 @@ _zget(vm_zone_t z)
 		 */
 		if (lockstatus(&kernel_map->lock)) {
 			int s;
-			s = splhigh();
+			s = splvm();
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
 			splx(s);
 		} else {
 			item = (void *) kmem_alloc(kernel_map, nbytes);
 		}
-
+		bzero(item, nbytes);
 		nitems = nbytes / z->zsize;
 	}
 	z->ztotal += nitems;

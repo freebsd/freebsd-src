@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.32 1997/11/12 12:28:12 tegge Exp $
+ *	$Id: sys_process.c,v 1.33 1997/12/06 04:11:10 sef Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	vm_offset_t	pageno;		/* page number */
 	vm_map_entry_t	out_entry;
 	vm_prot_t	out_prot;
-	boolean_t	wired, single_use;
+	boolean_t	wired;
 	vm_pindex_t	pindex;
 
 	/* Map page into kernel space */
@@ -74,7 +74,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 
 	tmap = map;
 	rv = vm_map_lookup (&tmap, pageno, VM_PROT_READ, &out_entry,
-		&object, &pindex, &out_prot, &wired, &single_use);
+		&object, &pindex, &out_prot, &wired);
 
 	if (rv != KERN_SUCCESS)
 		return EINVAL;
@@ -110,7 +110,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	vm_offset_t	pageno;		/* page number */
 	vm_map_entry_t	out_entry;
 	vm_prot_t	out_prot;
-	boolean_t	wired, single_use;
+	boolean_t	wired;
 	vm_pindex_t	pindex;
 	boolean_t	fix_prot = 0;
 
@@ -148,7 +148,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 
 	tmap = map;
 	rv = vm_map_lookup (&tmap, pageno, VM_PROT_WRITE, &out_entry,
-		&object, &pindex, &out_prot, &wired, &single_use);
+		&object, &pindex, &out_prot, &wired);
 	if (rv != KERN_SUCCESS) {
 		return EINVAL;
 	}
