@@ -886,6 +886,16 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 	/* LINUX_TIOCGLCKTRMIOS */
 	/* LINUX_TIOCSLCKTRMIOS */
 
+	case LINUX_TIOCSBRK:
+		args->cmd = TIOCSBRK;
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
+
+	case LINUX_TIOCCBRK:
+		args->cmd = TIOCCBRK;
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
+
 	default:
 		error = ENOIOCTL;
 		break;
