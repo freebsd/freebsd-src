@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.10 1998/11/01 09:31:08 msmith Exp $
+ *	$Id: stand.h,v 1.11 1998/11/04 07:04:00 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -228,6 +228,10 @@ extern void	pager_open(void);
 extern void	pager_close(void);
 extern int	pager_output(const char *lines);
 extern int	pager_file(const char *fname);
+
+/* No signal state to preserve */
+#define setjmp	_setjmp
+#define longjmp	_longjmp
 
 /* environment.c */
 #define EV_DYNAMIC	(1<<0)		/* value was dynamically allocated, free if changed/unset */
