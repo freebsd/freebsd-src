@@ -44,14 +44,19 @@ _sigsuspend(const sigset_t *set)
 {
 	struct pthread	*curthread = _get_curthread();
 	int             ret = -1;
+	sigset_t	osigmask;
+
+	if (!_kse_isthreaded())
+		return __sys_sigsuspend(set);
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
 		THR_LOCK_SWITCH(curthread);
 
+		/* Save current sigmask */
+		memcpy(&osigmask, &curthread->sigmask, sizeof(osigmask));
 		/* Change the caller's mask: */
-		memcpy(&curthread->tmbx.tm_context.uc_sigmask,
-		    set, sizeof(sigset_t));
+		memcpy(&curthread->sigmask, set, sizeof(sigset_t));
 
 		THR_SET_STATE(curthread, PS_SIGSUSPEND);
 
@@ -61,9 +66,15 @@ _sigsuspend(const sigset_t *set)
 		/* Always return an interrupted error: */
 		errno = EINTR;
 
+		THR_SCHED_LOCK(curthread, curthread);
 		/* Restore the signal mask: */
-		memcpy(&curthread->tmbx.tm_context.uc_sigmask,
-		    &curthread->sigmask, sizeof(sigset_t));
+		memcpy(&curthread->sigmask, &osigmask, sizeof(sigset_t));
+		THR_SCHED_UNLOCK(curthread, curthread);
+		/*
+		 * signal mask is reloaded, need to check if there is
+		 * pending proc signal I can handle.
+		 */
+		_thr_sig_check_pending(curthread);
 	} else {
 		/* Return an invalid argument error: */
 		errno = EINVAL;

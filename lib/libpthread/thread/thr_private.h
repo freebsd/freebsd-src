@@ -171,7 +171,7 @@ typedef struct kse_thr_mailbox *kse_critical_t;
 
 struct kse_group;
 
-#define	MAX_KSE_LOCKLEVEL	3
+#define	MAX_KSE_LOCKLEVEL	5	
 struct kse {
 	struct kse_mailbox	k_mbx;		/* kernel kse mailbox */
 	/* -- location and order specific items for gdb -- */
@@ -190,7 +190,7 @@ struct kse {
 	struct lockuser		k_lockusers[MAX_KSE_LOCKLEVEL];
 	int			k_locklevel;
 	sigset_t		k_sigmask;
-	struct sigstatus	k_sigq[NSIG];
+	struct sigstatus	k_sigq[_SIG_MAXSIG];
 	stack_t			k_stack;
 	int			k_check_sigq;
 	int			k_flags;
@@ -201,6 +201,7 @@ struct kse {
 	int			k_error;	/* syscall errno in critical */
 	int			k_cpu;		/* CPU ID when bound */
 	int			k_done;		/* this KSE is done */
+	int			k_switch;	/* thread switch in UTS */
 };
 
 /*
@@ -546,8 +547,8 @@ enum pthread_state {
 union pthread_wait_data {
 	pthread_mutex_t	mutex;
 	pthread_cond_t	cond;
-	const sigset_t	*sigwait;	/* Waiting on a signal in sigwait */
 	struct lock	*lock;
+	siginfo_t	*sigwaitinfo;	/* used to save siginfo for sigwaitinfo() */
 };
 
 /*
@@ -563,6 +564,7 @@ typedef void	(*thread_continuation_t) (void *);
  * state is restored from here.
  */
 struct pthread_sigframe {
+	int			psf_valid;
 	int			psf_flags;
 	int			psf_interrupted;
 	int			psf_signo;
@@ -586,7 +588,7 @@ struct pthread_specific_elem {
 };
 
 
-#define	MAX_THR_LOCKLEVEL	3
+#define	MAX_THR_LOCKLEVEL	5	
 /*
  * Thread structure.
  */
@@ -640,7 +642,7 @@ struct pthread {
 	 * Used for tracking delivery of signal handlers.
 	 */
 	struct pthread_sigframe	*curframe;
-	siginfo_t		siginfo[NSIG];
+	siginfo_t		siginfo[_SIG_MAXSIG];
 
  	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
@@ -657,11 +659,10 @@ struct pthread {
 	 * The thread's base and pending signal masks.  The active
 	 * signal mask is stored in the thread's context (in mailbox).
 	 */
+	sigset_t		oldsigmask;
 	sigset_t		sigmask;
 	sigset_t		sigpend;
-	int			sigmask_seqno;
 	int			check_pending;
-	int			have_signals;
 	int			refcount;
 
 	/* Thread state: */
@@ -997,14 +998,14 @@ SCLASS struct pthread_cond_attr _pthread_condattr_default
 SCLASS int		_clock_res_usec		SCLASS_PRESET(CLOCK_RES_USEC);
 
 /* Array of signal actions for this process: */
-SCLASS struct sigaction	_thread_sigact[NSIG];
+SCLASS struct sigaction	_thread_sigact[_SIG_MAXSIG];
 
 /*
  * Array of counts of dummy handlers for SIG_DFL signals.  This is used to
  * assure that there is always a dummy signal handler installed while there
  * is a thread sigwait()ing on the corresponding signal.
  */
-SCLASS int		_thread_dfl_count[NSIG];
+SCLASS int		_thread_dfl_count[_SIG_MAXSIG];
 
 /*
  * Lock for above count of dummy handlers and for the process signal
@@ -1014,8 +1015,7 @@ SCLASS struct lock	_thread_signal_lock;
 
 /* Pending signals and mask for this process: */
 SCLASS sigset_t		_thr_proc_sigpending;
-SCLASS sigset_t		_thr_proc_sigmask	SCLASS_PRESET({{0, 0, 0, 0}});
-SCLASS siginfo_t	_thr_proc_siginfo[NSIG];
+SCLASS siginfo_t	_thr_proc_siginfo[_SIG_MAXSIG];
 
 SCLASS pid_t		_thr_pid		SCLASS_PRESET(0);
 
@@ -1030,7 +1030,7 @@ SCLASS struct lock	_keytable_lock;
 SCLASS struct lock	_thread_list_lock;
 SCLASS int		_thr_guard_default;
 SCLASS int		_thr_page_size;
-
+SCLASS pthread_t	_thr_sig_daemon;
 SCLASS int		_thr_debug_flags	SCLASS_PRESET(0);
 
 /* Undefine the storage class and preset specifiers: */
@@ -1116,7 +1116,6 @@ void    _thr_panic_exit(char *, int, char *);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void	_thread_printf(int, const char *, ...);
-void    _thr_sched_frame(struct pthread_sigframe *);
 void	_thr_sched_switch(struct pthread *);
 void	_thr_sched_switch_unlocked(struct pthread *);
 void    _thr_set_timeout(const struct timespec *);
@@ -1126,13 +1125,17 @@ void    _thr_sig_check_pending(struct pthread *);
 void	_thr_sig_rundown(struct pthread *, ucontext_t *,
 	    struct pthread_sigframe *);
 void	_thr_sig_send(struct pthread *pthread, int sig);
-void	_thr_sig_wrapper(void);
 void	_thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf);
 void	_thr_spinlock_init(void);
 void	_thr_enter_cancellation_point(struct pthread *);
 void	_thr_leave_cancellation_point(struct pthread *);
 int	_thr_setconcurrency(int new_level);
 int	_thr_setmaxconcurrency(void);
+int	_thr_start_sig_daemon(void);
+int	_thr_getprocsig(int sig, siginfo_t *siginfo);
+int	_thr_getprocsig_unlocked(int sig, siginfo_t *siginfo);
+void	_thr_signal_init(void);
+void	_thr_signal_deinit(void);
 
 /*
  * Aliases for _pthread functions. Should be called instead of
@@ -1216,6 +1219,8 @@ int     __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
+int	__sys_sigwait(const sigset_t *, int *);
+int	__sys_sigtimedwait(sigset_t *, siginfo_t *, struct timespec *);
 #endif
 
 /* #include <poll.h> */

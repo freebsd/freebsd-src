@@ -39,6 +39,7 @@
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/signalvar.h>
 #include <machine/reg.h>
 
 #include <sys/ioctl.h>
@@ -304,7 +305,7 @@ _libpthread_init(struct pthread *curthread)
 	_thr_initial->kse->k_curthread = _thr_initial;
 	_thr_initial->kse->k_flags |= KF_INITIALIZED;
 	_kse_initial->k_curthread = _thr_initial;
-	
+
 	_thr_rtld_init();
 }
 
@@ -365,14 +366,13 @@ init_main_thread(struct pthread *thread)
 	thread->name = strdup("initial thread");
 
 	/* Initialize the thread for signals: */
-	sigemptyset(&thread->sigmask);
+	SIGEMPTYSET(thread->sigmask);
 
 	/*
 	 * Set up the thread mailbox.  The threads saved context
 	 * is also in the mailbox.
 	 */
 	thread->tmbx.tm_udata = thread;
-	thread->tmbx.tm_context.uc_sigmask = thread->sigmask;
 	thread->tmbx.tm_context.uc_stack.ss_size = thread->attr.stacksize_attr;
 	thread->tmbx.tm_context.uc_stack.ss_sp = thread->attr.stackaddr_attr;
 
@@ -407,10 +407,8 @@ static void
 init_private(void)
 {
 	struct clockinfo clockinfo;
-	struct sigaction act;
 	size_t len;
 	int mib[2];
-	int i;
 
 	/*
 	 * Avoid reinitializing some things if they don't need to be,
@@ -448,36 +446,6 @@ init_private(void)
 
 		_thr_page_size = getpagesize();
 		_thr_guard_default = _thr_page_size;
-
-		/* Enter a loop to get the existing signal status: */
-		for (i = 1; i < NSIG; i++) {
-			/* Check for signals which cannot be trapped: */
-			if (i == SIGKILL || i == SIGSTOP) {
-			}
-
-			/* Get the signal handler details: */
-			else if (__sys_sigaction(i, NULL,
-			    &_thread_sigact[i - 1]) != 0) {
-				/*
-				 * Abort this process if signal
-				 * initialisation fails:
-				 */
-				PANIC("Cannot read signal handler info");
-			}
-		}
-		/*
-		 * Install the signal handler for SIGINFO.  It isn't
-		 * really needed, but it is nice to have for debugging
-		 * purposes.
-		 */
-		if (__sys_sigaction(SIGINFO, &act, NULL) != 0) {
-			/*
-			 * Abort this process if signal initialisation fails:
-			 */
-			PANIC("Cannot initialize signal handler");
-		}
-		_thread_sigact[SIGINFO - 1].sa_flags = SA_SIGINFO | SA_RESTART;
-
 		init_once = 1;	/* Don't do this again. */
 	} else {
 		/*
@@ -494,8 +462,6 @@ init_private(void)
 	/* Initialize everything else. */
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&_thread_gc_list);
-
-	/* Enter a loop to get the existing signal status: */
 
 	/* Initialize the SIG_DFL dummy handler count. */
 	bzero(_thread_dfl_count, sizeof(_thread_dfl_count));
@@ -520,8 +486,7 @@ init_private(void)
 	_thr_spinlock_init();
 
 	/* Clear pending signals and get the process signal mask. */
-	sigemptyset(&_thr_proc_sigpending);
-	__sys_sigprocmask(SIG_SETMASK, NULL, &_thr_proc_sigmask);
+	SIGEMPTYSET(_thr_proc_sigpending);
 
 	/*
 	 * _thread_list_lock and _kse_count are initialized
