@@ -136,10 +136,12 @@ TcpChecksum(struct ip *pip)
 
 
 void
-DifferentialChecksum(u_short * cksum, u_short * new, u_short * old, int n)
+DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
 {
 	int i;
 	int accumulate;
+	u_short *new = newp;
+	u_short *old = oldp;
 
 	accumulate = *cksum;
 	for (i = 0; i < n; i++) {

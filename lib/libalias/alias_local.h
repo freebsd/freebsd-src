@@ -168,8 +168,7 @@ struct libalias {
 u_short		IpChecksum(struct ip *_pip);
 u_short		TcpChecksum(struct ip *_pip);
 void
-DifferentialChecksum(u_short * _cksum, u_short * _new, u_short * _old,
-    int _n);
+DifferentialChecksum(u_short * _cksum, void * _new, void * _old, int _n);
 
 /* Internal data access */
 struct alias_link *
