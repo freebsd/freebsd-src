@@ -951,12 +951,30 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	ncount = count;
 
 	poffset = IDX_TO_OFF(m[0]->pindex);
+
+	/*
+	 * If the page-aligned write is larger then the actual file we
+	 * have to invalidate pages occuring beyond the file EOF.  However,
+	 * there is an edge case where a file may not be page-aligned where
+	 * the last page is partially invalid.  In this case the filesystem
+	 * may not properly clear the dirty bits for the entire page (which
+	 * could be VM_PAGE_BITS_ALL due to the page having been mmap()d).
+	 * With the page locked we are free to fix-up the dirty bits here.
+	 */
 	if (maxsize + poffset > object->un_pager.vnp.vnp_size) {
-		if (object->un_pager.vnp.vnp_size > poffset)
+		if (object->un_pager.vnp.vnp_size > poffset) {
+			int pgoff;
+
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
-		else
+			ncount = btoc(maxsize);
+			if ((pgoff = (int)maxsize & PAGE_MASK) != 0) {
+				vm_page_clear_dirty(m[ncount - 1], pgoff,
+					PAGE_SIZE - pgoff);
+			}
+		} else {
 			maxsize = 0;
-		ncount = btoc(maxsize);
+			ncount = 0;
+		}
 		if (ncount < count) {
 			for (i = ncount; i < count; i++) {
 				rtvals[i] = VM_PAGER_BAD;
