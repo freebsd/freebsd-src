@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.20 1998/03/23 05:53:57 yokota Exp $
+#	$Id: GENERIC,v 1.77.2.21 1998/03/23 08:04:00 jkh Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -83,11 +83,11 @@ controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
 controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
 controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 
-#options	DPTOPT		#will go away
-#options   	DPT_MEASURE_PERFORMANCE #Leave alone for now
-#options		DPT_VERIFY_HINTR		# Some hardware MUST have it!
-#options		DPT_TRACK_CCB_STATES	# Some hardware MUST have it!
-#options    	DPT_HANDLE_TIMEOUTS		# Some hardware must have it!
+#options		DPTOPT			# will go away soon
+#options   		DPT_MEASURE_PERFORMANCE	# just enable for now
+#options		DPT_VERIFY_HINTR	# Some hardware must have it!
+#options		DPT_TRACK_CCB_STATES	# Some hardware must have it!
+#options    		DPT_HANDLE_TIMEOUTS	# Some hardware must have it!
 #options		DPT_TIMEOUT_FACTOR=4	# Some hardware needs more
 
 controller	scbus0
