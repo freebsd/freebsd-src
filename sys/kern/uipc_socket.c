@@ -949,6 +949,7 @@ restart:
 				so->so_error = 0;
 			goto release;
 		}
+		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 			if (m)
 				goto dontblock;
@@ -1115,6 +1116,7 @@ dontblock:
 				goto release;
 		} else
 			uio->uio_resid -= len;
+		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (len == m->m_len - moff) {
 			if (m->m_flags & M_EOR)
 				flags |= MSG_EOR;
@@ -1158,6 +1160,7 @@ dontblock:
 				so->so_rcv.sb_cc -= len;
 			}
 		}
+		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (so->so_oobmark) {
 			if ((flags & MSG_PEEK) == 0) {
 				so->so_oobmark -= len;
@@ -1206,6 +1209,7 @@ dontblock:
 		}
 	}
 
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	if (m != NULL && pr->pr_flags & PR_ATOMIC) {
 		flags |= MSG_TRUNC;
 		if ((flags & MSG_PEEK) == 0) {
@@ -1248,6 +1252,7 @@ release:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	sbunlock(&so->so_rcv);
 out:
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	return (error);
 }
