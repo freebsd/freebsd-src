@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.1.1.1 1996/11/15 05:14:40 asami Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.2 1996/12/25 04:19:52 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.42 -->
+<!-- Original revision: 1.43 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -336,6 +336,16 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
 <tag><label id="mirrors-ru">ロシア</tag>
 
 <itemize>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@ru.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<item>
+<url url="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"><newline>
+	連絡先: <url url="mailto:ftp-adm@ftp1.ru.freebsd.org"
+	name="ftp-adm@ftp1.ru.freebsd.org">.
 
 <item>
 <url url="ftp://ftp.kiae.su/FreeBSD"
