@@ -172,6 +172,9 @@ static void wi_get_id(struct wi_softc *, device_t);
 static int wi_media_change(struct ifnet *);
 static void wi_media_status(struct ifnet *, struct ifmediareq *);
 
+static int wi_get_debug(struct wi_softc *, struct wi_req *);
+static int wi_set_debug(struct wi_softc *, struct wi_req *);
+
 static device_method_t wi_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
@@ -248,6 +251,7 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(EMTAC, WLAN, 0),
 	PCMCIA_CARD(ERICSSON, WIRELESSLAN, 0),
 	PCMCIA_CARD(GEMTEK, WLAN, 0),
+	PCMCIA_CARD(HWN, AIRWAY80211, 0), 
 	PCMCIA_CARD(INTEL, PRO_WLAN_2011, 0),
 	PCMCIA_CARD(INTERSIL, PRISM2, 0),
 	PCMCIA_CARD(IODATA2, WNB11PCM, 0),
@@ -712,7 +716,6 @@ wi_rxeof(sc)
 {
 	struct ifnet		*ifp;
 	struct ether_header	*eh;
-	struct wi_frame		rx_frame;
 	struct mbuf		*m;
 	int			id;
 
@@ -720,102 +723,207 @@ wi_rxeof(sc)
 
 	id = CSR_READ_2(sc, WI_RX_FID);
 
-	/* First read in the frame header */
-	if (wi_read_data(sc, id, 0, (caddr_t)&rx_frame, sizeof(rx_frame))) {
-		ifp->if_ierrors++;
-		return;
-	}
+	/*
+	 * if we have the procframe flag set, disregard all this and just
+	 * read the data from the device.
+	 */
+	if (sc->wi_procframe || sc->wi_debug.wi_monitor) {
+		struct wi_frame		*rx_frame;
+		int			datlen, hdrlen;
 
-	if (rx_frame.wi_status & WI_STAT_ERRSTAT) {
-		ifp->if_ierrors++;
-		return;
-	}
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL) {
-		ifp->if_ierrors++;
-		return;
-	}
-	MCLGET(m, M_DONTWAIT);
-	if (!(m->m_flags & M_EXT)) {
-		m_freem(m);
-		ifp->if_ierrors++;
-		return;
-	}
-
-	eh = mtod(m, struct ether_header *);
-	m->m_pkthdr.rcvif = ifp;
-
-	if (rx_frame.wi_status == WI_STAT_1042 ||
-	    rx_frame.wi_status == WI_STAT_TUNNEL ||
-	    rx_frame.wi_status == WI_STAT_WMP_MSG) {
-		if((rx_frame.wi_dat_len + WI_SNAPHDR_LEN) > MCLBYTES) {
-			device_printf(sc->dev, "oversized packet received "
-			    "(wi_dat_len=%d, wi_status=0x%x)\n",
-			    rx_frame.wi_dat_len, rx_frame.wi_status);
+		/* first allocate mbuf for packet storage */
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (m == NULL) {
+			ifp->if_ierrors++;
+			return;
+		}
+		MCLGET(m, M_DONTWAIT);
+		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);
 			ifp->if_ierrors++;
 			return;
 		}
-		m->m_pkthdr.len = m->m_len =
-		    rx_frame.wi_dat_len + WI_SNAPHDR_LEN;
+
+		m->m_pkthdr.rcvif = ifp;
+
+		/* now read wi_frame first so we know how much data to read */
+		if (wi_read_data(sc, id, 0, mtod(m, caddr_t),
+		    sizeof(struct wi_frame))) {
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+
+		rx_frame = mtod(m, struct wi_frame *);
+
+		switch ((rx_frame->wi_status & WI_STAT_MAC_PORT) >> 8) {
+		case 7:
+			switch (rx_frame->wi_frame_ctl & WI_FCTL_FTYPE) {
+			case WI_FTYPE_DATA:
+				hdrlen = WI_DATA_HDRLEN;
+				datlen = rx_frame->wi_dat_len + WI_FCS_LEN;
+				break;
+			case WI_FTYPE_MGMT:
+				hdrlen = WI_MGMT_HDRLEN;
+				datlen = rx_frame->wi_dat_len + WI_FCS_LEN;
+				break;
+			case WI_FTYPE_CTL:
+				/*
+				 * prism2 cards don't pass control packets
+				 * down properly or consistently, so we'll only
+				 * pass down the header.
+				 */
+				hdrlen = WI_CTL_HDRLEN;
+				datlen = 0;
+				break;
+			default:
+				device_printf(sc->dev, "received packet of "
+				    "unknown type on port 7\n");
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
+			break;
+		case 0:
+			hdrlen = WI_DATA_HDRLEN;
+			datlen = rx_frame->wi_dat_len + WI_FCS_LEN;
+			break;
+		default:
+			device_printf(sc->dev, "received packet on invalid "
+			    "port (wi_status=0x%x)\n", rx_frame->wi_status);
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+
+		if ((hdrlen + datlen + 2) > MCLBYTES) {
+			device_printf(sc->dev, "oversized packet received "
+			    "(wi_dat_len=%d, wi_status=0x%x)\n",
+			    datlen, rx_frame->wi_status);
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+
+		if (wi_read_data(sc, id, hdrlen, mtod(m, caddr_t) + hdrlen,
+		    datlen + 2)) {
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+
+		m->m_pkthdr.len = m->m_len = hdrlen + datlen;
+
+		ifp->if_ipackets++;
+
+		/* Handle BPF listeners. */
+		if (ifp->if_bpf)
+			bpf_mtap(ifp, m);
+
+		m_freem(m);
+	} else {
+		struct wi_frame		rx_frame;
+
+		/* First read in the frame header */
+		if (wi_read_data(sc, id, 0, (caddr_t)&rx_frame,
+		    sizeof(rx_frame))) {
+			ifp->if_ierrors++;
+			return;
+		}
+
+		if (rx_frame.wi_status & WI_STAT_ERRSTAT) {
+			ifp->if_ierrors++;
+			return;
+		}
+
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (m == NULL) {
+			ifp->if_ierrors++;
+			return;
+		}
+		MCLGET(m, M_DONTWAIT);
+		if (!(m->m_flags & M_EXT)) {
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+
+		eh = mtod(m, struct ether_header *);
+		m->m_pkthdr.rcvif = ifp;
+
+		if (rx_frame.wi_status == WI_STAT_1042 ||
+		    rx_frame.wi_status == WI_STAT_TUNNEL ||
+		    rx_frame.wi_status == WI_STAT_WMP_MSG) {
+			if((rx_frame.wi_dat_len + WI_SNAPHDR_LEN) > MCLBYTES) {
+				device_printf(sc->dev,
+				    "oversized packet received "
+				    "(wi_dat_len=%d, wi_status=0x%x)\n",
+				    rx_frame.wi_dat_len, rx_frame.wi_status);
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
+			m->m_pkthdr.len = m->m_len =
+			    rx_frame.wi_dat_len + WI_SNAPHDR_LEN;
 
 #if 0
-		bcopy((char *)&rx_frame.wi_addr1,
-		    (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
-		if (sc->wi_ptype == WI_PORTTYPE_ADHOC) {
-			bcopy((char *)&rx_frame.wi_addr2,
-			    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
-		} else {
-			bcopy((char *)&rx_frame.wi_addr3,
-			    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
-		}
+			bcopy((char *)&rx_frame.wi_addr1,
+			    (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
+			if (sc->wi_ptype == WI_PORTTYPE_ADHOC) {
+				bcopy((char *)&rx_frame.wi_addr2,
+				    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+			} else {
+				bcopy((char *)&rx_frame.wi_addr3,
+				    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+			}
 #else
-		bcopy((char *)&rx_frame.wi_dst_addr,
-			(char *)&eh->ether_dhost, ETHER_ADDR_LEN);
-		bcopy((char *)&rx_frame.wi_src_addr,
-			(char *)&eh->ether_shost, ETHER_ADDR_LEN);
+			bcopy((char *)&rx_frame.wi_dst_addr,
+				(char *)&eh->ether_dhost, ETHER_ADDR_LEN);
+			bcopy((char *)&rx_frame.wi_src_addr,
+				(char *)&eh->ether_shost, ETHER_ADDR_LEN);
 #endif
 
-		bcopy((char *)&rx_frame.wi_type,
-		    (char *)&eh->ether_type, ETHER_TYPE_LEN);
+			bcopy((char *)&rx_frame.wi_type,
+			    (char *)&eh->ether_type, ETHER_TYPE_LEN);
 
-		if (wi_read_data(sc, id, WI_802_11_OFFSET,
-		    mtod(m, caddr_t) + sizeof(struct ether_header),
-		    m->m_len + 2)) {
-			m_freem(m);
-			ifp->if_ierrors++;
-			return;
+			if (wi_read_data(sc, id, WI_802_11_OFFSET,
+			    mtod(m, caddr_t) + sizeof(struct ether_header),
+			    m->m_len + 2)) {
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
+		} else {
+			if((rx_frame.wi_dat_len +
+			    sizeof(struct ether_header)) > MCLBYTES) {
+				device_printf(sc->dev,
+				    "oversized packet received "
+				    "(wi_dat_len=%d, wi_status=0x%x)\n",
+				    rx_frame.wi_dat_len, rx_frame.wi_status);
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
+			m->m_pkthdr.len = m->m_len =
+			    rx_frame.wi_dat_len + sizeof(struct ether_header);
+
+			if (wi_read_data(sc, id, WI_802_3_OFFSET,
+			    mtod(m, caddr_t), m->m_len + 2)) {
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
 		}
-	} else {
-		if((rx_frame.wi_dat_len +
-		    sizeof(struct ether_header)) > MCLBYTES) {
-			device_printf(sc->dev, "oversized packet received "
-			    "(wi_dat_len=%d, wi_status=0x%x)\n",
-			    rx_frame.wi_dat_len, rx_frame.wi_status);
-			m_freem(m);
-			ifp->if_ierrors++;
-			return;
-		}
-		m->m_pkthdr.len = m->m_len =
-		    rx_frame.wi_dat_len + sizeof(struct ether_header);
 
-		if (wi_read_data(sc, id, WI_802_3_OFFSET,
-		    mtod(m, caddr_t), m->m_len + 2)) {
-			m_freem(m);
-			ifp->if_ierrors++;
-			return;
-		}
-	}
+		ifp->if_ipackets++;
 
-	ifp->if_ipackets++;
-
-	/* Receive packet. */
-	m_adj(m, sizeof(struct ether_header));
+		/* Receive packet. */
+		m_adj(m, sizeof(struct ether_header));
 #ifdef WICACHE
-	wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
+		wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
 #endif  
-	ether_input(ifp, eh, m);
+		ether_input(ifp, eh, m);
+	}
 }
 
 static void
@@ -876,7 +984,20 @@ wi_update_stats(sc)
 
 	wi_read_data(sc, id, 0, (char *)&gen, 4);
 
-	if (gen.wi_type != WI_INFO_COUNTERS)
+	/*
+	 * if we just got our scan results, copy it over into the scan buffer
+	 * so we can return it to anyone that asks for it. (add a little
+	 * compatibility with the prism2 scanning mechanism)
+	 */
+	if (gen.wi_type == WI_INFO_SCAN_RESULTS)
+	{
+		sc->wi_scanbuf_len = gen.wi_len;
+		wi_read_data(sc, id, 4, (char *)sc->wi_scanbuf,
+		    sc->wi_scanbuf_len * 2);
+
+		return;
+	}
+	else if (gen.wi_type != WI_INFO_COUNTERS)
 		return;
 
 	len = (gen.wi_len - 1 < sizeof(sc->wi_stats) / 4) ?
@@ -1617,7 +1738,17 @@ wi_ioctl(ifp, command, data)
 			    sc->wi_sigitems) / 2) + 1;
 		}
 #endif
-		else {
+		else if (wreq.wi_type == WI_RID_PROCFRAME) {
+			wreq.wi_len = 2;
+			wreq.wi_val[0] = sc->wi_procframe;
+		} else if (wreq.wi_type == WI_RID_PRISM2) {
+			wreq.wi_len = 2;
+			wreq.wi_val[0] = sc->wi_prism2;
+		} else if (wreq.wi_type == WI_RID_SCAN_RES && !sc->wi_prism2) {
+			memcpy((char *)wreq.wi_val, (char *)sc->wi_scanbuf,
+			    sc->wi_scanbuf_len * 2);
+			wreq.wi_len = sc->wi_scanbuf_len;
+		} else {
 			if (wi_read_record(sc, (struct wi_ltv_gen *)&wreq)) {
 				error = EINVAL;
 				break;
@@ -1637,11 +1768,42 @@ wi_ioctl(ifp, command, data)
 		} else if (wreq.wi_type == WI_RID_MGMT_XMIT) {
 			error = wi_mgmt_xmit(sc, (caddr_t)&wreq.wi_val,
 			    wreq.wi_len);
+		} else if (wreq.wi_type == WI_RID_PROCFRAME) {
+			sc->wi_procframe = wreq.wi_val[0];
+		/*
+		 * if we're getting a scan request from a wavelan card
+		 * (non-prism2), send out a cmd_inquire to the card to scan
+		 * results for the scan will be received through the info
+		 * interrupt handler. otherwise the scan request can be
+		 * directly handled by a prism2 card's rid interface.
+		 */
+		} else if (wreq.wi_type == WI_RID_SCAN_REQ && !sc->wi_prism2) {
+			wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_SCAN_RESULTS, 0, 0);
 		} else {
 			error = wi_write_record(sc, (struct wi_ltv_gen *)&wreq);
 			if (!error)
 				wi_setdef(sc, &wreq);
 		}
+		break;
+	case SIOCGPRISM2DEBUG:
+		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
+		if (error)
+			break;
+		if (!(ifp->if_flags & IFF_RUNNING) || !sc->wi_prism2) {
+			error = EIO;
+			break;
+		}
+		error = wi_get_debug(sc, &wreq);
+		if (error == 0)
+			error = copyout(&wreq, ifr->ifr_data, sizeof(wreq));
+		break;
+	case SIOCSPRISM2DEBUG:
+		if ((error = suser(p)))
+			goto out;
+		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
+		if (error)
+			break;
+		error = wi_set_debug(sc, &wreq);
 		break;
 	case SIOCG80211:
 		switch(ireq->i_type) {
@@ -2051,9 +2213,10 @@ wi_start(ifp)
 
 	/*
 	 * If there's a BPF listner, bounce a copy of
-	 * this frame to him.
+ 	 * this frame to him. Also, don't send this to the bpf sniffer
+ 	 * if we're in procframe or monitor sniffing mode.
 	 */
-	if (ifp->if_bpf)
+ 	if (!(sc->wi_procframe || sc->wi_debug.wi_monitor) && ifp->if_bpf)
 		bpf_mtap(ifp, m0);
 
 	m_freem(m0);
@@ -2593,4 +2756,147 @@ wi_media_status(ifp, imr)
 		    wreq.wi_val[0] != 0)
 			imr->ifm_status |= IFM_ACTIVE;
 	}
+}
+
+static int
+wi_get_debug(sc, wreq)
+	struct wi_softc		*sc;
+	struct wi_req		*wreq;
+{
+	int			error = 0;
+
+	wreq->wi_len = 1;
+
+	switch (wreq->wi_type) {
+	case WI_DEBUG_SLEEP:
+		wreq->wi_len++;
+		wreq->wi_val[0] = sc->wi_debug.wi_sleep;
+		break;
+	case WI_DEBUG_DELAYSUPP:
+		wreq->wi_len++;
+		wreq->wi_val[0] = sc->wi_debug.wi_delaysupp;
+		break;
+	case WI_DEBUG_TXSUPP:
+		wreq->wi_len++;
+		wreq->wi_val[0] = sc->wi_debug.wi_txsupp;
+		break;
+	case WI_DEBUG_MONITOR:
+		wreq->wi_len++;
+		wreq->wi_val[0] = sc->wi_debug.wi_monitor;
+		break;
+	case WI_DEBUG_LEDTEST:
+		wreq->wi_len += 3;
+		wreq->wi_val[0] = sc->wi_debug.wi_ledtest;
+		wreq->wi_val[1] = sc->wi_debug.wi_ledtest_param0;
+		wreq->wi_val[2] = sc->wi_debug.wi_ledtest_param1;
+		break;
+	case WI_DEBUG_CONTTX:
+		wreq->wi_len += 2;
+		wreq->wi_val[0] = sc->wi_debug.wi_conttx;
+		wreq->wi_val[1] = sc->wi_debug.wi_conttx_param0;
+		break;
+	case WI_DEBUG_CONTRX:
+		wreq->wi_len++;
+		wreq->wi_val[0] = sc->wi_debug.wi_contrx;
+		break;
+	case WI_DEBUG_SIGSTATE:
+		wreq->wi_len += 2;
+		wreq->wi_val[0] = sc->wi_debug.wi_sigstate;
+		wreq->wi_val[1] = sc->wi_debug.wi_sigstate_param0;
+		break;
+	case WI_DEBUG_CONFBITS:
+		wreq->wi_len += 2;
+		wreq->wi_val[0] = sc->wi_debug.wi_confbits;
+		wreq->wi_val[1] = sc->wi_debug.wi_confbits_param0;
+		break;
+	default:
+		error = EIO;
+		break;
+	}
+
+	return (error);
+}
+
+static int
+wi_set_debug(sc, wreq)
+	struct wi_softc		*sc;
+	struct wi_req		*wreq;
+{
+	int			error = 0;
+	u_int16_t		cmd, param0 = 0, param1 = 0;
+
+	switch (wreq->wi_type) {
+	case WI_DEBUG_RESET:
+	case WI_DEBUG_INIT:
+	case WI_DEBUG_CALENABLE:
+		break;
+	case WI_DEBUG_SLEEP:
+		sc->wi_debug.wi_sleep = 1;
+		break;
+	case WI_DEBUG_WAKE:
+		sc->wi_debug.wi_sleep = 0;
+		break;
+	case WI_DEBUG_CHAN:
+		param0 = wreq->wi_val[0];
+		break;
+	case WI_DEBUG_DELAYSUPP:
+		sc->wi_debug.wi_delaysupp = 1;
+		break;
+	case WI_DEBUG_TXSUPP:
+		sc->wi_debug.wi_txsupp = 1;
+		break;
+	case WI_DEBUG_MONITOR:
+		sc->wi_debug.wi_monitor = 1;
+		break;
+	case WI_DEBUG_LEDTEST:
+		param0 = wreq->wi_val[0];
+		param1 = wreq->wi_val[1];
+		sc->wi_debug.wi_ledtest = 1;
+		sc->wi_debug.wi_ledtest_param0 = param0;
+		sc->wi_debug.wi_ledtest_param1 = param1;
+		break;
+	case WI_DEBUG_CONTTX:
+		param0 = wreq->wi_val[0];
+		sc->wi_debug.wi_conttx = 1;
+		sc->wi_debug.wi_conttx_param0 = param0;
+		break;
+	case WI_DEBUG_STOPTEST:
+		sc->wi_debug.wi_delaysupp = 0;
+		sc->wi_debug.wi_txsupp = 0;
+		sc->wi_debug.wi_monitor = 0;
+		sc->wi_debug.wi_ledtest = 0;
+		sc->wi_debug.wi_ledtest_param0 = 0;
+		sc->wi_debug.wi_ledtest_param1 = 0;
+		sc->wi_debug.wi_conttx = 0;
+		sc->wi_debug.wi_conttx_param0 = 0;
+		sc->wi_debug.wi_contrx = 0;
+		sc->wi_debug.wi_sigstate = 0;
+		sc->wi_debug.wi_sigstate_param0 = 0;
+		break;
+	case WI_DEBUG_CONTRX:
+		sc->wi_debug.wi_contrx = 1;
+		break;
+	case WI_DEBUG_SIGSTATE:
+		param0 = wreq->wi_val[0];
+		sc->wi_debug.wi_sigstate = 1;
+		sc->wi_debug.wi_sigstate_param0 = param0;
+		break;
+	case WI_DEBUG_CONFBITS:
+		param0 = wreq->wi_val[0];
+		param1 = wreq->wi_val[1];
+		sc->wi_debug.wi_confbits = param0;
+		sc->wi_debug.wi_confbits_param0 = param1;
+		break;
+	default:
+		error = EIO;
+		break;
+	}
+
+	if (error)
+		return (error);
+
+	cmd = WI_CMD_DEBUG | (wreq->wi_type << 8);
+	error = wi_cmd(sc, cmd, param0, param1, 0);
+
+	return (error);
 }

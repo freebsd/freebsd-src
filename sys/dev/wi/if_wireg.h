@@ -32,6 +32,10 @@
  * $FreeBSD$
  */
 
+#include <netinet/if_ether.h>
+#include <dev/wi/if_wavelan_ieee.h>
+#include <sys/bus.h>
+
 struct wi_counters {
 	u_int32_t		wi_tx_unicast_frames;
 	u_int32_t		wi_tx_multicast_frames;
@@ -111,6 +115,7 @@ struct wi_softc	{
 	int			wi_tx_mgmt_id;
 	int			wi_gone;
 	int			wi_if_flags;
+	u_int16_t		wi_procframe;
 	u_int16_t		wi_ptype;
 	u_int16_t		wi_portnum;
 	u_int16_t		wi_max_data_len;
@@ -129,6 +134,8 @@ struct wi_softc	{
 	char			wi_net_name[32];
 	char			wi_ibss_name[32];
 	u_int8_t		wi_txbuf[1596];
+	u_int8_t		wi_scanbuf[1596];
+	int			wi_scanbuf_len;
 	struct wi_counters	wi_stats;
 	int			wi_has_wep;
 	int			wi_use_wep;
@@ -145,6 +152,23 @@ struct wi_softc	{
 	int			wi_firmware_ver;
 	int			wi_nic_type;
 	int			wi_bus_type;	/* Bus attachment type */
+	struct {
+		u_int16_t               wi_sleep;
+		u_int16_t               wi_delaysupp;
+		u_int16_t               wi_txsupp;
+		u_int16_t               wi_monitor;
+		u_int16_t               wi_ledtest;
+		u_int16_t               wi_ledtest_param0;
+		u_int16_t               wi_ledtest_param1;
+		u_int16_t               wi_conttx;
+		u_int16_t               wi_conttx_param0;
+		u_int16_t               wi_contrx;
+		u_int16_t               wi_sigstate;
+		u_int16_t               wi_sigstate_param0;
+		u_int16_t               wi_confbits;
+		u_int16_t               wi_confbits_param0;
+	} wi_debug;
+
 };
 
 #define	WI_LOCK(_sc)
