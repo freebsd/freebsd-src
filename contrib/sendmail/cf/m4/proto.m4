@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.12 2000/07/19 21:41:19 gshapiro Exp $')
+VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.29 2000/09/15 04:45:14 gshapiro Exp $')
 
 MAILER(local)dnl
 
@@ -160,8 +160,11 @@ ifdef(`_ACCEPT_UNRESOLVABLE_DOMAINS_',`dnl',`dnl
 # Resolve map (to check if a host exists in check_mail)
 Kresolve host -a<OK> -T<TEMP>')
 
+ifdef(`_FFR_5_', `# macro storage map
+Kmacro macro')
+
 ifdef(`confCR_FILE', `dnl
-# Hosts that will permit relaying ($=R)
+# Hosts for which relaying is permitted ($=R)
 FR`'confCR_FILE',
 `dnl')
 
@@ -314,7 +317,9 @@ ifelse(defn(`confDAEMON_OPTIONS'), `', `dnl',
 `errprint(WARNING: `confDAEMON_OPTIONS' is no longer valid.  See cf/README for more information.
 )'dnl
 `DAEMON_OPTIONS(`confDAEMON_OPTIONS')')
-ifelse(defn(`_DPO_'), `', `O DaemonPortOptions=Name=MTA', `_DPO_')
+ifelse(defn(`_DPO_'), `',
+`ifdef(`_NETINET6_', `O DaemonPortOptions=Name=MTA-IPv4, Family=inet
+O DaemonPortOptions=Name=MTA-IPv6, Family=inet6',`O DaemonPortOptions=Name=MTA')', `_DPO_')
 ifdef(`_NO_MSA_', `dnl', `O DaemonPortOptions=Port=587, Name=MSA, M=E')
 
 # SMTP client options
@@ -857,26 +862,26 @@ R$*			$: $>Parse1 $1		final parsing
 
 SParse0
 R<@>			$@ <@>			special case error msgs
-R$* : $* ; <@>		$#error $@ 5.1.3 $: "553 List:; syntax illegal for recipient addresses"
+R$* : $* ; <@>		$#error $@ 5.1.3 $: "501 List:; syntax illegal for recipient addresses"
 R@ <@ $* >		< @ $1 >		catch "@@host" bogosity
-R<@ $+>			$#error $@ 5.1.3 $: "553 User address required"
+R<@ $+>			$#error $@ 5.1.3 $: "501 User address required"
 R$*			$: <> $1
 R<> $* < @ [ $+ ] > $*	$1 < @ [ $2 ] > $3
-R<> $* <$* : $* > $*	$#error $@ 5.1.3 $: "553 Colon illegal in host name part"
+R<> $* <$* : $* > $*	$#error $@ 5.1.3 $: "501 Colon illegal in host name part"
 R<> $*			$1
-R$* < @ . $* > $*	$#error $@ 5.1.2 $: "553 Invalid host name"
-R$* < @ $* .. $* > $*	$#error $@ 5.1.2 $: "553 Invalid host name"
+R$* < @ . $* > $*	$#error $@ 5.1.2 $: "501 Invalid host name"
+R$* < @ $* .. $* > $*	$#error $@ 5.1.2 $: "501 Invalid host name"
 dnl comma only allowed before @; this check is not complete
-R$* , $~O $*		$#error $@ 5.1.2 $: "553 Invalid route address"
+R$* , $~O $*		$#error $@ 5.1.2 $: "501 Invalid route address"
 
 # now delete the local info -- note $=O to find characters that cause forwarding
 R$* < @ > $*		$@ $>Parse0 $>canonify $1	user@ => user
 R< @ $=w . > : $*	$@ $>Parse0 $>canonify $2	@here:... -> ...
 R$- < @ $=w . >		$: $(dequote $1 $) < @ $2 . >	dequote "foo"@here
-R< @ $+ >		$#error $@ 5.1.3 $: "553 User address required"
+R< @ $+ >		$#error $@ 5.1.3 $: "501 User address required"
 R$* $=O $* < @ $=w . >	$@ $>Parse0 $>canonify $1 $2 $3	...@here -> ...
 R$- 			$: $(dequote $1 $) < @ *LOCAL* >	dequote "foo"
-R< @ *LOCAL* >		$#error $@ 5.1.3 $: "553 User address required"
+R< @ *LOCAL* >		$#error $@ 5.1.3 $: "501 User address required"
 R$* $=O $* < @ *LOCAL* >
 			$@ $>Parse0 $>canonify $1 $2 $3	...@*LOCAL* -> ...
 R$* < @ *LOCAL* >	$: $1
@@ -890,7 +895,6 @@ ifdef(`_LDAP_ROUTING_', `dnl
 # handle LDAP routing for hosts in $={LDAPRoute}
 R$+ < @ $={LDAPRoute} . >	$: $>LDAPExpand <$1 < @ $2 . >> <$1 @ $2>',
 `dnl')
-
 
 ifdef(`_MAILER_smtp_',
 `# handle numeric address spec
@@ -932,6 +936,8 @@ R< $+ > $+ < @ $+ >	$: $>Recurse $1',
 # short circuit local delivery so forwarded email works
 ifdef(`_MAILER_usenet_', `dnl
 R$+ . USENET < @ $=w . >	$#usenet $@ usenet $: $1	handle usenet specially', `dnl')
+
+
 ifdef(`_STICKY_LOCAL_DOMAIN_',
 `R$+ < @ $=w . >		$: < $H > $1 < @ $2 . >		first try hub
 R< $+ > $+ < $+ >	$>MailerToTriple < $1 > $2 < $3 >	yep ....
@@ -1002,7 +1008,7 @@ R$* < @ $* > $*		$: $>MailerToTriple < $S > $1 < @ $2 > $3	glue on smarthost nam
 # deal with other remote names
 ifdef(`_MAILER_smtp_',
 `R$* < @$* > $*		$#_SMTP_ $@ $2 $: $1 < @ $2 > $3	user@host.domain',
-`R$* < @$* > $*		$#error $@ 5.1.2 $: "553 Unrecognized host name " $2')
+`R$* < @$* > $*		$#error $@ 5.1.2 $: "501 Unrecognized host name " $2')
 
 # handle locally delivered names
 R$=L			$#_LOCAL_ $: @ $1		special local names
@@ -1018,31 +1024,44 @@ R$+			$: $1 $| $>"Local_localaddr" $1
 R$+ $| $#$*		$#$2
 R$+ $| $*		$: $1
 
-# deal with plussed users so aliases work nicely
-R$+ + *			$#_LOCAL_ $@ $&h $: $1
-R$+ + $*		$#_LOCAL_ $@ + $2 $: $1 + *
+ifdef(`_FFR_5_', `
+# Preserve host in a macro
+R$+			$: $(macro {LocalAddrHost} $) $1
+R$+ @ $+		$: $(macro {LocalAddrHost} $@ @ $2 $) $1')
 
+ifdef(`_PRESERVE_LOCAL_PLUS_DETAIL_', `', `
+# deal with plussed users so aliases work nicely
+R$+ + *			$#_LOCAL_ $@ $&h $: $1`'ifdef(`_FFR_5_', ` $&{LocalAddrHost}')
+R$+ + $*		$#_LOCAL_ $@ + $2 $: $1 + *`'ifdef(`_FFR_5_', ` $&{LocalAddrHost}')
+')
 # prepend an empty "forward host" on the front
 R$+			$: <> $1
 
 ifdef(`LUSER_RELAY', `dnl
 # send unrecognized local users to a relay host
+ifdef(`_PRESERVE_LOCAL_PLUS_DETAIL_', `
+R< > $+ + $*		$: < ? $L > <+ $2> $(user $1 $)	look up user+
+R< > $+			$: < ? $L > < > $(user $1 $)	look up user
+R< ? $* > < $* > $+ <>	$: < > $3 $2			found; strip $L
+R< ? $* > < $* > $+	$: < $1 > $3 $2			not found', `
 R< > $+ 		$: < $L > $(user $1 $)		look up user
-R< $* > $+ <>		$: < > $2			found; strip $L',
+R< $* > $+ <>		$: < > $2			found; strip $L')',
 `dnl')
 
 # see if we have a relay or a hub
 R< > $+			$: < $H > $1			try hub
 R< > $+			$: < $R > $1			try relay
+ifdef(`_PRESERVE_LOCAL_PLUS_DETAIL_', `
+R< > $+			$@ $1', `
 R< > $+			$: < > < $1 <> $&h >		nope, restore +detail
 R< > < $+ <> + $* >	$: < > < $1 + $2 >		check whether +detail
 R< > < $+ <> $* >	$: < > < $1 >			else discard
 R< > < $+ + $* > $*	   < > < $1 > + $2 $3		find the user part
-R< > < $+ > + $*	$#_LOCAL_ $@ $2 $: @ $1		strip the extra +
+R< > < $+ > + $*	$#_LOCAL_ $@ $2 $: @ $1`'ifdef(`_FFR_5_', ` $&{LocalAddrHost}')		strip the extra +
 R< > < $+ >		$@ $1				no +detail
 R$+			$: $1 <> $&h			add +detail back in
 R$+ <> + $*		$: $1 + $2			check whether +detail
-R$+ <> $*		$: $1				else discard
+R$+ <> $*		$: $1				else discard')
 R< local : $* > $*	$: $>MailerToTriple < local : $1 > $2	no host extension
 R< error : $* > $*	$: $>MailerToTriple < error : $1 > $2	no host extension
 R< $- : $+ > $+		$: $>MailerToTriple < $1 : $2 > $3 < @ $2 >
@@ -1401,17 +1420,22 @@ R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
 ifdef(`_ACCESS_TABLE_', `dnl
+dnl workspace: {client_name} $| {client_addr}
 R$+ $| $+		$: $>LookUpDomain < $1 > <?> < $2 > <+Connect>
+dnl workspace: <result-of-lookup> <{client_addr}>
 R<?> <$+>		$: $>LookUpAddress < $1 > <?> < $1 > <+Connect>	no: another lookup
+dnl workspace: <result-of-lookup> <{client_addr}>
 R<?> < $+ >		$: $1					found nothing
-R<$={Accept}> < $* >	$@ $1
+dnl workspace: <result-of-lookup> <{client_addr}>
+dnl or {client_addr}
+R<$={Accept}> < $* >	$@ $1				return value of lookup
 R<REJECT> $*		$#error ifdef(`confREJECT_MSG', `$: "confREJECT_MSG"', `$@ 5.7.1 $: "550 Access denied"')
 R<DISCARD> $*		$#discard $: discard
 dnl error tag
-R<ERROR:$-.$-.$-:$+> $*		$#error $@ $1.$2.$3 $: $4
-R<ERROR:$+> $*		$#error $: $1
+R<ERROR:$-.$-.$-:$+> <$*>	$#error $@ $1.$2.$3 $: $4
+R<ERROR:$+> <$*>		$#error $: $1
 dnl generic error from access map
-R<$+> $*		$#error $: $1', `dnl')
+R<$+> <$*>		$#error $: $1', `dnl')
 
 ifdef(`_RBL_',`dnl
 # DNS based IP address spam list
@@ -1491,7 +1515,7 @@ dnl workspace: < ? $&{client_name} > <user@localhost|host>
 dnl	or:    <address>
 dnl	or:    <?> <address>	(thanks to u in ${daemon_flags})
 R<? $=w> $*		$: $2			local client: ok
-R<? $+> <$+>		$#error $@ 5.5.4 $: "553 Real domain name required"
+R<? $+> <$+>		$#error $@ 5.5.4 $: "501 Real domain name required for sender address"
 dnl remove <?> (happens only if ${client_name} == "" or u in ${daemon_flags})
 R<?> $*			$: $1')
 dnl workspace: address (or <address>)
@@ -1541,7 +1565,7 @@ dnl remove daemon_flags
 R$* $| $*		$: $2
 R<?> $*			$: < ? $&{client_name} > $1
 R<?> $*			$@ <OK>				...local unqualed ok
-R<? $+> $*		$#error $@ 5.5.4 $: "553 Domain name required"
+R<? $+> $*		$#error $@ 5.5.4 $: "501 Domain name required for sender address " $&f
 							...remote is not')
 # check results
 R<?> $*			$: @ $1		mark address: nothing known about it
@@ -2046,7 +2070,7 @@ R$* $| RELAY		$# RELAYCERTISSUER
 ifdef(`_CERT_REGEX_SUBJECT_', `dnl
 R$* $| SUBJECT		$: $1 $| <@> $(CERTSubject $&{cert_subject} $)',
 `R$* $| SUBJECT		$: $1 $| <@> $&{cert_subject}')
-R$* $| <@> $+		$: $1 $| <@> $(access CERTSUBJECT:$&{cert_subject} $)
+R$* $| <@> $+		$: $1 $| <@> $(access CERTSUBJECT:$2 $)
 R$* $| <@> RELAY	$# RELAYCERTSUBJECT
 R$* $| $*		$: $1', `dnl')
 
@@ -2070,3 +2094,4 @@ _MAIL_FILTERS_')
 ######################################################################
 ######################################################################
 undivert(7)dnl MAILER_DEFINITIONS
+

@@ -156,6 +156,8 @@ define(`SITE', `ifelse(CONCAT($'2`, $3), SU,
 sinclude(_CF_DIR_`'siteconfig/$1.m4)')
 define(`EXPOSED_USER', `PUSHDIVERT(5)CE$1
 POPDIVERT`'dnl`'')
+ifdef(`_FFR_EXPOSED_USER_FILE', `define(`EXPOSED_USER_FILE', `PUSHDIVERT(5)FE$1
+POPDIVERT`'dnl`'')', `dnl')
 define(`LOCAL_USER', `PUSHDIVERT(5)CL$1
 POPDIVERT`'dnl`'')
 define(`MASQUERADE_AS', `define(`MASQUERADE_NAME', $1)')
@@ -250,4 +252,4 @@ define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.76.4.9 2000/07/11 23:50:30 geir Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.76.4.13 2000/08/24 17:09:50 gshapiro Exp $')

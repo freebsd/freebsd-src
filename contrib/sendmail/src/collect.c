@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: collect.c,v 8.136.4.3 2000/06/22 22:13:45 geir Exp $";
+static char id[] = "@(#)$Id: collect.c,v 8.136.4.6 2000/09/21 21:52:16 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -195,9 +195,14 @@ collect(fp, smtpmode, hdrp, e)
 				{
 					errno = 0;
 					c = getc(fp);
-					if (errno != EINTR)
-						break;
-					clearerr(fp);
+
+					if (c == EOF && errno == EINTR)
+					{
+						/* Interrupted, retry */
+						clearerr(fp);
+						continue;
+					}
+					break;
 				}
 				CollectProgress = TRUE;
 				if (TrafficLogFile != NULL && !headeronly)
@@ -286,13 +291,22 @@ collect(fp, smtpmode, hdrp, e)
 
 bufferchar:
 			if (!headeronly)
-				e->e_msgsize++;
+			{
+				/* no overflow? */
+				if (e->e_msgsize >= 0)
+				{
+					e->e_msgsize++;
+					if (MaxMessageSize > 0 &&
+					    !bitset(EF_TOOBIG, e->e_flags) &&
+					    e->e_msgsize > MaxMessageSize)
+						 e->e_flags |= EF_TOOBIG;
+				}
+			}
 			switch (mstate)
 			{
 			  case MS_BODY:
 				/* just put the character out */
-				if (MaxMessageSize <= 0 ||
-				    e->e_msgsize <= MaxMessageSize)
+				if (!bitset(EF_TOOBIG, e->e_flags))
 					(void) putc(c, df);
 
 				/* FALLTHROUGH */
@@ -384,7 +398,7 @@ nextstate:
 				clearerr(fp);
 				errno = 0;
 				c = getc(fp);
-			} while (errno == EINTR);
+			} while (c == EOF && errno == EINTR);
 			if (c != EOF)
 				(void) ungetc(c, fp);
 			if (c == ' ' || c == '\t')
@@ -436,8 +450,7 @@ nextstate:
 			}
 
 			/* if not a blank separator, write it out */
-			if (MaxMessageSize <= 0 ||
-			    e->e_msgsize <= MaxMessageSize)
+			if (!bitset(EF_TOOBIG, e->e_flags))
 			{
 				while (*bp != '\0')
 					(void) putc(*bp++, df);
@@ -504,7 +517,7 @@ readerr:
 				st.st_size = -1;
 			errno = EEXIST;
 			syserr("collect: bfcommit(%s): already on disk, size = %ld",
-			       dfile, st.st_size);
+			       dfile, (long) st.st_size);
 			dfd = fileno(df);
 			if (dfd >= 0)
 				dumpfd(dfd, TRUE, TRUE);
@@ -650,7 +663,7 @@ readerr:
 	}
 
 	/* check for message too large */
-	if (MaxMessageSize > 0 && e->e_msgsize > MaxMessageSize)
+	if (bitset(EF_TOOBIG, e->e_flags))
 	{
 		e->e_flags |= EF_NO_BODY_RETN|EF_CLRQUEUE;
 		e->e_status = "5.2.3";

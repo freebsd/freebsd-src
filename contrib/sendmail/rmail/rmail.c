@@ -19,7 +19,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: rmail.c,v 8.39.4.5 2000/07/18 05:55:29 gshapiro Exp $";
+static char id[] = "@(#)$Id: rmail.c,v 8.39.4.8 2000/09/16 22:20:25 gshapiro Exp $";
 #endif /* ! lint */
 
 /*
@@ -89,9 +89,9 @@ static char id[] = "@(#)$Id: rmail.c,v 8.39.4.5 2000/07/18 05:55:29 gshapiro Exp
 # define STDIN_FILENO	0
 #endif /* ! STDIN_FILENO */
 
-#if defined(BSD4_4) || defined(linux) || SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) || _AIX4 >= 40300
+#if defined(BSD4_4) || defined(linux) || SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) || _AIX4 >= 40300 || defined(HPUX11)
 # define HASSNPRINTF	1
-#endif /* defined(BSD4_4) || defined(linux) || SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) || _AIX4 >= 40300 */
+#endif /* defined(BSD4_4) || defined(linux) || SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) || _AIX4 >= 40300 || defined(HPUX11) */
 
 #if defined(sun) && !defined(BSD) && !defined(SOLARIS) && !defined(__svr4__) && !defined(__SVR4)
 # define memmove(d, s, l)	(bcopy((s), (d), (l)))
@@ -151,7 +151,7 @@ main(argc, argv)
 	FILE *fp;
 	char *addrp = NULL, *domain, *p, *t;
 	char *from_path, *from_sys, *from_user;
-	char *args[100], buf[2048], lbuf[2048];
+	char **args, buf[2048], lbuf[2048];
 	struct stat sb;
 	extern char *optarg;
 	extern int optind;
@@ -310,8 +310,13 @@ main(argc, argv)
 			offset = (off_t)ftell(stdin);
 	}
 
+
+	/* Allocate args (with room for sendmail args as well as recipients */
+	args = (char **)xalloc(sizeof(*args) * (10 + argc));
+
 	i = 0;
 	args[i++] = _PATH_SENDMAIL;	/* Build sendmail's argument list. */
+	args[i++] = "-G";		/* relay submission */
 	args[i++] = "-oee";		/* No errors, just status. */
 	args[i++] = "-odq";		/* Queue it, don't try to deliver. */
 	args[i++] = "-oi";		/* Ignore '.' on a line by itself. */
@@ -338,7 +343,7 @@ main(argc, argv)
 	**  the address (helps to pass addrs like @gw1,@gw2:aa@bb)
 	*/
 
-	while (*argv)
+	while (*argv != NULL)
 	{
 		if (**argv == '-')
 			err(EX_USAGE, "dash precedes argument: %s", *argv);
@@ -353,13 +358,18 @@ main(argc, argv)
 			snprintf(args[i++], len, "<%s>", *argv);
 		}
 		argv++;
+		argc--;
+
+		/* Paranoia check, argc used for args[] bound */
+		if (argc < 0)
+			err(EX_SOFTWARE, "Argument count mismatch");
 	}
-	args[i] = 0;
+	args[i] = NULL;
 
 	if (debug)
 	{
 		fprintf(stderr, "Sendmail arguments:\n");
-		for (i = 0; args[i]; i++)
+		for (i = 0; args[i] != NULL; i++)
 			fprintf(stderr, "\t%s\n", args[i]);
 	}
 

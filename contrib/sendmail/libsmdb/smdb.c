@@ -8,7 +8,7 @@
 */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smdb.c,v 8.37.4.1 2000/05/25 18:56:09 gshapiro Exp $";
+static char id[] = "@(#)$Id: smdb.c,v 8.37.4.2 2000/08/24 17:08:00 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <fcntl.h>
@@ -62,6 +62,107 @@ smdb_free_database(database)
 		free(database);
 }
 
+/*
+**  SMDB_LOCKFILE -- lock a file using flock or (shudder) fcntl locking
+**
+**	Parameters:
+**		fd -- the file descriptor of the file.
+**		type -- type of the lock.  Bits can be:
+**			LOCK_EX -- exclusive lock.
+**			LOCK_NB -- non-blocking.
+**
+**	Returns:
+**		TRUE if the lock was acquired.
+**		FALSE otherwise.
+*/
+
+static bool
+smdb_lockfile(fd, type)
+	int fd;
+	int type;
+{
+	int i;
+	int save_errno;
+#if !HASFLOCK
+	int action;
+	struct flock lfd;
+
+	memset(&lfd, '\0', sizeof lfd);
+	if (bitset(LOCK_UN, type))
+		lfd.l_type = F_UNLCK;
+	else if (bitset(LOCK_EX, type))
+		lfd.l_type = F_WRLCK;
+	else
+		lfd.l_type = F_RDLCK;
+
+	if (bitset(LOCK_NB, type))
+		action = F_SETLK;
+	else
+		action = F_SETLKW;
+
+	while ((i = fcntl(fd, action, &lfd)) < 0 && errno == EINTR)
+		continue;
+	if (i >= 0)
+	{
+		return TRUE;
+	}
+	save_errno = errno;
+
+	/*
+	**  On SunOS, if you are testing using -oQ/tmp/mqueue or
+	**  -oA/tmp/aliases or anything like that, and /tmp is mounted
+	**  as type "tmp" (that is, served from swap space), the
+	**  previous fcntl will fail with "Invalid argument" errors.
+	**  Since this is fairly common during testing, we will assume
+	**  that this indicates that the lock is successfully grabbed.
+	*/
+
+	if (save_errno == EINVAL)
+	{
+		return TRUE;
+	}
+
+	if (!bitset(LOCK_NB, type) ||
+	    (save_errno != EACCES && save_errno != EAGAIN))
+	{
+		int omode = -1;
+# ifdef F_GETFL
+		(void) fcntl(fd, F_GETFL, &omode);
+		errno = save_errno;
+# endif /* F_GETFL */
+# if 0
+		syslog(LOG_ERR, "cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
+			filename, ext, fd, type, omode, geteuid());
+# endif /* 0 */
+		return FALSE;
+	}
+#else /* !HASFLOCK */
+
+	while ((i = flock(fd, type)) < 0 && errno == EINTR)
+		continue;
+	if (i >= 0)
+	{
+		return TRUE;
+	}
+	save_errno = errno;
+
+	if (!bitset(LOCK_NB, type) || save_errno != EWOULDBLOCK)
+	{
+		int omode = -1;
+# ifdef F_GETFL
+		(void) fcntl(fd, F_GETFL, &omode);
+		errno = save_errno;
+# endif /* F_GETFL */
+# if 0
+		syslog(LOG_ERR, "cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
+			filename, ext, fd, type, omode, geteuid());
+# endif /* 0 */
+		return FALSE;
+	}
+#endif /* !HASFLOCK */
+	errno = save_errno;
+	return FALSE;
+}
 
 /*
 ** SMDB_OPEN_DATABASE -- Opens a database.
@@ -266,6 +367,59 @@ smdb_unlock_file(lock_fd)
 
 	return SMDBE_OK;
 }
+
+/*
+**  SMDB_LOCK_MAP -- Locks a database.
+**
+**	Parameters:
+**		database -- database description.
+**		type -- type of the lock.  Bits can be:
+**			LOCK_EX -- exclusive lock.
+**			LOCK_NB -- non-blocking.
+**
+**	Returns:
+**		SMDBE_OK -- Success, otherwise errno.
+*/
+
+int
+smdb_lock_map(database, type)
+	SMDB_DATABASE *database;
+	int type;
+{
+	int fd;
+
+	fd = database->smdb_lockfd(database);
+	if (fd < 0)
+		return SMDBE_NOT_FOUND;
+	if (!smdb_lockfile(fd, type))
+		return SMDBE_LOCK_NOT_GRANTED;
+	return SMDBE_OK;
+}
+
+/*
+**  SMDB_UNLOCK_MAP -- Unlocks a database
+**
+**	Parameters:
+**		database -- database description.
+**
+**	Returns:
+**		SMDBE_OK -- Success, otherwise errno.
+*/
+
+int
+smdb_unlock_map(database)
+	SMDB_DATABASE *database;
+{
+	int fd;
+
+	fd = database->smdb_lockfd(database);
+	if (fd < 0)
+		return SMDBE_NOT_FOUND;
+	if (!smdb_lockfile(fd, LOCK_UN))
+		return SMDBE_LOCK_NOT_HELD;
+	return SMDBE_OK;
+}
+
 
 /*
 **  SMDB_SETUP_FILE -- Gets db file ready for use.
