@@ -102,7 +102,7 @@ Int_Open_Disk(const char *name)
 	struct disk *d;
 	size_t txtsize;
 	int error, i;
-	char *p, *q, *r, *a, *b, *n, *t;
+	char *p, *q, *r, *a, *b, *n, *t, *sn;
 	off_t o, len, off;
 	u_int l, s, ty, sc, hd, alt;
 	off_t lo[10];
@@ -195,7 +195,7 @@ Int_Open_Disk(const char *name)
 	 * an obvious insanity, we set the number of cyclinders to zero.
 	 */
 	o = d->bios_hd * d->bios_sect;
-	d->bios_cyl = (o != 0 && (len % o) == 0) ? len / o : 0;
+	d->bios_cyl = (o != 0) ? len / o : 0;
 
 	p = q;
 	lo[0] = 0;
@@ -212,7 +212,7 @@ Int_Open_Disk(const char *name)
 			printf("BARF %d <%d>\n", __LINE__, *r);
 			exit (0);
 		}
-		t = strsep(&p, " ");	/* Type {SUN, BSD, MBR, GPT} */
+		t = strsep(&p, " ");	/* Type {SUN, BSD, MBR, PC98, GPT} */
 		n = strsep(&p, " ");	/* name */
 		a = strsep(&p, " ");	/* len */
 		len = strtoimax(a, &r, 0);
@@ -230,6 +230,11 @@ Int_Open_Disk(const char *name)
 			a = strsep(&p, " ");
 			if (a == NULL)
 				break;
+			/* XXX: Slice name may include a space. */
+			if (!strcmp(a, "sn")) {
+				sn = p;
+				break;
+			}
 			b = strsep(&p, " ");
 			o = strtoimax(b, &r, 0);
 			if (*r) {
@@ -310,17 +315,18 @@ Int_Open_Disk(const char *name)
 		else if (!strcmp(t, "PC98")) {
 			switch (ty & 0x7f) {
 			case 0x14:
-				i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
+				i = Add_Chunk(d, off, len, n, freebsd, ty, 0,
+					      sn);
 				break;
 			case 0x20:
 			case 0x21:
 			case 0x22:
 			case 0x23:
 			case 0x24:
-				i = Add_Chunk(d, off, len, n, fat, ty, 0, 0);
+				i = Add_Chunk(d, off, len, n, fat, ty, 0, sn);
 				break;
 			default:
-				i = Add_Chunk(d, off, len, n, pc98, ty, 0, 0);
+				i = Add_Chunk(d, off, len, n, pc98, ty, 0, sn);
 				break;
 			}
 		} else if (!strcmp(t, "GPT"))
