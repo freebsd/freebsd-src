@@ -79,7 +79,9 @@ static struct cdevsw ad_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	30,
 };
+static struct cdevsw addisk_cdevsw;
 static struct cdevsw fakewd_cdevsw;
+static struct cdevsw fakewddisk_cdevsw;
 
 /* misc defines */
 #define UNIT(dev) (minor(dev)>>3 & 0x1f)	/* assume 8 minor # per unit */
@@ -228,9 +230,9 @@ ad_attach(void *notused)
 				  DEVSTAT_NO_ORDERED_TAGS,
                                   DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 				  0x180);
-		dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw);
+		dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
 		dev1->si_drv1 = adp;
-		dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw);
+		dev1 = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw, &fakewddisk_cdevsw);
 		dev1->si_drv1 = adp;
 
 		bufq_init(&adp->queue);
