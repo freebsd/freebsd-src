@@ -1066,6 +1066,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
+ 	int old_lock = 0;
 
 	ASSERT_VOP_LOCKED(vp, "nfs_vinvalbuf");
 
@@ -1086,40 +1087,36 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 		slpflag = 0;
 		slptimeo = 0;
 	}
-	/*
-	 * First wait for any other process doing a flush to complete.
-	 */
-	while (np->n_flag & NFLUSHINPROG) {
-		np->n_flag |= NFLUSHWANT;
-		error = tsleep(&np->n_flag, PRIBIO + 2, "nfsvinval",
-			slptimeo);
-		if (error && intrflg &&
-		    nfs_sigintr(nmp, NULL, td))
-			return (EINTR);
-	}
+
+ 	if ((old_lock = VOP_ISLOCKED(vp, td)) != LK_EXCLUSIVE) {
+ 		if (old_lock == LK_SHARED) {
+ 			/* Upgrade to exclusive lock, this might block */
+ 			vn_lock(vp, LK_UPGRADE | LK_RETRY, td);
+ 		} else {
+ 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+ 		}
+  	}
 
 	/*
 	 * Now, flush as required.
 	 */
-	np->n_flag |= NFLUSHINPROG;
 	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
 	while (error) {
-		if (intrflg && (error = nfs_sigintr(nmp, NULL, td))) {
-			np->n_flag &= ~NFLUSHINPROG;
-			if (np->n_flag & NFLUSHWANT) {
-				np->n_flag &= ~NFLUSHWANT;
-				wakeup(&np->n_flag);
-			}
-			return (error);
-		}
+		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
+			goto out;
 		error = vinvalbuf(vp, flags, cred, td, 0, slptimeo);
 	}
-	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
-	if (np->n_flag & NFLUSHWANT) {
-		np->n_flag &= ~NFLUSHWANT;
-		wakeup(&np->n_flag);
-	}
-	return (0);
+	np->n_flag &= ~NMODIFIED;
+out:
+ 	if (old_lock != LK_EXCLUSIVE) {
+ 		if (old_lock == LK_SHARED) {
+ 			/* Downgrade from exclusive lock, this might block */
+ 			vn_lock(vp, LK_DOWNGRADE, td);
+ 		} else {
+ 			VOP_UNLOCK(vp, 0, td);
+ 		}
+  	}
+	return error;
 }
 
 /*

@@ -315,7 +315,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 		vrele(sp->s_dvp);
 		FREE((caddr_t)sp, M_NFSREQ);
 	}
-	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT);
+	np->n_flag &= NMODIFIED;
 	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 	return (0);
 }
