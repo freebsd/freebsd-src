@@ -3,7 +3,7 @@
 # XXX MISSING:		mkproto
 # XXX MISSING SOURCES:	quot
 # XXX TEMP. BROKEN:	iostat
-SUBDIR=	ac accton amd arp bootpd bootpef bootpgw bootptest chown chroot \
+SUBDIR=	ac accton amd arp chown chroot \
 	cron crunch dbsym dev_mkdb diskpart edquota fdformat fdwrite \
 	inetd kbdcontrol kgmon kvm_mkdb lpr lptcontrol \
 	manctl mtree mrouted named nslookup pkg_install portmap pstat \
