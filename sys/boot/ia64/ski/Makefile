@@ -24,13 +24,10 @@ LIBFICL=
 .endif
 
 # where to get libstand from
-#XXX need a better way to do this
-LIBSTAND=       ${.CURDIR}/../../../../lib/libstand/libstand.a
-.if !exists(${LIBSTAND})
+.if exists(${.OBJDIR}/../../../../lib/libstand/libstand.a)
 LIBSTAND=       ${.OBJDIR}/../../../../lib/libstand/libstand.a
-.if !exists(${LIBSTAND})
-LIBSTAND=       -lstand
-.endif
+.else
+LIBSTAND=       ${.CURDIR}/../../../../lib/libstand/libstand.a
 .endif
 
 .if exists(${.OBJDIR}/../libski/libski.a)
@@ -50,7 +47,6 @@ CFLAGS+= -I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/../../.. -I.
 CFLAGS+= -I${.CURDIR}/../libski
 CFLAGS+= -DLOADER
-CFLAGS+= -ffreestanding
 
 LDFLAGS=	-nostdlib -T ${.CURDIR}/ldscript.ia64
 
@@ -74,14 +70,10 @@ beforeinstall:
 	    ${.OBJDIR}/${PROG}.help ${DESTDIR}/boot
 .endif
 
-# Other fragments still to be brought in from ../Makfile.booters?
-start.o: ${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/start.S
-	${CC} -c ${CFLAGS} ${.IMPSRC}
-
 machine:
 	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
 
-${PROG}: ${OBJS} ${LIBFICL} ${LIBSKI} vers.o
+${PROG}: ${OBJS} ${LIBFICL} ${LIBSKI} ${LIBSTAND} vers.o
 	${LD} ${LDFLAGS} -o ${PROG} -M \
 	    ${OBJS} vers.o \
 	    ${LIBFICL} ${LIBSTAND} ${LIBSKI} ${LIBSTAND} \
