@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.47 1998/02/10 22:35:01 brian Exp $
+ * $Id: main.c,v 1.22.2.48 1998/06/27 12:05:25 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -750,7 +750,7 @@ DoLoop(void)
   int pri, i, n, wfd, nfds;
   char hisaddr[ADDRSZ];
   struct sockaddr *sa = (struct sockaddr *)hisaddr;
-  struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
+  struct sockaddr_in *sockin = (struct sockaddr_in *)hisaddr;
   struct timeval timeout, *tp;
   int ssize = ADDRSZ;
   const u_char *cp;
@@ -974,15 +974,15 @@ DoLoop(void)
           LogPrintf(LogPHASE, "Connected to local client.\n");
           break;
         case AF_INET:
-          if (ntohs(sin->sin_port) < 1024) {
+          if (ntohs(sockin->sin_port) < 1024) {
             LogPrintf(LogALERT, "Rejected client connection from %s:%u"
                       "(invalid port number) !\n",
-                      inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+                      inet_ntoa(sockin->sin_addr), ntohs(sockin->sin_port));
 	    close(wfd);
 	    continue;
           }
           LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
-                    inet_ntoa(sin->sin_addr), sin->sin_port);
+                    inet_ntoa(sockin->sin_addr), sockin->sin_port);
           break;
         default:
 	  write(wfd, "Unrecognised access !\n", 22);

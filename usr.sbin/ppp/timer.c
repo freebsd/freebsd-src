@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.5.2.7 1997/10/24 23:15:43 brian Exp $
+ * $Id: timer.c,v 1.5.2.8 1998/01/26 20:05:27 brian Exp $
  *
  *  TODO:
  */
@@ -142,7 +142,7 @@ StopTimerNoBlock(struct pppTimer * tp)
 }
 
 static void
-TimerService()
+TimerService(void)
 {
   struct pppTimer *tp, *exp, *wt;
 

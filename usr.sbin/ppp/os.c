@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.7.2.16 1998/01/26 20:05:04 brian Exp $
+ * $Id: os.c,v 1.7.2.17 1998/05/19 21:50:47 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -69,7 +69,7 @@ SetIpDevice(struct in_addr myaddr,
 {
   struct sockaddr_in *sock_in;
   int s;
-  u_long mask, addr;
+  u_int32_t mask, addr;
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {

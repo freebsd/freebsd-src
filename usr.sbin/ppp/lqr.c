@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.7.2.10 1998/03/13 00:58:09 brian Exp $
+ * $Id: lqr.c,v 1.7.2.11 1998/06/26 19:04:31 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -191,7 +191,7 @@ LqrInput(struct mbuf * bp)
      */
     if (LqrTimer.load == 0 || lastpeerin == HisLqrData.PeerInLQRs ||
         (LqrTimer.arg &&
-         LqrTimer.rest * 100 / SECTICKS > (u_int32_t)LqrTimer.arg)) {
+         LqrTimer.rest * 100 / SECTICKS > (u_long)LqrTimer.arg)) {
       lqmmethod |= LQM_LQR;
       SendLqrReport(LqrTimer.arg);
     }
@@ -229,7 +229,7 @@ StartLqm()
     LqrTimer.state = TIMER_STOPPED;
     LqrTimer.load = lcp->want_lqrperiod * SECTICKS / 100;
     LqrTimer.func = SendLqrReport;
-    LqrTimer.arg = (void *)lcp->his_lqrperiod;
+    LqrTimer.arg = (void *)(u_long)lcp->his_lqrperiod;
     SendLqrReport(LqrTimer.arg);
   } else {
     LqrTimer.load = 0;

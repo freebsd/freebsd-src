@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.7.2.8 1997/09/12 01:02:12 brian Exp $
+ * $Id: fsm.c,v 1.7.2.9 1998/01/26 20:04:36 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -685,10 +685,10 @@ static void
 FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_char *cp;
-  u_long *lp, magic;
+  u_int32_t *lp, magic;
 
   cp = MBUF_CTOP(bp);
-  lp = (u_long *) cp;
+  lp = (u_int32_t *) cp;
   magic = ntohl(*lp);
   if (magic != LcpInfo.his_magic) {
     LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
@@ -705,9 +705,9 @@ FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 static void
 FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
-  u_long *lp, magic;
+  u_int32_t *lp, magic;
 
-  lp = (u_long *) MBUF_CTOP(bp);
+  lp = (u_int32_t *) MBUF_CTOP(bp);
   magic = ntohl(*lp);
 /*
  * Tolerate echo replies with either magic number

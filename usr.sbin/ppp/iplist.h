@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iplist.h,v 1.2.2.1 1998/01/26 20:04:48 brian Exp $
  */
 
 struct iplist {
@@ -31,8 +31,9 @@ struct iplist {
     struct in_addr ip;
     int pos;
     char *srcptr;
-    int srcitem;
-    u_long lstart, nItems;
+    u_long srcitem;
+    u_int32_t lstart;
+    u_long nItems;
   } cur;
   int nItems;
   char src[LINE_LEN];
