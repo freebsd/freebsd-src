@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.20 1996/10/15 19:28:44 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.20.2.1 1997/04/03 06:24:36 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -245,13 +245,14 @@ accept1(p, uap, retval, compat)
 	nam = m_get(M_WAIT, MT_SONAME);
 	(void) soaccept(so, nam);
 	if (uap->name) {
+		 /* check length before it is destroyed */
+		if (namelen > nam->m_len)
+			namelen = nam->m_len;
 #ifdef COMPAT_OLDSOCK
 		if (compat)
 			mtod(nam, struct osockaddr *)->sa_family =
 			    mtod(nam, struct sockaddr *)->sa_family;
 #endif
-		if (namelen > nam->m_len)
-			namelen = nam->m_len;
 		/* SHOULD COPY OUT A CHAIN HERE */
 		error = copyout(mtod(nam, caddr_t), (caddr_t)uap->name,
 		    (u_int)namelen);
@@ -710,14 +711,15 @@ recvit(p, s, mp, namelenp, retsize)
 		if (len <= 0 || from == 0)
 			len = 0;
 		else {
+			/* save sa_len before it is destroyed by MSG_COMPAT */
+			if (len > from->m_len)
+				len = from->m_len;
+			/* else if len < from->m_len ??? */
 #ifdef COMPAT_OLDSOCK
 			if (mp->msg_flags & MSG_COMPAT)
 				mtod(from, struct osockaddr *)->sa_family =
 				    mtod(from, struct sockaddr *)->sa_family;
 #endif
-			if (len > from->m_len)
-				len = from->m_len;
-			/* else if len < from->m_len ??? */
 			error = copyout(mtod(from, caddr_t),
 			    (caddr_t)mp->msg_name, (unsigned)len);
 			if (error)
