@@ -40,6 +40,7 @@
 #define	DS1_CHANS 4
 #define DS1_RECPRIMARY 0
 #define DS1_IRQHZ ((48000 << 8) / 256)
+#define DS1_BUFFSIZE 4096
 
 struct pbank {
 	volatile u_int32_t	Format;
@@ -487,7 +488,7 @@ ds1pchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->run = 0;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 4096) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, DS1_BUFFSIZE) == -1)
 		return NULL;
 	else {
 		ch->lsnum = sc->pslotfree;
@@ -528,6 +529,8 @@ ds1pchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	/* irq rate is fixed at 187.5hz */
 	drate = ch->spd * sndbuf_getbps(ch->buffer);
 	blocksize = (drate << 8) / DS1_IRQHZ;
+	sndbuf_resize(ch->buffer, DS1_BUFFSIZE / blocksize, blocksize);
+
 	return blocksize;
 }
 
@@ -645,6 +648,14 @@ ds1rchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 ds1rchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_rchinfo *ch = data;
+	int drate;
+
+	/* irq rate is fixed at 187.5hz */
+	drate = ch->spd * sndbuf_getbps(ch->buffer);
+	blocksize = (drate << 8) / DS1_IRQHZ;
+	sndbuf_resize(ch->buffer, DS1_BUFFSIZE / blocksize, blocksize);
+
 	return blocksize;
 }
 
