@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1987, 1993, 1994
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,8 +11,7 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
+ *      This product includes software developed by Shigio Yamaguchi.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -29,80 +27,111 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	assembler.c				20-Aug-98
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)assembler.c	8.3 (Berkeley) 6/6/97";
-#endif /* LIBC_SCCS and not lint */
 
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "ctags.h"
-#include "lookup.h"
+#include "gctags.h"
+#include "defined.h"
+#include "token.h"
 
-#ifdef GLOBAL
+static int      reserved __P((char *));
+
+#define A_CALL		1001
+#define A_DEFINE	1002
+#define A_ENTRY		1003
+#define A_EXT		1004
+#define A_ALTENTRY	1005
+
 void
-asm_entries()
+assembler()
 {
-	char	*lbp;
-	char    tok[MAXTOKEN];
-	char	*sp;
+	int	c;
+	int	target;
+	const   char *interested = NULL;	/* get all token */
+	int	startline = 1;
+	int	level;				/* not used */
 
-	for (;;) {
-		lineftell = ftell(inf);
-		if (!fgets(lbuf, sizeof(lbuf), inf))
-			return;
-		++lineno;
-		if (rflag) {
-			/* extract only call EXT(xxx) or call _xxx */
-			lbp = lbuf;
-			while (*lbp && isspace(*lbp))
-				lbp++;
-			if (*lbp != 'c' || strncmp(lbp, "call", 4))
-				continue;
-			lbp += 4;
-			while (*lbp && isspace(*lbp))
-				lbp++;
-			sp = tok;
-			if (!strncmp(lbp, "EXT(" /* ) */, 4)) {
-				lbp += 4;
-				while (*lbp && intoken(*lbp))
-					*sp++ = *lbp++;
-				if (*lbp != /* ( */ ')')
-					continue;
-				*sp = EOS;
-			} else if (*lbp == '_') {
-				lbp++;
-				while (*lbp && intoken(*lbp))
-					*sp++ = *lbp++;
-				*sp = EOS;
-			} else
-				continue;
-			if (!lookup(tok))
-				continue;
-		} else {
-			/* extract only ENTRY() and ALTENTRY(). */
-			if (lbuf[0] != 'E' && lbuf[0] != 'A')
-				continue;
-			lbp = lbuf;
-			if (!strncmp(lbp, "ENTRY(", 6)) {
-				lbp += 6;
-			} else if (!strncmp(lbp, "ALTENTRY(", 9)) {
-				lbp += 9;
-			} else
-				continue;
-			sp = tok;
-			while (*lbp && intoken(*lbp))
-				*sp++ = *lbp++;
-			if (*lbp != /* ( */ ')')
-				continue;
-			*sp = EOS;
+	level = 0;				/* to satisfy compiler */
+	/* symbol search doesn't supported. */
+	if (sflag)
+		return;
+	target = (rflag) ? REF : DEF;
+
+	cmode = 1;
+	crflag = 1;
+
+	while ((c = nexttoken(interested, reserved)) != EOF) {
+		switch (c) {
+		case '\n':
+			startline = 1;
+			continue;
+		case A_CALL:
+			if (!startline || target != REF)
+				break;
+			if ((c = nexttoken(interested, reserved)) == A_EXT) {
+				if ((c = nexttoken(interested, reserved)) == '('/* ) */)
+					if ((c = nexttoken(interested, reserved)) == SYMBOL)
+						if (defined(token))
+							PUT(token, lineno, sp);
+			} else if (c == SYMBOL && *token == '_') {
+				if (defined(&token[1]))
+					PUT(&token[1], lineno, sp);
+			}
+			break;
+		case A_ALTENTRY:
+		case A_ENTRY:
+			if (!startline || target != DEF)
+				break;
+			if ((c = nexttoken(interested, reserved)) == '('/* ) */)
+				if ((c = nexttoken(interested, reserved)) == SYMBOL)
+					if (peekc(1) == /* ( */ ')')
+						PUT(token, lineno, sp);
+			break;
+		case A_DEFINE:
+			if (!startline || target != DEF)
+				break;
+			if ((c = nexttoken(interested, reserved)) == SYMBOL) {
+				if (peekc(1) == '('/* ) */) {
+					PUT(token, lineno, sp);
+					while ((c = nexttoken(interested, reserved)) != EOF && c != '\n' && c != /* ( */ ')')
+						;
+					while ((c = nexttoken(interested, reserved)) != EOF && c != '\n')
+						;
+				}
+			}
+		default:
 		}
-		getline();
-		pfnote(tok, lineno);
+		startline = 0;
 	}
-	/*NOTREACHED*/
 }
-#endif
+static int
+reserved(word)
+        char *word;
+{
+	switch (*word) {
+	case '#':
+		if (!strcmp(word, "#define"))
+			return A_DEFINE;
+		break;
+	case 'A':
+		if (!strcmp(word, "ALTENTRY"))
+			return A_ALTENTRY;
+		break;
+	case 'E':
+		if (!strcmp(word, "ENTRY"))
+			return A_ENTRY;
+		else if (!strcmp(word, "EXT"))
+			return A_EXT;
+		break;
+	case 'c':
+		if (!strcmp(word, "call"))
+			return A_CALL;
+		break;
+	}
+	return SYMBOL;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,7 +35,7 @@
 #define _DIE_H_
 #include <stdio.h>
 
-extern	char	*progname;
+extern	const char *progname;
 
 #define	die(a)	fprintf(stderr, "%s: ", progname),\
 		fprintf(stderr, a),\
@@ -44,6 +44,10 @@ extern	char	*progname;
 
 #define	die1(a,b) fprintf(stderr, "%s: ", progname),\
 		fprintf(stderr, a, b),\
+		fputs("\n", stderr),\
+		exit(1)
+#define	die2(a,b,c) fprintf(stderr, "%s: ", progname),\
+		fprintf(stderr, a, b, c),\
 		fputs("\n", stderr),\
 		exit(1)
 #endif /* ! _DIE_H_ */

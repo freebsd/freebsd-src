@@ -139,3 +139,7 @@ can treat not only source file but also normal file, directory, HTML file
 and even URL, because it is omnivorous.
 .Sh AUTHORS
 Shigio Yamaguchi (shigio@wafu.netgate.net)
+.Sh HISTORY
+The
+.Nm
+command appeared in FreeBSD 2.2.5.

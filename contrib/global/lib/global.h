@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,27 +28,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	global.h				16-Oct-97
+ *	global.h				2-May-98
  *
  */
 
 #ifndef _GLOBAL_H_
 #define _GLOBAL_H_
 
-#include "gparam.h"
-#include "dbname.h"
-#include "makepath.h"
-#include "dbio.h"
-#include "locatestring.h"
-#include "mgets.h"
+#include "conf.h"
+#include "dbop.h"
+#include "defined.h"
 #include "die.h"
 #include "find.h"
 #include "getdbpath.h"
-#include "strop.h"
-#include "gtagsopen.h"
-#include "lookup.h"
+#include "gparam.h"
+#include "gtagsop.h"
+#include "locatestring.h"
+#include "makepath.h"
+#include "mgets.h"
+#include "pathop.h"
+#include "strbuf.h"
+#include "strmake.h"
 #include "tab.h"
-#include "tag.h"
 #include "test.h"
+#include "token.h"
+#include "usable.h"
 
 #endif /* ! _GLOBAL_H_ */

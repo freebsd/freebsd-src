@@ -1,7 +1,16 @@
+.if !defined(GLOBAL_MAKEFILE_INC_BEEN_HERE)
+
+GLOBAL_MAKEFILE_INC_BEEN_HERE=yes
 BINDIR?=	/usr/bin
-MANDIR?=	/usr/share/man/man
 .if exists(${.OBJDIR}/../lib)
-LIBUTIL=${.OBJDIR}/../lib/libutil.a
+LIBDESTDIR=	${.OBJDIR}/../lib
 .else
-LIBUTIL=${.CURDIR}/../lib/libutil.a
+LIBDESTDIR=	${.CURDIR}/../lib
+.endif
+LDDESTDIR=	-L${LIBDESTDIR}
+LDADD=		-lgloutil
+DPADD=		${LIBDESTDIR}/libgloutil.a
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../lib -O \
+		-Wall -Wwrite-strings -Wmissing-prototypes
+
 .endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,15 +28,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	gparam.h				16-Oct-97
+ *	gparam.h				16-Jul-98
  *
  */
 #ifndef _GPARAM_H_
 #define _GPARAM_H_
 
-#define MAXCOMLINE	1024		/* max length of filter */
-#define IDENTLEN	512		/* max length of ident	*/
-#define MAXENVLEN	1024		/* max length of env	*/
-#define MAXBUFLEN	1024		/* max length of buffer	*/
+#define MAXFILLEN	1024		/* max length of filter		*/
+#define IDENTLEN	512		/* max length of ident		*/
+#define MAXENVLEN	1024		/* max length of env		*/
+#define MAXBUFLEN	1024		/* max length of buffer		*/
+#define MAXPROPLEN	1024		/* max length of property	*/
+#define MAXARGLEN	512		/* max length of argment	*/
 
 #endif /* ! _GPARAM_H_ */

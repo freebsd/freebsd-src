@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	tab.h					16-Oct-97
+ *	tab.h					8-Oct-98
  *
  */
 
@@ -43,6 +43,7 @@
 #endif
 #endif
 
+void	settabs __P((int));
 void	detab __P((FILE *, char *));
 void	entab __P((char *));
 

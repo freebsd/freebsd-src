@@ -1,0 +1,37 @@
+*** btree/bt_split.c.orig	Sat Feb  8 10:14:10 1997
+--- btree/bt_split.c	Sat Feb  8 10:14:51 1997
+***************
+*** 673,679 ****
+  		 * where we decide to try and copy too much onto the left page.
+  		 * Make sure that doesn't happen.
+  		 */
+! 		if (skip <= off && used + nbytes >= full || nxt == top - 1) {
+  			--off;
+  			break;
+  		}
+--- 673,680 ----
+  		 * where we decide to try and copy too much onto the left page.
+  		 * Make sure that doesn't happen.
+  		 */
+! 		if (skip <= off &&
+! 		    used + nbytes + sizeof(indx_t) >= full || nxt == top - 1) {
+  			--off;
+  			break;
+  		}
+***************
+*** 686,692 ****
+  			memmove((char *)l + l->upper, src, nbytes);
+  		}
+  
+! 		used += nbytes;
+  		if (used >= half) {
+  			if (!isbigkey || bigkeycnt == 3)
+  				break;
+--- 687,693 ----
+  			memmove((char *)l + l->upper, src, nbytes);
+  		}
+  
+! 		used += nbytes + sizeof(indx_t);
+  		if (used >= half) {
+  			if (!isbigkey || bigkeycnt == 3)
+  				break;
