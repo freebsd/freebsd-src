@@ -802,7 +802,7 @@ show_prerequisites(int *flags, int want, int cmd)
 }
 
 static void
-show_ipfw(struct ip_fw *rule)
+show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 {
 	static int twidth = 0;
 	int l;
@@ -823,7 +823,8 @@ show_ipfw(struct ip_fw *rule)
 	printf("%05u ", rule->rulenum);
 
 	if (do_acct)
-		printf("%10qu %10qu ", rule->pcnt, rule->bcnt);
+		printf("%*llu %*llu ", pcwidth, rule->pcnt, bcwidth,
+		    rule->bcnt);
 
 	if (do_time) {
 		char timestr[30];
@@ -1202,7 +1203,7 @@ show_ipfw(struct ip_fw *rule)
 }
 
 static void
-show_dyn_ipfw(ipfw_dyn_rule *d)
+show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 {
 	struct protoent *pe;
 	struct in_addr a;
@@ -1212,8 +1213,8 @@ show_dyn_ipfw(ipfw_dyn_rule *d)
 			return;
 	}
 
-	printf("%05d %10qu %10qu (%ds)",
-	    d->rulenum, d->pcnt, d->bcnt, d->expire);
+	printf("%05d %*llu %*llu (%ds)", d->rulenum, pcwidth, d->pcnt, bcwidth,
+	    d->bcnt, d->expire);
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
 		printf(" PARENT %d", d->count);
@@ -1557,7 +1558,7 @@ list(int ac, char *av[])
 	ipfw_dyn_rule *dynrules, *d;
 
 	void *lim, *data = NULL;
-	int n, nbytes, nstat, ndyn;
+	int bcwidth, n, nbytes, nstat, ndyn, pcwidth, width;
 	int exitval = EX_OK;
 	int lac;
 	char **lav;
@@ -1607,16 +1608,43 @@ list(int ac, char *av[])
 	n = (void *)r - data;
 	ndyn = (nbytes - n) / sizeof *dynrules;
 
+	/* if showing stats, figure out column widths ahead of time */
+	bcwidth = pcwidth = 0;
+	if (do_acct) {
+		for (n = 0, r = data; n < nstat;
+		    n++, r = (void *)r + RULESIZE(r)) {
+			/* packet counter */
+			width = snprintf(NULL, 0, "%llu", r->pcnt);
+			if (width > pcwidth)
+				pcwidth = width;
+
+			/* byte counter */
+			width = snprintf(NULL, 0, "%llu", r->bcnt);
+			if (width > bcwidth)
+				bcwidth = width;
+		}
+	}
+	if (do_dynamic && ndyn) {
+		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
+			width = snprintf(NULL, 0, "%llu", d->pcnt);
+			if (width > pcwidth)
+				pcwidth = width;
+
+			width = snprintf(NULL, 0, "%llu", d->bcnt);
+			if (width > bcwidth)
+				bcwidth = width;
+		}
+	}
 	/* if no rule numbers were specified, list all rules */
 	if (ac == 0) {
 		for (n = 0, r = data; n < nstat;
 		    n++, r = (void *)r + RULESIZE(r) )
-			show_ipfw(r);
+			show_ipfw(r, pcwidth, bcwidth);
 
 		if (do_dynamic && ndyn) {
 			printf("## Dynamic rules (%d):\n", ndyn);
 			for (n = 0, d = dynrules; n < ndyn; n++, d++)
-				show_dyn_ipfw(d);
+				show_dyn_ipfw(d, pcwidth, bcwidth);
 		}
 		goto done;
 	}
@@ -1636,7 +1664,7 @@ list(int ac, char *av[])
 			if (r->rulenum > rnum)
 				break;
 			if (r->rulenum == rnum) {
-				show_ipfw(r);
+				show_ipfw(r, pcwidth, bcwidth);
 				seen = 1;
 			}
 		}
@@ -1659,7 +1687,7 @@ list(int ac, char *av[])
 				if (d->rulenum > rnum)
 					break;
 				if (d->rulenum == rnum)
-					show_dyn_ipfw(d);
+					show_dyn_ipfw(d, pcwidth, bcwidth);
 			}
 		}
 	}
@@ -3221,7 +3249,7 @@ done:
 	if (getsockopt(s, IPPROTO_IP, IP_FW_ADD, rule, &i) == -1)
 		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
 	if (!do_quiet)
-		show_ipfw(rule);
+		show_ipfw(rule, 10, 10);
 }
 
 static void
