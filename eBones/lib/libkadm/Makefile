@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.6 1995/09/14 18:16:14 gibbs Exp $
+#	$Id: Makefile,v 1.7 1995/09/14 19:52:28 gibbs Exp $
 
 LIB=	kadm
 
@@ -21,4 +21,3 @@ beforeinstall:
 kadm_err.c: ${KADMOBJDIR}/kadm_err.h
 
 kadm_cli_wrap.o: ${KRBOBJDIR}/krb_err.h
-kadm_err.c: ${KADMOBJDIR}/kadm_err.h
