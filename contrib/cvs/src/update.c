@@ -98,6 +98,7 @@ static char *join_rev2, *date_rev2;
 static int aflag = 0;
 static int toss_local_changes = 0;
 static int force_tag_match = 1;
+static int pull_template = 0;
 static int update_build_dirs = 0;
 static int update_prune_dirs = 0;
 static int pipeout = 0;
@@ -125,6 +126,7 @@ static const char *const update_usage[] =
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
     "\t-I ign\tMore files to ignore (! to reset).\n",
     "\t-W spec\tWrappers specification line.\n",
+    "\t-T\tUpdate CVS/Template.\n",
     "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
@@ -140,6 +142,7 @@ update (argc, argv)
     int c, err;
     int local = 0;			/* recursive by default */
     int which;				/* where to look for files and dirs */
+    int xpull_template = 0;
 
     if (argc == -1)
 	usage (update_usage);
@@ -149,7 +152,7 @@ update (argc, argv)
 
     /* parse the args */
     optind = 0;
-    while ((c = getopt (argc, argv, "+ApCPflRQqduk:r:D:j:I:W:")) != -1)
+    while ((c = getopt (argc, argv, "+ApCPflRQTqduk:r:D:j:I:W:")) != -1)
     {
 	switch (c)
 	{
@@ -186,6 +189,9 @@ update (argc, argv)
 		    error (1, 0,
 			   "-q or -Q must be specified before \"%s\"",
 			   command_name);
+		break;
+	    case 'T':
+		xpull_template = 1;
 		break;
 	    case 'd':
 		update_build_dirs = 1;
@@ -411,7 +417,8 @@ update (argc, argv)
     /* call the command line interface */
     err = do_update (argc, argv, options, tag, date, force_tag_match,
 		     local, update_build_dirs, aflag, update_prune_dirs,
-		     pipeout, which, join_rev1, join_rev2, (char *) NULL);
+		     pipeout, which, join_rev1, join_rev2, (char *) NULL,
+		     xpull_template);
 
     /* free the space Make_Date allocated if necessary */
     if (date != NULL)
@@ -425,7 +432,8 @@ update (argc, argv)
  */
 int
 do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
-	   xprune, xpipeout, which, xjoin_rev1, xjoin_rev2, preload_update_dir)
+	   xprune, xpipeout, which, xjoin_rev1, xjoin_rev2, preload_update_dir,
+	   xpull_template)
     int argc;
     char **argv;
     char *xoptions;
@@ -441,6 +449,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     char *xjoin_rev1;
     char *xjoin_rev2;
     char *preload_update_dir;
+    int xpull_template;
 {
     int err = 0;
     char *cp;
@@ -454,6 +463,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
     aflag = xaflag;
     update_prune_dirs = xprune;
     pipeout = xpipeout;
+    pull_template = xpull_template;
 
     /* setup the join support */
     join_rev1 = xjoin_rev1;
@@ -1029,6 +1039,12 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 	    WriteTag (dir, tag, date, 0, update_dir, repository);
 	    rewrite_tag = 1;
 	    nonbranch = 0;
+	}
+
+	/* keep the CVS/Template file current */
+	if (pull_template) 
+	{
+	    WriteTemplate (dir, update_dir);
 	}
 
 	/* initialize the ignore list for this directory */

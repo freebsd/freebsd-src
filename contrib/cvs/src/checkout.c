@@ -50,6 +50,7 @@ static const char *const checkout_usage[] =
     "\t-N\tDon't shorten module paths if -d specified.\n",
     "\t-P\tPrune empty directories.\n",
     "\t-R\tProcess directories recursively.\n",
+    "\t-T\tCreate Template file from local repository for remote commit.\n",
     "\t-c\t\"cat\" the module database.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, not recursive\n",
@@ -92,6 +93,7 @@ static char *date = NULL;
 static char *join_rev1 = NULL;
 static char *join_rev2 = NULL;
 static int join_tags_validated = 0;
+static int pull_template = 0;
 static char *preload_update_dir = NULL;
 static char *history_name = NULL;
 static enum mtype m_type;
@@ -127,7 +129,7 @@ checkout (argc, argv)
     else
     {
         m_type = CHECKOUT;
-	valid_options = "+ANnk:d:flRpQqcsr:D:j:P";
+	valid_options = "+ANnk:d:flRpTQqcsr:D:j:P";
 	valid_usage = checkout_usage;
     }
 
@@ -155,6 +157,9 @@ checkout (argc, argv)
 		break;
 	    case 'n':
 		run_module_prog = 0;
+		break;
+	    case 'T':
+		pull_template = 1;
 		break;
 	    case 'Q':
 	    case 'q':
@@ -1033,7 +1038,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 			  force_tag_match, 0 /* !local */ ,
 			  1 /* update -d */ , aflag, checkout_prune_dirs,
 			  pipeout, which, join_rev1, join_rev2,
-			  preload_update_dir);
+			  preload_update_dir, pull_template);
 	goto out;
     }
 
@@ -1089,7 +1094,7 @@ internal error: %s doesn't start with %s in checkout_proc",
     err += do_update (argc - 1, argv + 1, options, tag, date,
 		      force_tag_match, local_specified, 1 /* update -d */,
 		      aflag, checkout_prune_dirs, pipeout, which, join_rev1,
-		      join_rev2, preload_update_dir);
+		      join_rev2, preload_update_dir, pull_template);
 out:
     free (preload_update_dir);
     preload_update_dir = oldupdate;

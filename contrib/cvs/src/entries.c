@@ -631,6 +631,76 @@ AddEntryNode (list, entdata)
     return (p);
 }
 
+static char *root_template;
+
+static int
+get_root_template(char *repository, char *path)
+{
+    if (root_template) {
+	if (strcmp(path, root_template) == 0)
+	    return(0);
+	free(root_template);
+    }
+    if ((root_template = strdup(path)) == NULL)
+	return(-1);
+    return(0);
+}
+
+/*
+ * Write out/Clear the CVS/Template file.
+ */
+void
+WriteTemplate (dir, update_dir)
+    char *dir;
+    char *update_dir;
+{
+    char *tmp = NULL;
+    char *root = NULL;
+    struct stat st1;
+    struct stat st2;
+
+    if (Parse_Info(CVSROOTADM_RCSINFO, "cvs", get_root_template, 1) < 0)
+	return;
+
+    if ((root = Name_Root(dir, update_dir)) == NULL)
+	error (1, errno, "unable to locate cvs root");
+    if (asprintf(&tmp, "%s/%s", dir, CVSADM_TEMPLATE) < 0)
+	error (1, errno, "out of memory");
+
+    if (stat(root_template, &st1) == 0) {
+	if (stat(tmp, &st2) < 0 || st1.st_mtime != st2.st_mtime) {
+	    FILE *fi;
+	    FILE *fo;
+
+	    if ((fi = open_file(root_template, "r")) != NULL) {
+		if ((fo = open_file(tmp, "w")) != NULL) {
+		    int n;
+		    char buf[256];
+
+		    while ((n = fread(buf, 1, sizeof(buf), fi)) > 0)
+			fwrite(buf, 1, n, fo);
+		    fflush(fo);
+		    if (ferror(fi) || ferror(fo)) {
+			fclose(fo);
+			remove(tmp);
+			error (1, errno, "error copying Template");
+		    } else {
+			struct timeval times[2];
+			fclose(fo);
+			times[0].tv_sec = st1.st_mtime;
+			times[0].tv_usec = 0;
+			times[1] = times[0];
+			utimes(tmp, times);
+		    }
+		} 
+		fclose(fi);
+	    }
+	}
+    }
+    free(tmp);
+    free(root);
+}
+
 /*
  * Write out/Clear the CVS/Tag file.
  */
