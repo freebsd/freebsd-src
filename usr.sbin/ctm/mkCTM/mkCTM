@@ -1,106 +1,6 @@
 #!/usr/local/bin/tclsh7.4
 
 #############################################################################
-### Add something
-#############################################################################
-# Type Name Mode User Group Barf Size Hash
-
-proc CTMadd {t n m u g b s h} {
-    global fo_files fo_mkdir changes CTMref
-
-    puts stderr "A $b  $t  $n"
-    incr changes
-
-    if {$t == "d"} {
-	puts $fo_mkdir "CTMDM $n $u $g $m"
-    } elseif {$t == "f"} {
-	puts $fo_files "CTMFM $n $u $g $m $h $s"
-	flush $fo_files
-	exec cat $CTMref/$n >@ $fo_files
-	puts $fo_files ""
-    } else {
-	puts "confused in CTMadd"
-	exit 0
-    }
-}
-
-#############################################################################
-### Delete something
-#############################################################################
-# Type Name Mode User Group Barf Size Hash
-
-proc CTMdel {t n m u g b s h} {
-    global fo_del fo_rmdir changes damage max_damage CTMlock
-
-    puts stderr "D $b  $t  $n"
-    incr damage 
-    incr changes
-
-    if {$damage > $max_damage} {
-	exec rm -f $CTMlock
-	return
-    }
-    if {$t == "d"} {
-	puts $fo_rmdir "CTMDR $n"
-    } elseif {$t == "f"} {
-	puts $fo_del "CTMFR $n $h"
-    } else {
-	puts "confused in CTMdel"
-	exit 0
-    }
-}
-
-#############################################################################
-### Change something
-#############################################################################
-# Type Name Mode User Group Barf Size Hash
-
-proc CTMchg {t1 n1 m1 u1 g1 b1 s1 h1 t2 n2 m2 u2 g2 b2 s2 h2} {
-    global fo_files CTMref CTMcopy changes damage CTMscratch
-
-    # Ignore attribute changes for directories
-    if {$t1 == "d" && $t2 == "d"} return
-
-    # turn file into dir or vice versa...
-    if {$t1 != $t2} {
-	CTMdel $t1 $n1 $m1 $u1 $g1 $b1 $s1 $h1
-	CTMadd $t2 $n2 $m2 $u2 $g2 $b2 $s2 $h2
-	return
-    }
-
-    # only files allowed past this poing...
-    if {$t1 != "f" && $t2 != "f"} {
-        puts "confused in CTMchg"
-        exit 0
-    }
-
-    # Ignore attribute changes for files
-    if {"x$h1" == "x$h2" && $s1 == $s2} return
-
-    if {$s2 == 0} { incr damage }
-    incr changes
-
-    # If diff will deal with it...
-    if {$b1 == "0" && $b2 == "0"} {
-	set i [catch "exec diff -n $CTMcopy/$n1 $CTMref/$n2 > $CTMscratch" j]
-	set s [file size $CTMscratch]
-	if {$s < $s2} {
-	    puts stderr "E $b1$b2 $t1$t2 $n1"
-	    puts $fo_files "CTMFN $n1 $u2 $g2 $m2 $h1 $h2 $s"
-	    flush $fo_files
-	    exec cat $CTMscratch >@ $fo_files
-	    puts $fo_files ""
-	    return
-	}
-    } 
-    puts stderr "R $b1$b2 $t1$t2 $n1"
-    puts $fo_files "CTMFS $n2 $u2 $g2 $m2 $h1 $h2 $s2"
-    flush $fo_files
-    exec cat $CTMref/$n2 >@ $fo_files
-    puts $fo_files ""
-}
-
-#############################################################################
 ### Do we already have this delta ?
 #############################################################################
 
@@ -121,7 +21,8 @@ cd $CTMSW
 
 # Defaults...
 set CTMapply 1
-set CTMdont {^///}
+set CTMignore {^///}
+set CTMbogus {\.core$}
 set CTMmail {}
 set CTMqueue {}
 set CTMqueuemail {}
@@ -137,13 +38,13 @@ set CTMtest 0
 set CTMspecial 0
 set CTMscan .
 set CTMfirst 0
-set max_damage 1200
+set max_damage 100
 
 set damage 0
 set changes 0
 
-exec sh -c "date -u '+%y%m%d%H%M%S $argv'" >> /home/ctm/log
 source $argv
+exec sh -c "date -u '+%y%m%d%H%M%S $argv'" >> ${CTMSW}/log
 
 if {$CTMtmp == ""} {
     set CTMtmp $CTMSW/../tmp/${CTMname}_${CTMsuff}
@@ -163,7 +64,7 @@ exec echo starting > ${CTMlock}
 if {[catch "exec ln $CTMlock LCK.$CTMname" a]} {
 	puts "Not going, lock exists..."
 	exec rm -f $CTMlock
-	exit 0
+	exit 1
 }
 exec rm -f $CTMlock
 set CTMlock LCK.$CTMname
@@ -181,7 +82,7 @@ while 1 {
 	if {$CTMnbr > 0 && ![find_delta $CTMnbr]} {
 	    puts "$CTMname delta $CTMnbr doesn't exist..."
 	    exec rm -f $CTMlock
-	    exit 0
+	    exit 1
 	}
 
 	incr CTMnbr
@@ -189,7 +90,7 @@ while 1 {
 	if {[find_delta $CTMnbr]} {
 	    puts "$CTMname delta $CTMnbr does already exist..."
 	    exec rm -f $CTMlock
-	    exit 0
+	    exit 1
 	}
 
 	set fo [open $CTMref/.ctm_status w]
@@ -201,114 +102,33 @@ while 1 {
 	set CTMnbr [lindex [exec cat $CTMref/.ctm_status] 1]
     }
 
-    if {"$CTMcopy" == "" } { 
-	set f1 [open /dev/null]
-    } else {
-	set f1 [open "| ./ctm_scan $CTMcopy $CTMscan"]
-    }
-
     puts "Doing CTMname $CTMname CTMnbr $CTMnbr$CTMsuff CTMdate $CTMdate"
     flush stdout
     exec sh -c "rm -f ${CTMtmp}.* ${CTMtmp}:*" >&@ stdout
 
-    set f2 [open "| ./ctm_scan $CTMref $CTMscan"]
-
-    set fo_del   [open $CTMtmp.del w]
-    set fo_rmdir [open $CTMtmp.rmdir w]
-    set fo_mkdir [open $CTMtmp.mkdir w]
-    set fo_files [open $CTMtmp.files w]
-
-    set l1 ""
-    set l2 ""
-
-    while 1 {
-
-	if {$l1 == ""} {gets $f1 l1}
-
-	if {$l2 == ""} {gets $f2 l2}
-	
-	if {$l1 == "" && $l2 == ""} break
-
-	set n1 [lindex $l1 1]
-	set n2 [lindex $l2 1]
-
-	if {[regexp $CTMdont /$n1]} { set l1 "" ; continue }
-	if {[regexp $CTMdont /$n2]} { set l2 "" ; continue }
-
-	# they're all the same...
-	if {$l1 == $l2}  { set l1 "" ; set l2 "" ; continue }
-
-	if {$l1 == "" }   { eval CTMadd $l2 ; set l2 "" ; continue }
-
-	if {$l2 == "" }   { eval CTMdel $l1 ; set l1 "" ; continue }
-
-	# if the name is the same we're safe...
-	if {$n1 == $n2}  { 
-	    eval CTMchg $l1 $l2
-	    set l1 ""
-	    set l2 "" 
-	    continue 
-	}
-
-	# To avoid this anomaly:
-	# A -  d  src/gnu/lib/libreadline/readline/Attic
-	# A 0  f  src/gnu/lib/libreadline/readline/Attic/readline.h,v
-	# A 0  f  src/gnu/lib/libreadline/readline.c,v
-	# D 0  f  src/gnu/lib/libreadline/readline/readline.h,v
-	# D 0  f  src/gnu/lib/libreadline/readline.c,v
-	# we have to make things somewhat complicated...
-
-	# if they have the same number of components...
-	set ll1 [llength [split $n1 /]]
-	set ll2 [llength [split $n2 /]]
-	if {$ll1 == $ll2} {
-	    if {$n1 < $n2 } { 
-		eval CTMdel $l1 ; set l1 "" ; continue 
-	    } else {
-		eval CTMadd $l2 ; set l2 "" ; continue 
-	    }
-	} 
-	if {$ll1 < $ll2} {
-		eval CTMadd $l2 ; set l2 "" ; continue 
-	} else {
-		eval CTMdel $l1 ; set l1 "" ; continue 
-	}
-    }
-
-    close $fo_del
-    close $fo_rmdir
-    close $fo_mkdir
-    close $fo_files
-
-    if {$damage > $max_damage} {
-	puts "Too much damage: $damage deletes"
-		exec sh -c "rm -f ${CTMtmp}.*"
-		exec rm -f $CTMlock
-	exit 0
-    }
-
-    if {!$changes} {
-	puts "no changes"
-	exec sh -c "rm -f ${CTMtmp}.*"
-        exec rm -f $CTMlock
-	exit 0
-    }
-
-    exec echo CTM_BEGIN 2.0 $CTMname $CTMnbr $CTMdate $CTMprefix > $CTMtmp.begin
-
-    puts "Assembling delta"
-    flush stdout
     set  nm [format "%s.%04d%s" $CTMname $CTMnbr $CTMsuff]
 
-    set fdout [open "| /sbin/md5 -p | gzip -9 > ${CTMtmp}:${nm}.gz" w]
-
-    foreach i {begin del rmdir mkdir files} {
-	exec cat $CTMtmp.$i >@$fdout
+    set x1 $CTMcopy
+    if {$x1 == ""} {
+	exec mkdir ${CTMtmp}.dir
+	set x1 ${CTMtmp}.dir
     }
-    puts $fdout "CTM_END " nonewline
-    close $fdout ; unset fdout
+    set r1 [catch "exec ${CTMSW}/mkctm -I ${CTMignore} -B ${CTMbogus} -l ${CTMtmp}.log -D $max_damage $CTMname $CTMnbr $CTMdate . $x1 $CTMref | md5 -p | gzip -9 > ${CTMtmp}:${nm}.gz 2>@ stderr" r2]
 
-    exec sh -c "rm -f ${CTMtmp}.*" >&@ stdout
+    if {$r1} {
+	if {[lindex $errorCode 2] == 4} {
+		puts "No changes, stopping."
+		exec rm -f $CTMlock
+		exit 0
+	}
+	puts "problems, stopping now."
+        puts "errorCode $errorCode"
+	puts "$r2"
+        exec rm -f $CTMlock
+	exit 1
+    }
+	
+    puts "mkctm done"
 
     if {$CTMtest} {
 	puts "testing, stopping now."
@@ -319,7 +139,7 @@ while 1 {
 	    puts "Applying delta"
 	    flush stdout
 	    exec echo now applying > $CTMlock
-	    exec sh -e -c "cd $CTMcopy ; $CTMSW/ctm -v -v -v ${CTMtmp}:${nm}.gz" >&@ stdout
+	    exec sh -e -c "cd $CTMcopy ; $CTMSW/ctm -v -v -v ${CTMtmp}:${nm}.gz" >& ${CTMtmp}.apply
 	    exec echo did apply > $CTMlock
     }
     puts "Moving delta"
@@ -327,6 +147,8 @@ while 1 {
     exec mv ${CTMtmp}:${nm}.gz $CTMdest/.CTMtmp_${nm}.gz >&@ stdout
     exec mv $CTMdest/.CTMtmp_${nm}.gz $CTMdest/${nm}.gz >&@ stdout
     exec echo moved > $CTMlock
+
+    exec sh -c "rm -rf ${CTMtmp}.*" >&@ stdout
 
     if {$CTMmail != ""} {
 	puts "Mailing delta"

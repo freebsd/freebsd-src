@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.31 1996/09/06 23:07:53 phk Exp $
+ *	$Id: npx.c,v 1.31.2.1 1996/11/12 09:08:40 phk Exp $
  */
 
 #include "npx.h"
@@ -367,10 +367,12 @@ npxattach(dvp)
 		}
 		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
 			bzero = i586_bzero;
+#ifdef notyet
 		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
 			copyin_vector = i586_copyin;
 			copyout_vector = i586_copyout;
 		}
+#endif
 	}
 #endif
 

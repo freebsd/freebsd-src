@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.4 1995/01/17 23:04:29 ache Exp $
+ *	$Id: dd.c,v 1.5 1995/10/23 21:31:48 ache Exp $
  */
 
 #ifndef lint
@@ -56,12 +56,12 @@ static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <locale.h>
 
 #include "dd.h"
 #include "extern.h"
@@ -85,7 +85,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	(void) setlocale(LC_CTYPE, "");
+	(void)setlocale(LC_CTYPE, "");
 	jcl(argv);
 	setup();
 
@@ -105,6 +105,7 @@ static void
 setup()
 {
 	u_int cnt;
+	struct timeval tv;
 
 	if (in.name == NULL) {
 		in.name = "stdin";
@@ -213,7 +214,8 @@ setup()
 						ctab[cnt] = cnt;
 			}
 		}
-	(void)time(&st.start);			/* Statistics timestamp. */
+	(void)gettimeofday(&tv, (struct timezone *)NULL);
+	st.start = tv.tv_sec + tv.tv_usec * 1e-6; 
 }
 
 static void

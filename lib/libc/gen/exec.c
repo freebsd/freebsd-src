@@ -190,6 +190,8 @@ execvp(name, argv)
 	int eacces, etxtbsy;
 	char *bp, *cur, *path, buf[MAXPATHLEN];
 
+	eacces = etxtbsy = 0;
+
 	/* If it's an absolute or relative path name, it's easy. */
 	if (index(name, '/')) {
 		bp = (char *)name;
@@ -198,12 +200,17 @@ execvp(name, argv)
 	}
 	bp = buf;
 
+	/* If it's an empty path name, fail in the usual POSIX way. */
+	if (*name == '\0') {
+		errno = ENOENT;
+		return (-1);
+	}
+
 	/* Get the path we're searching. */
 	if (!(path = getenv("PATH")))
 		path = _PATH_DEFPATH;
 	cur = path = strdup(path);
 
-	eacces = etxtbsy = 0;
 	while ( (p = strsep(&cur, ":")) ) {
 		/*
 		 * It's a SHELL path -- double, leading and trailing colons

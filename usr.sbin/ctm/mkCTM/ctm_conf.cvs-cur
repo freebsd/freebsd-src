@@ -2,7 +2,8 @@
 
 set CTMname	cvs-cur
 set CTMref	/home/ncvs
-set CTMdont	{\.core$|^/CVSROOT/history.*$|^/src/secure|^/src/eBones|^/src/kerberosIV|/#cvs|/\.#|^/CVSROOT/val-tags$}
+set CTMignore	{^src/secure|^src/eBones|^src/kerberosIV|^CVSROOT/val-tags$|CVSROOT/\\.#}
+set CTMbogus	{\\.core$|/#cvs|/\\.#}
 set CTMmail	ctm-cvs-cur-fast@freebsd.org
 set CTMqueuemail	ctm-cvs-cur@freebsd.org
 set CTMqueue	/home/ctm/queue/ctm-cvs-cur

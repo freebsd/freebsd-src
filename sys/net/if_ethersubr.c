@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.25 1996/10/17 17:16:58 jkh Exp $
+ * $Id: if_ethersubr.c,v 1.26 1996/10/18 15:59:25 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -927,7 +927,7 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy((caddr_t) ifp->if_softc,
+			bcopy(((struct arpcom *)ifp->if_softc)->ac_enaddr,
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;

@@ -176,11 +176,6 @@ main(argc, argv)
 	setuid(getuid());
 
 	preload = 0;
-	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
-		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
-		ts.c_lflag |= NOKERNINFO;
-		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
-	}
 
 	datap = &outpack[8 + sizeof(struct timeval)];
 	while ((ch = getopt(argc, argv, "QRc:dfh:i:l:np:qrs:v")) != EOF)
@@ -360,6 +355,12 @@ main(argc, argv)
 	(void)signal(SIGINT, finish);
 	(void)signal(SIGALRM, catcher);
 	(void)signal(SIGINFO, status);
+
+	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
+		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
+		ts.c_lflag |= NOKERNINFO;
+		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
+	}
 
 	while (preload--)		/* fire off them quickies */
 		pinger();

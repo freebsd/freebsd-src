@@ -1,7 +1,8 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1996/11/15 05:14:38 asami Exp $
 # Original revision: 1.17
 # The FreeBSD Japanese Documentation Project
 
+DOC=	handbook
 DOCDIR=${SHAREDIR}/doc/ja_JP.EUC
 FORMATS= html roff
 

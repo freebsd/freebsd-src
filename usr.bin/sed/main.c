@@ -256,7 +256,8 @@ mf_fgets(sp, spflag)
 {
 	static FILE *f;		/* Current open file */
 	size_t len;
-	char c, *p;
+	char *p;
+	int c;
 
 	if (f == NULL)
 		/* Advance to first non-empty file */
