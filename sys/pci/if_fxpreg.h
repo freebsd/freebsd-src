@@ -28,7 +28,8 @@
  */
 
 #define FXP_VENDORID_INTEL	0x8086
-#define FXP_DEVICEID_i82557	0x1229
+#define FXP_DEVICEID_i82557	0x1229	/* 82557 - 82559 "classic" */
+#define FXP_DEVICEID_i82559	0x1030	/* New 82559 device id.. */
 
 #define FXP_PCI_MMBA	0x10
 #define FXP_PCI_IOBA	0x14
