@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.55 1999/01/26 02:38:10 julian Exp $
+ * $Id: kern_fork.c,v 1.56 1999/03/02 00:28:08 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -439,7 +439,7 @@ again:
 	 * This begins the section where we must prevent the parent
 	 * from being swapped.
 	 */
-	p1->p_flag |= P_NOSWAP;
+	PHOLD(p1);
 
 	/*
 	 * Finish creating the child process.  It will return via a different
@@ -470,7 +470,7 @@ again:
 	/*
 	 * Now can be swapped.
 	 */
-	p1->p_flag &= ~P_NOSWAP;
+	PRELE(p1);
 
 	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
