@@ -77,30 +77,31 @@ fgetwc(FILE *fp)
 static __inline wint_t
 __fgetwc_nbf(FILE *fp)
 {
-	size_t n, nconv;
-	int c;
-	char cc;
 	wchar_t wc;
+	size_t nconv;
 
-	n = 0;
-	for (;;) {
-		if ((c = __sgetc(fp)) == EOF) {
-			if (n == 0)
-				return (WEOF);
+	if (fp->_r <= 0 && __srefill(fp))
+		return (WEOF);
+	do {
+		nconv = mbrtowc(&wc, fp->_p, fp->_r, &fp->_extra->mbstate);
+		if (nconv == (size_t)-1)
 			break;
-		}
-		n++;
-		cc = (char)c;
-		nconv = mbrtowc(&wc, &cc, 1, &fp->_extra->mbstate);
-		if (nconv == (size_t)-2)
+		else if (nconv == (size_t)-2)
 			continue;
-		else if (nconv == (size_t)-1)
-			break;
-		else if (nconv == 0)
+		else if (nconv == 0) {
+			/*
+			 * Assume that the only valid representation of
+			 * the null wide character is a single null byte.
+			 */
+			fp->_p++;
+			fp->_r--;
 			return (L'\0');
-		else
+		} else {
+			fp->_p += nconv;
+			fp->_r -= nconv;
 			return (wc);
-	}
+		}
+	} while (__srefill(fp) == 0);
 	fp->_flags |= __SERR;
 	errno = EILSEQ;
 	return (WEOF);
