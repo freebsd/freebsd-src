@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.16 1998/09/07 13:17:00 bde Exp $
+ * $Id: fdesc_vfsops.c,v 1.17 1999/01/12 11:49:30 eivind Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ fdesc_unmount(mp, mntflags, p)
 	 */
 	if (rootvp->v_usecount > 1)
 		return (EBUSY);
-	if (error = vflush(mp, rootvp, flags))
+	if ((error = vflush(mp, rootvp, flags)) != 0)
 		return (error);
 
 	/*

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.62 1998/12/04 22:54:51 archie Exp $
+ *	$Id: procfs_vnops.c,v 1.63 1999/01/05 03:53:06 peter Exp $
  */
 
 /*
@@ -137,8 +137,8 @@ procfs_open(ap)
 
 	switch (pfs->pfs_type) {
 	case Pmem:
-		if ((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL) ||
-		    (pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE))
+		if (((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL)) ||
+		    ((pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE)))
 			return (EBUSY);
 
 		p1 = ap->a_p;
@@ -285,7 +285,7 @@ procfs_ioctl(ap)
 	case PIOCCONT:	/* Restart a proc */
 	  if (procp->p_step == 0)
 	    return EINVAL;	/* Can only start a stopped process */
-	  if (signo = *(int*)ap->a_data) {
+	  if ((signo = *(int*)ap->a_data) != 0) {
 	    if (signo >= NSIG || signo <= 0)
 	      return EINVAL;
 	    psignal(procp, signo);
@@ -847,7 +847,7 @@ procfs_readdir(ap)
 			bcopy(pt->pt_name, dp->d_name, pt->pt_namlen + 1);
 			dp->d_type = pt->pt_type;
 
-			if (error = uiomove((caddr_t)dp, UIO_MX, uio))
+			if ((error = uiomove((caddr_t)dp, UIO_MX, uio)) != 0)
 				break;
 		}
 
@@ -906,7 +906,7 @@ procfs_readdir(ap)
 				break;
 			}
 
-			if (error = uiomove((caddr_t)dp, UIO_MX, uio))
+			if ((error = uiomove((caddr_t)dp, UIO_MX, uio)) != 0)
 				break;
 		}
 	done:

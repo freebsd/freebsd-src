@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.29 1998/05/06 05:29:37 msmith Exp $
+ * $Id: union_vfsops.c,v 1.30 1998/09/07 13:17:02 bde Exp $
  */
 
 /*
@@ -325,7 +325,7 @@ union_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
-	if (error = union_root(mp, &um_rootvp))
+	if ((error = union_root(mp, &um_rootvp)) != 0)
 		return (error);
 
 	/*

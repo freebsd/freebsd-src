@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.36 1997/10/28 15:58:37 bde Exp $
+ *	$Id: rtsock.c,v 1.37 1997/10/31 08:53:13 davidg Exp $
  */
 
 
@@ -356,8 +356,8 @@ route_output(m, so)
 	case RTM_LOCK:
 		if ((rnh = rt_tables[dst->sa_family]) == 0) {
 			senderr(EAFNOSUPPORT);
-		} else if (rt = (struct rtentry *)
-				rnh->rnh_lookup(dst, netmask, rnh))
+		} else if ((rt = (struct rtentry *)
+				rnh->rnh_lookup(dst, netmask, rnh)) != NULL)
 			rt->rt_refcnt++;
 		else
 			senderr(ESRCH);

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_usrreq.c,v 1.3 1999/01/19 23:16:10 mks Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
+__RCSID("@(#) $Id: atm_usrreq.c,v 1.3 1999/01/19 23:16:10 mks Exp $");
 #endif
 
 
@@ -515,7 +515,7 @@ atm_dgram_info(data)
 		 * Get ARP table information
 		 */
 		for (pip = atm_interface_head; pip; pip = pip->pif_next) {
-			if (smp = pip->pif_sigmgr) {
+			if ((smp = pip->pif_sigmgr) != NULL) {
 				err = (*smp->sm_ioctl)(AIOCS_INF_ARP,
 					data, (caddr_t)pip->pif_siginst);
 			}
@@ -533,7 +533,7 @@ atm_dgram_info(data)
 			 * Interface specified
 			 */
 			if ((nip = atm_nifname(aip->air_asrv_intf))) {
-				if (smp = nip->nif_pif->pif_sigmgr) {
+				if ((smp = nip->nif_pif->pif_sigmgr) != NULL) {
 					err = (*smp->sm_ioctl)(AIOCS_INF_ASV,
 						data, (caddr_t)nip);
 				}
@@ -546,7 +546,7 @@ atm_dgram_info(data)
 			 */
 			for (pip = atm_interface_head; pip;
 					pip = pip->pif_next) {
-				if (smp = pip->pif_sigmgr) {
+				if ((smp = pip->pif_sigmgr) != NULL) {
 					for (nip = pip->pif_nif; nip; 
 							nip = nip->nif_pnext) {
 						err = (*smp->sm_ioctl)
@@ -599,7 +599,7 @@ atm_dgram_info(data)
 			 * Interface specified
 			 */
 			if ((pip = atm_pifname(aip->air_vcc_intf))) {
-				if (smp = pip->pif_sigmgr) {
+				if ((smp = pip->pif_sigmgr) != NULL) {
 					err = (*smp->sm_ioctl)(AIOCS_INF_VCC,
 						data,
 						(caddr_t)pip->pif_siginst);
@@ -613,7 +613,7 @@ atm_dgram_info(data)
 			 */
 			for (pip = atm_interface_head; pip; 
 					pip = pip->pif_next) {
-				if (smp = pip->pif_sigmgr) {
+				if ((smp = pip->pif_sigmgr) != NULL) {
 					err = (*smp->sm_ioctl)(AIOCS_INF_VCC,
 						data,
 						(caddr_t)pip->pif_siginst);
@@ -694,9 +694,9 @@ atm_dgram_info(data)
 			err = ENOSPC;
 			break;
 		}
-		if (err = copyout((caddr_t)&atm_version,
+		if ((err = copyout((caddr_t)&atm_version,
 				aip->air_buf_addr,
-				sizeof(atm_version))) {
+				sizeof(atm_version))) != 0) {
 			break;
 		}
 		aip->air_buf_addr += sizeof(atm_version);

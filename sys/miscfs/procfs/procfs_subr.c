@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.21 1997/12/12 03:33:43 sef Exp $
+ *	$Id: procfs_subr.c,v 1.22 1999/01/05 03:53:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ loop:
 	 */
 	MALLOC(pfs, struct pfsnode *, sizeof(struct pfsnode), M_TEMP, M_WAITOK);
 
-	if (error = getnewvnode(VT_PROCFS, mp, procfs_vnodeop_p, vpp)) {
+	if ((error = getnewvnode(VT_PROCFS, mp, procfs_vnodeop_p, vpp)) != 0) {
 		FREE(pfs, M_TEMP);
 		goto out;
 	}
@@ -327,7 +327,7 @@ vfs_getuserstr(uio, buf, buflenp)
 		return (EMSGSIZE);
 	xlen = uio->uio_resid;
 
-	if (error = uiomove(buf, xlen, uio))
+	if ((error = uiomove(buf, xlen, uio)) != 0)
 		return (error);
 
 	/* allow multiple writes without seeks */

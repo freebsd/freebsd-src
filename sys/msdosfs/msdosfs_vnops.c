@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.79 1998/11/29 22:38:57 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.80 1998/12/07 21:58:35 archie Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -278,6 +278,8 @@ msdosfs_access(ap)
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -485,10 +487,13 @@ msdosfs_setattr(ap)
 		switch (vp->v_type) {
 		case VDIR:
 			return (EISDIR);
+			/* NOT REACHED */
 		case VLNK:
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
+			break;
+		default:
 			break;
 		}
 		error = detrunc(dep, vap->va_size, 0, cred, ap->a_p);

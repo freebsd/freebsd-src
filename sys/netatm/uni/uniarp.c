@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp.c,v 1.4 1998/12/04 22:54:53 archie Exp $
+ *	@(#) $Id: uniarp.c,v 1.5 1999/01/19 23:16:11 mks Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
+__RCSID("@(#) $Id: uniarp.c,v 1.5 1999/01/19 23:16:11 mks Exp $");
 #endif
 
 
@@ -425,7 +425,7 @@ uniarp_server_mode(uip)
 		 * We're becoming the server, so kill the pending connection
 		 */
 		UNIIP_ARP_CANCEL(uip);
-		if (ivp = uip->uip_arpsvrvcc) {
+		if ((ivp = uip->uip_arpsvrvcc) != NULL) {
 			ivp->iv_flags &= ~IVF_NOIDLE;
 			uip->uip_arpsvrvcc = NULL;
 			(*ivp->iv_ipnif->inf_arpnotify)(ivp, MAP_FAILED);
@@ -556,7 +556,7 @@ uniarp_client_mode(uip, aap)
 		 * We're changing servers, so kill the pending connection
 		 */
 		UNIIP_ARP_CANCEL(uip);
-		if (ivp = uip->uip_arpsvrvcc) {
+		if ((ivp = uip->uip_arpsvrvcc) != NULL) {
 			ivp->iv_flags &= ~IVF_NOIDLE;
 			uip->uip_arpsvrvcc = NULL;
 			(*ivp->iv_ipnif->inf_arpnotify)(ivp, MAP_FAILED);
@@ -1040,8 +1040,8 @@ uniarp_ioctl(code, data, arg1)
 				/*
 				 * Copy the response into the user's buffer
 				 */
-				if (err = copyout((caddr_t)&aar, buf_addr, 
-							sizeof(aar)))
+				if ((err = copyout((caddr_t)&aar, buf_addr, 
+							sizeof(aar))) != 0)
 					break;
 				buf_addr += sizeof(aar);
 				buf_len -= sizeof(aar);
@@ -1090,8 +1090,8 @@ uniarp_ioctl(code, data, arg1)
 			/*
 			 * Copy the response into the user's buffer
 			 */
-			if (err = copyout((caddr_t)&aar, buf_addr, 
-						sizeof(aar)))
+			if ((err = copyout((caddr_t)&aar, buf_addr, 
+						sizeof(aar))) != 0)
 				break;
 			buf_addr += sizeof(aar);
 			buf_len -= sizeof(aar);
@@ -1176,7 +1176,7 @@ updbuf:
 			/*
 			 * Copy the response into the user's buffer
 			 */
-			if (err = copyout((caddr_t)&asr, buf_addr, sizeof(asr)))
+			if ((err = copyout((caddr_t)&asr, buf_addr, sizeof(asr))) != 0)
 				break;
 			buf_addr += sizeof(asr);
 			buf_len -= sizeof(asr);
@@ -1191,7 +1191,7 @@ updbuf:
 					err = ENOSPC;
 					break;
 				}
-				if (err = copyout(uip->uip_prefix, buf_addr, i))
+				if ((err = copyout(uip->uip_prefix, buf_addr, i)) != 0)
 					break;
 				buf_addr += i;
 				buf_len -= i;

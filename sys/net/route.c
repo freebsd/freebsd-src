@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.49 1998/02/09 06:09:59 eivind Exp $
+ *	$Id: route.c,v 1.50 1998/04/17 22:36:57 des Exp $
  */
 
 #include "opt_inet.h"
@@ -566,7 +566,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 * Add the gateway. Possibly re-malloc-ing the storage for it
 		 * also add the rt_gwroute if possible.
 		 */
-		if (error = rt_setgate(rt, dst, gateway)) {
+		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 			Free(rt);
 			senderr(error);
 		}

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_print.c,v 1.3 1998/10/31 20:06:56 phk Exp $
+ *	@(#) $Id: spans_print.c,v 1.4 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -41,7 +41,7 @@
 #include <netatm/spans/spans_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_print.c,v 1.3 1998/10/31 20:06:56 phk Exp $");
+__RCSID("@(#) $Id: spans_print.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 /*
@@ -1066,6 +1066,8 @@ spans_print_msgbody(objp)
 				result_str, daddr, saddr,
 				rccnf_p->rccnf_conn.con_dsap,
 				rccnf_p->rccnf_conn.con_ssap);
+		break;
+	default:
 		break;
 	}
 	printf("\n");

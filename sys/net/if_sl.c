@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.70 1998/07/15 02:32:23 bde Exp $
+ * $Id: if_sl.c,v 1.71 1999/01/21 08:29:07 dillon Exp $
  */
 
 /*
@@ -603,7 +603,7 @@ slstart(tp)
 				bcopy(mtod(m1, caddr_t), cp, mlen);
 				cp += mlen;
 				len += mlen;
-			} while (m1 = m1->m_next);
+			} while ((m1 = m1->m_next) != NULL);
 		}
 #endif
 		ip = mtod(m, struct ip *);

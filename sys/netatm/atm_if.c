@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_if.c,v 1.2 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_if.c,v 1.3 1998/12/04 22:54:52 archie Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_if.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
+__RCSID("@(#) $Id: atm_if.c,v 1.3 1998/12/04 22:54:52 archie Exp $");
 #endif
 
 
@@ -428,14 +428,14 @@ atm_physif_ioctl(code, data, arg)
 		/*
 		 * Copy interface name into response
 		 */
-		if ( err = copyout ( ifname, apsp->app_intf, IFNAMSIZ ) )
+		if ((err = copyout ( ifname, apsp->app_intf, IFNAMSIZ)) != 0)
 			break;
 
 		/*
 		 * Copy counters
 		 */
-		if ( err = copyout ( &pip->pif_ipdus, &apsp->app_ipdus,
-		    len - sizeof ( apsp->app_intf ) ) )
+		if ((err = copyout(&pip->pif_ipdus, &apsp->app_ipdus,
+		    len - sizeof(apsp->app_intf))) != 0)
 			break;
 
 		/*
@@ -524,8 +524,7 @@ atm_physif_ioctl(code, data, arg)
 			}
 #endif
 
-			if ( err = atm_nif_attach ( nip ) )
-			{
+			if ((err = atm_nif_attach(nip)) != 0) {
 				atm_free ( (caddr_t)nip );
 
 				/*

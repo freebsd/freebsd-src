@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_input.c,v 1.2 1998/10/31 20:07:00 phk Exp $
+ *	@(#) $Id: uniarp_input.c,v 1.3 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp_input.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
+__RCSID("@(#) $Id: uniarp_input.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 
@@ -122,7 +122,7 @@ uniarp_cpcs_data(tok, m)
 	/*
 	 * Verify/gather source address fields
 	 */
-	if (len = (ahp->ah_shtl & ARP_TL_LMASK)) {
+	if ((len = (ahp->ah_shtl & ARP_TL_LMASK)) != 0) {
 		if (ahp->ah_shtl & ARP_TL_E164) {
 			if (len > sizeof(struct atm_addr_e164))
 				goto bad;
@@ -141,7 +141,7 @@ uniarp_cpcs_data(tok, m)
 		satm.address_length = 0;
 	}
 
-	if (len = (ahp->ah_sstl & ARP_TL_LMASK)) {
+	if ((len = (ahp->ah_sstl & ARP_TL_LMASK)) != 0) {
 		if (((ahp->ah_sstl & ARP_TL_TMASK) != ARP_TL_NSAPA) ||
 		    (len != sizeof(struct atm_addr_nsap)))
 			goto bad;
@@ -155,7 +155,7 @@ uniarp_cpcs_data(tok, m)
 		satmsub.address_length = 0;
 	}
 
-	if (len = ahp->ah_spln) {
+	if ((len = ahp->ah_spln) != 0) {
 		if (len != sizeof(struct in_addr))
 			goto bad;
 		if (KB_COPYDATA(m, plen, len, (caddr_t)&sip))
@@ -168,7 +168,7 @@ uniarp_cpcs_data(tok, m)
 	/*
 	 * Verify/gather target address fields
 	 */
-	if (len = (ahp->ah_thtl & ARP_TL_LMASK)) {
+	if ((len = (ahp->ah_thtl & ARP_TL_LMASK)) != 0) {
 		if (ahp->ah_thtl & ARP_TL_E164) {
 			if (len > sizeof(struct atm_addr_e164))
 				goto bad;
@@ -187,7 +187,7 @@ uniarp_cpcs_data(tok, m)
 		tatm.address_length = 0;
 	}
 
-	if (len = (ahp->ah_tstl & ARP_TL_LMASK)) {
+	if ((len = (ahp->ah_tstl & ARP_TL_LMASK)) != 0) {
 		if (((ahp->ah_tstl & ARP_TL_TMASK) != ARP_TL_NSAPA) ||
 		    (len != sizeof(struct atm_addr_nsap)))
 			goto bad;
@@ -201,7 +201,7 @@ uniarp_cpcs_data(tok, m)
 		tatmsub.address_length = 0;
 	}
 
-	if (len = ahp->ah_tpln) {
+	if ((len = ahp->ah_tpln) != 0) {
 		if (len != sizeof(struct in_addr))
 			goto bad;
 		if (KB_COPYDATA(m, plen, len, (caddr_t)&tip))

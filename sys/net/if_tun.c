@@ -480,8 +480,8 @@ tunread(dev, uio, flag)
 				return EWOULDBLOCK;
 			}
 			tp->tun_flags |= TUN_RWAIT;
-			if( error = tsleep((caddr_t)tp, PCATCH | (PZERO + 1),
-					"tunread", 0)) {
+			if((error = tsleep((caddr_t)tp, PCATCH | (PZERO + 1),
+					"tunread", 0)) != 0) {
 				splx(s);
 				return error;
 			}

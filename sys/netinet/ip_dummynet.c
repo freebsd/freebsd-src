@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.6 1999/01/12 16:40:57 eivind Exp $
+ *	$Id: ip_dummynet.c,v 1.7 1999/01/12 16:43:52 eivind Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
     /* this ought to go in dn_dequeue() */
     if (!immediate && pipe->ticks_from_last_insert < pipe->delay)
 	pipe->ticks_from_last_insert++;
-    if ( pkt = pipe->r.head ) {
+    if ((pkt = pipe->r.head) != NULL) {
 	/*
 	 * Move at most numbytes bytes from src and move to dst.
 	 * delay is set to ticks_from_last_insert, which

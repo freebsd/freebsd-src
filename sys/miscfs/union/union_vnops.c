@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.58 1998/07/04 20:45:35 julian Exp $
+ * $Id: union_vnops.c,v 1.59 1998/12/14 05:00:59 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -695,8 +695,12 @@ union_access(ap)
 	 */
 	if (ap->a_mode & VWRITE && (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (ap->a_vp->v_type) {
-		case VREG: case VDIR: case VLNK:
+		case VREG: 
+		case VDIR:
+		case VLNK:
 			return (EROFS);
+		default:
+			break;
 		}
 	}
 	if ((vp = un->un_uppervp) != NULLVP) {
