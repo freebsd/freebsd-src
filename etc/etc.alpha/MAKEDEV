@@ -77,6 +77,7 @@
 # Parallel port:
 #	lpt*	Printer
 #	ppi*	Parallel port i/o
+#	pps*	Pulse per second timing interface
 #
 # I2C and SMBus:
 #	iic*	I2C devices
@@ -127,7 +128,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.6 1999/04/24 20:57:39 peter Exp $
+#	$Id: MAKEDEV,v 1.7 1999/06/18 06:20:08 dfr Exp $
 #	from etc.i386 MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp
 #
 
@@ -798,6 +799,11 @@ smb*)
 ppi*)
 	unit=`expr $i : 'ppi\(.*\)'`
 	mknod ppi$unit c 82 $unit
+	;;
+
+pps*)
+	unit=`expr $i : 'pps\(.*\)'`
+	mknod ppi$unit c 89 $unit
 	;;
 
 usb*)
