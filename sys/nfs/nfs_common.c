@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.17 1995/06/27 11:06:47 dfr Exp $
+ * $Id: nfs_subs.c,v 1.18 1995/06/28 12:01:05 davidg Exp $
  */
 
 /*
@@ -1905,8 +1905,15 @@ nfsrv_vmio(struct vnode *vp) {
 
 retry:
 	if ((vp->v_flag & VVMIO) == 0) {
-		if (vnode_pager_alloc(vp, 0, 0, 0) == NULL)
-			panic("nfsrv_vmio: failed to alloc pager");
+		struct vattr vat;
+		struct proc *p = curproc;
+
+		if (VOP_GETATTR(vp, &vat, p->p_ucred, p) != 0)
+			panic("nfsrv_vmio: VOP_GETATTR failed");
+
+		if (vnode_pager_alloc(vp, vat.va_size, 0, 0) == NULL)
+			panic("nfsrv_vmio: vnode_pager_alloc failed");
+
 		vp->v_flag |= VVMIO;
 	} else {
 		if ((object = vp->v_object) &&
