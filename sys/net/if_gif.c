@@ -87,6 +87,11 @@ static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static struct rman gifunits[1];
 LIST_HEAD(, gif_softc) gif_softc_list;
 
+void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
+void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
+void	(*ng_gif_attach_p)(struct ifnet *ifp);
+void	(*ng_gif_detach_p)(struct ifnet *ifp);
+
 int	gif_clone_create __P((struct if_clone *, int *));
 void	gif_clone_destroy __P((struct ifnet *));
 
@@ -199,6 +204,8 @@ gif_clone_create(ifc, unit)
 	sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(&sc->gif_if);
 	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
+	if (ng_gif_attach_p != NULL)
+		(*ng_gif_attach_p)(&sc->gif_if);
 	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_link);
 	return (0);
 }
@@ -221,6 +228,8 @@ gif_clone_destroy(ifp)
 		KASSERT(err == 0, ("Unexpected error detaching encap_cookie6"));
 	}
 
+	if (ng_gif_detach_p != NULL)
+		(*ng_gif_detach_p)(ifp);
 	bpfdetach(ifp);
 	if_detach(ifp);
 
@@ -462,6 +471,12 @@ gif_input(m, af, gifp)
 		bpf_mtap(gifp, &m0);
 	}
 
+	if (ng_gif_input_p != NULL) {
+		(*ng_gif_input_p)(gifp, &m, af);
+		if (m == NULL)
+			return;
+	}
+
 	/*
 	 * Put the packet to the network layer input queue according to the
 	 * specified address family.
@@ -488,7 +503,10 @@ gif_input(m, af, gifp)
 		break;
 #endif
 	default:
-		m_freem(m);
+		if (ng_gif_input_orphan_p != NULL)
+			(*ng_gif_input_orphan_p)(gifp, m, af);
+		else
+			m_freem(m);
 		return;
 	}
 

@@ -311,6 +311,8 @@ NETGRAPH_CISCO		opt_netgraph.h
 NETGRAPH_ECHO		opt_netgraph.h
 NETGRAPH_ETHER		opt_netgraph.h
 NETGRAPH_FRAME_RELAY	opt_netgraph.h
+NETGRAPH_GIF		opt_netgraph.h
+NETGRAPH_GIF_DEMUX	opt_netgraph.h
 NETGRAPH_HOLE		opt_netgraph.h
 NETGRAPH_IFACE		opt_netgraph.h
 NETGRAPH_KSOCKET	opt_netgraph.h
