@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.83 1995/09/06 05:06:18 dyson Exp $
+ *	$Id: wd.c,v 1.84 1995/09/07 08:20:18 swallace Exp $
  */
 
 /* TODO:
@@ -299,6 +299,7 @@ wdprobe(struct isa_device *dvp)
 	wdc_registerdev(dvp);
 
 	/* check if we have registers that work */
+	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
 	if (inb(du->dk_port + wd_cyl_lo) == 0xff)	/* XXX too weak */
 		goto nodevice;
@@ -1900,22 +1901,30 @@ wdflushirq(struct disk *du, int old_ipl)
 static int
 wdreset(struct disk *du)
 {
-	int	wdc;
+	int     wdc, err;
 
 	wdc = du->dk_port;
 	(void)wdwait(du, 0, TIMEOUT);
 	outb(wdc + wd_ctlr, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
 	outb(wdc + wd_ctlr, WDCTL_IDS);
-	if (wdwait(du, 0, TIMEOUT) != 0)
-		return (1);
-	du->dk_status = inb(wdc + wd_status);
+	err = 0;
+	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
+		err = 1;                /* no IDE drive found */
 	du->dk_error = inb(wdc + wd_error);
-	if ((du->dk_status & ~(WDCS_READY | WDCS_SEEKCMPLT)) != 0 ||
-	    du->dk_error != 0x01)
-		return (1);
+	if (du->dk_error != 0x01)
+		err = 1;                /* the drive is incompatible */
+#ifdef ATAPI
+	if (err) {
+		/* no IDE drive, test for ATAPI signature */
+		int lo = inb(wdc + wd_cyl_lo);
+		int hi = inb(wdc + wd_cyl_hi);
+		if (lo == 0x14 && hi == 0xeb)
+			err = 0;        /* ATAPI drive detected */
+	}
+#endif
 	outb(wdc + wd_ctlr, WDCTL_4BIT);
-	return (0);
+	return (err);
 }
 
 /*
