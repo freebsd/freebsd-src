@@ -32,7 +32,7 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd December 29, 2004
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -101,22 +101,21 @@ defined in
 
 #define S_ISUID 0004000    /* set user id on execution */
 #define S_ISGID 0002000    /* set group id on execution */
-#define S_ISVTX 0001000    /* sticky bit */
-#ifndef _POSIX_SOURCE
-#define S_ISTXT 0001000
+#ifndef __BSD_VISIBLE
+#define S_ISTXT 0001000    /* sticky bit */
 #endif
 .Ed
 .Pp
 The
 .Fx
 VM system totally ignores the sticky bit
-.Pq Dv ISVTX
+.Pq Dv ISTXT
 for executables.
 On UFS-based file systems (FFS, LFS) the sticky
 bit may only be set upon directories.
 .Pp
 If mode
-.Dv ISVTX
+.Dv ISTXT
 (the `sticky bit') is set on a directory,
 an unprivileged user may not delete or rename
 files of other users in that directory.
