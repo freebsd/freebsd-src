@@ -1,0 +1,123 @@
+.\"-
+.\" Copyright (c) 2000 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.  
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 18, 2000
+.Dt CAP_TO_TEXT 3
+.Os FreeBSD 5.0
+.Sh NAME
+.Nm cap_to_text
+.Nd Convert a Capability State in Working Storage to Text
+.Sh LIBRARY
+.Lb libposix1e
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/capability.h>
+.Ft char *
+.Fn cap_to_text "cap_t cap_p" "size_t *len_p"
+.Sh DESCRIPTION
+The
+.Fn cap_to_text
+function converts the capability state in working storage identified by
+.Va cap_p
+into a null terminated human-readable string.
+This function allocates any memory necessary to contain the string, and
+returns a pointer to the string.
+If the pointer
+.Va len_p
+if not
+.Va (size_t)NULL ,
+the function shall also return the full length of the string (not including
+null terminator) in the location pointed to by
+.Va len_p .
+The capability state in working storage idenfied by
+.Va cap_p
+shall be completely represented in the returned string.
+
+This function may cause memory to be allocated.
+The caller should free any releasable memory, when the capability state
+in working memory is no longer required, by calling
+.Xr cap_free 3
+with the
+.Va cap_t
+as an argument.
+.Sh IMPLEMENTATION NOTES
+FreeBSD's support for POSIX.1e interfaces and features is still under
+development at this time.
+.Sh RETURN VALUES
+Upon successful completion, the function shall return a pointer to the
+text form of the capability state.
+Otherwise, a value of
+.Va (char *)NULL
+shall be returned, and
+.Va errno
+set to indicate the error.
+.Sh ERRORS
+If any of the following conditions occur, the
+.Fn cap_to_text
+function shall return a value of
+.Va (cap_t)NULL
+and set
+.Va errno
+to the corresponding value:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Either the
+.Va cap_p
+argument does not refer to a capability state in working storage
+or the
+.Va len_p
+argument is invalid, or both.
+.It Bq Er ENOMEM
+The string to be returned requires more memory than is allowed by the
+hardware or system-imposed memory management constraints.
+.El
+.Sh SEE ALSO
+.Xr cap 3 ,
+.Xr cap_free 3 ,
+.Xr cap_from_text 3 ,
+.Xr cap_get_flag 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
+of the draft continues on the cross-platform POSIX.1e implementation
+mailing list.  To join this list, see the
+.Fx
+POSIX.1e implementation
+page for more information.
+.Sh HISTORY
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
+.Sh AUTHORS
+.An Robert N M Watson
+.Sh BUGS
+.Fn cap_to_text
+uses a bounded size (1024 byte) buffer in which to assemble the resulting
+text string.
+If the string requires more space than that buffer provides,
+.Va ENOMEM
+will be returned.
