@@ -67,9 +67,6 @@
 #include "opt_devfs.h"
 #endif
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #endif /* __FreeBSD__ */
 
@@ -138,9 +135,6 @@ typedef struct {
 	struct selinfo		selp;		/* select / poll */
 
 #if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-        void                    *devfs_token;   /* token for DEVFS */
-#endif
 #endif
 
 } tel_sc_t;
@@ -318,13 +312,6 @@ i4btelattach()
 #if defined(__FreeBSD__)
 #if __FreeBSD__ == 3
 
-#ifdef DEVFS
-
-/* XXX */  		tel_sc[i][j].devfs_token
-		  		= devfs_add_devswf(&i4btel_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btel%d", i);
-#endif
 
 #else
 			switch(j)

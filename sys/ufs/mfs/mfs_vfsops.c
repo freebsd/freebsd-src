@@ -244,7 +244,8 @@ mfs_mount(mp, path, data, ndp, p)
 		goto error_1;
 	}
 	devvp->v_type = VCHR;
-	dev = make_dev(&mfs_cdevsw, mfs_minor, 0, 0, 0, "MFS%d", mfs_minor);
+	dev = makedev(mfs_cdevsw.d_maj, mfs_minor);
+	dev->si_devsw = &mfs_cdevsw;
 	/* It is not clear that these will get initialized otherwise */
 	dev->si_bsize_phys = DEV_BSIZE;
 	dev->si_iosize_max = DFLTPHYS;

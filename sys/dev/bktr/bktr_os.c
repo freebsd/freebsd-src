@@ -80,12 +80,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#if (__FreeBSD_version < 400000)
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
-#endif
-
 #if (__FreeBSD_version >=400000) || (NSMBUS > 0)
 #include <sys/bus.h>		/* used by smbus and newbus */
 #endif
@@ -972,14 +966,6 @@ bktr_attach( pcici_t tag, int unit )
 
 	/* call the common attach code */
 	common_bktr_attach( bktr, unit, fun, rev );
- 
-#ifdef DEVFS
-	/* XXX This just throw away the token, which should probably be fixed when
-	   DEVFS is finally made really operational. */
-	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
-#endif /* DEVFS */
 
 }
 
