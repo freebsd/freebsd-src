@@ -28,8 +28,10 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"	$Id$
+.\"
 .\"/
-.Dd August 17, 1995
+.Dd November 24, 1997
 .Dt MSGSND 3
 .Os FreeBSD
 .Sh NAME
@@ -133,7 +135,7 @@ message.
 .Fa msgsz
 is less than 0, or greater than
 .Va msg_qbytes .
-.It Bq Er EACCESS
+.It Bq Er EACCES
 The calling process does not have write access to the message queue.
 .It Bq Er EAGAIN
 There was no space for this message either on the queue, or in the whole
