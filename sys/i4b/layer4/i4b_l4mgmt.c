@@ -43,6 +43,7 @@
 
 #if defined(__FreeBSD__)
 #include <sys/ioccom.h>
+#include <sys/random.h>
 #else
 #include <sys/ioctl.h>
 #endif
@@ -52,10 +53,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
-#ifdef __FreeBSD__
-#include <machine/random.h>
-#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>

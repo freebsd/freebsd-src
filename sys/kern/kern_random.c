@@ -46,8 +46,7 @@
 #include <sys/poll.h>
 #include <sys/timetc.h>
 #include <sys/md5.h>
-
-#include <machine/random.h>
+#include <sys/random.h>
 
 #include <i386/isa/icu.h>
 

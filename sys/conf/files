@@ -390,6 +390,7 @@ kern/kern_ntptime.c	standard
 kern/kern_physio.c	standard
 kern/kern_proc.c	standard
 kern/kern_prot.c	standard
+kern/kern_random.c	standard
 kern/kern_resource.c	standard
 kern/kern_shutdown.c	standard
 kern/kern_sig.c		standard
