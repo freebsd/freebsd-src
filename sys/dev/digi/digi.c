@@ -1072,9 +1072,11 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct digi_softc *sc;
 	struct digi_p *port;
 	struct tty *tp;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	int oldcmd;
 	struct termios term;
+#endif
 #endif
 
 	mynor = minor(dev);
@@ -1226,6 +1228,7 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	}
 
 	tp = port->tp;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
@@ -1234,6 +1237,7 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		return (error);
 	if (cmd != oldcmd)
 		data = (caddr_t) & term;
+#endif
 #endif
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 		int cc;

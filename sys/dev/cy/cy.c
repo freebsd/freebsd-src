@@ -1539,9 +1539,11 @@ sioioctl(dev, cmd, data, flag, td)
 	int		mynor;
 	int		s;
 	struct tty	*tp;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	int		oldcmd;
 	struct termios	term;
+#endif
 #endif
 
 	mynor = minor(dev);
@@ -1580,6 +1582,7 @@ sioioctl(dev, cmd, data, flag, td)
 		}
 	}
 	tp = com->tp;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
@@ -1588,6 +1591,7 @@ sioioctl(dev, cmd, data, flag, td)
 		return (error);
 	if (cmd != oldcmd)
 		data = (caddr_t)&term;
+#endif
 #endif
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 		int	cc;

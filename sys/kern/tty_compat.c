@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
+#ifndef BURN_BRIDGES
 /*
  * mapping routines for old line discipline (yuck)
  */
@@ -471,3 +472,5 @@ ttcompatsetlflags(struct tty *tp, struct termios *t)
 	t->c_cflag = cflag;
 }
 #endif	/* COMPAT_43 */
+
+#endif /* BURN_BRIDGES */

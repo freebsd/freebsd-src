@@ -47,8 +47,10 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 #include <sys/ioctl_compat.h>
+#endif
 #endif
 #include <sys/tty.h>
 #include <sys/conf.h>
@@ -915,9 +917,11 @@ siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	int mynor = minor(dev);
 	int oldspl;
 	int blocked = 0;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	u_long oldcmd;
 	struct termios term;
+#endif
 #endif
 
 	if (IS_SI_IOCTL(cmd))
@@ -964,6 +968,7 @@ siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	/*
 	 * Do the old-style ioctl compat routines...
 	 */
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
@@ -972,6 +977,7 @@ siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		return (error);
 	if (cmd != oldcmd)
 		data = (caddr_t)&term;
+#endif
 #endif
 	/*
 	 * Do the initial / lock state business
@@ -1008,8 +1014,10 @@ siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	case TIOCSETAW:
 	case TIOCSETAF:
 	case TIOCDRAIN:
+#ifndef BURN_BRIDGES
 #ifdef COMPAT_43
 	case TIOCSETP:
+#endif
 #endif
 		blocked++;	/* block writes for ttywait() and siparam() */
 		si_write_enable(pp, 0);

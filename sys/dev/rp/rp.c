@@ -1241,9 +1241,11 @@ rpioctl(dev, cmd, data, flag, td)
 	int	error = 0;
 	int	arg, flags, result, ChanStatus;
 	struct	termios *t;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	u_long	oldcmd;
 	struct	termios term;
+#endif
 #endif
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
@@ -1289,6 +1291,7 @@ rpioctl(dev, cmd, data, flag, td)
 	tp = rp->rp_tty;
 	cp = &rp->rp_channel;
 
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
@@ -1298,6 +1301,7 @@ rpioctl(dev, cmd, data, flag, td)
 	if(cmd != oldcmd) {
 		data = (caddr_t)&term;
 	}
+#endif
 #endif
 	if((cmd == TIOCSETA) || (cmd == TIOCSETAW) || (cmd == TIOCSETAF)) {
 		int	cc;
