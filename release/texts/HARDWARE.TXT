@@ -85,6 +85,7 @@ sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 
 ppc0    dyn     7       n/a     n/a     Parallel Port Chipset
 
+al0     dyn     dyn     n/a     dyn     ADMtek AL981 PCI based cards
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
@@ -476,6 +477,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+
+ADMtek AL981-based PCI fast ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204

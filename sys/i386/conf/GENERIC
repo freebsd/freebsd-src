@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.143.2.13 1999/05/15 18:13:58 obrien Exp $
+#	$Id: GENERIC,v 1.143.2.14 1999/05/17 05:49:45 obrien Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -155,6 +155,7 @@ device		ppi0	at ppbus?
 #
 # The following Ethernet NICs are all PCI devices.
 #
+device al0		# ADMtek AL981 (``Comet'')
 device ax0		# ASIX AX88140A
 device de0		# DEC/Intel DC21x4x (``Tulip'')
 device fxp0		# Intel EtherExpress PRO/100B (82557, 82558)

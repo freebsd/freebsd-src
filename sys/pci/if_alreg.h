@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_alreg.h,v 1.1 1999/05/21 04:37:24 wpaul Exp $
+ *	$Id: if_alreg.h,v 1.4 1999/05/21 00:07:34 wpaul Exp $
  */
 
 /*
@@ -702,5 +702,6 @@ struct al_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
 #endif
