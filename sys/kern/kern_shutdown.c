@@ -36,11 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.35 1998/08/16 11:27:19 des Exp $
+ * $Id: kern_shutdown.c,v 1.36 1998/08/19 20:20:52 des Exp $
  */
 
 #include "opt_ddb.h"
-#include "opt_devfs.h"
 #include "opt_hw_wdog.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
@@ -355,10 +354,6 @@ dumpsys(void)
 		return;
 	if (dumpdev == NODEV)
 		return;
-#ifndef SLICE
-	if ((minor(dumpdev)&07) != 1)
-		return;
-#endif /* !SLICE */
 	if (!(bdevsw[major(dumpdev)]))
 		return;
 	if (!(bdevsw[major(dumpdev)]->d_dump))
