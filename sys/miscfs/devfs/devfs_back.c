@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_back.c,v 1.2 1995/04/20 07:34:51 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_back.c,v 1.3 1995/05/30 08:06:49 rgrimes Exp $
  */
 
 #include "param.h"
@@ -17,11 +17,12 @@
 #include "malloc.h"
 #include "dir.h"		/* defines dirent structure		*/
 #include "devfsdefs.h"
+#include "sys/devfsext.h"
 
 
+SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_sinit, NULL)
 
 devnm_p	dev_root;		/* root of the backing tree */
-int	devfs_set_up = 0;	/* note tha we HAVE set up the backing tree */
 
 /*
  * Set up the root directory node in the backing plane
@@ -30,82 +31,76 @@ int	devfs_set_up = 0;	/* note tha we HAVE set up the backing tree */
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
  */
-void  devfs_back_init() /*proto*/
+void  devfs_sinit() /*proto*/
 {
 
 	devnm_p devbp;
 	dn_p dnp;
+
 	/*
-	 * This may be called several times.. only do it if it needs
-	 * to be done.
-	 */
-	if(!devfs_set_up)
+ 	 * Allocate and fill out a new backing node
+ 	 */
+	if(!(devbp = (devnm_p)malloc(sizeof(devnm_t),
+				M_DEVFSBACK, M_NOWAIT)))
 	{
-		/*
-	 	 * Allocate and fill out a new backing node
-	 	 */
-		if(!(devbp = (devnm_p)malloc(sizeof(devnm_t),
-					M_DEVFSBACK, M_NOWAIT)))
-		{
-			return ;
-		}
-		bzero(devbp,sizeof(devnm_t));
-		/*
-		 * And the devnode associated with it
-		 */
-		if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
-					M_DEVFSNODE, M_NOWAIT)))
-		{
-			free(devbp,M_DEVFSBACK);
-			return ;
-		}
-		bzero(dnp,sizeof(devnode_t));
-		/*
-		 * Link the two together
-		 */
-		devbp->dnp = dnp;
-		dnp->links = 1;
-		/*
-		 * set up the directory node for the root
-		 * and put in all the usual entries for a directory node
-		 */
-		dnp->type = DEV_DIR;
-		dnp->links++; /* for .*/
-		/* root loops to self */
-		dnp->by.Dir.parent = dnp;
-		dnp->links++; /* for ..*/
-		/*
-		 * set up the list of children (none so far)
-		 */
-		dnp->by.Dir.dirlist = (devnm_p)0;
-		dnp->by.Dir.dirlast =
-				&dnp->by.Dir.dirlist;
-		dnp->by.Dir.myname = devbp;
-		/*
-		 * set up a pointer to directory type ops
-		 */
-		dnp->ops = &devfs_vnodeop_p;
-		dnp->mode |= 0555;	/* default perms */
-		/*
-		 * note creation times etc, as now (boot time)
-		 */
-		TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
-		dnp->mtime = dnp->ctime;
-		dnp->atime = dnp->ctime;
-
-		/*
-		 * and the list of layers
-		 */
-		devbp->next_front = NULL;
-		devbp->prev_frontp = &(devbp->next_front);
-
-
-		/*
-		 * next time, we don't need to do all this
-		 */
-		dev_root = devbp;
-		devfs_set_up = 1;
+		return ;
 	}
+	bzero(devbp,sizeof(devnm_t));
+	/*
+	 * And the devnode associated with it
+	 */
+	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
+				M_DEVFSNODE, M_NOWAIT)))
+	{
+		free(devbp,M_DEVFSBACK);
+		return ;
+	}
+	bzero(dnp,sizeof(devnode_t));
+	/*
+	 * Link the two together
+	 */
+	devbp->dnp = dnp;
+	dnp->links = 1;
+	/*
+	 * set up the directory node for the root
+	 * and put in all the usual entries for a directory node
+	 */
+	dnp->type = DEV_DIR;
+	dnp->links++; /* for .*/
+	/* root loops to self */
+	dnp->by.Dir.parent = dnp;
+	dnp->links++; /* for ..*/
+	/*
+	 * set up the list of children (none so far)
+	 */
+	dnp->by.Dir.dirlist = (devnm_p)0;
+	dnp->by.Dir.dirlast =
+			&dnp->by.Dir.dirlist;
+	dnp->by.Dir.myname = devbp;
+	/*
+	 * set up a pointer to directory type ops
+	 */
+	dnp->ops = &devfs_vnodeop_p;
+	dnp->mode |= 0555;	/* default perms */
+	/*
+	 * note creation times etc, as now (boot time)
+	 */
+	TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
+	dnp->mtime = dnp->ctime;
+	dnp->atime = dnp->ctime;
+
+	/*
+	 * and the list of layers
+	 */
+	devbp->next_front = NULL;
+	devbp->prev_frontp = &(devbp->next_front);
+
+
+	/*
+	 * next time, we don't need to do all this
+	 */
+	dev_root = devbp;
+	printf("DEVFS: ready for devices\n");
 }
 
 /***********************************************************************\
@@ -135,7 +130,6 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 
 
 	DBPRINT(("dev_finddir\n"));
-	devfs_back_init();		/* in case we are the first */
 	if(!dirnode) dirnode = dev_root->dnp;
 	if(dirnode->type != DEV_DIR) return ENOTDIR;
 	if(strlen(orig_path) > (DEVMAXPATHSIZE - 1)) return ENAMETOOLONG;
@@ -458,7 +452,14 @@ int get_bdev_major_num(caddr_t addr)	/*proto*/
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
 \***********************************************************************/
-devnm_p dev_add(char *path,char *name,caddr_t funct,int minor,int chrblk,uid_t uid,gid_t gid, int perms) /*proto*/
+void *dev_add(char *path,
+		char *name,
+		void *funct,
+		int minor,
+		int chrblk,
+		uid_t uid,
+		gid_t gid,
+		int perms)
 {
 	devnm_p	new_dev;
 	dn_p	dnp;	/* devnode for parent directory */
@@ -471,7 +472,7 @@ devnm_p dev_add(char *path,char *name,caddr_t funct,int minor,int chrblk,uid_t u
 	if (retval) return 0;
 	switch(chrblk)
 	{
-	case	0:
+	case	DV_CHR:
 		major = get_cdev_major_num(funct);
 		by.Cdev.cdevsw = cdevsw + major;
 		by.Cdev.dev = makedev(major, minor);
@@ -479,7 +480,7 @@ devnm_p dev_add(char *path,char *name,caddr_t funct,int minor,int chrblk,uid_t u
 				&by,&new_dev))
 			return 0;
 		break;
-	case	1:
+	case	DV_BLK:
 		major = get_bdev_major_num(funct);
 		by.Bdev.bdevsw = bdevsw + major;
 		by.Bdev.dev = makedev(major, minor);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.29 1995/06/14 04:52:39 bde Exp $
+ *	$Id: cons.c,v 1.30 1995/06/26 07:39:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -75,6 +75,19 @@ static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;	/* physical device open function */
 static struct consdev *cn_tab;	/* physical console device info */
 static struct tty *cn_tp;	/* physical console tty struct */
+
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+#include "sys/kernel.h"
+
+void cndev_init(caddr_t data) /* data not used */
+{
+  void * x;
+/*            path	name		devsw   minor	type   uid gid perm*/
+   x=dev_add("/misc",	"console",	cnopen, 0,	DV_CHR, 0,  0, 0640);
+}
+SYSINIT(cndev,SI_SUB_DEVFS, SI_ORDER_ANY, cndev_init, NULL)
+#endif /*DEVFS*/
 
 void
 cninit()

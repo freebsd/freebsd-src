@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.61.2.1 1995/06/08 10:26:23 davidg Exp $
+ *	$Id: fd.c,v 1.62 1995/06/11 19:31:19 rgrimes Exp $
  *
  */
 
@@ -81,6 +81,9 @@
 #if NFT > 0
 #include <sys/ftape.h>
 #include <i386/isa/ftreg.h>
+#endif
+#ifdef DEVFS
+#include <sys/devfsext.h>
 #endif
 
 static int fd_goaway(struct kern_devconf *, int);
@@ -557,7 +560,7 @@ fdattach(struct isa_device *dev)
 	int ic_type = 0;
 #ifdef	DEVFS
 	char	name[64];
-	caddr_t key;
+	void *key;
 #endif	/* DEVFS */
 
 	fdc->fdcu = fdcu;
@@ -753,9 +756,9 @@ fdattach(struct isa_device *dev)
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 #ifdef DEVFS
 		key = dev_add("/disks/rfloppy",name,(caddr_t)Fdopen,fdu * 8,
-			0,0,0,0644);
+			DV_CHR,0,0,0644);
 		key = dev_add("/disks/floppy",name,(caddr_t)Fdopen,fdu * 8,
-			1,0,0,0644);
+			DV_BLK,0,0,0644);
 #endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
