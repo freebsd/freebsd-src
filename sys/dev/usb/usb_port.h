@@ -318,7 +318,9 @@ Static driver_t __CONCAT(dname,_driver) = { \
         #dname, \
         __CONCAT(dname,_methods), \
         sizeof(struct __CONCAT(dname,_softc)) \
-}
+}; \
+MODULE_DEPEND(dname, usb, 1, 1, 1)
+
 #define METHODS_NONE			{0,0}
 #define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
 
