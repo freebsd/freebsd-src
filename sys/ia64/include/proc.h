@@ -39,6 +39,7 @@ struct mdthread {
 	u_long		md_flags;
 	void		*md_kstackvirt;	/* virtual address of td_kstack */
 	vm_offset_t	md_bspstore;	/* initial ar.bspstore */
+	register_t	md_savecrit;
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */

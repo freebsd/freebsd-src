@@ -140,6 +140,7 @@
  * Type of the first (asm) part of an interrupt handler.
  */
 typedef void inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
+typedef void unpendhand_t __P((void));
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
@@ -163,6 +164,18 @@ inthand_t
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
+unpendhand_t
+	IDTVEC(fastunpend0), IDTVEC(fastunpend1), IDTVEC(fastunpend2),
+	IDTVEC(fastunpend3), IDTVEC(fastunpend4), IDTVEC(fastunpend5),
+	IDTVEC(fastunpend6), IDTVEC(fastunpend7), IDTVEC(fastunpend8),
+	IDTVEC(fastunpend9), IDTVEC(fastunpend10), IDTVEC(fastunpend11),
+	IDTVEC(fastunpend12), IDTVEC(fastunpend13), IDTVEC(fastunpend14),
+	IDTVEC(fastunpend15), IDTVEC(fastunpend16), IDTVEC(fastunpend17),
+	IDTVEC(fastunpend18), IDTVEC(fastunpend19), IDTVEC(fastunpend20),
+	IDTVEC(fastunpend21), IDTVEC(fastunpend22), IDTVEC(fastunpend23),
+	IDTVEC(fastunpend24), IDTVEC(fastunpend25), IDTVEC(fastunpend26),
+	IDTVEC(fastunpend27), IDTVEC(fastunpend28), IDTVEC(fastunpend29),
+	IDTVEC(fastunpend30), IDTVEC(fastunpend31);
 
 #if defined(SMP) || defined(APIC_IO)
 inthand_t
@@ -227,6 +240,7 @@ int	inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 	    enum intr_type flags, void **cookiep);
 int	inthand_remove(void *cookie);
 void	sched_ithd(void *dummy);
+void	call_fast_unpend(int irq);
 
 #endif /* LOCORE */
 

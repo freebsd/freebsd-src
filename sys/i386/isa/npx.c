@@ -429,9 +429,15 @@ no_irq13:
 	 * XXX hack around brokenness of bus_teardown_intr().  If we left the
 	 * irq active then we would get it instead of exception 16.
 	 */
-	mtx_lock_spin(&icu_lock);
-	INTRDIS(1 << irq_num);
-	mtx_unlock_spin(&icu_lock);
+	{
+		register_t crit;
+
+		crit = intr_disable();
+		mtx_lock_spin(&icu_lock);
+		INTRDIS(1 << irq_num);
+		mtx_unlock_spin(&icu_lock);
+		intr_restore(crit);
+	}
 
 	bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
 	bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid, ioport_res);

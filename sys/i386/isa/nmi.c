@@ -117,6 +117,27 @@ static inthand_t *fastintr[ICU_LEN] = {
 #endif /* APIC_IO */
 };
 
+static unpendhand_t *fastunpend[ICU_LEN] = {
+	&IDTVEC(fastunpend0), &IDTVEC(fastunpend1),
+	&IDTVEC(fastunpend2), &IDTVEC(fastunpend3),
+	&IDTVEC(fastunpend4), &IDTVEC(fastunpend5),
+	&IDTVEC(fastunpend6), &IDTVEC(fastunpend7),
+	&IDTVEC(fastunpend8), &IDTVEC(fastunpend9),
+	&IDTVEC(fastunpend10), &IDTVEC(fastunpend11),
+	&IDTVEC(fastunpend12), &IDTVEC(fastunpend13),
+	&IDTVEC(fastunpend14), &IDTVEC(fastunpend15),
+#if defined(APIC_IO)
+	&IDTVEC(fastunpend16), &IDTVEC(fastunpend17),
+	&IDTVEC(fastunpend18), &IDTVEC(fastunpend19),
+	&IDTVEC(fastunpend20), &IDTVEC(fastunpend21),
+	&IDTVEC(fastunpend22), &IDTVEC(fastunpend23),
+	&IDTVEC(fastunpend24), &IDTVEC(fastunpend25),
+	&IDTVEC(fastunpend26), &IDTVEC(fastunpend27),
+	&IDTVEC(fastunpend28), &IDTVEC(fastunpend29),
+	&IDTVEC(fastunpend30), &IDTVEC(fastunpend31),
+#endif /* APIC_IO */
+};
+
 static inthand_t *slowintr[ICU_LEN] = {
 	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
 	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
@@ -291,13 +312,16 @@ isa_nmi(cd)
 void icu_reinit()
 {
 	int i;
+	register_t crit;
 
+	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
 	init_i8259();
 	for(i=0;i<ICU_LEN;i++)
 		if(intr_handler[i] != isa_strayintr)
 			INTREN(1<<i);
 	mtx_unlock_spin(&icu_lock);
+	intr_restore(crit);
 }
 
 /*
@@ -309,13 +333,16 @@ void
 isa_defaultirq()
 {
 	int i;
+	register_t crit;
 
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
 		icu_unset(i, (driver_intr_t *)NULL);
+	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
 	init_i8259();
 	mtx_unlock_spin(&icu_lock);
+	intr_restore(crit);
 }
 
 
@@ -476,6 +503,7 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 	int		vector;
 	u_int32_t	value;		/* the window register is 32 bits */
 #endif /* FAST_HI */
+	register_t	crit;
 
 #if defined(APIC_IO)
 	if ((u_int)intr >= ICU_LEN)	/* no 8259 SLAVE to ignore */
@@ -488,6 +516,7 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 		return (EBUSY);
 #endif
 
+	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
 	intr_handler[intr] = handler;
 	intr_unit[intr] = arg;
@@ -530,6 +559,7 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 #endif /* FAST_HI */
 	INTREN(1 << intr);
 	mtx_unlock_spin(&icu_lock);
+	intr_restore(crit);
 	return (0);
 }
 
@@ -543,10 +573,12 @@ icu_unset(intr, handler)
 	int	intr;
 	driver_intr_t *handler;
 {
+	register_t crit;
 
 	if ((u_int)intr >= ICU_LEN || handler != intr_handler[intr])
 		return (EINVAL);
 
+	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
 	INTRDIS(1 << intr);
 	intr_countp[intr] = &intrcnt[1 + intr];
@@ -564,6 +596,7 @@ icu_unset(intr, handler)
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */
 	mtx_unlock_spin(&icu_lock);
+	intr_restore(crit);
 	return (0);
 }
 
@@ -578,19 +611,25 @@ SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 static void
 ithread_enable(int vector)
 {
+	register_t crit;
 
+	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
 	INTREN(1 << vector);
 	mtx_unlock_spin(&icu_lock);
+	intr_restore(crit);
 }
 
 static void
 ithread_disable(int vector)
 {
+	register_t crit;
 
+	crit = intr_disable();
 	mtx_lock_spin(&icu_lock);
 	INTRDIS(1 << vector);
 	mtx_unlock_spin(&icu_lock);
+	intr_restore(crit);
 }
 
 int
@@ -672,3 +711,10 @@ inthand_remove(void *cookie)
 
 	return (ithread_remove_handler(cookie));
 }
+
+void
+call_fast_unpend(int irq)
+{
+ 	fastunpend[irq]();
+}
+

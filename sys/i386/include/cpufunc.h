@@ -45,6 +45,8 @@
 #include <sys/cdefs.h>
 #include <machine/psl.h>
 
+struct thread;
+
 __BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
@@ -53,8 +55,6 @@ __BEGIN_DECLS
 #define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
 #define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
-
-#define	CRITICAL_FORK	(read_eflags() | PSL_I)
 
 #ifdef	__GNUC__
 
@@ -562,22 +562,6 @@ load_dr7(u_int sel)
 	__asm __volatile("movl %0,%%dr7" : : "r" (sel));
 }
 
-static __inline critical_t
-cpu_critical_enter(void)
-{
-	critical_t eflags;
-
-	eflags = read_eflags();
-	disable_intr();
-	return (eflags);
-}
-
-static __inline void
-cpu_critical_exit(critical_t eflags)
-{
-	write_eflags(eflags);
-}
-
 static __inline register_t
 intr_disable(void)
 {
@@ -629,8 +613,6 @@ u_int	rfs(void);
 u_int	rgs(void);
 void	load_fs(u_int sel);
 void	load_gs(u_int sel);
-critical_t cpu_critical_enter(void);
-void	cpu_critical_exit(critical_t eflags);
 
 #endif	/* __GNUC__ */
 
@@ -642,6 +624,11 @@ u_int	rcr0(void);
 u_int	rcr3(void);
 u_int	rcr4(void);
 void    reset_dbregs(void);
+void	cpu_critical_enter(void);
+void	cpu_critical_exit(void);
+void	cpu_critical_fork_exit(void);
+void	cpu_thread_link(struct thread *td);
+
 __END_DECLS
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

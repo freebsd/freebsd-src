@@ -47,6 +47,7 @@ struct md_utrap {
 };
 
 struct mdthread {
+	register_t md_savecrit;
 };
 
 struct mdproc {
