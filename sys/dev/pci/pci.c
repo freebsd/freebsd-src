@@ -525,9 +525,9 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	 * this function can be called from contexts where we cannot sleep.
 	 */
 	highest = (oldstate > state) ? oldstate : state;
-	if (highest == PCI_POWER_STATE_D3)
+	if (highest == PCI_POWERSTATE_D3)
 	    delay = 10000;
-	else if (highest == PCI_POWER_STATE_D2)
+	else if (highest == PCI_POWERSTATE_D2)
 	    delay = 200;
 	else
 	    delay = 0;
