@@ -277,6 +277,7 @@ extern char	*ttytype;		/* Full name of current terminal. */
 #define	winch(w) \
 	((w)->lines[(w)->cury]->line[(w)->curx].ch & 0377)
 
+__BEGIN_DECLS
 /* Public function prototypes. */
 int	 box __P((WINDOW *, int, int));
 int	 cbreak __P((void));
@@ -388,5 +389,6 @@ int      tgetnum __P((const char *));
 int      tgetflag __P((const char *));
 char    *tgetstr __P((const char *, char **));
 char    *tgoto __P((const char *, int, int));
+__END_DECLS
 
 #endif /* !_CURSES_H_ */
