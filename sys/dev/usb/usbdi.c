@@ -1304,14 +1304,6 @@ usbd_driver_load(module_t mod, int what, void *arg)
 	return 0;			/* nothing to do */
 #endif
 }
-
-/* Set the description of the device including a malloc and copy. */
-void
-usbd_device_set_desc(device_t device, char *devinfo)
-{
-	device_set_desc_copy(device, devinfo);
-}
-
 #endif
 
 char *
