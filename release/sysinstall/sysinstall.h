@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.20 1997/02/14 21:24:23 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.21 1997/02/15 13:21:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -404,7 +404,8 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
 extern int	configFstab(void);
-extern void	configEnvironment(char *config);
+extern void	configEnvironmentSysconfig(char *config);
+extern void	configEnvironmentResolv(char *config);
 extern void	configSysconfig(char *config);
 extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
@@ -530,6 +531,7 @@ extern int	installFixup(dialogMenuItem *self);
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
+extern void	installEnvironment(void);
 extern Boolean	copySelf(void);
 
 /* keymap.c */

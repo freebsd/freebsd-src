@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.27 1997/02/13 00:31:53 jkh Exp $
+ * $Id: install.c,v 1.134.2.28 1997/02/14 21:24:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -971,6 +971,16 @@ installVarDefaults(dialogMenuItem *self)
     else
 	variable_set2(SYSTEM_STATE,		"init");
     return DITEM_SUCCESS;
+}
+
+/* Load the environment up from various system configuration files */
+void
+installEnvironment(void)
+{
+    if (file_readable("/etc/sysconfig"))
+	configEnvironmentSysconfig("/etc/sysconfig");
+    if (file_readable("/etc/resolv.conf"))
+	configEnvironmentResolv("/etc/resolv.conf");
 }
 
 /* Copy the boot floppy contents into /stand */
