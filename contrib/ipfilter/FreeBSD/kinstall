@@ -15,12 +15,17 @@ foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c \
 	chmod 644 /sys/netinet/$i
 end
 echo ""
-echo "Patching $archdir/$karch/conf.c"
-cat FreeBSD/conf.c.diffs | (cd $archdir/$karch; patch)
-echo "Patching ip_input.c, ip_output.c and in_proto.c"
-cat FreeBSD/ip_{in,out}put.c.diffs FreeBSD/in_proto.c.diffs | \
-(cd /sys/netinet; patch)
-
+grep iplopen $archdir/$karch/conf.c >& /dev/null
+if ( $status != 0 ) then
+	echo "Patching $archdir/$karch/conf.c"
+	cat FreeBSD/conf.c.diffs | (cd $archdir/$karch; patch)
+endif
+grep fr_checkp /sys/netinet/ip_input.c >& /dev/null
+if ( $status != 0 ) then
+	echo "Patching ip_input.c, ip_output.c and in_proto.c"
+	cat FreeBSD/ip_{in,out}put.c.diffs FreeBSD/in_proto.c.diffs | \
+	(cd /sys/netinet; patch)
+endif
 if ( -f /sys/conf/files.newconf ) then
 	echo "Patching /sys/conf/files.newconf"
 	cat FreeBSD/files.newconf.diffs | (cd /sys/conf; patch)

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.15.2.3 2000/05/22 10:26:17 darrenr Exp $"
+#pragma ident "@(#)$Id: solaris.c,v 2.15.2.6 2000/07/18 13:56:33 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -625,15 +625,28 @@ tryagain:
 	sap = qif->qf_ill->ill_sap;
 
 	if (sap == 0x800) {
+		u_short tlen;
+
 		hlen = sizeof(*ip);
-		plen = ntohs(ip->ip_len);
+
+		/* XXX - might not be aligned (from ppp?) */
+		((char *)&tlen)[0] = ((char *)&ip->ip_len)[0];
+		((char *)&tlen)[1] = ((char *)&ip->ip_len)[1];
+
+		plen = ntohs(tlen);
+
 		sap = 0;
 	}
 #if SOLARIS2 >= 8
 	else if (sap == IP6_DL_SAP) {
+		u_short tlen;
+
 		hlen = sizeof(ip6_t);
 		ip6 = (ip6_t *)ip;
-		plen = ntohs(ip6->ip6_plen);
+		/* XXX - might not be aligned (from ppp?) */
+		((char *)&tlen)[0] = ((char *)&ip->ip_len)[0];
+		((char *)&tlen)[1] = ((char *)&ip->ip_len)[1];
+		plen = ntohs(tlen);
 		sap = IP6_DL_SAP;
 	}
 #endif
@@ -670,7 +683,7 @@ fixalign:
 				s = m->b_rptr;
 		}
 		*mp = m2;
-		MTYPE(m2) = M_DATA;
+		MTYPE(m2) = MTYPE(mt);
 		freemsg(mt);
 		mt = m2;
 
@@ -678,7 +691,6 @@ fixalign:
 		synced = 1;
 		off = 0;
 		goto tryagain;
-
 	}
 
 	if (((sap == 0) && (ip->ip_v != IP_VERSION))
@@ -1590,8 +1602,7 @@ ire_t *ire;
 #endif
 
 
-int ipfr_fastroute(qf, ip, mb, mpp, fin, fdp)
-qif_t *qf;
+int ipfr_fastroute(ip, mb, mpp, fin, fdp)
 ip_t *ip;
 mblk_t *mb, **mpp;
 fr_info_t *fin;
@@ -1608,13 +1619,15 @@ frdest_t *fdp;
 	frentry_t *fr;
 	frdest_t fd;
 	ill_t *ifp;
-	qif_t *qif;
 	u_char *s;
+	qif_t *qf;
 	int p;
 
 #ifndef	sparc
 	u_short __iplen, __ipoff;
 #endif
+	qf = fin->fin_qif;
+
 	/*
 	 * If this is a duplicate mblk then we want ip to point at that
 	 * data, not the original, if and only if it is already pointing at
@@ -1718,10 +1731,9 @@ frdest_t *fdp;
 				ATOMIC_INCL(frstats[1].fr_acct);
 			}
 			fin->fin_fr = NULL;
-			if (!fr || !(fr->fr_flags & FR_RETMASK)) {
+			if (!fr || !(fr->fr_flags & FR_RETMASK))
 				(void) fr_checkstate(ip, fin);
-				(void) ip_natout(ip, fin);
-			}
+			(void) ip_natout(ip, fin);
 		}
 #ifndef	sparc
 		if (fin->fin_v == 4) {
