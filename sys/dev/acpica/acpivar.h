@@ -203,7 +203,7 @@ struct acpi_parse_resource_set {
 				   u_int32_t high, u_int32_t length,
 				   u_int32_t align);
     void	(*set_irq)(device_t dev, void *context, u_int32_t *irq,
-			   int cout);
+			   int count, int trig, int pol);
     void	(*set_drq)(device_t dev, void *context, u_int32_t *drq,
 			   int count);
     void	(*set_start_dependant)(device_t dev, void *context,
