@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SCRIPTS=	sockstat.pl
+PROG=		sockstat
+WARNS?=		4
 MAN=		sockstat.1
 
 .include <bsd.prog.mk>
