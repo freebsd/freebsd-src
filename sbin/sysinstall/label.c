@@ -16,7 +16,6 @@
 #include <dialog.h>
 #include "sysinstall.h"
 
-int disk_size(struct disklabel *);
 int sectstoMb(int, int);
 
 char *partname[MAXPARTITIONS] = {"a", "b", "c", "d", "e", "f", "g", "h"};
@@ -410,32 +409,38 @@ build_disklabel(struct disklabel *lbl)
 	offset = lbl->d_partitions[2].p_offset;
 
 	for (i=0; i < MAXPARTITIONS; i++) {
-		if (strlen(label_fields[i][MOUNTPOINTS].field)) {
+		if (strlen(label_fields[i][MOUNTPOINTS].field) &&
+		    atoi(label_fields[i][UPARTSIZES].field)) {
 			sprintf(scratch, "%s%s", avail_disknames[inst_disk], partname[i]);
 			devicename[mounts] = StrAlloc(scratch);
 			mountpoint[mounts] = StrAlloc(label_fields[i][MOUNTPOINTS].field);
 			mounts++;
 			nsects = Mbtosects(atoi(label_fields[i][UPARTSIZES].field),
-								 lbl->d_secsize);
+							 lbl->d_secsize);
+#if 0  /* Rounding the offset is at best wrong */
 			nsects = rndtocylbdry(nsects, lbl->d_secpercyl);
-			if(nsects) {
-				offset = rndtocylbdry(offset, lbl->d_secpercyl);
-				lbl->d_partitions[i].p_size = nsects;
-				lbl->d_partitions[i].p_offset = offset;
-				Debug("Part%d: %d sects, %d offset, %d end",
-					i,nsects,offset,nsects+offset);
-				offset += nsects;
-				total_sects += nsects;
-				lbl->d_partitions[i].p_fstype = 
-					getfstype(label_fields[i][FSTYPE].field);
-				lbl->d_npartitions = i+1;
-			} else {
-				lbl->d_partitions[i].p_size = 0;
-				lbl->d_partitions[i].p_offset = 0;
-				lbl->d_partitions[i].p_fstype = 0;
-			}
+			offset = rndtocylbdry(offset, lbl->d_secpercyl);
+#endif
+			lbl->d_partitions[i].p_size = nsects;
+			lbl->d_partitions[i].p_offset = offset;
+			offset += nsects;
+			total_sects += nsects;
+			lbl->d_partitions[i].p_fstype = 
+				getfstype(label_fields[i][FSTYPE].field);
+			lbl->d_npartitions = i+1;
+		} else if (i < 2 || i > 3) {
+			lbl->d_partitions[i].p_size = 0;
+			lbl->d_partitions[i].p_offset = 0;
+			lbl->d_partitions[i].p_fstype = 0;
 		}
+		Debug("Part%d: %d sects, %d offset, %d end, %d type", i,
+			lbl->d_partitions[i].p_size,
+			lbl->d_partitions[i].p_offset,
+			lbl->d_partitions[i].p_size+
+				lbl->d_partitions[i].p_offset,
+			lbl->d_partitions[i].p_fstype);
 	}
+	return 0;
 }
 
 int
