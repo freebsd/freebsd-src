@@ -69,6 +69,9 @@ CFLAGS+=	-DRELOC=${RELOC}
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
+# 64-bit bridge extensions
+CFLAGS+= -Wa,-mppc64bridge
+
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../ofw/common
 .include	"${.CURDIR}/../../ofw/common/Makefile.inc"
