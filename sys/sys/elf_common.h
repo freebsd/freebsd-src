@@ -68,6 +68,8 @@ typedef struct {
 #define ELFMAG1		'E'
 #define ELFMAG2		'L'
 #define ELFMAG3		'F'
+#define ELFMAG		"\177ELF"	/* magic string */
+#define SELFMAG		4		/* magic string size */
 
 /* Values for e_ident[EI_VERSION] and e_version. */
 #define EV_NONE		0
@@ -160,6 +162,7 @@ typedef struct {
 #define SHT_REL		9		/* relation section without addends */
 #define SHT_SHLIB	10		/* reserved - purpose unknown */
 #define SHT_DYNSYM	11		/* dynamic symbol table section */ 
+#define SHT_NUM		12		/* number of section types */
 #define SHT_LOPROC	0x70000000	/* reserved range for processor */
 #define SHT_HIPROC	0x7fffffff	/* specific section header types */
 #define SHT_LOUSER	0x80000000	/* reserved range for application */
