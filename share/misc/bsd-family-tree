@@ -137,15 +137,17 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |   FreeBSD 4.1.1  |  |  /  |    |            |             |
  |      |           |  | /   |    v            |             |
  |   FreeBSD 4.2   Darwin/   | NetBSD 1.4.3    |             |
- |      |         Mac OS X   |             OpenBSD 2.8     BSD/OS 4.2
+ |      |         Mac OS X   |    |        OpenBSD 2.8     BSD/OS 4.2
+ |      |             |      |    v            |             |
+ |      |             |      |                 |             |
  |      |           10.0  NetBSD 1.5           |             |
  |   FreeBSD 4.3      |      |    |            |             v
  |      |             |      |    v        OpenBSD 2.9
  |      |             |      | NetBSD 1.5.1    |
  |      |             |      |    |            |
  |   FreeBSD 4.4      |      | NetBSD 1.5.2    |
- |      |             |      |                 |
- |      v             |      |                 |
+ |      |             |      |    |            |
+ |      v             |      |    v            |
  |                    |      |                 |
 FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
  |                    |      |                 |
