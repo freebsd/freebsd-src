@@ -13,10 +13,14 @@ src=$1
 wrk=./_acpi_ca_unpack
 dst=./acpi_ca_destination
 
+# files that should keep their full directory path
+fulldirs="common compiler"
 # files to remove
-stripdirs="common compiler generate acpisrc"
-stripfiles="osunixxf.c Makefile README adisasm.h acdos16.h \
-    acintel.h aclinux.h acmsvc.h acwin.h acwin64.h"
+stripdirs="generate acpisrc"
+stripfiles="16bit.h Makefile README a16find.c a16utils.asm	\
+	a16utils.obj adisasm.h acdos16.h acintel.h aclinux.h	\
+	acmsvc.h acwin.h acwin64.h readme.txt"
+	
 # files to update paths in
 src_update_files="acpi.h acpiosxf.h"
 
@@ -46,8 +50,13 @@ for i in ${stripfiles}; do
     find ${wrk} -name ${i} -type f -delete
 done
 
+echo copying full dirs
+for i in ${fulldirs}; do
+    find ${wrk} -name ${i} -type d | xargs -J % mv % ${dst}
+done
+
 # move files to destination
-echo copy
+echo copying flat dirs
 find ${wrk} -type f | xargs -J % mv % ${dst}
 mv CHANGES.txt ${dst}
 
