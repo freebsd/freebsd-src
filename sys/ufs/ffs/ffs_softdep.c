@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/kdb.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -5866,7 +5867,7 @@ getdirtybuf(bpp, mtx, waitfor)
 		if ((bp = *bpp) == NULL)
 			return (0);
 		if (bp->b_vp == NULL)
-			backtrace();
+			kdb_backtrace();
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
 			if ((bp->b_vflags & BV_BKGRDINPROG) == 0)
 				break;

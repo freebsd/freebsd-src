@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 #include "fsck.h"
 #else
-#include "opt_ddb.h"
-
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -58,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ffs/fs.h>
 
-#ifdef DDB
+#ifdef KDB
 void	ffs_checkoverlap(struct buf *, struct inode *);
 #endif
 
@@ -168,7 +166,7 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 	}
 }
 
-#ifdef DDB
+#ifdef KDB
 void
 ffs_checkoverlap(bp, ip)
 	struct buf *bp;
@@ -197,7 +195,7 @@ ffs_checkoverlap(bp, ip)
 		panic("ffs_checkoverlap: Disk buffer overlap");
 	}
 }
-#endif /* DDB */
+#endif /* KDB */
 
 /*
  * block operations
