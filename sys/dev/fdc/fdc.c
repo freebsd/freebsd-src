@@ -1686,7 +1686,7 @@ fdc_attach(device_t dev)
 		device_printf(dev, "does not respond\n");
 		return (error);
 	}
-	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
+	error = bus_setup_intr(dev, fdc->res_irq,
            INTR_TYPE_BIO | INTR_ENTROPY | INTR_FAST | INTR_MPSAFE,
 	   fdc_intr, fdc, &fdc->fdc_intr);
 	if (error) {
