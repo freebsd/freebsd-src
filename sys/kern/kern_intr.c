@@ -124,7 +124,7 @@ ithread_update(struct ithd *ithd)
 		return;
 	p = td->td_proc;
 
-	strlcpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
+	strlcpy(p->p_comm, ithd->it_name, sizeof(p->p_comm));
 
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
