@@ -908,6 +908,23 @@ send_acname(sessp sp, struct pppoe_tag *tag)
 	return (error);
 }
 
+static int
+send_sessionid(sessp sp)
+{
+	int error;
+	struct ng_mesg *msg;
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, NGM_PPPOE_SESSIONID,
+	    sizeof(u_int16_t), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	*(u_int16_t *)msg->data = sp->Session_ID;
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, NULL);
+
+	return (error);
+}
+
 /*
  * Receive data, and do something with it.
  * The caller will never free m or meta, so
@@ -1139,6 +1156,7 @@ AAA
 					neg->pkt->pkt_header.ph.sid =
 					    htons(sp->Session_ID
 						= get_new_sid(node));
+				send_sessionid(sp);
 				neg->timeout = 0;
 				/*
 				 * start working out the tags to respond with.
@@ -1206,6 +1224,7 @@ AAA
 				    neg->timeout_handle);
 				neg->pkt->pkt_header.ph.sid = wh->ph.sid;
 				sp->Session_ID = ntohs(wh->ph.sid);
+				send_sessionid(sp);
 				neg->timeout = 0;
 				sp->state = PPPOE_CONNECTED;
 				/*
