@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.64 1998/04/18 01:01:17 brian Exp $
+ * $Id: command.c,v 1.131.2.65 1998/04/19 02:23:18 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -503,7 +503,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/18 01:01:17 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/19 02:23:18 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1747,7 +1747,7 @@ static struct cmdtab const NegotiateCommands[] = {
   {"pap", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Password Authentication protocol", "accept|deny|disable|enable",
   (const void *)NEG_PAP},
-  {"pred1", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
+  {"pred1", "predictor1", NegotiateSet, LOCAL_AUTH | LOCAL_CX_OPT,
   "Predictor 1 compression", "accept|deny|disable|enable",
   (const void *)NEG_PRED1},
   {"protocomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.37 1998/04/16 00:26:00 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.38 1998/04/17 22:05:25 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -673,7 +673,7 @@ IpcpLayerDown(struct fsm *fp)
     } else
       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
 
-  if (ipcp->fsm.bundle->phys_type & PHYS_DEMAND)
+  if (!(ipcp->fsm.bundle->phys_type & PHYS_DEMAND))
     IpcpCleanInterface(ipcp);
 }
 
@@ -692,8 +692,7 @@ IpcpLayerUp(struct fsm *fp)
   if (ipcp->peer_compproto >> 16 == PROTO_VJCOMP)
     sl_compress_init(&ipcp->vj.cslc, (ipcp->peer_compproto >> 8) & 255);
 
-  if (ipcp_SetIPaddress(fp->bundle, ipcp->my_ip,
-                        ipcp->peer_ip, 0) < 0) {
+  if (ipcp_SetIPaddress(fp->bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
     LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
   }
@@ -702,9 +701,6 @@ IpcpLayerUp(struct fsm *fp)
   if (AliasEnabled())
     (*PacketAlias.SetAddress)(ipcp->my_ip);
 #endif
-
-  LogPrintf(LogIsKept(LogLINK) ? LogLINK : LogIPCP, "IpcpLayerUp: %s\n",
-            inet_ntoa(ipcp->peer_ifip));
 
   /*
    * XXX this stuff should really live in the FSM.  Our config should

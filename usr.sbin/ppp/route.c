@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.16 1998/04/06 09:12:35 brian Exp $
+ * $Id: route.c,v 1.42.2.17 1998/04/07 00:54:16 brian Exp $
  *
  */
 
@@ -384,7 +384,8 @@ DeleteIfRoutes(struct bundle *bundle, int all)
      * We do 2 passes.  The first deletes all cloned routes.  The second
      * deletes all non-cloned routes.  This is necessary to avoid
      * potential errors from trying to delete route X after route Y where
-     * route X was cloned from route Y (which is no longer there).
+     * route X was cloned from route Y (and is no longer there 'cos it
+     * may have gone with route Y).
      */
     if (RTF_WASCLONED == 0 && pass == 0)
       /* So we can't tell ! */

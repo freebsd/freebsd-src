@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.34 1998/04/16 00:25:50 brian Exp $
+ * $Id: ccp.c,v 1.30.2.35 1998/04/19 02:23:15 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -216,21 +216,19 @@ CcpSendConfigReq(struct fsm *fp)
   for (f = 0; f < NALGORITHMS; f++)
     if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]) &&
         !REJECTED(ccp, algorithm[f]->id)) {
-      if (alloc) {
+
+      if (!alloc)
+        for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
+          if ((*o)->val.id == algorithm[f]->id && (*o)->algorithm == f)
+            break;
+
+      if (alloc || *o == NULL) {
         *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
         (*o)->val.id = algorithm[f]->id;
         (*o)->val.len = 2;
         (*o)->next = NULL;
         (*o)->algorithm = f;
         (*algorithm[f]->o.OptInit)(&(*o)->val, &ccp->cfg);
-      } else {
-        for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
-          if ((*o)->val.id == algorithm[f]->id && (*o)->algorithm == f)
-            break;
-        if (*o == NULL) {
-          LogPrintf(LogERROR, "CCP REQ buffer lost !\n");
-          break;
-        }
       }
 
       if (cp + (*o)->val.len > buff + sizeof buff) {
@@ -295,6 +293,8 @@ CcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
   struct ccp *ccp = fsm2ccp(fp);
+  struct ccp_opt *next;
+
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
   if (ccp->in.state != NULL) {
     (*algorithm[ccp->in.algorithm]->i.Term)(ccp->in.state);
@@ -307,6 +307,12 @@ CcpLayerFinish(struct fsm *fp)
     ccp->out.algorithm = -1;
   }
   ccp->his_reject = ccp->my_reject = 0;
+  
+  while (ccp->out.opt) {
+    next = ccp->out.opt->next;
+    free(ccp->out.opt);
+    ccp->out.opt = next;
+  }
 }
 
 static void
