@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.54 1996/07/06 02:10:06 jkh Exp $
+#	$Id: Makefile,v 1.193.2.55 1996/07/09 11:25:10 jkh Exp $
 #
 # How to roll a release:
 #
@@ -40,9 +40,9 @@ FDLABEL=		fd1200
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Upper size for the mfs in the boot.flp kernel.
-# These are adjusted down to the minimum needed but doFS.sh.
+# These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1200
-MFSINODE=		65536
+MFSINODE=		42000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -367,9 +367,9 @@ release.8: write_mfs_in_kernel
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
-		${MFSINODE} minimum
-	mv fs-image fs-image.4
+		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
+			${MFSINODE} minimum
+		mv fs-image fs-image.4
 	mv fs-image.size fs-image.4.size
 	# add more stuff for the complete bootfd
 	@echo "Making the regular boot floppy."
@@ -412,8 +412,7 @@ release.9:
 # --==## Setup a suitable ftp-area ##==--
 #
 ftp.1:
-	rm -rf ${FD}
-	mkdir ${FD}
+	mkdir -p ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
@@ -425,9 +424,7 @@ ftp.1:
 # --==## Setup a suitable cdrom-area ##==--
 #
 cdrom.1:
-	rm -rf ${CD}
-	mkdir ${CD}
-	mkdir ${CD}/filesys
+	mkdir -p ${CD}/filesys
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
 	ln -f ${RD}/kernels/MFSKERNEL.std ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
