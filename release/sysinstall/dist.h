@@ -20,7 +20,7 @@
 #define DIST_COMPAT3X		0x01000
 #endif
 #define DIST_XF86		0x02000
-#define DIST_DES		0x04000
+#define DIST_CRYPTO		0x04000
 #define DIST_CATPAGES		0x08000
 #define DIST_PORTS		0x10000
 #define DIST_LOCAL		0x20000
@@ -33,17 +33,19 @@
 #define _DIST_USER \
 	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT )
 
-/* Subtypes for DES distribution */
-#define DIST_DES_DES		0x0001
-#define DIST_DES_SCRYPTO	0x0002
-#define DIST_DES_SSECURE	0x0004
-#if __FreeBSD__ > 3
-#define DIST_DES_KERBEROS4	0x0008
+/* Subtypes for CRYPTO distribution */
+#define DIST_CRYPTO_CRYPTO	0x0001
+#define DIST_CRYPTO_SCRYPTO	0x0002
+#define DIST_CRYPTO_SSECURE	0x0004
+#if __FreeBSD__ <= 3
+#define DIST_CRYPTO_KERBEROS	0x0008
 #else
-#define DIST_DES_KERBEROS	0x0008
+#define DIST_CRYPTO_KERBEROS4	0x0008
+#define DIST_CRYPTO_KERBEROS5	0x0010
+#define DIST_CRYPTO_SKERBEROS4	0x0020
+#define DIST_CRYPTO_SKERBEROS5	0x0040
 #endif
-#define DIST_DES_SKERBEROS	0x0010
-#define DIST_DES_ALL		0x001F
+#define DIST_CRYPTO_ALL		0x007F
 
 /* Subtypes for SRC distribution */
 #define DIST_SRC_BASE		0x00001
