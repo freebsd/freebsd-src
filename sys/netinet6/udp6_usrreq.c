@@ -286,7 +286,7 @@ udp6_input(mp, offp, proto)
 					    || last->in6p_socket->so_options & SO_TIMESTAMP)
 						ip6_savecontrol(last, &opts,
 								ip6, n);
-								
+
 					m_adj(n, off + sizeof(struct udphdr));
 					if (sbappendaddr(&last->in6p_socket->so_rcv,
 							(struct sockaddr *)&udp_in6,

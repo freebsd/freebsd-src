@@ -108,7 +108,7 @@ static int mld6_timers_are_running;
 static struct in6_addr mld6_all_nodes_linklocal = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 static struct in6_addr mld6_all_routers_linklocal = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 
-static void mld6_sendpkt __P((struct in6_multi *, int, const struct in6_addr *));
+static void mld6_sendpkt(struct in6_multi *, int, const struct in6_addr *);
 
 void
 mld6_init()
@@ -203,7 +203,7 @@ mld6_input(m, off)
 #endif
 
 	/* source address validation */
-	ip6 = mtod(m, struct ip6_hdr *);/* in case mpullup */
+	ip6 = mtod(m, struct ip6_hdr *); /* in case mpullup */
 	if (!IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src)) {
 		log(LOG_ERR,
 		    "mld6_input: src %s is not link-local (grp=%s)\n",
@@ -262,17 +262,17 @@ mld6_input(m, off)
 		 * the calculated value equals to zero when Max Response
 		 * Delay is positive.
 		 */
-		timer = ntohs(mldh->mld_maxdelay)*PR_FASTHZ/MLD6_TIMER_SCALE;
+		timer = ntohs(mldh->mld_maxdelay) * PR_FASTHZ / MLD6_TIMER_SCALE;
 		if (timer == 0 && mldh->mld_maxdelay)
 			timer = 1;
 		mld6_all_nodes_linklocal.s6_addr16[1] =
 			htons(ifp->if_index); /* XXX */
-		
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		{
+
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6)
 				continue;
 			in6m = (struct in6_multi *)ifma->ifma_protospec;
+
 			if (IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr,
 					&mld6_all_nodes_linklocal) ||
 			    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) <
@@ -302,6 +302,7 @@ mld6_input(m, off)
 		if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
 			mldh->mld_addr.s6_addr16[1] = 0; /* XXX */
 		break;
+
 	case MLD_LISTENER_REPORT:
 		/*
 		 * For fast leave to work, we have to know that we are the
@@ -357,6 +358,7 @@ mld6_fasttimeo()
 		return;
 
 	s = splnet();
+
 	mld6_timers_are_running = 0;
 	IN6_FIRST_MULTI(step, in6m);
 	while (in6m != NULL) {
@@ -370,6 +372,7 @@ mld6_fasttimeo()
 		}
 		IN6_NEXT_MULTI(step, in6m);
 	}
+
 	splx(s);
 }
 
@@ -438,9 +441,8 @@ mld6_sendpkt(in6m, type, dst)
 	mldh->mld_addr = in6m->in6m_addr;
 	if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
 		mldh->mld_addr.s6_addr16[1] = 0; /* XXX */
-	mldh->mld_cksum = in6_cksum(mh, IPPROTO_ICMPV6,
-				     sizeof(struct ip6_hdr),
-				     sizeof(struct mld_hdr));
+	mldh->mld_cksum = in6_cksum(mh, IPPROTO_ICMPV6, sizeof(struct ip6_hdr),
+				    sizeof(struct mld_hdr));
 
 	/* construct multicast option */
 	bzero(&im6o, sizeof(im6o));
