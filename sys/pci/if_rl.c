@@ -626,7 +626,6 @@ rl_miibus_readreg(dev, phy, reg)
 		case MII_PHYIDR2:
 			RL_UNLOCK(sc);
 			return(0);
-			break;
 		/*
 		 * Allow the rlphy driver to read the media status
 		 * register. If we have a link partner which does not
@@ -637,7 +636,6 @@ rl_miibus_readreg(dev, phy, reg)
 			rval = CSR_READ_1(sc, RL_MEDIASTAT);
 			RL_UNLOCK(sc);
 			return(rval);
-			break;
 		default:
 			printf("rl%d: bad phy register\n", sc->rl_unit);
 			RL_UNLOCK(sc);
