@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
+#	$Id: Makefile,v 1.2 1998/10/13 18:29:18 rnordier Exp $
 
 M4?=	m4
 
@@ -32,9 +32,10 @@ boot1.o: boot1.m4 boot1.s
 
 boot2: boot2.ldr boot2.bin
 	btxld -v -E ${ORG2} -f bin -b ${BTX}/btx/btx -l boot2.ldr \
-		-o ${.TARGET} -P 1 boot2.bin
-	@ls -l boot2 | awk '{ x = 7680 - $$5; print x " bytes free"; \
-		if (x < 0) exit 1 }'
+		-o boot2.ld -P 1 boot2.bin
+	@ls -l boot2.ld | awk '{ x = 7680 - $$5; \
+		print x " bytes available"; if (x < 0) exit 1 }'
+	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync 2>/dev/null
 
 boot2.ldr:
 	dd if=/dev/zero of=${.TARGET} bs=512 count=1 2>/dev/null
@@ -48,4 +49,4 @@ boot2.out: boot2.o
 
 clean:
 	rm -f boot1 boot1.out boot1.o boot2 boot2.ldr boot2.bin \
-		boot2.out boot2.o
+		boot2.ld boot2.out boot2.o

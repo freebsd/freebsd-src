@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: boot1.s,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
 
 		.set MEM_REL,0x600		# Relocation address
 		.set MEM_ARG,0x800		# Arguments
@@ -96,7 +96,7 @@ main.5: 	movwrm(_dx,MEM_ARG)		# Save args
 		movw1r(0xa,_bx_,_si)		# Point past
 		addl %ebx,%esi			#  it
 		movwir(MEM_USR+SIZ_PAG,_di)	# Client page 1
-		movwir(MEM_BTX+0xd*SIZ_SEC,_cx) # Byte
+		movwir(MEM_BTX+0xe*SIZ_SEC,_cx) # Byte
 		subl %esi,%ecx			#  count
 		rep				# Relocate
 		movsb				#  client
