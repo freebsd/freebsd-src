@@ -105,7 +105,7 @@ struct dom_binding *_ypbindlist;
 static char _yp_domain[MAXHOSTNAMELEN];
 int _yplib_timeout = 10;
 
-static mutex_t _ypmutex = PTHREAD_MUTEX_INITIALIZER;
+static mutex_t _ypmutex = MUTEX_INITIALIZER;
 #define YPLOCK()	mutex_lock(&_ypmutex);
 #define YPUNLOCK()	mutex_unlock(&_ypmutex);
 
