@@ -86,9 +86,6 @@
     contain up-to-date copies of this document (as of the time of the
     snapshot).</para>
 
-    <para>Any changes to this file will also be emailed to the
-    &a.stable;.</para>
-
     <para>For a list of all &os; CERT security advisories, see <ulink
     url="http://www.FreeBSD.org/security/"></ulink> or <ulink
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
