@@ -639,18 +639,26 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	KASSERT(ifp != NULL, ("ether_demux: NULL interface pointer"));
 
 	eh = mtod(m, struct ether_header *);
+	ether_type = ntohs(eh->ether_type);
 
 #if defined(INET) || defined(INET6)
 	if (rule)	/* packet was already bridged */
 		goto post_stats;
 #endif
 
-	if (!(BDG_ACTIVE(ifp))) {
+	if (!(BDG_ACTIVE(ifp)) &&
+	    !(ether_type == ETHERTYPE_VLAN && ifp->if_nvlans > 0)) {
 		/*
 		 * Discard packet if upper layers shouldn't see it because it
 		 * was unicast to a different Ethernet address. If the driver
 		 * is working properly, then this situation can only happen
 		 * when the interface is in promiscuous mode.
+		 *
+		 * If VLANs are active, and this packet has a VLAN tag, do
+		 * not drop it here but pass it on to the VLAN layer, to
+		 * give them a chance to consider it as well (e. g. in case
+		 * bridging is only active on a VLAN).  They will drop it if
+		 * it's undesired.
 		 */
 		if ((ifp->if_flags & IFF_PROMISC) != 0
 		    && (eh->ether_dhost[0] & 1) == 0
@@ -703,8 +711,6 @@ post_stats:
 		(*vlan_input_p)(ifp, m);
 		return;
 	}
-
-	ether_type = ntohs(eh->ether_type);
 
 	/*
 	 * Handle protocols that expect to have the Ethernet header
