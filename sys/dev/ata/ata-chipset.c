@@ -1811,13 +1811,14 @@ static int
 ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 {
     device_t *children;
-    int nchildren, i;
+    int nchildren, i, slot = pci_get_slot(dev);
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return 0;
 
     for (i = 0; i < nchildren; i++) {
-	if (pci_get_devid(children[i]) == devid &&
+	if (pci_get_slot(children[i]) == slot &&
+	    pci_get_devid(children[i]) == devid &&
 	    pci_get_revid(children[i]) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
@@ -1831,8 +1832,7 @@ static struct ata_chip_id *
 ata_match_chip(device_t dev, struct ata_chip_id *index)
 {
     while (index->chiptype != 0) {
-	if (pci_get_devid(dev) == index->chiptype &&
-	    pci_get_revid(dev) >= index->chiprev)
+	if (ata_find_dev(dev, index->chiptype, index->chiprev))
 	    return index;
 	index++;
     }
