@@ -76,57 +76,7 @@
 
     &hwlist.aac;
 
-    <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (&man.ct.4; driver)
-      <itemizedlist>
-        <listitem>
-          <para>NEC PC-9801-55, 92 and their compatibles</para>
-          <para>ICM IF-2660</para>
-          <para>Midori-Denshi MDC-554NA</para>
-          <para>Logitec LHA-N151</para>
-          <note>
-            <para><literal>flags 0x00000</literal> is necessary in
-            kernel configuration for DMA transfer mode.</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>I-O DATA SC-98II</para>
-          <note>
-            <para><literal>flags 0x10000</literal> is necessary in
-            kernel configuration for DMA transfer mode.</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>TEXA HA-55BS2 and later</para>
-          <para>Midori-Denshi MDC-926Rs</para>
-          <note>
-            <para><literal>flags 0x20000</literal> is necessary in
-            kernel configuration for Bus-master transfer mode.</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>ELECOM Bus-master SCSI interfaces</para>
-          <note>
-            <para><literal>flags 0x30000</literal> is necessary in
-            kernel configuration for Bus-master transfer mode.</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>All SMIT transfer type SCSI interfaces</para>
-          <note>
-            <para><literal>flags 0x40000</literal> is necessary in
-            kernel configuration for SMIT transfer mode.</para>
-          </note>
-        </listitem>
-        <listitem>
-          <para>Logitec LHA-20x series</para>
-          <para>ICM IF-2766, IF-2766ET, IF-2767 and IF-2769</para>
-          <note>
-            <para><literal>flags 0x50000</literal> is necessary in
-            kernel configuration for Bus-master transfer mode.</para>
-          </note>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ct;
 
     <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (bs driver)
       <itemizedlist>
@@ -251,6 +201,9 @@
 
     &hwlist.trm;
 
+    <para arch="i386">The wds(4) driver supports the WD7000 SCSI
+      controller.</para>
+
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
     hard disks, optical disks, tape drives (including DAT, 8mm
@@ -280,29 +233,6 @@
 
 	<listitem>
 	  <para>ATAPI IDE interface (&man.acd.4;)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">The following drivers were supported under the old SCSI
-    subsystem, but are not yet supported under the &man.cam.4; SCSI
-    subsystem:
-      <itemizedlist>
-        <listitem arch="i386">
-	  <para>NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
-	  SCSI controller</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>UltraStor 14F, 24F and 34F SCSI controllers.
-	    <note>
-	      <para>There is work-in-progress to port the
-              UltraStor driver to the new CAM SCSI framework, but no
-              estimates on when or if it will be completed.</para>
-            </note>
-          </para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>WD7000 SCSI controller</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -742,38 +672,9 @@
 
     &hwlist.cx;
 
-    <para arch="i386,pc98">Cronyx Tau-PCI synchronous serial adapters for PCI bus
-      (&man.cp.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Cronyx Tau-PCI (dual RS-232/V.35) and Cronyx Tau-PCI/R (dual RS-530(RS-449)/X.21)</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Tau-PCI/E1 (dual fractional E1) and Cronyx Tau-PCI/G703 (dual unframed E1)</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Tau-PCI/2E1 (dual fractional/unframed E1)</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Tau-PCI/4E1 (four fractional/unframed E1)</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Tau-PCI/E3 (one E3)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.cp;
 
-    <para arch="i386">Cronyx Tau synchronous serial adapters for ISA bus
-      (&man.ctau.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Cronyx Tau (RS-232/V.35) and Cronyx Tau/R (RS-530/RS-449)</para>
-	</listitem>
-        <listitem>
-	  <para>Cronyx Tau/E1 (fractional E1) and Cronyx Tau/G703 (unframed E1)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ctau;
 
     <para arch="i386">Granch SBNI12 point-to-point communications
     adapters (&man.sbni.4; driver)
@@ -1261,7 +1162,7 @@
 
     &hwlist.ohci;
 
-    <para arch="i386,pc98,alpha,ia64,amd64">UHCI 1.1-compliant host controllers (&man.uhci.4; driver)</para>
+    &hwlist.uhci;
 
     <para arch="i386,ia64,pc98,amd64">USB 2.0 controllers using the EHCI
       interface (&man.ehci.4; driver)</para>
