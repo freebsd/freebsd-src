@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.114 1999/05/20 10:08:40 hm Exp $
+#	$Id: options.i386,v 1.115 1999/06/01 18:18:39 jlemon Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -100,9 +100,6 @@ VISUAL_USERCONFIG	opt_userconfig.h
 INTRO_USERCONFIG	opt_userconfig.h
 
 EISA_SLOTS		opt_eisa.h
-
-FDC_DEBUG		opt_fdc.h
-FDC_YE			opt_fdc.h
 
 FE_8BIT_SUPPORT		opt_fe.h
 
