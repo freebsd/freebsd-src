@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.11 1997/07/15 00:09:53 smp Exp smp $
+ *	$Id: mpapic.c,v 1.12 1997/07/15 02:51:19 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -53,8 +53,6 @@ volatile ioapic_t	*ioapic[NAPIC];
 
 /*
  * Enable APIC, configure interrupts.
- *
- * XXX FIXME: remove the magic numbers.
  */
 void
 apic_initialize(void)
@@ -63,7 +61,7 @@ apic_initialize(void)
 
 	/* setup LVT1 as ExtINT */
 	temp = lapic.lvt_lint0;
-	temp &= 0xfffe58ff;		/* preserve undefined fields */
+	temp &= ~(APIC_LVT_M | APIC_LVT_TM | APIC_LVT_IIPP | APIC_LVT_DM);
 	if (cpuid == 0)
 		temp |= 0x00000700;	/* process ExtInts */
 	else
@@ -72,7 +70,7 @@ apic_initialize(void)
 
 	/* setup LVT2 as NMI, masked till later... */
 	temp = lapic.lvt_lint1;
-	temp &= 0xfffe58ff;		/* preserve undefined fields */
+	temp &= ~(APIC_LVT_M | APIC_LVT_TM | APIC_LVT_IIPP | APIC_LVT_DM);
 	temp |= 0x00010400;		/* masked, edge trigger, active hi */
 
 	lapic.lvt_lint1 = temp;
@@ -82,15 +80,7 @@ apic_initialize(void)
 	temp &= ~APIC_TPR_PRIO;		/* clear priority field */
 
 #if defined(TEST_LOPRIO)
-#if 1
-	/* The new order of startup since private pages makes this possible. */
 	temp |= LOPRIO_LEVEL;		/* allow INT arbitration */
-#else
-	if (cpuid == 0)
-		temp |= 0x10;		/* allow INT arbitration */
-	else
-		temp |= 0xff;		/* disallow INT arbitration */
-#endif
 #endif	/* TEST_LOPRIO */
 
 	lapic.tpr = temp;
