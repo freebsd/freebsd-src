@@ -29,11 +29,6 @@
  */
 
 // TODO list:
-//	o rewrite the main loop:
-//	  - find best match
-//	  - execute it.
-//	o need to insert the event_proc structures in order of priority.  
-//        bigger numbers mean higher priority.
 //	o devd.conf and devd man pages need a lot of help:
 //	  - devd.conf needs to lose the warning about zone files.
 //	  - devd.conf needs more details on the supported statements.
@@ -56,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -69,14 +65,27 @@ using namespace std;
 extern FILE *yyin;
 extern int lineno;
 
+static const char nomatch = '?';
+static const char attach = '+';
+static const char detach = '-';
+
 int dflag;
 int romeo_must_die = 0;
 
 static void event_loop(void);
 static void usage(void);
 
-class config;
+template <class T> void
+delete_and_clear(vector<T *> &v)
+{
+	typename vector<T *>::const_iterator i;
 
+	for (i = v.begin(); i != v.end(); i++)
+		delete *i;
+	v.clear();
+}
+
+class config;
 
 class var_list
 {
@@ -130,7 +139,7 @@ class event_proc
 public:
 	event_proc();
 	virtual ~event_proc();
-	int get_priority() { return (_prio); }
+	int get_priority() const { return (_prio); }
 	void set_priority(int prio) { _prio = prio; }
 	void add(eps *);
 	bool matches(config &);
@@ -158,10 +167,15 @@ public:
 	void set_variable(const char *var, const char *val);
 	const string &get_variable(const string &var);
 	const string expand_string(const string &var);
+	char *set_vars(char *);
+	void find_and_execute(char);
 protected:
+	void sort_vector(vector<event_proc *> &);
 	void parse_one_file(const char *fn);
 	void parse_files_in_dir(const char *dirname);
 	void expand_one(const char *&src, char *&dst, char *eod);
+	bool is_id_char(char);
+	bool chop_var(char *&buffer, char *&lhs, char *&rhs);
 private:
 	vector<string> _dir_list;
 	string _pidfile;
@@ -229,18 +243,21 @@ action::~action()
 bool
 action::do_action(config &c)
 {
-	// xxx
-	::system(c.expand_string(_cmd).c_str());
+	string s = c.expand_string(_cmd);
+	if (dflag)
+		fprintf(stderr, "Executing '%s'\n", s.c_str());
+	::system(s.c_str());
 	return (true);
 }
 
 match::match(config &c, const char *var, const char *re)
-	: _var(var), _re(re)
+	: _var(var)
 {
-	string pattern = "^";
-	pattern.append(c.expand_string(_re));
-	pattern.append("$");
-	regcomp(&_regex, pattern.c_str(), REG_EXTENDED | REG_NOSUB);
+	string pattern = re;
+	_re = "^";
+	_re.append(c.expand_string(string(re)));
+	_re.append("$");
+	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB);
 }
 
 match::~match()
@@ -253,6 +270,10 @@ match::do_match(config &c)
 {
 	string value = c.get_variable(_var);
 	bool retval;
+
+	if (dflag)
+		fprintf(stderr, "Testing %s=%s against %s\n", _var.c_str(),
+		    value.c_str(), _re.c_str());
 
 	retval = (regexec(&_regex, value.c_str(), 0, NULL, 0) == 0);
 	return retval;
@@ -268,7 +289,7 @@ var_list::get_variable(const string &var) const
 
 	i = _vars.find(var);
 	if (i == _vars.end())
-		return var_list::bogus;
+		return (var_list::bogus);
 	return (i->second);
 }
 
@@ -281,6 +302,8 @@ var_list::is_set(const string &var) const
 void
 var_list::set_variable(const string &var, const string &val)
 {
+	if (dflag)
+		fprintf(stderr, "%s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
 
@@ -288,8 +311,10 @@ void
 config::reset(void)
 {
 	_dir_list.clear();
-	_var_list_table.clear();
-	// XXX need to cleanup _{attach,detach,nomatch}_list
+	delete_and_clear(_var_list_table);
+	delete_and_clear(_attach_list);
+	delete_and_clear(_detach_list);
+	delete_and_clear(_nomatch_list);
 }
 
 void
@@ -328,6 +353,20 @@ config::parse_files_in_dir(const char *dirname)
 	}
 }
 
+class epv_greater {
+public:
+	int operator()(event_proc *const&l1, event_proc *const&l2)
+	{
+		return (l1->get_priority() > l2->get_priority());
+	}
+};
+
+void
+config::sort_vector(vector<event_proc *> &v)
+{
+	sort(v.begin(), v.end(), epv_greater());
+}
+
 void
 config::parse(void)
 {
@@ -336,6 +375,9 @@ config::parse(void)
 	parse_one_file(CF);
 	for (i = _dir_list.begin(); i != _dir_list.end(); i++)
 		parse_files_in_dir((*i).c_str());
+	sort_vector(_attach_list);
+	sort_vector(_detach_list);
+	sort_vector(_nomatch_list);
 }
 
 void
@@ -392,6 +434,8 @@ config::push_var_table()
 	
 	vl = new var_list();
 	_var_list_table.push_back(vl);
+	if (dflag)
+		fprintf(stderr, "Pushing table\n");
 }
 
 void
@@ -399,6 +443,8 @@ config::pop_var_table()
 {
 	delete _var_list_table.back();
 	_var_list_table.pop_back();
+	if (dflag)
+		fprintf(stderr, "Popping table\n");
 }
 
 void
@@ -414,14 +460,20 @@ config::get_variable(const string &var)
 
 	for (i = _var_list_table.rbegin(); i != _var_list_table.rend(); i++) {
 		if ((*i)->is_set(var))
-			return (var);
+			return ((*i)->get_variable(var));
 	}
 	return (var_list::nothing);
 }
 
-// Hey script |<idz, here's a routine chock-full-o-buffer-overflows.
+bool
+config::is_id_char(char ch)
+{
+	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' || 
+	    ch == '-'));
+}
+
 // XXX
-// imp should learn how to make effective use of the string class for the shit.
+// imp should learn how to make effective use of the string class.
 void
 config::expand_one(const char *&src, char *&dst, char *)
 {
@@ -430,6 +482,7 @@ config::expand_one(const char *&src, char *&dst, char *)
 	char buffer[1024];
 	string varstr;
 
+	src++;
 	// $$ -> $
 	if (*src == '$') {
 		*dst++ = *src++;
@@ -437,7 +490,8 @@ config::expand_one(const char *&src, char *&dst, char *)
 	}
 		
 	// $(foo) -> $(foo)
-	// Not sure if I want to support this or not, so for now we just pass it through.
+	// Not sure if I want to support this or not, so for now we just pass
+	// it through.
 	if (*src == '(') {
 		*dst++ = '$';
 		count = 1;
@@ -460,7 +514,7 @@ config::expand_one(const char *&src, char *&dst, char *)
 
 	// $var -> replace with value
 	var = src++;
-	while (*src && isalpha(*src) || isdigit(*src) || *src == '_' || *src == '-')
+	while (is_id_char(*src))
 		src++;
 	memcpy(buffer, var, src - var);
 	buffer[src - var] = '\0';
@@ -480,7 +534,7 @@ config::expand_string(const string &s)
 	dst = buffer;
 	while (*src) {
 		if (*src == '$')
-			expand_one(++src, dst, buffer + sizeof(buffer));
+			expand_one(src, dst, buffer + sizeof(buffer));
 		else
 			*dst++ = *src++;
 	}
@@ -489,31 +543,117 @@ config::expand_string(const string &s)
 	return (buffer);
 }
 
+bool
+config::chop_var(char *&buffer, char *&lhs, char *&rhs)
+{
+	char *walker;
+	
+	if (*buffer == '\0')
+		return (false);
+	walker = lhs = buffer;
+	while (is_id_char(*walker))
+		walker++;
+	if (*walker != '=')
+		return (false);
+	walker++;		// skip =
+	if (*walker == '"') {
+		walker++;	// skip "
+		rhs = walker;
+		while (*walker && *walker != '"')
+			walker++;
+		if (*walker != '"')
+			return (false);
+		rhs[-2] = '\0';
+		*walker++ = '\0';
+	} else {
+		rhs = walker;
+		while (*walker && !isspace(*walker))
+			walker++;
+		if (*walker != '\0')
+			*walker++ = '\0';
+		rhs[-1] = '\0';
+	}
+	buffer = walker;
+	return (true);
+}
+
+
+char *
+config::set_vars(char *buffer)
+{
+	char *lhs;
+	char *rhs;
+
+	while (1) {
+		if (!chop_var(buffer, lhs, rhs))
+			break;
+		set_variable(lhs, rhs);
+	}
+	return (buffer);
+}
+
+void
+config::find_and_execute(char type)
+{
+	vector<event_proc *> *l;
+	vector<event_proc *>::const_iterator i;
+	char *s;
+
+	switch (type) {
+	default:
+		return;
+	case nomatch:
+		l = &_nomatch_list;
+		s = "nomatch";
+		break;
+	case attach:
+		l = &_attach_list;
+		s = "attach";
+		break;
+	case detach:
+		l = &_detach_list;
+		s = "detach";
+		break;
+	}
+	if (dflag)
+		fprintf(stderr, "Processing %s event\n", s);
+	for (i = l->begin(); i != l->end(); i++) {
+		if ((*i)->matches(*this)) {
+			(*i)->run(*this);
+			break;
+		}
+	}
+
+}
+
 
 static void
-process_event(const char *buffer)
+process_event(char *buffer)
 {
 	char type;
-	char cmd[1024];
 	char *sp;
 
-	// XXX should involve config
-	// XXX and set some variables
-	// XXX run the list and so forth
-
-	// Ignore unknown devices for now.
-	if (*buffer == '?')
-		return;
-	type = *buffer++;
-	sp = strchr(buffer, ' ');
-	if (sp == NULL)
-		return;	/* Can't happen? */
-	*sp = '\0';
-	snprintf(cmd, sizeof(cmd), "/etc/devd-generic %s %s", buffer,
-	    type == '+' ? "start" : "stop");
+	sp = buffer + 1;
 	if (dflag)
-		printf("Trying '%s'\n", cmd);
-	system(cmd);
+		fprintf(stderr, "Processing event '%s'\n", buffer);
+	type = *buffer++;
+	cfg.push_var_table();
+	// No match doesn't have a device, and the format is a little
+	// different, so handle it separately.
+	if (type != nomatch) {
+		sp = strchr(sp, ' ');
+		if (sp == NULL)
+			return;	/* Can't happen? */
+		*sp++ = '\0';
+		cfg.set_variable("device-name", buffer);
+	}
+	if (strncmp(sp, "at ", 3) == 0)
+		sp += 3;
+	sp = cfg.set_vars(sp);
+	if (strncmp(sp, "on ", 3) == 0)
+		cfg.set_variable("bus", sp + 3);
+	cfg.find_and_execute(type);
+	cfg.pop_var_table();
 }
 
 static void
