@@ -19,7 +19,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -I${.CURDIR}/../../sys
-.if ${MACHINE_ARCH} != "i386"
+.if ${MACHINE_ARCH} != "i386" || defined(X_AS_PKG)
 CFLAGS+= -DX_AS_PKG
 .endif
 
