@@ -56,29 +56,29 @@
 #ifdef __FreeBSD__
 #include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
-#endif
 
 #if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>	/* for bus space */
 #include <machine/bus.h>
 #include <sys/bus.h>
 #endif
+#endif
 
 #ifdef __NetBSD__
-#include <dev/ic/ioctl_meteor.h>	/* NetBSD location for .h files */
-#include <dev/ic/ioctl_bt848.h>
+#include <dev/ic/bt8xx.h>	/* NetBSD location for .h files */
+#include <dev/pci/bktr/bktr_reg.h>
+#include <dev/pci/bktr/bktr_core.h>
+#include <dev/pci/bktr/bktr_tuner.h>
+#include <dev/pci/bktr/bktr_card.h>
+#include <dev/pci/bktr/bktr_audio.h>
 #else
 #include <machine/ioctl_meteor.h>	/* Traditional location for .h files */
 #include <machine/ioctl_bt848.h>        /* extensions to ioctl_meteor.h */
-#endif
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
 #include <dev/bktr/bktr_audio.h>
-
-#ifdef __NetBSD__
-static int bootverbose = 1;
 #endif
 
 /* Various defines */
@@ -110,7 +110,7 @@ static int bootverbose = 1;
 #define PFC8582_WADDR           0xa0
 #define PFC8582_RADDR		0xa1
 
-#if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
+#if BKTR_SYSTEM_DEFAULT == BROOKTREE_PAL
 #define DEFAULT_TUNER   PHILIPS_PALI
 #else
 #define DEFAULT_TUNER   PHILIPS_NTSC
@@ -474,9 +474,9 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 
 /*
  * determine the card brand/model
- * OVERRIDE_CARD, OVERRIDE_TUNER, OVERRIDE_DBX and OVERRIDE_MSP
- * can be used to select a specific device, regardless of the
- * autodetection and i2c device checks.
+ * BKTR_OVERRIDE_CARD, BKTR_OVERRIDE_TUNER, BKTR_OVERRIDE_DBX and
+ * BKTR_OVERRIDE_MSP can be used to select a specific device,
+ * regardless of the autodetection and i2c device checks.
  *
  * The scheme used for probing cards faces these problems:
  *  It is impossible to work out which type of tuner is actually fitted,
@@ -541,7 +541,8 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	/* Select all GPIO bits as inputs */
 	OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
 	if (bootverbose)
-	    printf("bktr: GPIO is 0x%08x\n", INL(bktr, BKTR_GPIO_DATA));
+	    printf("%s: GPIO is 0x%08x\n", bktr_name(bktr),
+		   INL(bktr, BKTR_GPIO_DATA)); 
 
 #ifdef HAUPPAUGE_MSP_RESET
 	/* Reset the MSP34xx audio chip. This resolves bootup card
@@ -562,8 +563,8 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 
 
 	/* Check for a user specified override on the card selection */
-#if defined( OVERRIDE_CARD )
-	bktr->card = cards[ (card = OVERRIDE_CARD) ];
+#if defined( BKTR_OVERRIDE_CARD )
+	bktr->card = cards[ (card = BKTR_OVERRIDE_CARD) ];
 	goto checkEEPROM;
 #endif
 	if (bktr->bt848_card != -1 ) {
@@ -605,7 +606,7 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
                 subsystem_vendor_id = (byte_254 << 8) | byte_255;
 
 	        if ( bootverbose ) 
-	            printf("subsystem 0x%04x 0x%04x\n",
+	            printf("%s: subsystem 0x%04x 0x%04x\n", bktr_name(bktr),
 			   subsystem_vendor_id, subsystem_id);
 
                 if (subsystem_vendor_id == VENDOR_AVER_MEDIA) {
@@ -652,11 +653,13 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 
                 /* Vendor is unknown. We will use the standard probe code */
 		/* which may not give best results */
-                printf("Warning - card vendor 0x%04x (model 0x%04x) unknown.\n",subsystem_vendor_id,subsystem_id);
+                printf("%s: Warning - card vendor 0x%04x (model 0x%04x) unknown.\n",
+		       bktr_name(bktr), subsystem_vendor_id, subsystem_id);
             }
 	    else
 	    {
-                printf("Card has no configuration EEPROM. Cannot determine card make.\n");
+                printf("%s: Card has no configuration EEPROM. Cannot determine card make.\n",
+		       bktr_name(bktr));
 	    }
 	} /* end of bt878/bt879 card detection code */
 
@@ -705,8 +708,10 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
                             goto checkTuner;
 		    }
-		    printf("Warning: Unknown card type. EEPROM data not recognised\n");
-		    printf("%x %x %x %x\n",eeprom[0],eeprom[1],eeprom[2],eeprom[3]);
+		    printf("%s: Warning: Unknown card type. EEPROM data not recognised\n",
+			   bktr_name(bktr));
+		    printf("%s: %x %x %x %x\n", bktr_name(bktr),
+			   eeprom[0],eeprom[1],eeprom[2],eeprom[3]);
             }
 
             /* look for an STB card */
@@ -722,7 +727,7 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	signCard( bktr, 1, 128, (u_char *)  &probe_signature );
 
 	if (bootverbose) {
-	  printf("card signature \n");
+	  printf("%s: card signature: ", bktr_name(bktr));
 	  for (j = 0; j < Bt848_MAX_SIGN; j++) {
 	    printf(" %02x ", probe_signature[j]);
 	  }
@@ -783,8 +788,8 @@ checkTuner:
 		goto checkDBX;
 	}
 
-#if defined( OVERRIDE_TUNER )
-	select_tuner( bktr, OVERRIDE_TUNER );
+#if defined( BKTR_OVERRIDE_TUNER )
+	select_tuner( bktr, BKTR_OVERRIDE_TUNER );
 	goto checkDBX;
 #endif
 	if (bktr->bt848_tuner != -1 ) {
@@ -870,13 +875,13 @@ checkTuner:
 		model    = (eeprom[12] << 8  | eeprom[11]);
 		revision = (eeprom[15] << 16 | eeprom[14] << 8 | eeprom[13]);
 		if (verbose)
-		    printf("bktr%d: Hauppauge Model %d %c%c%c%c\n",
-			unit,
-			model,
-			((revision >> 18) & 0x3f) + 32,
-			((revision >> 12) & 0x3f) + 32,
-			((revision >>  6) & 0x3f) + 32,
-			((revision >>  0) & 0x3f) + 32 );
+		    printf("%s: Hauppauge Model %d %c%c%c%c\n",
+			   bktr_name(bktr),
+			   model,
+			   ((revision >> 18) & 0x3f) + 32,
+			   ((revision >> 12) & 0x3f) + 32,
+			   ((revision >>  6) & 0x3f) + 32,
+			   ((revision >>  0) & 0x3f) + 32 );
 
 	        /* Determine the tuner type from the eeprom */
 		tuner_code = eeprom[9];
@@ -927,7 +932,8 @@ checkTuner:
 		    goto checkDBX;
 
 	          default :
-		    printf("Warning - Unknown Hauppauge Tuner 0x%x\n",tuner_code);
+		    printf("%s: Warning - Unknown Hauppauge Tuner 0x%x\n",
+			   bktr_name(bktr), tuner_code);
 		}
 	    }
 	    break;
@@ -994,13 +1000,13 @@ checkTuner:
 			goto checkDBX;
 		}
 
-	    	printf("Warning - Unknown AVerMedia Tuner Make %d Format %d\n",
-			tuner_make, tuner_format);
+	    	printf("%s: Warning - Unknown AVerMedia Tuner Make %d Format %d\n",
+			bktr_name(bktr), tuner_make, tuner_format);
 	    }
 	    break;
 
 	case CARD_LEADTEK:
-#if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
+#if BKTR_SYSTEM_DEFAULT == BROOKTREE_PAL
 	    select_tuner( bktr, PHILIPS_FR1216_PAL );
 #else
 	    select_tuner( bktr, PHILIPS_FR1236_NTSC );
@@ -1035,8 +1041,8 @@ checkTuner:
 
 
 checkDBX:
-#if defined( OVERRIDE_DBX )
-	bktr->card.dbx = OVERRIDE_DBX;
+#if defined( BKTR_OVERRIDE_DBX )
+	bktr->card.dbx = BKTR_OVERRIDE_DBX;
 	goto checkMSP;
 #endif
    /* Check for i2c devices */
@@ -1073,8 +1079,8 @@ checkMSP:
         }
 #endif
 
-#if defined( OVERRIDE_MSP )
-	bktr->card.msp3400c = OVERRIDE_MSP;
+#if defined( BKTR_OVERRIDE_MSP )
+	bktr->card.msp3400c = BKTR_OVERRIDE_MSP;
 	goto checkMSPEnd;
 #endif
 
@@ -1092,9 +1098,9 @@ checkMSPEnd:
 	if (bktr->card.msp3400c) {
 		bktr->msp_addr = MSP3400C_WADDR;
 		msp_read_id( bktr );
-		printf("bktr%d: Detected a MSP%s at 0x%x\n", unit,
-				bktr->msp_version_string,
-				bktr->msp_addr);
+		printf("%s: Detected a MSP%s at 0x%x\n", bktr_name(bktr),
+		       bktr->msp_version_string,
+		       bktr->msp_addr);
 
 	}
 
@@ -1106,9 +1112,9 @@ checkMSPEnd:
 	if (bktr->card.dpl3518a) {
 		bktr->dpl_addr = DPL3518A_WADDR;
 		dpl_read_id( bktr );
-		printf("bktr%d: Detected a DPL%s at 0x%x\n", unit,
-				bktr->dpl_version_string,
-				bktr->dpl_addr);
+		printf("%s: Detected a DPL%s at 0x%x\n", bktr_name(bktr),
+		       bktr->dpl_version_string,
+		       bktr->dpl_addr);
 	}
 
 /* Start of Check Remote */
@@ -1170,7 +1176,7 @@ checkPLLEnd:
 	bktr->card.tuner_pllAddr = tuner_i2c_address;
 
 	if ( verbose ) {
-		printf( "%s", bktr->card.name );
+		printf( "%s: %s", bktr_name(bktr), bktr->card.name );
 		if ( bktr->card.tuner )
 			printf( ", %s tuner", bktr->card.tuner->name );
 		if ( bktr->card.dbx )
