@@ -767,6 +767,7 @@ mm_bsdauth_respond(void *ctx, u_int numresponses, char **responses)
 	return ((authok == 0) ? -1 : 0);
 }
 
+#ifdef SKEY
 int
 mm_skey_query(void *ctx, char **name, char **infotxt,
    u_int *numprompts, char ***prompts, u_int **echo_on)
@@ -829,6 +830,7 @@ mm_skey_respond(void *ctx, u_int numresponses, char **responses)
 
 	return ((authok == 0) ? -1 : 0);
 }
+#endif
 
 void
 mm_ssh1_session_id(u_char session_id[16])

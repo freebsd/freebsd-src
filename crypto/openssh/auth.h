@@ -1,4 +1,5 @@
 /*	$OpenBSD: auth.h,v 1.39 2002/05/31 11:35:15 markus Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -188,5 +189,12 @@ void	 auth_debug_reset(void);
 #define AUTH_FAIL_LOG (AUTH_FAIL_MAX/2)
 #define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
 
+#ifdef SKEY
+#ifdef OPIE
+#define SKEY_PROMPT "\nOPIE Password: "
+#else
 #define SKEY_PROMPT "\nS/Key Password: "
+#endif
+#endif
+
 #endif

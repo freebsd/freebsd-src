@@ -1,4 +1,5 @@
 # $Id: configure.ac,v 1.67 2002/06/21 00:01:19 mouring Exp $
+# $FreeBSD$
 
 AC_INIT
 AC_CONFIG_SRCDIR([ssh.c])
@@ -503,6 +504,41 @@ int main() { char *ff = skey_keyinfo(""); ff=""; return 0; }
 				[
 					AC_MSG_RESULT(no)
 					AC_MSG_ERROR([** Incomplete or missing s/key libraries.])
+				])
+		fi
+	]
+)
+
+# Check whether user wants OPIE support
+OPIE_MSG="no" 
+AC_ARG_WITH(opie,
+	[  --with-opie[[=PATH]]      Enable OPIE support
+                            (optionally in PATH)],
+	[
+		if test "x$withval" != "xno" ; then
+
+			if test "x$withval" != "xyes" ; then
+				CPPFLAGS="$CPPFLAGS -I${withval}/include"
+				LDFLAGS="$LDFLAGS -L${withval}/lib"
+			fi
+
+			AC_DEFINE(SKEY)
+			AC_DEFINE(OPIE)
+			LIBS="-lopie $LIBS"
+			OPIE_MSG="yes" 
+	
+			AC_MSG_CHECKING([for opie support])
+			AC_TRY_RUN(
+				[
+#include <sys/types.h>
+#include <stdio.h>
+#include <opie.h>
+int main() { char *ff = opie_keyinfo(""); ff=""; return 0; }
+				],
+				[AC_MSG_RESULT(yes)],
+				[
+					AC_MSG_RESULT(no)
+					AC_MSG_ERROR([** Incomplete or missing opie libraries.])
 				])
 		fi
 	]
@@ -1583,7 +1619,11 @@ AC_CACHE_CHECK([whether getopt has optreset support],
 		ac_cv_have_getopt_optreset, [
 	AC_TRY_LINK(
 		[
+#if HAVE_GETOPT_H
 #include <getopt.h>
+#elif HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 		],
 		[ extern int optreset; optreset = 0; ],
 		[ ac_cv_have_getopt_optreset="yes" ],
@@ -2391,6 +2431,7 @@ echo "                 KerberosV support: $KRB5_MSG"
 echo "                 Smartcard support: $SCARD_MSG"
 echo "                       AFS support: $AFS_MSG"
 echo "                     S/KEY support: $SKEY_MSG"
+echo "                      OPIE support: $OPIE_MSG"
 echo "              TCP Wrappers support: $TCPW_MSG"
 echo "              MD5 password support: $MD5_MSG"
 echo "       IP address in \$DISPLAY hack: $DISPLAY_HACK_MSG"
