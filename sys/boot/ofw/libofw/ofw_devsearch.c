@@ -28,7 +28,6 @@
 #include <stand.h>
 
 #include "libofw.h"
-#include "openfirm.h"
 
 static phandle_t	curnode;
 
