@@ -401,7 +401,6 @@ i4b/layer1/i4b_tel_s0P.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/psm.c			optional	psm
 kern/subr_diskmbr.c		optional	compat_atdisk
-libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/index.c			standard
