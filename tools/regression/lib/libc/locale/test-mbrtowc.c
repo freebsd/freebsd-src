@@ -144,6 +144,17 @@ main(int argc, char *argv[])
 	assert(mbrtowc(&wc, buf, 2, &s) == 2);
 	assert(wc == 0xa3c1);
 
+	/* Test restarting behaviour. */
+	memset(buf, 0xcc, sizeof(buf));
+	buf[0] = 0xa3;
+	memset(&s, 0, sizeof(s));
+	wc = 0;
+	assert(mbrtowc(&wc, buf, 1, &s) == (size_t)-2);
+	assert(wc == 0);
+	buf[0] = 0xc1;
+	assert(mbrtowc(&wc, buf, 1, &s) == 1);
+	assert(wc == 0xa3c1);
+
 	printf("PASS mbrtowc()\n");
 
 	return (0);
