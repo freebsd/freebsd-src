@@ -380,12 +380,6 @@ ready_event(struct dn_flow_queue *q)
         DN_NEXT(p->p.tail) = NULL;
     }
     /*
-     * If the delay line was empty call transmit_event(p) now.
-     * Otherwise, the scheduler will take care of it.
-     */
-    if (p_was_empty)
-	transmit_event(p);
-    /*
      * If we have more packets queued, schedule next ready event
      * (can only occur when bandwidth != 0, otherwise we would have
      * flushed the whole queue in the previous loop).
@@ -403,6 +397,12 @@ ready_event(struct dn_flow_queue *q)
 	 * queue on error hoping next time we are luckier.
 	 */
     }
+    /*
+     * If the delay line was empty call transmit_event(p) now.
+     * Otherwise, the scheduler will take care of it.
+     */
+    if (p_was_empty)
+	transmit_event(p);
 }
 
 /*
