@@ -74,7 +74,7 @@ static struct smb_dialect smb_dialects[] = {
 static int
 smb_smb_nomux(struct smb_vc *vcp, struct smb_cred *scred, const char *name)
 {
-	if (scred->scr_p == vcp->vc_iod->iod_p)
+	if (scred->scr_td->td_proc == vcp->vc_iod->iod_p)
 		return 0;
 	SMBERROR("wrong function called(%s)\n", name);
 	return EINVAL;
