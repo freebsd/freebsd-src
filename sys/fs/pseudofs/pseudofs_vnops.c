@@ -525,6 +525,11 @@ pfs_read(struct vop_read_args *va)
 			PRELE(proc);
 		PFS_RETURN (EINVAL);
 	}
+	if (buflen > MAXPHYS) {
+		if (proc != NULL)
+			PRELE(proc);
+		PFS_RETURN (EIO);
+	}
 	sb = sbuf_new(sb, NULL, buflen, 0);
 	if (sb == NULL) {
 		if (proc != NULL)
