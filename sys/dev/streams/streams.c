@@ -264,7 +264,8 @@ streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 	if ((error = falloc(td, &fp, &fd)) != 0)
 	  return error;
 
-	if ((error = socreate(family, &so, type, protocol, td)) != 0) {
+	if ((error = socreate(family, &so, type, protocol,
+	    td->td_proc->p_ucred, td)) != 0) {
 	  p->p_fd->fd_ofiles[fd] = 0;
 	  ffree(fp);
 	  return error;

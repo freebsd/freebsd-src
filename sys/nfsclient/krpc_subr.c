@@ -215,7 +215,8 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
-	if ((error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td)))
+	if ((error = socreate(AF_INET, &so, SOCK_DGRAM, 0,
+	    td->td_proc->p_ucred, td)))
 		goto out;
 
 	tv.tv_sec = 1;

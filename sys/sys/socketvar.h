@@ -383,7 +383,7 @@ int	soclose __P((struct socket *so));
 int	soconnect __P((struct socket *so, struct sockaddr *nam, struct thread *td));
 int	soconnect2 __P((struct socket *so1, struct socket *so2));
 int	socreate __P((int dom, struct socket **aso, int type, int proto,
-	    struct thread *td));
+	    struct ucred *cred, struct thread *td));
 int	sodisconnect __P((struct socket *so));
 void	sofree __P((struct socket *so));
 int	sogetopt __P((struct socket *so, struct sockopt *sopt));
