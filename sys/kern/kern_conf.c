@@ -68,6 +68,63 @@ static LIST_HEAD(, cdev) dev_free;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
+static struct mtx devmtx;
+static void freedev(dev_t dev);
+
+static void
+devlock(void)
+{
+	if (!mtx_initialized(&devmtx))
+		mtx_init(&devmtx, "dev_t", NULL, MTX_DEF);
+	mtx_lock(&devmtx);
+}
+
+static void
+devunlock(void)
+{
+	mtx_unlock(&devmtx);
+}
+
+void
+dev_ref(dev_t dev)
+{
+	devlock();
+	dev->si_refcount++;
+	devunlock();
+}
+
+void
+dev_rel(dev_t dev)
+{
+	devlock();
+	dev->si_refcount--;
+	KASSERT(dev->si_refcount >= 0,
+	    ("dev_rel(%s) gave negative count", devtoname(dev)));
+	if (dev->si_devsw == NULL && dev->si_refcount == 0) {
+		LIST_REMOVE(dev, si_list);
+		freedev(dev);
+	}
+	devunlock();
+}
+
+void
+cdevsw_ref(struct cdevsw *csw)
+{
+	devlock();
+	csw->d_refcount++;
+	devunlock();
+}
+
+void
+cdevsw_rel(struct cdevsw *csw)
+{
+	devlock();
+	csw->d_refcount--;
+	KASSERT(csw->d_refcount >= 0,
+	    ("cdevsw_vrel(%s) gave negative count", csw->d_name));
+	devunlock();
+}
+
 static dev_t makedev(int x, int y);
 
 int
@@ -178,7 +235,7 @@ no_poll(dev_t dev __unused, int events, struct thread *td __unused)
 struct cdevsw *
 devsw(dev_t dev)
 {
-	if (dev->si_devsw)
+	if (dev->si_devsw != NULL)
 		return (dev->si_devsw);
 	return (&dead_cdevsw);
 }
@@ -230,7 +287,6 @@ allocdev(void)
 
 	if (LIST_FIRST(&dev_free)) {
 		si = LIST_FIRST(&dev_free);
-		LIST_REMOVE(si, si_hash);
 	} else if (stashed >= DEVT_STASH) {
 		MALLOC(si, struct cdev *, sizeof(*si), M_DEVT,
 		    M_USE_RESERVE | M_ZERO | M_WAITOK);
@@ -267,17 +323,10 @@ makedev(int x, int y)
 	return (si);
 }
 
-void
+static void
 freedev(dev_t dev)
 {
 
-	if (!free_devt)
-		return;
-	if (SLIST_FIRST(&dev->si_hlist))
-		return;
-	if (dev->si_devsw || dev->si_drv1 || dev->si_drv2)
-		return;
-	LIST_REMOVE(dev, si_hash);
 	if (dev->si_flags & SI_STASHED) {
 		bzero(dev, sizeof(*dev));
 		dev->si_flags |= SI_STASHED;
@@ -340,12 +389,41 @@ find_major(struct cdevsw *devsw)
 	KASSERT(i > 0, ("Out of major numbers (%s)", devsw->d_name));
 	devsw->d_maj = i;
 	reserved_majors[i] = i;
+	devsw->d_flags |= D_ALLOCMAJ;
+}
+
+static void
+fini_cdevsw(struct cdevsw *devsw)
+{
+	if (devsw->d_flags & D_ALLOCMAJ) {
+		reserved_majors[devsw->d_maj] = 0;
+		devsw->d_maj = MAJOR_AUTO;
+		devsw->d_flags &= ~D_ALLOCMAJ;
+	}
 }
 
 static void
 prep_cdevsw(struct cdevsw *devsw)
 {
 
+	devlock();
+
+	if (devsw->d_version != D_VERSION_00) {
+		printf(
+		    "WARNING: Device driver \"%s\" has wrong version %s\n",
+		    devsw->d_name, "and is disabled.  Recompile KLD module.");
+		devsw->d_open = dead_open;
+		devsw->d_close = dead_close;
+		devsw->d_read = dead_read;
+		devsw->d_write = dead_write;
+		devsw->d_ioctl = dead_ioctl;
+		devsw->d_poll = dead_poll;
+		devsw->d_mmap = dead_mmap;
+		devsw->d_strategy = dead_strategy;
+		devsw->d_dump = dead_dump;
+		devsw->d_kqfilter = dead_kqfilter;
+	}
+	
 	if (devsw->d_flags & D_TTY) {
 		if (devsw->d_read == NULL)	devsw->d_read = ttyread;
 		if (devsw->d_write == NULL)	devsw->d_write = ttywrite;
@@ -363,6 +441,11 @@ prep_cdevsw(struct cdevsw *devsw)
 	if (devsw->d_strategy == NULL)	devsw->d_strategy = no_strategy;
 	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
 	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = no_kqfilter;
+
+	LIST_INIT(&devsw->d_devs);
+
+	devsw->d_flags |= D_INIT;
+
 	if (devsw->d_maj == MAJOR_AUTO) {
 		find_major(devsw);
 	} else {
@@ -377,34 +460,37 @@ prep_cdevsw(struct cdevsw *devsw)
 			reserved_majors[devsw->d_maj] = devsw->d_maj;
 		}
 	}
+	devunlock();
 }
 
 dev_t
-make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms,
-    const char *fmt, ...)
+make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
 {
 	dev_t dev;
 	va_list ap;
 	int i;
 
-	KASSERT((minor & ~0xffff00ff) == 0,
-	    ("Invalid minor (0x%x) in make_dev", minor));
-	prep_cdevsw(devsw);
-	dev = makedev(devsw->d_maj, minor);
+	KASSERT((minornr & ~0xffff00ff) == 0,
+	    ("Invalid minor (0x%x) in make_dev", minornr));
+
+	if (!(devsw->d_flags & D_INIT))
+		prep_cdevsw(devsw);
+	dev = makedev(devsw->d_maj, minornr);
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED &&
 	    dev->si_devsw == devsw) {
 		/*
 		 * This is allowed as it removes races and generally
 		 * simplifies cloning devices.
+		 * XXX: still ??
 		 */
 		return (dev);
 	}
-	if (dev->si_flags & SI_NAMED) {
-		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
-		    dev->si_name);
-		panic("don't do that");
-	}
+	devlock();
+	KASSERT(!(dev->si_flags & SI_NAMED),
+	    ("make_dev() by driver %s on pre-existing device (maj=%d, min=%d, name=%s)",
+	    devsw->d_name, major(dev), minor(dev), devtoname(dev)));
+
 	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
 	if (i > (sizeof dev->__si_namebuf - 1)) {
@@ -418,7 +504,9 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms,
 	dev->si_mode = perms;
 	dev->si_flags |= SI_NAMED;
 
+	LIST_INSERT_HEAD(&devsw->d_devs, dev, si_list);
 	devfs_create(dev);
+	devunlock();
 	return (dev);
 }
 
@@ -439,9 +527,11 @@ void
 dev_depends(dev_t pdev, dev_t cdev)
 {
 
+	devlock();
 	cdev->si_parent = pdev;
 	cdev->si_flags |= SI_CHILD;
 	LIST_INSERT_HEAD(&pdev->si_children, cdev, si_siblings);
+	devunlock();
 }
 
 dev_t
@@ -452,9 +542,9 @@ make_dev_alias(dev_t pdev, const char *fmt, ...)
 	int i;
 
 	dev = allocdev();
+	devlock();
 	dev->si_flags |= SI_ALIAS;
 	dev->si_flags |= SI_NAMED;
-	dev_depends(pdev, dev);
 	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
 	if (i > (sizeof dev->__si_namebuf - 1)) {
@@ -464,13 +554,14 @@ make_dev_alias(dev_t pdev, const char *fmt, ...)
 	va_end(ap);
 
 	devfs_create(dev);
+	devunlock();
+	dev_depends(pdev, dev);
 	return (dev);
 }
 
-void
-destroy_dev(dev_t dev)
+static void
+idestroy_dev(dev_t dev)
 {
-	
 	if (!(dev->si_flags & SI_NAMED)) {
 		printf( "WARNING: Driver mistake: destroy_dev on %d/%d\n",
 		    major(dev), minor(dev));
@@ -478,24 +569,55 @@ destroy_dev(dev_t dev)
 	}
 		
 	devfs_destroy(dev);
+
+	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
 
+	/* If we are a child, remove us from the parents list */
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
 		dev->si_flags &= ~SI_CHILD;
 	}
+
+	/* Kill our children */
 	while (!LIST_EMPTY(&dev->si_children))
-		destroy_dev(LIST_FIRST(&dev->si_children));
+		idestroy_dev(LIST_FIRST(&dev->si_children));
+
+	/* Remove from clone list */
 	if (dev->si_flags & SI_CLONELIST) {
 		LIST_REMOVE(dev, si_clone);
 		dev->si_flags &= ~SI_CLONELIST;
 	}
+
+	if (!(dev->si_flags & SI_ALIAS)) {
+		/* Remove from cdevsw list */
+		LIST_REMOVE(dev, si_list);
+
+		/* If cdevsw has no dev_t's, clean it */
+		if (LIST_EMPTY(&dev->si_devsw->d_devs))
+			fini_cdevsw(dev->si_devsw);
+
+		LIST_REMOVE(dev, si_hash);
+	}
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
-	dev->si_devsw = 0;
+	dev->si_devsw = NULL;
 	bzero(&dev->__si_u, sizeof(dev->__si_u));
 	dev->si_flags &= ~SI_ALIAS;
-	freedev(dev);
+	if (dev->si_refcount > 0) {
+		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
+	} else {
+		freedev(dev);
+	}
+}
+
+void
+destroy_dev(dev_t dev)
+{
+
+	devlock();
+	idestroy_dev(dev);
+	devunlock();
 }
 
 const char *
@@ -672,12 +794,11 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (ud == NOUDEV)
 		return(EINVAL);
-	dev = makedev(umajor(ud), uminor(ud));
-	if (dev->si_name[0] == '\0')
+	dev = udev2dev(ud);
+	if (dev == NODEV)
 		error = ENOENT;
 	else
 		error = SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1);
-	freedev(dev);
 	return (error);
 }
 
