@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.24 1994/04/21 14:10:31 sos Exp $
+ *	$Id: conf.c,v 1.26 1994/05/25 08:52:45 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,6 @@ typedef int d_reset_t __P((int));
 typedef int d_select_t __P((dev_t, int, struct proc *));
 typedef int d_mmap_t __P((/* XXX */));
 
-int	nullop(), enxio(), enodev();
 d_rdwr_t rawread, rawwrite;
 d_strategy_t swstrategy;
 
@@ -203,7 +202,6 @@ d_ioctl_t fdioctl;
 
 #define swopen		(d_open_t *)enodev
 #define swclose		(d_close_t *)enodev
-d_strategy_t swstrategy;
 #define swioctl		(d_ioctl_t *)enodev
 #define swdump		(d_dump_t *)enodev
 #define swsize		(d_psize_t *)enodev
@@ -239,12 +237,6 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 
 /* console */
 #include "machine/cons.h"
-
-d_open_t cnopen;
-d_close_t cnclose;
-d_rdwr_t cnread, cnwrite;
-d_ioctl_t cnioctl;
-d_select_t cnselect;
 
 /* more console */
 d_open_t pcopen;
@@ -321,8 +313,6 @@ d_close_t logclose;
 d_rdwr_t logread;
 d_ioctl_t logioctl;
 d_select_t logselect;
-
-d_select_t ttselect, seltrue;
 
 #include "lpt.h"
 #if NLPT > 0

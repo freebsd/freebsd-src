@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.43 1994/08/12 06:36:51 davidg Exp $
+ * $Id: if_ed.c,v 1.44 1994/08/13 03:50:03 wollman Exp $
  */
 
 #include "ed.h"
@@ -130,8 +130,6 @@ void    ed_pio_readmem(), ed_pio_writemem();
 u_short ed_pio_write_mbufs();
 
 void    ed_setrcr(struct ifnet *, struct ed_softc *);
-
-extern int ether_output();
 
 struct trailer_header {
 	u_short ether_type;

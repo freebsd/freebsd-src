@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.27 1994/08/01 11:25:28 davidg Exp $
+ *	$Id: trap.c,v 1.28 1994/08/10 04:39:47 wollman Exp $
  */
 
 /*
@@ -72,8 +72,6 @@
 
 int	trap_pfault	__P((struct trapframe *, int));
 void	trap_fatal	__P((struct trapframe *));
-
-extern int grow(struct proc *,u_int);
 
 struct	sysent sysent[];
 int	nsysent;

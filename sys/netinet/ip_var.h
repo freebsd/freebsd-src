@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ip_var.h,v 1.2 1994/08/02 07:48:47 davidg Exp $
  */
 
 /*
@@ -148,12 +148,11 @@ struct	ipstat {
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
 
-struct	ipstat	ipstat;
-struct	ipq	ipq;			/* ip reass. queue */
-u_short	ip_id;				/* ip packet ctr, for ids */
-int	ip_defttl;			/* default IP ttl */
+extern struct	ipstat	ipstat;
+extern struct	ipq	ipq;			/* ip reass. queue */
+extern u_short	ip_id;				/* ip packet ctr, for ids */
+extern int	ip_defttl;			/* default IP ttl */
 
-int	 in_control __P((struct socket *, int, caddr_t, struct ifnet *));
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 ip_deq __P((struct ipasfrag *));
 int	 ip_dooptions __P((struct mbuf *));

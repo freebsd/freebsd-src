@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.5 1994/05/25 08:51:12 rgrimes Exp $
+ *	$Id: db_command.c,v 1.6 1994/08/13 03:49:16 wollman Exp $
  */
 
 /*
@@ -303,10 +303,9 @@ db_command(last_cmdp, cmd_table)
 /*
  * 'show' commands
  */
-extern void	db_listbreak_cmd();
-extern void	db_listwatch_cmd();
-extern void	db_show_regs(), db_show_one_thread(), db_show_all_threads();
-extern void	vm_map_print(), vm_object_print(), vm_page_print();
+
+extern void	db_show_one_thread(), db_show_all_threads();
+extern void	vm_page_print();
 /* extern void	db_ps(); */
 extern void	ipc_port_print();
 void		db_show_help();
@@ -338,14 +337,6 @@ struct command db_show_cmds[] = {
 	{ (char *)0, }
 };
 
-extern void	db_print_cmd(), db_examine_cmd(), db_set_cmd();
-extern void	db_search_cmd();
-extern void	db_write_cmd();
-extern void	db_delete_cmd(), db_breakpoint_cmd();
-extern void	db_deletewatch_cmd(), db_watchpoint_cmd();
-extern void	db_single_step_cmd(), db_trace_until_call_cmd(),
-		db_trace_until_matching_cmd(), db_continue_cmd();
-extern void	db_stack_trace_cmd();
 void		db_help_cmd();
 void		db_fncall();
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.4 1993/12/19 00:49:42 wollman Exp $
+ *	$Id: db_access.c,v 1.5 1994/08/13 03:49:13 wollman Exp $
  */
 
 /*
@@ -39,9 +39,6 @@
  * Access unaligned data items on aligned (longword)
  * boundaries.
  */
-
-extern void	db_read_bytes();	/* machine-dependent */
-extern void	db_write_bytes();	/* machine-dependent */
 
 unsigned db_extend[] = {	/* table for sign-extending */
 	0,

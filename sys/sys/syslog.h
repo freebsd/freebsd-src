@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: syslog.h,v 1.2 1994/08/02 07:53:43 davidg Exp $
  */
 
 #define	_PATH_LOG	"/dev/log"
@@ -165,7 +165,9 @@ CODE facilitynames[] = {
 #define	LOG_NOWAIT	0x10	/* don't wait for console forks: DEPRECATED */
 #define	LOG_PERROR	0x20	/* log to stderr as well */
 
-#ifndef KERNEL
+#ifdef KERNEL
+
+#else /* not KERNEL */
 
 /*
  * Don't use va_list in the vsyslog() prototype.   Va_list is typedef'd in two

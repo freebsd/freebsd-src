@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id$
+ * $Id: kernfs_vnops.c,v 1.3 1994/08/02 07:45:04 davidg Exp $
  */
 
 /*
@@ -376,7 +376,11 @@ kernfs_getattr(ap)
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	/* vap->va_qsize = 0; */
 	vap->va_blocksize = DEV_BSIZE;
-	microtime(&vap->va_atime);
+	{
+		struct timeval tv;
+		microtime(&tv);
+		TIMEVAL_TO_TIMESPEC(&tv, &vap->va_atime);
+	}
 	vap->va_mtime = vap->va_atime;
 	vap->va_ctime = vap->va_ctime;
 	vap->va_gen = 0;

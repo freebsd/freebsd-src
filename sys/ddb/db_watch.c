@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.3 1993/11/25 01:30:15 wollman Exp $
+ *	$Id: db_watch.c,v 1.4 1994/08/13 03:49:25 wollman Exp $
  */
 
 /*
@@ -45,10 +45,6 @@
 /*
  * Watchpoints.
  */
-
-extern boolean_t db_map_equal();
-extern boolean_t db_map_current();
-extern vm_map_t db_map_addr();
 
 boolean_t	db_watchpoints_inserted = TRUE;
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.3 1993/12/30 01:39:29 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.5 1994/05/25 09:02:00 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -185,6 +185,6 @@ exec_aout_imgact(iparams)
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-static const struct execsw aout_execsw = { exec_aout_imgact };
+static const struct execsw aout_execsw = { exec_aout_imgact, "a.out" };
 TEXT_SET(execsw_set, aout_execsw);
 

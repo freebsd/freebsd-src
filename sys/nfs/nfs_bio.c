@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.3 1994/08/02 07:52:05 davidg Exp $
+ * $Id: nfs_bio.c,v 1.4 1994/08/08 09:11:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,7 @@
 #include <nfs/nfsmount.h>
 #include <nfs/nqnfs.h>
 
-struct buf *incore(), *nfs_getcacheblk();
+struct buf *nfs_getcacheblk();
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 

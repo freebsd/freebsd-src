@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.4 1994/08/08 10:58:30 davidg Exp $
+ * $Id: if.c,v 1.5 1994/08/08 11:43:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,6 @@
 #include <net/if_types.h>
 
 int	ifqmaxlen = IFQ_MAXLEN;
-void	if_slowtimo __P((void *arg));
 
 /*
  * Network interface utility routines.
@@ -97,13 +96,13 @@ if_attach(ifp)
 	struct ifnet *ifp;
 {
 	unsigned socksize, ifasize;
-	int namelen, unitlen, masklen, ether_output();
+	int namelen, unitlen, masklen;
 	char workbuf[12], *unitname;
 	register struct ifnet **p = &ifnet;
 	register struct sockaddr_dl *sdl;
 	register struct ifaddr *ifa;
 	static int if_indexlim = 8;
-	extern void link_rtrequest();
+
 
 	while (*p)
 		p = &((*p)->if_next);
