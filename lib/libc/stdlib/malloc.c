@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.7 1995/12/11 14:28:12 peter Exp $
+ * $Id: malloc.c,v 1.8 1995/12/18 12:03:54 phk Exp $
  *
  */
 
@@ -362,7 +362,7 @@ malloc_exit()
  * Allocate a number of pages from the OS
  */
 static caddr_t
-map_pages(int pages, int update)
+map_pages(int pages)
 {
     caddr_t result,tail;
 
@@ -379,7 +379,7 @@ map_pages(int pages, int update)
     last_index = ptr2index(tail) - 1;
     malloc_brk = tail;
 
-    if (update && last_index >= malloc_ninfo && !extend_pgdir(last_index))
+    if ((last_index+1) >= malloc_ninfo && !extend_pgdir(last_index))
 	return 0;;
 
     return result;
@@ -664,7 +664,7 @@ malloc_pages(size_t size)
 
     /* Map new pages */
     if (!p)
-	p = map_pages(size,1);
+	p = map_pages(size);
 
     if (p) {
 
