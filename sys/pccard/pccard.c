@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.58 1998/04/09 14:01:13 nate Exp $
+ *	$Id: pccard.c,v 1.59 1998/04/20 15:21:02 nate Exp $
  */
 
 #include "opt_devfs.h"
@@ -65,7 +65,11 @@
  * XXX We shouldn't be using processor-specific/bus-specific code in
  * here, but we need the start of the ISA hole (IOM_BEGIN).
  */
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
