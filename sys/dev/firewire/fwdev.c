@@ -728,8 +728,8 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		case FWASREQEUI:
 			fwdev = fw_noderesolve(sc->fc, asyreq->req.dst.eui);
 			if (fwdev == NULL) {
-				printf("%s:cannot find node\n",
-					device_get_nameunit(sc->fc->dev));
+				device_printf(sc->fc->bdev,
+					"cannot find node\n");
 				err = EINVAL;
 				goto error;
 			}
@@ -831,11 +831,6 @@ error:
 	case FW_GTPMAP:
 		bcopy(sc->fc->topology_map, data,
 				(sc->fc->topology_map->crc_len + 1) * 4);
-		break;
-	case FW_GSPMAP:
-		/* speed_map is larger than a page */
-		err = copyout(sc->fc->speed_map, *(void **)data,
-				(sc->fc->speed_map->crc_len + 1) * 4);
 		break;
 	case FW_GCROM:
 		for (fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;

@@ -253,8 +253,9 @@ struct sbp_dev{
 #define SBP_DEV_ATTACHED	5	/* in operation */
 #define SBP_DEV_DEAD		6	/* unavailable unit */
 #define SBP_DEV_RETRY		7	/* unavailable unit */
-	int status;
-	int lun_id;
+	u_int8_t status;
+	u_int8_t type;
+	u_int16_t lun_id;
 	struct cam_path *path;
 	struct sbp_target *target;
 	struct sbp_login_res login;
@@ -388,7 +389,6 @@ END_DEBUG
 static void
 sbp_show_sdev_info(struct sbp_dev *sdev, int new)
 {
-	int lun;
 	struct fw_device *fwdev;
 
 	printf("%s:%d:%d ",
@@ -400,11 +400,10 @@ sbp_show_sdev_info(struct sbp_dev *sdev, int new)
 		return;
 	}
 	fwdev = sdev->target->fwdev;
-	lun = getcsrdata(fwdev, 0x14);
 	printf("ordered:%d type:%d EUI:%08x%08x node:%d "
 		"speed:%d maxrec:%d",
-		(lun & 0x00400000) >> 22,
-		(lun & 0x001f0000) >> 16,
+		(sdev->type & 0x40) >> 6,
+		(sdev->type & 0x1f),
 		fwdev->eui.hi,
 		fwdev->eui.lo,
 		fwdev->dst,
@@ -422,9 +421,11 @@ sbp_show_sdev_info(struct sbp_dev *sdev, int new)
 static struct sbp_target *
 sbp_alloc_target(struct sbp_softc *sbp, struct fw_device *fwdev)
 {
-	int i, lun;
+	int i, maxlun, lun;
 	struct sbp_target *target;
 	struct sbp_dev *sdev;
+	struct crom_context cc;
+	struct csrreg *reg;
 
 SBP_DEBUG(1)
 	printf("sbp_alloc_target\n");
@@ -448,10 +449,26 @@ END_DEBUG
 	}
 	target->mgm_hi = 0xffff;
 	target->mgm_lo = 0xf0000000 | target->mgm_lo << 2;
-	/* XXX should probe all luns */
 	/* XXX num_lun may be changed. realloc luns? */
-	lun = getcsrdata(target->fwdev, 0x14) & 0xff;
-	target->num_lun = lun + 1;
+	crom_init_context(&cc, target->fwdev->csrrom);
+	/* XXX shoud parse appropriate unit directories only */
+	maxlun = -1;
+	while (cc.depth >= 0) {
+		reg = crom_search_key(&cc, CROM_LUN);
+		if (reg == NULL)
+			break;
+		lun = reg->val & 0xff;
+SBP_DEBUG(0)
+		printf("target %d lun %d found\n", target->target_id, lun);
+END_DEBUG
+		if (maxlun < lun)
+			maxlun = lun;
+		crom_next(&cc);
+	}
+	target->num_lun = maxlun + 1;
+	if (maxlun < 0) {
+		printf("no lun found!\n");
+	}
 	target->luns = (struct sbp_dev *) malloc(
 				sizeof(struct sbp_dev) * target->num_lun, 
 				M_SBP, M_NOWAIT | M_ZERO);
@@ -460,10 +477,17 @@ END_DEBUG
 		sdev->lun_id = i;
 		sdev->target = target;
 		STAILQ_INIT(&sdev->ocbs);
-		if (i == lun)
-			sdev->status = SBP_DEV_RESET;
-		else
-			sdev->status = SBP_DEV_DEAD;
+		sdev->status = SBP_DEV_DEAD;
+	}
+	crom_init_context(&cc, target->fwdev->csrrom);
+	while (cc.depth >= 0) {
+		reg = crom_search_key(&cc, CROM_LUN);
+		if (reg == NULL)
+			break;
+		lun = reg->val & 0xff;
+		target->luns[lun].status = SBP_DEV_RESET;
+		target->luns[lun].type = (reg->val & 0x0f00) >> 16;
+		crom_next(&cc);
 	}
 	return target;
 }
@@ -1097,7 +1121,7 @@ END_DEBUG
 	fp->mode.wreqb.dest_lo = htonl(sdev->target->mgm_lo);
 	fp->mode.wreqb.len = htons(8);
 	fp->mode.wreqb.extcode = 0;
-	fp->mode.wreqb.payload[0] = htonl(((sdev->target->sbp->fd.fc->nodeid | FWLOCALBUS )<< 16));
+	fp->mode.wreqb.payload[0] = htonl(nid << 16);
 	fp->mode.wreqb.payload[1] = htonl(vtophys(&ocb->orb[0]));
 	sbp_enqueue_ocb(sdev, ocb);
 
@@ -1329,7 +1353,11 @@ SBP_DEBUG(0)
 
 		sbp_show_sdev_info(sdev, 2);
 		printf("ORB status src:%x resp:%x dead:%x"
+#if __FreeBSD_version >= 500000
 				" len:%x stat:%x orb:%x%08x\n",
+#else
+				" len:%x stat:%x orb:%x%08lx\n",
+#endif
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
 			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
@@ -1643,7 +1671,9 @@ sbp_detach_target(struct sbp_target *target)
 	struct sbp_dev *sdev;
 
 	if (target->luns != NULL) {
+SBP_DEBUG(0)
 		printf("sbp_detach_target %d\n", target->target_id);
+END_DEBUG
 		for (i=0; i < target->num_lun; i++) {
 			sdev = &target->luns[i];
 			if (sdev->status == SBP_DEV_RESET ||
@@ -1998,18 +2028,27 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 SBP_DEBUG(1)
 		printf("sbp_execute_ocb: seg %d", seg);
 		for (i = 0; i < seg; i++)
+#if __FreeBSD_version >= 500000
 			printf(", %tx:%zd", segments[i].ds_addr,
+#else
+			printf(", %x:%d", segments[i].ds_addr,
+#endif
 						segments[i].ds_len);
 		printf("\n");
 END_DEBUG
 		for (i = 0; i < seg; i++) {
 			s = &segments[i];
-#if 1			/* XXX LSI Logic "< 16 byte" bug might be hit */
+SBP_DEBUG(0)
+			/* XXX LSI Logic "< 16 byte" bug might be hit */
 			if (s->ds_len < 16)
 				printf("sbp_execute_ocb: warning, "
+#if __FreeBSD_version >= 500000
 					"segment length(%zd) is less than 16."
-					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+#else
+					"segment length(%d) is less than 16."
 #endif
+					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+END_DEBUG
 			ocb->ind_ptr[i].hi = htonl(s->ds_len << 16);
 			ocb->ind_ptr[i].lo = htonl(s->ds_addr);
 		}
@@ -2042,7 +2081,11 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, u_int32_t orb_lo)
 		next = STAILQ_NEXT(ocb, ocb);
 		flags = ocb->flags;
 SBP_DEBUG(1)
+#if __FreeBSD_version >= 500000
 		printf("orb: 0x%tx next: 0x%x, flags %x\n",
+#else
+		printf("orb: 0x%x next: 0x%lx, flags %x\n",
+#endif
 			vtophys(&ocb->orb[0]), ntohl(ocb->orb[1]), flags);
 END_DEBUG
 		if (vtophys(&ocb->orb[0]) == orb_lo) {
@@ -2088,7 +2131,11 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 
 SBP_DEBUG(2)
 	sbp_show_sdev_info(sdev, 2);
+#if __FreeBSD_version >= 500000
 	printf("sbp_enqueue_ocb orb=0x%tx in physical memory\n", vtophys(&ocb->orb[0]));
+#else
+	printf("sbp_enqueue_ocb orb=0x%x in physical memory\n", vtophys(&ocb->orb[0]));
+#endif
 END_DEBUG
 	prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
@@ -2101,7 +2148,11 @@ END_DEBUG
 		&& ((prev->flags & OCB_ACT_MASK) == OCB_ACT_CMD)
 		&& ((ocb->flags & OCB_ACT_MASK) == OCB_ACT_CMD)) {
 SBP_DEBUG(1)
+#if __FreeBSD_version >= 500000
 	printf("linking chain 0x%tx -> 0x%tx\n", vtophys(&prev->orb[0]),
+#else
+	printf("linking chain 0x%x -> 0x%x\n", vtophys(&prev->orb[0]),
+#endif
 			vtophys(&ocb->orb[0]));
 END_DEBUG
 		prev->flags |= OCB_RESERVED;
