@@ -4,17 +4,12 @@
 #
 
 sed	\
-	-e '/AHC_REG_PRETTY_PRINT/d' \
-	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/DDB/d' \
 	-e '/DEBUG/d' \
-	-e '/DEC_3000_300/d' \
-	-e '/DEC_3000_500/d' \
 	-e '/DEC_KN8AE/d' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
 	-e '/KTRACE/d' \
-	-e '/MFS/d' \
 	-e '/MSDOSFS/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
@@ -25,9 +20,7 @@ sed	\
 	-e '/SYSV/d' \
 	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
-	-e '/WITNESS/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
-	-e '/	apm	/d' \
 	-e '/	atapifd	/d' \
 	-e '/	atapist	/d' \
 	-e '/	aue	/d' \
@@ -35,16 +28,10 @@ sed	\
 	-e '/	cue	/d' \
 	-e '/	faith	/d' \
 	-e '/	gif	/d' \
-	-e '/	gzip	/d' \
 	-e '/	kue	/d' \
-	-e '/	le	/d' \
 	-e '/	lpt	/d' \
-	-e '/	ncr	/d' \
 	-e '/	ohci	/d' \
 	-e '/	pass	/d' \
-	-e '/	pcm	/d' \
-	-e '/	plip	/d' \
-	-e '/	pmtimer	/d' \
 	-e '/	ppbus	/d' \
 	-e '/	ppc$/d' \
 	-e '/	ppi	/d' \
@@ -65,12 +52,8 @@ sed	\
 	-e '/	ulpt	/d' \
 	-e '/	umass	/d' \
 	-e '/	ums	/d' \
-	-e '/	urio	/d' \
 	-e '/	usb	/d' \
-	-e '/	uscanner	/d' \
-	-e '/	vpo	/d' \
 	-e '/	wb	/d' \
-	-e '/	xv	/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
