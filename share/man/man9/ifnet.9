@@ -218,7 +218,6 @@ macros will be supported in future implementations.
 The fields of
 .Li "struct ifnet"
 are as follows:
-.Pp
 .Bl -tag -width "if_capabilities" -offset indent
 .It Li "if_softc"
 .Pq Li "void *"
@@ -453,7 +452,6 @@ or may not support.
 These capabilities are very hardware-specific
 and allow, when enabled,
 to offload specific network processing to the interface.
-.Pp
 .Bl -tag -width "IFCAP_NETCONS" -offset indent
 .It Dv IFCAP_NETCONS
 This interface can be a network console.
