@@ -122,6 +122,12 @@ extern void dec_2100_a500_init __P((int));
 #define dec_2100_a500_init     platform_not_configured
 #endif
 
+#ifdef API_UP1000
+extern void api_up1000_init __P((int));
+#else
+#define     api_up1000_init(n) platform_not_configured((n) + API_ST_BASE)
+#endif
+
 struct cpuinit cpuinit[] = {
 	cpu_notsupp("???"),			     /*  0: ??? */
 	cpu_notsupp("ST_ADU"),			     /*  1: ST_ADU */
@@ -161,14 +167,30 @@ struct cpuinit cpuinit[] = {
 };
 int ncpuinit = (sizeof(cpuinit) / sizeof(cpuinit[0]));
 
+struct cpuinit api_cpuinit[] = {
+	cpu_notsupp("???"),		       	     /*  0: ??? */
+	cpu_init(api_up1000_init,"API_UP1000"),      /*  1: ST_API_UP1000 */
+};
+int napi_cpuinit = (sizeof(api_cpuinit) / sizeof(api_cpuinit[0]));
+
+
 void
 platform_not_configured(int cputype)
 {
+	struct cpuinit *cpu;
+
+	if (cputype >= API_ST_BASE) {
+		cputype -= API_ST_BASE;
+		cpu = api_cpuinit;
+	} else {
+		cpu = cpuinit;
+	}
+
 	printf("\n");
 	printf("Support for system type %d is not present in this kernel.\n",
 	    cputype);
 	printf("Please build a kernel with \"options %s\" and reboot.\n",
-	    cpuinit[cputype].option);
+	    cpu[cputype].option);
 	printf("\n");   
 	panic("platform not configured\n");
 }
