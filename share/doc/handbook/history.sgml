@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.17 1996/12/17 22:57:56 jkh Exp $ -->
+<!-- $Id: history.sgml,v 1.18 1996/12/18 16:39:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -76,7 +76,7 @@ robust and easier to install FreeBSD 2.0.5 release in June of 1995.
 We released FreeBSD 2.1.5 in August of 1996, and it appeared to be
 popular enough among the ISP and commercial communities that one last
 release along the 2.1-stable branch, was merited.  This was FreeBSD 2.1.6,
-released in December 1996, and capped the end of mainstream development
+released in December 1996, and capping the end of mainstream development
 on 2.1-stable.  Now in maintenance mode, only security enhancements and other
 critical bug fixes will be done on this branch.
 
