@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.54 1999/05/20 04:10:40 wpaul Exp $
+ *	$Id: if_wi.c,v 1.6 1999/06/06 16:44:04 wpaul Exp $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.54 1999/05/20 04:10:40 wpaul Exp $";
+	"$Id: if_wi.c,v 1.6 1999/06/06 16:44:04 wpaul Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -670,20 +670,9 @@ static int wi_read_record(sc, ltv)
 	if (wi_cmd(sc, WI_CMD_ACCESS|WI_ACCESS_READ, ltv->wi_type))
 		return(EIO);
 
-	/* Select the record we want to read. */
-	CSR_WRITE_2(sc, WI_SEL1, ltv->wi_type);
-
-	/* Specify offset -- we always read the whole record. */
-	CSR_WRITE_2(sc, WI_OFF1, 0);
-
-	/* Wait for NIC to acknowledge */
-	for (i = 0; i < WI_TIMEOUT; i++) {
-		if (!(CSR_READ_2(sc, WI_OFF1) & (WI_OFF_BUSY|WI_OFF_ERR)))
-			break;
-	}
-
-	if (i == WI_TIMEOUT)
-		return(ETIMEDOUT);
+	/* Seek to the record. */
+	if (wi_seek(sc, ltv->wi_type, 0, WI_BAP1))
+		return(EIO);
 
 	/*
 	 * Read the length and record type and make sure they
@@ -718,16 +707,8 @@ static int wi_write_record(sc, ltv)
 	u_int16_t		*ptr;
 	int			i;
 
-	CSR_WRITE_2(sc, WI_SEL1, ltv->wi_type);
-	CSR_WRITE_2(sc, WI_OFF1, 0);
-
-	for (i = 0; i < WI_TIMEOUT; i++) {
-		if (!(CSR_READ_2(sc, WI_OFF1) & (WI_OFF_BUSY|WI_OFF_ERR)))
-			break;
-	}
-
-	if (i == WI_TIMEOUT)
-		return(ETIMEDOUT);
+	if (wi_seek(sc, ltv->wi_type, 0, WI_BAP1))
+		return(EIO);
 
 	CSR_WRITE_2(sc, WI_DATA1, ltv->wi_len);
 	CSR_WRITE_2(sc, WI_DATA1, ltv->wi_type);
@@ -871,7 +852,8 @@ static int wi_alloc_nicmem(sc, len, id)
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_ALLOC);
 	*id = CSR_READ_2(sc, WI_ALLOC_FID);
 
-	wi_seek(sc, *id, 0, WI_BAP0);
+	if (wi_seek(sc, *id, 0, WI_BAP0))
+		return(EIO);
 
 	for (i = 0; i < len / 2; i++)
 		CSR_WRITE_2(sc, WI_DATA0, 0);
