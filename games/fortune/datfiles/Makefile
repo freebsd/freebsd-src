@@ -38,13 +38,13 @@ install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
 	    ${DESTDIR}${SHAREDIR}/games/fortune
 
-fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat: ${STRFILE}
+fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
 	${STRFILE} -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
 
-fortunes-o.dat: fortunes-o ${STRFILE}
+fortunes-o.dat: fortunes-o
 	${STRFILE} -rsx fortunes-o ${.TARGET}
 
-fortunes-o: fortunes-o.${TYPE} ${CAESAR}
+fortunes-o: fortunes-o.${TYPE}
 	${CAESAR} 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
