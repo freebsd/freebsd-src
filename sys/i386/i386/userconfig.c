@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.129 1999/02/04 10:36:57 yokota Exp $
+ **      $Id: userconfig.c,v 1.130 1999/02/10 00:26:47 jkh Exp $
  **/
 
 /**
@@ -391,6 +391,7 @@ static DEV_INFO device_info[] = {
 {"vr",          "VIA Rhine/Rhine II ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"wb",          "Winbond W89C840F ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"xl",          "3COM 3C90x PCI ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"rdp",		"RealTek RTL8002 Pocket Ethernet",	0,		CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
@@ -401,7 +402,6 @@ static DEV_INFO device_info[] = {
 {"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
-{"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 
@@ -2507,7 +2507,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.129 1999/02/04 10:36:57 yokota Exp $
+ *      $Id: userconfig.c,v 1.130 1999/02/10 00:26:47 jkh Exp $
  */
 
 #include "scbus.h"
