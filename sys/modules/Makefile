@@ -375,6 +375,8 @@ _sppp=		sppp
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
+_agp=		agp
+_drm=		drm
 _io=		io
 #_ndis=		ndis
 .endif
