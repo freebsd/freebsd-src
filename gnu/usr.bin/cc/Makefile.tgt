@@ -8,6 +8,8 @@ GCC_CPU=	alpha
 GCC_CPU=	arm
 .elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "x86-64"
 GCC_CPU=	i386
+.elif ${TARGET_ARCH} == "ia64"
+GCC_CPU=	ia64
 .elif ${TARGET_ARCH} == "powerpc"
 GCC_CPU=	rs6000
 .elif ${TARGET_ARCH} == "sparc64"
