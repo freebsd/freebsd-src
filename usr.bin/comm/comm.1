@@ -35,7 +35,7 @@
 .\"     From: @(#)comm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd June 25, 2004
 .Os
 .Dt COMM 1
 .Sh NAME
@@ -101,3 +101,9 @@ A
 .Nm
 command appeared in
 .At v4 .
+.Sh BUGS
+The
+.Nm
+utility does not recognize multibyte characters in order to remain
+compatible with the current implementation of
+.Xr sort 1 .
