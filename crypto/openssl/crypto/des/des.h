@@ -54,6 +54,7 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * $FreeBSD$
  */
 
 #ifndef HEADER_DES_H
@@ -187,6 +188,9 @@ DES_LONG des_quad_cksum(const unsigned char *input,des_cblock output[],
 			long length,int out_count,des_cblock *seed);
 void des_random_seed(des_cblock *key);
 void des_random_key(des_cblock *ret);
+int des_new_random_key(des_cblock *key);
+void des_init_random_number_generator(des_cblock *seed);
+void des_rand_data(unsigned char *data, int size);
 int des_read_password(des_cblock *key,const char *prompt,int verify);
 int des_read_2passwords(des_cblock *key1,des_cblock *key2,
 			const char *prompt,int verify);
