@@ -37,14 +37,16 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.27 2001/05/22 04:07:22 grog Exp grog $
+ * $Id: vinumvar.h,v 1.32 2003/04/28 02:54:43 grog Exp $
  * $FreeBSD$
  */
 
 #include <sys/time.h>
 #include <dev/vinum/vinumstate.h>
-#include <sys/lock.h>
 #include <sys/mutex.h>
+
+/* Directory for device nodes. */
+#define VINUM_DIR   "/dev/vinum"
 
 /*
  * Some configuration maxima.  They're an enum because
@@ -69,30 +71,47 @@ enum constants {
 
     ROUND_ROBIN_READPOL = -1,				    /* round robin read policy */
 
-    /* type field in minor number */
+    /*
+     * Type field in high-order two bits of minor
+     * number.  Subdisks are in fact both type 2 and
+     * type 3, giving twice the number of subdisks.
+     * This causes some ugliness in the code.
+     */
     VINUM_VOLUME_TYPE = 0,
     VINUM_PLEX_TYPE = 1,
     VINUM_SD_TYPE = 2,
-    VINUM_DRIVE_TYPE = 3,
-    VINUM_SUPERDEV_TYPE = 4,				    /* super device. */
-    VINUM_RAWPLEX_TYPE = 5,				    /* anonymous plex */
-    VINUM_RAWSD_TYPE = 6,				    /* anonymous subdisk */
+    VINUM_SD2_TYPE = 3,
 
-    /* Shifts for the individual fields in the device */
-    VINUM_TYPE_SHIFT = 28,
-    VINUM_VOL_SHIFT = 0,
-    VINUM_PLEX_SHIFT = 16,
-    VINUM_SD_SHIFT = 20,
-    VINUM_VOL_WIDTH = 8,
-    VINUM_PLEX_WIDTH = 3,
-    VINUM_SD_WIDTH = 8,
 
-/*
-   * Shifts for the second half of raw plex and
-   * subdisk numbers
- */
-    VINUM_RAWPLEX_SHIFT = 8,				    /* shift the second half this much */
-    VINUM_RAWPLEX_WIDTH = 12,				    /* width of second half */
+    /*
+     * Define a minor device number.
+     * This is not used directly; instead, it's
+     * called by the other macros.
+     */
+#define VINUMMINOR(o,t)  ((o & 0xff) | ((o & 0x3fff00) << 8) | (t << VINUM_TYPE_SHIFT))
+
+    VINUM_TYPE_SHIFT = 30,
+    VINUM_MAXVOL = 0x3ffffd,				    /* highest numbered volume */
+
+    /*
+     * The super device and the daemon device are
+     * magic: they're the two highest-numbered
+     * volumes.
+     */
+    VINUM_SUPERDEV_VOL = 0x3ffffe,
+    VINUM_DAEMON_VOL = 0x3fffff,
+    VINUM_MAXPLEX = 0x3fffff,
+    VINUM_MAXSD = 0x7fffff,
+
+#define VINUM_SUPERDEV_MINOR VINUMMINOR (VINUM_SUPERDEV_VOL, VINUM_VOLUME_TYPE)
+#define VINUM_DAEMON_MINOR   VINUMMINOR (VINUM_DAEMON_VOL, VINUM_VOLUME_TYPE)
+
+    /*
+     * Mask for the number part of each object.
+     * Plexes and volumes are the same, subdisks use
+     * the low-order bit of the type field and thus
+     * have twice the number.
+     */
 
     MAJORDEV_SHIFT = 8,
 
@@ -105,50 +124,23 @@ enum constants {
     MAXNAME = 64,					    /* maximum length of any name */
 
 
-    /*
-     * Define a minor device number.
-     * This is not used directly; instead, it's
-     * called by the other macros.
-     */
-#define VINUMMINOR(v,p,s,t)  ( (v << VINUM_VOL_SHIFT)		\
-			      | (p << VINUM_PLEX_SHIFT)		\
-			      | (s << VINUM_SD_SHIFT)		\
-			      | (t << VINUM_TYPE_SHIFT) )
+#define OBJTYPE(x)	((minor(x) >> VINUM_TYPE_SHIFT) & 3)
 
     /* Create device minor numbers */
-#define VINUMDEV(v,p,s,t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (v, p, s, t))
+#define VINUMDEV(o, t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (o, t))
 
-#define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR,				\
-				 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
-				 | (p & 0xff)				\
-				 | ((p & ~0xff) << 8) )
-
-#define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR,				\
-				 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
-				 | (s & 0xff)				\
-				 | ((s & ~0xff) << 8) )
-
-    /* Create a bit mask for x bits */
-#define MASK(x)	 ((1 << (x)) - 1)
-
-    /* Create a raw block device minor number */
-#define VINUMRMINOR(d,t) ( ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
-			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
-			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH))		\
-			  | (t << VINUM_TYPE_SHIFT) )
-
+#define VINUM_VOL(v)	makedev (VINUM_CDEV_MAJOR, \
+				 VINUMMINOR (v, VINUM_VOLUME_TYPE))
+#define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR, \
+				 VINUMMINOR (p, VINUM_PLEX_TYPE))
+#define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR, \
+				 VINUMMINOR (s, VINUM_SD_TYPE))
 
     /* extract device type */
-#define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
+#define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 3)
 
-    /*
-     * This mess is used to catch people who compile
-     * a debug vinum(8) and non-debug kernel module,
-     * or the other way round.
-     */
-
-#define	VINUM_SUPERDEV VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE) /* superdevice number */
-#define	VINUM_DAEMON_DEV VINUMMINOR (0, 0, 0, VINUM_SUPERDEV_TYPE) /* daemon superdevice number */
+#define VINUM_SUPERDEV_NAME VINUM_DIR"/control"		    /* normal super device */
+#define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
 /*
  * the number of object entries to cater for initially, and also the
@@ -171,57 +163,6 @@ enum constants {
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
-
-/* device numbers */
-
-/*
- *  31 30   28  27                  20  19 18    16  15                 8    7                   0
- * |-----------------------------------------------------------------------------------------------|
- * |X |  Type  |    Subdisk number     | X| Plex   |      Major number     |  volume number        |
- * |-----------------------------------------------------------------------------------------------|
- *
- *    0x2                 03                 1           19                      06
- *
- * The fields in the minor number are interpreted as follows:
- *
- * Volume:              Only type and volume number are relevant
- * Plex in volume:      type, plex number in volume and volume number are relevant
- * raw plex:            type, plex number is made of bits 27-16 and 7-0
- * raw subdisk:         type, subdisk number is made of bits 27-16 and 7-0
- */
-
-/* This doesn't get used.  Consider removing it. */
-struct devcode {
-/*
- * CARE.  These fields assume a big-endian word.  On a
- * little-endian system, they're the wrong way around
- */
-    unsigned volume:8;					    /* up to 256 volumes */
-    unsigned major:8;					    /* this is where the major number fits */
-    unsigned plex:3;					    /* up to 8 plexes per volume */
-    unsigned unused:1;					    /* up for grabs */
-    unsigned sd:8;					    /* up to 256 subdisks per plex */
-    unsigned type:3;					    /* type of object */
-    /*
-     * type field
-     VINUM_VOLUME = 0,
-     VINUM_PLEX = 1,
-     VINUM_SUBDISK = 2,
-     VINUM_DRIVE = 3,
-     VINUM_SUPERDEV = 4,
-     VINUM_RAWPLEX = 5,
-     VINUM_RAWSD = 6 */
-    unsigned signbit:1;					    /* to make 32 bits */
-};
-
-#define VINUM_DIR   "/dev/vinum"
-
-/*
- * These definitions help catch
- * userland/kernel mismatches.
- */
-#define VINUM_SUPERDEV_NAME VINUM_DIR"/control"		    /* normal super device */
-#define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
 /*
  * Slice header
