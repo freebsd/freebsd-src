@@ -1812,6 +1812,10 @@
     <para>&man.route.8; can now create <quote>proxy only</quote>
     published ARP entries. &merged;</para>
 
+    <para>The &man.route.8; <option>add</option> command now supports
+    the <option>-ifp</option> and <option>-ifa</option>
+    modifiers.</para>
+
     <para>&man.rpcbind.8; has replaced &man.portmap.8;.</para>
 
     <para>&man.rpcgen.1; now uses <filename>/usr/bin/cpp</filename>
