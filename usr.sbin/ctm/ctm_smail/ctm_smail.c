@@ -93,7 +93,7 @@ chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
     FILE *dfp;
     unsigned sum;
 
-#define howmany(x,y)	(((x)+((y)-1))/(y))
+#define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
 
     /*
      * Work out how many pieces we need, bearing in mind that each piece
