@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.171 1995/04/22 22:39:33 dyson Exp $
+#	$Id: LINT,v 1.172 1995/04/23 18:30:26 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -388,9 +388,6 @@ controller	isa0
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
 #
-# NSECS_MULTI enables and allows multi-block transfers in the wd driver.
-# suggested values would be 8 or 16.
-#
 #options	ALLOW_CONFLICT_DRQ
 #options	ALLOW_CONFLICT_IOADDR
 #options	ALLOW_CONFLICT_IRQ
@@ -400,7 +397,6 @@ options		"AUTO_EOI_1"
 options		BOUNCE_BUFFERS
 #options	DUMMY_NOPS
 #options        "TUNE_1542"
-#options	"NSECS_MULTI=16"
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
@@ -467,6 +463,30 @@ controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
 #
 # NB: ``Enhanced IDE'' is NOT supported at this time.
+#
+# The flags fields are used to enable the multi-sector I/O and
+# the 32BIT I/O modes.  The flags may be used in either the controller
+# definition or in the individual disk definitions.  The controller
+# definition is supported for the boot configuration stuff.
+#
+# Each drive has a 16 bit flags value defined:
+#	The low 8 bits are the maximum value for the multi-sector I/O,
+#	where 0xff defaults to the maximum that the drive can handle.
+#	The high bit of the 16 bit flags (0x8000) allows probing for
+#	32 bit transfers.
+#
+# The flags field for the drives can be specified in the controller
+# specification with the low 16 bits for drive 0, and the high 16 bits
+# for drive 1.
+# e.g.:
+#controller	wdc0	at isa? port "IO_WD1" bio irq 14 flags 0x00ff8004 vector wdintr
+#
+# specifies that drive 0 will be allowed to probe for 32 bit transfers and
+# a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
+# allowed to probe for 32 bit transfers, but will allow multi-sector
+# transfers up to the maximum that the drive supports.
+#
+
 #
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
