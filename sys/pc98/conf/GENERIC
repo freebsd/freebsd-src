@@ -124,12 +124,6 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
-# RAID controllers
-#device		ida		# Compaq Smart RAID
-#device		amr		# AMI MegaRAID
-#device		mlx		# Mylex DAC960 family
-#device		twe		# 3ware Escalade
-
 # keyboard driver
 device		pckbd0	at isa? port IO_KBD irq 1
 #options 	KBD_INSTALL_CDEV
