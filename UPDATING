@@ -10,13 +10,16 @@ Release.
 
 This is for the 4.4 release branch.  All entries since 4.4 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.4-RELEASE-p18.
+By this count, we're at 4.4-RELEASE-p19.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020731:	p19
+	A bounds checking error in the XDR decoder was corrected.
 
 20020730:	p18	FreeBSD-SA-02:32.pppd
 	A race condition in pppd(8) was corrected.
