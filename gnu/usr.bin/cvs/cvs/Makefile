@@ -12,7 +12,7 @@ MAINTAINER=	peter@FreeBSD.org
 PROG=	cvs
 MAN=	cvs.1 cvs.5
 
-SRCS=	version.h add.c admin.c annotate.c buffer.c \
+SRCS=	add.c admin.c annotate.c buffer.c \
 	checkin.c checkout.c classify.c client.c \
 	commit.c create_adm.c cvsrc.c diff.c edit.c entries.c error.c \
 	expand_path.c fileattr.c filesubr.c find_names.c \
@@ -40,13 +40,6 @@ DISTRIBUTION=	krb4
 # feature anyway, the -x switch is needed to activate it.
 CFLAGS+= -DENCRYPTION
 .endif
-
-CLEANFILES+=	version.h
-VERSION!=	sed < ${CVSDIR}/configure \
-		-e '/^VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
-
-version.h: version.h.in
-	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
 
 #
 # Regression test support
