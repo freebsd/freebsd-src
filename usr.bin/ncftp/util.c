@@ -314,7 +314,7 @@ unsigned long UnLSDate(char *dstr)
 	cp++;
 	day += *cp++ - '0';
 	min = 0;
-
+	
 	(void) time(&now);
 	t = localtime(&now);
 
@@ -376,7 +376,7 @@ unsigned long UnMDTMDate(char *dstr)
 		&ut.tm_hour,
 		&ut.tm_min,
 		&ut.tm_sec) == 6)
-	{
+	{	
 		--ut.tm_mon;
 		ut.tm_year -= 1900;
 		mt = mktime(&ut);
@@ -735,9 +735,9 @@ struct cmd *getcmd(char *name)
 				continue;
 			if (strncmp(name, p, len) == 0) {
 				if (++nmatches > 1) {
-					found = ((struct cmd *) -1);
+					found = ((struct cmd *) -1);	
 					goto xx;
-				}
+				}				
 				found = c;
 			} else if (found != NULL)
 				break;
@@ -796,7 +796,7 @@ char *LocalPath(char *path)
 			return (path);
 		}
 		/* Otherwise we can look at the first word of the path, and
-		 * try to expand it, like $HOME/ or ~/, or it is a relative path,
+		 * try to expand it, like $HOME/ or ~/, or it is a relative path, 
 		 * which is okay since we won't really do anything with it.
 		 */
 		*cp = 0;
@@ -831,7 +831,7 @@ char *LocalPath(char *path)
 	}
 	if (rest == NULL)
 		(void) strcpy(path, firstent);
-	else
+	else 
 		(void) sprintf(path, "%s/%s", firstent, rest);
 	return (path);
 }	/* LocalPath */

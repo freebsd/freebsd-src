@@ -257,7 +257,7 @@ extern int errno;
 #	define Select(a,b,c,d,e) select((a), (int *)(b), (c), (d), (e))
 #endif
 
-#ifdef HPUX
+#ifdef HPUX 
 #	define System "HP-UX"
 #	ifndef _HPUX_SOURCE
 #		define _HPUX_SOURCE 1
@@ -424,6 +424,7 @@ extern int errno;
 #	define TERMIOS 1
 #       define HAS_GETCWD 1
 #       define U_WAIT 1
+#	define NO_CONST 1       /* avoid prototype conflict */
 #endif
 
 #ifdef __NetBSD__
@@ -446,9 +447,9 @@ extern int errno;
 #			define SYSDIRH 1
 #		endif
 #	endif
-#       ifndef SGTTYB
-#               define SGTTYB
-#       endif
+#	ifndef SGTTYB
+#		define SGTTYB 1
+#	endif
 #endif
 
 /*
@@ -595,7 +596,7 @@ extern	void    bcopy(char *, char *, size_t);
 extern	void    bzero(char *, size_t);
 #endif
 
-#ifdef SOCKS
+#ifdef SOCKS 
 extern	int     Raccept(int, struct sockaddr *, int *);
 extern	int     Rbind(int, struct sockaddr *, int, unsigned long);
 extern	int     Rconnect(int, struct sockaddr *, int);

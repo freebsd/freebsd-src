@@ -59,7 +59,7 @@ int thrash_rc(void)
 		(void) sprintf(rcname, "%s%s", cwd, rc);
 		if (stat(rcname, &st) == 0)
 			goto foundrc;
-
+		
 		(void) sprintf(rcname, "%s.%s", cwd, rc);
 		if (stat(rcname, &st) == 0)
 			goto foundrc;
@@ -76,8 +76,8 @@ int thrash_rc(void)
 	}
 
 	return (0);	/* it's OK not to have an rc. */
-
-foundrc:
+	
+foundrc:	
 	if ((st.st_mode & 077) != 0)				/* rc must be unreadable by others. */
 		(void) chmod(rcname, 0600);
 
@@ -85,7 +85,7 @@ foundrc:
 		PERROR("thrash_rc", rcname);
 		return -1;
 	}
-
+	
 	parsing_rc = 1;
 	while ((cp = FGets(str, fp)) != 0) {
 		while (isspace(*cp)) ++cp;		/* skip leading space. */
@@ -93,7 +93,7 @@ foundrc:
 			if ((strncmp("set", ++cp, (size_t)3) == 0) || (strncmp("unset", cp, (size_t)5) == 0)) {
 				(void) strcpy(line, cp);
 				makeargv();
-				(void) set(margc, margv);
+				(void) set(margc, margv);			
 				/* setting or unsetting a variable. */
 			} /* else a comment. */
 		} else {
@@ -143,7 +143,7 @@ void AddNewSitePtr(char *word)
 static int RecentCmp(recentsite *a, recentsite *b)
 {
 	int i = 1;
-
+	
 	if (a->lastcall > b->lastcall)
 		i = -1;
 	else if (a->lastcall == b->lastcall)
@@ -161,7 +161,7 @@ static siteptr FindNetrcSite(char *host, int exact)
 
 	(void) Strncpy(host2, host);
 	StrLCase(host2);
-
+	
 	/* see if 'host' is in our list of favorite sites (in NETRC). */
 	for (s = firstsite; s != NULL; s2=s->next, s=s2) {
 		(void) Strncpy(str, s->name);
@@ -170,7 +170,7 @@ static siteptr FindNetrcSite(char *host, int exact)
 			if (strcmp(str, host2) == 0)
 				return s;
 		} else {
-			if (strstr(str, host2) != NULL)
+			if (strstr(str, host2) != NULL) 
 				return s;
 		}
 	}
@@ -293,14 +293,14 @@ void AddRecentSite(char *host, char *lastdir)
 {
 	char			*nhost, *ndir;
 	recentsite		*r;
-
+	
 	if (keep_recent) {
 		nhost = NewString(host);
 		/* Use '/' to denote that the current directory wasn't known,
 		 * because we won't try to cd to the root directory.
 		 */
 		ndir = NewString(*lastdir ? lastdir : "/");
-
+		
 		/* Don't bother if we don't have the memory, or if it is already
 		 * in our NETRC.
 		 */
@@ -317,7 +317,7 @@ void AddRecentSite(char *host, char *lastdir)
 				r = &recents[nRecents];
 				nRecents++;
 			}
-			r->name = nhost;
+			r->name = nhost;			
 			r->dir = ndir;
 			(void) time(&r->lastcall);
 			SortRecentList();
@@ -337,7 +337,7 @@ void UpdateRecentSitesList(char *host, char *lastdir)
 	recentsite *r;
 	char *ndir;
 
-	if (keep_recent) {
+	if (keep_recent) {	
 		r = FindRecentSite(host, 1);
 		if (r == NULL)
 			AddRecentSite(host, lastdir);
@@ -459,7 +459,7 @@ void GetFullSiteName(char *host, char *lastdir)
 	 * "2. unlinfo.unl.edu" and IP numbers "128.93.2.1" or even numbers
 	 * in the site name like "simtel20.army.mil."
 	 */
-
+	
 	for (isAllDigits = 1, cp = host; *cp != 0; cp++) {
 		if (!isdigit(*cp)) {
 			isAllDigits = 0;
@@ -493,7 +493,7 @@ void GetFullSiteName(char *host, char *lastdir)
 			x -= nRecents;
 			if (x < nSites) {
 				for (i = 0, s = firstsite; i < x; s2=s->next, s=s2)
-					++i;
+					++i;				
 				nhost = s->name;
 			}
 		}

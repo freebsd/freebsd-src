@@ -49,7 +49,7 @@ extern string				anon_password;
  * that can be set from the command line), this routine makes sure all
  * the variables have valid values by setting them to their defaults.
  */
-
+ 
 void InitOpenOptions(OpenOptions *openopt)
 {
 	/* How do you want to open a site if neither -a or -u are given?
@@ -70,7 +70,7 @@ void InitOpenOptions(OpenOptions *openopt)
 	 * this is changed.
 	 */
 	openopt->max_dials = 1;
-
+	
 	/* You don't want to cat the file to stdout by default. */
 	openopt->ftpcat = NO_FTPCAT;
 
@@ -94,7 +94,7 @@ void InitOpenOptions(OpenOptions *openopt)
 
 	/* Set the hostname to a null string, since there is no default host. */
 	openopt->hostname[0] = 0;
-
+	
 	/* Set the opening directory path to a null string. */
 	openopt->cdpath[0] = 0;
 }	/* InitOpenOptions */
@@ -117,22 +117,22 @@ int GetOpenOptions(int argc, char **argv, OpenOptions *openopt)
 	/* Tell Getopt() that we want to start over with a new command. */
 	Getopt_Reset();
 	while ((opt = Getopt(argc, argv, "aiup:rd:g:cm")) >= 0) {
-		switch (opt) {
+		switch (opt) {		
 			case 'a':
 				/* User wants to open anonymously. */
 				openopt->openmode = openExplicitAnon;
 				break;
-
+				
 			case 'u':
 				/* User wants to open with a login and password. */
 				openopt->openmode = openExplicitUser;
 				break;
-
+				
 			case 'i':
 				/* User wants to ignore the entry in the netrc. */
 				openopt->ignore_rc = 1;
 				break;
-
+				
 			case 'p':
 				/* User supplied a port number different from the default
 				 * ftp port.
@@ -146,14 +146,14 @@ int GetOpenOptions(int argc, char **argv, OpenOptions *openopt)
 				/* Must ensure that the port is in the correct byte order! */
 				openopt->port = htons(openopt->port);
 				break;
-
+				
 			case 'd':
 				/* User supplied a delay (in seconds) that differs from
 				 * the default.
 				 */
 				openopt->redial_delay = atoi(Optarg);
 				break;
-
+				
 			case 'g':
 				/* User supplied an upper-bound on the number of redials
 				 * to try.
@@ -201,7 +201,7 @@ Try 'ncftp -c wuarchive.wustl.edu:/README > file.'\n");
 					goto usage;
 				}
 				/* break; */
-
+				
 			default:
 			usage:
 				return USAGE;
@@ -260,7 +260,7 @@ Try 'ncftp -c wuarchive.wustl.edu:/README > file.'\n");
 				(void) Strncat(openopt->colonmodepath, cpath);
 				dbprintf("Colon-Mode Path = '%s'\n", openopt->colonmodepath);
 			}
-		}
+		}	
 		(void) Strncpy(openopt->hostname, hostp);
 		dbprintf("Host = '%s'\n", hostp);
 	}
@@ -321,7 +321,7 @@ int HookupToRemote(OpenOptions *openopt)
 	} else
 #endif
 		hErr = hookup(openopt->hostname, openopt->port);
-
+	
 	return hErr;
 }	/* HookupToRemote */
 
@@ -340,7 +340,7 @@ void CheckRemoteSystemType(int force_binary)
 	tmpverbose = verbose;
 	verbose = V_QUIET;
 	if (command("SYST") == COMPLETE) {
-		if (tmpverbose == V_VERBOSE) {
+		if (tmpverbose == V_VERBOSE) {		
 			/* Find the system type embedded in the reply_string,
 			 * and separate it from the rest of the junk.
 			 */
@@ -375,7 +375,7 @@ void CheckRemoteSystemType(int force_binary)
 	}
 
 	/* Print a warning for that (extremely) rare Tenex machine. */
-	if (tmpverbose >= V_ERRS &&
+	if (tmpverbose >= V_ERRS && 
 	    !strncmp(reply_string, "215 TOPS20", (size_t) 10)) {
 		(void) _settype("tenex");
 		(void) printf("Using tenex mode to transfer files.\n");
@@ -436,7 +436,7 @@ void ColonMode(OpenOptions *openopt)
 		/* Turn on messaging if we aren't catting. */
 		if (openopt->ftpcat == 0)
 			verbose = tmpverbose;
-
+		
 		/* get() also handles 'more'. */
 		if (openopt->ftpcat)
 			cmdstatus = get(margc, margv);
@@ -466,7 +466,7 @@ int Open(OpenOptions *openopt)
 	int					dials;
 	char				*ruser, *rpass, *racct;
 	int					siteInRC;
-	char				*user, *pass, *acct;
+	char				*user, *pass, *acct;	
 	int					login_verbosity, oldv;
 	int				result = CMDERR;
 
@@ -506,7 +506,7 @@ int Open(OpenOptions *openopt)
 		pass = NULL;
 	}
 	acct = NULL;
-
+	
 	if (siteInRC && !openopt->ignore_rc) {
 		acct = racct;
 		if (ruser != NULL) {
@@ -519,7 +519,7 @@ int Open(OpenOptions *openopt)
 				user = ruser;
 				pass = rpass;
 			}
-		}
+		}		
 	}
 
 	for (
@@ -533,7 +533,7 @@ int Open(OpenOptions *openopt)
 			(void) fprintf(stderr, "Retry Number: %d\n", dials + 1);
 		}
 
-		if ((hErr = HookupToRemote(openopt)) == -2)
+		if ((hErr = HookupToRemote(openopt)) == -2)	
 			/* Recoverable, so we can try re-dialing. */
 			continue;
 		else if (hErr == NOERR) {
@@ -541,7 +541,7 @@ int Open(OpenOptions *openopt)
 			connected = 1;
 
 		oldv = verbose;  verbose = login_verbosity;
-
+		
 #ifdef GATEWAY
 			if (*gateway) {
 				if ((Login(
@@ -588,7 +588,7 @@ int Open(OpenOptions *openopt)
 				 */
 				(void) _cd(openopt->cdpath);
 			} else {
-				/* Freshen 'cwd' variable for the prompt.
+				/* Freshen 'cwd' variable for the prompt. 
 				 * We have to do atleast one 'cd' so our variable
 				 * cwd (which is saved by _cd()) is set to something
 				 * valid.
