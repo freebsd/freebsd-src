@@ -2285,8 +2285,7 @@ setfflags(td, vp, flags)
 	 * chown can't fail when done as root.
 	 */
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
-		error = suser_xxx(td->td_ucred, td->td_proc,
-		    PRISON_ROOT);
+		error = suser_xxx(td->td_ucred, td->td_proc, PRISON_ROOT);
 		if (error)
 			return (error);
 	}
@@ -4230,8 +4229,8 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
-	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL,
-	    td->td_ucred, td);
+	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL, td->td_ucred,
+	    td);
 
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
