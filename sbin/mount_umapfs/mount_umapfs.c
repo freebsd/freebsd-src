@@ -190,7 +190,7 @@ main(argc, argv)
 		errx(1, "%s does not belong to root%s", gmapfile, not);
 #endif /* MAPSECURITY */
 
-	if ((fscanf(fp, "%d\n", &gnentries)) != 1)
+	if ((fscanf(gfp, "%d\n", &gnentries)) != 1)
 		errx(1, "nentries not found%s", gmapfile, not);
 	if (gnentries > MAPFILEENTRIES)
 		errx(1,
@@ -200,11 +200,11 @@ main(argc, argv)
 #endif
 
 	for (count = 0; count < gnentries; ++count)
-		if ((fscanf(fp, "%lu %lu\n",
+		if ((fscanf(gfp, "%lu %lu\n",
 		    &(gmapdata[count][0]), &(gmapdata[count][1]))) != 2) {
-			if (ferror(fp))
+			if (ferror(gfp))
 				err(1, "%s%s", gmapfile, not);
-			if (feof(fp))
+			if (feof(gfp))
 				errx(1, "%s: unexpected end-of-file%s",
 				    gmapfile, not);
 			errx(1, "%s: illegal format (line %d)%s",
@@ -226,8 +226,11 @@ main(argc, argv)
 		endvfsent();	/* flush cache */
 		vfc = getvfsbyname("umap");
 	}
+	if (!vfc) {
+		errx(1, "umap filesystem not available");
+	}
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_UMAP, argv[1], mntflags, &args))
+	if (mount(vfc->vfc_index, argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }
