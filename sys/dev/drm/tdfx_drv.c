@@ -40,7 +40,6 @@
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <pci/pcivar.h>
-#include <opt_drm_linux.h>
 #endif /* __FreeBSD__ */
 
 #include "dev/drm/tdfx.h"
