@@ -31,7 +31,7 @@
 #include <sys/bus.h>
 
 void OF_getetheraddr(device_t dev, u_char *addr);
-
+void cpu_shutdown(void *);
 void openfirmware_exit(void *);
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
