@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.35 1997/08/16 19:07:20 wollman Exp $
+ * $Id: kern_synch.c,v 1.36 1997/08/18 01:34:38 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,6 +60,7 @@
 #endif
 
 #include <machine/cpu.h>
+#include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
 static void rqinit __P((void *));
 SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)

@@ -83,6 +83,10 @@
 #ifdef __FreeBSD__
 #include	<i386/isa/qcamreg.h>
 #include	<i386/isa/qcamdefs.h>
+
+#include	<machine/limits.h>	/* XXX for bogus UCHAR_MAX checks -
+					 * the types are all u_char so the
+					 * tests are null */
 #else
 #include	"qcamreg.h"
 #include	"qcamdefs.h"

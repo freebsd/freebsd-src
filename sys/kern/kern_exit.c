@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.50 1997/07/06 02:40:40 dyson Exp $
+ * $Id: kern_exit.c,v 1.51 1997/07/17 04:49:27 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -69,6 +69,7 @@
 #include <machine/reg.h>
 #include <machine/psl.h>
 #endif
+#include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
