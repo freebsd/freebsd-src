@@ -10,7 +10,7 @@ if [ -f /etc/sysconfig ]; then
 	. /etc/sysconfig
 fi
 
-if [ "x$pccard_ifconfig" = "xNO" ] ; then
+if [ "x$pccard_ifconfig" != "xNO" ] ; then
 	if [ "x$pccard_ifconfig" = "xDHCP" ] ; then
 		# DHCP currently not implemented
 	else
