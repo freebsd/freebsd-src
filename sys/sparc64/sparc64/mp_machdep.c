@@ -150,6 +150,7 @@ cpu_mp_probe(void)
 		    strcmp(buf, "cpu") == 0)
 			cpus++;
 	}
+	mp_maxid = cpus;
 	return (cpus > 1);
 }
 
