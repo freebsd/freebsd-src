@@ -94,6 +94,7 @@ SUBDIR=	accf_data \
 	rc4 \
 	rl \
 	rp \
+	sbsh \
 	sf \
 	sis \
 	sk \
