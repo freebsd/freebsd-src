@@ -710,8 +710,8 @@ ata_start(struct ata_channel *ch)
 	}
     }
 #endif
-    splx(s);
     ATA_UNLOCK_CH(ch);
+    splx(s);
 }
 
 void
