@@ -776,14 +776,18 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 				sce->state |= UGEN_ASLP;
 				error = tsleep(sce, PCATCH | PZERO,
 				    "ugenrd", 0);
-				if (error) {
+				if (sce->bulkreq.err || error) {
 					sce->state &= ~UGEN_ASLP;
 					break;
 				}
 			}
 
-			tn = sce->bulkreq.len;
 			err = sce->bulkreq.err;
+			if (err == EIO) {
+				error = ENXIO;
+				break;
+			}
+			tn = sce->bulkreq.len;
 			error = uiomove(sce->bulkreq.buf, tn, uio);
 
 			/* Set up a new transfer. */
@@ -982,12 +986,21 @@ void
 ugenpurge(struct cdev *dev)
 {
 	int endpt = UGENENDPOINT(dev);
+	struct ugen_endpoint *sce;
 	struct ugen_softc *sc;
 
 	if (endpt == USB_CONTROL_ENDPOINT)
 		return;
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
-	wakeup(&sc->sc_endpoints[endpt][IN]);
+	sce = &sc->sc_endpoints[endpt][IN];
+	if (sce->pipeh)
+		usbd_abort_pipe(sce->pipeh);
+	/* cancel async bulk transfer */
+	if (sce->bulkreq.xfer != NULL) {
+		ugen_rdcb(sce->bulkreq.xfer, sce, USBD_IOERROR);
+		usbd_free_xfer(sce->bulkreq.xfer);
+		sce->bulkreq.xfer = NULL;
+	}
 }
 #endif
 
@@ -1016,7 +1029,7 @@ USB_DETACH(ugen)
 			/* cancel async bulk transfer */
 			if (sce->bulkreq.xfer != NULL)
 				ugen_rdcb(sce->bulkreq.xfer,
-				    sce, USBD_INTERRUPTED);
+				    sce, USBD_IOERROR);
 		}
 	}
 
