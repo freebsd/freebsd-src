@@ -367,6 +367,7 @@ void
 acpi_ec_ecdt_probe(device_t parent)
 {
     ACPI_TABLE_ECDT *ecdt;
+    ACPI_TABLE_HEADER *hdr;
     ACPI_STATUS	     status;
     device_t	     child;
     ACPI_HANDLE	     h;
@@ -375,8 +376,8 @@ acpi_ec_ecdt_probe(device_t parent)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* Find and validate the ECDT. */
-    status = AcpiGetFirmwareTable("ECDT", 1, ACPI_LOGICAL_ADDRESSING, 
-		(ACPI_TABLE_HEADER **)&ecdt);
+    status = AcpiGetFirmwareTable("ECDT", 1, ACPI_LOGICAL_ADDRESSING, &hdr);
+    ecdt = (ACPI_TABLE_ECDT *)hdr;
     if (ACPI_FAILURE(status) ||
 	ecdt->control.RegisterBitWidth != 8 ||
 	ecdt->data.RegisterBitWidth != 8) {
