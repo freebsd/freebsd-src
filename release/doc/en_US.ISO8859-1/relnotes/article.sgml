@@ -1143,7 +1143,7 @@
 
     <para>&man.ifconfig.8; no longer displays the list of supported
     media by default.  Instead it displays it when the
-    <option>-m</option> is given. &merged;</para>
+    <option>-m</option> flag is given. &merged;</para>
 
     <para>&man.setproctitle.3; has been moved from
     <filename>libutil</filename> to
@@ -1532,7 +1532,7 @@
     <para>&man.dump.8; now supports inheritance of the
     <literal>nodump</literal> flag down a hierarchy. &merged;</para>
 
-    <para>The <option>-T</option> to &man.dump.8; no longer swallows
+    <para>The <option>-T</option> option to &man.dump.8; no longer swallows
     an extra argument. &merged;</para>
 
     <para>&man.dump.8; has a new <option>-D</option> option, allowing
@@ -1659,7 +1659,7 @@
     <para>&man.apmd.8; now has the ability to monitor battery levels and
     execute commands based on percentage or minutes of battery life
     remaining via the <literal>apm_battery</literal> configuration
-    directive.  See the commented out examples in
+    directive.  See the commented-out examples in
     <filename>/etc/apmd.conf</filename> for the syntax. &merged;</para>
 
     <para>&man.telnet.1; now does autologin and encryption by default;
@@ -1721,7 +1721,7 @@
     which will be necessary when working with IPv6 transport-ready
     resolvers/DNS servers. &merged;</para>
 
-    <para>&man.col.1; now takes a <option>-p</option> to force unknown
+    <para>&man.col.1; now takes a <option>-p</option> flag to force unknown
     control sequences to be passed through unchanged. &merged;</para>
 
     <para>The &man.mdmfs.8; command has been added; it is a wrapper
