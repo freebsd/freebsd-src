@@ -210,7 +210,7 @@ static pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
 
 static pcm_channel ds_pchantemplate = {
 	ds1pchan_init,
-	ds1pchan_setdir,
+	NULL, 			/* setdir */
 	ds1pchan_setformat,
 	ds1pchan_setspeed,
 	ds1pchan_setblocksize,
@@ -229,7 +229,7 @@ static pcm_channel ds_pchantemplate = {
 
 static pcm_channel ds_rchantemplate = {
 	ds1rchan_init,
-	ds1rchan_setdir,
+	NULL, 			/* setdir */
 	ds1rchan_setformat,
 	ds1rchan_setspeed,
 	ds1rchan_setblocksize,
@@ -550,12 +550,6 @@ ds1pchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-ds1pchan_setdir(void *data, int dir)
-{
-	return 0;
-}
-
-static int
 ds1pchan_setformat(void *data, u_int32_t format)
 {
 	struct sc_pchinfo *ch = data;
@@ -658,12 +652,6 @@ ds1rchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		ds_setuprch(ch);
 		return ch;
 	}
-}
-
-static int
-ds1rchan_setdir(void *data, int dir)
-{
-	return 0;
 }
 
 static int
@@ -938,7 +926,7 @@ ds_pci_attach(device_t dev)
 	u_int32_t	data;
 	u_int32_t subdev, i;
 	struct sc_info *sc;
-	struct ac97_info *codec;
+	struct ac97_info *codec = NULL;
 	char 		status[SND_STATUSLEN];
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
@@ -1012,12 +1000,16 @@ ds_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec)
+		ac97_destroy(codec);
 	if (sc->reg)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
 	if (sc->ih)
 		bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	if (sc->parent_dmat)
+		bus_dma_tag_destroy(sc->parent_dmat);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
@@ -1052,12 +1044,10 @@ ds_pci_detach(device_t dev)
 
 	sc = pcm_getdevinfo(dev);
 	ds_uninit(sc);
-	if (sc->reg)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
-	if (sc->ih)
-		bus_teardown_intr(dev, sc->irq, sc->ih);
-	if (sc->irq)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	bus_dma_tag_destroy(sc->parent_dmat);
 	free(sc, M_DEVBUF);
        	return 0;
 }

@@ -58,7 +58,7 @@ struct sbc_softc {
 
 	struct sbc_ihl ihl[IRQ_MAX];
 
-	void *ih;
+	void *ih[IRQ_MAX];
 
 	u_int32_t bd_ver;
 };
@@ -372,9 +372,11 @@ sbc_attach(device_t dev)
 		else sb_setmixer(scp->io[0], IRQ_NR, x);
 		sb_setmixer(scp->io[0], DMA_NR, (1 << dh) | (1 << dl));
 #endif
-		device_printf(dev, "setting card to irq %d, drq %d", irq, dl);
-		if (dl != dh) printf(", %d", dh);
-		printf("\n");
+		if (bootverbose) {
+			device_printf(dev, "setting card to irq %d, drq %d", irq, dl);
+			if (dl != dh) printf(", %d", dh);
+			printf("\n");
+    		}
 		break;
     	}
 
@@ -389,7 +391,7 @@ sbc_attach(device_t dev)
 
 	err = "setup_intr";
 	for (i = 0; i < IRQ_MAX; i++) {
-		if (bus_setup_intr(dev, scp->irq[i], INTR_TYPE_TTY, sbc_intr, &scp->ihl[i], &scp->ih))
+		if (bus_setup_intr(dev, scp->irq[i], INTR_TYPE_TTY, sbc_intr, &scp->ihl[i], &scp->ih[i]))
 			goto bad;
 	}
 
@@ -425,6 +427,15 @@ sbc_attach(device_t dev)
 bad:	if (err) device_printf(dev, "%s\n", err);
 	release_resource(scp);
 	return (ENXIO);
+}
+
+static int
+sbc_detach(device_t dev)
+{
+	struct sbc_softc *scp = device_get_softc(dev);
+
+	release_resource(scp);
+	return bus_generic_detach(dev);
 }
 
 static void
@@ -648,7 +659,7 @@ alloc_resource(struct sbc_softc *scp)
 		}
 	}
 	for (i = 0 ; i < IRQ_MAX ; i++) {
-		if (scp->irq[i] == NULL) {
+	 	if (scp->irq[i] == NULL) {
 			scp->irq_rid[i] = i;
 			scp->irq[i] = bus_alloc_resource(scp->dev, SYS_RES_IRQ, &scp->irq_rid[i],
 							 0, ~0, 1, RF_ACTIVE);
@@ -679,6 +690,9 @@ release_resource(struct sbc_softc *scp)
 	}
 	for (i = 0 ; i < IRQ_MAX ; i++) {
 		if (scp->irq[i] != NULL) {
+			if (scp->ih[i] != NULL)
+				bus_teardown_intr(scp->dev, scp->irq[i], scp->ih[i]);
+			scp->ih[i] = NULL;
 			bus_release_resource(scp->dev, SYS_RES_IRQ, scp->irq_rid[i], scp->irq[i]);
 			scp->irq[i] = NULL;
 		}
@@ -690,7 +704,7 @@ static device_method_t sbc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbc_probe),
 	DEVMETHOD(device_attach,	sbc_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	sbc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),

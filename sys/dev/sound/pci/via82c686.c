@@ -58,6 +58,10 @@ struct via_info {
 	bus_dma_tag_t	parent_dmat;
 	bus_dma_tag_t	sgd_dmat;
 
+	struct resource *reg, *irq;
+	int regid, irqid;
+	void *ih;
+
 	struct via_chinfo pch, rch;
 	struct via_dma_op *sgd_table;
 	u_int16_t	codec_caps;
@@ -146,15 +150,10 @@ static int
 via_attach(device_t dev)
 {
 	struct via_info *via = 0;
-	struct ac97_info *codec;
+	struct ac97_info *codec = 0;
 	char		status[SND_STATUSLEN];
 
 	u_int32_t	data;
-	struct resource *reg = 0;
-	int		regid;
-	struct resource *irq = 0;
-	void		*ih = 0;
-	int		irqid;
 
 	u_int16_t	v;
 	bus_dmamap_t	sgd_dma_map;
@@ -175,21 +174,21 @@ via_attach(device_t dev)
 		VIA_PCICONF_ACLINKENAB | VIA_PCICONF_ACSGD |
 		VIA_PCICONF_ACNOTRST | VIA_PCICONF_ACVSR, 1);
 
-	regid = PCIR_MAPS;
-	reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &regid,
+	via->regid = PCIR_MAPS;
+	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid,
 		0, ~0, 1, RF_ACTIVE);
-	if (!reg) {
+	if (!via->reg) {
 		device_printf(dev, "via: Cannot allocate bus resource.");
 		goto bad;
 	}
-	via->st = rman_get_bustag(reg);
-	via->sh = rman_get_bushandle(reg);
+	via->st = rman_get_bustag(via->reg);
+	via->sh = rman_get_bushandle(via->reg);
 
-	irqid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
+	via->irqid = 0;
+	via->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &via->irqid,
 		0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!irq
-	    || bus_setup_intr(dev, irq, INTR_TYPE_TTY, via_intr, via, &ih)){
+	if (!via->irq
+	    || bus_setup_intr(dev, via->irq, INTR_TYPE_TTY, via_intr, via, &via->ih)){
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -216,8 +215,8 @@ via_attach(device_t dev)
 	via_write_codec(via, AC97_REG_EXT_AUDIO_STAT, v);
 	via->codec_caps = v;
 	{
-	v = via_read_codec(via, AC97_REG_EXT_AUDIO_STAT);
-	DEB(printf("init: codec stat: %d\n", v));
+		v = via_read_codec(via, AC97_REG_EXT_AUDIO_STAT);
+		DEB(printf("init: codec stat: %d\n", v));
 	}
 
 	if (!(v & AC97_CODEC_DOES_VRA)) {
@@ -259,7 +258,7 @@ via_attach(device_t dev)
 		NSEGS * sizeof(struct via_dma_op), dma_cb, 0, 0)) goto bad;
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld",
-		rman_get_start(reg), rman_get_start(irq));
+		rman_get_start(via->reg), rman_get_start(via->irq));
 
 	/* Register */
 	if (pcm_register(dev, via, 1, 1)) goto bad;
@@ -268,17 +267,41 @@ via_attach(device_t dev)
 	pcm_setstatus(dev, status);
 	return 0;
 bad:
+	if (codec) ac97_destroy(codec);
+	if (via->reg) bus_release_resource(dev, SYS_RES_IOPORT, via->regid, via->reg);
+	if (via->ih) bus_teardown_intr(dev, via->irq, via->ih);
+	if (via->irq) bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
+	if (via->parent_dmat) bus_dma_tag_destroy(via->parent_dmat);
+	if (via->sgd_dmat) bus_dma_tag_destroy(via->sgd_dmat);
 	if (via) free(via, M_DEVBUF);
-	bus_release_resource(dev, SYS_RES_IOPORT, regid, reg);
-	if (ih) bus_teardown_intr(dev, irq, ih);
-	if (irq) bus_release_resource(dev, SYS_RES_IRQ, irqid, irq);
 	return ENXIO;
+}
+
+static int
+via_detach(device_t dev)
+{
+	int r;
+	struct via_info *via = 0;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	via = pcm_getdevinfo(dev);
+	bus_release_resource(dev, SYS_RES_IOPORT, via->regid, via->reg);
+	bus_teardown_intr(dev, via->irq, via->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
+	bus_dma_tag_destroy(via->parent_dmat);
+	bus_dma_tag_destroy(via->sgd_dmat);
+	free(via, M_DEVBUF);
+	return 0;
 }
 
 
 static device_method_t via_methods[] = {
 	DEVMETHOD(device_probe,		via_probe),
 	DEVMETHOD(device_attach,	via_attach),
+	DEVMETHOD(device_detach,	via_detach),
 	{ 0, 0}
 };
 

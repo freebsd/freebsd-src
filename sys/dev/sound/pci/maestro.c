@@ -1041,12 +1041,12 @@ agg_attach(device_t dev)
 	return 0;
 
  bad:
+	if (codec != NULL)
+		ac97_destroy(codec);
 	if (ih != NULL)
 		bus_teardown_intr(dev, irq, ih);
 	if (irq != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, irqid, irq);
-	if (codec != NULL)
-		free(codec, M_DEVBUF);
 	if (reg != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT, regid, reg);
 	if (ess != NULL) {
