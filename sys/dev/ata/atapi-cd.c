@@ -451,13 +451,13 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	return EBUSY;
 
     if (flags & FWRITE) {
-	if (cdp->refcnt)
+	if (count_dev(dev) > 1)
 	    return EBUSY;
 	else
 	    cdp->flags |= F_WRITING;
     }
 
-    if (!cdp->refcnt++) {
+    if (count_dev(dev) == 1) {
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
 	if (!(flags & O_NONBLOCK) && !(flags & FWRITE))
@@ -473,7 +473,7 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
-    if (!--cdp->refcnt)
+    if (count_dev(dev) == 1)
 	acd_prevent_allow(cdp, 0);
 
     cdp->flags &= ~(F_LOCKED | F_WRITING);
@@ -536,7 +536,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	break;
 
     case CDIOCEJECT:
-	if (cdp->refcnt > 1) {
+	if (count_dev(dev) > 1) {
 	    error = EBUSY;
 	    break;
 	}
@@ -544,7 +544,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	break;
 
     case CDIOCCLOSE:
-	if (cdp->refcnt > 1)
+	if (count_dev(dev) > 1)
 	    break;
 	error = acd_eject(cdp, 1);
 	break;
