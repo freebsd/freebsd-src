@@ -116,11 +116,13 @@ char *token[MAXARGS];					    /* pointers to individual tokens */
 int tokens;						    /* number of tokens */
 
 int 
-main(int argc, char *argv[])
+main(int argc, char *argv[], char *envp[])
 {
 #if __FreeBSD__ >= 3
     if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
-	fprintf(stderr, "Wrong module loaded: %s.  Please start %s.\n", VINUMMOD, WRONGMOD);
+	fprintf(stderr, "Wrong module loaded: %s.  Starting %s.\n", VINUMMOD, WRONGMOD);
+	argv[0] = "/sbin/" WRONGMOD;
+	execve(argv[0], argv, envp);
 	exit(1);
     }
     if (modfind(VINUMMOD) < 0) {
@@ -406,7 +408,7 @@ make_devices(void)
 
     if (access("/dev", W_OK) < 0) {			    /* can't access /dev to write? */
 	if (errno == EROFS)				    /* because it's read-only, */
-	    fprintf(stderr, VINUMMOD ": /dev is mounted read-only, not rebuilding " VINUM_DIR);
+	    fprintf(stderr, VINUMMOD ": /dev is mounted read-only, not rebuilding " VINUM_DIR "\n");
 	else
 	    perror(VINUMMOD ": Can't write to /dev");
 	return;
