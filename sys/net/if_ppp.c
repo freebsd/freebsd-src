@@ -544,19 +544,6 @@ pppsioctl(ifp, cmd, data)
 
     case SIOCADDMULTI:
     case SIOCDELMULTI:
-	switch(ifr->ifr_addr.sa_family) {
-#ifdef INET
-	case AF_INET:
-	    break;
-#endif
-#ifdef IPX	/* ??? IPX support multicast? */
-	case AF_IPX:
-	    break;
-#endif
-	default:
-	    error = EAFNOSUPPORT;
-	    break;
-	}
 	break;
 
     case SIOCGPPPSTATS:
