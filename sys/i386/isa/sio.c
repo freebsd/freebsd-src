@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.58 1994/10/23 21:27:34 wollman Exp $
+ *	$Id: sio.c,v 1.59 1994/11/01 23:09:29 bde Exp $
  */
 
 #include "sio.h"
@@ -1022,7 +1022,16 @@ void
 siointrts(unit)
 	int	unit;
 {
+	/*
+	 * XXX microtime() reenables CPU interrupts.  We can't afford to
+	 * be interrupted and don't want to slow down microtime(), so lock
+	 * out interrupts in another way.
+	 */
+	outb(IO_ICU1 + 1, 0xff);
 	microtime(&intr_timestamp);
+	disable_intr();
+	outb(IO_ICU1 + 1, imen);
+
 	siointr(unit);
 }
 
