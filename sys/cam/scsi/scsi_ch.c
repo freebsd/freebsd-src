@@ -688,8 +688,17 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_announce_periph(periph, announce_buf);
 		softc->state = CH_STATE_NORMAL;
 		free(mode_header, M_TEMP);
+		/*
+		 * Since our peripheral may be invalidated by an error
+		 * above or an external event, we must release our CCB
+		 * before releasing the probe lock on the peripheral.
+		 * The peripheral will only go away once the last lock
+		 * is removed, and we need it around for the CCB release
+		 * operation.
+		 */
+		xpt_release_ccb(done_ccb);
 		cam_periph_unlock(periph);
-		break;
+		return;
 	}
 	case CH_CCB_WAITING:
 	{
@@ -697,6 +706,8 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
+	default:
+		break;
 	}
 	xpt_release_ccb(done_ccb);
 }
@@ -1053,7 +1064,7 @@ copy_element_status(struct ch_softc *softc,
 
 		if (!(ces->ces_flags & CES_SOURCE_VALID))
 			printf("ch: warning: could not map element source "
-			       "address %ud to a valid element type",
+			       "address %ud to a valid element type\n",
 			       eaddr);
 	}
 			
