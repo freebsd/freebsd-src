@@ -286,20 +286,21 @@ nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 }
 
 int
-nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **mb, caddr_t *bpos)
+nfsm_strsiz_xx(int *s, int m, struct mbuf **mb, caddr_t *bpos)
 {
+	u_int32_t *tl;
 
-	*tl = nfsm_dissect_xx(NFSX_UNSIGNED, mb, bpos);
-	if (*tl == NULL)
+	tl = nfsm_dissect_xx(NFSX_UNSIGNED, mb, bpos);
+	if (tl == NULL)
 		return EBADRPC;
-	*s = fxdr_unsigned(int32_t, **tl);
+	*s = fxdr_unsigned(int32_t, *tl);
 	if (*s > m)
 		return EBADRPC;
 	return 0;
 }
 
 int
-nfsm_adv_xx(int s, u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
+nfsm_adv_xx(int s, struct mbuf **md, caddr_t *dpos)
 {
 	int t1;
 

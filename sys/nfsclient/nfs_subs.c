@@ -811,23 +811,24 @@ loop:
 
 int
 nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
-    u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
+    struct mbuf **md, caddr_t *dpos)
 {
 	struct nfsnode *ttnp;
 	struct vnode *ttvp;
 	nfsfh_t *ttfhp;
+	u_int32_t *tl;
 	int ttfhsize;
 	int t1;
 
 	if (v3) {
-		*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
-		if (*tl == NULL)
+		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		if (tl == NULL)
 			return EBADRPC;
-		*f = fxdr_unsigned(int, **tl);
+		*f = fxdr_unsigned(int, *tl);
 	} else
 		*f = 1;
 	if (*f) {
-		t1 = nfsm_getfh_xx(&ttfhp, &ttfhsize, (v3), tl, md, dpos);
+		t1 = nfsm_getfh_xx(&ttfhp, &ttfhsize, (v3), md, dpos);
 		if (t1 != 0)
 			return t1;
 		t1 = nfs_nget(d->v_mount, ttfhp, ttfhsize, &ttnp);
@@ -836,13 +837,13 @@ nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
 		*v = NFSTOV(ttnp);
 	}
 	if (v3) {
-		*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
-		if (*tl == NULL)
+		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		if (tl == NULL)
 			return EBADRPC;
 		if (*f)
-			*f = fxdr_unsigned(int, **tl);
-		else if (fxdr_unsigned(int, **tl))
-			nfsm_adv_xx(NFSX_V3FATTR, tl, md, dpos);
+			*f = fxdr_unsigned(int, *tl);
+		else if (fxdr_unsigned(int, *tl))
+			nfsm_adv_xx(NFSX_V3FATTR, md, dpos);
 	}
 	if (*f) {
 		ttvp = *v;
@@ -855,15 +856,15 @@ nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
 }
 
 int
-nfsm_getfh_xx(nfsfh_t **f, int *s, int v3,
-    u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
+nfsm_getfh_xx(nfsfh_t **f, int *s, int v3, struct mbuf **md, caddr_t *dpos)
 {
+	u_int32_t *tl;
 
 	if (v3) {
-		*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
-		if (*tl == NULL)
+		tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+		if (tl == NULL)
 			return EBADRPC;
-		*s = fxdr_unsigned(int, **tl);
+		*s = fxdr_unsigned(int, *tl);
 		if (*s <= 0 || *s > NFSX_V3FHMAX)
 			return EBADRPC;
 	} else
@@ -877,8 +878,8 @@ nfsm_getfh_xx(nfsfh_t **f, int *s, int v3,
 
 
 int
-nfsm_loadattr_xx(struct vnode **v, struct vattr *va,
-    u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
+nfsm_loadattr_xx(struct vnode **v, struct vattr *va, struct mbuf **md,
+    caddr_t *dpos)
 {
 	int t1;
 
@@ -891,16 +892,17 @@ nfsm_loadattr_xx(struct vnode **v, struct vattr *va,
 }
 
 int
-nfsm_postop_attr_xx(struct vnode **v, int *f,
-    u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
+nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
+    caddr_t *dpos)
 {
+	u_int32_t *tl;
 	int t1;
 
 	struct vnode *ttvp = *v;
-	*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
-	if (*tl == NULL)
+	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	if (tl == NULL)
 		return EBADRPC;
-	*f = fxdr_unsigned(int, **tl);
+	*f = fxdr_unsigned(int, *tl);
 	if (*f != 0) {
 		t1 = nfs_loadattrcache(&ttvp, md, dpos, (struct vattr *)0, 1);
 		if (t1 != 0) {
@@ -913,24 +915,24 @@ nfsm_postop_attr_xx(struct vnode **v, int *f,
 }
 
 int
-nfsm_wcc_data_xx(struct vnode **v, int *f,
-    u_int32_t **tl, struct mbuf **md, caddr_t *dpos)
+nfsm_wcc_data_xx(struct vnode **v, int *f, struct mbuf **md, caddr_t *dpos)
 {
+	u_int32_t *tl;
 	int ttattrf, ttretf = 0;
 	int t1;
 
-	*tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
-	if (*tl == NULL)
+	tl = nfsm_dissect_xx(NFSX_UNSIGNED, md, dpos);
+	if (tl == NULL)
 		return EBADRPC;
-	if (**tl == nfs_true) {
-		*tl = nfsm_dissect_xx(6 * NFSX_UNSIGNED, md, dpos);
-		if (*tl == NULL)
+	if (*tl == nfs_true) {
+		tl = nfsm_dissect_xx(6 * NFSX_UNSIGNED, md, dpos);
+		if (tl == NULL)
 			return EBADRPC;
 		if (*f)
 			ttretf = (VTONFS(*v)->n_mtime ==
-			    fxdr_unsigned(u_int32_t, *((*tl) + 2)));
+			    fxdr_unsigned(u_int32_t, *(tl + 2)));
 	}
-	t1 = nfsm_postop_attr_xx(v, &ttattrf, tl, md, dpos);
+	t1 = nfsm_postop_attr_xx(v, &ttattrf, md, dpos);
 	if (t1)
 		return t1;
 	if (*f)
@@ -941,19 +943,19 @@ nfsm_wcc_data_xx(struct vnode **v, int *f,
 }
 
 int
-nfsm_strtom_xx(const char *a, int s, int m,
-    u_int32_t **tl, struct mbuf **mb, caddr_t *bpos)
+nfsm_strtom_xx(const char *a, int s, int m, struct mbuf **mb, caddr_t *bpos)
 {
+	u_int32_t *tl;
 	int t1;
 
 	if (s > m)
 		return ENAMETOOLONG;
 	t1 = nfsm_rndup(s) + NFSX_UNSIGNED;
 	if (t1 <= M_TRAILINGSPACE(*mb)) {
-		*tl = nfsm_build_xx(t1, mb, bpos);
-		*(*tl)++ = txdr_unsigned(s);
-		*((*tl) + ((t1 >> 2) - 2)) = 0;
-		bcopy(a, *tl, s);
+		tl = nfsm_build_xx(t1, mb, bpos);
+		*tl++ = txdr_unsigned(s);
+		*(tl + ((t1 >> 2) - 2)) = 0;
+		bcopy(a, tl, s);
 	} else {
 		t1 = nfsm_strtmbuf(mb, bpos, a, s);
 		if (t1 != 0)
@@ -963,19 +965,19 @@ nfsm_strtom_xx(const char *a, int s, int m,
 }
 
 int
-nfsm_fhtom_xx(struct vnode *v, int v3,
-    u_int32_t **tl, struct mbuf **mb, caddr_t *bpos)
+nfsm_fhtom_xx(struct vnode *v, int v3, struct mbuf **mb, caddr_t *bpos)
 {
+	u_int32_t *tl;
 	int t1;
 	caddr_t cp;
 
 	if (v3) {
 		t1 = nfsm_rndup(VTONFS(v)->n_fhsize) + NFSX_UNSIGNED;
 		if (t1 < M_TRAILINGSPACE(*mb)) {
-			*tl = nfsm_build_xx(t1, mb, bpos);
-			*(*tl)++ = txdr_unsigned(VTONFS(v)->n_fhsize);
-			*((*tl) + ((t1 >> 2) - 2)) = 0;
-			bcopy(VTONFS(v)->n_fhp, *tl, VTONFS(v)->n_fhsize);
+			tl = nfsm_build_xx(t1, mb, bpos);
+			*tl++ = txdr_unsigned(VTONFS(v)->n_fhsize);
+			*(tl + ((t1 >> 2) - 2)) = 0;
+			bcopy(VTONFS(v)->n_fhp, tl, VTONFS(v)->n_fhsize);
 		} else {
 			t1 = nfsm_strtmbuf(mb, bpos,
 			    (const char *)VTONFS(v)->n_fhp,
@@ -991,66 +993,67 @@ nfsm_fhtom_xx(struct vnode *v, int v3,
 }
 
 void
-nfsm_v3attrbuild_xx(struct vattr *va, int full,
-    u_int32_t **tl, struct mbuf **mb, caddr_t *bpos)
+nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
+    caddr_t *bpos)
 {
+	u_int32_t *tl;
 
 	if (va->va_mode != (mode_t)VNOVAL) {
-		*tl = nfsm_build_xx(2 * NFSX_UNSIGNED, mb, bpos);
-		*(*tl)++ = nfs_true;
-		**tl = txdr_unsigned(va->va_mode);
+		tl = nfsm_build_xx(2 * NFSX_UNSIGNED, mb, bpos);
+		*tl++ = nfs_true;
+		*tl = txdr_unsigned(va->va_mode);
 	} else {
-		*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-		**tl = nfs_false;
+		tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+		*tl = nfs_false;
 	}
 	if (full && va->va_uid != (uid_t)VNOVAL) {
-		*tl = nfsm_build_xx(2 * NFSX_UNSIGNED, mb, bpos);
-		*(*tl)++ = nfs_true;
-		**tl = txdr_unsigned(va->va_uid);
+		tl = nfsm_build_xx(2 * NFSX_UNSIGNED, mb, bpos);
+		*tl++ = nfs_true;
+		*tl = txdr_unsigned(va->va_uid);
 	} else {
-		*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-		**tl = nfs_false;
+		tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+		*tl = nfs_false;
 	}
 	if (full && va->va_gid != (gid_t)VNOVAL) {
-		*tl = nfsm_build_xx(2 * NFSX_UNSIGNED, mb, bpos);
-		*(*tl)++ = nfs_true;
-		**tl = txdr_unsigned(va->va_gid);
+		tl = nfsm_build_xx(2 * NFSX_UNSIGNED, mb, bpos);
+		*tl++ = nfs_true;
+		*tl = txdr_unsigned(va->va_gid);
 	} else {
-		*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-		**tl = nfs_false;
+		tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+		*tl = nfs_false;
 	}
 	if (full && va->va_size != VNOVAL) {
-		*tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
-		*(*tl)++ = nfs_true;
-		txdr_hyper(va->va_size, *tl);
+		tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
+		*tl++ = nfs_true;
+		txdr_hyper(va->va_size, tl);
 	} else {
-		*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-		**tl = nfs_false;
+		tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+		*tl = nfs_false;
 	}
 	if (va->va_atime.tv_sec != VNOVAL) {
 		if (va->va_atime.tv_sec != time_second) {
-			*tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
-			*(*tl)++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
-			txdr_nfsv3time(&va->va_atime, *tl);
+			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
+			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
+			txdr_nfsv3time(&va->va_atime, tl);
 		} else {
-			*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-			**tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
+			tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+			*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
 		}
 	} else {
-		*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-		**tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
+		tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+		*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 	}
 	if (va->va_mtime.tv_sec != VNOVAL) {
 		if (va->va_mtime.tv_sec != time_second) {
-			*tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
-			*(*tl)++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
-			txdr_nfsv3time(&va->va_mtime, *tl);
+			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
+			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
+			txdr_nfsv3time(&va->va_mtime, tl);
 		} else {
-			*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-			**tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
+			tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+			*tl = txdr_unsigned(NFSV3SATTRTIME_TOSERVER);
 		}
 	} else {
-		*tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
-		**tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
+		tl = nfsm_build_xx(NFSX_UNSIGNED, mb, bpos);
+		*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 	}
 }
