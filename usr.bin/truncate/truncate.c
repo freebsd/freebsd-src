@@ -135,6 +135,8 @@ main(int argc, char **argv)
 			error++;
 			continue;
 		}
+
+		close(fd);
 	}
 
 	return error ? EXIT_FAILURE : EXIT_SUCCESS;
