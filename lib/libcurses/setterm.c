@@ -44,8 +44,10 @@ static char sccsid[] = "@(#)setterm.c	8.7 (Berkeley) 7/27/94";
 
 #include "curses.h"
 
+#ifndef __FreeBSD__
 #undef ospeed
 extern short ospeed;
+#endif
 
 static void zap __P((void));
 
@@ -152,7 +154,7 @@ setterm(type)
 		CM = 0;
 	} else
 		CA = 1;
-
+#ifndef __FreeBSD__
 	PC = _PC ? _PC[0] : 0;
 
 	switch(cfgetospeed(&__baset)) {
@@ -183,7 +185,7 @@ setterm(type)
 		case B115200: ospeed = 17; break;
 #endif
 	}
-
+#endif  /* __FreeBSD__ */
 	aoftspace = tspace;
 	ttytype = longname(genbuf, __ttytype);
 
