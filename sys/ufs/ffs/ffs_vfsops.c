@@ -503,6 +503,10 @@ loop:
 		}
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		mtx_unlock(&mntvnode_mtx);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
@@ -1108,6 +1112,7 @@ ffs_sync(mp, waitfor, cred, td)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, count, wait, lockreq, allerror = 0;
+	int restart;
 
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
@@ -1123,8 +1128,10 @@ ffs_sync(mp, waitfor, cred, td)
 		wait = 1;
 		lockreq = LK_EXCLUSIVE;
 	}
+	lockreq |= LK_INTERLOCK;
 	mtx_lock(&mntvnode_mtx);
 loop:
+	restart = 0;
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
@@ -1140,31 +1147,40 @@ loop:
 		 * call unless there's a good chance that we have work to do.
 		 */
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
+			VI_UNLOCK(vp);
 			continue;
 		}
+		mtx_unlock(&mntvnode_mtx);
 		if (vp->v_type != VCHR) {
-			mtx_unlock(&mntvnode_mtx);
 			if ((error = vget(vp, lockreq, td)) != 0) {
 				mtx_lock(&mntvnode_mtx);
 				if (error == ENOENT)
 					goto loop;
-			} else {
-				if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
-					allerror = error;
-				VOP_UNLOCK(vp, 0, td);
-				vrele(vp);
-				mtx_lock(&mntvnode_mtx);
+				continue;
 			}
+			if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
+				allerror = error;
+			VOP_UNLOCK(vp, 0, td);
+			mtx_lock(&mntvnode_mtx);
+			if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
+				restart = 1;
+			vrele(vp);
 		} else {
-			mtx_unlock(&mntvnode_mtx);
+			VI_UNLOCK(vp);
+			/* XXX UFS_UPDATE is not protected by any lock. */
 			UFS_UPDATE(vp, wait);
 			mtx_lock(&mntvnode_mtx);
 		}
-		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
+		if (restart)
 			goto loop;
 	}
 	mtx_unlock(&mntvnode_mtx);
