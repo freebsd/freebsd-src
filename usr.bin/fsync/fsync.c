@@ -36,29 +36,36 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-void	usage(void);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
 	int fd;
 	int i;
+	int rval;
 	
 	if (argc < 2)
 		usage();
 	
+	rval = 0;
 	for (i = 1; i < argc; ++i) {
-		if ((fd = open(argv[i], O_RDONLY)) < 0)
-			err(1, "open %s", argv[i]);
+		if ((fd = open(argv[i], O_RDONLY)) < 0) {
+			warn("open %s", argv[i]);
+			rval = 1;
+			continue;
+		}
 
-		if (fsync(fd) != 0)
-			err(1, "fsync %s", argv[1]);
+		if (fsync(fd) != 0) {
+			warn("fsync %s", argv[i]);
+			rval = 1;
+		}
 		close(fd);
 	}
-	return(0);
+	return (rval);
 }
 
-void
+static void
 usage()
 {
 	fprintf(stderr, "usage: fsync file ...\n");
