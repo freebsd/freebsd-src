@@ -7,8 +7,8 @@
 .PATH:	${.CURDIR}/../../../contrib/awk
 
 PROG=	awk
-SRCS=	array.c awktab.y builtin.c eval.c field.c gawkmisc.c io.c main.c \
-	msg.c node.c re.c version.c dfa.c getopt.c getopt1.c
+SRCS=	array.c awkgram.y builtin.c eval.c field.c gawkmisc.c io.c main.c \
+	msg.c node.c re.c version.c dfa.c getopt.c getopt1.c ext.c profile.c
 MAN=	doc/gawk.1
 MLINKS=	gawk.1 awk.1
 
@@ -19,14 +19,10 @@ CFLAGS+=        -funsigned-char
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../../contrib/awk
 CFLAGS+=	-DHAVE_CONFIG_H -DGAWK -DDEFPATH=\".\"
-CLEANFILES=	awktab.y
 
 SUBDIR+= doc
 
 DPADD+= ${LIBGNUREGEX} ${LIBM}
 LDADD+= -lgnuregex -lm
-
-awktab.y: awk.y
-	ln -fs ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* config.h.  Generated automatically by configure.  */
 /* configh.in.  Generated automatically from configure.in by autoheader.  */
 /*
@@ -5,25 +7,21 @@
  */
 
 /*
- * $FreeBSD$
- */
-
-/* 
- * Copyright (C) 1995-2000 the Free Software Foundation, Inc.
- * 
+ * Copyright (C) 1995-2001 the Free Software Foundation, Inc.
+ *
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
- * 
+ *
  * GAWK is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GAWK is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
@@ -93,8 +91,14 @@
 /* Define if you have the vprintf function.  */
 #define HAVE_VPRINTF 1
 
+/* Define as __inline if that's what the C compiler calls it.  */
+/* #undef inline */
+
 /* Define if on MINIX.  */
 /* #undef _MINIX */
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+/* #undef off_t */
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef pid_t */
@@ -133,23 +137,38 @@
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef uid_t */
 
-#define HAVE_STRINGIZE 1 /* can use ANSI # operator in cpp */
 #define REGEX_MALLOC 1 /* use malloc instead of alloca in regex.c */
 #define SPRINTF_RET int /* return type of sprintf */
-/* #undef BITOPS */  /* bitwise ops (undocumented feature) */
-/* #undef NONDECDATA */ /* non-decimal input data (undocumented feature) */
-/* #undef _FILE_OFFSET_BITS */ /* bits in a file offset, where this matters */
-/* #undef _LARGEFILE_SOURCE */ /* makes fseeko etc. visible on some hosts */
-/* #undef _LARGE_FILES */ /* emables large files on AIX-style hosts */
+/* #undef HAVE_MKTIME */ /* we have the mktime function */
+#define HAVE_SOCKETS 1 /* we have sockets on this system */
+/* #undef HAVE_PORTALS */ /* we have portals on /p on this system */
+/* #undef DYNAMIC */  /* allow dynamic addition of builtins */
+/* #undef STRTOD_NOT_C89 */ /* strtod doesn't have C89 semantics */
+/* #undef ssize_t */  /* signed version of size_t */
+
+/* Define if you have the __argz_count function.  */
+/* #undef HAVE___ARGZ_COUNT */
+
+/* Define if you have the __argz_next function.  */
+/* #undef HAVE___ARGZ_NEXT */
+
+/* Define if you have the __argz_stringify function.  */
+/* #undef HAVE___ARGZ_STRINGIFY */
+
+/* Define if you have the alarm function.  */
+#define HAVE_ALARM 1
+
+/* Define if you have the dcgettext function.  */
+/* #undef HAVE_DCGETTEXT */
 
 /* Define if you have the fmod function.  */
 #define HAVE_FMOD 1
 
+/* Define if you have the getcwd function.  */
+#define HAVE_GETCWD 1
+
 /* Define if you have the getpagesize function.  */
 #define HAVE_GETPAGESIZE 1
-
-/* Define if you have the madvise function.  */
-#define HAVE_MADVISE 1
 
 /* Define if you have the memcmp function.  */
 #define HAVE_MEMCMP 1
@@ -160,11 +179,29 @@
 /* Define if you have the memset function.  */
 #define HAVE_MEMSET 1
 
+/* Define if you have the munmap function.  */
+#define HAVE_MUNMAP 1
+
+/* Define if you have the putenv function.  */
+#define HAVE_PUTENV 1
+
+/* Define if you have the setenv function.  */
+#define HAVE_SETENV 1
+
 /* Define if you have the setlocale function.  */
 #define HAVE_SETLOCALE 1
 
+/* Define if you have the stpcpy function.  */
+/* #undef HAVE_STPCPY */
+
+/* Define if you have the strcasecmp function.  */
+#define HAVE_STRCASECMP 1
+
 /* Define if you have the strchr function.  */
 #define HAVE_STRCHR 1
+
+/* Define if you have the strdup function.  */
+#define HAVE_STRDUP 1
 
 /* Define if you have the strerror function.  */
 #define HAVE_STRERROR 1
@@ -184,20 +221,47 @@
 /* Define if you have the tzset function.  */
 #define HAVE_TZSET 1
 
+/* Define if you have the <argz.h> header file.  */
+/* #undef HAVE_ARGZ_H */
+
+/* Define if you have the <fcntl.h> header file.  */
+#define HAVE_FCNTL_H 1
+
+/* Define if you have the <libintl.h> header file.  */
+/* #undef HAVE_LIBINTL_H */
+
 /* Define if you have the <limits.h> header file.  */
 #define HAVE_LIMITS_H 1
 
 /* Define if you have the <locale.h> header file.  */
 #define HAVE_LOCALE_H 1
 
+/* Define if you have the <malloc.h> header file.  */
+/* #undef HAVE_MALLOC_H */
+
+/* Define if you have the <mcheck.h> header file.  */
+/* #undef HAVE_MCHECK_H */
+
 /* Define if you have the <memory.h> header file.  */
 #define HAVE_MEMORY_H 1
+
+/* Define if you have the <netdb.h> header file.  */
+#define HAVE_NETDB_H 1
+
+/* Define if you have the <netinet/in.h> header file.  */
+#define HAVE_NETINET_IN_H 1
+
+/* Define if you have the <nl_types.h> header file.  */
+#define HAVE_NL_TYPES_H 1
 
 /* Define if you have the <signum.h> header file.  */
 /* #undef HAVE_SIGNUM_H */
 
 /* Define if you have the <stdarg.h> header file.  */
 #define HAVE_STDARG_H 1
+
+/* Define if you have the <stdlib.h> header file.  */
+#define HAVE_STDLIB_H 1
 
 /* Define if you have the <string.h> header file.  */
 #define HAVE_STRING_H 1
@@ -208,23 +272,53 @@
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
 
+/* Define if you have the <sys/socket.h> header file.  */
+#define HAVE_SYS_SOCKET_H 1
+
+/* Define if you have the <sys/time.h> header file.  */
+#define HAVE_SYS_TIME_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
+
+/* Define if you have the i library (-li).  */
+/* #undef HAVE_LIBI */
+
+/* Define if you have the intl library (-lintl).  */
+/* #undef HAVE_LIBINTL */
 
 /* Define if you have the m library (-lm).  */
 #define HAVE_LIBM 1
 
+/* Name of package */
+#define PACKAGE "gawk"
+
+/* Version number of package */
+/* #define VERSION "3.1.0" */
+
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
-
-/* Define to make ftello visible on some hosts (e.g. HP-UX 10.20). */
-/* #undef _LARGEFILE_SOURCE */
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
 
-/* Define to make ftello visible on some hosts (e.g. glibc 2.1.3). */
-/* #undef _XOPEN_SOURCE */
+/* Define if compiler has function prototypes */
+#define PROTOTYPES 1
+
+/* Define to 1 if you have the stpcpy function. */
+/* #undef HAVE_STPCPY */
+
+/* Define if your locale.h file contains LC_MESSAGES. */
+#define HAVE_LC_MESSAGES 1
+
+/* Define to 1 if NLS is requested. */
+#define ENABLE_NLS 1
+
+/* Define to 1 if you have gettext and don't want to use GNU gettext. */
+/* #undef HAVE_GETTEXT */
+
+/* Define as 1 if you have catgets and don't want to use GNU gettext. */
+/* #undef HAVE_CATGETS */
 
 
 #include <custom.h>	/* overrides for stuff autoconf can't deal with */
