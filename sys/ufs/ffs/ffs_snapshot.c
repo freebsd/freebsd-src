@@ -36,6 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/stdint.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
@@ -451,16 +452,38 @@ loop:
 	}
 	mtx_unlock(&mntvnode_mtx);
 	/*
+	 * If there already exist snapshots on this filesystem, grab a
+	 * reference to their shared lock. If this is the first snapshot
+	 * on this filesystem, we need to allocate a lock for the snapshots
+	 * to share. In either case, acquire the snapshot lock and give
+	 * up our original private lock.
+	 */
+	snaphead = &ip->i_devvp->v_rdev->si_snapshots;
+	if ((xp = TAILQ_FIRST(snaphead)) != NULL) {
+		VI_LOCK(vp);
+		vp->v_vnlock = ITOV(xp)->v_vnlock;
+	} else {
+		struct lock *lkp;
+
+		MALLOC(lkp, struct lock *, sizeof(struct lock), M_UFSMNT,
+		    M_WAITOK);
+		lockinit(lkp, PVFS, "snaplk", VLKTIMEOUT,
+		    LK_CANRECURSE | LK_NOPAUSE);
+		VI_LOCK(vp);
+		vp->v_vnlock = lkp;
+	}
+	vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
+	VI_LOCK(vp);
+	lockmgr(&vp->v_lock, LK_INTERLOCK | LK_RELEASE, VI_MTX(vp), td);
+	/*
 	 * Record snapshot inode. Since this is the newest snapshot,
 	 * it must be placed at the end of the list.
 	 */
 	fs->fs_snapinum[snaploc] = ip->i_number;
 	if (ip->i_nextsnap.tqe_prev != 0)
 		panic("ffs_snapshot: %d already on list", ip->i_number);
-	snaphead = &ip->i_devvp->v_rdev->si_snapshots;
-	TAILQ_INSERT_TAIL(snaphead, ip, i_nextsnap);
-
 	ASSERT_VOP_LOCKED(ip->i_devvp, "ffs_snapshot devvp");
+	TAILQ_INSERT_TAIL(snaphead, ip, i_nextsnap);
 	ip->i_devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
 	ip->i_devvp->v_vflag |= VV_COPYONWRITE;
 	ASSERT_VOP_LOCKED(vp, "ffs_snapshot vp");
@@ -1255,8 +1278,10 @@ ffs_snapremove(vp)
 {
 	struct inode *ip;
 	struct vnode *devvp;
+	struct lock *lkp;
 	struct buf *ibp;
 	struct fs *fs;
+	struct thread *td = curthread;
 	ufs2_daddr_t numblks, blkno, dblk;
 	int error, loc, last;
 
@@ -1270,11 +1295,19 @@ ffs_snapremove(vp)
 	 * Clear copy-on-write flag if last snapshot.
 	 */
 	if (ip->i_nextsnap.tqe_prev != 0) {
+		VI_LOCK(vp);
+		lockmgr(&vp->v_lock, LK_INTERLOCK|LK_EXCLUSIVE, VI_MTX(vp), td);
+		VI_LOCK(vp);
+		lkp = vp->v_vnlock;
+		vp->v_vnlock = &vp->v_lock;
+		lockmgr(lkp, LK_INTERLOCK | LK_RELEASE, VI_MTX(vp), td);
 		devvp = ip->i_devvp;
 		TAILQ_REMOVE(&devvp->v_rdev->si_snapshots, ip, i_nextsnap);
 		ip->i_nextsnap.tqe_prev = 0;
 		ASSERT_VOP_LOCKED(devvp, "ffs_snapremove devvp");
 		if (TAILQ_FIRST(&devvp->v_rdev->si_snapshots) == 0) {
+			lockdestroy(lkp);
+			FREE(lkp, M_UFSMNT);
 			devvp->v_rdev->si_copyonwrite = 0;
 			devvp->v_vflag &= ~VV_COPYONWRITE;
 		}
@@ -1562,7 +1595,7 @@ ffs_snapshot_mount(mp)
 	struct thread *td = curthread;
 	struct snaphead *snaphead;
 	struct vnode *vp;
-	struct inode *ip;
+	struct inode *ip, *xp;
 	struct uio auio;
 	struct iovec aiov;
 	void *listhd;
@@ -1639,6 +1672,29 @@ ffs_snapshot_mount(mp)
 		}
 		ip->i_snapblklist = (daddr_t *)listhd;
 		/*
+		 * If there already exist snapshots on this filesystem, grab a
+		 * reference to their shared lock. If this is the first snapshot
+		 * on this filesystem, we need to allocate a lock for the
+		 * snapshots to share. In either case, acquire the snapshot
+		 * lock and give up our original private lock.
+		 */
+		if ((xp = TAILQ_FIRST(snaphead)) != NULL) {
+			VI_LOCK(vp);
+			vp->v_vnlock = ITOV(xp)->v_vnlock;
+		} else {
+			struct lock *lkp;
+
+			MALLOC(lkp, struct lock *, sizeof(struct lock),
+			    M_UFSMNT, M_WAITOK);
+			lockinit(lkp, PVFS, "snaplk", VLKTIMEOUT,
+			    LK_CANRECURSE | LK_NOPAUSE);
+			VI_LOCK(vp);
+			vp->v_vnlock = lkp;
+		}
+		vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
+		VI_LOCK(vp);
+		lockmgr(&vp->v_lock, LK_INTERLOCK | LK_RELEASE, VI_MTX(vp), td);
+		/*
 		 * Link it onto the active snapshot list.
 		 */
 		if (ip->i_nextsnap.tqe_prev != 0)
@@ -1663,9 +1719,14 @@ ffs_snapshot_unmount(mp)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct snaphead *snaphead = &ump->um_devvp->v_rdev->si_snapshots;
+	struct lock *lkp = NULL;
 	struct inode *xp;
+	struct vnode *vp;
 
 	while ((xp = TAILQ_FIRST(snaphead)) != 0) {
+		vp = ITOV(xp);
+		lkp = vp->v_vnlock;
+		vp->v_vnlock = &vp->v_lock;
 		TAILQ_REMOVE(snaphead, xp, i_nextsnap);
 		if (xp->i_snapblklist != NULL) {
 			FREE(xp->i_snapblklist, M_UFSMNT);
@@ -1673,7 +1734,11 @@ ffs_snapshot_unmount(mp)
 		}
 		xp->i_nextsnap.tqe_prev = 0;
 		if (xp->i_effnlink > 0)
-			vrele(ITOV(xp));
+			vrele(vp);
+	}
+	if (lkp != NULL) {
+		lockdestroy(lkp);
+		FREE(lkp, M_UFSMNT);
 	}
 	ASSERT_VOP_LOCKED(ump->um_devvp, "ffs_snapshot_unmount");
 	ump->um_devvp->v_rdev->si_copyonwrite = 0;
@@ -1689,6 +1754,7 @@ ffs_copyonwrite(devvp, bp)
 	struct vnode *devvp;
 	struct buf *bp;
 {
+	struct snaphead *snaphead;
 	struct buf *ibp, *cbp, *savedcbp = 0;
 	struct thread *td = curthread;
 	struct fs *fs;
@@ -1697,11 +1763,15 @@ ffs_copyonwrite(devvp, bp)
 	ufs2_daddr_t lbn, blkno;
 	int lower, upper, mid, indiroff, error = 0;
 
-	fs = TAILQ_FIRST(&devvp->v_rdev->si_snapshots)->i_fs;
-	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
 	if (td->td_proc->p_flag & P_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
-	TAILQ_FOREACH(ip, &devvp->v_rdev->si_snapshots, i_nextsnap) {
+	snaphead = &devvp->v_rdev->si_snapshots;
+	ip = TAILQ_FIRST(snaphead);
+	fs = ip->i_fs;
+	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
+	vp = ITOV(ip);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	TAILQ_FOREACH(ip, snaphead, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
 		 * We ensure that everything of our own that needs to be
@@ -1729,29 +1799,20 @@ ffs_copyonwrite(devvp, bp)
 		if (lower <= upper)
 			continue;
 		/*
-		 * Check to see if block needs to be copied. We have to
-		 * be able to do the UFS_BALLOC without blocking, otherwise
-		 * we may get in a deadlock with another process also
-		 * trying to allocate. If we find outselves unable to
-		 * get the buffer lock, we unlock the snapshot vnode,
-		 * sleep briefly, and try again.
+		 * Check to see if block needs to be copied. Because
+		 * all snapshots on a filesystem share a single lock,
+		 * we ensure that we will never be in competition with
+		 * another process to allocate a block.
 		 */
-retry:
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (lbn < NDADDR) {
 			blkno = DIP(ip, i_db[lbn]);
 		} else {
 			td->td_proc->p_flag |= P_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-			   fs->fs_bsize, KERNCRED, BA_METAONLY | BA_NOWAIT, &ibp);
+			   fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			td->td_proc->p_flag &= ~P_COWINPROGRESS;
-			if (error) {
-				VOP_UNLOCK(vp, 0, td);
-				if (error != EWOULDBLOCK)
-					break;
-				tsleep(vp, td->td_ksegrp->kg_user_pri, "nap", 1);
-				goto retry;
-			}
+			if (error)
+				break;
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
 			if (ip->i_ump->um_fstype == UFS1)
 				blkno=((ufs1_daddr_t *)(ibp->b_data))[indiroff];
@@ -1763,10 +1824,8 @@ retry:
 		if (blkno == BLK_SNAP && bp->b_lblkno >= 0)
 			panic("ffs_copyonwrite: bad copy block");
 #endif
-		if (blkno != 0) {
-			VOP_UNLOCK(vp, 0, td);
+		if (blkno != 0)
 			continue;
-		}
 		/*
 		 * Allocate the block into which to do the copy. Note that this
 		 * allocation will never require any additional allocations for
@@ -1774,15 +1833,10 @@ retry:
 		 */
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-		    fs->fs_bsize, KERNCRED, BA_NOWAIT, &cbp);
+		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		td->td_proc->p_flag &= ~P_COWINPROGRESS;
-		if (error) {
-			VOP_UNLOCK(vp, 0, td);
-			if (error != EWOULDBLOCK)
-				break;
-			tsleep(vp, td->td_ksegrp->kg_user_pri, "nap", 1);
-			goto retry;
-		}
+		if (error)
+			break;
 #ifdef DEBUG
 		if (snapdebug) {
 			printf("Copyonwrite: snapino %d lbn %jd for ",
@@ -1807,7 +1861,6 @@ retry:
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
 				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
-			VOP_UNLOCK(vp, 0, td);
 			continue;
 		}
 		/*
@@ -1818,11 +1871,9 @@ retry:
 			bawrite(cbp);
 			if (dopersistence && ip->i_effnlink > 0)
 				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
-			VOP_UNLOCK(vp, 0, td);
 			break;
 		}
 		savedcbp = cbp;
-		VOP_UNLOCK(vp, 0, td);
 	}
 	/*
 	 * Note that we need to synchronously write snapshots that
@@ -1832,12 +1883,10 @@ retry:
 	if (savedcbp) {
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
-		if (dopersistence && VTOI(vp)->i_effnlink > 0) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (dopersistence && VTOI(vp)->i_effnlink > 0)
 			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
-			VOP_UNLOCK(vp, 0, td);
-		}
 	}
+	VOP_UNLOCK(vp, 0, td);
 	return (error);
 }
 
