@@ -78,7 +78,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		di->bas.iobase = ivar;
 		di->bas.bst = I386_BUS_SPACE_IO;
 		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
-			return (ENXIO);
+			continue;
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
