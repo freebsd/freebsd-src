@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.50.2.1 1996/11/06 10:30:03 phk Exp $
+#	$Id: Makefile,v 1.50.2.2 1996/11/25 07:16:47 phk Exp $
 #
 
 PROG=	boot
@@ -9,6 +9,7 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+		-mno-486 \
 		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR}/../../..
