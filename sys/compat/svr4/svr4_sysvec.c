@@ -169,8 +169,8 @@ struct sysentvec svr4_sysvec = {
   SVR4_SYS_MAXSYSCALL,
   svr4_sysent,
   0xff,
-  SVR4_SIGTBLSZ,
-  bsd_to_svr4_sig,
+  SVR4_NSIG-1,		/* NB: signal trans table indexed with signno-1 */
+  bsd_to_svr4_sig+1,
   ELAST,  /* ELAST */
   bsd_to_svr4_errno,
   NULL,

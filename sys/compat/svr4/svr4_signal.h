@@ -69,7 +69,6 @@
 #define	SVR4_SIGXCPU	30
 #define	SVR4_SIGXFSZ	31
 #define SVR4_NSIG	32
-#define SVR4_SIGTBLSZ	31
 
 #define	SVR4_SIGNO_MASK		0x00FF
 #define	SVR4_SIGNAL_MASK	0x0000
@@ -92,13 +91,13 @@ typedef void (*svr4_sig_t)(int, svr4_siginfo_t *, void *);
 #define SVR4_SIG_UNBLOCK	2
 #define SVR4_SIG_SETMASK	3
 
-extern int bsd_to_svr4_sig[];
-extern int svr4_to_bsd_sig[];
+extern int bsd_to_svr4_sig[SVR4_NSIG];
+extern int svr4_to_bsd_sig[SVR4_NSIG];
 
 #define SVR4_BSD2SVR4_SIG(sig)	\
-	(((sig) <= SVR4_SIGTBLSZ) ? bsd_to_svr4_sig[_SIG_IDX(sig)] : sig)
+	(((sig) < SVR4_NSIG) ? bsd_to_svr4_sig[sig] : sig)
 #define SVR4_SVR42BSD_SIG(sig)	\
-	(((sig) <= SVR4_SIGTBLSZ) ? svr4_to_bsd_sig[_SIG_IDX(sig)] : sig)
+	(((sig) < SVR4_NSIG) ? svr4_to_bsd_sig[sig] : sig)
 
 typedef struct {
         u_long bits[4];
