@@ -771,7 +771,9 @@ ndis_convert_res(arg)
 	ndis_miniport_block	*block;
 	device_t		dev;
 	struct resource_list	*brl;
-	struct resource_list_entry	*brle;
+	struct resource_list	brl_rev;
+	struct resource_list_entry	*brle, *n;
+	int 			error = 0;
 
 	sc = arg;
 	block = &sc->ndis_block;
@@ -791,7 +793,34 @@ ndis_convert_res(arg)
 
 	brl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
 	if (brl != NULL) {
+
+		/*
+		 * We have a small problem. Some PCI devices have
+		 * multiple I/O ranges. Windows orders them starting
+		 * from lowest numbered BAR to highest. We discover
+		 * them in that order too, but insert them into a singly
+		 * linked list head first, which means when time comes
+		 * to traverse the list, we enumerate them in reverse
+		 * order. This screws up some drivers which expect the
+		 * BARs to be in ascending order so that they can choose
+		 * the "first" one as their register space. Unfortunately,
+		 * in order to fix this, we have to create our own
+		 * temporary list with the entries in reverse order.
+		 */
+		SLIST_INIT(&brl_rev);
 		SLIST_FOREACH(brle, brl, link) {
+			n = malloc(sizeof(struct resource_list_entry),
+			    M_TEMP, M_NOWAIT);
+			if (n == NULL) {
+				error = ENOMEM;
+				goto bad;
+			}
+			bcopy((char *)brle, (char *)n,
+			    sizeof(struct resource_list_entry));
+			SLIST_INSERT_HEAD(&brl_rev, n, link);
+		}
+
+		SLIST_FOREACH(brle, &brl_rev, link) {
 			switch (brle->type) {
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
@@ -820,7 +849,15 @@ ndis_convert_res(arg)
 
 	block->nmb_rlist = rl;
 
-	return(0);
+bad:
+
+	while (!SLIST_EMPTY(&brl_rev)) {
+		n = SLIST_FIRST(&brl_rev);
+		SLIST_REMOVE_HEAD(&brl_rev, link);
+		free (n, M_TEMP);
+	}
+
+	return(error);
 }
 
 /*
