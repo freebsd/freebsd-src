@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.7 1998/06/21 18:02:41 bde Exp $
+ *	$Id: wst.c,v 1.8 1998/07/04 22:30:19 julian Exp $
  */
 
 #include "wdc.h"
@@ -66,7 +66,7 @@ static struct cdevsw wst_cdevsw = {
 	  seltrue,	nommap,		wststrategy,	"wst",
 	  NULL,	-1 };
 
-static int wst_total = 0;
+static unsigned int wst_total = 0;
 
 #define NUNIT 			(NWDC*2)
 #define UNIT(d)         	((minor(d) >> 3) & 3)
@@ -375,7 +375,7 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
     struct wst *t = wsttab[lun];
 
     /* Flush buffers, some drives fail here, but they should report ctl = 0 */
-    if (t->cap.ctl)
+    if (t->cap.ctl && (t->flags & WST_DATA_WRITTEN))
         wst_write_filemark(t, 0);
 
     /* Write filemark if data written to tape */
@@ -388,7 +388,7 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
 
     t->flags &= ~WST_OPEN;
     if (t->flags & WST_DEBUG)
-	printf("wst%d: %d total bytes transferred\n", t->lun, wst_total);
+	printf("wst%d: %ud total bytes transferred\n", t->lun, wst_total);
     return(0);
 }
 
@@ -585,7 +585,7 @@ wst_error(struct wst *t, struct atapires result)
         printf("wst%d: i/o error, status=%b, error=%b\n", t->lun,
         	result.status, ARS_BITS, result.error, AER_BITS);
     }
-    printf("total=%d ERR=%x len=%d ASC=%x ASCQ=%x\n", 
+    printf("total=%ud ERR=%x len=%d ASC=%x ASCQ=%x\n", 
 	   wst_total, sense.error_code, ntohl(sense.info), 
 	   sense.asc, sense.ascq);
     return 1;
