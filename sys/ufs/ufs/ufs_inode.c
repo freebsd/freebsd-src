@@ -44,6 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/vnode.h>
+#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
