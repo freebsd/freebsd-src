@@ -81,8 +81,8 @@ struct  ext2_group_desc * get_group_desc __P((struct mount * ,
 void	ext2_discard_prealloc __P((struct inode *));
 int	ext2_inactive __P((struct vop_inactive_args *));
 int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
-			    int * prealloc_count,
-			    int * prealloc_block));
+			    u_int32_t * prealloc_count,
+			    u_int32_t * prealloc_block));
 ino_t	ext2_new_inode __P ((const struct inode * dir, int mode));
 unsigned long ext2_count_free __P((struct buf *map, unsigned int numchars));
 void	ext2_free_blocks __P((struct mount * mp, unsigned long block,
