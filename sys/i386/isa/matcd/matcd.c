@@ -337,40 +337,35 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.14 1995/12/10 19:52:36 bde Exp $ */
+/* $Id: matcd.c,v 1.15 1996/03/28 14:29:52 scrappy Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
 ---------------------------------------------------------------------------*/
 
-#include	"matcd.h"		/*<26>*/
-#include	<sys/param.h>		/*<16>*/
-#include	<sys/systm.h>		/*<16>*/
+#include	"matcd.h"
+#include	<sys/param.h>
+#include	<sys/systm.h>
 
-#include	<sys/buf.h>		/*<16>*/
-#include	<sys/dkbad.h>		/*<16>*/
-#include	<sys/cdio.h>		/*<16>*/
-#include	<sys/disklabel.h>	/*<16>*/
-#include	<sys/file.h>		/*<16>*/
-#include	<sys/ioctl.h>		/*<16>*/
-#include	<sys/proc.h>		/*<16>*/
+#include	<sys/buf.h>
+#include	<sys/dkbad.h>
+#include	<sys/cdio.h>
+#include	<sys/disklabel.h>
+#include	<sys/file.h>
+#include	<sys/ioctl.h>
+#include	<sys/proc.h>
 
 #include	"i386/isa/matcd/options.h"	/*Conditional compile options
 						  and probe port hints*/
 #include	"i386/isa/matcd/matcddrv.h"	/*Drive-related defs & strings*/
 #include	"i386/isa/matcd/creative.h"	/*Host interface related defs*/
 
-#ifdef	FREE2
-#include 	<sys/devconf.h>		/*<16>*/
+#include 	<sys/devconf.h>
 #include	<sys/conf.h>
 #include	<sys/kernel.h>
 #ifdef DEVFS
 #include	<sys/devfsext.h>
 #endif /*DEVFS*/
-#else	/*FREE2*/
-#include	<i386/isa/isa.h>	/*<16>*/
-#include	<i386/isa/isa_device.h>	/*<16>*/
-#endif	/*FREE2*/
 
 /*---------------------------------------------------------------------------
 	Defines and structures
@@ -378,23 +373,11 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 
 #define DRIVESPERC	4		/*This is a constant*/
 #define TOTALDRIVES	NUMCTRLRS*DRIVESPERC	/*Max possible drives*/
-#if DIAGPORT > 0xff			/*<10>*/
-#define DIAGOUT	outw			/*<10>*/
-#else /*DIAGPORT*/			/*<10>*/
-#define DIAGOUT	outb			/*<10>*/
-#endif /*DIAGPORT*/			/*<10>*/
-#ifdef DIAGPORT
-static	int	diagloop;		/*<18>Used to show looping*/
-#endif /*DIAGPORT*/
-
 
 #define	TICKRES		10		/*Our coarse timer resolution*/
 #define ISABUSKHZ	8330		/*Number of IN/OUT ISA/sec*/
 #define MAXTRKS		101		/*Maximum possible tracks*/
 
-#ifndef FREE2
-#define	RAW_PART	2		/*Needs to be defined in 1.1.5.1*/
-#endif /*FREE2*/
 #define	RAW_DEVICE	46		/*<16>Dev number for raw device*/
 
 
@@ -429,13 +412,13 @@ struct	matcd_mbx {
 	short	count;
 };
 
-static	struct matcd_data {		/*<18>*/
+static	struct matcd_data {
 	short	drivemode;		/*Last state drive was set to*/
 	short	flags;
 	short	status;			/*Last audio-related function*/
 	int	blksize;
 	u_long	disksize;
-	short	iobase;			/*<20>*/
+	short	iobase;
 	short	iftype;			/*<20>Host interface type*/
 	struct	disklabel dlabel;
 	unsigned int	partflags[MAXPARTITIONS];
@@ -474,7 +457,7 @@ static	struct matcd_data {		/*<18>*/
 #define ERR_FATAL	3		/*This cannot be recovered from*/
 
 
-static	struct	buf request_head[NUMCTRLRS];	/*<18>A queue for each host interface*/
+static	struct	buf_queue_head request_head[NUMCTRLRS];	/*<18>A queue for each host interface*/
 static	int	nextcontroller=0;	/*<18>Number of interface units found*/
 static	int	drivepresent=0; 	/*<18>Don't change this - see license*/
 static	int	iftype;			/*<20>Probe/Attach i.f. type relay*/
@@ -497,19 +480,17 @@ struct matcd_read2 {
 	loading possible.
 */
 
-#ifdef FREE2
-static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
+static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {
 	0,0,0,				/*Filled in by dev_attach*/
-	"matcdc",0,{MDDT_ISA,0,"bio"},	/*<20>*/
-	isa_generic_externalize,0,0,ISA_EXTERNALLEN,	/*<12>*/
+	"matcdc",0,{MDDT_ISA,0,"bio"},
+	isa_generic_externalize,0,0,ISA_EXTERNALLEN,
 	&kdc_isa0,			/*<12>Parent*/
 	0,				/*<12>Parent Data*/
 	DC_IDLE,			/*<12>Status*/
 	"Matsushita CD-ROM Controller"	/*<12>This is the description*/
-} };					/*<12>*/
+} };
 
 
-#endif /*FREE2*/
 
 
 /*---------------------------------------------------------------------------
@@ -522,23 +503,11 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 #define		matcd_ldrive(dev)	(((minor(dev)) & 0x78) >> 3)
 #define		matcd_cdrive(dev)	(((minor(dev)) & 0x18) >> 3)
 #define		matcd_controller(dev)	(((minor(dev)) & 0x60) >> 5)
-#ifdef LOCKDRIVE			/*<15>*/
-#define		matcd_lockable(dev)	(((minor(dev)) & 0x80) >> 5)/*<24>*/
-#endif /*LOCKDRIVE*/			/*<15>*/
+#ifdef LOCKDRIVE
+#define		matcd_lockable(dev)	(((minor(dev)) & 0x80) >> 5)
+#endif /*LOCKDRIVE*/
 
 
-#ifndef FREE2
-/*---------------------------------------------------------------------------
-	This makes the long function names shorter for systems
-	using the older kernel config program
----------------------------------------------------------------------------*/
-#define	matcdopen	matopen		/*<8>*/
-#define matcdclose	matclose	/*<8>*/
-#define matcdstrategy	matstrategy	/*<8>*/
-#define matcdioctl	matioctl	/*<8>*/
-#define matcdsize	matsize		/*<8>*/
-#define matcddriver	matdriver	/*<10>*/
-#endif /*FREE2*/
 
 
 /*---------------------------------------------------------------------------
@@ -548,15 +517,13 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 
 static	int	matcd_probe(struct isa_device *dev);
 static	int	matcd_attach(struct isa_device *dev);
-struct	isa_driver	matcddriver={matcd_probe, matcd_attach,	/*<16>*/
-				     "matcdc"};	/*<20>*/
+struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
+				     "matcdc"};
 
-#ifdef FREE2
 
 static d_open_t		matcdopen;
 static d_close_t	matcdclose;
 static d_ioctl_t	matcdioctl;
-static d_dump_t		matcddump;
 static d_psize_t	matcdsize;
 static d_strategy_t	matcdstrategy;
 
@@ -575,9 +542,6 @@ static struct cdevsw matcd_cdevsw =
 	  seltrue,	nommap,		matcdstrategy,	"matcd",
 	  &matcd_bdevsw,	-1};
 
-#else
-extern	int	hz;
-#endif /* FREE2 */
 
 
 /*---------------------------------------------------------------------------
@@ -585,7 +549,7 @@ extern	int	hz;
 ---------------------------------------------------------------------------*/
 
 static	void	matcd_drvinit(void *unused);
-static	void	matcd_start(struct buf *dp);
+static	void	matcd_start(int controller);
 static	void	zero_cmd(char *);
 static	void	matcd_pread(int port, int count, unsigned char * data);
 static	int	matcd_fastcmd(int port,int ldrive,int cdrive,
@@ -609,36 +573,36 @@ static	int	matcd_playtracks(int ldrive, int cdrive, int controller,
 static	int	matcd_playmsf(int ldrive, int cdrive, int controller,
 				 struct ioc_play_msf *pt);
 static	int	matcd_pause(int ldrive, int cdrive, int controller,
-			    int action);			   /*<12>*/
+			    int action);
 static	int	matcd_stop(int ldrive, int cdrive, int controller);
-static	int	matcd_level(int ldrive, int cdrive, int controller,/*<12>*/
-		            struct ioc_vol * volume, int action);  /*<12>*/
-static	int	matcd_patch(int ldrive, int cdrive, int controller,/*<12>*/
-		            struct ioc_patch * routing);/*<12>*/
-static	int	matcd_route(int ldrive, int cdrive, int controller,/*<12>*/
-		            int command);		/*<12>*/
-static	int	matcd_pitch(int ldrive, int cdrive, int controller,/*<12>*/
-		            struct ioc_pitch * speed);	/*<12>*/
+static	int	matcd_level(int ldrive, int cdrive, int controller,
+		            struct ioc_vol * volume, int action);
+static	int	matcd_patch(int ldrive, int cdrive, int controller,
+		            struct ioc_patch * routing);
+static	int	matcd_route(int ldrive, int cdrive, int controller,
+		            int command);
+static	int	matcd_pitch(int ldrive, int cdrive, int controller,
+		            struct ioc_pitch * speed);
 #endif /*FULLDRIVER*/
-static	int	matcd_toc_header(int ldrive, int cdrive, int controller,/*<13>*/
-		                 struct ioc_toc_header * toc);  /*<13>*/
-static	int	matcd_toc_entries(int ldrive, int cdrive,	/*<13>*/
-				  int controller,	/*<13>*/
-				  struct ioc_read_toc_entry *ioc_entry);/*<13>*/
-static	int	matcd_read_subq(int ldrive, int cdrive, int controller,/*<14>*/
-			        struct ioc_read_subchannel * sqp);/*<14>*/
-static	int	matcd_igot(struct ioc_capability * sqp);	/*<26>*/
+static	int	matcd_toc_header(int ldrive, int cdrive, int controller,
+		                 struct ioc_toc_header * toc);
+static	int	matcd_toc_entries(int ldrive, int cdrive,
+				  int controller,
+				  struct ioc_read_toc_entry *ioc_entry);
+static	int	matcd_read_subq(int ldrive, int cdrive, int controller,
+			        struct ioc_read_subchannel * sqp);
+static	int	matcd_igot(struct ioc_capability * sqp);
 static	int	waitforit(int timelimit, int state, int port,
-			   char * where);	/*<14>*/
-static	int	get_stat(int port, int ldrive);	/*<14>*/
+			   char * where);
+static	int	get_stat(int port, int ldrive);
 static	int	media_chk(struct matcd_data *cd,int errnum,
-			  int ldrive,int test);	/*<14>*/
-static	int	matcd_eject(int ldrive, int cdrive, int controller);/*<14>*/
-static	int	matcd_doorclose(int ldrive, int cdrive, int controller);/*<16>*/
-static	int	matcd_dlock(int ldrive, int cdrive,		/*<23>*/
-			    int controller, int action);	/*<23>*/
-static	int	docmd(char * cmd, int ldrive, int cdrive,	/*<14>*/
-		      int controller, int port);	/*<14>*/
+			  int ldrive,int test);
+static	int	matcd_eject(int ldrive, int cdrive, int controller);
+static	int	matcd_doorclose(int ldrive, int cdrive, int controller);
+static	int	matcd_dlock(int ldrive, int cdrive,
+			    int controller, int action);
+static	int	docmd(char * cmd, int ldrive, int cdrive,
+		      int controller, int port);
 
 
 /*---------------------------------------------------------------------------
@@ -651,26 +615,19 @@ static	int	docmd(char * cmd, int ldrive, int cdrive,	/*<14>*/
 <15>	If LOCKDRIVE is enabled, additional minor number devices allow
 <15>	the drive to be locked while being accessed.
 ---------------------------------------------------------------------------*/
-int	matcdopen(dev_t dev, int flags, int fmt,	/*<22>*/
-		  struct proc *p)			/*<22>*/
+int	matcdopen(dev_t dev, int flags, int fmt,
+		  struct proc *p)
 {
-	int cdrive,ldrive,partition,controller,lock;	/*<24>*/
+	int cdrive,ldrive,partition,controller,lock;
 	struct matcd_data *cd;
-	int	i,z,port;		/*<14>*/
+	int	i,z,port;
 	unsigned char	cmd[MAXCMDSIZ];
 
-#if DIAGPORT == 0x302			/*<10>*/
-	DIAGOUT(0x300,0x00);		/*<10>Init diag board in case some
-					  other device probe scrambled it*/
-#endif /*<10>DIAGPORT*/
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x10);		/*Show where we are*/
-#endif /*DIAGPORT*/
 	ldrive=matcd_ldrive(dev);
 	cdrive=matcd_cdrive(dev);
 	partition=matcd_partition(dev);
 	controller=matcd_controller(dev);
-	lock=matcd_lockable(dev);		/*<24>*/
+	lock=matcd_lockable(dev);
 	cd= &matcd_data[ldrive];
 	port=cd->iobase;	/*and port#*/
 
@@ -703,7 +660,7 @@ int	matcdopen(dev_t dev, int flags, int fmt,	/*<22>*/
 	i=waitforit(10*TICKRES,DTEN,port,"matopen");
 	z=get_stat(port,ldrive);	/*Read status byte*/
 #ifdef DEBUGOPEN
-	printf("matcd%d Result of NOP is %x %x\n",ldrive,i,z);	/*<16>*/
+	printf("matcd%d Result of NOP is %x %x\n",ldrive,i,z);
 #endif /*DEBUGOPEN*/
 	if ((z & MATCD_ST_DSKIN)==0) {	/*Is there a disc in the drive?*/
 #ifdef DEBUGOPEN
@@ -757,7 +714,7 @@ int	matcdopen(dev_t dev, int flags, int fmt,	/*<22>*/
 		i=matcdsize(dev);
 		unlockbus(controller, ldrive);	/*Release bus lock*/
 #ifdef DEBUGOPEN
-		printf("matcd%d: Bus unlocked in open\n",ldrive);/*<18>*/
+		printf("matcd%d: Bus unlocked in open\n",ldrive);
 #endif /*DEBUGOPEN*/
 		if (i < 0) {
 			printf("matcd%d: Could not read the disc size\n",ldrive);
@@ -805,8 +762,8 @@ int	matcdopen(dev_t dev, int flags, int fmt,	/*<22>*/
 	       ldrive,partition,(int)cd->disksize,cd->blksize,cd->flags);
 #endif /*DEBUGOPEN*/
 
-#ifdef LOCKDRIVE			/*<15>*/
-	if (cd->openflags==0 && lock) {	/*<24>*/
+#ifdef LOCKDRIVE
+	if (cd->openflags==0 && lock) {
 		zero_cmd(cmd);
 		cmd[0]=LOCK;		/*Lock drive*/
 		cmd[1]=1;
@@ -847,10 +804,10 @@ int	matcdopen(dev_t dev, int flags, int fmt,	/*<22>*/
 <15>	the drive.
 ---------------------------------------------------------------------------*/
 
-int matcdclose(dev_t dev, int flags, int fmt,		/*<22>*/
-	       struct proc *p)				/*<22>*/
+int matcdclose(dev_t dev, int flags, int fmt,
+	       struct proc *p)
 {
-	int	ldrive,cdrive,port,partition,controller,lock;	/*<24>*/
+	int	ldrive,cdrive,port,partition,controller,lock;
 	struct matcd_data *cd;
 #ifdef LOCKDRIVE
 	unsigned char cmd[MAXCMDSIZ];
@@ -858,13 +815,10 @@ int matcdclose(dev_t dev, int flags, int fmt,		/*<22>*/
 
 	ldrive=matcd_ldrive(dev);
 	cdrive=matcd_cdrive(dev);
-	lock=matcd_lockable(dev);		/*<24>*/
+	lock=matcd_lockable(dev);
 	cd=matcd_data+ldrive;
 	port=cd->iobase;		/*and port#*/
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x20);		/*Show where we are*/
-#endif /*DIAGPORT*/
 	if (ldrive >= TOTALDRIVES)
 		return(ENXIO);
 
@@ -889,7 +843,7 @@ int matcdclose(dev_t dev, int flags, int fmt,		/*<22>*/
 			docmd(cmd,ldrive,cdrive,controller,port);
 		}
 #endif /*LOCKDRIVE*/
-		cd->flags &= ~(MATCDWARN|MATCDLOCK);	/*<15>*/
+		cd->flags &= ~(MATCDWARN|MATCDLOCK);
 						/*<15>Clear warning flag*/
 	}
 	return(0);
@@ -914,13 +868,9 @@ int matcdclose(dev_t dev, int flags, int fmt,		/*<22>*/
 void matcdstrategy(struct buf *bp)
 {
 	struct matcd_data *cd;
-	struct buf *dp;
 	int s;
 	int ldrive,controller;
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x30);		/*Show where we are*/
-#endif /*DIAGPORT*/
 	ldrive=matcd_ldrive(bp->b_dev);
 	controller=matcd_controller(bp->b_dev);
 	cd= &matcd_data[ldrive];
@@ -960,25 +910,12 @@ void matcdstrategy(struct buf *bp)
 	}
 
 	s=splbio();			/*Make sure we don't get intr'ed*/
-	dp=&request_head[controller];	/*Pointer to controller queue*/
-	disksort(dp,bp);		/*Add new request (bp) to queue (dp
+	tqdisksort(&request_head[controller], bp);/*Add new request (bp) to queue (dp
 					  and sort the requests in a way that
 					  may not be ideal for CD-ROM media*/
 
-#ifdef DEBUGQUEUE
-	printf("matcd%d: Dump BP chain:  -------\n",ldrive);
-	while (bp) {
-		printf("Block %d\n",(int)bp->b_pblkno);
-#ifdef FREE2
-		bp=bp->b_actf;
-#else /*FREE2*/
-		bp=bp->av_forw;
-#endif /*FREE2*/
-	}
-	printf("matcd%d: ---------------------\n",ldrive);
-#endif /*DEBUGQUEUE*/
 
-	matcd_start(dp);		/*Ok, with our newly sorted queue,
+	matcd_start(controller);		/*Ok, with our newly sorted queue,
 					  see if we can start an I/O operation
 					  right now*/
 	splx(s);			/*Return priorities to normal*/
@@ -995,30 +932,26 @@ done:	bp->b_resid = bp->b_bcount;	/*Show amount of data un read*/
 	matcd_start - Pull a request from the queue and consider doing it.
 ---------------------------------------------------------------------------*/
 
-static void matcd_start(struct buf *dp)
+static void matcd_start(int controller)
 {
 	struct matcd_data *cd;
 	struct buf *bp;
 	struct partition *p;
-	int part,ldrive,controller;
+	int part,ldrive;
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x40);		/*Show where we are*/
-	diagloop=0;
-#endif /*DIAGPORT*/
-	if ((bp=dp->b_actf) == NULL) {	/*Nothing on read queue to do?*/
+	bp = TAILQ_FIRST(&request_head[controller]);
+	if (bp == NULL) {	/*Nothing on read queue to do?*/
 		wakeup((caddr_t)&matcd_data->status);	/*Wakeup any blocked*/
 		return;					/* opens, ioctls, etc*/
 	}
 
 	ldrive=matcd_ldrive(bp->b_dev);	/*Get logical drive#*/
 	cd=&matcd_data[ldrive];		/*Get pointer to data for this drive*/
-	controller=matcd_controller(bp->b_dev);	/*Also get interface #*/
 #ifdef DEBUGIO
 	printf("matcd%d: In start controller %d\n",ldrive,controller);
 #endif	/*DEBUGIO*/
 
-	if (if_state[controller] & BUSBUSY) {	/*<18>*/
+	if (if_state[controller] & BUSBUSY) {
 #ifdef DEBUGIO
 		printf("matcd%d: Dropping thread in start,  controller %d\n",
 	       		ldrive,controller);
@@ -1030,11 +963,7 @@ static void matcd_start(struct buf *dp)
 	get the command to do and issue it
 */
 
-#ifdef FREE2
-	dp->b_actf = bp->b_actf;
-#else /*FREE2*/
-	dp->b_actf = bp->av_forw;	/*Get next request from queue*/
-#endif /*FREE2*/
+	TAILQ_REMOVE(&request_head[controller], bp, b_act);
 
 	part=matcd_partition(bp->b_dev);
 	p=cd->dlabel.d_partitions + part;
@@ -1063,8 +992,8 @@ static void matcd_start(struct buf *dp)
 	things that don't fit into the block read scheme of things.
 ---------------------------------------------------------------------------*/
 
-int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
-	       int flags, struct proc *p)		/*<22>*/
+int matcdioctl(dev_t dev, int command, caddr_t addr,
+	       int flags, struct proc *p)
 {
 	struct	matcd_data *cd;
 	int	ldrive,cdrive,partition;
@@ -1073,9 +1002,6 @@ int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
 	int	i;
 #endif	/*DEBUGIOCTL*/
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x50);		/*Show where we are*/
-#endif /*DIAGPORT*/
 	ldrive=matcd_ldrive(dev);
 	cdrive=matcd_cdrive(dev);
 	partition=matcd_partition(dev);
@@ -1092,49 +1018,47 @@ int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
 #endif	/*DEBUGIOCTL*/
 
 	if (command==CDIOCCLOSE)	/*<16>Allow close if door open*/
-		return(matcd_doorclose(ldrive, cdrive, controller));/*<16>*/
+		return(matcd_doorclose(ldrive, cdrive, controller));
 
 	if (!(cd->flags & MATCDLABEL))	/*Did we read TOC OK?*/
 		return(EIO);		/*<16>then drive really isn't ready*/
 
 	switch(command) {
-	case	DIOCSBAD:		/*<9>*/
-		return(EINVAL);		/*<9>*/
+	case	DIOCSBAD:
+		return(EINVAL);
 
-	case	DIOCGDINFO:		/*<9>*/
-		*(struct disklabel *) addr = cd->dlabel;	/*<9>*/
-		return(0);		/*<9>*/
+	case	DIOCGDINFO:
+		*(struct disklabel *) addr = cd->dlabel;
+		return(0);
 
-	case	DIOCGPART:		/*<9>*/
-		((struct partinfo *) addr)->disklab=&cd->dlabel;/*<9>*/
-		((struct partinfo *) addr)->part=	/*<9>*/
-		    &cd->dlabel.d_partitions[matcd_partition(dev)];/*<9>*/
-		return(0);		/*<9>*/
+	case	DIOCGPART:
+		((struct partinfo *) addr)->disklab=&cd->dlabel;
+		((struct partinfo *) addr)->part=
+		    &cd->dlabel.d_partitions[matcd_partition(dev)];
+		return(0);
 
-	case	DIOCWDINFO:		/*<9>*/
-	case	DIOCSDINFO:		/*<9>*/
-#ifdef FREE2				/*<10>*/
-		if ((flags & FWRITE) == 0) {	/*<9>*/
-			return(EBADF);	/*<9>*/
-		}			/*<9>*/
-		else {			/*<9>*/
-			return setdisklabel(&cd->dlabel,	/*<9>*/
-				            (struct disklabel *) addr, 0);/*<9>*/
-		}			/*<9>*/
-#endif /*<10>FREE2*/
-	case	DIOCWLABEL:		/*<9>*/
-		return(EBADF);		/*<9>*/
+	case	DIOCWDINFO:
+	case	DIOCSDINFO:
+		if ((flags & FWRITE) == 0) {
+			return(EBADF);
+		}
+		else {
+			return setdisklabel(&cd->dlabel,
+				            (struct disklabel *) addr, 0);
+		}
+	case	DIOCWLABEL:
+		return(EBADF);
 
 	case	CDIOCEJECT:
 		return(matcd_eject(ldrive, cdrive, controller));
 
-	case	CDIOCALLOW:				/*<23>*/
-		return(matcd_dlock(ldrive, cdrive,	/*<23>*/
-		       controller,0));			/*<23>*/
+	case	CDIOCALLOW:
+		return(matcd_dlock(ldrive, cdrive,
+		       controller,0));
 
-	case	CDIOCPREVENT:				/*<23>*/
-		return(matcd_dlock(ldrive, cdrive,	/*<23>*/
-		       controller, MATCDLOCK));		/*<23>*/
+	case	CDIOCPREVENT:
+		return(matcd_dlock(ldrive, cdrive,
+		       controller, MATCDLOCK));
 
 #ifdef FULLDRIVER
 	case	CDIOCPLAYTRACKS:
@@ -1146,18 +1070,18 @@ int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
 		       (struct ioc_play_msf *) addr));
 
 	case	CDIOCRESUME:
-		return(matcd_pause(ldrive, cdrive, controller,RESUME)); /*<12>*/
+		return(matcd_pause(ldrive, cdrive, controller,RESUME));
 
 	case	CDIOCPAUSE:
-		return(matcd_pause(ldrive, cdrive, controller,0));	/*<12>*/
+		return(matcd_pause(ldrive, cdrive, controller,0));
 
 	case	CDIOCSTOP:
-		return(matcd_stop(ldrive, cdrive, controller));	/*<12>*/
+		return(matcd_stop(ldrive, cdrive, controller));
 
 	case	CDIOCGETVOL:
 	case	CDIOCSETVOL:
-		return(matcd_level(ldrive, cdrive, controller,	/*<12>*/
-		       (struct ioc_vol *) addr, command));	/*<12>*/
+		return(matcd_level(ldrive, cdrive, controller,
+		       (struct ioc_vol *) addr, command));
 
 	case	CDIOCSETMONO:		/*<12>This drive can't do mono*/
 		return(EINVAL);		/*<12>but it looks like it should*/
@@ -1168,16 +1092,16 @@ int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
 	case	CDIOCSETLEFT:		/*<12>0 -> L&R	1 -> NULL*/
 	case	CDIOCSETRIGHT:		/*<12>0 -> NULL	1 -> L&R*/
 					/*<12>Adjust audio routing*/
-		return(matcd_route(ldrive, cdrive, controller,	/*<12>*/
-		       command));	/*<12>*/
+		return(matcd_route(ldrive, cdrive, controller,
+		       command));
 
 	case	CDIOCSETPATCH:		/*<12>Allow precise routing*/
-		return(matcd_patch(ldrive, cdrive, controller,	/*<12>*/
-		       (struct ioc_patch *) addr));	/*<12>*/
+		return(matcd_patch(ldrive, cdrive, controller,
+		       (struct ioc_patch *) addr));
 
 	case	CDIOCPITCH:		/*<12>Adjust playback speed*/
-		return(matcd_pitch(ldrive, cdrive, controller,	/*<12>*/
-		       (struct ioc_pitch *) addr));	/*<12>*/
+		return(matcd_pitch(ldrive, cdrive, controller,
+		       (struct ioc_pitch *) addr));
 
 	case	CDIOCSTART:		/*<12>Only reason this isn't*/
 		return(EINVAL);		/*<12>implemented is I can't find out*/
@@ -1185,19 +1109,19 @@ int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
 #endif	/*FULLDRIVER*/
 
 	case	CDIOREADTOCHEADER:
-		return(matcd_toc_header(ldrive, cdrive, controller,/*<13>*/
-		       (struct ioc_toc_header *) addr));	/*<13>*/
+		return(matcd_toc_header(ldrive, cdrive, controller,
+		       (struct ioc_toc_header *) addr));
 
 	case	CDIOREADTOCENTRYS:
-		return(matcd_toc_entries(ldrive, cdrive, controller,/*<13>*/
-		       (struct ioc_read_toc_entry *) addr));	/*<13>*/
+		return(matcd_toc_entries(ldrive, cdrive, controller,
+		       (struct ioc_read_toc_entry *) addr));
 
 	case	CDIOCREADSUBCHANNEL:
-		return(matcd_read_subq(ldrive, cdrive, controller,/*<14>*/
-		       (struct ioc_read_subchannel *) addr));/*<14>*/
+		return(matcd_read_subq(ldrive, cdrive, controller,
+		       (struct ioc_read_subchannel *) addr));
 
 	case	CDIOCCAPABILITY:	/*<16>Request drive/driver capability*/
-		return(matcd_igot((struct ioc_capability *) addr));/*<16>*/
+		return(matcd_igot((struct ioc_capability *) addr));
 
 	case	CDIOCRESET:		/*<12>There is no way to hard reset*/
 		return(EINVAL);		/*<12>just one drive*/
@@ -1284,13 +1208,6 @@ matcd_probe(struct isa_device *dev)
 	int port = dev->id_iobase;	/*Take port hint from config file*/
 
 	cdrive=nextcontroller;		/*Controller defined by pass for now*/
-#if DIAGPORT == 0x302			/*<10>*/
-	DIAGOUT(0x300,0x00);		/*<10>Init diag board in case some
-					  other device probe scrambled it*/
-#endif /*<10>DIAGPORT*/
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x60);		/*Show where we are*/
-#endif /*DIAGPORT*/
 	if (nextcontroller==NUMCTRLRS) {
 		printf("matcdc%d: - Too many interfaces specified in config\n",
 		       nextcontroller);
@@ -1372,7 +1289,7 @@ matcd_probe(struct isa_device *dev)
 int doprobe(int port,int cdrive)
 {
 	unsigned char cmd[MAXCMDSIZ];
-	int i;				/*<20>*/
+	int i;
 
 #ifdef RESETONBOOT
 	doreset(port,cdrive);		/*Reset what might be our device*/
@@ -1383,8 +1300,8 @@ int doprobe(int port,int cdrive)
 				  	  This command will fail after
 				  	  power-up or after reset. That's OK*/
 #ifdef RESETONBOOT
-	if (((inb(port+STATUS) & (DTEN|STEN)) != (DTEN|STEN)) ||  /*<16>*/
-	    (inb(port+DATA) != 0xff))	/*<16>*/
+	if (((inb(port+STATUS) & (DTEN|STEN)) != (DTEN|STEN)) ||
+	    (inb(port+DATA) != 0xff))
 		return(-1);		/*<20>Something detected but it isn't
 					      the device we wanted*/
 #endif /*RESETONBOOT*/
@@ -1396,7 +1313,7 @@ int doprobe(int port,int cdrive)
 		    == (DTEN|STEN)) {	/*<20>Drive went idle*/
 			iftype=1;	/*<20>It is not a Creative interface.*/
 		} else {		/*<20>Status byte still available*/
-			iftype=0;	/*<20>*/
+			iftype=0;
 			inb(port+CMD);	/*<20>Read status byte*/
 		}
 #ifdef DEBUGPROBE
@@ -1421,7 +1338,6 @@ int doprobe(int port,int cdrive)
 }
 
 
-#ifdef FREE2
 /*---------------------------------------------------------------------------
 <12>	matcd_register - Something to handle dynamic driver loading.
 		Sorry for the lousy description but no one could point
@@ -1439,7 +1355,6 @@ static inline void matcd_register(struct isa_device *id)
 	dev_attach(&kdc_matcd[id->id_unit]);
 	return;
 }
-#endif /*FREE2*/
 
 
 /*---------------------------------------------------------------------------
@@ -1461,15 +1376,12 @@ matcd_attach(struct isa_device *dev)
 	struct matcd_data *cd;
 	int port = dev->id_iobase;	/*Take port ID selected in probe()*/
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x70);		/*Show where we are*/
-#endif /*DIAGPORT*/
 #ifdef DEBUGPROBE
 	printf("matcdc: Attach dev %x id_unit %d\n",
 	       (unsigned int)dev,dev->id_unit);
 #endif /*DEBUGPROBE*/
-	printf("matcdc%d Host interface type %d\n",	/*<20>*/
-		nextcontroller,iftype);			/*<20>*/
+	printf("matcdc%d Host interface type %d\n",
+		nextcontroller,iftype);
 	for (cdrive=0; cdrive<4; cdrive++) {	/*We're hunting drives...*/
 		zero_cmd(cmd);
 		cmd[0]=NOP;		/*A reasonably harmless command.
@@ -1500,13 +1412,13 @@ matcd_attach(struct isa_device *dev)
 			cd=&matcd_data[i];
 			cd->flags |= MATCDINIT;
 			cd->iobase=dev->id_iobase;
-			cd->iftype=iftype;	/*<20>*/
+			cd->iftype=iftype;
 			cd->openflags=0;
-			cd->volume[0]=cd->volume[1]=DEFVOL;	/*<12>*/
+			cd->volume[0]=cd->volume[1]=DEFVOL;
 					/*<12>Match volume drive resets to*/
 			cd->patch[0]=0x01;	/*<12>Channel 0 to Left*/
 			cd->patch[1]=0x02;	/*<12>Channel 1 to Right*/
-			cd->status=CD_AS_NO_STATUS;	/*<14>*/
+			cd->status=CD_AS_NO_STATUS;
 			for (i=0; i<MAXPARTITIONS; i++) {
 				cd->partflags[i]=0;
 			}
@@ -1560,9 +1472,6 @@ void zero_cmd(char * lcmd)
 void doreset(int port,int cdrive)
 {
 	register int	i,z;
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x80);		/*Show where we are*/
-#endif /*DIAGPORT*/
 	outb(port+RESET,0);		/*Reset what might be our device*/
 					/*Although this ensures a known
 					  state, it does close the drive
@@ -1605,9 +1514,6 @@ int matcd_fastcmd(int port,int ldrive,int cdrive,unsigned char * cp)
 	unsigned char *cx;
 #endif /*DEBUGCMD*/
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0x90);		/*Show where we are*/
-#endif /*DIAGPORT*/
 
 
 	draincmd(port,cdrive,ldrive);	/*Make sure bus is really idle*/
@@ -1665,9 +1571,6 @@ void matcd_slowcmd(int port,int ldrive,int cdrive,unsigned char * cp)
 	unsigned char *cx;
 #endif /*DEBUGCMD*/
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xa0);		/*Show where we are*/
-#endif /*DIAGPORT*/
 
 	draincmd(port,cdrive,ldrive);	/*Make sure bus is really idle*/
 
@@ -1703,7 +1606,7 @@ void draincmd(int port,int cdrive,int ldrive)
 	int i,z;
 
 	i=inb(port+STATUS);
-	if ((i & (DTEN|STEN)) == (DTEN|STEN)) return;	/*<19>*/
+	if ((i & (DTEN|STEN)) == (DTEN|STEN)) return;
 
 	printf("matcd%d: in draincmd: bus not idle %x - trying to fix\n",
 	       ldrive,inb(port+STATUS));
@@ -1718,7 +1621,7 @@ void draincmd(int port,int cdrive,int ldrive)
 			inb(port+ALTDATA);	/*<21>Ok for others*/
 			i++;
 		}
-		outb(port+PHASE,0);	/*<16>*/
+		outb(port+PHASE,0);
 #ifdef DEBUGCMD
 		printf("%d bytes read\n",i);
 #endif /*DEBUGCMD*/
@@ -1731,8 +1634,8 @@ void draincmd(int port,int cdrive,int ldrive)
 #ifdef DEBUGCMD
 	printf("Data byte %x and status is now %x\n",i,z);
 #endif /*DEBUGCMD*/
-	if ((z & (DTEN|STEN)) != (DTEN|STEN)) {	/*<19>*/
-		printf("matcd%d: Bus not idle %x - resetting\n",/*<18>*/
+	if ((z & (DTEN|STEN)) != (DTEN|STEN)) {
+		printf("matcd%d: Bus not idle %x - resetting\n",
 		       cdrive,inb(port+STATUS));
 		doreset(port,cdrive);
 	}
@@ -1872,9 +1775,6 @@ static	int	matcd_volinfo(int ldrive)
 #endif /*DEBUGOPEN*/
 
 	while(retry>0) {
-#ifdef DIAGPORT
-		DIAGOUT(DIAGPORT,0xB0);	/*Show where we are*/
-#endif /*DIAGPORT*/
 		zero_cmd(cmd);
 		cmd[0]=READDINFO;	/*Read Disc Info*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
@@ -1906,7 +1806,7 @@ static	int	matcd_volinfo(int ldrive)
 #endif /*DEBUGOPEN*/
 			return(-1);
 		}
-		tsleep((caddr_t)&nextcontroller, PRIBIO, "matvi2", hz);/*<25>*/
+		tsleep((caddr_t)&nextcontroller, PRIBIO, "matvi2", hz);
 		if ((--retry)==0) return(-1);
 #ifdef DEBUGOPEN
 		printf("matcd%d: Retrying",ldrive);
@@ -1972,10 +1872,9 @@ static void matcd_blockread(int state)
 {
 	struct	matcd_mbx *mbx;
 	int	ldrive,cdrive;
-	int	port;
-	short	iftype;			/*<20>*/
+	int	port, controller;
+	short	iftype;
 	struct	buf *bp;
-	struct	buf *dp;
 	struct	matcd_data *cd;
 	int	i;
 	struct	matcd_read2 rbuf;
@@ -1986,18 +1885,14 @@ static void matcd_blockread(int state)
 	int	phase;
 	unsigned char cmd[MAXCMDSIZ];
 
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xC0 + (diagloop * 0x100));/*Show where we are*/
-#endif /*DIAGPORT*/
 	mbx = &matcd_data[state & 0x0f].mbx;
 	ldrive=mbx->ldrive;		/*ldrive is logical drive #*/
 	cdrive=ldrive & 0x03;		/*cdrive is drive # on a controller*/
 	port=mbx->port;			/*port is base port for i/f*/
-	iftype=mbx->iftype;		/*<20>*/
+	iftype=mbx->iftype;
 	bp= mbx->bp;
 	cd=&matcd_data[ldrive];
-
-	dp=&request_head[mbx->controller];
+	controller = cd->mbx.controller;
 
 #ifdef DEBUGIO
 	printf("matcd%d: Show state %x cdrive %d partition %d\n",
@@ -2008,18 +1903,11 @@ loop:
 #ifdef DEBUGIO
 	printf("matcd%d: Top  dp %x\n",ldrive,(unsigned int)dp);
 #endif /*DEBUGIO*/
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xCF + (diagloop * 0x100));/*Show where we are*/
-#endif /*DIAGPORT*/
 	switch (state & 0xf0) {
 	case	MATCD_READ_1:
 #ifdef DEBUGIO
 		printf("matcd%d: State 1 cd->flags %x\n",ldrive,cd->flags);
 #endif /*DEBUGIO*/
-#ifdef DIAGPORT
-		diagloop=0;
-		DIAGOUT(DIAGPORT,0xC1);	/*Show where we are*/
-#endif /*DIAGPORT*/
 		/* to check for raw/cooked mode */
 		if (cd->partflags[mbx->partition] & MATCDREADRAW) {
 			mbx->sz = MATCDRBLK;
@@ -2075,9 +1963,6 @@ nextblock:
 #ifdef DEBUGIO
 		printf("matcd%d: In state 2 status %x  ",ldrive,phase);
 #endif /*DEBUGIO*/
-#ifdef DIAGPORT
-		DIAGOUT(DIAGPORT,0xC2 + (diagloop++ * 0x100));/*Show where we are*/
-#endif /*DIAGPORT*/
 		switch(phase) {
 		case (DTEN|STEN):	/*DTEN==H  STEN==H*/
 #ifdef DEBUGIO
@@ -2102,7 +1987,7 @@ nextblock:
 			if (iftype==0) {	/*<20>Creative host I/F*/
 				outb(port+PHASE,1);	/*Enable data read*/
 				while((inb(port+STATUS) &
-				      (DTEN|STEN))==STEN) {/*<19>*/
+				      (DTEN|STEN))==STEN) {
 					*addr++=inb(port+DATA);
 #ifdef	DEBUGIO
 					i++;
@@ -2110,14 +1995,14 @@ nextblock:
 				}
 				outb(port+PHASE,0);	/*Disable read*/
 			} else {		/*<20>Not Creative interface*/
-				while((inb(port+STATUS) &	/*<20>*/
-				      (DTEN|STEN))==STEN) {	/*<20>*/
-					*addr++=inb(port+ALTDATA);/*<20>*/
+				while((inb(port+STATUS) &
+				      (DTEN|STEN))==STEN) {
+					*addr++=inb(port+ALTDATA);
 #ifdef	DEBUGIO
-					i++;	/*<20>*/
+					i++;
 #endif	/*DEBUGIO*/
-				}		/*<20>*/
-			}			/*<20>*/
+				}
+			}
 #ifdef DEBUGIO
 			printf("matcd%d: Read %d bytes\n",ldrive,i);
 #endif /*DEBUGIO*/
@@ -2147,7 +2032,7 @@ nextblock:
 			biodone(bp);	/*Signal transfer complete*/
 
 			unlockbus(ldrive>>2, ldrive);	/*Release bus lock*/
-			matcd_start(dp);/*See if other drives have work*/
+			matcd_start(controller);/*See if other drives have work*/
 			return;
 
 /*	Here we skipped the data phase and went directly to status.
@@ -2188,14 +2073,11 @@ nextblock:
 <14>	has been removed by the user.  In both cases there is no retry
 <14>	for this call.  We will invalidate the label in both cases.
 */
-#ifdef DIAGPORT
-			DIAGOUT(DIAGPORT,0xCE + (diagloop * 0x100));/*Show where we are*/
-#endif /*DIAGPORT*/
 			bp->b_flags |= B_ERROR;
 			bp->b_resid = bp->b_bcount;
 			biodone(bp);
 			unlockbus(ldrive>>2, ldrive);
-			matcd_start(dp);
+			matcd_start(controller);
 			return;
 		}
 	}
@@ -2215,11 +2097,8 @@ int docmd(char * cmd, int ldrive, int cdrive, int controller, int port)
 	lockbus(controller, ldrive);	/*Request bus*/
 	retries=3;
 	while(retries-- > 0) {
-#ifdef DIAGPORT
-		DIAGOUT(DIAGPORT,0xD0);	/*Show where we are*/
-#endif /*DIAGPORT*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
-		i=waitforit(80*TICKRES,DTEN,port,"matcmd");	/*<25>*/
+		i=waitforit(80*TICKRES,DTEN,port,"matcmd");
 		z=get_stat(port,ldrive);/*Read status byte*/
 		if ((z & MATCD_ST_ERROR)==0) break;
 		i=chk_error(get_error(port,ldrive,cdrive));
@@ -2322,13 +2201,13 @@ int chk_error(int errnum)
 
 int get_stat(int port,int ldrive)
 {
-	int 	status,busstat;		/*<16>*/
+	int 	status,busstat;
 
 	status=inb(port+DATA);		/*Read status byte, last step of cmd*/
 	busstat=inb(port+STATUS);	/*<16>Get bus status - should be 0xff*/
-	while ((busstat & (DTEN|STEN)) != (DTEN|STEN)) {	/*<19>*/
-		printf("matcd%d: get_stat: After reading status byte, bus didn't go idle %x %x %x\n",ldrive,status,busstat,port);	/*<16>*/
-		if (( busstat & (DTEN|STEN)) == STEN) {	/*<16>*/
+	while ((busstat & (DTEN|STEN)) != (DTEN|STEN)) {
+		printf("matcd%d: get_stat: After reading status byte, bus didn't go idle %x %x %x\n",ldrive,status,busstat,port);
+		if (( busstat & (DTEN|STEN)) == STEN) {
 			int k;
 			k=0;
 #ifdef DEBUGCMD
@@ -2337,7 +2216,7 @@ int get_stat(int port,int ldrive)
 			outb(port+PHASE,1);	/*Enable data read*/
 			while ((inb(port+STATUS) & (DTEN|STEN)) == STEN) {
 				inb(port+DATA);
-				inb(port+ALTDATA);	/*<21>*/
+				inb(port+ALTDATA);
 /*				printf("%2x ",inb(port+DATA));*/
 				k++;
 			}
@@ -2351,7 +2230,7 @@ int get_stat(int port,int ldrive)
 #ifdef DEBUGCMD
 		printf("matcd%d: Next status byte is %x\n",ldrive,status);
 #endif /*DEBUGCMD*/
-		busstat=inb(port+STATUS);	/*<16>*/
+		busstat=inb(port+STATUS);
 	}
 	return(status);
 }
@@ -2366,10 +2245,6 @@ int waitforit(int timelimit, int state, int port, char * where)
 	int i,j;
 
 	j=i=0;
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xE0);		/*Show where we are*/
-	diagloop=0;
-#endif /*DIAGPORT*/
 #ifdef DEBUGCMD
 	printf("matcd: waitforit port %x timelimit %x hz %x\n",
 	       port,timelimit,hz);
@@ -2377,11 +2252,8 @@ int waitforit(int timelimit, int state, int port, char * where)
 	while (i<timelimit) {
 		j=inb(port+STATUS) & (STEN|DTEN);	/*Read status*/
 		if (j!=(STEN|DTEN)) break;
-		tsleep((caddr_t)&nextcontroller, PRIBIO, where, hz/100);/*<25>*/
+		tsleep((caddr_t)&nextcontroller, PRIBIO, where, hz/100);
 		i++;
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xE1+(diagloop++ * 0x100));	/*Show where we are*/
-#endif /*DIAGPORT*/
 	}
 #ifdef DEBUGCMD
 	printf("matcd: Count was %d\n",i);
@@ -2402,23 +2274,17 @@ int waitforit(int timelimit, int state, int port, char * where)
 
 void lockbus(int controller, int ldrive)
 {
-	while ((if_state[controller] & BUSBUSY)) {	/*<18>*/
+	while ((if_state[controller] & BUSBUSY)) {
 #ifdef DEBUGSLEEP
 		printf("matcd%d: Can't do it now - going to sleep\n",
 		       ldrive);
 #endif /*DEBUGSLEEP*/
-#ifdef DIAGPORT
-		DIAGOUT(DIAGPORT,0xF1);	/*Show where we are*/
-#endif /*DIAGPORT*/
 		tsleep((caddr_t)&matcd_data->status, PRIBIO,
-		       "matlck", 0);		/*<25>*/
+		       "matlck", 0);
 	}
 	if_state[controller] |= BUSBUSY;	/*<18>It's ours NOW*/
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xF2);		/*Show where we are*/
-#endif /*DIAGPORT*/
 #ifdef DEBUGSLEEP
-	printf("matcd%d: BUS locked in lockbus\n",ldrive);	/*<18>*/
+	printf("matcd%d: BUS locked in lockbus\n",ldrive);
 #endif /*DEBUGSLEEP*/
 }
 
@@ -2431,15 +2297,12 @@ void lockbus(int controller, int ldrive)
 
 void unlockbus(int controller, int ldrive)
 {
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xF4);		/*Show where we are*/
-#endif /*DIAGPORT*/
-	if_state[controller] &= ~BUSBUSY;	/*<18>*/
+	if_state[controller] &= ~BUSBUSY;
 #ifdef DEBUGSLEEP
-	printf("matcd%d: bus unlocked\n",ldrive);	/*<18>*/
+	printf("matcd%d: bus unlocked\n",ldrive);
 #endif /*DEBUGSLEEP*/
 	wakeup((caddr_t)&matcd_data->status);	/*Wakeup other users*/
-	matcd_start(&request_head[controller]);	/*Wake up any block I/O*/
+	matcd_start(controller);	/*Wake up any block I/O*/
 }
 
 
@@ -2516,7 +2379,7 @@ int matcd_doorclose(int ldrive, int cdrive, int controller)
 	cmd[0]=DOORCLOSE;		/*Open Door*/
 	i=docmd(cmd,ldrive,cdrive,controller,port);	/*Issue command*/
 	cd->flags &= ~(MATCDLABEL|MATCDLOCK);	/*Mark vol info invalid*/
-	tsleep((caddr_t)&nextcontroller, PRIBIO, "matclos", hz);/*<25>*/
+	tsleep((caddr_t)&nextcontroller, PRIBIO, "matclos", hz);
 	return(i);			/*Return result we got*/
 }
 
@@ -2527,11 +2390,11 @@ int matcd_doorclose(int ldrive, int cdrive, int controller)
 
 int matcd_dlock(int ldrive, int cdrive, int controller, int action)
 {
-	int	 i,port;		/*<23>*/
-	struct	matcd_data *cd;		/*<23>*/
-	unsigned	char	cmd[MAXCMDSIZ];		/*<23>*/
+	int	 i,port;
+	struct	matcd_data *cd;
+	unsigned	char	cmd[MAXCMDSIZ];
 
-	cd=&matcd_data[ldrive];		/*<23>*/
+	cd=&matcd_data[ldrive];
 	port=cd->iobase;		/*<23>Get I/O port base*/
 
 	zero_cmd(cmd);			/*<23>Initialize command buffer*/
@@ -2540,13 +2403,13 @@ int matcd_dlock(int ldrive, int cdrive, int controller, int action)
 	if (action) {			/*<23>They want to lock the door?*/
 		cd->flags |= MATCDLOCK;	/*<23>Remember we did this*/
 		cmd[1]=1;		/*<23>Lock Door command*/
-	} else {			/*<23>*/
+	} else {
 		cd->flags &= ~MATCDLOCK;/*<23>Remember we did this*/
 					/*<23>Unlock Door command*/
-	}				/*<23>*/
+	}
 	i=docmd(cmd,ldrive,cdrive,controller,port);	/*<23>Issue command*/
 	return(i);			/*<23>Return result we got*/
-}					/*<23>*/
+}
 
 
 /*---------------------------------------------------------------------------
@@ -2587,9 +2450,9 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 {
 	struct	matcd_data *cd;
 	struct	cd_toc_entry entries[MAXTRKS];
-	struct	cd_toc_entry *from;		/*<17>*/
-	struct	cd_toc_entry *to;		/*<17>*/
-	int	len,trk,i,z,port;		/*<17>*/
+	struct	cd_toc_entry *from;
+	struct	cd_toc_entry *to;
+	int	len,trk,i,z,port;
 	unsigned char cmd[MAXCMDSIZ];
 	unsigned char data[5];
 
@@ -2606,7 +2469,7 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 		cmd[2]=trk+1;
 		lockbus(controller, ldrive);	/*Request bus*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
-		i=waitforit(10*TICKRES,DTEN,port,"mats1");	/*<25>*/
+		i=waitforit(10*TICKRES,DTEN,port,"mats1");
 		matcd_pread(port, 8, data);	/*Read data returned*/
 		z=get_stat(port,ldrive);	/*Read status byte*/
 		if ((z & MATCD_ST_ERROR)) {	/*Something went wrong*/
@@ -2644,23 +2507,23 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 	array from the kernel address space into the user address space
 */
 
-	len=ioc_entry->data_len;	/*<17>*/
+	len=ioc_entry->data_len;
 	i=ioc_entry->starting_track;	/*<23>What did they want?*/
 	if (i==0xaa) i=trk-1;		/*<23>Give them lead-out info*/
 	else i=ioc_entry->starting_track - 1;	/*<23>start where they asked*/
-	from = &entries[i];		/*<17>*/
-	to = ioc_entry->data;		/*<17>*/
+	from = &entries[i];
+	to = ioc_entry->data;
 
-	while (i < trk && len >= sizeof(struct cd_toc_entry)) {	/*<17>*/
-		if (copyout(from,to,sizeof(struct cd_toc_entry))/*<17>*/
-		    != 0) {		/*<17>*/
-			return (EFAULT);/*<17>*/
-		}			/*<17>*/
-		i++;			/*<17>*/
-		len -= sizeof(struct cd_toc_entry);	/*<17>*/
-		from++;			/*<17>*/
-		to++;			/*<17>*/
-	}				/*<17>*/
+	while (i < trk && len >= sizeof(struct cd_toc_entry)) {
+		if (copyout(from,to,sizeof(struct cd_toc_entry))
+		    != 0) {
+			return (EFAULT);
+		}
+		i++;
+		len -= sizeof(struct cd_toc_entry);
+		from++;
+		to++;
+	}
 	return(0);
 
 }
@@ -2708,7 +2571,7 @@ static int matcd_read_subq(int ldrive, int cdrive, int controller,
 	subq.what.position.absaddr.msf.unused=0;
 	subq.what.position.reladdr.msf.unused=0;
 
-	i=waitforit(10*TICKRES,DTEN,port,"mats2");	/*<25>*/
+	i=waitforit(10*TICKRES,DTEN,port,"mats2");
 	matcd_pread(port, 11, data);	/*Read data returned*/
 	z=get_stat(port,ldrive);	/*Read status byte*/
 	if ((z & MATCD_ST_ERROR)) {	/*Something went wrong*/
@@ -2810,7 +2673,6 @@ static int matcd_igot(struct ioc_capability * sqp)
 						      audio are here*/
 #endif	/*FULLDRIVER*/
 
-#ifdef FREE2
 
 static matcd_devsw_installed = 0;
 
@@ -2830,7 +2692,6 @@ matcd_drvinit(void *unused)
 
 SYSINIT(matcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,matcd_drvinit,NULL)
 
-#endif /* FREE2 */
 
 /*End of matcd.c*/
 
