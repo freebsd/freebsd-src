@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)paste.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
@@ -66,10 +67,10 @@ void sequential(char **);
 int tr(char *);
 static void usage(void);
 
+char tab[] = "\t";
+
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int ch, seq;
 
@@ -93,7 +94,7 @@ main(argc, argv)
 		usage();
 	if (!delim) {
 		delimcnt = 1;
-		delim = "\t";
+		delim = tab;
 	}
 
 	if (seq)
@@ -111,12 +112,11 @@ typedef struct _list {
 } LIST;
 
 void
-parallel(argv)
-	char **argv;
+parallel(char **argv)
 {
-	register LIST *lp;
-	register int cnt;
-	register char ch, *p;
+	LIST *lp;
+	int cnt;
+	char ch, *p;
 	LIST *head, *tmp;
 	int opencnt, output;
 	char buf[_POSIX2_LINE_MAX + 1];
@@ -178,12 +178,11 @@ parallel(argv)
 }
 
 void
-sequential(argv)
-	char **argv;
+sequential(char **argv)
 {
-	register FILE *fp;
-	register int cnt;
-	register char ch, *p, *dp;
+	FILE *fp;
+	int cnt;
+	char ch, *p, *dp;
 	char buf[_POSIX2_LINE_MAX + 1];
 
 	for (; (p = *argv); ++argv) {
@@ -216,11 +215,10 @@ sequential(argv)
 }
 
 int
-tr(arg)
-	char *arg;
+tr(char *arg)
 {
-	register int cnt;
-	register char ch, *p;
+	int cnt;
+	char ch, *p;
 
 	for (p = arg, cnt = 0; (ch = *p++); ++arg, ++cnt)
 		if (ch == '\\')
@@ -246,7 +244,7 @@ tr(arg)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: paste [-s] [-d delimiters] file ...\n");
 	exit(1);
