@@ -722,7 +722,7 @@ including the following:
     Planex FNW-3600-T
     Socket LP-E
     Surecom EtherPerfect EP-427
-    TDK LAK-CD031
+    TDK LAK-CD031,Grey Cell GCS2000 Ethernet Card
     Telecom Device SuperSocket RE450T
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
@@ -908,20 +908,33 @@ Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
 NCR WaveLAN/IEEE 802.11
 Cabletron RoamAbout 802.11 DS
+Compaq WL100
+Corega KK Wireless LAN PCC-11
+Laneed Wireless card
 ELECOM Air@Hawk/LD-WL11/PCC
 Farallon Skyline 11Mbps Wireless
-NEC Wireless Card CMZ-RT-WP
+ICOM SL-1100
 Melco Airconnect WLI-PCM-L11
+NEC Wireless Card CMZ-RT-WP
 PLANEX GeoWave/GW-NS110
+TDK LAK-CD011WL
 Note: the ISA versions of these adapters are actually PCMCIA cards
 combined with an ISA to PCMCIA bridge card, so both kinds of devices
 work with the same driver.
 	
-
 Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,      
 PCI and ISA adapters are all supported. 
 Cisco Systems Aironet 340 Series (includes 340, 341, and 342 models)
 11Mbps 802.11 wireless NIC
+
+Toshiba Mobile HDD MEHDD20A (Type II)
+
+FAX-Modem/PC-Card
+Melco IGM-PCM56K
+
+Digital Cellular/PC-Card
+Panasonic KX-PH405
+
 
 4.6.    Microchannel
 ----    ------------
