@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.6 1997/03/18 02:36:55 msmith Exp $
+# $Id: Makefile,v 1.2 1997/08/09 02:08:32 dyson Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c \
@@ -10,7 +10,7 @@ SRCS=	AsyncIO.c ParseBuffer.c \
 	int1a.c int2f.c intff.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c tty.c xms.c
 
-CLEANFILES=	doscmd.kernel crt0.o doscmd_loader.o doscmd.1.gz
+CLEANFILES=     doscmd.kernel crt0.o doscmd_loader.o doscmd.1.gz instbsdi.exe
 
 BINGRP=	kmem
 EXEGRP=	bin
@@ -41,7 +41,7 @@ afterinstall:
 	install ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 		doscmd.kernel ${DESTDIR}/usr/libexec/doscmd.kernel
 	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
-		${.CURDIR}/instbsdi.exe ${DESTDIR}/usr/dos/
+		instbsdi.exe ${DESTDIR}/usr/dos/
 
 doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o instbsdi.exe
 # for FreeBSD
@@ -50,7 +50,7 @@ doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o instbsdi.exe
 #	ld -N -Bstatic -o doscmd ${LDFLAGS} ${LIBCRT0} doscmd_loader.o ${LDADD}
 
 instbsdi.exe:	instbsdi.exe.uu
-	uudecode	instbsdi.exe.uu
+	uudecode        ${.CURDIR}/instbsdi.exe.uu
 
 .include <bsd.prog.mk>
 
