@@ -59,6 +59,7 @@ struct isa_device {
 	int	id_id;		/* device id */
 	struct	isa_driver *id_driver;
 	int	id_iobase;	/* base i/o address */
+	int	id_iosize;	/* base i/o length */
 	u_int	id_irq;		/* interrupt request */
 	int	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
