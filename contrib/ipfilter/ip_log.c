@@ -3,13 +3,14 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_log.c,v 2.5.2.18 2002/03/26 15:54:40 darrenr Exp $
+ * $Id: ip_log.c,v 2.5.2.19 2002/04/25 16:32:48 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)
 # define       _KERNEL
 #endif
-#if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM)
+#if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
+    defined(_KERNEL)
 # include "opt_ipfilter_log.h"
 #endif
 #ifdef  __FreeBSD__

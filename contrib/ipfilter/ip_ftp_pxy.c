@@ -2,7 +2,7 @@
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * $Id: ip_ftp_pxy.c,v 2.7.2.33 2002/02/15 14:48:38 darrenr Exp $
+ * $Id: ip_ftp_pxy.c,v 2.7.2.34 2002/04/26 10:22:45 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -184,7 +184,11 @@ int dlen;
 	if ((inc + ip->ip_len) > 65535)
 		return 0;
 
-#if SOLARIS
+#if !defined(_KERNEL)
+	m = *((mb_t **)fin->fin_mp);
+	bcopy(newbuf, (char *)m + off, nlen);
+#else
+# if SOLARIS
 	m = fin->fin_qfm;
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
@@ -210,19 +214,20 @@ int dlen;
 		m1->b_wptr += inc;
 	}
 	copyin_mblk(m, off, nlen, newbuf);
-#else
+# else
 	m = *((mb_t **)fin->fin_mp);
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
 	m_copyback(m, off, nlen, newbuf);
-# ifdef	M_PKTHDR
+#  ifdef	M_PKTHDR
 	if (!(m->m_flags & M_PKTHDR))
 		m->m_pkthdr.len += inc;
+#  endif
 # endif
 #endif
 	if (inc != 0) {
-#if SOLARIS || defined(__sgi)
+#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
 		register u_32_t	sum1, sum2;
 
 		sum1 = ip->ip_len;
@@ -269,6 +274,7 @@ int dlen;
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = htons(sp);
 		tcp2->th_off = 5;
+		tcp2->th_flags = TH_SYN;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
 		fi.fin_data[1] = 0;
 		fi.fin_dlen = sizeof(*tcp2);
@@ -452,7 +458,11 @@ int dlen;
 	if ((inc + ip->ip_len) > 65535)
 		return 0;
 
-#if SOLARIS
+#if !defined(_KERNEL)
+	m = *((mb_t **)fin->fin_mp);
+	m_copyback(m, off, nlen, newbuf);
+#else
+# if SOLARIS
 	m = fin->fin_qfm;
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
@@ -475,15 +485,16 @@ int dlen;
 		m1->b_wptr += inc;
 	}
 	/*copyin_mblk(m, off, nlen, newbuf);*/
-#else /* SOLARIS */
+# else /* SOLARIS */
 	m = *((mb_t **)fin->fin_mp);
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
 	/*m_copyback(m, off, nlen, newbuf);*/
-#endif /* SOLARIS */
+# endif /* SOLARIS */
+#endif /* _KERNEL */
 	if (inc != 0) {
-#if SOLARIS || defined(__sgi)
+#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
 		register u_32_t	sum1, sum2;
 
 		sum1 = ip->ip_len;
@@ -520,6 +531,7 @@ int dlen;
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
 		tcp2->th_off = 5;
+		tcp2->th_flags = TH_SYN;
 		fi.fin_data[1] = a5 << 8 | a6;
 		fi.fin_dlen = sizeof(*tcp2);
 		tcp2->th_dport = htons(fi.fin_data[1]);
@@ -721,17 +733,22 @@ int rv;
 	tcp = (tcphdr_t *)fin->fin_dp;
 	off = fin->fin_hlen + (tcp->th_off << 2);
 
-#if	SOLARIS
+#if	SOLARIS && defined(_KERNEL)
 	m = fin->fin_qfm;
 #else
 	m = *((mb_t **)fin->fin_mp);
 #endif
 
-#if	SOLARIS
-	mlen = msgdsize(m) - off;
+#ifndef	_KERNEL
+	mlen = mbuflen(m);
 #else
-	mlen = mbufchainlen(m) - off;
+# if	SOLARIS
+	mlen = msgdsize(m);
+# else
+	mlen = mbufchainlen(m);
+# endif
 #endif
+	mlen -= off;
 
 	t = &ftp->ftp_side[1 - rv];
 	f = &ftp->ftp_side[rv];
@@ -743,15 +760,18 @@ int rv;
 		return 0;
 	}
 
-	inc = 0;
 	rptr = f->ftps_rptr;
 	wptr = f->ftps_wptr;
 
+	i = 0;
 	sel = nat->nat_aps->aps_sel[1 - rv];
-	if (rv)
-		i = nat->nat_aps->aps_ackoff[sel];
-	else
-		i = nat->nat_aps->aps_seqoff[sel];
+	if (rv) {
+		if (nat->nat_aps->aps_ackmin[sel] > ntohl(tcp->th_seq))
+			i = nat->nat_aps->aps_ackoff[sel];
+	} else {
+		if (nat->nat_aps->aps_seqmin[sel] > ntohl(tcp->th_seq))
+			i = nat->nat_aps->aps_seqoff[sel];
+	}
 	/*
 	 * XXX - Ideally, this packet should get dropped because we now know
 	 * that it is out of order (and there is no real danger in doing so
@@ -759,18 +779,26 @@ int rv;
 	 */
 	if (f->ftps_len + f->ftps_seq == ntohl(tcp->th_seq))
 		f->ftps_seq = ntohl(tcp->th_seq);
-	else if (ntohl(tcp->th_seq) + i != f->ftps_seq) {
-		return APR_ERR(1);
+	else {
+		inc = ntohl(tcp->th_seq) - f->ftps_seq;
+		if (inc > i) {
+			return APR_ERR(1);
+		}
 	}
+	inc = 0;
 	f->ftps_len = mlen;
 
 	while (mlen > 0) {
 		len = MIN(mlen, FTP_BUFSZ / 2);
 
-#if	SOLARIS
-		copyout_mblk(m, off, len, wptr);
+#if !defined(_KERNEL)
+		bcopy((char *)m + off, wptr, len);
 #else
+# if SOLARIS
+		copyout_mblk(m, off, len, wptr);
+# else
 		m_copydata(m, off, len, wptr);
+# endif
 #endif
 		mlen -= len;
 		off += len;
@@ -800,8 +828,9 @@ int rv;
 		 * Off to a bad start so lets just forget about using the
 		 * ftp proxy for this connection.
 		 */
-		if ((f->ftps_cmds == 0) && (f->ftps_junk == 1))
+		if ((f->ftps_cmds == 0) && (f->ftps_junk == 1)) {
 			return APR_ERR(2);
+		}
 
 		while ((f->ftps_junk == 1) && (rptr < wptr)) {
 			while ((rptr < wptr) && (*rptr != '\r'))
