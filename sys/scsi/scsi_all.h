@@ -18,12 +18,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.4 1993/08/21 20:01:51 rgrimes Exp $
+ *	$Id: scsi_all.h,v 2.0 93/10/06 21:10:28 julian Exp Locker: julian $
  */
 
-#ifndef _SCSI_SCSI_ALL_H_
-#define _SCSI_SCSI_ALL_H_ 1
-
+#ifndef	_SCSI_SCSI_ALL_H
+#define _SCSI_SCSI_ALL_H 1
 /*
  * SCSI command format
  */
@@ -31,10 +30,10 @@
 /*
  * Define dome bits that are in ALL (or a lot of) scsi commands
  */
-#define SCSI_CTL_LINK	0x01
-#define SCSI_CTL_FLAG	0x02
-#define SCSI_CTL_VENDOR	0xC0
-#define	SCSI_CMD_LUN	0xA0		/*these two should not be needed*/
+#define SCSI_CTL_LINK		0x01
+#define SCSI_CTL_FLAG		0x02
+#define SCSI_CTL_VENDOR		0xC0
+#define	SCSI_CMD_LUN		0xA0	/* these two should not be needed */
 #define	SCSI_CMD_LUN_SHIFT	5	/* LUN in the cmd is no longer SCSI */
 
 
@@ -103,7 +102,7 @@ struct scsi_mode_sense
 struct scsi_mode_sense_big
 {
 	u_char	op_code;
-	u_char	byte2; 	/* same bits as small version */
+	u_char	byte2; 		/* same bits as small version */
 	u_char	page; 		/* same bits as small version */
 	u_char	unused[4];
 	u_char	length[2];
@@ -124,7 +123,7 @@ struct scsi_mode_select
 struct scsi_mode_select_big
 {
 	u_char	op_code;
-	u_char	byte2;	/* same bits as small version */
+	u_char	byte2;		/* same bits as small version */
 	u_char	unused[5];
 	u_char	length[2];
 	u_char	control;
@@ -159,6 +158,19 @@ struct scsi_prevent
 #define	PR_PREVENT 0x01
 #define PR_ALLOW   0x00
 
+struct scsi_changedef
+{
+	u_char	op_code;
+	u_char	byte2;
+	u_char	unused1;
+	u_char	how;
+	u_char	unused[4];
+	u_char	datalen;
+	u_char	control;
+};
+#define SC_SCSI_1 0x01
+#define SC_SCSI_2 0x03
+
 /*
  * Opcodes
  */
@@ -173,6 +185,7 @@ struct scsi_prevent
 #define RELEASE      		0x17
 #define PREVENT_ALLOW		0x1e
 #define POSITION_TO_ELEMENT	0x2b
+#define	CHANGE_DEFINITION	0x40
 #define	MODE_SENSE_BIG		0x54
 #define	MODE_SELECT_BIG		0x55
 #define MOVE_MEDIUM     	0xa5
@@ -234,62 +247,62 @@ struct scsi_inquiry_data
 
 struct	scsi_sense_data
 {
-	u_char	error_code;	/* same bits as new version */
+/* 1*/	u_char	error_code;	/* same bits as new version */
 	union
 	{
 		struct
 		{
-			u_char	blockhi;
-			u_char	blockmed;
-			u_char	blocklow;
+/* 2*/			u_char	blockhi;
+/* 3*/			u_char	blockmed;
+/* 4*/			u_char	blocklow;
 		} unextended;
 		struct
 		{
-			u_char	segment;
-			u_char	flags;	/* same bits as new version */
-			u_char	info[4];
-			u_char	extra_len;
+/* 2*/			u_char	segment;
+/* 3*/			u_char	flags;	/* same bits as new version */
+/* 7*/			u_char	info[4];
+/* 8*/			u_char	extra_len;
 			/* allocate enough room to hold new stuff
-			( by increasing 16 to 26 below) */
-			u_char	extra_bytes[26];
+			( by increasing 16 to 24 below) */
+/*32*/			u_char	extra_bytes[24];
 		} extended;
 	}ext;
-};
+};	/* total of 32 bytes */
 struct	scsi_sense_data_new
 {
-	u_char	error_code;
+/* 1*/	u_char	error_code;
 #define	SSD_ERRCODE		0x7F
 #define	SSD_ERRCODE_VALID	0x80
 	union
 	{
-		struct	/* this is depreciated, the standard says "DON'T"*/
+		struct	/* this is deprecated, the standard says "DON'T"*/
 		{
-			u_char	blockhi;
-			u_char	blockmed;
-			u_char	blocklow;
+/* 2*/			u_char	blockhi;
+/* 3*/			u_char	blockmed;
+/* 4*/			u_char	blocklow;
 		} unextended;
 		struct
 		{
-			u_char	segment;
-			u_char	flags;
+/* 2*/			u_char	segment;
+/* 3*/			u_char	flags;
 #define	SSD_KEY		0x0F
 #define	SSD_ILI		0x20
 #define	SSD_EOM		0x40
 #define	SSD_FILEMARK	0x80
-			u_char	info[4];
-			u_char	extra_len;
-			u_char	cmd_spec_info[4];
-			u_char	add_sense_code;
-			u_char	add_sense_code_qual;
-			u_char	fru;
-			u_char	sense_key_spec_1;
+/* 7*/			u_char	info[4];
+/* 8*/			u_char	extra_len;
+/*12*/			u_char	cmd_spec_info[4];
+/*13*/			u_char	add_sense_code;
+/*14*/			u_char	add_sense_code_qual;
+/*15*/			u_char	fru;
+/*16*/			u_char	sense_key_spec_1;
 #define	SSD_SCS_VALID		0x80
-			u_char	sense_key_spec_2;
-			u_char	sense_key_spec_3;
-			u_char	extra_bytes[16];
+/*17*/			u_char	sense_key_spec_2;
+/*18*/			u_char	sense_key_spec_3;
+/*32*/			u_char	extra_bytes[14];
 		} extended;
 	}ext;
-};
+}; /* total of 32 bytes */
 
 struct	blk_desc
 {
@@ -324,4 +337,4 @@ struct scsi_mode_header_big
 #define	SCSI_CHECK		0x02
 #define	SCSI_BUSY		0x08	
 #define SCSI_INTERM		0x10
-#endif /* _SCSI_SCSI_ALL_H_ */
+#endif /*_SCSI_SCSI_ALL_H*/
