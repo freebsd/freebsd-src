@@ -1505,7 +1505,6 @@ change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval)
  * full-duplex)
  */
 
-#if 1
 void
 translate_bytes (u_char *table, u_char *buff, int n)
 {
@@ -1517,22 +1516,5 @@ translate_bytes (u_char *table, u_char *buff, int n)
     for (i = 0; i < n; ++i)
 	buff[i] = table[buff[i]];
 }
-#else
-/* inline */
-void
-translate_bytes (const void *table, void *buff, int n)
-{     
-    if (n > 0) { 
-	__asm__ (  "   cld\n"
-		   "1: lodsb\n"
-		   "   xlatb\n"
-		   "   stosb\n"
-		   "   loop 1b\n":
-	    : "b" (table), "c" (n), "D" (buff), "S" (buff)
-	    : "bx", "cx", "di", "si", "ax");
-    }
-}   
-
-#endif
 
 #endif	/* NPCM > 0 */
