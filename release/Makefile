@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.5 1995/07/22 04:15:40 rgrimes Exp $
+#	$Id: Makefile,v 1.193.2.6 1995/07/22 05:21:15 rgrimes Exp $
 #
 # How to roll a release:
 #
@@ -11,10 +11,10 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.0.6
-CHROOTDIR=/a/release
+BUILDNAME=2.1.0
+#CHROOTDIR=/a/release
 # If this is a RELEASE, then set
-RELEASETAG=RELENG_2_0_5
+RELEASETAG=RELENG_2_1_0
 
 # Things which without too much trouble can be considered variables
 
