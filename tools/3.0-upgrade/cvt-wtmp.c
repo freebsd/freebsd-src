@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cvt-wtmp.c,v 1.4 1997/02/22 14:08:01 peter Exp $
  *
  */
 
@@ -82,7 +82,7 @@ main(int argc, char **argv)
   int errs, i, nflag, forceflag, rv;
 
   errs = nflag = forceflag = 0;
-  while ((i = getopt(argc, argv, "fn")) != EOF)
+  while ((i = getopt(argc, argv, "fn")) != -1)
     switch (i)
       {
       case 'f':
