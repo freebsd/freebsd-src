@@ -1,5 +1,5 @@
-OPIE Software Distribution, Release 2.3                   Important Information
-=======================================                   =====================
+OPIE Software Distribution, Release 2.31                  Important Information
+========================================                  =====================
 
 Introduction
 ============
@@ -74,6 +74,16 @@ original Bellcore S/Key(tm) Version 1 software:
 
 A Glance at What's New
 ======================
+
+	2.31 March 20, 1997.
+
+	Removed active attack protection support due to patent problems.
+
+	Moved user locks to a separate directory.
+
+	Moved user-serviceable configuration options to the configure script.
+
+	Lots of portability and bug fixes.
 
 	2.3 September 22, 1996
 
@@ -174,6 +184,11 @@ restore the original system programs, but it will not work properly (and can
 even result in the total loss of the old system programs -- beware!) if the
 installation procedure itself did not work properly.
 
+	If you are running a release version, try installing the latest public
+test version (look around). These frequently have already fixed the problem
+you are seeing, but may have new problems of their own (that's why they're
+test versions!).
+
 	OPIE is NOT supported software. We don't promise to support you or
 even to acknowledge your mail, but we are interested in bug reports and are
 reasonable folks. We also have an interest in seeing OPIE work on as many
@@ -272,9 +287,10 @@ log in via opielogin, but opielogin will decrement their sequence number
 if a valid response is received.
 
         On some systems, the OPIE login program does not always display
-a "login:" prompt the first time. We think that this has something to do
-with the telnet daemon on those systems. (This is common on SunOS) You should
-be able to fix this by upgrading to the latest version of telnetd.
+a "login:" prompt the first time. There is a race condition in many older
+telnetds that is probably the cause of this problem. This should be fixed by
+replacing your telnetd with the latest version of the stock telnetd 
+(ftp.cray.com:/src/telnet). 
 
 	The standard HPUX compiler is severely drain bamaged. One of the
 worst parts is that it sometimes won't grok a symbol definition with forward
@@ -291,19 +307,53 @@ seed.
 
 	opielogin is a replacement for /bin/login. It is NOT an OPIE "shell."
 You can use it as one, but don't be surprised if it doesn't behave the way
-you expect. An OPIE "shell" is on the TODO list.
+you expect -- we've seen various reports of success and failure when used this
+way. An OPIE "shell" is on the TODO list.
 
 	Clients that use opiegen() will automatically send a re-initialization
 extended response if the sequence number falls below ten. If the server does
 not support this, the user will need to log in using opiekey and reset his
 sequence manually (using opiepasswd).
 
+	For reasons that remain very unclear, Solaris passes the login name
+from getty/telnetd to login by stuffing it in the terminal input buffer
+instead of passing it on the command line like every other *IX. This is just
+plain broken. Solaris has other problems with its telnetd and getty; you may
+want to consider getting the telnet(d) sources (ftp.cray.com:/src/telnet)
+and reasonable getty sources (try sunsite.unc.edu:/pub/Linux/system/Serial, at
+least one of agetty, mingetty, and getty_ps should work) and replacing the
+Solaris versions with these. OPIE should work *much* more happily with these
+programs than the ones that come with Solaris. However, there could be negative
+side effects -- this is not a procedure recommended for the faint of heart. An
+even more drastic solution more likely to make OPIE happy is to install Linux
+or NetBSD on your box ;)
+
+	OPIE is a lot more fussy than it used to be about lock files and where
+it puts them. The lock file directory must be a directory used only for OPIE
+lock files. It must be a directory, owned by the superuser, and must be mode
+0700.
+
 Gripes
 ======
 
 	Is it too much to ask that certain OS vendors just do the right thing
-and not fix what isn't broken? (Look at all the ifdefs in the OPIE code and
+and not "fix" what isn't broken? (Look at all the ifdefs in the OPIE code and
 the answer is clear)
+
+	utmp and wtmp handling in OPIE has been a very, very sore subject.
+Every vendor does things differently, and, of course, most of them swear they
+are complying to some or other "standard." My (cmetz) conclusion is that the
+only thing that is standard about utmp and wtmp handling is that it will be
+nonstandard on any given system. I've tried a lot of things and I've wasted
+*a lot* of time on trying to make utmp and wtmp handling work for everybody;
+my conclusion is that it will never happen. I personally am willing to stand
+behind the code for utmp/wtmp handling on reasonable Linux and 4.4BSD-Lite
+systems. If it breaks, tell me and I will fix it. While I am still interested
+in hearing about fixes for other OSs, I'm not likely to go out of my way to fix
+utmp/wtmp handling on them. If you want it fixed, the best way to do it is to
+fix it yourself and give me a patch. As long as the patch is reasonable, I'll
+include it in the next release. If you can't wait, use the --disable-utmp
+option.
 
 Credits
 =======
@@ -336,17 +386,22 @@ community effort. These contributors include:
 
 	Mowgli Assor
 	Lawrie Brown
+	Andrew Davis
 	Axel Grewe
 	"Hobbit"
+	Kojima Hajime
 	Darren Hosking
 	Martijn Koster
 	Osamu Kurati
 	Ayamura Kikuchi
+        Hiroshi Nakano
 	Ikuo Nakagawa
 	Angelo Neri
+	C. R. Oldham
 	D. Jason Penney
 	John Perkins
 	Jim Simmons
+	Brad Smith
 	Werner Wiethege
 	Wietse Venema
 
@@ -371,8 +426,8 @@ trademarked by anyone.
 
 Copyrights
 ==========
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If

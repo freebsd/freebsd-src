@@ -1,7 +1,7 @@
 /* readpass.c: The opiereadpass() library function.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,9 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. Use usleep() to delay after setting
+		the terminal attributes; this might help certain buggy
+		systems.
 	Modified by cmetz for OPIE 2.3. Use TCSAFLUSH always.
 	Modified by cmetz for OPIE 2.22. Replaced echo w/ flags.
                Really use FUNCTION.
@@ -194,8 +197,16 @@ char *opiereadpass FUNCTION((buf, len, flags), char *buf AND int len AND int fla
     }
 #endif /* VEOF */
 
+#if HAVE_USLEEP
+    usleep(1);
+#endif /* HAVE_USLEEP */
+
     if (tcsetattr(0, TCSAFLUSH, &attr))
       goto error;
+
+#if HAVE_USLEEP
+    usleep(1);
+#endif /* HAVE_USLEEP */
   }
 #else /* unix */
   erase[0] = CONTROL('H');

@@ -1,13 +1,14 @@
 /* getutmpentry.c: The __opiegetutmpentry() library function.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. Cache result.
         Created by cmetz for OPIE 2.3 (re-write).
 */
 
@@ -18,6 +19,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
 #if DOUTMPX
 #include <utmpx.h>
+#define setutent setutxent
 #define getutline(x) getutxline(x)
 #define utmp utmpx
 #endif /* DOUTMPX */
@@ -31,30 +33,40 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #endif /* DEBUG */
 #include "opie.h"
 
-#if !HAVE_GETUTLINE
+#if !HAVE_GETUTLINE && !DOUTMPX
 struct utmp *getutline __P((struct utmp *));
-#endif /* HAVE_GETUTLINE */
+#endif /* HAVE_GETUTLINE && !DOUTMPX */
+
+static struct utmp u;
 
 int __opiegetutmpentry FUNCTION((line, utmp), char *line AND struct utmp *utmp)
 {
-  struct utmp u, *pu;
+  struct utmp *pu;
+
+  if (u.ut_line[0]) {
+    pu = &u;
+    goto gotit;
+  };
 
   memset(&u, 0, sizeof(u));
 
   if (!strncmp(line, "/dev/", 5)) {
     strncpy(u.ut_line, line + 5, sizeof(u.ut_line));
+    setutent();
     if ((pu = getutline(&u)))
       goto gotit;
 
 #ifdef hpux
     strcpy(u.ut_line, "pty/");
     strncpy(u.ut_line + 4, line + 5, sizeof(u.ut_line) - 4);
+    setutent();
     if ((pu = getutline(&u)))
       goto gotit;
 #endif /* hpux */
   }
 
   strncpy(u.ut_line, line, sizeof(u.ut_line));
+  setutent();
   if ((pu = getutline(&u)))
     goto gotit;
 

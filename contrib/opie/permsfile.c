@@ -1,8 +1,8 @@
 /* permsfile.c: implement SunOS /etc/fbtab and Solaris /etc/logindevperm
    functionality to set device permissions on login
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Include unistd.h.
 	Modified by cmetz for OPIE 2.3. Check for NULL return from
 	    ftpglob(), combine some expressions, fix a typo. Made file
 	    selection a bit more generic.
@@ -30,6 +31,9 @@ License Agreement applies to this software.
 #if HAVE_STRING_H
 #include <string.h>
 #endif /* HAVE_STRING_H */
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 #include <syslog.h>
 #include "opie.h"
 
