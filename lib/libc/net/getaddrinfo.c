@@ -813,7 +813,10 @@ get_name(addr, afd, res, numaddr, pai, servname)
 
 	hp = getipnodebyaddr(addr, afd->a_addrlen, afd->a_af, &h_error);
 	if (hp && hp->h_name && hp->h_name[0] && hp->h_addr_list[0]) {
-		GET_AI(cur, afd, hp->h_addr_list[0]);
+		if (hp->h_addrtype == afd->a_af)
+			GET_AI(cur, afd, hp->h_addr_list[0]);
+		else /* IPv4 mapped IPv6 addr case */
+			GET_AI(cur, afd, numaddr);
 		GET_PORT(cur, servname);
 		GET_CANONNAME(cur, hp->h_name);
 	} else {
