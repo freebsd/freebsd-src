@@ -122,18 +122,6 @@ int main(argc, argv)
 		return 1;
 	}
 
-	if (init)
-		wall_clock = (access(_PATH_CLOCK, F_OK) == 0);
-	else {
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_WALLCLOCK;
-		len = sizeof(wall_clock);
-		if (sysctl(mib, 2, &wall_clock, &len, NULL, 0) == -1) {
-			syslog(LOG_ERR, "sysctl(get_wallclock): %m");
-			return 1;
-		}
-	}
-
 again:
 	(void) sigprocmask(SIG_BLOCK, &mask, NULL);
 	(void) signal(SIGTERM, fake);
@@ -142,6 +130,8 @@ again:
 	stv = NULL;
 	stz = NULL;
 	looping = False;
+
+	wall_clock = (access(_PATH_CLOCK, F_OK) == 0);
 
 	mib[0] = CTL_MACHDEP;
 	mib[1] = CPU_ADJKERNTZ;
@@ -322,14 +312,12 @@ recalculate:
 		}
 	}
 
-	if (init) {
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_WALLCLOCK;
-		len = sizeof(wall_clock);
-		if (sysctl(mib, 2, NULL, NULL, &wall_clock, len) == -1) {
-			syslog(LOG_ERR, "sysctl(put_wallclock): %m");
-			return 1;
-		}
+	mib[0] = CTL_MACHDEP;
+	mib[1] = CPU_WALLCLOCK;
+	len = sizeof(wall_clock);
+	if (sysctl(mib, 2, NULL, NULL, &wall_clock, len) == -1) {
+		syslog(LOG_ERR, "sysctl(put_wallclock): %m");
+		return 1;
 	}
 
 	if (need_restore) {
