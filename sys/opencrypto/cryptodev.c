@@ -147,6 +147,10 @@ cryptof_ioctl(
 	u_int32_t ses;
 	int error = 0;
 
+	/*
+	 * XXX: Not sure Giant is needed, but better safe than sorry
+	 */
+	mtx_lock(&Giant);
 	switch (cmd) {
 	case CIOCGSESSION:
 		sop = (struct session_op *)data;
@@ -178,6 +182,7 @@ cryptof_ioctl(
 			txform = &enc_xform_arc4;
 			break;
 		default:
+			mtx_unlock(&Giant);
 			return (EINVAL);
 		}
 
@@ -197,8 +202,10 @@ cryptof_ioctl(
 				thash = &auth_hash_hmac_sha2_384;
 			else if (sop->mackeylen == auth_hash_hmac_sha2_512.keysize)
 				thash = &auth_hash_hmac_sha2_512;
-			else
+			else {
+				mtx_unlock(&Giant);
 				return (EINVAL);
+			}
 			break;
 		case CRYPTO_RIPEMD160_HMAC:
 			thash = &auth_hash_hmac_ripemd_160_96;
@@ -215,6 +222,7 @@ cryptof_ioctl(
 			thash = &auth_hash_null;
 			break;
 		default:
+			mtx_unlock(&Giant);
 			return (EINVAL);
 		}
 
@@ -282,16 +290,20 @@ bail:
 	case CIOCFSESSION:
 		ses = *(u_int32_t *)data;
 		cse = csefind(fcr, ses);
-		if (cse == NULL)
+		if (cse == NULL) {
+			mtx_unlock(&Giant);
 			return (EINVAL);
+		}
 		csedelete(fcr, cse);
 		error = csefree(cse);
 		break;
 	case CIOCCRYPT:
 		cop = (struct crypt_op *)data;
 		cse = csefind(fcr, cop->ses);
-		if (cse == NULL)
+		if (cse == NULL) {
+			mtx_unlock(&Giant);
 			return (EINVAL);
+		}
 		error = cryptodev_op(cse, cop, active_cred, td);
 		break;
 	case CIOCKEY:
@@ -303,6 +315,7 @@ bail:
 	default:
 		error = EINVAL;
 	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 

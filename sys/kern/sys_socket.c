@@ -129,6 +129,7 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 	struct socket *so = fp->f_data;
 	int error = 0;
 
+	NET_LOCK_GIANT();
 	switch (cmd) {
 
 	case FIONBIO:
@@ -210,6 +211,7 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 			    (so, cmd, data, 0, td));
 		break;
 	}
+	NET_UNLOCK_GIANT();
 	return(error);
 }
 
