@@ -1748,52 +1748,53 @@ more:
                 }
         }
 	sep->se_nomapped = 0;
-	while (isdigit(sep->se_proto[strlen(sep->se_proto) - 1])) {
-#ifdef INET6
-		if (sep->se_proto[strlen(sep->se_proto) - 1] == '6') {
-			sep->se_proto[strlen(sep->se_proto) - 1] = '\0';
-			v6bind = 1;
-			continue;
-		}
-#endif
-		if (sep->se_proto[strlen(sep->se_proto) - 1] == '4') {
-			sep->se_proto[strlen(sep->se_proto) - 1] = '\0';
-			v4bind = 1;
-			continue;
-		}
-		/* illegal version num */
-		syslog(LOG_ERR,	"bad IP version for %s", sep->se_proto);
-		freeconfig(sep);
-		goto more;
-	}
 	if (strcmp(sep->se_proto, "unix") == 0) {
 	        sep->se_family = AF_UNIX;
-	} else
+	} else {
+		while (isdigit(sep->se_proto[strlen(sep->se_proto) - 1])) {
 #ifdef INET6
-	if (v6bind != 0 && no_v6bind != 0) {
-		syslog(LOG_INFO, "IPv6 bind is ignored for %s",
-		       sep->se_service);
-		if (v4bind && no_v4bind == 0)
-			v6bind = 0;
-		else {
-			freeconfig(sep);
-			goto more;
-		}
-	}
-	if (v6bind != 0) {
-		sep->se_family = AF_INET6;
-		if (v4bind == 0 || no_v4bind != 0)
-			sep->se_nomapped = 1;
-	} else
+			if (sep->se_proto[strlen(sep->se_proto) - 1] == '6') {
+				sep->se_proto[strlen(sep->se_proto) - 1] = '\0';
+				v6bind = 1;
+				continue;
+			}
 #endif
-	{ /* default to v4 bind if not v6 bind */
-		if (no_v4bind != 0) {
-			syslog(LOG_NOTICE, "IPv4 bind is ignored for %s",
-			       sep->se_service);
+			if (sep->se_proto[strlen(sep->se_proto) - 1] == '4') {
+				sep->se_proto[strlen(sep->se_proto) - 1] = '\0';
+				v4bind = 1;
+				continue;
+			}
+			/* illegal version num */
+			syslog(LOG_ERR,	"bad IP version for %s", sep->se_proto);
 			freeconfig(sep);
 			goto more;
 		}
-		sep->se_family = AF_INET;
+#ifdef INET6
+		if (v6bind != 0 && no_v6bind != 0) {
+			syslog(LOG_INFO, "IPv6 bind is ignored for %s",
+			       sep->se_service);
+			if (v4bind && no_v4bind == 0)
+				v6bind = 0;
+			else {
+				freeconfig(sep);
+				goto more;
+			}
+		}
+		if (v6bind != 0) {
+			sep->se_family = AF_INET6;
+			if (v4bind == 0 || no_v4bind != 0)
+				sep->se_nomapped = 1;
+		} else
+#endif
+		{ /* default to v4 bind if not v6 bind */
+			if (no_v4bind != 0) {
+				syslog(LOG_NOTICE, "IPv4 bind is ignored for %s",
+				       sep->se_service);
+				freeconfig(sep);
+				goto more;
+			}
+			sep->se_family = AF_INET;
+		}
 	}
 	/* init ctladdr */
 	switch(sep->se_family) {
