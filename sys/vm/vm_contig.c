@@ -286,9 +286,10 @@ contigmalloc(
 {
 	void * ret;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 	ret = contigmalloc1(size, type, flags, low, high, alignment, boundary,
 	    kernel_map);
+	mtx_unlock(&Giant);
 	return (ret);
 }
 
