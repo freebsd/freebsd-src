@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.32 1999/07/02 15:58:32 sheldonh Exp $
+.\"	$Id: inetd.8,v 1.33 1999/07/02 16:21:12 sheldonh Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -43,7 +43,8 @@
 .Nm inetd
 .Op Fl d
 .Op Fl l
-.Op Fl w Op Fl w
+.Op Fl w
+.Op Fl W
 .Op Fl c Ar maximum
 .Op Fl C Ar rate
 .Op Fl a Ar address
@@ -80,10 +81,12 @@ Turn on debugging.
 .It Fl l
 Turn on logging.
 .It Fl w
-Turn on TCP Wrapping. If this option is specified twice, internal
-services will also be wrapped. See the
+Turn on TCP Wrapping for external services. See the
 .Sx "IMPLEMENTATION NOTES"
 section for more information on TCP Wrappers support.
+.It Fl W
+Turn on TCP Wrapping for internal services which are built in to
+.Nm inetd .
 .It Fl c Ar maximum
 Specify the default maximum number of services that can be invoked.
 May be overridden on a per-service basis with the "max-child"
@@ -416,10 +419,11 @@ or
 except for 
 .Dq internal
 services. If the
-.Fl w
-option is given twice, such
+.Fl W
+option is given, such
 .Dq internal
-services will be wrapped as well.
+services will be wrapped. If both options are given, wrapping for both
+internal and external services will be enabled.
 .Pp
 If the
 .Fl l
