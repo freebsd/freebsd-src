@@ -281,6 +281,14 @@ options 	MAXMEM="(128*1024)"
 
 device		eisa
 
+# By default, only 10 EISA slots are probed, since the slot numbers
+# above clash with the configuration address space of the PCI subsystem,
+# and the EISA probe is not very smart about this.  This is sufficient
+# for most machines, but in particular the HP NetServer LC series comes
+# with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
+# thus you need to bump this figure to 12 for them.
+options 	EISA_SLOTS=12
+
 #
 # MCA bus:
 #
