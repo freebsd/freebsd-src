@@ -2749,6 +2749,23 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<filename>.mc</filename> files; generalized map rebuilding;
 	rebuilding the aliases file; and the ability to stop, start, and
 	restart <application>sendmail</application>. &merged;</para>
+
+	<para>The <username>smmsp</username> and
+	<username>mailnull</username> users have been added to
+	<filename>/etc/master.passwd</filename>.  In the absence of a
+	<literal>confDEF_USER_ID</literal> setting, by default,
+	<application>sendmail</application> will use the
+	<username>mailnull</username> user for extra security.
+	Previously, if the <username>mailnull</username> user did not
+	exist, the <username>daemon</username> user was used.  This
+	change may generate some permissions issues when mailing to
+	files or to programs (such as <port>mail/majordomo</port>).
+	&merged; The previous behavior can be restored by adding the
+	following line to a system's
+	<filename><replaceable>*</replaceable>.mc</filename>
+	configuration file:
+	  <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
+	</para>
       </sect4>
     </sect3>
 
