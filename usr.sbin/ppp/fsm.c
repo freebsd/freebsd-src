@@ -1144,8 +1144,8 @@ fsm_readopt(u_char **cp)
   *cp += o->hdr.len;
 
   if (o->hdr.len > sizeof(struct fsm_opt)) {
-    log_Printf(LogERROR, "Warning: Truncating option length from %d to %ld\n",
-               o->hdr.len, sizeof(struct fsm_opt));
+    log_Printf(LogERROR, "Warning: Truncating option length from %d to %d\n",
+               o->hdr.len, (int)sizeof(struct fsm_opt));
     o->hdr.len = sizeof(struct fsm_opt);
   }
 
