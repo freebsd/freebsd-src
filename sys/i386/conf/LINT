@@ -1081,9 +1081,10 @@ device		atapicd		# ATAPI CDROM drives
 device		atapifd		# ATAPI floppy drives
 device		atapist		# ATAPI tape drives
 
-#The folliwing options are valid on the ATA driver:
 #
-# ATA_STATIC_ID:	controller numbering is static (like the old driver)
+#The following options are valid on the ATA driver:
+#
+# ATA_STATIC_ID:	controller numbering is static ie depends on location
 #			else the device numbers are dynamically allocated.
 # ATA_ENABLE_ATAPI_DMA:	enable DMA on ATAPI device, since many ATAPI devices
 #			claim to support DMA but doesn't actually work, this
