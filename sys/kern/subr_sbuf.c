@@ -38,6 +38,7 @@
 #include <machine/stdarg.h>
 #else /* _KERNEL */
 #include <stdarg.h>
+#include <stdlib.h>
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
