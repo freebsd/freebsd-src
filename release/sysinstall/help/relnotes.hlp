@@ -33,6 +33,14 @@ Use the new if_multiaddrs list for multicast addresses rather than the
 previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
 abominable multi_kludge.
 
+The new if_media selection method for ethernet drivers has been brought
+in, obtained from Jason Thorpe's  NetBSD implementation.
+
+Multi-session ISO-9660 CD-ROMs are now fully supported.  By default, the
+last session will be mounted (including for root mounts).  For non-root
+mounts, mount_cd9660(8) can take an argument to mount a particular
+session instead of the default one.
+
 
 2. Supported Configurations
 ---------------------------
@@ -56,8 +64,6 @@ WD1007 (any generic IDE/ESDI)
 IDE
 ATA
 
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
@@ -118,9 +124,15 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(wcd)   ATAPI IDE interface (experimental and should be considered ALPHA
-        quality!).
+(wcd)   ATAPI IDE interface (should be considered BETA quality).
 
+
+Unmaintained drivers, they might or might not work for your hardware:
+
+  Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+  Adaptec 152x series ISA SCSI controllers
+
+  Floppy tape interface (Colorado/Mountain/Insight)
 
 2.2. Ethernet cards
 -------------------
