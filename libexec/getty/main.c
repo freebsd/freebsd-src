@@ -93,7 +93,7 @@ struct termios tmode, omode;
 int crmod, digit, lower, upper;
 
 char	hostname[MAXHOSTNAMELEN];
-char	name[MAXLOGNAME+1];
+char	name[MAXLOGNAME*3];
 char	dev[] = _PATH_DEV;
 char	ttyn[32];
 
