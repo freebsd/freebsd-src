@@ -184,7 +184,7 @@ cpu_critical_exit(critical_t pil)
 	wrpr(pil, pil, 0);
 }
 
-static __inline u_long
+static __inline register_t
 intr_disable(void)
 {
 	u_long s;
