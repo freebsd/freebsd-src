@@ -820,6 +820,7 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
 	/*
 	 * Let the system queue as many packets as we have available
