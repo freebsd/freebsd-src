@@ -651,8 +651,12 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     /* send user name and password */
     if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
-    e = p ? _ftp_cmd(cd, "USER %s@%s@%d", user, host, port)
-	  : _ftp_cmd(cd, "USER %s", user);
+    if (p && port == FTP_DEFAULT_PORT)
+	e = _ftp_cmd(cd, "USER %s@%s", user, host);
+    else if (p)
+	e = _ftp_cmd(cd, "USER %s@%s@%d", user, host, port);
+    else
+	e = _ftp_cmd(cd, "USER %s", user);
     
     /* did the server request a password? */
     if (e == FTP_NEED_PASSWORD) {
