@@ -34,18 +34,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.7 1994/08/13 03:49:48 wollman Exp $
+ *	$Id: cpu.h,v 1.8 1994/09/16 01:05:24 ache Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
-#define _MACHINE_CPU_H_ 1
+#define	_MACHINE_CPU_H_
 
 /*
  * Definitions unique to i386 cpu support.
  */
 #include <machine/frame.h>
 #include <machine/segments.h>
-#include <machine/spl.h>
 
 /*
  * definitions of cpu-dependent requirements
@@ -90,7 +89,7 @@
 /*
  * pull in #defines for kinds of processors
  */
-#include "machine/cputypes.h"
+#include <machine/cputypes.h>
 
 struct cpu_nameclass {
 	char *cpu_name;
@@ -117,4 +116,5 @@ extern int cpu;
 extern int cpu_class;
 extern struct cpu_nameclass i386_cpus[];
 #endif
-#endif /* _MACHINE_CPU_H_ */
+
+#endif /* !_MACHINE_CPU_H_ */
