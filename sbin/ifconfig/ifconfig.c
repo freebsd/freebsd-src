@@ -185,7 +185,7 @@ struct afswtch {
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "iso", AF_ISO, iso_status, iso_getaddr,
 	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
-	{ "ether", AF_INET, ether_status, NULL },
+	{ "ether", AF_INET, ether_status, NULL },	/* XXX not real!! */
 	{ 0,	0,	    0,		0 }
 };
 
@@ -246,13 +246,14 @@ main(argc, argv)
 	int all;
 
 	if (argc < 2) {
-		fprintf(stderr, "usage: ifconfig interface\n%s%s%s%s%s%s",
+		fprintf(stderr, "usage: ifconfig interface\n%s%s%s%s%s%s%s",
 		    "\t[ af [ address [ dest_addr ] ] [ up ] [ down ]",
 			    "[ netmask mask ] ]\n",
 		    "\t[ metric n ]\n",
 		    "\t[ mtu n ]\n",
 		    "\t[ arp | -arp ]\n",
-		    "\t[ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ] \n");
+		    "\t[ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ] \n"
+		    "\t[ -a ] [ -ad ] [ -au ]\n");
 		exit(1);
 	}
 	argc--, argv++;
@@ -272,12 +273,17 @@ main(argc, argv)
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;
-	mib[3] = AF_INET;
+	mib[3] = 0;	/* address family */
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = 0;
 
+	/* if particular family specified, only ask about it */
+	if (afp) {
+		mib[3] = afp->af_af;
+	}
+
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		errx(1, "route-sysctl-estimate");
+		errx(1, "iflist-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		errx(1, "malloc");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
@@ -584,7 +590,7 @@ setsnpaoffset(val)
  */
 status()
 {
-	register struct afswtch *p = afp;
+	struct afswtch *p = NULL;
 	short af = ifr.ifr_addr.sa_family;
 	char *mynext;
 	struct if_msghdr *myifm;
@@ -629,18 +635,24 @@ status()
 		rt_xaddrs((char *)(ifam + 1), ifam->ifam_msglen + (char *)ifam,
 			  &info);
 
-
-		if ((p = afp) != NULL) {
-			if (p->af_status != ether_status)
-				(*p->af_status)(1);
+		if (afp) {
+			if (afp->af_af == info.rti_info[RTAX_IFA]->sa_family &&
+			    afp->af_status != ether_status) {
+				p = afp;
+				if (p->af_status != ether_status)
+					(*p->af_status)(1);
+			}
 		} else for (p = afs; p->af_name; p++) {
-			ifr.ifr_addr.sa_family = p->af_af;
-			if (p->af_status != ether_status)
+			if (p->af_af == info.rti_info[RTAX_IFA]->sa_family &&
+			    p->af_status != ether_status) 
 				(*p->af_status)(0);
 		}
 	}
 	if (afp == NULL || afp->af_status == ether_status)
 		ether_status();
+	else if (afp && !p) {
+		warnx("%s has no %s IFA address!", name, afp->af_name);
+	}
 }
 
 in_status(force)
@@ -703,7 +715,7 @@ ipx_status(force)
 	if (!sipx || sipx->sipx_family != AF_IPX) {
 		if (!force)
 			return;
-		/* warnx("%s has no AF_IPX IFA address!", name); */
+		warnx("%s has no AF_IPX IFA address!", name);
 		sipx = &null_sipx;
 	}
 	printf("\tipx %s ", ipx_ntoa(sipx->sipx_addr));
