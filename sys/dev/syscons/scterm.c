@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -124,5 +121,3 @@ sc_term_sw_t
 
 	return NULL;
 }
-
-#endif /* NSC > 0 */

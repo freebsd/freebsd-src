@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -118,13 +115,15 @@ sc_softc_t
 {
 	sc_softc_t *sc;
 
-	if ((unit < 0) || (unit >= NSC))
+	if (unit < 0)
 		return NULL;
 	if (flags & SC_KERNEL_CONSOLE) {
 		/* FIXME: clear if it is wired to another unit! */
 		sc = &main_softc;
 	} else {
 	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, unit));
+		if (sc == NULL)
+			return NULL;
 	}
 	sc->unit = unit;
 	if (!(sc->flags & SC_INIT_DONE)) {
@@ -242,5 +241,3 @@ sc_tone(int herz)
 }
 
 DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
-
-#endif /* NSC > 0 */

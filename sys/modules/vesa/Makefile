@@ -2,18 +2,7 @@
 
 .PATH:	${.CURDIR}/../../dev/syscons ${.CURDIR}/../../i386/isa
 KMOD	=	vesa
-SRCS	=	vesa.c scvesactl.c sc.h vga.h opt_syscons.h opt_vga.h \
-		opt_vesa.h opt_fb.h
+SRCS	=	vesa.c scvesactl.c opt_vga.h
 NOMAN	=
-CLEANFILES =	sc.h vga.h
-
-sc.h:
-	echo "#define NSC 1" > sc.h
-
-vga.h:
-	echo "#define NVGA 1" > vga.h
-
-opt_vesa.h:
-	echo "#define VESA 1" > opt_vesa.h
 
 .include <bsd.kmod.mk>

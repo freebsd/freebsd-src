@@ -32,8 +32,6 @@
 #include "sc.h"
 #include "opt_syscons.h"
 
-#if NSC > 0
-
 #ifndef SC_NO_HISTORY
 
 #include <sys/param.h>
@@ -307,5 +305,3 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 }
 
 #endif /* SC_NO_HISTORY */
-
-#endif /* NSC */

@@ -26,17 +26,9 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
-#include "vga.h"
-#include "opt_syscons.h"
 #include "opt_vga.h"
-#include "opt_vesa.h"
 
-#ifdef VGA_NO_MODE_CHANGE
-#undef VESA
-#endif
-
-#if (NSC > 0 && NVGA > 0 && defined(VESA)) || defined(KLD_MODULE)
+#ifndef VGA_NO_MODE_CHANGE
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -138,4 +130,4 @@ vesa_unload_ioctl(void)
 	return 0;
 }
 
-#endif /* (NSC > 0 && NVGA > 0 && VESA) || KLD_MODULE */
+#endif	/* SC_NO_MODE_CHANGE */
