@@ -45,10 +45,10 @@ ENTRY(NAME, 1)				/* in0  = 0x01234567 */
 	extr.u	r18=in0,16,8		/* r18  = 0x      23 */
 	extr.u	ret0=in0,24,8		/* ret0 = 0x      01 */
 	;;
-	dep	ret0=ret0,r16,24,8	/* ret0 = 0x67    01 */
+	dep	ret0=r16,ret0,24,8	/* ret0 = 0x67    01 */
 	;;
-	dep	ret0=ret0,r17,16,8	/* ret0 = 0x6745  01 */
+	dep	ret0=r17,ret0,16,8	/* ret0 = 0x6745  01 */
 	;; 
-	dep	ret0=ret0,r16,8,8	/* ret0 = 0x67452301 */
+	dep	ret0=r18,ret0,8,8	/* ret0 = 0x67452301 */
 	br.ret.sptk.few rp
 END(NAME)
