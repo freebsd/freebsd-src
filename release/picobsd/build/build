@@ -338,7 +338,7 @@ this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
 do_install() {
     dialog --title "Build ${TYPE} completed" --inputbox \
 "\nThe build process was completed successfuly.\n\
-`cat .build.reply` \
+`cat .build.reply` \n\n\
 Now we are going to install the image on the floppy.\n\
 Please insert a blank floppy in /dev/fd0.\\n
 WARNING: the contents of the floppy will be permanently erased!\n\

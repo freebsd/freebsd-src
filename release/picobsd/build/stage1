@@ -276,7 +276,7 @@ do_floppy() {
     cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
     rm -rf floppy.tree || true # cleanup
 
-    df -ik ${MFS_MOUNTPOINT} > .build.reply
+    df -ik ${MFS_MOUNTPOINT} | colrm 70 > .build.reply
     umount ${MFS_MOUNTPOINT}
     rm -rf ${MFS_MOUNTPOINT}
     vnconfig -u /dev/rvn${VNUM}
