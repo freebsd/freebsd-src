@@ -590,8 +590,11 @@ vop_stddestroyvobject(ap)
 		 * removes the primary reference to the object,
 		 * the second time goes one further and is a
 		 * special-case to terminate the object.
+		 *
+		 * don't double-terminate the object
 		 */
-		vm_object_terminate(obj);
+		if ((obj->flags & OBJ_DEAD) == 0)
+			vm_object_terminate(obj);
 	} else {
 		/*
 		 * Woe to the process that tries to page now :-).
@@ -601,6 +604,14 @@ vop_stddestroyvobject(ap)
 	return (0);
 }
 
+/*
+ * Return the underlying VM object.  This routine may be called with or
+ * without the vnode interlock held.  If called without, the returned
+ * object is not guarenteed to be valid.  The syncer typically gets the
+ * object without holding the interlock in order to quickly test whether
+ * it might be dirty before going heavy-weight.  vm_object's use zalloc
+ * and thus stable-storage, so this is safe.
+ */
 int
 vop_stdgetvobject(ap)
 	struct vop_getvobject_args /* {
