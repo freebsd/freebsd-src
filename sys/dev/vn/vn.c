@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.53 1998/01/24 02:54:05 eivind Exp $
+ *	$Id: vn.c,v 1.54 1998/02/09 06:07:59 eivind Exp $
  */
 
 /*
@@ -105,15 +105,6 @@ static struct cdevsw vn_cdevsw;
 static struct bdevsw vn_bdevsw = 
 	{ vnopen, vnclose, vnstrategy,                      vnioctl,	/*15*/
 	  vndump, vnsize,  D_DISK | D_NOCLUSTERRW, "vn",    &vn_cdevsw, -1 };
-
-
-#ifdef DEBUG
-static int dovncluster = 1;
-static int vndebug = 0x00;
-#define VDB_FOLLOW	0x01
-#define VDB_INIT	0x02
-#define VDB_IO		0x04
-#endif
 
 #define	vnunit(dev)	dkunit(dev)
 
@@ -625,7 +616,8 @@ vndump(dev_t dev)
 {
 	return (ENODEV);
 }
-static vn_devsw_installed = 0;
+
+static int vn_devsw_installed;
 
 static void 
 vn_drvinit(void *unused)
