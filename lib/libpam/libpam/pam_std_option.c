@@ -52,62 +52,54 @@ pam_std_option(struct options *options, struct opttab other_options[],
     int argc, const char **argv)
 {
 	struct opttab *oo;
-	int i, j, arglen, found;
+	int i, j, std, extra, arglen, found;
 
-	j = 0;
+	std = 1;
+	extra = 1;
+	oo = other_options;
 	for (i = 0; i < PAM_MAX_OPTIONS; i++) {
-		if (std_options[i].name == NULL) {
-			j = i;
-			break;
+		if (std && std_options[i].name == NULL)
+			std = 0;
+		else if (extra && (oo == NULL || oo->name == NULL))
+			extra = 0;
+
+		if (std)
+			options->opt[i].name = std_options[i].name;
+		else if (extra) {
+			if (oo->value != i)
+				syslog(LOG_DEBUG, "Extra option fault: %d %d",
+				    oo->value, i);
+			options->opt[i].name = oo->name;
+			oo++;
 		}
-		/* XXX Bad juju happens if loop exits with j == 0 */
-	}
-	if (other_options)
-		for (oo = other_options; oo->name != NULL; oo++) {
-			found = 0;
-			for (i = 0; std_options[i].name; i++)
-				if (strcmp((char *)oo->name,
-				    std_options[i].name) == 0)
-					found = 1;
-			if (!found) {
-				std_options[j].name = oo->name;
-				std_options[j].value = oo->value;
-				j++;
-			}
-		}
-	for (i = 0; i < PAM_MAX_OPTIONS; i++) {
+		else
+			options->opt[i].name = NULL;
+
 		options->opt[i].bool = 0;
 		options->opt[i].arg = NULL;
 	}
-	if (j < PAM_MAX_OPTIONS) {
-		std_options[j].name = NULL;
-		std_options[j].value = 0;
-	}
+
 	for (j = 0; j < argc; j++) {
 #ifdef DEBUG
-		syslog(LOG_DEBUG, "Doing arg %s ", argv[j]);
+		syslog(LOG_DEBUG, "Doing arg %s", argv[j]);
 #endif
 		found = 0;
 		for (i = 0; i < PAM_MAX_OPTIONS; i++) {
-			if (std_options[i].name == NULL)
+			if (options->opt[i].name == NULL)
 				break;
-			if (strcmp(argv[j], std_options[i].name) == 0) {
-				options->opt[std_options[i].value].bool = 1;
+			arglen = strlen(options->opt[i].name);
+			if (strcmp(argv[j], options->opt[i].name) == 0) {
+				options->opt[i].bool = 1;
 				found = 1;
 				break;
 			}
-			else {
-				arglen = strlen(std_options[i].name);
-				if (strncmp(argv[j], std_options[i].name,
-					    arglen) == 0
-				    && argv[j][arglen] == '=')  {
-					options->opt[std_options[i].value].bool
-					    = 1;
-					options->opt[std_options[i].value].arg =
-					    strdup(&argv[j][arglen + 1]);
-					found = 1;
-					break;
-				}
+			else if (strncmp(argv[j], options->opt[i].name, arglen)
+			    == 0 && argv[j][arglen] == '=')  {
+				options->opt[i].bool = 1;
+				options->opt[i].arg
+				    = strdup(&argv[j][arglen + 1]);
+				found = 1;
+				break;
 			}
 		}
 		if (!found)
@@ -150,7 +142,7 @@ pam_clear_option(struct options *options, enum opt option)
 #endif
 }
 
-#if DEBUG1
+#ifdef DEBUG1
 enum { PAM_OPT_FOO=PAM_OPT_STD_MAX, PAM_OPT_BAR, PAM_OPT_BAZ, PAM_OPT_QUX };
 
 struct opttab other_options[] = {
