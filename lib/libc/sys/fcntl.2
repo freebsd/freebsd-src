@@ -128,9 +128,9 @@ flags are as follows:
 .Bl -tag -width O_NONBLOCKX
 .It Dv O_NONBLOCK
 Non-blocking I/O; if no data is available to a
-.Xr read
+.Xr read 2
 call, or if a
-.Xr write
+.Xr write 2
 operation would block,
 the read or write call returns -1 with the error
 .Er EAGAIN .
