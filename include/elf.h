@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+/*
+ * This is a Solaris compatibility header
+ */
+
 #ifndef	_ELF_H_
 #define	_ELF_H_
 
