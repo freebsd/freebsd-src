@@ -89,9 +89,9 @@ static MALLOC_DEFINE(M_NEXUS, "nexus", "nexus device information");
 struct nexus_devinfo {
 	phandle_t	ndi_node;
 	/* Some common properties. */
-	char		*ndi_name;
-	char		*ndi_device_type;
-	char		*ndi_compatible;
+	char     	*ndi_name;
+	char     	*ndi_device_type;
+	char     	*ndi_compatible;
 };
 
 struct nexus_softc {
@@ -107,6 +107,7 @@ static void	nexus_probe_nomatch(device_t, device_t);
 /*
  * Bus interface
  */
+static device_t nexus_add_child(device_t, int, const char *, int);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
 static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
@@ -125,7 +126,7 @@ static int	nexus_release_resource(device_t, device_t, int, int,
 /*
  * Local routines
  */
-static device_t	create_device_from_node(device_t, phandle_t);
+static device_t	nexus_device_from_node(device_t, phandle_t);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -137,6 +138,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface. Resource management is business of the children... */
+	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
@@ -165,7 +167,7 @@ static int
 nexus_probe(device_t dev)
 {
 	phandle_t	root;
-	phandle_t	pic, cpus, child, new_node, temp_node;
+	phandle_t	child;
 	struct		nexus_softc *sc;
 
 	if ((root = OF_peer(0)) == -1)
@@ -173,52 +175,21 @@ nexus_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((cpus = OF_finddevice("/cpus")) != -1) {
-		for (child = OF_child(cpus); child; child = OF_peer(child))
-			(void)create_device_from_node(dev, child);
-	}
+	/*
+	 * Allow devices to identify
+	 */
+	bus_generic_probe(dev);
+	
+	/*
+	 * Now walk the OFW tree to locate top-level devices
+	 */
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		if (child == -1)
+			panic("nexus_probe(): OF_child failed.");
+		(void)nexus_device_from_node(dev, child);
 
-	if ((child = OF_finddevice("/chosen")) == -1)
-		printf("nexus_probe: can't find /chosen");
-
-	if (OF_getprop(child, "interrupt-controller", &pic, 4) != 4)
-#ifndef PSIM
-		printf("nexus_probe: can't get interrupt-controller");
-#else
-                pic = OF_finddevice("/iobus/opic");
-#endif
-
-	sc->sc_pic = create_device_from_node(dev, pic);
-
-	if (sc->sc_pic == NULL)
-		printf("nexus_probe: failed to create PIC device");
-
-	child = root;
-	while (child != 0) {
-		if (child != pic)
-			(void)create_device_from_node(dev, child);
-
-		if (child == cpus)
-			new_node = 0;
-		else
-			new_node = OF_child(child);
-		if (new_node == -1)
-			panic("nexus_probe: OF_child returned -1");
-		if (new_node == 0)
-			new_node = OF_peer(child);
-		if (new_node == 0) {
-			temp_node = child;
-			while (new_node == 0) {
-				temp_node = OF_parent(temp_node);
-				if (temp_node == 0)
-					break;
-				new_node = OF_peer(temp_node);
-			}
-		}
-		child = new_node;
 	}
 	device_set_desc(dev, "OpenFirmware Nexus device");
-
 	return (0);
 }
 
@@ -235,11 +206,33 @@ nexus_probe_nomatch(device_t dev, device_t child)
 
 	if (type == NULL)
 		type = "(unknown)";
-#if 0
-	device_printf(dev, "<%s>, type %s (no driver attached)\n",
-	    name, type);
-#endif
+
+	if (bootverbose)
+		device_printf(dev, "<%s>, type %s (no driver attached)\n",
+		    name, type);
 }
+
+static device_t
+nexus_add_child(device_t dev, int order, const char *name, int unit)
+{
+	device_t child;
+	struct nexus_devinfo *dinfo;
+
+	child = device_add_child_ordered(dev, order, name, unit);
+	if (child == NULL) 
+		return (NULL);
+        
+	dinfo = malloc(sizeof(struct nexus_devinfo), M_NEXUS, M_NOWAIT|M_ZERO);
+	if (dinfo == NULL)
+		return (NULL);
+
+	dinfo->ndi_node = -1;
+	dinfo->ndi_name = name;
+	device_set_ivars(child, dinfo);		
+	
+        return (child);
+}
+
 
 static int
 nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
@@ -278,8 +271,13 @@ nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	switch (which) {
 	case NEXUS_IVAR_NODE:
 	case NEXUS_IVAR_NAME:
-	case NEXUS_IVAR_DEVICE_TYPE:
 		return (EINVAL);
+
+	/* Identified devices will want to set this */
+	case NEXUS_IVAR_DEVICE_TYPE:
+		dinfo->ndi_device_type = (char *)value;
+		break;
+
 	default:
 		return (ENOENT);
 	}
@@ -371,7 +369,7 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 	if (type != SYS_RES_IRQ) {
 		device_printf(bus, "unknown resource request from %s\n",
 		    device_get_nameunit(child));
-		return (NULL);
+		return (EINVAL);
 	}
 
 	if (device_get_state(sc->sc_pic) != DS_ATTACHED)
@@ -381,7 +379,7 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static device_t
-create_device_from_node(device_t parent, phandle_t node)
+nexus_device_from_node(device_t parent, phandle_t node)
 {
 	device_t	cdev;
 	struct		nexus_devinfo *dinfo;
@@ -402,4 +400,15 @@ create_device_from_node(device_t parent, phandle_t node)
 		free(name, M_OFWPROP);
 
 	return (cdev);
+}
+
+int
+nexus_install_intcntlr(device_t dev)
+{
+	struct	nexus_softc *sc;
+
+	sc = device_get_softc(device_get_parent(dev));
+	sc->sc_pic = dev;
+
+	return (0);
 }
