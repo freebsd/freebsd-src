@@ -169,6 +169,16 @@ struct scsi_read_cd_capacity
 	u_int8_t control;
 };
 
+struct scsi_set_speed
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+	u_int8_t readspeed[2];
+	u_int8_t writespeed[2];
+	u_int8_t reserved[5];
+	u_int8_t control;
+};
+
 struct scsi_report_key 
 {
 	u_int8_t opcode;
@@ -251,6 +261,7 @@ struct scsi_read_dvd_structure
 #define PLAY_12			0xa5	/* cdrom pause in 'play audio' mode */
 #define PLAY_TRACK_REL_BIG	0xa9	/* cdrom play track/index mode */
 #define READ_DVD_STRUCTURE	0xad	/* read dvd structure */
+#define SET_CD_SPEED		0xbb	/* set c/dvd speed */
 
 struct scsi_report_key_data_header
 {
