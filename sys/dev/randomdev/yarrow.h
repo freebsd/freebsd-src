@@ -42,10 +42,10 @@
 
 void random_init(void);
 void random_deinit(void);
-void random_init_harvester(void (*)(struct timespec *, u_int64_t, u_int, u_int, enum esource));
+void random_init_harvester(void (*)(struct timespec *, void *, u_int, u_int, u_int, enum esource));
 void random_deinit_harvester(void);
 
-void write_random(char *, u_int);
+void write_random(void *, u_int);
 
 /* This is the beastie that needs protecting. It contains all of the
  * state that we are excited about.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark Murray
+ * Copyright (c) 2000 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,11 @@
 
 #ifdef _KERNEL
 
-u_int read_random(char *, u_int);
+u_int read_random(void *, u_int);
 
-enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, ENTROPYSOURCE };
-void random_harvest(u_int64_t, u_int, u_int, enum esource);
+enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET, \
+		ENTROPYSOURCE };
+void random_harvest(void *, u_int, u_int, u_int, enum esource);
 
 #endif
 
