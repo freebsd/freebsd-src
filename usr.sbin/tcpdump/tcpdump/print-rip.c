@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-rip.c,v 1.1.1.1 1993/06/12 14:42:07 rgrimes Exp $ (LBL)";
+    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-rip.c,v 1.2 1994/02/10 09:17:57 davidg Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -75,8 +75,8 @@ rip_entry_print(ni)
 
 		printf(" [family %d:", ntohs(ni->rip_dst.sa_family));
 		for (i = 0; i < 14; i += 2)
-			printf(" %02x%02x", ni->rip_dst.sa_data[i],
-				ni->rip_dst.sa_data[i+1]);
+			printf(" %02x%02x", (u_char)ni->rip_dst.sa_data[i],
+				(u_char)ni->rip_dst.sa_data[i+1]);
 		printf("]");
 	} else {
 		register struct sockaddr_in *sin = 
