@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.28 1995/10/21 14:52:48 ache Exp $
+ *	$Id: rtld.c,v 1.29 1995/10/24 06:48:16 ache Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,30 @@ struct somap_private {
 #endif
 };
 
+/*
+ * Memorizing structure for reducing the number of calls to lookup()
+ * during relocation.
+ *
+ * While relocating a given shared object, the dynamic linker maintains
+ * a memorizing vector that is directly indexed by the symbol number
+ * in the relocation entry.  The first time a given symbol is looked
+ * up, the memorizing vector is filled in with a pointer to the symbol
+ * table entry, and a pointer to the so_map of the shared object in
+ * which the symbol was defined.  On subsequent uses of the same
+ * symbol, that information is retrieved directly from the memorizing
+ * vector, without calling lookup() again.
+ *
+ * A symbol that is referenced in a relocation entry is typically
+ * referenced in many relocation entries, so this memorizing reduces
+ * the number of calls to lookup() dramatically.  The overall improvement
+ * in the speed of dynamic linking is also dramatic -- as much as a
+ * factor of three for programs that use many shared libaries.
+ */
+struct memoent {
+	struct nzlist *np;	/* Pointer to symbol entry */
+	struct so_map *src_map;	/* Shared object that defined the symbol */
+};
+
 #define LM_PRIVATE(smp)	((struct somap_private *)(smp)->som_spd)
 
 #ifdef SUN_COMPAT
@@ -156,6 +180,9 @@ struct so_map		*link_map_head, *main_map;
 struct so_map		**link_map_tail = &link_map_head;
 struct rt_symbol	*rt_symbol_head;
 
+static struct memoent	*symmemo;	/* Nemorizing vector for symbols */
+static long		symmemosyms;	/* Number of symbols in memo vector */
+
 static void		*__dlopen __P((char *, int));
 static int		__dlclose __P((void *));
 static void		*__dlsym __P((void *, char *));
@@ -191,6 +218,8 @@ static struct nzlist	*lookup __P((char *, struct so_map **, int));
 static inline struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
 						long, struct so_map *));
+static void		*getMemory __P((size_t));
+static void		freeMemory __P((void *, size_t));
 static void		generror __P((char *, ...));
 static void		maphints __P((void));
 static void		unmaphints __P((void));
@@ -279,12 +308,50 @@ struct _dynamic		*dp;
 	crtp->crt_dp->d_entry = &ld_entry;
 	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
+	/*
+	 * Determine the maximum number of run-time symbols in any of
+	 * the shared objects.
+	 */
+	symmemosyms = 0;
+
+	for (smp = link_map_head; smp; smp = smp->som_next) {
+		struct _dynamic *dp;
+		size_t symsize;
+		long numsyms;
+
+		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
+			continue;
+
+		dp = smp->som_dynamic;
+		symsize	= LD_VERSION_NZLIST_P(dp->d_version) ?
+			sizeof(struct nzlist) : sizeof(struct nlist);
+		numsyms = (LD_STRINGS(dp) - LD_SYMBOL(dp)) / symsize;
+		if(symmemosyms < numsyms)
+			symmemosyms = numsyms;
+	}
+
+	/*
+	 * Allocate a memorizing vector large enough to hold the maximum
+	 * number of run-time symbols.  We use mmap to get the memory, so
+	 * that we can give it back to the system when we are finished
+	 * with it.
+	 */
+	symmemo = getMemory(symmemosyms * sizeof(struct memoent));
+	if(symmemo == NULL)	/* Couldn't get the memory */
+		symmemosyms = 0;
+
 	/* Relocate all loaded objects according to their RRS segments */
 	for (smp = link_map_head; smp; smp = smp->som_next) {
 		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
 			continue;
 		if (reloc_map(smp) < 0)
 			return -1;
+	}
+
+	if(symmemosyms != 0) {	/* Free the memorizing vector */
+		freeMemory(symmemo, symmemosyms * sizeof(struct memoent));
+		symmemo = NULL;
+		symmemosyms = 0;
 	}
 
 	/* Copy any relocated initialized data. */
@@ -328,6 +395,7 @@ struct _dynamic		*dp;
 	/* Close our file descriptor */
 	(void)close(crtp->crt_ldfd);
 	anon_close();
+
 	return LDSO_VERSION_HAS_DLEXIT;
 }
 
@@ -704,6 +772,26 @@ reloc_map(smp)
 					sizeof(struct nzlist) :
 					sizeof(struct nlist);
 
+	if(symmemosyms != 0) {
+		/*
+		 * We have allocated space for a memorizing vector large
+		 * enough to hold "symmemosyms" symbols.  Currently, the
+		 * code is written in such a way that the vector will
+		 * always be large enough, if it is present at all.  But
+		 * this routine will still handle the case where there
+		 * is a memorizing vector, but it is smaller than what
+		 * is needed for the current shared object.
+		 */
+		long numsyms;
+		size_t symmemobytes;
+
+		numsyms = (LD_STRINGS(dp) - LD_SYMBOL(dp)) / symsize;
+		if(numsyms > symmemosyms)  /* Currently, this won't happen */
+			numsyms = symmemosyms;
+		symmemobytes = numsyms * sizeof(struct memoent);
+		bzero(symmemo, symmemobytes);
+	}
+
 	if (LD_PLTSZ(dp))
 		md_fix_jmpslot(LM_PLT(smp),
 				(long)LM_PLT(smp), (long)binder_entry);
@@ -718,7 +806,7 @@ reloc_map(smp)
 		if (RELOC_EXTERN_P(r)) {
 			struct so_map	*src_map = NULL;
 			struct nzlist	*p, *np;
-			long	relocation = md_get_addend(r, addr);
+			long	relocation;
 
 			if (RELOC_LAZY_P(r))
 				continue;
@@ -731,7 +819,28 @@ reloc_map(smp)
 
 			sym = stringbase + p->nz_strx;
 
-			np = lookup(sym, &src_map, 0/*XXX-jumpslots!*/);
+			if(RELOC_SYMBOL(r) < symmemosyms) {
+				/* Check the memorizing vector */
+				np = symmemo[RELOC_SYMBOL(r)].np;
+				if(np != NULL) {	/* We found it */
+					src_map =
+					    symmemo[RELOC_SYMBOL(r)].src_map;
+				} else {	/* Symbol not memorized yet */
+					np = lookup(sym, &src_map,
+						0/*XXX-jumpslots!*/);
+					/*
+					 * Record the needed information about
+					 * the symbol in the memorizing vector,
+					 * so that we won't have to call
+					 * lookup the next time we encounter
+					 * the symbol.
+					 */
+					symmemo[RELOC_SYMBOL(r)].np = np;
+					symmemo[RELOC_SYMBOL(r)].src_map =
+						src_map;
+				}
+			} else
+				np = lookup(sym, &src_map, 0/*XXX-jumpslots!*/);
 			if (np == NULL) {
 				generror ("Undefined symbol \"%s\" in %s:%s",
 					sym, main_progname, smp->som_path);
@@ -744,6 +853,7 @@ reloc_map(smp)
 			 * Otherwise it's a run-time allocated common
 			 * whose value is already up-to-date.
 			 */
+			relocation = md_get_addend(r, addr);
 			relocation += np->nz_value;
 			if (src_map)
 				relocation += (long)src_map->som_addr;
@@ -1181,6 +1291,63 @@ restart:
 	return rtsp->rt_sp;
 }
 
+/*
+ * getMemory and freeMemory are special memory allocation routines
+ * that use mmap rather than malloc.  They are used for allocating
+ * and freeing the symbol memorizing vector.  This vector is somewhat
+ * large (8 to 12 Kbytes, typically), and it is used only temporarily.
+ * By using mmap to allocate it, we can then use munmap to free it.
+ * That reduces the runtime size of every dynamically linked program.
+ *
+ * Don't use getMemory and freeMemory casually for frequent allocations
+ * or for small allocations.
+ */
+
+static size_t pagesize;		/* Avoids multiple calls to getpagesize() */
+
+/*
+ * Allocate a block of memory using mmap.
+ */
+	static void *
+getMemory(size_t size)
+{
+	caddr_t ptr;
+
+	if(size == 0)		/* That was easy */
+		return NULL;
+	if(pagesize == 0)	/* First call */
+		pagesize = getpagesize();
+
+	/* Round up the request to an even multiple of the page size */
+	size = (size + pagesize - 1) & ~(pagesize - 1);
+
+	ptr = mmap(0, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_COPY,
+		anon_fd, 0);
+	if(ptr == (caddr_t) -1) {
+		xprintf("Cannot map anonymous memory");
+		return NULL;
+	}
+
+	return (void *) ptr;
+}
+
+/*
+ * Free a block of memory, using munmap to return the memory to the system.
+ */
+	static void
+freeMemory(void *ptr, size_t size)
+{
+	if(ptr == NULL || size == 0)
+		return;
+	if(pagesize == 0)	/* Really, should never happen */
+		pagesize = getpagesize();
+
+	/* Round up the size to an even multiple of the page size */
+	size = (size + pagesize - 1) & ~(pagesize - 1);
+
+	if(munmap((caddr_t) ptr, size) == -1)
+		xprintf("Cannot unmap anonymous memory");
+}
 
 /*
  * This routine is called from the jumptable to resolve
