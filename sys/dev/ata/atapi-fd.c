@@ -87,13 +87,6 @@ afd_attach(struct ata_device *atadev)
 	return;
     }
 
-    /* use DMA if allowed and if drive/controller supports it */
-    if (atapi_dma && atadev->channel->dma &&
-	(atadev->param->config & ATA_DRQ_MASK) != ATA_DRQ_INTR)
-	atadev->setmode(atadev, ATA_DMA_MAX);
-    else
-	atadev->setmode(atadev, ATA_PIO_MAX);
-
     /* setup the function ptrs */
     atadev->detach = afd_detach;
     atadev->start = afd_start;

@@ -73,6 +73,16 @@ static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 static void ata_init(void);
 
+/* global vars */
+struct intr_config_hook *ata_delayed_attach = NULL;
+devclass_t ata_devclass;
+int ata_wc = 1;	 
+
+/* local vars */
+static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
+static int ata_dma = 1;
+static int atapi_dma = 0;
+
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
@@ -84,16 +94,6 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RDTUN, &atapi_dma, 0,
 	   "ATAPI device DMA mode control");
-int ata_dma = 1;
-int ata_wc = 1;	 
-int atapi_dma = 0;
-
-/* global vars */
-struct intr_config_hook *ata_delayed_attach = NULL;
-devclass_t ata_devclass;
-
-/* local vars */
-static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 /*
  * newbus device interface related functions
@@ -674,6 +674,23 @@ ata_identify_devices(struct ata_channel *ch)
 #endif
 	    }
 	}
+    }
+
+    /* setup basic transfer mode by setting PIO mode and DMA if supported */
+    if (ch->device[MASTER].attach) {
+	ch->device[MASTER].setmode(&ch->device[MASTER], ATA_PIO_MAX);
+	if ((((ch->devices & ATA_ATAPI_MASTER) && atapi_dma &&
+	      (ch->device[MASTER].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR)||
+	     ((ch->devices & ATA_ATA_MASTER) && ata_dma)) && ch->dma) 
+	    ch->device[MASTER].setmode(&ch->device[MASTER], ATA_DMA_MAX);
+
+    }
+    if (ch->device[SLAVE].attach) {
+	ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_PIO_MAX);
+	if ((((ch->devices & ATA_ATAPI_SLAVE) && atapi_dma &&
+	      (ch->device[SLAVE].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR) ||
+	     ((ch->devices & ATA_ATA_SLAVE) && ata_dma)) && ch->dma) 
+	    ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_DMA_MAX);
     }
 }
 

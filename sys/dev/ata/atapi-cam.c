@@ -227,11 +227,6 @@ setup_dev(struct atapi_xpt_softc *scp, struct ata_device *atp)
 		     2 * device_get_unit(atp->channel->dev) +
 		     (atp->unit == ATA_MASTER) ? 0 : 1);
 	atp->softc = (void *)scp;
-	if (atapi_dma && atp->channel->dma &&
-	    (atp->param->config & ATA_DRQ_MASK) != ATA_DRQ_INTR)
-	    atp->setmode(atp, ATA_DMA_MAX);
-	else
-	    atp->setmode(atp, ATA_PIO_MAX);
     }
 }
 
