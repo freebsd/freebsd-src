@@ -240,12 +240,12 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
-	if (cold || panicstr) {
+	if (cold ) {
 		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * thread or panic below, in case this is the idle process and
-		 * already asleep.
+		 * During autoconfiguration, just give interrupts
+		 * a chance, then just return.  Don't run any other
+		 * thread or panic below, in case this is the idle
+		 * process and already asleep.
 		 */
 		return;
 	}

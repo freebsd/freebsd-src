@@ -124,6 +124,7 @@ choosethread(void)
 	struct thread *td;
 	struct ksegrp *kg;
 
+retry:
 	if ((ke = runq_choose(&runq))) {
 		td = ke->ke_thread;
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
@@ -157,6 +158,9 @@ choosethread(void)
 		td = PCPU_GET(idlethread);
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
+	if (panicstr && ((td->td_proc->p_flag & P_SYSTEM) == 0 &&
+	    (td->td_flags & TDF_INPANIC) == 0))
+		goto retry;
 	td->td_state = TDS_RUNNING;
 	return (td);
 }
