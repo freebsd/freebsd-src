@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)main.c	8.1 (Berkeley) 6/20/93";*/
-static char rcsid[] = "$Id: main.c,v 1.9 1996/05/05 19:01:10 joerg Exp $";
+static char rcsid[] = "$Id: main.c,v 1.10 1996/05/07 16:42:26 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -77,6 +77,16 @@ static char rcsid[] = "$Id: main.c,v 1.9 1996/05/05 19:01:10 joerg Exp $";
 
 #undef CTRL
 #define CTRL(x)  (x&037)
+
+/* defines for auto detection of incoming PPP calls (->PAP/CHAP) */
+
+#define PPP_FRAME           0x7e  /* PPP Framing character */
+#define PPP_STATION         0xff  /* "All Station" character */
+#define PPP_ESCAPE          0x7d  /* Escape Character */
+#define PPP_CONTROL         0x03  /* PPP Control Field */
+#define PPP_CONTROL_ESCAPED 0x23  /* PPP Control Field, escaped */
+#define PPP_LCP_HI          0xc0  /* LCP protocol - high byte */
+#define PPP_LCP_LOW         0x21  /* LCP protocol - low byte */
 
 struct termios tmode, omode;
 
@@ -172,6 +182,7 @@ main(argc, argv)
 	const char *tname;
 	int repcnt = 0, failopenlogged = 0;
 	struct rlimit limit;
+	int rval;
 
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
@@ -293,7 +304,11 @@ main(argc, argv)
 			signal(SIGALRM, dingdong);
 			alarm(TO);
 		}
-		if (getname()) {
+		if ((rval = getname()) == 2) {
+			execle(PP, "ppplogin", ttyn, (char *) 0, env);
+			syslog(LOG_ERR, "%s: %m", PP);
+			exit(1);
+		} else if (rval) {
 			register int i;
 
 			oflush();
@@ -345,7 +360,9 @@ getname()
 {
 	register int c;
 	register char *np;
-	char cs;
+	unsigned char cs;
+	int ppp_state;
+	int ppp_connection = 0;
 
 	/*
 	 * Interrupt may happen if we use CBREAK mode
@@ -374,6 +391,34 @@ getname()
 			exit(0);
 		if ((c = cs&0177) == 0)
 			return (0);
+
+		/* PPP detection state machine..
+		   Look for sequences:
+		   PPP_FRAME, PPP_STATION, PPP_ESCAPE, PPP_CONTROL_ESCAPED or
+		   PPP_FRAME, PPP_STATION, PPP_CONTROL (deviant from RFC)
+		   See RFC1662.
+		   Derived from code from Michael Hancock, <michaelh@cet.co.jp>
+		   and Erik 'PPP' Olson, <eriko@wrq.com>
+		 */
+
+		if (PP && (cs == PPP_FRAME)) {
+			ppp_state = 1;
+		} else if (ppp_state == 1 && cs == PPP_STATION) {
+			ppp_state = 2;
+		} else if (ppp_state == 2 && cs == PPP_ESCAPE) {
+			ppp_state = 3;
+		} else if ((ppp_state == 2 && cs == PPP_CONTROL)
+			|| (ppp_state == 3 && cs == PPP_CONTROL_ESCAPED)) {
+			ppp_state = 4;
+		} else if (ppp_state == 4 && cs == PPP_LCP_HI) {
+			ppp_state = 5;
+		} else if (ppp_state == 5 && cs == PPP_LCP_LOW) {
+			ppp_connection = 1;
+			break;
+		} else {
+			ppp_state = 0;
+		}
+
 		if (c == EOT || c == CTRL('d'))
 			exit(1);
 		if (c == '\r' || c == '\n' || np >= &name[sizeof name]) {
@@ -418,7 +463,7 @@ getname()
 		for (np = name; *np; np++)
 			if (isupper(*np))
 				*np = tolower(*np);
-	return (1);
+	return (1 + ppp_connection);
 }
 
 static void
