@@ -35,6 +35,7 @@ struct pcic_slot {
 	struct pcic_softc *sc;		/* Back pointer to softc */
 	u_char (*getb)(struct pcic_slot *, int);
 	void   (*putb)(struct pcic_slot *, int, u_char);
+	void   (*intrack)(struct pcic_slot *);
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
 };
