@@ -102,7 +102,6 @@ cd9660_lookup(ap)
 	struct vnode *pdp;		/* saved dp during symlink work */
 	struct vnode *tdp;		/* returned by cd9660_vget_internal */
 	u_long bmask;			/* block offset mask */
-	int lockparent;			/* 1 => lockparent flag is set */
 	int error;
 	ino_t ino = 0;
 	int reclen;
@@ -123,8 +122,6 @@ cd9660_lookup(ap)
 	vdp = ap->a_dvp;
 	dp = VTOI(vdp);
 	imp = dp->i_mnt;
-	lockparent = flags & LOCKPARENT;
-	cnp->cn_flags &= ~PDIRUNLOCK;
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
@@ -360,14 +357,6 @@ found:
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
 		}
-		if (lockparent && (flags & ISLASTCN)) {
-			if ((error = vn_lock(pdp, LK_EXCLUSIVE, td)) != 0) {
-				cnp->cn_flags |= PDIRUNLOCK;
-				vput(tdp);
-				return (error);
-			}
-		} else
-			cnp->cn_flags |= PDIRUNLOCK;
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		brelse(bp);
@@ -380,10 +369,6 @@ found:
 		brelse(bp);
 		if (error)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN)) {
-			cnp->cn_flags |= PDIRUNLOCK;
-			VOP_UNLOCK(pdp, 0, td);
-		}
 		*vpp = tdp;
 	}
 

@@ -322,14 +322,10 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	struct pfs_node *pd = pvd->pvd_pn;
 	struct pfs_node *pn, *pdn = NULL;
 	pid_t pid = pvd->pvd_pid;
-	int lockparent;
-	int wantparent;
 	char *pname;
 	int error, i, namelen;
 
 	PFS_TRACE(("%.*s", (int)cnp->cn_namelen, cnp->cn_nameptr));
-
-	cnp->cn_flags &= ~PDIRUNLOCK;
 
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
@@ -355,9 +351,6 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	if (!pfs_visible(curthread, pd, pvd->pvd_pid))
 		PFS_RETURN (ENOENT);
 
-	lockparent = cnp->cn_flags & LOCKPARENT;
-	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
-
 	/* self */
 	namelen = cnp->cn_namelen;
 	pname = cnp->cn_nameptr;
@@ -373,8 +366,6 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		if (pd->pn_type == pfstype_root)
 			PFS_RETURN (EIO);
 		VOP_UNLOCK(vn, 0, cnp->cn_thread);
-		cnp->cn_flags |= PDIRUNLOCK;
-
 		KASSERT(pd->pn_parent, ("non-root directory has no parent"));
 		/*
 		 * This one is tricky.  Descendents of procdir nodes
@@ -413,25 +404,22 @@ pfs_lookup(struct vop_cachedlookup_args *va)
  got_pnode:
 	if (pn != pd->pn_parent && !pn->pn_parent)
 		pn->pn_parent = pd;
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
-		PFS_RETURN (ENOENT);
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid)) {
+		error = ENOENT;
+		goto failed;
+	}
 
 	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
 	if (error)
-		PFS_RETURN (error);
-
-	if ((cnp->cn_flags & ISDOTDOT) && (cnp->cn_flags & ISLASTCN) &&
-	    lockparent) {
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
-		cnp->cn_flags &= ~PDIRUNLOCK;
-	}
-	if (!((lockparent && (cnp->cn_flags & ISLASTCN)) ||
-	    (cnp->cn_flags & ISDOTDOT)))
-		VOP_UNLOCK(vn, 0, cnp->cn_thread);
+		goto failed;
 
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
+ failed:
+	if (cnp->cn_flags & ISDOTDOT)
+		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
+	PFS_RETURN(error);
 }
 
 /*
