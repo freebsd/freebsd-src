@@ -42,7 +42,7 @@
  * copyright notice and this permission notice appear in all
  * supporting documentation, and that the name of M.I.T. not be used
  * in advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.  M.I.T. makes
+ * software without specific, written prior permission.	 M.I.T. makes
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
@@ -64,6 +64,7 @@
 
 #include <err.h>
 #include <ctype.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -303,24 +304,52 @@ fetchGetHTTP(struct url *URL, char *flags)
     verbose = (flags && strchr(flags, 'v'));
     
     /* allocate cookie */
-    if ((c = calloc(1, sizeof(struct cookie))) == NULL)
+    if ((c = calloc(1, sizeof *c)) == NULL)
 	return NULL;
 
     /* check port */
-    if (!URL->port)
-	URL->port = 80; /* default HTTP port */
+    if (!URL->port) {
+	struct servent *se;
+
+	if ((se = getservbyname("http", "tcp")) != NULL)
+	    URL->port = ntohs(se->s_port);
+	else
+	    URL->port = 80;
+    }
     
     /* attempt to connect to proxy server */
     if (!direct && (px = getenv("HTTP_PROXY")) != NULL) {
 	char host[MAXHOSTNAMELEN];
-	int port = 3128; /* XXX I think 3128 is default... check? */
+	int port = 0;
 
 	/* measure length */
 	len = strcspn(px, ":");
 
 	/* get port (XXX atoi is a little too tolerant perhaps?) */
-	if (px[len] == ':')
+	if (px[len] == ':') {
+	    if (strspn(px+len+1, "0123456789") != strlen(px+len+1)
+		|| strlen(px+len+1) > 5) {
+		/* XXX we should emit some kind of warning */
+	    }
 	    port = atoi(px+len+1);
+	    if (port < 1 || port > 65535) {
+		/* XXX we should emit some kind of warning */
+	    }
+	}
+	if (!port) {
+#if 0
+	    /*
+	     * commented out, since there is currently no service name
+	     * for HTTP proxies
+	     */
+	    struct servent *se;
+	    
+	    if ((se = getservbyname("xxxx", "tcp")) != NULL)
+		port = ntohs(se->s_port);
+	    else
+#endif
+		port = 3128;
+	}
 	
 	/* get host name */
 	if (len >= MAXHOSTNAMELEN)
@@ -391,11 +420,11 @@ fetchGetHTTP(struct url *URL, char *flags)
 	    goto fouch;
 	if ((ln[0] == '\r') || (ln[0] == '\n'))
 	    break;
-	DEBUG(fprintf(stderr, "header:   [\033[1m%*.*s\033[m]\n",
+	DEBUG(fprintf(stderr, "header:	 [\033[1m%*.*s\033[m]\n",
 		      (int)len-2, (int)len-2, ln));
 #define XFERENC "Transfer-Encoding:"
-	if (strncasecmp(ln, XFERENC, sizeof(XFERENC)-1) == 0) {
-	    p = ln + sizeof(XFERENC) - 1;
+	if (strncasecmp(ln, XFERENC, sizeof XFERENC - 1) == 0) {
+	    p = ln + sizeof XFERENC - 1;
 	    while ((p < ln + len) && isspace(*p))
 		p++;
 	    for (q = p; (q < ln + len) && !isspace(*q); q++)
@@ -406,8 +435,8 @@ fetchGetHTTP(struct url *URL, char *flags)
 	    DEBUG(fprintf(stderr, "xferenc:  [\033[1m%s\033[m]\n", p));
 #undef XFERENC
 #define CONTTYPE "Content-Type:"
-	} else if (strncasecmp(ln, CONTTYPE, sizeof(CONTTYPE)-1) == 0) {
-	    p = ln + sizeof(CONTTYPE) - 1;
+	} else if (strncasecmp(ln, CONTTYPE, sizeof CONTTYPE - 1) == 0) {
+	    p = ln + sizeof CONTTYPE - 1;
 	    while ((p < ln + len) && isspace(*p))
 		p++;
 	    for (i = 0; p < ln + len; p++)
@@ -429,6 +458,7 @@ fetchGetHTTP(struct url *URL, char *flags)
 		 (int (*)(void *))_http_closefn);
     if (cf == NULL)
 	goto fouch;
+
     return cf;
     
 ouch:
