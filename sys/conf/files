@@ -846,3 +846,7 @@ dev/pcm/isa/sb.c	optional pcm isa
 dev/pcm/pci/es1370.c	optional pcm pci
 dev/pcm/pci/t4dwave.c	optional pcm pci
 #dev/pcm/pci/aureal.c	optional pcm pci
+libkern/strtol.c	standard
+libkern/strtoq.c	standard
+libkern/strtoul.c	standard
+libkern/strtouq.c	standard
