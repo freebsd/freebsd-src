@@ -31,15 +31,14 @@
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
-#include <machine/tte.h>
 
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
 
-extern struct tte *dtlb_store;
-extern struct tte *itlb_store;
+extern struct tlb_entry *dtlb_store;
+extern struct tlb_entry *itlb_store;
 
 extern int dtlb_slot;
 extern int itlb_slot;
@@ -318,10 +317,10 @@ md_load(char *args, vm_offset_t *modulep)
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS, sizeof dtlb_slots, &dtlb_slots);
     file_addmetadata(kfp, MODINFOMD_ITLB_SLOTS, sizeof itlb_slots, &itlb_slots);
-    file_addmetadata(kfp, MODINFOMD_DTLB, dtlb_slots * sizeof(struct tte),
-	dtlb_store);
-    file_addmetadata(kfp, MODINFOMD_ITLB, itlb_slots * sizeof(struct tte),
-	itlb_store);
+    file_addmetadata(kfp, MODINFOMD_DTLB,
+	dtlb_slots * sizeof(*dtlb_store), dtlb_store);
+    file_addmetadata(kfp, MODINFOMD_ITLB,
+	itlb_slots * sizeof(*itlb_store), itlb_store);
 
     *modulep = addr;
     size = md_copymodules(0);

@@ -63,8 +63,8 @@ static int mmu_mapin(vm_offset_t, vm_size_t);
 
 char __progname[] = "FreeBSD/sparc64 loader";
 
-struct tte *dtlb_store;
-struct tte *itlb_store;
+struct tlb_entry *dtlb_store;
+struct tlb_entry *itlb_store;
 
 int dtlb_slot;
 int itlb_slot;
@@ -240,7 +240,7 @@ static int
 mmu_mapin(vm_offset_t va, vm_size_t len)
 {
 	vm_offset_t pa, mva;
-	struct tte tte;
+	u_long data;
 
 	if (va + len > curkva)
 		curkva = va + len;
@@ -275,13 +275,16 @@ mmu_mapin(vm_offset_t va, vm_size_t len)
 				panic("mmu_mapin: out of dtlb_slots");
 			if (itlb_slot >= itlb_slot_max)
 				panic("mmu_mapin: out of itlb_slots");
-			tte.tte_vpn = TV_VPN(va);
-			tte.tte_data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
+			data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
 			    TD_CV | TD_P | TD_W;
-			dtlb_store[dtlb_slot++] = tte;
-			itlb_store[itlb_slot++] = tte;
-			dtlb_enter(tte.tte_vpn, tte.tte_data);
-			itlb_enter(tte.tte_vpn, tte.tte_data);
+			dtlb_store[dtlb_slot].te_pa = pa;
+			dtlb_store[dtlb_slot].te_va = va;
+			itlb_store[itlb_slot].te_pa = pa;
+			itlb_store[itlb_slot].te_va = va;
+			dtlb_slot++;
+			itlb_slot++;
+			dtlb_enter(va, data);
+			itlb_enter(va, data);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;

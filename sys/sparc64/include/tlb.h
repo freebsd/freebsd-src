@@ -80,8 +80,10 @@
 
 #define	MMU_SFSR_W			(1L << MMU_SFSR_W_SHIFT)
 
+struct tlb_entry;
+
 extern int kernel_tlb_slots;
-extern struct tte *kernel_ttes;
+extern struct tlb_entry *kernel_tlbs;
 
 void	tlb_context_demap(struct pmap *pm);
 void	tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va);
