@@ -192,7 +192,11 @@ ext2_mount(mp, path, data, ndp, p)
 	int error, flags;
 	mode_t accessmode;
 
-	if ((error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args))) != 0)
+	/* Double-check the length of path.. */
+	if (strlen(path) >= MAXMNTLEN - 1)
+		return (ENAMETOOLONG);
+	error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args));
+	if (error != 0)
 		return (error);
 	/*
 	 * If updating, check whether changing from read-only to
@@ -308,10 +312,12 @@ ext2_mount(mp, path, data, ndp, p)
 	}
 	ump = VFSTOUFS(mp);
 	fs = ump->um_e2fs;
-	(void) copyinstr(path, fs->fs_fsmnt, sizeof(fs->fs_fsmnt) - 1, &size);
-	bzero(fs->fs_fsmnt + size, sizeof(fs->fs_fsmnt) - size);
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-	    MNAMELEN);
+	/*
+	 * Note that this strncpy() is ok because of a check at the start
+	 * of ext2_mount().
+	 */
+	strncpy(fs->fs_fsmnt, path, MAXMNTLEN);
+	fs->fs_fsmnt[MAXMNTLEN - 1] = '\0';
 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);

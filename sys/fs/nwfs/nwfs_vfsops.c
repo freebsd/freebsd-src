@@ -146,7 +146,6 @@ static int nwfs_mount(struct mount *mp, char *path, caddr_t data,
 		      struct nameidata *ndp, struct proc *p)
 {
 	struct nwfs_args args; 	  /* will hold data from mount request */
-	size_t size;
 	int error;
 	struct nwmount *nmp = NULL;
 	struct ncp_conn *conn = NULL;
@@ -198,8 +197,6 @@ static int nwfs_mount(struct mount *mp, char *path, caddr_t data,
 	nmp->m.dir_mode  = (nmp->m.dir_mode &
 			    (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
 	if ((error = nwfs_initnls(nmp)) != 0) goto bad;
-	(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 	pc = mp->mnt_stat.f_mntfromname;
 	pe = pc+sizeof(mp->mnt_stat.f_mntfromname);
 	bzero(pc, MNAMELEN);

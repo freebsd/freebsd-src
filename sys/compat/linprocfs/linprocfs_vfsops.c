@@ -90,9 +90,6 @@ linprocfs_mount(mp, path, data, ndp, p)
 	mp->mnt_data = 0;
 	vfs_getnewfsid(mp);
 
-	(void) copyinstr(path, (caddr_t)mp->mnt_stat.f_mntonname, MNAMELEN, &size);
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-
 	size = sizeof("linprocfs") - 1;
 	bcopy("linprocfs", mp->mnt_stat.f_mntfromname, size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);

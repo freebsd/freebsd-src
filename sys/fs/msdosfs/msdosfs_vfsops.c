@@ -345,9 +345,6 @@ msdosfs_mount(mp, path, data, ndp, p)
 		msdosfs_unmount(mp, MNT_FORCE, p);
 		return error;
 	}
-
-	(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);

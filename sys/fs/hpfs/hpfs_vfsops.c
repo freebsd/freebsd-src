@@ -272,16 +272,12 @@ hpfs_mount (
 	/*
 	 * Since this is a new mount, we want the names for
 	 * the device and the mount point copied in.  If an
-	 * error occurs,  the mountpoint is discarded by the
-	 * upper level code.
+	 * error occurs, the mountpoint is discarded by the
+	 * upper level code.  Note that vfs_mount() handles
+	 * copying the mountpoint f_mntonname for us, so we
+	 * don't have to do it here unless we want to set it
+	 * to something other than "path" for some rason.
 	 */
-	/* Save "last mounted on" info for mount point (NULL pad)*/
-	copyinstr(	path,				/* mount point*/
-			mp->mnt_stat.f_mntonname,	/* save area*/
-			MNAMELEN - 1,			/* max size*/
-			&size);				/* real size*/
-	bzero( mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-
 	/* Save "mounted from" info for mount point (NULL pad)*/
 	copyinstr(	args.fspec,			/* device name*/
 			mp->mnt_stat.f_mntfromname,	/* save area*/
