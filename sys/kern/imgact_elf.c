@@ -528,15 +528,9 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->userspace_envv = NULL;
 	imgp->attr = attr;
 	imgp->firstpage = NULL;
-	imgp->image_header = (char *)kmem_alloc_wait(exec_map, PAGE_SIZE);
+	imgp->image_header = NULL;
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
-
-	if (imgp->image_header == NULL) {
-		nd->ni_vp = NULL;
-		error = ENOMEM;
-		goto fail;
-	}
 
 	/* XXXKSE */
 	NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, curthread);
@@ -626,9 +620,6 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 fail:
 	if (imgp->firstpage)
 		exec_unmap_first_page(imgp);
-	if (imgp->image_header)
-		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->image_header,
-		    PAGE_SIZE);
 	if (imgp->object)
 		vm_object_deallocate(imgp->object);
 
