@@ -1127,6 +1127,10 @@ int	ng_rmtype(struct ng_type *tp);
 int	ng_snd_item(item_p item, int queue);
 int 	ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn,
 	void *arg1, int arg2);
+int	ng_untimeout(struct callout_handle handle, node_p node);
+struct callout_handle
+	ng_timeout(node_p node, hook_p hook, int ticks,
+	    ng_item_fn *fn, void * arg1, int arg2);
 
 /*
  * prototypes the user should DEFINITLY not use directly
