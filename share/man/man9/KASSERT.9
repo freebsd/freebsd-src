@@ -57,6 +57,11 @@ In a kernel that does not have
 the
 .Fn KASSERT
 macro is defined to be a no-op.
+The
+second argument is a
+.Xr printf 9
+format string and its arguments,
+enclosed in parentheses.
 .Sh EXAMPLES
 The kernel function
 .Fn vput
@@ -73,9 +78,6 @@ vput(vp)
 	...
 }
 .Ed
-.Sh NOTES
-.Fa msg
-must be enclosed in parentheses.
 .Sh SEE ALSO
 .Xr config 8 ,
 .Xr panic 9
