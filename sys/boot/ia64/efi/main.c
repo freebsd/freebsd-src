@@ -98,10 +98,15 @@ find_pal_proc(void)
 EFI_STATUS
 efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
-	int i;
+	static EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
+	static EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
 	EFI_PHYSICAL_ADDRESS mem;
+	EFI_LOADED_IMAGE *img;
+	EFI_SIMPLE_NETWORK *net;
+	EFI_STATUS status;
 	struct ia64_pal_result res;
 	char buf[32];
+	int i;
 
 	efi_init(image_handle, system_table);
 
@@ -145,14 +150,29 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	printf("Memory: %ld k\n", memsize() / 1024);
 #endif
 
-	/* XXX presumes that biosdisk is first in devsw */
-	currdev.d_dev = devsw[0];
+
+	/*
+	 * XXX quick and dirty check to see if we're loaded from the
+	 * network. If so, we set the default device to 'net'. In all
+	 * other cases we set the default device to 'disk'. We presume
+	 * fixed positions in devsw for both net and disk.
+	 */
+	BS->HandleProtocol(image_handle, &imgid, (VOID**)&img);
+
+	status = BS->HandleProtocol(img->DeviceHandle, &netid, (VOID**)&net);
+	if (status == EFI_SUCCESS && net != NULL) {
+		currdev.d_dev = devsw[1];	/* XXX net */
+		currdev.d_kind.netif.unit = 0;
+	} else {
+		currdev.d_dev = devsw[0];	/* XXX disk */
+		currdev.d_kind.efidisk.unit = 0;
+		/* XXX should be able to detect this, default to autoprobe */
+		currdev.d_kind.efidisk.slice = -1;
+		/* default to 'a' */
+		currdev.d_kind.efidisk.partition = 0;
+	}
+
 	currdev.d_type = currdev.d_dev->dv_type;
-	currdev.d_kind.efidisk.unit = 0;
-	/* XXX should be able to detect this, default to autoprobe */
-	currdev.d_kind.efidisk.slice = -1;
-	/* default to 'a' */
-	currdev.d_kind.efidisk.partition = 0;
 
 #if 0
 	/* Create arc-specific variables */
