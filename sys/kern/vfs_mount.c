@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
-#include <sys/cons.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #define	ROOTNAME		"root_device"
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
-static void	gets(char *cp);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
 static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
@@ -1290,7 +1289,7 @@ vfs_mountroot_ask(void)
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
-		gets(name);
+		gets(name, sizeof(name), 1);
 		if (name[0] == '\0')
 			return (1);
 		if (name[0] == '?') {
@@ -1300,47 +1299,6 @@ vfs_mountroot_ask(void)
 		}
 		if (!vfs_mountroot_try(name))
 			return (0);
-	}
-}
-
-/*
- * Local helper function for vfs_mountroot_ask.
- */
-static void
-gets(char *cp)
-{
-	char *lp;
-	int c;
-
-	lp = cp;
-	for (;;) {
-		printf("%c", c = cngetc() & 0177);
-		switch (c) {
-		case -1:
-		case '\n':
-		case '\r':
-			*lp++ = '\0';
-			return;
-		case '\b':
-		case '\177':
-			if (lp > cp) {
-				printf(" \b");
-				lp--;
-			}
-			continue;
-		case '#':
-			lp--;
-			if (lp < cp)
-				lp = cp;
-			continue;
-		case '@':
-		case 'u' & 037:
-			lp = cp;
-			printf("%c", '\n');
-			continue;
-		default:
-			*lp++ = c;
-		}
 	}
 }
 
