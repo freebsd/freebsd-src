@@ -69,7 +69,7 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 }
 
 #ifndef SSC_NSECT
-#define SSC_NSECT 196608
+#define SSC_NSECT 409600
 #endif
 
 MALLOC_DEFINE(M_SSC, "SSC disk", "Memory Disk");
