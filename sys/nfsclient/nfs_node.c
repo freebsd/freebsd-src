@@ -112,6 +112,18 @@ nfs_nget(mntp, fhp, fhsize, npp)
 	register struct vnode *vp;
 	struct vnode *nvp;
 	int error;
+	int rsflags;
+	struct nfsmount *nmp;
+
+	/*
+	 * Calculate nfs mount point and figure out whether the rslock should
+	 * be interruptable or not.
+	 */
+	nmp = VFSTONFS(mntp);
+	if (nmp->nm_flag & NFSMNT_INT)
+		rsflags = PCATCH;
+	else
+		rsflags = 0;
 
 retry:
 	nhpp = NFSNOHASH(nfs_hash(fhp, fhsize));
@@ -180,7 +192,7 @@ loop:
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
-	lockinit(&np->n_rslock, PVFS, "nfrslk", 0, LK_NOPAUSE);
+	lockinit(&np->n_rslock, PVFS | rsflags, "nfrslk", 0, LK_NOPAUSE);
 	*npp = np;
 
 	if (nfs_node_hash_lock < 0)
