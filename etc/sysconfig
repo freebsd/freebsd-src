@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.48 1996/08/21 23:15:37 jkh Exp $
+#	$Id: sysconfig,v 1.49 1996/09/07 19:11:00 ache Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -55,7 +55,8 @@ mousedtype=NO
 ############## Next block activated only if mousetype != NO ################
 
 # Set to your mouse port (required)
-mousedport=/dev/mouse
+# Use real device here, because /dev/mouse usually linked with /dev/sysmouse
+mousedport=/dev/cuaa0
 
 # Moused options:
 # -s: 9600 baud mouse
