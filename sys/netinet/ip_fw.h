@@ -26,7 +26,19 @@ struct ip_fw {
     struct ip_fw *fw_next;		/* Next firewall on chain */
     struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
     struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
-    struct in_addr fw_via;		/* IP addr of interface "via" */
+	/*
+	 * This union keeps all "via" information.
+	 * If ever fu_via_ip is 0,or IP_FW_F_IFNAME set and
+	 * fu_via_name[0] is 0 - match any packet.
+	 */
+    union {
+	struct in_addr fu_via_ip;
+	struct {
+#define FW_IFNLEN	6		/* To keep structure on 2^x boundary */
+		char  fu_via_name[FW_IFNLEN];
+		short fu_via_unit;
+	} fu_via_if;
+    } fu_via_un;
     u_short fw_flg;			/* Flags word */
     u_short fw_nsp, fw_ndp;             /* N'of src ports and # of dst ports */
     					/* in ports array (dst ports follow */
@@ -36,6 +48,15 @@ struct ip_fw {
     u_short fw_pts[IP_FW_MAX_PORTS];    /* Array of port numbers to match */
     u_long fw_pcnt,fw_bcnt;		/* Packet and byte counters */
 };
+
+
+/*
+ * Definitions to make expressions
+ * for "via" stuff shorter.
+ */
+#define fw_via_ip	fu_via_un.fu_via_ip
+#define fw_via_name	fu_via_un.fu_via_if.fu_via_name
+#define fw_via_unit	fu_via_un.fu_via_if.fu_via_unit
 
 /*
  * Values for "flags" field .
@@ -62,7 +83,8 @@ struct ip_fw {
 #define IP_FW_F_BIDIR	0x040	/* For accounting-count two way       */
 #define IP_FW_F_TCPSYN	0x080	/* For tcp packets-check SYN only     */
 #define IP_FW_F_ICMPRPL	0x100	/* Send back icmp unreachable packet  */
-#define IP_FW_F_MASK	0x1FF	/* All possible flag bits mask        */
+#define IP_FW_F_IFNAME	0x200	/* Use interface name/unit (not IP)   */
+#define IP_FW_F_MASK	0x3FF	/* All possible flag bits mask        */
 
 /*    
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
