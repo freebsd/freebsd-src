@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.12 1996/09/17 19:50:23 phk Exp $
+ * $Id: malloc.c,v 1.13 1996/09/23 19:26:39 phk Exp $
  *
  */
 
@@ -53,10 +53,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <memory.h>
 #include <errno.h>
-#include <err.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -106,42 +105,42 @@ struct pgfree {
  * We might as well use them.  There are C-language backups, but
  * they are considerably slower.
  */
-#ifdef __i386__
+#if defined(__i386__) && defined(__GNUC__)
 #define ffs _ffs
-static __inline int
+static __inline__ int
 _ffs(unsigned input)
 {
 	int result;
-	asm("bsfl %1, %0" : "=r" (result) : "r" (input));
+	__asm__("bsfl %1, %0" : "=r" (result) : "r" (input));
 	return result+1;
 }
 
 #define fls _fls
-static __inline int
+static __inline__ int
 _fls(unsigned input)
 {
 	int result;
-	asm("bsrl %1, %0" : "=r" (result) : "r" (input));
+	__asm__("bsrl %1, %0" : "=r" (result) : "r" (input));
 	return result+1;
 }
 
 #define set_bit _set_bit
-static __inline void
+static __inline__ void
 _set_bit(struct pginfo *pi, int bit)
 {
-	asm("btsl %0, (%1)" :
+	__asm__("btsl %0, (%1)" :
 	: "r" (bit & (MALLOC_BITS-1)), "r" (pi->bits+(bit/MALLOC_BITS)));
 }
 
 #define clr_bit _clr_bit
-static __inline void
+static __inline__ void
 _clr_bit(struct pginfo *pi, int bit)
 {
-	asm("btcl %0, (%1)" :
+	__asm__("btcl %0, (%1)" :
 	: "r" (bit & (MALLOC_BITS-1)), "r" (pi->bits+(bit/MALLOC_BITS)));
 }
 
-#endif /* __i386__ */
+#endif /* __i386__ && __GNUC__ */
 
 /*
  * Set to one when malloc_init has been called
@@ -185,8 +184,8 @@ static	unsigned  malloc_minsize;
 static	unsigned  malloc_maxsize;
 #endif /* malloc_maxsize */
 
-/* The minimum size (in bytes) of the free page cache.  */
-static	unsigned  malloc_cache = 16 << malloc_pageshift;
+/* The minimum size (in pages) of the free page cache.  */
+static	unsigned  malloc_cache = 16;
 
 /* The offset from pagenumber to index into the page directory */
 static	u_long  malloc_origo;
@@ -226,6 +225,7 @@ static int malloc_zero;
 /* junk fill ?  */
 static int malloc_junk;
 
+#ifdef __FreeBSD__
 /* utrace ?  */
 static int malloc_utrace;
 
@@ -234,6 +234,9 @@ struct ut { void *p; size_t s; void *r; };
 #define UTRACE(a, b, c) \
 	if (malloc_utrace) \
 		{struct ut u; u.p=a; u.s = b; u.r=c; utrace(&u, sizeof u);}
+#else /* !__FreeBSD__ */
+#define UTRACE(a,b,c)
+#endif
 
 /* my last break. */
 static void *malloc_brk;
@@ -384,7 +387,7 @@ map_pages(int pages)
  * Set a bit in the bitmap
  */
 #ifndef set_bit
-static __inline void
+static __inline__ void
 set_bit(struct pginfo *pi, int bit)
 {
     pi->bits[bit/MALLOC_BITS] |= 1<<(bit%MALLOC_BITS);
@@ -395,7 +398,7 @@ set_bit(struct pginfo *pi, int bit)
  * Clear a bit in the bitmap
  */
 #ifndef clr_bit
-static __inline void
+static __inline__ void
 clr_bit(struct pginfo *pi, int bit)
 {
     pi->bits[bit/MALLOC_BITS] &= ~(1<<(bit%MALLOC_BITS));
@@ -406,7 +409,7 @@ clr_bit(struct pginfo *pi, int bit)
 /*
  * Test a bit in the bitmap
  */
-static __inline int
+static __inline__ int
 tst_bit(struct pginfo *pi, int bit)
 {
     return pi->bits[bit/MALLOC_BITS] & (1<<(bit%MALLOC_BITS));
@@ -417,7 +420,7 @@ tst_bit(struct pginfo *pi, int bit)
  * Find last bit
  */
 #ifndef fls
-static __inline int
+static __inline__ int
 fls(int size)
 {
     int i = 1;
@@ -489,7 +492,6 @@ malloc_init ()
 {
     char *p, b[64];
     int i, j;
-    struct ut u;
 
 
 #ifdef EXTRA_SANITY
@@ -524,8 +526,10 @@ malloc_init ()
 		case 'R': malloc_realloc = 1; break;
 		case 'j': malloc_junk    = 0; break;
 		case 'J': malloc_junk    = 1; break;
+#ifdef __FreeBSD__
 		case 'u': malloc_utrace  = 0; break;
 		case 'U': malloc_utrace  = 1; break;
+#endif /* !__FreeBSD__ */
 		case 'z': malloc_zero    = 0; break;
 		case 'Z': malloc_zero    = 1; break;
 		default:
@@ -618,6 +622,11 @@ malloc_init ()
      * We can sbrk(2) further back when we keep this on a low address.
      */
     px = (struct pgfree *) imalloc (sizeof *px);
+
+    if (!malloc_cache)
+	malloc_cache++;
+
+    malloc_cache <<= malloc_pageshift;
 }
 
 /*
@@ -667,7 +676,7 @@ malloc_pages(size_t size)
 	} 
 
 	p = pf->page;
-	pf->page += size;
+	pf->page = (char *)pg->page + size;
 	pf->size -= size;
 	break;
     }
@@ -708,7 +717,7 @@ malloc_pages(size_t size)
  * Allocate a page of fragments
  */
 
-static __inline int
+static __inline__ int
 malloc_make_chunks(int bits)
 {
     struct  pginfo *bp;
@@ -943,7 +952,7 @@ irealloc(void *ptr, size_t size)
  * Free a sequence of pages
  */
 
-static __inline void
+static __inline__ void
 free_pages(void *ptr, int index, struct pginfo *info)
 {
     int i;
@@ -976,7 +985,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
     if (malloc_hint)
 	madvise(ptr, l, MADV_FREE);
 
-    tail = ptr+l;
+    tail = (char *)ptr+l;
 
     /* add to free-list */
     if (!px)
@@ -996,7 +1005,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
     } else {
 
 	/* Find the right spot, leave pf pointing to the modified entry. */
-	tail = ptr+l;
+	tail = (char *)ptr+l;
 
 	for(pf = free_list.next; pf->end < ptr && pf->next; pf = pf->next)
 	    ; /* Race ahead here */
@@ -1011,7 +1020,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
 	    px = 0;
 	} else if (pf->end == ptr ) {
 	    /* Append to the previous entry */
-	    pf->end += l;
+	    pf->end = (char *)pf->end + l;
 	    pf->size += l;
 	    if (pf->next && pf->end == pf->next->page ) {
 		/* And collapse the next too. */
@@ -1048,7 +1057,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
 	 * Keep the cache intact.  Notice that the '>' above guarantees that
 	 * the pf will always have at least one page afterwards.
 	 */
-	pf->end = pf->page + malloc_cache;
+	pf->end = (char *)pf->page + malloc_cache;
 	pf->size = malloc_cache;
 
 	brk(pf->end);
@@ -1070,7 +1079,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
  * Free a chunk, and possibly the page it's on, if the page becomes empty.
  */
 
-static __inline void
+static __inline__ void
 free_bytes(void *ptr, int index, struct pginfo *info)
 {
     int i;
