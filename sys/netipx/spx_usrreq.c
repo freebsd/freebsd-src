@@ -466,13 +466,14 @@ register struct spx *si;
 	/*
 	 * Trim Acked data from output queue.
 	 */
+	SOCKBUF_LOCK(&so->so_snd);
 	while ((m = so->so_snd.sb_mb) != NULL) {
 		if (SSEQ_LT((mtod(m, struct spx *))->si_seq, si->si_ack))
-			sbdroprecord(&so->so_snd);
+			sbdroprecord_locked(&so->so_snd);
 		else
 			break;
 	}
-	sowwakeup(so);
+	sowwakeup_locked(so);
 	cb->s_rack = si->si_ack;
 update_window:
 	if (SSEQ_LT(cb->s_snxt, cb->s_rack))
