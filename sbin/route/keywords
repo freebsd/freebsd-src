@@ -21,6 +21,7 @@ ifp
 inet
 iso
 link
+llinfo
 lock
 lockrest
 mask
