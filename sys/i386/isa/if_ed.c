@@ -1941,7 +1941,7 @@ ed_init(xsc)
 	 * Copy out our station address
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		outb(sc->nic_addr + ED_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+		outb(sc->nic_addr + ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
 
 	/*
 	 * Set Current Page pointer to next_packet (initialized above)
@@ -3331,7 +3331,7 @@ ed_setrcr(sc)
 		 * Reconfigure the multicast filter.
 		 */
 		for (i = 0; i < 8; i++)
-			outb(sc->nic_addr + ED_P1_MAR0 + i, 0xff);
+			outb(sc->nic_addr + ED_P1_MAR(i), 0xff);
 
 		/*
 		 * And turn on promiscuous mode. Also enable reception of
@@ -3357,7 +3357,7 @@ ed_setrcr(sc)
 			 * Set multicast filter on chip.
 			 */
 			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR0 + i, ((u_char *) mcaf)[i]);
+				outb(sc->nic_addr + ED_P1_MAR(i), ((u_char *) mcaf)[i]);
 
 			/* Set page 0 registers */
 			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
@@ -3370,7 +3370,7 @@ ed_setrcr(sc)
 			 * not accept multicasts.
 			 */
 			for (i = 0; i < 8; ++i)
-				outb(sc->nic_addr + ED_P1_MAR0 + i, 0x00);
+				outb(sc->nic_addr + ED_P1_MAR(i), 0x00);
 
 			/* Set page 0 registers */
 			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
