@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003, 2004 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,9 @@ extern struct uart_ops uart_ns8250_ops;
 extern struct uart_ops uart_sab82532_ops;
 extern struct uart_ops uart_z8530_ops;
 
+extern bus_space_tag_t uart_bus_space_io;
+extern bus_space_tag_t uart_bus_space_mem;
+
 /*
  * Console and debug port device info.
  */
@@ -69,8 +72,9 @@ struct uart_devinfo {
 
 int uart_cpu_eqres(struct uart_bas *, struct uart_bas *);
 int uart_cpu_getdev(int, struct uart_devinfo *);
+int uart_getenv(int, struct uart_devinfo *);
 
-void uart_add_sysdev(struct uart_devinfo*);
+void uart_add_sysdev(struct uart_devinfo *);
 
 /*
  * Operations for low-level access to the UART. Primarily for use

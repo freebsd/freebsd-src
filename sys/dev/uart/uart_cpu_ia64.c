@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003, 2004 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
+bus_space_tag_t uart_bus_space_io = IA64_BUS_SPACE_IO;
+bus_space_tag_t uart_bus_space_mem = IA64_BUS_SPACE_MEM;
+
 static int dig64_to_uart_parity[] = {
 	UART_PARITY_NONE, UART_PARITY_NONE, UART_PARITY_EVEN,
 	UART_PARITY_ODD, UART_PARITY_MARK, UART_PARITY_SPACE
@@ -57,7 +60,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct dig64_hcdp_table *tbl;
 	struct dig64_hcdp_entry *ent;
 	bus_addr_t addr;
-	unsigned int i, ivar;
+	unsigned int i;
 
 	/*
 	 * Use the DIG64 HCDP table if present.
@@ -80,7 +83,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			di->ops = uart_ns8250_ops;
 			di->bas.chan = 0;
 			di->bas.bst = (ent->address.addr_space == 0)
-			    ? IA64_BUS_SPACE_MEM : IA64_BUS_SPACE_IO;
+			    ? uart_bus_space_mem : uart_bus_space_io;
 			if (bus_space_map(di->bas.bst, addr, 8, 0,
 			    &di->bas.bsh) != 0)
 				continue;
@@ -98,47 +101,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		/* FALLTHROUGH */
 	}
 
-	/*
-	 * Scan the hints for backward compatibility. We only try units
-	 * 0 to 3 (inclusive). This covers the ISA legacy where 4 UARTs
-	 * had their resources predefined.
-	 */
-	for (i = 0; i < 4; i++) {
-		if (resource_int_value("uart", i, "flags", &ivar))
-			continue;
-		if (devtype == UART_DEV_CONSOLE && !UART_FLAGS_CONSOLE(ivar))
-			continue;
-		if (devtype == UART_DEV_DBGPORT && !UART_FLAGS_DBGPORT(ivar))
-			continue;
-		/*
-		 * We have a possible device. Make sure it's enabled and
-		 * that we have an I/O port.
-		 */
-		if (resource_int_value("uart", i, "disabled", &ivar) == 0 &&
-		    ivar != 0)
-			continue;
-		if (resource_int_value("uart", i, "port", &ivar) != 0 ||
-		    ivar == 0)
-			continue;
-		/*
-		 * Got it. Fill in the instance and return it. We only have
-		 * ns8250 and successors on i386.
-		 */
-		di->ops = uart_ns8250_ops;
-		di->bas.chan = 0;
-		di->bas.bst = IA64_BUS_SPACE_IO;
-		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
-			continue;
-		di->bas.regshft = 0;
-		di->bas.rclk = 0;
-		if (resource_int_value("uart", i, "baud", &ivar) != 0)
-			ivar = 0;
-		di->baudrate = ivar;
-		di->databits = 8;
-		di->stopbits = 1;
-		di->parity = UART_PARITY_NONE;
-		return (0);
-	}
-
-	return (ENXIO);
+	/* Check the environment. */
+	return (uart_getenv(devtype, di));
 }
