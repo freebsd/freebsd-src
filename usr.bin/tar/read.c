@@ -70,7 +70,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 {
 	struct archive		 *a;
 	struct archive_entry	 *entry;
-	int			  format;
 	int			  r;
 
         while (*bsdtar->argv) {
@@ -78,18 +77,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		bsdtar->argv++;
         }
 
-	format = -1;
-
 	a = archive_read_new();
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
 	if (archive_read_open_file(a, bsdtar->filename, bsdtar->bytes_per_block))
 		bsdtar_errc(bsdtar, 1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
-
-	if (bsdtar->verbose > 2)
-		fprintf(stdout, "Compression: %s\n",
-		    archive_compression_name(a));
 
 	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir))
 		bsdtar_errc(bsdtar, 1, errno,
@@ -107,6 +100,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (r == ARCHIVE_WARN)
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 		if (r == ARCHIVE_FATAL) {
+			bsdtar->return_value = 1;
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			break;
 		}
@@ -115,12 +109,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			bsdtar_warnc(bsdtar, 0, "Retrying...");
 			continue;
-		}
-
-		if (bsdtar->verbose > 2 && format != archive_format(a)) {
-			format = archive_format(a);
-			fprintf(stdout, "Archive Format: %s\n",
-			    archive_format_name(a));
 		}
 
 		if (excluded(bsdtar, archive_entry_pathname(entry)))
@@ -133,18 +121,20 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			else
 				list_item_verbose(bsdtar, entry);
 			fflush(stdout);
-			switch (archive_read_data_skip(a)) {
-			case ARCHIVE_OK:
-				break;
-			case ARCHIVE_WARN:
-			case ARCHIVE_RETRY:
+			r = archive_read_data_skip(a);
+			if (r == ARCHIVE_WARN) {
 				fprintf(stdout, "\n");
 				bsdtar_warnc(bsdtar, 0, "%s",
 				    archive_error_string(a));
-				break;
-			case ARCHIVE_FATAL:
+			}
+			if (r == ARCHIVE_RETRY) {
 				fprintf(stdout, "\n");
-				bsdtar_errc(bsdtar, 1, 0, "%s",
+				bsdtar_warnc(bsdtar, 0, "%s",
+				    archive_error_string(a));
+			}
+			if (r == ARCHIVE_FATAL) {
+				fprintf(stdout, "\n");
+				bsdtar_warnc(bsdtar, 0, "%s",
 				    archive_error_string(a));
 				break;
 			}
@@ -182,11 +172,17 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				 * TODO: Decide how to handle
 				 * extraction error... <sigh>
 				 */
+				bsdtar->return_value = 1;
 			}
 			if (bsdtar->verbose)
 				fprintf(stderr, "\n");
 		}
 	}
+
+	if (bsdtar->verbose > 2)
+		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
+		    archive_format_name(a), archive_compression_name(a));
+
 	archive_read_finish(a);
 	cleanup_security(bsdtar);
 }
@@ -315,7 +311,11 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 	/* Strip leading '/'. */
 	name = archive_entry_pathname(entry);
 	if (name[0] == '/') {
-		/* XXX gtar generates a warning the first time this happens. */
+		/* Generate a warning the first time this happens. */
+		if (!bsdtar->warned_lead_slash) {
+			bsdtar_warnc(bsdtar, 0, "Removing leading '/' from member names");
+			bsdtar->warned_lead_slash = 1;
+		}
 		name++;
 		archive_entry_set_pathname(entry, name);
 	}
@@ -364,9 +364,12 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 			if (errno == ENOENT)
 				break;
 		} else if (S_ISLNK(st.st_mode)) {
-			if (*pn == '\0') {
+			if (pn[0] == '\0') {
 				/* Last element is symlink; just remove it. */
+				bsdtar_warnc(bsdtar, 0, "Removing symlink %s",
+				    bsdtar->security->path);
 				unlink(bsdtar->security->path);
+				return (1);
 			} else if (bsdtar->option_unlink_first) {
 				/* User asked us to remove problems. */
 				unlink(bsdtar->security->path);
