@@ -1417,13 +1417,13 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCSIFPHYS:
 		error = suser(td);
 		if (error)
-			return error;
-		if (!ifp->if_ioctl)
-			return EOPNOTSUPP;
+			return (error);
+		if (ifp->if_ioctl == NULL)
+			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
-		return(error);
+		break;
 
 	case SIOCSIFMTU:
 	{
@@ -1503,7 +1503,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGLIFPHYADDR:
 	case SIOCGIFMEDIA:
 	case SIOCGIFGENERIC:
-		if (ifp->if_ioctl == 0)
+		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		break;
