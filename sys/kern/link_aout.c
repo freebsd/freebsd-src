@@ -256,7 +256,7 @@ link_aout_load_file(linker_class_t lc, const char* filename, linker_file_t* resu
     lf->address = af->address;
     lf->size = header.a_text + header.a_data + header.a_bss;
 
-    error = linker_load_dependancies(lf);
+    error = linker_load_dependencies(lf);
     if (error)
 	goto out;
     error = relocate_file(af);
