@@ -390,7 +390,7 @@ returns 0 on success (the host is alive),
 and non-zero if the arguments are incorrect or the host is not responding.
 .Sh EXAMPLES
 Normally,
-.Xr ping6 8
+.Nm
 works just like
 .Xr ping 8
 would work; the following will send ICMPv6 echo request to
@@ -415,7 +415,6 @@ The following will probe addresses assigned to the destination node,
 .Bd -literal -offset indent
 ping6 -a agl dst.foo.com
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr icmp6 4 ,
@@ -442,7 +441,7 @@ ping6 -a agl dst.foo.com
 .Re
 .Sh BUGS
 There have been many discussions on why we separate
-.Xr ping6 8
+.Nm
 and
 .Xr ping 8 .
 Some people argued that it would be more convenient to uniform the
