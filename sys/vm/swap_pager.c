@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.10 1994/10/09 01:52:04 phk Exp $
+ * $Id: swap_pager.c,v 1.11 1994/10/09 07:35:16 davidg Exp $
  */
 
 /*
@@ -1162,7 +1162,16 @@ swap_pager_input(swp, m, count, reqpage)
 					PAGE_WAKEUP(m[i]);
 				}
 			}
-			if( swap_pager_full) {
+			/*
+			 * If we're out of swap space, then attempt to free
+			 * some whenever pages are brought in. We must clear
+			 * the clean flag so that the page contents will be
+			 * preserved.
+			 */
+			if (swap_pager_full) {
+				for (i = 0; i < count; i++) {
+					m[i]->flags &= ~PG_CLEAN;
+				}
 				_swap_pager_freespace( swp, m[0]->offset+paging_offset, count*PAGE_SIZE);
 			}
 		} else {
