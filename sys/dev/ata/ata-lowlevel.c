@@ -297,6 +297,9 @@ ata_end_transaction(struct ata_request *request)
 
     /* ATA PIO data transfer and control commands */
     default:
+	/* XXX Doesn't handle the non-PIO case. */
+	if (request->flags & ATA_R_TIMEOUT)
+	    return ATA_OP_FINISHED;
 
 	/* on control commands read back registers to the request struct */
 	if (request->flags & ATA_R_CONTROL) {
