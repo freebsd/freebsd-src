@@ -38,14 +38,12 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.63 1999/05/31 11:25:44 phk Exp $
+ *	$Id: mem.c,v 1.64 1999/08/23 20:58:38 phk Exp $
  */
 
 /*
  * Memory special file
  */
-
-#include "opt_perfmon.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -64,9 +62,6 @@
 #include <machine/random.h>
 #include <machine/psl.h>
 #include <machine/specialreg.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 #include <i386/isa/intr_machdep.h>
 
 #include <vm/vm.h>
@@ -123,10 +118,6 @@ mmclose(dev, flags, fmt, p)
 	struct proc *p;
 {
 	switch (minor(dev)) {
-#ifdef PERFMON
-	case 32:
-		return perfmon_close(dev, flags, fmt, p);
-#endif
 	case 14:
 		curproc->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 		break;
@@ -146,12 +137,6 @@ mmopen(dev, flags, fmt, p)
 	int error;
 
 	switch (minor(dev)) {
-	case 32:
-#ifdef PERFMON
-		return perfmon_open(dev, flags, fmt, p);
-#else
-		return ENODEV;
-#endif
 	case 14:
 		error = suser(p);
 		if (error != 0)
@@ -402,10 +387,6 @@ mmioctl(dev, cmd, data, flags, p)
 	case 3:
 	case 4:
 		return random_ioctl(dev, cmd, data, flags, p);
-#ifdef PERFMON
-	case 32:
-		return perfmon_ioctl(dev, cmd, data, flags, p);
-#endif
 	}
 	return (ENODEV);
 }
@@ -627,9 +608,6 @@ mem_drvinit(void *unused)
 	make_dev(&mem_cdevsw, 4, UID_ROOT, GID_WHEEL, 0644, "urandom");
 	make_dev(&mem_cdevsw, 12, UID_ROOT, GID_WHEEL, 0666, "zero");
 	make_dev(&mem_cdevsw, 14, UID_ROOT, GID_WHEEL, 0600, "io");
-#ifdef PERFMON
-	make_dev(&mem_cdevsw, 32, UID_ROOT, GID_KMEM, 0640, "perfmon");
-#endif /* PERFMON */
 }
 
 SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)

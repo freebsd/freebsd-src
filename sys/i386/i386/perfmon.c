@@ -26,11 +26,12 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.17 1999/01/12 00:19:32 eivind Exp $
+ *	$Id: perfmon.c,v 1.18 1999/05/11 01:54:52 alc Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 
 #ifndef SMP
@@ -52,6 +53,33 @@ static int (*writectl)(int);
 static int writectl5(int);
 static int writectl6(int);
 #endif
+
+static d_close_t perfmon_close;
+static d_open_t	perfmon_open;
+static d_ioctl_t perfmon_ioctl;
+
+#define CDEV_MAJOR 2	/* We're really a minor of mem.c */
+static struct cdevsw perfmon_cdevsw = {
+	/* open */      perfmon_open,
+	/* close */     perfmon_close,
+	/* read */      noread,
+	/* write */     nowrite,
+	/* ioctl */     perfmon_ioctl,
+	/* stop */      nostop,
+	/* reset */     noreset,
+	/* devtotty */  nodevtotty,
+	/* poll */      nopoll,
+	/* mmap */      nommap,
+	/* strategy */  nostrategy,
+	/* name */      "perfmon",
+	/* parms */     noparms,
+	/* maj */       CDEV_MAJOR,
+	/* dump */      nodump,
+	/* psize */     nopsize,
+	/* flags */     0,
+	/* maxio */     0,
+	/* bmaj */      -1
+};
 
 /*
  * Must be called after cpu_class is set up.
@@ -83,6 +111,7 @@ perfmon_init(void)
 		break;
 	}
 #endif /* SMP */
+	make_dev(&perfmon_cdevsw, 32, UID_ROOT, GID_KMEM, 0640, "perfmon");
 }
 
 int
@@ -258,7 +287,7 @@ writectl5(int pmc)
 static int writer;
 static int writerpmc;
 
-int
+static int
 perfmon_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	if (!perfmon_cpuok)
@@ -275,7 +304,7 @@ perfmon_open(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-int
+static int
 perfmon_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	if (flags & FWRITE) {
@@ -290,8 +319,8 @@ perfmon_close(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-int
-perfmon_ioctl(dev_t dev, int cmd, caddr_t param, int flags, struct proc *p)
+static int
+perfmon_ioctl(dev_t dev, u_long cmd, caddr_t param, int flags, struct proc *p)
 {
 	struct pmc *pmc;
 	struct pmc_data *pmcd;
