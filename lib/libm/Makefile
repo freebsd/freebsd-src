@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile,v 1.5 1997/02/22 15:07:03 peter Exp $
 #
 # ieee		- for most IEEE machines, we hope.
 # mc68881	- the, ahem, mc68881.
@@ -39,7 +39,7 @@ SRCS+=	asincos.s atan.s atan2.c atanh.s cosh.s expm1.s floor.s \
 # ieee
 SRCS+=	cabs.c cbrt.c
 
-.elif (${MACHINE} == "i386")
+.elif (${MACHINE_ARCH} == "i386")
 
 HARDWARE=i387
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/ieee
