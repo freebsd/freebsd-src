@@ -932,6 +932,45 @@ in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	}
 }
 
+void
+in6_pcbpurgeif0(head, ifp)
+	struct in6pcb *head;
+	struct ifnet *ifp;
+{
+	struct in6pcb *in6p;
+	struct ip6_moptions *im6o;
+	struct in6_multi_mship *imm, *nimm;
+
+	for (in6p = head; in6p != NULL; in6p = LIST_NEXT(in6p, inp_list)) {
+		im6o = in6p->in6p_moptions;
+		if ((in6p->inp_vflag & INP_IPV6) &&
+		    im6o) {
+			/*
+			 * Unselect the outgoing interface if it is being
+			 * detached.
+			 */
+			if (im6o->im6o_multicast_ifp == ifp)
+				im6o->im6o_multicast_ifp = NULL;
+
+			/*
+			 * Drop multicast group membership if we joined
+			 * through the interface being detached.
+			 * XXX controversial - is it really legal for kernel
+			 * to force this?
+			 */
+			for (imm = im6o->im6o_memberships.lh_first;
+			     imm != NULL; imm = nimm) {
+				nimm = imm->i6mm_chain.le_next;
+				if (imm->i6mm_maddr->in6m_ifp == ifp) {
+					LIST_REMOVE(imm, i6mm_chain);
+					in6_delmulti(imm->i6mm_maddr);
+					free(imm, M_IPMADDR);
+				}
+			}
+		}
+	}
+}
+
 /*
  * Check for alternatives when higher level complains
  * about service problems.  For now, invalidate cached
