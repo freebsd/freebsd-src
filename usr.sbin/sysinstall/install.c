@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.12 1995/05/08 10:20:51 jkh Exp $
+ * $Id: install.c,v 1.13 1995/05/08 21:39:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,7 +96,9 @@ installHook(char *str)
 	    make_filesystems();
 	    scroll = choice = curr = max = 0;
 	    dmenuOpen(&MenuInstall, &choice, &scroll, &curr, &max);
+	    chdir("/mnt");
 	    cpio_extract();
+	    chroot("/mnt");
 	    distExtractAll();
 	    install_configuration_files();
 	    do_final_setup();
@@ -210,7 +212,7 @@ cpio_extract(void)
 	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
 	CpioFD = open("/dev/rfd0", O_RDONLY);
     }
-    msgNotify("Extracting contents of CPIO floppy.");
+    msgNotify("Extracting contents of CPIO floppy...");
     pipe(pfd);
     zpid = fork();
     if (!zpid) {
