@@ -4308,53 +4308,52 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 	case RQCS_TRANSPORT_ERROR:
 	{
 		char buf[172];
-		buf[0] = 0;
-		STRNCAT(buf, "states=>", sizeof buf);
+		SNPRINTF(buf, sizeof (buf) - 1, "states=>");
 		if (sp->req_state_flags & RQSF_GOT_BUS) {
-			STRNCAT(buf, " GOT_BUS", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_BUS", buf);
 		}
 		if (sp->req_state_flags & RQSF_GOT_TARGET) {
-			STRNCAT(buf, " GOT_TGT", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_TGT", buf);
 		}
 		if (sp->req_state_flags & RQSF_SENT_CDB) {
-			STRNCAT(buf, " SENT_CDB", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s SENT_CDB", buf);
 		}
 		if (sp->req_state_flags & RQSF_XFRD_DATA) {
-			STRNCAT(buf, " XFRD_DATA", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s XFRD_DATA", buf);
 		}
 		if (sp->req_state_flags & RQSF_GOT_STATUS) {
-			STRNCAT(buf, " GOT_STS", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_STS", buf);
 		}
 		if (sp->req_state_flags & RQSF_GOT_SENSE) {
-			STRNCAT(buf, " GOT_SNS", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_SNS", buf);
 		}
 		if (sp->req_state_flags & RQSF_XFER_COMPLETE) {
-			STRNCAT(buf, " XFR_CMPLT", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s XFR_CMPLT", buf);
 		}
-		STRNCAT(buf, "\nstatus=>", sizeof buf);
+		SNPRINTF(buf, sizeof (buf) - 1, "%s\nstatus=>", buf);
 		if (sp->req_status_flags & RQSTF_DISCONNECT) {
-			STRNCAT(buf, " Disconnect", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Disconnect", buf);
 		}
 		if (sp->req_status_flags & RQSTF_SYNCHRONOUS) {
-			STRNCAT(buf, " Sync_xfr", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Sync_xfr", buf);
 		}
 		if (sp->req_status_flags & RQSTF_PARITY_ERROR) {
-			STRNCAT(buf, " Parity", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Parity", buf);
 		}
 		if (sp->req_status_flags & RQSTF_BUS_RESET) {
-			STRNCAT(buf, " Bus_Reset", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Bus_Reset", buf);
 		}
 		if (sp->req_status_flags & RQSTF_DEVICE_RESET) {
-			STRNCAT(buf, " Device_Reset", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Device_Reset", buf);
 		}
 		if (sp->req_status_flags & RQSTF_ABORTED) {
-			STRNCAT(buf, " Aborted", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Aborted", buf);
 		}
 		if (sp->req_status_flags & RQSTF_TIMEOUT) {
-			STRNCAT(buf, " Timeout", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Timeout", buf);
 		}
 		if (sp->req_status_flags & RQSTF_NEGOTIATION) {
-			STRNCAT(buf, " Negotiation", sizeof buf);
+			SNPRINTF(buf, sizeof (buf) - 1, "%s Negotiation", buf);
 		}
 		isp_prt(isp, ISP_LOGERR, "%s", buf);
 		isp_prt(isp, ISP_LOGERR, "transport error for %d.%d.%d:\n%s",
