@@ -508,6 +508,15 @@ SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
+RealTek 8129/8139 fast ethernet NICs including the following:
+  Allied Telesyn AT2550
+  Genius GF100TXR (RTL8139)
+  NDC Communications NE100TX-E
+  OvisLink LEF-8129TX
+  OvisLink LEF-8139TX
+  Netronix Inc. EA-1210 NetEther 10/100
+  KTX-9130TX 10/100 Fast Ethernet
+
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
   Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
