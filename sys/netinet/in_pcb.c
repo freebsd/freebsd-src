@@ -157,10 +157,11 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
  * Allocate a PCB and associate it with the socket.
  */
 int
-in_pcballoc(so, pcbinfo, td)
+in_pcballoc(so, pcbinfo, td, type)
 	struct socket *so;
 	struct inpcbinfo *pcbinfo;
 	struct thread *td;
+	const char *type;
 {
 	register struct inpcb *inp;
 	int error;
@@ -198,7 +199,7 @@ in_pcballoc(so, pcbinfo, td)
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
-	INP_LOCK_INIT(inp, "inp");
+	INP_LOCK_INIT(inp, "inp", type);
 #ifdef INET6
 	if (ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;

@@ -580,7 +580,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		return error;
 	s = splnet();
-	error = in_pcballoc(so, &ripcbinfo, td);
+	error = in_pcballoc(so, &ripcbinfo, td, "raw6inp");
 	splx(s);
 	if (error)
 		return error;
