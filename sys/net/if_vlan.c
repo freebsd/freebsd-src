@@ -420,6 +420,26 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 {
 	struct ifvlan *ifv;
 
+	/*
+	 * Fake up a header and send the packet to the physical interface's
+	 * bpf tap if active.
+	 */
+	if (m->m_pkthdr.rcvif->if_bpf != NULL) {
+		struct m_hdr mh;
+		struct ether_vlan_header evh;
+
+		bcopy(eh, &evh, 2*ETHER_ADDR_LEN);
+		evh.evl_encap_proto = htons(ETHERTYPE_VLAN);
+		evh.evl_tag = htons(t);
+		evh.evl_proto = eh->ether_type;
+
+		/* This kludge is OK; BPF treats the "mbuf" as read-only */
+		mh.mh_next = m;
+		mh.mh_data = (char *)&evh;
+		mh.mh_len = ETHER_HDR_LEN + EVL_ENCAPLEN;
+		bpf_mtap(m->m_pkthdr.rcvif, (struct mbuf *)&mh);
+	}
+
 	for (ifv = LIST_FIRST(&ifv_list); ifv != NULL;
 	    ifv = LIST_NEXT(ifv, ifv_list)) {
 		if (m->m_pkthdr.rcvif == ifv->ifv_p
