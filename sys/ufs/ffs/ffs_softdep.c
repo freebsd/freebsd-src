@@ -688,7 +688,7 @@ process_worklist_item(matchmnt, flags)
 	 * copy-on-write, then it is not safe to write as we may
 	 * recurse into the copy-on-write routine.
 	 */
-	if (curthread->td_proc->p_flag & P_COWINPROGRESS)
+	if (curthread->td_pflags & TDP_COWINPROGRESS)
 		return (-1);
 	ACQUIRE_LOCK(&lk);
 	/*
@@ -5479,7 +5479,7 @@ softdep_request_cleanup(fs, vp)
 	 * copy-on-write, then it is not safe to update the vnode
 	 * as we may recurse into the copy-on-write routine.
 	 */
-	if ((curthread->td_proc->p_flag & P_COWINPROGRESS) == 0 &&
+	if (!(curthread->td_pflags & TDP_COWINPROGRESS) &&
 	    UFS_UPDATE(vp, 1) != 0)
 		return (0);
 	while (fs->fs_pendingblocks > 0 && fs->fs_cstotal.cs_nbfree <= needed) {
