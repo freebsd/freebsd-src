@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.53 1996/10/05 10:44:07 jkh Exp $
+ **      $Id: userconfig.c,v 1.54 1996/10/06 10:15:27 jkh Exp $
  **/
 
 /**
@@ -2211,7 +2211,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.53 1996/10/05 10:44:07 jkh Exp $
+ *      $Id: userconfig.c,v 1.54 1996/10/06 10:15:27 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2557,13 +2557,14 @@ helpfunc(CmdParm *parms)
     return 0;
 }
 
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+
 static void
 center(int y, char *str)
 {
     putxy((80 - strlen(str)) / 2, y, str);
 }
 
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
 static int
 introfunc(CmdParm *parms)
 {
