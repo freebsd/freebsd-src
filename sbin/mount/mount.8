@@ -417,6 +417,13 @@ support for a particular file system might be provided either on a static
 If the environment variable
 .Pa PATH_FSTAB
 is set all operations are performed against the specified file.
+.Pa PATH_FSTAB
+will not be honored if the process environment or memory address space is
+considred
+.Dq tainted .
+(See
+.Fn issetugid
+for more information.)
 .El
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
