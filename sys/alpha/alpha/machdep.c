@@ -1033,11 +1033,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD);
 
 	/*
-	 * Enable interrupts on first release (in switch_trampoline).
-	 */
-	sched_lock.mtx_saveipl = ALPHA_PSL_IPL_0;
-
-	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
 
