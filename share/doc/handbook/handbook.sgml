@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.72 1997/05/02 14:15:34 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.73 1997/05/02 14:26:33 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -55,7 +55,7 @@ name="FreeBSD FTP server"> or one of the numerous
 
 <!-- ************************************************************ -->	      
 
-    <part><heading>Basics</heading>
+    <part><heading>Getting Started</heading>
 
     <chapt><heading>Introduction</heading>
       <p>FreeBSD is a 4.4BSD-Lite based operating system for Intel
@@ -78,9 +78,7 @@ name="FreeBSD FTP server"> or one of the numerous
     &install;
     &basics;
 
-    <chapt><heading>Installing applications</heading>
-      <sect><heading>* Installing packages</heading>
-        &ports;
+    &ports;
 
 <!-- ************************************************************ -->	      
 
