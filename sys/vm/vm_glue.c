@@ -737,11 +737,8 @@ retry:
 		 * Perform a quick check whether
 		 * a process has P_SYSTEM.
 		 */
-		PROC_LOCK(p);
-		if ((p->p_flag & P_SYSTEM) != 0) {
-			PROC_UNLOCK(p);
+		if ((p->p_flag & P_SYSTEM) != 0)
 			continue;
-		}
 
 		/*
 		 * Do not swapout a process that
@@ -755,6 +752,7 @@ retry:
 		 * process may attempt to alter
 		 * the map.
 		 */
+		PROC_LOCK(p);
 		vm = p->p_vmspace;
 		KASSERT(vm != NULL,
 			("swapout_procs: a process has no address space"));
@@ -777,14 +775,14 @@ retry:
 		if ((p->p_sflag & (PS_INMEM|PS_SWAPPINGOUT|PS_SWAPPINGIN)) != PS_INMEM)
 			goto nextproc2;
 
-		mtx_lock_spin(&sched_lock);
 		switch (p->p_state) {
 		default:
 			/* Don't swap out processes in any sort
 			 * of 'special' state. */
-			goto nextproc;
+			break;
 
 		case PRS_NORMAL:
+			mtx_lock_spin(&sched_lock);
 			/*
 			 * do not swapout a realtime process
 			 * Check all the thread groups..
@@ -845,9 +843,9 @@ retry:
 				sx_sunlock(&allproc_lock);
 				goto retry;
 			}
+nextproc:			
+			mtx_unlock_spin(&sched_lock);
 		}
-nextproc:
-		mtx_unlock_spin(&sched_lock);
 nextproc2:
 		PROC_UNLOCK(p);
 		vm_map_unlock(&vm->vm_map);
