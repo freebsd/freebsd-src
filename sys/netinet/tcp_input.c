@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.24 1995/05/11 01:41:06 davidg Exp $
+ *	$Id: tcp_input.c,v 1.25 1995/05/30 08:09:55 rgrimes Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1814,6 +1814,7 @@ tcp_xmit_timer(tp, rtt)
 	register short delta;
 
 	tcpstat.tcps_rttupdated++;
+	tp->t_rttupdated++;
 	if (tp->t_srtt != 0) {
 		/*
 		 * srtt is stored as fixed point with 3 bits after the
