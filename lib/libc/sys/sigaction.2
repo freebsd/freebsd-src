@@ -41,9 +41,9 @@
 .Fd #include <signal.h>
 .Bd -literal
 struct sigaction {
-	void     (*sa_handler)();
-	sigset_t sa_mask;
-	int	 sa_flags;
+	void     (*sa_handler)();  /* signal handler */
+	sigset_t sa_mask;          /* signal mask to apply */
+	int	 sa_flags;         /* see signal options below */
 };
 .Ed
 .Fn sigaction "int sig" "const struct sigaction *act" "struct sigaction *oact"
