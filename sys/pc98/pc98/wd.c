@@ -48,11 +48,9 @@
  *	  driver entries for polled reinit and polled write).
  */
 
-#include "wdc.h"
+#include "opt_wdc.h"
 #undef NWD
 #define NWD (NWDC * 4)		/* 4 drives per wdc on PC98 */
-
-#if     NWDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2068,5 +2066,3 @@ wdwait(struct softc *du, u_char bits_wanted, int timeout)
 	} while (--timeout != 0);
 	return (-1);
 }
-
-#endif /* NWDC > 0 */

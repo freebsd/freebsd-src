@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
-#include <vcoda.h>
+#include "opt_coda.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

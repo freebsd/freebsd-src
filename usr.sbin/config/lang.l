@@ -89,11 +89,10 @@ unsigned int hex(const char *);
 int yyerror(const char *);
 
 %}
-WORD	[A-Za-z_][-A-Za-z_]*
 ID	[A-Za-z_][-A-Za-z_0-9]*
-%START NONUM TOEOL
+%START TOEOL
 %%
-<NONUM>{WORD}	{
+{ID}		{
 			int i;
 
 			BEGIN 0;
@@ -103,20 +102,6 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 				return ID;
 			}
 			return i;
-		}
-<INITIAL>{WORD}/[0-9]* {
-			int i;
-
-			if ((i = kw_lookup(yytext)) == -1)
-				REJECT;
-			if (i == DEVICE || i == NODEVICE)
-				BEGIN NONUM;
-			return i;
-		}
-<INITIAL>{ID}	{
-			BEGIN 0;
-			yylval.str = strdup(yytext);
-			return ID;
 		}
 \\\"[^"]+\\\"	{
 			BEGIN 0;
