@@ -113,9 +113,8 @@ g_dev_getprovider(struct cdev *dev)
 	if (dev == NULL)
 		return (NULL);
 	if (dev->si_devsw != &g_dev_cdevsw)
-		cp = NULL;
-	else
-		cp = dev->si_drv2;
+		return (NULL);
+	cp = dev->si_drv2;
 	return (cp->provider);
 }
 
