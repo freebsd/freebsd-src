@@ -433,7 +433,6 @@ ffs_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vinvalbuf(devvp, 0, td->td_ucred, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
-	vfs_object_create(devvp, td, td->td_ucred);
 	VOP_UNLOCK(devvp, 0, td);
 
 	/*
@@ -577,7 +576,6 @@ ffs_mountfs(devvp, mp, td)
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
 
-	vfs_object_create(devvp, td, cred);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 #if 0
@@ -595,13 +593,6 @@ ffs_mountfs(devvp, mp, td)
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
-#if 0
-	/*
-	 * Note that it is optional that the backing device be VMIOed.  This
-	 * increases the opportunity for metadata caching.
-	 */
-	vfs_object_create(devvp, td, cred);
-#endif
 
 	/*
 	 * If we are a root mount, drop the E flag so fsck can do its magic.
