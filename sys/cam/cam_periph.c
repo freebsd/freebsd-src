@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_periph.c,v 1.2 1998/09/20 07:14:36 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -553,9 +553,10 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			flags = B_READ;
 			if (useracc(*data_ptrs[i], lengths[i], B_READ) == 0){
 				printf("cam_periph_mapmem: error, "
-					"address %#lx, length %d isn't "
+					"address %p, length %lu isn't "
 					"user accessible for READ\n",
-					(u_long)(*data_ptrs[i]), lengths[i]);
+					(void *)*data_ptrs[i],
+					(u_long)lengths[i]);
 				/*
 				 * If we've already mapped one or more
 				 * buffers for this CCB, unmap it (them).
@@ -577,9 +578,10 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			flags |= B_WRITE;
 			if (useracc(*data_ptrs[i], lengths[i], B_WRITE) == 0){
 				printf("cam_periph_mapmem: error, "
-					"address %#lx, length %d isn't "
+					"address %p, length %lu isn't "
 					"user accessible for WRITE\n",
-					(u_long)(*data_ptrs[i]), lengths[i]);
+					(void *)*data_ptrs[i],
+					(u_long)lengths[i]);
 				/*
 				 * If we've already mapped one or more
 				 * buffers for this CCB, unmap it (them).
