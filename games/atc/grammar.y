@@ -320,6 +320,7 @@ check_line(x1, y1, x2, y2)
 }
 
 yyerror(s)
+	char *s;
 {
 	fprintf(stderr, "\"%s\": line %d: %s\n", file, line, s);
 	errors++;
