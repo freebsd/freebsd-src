@@ -8,11 +8,9 @@
 .Nm krb5_config_get_int_default ,
 .Nm krb5_config_get_string_default ,
 .Nm krb5_config_get_time_default
-.Nd Get configuration value
-
+.Nd get configuration value
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
-
 .Ft krb5_boolean
 .Fn krb5_config_get_bool_default "krb5_context context" "krb5_config_section *c" "krb5_boolean def_value" "..."
 .Ft int
@@ -21,27 +19,24 @@
 .Fn krb5_config_get_string_default "krb5_context context" "krb5_config_section *c" "const char *def_value" "..."
 .Ft int
 .Fn krb5_config_get_time_default "krb5_context context" "krb5_config_section *c" "int def_value" "..."
-
 .Sh DESCRIPTION
-
 These functions get values from the 
 .Xr krb5.conf 5 
 configuration file, or another configuration database specified by the
 .Fa c
 parameter.
-
+.Pp
 The variable arguments should be a list of strings naming each
 subsection to look for. For example:
-
 .Bd -literal -offset indent
 krb5_config_get_bool_default(context, NULL, FALSE, "libdefaults", "log_utc", NULL)
 .Ed
-
+.Pp
 gets the boolean value for the
 .Dv log_utc
 option, defaulting to
 .Dv FALSE .
-
+.Pp
 .Fn krb5_config_get_bool_default
 will convert the option value to a boolean value, where
 .Sq yes , 
@@ -50,22 +45,19 @@ and any non-zero number means
 .Dv TRUE ,
 and any other value 
 .Dv FALSE .
-
+.Pp
 .Fn krb5_config_get_int_default
 will convert the value to an integer.
-
+.Pp
 .Fn krb5_config_get_time_default
 will convert the value to a period of time (not a time stamp) in
 seconds, so the string
 .Sq 2 weeks
 will be converted to
 1209600 (2 * 7 * 24 * 60 * 60).
-
 .Sh BUGS
-
 Other than for the string case, there's no way to tell whether there
 was a value specified or not.
-
 .Sh SEE ALSO
 .Xr krb5_appdefault 3 ,
 .Xr krb5.conf 5
