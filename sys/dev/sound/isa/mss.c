@@ -33,6 +33,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>
+#include <dev/sound/isa/sb.h>
 #include <dev/sound/chip.h>
 
 #include "mixer_if.h"
@@ -1870,6 +1871,40 @@ DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_mss, 1);
 
+static int
+azt2320_mss_mode(struct mss_info *mss, device_t dev)
+{
+	struct resource *sbport;
+	int		i, ret, rid;
+
+	rid = 0;
+	ret = -1;
+	sbport = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				    0, ~0, 1, RF_ACTIVE);
+	if (sbport) {
+		for (i = 0; i < 1000; i++) {
+			if ((port_rd(sbport, SBDSP_STATUS) & 0x80))
+				DELAY((i > 100) ? 1000 : 10);
+			else {
+				port_wr(sbport, SBDSP_CMD, 0x09);
+				break;
+			}
+		}
+		for (i = 0; i < 1000; i++) {
+			if ((port_rd(sbport, SBDSP_STATUS) & 0x80))
+				DELAY((i > 100) ? 1000 : 10);
+			else {
+				port_wr(sbport, SBDSP_CMD, 0x00);
+				ret = 0;
+				break;
+			}
+		}
+		DELAY(1000);
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, sbport);
+	}
+	return ret;
+}
+
 static struct isa_pnp_id pnpmss_ids[] = {
 	{0x0000630e, "CS423x"},				/* CSC0000 */
 	{0x0001630e, "CS423x-PCI"},			/* CSC0100 */
@@ -1880,6 +1915,7 @@ static struct isa_pnp_id pnpmss_ids[] = {
 	{0x5092143e, "OPTi925"},			/* OPT9250 XXX guess */
 	{0x0000143e, "OPTi924"},			/* OPT0924 */
 	{0x1022b839, "Neomagic 256AV (non-ac97)"},	/* NMX2210 */
+	{0x01005407, "Aztech 2320"},			/* AZT0001 */
 #if 0
 	{0x0000561e, "GusPnP"},				/* GRV0000 */
 #endif
@@ -1959,6 +1995,15 @@ pnpmss_attach(device_t dev)
 	    mss->io_rid = 1;
 	    break;
 
+	case 0x01005407:			/* AZT0001 */
+	    /* put into MSS mode first (snatched from NetBSD) */
+	    if (azt2320_mss_mode(mss, dev) == -1)
+		    return ENXIO;
+
+	    mss->bd_flags |= BD_F_MSS_OFFSET;
+	    mss->io_rid = 2;
+	    break;
+	    
 #if 0
 	case 0x0000561e:			/* GRV0000 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
