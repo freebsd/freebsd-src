@@ -153,6 +153,7 @@ kmem_alloc(map, size)
 	vm_offset_t offset;
 	vm_offset_t i;
 
+	mtx_assert(&Giant, MA_OWNED);
 	size = round_page(size);
 
 	/*
@@ -230,6 +231,8 @@ kmem_free(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
+
+	mtx_assert(&Giant, MA_OWNED);
 	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
 }
 
