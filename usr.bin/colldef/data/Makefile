@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 1998/08/10 09:49:42 phk Exp $
+# $Id: Makefile,v 1.16 1999/01/21 19:41:38 imp Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -33,6 +33,7 @@ DELINKS = de_AT de_CH
 .SUFFIXES: .src .out
 
 .src.out:
+	PATH=${.OBJDIR}/..:/usr/bin \
 	colldef -I ${.CURDIR} -o ${.TARGET} ${.IMPSRC}
 
 .if !defined(_BUILD_TOOLS)
