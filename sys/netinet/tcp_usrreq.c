@@ -162,9 +162,9 @@ tcp_usr_detach(struct socket *so)
 
 	INP_INFO_WLOCK(&tcbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
+	if (inp == NULL) {
 		INP_INFO_WUNLOCK(&tcbinfo);
-		return EINVAL;	/* XXX */
+		return error;
 	}
 	INP_LOCK(inp);
 	tp = intotcpcb(inp);
