@@ -31,13 +31,14 @@
  *
  * $FreeBSD$
  */
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <string.h>
-#include <unistd.h>
+#include <paths.h>
 #include <pthread.h>
-#include <errno.h>
+#include <unistd.h>
 #include "pthread_private.h"
 
 #ifndef NELEMENTS
@@ -85,15 +86,18 @@ _thread_dump_info(void)
 	int             fd;
 	int             i;
 	pthread_t       pthread;
-	char		tmpfile[128];
+	char		*tmpdir;
+	char		tmpfile[PATH_MAX];
 	pq_list_t	*pq_list;
 
+	if (issetugid() != 0 || (tmpdir = getenv("TMPDIR")) == NULL)
+		tmpdir = _PATH_TMP;
 	for (i = 0; i < 100000; i++) {
-		snprintf(tmpfile, sizeof(tmpfile), "/tmp/uthread.dump.%u.%i",
-			getpid(), i);
+		snprintf(tmpfile, sizeof(tmpfile), "%s/uthread.dump.%u.%i",
+			tmpdir, getpid(), i);
 		/* Open the dump file for append and create it if necessary: */
 		if ((fd = __sys_open(tmpfile, O_RDWR | O_CREAT | O_EXCL,
-			0666)) < 0) {
+			0644)) < 0) {
 				/* Can't open the dump file. */
 				if (errno == EEXIST)
 					continue;
