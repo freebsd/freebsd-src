@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.76 1999/05/08 11:06:45 brian Exp $
+ * $Id: ipcp.c,v 1.77 1999/05/09 20:02:19 brian Exp $
  *
  *	TODO:
  *		o Support IPADDRS properly
@@ -903,6 +903,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 		   inet_ntoa(ipcp->my_ip));
 	  log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  ipcp->my_ip = ipaddr;
+          bundle_AdjustFilters(fp->bundle, &ipcp->my_ip, NULL);
 	} else {
 	  log_Printf(log_IsKept(LogIPCP) ? LogIPCP : LogPHASE,
                     "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
@@ -1186,7 +1187,7 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
       ipcp->peer_ip = ChooseHisAddr(bundle, ipcp->my_ip);
       if (ipcp->peer_ip.s_addr == INADDR_ANY) {
         log_Printf(LogWARN, "%s: None available !\n", ipcp->cfg.peer_list.src);
-        return(0);
+        return 0;
       }
       ipcp->cfg.peer_range.ipaddr.s_addr = ipcp->peer_ip.s_addr;
       ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
@@ -1206,7 +1207,9 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
   } else
     return 0;
 
-  return 1;
+  bundle_AdjustFilters(bundle, NULL, &ipcp->peer_ip);
+
+  return 1;	/* Ok */
 }
 
 struct in_addr

@@ -15,14 +15,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.13 1999/01/19 22:16:01 brian Exp $
+ * $Id: filter.h,v 1.14 1999/01/28 01:56:31 brian Exp $
  *
  *	TODO:
  */
 
-/*
- *   Actions
- */
+/* Actions */
 #define	A_NONE		0
 #define	A_PERMIT	1
 #define	A_DENY		2
@@ -30,30 +28,29 @@
 #define	A_UHOST		4
 #define	A_UPORT		8
 
-/*
- *   Known protocols
- */
+/* Known protocols */
 #define	P_NONE	0
 #define	P_TCP	1
 #define	P_UDP	2
 #define	P_ICMP	3
 
-/*
- *   Operations
- */
+/* Operations */
 #define	OP_NONE	0
 #define	OP_EQ	1
 #define	OP_GT	2
 #define	OP_LT	4
 
+/* srctype or dsttype */
+#define T_ADDR		0
+#define T_MYADDR	1
+#define T_HISADDR	2
+
 struct filterent {
   int action;			/* Filtering action */
-  int swidth;			/* Effective source address width */
-  struct in_addr saddr;		/* Source address */
-  struct in_addr smask;		/* Source address mask */
-  int dwidth;			/* Effective destination address width */
-  struct in_addr daddr;		/* Destination address */
-  struct in_addr dmask;		/* Destination address mask */
+  unsigned srctype : 2;		/* T_ value of src */
+  struct in_range src;		/* Source address */
+  unsigned dsttype : 2;		/* T_ value of dst */
+  struct in_range dst;		/* Destination address */
   int proto;			/* Protocol */
   struct {
     short srcop;
@@ -91,3 +88,5 @@ extern const char * filter_Action2Nam(int);
 extern const char *filter_Proto2Nam(int);
 extern const char *filter_Op2Nam(int);
 extern struct in_addr bits2mask(int);
+extern void filter_AdjustAddr(struct filter *, struct in_addr *,
+                              struct in_addr *);
