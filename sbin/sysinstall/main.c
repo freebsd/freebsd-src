@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.14 1994/11/11 23:22:56 jkh Exp $
+ * $Id: main.c,v 1.15 1994/11/12 05:40:26 phk Exp $
  *
  */
 
@@ -45,7 +45,7 @@ handle_intr(int sig)
 	dialog_update();
 	dialog_msgbox("User Interrupt",
 		      "User interrupted.  Aborting the installation",
-		      10, 72, 1);
+		      -1, -1, 1);
 	ExitSysinstall();
 }
 

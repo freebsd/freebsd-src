@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.27 1994/11/16 14:42:22 ache Exp $
+ * $Id: utils.c,v 1.28 1994/11/17 14:12:38 jkh Exp $
  *
  */
 
@@ -101,7 +101,7 @@ AskAbort(char *fmt, ...)
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
 	strcat(p, "\n\nDo you wish to abort the installation?");
-	if (!dialog_yesno("Abort", p, 15, 60)) {
+	if (!dialog_yesno("Abort", p, -1, -1)) {
 		dialog_clear();
 		Abort();
 	}
@@ -113,7 +113,7 @@ void
 Abort()
 {
 	if (dialog_yesno("Exit sysinstall","\n\nAre you sure you want to quit?",
-						  10, 40)) {
+						  -1, -1)) {
 		dialog_clear();
 		return;
 	}
@@ -132,7 +132,7 @@ ExitSysinstall()
 			if (dialog_active) {
 				clear();
 				dialog_msgbox(TITLE, "\n\nCan't reboot machine -- hit reset button",
-						  5,30,0);
+						 -1,-1,0);
 			} else
 				fprintf(stderr, "Can't reboot the machine -- hit the reset button");
 			while(1);
