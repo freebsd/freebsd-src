@@ -998,6 +998,8 @@ dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	if (*dev != NODEV)
 		return;
+	if (pcm_devclass == NULL)
+		return;
 	unit = -1;
 
 	devtype = SND_DEV_DSP;
