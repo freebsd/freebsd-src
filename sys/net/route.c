@@ -755,7 +755,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		if (netmask) {
 			rt_maskedcopy(dst, ndst, netmask);
 		} else
-			Bcopy(dst, ndst, dst->sa_len);
+			bcopy(dst, ndst, dst->sa_len);
 
 		/*
 		 * Note that we now have a reference to the ifa.
@@ -1052,14 +1052,14 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	/*
 	 * copy the new gateway value into the memory chunk
 	 */
-	Bcopy(gate, (rt->rt_gateway = (struct sockaddr *)(new + dlen)), glen);
+	bcopy(gate, (rt->rt_gateway = (struct sockaddr *)(new + dlen)), glen);
 
 	/*
 	 * if we are replacing the chunk (or it's new) we need to
 	 * replace the dst as well
 	 */
 	if (old) {
-		Bcopy(dst, new, dlen);
+		bcopy(dst, new, dlen);
 		Free(old);
 		old = 0;
 	}
