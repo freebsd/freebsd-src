@@ -635,7 +635,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
     }
 
     if (ip->ip_off & (IP_MF | IP_OFFMASK))
-	    snprintf(SNPARGS(fragment, 0), " (frag %d:%d@%d%s)", 
+	    snprintf(SNPARGS(fragment, 0), " (frag %d:%d@%d%s)",
 		     ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
 		     offset << 3,
 		     (ip->ip_off & IP_MF) ? "+" : "");
