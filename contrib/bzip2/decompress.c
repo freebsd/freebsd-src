@@ -8,7 +8,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -235,18 +235,18 @@ Int32 BZ2_decompress ( DState* s )
    switch (s->state) {
 
       GET_UCHAR(BZ_X_MAGIC_1, uc);
-      if (uc != 'B') RETURN(BZ_DATA_ERROR_MAGIC);
+      if (uc != BZ_HDR_B) RETURN(BZ_DATA_ERROR_MAGIC);
 
       GET_UCHAR(BZ_X_MAGIC_2, uc);
-      if (uc != 'Z') RETURN(BZ_DATA_ERROR_MAGIC);
+      if (uc != BZ_HDR_Z) RETURN(BZ_DATA_ERROR_MAGIC);
 
       GET_UCHAR(BZ_X_MAGIC_3, uc)
-      if (uc != 'h') RETURN(BZ_DATA_ERROR_MAGIC);
+      if (uc != BZ_HDR_h) RETURN(BZ_DATA_ERROR_MAGIC);
 
       GET_BITS(BZ_X_MAGIC_4, s->blockSize100k, 8)
-      if (s->blockSize100k < '1' || 
-          s->blockSize100k > '9') RETURN(BZ_DATA_ERROR_MAGIC);
-      s->blockSize100k -= '0';
+      if (s->blockSize100k < (BZ_HDR_0 + 1) || 
+          s->blockSize100k > (BZ_HDR_0 + 9)) RETURN(BZ_DATA_ERROR_MAGIC);
+      s->blockSize100k -= BZ_HDR_0;
 
       if (s->smallDecompress) {
          s->ll16 = BZALLOC( s->blockSize100k * 100000 * sizeof(UInt16) );
