@@ -27,15 +27,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: ipcrm.c,v 1.1 1994/09/13 16:52:12 dfr Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+ 
+#include <ctype.h>
+#include <err.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <err.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -50,8 +54,9 @@ int signaled;
 
 void usage()
 {
-        fprintf(stderr, "usage: ipcrm [ [-q msqid] [-m shmid] [-s semid]\n");
-	fprintf(stderr, "        [-Q msgkey] [-M shmkey] [-S semkey] ...]\n");
+	fprintf(stderr, "%s\n%s\n",
+		"usage: ipcrm [-q msqid] [-m shmid] [-s semid]",
+		"             [-Q msgkey] [-M shmkey] [-S semkey] ...");
 	exit(1);
 }
 
