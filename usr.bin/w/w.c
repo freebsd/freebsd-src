@@ -127,7 +127,7 @@ main(argc, argv)
 	FILE *ut;
 	u_long l;
 	size_t arglen;
-	int ch, i, nentries, nusers, wcmd;
+	int ch, i, nentries, nusers, wcmd, longidle;
 	char *memf, *nlistf, *p, *vis_args, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
 
@@ -345,7 +345,9 @@ main(argc, argv)
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
 		    UT_HOSTSIZE, UT_HOSTSIZE, *p ? p : "-");
 		pr_attime(&ep->utmp.ut_time, &now);
-		pr_idle(ep->idle);
+		longidle=pr_idle(ep->idle);
+		if (longidle)
+			argwidth--;
 		if (ep->args != NULL) {
 			arglen = strlen(ep->args);
 			strvisx(vis_args, ep->args,

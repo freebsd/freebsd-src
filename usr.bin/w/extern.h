@@ -35,5 +35,5 @@
 
 struct proc;
 void	pr_attime __P((time_t *, time_t *));
-void	pr_idle __P((time_t));
+int	pr_idle __P((time_t));
 int	proc_compare __P((struct proc *, struct proc *));
