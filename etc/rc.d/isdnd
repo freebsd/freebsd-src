@@ -6,11 +6,11 @@
 #
 #	last edit-date: [Mon Mar  8 12:15:56 1999]
 #
-#	$Id: rc.isdn,v 1.1 1999/01/13 08:20:55 hm Exp $
+#	$Id: rc.isdn,v 1.2 1999/03/08 11:28:45 hm Exp $
 #
 #---------------------------------------------------------------------------
 
-if [ "X${isdn_enable}" = X"YES" ] ; then
+if [ "${isdn_enable}" = "YES" ] ; then
 
 	echo -n 'ISDN subsystem setup:'
 
@@ -24,14 +24,14 @@ if [ "X${isdn_enable}" = X"YES" ] ; then
 		fi
 	fi
 	
-	if [ "X${isdn_flags}" = X"NO" ] ; then
+	if [ "${isdn_flags}" = "NO" ] ; then
 		isdn_flags=""
 	fi
 	
 	# start the isdn daemon
 	if [ -x /usr/sbin/isdnd ] ; then
 		echo -n ' isdnd'
-		if [ "X${isdn_fsdev}" = X"NO" ] ; then
+		if [ "${isdn_fsdev}" = "NO" ] ; then
 			/usr/sbin/isdnd ${isdn_flags} 
 		else
 			/usr/sbin/isdnd ${isdn_flags} -f -r ${isdn_fsdev} -t ${isdn_ttype}
@@ -39,7 +39,7 @@ if [ "X${isdn_enable}" = X"YES" ] ; then
 	fi
 
 	# start isdntrace	
-	if [ "X${isdn_trace}" = X"YES" -a -x /usr/sbin/isdntrace ] ; then
+	if [ "${isdn_trace}" = "YES" -a -x /usr/sbin/isdntrace ] ; then
 		echo -n ' isdntrace'
 		nohup /usr/sbin/isdntrace ${isdn_traceflags} >/dev/null 2>&1 &
 	fi
