@@ -2058,7 +2058,7 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 				filesize -= cnt;
 
 				if (err == -1) {
-					if (!cnt)
+					if (cnt == 0 && offset == 0)
 						goto oldway;
 
 					goto data_err;
