@@ -1,7 +1,7 @@
-<!-- $Id:$ -->
+<!-- $Id: handbook.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN" [
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 <!ENTITY % authors SYSTEM "authors.sgml">
 %authors;
 
