@@ -35,6 +35,8 @@ static char * const rcsid =
 #endif
 #endif /* not lint */
 
+#include <sys/types.h>
+
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
