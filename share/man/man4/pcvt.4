@@ -167,7 +167,7 @@ is omitted, a built-in default is assumed.
 .Bl -tag -width indent -compact
 .It Em PCVT_NSCREENS
 Defines the number of virtual screens.
-.It No
+.Pp
 Default: 8
 .Pp
 .It Em PCVT_VT220KEYB
@@ -180,12 +180,12 @@ and
 in the
 .Nm
 documentation directory for a full description.
-.It No
+.Pp
 Default: off
 .Pp
 .It Em PCVT_SCREENSAVER
 Enables the builtin screensaver feature.
-.It No
+.Pp
 Default: on
 .Pp
 .It Em PCVT_PRETTYSCRNS
@@ -193,7 +193,7 @@ If enabled, a blinking-star screensaver is used.
 If disabled, the screen
 is simply blanked
 .Pq which might be useful for energy-saving monitors .
-.It No
+.Pp
 Default: on
 .Pp
 .It Em PCVT_CTRL_ALT_DEL
@@ -202,12 +202,12 @@ If enabled, the key combination
 .Aq Em Alt
 .Aq Em Del
 invokes a CPU reset.
-.It No
+.Pp
 Default: off
 .Pp
 .It Em PCVT_USEKBDSEC
 Do NOT override a security lock for the keyboard.
-.It No
+.Pp
 Default: on
 .Pp
 .It Em PCVT_24LINESDEF
@@ -222,7 +222,7 @@ Note that this is a startup option; it is possible to toggle between
 the 24- and 25-lines' display by the
 .Xr scon 1
 utility.
-.It No
+.Pp
 Default: off
 .Pp
 .It Em PCVT_META_ESC
@@ -234,7 +234,7 @@ key modifier.
 If disabled, then normal key code with the value
 .Em 0x80
 added is sent.
-.It No
+.Pp
 Default: off
 .El
 .Pp
