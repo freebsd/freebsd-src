@@ -40,7 +40,6 @@ SUBDIR=	apply \
 	dirname \
 	du \
 	ee \
-	elf2aout \
 	enigma \
 	env \
 	expand \
