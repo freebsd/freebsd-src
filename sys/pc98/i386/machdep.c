@@ -232,7 +232,7 @@ cpu_startup(dummy)
 	vm_size_t size = 0;
 	int firstaddr;
 	vm_offset_t minaddr;
-	int physmem_est;
+	int physmem_est;	/* in pages */
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -304,8 +304,10 @@ again:
 	if (kernel_map->first_free == NULL) {
 		printf("Warning: no free entries in kernel_map.\n");
 		physmem_est = physmem;
-	} else
-		physmem_est = min(physmem, kernel_map->max_offset - kernel_map->min_offset);
+	} else {
+		physmem_est = min(physmem, btoc(kernel_map->max_offset -
+		    kernel_map->min_offset));
+	}
 
 	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
@@ -326,7 +328,7 @@ again:
 		if (physmem_est > 16384)
 			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
 
-		if (maxbcache && nbuf > physmem_est / BKVASIZE)
+		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
 	}
 
