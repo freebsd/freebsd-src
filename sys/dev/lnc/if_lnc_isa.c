@@ -221,8 +221,6 @@ lnc_isa_attach(device_t dev)
 	    sc->rdp = BICC_RDP;
 	}
 
-	printf("rap = %x\n", sc->rap);
-
 	/* Create a DMA tag describing the ring memory we need */
 
 	lnc_mem_size = ((NDESC(sc->nrdre) + NDESC(sc->ntdre)) *
