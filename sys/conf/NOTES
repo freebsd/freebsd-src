@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.346 1997/06/22 16:02:55 peter Exp $
+#	$Id: LINT,v 1.347 1997/06/27 13:46:09 kato Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -641,9 +641,11 @@ options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 # `flags' for sc0:
 #       0x01    Use a 'visual' bell
 #       0x02    Use a 'blink' cursor
-#       0x04    Use a 'block' cursor
+#       0x04    Use a 'underline' cursor
+#       0x06    Use a 'blinking underline' (destructive) cursor
 #       0x08    Force detection of keyboard, else we always assume a keyboard
 #       0x10    Old-style (XT) keyboard support, useful for older ThinkPads
+#       0x20    Don't reset keyboard, useful for some newer ThinkPads
 
 #
 # The Numeric Processing eXtension driver.  This should be configured if
@@ -812,6 +814,9 @@ device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # Options for psm:
 options		PSM_CHECKSYNC		#checks the header byte for sync.
+options		PSM_HOOKAPM		#hook the APM resume event, useful
+					#for some laptops
+options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 
