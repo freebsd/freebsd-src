@@ -1,5 +1,4 @@
 /*	$NetBSD: if_en_pci.c,v 1.1 1996/06/22 02:00:31 chuck Exp $	*/
-
 /*
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
@@ -31,11 +30,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
- *
  * i f _ e n _ p c i . c  
  *
  * author: Chuck Cranor <chuck@ccrc.wustl.edu>
@@ -44,6 +41,10 @@
  * FreeBSD PCI glue for the eni155p card.
  * thanks to Matt Thomas for figuring out FreeBSD vs NetBSD vs etc.. diffs.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>

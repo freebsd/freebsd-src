@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_snapshot.c	8.11 (McKusick) 7/23/00
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

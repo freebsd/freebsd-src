@@ -31,12 +31,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
 /*
- * Developed by the TrustedBSD Project.
  * Support for filesystem extended attribute: UFS-specific support functions.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ufs.h"
 

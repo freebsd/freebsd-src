@@ -1,7 +1,4 @@
 /*	$NetBSD: if_de.c,v 1.86 1999/06/01 19:17:59 thorpej Exp $	*/
-
-/* $FreeBSD$ */
-
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
  * All rights reserved.
@@ -26,7 +23,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Id: if_de.c,v 1.94 1997/07/03 16:55:07 thomas Exp
- *
  */
 
 /*
@@ -38,6 +34,10 @@
  *   This driver supports the DEC DE435 or any other PCI
  *   board which support 21040, 21041, or 21140 (mostly).
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #define	TULIP_HDR_DATA
 
 #include <sys/param.h>
