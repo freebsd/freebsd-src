@@ -986,7 +986,9 @@ fpathconf(td, uap)
 	case DTYPE_VNODE:
 		vp = fp->f_data;
 		mtx_lock(&Giant);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
+		VOP_UNLOCK(vp, 0, td);
 		mtx_unlock(&Giant);
 		break;
 	default:
