@@ -2,15 +2,13 @@
 
 .include "../Makefile.inc"
 
-.PATH: ${GCCDIR}
+.PATH: ../cc_tools ${GCCDIR}
  
 PROG=	cc1
-SRCS=	c-parse.y c-lang.c
-# Ugh, compiled twice...
-SRCS+=	c-decl.c c-lex.c
+SRCS=	main.c c-parse.c c-lang.c c-decl.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED=yes
+NOSHARED?=yes
 
 CFLAGS+= -I.
 
@@ -19,13 +17,17 @@ LDADD+=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # C parser
-c-parse.y: c-parse.in
+.ORDER: c-parse.c
+c-parse.c: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
 	    -e "/^ifc$$/d" \
 	    -e "/^end ifc$$/d" \
-	    ${.ALLSRC} > ${.TARGET}
+	    ${GCCDIR}/c-parse.in > c-parse.y
+	${YACC} -o c-parse.c.in c-parse.y
+	sed -e "s/malloc/xmalloc/g" \
+	    -e "s/realloc/xrealloc/g" \
+	    c-parse.c.in >c-parse.c
 
-CLEANFILES+=	c-parse.y
-#-----------------------------------------------------------------------
+CLEANFILES+=	c-parse.c           c-parse.y		# insurance
 
 .include <bsd.prog.mk>

@@ -6,6 +6,7 @@ SRCDIR=	${.CURDIR}/../../../contrib/binutils/libiberty
 
 LIB=    iberty
 NOPIC=	true
+INTERNALLIB=	true
 NOMAN=	sorry
 
 # miniumally required sources

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include "../Makefile.inc"
+.include "../Makefile.fe"
 
 .PATH: ${GCCDIR}
 
