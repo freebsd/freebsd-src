@@ -118,6 +118,16 @@ struct encaps {
 };
 
 /*
+ * Supported traffic type
+ */
+struct traffics {
+	const char *t_name;		/* Traffic name: CBR, VBR, UBR, ... */
+	uint8_t	t_type;			/* HARP code T_ATM_XXX */
+	int	t_argc;			/* Number of args */
+	const char *help;		/* User help string */
+};
+
+/*
  * External variables
  */
 extern char	*prog;			/* Program invocation */
