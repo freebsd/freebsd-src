@@ -39,7 +39,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfscanf.c,v 1.32 2003/06/28 09:03:05 das Exp ");
+__FBSDID("FreeBSD: src/lib/libc/stdio/vfscanf.c,v 1.35 2004/01/31 23:16:09 das Exp ");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #define	NDIGITS		0x80	/* no digits detected */
 #define	PFXOK		0x100	/* 0x prefix is (still) legal */
 #define	NZDIGITS	0x200	/* no zero digits detected */
+#define	HAVESIGN	0x10000	/* sign detected */
 
 /*
  * Conversion types.
@@ -603,13 +604,18 @@ literal:
 				case '+': case '-':
 					if (flags & SIGNOK) {
 						flags &= ~SIGNOK;
+						flags |= HAVESIGN;
 						goto ok;
 					}
 					break;
-
-				/* x ok iff flag still set & 2nd char */
+					
+				/*
+				 * x ok iff flag still set & 2nd char (or
+				 * 3rd char if we have a sign).
+				 */
 				case 'x': case 'X':
-					if (flags & PFXOK && p == buf + 1) {
+					if (flags & PFXOK && p ==
+					    buf + 1 + !!(flags & HAVESIGN)) {
 						base = 16;	/* if %i */
 						flags &= ~PFXOK;
 						goto ok;
