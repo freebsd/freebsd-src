@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.26 1998/02/01 11:52:37 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.27 1998/02/04 10:32:28 kato Exp $
  */
 
 #include "sc.h"
@@ -105,6 +105,10 @@
 #define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS)
 #endif
 
+#if !defined(SC_MOUSE_CHAR)
+#define SC_MOUSE_CHAR		(0xd0)
+#endif
+
 #define COLD 0
 #define WARM 1
 
@@ -163,6 +167,7 @@ static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
+static  char        	font_loading_in_progress = FALSE;
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
 static  char        	blink_in_progress = FALSE;
@@ -188,11 +193,13 @@ static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
 static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
+#ifndef	PC98
 	char        	*video_mode_ptr = NULL;
 	int     	fonts_loaded = 0;
 	char        	font_8[256*8];
 	char		font_14[256*14];
 	char		font_16[256*16];
+#endif
 	char        	palette[256*3];
 static  char		*mode_map[MODE_MAP_SIZE];
 static  char		vgaregs[MODE_PARAM_SIZE];
@@ -275,11 +282,13 @@ static char *get_mode_param(scr_stat *scp, u_char mode);
 static u_int scgetc(u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
+static void sccnupdate(scr_stat *scp);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
+static void scrn_update(scr_stat *scp, int show_cursor);
 static void stop_scrn_saver(void (*saver)(int));
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
@@ -1038,9 +1047,6 @@ scintr(int unit)
     int c, len;
     u_char *cp;
 
-    /* make screensaver happy */
-    scrn_time_stamp = mono_time.tv_sec;
-
     /* 
      * Loop while there is still input to get from the keyboard.
      * I don't think this is nessesary, and it doesn't fix
@@ -1699,22 +1705,26 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return EINVAL;
 	    scp->xsize = 80;
 	    scp->ysize = 60;
+	    scp->font_size = 8;
 	    break;
 	case M_VGA_C80x50: case M_VGA_M80x50:
 	    if (!(fonts_loaded & FONT_8))
 		return EINVAL;
 	    scp->xsize = 80;
 	    scp->ysize = 50;
+	    scp->font_size = 8;
 	    break;
 	case M_ENH_B80x43: case M_ENH_C80x43:
 	    if (!(fonts_loaded & FONT_8))
 		return EINVAL;
 	    scp->xsize = 80;
 	    scp->ysize = 43;
+	    scp->font_size = 8;
 	    break;
 	case M_VGA_C80x30: case M_VGA_M80x30:
 	    scp->xsize = 80;
 	    scp->ysize = 30;
+	    scp->font_size = mp[2];
 	    break;
 	case M_ENH_C40x25: case M_ENH_B40x25:
 	case M_ENH_C80x25: case M_ENH_B80x25:
@@ -1727,25 +1737,31 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return EINVAL;
             scp->xsize = mp[0];
             scp->ysize = mp[1] + rows_offset;
+	    scp->font_size = mp[2];
 	    break;
 	}
 #endif
+
+	scp->status &= ~MOUSE_VISIBLE;
 	scp->mode = cmd & 0xff;
+	scp->xpixel = scp->xsize * 8;
+	scp->ypixel = scp->ysize * scp->font_size;
 	free(scp->scr_buf, M_DEVBUF);
 	scp->scr_buf = (u_short *)
 	    malloc(scp->xsize*scp->ysize*sizeof(u_short), M_DEVBUF, M_WAITOK);
-    	scp->cursor_pos = scp->cursor_oldpos =
-	    scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
-    	scp->mouse_pos = scp->mouse_oldpos = 
-	    scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
-	    scp->mouse_xpos/8);
-#ifdef	PC98
+#ifdef PC98
 	free(scp->atr_buf, M_DEVBUF); 
 	scp->atr_buf = (u_short *)
-		malloc(scp->xsize*scp->ysize*sizeof(u_short),M_DEVBUF, M_WAITOK);
-	scp->cursor_atr = 
-	    scp->atr_buf + scp->xpos + scp->ypos * scp->xsize;
+	    malloc(scp->xsize*scp->ysize*sizeof(u_short),M_DEVBUF, M_WAITOK);
 #endif
+	/* move the text cursor to the home position */
+	move_crsr(scp, 0, 0);
+	/* move the mouse cursor at the center of the screen */
+	scp->mouse_xpos = scp->xpixel / 2;
+	scp->mouse_ypos = scp->ypixel / 2;
+    	scp->mouse_pos = scp->mouse_oldpos = 
+	    scp->scr_buf + (scp->mouse_ypos / scp->font_size) * scp->xsize 
+	    + scp->mouse_xpos / 8;
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
@@ -1802,9 +1818,14 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if (mp == NULL)
 	    return ENODEV;
 
+	scp->status &= ~MOUSE_VISIBLE;
 	scp->mode = cmd & 0xFF;
 	scp->xpixel = mp[0] * 8;
 	scp->ypixel = (mp[1] + rows_offset) * mp[2];
+	scp->font_size = FONT_NONE;
+	/* move the mouse cursor at the center of the screen */
+	scp->mouse_xpos = scp->xpixel / 2;
+	scp->mouse_ypos = scp->ypixel / 2;
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status |= UNKNOWN_MODE;    /* graphics mode */
@@ -1964,6 +1985,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #endif
 
 	case KD_TEXT1:  	/* switch to TEXT (known) mode */
+	    scp->status &= ~MOUSE_VISIBLE;
 	    /* no restore fonts & palette */
 #ifdef PC98
 	    scp->status &= ~UNKNOWN_MODE;
@@ -1976,6 +1998,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return 0;
 
 	case KD_GRAPHICS:	/* switch to GRAPHICS (unknown) mode */
+	    scp->status &= ~MOUSE_VISIBLE;
 	    scp->status |= UNKNOWN_MODE;
 #ifdef PC98
 	    set_mode(scp);
@@ -2165,6 +2188,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	bcopy(data, &accent_map, sizeof(accent_map));
 	return 0;
 
+#ifdef PC98
+    case PIO_FONT8x8:		/* set 8x8 dot font */
+    case GIO_FONT8x8:		/* get 8x8 dot font */
+    case PIO_FONT8x14:		/* set 8x14 dot font */
+    case GIO_FONT8x14:		/* get 8x14 dot font */
+    case PIO_FONT8x16:		/* set 8x16 dot font */
+    case GIO_FONT8x16:		/* get 8x16 dot font */
+               return ENXIO;
+#else
     case PIO_FONT8x8:   	/* set 8x8 dot font */
 	if (!crtc_vga)
 	    return ENXIO;
@@ -2230,6 +2262,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	}
 	else
 	    return ENXIO;
+#endif	/* PC98 */
+
 #ifdef PC98
     case ADJUST_CLOCK:	/* /dev/rtc for 98note resume */
 	inittodr(0);
@@ -2343,21 +2377,9 @@ sccnputc(dev_t dev, int c)
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
-    s = splclock();
-    if (scp == cur_console && !(scp->status & UNKNOWN_MODE)) {
-	if (/* timer not running && */ (scp->start <= scp->end)) {
-	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
-		   (1 + scp->end - scp->start) * sizeof(u_short));
-#ifdef PC98
-	    sc_bcopy(scp->atr_buf + scp->start, Atrat + scp->start,
-		   (1 + scp->end - scp->start) * sizeof(u_short));
-#endif
-	    scp->start = scp->xsize * scp->ysize;
-	    scp->end = 0;
-	}
-    	scp->cursor_oldpos = scp->cursor_pos;
-	draw_cursor_image(scp);
-    }
+
+    s = spltty();	/* block scintr and scrn_timer */
+    sccnupdate(scp);
     splx(s);
 }
 
@@ -2368,16 +2390,12 @@ sccngetc(dev_t dev)
     int c;
 
     /* 
-     * Stop the screen saver if necessary.
+     * Stop the screen saver and update the screen if necessary.
      * What if we have been running in the screen saver code... XXX
      */
-    if (scrn_blanked > 0)
-        stop_scrn_saver(current_saver);
+    sccnupdate(cur_console);
 
     c = scgetc(SCGETC_CN);
-
-    /* make sure the screen saver won't be activated soon */
-    scrn_time_stamp = mono_time.tv_sec;
     splx(s);
     return(c);
 }
@@ -2385,16 +2403,25 @@ sccngetc(dev_t dev)
 int
 sccncheckc(dev_t dev)
 {
-    int c, s;
+    int s = spltty();	/* block scintr and scrn_timer while we poll */
+    int c;
 
-    s = spltty();
-    if (scrn_blanked > 0)
-        stop_scrn_saver(current_saver);
+    sccnupdate(cur_console);
     c = scgetc(SCGETC_CN | SCGETC_NONBLOCK);
-    if (c != NOKEY)
-        scrn_time_stamp = mono_time.tv_sec;
     splx(s);
     return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
+}
+
+static void
+sccnupdate(scr_stat *scp)
+{
+    if (scp == cur_console && !font_loading_in_progress) {
+	if (scrn_blanked > 0)
+            stop_scrn_saver(current_saver);
+	if (!(scp->status & UNKNOWN_MODE) && scrn_blanked <= 0 
+	    && !blink_in_progress && !switch_in_progress)
+	    scrn_update(scp, TRUE);
+    }
 }
 
 static scr_stat
@@ -2423,7 +2450,14 @@ static void
 scrn_timer(void *arg)
 {
     scr_stat *scp = cur_console;
-    int s = spltty();
+    int s;
+
+    /* don't do anything when we are touching font */
+    if (font_loading_in_progress) {
+	timeout(scrn_timer, NULL, hz / 10);
+	return;
+    }
+    s = spltty();
 
     /* 
      * With release 2.1 of the Xaccel server, the keyboard is left
@@ -2456,75 +2490,15 @@ scrn_timer(void *arg)
     }
 
     /* should we stop the screen saver? */
+    if (panicstr)
+	scrn_time_stamp = mono_time.tv_sec;
     if (mono_time.tv_sec <= scrn_time_stamp + scrn_blank_time)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
 
-    if (scrn_blanked <= 0) {
-	/* update screen image */
-	if (scp->start <= scp->end) {
-	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
-		   (1 + scp->end - scp->start) * sizeof(u_short));
-#ifdef PC98
-	    sc_bcopy(scp->atr_buf + scp->start, Atrat + scp->start,
-		   (1 + scp->end - scp->start) * sizeof(u_short));
-#endif
-	}
-
-	/* update "pseudo" mouse pointer image */
-	if ((scp->status & MOUSE_VISIBLE) && crtc_vga) {
-	    /* did mouse move since last time ? */
-	    if (scp->status & MOUSE_MOVED) {
-		/* do we need to remove old mouse pointer image ? */
-		if (scp->mouse_cut_start != NULL ||
-		    (scp->mouse_pos-scp->scr_buf) <= scp->start ||
-		    (scp->mouse_pos+scp->xsize+1-scp->scr_buf) >= scp->end) {
-		    remove_mouse_image(scp);
-		}
-		scp->status &= ~MOUSE_MOVED;
-		draw_mouse_image(scp);
-	    }
-	    else {
-		/* mouse didn't move, has it been overwritten ? */
-		if ((scp->mouse_pos+scp->xsize+1-scp->scr_buf) >= scp->start &&
-		    (scp->mouse_pos - scp->scr_buf) <= scp->end) {
-		    draw_mouse_image(scp);
-		}
-	    }
-	}
-	
-	/* update cursor image */
-	if (scp->status & CURSOR_ENABLED) {
-	    /* did cursor move since last time ? */
-	    if (scp->cursor_pos != scp->cursor_oldpos) {
-		/* do we need to remove old cursor image ? */
-		if ((scp->cursor_oldpos - scp->scr_buf) < scp->start ||
-		    ((scp->cursor_oldpos - scp->scr_buf) > scp->end)) {
-		    remove_cursor_image(scp);
-		}
-    		scp->cursor_oldpos = scp->cursor_pos;
-		draw_cursor_image(scp);
-	    }
-	    else {
-		/* cursor didn't move, has it been overwritten ? */
-		if (scp->cursor_pos - scp->scr_buf >= scp->start &&
-		    scp->cursor_pos - scp->scr_buf <= scp->end) {
-		    	draw_cursor_image(scp);
-		} else {
-		    /* if its a blinking cursor, we may have to update it */
-		    if (flags & BLINK_CURSOR)
-			draw_cursor_image(scp);
-		}
-	    }
-	    blinkrate++;
-	}
-
-	if (scp->mouse_cut_start != NULL)
-	    draw_cutmarking(scp);
-
-	scp->end = 0;
-	scp->start = scp->xsize*scp->ysize;
-    }
+    scp = cur_console;
+    if (scrn_blanked <= 0)
+	scrn_update(scp, TRUE);
 
     /* should we activate the screen saver? */
     if ((scrn_blank_time != 0) 
@@ -2533,6 +2507,81 @@ scrn_timer(void *arg)
 
     timeout(scrn_timer, NULL, hz / 25);
     splx(s);
+}
+
+static void 
+scrn_update(scr_stat *scp, int show_cursor)
+{
+    /* update screen image */
+    if (scp->start <= scp->end) {
+        sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
+    	    (1 + scp->end - scp->start) * sizeof(u_short));
+#ifdef PC98
+	sc_bcopy(scp->atr_buf + scp->start, Atrat + scp->start,
+	    (1 + scp->end - scp->start) * sizeof(u_short));
+#endif
+    }
+
+    /* we are not to show the cursor and the mouse pointer... */
+    if (!show_cursor) {
+        scp->end = 0;
+        scp->start = scp->xsize*scp->ysize;
+	return;
+    }
+
+    /* update "pseudo" mouse pointer image */
+    if (scp->status & MOUSE_VISIBLE) {
+        /* did mouse move since last time ? */
+        if (scp->status & MOUSE_MOVED) {
+            /* do we need to remove old mouse pointer image ? */
+            if (scp->mouse_cut_start != NULL ||
+                (scp->mouse_pos-scp->scr_buf) <= scp->start ||
+                (scp->mouse_pos+scp->xsize + 1 - scp->scr_buf) >= scp->end) {
+                remove_mouse_image(scp);
+            }
+            scp->status &= ~MOUSE_MOVED;
+            draw_mouse_image(scp);
+        }
+        else {
+            /* mouse didn't move, has it been overwritten ? */
+            if ((scp->mouse_pos+scp->xsize + 1 - scp->scr_buf) >= scp->start &&
+                (scp->mouse_pos - scp->scr_buf) <= scp->end) {
+                draw_mouse_image(scp);
+            }
+        }
+    }
+	
+    /* update cursor image */
+    if (scp->status & CURSOR_ENABLED) {
+        /* did cursor move since last time ? */
+        if (scp->cursor_pos != scp->cursor_oldpos) {
+            /* do we need to remove old cursor image ? */
+            if ((scp->cursor_oldpos - scp->scr_buf) < scp->start ||
+                ((scp->cursor_oldpos - scp->scr_buf) > scp->end)) {
+                remove_cursor_image(scp);
+            }
+            scp->cursor_oldpos = scp->cursor_pos;
+            draw_cursor_image(scp);
+        }
+        else {
+            /* cursor didn't move, has it been overwritten ? */
+            if (scp->cursor_pos - scp->scr_buf >= scp->start &&
+                scp->cursor_pos - scp->scr_buf <= scp->end) {
+                draw_cursor_image(scp);
+            } else {
+                /* if its a blinking cursor, we may have to update it */
+                if (flags & BLINK_CURSOR)
+                    draw_cursor_image(scp);
+            }
+        }
+        blinkrate++;
+    }
+
+    if (scp->mouse_cut_start != NULL)
+        draw_cutmarking(scp);
+
+    scp->end = 0;
+    scp->start = scp->xsize*scp->ysize;
 }
 
 int
@@ -3906,7 +3955,7 @@ scinit(void)
     outb(crtc_addr, 15);
     outb(crtc_addr + 1, 0xff);
 
-#endif /* IBM */
+#endif /* PC98 */
 
     /* set up the first console */
     current_default = &user_default;
@@ -3954,7 +4003,8 @@ scinit(void)
     sc_bcopy(Crtat, sc_buffer,
 	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
-    console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
+    console[0]->scr_buf = console[0]->mouse_pos = console[0]->mouse_oldpos
+	= sc_buffer;
     console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
 #ifdef PC98
     console[0]->atr_buf = Atrat;
@@ -4104,12 +4154,14 @@ init_scp(scr_stat *scp)
 	    scp->mode = M_B80x25;
 	else
 	    scp->mode = M_C80x25;
-#endif
     scp->initial_mode = scp->mode;
 
+#endif
     scp->font_size = 16;
     scp->xsize = COL;
     scp->ysize = ROW;
+    scp->xpixel = scp->xsize * 8;
+    scp->ypixel = scp->ysize * scp->font_size;
     scp->xpos = scp->ypos = 0;
     scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize;
@@ -4253,12 +4305,17 @@ next_code:
     }
     scancode = (u_char)c;
 
-    /* do the /dev/random device a favour */
-    if (!(flags & SCGETC_CN))
+    /* make screensaver happy */
+    if (!(scancode & 0x80))
+	scrn_time_stamp = mono_time.tv_sec;
+
+    if (!(flags & SCGETC_CN)) {
+	/* do the /dev/random device a favour */
 	add_keyboard_randomness(scancode);
 
-    if (cur_console->status & KBD_RAW_MODE)
-	return scancode;
+	if (cur_console->status & KBD_RAW_MODE)
+	    return scancode;
+    }
 
     keycode = scancode & 0x7F;
     switch (esc_flag) {
@@ -4363,7 +4420,7 @@ next_code:
 	break;
     }
 
-    if (cur_console->status & KBD_CODE_MODE)
+    if (!(flags & SCGETC_CN) && (cur_console->status & KBD_CODE_MODE))
 	return (keycode | (scancode & 0x80));
 
     /* if scroll-lock pressed allow history browsing */
@@ -4681,8 +4738,10 @@ next_code:
 #endif
 		break;
 	    case RBT:
+#ifndef SC_DISABLE_REBOOT
 		accents = 0;
 		shutdown_nice();
+#endif
 		break;
 	    case SUSP:
 #if NAPM > 0
@@ -5087,6 +5146,7 @@ set_border(u_char color)
 #ifdef PC98
     case KD_PC98:
         outb(0x6c, color << 4);
+	break;
 #else
     case KD_EGA:
     case KD_VGA:
@@ -5258,6 +5318,8 @@ set_font_mode(u_char *buf)
 {
     int s = splhigh();
 
+    font_loading_in_progress = TRUE;
+
     /* save register values */
     outb(TSIDX, 0x02); buf[0] = inb(TSREG);
     outb(TSIDX, 0x04); buf[1] = inb(TSREG);
@@ -5267,24 +5329,24 @@ set_font_mode(u_char *buf)
     inb(crtc_addr + 6);
     outb(ATC, 0x10); buf[5] = inb(ATC + 1);
 
-    /* setup vga for loading fonts (graphics plane mode) */
+    /* setup vga for loading fonts */
     inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x10); outb(ATC, 0x01);
+    outb(ATC, 0x10); outb(ATC, buf[5] & ~0x01);
     inb(crtc_addr+6);               		/* reset flip-flop */
     outb(ATC, 0x20);            		/* enable palette */
 
 #if SLOW_VGA
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
-    outb(TSIDX, 0x04); outb(TSREG, 0x06);
+    outb(TSIDX, 0x04); outb(TSREG, 0x07);
     outb(GDCIDX, 0x04); outb(GDCREG, 0x02);
     outb(GDCIDX, 0x05); outb(GDCREG, 0x00);
-    outb(GDCIDX, 0x06); outb(GDCREG, 0x05);
+    outb(GDCIDX, 0x06); outb(GDCREG, 0x04);
 #else
     outw(TSIDX, 0x0402);
-    outw(TSIDX, 0x0604);
+    outw(TSIDX, 0x0704);
     outw(GDCIDX, 0x0204);
     outw(GDCIDX, 0x0005);
-    outw(GDCIDX, 0x0506);               /* addr = a0000, 64kb */
+    outw(GDCIDX, 0x0406);               /* addr = a0000, 64kb */
 #endif
     splx(s);
 }
@@ -5321,6 +5383,8 @@ set_normal_mode(u_char *buf)
     else
         outw(GDCIDX, 0x0006 | (((buf[4] & 0x03) | 0x0c)<<8));
 #endif
+
+    font_loading_in_progress = FALSE;
     splx(s);
 }
 #endif
@@ -5388,13 +5452,13 @@ set_destructive_cursor(scr_stat *scp)
     }
 
     if (scp->status & MOUSE_VISIBLE) {
-	if ((scp->cursor_saveunder & 0xff) == 0xd0)
+	if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR)
     	    bcopy(&scp->mouse_cursor[0], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == 0xd1)
+	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 1)
     	    bcopy(&scp->mouse_cursor[32], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == 0xd2)
+	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 2)
     	    bcopy(&scp->mouse_cursor[64], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == 0xd3)
+	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 3)
     	    bcopy(&scp->mouse_cursor[96], cursor, scp->font_size);
 	else
 	    bcopy(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
@@ -5718,13 +5782,16 @@ draw_mouse_image(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
     set_font_mode(buf);
-    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
+    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + SC_MOUSE_CHAR * 32, 
+	     128);
     set_normal_mode(buf);
-    *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
-    *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
+    *(crt_pos) = (*(scp->mouse_pos) & 0xff00) | SC_MOUSE_CHAR;
+    *(crt_pos+scp->xsize) = 
+	(*(scp->mouse_pos + scp->xsize) & 0xff00) | (SC_MOUSE_CHAR + 2);
     if (scp->mouse_xpos < (scp->xsize-1)*8) {
-    	*(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
-    	*(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
+    	*(crt_pos + 1) = (*(scp->mouse_pos + 1) & 0xff00) | (SC_MOUSE_CHAR + 1);
+    	*(crt_pos+scp->xsize + 1) = 
+	    (*(scp->mouse_pos + scp->xsize + 1) & 0xff00) | (SC_MOUSE_CHAR + 3);
     }
 #endif
     mark_for_update(scp, scp->mouse_pos - scp->scr_buf);
@@ -5848,6 +5915,9 @@ load_palette(char *palette)
 static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
+    if (cold)
+	return;
+
     if (flags & VISUAL_BELL) {
 	if (blink_in_progress)
 	    return;
@@ -5907,8 +5977,10 @@ toggle_splash_screen(scr_stat *scp)
     static u_char save_mode;
     int s;
 
+#ifndef	PC98
     if (video_mode_ptr == NULL)
 	return;
+#endif
 
     s = splhigh();
     if (toggle) {
