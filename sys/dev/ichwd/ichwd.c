@@ -247,8 +247,10 @@ ichwd_identify(driver_t *driver, device_t parent)
 
 	/* good, add child to bus */
 	if ((dev = device_find_child(parent, driver->name, 0)) == NULL)
-		dev = BUS_ADD_CHILD(parent, 0, driver->name, -1);
-	device_set_desc_copy(dev, id->desc);
+		dev = BUS_ADD_CHILD(parent, 0, driver->name, 0);
+
+	if (dev != NULL)
+		device_set_desc_copy(dev, id->desc);
 }
 
 static int
