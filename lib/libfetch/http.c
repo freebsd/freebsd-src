@@ -64,11 +64,13 @@
 
 #include <err.h>
 #include <ctype.h>
+#include <locale.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "fetch.h"
@@ -292,25 +294,19 @@ _http_auth(char *usr, char *pwd)
 }
 
 /*
- * Retrieve a file by HTTP
+ * Connect to server or proxy
  */
 FILE *
-fetchGetHTTP(struct url *URL, char *flags)
+_http_connect(struct url *URL, char *flags)
 {
-    int sd = -1, e, i, enc = ENC_NONE, direct, verbose;
-    struct cookie *c;
-    char *ln, *p, *px, *q;
-    FILE *f, *cf;
+    int direct, sd = -1, verbose;
     size_t len;
-    off_t pos = 0;
-
+    char *px;
+    FILE *f;
+    
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
     
-    /* allocate cookie */
-    if ((c = calloc(1, sizeof *c)) == NULL)
-	return NULL;
-
     /* check port */
     if (!URL->port) {
 	struct servent *se;
@@ -374,20 +370,40 @@ fetchGetHTTP(struct url *URL, char *flags)
     /* reopen as stream */
     if ((f = fdopen(sd, "r+")) == NULL)
 	goto ouch;
-    c->real_f = f;
+    
+    return f;
 
+ouch:
+    if (sd >= 0)
+	close(sd);
+    _http_seterr(999); /* XXX do this properly RSN */
+    return NULL;
+}
+
+/*
+ * Send a HEAD or GET request
+ */
+int
+_http_request(FILE *f, char *op, struct url *URL, char *flags)
+{
+    int e, verbose;
+    char *ln, *p;
+    size_t len;
+    
+    verbose = (flags && strchr(flags, 'v'));
+    
     /* send request (proxies require absolute form, so use that) */
     if (verbose)
 	_fetch_info("requesting http://%s:%d%s",
 		    URL->host, URL->port, URL->doc);
-    _http_cmd(f, "GET http://%s:%d%s HTTP/1.1" ENDL,
-	      URL->host, URL->port, URL->doc);
+    _http_cmd(f, "%s %s://%s:%d%s HTTP/1.1" ENDL,
+	      op, URL->scheme, URL->host, URL->port, URL->doc);
 
     /* start sending headers away */
     if (URL->user[0] || URL->pwd[0]) {
 	char *auth_str = _http_auth(URL->user, URL->pwd);
 	if (!auth_str)
-	    goto fouch;
+	    return 999; /* XXX wrong */
 	_http_cmd(f, "Authorization: Basic %s" ENDL, auth_str);
 	free(auth_str);
     }
@@ -399,7 +415,7 @@ fetchGetHTTP(struct url *URL, char *flags)
 
     /* get response */
     if ((ln = fgetln(f, &len)) == NULL)
-	goto fouch;
+	return 999;
     DEBUG(fprintf(stderr, "response: [\033[1m%*.*s\033[m]\n",
 		  (int)len-2, (int)len-2, ln));
     
@@ -410,9 +426,55 @@ fetchGetHTTP(struct url *URL, char *flags)
     while ((p < ln + len) && !isdigit(*p))
 	p++;
     if (!isdigit(*p))
-	goto fouch;
+	return 999;
+    
     e = atoi(p);
     DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", e));
+    return e;
+}
+
+/*
+ * Check a header line
+ */
+char *
+_http_match(char *str, char *hdr)
+{
+    while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
+	/* nothing */;
+    if (*str || *hdr != ':')
+	return NULL;
+    while (*hdr && isspace(*++hdr))
+	/* nothing */;
+    return hdr;
+}
+
+/*
+ * Retrieve a file by HTTP
+ */
+FILE *
+fetchGetHTTP(struct url *URL, char *flags)
+{
+    int e, enc = ENC_NONE, i, verbose;
+    struct cookie *c;
+    char *ln, *p, *q;
+    FILE *f, *cf;
+    size_t len;
+    off_t pos = 0;
+
+    verbose = (flags && strchr(flags, 'v'));
+    
+    /* allocate cookie */
+    if ((c = calloc(1, sizeof *c)) == NULL)
+	return NULL;
+
+    /* connect */
+    if ((f = _http_connect(URL, flags)) == NULL) {
+	free(c);
+	return NULL;
+    }
+    c->real_f = f;
+
+    e = _http_request(f, "GET", URL, flags);
     
     /* add code to handle redirects later */
     if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)) {
@@ -426,49 +488,33 @@ fetchGetHTTP(struct url *URL, char *flags)
 	    goto fouch;
 	if ((ln[0] == '\r') || (ln[0] == '\n'))
 	    break;
-	DEBUG(fprintf(stderr, "header:	 [\033[1m%*.*s\033[m]\n",
-		      (int)len-2, (int)len-2, ln));
-#define XFERENC "Transfer-Encoding:"
-	if (strncasecmp(ln, XFERENC, sizeof XFERENC - 1) == 0) {
-	    p = ln + sizeof XFERENC - 1;
-	    while ((p < ln + len) && isspace(*p))
-		p++;
-	    for (q = p; (q < ln + len) && !isspace(*q); q++)
+	while (isspace(ln[len-1]))
+	    --len;
+	ln[len] = '\0'; /* XXX */
+	DEBUG(fprintf(stderr, "header:	 [\033[1m%s\033[m]\n", ln));
+	if ((p = _http_match("Transfer-Encoding", ln)) != NULL) {
+	    for (q = p; *q && !isspace(*q); q++)
 		/* VOID */ ;
 	    *q = 0;
 	    if (strcasecmp(p, "chunked") == 0)
 		enc = ENC_CHUNKED;
-	    DEBUG(fprintf(stderr, "xferenc:  [\033[1m%s\033[m]\n", p));
-#undef XFERENC
-#define CONTTYPE "Content-Type:"
-	} else if (strncasecmp(ln, CONTTYPE, sizeof CONTTYPE - 1) == 0) {
-	    p = ln + sizeof CONTTYPE - 1;
-	    while ((p < ln + len) && isspace(*p))
-		p++;
-	    for (i = 0; p < ln + len; p++)
-		if (i < HTTPCTYPELEN)
-		    c->content_type[i++] = *p;
+	    DEBUG(fprintf(stderr, "transfer encoding:  [\033[1m%s\033[m]\n", p));
+	} else if ((p = _http_match("Content-Type", ln)) != NULL) {
+	    for (i = 0; *p && i < HTTPCTYPELEN; p++, i++)
+		    c->content_type[i] = *p;
 	    do c->content_type[i--] = 0; while (isspace(c->content_type[i]));
-	    DEBUG(fprintf(stderr, "conttype: [\033[1m%s\033[m]\n",
+	    DEBUG(fprintf(stderr, "content type: [\033[1m%s\033[m]\n",
 			  c->content_type));
-#undef CONTTYPE
-#define CONTRANGE "Content-Range:"
-#define BYTES "bytes "
-	} else if (strncasecmp(ln, CONTRANGE, sizeof CONTRANGE - 1) == 0) {
-	    p = ln + sizeof CONTRANGE - 1;
-	    while ((p < ln + len) && isspace(*p))
-		p++;
-	    if (strncasecmp(p, BYTES, sizeof BYTES - 1) != 0
-		|| (p += 6) >= ln + len)
+	} else if ((p = _http_match("Content-Range", ln)) != NULL) {
+	    if (strncasecmp(p, "bytes ", 6) != 0)
 		goto fouch;
-	    while ((p < ln + len) && isdigit(*p))
+	    p += 6;
+	    while (*p && isdigit(*p))
 		pos = pos * 10 + (*p++ - '0');
 	    /* XXX wouldn't hurt to be slightly more paranoid here */
-	    DEBUG(fprintf(stderr, "contrange: [\033[1m%lld-\033[m]\n", pos));
+	    DEBUG(fprintf(stderr, "content range: [\033[1m%lld-\033[m]\n", pos));
 	    if (pos > URL->offset)
 		goto fouch;
-#undef BYTES
-#undef CONTRANGE
 	}
     }
 
@@ -488,12 +534,6 @@ fetchGetHTTP(struct url *URL, char *flags)
 		
     return cf;
     
-ouch:
-    if (sd >= 0)
-	close(sd);
-    free(c);
-    _http_seterr(999); /* XXX do this properly RSN */
-    return NULL;
 fouch:
     fclose(f);
     free(c);
@@ -516,10 +556,61 @@ fetchPutHTTP(struct url *URL, char *flags)
  * Get an HTTP document's metadata
  */
 int
-fetchStatHTTP(struct url *url, struct url_stat *us, char *flags)
+fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
-    warnx("fetchStatHTTP(): not implemented");
-    return -1;
+    int e, verbose;
+    size_t len;
+    char *ln, *p;
+    FILE *f;
+    
+    verbose = (flags && strchr(flags, 'v'));
+    
+    /* connect */
+    if ((f = _http_connect(URL, flags)) == NULL)
+	return -1;
+
+    if ((e = _http_request(f, "HEAD", URL, flags)) != HTTP_OK) {
+	_http_seterr(e);
+	goto ouch;
+    }
+
+    while (1) {
+	if ((ln = fgetln(f, &len)) == NULL)
+	    goto fouch;
+	if ((ln[0] == '\r') || (ln[0] == '\n'))
+	    break;
+	while (isspace(ln[len-1]))
+	    --len;
+	ln[len] = '\0'; /* XXX */
+	DEBUG(fprintf(stderr, "header:	 [\033[1m%s\033[m]\n", ln));
+	if ((p = _http_match("Last-Modified", ln)) != NULL) {
+	    struct tm tm;
+	    char locale[64];
+
+	    strncpy(locale, setlocale(LC_TIME, NULL), sizeof locale);
+	    setlocale(LC_TIME, "C");
+	    strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+	    /* XXX should add support for date-2 and date-3 */
+	    setlocale(LC_TIME, locale);
+	    us->atime = us->mtime = timegm(&tm);
+	    DEBUG(fprintf(stderr, "last modified: [\033[1m%04d-%02d-%02d "
+			  "%02d:%02d:%02d\033[m]\n",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			  tm.tm_hour, tm.tm_min, tm.tm_sec));
+	} else if ((p = _http_match("Content-Length", ln)) != NULL) {
+	    us->size = 0;
+	    while (*p && isdigit(*p))
+		us->size = us->size * 10 + (*p++ - '0');
+	    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n", us->size));
+	}
+    }
+    
+    return 0;
+ ouch:
+    _http_seterr(999); /* XXX do this properly RSN */
+ fouch:
+    fclose(f);
+    return -1;    
 }
 
 /*
