@@ -387,8 +387,7 @@ the shared memory into core, making it unswappable.
 .Pp
 The
 .Va vfs.vmiodirenable
-sysctl defaults to 0 (off) (though soon it will default to 1) and may be
-set to 0 (off) or 1 (on).
+sysctl defaults to 1 (on).
 This parameter controls how directories are cached
 by the system.
 Most directories are small and use but a single fragment
@@ -404,8 +403,9 @@ memory is now available for caching directories.
 The disadvantage is that
 the minimum in-core memory used to cache a directory is the physical page
 size (typically 4K) rather than 512 bytes.
-We recommend turning this option
-on if you are running any services which manipulate large numbers of files.
+We recommend turning this option off in memory-constrained environments;
+however, when on, it will substantially improve the performance of services
+which manipulate large numbers of files.
 Such services can include web caches, large mail systems, and news systems.
 Turning on this option will generally not reduce performance even with the
 wasted memory but you should experiment to find out.
