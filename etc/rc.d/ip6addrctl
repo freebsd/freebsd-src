@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ip6addrctl
+# REQUIRE: mountcritlocal netif
+# BEFORE: network_ipv6
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="ip6addrctl"
+start_cmd="ip6addrctl_start"
+stop_cmd=':'
+
+ip6addrctl_start()
+{
+	if ifconfig lo0 inet6 >/dev/null 2>&1; then
+		# We have IPv6 support in kernel.
+
+		# install the policy of the address selection algorithm.
+		if [ -f /etc/ip6addrctl.conf ]; then
+			ip6addrctl flush >/dev/null 2>&1
+			ip6addrctl install /etc/ip6addrctl.conf
+			ip6addrctl
+		fi
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
