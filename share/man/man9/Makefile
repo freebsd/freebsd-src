@@ -13,7 +13,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	VOP_STRATEGY.9 \
 	at_exit.9 at_fork.9 atomic.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
-	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
+	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 kthread.9 malloc.9 \
 	make_dev.9 microseq.9 mi_switch.9 mutex.9 namei.9 panic.9 pfil.9 physio.9 \
 	posix4.9 psignal.9 random.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 swi.9 time.9 timeout.9 uio.9 \
@@ -74,6 +74,10 @@ MLINKS+=devstat.9 devstat_end_transaction.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
+MLINKS+=kthread.9 kproc_start.9 kthread.9 kproc_suspend_loop.9
+MLINKS+=kthread.9 kthread_create.9 kthread.9 kthread_exit.9
+MLINKS+=kthread.9 resume_kproc.9 kthread.9 shutdown_kproc.9
+MLINKS+=kthread.9 suspend_kproc.9
 MLINKS+=make_dev.9 destroy_dev.9
 MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
 MLINKS+=mi_switch.9 cpu_switch.9
