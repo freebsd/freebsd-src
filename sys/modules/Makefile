@@ -198,6 +198,7 @@ SUBDIR+=aac \
 	acpi \
 	asr \
 	atspeaker \
+	awi \
 	cardbus \
 	cbb \
 	ciss \
@@ -211,7 +212,8 @@ SUBDIR+=aac \
 	vesa
 	
 .elif ${MACHINE} == "pc98"
-SUBDIR+=pcspeaker \
+SUBDIR+=awi \
+	pcspeaker \
 	pmc \
 	snc
 .endif
