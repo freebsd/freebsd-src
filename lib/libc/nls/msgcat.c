@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.7 1997/02/22 15:00:50 peter Exp $ */
+/*	$Id: msgcat.c,v 1.8 1997/03/24 06:15:07 imp Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -99,9 +99,7 @@ int type;
 	catpath = name;
 	if (stat(catpath, &sbuf)) return(0);
     } else {
-	/* XXX Should really be issetguid(), but we don't have that */
-	if ((lang = (char *) getenv("LANG")) == NULL || 
-		getuid() != geteuid() || getgid() != getegid()) 
+	if ((lang = (char *) getenv("LANG")) == NULL) 
 		lang = "C";
 	/* XXX Should really be issetguid(), but we don't have that */
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL ||
