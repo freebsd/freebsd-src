@@ -40,7 +40,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl dnsuv
+.Op Fl dknsuv
 .Op Fl a Ar allowed_peer
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
@@ -71,7 +71,7 @@ Accept datagrams from
 .Ar ipaddr
 (in the usual dotted quad notation) with
 .Ar masklen
-bits being taken into account when doing the address comparision.  If
+bits being taken into account when doing the address comparison.  If
 specified,
 .Ar service
 is the name or number of an UDP service (see
@@ -112,6 +112,16 @@ into debugging mode.  This is probably only of use to developers working on
 Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
+.It Fl k
+Disable the translation of
+messages received with facility
+.Dq kern 
+to facility
+.Dq user .
+Usually the
+.Dq kern
+facility is reserved for messages read directly from
+.Pa /dev/klog .
 .It Fl m
 Select the number of minutes between
 .Dq mark
@@ -233,7 +243,7 @@ option is therefore highly recommended.
 The
 .Fl a
 matching algorithm doesn't pretend to be very efficient; use of numeric
-IP addresses is faster than domain name comparision.  Since the allowed
+IP addresses is faster than domain name comparison.  Since the allowed
 peer list is being walked linearly, peer groups where frequent messages
 are being anticipated from should be put early into the
 .Fl a
