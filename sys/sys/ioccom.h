@@ -67,12 +67,7 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-/*
- * use parens around the ioctl so that people can define ioctl as a macro.
- * Note: This will go away in the future, as soon as the current abusers
- * have been fixed.
- */
-int	(ioctl)(int, unsigned long, ...);
+int	ioctl(int, unsigned long, ...);
 __END_DECLS
 
 #endif
