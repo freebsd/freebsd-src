@@ -37,9 +37,17 @@
  * SUCH DAMAGE.
  */
 
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)expr.c	8.2 (Berkeley) 4/29/95";
+#else
+#if 0
+static char rcsid[] = "$OpenBSD: expr.c,v 1.14 2002/04/26 16:15:16 espie Exp $";
+#endif
+#endif
+#endif /* not lint */
+
 #include <sys/cdefs.h>
-__SCCSID("@(#)expr.c	8.2 (Berkeley) 4/29/95");
-__RCSID_SOURCE("$OpenBSD: expr.c,v 1.14 2002/04/26 16:15:16 espie Exp $");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
