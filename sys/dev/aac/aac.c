@@ -152,7 +152,7 @@ struct aac_interface aac_rx_interface = {
 
 /* Debugging and Diagnostics */
 static void	aac_describe_controller(struct aac_softc *sc);
-static char	*aac_describe_code(struct aac_code_lookup *table
+static char	*aac_describe_code(struct aac_code_lookup *table,
 				   u_int32_t code);
 
 /* Management Interface */
