@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../net
-KMOD=   sppp
-SRCS=   if_spppsubr.c
+.PATH: ${.CURDIR}/../../net
+
+KMOD=	sppp
+SRCS=	if_spppsubr.c
 SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
 NOMAN=
 

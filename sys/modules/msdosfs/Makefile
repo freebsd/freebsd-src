@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../msdosfs
+.PATH: ${.CURDIR}/../../msdosfs
+
 KMOD=	msdos
 SRCS=	vnode_if.h \
 	msdosfs_conv.c msdosfs_denode.c msdosfs_fat.c msdosfs_lookup.c \

@@ -1,9 +1,11 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../netinet
+.PATH: ${.CURDIR}/../../netinet
+
 KMOD=	ipfw
 SRCS=	ip_fw.c
 NOMAN=
+
 CFLAGS+= -DIPFIREWALL
 #
 #If you want it verbose

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../net
+.PATH: ${.CURDIR}/../../net
+
 KMOD=	if_sl
 SRCS=	if_sl.c slcompress.c opt_inet.h opt_slip.h
 NOMAN=

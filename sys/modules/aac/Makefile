@@ -1,13 +1,14 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../dev/aac
-KMOD		=  aac
-SRCS		=  aac.c aac_pci.c aac_disk.c
-SRCS		+= device_if.h bus_if.h pci_if.h
+.PATH: ${.CURDIR}/../../dev/aac
 
-CFLAGS+=	-DAAC_COMPAT_LINUX
+KMOD=	aac
+SRCS=	aac.c aac_pci.c aac_disk.c
+SRCS+=	device_if.h bus_if.h pci_if.h
 
-#CFLAGS+=	-DAAC_DEBUG=2
-#SRCS		+= aac_debug.c
+CFLAGS+= -DAAC_COMPAT_LINUX
+
+#CFLAGS+= -DAAC_DEBUG=2
+#SRCS+=	aac_debug.c
 
 .include <bsd.kmod.mk>
