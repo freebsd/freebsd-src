@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: install.1,v 1.11 1998/01/11 11:43:34 peter Exp $
+.\"	$Id: install.1,v 1.12 1998/06/02 12:00:08 peter Exp $
 .\"
 .Dd September 22, 1996
 .Dt INSTALL 1
@@ -178,8 +178,8 @@ Temporary files may be left in the target directory if
 exits abnormally.
 .Pp
 File flags cannot be set by
-.Xr fchflags 8
-over a NFS file system.
+.Xr fchflags 2
+over a NFS file system.  Other file systems do not have a concept of flags.
 .Nm
 will only warn when flags could not be set on a file system
 that does not support them.
