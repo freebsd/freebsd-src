@@ -148,7 +148,7 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_PPPOE_NODE_TYPE,
 	NULL,
 	ng_pppoe_constructor,

@@ -459,7 +459,7 @@ static const struct ng_cmdlist ng_ksocket_cmds[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_ksocket_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_KSOCKET_NODE_TYPE,
 	NULL,
 	ng_ksocket_constructor,

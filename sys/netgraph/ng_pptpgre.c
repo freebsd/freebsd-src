@@ -245,7 +245,7 @@ static const struct ng_cmdlist ng_pptpgre_cmdlist[] = {
 
 /* Node type descriptor */
 static struct ng_type ng_pptpgre_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_PPTPGRE_NODE_TYPE,
 	NULL,
 	ng_pptpgre_constructor,
@@ -378,12 +378,12 @@ ng_pptpgre_rcvmsg(node_p node, struct ng_mesg *msg,
 		error = EINVAL;
 		break;
 	}
+done:
 	if (rptr)
 		*rptr = resp;
 	else if (resp)
 		FREE(resp, M_NETGRAPH);
 
-done:
 	FREE(msg, M_NETGRAPH);
 	return (error);
 }

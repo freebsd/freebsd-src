@@ -856,7 +856,9 @@ ng_newtype(struct ng_type *tp)
 	const size_t namelen = strlen(tp->name);
 
 	/* Check version and type name fields */
-	if (tp->version != NG_VERSION || namelen == 0 || namelen > NG_TYPELEN) {
+	if ((tp->version != NG_ABI_VERSION)
+	|| (namelen == 0)
+	|| (namelen > NG_TYPELEN)) {
 		TRAP_ERROR;
 		return (EINVAL);
 	}
@@ -1489,6 +1491,12 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			break;
 		}
 
+		/* Check response pointer */
+		if (resp == NULL) {
+			error = EINVAL;
+			break;
+		}
+
 		/* Get a response message with lots of room */
 		NG_MKRESPONSE(rp, msg, sizeof(*ascii) + bufSize, M_NOWAIT);
 		if (rp == NULL) {
@@ -1564,6 +1572,12 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			break;
 		}
 		ascii->data[ascii->header.arglen - 1] = '\0';
+
+		/* Check response pointer */
+		if (resp == NULL) {
+			error = EINVAL;
+			break;
+		}
 
 		/* Get a response message with lots of room */
 		NG_MKRESPONSE(rp, msg, sizeof(*binary) + bufSize, M_NOWAIT);

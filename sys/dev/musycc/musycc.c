@@ -265,7 +265,7 @@ static  ng_rcvdata_t musycc_rcvdata;
 static  ng_disconnect_t musycc_disconnect;
 
 static struct ng_type ngtypestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_NODETYPE,
 	NULL, 
 	musycc_constructor,
@@ -926,56 +926,70 @@ barf:
 	return;
 }
 
+/*
+ * Handle status and config enquiries.
+ * Respond with a synchronous response.
+ * [JRE] -this would be easier to read with the usual 'switch' structure-
+ */
 static int
-musycc_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp, hook_p lasthook)
+musycc_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+					struct ng_mesg **rptr, hook_p lasthook)
 {
 	struct softc *sc;
+	struct ng_mesg *resp = NULL;
 	char *s, *r;
+	int error = 0;
 
 	sc = node->private;
+	if (rptr)
+		*rptr = NULL; /* default answer in case of errors */
 
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE)
 		goto out;
 
 	if (msg->header.cmd == NGM_TEXT_STATUS) {
-		NG_MKRESPONSE(*resp, msg, 
+		NG_MKRESPONSE(resp, msg, 
 		    sizeof(struct ng_mesg) + NG_TEXTRESPONSE, M_NOWAIT);
-		if (*resp == NULL) {
-			FREE(msg, M_NETGRAPH);
-			return (ENOMEM);
+		if (resp == NULL) {
+			error = ENOMEM;
+			goto out;
 		}
-		s = (char *)(*resp)->data;
+		s = (char *)resp->data;
 		status_8370(sc, s);
-		(*resp)->header.arglen = strlen(s) + 1;
+		resp->header.arglen = strlen(s) + 1;
 		FREE(msg, M_NETGRAPH);
-		return (0);
-        }
-	if (msg->header.cmd == NGM_TEXT_CONFIG) {
+		
+	} else if (msg->header.cmd == NGM_TEXT_CONFIG) {
 		if (msg->header.arglen) {
 			s = (char *)msg->data;
 		} else {
 			s = NULL;
 		}
 		
-		NG_MKRESPONSE(*resp, msg, 
+		NG_MKRESPONSE(resp, msg, 
 		    sizeof(struct ng_mesg) + NG_TEXTRESPONSE, M_NOWAIT);
-		if (*resp == NULL) {
-			FREE(msg, M_NETGRAPH);
-			return (ENOMEM);
+		if (resp == NULL) {
+			error = ENOMEM;
+			goto out;
 		}
-		r = (char *)(*resp)->data;
+		r = (char *)resp->data;
 		*r = '\0';
 		musycc_config(node, s, r);
-		(*resp)->header.arglen = strlen(r) + 1;
+		resp->header.arglen = strlen(r) + 1;
 		FREE(msg, M_NETGRAPH);
-		return (0);
-        }
+	} else {
+		error = EINVAL;
+	}
 
 out:
-	if (resp)
-		*resp = NULL;
+	/* Take care of synchronous response, if any */
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH); /* eventually 'send' the response */
+
 	FREE(msg, M_NETGRAPH);
-	return (EINVAL);
+	return (error);
 }
 
 static int
