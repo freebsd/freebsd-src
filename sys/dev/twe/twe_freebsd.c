@@ -695,55 +695,18 @@ twed_strategy(twe_bio *bp)
 static int
 twed_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
-
-    /* XXX: this needs modified to the new dump API */
-    return (ENXIO);
-#if 0
     struct twed_softc	*twed_sc = (struct twed_softc *)dev->si_drv1;
     struct twe_softc	*twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
-    u_int		count, blkno, secsize;
-    vm_offset_t		addr = 0;
-    long		blkcnt;
-    int			dumppages = MAXDUMPPGS;
     int			error;
-    int			i;
-
-    if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
-        return(error);
 
     if (!twed_sc || !twe_sc)
 	return(ENXIO);
 
-    blkcnt = howmany(PAGE_SIZE, secsize);
-
-    while (count > 0) {
-	caddr_t va = NULL;
-
-	if ((count / blkcnt) < dumppages)
-	    dumppages = count / blkcnt;
-
-	for (i = 0; i < dumppages; ++i) {
-	    vm_offset_t a = addr + (i * PAGE_SIZE);
-	    if (is_physical_memory(a))
-		va = pmap_kenter_temporary(trunc_page(a), i);
-	    else
-		va = pmap_kenter_temporary(trunc_page(0), i);
-	}
-
-	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_unit, blkno, va, 
-				     (PAGE_SIZE * dumppages) / TWE_BLOCK_SIZE)) != 0)
+    if (length > 0) {
+	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_unit, offset / TWE_BLOCK_SIZE, virtual, length / TWE_BLOCK_SIZE)) != 0)
 	    return(error);
-
-
-	if (dumpstatus(addr, (off_t)count * DEV_BSIZE) < 0)
-	    return(EINTR);
-
-	blkno += blkcnt * dumppages;
-	count -= blkcnt * dumppages;
-	addr += PAGE_SIZE * dumppages;
     }
     return(0);
-#endif
 }
 
 /********************************************************************************
