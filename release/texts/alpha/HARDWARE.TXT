@@ -1498,6 +1498,15 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
+- Ethernet: if you want to boot your Alpha over the Ethernet you will 
+obviously need an Ethernet card that the SRM console recognises. This
+generally means you need a board with an 21x4x Ethernet chip as that is
+what Digital used. These chips are driven by the FreeBSD 'de' (older driver)
+or 'dc' (newer driver). Some new SRM versions are known to recognise the
+Intel 8255x ethernet chips as driven by the FreeBSD 'fxp' driver. But beware:
+the 'fxp' driver is reported not to work correctly with FreeBSD/alpha (although
+it works excellently on FreeBSD/x86).
+
 - FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
 supported.
 
