@@ -15,6 +15,14 @@ OBJS=	linux_locore.o
 SRCS+=	linux_uid16.c imgact_linux.c
 .endif
 
+EXPORT_SYMS=
+EXPORT_SYMS+=	linux_emul_path
+EXPORT_SYMS+=	linux_get_osname
+EXPORT_SYMS+=	linux_get_osrelease
+EXPORT_SYMS+=	linux_ifname
+EXPORT_SYMS+=	linux_ioctl_register_handler
+EXPORT_SYMS+=	linux_ioctl_unregister_handler
+
 CLEANFILES=	linux_assym.h linux_genassym.o
 
 linux_assym.h: linux_genassym.o
