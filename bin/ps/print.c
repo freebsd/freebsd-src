@@ -51,6 +51,8 @@ static const char rcsid[] =
 #include <vm/vm.h>
 
 #include <err.h>
+#include <langinfo.h>
+#include <locale.h>
 #include <math.h>
 #include <nlist.h>
 #include <stddef.h>
@@ -346,6 +348,7 @@ started(k, ve)
 	time_t then;
 	struct tm *tp;
 	char buf[100];
+	static int  use_ampm = -1;
 
 	v = ve->var;
 	if (!k->ki_u.u_valid) {
@@ -353,18 +356,19 @@ started(k, ve)
 		return;
 	}
 
+	if (use_ampm < 0)
+		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
+
 	then = k->ki_u.u_start.tv_sec;
 	tp = localtime(&then);
 	if (!now)
 		(void)time(&now);
 	if (now - k->ki_u.u_start.tv_sec < 24 * 3600) {
-		/* I *hate* SCCS... */
-		static char fmt[] = __CONCAT("%l:%", "M%p");
-		(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
+		(void)strftime(buf, sizeof(buf) - 1,
+		use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
 	} else if (now - k->ki_u.u_start.tv_sec < 7 * 86400) {
-		/* I *hate* SCCS... */
-		static char fmt[] = __CONCAT("%a%", "I%p");
-		(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
+		(void)strftime(buf, sizeof(buf) - 1,
+		use_ampm ? "%a%I%p" : "%a%H  ", tp);
 	} else
 		(void)strftime(buf, sizeof(buf) - 1, "%e%b%y", tp);
 	(void)printf("%-*s", v->width, buf);
@@ -457,7 +461,10 @@ cputime(k, ve)
 	long secs;
 	long psecs;	/* "parts" of a second. first micro, then centi */
 	char obuff[128];
+	static char decimal_point = 0;
 
+	if (!decimal_point)
+		decimal_point = localeconv()->decimal_point[0];
 	v = ve->var;
 	if (KI_PROC(k)->p_stat == SZOMB || !k->ki_u.u_valid) {
 		secs = 0;
@@ -484,7 +491,7 @@ cputime(k, ve)
 		psecs = psecs % 100;
 	}
 	(void)snprintf(obuff, sizeof(obuff),
-	    "%3ld:%02ld.%02ld", secs/60, secs%60, psecs);
+	    "%3ld:%02ld%c%02ld", secs/60, secs%60, decimal_point, psecs);
 	(void)printf("%*s", v->width, obuff);
 }
 
