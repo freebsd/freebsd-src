@@ -187,6 +187,8 @@ _pthread_mutex_init(pthread_mutex_t *mutex,
 				MUTEX_INIT_LINK(pmutex);
 				*mutex = pmutex;
 			} else {
+				/* Free the mutex lock structure: */
+				_lock_destroy(&pmutex->m_lock);
 				free(pmutex);
 				*mutex = NULL;
 			}
@@ -235,6 +237,10 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 			 * structure:
 			 */
 			MUTEX_ASSERT_NOT_OWNED(m);
+
+			/* Free the mutex lock structure: */
+			_lock_destroy(&m->m_lock);
+
 			free(m);
 		}
 	}
