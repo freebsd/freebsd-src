@@ -42,22 +42,24 @@ struct pcic_slot {
 
 struct pcic_softc 
 {
-	u_int32_t		slotmask;	/* Mask of valid slots */
-	u_int32_t		flags;		/* Interesting flags */
+	u_int32_t		slotmask;/* Mask of valid slots */
+	u_int32_t		flags;	/* Interesting flags */
 #define PCIC_AB_POWER	0x00000001	/* Use old A/B step power */
 #define PCIC_DF_POWER	0x00000002	/* Uses DF step regs  */
 #define PCIC_PD_POWER	0x00000004	/* Uses CL-PD regs  */
 #define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
 #define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
 #define PCIC_RICOH_POWER 0x00000020	/* Uses the ricoh power regs */
-	int			iorid;		/* Rid of I/O region */
-	struct resource 	*iores;		/* resource for I/O region */
-	int			memrid;
-	struct resource		*memres;
-	int			irqrid;
-	struct resource		*irqres;
-	void			*ih;
-	int			unit;
+	int			iorid;	/* Rid of I/O region */
+	struct resource 	*iores;	/* resource for I/O region */
+	int			memrid;	/* Memory rid */
+	struct resource		*memres;/* Resource for memory mapped regs */
+	int			irqrid;	/* Irq rid */
+	struct resource		*irqres;/* Irq resource */
+	void			*ih;	/* Our interrupt handler. */
+	device_t		dev;	/* Our device */
+	bus_space_tag_t		bst;	/* Bus tag for our regs */
+	bus_space_handle_t	bsh;	/* Bus handle for our regs */
 	struct callout_handle	timeout_ch;
 	struct pcic_slot	slots[PCIC_MAX_SLOTS];
 };
