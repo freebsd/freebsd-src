@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_read.c,v 1.3 1997/04/01 22:44:15 jb Exp $
+ * $Id: uthread_read.c,v 1.4 1998/04/29 09:59:10 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -46,9 +46,12 @@ read(int fd, void *buf, size_t nbytes)
 {
 	int	ret;
 
+	/* POSIX says to do just this: */
+	if (nbytes == 0)
+		return (0);
+
 	/* Lock the file descriptor for read: */
-	if ((ret = _thread_fd_lock(fd, FD_READ, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		/* Perform a non-blocking read syscall: */
 		while ((ret = _thread_sys_read(fd, buf, nbytes)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
@@ -75,7 +78,7 @@ read(int fd, void *buf, size_t nbytes)
 				break;
 			}
 		}
-		_thread_fd_unlock(fd, FD_READ);
+		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }

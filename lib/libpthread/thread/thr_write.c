@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.5 1998/04/29 09:59:33 jb Exp $
+ * $Id: uthread_write.c,v 1.6 1998/05/25 21:45:50 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -50,9 +50,12 @@ write(int fd, const void *buf, size_t nbytes)
 	ssize_t num = 0;
 	ssize_t	ret;
 
+	/* POSIX says to do just this: */
+	if (nbytes == 0)
+		return (0);
+
 	/* Lock the file descriptor for write: */
-	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
 		/* Check if file operations are to block */
 		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
 
@@ -113,7 +116,7 @@ write(int fd, const void *buf, size_t nbytes)
 				/* Return the number of bytes written: */
 				ret = num;
 		}
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }

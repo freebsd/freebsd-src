@@ -154,7 +154,7 @@ _thread_dump_info(void)
 		}
 
 		/* Output a header for file descriptors: */
-		strcpy(s, "\n\n=============\nFILE DESCRIPTOR TABLE\n\n");
+		snprintf(s, sizeof(s), "\n\n=============\nFILE DESCRIPTOR TABLE (table size %d)\n\n",_thread_dtablesize);
 		_thread_sys_write(fd, s, strlen(s));
 
 		/* Enter a loop to report file descriptor lock usage: */

@@ -47,7 +47,7 @@ fcntl(int fd, int cmd,...)
 	va_list         ap;
 
 	/* Lock the file descriptor: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Initialise the variable argument list: */
 		va_start(ap, cmd);
 
@@ -80,8 +80,11 @@ fcntl(int fd, int cmd,...)
 			}
 			break;
 		case F_SETFD:
+			flags = va_arg(ap, int);
+			ret = _thread_sys_fcntl(fd, cmd, flags);
 			break;
 		case F_GETFD:
+			ret = _thread_sys_fcntl(fd, cmd, 0);
 			break;
 		case F_GETFL:
 			ret = _thread_fd_table[fd]->flags;
@@ -102,7 +105,7 @@ fcntl(int fd, int cmd,...)
 		va_end(ap);
 
 		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 
 	/* Return the completion status: */
