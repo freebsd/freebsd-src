@@ -150,7 +150,7 @@ Encryption keys are only displayed if
 .Nm
 is run as root.
 .It Oo Fl i Oc Ar iface Fl t Ar tx_rate
-This flag is obsolete.
+This flag is deprecated.
 Use
 .Xr ifconfig 8
 .Dq mediaopt
@@ -181,7 +181,7 @@ The default driver setting is
 (auto rate select).
 The numbers vary from card to card.
 .It Oo Fl i Oc Ar iface Fl n Ar network_name
-This flag is obsolete.
+This flag is deprecated.
 Use
 .Xr ifconfig 8
 .Dq ssid
@@ -210,7 +210,7 @@ in another driver which indicates that the
 .Dq Li ANY
 string works as well.
 .It Oo Fl i Oc Ar iface Fl s Ar station_name
-This flag is obsolete.
+This flag is deprecated.
 Use
 .Xr ifconfig 8
 .Dq stationname
@@ -229,7 +229,7 @@ The
 software can
 poll the names of remote hosts.
 .It Oo Fl i Oc Ar iface Fl c Cm 0 | 1
-This flag is obsolete.
+This flag is deprecated.
 IBSS networks are automatically created on those cards whose firmware
 supports it while in IBSS mode.
 .Pp
@@ -244,7 +244,7 @@ The default is
 .Pp
 Only newer versions of the Lucent firmware support this.
 .It Oo Fl i Oc Ar iface Fl q Ar SSID
-This flag is obsolete.
+This flag is deprecated.
 The ssid setting from
 .Xr ifconfig 8
 is the current preferred way of setting this parameter.
@@ -257,7 +257,7 @@ can be any text string up to 30 characters long.
 Note: this option is provided for experimental purposes only: enabling
 the creation of an IBSS on a host system doesn't appear to actually work.
 .It Oo Fl i Oc Ar iface Fl p Ar port_type
-This flag is obsolete.
+This flag is deprecated.
 It should never be used.
 Do not use this flag.
 Its meaning depends on the type of card you are using, as well as the
@@ -323,7 +323,7 @@ The
 can be any number from 350 to 2304.
 The default is 2304.
 .It Oo Fl i Oc Ar iface Fl e Cm 0 | 1
-This flag is obsolete.
+This flag is deprecated.
 It has been replaced by the
 .Xr ifconfig 8
 .Dq wepmode
@@ -405,7 +405,7 @@ The
 can be any value between 0 and 2347.
 The default is 2347.
 .It Oo Fl i Oc Ar iface Fl f Ar frequency
-This flag is obsolete.
+This flag is deprecated.
 Use
 .Xr ifconfig 8
 .Dq channel
@@ -513,8 +513,11 @@ better signal quality).
 .Xr wi 4 ,
 .Xr ifconfig 8
 .Sh BUGS
-There are obsolete flags here that should be removed.
-These flags will be removed without further notice.
+There are deprecated flags here that duplicate functionality of
+ifconfig.
+These flags will be deprecated in
+.Fx 5.1
+and removed in a future release.
 .Pp
 The WEP encryption method has been broken so that third parties
 can recover the keys in use relatively quickly at distances that are
@@ -543,9 +546,13 @@ discontinue it and use a new key.
 See
 .Pa http://www.cs.rice.edu/~astubble/wep/wep_attack.html
 for details of the attack.
+Many programs to assist in cracking WEP keys are widely available.
 .Pp
 If you must use WEP, you are strongly encouraged to pick keys whose
 bytes are random and not confined to ASCII characters.
+Brute force attacks on WEP keys are also possible.
+Experience has showns that ASCII keys can be cracked in less than a day.
+Even random bytes can be cracked in less than two weeks.
 .Pp
 Signal cache is broken right now.
 .Sh HISTORY
