@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.22 1999/07/10 18:08:57 iwasaki Exp $
+ *	$Id: apm_bios.h,v 1.23 1999/07/29 01:49:19 msmith Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -232,7 +232,6 @@ struct apm_event_info {
 #define APMIO_HALTCPU		_IO('P', 7)
 #define APMIO_NOTHALTCPU	_IO('P', 8)
 #define APMIO_DISPLAY		_IOW('P', 9, int)
-#define APMIO_BIOS		_IOWR('P', 10, struct apm_bios_arg)
 #define APMIO_GETINFO		_IOR('P', 11, struct apm_info)
 #define APMIO_STANDBY		_IO('P', 12)
 /* for /dev/apmctl */
