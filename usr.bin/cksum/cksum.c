@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: cksum.c,v 1.5 1997/07/06 03:18:13 bde Exp $";
+	"$Id: cksum.c,v 1.6 1997/09/26 08:02:17 phk Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -84,31 +84,31 @@ main(argc, argv)
 	} else {
 		cfncn = crc;
 		pfncn = pcrc;
-	}
 
-	while ((ch = getopt(argc, argv, "o:")) != -1)
-		switch (ch) {
-		case 'o':
-			if (!strcmp(optarg, "1")) {
-				cfncn = csum1;
-				pfncn = psum1;
-			} else if (!strcmp(optarg, "2")) {
-				cfncn = csum2;
-				pfncn = psum2;
-			} else if (*optarg == '3') {
-				cfncn = crc32;
-				pfncn = pcrc;
-			} else {
-				warnx("illegal argument to -o option");
+		while ((ch = getopt(argc, argv, "o:")) != -1)
+			switch (ch) {
+			case 'o':
+				if (!strcmp(optarg, "1")) {
+					cfncn = csum1;
+					pfncn = psum1;
+				} else if (!strcmp(optarg, "2")) {
+					cfncn = csum2;
+					pfncn = psum2;
+				} else if (*optarg == '3') {
+					cfncn = crc32;
+					pfncn = pcrc;
+				} else {
+					warnx("illegal argument to -o option");
+					usage();
+				}
+				break;
+			case '?':
+			default:
 				usage();
 			}
-			break;
-		case '?':
-		default:
-			usage();
-		}
-	argc -= optind;
-	argv += optind;
+		argc -= optind;
+		argv += optind;
+	}
 
 	fd = STDIN_FILENO;
 	fn = NULL;
