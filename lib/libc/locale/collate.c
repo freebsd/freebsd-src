@@ -102,23 +102,26 @@ u_char *
 __collate_substitute(s)
 	const u_char *s;
 {
-	int dest_len = 0, len = 0;
+	int dest_len, len, nlen;
 	int delta = strlen(s);
 	u_char *dest_str = NULL;
 
 	if(s == NULL || *s == '\0')
 		return __collate_strdup("");
+	delta += delta / 8;
+	dest_str = malloc(dest_len = delta);
+	if(dest_str == NULL)
+		__collate_err(EX_OSERR, __FUNCTION__);
+	len = 0;
 	while(*s) {
-		len += strlen(__collate_substitute_table[*s]);
-		while(dest_len <= len) {
-			if(!dest_str)
-				dest_str = calloc(dest_len = delta, 1);
-			else
-				dest_str = reallocf(dest_str, dest_len += delta);
+		nlen = len + strlen(__collate_substitute_table[*s]);
+		if (dest_len <= nlen) {
+			dest_str = reallocf(dest_str, dest_len = nlen + delta);
 			if(dest_str == NULL)
 				__collate_err(EX_OSERR, __FUNCTION__);
 		}
-		strcat(dest_str, __collate_substitute_table[*s++]);
+		strcpy(dest_str + len, __collate_substitute_table[*s++]);
+		len = nlen;
 	}
 	return dest_str;
 }
