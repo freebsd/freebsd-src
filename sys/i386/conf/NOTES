@@ -1764,7 +1764,8 @@ device		wx
 device		fpa	1
 
 #
-# ATM related options
+# ATM related options (Cranor version)
+# (note: this driver cannot be used with the HARP ATM stack)
 #
 # The `en' device provides support for Efficient Networks (ENI)
 # ENI-155 PCI midway cards, and the Adaptec 155Mbps PCI ATM cards (ANA-59x0).
@@ -1779,7 +1780,7 @@ device		fpa	1
 # http://www.ccrc.wustl.edu/pub/chuck/tech/bsdatm/bsdatm.html
 #
 device		atm
-device		en	1
+device		en
 options 	NATM			#native ATM
 
 #
