@@ -47,6 +47,7 @@ static const char rcsid[] =
 /* ********************************************************** INCLUDES ***** */
 #include <sys/param.h>
 
+#include <limits.h>
 #include <stdio.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -456,7 +457,7 @@ dbg_dump_frmap(struct fs *sb, const char *comment, struct cg *cgr)
 	indent++;
 
 	cp=(unsigned char *)cg_blksfree(cgr);
-	e=howmany((sb->fs_cpg * sb->fs_spc / NSPF(sb)), NBBY);
+	e=howmany((sb->fs_cpg * sb->fs_spc / NSPF(sb)), CHAR_BIT);
 	for(j=0; j<e; j+=32) {
 		fprintf(dbg_log, "%08x: ", j);
 		for(k=0; k<32; k+=8) {
@@ -500,7 +501,7 @@ dbg_dump_clmap(struct fs *sb, const char *comment, struct cg *cgr)
 	indent++;
 
 	cp=(unsigned char *)cg_clustersfree(cgr);
-	e=howmany(sb->fs_cpg * sb->fs_spc / NSPB(sb), NBBY);
+	e=howmany(sb->fs_cpg * sb->fs_spc / NSPB(sb), CHAR_BIT);
 	for(j=0; j<e; j+=32) {
 		fprintf(dbg_log, "%08x: ", j);
 		for(k=0; k<32; k+=8) {

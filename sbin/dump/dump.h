@@ -46,11 +46,14 @@ char	*dumpinomap;	/* map of files to be dumped */
  * Map manipulation macros.
  */
 #define	SETINO(ino, map) \
-	map[(u_int)((ino) - 1) / NBBY] |=  1 << ((u_int)((ino) - 1) % NBBY)
+	map[(u_int)((ino) - 1) / CHAR_BIT] |= \
+	    1 << ((u_int)((ino) - 1) % CHAR_BIT)
 #define	CLRINO(ino, map) \
-	map[(u_int)((ino) - 1) / NBBY] &=  ~(1 << ((u_int)((ino) - 1) % NBBY))
+	map[(u_int)((ino) - 1) / CHAR_BIT] &= \
+	    ~(1 << ((u_int)((ino) - 1) % CHAR_BIT))
 #define	TSTINO(ino, map) \
-	(map[(u_int)((ino) - 1) / NBBY] &  (1 << ((u_int)((ino) - 1) % NBBY)))
+	(map[(u_int)((ino) - 1) / CHAR_BIT] & \
+	    (1 << ((u_int)((ino) - 1) % CHAR_BIT)))
 
 /*
  *	All calculations done in 0.1" units!

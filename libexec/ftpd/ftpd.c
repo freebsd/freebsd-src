@@ -2148,8 +2148,8 @@ statcmd(void)
 	if (type == TYPE_A || type == TYPE_E)
 		printf(", FORM: %s", formnames[form]);
 	if (type == TYPE_L)
-#if NBBY == 8
-		printf(" %d", NBBY);
+#if CHAR_BIT == 8
+		printf(" %d", CHAR_BIT);
 #else
 		printf(" %d", bytesize);	/* need definition! */
 #endif
