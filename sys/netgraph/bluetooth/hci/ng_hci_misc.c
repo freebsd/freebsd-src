@@ -111,7 +111,7 @@ ng_hci_node_is_up(node_p node, hook_p hook, void *arg1, int arg2)
 
 		bcopy(&unit->bdaddr, &ep->bdaddr, sizeof(ep->bdaddr));
 
-		NG_SEND_MSG_HOOK(error, node, msg, hook, NULL);
+		NG_SEND_MSG_HOOK(error, node, msg, hook, 0);
 	} else
 		error = ENOMEM;
 

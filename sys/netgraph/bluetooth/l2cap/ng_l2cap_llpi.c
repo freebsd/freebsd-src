@@ -112,7 +112,7 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 	con->state = NG_L2CAP_W4_LP_CON_CFM;
 	ng_l2cap_lp_timeout(con);
 
-	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, NULL);
+	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, 0);
 	if (error != 0) {
 		if ((error = ng_l2cap_lp_untimeout(con)) != 0)
 			return (error);
@@ -262,7 +262,7 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	con->state = NG_L2CAP_W4_LP_CON_CFM;
 	ng_l2cap_lp_timeout(con);
 
-	NG_SEND_MSG_HOOK(error, l2cap->node, rsp, l2cap->hci, NULL);
+	NG_SEND_MSG_HOOK(error, l2cap->node, rsp, l2cap->hci, 0);
 	if (error != 0) {
 		if ((error = ng_l2cap_lp_untimeout(con)) != 0)
 			goto out;
@@ -393,7 +393,7 @@ ng_l2cap_lp_qos_req(ng_l2cap_p l2cap, u_int16_t con_handle,
 	ep->latency = flow->latency;
 	ep->delay_variation = flow->delay_variation;
 
-	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, NULL);
+	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, 0);
 	
 	return (error);
 } /* ng_l2cap_lp_con_req */
@@ -497,7 +497,7 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 	m0 = ng_l2cap_prepend(m0, sizeof(*l2cap_hdr));
 	if (m0 == NULL) {
 		NG_L2CAP_ALERT(
-"%s: %s - ng_l2cap_prepend(%d) failed\n",
+"%s: %s - ng_l2cap_prepend(%zd) failed\n",
 			__func__, NG_NODE_NAME(l2cap->node),
 			sizeof(*l2cap_hdr));
 
@@ -535,7 +535,7 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 		m0 = ng_l2cap_prepend(m0, sizeof(*acl_hdr));
 		if (m0 == NULL) {
 			NG_L2CAP_ALERT(
-"%s: %s - ng_l2cap_prepend(%d) failed\n",
+"%s: %s - ng_l2cap_prepend(%zd) failed\n",
 				__func__, NG_NODE_NAME(l2cap->node),
 				sizeof(*acl_hdr));
 			goto fail;
@@ -899,6 +899,6 @@ ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int con_ha
 	ep->con_handle = con->con_handle;
 	ep->reason = 0x13; /* User Ended Connection */
 
-	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, NULL);
+	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, 0);
 } /* ng_l2cap_process_discon_timeout */
 

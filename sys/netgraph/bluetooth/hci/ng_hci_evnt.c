@@ -357,7 +357,7 @@ sync_con_queue(ng_hci_unit_p unit, ng_hci_unit_con_p con, int completed)
 	state->con_handle = con->con_handle;
 	state->completed = completed;
 
-	NG_SEND_MSG_HOOK(error, unit->node, msg, hook, NULL);
+	NG_SEND_MSG_HOOK(error, unit->node, msg, hook, 0);
 
 	return (error);
 } /* sync_con_queue */

@@ -267,7 +267,7 @@ usage(void)
 	fprintf(stderr, "\t-f                 - No delay (soft of flood)\n");
 	fprintf(stderr, "\t-i wait            - Delay between packets (sec)\n");
 	fprintf(stderr, "\t-s size            - Packet size (bytes), " \
-		"between %d and %d\n", sizeof(int32_t), NG_L2CAP_MAX_ECHO_SIZE);
+		"between %zd and %zd\n", sizeof(int32_t), NG_L2CAP_MAX_ECHO_SIZE);
 	fprintf(stderr, "\t-h                 - Display this message\n");
 	
 	exit(255);

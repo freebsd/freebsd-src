@@ -919,7 +919,7 @@ ubt_request_start(ubt_softc_p sc)
 
 	if (m->m_pkthdr.len > UBT_CTRL_BUFFER_SIZE)
 		panic(
-"%s: %s - HCI command frame too big, size=%d, len=%d\n",
+"%s: %s - HCI command frame too big, size=%zd, len=%d\n",
 			__func__, USBDEVNAME(sc->sc_dev), UBT_CTRL_BUFFER_SIZE,
 			m->m_pkthdr.len);
 
