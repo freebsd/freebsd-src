@@ -278,8 +278,7 @@ prom_halt(halt)
 	 * Set "boot request" part of the CPU state depending on what
 	 * we want to happen when we halt.
 	 */
-	p = (struct pcs *)((char *)hwrpb + hwrpb->rpb_pcs_off +
-	    (hwrpb->rpb_primary_cpu_id * hwrpb->rpb_pcs_size));
+	p = LOCATE_PCS(hwrpb, PCPU_GET(cpuid));
 	p->pcs_flags &= ~(PCS_RC | PCS_HALT_REQ);
 	if (halt)
 		p->pcs_flags |= PCS_HALT_STAY_HALTED;
