@@ -1270,7 +1270,7 @@ ti_newbuf_jumbo(sc, i, m)
 #define TCP_HDR_LEN (52 + sizeof(struct ether_header))
 #define UDP_HDR_LEN (28 + sizeof(struct ether_header))
 #define NFS_HDR_LEN (UDP_HDR_LEN)
-int HDR_LEN =  TCP_HDR_LEN;
+static int HDR_LEN =  TCP_HDR_LEN;
 
 
  /*
