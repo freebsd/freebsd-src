@@ -164,7 +164,8 @@ struct _keywords keywords[] =
     keypair(resetstats),
     keypair(setstate),
     keypair(checkparity),
-    keypair(rebuildparity)
+    keypair(rebuildparity),
+    keypair(dumpconfig)
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
 
