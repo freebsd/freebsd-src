@@ -800,8 +800,8 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 		ss.ss_size = lss.ss_size;
 		ss.ss_flags = linux_to_bsd_sigaltstack(lss.ss_flags);
 	}
-	error = kern_sigaltstack(td, (uap->uoss != NULL) ? &oss : NULL,
-	    (uap->uss != NULL) ? &ss : NULL);
+	error = kern_sigaltstack(td, (uap->uss != NULL) ? &ss : NULL,
+	    (uap->uoss != NULL) ? &oss : NULL);
 	if (!error && uap->uoss != NULL) {
 		lss.ss_sp = oss.ss_sp;
 		lss.ss_size = oss.ss_size;
