@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: operators.c,v 1.3 1994/09/24 02:59:12 davidg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)operators.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)operators.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 /*
