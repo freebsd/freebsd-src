@@ -485,7 +485,7 @@ pmap_init(phys_start, phys_end)
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	uma_zone_set_allocf(pvzone, pmap_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 
