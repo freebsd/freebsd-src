@@ -84,8 +84,6 @@
 #include "ppbus_if.h"
 #include <dev/ppbus/ppbio.h>
 
-MALLOC_DEFINE(M_LPT, "lpt", "LPT buffers");
-
 #ifndef LPT_DEBUG
 #define lprintf(args)
 #else
@@ -551,8 +549,8 @@ lptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	ppb_wctr(ppbus, sc->sc_control);
 
 	sc->sc_state = OPEN;
-	sc->sc_inbuf = malloc(BUFSIZE, M_LPT, M_WAITOK);
-	sc->sc_statbuf = malloc(BUFSTATSIZE, M_LPT, M_WAITOK);
+	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
+	sc->sc_statbuf = malloc(BUFSTATSIZE, M_DEVBUF, M_WAITOK);
 	sc->sc_xfercnt = 0;
 	splx(s);
 
@@ -605,8 +603,8 @@ lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 				break;
 
 	ppb_wctr(ppbus, LPC_NINIT);
-	free(sc->sc_inbuf, M_LPT);
-	free(sc->sc_statbuf, M_LPT);
+	free(sc->sc_inbuf, M_DEVBUF);
+	free(sc->sc_statbuf, M_DEVBUF);
 
 end_close:
 	/* release the bus anyway
