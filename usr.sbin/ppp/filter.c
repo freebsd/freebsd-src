@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.16 1997/10/26 01:02:34 brian Exp $
+ * $Id: filter.c,v 1.17 1997/11/09 14:18:38 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -434,7 +434,13 @@ ShowFilter(struct filterent * fp)
 
   for (n = 0; n < MAXFILTERS; n++, fp++) {
     if (fp->action != A_NONE) {
-      fprintf(VarTerm, "%2d %s", n, actname[fp->action]);
+      fprintf(VarTerm, "%2d %s", n, actname[fp->action & (A_PERMIT|A_DENY)]);
+      if (fp->action & A_UHOST)
+        fprintf(VarTerm, "host ");
+      else if (fp->action & A_UPORT)
+        fprintf(VarTerm, "port ");
+      else
+        fprintf(VarTerm, "     ");
       fprintf(VarTerm, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
       fprintf(VarTerm, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
       if (fp->proto) {
