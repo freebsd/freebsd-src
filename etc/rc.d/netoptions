@@ -1,0 +1,207 @@
+#!/bin/sh -
+#
+#	$Id: rc.network,v 1.1.2.1 1997/04/26 22:39:34 jkh Exp $
+#	From: @(#)netstart	5.9 (Berkeley) 3/30/91
+
+# Note that almost all the user-configurable behavior is no longer in
+# this file, but rather in /etc/rc.conf.  Please check that file
+# first before contemplating any changes here.  If you do need to change
+# this file for some reason, we would like to know about it.
+
+# First pass startup stuff.
+
+network_pass1() {
+    echo -n 'Doing initial network setup:'
+    # Set the host name if it is not already set
+    if [ -z "`hostname -s`" ] ; then
+	    hostname $hostname
+	    echo -n ' hostname'
+    fi
+
+    # Set the domainname if we're using NIS
+    if [ -n "$nisdomainname" -a "x$nisdomainname" != "xNO" ] ; then
+	    domainname $nisdomainname
+	    echo -n ' domain'
+    fi
+    echo '.'
+
+    # Set up all the network interfaces, calling startup scripts if needed
+    for ifn in ${network_interfaces}; do
+	    if [ -e /etc/start_if.${ifn} ]; then
+		    . /etc/start_if.${ifn} ${ifn}
+	    fi
+	    # Do the primary ifconfig if specified
+	    eval ifconfig_args=\$ifconfig_${ifn}
+	    if [ -n "${ifconfig_args}" ] ; then
+		    ifconfig ${ifn} ${ifconfig_args}
+	    fi
+	    # Check to see if aliases need to be added
+	    alias=0
+	    while :
+	    do
+		    eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
+		    if [ -n "${ifconfig_args}" ]; then
+			    ifconfig ${ifn} ${ifconfig_args} alias
+			    alias=`expr ${alias} + 1`
+		    else
+			    break;
+		    fi
+	    done
+	    # Do ipx address if specified
+	    eval ifconfig_args=\$ifconfig_${ifn}_ipx
+	    if [ -n "${ifconfig_args}" ]; then
+		    ifconfig ${ifn} ${ifconfig_args}
+	    fi
+	    ifconfig ${ifn}
+    done
+    
+    # If IP filtering
+    if [ -n "$firewall" -a "x$firewall" != "xNO" -a -f /etc/rc.firewall ] ; then
+	    echo -n ' firewall'
+	    sh /etc/rc.firewall
+    fi
+
+    if [ "x$defaultrouter" != "xNO" ] ; then
+	    static_routes="default ${static_routes}"
+	    route_default="default ${defaultrouter}"
+    fi
+    
+    # Set up any static routes.  This should be done before router discovery.
+    if [ "x${static_routes}" != "x" ]; then
+	    for i in ${static_routes}; do
+		    eval route_args=\$route_${i}
+		    route add ${route_args}
+	    done
+    fi
+
+    echo -n 'Additional routing options:'
+    if [ "X$gateway_enable" = X"YES" ]; then
+	    echo -n ' IP gateway=1'
+	    sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
+    fi
+    
+    if [ "X$router_enable" = X"YES" ]; then
+	    echo -n " ${router}";	${router} ${router_flags}
+    fi
+    
+    if [ "X$ipxgateway_enable" = X"YES" ]; then
+	    echo -n ' IPX gateway=1'
+	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null 2>&1
+    fi
+    
+    if [ "X$ipxrouted_enable" = X"YES" ]; then
+	    echo -n ' IPXrouted: '
+	    IPXrouted ${ipxrouted_flags} > /dev/null 2>&1
+    fi
+    echo '.'
+    network_pass1_done=YES	# Let future generations know we made it.
+}
+
+network_pass2() {
+    echo -n 'Doing additional network setup:'
+    if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
+	    echon -n ' tcp extentions=0'
+	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
+	    sysctl -w net.inet.tcp.rfc1644=0 >/dev/null 2>&1
+    fi
+    if [ "X${named_enable}" = X"YES" ]; then
+	    echo -n ' named';		named ${named_flags}
+    fi
+
+    if [ "X${ntpdate_enable}" = X"YES" -o "X${xntpd_enable}" = X"YES" ]; then
+	    if [ "X${tickadj_enable}" = X"YES" ]; then
+		    echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
+	    fi
+
+	    if [ "X${ntpdate_enable}" = X"YES" ]; then
+		    echo -n ' ntpdate';	ntpdate ${ntpdate_flags} >/dev/null 2>&1
+	    fi
+
+	    if [ "X${xntpd_enable}" = X"YES" ]; then
+		    echo -n ' xntpd';	xntpd ${xntpd_flags}
+	    fi
+    fi
+
+    if [ "X${timed_enable}" = X"YES" ]; then
+	    echo -n ' timed';		timed ${timed_flags}
+    fi
+
+    if [ "X${portmap_enable}" = X"YES" ]; then
+	    echo -n ' portmap';		portmap ${portmap_flags}
+    fi
+
+    # Start ypserv if we're an NIS server.
+    # Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
+    if [ "X${nis_server_enable}" = X"YES" ]; then
+	    echo -n ' ypserv'; ypserv ${nis_server_flags}
+	    
+	    if [ "X${nis_ypxfrd_enable}" = X"YES" ]; then
+		    echo -n ' rpc.ypxfrd'; rpc.ypxfrd ${nis_ypxfrd_flags}
+	    fi
+	    
+	    if [ "X${nis_yppasswdd_enable}" = X"YES" ]; then
+		    echo -n ' rpc.yppasswdd'; rpc.yppasswdd ${nis_yppasswdd_flags}
+	    fi
+    fi
+
+    # Start ypbind if we're an NIS client
+    if [ "X${nis_client_enable}" = X"YES" ]; then
+	    echo -n ' ypbind'; ypbind ${nis_client_flags}
+	    if [ "X${nis_ypset_enable}" = X"YES" ]; then
+		    echo -n ' ypset'; ypset ${nis_ypset_flags}
+	    fi
+    fi
+
+    echo '.'
+    network_pass2_done=YES
+}
+
+network_pass3() {
+    echo -n 'Starting final network daemons:'
+
+    if [ "X${nfs_server_enable}" = X"YES" -a -r /etc/exports ]; then
+	    echo -n ' mountd'
+	    if [ "X${weak_mountd_authentication}" = X"YES" ]; then
+		    mountd_flags="-n"
+	    fi
+	    mountd ${mountd_flags}
+	    if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
+		    echo -n ' nfsprivport=1'
+		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null 2>&1
+	    fi
+	    echo -n ' nfsd';		nfsd -u -t 4
+	    if [ "X$rpc_lockd_enable" = X"YES" ]; then
+		echo -n ' rpc.lockd';		rpc.lockd
+	    fi
+	    if [ "X$rpc_statd_enable" = X"YES" ]; then
+		echo -n ' rpc.statd';		rpc.statd
+	    fi
+    fi
+    
+    if [ "X${nfs_client_enable}" = X"YES" ]; then
+	    echo -n ' nfsiod';		nfsiod -n 4
+    fi
+
+    if [ "X${amd_enable}" = X"YES" ]; then
+	    echo -n ' amd'
+	    amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
+    fi
+
+    if [ "X${rwhod_enable}" = X"YES" ]; then
+	    echo -n ' rwhod';	rwhod
+    fi
+
+    # Kerberos runs ONLY on the Kerberos server machine
+    if [ "X${kerberos_server_enable}" = X"YES" ]; then
+	    echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
+	    echo -n ' kadmind'; \
+		    (sleep 20; kadmind -n >/dev/null 2>&1 &) &
+    fi
+    
+    # IP multicast routing daemon
+    if [ "X${mrouted_enable}" = X"YES" ]; then
+	    echo -n ' mrouted'; mrouted ${mrouted_flags}
+    fi
+    echo '.'
+    network_pass3_done=YES
+}
