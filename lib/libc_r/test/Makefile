@@ -26,7 +26,7 @@ CFLAGS := -Wall -pipe -g3
 LDFLAGS_A := -static
 LDFLAGS_P := -pg
 LDFLAGS_S :=
-LIBS := -lc_r
+LIBS := -lthr
 
 # Flags passed to verify.  "-v" or "-u" may be useful.
 VFLAGS :=
