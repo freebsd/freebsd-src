@@ -36,7 +36,7 @@
 #include <bits/os_defines.h>
 
 // The current version of the C++ library in compressed ISO date format.
-#define __GLIBCPP__ 20021119
+#define __GLIBCPP__ 20030205
 
 // This is necessary until GCC supports separate template
 // compilation.  
@@ -97,9 +97,6 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 // Define if GCC supports weak symbols.
 #define _GLIBCPP_SUPPORTS_WEAK __GXX_WEAK__
 
-// Define if gthr-default.h exists (meaning that threading support is enabled).
-#define _GLIBCPP_HAVE_GTHR_DEFAULT 1
-
 // Include I/O support for 'long long' and 'unsigned long long'.
 #define _GLIBCPP_USE_LONG_LONG 1
 
@@ -128,6 +125,9 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #else
   #define _GLIBCPP_ASM_SYMVER(cur, old, version)
 #endif
+
+// Define if gthr-default.h exists (meaning that threading support is enabled).
+#define _GLIBCPP_HAVE_GTHR_DEFAULT 1
 
 // Define if mbstate_t exists in wchar.h.
 #define _GLIBCPP_HAVE_MBSTATE_T 1
@@ -196,7 +196,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_HAVE_LC_MESSAGES 1
 
 /* Define if you have the __signbit function.  */
-/* #undef _GLIBCPP_HAVE___SIGNBIT */
+#define _GLIBCPP_HAVE___SIGNBIT 1
 
 /* Define if you have the __signbitf function.  */
 /* #undef _GLIBCPP_HAVE___SIGNBITF */
@@ -540,6 +540,9 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 /* Define if you have the iconv_open function.  */
 /* #undef _GLIBCPP_HAVE_ICONV_OPEN */
 
+/* Define if you have the isatty function.  */
+#define _GLIBCPP_HAVE_ISATTY 1
+
 /* Define if you have the isinf function.  */
 #define _GLIBCPP_HAVE_ISINF 1
 
@@ -850,7 +853,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_PACKAGE "libstdc++"
 
 /* Version number of package */
-#define _GLIBCPP_VERSION "3.2.1"
+#define _GLIBCPP_VERSION "3.2.2"
 
 /* Define if the compiler is configured for setjmp/longjmp exceptions. */
 /* #undef _GLIBCPP_SJLJ_EXCEPTIONS */
