@@ -76,7 +76,7 @@ extern char	ptyobuf[BUFSIZ+NETSLOP], *pfrontp, *pbackp;
 
 extern char	netibuf[BUFSIZ], *netip;
 
-extern char	netobuf[BUFSIZ+NETSLOP], *nfrontp, *nbackp;
+extern char	netobuf[BUFSIZ], *nfrontp, *nbackp;
 extern char	*neturg;		/* one past last bye of urgent data */
 
 extern int	pcc, ncc;
@@ -189,8 +189,10 @@ extern void
 	tty_setsofttab P((int)),
 	tty_tspeed P((int)),
 	willoption P((int)),
-	wontoption P((int)),
-	writenet P((unsigned char *, int));
+	wontoption P((int));
+
+int	output_data __P((const char *, ...)) __printflike(1, 2);
+int	output_datalen __P((const char *, size_t));
 
 
 
