@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.4.4.7 1996/07/07 23:46:45 alex Exp $
+<date> $Id: freebsd-faq.sgml,v 1.4.4.8 1996/07/09 02:41:35 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -33,26 +33,6 @@ Any entries with a &lt;XXX&gt; are under construction.
 
         There are regular snapshots extracted from 2.2-CURRENT. Check on
         <tt>ftp.FreeBSD.ORG</tt> in <tt>/pub/FreeBSD/*-SNAP*</tt>.
-
-        Some of the instructions here will also refer to auxiliary
-        utilities in the <tt>/usr/share/FAQ/Text</tt> directory. If you do
-        not have this directory, or if it does not contain the file that
-        you want, you are probably using a version of FreeBSD prior to
-        2.0.5R.  In this case, install the FreeBSD sources and look in
-        <tt>/usr/src/share/FAQ/Text</tt> (instead of
-        <tt>/usr/share/FAQ</tt>).  CDROM purchasers and net folks who've
-        grabbed the FreeBSD 2.X ``<tt/srcdist/'' will have these files.  If
-        you don't have the source distribution, then you can either grab
-        the whole thing from:
-
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current"
-            name="FreeBSD-current base directory"> 
-
-        Or you can grab only those files you're interested in straight out
-        of the FreeBSD-current distribution in:
-        
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src"
-            name="FreeBSD-current src directory">
 
       <sect1>
 	<heading>What is FreeBSD?</heading>
@@ -84,7 +64,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What do I need to run FreeBSD?</heading>
         <p>
-          You'll need a 386 or better PC, with 4 Mo or more of RAM and at
+          You'll need a 386 or better PC, with 4 MB or more of RAM and at
           least 60 MB of hard disk space. It can run with a low end MDA
           card but to run X11R6, a VGA or better video card is needed.
 
@@ -94,7 +74,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>Where can I get FreeBSD</heading>
         <p>
           The distribution is available via anonymous ftp from:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="FreeBSD home directory">
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="the FreeBSD FTP site">
 
           For the current release, 2.1.0R, look in:
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/" name="FreeBSD 2.1.0-RELEASE">
@@ -110,7 +90,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           email: <url url="mailto:orders@cdrom.com" name="WC Orders address"> <newline>
           WWW: <url url="http://www.cdrom.com/" name="WC Home page"><newline> 
 
-          In Australia, you may find it at the following:
+          In Australia, you may find it at:
 
           Advanced MM Distributors<newline>
           45 Elstone Ave<newline>
@@ -125,6 +105,17 @@ Any entries with a &lt;XXX&gt; are under construction.
 	
           Voice: +61 9 385-3793<newline>
           Fax:   +61 9 385-2360<newline>
+
+	  And in the UK:
+
+	  The Public Domain & Shareware Library<newline>
+	  Winscombe House, Beacon Rd<newline>
+	  Crowborough<newline>
+	  Sussex. TN6 1UL<newline>
+
+	  Voice: +44 01892 663298<newline>
+          Fax:   +44 01892 667473<newline>
+	  (Do not dial the leading zero if calling from outside the UK).
 
       <sect1>
 	<heading>What FreeBSD mailing lists are available?</heading>
@@ -142,24 +133,21 @@ Any entries with a &lt;XXX&gt; are under construction.
             <tag/SCSI/ Mailing list for SCSI developers. 
             <tag/current/ This is the mailing list for communications
               between the developers and users of freebsd-current. It also
-              carries announcements and discussions on current.
+              carries announcements and discussions on current. <tt
+	      /Required/ reading for anyone using freebsd-current!
             <tag/security/  For issues dealing with system security. 
-            <tag/platforms/ Deals with ports to non-Intel platforms
-            <tag/ports/     Discussion of <tt>/usr/ports/???</tt>
-            <tag/fs/        Discussion of FreeBSD Filesystems
+            <tag/platforms/ Deals with ports to non-Intel platforms.
+            <tag/ports/     Discussion of the Ports collection.
+            <tag/fs/        Discussion of FreeBSD Filesystems.
             <tag/hardware/  Discussion on hardware requirements for
               FreeBSD.
             <tag/committers/ All CVS commit messages
-            <tag/chat/  What does not belong elsewhere, general chat, fun.
+            <tag/chat/  Miscellaneous chit-chat that does not belong 
+                            anywhere else, humour, etc.
             <tag/hubs/  This the mailing-list for all of the generous
               people who manage the ``regional'' part of the <tt/freebsd.org/
               domain.
-            <tag/users-groups/ This is the mailing list for the
-              coordinators from each of the local area Users Groups to
-              discuss matters with each other and a designated individual
-              from the Core Team.  This mail list should be limited to
-              meeting synopsis and coordination of projects that span User
-              Groups
+            <tag/users-groups/ For the local area Users Groups coordinators.
           </descrip>
         <p>
           The FreeBSD-commit list has been broken up into groups dealing
@@ -173,17 +161,21 @@ Any entries with a &lt;XXX&gt; are under construction.
           Example:
         <p>
           To subscribe to the <tt/questions/ list, you'll to send a message
-          containing the following command in the <bf/body/ of the message,
-          the subject is ignored:
+          containing the following command in the <bf/body/ of the message
+          (the subject will be ignored):
           <verb>
             subscribe questions john.smith@foo.bar (John Smith)
           </verb>
         <p>
-          To unsubscribe, it is as easy. Just remember to send your request
+          Unsubscribing is just as easy:-
+	  <verb>
+	    unsubscribe questions john.smith@foo.bar (John Smith)
+	  </verb>
+	  Just remember to send your request
           to 
-          <url url="mailto:Majordomo@FreeBSD.ORG" name="The mail administrator"> 
-          <bf/not/ to the list itself. The last thing the subscribed
-          users want to see is administrative requests...
+          <url url="mailto:Majordomo@FreeBSD.ORG" name="the mail administrator"> 
+          and <bf/not/ to the list itself! (The last thing the subscribed
+          users want to see is administrative requests...)
 
       <sect1>
 	<heading>What FreeBSD news groups are available?</heading>
@@ -199,14 +191,15 @@ Any entries with a &lt;XXX&gt; are under construction.
             <tag><tt/comp.unix.bsd/</tag>
               General BSD topics
           </descrip>
-          To setup/run your own News server or just reading Usenet News,
-          you may have a look at various packages already ported for
-          FreeBSD 2.X in <tt>/usr/ports/news</tt>. You'll find Cnews, INN,
-          Trn, TIN and others there.
+	  <tt>/usr/ports/news</tt> contains a number of ready-ported
+          programs not only for reading Usenet News, but even setting
+          up and running your own News server! You'll find trn, TIN,
+          Cnews, INN and others there.
 
-          For French-speaking  people, the <tt/fr.comp.os.bsd/ group is for
-          you.  Ask your system administrator  if   you don't receive  this
-          group. 
+          For French-speaking people, the <tt/fr.comp.os.bsd/ group is for
+          you; there is also a Japanese newsgroup, <tt /fj.os.bsd.freebsd/.
+          If you do not receive these newsgroups, ask your system
+          administrator to get them for you.
       </sect1>
       
       <sect1>
@@ -221,7 +214,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           A FreeBSD ``handbook'' is being created, and can be found as:
  
-          <url url="http://www.freebsd.org/How/handbook/" name="FreeBSD's Handbook"> 
+          <url url="http://www.freebsd.org/How/handbook/" name="the FreeBSD Handbook"> 
           Note that this is a work in progress, and so parts may be incomplete.
 
           However, as FreeBSD 2.X is based upon Berkeley 4.4BSD-Lite, most
@@ -467,7 +460,7 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
           This depends.  If you don't have DOS (or another operating
           system) on the system, you can just keep the drive in native mode
-          and simply make sure that your root partition is below 1024 so
+          and simply make sure that your root partition is below 1024 cylinders so
           the BIOS can boot the kernel from it.  It you also have DOS/some
           other OS on the drive then your best bet is to find out what
           parameters that it thinks you have before installing FreeBSD.
@@ -476,8 +469,9 @@ Any entries with a &lt;XXX&gt; are under construction.
           the defaults.
 
           There is a freely available utility distributed with FreeBSD
-          called ``<tt/pfdisk/'' (located in the <tt>tools/dos-tools</tt>
-          subdirectory) which can be used for this purpose.
+          called ``<tt/pfdisk/'' (located in the <tt>tools</tt>
+          subdirectory on the FreeBSD CDROM or on the various FreeBSD
+          ftp sites) which can be used for this purpose.
 
       <sect1>
 	<heading>Can I install on my laptop over PLIP (Parallel Line IP)?</heading>
@@ -1324,6 +1318,14 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           <verb>
             mount_cd9660 /dev/cd0c /mnt
           </verb>
+
+      <sect1>
+        <heading>When I mount a CDROM, I get ``Device not configured''.</heading>
+        <p>
+          This generally means that there is no CDROM in the CDROM drive,
+          or the drive is not visible on the bus. Feed the drive
+          something, and/or check its master/slave status if it is
+          IDE (ATAPI).
           
       <sect1>
         <heading>How can I use the NT loader to boot FreeBSD?</heading>
@@ -1388,18 +1390,16 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
       <sect1>
         <heading>My printer is ridiculously slow. What can I do ?</heading>
         <p>
-          If it's parallel, and all your problem is that it's terribly
+          If it's parallel, and the only problem is that it's terribly
           slow, try setting your printer port into ``polled'' mode:
 
           <verb>
             lptcontrol -p
           </verb>
 
-          Some newer HP printers are told to not work correctly in
+          Some newer HP printers are claimed not to work correctly in
           interrupt mode, apparently due to some (not yet exactly
-          understood) timing problem.  Slowaris is also affected by this
-          (and that's probably the reason why the HP support does rather
-          act like an ``unsupport'' here).
+          understood) timing problem.
 
       <sect1>
         <heading>My keyboard locks up after switching between vtys.</heading>
@@ -1410,21 +1410,12 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
             options ASYNCH
           </verb>
 
-          See the section  on <ref id="make-kernel" name="about building  a
+          See the section  on <ref id="make-kernel" name="building  a
           kernel"> if you've no experience with building kernels.
 
       <sect1>My bus mouse locks up spontaneously.</heading>
         <p>
           Please refer to the answer to the previous question.
-
-      <sect1>
-        <heading>When I mount a CDROM, I get ``Device not configured''.</heading>
-        <p>
-          This generally means that there is no CDROM in the CDROM drive,
-          or the drive is not visible on the bus. Feed the drive
-          something, and/or check it's master/slave status if it is
-          IDE (ATAPI).
-
   
       <sect1>
         <heading>My programs occasionally die with ``Signal 11'' errors.</heading>
@@ -1467,8 +1458,8 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
         <p>
           Until the bug has been fixed, you can use this workaround:
           <enum>
-            <item> Enter <tt/-c/ at the bootprompt. <newline>
-              &lsqb; the kernel goes into configuration mode &rsqb;
+            <item> Enter <tt/-c/ at the bootprompt.
+              (This will put the kernel into configuration mode).
             <item> Disable <tt/sio0/, <tt/sio1/, <tt/sio2/ and <tt/sio3/
               (all of them).  This way the sio driver doesn't get activated
               -> no problems.
@@ -1504,17 +1495,32 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           run <tt/xf86config/ again.
 
       <sect1>
-	<heading>How do I access the virtual consoles?</heading>
-        <p>
-          If the console is not currently displaying X Window, just press
-          Alt-F1 to Alt-F12.  
-
-          <bf/NOTE/ the default FreeBSD installation has
-          only three (3) virtual consoles enabled, and so only Alt-F1,
-          Alt-F2, and Alt-F3 will work to switch between three virtual
-          consoles.  If you want to increase this number, see the next
-          question.
+	<heading>What is a virtual console?</heading>
+	<p>
+	  Virtual consoles, put simply, enable you to have several
+	  simultaneous sessions on the same machine without doing anything
+	  complicated like setting up a network or running X.
+	<p>
+	  When the system starts, it will display a login prompt on
+	  the monitor after displaying all the boot messages. You can
+	  then type in your login name and password and start working (or
+	  playing!) on the first virtual console.
+	<p>
+	  At some point, you will probably wish to start another
+	  session, perhaps to look at documentation for a program 
+	  you are running or to read your mail while waiting for an
+	  FTP transfer to finish. Just do Alt-F2 (hold down the Alt
+	  key and press the F2 key), and you will find a login prompt
+	  waiting for you on the second ``virtual console''! When you
+	  want to go back to the original session, do Alt-F1.
+	<p>
+          The default FreeBSD installation has three virtual consoles 
+	  enabled, and Alt-F1, Alt-F2, and Alt-F3 will switch between 
+	  these virtual consoles.
  
+      <sect1>
+	<heading>How do I access the virtual consoles from X?</heading>
+        <p>
           If the console is currently displaying X Window, you can use
           Ctrl-Alt-F1, etc. to switch to a virtual console.  Note, however,
           that once you've switched away from X Window to a virtual
@@ -1630,7 +1636,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
         <p>
           Read this:
           <url url="http://www.freebsd.org/How/handbook/current.html"
-            name="Handbook's section of FreeBSD-CURRENT">
+            name="Handbook entry on FreeBSD-CURRENT">
           it will tell you all you need to know.
           
       <sect1>
@@ -1656,7 +1662,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 
           Second, read the <url
             url="http://www.freebsd.org/How/handbook/sup.html"
-            name="Handbook's section on SUP">
+            name="Handbook entry on SUP">
 
           This file describes how to setup sup on your machine.  You may
           also want to look at
@@ -1670,7 +1676,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
 
       <sect1>
-        <heading>How cool is your OS?</heading>
+        <heading>How cool is FreeBSD?</heading>
         <p>
           Q. Has anyone done any temperature testing while running FreeBSD? 
           I know Linux runs cooler than dos, but have never seen a mention of 
@@ -1731,7 +1737,12 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
         <heading>&quot;make world&quot; clobbers my existing installed binaries.</heading>
 
         <p>
-          If you define the environment variable <tt/DESTDIR/ while running
+	  Yes, this is the general idea; as its name might suggest,
+	  ``make world'' rebuilds every system binary from scratch, so
+	  you can be certain of having a clean and consistent
+	  environment at the end (which is why it takes so long).
+	<p>
+          If the environment variable <tt/DESTDIR/ is defined while running
           ``<tt/make world/'' or ``<tt/make install/'', the newly-created
           binaries will be deposited in a directory tree identical to the
           installed one, rooted at <tt>&dollar;&lcub;DESTDIR&rcub;</tt>.
@@ -1762,10 +1773,10 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           by using the            
             <url
                url="http://www.freebsd.org/How/handbook/handbook/ctm.html" 
-               name="CTM facility">
+               name="CTM facility.">
 
       <sect1>
-        <heading>How did you split up the distribution into 240k files?</heading>
+        <heading>How did you split the distribution up into 240k files?</heading>
 
         <p>
           Newer BSD based systems have a ``<tt/-b/'' option to split that
@@ -1791,7 +1802,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           Please take a look at:
 
           <url url="http://www.FreeBSD.ORG/How/handbook/submitters.html"
-            name="The Handbook entry on how to submit code">.
+            name="The Handbook entry on how to submit code.">
 
           And thanks for the thought!
 
@@ -2123,7 +2134,7 @@ disk        fd1   at fdc0 drive 1
         <heading>Where are the system start-up configuration files?</heading>
 
         <p>
-          As for 2.0.5R, the primary configuration file is
+          As of 2.0.5R, the primary configuration file is
           <tt>/etc/sysconfig</tt>. All the options are to be specified in
           this one and the other one (<tt>/etc/rc</tt> and
           <tt>/etc/netstart</tt>) just include it.
@@ -2176,11 +2187,11 @@ disk        fd1   at fdc0 drive 1
       <sect1>
         <heading>I'm having problems setting up my printer.</heading>
         <p>
-          Please have a look at the section of the Handbook on printing. It
+          Please have a look at the Handbook entry on printing. It
           should cover most of your problem. See the
 	  <url
             url="http://www.freebsd.org/How/handbook/printing.html"
-            name="Handbook entry on printing">
+            name="Handbook entry on printing.">
       </sect1>
 
       <sect1>
@@ -2300,13 +2311,13 @@ disk        fd1   at fdc0 drive 1
           links:
 
           <url url="http://www.FreeBSD.ORG/How/handbook/slips.html"
-            name="Handbook's section on SLIP (server side)">
+            name="Handbook entry on SLIP (server side)">
           <url url="http://www.FreeBSD.ORG/How/handbook/slipc.html"
-            name="Handbook's section on SLIP (client side)">
+            name="Handbook entry on SLIP (client side)">
           <url url="http://www.FreeBSD.ORG/How/handbook/ppp.html"
-            name="Handbook's section on PPP (kernel version)">
+            name="Handbook entry on PPP (kernel version)">
           <url url="http://www.FreeBSD.ORG/How/handbook/userppp.html"
-            name="Handbook's section on SLIP (user-mode version)">
+            name="Handbook entry on SLIP (user-mode version)">
 
       <sect1> 
         <heading>I can connect with IJPPP but it doesn't work right!</heading>
@@ -2495,6 +2506,29 @@ domain foo.bar.edu
 
       </sect1>
 
+      <sect1><heading>Sendmail says ``mail loops back to myself''</heading>
+	<p>
+	  This is answered in the sendmail FAQ as follows:-
+	  <verb>
+          * I'm getting "Local configuration error" messages, such as:
+
+          553 relay.domain.net config error: mail loops back to myself
+          554 <user@domain.net>... Local configuration error
+
+          How can I solve this problem?
+
+          You have asked mail to the domain (e.g., domain.net) to be
+          forwarded to a specific host (in this case, relay.domain.net)
+          by using an MX record, but the relay machine doesn't recognize
+          itself as domain.net.  Add domain.net to /etc/sendmail.cw
+          (if you are using FEATURE(use_cw_file)) or add "Cw domain.net"
+          to /etc/sendmail.cf.
+	  </verb>
+	<p>
+	  The sendmail FAQ is in <tt>/usr/src/usr.sbin/sendmail</tt>
+	  and is recommended reading if you want to do any
+	  ``tweaking'' of your mail setup.
+
       <sect1>
         <heading>How do I use sendmail for mail delivery with UUCP?</heading>
 
@@ -2516,8 +2550,8 @@ domain foo.bar.edu
      /usr/src/usr.sbin/sendmail/cf
 </verb>
 
-          If you don't have installed your system with full sources,
-          this won't be a problem.  The sendmail config stuff has been
+          If you didn't install your system with full sources,
+          the sendmail config stuff has been
           broken out into a separate source distribution tarball just
           for you.  Assuming you've got your CD-ROM mounted, do:
 
@@ -2526,12 +2560,12 @@ domain foo.bar.edu
      tar -xvzf /cdrom/dists/src/ssmailcf.aa
 </verb>
 
-          Don't bother, this is only a few hundred kilobytes in size.
+          Don't panic, this is only a few hundred kilobytes in size.
           The file <tt>README</tt> in the <tt>cf</tt> directory can
-          serve as a basic introduction into the m4 configuration.
+          serve as a basic introduction to m4 configuration.
 
         <p>
-          For UUCP delivery, you will go best by using the
+          For UUCP delivery, you are best advised to use the
           <em>mailertable</em> feature.  This constitutes a database
           that sendmail can use to base its routing decision upon.
 
@@ -2608,7 +2642,7 @@ domain foo.bar.edu
           everything else, with UUCP delivery to a UUCP neighbour that
           serves as your universal mail gateway to the world.  All of
           the node names behind the <tt>uucp-dom:</tt> keyword must
-          be valid UUCP neighbours, as you could verify using the
+          be valid UUCP neighbours, as you can verify using the
           command <tt>uuname</tt>.
 
         <p>
@@ -3100,7 +3134,7 @@ domain foo.bar.edu
           protocol, like zmodem.
 
       <sect1>
-	<heading>Okay, how can I run zmodem with <tt/tip/?</heading>
+	<heading>How can I run zmodem with <tt/tip/?</heading>
         <p>
           To receive files, start the sending program on the remote end.
           Then, type ``<tt/~C rz/'' to begin receiving them locally.
