@@ -972,7 +972,7 @@ f_delete(plan, entry)
 
 	/* rmdir directories, unlink everything else */
 	if (S_ISDIR(entry->fts_statp->st_mode)) {
-		if (rmdir(entry->fts_accpath) < 0)
+		if (rmdir(entry->fts_accpath) < 0 && errno != ENOTEMPTY)
 			warn("-delete: rmdir(%s)", entry->fts_path);
 	} else {
 		if (unlink(entry->fts_accpath) < 0)
