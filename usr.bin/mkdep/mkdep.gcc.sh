@@ -80,7 +80,7 @@ MKDEP_CPP=${MKDEP_CPP-"cc -E"}
 if [ x$pflag = x ]; then
 	$MKDEP_CPP -M $* | sed -e 's; \./; ;g' > $TMP
 else
-	$MKDEP_CPP -M $* | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
+	$MKDEP_CPP -M $* | sed -e 's;\.o:;:;' -e 's; \./; ;g' > $TMP
 fi
 
 if [ $? != 0 ]; then
