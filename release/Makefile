@@ -104,9 +104,9 @@ RELEASEPORTSMODULE?=	ports
 #HTTP_PROXY?=	www.example.com
 #FTP_PROXY?=	ftp.example.com
 
-# When creating ISO images, point ${CD_EXTRA_BITS} to a directory containing
-# extra packages or other files.  It will be appended to the disk 1 ISO.
-#CD_EXTRA_BITS=	/path/to/pkg
+# When creating ISO images, point ${CD_PACKAGE_TREE} to a directory containing
+# the package split by an earlier invocation of the 'package-split' target.
+#CD_PACKAGE_TREE=	/path/to/pkg
 
 # Extra source tarballs; each argument is a pair of source dir and
 # distribution name.  The dist name should not exceed 7 characters
@@ -126,12 +126,6 @@ DOMINIMALDOCPORTS=	YES
 .include "Makefile.inc.docports"
 RELEASEPORTSMODULE=	${MINIMALDOCPORTS}
 .endif
-
-# Make changing names of disc1/disc2 CD's possible.
-DISC1_LABEL?=	FreeBSD_Install
-DISC1_NAME?=	disc1
-DISC2_LABEL?=	FreeBSD_LiveFS
-DISC2_NAME?=	disc2
 
 # Helper variable
 .if defined(NOPORTS)
@@ -250,9 +244,9 @@ CD=			${_R}/cdrom
 CD_BOOT=		${CD}/bootonly
 .endif
 CD_DISC1=		${CD}/disc1
-.if defined(SEPARATE_LIVEFS)
 CD_DISC2=		${CD}/disc2
-CD_LIVEFS=		${CD_DISC2}
+.if defined(SEPARATE_LIVEFS)
+CD_LIVEFS=		${CD}/livefs
 .else
 CD_LIVEFS=		${CD_DISC1}
 .endif
@@ -449,11 +443,7 @@ release rerelease:
 .for var in \
 	AUTO_KEYBOARD_DETECT \
 	BUILDNAME \
-	CD_EXTRA_BITS \
-	DISC1_LABEL \
-	DISC1_NAME \
-	DISC2_LABEL \
-	DISC2_NAME \
+	CD_PACKAGE_TREE \
 	DISTRIBUTIONS \
 	DOC_LANG \
 	DOMINIMALDOCPORTS \
@@ -921,7 +911,7 @@ cdrom.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 	touch ${.TARGET}
 
-# Build disc1 cdrom image
+# Build disc1 and disc2 cdrom images
 cdrom.2:
 	@echo "Building CDROM disc1 filesystem image"
 	@mkdir -p ${CD_DISC1}/${BUILDNAME}
@@ -946,10 +936,15 @@ cdrom.2:
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
+	@echo "CD_VOLUME = 1" >> ${CD_DISC1}/cdrom.inf
 .if defined(SEPARATE_LIVEFS)
 	@cp -Rp ${CD_LIVEFS}/boot ${CD_DISC1}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 .endif
+	@echo "Building CDROM disc2 filesystem image"
+	@mkdir -p ${CD_DISC2}
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+	@echo "CD_VOLUME = 2" >> ${CD_DISC2}/cdrom.inf
 	touch ${.TARGET}
 
 #
@@ -960,6 +955,7 @@ cdrom.3:
 	@echo "Building bootonly CDROM filesystem image"
 	@mkdir -p ${CD_BOOT}
 	@cp -Rp ${CD_LIVEFS}/boot ${CD_BOOT}
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_BOOT}/cdrom.inf
 .if defined(MINIROOT)
 	@echo "Building bootonly UFS filesystem image"
 	@mkdir -p ${FD}/miniroot
@@ -970,22 +966,37 @@ cdrom.3:
 .endif
 	touch ${.TARGET}
 
+.if make(iso.1)
+.if defined(CD_PACKAGE_TREE)
+.if exists(${CD_PACKAGE_TREE}/disc1)
+CD_DISC1_PKGS=	${CD_PACKAGE_TREE}/disc1
+.endif
+.if exists(${CD_PACKAGE_TREE}/disc2)
+CD_DISC2_PKGS=	${CD_PACKAGE_TREE}/disc2
+.endif
+.endif
+.endif
+
 iso.1:
 .if exists(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
 	@echo "Creating ISO images..."
 .if defined(CD_BOOT)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-	    fbsd_bootonly \
+	    FreeBSD_bootonly \
 	    ${CD}/${BUILDNAME}-${TARGET}-bootonly.iso ${CD_BOOT}
 .endif
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-	    ${DISC1_LABEL} \
-	    ${CD}/${BUILDNAME}-${TARGET}-${DISC1_NAME}.iso ${CD_DISC1} \
-	    ${CD_EXTRA_BITS}
+	    FreeBSD_Install \
+	    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
+	    ${CD_DISC1_PKGS}
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	    FreeBSD_Packages \
+	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
+	    ${CD_DISC2_PKGS}
 .if defined(SEPARATE_LIVEFS)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-	    ${DISC2_LABEL} \
-	    ${CD}/${BUILDNAME}-${TARGET}-${DISC2_NAME}.iso ${CD_DISC2}
+	    FreeBSD_LiveFS \
+	    ${CD}/${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
 .endif
 	@(cd ${CD} && md5 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
 	touch ${.TARGET}
