@@ -239,7 +239,7 @@ A new API has been added for sound cards with hardware volume
 control.
 
 A new sysctl 'net.link.ether.inet.log_arp_wrong_iface' to controls the
-supression of logging when ARP replies arrive on the wrong
+suppression of logging when ARP replies arrive on the wrong
 interface. [MERGED]
 
 A bug in the NFS client that caused bogus access times with
@@ -263,7 +263,7 @@ version.)
 
 The API UP1100 mainboard has been verified to work OK.
 
-bridge(4) and dummynet(4) have received some enhancements and bugfixes.
+bridge(4) and dummynet(4) have received some enhancements and bug fixes.
 
 The API CS20 1U high server has been verified to work OK.
 

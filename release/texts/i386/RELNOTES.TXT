@@ -313,7 +313,7 @@ control.
 The VESA S3 linear framebuffer driver has been added.
 
 A new sysctl 'net.link.ether.inet.log_arp_wrong_iface' to controls the
-supression of logging when ARP replies arrive on the wrong
+suppression of logging when ARP replies arrive on the wrong
 interface. [MERGED]
 
 A bug in the NFS client that caused bogus access times with
@@ -344,7 +344,7 @@ is no longer required, in some cases, for a "buildworld" to precede a
 major releases, across binutil upgrades and when config changes
 version.)
 
-bridge(4) and dummynet(4) have received some enhancements and bugfixes.
+bridge(4) and dummynet(4) have received some enhancements and bug fixes.
 
 ipfw(8) has a new feature that allows for packet matching on
 interfaces with dynamically-changing IP addressess.
