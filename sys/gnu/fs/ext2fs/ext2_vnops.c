@@ -674,59 +674,13 @@ ext2_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct buf *bp;
-	struct buf *nbp;
-	int s;
-
-	/* 
-	 * XXX why is all this fs specific?
-	 */
-
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
-	ext2_discard_prealloc(VTOI(vp));
+	ext2_discard_prealloc(VTOI(ap->a_vp));
 
-loop:
-	VI_LOCK(vp);
-	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		VI_UNLOCK(vp);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			VI_LOCK(vp);
-			continue;
-		}
-		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("ext2_fsync: not dirty");
-		bremfree(bp);
-		splx(s);
-		/*
-		 * Wait for I/O associated with indirect blocks to complete,
-		 * since there is no way to quickly wait for them below.
-		 */
-		if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
-			(void) bawrite(bp);
-		else
-			(void) bwrite(bp);
-		goto loop;
-	}
-	if (ap->a_waitfor == MNT_WAIT) {
-		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			msleep(&vp->v_numoutput, VI_MTX(vp), 
-			    PRIBIO + 1, "e2fsyn", 0);
-		}
-#if DIAGNOSTIC
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-			vprint("ext2_fsync: dirty", vp);
-			goto loop;
-		}
-#endif
-	}
-	VI_UNLOCK(vp);
-	splx(s);
+	vop_stdfsync(ap);
+
 	return (ext2_update(ap->a_vp, ap->a_waitfor == MNT_WAIT));
 }
 
