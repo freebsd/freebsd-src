@@ -517,8 +517,6 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
     if (!(cdp = dev->si_drv1))
 	return ENXIO;
 
-    acd_eject(cdp, 1);
-
     if (flags & FWRITE) {
 	if (count_dev(dev) > 1)
 	    return EBUSY;
