@@ -143,7 +143,6 @@ struct kue_chain {
 	usbd_xfer_handle	kue_xfer;
 	char			*kue_buf;
 	struct mbuf		*kue_mbuf;
-	int			kue_accum;
 	int			kue_idx;
 };
 
