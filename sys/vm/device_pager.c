@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.6 1995/02/21 01:22:43 davidg Exp $
+ * $Id: device_pager.c,v 1.7 1995/03/11 22:25:00 davidg Exp $
  */
 
 /*
@@ -59,7 +59,7 @@ struct pagerlst dev_pager_list;	/* list of managed devices */
 struct pglist dev_pager_fakelist;	/* list of available vm_page_t's */
 
 #ifdef DEBUG
-int dpagerdebug = 0;
+int dpagerdebug;
 
 #define	DDB_FOLLOW	0x01
 #define DDB_INIT	0x02

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.29 1995/04/16 09:59:16 davidg Exp $
+ *	$Id: vm_page.c,v 1.30 1995/04/16 11:50:45 davidg Exp $
  */
 
 /*
@@ -84,7 +84,7 @@
  */
 
 struct pglist *vm_page_buckets;	/* Array of buckets */
-int vm_page_bucket_count = 0;	/* How big is array? */
+int vm_page_bucket_count;	/* How big is array? */
 int vm_page_hash_mask;		/* Mask for hash function */
 simple_lock_data_t bucket_lock;	/* lock for all buckets XXX */
 

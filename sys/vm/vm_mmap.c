@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.20 1995/03/25 17:36:00 davidg Exp $
+ * $Id: vm_mmap.c,v 1.21 1995/03/25 17:44:03 davidg Exp $
  */
 
 /*
@@ -63,7 +63,7 @@
 #include <vm/vm_prot.h>
 
 #ifdef DEBUG
-int mmapdebug = 0;
+int mmapdebug;
 
 #define MDB_FOLLOW	0x01
 #define MDB_SYNC	0x02
