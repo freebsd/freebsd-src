@@ -1,11 +1,11 @@
-<!-- $Id$ -->
+<!-- $Id: submitters.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.33 -->
+<!-- Original revision: 1.34 -->
 
 <chapt><heading>FreeBSD への貢献<label id="submitters"></heading>
 
 <p><em>原作: &a.jkh;.</em>
-<p><em>訳: &a.iwasaki;.</em>
+<p><em>訳: &a.iwasaki;.<newline>13 December 1996.</em>
 
 <p>あなたも何か FreeBSD のために貢献したくなりましたか? 素晴らしい!
 私たちは常に支援を受ける用意がありますし, FreeBSD は生き残るためにユー
@@ -431,7 +431,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
-       $Id: submitters.sgml,v 1.33 1996/10/04 22:54:16 wosch Exp $
+       $Id: submitters.sgml,v 1.1.1.1 1996/11/15 05:14:43 asami Exp $
 </verb></tscreen>
 便宜をはかるため, このテキストのコピーは次の場所に置いてあります. 
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>. 
@@ -556,6 +556,12 @@ name="the FreeBSD project administrators"> にコンタクトを取って, 詳し
 	また彼らには, 数年にわたる色々な貢献者への資金提供や, インターネッ
 	トへの T1 コネクションの無制限使用を提供してもらったという恩義があり
 	ます. 
+	</item>
 
+	<item><htmlurl url="http://www.interface-business.de" name="interface
+	business GmbH, Dresden"> は, &a.joerg; を根気良くサポートしてくださいました.
+	彼は本職より FreeBSD の仕事を好みがちであり, 彼個人の接続があまりに
+	遅くなったり途切れたりして仕事にならない時は必ず interface business の 
+	(非常に高価な) EUnet インターネット接続に頼ったものです...
 	</item>
 </itemize>
