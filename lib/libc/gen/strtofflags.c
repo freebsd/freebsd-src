@@ -29,13 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)stat_flags.c	8.1 (Berkeley) 5/31/93
  */
 
 #ifndef lint
+#if 0
+static char sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
+#else
 static const char rcsid[] =
-	"$Id: stat_flags.c,v 1.6 1997/06/02 06:24:50 julian Exp $";
+	"$Id: stat_flags.c,v 1.7 1997/08/07 15:33:49 steve Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
