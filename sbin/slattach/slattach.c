@@ -59,7 +59,7 @@ static const char rcsid[] =
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
@@ -131,7 +131,7 @@ main(int argc, char **argv)
 			slflags &= ~IFF_LINK2;
 			break;
 		case 'e':
-			exit_cmd = (char*) strdup (optarg);
+			exit_cmd = strdup (optarg);
 			break;
 		case 'f':
 			foreground = 1;
@@ -146,13 +146,13 @@ main(int argc, char **argv)
 			slflags |= IFF_LINK1;
 			break;
 		case 'r':
-			redial_cmd = (char*) strdup (optarg);
+			redial_cmd = strdup (optarg);
 			break;
 		case 's':
 			speed = atoi(optarg);
 			break;
 		case 'u':
-			config_cmd = (char*) strdup (optarg);
+			config_cmd = strdup (optarg);
 			break;
 		case 'z':
 			redial_on_startup = 1;
