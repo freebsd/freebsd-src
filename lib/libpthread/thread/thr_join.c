@@ -98,6 +98,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 		_thread_kern_sig_undefer();
 
 		if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+			_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 			_thread_exit_cleanup();
 			pthread_exit(PTHREAD_CANCELED);
 		}

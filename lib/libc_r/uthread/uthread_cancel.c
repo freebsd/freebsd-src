@@ -20,8 +20,16 @@ pthread_cancel(pthread_t pthread)
 		/* Protect the scheduling queues: */
 		_thread_kern_sig_defer();
 
-		/* Check if we need to kick it back into the run queue: */
-		if ((pthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0)
+		if (((pthread->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) ||
+		    (((pthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) == 0) &&
+		    ((pthread->cancelflags & PTHREAD_AT_CANCEL_POINT) == 0)))
+			/* Just mark it for cancellation: */
+			pthread->cancelflags |= PTHREAD_CANCELLING;
+		else {
+			/*
+			 * Check if we need to kick it back into the
+			 * run queue:
+			 */
 			switch (pthread->state) {
 			case PS_RUNNING:
 				/* No need to resume: */
@@ -33,7 +41,7 @@ pthread_cancel(pthread_t pthread)
 			case PS_FDW_WAIT:
 			case PS_POLL_WAIT:
 			case PS_SELECT_WAIT:
-			/* Remove these threads from the work queue: */
+				/* Remove these threads from the work queue: */
 				if ((pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
 				    != 0)
 					PTHREAD_WORKQ_REMOVE(pthread);
@@ -75,7 +83,9 @@ pthread_cancel(pthread_t pthread)
 			case PS_STATE_MAX:
 				/* Ignore - only here to silence -Wall: */
 				break;
+			}
 		}
+
 		/* Unprotect the scheduling queues: */
 		_thread_kern_sig_undefer();
 
@@ -96,7 +106,7 @@ pthread_setcancelstate(int state, int *oldstate)
 	case PTHREAD_CANCEL_ENABLE:
 		if (oldstate != NULL)
 			*oldstate = ostate;
-		_thread_run->cancelflags &= PTHREAD_CANCEL_ENABLE;
+		_thread_run->cancelflags &= ~PTHREAD_CANCEL_DISABLE;
 		if ((_thread_run->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)
 			pthread_testcancel();
 		ret = 0;
@@ -145,7 +155,6 @@ pthread_setcanceltype(int type, int *oldtype)
 void
 pthread_testcancel(void)
 {
-
 	if (((_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
 	    ((_thread_run->cancelflags & PTHREAD_CANCELLING) != 0)) {
 		/*

@@ -111,7 +111,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 		if (((_thread_run->cancelflags & PTHREAD_AT_CANCEL_POINT) == 0) &&
 		    ((_thread_run->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)) {
 			/* 
-			 * Cancelations override signals.
+			 * Cancellations override signals.
 			 *
 			 * Stick a cancellation point at the start of
 			 * each async-cancellable thread's resumption.
