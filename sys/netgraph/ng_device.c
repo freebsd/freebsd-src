@@ -31,9 +31,9 @@
  */
 
 #if 0
-#define AAA printf("ng_device: %s\n", __func__ );
+#define DBG printf("ng_device: %s\n", __func__ )
 #else
-#define AAA
+#define DBG
 #endif
 
 #include <sys/param.h>
@@ -142,7 +142,7 @@ ng_device_constructor(node_p node)
 {
 	priv_p	priv;
 
-AAA
+	DBG;
 
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
@@ -239,7 +239,7 @@ ng_device_newhook(node_p node, hook_p hook, const char *name)
 {
 	priv_p priv = NG_NODE_PRIVATE(node);
 
-AAA
+	DBG;
 
 	/* We have only one hook per node */
 	if (priv->hook != NULL)
@@ -259,7 +259,7 @@ ng_device_rcvdata(hook_p hook, item_p item)
 	priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct mbuf *m;
 
-AAA
+	DBG;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -292,7 +292,7 @@ ng_device_disconnect(hook_p hook)
 {
 	priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-AAA
+	DBG;
 
 	destroy_dev(priv->ngddev);
 	mtx_destroy(&priv->ngd_mtx);
@@ -333,7 +333,8 @@ ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	priv_p	priv = (priv_p )dev->si_drv1;
 
-AAA
+	DBG;
+
 	mtx_lock(&priv->ngd_mtx);
 	priv->flags |= NGDF_OPEN;
 	mtx_unlock(&priv->ngd_mtx);
@@ -349,7 +350,7 @@ ngdclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	priv_p	priv = (priv_p )dev->si_drv1;
 
-AAA
+	DBG;
 	mtx_lock(&priv->ngd_mtx);
 	priv->flags &= ~NGDF_OPEN;
 	mtx_unlock(&priv->ngd_mtx);
@@ -377,7 +378,7 @@ ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	struct ng_mesg *msg;
 	struct ngd_param_s * datap;
 
-AAA
+	DBG;
 
 	SLIST_FOREACH(tmp,&sc->head,links) {
 		if(tmp->ngddev == dev) {
@@ -421,7 +422,7 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 	struct mbuf *m;
 	int len, error = 0;
 
-AAA
+	DBG;
 
 	/* get an mbuf */
 	do {
@@ -464,7 +465,7 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct mbuf *m;
 	int error = 0;
 
-AAA
+	DBG;
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -508,7 +509,7 @@ get_free_unit()
 	int n = 0;
 	int unit = -1;
 
-AAA
+	DBG;
 
 	mtx_assert(&ng_device_mtx, MA_OWNED);
 
