@@ -21,12 +21,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.2 1995/04/09 04:46:14 davidg Exp $
+ * $Id: dc21040.h,v 1.3 1995/05/05 19:44:34 thomas Exp $
  *
  * $Log: dc21040.h,v $
- * Revision 1.2  1995/04/09  04:46:14  davidg
- * From Matt Thomas: Added support for 100Mb cards (such as the DEC DE-500-XA
- * and SMC 9332).
+ * Revision 1.3  1995/05/05  19:44:34  thomas
+ * cogent em100 support
  *
  * Revision 1.1  1994/10/01  20:16:45  wollman
  * Add Matt Thomas's DC21040 PCI Ethernet driver.  (This is turning out
@@ -265,6 +264,17 @@ typedef struct {
 #define	TULIP_GP_DE500_NOTOK_100	0x00000040L
 #define	TULIP_GP_DE500_HALFDUPLEX	0x00000008L
 #define	TULIP_GP_DE500_FORCE_100	0x00000001L
+
+/*
+ * These are the defintitions used for the Cogent EM100
+ * DC21140 board.
+ */
+#define	TULIP_GP_EM100_PINS	0x0000013F	/* General Purpose Pin directions */
+#define	TULIP_GP_EM100_INIT	0x00000009	/* No loopback --- point-to-point */
+#define	TULIP_OUI_COGENT_0	0x00
+#define	TULIP_OUI_COGENT_1	0x00
+#define	TULIP_OUI_COGENT_2	0x94
+#define	TULIP_COGENT_EM100_ID	0x12
 /*
  * SROM definitions for the DC21140 and DC21041.
  */
