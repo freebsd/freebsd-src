@@ -160,6 +160,8 @@ pseudo-device	faith	1	# IPv6-to-IPv4 relaying/(translation)
 pseudo-device	bpf		#Berkeley packet filter
 
 # USB support
+# (if you add any USB devices to this list, they must be added to the Alpha
+#  section of src/release/scripts/dokern.sh)
 #device		uhci		# UHCI PCI->USB interface
 #device		ohci		# OHCI PCI->USB interface
 #device		usb		# USB Bus (required)
