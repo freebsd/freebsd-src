@@ -1586,6 +1586,21 @@ ENTRY(load_cr4)
 	movl	%eax,%cr4
 	ret
 
+/* int load_gs_param(caddr_t gs) */
+ENTRY(load_gs_param)
+	movl	_curpcb,%ecx
+	movl	$load_gs_param_fault,PCB_ONFAULT(%ecx)
+	movl	4(%esp),%eax
+	movl	%eax,%gs
+	xor	%eax,%eax
+	movl	%eax,PCB_ONFAULT(%ecx)
+	ret
+load_gs_param_fault:
+	movl	_curpcb,%ecx
+	movl	$0,PCB_ONFAULT(%ecx)
+	movl	$EFAULT,%eax
+	ret
+
 /*****************************************************************************/
 /* setjump, longjump                                                         */
 /*****************************************************************************/

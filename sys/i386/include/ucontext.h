@@ -35,13 +35,30 @@
 
 typedef struct __mcontext {
 	/*
-	 * The first 3 fields must match the definition of
+	 * The first 20 fields must match the definition of
 	 * sigcontext. So that we can support sigcontext
 	 * and ucontext_t at the same time.
 	 */
 	int	mc_onstack;		/* XXX - sigcontext compat. */
 	int	mc_gs;
-	struct	trapframe mc_tf;
+	int	mc_fs;
+	int	mc_es;
+	int	mc_ds;
+	int	mc_edi;
+	int	mc_esi;
+	int	mc_ebp;
+	int	mc_isp;
+	int	mc_ebx;
+	int	mc_edx;
+	int	mc_ecx;
+	int	mc_eax;
+	int	mc_trapno;
+	int	mc_err;
+	int	mc_eip;
+	int	mc_cs;
+	int	mc_eflags;
+	int	mc_esp;			/* machine state */
+	int	mc_ss;
 
 	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
 	int	__spare__[17];
