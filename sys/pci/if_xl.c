@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.42 1999/07/06 19:23:32 des Exp $
+ *	$Id: if_xl.c,v 1.43 1999/07/07 21:49:14 wpaul Exp $
  */
 
 /*
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.42 1999/07/06 19:23:32 des Exp $";
+	"$Id: if_xl.c,v 1.43 1999/07/07 21:49:14 wpaul Exp $";
 #endif
 
 /*
@@ -2413,7 +2413,7 @@ static void xl_start(ifp)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
 	xl_wait(sc);
 
-	if (CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
+	if (sc->xl_cdata.xl_tx_head != NULL) {
 		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
 					vtophys(start_tx->xl_ptr);
