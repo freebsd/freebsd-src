@@ -43,7 +43,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.7 1995/12/16 09:45:15 markm Exp $";
+	"$Id: passwd.c,v 1.8 1996/02/23 16:08:26 wpaul Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -181,7 +181,7 @@ main(argc, argv)
 	if (__use_yp || (iflag == NULL && rflag == NULL && uflag == NULL)) {
 #endif
 		res = use_yp(uname, 0, 0);
-		if (res == USER_YP_ONLY || __use_yp) {
+		if (res == USER_YP_ONLY) {
 			if (!use_local_passwd) {
 				exit(yp_passwd(uname));
 			} else {
@@ -198,7 +198,7 @@ main(argc, argv)
 			if (__use_yp)
 				errx(1, "unknown NIS user: %s.", uname);
 		} else if (res == USER_YP_AND_LOCAL) {
-			if (!use_local_passwd)
+			if (!use_local_passwd && (yp_in_pw_file || __use_yp))
 				exit(yp_passwd(uname));
 		}
 #ifdef KERBEROS
