@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.78 1996/11/23 20:04:02 bde Exp $
+#	$Id: BSD.usr.dist,v 1.79 1996/12/28 15:40:38 wosch Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -176,6 +176,8 @@
                 ..
             ..
             meteor
+	    ..
+	    mdoc
             ..
 	    perfmon
 	    ..
