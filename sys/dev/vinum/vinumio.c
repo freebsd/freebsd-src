@@ -214,13 +214,27 @@ void
 close_drive(struct drive *drive)
 {
     if (drive->vp) {
-	lockdrive(drive);				    /* keep the daemon out */
+	LOCKDRIVE(drive);				    /* keep the daemon out */
+
+	/*
+	 * If we can't access the drive, we can't flush 
+	 * the queues, which spec_close() will try to
+	 * do.  Get rid of them here first
+	 */
+	if (drive->state < drive_up) {			    /* we can't access the drive, */
+	    vn_lock(drive->vp, LK_EXCLUSIVE | LK_RETRY, drive->p);
+	    vinvalbuf(drive->vp, 0, NOCRED, drive->p, 0, 0);
+	    VOP_UNLOCK(drive->vp, 0, drive->p);
+	}
 	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
-	if (drive->vp->v_usecount)			    /* XXX shouldn't happen */
+#ifdef VINUMDEBUG
+	if ((debug & DEBUG_WARNINGS)			    /* want to hear about them */
+	&&(drive->vp->v_usecount))			    /* XXX shouldn't happen */
 	    log(LOG_WARNING,
 		"close_drive %s: use count still %d\n",
 		drive->devicename,
 		drive->vp->v_usecount);
+#endif
 	drive->vp = NULL;
 	unlockdrive(drive);
     }
@@ -515,47 +529,48 @@ read_drive_label(struct drive *drive, int verbose)
  * Return drive number.
  */
 struct drive *
-check_drive(char *drivename)
+check_drive(char *devicename)
 {
     int driveno;
     int i;
     struct drive *drive;
 
-    driveno = find_drive_by_dev(drivename, 1);		    /* entry doesn't exist, create it */
+    driveno = find_drive_by_dev(devicename, 1);		    /* if entry doesn't exist, create it */
     drive = &vinum_conf.drive[driveno];			    /* and get a pointer */
 
-    if (read_drive_label(drive, 0) != DL_OURS) {	    /* not ours */
+    if (read_drive_label(drive, 0) == DL_OURS) {	    /* not ours */
+	for (i = 0; i < vinum_conf.drives_allocated; i++) { /* see if the name already exists */
+	    if ((i != driveno)				    /* not this drive */
+&&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
+	    &&(strcmp(DRIVE[i].label.name,
+			DRIVE[driveno].label.name) == 0)) { /* and it has the same name */
+		struct drive *mydrive = &DRIVE[i];
+
+		if (mydrive->devicename[0] == '/') {	    /* we know a device name for it */
+		    /*
+		     * set an error, but don't take the drive down:
+		     * that would cause unneeded error messages.
+		     */
+		    drive->lasterror = EEXIST;
+		    break;
+		} else {				    /* it's just a place holder, */
+		    int sdno;
+
+		    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* look at each subdisk */
+			if ((SD[sdno].driveno == i)	    /* it's pointing to this one, */
+			&&(SD[sdno].state != sd_unallocated)) {	/* and it's a real subdisk */
+			    SD[sdno].driveno = drive->driveno; /* point to the one we found */
+			    update_sd_state(sdno);	    /* and update its state */
+			}
+		    }
+		    bzero(mydrive, sizeof(struct drive));   /* don't deallocate it, just remove it */
+		}
+	    }
+	}
+    } else {
 	if (drive->lasterror == 0)
 	    drive->lasterror = ENODEV;
 	set_drive_state(drive->driveno, drive_down, setstate_force);
-    }
-    for (i = 0; i < vinum_conf.drives_allocated; i++) {	    /* see if the name already exists */
-	if ((i != driveno)				    /* not this drive */
-&&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
-	&&(strcmp(DRIVE[i].label.name,
-		    DRIVE[driveno].label.name) == 0)) {	    /* and it has the same name */
-	    struct drive *mydrive = &DRIVE[i];
-
-	    if (mydrive->devicename[0] == '/') {	    /* we know a device name for it */
-		/*
-		 * set an error, but don't take the drive down:
-		 * that would cause unneeded error messages.
-		 */
-		drive->lasterror = EEXIST;
-		break;
-	    } else {					    /* it's just a place holder, */
-		int sdno;
-
-		for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* look at each subdisk */
-		    if ((SD[sdno].driveno == driveno)	    /* it's pointing to this one, */
-		    &&(SD[sdno].state != sd_unallocated)) { /* and it's a real subdisk */
-			SD[sdno].driveno = drive->driveno;  /* point to the one we found */
-			update_sd_state(sdno);		    /* and update its state */
-		    }
-		}
-		free_drive(mydrive);
-	    }
-	}
     }
     return drive;
 }
@@ -732,7 +747,7 @@ daemon_save_config(void)
     for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	drive = &vinum_conf.drive[driveno];		    /* point to drive */
 	if (drive->state > drive_referenced) {
-	    lockdrive(drive);				    /* don't let it change */
+	    LOCKDRIVE(drive);				    /* don't let it change */
 
 	    /*
 	     * First, do some drive consistency checks.  Some
@@ -754,6 +769,7 @@ daemon_save_config(void)
 	    &&(drive->state > drive_down)) {		    /* and it thinks it's not down */
 		unlockdrive(drive);
 		set_drive_state(driveno, drive_down, setstate_force); /* tell it what's what */
+		continue;
 	    }
 	    if ((drive->state == drive_down)		    /* it's down */
 	    &&(drive->vp != NULL)) {			    /* but open, */
@@ -797,7 +813,8 @@ daemon_save_config(void)
 		    } else
 			written_config = 1;		    /* we've written it on at least one drive */
 		}
-	    }
+	    } else					    /* not worth looking at, */
+		unlockdrive(drive);			    /* just unlock it again */
 	}
     }
     Free(vhdr);
@@ -918,7 +935,7 @@ initsd(int sdno)
 
 /* Look at all disks on the system for vinum slices */
 int 
-vinum_scandisk(char *drivename[], int drives)
+vinum_scandisk(char *devicename[], int drives)
 {
     struct drive *volatile drive;
     volatile int driveno;
@@ -957,7 +974,7 @@ vinum_scandisk(char *drivename[], int drives)
 		snprintf(partname,			    /* /dev/sd0a */
 		    DRIVENAMELEN,
 		    "%s%c",
-		    drivename[driveno],
+		    devicename[driveno],
 		    part);
 		drive = check_drive(partname);		    /* try to open it */
 		if ((drive->lasterror != 0)		    /* didn't work, */
