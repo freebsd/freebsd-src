@@ -1050,6 +1050,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pv_entry_t pv)
 			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
+		free_pv_entry(pv);
 		return 0;
 	} else {
 		return ENOENT;
