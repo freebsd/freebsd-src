@@ -202,6 +202,25 @@ Class names are:
 .\" and vice-versa) is specified in the same relative position in
 .\" .Ar string1 .
 .\" .Pp
+When ``[:lower:]'' appears in
+.Ar string1
+and ``[:upper:]'' appears in the same relative position in
+.Ar string2 ,
+it represents the characters from the
+.Dv toupper
+mapping in the
+.Ev LC_CTYPE
+category of the current locale.
+When ``[:upper:]'' appears in
+.Ar string1
+and ``[:lower:]'' appears in the same relative position in
+.Ar string2 ,
+it represents the characters from the
+.Dv tolower
+mapping in the
+.Ev LC_CTYPE
+category of the current locale.
+.Pp
 With the exception of the ``upper'' and ``lower'' classes, characters
 in the classes are in unspecified order.
 In the ``upper'' and ``lower'' classes, characters are entered in
