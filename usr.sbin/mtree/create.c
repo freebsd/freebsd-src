@@ -109,8 +109,8 @@ cwalk()
 		case FTS_DNR:
 		case FTS_ERR:
 		case FTS_NS:
-			(void)fprintf(stderr,
-			    "mtree: %s: %s\n", p->fts_path, strerror(errno));
+			(void)fprintf(stderr, "mtree: %s: %s\n",
+			    p->fts_path, strerror(p->fts_errno));
 			break;
 		default:
 			if (!dflag)
