@@ -117,6 +117,7 @@ watchdog_tickle_fn wdog_tickler = NULL;
 const char *panicstr;
 
 int dumping;				 /* system is dumping */
+dev_t dumpdev = NODEV;
 
 static void boot(int) __dead2;
 static void dumpsys(void);
