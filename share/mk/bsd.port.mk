@@ -265,12 +265,12 @@ OPSYS!=	uname -s
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles or local system make configuration.
 .if (${OPSYS} == "NetBSD")
-PORTSDIR?=		${DESTDIR}/usr/opt
+PORTSDIR?=		/usr/opt
 .else
-PORTSDIR?=		${DESTDIR}/usr/ports
+PORTSDIR?=		/usr/ports
 .endif
-LOCALBASE?=		/usr/local
-X11BASE?=		/usr/X11R6
+LOCALBASE?=		${DESTDIR}/usr/local
+X11BASE?=		${DESTDIR}/usr/X11R6
 DISTDIR?=		${PORTSDIR}/distfiles
 _DISTDIR?=		${DISTDIR}/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
@@ -655,6 +655,7 @@ _MANPAGES:=	${_MANPAGES:S/$/.gz/}
 # Don't build a port if it's broken.
 ################################################################
 
+.if !defined(NO_IGNORE)
 .if (defined(IS_INTERACTIVE) && defined(BATCH))
 IGNORE=	"is an interactive port"
 .elif (!defined(IS_INTERACTIVE) && defined(INTERACTIVE))
@@ -695,6 +696,7 @@ install:
 	@${IGNORECMD}
 package:
 	@${IGNORECMD}
+.endif
 .endif
 
 .if defined(ALL_HOOK)
@@ -1473,7 +1475,7 @@ misc-depends:
 clean-depends:
 .if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || defined(LIB_DEPENDS) \
 	|| defined(RUN_DEPENDS)
-	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/.*://' | sort | uniq`; do \
+	@for dir in `${ECHO} ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS} | ${TR} '\040' '\012' | ${SED} -e 's/.*://' | sort -u`; do \
 		if [ -d $$dir ] ; then \
 			(cd $$dir; ${MAKE} NOCLEANDEPENDS=yes clean clean-depends); \
 		fi \
@@ -1597,6 +1599,14 @@ fake-pkg:
 		if [ -f ${PKGDIR}/REQ ]; then \
 			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
 		fi; \
+		for dep in `make package-depends | sort -u`; do \
+			if [ -d ${PKG_DBDIR}/$$dep ]; then \
+				if ! ${GREP} ^${PKGNAME}$$ ${PKG_DBDIR}/$$dep/+REQUIRED_BY \
+					>/dev/null 2>&1; then \
+					${ECHO} ${PKGNAME} >> ${PKG_DBDIR}/$$dep/+REQUIRED_BY; \
+				fi; \
+			fi; \
+		done; \
 	else \
 		${ECHO_MSG} "===>  ${PKGNAME} is already installed - perhaps an older version?"; \
 		${ECHO_MSG} "      If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
