@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.39 2003/05/24 13:23:46 ue Exp $
-	basiert auf: 1.38
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.39.2.1 2003/06/02 05:39:26 ue Exp $
+	basiert auf: 1.38.2.1
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -128,6 +128,12 @@
   <sect1 id="security">
     <title>Sicherheitshinweise</title>
 
+
+<![ %release.type.release [
+    <para>Zur Zeit gibt es keine Sicherheitshinweise.</para>
+]]>
+
+<![ %release.type.snapshot [
     <para>Ein &uuml;ber das Netzwerk nutzbarer Fehler in
       <application>CVS</application> k&ouml;nnte dazu f&uuml;hren,
       da&szlig; ein Angreifer beliebige Programme auf dem CVS Server
@@ -180,11 +186,17 @@
       Informationen, wie Sie die Probleme umgehen k&ouml;nnen und
       weitere Informationen finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+]]>
   </sect1>
 
   <sect1 id="late-news">
     <title>Aktuelle Informationen</title>
 
+<![ %release.type.release [
+    <para>Zur Zeit gibt es keine weiteren Informationen.</para>
+]]>
+
+<![ %release.type.snapshot [
     <bridgehead renderas="sect3">GEOM</bridgehead>
 
     <para>Die auf &man.geom.4; basierenden Routinen des Kernel zur
@@ -398,5 +410,6 @@
       auf der <ulink
       url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD Mailman
       Info Page</ulink>.</para>
+]]>
   </sect1>
 </article>
