@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998, 1999 Nicolas Souchu
+ * Copyright (c) 2000 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -364,24 +365,38 @@ vpoio_detect(struct vpoio_data *vpo)
                 return (error);
 
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq, &ret);
+	/* Force disconnection */
 
-	if (PPB_IN_EPP_MODE(ppbus))
+	/* Try to enter EPP mode, then connect to the drive in EPP mode */
+	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
+		/* call manually the microseq instead of using the appropriate function
+		 * since we already requested the ppbus */
 		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_epp_microseq, &ret);
-	else
-		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_spp_microseq, &ret);
+	}
 
-	ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
-	if (!ret) {
+	/* If EPP mode switch failed or ZIP connection in EPP mode failed,
+	 * try to connect in NIBBLE mode */
+	if (!vpoio_in_disk_mode(vpo)) {
 
-		/* try spp mode (maybe twice or because previous mode was PS2)
-		 * NIBBLE mode will be restored on next transfers if detection
-		 * succeed
+		/* The interface must be at least PS/2 or NIBBLE capable.
+		 * There is no way to know if the ZIP will work with
+		 * PS/2 mode since PS/2 and SPP both use the same connect
+		 * sequence. One must supress PS/2 with boot flags if
+		 * PS/2 mode fails (see ppc(4)).
 		 */
-		ppb_set_mode(ppbus, PPB_NIBBLE);
-		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_spp_microseq, &ret);
+		if (ppb_set_mode(ppbus, PPB_PS2) != -1) {
+			vpo->vpo_mode_found = VP0_MODE_PS2;
+		} else {
+			if (ppb_set_mode(ppbus, PPB_NIBBLE) == -1)
+				goto error;
 
-		ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
-		if (!ret) {
+			vpo->vpo_mode_found = VP0_MODE_NIBBLE;
+		}
+
+		/* Can't know if the interface is capable of PS/2 yet */
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_spp_microseq, &ret);
+		if (!vpoio_in_disk_mode(vpo)) {
+			vpo->vpo_mode_found = VP0_MODE_UNDEFINED;
 			if (bootverbose)
 				printf("vpo%d: can't connect to the drive\n",
 					vpo->vpo_unit);
@@ -391,6 +406,8 @@ vpoio_detect(struct vpoio_data *vpo)
 					&ret);
 			goto error;
 		}
+	} else {
+		vpo->vpo_mode_found = VP0_MODE_EPP;
 	}
 
 	/* send SCSI reset signal */
@@ -400,9 +417,7 @@ vpoio_detect(struct vpoio_data *vpo)
 
 	/* ensure we are disconnected or daisy chained peripheral 
 	 * may cause serious problem to the disk */
-
-	ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
-	if (ret) {
+	if (vpoio_in_disk_mode(vpo)) {
 		if (bootverbose)
 			printf("vpo%d: can't disconnect from the drive\n",
 				vpo->vpo_unit);
@@ -429,28 +444,6 @@ vpoio_outstr(struct vpoio_data *vpo, char *buffer, int size)
 	ppb_MS_exec(ppbus, vpo->vpo_dev, MS_OP_PUT, (union ppb_insarg)buffer,
 		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
-#if 0
-		/* XXX EPP 1.9 not implemented with microsequences */
-		else {
-
-			ppb_reset_epp_timeout(ppbus);
-			ppb_wctr(ppbus, H_AUTO | H_SELIN | H_INIT | H_STROBE);
-
-			if (((long) buffer | size) & 0x03)
-				ppb_outsb_epp(ppbus,
-						buffer, size);
-			else
-				ppb_outsl_epp(ppbus,
-						buffer, size/4);
-
-			if ((ppb_rstr(ppbus) & TIMEOUT)) {
-				error = VP0_EPPDATA_TIMEOUT;
-				goto error;
-			}
-
-			ppb_wctr(ppbus, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-		}
-#endif
 	ppb_ecp_sync(ppbus);
 
 	return (error);
@@ -468,30 +461,6 @@ vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 	ppb_MS_exec(ppbus, vpo->vpo_dev, MS_OP_GET, (union ppb_insarg)buffer,
 		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
-#if 0
-		/* XXX EPP 1.9 not implemented with microsequences */
-		else {
-
-			ppb_reset_epp_timeout(ppbus);
-			ppb_wctr(ppbus, PCD |
-				H_AUTO | H_SELIN | H_INIT | H_STROBE);
-
-			if (((long) buffer | size) & 0x03)
-				ppb_insb_epp(ppbus,
-						buffer, size);
-			else
-				ppb_insl_epp(ppbus,
-						buffer, size/4);
-
-			if ((ppb_rstr(ppbus) & TIMEOUT)) {
-				error = VP0_EPPDATA_TIMEOUT;
-				goto error;
-			}
-
-			ppb_wctr(ppbus, PCD |
-				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-		}
-#endif
 	ppb_ecp_sync(ppbus);
 
 	return (error);
@@ -614,7 +583,7 @@ int
 vpoio_attach(struct vpoio_data *vpo)
 {
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	int epp;
+	int error = 0;
 
 	vpo->vpo_nibble_inbyte_msq = (struct ppb_microseq *)malloc(
 		sizeof(nibble_inbyte_submicroseq), M_DEVBUF, M_NOWAIT);
@@ -631,75 +600,34 @@ vpoio_attach(struct vpoio_data *vpo)
 	/*
 	 * Initialize mode dependent in/out microsequences
 	 */
-	ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT);
+	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT)))
+		goto error;
 
-	/* enter NIBBLE mode to configure submsq */
-	if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1) {
-
-		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
-
-		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-	}
-
-	/* enter PS2 mode to configure submsq */
-	if (ppb_set_mode(ppbus, PPB_PS2) != -1) {
-
+	/* ppbus sets automatically the last mode entered during detection */
+	switch (vpo->vpo_mode_found) {
+	case VP0_MODE_EPP:
+		ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr_body);
+		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr_body);
+		printf("vpo%d: EPP mode\n", vpo->vpo_unit);
+		break;
+	case VP0_MODE_PS2:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, ps2_inbyte_submicroseq);
-
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-	}
-
-	epp = ppb_get_epp_protocol(ppbus);
-
-	/* enter EPP mode to configure submsq */
-	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
-
-		switch (epp) {
-		case EPP_1_9:
-			/* XXX EPP 1.9 support should be improved */
-		case EPP_1_7:
-			ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr_body);
-
-			ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr_body);
-			break;
-		default:
-			panic("%s: unknown EPP protocol (0x%x)", __FUNCTION__,
-				epp);
-		}
-	}
-
-	/* try to enter EPP or PS/2 mode, NIBBLE otherwise */
-	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
-		switch (epp) {
-		case EPP_1_9:
-			printf("vpo%d: EPP 1.9 mode\n", vpo->vpo_unit);
-			break;
-		case EPP_1_7:
-			printf("vpo%d: EPP 1.7 mode\n", vpo->vpo_unit);
-			break;
-		default:
-			panic("%s: unknown EPP protocol (0x%x)", __FUNCTION__,
-				epp);
-		}
-	} else if (ppb_set_mode(ppbus, PPB_PS2) != -1)
 		printf("vpo%d: PS2 mode\n", vpo->vpo_unit);
-
-	else if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1)
+		break;
+	case VP0_MODE_NIBBLE:
+		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
+		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
 		printf("vpo%d: NIBBLE mode\n", vpo->vpo_unit);
-
-	else {
-		printf("vpo%d: can't enter NIBBLE, PS2 or EPP mode\n",
-			vpo->vpo_unit);
-
-		ppb_release_bus(ppbus, vpo->vpo_dev);
-
-		free(vpo->vpo_nibble_inbyte_msq, M_DEVBUF);
-		return (ENXIO);
+		break;
+	default:
+		panic("vpo: unknown mode %d", vpo->vpo_mode_found);
 	}
 
 	ppb_release_bus(ppbus, vpo->vpo_dev);
 
-	return (0);
+error:
+	return (error);
 }
 
 /*
