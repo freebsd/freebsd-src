@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
- * $Id: ufs_quota.c,v 1.4 1994/10/08 06:57:27 phk Exp $
+ * $Id: ufs_quota.c,v 1.5 1995/05/30 08:15:36 rgrimes Exp $
  */
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -55,6 +55,18 @@
  * Quota name to error message mapping.
  */
 static char *quotatypes[] = INITQFNAMES;
+
+static int chkdqchg __P((struct inode *, long, struct ucred *, int));
+static int chkiqchg __P((struct inode *, long, struct ucred *, int));
+static int dqget __P((struct vnode *,
+		u_long, struct ufsmount *, int, struct dquot **));
+static void dqref __P((struct dquot *));
+static int dqsync __P((struct vnode *, struct dquot *));
+static void dqflush __P((struct vnode *));
+
+#ifdef DIAGNOSTIC
+static void chkdquot __P((struct inode *));
+#endif
 
 /*
  * Set up the quotas for an inode.
@@ -158,7 +170,7 @@ chkdq(ip, change, cred, flags)
  * Check for a valid change to a users allocation.
  * Issue an error message if appropriate.
  */
-int
+static int
 chkdqchg(ip, change, cred, type)
 	struct inode *ip;
 	long change;
@@ -274,7 +286,7 @@ chkiq(ip, change, cred, flags)
  * Check for a valid change to a users allocation.
  * Issue an error message if appropriate.
  */
-int
+static int
 chkiqchg(ip, change, cred, type)
 	struct inode *ip;
 	long change;
@@ -331,7 +343,7 @@ chkiqchg(ip, change, cred, type)
  * On filesystems with quotas enabled, it is an error for a file to change
  * size and not to have a dquot structure associated with it.
  */
-void
+static void
 chkdquot(ip)
 	register struct inode *ip;
 {
@@ -667,15 +679,15 @@ again:
 /*
  * Code pertaining to management of the in-core dquot data structures.
  */
-struct dquot **dqhashtbl;
-u_long dqhash;
+static struct dquot **dqhashtbl;
+static u_long dqhash;
 
 /*
  * Dquot free list.
  */
 #define	DQUOTINC	5	/* minimum free dquots desired */
-struct dquot *dqfreel, **dqback = &dqfreel;
-long numdquot, desireddquot = DQUOTINC;
+static struct dquot *dqfreel, **dqback = &dqfreel;
+static long numdquot, desireddquot = DQUOTINC;
 
 /*
  * Initialize the quota system.
@@ -691,7 +703,7 @@ dqinit()
  * Obtain a dquot structure for the specified identifier and quota file
  * reading the information from the file if necessary.
  */
-int
+static int
 dqget(vp, id, ump, type, dqp)
 	struct vnode *vp;
 	u_long id;
@@ -830,7 +842,7 @@ dqget(vp, id, ump, type, dqp)
 /*
  * Obtain a reference to a dquot.
  */
-void
+static void
 dqref(dq)
 	struct dquot *dq;
 {
@@ -871,7 +883,7 @@ dqrele(vp, dq)
 /*
  * Update the disk quota in the quota file.
  */
-int
+static int
 dqsync(vp, dq)
 	struct vnode *vp;
 	register struct dquot *dq;
@@ -922,7 +934,7 @@ dqsync(vp, dq)
 /*
  * Flush all entries from the cache for a particular vnode.
  */
-void
+static void
 dqflush(vp)
 	register struct vnode *vp;
 {
