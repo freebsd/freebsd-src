@@ -48,8 +48,8 @@ enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
 #else
 #define	SUBTYPE_FREEBSD		165
 #define	SUBTYPE_FAT		6
-#define	SUBTYPE_EFI		239
 #endif
+#define	SUBTYPE_EFI		239
 
 /* Where we start displaying chunk information on the screen */
 #define CHUNK_START_ROW		5
