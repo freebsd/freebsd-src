@@ -28,20 +28,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ypxfr_getmap.c,v 1.8 1996/06/02 05:12:24 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <stdio.h>
-#include <sys/types.h>
 #include <time.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp.h>
+#include <sys/types.h>
 #include "ypxfr_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: ypxfr_getmap.c,v 1.8 1996/06/02 05:12:24 wpaul Exp $";
-#endif
 
 extern bool_t xdr_ypresp_all_seq __P(( XDR *, unsigned long * ));
 

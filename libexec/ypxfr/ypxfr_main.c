@@ -28,15 +28,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ypxfr_main.c,v 1.6 1996/10/25 16:13:05 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <syslog.h>
-#include <errno.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -49,10 +53,6 @@ struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/ypxfrd.h>
 #include "ypxfr_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.6 1996/10/25 16:13:05 wpaul Exp $";
-#endif
 
 char *progname = "ypxfr";
 char *yp_dir = _PATH_YP;
@@ -112,10 +112,10 @@ static void usage()
 	if (_rpcpmstart) {
 		ypxfr_exit(YPXFR_BADARGS,NULL);
 	} else {
-		fprintf(stderr,"usage: %s [-f] [-c] [-d target domain] \
-[-h source host] [-s source domain]\n", progname);
-		fprintf(stderr,"\t     [-p path] [-C taskid program-number \
-ipaddr port] mapname\n");
+		fprintf(stderr, "%s\n%s\n%s\n",
+	"usage: ypxfr [-f] [-c] [-d target domain] [-h source host]",
+	"             [-s source domain] [-p path]",
+	"             [-C taskid program-number ipaddr port] mapname");
 		exit(1);
 	}
 }
@@ -160,6 +160,7 @@ int ypxfr_foreach(status, key, keylen, val, vallen, data)
 	return (0);
 }
 
+int
 main(argc,argv)
 	int argc;
 	char *argv[];
@@ -185,7 +186,7 @@ main(argc,argv)
 	debug = 1;
 
 	if (!isatty(fileno(stderr))) {
-		openlog(progname, LOG_PID, LOG_DAEMON);
+		openlog("ypxfr", LOG_PID, LOG_DAEMON);
 		_rpcpmstart = 1;
 	}
 

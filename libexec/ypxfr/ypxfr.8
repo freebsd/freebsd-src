@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypxfr.8,v 1.3 1996/06/05 04:07:04 wpaul Exp $
+.\"	$Id: ypxfr.8,v 1.3 1996/06/05 05:42:47 wpaul Exp $
 .\"
 .Dd February 5, 1995
 .Dt YPXFR 8
@@ -37,7 +37,7 @@
 .Nm ypxfr
 .Nd "transfer NIS database from remote server to local host"
 .Sh SYNOPSIS
-.Nm ypxfr
+.Nm /usr/libexec/ypxfr
 .Op Fl f
 .Op Fl c
 .Op Fl d Ar target domain
@@ -47,26 +47,39 @@
 .Op Fl C Ar taskid program-number ipaddr port
 .Ar mapname
 .Sh DESCRIPTION
-.Nm ypxfr
-copies an NIS database (or
+.Nm Ypxfr
+copies an
+.Tn NIS
+database (or
 .Pa map )
-from one NIS server to another using NIS services. In FreeBSD,
-.Nm ypxfr
+from one
+.Tn NIS
+server to another using
+.Tn NIS
+services. In
+.Bx Free ,
+.Nm
 is generally invoked by
 .Xr ypserv 8
 when it receives a map transfer request from
 .Xr yppush 8 .
-.Nm ypxfr
-is used primarily in environments where several NIS servers
-are in use in a single domain. One server, the NIS master, maintains
-the canonical copies of all NIS maps, and all the other servers,
-the NIS slaves, copy new versions of the maps from the master whenever
+.Nm Ypxfr
+is used primarily in environments where several
+.Tn NIS
+servers are in use in a single domain. One server, the
+.Tn NIS
+master, maintains
+the canonical copies of all
+.Tn NIS
+maps, and all the other servers,
+the
+.Tn NIS
+slaves, copy new versions of the maps from the master whenever
 any updates are made (i.e. when a user updates their password via
-.Xr yppasswd 1
-).
+.Xr yppasswd 1 ).
 .Pp
 When run,
-.Nm ypxfr
+.Nm
 creates a temporary database file in
 .Pa /var/yp/[domainmame] ,
 and fills it with the contents of
@@ -74,26 +87,29 @@ and fills it with the contents of
 as supplied by the specified
 .Ar source host .
 When the entire map has been transfered,
-.Nm ypxfr
+.Nm
 deletes the original copy of
 .Ar mapname
 and moves the temporary copy into its place. When the transfer is
 complete,
-.Nm ypxfr
+.Nm
 will attempt to send a 'clear current map' request to the local
 .Xr ypserv 8
 process to clear any possible references it may still have to the
 stale map.
 .Pp
 Note that all files created by
-.Nm ypxfr
+.Nm
 are owner readable and writable only for security reasons. Since the
-NIS maps and the directory in which they reside are normally owned by
+.Tn NIS
+maps and the directory in which they reside are normally owned by
 root, this prevents non-privleged users from making unauthorized
 modifications.
 .Pp
-In order to maintain consistency across all NIS servers,
-.Nm ypxfr
+In order to maintain consistency across all
+.Tn NIS
+servers,
+.Nm
 can be run periodically in a
 .Xr cron 8
 job. Maps which change infrequently
@@ -106,54 +122,79 @@ and
 should be updated perhaps once every hour. Using
 .Xr cron 8
 to automatically
-update the NIS maps is not strictly mandatory since all updates should
+update the
+.Tn NIS
+maps is not strictly mandatory since all updates should
 be propagated by
 .Xr yppush 8
 when
 .Pa /var/yp/Makefile
-is run on the NIS master server, however it is good practice
-on large networks where possible outages could cause NIS servers to
-fall out of sync with each other.
+is run on the
+.Tn NIS
+master server, however it is good practice
+on large networks where possible outages could cause
+.Tn NIS
+servers to fall out of sync with each other.
 .Pp
 When
-.Nm ypxfr
+.Nm
 is invoked without a controlling terminal, e.g. from inside
 .Xr ypserv 8 ,
 it logs all its output using the
 .Xr syslog 3
 facility.
 .Sh NOTES
-The FreeBSD version of
-.Nm ypxfr
+The
+.Bx Free
+version of
+.Nm
 has support for a special map transfer protocol which works in
-conjunction with the FreeBSD
+conjunction with the
+.Bx Free
 .Xr rpc.ypxfrd 8
 server. This protocol allows it to transfer raw map database files from
-the NIS master server and can be many times faster than the standard
-transfer method, particularly for very large NIS maps. The
-.Nm ypxfr
+the
+.Tn NIS
+master server and can be many times faster than the standard
+transfer method, particularly for very large
+.Tn NIS
+maps. The
+.Nm
 command will check to see if the
 .Xr rpc.ypxfrd 8
-server is registered on the NIS master server and attempt to use
+server is registered on the
+.Tn NIS
+master server and attempt to use
 it if it is present. If it isn't it will fall back to the standard
 transfer method, copying the map contents from
 .Xr ypserv 8
 and creating new maps instead.
 .Pp
-Note that while the FreeBSD ypxfrd protocol is conceptually similar
-to the SunOS ypxfrd protocol, FreeBSD's protocol is not compatible with
-Sun's, therefore it will not work with Sun's ypxfrd server. FreeBSD
-slave systems can still transfer maps from any non-FreeBSD NIS server,
+Note that while the
+.Bx Free
+ypxfrd protocol is conceptually similar
+to the SunOS ypxfrd protocol,
+.Bx Free Ns 's
+protocol is not compatible with
+Sun's, therefore it will not work with Sun's ypxfrd server.
+.Bx Free
+slave systems can still transfer maps from any
+.Bx non-Free
+.Tn NIS
+server,
 however they will only be able to take advantage of the faster protocol
-if the master server is also running FreeBSD.
+if the master server is also running
+.Bx Free .
 .Sh OPTIONS
 The following options and flags are supported by
-.Nm ypxfr :
-.Bl -tag -width flag
+.Nm Ns :
+.Bl -tag -width indent
 .It Fl f
 Force a map transfer. Normally,
-.Nm ypxfr
-will not transfer a map if it determines that the NIS master's copy
+.Nm
+will not transfer a map if it determines that the
+.Tn NIS
+master's copy
 is not newer than the existing copy already on the local host: the
 .Fl f
 flag forces a transfer regardless of which server's version is more recent.
@@ -162,44 +203,59 @@ Do not send a 'clear current map' request to the
 .Xr ypserv 8
 process running on the local host. This flag is normally used when
 invoking
-.Nm ypxfr
+.Nm
 manually on a machine that is not yet running
 .Xr ypserv 8 .
-Without this flag, failure to contact the local NIS server will cause
-.Nm ypxfr
+Without this flag, failure to contact the local
+.Tn NIS
+server will cause
+.Nm
 to abort the transfer.
 .It Fl d Ar target domain
-Specify a target domain other than the current NIS domain.
+Specify a target domain other than the current
+.Tn NIS
+domain.
 .It Fl h Ar source host
-Specify the name of the host from which to copy the NIS maps. This option
+Specify the name of the host from which to copy the
+.Tn NIS
+maps. This option
 is used to insure that
-.Nm ypxfr
-only copies maps from the NIS master server.
+.Nm
+only copies maps from the
+.Tn NIS
+master server.
 .It Fl s Ar source domain
 Specify the domain from which to transfer a map, in the event that
-the transfer is being done across two different NIS domains.
+the transfer is being done across two different
+.Tn NIS
+domains.
 .It Fl p Ar path
-Specify the top level directory containing the NIS maps. By
+Specify the top level directory containing the
+.Tn NIS
+maps. By
 default, this path is
 .Pa /var/yp .
 The
 .Fl p
 flag allows you to specify an alternate path should you wish to
-store your NIS maps in a different part of the filesystem. The
-NIS server,
+store your
+.Tn NIS
+maps in a different part of the filesystem. The
+.Tn NIS
+server,
 .Xr ypserv 8 ,
 passes this flag to
-.Nm ypxfr
+.Nm
 if it too has been told to use an alternate path.
 .It Fl C Ar taskid program-number ipaddr port
 These options are used only when
-.Nm ypxfr
+.Nm
 is invoked by
 .Xr ypserv 8
 in response to a map transfer request initiated by
 .Xr yppush 8 .
 In this instance,
-.Nm ypxfr
+.Nm
 needs to 'callback' to the
 .Xr yppush 8
 process and interact with it, so
@@ -221,11 +277,15 @@ The name of the map to transfer.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /var/yp/[domainname]/[maps]
-The NIS maps for a particular NIS domain.
+The
+.Tn NIS
+maps for a particular
+.Tn NIS
+domain.
 .El
 .Sh SEE ALSO
 .Xr yp 4 ,
 .Xr ypserv 8 ,
 .Xr yppush 8
 .Sh AUTHOR
-Bill Paul <wpaul@ctr.columbia.edu>
+.An Bill Paul  Aq wpaul@ctr.columbia.edu
