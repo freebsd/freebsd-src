@@ -285,6 +285,10 @@ struct nfs_uquad {
 };
 typedef	struct nfs_uquad	nfsuint64;
 
+#if 0 /* XXX - this doesn't seemed to be used and it doesn't work
+       * with non-gcc, so comment it out for now.
+       */
+
 /*
  * Used to convert between two u_longs and a u_quad_t.
  */
@@ -293,6 +297,8 @@ union nfs_quadconvert {
 	u_quad_t  qval;
 };
 typedef union nfs_quadconvert	nfsquad_t;
+
+#endif
 
 /*
  * NFS Version 3 special file number.
