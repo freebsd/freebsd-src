@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
+/* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 
 /*-
@@ -49,6 +49,7 @@ vendor SANDISK			0x0045	Sandisk Corporation
 vendor NEWMEDIA			0x0057	New Media Corporation
 vendor INTEL			0x0089	Intel
 vendor IBM			0x00a4	IBM Corporation
+vendor SHARP			0x00b0  Sharp Corporation
 vendor 3COM			0x0101	3Com Corporation
 vendor MEGAHERTZ		0x0102	Megahertz Corporation
 vendor SOCKET			0x0104	Socket Communications
@@ -376,6 +377,9 @@ product	SAMSUNG SWL_2000N	0x0002	Samsung MagicLAN SWL-2000N
 /* Sandisk Products */
 product SANDISK SDCFB		0x0401 Sandisk CompactFlash Card
 
+/* Sharp Products */
+product SHARP PALDIO611S	0x0000  PALDIO 611S PC CARD
+
 /* Siemens */
 product SIEMENS SS1021		0x0002 Siemens SpeedStream 1021
 
@@ -395,6 +399,7 @@ product SOCKET PAGECARD		0x0003 Socket Communications PageCard
 product SOCKET DUAL_RS232	0x0006 Socket Communications Dual RS232
 product SOCKET LP_ETHER		0x000d Socket Communications LP-E
 product SOCKET LP_ETHER_CF	0x0075 Socket Communications LP-E CF
+product SOCKET LP_ETH_10_100_CF 0x0145 Socket Communications 10/100 Ethernet
 
 /* Symbol */
 product	SYMBOL LA4100		0x0001	Symbol Spectrum24 LA4100 Series WLAN
