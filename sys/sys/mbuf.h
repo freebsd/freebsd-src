@@ -244,7 +244,7 @@ union mcluster {
  */
 union mext_refcnt {
 	union	mext_refcnt *next_ref;
-	u_long	refcnt;
+	u_int	refcnt;
 };
 
 /*
@@ -293,10 +293,10 @@ struct mcntfree_lst {
 
 #define MEXT_REM_REF(m) do {						\
 	KASSERT((m)->m_ext.ref_cnt->refcnt > 0, ("m_ext refcnt < 0"));	\
-	atomic_subtract_long(&((m)->m_ext.ref_cnt->refcnt), 1);		\
+	atomic_subtract_int(&((m)->m_ext.ref_cnt->refcnt), 1);		\
 } while(0)
 
-#define MEXT_ADD_REF(m) atomic_add_long(&((m)->m_ext.ref_cnt->refcnt), 1)
+#define MEXT_ADD_REF(m) atomic_add_int(&((m)->m_ext.ref_cnt->refcnt), 1)
 
 #define _MEXT_ALLOC_CNT(m_cnt, how) do {				\
 	union mext_refcnt *__mcnt;					\
@@ -483,17 +483,22 @@ struct mcntfree_lst {
 	mtx_exit(&mclfree.m_mtx, MTX_DEF); 				\
 } while (0)
 
+/* MEXTFREE:
+ * If the atomic_cmpset_int() returns 0, then we effectively do nothing
+ * in terms of "cleaning up" (freeing the ext buf and ref. counter) as
+ * this means that either there are still references, or another thread
+ * is taking care of the clean-up.
+ */
 #define	MEXTFREE(m) do {						\
 	struct mbuf *_mmm = (m);					\
 									\
-	if (MEXT_IS_REF(_mmm))						\
-		MEXT_REM_REF(_mmm);					\
-	else if (_mmm->m_ext.ext_type != EXT_CLUSTER) {			\
-		(*(_mmm->m_ext.ext_free))(_mmm->m_ext.ext_buf,		\
-		    _mmm->m_ext.ext_args);				\
-		_MEXT_DEALLOC_CNT(_mmm->m_ext.ref_cnt);			\
-	} else {							\
-		_MCLFREE(_mmm->m_ext.ext_buf);				\
+	MEXT_REM_REF(_mmm);						\
+	if (atomic_cmpset_int(&_mmm->m_ext.ref_cnt->refcnt, 0, 1)) {	\
+		if (_mmm->m_ext.ext_type != EXT_CLUSTER) {		\
+			(*(_mmm->m_ext.ext_free))(_mmm->m_ext.ext_buf,	\
+			    _mmm->m_ext.ext_args);			\
+		} else							\
+			_MCLFREE(_mmm->m_ext.ext_buf);			\
 		_MEXT_DEALLOC_CNT(_mmm->m_ext.ref_cnt);			\
 	}								\
 	_mmm->m_flags &= ~M_EXT;					\
