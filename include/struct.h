@@ -39,19 +39,7 @@
 #define	_STRUCT_H_
 
 #if __GNUC__
-#warning "this file includes <struct.h> which is deprecated, use <stddef.h> instead"
+#error "this file includes <struct.h> which is deprecated, use <stddef.h> instead"
 #endif
-
-/* Offset of the field in the structure. */
-#define	fldoff(name, field) \
-	((int)&(((struct name *)0)->field))
-
-/* Size of the field in the structure. */
-#define	fldsiz(name, field) \
-	(sizeof(((struct name *)0)->field))
-
-/* Address of the structure from a field. */
-#define	strbase(name, addr, field) \
-	((struct name *)((char *)(addr) - fldoff(name, field)))
 
 #endif /* !_STRUCT_H_ */
