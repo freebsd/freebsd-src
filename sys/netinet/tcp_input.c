@@ -392,6 +392,7 @@ tcp_input(m, off0, proto)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 #endif /* INET6 */
+	int rstreason = 0; /* For badport_bandlim accounting purposes */
 
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
@@ -641,11 +642,14 @@ findpcb:
 				goto drop;
 			}
 		}
+		rstreason = BANDLIM_RST_NOTOPEN;
 		goto maybedropwithreset;
 	}
 	tp = intotcpcb(inp);
-	if (tp == 0)
+	if (tp == 0) {
+		rstreason = BANDLIM_RST_NOTOPEN;
 		goto maybedropwithreset;
+	}
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
 
@@ -2259,7 +2263,9 @@ dropafterack:
 	 * we think we are under attack or not.
 	 */
 maybedropwithreset:
-	if (badport_bandlim(1) < 0)
+	if (rstreason != BANDLIM_RST_NOTOPEN)
+		rstreason = BANDLIM_RST_OPEN;
+	if (badport_bandlim(rstreason) < 0)
 		goto drop;
 	/* fall through */
 dropwithreset:

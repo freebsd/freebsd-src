@@ -77,6 +77,12 @@ struct	icmpstat {
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_icmp);
 extern int badport_bandlim __P((int));
+#define BANDLIM_UNREACH 0
+#define BANDLIM_RST_NOTOPEN 1
+#define BANDLIM_RST_OPEN 2
+#define BANDLIM_ECHO 3
+#define BANDLIM_TSTAMP 4
+#define BANDLIM_MAX 4 
 #endif
 
 #endif
