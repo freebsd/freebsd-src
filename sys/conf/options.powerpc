@@ -2,7 +2,7 @@
 # Options specific to the powerpc platform kernels
 
 OEA			opt_global.h
-IPKDB			opt_ipkdb.h
+IPKDB
 
 POWERMAC		opt_platform.h
-PSIM			opt_psim.h
+PSIM

@@ -72,7 +72,7 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
 # Miscellaneous options.
-ALQ		opt_alq.h
+ALQ
 ADAPTIVE_MUTEXES
 COMPAT_43	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
@@ -153,7 +153,7 @@ P1003_1B_SEMAPHORES		opt_posix.h
 # SECURITY POLICY PARAMETERS
 
 # Support for Mandatory Access Control (MAC)
-MAC		opt_mac.h
+MAC
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DEBUG	opt_mac.h
@@ -349,10 +349,10 @@ IPV6FIREWALL_VERBOSE	opt_ip6fw.h
 IPV6FIREWALL_VERBOSE_LIMIT	opt_ip6fw.h
 IPV6FIREWALL_DEFAULT_TO_ACCEPT	opt_ip6fw.h
 IPSTEALTH
-IPX			opt_ipx.h
+IPX
 IPXIP			opt_ipx.h
 LIBMCHAIN
-NCP			opt_ncp.h
+NCP
 NETATALK		opt_atalk.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
@@ -417,7 +417,7 @@ ATM_UNI			opt_atm.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
-NATM			opt_natm.h
+NATM
 
 DPT_ALLOW_MEMIO		opt_dpt.h	# Allow PCI devices to use memory
 					# mapped I/O
