@@ -3388,8 +3388,6 @@ read_options:
 			break;
 
 		case TOK_MAC:
-			if (ac < 2)
-				errx(EX_USAGE, "MAC dst-mac src-mac");
 			if (add_mac(cmd, ac, av)) {
 				ac -= 2; av += 2;
 			}
