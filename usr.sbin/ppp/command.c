@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.167 1998/10/17 12:28:05 brian Exp $
+ * $Id: command.c,v 1.168 1998/10/22 02:32:48 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -132,7 +132,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/17 12:28:05 $";
+const char VersionDate[] = "$Date: 1998/10/22 02:32:48 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1339,24 +1339,32 @@ SetVariable(struct cmdargs const *arg)
 
   switch (param) {
   case VAR_AUTHKEY:
-    if (bundle_Phase(arg->bundle) == PHASE_DEAD) {
-      strncpy(arg->bundle->cfg.auth.key, argp,
-              sizeof arg->bundle->cfg.auth.key - 1);
-      arg->bundle->cfg.auth.key[sizeof arg->bundle->cfg.auth.key - 1] = '\0';
-    } else {
-      err = "set authkey: Only available at phase DEAD\n";
-      log_Printf(LogWARN, err);
+    switch (bundle_Phase(arg->bundle)) {
+      case PHASE_DEAD:
+      case PHASE_ESTABLISH:
+        strncpy(arg->bundle->cfg.auth.key, argp,
+                sizeof arg->bundle->cfg.auth.key - 1);
+        arg->bundle->cfg.auth.key[sizeof arg->bundle->cfg.auth.key - 1] = '\0';
+        break;
+      default:
+        err = "set authkey: Only available at phase DEAD/ESTABLISH\n";
+        log_Printf(LogWARN, err);
+        break;
     }
     break;
 
   case VAR_AUTHNAME:
-    if (bundle_Phase(arg->bundle) == PHASE_DEAD) {
-      strncpy(arg->bundle->cfg.auth.name, argp,
-              sizeof arg->bundle->cfg.auth.name - 1);
-      arg->bundle->cfg.auth.name[sizeof arg->bundle->cfg.auth.name - 1] = '\0';
-    } else {
-      err = "set authname: Only available at phase DEAD\n";
-      log_Printf(LogWARN, err);
+    switch (bundle_Phase(arg->bundle)) {
+      case PHASE_DEAD:
+      case PHASE_ESTABLISH:
+        strncpy(arg->bundle->cfg.auth.name, argp,
+                sizeof arg->bundle->cfg.auth.name - 1);
+        arg->bundle->cfg.auth.name[sizeof arg->bundle->cfg.auth.name-1] = '\0';
+        break;
+      default:
+        err = "set authname: Only available at phase DEAD/ESTABLISH\n";
+        log_Printf(LogWARN, err);
+        break;
     }
     break;
 
@@ -1439,9 +1447,19 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_MRRU:
-    if (bundle_Phase(arg->bundle) != PHASE_DEAD) {
-      log_Printf(LogWARN, "mrru: Only changable at phase DEAD\n");
-      return 1;
+    switch (bundle_Phase(arg->bundle)) {
+      case PHASE_DEAD:
+        break;
+      case PHASE_ESTABLISH:
+        /* Make sure none of our links are DATALINK_LCP or greater */
+        if (bundle_HighestState(arg->bundle) >= DATALINK_LCP) {
+          log_Printf(LogWARN, "mrru: Only changable before LCP negotiations\n");
+          return 1;
+        }
+        break;
+      default:
+        log_Printf(LogWARN, "mrru: Only changable at phase DEAD/ESTABLISH\n");
+        return 1;
     }
     long_val = atol(argp);
     if (long_val && long_val < MIN_MRU) {
@@ -2113,12 +2131,24 @@ NegotiateSet(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.protocomp |= add;
       break;
     case NEG_SHORTSEQ:
-      if (bundle_Phase(arg->bundle) != PHASE_DEAD)
-        log_Printf(LogWARN, "shortseq: Only changable at phase DEAD\n");
-      else {
-        arg->bundle->ncp.mp.cfg.shortseq &= keep;
-        arg->bundle->ncp.mp.cfg.shortseq |= add;
+      switch (bundle_Phase(arg->bundle)) {
+        case PHASE_DEAD:
+          break;
+        case PHASE_ESTABLISH:
+          /* Make sure none of our links are DATALINK_LCP or greater */
+          if (bundle_HighestState(arg->bundle) >= DATALINK_LCP) {
+            log_Printf(LogWARN, "shortseq: Only changable before"
+                       " LCP negotiations\n");
+            return 1;
+          }
+          break;
+        default:
+          log_Printf(LogWARN, "shortseq: Only changable at phase"
+                     " DEAD/ESTABLISH\n");
+          return 1;
       }
+      arg->bundle->ncp.mp.cfg.shortseq &= keep;
+      arg->bundle->ncp.mp.cfg.shortseq |= add;
       break;
     case NEG_VJCOMP:
       arg->bundle->ncp.ipcp.cfg.vj.neg &= keep;
