@@ -2010,7 +2010,6 @@ carp_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		LIST_INIT(&carpif_list);
 		if_clone_attach(&carp_cloner);
-		printf("carp: attached\n");
 		break;
 
 	case MOD_UNLOAD:
