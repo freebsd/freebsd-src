@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#48 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#49 $
  *
  * $FreeBSD$
  */
@@ -272,10 +272,6 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 	if ((scb->flags & SCB_PACKETIZED) != 0) {
 		/* XXX what about ACA??  It is type 4, but TAG_TYPE == 0x3. */
 		scb->hscb->task_attribute= scb->hscb->control & SCB_TAG_TYPE;
-		/*
-		 * For Rev A short lun workaround.
-		 */
-		scb->hscb->pkt_long_lun[6] = scb->hscb->lun;
 	}
 
 	if (scb->hscb->cdb_len <= MAX_CDB_LEN_WITH_SENSE_ADDR
