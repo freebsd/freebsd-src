@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.211 -->
+<!-- Original revision: 1.216 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -149,6 +149,7 @@
         <tag/CVS ツリー管理者/ &a.peter 
         <tag/ports コレクション担当/ &a.asami 
         <tag/XFree86 Project, Inc. との渉外担当/ &a.rich 
+        <tag/Usenet サポート/ &a.joerg;
       </descrip>
 
 <chapt><heading>FreeBSDへのコントリビュータ<label id="contrib"></heading>
@@ -279,6 +280,7 @@
 	  <item>Hidekazu Kuroki &lt;hidekazu@cs.titech.ac.jp&gt;
 	  <item>Hidetoshi Shimokawa &lt;simokawa@sat.t.u-tokyo.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
+          <item>Hung-Chi Chu &lt;hcchu@r350.ee.ntu.edu.tw&gt;
 	  <item>Igor Vinokurov &lt;igor@zynaps.ru&gt;
 	  <item>Ikuo Nakagawa &lt;ikuo@isl.intec.co.jp&gt;
 	  <item>IMAMURA Tomoaki &lt;tomoak-i@is.aist-nara.ac.jp&gt;
@@ -301,11 +303,14 @@
 	  <item>Julian Assange &lt;proff@suburbia.net&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
 	  <item>Julian Stacey &lt;jhs@freebsd.org&gt;
+          <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
 	  <item>Kazuhiko Kiriyama &lt;kiri@kiri.toba-cmt.ac.jp&gt;
 	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
+	  <item>Kenneth Monville &lt;desmo@bandwidth.org&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
+          <item>Kiroh HARADA &lt;kiroh@kh.rim.or.jp&gt;
 	  <item>Koichi Sato &lt;copan@ppp.fastnet.or.jp&gt;
 	  <item>Kostya Lukin &lt;lukin@okbmei.msk.su&gt;
 	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
@@ -351,6 +356,7 @@
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Paulo Menezes &lt;paulo@isr.uc.pt&gt;
 	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
+          <item>Pedro A M Vazquez &lt;vazquez@IQM.Unicamp.BR&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
