@@ -56,7 +56,7 @@ IT_LINKS=	it_CH
 BE_LINKS=	nl_BE
 RU_LINKS=       ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
 UA_LINKS=       uk_UA.ISO8859-5
-CN_LINKS=       zh_CN.GB18030 zh_CN.GBK zh_TW.Big5
+CN_LINKS=       zh_CN.GB18030 zh_CN.GB2312 zh_CN.GBK zh_TW.Big5
 
 .SUFFIXES: .src .out
 
