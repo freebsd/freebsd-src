@@ -73,8 +73,6 @@ gen-time-stamp: genattr genattrtab genconditions genconstants genemit \
 	touch ${.TARGET}
 
 .for F in attr codes config emit extract flags opinit output peep recog
-build-tools: gen$F
-
 gen$F: gen$F.o rtl.o print-rtl.o bitmap.o gensupport.o  ggc-none.o \
 	read-rtl.o insn-conditions.o min-insn-modes.o errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
@@ -86,8 +84,6 @@ CLEANFILES+=	gen$F
 #
 # genattrtab needs more complex build rule
 #
-build-tools: genattrtab
-
 genattrtab : genattrtab.o rtl.o print-rtl.o bitmap.o gensupport.o ggc-none.o \
 	read-rtl.o insn-conditions.o genautomata.o varray.o min-insn-modes.o \
 	errors.o ${LIBIBERTY}
@@ -101,8 +97,6 @@ CLEANFILES+=	genattrtab
 # they should be liked with dummy-conditions.o stubs instead
 #
 .for F in constants conditions
-build-tools: gen$F
-
 gen$F: gen$F.o rtl.o bitmap.o gensupport.o ggc-none.o read-rtl.o dummy-conditions.o min-insn-modes.o errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
@@ -111,8 +105,6 @@ CLEANFILES+=	gen$F
 .endfor
 
 .for F in modes check genrtl preds
-build-tools: gen$F
-
 gen$F: gen$F.o errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
@@ -207,7 +199,6 @@ CLEANFILES+=	gt-*.h gtype-*.h
 
 .if !defined(NO_FORTRAN)
 gen-time-stamp: fini
-build-tools: fini
 fini: fini.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 SRCS+=		fini.c
@@ -470,7 +461,6 @@ SRCS+=		${GENSRCS}
 CLEANFILES+=	${GENSRCS}
 
 all:		${SRCS}
-build-tools:	${SRCS}
 
 .include <bsd.prog.mk>
 

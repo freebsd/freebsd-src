@@ -788,7 +788,6 @@ build-tools:
     bin/csh \
     bin/sh \
     ${_rescue} \
-    gnu/usr.bin/cc/cc_tools \
     lib/libncurses \
     ${_share} \
     ${_aicasm} \
@@ -801,6 +800,7 @@ build-tools:
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
+    gnu/usr.bin/cc/cc_tools \
     ${_kerberos5_tools}
 	${_+_}@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
