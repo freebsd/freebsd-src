@@ -92,9 +92,11 @@ snc	pc98
 snd_ad1816	i386,amd64
 snd_cmi	i386,amd64
 snd_cs4281	i386,amd64
+snd_csa	i386,amd64
 snd_ds1	i386,amd64
 snd_emu10k1	i386,amd64
 snd_es137x	i386,amd64
+snd_gusc	i386,amd64
 snd_solo	i386,amd64
 ste	i386,pc98,alpha,amd64
 stg	i386,pc98
