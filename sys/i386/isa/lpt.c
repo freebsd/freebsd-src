@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.49 1996/02/06 18:50:52 wollman Exp $
+ *	$Id: lpt.c,v 1.30.4.4 1996/02/12 14:37:24 phk Exp $
  */
 
 /*
@@ -286,10 +286,10 @@ struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
 };
 
-static	d_open_t	lptopen;
-static	d_close_t	lptclose;
-static	d_write_t	lptwrite;
-static	d_ioctl_t	lptioctl;
+d_open_t	lptopen;
+d_close_t	lptclose;
+d_write_t	lptwrite;
+d_ioctl_t	lptioctl;
 
 #define CDEV_MAJOR 16
 static struct cdevsw lpt_cdevsw = 
@@ -1374,19 +1374,3 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 }
 
 #endif /* INET */
-
-static lpt_devsw_installed = 0;
-
-static void 	lpt_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! lpt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&lpt_cdevsw, NULL);
-		lpt_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
-
