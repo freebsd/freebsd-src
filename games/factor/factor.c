@@ -173,7 +173,7 @@ pr_fact(val)
 	}
 
 	/* Factor value. */
-	(void)printf(hflag ? "0x%x:" : "%lu:", val);
+	(void)printf(hflag ? "0x%lx:" : "%lu:", val);
 	for (fact = &prime[0]; val > 1; ++fact) {
 		/* Look for the smallest factor. */
 		do {
@@ -183,15 +183,15 @@ pr_fact(val)
 
 		/* Watch for primes larger than the table. */
 		if (fact > pr_limit) {
-			(void)printf(hflag ? " 0x%x" : " %lu", val);
+			(void)printf(hflag ? " 0x%lx" : " %lu", val);
 			break;
 		}
 
 		/* Divide factor out until none are left. */
 		do {
-			(void)printf(hflag ? " 0x%x" : " %lu", *fact);
-			val /= (long)*fact;
-		} while ((val % (long)*fact) == 0);
+			(void)printf(hflag ? " 0x%lx" : " %lu", *fact);
+			val /= *fact;
+		} while ((val % *fact) == 0);
 
 		/* Let the user know we're doing something. */
 		(void)fflush(stdout);
