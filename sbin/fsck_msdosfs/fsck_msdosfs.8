@@ -80,6 +80,13 @@ making any changes.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl F
+Compatibility with the wrapper
+.Xr fsck 8
+which seeks to determine whether the filesystem needs to be cleaned
+immediately in foreground, or if its cleaning can be deferred to background.
+FAT (MS-DOS) file systems must always be cleaned in the foreground.
+A non-zero exit code is always returned for this option.
 .It Fl f
 This option is ignored by
 .Nm ,
