@@ -450,7 +450,7 @@ via_attach(device_t dev)
 {
 	struct via_info *via = 0;
 	char status[SND_STATUSLEN];
-	u_int32_t data;
+	u_int32_t data, cnt;
 
 	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -463,8 +463,36 @@ via_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	pci_write_config(dev, VIA_PCICONF_MISC,
-		VIA_PCICONF_ACLINKENAB | VIA_PCICONF_ACSGD | VIA_PCICONF_ACNOTRST | VIA_PCICONF_ACVSR, 1);
+	/* Wake up and reset AC97 if necessary */
+	data = pci_read_config(dev, VIA_AC97STATUS, 1);
+
+	if ((data & VIA_AC97STATUS_RDY) == 0) {
+		/* Cold reset per ac97r2.3 spec (page 95) */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Assert low */
+		DELAY(100);									/* Wait T_rst_low */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN | VIA_ACLINK_NRST, 1);	/* Assert high */
+		DELAY(5);									/* Wait T_rst2clk */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Assert low */
+	} else {
+		/* Warm reset */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Force no sync */
+		DELAY(100);
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN | VIA_ACLINK_SYNC, 1);	/* Sync */
+		DELAY(5);									/* Wait T_sync_high */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Force no sync */
+		DELAY(5);									/* Wait T_sync2clk */
+	}
+
+	/* Power everything up */
+	pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);	
+
+	/* Wait for codec to become ready (largest reported delay here 310ms) */
+	for (cnt = 0; cnt < 2000; cnt++) {
+		data = pci_read_config(dev, VIA_AC97STATUS, 1);
+		if (data & VIA_AC97STATUS_RDY) 
+			break;
+		DELAY(5000);
+	}
 
 	via->regid = PCIR_MAPS;
 	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0, 1, RF_ACTIVE);
@@ -491,7 +519,8 @@ via_attach(device_t dev)
 	if (!via->codec)
 		goto bad;
 
-	mixer_init(dev, ac97_getmixerclass(), via->codec);
+	if (mixer_init(dev, ac97_getmixerclass(), via->codec))
+		goto bad;
 
 	via->codec_caps = ac97_getextcaps(via->codec);
 	ac97_setextmode(via->codec, 
