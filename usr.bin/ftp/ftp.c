@@ -134,11 +134,10 @@ hookup(host0, port)
 	}
 
 	res = res0;
-	if (res->ai_canonname) {
+	if (res->ai_canonname)
 		(void) strncpy(hostnamebuf, res->ai_canonname,
 			       sizeof(hostnamebuf));
-		hostname = hostnamebuf;
-	}
+	hostname = hostnamebuf;
 	while (1) {
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (s < 0) {
