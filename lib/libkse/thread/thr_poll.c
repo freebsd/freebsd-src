@@ -61,7 +61,7 @@ _libc_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	} else if (timeout > 0) {
 		/* Convert the timeout in msec to a timespec: */
 		ts.tv_sec = timeout / 1000;
-		ts.tv_nsec = (timeout % 1000) * 1000;
+		ts.tv_nsec = (timeout % 1000) * 1000000;
 
 		/* Set the wake up time: */
 		_thread_kern_set_timeout(&ts);
