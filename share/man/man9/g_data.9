@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_data 9
+.Dt G_DATA 9
 .Os
 .Sh NAME
 .Nm g_read_data ,
@@ -34,9 +34,13 @@
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft "void *"
-.Fn g_read_data "struct g_consumer *cp" "off_t offset" "off_t length" "int *error"
+.Fo g_read_data
+.Fa "struct g_consumer *cp" "off_t offset" "off_t length" "int *error"
+.Fc
 .Ft int
-.Fn g_write_data "struct g_consumer *cp" "off_t offset" "void *ptr" "off_t length"
+.Fo g_write_data
+.Fa "struct g_consumer *cp" "off_t offset" "void *ptr" "off_t length"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn g_read_data
@@ -69,11 +73,14 @@ to the provider attached to consumer
 starting at offset
 .Fa offset .
 .Sh RESTRICTIONS/CONDITIONS
+The
 .Fa length
+argument
 should be a multiple of the provider's sectorsize
 and less than or equal to
 .Dv DFLTPHYS
-.Dv ( DFLTPHYS is defined in
+.Dv ( DFLTPHYS
+is defined in
 .In sys/param.h ) .
 .Pp
 The topology lock must not be held.
@@ -95,7 +102,7 @@ function returns 0 if successful; otherwise an error code is returned.
 Possible errors:
 .Bl -tag -width Er
 .It Bq Er EIO
-Can not read data.
+Cannot read data.
 .El
 .Sh SEE ALSO
 .Xr geom 4 ,

@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_provider_by_name 9
+.Dt G_PROVIDER_BY_NAME 9
 .Os
 .Sh NAME
 .Nm g_provider_by_name
@@ -40,18 +40,20 @@ The
 function searches for a provider called
 .Fa name
 and returns the structure
-.Fa g_provider
+.Vt g_provider
 bound to it.
 Argument
 .Fa name
-should be a name, not a full path (ie.
+should be a name, not a full path (i.e.,
 .Dq Pa da0 ,
 instead of
 .Dq Pa /dev/da0 ) .
 .Sh RESTRICTIONS/CONDITIONS
 The topology lock has to be held.
 .Sh RETURN VALUES
+The
 .Fn g_provider_by_name
+function
 returns a pointer to the provider called
 .Fa name
 or

@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_consumer 9
+.Dt G_CONSUMER 9
 .Os
 .Sh NAME
 .Nm g_new_consumer ,
@@ -54,7 +54,6 @@ The
 .Fn g_destroy_consumer
 function destroys the given consumer and cancels all related pending events.
 This function is the last stage of killing an unwanted consumer.
-.Pp
 .Sh RESTRICTIONS/CONDITIONS
 .Fn g_new_consumer :
 .Bl -item -offset indent
@@ -62,9 +61,9 @@ This function is the last stage of killing an unwanted consumer.
 The geom
 .Fa gp
 has to have
-.Fa start
+.Va start
 and
-.Fa access
+.Va access
 methods defined.
 .It
 The topology lock has to be held.
@@ -80,7 +79,9 @@ The access count has to be 0.
 The topology lock has to be held.
 .El
 .Sh RETURN VALUES
+The
 .Fn g_new_consumer
+function
 returns a pointer to the newly created consumer.
 .Sh EXAMPLES
 Create consumer, attach it to given provider, gain read access and clean up.

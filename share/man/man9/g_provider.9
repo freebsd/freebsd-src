@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 16, 2004
-.Dt g_provider 9
+.Dt G_PROVIDER 9
 .Os
 .Sh NAME
 .Nm g_new_providerf ,
@@ -43,16 +43,20 @@
 .Sh DESCRIPTION
 A GEOM provider is the front gate at which a geom offers service.
 A provider is
-.Dq a disk\-like thing which appears in Pa /dev
-\- a logical disk in other words.
+.Dq a disk-like thing which appears in Pa /dev
+\[en] a logical disk in other words.
 All providers have three main properties: name, sectorsize and size.
 .Pp
 The
 .Fn g_new_providerf
 function creates a new provider on given geom
 .Fa gp .
-The name of the provider, which will appear as device in devfs, is created
-in a printf-like way from the rest of
+The name of the provider, which will appear as device in
+.Xr devfs 5 ,
+is created
+in a
+.Xr printf 3 Ns
+-like way from the rest of
 the arguments.
 After creation, the caller has to set the provider's
 .Va mediasize
