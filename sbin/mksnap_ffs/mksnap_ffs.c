@@ -86,7 +86,7 @@ main(int argc, char **argv)
 	} else {
 		strlcpy(path, args.fspec, cp - args.fspec + 1);
 	}
-	if(statfs(path, &stfsbuf) < 0)
+	if (statfs(path, &stfsbuf) < 0)
 		err(1, "%s", path);
 	if (stat(path, &stbuf) < 0)
 		err(1, "%s", path);
