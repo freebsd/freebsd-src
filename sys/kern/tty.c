@@ -2133,6 +2133,8 @@ ttwwakeup(tp)
 
 	if (tp->t_wsel.si_pid != 0 && tp->t_outq.c_cc <= tp->t_olowat)
 		selwakeup(&tp->t_wsel);
+	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
+		pgsigio(tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	if (ISSET(tp->t_state, TS_BUSY | TS_SO_OCOMPLETE) ==
 	    TS_SO_OCOMPLETE && tp->t_outq.c_cc == 0) {
 		CLR(tp->t_state, TS_SO_OCOMPLETE);
