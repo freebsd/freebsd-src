@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.3 1995/12/28 00:22:45 asami Exp $ */
+/* $Id: ccd.c,v 1.4 1996/01/02 23:32:54 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -419,10 +419,18 @@ ccdinit(ccd, cpaths, p)
 		for (ci = cs->sc_cinfo;
 		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++)
 			ci->ci_size = minsize;
-		if (ccd->ccd_flags & CCDF_PARITY)
+		if (ccd->ccd_flags & CCDF_MIRROR) {
+			if (cs->sc_nccdisks % 2) {
+				cs->sc_nccdisks--;
+				printf("ccd%d: mirroring requires even number of disks; using %d\n",
+				       ccd->ccd_unit, cs->sc_nccdisks);
+			}
+			cs->sc_size = (cs->sc_nccdisks/2) * minsize;
+		}
+		else if (ccd->ccd_flags & CCDF_PARITY)
 			cs->sc_size = (cs->sc_nccdisks-1) * minsize;
 		else
-		  cs->sc_size = cs->sc_nccdisks * minsize;
+			cs->sc_size = cs->sc_nccdisks * minsize;
 	}
 
 	/*
@@ -813,7 +821,11 @@ ccdbuffer(cs, bp, bn, addr, bcount)
 			ccdisk = ii->ii_index[0];
 			cbn = ii->ii_startoff + off;
 		} else {
-			if (cs->sc_cflags & CCDF_PARITY) {
+			if (cs->sc_cflags & CCDF_MIRROR) {
+				ccdisk = ii->ii_index[off % (ii->ii_ndisk/2)];
+				cbn = ii->ii_startoff + off / (ii->ii_ndisk/2);
+			}
+			else if (cs->sc_cflags & CCDF_PARITY) {
 				ccdisk = ii->ii_index[off % (ii->ii_ndisk-1)];
 				cbn = ii->ii_startoff + off / (ii->ii_ndisk-1);
 				if (cbn % ii->ii_ndisk <= ccdisk)
@@ -1049,9 +1061,15 @@ ccdioctl(dev, cmd, data, flag, p)
 		/* Fill in some important bits. */
 		ccd.ccd_unit = unit;
 		ccd.ccd_interleave = ccio->ccio_ileave;
-		if ((ccio->ccio_flags & CCDF_PARITY) &&
+		if ((ccio->ccio_flags & CCDF_MIRROR) &&
+		    (ccio->ccio_flags & CCDF_PARITY)) {
+			printf("ccd%d: can't specify both mirror and parity, using mirror\n", unit);
+			ccio->ccio_flags &= ~CCDF_PARITY;
+		}
+		if ((ccio->ccio_flags & (CCDF_MIRROR | CCDF_PARITY)) &&
 		    !(ccio->ccio_flags & CCDF_UNIFORM)) {
-			printf("ccd%d: parity forces uniform flag\n", unit);
+			printf("ccd%d: mirror/parity forces uniform flag\n",
+			       unit);
 			ccio->ccio_flags |= CCDF_UNIFORM;
 		}
 		ccd.ccd_flags = ccio->ccio_flags & CCDF_USERMASK;
@@ -1519,5 +1537,6 @@ printiinfo(ii)
 
 /* Local Variables: */
 /* c-argdecl-indent: 8 */
+/* c-continued-statement-offset: 8 */
 /* c-indent-level: 8 */
 /* End: */
