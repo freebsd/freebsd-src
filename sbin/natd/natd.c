@@ -16,6 +16,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <netinet/in.h>
@@ -25,8 +26,8 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
-#include <sys/ioctl.h>
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/route.h>
 #include <arpa/inet.h>
 
@@ -81,7 +82,7 @@ static void	Usage (void);
 static char*	FormatPacket (struct ip*);
 static void	PrintPacket (struct ip*);
 static void	SyslogPacket (struct ip*, int priority, const char *label);
-static void	SetAliasAddressFromIfName (char* ifName);
+static void	SetAliasAddressFromIfName (const char *ifName);
 static void	InitiateShutdown (int);
 static void	Shutdown (int);
 static void	RefreshAddr (int);
@@ -168,7 +169,8 @@ int main (int argc, char** argv)
 /*
  * Open syslog channel.
  */
-	openlog ("natd", LOG_CONS | LOG_PID, logFacility);
+	openlog ("natd", LOG_CONS | LOG_PID | (verbose ? LOG_PERROR : 0),
+		 logFacility);
 /*
  * Check that valid aliasing address has been given.
  */
@@ -708,95 +710,102 @@ static char* FormatPacket (struct ip* ip)
 	return buf;
 }
 
-static void SetAliasAddressFromIfName (char* ifn)
+static void
+SetAliasAddressFromIfName(const char *ifn)
 {
-	struct ifconf		cf;
-	struct ifreq		buf[32];
-	struct ifreq*		ifPtr;
-	int			extra;
-	int			helperSock;
-	int			bytes;
-	struct sockaddr_in*	addr;
-	int			found;
-	struct ifreq		req;
-	char			last[10];
-/*
- * Create a dummy socket to access interface information.
- */
-	helperSock = socket (AF_INET, SOCK_DGRAM, 0);
-	if (helperSock == -1)
-		Quit ("Failed to create helper socket.");
+	size_t needed;
+	int mib[6];
+	char *buf, *lim, *next;
+	struct if_msghdr *ifm;
+	struct ifa_msghdr *ifam;
+	struct sockaddr_dl *sdl;
+	struct sockaddr_in *sin;
 
-	cf.ifc_len = sizeof (buf);
-	cf.ifc_req = buf;
+	mib[0] = CTL_NET;
+	mib[1] = PF_ROUTE;
+	mib[2] = 0;
+	mib[3] = AF_INET;	/* Only IP addresses please */
+	mib[4] = NET_RT_IFLIST;
+	mib[5] = 0;		/* ifIndex??? */
 /*
  * Get interface data.
  */
-	if (ioctl (helperSock, SIOCGIFCONF, &cf) == -1)
-		Quit ("Ioctl SIOCGIFCONF failed.");
-
-	ifIndex	= 0;
-	ifPtr	= buf;
-	bytes	= cf.ifc_len;
-	found   = 0;
-	last[0] = '\0';
+	if (sysctl(mib, 6, NULL, &needed, NULL, 0) == -1)
+		err(1, "iflist-sysctl-estimate");
+	if ((buf = malloc(needed)) == NULL)
+		errx(1, "malloc failed");
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) == -1)
+		err(1, "iflist-sysctl-get");
+	lim = buf + needed;
 /*
  * Loop through interfaces until one with
  * given name is found. This is done to
  * find correct interface index for routing
  * message processing.
  */
-	while (bytes) {
-
-		if (ifPtr->ifr_addr.sa_family == AF_INET &&
-                    !strcmp (ifPtr->ifr_name, ifn)) {
-
-			found = 1;
-			break;
+	ifIndex	= 0;
+	next = buf;
+	while (next < lim) {
+		ifm = (struct if_msghdr *)next;
+		next += ifm->ifm_msglen;
+		if (ifm->ifm_version != RTM_VERSION) {
+			if (verbose)
+				warnx("routing message version %d "
+				      "not understood", ifm->ifm_version);
+			continue;
 		}
-
-		if (strcmp (last, ifPtr->ifr_name)) {
-
-			strcpy (last, ifPtr->ifr_name);
-			++ifIndex;
+		if (ifm->ifm_type == RTM_IFINFO) {
+			sdl = (struct sockaddr_dl *)(ifm + 1);
+			if (strlen(ifn) == sdl->sdl_nlen &&
+			    strncmp(ifn, sdl->sdl_data, sdl->sdl_nlen) == 0) {
+				ifIndex = ifm->ifm_index;
+				ifMTU = ifm->ifm_data.ifi_mtu;
+				break;
+			}
 		}
-
-		extra = ifPtr->ifr_addr.sa_len - sizeof (struct sockaddr);
-		if (extra < 0)
-			extra = 0;
-
-		ifPtr++;
-		ifPtr = (struct ifreq*) ((char*) ifPtr + extra);
-		bytes -= sizeof (struct ifreq) + extra;
 	}
-
-	if (!found) {
-
-		close (helperSock);
-		errx (1, "Unknown interface name %s.\n", ifn);
-	}
-/*
- * Get MTU size.
- */
-	strcpy (req.ifr_name, ifn);
-
-	if (ioctl (helperSock, SIOCGIFMTU, &req) == -1)
-		Quit ("Cannot get interface mtu size.");
-
-	ifMTU = req.ifr_mtu;
+	if (!ifIndex)
+		errx(1, "unknown interface name %s", ifn);
 /*
  * Get interface address.
  */
-	if (ioctl (helperSock, SIOCGIFADDR, &req) == -1)
-		Quit ("Cannot get interface address.");
+	sin = NULL;
+	while (next < lim) {
+		ifam = (struct ifa_msghdr *)next;
+		next += ifam->ifam_msglen;
+		if (ifam->ifam_version != RTM_VERSION) {
+			if (verbose)
+				warnx("routing message version %d "
+				      "not understood", ifam->ifam_version);
+			continue;
+		}
+		if (ifam->ifam_type != RTM_NEWADDR)
+			break;
+		if (ifam->ifam_addrs & RTA_IFA) {
+			int i;
+			char *cp = (char *)(ifam + 1);
 
-	addr = (struct sockaddr_in*) &req.ifr_addr;
-	PacketAliasSetAddress (addr->sin_addr);
-	syslog (LOG_INFO, "Aliasing to %s, mtu %d bytes",
-			  inet_ntoa (addr->sin_addr),
-			  ifMTU);
+#define ROUNDUP(a) \
+	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-	close (helperSock);
+			for (i = 1; i < RTA_IFA; i <<= 1)
+				if (ifam->ifam_addrs & i)
+					ADVANCE(cp, (struct sockaddr *)cp);
+			if (((struct sockaddr *)cp)->sa_family == AF_INET) {
+				sin = (struct sockaddr_in *)cp;
+				break;
+			}
+		}
+	}
+	if (sin == NULL)
+		errx(1, "%s: cannot get interface address", ifn);
+
+	PacketAliasSetAddress(sin->sin_addr);
+	syslog(LOG_INFO, "Aliasing to %s, mtu %d bytes",
+	       inet_ntoa(sin->sin_addr), ifMTU);
+
+	free(buf);
 }
 
 void Quit (const char* msg)
