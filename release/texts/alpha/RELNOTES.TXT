@@ -125,10 +125,6 @@ The ata(4) driver has been updated.
 kqueue(2) has been extended to the device layer, and has also received
 some bug fixes.
 
-Some signal-handling fixes for Linux have been added, which improves
-compatability with signal-intensive programs running under Linux
-emulation.
-
 The ISO-9660 filesystem now has a hook that supports a loadable
 character conversion routine.  The sysutils/cd9660_unicode port
 contains a set of common conversions.
