@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.8 1998/09/26 14:25:32 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.9 1998/12/24 06:05:48 mjacob Exp $
  */
 
 #include <sys/types.h>
@@ -38,6 +38,7 @@
 unsigned int bio_imask;		/* XXX */
 unsigned int cam_imask;		/* XXX */
 unsigned int net_imask;		/* XXX */
+unsigned int tty_imask;		/* XXX */
 
 static void swi_net(void);
 
@@ -127,7 +128,7 @@ do_sir()
     int i;
 
     splsoft();
-    while (pend = atomic_readandclear(&ipending)) {
+    while ((pend = atomic_readandclear(&ipending)) != 0) {
 	for (i = 0; pend && i < 32; i++) {
 	    if (pend & (1 << i)) {
 		if (ihandlers[i] == swi_generic)
@@ -172,9 +173,6 @@ int name(void)					\
 }
 
 SPLDOWN(splsoftclock, SOFT)
-SPLDOWN(splsoftnet, SOFT)
-SPLDOWN(splsoftcam, SOFT)
-SPLDOWN(splsoftvm, SOFT)
 SPLDOWN(splsoft, SOFT)
 
 #define SPLUP(name, pri)				\
@@ -189,6 +187,9 @@ int name(void)						\
 	return cpl;					\
 }
 
+SPLUP(splsoftcam, SOFT)
+SPLUP(splsoftnet, SOFT)
+SPLUP(splsoftvm, SOFT)
 SPLUP(splnet, IO)
 SPLUP(splbio, IO)
 SPLUP(splcam, IO)
