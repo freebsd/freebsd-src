@@ -72,23 +72,6 @@ static struct cdevsw ad_cdevsw = {
 	/* bmaj */	30
 };
 static struct cdevsw addisk_cdevsw;
-static struct cdevsw fakewd_cdevsw = {
-	/* open */	adopen,
-	/* close */	nullclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	adstrategy,
-	/* name */	"wd",
-	/* maj */	3,
-	/* dump */	addump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-	/* bmaj */	0
-};
-static struct cdevsw fakewddisk_cdevsw;
 
 /* prototypes */
 static void ad_invalidatequeue(struct ad_softc *, struct ad_request *);
@@ -102,7 +85,7 @@ static u_int32_t adp_lun_map = 0;
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 static int ata_dma, ata_wc, ata_tags; 
 TUNABLE_INT_DECL("hw.ata.ata_dma", 1, ata_dma);
-TUNABLE_INT_DECL("hw.ata.wc", 0, ata_wc);
+TUNABLE_INT_DECL("hw.ata.wc", 1, ata_wc);
 TUNABLE_INT_DECL("hw.ata.tags", 0, ata_tags);
 
 /* sysctl vars */
@@ -206,13 +189,7 @@ ad_attach(struct ata_softc *scp, int device)
     dev = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
     dev->si_drv1 = adp;
     dev->si_iosize_max = 256 * DEV_BSIZE;
-    adp->dev1 = dev;
-
-    dev = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
-		      &fakewddisk_cdevsw);
-    dev->si_drv1 = adp;
-    dev->si_iosize_max = 256 * DEV_BSIZE;
-    adp->dev2 = dev;
+    adp->dev = dev;
 
     bufq_init(&adp->queue);
 
@@ -254,8 +231,7 @@ void
 ad_detach(struct ad_softc *adp)
 {
     disk_invalidate(&adp->disk);
-    disk_destroy(adp->dev1);
-    disk_destroy(adp->dev2);
+    disk_destroy(adp->dev);
     devstat_remove_entry(&adp->stats);
     ata_free_lun(&adp_lun_map, adp->lun);
     free(adp, M_AD);

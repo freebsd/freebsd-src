@@ -228,17 +228,17 @@ arstrategy(struct buf *bp)
 		    buf1->bp.b_pblkno;
 	    }
 	    if (rdp->last_disk)
-	    	buf1->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev1;
+	    	buf1->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev;
 	    else
-	    	buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev1;
+	    	buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev;
 	}
 	else
-	    buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev1;
+	    buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev;
 
 	if (rdp->flags & AR_F_RAID_1 && !(bp->b_flags & B_READ)) {
 	    buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
 	    bcopy(buf1, buf2, sizeof(struct ar_buf));
-	    buf2->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev1;
+	    buf2->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev;
 	    buf2->mirror = buf1;
 	    buf1->mirror = buf2;
 	    buf2->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf2);
@@ -275,7 +275,7 @@ ar_done(struct buf *bp)
 	    if (!buf->done && bp->b_flags & B_ERROR) {
 		/* read error on this disk, try mirror */
 		buf->done = 1;
-	    	buf->bp.b_dev = rdp->mirrordisk[buf->drive]->dev1;
+	    	buf->bp.b_dev = rdp->mirrordisk[buf->drive]->dev;
 	    	buf->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf);
 		return;
 	    }
