@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.5 1993/11/25 01:30:57 wollman Exp $
+ *	$Id: math_emulate.c,v 1.6 1993/12/19 00:50:05 wollman Exp $
  */
 
 /*
@@ -33,7 +33,6 @@
  * The other files also don't care about ST(x) etc - they just get addresses
  * to 80-bit temporary reals, and do with them as they please. I wanted to
  * hide most of the 387-specific things here.
- *
  */
 
 #include "machine/cpu.h"
@@ -208,12 +207,10 @@ math_emulate(struct trapframe * info)
 			real_to_real(&tmp,&ST(0));
 			return(0);
 		case 0x1a:
-			fcom(PST(code & 7),&tmp);
-			real_to_real(&tmp,&ST(0));
+			fcom(PST(code & 7),PST(0));
 			return(0);
 		case 0x1b:
-			fcom(PST(code & 7),&tmp);
-			real_to_real(&tmp,&ST(0));
+			fcom(PST(code & 7),PST(0));
 			fpop();
 			return(0);
 		case 0x1c:
