@@ -26,15 +26,15 @@ The adapters currently supported include the following RAID adapters:
 .Pp
 .Bl -item -compact
 .It
-Adaptec Zero-Channel SCSI RAID 2000S & 2005S
+Adaptec Zero-Channel SCSI RAID 2000S, 2005S, 2010S, 2015S
 .It
-Adaptec SCSI RAID 2100S (2110S)
+Adaptec SCSI RAID 2100S, 2110S
 .It
 Adaptec ATA-100 RAID 2400A
 .It
-Adaptec SCSI RAID 3200S (3210S)
+Adaptec SCSI RAID 3200S, 3210S
 .It
-Adaptec SCSI RAID 3400S (3410S)
+Adaptec SCSI RAID 3400S, 3410S
 .It
 Adaptec SmartRAID PM1554
 .It
@@ -60,20 +60,14 @@ DEC KZPCC-XC (LVD 1-ch, 16MB cache),
 DEC KZPCC-XE (LVD 3-ch, 64MB cache) -- rebadged SmartRAID V Millennium
 .El
 .Pp
-Some of the adapters provide 64 bit PCI,
-Compact PCI,
-ACPI and up to four channels of Ultra 160 SCSI,
+These adapters provide 64 bit PCI,
+Compact PCI, Zero Channel PCI,
+and up to four channels of Ultra2, Ultra 160, or Ultra320 SCSI,
 or two channels of 1GB Fibre.
 All support RAID-0, RAID-1, RAID-10, RAID-5 and RAID-50 arrays.
 All SCSI target types are supported.
 For the ATA based controllers, one IDE drive per channel is supported.
 Hot-swapping of IDE drives is not supported at this time.
-.Pp
-The PCI adapters automatically configure
-using the configuration mechanism of the bus they are on.
-With PCI adapters
-the IRQ sometimes has to be assigned from a BIOS configuration menu
-(some BIOS's do this automatically).
 .Pp
 All host bus adapters must be configured
 before they can be used with any operating system.
@@ -81,11 +75,8 @@ Please contact Adaptec directly to obtain the latest information
 on configuration utilities for the adapters.
 Currently there are both a GUI Motif based configuration utility
 and a CLI based configuration utility available from the Adaptec Web site.
-Note that the absence of a native
-.Fx
-version of the configuration utilities
-does not mean one cannot configure the devices via the BIOS
-based configuration tool Storage Manager on ROM (SMOR).
+The cards and arrays can also be configured via the BIOS based configuration
+too (SMOR).
 .Sh FILES
 .Bl -tag -width "/dev/asr*" -compact
 .It Pa /dev/asr*
