@@ -13,14 +13,14 @@ CLEANFILES+=i386l-syscalls.master syscalls.master linux_syscalls.h \
 .SUFFIXES: .master
 
 i386l-syscalls.master:	${.CURDIR}/../../sys/i386/linux/syscalls.master
-	cp ${.ALLSRC} i386l-syscalls.master
+	cat ${.ALLSRC} > i386l-syscalls.master
 
 linux_syscalls.h:	i386l-syscalls.master
 	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh i386l-syscalls.master \
 		${.CURDIR}/i386linux.conf
 
 syscalls.master:	${.CURDIR}/../../sys/kern/syscalls.master
-	cp ${.ALLSRC} syscalls.master
+	cat ${.ALLSRC} > syscalls.master
 
 syscalls.h:	syscalls.master
 	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh syscalls.master \
