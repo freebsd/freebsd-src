@@ -48,8 +48,21 @@ network_pass1() {
 	# Establish ipfilter ruleset as early as possible (best in
 	# addition to IPFILTER_DEFAULT_BLOCK in the kernel config file)
 	#
+	if /sbin/ipfstat -i > /dev/null 2>&1; then
+		ipfilter_in_kernel=1
+	else
+		ipfilter_in_kernel=0
+	fi
+
 	case "${ipfilter_enable}" in
 	[Yy][Ee][Ss])
+		if [ "${ipfilter_in_kernel}" -eq 0 ] && kldload ipl; then
+			ipfilter_in_kernel=1
+			echo "Kernel ipfilter module loaded."
+		elif [ "${ipfilter_in_kernel}" -eq 0 ]; then
+			echo "Warning: ipfilter kernel module failed to load."
+		fi
+
 		if [ -r "${ipfilter_rules}" ]; then
 			echo -n ' ipfilter';
 			${ipfilter_program:-/sbin/ipf -Fa -f} \
