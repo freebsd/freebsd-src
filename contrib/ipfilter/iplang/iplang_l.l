@@ -6,7 +6,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_l.l,v 2.2 2000/02/18 00:18:05 darrenr Exp $
+ * $Id: iplang_l.l,v 2.2.2.1 2003/07/28 01:15:59 darrenr Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -318,5 +318,6 @@ void swallow()
 		while ((c != '\n') && (c != EOF))
 			c = input();
 	}
-	unput(c);
+	if (c != EOF)
+		unput(c);
 }
