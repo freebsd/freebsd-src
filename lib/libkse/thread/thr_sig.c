@@ -195,8 +195,8 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 			    != 0) || (info == NULL))
 				(*(sigfunc))(sig, info, ucp);
 			else
-				(*(sigfunc))(sig, (siginfo_t *)info->si_code,
-				    ucp);
+				(*(sigfunc))(sig,
+				    (siginfo_t*)(intptr_t)info->si_code, ucp);
 		}
 	}
 	else {
@@ -253,7 +253,8 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 		    (info == NULL))
 			(*(sigfunc))(sig, info, ucp);
 		else
-			(*(sigfunc))(sig, (siginfo_t *)info->si_code, ucp);
+			(*(sigfunc))(sig, (siginfo_t*)(intptr_t)info->si_code,
+			    ucp);
 	}
 
 	/*
