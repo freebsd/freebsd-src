@@ -41,8 +41,6 @@
 #ifndef _MACHINE_SEGMENTS_H_
 #define	_MACHINE_SEGMENTS_H_
 
-#include <machine/globals.h>
-
 /*
  * 386 Segmentation Data Structures and definitions
  *	William F. Jolitz (william@ernie.berkeley.edu) 6/20/1989

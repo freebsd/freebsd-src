@@ -43,7 +43,6 @@
 /*
  * Intel 386 process control block
  */
-#include <machine/globals.h>
 #include <machine/npx.h>
 
 struct pcb {
@@ -86,11 +85,6 @@ struct md_coredump {
 };
 
 #ifdef _KERNEL
-
-#ifndef curpcb
-extern struct pcb *curpcb;		/* our current running pcb */
-#endif
-
 void	savectx __P((struct pcb *));
 #endif
 

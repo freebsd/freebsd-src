@@ -45,8 +45,6 @@
 #ifndef _MACHINE_NPX_H_
 #define	_MACHINE_NPX_H_
 
-#include <machine/globals.h>
-
 /* Environment information of floating point unit */
 struct	env87 {
 	long	en_cw;		/* control word (16bits) */
@@ -107,10 +105,6 @@ struct	save87 {
 #define	__INITIAL_NPXCW__	0x127F
 
 #ifdef _KERNEL
-#ifndef npxproc
-extern struct proc *npxproc;
-#endif
-
 int	npxdna __P((void));
 void	npxexit __P((struct proc *p));
 void	npxinit __P((int control));
