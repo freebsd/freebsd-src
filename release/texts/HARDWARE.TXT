@@ -340,6 +340,8 @@ ATA controllers:
     Acerlabs Aladdin
     AMD 756
     CMD 646
+    CMD 648 ATA66
+    CMD 649 ATA100
     Cypress 82C693
     Cyrex 5530
     HighPoint HPT366
@@ -356,6 +358,7 @@ ATA controllers:
     Promise Ultra-33
     Promise Ultra-66
     Promise Ultra-100
+    ServerWorks ROSB4 ATA33
     SiS 5591
     VIA 82C586
     VIA 82C686
