@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.26 1999/04/16 21:22:52 peter Exp $
+ * $Id: pcivar.h,v 1.27 1999/04/17 08:36:07 peter Exp $
  *
  */
 
@@ -271,7 +271,6 @@ typedef void pci_inthand_t(void *arg);
 
 /* just copied from old PCI code for now ... */
 
-extern struct linker_set pcidevice_set;
 extern int pci_mechanism;
 
 struct pci_device {
@@ -299,6 +298,17 @@ int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
 int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		      intrmask_t *maskptr, u_int flags);
 int pci_unmap_int (pcici_t tag);
+
+struct moduledata;
+int compat_pci_handler (struct moduledata *, int, void *);
+#define COMPAT_PCI_DRIVER(name, pcidata)				\
+static moduledata_t name##_mod = {					\
+	#name,								\
+	compat_pci_handler,						\
+	&pcidata							\
+};									\
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+
 
 #endif /* PCI_COMPAT */
 #endif /* _PCIVAR_H_ */
