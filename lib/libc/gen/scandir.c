@@ -66,8 +66,8 @@ scandir(dirname, namelist, select, dcomp)
 	int (*select) __P((struct dirent *));
 	int (*dcomp) __P((const void *, const void *));
 {
-	register struct dirent *d, *p, **names;
-	register size_t nitems;
+	register struct dirent *d, *p, **names = NULL;
+	register size_t nitems = 0;
 	struct stat stb;
 	long arraysz;
 	DIR *dirp;
@@ -75,7 +75,7 @@ scandir(dirname, namelist, select, dcomp)
 	if ((dirp = opendir(dirname)) == NULL)
 		return(-1);
 	if (fstat(dirp->dd_fd, &stb) < 0)
-		return(-1);
+		goto fail;
 
 	/*
 	 * estimate the array size by taking the size of the directory file
@@ -84,9 +84,8 @@ scandir(dirname, namelist, select, dcomp)
 	arraysz = (stb.st_size / 24);
 	names = (struct dirent **)malloc(arraysz * sizeof(struct dirent *));
 	if (names == NULL)
-		return(-1);
+		goto fail;
 
-	nitems = 0;
 	while ((d = readdir(dirp)) != NULL) {
 		if (select != NULL && !(*select)(d))
 			continue;	/* just selected names */
@@ -95,7 +94,7 @@ scandir(dirname, namelist, select, dcomp)
 		 */
 		p = (struct dirent *)malloc(DIRSIZ(d));
 		if (p == NULL)
-			return(-1);
+			goto fail;
 		p->d_fileno = d->d_fileno;
 		p->d_type = d->d_type;
 		p->d_reclen = d->d_reclen;
@@ -105,22 +104,33 @@ scandir(dirname, namelist, select, dcomp)
 		 * Check to make sure the array has space left and
 		 * realloc the maximum size.
 		 */
-		if (++nitems >= arraysz) {
-			if (fstat(dirp->dd_fd, &stb) < 0)
-				return(-1);	/* just might have grown */
-			arraysz = stb.st_size / 12;
-			names = (struct dirent **)reallocf((char *)names,
-				arraysz * sizeof(struct dirent *));
-			if (names == NULL)
-				return(-1);
+		if (nitems >= arraysz) {
+			const int inc = 10;	/* increase by this much */
+			struct dirent **names2;
+
+			names2 = (struct dirent **)realloc((char *)names,
+				(arraysz + inc) * sizeof(struct dirent *));
+			if (names2 == NULL) {
+				free(p);
+				goto fail;
+			}
+			names = names2;
+			arraysz += inc;
 		}
-		names[nitems-1] = p;
+		names[nitems++] = p;
 	}
 	closedir(dirp);
 	if (nitems && dcomp != NULL)
 		qsort(names, nitems, sizeof(struct dirent *), dcomp);
 	*namelist = names;
 	return(nitems);
+
+fail:
+	while (nitems > 0)
+		free(names[--nitems]);
+	free(names);
+	closedir(dirp);
+	return -1;
 }
 
 /*
