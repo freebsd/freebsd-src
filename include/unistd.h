@@ -127,6 +127,7 @@ void	 endusershell __P((void));
 int	 exect __P((const char *, char * const *, char * const *));
 int	 fchdir __P((int));
 int	 fchown __P((int, uid_t, gid_t));
+char	*fflagstostr __P((u_long));
 int	 fsync __P((int));
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
@@ -195,6 +196,7 @@ int	 setreuid __P((uid_t, uid_t));
 int	 setrgid __P((gid_t));
 int	 setruid __P((uid_t));
 void	 setusershell __P((void));
+int	 strtofflags __P((char **, u_long *, u_long *));
 int	 swapon __P((const char *));
 int	 symlink __P((const char *, const char *));
 void	 sync __P((void));
