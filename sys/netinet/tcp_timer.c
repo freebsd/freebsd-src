@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.7.4.3 1996/06/04 23:34:06 jdp Exp $
+ * $Id: tcp_timer.c,v 1.7.4.4 1996/07/12 17:31:46 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -65,6 +65,7 @@
 
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
 int	tcp_keepintvl = TCPTV_KEEPINTVL;
+int	tcp_keepinit = TCPTV_KEEP_INIT;
 int	tcp_maxidle;
 int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 int	tcp_totbackoff = 511;

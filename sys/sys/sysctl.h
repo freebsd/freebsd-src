@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.23.4.1 1996/05/31 07:58:47 peter Exp $
+ * $Id: sysctl.h,v 1.23.4.4 1996/06/05 19:49:29 nate Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -141,7 +141,8 @@ struct ctlname {
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
 #define	KERN_SOCKBUF_WASTE	34	/* int: reserved sockbuf space */
-#define KERN_MAXID              35      /* number of valid kern ids */
+#define KERN_SOMINQUEUE         35      /* int: override socket listen() */
+#define KERN_MAXID              36      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -179,6 +180,7 @@ struct ctlname {
 	{ "ps_strings", CTLTYPE_INT }, \
 	{ "usrstack", CTLTYPE_INT }, \
 	{ "sockbuf_waste_factor", CTLTYPE_INT }, \
+	{ "sominqueue", CTLTYPE_INT }, \
 }
 
 /*

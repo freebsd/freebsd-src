@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.25.4.5 1996/05/31 08:04:10 peter Exp $
+ * $Id: kern_sysctl.c,v 1.25.4.6 1996/06/04 02:46:09 davidg Exp $
  */
 
 /*
@@ -183,6 +183,7 @@ extern int exec_usrstack;
 extern int somaxconn;
 extern u_long sb_max;
 extern u_long sb_efficiency;
+extern int sominqueue;
 
 /*
  * kernel related system variables.
@@ -326,6 +327,8 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		error = sysctl_int(oldp, oldlenp, newp, newlen, &intsb_efficiency);
 		sb_efficiency = intsb_efficiency;
 		return (error);
+	case KERN_SOMINQUEUE:
+		return(sysctl_int(oldp, oldlenp, newp, newlen, &sominqueue));
 	default:
 		return (EOPNOTSUPP);
 	}
