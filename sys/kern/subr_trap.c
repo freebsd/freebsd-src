@@ -106,10 +106,14 @@ userret(td, frame, oticks)
 	/*
 	 * We need to check to see if we have to exit or wait due to a
 	 * single threading requirement or some other STOP condition.
+	 * Don't bother doing all the work if the stop bits are not set
+	 * at this time.. If we miss it, we miss it.. no big deal.
 	 */
-	PROC_LOCK(p);
-	thread_suspend_check(0);	/* Can suspend or kill */
-	PROC_UNLOCK(p);
+	if (P_SHOULDSTOP(p)) {
+		PROC_LOCK(p);
+		thread_suspend_check(0);	/* Can suspend or kill */
+		PROC_UNLOCK(p);
+	}
 
 	/*
 	 * DO special thread processing, e.g. upcall tweaking and such
