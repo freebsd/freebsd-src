@@ -9,7 +9,7 @@ SUBDIR=csu/vax.pcc
 SUBDIR=csu/${MACHINE}
 .endif
 
-# XXX MISSING:		libmp libplot
+# XXX MISSING:		libplot
 SUBDIR+=        libc libcompat libcom_err libcurses libedit \
 		libf2c libforms \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
