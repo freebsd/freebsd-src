@@ -46,19 +46,19 @@ afterinstall:
 .endfor
 .for link in ${LATIN1LINKS}
 	ln -fs ../la_LN.ISO8859-1/LC_CTYPE \
-		       ${LOCALEDIR}/${link}.ISO_8859-1/LC_CTYPE
+		       ${LOCALEDIR}/${link}.ISO8859-1/LC_CTYPE
 .endfor
 .for link in ${LATIN15LINKS}
 	ln -fs ../la_LN.ISO8859-15/LC_CTYPE \
-		       ${LOCALEDIR}/${link}.ISO_8859-15/LC_CTYPE
+		       ${LOCALEDIR}/${link}.ISO8859-15/LC_CTYPE
 .endfor
 .for link in ${LATIN2LINKS}
 	ln -fs ../la_LN.ISO8859-2/LC_CTYPE \
-		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
+		${LOCALEDIR}/${link}.ISO8859-2/LC_CTYPE
 .endfor
 .for link in ${LATIN4LINKS}
 	ln -fs ../la_LN.ISO8859-4/LC_CTYPE \
-		${LOCALEDIR}/${link}.ISO_8859-4/LC_CTYPE
+		${LOCALEDIR}/${link}.ISO8859-4/LC_CTYPE
 .endfor
 	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
 		${LOCALEDIR}/en_US.US-ASCII/LC_CTYPE
