@@ -154,8 +154,8 @@ COMMON ITEMS:
 	# If you have not already done so, please buildworld here
 	# You will also need to update your config file to 4.x.  Usually
 	# people tend to start with GENERIC from 4.x and hack from there.
-	make buildkernel KERNEL=<YOUR_KERNEL_HERE>
-	make installkernel  KERNEL=<YOUR_KERNEL_HERE>
+	make buildkernel KERNCONF=<YOUR_KERNEL_HERE>
+	make installkernel  KERNCONF=<YOUR_KERNEL_HERE>
 	# Verify that the new kernel works, it will be installed as
 	# /kernel
 
@@ -227,8 +227,8 @@ COMMON ITEMS:
 	4.x-STABLE
 	----------
 	make buildworld
-	make buildkernel KERNEL=YOUR_KERNEL_HERE
-	make installkernel KERNEL=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	reboot	(in single user) [1]
 	make installworld
 	mergemaster
