@@ -51,6 +51,7 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
+#include <sys/extattr.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -3538,4 +3539,37 @@ privcheck:
 #endif
 
 	return ((acc_mode & VADMIN) ? EPERM : EACCES);
+}
+
+/*
+ * Credential check based on process requesting service, and per-attribute
+ * permissions.
+ */
+int
+extattr_check_cred(struct vnode *vp, int attrnamespace,
+    struct ucred *cred, struct thread *td, int access)
+{
+
+	/*
+	 * Kernel-invoked always succeeds.
+	 */
+	if (cred == NULL)
+		return (0);
+
+	/*
+	 * Do not allow privileged processes in jail to directly
+	 * manipulate system attributes.
+	 *
+	 * XXX What capability should apply here?
+	 * Probably CAP_SYS_SETFFLAG.
+	 */
+	switch (attrnamespace) {
+	case EXTATTR_NAMESPACE_SYSTEM:
+		/* Potentially should be: return (EPERM); */
+		return (suser_cred(cred, 0));
+	case EXTATTR_NAMESPACE_USER:
+		return (VOP_ACCESS(vp, access, cred, td));
+	default:
+		return (EPERM);
+	}
 }

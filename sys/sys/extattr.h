@@ -43,6 +43,11 @@
 #ifdef _KERNEL
 
 #define	EXTATTR_MAXNAMELEN	NAME_MAX
+struct thread;
+struct ucred;
+struct vnode;
+int	extattr_check_cred(struct vnode *vp, int attrnamespace,
+	    struct ucred *cred, struct thread *td, int access);
 
 #else
 #include <sys/cdefs.h>
