@@ -332,7 +332,7 @@ ufs_access(ap)
 		return (EPERM);
 
 	return (vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-	    ap->a_mode, ap->a_cred));
+	    ap->a_mode, ap->a_cred, NULL));
 }
 
 /* ARGSUSED */

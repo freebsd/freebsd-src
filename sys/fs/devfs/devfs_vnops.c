@@ -125,7 +125,7 @@ devfs_access(ap)
 		de = de->de_dir;
 
 	return (vaccess(vp->v_type, de->de_mode, de->de_uid, de->de_gid,
-	    ap->a_mode, ap->a_cred));
+	    ap->a_mode, ap->a_cred, NULL));
 }
 
 static int

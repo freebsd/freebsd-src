@@ -277,7 +277,7 @@ msdosfs_access(ap)
 	}
 
 	return (vaccess(vp->v_type, file_mode, pmp->pm_uid, pmp->pm_gid,
-	    ap->a_mode, ap->a_cred));
+	    ap->a_mode, ap->a_cred, NULL));
 }
 
 static int

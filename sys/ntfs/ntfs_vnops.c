@@ -478,7 +478,7 @@ ntfs_access(ap)
 	}
 
 	return (vaccess(vp->v_type, ip->i_mp->ntm_mode, ip->i_mp->ntm_uid,
-	    ip->i_mp->ntm_gid, ap->a_mode, ap->a_cred));
+	    ip->i_mp->ntm_gid, ap->a_mode, ap->a_cred, NULL));
 } 
 
 /*
