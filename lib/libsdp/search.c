@@ -133,7 +133,10 @@ sdp_search(void *xss,
 		iov[1].iov_base = (void *) ss->req;
 		iov[1].iov_len = req_cs - ss->req;
 
-		len = writev(ss->s, iov, sizeof(iov)/sizeof(iov[0]));
+		do {
+			len = writev(ss->s, iov, sizeof(iov)/sizeof(iov[0]));
+		} while (len < 0 && errno == EINTR);
+
 		if (len < 0) {
 			ss->error = errno;
 			return (-1);
@@ -145,7 +148,10 @@ sdp_search(void *xss,
 		iov[1].iov_base = (void *) rsp;
 		iov[1].iov_len = ss->imtu;
 
-		len = readv(ss->s, iov, sizeof(iov)/sizeof(iov[0]));
+		do {
+			len = readv(ss->s, iov, sizeof(iov)/sizeof(iov[0]));
+		} while (len < 0 && errno == EINTR);
+
 		if (len < 0) {
 			ss->error = errno;
 			return (-1);

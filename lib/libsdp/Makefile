@@ -9,7 +9,7 @@ CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
 
 SHLIB_MAJOR=	1
 
-SRCS=		search.c session.c util.c
+SRCS=		search.c service.c session.c util.c
 INCS=		sdp.h
 
 MLINKS+=	sdp.3 SDP_GET8.3
@@ -29,5 +29,8 @@ MLINKS+=	sdp.3 sdp_error.3
 MLINKS+=	sdp.3 sdp_search.3
 MLINKS+=	sdp.3 sdp_attr2desc.3
 MLINKS+=	sdp.3 sdp_uuid2desc.3
+MLINKS+=	sdp.3 sdp_register_service.3
+MLINKS+=	sdp.3 sdp_unregister_service.3
+MLINKS+=	sdp.3 sdp_change_service.3
 
 .include <bsd.lib.mk>

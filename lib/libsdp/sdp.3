@@ -84,6 +84,12 @@
 .Fn sdp_attr2desc "uint16_t attr"
 .Ft char const * const
 .Fn sdp_uuid2desc "uint16_t uuid"
+.Ft int32_t
+.Fn sdp_register_service "void *xss" "uint16_t uuid" "bdaddr_p const bdaddr" "uint8_t const *data" "uint32_t datalen" "uint32_t *handle"
+.Ft int32_t
+.Fn sdp_unregister_service "void *xss" "uint32_t handle"
+.Ft int32_t
+.Fn sdp_change_service "void *xss" "uint32_t handle" "uint8_t const *data" "uint32_t datalen"
 .Sh DESCRIPTION
 The
 .Fn SDP_GET8 ,
@@ -256,6 +262,76 @@ and
 .Fn sdp_uuid2desc
 functions each take a numeric attribute ID/UUID value and convert it to a
 human readable description.
+.Pp
+The
+.Fn sdp_register_service
+is used to register service with the local SDP server.
+The
+.Vt xss
+parameter should point to a valid SDP session object obtained from
+.Fn sdp_open_local .
+The
+.Vt uuid
+parameter is a SDP Service Class ID for the service to be registered.
+The
+.Vt bdaddr
+parameter should point to a valid BD_ADDR.
+The service will be only advertised if request was received by the local device
+with
+.Vt bdaddr .
+If
+.Vt bdaddr
+is set to
+.Dv NG_HCI_BDADDR_ANY
+then the service will be advertised to any remote devices that queries for it.
+The
+.Vt data
+and
+.Vt datalen
+parameters specify data and size of the data for the service.
+Upon successful return
+.Fn sdp_register_service
+will populate
+.Vt handle
+with the SDP record handle.
+This parameter is optional and can be set to
+.Dv NULL .
+.Pp
+The
+.Fn sdp_unregister_service
+is used to unregister service with the local SDP server.
+The
+.Vt xss
+parameter should point to a valid SDP session object obtained from
+.Fn sdp_open_local .
+The
+.Vt handle
+parameter should contain a valid SDP record handle of the service to be
+unregistered.
+.Pp
+The
+.Fn sdp_change_service
+function is used to change data associated with the existing service on
+the local SDP server.
+The
+.Vt xss
+parameter should point to a valid SDP session object obtained from
+.Fn sdp_open_local .
+The
+.Vt handle
+parameter should contain a valid SDP record handle of the service to be changed.
+The
+.Vt data
+and
+.Vt datalen
+parameters specify data and size of the data for the service.
+.Sh CAVEAT
+When registering services with the local SDP server the application must
+keep the SDP session open.
+If SDP session is closed then the local SDP server will remove all services
+that were registered over the session.
+The application is allowed to change or unregister service if it was registered
+over the same session.
 .Sh EXAMPLES
 The following example shows how to get
 .Dv SDP_ATTR_PROTOCOL_DESCRIPTOR_LIST
@@ -300,16 +376,22 @@ If the new SDP object was created then caller is still expected to call
 to check if there was connection error.
 .Pp
 The
-.Fn sdp_search
-function returns non-zero value on error.
+.Fn sdp_search ,
+.Fn sdp_register_service ,
+.Fn sdp_unregister_service
+and
+.Fn sdp_change_service
+functions return non-zero value on error.
 The caller is expected to call
 .Fn sdp_error
 to find out more about error.
 .Sh SEE ALSO
 .Xr bluetooth 3 ,
-.Xr strerror 3
+.Xr strerror 3 ,
+.Xr sdpcontrol 8 ,
+.Xr sdpd 8
 .Sh BUGS
-This is client only library for now.
+Most likely.
 Please report bugs if found.
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
