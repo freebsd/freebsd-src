@@ -113,7 +113,9 @@ Set to PCCARD controller memory address or
 for the default value.
 .It Va pccard_ifconfig
 .Pq Vt str
-List of arguments to be passed to ifconfig(8) at boot time or on
+List of arguments to be passed to
+.Xr ifconfig 8
+at boot time or on
 insertion of the card (e.g. "inet 192.168.1.1 netmask 255.255.255.0"
 for a fixed address or "DHCP" for a DHCP client).
 .It Va pccard_beep
