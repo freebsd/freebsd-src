@@ -1034,13 +1034,14 @@ static int
 load_preload_objects(void)
 {
     char *p = ld_preload;
+    static const char delim[] = " \t:;";
 
     if (p == NULL)
 	return NULL;
 
-    p += strspn(p, ":;");
+    p += strspn(p, delim);
     while (*p != '\0') {
-	size_t len = strcspn(p, ":;");
+	size_t len = strcspn(p, delim);
 	char *path;
 	char savech;
 
@@ -1052,7 +1053,7 @@ load_preload_objects(void)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
-	p += strspn(p, ":;");
+	p += strspn(p, delim);
     }
     return 0;
 }
