@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.3 1998/09/18 03:42:16 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.4 1998/09/20 05:06:10 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -229,7 +229,6 @@ static int	ahc_match_scb(struct scb *scb, int target, char channel,
 #ifdef AHC_DEBUG
 static void	ahc_print_scb(struct scb *scb);
 #endif
-static u_int	ahc_find_scb(struct ahc_softc *ahc, struct scb *scb);
 static int	ahc_search_qinfifo(struct ahc_softc *ahc, int target,
 				   char channel, int lun, u_int tag,
 				   u_int32_t status, ahc_search_action action);
@@ -519,7 +518,6 @@ ahc_free(ahc)
 int
 ahc_reset(struct ahc_softc *ahc)
 {
-        u_int	hcntrl;
 	u_int	sblkctl;
 	int	wait;
 	
@@ -1221,8 +1219,51 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 
 		last_msg = ahc_inb(ahc, LAST_MSG);
 
-		if ((last_msg == MSG_IDENTIFYFLAG)
-		 && (scb->hscb->control & MSG_SIMPLE_Q_TAG) != 0) {
+		if ((last_msg == MSG_IDENTIFYFLAG
+		 || last_msg == HOST_MSG)
+		 && (scb->flags & SCB_MSGOUT_WDTR) != 0
+		 && (scb->flags & SCB_MSGOUT_SENT) != 0) {
+			struct ahc_target_tinfo *tinfo;
+
+			/* note 8bit xfers and clear flag */
+			printf("%s:%c:%d: refuses WIDE negotiation.  Using "
+			       "8bit transfers\n", ahc_name(ahc),
+			       devinfo.channel, devinfo.target);
+			scb->flags &= ~SCB_MSGOUT_BITS;
+			ahc->wdtrpending &= ~devinfo.target_mask;
+			ahc_set_width(ahc, &devinfo, scb->ccb->ccb_h.path,
+				      MSG_EXT_WDTR_BUS_8_BIT,
+				      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
+			ahc_set_syncrate(ahc, &devinfo, scb->ccb->ccb_h.path,
+					 /*syncrate*/NULL, /*period*/0,
+					 /*offset*/0, AHC_TRANS_ACTIVE);
+			tinfo = &ahc->transinfo[devinfo.target_offset];
+			if (tinfo->goal.period) {
+				/* Start the sync negotiation */
+				ahc->sdtrpending |= devinfo.target_mask;
+				scb->flags |= SCB_MSGOUT_SDTR;
+				ahc_outb(ahc, MSG_OUT, HOST_MSG);
+				ahc_outb(ahc, SCSISIGO,
+					 ahc_inb(ahc, SCSISIGO) | ATNO);
+			}
+		} else if ((last_msg == MSG_IDENTIFYFLAG
+			 || last_msg == HOST_MSG)
+		        && (scb->flags & SCB_MSGOUT_SDTR) != 0
+		 	&& (scb->flags & SCB_MSGOUT_SENT) != 0) {
+
+			/* note asynch xfers and clear flag */
+			ahc_set_syncrate(ahc, &devinfo, scb->ccb->ccb_h.path,
+					 /*syncrate*/NULL, /*period*/0,
+					 /*offset*/0,
+					 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
+			scb->flags &= ~SCB_MSGOUT_BITS;
+ 			ahc->sdtrpending &= ~devinfo.target_mask;
+			printf("%s:%c:%d: refuses synchronous negotiation. "
+			       "Using asynchronous transfers\n",
+			       ahc_name(ahc),
+			       devinfo.channel, devinfo.target);
+		} else if ((last_msg == MSG_IDENTIFYFLAG)
+		 	&& (scb->hscb->control & MSG_SIMPLE_Q_TAG) != 0) {
 			struct	ccb_trans_settings neg;
 
 			printf("%s:%c:%d: refuses tagged commands.  Performing "
@@ -1257,47 +1298,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 					   /*tag*/SCB_LIST_NULL,
 					   CAM_REQUEUE_REQ,
 					   SEARCH_COMPLETE);
-		} else if ((last_msg == MSG_IDENTIFYFLAG
-			 || last_msg == HOST_MSG)
-		        && (scb->flags & SCB_MSGOUT_WDTR) != 0) {
-			struct ahc_target_tinfo *tinfo;
-
-			/* note 8bit xfers and clear flag */
-			printf("%s:%c:%d: refuses WIDE negotiation.  Using "
-			       "8bit transfers\n", ahc_name(ahc),
-			       devinfo.channel, devinfo.target);
-			scb->flags &= ~SCB_MSGOUT_BITS;
-			ahc->wdtrpending &= ~devinfo.target_mask;
-			ahc_set_width(ahc, &devinfo, scb->ccb->ccb_h.path,
-				      MSG_EXT_WDTR_BUS_8_BIT,
-				      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
-			ahc_set_syncrate(ahc, &devinfo, scb->ccb->ccb_h.path,
-					 /*syncrate*/NULL, /*period*/0,
-					 /*offset*/0, AHC_TRANS_ACTIVE);
-			tinfo = &ahc->transinfo[devinfo.target_offset];
-			if (tinfo->goal.period) {
-				/* Start the sync negotiation */
-				ahc->sdtrpending |= devinfo.target_mask;
-				scb->flags |= SCB_MSGOUT_SDTR;
-				ahc_outb(ahc, MSG_OUT, HOST_MSG);
-				ahc_outb(ahc, SCSISIGO,
-					 ahc_inb(ahc, SCSISIGO) | ATNO);
-			}
-		} else if ((last_msg == MSG_IDENTIFYFLAG
-			 || last_msg == HOST_MSG)
-		        && (scb->flags & SCB_MSGOUT_SDTR) != 0) {
-
-			/* note asynch xfers and clear flag */
-			ahc_set_syncrate(ahc, &devinfo, scb->ccb->ccb_h.path,
-					 /*syncrate*/NULL, /*period*/0,
-					 /*offset*/0,
-					 AHC_TRANS_ACTIVE|AHC_TRANS_GOAL);
-			scb->flags &= ~SCB_MSGOUT_BITS;
- 			ahc->sdtrpending &= ~devinfo.target_mask;
-			printf("%s:%c:%d: refuses synchronous negotiation. "
-			       "Using asynchronous transfers\n",
-			       ahc_name(ahc),
-			       devinfo.channel, devinfo.target);
 		} else {
 			/*
 			 * Otherwise, we ignore it.
@@ -1506,7 +1506,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 	}
 	case AWAITING_MSG:
 	{
-		int	scb_index;
+		u_int scb_index;
 
 		scb_index = ahc_inb(ahc, SCB_TAG);
 		scb = ahc->scb_data->scbarray[scb_index];
@@ -1796,7 +1796,6 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		restart_sequencer(ahc);
 	} else if ((status & SELTO) != 0) {
 		u_int scbptr;
-		u_int nextscb;
 
 		scbptr = ahc_inb(ahc, WAITING_SCBH);
 		ahc_outb(ahc, SCBPTR, scbptr);
@@ -2228,7 +2227,6 @@ ahc_handle_devreset(struct ahc_softc *ahc, int target, char channel,
 	struct cam_path *path;
 	path_id_t path_id;
 	u_int16_t targ_mask;
-	u_int	  targ_scsirate;
 	int scratch_offset = target;
 	int found;
 	int error;
@@ -2532,8 +2530,7 @@ ahc_init(struct ahc_softc *ahc)
 		scsi_conf = ahc_inb(ahc, SCSICONF + 1);
 		sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
 		ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
-					|term
-					|ENSTIMER|ACTNEGEN);
+					|term|ENSTIMER|ACTNEGEN);
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
@@ -4206,31 +4203,6 @@ bus_reset:
 	splx(s);
 }
 
-/*
- * Look through the SCB array of the card and attempt to find the
- * hardware SCB that corresponds to the passed in SCB.  Return
- * SCB_LIST_NULL if unsuccessful.  This routine assumes that the
- * card is already paused.
- */
-static u_int
-ahc_find_scb(struct ahc_softc *ahc, struct scb *scb)
-{
-	u_int8_t saved_scbptr;
-	u_int8_t curindex;
-
-	saved_scbptr = ahc_inb(ahc, SCBPTR);
-	for (curindex = 0; curindex < ahc->scb_data->maxhscbs; curindex++) {
-		ahc_outb(ahc, SCBPTR, curindex);
-		if (ahc_inb(ahc, SCB_TAG) == scb->hscb->tag)
-			break;
-	}
-	ahc_outb(ahc, SCBPTR, saved_scbptr);
-	if (curindex >= ahc->scb_data->maxhscbs)
-		curindex = SCB_LIST_NULL;
-
-	return curindex;
-}
-
 static int
 ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 		   int lun, u_int tag, u_int32_t status,
@@ -4350,7 +4322,7 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	 * were active but not on any list.
 	 */
 	for(i = 0; i < ahc->scb_data->maxhscbs; i++) {
-		u_int8_t scbid;
+		u_int scbid;
 
 		ahc_outb(ahc, SCBPTR, i);
 		scbid = ahc_inb(ahc, SCB_TAG);
