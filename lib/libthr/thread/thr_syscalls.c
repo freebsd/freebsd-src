@@ -330,61 +330,6 @@ _select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	return ret;
 }
 
-__weak_reference(_sigaction, sigaction);
-
-int
-_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
-{
-	struct sigaction *tmpact;
-	struct sigaction oldact, wrapperact;
-	int error;
-
-	/* Detect invalid signals. */
-	if (sig < 1 || sig > NSIG) {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	/*
-	 * If act is not NULL the library's signal wrapper is passed into the
-	 * kernel only if the action is not SIG_DFL or SIG_IGN.
-	 * On the other hand if act is NULL the caller only wants
-	 * the old value so there is no need to call into the kernel.
-	 */
-	error = 0;
-	tmpact = NULL;
-	proc_sigact_copyout(sig, &oldact);
-	if (act != NULL) {
-		proc_sigact_copyin(sig, act);
-		tmpact = proc_sigact_sigaction(sig);
-		if (tmpact->sa_handler != SIG_DFL &&
-		    tmpact->sa_handler != SIG_IGN) {
-			bcopy((const void *)tmpact, (void *)&wrapperact,
-			    sizeof(struct sigaction));
-			wrapperact.sa_flags |= SA_SIGINFO;
-			wrapperact.sa_sigaction = &_thread_sig_wrapper;
-			tmpact = &wrapperact;
-		}
-		error = __sys_sigaction(sig, tmpact, NULL);
-	}
-	if (error == 0) {
-
-		/* If successful, return the old sigaction to the user */
-		if (oact != NULL )
-			bcopy((const void *)&oldact, (void *)oact,
-			    sizeof(struct sigaction));
-	} else {
-
-		/*
-		 * The only time error is non-zero is if the syscall failed,
-		 * which means the sigaction in the process global list
-		 * was altered before the syscall. Return it to it's old value.
-		 */ 
-		proc_sigact_copyin(sig, &oldact);
-	}
-	return (error);
-}
-
 __weak_reference(_sleep, sleep);
 
 unsigned int

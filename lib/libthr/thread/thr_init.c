@@ -167,8 +167,9 @@ init_td_common(struct pthread *td, struct pthread_attr *attrp, int reinit)
 	 */
 	if (!reinit) {
 		memset(td, 0, sizeof(struct pthread));
-		td->cancelflags = PTHREAD_CANCEL_ENABLE |
-		    PTHREAD_CANCEL_DEFERRED;
+		td->cancelmode = M_DEFERRED;
+		td->cancelstate = M_DEFERRED;
+		td->cancellation = CS_NULL;
 		memcpy(&td->attr, attrp, sizeof(struct pthread_attr));
 		td->magic = PTHREAD_MAGIC;
 		TAILQ_INIT(&td->mutexq);
@@ -241,7 +242,6 @@ _thread_init(void)
 {
 	struct pthread	*pthread;
 	int		fd;
-	int             i;
 	size_t		len;
 	int		mib[2];
 	int		error;
@@ -334,21 +334,6 @@ _thread_init(void)
 	getcontext(&pthread->ctx);
 	pthread->ctx.uc_stack.ss_sp = pthread->stack;
 	pthread->ctx.uc_stack.ss_size = PTHREAD_STACK_INITIAL;
-
-	/* Initialise the state of the initial thread: */
-	pthread->state = PS_RUNNING;
-
-	/* Enter a loop to get the existing signal status: */
-	for (i = 1; i < NSIG; i++) {
-		/* Check for signals which cannot be trapped. */
-		if (i == SIGKILL || i == SIGSTOP)
-			continue;
-
-		/* Get the signal handler details. */
-		if (__sys_sigaction(i, NULL,
-		    &_thread_sigact[i - 1]) != 0)
-			PANIC("Cannot read signal handler info");
-	}
 }
 
 /*

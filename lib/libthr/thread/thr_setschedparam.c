@@ -76,11 +76,11 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 	 * LOR avoidance code.
 	 */
 	do {
-		_thread_critical_enter(pthread);
-		if (pthread->state == PS_MUTEX_WAIT) {
+		PTHREAD_LOCK(pthread);
+		if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
 			mtx = pthread->data.mutex;
 			if (_spintrylock(&mtx->lock) == EBUSY)
-				_thread_critical_exit(pthread);
+				PTHREAD_UNLOCK(pthread);
 			else
 				break;
 		} else {
@@ -115,7 +115,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 
 	}
 	pthread->attr.sched_policy = policy;
-	_thread_critical_exit(pthread);
+	PTHREAD_UNLOCK(pthread);
 	if (mtx != NULL)
 		_SPINUNLOCK(&mtx->lock);
 	return(0);

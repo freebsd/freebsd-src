@@ -44,21 +44,15 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	int ret = 0;
 	pthread_t thread;
  
-	_thread_enter_cancellation_point();
-
 	/* Check if the caller has specified an invalid thread: */
-	if (pthread->magic != PTHREAD_MAGIC) {
+	if (pthread->magic != PTHREAD_MAGIC)
 		/* Invalid thread: */
-		_thread_leave_cancellation_point();
 		return(EINVAL);
-	}
 
 	/* Check if the caller has specified itself: */
-	if (pthread == curthread) {
+	if (pthread == curthread)
 		/* Avoid a deadlock condition: */
-		_thread_leave_cancellation_point();
 		return(EDEADLK);
-	}
 
 	/*
 	 * Search for the specified thread in the list of active threads.  This
@@ -66,35 +60,38 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	 * the searches in _thread_list and _dead_list (as well as setting up
 	 * join/detach state) have to be done atomically.
 	 */
+	_thread_sigblock();
 	DEAD_LIST_LOCK;
 	THREAD_LIST_LOCK;
-	TAILQ_FOREACH(thread, &_thread_list, tle)
-		if (thread == pthread) {
-			UMTX_LOCK(&pthread->lock);
-			break;
-		}
-
-	if (thread == NULL)
-		/*
-		 * Search for the specified thread in the list of dead threads:
-		 */
-		TAILQ_FOREACH(thread, &_dead_list, dle)
+	if (!pthread->isdead) {
+		TAILQ_FOREACH(thread, &_thread_list, tle) {
 			if (thread == pthread) {
-				UMTX_LOCK(&pthread->lock);
+				PTHREAD_LOCK(pthread);
 				break;
 			}
+		}
+	} else {
+		TAILQ_FOREACH(thread, &_dead_list, dle) {
+			if (thread == pthread) {
+				PTHREAD_LOCK(pthread);
+				break;
+			}
+		}
+	}
 
 	/* Check if the thread was not found or has been detached: */
 	if (thread == NULL) {
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
+		_thread_sigunblock();
 		ret = ESRCH;
 		goto out;
 	}
 	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
-		UMTX_UNLOCK(&pthread->lock);
+		PTHREAD_UNLOCK(pthread);
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
+		_thread_sigunblock();
 		ret = EINVAL;
 		goto out;
 	}
@@ -102,44 +99,60 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	if (pthread->joiner != NULL) {
 		/* Multiple joiners are not supported. */
 		/* XXXTHR - support multiple joiners. */
-		UMTX_UNLOCK(&pthread->lock);
+		PTHREAD_UNLOCK(pthread);
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
+		_thread_sigunblock();
 		ret = ENOTSUP;
 		goto out;
 
 	}
 
 	/* Check if the thread is not dead: */
-	if (pthread->state != PS_DEAD) {
+	if (!pthread->isdead) {
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
-		UMTX_UNLOCK(&pthread->lock);
-		_thread_critical_enter(curthread);
+		PTHREAD_UNLOCK(pthread);
 
 		/* Keep track of which thread we're joining to: */
 		curthread->join_status.thread = pthread;
 
 		while (curthread->join_status.thread == pthread) {
-			PTHREAD_SET_STATE(curthread, PS_JOIN);
 			/* Wait for our signal to wake up. */
-			_thread_critical_exit(curthread);
 			THREAD_LIST_UNLOCK;
 			DEAD_LIST_UNLOCK;
+			_thread_sigunblock();
+			if (curthread->cancellation != CS_NULL)
+				pthread->joiner = NULL;
+			_thread_enter_cancellation_point();
+
+			/*
+			 * XXX - Workaround to make a join a cancellation
+			 *	 point. Must find a better solution.
+			 */
+			PTHREAD_LOCK(curthread);
+			curthread->flags |= PTHREAD_FLAGS_SUSPENDED;
+			PTHREAD_UNLOCK(curthread);
 			ret = _thread_suspend(curthread, NULL);
 			if (ret != 0 && ret != EAGAIN && ret != EINTR)
 				PANIC("Unable to suspend in join.");
+			PTHREAD_LOCK(curthread);
+			curthread->flags &= ~PTHREAD_FLAGS_SUSPENDED;
+			PTHREAD_UNLOCK(curthread);
+			if (curthread->cancellation != CS_NULL)
+				pthread->joiner = NULL;
+			_thread_leave_cancellation_point();
 
 			/*
 			 * XXX - For correctness reasons.
 			 * We must aquire these in the same order and also
-			 * importantly, release in the same order, order because
+			 * importantly, release in the same order because
 			 * otherwise we might deadlock with the joined thread
 			 * when we attempt to release one of these locks.
 			 */
+			_thread_sigblock();
 			DEAD_LIST_LOCK;
 			THREAD_LIST_LOCK;
-			_thread_critical_enter(curthread);
 		}
 
 		/*
@@ -149,9 +162,9 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		ret = curthread->join_status.error;
 		if ((ret == 0) && (thread_return != NULL))
 			*thread_return = curthread->join_status.ret;
-		_thread_critical_exit(curthread);
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
+		_thread_sigunblock();
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no
@@ -166,11 +179,12 @@ _pthread_join(pthread_t pthread, void **thread_return)
 
 		/* Free all remaining memory allocated to the thread. */
 		pthread->attr.flags |= PTHREAD_DETACHED;
-		UMTX_UNLOCK(&pthread->lock);
+		PTHREAD_UNLOCK(pthread);
 		TAILQ_REMOVE(&_dead_list, pthread, dle);
 		deadlist_free_onethread(pthread);
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
+		_thread_sigunblock();
 	}
 
 out:
