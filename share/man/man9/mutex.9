@@ -226,7 +226,7 @@ to those objects protected by the mutex
 pointed to by
 .Fa mutex .
 If the mutex can not be immediately acquired
-.Fn mtx_try_enter
+.Fn mtx_trylock
 will return 0,
 otherwise the mutex will be acquired
 and a non-zero value will be returned.
