@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.74 1996/05/01 20:10:50 phk Exp $ -->
+<!-- $Id: contrib.sgml,v 1.75 1996/05/03 23:55:09 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -252,6 +252,7 @@
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wes Santee &lt;wsantee@wsantee.oz.net&gt;
 	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
+	  <item>Yoshiro Mihira &lt;sanpei@yy.cs.keio.ac.jp&gt;
 	  <item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
 	  <item>Yves Fonk &lt;yves@cpcoup5.tn.tudelft.nl&gt;
 	</itemize>
