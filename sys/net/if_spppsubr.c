@@ -4943,18 +4943,26 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		bzero(spr.defs.myauth.challenge, AUTHKEYLEN);
 		bzero(spr.defs.hisauth.secret, AUTHKEYLEN);
 		bzero(spr.defs.hisauth.challenge, AUTHKEYLEN);
+		/*
+		 * Fixup the LCP timeout value to milliseconds so
+		 * spppcontrol doesn't need to bother about the value
+		 * of "hz".  We do the reverse calculation below when
+		 * setting it.
+		 */
+		spr.defs.lcp.timeout = sp->lcp.timeout * 1000 / hz;
 		return copyout(&spr, (caddr_t)ifr->ifr_data, sizeof spr);
 
 	case SPPPIOSDEFS:
 		if (cmd != SIOCSIFGENERIC)
 			return EINVAL;
 		/*
-		 * We have a very specific idea of which fields we allow
-		 * being passed back from userland, so to not clobber our
-		 * current state.  For one, we only allow setting
-		 * anything if LCP is in dead phase.  Once the LCP
-		 * negotiations started, the authentication settings must
-		 * not be changed again.  (The administrator can force an
+		 * We have a very specific idea of which fields we
+		 * allow being passed back from userland, so to not
+		 * clobber our current state.  For one, we only allow
+		 * setting anything if LCP is in dead or establish
+		 * phase.  Once the authentication negotiations
+		 * started, the authentication settings must not be
+		 * changed again.  (The administrator can force an
 		 * ifconfig down in order to get LCP back into dead
 		 * phase.)
 		 *
@@ -4970,9 +4978,9 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * only without clobbering the secret (which he didn't get
 		 * back in a previous SPPPIOGDEFS call).  However, the
 		 * secrets are cleared if the authentication protocol is
-		 * reset to 0.
-		 */
-		if (sp->pp_phase != PHASE_DEAD)
+		 * reset to 0.  */
+		if (sp->pp_phase != PHASE_DEAD &&
+		    sp->pp_phase != PHASE_ESTABLISH)
 			return EBUSY;
 
 		if ((spr.defs.myauth.proto != 0 && spr.defs.myauth.proto != PPP_PAP &&
@@ -5004,6 +5012,9 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 				bcopy(spr.defs.hisauth.secret, sp->hisauth.secret,
 				      AUTHKEYLEN);
 		}
+		/* set LCP restart timer timeout */
+		if (spr.defs.lcp.timeout != 0)
+			sp->lcp.timeout = spr.defs.lcp.timeout * hz / 1000;
 		/* set VJ enable flag */
 		sp->enable_vj = spr.defs.enable_vj;
 		break;
