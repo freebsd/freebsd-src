@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/07/25 00:31:51 bde Exp $
+#	$Id: Makefile,v 1.1 1995/12/10 23:05:53 peter Exp $
 
 MAN8=	cvsbug.8
 
@@ -16,7 +16,7 @@ all:	cvsbug
 	sed -e "s,xVERSIONx,`cat ver`,g" ${.CURDIR}/$@.sh > $@
 
 
-afterinstall:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		cvsbug ${DESTDIR}${BINDIR}/cvsbug
 

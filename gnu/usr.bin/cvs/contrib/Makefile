@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/12/11 00:45:41 peter Exp $
+#	$Id: Makefile,v 1.3 1995/12/11 01:23:42 peter Exp $
 
 SUBDIR=	 pcl-cvs
 
@@ -26,7 +26,7 @@ all:	${SCRIPTS}
 	sed -e 's,xPERL_PATHx,$(PERLPATH),' $< > $@
 
 
-afterinstall:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${SCRIPTS} ${DESTDIR}${EXAMPDIR}/contrib
 	cd ${.CURDIR} ; \
