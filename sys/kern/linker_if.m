@@ -54,6 +54,16 @@ METHOD int search_symbol {
 };
 
 #
+# Call the callback with each specified function defined in the file.
+# Stop and return the error if the callback returns an error.
+#
+METHOD int each_function_name {
+	linker_file_t	file;
+	linker_function_name_callback_t	callback;
+	void*		opaque;
+};
+
+#
 # Search for a linker set in a file.  Return a pointer to the first
 # entry (which is itself a pointer), and the number of entries.
 # "stop" points to the entry beyond the last valid entry.

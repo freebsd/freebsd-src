@@ -1702,3 +1702,34 @@ linker_load_dependancies(linker_file_t lf)
     linker_addmodules(lf, start, stop, 0);
     return error;
 }
+
+static int
+sysctl_kern_function_list_iterate(const char *name, void *opaque)
+{
+	struct sysctl_req *req;
+
+	req = opaque;
+	return (SYSCTL_OUT(req, name, strlen(name) + 1));
+}
+
+/*
+ * Export a nul-separated, double-nul-terminated list of all function names
+ * in the kernel.
+ */
+static int
+sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
+{
+	linker_file_t lf;
+	int error;
+
+	TAILQ_FOREACH(lf, &linker_files, link) {
+		error = LINKER_EACH_FUNCTION_NAME(lf,
+		    sysctl_kern_function_list_iterate, req);
+		if (error)
+			return (error);
+	}
+	return (SYSCTL_OUT(req, "", 1));
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, function_list, CTLFLAG_RD,
+	NULL, 0, sysctl_kern_function_list, "", "kernel function list");
