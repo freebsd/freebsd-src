@@ -37,28 +37,28 @@
 .Nm ftpBinary ,
 .Nm ftpPassive ,
 .Nm ftpGetURL ,
-.Nm ftpPutURL ,
+.Nm ftpPutURL
 .Nd FTPIO User library
 .Sh SYNOPSIS
 .Fd #include <ftpio.h>
 .Ft FILE *
 .Fn ftpLogin "char *host, char *user, char *passwd, int ftp_port"
 .Ft int
-.Fn ftpChdir "FILE *fp, char *dirname"
+.Fn ftpChdir "FILE *stream, char *dirname"
 .Ft int
-.Fn ftpErrno "FILE *fp"
+.Fn ftpErrno "FILE *stream"
 .Ft time_t
-.Fn ftpGetModtime "FILE *fp, char *file"
+.Fn ftpGetModtime "FILE *stream, char *file"
 .Ft size_t
-.Fn ftpGetSize "FILE *fp, char *file"
+.Fn ftpGetSize "FILE *stream, char *file"
 .Ft FILE *
-.Fn ftpGet "FILE *fp, char *file, int *seekto"
+.Fn ftpGet "FILE *stream, char *file, int *seekto"
 .Ft FILE *
-.Fn ftpPut "FILE *fp, char *file"
+.Fn ftpPut "FILE *stream, char *file"
 .Ft int
-.Fn ftpBinary "FILE *fp, int status"
+.Fn ftpBinary "FILE *stream, int status"
 .Ft int
-.Fn ftpPassive "FILE *fp, int status"
+.Fn ftpPassive "FILE *stream, int status"
 .Ft FILE *
 .Fn ftpGetURL "char *url, char *user, char *passwd"
 .Ft FILE *
@@ -96,7 +96,7 @@ attempts to retreive the file named by the
 argument (which is assumed to be relative to the FTP server's current directory,
 see
 .Fn ftpChdir )
-and returns a new stream pointer for the file or NULL on failure.  If
+and returns a new FILE* pointer for the file or NULL on failure.  If
 .Fa seekto
 is non-NULL, the contents of the integer it points to will be used
 as a restart point for the file, that is to say that the stream
