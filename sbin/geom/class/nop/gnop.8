@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,9 @@
 .Cm list
 .Op Ar prov ...
 .Nm
+.Cm status
+.Op Ar prov ...
+.Nm
 .Cm load
 .Op Fl v
 .Nm
@@ -86,7 +89,11 @@ will be loaded if it is not loaded already.
 .It Cm destroy
 Turn off the given transparent providers.
 .It Cm list
-List all or the given currently configured providers.
+Print detailed information about every currently configured device; if a list of
+providers is passed as a parameter then only those devices will be shown.
+.It Cm status
+Print general information about every currently configured device; if a list of
+providers is passed as a parameter then only those devices will be shown.
 .It Cm load
 Load
 .Pa geom_nop.ko

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,9 @@
 .Cm list
 .Op Ar name ...
 .Nm
+.Cm status
+.Op Ar name ...
+.Nm
 .Cm load
 .Op Fl v
 .Nm
@@ -121,7 +124,11 @@ Clear metadata on the given devices.
 .It Cm dump
 Dump metadata stored on the given devices.
 .It Cm list
-List all or the given currently configured devices.
+Print detailed information about every currently configured device; if a list of
+devices is passed as a parameter then only those devices will be shown.
+.It Cm status
+Print general information about every currently configured device; if a list of
+devices is passed as a parameter then only those devices will be shown.
 .It Cm load
 Load
 .Pa geom_stripe.ko
