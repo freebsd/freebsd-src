@@ -356,6 +356,9 @@ struct client_state {
 	struct iaddr requested_address;	    /* Address we would like to get. */
 
 	struct client_config *config;	    /* Information from config file. */
+
+	struct string_list *env;	       /* Client script environment. */
+	int envc;			/* Number of entries in environment. */
 };
 
 /* Information about each network interface. */
@@ -895,13 +898,15 @@ void free_client_lease PROTO ((struct client_lease *));
 void rewrite_client_leases PROTO ((void));
 void write_client_lease PROTO ((struct interface_info *,
 				 struct client_lease *, int));
-char *dhcp_option_ev_name PROTO ((struct option *));
 
 void script_init PROTO ((struct interface_info *, char *,
 			 struct string_list *));
 void script_write_params PROTO ((struct interface_info *,
 				 char *, struct client_lease *));
 int script_go PROTO ((struct interface_info *));
+void client_envadd PROTO ((struct client_state *,
+			   const char *, const char *, const char *, ...));
+int dhcp_option_ev_name (char *, size_t, struct option *);
 
 struct client_lease *packet_to_lease PROTO ((struct packet *));
 void go_daemon PROTO ((void));

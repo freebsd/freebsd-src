@@ -42,7 +42,8 @@ MAN    = dhclient.8 dhclient.conf.5 dhclient-script.8 dhclient.leases.5
 DEBUG  = -g
 INCLUDES = -I.. -I../includes
 DHCPLIB = ../common/libdhcp.a
-CFLAGS = $(DEBUG) $(PREDEFINES) $(INCLUDES) $(COPTS)
+CFLAGS = $(DEBUG) $(PREDEFINES) $(INCLUDES) $(COPTS) \
+		-DCLIENT_PATH=${CLIENT_PATH}
 
 all:	$(PROG) $(CATMANPAGES)
 
