@@ -117,18 +117,19 @@ static struct cdevsw dcons_cdevsw = {
 #ifndef KLD_MODULE
 static char bssbuf[DCONS_BUF_SIZE];	/* buf in bss */
 #endif
-struct dcons_buf *dcons_buf;
-size_t dcons_bufsize;
-bus_dma_tag_t dcons_dma_tag = NULL;
-bus_dmamap_t dcons_dma_map = NULL;
 
+/* global data */
+static struct dcons_global dg;
+struct dcons_global *dcons_conf;
 static int poll_hz = DCONS_POLL_HZ;
+
 SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
 SYSCTL_INT(_kern_dcons, OID_AUTO, poll_hz, CTLFLAG_RW, &poll_hz, 0,
 				"dcons polling rate");
 
 static int drv_init = 0;
 static struct callout dcons_callout;
+struct dcons_buf *dcons_buf;		/* for local dconschat */
 
 /* per device data */
 static struct dcons_softc {
@@ -373,9 +374,8 @@ dcons_checkc(struct dcons_softc *dc)
 
 	ch = &dc->i;
 
-	if (dcons_dma_tag != NULL)
-		bus_dmamap_sync(dcons_dma_tag, dcons_dma_map,
-						BUS_DMASYNC_POSTREAD);
+	if (dg.dma_tag != NULL)
+		bus_dmamap_sync(dg.dma_tag, dg.dma_map, BUS_DMASYNC_POSTREAD);
 	ptr = ntohl(*ch->ptr);
 	gen = ptr >> DCONS_GEN_SHIFT;
 	pos = ptr & DCONS_POS_MASK;
@@ -438,9 +438,8 @@ dcons_putc(struct dcons_softc *dc, int c)
 		ch->pos = 0;
 	}
 	*ch->ptr = DCONS_MAKE_PTR(ch);
-	if (dcons_dma_tag != NULL)
-		bus_dmamap_sync(dcons_dma_tag, dcons_dma_map,
-						BUS_DMASYNC_PREWRITE);
+	if (dg.dma_tag != NULL)
+		bus_dmamap_sync(dg.dma_tag, dg.dma_map, BUS_DMASYNC_PREWRITE);
 }
 
 static int
@@ -455,19 +454,19 @@ dcons_init_port(int port, int offset, int size)
 
 	dc->o.size = osize;
 	dc->i.size = size - osize;
-	dc->o.buf = (char *)dcons_buf + offset;
+	dc->o.buf = (char *)dg.buf + offset;
 	dc->i.buf = dc->o.buf + osize;
 	dc->o.gen = dc->i.gen = 0;
 	dc->o.pos = dc->i.pos = 0;
-	dc->o.ptr = &dcons_buf->optr[port];
-	dc->i.ptr = &dcons_buf->iptr[port];
+	dc->o.ptr = &dg.buf->optr[port];
+	dc->i.ptr = &dg.buf->iptr[port];
 	dc->brk_state = STATE0;
-	dcons_buf->osize[port] = htonl(osize);
-	dcons_buf->isize[port] = htonl(size - osize);
-	dcons_buf->ooffset[port] = htonl(offset);
-	dcons_buf->ioffset[port] = htonl(offset + osize);
-	dcons_buf->optr[port] = DCONS_MAKE_PTR(&dc->o);
-	dcons_buf->iptr[port] = DCONS_MAKE_PTR(&dc->i);
+	dg.buf->osize[port] = htonl(osize);
+	dg.buf->isize[port] = htonl(size - osize);
+	dg.buf->ooffset[port] = htonl(offset);
+	dg.buf->ioffset[port] = htonl(offset + osize);
+	dg.buf->optr[port] = DCONS_MAKE_PTR(&dc->o);
+	dg.buf->iptr[port] = DCONS_MAKE_PTR(&dc->i);
 
 	return(0);
 }
@@ -482,7 +481,10 @@ dcons_drv_init(int stage)
 
 	drv_init = -1;
 
-	dcons_bufsize = DCONS_BUF_SIZE;
+	bzero(&dg, sizeof(dg));
+	dcons_conf = &dg;
+	dg.cdev = &dcons_consdev;
+	dg.size = DCONS_BUF_SIZE;
 
 #ifndef KLD_MODULE
 	if (stage == 0) /* XXX or cold */
@@ -490,26 +492,27 @@ dcons_drv_init(int stage)
 		 * DCONS_FORCE_CONSOLE == 1 and statically linked.
 		 * called from cninit(). can't use contigmalloc yet .
 		 */
-		dcons_buf = (struct dcons_buf *) bssbuf;
+		dg.buf = (struct dcons_buf *) bssbuf;
 	else
 #endif
 		/*
 		 * DCONS_FORCE_CONSOLE == 0 or kernel module case.
 		 * if the module is loaded after boot,
-		 * dcons_buf could be non-continuous.
+		 * bssbuf could be non-continuous.
 		 */ 
-		dcons_buf = (struct dcons_buf *) contigmalloc(dcons_bufsize,
+		dg.buf = (struct dcons_buf *) contigmalloc(dg.size,
 			M_DEVBUF, 0, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
 
+	dcons_buf = dg.buf;
 	offset = DCONS_HEADER_SIZE;
-	size = (dcons_bufsize - offset);
+	size = (dg.size - offset);
 	size0 = size * 3 / 4;
 
 	dcons_init_port(0, offset, size0);
 	offset += size0;
 	dcons_init_port(1, offset, size - size0);
-	dcons_buf->version = htonl(DCONS_VERSION);
-	dcons_buf->magic = ntohl(DCONS_MAGIC);
+	dg.buf->version = htonl(DCONS_VERSION);
+	dg.buf->magic = ntohl(DCONS_MAGIC);
 
 #if DDB && DCONS_FORCE_GDB
 #if CONS_NODEV
@@ -633,9 +636,9 @@ dcons_modevent(module_t mode, int type, void *data)
 #endif
 		dcons_detach(DCONS_CON);
 		dcons_detach(DCONS_GDB);
-		dcons_buf->magic = 0;
+		dg.buf->magic = 0;
 
-		contigfree(dcons_buf, DCONS_BUF_SIZE, M_DEVBUF);
+		contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
 
 		break;
 	case MOD_SHUTDOWN:

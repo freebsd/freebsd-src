@@ -50,7 +50,14 @@
 #include <dev/firewire/iec13213.h>
 #include <dev/dcons/dcons.h>
 
+#include <sys/cons.h>
+
 static bus_addr_t dcons_paddr;
+
+#if __FreeBSD_version >= 500000
+static int force_console = 1;
+TUNABLE_INT("hw.firewire.dcons_crom.force_console", &force_console);
+#endif
 
 #ifndef CSRVAL_VENDOR_PRIVATE
 #define NEED_NEW_DRIVER
@@ -136,9 +143,15 @@ dmamap_cb(void *arg, bus_dma_segment_t *segments, int seg, int error)
 		device_printf(sc->fd.dev, "dcons_paddr is already set\n");
 		return;
 	}
-	dcons_dma_tag = sc->dma_tag;
-	dcons_dma_map = sc->dma_map;
+	dcons_conf->dma_tag = sc->dma_tag;
+	dcons_conf->dma_map = sc->dma_map;
 	dcons_paddr = sc->bus_addr;
+
+#if __FreeBSD_version >= 500000
+	/* Force to be the high-level console */
+	if (force_console)
+		cnselect(dcons_conf->cdev);
+#endif
 }
 
 static int
@@ -164,7 +177,7 @@ dcons_crom_attach(device_t dev)
 		/*lowaddr*/ BUS_SPACE_MAXADDR,
 		/*highaddr*/ BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/ dcons_bufsize,
+		/*maxsize*/ dcons_conf->size,
 		/*nsegments*/ 1,
 		/*maxsegsz*/ BUS_SPACE_MAXSIZE_32BIT,
 		/*flags*/ BUS_DMA_ALLOCNOW,
@@ -175,7 +188,7 @@ dcons_crom_attach(device_t dev)
 		&sc->dma_tag);
 	bus_dmamap_create(sc->dma_tag, 0, &sc->dma_map);
 	bus_dmamap_load(sc->dma_tag, sc->dma_map,
-	    (void *)dcons_buf, dcons_bufsize,
+	    (void *)dcons_conf->buf, dcons_conf->size,
 	    dmamap_cb, sc, 0);
 	return (0);
 #endif
@@ -190,8 +203,8 @@ dcons_crom_detach(device_t dev)
 	sc->fd.post_busreset = NULL;
 
 	/* XXX */
-	if (dcons_dma_tag == sc->dma_tag)
-		dcons_dma_tag = NULL;
+	if (dcons_conf->dma_tag == sc->dma_tag)
+		dcons_conf->dma_tag = NULL;
 
 	bus_dmamap_unload(sc->dma_tag, sc->dma_map);
 	bus_dmamap_destroy(sc->dma_tag, sc->dma_map);
