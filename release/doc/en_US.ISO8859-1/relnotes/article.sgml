@@ -3550,6 +3550,19 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
 	<programlisting>sendmail_enable="YES"</programlisting>
 
+	<para>The permissions for <application>sendmail</application>
+	  alias and map databases built via
+	  <filename>/etc/mail/Makefile</filename> now default to mode
+	  0640 to protect against a file locking local denial of service.
+	  It can be changed by setting the new
+	  <varname>SENDMAIL_MAP_PERMS</varname>
+	  <filename>make.conf</filename> option. &merged;</para>
+
+	<para>The permissions for the <application>sendmail</application>
+	  statistics file, <filename>/var/log/sendmail.st</filename>, have
+	  been changed from mode 0644 to mode 0640 to protect against
+	  a file locking local denial of service. &merged;</para>
+
       </sect4>
     </sect3>
 
