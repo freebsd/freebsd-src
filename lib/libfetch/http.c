@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: http.c,v 1.1.1.1 1998/07/09 16:52:41 des Exp $
  */
 
 #include <sys/param.h>
@@ -71,32 +71,15 @@ struct cookie
     unsigned b_len, chunksize;
 };
 
-static int
-_http_connect(char *host, int port)
+static const char *
+_http_errstring(int e)
 {
-    struct sockaddr_in sin;
-    struct hostent *he;
-    int fd;
+    struct httperr *p = _http_errlist;
 
-    /* look up host name */
-    if ((he = gethostbyname(host)) == NULL)
-	return -1;
-
-    /* set up socket address structure */
-    bzero(&sin, sizeof(sin));
-    bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
-    sin.sin_family = he->h_addrtype;
-    sin.sin_port = htons(port);
-
-    /* try to connect */
-    if ((fd = socket(sin.sin_family, SOCK_STREAM, 0)) < 0)
-	return -1;
-    if (connect(fd, (struct sockaddr *)&sin, sizeof sin) < 0) {
-	close(fd);
-	return -1;
-    }
-
-    return fd;
+    while ((p->num != -1) && (p->num != e))
+	p++;
+    
+    return p->string;
 }
 
 static char *
@@ -187,7 +170,7 @@ fetchContentType(FILE *f)
 FILE *
 fetchGetHTTP(url_t *URL, char *flags)
 {
-    int fd = -1, err, i, enc = ENC_NONE;
+    int sd = -1, err, i, enc = ENC_NONE;
     struct cookie *c;
     char *ln, *p, *q;
     FILE *f, *cf;
@@ -222,17 +205,17 @@ fetchGetHTTP(url_t *URL, char *flags)
 	host[len] = 0;
 
 	/* connect */
-	fd = _http_connect(host, port);
+	sd = fetchConnect(host, port);
     }
 
     /* if no proxy is configured or could be contacted, try direct */
-    if (fd < 0) {
-	if ((fd = _http_connect(URL->host, URL->port)) < 0)
+    if (sd < 0) {
+	if ((sd = fetchConnect(URL->host, URL->port)) < 0)
 	    goto ouch;
     }
 
     /* reopen as stream */
-    if ((f = fdopen(fd, "r+")) == NULL)
+    if ((f = fdopen(sd, "r+")) == NULL)
 	goto ouch;
     c->real_f = f;
 
@@ -270,8 +253,11 @@ fetchGetHTTP(url_t *URL, char *flags)
     DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", err));
     
     /* add code to handle redirects later */
-    if (err != 200)
+    if (err != 200) {
+	fetchLastErrCode = err;
+	fetchLastErrText = _http_errstring(err);
 	goto fouch;
+    }
 
     /* browse through header */
     while (1) {
@@ -320,8 +306,8 @@ fetchGetHTTP(url_t *URL, char *flags)
     return cf;
     
 ouch:
-    if (fd >= 0)
-	close(fd);
+    if (sd >= 0)
+	close(sd);
     free(c);
     return NULL;
 fouch:
