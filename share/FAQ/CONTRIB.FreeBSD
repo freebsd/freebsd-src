@@ -75,7 +75,7 @@ Directors, The FreeBSD Project:
 
 
 Additional FreeBSD Contributors
-(in alphabetical order):
+(in alphabetical order by first name, just to be different):
 
 Adam Glass <glass@postgres.berkeley.edu>
 Andreas Klemm <andreas@knobel.GUN.de>
@@ -109,6 +109,7 @@ Julian Elischer <julian@dialix.oz.au>
 Julian Stacey <stacey@guug.de> <fallback: <julian@meepmeep.pcs.com>>
 Keith Bostic <bostic@toe.CS.Berkeley.EDU>
 Keith Moore <?>
+L Jonas Olsson <ljo@amcell2.caisr.cwru.edu>
 Marc Frajola <marc@escargot.rain.com>
 Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
@@ -224,4 +225,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.5 1995/01/27 23:15:30 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.6 1995/02/09 11:11:39 jkh Exp $
