@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.59 1999/07/09 11:46:45 sheldonh Exp $";
+	"$Id: inetd.c,v 1.61 1999/07/15 17:01:43 green Exp $";
 #endif /* not lint */
 
 /*
@@ -574,8 +574,9 @@ main(argc, argv, envp)
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
 		    /*
-		     * Fork for any service except a non-forking builtin,
-		     * which might twist (hosts_options(5)).
+		     * Fork for all external services, builtins which need to
+		     * fork and anything we're wrapping (as wrapping might
+		     * block or use hosts_options(5) twist).
 		     */
 		    dofork = !sep->se_bi || sep->se_bi->bi_fork || ISWRAP(sep);
 		    if (dofork) {
