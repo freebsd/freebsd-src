@@ -1,4 +1,24 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.81 2002/01/21 11:03:33 mcr Exp $
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.81.2.1 2003/02/26 07:08:58 fenner Exp $
+
+Tuesday, February 25, 2003. fenner@research.att.com.  3.7.2 release
+
+	Fixed infinite loop when parsing malformed isakmp packets.
+	 (reported by iDefense; already fixed in CVS)
+	Fixed infinite loop when parsing malformed BGP packets.
+	Fixed buffer overflow with certain malformed NFS packets.
+	Pretty-print unprintable network names in 802.11 printer.
+	Handle truncated nbp (appletalk) packets.
+	Updated DHCPv6 printer to match draft-ietf-dhc-dhcpv6-22.txt
+	Print IP protocol name even if we don't have a printer for it.
+	Print IP protocol name or number for fragments.
+	Print the whole MPLS label stack, not just the top label.
+	Print request header and file handle for NFS v3 FSINFO and PATHCONF
+	 requests.
+	Fix NFS packet truncation checks.
+	Handle "old" DR-Priority and Bidir-Capable PIM HELLO options.
+	Handle unknown RADIUS attributes properly.
+	Fix an ASN.1 parsing error that would cause e.g. the OID
+	 2.100.3 to be misrepresented as 4.20.3 .
 
 Monday, January 21, 2002. mcr@sandelman.ottawa.on.ca. Summary for 3.7 release
 see http://www.tcpdump.org/cvs-log/2002-01-21.10:16:48.html for commit log.
@@ -653,4 +673,4 @@ v2.0 Sun Jan 13 12:20:40 PST 1991
 
 - Initial public release.
 
-@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.81 2002/01/21 11:03:33 mcr Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.81.2.1 2003/02/26 07:08:58 fenner Exp $ (LBL)
