@@ -1035,7 +1035,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
     }
 
     /* only use 48bit addressing if needed because of the overhead */
-    if ((lba > 268435455 || count > 256) && atadev->param &&
+    if ((lba >= 268435455 || count > 256) && atadev->param &&
 	atadev->param->support.address48) {
 	ATA_OUTB(atadev->channel->r_io, ATA_FEATURE, (feature>>8) & 0xff);
 	ATA_OUTB(atadev->channel->r_io, ATA_FEATURE, feature);
