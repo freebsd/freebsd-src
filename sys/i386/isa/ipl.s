@@ -174,9 +174,8 @@ doreti_exit:
 #error code needed here to decide which lock to release, INTR or giant
 #endif
 	/* release the kernel lock */
-	pushl	$_mp_lock		/* GIANT_LOCK */
-	call	_MPrellock
-	add	$4, %esp
+	movl	$_mp_lock, %edx		/* GIANT_LOCK */
+	call	_MPrellock_edx
 #endif /* SMP */
 
 	.globl	doreti_popl_fs

@@ -60,7 +60,9 @@
 #define _KPTphys			KPTphys
 #define _MP_GDT				MP_GDT
 #define _MPgetlock			MPgetlock
+#define _MPgetlock_edx			MPgetlock_edx
 #define _MPrellock			MPrellock
+#define _MPrellock_edx			MPrellock_edx
 #define _MPtrylock			MPtrylock
 #define _PTD				PTD
 #define _PTDpde				PTDpde

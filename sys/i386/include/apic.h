@@ -223,6 +223,7 @@ typedef struct IOAPIC ioapic_t;
 
 /* XXX these 2 don't really belong here... */
 #define COUNT_FIELD		0x00ffffff	/* count portion of the lock */
+#define CPU_FIELD		0xff000000	/* cpu portion of the lock */
 #define FREE_LOCK		0xffffffff	/* value of lock when free */
 
 /*

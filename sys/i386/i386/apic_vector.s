@@ -26,9 +26,8 @@
 	call	_get_isrlock
 
 #define REL_FAST_INTR_LOCK						\
-	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
-	call	_MPrellock ;						\
-	add	$4, %esp
+	movl	$_mp_lock, %edx ; /* GIANT_LOCK */			\
+	call	_MPrellock_edx
 
 #endif /* FAST_SIMPLELOCK */
 
