@@ -447,10 +447,18 @@ csa_stopplaydma(struct csa_info *csa)
 		csa->pctl = ul & 0xffff0000;
 		csa_writemem(resp, BA1_PCTL, ul & 0x0000ffff);
 		csa_writemem(resp, BA1_PVOL, 0xffffffff);
-
-		/* Clear the serial fifos. */
-		csa_clearserialfifos(resp);
 		csa->pch.dma = 0;
+
+		/*
+		 * The bitwise pointer of the serial FIFO in the DSP
+		 * seems to make an error upon starting or stopping the
+		 * DSP. Clear the FIFO and correct the pointer if we
+		 * are not capturing.
+		 */
+		if (!csa->rch.dma) {
+			csa_clearserialfifos(resp);
+			csa_writeio(resp, BA0_SERBSP, 0);
+		}
 	}
 }
 
@@ -467,6 +475,17 @@ csa_stopcapturedma(struct csa_info *csa)
 		csa_writemem(resp, BA1_CCTL, ul & 0xffff0000);
 		csa_writemem(resp, BA1_CVOL, 0xffffffff);
 		csa->rch.dma = 0;
+
+		/*
+		 * The bitwise pointer of the serial FIFO in the DSP
+		 * seems to make an error upon starting or stopping the
+		 * DSP. Clear the FIFO and correct the pointer if we
+		 * are not playing.
+		 */
+		if (!csa->pch.dma) {
+			csa_clearserialfifos(resp);
+			csa_writeio(resp, BA0_SERBSP, 0);
+		}
 	}
 }
 
