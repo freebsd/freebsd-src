@@ -45,10 +45,10 @@ filedup(const char *path, int flags)
     char	*buf;
     int		fd;
     size_t	size, result;
-    
+
     if ((fd = open(path, F_READ | flags)) == -1)
 	return(NULL);
-    
+
     printf("%s open, flags 0x%x\n", path, files[fd].f_flags);
     buf = alloc(LOAD_TINYBUF);
 
@@ -68,8 +68,7 @@ filedup(const char *path, int flags)
 
     printf("tinybuf loaded, size %d\n", size);
     getchar();
-    
-    
+
     /* Read everything until we know how big it is */
     for (;;) {
 	result = read(fd, buf, LOAD_TINYBUF);
@@ -82,7 +81,7 @@ filedup(const char *path, int flags)
 	    break;
 	size += result;
     }
-    
+
     /* discard the old buffer, close the file */
     free(buf, LOAD_TINYBUF);
     close(fd);
