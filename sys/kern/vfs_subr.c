@@ -1565,6 +1565,11 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
  *
  * This code isn't quite efficient as it could be because we are maintaining
  * two sorted lists and do not know which list the block resides in.
+ *
+ * During a "make buildworld" the desired buffer is found at one of
+ * the roots more than 60% of the time.  Thus, checking both roots
+ * before performing either splay eliminates unnecessary splays on the
+ * first tree splayed.
  */
 struct buf *
 gbincore(struct vnode *vp, daddr_t lblkno)
@@ -1574,13 +1579,23 @@ gbincore(struct vnode *vp, daddr_t lblkno)
 	GIANT_REQUIRED;
 
 	ASSERT_VI_LOCKED(vp, "gbincore");
-	bp = vp->v_cleanblkroot = buf_splay(lblkno, 0, vp->v_cleanblkroot);
-	if (bp && bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
-		return(bp);
-	bp = vp->v_dirtyblkroot = buf_splay(lblkno, 0, vp->v_dirtyblkroot);
-	if (bp && bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
-		return(bp);
-	return(NULL);
+	if ((bp = vp->v_cleanblkroot) != NULL &&
+	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		return (bp);
+	if ((bp = vp->v_dirtyblkroot) != NULL &&
+	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		return (bp);
+	if ((bp = vp->v_cleanblkroot) != NULL) {
+		vp->v_cleanblkroot = bp = buf_splay(lblkno, 0, bp);
+		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+			return (bp);
+	}
+	if ((bp = vp->v_dirtyblkroot) != NULL) {
+		vp->v_dirtyblkroot = bp = buf_splay(lblkno, 0, bp);
+		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+			return (bp);
+	}
+	return (NULL);
 }
 
 /*
