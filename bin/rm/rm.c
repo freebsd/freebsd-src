@@ -69,6 +69,7 @@ void	rm_file __P((char **));
 void	rm_overwrite __P((char *, struct stat *));
 void	rm_tree __P((char **));
 void	usage __P((void));
+int	main __P((int argc, char *argv[]));
 
 /*
  * rm --
