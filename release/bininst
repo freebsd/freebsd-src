@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.48 1994/11/21 02:17:06 jkh Exp $
+# $Id: bininst,v 1.49 1994/11/21 08:33:55 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -67,6 +67,8 @@ do_last_config()
 {
 	if [ "$hostname" = "" ]; then network_basic_setup; fi
 
+	done=""
+	while [ "$done" = "" ]; do
 	dialog --title "Final Configuration!" --menu \
 "We now come to the end of the installation.  If there's a\n\
 floppy in the boot drive, now would probably be a good time\n\
@@ -90,16 +92,18 @@ Please select one of the following options:" -1 -1 4 \
 	;;
 
 	user)
-		dialog --clear
 		sh /stand/adduser.sh -i
 	;;
 
 	guest)
-		dialog --clear
 		sh /stand/adduser.sh
 	;;
 
+	done)
+		done="yes"
+	;;
 	esac
+	done
 
 	dialog --title "Auf Wiedersehen!" --msgbox \
 "Don't forget that the login name \"root\" has no password.
