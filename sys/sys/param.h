@@ -59,7 +59,7 @@
  * scheme is:  <major><two digit minor><0 if release branch, otherwise 1>xx
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 502100	/* Master, propagated to newvers */
+#define __FreeBSD_version 502101	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
