@@ -79,6 +79,7 @@ static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
 static void acd_start(struct acd_softc *);
 static int32_t acd_done(struct atapi_request *);
 static int32_t acd_read_toc(struct acd_softc *);
+static void acd_contruct_label(struct acd_softc *);
 static int32_t acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
 static int32_t acd_open_track(struct acd_softc *, struct cdr_track *);
@@ -472,16 +473,10 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (!cdp)
 	return ENXIO;
 
-    if (cdp->flags & F_WRITING)
-	return EBUSY;
-
     if (flags & FWRITE) {
 	if (count_dev(dev) > 1)
 	    return EBUSY;
-	else
-	    cdp->flags |= F_WRITING;
     }
-
     if (count_dev(dev) == 1) {
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
@@ -490,6 +485,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	else
 	    atapi_test_ready(cdp->atp);
     }
+    acd_contruct_label(cdp);
     return 0;
 }
 
@@ -501,12 +497,12 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (count_dev(dev) == 1)
 	acd_prevent_allow(cdp, 0);
 
-    cdp->flags &= ~(F_LOCKED | F_WRITING);
+    cdp->flags &= ~F_LOCKED;
     return 0;
 }
 
 static int 
-acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     int32_t error = 0;
@@ -1038,6 +1034,27 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    error = acd_read_structure(cdp, (struct dvd_struct *)addr);
 	break;
 
+    case DIOCGDINFO:
+	*(struct disklabel *)addr = cdp->disklabel;
+	break;
+
+    case DIOCWDINFO:
+    case DIOCSDINFO:
+	if ((flags & FWRITE) == 0)
+	    error = EBADF;
+	else
+	    error = setdisklabel(&cdp->disklabel, (struct disklabel *)addr, 0);
+	break;
+
+    case DIOCWLABEL:
+	error = EBADF;
+	break;
+
+    case DIOCGPART:
+	((struct partinfo *)addr)->disklab = &cdp->disklabel;
+	((struct partinfo *)addr)->part = &cdp->disklabel.d_partitions[0];
+	break;
+
     default:
 	error = ENOTTY;
     }
@@ -1087,6 +1104,7 @@ acd_start(struct acd_softc *cdp)
     }
 
     acd_select_slot(cdp);
+#ifdef NO_DVD_RAM_SUPPORT
     if (!(bp->b_flags & B_READ) &&
 	(!(cdp->flags & F_DISK_OPEN) || !(cdp->flags & F_TRACK_OPEN))) {
 	printf("acd%d: sequence error (no open)\n", cdp->lun);
@@ -1095,7 +1113,7 @@ acd_start(struct acd_softc *cdp)
 	biodone(bp);
 	return;
     }
-
+#endif
     bzero(ccb, sizeof(ccb));
     count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
     if (bp->b_flags & B_PHYS)
@@ -1218,6 +1236,35 @@ acd_read_toc(struct acd_softc *cdp)
     }
 #endif
     return 0;
+}
+
+static void
+acd_contruct_label(struct acd_softc *cdp)
+{
+    bzero(&cdp->disklabel, sizeof(struct disklabel));
+    strncpy(cdp->disklabel.d_typename, "               ", 
+    	    sizeof(cdp->disklabel.d_typename));
+    strncpy(cdp->disklabel.d_typename, cdp->atp->devname, 
+    	    min(strlen(cdp->atp->devname),
+		sizeof(cdp->disklabel.d_typename) - 1));
+    strncpy(cdp->disklabel.d_packname, "unknown        ", 
+    	    sizeof(cdp->disklabel.d_packname));
+    cdp->disklabel.d_secsize = cdp->info.blksize;
+    cdp->disklabel.d_nsectors = 100;
+    cdp->disklabel.d_ntracks = 1;
+    cdp->disklabel.d_ncylinders = (cdp->info.volsize/100)+1;
+    cdp->disklabel.d_secpercyl = 100;
+    cdp->disklabel.d_secperunit = cdp->info.volsize;
+    cdp->disklabel.d_rpm = 300;
+    cdp->disklabel.d_interleave = 1;
+    cdp->disklabel.d_flags = D_REMOVABLE;
+    cdp->disklabel.d_npartitions = 1;
+    cdp->disklabel.d_partitions[0].p_offset = 0;
+    cdp->disklabel.d_partitions[0].p_size = cdp->info.volsize;
+    cdp->disklabel.d_partitions[0].p_fstype = FS_BSDFFS;
+    cdp->disklabel.d_magic = DISKMAGIC;
+    cdp->disklabel.d_magic2 = DISKMAGIC;
+    cdp->disklabel.d_checksum = dkcksum(&cdp->disklabel);
 }
 
 static int32_t 
@@ -1747,4 +1794,3 @@ acd_set_speed(struct acd_softc *cdp, int32_t speed)
 
     return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
-
