@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_other.c,v 1.5 1997/02/22 09:33:24 peter Exp $
+ * $Id: ibcs2_other.c,v 1.6 1997/07/20 09:39:45 bde Exp $
  */
 
 /*
@@ -84,7 +84,6 @@ spx_open(struct proc *p, void *uap, int *retval)
 	struct socket_args sock;
 	struct connect_args conn;
 	struct sockaddr_un *Xaddr;
-	caddr_t name;
 	int fd, error;
 	caddr_t sg = stackgap_init();
 
