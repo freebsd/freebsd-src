@@ -1333,8 +1333,10 @@ pci_get_resource(device_t dev, device_t child, int type, int rid,
 	if (!rle)
 		return ENOENT;
 	
-	*startp = rle->start;
-	*countp = rle->count;
+	if (startp)
+		*startp = rle->start;
+	if (countp)
+		*countp = rle->count;
 
 	return 0;
 }
