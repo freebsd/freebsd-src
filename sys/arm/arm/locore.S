@@ -1,6 +1,6 @@
 /*	$NetBSD: locore.S,v 1.14 2003/04/20 16:21:40 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1994-1997 Mark Brinicombe
  * Copyright (C) 1994 Brini
  * All rights reserved.

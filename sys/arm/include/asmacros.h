@@ -1,6 +1,6 @@
 /*	$NetBSD: frame.h,v 1.6 2003/10/05 19:44:58 matt Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994-1997 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.

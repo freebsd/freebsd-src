@@ -1,6 +1,6 @@
 /*	$NetBSD: cpu.c,v 1.55 2004/02/13 11:36:10 wiz Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1995 Mark Brinicombe.
  * Copyright (c) 1995 Brini.
  * All rights reserved.

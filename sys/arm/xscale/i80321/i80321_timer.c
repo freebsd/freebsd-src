@@ -1,6 +1,6 @@
 /*	$NetBSD: i80321_timer.c,v 1.7 2003/07/27 04:52:28 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

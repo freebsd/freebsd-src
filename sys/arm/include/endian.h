@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 David E. O'Brien
  *
  * Redistribution and use in source and binary forms, with or without

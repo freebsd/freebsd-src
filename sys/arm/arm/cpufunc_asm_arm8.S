@@ -1,6 +1,6 @@
 /*	$NetBSD: cpufunc_asm_arm8.S,v 1.2 2001/11/11 00:47:49 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 ARM Limited
  * Copyright (c) 1997 Causality Limited
  * All rights reserved.

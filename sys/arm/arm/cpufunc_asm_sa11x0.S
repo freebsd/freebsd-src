@@ -1,6 +1,6 @@
 /*	$NetBSD: cpufunc_asm_sa11x0.S,v 1.3 2002/08/17 16:36:32 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

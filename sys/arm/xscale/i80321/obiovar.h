@@ -1,6 +1,6 @@
 /*	$NetBSD: obiovar.h,v 1.4 2003/06/16 17:40:53 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002, 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *

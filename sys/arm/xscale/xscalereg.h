@@ -1,6 +1,6 @@
 /*	$NetBSD: xscalereg.h,v 1.2 2002/08/07 05:15:02 briggs Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Olivier Houchard
  * Copyright (c) 2002 Peter Grehan
  * Copyright (c) 1997, 1998 Justin T. Gibbs.

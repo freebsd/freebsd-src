@@ -1,6 +1,6 @@
 /*	$NetBSD: fault.c,v 1.45 2003/11/20 14:44:36 scw Exp $	*/
 
-/*
+/*-
  * Copyright 2004 Olivier Houchard
  * Copyright 2003 Wasabi Systems, Inc.
  * All rights reserved.
@@ -35,7 +35,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/*
+/*-
  * Copyright (c) 1994-1997 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.

@@ -1,6 +1,6 @@
 /*	$NetBSD: psl.h,v 1.6 2003/06/16 20:00:58 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1995 Mark Brinicombe.
  * All rights reserved.
  *

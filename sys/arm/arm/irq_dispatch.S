@@ -1,6 +1,6 @@
 /*	$NetBSD: irq_dispatch.S,v 1.5 2003/10/30 08:57:24 scw Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Fujitsu Component Limited
  * Copyright (c) 2002 Genetec Corporation
  * All rights reserved.
@@ -33,7 +33,7 @@
  *
  */
 
-/*
+/*-
  * Copyright (c) 2002, 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *
