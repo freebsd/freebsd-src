@@ -73,6 +73,7 @@
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -222,7 +223,8 @@ encap4_input(m, va_alist)
 	 * (It is also not compiled in in LINT)
 	 */
 	if (proto == IPPROTO_IPV4) {
-		ip_input(m, off);
+		m_adj(m, off);
+		ip_input(m/*, off */);
 		return;
 	}
 
