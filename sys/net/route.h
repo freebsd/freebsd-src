@@ -254,13 +254,6 @@ struct rt_addrinfo {
 	struct	ifnet *rti_ifp;
 };
 
-struct route_cb {
-	int	ip_count;
-	int	ip6_count;
-	int	ipx_count;
-	int	any_count;
-};
-
 #ifdef _KERNEL
 
 #define	RT_LOCK_INIT(rt) \
@@ -277,7 +270,6 @@ struct route_cb {
 			(rt)->rt_refcnt--; \
 	} while (0)
 
-extern struct route_cb route_cb;
 extern struct radix_node_head *rt_tables[AF_MAX+1];
 
 struct ifmultiaddr;

@@ -53,7 +53,6 @@
 
 #define	SA(p) ((struct sockaddr *)(p))
 
-struct route_cb route_cb;
 static struct rtstat rtstat;
 struct radix_node_head *rt_tables[AF_MAX+1];
 
