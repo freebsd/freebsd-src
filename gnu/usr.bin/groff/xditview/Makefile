@@ -1,4 +1,4 @@
-.if exists(${X11BASE}/include)
+.if exists(${X11BASE}/include/X11/Xlib.h)
 .if exists(${X11BASE}/lib)
 .if exists(${DESTDIR}${X11BASE}/bin)
 .if exists(${DESTDIR}${X11BASE}/man/man1)
