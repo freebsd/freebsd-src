@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.21 1996/05/10 19:28:48 wollman Exp $
+ * $Id: uipc_mbuf.c,v 1.22 1996/05/11 20:43:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,8 @@ static void	m_reclaim __P((void));
 
 /* "number of clusters of pages" */
 #define NCL_INIT	1
+
+#define NMB_INIT	16
 
 /* ARGSUSED*/
 static void
