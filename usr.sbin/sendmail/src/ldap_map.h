@@ -5,11 +5,13 @@
 **	Please go to him for support -- since I (Eric) don't run LDAP, I
 **	can't help you at all.
 **
-**	@(#)ldap_map.h	8.2 (Berkeley) 5/22/96
+**	@(#)ldap_map.h	8.4 (Berkeley) 6/3/97
 */
 
 #ifndef _LDAP_MAP_H
 #define _LDAP_MAP_H
+
+#include <sys/time.h>
 
 struct ldap_map_struct
 {
@@ -33,7 +35,7 @@ struct ldap_map_struct
 	char		*base;
 	int		scope;
 	char		*filter;
-	char		*attr;
+	char		*attr[2];
 	int		attrsonly;
 	struct timeval	timeout;
 	LDAPMessage	*res;
