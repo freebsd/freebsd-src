@@ -32,31 +32,36 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+
+#include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <unistd.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <unistd.h>
 
 u_long tlinect, twordct, tcharct;
 int doline, doword, dochar;
 
-void cnt __P((char *));
-void err __P((const char *, ...));
+int cnt __P((char *));
 void usage __P((void));
 
 int
@@ -65,7 +70,7 @@ main(argc, argv)
 	char *argv[];
 {
 	register int ch;
-	int total;
+	int errors, total;
 
 	(void) setlocale(LC_CTYPE, "");
 
@@ -91,14 +96,19 @@ main(argc, argv)
 	if (doline + doword + dochar == 0)
 		doline = doword = dochar = 1;
 
+	errors = 0;
 	total = 0;
 	if (!*argv) {
-		cnt(NULL);
-		(void)printf("\n");
+		if (cnt((char *)NULL) != 0)
+			++errors;
+		else
+			(void)printf("\n");
 	}
 	else do {
-		cnt(*argv);
-		(void)printf(" %s\n", *argv);
+		if (cnt(*argv) != 0)
+			++errors;
+		else
+			(void)printf(" %s\n", *argv);
 		++total;
 	} while(*++argv);
 
@@ -111,10 +121,10 @@ main(argc, argv)
 			(void)printf(" %7ld", tcharct);
 		(void)printf(" total\n");
 	}
-	exit(0);
+	exit(errors == 0 ? 0 : 1);
 }
 
-void
+int
 cnt(file)
 	char *file;
 {
@@ -126,12 +136,14 @@ cnt(file)
 	int fd;
 	u_char buf[MAXBSIZE];
 
-	fd = STDIN_FILENO;
 	linect = wordct = charct = 0;
-	if (file) {
+	if (file == NULL) {
+		file = "stdin";
+		fd = STDIN_FILENO;
+	} else {
 		if ((fd = open(file, O_RDONLY, 0)) < 0) {
-			warn("%s", file);
-			return;
+			warn("%s: open", file);
+			return (1);
 		}
 		if (doword)
 			goto word;
@@ -142,8 +154,11 @@ cnt(file)
 		 */
 		if (doline) {
 			while (len = read(fd, buf, MAXBSIZE)) {
-				if (len == -1)
-					err("%s: %s", file, strerror(errno));
+				if (len == -1) {
+					warn("%s: read", file);
+					(void)close(fd);
+					return (1);
+				}
 				charct += len;
 				for (p = buf; len--; ++p)
 					if (*p == '\n')
@@ -156,28 +171,34 @@ cnt(file)
 				(void)printf(" %7lu", charct);
 			}
 			(void)close(fd);
-			return;
+			return (0);
 		}
 		/*
 		 * If all we need is the number of characters and it's a
 		 * regular or linked file, just stat the puppy.
 		 */
 		if (dochar) {
-			if (fstat(fd, &sb))
-				err("%s: %s", file, strerror(errno));
+			if (fstat(fd, &sb)) {
+				warn("%s: fstat", file);
+				(void)close(fd);
+				return (1);
+			}
 			if (S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode)) {
 				(void)printf(" %7qu", sb.st_size);
 				tcharct += sb.st_size;
 				(void)close(fd);
-				return;
+				return (0);
 			}
 		}
 	}
 
 	/* Do it the hard way... */
 word:	for (gotsp = 1; len = read(fd, buf, MAXBSIZE);) {
-		if (len == -1)
-			err("%s: %s", file, strerror(errno));
+		if (len == -1) {
+			warn("%s: read", file);
+			(void)close(fd);
+			return (1);
+		}
 		/*
 		 * This loses in the presence of multi-byte characters.
 		 * To do it right would require a function to return a
@@ -209,6 +230,7 @@ word:	for (gotsp = 1; len = read(fd, buf, MAXBSIZE);) {
 		(void)printf(" %7lu", charct);
 	}
 	(void)close(fd);
+	return (0);
 }
 
 void
@@ -216,33 +238,4 @@ usage()
 {
 	(void)fprintf(stderr, "usage: wc [-clw] [files]\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "wc: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
