@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: ipmon,v 2002/04/18 05:02:01 lukem Exp $
+# $NetBSD: ipmon,v 1.9 2002/04/18 05:02:01 lukem Exp $
 # $FreeBSD$
 #
 
