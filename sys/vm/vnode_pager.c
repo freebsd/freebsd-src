@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.20 1995/01/11 20:00:10 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.21 1995/01/24 10:14:09 davidg Exp $
  */
 
 /*
@@ -491,9 +491,10 @@ vnode_pager_freepage(m)
  * file address
  */
 vm_offset_t
-vnode_pager_addr(vp, address)
+vnode_pager_addr(vp, address, run)
 	struct vnode *vp;
 	vm_offset_t address;
+	int *run;
 {
 	int rtaddress;
 	int bsize;
@@ -509,12 +510,18 @@ vnode_pager_addr(vp, address)
 	vblock = address / bsize;
 	voffset = address % bsize;
 
-	err = VOP_BMAP(vp, vblock, &rtvp, &block, 0);
+	err = VOP_BMAP(vp, vblock, &rtvp, &block, run);
 
-	if (err)
+	if (err || (block == -1))
 		rtaddress = -1;
-	else
+	else {
 		rtaddress = block * DEV_BSIZE + voffset;
+		if( run) {
+			*run += 1;
+			*run *= bsize/PAGE_SIZE;
+			*run -= voffset/PAGE_SIZE;
+		}
+	}
 
 	return rtaddress;
 }
@@ -596,7 +603,7 @@ vnode_pager_input_smlfs(vnp, m)
 		if ((vm_page_bits(m->offset + i * bsize, bsize) & m->valid))
 			continue;
 
-		fileaddr = vnode_pager_addr(vp, m->offset + i * bsize);
+		fileaddr = vnode_pager_addr(vp, m->offset + i * bsize, (int *)0);
 		if (fileaddr != -1) {
 			bp = getpbuf();
 
@@ -727,8 +734,10 @@ vnode_pager_input(vnp, m, count, reqpage)
 	int bsize;
 
 	int first, last;
-	int reqaddr, firstaddr;
+	int firstaddr;
 	int block, offset;
+	int runpg;
+	int runend;
 
 	struct buf *bp, *bpa;
 	int counta;
@@ -797,55 +806,45 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * here on direct device I/O
 	 */
 
-	reqaddr = vnode_pager_addr(vp, foff);
-	if (reqaddr == -1 && foff < vnp->vnp_size) {
-		printf("reqaddr: %d, foff: %d, vnp_size: %d\n",
-		    reqaddr, foff, vnp->vnp_size);
-		Debugger("");
-	}
-	s = splbio();
 
+	firstaddr = -1;
 	/*
-	 * Make sure that our I/O request is contiguous. Scan backward and
-	 * stop for the first discontiguous entry or stop for a page being in
-	 * buffer cache.
+	 * calculate the run that includes the required page
 	 */
-	failflag = 0;
-	first = reqpage;
-	for (i = reqpage - 1; i >= 0; --i) {
-		if (failflag ||
-		    (vnode_pager_addr(vp, m[i]->offset))
-		    != reqaddr + (i - reqpage) * PAGE_SIZE) {
+	for(first = 0, i = 0; i < count; i = runend) {
+		firstaddr = vnode_pager_addr(vp, m[i]->offset, &runpg);
+		if (firstaddr == -1) {
+			if( i == reqpage && foff < vnp->vnp_size) {
+				printf("vnode_pager_input: unexpected missing page: firstaddr: %d, foff: %d, vnp_size: %d\n",
+			   	 firstaddr, foff, vnp->vnp_size);
+				panic("vnode_pager_input:...");
+			}
 			vnode_pager_freepage(m[i]);
-			failflag = 1;
-		} else {
-			first = i;
+			runend = i + 1;
+			first = runend;
+			continue;
 		}
-	}
-
-	/*
-	 * Scan forward and stop for the first non-contiguous entry or stop
-	 * for a page being in buffer cache.
-	 */
-	failflag = 0;
-	last = reqpage + 1;
-	for (i = reqpage + 1; i < count; i++) {
-		if (failflag ||
-		    (vnode_pager_addr(vp, m[i]->offset))
-		    != reqaddr + (i - reqpage) * PAGE_SIZE) {
-			vnode_pager_freepage(m[i]);
-			failflag = 1;
+		runend = i + runpg;
+		if( runend <= reqpage) {
+			int j;
+			for(j = i; j < runend; j++) {
+				vnode_pager_freepage(m[j]);
+			}
 		} else {
-			last = i + 1;
+			if( runpg < (count - first)) {
+				for(i=first + runpg; i < count; i++)
+					vnode_pager_freepage(m[i]);
+				count = first + runpg;
+			}
+			break;
 		}
+		first = runend;
 	}
-	splx(s);
 
 	/*
 	 * the first and last page have been calculated now, move input pages
 	 * to be zero based...
 	 */
-	count = last;
 	if (first != 0) {
 		for (i = first; i < count; i++) {
 			m[i - first] = m[i];
@@ -853,15 +852,16 @@ vnode_pager_input(vnp, m, count, reqpage)
 		count -= first;
 		reqpage -= first;
 	}
+
 	/*
 	 * calculate the file virtual address for the transfer
 	 */
 	foff = m[0]->offset;
-
-	/*
-	 * and get the disk physical address (in bytes)
-	 */
-	firstaddr = vnode_pager_addr(vp, foff);
+#if 0
+	printf("foff: 0x%lx, firstaddr: 0x%lx\n",
+		foff, firstaddr);
+	DELAY(6000000);
+#endif
 
 	/*
 	 * calculate the size of the transfer
@@ -1085,7 +1085,7 @@ vnode_pager_output_smlfs(vnp, m)
 		/*
 		 * calculate logical block and offset
 		 */
-		fileaddr = vnode_pager_addr(vp, m->offset + i * bsize);
+		fileaddr = vnode_pager_addr(vp, m->offset + i * bsize, (int *)0);
 		if (fileaddr != -1) {
 
 			bp = getpbuf();
@@ -1158,6 +1158,7 @@ vnode_pager_output(vnp, m, count, rtvals)
 	int s;
 	daddr_t block;
 	struct timeval tv;
+	int runpg;
 
 	int error = 0;
 
@@ -1229,19 +1230,9 @@ retryoutput:
 		return rtvals[0];
 	}
 	foff = m[0]->offset;
-	reqaddr = vnode_pager_addr(vp, foff);
-
-	/*
-	 * Scan forward and stop for the first non-contiguous entry or stop
-	 * for a page being in buffer cache.
-	 */
-	for (i = 1; i < count; i++) {
-		if (vnode_pager_addr(vp, m[i]->offset)
-		    != reqaddr + i * PAGE_SIZE) {
-			count = i;
-			break;
-		}
-	}
+	reqaddr = vnode_pager_addr(vp, foff, &runpg);
+	if( runpg < count)
+		count = runpg;
 
 	/*
 	 * calculate the size of the transfer
