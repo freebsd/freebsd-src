@@ -340,9 +340,9 @@ uhub_explore(dev)
 		up = &dev->hub->ports[port-1];
 		r = usbd_get_port_status(dev, port, &up->status);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("uhub_explore: get port status failed, "
+			DPRINTF(("uhub_explore: get port status failed, on port %d "
 				 "error=%d(%s)\n",
-				 r, usbd_error_strs[r]));
+				 port, r, usbd_error_strs[r]));
 			continue;
 		}
 		status = UGETW(up->status.wPortStatus);

@@ -672,7 +672,6 @@ usbd_get_bus_handle(index, bus)
 {
 	return (usb_get_bus_handle(index, bus));
 }
-#endif
 
 usbd_status 
 usbd_get_root_hub(bus, dev)
@@ -706,6 +705,7 @@ usbd_hub2device_handle(dev, port, devp)
 	*devp = dev->hub->ports[port].device;
 	return (USBD_NORMAL_COMPLETION);
 }
+#endif
 
 usbd_status 
 usbd_request2pipe_handle(reqh, pipe)

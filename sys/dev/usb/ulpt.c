@@ -300,11 +300,11 @@ ulptopen(dev, flag, mode, p)
 	sc->sc_flags = flags;
 	DPRINTF(("ulptopen: flags=0x%x\n", (unsigned)flags));
 
-#if USB_DEBUG && defined(__FreeBSD__)
+#if defined(USB_DEBUG) && defined(__FreeBSD__)
 	/* Ignoring these flags might not be a good idea */
-	if ((flags ^ ULPT_NOPRIME) != 0)
-		DPRINTF(("flags ignored: %b\n", flags,
-			"\20\3POS_INIT\4POS_ACK\6PRIME_OPEN\7AUTOLF\10BYPASS"));
+	if ((flags & ~ULPT_NOPRIME) != 0)
+		printf("ulptopen: flags ignored: %b\n", flags,
+			"\20\3POS_INIT\4POS_ACK\6PRIME_OPEN\7AUTOLF\10BYPASS");
 #endif
 	if ((flags & ULPT_NOPRIME) == 0)
 		ulpt_reset(sc);
