@@ -1149,8 +1149,10 @@ m_split(m0, len0, wait)
 			if (n->m_next == 0) {
 				(void) m_free(n);
 				return (0);
-			} else
+			} else {
+				n->m_len = 0;
 				return (n);
+			}
 		} else
 			MH_ALIGN(n, remain);
 	} else if (remain == 0) {
