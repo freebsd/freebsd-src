@@ -1,0 +1,58 @@
+#
+# hosts.allow access control file for "tcp wrapped" apps.
+# $Id: hosts.allow,v 1.1 1999/03/28 10:47:26 markm Exp $
+#
+# NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
+#       and 'deny' rules in the hosts.allow file.
+# see hosts_options(5) for the format of this file.
+# hosts_access(5) no longer fully applies.
+
+# This is an example! You will need to modify it for your specific
+# requirements!
+
+# Start by allowing everything (this prevents the rest of the file
+# from working, so remove it when you need protection).
+# The rules here work on a "First match wins" basis.
+ALL : ALL : allow
+
+# Wrapping sshd(8) is not normally a good idea, but if you
+# need to do it, here's how
+#sshd : .evil.cracker.example.com : deny 
+
+# Prevent those with no reverse DNS from connecting.
+ALL : PARANOID : RFC931 20 : deny
+
+# Allow anything from localhost
+ALL : localhost : allow
+ALL : my.machine.example.com : allow
+
+# Sendmail can help protect you against spammers and relay-rapers
+sendmail : localhost : allow
+sendmail : .nice.guy.example.com : allow
+sendmail : .evil.cracker.example.com : deny
+sendmail : ALL : allow
+
+# Portmapper is used for all RPC services; protect your NFS!
+portmap : localhost : allow
+portmap : .nice.guy.example.com : allow
+portmap : .evil.cracker.example.com : deny
+portmap : ALL : allow
+
+# Provide a small amount of protection for ftpd
+ftpd : localhost : allow
+ftpd : .nice.guy.example.com : allow
+ftpd : .evil.cracker.example.com : deny
+ftpd : ALL : allow
+
+# You need to be clever with finger; do _not_ backfinger!! You can easily
+# start a "finger war".
+fingerd : ALL \
+	: spawn (echo Finger. | \
+	 /usr/bin/mail -s "tcpd\: %u@%h[%a] fingered me!" root) & \
+	: deny
+
+# The rest of the daemons are protected. Backfinger and log by email.
+ALL : ALL \
+	: severity auth.info : spawn (/usr/bin/safe_finger -l @%h | \
+	 /usr/bin/mail -s "tcpd\: %u@%h[%a] tried to use %d  (denied)" root) & \
+	: twist /bin/echo "You are not welcome to use %d from %h."
