@@ -177,7 +177,7 @@ struct cputype {
 struct opt {
 	char	*op_name;
 	char	*op_value;
-	int op_line; /* line number for error-reporting */
+	int	op_line;	/* line number for error-reporting */
 	int	op_ownfile;	/* true = own file, false = makefile */
 	struct	opt *op_next;
 } *opt, *mkopt;
@@ -230,6 +230,6 @@ u_int	loadaddress;
 
 extern	int old_config_present;	/* Old config/build directory still there */
 
-extern char *PREFIX; /* Config file name - for error messages */
+extern char *PREFIX;		/* Config file name - for error messages */
 
 #define eq(a,b)	(!strcmp(a,b))
