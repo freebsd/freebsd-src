@@ -1139,8 +1139,8 @@ Dir_Destroy(void *pp)
 	if (p->refCount == 0) {
 		LstNode *ln;
 
-		ln = Lst_Member(openDirectories, p);
-		Lst_Remove(openDirectories, ln);
+		if ((ln = Lst_Member(openDirectories, p)) != NULL)
+			Lst_Remove(openDirectories, ln);
 
 		Hash_DeleteTable(&p->files);
 		free(p->name);
