@@ -215,48 +215,34 @@ kernel_mount(iovp, iovcnt, flags)
 int
 kernel_vmount(int flags, ...)
 {
-	struct iovec *iovp, *iov;
+	struct iovec *iovp;
 	struct uio auio;
 	va_list ap;
-	unsigned int iovcnt, iovlen, len, optcnt;
-	const char *opt;
-	char *sep, *buf, *pos;
-	int error, i;
+	unsigned int iovcnt, iovlen, len;
+	const char *cp;
+	char *buf, *pos;
+	int error, i, n;
 
 	len = 0;
 	va_start(ap, flags);
-	for (optcnt = 0; (opt = va_arg(ap, const char *)) != NULL; optcnt++)
-		len += strlen(opt) + 1;
+	for (iovcnt = 0; (cp = va_arg(ap, const char *)) != NULL; iovcnt++)
+		len += strlen(cp) + 1;
 	va_end(ap);
 
-	if (optcnt < 2)
+	if (iovcnt < 4 || iovcnt & 1)
 		return (EINVAL);
 
-	iovcnt = optcnt << 1;
 	iovlen = iovcnt * sizeof (struct iovec);
 	MALLOC(iovp, struct iovec *, iovlen, M_MOUNT, M_WAITOK);
 	MALLOC(buf, char *, len, M_MOUNT, M_WAITOK);
 	pos = buf;
 	va_start(ap, flags);
-	for (i = 0; i < optcnt; i++) {
-		opt = va_arg(ap, const char *);
-		strcpy(pos, opt);
-		sep = index(pos, '=');
-		if (sep == NULL) {
-			FREE(iovp, M_MOUNT);
-			FREE(buf, M_MOUNT);
-			return (EINVAL);
-		}
-		*sep = '\0';
-		iov = iovp + i * 2;
-		iov->iov_base = pos;
-		iov->iov_len = sep - pos + 1;
-		pos = sep + 1;
-		iov++;
-		iov->iov_base = pos;
-		iovlen = strlen(pos) + 1;
-		iov->iov_len = iovlen;
-		pos += iovlen;
+	for (i = 0; i < iovcnt; i++) {
+		cp = va_arg(ap, const char *);
+		copystr(cp, pos, len - (pos - buf), &n);
+		iovp[i].iov_base = pos;
+		iovp[i].iov_len = n;
+		pos += n;
 	}
 	va_end(ap);
 
@@ -550,7 +536,16 @@ update:
 	if (mp->mnt_op->vfs_mount != NULL) {
 		printf("%s doesn't support the new mount syscall\n",
 		    mp->mnt_vfc->vfc_name);
-		vfs_unbusy(mp, td);
+		mtx_lock(&vp->v_interlock);
+		vp->v_flag &= ~VMOUNT;
+		mtx_unlock(&vp->v_interlock);
+		if (mp->mnt_flag & MNT_UPDATE)
+			vfs_unbusy(mp, td);
+		else {
+			mp->mnt_vfc->vfc_refcount--;
+			vfs_unbusy(mp, td);
+			free((caddr_t)mp, M_MOUNT);
+		}
 		vput(vp);
 		error = EOPNOTSUPP;
 		goto bad;
@@ -889,7 +884,16 @@ update:
 	if (mp->mnt_op->vfs_mount == NULL) {
 		printf("%s doesn't support the old mount syscall\n",
 		    mp->mnt_vfc->vfc_name);
-		vfs_unbusy(mp, td);
+		mtx_lock(&vp->v_interlock);
+		vp->v_flag &= ~VMOUNT;
+		mtx_unlock(&vp->v_interlock);
+		if (mp->mnt_flag & MNT_UPDATE)
+			vfs_unbusy(mp, td);
+		else {
+			mp->mnt_vfc->vfc_refcount--;
+			vfs_unbusy(mp, td);
+			free((caddr_t)mp, M_MOUNT);
+		}
 		vput(vp);
 		return (EOPNOTSUPP);
 	}
