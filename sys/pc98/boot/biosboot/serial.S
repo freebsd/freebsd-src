@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.6 1997/07/14 12:34:01 kato Exp $
+ *	$Id: serial.S,v 1.7 1998/01/02 09:29:15 kato Exp $
  */
 
 /*
@@ -65,17 +65,16 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
  */ 
 
+#if COMCONSOLE == 0x238
+#include "../../../i386/boot/biosboot/serial.S"
+#else
 /*
  * modified for PC-98 by KATO T. of Nagoya University
  */
 
 	.file	"serial.S"
 
-#ifdef PC98
-#include <pc98/pc98/sioreg.h>
-#else
 #include <i386/isa/sioreg.h>
-#endif
 #include "asm.h"
 
 	.text
@@ -199,3 +198,4 @@ ENTRY(init_serial)
 	outb	%al, %dx
 
 	ret
+#endif

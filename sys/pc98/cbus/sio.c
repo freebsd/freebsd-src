@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.70 1998/12/08 08:18:59 kato Exp $
+ *	$Id: sio.c,v 1.71 1998/12/30 08:09:11 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -107,17 +107,32 @@
  *   device  sio2 at nec? port 0x00d5 tty irq ?
  *      ... you can leave these lines `irq ?', irq will be autodetected.
  */
+/*
+ * Modified by Y.Takahashi of Kogakuin University.
+ */
+
 #ifdef PC98
-#define	MC16550		0
-#define COM_IF_INTERNAL	1
-#if 0
-#define COM_IF_PC9861K	2
-#define COM_IF_PIO9032B	3
-#endif
-#ifdef	B98_01
-#undef  COM_MULTIPORT	/* COM_MULTIPORT will conflict with B98_01 */
-#define COM_IF_B98_01	4
-#endif /* B98_01 */
+#define COM_IF_INTERNAL		0x00
+#define COM_IF_PC9861K_1	0x01
+#define COM_IF_PC9861K_2	0x02
+#define COM_IF_IND_SS_1		0x03
+#define COM_IF_IND_SS_2		0x04
+#define COM_IF_PIO9032B_1	0x05
+#define COM_IF_PIO9032B_2	0x06
+#define COM_IF_B98_01_1		0x07
+#define COM_IF_B98_01_2		0x08
+#define COM_IF_END1		COM_IF_B98_01_2
+#define COM_IF_RSA98		0x10	/* same as COM_IF_NS16550 */
+#define COM_IF_NS16550		0x11
+#define COM_IF_SECOND_CCU	0x12	/* same as COM_IF_NS16550 */
+#define COM_IF_MC16550II	0x13
+#define COM_IF_MCRS98		0x14	/* same as COM_IF_MC16550II */
+#define COM_IF_RSB3000		0x15
+#define COM_IF_RSB384		0x16
+#define COM_IF_MODEM_CARD	0x17	/* same as COM_IF_NS16550 */
+#define COM_IF_RSA98III		0x18
+#define COM_IF_ESP98		0x19
+#define COM_IF_END2		COM_IF_ESP98
 #endif /* PC98 */
 
 #include <sys/param.h>
@@ -144,14 +159,12 @@
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/isa_device.h>
-#include <pc98/pc98/sioreg.h>
 #include <i386/isa/ic/i8251.h>
 #else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
-#endif
 #include <i386/isa/intr_machdep.h>
 
 #ifdef COM_ESP
@@ -347,6 +360,9 @@ struct com_s {
 #endif
 	Port_t	int_id_port;
 	Port_t	iobase;
+#ifdef PC98
+	Port_t	rsabase;	/* iobase address of a I/O-DATA RSA board */
+#endif
 	Port_t	modem_ctl_port;
 	Port_t	line_status_port;
 	Port_t	modem_status_port;
@@ -376,6 +392,18 @@ struct com_s {
 	 * Ping-pong input buffers.  The extra factor of 2 in the sizes is
 	 * to allow for an error byte for each input byte.
 	 */
+#ifdef PC98
+ 	u_long	CE_INPUT_OFFSET;
+ 	u_char	*ibuf1;
+ 	u_char	*ibuf2;
+ 
+	/*
+	 * Data area for output buffers.  Someday we should build the output
+	 * buffer queue without copying data.
+	 */
+ 	u_char	*obuf1;
+ 	u_char	*obuf2;
+#else
 #define	CE_INPUT_OFFSET		RS_IBUFSIZE
 	u_char	ibuf1[2 * RS_IBUFSIZE];
 	u_char	ibuf2[2 * RS_IBUFSIZE];
@@ -386,6 +414,7 @@ struct com_s {
 	 */
 	u_char	obuf1[256];
 	u_char	obuf2[256];
+#endif
 #ifdef DEVFS
 	void	*devfs_token_ttyd;
 	void	*devfs_token_ttyl;
@@ -465,28 +494,9 @@ struct	siodev	{
 	short	if_type;
 	short	irq;
 	Port_t	cmd, sts, ctrl, mod;
-	};
+};
 static	int	sysclock;
-static	short	port_table[5][3] = {
-			{0x30, 0xb1, 0xb9},
-			{0x32, 0xb3, 0xbb},
-			{0x32, 0xb3, 0xbb},
-			{0x33, 0xb0, 0xb2},
-			{0x35, 0xb0, 0xb2}
-		};
-#define	PC98SIO_data_port(ch)		port_table[0][ch]
-#define	PC98SIO_cmd_port(ch)		port_table[1][ch]
-#define	PC98SIO_sts_port(ch)		port_table[2][ch]
-#define	PC98SIO_in_modem_port(ch)	port_table[3][ch]
-#define	PC98SIO_intr_ctrl_port(ch)	port_table[4][ch]
-#ifdef COM_IF_PIO9032B
-#define   IO_COM_PIO9032B_2	0x0b8
-#define   IO_COM_PIO9032B_3	0x0ba
-#endif /* COM_IF_PIO9032B */
-#ifdef COM_IF_B98_01
-#define	  IO_COM_B98_01_2	0x0d1
-#define	  IO_COM_B98_01_3	0x0d5
-#endif /* COM_IF_B98_01 */
+
 #define	COM_INT_DISABLE		{int previpri; previpri=spltty();
 #define	COM_INT_ENABLE		splx(previpri);}
 #define IEN_TxFLAG		IEN_Tx
@@ -495,8 +505,8 @@ static	short	port_table[5][3] = {
 #define	PC98_CHECK_MODEM_INTERVAL	(hz/10)
 #define DCD_OFF_TOLERANCE		2
 #define DCD_ON_RECOGNITION		2
-#define	IS_8251(type)		(type != MC16550)
-#define	IS_PC98IN(adr)		(adr == 0x30)
+#define	IS_8251(if_type)		(!(if_type & 0x10))
+#define COM1_EXT_CLOCK			0x40000
 
 static	void	commint		__P((dev_t dev));
 static	void	com_tiocm_set	__P((struct com_s *com, int msr));
@@ -520,9 +530,9 @@ static	void	pc98_i8251_set_cmd	__P((struct com_s *com, int x));
 static	void	pc98_i8251_or_cmd	__P((struct com_s *com, int x));
 static	void	pc98_i8251_clear_cmd	__P((struct com_s *com, int x));
 static	void	pc98_i8251_clear_or_cmd	__P((struct com_s *com, int clr, int x));
-static	int	pc98_check_if_type	__P((int iobase, struct siodev *iod));
+static	int	pc98_check_if_type	__P((struct isa_device *dev, struct siodev *iod));
 static	void	pc98_check_sysclock	__P((void));
-static	int	pc98_set_ioport		__P((struct com_s *com, int io_base));
+static	int	pc98_set_ioport		__P((struct com_s *com, int id_flags));
 
 #define com_int_Tx_disable(com) \
 		pc98_disable_i8251_interrupt(com,IEN_Tx|IEN_TxEMP)
@@ -541,7 +551,7 @@ static	int	pc98_set_ioport		__P((struct com_s *com, int io_base));
 #define com_send_break_off(com) \
 		pc98_i8251_clear_cmd(com,CMD8251_SBRK)
 
-struct speedtab pc98speedtab[] = {	/* internal RS232C interface */
+static struct speedtab pc98speedtab[] = {	/* internal RS232C interface */
 	0,	0,
 	50,	50,
 	75,	75,
@@ -555,16 +565,23 @@ struct speedtab pc98speedtab[] = {	/* internal RS232C interface */
 	9600,	9600,
 	19200,	19200,
 	38400,	38400,
+	51200,	51200,
 	76800,	76800,
 	20800,	20800,
-	41600,	41600,
-	15600,	15600,
 	31200,	31200,
+	41600,	41600,
 	62400,	62400,
 	-1,	-1
 };
-#ifdef COM_IF_PIO9032B
-struct speedtab comspeedtab_pio9032b[] = {
+static struct speedtab pc98fast_speedtab[] = {
+	9600,   0x80 | COMBRD(9600),
+	19200,  0x80 | COMBRD(19200),
+	38400,  0x80 | COMBRD(38400),
+	57600,  0x80 | COMBRD(57600),
+	115200, 0x80 | COMBRD(115200),
+	-1,     -1
+};
+static struct speedtab comspeedtab_pio9032b[] = {
 	300,	6,
 	600,	5,
 	1200,	4,
@@ -575,26 +592,82 @@ struct speedtab comspeedtab_pio9032b[] = {
 	38400,	7,
 	-1,	-1
 };
-#endif
-
-#ifdef COM_IF_B98_01
-struct speedtab comspeedtab_b98_01[] = {
-	0,	0,
-	75,	15,
-	150,	14,
-	300,	13,
-	600,	12,
-	1200,	11,
-	2400,	10,
-	4800,	9,
-	9600,	8,
-	19200,	7,
-	38400,	6,
-	76800,	5,
-	153600,	4,
+static struct speedtab comspeedtab_b98_01[] = {
+	75,	11,
+	150,	10,
+	300,	9,
+	600,	8,
+	1200,	7,
+	2400,	6,
+	4800,	5,
+	9600,	4,
+	19200,	3,
+	38400,	2,
+	76800,	1,
+	153600,	0,
 	-1,	-1
 };
-#endif
+static struct speedtab comspeedtab_mc16550[] = {
+	300,	1536,
+	600,	768,
+	1200,	384,
+	2400,	192,
+	4800,	96,
+	9600,	48,
+	19200,	24,
+	38400,	12,
+	57600,	8,
+	115200,	4,
+	153600,	3,
+	230400,	2,
+	460800,	1,
+	-1,	-1
+};
+static struct speedtab comspeedtab_rsb384[] = {
+	300,		3840,
+	600,		1920,
+	1200,		960,
+	2400,		480,
+	4800,		240,
+	9600,		120,
+	19200,		60,
+	38400,		30,
+	57600,		20,
+	115200,		10,
+	128000,		9,
+	144000,		8,
+	192000,		6,
+	230400,		5,
+	288000,		4,
+	384000,		3,
+	576000,		2,
+	1152000,	1,
+	-1,		-1
+};
+static  struct speedtab comspeedtab_rsa[] = {
+        { 0,		0 },
+	{ 50,		COMBRD_RSA(50) },
+	{ 75,		COMBRD_RSA(75) },
+	{ 110,		COMBRD_RSA(110) },
+	{ 134,		COMBRD_RSA(134) },
+	{ 150,		COMBRD_RSA(150) },
+	{ 200,		COMBRD_RSA(200) },
+	{ 300,		COMBRD_RSA(300) },
+	{ 600,		COMBRD_RSA(600) },
+	{ 1200,		COMBRD_RSA(1200) },
+	{ 1800,		COMBRD_RSA(1800) },
+	{ 2400,		COMBRD_RSA(2400) },
+	{ 4800,		COMBRD_RSA(4800) },
+	{ 9600,		COMBRD_RSA(9600) },
+	{ 19200,	COMBRD_RSA(19200) },
+	{ 38400,	COMBRD_RSA(38400) },
+	{ 57600,	COMBRD_RSA(57600) },
+	{ 115200,	COMBRD_RSA(115200) },
+	{ 230400,	COMBRD_RSA(230400) },
+	{ 460800,	COMBRD_RSA(460800) },
+	{ 921600,	COMBRD_RSA(921600) },
+	{ -1,           -1 }
+};
 #endif /* PC98 */
 
 static	struct speedtab comspeedtab[] = {
@@ -619,10 +692,90 @@ static	struct speedtab comspeedtab[] = {
 	{ -1,		-1 }
 };
 
+#ifdef PC98
+struct {
+	char	*name;
+	short	port_table[7];
+	short	irr_mask;
+	struct speedtab	*speedtab;
+	short	check_irq;
+} if_8251_type[] = {
+	/* COM_IF_INTERNAL */
+	{ " (internal)", {0x30, 0x32, 0x32, 0x33, 0x35, -1, -1},
+	     -1, pc98speedtab, 1 },
+	/* COM_IF_PC9861K_1 */
+	{ " (PC9861K)", {0xb1, 0xb3, 0xb3, 0xb0, 0xb0, -1, -1},
+	     3, NULL, 1 },
+	/* COM_IF_PC9861K_2 */
+	{ " (PC9861K)", {0xb9, 0xbb, 0xbb, 0xb2, 0xb2, -1, -1},
+	      3, NULL, 1 },
+	/* COM_IF_IND_SS_1 */
+	{ " (IND-SS)", {0xb1, 0xb3, 0xb3, 0xb0, 0xb0, 0xb3, -1},
+	     3, comspeedtab_mc16550, 1 },
+	/* COM_IF_IND_SS_2 */
+	{ " (IND-SS)", {0xb9, 0xbb, 0xbb, 0xb2, 0xb2, 0xbb, -1},
+	     3, comspeedtab_mc16550, 1 },
+	/* COM_IF_PIO9032B_1 */
+	{ " (PIO9032B)", {0xb1, 0xb3, 0xb3, 0xb0, 0xb0, 0xb8, -1},
+	      7, comspeedtab_pio9032b, 1 },
+	/* COM_IF_PIO9032B_2 */
+	{ " (PIO9032B)", {0xb9, 0xbb, 0xbb, 0xb2, 0xb2, 0xba, -1},
+	      7, comspeedtab_pio9032b, 1 },
+	/* COM_IF_B98_01_1 */
+	{ " (B98-01)", {0xb1, 0xb3, 0xb3, 0xb0, 0xb0, 0xd1, 0xd3},
+	      7, comspeedtab_b98_01, 0 },
+	/* COM_IF_B98_01_2 */
+	{ " (B98-01)", {0xb9, 0xbb, 0xbb, 0xb2, 0xb2, 0xd5, 0xd7},
+	     7, comspeedtab_b98_01, 0 },
+};
+#define	PC98SIO_data_port(type)		(if_8251_type[type].port_table[0])
+#define	PC98SIO_cmd_port(type)		(if_8251_type[type].port_table[1])
+#define	PC98SIO_sts_port(type)		(if_8251_type[type].port_table[2])
+#define	PC98SIO_in_modem_port(type)	(if_8251_type[type].port_table[3])
+#define	PC98SIO_intr_ctrl_port(type)	(if_8251_type[type].port_table[4])
+#define	PC98SIO_baud_rate_port(type)	(if_8251_type[type].port_table[5])
+#define	PC98SIO_func_port(type)		(if_8251_type[type].port_table[6])
+
+struct {
+	char	*name;
+	short	irr_read;
+	short	irr_write;
+	short	port_shift;
+	short	io_size;
+	struct speedtab	*speedtab;
+} if_16550a_type[] = {
+	/* COM_IF_RSA98 */
+        { " (RSA-98)", -1, -1, 0, IO_COMSIZE, comspeedtab },
+	/* COM_IF_NS16550 */
+	{ "", -1, -1, 0, IO_COMSIZE, comspeedtab },
+	/* COM_IF_SECOND_CCU */
+	{ "", -1, -1, 0, IO_COMSIZE, comspeedtab },
+	/* COM_IF_MC16550II */
+	{ " (MC16550II)", -1, 0x1000, 8, 1, comspeedtab_mc16550 },
+	/* COM_IF_MCRS98 */
+	{ " (MC-RS98)", -1, 0x1000, 8, 1, comspeedtab_mc16550 },
+	/* COM_IF_RSB3000 */
+	{ " (RSB-3000)", 0xbf, -1, 1, 1, comspeedtab_rsb384 },
+	/* COM_IF_RSB384 */
+	{ " (RSB-384)", 0xbf, -1, 1, 1, comspeedtab_rsb384 },
+	/* COM_IF_MODEM_CARD */
+	{ "", -1, -1, 0, IO_COMSIZE, comspeedtab },
+	/* COM_IF_RSA98III */
+	{ " (RSA-98III)", -1, -1, 0, 16, comspeedtab_rsa },
+	/* COM_IF_ESP98 */
+	{ " (ESP98)", -1, -1, 1, 1, comspeedtab_mc16550 },
+};
+#endif /* PC98 */
+
 #ifdef COM_ESP
 /* XXX configure this properly. */
+#ifdef PC98
+static  Port_t  likely_com_ports[] = { 0, 0xb0, 0xb1, 0 };
+static  Port_t  likely_esp_ports[] = { 0xc0d0, 0 };
+#else
 static	Port_t	likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
 static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
+#endif /* PC98 */
 #endif
 
 /*
@@ -770,6 +923,9 @@ siounload(struct pccard_devinfo *devi)
 		ttwwakeup(com->tp);
 	} else {
 		com_addr(com->unit) = NULL;
+#ifdef PC98
+		bzero(com->ibuf1, com->CE_INPUT_OFFSET * 6);
+#endif
 		bzero(com, sizeof *com);
 		free(com,M_TTYS);
 		printf("sio%d: unload,gone\n", devi->isahd.id_unit);
@@ -812,7 +968,9 @@ sioprobe(dev)
 	int		irqout=0;
 	int		ret = 0;
 	int		tmp;
-	struct		siodev	iod;
+	int		port_shift = 0;
+	struct siodev	iod;
+	Port_t		rsabase = NULL;
 #endif
 
 	if (!already_init) {
@@ -823,13 +981,26 @@ sioprobe(dev)
 		 * XXX the gate enable is elsewhere for some multiports.
 		 */
 		for (xdev = isa_devtab_tty; xdev->id_driver != NULL; xdev++)
-			if (xdev->id_driver == &siodriver && xdev->id_enabled)
 #ifdef PC98
-				if (IS_PC98IN(xdev->id_iobase))
-					outb(xdev->id_iobase + 2, 0xf2);
-				else
+		    if (xdev->id_driver == &siodriver && xdev->id_enabled) {
+			tmp = (xdev->id_flags >> 24) & 0xff;
+			if (IS_8251(tmp))
+			    outb((xdev->id_iobase & 0xff00) | PC98SIO_cmd_port(tmp & 0x0f), 0xf2);
+			else
+			    if (tmp == COM_IF_RSA98III) {
+			        rsabase = xdev->id_iobase & 0xfff0;
+#if 0
+				if (rsabase != xdev->id_iobase)
+				    return(0);
 #endif
+				outb(xdev->id_iobase + 8 + (com_mcr << if_16550a_type[tmp & 0x0f].port_shift), 0);
+			    } else
+				outb(xdev->id_iobase + (com_mcr << if_16550a_type[tmp & 0x0f].port_shift), 0);
+		    }
+#else
+			if (xdev->id_driver == &siodriver && xdev->id_enabled)
 				outb(xdev->id_iobase + com_mcr, 0);
+#endif
 		already_init = TRUE;
 	}
 
@@ -840,14 +1011,15 @@ sioprobe(dev)
 
 #ifdef PC98
 	DELAY(10);
+
 	/*
 	 * If the port is i8251 UART (internal, B98_01)
 	 */
-	if(pc98_check_if_type(dev->id_iobase, &iod) == -1)
-		return 0;
-	if(IS_8251(iod.if_type)){
-		if ( iod.irq > 0 )
-			dev->id_irq = (1 << iod.irq);
+	if (pc98_check_if_type(dev, &iod) == -1)
+	    return 0;
+	if (iod.irq > 0)
+	    dev->id_irq = 1 << iod.irq;
+	if (IS_8251(iod.if_type)) {
 		outb(iod.cmd, 0);
 		DELAY(10);
 		outb(iod.cmd, 0);
@@ -863,23 +1035,20 @@ sioprobe(dev)
 		if (( inb(iod.sts) & STS8251_TxEMP ) == 0 ) {
 			ret = 0;
 		}
-		switch (iod.if_type) {
-		case COM_IF_INTERNAL:
-			COM_INT_DISABLE
-			tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
-			outb( iod.ctrl, tmp|IEN_TxEMP );
-			DELAY(10);
-			ret = isa_irq_pending() ? 4 : 0;
-			outb( iod.ctrl, tmp );
-			COM_INT_ENABLE
-			break;
-#ifdef COM_IF_B98_01
-		case COM_IF_B98_01:
-			/* B98_01 doesn't activate TxEMP interrupt line
-			   when being reset, so we can't check irq pending.*/
-			ret = 4;
-			break;
-#endif
+		if (if_8251_type[iod.if_type & 0x0f].check_irq) {
+		    COM_INT_DISABLE
+		    tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
+		    outb( iod.ctrl, tmp|IEN_TxEMP );
+		    DELAY(10);
+		    ret = isa_irq_pending() ? 4 : 0;
+		    outb( iod.ctrl, tmp );
+		    COM_INT_ENABLE
+		} else {
+		    /*
+		     * B98_01 doesn't activate TxEMP interrupt line
+		     * when being reset, so we can't check irq pending.
+		     */
+		    ret = 4;
 		}
 		if (epson_machine_id==0x20) {	/* XXX */
 			ret = 4;
@@ -897,6 +1066,22 @@ sioprobe(dev)
 	 */
 	idev = dev;
 	mcr_image = MCR_IENABLE;
+#ifdef PC98
+        if (iod.if_type == COM_IF_RSA98III) {
+		mcr_image = 0;
+		rsabase = idev->id_iobase & 0xfff0;
+		if (rsabase != idev->id_iobase)
+			return(0);
+		outb(rsabase + rsa_msr,   0x04);
+		outb(rsabase + rsa_frr,   0x00);
+		if ((inb(rsabase + rsa_srr) & 0x36) != 0x36)
+			return (0);
+		outb(rsabase + rsa_ier,   0x00);
+		outb(rsabase + rsa_frr,   0x00);
+		outb(rsabase + rsa_tivsr, 0x00);
+		outb(rsabase + rsa_tcr,   0x00);
+	}
+#endif /* PC98 */
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(dev)) {
 		idev = find_isadev(isa_devtab_tty, &siodriver,
@@ -920,18 +1105,28 @@ sioprobe(dev)
 		mcr_image = 0;
 
 #ifdef PC98
-	switch(idev->id_irq){
-		case IRQ3: irqout = 4; break;
-		case IRQ5: irqout = 5; break;
-		case IRQ6: irqout = 6; break;
-		case IRQ12: irqout = 7; break;
-		default:
-			printf("sio%d: irq configuration error\n",dev->id_unit);
-			return (0);
+	tmp = if_16550a_type[iod.if_type & 0x0f].irr_write;
+	if (tmp != -1) {
+	    /* MC16550II */
+	    switch (idev->id_irq) {
+	    case IRQ3: irqout = 4; break;
+	    case IRQ5: irqout = 5; break;
+	    case IRQ6: irqout = 6; break;
+	    case IRQ12: irqout = 7; break;
+	    default:
+		printf("sio%d: irq configuration error\n", dev->id_unit);
+		return (0);
+	    }
+	    outb((dev->id_iobase & 0x00ff) | tmp, irqout);
 	}
-	outb(dev->id_iobase+0x1000, irqout);
+	port_shift = if_16550a_type[iod.if_type & 0x0f].port_shift;
 #endif
 	bzero(failures, sizeof failures);
+#ifdef PC98
+        if (iod.if_type == COM_IF_RSA98III)
+		iobase = dev->id_iobase + 8;
+	else
+#endif
 	iobase = dev->id_iobase;
 
 	/*
@@ -956,10 +1151,19 @@ sioprobe(dev)
 	if (iobase == siocniobase)
 		DELAY((16 + 1) * 1000000 / (comdefaultrate / 10));
 	else {
+#ifdef PC98
+		tmp = ttspeedtab(SIO_TEST_SPEED,
+				 if_16550a_type[iod.if_type & 0x0f].speedtab);
+		outb(iobase + (com_cfcr << port_shift), CFCR_DLAB|CFCR_8BITS);
+		outb(iobase + (com_dlbl << port_shift), tmp & 0xff);
+		outb(iobase + (com_dlbh << port_shift), (tmp >> 8) & 0xff);
+		outb(iobase + (com_cfcr << port_shift), CFCR_8BITS);
+#else
 		outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
 		outb(iobase + com_dlbl, COMBRD(SIO_TEST_SPEED) & 0xff);
 		outb(iobase + com_dlbh, (u_int) COMBRD(SIO_TEST_SPEED) >> 8);
 		outb(iobase + com_cfcr, CFCR_8BITS);
+#endif
 		DELAY((16 + 1) * 1000000 / (SIO_TEST_SPEED / 10));
 	}
 
@@ -969,8 +1173,13 @@ sioprobe(dev)
 	 * guarantee an edge trigger if an interrupt can be generated.
 	 */
 /* EXTRA DELAY? */
+#ifdef PC98
+	outb(iobase + (com_mcr << port_shift), mcr_image);
+	outb(iobase + (com_ier << port_shift), 0);
+#else
 	outb(iobase + com_mcr, mcr_image);
 	outb(iobase + com_ier, 0);
+#endif
 	DELAY(1000);		/* XXX */
 	irqmap[0] = isa_irq_pending();
 
@@ -979,7 +1188,11 @@ sioprobe(dev)
 	 * without annoying any external device.
 	 */
 /* EXTRA DELAY? */
+#ifdef PC98
+	outb(iobase + (com_mcr << port_shift), mcr_image | MCR_LOOPBACK);
+#else
 	outb(iobase + com_mcr, mcr_image | MCR_LOOPBACK);
+#endif
 
 	/*
 	 * Attempt to generate an output interrupt.  On 8250's, setting
@@ -989,7 +1202,14 @@ sioprobe(dev)
 	 * current setting.  On 16550A's, setting IER_ETXRDY only
 	 * generates an interrupt when IER_ETXRDY is not already set.
 	 */
+#ifdef PC98
+	outb(iobase + (com_ier << port_shift), IER_ETXRDY);
+        if (iod.if_type == COM_IF_RSA98III) {
+		outb(rsabase + rsa_ier,   0x04);
+	}
+#else
 	outb(iobase + com_ier, IER_ETXRDY);
+#endif /* PC98 */
 
 	/*
 	 * On some 16x50 incompatibles, setting IER_ETXRDY doesn't generate
@@ -997,7 +1217,11 @@ sioprobe(dev)
 	 * output.  Loopback may be broken on the same incompatibles but
 	 * it's unlikely to do more than allow the null byte out.
 	 */
+#ifdef PC98
+ 	outb(iobase + (com_data << port_shift), 0);
+#else
 	outb(iobase + com_data, 0);
+#endif
 	DELAY((1 + 2) * 1000000 / (SIO_TEST_SPEED / 10));
 
 	/*
@@ -1008,7 +1232,11 @@ sioprobe(dev)
 	 * are disabled.
 	 */
 /* EXTRA DELAY? */
+#ifdef PC98
+	outb(iobase + (com_mcr << port_shift), mcr_image);
+#else
 	outb(iobase + com_mcr, mcr_image);
+#endif /* PC98 */
 
     /*
 	 * It's a definitly Serial PCMCIA(16550A), but still be required
@@ -1018,14 +1246,28 @@ sioprobe(dev)
 		/* Reading IIR register twice */
 		for ( fn = 0; fn < 2; fn ++ ) {
 			DELAY(10000);
+#ifdef PC98
+			failures[6] = inb(iobase + (com_iir << port_shift));
+#else
 			failures[6] = inb(iobase + com_iir);
+#endif
 		}
 		/* Check IIR_TXRDY clear ? */
+#ifdef PC98
+		result = if_16550a_type[iod.if_type & 0x0f].io_size;
+#else
 		result = IO_COMSIZE;
+#endif
 		if ( failures[6] & IIR_TXRDY ) {
 			/* Nop, Double check with clearing IER */
+#ifdef PC98
+			outb(iobase + (com_ier << port_shift), 0);
+			if (inb(iobase +
+				(com_iir << port_shift)) & IIR_NOPEND) {
+#else
 			outb(iobase + com_ier, 0);
 			if ( inb(iobase + com_iir) & IIR_NOPEND ) {
+#endif
 				/* Ok. we're familia this gang */
 				dev->id_flags |= COM_C_IIR_TXRDYBUG; /* Set IIR_TXRDYBUG */
 			} else {
@@ -1036,7 +1278,11 @@ sioprobe(dev)
 			/* OK. this is well-known guys */
 			dev->id_flags &= ~COM_C_IIR_TXRDYBUG; /*Clear IIR_TXRDYBUG*/
 		}
+#ifdef PC98
+		outb(iobase + (com_cfcr << port_shift), CFCR_8BITS);
+#else
 		outb(iobase + com_cfcr, CFCR_8BITS);
+#endif
 		enable_intr();
 		return (iobase == siocniobase ? IO_COMSIZE : result);
 	}
@@ -1050,15 +1296,37 @@ sioprobe(dev)
 	 *	o the interrupt goes away when the IIR in the UART is read.
 	 */
 /* EXTRA DELAY? */
+#ifdef PC98
+	failures[0] = inb(iobase + (com_cfcr << port_shift)) - CFCR_8BITS;
+	failures[1] = inb(iobase + (com_ier << port_shift)) - IER_ETXRDY;
+	failures[2] = inb(iobase + (com_mcr << port_shift)) - mcr_image;
+#else
 	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
+#endif
 	DELAY(10000);		/* Some internal modems need this time */
 	irqmap[1] = isa_irq_pending();
+#ifdef PC98
+	failures[4] = (inb(iobase + (com_iir << port_shift)) & IIR_IMASK)
+	    - IIR_TXRDY;
+        if (iod.if_type == COM_IF_RSA98III) {
+		inb(rsabase + rsa_srr);
+	}
+#else
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
+#endif
 	DELAY(1000);		/* XXX */
 	irqmap[2] = isa_irq_pending();
+#ifdef PC98
+	failures[6] = (inb(iobase + (com_iir << port_shift)) & IIR_IMASK)
+	    - IIR_NOPEND;
+        if (iod.if_type == COM_IF_RSA98III) {
+		inb(rsabase + rsa_srr);
+	}
+#else
 	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
+#endif
 
 	/*
 	 * Turn off all device interrupts and check that they go off properly.
@@ -1069,12 +1337,30 @@ sioprobe(dev)
 	 * (On the system that this was first tested on, the input floats high
 	 * and gives a (masked) interrupt as soon as the gate is closed.)
 	 */
+#ifdef PC98
+	outb(iobase + (com_ier << port_shift), 0);
+	outb(iobase + (com_cfcr << port_shift), CFCR_8BITS);
+	failures[7] = inb(iobase + (com_ier << port_shift));
+        if (iod.if_type == COM_IF_RSA98III) {
+		outb(rsabase + rsa_ier,   0x00);
+	}
+#else
 	outb(iobase + com_ier, 0);
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
 	failures[7] = inb(iobase + com_ier);
+#endif
 	DELAY(1000);		/* XXX */
 	irqmap[3] = isa_irq_pending();
+#ifdef PC98
+	failures[9] = (inb(iobase + (com_iir << port_shift)) & IIR_IMASK)
+	    - IIR_NOPEND;
+        if (iod.if_type == COM_IF_RSA98III) {
+		inb(rsabase + rsa_srr);
+		outb(rsabase + rsa_frr, 0x00);
+	}
+#else
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
+#endif
 
 	enable_intr();
 
@@ -1087,10 +1373,18 @@ sioprobe(dev)
 		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
 		    dev->id_unit, irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
+#ifdef PC98
+	result = if_16550a_type[iod.if_type & 0x0f].io_size;
+#else
 	result = IO_COMSIZE;
+#endif
 	for (fn = 0; fn < sizeof failures; ++fn)
 		if (failures[fn]) {
+#ifdef PC98
+			outb(iobase + (com_mcr << port_shift), 0);
+#else
 			outb(iobase + com_mcr, 0);
+#endif
 			result = 0;
 			if (bootverbose) {
 				printf("sio%d: probe failed test(s):",
@@ -1136,7 +1430,11 @@ espattach(isdp, com, esp_port)
 	/*
 	 * Bits 0,1 of dips say which COM port we are.
 	 */
+#ifdef PC98
+	if ((com->iobase & 0xff) == likely_com_ports[dips & 0x03])
+#else
 	if (com->iobase == likely_com_ports[dips & 0x03])
+#endif
 		printf(" : ESP");
 	else {
 		printf(" esp_port has com %d\n", dips & 0x03);
@@ -1183,12 +1481,28 @@ sioattach(isdp)
 	Port_t		iobase;
 	int		s;
 	int		unit;
+#ifdef PC98
+	int		port_shift = 0;
+	u_long		ibufsize;
+#endif
 
 	isdp->id_ointr = siointr;
 	isdp->id_ri_flags |= RI_FAST;
+#ifdef PC98
+        if (((isdp->id_flags >> 24) & 0xff) == COM_IF_RSA98III)
+		iobase = isdp->id_iobase + 8;
+	else
+#endif
 	iobase = isdp->id_iobase;
 	unit = isdp->id_unit;
+#ifndef PC98
 	com = malloc(sizeof *com, M_TTYS, M_NOWAIT);
+#else
+	ibufsize = RS_IBUFSIZE;
+	if (((isdp->id_flags >> 24) & 0xff) == COM_IF_RSA98III)
+		ibufsize = 2048;
+	com = malloc((sizeof *com) + ibufsize * 6, M_TTYS, M_NOWAIT);
+#endif
 	if (com == NULL)
 		return (0);
 
@@ -1205,6 +1519,14 @@ sioattach(isdp)
 	 *	  device from sending before we are ready.
 	 */
 	bzero(com, sizeof *com);
+#ifdef PC98
+	com->CE_INPUT_OFFSET = ibufsize;
+	com->ibuf1 = (u_char *)com + (sizeof *com);
+	com->ibuf2 = com->ibuf1 + (ibufsize * 2);
+	com->obuf1 = com->ibuf2 + (ibufsize * 2);
+	com->obuf2 = com->obuf1 + ibufsize;
+	bzero(com->ibuf1, ibufsize * 6);
+#endif
 	com->unit = unit;
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
@@ -1212,24 +1534,29 @@ sioattach(isdp)
 	com->no_irq = isdp->id_irq == 0;
 	com->tx_fifo_size = 1;
 	com->iptr = com->ibuf = com->ibuf1;
+#ifndef PC98
 	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
 	com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
+#else
+	com->ibufend = com->ibuf1 + com->CE_INPUT_OFFSET;
+	com->ihighwater = com->ibuf1 + (3 * com->CE_INPUT_OFFSET / 4);
+#endif
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
 
 	com->iobase = iobase;
 #ifdef PC98
-	if(pc98_set_ioport(com, iobase) == -1)
-		if((iobase & 0x0f0) == 0xd0) {
-			com->pc98_if_type = MC16550;
-			com->data_port = iobase + com_data;
-			com->int_id_port = iobase + com_iir;
-			com->modem_ctl_port = iobase + com_mcr;
-			com->mcr_image = inb(com->modem_ctl_port);
-			com->line_status_port = iobase + com_lsr;
-			com->modem_status_port = iobase + com_msr;
-			com->intr_ctl_port = iobase + com_ier;
-		}
+	if (pc98_set_ioport(com, isdp->id_flags) == -1) {
+	    com->pc98_if_type = (isdp->id_flags >> 24) & 0xff;
+	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
+	    com->data_port = iobase + (com_data << port_shift);
+	    com->int_id_port = iobase + (com_iir << port_shift);
+	    com->modem_ctl_port = iobase + (com_mcr << port_shift);
+	    com->mcr_image = inb(com->modem_ctl_port);
+	    com->line_status_port = iobase + (com_lsr << port_shift);
+	    com->modem_status_port = iobase + (com_msr << port_shift);
+	    com->intr_ctl_port = iobase + (com_ier << port_shift);
+	}
 #else /* not PC98 */
 	com->data_port = iobase + com_data;
 	com->int_id_port = iobase + com_iir;
@@ -1252,7 +1579,7 @@ sioattach(isdp)
 	com->it_in.c_lflag = 0;
 	if (unit == comconsole) {
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			DELAY(100000);
 #endif
 		com->it_in.c_iflag = TTYDEF_IFLAG;
@@ -1296,35 +1623,17 @@ sioattach(isdp)
 	}
 #endif /* !PC98 */
 #ifdef PC98
-	if(IS_8251(com->pc98_if_type)){
-		com_int_TxRx_disable( com );
-		com_cflag_and_speed_set( com, com->it_in.c_cflag,
-						comdefaultrate );
-		com_tiocm_bic( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
-		com_send_break_off( com );
-		switch(com->pc98_if_type){
-		case COM_IF_INTERNAL:
-			printf(" 8251 (internal)");
-			break;
-#ifdef COM_IF_PC9861K
-		case COM_IF_PC9861K:
-			printf(" 8251 (PC9861K)");
-			break;
-#endif
-#ifdef COM_IF_PIO9032B
-		case COM_IF_PIO9032B:
-			printf(" 8251 (PIO9032B)");
-			break;
-#endif
-#ifdef COM_IF_B98_01
-		case COM_IF_B98_01:
-			printf(" 8251 (B98_01)");
-			break;
-#endif
-		}
+	if (IS_8251(com->pc98_if_type)) {
+	    com_int_TxRx_disable( com );
+	    com_cflag_and_speed_set( com, com->it_in.c_cflag, comdefaultrate );
+	    com_tiocm_bic( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
+	    com_send_break_off( com );
+	    printf(" 8251%s", if_8251_type[com->pc98_if_type & 0x0f].name);
 	} else {
-#endif /* PC98 */
+	outb(iobase + (com_fifo << port_shift), FIFO_ENABLE | FIFO_RX_HIGH);
+#else
 	outb(iobase + com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
+#endif /* PC98 */
 	DELAY(100);
 	com->st16650a = 0;
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
@@ -1342,6 +1651,10 @@ sioattach(isdp)
 			printf(" 16550A fifo disabled");
 		} else {
 			com->hasfifo = TRUE;
+#ifdef PC98
+			com->tx_fifo_size = 0;	/* XXX flag conflicts. */
+			printf(" 16550A");
+#else
 			if (COM_ST16650A(isdp)) {
 				com->st16650a = 1;
 				com->tx_fifo_size = 32;
@@ -1350,8 +1663,21 @@ sioattach(isdp)
 				com->tx_fifo_size = COM_FIFOSIZE(isdp);
 				printf(" 16550A");
 			}
+#endif
 		}
+#ifdef PC98
+		if (com->pc98_if_type == COM_IF_RSA98III) {
+			com->tx_fifo_size = 2048;
+			com->rsabase = isdp->id_iobase;
+			outb(com->rsabase + rsa_ier, 0x00);
+			outb(com->rsabase + rsa_frr, 0x00);
+		}
+#endif
+
 #ifdef COM_ESP
+#ifdef PC98
+		if (com->pc98_if_type == COM_IF_ESP98)
+#endif
 		for (espp = likely_esp_ports; *espp != 0; espp++)
 			if (espattach(isdp, com, *espp)) {
 				com->tx_fifo_size = 1024;
@@ -1369,6 +1695,17 @@ sioattach(isdp)
 		break;
 	}
 	
+#ifdef PC98
+	if (com->pc98_if_type == COM_IF_RSB3000) {
+	    /* Set RSB-2000/3000 Extended Buffer mode. */
+	    u_char lcr;
+	    lcr = inb(iobase + (com_cfcr << port_shift));
+	    outb(iobase + (com_cfcr << port_shift), lcr | CFCR_DLAB);
+	    outb(iobase + (com_emr << port_shift), EMR_EXBUFF | EMR_EFMODE);
+	    outb(iobase + (com_cfcr << port_shift), lcr);
+	}
+#endif
+
 #ifdef COM_ESP
 	if (com->esp) {
 		/*
@@ -1392,9 +1729,19 @@ sioattach(isdp)
 		outb(com->esp_port + ESP_CMD2, LOBYTE(768));
 		outb(com->esp_port + ESP_CMD2, HIBYTE(512));
 		outb(com->esp_port + ESP_CMD2, LOBYTE(512));
+#ifdef PC98
+                /* Set UART clock prescaler. */
+                outb(com->esp_port + ESP_CMD1, ESP_SETCLOCK);
+                outb(com->esp_port + ESP_CMD2, 2);	/* 4 times */
+#endif
 	}
 #endif /* COM_ESP */
+#ifdef PC98
+	printf("%s", if_16550a_type[com->pc98_if_type & 0x0f].name);
+	outb(iobase + (com_fifo << port_shift), 0);
+#else
 	outb(iobase + com_fifo, 0);
+#endif
 determined_type: ;
 
 #ifdef COM_MULTIPORT
@@ -1406,7 +1753,7 @@ determined_type: ;
 		printf(")");
 		com->no_irq = find_isadev(isa_devtab_tty, &siodriver,
 					  COM_MPMASTER(isdp))->id_irq == 0;
-	 }
+	}
 #endif /* COM_MULTIPORT */
 #ifdef PC98
 	}
@@ -1465,6 +1812,9 @@ sioopen(dev, flag, mode, p)
 	int		s;
 	struct tty	*tp;
 	int		unit;
+#ifdef PC98
+	int		port_shift = 0;
+#endif
 
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
@@ -1480,6 +1830,11 @@ sioopen(dev, flag, mode, p)
 	tp = com->tp = &sio_tty[unit];
 #endif
 	s = spltty();
+
+#ifdef PC98
+	if (!IS_8251(com->pc98_if_type))
+	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
+#endif
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
 	 * up any changes of the device state.
@@ -1533,11 +1888,15 @@ open_top:
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
+#ifndef PC98
 		tp->t_ififosize = 2 * RS_IBUFSIZE;
+#else
+		tp->t_ififosize = 2 * com->CE_INPUT_OFFSET;
+#endif
 		tp->t_ispeedwat = (speed_t)-1;
 		tp->t_ospeedwat = (speed_t)-1;
 #ifdef PC98
-		if(!IS_8251(com->pc98_if_type))
+		if (!IS_8251(com->pc98_if_type))
 #endif
 		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
 		com->poll = com->no_irq;
@@ -1548,7 +1907,7 @@ open_top:
 		if (error != 0)
 			goto out;
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type)){
+		if (IS_8251(com->pc98_if_type)) {
 			com_tiocm_bis(com, TIOCM_DTR|TIOCM_RTS);
 			pc98_msrint_start(dev);
 		}
@@ -1570,9 +1929,17 @@ open_top:
 			 * input.
 			 */
 			while (TRUE) {
+#ifdef PC98
+ 				outb(iobase + (com_fifo << port_shift),
+ 				     FIFO_RCV_RST | FIFO_XMT_RST
+ 				     | com->fifo_image);
+				if (com->pc98_if_type == COM_IF_RSA98III)
+				  outb(com->rsabase + rsa_frr , 0x00);
+#else
 				outb(iobase + com_fifo,
 				     FIFO_RCV_RST | FIFO_XMT_RST
 				     | com->fifo_image);
+#endif
 				/*
 				 * XXX the delays are for superstitious
 				 * historical reasons.  It must be less than
@@ -1585,9 +1952,19 @@ open_top:
 				 * for about 85 usec instead of 100.
 				 */
 				DELAY(50);
+#ifndef PC98
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
+#else
+				if (com->pc98_if_type == COM_IF_RSA98III
+				    ? !(inb(com->rsabase + rsa_srr) & 0x08)
+				    : !(inb(com->line_status_port) & LSR_RXRDY))
+#endif
 					break;
+#ifdef PC98
+ 				outb(iobase + (com_fifo << port_shift), 0);
+#else
 				outb(iobase + com_fifo, 0);
+#endif
 				DELAY(50);
 				(void) inb(com->data_port);
 			}
@@ -1595,11 +1972,10 @@ open_top:
 
 		disable_intr();
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type)){
-			com_tiocm_bis(com, TIOCM_LE);
-			com->pc98_prev_modem_status =
-				pc98_get_modem_status(com);
-			com_int_Rx_enable(com);
+		if (IS_8251(com->pc98_if_type)) {
+		    com_tiocm_bis(com, TIOCM_LE);
+		    com->pc98_prev_modem_status = pc98_get_modem_status(com);
+		    com_int_Rx_enable(com);
 		} else {
 #endif
 		(void) inb(com->line_status_port);
@@ -1613,6 +1989,12 @@ open_top:
 			outb(com->intr_ctl_port, IER_ERXRDY | IER_ETXRDY
 						| IER_ERLS | IER_EMSC);
 		}
+#ifdef PC98
+		if (com->pc98_if_type == COM_IF_RSA98III) {
+			outb(com->rsabase + rsa_ier, 0x1d);
+			outb(com->intr_ctl_port, IER_ERLS | IER_EMSC);
+		}
+#endif
 #ifdef PC98
 		}
 #endif
@@ -1715,6 +2097,9 @@ comhardclose(com)
 	int		s;
 	struct tty	*tp;
 	int		unit;
+#ifdef PC98
+	int		port_shift = 0;
+#endif
 
 	unit = com->unit;
 	iobase = com->iobase;
@@ -1724,22 +2109,32 @@ comhardclose(com)
 	com->do_timestamp = FALSE;
 	com->do_dcd_timestamp = FALSE;
 #ifdef PC98
-	if(IS_8251(com->pc98_if_type))
-		com_send_break_off(com);
-	else
-#endif
+	if (IS_8251(com->pc98_if_type))
+	    com_send_break_off(com);
+	else {
+	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
+	    outb(iobase + (com_cfcr << port_shift),
+		 com->cfcr_image &= ~CFCR_SBREAK);
+	}
+#else
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+#endif
 	{
 #ifdef PC98
 		int tmp;
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			com_int_TxRx_disable(com);
 		else
-#endif
+			outb(iobase + (com_ier << port_shift), 0);
+		if (com->pc98_if_type == COM_IF_RSA98III) {
+			outb(com->rsabase + rsa_ier, 0x00);
+		}
+#else
 		outb(iobase + com_ier, 0);
+#endif
 		tp = com->tp;
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			tmp = pc98_get_modem_status(com) & TIOCM_CAR;
 		else
 			tmp = com->prev_modem_status & MSR_DCD;
@@ -1761,8 +2156,8 @@ comhardclose(com)
 		       && !(com->it_in.c_cflag & CLOCAL)
 		    || !(tp->t_state & TS_ISOPEN)) {
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type))
-				com_tiocm_bic(com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE);
+			if (IS_8251(com->pc98_if_type))
+			    com_tiocm_bic(com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE);
 			else
 #endif
 			(void)commctl(com, TIOCM_DTR, DMBIC);
@@ -1773,7 +2168,7 @@ comhardclose(com)
 		}
 #ifdef PC98
 		else {
-			if(IS_8251(com->pc98_if_type))
+			if (IS_8251(com->pc98_if_type))
 				com_tiocm_bic(com, TIOCM_LE );
 		}
 #endif
@@ -1784,7 +2179,11 @@ comhardclose(com)
 		 * reboots.  Some BIOSes fail to detect 16550s when the
 		 * fifos are enabled.
 		 */
+#ifdef PC98
+		outb(iobase + (com_fifo << port_shift), 0);
+#else
 		outb(iobase + com_fifo, 0);
+#endif
 	}
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
@@ -1901,6 +2300,9 @@ siointr(unit)
 #else /* COM_MULTIPORT */
 	struct com_s    *com;
 	bool_t		possibly_more_intrs;
+#ifdef PC98
+	u_char		rsa_buf_status;
+#endif
 
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
@@ -1925,6 +2327,20 @@ siointr(unit)
 				siointr1(com);
 			} else
 #endif /* PC98 */
+#ifdef PC98
+			if (com != NULL 
+			    && !com->gone
+			    && com->pc98_if_type == COM_IF_RSA98III) {
+			  rsa_buf_status = inb(com->rsabase + rsa_srr) & 0xc9;
+			  if ((rsa_buf_status & 0xc8)
+			      || !(rsa_buf_status & 0x01)) {
+			    siointr1(com);
+			    if(rsa_buf_status
+			       != (inb(com->rsabase + rsa_srr) & 0xc9))
+			      possibly_more_intrs = TRUE;
+			  }
+			} else
+#endif
 			if (com != NULL 
 			    && !com->gone
 			    && (inb(com->int_id_port) & IIR_IMASK)
@@ -1952,7 +2368,9 @@ siointr1(com)
 
 #ifdef PC98
 	u_char	tmp=0;
-recv_data=0;
+	u_char	rsa_buf_status = 0;
+	int	rsa_tx_fifo_size=0;
+	recv_data=0;
 #endif /* PC98 */
 
 	int_ctl = inb(com->intr_ctl_port);
@@ -1975,19 +2393,38 @@ more_intr:
 		} else
 #endif /* PC98 */
 		line_status = inb(com->line_status_port);
+#ifdef PC98
+		if (com->pc98_if_type == COM_IF_RSA98III)
+			rsa_buf_status = inb(com->rsabase + rsa_srr);
+#endif /* PC98 */
 
 		/* input event? (check first to help avoid overruns) */
+#ifndef PC98
 		while (line_status & LSR_RCV_MASK) {
+#else
+		while ((line_status & LSR_RCV_MASK)
+		       || (com->pc98_if_type == COM_IF_RSA98III
+			   && (rsa_buf_status & 0x08))) {
+#endif /* PC98 */
 			/* break/unnattached error bits or real input? */
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type)){
+			if (IS_8251(com->pc98_if_type)) {
 				recv_data = inb(com->data_port);
-				if(tmp & 0x78){
+				if (tmp & 0x78) {
 					pc98_i8251_or_cmd(com,CMD8251_ER);
 					recv_data = 0;
 				}
 			} else {
 #endif /* PC98 */
+#ifdef PC98
+			if (com->pc98_if_type == COM_IF_RSA98III) {
+			  if (!(rsa_buf_status & 0x08))
+			    recv_data = 0;
+			  else {
+			    recv_data = inb(com->data_port);
+			  }
+			} else
+#endif
 			if (!(line_status & LSR_RXRDY))
 				recv_data = 0;
 			else
@@ -2044,12 +2481,16 @@ if (com->iptr - com->ibuf == 8)
 	setsofttty();
 #endif
 				ioptr[0] = recv_data;
+#ifdef PC98
+				ioptr[com->CE_INPUT_OFFSET] = line_status;
+#else
 				ioptr[CE_INPUT_OFFSET] = line_status;
+#endif
 				com->iptr = ++ioptr;
 				if (ioptr == com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
 #ifdef PC98
-					if(IS_8251(com->pc98_if_type))
+					if (IS_8251(com->pc98_if_type))
 						com_tiocm_bic(com, TIOCM_RTS);
 					else
 #endif
@@ -2064,16 +2505,20 @@ cont:
 			 * jump from the top of the loop to here
 			 */
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type))
+			if (IS_8251(com->pc98_if_type))
 				goto status_read;
 			else
 #endif
 			line_status = inb(com->line_status_port) & 0x7F;
+#ifdef PC98
+			if (com->pc98_if_type == COM_IF_RSA98III)
+				rsa_buf_status = inb(com->rsabase + rsa_srr);
+#endif /* PC98 */
 		}
 
 		/* modem status change? (always check before doing output) */
 #ifdef PC98
-		if(!IS_8251(com->pc98_if_type)){
+		if (!IS_8251(com->pc98_if_type)) {
 #endif
 		modem_status = inb(com->modem_status_port);
 		if (modem_status != com->last_modem_status) {
@@ -2108,13 +2553,30 @@ cont:
 #endif
 
 		/* output queued and everything ready? */
+#ifndef PC98
 		if (line_status & LSR_TXRDY
 		    && com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
+#else
+		if (((com->pc98_if_type == COM_IF_RSA98III)
+		     ? (rsa_buf_status & 0x02)
+		     : (line_status & LSR_TXRDY))
+		    && com->state >= (CS_BUSY | CS_TTGO | CS_ODEVREADY)) {
+#endif
 			ioptr = com->obufq.l_head;
 			if (com->tx_fifo_size > 1) {
 				u_int	ocount;
 
 				ocount = com->obufq.l_tail - ioptr;
+#ifdef PC98
+				if (com->pc98_if_type == COM_IF_RSA98III) {
+				  rsa_buf_status = inb(com->rsabase + rsa_srr);
+				  rsa_tx_fifo_size = 1024;
+				  if (!(rsa_buf_status & 0x01))
+				    rsa_tx_fifo_size = 2048;
+				  if (ocount > rsa_tx_fifo_size)
+				    ocount = rsa_tx_fifo_size;
+				} else
+#endif
 				if (ocount > com->tx_fifo_size)
 					ocount = com->tx_fifo_size;
 				com->bytes_out += ocount;
@@ -2126,8 +2588,8 @@ cont:
 				++com->bytes_out;
 			}
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type))
-				if ( !(pc98_check_i8251_interrupt(com) & IEN_TxFLAG) )
+			if (IS_8251(com->pc98_if_type))
+			    if (!(pc98_check_i8251_interrupt(com) & IEN_TxFLAG))
 					com_int_Tx_enable(com);
 #endif
 			com->obufq.l_head = ioptr;
@@ -2151,9 +2613,9 @@ cont:
 					}
 					com->state &= ~CS_BUSY;
 #if defined(PC98)
-					if(IS_8251(com->pc98_if_type))
-						if ( pc98_check_i8251_interrupt(com) & IEN_TxFLAG )
-							com_int_Tx_disable(com);
+					if (IS_8251(com->pc98_if_type))
+					    if ( pc98_check_i8251_interrupt(com) & IEN_TxFLAG )
+						com_int_Tx_disable(com);
 #endif
 				}
 				if (!(com->state & CS_ODONE)) {
@@ -2163,24 +2625,29 @@ cont:
 				}
 			}
 			if ( COM_IIR_TXRDYBUG(com) && (int_ctl != int_ctl_new)) {
+				if (com->pc98_if_type == COM_IF_RSA98III) {
+				  int_ctl_new &= ~(IER_ETXRDY | IER_ERXRDY);
+				  outb(com->intr_ctl_port, int_ctl_new);
+				  outb(com->rsabase + rsa_ier, 0x1d);
+				} else
 				outb(com->intr_ctl_port, int_ctl_new);
 			}
 		}
 #ifdef PC98
 		else if (line_status & LSR_TXRDY) {
-			if(IS_8251(com->pc98_if_type))
-				if ( pc98_check_i8251_interrupt(com) & IEN_TxFLAG )
-					com_int_Tx_disable(com);
+		    if (IS_8251(com->pc98_if_type))
+			if ( pc98_check_i8251_interrupt(com) & IEN_TxFLAG )
+			    com_int_Tx_disable(com);
 		}
-		if(IS_8251(com->pc98_if_type))
-			if ((tmp = inb(com->sts_port)) & STS8251_RxRDY)
-				goto more_intr;
+		if (IS_8251(com->pc98_if_type))
+		    if ((tmp = inb(com->sts_port)) & STS8251_RxRDY)
+			goto more_intr;
 #endif
 
 		/* finished? */
 #ifndef COM_MULTIPORT
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			return;
 #endif
 		if ((inb(com->int_id_port) & IIR_IMASK) == IIR_NOPEND)
@@ -2289,7 +2756,7 @@ sioioctl(dev, cmd, data, flag, p)
 		return (error);
 	}
 #ifdef PC98
-	if(IS_8251(com->pc98_if_type)){
+	if (IS_8251(com->pc98_if_type)) {
 	    switch (cmd) {
 	    case TIOCSBRK:
 		com_send_break_on( com );
@@ -2344,13 +2811,25 @@ sioioctl(dev, cmd, data, flag, p)
 		return (ENOTTY);
 	    }
 	} else {
+	    int port_shift;
+	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
 #endif
 	switch (cmd) {
 	case TIOCSBRK:
+#ifdef PC98
+		outb(iobase + (com_cfcr << port_shift),
+		     com->cfcr_image |= CFCR_SBREAK);
+#else
 		outb(iobase + com_cfcr, com->cfcr_image |= CFCR_SBREAK);
+#endif
 		break;
 	case TIOCCBRK:
+#ifdef PC98
+		outb(iobase + (com_cfcr << port_shift),
+		     com->cfcr_image &= ~CFCR_SBREAK);
+#else
 		outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+#endif
 		break;
 	case TIOCSDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIS);
@@ -2457,8 +2936,13 @@ repeat:
 				ibuf = com->ibuf2;
 			else
 				ibuf = com->ibuf1;
+#ifndef PC98
 			com->ibufend = ibuf + RS_IBUFSIZE;
 			com->ihighwater = ibuf + RS_IHIGHWATER;
+#else
+			com->ibufend = ibuf + com->CE_INPUT_OFFSET;
+			com->ihighwater = ibuf + (3 * com->CE_INPUT_OFFSET / 4);
+#endif
 			com->iptr = ibuf;
 
 			/*
@@ -2467,7 +2951,7 @@ repeat:
 			 * there is room in the high-level buffer.
 			 */
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type))
+			if (IS_8251(com->pc98_if_type))
 				tmp = com_tiocm_get(com) & TIOCM_RTS;
 			else
 				tmp = com->mcr_image & MCR_RTS;
@@ -2480,7 +2964,7 @@ repeat:
 #endif
 			    && !(tp->t_state & TS_TBLOCK))
 #ifdef PC98
-				if(IS_8251(com->pc98_if_type))
+				if (IS_8251(com->pc98_if_type))
 					com_tiocm_bis(com, TIOCM_RTS);
 				else
 #endif
@@ -2494,7 +2978,7 @@ repeat:
 			u_char	delta_modem_status;
 
 #ifdef PC98
-			if(!IS_8251(com->pc98_if_type)){
+			if (!IS_8251(com->pc98_if_type)) {
 #endif
 			disable_intr();
 			delta_modem_status = com->last_modem_status
@@ -2556,7 +3040,11 @@ repeat:
 				u_char	line_status;
 				int	recv_data;
 
+#ifndef PC98
 				line_status = (u_char) buf[CE_INPUT_OFFSET];
+#else
+				line_status = (u_char) buf[com->CE_INPUT_OFFSET];
+#endif
 				recv_data = (u_char) *buf++;
 				if (line_status
 				    & (LSR_BI | LSR_FE | LSR_OE | LSR_PE)) {
@@ -2596,6 +3084,8 @@ comparam(tp, t)
 #ifdef PC98
 	Port_t		tmp_port;
 	int		tmp_flg;
+	int		port_shift = 0;
+	u_char		param = 0;
 #endif
 
 #ifdef PC98
@@ -2603,16 +3093,27 @@ comparam(tp, t)
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 	iobase = com->iobase;
-	if(IS_8251(com->pc98_if_type)) {
-		divisor = pc98_ttspeedtab(com, t->c_ospeed);
-	} else
-#endif
+	if (IS_8251(com->pc98_if_type)) {
+	    divisor = pc98_ttspeedtab(com, t->c_ospeed);
+	} else {
+	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
+
+	    /* do historical conversions */
+	    if (t->c_ispeed == 0)
+		t->c_ispeed = t->c_ospeed;
+
+	    /* check requested parameters */
+	    divisor = ttspeedtab(t->c_ospeed,
+			if_16550a_type[com->pc98_if_type & 0x0f].speedtab);
+	}
+#else
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
 		t->c_ispeed = t->c_ospeed;
 
 	/* check requested parameters */
 	divisor = ttspeedtab(t->c_ospeed, comspeedtab);
+#endif
 	if (divisor < 0 || divisor > 0 && t->c_ispeed != t->c_ospeed)
 		return (EINVAL);
 
@@ -2624,8 +3125,8 @@ comparam(tp, t)
 #endif
 	s = spltty();
 #ifdef PC98
-	if(IS_8251(com->pc98_if_type)){
-		if(divisor == 0)
+	if (IS_8251(com->pc98_if_type)) {
+		if (divisor == 0)
 			com_tiocm_bic( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
 		else
 			com_tiocm_bis( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
@@ -2640,7 +3141,7 @@ comparam(tp, t)
 #endif
 	cflag = t->c_cflag;
 #ifdef PC98
-	if(!IS_8251(com->pc98_if_type)){
+	if (!IS_8251(com->pc98_if_type)) {
 #endif
 	switch (cflag & CSIZE) {
 	case CS5:
@@ -2684,7 +3185,11 @@ comparam(tp, t)
 		if (com->esp)
 			com->fifo_image |= FIFO_DMA_MODE;
 #endif
+#ifdef PC98
+		outb(iobase + (com_fifo << port_shift), com->fifo_image);
+#else
 		outb(iobase + com_fifo, com->fifo_image);
+#endif
 	}
 #ifdef PC98
 	}
@@ -2693,10 +3198,16 @@ comparam(tp, t)
   	disable_intr();		/* very important while com_data is hidden */
 
 #ifdef PC98
-	if(!IS_8251(com->pc98_if_type)){
+	if (IS_8251(com->pc98_if_type))
+	    com_cflag_and_speed_set(com, cflag, t->c_ospeed);
+	else {
 #endif
 	if (divisor != 0) {
+#ifdef PC98
+		outb(iobase + (com_cfcr << port_shift), cfcr | CFCR_DLAB);
+#else
 		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
+#endif
 		/*
 		 * Only set the divisor registers if they would change,
 		 * since on some 16550 incompatibles (UMC8669F), setting
@@ -2704,20 +3215,29 @@ comparam(tp, t)
 		 * data stops arriving.
 		 */
 		dlbl = divisor & 0xFF;
+#ifdef PC98
+		if (inb(iobase + (com_dlbl << port_shift)) != dlbl)
+			outb(iobase + (com_dlbl << port_shift), dlbl);
+		dlbh = (u_int) divisor >> 8;
+		if (inb(iobase + (com_dlbh << port_shift)) != dlbh)
+			outb(iobase + (com_dlbh << port_shift), dlbh);
+#else
 		if (inb(iobase + com_dlbl) != dlbl)
 			outb(iobase + com_dlbl, dlbl);
 		dlbh = (u_int) divisor >> 8;
 		if (inb(iobase + com_dlbh) != dlbh)
 			outb(iobase + com_dlbh, dlbh);
+#endif
 	}
 
 
-	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
-
 #ifdef PC98
-	} else
-		com_cflag_and_speed_set(com, cflag, t->c_ospeed);
+	}
+	outb(iobase + (com_cfcr << port_shift), com->cfcr_image = cfcr);
+#else
+	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
 #endif
+
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
 
@@ -2740,7 +3260,7 @@ comparam(tp, t)
 		 * on here, since comstart() won't do it later.
 		 */
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			com_tiocm_bis(com, TIOCM_RTS);
 		else
 #endif
@@ -2759,13 +3279,25 @@ comparam(tp, t)
 	 */
 	com->state |= CS_ODEVREADY;
 	com->state &= ~CS_CTS_OFLOW;
+#ifdef PC98
+	if (com->pc98_if_type == COM_IF_RSA98III) {
+		param = inb(com->rsabase + rsa_msr);
+		outb(com->rsabase + rsa_msr, param & 0x14);
+	}
+#endif
 	if (cflag & CCTS_OFLOW) {
 		com->state |= CS_CTS_OFLOW;
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type)){
+		if (IS_8251(com->pc98_if_type)) {
 			if (!(pc98_get_modem_status(com) & TIOCM_CTS))
 				com->state &= ~CS_ODEVREADY;
 		} else {
+#endif
+#ifdef PC98
+		if (com->pc98_if_type == COM_IF_RSA98III) {
+			/* Set automatic flow control mode */
+			outb(com->rsabase + rsa_msr, param | 0x08);
+		} else
 #endif
 		if (!(com->last_modem_status & MSR_CTS))
 			com->state &= ~CS_ODEVREADY;
@@ -2784,7 +3316,11 @@ comparam(tp, t)
 	}
 
 
+#ifdef PC98
+	outb(iobase + (com_cfcr << port_shift), com->cfcr_image);
+#else
 	outb(iobase + com_cfcr, com->cfcr_image);
+#endif
 
 
 	/* XXX shouldn't call functions while intrs are disabled. */
@@ -2824,7 +3360,7 @@ comstart(tp)
 		com->state |= CS_TTGO;
 	if (tp->t_state & TS_TBLOCK) {
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			tmp = com_tiocm_get(com) & TIOCM_RTS;
 		else
 			tmp = com->mcr_image & MCR_RTS;
@@ -2833,14 +3369,14 @@ comstart(tp)
 		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
 #endif
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type))
+			if (IS_8251(com->pc98_if_type))
 				com_tiocm_bic(com, TIOCM_RTS);
 			else
 #endif
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 	} else {
 #ifdef PC98
-		if(IS_8251(com->pc98_if_type))
+		if (IS_8251(com->pc98_if_type))
 			tmp = com_tiocm_get(com) & TIOCM_RTS;
 		else
 			tmp = com->mcr_image & MCR_RTS;
@@ -2851,7 +3387,7 @@ comstart(tp)
 		    && com->state & CS_RTS_IFLOW)
 #endif
 #ifdef PC98
-			if(IS_8251(com->pc98_if_type))
+			if (IS_8251(com->pc98_if_type))
 				com_tiocm_bis(com, TIOCM_RTS);
 			else
 #endif
@@ -2874,7 +3410,11 @@ comstart(tp)
 		if (!com->obufs[0].l_queued) {
 			com->obufs[0].l_tail
 			    = com->obuf1 + q_to_b(&tp->t_outq, com->obuf1,
+#ifndef PC98
 						  sizeof com->obuf1);
+#else
+						  com->CE_INPUT_OFFSET);
+#endif
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
 			disable_intr();
@@ -2894,7 +3434,11 @@ comstart(tp)
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
 			com->obufs[1].l_tail
 			    = com->obuf2 + q_to_b(&tp->t_outq, com->obuf2,
+#ifndef PC98
 						  sizeof com->obuf2);
+#else
+						  com->CE_INPUT_OFFSET);
+#endif
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
 			disable_intr();
@@ -2931,10 +3475,18 @@ siostop(tp, rw)
 	int		rw;
 {
 	struct com_s	*com;
+#ifdef PC98
+	int		port_shift = 0;
+	int		rsa98_tmp  = 0;
+#endif
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	if (com->gone)
 		return;
+#ifdef PC98
+	if (IS_8251(com->pc98_if_type))
+	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
+#endif
 	disable_intr();
 	if (rw & FWRITE) {
 		if (com->hasfifo)
@@ -2942,8 +3494,17 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
+#ifdef PC98
+			outb(com->iobase + (com_fifo << port_shift),
+			     FIFO_XMT_RST | com->fifo_image);
+			if (com->pc98_if_type == COM_IF_RSA98III)
+			    for(rsa98_tmp = 0; rsa98_tmp < 2048; rsa98_tmp++)
+				outb(com->iobase + (com_fifo << port_shift),
+				     FIFO_XMT_RST | com->fifo_image);
+#else
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
+#endif
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->state & CS_ODONE)
@@ -2957,8 +3518,17 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
+#ifdef PC98
+			if (com->pc98_if_type == COM_IF_RSA98III) {
+			    for(rsa98_tmp = 0; rsa98_tmp < 2048; rsa98_tmp++)
+				inb(com->data_port);
+			}
+			outb(com->iobase + (com_fifo << port_shift),
+			     FIFO_RCV_RST | com->fifo_image);
+#else
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
+#endif
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
@@ -3551,6 +4121,7 @@ siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 		printf("sio%d: probe failed\n", dev->id_unit);
 }
 #endif
+
 #ifdef PC98
 /*
  *  pc98 local function
@@ -3874,11 +4445,9 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 		cfcr |= MOD8251_CLKX16;
 
 	if (epson_machine_id != 0x20) {	/* XXX */
-	{
 		int	tmp;
 		while (!((tmp = inb(com->sts_port)) & STS8251_TxEMP))
 			;
-	}
 	}
 	/* set baud rate from ospeed */
 	pc98_set_baud_rate( com, count );
@@ -3892,206 +4461,214 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 static int
 pc98_ttspeedtab(struct com_s *com, int speed)
 {
-	int	effect_sp, count=-1, mod;
+	int	if_type, effect_sp, count = -1, mod;
 
-	switch ( com->pc98_if_type ) {
-	    case COM_IF_INTERNAL:
-		/* for *1CLK asynchronous! mode		, TEFUTEFU */
-		effect_sp = ttspeedtab( speed, pc98speedtab );
-		if ( effect_sp < 0 )
-			effect_sp = ttspeedtab( (speed-1), pc98speedtab );
-		if ( effect_sp <= 0 )
-			return effect_sp;
-		mod = (sysclock == 5 ? 2457600 : 1996800);
-		if ( effect_sp == speed )
-			mod /= 16;
-		count = mod / effect_sp;
-		if ( count > 65535 )
-			return(-1);
-		if ( effect_sp >= 2400 )
-			if ( !(sysclock != 5 && 
-				(effect_sp == 19200 || effect_sp == 38400)) )
-				if ( ( mod % effect_sp ) != 0 )
-					return(-1);
-		if ( effect_sp != speed )
-			count |= 0x10000;
-		break;
-#ifdef COM_IF_PC9861K
-	    case COM_IF_PC9861K:
-		effect_sp = speed;
-		count = 1;
-		break;
+	if_type = com->pc98_if_type & 0x0f;
+
+	switch (com->pc98_if_type) {
+	case COM_IF_INTERNAL:
+	    if (PC98SIO_baud_rate_port(if_type) != -1) {
+		count = ttspeedtab(speed, if_8251_type[if_type].speedtab);
+		if (count > 0) {
+		    count |= COM1_EXT_CLOCK;
+		    break;
+		}
+	    }
+
+	    /* for *1CLK asynchronous! mode, TEFUTEFU */
+	    mod = (sysclock == 5) ? 2457600 : 1996800;
+	    effect_sp = ttspeedtab( speed, pc98speedtab );
+	    if ( effect_sp < 0 )	/* XXX */
+		effect_sp = ttspeedtab( (speed - 1), pc98speedtab );
+	    if ( effect_sp <= 0 )
+		return effect_sp;
+	    if ( effect_sp == speed )
+		mod /= 16;
+	    if ( mod % effect_sp )
+		return(-1);
+	    count = mod / effect_sp;
+	    if ( count > 65535 )
+		return(-1);
+	    if ( effect_sp != speed )
+		count |= 0x10000;
+	    break;
+	case COM_IF_PC9861K_1:
+	case COM_IF_PC9861K_2:
+	    count = 1;
+	    break;
+	case COM_IF_IND_SS_1:
+	case COM_IF_IND_SS_2:
+	case COM_IF_PIO9032B_1:
+	case COM_IF_PIO9032B_2:
+	    if ( speed == 0 ) return 0;
+	    count = ttspeedtab( speed, if_8251_type[if_type].speedtab );
+	    break;
+	case COM_IF_B98_01_1:
+	case COM_IF_B98_01_2:
+	    if ( speed == 0 ) return 0;
+	    count = ttspeedtab( speed, if_8251_type[if_type].speedtab );
+#ifdef B98_01_OLD
+	    if (count == 0 || count == 1) {
+		count += 4;
+		count |= 0x20000;  /* x1 mode for 76800 and 153600 */
+	    }
 #endif
-#ifdef COM_IF_PIO9032B
-	    case COM_IF_PIO9032B:
-		if ( speed == 0 ) return 0;
-		count = ttspeedtab( speed, comspeedtab_pio9032b );
-		if ( count < 0 ) return count;
-		effect_sp = speed;
-		break;
-#endif
-#ifdef COM_IF_B98_01
-	    case COM_IF_B98_01:
-		effect_sp=speed;
-		count = ttspeedtab( speed, comspeedtab_b98_01 );
-		if ( count <= 3 )
-			return -1;         /* invalid speed/count */
-		if ( count <= 5 )
-			count |= 0x10000;  /* x1 mode for 76800 and 153600 */
-		else
-			count -= 4;        /* x16 mode for slower */
-		break;
-#endif
+	    break;
 	}
+
 	return count;
 }
 
 static void
-pc98_set_baud_rate( struct com_s *com, int count)
+pc98_set_baud_rate( struct com_s *com, int count )
 {
-	int	s;
+	int	if_type, io, s;
 
-	switch ( com->pc98_if_type ) {
-	    case COM_IF_INTERNAL:
-		if ( count < 0 ) {
-			printf( "[ Illegal count : %d ]", count );
-			return;
-		} else if ( count == 0) 
-			return;
-		/* set i8253 */
-		s = splclock();
+	if_type = com->pc98_if_type & 0x0f;
+	io = com->iobase & 0xff00;
+
+	switch (com->pc98_if_type) {
+	case COM_IF_INTERNAL:
+	    if (PC98SIO_baud_rate_port(if_type) != -1) {
+		if (count & COM1_EXT_CLOCK) {
+		    outb((Port_t)PC98SIO_baud_rate_port(if_type), count & 0xff);
+		    break;
+		} else {
+		    outb((Port_t)PC98SIO_baud_rate_port(if_type), 0x09);
+		}
+	    }
+
+	    if ( count < 0 ) {
+		printf( "[ Illegal count : %d ]", count );
+		return;
+	    } else if ( count == 0 )
+		return;
+	    /* set i8253 */
+	    s = splclock();
+	    if (count != 3)
 		outb( 0x77, 0xb6 );
-		outb( 0x5f, 0);
-		outb( 0x75, count & 0xff );
-		outb( 0x5f, 0);
-		outb( 0x75, (count >> 8) & 0xff );
-		splx(s);
-		break;
-#if 0
-#ifdef COM_IF_PC9861K
-	    case COM_IF_PC9861K:
-		break;
-		/* ext. RS232C board: speed is determined by DIP switch */
-#endif
-#endif /* 0 */
-#ifdef COM_IF_PIO9032B
-	    case COM_IF_PIO9032B:
-		outb( com_addr[unit], count & 0x07 );
-		break;
-#endif
-#ifdef COM_IF_B98_01
-	    case COM_IF_B98_01:
-		outb( com->iobase,     count & 0x0f );
+	    else
+		outb( 0x77, 0xb4 );
+	    outb( 0x5f, 0);
+	    outb( 0x75, count & 0xff );
+	    outb( 0x5f, 0);
+	    outb( 0x75, (count >> 8) & 0xff );
+	    splx(s);
+	    break;
+	case COM_IF_IND_SS_1:
+	case COM_IF_IND_SS_2:
+	    outb(io | PC98SIO_intr_ctrl_port(if_type), 0);
+	    outb(io | PC98SIO_baud_rate_port(if_type), 0);
+	    outb(io | PC98SIO_baud_rate_port(if_type), 0xc0);
+	    outb(io | PC98SIO_baud_rate_port(if_type), (count >> 8) | 0x80);
+	    outb(io | PC98SIO_baud_rate_port(if_type), count & 0xff);
+	    break;
+	case COM_IF_PIO9032B_1:
+	case COM_IF_PIO9032B_2:
+	    outb(io | PC98SIO_baud_rate_port(if_type), count);
+	    break;
+	case COM_IF_B98_01_1:
+	case COM_IF_B98_01_2:
+	    outb(io | PC98SIO_baud_rate_port(if_type), count & 0x0f);
 #ifdef B98_01_OLD
-		/* some old board should be controlled in different way,
-		   but this hasn't been tested yet.*/
-		outb( com->iobase+2, ( count & 0x10000 ) ? 0xf0 : 0xf2 );
+	    /*
+	     * Some old B98_01 board should be controlled
+	     * in different way, but this hasn't been tested yet.
+	     */
+	    outb(io | PC98SIO_func_port(if_type),
+		 (count & 0x20000) ? 0xf0 : 0xf2);
 #endif
-		break;
-#endif
+	    break;
 	}
 }
 static int
-pc98_check_if_type( int iobase, struct siodev *iod)
+pc98_check_if_type(struct isa_device *dev, struct siodev *iod)
 {
-	int	irr = 0, tmp = 0;
-	int	ret = 0;
+	int	irr, io, if_type, tmp;
 	static  short	irq_tab[2][8] = {
 		{  3,  5,  6,  9, 10, 12, 13, -1},
 		{  3, 10, 12, 13,  5,  6,  9, -1}
 	};
+
+	iod->if_type = if_type = (dev->id_flags >> 24) & 0xff;
+	if ((if_type < 0 || if_type > COM_IF_END1) &&
+	    (if_type < 0x10 || if_type > COM_IF_END2))
+	    return(-1);
+	if_type &= 0x0f;
 	iod->irq = 0;
-	switch ( iobase & 0xff ) {
-		case IO_COM1:
-			iod->if_type = COM_IF_INTERNAL;
-			ret = 0; iod->irq = 4; break;
-#ifdef COM_IF_PC9861K
-		case IO_COM2:
-			iod->if_type = COM_IF_PC9861K;
-			ret = 1; irr = 0; tmp = 3; break;
-		case IO_COM3:
-			iod->if_type = COM_IF_PC9861K;
-			ret = 2; irr = 1; tmp = 3; break;
-#endif
-#ifdef COM_IF_PIO9032B
-	    case IO_COM_PIO9032B_2:
-			iod->if_type = COM_IF_PIO9032B;
-			ret = 1; irr = 0; tmp = 7; break;
-	    case IO_COM_PIO9032B_3:
-			iod->if_type = COM_IF_PIO9032B;
-			ret = 2; irr = 1; tmp = 7; break;
-#endif
-#ifdef COM_IF_B98_01
-	    case IO_COM_B98_01_2:
-			iod->if_type = COM_IF_B98_01;
-			ret = 1; irr = 0; tmp = 7;
-			outb(iobase + 2, 0xf2);
-			outb(iobase,     4);
-			break;
-	    case IO_COM_B98_01_3:
-			iod->if_type = COM_IF_B98_01;
-			ret = 2; irr = 1; tmp = 7;
-			outb(iobase + 2, 0xf2);
-			outb(iobase    , 4);
-			break;
-#endif
-	    default:
-			if((iobase & 0x0f0) == 0xd0){
-				iod->if_type = MC16550;
-				return 0;
-			}
-			return -1;
-	}
+	io = dev->id_iobase & 0xff00;
 
-	iod->cmd  = ( iobase & 0xff00 )|PC98SIO_cmd_port(ret);
-	iod->sts  = ( iobase & 0xff00 )|PC98SIO_sts_port(ret);
-	iod->mod  = ( iobase & 0xff00 )|PC98SIO_in_modem_port(ret);
-	iod->ctrl = ( iobase & 0xff00 )|PC98SIO_intr_ctrl_port(ret);
+	if (IS_8251(iod->if_type)) {
+	    if (PC98SIO_func_port(if_type) != -1) {
+		outb(io | PC98SIO_func_port(if_type), 0xf2);
+		tmp = ttspeedtab(9600, if_8251_type[if_type].speedtab);
+		if (tmp != -1 && PC98SIO_baud_rate_port(if_type) != -1)
+		    outb(io | PC98SIO_baud_rate_port(if_type), tmp);
+	    }
 
-	if ( iod->irq == 0 ) {
-		tmp &= inb( iod->mod );
-		iod->irq = irq_tab[irr][tmp];
-		if ( iod->irq == -1 ) return -1;
+	    iod->cmd  = io | PC98SIO_cmd_port(if_type);
+	    iod->sts  = io | PC98SIO_sts_port(if_type);
+	    iod->mod  = io | PC98SIO_in_modem_port(if_type);
+	    iod->ctrl = io | PC98SIO_intr_ctrl_port(if_type);
+
+	    if (iod->if_type == COM_IF_INTERNAL) {
+		iod->irq = 4;
+
+		/* XXX check new internal port. */
+		outb(0x138, 0);
+		DELAY(10);
+		for (tmp = 0; tmp < 100; tmp++) {
+		    if ((inb(0x138) & 1) == 0) {
+			PC98SIO_baud_rate_port(if_type) = 0x13a;
+			if_8251_type[if_type].name = " (internal fast)";
+			if_8251_type[if_type].speedtab = pc98fast_speedtab;
+			break;
+		    }
+		    DELAY(1);
+		}
+	    } else {
+		tmp = inb( iod->mod ) & if_8251_type[if_type].irr_mask;
+		if ((dev->id_iobase & 0xff) == IO_COM2)
+		    iod->irq = irq_tab[0][tmp];
+		else
+		    iod->irq = irq_tab[1][tmp];
+	    }
+	} else {
+	    irr = if_16550a_type[if_type].irr_read;
+#ifdef COM_MULTIPORT
+	    if (!COM_ISMULTIPORT(dev) || dev->id_unit == COM_MPMASTER(dev))
+#endif
+	    if (irr != -1) {
+		tmp = inb(io | irr);
+		if (dev->id_iobase & 0x01)	/* XXX depend on RSB-384 */
+		    iod->irq = irq_tab[1][tmp >> 3];
+		else
+		    iod->irq = irq_tab[0][tmp & 0x07];
+	    }
 	}
+	if ( iod->irq == -1 ) return -1;
+
 	return 0;
 }
 static int
-pc98_set_ioport( struct com_s *com, int io_base )
+pc98_set_ioport( struct com_s *com, int id_flags )
 {
-	int	a, io, type;
+	int	io, if_type;
 
-	switch ( io_base & 0xff ) {
-	    case IO_COM1: a = 0; io = 0; type = COM_IF_INTERNAL;
-					 pc98_check_sysclock(); break;
-#ifdef COM_IF_PC9861K
-	    case IO_COM2: a = 1; io = 0; type = COM_IF_PC9861K; break;
-	    case IO_COM3: a = 2; io = 0; type = COM_IF_PC9861K; break;
-#endif /* COM_IF_PC9861K */
-#ifdef COM_IF_PIO9032B
-			/* PIO9032B : I/O address is changeable */
-	    case IO_COM_PIO9032B_2:
-			a = 1; io = io_base & 0xff00;
-			type = COM_IF_PIO9032B; break;
-	    case IO_COM_PIO9032B_3:
-			a = 2; io = io_base & 0xff00;
-			type = COM_IF_PIO9032B; break;
-#endif /* COM_IF_PIO9032B */
-#ifdef COM_IF_B98_01
-	    case IO_COM_B98_01_2:
-			a = 1; io = 0; type = COM_IF_B98_01; break;
-	    case IO_COM_B98_01_3:
-			a = 2; io = 0; type = COM_IF_B98_01; break;
-#endif /* COM_IF_B98_01*/
-	    default:	/* i/o address not match */
-		return -1;
+	if_type = (id_flags >> 24) & 0xff;
+	if (IS_8251(if_type)) {
+	    pc98_check_sysclock();
+	    io = com->iobase & 0xff00;
+	    com->pc98_if_type	= if_type;
+	    if_type &= 0x0f;
+	    com->data_port	= io | PC98SIO_data_port(if_type);
+	    com->cmd_port	= io | PC98SIO_cmd_port(if_type);
+	    com->sts_port	= io | PC98SIO_sts_port(if_type);
+	    com->in_modem_port	= io | PC98SIO_in_modem_port(if_type);
+	    com->intr_ctrl_port	= io | PC98SIO_intr_ctrl_port(if_type);
+	    return 0;
 	}
 
-	com->pc98_if_type	= type;
-	com->data_port		= io | PC98SIO_data_port(a);
-	com->cmd_port		= io | PC98SIO_cmd_port(a);
-	com->sts_port		= io | PC98SIO_sts_port(a);
-	com->in_modem_port	= io | PC98SIO_in_modem_port(a);
-	com->intr_ctrl_port	= io | PC98SIO_intr_ctrl_port(a);
-	return 0;
+	return -1;
 }
 #endif /* PC98 defined */
