@@ -1,11 +1,11 @@
 #
-# $Id: Makefile,v 1.11 1998/05/28 12:52:03 peter Exp $
+# $Id: Makefile,v 1.12 1998/08/30 01:48:55 jb Exp $
 #
 
 LCRYPTBASE= 	libcrypt
 LSCRYPTBASE= 	libscrypt
 
-.if ${BINFORMAT} != elf
+.if ${OBJFORMAT} != elf
 LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 .else
@@ -34,7 +34,7 @@ afterinstall:
 	ln -s ${LSCRYPTSO} ${LCRYPTSO}; \
 	fi
 .endif
-.if !defined(NOPIC) && ${BINFORMAT} == elf
+.if !defined(NOPIC) && ${OBJFORMAT} == elf
 	@cd  ${DESTDIR}${LIBDIR}; \
 	if [ ! -e ${LCRYPTBASE}.so ]; then \
 	rm -f ${LCRYPTBASE}.so; \

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.106 1998/08/26 10:03:28 gpalmer Exp $
+#	$Id: Makefile,v 1.107 1998/08/26 12:41:11 gpalmer Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -37,7 +37,7 @@ SUBDIR+=telnet
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar brandelf dig dnsquery fstat gcore gprof gprof4 host \
 	ldd modstat mt nm ranlib sasc size strings strip systat truss vmstat
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 SUBDIR+=doscmd
 .endif
 .endif
