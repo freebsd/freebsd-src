@@ -151,6 +151,9 @@
     <para arch="sparc64">Support has been added for EBus-based
       devices.</para>
 
+    <para arch="i386,pc98,powerpc">Initial support has been added for
+      Firewire devices (see &man.firewire.4;).</para>
+
     <para arch="i386" role="historic">The &man.ichsmb.4; driver for the Intel 82801AA
       (ICH) SMBus controller and compatibles has been
       added. &merged;</para>
@@ -593,7 +596,7 @@
 
       <para arch="i386">Support for the AMD &Eacute;lan SC520 has been
 	added; this requires the <literal>CPU_ELAN</literal> option in
-	the kernel configuration file.</para>
+	the kernel configuration file. &merged;</para>
 
     </sect3>
 
@@ -1216,6 +1219,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         as SCSI devices via the CAM layer.  This feature requires
         <literal>device atapicam</literal> in the kernel
         configuration.</para>
+
+      <para>The &man.ata.4; driver now has support for the Sil 0680
+        and VIA 8233/8235 controllers. &merged;</para>
 
       <para role="historic">The &man.cd.4; driver now has support for write
 	operations.  This allows writing to DVD-RAM, PD and similar
@@ -2075,6 +2081,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>Support for &man.a.out.5; format executables in the compiler
+      toolchain has been largely removed.
+        <note>
+	  <para>This is a work in progress.  Eventually, &man.a.out.5;
+	    support will resurface in a series of ports/packages.</para>
+	</note>
+      </para>
 
     <para role="historic">If the first argument to &man.ancontrol.8; or
       &man.wicontrol.8; doesn't start with a <literal>-</literal>, it
@@ -3577,11 +3591,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been updated to 1.4.2. &merged;</para>
 
       <para><application>file</application> has been updated to
-	3.37.</para>
+	3.39.</para>
 
       <para><application>gcc</application> has been updated to
 	a pre-release snapshot of <application>gcc</application>
-	3.2.1, from 1 September 2002.
+	3.2.1, from 16 September 2002.
 	<warning>
 	  <para>The C++ ABI from <application>gcc</application>
 	    3.2.<replaceable>X</replaceable> is not compatible with
@@ -3615,7 +3629,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	limitations of its predecessor. &merged;</para>
 
       <para><application>Heimdal Kerberos</application> has been updated to
-	a pre-0.5 snapshot from 29 August 2002. &merged;</para>
+	a pre-0.5 snapshot from 16 September 2002.</para>
 
       <para role="historic">The version of <application>IPFilter</application>
 	provided with &os; now includes the &man.ipfs.8; program,
