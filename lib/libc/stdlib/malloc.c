@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.40 1998/09/19 20:55:36 alex Exp $
+ * $Id: malloc.c,v 1.41 1998/09/20 01:07:50 alex Exp $
  *
  */
 
@@ -45,6 +45,10 @@
 #if defined(__FreeBSD__)
 #   if defined(__i386__)
 #       define malloc_pageshift		12U
+#       define malloc_minsize		16U
+#   endif
+#   if defined(__alpha__)
+#       define malloc_pageshift		13U
 #       define malloc_minsize		16U
 #   endif
 #   if !defined(__NETBSD_SYSCALLS)
