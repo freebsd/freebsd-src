@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.54 1995/08/28 09:19:24 julian Exp $
+ * $Id: vm_pageout.c,v 1.55 1995/09/09 18:10:37 davidg Exp $
  */
 
 /*
@@ -932,7 +932,7 @@ vm_daemon()
 
 			size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
 			if (limit >= 0 && size >= limit) {
-				overage = (size - limit) / NBPG;
+				overage = (size - limit) >> PAGE_SHIFT;
 				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
 				    (vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
 			}
