@@ -39,11 +39,12 @@
 .Nd attach a serial line network interface
 .Sh SYNOPSIS
 .Nm sliplogin
-.Op Ar loginname
+.Op Ar loginname Op Ar device
 .Sh DESCRIPTION
 .Nm Sliplogin
-is used to turn the terminal line on standard input into
-a Serial Line IP
+is used to turn the terminal line on standard input (or
+.Ar device )
+into a Serial Line IP
 .Pq Tn SLIP
 link to a remote host.  To do this, the program
 searches the file
@@ -55,12 +56,52 @@ If a matching entry is found, the line is configured appropriately
 for slip (8-bit transparent i/o) and converted to
 .Tn SLIP
 line
-discipline.  Then a shell script is invoked to initialize the slip
+discipline.
+.Pp
+The additional SLIP configuration file (if even present) is
+.Pa /etc/sliphome/slip.slparms
+but, if particular hosts need different configuration, the file
+.Pa /etc/sliphome/slip.slparms. Ns Ar loginname
+will be parsed instead if it exists.
+.Ss Format of /etc/sliphome/slip.slparms*
+Comments (lines starting with a `#') and blank lines (or started with
+space) are ignored.
+This file contains from one to three numeric parameters separated with spaces,
+in order:
+.Ar keepalive ,
+.Ar outfill
+and
+.Ar slunit .
+.Bl -tag -width keepalive
+.It Ar keepalive
+Set SLIP "keep alive" timeout in seconds. If FRAME_END not received in this
+timeout,
+.Nm startslip
+close line and exit.
+Active "out fill" timeout expected from other
+side.
+Default value is no timeout (zero).
+.It Ar outfill
+Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
+will be sended during this timeout.
+Needed for "keep alive" timeout on other side.
+Default value is no timeout (zero).
+.It Ar slunit
+Set SLIP unit number directly. Use with caution, no check for two
+interfaces with same number made.
+Default is dynamic assignment.
+.El
+.Pp
+If last two or one parameters ommited, they not affect corresponding SLIP
+configuration.
+If any of first two parameters is equal to zero, it does not affect
+corresponding SLIP configuration.
+.Pp
+Then a shell script is invoked to initialize the slip
 interface with the appropriate local and remote
 .Tn IP
 address,
 netmask, etc.
-.Pp
 The usual initialization script is
 .Pa /etc/sliphome/slip.login
 but, if particular hosts need special initialization, the file
@@ -94,7 +135,8 @@ or
 .Pa /etc/sliphome/slip.logout. Ns Ar loginname
 is executed if it exists.  It is given the same arguments as the login script.
 .Ss Format of /etc/sliphome/slip.hosts
-Comments (lines starting with a `#') and blank lines are ignored.
+Comments (lines starting with a `#') and blank lines (or started
+with space) are ignored.
 Other lines must start with a
 .Ar loginname
 but the remaining arguments can be whatever is appropriate for the
@@ -212,7 +254,8 @@ was successfully attached.
 .El
 .Sh SEE ALSO
 .Xr slattach 8 ,
-.Xr syslogd 8
+.Xr syslogd 8 ,
+.Pa /usr/share/examples/sliplogin
 .Sh HISTORY
 The
 .Nm
