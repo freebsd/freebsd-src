@@ -90,18 +90,18 @@ MAN=	accept_filter.9 \
 	DRIVER_MODULE.9 \
 	extattr.9 \
 	fetch.9 \
-	get_cyclecount.9 \
-	getnewvnode.9 \
-	groupmember.9 \
 	g_access.9 \
 	g_attach.9 \
 	g_bio.9 \
 	g_consumer.9 \
 	g_data.9 \
+	get_cyclecount.9 \
+	getnewvnode.9 \
 	g_event.9 \
 	g_geom.9 \
 	g_provider.9 \
 	g_provider_by_name.9 \
+	groupmember.9 \
 	g_wither_geom.9 \
 	hexdump.9 \
 	ieee80211.9 \
@@ -234,8 +234,8 @@ MAN=	accept_filter.9 \
 	VFS_SET.9 \
 	VFS_START.9 \
 	VFS_STATFS.9 \
-	VFS_SYNC.9 \
 	vfs_suser.9 \
+	VFS_SYNC.9 \
 	vfs_timestamp.9 \
 	vfs_unbusy.9 \
 	VFS_UNMOUNT.9 \
@@ -403,11 +403,11 @@ MLINKS+=condvar.9 cv_broadcast.9 \
 	condvar.9 cv_wait.9 \
 	condvar.9 cv_wait_sig.9 \
 	condvar.9 cv_wmesg.9
+MLINKS+=contigmalloc.9 contigfree.9
 MLINKS+=copy.9 copyin.9 \
 	copy.9 copyinstr.9 \
 	copy.9 copyout.9 \
 	copy.9 copystr.9
-MLINKS+=contigmalloc.9 contigfree.9
 MLINKS+=critical_enter.9 cpu_critical_enter.9 \
 	critical_enter.9 cpu_critical_exit.9 \
 	critical_enter.9 critical_exit.9
@@ -560,10 +560,10 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 MLINKS+=malloc.9 FREE.9 \
 	malloc.9 free.9 \
 	malloc.9 MALLOC.9 \
-	malloc.9 realloc.9 \
-	malloc.9 reallocf.9 \
+	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
-	malloc.9 MALLOC_DECLARE.9
+	malloc.9 realloc.9 \
+	malloc.9 reallocf.9
 MLINKS+=mbchain.9 mb_detach.9 \
 	mbchain.9 mb_done.9 \
 	mbchain.9 mb_fixhdr.9 \
@@ -590,26 +590,13 @@ MLINKS+=mbpool.9 mbp_alloc.9 \
 	mbpool.9 mbp_get.9 \
 	mbpool.9 mbp_get_keep.9 \
 	mbpool.9 mbp_sync.9
-MLINKS+=mbuf.9 MCHTYPE.9 \
-	mbuf.9 MCLGET.9 \
-	mbuf.9 MEXTADD.9 \
-	mbuf.9 MEXTFREE.9 \
-	mbuf.9 MEXT_ADD_REF.9 \
-	mbuf.9 MEXT_IS_REF.9 \
-	mbuf.9 MEXT_REM_REF.9 \
-	mbuf.9 MFREE.9 \
-	mbuf.9 MGET.9 \
-	mbuf.9 MGETHDR.9 \
-	mbuf.9 MH_ALIGN.9 \
-	mbuf.9 M_ALIGN.9 \
-	mbuf.9 M_LEADINGSPACE.9 \
-	mbuf.9 M_MOVE_PKTHDR.9 \
-	mbuf.9 M_PREPEND.9 \
-	mbuf.9 M_TRAILINGSPACE.9 \
-	mbuf.9 M_WRITABLE.9 \
+MLINKS+=\
 	mbuf.9 m_adj.9 \
+	mbuf.9 M_ALIGN.9 \
 	mbuf.9 m_apply.9 \
 	mbuf.9 m_cat.9 \
+	mbuf.9 MCHTYPE.9 \
+	mbuf.9 MCLGET.9 \
 	mbuf.9 m_copyback.9 \
 	mbuf.9 m_copydata.9 \
 	mbuf.9 m_copym.9 \
@@ -618,21 +605,35 @@ MLINKS+=mbuf.9 MCHTYPE.9 \
 	mbuf.9 m_devget.9 \
 	mbuf.9 m_dup.9 \
 	mbuf.9 m_dup_pkthdr.9 \
+	mbuf.9 MEXTADD.9 \
+	mbuf.9 MEXT_ADD_REF.9 \
+	mbuf.9 MEXTFREE.9 \
+	mbuf.9 MEXT_IS_REF.9 \
+	mbuf.9 MEXT_REM_REF.9 \
 	mbuf.9 m_fixhdr.9 \
+	mbuf.9 MFREE.9 \
 	mbuf.9 m_free.9 \
 	mbuf.9 m_freem.9 \
+	mbuf.9 MGET.9 \
 	mbuf.9 m_get.9 \
 	mbuf.9 m_getcl.9 \
 	mbuf.9 m_getclr.9 \
+	mbuf.9 MGETHDR.9 \
 	mbuf.9 m_gethdr.9 \
 	mbuf.9 m_getm.9 \
 	mbuf.9 m_getptr.9 \
+	mbuf.9 MH_ALIGN.9 \
+	mbuf.9 M_LEADINGSPACE.9 \
 	mbuf.9 m_length.9 \
+	mbuf.9 M_MOVE_PKTHDR.9 \
 	mbuf.9 m_move_pkthdr.9 \
+	mbuf.9 M_PREPEND.9 \
 	mbuf.9 m_prepend.9 \
 	mbuf.9 m_pullup.9 \
 	mbuf.9 m_split.9 \
-	mbuf.9 mtod.9
+	mbuf.9 mtod.9 \
+	mbuf.9 M_TRAILINGSPACE.9 \
+	mbuf.9 M_WRITABLE.9
 MLINKS+=MD5.9 MD5Init.9 \
 	MD5.9 MD5Transform.9
 MLINKS+=mdchain.9 md_append_record.9 \
@@ -722,9 +723,9 @@ MLINKS+=pmap_remove.9 pmap_remove_all.9 \
 MLINKS+=pmap_resident_count.9 pmap_wired_count.9
 MLINKS+=pmap_zero_page.9 pmap_zero_area.9 \
 	pmap_zero_page.9 pmap_zero_idle.9
-MLINKS+=printf.9 tprintf.9 \
-	printf.9 uprintf.9 \
-	printf.9 log.9
+MLINKS+=printf.9 log.9 \
+	printf.9 tprintf.9 \
+	printf.9 uprintf.9
 MLINKS+=psignal.9 gsignal.9 \
 	psignal.9 pgsignal.9
 MLINKS+=random.9 arc4rand.9 \
@@ -837,8 +838,8 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_lookup.9 \
 	sleepqueue.9 sleepq_release.9 \
 	sleepqueue.9 sleepq_remove.9 \
-	sleepqueue.9 sleepq_signal.9 \
 	sleepqueue.9 sleepq_set_timeout.9 \
+	sleepqueue.9 sleepq_signal.9 \
 	sleepqueue.9 sleepq_timedwait.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
 	sleepqueue.9 sleepq_wait.9 \
