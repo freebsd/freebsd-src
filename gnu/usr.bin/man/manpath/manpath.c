@@ -135,7 +135,7 @@ manpath (perrs)
   char *get_manpath ();
 
   if (get_dirlist ())
-      gripe_reading_mp_config ();
+      gripe_reading_mp_config (config_file);
 
   if ((manpathlist = getenv ("MANPATH")) != NULL)
     /*
@@ -254,7 +254,7 @@ get_dirlist ()
 	}
       else
 	{
-	  gripe_reading_mp_config ();
+	  gripe_reading_mp_config (config_file);
 	}
       dlp++;
     }
