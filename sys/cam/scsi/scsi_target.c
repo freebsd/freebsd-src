@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 #include <stddef.h>	/* For offsetof */
-
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
