@@ -71,6 +71,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
+.if !defined(DEBUG)
+	${OBJCOPY} --strip-debug ${.TARGET}
+.endif
 	${SYSTEM_LD_TAIL}
 
 .if !exists(${.OBJDIR}/.depend)
