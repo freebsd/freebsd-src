@@ -154,7 +154,10 @@ gdb_trap(int type, int code)
 			intmax_t tid;
 			struct thread *thr;
 			gdb_rx_char();
-			gdb_rx_varhex(&tid);
+			if (gdb_rx_varhex(&tid)) {
+				gdb_tx_err(EINVAL);
+				break;
+			}
 			if (tid > 0) {
 				thr = kdb_thr_lookup(tid);
 				if (thr == NULL) {
@@ -255,7 +258,10 @@ gdb_trap(int type, int code)
 		}
 		case 'T': {	/* Thread alive. */
 			intmax_t tid;
-			gdb_rx_varhex(&tid);
+			if (gdb_rx_varhex(&tid)) {
+				gdb_tx_err(EINVAL);
+				break;
+			}
 			if (kdb_thr_lookup(tid) != NULL)
 				gdb_tx_ok();
 			else
