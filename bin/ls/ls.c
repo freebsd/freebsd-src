@@ -298,6 +298,12 @@ main(argc, argv)
 
 #ifdef COLORLS
 	if (f_color) {
+		/*
+		 * We can't put tabs and color sequences together:
+		 * column number will be incremented incorrectly
+		 * for "stty oxtabs" mode.
+		 */
+		f_notabs = 1;
 		(void) signal(SIGINT, colorquit);
 		(void) signal(SIGQUIT, colorquit);
 		parsecolors(getenv("LSCOLORS"));
@@ -521,7 +527,10 @@ display(p, list)
 		 case 4: maxgroup = 0;
 		 case 5: maxflags = 0;
 		 case 6: maxsize  = 0;
-		 case 7: maxlen   = 0, f_notabs = 0;
+		 case 7: maxlen   = 0;
+#ifndef COLORLS
+		 f_notabs = 0;
+#endif
 		}
 		maxinode = makenines(maxinode);
 		maxblock = makenines(maxblock);
