@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.79 1998/06/21 18:02:47 bde Exp $
+ * $Id: vm_mmap.c,v 1.80 1998/07/05 11:56:52 dfr Exp $
  */
 
 /*
@@ -970,7 +970,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		vp = (struct vnode *) handle;
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
-			handle = (void *)(long)vp->v_rdev;
+			handle = (void *)(intptr_t)vp->v_rdev;
 		} else {
 			struct vattr vat;
 			int error;

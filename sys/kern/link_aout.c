@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.6 1998/06/07 17:11:36 dfr Exp $
+ *	$Id: link_aout.c,v 1.7 1998/07/07 04:31:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -325,7 +325,7 @@ relocate_file(linker_file_t lf)
 		printf("link_aout: bad symbol name %s\n", sym);
 		relocation = 0;
 	    } else
-		relocation = (long)
+		relocation = (intptr_t)
 		    linker_file_lookup_symbol(lf, sym + 1,
 					      np->nz_type != (N_SETV+N_EXT));
 	    if (!relocation) {
@@ -341,7 +341,7 @@ relocate_file(linker_file_t lf)
 	    }
 
 	    if (r->r_pcrel)
-		relocation -= (long) af->address;
+		relocation -= (intptr_t) af->address;
 
 	    if (r->r_copy) {
 		printf("link_aout: can't cope with copy relocations\n");
@@ -351,7 +351,7 @@ relocate_file(linker_file_t lf)
 	    write_relocation(r, addr, relocation);
 	} else {
 	    write_relocation(r, addr,
-			     (long)(read_relocation(r, addr) + af->address));
+			     (intptr_t)(read_relocation(r, addr) + af->address));
 	}
 	
     }

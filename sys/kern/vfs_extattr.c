@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.103 1998/06/08 18:18:28 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.104 1998/07/03 03:47:24 dg Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -213,7 +213,7 @@ mount(p, uap)
 	 * get an integer for the filesystem type instead of a string, we
 	 * check to see if it matches one of the historic filesystem types.
 	 */
-	fstypenum = (u_long)SCARG(uap, type);
+	fstypenum = (uintptr_t)SCARG(uap, type);
 	if (fstypenum < maxvfsconf) {
 		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
 			if (vfsp->vfc_typenum == fstypenum)

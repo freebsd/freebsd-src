@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.68 1998/03/30 09:52:00 phk Exp $
+ * $Id: if_sl.c,v 1.69 1998/06/07 17:12:05 dfr Exp $
  */
 
 /*
@@ -747,7 +747,7 @@ sl_btom(sc, len)
 		}
 		sc->sc_ep = mtod(m, u_char *) + SLBUFSIZE;
 		m->m_data = (caddr_t)sc->sc_buf;
-		m->m_ext.ext_buf = (caddr_t)((long)sc->sc_buf &~ MCLOFSET);
+		m->m_ext.ext_buf = (caddr_t)((intptr_t)sc->sc_buf &~ MCLOFSET);
 	} else
 		bcopy((caddr_t)sc->sc_buf, mtod(m, caddr_t), len);
 

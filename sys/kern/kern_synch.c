@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.59 1998/06/30 21:25:54 phk Exp $
+ * $Id: kern_synch.c,v 1.60 1998/07/11 13:06:41 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -332,7 +332,7 @@ updatepri(p)
  */
 #define TABLESIZE	128
 static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
-#define LOOKUP(x)	(((long)(x) >> 8) & (TABLESIZE - 1))
+#define LOOKUP(x)	(((intptr_t)(x) >> 8) & (TABLESIZE - 1))
 
 /*
  * During autoconfiguration or after a panic, a sleep will simply
