@@ -34,7 +34,7 @@
  *  caveats:   We may need an eisa and an isa files too
  */
 
-#ident "$Id: dpt_pci.c,v 1.3 1998/02/10 17:36:41 eivind Exp $"
+#ident "$Id: dpt_pci.c,v 1.4 1998/02/20 13:11:50 bde Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -62,8 +62,6 @@
 #define ISA_PRIMARY_WD_ADDRESS    0x1f8
 
 /* Global variables */
-
-int dpt_controllers_present = 0;
 
 /* Function Prototypes */
 
