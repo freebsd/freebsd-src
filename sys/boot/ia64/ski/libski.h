@@ -74,6 +74,10 @@ extern ssize_t		ski_readin(int fd, vm_offset_t dest, size_t len);
 extern int		ski_boot(void);
 extern int		ski_autoload(void);
 
+struct bootinfo;
+struct preloaded_file;
+extern int		bi_load(struct bootinfo *, struct preloaded_file *);
+
 #define SSC_CONSOLE_INIT		20
 #define SSC_GETCHAR			21
 #define SSC_PUTCHAR			31
