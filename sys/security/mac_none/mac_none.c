@@ -153,15 +153,15 @@ mac_none_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_none_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
-    struct label *ddlabel, struct devfs_dirent *de, struct label *delabel)
+mac_none_create_devfs_directory(char *dirname, int dirnamelen,
+    struct devfs_dirent *devfs_dirent, struct label *label)
 {
 
 }
 
 static void
-mac_none_create_devfs_directory(char *dirname, int dirnamelen,
-    struct devfs_dirent *devfs_dirent, struct label *label)
+mac_none_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
+    struct label *ddlabel, struct devfs_dirent *de, struct label *delabel)
 {
 
 }
@@ -580,7 +580,7 @@ mac_none_check_socket_deliver(struct socket *so, struct label *socketlabel,
 }
 
 static int
-mac_none_check_socket_listen(struct ucred *cred, struct vnode *vp,
+mac_none_check_socket_listen(struct ucred *cred, struct socket *so,
     struct label *socketlabel)
 {
 
@@ -676,7 +676,7 @@ mac_none_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	return (0);
 }
 
-static int 
+static int
 mac_none_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct vnode *vp, struct label *label,
     struct componentname *cnp)
@@ -686,7 +686,7 @@ mac_none_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_none_check_vnode_lookup(struct ucred *cred, struct vnode *dvp, 
+mac_none_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp)
 {
 
