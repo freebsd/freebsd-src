@@ -147,6 +147,7 @@ MAN=	aac.4 \
 	route.4 \
 	rp.4 \
 	sa.4 \
+	safe.4 \
 	sbc.4 \
 	sbp.4 \
 	sbsh.4 \
