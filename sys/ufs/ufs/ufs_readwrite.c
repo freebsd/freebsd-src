@@ -135,16 +135,15 @@ READ(ap)
 			if ((uio->uio_resid == 0) || (error != 0)) {
 				/*
 				 * If we finished or there was an error
-				 * then finish up.
+				 * then finish up (the reference previously
+				 * obtained on object must be released).
 				 */
 				if ((error == 0 ||
 				    uio->uio_resid != orig_resid) &&
 				    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 					ip->i_flag |= IN_ACCESS;
+
 				if (object)
-					/*
-					 * This I don't understand
-					 */
 					vm_object_vndeallocate(object);
 				return error;
 			}
@@ -178,6 +177,12 @@ READ(ap)
 			if (toread >= PAGE_SIZE) {
 				error = uioread(toread, uio, object, &nread);
 				if ((uio->uio_resid == 0) || (error != 0)) {
+					/*
+					 * If we finished or there was an 
+					 * error then finish up (the reference
+					 * previously obtained on object must 
+					 * be released).
+					 */
 					if ((error == 0 ||
 					    uio->uio_resid != orig_resid) &&
 					    (vp->v_mount->mnt_flag &
@@ -243,7 +248,7 @@ READ(ap)
 			 */
 			error = cluster_read(vp, ip->i_size, lbn,
 				size, NOCRED, uio->uio_resid, seqcount, &bp);
-		else if (lbn - 1 == vp->v_lastr) {
+		else if (seqcount > 1) {
 			/*
 			 * If we are NOT allowed to cluster, then
 			 * if we appear to be acting sequentially,
@@ -267,12 +272,6 @@ READ(ap)
 			bp = NULL;
 			break;
 		}
-
-		/*
-		 * Remember where we read so we can see latter if we start
-		 * acting sequential.
-		 */
-		vp->v_lastr = lbn;
 
 		/*
 		 * We should only get non-zero b_resid when an I/O error
@@ -543,7 +542,7 @@ ffs_getpages(ap)
 	struct vnode *dp, *vp;
 	vm_object_t obj;
 	vm_pindex_t pindex, firstindex;
-	vm_page_t m, mreq;
+	vm_page_t mreq;
 	int bbackwards, bforwards;
 	int pbackwards, pforwards;
 	int firstpage;
@@ -586,71 +585,6 @@ ffs_getpages(ap)
 		return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
 						    ap->a_count,
 						    ap->a_reqpage);
-	    
-
-	if (firstindex == 0)
-		vp->v_lastr = 0;
-
-	if ((firstindex != 0) &&
-	    (firstindex <= vp->v_lastr) &&
-	    ((firstindex + pcount) > vp->v_lastr)) {
-
-		struct uio auio;
-		struct iovec aiov;
-		int error;
-
-		for (i = 0; i < pcount; i++) {
-			m = ap->a_m[i];
-			vm_page_activate(m);
-			vm_page_io_start(m);
-			vm_page_wakeup(m);
-		}
-
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		aiov.iov_base = 0;
-		aiov.iov_len = MAXBSIZE;
-		auio.uio_resid = MAXBSIZE;
-		auio.uio_offset = foff;
-		auio.uio_segflg = UIO_NOCOPY;
-		auio.uio_rw = UIO_READ;
-		auio.uio_procp = curproc;
-		error = VOP_READ(vp, &auio,
-			IO_VMIO | ((MAXBSIZE / bsize) << 16), curproc->p_ucred);
-
-		for (i = 0; i < pcount; i++) {
-			m = ap->a_m[i];
-			vm_page_io_finish(m);
-
-			if ((m != mreq) && (m->wire_count == 0) && (m->hold_count == 0) &&
-				(m->valid == 0) && (m->busy == 0) &&
-				(m->flags & PG_BUSY) == 0) {
-				vm_page_busy(m);
-				vm_page_free(m);
-			} else if (m == mreq) {
-				while (vm_page_sleep_busy(m, FALSE, "ffspwt"))
-					;
-				vm_page_busy(m);
-				vp->v_lastr = m->pindex + 1;
-			} else {
-				if (m->wire_count == 0) {
-					if (m->busy || (m->flags & PG_MAPPED) ||
-						(m->flags & (PG_WANTED | PG_BUSY)) == PG_WANTED) {
-						vm_page_activate(m);
-					} else {
-						vm_page_deactivate(m);
-					}
-				}
-				vp->v_lastr = m->pindex + 1;
-			}
-		}
-
-		if (mreq->valid == 0) 
-			return VM_PAGER_ERROR;
-		if (mreq->valid != VM_PAGE_BITS_ALL)
-			vm_page_zero_invalid(mreq, TRUE);
-		return VM_PAGER_OK;
-	}
 
 	/*
 	 * foff is the file offset of the required page
@@ -717,7 +651,6 @@ ffs_getpages(ap)
 	 */
 
 	size = pcount * PAGE_SIZE;
-	vp->v_lastr = mreq->pindex + pcount;
 
 	if ((IDX_TO_OFF(ap->a_m[firstpage]->pindex) + size) >
 		obj->un_pager.vnp.vnp_size)

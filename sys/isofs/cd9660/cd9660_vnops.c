@@ -275,7 +275,10 @@ cd9660_read(ap)
 	daddr_t lbn, rablock;
 	off_t diff;
 	int rasize, error = 0;
+	int seqcount;
 	long size, n, on;
+
+	seqcount = ap->a_ioflag >> 16;
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -303,7 +306,7 @@ cd9660_read(ap)
 			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		} else {
-			if (vp->v_lastr + 1 == lbn &&
+			if (seqcount > 1 &&
 			    lblktosize(imp, rablock) < ip->i_size) {
 				rasize = blksize(imp, ip, rablock);
 				error = breadn(vp, lbn, size, &rablock,
@@ -311,7 +314,6 @@ cd9660_read(ap)
 			} else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		}
-		vp->v_lastr = lbn;
 		n = min(n, size - bp->b_resid);
 		if (error) {
 			brelse(bp);

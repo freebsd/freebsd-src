@@ -37,6 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
+ * $FreeBSD$
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -69,6 +70,7 @@ READ(ap)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
+	int seqcount = ap->a_ioflag >> 16;
 	u_short mode;
 
 	vp = ap->a_vp;
@@ -113,7 +115,7 @@ READ(ap)
 			error = cluster_read(vp,
 			    ip->i_size, lbn, size, NOCRED,
 				uio->uio_resid, (ap->a_ioflag >> 16), &bp);
-		else if (lbn - 1 == vp->v_lastr) {
+		else if (seqcount > 1) {
 			int nextsize = BLKSIZE(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
@@ -124,7 +126,6 @@ READ(ap)
 			bp = NULL;
 			break;
 		}
-		vp->v_lastr = lbn;
 
 		/*
 		 * We should only get non-zero b_resid when an I/O error
