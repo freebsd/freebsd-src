@@ -334,6 +334,9 @@ extern char	*acpi_name(ACPI_HANDLE handle);
 extern int	acpi_avoid(ACPI_HANDLE handle);
 extern int	acpi_disabled(char *subsys);
 
+extern void	acpi_device_enable_wake_capability(ACPI_HANDLE h, int enable);
+extern void	acpi_device_enable_wake_event(ACPI_HANDLE h);
+
 extern int	acpi_machdep_init(device_t dev);
 extern void	acpi_install_wakeup_handler(struct acpi_softc *sc);
 extern int	acpi_sleep_machdep(struct acpi_softc *sc, int state);

@@ -1328,6 +1328,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    break;
 	}
 
+	sc->acpi_sstate = state;
+	sc->acpi_sleep_disabled = 1;
+
 	/*
 	 * Inform all devices that we are going to sleep.
 	 */
@@ -1349,14 +1352,13 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    break;
 	}
 
-	sc->acpi_sstate = state;
-	sc->acpi_sleep_disabled = 1;
-
 	if (state != ACPI_STATE_S1) {
 	    acpi_sleep_machdep(sc, state);
 
-	    /* AcpiEnterSleepState() maybe incompleted, unlock here. */ 
-	    AcpiUtReleaseMutex(ACPI_MTX_HARDWARE);
+	    /* AcpiEnterSleepState() maybe incompleted, unlock here if locked. */
+	    if (AcpiGbl_AcpiMutexInfo[ACPI_MTX_HARDWARE].OwnerId != ACPI_MUTEX_NOT_ACQUIRED) {
+		AcpiUtReleaseMutex(ACPI_MTX_HARDWARE);
+	    }
 
 	    /* Re-enable ACPI hardware on wakeup from sleep state 4. */
 	    if (state == ACPI_STATE_S4) {
@@ -1610,6 +1612,127 @@ acpi_disabled(char *subsys)
     }
     freeenv(env);
     return(0);
+}
+
+/*
+ * Device wake capability enable/disable.
+ */
+void
+acpi_device_enable_wake_capability(ACPI_HANDLE h, int enable)
+{
+    ACPI_OBJECT_LIST		ArgList;
+    ACPI_OBJECT			Arg;
+
+    /*
+     * TBD: All Power Resources referenced by elements 2 through N
+     *      of the _PRW object are put into the ON state.
+     */
+
+    /*
+     * enable/disable device wake function.
+     */
+
+    ArgList.Count = 1;
+    ArgList.Pointer = &Arg;
+
+    Arg.Type = ACPI_TYPE_INTEGER;
+    Arg.Integer.Value = enable;
+
+    (void)AcpiEvaluateObject(h, "_PSW", &ArgList, NULL);
+}
+
+void
+acpi_device_enable_wake_event(ACPI_HANDLE h)
+{
+    struct acpi_softc		*sc;
+    ACPI_STATUS			status;
+    ACPI_BUFFER			prw_buffer;
+    ACPI_OBJECT			*res;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL) {
+	return;
+    }
+
+    /*
+     * _PRW object is only required for devices that have the ability
+     * to wake the system from a system sleeping state.
+     */
+    prw_buffer.Length = ACPI_ALLOCATE_BUFFER;
+    status = AcpiEvaluateObject(h, "_PRW", NULL, &prw_buffer);
+    if (ACPI_FAILURE(status)) {
+	return;
+    }
+
+    res = (ACPI_OBJECT *)prw_buffer.Pointer;
+    if (res == NULL) {
+	return;
+    }
+
+    if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count < 2)) {
+	goto out;
+    }
+
+    /*
+     * The element 1 of the _PRW object:
+     * The lowest power system sleeping state that can be entered
+     * while still providing wake functionality.
+     * The sleeping state being entered must be greater or equal to
+     * the power state declared in element 1 of the _PRW object.
+     */
+    if (res->Package.Elements[1].Type != ACPI_TYPE_INTEGER) {
+	goto out;
+    }
+
+    if (sc->acpi_sstate > res->Package.Elements[1].Integer.Value) {
+	goto out;
+    }
+
+    /*
+     * The element 0 of the _PRW object:
+     */
+    switch(res->Package.Elements[0].Type) {
+    case ACPI_TYPE_INTEGER:
+	/* 
+	 * If the data type of this package element is numeric, then this
+	 * _PRW package element is the bit index in the GPEx_EN, in the
+	 * GPE blocks described in the FADT, of the enable bit that is
+	 * enabled for the wake event.
+	 */
+
+	status = AcpiEnableEvent(res->Package.Elements[0].Integer.Value,
+				 ACPI_EVENT_GPE, ACPI_EVENT_WAKE_ENABLE);
+	if (ACPI_FAILURE(status))
+            printf("%s: EnableEvent Failed\n", __func__);
+	break;
+
+    case ACPI_TYPE_PACKAGE:
+	/* XXX TBD */
+
+	/*
+	 * If the data type of this package element is a package, then this
+	 * _PRW package element is itself a package containing two
+	 * elements. The first is an object reference to the GPE Block
+	 * device that contains the GPE that will be triggered by the wake
+	 * event. The second element is numeric and it contains the bit
+	 * index in the GPEx_EN, in the GPE Block referenced by the
+	 * first element in the package, of the enable bit that is enabled for
+	 * the wake event.
+	 * For example, if this field is a package then it is of the form:
+	 * Package() {\_SB.PCI0.ISA.GPE, 2}
+	 */
+
+	break;
+
+    default:
+	break;
+    }
+
+out:
+    if (prw_buffer.Pointer != NULL)
+	AcpiOsFree(prw_buffer.Pointer);
+    return;
 }
 
 /*
