@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.24 1997/05/10 05:29:41 brian Exp $
+ * $Id: kern_time.c,v 1.25 1997/05/10 06:02:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
+#include <sys/time.h>
 #include <sys/vnode.h>
 
 struct timezone tz;
@@ -56,8 +57,8 @@ struct timezone tz;
  * timers when they expire.
  */
 
-static void	timevalfix __P((struct timeval *));
 static int	settime __P((struct timeval *));
+static void	timevalfix __P((struct timeval *));
 
 static int
 settime(tv)
@@ -68,17 +69,15 @@ settime(tv)
 	int s;
 
 	/*
-	 * Must not set clock backwards in secure mode
+	 * Must not set clock backwards in highly secure mode.
 	 */
+	s = splclock();
 	delta.tv_sec = tv->tv_sec - time.tv_sec;
 	delta.tv_usec = tv->tv_usec - time.tv_usec;
+	splx(s);
 	timevalfix(&delta);
 	if (delta.tv_sec < 0 && securelevel > 1)
 		return (EPERM);
-#ifdef notyet
-	if (delta.tv_sec < 86400 && securelevel > 0)
-		return (EPERM);
-#endif
 
 	s = splclock();
 	/*
@@ -98,6 +97,7 @@ settime(tv)
 	 * adjustments.
 	 */
 	(void) splsoftclock();
+	timevalfix(&delta);
 	timevaladd(&boottime, &delta);
 	timevaladd(&runtime, &delta);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
@@ -117,6 +117,7 @@ struct clock_gettime_args {
 	struct	timespec *tp;
 };
 #endif
+
 /* ARGSUSED */
 int
 clock_gettime(p, uap, retval)
@@ -124,18 +125,14 @@ clock_gettime(p, uap, retval)
 	struct clock_gettime_args *uap;
 	register_t *retval;
 {
-	clockid_t clock_id;
 	struct timeval atv;
 	struct timespec ats;
 
-	clock_id = SCARG(uap, clock_id);
-	if (clock_id != CLOCK_REALTIME)
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
-
 	microtime(&atv);
 	TIMEVAL_TO_TIMESPEC(&atv, &ats);
-
-	return copyout(&ats, SCARG(uap, tp), sizeof(ats));
+	return (copyout(&ats, SCARG(uap, tp), sizeof(ats)));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -144,6 +141,7 @@ struct clock_settime_args {
 	const struct	timespec *tp;
 };
 #endif
+
 /* ARGSUSED */
 int
 clock_settime(p, uap, retval)
@@ -151,26 +149,22 @@ clock_settime(p, uap, retval)
 	struct clock_settime_args *uap;
 	register_t *retval;
 {
-	clockid_t clock_id;
 	struct timeval atv;
 	struct timespec ats;
 	int error;
 
 	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
 		return (error);
-
-	clock_id = SCARG(uap, clock_id);
-	if (clock_id != CLOCK_REALTIME)
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
-
 	if ((error = copyin(SCARG(uap, tp), &ats, sizeof(ats))) != 0)
 		return (error);
-
+	if (atv.tv_usec < 0 || ats.tv_nsec >= 1000000000)
+		return (EINVAL);
 	TIMESPEC_TO_TIMEVAL(&atv, &ats);
 	if ((error = settime(&atv)))
 		return (error);
-
-	return 0;
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -179,28 +173,25 @@ struct clock_getres_args {
 	struct	timespec *tp;
 };
 #endif
+
 int
 clock_getres(p, uap, retval)
 	struct proc *p;
 	struct clock_getres_args *uap;
 	register_t *retval;
 {
-	clockid_t clock_id;
 	struct timespec ts;
-	int error = 0;
+	int error;
 
-	clock_id = SCARG(uap, clock_id);
-	if (clock_id != CLOCK_REALTIME)
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
-
+	error = 0;
 	if (SCARG(uap, tp)) {
 		ts.tv_sec = 0;
 		ts.tv_nsec = 1000000000 / hz;
-
-		error = copyout(&ts, SCARG(uap, tp), sizeof (ts));
+		error = copyout(&ts, SCARG(uap, tp), sizeof(ts));
 	}
-
-	return error;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -209,6 +200,7 @@ struct nanosleep_args {
 	struct	timespec *rmtp;
 };
 #endif
+
 /* ARGSUSED */
 int
 nanosleep(p, uap, retval)
@@ -217,28 +209,26 @@ nanosleep(p, uap, retval)
 	register_t *retval;
 {
 	static int nanowait;
-	struct timespec rqt;
-	struct timespec rmt;
+	struct timespec rmt, rqt;
 	struct timeval atv, utv;
-	int error, s, timo;
+	int error, error2, s, timo;
 
-	error = copyin((caddr_t)SCARG(uap, rqtp), (caddr_t)&rqt,
-		       sizeof(struct timespec));
+	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
 	if (error)
 		return (error);
-
+	if (rqt.tv_nsec < 0 || rqt.tv_nsec >= 1000000000)
+		return (EINVAL);
 	TIMESPEC_TO_TIMEVAL(&atv, &rqt)
 	if (itimerfix(&atv))
 		return (EINVAL);
 
+	/*
+	 * XXX this is not as careful as settimeofday() about minimising
+	 * interrupt latency.  The hzto() interface is inconvenient as usual.
+	 */
 	s = splclock();
 	timevaladd(&atv, &time);
 	timo = hzto(&atv);
-	/* 
-	 * Avoid inadvertantly sleeping forever
-	 */
-	if (timo == 0)
-		timo = 1;
 	splx(s);
 
 	error = tsleep(&nanowait, PWAIT | PCATCH, "nanosleep", timo);
@@ -246,26 +236,39 @@ nanosleep(p, uap, retval)
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
-
 	if (SCARG(uap, rmtp)) {
-		int error;
-
+		/*-
+		 * XXX this is unnecessary and possibly wrong if the timeout
+		 * expired.  Then the remaining time should be zero.  If the
+		 * calculation gives a nonzero value, then we have a bug.
+		 * (1) if settimeofday() was called, then the calculation is
+		 *     probably wrong, since `time' has probably become
+		 *     inconsistent with the ending time `atv'.
+		 * (2) otherwise, our calculation of `timo' was wrong, perhaps
+		 *     due to `tick' being wrong when hzto() was called or
+		 *     changing afterwards (it can be wrong or change due to
+		 *     hzto() not knowing about adjtime(2) or tickadj(8)).
+		 *     Then we should be sleeping again instead instead of
+		 *     returning.  Rounding up in hzto() probably fixes this
+		 *     problem for small timeouts, but the absolute error may
+		 *     be large for large timeouts.
+		 */
 		s = splclock();
 		utv = time;
 		splx(s);
-
 		timevalsub(&atv, &utv);
 		if (atv.tv_sec < 0)
 			timerclear(&atv);
-
 		TIMEVAL_TO_TIMESPEC(&atv, &rmt);
-		error = copyout((caddr_t)&rmt, (caddr_t)SCARG(uap, rmtp),
-			sizeof(rmt));
-		if (error)
-			return (error);
-	}
 
-	return error;
+		/*
+		 * XXX should we test for addressibility before sleeping?
+		 */
+		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
+		if (error2)
+			return (error2);
+	}
+	return (error);
 }
 
 
@@ -310,18 +313,20 @@ settimeofday(p, uap, retval)
 	struct settimeofday_args *uap;
 	int *retval;
 {
-	struct timeval atv, delta;
+	struct timeval atv;
 	struct timezone atz;
-	int error, s;
+	int error;
 
 	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	/* Verify all parameters before changing time. */
-	if (uap->tv &&
-	    (error = copyin((caddr_t)uap->tv, (caddr_t)&atv, sizeof(atv))))
-		return (error);
-	if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
-		return (EINVAL);
+	if (uap->tv) {
+		if ((error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
+		    sizeof(atv))))
+			return (error);
+		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
+			return (EINVAL);
+	}
 	if (uap->tzp &&
 	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
 		return (error);
