@@ -17,20 +17,23 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.26 1997/08/25 00:29:14 brian Exp $
+ * $Id: ipcp.c,v 1.27 1997/08/31 22:59:29 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
  */
+#include <sys/types.h>
+#include <netdb.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <limits.h>
 #include "fsm.h"
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ipcp.h"
-#include <netdb.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
 #include "slcompress.h"
 #include "os.h"
 #include "phase.h"
@@ -64,6 +67,7 @@ static void IpcpInitRestartCounter(struct fsm *);
 struct pppTimer IpcpReportTimer;
 
 static int lastInOctets, lastOutOctets;
+static int StartingIpIn, StartingIpOut;
 
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
@@ -136,7 +140,11 @@ ReportIpcpStatus()
 	  inet_ntoa(icp->his_ipaddr), icp->his_compproto);
   fprintf(VarTerm, " my  side: %s, %lx\n",
 	  inet_ntoa(icp->want_ipaddr), icp->want_compproto);
-  fprintf(VarTerm, "connected: %d secs, idle: %d secs\n\n", ipConnectSecs, ipIdleSecs);
+  fprintf(VarTerm, "Connected: %d secs, idle: %d secs\n\n",
+	  ipConnectSecs, ipIdleSecs);
+  fprintf(VarTerm, " %d octets in, %d octets out\n",
+	  IpcpOctetsIn(), IpcpOctetsOut());
+
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
 	  inet_ntoa(DefMyAddress.ipaddr), DefMyAddress.width);
@@ -183,9 +191,9 @@ IpcpInit()
   }
 
   /*
-   * Some implementation of PPP are: Starting a negotiaion by require sending
-   * *special* value as my address, even though standard of PPP is defined
-   * full negotiation based. (e.g. "0.0.0.0" or Not "0.0.0.0")
+   * Some implementations of PPP require that we send a
+   * *special* value as our address, even though the rfc specifies
+   * full negotiation (e.g. "0.0.0.0" or Not "0.0.0.0").
    */
   if (HaveTriggerAddress) {
     icp->want_ipaddr.s_addr = TriggerAddress.s_addr;
@@ -197,6 +205,8 @@ IpcpInit()
     icp->want_compproto = 0;
   icp->heis1172 = 0;
   IpcpFsm.maxconfig = 10;
+  StartingIpIn = ipInOctets;
+  StartingIpOut = ipOutOctets;
 }
 
 static void
@@ -253,10 +263,28 @@ IpcpLayerFinish(struct fsm * fp)
   NewPhase(PHASE_TERMINATE);
 }
 
+int
+IpcpOctetsIn()
+{
+  return ipInOctets < StartingIpIn ?
+    INT_MAX - StartingIpIn + ipInOctets - INT_MIN + 1 :
+    ipInOctets - StartingIpIn;
+}
+
+int
+IpcpOctetsOut()
+{
+  return ipOutOctets < StartingIpOut ?
+    INT_MAX - StartingIpOut + ipOutOctets - INT_MIN + 1 :
+    ipOutOctets - StartingIpOut;
+}
+
 static void
 IpcpLayerDown(struct fsm * fp)
 {
   LogPrintf(LogIPCP, "IpcpLayerDown.\n");
+  LogPrintf(LogIPCP, "%d octets in, %d octets out\n",
+	    IpcpOctetsIn(), IpcpOctetsOut());
   StopTimer(&IpcpReportTimer);
 }
 
@@ -282,6 +310,8 @@ IpcpLayerUp(struct fsm * fp)
   if (mode & MODE_ALIAS)
     VarPacketAliasSetAddress(IpcpInfo.want_ipaddr);
   OsLinkup();
+  StartingIpIn = ipInOctets;
+  StartingIpOut = ipOutOctets;
   IpcpStartReport();
   StartIdleTimer();
 }
