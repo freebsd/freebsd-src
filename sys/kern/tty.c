@@ -67,7 +67,6 @@
  *	  only when _all_ openers leave open().
  */
 
-#include "opt_snp.h"
 #include "opt_compat.h"
 #include "opt_uconsole.h"
 
@@ -93,9 +92,6 @@
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
-#ifdef DEV_SNP
-#include <sys/snoop.h>
-#endif
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -258,11 +254,6 @@ ttyclose(tp)
 	clist_free_cblocks(&tp->t_canq);
 	clist_free_cblocks(&tp->t_outq);
 	clist_free_cblocks(&tp->t_rawq);
-
-#ifdef DEV_SNP
-	if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
-		snpdown((struct snoop *)tp->t_sc);
-#endif
 
 	tp->t_gen++;
 	tp->t_line = TTYDISC;
@@ -1716,11 +1707,6 @@ read:
 		 * XXX if there was an error then we should ungetc() the
 		 * unmoved chars and reduce icc here.
 		 */
-#ifdef DEV_SNP
-		if (ISSET(tp->t_lflag, ECHO) &&
-		    ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
-			snpin((struct snoop *)tp->t_sc, ibuf, icc);
-#endif
 		if (error)
 			break;
  		if (uio->uio_resid == 0)
@@ -1763,15 +1749,6 @@ slowcase:
 		if (error)
 			/* XXX should ungetc(c, qp). */
 			break;
-#ifdef DEV_SNP
-		/*
-		 * Only snoop directly on input in echo mode.  Non-echoed
-		 * input will be snooped later iff the application echoes it.
-		 */
-		if (ISSET(tp->t_lflag, ECHO) &&
-		    ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
-			snpinc((struct snoop *)tp->t_sc, (char)c);
-#endif
  		if (uio->uio_resid == 0)
 			break;
 		/*
@@ -1916,10 +1893,6 @@ loop:
 				cc = 0;
 				break;
 			}
-#ifdef DEV_SNP
-			if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
-				snpin((struct snoop *)tp->t_sc, cp, cc);
-#endif
 		}
 		/*
 		 * If nothing fancy need be done, grab those characters we
