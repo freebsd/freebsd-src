@@ -31,15 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.20 1995/11/09 20:22:55 phk Exp $
+ *	$Id: in_proto.c,v 1.21 1995/11/14 20:34:05 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/protosw.h>
+#include <sys/socketvar.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
+#include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
