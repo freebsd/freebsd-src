@@ -64,17 +64,17 @@ md5.ref:
 	@echo 'MD5 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = 57edf4a22be3c955ac49da2e2107b67a' >> $@
 
 beforeinstall: md2.ref md4.ref md5.ref md2.3 md4.3 md5.3
-	@echo if any of these test fail, the code produces wrong results
-	@echo and should NOT be used.
-	${CC} ${CFLAGS} -static -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	@${ECHO} if any of these test fail, the code produces wrong results
+	@${ECHO} and should NOT be used.
+	${CC} ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
 	./mddriver | cmp md2.ref -
-	@echo MD2 passed test
-	${CC} ${CFLAGS} -static -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	@${ECHO} MD2 passed test
+	${CC} ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
 	./mddriver | cmp md4.ref -
-	@echo MD4 passed test
-	${CC} ${CFLAGS} -static -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	@${ECHO} MD4 passed test
+	${CC} ${CFLAGS} ${LDFLAGS} -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
 	./mddriver | cmp md5.ref -
-	@echo MD5 passed test
+	@${ECHO} MD5 passed test
 	-rm -f mddriver
 
 beforedepend:	md2hl.c md4hl.c md5hl.c
