@@ -216,6 +216,9 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 #endif
 	entry->ktr_timestamp = KTR_TIME;
 	entry->ktr_cpu = cpu;
+	if (file != NULL)
+		while (strncmp(file, "../", 3) == 0)
+			file += 3;
 	entry->ktr_file = file;
 	entry->ktr_line = line;
 #ifdef KTR_VERBOSE
