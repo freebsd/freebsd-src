@@ -9,6 +9,8 @@ CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../../libc/include
 
 all: ${OBJS}
 
+CLEANFILES=	${OBJS}
+
 gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
