@@ -174,7 +174,7 @@ in Europe, the former Soviet Union, and Central and South America.
 The timezone data files now contain a magic number allowing for easy
 identification.
 
-Groff/troff/eqn has been updated to version 1.11.
+Groff/troff/eqn has been updated to version 1.15.
 
 Gdb has been updated to version 4.18 and is now part of the standard
 release for FreeBSD/alpha.
