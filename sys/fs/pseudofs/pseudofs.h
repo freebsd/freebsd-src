@@ -51,11 +51,12 @@ typedef enum {
 /*
  * Flags
  */
-#define PFS_RDONLY	0x0000	/* read-only (default) */
-#define PFS_WRONLY	0x0001	/* write-only */
-#define PFS_RDWR	0x0002	/* read-write */
+#define PFS_RD		0x0001	/* readable */
+#define PFS_WR		0x0002	/* writeable */
+#define PFS_RDWR	(PFS_RD|PFS_WR)
 #define PFS_RAWRD	0x0004	/* raw reader */
 #define	PFS_RAWWR	0x0008	/* raw writer */
+#define PFS_RAW		(PFS_RAWRD|PFS_RAWWR)
 
 /*
  * Data structures
