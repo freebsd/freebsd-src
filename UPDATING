@@ -5,6 +5,18 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010116:
+	The kerrnel option I386_CPU is now mutually exclusive with the
+	other cpu types. If you have an i386 system, be sure that it
+	only had this line.  Remove it for all other configurations.
+
+20010110:
+	Changes to the kernel require it and burncd be in sync.
+
+20010102:
+	Everyone who has hw.sndunit set to something in
+	/etc/sysctl.conf, it is now hw.snd.unit.
+
 20010101:
 	ex and vi were broken by some changes to sys/queue.h.  If you
 	have a bad vi, you will see make buildworld fail with a core
@@ -17,6 +29,11 @@ ITEMS:'
 	Others have suggested that you can just rebuild libc if your
 	vi/ex is dynamically linked, but I've not received any reports
 	of this working.
+
+20001228:
+	There have been some changes to libcrypt in -current.  The
+	libscrypt/libdescrypt symlink sillyness is gone and the installed
+	libcrypt is fully functional.  Be aware of this.
 
 20001218:
 	Linksys Fast Ethernet PCCARD cards supported by the ed driver
