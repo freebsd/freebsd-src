@@ -31,7 +31,7 @@
  *
  * Private thread definitions for the uthread kernel.
  *
- * $Id: pthread_private.h,v 1.22 1999/07/06 00:25:35 jasone Exp $
+ * $Id: pthread_private.h,v 1.23 1999/07/11 05:56:35 jasone Exp $
  */
 
 #ifndef _PTHREAD_PRIVATE_H
@@ -344,17 +344,6 @@ struct pthread_attr {
  */
 #define PTHREAD_STACK_INITIAL			0x100000
 /* Address immediately beyond the beginning of the initial thread stack. */
-#if defined(__FreeBSD__)
-#	if defined(__i386__)
-#		define PTHREAD_STACK_TOP	0xbfbde000
-#	elif defined(__alpha__)
-#		define PTHREAD_STACK_TOP	0x160022000
-#	else
-#		error "Don't recognize this architecture!"
-#	endif
-#else
-#	error "Don't recognize this operating system!"
-#endif
 #define PTHREAD_DEFAULT_PRIORITY		64
 #define PTHREAD_MAX_PRIORITY			126
 #define PTHREAD_MIN_PRIORITY			0
@@ -903,7 +892,7 @@ SCLASS SLIST_HEAD(, stack)	_stackq;
 SCLASS void *	_next_stack
 #ifdef GLOBAL_PTHREAD_PRIVATE
 /* main stack top   - main stack size       - stack size            - (red zone + main stack red zone) */
-= (void *) PTHREAD_STACK_TOP - PTHREAD_STACK_INITIAL - PTHREAD_STACK_DEFAULT - (2 * PTHREAD_STACK_GUARD)
+= (void *) USRSTACK - PTHREAD_STACK_INITIAL - PTHREAD_STACK_DEFAULT - (2 * PTHREAD_STACK_GUARD)
 #endif
 ;
 
