@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.21 1997/06/13 04:01:39 brian Exp $
+ * $Id: command.c,v 1.24.2.22 1997/06/17 02:06:50 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -834,19 +834,7 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int parity;
-
-  if (argc > 0) {
-    parity = ChangeParity(*argv);
-    if (parity < 0)
-      LogPrintf(LogWARN, "Invalid parity.\n");
-    else {
-      VarParity = parity;
-      return 0;
-    }
-  }
-
-  return -1;
+  return argc > 0 ? ChangeParity(*argv) : -1;
 }
 
 static int
