@@ -18,6 +18,7 @@ this software for any purpose.  It is provided "as is" without express
 or implied warranty.
 
   */
+/* $FreeBSD$ */
 
 #include "krb_locl.h"
 
@@ -108,7 +109,7 @@ krb_recvauth(int32_t options,	/* bit-pattern of options */
 	     struct sockaddr_in *laddr,	/* local address */
 	     AUTH_DAT *kdata,	/* kerberos data (returned) */
 	     char *filename,	/* name of file with service keys */
-	     struct des_ks_struct *schedule, /* key schedule (return) */
+	     des_key_schedule schedule, /* key schedule (return) */
 	     char *version)	/* version string (filled in) */
 {
     int cc;

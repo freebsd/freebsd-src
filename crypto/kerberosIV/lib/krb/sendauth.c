@@ -18,6 +18,7 @@ this software for any purpose.  It is provided "as is" without express
 or implied warranty.
 
   */
+/* $FreeBSD$ */
 
 #include "krb_locl.h"
 
@@ -103,7 +104,7 @@ krb_sendauth(int32_t options,	/* bit-pattern of options */
 	     u_int32_t checksum, /* checksum to include in request */
 	     MSG_DAT *msg_data,	/* mutual auth MSG_DAT (return) */
 	     CREDENTIALS *cred,	/* credentials (return) */
-	     struct des_ks_struct *schedule, /* key schedule (return) */
+	     des_key_schedule schedule, /* key schedule (return) */
 	     struct sockaddr_in *laddr, /* local address */
 	     struct sockaddr_in *faddr,	/* address of foreign host on fd */
 	     char *version)	/* version string */

@@ -32,6 +32,7 @@
  */
 
 /* $Id: krb-protos.h,v 1.24.2.1 2000/06/23 03:32:04 assar Exp $ */
+/* $FreeBSD$ */
 
 #ifndef __krb_protos_h__
 #define __krb_protos_h__
@@ -177,7 +178,7 @@ krb_check_auth __P((
 	u_int32_t checksum,
 	MSG_DAT *msg_data,
 	des_cblock *session,
-	struct des_ks_struct *schedule,
+	des_key_schedule schedule,
 	struct sockaddr_in *laddr,
 	struct sockaddr_in *faddr));
 
@@ -449,7 +450,7 @@ krb_mk_priv __P((
 	void *in,
 	void *out,
 	u_int32_t length,
-	struct des_ks_struct *schedule,
+	des_key_schedule schedule,
 	des_cblock *key,
 	struct sockaddr_in *sender,
 	struct sockaddr_in *receiver));
@@ -526,7 +527,7 @@ int32_t KRB_LIB_FUNCTION
 krb_rd_priv __P((
 	void *in,
 	u_int32_t in_length,
-	struct des_ks_struct *schedule,
+	des_key_schedule schedule,
 	des_cblock *key,
 	struct sockaddr_in *sender,
 	struct sockaddr_in *receiver,
@@ -569,7 +570,7 @@ krb_recvauth __P((
 	struct sockaddr_in *laddr,
 	AUTH_DAT *kdata,
 	char *filename,
-	struct des_ks_struct *schedule,
+	des_key_schedule schedule,
 	char *version));
 
 int KRB_LIB_FUNCTION
@@ -583,7 +584,7 @@ krb_sendauth __P((
 	u_int32_t checksum,
 	MSG_DAT *msg_data,
 	CREDENTIALS *cred,
-	struct des_ks_struct *schedule,
+	des_key_schedule schedule,
 	struct sockaddr_in *laddr,
 	struct sockaddr_in *faddr,
 	char *version));
