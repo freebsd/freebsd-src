@@ -1,11 +1,9 @@
 # $FreeBSD$
-#
 
 PROG=	ssh-agent
-SRCS=	ssh-agent.c
 
-DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
-LDADD+=	-lssh -lcrypto -lz
+DPADD=	${LIBSSH} ${LIBCRYPTO}
+LDADD=	-lssh -lcrypto
 
 .include <bsd.prog.mk>
 
