@@ -105,17 +105,17 @@ SYSTEM_DEP+= $S/alpha/conf/kernel.script
 
 %CLEAN
 
-all:	${KERNEL}
+all: ${KERNEL}
 
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL}
 .else
 FULLKERNEL=	${KERNEL}.debug
-${KERNEL}:	${FULLKERNEL}
+${KERNEL}: ${FULLKERNEL}
 	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
 .endif
 
-${FULLKERNEL}:	${BEFORE_DEPEND} ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
