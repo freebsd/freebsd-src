@@ -491,7 +491,7 @@ assign_driver(struct card *cp)
 		char name[128];
 		int i, fd;
 
-		sprintf(name, CARD_DEVICE, 0); /* XXX sanpei */
+		sprintf(name, CARD_DEVICE, 0); /* XXX */
 		fd = open(name, O_RDWR);
  
 		resource.type = SYS_RES_IRQ;
@@ -534,7 +534,7 @@ assign_card_index(struct cis * cis)
 	char name[128];
 	int i, fd;
 
-	sprintf(name, CARD_DEVICE, 0); /* XXX sanpei */
+	sprintf(name, CARD_DEVICE, 0); /* XXX */
 	fd = open(name, O_RDWR);
 
 	resource.type = SYS_RES_IOPORT;
@@ -683,12 +683,34 @@ assign_io(struct slot *sp)
 				sio->size = 1 << cp->io_addr;
 			}
 			if (sio->addr == 0) {
-				int i = bit_fns(io_avail, IOPORTS,
-						sio->size, sio->size);
-				if (i < 0) {
-					return (-1);
+				struct pccard_resource res;
+				char name[128];
+				int i, j, fd;
+
+				sprintf(name, CARD_DEVICE, 0); /* XXX */
+				fd = open(name, O_RDWR);
+ 
+				res.type = SYS_RES_IOPORT;
+				res.size = sio->size;
+
+				for (i = 0; i < IOPORTS; i++) {
+					j = bit_fns(io_avail, IOPORTS, i,
+							sio->size, sio->size);
+					res.min = j;
+					res.max = j + sio->size ;
+					if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
+						perror("ioctl (PIOCSRESOURCE)");
+						exit(1);
+					}
+					if (res.resource_addr == j)
+						break;
 				}
-				sio->addr = i;
+				if (j < 0) {
+					return (-1);
+				} else {
+					sio->addr = j;
+				}
+				close(fd);
 			}
 			bit_nclear(io_avail, sio->addr,
 				   sio->addr + sio->size - 1);
