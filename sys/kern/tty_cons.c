@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/msgbuf.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -117,11 +118,16 @@ int	cons_unavail = 0;	/* XXX:
 static int cn_mute;
 static int openflag;			/* how /dev/console was opened */
 static int cn_is_open;
+static char *consbuf;			/* buffer used by `consmsgbuf' */
+static struct callout conscallout;	/* callout for outputting to constty */
+struct msgbuf consmsgbuf;		/* message buffer for console tty */
 static u_char console_pausing;		/* pause after each line during probe */
 static char *console_pausestr=
 "<pause; press any key to proceed to next line or '.' to end pause mode>";
+struct tty *constty;			/* pointer to console "window" tty */
 
 void	cndebug(char *);
+static void constty_timeout(void *arg);
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 SET_DECLARE(cons_set, struct consdev);
@@ -587,6 +593,70 @@ cndbctl(int on)
 		}
 	if (on)
 		refcount++;
+}
+
+static int consmsgbuf_size = 8192;
+SYSCTL_INT(_kern, OID_AUTO, consmsgbuf_size, CTLFLAG_RW, &consmsgbuf_size, 0,
+    "");
+
+/*
+ * Redirect console output to a tty.
+ */
+void
+constty_set(struct tty *tp)
+{
+	int size;
+
+	KASSERT(tp != NULL, ("constty_set: NULL tp"));
+	if (consbuf == NULL) {
+		size = consmsgbuf_size;
+		consbuf = malloc(size, M_TTYS, M_WAITOK);
+		msgbuf_init(&consmsgbuf, consbuf, size);
+		callout_init(&conscallout, 0);
+	}
+	constty = tp;
+	constty_timeout(NULL);
+}
+
+/*
+ * Disable console redirection to a tty.
+ */
+void
+constty_clear(void)
+{
+	int c;
+
+	constty = NULL;
+	if (consbuf == NULL)
+		return;
+	callout_stop(&conscallout);
+	while ((c = msgbuf_getchar(&consmsgbuf)) != -1)
+		cnputc(c);
+	free(consbuf, M_TTYS);
+	consbuf = NULL;
+}
+
+/* Times per second to check for pending console tty messages. */
+static int constty_wakeups_per_second = 5;
+SYSCTL_INT(_kern, OID_AUTO, constty_wakeups_per_second, CTLFLAG_RW,
+    &constty_wakeups_per_second, 0, "");
+
+static void
+constty_timeout(void *arg)
+{
+	int c;
+
+	while (constty != NULL && (c = msgbuf_getchar(&consmsgbuf)) != -1) {
+		if (tputchar(c, constty) < 0)
+			constty = NULL;
+	}
+	if (constty != NULL) {
+		callout_reset(&conscallout, hz / constty_wakeups_per_second,
+		    constty_timeout, NULL);
+	} else {
+		/* Deallocate the constty buffer memory. */
+		constty_clear();
+	}
 }
 
 static void

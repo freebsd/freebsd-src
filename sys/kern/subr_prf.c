@@ -89,9 +89,6 @@ struct snprintf_arg {
 
 extern	int log_open;
 
-struct	tty *constty;			/* pointer to console "window" tty */
-
-static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 static void  msglogchar(int c, int pri);
 static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len);
@@ -335,21 +332,24 @@ static void
 putchar(int c, void *arg)
 {
 	struct putchar_arg *ap = (struct putchar_arg*) arg;
-	int flags = ap->flags;
 	struct tty *tp = ap->tty;
+	int consdirect, flags = ap->flags;
+
+	consdirect = ((flags & TOCONS) && constty == NULL);
+	/* Don't use the tty code after a panic. */
 	if (panicstr)
-		constty = NULL;
-	if ((flags & TOCONS) && tp == NULL && constty) {
-		tp = constty;
-		flags |= TOTTY;
+		consdirect = 1;
+	if (consdirect) {
+		if (c != '\0')
+			cnputc(c);
+	} else {
+		if ((flags & TOTTY) && tp != NULL)
+			tputchar(c, tp);
+		if ((flags & TOCONS) && constty != NULL)
+			msgbuf_addchar(&consmsgbuf, c);
 	}
-	if ((flags & TOTTY) && tp && tputchar(c, tp) < 0 &&
-	    (flags & TOCONS) && tp == constty)
-		constty = NULL;
 	if ((flags & TOLOG))
 		msglogchar(c, ap->pri);
-	if ((flags & TOCONS) && constty == NULL && c != '\0')
-		(*v_putc)(c);
 }
 
 /*

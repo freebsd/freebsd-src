@@ -265,6 +265,7 @@ struct speedtab {
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_TTYS);
 #endif
+extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
 extern	struct tty *constty;	/* Temporary virtual console. */
 extern long tk_cancc;
 extern long tk_nin;
@@ -275,6 +276,8 @@ int	 b_to_q(char *cp, int cc, struct clist *q);
 void	 catq(struct clist *from, struct clist *to);
 void	 clist_alloc_cblocks(struct clist *q, int ccmax, int ccres);
 void	 clist_free_cblocks(struct clist *q);
+void	 constty_set(struct tty *tp);
+void	 constty_clear(void);
 int	 getc(struct clist *q);
 void	 ndflush(struct clist *q, int cc);
 char	*nextc(struct clist *q, char *cp, int *c);
