@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.79 1998/09/15 11:44:40 phk Exp $
+#	$Id: Makefile,v 1.80 1998/09/17 03:55:29 gibbs Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -14,7 +14,7 @@
 
 SUBDIR=	${_csu} libcom_err ${_libcrypt} libmytinfo libtermcap \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
-	libcompat libcurses libdevstat ${_libdisk} libedit libf2c libfetch \
+	libcompat libcurses libdevstat libdisk libedit libf2c libfetch \
 	libftpio libgnumalloc libipx libkvm ${_libm} libmd libncurses libopie \
 	libpcap libresolv librpcsvc libskey libss libstand \
 	${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
@@ -39,7 +39,6 @@ _libcrypt=	libcrypt
 
 .if ${MACHINE_ARCH} == "i386"
 _compat=	compat
-_libdisk=	libdisk
 _libvgl=	libvgl
 .endif
 
