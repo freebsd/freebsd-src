@@ -821,38 +821,51 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  *	A pointer to the alloced memory or possibly 
  *	NULL if M_NOWAIT is set.
  *
- * TODO: If we fail during a multi-page allocation release the pages that have
- *	 already been allocated.
  */
 static void *
 obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	vm_offset_t zkva;
-	vm_offset_t retkva;
+	vm_object_t object;
+	vm_offset_t retkva, zkva;
 	vm_page_t p;
-	int pages;
+	int pages, startpages;
 
+	object = zone->uz_obj;
 	retkva = 0;
-	pages = zone->uz_pages;
 
 	/* 
 	 * This looks a little weird since we're getting one page at a time
 	 */
-	while (bytes > 0) {
-		VM_OBJECT_LOCK(zone->uz_obj);
-		p = vm_page_alloc(zone->uz_obj, pages,
-		    VM_ALLOC_INTERRUPT);
-		VM_OBJECT_UNLOCK(zone->uz_obj);
-		if (p == NULL)
-			return (NULL);
-
-		zkva = zone->uz_kva + pages * PAGE_SIZE;
+	VM_OBJECT_LOCK(object);
+	p = TAILQ_LAST(&object->memq, pglist);
+	pages = p != NULL ? p->pindex + 1 : 0;
+	startpages = pages;
+	zkva = zone->uz_kva + pages * PAGE_SIZE;
+	for (; bytes > 0; bytes -= PAGE_SIZE) {
+		p = vm_page_alloc(object, pages,
+		    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
+		if (p == NULL) {
+			if (pages != startpages)
+				pmap_qremove(retkva, pages - startpages);
+			while (pages != startpages) {
+				pages--;
+				p = TAILQ_LAST(&object->memq, pglist);
+				vm_page_lock_queues();
+				vm_page_unwire(p, 0);
+				vm_page_free(p);
+				vm_page_unlock_queues();
+			}
+			retkva = 0;
+			goto done;
+		}
+		pmap_qenter(zkva, &p, 1);
 		if (retkva == 0)
 			retkva = zkva;
-		pmap_qenter(zkva, &p, 1);
-		bytes -= PAGE_SIZE;
+		zkva += PAGE_SIZE;
 		pages += 1;
 	}
+done:
+	VM_OBJECT_UNLOCK(object);
 
 	*flags = UMA_SLAB_PRIV;
 
