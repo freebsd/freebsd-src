@@ -126,16 +126,17 @@ CTASSERT(NLOCK_FIELDS <= 16);
 static void
 g_bde_shuffle_lock(struct g_bde_softc *sc, int *buf)
 {
-	int i, j, k, l;
+	int j, k, l;
+	u_int u;
 
 	/* Assign the fields sequential positions */
-	for(i = 0; i < NLOCK_FIELDS; i++)
-		buf[i] = i;
+	for(u = 0; u < NLOCK_FIELDS; u++)
+		buf[u] = u;
 
 	/* Then mix it all up */
-	for(i = 48; i < sizeof(sc->sha2); i++) {
-		j = sc->sha2[i] % NLOCK_FIELDS;
-		k = (sc->sha2[i] / NLOCK_FIELDS) % NLOCK_FIELDS;
+	for(u = 48; u < sizeof(sc->sha2); u++) {
+		j = sc->sha2[u] % NLOCK_FIELDS;
+		k = (sc->sha2[u] / NLOCK_FIELDS) % NLOCK_FIELDS;
 		l = buf[j];
 		buf[j] = buf[k];
 		buf[k] = l;
