@@ -233,11 +233,12 @@ vm_pageout_clean(m)
 	 */
 
 	/*
-	 * Don't mess with the page if it's busy.
+	 * Don't mess with the page if it's busy, held, or special
 	 */
 	if ((m->hold_count != 0) ||
-	    ((m->busy != 0) || (m->flags & PG_BUSY)))
+	    ((m->busy != 0) || (m->flags & (PG_BUSY|PG_UNMANAGED)))) {
 		return 0;
+	}
 
 	mc[vm_pageout_page_count] = m;
 	pageout_count = 1;
@@ -279,7 +280,7 @@ more:
 			break;
 		}
 		if (((p->queue - p->pc) == PQ_CACHE) ||
-		    (p->flags & PG_BUSY) || p->busy) {
+		    (p->flags & (PG_BUSY|PG_UNMANAGED)) || p->busy) {
 			ib = 0;
 			break;
 		}
@@ -309,7 +310,7 @@ more:
 		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
 			break;
 		if (((p->queue - p->pc) == PQ_CACHE) ||
-		    (p->flags & PG_BUSY) || p->busy) {
+		    (p->flags & (PG_BUSY|PG_UNMANAGED)) || p->busy) {
 			break;
 		}
 		vm_page_test_dirty(p);
@@ -474,7 +475,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 			if (p->wire_count != 0 ||
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
-			    (p->flags & PG_BUSY) ||
+			    (p->flags & (PG_BUSY|PG_UNMANAGED)) ||
 			    !pmap_page_exists(vm_map_pmap(map), p)) {
 				p = next;
 				continue;
@@ -1047,7 +1048,10 @@ rescan0:
 		m = vm_page_list_find(PQ_CACHE, cache_rover, FALSE);
 		if (!m)
 			break;
-		if ((m->flags & PG_BUSY) || m->busy || m->hold_count || m->wire_count) {
+		if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || 
+		    m->busy || 
+		    m->hold_count || 
+		    m->wire_count) {
 #ifdef INVARIANTS
 			printf("Warning: busy page %p found in cache\n", m);
 #endif

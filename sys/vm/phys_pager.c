@@ -104,7 +104,9 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object = vm_object_allocate(OBJT_PHYS,
 			OFF_TO_IDX(foff + size));
 		object->handle = handle;
+#if 0
 		TAILQ_INIT(&object->un_pager.physp.physp_pglist);
+#endif
 		TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
 		    pager_object_list);
 	} else {
@@ -131,20 +133,6 @@ phys_pager_dealloc(object)
 	int s;
 
 	TAILQ_REMOVE(&phys_pager_object_list, object, pager_object_list);
-	/*
-	 * Free up our fake pages.
-	 */
-	s = splvm();
-	while ((m = TAILQ_FIRST(&object->un_pager.physp.physp_pglist)) != 0) {
-		TAILQ_REMOVE(&object->un_pager.physp.physp_pglist, m, pageq);
-		/* return the page back to normal */
-		m->flags &= ~PG_FICTITIOUS;
-		m->dirty = 0;
-		vm_page_unwire(m, 0);
-		vm_page_flag_clear(m, PG_ZERO);
-		vm_page_free(m);
-	}
-	splx(s);
 }
 
 static int
@@ -165,8 +153,7 @@ phys_pager_getpages(object, m, count, reqpage)
 			vm_page_zero_fill(m[i]);
 		vm_page_flag_set(m[i], PG_ZERO);
 		/* Switch off pv_entries */
-		vm_page_wire(m[i]);
-		vm_page_flag_set(m[i], PG_FICTITIOUS);
+		vm_page_unmanage(m[i]);
 		m[i]->valid = VM_PAGE_BITS_ALL;
 		m[i]->dirty = 0;
 		/* The requested page must remain busy, the others not. */
@@ -174,8 +161,6 @@ phys_pager_getpages(object, m, count, reqpage)
 			vm_page_flag_clear(m[i], PG_BUSY);
 			m[i]->busy = 0;
 		}
-		TAILQ_INSERT_TAIL(&object->un_pager.physp.physp_pglist, m[i],
-		    pageq);
 	}
 	splx(s);
 
