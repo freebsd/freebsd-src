@@ -304,33 +304,35 @@ vm_init_limits(udata)
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
+/*
+ * Must be called with the proc struc mutex held.
+ */
 void
 faultin(p)
 	struct proc *p;
 {
-	int s;
 
-	if ((p->p_flag & P_INMEM) == 0) {
+	mtx_assert(&p->p_mtx, MA_OWNED);
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_INMEM) == 0) {
 
 		++p->p_lock;
+		mtx_exit(&sched_lock, MTX_SPIN);
 
+		mtx_assert(&Giant, MA_OWNED);
 		pmap_swapin_proc(p);
-
-		s = splhigh();
 
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SRUN) {
 			setrunqueue(p);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
 
-		p->p_flag |= P_INMEM;
+		p->p_sflag |= PS_INMEM;
 
 		/* undo the effect of setting SLOCK above */
 		--p->p_lock;
-		splx(s);
-
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*
@@ -361,13 +363,13 @@ loop:
 	pp = NULL;
 	ppri = INT_MIN;
 	ALLPROC_LOCK(AP_SHARED);
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SRUN &&
-			(p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
+			(p->p_sflag & (PS_INMEM | PS_SWAPPING)) == 0) {
 
 			pri = p->p_swtime + p->p_slptime;
-			if ((p->p_flag & P_SWAPINREQ) == 0) {
+			if ((p->p_sflag & PS_SWAPINREQ) == 0) {
 				pri -= p->p_nice * 8;
 			}
 
@@ -392,7 +394,9 @@ loop:
 		tsleep(&proc0, PVM, "sched", 0);
 		goto loop;
 	}
-	p->p_flag &= ~P_SWAPINREQ;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	p->p_sflag &= ~PS_SWAPINREQ;
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	/*
 	 * We would like to bring someone in. (only if there is space).
@@ -403,11 +407,6 @@ loop:
 }
 
 #ifndef NO_SWAPPING
-
-#define	swappable(p) \
-	(((p)->p_lock == 0) && \
-		((p)->p_flag & (P_TRACED|P_SYSTEM|P_INMEM|P_WEXIT|P_SWAPPING)) == P_INMEM)
-
 
 /*
  * Swap_idle_threshold1 is the guaranteed swapped in time for a process
@@ -445,12 +444,22 @@ int action;
 	outpri = outpri2 = INT_MIN;
 	ALLPROC_LOCK(AP_SHARED);
 retry:
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		struct vmspace *vm;
-		if (!swappable(p))
-			continue;
-
+		
+		PROC_LOCK(p);
+		if (!(p->p_lock == 0 &&
+		    (p->p_flag & (P_TRACED|P_SYSTEM|P_WEXIT)) == 0)) {
+			mtx_enter(&sched_lock, MTX_SPIN);
+			if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) == PS_INMEM) {
+				mtx_exit(&sched_lock, MTX_SPIN);
+				PROC_UNLOCK(p);
+				continue;
+			}
+			mtx_exit(&sched_lock, MTX_SPIN);
+		}
 		vm = p->p_vmspace;
+		PROC_UNLOCK(p);
 
 		mtx_enter(&sched_lock, MTX_SPIN);
 		switch (p->p_stat) {
@@ -478,7 +487,6 @@ retry:
 				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
 			}
-			mtx_exit(&sched_lock, MTX_SPIN);
 
 			/*
 			 * If the system is under memory stress, or if we are swapping
@@ -487,8 +495,11 @@ retry:
 			 */
 			if (((action & VM_SWAP_NORMAL) == 0) &&
 				(((action & VM_SWAP_IDLE) == 0) ||
-				  (p->p_slptime < swap_idle_threshold2)))
+				  (p->p_slptime < swap_idle_threshold2))) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
+			}
+			mtx_exit(&sched_lock, MTX_SPIN);
 
 			++vm->vm_refcnt;
 			/*
@@ -506,14 +517,17 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (p->p_slptime > swap_idle_threshold2))) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				swapout(p);
 				vmspace_free(vm);
 				didswap++;
 				goto retry;
-			}
+			} else
+				mtx_exit(&sched_lock, MTX_SPIN);
 		}
 	}
 	ALLPROC_LOCK(AP_RELEASE);
@@ -541,8 +555,8 @@ swapout(p)
 
 	(void) splhigh();
 	mtx_enter(&sched_lock, MTX_SPIN);
-	p->p_flag &= ~P_INMEM;
-	p->p_flag |= P_SWAPPING;
+	p->p_sflag &= ~PS_INMEM;
+	p->p_sflag |= PS_SWAPPING;
 	if (p->p_stat == SRUN)
 		remrunqueue(p);
 	mtx_exit(&sched_lock, MTX_SPIN);
@@ -550,7 +564,9 @@ swapout(p)
 
 	pmap_swapout_proc(p);
 
-	p->p_flag &= ~P_SWAPPING;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	p->p_sflag &= ~PS_SWAPPING;
 	p->p_swtime = 0;
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 #endif /* !NO_SWAPPING */
