@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.11 1998/10/17 10:35:15 rnordier Exp $
+ *	$Id: boot2.c,v 1.12 1998/10/17 11:25:05 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -485,7 +485,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	    return -1;
 	}
 	fsblks = fs.fs_bsize >> DEV_BSHIFT;
-	dsk.meta = 1;
+	dsk.meta++;
     }
     if (!inode)
 	return 0;
@@ -649,9 +649,11 @@ getstr(char *str, int size)
 	case 0:
 	    break;
 	case '\b':
-	    if (s > str)
+	    if (s > str) {
 		s--;
-	    else
+		putchar(c);
+		putchar(' ');
+	    } else
 		c = 0;
 	    break;
 	case '\n':
