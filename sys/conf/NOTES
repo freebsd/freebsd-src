@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.572 1999/03/29 14:00:46 phk Exp $
+#	$Id: LINT,v 1.573 1999/03/29 17:56:27 ken Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -548,6 +548,7 @@ options		"CD9660"		#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
 options		MSDOSFS			#MS DOS File System
+options		NTFS			#NT File System
 options		NULLFS			#NULL filesystem
 options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
