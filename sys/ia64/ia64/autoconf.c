@@ -29,6 +29,7 @@
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
+#include "opt_isa.h"
 #include "opt_nfs.h"
 #include "opt_nfsroot.h"
 
@@ -59,8 +60,7 @@
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
-#include "isa.h"
-#if NISA > 0
+#ifdef DEV_ISA
 #include <isa/isavar.h>
 device_t isa_bus_device = 0;
 #endif
@@ -83,7 +83,7 @@ configure(void *dummy)
 	/*
 	 * Probe ISA devices after everything.
 	 */
-#if NISA > 0
+#ifdef DEV_ISA
 	if (isa_bus_device)
 		isa_probe_children(isa_bus_device);
 #endif
