@@ -167,7 +167,7 @@ void attr_clear(WINDOW *win, int height, int width, chtype attr)
  */
 void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, int maxwidth, int y, int x, int center, int rawmode)
 {
-  int first = 1, cur_x, cur_y, i;
+  int cur_x, cur_y, i;
   unsigned char tempstr[MAX_LEN+1], *word, *tempptr, *tempptr1;
   chtype ostuff[132], attrs = 0, init_bottom = 0;
 
@@ -244,13 +244,15 @@ void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, i
     waddstr(win, tempstr);
   }
   else {
+    char *p = tempstr;
+
     /* Print prompt word by word, wrap around if necessary */
-    while ((word = strtok(first ? tempstr : NULL, "\t\n ")) != NULL) {
+    while ((word = strsep(&p, "\t\n ")) != NULL) {
       int loop;
       unsigned char sc;
 
-      if (first)    /* First iteration */
-        first = 0;
+      if (*word == '\0')
+	continue;
       do {
 	loop = 0;
 	if (cur_x+strlen(word) >= width+1) {    /* wrap around to next line */
