@@ -17,7 +17,7 @@
 #
 # $FreeBSD$"
 #
-#-------cut here------------------
+#
 if [ "${1}X" = "X" ] 
 then
 	echo "Hey , how about some help here.. give me a device name!"
@@ -153,8 +153,13 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/bus_pio.h>
+#include <machine/bus_memio.h>
 #include <sys/rman.h>
 #include <sys/time.h>
+
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #include <isa/isavar.h>
 #include "isa_if.h"
@@ -166,42 +171,6 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #define SOME_PORT 123
 #define EXPECTED_VALUE 0x42
 
-
-/* Function prototypes (these should all be static) */
-static void ${1}_isa_identify (driver_t *, device_t);
-static int ${1}_isa_probe (device_t);
-static int ${1}_isa_attach (device_t);
-static int ${1}_isa_detach (device_t);
-static int ${1}_deallocate_resources(device_t device);
-static int ${1}_allocate_resources(device_t device);
-
-static d_open_t		${1}open;
-static d_close_t	${1}close;
-static d_read_t		${1}read;
-static d_write_t	${1}write;
-static d_ioctl_t	${1}ioctl;
-static d_mmap_t		${1}mmap;
-static d_poll_t		${1}poll;
-static	void		${1}intr(void *arg);
- 
-#define CDEV_MAJOR 20
-static struct cdevsw ${1}_cdevsw = {
-	/* open */	${1}open,
-	/* close */	${1}close,
-	/* read */	${1}read,
-	/* write */	${1}write,
-	/* ioctl */	${1}ioctl,
-	/* poll */	${1}poll,
-	/* mmap */	${1}mmap,
-	/* strategy */	nostrategy,	/* not a block type device */
-	/* name */	"${1}",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,		/* not a block type device */
-	/* psize */	nopsize,	/* not a block type device */
-	/* flags */	0,
-	/* bmaj */	-1
-};
- 
 /* 
  * device specific Misc defines 
  */
@@ -232,7 +201,47 @@ struct ${1}_softc {
 
 typedef	struct ${1}_softc *sc_p;
 
-static devclass_t ${1}_devclass;
+
+/* Function prototypes (these should all be static) */
+static int ${1}_deallocate_resources(device_t device);
+static int ${1}_allocate_resources(device_t device);
+static int ${1}_attach(device_t device, sc_p scp);
+static int ${1}_detach(device_t device, sc_p scp);
+
+static d_open_t		${1}open;
+static d_close_t	${1}close;
+static d_read_t		${1}read;
+static d_write_t	${1}write;
+static d_ioctl_t	${1}ioctl;
+static d_mmap_t		${1}mmap;
+static d_poll_t		${1}poll;
+static	void		${1}intr(void *arg);
+ 
+#define CDEV_MAJOR 20
+static struct cdevsw ${1}_cdevsw = {
+	/* open */	${1}open,
+	/* close */	${1}close,
+	/* read */	${1}read,
+	/* write */	${1}write,
+	/* ioctl */	${1}ioctl,
+	/* poll */	${1}poll,
+	/* mmap */	${1}mmap,
+	/* strategy */	nostrategy,	/* not a block type device */
+	/* name */	"${1}",
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,		/* not a block type device */
+	/* psize */	nopsize,	/* not a block type device */
+	/* flags */	0,
+	/* bmaj */	-1
+};
+ 
+/*****************************************\
+* ISA Attachment structures and functions
+\*****************************************/
+static void ${1}_isa_identify (driver_t *, device_t);
+static int ${1}_isa_probe (device_t);
+static int ${1}_isa_attach (device_t);
+static int ${1}_isa_detach (device_t);
 
 static struct isa_pnp_id ${1}_ids[] = {
 	{0x12345678,	"ABCco Widget"},
@@ -253,6 +262,8 @@ static driver_t ${1}_isa_driver = {
 	${1}_methods,
 	sizeof (struct ${1}_softc)
 };
+
+static devclass_t ${1}_devclass;
 
 DRIVER_MODULE(${1}, isa, ${1}_isa_driver, ${1}_devclass, 0, 0);
 
@@ -421,7 +432,6 @@ ${1}_isa_probe (device_t device)
 		error = bus_get_resource(device, SYS_RES_IOPORT, 0,
 			&port_start, &port_count);
 
-
 		/* dummy heuristic type probe */
 		if ( inb(port_start) != EXPECTED_VALUE) {
 			/* 
@@ -473,17 +483,126 @@ errexit:
  * Called if the probe succeeded and our bid won the device.
  * We can be destructive here as we know we have the device.
  * This is the first place we can be sure we have a softc structure.
+ * You would do ISA specific attach things here, but generically there aren't
+ * any (yey new-bus!).
  */
 static int
 ${1}_isa_attach (device_t device)
 {
-	int	unit	= device_get_unit(device);
 	sc_p	scp	= device_get_softc(device);
+        int	error;
+
+        error =  ${1}_attach(device, scp);
+        if (error) {
+                ${1}_isa_detach(device);
+        }
+        return (error);
+
+}
+
+/* 
+ * detach the driver (e.g. module unload)
+ * call the bus independent version
+ * and undo anything we did in the ISA attach routine.
+ */
+static int
+${1}_isa_detach (device_t device)
+{
+	sc_p	scp	= device_get_softc(device);
+        int	error;
+
+        error =  ${1}_detach(device, scp);
+        return (error);
+}
+
+/***************************************\
+* PCI Attachment structures and code	*
+\***************************************/
+
+static int	${1}_pci_probe	__P((device_t));
+static int	${1}_pci_attach	__P((device_t));
+static int	${1}_pci_detach	__P((device_t));
+
+static device_method_t ${1}_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		${1}_pci_probe),
+	DEVMETHOD(device_attach,	${1}_pci_attach),
+	DEVMETHOD(device_detach,	${1}_pci_detach),
+	{ 0, 0 }
+};
+
+static driver_t ${1}_pci_driver = {
+	"${1}",
+	${1}_pci_methods,
+	sizeof(struct ${1}_softc),
+};
+
+static devclass_t ${1}_pci_devclass;
+
+DRIVER_MODULE(${1}, pci, ${1}_pci_driver, ${1}_pci_devclass, 0, 0);
+
+static struct _pcsid
+{
+	u_int32_t	type;
+	const char	*desc;
+} pci_ids[] = {
+	{ 0x1234abcd,	"ACME PCI Widgetplus"	},
+	{ 0x1234fedc,	"Happy moon brand RIPOFFplus"	},
+	{ 0x00000000,	NULL					}
+};
+
+static int
+${1}_pci_probe (device_t device)
+{
+	u_int32_t	type = pci_get_devid(device);
+	struct _pcsid	*ep =pci_ids;
+
+	while (ep->type && ep->type != type)
+		++ep;
+	if (ep->desc) {
+		device_set_desc(device, ep->desc);
+		return 0;
+	} else {
+		return ENXIO;
+	}
+}
+
+static int
+${1}_pci_attach(device_t device)
+{
+	sc_p	scp	= device_get_softc(device);
+        int	error;
+
+        error =  ${1}_attach(device, scp);
+        if (error) {
+                ${1}_pci_detach(device);
+        }
+        return (error);
+}
+
+static int
+${1}_pci_detach (device_t device)
+{
+	sc_p	scp	= device_get_softc(device);
+        int	error;
+
+        error =  ${1}_detach(device, scp);
+        return (error);
+}
+
+
+/****************************************\
+*  Common Attachment subfunctions	*
+\****************************************/
+static int
+${1}_attach(device_t device, sc_p scp)
+{
+	int	unit	= device_get_unit(device);
 	device_t parent	= device_get_parent(device);
 
-	scp->dev->si_drv1 = scp;
 	scp->dev = make_dev(&${1}_cdevsw, 0,
 			UID_ROOT, GID_OPERATOR, 0600, "${1}%d", unit);
+	scp->dev->si_drv1 = scp;
 
 	if (${1}_allocate_resources(device)) {
 		goto errexit;
@@ -508,6 +627,8 @@ ${1}_isa_attach (device_t device)
 		if (BUS_SETUP_INTR(parent, device, scp->res_irq, INTR_TYPE_TTY,
 				${1}intr, scp, &scp->intr_cookie) == 0) {
 			/* do something if successfull */
+		} else {
+			goto errexit;
 		}
 	}
 
@@ -522,14 +643,13 @@ errexit:
 	/*
 	 * Undo anything we may have done
 	 */
-	${1}_isa_detach(device);
+	${1}_detach(device, scp);
 	return (ENXIO);
 }
 
 static int
-${1}_isa_detach (device_t device)
+${1}_detach(device_t device, sc_p scp)
 {
-	sc_p scp = device_get_softc(device);
 	device_t parent = device_get_parent(device);
 
 	/*
