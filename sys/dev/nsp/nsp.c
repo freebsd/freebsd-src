@@ -341,6 +341,18 @@ nsphw_bus_reset(sc)
 	bus_space_write_1(bst, bsh, nsp_irqcr, IRQSR_MASK);
 }
 
+static __inline void
+nsp_start_timer(sc, time)
+	struct nsp_softc *sc;
+	int time;
+{
+	bus_space_tag_t bst = sc->sc_iot;
+	bus_space_handle_t bsh = sc->sc_ioh;
+
+	sc->sc_timer = time;
+	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, time);
+}
+
 static int
 nsphw_start_selection(sc, cb)
 	struct nsp_softc *sc;
@@ -533,18 +545,6 @@ nsp_lun_init(sc, ti, li)
 	nli->nli_reg_ackwidth = 0;
 	return 0;
 }	
-
-static __inline void
-nsp_start_timer(sc, time)
-	struct nsp_softc *sc;
-	int time;
-{
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
-
-	sc->sc_timer = time;
-	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, time);
-}
 
 /**************************************************************
  * General probe attach
