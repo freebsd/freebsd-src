@@ -85,7 +85,7 @@
   080   fkey58 '2'    '2'    '2'    178    178    178    178     N
   081   fkey59 '3'    '3'    '3'    179    179    179    179     N
   082   fkey60 '0'    '0'    '0'    176    176    176    176     N
-  083   fkey61 '.'    del    del    174    174    boot   boot    N
+  083   del    '.'    '.'    '.'    174    174    boot   boot    N
   084   alock  alock  alock  alock  alock  alock  alock  alock   O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -213,7 +213,7 @@
   208   fkey58 '2'    '2'    '2'    178    178    178    178     N
   209   fkey59 '3'    '3'    '3'    179    179    179    179     N
   210   fkey60 '0'    '0'    '0'    176    176    176    176     N
-  211   fkey61 '.'    del    del    174    174    boot   boot    N
+  211   del    '.'    '.'    '.'    174    174    boot   boot    N
   212   alock  alock  alock  alock  alock  alock  alock  alock   O
   213   nop    nop    nop    nop    nop    nop    nop    nop     O
   214   nop    nop    nop    nop    nop    nop    nop    nop     O
