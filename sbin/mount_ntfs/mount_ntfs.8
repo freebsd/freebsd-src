@@ -80,13 +80,44 @@ on which the file system is being mounted.
 Specify the maximum file permissions for files
 in the file system.
 .El
+.Sh FEATURES
+NTFS file attributes are accessed in following way:
+.Bd -literal -offset indent
+foo[[:ATTRTYPE]:ATTRNAME]
+.Ed
+.Pp
+.Sq ATTRTYPE
+is one of indentifier listed in $AttrDef file of
+volume. Default is $DATA.
+.Sq ATTRNAME
+is an attribute name. Default is none.
+.Sh EXAMPLES
+To mount an ntfs volume located in /dev/wd1s1:
+.Bd -literal -offset indent
+# mount_ntfs /dev/wd1s1 /mnt
+.Ed
+.Pp
+To get volume name (in Unicode):
+.Bd -literal -offset indent
+# cat /mnt/\\$Volume:\\$VOLUME_NAME
+.Ed
+.Pp
+To read directory raw data:
+.Bd -literal -offset indent
+# cat /mnt/foodir:\\$INDEX_ROOT:\\$I30
+.Ed
+.Pp
+.Sh WRITING
+There is limited writing ability. Limitations: file must be nonresident
+and must not contain any sparces (uninitialized areas), compressed
+files are not supported either.
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mount 8
 .Sh CAVEATS
-This utulity gives only read-only access to NTFS volume.
+This utulity gives almost only read-only access to NTFS volume. See WRITING section.
 .Sh HISTORY
 The
 .Nm
