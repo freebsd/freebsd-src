@@ -22,7 +22,7 @@ Pass2(FILE *fd)
 {
     u_char *p,*q,*md5=0;
     MD5_CTX ctx;
-    int i,j,sep,cnt;
+    int i,j,sep,cnt,fdesc;
     u_char *trash=0,*name=0;
     struct CTM_Syntax *sp;
     struct stat st;
@@ -31,6 +31,7 @@ Pass2(FILE *fd)
     char md5_1[33];
     struct CTM_Filter *filter;
     FILE *ed = NULL;
+    static char *template = NULL;
 
     if(Verbose>3)
 	printf("Pass2 -- Checking if CTM-patch will apply\n");
@@ -187,8 +188,37 @@ Pass2(FILE *fd)
 		    GETDATA(trash,cnt);
 		    if (!match)
 			break;
+		    if (!template) {
+			if (asprintf(&template, "%s/CTMclientXXXXXX",
+				TmpDir) == -1) {
+			    fprintf(stderr, "  %s: malloc failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    return ret;
+		        }
+		    }
 		    if(!strcmp(sp->Key,"FN")) {
-			p = tempnam(TmpDir,"CTMclient");
+			if ((p = strdup(template)) == NULL) {
+			    fprintf(stderr, "  %s: malloc failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    return ret;
+			}
+			if ((fdesc = mkstemp(p)) == -1) {
+			    fprintf(stderr, "  %s: mkstemp failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    Free(p);
+			    return ret;
+			}
+			if (close(fdesc) == -1) {
+			    fprintf(stderr, "  %s: close failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    unlink(p);
+			    Free(p);
+			    return ret;
+			}
 			j = ctm_edit(trash,cnt,name,p);
 			if(j) {
 			    fprintf(stderr,"  %s: %s edit returned %d.\n",
@@ -208,7 +238,27 @@ Pass2(FILE *fd)
 		        unlink(p);
 			Free(p);
 		    } else if (!strcmp(sp->Key,"FE")) {
-			p = tempnam(TmpDir,"CTMclient");
+			if ((p = strdup(template)) == NULL) {
+			    fprintf(stderr, "  %s: malloc failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    return ret;
+			}
+			if ((fdesc = mkstemp(p)) == -1) {
+			    fprintf(stderr, "  %s: mkstemp failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    Free(p);
+			    return ret;
+			}
+			if (close(fdesc) == -1) {
+			    fprintf(stderr, "  %s: close failed.\n",
+				sp->Key);
+			    ret |= Exit_Mess;
+			    unlink(p);
+			    Free(p);
+			    return ret;
+			}
 			ed = popen("ed","w");
 			if (!ed) {
 			    WRONG

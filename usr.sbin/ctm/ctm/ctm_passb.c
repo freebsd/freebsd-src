@@ -36,7 +36,7 @@ PassB(FILE *fd)
 	printf("PassB -- Backing up files which would be changed.\n");
 
     MD5Init (&ctx);
-    sprintf(buf, TarCmd, BackupFile);
+    snprintf(buf, sizeof(buf), fmtcheck(TarCmd, TARCMD), BackupFile);
     b=popen(buf, "w");
     if(!b) { warn("%s", buf); return Exit_Garbage; }
 
