@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.20 1997/03/28 04:45:30 jdp Exp $
+# $Id: Makefile.inc,v 1.21 1998/01/11 04:10:26 jb Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -10,10 +10,10 @@ GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 BISON?=		bison
 
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${MACHINE}/${MACHINE}.md
-OUT_FILE=	${MACHINE}.c
-OUT_OBJ=	${MACHINE}
-.PATH:		${GCCDIR}/config/${MACHINE}
+MD_FILE=	${GCCDIR}/config/${MACHINE_ARCH}/${MACHINE_ARCH}.md
+OUT_FILE=	${MACHINE_ARCH}.c
+OUT_OBJ=	${MACHINE_ARCH}
+.PATH:		${GCCDIR}/config/${MACHINE_ARCH}
 
 .if ${MACHINE} == "alpha"
 BINFORMAT=	elf
@@ -25,11 +25,11 @@ BINFORMAT?=	aout
 
 .if ${BINFORMAT} == aout
 CFLAGS+=	-DFREEBSD_AOUT
-target=		${MACHINE}-unknown-freebsd
+target=		${MACHINE_ARCH}-unknown-freebsd
 .endif
 .if ${BINFORMAT} == elf
 CFLAGS+=	-DFREEBSD_ELF
-target=		${MACHINE}-unknown-freebsdelf
+target=		${MACHINE_ARCH}-unknown-freebsdelf
 .endif
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
