@@ -36,10 +36,9 @@
 static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #endif
 static char rcsid[] =
-	"$Id: usleep.c,v 1.19 1997/10/17 09:40:08 ache Exp $";
+	"$Id: usleep.c,v 1.20 1997/10/22 10:55:49 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include <errno.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -49,13 +48,9 @@ usleep(useconds)
 {
 	struct timespec time_to_sleep;
 
-	if (useconds >= 1000000) {
-		errno = EINVAL;
-		return -1;
-	}
 	if (useconds) {
-		time_to_sleep.tv_nsec = useconds * 1000;
-		time_to_sleep.tv_sec = 0;
+		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
+		time_to_sleep.tv_sec = useconds / 1000000;
 		return nanosleep(&time_to_sleep, NULL);
 	}
 	return 0;

@@ -52,10 +52,6 @@ of time.
 System activity or time spent in processing the
 call may lengthen the sleep slightly.
 .Pp
-The
-.Fa microseconds
-argument must be less than 1000000.
-.Pp
 If a timer is already running on the process its state is unaltered by
 this
 .Fn usleep
@@ -83,13 +79,9 @@ The
 .Fn usleep
 function
 will fail if:
-.Bl -tag -width [EINVAL]
+.Bl -tag -width [EINTR]
 .It Bq Er EINTR
 Some signal occurse.
-.It Bq Er EINVAL
-The
-.Fa microseconds
-argument specified 1000000 or more microseconds.
 .Sh NOTES
 .Pp
 A microsecond is 0.000001 seconds.
