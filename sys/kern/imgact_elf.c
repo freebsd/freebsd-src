@@ -69,7 +69,7 @@ __ElfType(Brandinfo);
 __ElfType(Auxargs);
 
 static int elf_check_header __P((const Elf_Ehdr *hdr));
-static int elf_freebsd_fixup __P((long **stack_base,
+static int elf_freebsd_fixup __P((register_t **stack_base,
     struct image_params *imgp));
 static int elf_load_file __P((struct proc *p, const char *file, u_long *addr,
     u_long *entry));
@@ -622,10 +622,10 @@ fail:
 }
 
 static int
-elf_freebsd_fixup(long **stack_base, struct image_params *imgp)
+elf_freebsd_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
-	long *pos;
+	register_t *pos;
 
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);
 

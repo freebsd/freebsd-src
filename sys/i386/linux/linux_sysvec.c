@@ -66,9 +66,9 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 extern struct linker_set linux_ioctl_handler_set;
 
-static int	linux_fixup __P((long **stack_base,
+static int	linux_fixup __P((register_t **stack_base,
 				 struct image_params *iparams));
-static int	elf_linux_fixup __P((long **stack_base,
+static int	elf_linux_fixup __P((register_t **stack_base,
 				     struct image_params *iparams));
 static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
 				       u_int *code, caddr_t *params));
@@ -133,9 +133,9 @@ translate_traps(int signal, int trap_code)
 }
 
 static int
-linux_fixup(long **stack_base, struct image_params *imgp)
+linux_fixup(register_t **stack_base, struct image_params *imgp)
 {
-	long *argv, *envp;
+	register_t *argv, *envp;
 
 	argv = *stack_base;
 	envp = *stack_base + (imgp->argc + 1);
@@ -149,10 +149,10 @@ linux_fixup(long **stack_base, struct image_params *imgp)
 }
 
 static int
-elf_linux_fixup(long **stack_base, struct image_params *imgp)
+elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
-	long *pos;
+	register_t *pos;
              
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
     
