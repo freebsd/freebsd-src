@@ -63,10 +63,18 @@
 .\" fixed-width font.
 .\" C is a typewriter font for a laserwriter. Use something else if
 .\" you don't have one...
+.ie n \{\
 .de CW
-.ie !\\n(.$ .ft S
-.el \&\\$3\fS\\$1\fP\\$2
+.ie !\\n(.$ .ft R
+.el \&\\$3\fR\\$1\fP\\$2
 ..
+.\}
+.el \{\
+.de CW
+.ie !\\n(.$ .ft C
+.el \&\\$3\fC\\$1\fP\\$2
+..
+.\}
 .\" Anything I put in a display I want to be in fixed-width
 .am DS
 .CW
@@ -84,6 +92,7 @@
 .mk 
 .nr g3 \\n(.f
 .nr g4 \\n(.s
+.ig ft
 .sp -1
 .\" .st cf
 \D's -1u'\D't 5u'
@@ -103,6 +112,7 @@
 \h'85u'\v'0.85n'\h-\w\\*(g9u/2u\&\\*(g9
 .sp |\\n(g8u
 .sp 166u
+.ig br
 \D't 3u'\D's -1u'
 .br
 .po
