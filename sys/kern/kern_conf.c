@@ -261,7 +261,7 @@ dev2unit(struct cdev *x)
 
 	if (x == NULL)
 		return NODEV;
-	return (minor2unit(minor(x));
+	return (minor2unit(minor(x)));
 }
 
 int
