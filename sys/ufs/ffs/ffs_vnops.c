@@ -549,6 +549,7 @@ ffs_read(ap)
 	}
 
 	if (object) {
+		VM_OBJECT_LOCK(object);
 		vm_object_vndeallocate(object);
 	}
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
@@ -613,6 +614,7 @@ ffs_write(ap)
 			uio->uio_offset = ip->i_size;
 		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size) {
 			if (object) {
+				VM_OBJECT_LOCK(object);
 				vm_object_vndeallocate(object);
 			}
 			return (EPERM);
@@ -634,6 +636,7 @@ ffs_write(ap)
 	if (uio->uio_offset < 0 ||
 	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
 		if (object) {
+			VM_OBJECT_LOCK(object);
 			vm_object_vndeallocate(object);
 		}
 		return (EFBIG);
@@ -650,6 +653,7 @@ ffs_write(ap)
 		psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 		if (object) {
+			VM_OBJECT_LOCK(object);
 			vm_object_vndeallocate(object);
 		}
 		return (EFBIG);
@@ -774,6 +778,7 @@ ffs_write(ap)
 		error = UFS_UPDATE(vp, 1);
 
 	if (object) {
+		VM_OBJECT_LOCK(object);
 		vm_object_vndeallocate(object);
 	}
 
