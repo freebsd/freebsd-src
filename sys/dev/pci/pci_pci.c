@@ -299,7 +299,7 @@ pcib_is_io_open(struct pcib_softc *sc)
  */
 struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
-		    u_long start, u_long end, u_long count, u_int flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
 	struct pcib_softc	*sc = device_get_softc(dev);
 	int ok;
@@ -319,6 +319,8 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					start = sc->iobase;
 				if (end > sc->iolimit)
 					end = sc->iolimit;
+				if (start < end)
+					ok = 1;
 			}
 		} else {
 			ok = 1;
@@ -330,20 +332,22 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif			
 		}
 		if (end < start) {
-			device_printf(dev, "ioport: end (%lx) < start (%lx)\n", end, start);
+			device_printf(dev, "ioport: end (%lx) < start (%lx)\n",
+			    end, start);
 			start = 0;
 			end = 0;
 			ok = 0;
 		}
 		if (!ok) {
-			device_printf(dev, "device %s requested unsupported I/O "
+			device_printf(dev, "%s requested unsupported I/O "
 			    "range 0x%lx-0x%lx (decoding 0x%x-0x%x)\n",
 			    device_get_nameunit(child), start, end,
 			    sc->iobase, sc->iolimit);
 			return (NULL);
 		}
 		if (bootverbose)
-			device_printf(dev, "device %s requested decoded I/O range 0x%lx-0x%lx\n",
+			device_printf(dev,
+			    "%s requested I/O range 0x%lx-0x%lx: in range\n",
 			    device_get_nameunit(child), start, end);
 		break;
 
@@ -394,14 +398,15 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif
 		}
 		if (end < start) {
-			device_printf(dev, "memory: end (%lx) < start (%lx)\n", end, start);
+			device_printf(dev, "memory: end (%lx) < start (%lx)\n",
+			    end, start);
 			start = 0;
 			end = 0;
 			ok = 0;
 		}
 		if (!ok && bootverbose)
 			device_printf(dev,
-			    "device %s requested unsupported memory range "
+			    "%s requested unsupported memory range "
 			    "0x%lx-0x%lx (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
 			    device_get_nameunit(child), start, end,
 			    sc->membase, sc->memlimit, sc->pmembase,
@@ -409,7 +414,8 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		if (!ok)
 			return (NULL);
 		if (bootverbose)
-			device_printf(dev,"device %s requested decoded memory range 0x%lx-0x%lx\n",
+			device_printf(dev,"%s requested memory range "
+			    "0x%lx-0x%lx: good\n",
 			    device_get_nameunit(child), start, end);
 		break;
 
@@ -419,7 +425,8 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	/*
 	 * Bridge is OK decoding this resource, so pass it up.
 	 */
-	return (bus_generic_alloc_resource(dev, child, type, rid, start, end, count, flags));
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags));
 }
 
 /*
