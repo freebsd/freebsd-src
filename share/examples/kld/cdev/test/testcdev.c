@@ -67,21 +67,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/ioccom.h>
 
 #define CDEV_IOCTL1     _IOR('C', 1, u_int)
 #define CDEV_DEVICE	"cdev"
+
+static char writestr[] = "Hello kernel!";
+static char buf[512+1];
 
 int
 main(int argc, char *argv[])
 {
     int kernel_fd;
     int one;
+    int len;
 
-    if ((kernel_fd = open("/dev/" CDEV_DEVICE, O_RDONLY)) == -1) {
+    if ((kernel_fd = open("/dev/" CDEV_DEVICE, O_RDWR)) == -1) {
 	perror("/dev/" CDEV_DEVICE);
 	exit(1);
     }
@@ -92,5 +99,22 @@ main(int argc, char *argv[])
     } else {
 	printf( "Sent ioctl CDEV_IOCTL1 to device /dev/" CDEV_DEVICE "\n");
     }
+
+    len = strlen(writestr) + 1;
+
+    /* Write operation */
+    if (write(kernel_fd, writestr, len) == -1) {
+	perror("write()");
+    } else {
+	printf("Written \"%s\" string to device /dev/" CDEV_DEVICE "\n", writestr);
+    }
+
+    /* Read operation */
+    if (read(kernel_fd, buf, len) == -1) {
+	perror("read()");
+    } else {
+	printf("Read \"%s\" string from device /dev/" CDEV_DEVICE "\n", buf);
+    }
+
     exit(0);
 }

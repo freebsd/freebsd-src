@@ -78,8 +78,8 @@ KLDUNLOAD	= /sbin/kldunload
 
 CLEANFILES+= ${KMOD}
 
-load: /dev/cdev
-	${KLDLOAD} -v ./${KMOD}
+load: /dev/cdev ${KMOD}.ko
+	${KLDLOAD} -v ./${KMOD}.ko
 
 unload:
 	rm -f /dev/cdev
