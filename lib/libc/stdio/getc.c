@@ -39,14 +39,11 @@
 static char sccsid[] = "@(#)getc.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: getc.c,v 1.5 1997/02/22 15:02:11 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /*
  * A subroutine version of the macro getc.
@@ -58,12 +55,8 @@ getc(fp)
 	register FILE *fp;
 {
 	int retval;
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	retval = __sgetc(fp);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (retval);
 }

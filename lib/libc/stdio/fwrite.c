@@ -39,16 +39,13 @@
 static char sccsid[] = "@(#)fwrite.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fwrite.c,v 1.5 1997/02/22 15:02:10 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include "local.h"
 #include "fvwrite.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /*
  * Write `count' objects (each size `size') from memory to the given file.
@@ -69,9 +66,7 @@ fwrite(buf, size, count, fp)
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	/*
 	 * The usual case is success (__sfvwrite returns 0);
 	 * skip the divide if this happens, since divides are
@@ -79,8 +74,6 @@ fwrite(buf, size, count, fp)
 	 */
 	if (__sfvwrite(fp, &uio) != 0)
 	    count = (n - uio.uio_resid) / size;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (count);
 }

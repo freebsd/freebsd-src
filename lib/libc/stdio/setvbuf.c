@@ -39,16 +39,13 @@
 static char sccsid[] = "@(#)setvbuf.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: setvbuf.c,v 1.5 1997/02/22 15:02:27 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /*
  * Set one of the three kinds of buffering, optionally including
@@ -74,9 +71,7 @@ setvbuf(fp, buf, mode, size)
 		if ((mode != _IOFBF && mode != _IOLBF) || (int)size < 0)
 			return (EOF);
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	/*
 	 * Write current buffer, if any.  Discard unread input (including
 	 * ungetc data), cancel line buffering, and free old buffer if
@@ -128,9 +123,7 @@ nbf:
 			fp->_w = 0;
 			fp->_bf._base = fp->_p = fp->_nbuf;
 			fp->_bf._size = 1;
-#ifdef _THREAD_SAFE
-			_thread_funlockfile(fp);
-#endif
+			FUNLOCKFILE(fp);
 			return (ret);
 		}
 		flags |= __SMBF;
@@ -171,8 +164,6 @@ nbf:
 	}
 	__cleanup = _cleanup;
 
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (ret);
 }
