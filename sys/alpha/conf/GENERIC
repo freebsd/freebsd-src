@@ -43,7 +43,7 @@ options 	DEC_3000_300		# DEC3000/300* Pelic* family
 options 	DEC_3000_500		# DEC3000/[4-9]00 Flamingo/Sandpiper family
 options 	DEC_1000A		# AlphaServer 1000, 1000A, 800
 options 	DEC_KN8AE		# AlphaServer 8200/8400 (Turbolaser)
-options 	DEC_KN300		# AlphaServer 4100 (Rawhide)
+options 	DEC_KN300		# AlphaServer 4100 (Rawhide), 1200 (Tincup)
 
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
