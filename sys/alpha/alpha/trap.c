@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.11 1999/01/26 02:49:51 julian Exp $ */
+/* $Id: trap.c,v 1.12 1999/04/19 14:14:12 peter Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -544,7 +544,7 @@ syscall(code, framep)
 {
 	struct sysent *callp;
 	struct proc *p;
-	int error = 0, numsys;
+	int error = 0;
 	u_int64_t opc;
 	u_quad_t sticks;
 	u_int64_t args[10];					/* XXX */

@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.5 1998/11/08 19:26:23 phk Exp $ */
+/* $Id: clock.c,v 1.6 1999/02/16 20:34:56 mjacob Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -76,7 +76,6 @@ static	int	beeping = 0;
 extern int cycles_per_sec;
 
 static timecounter_get_t	alpha_get_timecount;
-static timecounter_pps_t	alpha_poll_pps;
 
 static struct timecounter alpha_timecounter = {
 	alpha_get_timecount,	/* get_timecount */
