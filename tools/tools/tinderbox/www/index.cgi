@@ -71,7 +71,7 @@ MAIN:{
     opendir(DIR, $DIR)
 	or die("$DIR: $!\n");
     foreach (readdir(DIR)) {
-	next unless m/^tinderbox-(\w+)-(\w+)-(\w+)\./;
+	next unless m/^tinderbox-(\w+)-(\w+)-(\w+)\.(brief|full)$/;
 	$BRANCHES{$1} = $ARCHES{$2}->{$3} = 1;
     }
     closedir(DIR);
