@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.14 1995/10/19 18:37:42 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.15 1995/10/20 07:02:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,14 +56,25 @@ Boolean ftpInitted = FALSE;
 static FTP_t ftp;
 extern int FtpPort;
 
-static Boolean
+static int
 get_new_host(Device *dev)
 {
     Boolean i;
     char *oldTitle = MenuMediaFTP.title;
+    static int failCnt = 0;
 
     if (dev->flags & OPT_EXPLORATORY_GET)
-	return FALSE;
+	return RET_DONE;
+
+    if (++failCnt > 4) {
+	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
+		      "misconfigured, the information you entered in the network setup\n"
+		      "screen may be wrong or your network connection may just simply be\n"
+		      "having a bad day.  Would you like to end this travesty?"))
+	    return RET_DONE;
+	else
+	    failCnt = 0;
+    }
 
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
@@ -79,7 +90,7 @@ get_new_host(Device *dev)
     }
     else
 	dev->shutdown(dev);
-    return i;
+    return i ? RET_SUCCESS : RET_FAIL;
 }
 
 Boolean
@@ -148,38 +159,34 @@ mediaInitFTP(Device *dev)
 	login_name = user;
 	strcpy(password, variable_get(FTP_PASS) ? variable_get(FTP_PASS) : login_name);
     }
-    retries = i = 0;
+    retries = 0;
 retry:
     msgNotify("Logging in as %s..", login_name);
-    if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
+    if (FtpOpen(ftp, hostname, login_name, password) != 0) {
 	if (optionIsSet(OPT_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
 	else
 	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
-	if (++retries > max_retries) {
-	    if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(dev))
-		return FALSE;
-	    retries = 0;
-	}
+	if (optionIsSet(OPT_FTP_ABORT) || get_new_host(dev) != RET_SUCCESS)
+	    return FALSE;
 	goto retry;
     }
 
     FtpPassive(ftp, optionIsSet(OPT_FTP_PASSIVE) ? 1 : 0);
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
-	msgNotify("CD to distribution in ~ftp/%s", dir);
-	if ((i = FtpChdir(ftp, dir)) != 0) {
-	    if (++retries > max_retries) {
-		if (optionIsSet(OPT_FTP_ABORT)) {
-		    FtpClose(ftp);
-		    ftp = NULL;
-		    return FALSE;
-		}
-		else if (!get_new_host(dev))
-		    return FALSE;
-		else
-		    retries = 0;
+	msgNotify("Attempt to chdir to distribution in %s..", dir);
+	if (FtpChdir(ftp, dir) != 0) {
+	    if (++retries > max_retries || optionIsSet(OPT_FTP_ABORT)) {
+		FtpClose(ftp);
+		ftp = NULL;
+		return FALSE;
 	    }
+	    i = get_new_host(dev);
+	    if (i == RET_DONE)
+		return FALSE;
+	    else if (i == RET_SUCCESS)
+		retries = 0;
 	    goto retry;
 	}
     }
@@ -187,7 +194,7 @@ retry:
     /* Give it a shot - can't hurt to try and zoom in if we can */
     FtpChdir(ftp, getenv(RELNAME));
 
-    msgDebug("mediaInitFTP was successful\n");
+    msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
     ftpInitted = TRUE;
     return TRUE;
 
