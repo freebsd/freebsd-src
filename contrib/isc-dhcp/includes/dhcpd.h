@@ -39,11 +39,9 @@
  * ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
  * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
+ *
+ * $FreeBSD$
  */
-
-#ifndef lint
-"$FreeBSD$\n";
-#endif /* not lint */
 
 #ifndef __CYGWIN32__
 #include <sys/types.h>
