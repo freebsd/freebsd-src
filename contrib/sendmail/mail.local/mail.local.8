@@ -40,11 +40,12 @@ Turn off the attempts to notify the
 .Dq biff
 service.
 .It Fl s
-Turn off the
+Turn on the
 .Xr fsync 2
 call that forces the mailbox to be committed to disk before returning a
 .Dq success
-status.
+status.  (This can configured in the flags passed through from
+.Xr sendmail 8 ).
 .El
 .Pp
 Individual mail messages in the mailbox are delimited by an empty
