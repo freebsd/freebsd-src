@@ -98,13 +98,17 @@ main(argc, argv)
 	char	*cmd;
 
 	aflag = uflag = NO;
-	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) != -1)
+	tflag = YES;
+	while ((ch = getopt(argc, argv, "BFTadf:tuwvx")) != -1)
 		switch(ch) {
 		case 'B':
 			searchar = '?';
 			break;
 		case 'F':
 			searchar = '/';
+			break;
+		case 'T':
+			tflag = NO;
 			break;
 		case 'a':
 			aflag++;
@@ -116,7 +120,7 @@ main(argc, argv)
 			outfile = optarg;
 			break;
 		case 't':
-			tflag++;
+			tflag = YES;
 			break;
 		case 'u':
 			uflag++;
@@ -189,7 +193,7 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: ctags [-BFadtuwvx] [-f tagsfile] file ...\n");
+	(void)fprintf(stderr, "usage: ctags [-BFTaduwvx] [-f tagsfile] file ...\n");
 	exit(1);
 }
 

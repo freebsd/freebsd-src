@@ -42,7 +42,7 @@
 file
 .Sh SYNOPSIS
 .Nm
-.Op Fl BFadtuwvx
+.Op Fl BFTaduwvx
 .Op Fl f Ar tagsfile
 .Ar name ...
 .Sh DESCRIPTION
@@ -80,6 +80,8 @@ Use backward searching patterns
 Use forward searching patterns
 .Pq Li /.../
 (the default).
+.It Fl T
+Do not create tags for typedefs, structs, unions, and enums.
 .It Fl a
 Append to
 .Pa tags
@@ -95,8 +97,6 @@ Place the tag descriptions in a file called
 .Ar tagsfile .
 The default behaviour is to place them in a file called
 .Pa tags .
-.It Fl t
-Create tags for typedefs, structs, unions, and enums.
 .It Fl u
 Update the specified files in the
 .Pa tags
@@ -203,6 +203,13 @@ Duplicate objects are not considered errors.
 .Sh SEE ALSO
 .Xr ex 1 ,
 .Xr vi 1
+.Sh COMPATIBILITY
+The
+.Fl t
+option is a no-op for compatibility with previous versions of
+.Nm
+that did not create tags for typedefs, enums, structs and unions
+by default.
 .Sh BUGS
 Recognition of functions, subroutines and procedures
 for Fortran and Pascal is done in a very simpleminded way.
