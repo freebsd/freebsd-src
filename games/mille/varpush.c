@@ -46,12 +46,11 @@ static const char rcsid[] =
  * @(#)varpush.c	1.1 (Berkeley) 4/1/82
  */
 
-int	read(), write();
-
 /*
  *	push variables around via the routine func() on the file
  * channel file.  func() is either read or write.
  */
+void
 varpush(file, func)
 int	file;
 int	(*func)(); {

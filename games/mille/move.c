@@ -56,10 +56,16 @@ static const char rcsid[] =
 #undef	CTRL
 #define	CTRL(c)		(c - 'A' + 1)
 
-char	*Movenames[] = {
+const char	*Movenames[] = {
 		"M_DISCARD", "M_DRAW", "M_PLAY", "M_ORDER"
 	};
 
+static void check_go __P((void));
+static void getmove __P((void));
+static int haspicked __P((PLAY *));
+static bool playcard __P((PLAY *));
+
+void
 domove()
 {
 	PLAY	*pp;
@@ -163,6 +169,7 @@ acc:
  *	Check and see if either side can go.  If they cannot,
  * the game is over
  */
+static void
 check_go() {
 
 	CARD	card;
@@ -193,6 +200,7 @@ check_go() {
 	Finished = TRUE;
 }
 
+static bool
 playcard(pp)
 PLAY	*pp;
 {
@@ -342,9 +350,13 @@ protected:
 	return TRUE;
 }
 
+static void
 getmove()
 {
-	char	c, *sp;
+	char	c;
+#ifdef DEBUG
+	char	*sp;
+#endif
 #ifdef EXTRAP
 	static bool	last_ex = FALSE;	/* set if last command was E */
 
@@ -390,7 +402,7 @@ getmove()
 			Movetype = M_ORDER;
 			goto ret;
 		  case 'Q':		/* Quit */
-			rub();		/* Same as a rubout */
+			rub(0);		/* Same as a rubout */
 			break;
 		  case 'W':		/* Window toggle */
 			Window = nextwin(Window);
@@ -472,6 +484,7 @@ ret:
 /*
  * return whether or not the player has picked
  */
+static int
 haspicked(pp)
 PLAY	*pp; {
 
@@ -491,6 +504,7 @@ PLAY	*pp; {
 	return (pp->hand[card] != C_INIT);
 }
 
+void
 account(card)
 CARD	card; {
 
@@ -516,6 +530,7 @@ CARD	card; {
 		}
 }
 
+void
 prompt(promptno)
 int	promptno;
 {
@@ -547,6 +562,7 @@ int	promptno;
 	clrtoeol();
 }
 
+void
 sort(hand)
 CARD	*hand;
 {
@@ -563,4 +579,3 @@ CARD	*hand;
 				*tp = temp;
 			}
 }
-

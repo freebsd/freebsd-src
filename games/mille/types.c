@@ -45,12 +45,14 @@ static const char rcsid[] =
  * @(#)types.c	1.1 (Berkeley) 4/1/82
  */
 
+int
 isrepair(card)
 CARD	card; {
 
 	return card == C_GAS || card == C_SPARE || card == C_REPAIRS || card == C_INIT;
 }
 
+CARD
 safety(card)
 CARD	card; {
 
@@ -75,5 +77,6 @@ CARD	card; {
 		return C_RIGHT_WAY;
 	}
 	/* NOTREACHED */
+	exit(EXIT_FAILURE);
 }
 
