@@ -3,7 +3,7 @@
    Protocol structures... */
 
 /*
- * Copyright (c) 1995, 1996 The Internet Software Consortium.
+ * Copyright (c) 1995-2001 The Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,10 +34,9 @@
  * SUCH DAMAGE.
  *
  * This software has been written for the Internet Software Consortium
- * by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
- * Enterprises.  To learn more about the Internet Software Consortium,
- * see ``http://www.vix.com/isc''.  To learn more about Vixie
- * Enterprises, see ``http://www.vix.com''.
+ * by Ted Lemon in cooperation with Vixie Enterprises.  To learn more
+ * about the Internet Software Consortium, see ``http://www.isc.org''.
+ * To learn more about Vixie Enterprises, see ``http://www.vix.com''.
  */
 
 #define DHCP_UDP_OVERHEAD	(14 + /* Ethernet header */		\
@@ -55,22 +54,22 @@
 #define DHCP_MIN_LEN            548
 
 struct dhcp_packet {
-  	u_int8_t  op;		/* Message opcode/type */
-	u_int8_t  htype;	/* Hardware addr type (see net/if_types.h) */
-	u_int8_t  hlen;		/* Hardware addr length */
-	u_int8_t  hops;		/* Number of relay agent hops from client */
-	u_int32_t xid;		/* Transaction ID */
-	u_int16_t secs;		/* Seconds since client started looking */
-	u_int16_t flags;	/* Flag bits */
-	struct in_addr ciaddr;	/* Client IP address (if already in use) */
-	struct in_addr yiaddr;	/* Client IP address */
-	struct in_addr siaddr;	/* IP address of next server to talk to */
-	struct in_addr giaddr;	/* DHCP relay agent IP address */
-	unsigned char chaddr [16];	/* Client hardware address */
-	char sname [DHCP_SNAME_LEN];	/* Server name */
-	char file [DHCP_FILE_LEN];	/* Boot filename */
+  	u_int8_t  op;		/* 0: Message opcode/type */
+	u_int8_t  htype;	/* 1: Hardware addr type (net/if_types.h) */
+	u_int8_t  hlen;		/* 2: Hardware addr length */
+	u_int8_t  hops;		/* 3: Number of relay agent hops from client */
+	u_int32_t xid;		/* 4: Transaction ID */
+	u_int16_t secs;		/* 8: Seconds since client started looking */
+	u_int16_t flags;	/* 10: Flag bits */
+	struct in_addr ciaddr;	/* 12: Client IP address (if already in use) */
+	struct in_addr yiaddr;	/* 16: Client IP address */
+	struct in_addr siaddr;	/* 18: IP address of next server to talk to */
+	struct in_addr giaddr;	/* 20: DHCP relay agent IP address */
+	unsigned char chaddr [16];	/* 24: Client hardware address */
+	char sname [DHCP_SNAME_LEN];	/* 40: Server name */
+	char file [DHCP_FILE_LEN];	/* 104: Boot filename */
 	unsigned char options [DHCP_OPTION_LEN];
-				/* Optional parameters
+				/* 212: Optional parameters
 				   (actual length dependent on MTU). */
 };
 
@@ -152,9 +151,21 @@ struct dhcp_packet {
 #define DHO_DHCP_MAX_MESSAGE_SIZE	57
 #define DHO_DHCP_RENEWAL_TIME		58
 #define DHO_DHCP_REBINDING_TIME		59
-#define DHO_DHCP_CLASS_IDENTIFIER	60
+#define DHO_VENDOR_CLASS_IDENTIFIER	60
 #define DHO_DHCP_CLIENT_IDENTIFIER	61
-#define DHO_DHCP_USER_CLASS_ID		77
+#define DHO_NWIP_DOMAIN_NAME		62
+#define DHO_NWIP_SUBOPTIONS		63
+#define DHO_USER_CLASS			77
+#define DHO_FQDN			81
+#define DHO_DHCP_AGENT_OPTIONS		82
+#define DHO_SUBNET_SELECTION		118 /* RFC3011! */
+/* The DHO_AUTHENTICATE option is not a standard yet, so I've
+   allocated an option out of the "local" option space for it on a
+   temporary basis.  Once an option code number is assigned, I will
+   immediately and shamelessly break this, so don't count on it
+   continuing to work. */
+#define DHO_AUTHENTICATE		210
+
 #define DHO_END				255
 
 /* DHCP message types. */
@@ -166,3 +177,19 @@ struct dhcp_packet {
 #define DHCPNAK		6
 #define DHCPRELEASE	7
 #define DHCPINFORM	8
+
+/* Relay Agent Information option subtypes: */
+#define RAI_CIRCUIT_ID	1
+#define RAI_REMOTE_ID	2
+#define RAI_AGENT_ID	3
+
+/* FQDN suboptions: */
+#define FQDN_NO_CLIENT_UPDATE		1
+#define FQDN_SERVER_UPDATE		2
+#define FQDN_ENCODED			3
+#define FQDN_RCODE1			4
+#define FQDN_RCODE2			5
+#define FQDN_HOSTNAME			6
+#define FQDN_DOMAINNAME			7
+#define FQDN_FQDN			8
+#define FQDN_SUBOPTION_COUNT		8

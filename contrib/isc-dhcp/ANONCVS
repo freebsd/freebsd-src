@@ -1,0 +1,129 @@
+	  Anonymous CVS Access for the ISC DHCP Distribution
+
+The ISC DHCP distribution can be accessed using "anonymous" CVS.
+"Anonymous" cvs uses the CVS "pserver" mechanism to allow anybody on
+the Internet to access a CVS repository without having to register in
+any way.   Anonymous CVS allows you to access changes as soon as the
+DHCP developers commit them, rather than having to wait for the next
+snapshot or patchlevel.   Changes that have not yet been released yet
+are not guaranteed to work, but they can nonetheless be useful in many
+cases.
+
+			  TABLE OF CONTENTS
+
+		1. What is anonymous CVS?
+		2. How can i start using it?
+		3. Checking out the latest code in a release
+		4. Checking out the latest code
+		5. Checking out a specific release
+		6. When to update
+
+			WHAT IS ANONYMOUS CVS?
+
+Anonymous CVS also allows you to browse through the history of the
+DHCP distribution, and examine the revision history of specific files
+to see how they have changed between revisions, to try to figure out
+why something that was working before is no longer working, or just to
+see when a certain change was made.
+
+		      HOW CAN I START USING IT?
+
+To use anonymous CVS to access the DHCP distribution, you must first
+"log in".   You should only need to do this once, but it is a
+necessary step, even though access is anonymous.   Anonymous users log
+in as user "nobody", password "nobody".   To do this, type:
+
+	cvs -d :pserver:nobody@dhcp.cvs.isc.org:/cvsroot login
+
+You will be prompted for a password - type "nobody".   If you get some
+kind of error indicating that cvs doesn't know how to log you in, you
+are probably running an old version of cvs, and should upgrade.   This
+should work with cvs version 1.10.
+
+Once you have logged in, you can check out a version of the DHCP
+distribution, so the next question is, which version?
+
+	      CHECKING OUT THE LATEST CODE IN A RELEASE
+
+There are currently four major versions of the distribution - Release
+1, Release 2, Release 3, and the current development tree.   Releases
+1, 2 and 3 are branches in the CVS repository.   To check out the
+latest code on any of these branches, you would use a branch tag of
+RELEASE_1, RELEASE_2 or RELEASE_3 in the following command:
+
+	(setenv CVSROOT :pserver:nobody@dhcp.cvs.isc.org:/cvsroot;
+	 cvs checkout -d dhcp-2.0 -r RELEASE_2 DHCP)
+
+Note that the example is for Release 2.
+
+		     CHECKING OUT THE LATEST CODE
+
+To check out the current engineering version, use:
+
+	(setenv CVSROOT :pserver:nobody@dhcp.cvs.isc.org:/cvsroot;
+	 cvs checkout -d dhcp-current DHCP)
+
+Note that the current engineering version is a work in progress, and
+there is no real guarantee that it will work for you.
+
+		   CHECKING OUT A SPECIFIC RELEASE
+
+You can also check out specific versions of the DHCP distribution.
+There are three kinds of version tags you may find - alpha tags, beta
+tags and release tags.   Alpha tags look like this:
+
+	V#-ALPHA-YYYYMMDD
+
+# is the release number.   YYYYMMDD is the date of the release, with a
+4-digit year, the month expressed as a number (January=1), and the day
+of the month specified as a number, with the first day of the month
+being 1.
+
+Beta tags look like this:
+
+	V#-BETA-%-PATCH-*
+
+Where # is the release number, % is the Beta number (usually 1) and *
+is the patchlevel.   In the future there may also be beta tags that
+look like this:
+
+	V#-#-BETA-%-PATCH-*
+
+Where #-# is the major version followed by the minor version - for
+example, when the first 3.1 beta comes out, the tag will look like
+this:
+
+	V3-1-BETA-1-PATCH-0
+
+Release tags look like this:
+
+	V#-%-*
+
+Where # is the major version, % is the minor version, and * is the
+patchlevel.   So the tag for 1.0pl2 is V1-0-2, and to check it out,
+you'd type:
+
+	(setenv CVSROOT :pserver:nobody@dhcp.cvs.isc.org:/cvsroot;
+	 cvs checkout -d dhcp-1.0pl2 -rV1-0-2 DHCP)
+
+Whenever changes are checked in to the ISC DHCP repository, or files
+are tagged, a notice is sent to the dhcp-source-changes@isc.org
+mailing list.   You can subscribe to this list by sending mail to
+dhcp-source-changes-request@isc.org, and you will then get immediate
+notification when changes are made.   You may find the volume of mail
+on this list annoying, however.
+
+			    WHEN TO UPDATE
+
+We do not recommend that you do an update immediately after you see a
+change on the dhcp-source-changes mailing list - instead, it's best to
+wait a while to make sure that any changes that change depends on have
+also been committed.   Also, sometimes when development is being done
+on two machines, the developers will check in a tentative change that
+hasn't been tested at all so that they can update on a different
+machine and test the change.   The best way to avoid accidentally
+getting one of these changes is to not update aggressively - when a
+change is made, wait a while before updating, to make sure that it's
+not going to be quickly followed by another change.
+
+

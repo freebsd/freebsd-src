@@ -1,78 +1,41 @@
 # Makefile.dist
 #
-# Copyright (c) 1996, 1997 The Internet Software Consortium.
-# All rights reserved.
+# Copyright (c) 1996-1999 Internet Software Consortium.
+# Use is subject to license terms which appear in the file named
+# ISC-LICENSE that should have accompanied this file when you
+# received it.   If a file named ISC-LICENSE did not accompany this
+# file, or you are not sure the one you have is correct, you may
+# obtain an applicable copy of the license at:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+#             http://www.isc.org/isc-license-1.0.html. 
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-# 3. Neither the name of The Internet Software Consortium nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
+# This file is part of the ISC DHCP distribution.   The documentation
+# associated with this file is listed in the file DOCUMENTATION,
+# included in the top-level directory of this release.
 #
-# THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
-# CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
-# THE INTERNET SOFTWARE CONSORTIUM OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-# OF THE POSSIBILITY OF SUCH DAMAGE.
+# Support and other services are available for ISC products - see
+# http://www.isc.org for more information.
 #
 
-SUBDIRS=	common server client relay
+SUBDIRS=	common $(MINIRES) dst omapip server client relay dhcpctl
 
 all:
 	@for dir in ${SUBDIRS}; do \
 		echo "Making all in $$dir"; \
 		(cd $$dir; $(MAKE) all) || exit 1; \
 	 done
-	@if [ `uname` = Linux ]; then \
-		echo; \
-		echo "                   !!!!  WARNING  !!!!"; \
-		echo ; \
-		echo "The default location for the dhcpd.leases file has \
-changed!!!"; \
-		echo; \
-		echo "It is now in /var/state/dhcp.   If you are not"; \
-		echo "installing this for the first time, please move your"; \
-		echo "lease database to the new location before using this"; \
-		echo "software."; \
-		echo; \
-		echo "                   !!!!  WARNING  !!!!"; \
-		echo; \
-	fi
 
 install:
 	@for dir in ${SUBDIRS}; do \
 		echo "Installing in $$dir"; \
 		(cd $$dir; $(MAKE) install) || exit 1; \
 	 done
-	@if [ `uname` = Linux ]; then \
-		echo; \
-		echo "                   !!!!  WARNING  !!!!"; \
-		echo ; \
-		echo "The default location for the dhcpd.leases file has \
-changed!!!"; \
-		echo; \
-		echo "It is now in /var/state/dhcp.   If you are not"; \
-		echo "installing this for the first time, please move your"; \
-		echo "lease database to the new location before using this"; \
-		echo "software."; \
-		echo; \
-		echo "                   !!!!  WARNING  !!!!"; \
-		echo; \
-	fi
+
+depend:
+	@for dir in ${SUBDIRS}; do \
+		echo "Making dependencies in $$dir"; \
+		(cd $$dir; $(MAKE) depend) || exit 1; \
+	 done
 
 clean:
 	@for dir in ${SUBDIRS}; do \
@@ -92,3 +55,9 @@ distclean:
 		(cd $$dir; $(MAKE) distclean) || exit 1; \
 	 done
 	@rm -f Makefile
+
+links:
+	@for dir in ${SUBDIRS}; do \
+		echo "Making links in $$dir"; \
+		(cd $$dir; $(MAKE) links) || exit 1; \
+	 done
