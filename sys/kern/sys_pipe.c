@@ -332,7 +332,7 @@ pipespace(cpipe, size)
 	cpipe->pipe_buffer.in = 0;
 	cpipe->pipe_buffer.out = 0;
 	cpipe->pipe_buffer.cnt = 0;
-	amountpipekva += cpipe->pipe_buffer.size;
+	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
 }
 
@@ -676,7 +676,8 @@ pipe_build_write_buffer(wpipe, uio)
 		 */
 		wpipe->pipe_map.kva = kmem_alloc_pageable(kernel_map,
 			wpipe->pipe_buffer.size + PAGE_SIZE);
-		amountpipekva += wpipe->pipe_buffer.size + PAGE_SIZE;
+		atomic_add_int(&amountpipekva,
+		    wpipe->pipe_buffer.size + PAGE_SIZE);
 	}
 	pmap_qenter(wpipe->pipe_map.kva, wpipe->pipe_map.ms,
 		wpipe->pipe_map.npages);
@@ -714,7 +715,8 @@ pipe_destroy_write_buffer(wpipe)
 			wpipe->pipe_map.kva = 0;
 			kmem_free(kernel_map, kva,
 				wpipe->pipe_buffer.size + PAGE_SIZE);
-			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
+			atomic_subtract_int(&amountpipekva,
+			    wpipe->pipe_buffer.size + PAGE_SIZE);
 		}
 	}
 	vm_page_lock_queues();
@@ -1338,7 +1340,7 @@ pipe_free_kmem(cpipe)
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
 			--nbigpipe;
-		amountpipekva -= cpipe->pipe_buffer.size;
+		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
 		kmem_free(kernel_map,
 			(vm_offset_t)cpipe->pipe_buffer.buffer,
 			cpipe->pipe_buffer.size);
@@ -1346,7 +1348,8 @@ pipe_free_kmem(cpipe)
 	}
 #ifndef PIPE_NODIRECT
 	if (cpipe->pipe_map.kva != 0) {
-		amountpipekva -= cpipe->pipe_buffer.size + PAGE_SIZE;
+		atomic_subtract_int(&amountpipekva,
+		    cpipe->pipe_buffer.size + PAGE_SIZE);
 		kmem_free(kernel_map,
 			cpipe->pipe_map.kva,
 			cpipe->pipe_buffer.size + PAGE_SIZE);
