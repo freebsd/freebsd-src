@@ -27,12 +27,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2001
+.Dd September 5, 2004
 .Dt GX 4
 .Os
 .Sh NAME
 .Nm gx
-.Nd "Intel Pro/1000 gigabit ethernet driver"
+.Nd "Intel PRO/1000 Gigabit Ethernet driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device gx"
@@ -40,7 +40,7 @@
 The
 .Nm
 driver provides support for NICs based on the Intel 82542 and 82543
-gigabit ethernet controller chips.
+Gigabit Ethernet controller chips.
 Both fiber and copper variants of
 the cards are supported.
 .Pp
@@ -82,7 +82,7 @@ or
 .Cm half-duplex
 modes.
 .It Cm 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8 Ns 's
 .Cm mediaopt
@@ -126,6 +126,20 @@ will force the link up instead.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Gigabit Ethernet adapters based on the Intel 82542 and
+82543 controller chips:
+.Pp
+.Bl -bullet -compact
+.It
+Intel PRO/1000 Gigabit Server Adapter (82542)
+.It
+Intel PRO/1000 F Server Adapter (82543)
+.It
+Intel PRO/1000 T Server Adapter (82543)
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "gx%d: couldn't map memory"
