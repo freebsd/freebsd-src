@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BIN=    100.clean-disks \
+FILES=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
 	130.clean-msgs \
@@ -23,7 +23,7 @@ BIN=    100.clean-disks \
 	500.queuerun \
 	999.local
 .if !defined(NOUUCP)
-BIN+=	340.uucp \
+FILES+=	340.uucp \
 	410.status-uucp
 .endif
 
