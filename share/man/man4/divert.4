@@ -57,13 +57,11 @@ if it fits.
 .Sh WRITING PACKETS
 Writing to a divert socket is similar to writing to a raw IP socket;
 the packet is injected ``as is'' into the normal kernel IP packet
-processing and minimal error checking is done.
-Packets are written as either incoming or outgoing:
-if
-.Xr write 2
-or
-.Xr send 2
-is used to deliver the packet, or if
+processing using
+.Xr sendto 2
+and minimal error checking is done.
+Packets are distinguished as either incoming or outgoing.
+If
 .Xr sendto 2
 is used with a destination IP address of
 .Dv INADDR_ANY ,
