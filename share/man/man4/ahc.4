@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1995, 1996, 1997
+.\" Copyright (c) 1995, 1996, 1997, 1998
 .\" 	Justin T. Gibbs.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,9 +24,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ahc.4,v 1.11 1998/06/08 06:11:58 jkoshy Exp $
+.\"	$Id: ahc.4,v 1.12 1998/06/13 19:06:49 steve Exp $
 .\"
-.Dd April 20, 1996
+.Dd October 15, 1998
 .Dt AHC 4 i386
 .Os FreeBSD
 .Sh NAME
@@ -41,12 +41,6 @@ For one or more PCI cards:
 .Cd controller pci0
 .Cd controller ahc0
 .Pp
-To enable SCB paging:
-.Cd options AHC_SCBPAGING_ENABLE
-.Pp
-To enable tagged queueing:
-.Cd options AHC_TAGENABLE
-.Pp
 To allow PCI adapters to use memory mapped I/O if enabled:
 .Cd options AHC_ALLOW_MEMIO
 .Pp
@@ -55,59 +49,49 @@ For one or more SCSI busses:
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI
-bus(es) connected to Adaptec 
-274x, 284x, 2940, 3940, or controllers based on the
+bus(es) connected to Adaptec
 .Tn AIC7770,
 .Tn AIC7850,
 .Tn AIC7860,
 .Tn AIC7870,
+.Tn AIC7880,
+.Tn AIC7890,
+.Tn AIC7891,
+.Tn AIC7895,
+.Tn AIC7896,
 or
-.Tn AIC7880
+.Tn AIC7897
 host adapter chips.
-Features include support for twin and wide busses,
-ultra
-.Tn SCSI,
-two active commands at a time per non-tagged queueing target,
-tagged queuing,
+These chips are found on many motherboards as well as the following
+Adaptec SCSI controller cards:
+.Tn 274X(W),
+.Tn 274X(T),
+.Tn 284X,
+.Tn 2920C,
+.Tn 2940,
+.Tn 2940U,
+.Tn 2940AU,
+.Tn 2940UW,
+.Tn 2940UW Dual,
+.Tn 2940U2W,
+.Tn 2940U2B,
+.Tn 2950U2W,
+.Tn 2950U2B,
+.Tn 3940,
+.Tn 3940U,
+.Tn 3940AU,
+.Tn 3940UW,
+.Tn 3940AUW,
+.Tn 3940U2W,
+and
+.Tn 3985.
+.Pp
+Driver features include support for twin and wide busses,
+fast, ultra and ultra2 synchronous transfers depending on controller type,
+tagged queueing,
 and SCB paging.
 .Pp
-The number of concurrent transactions allowed is chip dependent
-and ranges from 3 to 16.
-On PCI adapters,
-this number can be increased with the SCB paging option.
-SCB paging implements an algorithm to 'page-out' transactions
-that are in the disconnected state so that the freed space in
-the controller's memory can be used to start additional transactions.
-On the aic7880 and aic7870,
-this increases the maximum number of outstanding transactions from 16 to 255.
-On the aic7850 and aic7860 controllers, this maximum rises from 3 to 8.
-During the hardware probe,
-a diagnostic showing the ratio of hardware supported 'slots' to number
-of transactions is printed.
-SCB paging is enabled with the
-.Dq Dv AHC_SCBPAGING_ENABLE
-configuration option.
-This option will likely be removed and become the default behavior for
-adapters that support it,
-in the near future.
-.Pp
-Tagged queueing is enabled with the
-.Dq Dv AHC_TAGENABLE
-configuration option.
-Tagged queueing allows multiple transactions to be queued at the device
-level instead of the host level,
-allowing the device to re-order I/O to minimize seeks,
-seek distance, 
-and to increase throughput.
-Tagged queueing can have a significant impact on performance for seek
-bound applications and should be enabled for most configurations.
-Unfortunately, some devices that claim to support tagged queueing fail
-miserably when it is used.
-The only reason tagged queueing remains as a controller option is as a
-stop gap measure until a mechanism to detect these broken devices and to
-control this feature on a per device basis is in place.
-.Pp
-Memory mapped I/O can be enabled with the
+Memory mapped I/O can be enabled for PCI devices with the
 .Dq Dv AHC_ALLOW_MEMIO
 configuration option.
 Memory mapped I/O is more efficient than the alternative, programmed I/O.
@@ -139,7 +123,12 @@ must be enabled for
 adaptors.  This includes synchronous/asynchronous transfers,
 maximum synchronous negotiation rate,
 disconnection,
-and the host adapter's SCSI ID.
+the host adapter's SCSI ID,
+and,
+in the case of
+.Tn EISA
+Twin Channel controllers,
+the primary channel selection.
 .Pp
 Note that I/O addresses are determined automatically by the probe routines,
 but care should be taken when using a 284x
@@ -151,35 +140,110 @@ system.  Ensure that the jumpers setting the I/O area for the 284x match the
 slot into which the card is inserted to prevent conflicts with other
 .Tn EISA
 cards.
+.Pp
+Performance and feature sets vary throughout the aic7xxx product line.
+The following table provides a comparison of the different chips supported
+by the
+.Nm
+driver.  Note that wide and twin channel features, although always supported
+by a particular chip, may be disabled in a particular motherboard or card
+design.
+.Pp
+.Bd -filled -offset indent
+.Bl -column "aic7770 " "10 " "EISA/VL  " "10MHz " "16bit " "SCBs " Features
+.Em "Chip       MIPS    Bus      MaxSync   MaxWidth  SCBs  Features"
+aic7770     10    EISA/VL    10MHz     16Bit     4    1
+aic7850     10    PCI/32     10MHz      8Bit     3
+aic7860     10    PCI/32     20MHz      8Bit     3
+aic7870     10    PCI/32     10MHz     16Bit    16
+aic7880     10    PCI/32     20MHz     16Bit    16 
+aic7890     20    PCI/32     40MHz     16Bit    16        3 4 5 6 7
+aic7891     20    PCI/64     40MHz     16Bit    16        3 4 5 6 7
+aic7895     15    PCI/32     20MHz     16Bit    16      2 3 4 5
+aic7896     20    PCI/32     40MHz     16Bit    16      2 3 4 5 6 7
+aic7897     20    PCI/64     40MHz     16Bit    16      2 3 4 5 6 7
+.El 
+.Pp
+.Bl -enum -compact
+.It
+Multiplexed Twin Channel Device - One controller servicing two busses.
+.It
+Multi-function Twin Channel Device - Two controllers on one chip.
+.It
+Command Channel Secondary DMA Engine - Allows scatter gather list and
+SCB prefetch.
+.It
+64 Byte SCB Support - SCSI CDB is embedded in the SCB to eliminate an extra DMA.
+.It
+Block Move Instruction Support - Doubles the speed of certain sequencer
+operations.
+.It
+.Sq Bayonet
+style Scatter Gather Engine - Improves S/G prefetch performance.
+.It
+Queueing Registers - Allows queueing of new transactions without pausing the
+sequencer.
+.El
+.Ed
+.Pp
+
+.Sh SCSI CONTROL BLOCKS (SCBs)
+Every transaction sent to a device on the SCSI bus is assigned a
+.Sq SCSI Control Block
+(SCB).  The SCB contains all of the information required by the
+controller to process a transaction.  The chip feature table lists
+the number of SCBs that can be stored in on chip memory.  All chips
+with model numbers greater than or equal to 7870 allow for the on chip
+SCB space to be augmented with external SRAM up to a maximum of 255 SCBs.
+Very few Adaptec controller have external SRAM.
+
+If external SRAM is not available, SCBs are a limited resource and
+using them in a straight forward manner would only allow us to
+keep as many transactions as there are SCBs outstanding at a time.
+This would not allow enough concurrency to fully utilize the SCSI
+bus and it's devices. The solution to this problem is
+.Em SCB Paging ,
+a concept similar to memory paging.  SCB paging takes advantage of
+the fact that devices usually disconnect from the SCSI bus for long
+periods of time without talking to the controller.  The SCBs
+for disconnected transactions are only of use to the controller
+when the transfer is resumed.  When the host queues another transaction
+for the controller to execute, the controller firmware will use a
+free SCB if one is available.  Otherwise, the state of the most recently
+disconnected (and therefor most likely to stay disconnected) SCB is
+saved, via dma, to host memory, and the local SCB reused to start
+the new transaction.  This allows the controller to queue up to
+255 transactions regardless of the amount of SCB space.  Since the
+local SCB space serves as a cache for disconnected transactions, the
+more SCB space available, the less host bus traffic consumed saving
+and restoring SCB data.
 .Sh BUGS
 Some Quantum drives (at least the Empire 2100 and 1080s) will not run on an
 .Tn AIC7870
 Rev B in synchronous mode at 10MHz.  Controllers with this problem have a
-42 MHz clock crystal on them and run slightly above 10MHz.  This causes the
-drive much confusion.  Setting a maximum synchronous negotiation rate of 8MHz
-in the 
+42 MHz clock crystal on them and run slightly above 10MHz.  This confuses
+the drive and hangs the bus.  Setting a maximum synchronous negotiation rate
+of 8MHz in the 
 .Tn SCSI-Select
 utility
-will allow normal function.
+will allow normal operation.
 .Sh SEE ALSO
 .Xr aha 4 ,
 .Xr ahb 4 ,
 .Xr cd 4 ,
 .Xr scsi 4 ,
-.Xr sd 4 ,
-.Xr st 4
+.Xr da 4 ,
+.Xr sa 4
 .Sh AUTHORS
 The
 .Nm
-driver was written by
-.An Justin Gibbs .
-The
+driver, the
 .Tn AIC7xxx
-sequencer-code assembler was
-written by
-.An John Aycock .
+sequencer-code assember,
+and the firmware running on the aic7xxx chips was written by
+.An Justin T. Gibbs .
 .Sh HISTORY
 The
 .Nm
 driver appeared in
-.Fx 2.1 .
+.Fx 2.0 .
