@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #define PCI_DEVICE_ID_PCNet_PCI	0x2000
 #define PCI_DEVICE_ID_PCHome_PCI 0x2001
 
-#define LNC_PROBE_PRIORITY -1
-
 static int
 lnc_pci_probe(device_t dev)
 {
@@ -68,11 +66,11 @@ lnc_pci_probe(device_t dev)
 	switch(pci_get_device(dev)) {
 	case PCI_DEVICE_ID_PCNet_PCI:
 		device_set_desc(dev, "PCNet/PCI Ethernet adapter");
-		return(LNC_PROBE_PRIORITY);
+		return(BUS_PROBE_DEFAULT);
 		break;
 	case PCI_DEVICE_ID_PCHome_PCI:
 		device_set_desc(dev, "PCHome/PCI Ethernet adapter");
-		return(LNC_PROBE_PRIORITY);
+		return(BUS_PROBE_DEFAULT);
 		break;
 	default:
 		return (ENXIO);

@@ -354,7 +354,7 @@ isp_pci_probe(device_t dev)
 	 * XXXX: Here is where we might load the f/w module
 	 * XXXX: (or increase a reference count to it).
 	 */
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

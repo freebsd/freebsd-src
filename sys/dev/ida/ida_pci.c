@@ -229,7 +229,7 @@ ida_pci_probe(device_t dev)
 
 	if (board != NULL) {
 		device_set_desc(dev, board->desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
