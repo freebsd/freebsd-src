@@ -2057,75 +2057,75 @@ Zone Europe/Samara	 3:20:36 -	LMT	1924 May  2
 			 3:00	-	SAMT	1992 Jan 19 2:00s # Samara Time
 			 4:00	Russia	SAM%sT
 Zone Asia/Yekaterinburg	 4:02:34 -	LMT	1924 May  2
-			 4:00	-	SSK	1957 Mar
-			 5:00	Russia	SS%s	1991 Mar 31 2:00s
-			 4:00	1:00	SSD	1991 Sep 29 2:00s
-			 4:00	-	SSK	1992 Jan 19 2:00s
-			 5:00	Russia	ES%s	# name change from Sverdlovsk
+			 4:00	-	SVET	1957 Mar # Sverdlovsk Time
+			 5:00	Russia	SVE%sT	1991 Mar 31 2:00s
+			 4:00	1:00	SVEST	1991 Sep 29 2:00s
+			 4:00	-	SVET	1992 Jan 19 2:00s
+			 5:00	Russia	YEK%sT	# Yekaterinburg Time
 Zone Asia/Omsk		 4:53:36 -	LMT	1924 May  2
-			 5:00	-	OSK	1957 Mar
-			 6:00	Russia	OS%s	1991 Mar 31 2:00s
-			 5:00	1:00	OSD	1991 Sep 29 2:00s
-			 5:00	-	OSK	1992 Jan 19 2:00s
-			 6:00	Russia	OS%s
+			 5:00	-	OMST	1957 Mar # Omsk Time
+			 6:00	Russia	OMS%sT	1991 Mar 31 2:00s
+			 5:00	1:00	OMSST	1991 Sep 29 2:00s
+			 5:00	-	OMST	1992 Jan 19 2:00s
+			 6:00	Russia	OMS%sT
 # From Stanislaw A. Kuzikowski <S.A.Kuz@iae.nsk.su> (1994-06-29):
 # But now it is some months since Novosibirsk is 3 hours ahead of Moscow!
 # I do not know why they have decided to make this change;
 # as far as I remember it was done exactly during winter->summer switching
 # so we (Novosibirsk) simply did not switch.
 Zone Asia/Novosibirsk	 5:31:40 -	LMT	1924 May  2
-			 6:00	-	NSK	1957 Mar
-			 7:00	Russia	NS%s	1991 Mar 31 2:00s
-			 6:00	1:00	NSD	1991 Sep 29 2:00s
-			 6:00	-	NSK	1992 Jan 19 2:00s
-			 7:00	Russia	NS%s	1994 Mar 27 2:00s
-			 6:00	1:00	NSD	1994 Sep 25 2:00s
-			 6:00	Russia	NS%s
+			 6:00	-	NOVT	1957 Mar # Novosibirsk Time
+			 7:00	Russia	NOV%sT	1991 Mar 31 2:00s
+			 6:00	1:00	NOVST	1991 Sep 29 2:00s
+			 6:00	-	NOVT	1992 Jan 19 2:00s
+			 7:00	Russia	NOV%sT	1994 Mar 27 2:00s
+			 6:00	1:00	NOVST	1994 Sep 25 2:00s
+			 6:00	Russia	NOV%sT
 Zone Asia/Krasnoyarsk	 6:11:20 -	LMT	1924 May  2
-			 6:00	-	KRSK	1957 Mar
-			 7:00	Russia	KRS%s	1991 Mar 31 2:00s
-			 6:00	1:00	KRSD	1991 Sep 29 2:00s
-			 6:00	-	KRSK	1992 Jan 19 2:00s
-			 7:00	Russia	KRS%s
+			 6:00	-	KRAT	1957 Mar # Krasnoyarsk Time
+			 7:00	Russia	KRA%sT	1991 Mar 31 2:00s
+			 6:00	1:00	KRAST	1991 Sep 29 2:00s
+			 6:00	-	KRAT	1992 Jan 19 2:00s
+			 7:00	Russia	KRA%sT
 Zone Asia/Irkutsk	 6:57:20 -	LMT	1880
-			 6:57	-	LST	1924 May  2
-			 7:00	-	ISK	1957 Mar
-			 8:00	Russia	IS%s	1991 Mar 31 2:00s
-			 7:00	1:00	ISD	1991 Sep 29 2:00s
-			 7:00	-	ISK	1992 Jan 19 2:00s
-			 8:00	Russia	IS%s
+			 6:57:20 -	IMT	1924 May  2 # Irkutsk Mean Time
+			 7:00	-	IRKT	1957 Mar # Irkutsk Time
+			 8:00	Russia	IRK%sT	1991 Mar 31 2:00s
+			 7:00	1:00	IRKST	1991 Sep 29 2:00s
+			 7:00	-	IRKT	1992 Jan 19 2:00s
+			 8:00	Russia	IRK%sT
 Zone Asia/Yakutsk	 8:38:40 -	LMT	1924 May  2
-			 8:00	-	YSK	1957 Mar
-			 9:00	Russia	YS%s	1991 Mar 31 2:00s
-			 8:00	1:00	YSD	1991 Sep 29 2:00s
-			 8:00	-	YSK	1992 Jan 19 2:00s
-			 9:00	Russia	YS%s
+			 8:00	-	YAKT	1957 Mar # Yakutsk Time
+			 9:00	Russia	YAK%sT	1991 Mar 31 2:00s
+			 8:00	1:00	YAKST	1991 Sep 29 2:00s
+			 8:00	-	YAKT	1992 Jan 19 2:00s
+			 9:00	Russia	YAK%sT
 Zone Asia/Vladivostok	 8:47:44 -	LMT	1880
-			 8:48	-	LST	1924 May  2
-			 9:00	-	VSK	1957 Mar
-			10:00	Russia	VS%s	1991 Mar 31 2:00s
-			 9:00	1:00	VSD	1991 Sep 29 2:00s
-			 9:00	-	VSK	1992 Jan 19 2:00s
-			10:00	Russia	VS%s
+			 8:47:44 -	VMT	1924 May  2 # Vladivostok MT
+			 9:00	-	VLAT	1957 Mar # Vladivostok Time
+			10:00	Russia	VLA%sT	1991 Mar 31 2:00s
+			 9:00	1:00	VLAST	1991 Sep 29 2:00s
+			 9:00	-	VLAT	1992 Jan 19 2:00s
+			10:00	Russia	VLA%sT
 Zone Asia/Magadan	10:03:12 -	LMT	1924 May  2
-			10:00   -       MGK     1957 Mar
-			11:00   Russia  MG%s    1991 Mar 31 2:00s
-			10:00   1:00    MGD     1991 Sep 29 2:00s
-			10:00   -       MGK     1992 Jan 19 2:00s
-			11:00   Russia  MG%s
+			10:00	-	MAGT	1957 Mar # Magadan Time
+			11:00	Russia	MAG%sT	1991 Mar 31 2:00s
+			10:00	1:00	MAGST	1991 Sep 29 2:00s
+			10:00	-	MAGT	1992 Jan 19 2:00s
+			11:00	Russia	MAG%sT
 # This name should be Asia/Petropavlovsk-Kamchatski, but that's too long.
 Zone Asia/Kamchatka	10:34:36 -	LMT	1924 May  2
-			11:00	-	PSK	1957 Mar
-			12:00	Russia	PS%s	1991 Mar 31 2:00s
-			11:00	1:00	PSD	1991 Sep 29 2:00s
-			11:00	-	PSK	1992 Jan 19 2:00s
-			12:00	Russia	PS%s
+			11:00	-	PETT	1957 Mar # P-K Time
+			12:00	Russia	PET%sT	1991 Mar 31 2:00s
+			11:00	1:00	PETST	1991 Sep 29 2:00s
+			11:00	-	PETT	1992 Jan 19 2:00s
+			12:00	Russia	PET%sT
 Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
-			12:00	-	ASK	1957 Mar
-			13:00	Russia	AS%s	1991 Mar 31 2:00s
-			12:00	1:00	ASD	1991 Sep 29 2:00s
-			12:00	-	ASK	1992 Jan 19 2:00s
-			13:00	Russia	AS%s
+			12:00	-	ANAT	1957 Mar # Anadyr Time
+			13:00	Russia	ANA%sT	1991 Mar 31 2:00s
+			12:00	1:00	ANAST	1991 Sep 29 2:00s
+			12:00	-	ANAT	1992 Jan 19 2:00s
+			13:00	Russia	ANA%sT
 
 # Slovakia
 Link Europe/Prague Europe/Bratislava
