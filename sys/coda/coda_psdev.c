@@ -220,8 +220,8 @@ vc_nb_close (dev, flag, mode, td)
 
     err = dounmount(mi->mi_vfsp, flag, td);
     if (err)
-	myprintf(("Error %d unmounting vfs in vcclose(%d)\n", 
-	           err, minor(dev)));
+	myprintf(("Error %d unmounting vfs in vcclose(%s)\n", 
+	           err, devtoname(dev)));
     return 0;
 }
 
