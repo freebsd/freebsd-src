@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.7 1995/01/04 22:43:51 ache Exp $
+#	$Id: bsd.doc.mk,v 1.8 1995/01/11 00:00:11 wollman Exp $
 
 PRINTER?=	ps
 
@@ -121,3 +121,4 @@ ${DOC}.${PRINTER}:	${SRCS}
 depend:
 
 .endif
+
