@@ -26,17 +26,17 @@
 /*
  *  Definition for Async HDLC
  */
-#define HDLC_SYN 0x7e	/* SYNC character */
-#define HDLC_ESC 0x7d	/* Escape character */
-#define HDLC_XOR 0x20	/* Modifier value */
+#define HDLC_SYN 0x7e		/* SYNC character */
+#define HDLC_ESC 0x7d		/* Escape character */
+#define HDLC_XOR 0x20		/* Modifier value */
 
 #define	HDLC_ADDR 0xff
 #define	HDLC_UI	  0x03
 /*
  *  Definition for HDLC Frame Check Sequence
  */
-#define INITFCS 0xffff	/* Initial value for FCS computation */
-#define GOODFCS 0xf0b8	/* Good FCS value */
+#define INITFCS 0xffff		/* Initial value for FCS computation */
+#define GOODFCS 0xf0b8		/* Good FCS value */
 
 #define	DEF_MRU		1500
 #define	MAX_MRU		2048
@@ -58,13 +58,14 @@
 #define	PRI_FAST	1	/* Fast (interractive) */
 #define	PRI_LINK	1	/* Urgent (LQR packets) */
 
-unsigned char EscMap[33];
+extern u_char EscMap[33];
 
 void HdlcInit(void);
 void HdlcErrorCheck(void);
-void HdlcInput(struct mbuf *bp);
-void HdlcOutput(int pri, u_short proto, struct mbuf *bp);
-void AsyncOutput(int pri, struct mbuf *bp, int proto);
+void HdlcInput(struct mbuf * bp);
+void HdlcOutput(int pri, u_short proto, struct mbuf * bp);
+void AsyncOutput(int pri, struct mbuf * bp, int proto);
 u_short HdlcFcs(u_short, u_char *, int);
 void DecodePacket(u_short, struct mbuf *);
+
 #endif

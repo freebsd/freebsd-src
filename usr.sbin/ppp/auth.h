@@ -23,11 +23,13 @@
 #ifndef _AUTH_H_
 #define	_AUTH_H_
 
-typedef enum { VALID, INVALID, NOT_FOUND } LOCAL_AUTH_VALID;
-LOCAL_AUTH_VALID	LocalAuthValidate( char *, char *, char *);
+typedef enum {
+  VALID, INVALID, NOT_FOUND
+}    LOCAL_AUTH_VALID;
+LOCAL_AUTH_VALID LocalAuthValidate(char *, char *, char *);
 
 struct authinfo {
-  void (*ChallengeFunc)();
+  void (*ChallengeFunc) ();
   struct pppTimer authtimer;
   int retry;
   int id;
@@ -41,4 +43,5 @@ extern void StopAuthTimer(struct authinfo *);
 extern void StartAuthChallenge(struct authinfo *);
 extern LOCAL_AUTH_VALID LocalAuthInit(void);
 extern int AuthValidate(char *, char *, char *);
+
 #endif

@@ -23,7 +23,8 @@
  */
 #ifndef _CHAT_H_
 #define	_CHAT_H_
-extern char * ExpandString(char *, char *, int, int);
+extern char *ExpandString(char *, char *, int, int);
 extern int MakeArgs(char *, char **, int);
+
 #define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
 #endif

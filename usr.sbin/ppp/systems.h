@@ -25,5 +25,6 @@
 #define	_SYSTEMS_H_
 extern int OrigUid(void);
 extern void GetUid(void);
-extern int SelectSystem(char *, char*);
+extern int SelectSystem(char *, char *);
+
 #endif

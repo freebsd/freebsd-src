@@ -29,9 +29,10 @@ void OsSetInterfaceParams(int type, int mtu, int speed);
 int OpenTunnel(int *);
 void OsCloseLink(int flag);
 void OsLinkup(void);
-void OsLinkdown (void);
+void OsLinkdown(void);
 void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr);
 void DeleteIfRoutes(int);
 void OsAddInOctets(int cnt);
 void OsAddOutOctets(int cnt);
+
 #endif

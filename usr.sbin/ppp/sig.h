@@ -32,7 +32,7 @@
  *
  */
 
-typedef void (*sig_type)(int);
+typedef void (*sig_type) (int);
 
 /* Call this instead of signal() */
 extern sig_type pending_signal(int, sig_type);

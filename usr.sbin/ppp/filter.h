@@ -51,21 +51,21 @@
 #define	OP_LT	4
 
 struct filterent {
-  int    action;		/* Filtering action */
-  int    swidth;		/* Effective source address width */
+  int action;			/* Filtering action */
+  int swidth;			/* Effective source address width */
   struct in_addr saddr;		/* Source address */
   struct in_addr smask;		/* Source address mask */
-  int    dwidth;		/* Effective destination address width */
+  int dwidth;			/* Effective destination address width */
   struct in_addr daddr;		/* Destination address */
   struct in_addr dmask;		/* Destination address mask */
-  int    proto;			/* Protocol */
+  int proto;			/* Protocol */
   struct {
-    short   srcop;
+    short srcop;
     u_short srcport;
-    short   dstop;
+    short dstop;
     u_short dstport;
-    int     estab;
-  } opt;
+    int estab;
+  }      opt;
 };
 
 #define	MAXFILTERS	20
@@ -79,5 +79,6 @@ struct filterent ofilters[MAXFILTERS];
 struct filterent dfilters[MAXFILTERS];
 struct filterent afilters[MAXFILTERS];	/* keep Alive packet filter */
 
-extern int ParseAddr(int, char **, struct in_addr *, struct in_addr *, int*);
-#endif	/* _FILTER_H_ */
+extern int ParseAddr(int, char **, struct in_addr *, struct in_addr *, int *);
+
+#endif				/* _FILTER_H_ */

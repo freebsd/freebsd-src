@@ -23,7 +23,8 @@
 #ifndef _PRED_H_
 #define	_PRED_H_
 
-extern void Pred1Output(int, u_short, struct mbuf *bp);
-extern void Pred1Input(struct mbuf*);
+extern void Pred1Output(int, u_short, struct mbuf * bp);
+extern void Pred1Input(struct mbuf *);
 extern void Pred1Init(int);
+
 #endif

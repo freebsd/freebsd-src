@@ -25,4 +25,5 @@
 #define	_ARP_H_
 extern int cifproxyarp(int, u_long);
 extern int sifproxyarp(int, u_long);
+
 #endif

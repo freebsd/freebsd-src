@@ -26,11 +26,11 @@
 /*
  *  Definition of protocol numbers
  */
-#define	PROTO_IP	0x0021		/* IP */
-#define	PROTO_VJUNCOMP	0x002f		/* VJ Uncompressed */
-#define	PROTO_VJCOMP	0x002d		/* VJ Compressed */
-#define	PROTO_ICOMPD	0x00fb		/* Individual link compressed */
-#define	PROTO_COMPD	0x00fd		/* Compressed datagram */
+#define	PROTO_IP	0x0021	/* IP */
+#define	PROTO_VJUNCOMP	0x002f	/* VJ Uncompressed */
+#define	PROTO_VJCOMP	0x002d	/* VJ Compressed */
+#define	PROTO_ICOMPD	0x00fb	/* Individual link compressed */
+#define	PROTO_COMPD	0x00fd	/* Compressed datagram */
 
 #define	PROTO_IPCP	0x8021
 #define	PROTO_ICCP	0x80fb
@@ -41,12 +41,13 @@
 #define	PROTO_LQR	0xc025
 #define	PROTO_CHAP	0xc223
 
-extern void LcpInput(struct mbuf *bp);
-extern void PapInput(struct mbuf *bp);
-extern void LqpInput(struct mbuf *bp);
-extern void ChapInput(struct mbuf *bp);
-extern void IpInput(struct mbuf *bp);
-extern struct mbuf *VjCompInput(struct mbuf *bp, int proto);
-extern void IpcpInput(struct mbuf *bp);
-extern void LqrInput(struct mbuf *bp);
+extern void LcpInput(struct mbuf * bp);
+extern void PapInput(struct mbuf * bp);
+extern void LqpInput(struct mbuf * bp);
+extern void ChapInput(struct mbuf * bp);
+extern void IpInput(struct mbuf * bp);
+extern struct mbuf *VjCompInput(struct mbuf * bp, int proto);
+extern void IpcpInput(struct mbuf * bp);
+extern void LqrInput(struct mbuf * bp);
+
 #endif
