@@ -95,8 +95,8 @@ static MALLOC_DEFINE(M_GRE, GRENAME, "Generic Routing Encapsulation");
 
 struct gre_softc_head gre_softc_list;
 
-static int	gre_clone_create __P((struct if_clone *, int));
-static void	gre_clone_destroy __P((struct ifnet *));
+static int	gre_clone_create(struct if_clone *, int);
+static void	gre_clone_destroy(struct ifnet *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *rt);
@@ -106,7 +106,7 @@ static struct if_clone gre_cloner =
 
 static int gre_compute_route(struct gre_softc *sc);
 
-static void	greattach __P((void));
+static void	greattach(void);
 
 #ifdef INET
 extern struct domain inetdomain;
