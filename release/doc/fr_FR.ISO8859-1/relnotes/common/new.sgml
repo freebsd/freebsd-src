@@ -2856,9 +2856,62 @@ options HZ=1000 # pas obligatoire, mais fortemment recommand&eacute;</programlis
 
       <sect4 id="kame-userland">
         <title>KAME</title>
+	
+	 <para>La couche IPv6 est maintenant bas&eacute;e sur la snapshot
+	du projet KAME IPv6 en date du 28 Mai 2001. La plupart
+	des ajouts de cette section r&eacute;sultent de cet import. La 
+	<xref linkend="kame-kernel"> liste les modifications
+	dans le noyau de la couche KAME IPv6 . &merged;</para>
+
+	<para>&man.faithd.8; dispose d'un fichier de configuration de liste de
+	 controle d'acc&egrave;s. &merged;</para>
+
+	<para>&man.ifconfig.8; peut maintenant effectuer les op&eacute;rations
+	 de &man.gifconfig.8;. &merged;</para>
+
+	<para>&man.ifconfig.8; peut maintenant effectuer les fonctions de 
+	&man.prefix.8;.  &man.prefix.8; est maintenant un script shell pour 
+	permettre une certaine compatibilit&eacute; ascendante. &merged;</para>
+
+	<para>&man.ndp.8; impl&eacute;mente maintenant un nettoyage des 
+	entr&eacute;es NDP, comme d&eacute;crit dans le RFC 2461 (Neighbor 
+	Discovery for IP Version 6 (IPv6)). &merged;</para>
+
+        <para>&man.pim6dd.8; et &man.pim6sd.8; ont &eacute;t&eacute; 
+	retir&eacute;s du a des conditions de restrictions de license.  Ces 
+	progrgammes sont disponibles dans la collections des ports sous 
+	<filename role="package">net/pim6dd</filename> et
+        <filename role="package">net/pim6sd</filename>. &merged;</para>
+
+	<para>&man.route6d.8; dispose maintenant d'une option 
+	<option>-n</option> permettant d'emp&eacute;cher de mettre &agrave; 
+	jour la table de routage du noyau. &merged;</para>
+
+	<para>L'option <option>-R</option> (num&eacute;rotation de router) de 
+	&man.rtadvd.8; est actuellement ignor&eacute;e. &merged;</para>
+
       <para></para>
       </sect4>
+
+      <sect4>
+        <title>OpenSSH</title>
+	<para></para>
+	</sect4>
       
+      <sect4>
+        <title>OpenSSL</title>
+
+	<para><application>OpenSSL</application> a &eacute;t&eacute; mis 
+	&agrave; jour en version 0.9.6c.</para>
+
+	<para><application>OpenSSL</application> dispose maintenant d'un 
+	support d'optimisation ASM ind&eacute;pendant de la machine, 
+	activ&eacute; par les nouvelles variables 
+	<varname>MACHINE_CPU</varname> et/ou <varname>CPUTYPE</varname> de 
+	<filename>make.conf</filename>. &merged;</para>
+      </sect4>
+
+
     </sect3>
 
     <sect3>
