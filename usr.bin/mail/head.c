@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)head.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -53,13 +57,10 @@ int
 ishead(linebuf)
 	char linebuf[];
 {
-	register char *cp;
 	struct headline hl;
 	char parbuf[BUFSIZ];
 
-	cp = linebuf;
-	if (*cp++ != 'F' || *cp++ != 'r' || *cp++ != 'o' || *cp++ != 'm' ||
-	    *cp++ != ' ')
+	if (strncmp(linebuf, "From ", 5))
 		return (0);
 	parse(linebuf, &hl, parbuf);
 	if (hl.l_from == NOSTR || hl.l_date == NOSTR) {

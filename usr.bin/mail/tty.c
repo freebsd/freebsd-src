@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -80,7 +84,7 @@ grabh(hp, gflags)
 	ttyset = 0;
 #endif
 	if (tcgetattr(fileno(stdin), &tio) < 0) {
-		perror("tcgetattr(stdin)");
+		warn("tcgetattr(stdin)");
 		return(-1);
 	}
 	c_erase = tio.c_cc[VERASE];
@@ -167,9 +171,9 @@ readtty(pr, src)
 	}
 #ifndef TIOCSTI
 	if (src != NOSTR)
-		cp = copy(src, canonb);
+		strlcpy(canonb, src, sizeof(canonb));
 	else
-		cp = copy("", canonb);
+		*canonb = '\0';
 	fputs(canonb, stdout);
 	fflush(stdout);
 #else
@@ -183,11 +187,11 @@ readtty(pr, src)
 		ioctl(0, TIOCSTI, &ch);
 	}
 	cp = canonb;
-	*cp = 0;
+	*cp = '\0';
 #endif
 	cp2 = cp;
 	while (cp2 < canonb + BUFSIZ)
-		*cp2++ = 0;
+		*cp2++ = '\0';
 	cp2 = cp;
 	if (setjmp(rewrite))
 		goto redo;

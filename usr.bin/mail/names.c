@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)names.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -94,10 +98,12 @@ extract(line, ntype)
 {
 	register char *cp;
 	register struct name *top, *np, *t;
-	char nbuf[BUFSIZ];
+	char *nbuf;
 
 	if (line == NOSTR || *line == '\0')
 		return NIL;
+	if ((nbuf = (char *)malloc(strlen(line) + 1)) == NULL)
+		err(1, "Out of memory");
 	top = NIL;
 	np = NIL;
 	cp = line;
@@ -110,6 +116,7 @@ extract(line, ntype)
 		t->n_blink = np;
 		np = t;
 	}
+	free(nbuf);
 	return top;
 }
 
@@ -148,14 +155,14 @@ detract(np, ntype)
 	for (p = np; p != NIL; p = p->n_flink) {
 		if (ntype && (p->n_type & GMASK) != ntype)
 			continue;
-		cp = copy(p->n_name, cp);
+		cp += strlcpy(cp, p->n_name, strlen(p->n_name) + 1);
 		if (comma && p->n_flink != NIL)
 			*cp++ = ',';
 		*cp++ = ' ';
 	}
-	*--cp = 0;
+	*--cp = '\0';
 	if (comma && *--cp == ',')
-		*cp = 0;
+		*cp = '\0';
 	return(top);
 }
 
@@ -197,7 +204,7 @@ yankword(ap, wbuf)
 		for (cp2 = wbuf; *cp && (*cp2++ = *cp++) != '>';)
 			;
 	else
-		for (cp2 = wbuf; *cp && !index(" \t,(", *cp); *cp2++ = *cp++)
+		for (cp2 = wbuf; *cp && !strchr(" \t,(", *cp); *cp2++ = *cp++)
 			;
 	*cp2 = '\0';
 	return cp;
@@ -223,7 +230,6 @@ outof(names, fo, hp)
 	char *date, *fname, *ctime();
 	FILE *fout, *fin;
 	int ispipe;
-	extern char *tempEdit;
 
 	top = names;
 	np = names;
@@ -246,15 +252,21 @@ outof(names, fo, hp)
 		 */
 
 		if (image < 0) {
-			if ((fout = Fopen(tempEdit, "a")) == NULL) {
-				perror(tempEdit);
+			int fd;
+			char tempname[PATHSIZE];
+
+			snprintf(tempname, sizeof(tempname),
+				 "%s/mail.ReXXXXXXXXXX", tmpdir);
+			if ((fd = mkstemp(tempname)) == -1 ||
+			    (fout = Fdopen(fd, "a")) == NULL) {
+				warn("%s", tempname);
 				senderr++;
 				goto cant;
 			}
-			image = open(tempEdit, 2);
-			(void) unlink(tempEdit);
+			image = open(tempname, O_RDWR);
+			(void) rm(tempname);
 			if (image < 0) {
-				perror(tempEdit);
+				warn("%s", tempname);
 				senderr++;
 				(void) Fclose(fout);
 				goto cant;
@@ -268,8 +280,12 @@ outof(names, fo, hp)
 			rewind(fo);
 			(void) putc('\n', fout);
 			(void) fflush(fout);
-			if (ferror(fout))
-				perror(tempEdit);
+			if (ferror(fout)) {
+				warn("%s", tempname);
+				senderr++;
+				Fclose(fout);
+				goto cant;
+			}
 			(void) Fclose(fout);
 		}
 
@@ -303,12 +319,12 @@ outof(names, fo, hp)
 		} else {
 			int f;
 			if ((fout = Fopen(fname, "a")) == NULL) {
-				perror(fname);
+				warn("%s", fname);
 				senderr++;
 				goto cant;
 			}
 			if ((f = dup(image)) < 0) {
-				perror("dup");
+				warn("dup");
 				fin = NULL;
 			} else
 				fin = Fdopen(f, "r");
@@ -321,8 +337,13 @@ outof(names, fo, hp)
 			rewind(fin);
 			while ((c = getc(fin)) != EOF)
 				(void) putc(c, fout);
-			if (ferror(fout))
-				senderr++, perror(fname);
+			if (ferror(fout)) {
+				warnx("%s", fname);
+				senderr++;
+				Fclose(fout);
+				Fclose(fin);
+				goto cant;
+			}
 			(void) Fclose(fout);
 			(void) Fclose(fin);
 		}
@@ -483,7 +504,7 @@ unpack(np)
 
 	n = np;
 	if ((t = count(n)) == 0)
-		panic("No names to unpack");
+		errx(1, "No names to unpack");
 	/*
 	 * Compute the number of extra arguments we will need.
 	 * We need at least two extra -- one for "mail" and one for
