@@ -643,7 +643,7 @@ restore_ofw_mapping()
 		vm_offset_t	va = ofw_mapping[i].va;
 		int		size = ofw_mapping[i].len;
 
-		if (va < 0x90000000)			/* XXX */
+		if (va < 0x80000000)			/* XXX */
 			continue;
 
 		while (size > 0) {
