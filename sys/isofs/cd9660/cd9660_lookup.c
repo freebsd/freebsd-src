@@ -414,12 +414,34 @@ cd9660_blkatoff(vp, offset, res, bpp)
 	imp = ip->i_mnt;
 	lbn = lblkno(imp, offset);
 	bsize = blksize(imp, ip, lbn);
-	
+
 	if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		*bpp = NULL;
 		return (error);
 	}
+
+	/*
+	 * We must BMAP the buffer because the directory code may use b_blkno
+	 * to calculate the inode for certain types of directory entries.
+	 * We could get away with not doing it before we VMIO-backed the
+	 * directories because the buffers would get freed atomically with
+	 * the invalidation of their data.  But with VMIO-backed buffers
+	 * the buffers may be freed and then later reconstituted - and the
+	 * reconstituted buffer will have no knowledge of b_blkno.
+	 */
+	if (bp->b_blkno == bp->b_lblkno) {
+		error = VOP_BMAP(vp, bp->b_lblkno, NULL, 
+			    &bp->b_blkno, NULL, NULL);
+		if (error) {
+                        bp->b_error = error;
+                        bp->b_flags |= B_ERROR;
+                        brelse(bp);
+			*bpp = NULL;
+                        return (error);
+                }
+        }
+
 	if (res)
 		*res = (char *)bp->b_data + blkoff(imp, offset);
 	*bpp = bp;
