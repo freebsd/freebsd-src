@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.18 1997/08/21 18:33:13 bde Exp $
+#	$Id: Makefile,v 1.19 1997/09/16 10:52:59 bde Exp $
 
 .SUFFIXES: .x
 
@@ -28,5 +28,7 @@ beforeinstall:
 
 .x.h:
 	${RPCCOM} -h ${.IMPSRC} -o ${.TARGET}
+
+nis.h: nis_object.x
 
 .include <bsd.prog.mk>
