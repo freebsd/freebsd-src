@@ -153,11 +153,8 @@ vpd_probe (device_t dev)
 		goto bad;
 	}
 
-	if (vpd_cksum(RES2VPD(res))) {
-		device_printf(dev, "VPD checksum failed.\n");
-		error = ENXIO;
-		goto bad;
-	}
+	if (vpd_cksum(RES2VPD(res)))
+		device_printf(dev, "VPD checksum failed.  BIOS update may be required.\n");
 
 bad:
 	if (res)
@@ -281,6 +278,10 @@ static driver_t vpd_driver = {
 DRIVER_MODULE(vpd, nexus, vpd_driver, vpd_devclass, vpd_modevent, 0);
 MODULE_VERSION(vpd, 1);
 
+/*
+ * Perform a checksum over the VPD structure, starting with
+ * the BuildID.  (Jean Delvare <khali@linux-fr.org>)
+ */
 static int
 vpd_cksum (struct vpd *v)
 {
@@ -290,13 +291,7 @@ vpd_cksum (struct vpd *v)
 
 	ptr = (u_int8_t *)v;
 	cksum = 0;
-	for (i = 0; i < v->Length ; i++) {
+	for (i = offsetof(struct vpd, BuildID); i < v->Length ; i++)
 		cksum += ptr[i];
-	}
-
-	/* XXX: For some reason this isn't right. */
-	printf("VPD cksum: 0x%02x\n", cksum);
-	cksum = 0;
-
 	return (cksum);
 }
