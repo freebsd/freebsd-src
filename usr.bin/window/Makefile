@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	window
 SRCS=	char.c cmd.c cmd1.c cmd2.c cmd3.c cmd4.c cmd5.c cmd6.c cmd7.c \
@@ -14,8 +15,17 @@ SRCS=	char.c cmd.c cmd1.c cmd2.c cmd3.c cmd4.c cmd5.c cmd6.c cmd7.c \
 	wwredrawwin.c wwrint.c wwscroll.c wwsize.c wwspawn.c wwsuspend.c \
 	wwterminfo.c wwtty.c wwunframe.c wwupdate.c wwwrite.c xx.c xxflush.c \
 	compress.c
+SRCS+=	mystring.h
 MAN=	window.1
+
+CFLAGS+= -I.
+
 DPADD=	${LIBTERMCAP}
 LDADD=	-ltermcap
+
+mystring.h: string.h
+	ln -sf ${.ALLSRC} ${.TARGET}
+
+CLEANFILES+=	mystring.h
 
 .include <bsd.prog.mk>

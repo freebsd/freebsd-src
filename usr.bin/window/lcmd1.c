@@ -36,11 +36,12 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)lcmd1.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"
 #include <string.h> /* System string definitions. */
-#include "string.h" /* Local string definitions. */
+#include "mystring.h" /* Local string definitions. */
 #include "value.h"
 #include "lcmd.h"
 #include "var.h"

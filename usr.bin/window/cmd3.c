@@ -36,10 +36,11 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)cmd3.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"
-#include "string.h"
+#include "mystring.h"
 
 setescape(esc)
 register char *esc;
