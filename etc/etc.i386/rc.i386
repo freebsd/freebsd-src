@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.9 1995/05/26 18:06:52 rgrimes Exp $
+#	$Id: rc.i386,v 1.10 1995/07/17 20:07:47 rgrimes Exp $
 #	Do i386 specific processing
 #
 
@@ -9,6 +9,11 @@ echo -n 'enabling FreeBSD/i386 options:'
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
 	echo -n ' ';		ibcs2
+fi
+
+# Start the Linux binary emulation if requested.
+if [ "X${linux}" = X"YES" ]; then
+	echo -n ' ';		linux
 fi
 
 if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
@@ -100,7 +105,7 @@ fi
 if [ "X${saver}" != X"NO" ] ; then
 	echo -n ' screensaver: '
 	modstat | grep _saver || modload -u -o /tmp/saver_mod -e \
-				 saver_init -q /lkm/${saver}_saver_mod.o
+				 ${saver}_saver_mod -q /lkm/${saver}_saver_mod.o
 fi
 
 echo '.'
