@@ -488,8 +488,6 @@ again:
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) RANGEOF(struct proc, p_startcopy, p_endcopy));
-	bcopy(&td->td_kse->ke_startcopy, &ke2->ke_startcopy,
-	    (unsigned) RANGEOF(struct kse, ke_startcopy, ke_endcopy));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	bcopy(&td->td_ksegrp->kg_startcopy, &kg2->kg_startcopy,

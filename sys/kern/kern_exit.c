@@ -204,8 +204,6 @@ exit1(td, rv)
 
 	p->p_flag |= P_WEXIT;
 	PROC_UNLOCK(p);
-	if (td->td_kse->ke_mdstorage)
-		cpu_free_kse_mdstorage(td->td_kse);
 
 	/* Are we a task leader? */
 	PROC_LOCK(p);
