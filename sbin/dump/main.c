@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #ifdef sunos
 #include <sys/vnode.h>
@@ -548,7 +549,19 @@ rawname(cp)
 	char *cp;
 {
 	static char rawbuf[MAXPATHLEN];
-	char *dp = strrchr(cp, '/');
+	char *dp;
+	struct stat sb;
+
+	if (stat(cp, &sb) == 0) {
+		/*
+		 * If the name already refers to a raw device, return
+		 * it immediately without tampering.
+		 */
+		if ((sb.st_mode & S_IFMT) == S_IFCHR)
+			return (cp);
+	}
+
+	dp = strrchr(cp, '/');
 
 	if (dp == NULL)
 		return (NULL);
