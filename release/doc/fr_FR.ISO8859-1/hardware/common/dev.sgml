@@ -45,21 +45,22 @@
   <title>P&eacute;riph&eacute;riques support&eacute;s</title>
 
   <para>Cette section d&eacute;crit les p&eacute;riph&eacute;riques
-  actuellement connus pour &ecirc;tre support&eacute;s avec &os; la
+  actuellement connus pour fonctionner avec &os; sur la
   plateforme &arch.print;. D'autres configurations peuvent
-  fonctionner, mais non pas &eacute;t&eacute; encore
+  fonctionner, mais n'ont pas &eacute;t&eacute; encore
   test&eacute;es. Des retours, mises &agrave; jour et corrections a
   cette liste sont encourag&eacute;s.</para>
 
-  <para>Lorsque'il est possible, les gestionnaires applicables &agrave;
-  chaque p&eacute;riph&eacute;rique ou classe de p&eacute;riph&eacute;rique est
-  list&eacute;. Si le gestionnaire en question &agrave; une page de manuel
-  dans la distribution de base de &os; (la plupart en ont), il est
+  <para>Dans la mesure du possible, les gestionnaires applicables &agrave;
+  chaque p&eacute;riph&eacute;rique ou classe de
+  p&eacute;riph&eacute;riques sont list&eacute;s. Si le gestionnaire
+  en question dispose d'une page de manuel
+  dans la distribution de base de &os; (la plupart en dispose), il est
   r&eacute;f&eacute;renc&eacute; ici.</para>
 
   <sect2>
-    <title>Controleurs de disque</title>
-      <para arch="i386,alpha,sparc64,ia64">controleurs IDE/ATA
+    <title>Contr&ocirc;leurs de disque</title>
+      <para arch="i386,alpha,sparc64,ia64">Contr&ocirc;leurs IDE/ATA
       (gestionnaire &man.ata.4;)
         <itemizedlist>
 	   <listitem>
@@ -127,63 +128,63 @@
 	   </listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">Controleurs IDE/ATA (gestionnaire wdc)
+    <para arch="pc98">Contr&ocirc;leurs IDE/ATA (gestionnaire wdc)
       <itemizedlist>
         <listitem>
-	  <para>controleur IDE int&eacute;gr&eacute; &agrave; la carte
+	  <para>Contr&ocirc;leur IDE int&eacute;gr&eacute; &agrave; la carte
           m&egrave;re</para>
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,alpha">Controleurs SCSI Adaptec
+    <para arch="i386,pc98,alpha">Contr&ocirc;leurs SCSI Adaptec
       <itemizedlist>
         <listitem arch="i386">
-	  <para>Controleurs SCSI Adaptec 1535 ISA</para>
+	  <para>Contr&ocirc;leurs SCSI Adaptec 1535 ISA</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs SCSI Adaptec mod&egrave;le 154x (gestionnaire
+	  <para>Contr&ocirc;leurs SCSI Adaptec mod&egrave;le 154x (gestionnaire
           &man.aha.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs SCSI MCA Adaptec mod&egrave;le 164x
+	  <para>Contr&ocirc;leurs SCSI MCA Adaptec mod&egrave;le 164x
           (gestionnaire &man.aha.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs SCSI EISA Adaptec mod&egrave;le 174x en mode
+	  <para>Contr&ocirc;leurs SCSI EISA Adaptec mod&egrave;le 174x en mode
           standard ou &eacute;volu&eacute; (gestionnaire &man.aha.4; et
           &man.ahb.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>>Controleurs SCSI EISA Adaptec mod&egrave;le 274x,
+	  <para>>Contr&ocirc;leurs SCSI EISA Adaptec mod&egrave;le 274x,
           incluant les variantes narrow et wide (gestionnaire
           &man.ahc.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs SCSI VLB Adaptec mod&egrave;le 284x, incluant
+	  <para>Contr&ocirc;leurs SCSI VLB Adaptec mod&egrave;le 284x, incluant
           les variantes narrow et wide (gestionnaire
           &man.ahc.4;)</para>
 	</listitem>
 	<listitem arch="i386,alpha">
-	  <para>Controleurs SCSI PCI Adaptec mod&egrave;les
+	  <para>Contr&ocirc;leurs SCSI PCI Adaptec mod&egrave;les
           19160/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x,
            incluant les variantes Narrow/Wide/Twin/Ultra/Ultra2
            (gestionnaire &man.ahc.4;)</para>
 	</listitem>
 	<listitem arch="i386,alpha">
-	  <para>Controleurs SCSI Adaptec AIC7770, AIC7850, AIC7860,
+	  <para>Contr&ocirc;leurs SCSI Adaptec AIC7770, AIC7850, AIC7860,
           AIC7870, AIC7880, et AIC789x sur carte m&egrave;re (gestionnaire
           &man.ahc.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs SCSI ISA Adaptec mod&egrave;le 1510 (pas comme
+	  <para>Contr&ocirc;leurs SCSI ISA Adaptec mod&egrave;le 1510 (pas comme
           p&eacute;riph&eacute;rique de d&eacute;marrage)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs SCSI ISA Adaptec mod&egrave;le 152x
+	  <para>Contr&ocirc;leurs SCSI ISA Adaptec mod&egrave;le 152x
           (gestionnaire &man.aha.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Controleurs bas&eacute; sur les puces Adaptec AIC-6260 et
+	  <para>Contr&ocirc;leurs bas&eacute; sur les puces Adaptec AIC-6260 et
           AIC-6360, cela inclu les cartes SCSI AHA-152x et
           SoundBlaster(gestionnaire &man.aic.4;)</para>
 	</listitem>
@@ -199,7 +200,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Les controleurs Ultra-320 SCSI bas&eacute;s sur les
+    <para arch="i386">Les contr&ocirc;leurs Ultra-320 SCSI bas&eacute;s sur les
     puces Adaptec AIC7901, AIC7901A, et AIC7902 Ultra320 (gestionnaire
     &man.ahd.4;)
       <itemizedlist>
@@ -212,16 +213,16 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Controleurs SCSI RAID Adaptec 2100S/32x0S/34x0S
+    <para arch="i386">Contr&ocirc;leurs SCSI RAID Adaptec 2100S/32x0S/34x0S
     (gestionnaire &man.asr.4;)</para>
 
-    <para arch="i386">Controleurs RAID Adaptec 2000S/2005S Zero-Channel
+    <para arch="i386">Contr&ocirc;leurs RAID Adaptec 2000S/2005S Zero-Channel
     (gestionnaire &man.asr.4;)</para>
 
-    <para arch="i386">Controleurs RAID Adaptec 2400A ATA-100
+    <para arch="i386">Contr&ocirc;leurs RAID Adaptec 2400A ATA-100
     (gestionnaire &man.asr.4;)</para>
 
-    <para arch="i386">La famille de controleurs RADI Adaptec FSA
+    <para arch="i386">La famille de contr&ocirc;leurs RADI Adaptec FSA
     (gestionnaire &man.aac.4;)
       <itemizedlist>
 	<listitem>
@@ -309,7 +310,7 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98">Les controleurs SCSI AdvanSys (tous les
+    <para arch="i386,pc98">Les contr&ocirc;leurs SCSI AdvanSys (tous les
     mod&egrave;les, gestionnaires &man.adv.4; et &man.adw.4;)
       <itemizedlist>
         <listitem arch="pc98">
@@ -417,7 +418,7 @@
       sont pas encore support&eacute;es.</para>
     </note>
     <note arch="i386">
-      <para>Les controleurs AMI FastDisk qui sont des clones BusLogic
+      <para>Les contr&ocirc;leurs AMI FastDisk qui sont des clones BusLogic
       MultiMaster sont aussi support&eacute;s.</para>
     </note>
     
@@ -426,11 +427,11 @@
       et SDC3211F Microchannel (MCA) sont aussi support&eacute;es.</para>
     </note>
 
-    <para arch="i386">Les controleurs DPT SmartCACHE Plus, SmartCACHE
+    <para arch="i386">Les contr&ocirc;leurs DPT SmartCACHE Plus, SmartCACHE
     III, SmartRAID III, SmartCACHE IV et SmartRAID IV SCSI/RAID
     (gestionnaire &man.dpt.4;)</para>
 
-    <para arch="i386">Les controleurs SCSI RAID DPT SmartRAID V and VI
+    <para arch="i386">Les contr&ocirc;leurs SCSI RAID DPT SmartRAID V and VI
     (gestionnaire &man.asr.4;)
       <itemizedlist>
         <listitem>
@@ -457,7 +458,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Les controleurs RAID des familles AMI
+    <para arch="i386,alpha">Les contr&ocirc;leurs RAID des familles AMI
     MegaRAID Express et Enterprise (gestionnaire &man.amr.4;)
       <itemizedlist>
         <listitem>
@@ -520,16 +521,16 @@
       </itemizedlist>
 
       <note>
-	<para arch="i386">Le d&eacute;marrage depuis ces controleurs est
+	<para arch="i386">Le d&eacute;marrage depuis ces contr&ocirc;leurs est
         support&eacute;. Par contre les cartes EISA ne sont pas
         support&eacute;es.</para>
 
-	<para arch="alpha">Le d&eacute;marrage depuis ces controleurs
+	<para arch="alpha">Le d&eacute;marrage depuis ces contr&ocirc;leurs
         n'est pas possible du &agrave; des limitations du SRM.</para>
       </note>
     </para>
 
-    <para arch="i386,alpha">Les controleurs RAID Mylex DAC960 et
+    <para arch="i386,alpha">Les contr&ocirc;leurs RAID Mylex DAC960 et
     DAC1100 RAID avec un micro-code 2.x, 3.x, 4.x et 5.x firmware
     (gestionnaire &man.mlx.4;)
       <itemizedlist>
@@ -564,20 +565,20 @@
 
       <note>
       
-      <para arch="i386">Le d&eacute;marrage depuis ces controleurs est
+      <para arch="i386">Le d&eacute;marrage depuis ces contr&ocirc;leurs est
         support&eacute;. Par contre les cartes EISA ne sont pas
         support&eacute;es.</para>
 
-        <para arch="alpha">Le d&eacute;marrage depuis ces controleurs
+        <para arch="alpha">Le d&eacute;marrage depuis ces contr&ocirc;leurs
         n'est pas possible du &agrave; des limitations du SRM. Cette liste
-        inclue les controleurs vendus par Digital/Compaq dans les
+        inclue les contr&ocirc;leurs vendus par Digital/Compaq dans les
         syst&egrave;mes Alpha de la famille StorageWorks, e.g. KZPSC ou
         KZPAC.</para>
 
       </note>
     </para>
 
-    <para arch="i386">Les controleurs RAID SCSI Mylex PCI avec un
+    <para arch="i386">Les contr&ocirc;leurs RAID SCSI Mylex PCI avec un
     micro-code 6.x( gestionnaire &man.mly.4;)
       <itemizedlist>
         <listitem>
@@ -604,7 +605,7 @@
       </note>
     </para>
 
-    <para arch="i386">Les controleurs RAID ATA 3ware Escalade
+    <para arch="i386">Les contr&ocirc;leurs RAID ATA 3ware Escalade
     (gestionnaire &man.twe.4;)
       <itemizedlist>
         <listitem arch="i386">
@@ -714,7 +715,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Les controleurs Qlogic
+    <para arch="i386,pc98,alpha,ia64">Les contr&ocirc;leurs Qlogic
     controllers et d&eacute;riv&eacute;s (gestionnaire &man.isp.4;)
       <itemizedlist>
         <listitem arch="i386,alpha,ia64">
@@ -759,7 +760,7 @@
     <para arch="i386">cartes DTC 3290 EISA SCSIen mode
     &eacute;mulation 1542.</para>
 
-    <para arch="i386,pc98">controleurs Tekram DC390 et DC390T
+    <para arch="i386,pc98">contr&ocirc;leurs Tekram DC390 et DC390T
     controllers, surement d'autres cartes bas&eacute;es sur AMD 53c974
     (gestionnaire &man.amd.4;)
       <itemizedlist arch="pc98">
@@ -807,7 +808,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Controleurs RAID Intel int&eacute;gr&eacute;s
+    <para arch="i386">Contr&ocirc;leurs RAID Intel int&eacute;gr&eacute;s
     (gestionnaire iir)
       <itemizedlist>
         <listitem>
@@ -2068,7 +2069,7 @@
     </para>
 
     <para arch="i386,pc98">Cartes Gigabit Ethernet bas&eacute;es sur les
-    controleurs niveau 1 LXT1001 NetCellerator (gestionnaire &man.lge.4;)
+    contr&ocirc;leurs niveau 1 LXT1001 NetCellerator (gestionnaire &man.lge.4;)
       <itemizedlist>
         <listitem>
 	  <para>D-Link DGE-500SX</para>
@@ -2130,7 +2131,7 @@
     <para arch="i386,pc98,alpha,ia64">Cartes Gigabit Ethernet
     bas&eacute;es sur les puces Intel 82542 et 82543 (gestionnaire
     &man.gx.4; et &man.em.4;) et les cartes support&eacute;es par les
-    controleurs Intel 82540EM, 82544, 82545EM, et 82546EB
+    contr&ocirc;leurs Intel 82540EM, 82544, 82545EM, et 82546EB
     (gestionnaire &man.em.4;)
       <itemizedlist>
 	<listitem>
@@ -2759,7 +2760,7 @@
 	  <para>Acc&eacute;l&eacute;rateur audio CS461x/462x</para>
 	</listitem>
 	<listitem>
-	  <para>Controleur audio CS428x</para>
+	  <para>Contr&ocirc;leur audio CS428x</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -2926,7 +2927,7 @@
       linkend="ethernet">Cartes Ethernet</link>.</para>
     </note>
 
-    <para arch="i386,pc98,alpha">Controleurs machine (gestionnaires
+    <para arch="i386,pc98,alpha">Contr&ocirc;leurs machine (gestionnaires
     &man.ohci.4; et &man.uhci.4;)
       <itemizedlist>
         <listitem arch="i386,alpha">
@@ -2977,7 +2978,7 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98">controleurs machines USB (PCI)
+    <para arch="i386,pc98">Contr&ocirc;leurs machines USB (PCI)
       <itemizedlist>
         <listitem arch="i386">
 	  <para>Carte ADS Electronics PCI plug-in (2 ports)</para>
@@ -3241,7 +3242,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Controleur d'alimentation X-10 (gestionnaire
+    <para arch="i386">Contr&ocirc;leur d'alimentation X-10 (gestionnaire
     &man.tw.4;)</para>
 
     <para arch="i386">Mat&eacute;riel reconfigurable bas&eacute; sur les
@@ -3249,7 +3250,7 @@
     url="http://www.vcc.com/">Virtual Computers</ulink> (gestionnaire
     xrpu).</para>
 
-    <para arch="pc98">Controleur de gestion d'&eacute;nergie des NEC PC-98
+    <para arch="pc98">Contr&ocirc;leur de gestion d'&eacute;nergie des NEC PC-98
     Note (gestionnaire pmc)</para>
 
   </sect2>
