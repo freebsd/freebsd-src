@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
-#include <math.h>
 #include <langinfo.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,27 +73,6 @@ static int	colortype(mode_t);
 static void	aclmode(char *, const FTSENT *, int *);
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
-
-#define KILO_SZ(n) (n)
-#define MEGA_SZ(n) ((n) * (n))
-#define GIGA_SZ(n) ((n) * (n) * (n))
-#define TERA_SZ(n) ((n) * (n) * (n) * (n))
-#define PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
-
-#define KILO_2_SZ (KILO_SZ(1024ULL))
-#define MEGA_2_SZ (MEGA_SZ(1024ULL))
-#define GIGA_2_SZ (GIGA_SZ(1024ULL))
-#define TERA_2_SZ (TERA_SZ(1024ULL))
-#define PETA_2_SZ (PETA_SZ(1024ULL))
-
-static unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
-
-typedef enum {
-	NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX
-} unit_t;
-static unit_t unit_adjust(double *);
-
-static unit_t unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
 
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
@@ -613,47 +592,15 @@ printlink(const FTSENT *p)
 static void
 printsize(size_t width, off_t bytes)
 {
-	double dbytes;
-	unit_t unit;
 
 	if (f_humanval) {
-		dbytes = bytes;
-		unit = unit_adjust(&dbytes);
+		char buf[5];
 
-		if (unit == 0)
-			(void)printf("%*d%c ", 4, (int)bytes, 'B');
-		else
-			(void)printf("%*.*f%c ", 4,
-			    dbytes >= 99.95 ? 0 : 1, dbytes, "BKMGTPE"[unit]);
+		humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
+		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		(void)printf("%5s ", buf);
 	} else
 		(void)printf("%*jd ", (u_int)width, bytes);
-}
-
-/*
- * Output in "human-readable" format.  Uses 3 digits max and puts
- * unit suffixes at the end.  Makes output compact and easy to read,
- * especially on huge disks.
- *
- */
-static unit_t
-unit_adjust(double *val)
-{
-	double abval;
-	unit_t unit;
-	u_int unit_sz;
-
-	abval = fabs(*val);
-
-	unit_sz = abval ? (u_int)ilogb(abval) / 10 : 0;
-
-	if (unit_sz >= (u_int)UNIT_MAX) {
-		unit = NONE;
-	} else {
-		unit = unitp[unit_sz];
-		*val /= (double)vals_base2[unit_sz];
-	}
-
-	return (unit);
 }
 
 static void
