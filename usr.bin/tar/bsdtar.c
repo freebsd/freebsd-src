@@ -55,7 +55,7 @@ static char **		 rewrite_argv(struct bsdtar *,
 			     int *argc, char ** src_argv,
 			     const char *optstring);
 
-const char *tar_opts = "b:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
+const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
 
 #ifdef HAVE_GETOPT_LONG
 /*
@@ -101,6 +101,7 @@ const struct option tar_longopts[] = {
 	{ "nodump",             no_argument,       NULL, OPTION_NODUMP },
 	{ "norecurse",          no_argument,       NULL, 'n' },
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
+	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
 	{ "same-permissions",   no_argument,       NULL, 'p' },
 	{ "to-stdout",          no_argument,       NULL, 'O' },
 	{ "unlink",		no_argument,       NULL, 'U' },
@@ -173,8 +174,13 @@ main(int argc, char **argv)
 #else
 	while ((opt = getopt(bsdtar->argc, bsdtar->argv, tar_opts)) != -1) {
 #endif
-		/* XXX TODO: Augment the compatibility notes below. */
 		switch (opt) {
+		case 'B': /* GNU tar */
+			/*
+			 * bsdtar is stream-based internally, so this
+			 * option has no effect.  Just ignore it.
+			 */
+			break;
 		case 'b': /* SUSv2 */
 			bsdtar->bytes_per_block = 512 * atoi(optarg);
 			break;
