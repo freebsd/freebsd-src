@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.65 1997/02/22 18:30:03 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.66 1997/02/22 18:35:18 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -137,10 +137,18 @@ the ports collection.
 2.1.5-RELEASE:                  199607
 2.2-current before 2.1.6:       199608
 2.1.6-RELEASE:                  199612
-2.2-RELEASE:                    199701
-3.0-current as of Feb 1997:     199702  (will certainly be bumped)
+2.1.7-RELEASE:                  199612
+2.2-RELEASE:                    220000
+3.0-current as of Feb 1997:     300000
 </verb></tscreen>
-The pattern is the year followed by the month.
+	  The pattern used to be year followed by the month, but we
+	  decided to change it to a more straightforward major/minor
+	  system starting from 2.2.  This is because the parallel
+	  development on several branches made it infeasible to
+	  classify the releases simply by their real release dates.
+	  (Note that if you are making a port now, you don't have to
+	  worry about old -current's; they are listed here just for
+	  your reference.)
 
       </itemize>
 
