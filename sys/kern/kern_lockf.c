@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.6 1996/09/03 14:21:52 bde Exp $
+ * $Id: kern_lockf.c,v 1.7 1996/12/19 13:22:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -271,13 +271,6 @@ lf_setlock(lock)
 				block->lf_block = block->lf_block->lf_block;
 				break;
 			}
-			/*
-			 * If we did not find ourselves on the list, but
-			 * are still linked onto a lock list, then something
-			 * is very wrong.
-			 */
-			if (block == NOLOCKF && lock->lf_next != NOLOCKF)
-				panic("lf_setlock: lost lock");
 			free(lock, M_LOCKF);
 			return (error);
 		}
