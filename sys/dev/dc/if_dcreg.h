@@ -854,6 +854,7 @@ struct dc_softc {
  * Accton device IDs.
  */
 #define DC_DEVICEID_EN1217	0x1217
+#define	DC_DEVICEID_EN2242	0x1216
 
 /*
  * Xircom vendor ID
