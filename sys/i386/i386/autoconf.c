@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.56.2.8 1998/01/08 12:30:28 jkh Exp $
+ *	$Id: autoconf.c,v 1.56.2.9 1998/03/09 04:48:29 msmith Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
 #include <sys/dmap.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
@@ -421,6 +422,8 @@ setroot()
 	adaptor = B_ADAPTOR(bootdev);
 	unit    = B_UNIT(bootdev);
 	slice   = B_SLICE(bootdev);
+	if ((slice < BASE_SLICE) || (slice > MAX_SLICES))
+		slice = 0;
 	if (majdev > sizeof(devname) / sizeof(devname[0]))
 		return;
 	if (majdev == FDMAJOR) {
