@@ -25,8 +25,10 @@ fi
 
 if [ -d /scratch ]; then
 	cd /scratch && {
-	find . ! -name . -atime +1 -exec rm -f -- {} \;
-	find . ! -name . -type d -mtime +1 -exec rmdir -- {} \; \
+	find . ! -name . ! -fstype local -a -prune -o \
+		-atime +1 -exec rm -f -- {} \;
+	find . ! -name . ! -fstype local -a -prune -o \
+		-type d -mtime +1 -exec rmdir -- {} \; \
 	    >/dev/null 2>&1; }
 fi
 
