@@ -1,5 +1,5 @@
 /* Annotation routines for GDB.
-   Copyright 1986, 1989, 1990, 1991, 1992, 1995 Free Software Foundation, Inc.
+   Copyright 1986, 89, 90, 91, 92, 95, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -24,7 +24,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbtypes.h"
 #include "breakpoint.h"
 
+
+/* Prototypes for local functions. */
+
 static void print_value_flags PARAMS ((struct type *));
+
+static void breakpoint_changed PARAMS ((struct breakpoint *));
+
+void (*annotate_starting_hook) PARAMS ((void));
+void (*annotate_stopped_hook) PARAMS ((void));
+void (*annotate_signalled_hook) PARAMS ((void));
+void (*annotate_exited_hook) PARAMS ((void));
 
 static void
 print_value_flags (t)
@@ -55,6 +65,14 @@ annotate_breakpoint (num)
 }
 
 void
+annotate_catchpoint (num)
+     int num;
+{
+  if (annotation_level > 1)
+    printf_filtered ("\n\032\032catchpoint %d\n", num);
+}
+
+void
 annotate_watchpoint (num)
      int num;
 {
@@ -65,30 +83,49 @@ annotate_watchpoint (num)
 void
 annotate_starting ()
 {
-  if (annotation_level > 1)
+
+  if (annotate_starting_hook)
+    annotate_starting_hook ();
+  else
     {
-      printf_filtered ("\n\032\032starting\n");
+      if (annotation_level > 1)
+        {
+          printf_filtered ("\n\032\032starting\n");
+        }
     }
 }
 
 void
 annotate_stopped ()
 {
-  if (annotation_level > 1)
-    printf_filtered ("\n\032\032stopped\n");
+  if (annotate_stopped_hook)
+    annotate_stopped_hook ();
+  else
+    {
+      if (annotation_level > 1)
+        printf_filtered ("\n\032\032stopped\n");
+    }
 }
 
 void
 annotate_exited (exitstatus)
      int exitstatus;
 {
-  if (annotation_level > 1)
-    printf_filtered ("\n\032\032exited %d\n", exitstatus);
+  if (annotate_exited_hook)
+    annotate_exited_hook ();
+  else
+    {
+      if (annotation_level > 1)
+        printf_filtered ("\n\032\032exited %d\n", exitstatus);
+    }
 }
 
 void
 annotate_signalled ()
 {
+  if (annotate_signalled_hook)
+    annotate_signalled_hook ();
+
   if (annotation_level > 1)
     printf_filtered ("\n\032\032signalled\n");
 }

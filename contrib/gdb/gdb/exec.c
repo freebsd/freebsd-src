@@ -1,5 +1,6 @@
 /* Work with executable files, for GDB. 
-   Copyright 1988, 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991, 1992, 1993, 1994, 1997, 1998
+             Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -30,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/types.h>
 #endif
 
-#include <sys/param.h>
 #include <fcntl.h>
 #include "gdb_string.h"
 
@@ -46,6 +46,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 struct vmap *map_vmap PARAMS ((bfd *, bfd *));
 
+void (*file_changed_hook) PARAMS ((char *));
+
 /* Prototypes for local functions */
 
 static void add_to_section_table PARAMS ((bfd *, sec_ptr, PTR));
@@ -58,7 +60,19 @@ static void set_section_command PARAMS ((char *, int));
 
 static void exec_files_info PARAMS ((struct target_ops *));
 
+static void bfdsec_to_vmap PARAMS ((bfd *, sec_ptr, PTR));
+
+static int ignore PARAMS ((CORE_ADDR, char *));
+
+static void init_exec_ops PARAMS ((void));
+
+void _initialize_exec PARAMS ((void));
+
 extern int info_verbose;
+
+/* The target vector for executable files.  */
+
+struct target_ops exec_ops;
 
 /* The Binary File Descriptor handle for the executable file.  */
 
@@ -70,16 +84,13 @@ int write_files = 0;
 
 /* Text start and end addresses (KLUDGE) if needed */
 
-#ifdef NEED_TEXT_START_END
+#ifndef NEED_TEXT_START_END
+#define NEED_TEXT_START_END (0)
+#endif
 CORE_ADDR text_start = 0;
 CORE_ADDR text_end   = 0;
-#endif
 
 struct vmap *vmap;
-
-/* Forward decl */
-
-extern struct target_ops exec_ops;
 
 /* ARGSUSED */
 static void
@@ -140,19 +151,28 @@ exec_close (quitting)
 
 /*  Process the first arg in ARGS as the new exec file.
 
-    Note that we have to explicitly ignore additional args, since we can
-    be called from file_command(), which also calls symbol_file_command()
-    which can take multiple args. */
+    This function is intended to be behave essentially the same
+    as exec_file_command, except that the latter will detect when
+    a target is being debugged, and will ask the user whether it
+    should be shut down first.  (If the answer is "no", then the
+    new file is ignored.)
+
+    This file is used by exec_file_command, to do the work of opening
+    and processing the exec file after any prompting has happened.
+
+    And, it is used by child_attach, when the attach command was
+    given a pid but not a exec pathname, and the attach command could
+    figure out the pathname from the pid.  (In this case, we shouldn't
+    ask the user whether the current target should be shut down --
+    we're supplying the exec pathname late for good reason.) */
 
 void
-exec_file_command (args, from_tty)
+exec_file_attach (args, from_tty)
      char *args;
      int from_tty;
 {
   char **argv;
   char *filename;
-
-  target_preopen (from_tty);
 
   /* Remove any previous exec file.  */
   unpush_target (&exec_ops);
@@ -171,7 +191,7 @@ exec_file_command (args, from_tty)
       if (argv == NULL)
 	nomem (0);
 
-      make_cleanup (freeargv, (char *) argv);
+      make_cleanup ((make_cleanup_func) freeargv, (char *) argv);
 
       for (; (*argv != NULL) && (**argv == '-'); argv++) {;}
       if (*argv == NULL)
@@ -183,6 +203,15 @@ exec_file_command (args, from_tty)
       scratch_chan = openp (getenv ("PATH"), 1, filename, 
 			    write_files? O_RDWR|O_BINARY: O_RDONLY|O_BINARY, 0,
 			    &scratch_pathname);
+#if defined(__GO32__) || defined(_WIN32)
+      if (scratch_chan < 0)
+      {
+	char *exename = alloca (strlen (filename) + 5);
+	strcat (strcpy (exename, filename), ".exe");
+	scratch_chan = openp (getenv ("PATH"), 1, exename, write_files ?
+		O_RDWR|O_BINARY : O_RDONLY|O_BINARY, 0, &scratch_pathname);
+      }
+#endif
       if (scratch_chan < 0)
 	perror_with_name (filename);
       fcntl (scratch_chan, F_SETFD, 1);
@@ -234,37 +263,34 @@ exec_file_command (args, from_tty)
 		 scratch_pathname, bfd_errmsg (bfd_get_error ()));
 	}
 
-#ifdef NEED_TEXT_START_END
-
       /* text_end is sometimes used for where to put call dummies.  A
 	 few ports use these for other purposes too.  */
-
-      {
-	struct section_table *p;
-
-	/* Set text_start to the lowest address of the start of any
-	   readonly code section and set text_end to the highest
-	   address of the end of any readonly code section.  */
-	/* FIXME: The comment above does not match the code.  The code
-	   checks for sections with are either code *or* readonly.  */
-
-	text_start = ~(CORE_ADDR)0;
-	text_end = (CORE_ADDR)0;
-	for (p = exec_ops.to_sections; p < exec_ops.to_sections_end; p++)
-	  if (bfd_get_section_flags (p->bfd, p->the_bfd_section)
-	      & (SEC_CODE | SEC_READONLY))
-	    {
-	      if (text_start > p->addr) 
-		text_start = p->addr;
-	      if (text_end < p->endaddr)
-		text_end = p->endaddr;
-	    }
-      }
-#endif
+      if (NEED_TEXT_START_END)
+	{
+	  struct section_table *p;
+	  
+	  /* Set text_start to the lowest address of the start of any
+	     readonly code section and set text_end to the highest
+	     address of the end of any readonly code section.  */
+	  /* FIXME: The comment above does not match the code.  The
+	     code checks for sections with are either code *or*
+	     readonly.  */
+	  text_start = ~(CORE_ADDR)0;
+	  text_end = (CORE_ADDR)0;
+	  for (p = exec_ops.to_sections; p < exec_ops.to_sections_end; p++)
+	    if (bfd_get_section_flags (p->bfd, p->the_bfd_section)
+		& (SEC_CODE | SEC_READONLY))
+	      {
+		if (text_start > p->addr) 
+		  text_start = p->addr;
+		if (text_end < p->endaddr)
+		  text_end = p->endaddr;
+	      }
+	}
 
       validate_files ();
 
-      set_endian_from_file (exec_bfd);
+      set_gdbarch_from_file (exec_bfd);
 
       push_target (&exec_ops);
 
@@ -273,7 +299,26 @@ exec_file_command (args, from_tty)
 	(*exec_file_display_hook) (filename);
     }
   else if (from_tty)
-    printf_unfiltered ("No exec file now.\n");
+    printf_unfiltered ("No executable file now.\n");
+}
+
+/*  Process the first arg in ARGS as the new exec file.
+
+    Note that we have to explicitly ignore additional args, since we can
+    be called from file_command(), which also calls symbol_file_command()
+    which can take multiple args. */
+
+void
+exec_file_command (args, from_tty)
+     char *args;
+     int from_tty;
+{
+  char **argv;
+  char *filename;
+
+  target_preopen (from_tty);
+
+  exec_file_attach (args, from_tty);
 }
 
 /* Set both the exec file and the symbol file, in one command.  
@@ -289,6 +334,8 @@ file_command (arg, from_tty)
      the exec file, but that's rough.  */
   exec_file_command (arg, from_tty);
   symbol_file_command (arg, from_tty);
+  if (file_changed_hook)
+    file_changed_hook (arg);
 }
 
 
@@ -355,20 +402,16 @@ bfdsec_to_vmap(abfd, sect, arg3)
 
   if (STREQ (bfd_section_name (abfd, sect), ".text"))
     {
-      vp->tstart = 0;
+      vp->tstart = bfd_section_vma (abfd, sect);
       vp->tend = vp->tstart + bfd_section_size (abfd, sect);
-
-      /* When it comes to this adjustment value, in contrast to our previous
-	 belief shared objects should behave the same as the main load segment.
-	 This is the offset from the beginning of text section to the first
-	 real instruction. */
-
-      vp->tadj = sect->filepos - bfd_section_vma (abfd, sect);
+      vp->tvma = bfd_section_vma (abfd, sect);
+      vp->toffs = sect->filepos;
     }
   else if (STREQ (bfd_section_name (abfd, sect), ".data"))
     {
-      vp->dstart = 0;
+      vp->dstart = bfd_section_vma (abfd, sect);
       vp->dend = vp->dstart + bfd_section_size (abfd, sect);
+      vp->dvma = bfd_section_vma (abfd, sect);
     }
   /* Silently ignore other types of sections. (FIXME?)  */
 }
@@ -433,25 +476,79 @@ xfer_memory (memaddr, myaddr, len, write, target)
   struct section_table *p;
   CORE_ADDR nextsectaddr, memend;
   boolean (*xfer_fn) PARAMS ((bfd *, sec_ptr, PTR, file_ptr, bfd_size_type));
+  asection *section;
 
   if (len <= 0)
     abort();
+
+  if (overlay_debugging)
+    {
+      section = find_pc_overlay (memaddr);
+      if (pc_in_unmapped_range (memaddr, section))
+	memaddr = overlay_mapped_address (memaddr, section);
+    }
 
   memend = memaddr + len;
   xfer_fn = write ? bfd_set_section_contents : bfd_get_section_contents;
   nextsectaddr = memend;
 
+#if 0 /* Stu's implementation */
+/* If a section has been specified, try to use it.  Note that we cannot use the
+   specified section directly.  This is because it usually comes from the
+   symbol file, which may be different from the exec or core file.  Instead, we
+   have to lookup the specified section by name in the bfd associated with
+   to_sections.  */
+
+  if (target_memory_bfd_section)
+    {
+      asection *s;
+      bfd *abfd;
+      asection *target_section;
+      bfd *target_bfd;
+
+      s = target_memory_bfd_section;
+      abfd = s->owner;
+
+      target_bfd = target->to_sections->bfd;
+      target_section = bfd_get_section_by_name (target_bfd, bfd_section_name (abfd, s));
+
+      if (target_section)
+	{
+	  bfd_vma sec_addr;
+	  bfd_size_type sec_size;
+
+	  sec_addr = bfd_section_vma (target_bfd, target_section);
+	  sec_size = target_section->_raw_size;
+
+	  /* Make sure the requested memory starts inside the section.  */
+
+	  if (memaddr >= sec_addr
+	      && memaddr < sec_addr + sec_size)
+	    {
+	      /* Cut back length in case request overflows the end of the section. */
+	      len = min (len, sec_addr + sec_size - memaddr);
+
+	      res = xfer_fn (target_bfd, target_section, myaddr, memaddr - sec_addr, len);
+
+	      return res ? len : 0;
+	    }
+	}
+    }
+#endif /* 0, Stu's implementation */
   for (p = target->to_sections; p < target->to_sections_end; p++)
     {
-      if (p->addr <= memaddr)
-	if (p->endaddr >= memend)
+      if (overlay_debugging && section && p->the_bfd_section &&
+	  strcmp (section->name, p->the_bfd_section->name) != 0)
+	continue;	/* not the section we need */
+      if (memaddr >= p->addr)
+ 	if (memend <= p->endaddr)
 	  {
 	    /* Entire transfer is within this section.  */
 	    res = xfer_fn (p->bfd, p->the_bfd_section, myaddr,
 			   memaddr - p->addr, len);
 	    return (res != 0) ? len : 0;
 	  }
-	else if (p->endaddr <= memaddr)
+	else if (memaddr >= p->endaddr)
 	  {
 	    /* This section ends before the transfer starts.  */
 	    continue;
@@ -464,8 +561,8 @@ xfer_memory (memaddr, myaddr, len, write, target)
 			   memaddr - p->addr, len);
 	    return (res != 0) ? len : 0;
 	  }
-      else if (p->addr < nextsectaddr)
-	nextsectaddr = p->addr;
+      else
+	nextsectaddr = min (nextsectaddr, p->addr);
     }
 
   if (nextsectaddr >= memend)
@@ -586,7 +683,8 @@ set_section_command (args, from_tty)
 }
 
 /* If mourn is being called in all the right places, this could be say
-   `gdb internal error' (since generic_mourn calls breakpoint_init_inferior).  */
+   `gdb internal error' (since generic_mourn calls
+   breakpoint_init_inferior).  */
 
 static int
 ignore (addr, contents)
@@ -596,63 +694,50 @@ ignore (addr, contents)
   return 0;
 }
 
-struct target_ops exec_ops = {
-  "exec",			/* to_shortname */
-  "Local exec file",		/* to_longname */
-  "Use an executable file as a target.\n\
-Specify the filename of the executable file.", /* to_doc */
-  exec_file_command,		/* to_open */
-  exec_close,			/* to_close */
-  find_default_attach,		/* to_attach */
-  0,				/* to_detach */
-  0,				/* to_resume */
-  0,				/* to_wait */
-  0,				/* to_fetch_registers */
-  0,				/* to_store_registers */
-  0,				/* to_prepare_to_store */
-  xfer_memory,			/* to_xfer_memory */
-  exec_files_info,		/* to_files_info */
-  ignore,			/* to_insert_breakpoint */
-  ignore,			/* to_remove_breakpoint */
-  0,				/* to_terminal_init */
-  0,				/* to_terminal_inferior */
-  0,				/* to_terminal_ours_for_output */
-  0,				/* to_terminal_ours */
-  0,				/* to_terminal_info */
-  0,				/* to_kill */
-  0,				/* to_load */
-  0,				/* to_lookup_symbol */
-  find_default_create_inferior,	/* to_create_inferior */
-  0,				/* to_mourn_inferior */
-  0,				/* to_can_run */
-  0,				/* to_notice_signals */
-  0,				/* to_thread_alive */
-  0,				/* to_stop */
-  file_stratum,			/* to_stratum */
-  0,				/* to_next */
-  0,				/* to_has_all_memory */
-  1,				/* to_has_memory */
-  0,				/* to_has_stack */
-  0,				/* to_has_registers */
-  0,				/* to_has_execution */
-  0,				/* to_sections */
-  0,				/* to_sections_end */
-  OPS_MAGIC,			/* to_magic */
-};
+/* Fill in the exec file target vector.  Very few entries need to be
+   defined.  */
 
 void
-_initialize_exec()
+init_exec_ops ()
+{
+  exec_ops.to_shortname = "exec";
+  exec_ops.to_longname = "Local exec file";
+  exec_ops.to_doc = "Use an executable file as a target.\n\
+Specify the filename of the executable file.";
+  exec_ops.to_open = exec_file_command;
+  exec_ops.to_close = exec_close;
+  exec_ops.to_attach = find_default_attach;
+  exec_ops.to_require_attach = find_default_require_attach;
+  exec_ops.to_require_detach = find_default_require_detach;
+  exec_ops.to_xfer_memory = xfer_memory;
+  exec_ops.to_files_info = exec_files_info;
+  exec_ops.to_insert_breakpoint = ignore;
+  exec_ops.to_remove_breakpoint = ignore;
+  exec_ops.to_create_inferior = find_default_create_inferior;
+  exec_ops.to_clone_and_follow_inferior = find_default_clone_and_follow_inferior;
+  exec_ops.to_stratum = file_stratum;
+  exec_ops.to_has_memory = 1;
+  exec_ops.to_magic = OPS_MAGIC;	
+}
+
+void
+_initialize_exec ()
 {
   struct cmd_list_element *c;
 
-  c = add_cmd ("file", class_files, file_command,
-	       "Use FILE as program to be debugged.\n\
+  init_exec_ops ();
+
+  if (!dbx_commands)
+    {
+      c = add_cmd ("file", class_files, file_command,
+		   "Use FILE as program to be debugged.\n\
 It is read for its symbols, for getting the contents of pure memory,\n\
 and it is the program executed when you use the `run' command.\n\
 If FILE cannot be found as specified, your execution directory path\n\
 ($PATH) is searched for a command of that name.\n\
 No arg means to have no executable file and no symbols.", &cmdlist);
-  c->completer = filename_completer;
+      c->completer = filename_completer;
+    }
 
   c = add_cmd ("exec-file", class_files, exec_file_command,
 	   "Use FILE as program for getting contents of pure memory.\n\

@@ -22,4 +22,4 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EMULATOR_BASE	0xa0000000
 #define EMULATOR_END	0xa0040000
 
-#include "xm-i386mach3.h"
+#include "i386/xm-i386m3.h"

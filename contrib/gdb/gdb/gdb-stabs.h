@@ -64,9 +64,20 @@ struct dbx_symfile_info {
   int symbol_size;		/* Bytes in a single symbol */
   struct stab_section_info *stab_section_info; 	/* section starting points
 				   of the original .o files before linking. */
+
+  /* See stabsread.h for the use of the following. */
+  struct header_file *header_files;
+  int n_header_files;
+  int n_allocated_header_files;
+
+  /* Pointers to BFD sections.  These are used to speed up the building of
+     minimal symbols.  */
+  asection *text_section;
+  asection *data_section;
+  asection *bss_section;
 };
 
-#define DBX_SYMFILE_INFO(o)	((struct dbx_symfile_info *)((o)->sym_stab_info))
+#define DBX_SYMFILE_INFO(o)	((o)->sym_stab_info)
 #define DBX_TEXT_ADDR(o)	(DBX_SYMFILE_INFO(o)->text_addr)
 #define DBX_TEXT_SIZE(o)	(DBX_SYMFILE_INFO(o)->text_size)
 #define DBX_SYMCOUNT(o)		(DBX_SYMFILE_INFO(o)->symcount)
@@ -74,5 +85,8 @@ struct dbx_symfile_info {
 #define DBX_STRINGTAB_SIZE(o)	(DBX_SYMFILE_INFO(o)->stringtab_size)
 #define DBX_SYMTAB_OFFSET(o)	(DBX_SYMFILE_INFO(o)->symtab_offset)
 #define DBX_SYMBOL_SIZE(o)	(DBX_SYMFILE_INFO(o)->symbol_size)
+#define DBX_TEXT_SECTION(o)	(DBX_SYMFILE_INFO(o)->text_section)
+#define DBX_DATA_SECTION(o)	(DBX_SYMFILE_INFO(o)->data_section)
+#define DBX_BSS_SECTION(o)	(DBX_SYMFILE_INFO(o)->bss_section)
 
 #endif /* GDBSTABS_H */
