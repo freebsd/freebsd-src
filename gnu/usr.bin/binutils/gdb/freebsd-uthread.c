@@ -408,6 +408,7 @@ freebsd_uthread_wait (ptid_t ptid, struct target_waitstatus *ourstatus)
   return rtnval;
 }
 
+/* XXX: this needs to be selected by target, not [build] host */
 #ifdef __i386__
 
 static char sigmap[MAX_NUM_REGS] = /* map reg to sigcontext  */
@@ -484,6 +485,18 @@ static char jmpmap[NUM_REGS] = {
   53, 54, 55, 56, 57, 58, 59, 60, /* f16 - f23 */
   61, 62, 63, 64, 65, 66, 67, 68, /* f24 - f31 */
   2,  -1,			  /* pc, vfp */
+};
+
+#endif
+
+#ifdef __sparc64__
+
+static char sigmap[125] =	/* map reg to sigcontext  */
+{
+  -1
+};
+static char jmpmap[125] = {
+  -1
 };
 
 #endif
