@@ -57,7 +57,7 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "getextattr [-s] [attrnamespace] [attrname] "
+	fprintf(stderr, "getextattr [-ls] [attrnamespace] [attrname] "
 	    "[filename ...]\n");
 	exit(-1);
 }
