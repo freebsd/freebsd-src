@@ -24,8 +24,10 @@ SRCS=	add.c admin.c annotate.c buffer.c \
 	server.c status.c subr.c tag.c update.c vers_ts.c version.c watch.c \
 	wrapper.c zlib.c
 
-CFLAGS+= -I${.CURDIR} -I../lib -DHAVE_CONFIG_H \
-	 -I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff -I.
+# gnu must be before lib to pick correct regex.h
+CFLAGS+= -I${.CURDIR} -I../lib -DHAVE_CONFIG_H -I${CVSDIR}/src \
+	 -I${.CURDIR}/../../../../../include/gnu \
+	 -I${CVSDIR}/lib -I${CVSDIR}/diff -I.
 
 DPADD=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
