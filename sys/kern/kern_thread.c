@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2001 Julian Elischer <julian@freebsd.org>.
  *  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice(s), this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified other than the possible 
+ *    the first lines of this file unmodified other than the possible
  *    addition of one or more copyright notices.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice(s), this list of conditions and the following disclaimer in the
@@ -93,7 +93,7 @@ static int virtual_cpu;
 TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 TAILQ_HEAD(, kse) zombie_kses = TAILQ_HEAD_INITIALIZER(zombie_kses);
 TAILQ_HEAD(, ksegrp) zombie_ksegrps = TAILQ_HEAD_INITIALIZER(zombie_ksegrps);
-TAILQ_HEAD(, kse_upcall) zombie_upcalls = 
+TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 	TAILQ_HEAD_INITIALIZER(zombie_upcalls);
 struct mtx kse_zombie_lock;
 MTX_SYSINIT(kse_zombie_lock, &kse_zombie_lock, "kse zombie lock", MTX_SPIN);
@@ -230,7 +230,7 @@ ksegrp_init(void *mem, int size)
 	kg->kg_sched = (struct kg_sched *)&kg[1];
 }
 
-/* 
+/*
  * KSE is linked into kse group.
  */
 void
@@ -346,7 +346,7 @@ upcall_unlink(struct kse_upcall *ku)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(ku->ku_owner == NULL, ("%s: have owner", __func__));
-	TAILQ_REMOVE(&kg->kg_upcalls, ku, ku_link); 
+	TAILQ_REMOVE(&kg->kg_upcalls, ku, ku_link);
 	kg->kg_numupcalls--;
 	upcall_stash(ku);
 }
@@ -359,7 +359,7 @@ upcall_remove(struct thread *td)
 		td->td_upcall->ku_owner = NULL;
 		upcall_unlink(td->td_upcall);
 		td->td_upcall = 0;
-	} 
+	}
 }
 
 /*
@@ -662,7 +662,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	return (ESRCH);
 }
 
-/* 
+/*
  * No new KSEG: first call: use current KSE, don't schedule an upcall
  * All other situations, do allocate max new KSEs and schedule an upcall.
  */
@@ -708,10 +708,10 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		return (EINVAL);
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
-		/* Have race condition but it is cheap */ 
+		/* Have race condition but it is cheap */
 		if (p->p_numksegrps >= max_groups_per_proc)
 			return (EPROCLIM);
-		/* 
+		/*
 		 * If we want a new KSEGRP it doesn't matter whether
 		 * we have already fired up KSE mode before or not.
 		 * We put the process in KSE mode and create a new KSEGRP.
@@ -721,7 +721,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		      kg_startzero, kg_endzero));
 		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
 		      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
-		PROC_LOCK(p);      
+		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		if (p->p_numksegrps >= max_groups_per_proc) {
 			mtx_unlock_spin(&sched_lock);
@@ -741,7 +741,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 
 	/*
 	 * Creating upcalls more than number of physical cpu does
-	 * not help performance. 
+	 * not help performance.
 	 */
 	if (newkg->kg_numupcalls >= ncpus)
 		return (EPROCLIM);
@@ -755,8 +755,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 * is not MP safe and can only run on single CPU.
 		 * In ideal world, every physical cpu should execute a thread.
 		 * If there is enough KSEs, threads in kernel can be
-		 * executed parallel on different cpus with full speed, 
-		 * Concurrent in kernel shouldn't be restricted by number of 
+		 * executed parallel on different cpus with full speed,
+		 * Concurrent in kernel shouldn't be restricted by number of
 		 * upcalls userland provides. Adding more upcall structures
 		 * only increases concurrent in userland.
 		 *
@@ -815,7 +815,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * one owns it.
 	 */
 	if (uap->newgroup) {
-		/* 
+		/*
 		 * Because new ksegrp hasn't thread,
 		 * create an initial upcall thread to own it.
 		 */
@@ -1160,7 +1160,7 @@ thread_statclock(int user)
 {
 	struct thread *td = curthread;
 	struct ksegrp *kg = td->td_ksegrp;
-	
+
 	if (kg->kg_numupcalls == 0 || !(td->td_flags & TDF_SA))
 		return (0);
 	if (user) {
@@ -1199,7 +1199,7 @@ thread_update_usr_ticks(struct thread *td, int user)
 
 	if ((ku = td->td_upcall) == NULL)
 		return (-1);
-	
+
 	tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
 	if ((tmbx == NULL) || (tmbx == (void *)-1))
 		return (-1);
@@ -1295,12 +1295,12 @@ thread_exit(void)
 		 */
 		if (td->td_upcall)
 			upcall_remove(td);
-	
+
 		sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 		sched_exit_kse(FIRST_KSE_IN_PROC(p), ke);
 		ke->ke_state = KES_UNQUEUED;
 		ke->ke_thread = NULL;
-		/* 
+		/*
 		 * Decide what to do with the KSE attached to this thread.
 		 */
 		if (ke->ke_flags & KEF_EXIT) {
@@ -1331,7 +1331,7 @@ thread_exit(void)
 	/* NOTREACHED */
 }
 
-/* 
+/*
  * Do any thread specific cleanups that may be needed in wait()
  * called with Giant held, proc and schedlock not held.
  */
@@ -1340,8 +1340,8 @@ thread_wait(struct proc *p)
 {
 	struct thread *td;
 
-	KASSERT((p->p_numthreads == 1), ("Muliple threads in wait1()"));
-	KASSERT((p->p_numksegrps == 1), ("Muliple ksegrps in wait1()"));
+	KASSERT((p->p_numthreads == 1), ("Multiple threads in wait1()"));
+	KASSERT((p->p_numksegrps == 1), ("Multiple ksegrps in wait1()"));
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_standin != NULL) {
 			thread_free(td->td_standin);
@@ -1383,7 +1383,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 
 void
 thread_unlink(struct thread *td)
-{      
+{
 	struct proc *p = td->td_proc;
 	struct ksegrp *kg = td->td_ksegrp;
 
@@ -1393,11 +1393,11 @@ thread_unlink(struct thread *td)
 	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
 	kg->kg_numthreads--;
 	/* could clear a few other things here */
-} 
+}
 
 /*
  * Purge a ksegrp resource. When a ksegrp is preparing to
- * exit, it calls this function. 
+ * exit, it calls this function.
  */
 static void
 kse_purge_group(struct thread *td)
@@ -1420,8 +1420,8 @@ kse_purge_group(struct thread *td)
 }
 
 /*
- * Purge a process's KSE resource. When a process is preparing to 
- * exit, it calls kse_purge to release any extra KSE resources in 
+ * Purge a process's KSE resource. When a process is preparing to
+ * exit, it calls kse_purge to release any extra KSE resources in
  * the process.
  */
 static void
@@ -1436,7 +1436,7 @@ kse_purge(struct proc *p, struct thread *td)
 		p->p_numksegrps--;
 		/*
 		 * There is no ownership for KSE, after all threads
-		 * in the group exited, it is possible that some KSEs 
+		 * in the group exited, it is possible that some KSEs
 		 * were left in idle queue, gc them now.
 		 */
 		while ((ke = TAILQ_FIRST(&kg->kg_iq)) != NULL) {
@@ -1454,7 +1454,7 @@ kse_purge(struct proc *p, struct thread *td)
 		KASSERT((kg->kg_numupcalls == 0),
 		        ("%s: ksegrp still has %d upcall datas",
 			__func__, kg->kg_numupcalls));
-	
+
 		if (kg != td->td_ksegrp)
 			ksegrp_stash(kg);
 	}
@@ -1492,7 +1492,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	/* 
+	/*
 	 * Schedule an upcall thread on specified kse_upcall,
 	 * the kse_upcall must be free.
 	 * td must have a spare thread.
@@ -1575,14 +1575,14 @@ thread_switchout(struct thread *td)
 	 * XXXKSE eventually almost any inhibition could do.
 	 */
 	if (TD_CAN_UNBIND(td) && (td->td_standin) && TD_ON_SLEEPQ(td)) {
-		/* 
+		/*
 		 * Release ownership of upcall, and schedule an upcall
 		 * thread, this new upcall thread becomes the owner of
 		 * the upcall structure.
 		 */
 		ku = td->td_upcall;
 		ku->ku_owner = NULL;
-		td->td_upcall = NULL; 
+		td->td_upcall = NULL;
 		td->td_flags &= ~TDF_CAN_UNBIND;
 		td2 = thread_schedule_upcall(td, ku);
 		setrunqueue(td2);
@@ -1638,8 +1638,8 @@ thread_user_enter(struct proc *p, struct thread *td)
 			tflags = fuword32(&tmbx->tm_flags);
 			/*
 			 * On some architectures, TP register points to thread
-			 * mailbox but not points to kse mailbox, and userland 
-			 * can not atomically clear km_curthread, but can 
+			 * mailbox but not points to kse mailbox, and userland
+			 * can not atomically clear km_curthread, but can
 			 * use TP register, and set TMF_NOUPCALL in thread
 			 * flag	to indicate a critical region.
 			 */
@@ -1685,7 +1685,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		return (0);
 
 	/*
-	 * Stat clock interrupt hit in userland, it 
+	 * Stat clock interrupt hit in userland, it
 	 * is returning from interrupt, charge thread's
 	 * userland time for UTS.
 	 */
@@ -1700,7 +1700,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	}
 
 	uts_crit = (td->td_mailbox == NULL);
-	/* 
+	/*
 	 * Optimisation:
 	 * This thread has not started any upcall.
 	 * If there is no work to report other than ourself,
@@ -1739,7 +1739,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		/*
 		 * There are upcall threads waiting for
 		 * work to do, wake one of them up.
-		 * XXXKSE Maybe wake all of them up. 
+		 * XXXKSE Maybe wake all of them up.
 		 */
 		if (kg->kg_upsleeps)
 			wakeup_one(&kg->kg_completed);
@@ -1784,7 +1784,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	if (td->td_pflags & TDP_UPCALLING) {
 		uts_crit = 0;
 		kg->kg_nextupcall = ticks+kg->kg_upquantum;
-		/* 
+		/*
 		 * There is no more work to do and we are going to ride
 		 * this thread up to userland as an upcall.
 		 * Do the last parts of the setup needed for the upcall.
@@ -1810,7 +1810,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 
 		/*
 		 * Unhook the list of completed threads.
-		 * anything that completes after this gets to 
+		 * anything that completes after this gets to
 		 * come in next time.
 		 * Put the list of completed thread mailboxes on
 		 * this KSE's mailbox.
@@ -1847,7 +1847,7 @@ out:
 	ku->ku_mflags = 0;
 	/*
 	 * Clear thread mailbox first, then clear system tick count.
-	 * The order is important because thread_statclock() use 
+	 * The order is important because thread_statclock() use
 	 * mailbox pointer to see if it is an userland thread or
 	 * an UTS kernel thread.
 	 */
@@ -1886,7 +1886,7 @@ thread_single(int force_exit)
 		return (0);
 
 	/* Is someone already single threading? */
-	if (p->p_singlethread) 
+	if (p->p_singlethread)
 		return (1);
 
 	if (force_exit == SINGLE_EXIT) {
@@ -1927,8 +1927,8 @@ thread_single(int force_exit)
 				}
 			}
 		}
-		/* 
-		 * Maybe we suspended some threads.. was it enough? 
+		/*
+		 * Maybe we suspended some threads.. was it enough?
 		 */
 		if ((p->p_numthreads - p->p_suspcount) == 1)
 			break;
@@ -1947,7 +1947,7 @@ thread_single(int force_exit)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 	}
-	if (force_exit == SINGLE_EXIT) { 
+	if (force_exit == SINGLE_EXIT) {
 		if (td->td_upcall)
 			upcall_remove(td);
 		kse_purge(p, td);
@@ -1986,7 +1986,7 @@ thread_single(int force_exit)
  * While a full suspension is under effect, even a single threading
  * thread would be suspended if it made this call (but it shouldn't).
  * This call should only be made from places where
- * thread_exit() would be safe as that may be the outcome unless 
+ * thread_exit() would be safe as that may be the outcome unless
  * return_instead is set.
  */
 int
@@ -2005,12 +2005,12 @@ thread_suspend_check(int return_instead)
 			/*
 			 * The only suspension in action is a
 			 * single-threading. Single threader need not stop.
-			 * XXX Should be safe to access unlocked 
+			 * XXX Should be safe to access unlocked
 			 * as it can only be set to be true by us.
 			 */
 			if (p->p_singlethread == td)
 				return (0);	/* Exempt from stopping. */
-		} 
+		}
 		if (return_instead)
 			return (1);
 
@@ -2136,5 +2136,3 @@ thread_single_end(void)
 	}
 	mtx_unlock_spin(&sched_lock);
 }
-
-
