@@ -15,37 +15,40 @@
 .Op Fl y Ar ysize
 .Op Fl z Ar zoom
 .Sh DESCRIPTION
-.Nm qcamcontrol
+.Nm Qcamcontrol
 is a program to demonstrate control over the Connectix QuickCam(TM)
 parallel port camera and to take a single frame picture.
 .Pp
-If the device not specified, "/dev/qcam0" is assumed.
+If the device not specified,
+.Pa /dev/qcam0
+is assumed.
 If no command is given, then
-.Nm qcamcontrol
+.Nm
 will use its defaults to grab a single frame from the camera.  The control
 program will output a portable pixmap (ppm) file to stdout.
 .Pp
 The following options are available:
-.Bl -tag -width "flag   whitebalance"
+.Bl -tag -width indent
 .It Fl b Ar brightness
-control the brightness of the picture (0..255)
+Control the brightness of the picture (0..255).
 .It Fl c Ar contrast
-control the contrast of the picture (0..255)
+Control the contrast of the picture (0..255).
 .It Fl d Ar depth
-16 or 64 shades of gray (specified as 4 or 6 bits per pixel)
+16 or 64 shades of gray (specified as 4 or 6 bits per pixel).
 .It Fl p Ar device
-quickcam device (port) (default is /dev/qcam0)
+Quickcam device (port) (default is
+.Pa /dev/qcam0 )
 .It Fl w Ar whitebalance
-amount of white in the picture (0..255)
+Amount of white in the picture (0..255).
 .It Fl x Ar xsize
-width of image (320 or less)
+Width of image (320 or less).
 .It Fl y Ar ysize
-height of image (240 or less)
+Height of image (240 or less).
 .It Fl z Ar zoom
-zoom in (1, 1.5x, or 2x)
+Zoom in (1x, 1.5x, or 2x).
 .El
 .Sh BUGS
-.Nm qcamcontrol
+.Nm Qcamcontrol
 does not enforce a proper aspect ratio for x y sizes.
 In practice, standard picture sizes are 320x240 and 180x160 and all smaller
 sizes that maintain a similar aspect ratio.
@@ -57,9 +60,9 @@ will return all-black or all-white pictures.
 .It Pa /dev/qcam0
 .El
 .Sh AUTHOR
-Paul Traina
+.An Paul Traina
 .Sh HISTORY
 The
-.Nm qcamcontrol
+.Nm
 command appeared in
 .Fx 2.1.5 .
