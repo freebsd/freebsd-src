@@ -41,8 +41,6 @@
 #include <sys/systm.h>
 #include <sys/linker.h>
 
-#include <machine/bootinfo.h>
-
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
