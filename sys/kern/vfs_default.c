@@ -659,6 +659,7 @@ vfs_stdroot (mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
+
 	return (EOPNOTSUPP);
 }
 
@@ -668,6 +669,7 @@ vfs_stdstatfs (mp, sbp, td)
 	struct statfs *sbp;
 	struct thread *td;
 {
+
 	return (EOPNOTSUPP);
 }
 
@@ -676,6 +678,7 @@ vfs_stdvptofh (vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
+
 	return (EOPNOTSUPP);
 }
 
@@ -685,6 +688,7 @@ vfs_stdstart (mp, flags, td)
 	int flags;
 	struct thread *td;
 {
+
 	return (0);
 }
 
@@ -696,6 +700,7 @@ vfs_stdquotactl (mp, cmds, uid, arg, td)
 	caddr_t arg;
 	struct thread *td;
 {
+
 	return (EOPNOTSUPP);
 }
 
@@ -751,6 +756,7 @@ vfs_stdnosync (mp, waitfor, cred, td)
 	struct ucred *cred;
 	struct thread *td;
 {
+
 	return (0);
 }
 
@@ -761,6 +767,7 @@ vfs_stdvget (mp, ino, flags, vpp)
 	int flags;
 	struct vnode **vpp;
 {
+
 	return (EOPNOTSUPP);
 }
 
@@ -770,6 +777,7 @@ vfs_stdfhtovp (mp, fhp, vpp)
 	struct fid *fhp;
 	struct vnode **vpp;
 {
+
 	return (EOPNOTSUPP);
 }
 
@@ -777,6 +785,7 @@ int
 vfs_stdinit (vfsp)
 	struct vfsconf *vfsp;
 {
+
 	return (0);
 }
 
@@ -784,6 +793,7 @@ int
 vfs_stduninit (vfsp)
 	struct vfsconf *vfsp;
 {
+
 	return(0);
 }
 
@@ -796,9 +806,10 @@ vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
 	const char *attrname;
 	struct thread *td;
 {
+
 	if (filename_vp != NULL)
 		VOP_UNLOCK(filename_vp, 0, td);
-	return(EOPNOTSUPP);
+	return (EOPNOTSUPP);
 }
 
 int
