@@ -318,10 +318,12 @@ faultin(p)
 
 		++p->p_lock;
 		mtx_exit(&sched_lock, MTX_SPIN);
+		PROC_UNLOCK(p);
 
 		mtx_assert(&Giant, MA_OWNED);
 		pmap_swapin_proc(p);
 
+		PROC_LOCK(p);
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SRUN) {
 			setrunqueue(p);
@@ -401,8 +403,12 @@ loop:
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 */
+	PROC_LOCK(p);
 	faultin(p);
+	PROC_UNLOCK(p);
+	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_swtime = 0;
+	mtx_exit(&sched_lock, MTX_SPIN);
 	goto loop;
 }
 
