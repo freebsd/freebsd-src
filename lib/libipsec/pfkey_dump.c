@@ -81,9 +81,9 @@ __FBSDID("$FreeBSD$");
 do { \
 	if (sizeof((str)[0]) == 0 \
 	 || num >= sizeof(str)/sizeof((str)[0])) \
-		printf("%d ", (num)); \
+		printf("%u ", (num)); \
 	else if (strlen((str)[(num)]) == 0) \
-		printf("%d ", (num)); \
+		printf("%u ", (num)); \
 	else \
 		printf("%s ", (str)[(num)]); \
 } while (0)
@@ -98,7 +98,7 @@ do { \
 	if (p && p->str) \
 		printf("%s ", p->str); \
 	else \
-		printf("%d ", (num)); \
+		printf("%u ", (num)); \
 } while (0)
 
 static char *str_ipaddr(struct sockaddr *);
