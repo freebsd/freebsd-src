@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.15 1998/08/24 02:28:15 bde Exp $ */
+/* $Id: if_wl.c,v 1.16 1998/10/22 05:58:39 bde Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -332,7 +332,7 @@ static void	wl_cache_store(int, int, struct ether_header *, struct mbuf *);
 static void     wl_cache_zero(int unit);
 #endif
 #ifdef MULTICAST
-# if __FreeBSD < 3
+# if defined(__FreeBSD__) && __FreeBSD_version < 300000
 static int      check_allmulti(int unit);
 # endif
 #endif
@@ -682,7 +682,7 @@ wlinit(void *xsc)
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlinit()\n",sc->unit);
 #endif
-#if __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     if (ifp->if_addrhead.tqh_first == (struct ifaddr *)0) {
 #else
     if (ifp->if_addrlist == (struct ifaddr *)0) {
@@ -1259,7 +1259,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     case SIOCADDMULTI:
     case SIOCDELMULTI:
 
-#if __FreeBSD__ < 3
+#if defined(__FreeBSD__) && __FreeBSD_version < 300000
 	if (cmd == SIOCADDMULTI) {
 	    error = ether_addmulti(ifr, &sc->wl_ac);
 	}
@@ -2039,7 +2039,7 @@ wlconfig(int unit)
     short		base = sc->base;
 
 #if	MULTICAST
-#if __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     struct ifmultiaddr *ifma;
     u_char *addrp;
 #else
@@ -2108,7 +2108,7 @@ wlconfig(int unit)
     outw(PIOP1(base), 0);				/* ac_status */
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
-#if __FreeBSD__ >= 3
+#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
     for (ifma = sc->wl_if.if_multiaddrs.lh_first; ifma;
 	 ifma = ifma->ifma_link.le_next) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -2684,7 +2684,7 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
  */
 #ifdef MULTICAST
 
-#if __FreeBSD__ < 3	/* not required */
+#if defined(__FreeBSD__) && __FreeBSD_version < 300000	/* not required */
 static int
 check_allmulti(int unit)
 {
