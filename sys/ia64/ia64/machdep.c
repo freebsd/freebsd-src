@@ -1008,17 +1008,27 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 #endif
 
 int
-get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
+get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 {
+	struct trapframe *tf;
 
-	return (ENOSYS);
+	tf = td->td_frame;
+	mc->mc_special = tf->tf_special;
+	save_callee_saved(&mc->mc_preserved);
+	save_callee_saved_fp(&mc->mc_preserved_fp);
+	return (0);
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, const mcontext_t *mc)
 {
+	struct trapframe *tf;
 
-	return (ENOSYS);
+	tf = td->td_frame;
+	tf->tf_special = mc->mc_special;
+	restore_callee_saved(&mc->mc_preserved);
+	restore_callee_saved_fp(&mc->mc_preserved_fp);
+	return (0);
 }
 
 /*
