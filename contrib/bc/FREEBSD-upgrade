@@ -1,7 +1,7 @@
 bc 1.0.4
 	originals can be found at: ftp://prep.ai.mit.edu/pub/gnu/
 	removed no subdirectories
-	removed bc/scan.c bc/bc.c doc/texinfo.tex
+	removed bc/scan.c bc/bc.c bc/bc.h doc/texinfo.tex
 	andreas@FreeBSD.ORG
 
 	Imported with the commands:
