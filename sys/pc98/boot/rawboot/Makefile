@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/02/22 09:43:18 peter Exp $
+#	$Id: Makefile,v 1.7 1997/04/26 04:00:25 kato Exp $
 #
 
 PROG=	boot
@@ -35,6 +35,12 @@ CFLAGS+=	-DPROBE_KEYBOARD_LOCK
 CFLAGS+=	-DFORCE_COMCONSOLE
 .endif
 
+.if exists(${.CURDIR}/../../../../include)
+CFLAGS+= -nostdinc
+CFLAGS+= -I${.OBJDIR} -I${.CURDIR}/../../../
+CFLAGS+= -I${.CURDIR}/../../../../include
+.endif
+
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
 BOOT_COMCONSOLE_PORT?=0x30
@@ -62,7 +68,7 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 # SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
-CLEANFILES+=	boot.nohdr boot.strip rawboot sizetest
+CLEANFILES+=	boot.nohdr boot.strip machine rawboot sizetest
 LDFLAGS+=	-N -T 0 -nostdlib
 NOSHARED=	YES
 NOMAN=
@@ -91,7 +97,12 @@ boot.nohdr:	boot.strip
 rawboot:	boot.nohdr
 	dd if=boot.nohdr of=rawboot bs=8k count=1 conv=sync
 
-all:		rawboot
+pre-compile:
+.if !exists(${.OBJDIR}/machine)
+	ln -s ${.CURDIR}/../../include ${.OBJDIR}/machine
+.endif
+
+all:		pre-compile rawboot
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
