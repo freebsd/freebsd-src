@@ -34,20 +34,21 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
