@@ -850,14 +850,14 @@ tcp_notify(inp, error)
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	    (error == EHOSTUNREACH || error == ENETUNREACH ||
 	     error == EHOSTDOWN)) {
-		return inp;
+		return (inp);
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
 	    tp->t_softerror) {
 		tcp_drop(tp, error);
 		return (struct inpcb *)0;
 	} else {
 		tp->t_softerror = error;
-		return inp;
+		return (inp);
 	}
 #if 0
 	wakeup( &so->so_timeo);
@@ -882,11 +882,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		n = tcbinfo.ipi_count;
 		req->oldidx = 2 * (sizeof xig)
 			+ (n + n/8) * sizeof(struct xtcpcb);
-		return 0;
+		return (0);
 	}
 
 	if (req->newptr != NULL)
-		return EPERM;
+		return (EPERM);
 
 	/*
 	 * OK, now we're committed to doing something.
@@ -909,11 +909,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	xig.xig_sogen = so_gencnt;
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
-		return error;
+		return (error);
 
 	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
 	if (inp_list == NULL)
-		return ENOMEM;
+		return (ENOMEM);
 
 	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
@@ -986,7 +986,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 	free(inp_list, M_TEMP);
-	return error;
+	return (error);
 }
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
@@ -1350,7 +1350,7 @@ tcp_new_isn(tp)
 	isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	new_isn += isn_offset;
-	return new_isn;
+	return (new_isn);
 }
 
 /*
@@ -1407,9 +1407,9 @@ tcp_drop_syn_sent(inp, errno)
 	INP_LOCK_ASSERT(inp);
 	if (tp != NULL && tp->t_state == TCPS_SYN_SENT) {
 		tcp_drop(tp, errno);
-		return (struct inpcb *)0;
+		return (NULL);
 	}
-	return inp;
+	return (inp);
 }
 
 /*
@@ -1455,7 +1455,7 @@ tcp_mtudisc(inp, errno)
 				isipv6 ? tcp_v6mssdflt :
 #endif /* INET6 */
 				tcp_mssdflt;
-			return inp;
+			return (inp);
 		}
 		mss = maxmtu -
 #ifdef INET6
@@ -1491,7 +1491,7 @@ tcp_mtudisc(inp, errno)
 		 * recomputed.  For Further Study.
 		 */
 		if (tp->t_maxopd <= mss)
-			return inp;
+			return (inp);
 		tp->t_maxopd = mss;
 
 		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
@@ -1517,7 +1517,7 @@ tcp_mtudisc(inp, errno)
 		tp->snd_nxt = tp->snd_una;
 		tcp_output(tp);
 	}
-	return inp;
+	return (inp);
 }
 
 /*
@@ -1604,10 +1604,10 @@ ipsec_hdrsiz_tcp(tp)
 	struct tcphdr *th;
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
-		return 0;
+		return (0);
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (!m)
-		return 0;
+		return (0);
 
 #ifdef INET6
 	if ((inp->inp_vflag & INP_IPV6) != 0) {
@@ -1628,7 +1628,7 @@ ipsec_hdrsiz_tcp(tp)
 	}
 
 	m_free(m);
-	return hdrsiz;
+	return (hdrsiz);
 }
 #endif /*IPSEC*/
 
@@ -1743,9 +1743,9 @@ tcp_twrecycleable(struct tcptw *tw)
 	new_irs += (ticks - tw->t_starttime) * (MS_ISN_BYTES_PER_SECOND / hz);
 
 	if (SEQ_GT(new_iss, tw->snd_nxt) && SEQ_GT(new_irs, tw->rcv_nxt))
-		return 1;
+		return (1);
 	else
-		return 0;
+		return (0);
 }
 
 struct tcptw *
