@@ -51,46 +51,87 @@ static int drivecmp(const void *va, const void *vb);
 int
 open_drive(struct drive *drive, struct proc *p, int verbose)
 {
-    struct nameidata nd;
-    int error;
+    int devmajor;					    /* major devs for disk device */
+    int devminor;					    /* minor devs for disk device */
+    int unit;
+    char *dname;
 
-    if (drive->devicename[0] != '/')			    /* no device name */
-	sprintf(drive->devicename, "/dev/%s", drive->label.name); /* get it from the drive name */
-    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, drive->devicename, p);
-    error = vn_open(&nd, FREAD | FWRITE, 0);		    /* open the device */
-    if (error != 0) {					    /* can't open? */
+    if (bcmp(drive->devicename, "/dev/", 5))		    /* device name doesn't start with /dev */
+	return ENOENT;					    /* give up */
+    if (drive->flags & VF_OPEN)				    /* open already, */
+	return EBUSY;					    /* don't do it again */
+
+    /*
+     * Yes, Bruce, I know this is horrible, but we
+     * don't have a root file system when we first
+     * try to do this.  If you can come up with a
+     * better solution, I'd really like it.  I'm
+     * just putting it in now to add ammuntion to
+     * moving the system to devfs.
+     */
+    dname = &drive->devicename[5];
+    drive->dev = NULL;					    /* no device yet */
+
+    /* Find the device */
+    if (bcmp(dname, "ad", 2) == 0)			    /* IDE disk */
+	devmajor = 116;
+    else if (bcmp(dname, "da", 2) == 0)
+	devmajor = 13;
+    else
+	return ENODEV;
+    dname += 2;						    /* point past */
+
+    /*
+     * Found the device.  We can expect one of
+     * two formats for the rest: a unit number,
+     * then either a partition letter for the
+     * compatiblity partition (e.g. h) or a
+     * slice ID and partition (e.g. s2e).
+     * Create a minor number for each of them.
+     */
+    unit = 0;
+    while ((dname[0] >= '0')				    /* invalid unit */
+    &&(dname[0] <= '9')) {
+	unit += dname[0] - '0';
+	dname++;
+    }
+
+    if (*dname == 's') {				    /* slice */
+	if (((dname[1] < '1') || (dname[1] > '4'))	    /* invalid slice */
+	||((dname[2] < 'a') || (dname[2] > 'h')))	    /* or invalid partition */
+	    return ENODEV;
+	devminor = (unit << 3)				    /* unit */
++(dname[2] - 'a')					    /* partition */
+	+((dname[1] - '0' + 1) << 16);			    /* slice */
+    } else {						    /* compatibility partition */
+	if ((dname[0] < 'a') || (dname[0] > 'h'))	    /* or invalid partition */
+	    return ENODEV;
+	devminor = (dname[0] - 'a')			    /* partition */
+	+(unit << 3);					    /* unit */
+    }
+
+    drive->dev = makedev(devmajor, devminor);		    /* find the device */
+    if (drive->dev == NULL)				    /* didn't find anything */
+	return ENODEV;
+
+    /*
+     * XXX This doesn't really belong here, but we
+     * get rude remarks from the drivers if we don't
+     * set it.  phk, where are you when I need you?
+     */
+    drive->dev->si_iosize_max = DFLTPHYS;
+    drive->lasterror = (*devsw(drive->dev)->d_open) (drive->dev, FWRITE, 0, NULL);
+
+    if (drive->lasterror != 0) {			    /* failed */
 	drive->state = drive_down;			    /* just force it down */
-	drive->lasterror = error;
 	if (verbose)
 	    log(LOG_WARNING,
 		"vinum open_drive %s: failed with error %d\n",
-		drive->devicename, error);
-	return error;
-    }
-    drive->vp = nd.ni_vp;
-    drive->p = p;
+		drive->devicename, drive->lasterror);
+    } else
+	drive->flags |= VF_OPEN;			    /* we're open now */
 
-    if (drive->vp->v_usecount > 1) {			    /* already in use? */
-	if (verbose)
-	    log(LOG_WARNING,
-		"open_drive %s: use count %d, ignoring\n",
-		drive->devicename,
-		drive->vp->v_usecount);
-    }
-    if (!vn_isdisk(drive->vp, &drive->lasterror)) {	    /* only consider disks */
-    	NDFREE(&nd, NDF_ONLY_PNBUF);
-	VOP_UNLOCK(drive->vp, 0, drive->p);
-	close_drive(drive);
-	if (verbose)
-	    log(LOG_WARNING,
-		"vinum open_drive %s: Not a block device\n",
-		drive->devicename);
-	return drive->lasterror;
-    }
-    drive->vp->v_numoutput = 0;
-    VOP_UNLOCK(drive->vp, 0, drive->p);
-    NDFREE(&nd, NDF_ONLY_PNBUF);
-    return 0;
+    return drive->lasterror;
 }
 
 /*
@@ -159,11 +200,10 @@ init_drive(struct drive *drive, int verbose)
     if (error)
 	return error;
 
-    error = VOP_IOCTL(drive->vp,			    /* get the partition information */
+    error = (*devsw(drive->dev)->d_ioctl) (drive->dev,
 	DIOCGPART,
 	(caddr_t) & drive->partinfo,
 	FREAD,
-	NOCRED,
 	curproc);
     if (error) {
 	if (verbose)
@@ -192,7 +232,7 @@ void
 close_drive(struct drive *drive)
 {
     LOCKDRIVE(drive);					    /* keep the daemon out */
-    if (drive->vp)
+    if (drive->flags & VF_OPEN)
 	close_locked_drive(drive);			    /* and close it */
     if (drive->state > drive_down)			    /* if it's up */
 	drive->state = drive_down;			    /* make sure it's down */
@@ -211,21 +251,8 @@ close_locked_drive(struct drive *drive)
      * the queues, which spec_close() will try to
      * do.  Get rid of them here first.
      */
-    if (drive->state < drive_up) {			    /* we can't access the drive, */
-	vn_lock(drive->vp, LK_EXCLUSIVE | LK_RETRY, drive->p);
-	vinvalbuf(drive->vp, 0, NOCRED, drive->p, 0, 0);
-	VOP_UNLOCK(drive->vp, 0, drive->p);
-    }
-    vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
-#ifdef VINUMDEBUG
-    if ((debug & DEBUG_WARNINGS)			    /* want to hear about them */
-    &&(drive->vp->v_usecount))				    /* shouldn't happen */
-	log(LOG_WARNING,
-	    "close_drive %s: use count still %d\n",
-	    drive->devicename,
-	    drive->vp->v_usecount);
-#endif
-    drive->vp = NULL;
+    drive->lasterror = (*devsw(drive->dev)->d_close) (drive->dev, 0, 0, NULL);
+    drive->flags &= ~VF_OPEN;				    /* no longer open */
 }
 
 /*
@@ -250,141 +277,45 @@ remove_drive(int driveno)
 }
 
 /*
- * Read data from a drive.
- * Return error number.
- */
-int
-read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
-{
-    int error;
-    struct buf *bp;
-    long bscale;
-
-    struct uio uio;
-    struct iovec iov;
-    daddr_t blocknum;					    /* block number */
-    int blockoff;					    /* offset in block */
-    int count;						    /* amount to transfer */
-
-    iov.iov_base = buf;
-    iov.iov_len = length;
-
-    uio.uio_iov = &iov;
-    uio.uio_iovcnt = length;
-    uio.uio_offset = offset;
-    uio.uio_resid = length;
-    uio.uio_segflg = UIO_SYSSPACE;
-    uio.uio_rw = UIO_READ;
-    uio.uio_procp = curproc;
-
-    bscale = btodb(drive->blocksize);			    /* mask off offset from block number */
-    do {
-	blocknum = btodb(uio.uio_offset) & ~(bscale - 1);   /* get the block number */
-	blockoff = uio.uio_offset % drive->blocksize;	    /* offset in block */
-	count = min((unsigned) (drive->blocksize - blockoff), /* amount to transfer in this block */
-	    uio.uio_resid);
-
-	error = bread(drive->vp, blocknum, (int) drive->blocksize, NOCRED, &bp);
-	count = min(count, drive->blocksize - bp->b_resid);
-	if (error) {
-	    brelse(bp);
-	    return error;
-	}
-	error = uiomove((char *) bp->b_data + blockoff, count, &uio); /* move the data */
-	brelse(bp);
-    }
-    while (error == 0 && uio.uio_resid > 0 && count != 0);
-    return error;
-}
-
-/*
- * Write data to a drive
+ * Transfer drive data.  Usually called from one of these defines;
+ * #define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
+ * #define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
  *
+ * length and offset are in bytes, but must be multiples of sector
+ * size.  The function *does not check* for this condition, and
+ * truncates ruthlessly.
  * Return error number
  */
 int
-write_drive(struct drive *drive, void *buf, size_t length, off_t offset)
+driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 {
     int error;
     struct buf *bp;
-    struct uio uio;
-    struct iovec iov;
-    daddr_t blocknum;					    /* block number */
-    int blockoff;					    /* offset in block */
-    int count;						    /* amount to transfer */
-    int blockshift;
 
-    if (drive->state == drive_down)			    /* currently down */
-	return 0;					    /* ignore */
-    if (drive->vp == NULL) {
-	drive->lasterror = ENODEV;
-	return ENODEV;					    /* not configured yet */
+    error = 0;						    /* to keep the compiler happy */
+    while (length) {					    /* divide into small enough blocks */
+	int len = min(length, MAXBSIZE);		    /* maximum block device transfer is MAXBSIZE */
+
+	bp = geteblk(len);				    /* get a buffer header */
+	bp->b_flags = flag;
+	bp->b_dev = drive->dev;				    /* device */
+	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
+	bp->b_saveaddr = bp->b_data;
+	bp->b_data = buf;
+	bp->b_bcount = len;
+	BUF_STRATEGY(bp, 0);				    /* initiate the transfer */
+	error = biowait(bp);
+	bp->b_data = bp->b_saveaddr;
+	bp->b_flags |= B_INVAL | B_AGE;
+	bp->b_flags &= ~B_ERROR;
+	brelse(bp);
+	if (error)
+	    break;
+	length -= len;					    /* update pointers */
+	buf += len;
+	offset += len;
     }
-    iov.iov_base = buf;
-    iov.iov_len = length;
-
-    uio.uio_iov = &iov;
-    uio.uio_iovcnt = length;
-    uio.uio_offset = offset;
-    uio.uio_resid = length;
-    uio.uio_segflg = UIO_SYSSPACE;
-    uio.uio_rw = UIO_WRITE;
-    uio.uio_procp = curproc;
-
-    error = 0;
-    blockshift = btodb(drive->blocksize) - 1;		    /* amount to shift block number
-							    * to get sector number */
-    do {
-	blocknum = btodb(uio.uio_offset) & ~blockshift;	    /* get the block number */
-	blockoff = uio.uio_offset % drive->blocksize;	    /* offset in block */
-	count = min((unsigned) (drive->blocksize - blockoff), /* amount to transfer in this block */
-	    uio.uio_resid);
-	if (count == drive->blocksize)			    /* the whole block */
-	    bp = getblk(drive->vp, blocknum, drive->blocksize, 0, 0); /* just transfer it */
-	else						    /* partial block: */
-	    error = bread(drive->vp,			    /* read it first */
-		blocknum,
-		drive->blocksize,
-		NOCRED,
-		&bp);
-	count = min(count, drive->blocksize - bp->b_resid); /* how much will we transfer now? */
-	if (error == 0)
-	    error = uiomove((char *) bp->b_data + blockoff, /* move the data to the block */
-		count,
-		&uio);
-	if (error) {
-	    brelse(bp);
-	    drive->lasterror = error;
-	    switch (error) {
-	    case EIO:
-		set_drive_state(drive->driveno, drive_down, setstate_force);
-		break;
-
-	    default:
-	    }
-	    return error;
-	}
-	if (count + blockoff == drive->blocksize)
-	    /*
-	     * The transfer goes to the end of the block.  There's
-	     * no need to wait for any more data to arrive.
-	     */
-	    bawrite(bp);				    /* start the write now */
-	else
-	    bdwrite(bp);				    /* do a delayed write */
-    }
-    while (error == 0 && uio.uio_resid > 0 && count != 0);
-    if (error)
-	drive->lasterror = error;
-    return error;					    /* OK */
-}
-
-/* Wake up on completion */
-void
-drive_io_done(struct buf *bp)
-{
-    wakeup((caddr_t) bp);				    /* Wachet auf! */
-    bp->b_flags &= ~B_CALL;				    /* don't do this again */
+    return error;
 }
 
 /*
@@ -541,7 +472,7 @@ format_config(char *config, int len)
 	struct plex *plex;
 
 	plex = &vinum_conf.plex[i];
-	if ((plex->state != plex_referenced)
+	if ((plex->state > plex_referenced)
 	    && (plex->name[0] != '\0')) {		    /* paranoia */
 	    snprintf(s,
 		configend - s,
@@ -551,8 +482,7 @@ format_config(char *config, int len)
 		plex_org(plex->organization));
 	    while (*s)
 		s++;					    /* find the end */
-	    if ((plex->organization == plex_striped)
-		|| (plex->organization == plex_raid5)) {
+	    if (isstriped(plex)) {
 		snprintf(s,
 		    configend - s,
 		    "%ds ",
@@ -583,6 +513,7 @@ format_config(char *config, int len)
 
 	sd = &SD[i];
 	if ((sd->state != sd_referenced)
+	    && (sd->state != sd_unallocated)
 	    && (sd->name[0] != '\0')) {			    /* paranoia */
 	    if (sd->plexno >= 0)
 		snprintf(s,
@@ -669,14 +600,14 @@ daemon_save_config(void)
 		free_drive(drive);			    /* get rid of it */
 		break;
 	    }
-	    if ((drive->vp == NULL)			    /* drive not open */
+	    if (((drive->flags & VF_OPEN) == 0)		    /* drive not open */
 	    &&(drive->state > drive_down)) {		    /* and it thinks it's not down */
 		unlockdrive(drive);
 		set_drive_state(driveno, drive_down, setstate_force); /* tell it what's what */
 		continue;
 	    }
 	    if ((drive->state == drive_down)		    /* it's down */
-	    &&(drive->vp != NULL)) {			    /* but open, */
+	    &&(drive->flags & VF_OPEN)) {		    /* but open, */
 		unlockdrive(drive);
 		close_drive(drive);			    /* close it */
 	    } else if (drive->state > drive_down) {
@@ -687,11 +618,10 @@ daemon_save_config(void)
 		if ((drive->state != drive_unallocated)
 		    && (drive->state != drive_referenced)) { /* and it's a real drive */
 		    wlabel_on = 1;			    /* enable writing the label */
-		    error = VOP_IOCTL(drive->vp,	    /* make the label writeable */
+		    error = (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label writeable */
 			DIOCWLABEL,
 			(caddr_t) & wlabel_on,
 			FWRITE,
-			NOCRED,
 			curproc);
 		    if (error == 0)
 			error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
@@ -701,11 +631,10 @@ daemon_save_config(void)
 			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG);	/* second copy */
 		    wlabel_on = 0;			    /* enable writing the label */
 		    if (error == 0)
-			VOP_IOCTL(drive->vp,		    /* make the label non-writeable again */
+			error = (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label non-writeable again */
 			    DIOCWLABEL,
 			    (caddr_t) & wlabel_on,
 			    FWRITE,
-			    NOCRED,
 			    curproc);
 		    unlockdrive(drive);
 		    if (error) {
@@ -771,7 +700,7 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
     /*
      * Set up partitions a, b and c to be identical
      * and the size of the volume.  a is UFS, b is
-     * swap, c is nothing
+     * swap, c is nothing.
      */
     lp->d_partitions[0].p_size = size;
     lp->d_partitions[0].p_fsize = 1024;
@@ -815,9 +744,10 @@ write_volume_label(int volno)
      * Now write to disk.  This code is derived from the
      * system writedisklabel (), which does silly things
      * like reading the label and refusing to write
-     * unless it's already there. */
+     * unless it's already there.
+     */
     bp = geteblk((int) lp->d_secsize);			    /* get a buffer */
-    bp->b_dev = makedev(CDEV_MAJOR, vol->volno);	    /* our own raw volume */
+    bp->b_dev = makedev(VINUM_CDEV_MAJOR, vol->volno);	    /* our own raw volume */
     bp->b_blkno = LABELSECTOR * ((int) lp->d_secsize / DEV_BSIZE);
     bp->b_bcount = lp->d_secsize;
     bzero(bp->b_data, lp->d_secsize);
@@ -836,6 +766,7 @@ write_volume_label(int volno)
     BUF_STRATEGY(bp, 0);
     error = biowait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
+    bp->b_flags &= ~B_ERROR;
     brelse(bp);
     return error;
 }
@@ -962,8 +893,6 @@ vinum_scandisk(char *devicename[], int drives)
 
 	if (error != 0) {
 	    log(LOG_ERR, "vinum: Can't read device %s, error %d\n", drive->devicename, error);
-	    Free(config_text);
-	    Free(config_line);
 	    free_drive(drive);				    /* give it back */
 	    status = error;
 	}
@@ -993,10 +922,8 @@ vinum_scandisk(char *devicename[], int drives)
 			   * snarf the config to see what's wrong.
 			 */
 			log(LOG_ERR,
-			    "vinum: Config error on drive %s, aborting integration\n",
+			    "vinum: Config error on %s, aborting integration\n",
 			    nd.ni_dirp);
-			Free(config_text);
-			Free(config_line);
 			free_drive(drive);		    /* give it back */
 			status = EINVAL;
 		    }
@@ -1012,9 +939,10 @@ vinum_scandisk(char *devicename[], int drives)
     Free(drivelist);
     vinum_conf.flags &= ~VF_READING_CONFIG;		    /* no longer reading from disk */
     if (status != 0)
-	throw_rude_remark(status, "Couldn't read configuration");
-    updateconfig(VF_READING_CONFIG);			    /* update from disk config */
-    return 0;
+	printf("vinum: couldn't read configuration");
+    else
+	updateconfig(VF_READING_CONFIG);		    /* update from disk config */
+    return status;
 }
 
 /*
