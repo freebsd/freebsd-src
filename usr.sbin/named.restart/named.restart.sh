@@ -10,4 +10,4 @@ if [ -r /etc/defaults/rc.conf ]; then
 elif [ -r /etc/rc.conf ]; then
         . /etc/rc.conf
 fi
-exec %DESTSBIN%/%INDOT%ndc restart ${named_flags}
+exec %DESTSBIN%/%INDOT%ndc -n ${named_program} restart ${named_flags}
