@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.24 1994/11/16 06:09:29 phk Exp $
+ *	$Id: lpt.c,v 1.25 1995/02/26 05:14:50 bde Exp $
  */
 
 /*
@@ -920,7 +920,7 @@ lpintr(int unit)
 	u_long c, cl;
 	struct mbuf *top;
 
-	s = splimp();
+	s = splhigh();
 	while((inb(port)&0x40)) {
 	    len = sc->sc_if.if_mtu + LPHDR;
 	    bp = sc->sc_ifbuf;
@@ -991,7 +991,7 @@ lpoutput(struct ifnet *ifp, struct mbuf *m,
     u_char *cp = "\0\0";
     struct mbuf *mm=m;
 
-    s=splimp();
+    s=splhigh();
 
     /* We need a sensible value if we abort */	
     cp++;
