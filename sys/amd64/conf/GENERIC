@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.29 1995/01/27 07:48:58 phk Exp $
+#	$Id: GENERIC,v 1.30 1995/01/28 05:01:43 jkh Exp $
 #
 
 machine		"i386"
@@ -92,7 +92,8 @@ device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 pseudo-device	loop
 pseudo-device	ether
 pseudo-device	log
-pseudo-device	sl	2
+pseudo-device	sl	1
+pseudo-device	ppp	1
 pseudo-device	pty	16
 pseudo-device	speaker
 pseudo-device	gzip		# Exec gzipped a.out's
