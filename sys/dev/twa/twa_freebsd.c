@@ -153,6 +153,7 @@ static int	twa_shutdown (device_t dev);
 static int	twa_suspend (device_t dev);
 static int	twa_resume (device_t dev);
 static void	twa_pci_intr(void *arg);
+static void	twa_intrhook (void *arg);
 
 static device_method_t	twa_methods[] = {
 	/* Device interface */
@@ -298,7 +299,20 @@ twa_attach(device_t dev)
 					UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR,
 					"twa%d", device_get_unit(sc->twa_bus_dev));
 	sc->twa_ctrl_dev->si_drv1 = sc;
-	twa_enable_interrupts(sc);
+
+	/*
+	 * Schedule ourselves to bring the controller up once interrupts are
+	 * available.  This isn't strictly necessary, since we disable
+	 * interrupts while probing the controller, but it is more in keeping
+	 * with common practice for other disk devices.
+	 */
+	sc->twa_ich.ich_func = twa_intrhook;
+	sc->twa_ich.ich_arg = sc;
+	if (config_intrhook_establish(&sc->twa_ich) != 0) {
+		twa_printf(sc, "Can't establish configuration hook.\n");
+		twa_free(sc);
+		return(ENXIO);
+	}
 
 	if ((error = twa_cam_setup(sc))) {
 		twa_free(sc);
@@ -505,6 +519,30 @@ twa_pci_intr(void *arg)
 	struct twa_softc	*sc = (struct twa_softc *)arg;
 
 	twa_interrupt(sc);
+}
+
+
+
+/*
+ * Function name:	twa_intrhook
+ * Description:		Callback for us to enable interrupts.
+ *
+ * Input:		arg	-- ptr to per ctlr structure
+ * Output:		None
+ * Return value:	None
+ */
+static void
+twa_intrhook(void *arg)
+{
+	struct twa_softc	*sc = (struct twa_softc *)arg;
+
+	twa_dbg_dprint(4, sc, "twa_intrhook Entered");
+
+	/* Pull ourselves off the intrhook chain. */
+	config_intrhook_disestablish(&sc->twa_ich);
+
+	/* Enable interrupts. */
+	twa_enable_interrupts(sc);
 }
 
 

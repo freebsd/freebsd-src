@@ -183,6 +183,7 @@ struct twa_softc {
 	bus_addr_t		twa_cmd_pkt_phys;/* phys addr of first of array of cmd pkts */
 	struct resource		*twa_irq_res;	/* interrupt resource*/
 	void			*twa_intr_handle;/* interrupt handle */
+	struct intr_config_hook	twa_ich;	/* delayed-startup hook */
 
 	struct sysctl_ctx_list	twa_sysctl_ctx;
 	struct sysctl_oid	*twa_sysctl_tree;
