@@ -80,6 +80,7 @@ static struct cdevsw mlxd_cdevsw = {
 };
 
 devclass_t		mlxd_devclass;
+static int		disks_registered = 0;
 static struct cdevsw	mlxddisk_cdevsw;
 
 static device_method_t mlxd_methods[] = {
