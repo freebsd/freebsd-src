@@ -1385,7 +1385,9 @@ sk_attach(dev)
 	ifp->if_watchdog = sk_watchdog;
 	ifp->if_init = sk_init;
 	ifp->if_baudrate = 1000000000;
-	ifp->if_snd.ifq_maxlen = SK_TX_RING_CNT - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, SK_TX_RING_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = SK_TX_RING_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	callout_handle_init(&sc_if->sk_tick_ch);
 
@@ -1804,7 +1806,7 @@ sk_start(ifp)
 	idx = sc_if->sk_cdata.sk_tx_prod;
 
 	while(sc_if->sk_cdata.sk_tx_chain[idx].sk_mbuf == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
@@ -1814,7 +1816,7 @@ sk_start(ifp)
 		 * for the NIC to drain the ring.
 		 */
 		if (sk_encap(sc_if, m_head, &idx)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
@@ -2217,9 +2219,9 @@ sk_intr(xsc)
 
 	CSR_WRITE_4(sc, SK_IMR, sc->sk_intrmask);
 
-	if (ifp0 != NULL && ifp0->if_snd.ifq_head != NULL)
+	if (ifp0 != NULL && !IFQ_DRV_IS_EMPTY(&ifp0->if_snd))
 		sk_start(ifp0);
-	if (ifp1 != NULL && ifp1->if_snd.ifq_head != NULL)
+	if (ifp1 != NULL && !IFQ_DRV_IS_EMPTY(&ifp1->if_snd))
 		sk_start(ifp1);
 
 	SK_UNLOCK(sc);
