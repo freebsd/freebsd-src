@@ -1,6 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	@(#)Makefile	1.1 (Berkeley) 6/6/93
+#	$Id$
 
 PROG=	ktrace
 SRCS=	ktrace.c subr.c
+MLINKS= ktrace.1 trace.1 ktrace.1 truss.1
 
 .include <bsd.prog.mk>
