@@ -812,7 +812,7 @@
 #define HAVE___ATTRIBUTE__ 1
 
 /* Define if you have the krb4 package. */
-#define KRB4 1
+/* #define KRB4 1 */
 
 /* define if krb_put_int takes four arguments. */
 #define HAVE_FOUR_VALUED_KRB_PUT_INT 1
