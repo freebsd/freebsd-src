@@ -58,12 +58,13 @@ static int fname_cmp(const FTSENT **, const FTSENT **);
 char **
 matchinstalled(match_t MatchType, char **patterns, int *retval)
 {
-    int i, errcode;
+    int i, errcode, len;
     char *tmp, *matched;
     char *paths[2];
     static struct store *store = NULL;
     FTS *ftsp;
     FTSENT *f;
+    Boolean *lmatched;
 
     if (store == NULL) {
 	store = malloc(sizeof *store);
@@ -95,6 +96,18 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 	/* Not reached */
     }
 
+    /* Count number of patterns */
+    for (len = 0; patterns[len]; len++) {}
+    lmatched = alloca(sizeof(*lmatched) * len);
+    if (lmatched == NULL) {
+	warnx("%s(): alloca() failed", __FUNCTION__);
+	if (retval != NULL)
+	    *retval = 1;
+	return NULL;
+    }
+    for (i = 0; i < len; i++)
+	lmatched[i] = FALSE;
+
     paths[0] = tmp;
     paths[1] = NULL;
     ftsp = fts_open(paths, FTS_LOGICAL | FTS_NOCHDIR | FTS_NOSTAT, fname_cmp);
@@ -117,8 +130,10 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 			    }
 			    break;
 			case MATCH_GLOB:
-			    if (fnmatch(patterns[i], f->fts_name, 0) == 0)
+			    if (fnmatch(patterns[i], f->fts_name, 0) == 0) {
 				matched = f->fts_name;
+				lmatched[i] = TRUE;
+			    }
 			    break;
 			default:
 			    break;
@@ -137,6 +152,12 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 	    }
 	}
 	fts_close(ftsp);
+    }
+
+    if (MatchType == MATCH_GLOB) {
+	for (i = 0; i < len; i++)
+	    if (lmatched[i] == FALSE)
+		storeappend(store, patterns[i]);
     }
 
     if (store->used == 0)
