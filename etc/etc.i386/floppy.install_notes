@@ -36,16 +36,17 @@ to make initial installation of the system as easy as possible.
     You'll need this for the last stage of the boot process.
 
 2.  Boot the first floppy.  When it asks you to insert the file system,
-    insert your second "filesystem-floppy."  Follow the instructions
+    insert your second ``filesystem-floppy.''  Follow the instructions
     that floppy gives you, making note of the type of disk it says to
-    copy the kernel to, `sd0a' or `wd0a' (`sd0a' is for SCSI systems,
-    `wd0a' is for all others.) When the system halts, go on to the next step.
+    copy the kernel to, ``sd0a'' or ``wd0a'' (``sd0a'' is for SCSI systems,
+    ``wd0a'' is for all others.) When the system halts, go on to the next
+    step.
 
 3.  Boot the first floppy again, but this time when it asks
     you to insert the file system floppy, just press the return key.
     Follow the instructions that the floppy gives you.  When you see
-    the `kc>' prompt, type `copy' (without quotes).  At the next prompt,
-    `copy kernel to>', type either `sd0a' or `wd0a' as given in
+    the ``kc>'' prompt, type ``copy'' (without quotes).  At the next prompt,
+    ``copy kernel to>'', type either ``sd0a'' or ``wd0a'' as given in
     the previous step.  When the system halts, go on to the next step.
 
 4.  Making sure that there's no floppy in the drive, press return to boot
@@ -55,7 +56,7 @@ to make initial installation of the system as easy as possible.
     Note that 0 is the same as DOS drive A:, and 1 is the same as DOS
     drive B:
 
-5.  After the cpio-floppy has been copied to the disk, enter `halt'.
+5.  After the cpio-floppy has been copied to the disk, enter ``halt''.
 
 6.  When the system asks you to press the return key to reboot, first
     remove the floppy and then press the return key to boot from the hard
@@ -89,7 +90,7 @@ to make initial installation of the system as easy as possible.
     with installing the source distribution, or stop here for now.
 
     Should you decided to postpone further installation, you should
-    probably save the "installing profile" for possible future use by
+    probably save the ``installing profile'' for possible future use by
     saving it and linking a default profile into place.
 
     Do it like this:
@@ -102,4 +103,4 @@ to make initial installation of the system as easy as possible.
     please have a look around!  You may also find this a good time to
     read the release notes in /usr/src/RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.1 1993/09/01 01:41:23 rgrimes Exp $
+End of $Id: floppy.install_notes,v 1.2 1993/09/02 00:04:15 jkh Exp $
