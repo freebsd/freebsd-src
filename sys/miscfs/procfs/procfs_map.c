@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.11 1997/03/24 11:24:41 bde Exp $
+ *	$Id: procfs_map.c,v 1.12 1997/08/02 14:32:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -88,7 +88,7 @@ procfs_domap(curp, p, pfs, uio)
 	
 	error = 0;
 	if (map != &curproc->p_vmspace->vm_map)
-		vm_map_lock(map);
+		vm_map_lock_read(map);
 	for (entry = map->header.next;
 		((uio->uio_resid > 0) && (entry != &map->header));
 		entry = entry->next) {
@@ -160,7 +160,7 @@ case OBJT_DEVICE:
 			break;
 	}
 	if (map != &curproc->p_vmspace->vm_map)
-		vm_map_unlock(map);
+		vm_map_unlock_read(map);
 	return error;
 }
 
