@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.2 1995/02/26 12:17:45 amurai Exp $
+ * $Id: modem.c,v 1.3 1995/02/27 10:57:54 amurai Exp $
  * 
  *  TODO:
  */
@@ -375,12 +375,12 @@ int mode;
     if (strncmp(VarDevice, "/dev", 4) == 0) {
       strcpy(uucplock, rindex(VarDevice, '/')+1);
       if (uu_lock(uucplock) < 0) {
-        fprintf(stderr, "modem is in use.\n");
+        LogPrintf(LOG_PHASE, "Modem %s is in use\n", VarDevice);
         return(-1);
       }
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);
       if (modem < 0) {
-        perror("open modem");
+        LogPrintf(LOG_PHASE, "Open Failed %s\n", VarDevice);
         return(modem);
       }
     } else {
