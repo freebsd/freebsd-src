@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.17 1995/10/03 16:54:15 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.18 1995/10/10 17:45:40 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -525,12 +525,10 @@ tcp_mtudisc(inp, errno)
 
 		tp->t_maxseg = mss;
 
-		if (SEQ_GT(tp->snd_una, tp->t_lastmturesend)) {
-			tcpstat.tcps_mturesent++;
-			tp->t_rtt = 0;
-			tp->snd_nxt = tp->t_lastmturesend = tp->snd_una;
-			tcp_output(tp);
-		}
+		tcpstat.tcps_mturesent++;
+		tp->t_rtt = 0;
+		tp->snd_nxt = tp->snd_una;
+		tcp_output(tp);
 	}
 }
 #endif /* MTUDISC */
