@@ -71,25 +71,31 @@ This function is described in
 .Xr cap_free 3 ,
 and may be used to free a capability structure.
 .Pp
-.Fn cap_get_flag ,
+.Fn cap_get_flag
+.Pp
+This function, described in
+.Xr cap_get_flag 3 ,
+allows retrieval of a capability flag value from capability state in
+working store.
+.Pp
 .Fn cap_get_proc
 .Pp
-These functions, described in
-.Xr cap_get_flag 3 ,
-and
+this function, described in
 .Xr cap_get_proc 3 ,
-allow retrieval of capability flags from a file, and capability state from
-the current process.
+allows retrieval of capability state for the current process.
 .Pp
-.Fn cap_set_flag ,
+.Fn cap_set_flag
+.Pp
+This function, described in
+.Xr cap_set_flag 3 ,
+allows setting of capability flag values in a capability structure held
+in the working store.
+.Pp
 .Fn cap_set_proc
 .Pp
-These functions, described in
-.Xr cap_set_flag 3 ,
-and
+This function, described in
 .Xr cap_set_proc 3 ,
-allow setting of the capability flags for a file, and capability state for
-the current process.
+allows setting of the current process capability state.
 
 Documentation of the internal kernel interfaces backing these calls may
 be found in
