@@ -60,6 +60,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
+#include <sys/socket.h>
 #include <stdio.h>
 
 /*
@@ -114,6 +115,21 @@ struct __res_state {
 		u_int32_t	mask;
 	} sort_list[MAXRESOLVSORT];
 	char	pad[72];		/* on an i386 this means 512b total */
+};
+
+/* for INET6 */
+/*
+ * replacement of __res_state, separated to keep binary compatibility.
+ */
+struct __res_state_ext {
+	struct sockaddr_storage nsaddr_list[MAXNS];
+	struct {
+		int	af;		/* address family for addr, mask */
+		union {
+			struct	in_addr ina;
+			struct	in6_addr in6a;
+		} addr, mask;
+	} sort_list[MAXRESOLVSORT];
 };
 
 /*
@@ -181,6 +197,9 @@ struct res_sym {
 };
 
 extern struct __res_state _res;
+/* for INET6 */
+extern struct __res_state_ext _res_ext;
+
 extern const struct res_sym __p_class_syms[];
 extern const struct res_sym __p_type_syms[];
 
