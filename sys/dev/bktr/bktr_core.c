@@ -1,4 +1,4 @@
-/* BT848 1.27 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.30 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -222,6 +222,14 @@
 1.28                       Frank Nobis <fn@Radio-do.de> added tuner support
                            for the  German Phillips PAL tuner and
                            additional channels for german cable tv.
+1.29                       Roger Hardiman <roger@cs.strath.ac.uk>
+                           Revised autodetection code to correctly handle both
+                           old and new VideoLogic Captivator PCI cards.
+                           Added tsleep of 2 seconds to initialistion code
+                           for PAL users.Corrected clock selection code on
+                           format change.
+1.30                       Bring back Frank Nobis <fn@Radio-do.de>'s opt_bktr.h
+
 */
 
 #define DDB(x) x
@@ -445,7 +453,7 @@ struct devsw bktrsw = {
 
 static struct format_params format_params[] = {
 /* # define BT848_IFORM_F_AUTO             (0x0) - don't matter. */
-  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, 0 },
+  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_AUTO },
 /* # define BT848_IFORM_F_NTSCM            (0x1) */
   { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
 /* # define BT848_IFORM_F_NTSCJ            (0x2) */
@@ -1261,6 +1269,9 @@ video_open( bktr_ptr_t bktr )
 
 	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* what does this bit do ??? */
 
+	/* wait 2 seconds while bt848 initialises */
+	tsleep( (caddr_t)bktr, PZERO, "btinit", hz*2 );
+
 	return( 0 );
 }
 
@@ -1482,6 +1493,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	bt848_ptr_t		bt848;
 	volatile u_char		c_temp;
 	unsigned int		temp;
+	unsigned int		temp_iform;
 	unsigned int		error;
 	struct meteor_geomet	*geo;
 	struct meteor_counts	*cnt;
@@ -1560,10 +1572,12 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		*(u_short *)arg = temp;
 		break;
 
-        case BT848SFMT:		/* set input format */
+	case BT848SFMT:		/* set input format */
 		temp = *(unsigned long*)arg & BT848_IFORM_FORMAT;
-		bt848->iform &= ~BT848_IFORM_FORMAT;
-		bt848->iform |= (temp | format_params[temp].iform_xtsel);
+		temp_iform = bt848->iform;
+		temp_iform &= ~BT848_IFORM_FORMAT;
+		temp_iform &= ~BT848_IFORM_XTSEL;
+		bt848->iform = (temp_iform | temp | format_params[temp].iform_xtsel);
 		switch( temp ) {
 		case BT848_IFORM_F_AUTO:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
@@ -1596,34 +1610,36 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 
 	case METEORSFMT:	/* set input format */
+		temp_iform = bt848->iform;
+		temp_iform &= ~BT848_IFORM_FORMAT;
+		temp_iform &= ~BT848_IFORM_XTSEL;
 		switch(*(unsigned long *)arg & METEOR_FORM_MASK ) {
 		case 0:		/* default */
 		case METEOR_FMT_NTSC:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
-			bt848->iform &= ~BT848_IFORM_FORMAT;
-			bt848->iform |= BT848_IFORM_F_NTSCM | 
+			bt848->iform = temp_iform | BT848_IFORM_F_NTSCM | 
 		                        format_params[BT848_IFORM_F_NTSCM].iform_xtsel;
-			bt848->adelay = 0x68;
-			bt848->bdelay = 0x5d;
+			bt848->adelay = format_params[BT848_IFORM_F_NTSCM].adelay;
+			bt848->bdelay = format_params[BT848_IFORM_F_NTSCM].bdelay;
 			bktr->format_params = BT848_IFORM_F_NTSCM;
 			break;
 
 		case METEOR_FMT_PAL:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
-			bt848->iform &= ~BT848_IFORM_FORMAT;
-			bt848->iform |= BT848_IFORM_F_PALBDGHI |
+			bt848->iform = temp_iform | BT848_IFORM_F_PALBDGHI |
 		                        format_params[BT848_IFORM_F_PALBDGHI].iform_xtsel;
-			bt848->adelay = 0x7f;
-			bt848->bdelay = 0x72;
+			bt848->adelay = format_params[BT848_IFORM_F_PALBDGHI].adelay;
+			bt848->bdelay = format_params[BT848_IFORM_F_PALBDGHI].bdelay;
 			bktr->format_params = BT848_IFORM_F_PALBDGHI;
 			break;
 
 		case METEOR_FMT_AUTOMODE:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_AUTOMODE;
-			bt848->iform &= ~BT848_IFORM_FORMAT;
+			bt848->iform = temp_iform | BT848_IFORM_F_AUTO |
+		                        format_params[BT848_IFORM_F_AUTO].iform_xtsel;
 			break;
 
 		default:
@@ -3809,7 +3825,7 @@ static const struct CARDTYPE cards[] = {
 	   { 0x00, 0x01, 0x02, 0x02, 1 } },	/* audio MUX values */
 
 	/* CARD_INTEL */
-	{ "Intel Smart Video III",		/* the 'name' */
+	{ "Intel Smart Video III/VideoLogic Captivator PCI",		/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,
 	   0,
@@ -4013,11 +4029,39 @@ signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig )
 
 	return( 0 );
 }
-#undef ABSENT
 
+/*
+ * any_i2c_devices.
+ * Some BT848/BT848A cards have no tuner and no additional i2c devices
+ * eg stereo decoder. These are used for video conferencing or capture from
+ * a video camera. (VideoLogic Captivator PCI, Intel SmartCapture card).
+ *
+ * Determine if there are any i2c devices present. There are none present if
+ *  a) reading from all 128 devices returns ABSENT (-1) for each one
+ *     (eg VideoLogic Captivator PCI with BT848)
+ *  b) reading from all 128 devices returns 0 for each one
+ *     (eg VideoLogic Captivator PCI rev. 2F with BT848A)
+ */
+static int check_for_i2c_devices( bktr_ptr_t bktr ){
+  int x, temp_read;
+  int i2c_all_0 = 1;
+  int i2c_all_absent = 1;
+  for ( x = 0; x < 128; ++x ) {
+	 temp_read = i2cRead( bktr, (2 * x) + 1 );
+	  if (temp_read != 0)      i2c_all_0 = 0;
+     if (temp_read != ABSENT) i2c_all_absent = 0;
+  }
+
+  if ((i2c_all_0) || (i2c_all_absent)) return 0;
+  else return 1;
+}
+#undef ABSENT
 
 /*
  * determine the card brand/model
+ * OVERRIDE_CARD, OVERRIDE_TUNER, OVERRIDE_DBX and OVERRIDE_MSP
+ * can be used to select a specific device, regardless of the
+ * autodetection and i2c device checks.
  */
 #define ABSENT		(-1)
 static void
@@ -4026,17 +4070,25 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	int	card;
 	int	status;
 	bt848_ptr_t	bt848;
+   int   any_i2c_devices;
 
+   any_i2c_devices = check_for_i2c_devices( bktr );
 	bt848 = bktr->base;
+
+	bt848->gpio_out_en = 0;
+	if (bootverbose)
+	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
 
 #if defined( OVERRIDE_CARD )
 	bktr->card = cards[ (card = OVERRIDE_CARD) ];
 	goto checkTuner;
 #endif
 
-	bt848->gpio_out_en = 0;
-	if (bootverbose)
-	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
+   /* Check for i2c devices */
+	if (!any_i2c_devices) {
+		bktr->card = cards[ (card = CARD_INTEL) ];
+		goto checkTuner;
+	}
 
 	/* look for a tuner */
 	if ( i2cRead( bktr, TSA552x_RADDR ) == ABSENT ) {
@@ -4065,6 +4117,12 @@ checkTuner:
 	bktr->card.tuner = &tuners[ OVERRIDE_TUNER ];
 	goto checkDBX;
 #endif
+
+   /* Check for i2c devices */
+	if (!any_i2c_devices) {
+		bktr->card.tuner = &tuners[ NO_TUNER ];
+		goto checkDBX;
+	}
 
 	/* differentiate type of tuner */
 	switch (card) {
@@ -4104,13 +4162,31 @@ checkTuner:
 checkDBX:
 #if defined( OVERRIDE_DBX )
 	bktr->card.dbx = OVERRIDE_DBX;
-	goto end;
+	goto checkMSP;
 #endif
-	/* probe for BTSC (dbx) chips */
+   /* Check for i2c devices */
+	if (!any_i2c_devices) {
+		goto checkMSP;
+	}
+
+	/* probe for BTSC (dbx) chip */
 	if ( i2cRead( bktr, TDA9850_RADDR ) != ABSENT )
 		bktr->card.dbx = 1;
+
+checkMSP:
+#if defined( OVERRIDE_MSP )
+	bktr->card.msp3400c = OVERRIDE_MSP;
+	goto checkEnd;
+#endif
+   /* Check for i2c devices */
+	if (!any_i2c_devices) {
+		goto checkEnd;
+	}
+
 	if ( i2cRead( bktr, MSP3400C_RADDR ) != ABSENT )
 		bktr->card.msp3400c = 1;
+
+checkEnd:
 
 	if ( verbose ) {
 		printf( "%s", bktr->card.name );
