@@ -53,6 +53,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 static struct mtx g_disk_done_mtx;
 
@@ -252,7 +253,8 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
-		else if ((dp->d_ioctl != NULL) &&
+		else if ((g_debugflags & G_F_DISKIOCTL) &&
+		    (dp->d_ioctl != NULL) &&
 		    !strcmp(bp->bio_attribute, "GEOM::ioctl") &&
 		    bp->bio_length == sizeof *gio) {
 			gio = (struct g_ioctl *)bp->bio_data;
