@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.2 1997/08/16 14:05:36 msmith Exp $
+ *	$Id: ppi.c,v 1.3 1997/08/16 14:16:58 msmith Exp $
  *
  */
 #include "ppi.h"
@@ -45,9 +45,6 @@
 
 #include <machine/stdarg.h>
 #include <machine/clock.h>
-
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
 
 #include <sys/kernel.h>
 #endif /*KERNEL */
