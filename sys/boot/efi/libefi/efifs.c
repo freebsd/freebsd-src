@@ -113,12 +113,23 @@ efifs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	EFI_FILE *file = f->f_fsdata;
 	EFI_STATUS status;
 	UINTN sz = size;
+	char *bufp;
 
-	status = file->Read(file, &sz, buf);
-	if (EFI_ERROR(status))
-		return EIO;
-
-	*resid = size - sz;
+	bufp = buf;
+	while (size > 0) {
+		sz = size;
+		if (sz > 8192)
+			sz = 8192;
+		status = file->Read(file, &sz, bufp);
+		twiddle();
+		if (EFI_ERROR(status))
+			return EIO;
+		if (sz == 0)
+			break;
+		size -= sz;
+		bufp += sz;
+	}
+	*resid = size;
 	return 0;
 }
 
