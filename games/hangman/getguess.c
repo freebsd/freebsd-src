@@ -100,7 +100,7 @@ readch()
 		}
 		else if (ch == CTRL('L')) {
 			wrefresh(curscr);
-			mvcur(0, 0, curscr->cury, curscr->curx);
+			mvcur(0, 0, curscr->_cury, curscr->_curx);
 		}
 		else
 			return ch;
