@@ -407,6 +407,19 @@ or
 with sufficient space.
 .Pp
 The environment variable
+.Ev PACKAGEROOT
+specifies an alternate location for 
+.Nm
+to fetch from.
+The the fetch URL is built using this environment variable and the automatic
+directory logic that
+.Nm
+uses when the 
+.Fl r
+option is invoked.
+An example setting would be "ftp://ftp3.FreeBSD.org".
+.Pp
+The environment variable
 .Ev PACKAGESITE
 specifies an alternate location for 
 .Nm
@@ -417,6 +430,7 @@ that
 uses when the 
 .Fl r
 option is invoked.
+Thus it should be a complete URL to the remote package file(s).
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/tmp
