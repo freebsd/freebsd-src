@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.31 1996/06/14 11:01:41 asami Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.32 1996/09/03 14:23:33 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -464,7 +464,7 @@ msdosfs_setattr(ap)
 		if (error)
 			return error;
 	}
-	if (vap->va_mtime.ts_sec != VNOVAL) {
+	if (vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != dep->de_pmp->pm_uid &&

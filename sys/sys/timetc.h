@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.7 1996/02/24 07:41:46 hsu Exp $
+ * $Id: time.h,v 1.7 1996/03/11 02:11:25 hsu Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -52,17 +52,17 @@ struct timeval {
  * Structure defined by POSIX.4 to be like a timeval.
  */
 struct timespec {
-	time_t	ts_sec;		/* seconds */
-	long	ts_nsec;	/* and nanoseconds */
+	time_t	tv_sec;		/* seconds */
+	long	tv_nsec;	/* and nanoseconds */
 };
 
 #define	TIMEVAL_TO_TIMESPEC(tv, ts) {					\
-	(ts)->ts_sec = (tv)->tv_sec;					\
-	(ts)->ts_nsec = (tv)->tv_usec * 1000;				\
+	(ts)->tv_sec = (tv)->tv_sec;					\
+	(ts)->tv_nsec = (tv)->tv_usec * 1000;				\
 }
 #define	TIMESPEC_TO_TIMEVAL(tv, ts) {					\
-	(tv)->tv_sec = (ts)->ts_sec;					\
-	(tv)->tv_usec = (ts)->ts_nsec / 1000;				\
+	(tv)->tv_sec = (ts)->tv_sec;					\
+	(tv)->tv_usec = (ts)->tv_nsec / 1000;				\
 }
 
 struct timezone {
