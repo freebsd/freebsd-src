@@ -80,11 +80,16 @@ up to and including the first occurrence of
 .Ar termchar
 are compared.
 .El
-.Pp
+.Sh ENVIRONMENT
 The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of the
 .Nm
-utility exits 0 if one or more lines were found and displayed,
-1 if no lines were found, and >1 if an error occurred.
+utility.
+Their effect is described in
+.Xr environ 7 .
 .Sh FILES
 .Bl -tag -width /usr/share/dict/words -compact
 .It Pa /usr/share/dict/words
@@ -93,6 +98,11 @@ the dictionary
 .Sh SEE ALSO
 .Xr grep 1 ,
 .Xr sort 1
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 if one or more lines were found and displayed,
+1 if no lines were found, and >1 if an error occurred.
 .Sh COMPATIBILITY
 The original manual page stated that tabs and blank characters participated
 in comparisons when the
@@ -106,6 +116,8 @@ A
 utility appeared in
 .At v7 .
 .Sh BUGS
+Lines are not compared according to the current locale's collating
+order.
 Input files must be sorted with
 .Ev LC_COLLATE
 set to
