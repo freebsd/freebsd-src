@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.30 1998/03/19 22:25:44 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.31 1998/03/20 19:47:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -178,7 +178,7 @@ bundle_LayerStart(void *v, struct fsm *fp)
   /* The given FSM is about to start up ! */
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_LCP && bundle->phase == PHASE_DEAD)
+  if (fp->proto == PROTO_LCP && bundle_Phase(bundle) == PHASE_DEAD)
     bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
@@ -713,7 +713,7 @@ bundle_Open(struct bundle *bundle, const char *name)
       if (name != NULL)
         break;
     }
-  if (bundle->phase == PHASE_DEAD)
+  if (bundle_Phase(bundle) == PHASE_DEAD)
     bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
