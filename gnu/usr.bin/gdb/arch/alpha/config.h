@@ -502,7 +502,7 @@
 #define HAVE_FPREGSET_T 1
 
 /* Define if <sys/procfs.h> has prgregset_t. */
-/* #undef HAVE_PRGREGSET_T */
+#define HAVE_PRGREGSET_T 1
 
 /* Define if <sys/procfs.h> has prfpregset_t. */
 #define HAVE_PRFPREGSET_T 1
@@ -517,7 +517,7 @@
 #define HAVE_LWPID_T 1
 
 /* Define if <sys/procfs.h> has psaddr_t. */
-/* #undef HAVE_PSADDR_T */
+#define HAVE_PSADDR_T 1
 
 /* Define if <sys/procfs.h> has prsysent_t. */
 /* #undef HAVE_PRSYSENT_T */
