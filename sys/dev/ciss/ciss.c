@@ -217,9 +217,20 @@ static d_ioctl_t	ciss_ioctl;
 #define CISS_CDEV_MAJOR  166
 
 static struct cdevsw ciss_cdevsw = {
-    ciss_open, ciss_close, noread, nowrite, ciss_ioctl,
-    nopoll, nommap, nostrategy, "ciss", CISS_CDEV_MAJOR,
-    nodump, nopsize, 0, nokqfilter
+	/* open */	ciss_open,
+	/* close */	ciss_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	ciss_ioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ciss",
+	/* maj */	CISS_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* kqfilter */	nokqfilter
 };
 
 /************************************************************************
