@@ -276,6 +276,7 @@ emu_instr(regcontext_t *REGS)
 		R_IP = --ip;	/* Move IP back to the 'rep' instruction. */
 		return -1;
 	    }
+	    R_CX = 0;
 	    break;
 	default:
 	    /* Unknown instruction, get out of here and let trap.c:sigbus()
