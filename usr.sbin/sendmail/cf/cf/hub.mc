@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.1.2.4 1998/01/15 17:35:59 jmb Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.2.5 1998/01/20 01:44:51 jmb Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -78,7 +78,8 @@ define(`confTO_RSET', `1m')dnl
 define(`confTO_COMMAND', `5m')dnl
 define(`confTO_HOSTSTATUS', `30m')dnl
 define(`confMIN_QUEUE_AGE', `30m')dnl
-define(`confMAX_QUEUE_RUN_SIZE', `100')dnl
+define(`confMAX_QUEUE_RUN_SIZE', `500')dnl
+define(`confQUEUE_SORT_ORDER', `host')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confTRUSTED_USERS', `majordom')dnl
 define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
@@ -147,6 +148,7 @@ Scheck_mail
 #	may or may not have "<" ">"
 # the groups of rules in this ruleset ARE NOT independent.
 # "remove all RFC-822 comments" must come first
+# "Connecting Host" and "Paul Vixie's RBL" must be last
 #
 # use the ones that you want comment out the rest
 # each group is preceded and followed by a comment
