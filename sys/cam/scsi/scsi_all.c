@@ -1971,7 +1971,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			 * errors on finicky architectures.  We don't
 			 * ensure that the sense data is pointer aligned.
 			 */
-			bcopy(&csio->sense_data, sense, 
+			bcopy(&csio->sense_data, &sense, 
 			      sizeof(struct scsi_sense_data *));
 		}
 	} else {
