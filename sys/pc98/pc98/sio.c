@@ -31,13 +31,24 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.14 1998/02/02 08:00:16 kato Exp $
+ *	$Id: sio.c,v 1.8.2.15 1998/03/11 15:29:14 kato Exp $
  */
 
 #include "opt_comconsole.h"
 #include "opt_ddb.h"
 #include "opt_sio.h"
 #include "sio.h"
+#include "pnp.h"
+
+#ifndef EXTRA_SIO
+#if NPNP > 0
+#define EXTRA_SIO 2
+#else
+#define EXTRA_SIO 0
+#endif
+#endif
+
+#define NSIOTOT (NSIO + EXTRA_SIO)
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
@@ -159,6 +170,10 @@
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
+#endif
+
+#if NPNP > 0
+#include <i386/isa/pnp.h>
 #endif
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
@@ -405,7 +420,7 @@ static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr
 static char driver_name[] = "sio";
 
 /* table and macro for fast conversion from a unit number to its com struct */
-static	struct com_s	*p_com_addr[NSIO];
+static	struct com_s	*p_com_addr[NSIOTOT];
 #define	com_addr(unit)	(p_com_addr[unit])
 
 struct isa_driver	siodriver = {
@@ -434,11 +449,11 @@ static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 #if 0 /* XXX */
-static struct tty	*sio_tty[NSIO];
+static struct tty	*sio_tty[NSIOTOT];
 #else
-static struct tty	sio_tty[NSIO];
+static struct tty	sio_tty[NSIOTOT];
 #endif
-static	const int	nsio_tty = NSIO;
+static	const int	nsio_tty = NSIOTOT;
 
 #ifdef PC98
 struct	siodev	{
@@ -633,7 +648,7 @@ sioinit(struct pccard_devinfo *devi)
 {
 
 	/* validate unit number. */
-	if (devi->isahd.id_unit >= NSIO)
+	if (devi->isahd.id_unit >= NSIOTOT)
 		return(ENODEV);
 	/* Make sure it isn't already probed. */
 	if (com_addr(devi->isahd.id_unit))
@@ -1318,7 +1333,7 @@ sioopen(dev, flag, mode, p)
 
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
-	if ((u_int) unit >= NSIO || (com = com_addr(unit)) == NULL)
+	if ((u_int) unit >= NSIOTOT || (com = com_addr(unit)) == NULL)
 		return (ENXIO);
 	if (com->gone)
 		return (ENXIO);
@@ -1752,7 +1767,7 @@ siointr(unit)
 	 */
 	do {
 		possibly_more_intrs = FALSE;
-		for (unit = 0; unit < NSIO; ++unit) {
+		for (unit = 0; unit < NSIOTOT; ++unit) {
 			com = com_addr(unit);
 #ifdef PC98
 			if (com != NULL 
@@ -2261,7 +2276,7 @@ siopoll()
 	if (com_events == 0)
 		return;
 repeat:
-	for (unit = 0; unit < NSIO; ++unit) {
+	for (unit = 0; unit < NSIOTOT; ++unit) {
 		u_char		*buf;
 		struct com_s	*com;
 		u_char		*ibuf;
@@ -2873,7 +2888,7 @@ siodevtotty(dev)
 	if (mynor & CONTROL_MASK)
 		return (NULL);
 	unit = MINOR_TO_UNIT(mynor);
-	if ((u_int) unit >= NSIO)
+	if ((u_int) unit >= NSIOTOT)
 		return (NULL);
 	return (&sio_tty[unit]);
 }
@@ -2949,7 +2964,7 @@ siosettimeout()
 	untimeout(comwakeup, (void *)NULL);
 	sio_timeout = hz;
 	someopen = FALSE;
-	for (unit = 0; unit < NSIO; ++unit) {
+	for (unit = 0; unit < NSIOTOT; ++unit) {
 		com = com_addr(unit);
 		if (com != NULL && com->tp != NULL
 		    && com->tp->t_state & TS_ISOPEN && !com->gone) {
@@ -2984,7 +2999,7 @@ comwakeup(chan)
 	 * Recover from lost output interrupts.
 	 * Poll any lines that don't use interrupts.
 	 */
-	for (unit = 0; unit < NSIO; ++unit) {
+	for (unit = 0; unit < NSIOTOT; ++unit) {
 		com = com_addr(unit);
 		if (com != NULL && !com->gone
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
@@ -3000,7 +3015,7 @@ comwakeup(chan)
 	if (--sio_timeouts_until_log > 0)
 		return;
 	sio_timeouts_until_log = hz / sio_timeout;
-	for (unit = 0; unit < NSIO; ++unit) {
+	for (unit = 0; unit < NSIOTOT; ++unit) {
 		int	errnum;
 
 		com = com_addr(unit);
@@ -3401,6 +3416,100 @@ error:
     return EIO;
 }
 #endif /* DSI_SOFT_MODEM */
+
+/*
+ * support PnP cards if we are using 'em
+ */
+
+#if NPNP > 0
+
+static struct siopnp_ids {
+	u_long vend_id;
+	char *id_str;
+} siopnp_ids[] = {
+	{ 0x8113b04e, "Supra1381"},
+	{ 0x9012b04e, "Supra1290"},
+	{ 0x11007256, "USR0011"},
+	{ 0 }
+};
+
+static char *siopnp_probe(u_long csn, u_long vend_id);
+static void siopnp_attach(u_long csn, u_long vend_id, char *name,
+	struct isa_device *dev);
+static u_long nsiopnp = NSIO;
+
+static struct pnp_device siopnp = {
+	"siopnp",
+	siopnp_probe,
+	siopnp_attach,
+	&nsiopnp,
+	&tty_imask
+};
+DATA_SET (pnpdevice_set, siopnp);
+
+static char *
+siopnp_probe(u_long csn, u_long vend_id)
+{
+	struct siopnp_ids *ids;
+	char *s = NULL;
+
+	for(ids = siopnp_ids; ids->vend_id != 0; ids++) {
+		if (vend_id == ids->vend_id) {
+			s = ids->id_str;
+			break;
+		}
+	}
+
+	if (s) {
+		struct pnp_cinfo d;
+		read_pnp_parms(&d, 0);
+		if (d.enable == 0 || d.flags & 1) {
+			printf("CSN %d is disabled.\n", csn);
+			return (NULL);
+		}
+
+	}
+
+	return (s);
+}
+
+static void
+siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
+{
+	struct pnp_cinfo d;
+	struct isa_device *dvp;
+
+	if (dev->id_unit >= NSIOTOT)
+		return;
+
+	if (read_pnp_parms(&d, 0) == 0) {
+		printf("failed to read pnp parms\n");
+		return;
+	}
+
+	write_pnp_parms(&d, 0);
+
+	enable_pnp_card();
+
+	dev->id_iobase = d.port[0];
+	dev->id_irq = (1 << d.irq[0]);
+	dev->id_intr = siointr;
+	dev->id_ri_flags = RI_FAST;
+	dev->id_drq = -1;
+
+	if (dev->id_driver == NULL) {
+		dev->id_driver = &siodriver;
+		dvp = find_isadev(isa_devtab_tty, &siodriver, 0);
+		if (dvp != NULL)
+			dev->id_id = dvp->id_id;
+	}
+
+	if ((dev->id_alive = sioprobe(dev)) != 0)
+		sioattach(dev);
+	else
+		printf("sio%d: probe failed\n", dev->id_unit);
+}
+#endif
 #ifdef PC98
 /*
  *  pc98 local function
