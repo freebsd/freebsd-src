@@ -34,7 +34,6 @@
 #include <sys/ctype.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -44,6 +43,7 @@
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <machine/limits.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
