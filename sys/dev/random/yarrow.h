@@ -43,7 +43,7 @@
 
 int random_init(void);
 void random_deinit(void);
-void random_init_harvester(void (*)(struct timespec *, void *, u_int, u_int, u_int, enum esource), u_int (*)(void *, u_int));
+void random_init_harvester(void (*)(u_int64_t, void *, u_int, u_int, u_int, enum esource), u_int (*)(void *, u_int));
 void random_deinit_harvester(void);
 void random_set_wakeup_exit(void *);
 
