@@ -1599,6 +1599,8 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 		bcopy(lladdr, ((struct arpcom *)ifp->if_softc)->ac_enaddr, len);
+		/* FALLTHROUGH */
+	case IFT_ARCNET:
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;
 	default:

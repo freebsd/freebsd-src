@@ -77,12 +77,12 @@ struct	arc_header {
 #define	ARC_HDRNEWLEN		6
 #define	ARC_HDRNEWLEN_EXC	10
 
-/* these lengths are data link layer length - 2*ARC_ADDR_LEN */
+/* these lengths are data link layer length - 2 * ARC_ADDR_LEN */
 #define	ARC_MIN_LEN		1
 #define	ARC_MIN_FORBID_LEN	254
 #define	ARC_MAX_FORBID_LEN	256
 #define	ARC_MAX_LEN		508
-
+#define ARC_MAX_DATA		504
 
 /* RFC 1051 */
 #define	ARCTYPE_IP_OLD		240	/* IP protocol */
@@ -133,7 +133,6 @@ extern int arc_ipmtu;	/* XXX new ip only, no RFC 1051! */
 void	arc_ifattach __P((struct ifnet *, u_int8_t));
 void	arc_ifdetach __P((struct ifnet *));
 void	arc_storelladdr __P((struct ifnet *, u_int8_t));
-char	*arc_sprintf __P((u_int8_t *));
 int	arc_isphds __P((int));
 void	arc_input __P((struct ifnet *, struct mbuf *));
 int	arc_output __P((struct ifnet *, struct mbuf *,
