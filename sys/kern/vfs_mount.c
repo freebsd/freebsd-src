@@ -661,6 +661,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
+	mp->mnt_nvnodelistsize = 0;
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -1025,6 +1026,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
+	mp->mnt_nvnodelistsize = 0;
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -1390,6 +1392,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
+	mp->mnt_nvnodelistsize = 0;
 	mp->mnt_vfc = vfsp;
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
