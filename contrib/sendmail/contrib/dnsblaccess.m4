@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -37,7 +37,7 @@ dnl ##
 dnl ##	and suppose that your access map contains the entries
 dnl ##
 dnl ##	bogus.tag:127.0.0.2	REJECT
-dnl ##	bogus.tag:127.0.0.3	error:dialup mail from %1 rejected by %2
+dnl ##	bogus.tag:127.0.0.3	error:dialup mail from %1: listed at %2
 dnl ##	bogus.tag:127.0.0.4	OK
 dnl ##	bogus.tag:127		REJECT
 dnl ##	bogus.tag:		OK
@@ -50,7 +50,7 @@ dnl ##	A-record for this lookup, then the mail is treated as if the
 dnl ##	HACK line were not present.  If the lookup returns 127.0.0.2,
 dnl ##	then a default message rejects the mail.  If it returns
 dnl ##	127.0.0.3, then the message
-dnl ##	"dialup mail from 123.45.6.7 rejected by rbl.bogus.org"
+dnl ##	"dialup mail from 123.45.6.7: listed at rbl.bogus.org"
 dnl ##	is used to reject the mail.  If it returns 127.0.0.4, the
 dnl ##	mail is processed as if there were no HACK line.  If the
 dnl ##	address returned is something else beginning with 127.*, the
@@ -59,7 +59,7 @@ dnl ##	address returned does not begin 127, then the mail is
 dnl ##	processed as if the HACK line were not present.
 
 divert(0)
-VERSIONID(`$Id: dnsblaccess.m4,v 1.1.1.1 2002/02/17 21:56:45 gshapiro Exp $')
+VERSIONID(`$Id: dnsblaccess.m4,v 1.5 2002/05/19 21:30:06 gshapiro Exp $')
 ifdef(`_ACCESS_TABLE_', `dnl',
 	`errprint(`*** ERROR: dnsblaccess requires FEATURE(`access_db')
 ')')
@@ -71,7 +71,7 @@ Kednsbl dns -R A -a. -T<TMP> -r`'ifdef(`EDNSBL_TO',`EDNSBL_TO',`5')
 ')
 divert(-1)
 define(`_EDNSBL_SRV_', `ifelse(len(X`'_ARG_),`1',`blackholes.mail-abuse.org',_ARG_)')dnl
-define(`_EDNSBL_MSG_', `ifelse(len(X`'_ARG2_),`1',`"550 Mail from " $`'&{client_addr} " refused by blackhole site '_EDNSBL_SRV_`"',`_ARG2_')')dnl
+define(`_EDNSBL_MSG_', `ifelse(len(X`'_ARG2_),`1',`"550 Rejected: " $`'&{client_addr} " listed at '_EDNSBL_SRV_`"',`_ARG2_')')dnl
 define(`_EDNSBL_MSG_TMP_', `ifelse(_ARG3_,`t',`"451 Temporary lookup failure of " $`'&{client_addr} " at '_EDNSBL_SRV_`"',`_ARG3_')')dnl
 define(`_EDNSBL_KEY_', `ifelse(len(X`'_ARG4_),`1',`dnsblaccess',_ARG4_)')dnl
 divert(8)

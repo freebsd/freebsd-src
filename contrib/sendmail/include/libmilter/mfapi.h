@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 1.1.1.4 2002/04/10 03:04:55 gshapiro Exp $
+ *	$Id: mfapi.h,v 8.42 2002/04/30 23:52:23 msk Exp $
  */
 
 /*
@@ -106,6 +106,9 @@ struct smfiDesc
 	sfsistat	(*xxfi_close) SM__P((SMFICTX *));
 };
 
+#if _FFR_SMFI_OPENSOCKET
+LIBMILTER_API int smfi_opensocket __P((void));
+#endif /* _FFR_SMFI_OPENSOCKET */
 LIBMILTER_API int smfi_register __P((struct smfiDesc));
 LIBMILTER_API int smfi_main __P((void));
 LIBMILTER_API int smfi_setbacklog __P((int));

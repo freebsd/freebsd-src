@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 1.1.1.12 2002/04/10 03:04:53 gshapiro Exp $
+.\"	$Id: op.me,v 8.607 2002/05/22 19:58:33 gshapiro Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -88,7 +88,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 1.1.1.12 $
+.Ve $Revision: 8.607 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -597,7 +597,7 @@ It should be set-group-ID smmsp as described in
 sendmail/SECURITY.
 For security reasons,
 /, /usr, and /usr/\*(SD
-should be owned by root, mode 755\**.
+should be owned by root, mode 0755\**.
 .(f
 \**Some vendors ship them owned by bin;
 this creates a security hole that is not actually related to
@@ -707,7 +707,7 @@ tree.
 The directory
 .i /var/spool/mqueue
 should be created to hold the mail queue.
-This directory should be mode 700
+This directory should be mode 0700
 and owned by root.
 .pp
 The actual path of this directory
@@ -758,7 +758,7 @@ or different queue group declarations.
 The directory
 .i /var/spool/clientmqueue
 should be created to hold the mail queue.
-This directory should be mode 770
+This directory should be mode 0770
 and owned by user smmsp, group smmsp.
 .pp
 The actual path of this directory
@@ -807,6 +807,15 @@ is defined in the
 option of the
 .i sendmail.cf
 file.
+.pp
+The permissions of the alias file and the database versions
+should be 0640 to prevent local denial of service attacks
+as explained in the top level
+.b README 
+in the sendmail distribution.
+If the permissions 0640 are used, be sure that only trusted users belong
+to the group assigned to those files.  Otherwise, files should not even
+be group readable.
 .sh 3 "/etc/rc or /etc/init.d/sendmail"
 .pp
 It will be necessary to start up the
@@ -933,7 +942,7 @@ you should create the file
 .q /etc/mail/statistics :
 .(b
 cp /dev/null /etc/mail/statistics
-chmod 644 /etc/mail/statistics
+chmod 0600 /etc/mail/statistics
 .)b
 This file does not grow.
 It is printed with the program
@@ -958,6 +967,43 @@ flag
 will print the contents of the mail queue;
 see below).
 This should be a link to /usr/\*(SD/sendmail.
+.sh 3 "sendmail.pid"
+.pp
+.i sendmail
+stores its current pid in the file specifed by the
+.b PidFile
+option (default is _PATH_SENDMAILPID).
+.i sendmail
+uses
+.b TempFileMode
+(which defaults to 0600) as
+the permissions of that file
+to prevent local denial of service attacks
+as explained in the top level
+.b README 
+in the sendmail distribution.
+If the file already exists, then it might be necessary to
+change the permissions accordingly, e.g.,
+.(b
+chmod 0600 /var/run/sendmail.pid
+.)b
+.sh 3 "Map Files"
+.pp
+To prevent local denial of service attacks
+as explained in the top level
+.b README 
+in the sendmail distribution,
+the permissions of map files created by
+.i makemap
+should be 0640.
+The use of 0640 implies that only trusted users belong to the group
+assigned to those files.
+If those files already exist, then it might be necessary to
+change the permissions accordingly, e.g.,
+.(b
+cd /etc/mail
+chmod 0640 *.db *.pag *.dir 
+.)b
 .sh 1 "NORMAL OPERATIONS"
 .sh 2 "The System Log"
 .pp
@@ -1162,7 +1208,7 @@ recipients.
 Notice: if multiple queue groups are used, do
 .b not
 move queue files around, e.g., into a different queue directory.
-This may have wierd effects and can cause mail not to be delivered.
+This may have weird effects and can cause mail not to be delivered.
 Queue files and directories should be treated as opaque
 and should not be manipulated directly.
 .sh 3 "Queue Runs"
@@ -1279,7 +1325,7 @@ To do this,
 it is acceptable to move the entire queue directory:
 .(b
 cd /var/spool
-mv mqueue omqueue; mkdir mqueue; chmod 700 mqueue
+mv mqueue omqueue; mkdir mqueue; chmod 0700 mqueue
 .)b
 You should then kill the existing daemon
 (since it will still be processing in the old queue directory)
@@ -3325,7 +3371,7 @@ by using $r, $s, or $f.
 If you create a directory such as /var/forward,
 it should be mode 1777
 (that is, the sticky bit should be set).
-Users should create the files mode 644.
+Users should create the files mode 0644.
 Note that you must use the
 ForwardFileInUnsafeDirPath and
 ForwardFileInUnsafeDirPathSafe
@@ -3336,10 +3382,10 @@ This might also be used as a denial of service attack
 (users could create forward files for other users);
 a better approach might be to create
 /var/forward
-mode 755
+mode 0755
 and create empty files for each user,
 owned by that user,
-mode 644.
+mode 0644.
 If you do this, you don't have to set the DontBlameSendmail options
 indicated above.
 .sh 2 "Free Space"
@@ -7580,8 +7626,10 @@ Currently there are no other flags available.
 [F]
 The file mode for transcript files, files to which
 .i sendmail
-delivers directly, and files in the
-.b HostStatusDirectory .
+delivers directly, files in the
+.b HostStatusDirectory ,
+and
+.b StatusFile .
 It is interpreted in octal by default.
 Defaults to 0600.
 .ip Timeout.\fItype\fP=\|\fItimeout\fP
@@ -10579,7 +10627,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 1.1.1.12 $
+.\"Version $Revision: 8.607 $
 .\".ce 0
 .bp 3
 .ce

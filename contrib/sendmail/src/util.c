@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 1.1.1.10 2002/04/10 03:04:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.363 2002/05/24 20:44:05 gshapiro Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
@@ -516,7 +516,7 @@ log_sendmail_pid(e)
 {
 	long sff;
 	SM_FILE_T *pidf;
-	char pidpath[MAXPATHLEN + 1];
+	char pidpath[MAXPATHLEN];
 	extern char *CommandLineArgs;
 
 	/* write the pid to the log file for posterity */
@@ -524,7 +524,7 @@ log_sendmail_pid(e)
 	if (TrustedUid != 0 && RealUid == TrustedUid)
 		sff |= SFF_OPENASROOT;
 	expand(PidFile, pidpath, sizeof pidpath, e);
-	pidf = safefopen(pidpath, O_WRONLY|O_TRUNC, 0644, sff);
+	pidf = safefopen(pidpath, O_WRONLY|O_TRUNC, FileMode, sff);
 	if (pidf == NULL)
 	{
 		sm_syslog(LOG_ERR, NOQID, "unable to write %s: %s",
@@ -1919,7 +1919,7 @@ prog_open(argv, pfd, e)
 	int ret;
 	int fdv[2];
 	char *p, *q;
-	char buf[MAXLINE + 1];
+	char buf[MAXPATHLEN];
 	extern int DtableSize;
 
 	if (pipe(fdv) < 0)
