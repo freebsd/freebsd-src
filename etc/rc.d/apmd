@@ -7,7 +7,7 @@
 # PROVIDE: apmd
 # REQUIRE: DAEMON apm
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

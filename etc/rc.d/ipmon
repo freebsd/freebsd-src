@@ -7,7 +7,7 @@
 # PROVIDE: ipmon
 # REQUIRE: mountcritlocal hostname sysctl cleanvar
 # BEFORE:  SERVERS
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

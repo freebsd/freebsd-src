@@ -6,7 +6,7 @@
 
 # PROVIDE: rpcbind
 # REQUIRE: NETWORKING ntpdate syslogd named ppp
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 
 # PROVIDE: root
 # REQUIRE: fsck
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

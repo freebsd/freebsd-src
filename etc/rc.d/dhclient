@@ -7,7 +7,7 @@
 # PROVIDE: dhclient
 # REQUIRE: network netif mountcritlocal
 # BEFORE:  NETWORKING
-# KEYWORD: FreeBSD NetBSD
+# KEYWORD: FreeBSD
 #
 #	Note that there no syslog logging of dhclient messages at boot because
 #	dhclient needs to start before services that syslog depends upon do.
