@@ -66,6 +66,7 @@ static int viapm_debug = 0;
 #define VIA_596B_PMU_ID		0x30511106
 #define VIA_686A_PMU_ID		0x30571106
 #define VIA_8233_PMU_ID		0x30741106
+#define	VIA_8233A_PMU_ID	0x31471106
 
 #define VIAPM_INB(port) \
 	((u_char)bus_space_read_1(viapm->st, viapm->sh, port))
@@ -266,6 +267,7 @@ viapm_pro_probe(device_t dev)
 		goto viapro;
 
 	case VIA_8233_PMU_ID:
+	case VIA_8233A_PMU_ID:
 		desc = "VIA VT8233 Power Management Unit";
 		viapm->type = VIAPM_TYP_UNKNOWN;
 		base_cfgreg = VIAPM_8233_BASE;
