@@ -61,7 +61,7 @@ fgets(buf, n, fp)
 	register char *s;
 	register unsigned char *p, *t;
 
-	if (n == 0)		/* sanity check */
+	if (n <= 0)             /* sanity check */
 		return (NULL);
 
 #ifdef _THREAD_SAFE
