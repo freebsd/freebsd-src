@@ -83,14 +83,17 @@ struct mac_policy_ops {
 	void	(*mpo_init)(struct mac_policy_conf *mpc);
 
 	/*
-	 * General policy-directed security system call so that policies
-	 * may implement new services without reserving explicit
-	 * system call numbers.
+	 * General policy-directed security system call so that policies may
+	 * implement new services without reserving explicit system call
+	 * numbers.
 	 */
 	int	(*mpo_syscall)(struct thread *td, int call, void *arg);
 
 	/*
-	 * Label operations.
+	 * Label operations.  Initialize label storage, destroy label
+	 * storage, recycle for re-use without init/destroy, copy a label to
+	 * initialized storage, and externalize/internalize from/to
+	 * initialized storage.
 	 */
 	void	(*mpo_init_bpfdesc_label)(struct label *label);
 	void	(*mpo_init_cred_label)(struct label *label);
@@ -464,6 +467,14 @@ struct mac_policy_ops {
 		    struct label *label);
 };
 
+/*
+ * struct mac_policy_conf is the registration structure for policies, and is
+ * provided to the MAC Framework using MAC_POLICY_SET() to invoke a SYSINIT
+ * to register the policy.  In general, the fields are immutable, with the
+ * exception of the "security field", run-time flags, and policy list entry,
+ * which are managed by the MAC Framework.  Be careful when modifying this
+ * structure, as its layout is statically compiled into all policies.
+ */
 struct mac_policy_conf {
 	char				*mpc_name;	/* policy name */
 	char				*mpc_fullname;	/* policy full name */
