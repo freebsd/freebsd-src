@@ -101,8 +101,12 @@
 #define	EXCA_IDENT_IFTYPE_RESERVED		0xC0
 #define	EXCA_IDENT_ZERO				0x30
 #define	EXCA_IDENT_REV_MASK			0x0F
-#define	EXCA_IDENT_REV_I82365SLR0		0x02
-#define	EXCA_IDENT_REV_I82365SLR1		0x03
+#define	EXCA_IDENT_REV_I82365SLR0		0x02	/* step a/b */
+#define	EXCA_IDENT_REV_I82365SLR1		0x03	/* step c */
+#define	EXCA_IDENT_REV_I82365SLDF		0x04	/* step df */
+#define	EXCA_IDENT_REV_IBM1			0x08	/* ibm clone */
+#define	EXCA_IDENT_REV_IBM2			0x09	/* ibm clone */
+#define	EXCA_IDENT_REV_IBM_KING			0x0a	/* ibm king */
 
 #define	EXCA_IF_STATUS				0x01	/* RO */
 #define	EXCA_IF_STATUS_GPI			0x80 /* General Purpose Input */
@@ -381,6 +385,15 @@
 #define EXCA_CIRRUS_EXTENDED_DATA		0x2F
 #define EXCA_CIRRUS_EXT_CONTROL_1		0x03
 #define EXCA_CIRRUS_EXT_CONTROL_1_PCI_INTR_MASK	0x18
+
+#define EXCA_VADEM_VMISC			0x3a
+#define EXCA_VADEM_REV				0x40
+#define EXCA_VADEM_COOKIE1			0x0E
+#define EXCA_VADEM_COOKIE2			0x37
+
+#define EXCA_RICOH_ID				0x3a
+#define EXCA_RID_296				0x32
+#define EXCA_RID_396				0xb2
 
 /* Plug and play */
 #define EXCA_PNP_ACTIONTEC	0x1802A904	/* AEI0218 */
