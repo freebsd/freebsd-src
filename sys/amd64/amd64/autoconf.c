@@ -44,7 +44,7 @@
  *					scsi code is used, allow you to swap
  *					root floppies during a boot
  */
-static char rcsid[] = "$Header: /b/source/CVS/src/sys.386bsd/i386/i386/autoconf.c,v 1.3 1993/04/10 21:58:52 cgd Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/autoconf.c,v 1.1.1.1 1993/06/12 14:58:07 rgrimes Exp $";
 
 /*
  * Setup the system to run on the current machine.
@@ -179,13 +179,6 @@ setroot()
 	 */
 	if (rootdev == orootdev)
 		return;
-	if (devname[majdev][0] == 'f' && devname[majdev][1] == 'd') {
-		printf("");
-		printf("* insert the floppy you want to have mounted as\n");
-		printf("* root, and hit any key to continue booting:\n");
-		cngetc();
-		printf("");
-	}
 	printf("changing root device to %c%c%d%c\n",
 		devname[majdev][0], devname[majdev][1],
 		mindev >> PARTITIONSHIFT, part + 'a');
