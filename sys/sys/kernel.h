@@ -71,15 +71,12 @@ extern struct timeval boottime;
 extern struct timezone tz;			/* XXX */
 
 extern int tick;			/* usec per tick (1000000 / hz) */
-extern int tickadj;			/* "standard" clock skew, us./tick */
 extern int hz;				/* system clock's frequency */
 extern int psratio;			/* ratio: prof / stat */
 extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
 extern int ticks;
 extern int lbolt;			/* once a second sleep address */
-extern int tickdelta;
-extern long timedelta;
 
 #endif /* _KERNEL */
 
