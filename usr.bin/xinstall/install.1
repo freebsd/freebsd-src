@@ -32,22 +32,24 @@
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 22, 1996
+.Dd May 7, 2001
 .Dt INSTALL 1
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm install
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm
-.Op Fl CcDMpsv
+.Op Fl bCcMpSsv
+.Op Fl B Ar suffix
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm
-.Op Fl CcDMpsv
+.Op Fl bCcMpSsv
+.Op Fl B Ar suffix
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
@@ -72,35 +74,45 @@ If the destination is a directory, then the
 is moved into
 .Ar directory
 with its original filename.
-If the target file already exists, it is overwritten if permissions
-allow.
+If the target file already exists, it is
+either renamed to
+.Ar file Ns Pa .old
+if the
+.Fl b
+option is given
+or overwritten
+if permissions allow.
+An alternate backup suffix may be specified via the
+.Fl B
+option's argument.
 .Pp
-.Bl -tag -width Ds
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b
+Back up any existing files before overwriting them by renaming
+them to
+.Ar file Ns Pa .old .
+See
+.Fl B
+for specifying a different backup suffix.
+.It Fl B Ar suffix
+Use
+.Ar suffix
+as the backup suffix if
+.Fl b
+is given.
 .It Fl C
-Copy the file, as if the
-.Fl c
-option is specified,
-except if the target file already exists and the files are the same,
+Copy the file.
+If the target file already exists and the files are the same,
 then don't change the modification time of the target.
 .It Fl c
 Copy the file.
-This flag turns off the default behavior of
-.Nm
-where it deletes the original file after creating the target.
-.It Fl D
-Print debugging information.
-If
-.Fl D
-is specified one or more times,
-then print the renaming steps for
-.Fl C .
-If
-.Fl D
-is specified two or more times,
-then warn about files that aren't installed with
-.Fl C .
+This is actually the default.
+The
+.Fl c
+option is only included for backwards compatibility.
 .It Fl d
-Create directories. 
+Create directories.
 Missing parent directories are created as required.
 .It Fl f
 Specify the target's file flags; see
@@ -116,7 +128,7 @@ Disable all use of
 Specify an alternate mode.
 The default mode is set to rwxr-xr-x (0755).
 The specified mode may be either an octal or symbolic value; see
-.Xr chmod  1
+.Xr chmod 1
 for a description of possible mode values.
 .It Fl o
 Specify an owner.
@@ -125,26 +137,41 @@ A numeric UID is allowed.
 Preserve the modification time.
 Copy the file, as if the
 .Fl C
-(Compare and copy) option is specified,
+(compare and copy) option is specified,
 except if the target file doesn't already exist or is different,
 then preserve the modification time of the file.
+.It Fl S
+Safe copy.
+Normally,
+.Nm
+unlinks an existing target before installing the new file.
+With the
+.Fl S
+flag a temporary file is used and then renamed to be
+the target.
+The reason this is safer is that if the copy or
+rename fails, the existing target is left untouched.
 .It Fl s
-.Nm Install
+.Nm
 exec's the command
-.Xr strip  1
-to strip binaries so that install can be portable over a large
+.Xr strip 1
+to strip binaries so that
+.Nm
+can be portable over a large
 number of systems and binary types.
 .It Fl v
 Causes
 .Nm
 to show when
 .Fl C
-acutally installs something.
+actually installs something.
 .El
 .Pp
 By default,
 .Nm
-preserves all file flags, with the exception of the ``nodump'' flag.
+preserves all file flags, with the exception of the
+.Dq nodump
+flag.
 .Pp
 The
 .Nm
@@ -160,12 +187,19 @@ utility exits 0 on success, and 1 otherwise.
 .Sh FILES
 .Bl -tag -width INS@XXXX -compact
 .It Pa INS@XXXX
-If the
+If either
+.Fl S
+option is specified, or the
 .Fl C
 or
 .Fl p
-option is used, then temporary files named INS@XXXX,
-where XXXX is decided by
+option is used in conjuction with the
+.Fl s
+option, temporary files named
+.Pa INS@XXXX ,
+where
+.Pa XXXX
+is decided by
 .Xr mkstemp 3 ,
 are created in the target directory.
 .El
