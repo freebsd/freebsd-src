@@ -80,6 +80,7 @@
 struct	is_softc {
 	struct arpcom arpcom;             /* Ethernet common part */
 	int iobase;                       /* IO base address of card */
+	void *lance_mem;             /* Base of memory allocated to card */
 	struct mds 	*rd;
 	struct mds	*td;
 	unsigned char	*rbuf;
@@ -168,6 +169,8 @@ int
 is_reset(int unit)
 {
 	int s;
+	struct is_softc *is = &is_softc[unit];
+
 	if (unit >= NIS)
 		return;
 	s = splnet();
@@ -188,10 +191,8 @@ is_attach(isa_dev)
 	int unit = isa_dev->id_unit;
 	struct is_softc *is = &is_softc[unit];
 	struct ifnet *ifp = &is->arpcom.ac_if;
-        struct ifaddr *ifa;
-        struct sockaddr_dl *sdl;
-
-
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 
 	ifp->if_unit = unit;
 	ifp->if_name = isdriver.name ;
@@ -204,40 +205,53 @@ is_attach(isa_dev)
 	ifp->if_reset = is_reset;
 	ifp->if_watchdog = is_watchdog;
 
+	/* 
+	 * XXX - Set is->lance_mem to NULL so first pass 
+	 * through init_mem it won't try and free memory
+	 * This is getting messy and needs redoing.
+	 * Yes, I know NULL != 0 but it does what I want :-) 
+	 */
+
+	is->lance_mem = NULL; 
+
 	/* Set up DMA */
 	isa_dmacascade(isa_dev->id_drq);
 
 	if_attach(ifp);
 
-/*
-         * Search down the ifa address list looking for the AF_LINK type
-entry
-         */
-        ifa = ifp->if_addrlist;
-        while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-            (ifa->ifa_addr->sa_family != AF_LINK))
-                ifa = ifa->ifa_next;
+	/*
+	 * Search down the ifa address list looking 
+	 * for the AF_LINK type entry
+	 */
 
-        /*
-         * If we find an AF_LINK type entry, we will fill
+	ifa = ifp->if_addrlist;
+	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
+	  (ifa->ifa_addr->sa_family != AF_LINK))
+		ifa = ifa->ifa_next;
+
+	/*
+	 * If we find an AF_LINK type entry, we will fill
 	 * in the hardware address for this interface.
-         */
-        if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-                /*
-                 * Fill in the link level address for this interface
-                 */
-                sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-                sdl->sdl_type = IFT_ETHER;
-                sdl->sdl_alen = ETHER_ADDR_LEN;
-                sdl->sdl_slen = 0;
-                bcopy(is->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-        }
+	 */
+
+	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
+
+		/*
+		 * Fill in the link level address for this interface
+		 */
+
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		sdl->sdl_type = IFT_ETHER;
+		sdl->sdl_alen = ETHER_ADDR_LEN;
+		sdl->sdl_slen = 0;
+		bcopy(is->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
+	}
 
 	printf ("is%d: address %s\n", unit,
 		ether_sprintf(is->arpcom.ac_enaddr)) ;
 
 #if NBPFILTER > 0
-        bpfattach(&is->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(&is->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 }
 
@@ -246,7 +260,6 @@ is_watchdog(unit)
         int unit;
 {
         log(LOG_ERR, "is%d: device timeout\n", unit);
-
         is_reset(unit);
 }
 
@@ -262,7 +275,7 @@ init_mem(unit)
 	/* Allocate memory */
 
 	/*
-	 * XXX hopefully have better way to get dma'able memory later,
+	 * XXX - hopefully have better way to get dma'able memory later,
 	 * this code assumes that the physical memory address returned
 	 * from malloc will be below 16Mb. The Lance's address registers
 	 * are only 16 bits wide!
@@ -270,7 +283,19 @@ init_mem(unit)
 
 #define MAXMEM ((NRBUF+NTBUF)*(BUFSIZE) + (NRBUF+NTBUF)*sizeof(struct mds) + 8)
 
-	temp = (u_long) malloc(MAXMEM,M_TEMP,M_NOWAIT);
+	/* 
+	 * XXX - If we've been here before then free 
+	 * the previously allocated memory
+	 */
+	if (is->lance_mem)
+		free(is->lance_mem,M_TEMP);
+
+	is->lance_mem = malloc(MAXMEM,M_TEMP,M_NOWAIT);
+	if (!is->lance_mem) {
+		printf("is%d : Couldn't allocate memory for card\n",unit);
+		return;
+	}
+	temp = (u_long) is->lance_mem;
 
 	/* Align message descriptors on quad word boundary 
 		(this is essential) */
@@ -281,15 +306,13 @@ init_mem(unit)
 	temp += (NRBUF+NTBUF) * sizeof(struct mds);
 
 	init_block[unit].mode = 0;
-	
-
-
 	init_block[unit].rdra = kvtop(is->rd);
 	init_block[unit].rlen = ((kvtop(is->rd) >> 16) & 0xff) | (RLEN<<13);
 	init_block[unit].tdra = kvtop(is->td);
 	init_block[unit].tlen = ((kvtop(is->td) >> 16) & 0xff) | (TLEN<<13);
 
 	/* Set up receive ring descriptors */
+
 	is->rbuf = (unsigned char *)temp;
 	for (i=0; i<NRBUF; i++) {
 		(is->rd+i)->addr = kvtop(temp);
@@ -300,10 +323,8 @@ init_mem(unit)
 	}
 
 	/* Set up transmit ring descriptors */
+
 	is->tbuf = (unsigned char *)temp;
-#if ISDEBUG > 4
-	printf("rd = %x,td = %x, rbuf = %x, tbuf = %x,td+1=%x\n",is->rd,is->td,is->rbuf,is->tbuf,is->td+1);
-#endif
 	for (i=0; i<NTBUF; i++) {
 		(is->td+i)->addr = kvtop(temp);
 		(is->td+i)->flags= ((kvtop(temp) >> 16) & 0xff);
@@ -935,6 +956,7 @@ is_ioctl(ifp, cmd, data)
 	return (error);
 }
 
+#ifdef ISDEBUG
 recv_print(unit,no)
 	int unit,no;
 {
@@ -981,5 +1003,6 @@ xmit_print(unit,no)
 	if (printed)
 		printf("\n");
 }
+#endif /* ISDEBUG */
 		
-#endif
+#endif /* NIS > 0 */
