@@ -65,6 +65,8 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_dummynet.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
@@ -123,6 +125,11 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) do { error = (e); goto bad;} while (0)
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
+
+int
+ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
+	struct ip_fw **rule, struct ether_header *eh, int shared);
+static int ether_ipfw;
 
 /*
  * Ethernet output routine.
@@ -377,6 +384,14 @@ ether_output_frame(ifp, m)
 {
 	int error = 0;
 
+#if 1	/* XXX ipfw */
+	struct ip_fw *rule = NULL;
+	if (m->m_type == MT_DUMMYNET) { /* extract info from dummynet header */
+		rule = (struct ip_fw *)(m->m_data) ;
+		m = m->m_next ;
+		goto no_bridge;
+	}
+#endif
 	if (BDG_ACTIVE(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
 
@@ -389,6 +404,35 @@ ether_output_frame(ifp, m)
 		return (0);
 	}
 
+#if 1	/* XXX ipfw */
+no_bridge:
+	if (IPFW_LOADED && ether_ipfw != 0) {
+		struct ether_header save_eh, *eh;
+
+		eh = mtod(m, struct ether_header *);
+		save_eh = *eh;
+		m_adj(m, ETHER_HDR_LEN);
+		if (ether_ipfw_chk(&m, ifp, &rule, eh, 0) == 0) {
+			if (m) {
+				m_freem(m);
+				return ENOBUFS;	/* pkt dropped */
+			} else
+				return 0;	/* consumed e.g. in a pipe */
+		}
+		/* packet was ok, restore the ethernet header */
+		if ( (void *)(eh + 1) == (void *)m->m_data) {
+			m->m_data -= ETHER_HDR_LEN ;
+			m->m_len += ETHER_HDR_LEN ;
+			m->m_pkthdr.len += ETHER_HDR_LEN ;
+		} else {
+			M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+			if (m == NULL) /* nope... */
+			    return ENOBUFS;
+			bcopy(&save_eh, mtod(m, struct ether_header *),
+				ETHER_HDR_LEN);
+		}
+	}
+#endif /* XXX ipfw */
 	/*
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.
@@ -396,6 +440,85 @@ ether_output_frame(ifp, m)
 	if (! IF_HANDOFF(&ifp->if_snd, m, ifp))
 		return (ENOBUFS);
 	return (error);
+}
+
+/*
+ * ipfw processing for ethernet packets (in and out).
+ * The second parameter is NULL from ether_demux, and ifp from
+ * ether_output_frame. This section of code could be used from
+ * bridge.c as well as long as we put some extra field (e.g. shared)
+ * to distinguish that case from ether_output_frame();
+ */
+int
+ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
+	struct ip_fw **rule, struct ether_header *eh, int shared)
+{
+	struct ether_header save_eh = *eh;	/* could be a ptr in m */
+        int i;
+
+        if (*rule != NULL) /* dummynet packet, already partially processed */
+            return 1; /* HACK! I should obey the fw_one_pass */
+        /*
+         * i need some amt of data to be contiguous, and in case others need
+         * the packet (shared==1) also better be in the first mbuf.
+         */
+        i = min( (*m0)->m_pkthdr.len, max_protohdr) ;
+        if ( shared || (*m0)->m_len < i) {
+		*m0 = m_pullup(*m0, i);
+		if (*m0 == NULL) {
+			printf("-- bdg: pullup failed.\n") ;
+			return 0;
+		}
+        }
+
+        i = ip_fw_chk_ptr(m0, dst, NULL /* cookie */, rule,
+	    (struct sockaddr_in **)&save_eh);
+        if ( (i & IP_FW_PORT_DENY_FLAG) || *m0 == NULL) /* drop */
+		return 0;
+
+        if (i == 0) /* a PASS rule.  */
+		return 1;
+
+        if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG)) {
+		/*
+		 * Pass the pkt to dummynet, which consumes it.
+		 * If shared, make a copy and keep the original.
+		 * Need to prepend the ethernet header, optimize the common
+		 * case of eh pointing already into the original mbuf.
+		 */
+		struct mbuf *m ;
+
+		if (shared) {
+			m = m_copypacket(*m0, M_DONTWAIT);
+			if (m == NULL) {
+				printf("bdg_fwd: copy(1) failed\n");
+				return 0;
+			}
+		} else {
+			m = *m0 ; /* pass the original to dummynet */
+			*m0 = NULL ; /* and nothing back to the caller */
+		}
+		if ( (void *)(eh + 1) == (void *)m->m_data) {
+			m->m_data -= ETHER_HDR_LEN ;
+			m->m_len += ETHER_HDR_LEN ;
+			m->m_pkthdr.len += ETHER_HDR_LEN ;
+		} else {
+			M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+			if (m == NULL) /* nope... */
+				return 0;
+			bcopy(&save_eh, mtod(m, struct ether_header *),
+			    ETHER_HDR_LEN);
+		}
+		ip_dn_io_ptr((i & 0xffff), dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX,
+		    m, dst, NULL /*route*/, 0 /*dst*/, *rule, 0 /*flags*/);
+		return 0;
+        }
+        /*
+         * XXX add divert/forward actions...
+         */
+        /* if none of the above matches, we have to drop the pkt */
+        printf("ether_ipfw: No rules match, so dropping packet!\n");
+        return 0;
 }
 
 /*
@@ -504,6 +627,16 @@ ether_demux(ifp, eh, m)
 	register struct llc *l;
 #endif
 
+#if 1	/* XXX ipfw */
+	struct ip_fw *rule = NULL;
+	if (m->m_type == MT_DUMMYNET) { /* extract info from dummynet header */
+		rule = (struct ip_fw *)(m->m_data) ;
+		m = m->m_next ;
+		ifp = m->m_pkthdr.rcvif;
+		goto post_stats;
+	}
+#endif
+
     if (! (BDG_ACTIVE(ifp) ) )
 	/* Discard packet if upper layers shouldn't see it because it was
 	   unicast to a different Ethernet address. If the driver is working
@@ -531,6 +664,17 @@ ether_demux(ifp, eh, m)
 	}
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		ifp->if_imcasts++;
+
+#if 1	/* XXX ipfw */
+post_stats:
+	if ( IPFW_LOADED && ether_ipfw != 0) {
+		if (ether_ipfw_chk(&m, NULL, &rule, eh, 0 ) == 0) {
+			if (m)
+				m_freem(m);
+			return;
+		}
+	}
+#endif /* XXX ipfw */
 
 	ether_type = ntohs(eh->ether_type);
 
@@ -719,6 +863,8 @@ ether_ifdetach(ifp, bpf)
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
+SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
+            &ether_ipfw,0,"Pass ether pkts through firewall");
 
 int
 ether_ioctl(ifp, command, data)
