@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	LABELSECTOR	1
 #endif
 
-int keep, slice;
+static int keep, slice;
 
 static void
 usage_migrate(void)
@@ -67,6 +67,7 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 {
 	char *buf;
 	struct disklabel *dl;
+	off_t ofs, rawofs;
 	int i;
 
 	buf = gpt_read(fd, start + LABELSECTOR, 1);
@@ -79,8 +80,22 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 		return (ent);
 	}
 
+	rawofs = le32toh(dl->d_partitions[RAW_PART].p_offset) *
+	    le32toh(dl->d_secsize);
+	for (i = 0; i < le16toh(dl->d_npartitions); i++) {
+		if (dl->d_partitions[i].p_fstype == FS_UNUSED)
+			continue;
+		ofs = le32toh(dl->d_partitions[i].p_offset) *
+		    le32toh(dl->d_secsize);
+		if (ofs < rawofs)
+			rawofs = 0;
+	}
+	rawofs /= secsz;
+
 	for (i = 0; i < le16toh(dl->d_npartitions); i++) {
 		switch (dl->d_partitions[i].p_fstype) {
+		case FS_UNUSED:
+			continue;
 		case FS_SWAP: {
 			uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 			le_uuid_enc(&ent->ent_type, &swap);
@@ -108,9 +123,11 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 			continue;
 		}
 
-		ent->ent_lba_start =
-		    htole64(le32toh(dl->d_partitions[i].p_offset));
-		ent->ent_lba_end = htole64(le64toh(ent->ent_lba_start) +
+		ofs = (le32toh(dl->d_partitions[i].p_offset) *
+		    le32toh(dl->d_secsize)) / secsz;
+		ofs = (ofs > 0) ? ofs - rawofs : 0;
+		ent->ent_lba_start = htole64(start + ofs);
+		ent->ent_lba_end = htole64(start + ofs +
 		    le32toh(dl->d_partitions[i].p_size) - 1LL);
 		ent++;
 	}
