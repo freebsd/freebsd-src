@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Nov  9 11:29:12 2000]
+ *	last edit-date: [Thu Apr 27 13:33:18 2000]
  *
  *---------------------------------------------------------------------------*/ 
 
@@ -47,6 +47,9 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
+#include <sys/ctype.h>
+#include <sys/ioccom.h>
+#include <sys/syslog.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
@@ -59,6 +62,7 @@
 #include <machine/i4b_debug.h>
 
 #include <i4b/include/i4b_global.h>
+#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>
@@ -166,7 +170,7 @@ struct ngingstat {
 
 static ng_constructor_t	ng_ing_constructor;
 static ng_rcvmsg_t	ng_ing_rcvmsg;
-static ng_shutdown_t	ng_ing_shutdown;
+static ng_shutdown_t	ng_ing_rmnode;
 static ng_newhook_t	ng_ing_newhook;
 static ng_connect_t	ng_ing_connect;
 static ng_rcvdata_t	ng_ing_rcvdata;
@@ -203,21 +207,22 @@ static const struct ng_cmdlist ng_ing_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
+	NG_VERSION,
 	NG_ING_NODE_TYPE,
 	NULL,
 	ng_ing_constructor,
 	ng_ing_rcvmsg,
-	ng_ing_shutdown,
+	ng_ing_rmnode,
 	ng_ing_newhook,
 	NULL,
 	ng_ing_connect,
+	ng_ing_rcvdata,
 	ng_ing_rcvdata,
 	ng_ing_disconnect,
 	ng_ing_cmdlist
 };
 
-NETGRAPH_INIT_ORDERED(ing, &typestruct, SI_SUB_DRIVERS, SI_ORDER_ANY);
+NETGRAPH_INIT(ing, &typestruct);
 
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
@@ -246,7 +251,6 @@ i4bingattach(void *dummy)
 		sc->sc_state = ST_IDLE;
 		
 		sc->sc_fastq.ifq_maxlen = I4BINGMAXQLEN;
-		mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ing_fastq", MTX_DEF);
 		
 #if I4BINGACCT
 		callout_handle_init(&sc->sc_callout);
@@ -274,22 +278,20 @@ i4bingattach(void *dummy)
 			printf("ing: ng_make_node_common, ret = %d\n!", ret);
 		}
 
-		/* name the netgraph node */
-
-		sprintf(sc->nodename, "%s%d", NG_ING_NODE_TYPE, sc->sc_unit);
-		if((ret = ng_name_node(sc->node, sc->nodename)))
-		{
-			printf("ing: ng_name node, ret = %d\n!", ret);
-			NG_NODE_UNREF(sc->node);
-			break;
-		}
-
-		NG_NODE_SET_PRIVATE(sc->node, sc);
+		sc->node->private = sc;
 
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
-		mtx_init(&sc->xmitq.ifq_mtx, "i4b_ing_xmitq", MTX_DEF);
-		mtx_init(&sc->xmitq_hipri.ifq_mtx, "i4b_ing_hipri", MTX_DEF);
+				
+		/* name the netgraph node */
+
+		sprintf(sc->nodename, "%s%d", NG_ING_NODE_TYPE, sc->sc_unit);
+
+		if(ng_name_node(sc->node, sc->nodename))
+		{
+			ng_rmnode(sc->node);
+			ng_unref(sc->node);
+		}
 	}
 }
 
@@ -341,11 +343,20 @@ static void
 ingclearqueue(struct ifqueue *iq)
 {
 	int x;
+	struct mbuf *m;
 	
-	x = splimp();
-	IF_DRAIN(iq);
-	splx(x);
-}
+	for(;;)
+	{
+		x = splimp();
+		IF_DEQUEUE(iq, m);
+		splx(x);
+
+		if(m)
+			m_freem(m);
+		else
+			break;
+	}
+}	
 #endif
 
 /*===========================================================================*
@@ -463,7 +474,6 @@ ing_rx_data_rdy(int unit)
 {
 	register struct ing_softc *sc = &ing_softc[unit];
 	register struct mbuf *m;
-	int error;
 	
 	if((m = *isdn_linktab[unit]->rx_mbuf) == NULL)
 		return;
@@ -476,7 +486,7 @@ ing_rx_data_rdy(int unit)
 
 	sc->sc_inpkt++;
 	
-	NG_SEND_DATA_ONLY(error, sc->hook, m);
+	ng_queue_data(sc->hook, m, NULL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -511,9 +521,14 @@ ing_tx_queue_empty(int unit)
 
 		x = 1;
 
-		if(! IF_HANDOFF(isdn_linktab[unit]->tx_queue, m, NULL))
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
 		{
 			NDBGL4(L4_INGDBG, "ing%d: tx queue full!", unit);
+			m_freem(m);
+		}
+		else
+		{
+			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 		}
 	}
 
@@ -575,7 +590,7 @@ ing_init_linktab(int unit)
  * If the hardware exists, it will already have created it.
  *---------------------------------------------------------------------------*/
 static int
-ng_ing_constructor(node_p node)
+ng_ing_constructor(node_p *nodep)
 {
 	return(EINVAL);
 }
@@ -587,14 +602,14 @@ ng_ing_constructor(node_p node)
 static int
 ng_ing_newhook(node_p node, hook_p hook, const char *name)
 {
-	struct ing_softc *sc = NG_NODE_PRIVATE(node);
+	struct ing_softc *sc = node->private;
 
 	/*
 	 * check if it's our friend the debug hook
 	 */
 	if(strcmp(name, NG_ING_HOOK_DEBUG) == 0)
 	{
-		NG_HOOK_SET_PRIVATE(hook, NULL); /* paranoid */
+		hook->private = NULL; /* paranoid */
 		sc->debughook = hook;
 		return (0);
 	}
@@ -603,7 +618,7 @@ ng_ing_newhook(node_p node, hook_p hook, const char *name)
 	 */
 	if(strcmp(name, NG_ING_HOOK_RAW) == 0)
 	{
-		NG_HOOK_SET_PRIVATE(hook, sc);
+		hook->private = sc;
 		sc->hook = hook;
 		return (0);
 	}
@@ -619,24 +634,15 @@ ng_ing_newhook(node_p node, hook_p hook, const char *name)
  * The response should be in a malloc'd region that the caller can 'free'.
  * A response is not required.
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
-static int
-ng_ing_rcvmsg(node_p node, item_p item, hook_p lasthook)
-#else
 static int
 ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-		struct ng_mesg **rptr)
-#endif
+							struct ng_mesg **rptr)
 {
-	struct ing_softc *sc = NG_NODE_PRIVATE(node);
+	struct ing_softc *sc = node->private;
 
 	struct ng_mesg *resp = NULL;
 	int error = 0;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
-	struct ng_mesg *msg;
 
-	NGI_GET_MSG(item, msg);
-#endif
 	if(msg->header.typecookie == NGM_GENERIC_COOKIE)
 	{
 		switch(msg->header.cmd)
@@ -729,38 +735,31 @@ ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 	}
 
 	/* Take care of synchronous response, if any */
-	NG_RESPOND_MSG(error, node, item, resp);
+
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH);
+
 	/* Free the message and return */
-	NG_FREE_MSG(msg);
+
+	FREE(msg, M_NETGRAPH);
 	return(error);
 }
 
 /*---------------------------------------------------------------------------*
  * get data from another node and transmit it out on a B-channel
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
-static int
-ng_ing_rcvdata(hook_p hook, item_p item)
-#else
 static int
 ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
-#endif
 {
-	struct ing_softc *sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ing_softc *sc = hook->node->private;
 	struct ifqueue  *xmitq_p;
 	int s;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
-	struct mbuf *m;
-	meta_p meta;
 	
-	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
-	NG_FREE_ITEM(item);
-#endif
-	if(NG_HOOK_PRIVATE(hook) == NULL)
+	if(hook->private == NULL)
 	{
-		NG_FREE_M(m);
-		NG_FREE_META(meta);
+		NG_FREE_DATA(m, meta);
 		return(ENETDOWN);
 	}
 	
@@ -787,19 +786,15 @@ ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	s = splimp();
 
-	IF_LOCK(xmitq_p);
-	if (_IF_QFULL(xmitq_p))
+	if (IF_QFULL(xmitq_p))
 	{
-		_IF_DROP(xmitq_p);
-		IF_UNLOCK(xmitq_p);
+		IF_DROP(xmitq_p);
 		splx(s);
-		NG_FREE_M(m);
-		NG_FREE_META(meta);
+		NG_FREE_DATA(m, meta);
 		return(ENOBUFS);
 	}
 
-	_IF_ENQUEUE(xmitq_p, m);
-	IF_UNLOCK(xmitq_p);
+	IF_ENQUEUE(xmitq_p, m);
 
 	ing_tx_queue_empty(sc->sc_unit);
 
@@ -813,31 +808,17 @@ ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
  * we'd only remove our links and reset ourself.
  *---------------------------------------------------------------------------*/
 static int
-ng_ing_shutdown(node_p node)
+ng_ing_rmnode(node_p node)
 {
-	struct ing_softc *sc = NG_NODE_PRIVATE(node);
-	int	ret;
+	struct ing_softc *sc = node->private;
 
-	NG_NODE_UNREF(node);
+	node->flags |= NG_INVALID;
+	ng_cutlinks(node);
 
 	sc->packets_in = 0;		/* reset stats */
 	sc->packets_out = 0;
 
-	if ((ret = ng_make_node_common(&typestruct, &sc->node)))
-	{
-		printf("ing: ng_make_node_common, ret = %d\n!", ret);
-	}
-
-	/* name the netgraph node */
-	sprintf(sc->nodename, "%s%d", NG_ING_NODE_TYPE, sc->sc_unit);
-	if((ret = ng_name_node(sc->node, sc->nodename)))
-	{
-		printf("ing: ng_name node, ret = %d\n!", ret);
-		NG_NODE_UNREF(sc->node);
-		return (0);
-	}
-
-	NG_NODE_SET_PRIVATE(sc->node, sc);
+	node->flags &= ~NG_INVALID;	/* reset invalid flag */
 
 	return (0);
 }
@@ -848,8 +829,6 @@ ng_ing_shutdown(node_p node)
 static int
 ng_ing_connect(hook_p hook)
 {
-	/* probably not at splnet, force outward queueing */
-	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 	return (0);
 }
 
@@ -861,10 +840,10 @@ ng_ing_connect(hook_p hook)
 static int
 ng_ing_disconnect(hook_p hook)
 {
-	struct ing_softc *sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ing_softc *sc = hook->node->private;
 	int s;
 	
-	if(NG_HOOK_PRIVATE(hook))
+	if(hook->private)
 	{
 		s = splimp();
 		splx(s);
