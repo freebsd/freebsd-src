@@ -32,8 +32,8 @@
 .Nm vlan
 .Nd IEEE 802.1Q VLAN network interface
 .Sh SYNOPSIS
-.\" In -stable: .Cd pseudo-device vlan Op Ar count
-.Cd device vlan Op Ar count
+.Cd pseudo-device vlan Op Ar count
+\." In -current: .Cd device vlan Op Ar count
 .\"
 .Sh DESCRIPTION
 The
@@ -77,11 +77,11 @@ By now, the only NICs that have both hardware support and proper
 driver hooks for the 802.1Q VLAN technology in
 .Fx
 are
-.Xr nge 4 ,
-.Xr ti 4 ,
+.Xr nge 4
 and
-.\" not in -stable
-.Xr txp 4 .
+.Xr ti 4 .
+.\" not in -stable:
+.\" .Xr txp 4 .
 .Pp
 The rest of the ethernet NICs supported by
 .Fx
@@ -109,9 +109,9 @@ requires defining
 .Dv BIG_PACKET
 in the
 .Pa /usr/src/sys/pci/if_de.c
-source file and rebuilding the kernel
-.\" not in -stable
-or module.
+source file and rebuilding the kernel.
+.\" not in -stable:
+.\" or module.
 The hack works only for the 21041, 21140, and 21140A chips.
 .It Xr fxp 4
 supports long frames for the
