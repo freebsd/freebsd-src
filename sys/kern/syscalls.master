@@ -485,18 +485,31 @@
 344	STD	BSD	{ int sigreturn(ucontext_t *sigcntxp); }
 345	UNIMPL	NOHIDE	sigtimedwait
 346	UNIMPL	NOHIDE	sigwaitinfo
-347	STD	BSD	{ int acl_syscall_get_file(char *path, acl_type_t type, struct acl *aclp); }
-348	STD	BSD	{ int acl_syscall_set_file(char *path, acl_type_t type, struct acl *aclp); }
-349	STD	BSD	{ int acl_syscall_get_fd(int filedes, acl_type_t type, struct acl *aclp); }
-350	STD	BSD	{ int acl_syscall_set_fd(int filedes, acl_type_t type, struct acl *aclp); }
-351	STD	BSD	{ int acl_syscall_delete_file(char *path, acl_type_t type); }
-352	STD	BSD	{ int acl_syscall_delete_fd(int filedes, acl_type_t type); }
-353	STD	BSD	{ int acl_syscall_aclcheck_file(char *path, acl_type_t type, struct acl *aclp); }
-354	STD	BSD	{ int acl_syscall_aclcheck_fd(int filedes, acl_type_t type, struct acl *aclp); }
-355	STD	BSD	{ int extattrctl(char *path, int cmd, char *attrname, caddr_t arg); }
-356	STD	BSD	{ int extattr_set_file(char *path, char *attrname, struct iovec *iovp, u_int iovcnt); }
-357	STD	BSD	{ int extattr_get_file(char *path, char *attrname, struct iovec *iovp, u_int iovcnt); }
-358	STD	BSD	{ int extattr_delete_file(char *path, char *attrname); }
+347	STD	BSD	{ int __acl_get_file(const char *path, \
+			    acl_type_t type, struct acl *aclp); }
+348	STD	BSD	{ int __acl_set_file(const char *path, \
+			    acl_type_t type, struct acl *aclp); }
+349	STD	BSD	{ int __acl_get_fd(int filedes, acl_type_t type, \
+			    struct acl *aclp); }
+350	STD	BSD	{ int __acl_set_fd(int filedes, acl_type_t type, \
+			    struct acl *aclp); }
+351	STD	BSD	{ int __acl_delete_file(const char *path, \
+			    acl_type_t type); }
+352	STD	BSD	{ int __acl_delete_fd(int filedes, acl_type_t type); }
+353	STD	BSD	{ int __acl_aclcheck_file(const char *path, \
+			    acl_type_t type, struct acl *aclp); }
+354	STD	BSD	{ int __acl_aclcheck_fd(int filedes, acl_type_t type, \
+			    struct acl *aclp); }
+355	STD	BSD	{ int extattrctl(const char *path, int cmd, \
+			    const char *attrname, char *arg); }
+356	STD	BSD	{ int extattr_set_file(const char *path, \
+			    const char *attrname, struct iovec *iovp, \
+			    unsigned iovcnt); }
+357	STD	BSD	{ int extattr_get_file(const char *path, \
+			    const char *attrname, struct iovec *iovp, \
+			    unsigned iovcnt); }
+358	STD	BSD	{ int extattr_delete_file(const char *path, \
+			    const char *attrname); }
 359	STD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
 360	STD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
 361	STD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
