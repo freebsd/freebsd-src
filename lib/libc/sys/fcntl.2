@@ -290,7 +290,9 @@ locks conflicts with the type specified in the request.
 This interface follows the completely stupid semantics of System V and
 .St -p1003.1-88
 that require that all locks associated with a file for a given process are
-removed when \fIany\fP file descriptor for that file is closed by that process.
+removed when 
+.Em any
+file descriptor for that file is closed by that process.
 This semantic means that applications must be aware of any files that
 a subroutine library may access.
 For example if an application for updating the password file locks the
