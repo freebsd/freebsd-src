@@ -78,9 +78,9 @@ static const char rcsid[] =
 
 struct cmdtab {
 	int command;
-	char *name;
-	unsigned  min;
-	char *args;
+	const char *name;
+	unsigned min;
+	const char *args;
 } cmdtab[] = {
 { CMD_CLOSE,    "close",        1, "" },
 { CMD_DEBUG,    "debug",        1, "on | off" },
@@ -103,7 +103,7 @@ struct cmdtab {
 { CMD_STOP,     "stop",         3, "" },
 { CMD_VOLUME,   "volume",       1, "<l> <r> | left | right | mute | mono | stereo" },
 { CMD_CDID,     "cdid",         2, "" },
-{ 0, }
+{ 0, NULL, 0, NULL }
 };
 
 struct cd_toc_entry     toc_buffer[100];
@@ -133,11 +133,18 @@ unsigned int    msf2lba __P((u_char m, u_char s, u_char f));
 int             play_blocks __P((int blk, int len));
 int             run __P((int cmd, char *arg));
 char            *parse __P((char *buf, int *cmd));
+void            help __P((void));
+void            usage __P((void));
+char            *use_cdrom_instead __P((const char *));
+__const char    *strstatus __P((int));
+static u_int    dbprog_discid __P((void));
+__const char    *cdcontrol_prompt __P((void));
 
 void help ()
 {
 	struct cmdtab *c;
-	char *s, n;
+	const char *s;
+	char n;
 	int i;
 
 	for (c=cmdtab; c->name; ++c) {
@@ -165,7 +172,7 @@ void usage ()
 	exit (1);
 }
 
-char *use_cdrom_instead(char *old_envvar)
+char *use_cdrom_instead(const char *old_envvar)
 {
 	char *device;
 
@@ -427,7 +434,8 @@ int run (int cmd, char *arg)
 int play (char *arg)
 {
 	struct ioc_toc_header h;
-	int rc, n, start, end = 0, istart = 1, iend = 1;
+	unsigned int n;
+	int rc, start, end = 0, istart = 1, iend = 1;
 
 	rc = ioctl (fd, CDIOREADTOCHEADER, &h);
 
@@ -736,7 +744,7 @@ int next_prev (char *arg, int cmd)
 	return (play_track (trk, 1, n, 1));
 }
 
-char *strstatus (int sts)
+const char *strstatus (int sts)
 {
 	switch (sts) {
 	case ASTS_INVALID:   return ("invalid");
@@ -905,7 +913,7 @@ int cdid ()
 	return id ? 0 : 1;
 }
 
-int info (char *arg)
+int info (char *arg __unused)
 {
 	struct ioc_toc_header h;
 	int rc, i, n;
@@ -1146,7 +1154,7 @@ char *parse (char *buf, int *cmd)
 {
 	struct cmdtab *c;
 	char *p;
-	int len;
+	unsigned int len;
 
 	for (p=buf; isspace (*p); p++)
 		continue;
