@@ -232,7 +232,8 @@ int uwx_decode_rhdr(
 	if ((b0 & 0x20) == 0) {
 	    TRACE_I_DECODE_RHDR_1("(R1) prologue", b0)
 	    rhdr->is_prologue = 1;
-	} else {
+	}
+	else {
 	    TRACE_I_DECODE_RHDR_1("(R1) body", b0)
 	}
 	rhdr->rlen = b0 & 0x1f;
@@ -263,7 +264,8 @@ int uwx_decode_rhdr(
 	if ((b0 & 0x03) == 0) {
 	    TRACE_I_DECODE_RHDR_1L("(R3) prologue", b0, val)
 	    rhdr->is_prologue = 1;
-	} else {
+	}
+	else {
 	    TRACE_I_DECODE_RHDR_1L("(R3) body", b0, val)
 	}
 	rhdr->rlen = (unsigned int) val;
@@ -863,7 +865,7 @@ int uwx_decode_prologue(
 	if (fr_mem_mask & 1) {
 	    newrstate[SBREG_FR + i] = UWX_DISP_PSPREL(fr_base);
 	    tspill[SBREG_FR + i] = 0;
-	    fr_base -= 8;
+	    fr_base -= 16;
 	    nfr--;
 	}
 	fr_mem_mask = fr_mem_mask >> 1;

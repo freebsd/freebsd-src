@@ -8,11 +8,11 @@
 AR = ar
 RANLIB = :
 
+OTHERCFLAGS =
 # OTHERCFLAGS = -DUWX_TRACE_ENABLE	# Enables trace output
 # OTHERCFLAGS = +DD64			# Builds 64-bit library
-OTHERCFLAGS =
 
-CFLAGS = +W944 -O $(OTHERCFLAGS)
+CFLAGS = -O $(OTHERCFLAGS)
 
 OBJS =		uwx_bstream.o uwx_context.o uwx_env.o uwx_scoreboard.o \
 		uwx_step.o uwx_str.o uwx_swap.o uwx_trace.o uwx_uinfo.o \
@@ -36,7 +36,7 @@ libuwx.sl:	$(OBJS) $(SELFOBJS)
 
 uwx_bstream.o:	uwx.h uwx_env.h uwx_bstream.h
 
-uwx_context.o:	uwx.h uwx_env.h uwx_scoreboard.h uwx_trace.h
+uwx_context.o:	uwx.h uwx_env.h uwx_scoreboard.h uwx_step.h uwx_trace.h
 
 uwx_env.o:	uwx.h uwx_env.h uwx_scoreboard.h uwx_str.h uwx_trace.h
 

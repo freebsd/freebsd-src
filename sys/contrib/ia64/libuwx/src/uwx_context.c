@@ -23,6 +23,7 @@
 #include "uwx_env.h"
 #include "uwx_context.h"
 #include "uwx_scoreboard.h"
+#include "uwx_step.h"
 #include "uwx_trace.h"
 
 int uwx_init_context(
@@ -46,6 +47,7 @@ int uwx_init_context(
     for (i = 0; i < NPRESERVEDGR; i++)
 	env->context.gr[i] = 0;
     env->context.valid_regs = VALID_BASIC4;
+    env->context.valid_frs = 0;
     env->rstate = 0;
     (void)uwx_init_history(env);
     return UWX_OK;
@@ -64,8 +66,17 @@ int uwx_get_reg(struct uwx_env *env, int regid, uint64_t *valp)
 
     status = UWX_OK;
 
+    if (regid == UWX_REG_GR(12))
+	regid = UWX_REG_SP;
     if (regid < NSPECIALREG && (env->context.valid_regs & (1 << regid)))
 	*valp = env->context.special[regid];
+    else if (regid == UWX_REG_PSP || regid == UWX_REG_RP ||
+					regid == UWX_REG_PFS) {
+	status = uwx_restore_markers(env);
+	if (status != UWX_OK)
+	    return status;
+	*valp = env->context.special[regid];
+    }
     else if (regid >= UWX_REG_GR(4) && regid <= UWX_REG_GR(7) &&
 		(env->context.valid_regs &
 		    (1 << (regid - UWX_REG_GR(4) + VALID_GR_SHIFT))) )
@@ -94,13 +105,13 @@ int uwx_get_reg(struct uwx_env *env, int regid, uint64_t *valp)
 		(env->context.valid_regs &
 		    (1 << (regid - UWX_REG_BR(1) + VALID_BR_SHIFT))) )
 	*valp = env->context.br[regid - UWX_REG_BR(1)];
-    else if (regid >= UWX_REG_FR(2) && regid <= UWX_REG_BR(5) &&
-		(env->context.valid_frs & (1 << (regid - UWX_REG_FR(2)))) ) {
+    else if (regid >= UWX_REG_FR(2) && regid <= UWX_REG_FR(5) &&
+	    (env->context.valid_frs & (1 << (regid - UWX_REG_FR(2)))) ) {
 	valp[0] = env->context.fr[regid - UWX_REG_FR(2)].part0;
 	valp[1] = env->context.fr[regid - UWX_REG_FR(2)].part1;
     }
-    else if (regid >= UWX_REG_FR(16) && regid <= UWX_REG_BR(31) &&
-		(env->context.valid_frs & (1 << (regid - UWX_REG_FR(2)))) ) {
+    else if (regid >= UWX_REG_FR(16) && regid <= UWX_REG_FR(31) &&
+	    (env->context.valid_frs & (1 << (regid - UWX_REG_FR(16) + 4))) ) {
 	valp[0] = env->context.fr[regid - UWX_REG_FR(16) + 4].part0;
 	valp[1] = env->context.fr[regid - UWX_REG_FR(16) + 4].part1;
     }
@@ -114,7 +125,7 @@ int uwx_get_reg(struct uwx_env *env, int regid, uint64_t *valp)
 	if (n != DWORDSZ)
 	    status = UWX_ERR_COPYIN_REG;
     }
-    else if (regid >= UWX_REG_FR(2) && regid <= UWX_REG_BR(127)) {
+    else if (regid >= UWX_REG_FR(2) && regid <= UWX_REG_FR(127)) {
 	if (env->copyin == 0)
 	    return UWX_ERR_NOCALLBACKS;
 	n = (*env->copyin)(UWX_COPYIN_REG, (char *)valp,
@@ -170,7 +181,7 @@ int uwx_get_nat(struct uwx_env *env, int regid, int *natp)
 	natcollp = bsp | 0x01f8;
 	if (natcollp >= bsp)
 	    n = (*env->copyin)(UWX_COPYIN_REG, (char *)&natcoll,
-			(uint64_t)UWX_REG_RNAT, DWORDSZ, env->cb_token);
+			(uint64_t)UWX_REG_AR_RNAT, DWORDSZ, env->cb_token);
 	else
 	    n = (*env->copyin)(UWX_COPYIN_RSTACK, (char *)&natcoll,
 			bsp, DWORDSZ, env->cb_token);
@@ -197,6 +208,8 @@ int uwx_get_spill_loc(struct uwx_env *env, int regid, uint64_t *dispp)
 
     status = UWX_OK;
 
+    if (regid == UWX_REG_GR(12))
+	regid = UWX_REG_SP;
     if (regid < NSPECIALREG)
 	*dispp = env->history.special[regid];
     else if (regid >= UWX_REG_GR(4) && regid <= UWX_REG_GR(7))
@@ -233,6 +246,8 @@ int uwx_set_reg(struct uwx_env *env, int regid, uint64_t val)
     if (env == 0)
 	return UWX_ERR_NOENV;
 
+    if (regid == UWX_REG_GR(12))
+	regid = UWX_REG_SP;
     if (regid < NSPECIALREG) {
 	env->context.special[regid] = val;
 	env->context.valid_regs |= 1 << regid;

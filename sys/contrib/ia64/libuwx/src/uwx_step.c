@@ -26,6 +26,7 @@
 #include "uwx_uinfo.h"
 #include "uwx_scoreboard.h"
 #include "uwx_str.h"
+#include "uwx_step.h"
 #include "uwx_trace.h"
 
 /*
@@ -44,6 +45,8 @@
 int uwx_decode_uvec(struct uwx_env *env, uint64_t *uvec, uint64_t **rstate);
 int uwx_restore_reg(struct uwx_env *env, uint64_t rstate,
 					uint64_t *valp, uint64_t *histp);
+int uwx_restore_freg(struct uwx_env *env, uint64_t rstate,
+					uint64_t *valp, uint64_t *histp);
 int uwx_restore_nat(struct uwx_env *env, uint64_t rstate, int unat);
 
 
@@ -59,12 +62,8 @@ int uwx_get_frame_info(struct uwx_env *env)
     struct uwx_utable_entry uentry;
     uint64_t uvecout[4];
 
-    if (env == 0)
-	return UWX_ERR_NOENV;
     if (env->copyin == 0 || env->lookupip == 0)
 	return UWX_ERR_NOCALLBACKS;
-    if ((env->context.valid_regs & VALID_BASIC4) != VALID_BASIC4)
-	return UWX_ERR_NOCONTEXT;
 
     env->function_offset = -1LL;
     env->function_name = 0;
@@ -131,7 +130,63 @@ int uwx_get_frame_info(struct uwx_env *env)
 }
 
 
+/* uwx_restore_markers: Restores the stack markers -- PSP, RP, PFS */
+
+int uwx_restore_markers(struct uwx_env *env)
+{
+    int status;
+    uint64_t val;
+    uint64_t hist;
+
+    if ((env->context.valid_regs & VALID_BASIC4) != VALID_BASIC4)
+	return UWX_ERR_NOCONTEXT;
+
+    /* If we haven't already obtained the frame info for the */
+    /* current frame, get it now. */
+
+    if (env->rstate == 0) {
+	status = uwx_get_frame_info(env);
+	if (status != UWX_OK)
+	    return status;
+    }
+
+    TRACE_S_STEP(env->rstate)
+
+    if (env->rstate[SBREG_PSP] != UWX_DISP_NONE) {
+	status = uwx_restore_reg(env, env->rstate[SBREG_PSP], &val, &hist);
+	if (status != UWX_OK)
+	    return status;
+	env->context.special[UWX_REG_PSP] = val;
+	env->history.special[UWX_REG_PSP] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_PSP;
+	TRACE_S_RESTORE_REG("PSP", env->rstate[SBREG_PSP], val)
+    }
+
+    if (env->rstate[SBREG_RP] != UWX_DISP_NONE) {
+	status = uwx_restore_reg(env, env->rstate[SBREG_RP], &val, &hist);
+	if (status != UWX_OK)
+	    return status;
+	env->context.special[UWX_REG_RP] = val;
+	env->history.special[UWX_REG_RP] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_RP;
+	TRACE_S_RESTORE_REG("RP", env->rstate[SBREG_RP], val)
+    }
+
+    if (env->rstate[SBREG_PFS] != UWX_DISP_NONE) {
+	status = uwx_restore_reg(env, env->rstate[SBREG_PFS], &val, &hist);
+	if (status != UWX_OK)
+	    return status;
+	env->context.special[UWX_REG_PFS] = val;
+	env->history.special[UWX_REG_PFS] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_PFS;
+	TRACE_S_RESTORE_REG("PFS", env->rstate[SBREG_PFS], val)
+    }
+
+    return UWX_OK;
+}
+
 /* uwx_get_sym_info: Gets symbolic info from current frame */
+
 int uwx_get_sym_info(
     struct uwx_env *env,
     char **modp,
@@ -147,10 +202,6 @@ int uwx_get_sym_info(
 
     if (env == 0)
 	return UWX_ERR_NOENV;
-    if (env->copyin == 0 || env->lookupip == 0)
-	return UWX_ERR_NOCALLBACKS;
-    if ((env->context.valid_regs & VALID_BASIC4) != VALID_BASIC4)
-	return UWX_ERR_NOCONTEXT;
 
     /* If we haven't already obtained the frame info for the */
     /* current frame, get it now. */
@@ -221,48 +272,15 @@ int uwx_step(struct uwx_env *env)
 
     if (env == 0)
 	return UWX_ERR_NOENV;
-    if (env->copyin == 0 || env->lookupip == 0)
-	return UWX_ERR_NOCALLBACKS;
-    if ((env->context.valid_regs & VALID_BASIC4) != VALID_BASIC4)
-	return UWX_ERR_NOCONTEXT;
-
-    /* If we haven't already obtained the frame info for the */
-    /* current frame, get it now. */
-
-    if (env->rstate == 0) {
-	status = uwx_get_frame_info(env);
-	if (status != UWX_OK)
-	    return status;
-    }
-
-    TRACE_S_STEP(env->rstate)
 
     /* Complete the current context by restoring the current values */
     /* of psp, rp, and pfs. */
 
-    if (env->rstate[SBREG_PSP] != UWX_DISP_NONE) {
-	status = uwx_restore_reg(env, env->rstate[SBREG_PSP], &val, &hist);
+    if (env->rstate == 0 ||
+	    (env->context.valid_regs & VALID_MARKERS) != VALID_MARKERS) {
+	status = uwx_restore_markers(env);
 	if (status != UWX_OK)
 	    return status;
-	env->context.special[UWX_REG_PSP] = val;
-	env->history.special[UWX_REG_PSP] = hist;
-	TRACE_S_RESTORE_REG("PSP", env->rstate[SBREG_PSP], val)
-    }
-    if (env->rstate[SBREG_RP] != UWX_DISP_NONE) {
-	status = uwx_restore_reg(env, env->rstate[SBREG_RP], &val, &hist);
-	if (status != UWX_OK)
-	    return status;
-	env->context.special[UWX_REG_RP] = val;
-	env->history.special[UWX_REG_RP] = hist;
-	TRACE_S_RESTORE_REG("RP", env->rstate[SBREG_RP], val)
-    }
-    if (env->rstate[SBREG_PFS] != UWX_DISP_NONE) {
-	status = uwx_restore_reg(env, env->rstate[SBREG_PFS], &val, &hist);
-	if (status != UWX_OK)
-	    return status;
-	env->context.special[UWX_REG_PFS] = val;
-	env->history.special[UWX_REG_PFS] = hist;
-	TRACE_S_RESTORE_REG("PFS", env->rstate[SBREG_PFS], val)
     }
 
     /* Check for bottom of stack (rp == 0). */
@@ -336,7 +354,7 @@ int uwx_step(struct uwx_env *env)
     if (env->nsbreg == NSBREG) {
 	for (i = 0; i < NSB_FR; i++) {
 	    if (env->rstate[SBREG_FR + i] != UWX_DISP_NONE) {
-		status = uwx_restore_reg(env,
+		status = uwx_restore_freg(env,
 			    env->rstate[SBREG_FR + i], fval, &hist);
 		if (status != UWX_OK)
 		    return status;
@@ -364,36 +382,36 @@ int uwx_step(struct uwx_env *env)
 	status = uwx_restore_reg(env, env->rstate[SBREG_RNAT], &val, &hist);
 	if (status != UWX_OK)
 	    return status;
-	env->context.special[UWX_REG_RNAT] = val;
-	env->history.special[UWX_REG_RNAT] = hist;
-	env->context.valid_regs |= 1 << UWX_REG_RNAT;
+	env->context.special[UWX_REG_AR_RNAT] = val;
+	env->history.special[UWX_REG_AR_RNAT] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_AR_RNAT;
 	TRACE_S_RESTORE_REG("RNAT", env->rstate[SBREG_RNAT], val)
     }
     if (env->rstate[SBREG_UNAT] != UWX_DISP_NONE) {
 	status = uwx_restore_reg(env, env->rstate[SBREG_UNAT], &val, &hist);
 	if (status != UWX_OK)
 	    return status;
-	env->context.special[UWX_REG_UNAT] = val;
-	env->history.special[UWX_REG_UNAT] = hist;
-	env->context.valid_regs |= 1 << UWX_REG_UNAT;
+	env->context.special[UWX_REG_AR_UNAT] = val;
+	env->history.special[UWX_REG_AR_UNAT] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_AR_UNAT;
 	TRACE_S_RESTORE_REG("UNAT", env->rstate[SBREG_UNAT], val)
     }
     if (env->rstate[SBREG_FPSR] != UWX_DISP_NONE) {
 	status = uwx_restore_reg(env, env->rstate[SBREG_FPSR], &val, &hist);
 	if (status != UWX_OK)
 	    return status;
-	env->context.special[UWX_REG_FPSR] = val;
-	env->history.special[UWX_REG_FPSR] = hist;
-	env->context.valid_regs |= 1 << UWX_REG_FPSR;
+	env->context.special[UWX_REG_AR_FPSR] = val;
+	env->history.special[UWX_REG_AR_FPSR] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_AR_FPSR;
 	TRACE_S_RESTORE_REG("FPSR", env->rstate[SBREG_FPSR], val)
     }
     if (env->rstate[SBREG_LC] != UWX_DISP_NONE) {
 	status = uwx_restore_reg(env, env->rstate[SBREG_LC], &val, &hist);
 	if (status != UWX_OK)
 	    return status;
-	env->context.special[UWX_REG_LC] = val;
-	env->history.special[UWX_REG_LC] = hist;
-	env->context.valid_regs |= 1 << UWX_REG_LC;
+	env->context.special[UWX_REG_AR_LC] = val;
+	env->history.special[UWX_REG_AR_LC] = hist;
+	env->context.valid_regs |= 1 << UWX_REG_AR_LC;
 	TRACE_S_RESTORE_REG("LC", env->rstate[SBREG_LC], val)
     }
 
@@ -426,6 +444,7 @@ int uwx_step(struct uwx_env *env)
     /* The frame info for the new frame isn't yet available. */
 
     env->rstate = 0;
+    env->context.valid_regs &= ~VALID_MARKERS;
 
     return UWX_OK;
 }
@@ -485,6 +504,50 @@ int uwx_restore_reg(struct uwx_env *env, uint64_t rstate,
 				UWX_GET_DISP_OFFSET(rstate);
 	    n = COPYIN_MSTACK_8((char *)valp, p);
 	    if (n != DWORDSZ)
+		status = UWX_ERR_COPYIN_MSTK;
+	    *histp = UWX_DISP_MSTK(p);
+	    break;
+	case UWX_DISP_REG(0):
+	    regid = UWX_GET_DISP_REGID(rstate);
+	    status = uwx_get_reg(env, regid, valp);
+	    (void) uwx_get_spill_loc(env, regid, histp);
+	    break;
+    }
+    return status;
+}
+
+#define COPYIN_MSTACK_16(dest, src) \
+    (env->remote? \
+	(*env->copyin)(UWX_COPYIN_MSTACK, (dest), (src), \
+						2*DWORDSZ, env->cb_token) : \
+	(*(uint64_t *)(dest) = *(uint64_t *)(src), \
+		*(uint64_t *)((dest)+8) = *(uint64_t *)((src)+8), \
+		2*DWORDSZ) )
+
+int uwx_restore_freg(struct uwx_env *env, uint64_t rstate,
+				uint64_t *valp, uint64_t *histp)
+{
+    int status;
+    uint64_t p;
+    int n;
+    int regid;
+
+    status = UWX_OK;
+
+    switch (UWX_GET_DISP_CODE(rstate)) {
+	case UWX_DISP_SPREL(0):
+	    p = env->context.special[UWX_REG_SP] +
+				UWX_GET_DISP_OFFSET(rstate);
+	    n = COPYIN_MSTACK_16((char *)valp, p);
+	    if (n != 2*DWORDSZ)
+		status = UWX_ERR_COPYIN_MSTK;
+	    *histp = UWX_DISP_MSTK(p);
+	    break;
+	case UWX_DISP_PSPREL(0):
+	    p = env->context.special[UWX_REG_PSP] + 16 -
+				UWX_GET_DISP_OFFSET(rstate);
+	    n = COPYIN_MSTACK_16((char *)valp, p);
+	    if (n != 2*DWORDSZ)
 		status = UWX_ERR_COPYIN_MSTK;
 	    *histp = UWX_DISP_MSTK(p);
 	    break;
