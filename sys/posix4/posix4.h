@@ -31,6 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include "opt_posix.h"
@@ -93,21 +94,22 @@ struct ksched;
 int ksched_attach(struct ksched **);
 int ksched_detach(struct ksched *);
 
-int ksched_setparam(int *, struct ksched *,
+int ksched_setparam(register_t *, struct ksched *,
 	struct proc *, const struct sched_param *);
-int ksched_getparam(int *, struct ksched *,
+int ksched_getparam(register_t *, struct ksched *,
 	struct proc *, struct sched_param *);
 
-int ksched_setscheduler(int *, struct ksched *,
+int ksched_setscheduler(register_t *, struct ksched *,
 	struct proc *, int, const struct sched_param *);
-int ksched_getscheduler(int *, struct ksched *, struct proc *);
+int ksched_getscheduler(register_t *, struct ksched *, struct proc *);
 
-int ksched_yield(int *, struct ksched *);
+int ksched_yield(register_t *, struct ksched *);
 
-int ksched_get_priority_max(int *, struct ksched *, int);
-int ksched_get_priority_min(int *, struct ksched *, int);
+int ksched_get_priority_max(register_t *, struct ksched *, int);
+int ksched_get_priority_min(register_t *, struct ksched *, int);
 
-int ksched_rr_get_interval(int *, struct ksched *, struct proc *, struct timespec *);
+int ksched_rr_get_interval(register_t *, struct ksched *,
+	struct proc *, struct timespec *);
 
 #endif /* _KPOSIX_PRIORITY_SCHEDULING */
 
