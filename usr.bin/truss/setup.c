@@ -64,61 +64,62 @@ static int evflags = 0;
  */
 
 int
-setup_and_wait(char *command[]) {
-  struct procfs_status pfs;
-  char buf[32];
-  int fd;
-  int pid;
-  int flags;
+setup_and_wait(char *command[])
+{
+	struct procfs_status pfs;
+	char buf[32];
+	int fd;
+	int pid;
+	int flags;
 
-  pid = fork();
-  if (pid == -1) {
-    err(1, "fork failed");
-  }
-  if (pid == 0) {	/* Child */
-    int mask = S_EXEC | S_EXIT;
-    fd = open("/proc/curproc/mem", O_WRONLY);
-    if (fd == -1)
-      err(2, "cannot open /proc/curproc/mem");
-    fcntl(fd, F_SETFD, 1);
-    if (ioctl(fd, PIOCBIS, mask) == -1)
-      err(3, "PIOCBIS");
-    flags = PF_LINGER;
-    /*
-     * The PF_LINGER flag tells procfs not to wake up the
-     * process on last close; normally, this is the behaviour
-     * we want.
-     */
-    if (ioctl(fd, PIOCSFL, flags) == -1)
-      warn("cannot set PF_LINGER");
-    execvp(command[0], command);
-    mask = ~0;
-    ioctl(fd, PIOCBIC, ~0);
-    err(4, "execvp %s", command[0]);
-  }
-  /* Only in the parent here */
+	pid = fork();
+	if (pid == -1) {
+		err(1, "fork failed");
+	}
+	if (pid == 0) {	/* Child */
+		int mask = S_EXEC | S_EXIT;
+		fd = open("/proc/curproc/mem", O_WRONLY);
+		if (fd == -1)
+			err(2, "cannot open /proc/curproc/mem");
+		fcntl(fd, F_SETFD, 1);
+		if (ioctl(fd, PIOCBIS, mask) == -1)
+			err(3, "PIOCBIS");
+		flags = PF_LINGER;
+		/*
+		 * The PF_LINGER flag tells procfs not to wake up the
+		 * process on last close; normally, this is the behaviour
+		 * we want.
+		 */
+		if (ioctl(fd, PIOCSFL, flags) == -1)
+			warn("cannot set PF_LINGER");
+		execvp(command[0], command);
+		mask = ~0;
+		ioctl(fd, PIOCBIC, ~0);
+		err(4, "execvp %s", command[0]);
+	}
+	/* Only in the parent here */
 
-  if (waitpid(pid, NULL, WNOHANG) != 0) {
-    /*
-     * Process exited before it got to us -- meaning the exec failed
-     * miserably -- so we just quietly exit.
-     */
-    exit(1);
-  }
+	if (waitpid(pid, NULL, WNOHANG) != 0) {
+		/*
+		 * Process exited before it got to us -- meaning the exec failed
+		 * miserably -- so we just quietly exit.
+		 */
+		exit(1);
+	}
 
-  sprintf(buf, "/proc/%d/mem", pid);
-  if ((fd = open(buf, O_RDWR)) == -1)
-    err(5, "cannot open %s", buf);
-  if (ioctl(fd, PIOCWAIT, &pfs) == -1)
-    err(6, "PIOCWAIT");
-  if (pfs.why == S_EXIT) {
-    warnx("process exited before exec'ing");
-    ioctl(fd, PIOCCONT, 0);
-    wait(0);
-    exit(7);
-  }
-  close(fd);
-  return pid;
+	sprintf(buf, "/proc/%d/mem", pid);
+	if ((fd = open(buf, O_RDWR)) == -1)
+		err(5, "cannot open %s", buf);
+	if (ioctl(fd, PIOCWAIT, &pfs) == -1)
+		err(6, "PIOCWAIT");
+	if (pfs.why == S_EXIT) {
+		warnx("process exited before exec'ing");
+		ioctl(fd, PIOCCONT, 0);
+		wait(0);
+		exit(7);
+	}
+	close(fd);
+	return (pid);
 }
 
 /*
@@ -128,42 +129,44 @@ setup_and_wait(char *command[]) {
  */
 
 int
-start_tracing(int pid, int eventflags, int flags) {
-  int fd;
-  char buf[32];
-  struct procfs_status tmp;
-  sprintf(buf, "/proc/%d/mem", pid);
+start_tracing(int pid, int eventflags, int flags)
+{
+	int fd;
+	char buf[32];
+	struct procfs_status tmp;
 
-  fd = open(buf, O_RDWR);
-  if (fd == -1) {
-    /*
-     * The process may have run away before we could start -- this
-     * happens with SUGID programs.  So we need to see if it still
-     * exists before we complain bitterly.
-     */
-    if (kill(pid, 0) == -1)
-      return -1;
-    err(8, "cannot open %s", buf);
-  }
+	sprintf(buf, "/proc/%d/mem", pid);
 
-  if (ioctl(fd, PIOCSTATUS, &tmp) == -1) {
-    err(10, "cannot get procfs status struct");
-  }
-  evflags = tmp.events;
+	fd = open(buf, O_RDWR);
+	if (fd == -1) {
+		/*
+		 * The process may have run away before we could start -- this
+		 * happens with SUGID programs.  So we need to see if it still
+		 * exists before we complain bitterly.
+		 */
+		if (kill(pid, 0) == -1)
+			return -1;
+		err(8, "cannot open %s", buf);
+	}
 
-  if (ioctl(fd, PIOCBIS, eventflags) == -1)
-    err(9, "cannot set procfs event bit mask");
+	if (ioctl(fd, PIOCSTATUS, &tmp) == -1) {
+		err(10, "cannot get procfs status struct");
+	}
+	evflags = tmp.events;
 
-  /*
-   * This clears the PF_LINGER set above in setup_and_wait();
-   * if truss happens to die before this, then the process
-   * needs to be woken up via procctl.
-   */
+	if (ioctl(fd, PIOCBIS, eventflags) == -1)
+		err(9, "cannot set procfs event bit mask");
 
-  if (ioctl(fd, PIOCSFL, flags) == -1)
-    warn("cannot clear PF_LINGER");
+	/*
+	 * This clears the PF_LINGER set above in setup_and_wait();
+	 * if truss happens to die before this, then the process
+	 * needs to be woken up via procctl.
+	 */
 
-  return fd;
+	if (ioctl(fd, PIOCSFL, flags) == -1)
+		warn("cannot clear PF_LINGER");
+
+	return (fd);
 }
 
 /*
@@ -175,8 +178,8 @@ start_tracing(int pid, int eventflags, int flags) {
 void
 restore_proc(int signo __unused) {
 
-  ioctl(Procfd, PIOCBIC, ~0);
-  if (evflags)
-    ioctl(Procfd, PIOCBIS, evflags);
-  exit(0);
+	ioctl(Procfd, PIOCBIC, ~0);
+	if (evflags)
+		ioctl(Procfd, PIOCBIS, evflags);
+	exit(0);
 }
