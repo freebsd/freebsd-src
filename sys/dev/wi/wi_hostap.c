@@ -105,6 +105,13 @@ static void wihap_disassoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
     caddr_t pkt, int len);
 
 /*
+ * Spl use in this driver.
+ *
+ * splnet is used everywhere here to block timeouts when we need to do
+ * so.
+ */
+
+/*
  * take_hword()
  *
  *	Used for parsing management frames.  The pkt pointer and length
@@ -294,7 +301,7 @@ wihap_shutdown(struct wi_softc *sc)
 	 * a single broadcast.  Maybe try that someday.
 	 */
 
-	s = splimp();
+	s = splnet();
 	sta = LIST_FIRST(&whi->sta_list);
 	while (sta) {
 		untimeout(wihap_sta_timeout, sta, sta->tmo);
@@ -318,6 +325,7 @@ wihap_shutdown(struct wi_softc *sc)
 	}
 
 	whi->apflags = 0;
+	splx(s);
 }
 
 /* sta_hash_func()
@@ -1067,7 +1075,7 @@ wihap_data_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 		return (1);
 	}
 
-	s = splclock();
+	s = splnet();
 
 	/* Find source station. */
 	sta = wihap_sta_find(whi, rxfrm->wi_addr2);
@@ -1140,7 +1148,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 			break;
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
-		s = splimp();
+		s = splnet();
 		sta = wihap_sta_find(whi, reqsta.addr);
 		if (sta == NULL)
 			error = ENOENT;
@@ -1162,21 +1170,21 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 	case SIOCHOSTAP_GET:
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
-		s = splimp();
+		s = splnet();
 		sta = wihap_sta_find(whi, reqsta.addr);
-		if (sta == NULL)
+		if (sta == NULL) {
 			error = ENOENT;
-		else {
+			splx(s);
+		} else {
 			reqsta.flags = sta->flags;
 			reqsta.asid = sta->asid;
 			reqsta.capinfo = sta->capinfo;
 			reqsta.sig_info = sta->sig_info;
 			reqsta.rates = sta->rates;
-
+			splx(s);
 			error = copyout(&reqsta, ifr->ifr_data,
 			    sizeof(reqsta));
 		}
-		splx(s);
 		break;
 
 	case SIOCHOSTAP_ADD:
@@ -1184,7 +1192,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 			break;
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
-		s = splimp();
+		s = splnet();
 		sta = wihap_sta_find(whi, reqsta.addr);
 		if (sta != NULL) {
 			error = EEXIST;
@@ -1224,7 +1232,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 
 		reqall.nstations = whi->n_stations;
 		n = 0;
-		s = splimp();
+		s = splnet();
 		sta = LIST_FIRST(&whi->sta_list);
 		while (sta && reqall.size >= n+sizeof(struct hostap_sta)) {
 
