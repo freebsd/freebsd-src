@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.4 1995/06/02 15:31:11 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.5 1995/06/02 19:15:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,12 +75,16 @@ mediaSetFtpUserPass(char *str)
 static Boolean
 get_new_host(void)
 {
-    int i;
+    Boolean i;
     char *oldTitle = MenuMediaFTP.title;
 
     MenuMediaFTP.title = "Open timed out - please select another ftp site";
     i = dmenuOpenSimple(&MenuMediaFTP);
     MenuMediaFTP.title = oldTitle;
+    if (i) {
+	mediaShutdownFtp(mediaDevice);
+	i = mediaInitFtp(mediaDevice);
+    }
     return i;
 }
 
@@ -184,11 +188,9 @@ evil_goto:
     if (fd < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2) {
-	    if (mediaDevice->shutdown)
-		(*mediaDevice->shutdown)(mediaDevice);
-	    if (mediaDevice->init)
-		if (!(*mediaDevice->init)(mediaDevice))
-		    return -1;
+	    mediaShutdownFTP(mediaDevice);
+	    if (!mediaInitFTP(mediaDevice))
+		return -1;
 	}
 	if ((OptFlags & OPT_FTP_RESELECT) || ++nretries > MAX_FTP_RETRIES) {
 	    if (!get_new_host())

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13 1995/05/30 08:28:37 rgrimes Exp $
+ * $Id: ftp.c,v 1.13.2.1 1995/06/02 18:19:18 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -128,6 +128,7 @@ static int
 botch(FTP_t ftp, char *func, char *state)
 {
     debug(ftp, "Botch: %s called outside state %s\n",func,state);
+    return -2;
 }
 
 static int
