@@ -32,12 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -199,8 +197,8 @@ execvp(name, argv)
 	char * const *argv;
 {
 	char **memp;
-	register int cnt, lp, ln;
-	register char *p;
+	int cnt, lp, ln;
+	char *p;
 	int eacces, save_errno;
 	char *bp, *cur, *path, buf[MAXPATHLEN];
 	struct stat sb;

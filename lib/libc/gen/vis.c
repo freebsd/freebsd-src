@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <limits.h>
@@ -50,9 +50,9 @@ static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
  */
 char *
 vis(dst, c, flag, nextc)
-	register char *dst;
+	char *dst;
 	int c, nextc;
-	register int flag;
+	int flag;
 {
 	c = (unsigned char)c;
 
@@ -171,11 +171,11 @@ done:
  */
 int
 strvis(dst, src, flag)
-	register char *dst;
-	register const char *src;
+	char *dst;
+	const char *src;
 	int flag;
 {
-	register char c;
+	char c;
 	char *start;
 
 	for (start = dst; (c = *src); )
@@ -186,9 +186,9 @@ strvis(dst, src, flag)
 
 int
 strvisx(dst, src, len, flag)
-	register char *dst;
-	register const char *src;
-	register size_t len;
+	char *dst;
+	const char *src;
+	size_t len;
 	int flag;
 {
 	int c;

@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)psignal.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Print the name of the signal indicated
@@ -52,7 +52,7 @@ psignal(sig, s)
 	unsigned int sig;
 	const char *s;
 {
-	register const char *c;
+	const char *c;
 
 	if (sig < NSIG)
 		c = sys_siglist[sig];

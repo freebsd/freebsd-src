@@ -30,7 +30,6 @@
 static char rcsid[] = "$OpenBSD: basename.c,v 1.4 1999/05/30 17:10:30 espie Exp $";
 #endif /* not lint */
 #endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -44,7 +43,7 @@ basename(path)
 	const char *path;
 {
 	static char bname[MAXPATHLEN];
-	register const char *endp, *startp;
+	const char *endp, *startp;
 
 	/* Empty or NULL string gets treated as "." */
 	if (path == NULL || *path == '\0') {

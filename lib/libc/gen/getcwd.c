@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getcwd.c	8.5 (Berkeley) 2/7/95";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -59,12 +59,12 @@ getcwd(pt, size)
 	char *pt;
 	size_t size;
 {
-	register struct dirent *dp;
-	register DIR *dir = NULL;
-	register dev_t dev;
-	register ino_t ino;
-	register int first;
-	register char *bpt, *bup;
+	struct dirent *dp;
+	DIR *dir = NULL;
+	dev_t dev;
+	ino_t ino;
+	int first;
+	char *bpt, *bup;
 	struct stat s;
 	dev_t root_dev;
 	ino_t root_ino;
