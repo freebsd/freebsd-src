@@ -444,7 +444,7 @@ if_attach(struct ifnet *ifp)
 		sdl->sdl_data[--namelen] = 0xff;
 	ifa->ifa_refcnt = 1;
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
-	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
+	ifp->if_broadcastaddr = NULL; /* reliably crash if used uninitialized */
 	ifp->if_snd.altq_type = 0;
 	ifp->if_snd.altq_disc = NULL;
 	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
@@ -493,6 +493,8 @@ if_attachdomain1(struct ifnet *ifp)
 	if (ifp->if_afdata_initialized) {
 		IF_AFDATA_UNLOCK(ifp);
 		splx(s);
+		printf("if_attachdomain called more than once on %s\n",
+		    ifp->if_xname);
 		return;
 	}
 	ifp->if_afdata_initialized = 1;
@@ -1920,15 +1922,15 @@ if_start(struct ifnet *ifp)
 {
 
 	NET_ASSERT_GIANT();
-                
-        if ((ifp->if_flags & IFF_NEEDSGIANT) != 0 && debug_mpsafenet != 0) {
-                if (mtx_owned(&Giant))
-                        (*(ifp)->if_start)(ifp);
-                else
+
+	if ((ifp->if_flags & IFF_NEEDSGIANT) != 0 && debug_mpsafenet != 0) {
+		if (mtx_owned(&Giant))
+			(*(ifp)->if_start)(ifp);
+		else
 			taskqueue_enqueue(taskqueue_swi_giant,
 			    &ifp->if_starttask);
-        } else
-                (*(ifp)->if_start)(ifp);
+	} else
+		(*(ifp)->if_start)(ifp);
 }
 
 static void
