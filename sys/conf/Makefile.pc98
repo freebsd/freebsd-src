@@ -55,6 +55,9 @@ INCLUDES+= -I/usr/include
 # include path into 100+ source files.
 INCLUDES+= -I$S/contrib/dev/acpica
 
+# ... and the same for ipfilter
+INCLUDES+= -I$S/contrib/ipfilter
+
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
