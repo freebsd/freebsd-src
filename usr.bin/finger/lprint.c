@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <utmp.h>
 #include "finger.h"
 #include "pathnames.h"
-#include "extern.h"
 
 #define	LINE_LEN	80
 #define	TAB_LEN		8		/* 8 spaces between tabs */
