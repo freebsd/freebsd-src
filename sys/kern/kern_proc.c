@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -608,17 +609,23 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 	}
 }
 #endif /* DDB */
+void
+fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp);
 
 /*
  * Fill in a kinfo_proc structure for the specified process.
  * Must be called with the target process locked.
  */
 void
-fill_kinfo_proc(p, kp)
-	struct proc *p;
-	struct kinfo_proc *kp;
+fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
-	struct thread *td;
+	fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
+}
+
+void
+fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
+{
+	struct proc *p;
 	struct thread *td0;
 	struct kse *ke;
 	struct ksegrp *kg;
@@ -627,7 +634,7 @@ fill_kinfo_proc(p, kp)
 	struct timeval tv;
 	struct sigacts *ps;
 
-	td = FIRST_THREAD_IN_PROC(p);
+	p = td->td_proc;
 
 	bzero(kp, sizeof(*kp));
 
@@ -694,6 +701,7 @@ fill_kinfo_proc(p, kp)
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
 	if (p->p_state != PRS_ZOMBIE) {
+#if 0
 		if (td == NULL) {
 			/* XXXKSE: This should never happen. */
 			printf("fill_kinfo_proc(): pid %d has no threads!\n",
@@ -701,16 +709,15 @@ fill_kinfo_proc(p, kp)
 			mtx_unlock_spin(&sched_lock);
 			return;
 		}
-		if (!(p->p_flag & P_THREADED)) {
-			if (td->td_wmesg != NULL) {
-				strlcpy(kp->ki_wmesg, td->td_wmesg,
-				    sizeof(kp->ki_wmesg));
-			}
-			if (TD_ON_LOCK(td)) {
-				kp->ki_kiflag |= KI_LOCKBLOCK;
-				strlcpy(kp->ki_lockname, td->td_lockname,
-				    sizeof(kp->ki_lockname));
-			}
+#endif
+		if (td->td_wmesg != NULL) {
+			strlcpy(kp->ki_wmesg, td->td_wmesg,
+			    sizeof(kp->ki_wmesg));
+		}
+		if (TD_ON_LOCK(td)) {
+			kp->ki_kiflag |= KI_LOCKBLOCK;
+			strlcpy(kp->ki_lockname, td->td_lockname,
+			    sizeof(kp->ki_lockname));
 		}
 
 		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
@@ -734,42 +741,39 @@ fill_kinfo_proc(p, kp)
 		kp->ki_sflag = p->p_sflag;
 		kp->ki_swtime = p->p_swtime;
 		kp->ki_pid = p->p_pid;
-		/* vvv XXXKSE */
-		if (!(p->p_flag & P_THREADED)) {
-			kg = td->td_ksegrp;
-			ke = td->td_kse;
-			KASSERT((ke != NULL), ("fill_kinfo_proc: Null KSE"));
-			bintime2timeval(&p->p_runtime, &tv);
-			kp->ki_runtime =
-			    tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+		kg = td->td_ksegrp;
+		ke = td->td_kse;
+		bintime2timeval(&p->p_runtime, &tv);
+		kp->ki_runtime =
+		    tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
 
-			/* things in the KSE GROUP */
-			kp->ki_estcpu = kg->kg_estcpu;
-			kp->ki_slptime = kg->kg_slptime;
-			kp->ki_pri.pri_user = kg->kg_user_pri;
-			kp->ki_pri.pri_class = kg->kg_pri_class;
-			kp->ki_nice = kg->kg_nice;
+		/* things in the KSE GROUP */
+		kp->ki_estcpu = kg->kg_estcpu;
+		kp->ki_slptime = kg->kg_slptime;
+		kp->ki_pri.pri_user = kg->kg_user_pri;
+		kp->ki_pri.pri_class = kg->kg_pri_class;
+		kp->ki_nice = kg->kg_nice;
 
-			/* Things in the thread */
-			kp->ki_wchan = td->td_wchan;
-			kp->ki_pri.pri_level = td->td_priority;
-			kp->ki_pri.pri_native = td->td_base_pri;
-			kp->ki_lastcpu = td->td_lastcpu;
-			kp->ki_oncpu = td->td_oncpu;
-			kp->ki_tdflags = td->td_flags;
-			kp->ki_pcb = td->td_pcb;
-			kp->ki_kstack = (void *)td->td_kstack;
+		/* Things in the thread */
+		kp->ki_wchan = td->td_wchan;
+		kp->ki_pri.pri_level = td->td_priority;
+		kp->ki_pri.pri_native = td->td_base_pri;
+		kp->ki_lastcpu = td->td_lastcpu;
+		kp->ki_oncpu = td->td_oncpu;
+		kp->ki_tdflags = td->td_flags;
+		kp->ki_pcb = td->td_pcb;
+		kp->ki_kstack = (void *)td->td_kstack;
 
-			/* Things in the kse */
+		/* Things in the kse */
+
+		if (ke) {
 			kp->ki_rqindex = ke->ke_rqindex;
 			kp->ki_pctcpu = sched_pctcpu(ke);
 		} else {
-			kp->ki_oncpu = -1;
-			kp->ki_lastcpu = -1;
-			kp->ki_tdflags = -1;
-			/* All the rest are 0 for now */
+			kp->ki_rqindex = 0;
+			kp->ki_pctcpu = 0;
 		}
-		/* ^^^ XXXKSE */
+
 	} else {
 		kp->ki_stat = SZOMB;
 	}
@@ -837,25 +841,44 @@ zpfind(pid_t pid)
 	return (p);
 }
 
+#define KERN_PROC_ZOMBMASK	0x3
+#define KERN_PROC_NOTHREADS	0x4
 
 /*
  * Must be called with the process locked and will return with it unlocked.
  */
 static int
-sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
+sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 {
+	struct thread *td;
 	struct kinfo_proc kinfo_proc;
-	int error;
+	int error = 0;
 	struct proc *np;
 	pid_t pid = p->p_pid;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	fill_kinfo_proc(p, &kinfo_proc);
+
+	if (flags & KERN_PROC_NOTHREADS) {
+		fill_kinfo_proc(p, &kinfo_proc);
+		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
+				   sizeof(kinfo_proc));
+	} else {
+		_PHOLD(p);
+		FOREACH_THREAD_IN_PROC(p, td) {
+			fill_kinfo_thread(td, &kinfo_proc);
+			PROC_UNLOCK(p);
+			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
+					   sizeof(kinfo_proc));
+			PROC_LOCK(p);
+			if (error)
+				break;
+		}
+		_PRELE(p);
+	}
 	PROC_UNLOCK(p);
-	error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc, sizeof(kinfo_proc));
 	if (error)
 		return (error);
-	if (doingzomb)
+	if (flags & KERN_PROC_ZOMBMASK)
 		np = zpfind(pid);
 	else {
 		if (pid == 0)
@@ -878,7 +901,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	int doingzomb;
+	int flags, doingzomb;
 	int error = 0;
 
 	if (oidp->oid_number == KERN_PROC_PID) {
@@ -891,7 +914,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			PROC_UNLOCK(p);
 			return (0);
 		}
-		error = sysctl_out_proc(p, req, 0);
+		error = sysctl_out_proc(p, req, KERN_PROC_NOTHREADS);
 		return (error);
 	}
 	if (oidp->oid_number == KERN_PROC_ALL && !namelen)
@@ -932,6 +955,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				PROC_UNLOCK(p);
 				continue;
 			}
+			flags = 0;
 			/*
 			 * TODO - make more efficient (see notes below).
 			 * do by session.
@@ -979,9 +1003,17 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 					continue;
 				}
 				break;
+
+			case KERN_PROC_PROC:
+				flags |= KERN_PROC_NOTHREADS;
+				break;
+
+			default:
+				break;
+
 			}
 
-			error = sysctl_out_proc(p, req, doingzomb);
+			error = sysctl_out_proc(p, req, flags | doingzomb);
 			if (error) {
 				sx_sunlock(&allproc_lock);
 				return (error);
@@ -1113,6 +1145,8 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD,
 SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
+SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD,
+	sysctl_kern_proc, "Return process table, no threads");
+
 SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
 	sysctl_kern_proc_args, "Process argument list");
-
