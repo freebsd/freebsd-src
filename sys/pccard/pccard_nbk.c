@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1999, M. Warner Losh.
- * All rights reserved.
+ * Copyright (c) 1999, 2001 M. Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,13 +52,21 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/select.h>
+#include <sys/sysctl.h>
+#include <sys/queue.h>
 #include <sys/types.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+
+/* XXX Shouldn't reach into the MD code here */
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
+#include <i386/isa/isa.h>
+#endif
 
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
@@ -78,7 +85,17 @@ devclass_t	pccard_devclass;
 
 #define PCCARD_DEVINFO(d) (struct pccard_devinfo *) device_get_ivars(d)
 
-#if NOT_YET_XXX
+SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
+
+static u_long mem_start = IOM_BEGIN;
+static u_long mem_end = IOM_END;
+
+SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_start, CTLFLAG_RW,
+    &mem_start, 0, "");
+SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_end, CTLFLAG_RW,
+    &mem_end, 0, "");
+
+#ifdef NOT_YET_XXX
 /*
  * glue for NEWCARD/OLDCARD compat layer
  */
@@ -98,8 +115,14 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 static int
 pccard_probe(device_t dev)
 {
-	device_set_desc(dev, "PC Card bus -- kludge version");
-	return 0;
+	device_set_desc(dev, "PC Card bus (classic)");
+	return (0);
+}
+
+static int
+pccard_attach(device_t dev)
+{
+	return (0);
 }
 
 static void
@@ -167,21 +190,21 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
 	    && type != SYS_RES_IRQ && type != SYS_RES_DRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (rid < 0)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IOPORT && rid >= PCCARD_NPORT)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_MEMORY && rid >= PCCARD_NMEM)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IRQ && rid >= PCCARD_NIRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_DRQ && rid >= PCCARD_NDRQ)
-		return EINVAL;
+		return (EINVAL);
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -194,14 +217,14 @@ pccard_get_resource(device_t dev, device_t child, int type, int rid,
 
 	rle = resource_list_find(rl, type, rid);
 	if (!rle)
-		return ENOENT;
+		return (ENOENT);
 	
 	if (startp)
 		*startp = rle->start;
 	if (countp)
 		*countp = rle->count;
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -218,7 +241,7 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	/*
 	 * Consider adding a resource definition. We allow rid 0 for
-	 * irq, 0-3 for memory and 0-1 for ports
+	 * irq, 0-4 for memory and 0-1 for ports
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault;
@@ -228,34 +251,34 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource *res;
 
 	if (start == 0 && end == ~0 && type == SYS_RES_MEMORY && count != 1) {
-		start = 0xd0000;
-		end = 0xdffff;
+		start = mem_start;
+		end = mem_end;
 	}
 	isdefault = (start == 0UL && end == ~0UL);
 	if (!passthrough && !isdefault) {
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
 			if (*rid < 0)
-				return 0;
+				return (NULL);
 			switch (type) {
 			case SYS_RES_IRQ:
 				if (*rid >= PCCARD_NIRQ)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_DRQ:
 				if (*rid >= PCCARD_NDRQ)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_MEMORY:
 				if (*rid >= PCCARD_NMEM)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_IOPORT:
 				if (*rid >= PCCARD_NPORT)
-					return 0;
+					return (NULL);
 				break;
 			default:
-				return 0;
+				return (NULL);
 			}
 			resource_list_add(rl, type, *rid, start, end, count);
 		}
@@ -271,7 +294,7 @@ pccard_release_resource(device_t bus, device_t child, int type, int rid,
 {
 	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
-	return resource_list_release(rl, bus, child, type, rid, r);
+	return (resource_list_release(rl, bus, child, type, rid, r));
 }
 
 static int
@@ -282,48 +305,46 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	switch (which) {
 	case PCCARD_IVAR_ETHADDR:
 		bcopy(devi->misc, result, ETHER_ADDR_LEN);
-		return 0;
+		return (0);
 	}
-	return ENOENT;
+	return (ENOENT);
 }
-
-/* Pass card requests up to pcic.  This may mean a bad design XXX */
 
 static int
 pccard_set_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long value)
 {
-	return CARD_SET_RES_FLAGS(device_get_parent(bus), child, restype,
-	    rid, value);
+	return (CARD_SET_RES_FLAGS(device_get_parent(bus), child, restype,
+	    rid, value));
 }
 
 static int
 pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long *value)
 {
-	return CARD_GET_RES_FLAGS(device_get_parent(bus), child, restype,
-	    rid, value);
+	return (CARD_GET_RES_FLAGS(device_get_parent(bus), child, restype,
+	    rid, value));
 }
 
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
     u_int32_t offset)
 {
-	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset);
+	return (CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
+	    offset));
 }
 
 static int
 pccard_get_memory_offset(device_t bus, device_t child, int rid, 
     u_int32_t *offset)
 {
-	return CARD_GET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset);
+	return (CARD_GET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
+	    offset));
 }
 
 #ifdef NOT_YET_XXX
 static int
-pccard_get_function(device_t bus, device_t child, int *function)
+pccard_get_function_num(device_t bus, device_t child, int *function)
 {
 	*function = 0;
 	return (0);
@@ -347,14 +368,14 @@ const struct pccard_product *
 pccard_product_lookup(device_t dev, const struct pccard_product *tab,
     size_t ent_size, pccard_product_match_fn matchfn)
 {
-	return NULL;
+	return (NULL);
 }
 #endif
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	pccard_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	pccard_suspend),
 	DEVMETHOD(device_resume,	pccard_resume),
@@ -379,23 +400,22 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
  	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
 #ifdef NOT_YET_XXX
-	DEVMETHOD(card_get_function,	pccard_get_function),
+	DEVMETHOD(card_get_function,	pccard_get_function_num),
 	DEVMETHOD(card_activate_function, pccard_activate_function),
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
 #endif
-
 	{ 0, 0 }
 };
 
 static driver_t pccard_driver = {
 	"pccard",
 	pccard_methods,
-	1,			/* no softc */
+	sizeof(struct slot)
 };
 
 DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
-DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
-DRIVER_MODULE(pccard, cbb, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, mecia, pccard_driver, pccard_devclass, 0, 0);
+DRIVER_MODULE(pccard, tcic, pccard_driver, pccard_devclass, 0, 0);
 MODULE_VERSION(pccard, 1);

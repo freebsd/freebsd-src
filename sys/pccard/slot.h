@@ -70,12 +70,6 @@ struct slot_ctrl {
 				/* suspend/resume support */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */
-
-	/*
-	 *	The rest is maintained by the mainline PC-CARD code.
-	 */
-	struct slot_ctrl *next;	/* Allows linked list of controllers */
-	int	slots;		/* Slots available */
 };
 
 /*
@@ -118,11 +112,16 @@ struct slot {
 	struct slot_ctrl *ctrl;		/* Per-controller data */
 	void		*cdata;		/* Controller specific data */
 	int		pwr_off_pending;/* Power status of slot */
+	device_t	dev;		/* Config system device. */
+	dev_t		d;		/* fs device */
 };
+
+#define PCCARD_DEVICE2SOFTC(d)	((struct slot *) device_get_softc(d))
+#define PCCARD_DEV2SOFTC(d)	((struct slot *) (d)->si_drv1)
 
 enum card_event { card_removed, card_inserted };
 
-struct slot	*pccard_alloc_slot(struct slot_ctrl *);
+struct slot	*pccard_init_slot(device_t, struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
 int		 pccard_suspend(device_t);
 int		 pccard_resume(device_t);
