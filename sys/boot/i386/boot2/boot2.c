@@ -57,7 +57,7 @@
 
 #define ARGS		0x900
 #define NOPT		11
-#define BSIZEMAX	8192
+#define BSIZEMAX	16384
 #define NDEV		5
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
