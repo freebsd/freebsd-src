@@ -46,6 +46,7 @@
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/kse.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -337,6 +338,7 @@ int
 kse_create(struct thread *td, struct kse_create_args *uap)
 {
 	struct kse *newke;
+	struct kse *ke;
 	struct ksegrp *newkg;
 	struct ksegrp *kg;
 	struct proc *p;
@@ -347,80 +349,93 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
 		return (err);
 
+	p->p_flag |= P_KSES; /* easier to just set it than to test and set */
 	kg = td->td_ksegrp;
-	/*
-	 * If we have no KSE mode set, just set it, and skip KSE and KSEGRP
-	 * creation.  You cannot request a new group with the first one as
-	 * you are effectively getting one. Instead, go directly to saving
-	 * the upcall info.
-	 */
-	if (td->td_proc->p_flag & P_KSES) {
-		/*
-		 * If newgroup then create the new group.
-		 * Check we have the resources for this.
+	if (uap->newgroup) {
+		/* 
+		 * If we want a new KSEGRP it doesn't matter whether
+		 * we have already fired up KSE mode before or not.
+		 * We put the process in KSE mode and create a new KSEGRP
+		 * and KSE. If our KSE has not got a mailbox yet then
+		 * that doesn't matter, just leave it that way. It will 
+		 * ensure that this thread stay BOUND. It's possible
+		 * that the call came form a threaded library and the main 
+		 * program knows nothing of threads.
 		 */
-		if (uap->newgroup) {
-			newkg = ksegrp_alloc();
-			bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
-			      kg_startzero, kg_endzero)); 
-			bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
-			      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
-		} else {
-			newkg = kg;
-		}
+		newkg = ksegrp_alloc();
+		bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
+		      kg_startzero, kg_endzero)); 
+		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
+		      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
 		newke = kse_alloc();
+	} else {
+		/* 
+		 * Otherwise, if we have already set this KSE
+		 * to have a mailbox, we want to make another KSE here,
+		 * but only if there are not already the limit, which 
+		 * is 1 per CPU max.
+		 * 
+		 * If the current KSE doesn't have a mailbox we just use it
+		 * and give it one.
+		 *
+		 * Because we don't like to access
+		 * the KSE outside of schedlock if we are UNBOUND,
+		 * (because it can change if we are preempted by an interrupt) 
+		 * we can deduce it as having a mailbox if we are UNBOUND,
+		 * and only need to actually look at it if we are BOUND,
+		 * which is safe.
+		 */
+		if ((td->td_flags & TDF_UNBOUND) || td->td_kse->ke_mailbox) {
+#if 0  /* while debugging */
+#ifdef SMP
+			if (kg->kg_kses > mp_ncpus)
+#endif
+				return (EPROCLIM);
+#endif
+			newke = kse_alloc();
+		} else {
+			newke = NULL;
+		}
+		newkg = NULL;
+	}
+	if (newke) {
 		bzero(&newke->ke_startzero, RANGEOF(struct kse,
 		      ke_startzero, ke_endzero));
-		mtx_lock_spin(&sched_lock);
 #if 0
-		bcopy(&td->td_kse->ke_startcopy, &newke->ke_startcopy,
+		bcopy(&ke->ke_startcopy, &newke->ke_startcopy,
 		      RANGEOF(struct kse, ke_startcopy, ke_endcopy));
 #endif
-	} else {
-		/*
-		 * We are switching to KSEs so just
-		 * use the preallocated ones for this call.
-		 * XXXKSE if we have to initialise any fields for KSE
-		 * mode operation, do it here.
-		 */
-		mtx_lock_spin(&sched_lock);
-		newke = td->td_kse;
-		newkg = kg;
-	}
-	/*
-	 * Fill out the KSE-mode specific fields of the new kse.
-	 */
-	mi_switch();	/* Save current registers to PCB. */
-	mtx_unlock_spin(&sched_lock);
-	newke->ke_mailbox = uap->mbx;
-	newke->ke_upcall = mbx.km_func;
-	bcopy(&mbx.km_stack, &newke->ke_stack, sizeof(stack_t));
-	/* Note that we are the returning syscall */
-	td->td_retval[0] = 0;
-	td->td_retval[1] = 0;
-
-	PROC_LOCK(p);
-	if (td->td_proc->p_flag & P_KSES) {
-		mtx_lock_spin(&sched_lock);
-		if (uap->newgroup)
-			ksegrp_link(newkg, p);
-		kse_link(newke, newkg);
+		PROC_LOCK(p);
 		if (SIGPENDING(p))
 			newke->ke_flags |= KEF_ASTPENDING;
 		PROC_UNLOCK(p);
+		mtx_lock_spin(&sched_lock);
+		if (newkg)
+			ksegrp_link(newkg, p);
+		else
+			newkg = kg;
+		kse_link(newke, newkg);
+		newke->ke_mailbox = uap->mbx;
+		newke->ke_upcall = mbx.km_func;
+		bcopy(&mbx.km_stack, &newke->ke_stack, sizeof(stack_t));
 		thread_schedule_upcall(td, newke);
 		mtx_unlock_spin(&sched_lock);
 	} else {
 		/*
-		 * Don't set this until we are truly ready, because
-		 * things will start acting differently.  Return to the
-		 * calling code for the first time.  Assuming we set up
-		 * the mailboxes right, all syscalls after this will be
-		 * asynchronous.
+		 * If we didn't allocate a new KSE then the we are using
+		 * the exisiting (BOUND) kse.
 		 */
-		td->td_proc->p_flag |= P_KSES;
-		PROC_UNLOCK(p);
+		ke = td->td_kse;
+		ke->ke_mailbox = uap->mbx;
+		ke->ke_upcall = mbx.km_func;
+		bcopy(&mbx.km_stack, &ke->ke_stack, sizeof(stack_t));
 	}
+	/*
+	 * Fill out the KSE-mode specific fields of the new kse.
+	 */
+
+	td->td_retval[0] = 0;
+	td->td_retval[1] = 0;
 	return (0);
 }
 
