@@ -6,11 +6,8 @@
  * Kirk McKusick and Network Associates Laboratories, the Security
  * Research Division of Network Associates, Inc. under DARPA/SPAWAR
  * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
- * research program
+ * research program.
  *
- * Copyright (c) 1982, 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 1983, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
