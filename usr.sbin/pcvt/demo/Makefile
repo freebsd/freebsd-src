@@ -2,7 +2,6 @@
 
 PROG=	playvt
 NO_MAN=
-SRCS=	playvt.c
 
 DEMOS=	chardemo.vt colors.vt sgr.vt
 DEMOS+=	outerlimit.vt twzone.vt cowscene.vt xmas.vt

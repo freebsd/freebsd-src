@@ -3,7 +3,6 @@
 # $FreeBSD$
 
 PROG=	idmapd
-SRCS=	idmapd.c
 MAN=	idmapd.8
 
 CFLAGS+= -DNFS -I/usr/src/sys

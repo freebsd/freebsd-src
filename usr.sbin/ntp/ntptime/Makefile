@@ -4,7 +4,6 @@
 
 PROG=	ntptime
 NO_MAN=
-SRCS= 	ntptime.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 

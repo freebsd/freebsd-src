@@ -5,7 +5,6 @@ S=	${.CURDIR}/..
 
 PROG=	testrsrr
 NO_MAN=
-SRCS=	testrsrr.c
 
 CFLAGS+= -I$S
 

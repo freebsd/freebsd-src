@@ -3,7 +3,6 @@
 
 PROG=		bcmfw
 MAN=		bcmfw.8
-SRCS=		bcmfw.c 
 WARNS?=		2
 
 .include <bsd.prog.mk>

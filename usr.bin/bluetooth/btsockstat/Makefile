@@ -2,8 +2,6 @@
 # $FreeBSD$
 
 PROG=		btsockstat
-MAN=		btsockstat.1
-SRCS=		btsockstat.c
 WARNS?=		2
 BINGRP=		kmem
 BINMODE=	2555

@@ -2,8 +2,6 @@
 # $FreeBSD$
 
 PROG=		bthost
-MAN=		bthost.1
-SRCS=		bthost.c
 WARNS?=		2
 
 DPADD=		${LIBBLUETOOTH}
