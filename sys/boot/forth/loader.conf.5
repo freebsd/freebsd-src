@@ -28,11 +28,12 @@
 .Os
 .Sh NAME
 .Nm loader.conf
-.Nd system bootstrap configuration information
+.Nd "system bootstrap configuration information"
 .Sh DESCRIPTION
 The file
 .Nm
-contains descriptive information on bootstrapping the system. Through
+contains descriptive information on bootstrapping the system.
+Through
 it you can specify the kernel to be booted, parameters to be passed to
 it, and additional modules to be loaded; and generally set all variables
 described in
@@ -57,7 +58,8 @@ format was defined explicitly to resemble
 .Xr rc.conf 5 ,
 and can be sourced by
 .Xr sh 1 ,
-some settings are treated in a special fashion. Also, the
+some settings are treated in a special fashion.
+Also, the
 behavior of some settings is defined by the setting's suffix;
 the prefix identifies which module the setting controls.
 .Pp
@@ -78,8 +80,10 @@ All settings have the following format:
 Unless it belongs to one of the classes of settings that receive special
 treatment, a setting will set the value of a
 .Xr loader 8
-environment variable. The settings that receive special
-treatment are listed below. Settings beginning with
+environment variable.
+The settings that receive special
+treatment are listed below.
+Settings beginning with
 .Qq *
 below define the modules to be loaded and
 may have any prefix; the prefix identifies a module.
@@ -89,16 +93,19 @@ prefix refer to the same module.
 .It Ar exec
 Immediately executes a
 .Xr loader 8
-command. This type of setting cannot be processed by programs other
+command.
+This type of setting cannot be processed by programs other
 than
 .Xr loader 8 ,
-so its use should be avoided. Multiple instances of it will be processed
+so its use should be avoided.
+Multiple instances of it will be processed
 independently.
 .It Ar loader_conf_files
 Defines additional configuration files to be processed right after the
 present file.
 .It Ar kernel
-Name of the kernel to be loaded. If no kernel name is set, no additional
+Name of the kernel to be loaded.
+If no kernel name is set, no additional
 modules will be loaded.
 .It Ar kernel_options
 Flags to be passed to the kernel.
@@ -112,22 +119,27 @@ module names will be displayed as they are loaded.
 .It Ar *_load
 If set to
 .Dq YES ,
-that module will be loaded. If no name is defined (see below), the
+that module will be loaded.
+If no name is defined (see below), the
 module's name is taken to be the same as the prefix.
 .It Ar *_name
 Defines the name of the module.
 .It Ar *_type
-Defines the module's type. If none is given, it defaults to a kld module.
+Defines the module's type.
+If none is given, it defaults to a kld module.
 .It Ar *_flags
 Flags and parameters to be passed to the module.
 .It Ar *_before
-Commands to be executed before the module is loaded. Use of this setting
+Commands to be executed before the module is loaded.
+Use of this setting
 should be avoided.
 .It Ar *_after
-Commands to be executed after the module is loaded. Use of this setting
+Commands to be executed after the module is loaded.
+Use of this setting
 should be avoided.
 .It Ar *_error
-Commands to be executed if the loading of a module fails. Except for the
+Commands to be executed if the loading of a module fails.
+Except for the
 special value
 .Dq abort ,
 which aborts the bootstrap process, use of this setting should be avoided.
@@ -139,7 +151,8 @@ variables (tunables) or conflicts will result.
 .Sh DEFAULT SETTINGS
 Most of
 .Nm Ns 's
-default settings can be ignored. The few of them which are important
+default settings can be ignored.
+The few of them which are important
 or useful are:
 .Bl -tag -width bootfile -offset indent
 .It Va bitmap_load
@@ -148,8 +161,9 @@ If set to
 .Dq YES ,
 a bitmap will be loaded to be displayed on screen while booting.
 .It Va bitmap_name
-.Pq Dq /boot/splash.bmp
-Name of the bitmap to be loaded. Any other name can be used.
+.Pq Dq Pa /boot/splash.bmp
+Name of the bitmap to be loaded.
+Any other name can be used.
 .It Va console
 .Pq Dq vidconsole
 .Dq comconsole
@@ -160,9 +174,9 @@ selects the video console, and
 selects a mute console
 (useful for systems with neither a video console nor a serial port).
 .It Va kernel
-.Pq Dq /boot/kernel/kernel
+.Pq Dq Pa /boot/kernel/kernel
 .It Va loader_conf_files
-.Pq Do /boot/loader.conf /boot/loader.conf.local Dc
+.Pq Do Pa /boot/loader.conf /boot/loader.conf.local Dc
 .It Va splash_bmp_load
 .Pq Dq NO
 If set to
