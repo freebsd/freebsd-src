@@ -178,13 +178,18 @@ int sched_setparam(struct proc *p,
 int sched_getparam(struct proc *p,
 	struct sched_getparam_args *uap)
 {
-	int e;
+	struct proc *targetp;
 	struct sched_param sched_param;
-
-	(void) (0
-	|| (e = p31b_proc(p, uap->pid, &p))
-	|| (e = ksched_getparam(&p->p_retval[0], ksched, p, &sched_param))
-	);
+	int e;
+ 
+	if (uap->pid != 0 && uap->pid != p->p_pid) {
+		e = p31b_proc(p, uap->pid, &targetp);
+		if (e)
+			return e;
+	} else
+		targetp = p;
+ 
+	e = ksched_getparam(&p->p_retval[0], ksched, targetp, &sched_param);
 
 	if (!e)
 		copyout(&sched_param, uap->param, sizeof(sched_param));
@@ -211,11 +216,17 @@ int sched_setscheduler(struct proc *p,
 int sched_getscheduler(struct proc *p,
 	struct sched_getscheduler_args *uap)
 {
+	struct proc *targetp;
 	int e;
-	(void) (0
-	|| (e = p31b_proc(p, uap->pid, &p))
-	|| (e = ksched_getscheduler(&p->p_retval[0], ksched, p))
-	);
+ 
+	if (uap->pid != 0 && uap->pid != p->p_pid) {
+		e = p31b_proc(p, uap->pid, &targetp);
+		if (e)
+			return e;
+	} else
+		targetp = p;
+ 
+	e = ksched_getscheduler(&p->p_retval[0], ksched, targetp);
 
 	return e;
 }
