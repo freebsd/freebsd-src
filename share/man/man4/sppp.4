@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sppp.4,v 1.1 1997/05/19 22:04:40 joerg Exp $
+.\" $Id: sppp.4,v 1.2 1997/09/29 10:10:21 wosch Exp $
 .\"
 .Dd May 19, 1997
 .Dt SPPP 4
@@ -118,6 +118,12 @@ caller, or on the remote address supplied by this side.  Due to the
 way the IPCP option negotiation works, this address is being supplied
 late during the negotiation, which might cause the remote peer to make
 wrong assumptions.
+.Pp
+The PAP and CHAP authentication protocols as described in RFC 1334,
+and RFC 1994 resp., are also implemented.  Their parameters are being
+controlled by the
+.Xr spppcontrol 8
+utility.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It <ifname><ifnum>: <proto> illegal <event> in state <statename>
@@ -139,7 +145,8 @@ take place.
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ppp 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr spppcontrol 8
 .Rs
 .%A W. Simpson, Editor
 .%T "The Point-to-Point Protocol (PPP)"
@@ -149,6 +156,16 @@ take place.
 .%A G. McGregor
 .%T "The PPP Internet Protocol Control Protocol (IPCP)"
 .%O RFC 1332
+.Re
+.Rs
+.%A B. Lloyd,  W. Simpson
+.%T "PPP Authentication Protocols"
+.%O RFC 1334
+.Re
+.Rs
+.%A W. Simpson
+.%T "PPP Challenge Handshake Authentication Protocol (CHAP)"
+.%O RFC 1994
 .Re
 .Sh AUTHORS
 The original implementation of
@@ -160,6 +177,10 @@ was written in 1994 at Cronyx Ltd., Moscow by Serge Vakulenko, now
 <joerg_wunsch@uriah.heep.sax.de> rewrote a large part in 1997 in order
 to fully implement the state machine as described in RFC 1661, so it
 could also be used for dialup lines.  He also wrote this man page.
+Serge later on wrote a basic implementation for PAP and CHAP, which
+served as the base for the current implementation, done again by
+.ie t J\(:org Wunsch.
+.el Joerg Wunsch.
 .Sh BUGS
 Many.
 .Pp
@@ -169,14 +190,16 @@ control protocol and
 .Xr ip 4
 network protocol is supported.
 .Pp
-Negotiation loop avoidance is not yet implemented.  If the negotiation
-doesn't converge, this will likely cause an endless loop.
+Negotiation loop avoidance is not fully implemented.  If the negotiation
+doesn't converge, this can cause an endless loop.
 .Pp
 The various parameters that should be adjustable per RFC 1661 are
-currently hard-coded into the kernel.
+currently hard-coded into the kernel, and should be made accessible
+through
+.Xr spppcontrol 8 .
 .Pp
 .Em Passive
-mode has not really been tested yet.
+mode has not been tested extensively.
 .Pp
 More NCPs should be implemented, as well as other control protocols
 for authentication and link quality reporting.
