@@ -50,16 +50,13 @@
 #if defined (TEST) || defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
 #else
-#  if defined __STDC__
-extern char *xmalloc (int);
-extern char *xrealloc (void *, int);
-#  else
-extern char *xmalloc (), *xrealloc ();
-#  endif /* !__STDC__ */
+extern char *xmalloc __P((int));
+extern char *xrealloc __P((void *, int));
 #endif /* TEST || STATIC_MALLOC */
 
 #if !defined (HAVE_GETPW_DECLS)
-extern struct passwd *getpwuid (), *getpwnam ();
+extern struct passwd *getpwuid __P((uid_t));
+extern struct passwd *getpwnam __P((const char *));
 #endif /* !HAVE_GETPW_DECLS */
 
 #if !defined (savestring)
@@ -80,42 +77,42 @@ extern char *strcpy ();
 /* If being compiled as part of bash, these will be satisfied from
    variables.o.  If being compiled as part of readline, they will
    be satisfied from shell.o. */
-extern char *get_home_dir __P((void));
-extern char *get_env_value __P((char *));
+extern char *sh_get_home_dir __P((void));
+extern char *sh_get_env_value __P((const char *));
 
 /* The default value of tilde_additional_prefixes.  This is set to
    whitespace preceding a tilde so that simple programs which do not
    perform any word separation get desired behaviour. */
-static char *default_prefixes[] =
-  { " ~", "\t~", (char *)NULL };
+static const char *default_prefixes[] =
+  { " ~", "\t~", (const char *)NULL };
 
 /* The default value of tilde_additional_suffixes.  This is set to
    whitespace or newline so that simple programs which do not
    perform any word separation get desired behaviour. */
-static char *default_suffixes[] =
-  { " ", "\n", (char *)NULL };
+static const char *default_suffixes[] =
+  { " ", "\n", (const char *)NULL };
 
 /* If non-null, this contains the address of a function that the application
    wants called before trying the standard tilde expansions.  The function
    is called with the text sans tilde, and returns a malloc()'ed string
    which is the expansion, or a NULL pointer if the expansion fails. */
-CPFunction *tilde_expansion_preexpansion_hook = (CPFunction *)NULL;
+tilde_hook_func_t *tilde_expansion_preexpansion_hook = (tilde_hook_func_t *)NULL;
 
 /* If non-null, this contains the address of a function to call if the
    standard meaning for expanding a tilde fails.  The function is called
    with the text (sans tilde, as in "foo"), and returns a malloc()'ed string
    which is the expansion, or a NULL pointer if there is no expansion. */
-CPFunction *tilde_expansion_failure_hook = (CPFunction *)NULL;
+tilde_hook_func_t *tilde_expansion_failure_hook = (tilde_hook_func_t *)NULL;
 
 /* When non-null, this is a NULL terminated array of strings which
    are duplicates for a tilde prefix.  Bash uses this to expand
    `=~' and `:~'. */
-char **tilde_additional_prefixes = default_prefixes;
+char **tilde_additional_prefixes = (char **)default_prefixes;
 
 /* When non-null, this is a NULL terminated array of strings which match
    the end of a username, instead of just "/".  Bash sets this to
    `:' and `=~'. */
-char **tilde_additional_suffixes = default_suffixes;
+char **tilde_additional_suffixes = (char **)default_suffixes;
 
 /* Find the start of a tilde expansion in STRING, and return the index of
    the tilde which starts the expansion.  Place the length of the text
@@ -186,7 +183,7 @@ tilde_find_suffix (string)
 /* Return a new string which is the result of tilde expanding STRING. */
 char *
 tilde_expand (string)
-     char *string;
+     const char *string;
 {
   char *result;
   int result_size, result_index;
@@ -235,9 +232,9 @@ tilde_expand (string)
       free (tilde_word);
 
       len = strlen (expansion);
-#ifdef __CYGWIN32__
+#ifdef __CYGWIN__
       /* Fix for Cygwin to prevent ~user/xxx from expanding to //xxx when
-         $HOME for `user' is /.  On cygwin, // denotes a network drive. */
+	 $HOME for `user' is /.  On cygwin, // denotes a network drive. */
       if (len > 1 || *expansion != '/' || *string != '/')
 #endif
 	{
@@ -303,7 +300,7 @@ glue_prefix_and_suffix (prefix, suffix, suffind)
    This always returns a newly-allocated string, never static storage. */
 char *
 tilde_expand_word (filename)
-     char *filename;
+     const char *filename;
 {
   char *dirname, *expansion, *username;
   int user_len;
@@ -321,12 +318,12 @@ tilde_expand_word (filename)
   if (filename[1] == '\0' || filename[1] == '/')
     {
       /* Prefix $HOME to the rest of the string. */
-      expansion = get_env_value ("HOME");
+      expansion = sh_get_env_value ("HOME");
 
       /* If there is no HOME variable, look up the directory in
 	 the password database. */
       if (expansion == 0)
-	expansion = get_home_dir ();
+	expansion = sh_get_home_dir ();
 
       return (glue_prefix_and_suffix (expansion, filename, 1));
     }

@@ -337,3 +337,129 @@ doc/Makefile.in
 
 configure.in
 	- changed LIBVERSION to 4.1-beta5
+
+				 3/17/2000
+				 ---------
+[readline-4.1 released]
+
+				   3/23
+				   ----
+Makefile.in
+	- remove the `-t' argument to ranlib in the install recipe; some
+	  ranlibs don't have it and attempt to create a file named `-t'
+
+				   3/27
+				   ----
+support/shlib-install
+	- install shared libraries unwritable by anyone on HP-UX
+	- changed symlinks to relative pathnames on all platforms
+
+shlib/Makefile.in
+	- added missing `includedir' assignment, substituted by configure
+
+Makefile.in
+	- added missing @SET_MAKE@ so configure can set $MAKE appropriately
+
+configure.in
+	- add call to AC_PROG_MAKE_SET
+
+				   8/30
+				   ----
+shlib/Makefile.in
+	- change the soname bound into the shared libraries, so it includes
+	  only the major version number.  If it includes the minor version,
+	  programs depending on it must be rebuilt (which may or may not be
+	  a bad thing)
+
+				    9/6
+				    ---
+examples/rlfe.c
+	- add -l option to log input and output (-a option appends to logfile)
+	- add -n option to set readline application name
+	- add -v, -h options for version and help information
+	- change a few things because getopt() is now used to parse arguments
+
+				   9/12
+				   ----
+support/shlib-install
+	- fix up the libname on HPUX 11
+
+				   10/18
+				   -----
+configure.in
+	- changed library version to 4.2-alpha
+
+				   10/30
+				   -----
+configure.in
+	- add -fsigned-char to LOCAL_CFLAGS for Linux running on the IBM
+	  S/390
+
+Makefile.in
+	- added new file, rltypedefs.h, installed by default with `make install'
+
+				   11/2
+				   ----
+compat.c
+	- new file, with backwards-compatibility function definitions
+
+Makefile.in,shlib/Makefile.in
+	- make sure that compat.o/compat.so are built and linked apppropriately
+
+support/shobj-conf
+	- picked up bash version, which means that shared libs built on
+	  linux and BSD/OS 4.x will have an soname that does not include
+	  the minor version number
+
+				   11/13
+				   -----
+examples/rlfe.c
+	- rlfe can perform filename completion for relative pathnames in the
+	  inferior process's context if the OS supports /proc/PID/cwd (linux
+	  does it OK, Solaris is slightly warped, none of the BSDs have it)
+
+				11/17/2000
+				----------
+[readline-4.2-alpha released]
+
+				   11/27
+				   -----
+Makefile.in,shlib/Makefile.in
+	- added dependencies for rltypedefs.h
+
+shlib/Makefile.in
+	- changed dependencies on histlib.h to $(topdir)/histlib.h
+
+				   1/22
+				   ----
+configure.in
+	- changed release version to 4.2-beta
+
+				    2/2
+				    ---
+examples/Makefile.in
+	- build histexamp as part of the examples
+
+				    2/5
+				    ---
+doc/Makefile.in
+	- don't remove the dvi, postscript, html, info, and text `objects'
+	  on a `make distclean', only on a `make maintainer-clean'
+
+				    3/6
+				    ---
+doc/history.{0,3}, doc/history_3.ps
+	- new manual page for history library
+
+doc/Makefile.in
+	- rules to install and uninstall history.3 in ${man3dir}
+	- rules to build history.0 and history_3.ps
+
+				    4/2
+				    ---
+configure.in
+	- changed LIBVERSION to `4.2'
+
+				    4/5
+				    ---
+[readline-4.2 frozen]

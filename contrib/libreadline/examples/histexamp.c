@@ -1,4 +1,14 @@
-main ()
+#include <stdio.h>
+
+#ifdef READLINE_LIBRARY
+#  include "history.h"
+#else
+#  include <readline/history.h>
+#endif
+
+main (argc, argv)
+     int argc;
+     char **argv;
 {
   char line[1024], *t;
   int len, done = 0;

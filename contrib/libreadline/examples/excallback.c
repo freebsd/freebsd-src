@@ -153,6 +153,8 @@ process_line(char *line)
   } else {
     fprintf(stderr, "|%s|\n", line);
   }
+
+  free (line);
 }
 
 int

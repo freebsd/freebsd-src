@@ -81,7 +81,7 @@
 static int _rl_vi_doing_insert;
 
 /* Command keys which do movement for xxx_to commands. */
-static char *vi_motion = " hl^$0ftFt;,%wbeWBE|";
+static const char *vi_motion = " hl^$0ftFt;,%wbeWBE|";
 
 /* Keymap used for vi replace characters.  Created dynamically since
    rarely used. */
@@ -109,7 +109,7 @@ static int _rl_vi_last_key_before_insert;
 static int vi_redoing;
 
 /* Text modification commands.  These are the `redoable' commands. */
-static char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
+static const char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
 
 /* Arrays for the saved marks. */
 static int vi_mark_chars[27];
@@ -274,7 +274,7 @@ rl_vi_search (count, key)
       break;
 
     default:
-      ding ();
+      rl_ding ();
       break;
     }
   return (0);
@@ -330,7 +330,7 @@ rl_vi_prev_word (count, key)
 
   if (rl_point == 0)
     {
-      ding ();
+      rl_ding ();
       return (0);
     }
 
@@ -352,7 +352,7 @@ rl_vi_next_word (count, key)
 
   if (rl_point >= (rl_end - 1))
     {
-      ding ();
+      rl_ding ();
       return (0);
     }
 
@@ -370,7 +370,7 @@ rl_vi_end_word (count, key)
 {
   if (count < 0)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -744,7 +744,9 @@ rl_vi_domove (key, nextkey)
   int old_end;
 
   rl_mark = rl_point;
+  RL_SETSTATE(RL_STATE_MOREINPUT);
   c = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
   *nextkey = c;
 
   if (!member (c, vi_motion))
@@ -755,7 +757,9 @@ rl_vi_domove (key, nextkey)
 	  rl_numeric_arg = _rl_digit_value (c);
 	  rl_digit_loop1 ();
 	  rl_numeric_arg *= save;
+	  RL_SETSTATE(RL_STATE_MOREINPUT);
 	  c = rl_read_key ();	/* real command */
+	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
 	  *nextkey = c;
 	}
       else if (key == c && (key == 'd' || key == 'y' || key == 'c'))
@@ -825,16 +829,28 @@ rl_vi_domove (key, nextkey)
 }
 
 /* A simplified loop for vi. Don't dispatch key at end.
-   Don't recognize minus sign? */
+   Don't recognize minus sign?
+   Should this do rl_save_prompt/rl_restore_prompt? */
 static int
 rl_digit_loop1 ()
 {
   int key, c;
 
+  RL_SETSTATE(RL_STATE_NUMERICARG);
   while (1)
     {
+      if (rl_numeric_arg > 1000000)
+	{
+	  rl_explicit_arg = rl_numeric_arg = 0;
+	  rl_ding ();
+	  rl_clear_message ();
+	  RL_UNSETSTATE(RL_STATE_NUMERICARG);
+	  return 1;
+	}
       rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg, 0);
+      RL_SETSTATE(RL_STATE_MOREINPUT);
       key = c = rl_read_key ();
+      RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
       if (_rl_keymap[c].type == ISFUNC &&
 	  _rl_keymap[c].function == rl_universal_argument)
@@ -859,6 +875,8 @@ rl_digit_loop1 ()
 	  break;
 	}
     }
+
+  RL_UNSETSTATE(RL_STATE_NUMERICARG);
   return (0);
 }
 
@@ -875,7 +893,7 @@ rl_vi_delete_to (count, key)
 
   if (rl_vi_domove (key, &c))
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -903,7 +921,7 @@ rl_vi_change_to (count, key)
 
   if (rl_vi_domove (key, &c))
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -953,7 +971,7 @@ rl_vi_yank_to (count, key)
 
   if (rl_vi_domove (key, &c))
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -979,7 +997,7 @@ rl_vi_delete (count, key)
 
   if (rl_end == 0)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
@@ -1026,7 +1044,11 @@ rl_vi_char_search (count, key)
       if (vi_redoing)
 	target = _rl_vi_last_search_char;
       else
-	_rl_vi_last_search_char = target = (*rl_getc_function) (rl_instream);
+	{
+	  RL_SETSTATE(RL_STATE_MOREINPUT);
+	  _rl_vi_last_search_char = target = rl_read_key ();
+	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+	}
 
       switch (key)
         {
@@ -1068,7 +1090,7 @@ rl_vi_match (ignore, key)
       if (brack <= 0)
 	{
 	  rl_point = pos;
-	  ding ();
+	  rl_ding ();
 	  return -1;
 	}
     }
@@ -1089,7 +1111,7 @@ rl_vi_match (ignore, key)
 	    }
 	  else
 	    {
-	      ding ();
+	      rl_ding ();
 	      return -1;
 	    }
 	}
@@ -1108,7 +1130,7 @@ rl_vi_match (ignore, key)
 	    }
 	  else
 	    {
-	      ding ();
+	      rl_ding ();
 	      return -1;
 	    }
 	}
@@ -1142,7 +1164,11 @@ rl_vi_change_char (count, key)
   if (vi_redoing)
     c = _rl_vi_last_replacement;
   else
-    _rl_vi_last_replacement = c = (*rl_getc_function) (rl_instream);
+    {
+      RL_SETSTATE(RL_STATE_MOREINPUT);
+      _rl_vi_last_replacement = c = rl_read_key ();
+      RL_UNSETSTATE(RL_STATE_MOREINPUT);
+    }
 
   if (c == '\033' || c == CTRL ('C'))
     return -1;
@@ -1238,7 +1264,7 @@ rl_vi_overstrike_delete (count, key)
     {
       if (vi_replace_count == 0)
 	{
-	  ding ();
+	  rl_ding ();
 	  break;
 	}
       s = rl_point;
@@ -1308,7 +1334,7 @@ rl_vi_possible_completions()
     }
   else if (rl_line_buffer[rl_point - 1] == ';')
     {
-      ding ();
+      rl_ding ();
       return (0);
     }
 
@@ -1326,10 +1352,13 @@ rl_vi_set_mark (count, key)
 {
   int ch;
 
+  RL_SETSTATE(RL_STATE_MOREINPUT);
   ch = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
   if (_rl_lowercase_p (ch) == 0)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
   ch -= 'a';
@@ -1343,7 +1372,10 @@ rl_vi_goto_mark (count, key)
 {
   int ch;
 
+  RL_SETSTATE(RL_STATE_MOREINPUT);
   ch = rl_read_key ();
+  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
   if (ch == '`')
     {
       rl_point = rl_mark;
@@ -1351,14 +1383,14 @@ rl_vi_goto_mark (count, key)
     }
   else if (_rl_lowercase_p (ch) == 0)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
 
   ch -= 'a';
   if (vi_mark_chars[ch] == -1)
     {
-      ding ();
+      rl_ding ();
       return -1;
     }
   rl_point = vi_mark_chars[ch];
