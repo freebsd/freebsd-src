@@ -190,7 +190,7 @@ in_gif_output(ifp, family, m)
 	}
 
 	if (sc->gif_ro.ro_rt == NULL) {
-		rtalloc(&sc->gif_ro);
+		rtalloc_ign(&sc->gif_ro, 0);
 		if (sc->gif_ro.ro_rt == NULL) {
 			m_freem(m);
 			return ENETUNREACH;
