@@ -1213,6 +1213,8 @@ dev/sound/pci/t4dwave.c	optional pcm pci
 dev/sound/pci/via8233.c	optional pcm pci
 dev/sound/pci/via82c686.c	optional pcm pci
 dev/sound/pci/vibes.c	optional pcm pci
+dev/sound/usb/uaudio.c	optional pcm usb
+dev/sound/usb/uaudio_pcm.c	optional pcm usb
 #
 ac97_if.o		optional pcm					\
 	dependency	"ac97_if.c ac97_if.h"				\
