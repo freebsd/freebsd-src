@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.10 1997/12/03 10:23:45 brian Exp $
+ * $Id: ccp.h,v 1.11 1997/12/03 23:27:55 brian Exp $
  *
  *	TODO:
  */
@@ -41,6 +41,9 @@ struct ccpstate {
 
   u_long his_reject;		/* Request codes rejected by peer */
   u_long my_reject;		/* Request codes I have rejected */
+
+  int out_init;			/* Init called for out algorithm */
+  int in_init;			/* Init called for in algorithm */
 
   u_long uncompout, compout;
   u_long uncompin, compin;

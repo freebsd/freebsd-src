@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.25 1997/12/17 21:21:53 brian Exp $
+ * $Id: ccp.c,v 1.26 1997/12/24 09:28:52 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -43,7 +43,7 @@
 #include "pred.h"
 #include "deflate.h"
 
-struct ccpstate CcpInfo;
+struct ccpstate CcpInfo = { -1, -1 };
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
@@ -138,16 +138,14 @@ ReportCcpStatus(struct cmdargs const *arg)
 static void
 ccpstateInit(void)
 {
+  if (CcpInfo.in_init)
+    (*algorithm[in_algorithm]->i.Term)();
+  if (CcpInfo.out_init)
+    (*algorithm[out_algorithm]->o.Term)();
+  in_algorithm = -1;
+  out_algorithm = -1;
   memset(&CcpInfo, '\0', sizeof CcpInfo);
   CcpInfo.his_proto = CcpInfo.my_proto = -1;
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
-    (*algorithm[in_algorithm]->i.Term)();
-    in_algorithm = -1;
-  }
-  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
-    (*algorithm[out_algorithm]->o.Term)();
-    out_algorithm = -1;
-  }
 }
 
 void
@@ -245,10 +243,14 @@ CcpLayerUp(struct fsm *fp)
   LogPrintf(LogCCP, "Out = %s[%d], In = %s[%d]\n",
             protoname(CcpInfo.my_proto), CcpInfo.my_proto,
             protoname(CcpInfo.his_proto), CcpInfo.his_proto);
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
+  if (!CcpInfo.in_init && in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
     (*algorithm[in_algorithm]->i.Init)();
-  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS)
+    CcpInfo.in_init = 1;
+  }
+  if (!CcpInfo.out_init && out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
     (*algorithm[out_algorithm]->o.Init)();
+    CcpInfo.out_init = 1;
+  }
 }
 
 void
