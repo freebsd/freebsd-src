@@ -170,7 +170,6 @@ i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
 #i386/isa/adv_isa.c		optional	adv
 i386/isa/aha_isa.c		optional	aha
-i386/isa/bt_isa.c		optional	bt
 i386/isa/asc.c			optional	asc
 i386/isa/atapi-cd.c		optional	wcd
 i386/isa/atapi.c		optional	wdc
@@ -247,6 +246,7 @@ i386/isa/sound/ad1848.c		optional	gusxvi
 i386/isa/sound/ad1848.c		optional	mss
 i386/isa/sound/ad1848.c		optional	sscape
 i386/isa/sound/ad1848.c		optional	trix
+i386/isa/sound/ad1848.c		optional	sscape_mss
 i386/isa/sound/adlib_card.c	optional	opl
 i386/isa/sound/adlib_card.c	optional	trix
 i386/isa/sound/audio.c		optional	snd
@@ -327,6 +327,7 @@ i386/linux/linux_ioctl.c	optional	compat_linux
 i386/linux/linux_ipc.c		optional	compat_linux
 i386/linux/linux_locore.s	optional	compat_linux		   \
 	dependency 	"linux_assym.h"
+i386/linux/linux_mib.c		optional	compat_linux
 i386/linux/linux_misc.c		optional	compat_linux
 i386/linux/linux_signal.c	optional	compat_linux
 i386/linux/linux_socket.c	optional	compat_linux
