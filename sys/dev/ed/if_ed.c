@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.134 1998/02/27 05:38:28 msmith Exp $
+ *	$Id: if_ed.c,v 1.135 1998/02/27 06:39:30 msmith Exp $
  */
 
 /*
@@ -232,6 +232,8 @@ DATA_SET(pccarddrv_set, ed_info);
 static int
 edinit(struct pccard_devinfo *devi)
 {
+	int i;
+	u_char  e;
 	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
 
 	/* validate unit number. */
@@ -244,6 +246,12 @@ edinit(struct pccard_devinfo *devi)
 	sc->gone = 0;
 	if (ed_probe_pccard(&devi->isahd, devi->misc) == 0)
 		return(ENXIO);
+	e = 0;
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		e |= devi->misc[i];
+	if (e)
+		for (i = 0; i < ETHER_ADDR_LEN; ++i)
+			sc->arpcom.ac_enaddr[i] = devi->misc[i];
 	if (ed_attach_isa(&devi->isahd) == 0)
 		return(ENXIO);
 
