@@ -73,12 +73,12 @@ static REPLACE *rephead = NULL;		/* replacement string list head */
 static REPLACE *reptail = NULL;		/* replacement string list tail */
 
 static int rep_name(char *, int *, int);
-static int tty_rename(register ARCHD *);
+static int tty_rename(ARCHD *);
 static int fix_path(char *, int *, char *, int);
-static int fn_match(register char *, register char *, char **);
-static char * range_match(register char *, register int);
+static int fn_match(char *, char *, char **);
+static char * range_match(char *, int);
 #ifdef NET2_REGEX
-static int resub(regexp *, char *, char *, register char *);
+static int resub(regexp *, char *, char *, char *);
 #else
 static int resub(regex_t *, regmatch_t *, char *, char *, char *);
 #endif
@@ -100,13 +100,13 @@ static int resub(regex_t *, regmatch_t *, char *, char *, char *);
  */
 
 int
-rep_add(register char *str)
+rep_add(char *str)
 {
-	register char *pt1;
-	register char *pt2;
-	register REPLACE *rep;
+	char *pt1;
+	char *pt2;
+	REPLACE *rep;
 #	ifndef NET2_REGEX
-	register int res;
+	int res;
 	char rebuf[BUFSIZ];
 #	endif
 
@@ -224,7 +224,7 @@ rep_add(register char *str)
 int
 pat_add(char *str, char *chdname)
 {
-	register PATTERN *pt;
+	PATTERN *pt;
 
 	/*
 	 * throw out the junk
@@ -269,8 +269,8 @@ pat_add(char *str, char *chdname)
 void
 pat_chk(void)
 {
-	register PATTERN *pt;
-	register int wban = 0;
+	PATTERN *pt;
+	int wban = 0;
 
 	/*
 	 * walk down the list checking the flags to make sure MTCH was set,
@@ -304,11 +304,11 @@ pat_chk(void)
  */
 
 int
-pat_sel(register ARCHD *arcn)
+pat_sel(ARCHD *arcn)
 {
-	register PATTERN *pt;
-	register PATTERN **ppt;
-	register int len;
+	PATTERN *pt;
+	PATTERN **ppt;
+	int len;
 
 	/*
 	 * if no patterns just return
@@ -423,9 +423,9 @@ pat_sel(register ARCHD *arcn)
  */
 
 int
-pat_match(register ARCHD *arcn)
+pat_match(ARCHD *arcn)
 {
-	register PATTERN *pt;
+	PATTERN *pt;
 
 	arcn->pat = NULL;
 
@@ -495,9 +495,9 @@ pat_match(register ARCHD *arcn)
  */
 
 static int
-fn_match(register char *pattern, register char *string, char **pend)
+fn_match(char *pattern, char *string, char **pend)
 {
-	register char c;
+	char c;
 	char test;
 
 	*pend = NULL;
@@ -568,10 +568,10 @@ fn_match(register char *pattern, register char *string, char **pend)
 }
 
 static char *
-range_match(register char *pattern, register int test)
+range_match(char *pattern, int test)
 {
-	register char c;
-	register char c2;
+	char c;
+	char c2;
 	int negate;
 	int ok = 0;
 
@@ -611,9 +611,9 @@ range_match(register char *pattern, register int test)
  */
 
 int
-mod_name(register ARCHD *arcn)
+mod_name(ARCHD *arcn)
 {
-	register int res = 0;
+	int res = 0;
 
 	/*
 	 * Strip off leading '/' if appropriate.
@@ -704,7 +704,7 @@ mod_name(register ARCHD *arcn)
  */
 
 static int
-tty_rename(register ARCHD *arcn)
+tty_rename(ARCHD *arcn)
 {
 	char tmpname[PAXPATHLEN+2];
 	int res;
@@ -770,7 +770,7 @@ tty_rename(register ARCHD *arcn)
  */
 
 int
-set_dest(register ARCHD *arcn, char *dest_dir, int dir_len)
+set_dest(ARCHD *arcn, char *dest_dir, int dir_len)
 {
 	if (fix_path(arcn->name, &(arcn->nlen), dest_dir, dir_len) < 0)
 		return(-1);
@@ -799,9 +799,9 @@ set_dest(register ARCHD *arcn, char *dest_dir, int dir_len)
 static int
 fix_path( char *or_name, int *or_len, char *dir_name, int dir_len)
 {
-	register char *src;
-	register char *dest;
-	register char *start;
+	char *src;
+	char *dest;
+	char *start;
 	int len;
 
 	/*
@@ -862,13 +862,13 @@ fix_path( char *or_name, int *or_len, char *dir_name, int dir_len)
 static int
 rep_name(char *name, int *nlen, int prnt)
 {
-	register REPLACE *pt;
-	register char *inpt;
-	register char *outpt;
-	register char *endpt;
-	register char *rpt;
-	register int found = 0;
-	register int res;
+	REPLACE *pt;
+	char *inpt;
+	char *outpt;
+	char *endpt;
+	char *rpt;
+	int found = 0;
+	int res;
 #	ifndef NET2_REGEX
 	regmatch_t pm[MAXSUBEXP];
 #	endif
@@ -1026,13 +1026,13 @@ rep_name(char *name, int *nlen, int prnt)
  */
 
 static int
-resub(regexp *prog, char *src, char *dest, register char *destend)
+resub(regexp *prog, char *src, char *dest, char *destend)
 {
-	register char *spt;
-	register char *dpt;
-	register char c;
-	register int no;
-	register int len;
+	char *spt;
+	char *dpt;
+	char c;
+	int no;
+	int len;
 
 	spt = src;
 	dpt = dest;
@@ -1075,14 +1075,14 @@ resub(regexp *prog, char *src, char *dest, register char *destend)
  */
 
 static int
-resub(regex_t *rp, register regmatch_t *pm, char *src, char *dest,
-	register char *destend)
+resub(regex_t *rp, regmatch_t *pm, char *src, char *dest,
+	char *destend)
 {
-	register char *spt;
-	register char *dpt;
-	register char c;
-	register regmatch_t *pmpt;
-	register int len;
+	char *spt;
+	char *dpt;
+	char c;
+	regmatch_t *pmpt;
+	int len;
 	int subexcnt;
 
 	spt =  src;
