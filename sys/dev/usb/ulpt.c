@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.46 2001/12/31 12:15:21 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.48 2002/02/11 15:11:49 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -309,7 +309,7 @@ USB_ATTACH(ulpt)
 	USETW2(req.wIndex, id->bInterfaceNumber, id->bAlternateSetting);
 	USETW(req.wLength, sizeof devinfo - 1);
 	err = usbd_do_request_flags(dev, &req, devinfo, USBD_SHORT_XFER_OK,
-		  &alen);
+		  &alen, USBD_DEFAULT_TIMEOUT);
 	if (err) {
 		printf("%s: cannot get device id\n", USBDEVNAME(sc->sc_dev));
 	} else if (alen <= 2) {

@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.94 2001/12/30 20:26:59 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.96 2002/02/11 15:11:49 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -178,7 +178,7 @@ usbd_open_pipe(usbd_interface_handle iface, u_int8_t address,
 	       u_int8_t flags, usbd_pipe_handle *pipe)
 { 
 	return (usbd_open_pipe_ival(iface, address, flags, pipe, 
-				    USBD_DEFAULT_INTERVAL));
+				    USBD_DEFAULT_TIMEOUT));
 }
 
 usbd_status 
@@ -923,20 +923,22 @@ usbd_start_next(usbd_pipe_handle pipe)
 usbd_status
 usbd_do_request(usbd_device_handle dev, usb_device_request_t *req, void *data)
 {
-	return (usbd_do_request_flags(dev, req, data, 0, 0));
+	return (usbd_do_request_flags(dev, req, data, 0, 0,
+				      USBD_DEFAULT_TIMEOUT));
 }
 
 usbd_status
 usbd_do_request_flags(usbd_device_handle dev, usb_device_request_t *req,
-		      void *data, u_int16_t flags, int *actlen)
+		      void *data, u_int16_t flags, int *actlen, u_int32_t timo)
 {
-	return (usbd_do_request_flags_pipe(dev, dev->default_pipe, req, 
-					   data, flags, actlen));
+	return (usbd_do_request_flags_pipe(dev, dev->default_pipe, req,
+					   data, flags, actlen, timo));
 }
 
 usbd_status
 usbd_do_request_flags_pipe(usbd_device_handle dev, usbd_pipe_handle pipe,
-	usb_device_request_t *req, void *data, u_int16_t flags, int *actlen)
+	usb_device_request_t *req, void *data, u_int16_t flags, int *actlen,
+	u_int32_t timeout)
 {
 	usbd_xfer_handle xfer;
 	usbd_status err;
@@ -955,7 +957,7 @@ usbd_do_request_flags_pipe(usbd_device_handle dev, usbd_pipe_handle pipe,
 	xfer = usbd_alloc_xfer(dev);
 	if (xfer == NULL)
 		return (USBD_NOMEM);
-	usbd_setup_default_xfer(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
+	usbd_setup_default_xfer(xfer, dev, 0, timeout, req,
 				data, UGETW(req->wLength), flags, 0);
 	xfer->pipe = pipe;
 	err = usbd_sync_transfer(xfer);
