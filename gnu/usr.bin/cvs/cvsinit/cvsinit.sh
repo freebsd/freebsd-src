@@ -1,4 +1,4 @@
-#! /bin/sh -x
+#! /bin/sh
 :
 #
 # Copyright (c) 1992, Brian Berliner

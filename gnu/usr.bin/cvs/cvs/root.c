@@ -3,12 +3,12 @@
  *
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Name of Root
- *
+ * 
  * Determine the path to the CVSROOT and set "Root" accordingly.
  * If this looks like of modified clone of Name_Repository() in
- * repos.c, it is...
+ * repos.c, it is... 
  */
 
 #include "cvs.h"
@@ -131,7 +131,7 @@ same_directories (dir1, dir2)
         return (0);
     if (stat (dir2, &sb2) < 0)
         return (0);
-
+    
     ret = 0;
     if ( (memcmp( &sb1.st_dev, &sb2.st_dev, sizeof(dev_t) ) == 0) &&
 	 (memcmp( &sb1.st_ino, &sb2.st_ino, sizeof(ino_t) ) == 0))

@@ -1,11 +1,11 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * General recursion handler
- *
+ * 
  */
 
 #include "cvs.h"
@@ -145,7 +145,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
      * other possibility is named entities whicha are not currently in
      * the working directory.
      */
-
+    
     for (i = 0; i < argc; i++)
     {
 	/* if this argument is a directory, then add it to the list of
@@ -197,7 +197,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 		    /* otherwise, look for it in the repository. */
 		    char *save_update_dir;
 		    char *repos;
-
+		
 		    /* save & set (aka push) update_dir */
 		    save_update_dir = xstrdup (update_dir);
 
@@ -205,11 +205,11 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 			(void) strcat (update_dir, "/");
 
 		    (void) strcat (update_dir, dir);
-
+		
 		    /* look for it in the repository. */
 		    repos = Name_Repository (dir, update_dir);
 		    (void) sprintf (tmp, "%s/%s", repos, comp);
-
+		
 		    if (isdir(tmp))
 			addlist (&dirlist, argv[i]);
 		    else

@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Check In
- *
+ * 
  * Does a very careful checkin of the file "user", and tries not to spoil its
  * modification time (to avoid needless recompilations). When RCS ID keywords
  * get expanded on checkout, however, the modification time is updated and
  * there is no good way to get around this.
- *
+ * 
  * Returns non-zero on error.
  */
 
