@@ -1,65 +1,47 @@
 .\" @(#)bootparamd.8
-.TH BOOTPARAMD 8 "8 November 1989"
-.SH NAME
-bootparamd \- boot parameter server
-.SH SYNOPSIS
-.B bootparamd
-[
-.B \-d
-]
-[
-.B \-s
-]
-[
-.B \-r 
-router
-]
-[
-.B \-f
-file
-]
-.SH DESCRIPTION
-.IX "bootparamd daemon" "" "\fLbootparamd\fP daemon"
-.LP
-.B bootparamd
+.Dd "November 8, 1989"
+.Dt BOOTPARAMD 8
+.Os
+.Sh NAME
+.Nm bootparamd
+.Nd boot parameter server
+.Sh SYNOPSIS
+.Nm
+.Op Fl ds
+.Op Fl r Ar router
+.Op Fl f file
+.Sh DESCRIPTION
+.Nm bootparamd
 is a server process that provides information to diskless clients
-necessary for booting. It consults 
-.B /etc/bootparams
+necessary for booting. It consults the
+.Pa /etc/bootparams
 file. 
-.LP
+.Pp
 This version will allow the use of aliases on the hostname in the
-.B /etc/bootparams
+.Pa /etc/bootparams
 file. The returned hostname to the whoami request done by the booting client
 will be the name that appears in 
-.B /etc/bootparams
+.Pa /etc/bootparams
 and not the canonical name. In this way you can keep the answer short enough
 so that machines that can not handle long hostnames won't fail during boot.
-.SH OPTIONS
-.TP
-.B \-d
+.Sh OPTIONS
+.Bl -tag -width Fl
+.It Fl d
 Display the debugging information.
-.TP
-.B \-s
+.It Fl s
 Log the debugging information with syslog. 
-.TP
-.B 
-\-r router
+.It Fl r Ar router
 The default router (a machine or an IP-address).
 This defaults to the machine running the server.
-.TP
-.B
-\-f file
-The file to use as boot parameter file instead of /etc/bootparams.
-.SH FILES
-.PD 0
-.TP 20
-.B /etc/bootparams
-.PD
-
-.SH BUGS
-You may find the syslog loggings to verbose.
-
-.SH AUTHOR
+.It Fl f Ar file
+The file to use as boot parameter file instead of
+.Pa /etc/bootparams .
+.El
+.Sh FILES
+.Bl -tag -width /etc/bootparams -compact
+.It /etc/bootparams
+.El
+.Sh BUGS
+You may find the syslog loggings to be verbose.
+.Sh AUTHOR
 Written by Klas Heggemann <klas@nada.kth.se>
-
-
