@@ -1,4 +1,30 @@
-User PPP Packet Aliasing
+Copyright (c) 2001 Charles Mott <cmott@scientech.com>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+$FreeBSD$
+
+User PPP NAT (Packet Aliasing)
 
 
 
@@ -14,15 +40,15 @@ User PPP Packet Aliasing
 
 1. Background
 
-User mode ppp has embedded packet aliasing (IP masquerading) code.
-Enabling this, either by the "-alias" command line option or the
-"alias enable yes" command in a ppp.conf file, makes the ppp host
-automatically alias IP packets forwarded from a local network, making
+User mode ppp has embedded NAT (Network Address Translation) code.
+Enabling this, either by the "-nat" command line option or the
+"nat enable yes" command in a ppp.conf file, makes the ppp host
+automatically NAT IP packets forwarded from a local network, making
 them appear to come from the ppp host machine.  Incoming packets
-from the outside world are then appropriately de-aliased.
+from the outside world are then appropriately de-NAT'd.
 
-The process of aliasing involves both the IP address and the TCP or UDP
-port numbers. ICMP echo and timestamp packets are aliased by their id
+The process of NAT'ing involves both the IP address and the TCP or UDP
+port numbers. ICMP echo and timestamp packets are natted by their id
 numbers.  ICMP error messages can be properly directed by examining the
 fragment of the offending packet which is contained in the body of the
 message.
@@ -35,7 +61,7 @@ without the need for a registered IP address.  Additionally, there will
 be no need for an Internet service provider to maintain routing tables
 for the local area network.
 
-A disadvantage of packet aliasing is that machines on the local network,
+A disadvantage of NAT is that machines on the local network,
 behind the ppp host, are not visible from the outside world.  They can
 establish TCP connections and make UDP inquiries (such as domain name
 service requests) but the connections seem to come from the ppp host
@@ -55,7 +81,7 @@ Examples of these protocols are http, gopher and telnet. The standard UDP
 mode of Real-Audio is not presently supported, but the TCP mode does work
 correctly.
 
-The packet aliasing code also handle many ICMP messages.  In particular,
+The NAT code also handles many ICMP messages.  In particular,
 ping and traceroute are supported.
 
 
@@ -63,14 +89,14 @@ ping and traceroute are supported.
 2. Packet Aliasing Setup
 
 It is recommended that users first verify correct ppp operation without
-packet aliasing enabled.  This will confirm that the ppp.conf file is
+NAT enabled.  This will confirm that the ppp.conf file is
 properly set up and that there are no ppp problems. Then start ppp with
-the "-alias" option on the command line.  The user should verify that
-the ppp host can correctly connect to the Internet in packet aliasing
+the "-nat" option on the command line.  The user should verify that
+the ppp host can correctly connect to the Internet in NAT
 mode.  Finally, check that machines on the private network can access
 the Internet.
 
-The masquerading software aliases all packets, whether they come from
+The NAT software handles all packets, whether they come from
 the host or another computer on the local area network.  Thus, a correctly
 operating ppp host indicates that the software should work properly for
 other computers on the private network.
@@ -86,69 +112,69 @@ and masks.
 
 3. New commands in ppp
 
-In order to control aliasing behaviour in a simple manner (no need for
-recompilation), a new command has been added to ppp: alias.  This
-is in addition to the -alias command line option.  System managers and
+In order to control NAT behaviour in a simple manner (no need for
+recompilation), a new command has been added to ppp: nat.  This
+is in addition to the -nat command line option.  System managers and
 more experienced users may prefer to use the ppp command syntax
-within the ppp.conf file.  The alias command also allows packet aliasing
+within the ppp.conf file.  The nat command also allows NAT
 behaviour to be more precisely specified.
 
 The decision to add a command instead of extending 'set' or 'option' was
-to make obvious that these options only work when aliasing is enabled.
+to make obvious that these options only work when NAT is enabled.
 
-The syntax for 'alias' is
+The syntax for 'nat' is
 
-    ppp>  alias option [yes|no]
+    ppp>  nat option [yes|no]
 
 where option is given by one of the following templates.
 
 
- - alias enable [yes|no]  (default no)
+ - nat enable [yes|no]  (default no)
 
-Enable packet aliasing functionality.  If disabled, no other alias
-options will have any effect.  You should usually enable aliasing
+Enable NAT functionality.  If disabled, no other NAT
+options will have any effect.  You should usually enable NAT
 before routing any packets over the link; good points are in the
 initial script or right before adding a route.  If you do not always
-want aliasing, consider using the -alias option to ppp instead of this
+want NAT, consider using the -nat option to ppp instead of this
 command.
 
 
- - alias deny_incoming [yes|no] (default yes)
+ - nat deny_incoming [yes|no] (default yes)
 
 Set to "yes" to disable all incoming connections.  This just drops
-connections to, for example, ftp, telnet or web servers.  The aliasing
+connections to, for example, ftp, telnet or web servers.  The NAT
 mechanism prevents these connections. Technically, this option denies
-all incoming TCP and UDP requests, making the aliasing software a
+all incoming TCP and UDP requests, making the NAT software a
 fairly efficient one-way firewall.  The default is no, which will allow
 all incoming connections to telnetd, ftpd, etc.
 
 
- - alias log [yes|no]
+ - nat log [yes|no]
 
-Controls logging of alias link creation to "/var/log/alias.log" - this
+Controls logging of NAT link creation to "/var/log/alias.log" - this
 is usually only useful if debugging a setup, to see if the bug is in
-the PPP aliasing.  The debugging information is fairly limited, listing
-the number of aliasing links open for different protocols.
+the PPP NATing.  The debugging information is fairly limited, listing
+the number of NAT links open for different protocols.
 
 
- - alias same_ports [yes|no] (default yes)
+ - nat same_ports [yes|no] (default yes)
 
-When a connection is being established going through the aliasing
+When a connection is being established going through the NAT
 routines, it will normally have its port number changed to allow the
-aliasing code to track it.  If same_ports is enabled, the alias
+NAT code to track it.  If same_ports is enabled, the NAT
 software attempts to keep the connection's source port unchanged.
 This will allow rsh, RPC and other specialised protocols to work
 _most of the time_, at least on the host machine.  Please, do not
 report this being unstable as a bug - it is a result of the way
-aliasing has to work. TCP/IP was intended to have one IP address
+NAT has to work. TCP/IP was intended to have one IP address
 per machine.
 
 
- - alias use_sockets [yes|no] (default yes)
+ - nat use_sockets [yes|no] (default yes)
 
-This is a fairly obscure option.  For the most part, the packet aliasing
-software does not have to allocate system sockets when it chooses an
-aliasing port number.  Under very specific circumstances, FTP data
+This is a fairly obscure option.  For the most part, the NAT
+software does not have to allocate system sockets when it chooses a
+NAT port number.  Under very specific circumstances, FTP data
 connections (which don't know the remote port number, though it is
 usually 20) and IRC DCC send (which doesn't know either the address or
 the port from which the connection will come), there can potentially be
@@ -159,9 +185,9 @@ option is yes, though fewer system resources are consumed by specifying
 no.
 
 
- - alias unregistered_only [yes|no] (default no)
+ - nat unregistered_only [yes|no] (default no)
 
-Packet aliasing normally remaps all packets coming from the local area
+NAT normally remaps all packets coming from the local area
 network to the ppp host machine address.  Set this option to only map
 addresses from the following standard ranges for private, unregistered
 addresses:
@@ -172,16 +198,16 @@ addresses:
 
 In the instance that there is a subnet of public addresses and another
 subnet of private addresses being routed by the ppp host, then only the
-packets on the private subnet will be aliased.
+packets on the private subnet will be NAT'd.
 
 
-- alias port <proto> <local addr>:<port>  <alias port>
+- nat port <proto> <local addr>:<port>  <nat port>
 
-This command allows incoming traffic to <alias port> on the host 
+This command allows incoming traffic to <nat port> on the host 
 machine to be redirected to a specific machine and port on the
 local area network.  One example of this would be:
 
-    alias port tcp 192.168.0.4:telnet  8066
+    nat port tcp 192.168.0.4:telnet  8066
 
 All traffic to port 8066 of the ppp host would then be sent to
 the telnet port (23) of machine 192.168.0.4.  Port numbers
@@ -190,7 +216,7 @@ listed in /etc/services.  Similarly, addresses can be either
 in dotted quad notation or in /etc/hosts.
 
 
-- alias addr <local addr> <public addr>
+- nat addr <local addr> <public addr>
 
 This command allows traffic for a public IP address to be
 redirected to a machine on the local network.  This function
@@ -200,47 +226,47 @@ NAT is useful if your ISP has allocated a small block of
 IP addresses to the user, but it can even be used in the
 case of a single, dynamically allocated IP address:
 
-    alias addr 10.0.0.8 0
+    nat addr 10.0.0.8 0
 
 The above command would redirect all incoming traffic to
 machine 10.0.0.8. 
 
-If several address aliases specify the same public address
+If several address NATs specify the same public address
 as follows
 
-    alias addr 192.168.0.2  public_addr
-    alias addr 192.168.0.3  public_addr
-    alias addr 192.168.0.4  public_addr
+    nat addr 192.168.0.2  public_addr
+    nat addr 192.168.0.3  public_addr
+    nat addr 192.168.0.4  public_addr
 
 then incoming traffic will be directed to the last
 translated local address (192.168.0.4), but outgoing
-traffic to the first two addresses will still be aliased
+traffic to the first two addresses will still be NAT'd
 to the specified public address.
 
 
 
 4. Future Work
 
-What is called packet aliasing here has been variously called masquerading,
-network address translation (NAT) and transparent proxying by others.  It
-is an extremely useful function to many users, but it is also necessarily
-imperfect.  The occasional IP-encoding protocols always need workarounds
-(hacks).  Users who are interested in supporting new IP-encoding protocols
+What is called NAT here has been variously called masquerading, packet
+aliasing and transparent proxying by others.  It is an extremely useful
+function to many users, but it is also necessarily imperfect.  The
+occasional IP-encoding protocols always need workarounds (hacks).
+Users who are interested in supporting new IP-encoding protocols
 can follow the examples of alias_ftp.c and alias_irc.c.
 
 ICMP error messages are currently handled only in the incoming direction.
-A handler needs to be added to correctly alias outgoing error messages.
+A handler needs to be added to correctly NAT outgoing error messages.
 
 IRC and FTP exception handling make reasonable, though not strictly correct
 assumptions, about how IP encoded messages will appear in the control
 stream.  Programmers may wish to consider how to make this process more
 robust.
 
-The packet aliasing engine (alias.c, alias_db.c, alias_ftp.c, alias_irc.c
+The NAT engine (alias.c, alias_db.c, alias_ftp.c, alias_irc.c
 and alias_util.c) runs in user space, and is intended to be both portable
 and reusable for interfaces other than ppp.  To access the basic engine
 only requires four simple function calls (initialisation, communication of
-host address, outgoing aliasing and incoming de-aliasing).
+host address, outgoing NAT and incoming de-NATing).
 
 
 
