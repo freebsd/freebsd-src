@@ -50,9 +50,9 @@ restore()
 {
 	char *home;
 	char home1[MAXPATHLEN];
-	register int n;
+	int n;
 	int tmp;
-	register FILE *fp;
+	FILE *fp;
 
 	if ( (home = getenv("HOME")) != NULL) 
   	  sprintf(home1, "%.*s/Bstar", MAXPATHLEN - 7, home);
@@ -108,7 +108,7 @@ save()
 	struct stat sbuf;
 	char *home;
 	char home1[MAXPATHLEN];
-	register int n;
+	int n;
 	int tmp, fd;
 	FILE *fp;
 

@@ -149,9 +149,9 @@ setctty(){
 
 
 setftty(){
-register int ef = 0;			/* desired value of flags & ECHO */
-register int cf = CBRKON(CBRKMASK);	/* desired value of flags & CBREAK */
-register int change = 0;
+int ef = 0;			/* desired value of flags & ECHO */
+int cf = CBRKON(CBRKMASK);	/* desired value of flags & CBREAK */
+int change = 0;
 	flags.cbreak = ON;
 	flags.echo = OFF;
 	/* Should use (ECHO|CRMOD) here instead of ECHO */
@@ -194,10 +194,10 @@ error(s,x,y) char *s; {
  * resulting string is "\033".
  */
 getlin(bufp)
-register char *bufp;
+char *bufp;
 {
-	register char *obufp = bufp;
-	register int c;
+	char *obufp = bufp;
+	int c;
 
 	flags.toplin = 2;		/* nonempty, no --More-- required */
 	for(;;) {
@@ -243,7 +243,7 @@ getret() {
 }
 
 cgetret(s)
-register char *s;
+char *s;
 {
 	putsym('\n');
 	if(flags.standout)
@@ -259,9 +259,9 @@ register char *s;
 char morc;	/* tell the outside world what char he used */
 
 xwaitforspace(s)
-register char *s;	/* chars allowed besides space or return */
+char *s;	/* chars allowed besides space or return */
 {
-register int c;
+int c;
 
 	morc = 0;
 
@@ -281,7 +281,7 @@ char *
 parse()
 {
 	static char inputline[COLNO];
-	register foo;
+	foo;
 
 	flags.move = 1;
 	if(!Invisible) curs_on_u(); else home();
@@ -310,7 +310,7 @@ parse()
 
 char
 readchar() {
-	register int sym;
+	int sym;
 
 	(void) fflush(stdout);
 	if((sym = getchar()) == EOF)
@@ -320,7 +320,7 @@ readchar() {
 	   * (?like when one hits break or for interrupted systemcalls?),
 	   * and we must see several before we quit.
 	   */
-		register int cnt = NR_OF_EOFS;
+		int cnt = NR_OF_EOFS;
 		while (cnt--) {
 		    clearerr(stdin);	/* omit if clearerr is undefined */
 		    if((sym = getchar()) != EOF) goto noteof;

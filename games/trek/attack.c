@@ -72,7 +72,7 @@ static char sccsid[] = "@(#)attack.c	8.1 (Berkeley) 5/31/93";
 attack(resting)
 int	resting;	/* set if attack while resting */
 {
-	register int		hit, i, l;
+	int		hit, i, l;
 	int			maxhit, tothit, shldabsb;
 	double			chgfac, propor, extradm;
 	double			dustfac, tothe;

@@ -52,9 +52,9 @@ main(ac, av)
 int	ac;
 char	**av;
 {
-	register char	*sp;
-	register bool	bad_arg;
-	register bool	show_only;
+	char	*sp;
+	bool	bad_arg;
+	bool	show_only;
 	extern char	*Scorefile;
 	extern int	Max_per_uid;
 	void quit();
@@ -173,7 +173,7 @@ quit()
  */
 another()
 {
-	register int	y;
+	int	y;
 
 #ifdef	FANCY
 	if ((Stand_still || Pattern_roll) && !Newscore)

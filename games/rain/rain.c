@@ -63,7 +63,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int x, y, j;
+	int x, y, j;
 	long cols, lines;
 	int xpos[5], ypos[5];
 	unsigned int delay = 0;

@@ -89,8 +89,8 @@ static int	race;				/* game reduced to a race */
 move (okay)
 int	okay;					/* zero if first move */
 {
-	register int	i;		/* index */
-	register int	l;		/* last man */
+	int	i;		/* index */
+	int	l;		/* last man */
 
 	if (okay)  {
 						/* see if comp should double */
@@ -177,12 +177,12 @@ int	okay;					/* zero if first move */
 }
 
 trymove (mvnum,swapped)
-register int	mvnum;				/* number of move (rel zero) */
+int		mvnum;				/* number of move (rel zero) */
 int		swapped;			/* see if swapped also tested */
 
 {
-	register int	pos;			/* position on board */
-	register int	rval;			/* value of roll */
+	int	pos;			/* position on board */
+	int	rval;			/* value of roll */
 
 						/* if recursed through all dice
 						 * values, compare move */
@@ -233,7 +233,7 @@ int		swapped;			/* see if swapped also tested */
 
 struct BOARD *
 bsave ()  {
-	register int	i;		/* index */
+	int		i;		/* index */
 	struct BOARD	*now;		/* current position */
 
 	now = nextfree ();		/* get free BOARD */
@@ -255,8 +255,8 @@ bsave ()  {
 binsert (new)
 struct BOARD	*new;					/* item to insert */
 {
-	register struct BOARD	*p = checkq;		/* queue pointer */
-	register int		result;			/* comparison result */
+	struct BOARD	*p = checkq;		/* queue pointer */
+	int		result;			/* comparison result */
 
 	if (p == 0)  {				/* check if queue empty */
 		checkq = p = new;
@@ -299,9 +299,9 @@ bcomp (a,b)
 struct BOARD	*a;
 struct BOARD	*b;
 {
-	register int	*aloc = a->b_board;	/* pointer to board a */
-	register int	*bloc = b->b_board;	/* pointer to board b */
-	register int	i;			/* index */
+	int	*aloc = a->b_board;	/* pointer to board a */
+	int	*bloc = b->b_board;	/* pointer to board b */
+	int		i;			/* index */
 	int		result;			/* comparison result */
 
 	for (i = 0; i < 26; i++)  {		/* compare boards */
@@ -313,11 +313,11 @@ struct BOARD	*b;
 }
 
 mvcheck (incumbent,candidate)
-register struct BOARD 	*incumbent;
-register struct BOARD 	*candidate;
+struct BOARD 	*incumbent;
+struct BOARD 	*candidate;
 {
-	register int	i;
-	register int	result;
+	int		i;
+	int		result;
 
 	for (i = 0; i < mvlim; i++)  {
 		result = cturn*(candidate->b_st[i]-incumbent->b_st[i]);
@@ -361,8 +361,8 @@ nextfree ()  {
 
 pickmove ()  {
 						/* current game position */
-	register struct BOARD	*now = bsave();
-	register struct BOARD	*next;		/* next move */
+	struct BOARD	*now = bsave();
+	struct BOARD	*next;		/* next move */
 
 #ifdef DEBUG
 	if (trace == NULL)
@@ -382,9 +382,9 @@ pickmove ()  {
 }
 
 boardcopy (s)
-register struct BOARD	*s;			/* game situation */
+struct BOARD	*s;			/* game situation */
 {
-	register int	i;			/* index */
+	int	i;			/* index */
 
 	for (i = 0; i < 26; i++)
 		board[i] = s->b_board[i];
@@ -399,8 +399,8 @@ register struct BOARD	*s;			/* game situation */
 }
 
 movcmp ()  {
-	register int	i;
-	register int	c;
+	int	i;
+	int	c;
 
 #ifdef DEBUG
 	if (trace == NULL)
@@ -472,7 +472,7 @@ movcmp ()  {
 }
 
 movegood ()  {
-	register int	n;
+	int	n;
 
 	if (*offptr == 15)
 		return (1);

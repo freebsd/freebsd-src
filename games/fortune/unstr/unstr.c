@@ -112,7 +112,7 @@ char	**av;
 }
 
 void getargs(av)
-register char	*av[];
+char	*av[];
 {
 	if (!*++av) {
 		(void) fprintf(stderr, "usage: unstr datafile\n");
@@ -124,10 +124,10 @@ register char	*av[];
 }
 
 void order_unstr(tbl)
-register STRFILE	*tbl;
+STRFILE	*tbl;
 {
-	register int	i;
-	register char	*sp;
+	int	i;
+	char	*sp;
 	long            pos;
 	char		buf[BUFSIZ];
 

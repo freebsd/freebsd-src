@@ -41,8 +41,8 @@ redotoplin() {
 }
 
 remember_topl() {
-register struct topl *tl;
-register int cnt = OTLMAX;
+struct topl *tl;
+int cnt = OTLMAX;
 	if(last_redone_topl &&
 	   !strcmp(toplines, last_redone_topl->topl_text)) return;
 	if(old_toplines &&
@@ -101,7 +101,7 @@ more(){
 }
 
 cmore(s)
-register char *s;
+char *s;
 {
 	xmore(s);
 }
@@ -118,11 +118,11 @@ clrlin(){
 
 /*VARARGS1*/
 pline(line,arg1,arg2,arg3,arg4,arg5,arg6)
-register char *line,*arg1,*arg2,*arg3,*arg4,*arg5,*arg6;
+char *line,*arg1,*arg2,*arg3,*arg4,*arg5,*arg6;
 {
 	char pbuf[BUFSZ];
-	register char *bp = pbuf, *tl;
-	register int n,n0;
+	char *bp = pbuf, *tl;
+	int n,n0;
 
 	if(!line || !*line) return;
 	if(!index(line, '%')) (void) strcpy(pbuf,line); else
@@ -188,6 +188,6 @@ putsym(c) char c; {
 	(void) putchar(c);
 }
 
-putstr(s) register char *s; {
+putstr(s) char *s; {
 	while(*s) putsym(*s++);
 }

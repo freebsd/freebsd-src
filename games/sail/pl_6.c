@@ -42,9 +42,9 @@ static char sccsid[] = "@(#)pl_6.c	8.1 (Berkeley) 5/31/93";
 repair()
 {
 	char c;
-	register char *repairs;
-	register struct shipspecs *ptr = mc;
-	register int count;
+	char *repairs;
+	struct shipspecs *ptr = mc;
+	int count;
 
 #define FIX(x, m) (m - ptr->x > count \
 	? (ptr->x += count, count = 0) : (count -= m - ptr->x, ptr->x = m))
@@ -134,7 +134,7 @@ repair()
 
 turned()
 {
-	register char *p;
+	char *p;
 
 	for (p = movebuf; *p; p++)
 		if (*p == 'r' || *p == 'l')
@@ -145,7 +145,7 @@ turned()
 loadplayer()
 {
 	char c;
-	register loadL, loadR, ready, load;
+	loadL, loadR, ready, load;
 
 	if (!mc->crew3) {
 		Signal("Out of crew", (struct ship *)0);

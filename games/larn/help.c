@@ -13,7 +13,7 @@
 extern char helpfile[];
 help()
 	{
-	register int i,j;
+	int i,j;
 #ifndef VT100
 	char tmbuf[128];	/* intermediate translation buffer when not a VT100 */
 #endif VT100
@@ -48,7 +48,7 @@ help()
  */
 welcome()
 	{
-	register int i;
+	int i;
 #ifndef VT100
 	char tmbuf[128];	/* intermediate translation buffer when not a VT100 */
 #endif VT100

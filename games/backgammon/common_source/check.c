@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)check.c	8.1 (Berkeley) 5/31/93";
 #include "back.h"
 
 getmove ()  {
-	register int	i, c;
+	int	i, c;
 
 	c = 0;
 	for (;;)  {
@@ -103,10 +103,10 @@ getmove ()  {
 }
 
 movokay (mv)
-register int	mv;
+int	mv;
 
 {
-	register int	i, m;
+	int	i, m;
 
 	if (d0)
 		swap;

@@ -26,10 +26,10 @@ static char *rip[] = {
 };
 
 outrip(){
-	register char **dp = rip;
-	register char *dpx;
+	char **dp = rip;
+	char *dpx;
 	char buf[BUFSZ];
-	register x,y;
+	x,y;
 
 	cls();
 	(void) strcpy(buf, plname);
@@ -44,7 +44,7 @@ outrip(){
 	center(8, buf);
 	(void) strcpy(buf, killer);
 	if(strlen(buf) > 16) {
-	    register int i,i0,i1;
+	    int i,i0,i1;
 		i0 = i1 = 0;
 		for(i = 0; i <= 16; i++)
 			if(buf[i] == ' ') i0 = i, i1 = i+1;
@@ -75,7 +75,7 @@ outrip(){
 }
 
 center(line, text) int line; char *text; {
-register char *ip,*op;
+char *ip,*op;
 	ip = text;
 	op = &rip[line][28 - ((strlen(text)+1)/2)];
 	while(*ip) *op++ = *ip++;

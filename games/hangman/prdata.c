@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)prdata.c	8.1 (Berkeley) 5/31/93";
  */
 prdata()
 {
-	register bool	*bp;
+	bool	*bp;
 
 	move(GUESSY, GUESSX + sizeof "Guessed: ");
 	bp = Guessed;

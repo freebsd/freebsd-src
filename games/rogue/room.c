@@ -175,9 +175,9 @@ short rn;
 }
 
 get_dungeon_char(row, col)
-register row, col;
+row, col;
 {
-	register unsigned short mask = dungeon[row][col];
+	unsigned short mask = dungeon[row][col];
 
 	if (mask & MONSTER) {
 		return(gmc_row_col(row, col));
@@ -223,7 +223,7 @@ register row, col;
 }
 
 get_mask_char(mask)
-register unsigned short mask;
+unsigned short mask;
 {
 		switch(mask) {
 		case SCROL:
@@ -314,7 +314,7 @@ party_objects(rn)
 }
 
 get_room_number(row, col)
-register row, col;
+row, col;
 {
 	short i;
 

@@ -115,7 +115,7 @@ char *mail[] = {
 void
 mailbill()
 {
-	register int i;
+	int i;
 	char fname[32];
 	char buf[128];
 	char **cp;

@@ -44,7 +44,7 @@ take(from)
 unsigned int from[];
 {
 	int firstnumber, heavy, bulky, value;
-	register int n;
+	int n;
 
 	firstnumber = wordnumber;
 	if (wordnumber < wordcount && wordvalue[wordnumber+1] == OFF){

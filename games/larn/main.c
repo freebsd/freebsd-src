@@ -39,7 +39,7 @@ main(argc,argv)
 	int argc;
 	char **argv;
 	{
-	register int i,j;
+	int i,j;
 	int hard;
 	char *ptr=0,*ttype;
 	struct passwd *pwe;
@@ -236,7 +236,7 @@ main(argc,argv)
  */
 showstr()
 	{
-	register int i,number;
+	int i,number;
 	for (number=3, i=0; i<26; i++)
 		if (iven[i]) number++;	/* count items in inventory */
 	t_setup(number);	qshowstr();	  t_endup(number);
@@ -244,7 +244,7 @@ showstr()
 
 qshowstr()
 	{
-	register int i,j,k,sigsav;
+	int i,j,k,sigsav;
 	srcount=0;  sigsav=nosignal;  nosignal=1; /* don't allow ^c etc */
 	if (c[GOLD]) { lprintf(".)   %d gold pieces",(long)c[GOLD]); srcount++; }
 	for (k=26; k>=0; k--)
@@ -260,7 +260,7 @@ qshowstr()
  *	subroutine to clear screen depending on # lines to display
  */
 t_setup(count)
-	register int count;
+	int count;
 	{
 	if (count<20)  /* how do we clear the screen? */
 		{
@@ -276,7 +276,7 @@ t_setup(count)
  *	subroutine to restore normal display screen depending on t_setup()
  */
 t_endup(count)
-	register int count;
+	int count;
 	{
 	if (count<18)  /* how did we clear the screen? */
 		draws(0,MAXX,0,(count>MAXY) ? MAXY : count);
@@ -291,7 +291,7 @@ t_endup(count)
  */
 showwear()
 	{
-	register int i,j,sigsav,count;
+	int i,j,sigsav,count;
 	sigsav=nosignal;  nosignal=1; /* don't allow ^c etc */
 	srcount=0;
 
@@ -325,7 +325,7 @@ showwear()
  */
 showwield()
 	{
-	register int i,j,sigsav,count;
+	int i,j,sigsav,count;
 	sigsav=nosignal;  nosignal=1; /* don't allow ^c etc */
 	srcount=0;
 
@@ -361,7 +361,7 @@ showwield()
  */
 showread()
 	{
-	register int i,j,sigsav,count;
+	int i,j,sigsav,count;
 	sigsav=nosignal;  nosignal=1; /* don't allow ^c etc */
 	srcount=0;
 
@@ -387,7 +387,7 @@ showread()
  */
 showeat()
 	{
-	register int i,j,sigsav,count;
+	int i,j,sigsav,count;
 	sigsav=nosignal;  nosignal=1; /* don't allow ^c etc */
 	srcount=0;
 
@@ -413,7 +413,7 @@ showeat()
  */
 showquaff()
 	{
-	register int i,j,sigsav,count;
+	int i,j,sigsav,count;
 	sigsav=nosignal;  nosignal=1; /* don't allow ^c etc */
 	srcount=0;
 
@@ -435,8 +435,8 @@ showquaff()
 	}
 
 show1(idx,str2)
-	register int idx;
-	register char *str2[];
+	int idx;
+	char *str2[];
 	{
 	if (str2==0)  lprintf("\n%c)   %s",idx+'a',objectname[iven[idx]]);
 	else if (*str2[ivenarg[idx]]==0)  lprintf("\n%c)   %s",idx+'a',objectname[iven[idx]]);
@@ -444,7 +444,7 @@ show1(idx,str2)
 	}
 
 show3(index)
-	register int index;
+	int index;
 	{
 	switch(iven[index])
 		{
@@ -486,7 +486,7 @@ randmonst()
  */
 parse()
 	{
-	register int i,j,k,flag;
+	int i,j,k,flag;
 	while	(1)
 		{
 		k = yylex();
@@ -578,7 +578,7 @@ parse()
 						c[LANCEDEATH]=1;   c[WEAR] = c[SHIELD] = -1;
 						raiseexperience(6000000L);  c[AWARENESS] += 25000;
 						{
-						register int i,j;
+						int i,j;
 						for (i=0; i<MAXY; i++)
 							for (j=0; j<MAXX; j++)  know[j][i]=1;
 						for (i=0; i<SPNUM; i++)	spelknow[i]=1;
@@ -645,7 +645,7 @@ parse2()
 run(dir)
 	int dir;
 	{
-	register int i;
+	int i;
 	i=1; while (i)
 		{
 		i=moveplayer(dir);
@@ -660,7 +660,7 @@ run(dir)
  */
 wield()
 	{
-	register int i;
+	int i;
 	while (1)
 		{
 		if ((i = whatitem("wield"))=='\33')  return;
@@ -691,7 +691,7 @@ ycwi(x)
  */
 wear()
 	{
-	register int i;
+	int i;
 	while (1)
 		{
 		if ((i = whatitem("wear"))=='\33')  return;
@@ -719,8 +719,8 @@ wear()
  */
 dropobj()
 	{
-	register int i;
-	register char *p;
+	int i;
+	char *p;
 	long amt;
 	p = &item[playerx][playery];
 	while (1)
@@ -763,7 +763,7 @@ dropobj()
  */
 readscr()
 	{
-	register int i;
+	int i;
 	while (1)
 		{
 		if ((i = whatitem("read"))=='\33')  return;
@@ -785,7 +785,7 @@ readscr()
  */
 eatcookie()
 {
-register int i;
+int i;
 char *p;
 while (1)
 	{
@@ -819,7 +819,7 @@ while (1)
  */
 quaff()
 	{
-	register int i;
+	int i;
 	while (1)
 		{
 		if ((i = whatitem("quaff"))=='\33')  return;
@@ -855,8 +855,8 @@ whatitem(str)
 unsigned long readnum(mx)
 	long mx;
 	{
-	register int i;
-	register unsigned long amt=0;
+	int i;
+	unsigned long amt=0;
 	sncbr();
 	if ((i=getchar()) == '*')  amt = mx;   /* allow him to say * for all gold */
 	else
@@ -875,7 +875,7 @@ unsigned long readnum(mx)
  *	routine to zero every byte in a string
  */
 szero(str)
-	register char *str;
+	char *str;
 	{
 	while (*str)
 		*str++ = 0;

@@ -95,7 +95,7 @@ struct trobj Wizard[] = {
 };
 
 u_init(){
-register int i;
+int i;
 char exper = 'y', pc;
 extern char readchar();
 	if(flags.female)	/* should have been set in HACKOPTIONS */
@@ -237,7 +237,7 @@ got_suffix:
 	}
 	find_ac();
 	if(!rn2(20)) {
-		register int d = rn2(7) - 2;	/* biased variation */
+		int d = rn2(7) - 2;	/* biased variation */
 		u.ustr += d;
 		u.ustrmax += d;
 	}
@@ -251,8 +251,8 @@ got_suffix:
 		u.ustr++, u.ustrmax++;
 }
 
-ini_inv(trop) register struct trobj *trop; {
-register struct obj *obj;
+ini_inv(trop) struct trobj *trop; {
+struct obj *obj;
 extern struct obj *mkobj();
 	while(trop->trolet) {
 		obj = mkobj(trop->trolet);
@@ -308,9 +308,9 @@ extern struct obj *mkobj();
 
 #ifdef WIZARD
 wiz_inv(){
-register struct trobj *trop = &Extra_objs[0];
-register char *ep = getenv("INVENT");
-register int type;
+struct trobj *trop = &Extra_objs[0];
+char *ep = getenv("INVENT");
+int type;
 	while(ep && *ep) {
 		type = atoi(ep);
 		ep = index(ep, ',');
@@ -334,7 +334,7 @@ register int type;
 #endif WIZARD
 
 plnamesuffix() {
-register char *p;
+char *p;
 	if(p = rindex(plname, '-')) {
 		*p = 0;
 		pl_character[0] = p[1];
@@ -350,7 +350,7 @@ role_index(pc)
 char pc;
 {		/* must be called only from u_init() */
 		/* so that rolesyms[] is defined */
-	register char *cp;
+	char *cp;
 
 	if(cp = index(rolesyms, pc))
 		return(cp - rolesyms);

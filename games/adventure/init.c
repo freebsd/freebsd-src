@@ -78,7 +78,7 @@ char a,b,c,d,e;
 }
 
 linkdata()                              /*  secondary data manipulation */
-{       register int i,j;
+{       int i,j;
 
 	/*      array linkages          */
 	for (i=1; i<=LOCSIZ; i++)

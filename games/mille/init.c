@@ -45,9 +45,9 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 5/31/93";
 
 init() {
 
-	reg PLAY	*pp;
-	reg int		i, j;
-	reg CARD	card;
+	PLAY	*pp;
+	int	i, j;
+	CARD	card;
 
 	bzero(Numseen, sizeof Numseen);
 	Numgos = 0;
@@ -88,8 +88,8 @@ init() {
 
 shuffle() {
 
-	reg int		i, r;
-	reg CARD	temp;
+	int		i, r;
+	CARD	temp;
 
 	for (i = 0; i < DECK_SZ; i++) {
 		r = roll(1, DECK_SZ) - 1;
@@ -106,8 +106,8 @@ shuffle() {
 
 newboard() {
 
-	register int	i;
-	register PLAY	*pp;
+	int	i;
+	PLAY	*pp;
 	static int	first = TRUE;
 
 	if (first) {
@@ -164,8 +164,8 @@ newboard() {
 
 newscore() {
 
-	reg int		i, new;
-	register PLAY	*pp;
+	int		i, new;
+	PLAY	*pp;
 	static int	was_full = -1;
 	static int	last_win = -1;
 

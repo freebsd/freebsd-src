@@ -32,8 +32,8 @@ hangup(){
 
 /* returns 1 if save successful */
 dosave0(hu) int hu; {
-	register fd, ofd;
-	int tmp;		/* not register ! */
+	fd, ofd;
+	int tmp;		/* not ! */
 
 	(void) signal(SIGHUP, SIG_IGN);
 	(void) signal(SIGINT, SIG_IGN);
@@ -89,10 +89,10 @@ dosave0(hu) int hu; {
 }
 
 dorecover(fd)
-register fd;
+fd;
 {
-	register nfd;
-	int tmp;		/* not a register ! */
+	nfd;
+	int tmp;		/* not a ! */
 	unsigned mid;		/* idem */
 	struct obj *otmp;
 	extern boolean restoring;
@@ -154,7 +154,7 @@ register fd;
 		}
 	}
 	if(u.ustuck) {
-		register struct monst *mtmp;
+		struct monst *mtmp;
 
 		for(mtmp = fmon; mtmp; mtmp = mtmp->nmon)
 			if(mtmp->m_id == mid) goto monfnd;
@@ -172,10 +172,10 @@ register fd;
 
 struct obj *
 restobjchn(fd)
-register fd;
+fd;
 {
-	register struct obj *otmp, *otmp2;
-	register struct obj *first = 0;
+	struct obj *otmp, *otmp2;
+	struct obj *first = 0;
 	int xl;
 #ifdef lint
 	/* suppress "used before set" warning from lint */
@@ -200,10 +200,10 @@ register fd;
 
 struct monst *
 restmonchn(fd)
-register fd;
+fd;
 {
-	register struct monst *mtmp, *mtmp2;
-	register struct monst *first = 0;
+	struct monst *mtmp, *mtmp2;
+	struct monst *first = 0;
 	int xl;
 
 	struct permonst *monbegin;

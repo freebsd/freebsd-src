@@ -66,10 +66,10 @@ klmove(fl)
 int	fl;
 {
 	int			n;
-	register struct kling	*k;
+	struct kling	*k;
 	double			dx, dy;
 	int			nextx, nexty;
-	register int		lookx, looky;
+	int		lookx, looky;
 	int			motion;
 	int			fudgex, fudgey;
 	int			qx, qy;

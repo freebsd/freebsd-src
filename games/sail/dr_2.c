@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)dr_2.c	8.1 (Berkeley) 5/31/93";
 
 thinkofgrapples()
 {
-	register struct ship *sp, *sq;
+	struct ship *sp, *sq;
 	char friendly;
 
 	foreachship(sp) {
@@ -74,8 +74,8 @@ thinkofgrapples()
 
 checkup()
 {
-	register struct ship *sp, *sq;
-	register char explode, sink;
+	struct ship *sp, *sq;
+	char explode, sink;
 
 	foreachship(sp) {
 		if (sp->file->dir == 0)
@@ -104,7 +104,7 @@ checkup()
 
 prizecheck()
 {
-	register struct ship *sp;
+	struct ship *sp;
 
 	foreachship(sp) {
 		if (sp->file->captured == 0)
@@ -123,7 +123,7 @@ prizecheck()
 strend(str)
 char *str;
 {
-	register char *p;
+	char *p;
 
 	for (p = str; *p; p++)
 		;
@@ -131,7 +131,7 @@ char *str;
 }
 
 closeon(from, to, command, ta, ma, af)
-register struct ship *from, *to;
+struct ship *from, *to;
 char command[];
 int ma, ta, af;
 {
@@ -147,12 +147,12 @@ int dtab[] = {0,1,1,2,3,4,4,5};		/* diagonal distances in x==y */
 
 score(movement, ship, to, onlytemp)
 char movement[];
-register struct ship *ship, *to;
+struct ship *ship, *to;
 char onlytemp;
 {
 	char drift;
 	int row, col, dir, total, ran;
-	register struct File *fp = ship->file;
+	struct File *fp = ship->file;
 
 	if ((dir = fp->dir) == 0)
 		return 0;
@@ -179,11 +179,11 @@ char onlytemp;
 }
 
 sail_move(p, ship, dir, row, col, drift)
-register char *p;
-register struct ship *ship;
-register char *dir;
-register short *row, *col;
-register char *drift;
+char *p;
+struct ship *ship;
+char *dir;
+short *row, *col;
+char *drift;
 {
 	int dist;
 	char moved = 0;
@@ -223,11 +223,11 @@ register char *drift;
 }
 
 try(command, temp, ma, ta, af, vma, dir, f, t, high, rakeme)
-register struct ship *f, *t;
+struct ship *f, *t;
 int ma, ta, af, vma, dir, *high, rakeme;
 char command[], temp[];
 {
-	register int new, n;
+	int new, n;
 	char st[4];
 #define rakeyou (gunsbear(f, t) && !gunsbear(t, f))
 
@@ -269,7 +269,7 @@ char command[], temp[];
 rmend(str)
 char *str;
 {
-	register char *p;
+	char *p;
 
 	for (p = str; *p; p++)
 		;

@@ -139,8 +139,8 @@ main(argc, argv)
 
 life()
 {
-	register struct body *bp, *np;
-	register int i;
+	struct body *bp, *np;
+	int i;
 
 	head = newlink();
 	head->x = start_len+2;
@@ -210,7 +210,7 @@ prize()
 process(ch)
 char ch;
 {
-	register int x,y;
+	int x,y;
 	struct body *nh;
 
 	alarm(0);

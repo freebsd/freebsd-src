@@ -45,7 +45,7 @@ card(array, size)		/* for beenthere, injuries */
 	int size;
 {
 	const char *end = array + size;
-	register int i = 0;
+	int i = 0;
 
 	while (array < end)
 		if (*array++)
@@ -57,7 +57,7 @@ int
 ucard(array)
 	const unsigned int *array;
 {
-	register int j = 0, n;
+	int j = 0, n;
 
 	for (n = 0; n < NUMOFOBJECTS; n++)
 		if (testbit(array, n))

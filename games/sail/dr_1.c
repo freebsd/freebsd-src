@@ -41,10 +41,10 @@ static char sccsid[] = "@(#)dr_1.c	8.1 (Berkeley) 5/31/93";
 
 unfoul()
 {
-	register struct ship *sp;
+	struct ship *sp;
 	struct ship *to;
-	register int nat;
-	register i;
+	int nat;
+	i;
 
 	foreachship(sp) {
 		if (sp->file->captain[0])
@@ -64,7 +64,7 @@ unfoul()
 boardcomp()
 {
 	int crew[3];
-	register struct ship *sp, *sq;
+	struct ship *sp, *sq;
 
 	foreachship(sp) {
 		if (*sp->file->captain)
@@ -229,7 +229,7 @@ int key;
 resolve()
 {
 	int thwart;
-	register struct ship *sp, *sq;
+	struct ship *sp, *sq;
 
 	foreachship(sp) {
 		if (sp->file->dir == 0)
@@ -258,8 +258,8 @@ resolve()
 
 compcombat()
 {
-	register n;
-	register struct ship *sp;
+	n;
+	struct ship *sp;
 	struct ship *closest;
 	int crew[3], men = 0, target, temp;
 	int r, guns, ready, load, car;
@@ -396,7 +396,7 @@ next()
 			people = 0;
 	}
 	if (people <= 0 || windspeed == 7) {
-		register struct ship *s;
+		struct ship *s;
 		struct ship *bestship;
 		float net, best = 0.0;
 		foreachship(s) {

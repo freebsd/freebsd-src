@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)playgame.c	8.1 (Berkeley) 5/31/93";
  */
 playgame()
 {
-	register bool	*bp;
+	bool	*bp;
 
 	getword();
 	Errors = 0;

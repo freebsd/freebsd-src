@@ -149,11 +149,11 @@ main(argc, argv)
 #define	COLUMNS	48
 
 printcard(str)
-	register char *str;
+	char *str;
 {
 	static char rowchars[] = "   123456789";
-	register int i, row;
-	register char *p;
+	int i, row;
+	char *p;
 	char *index();
 
 	/* ruthlessly remove newlines and truncate at 48 characters. */

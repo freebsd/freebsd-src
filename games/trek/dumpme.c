@@ -54,10 +54,10 @@ static char sccsid[] = "@(#)dumpme.c	8.1 (Berkeley) 5/31/93";
 dumpme(flag)
 int	flag;
 {
-	register int		f;
+	int		f;
 	double			x;
-	register struct event	*e;
-	register int		i;
+	struct event	*e;
+	int		i;
 
 	f = flag;
 	Ship.quadx = ranf(NQUADS);

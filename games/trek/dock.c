@@ -56,9 +56,9 @@ static char sccsid[] = "@(#)dock.c	8.1 (Berkeley) 5/31/93";
 
 dock()
 {
-	register int		i, j;
+	int		i, j;
 	int			ok;
-	register struct event	*e;
+	struct event	*e;
 
 	if (Ship.cond == DOCKED)
 		return (printf("Chekov: But captain, we are already docked\n"));
@@ -123,8 +123,8 @@ dock()
 
 undock()
 {
-	register struct event	*e;
-	register int		i;
+	struct event	*e;
+	int		i;
 
 	if (Ship.cond != DOCKED)
 	{

@@ -125,8 +125,8 @@ istart:		for (;;) {
 
 usermove()
 {
-	register int n;
-	register char **p;
+	int n;
+	char **p;
 	char buf[256];
 
 	(void)printf("\nYour hand is:");
@@ -196,7 +196,7 @@ compmove()
 
 promove()
 {
-	register int i, max;
+	int i, max;
 
 	for (i = 0; i < RANKS; ++i)
 		if (userasked[i] &&
@@ -295,9 +295,9 @@ goodmove(player, move, hand, opphand)
 
 chkwinner(player, hand)
 	int player;
-	register int *hand;
+	int *hand;
 {
-	register int cb, i, ub;
+	int cb, i, ub;
 
 	for (i = 0; i < RANKS; ++i)
 		if (hand[i] > 0 && hand[i] < CARDS)
@@ -338,7 +338,7 @@ printplayer(player)
 printhand(hand)
 	int *hand;
 {
-	register int book, i, j;
+	int book, i, j;
 
 	for (book = i = 0; i < RANKS; i++)
 		if (hand[i] < CARDS)
@@ -356,9 +356,9 @@ printhand(hand)
 }
 
 countcards(hand)
-	register int *hand;
+	int *hand;
 {
-	register int i, count;
+	int i, count;
 
 	for (count = i = 0; i < RANKS; i++)
 		count += *hand++;
@@ -383,7 +383,7 @@ countbooks(hand)
 
 init()
 {
-	register int i, rank;
+	int i, rank;
 
 	for (i = 0; i < RANKS; ++i)
 		deck[i] = CARDS;

@@ -216,8 +216,8 @@ acceptcombat()
 
 grapungrap()
 {
-	register struct ship *sp;
-	register int i;
+	struct ship *sp;
+	int i;
 
 	foreachship(sp) {
 		if (sp == ms || sp->file->dir == 0)
@@ -258,8 +258,8 @@ grapungrap()
 
 unfoulplayer()
 {
-	register struct ship *to;
-	register i;
+	struct ship *to;
+	i;
 
 	foreachship(to) {
 		if (fouled2(ms, to) == 0)

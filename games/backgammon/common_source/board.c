@@ -44,7 +44,7 @@ static int	i, j, k;
 static char	ln[60];
 
 wrboard ()  {
-	register int	l;
+	int	l;
 	static const char	bl[] =
 		"|                       |   |                       |\n";
 	static const char	sv[] =
@@ -160,8 +160,8 @@ lastline:
 }
 
 wrbsub () {
-	register int	m;
-	register char	d;
+	int		m;
+	char		d;
 
 	if (board[k] > 0)  {
 		m = board[k];

@@ -44,13 +44,13 @@ static char sccsid[] = "@(#)types.c	8.1 (Berkeley) 5/31/93";
  */
 
 isrepair(card)
-reg CARD	card; {
+CARD	card; {
 
 	return card == C_GAS || card == C_SPARE || card == C_REPAIRS || card == C_INIT;
 }
 
 safety(card)
-reg CARD	card; {
+CARD	card; {
 
 	switch (card) {
 	  case C_EMPTY:

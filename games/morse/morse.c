@@ -213,8 +213,8 @@ main(int argc, char **argv)
 {
 	extern char    *optarg;
 	extern int      optind;
-	register int    ch;
-	register char  *p;
+	int    ch;
+	char  *p;
 
 	while ((ch = getopt(argc, argv, "spw:f:")) != -1)
 		switch ((char) ch) {

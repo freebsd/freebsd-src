@@ -56,7 +56,7 @@ static FILE *sync_fp;
 makesignal(from, fmt, ship, a, b, c)
 	struct ship *from;
 	char *fmt;
-	register struct ship *ship;
+	struct ship *ship;
 {
 	char message[80];
 
@@ -141,7 +141,7 @@ Write(type, ship, isstr, a, b, c, d)
 Sync()
 {
 	sig_t sighup, sigint;
-	register n;
+	n;
 	int type, shipnum, isstr, a, b, c, d;
 	char buf[80];
 	char erred = 0;
@@ -180,7 +180,7 @@ Sync()
 		if (isstr != 0 && isstr != 1)
 			goto bad;
 		if (isstr) {
-			register char *p;
+			char *p;
 			for (p = buf;;) {
 				switch (*p++ = getc(sync_fp)) {
 				case '\n':
@@ -228,26 +228,26 @@ out:
 
 sync_update(type, ship, a, b, c, d)
 	int type;
-	register struct ship *ship;
+	struct ship *ship;
 	long a, b, c, d;
 {
 	switch (type) {
 	case W_DBP: {
-		register struct BP *p = &ship->file->DBP[a];
+		struct BP *p = &ship->file->DBP[a];
 		p->turnsent = b;
 		p->toship = SHIP(c);
 		p->mensent = d;
 		break;
 		}
 	case W_OBP: {
-		register struct BP *p = &ship->file->OBP[a];
+		struct BP *p = &ship->file->OBP[a];
 		p->turnsent = b;
 		p->toship = SHIP(c);
 		p->mensent = d;
 		break;
 		}
 	case W_FOUL: {
-		register struct snag *p = &ship->file->foul[a];
+		struct snag *p = &ship->file->foul[a];
 		if (SHIP(a)->file->dir == 0)
 			break;
 		if (p->sn_count++ == 0)
@@ -256,7 +256,7 @@ sync_update(type, ship, a, b, c, d)
 		break;
 		}
 	case W_GRAP: {
-		register struct snag *p = &ship->file->grap[a];
+		struct snag *p = &ship->file->grap[a];
 		if (SHIP(a)->file->dir == 0)
 			break;
 		if (p->sn_count++ == 0)
@@ -265,7 +265,7 @@ sync_update(type, ship, a, b, c, d)
 		break;
 		}
 	case W_UNFOUL: {
-		register struct snag *p = &ship->file->foul[a];
+		struct snag *p = &ship->file->foul[a];
 		if (p->sn_count > 0) {
 			if (b) {
 				ship->file->nfoul -= p->sn_count;
@@ -278,7 +278,7 @@ sync_update(type, ship, a, b, c, d)
 		break;
 		}
 	case W_UNGRAP: {
-		register struct snag *p = &ship->file->grap[a];
+		struct snag *p = &ship->file->grap[a];
 		if (p->sn_count > 0) {
 			if (b) {
 				ship->file->ngrap -= p->sn_count;
@@ -299,7 +299,7 @@ sync_update(type, ship, a, b, c, d)
 		}
 		break;
 	case W_CREW: {
-		register struct shipspecs *s = ship->specs;
+		struct shipspecs *s = ship->specs;
 		s->crew1 = a;
 		s->crew2 = b;
 		s->crew3 = c;
@@ -330,13 +330,13 @@ sync_update(type, ship, a, b, c, d)
 		ship->file->FS = a;
 		break;
 	case W_GUNL: {
-		register struct shipspecs *s = ship->specs;
+		struct shipspecs *s = ship->specs;
 		s->gunL = a;
 		s->carL = b;
 		break;
 		}
 	case W_GUNR: {
-		register struct shipspecs *s = ship->specs;
+		struct shipspecs *s = ship->specs;
 		s->gunR = a;
 		s->carR = b;
 		break;
@@ -359,7 +359,7 @@ sync_update(type, ship, a, b, c, d)
 		ship->specs->qual = a;
 		break;
 	case W_RIGG: {
-		register struct shipspecs *s = ship->specs;
+		struct shipspecs *s = ship->specs;
 		s->rig1 = a;
 		s->rig2 = b;
 		s->rig3 = c;

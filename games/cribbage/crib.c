@@ -195,7 +195,7 @@ gamescore()
 void
 game()
 {
-	register int i, j;
+	int i, j;
 	BOOLEAN flag;
 	BOOLEAN compcrib;
 
@@ -286,7 +286,7 @@ int
 playhand(mycrib)
 	BOOLEAN mycrib;
 {
-	register int deckpos;
+	int deckpos;
 
 	werase(Compwin);
 
@@ -315,7 +315,7 @@ int
 deal(mycrib)
 	BOOLEAN mycrib;
 {
-	register int i, j;
+	int i, j;
 
 	for (i = j = 0; i < FULLHAND; i++) {
 		if (mycrib) {
@@ -338,7 +338,7 @@ void
 discard(mycrib)
 	BOOLEAN mycrib;
 {
-	register char *prompt;
+	char *prompt;
 	CARD crd;
 
 	prcrib(mycrib, TRUE);
@@ -369,7 +369,7 @@ cut(mycrib, pos)
 	BOOLEAN mycrib;
 	int  pos;
 {
-	register int i;
+	int i;
 	BOOLEAN win;
 
 	win = FALSE;
@@ -412,7 +412,7 @@ void
 prcrib(mycrib, blank)
 	BOOLEAN mycrib, blank;
 {
-	register int y, cardx;
+	int y, cardx;
 
 	if (mycrib)
 		cardx = CRIB_X;
@@ -443,10 +443,10 @@ peg(mycrib)
 	BOOLEAN mycrib;
 {
 	static CARD ch[CINHAND], ph[CINHAND];
-	register int i, j, k;
-	register int l;
-	register int cnum, pnum, sum;
-	register BOOLEAN myturn, mego, ugo, last, played;
+	int i, j, k;
+	int l;
+	int cnum, pnum, sum;
+	BOOLEAN myturn, mego, ugo, last, played;
 	CARD crd;
 
 	cnum = pnum = CINHAND;

@@ -146,8 +146,8 @@ put_mons()
 
 object *
 gr_monster(monster, mn)
-register object *monster;
-register mn;
+object *monster;
+mn;
 {
 	if (!monster) {
 		monster = alloc_object();
@@ -173,7 +173,7 @@ register mn;
 
 mv_mons()
 {
-	register object *monster, *next_monster, *test_mons;
+	object *monster, *next_monster, *test_mons;
 	boolean flew;
 
 	if (haste_self % 2) {
@@ -267,9 +267,9 @@ int rn, n;
 }
 
 gmc_row_col(row, col)
-register row, col;
+row, col;
 {
-	register object *monster;
+	object *monster;
 
 	if (monster = object_at(&level_monsters, row, col)) {
 		if ((!(detect_monster || see_invisible || r_see_invisible) &&
@@ -300,7 +300,7 @@ object *monster;
 }
 
 mv_1_monster(monster, row, col)
-register object *monster;
+object *monster;
 short row, col;
 {
 	short i, n;
@@ -439,8 +439,8 @@ O:
 }
 
 mtry(monster, row, col)
-register object *monster;
-register short row, col;
+object *monster;
+short row, col;
 {
 	if (mon_can_go(monster, row, col)) {
 		move_mon_to(monster, row, col);
@@ -450,11 +450,11 @@ register short row, col;
 }
 
 move_mon_to(monster, row, col)
-register object *monster;
-register short row, col;
+object *monster;
+short row, col;
 {
 	short c;
-	register mrow, mcol;
+	mrow, mcol;
 
 	mrow = monster->row;
 	mcol = monster->col;
@@ -501,7 +501,7 @@ register short row, col;
 
 mon_can_go(monster, row, col)
 const object *monster;
-register short row, col;
+short row, col;
 {
 	object *obj;
 	short dr, dc;
@@ -603,7 +603,7 @@ const object *monster;
 }
 
 rogue_is_around(row, col)
-register row, col;
+row, col;
 {
 	short rdif, cdif, retval;
 
@@ -731,9 +731,9 @@ object *monster;
 }
 
 rogue_can_see(row, col)
-register row, col;
+row, col;
 {
-	register retval;
+	retval;
 
 	retval = !blind &&
 			(((get_room_number(row, col) == cur_room) &&

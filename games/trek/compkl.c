@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)compkl.c	8.1 (Berkeley) 5/31/93";
 compkldist(f)
 int	f;		/* set if new quadrant */
 {
-	register int		i, dx, dy;
+	int		i, dx, dy;
 	double			d;
 	double			temp;
 
@@ -95,7 +95,7 @@ int	f;		/* set if new quadrant */
 sortkl()
 {
 	struct kling		t;
-	register int		f, i, m;
+	int		f, i, m;
 
 	m = Etc.nkling - 1;
 	f = 1;

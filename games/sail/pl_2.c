@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)pl_2.c	8.1 (Berkeley) 5/31/93";
 
 play()
 {
-	register struct ship *sp;
+	struct ship *sp;
 
 	for (;;) {
 		switch (sgetch("~\b", (struct ship *)0, 0)) {

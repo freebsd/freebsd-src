@@ -59,10 +59,10 @@ static char sccsid[] = "@(#)initquad.c	8.1 (Berkeley) 5/31/93";
 initquad(f)
 int	f;
 {
-	register int		i, j;
+	int		i, j;
 	int			rx, ry;
 	int			nbases, nstars;
-	register struct quad	*q;
+	struct quad	*q;
 	int			nholes;
 
 	q = &Quad[Ship.quadx][Ship.quady];
@@ -141,7 +141,7 @@ int	f;
 sector(x, y)
 int	*x, *y;
 {
-	register int		i, j;
+	int		i, j;
 
 	do
 	{

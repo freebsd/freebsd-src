@@ -20,10 +20,10 @@ dodrop() {
 }
 
 static int
-drop(obj) register struct obj *obj; {
+drop(obj) struct obj *obj; {
 	if(!obj) return(0);
 	if(obj->olet == '$') {		/* pseudo object */
-		register long amount = OGOLD(obj);
+		long amount = OGOLD(obj);
 
 		if(amount == 0)
 			pline("You didn't drop any gold pieces.");
@@ -54,14 +54,14 @@ drop(obj) register struct obj *obj; {
 
 /* Called in several places - should not produce texts */
 dropx(obj)
-register struct obj *obj;
+struct obj *obj;
 {
 	freeinv(obj);
 	dropy(obj);
 }
 
 dropy(obj)
-register struct obj *obj;
+struct obj *obj;
 {
 	if(obj->otyp == CRYSKNIFE)
 		obj->otyp = WORM_TOOTH;
@@ -118,11 +118,11 @@ doup()
 }
 
 goto_level(newlevel, at_stairs)
-register int newlevel;
-register boolean at_stairs;
+int newlevel;
+boolean at_stairs;
 {
-	register fd;
-	register boolean up = (newlevel < dlevel);
+	fd;
+	boolean up = (newlevel < dlevel);
 
 	if(newlevel <= 0) done("escaped");    /* in fact < 0 is impossible */
 	if(newlevel > MAXLEVEL) newlevel = MAXLEVEL;	/* strange ... */
@@ -204,7 +204,7 @@ register boolean at_stairs;
 			selftouch("Falling, you");
 		}
 	    }
-	    { register struct monst *mtmp = m_at(u.ux, u.uy);
+	    { struct monst *mtmp = m_at(u.ux, u.uy);
 	      if(mtmp)
 		mnexto(mtmp);
 	    }
@@ -227,7 +227,7 @@ register boolean at_stairs;
 	initrack();
 
 	losedogs();
-	{ register struct monst *mtmp;
+	{ struct monst *mtmp;
 	  if(mtmp = m_at(u.ux, u.uy)) mnexto(mtmp);	/* riv05!a3 */
 	}
 	flags.nscrinh = 0;
@@ -251,9 +251,9 @@ dopray() {
 struct monst *bhit(), *boomhit();
 dothrow()
 {
-	register struct obj *obj;
-	register struct monst *mon;
-	register tmp;
+	struct obj *obj;
+	struct monst *mon;
+	tmp;
 
 	obj = getobj("#)", "throw");   /* it is also possible to throw food */
 				       /* (or jewels, or iron balls ... ) */
@@ -415,7 +415,7 @@ dothrow()
 			if(u.utraptype == TT_PIT)
 				pline("The ball pulls you out of the pit!");
 			else {
-			    register long side =
+			    long side =
 				rn2(3) ? LEFT_SIDE : RIGHT_SIDE;
 			    pline("The ball pulls you out of the bear trap.");
 			    pline("Your %s leg is severely damaged.",
@@ -440,8 +440,8 @@ dothrow()
 /* split obj so that it gets size num */
 /* remainder is put in the object structure delivered by this call */
 struct obj *
-splitobj(obj, num) register struct obj *obj; register int num; {
-register struct obj *otmp;
+splitobj(obj, num) struct obj *obj; int num; {
+struct obj *otmp;
 	otmp = newobj(0);
 	*otmp = *obj;		/* copies whole structure */
 	otmp->o_id = flags.ident++;
@@ -456,7 +456,7 @@ register struct obj *otmp;
 }
 
 more_experienced(exp,rexp)
-register int exp, rexp;
+int exp, rexp;
 {
 	extern char pl_character[];
 
@@ -468,8 +468,8 @@ register int exp, rexp;
 }
 
 set_wounded_legs(side, timex)
-register long side;
-register int timex;
+long side;
+int timex;
 {
 	if(!Wounded_legs || (Wounded_legs & TIMEOUT))
 		Wounded_legs |= side + timex;

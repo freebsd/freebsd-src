@@ -14,7 +14,7 @@ struct permonst hell_hound =
 makemaz()
 {
 	int x,y;
-	register zx,zy;
+	zx,zy;
 	coord mm;
 	boolean al = (dlevel >= 30 && !flags.made_amulet);
 
@@ -22,7 +22,7 @@ makemaz()
 		for(y = 2; y < ROWNO-1; y++)
 			levl[x][y].typ = (x%2 && y%2) ? 0 : HWALL;
 	if(al) {
-	    register struct monst *mtmp;
+	    struct monst *mtmp;
 
 	    zx = 2*(COLNO/4) - 1;
 	    zy = 2*(ROWNO/4) - 1;
@@ -88,7 +88,7 @@ makemaz()
 }
 
 walkfrom(x,y) int x,y; {
-register int q,a,dir;
+int q,a,dir;
 int dirs[4];
 	levl[x][y].typ = ROOM;
 	while(1) {
@@ -105,8 +105,8 @@ int dirs[4];
 }
 
 move(x,y,dir)
-register int *x, *y;
-register int dir;
+int *x, *y;
+int dir;
 {
 	switch(dir){
 		case 0: --(*y); break;
@@ -118,7 +118,7 @@ register int dir;
 
 okay(x,y,dir)
 int x,y;
-register int dir;
+int dir;
 {
 	move(&x,&y,dir);
 	move(&x,&y,dir);

@@ -18,10 +18,10 @@ struct monst zeromonst;
  */
 struct monst *
 makemon(ptr,x,y)
-register struct permonst *ptr;
+struct permonst *ptr;
 {
-	register struct monst *mtmp;
-	register tmp, ct;
+	struct monst *mtmp;
+	tmp, ct;
 	boolean anything = (!ptr);
 	extern boolean in_mklev;
 
@@ -94,7 +94,7 @@ gotmon:
 	if(anything) if(ptr->mlet == 'O' || ptr->mlet == 'k') {
 		coord enexto();
 		coord mm;
-		register int cnt = rnd(10);
+		int cnt = rnd(10);
 		mm.x = x;
 		mm.y = y;
 		while(cnt--) {
@@ -108,9 +108,9 @@ gotmon:
 
 coord
 enexto(xx,yy)
-register xchar xx,yy;
+xchar xx,yy;
 {
-	register xchar x,y;
+	xchar x,y;
 	coord foo[15], *tfoo;
 	int range;
 
@@ -160,8 +160,8 @@ goodpos(x,y)	/* used only in mnexto and rloc */
 rloc(mtmp)
 struct monst *mtmp;
 {
-	register tx,ty;
-	register char ch = mtmp->data->mlet;
+	tx,ty;
+	char ch = mtmp->data->mlet;
 
 #ifndef NOWORM
 	if(ch == 'w' && mtmp->mx) return;	/* do not relocate worms */
@@ -185,10 +185,10 @@ struct monst *mtmp;
 struct monst *
 mkmon_at(let,x,y)
 char let;
-register int x,y;
+int x,y;
 {
-	register int ct;
-	register struct permonst *ptr;
+	int ct;
+	struct permonst *ptr;
 
 	for(ct = 0; ct < CMNUM; ct++) {
 		ptr = &mons[ct];

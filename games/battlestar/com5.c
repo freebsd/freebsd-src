@@ -80,7 +80,7 @@ kiss()
 
 love()
 {
-	register int n;
+	int n;
 
 	while (wordtype[++wordnumber] != NOUNS && wordnumber <= wordcount);
 	if (wordtype[wordnumber] == NOUNS && testbit(location[position].objects,wordvalue[wordnumber])){
@@ -126,7 +126,7 @@ love()
 zzz()
 {
 	int oldtime;
-	register int n;
+	int n;
 
 	oldtime = gtime;
 	if ((snooze - gtime) < (0.75 * CYCLE)){

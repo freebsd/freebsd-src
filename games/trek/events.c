@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)events.c	8.1 (Berkeley) 5/31/93";
 events(warp)
 int	warp;		/* set if called in a time warp */
 {
-	register int		i;
+	int		i;
 	int			j;
 	struct kling		*k;
 	double			rtime;
@@ -59,8 +59,8 @@ int	warp;		/* set if called in a time warp */
 	double			idate;
 	struct event		*ev, *xsched(), *schedule();
 	int			ix, iy;
-	register struct quad	*q;
-	register struct event	*e;
+	struct quad	*q;
+	struct event	*e;
 	int			evnum;
 	int			restcancel;
 

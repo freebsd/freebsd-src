@@ -22,7 +22,7 @@ static short w1[9],w1x[9],w1y[9];
 static int tmp1,tmp2,tmp3,tmp4,distance;
 movemonst()
 	{
-	register int i,j;
+	int i,j;
 	if (c[TIMESTOP]) return;	/* no action if time is stopped */
 	if (c[HASTESELF])  if ((c[HASTESELF]&1)==0)  return;
 	if (spheres) movsphere();	/* move the spheres of annihilation if any */
@@ -95,7 +95,7 @@ static int tmpitem,xl,xh,yl,yh;
 movemt(i,j)
 	int i,j;
 	{
-	register int k,m,z,tmp,xtmp,ytmp,monst;
+	int k,m,z,tmp,xtmp,ytmp,monst;
 	switch(monst=mitem[i][j])  /* for half speed monsters */
 		{
 		case TROGLODYTE:  case HOBGOBLIN:  case METAMORPH:  case XVART:
@@ -192,7 +192,7 @@ out:  if (tmp<distance) /* did find connectivity */
 mmove(aa,bb,cc,dd)
 	int aa,bb,cc,dd;
 	{
-	register int tmp,i,flag;
+	int tmp,i,flag;
 	char *who,*p;
 	flag=0;	/* set to 1 if monster hit by arrow trap */
 	if ((cc==playerx) && (dd==playery))
@@ -276,8 +276,8 @@ mmove(aa,bb,cc,dd)
 #define SPHMAX 20	/* maximum number of spheres movsphere can handle */
 movsphere()
 	{
-	register int x,y,dir,len;
-	register struct sphere *sp,*sp2;
+	int x,y,dir,len;
+	struct sphere *sp,*sp2;
 	struct sphere sph[SPHMAX];
 
 	/* first duplicate sphere list */

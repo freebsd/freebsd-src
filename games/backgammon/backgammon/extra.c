@@ -50,7 +50,7 @@ FILE	*trace;
  */
 
 dble ()  {
-	register int	resp;			/* response to y/n */
+	int	resp;			/* response to y/n */
 
 	for (;;)  {
 		writel (" doubles.");		/* indicate double */
@@ -115,12 +115,12 @@ dble ()  {
  */
 
 dblgood ()  {
-	register int	n;			/* accumulated judgment */
-	register int	OFFC = *offptr;		/* no. of computer's men off */
-	register int	OFFO = *offopp;		/* no. of player's men off */
+	int	n;			/* accumulated judgment */
+	int	OFFC = *offptr;		/* no. of computer's men off */
+	int	OFFO = *offopp;		/* no. of player's men off */
 
 #ifdef DEBUG
-	register int	i;
+	int	i;
 	if (trace == NULL)
 		trace = fopen ("bgtrace","w");
 #endif
@@ -193,7 +193,7 @@ freemen (b)
 int	b;
 
 {
-	register int	i, inc, lim;
+	int		i, inc, lim;
 
 	odds(0,0,0);
 	if (board[b] == 0)
@@ -212,7 +212,7 @@ trapped (n,inc)
 int	n, inc;
 
 {
-	register int	i, j, k;
+	int		i, j, k;
 	int		c, l, ct;
 
 	ct = 0;
@@ -237,7 +237,7 @@ int	n, inc;
 
 eval ()  {
 
-	register int	i, j;
+	int		i, j;
 
 	for (j = i = 0; i < 26; i++)
 		j += (board[i] >= 0 ? i*board[i] : (25-i)*board[i]);

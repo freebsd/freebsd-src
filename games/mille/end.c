@@ -48,9 +48,9 @@ static char sccsid[] = "@(#)end.c	8.1 (Berkeley) 5/31/93";
  * the end-of-games points to the user who deserves it (if any).
  */
 finalscore(pp)
-reg PLAY	*pp; {
+	PLAY	*pp; {
 
-	reg int		temp, tot, num;
+	int		temp, tot, num;
 
 	if (pp->was_finished == Finished)
 		return;
@@ -92,9 +92,9 @@ static int	Last_tot[2];	/* last tot used for extrapolate	*/
  * the end-of-games points to the user who deserves it (if any).
  */
 extrapolate(pp)
-reg PLAY	*pp; {
+	PLAY	*pp; {
 
-	reg int		x, num, tot, count;
+	int		x, num, tot, count;
 
 	num = pp - Player;
 	tot += SC_TRIP + SC_DELAY + SC_EXT;

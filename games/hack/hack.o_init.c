@@ -9,17 +9,17 @@
 extern char *index();
 
 int
-letindex(let) register char let; {
-register int i = 0;
-register char ch;
+letindex(let) char let; {
+int i = 0;
+char ch;
 	while((ch = obj_symbols[i++]) != 0)
 		if(ch == let) return(i);
 	return(0);
 }
 
 init_objects(){
-register int i, j, first, last, sum, end;
-register char let, *tmp;
+int i, j, first, last, sum, end;
+char let, *tmp;
 	/* init base; if probs given check that they add up to 100,
 	   otherwise compute probs; shuffle descriptions */
 	end = SIZE(objects);
@@ -64,9 +64,9 @@ register char let, *tmp;
 	}
 }
 
-probtype(let) register char let; {
-register int i = bases[letindex(let)];
-register int prob = rn2(100);
+probtype(let) char let; {
+int i = bases[letindex(let)];
+int prob = rn2(100);
 	while((prob -= objects[i].oc_prob) >= 0) i++;
 	if(objects[i].oc_olet != let || !objects[i].oc_name)
 		panic("probtype(%c) error, i=%d", let, i);
@@ -75,7 +75,7 @@ register int prob = rn2(100);
 
 setgemprobs()
 {
-	register int j,first;
+	int j,first;
 	extern xchar dlevel;
 
 	first = bases[letindex(GEM_SYM)];
@@ -99,8 +99,8 @@ oinit()			/* level dependent initialization */
 
 extern long *alloc();
 
-savenames(fd) register fd; {
-register int i;
+savenames(fd) fd; {
+int i;
 unsigned len;
 	bwrite(fd, (char *) bases, sizeof bases);
 	bwrite(fd, (char *) objects, sizeof objects);
@@ -116,8 +116,8 @@ unsigned len;
 	}
 }
 
-restnames(fd) register fd; {
-register int i;
+restnames(fd) fd; {
+int i;
 unsigned len;
 	mread(fd, (char *) bases, sizeof bases);
 	mread(fd, (char *) objects, sizeof objects);
@@ -131,7 +131,7 @@ unsigned len;
 dodiscovered()				/* free after Robert Viduya */
 {
     extern char *typename();
-    register int i, end;
+    int i, end;
     int	ct = 0;
 
     cornline(0, "Discoveries");
@@ -153,7 +153,7 @@ dodiscovered()				/* free after Robert Viduya */
 }
 
 interesting_to_discover(i)
-register int i;
+int i;
 {
     return(
 	objects[i].oc_uname != NULL ||

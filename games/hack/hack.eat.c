@@ -50,7 +50,7 @@ static struct {
 } tin;
 
 opentin(){
-	register int r;
+	int r;
 
 	if(!carried(tin.tin))		/* perhaps it was stolen? */
 		return(0);		/* %% probably we should use tinoid */
@@ -88,9 +88,9 @@ Meatdone(){
 }
 
 doeat(){
-	register struct obj *otmp;
-	register struct objclass *ftmp;
-	register tmp;
+	struct obj *otmp;
+	struct objclass *ftmp;
+	tmp;
 
 	/* Is there some food (probably a heavy corpse) here on the ground? */
 	if(!Levitation)
@@ -139,7 +139,7 @@ gotit:
 			if(Glib) {
 				pline("The tin slips out of your hands.");
 				if(otmp->quan > 1) {
-					register struct obj *obj;
+					struct obj *obj;
 					extern struct obj *splitobj();
 
 					obj = splitobj(otmp, 1);
@@ -277,13 +277,13 @@ gethungry(){
 }
 
 /* called after vomiting and after performing feats of magic */
-morehungry(num) register num; {
+morehungry(num) num; {
 	u.uhunger -= num;
 	newuhs(TRUE);
 }
 
 /* called after eating something (and after drinking fruit juice) */
-lesshungry(num) register num; {
+lesshungry(num) num; {
 	u.uhunger += num;
 	newuhs(FALSE);
 }
@@ -294,7 +294,7 @@ unfaint(){
 }
 
 newuhs(incr) boolean incr; {
-	register int newhs, h = u.uhunger;
+	int newhs, h = u.uhunger;
 
 	newhs = (h > 1000) ? SATIATED :
 		(h > 150) ? NOT_HUNGRY :
@@ -354,15 +354,15 @@ newuhs(incr) boolean incr; {
 		     ?  'a' + (otyp - DEAD_ACID_BLOB)\
 		     :	'@' + (otyp - DEAD_HUMAN))
 poisonous(otmp)
-register struct obj *otmp;
+struct obj *otmp;
 {
 	return(index(POISONOUS, CORPSE_I_TO_C(otmp->otyp)) != 0);
 }
 
 /* returns 1 if some text was printed */
-eatcorpse(otmp) register struct obj *otmp; {
-register char let = CORPSE_I_TO_C(otmp->otyp);
-register tp = 0;
+eatcorpse(otmp) struct obj *otmp; {
+char let = CORPSE_I_TO_C(otmp->otyp);
+tp = 0;
 	if(let != 'a' && moves > otmp->age + 50 + rn2(100)) {
 		tp++;
 		pline("Ulch -- that meat was tainted!");

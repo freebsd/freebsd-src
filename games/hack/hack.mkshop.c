@@ -15,15 +15,15 @@ extern char shtypes[];	/* = "=/)%?!["; 8 types: 7 specialized, 1 mixed */
 schar shprobs[] = { 3,3,5,5,10,10,14,50 };	/* their probabilities */
 
 mkshop(){
-register struct mkroom *sroom;
-register int sh,sx,sy,i = -1;
-register char let;
+struct mkroom *sroom;
+int sh,sx,sy,i = -1;
+char let;
 int roomno;
-register struct monst *shk;
+struct monst *shk;
 #ifdef WIZARD
 	/* first determine shoptype */
 	if(wizard){
-		register char *ep = getenv("SHOPTYPE");
+		char *ep = getenv("SHOPTYPE");
 		if(ep){
 			if(*ep == 'z' || *ep == 'Z'){
 				mkzoo(ZOO);
@@ -65,7 +65,7 @@ gottype:
 	}
 
 	if(i < 0) {			/* shoptype not yet determined */
-	    register int j;
+	    int j;
 
 	    for(j = rn2(100), i = 0; (j -= shprobs[i])>= 0; i++)
 		if(!shtypes[i]) break;			/* superfluous */
@@ -84,7 +84,7 @@ gottype:
 #ifdef WIZARD
 	    /* This is said to happen sometimes, but I've never seen it. */
 	    if(wizard) {
-		register int j = sroom->doorct;
+		int j = sroom->doorct;
 		extern int doorindex;
 
 		pline("Where is shopdoor?");
@@ -118,7 +118,7 @@ gottype:
 	findname(ESHK->shknam, let);
 	for(sx = sroom->lx; sx <= sroom->hx; sx++)
 	for(sy = sroom->ly; sy <= sroom->hy; sy++){
-		register struct monst *mtmp;
+		struct monst *mtmp;
 		if((sx == sroom->lx && doors[sh].x == sx-1) ||
 		   (sx == sroom->hx && doors[sh].x == sx+1) ||
 		   (sy == sroom->ly && doors[sh].y == sy-1) ||
@@ -137,9 +137,9 @@ gottype:
 mkzoo(type)
 int type;
 {
-	register struct mkroom *sroom;
-	register struct monst *mon;
-	register int sh,sx,sy,i;
+	struct mkroom *sroom;
+	struct monst *mon;
+	int sh,sx,sy,i;
 	int goldlim = 500 * dlevel;
 	int moct = 0;
 	struct permonst *morguemon();
@@ -197,7 +197,7 @@ struct permonst *
 morguemon()
 {
 	extern struct permonst pm_ghost;
-	register int i = rn2(100), hd = rn2(dlevel);
+	int i = rn2(100), hd = rn2(dlevel);
 
 	if(hd > 10 && i < 10) return(PM_DEMON);
 	if(hd > 8 && i > 85) return(PM_VAMPIRE);
@@ -206,8 +206,8 @@ morguemon()
 
 mkswamp()	/* Michiel Huisjes & Fred de Wilde */
 {
-	register struct mkroom *sroom;
-	register int sx,sy,i,eelct = 0;
+	struct mkroom *sroom;
+	int sx,sy,i,eelct = 0;
 	extern struct permonst pm_eel;
 
 	for(i=0; i<5; i++) {		/* 5 tries */
@@ -233,10 +233,10 @@ mkswamp()	/* Michiel Huisjes & Fred de Wilde */
 }
 
 nexttodoor(sx,sy)
-register sx,sy;
+sx,sy;
 {
-	register dx,dy;
-	register struct rm *lev;
+	dx,dy;
+	struct rm *lev;
 	for(dx = -1; dx <= 1; dx++) for(dy = -1; dy <= 1; dy++)
 		if((lev = &levl[sx+dx][sy+dy])->typ == DOOR ||
 		    lev->typ == SDOOR || lev->typ == LDOOR)
@@ -245,23 +245,23 @@ register sx,sy;
 }
 
 has_dnstairs(sroom)
-register struct mkroom *sroom;
+struct mkroom *sroom;
 {
 	return(sroom->lx <= xdnstair && xdnstair <= sroom->hx &&
 		   sroom->ly <= ydnstair && ydnstair <= sroom->hy);
 }
 
 has_upstairs(sroom)
-register struct mkroom *sroom;
+struct mkroom *sroom;
 {
 	return(sroom->lx <= xupstair && xupstair <= sroom->hx &&
 		   sroom->ly <= yupstair && yupstair <= sroom->hy);
 }
 
 isbig(sroom)
-register struct mkroom *sroom;
+struct mkroom *sroom;
 {
-	register int area = (sroom->hx - sroom->lx) * (sroom->hy - sroom->ly);
+	int area = (sroom->hx - sroom->lx) * (sroom->hy - sroom->ly);
 	return( area > 20 );
 }
 

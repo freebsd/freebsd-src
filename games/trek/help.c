@@ -64,9 +64,9 @@ char	*Cntvect[3] =
 
 help()
 {
-	register int		i;
+	int		i;
 	double			dist, x;
-	register int		dx, dy;
+	int		dx, dy;
 	int			j, l;
 
 	/* check to see if calling for help is reasonable ... */

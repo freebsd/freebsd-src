@@ -45,9 +45,9 @@ main(argc,argv)
 int argc;
 char *argv[];
 {
-	register int fd;
+	int fd;
 #ifdef CHDIR
-	register char *dir;
+	char *dir;
 #endif
 
 	hname = argv[0];
@@ -89,7 +89,7 @@ char *argv[];
 	 * Note that we trust him here; it is possible to play under
 	 * somebody else's name.
 	 */
-	{ register char *s;
+	{ char *s;
 
 	  initoptions();
 	  if(!*plname && (s = getenv("USER")))
@@ -214,7 +214,7 @@ char *argv[];
 		getlock();	/* sets lock if locknum != 0 */
 #ifdef WIZARD
 	} else {
-		register char *sfoo;
+		char *sfoo;
 		(void) strcpy(lock,plname);
 		if(sfoo = getenv("MAGIC"))
 			while(*sfoo) {
@@ -225,8 +225,8 @@ char *argv[];
 			}
 		if(sfoo = getenv("GENOCIDED")){
 			if(*sfoo == '!'){
-				register struct permonst *pm = mons;
-				register char *gp = genocided;
+				struct permonst *pm = mons;
+				char *gp = genocided;
 
 				while(pm < mons+CMNUM+2){
 					if(!index(sfoo, pm->mlet))
@@ -270,7 +270,7 @@ not_recovered:
 		setsee();
 		flags.botlx = 1;
 		makedog();
-		{ register struct monst *mtmp;
+		{ struct monst *mtmp;
 		  if(mtmp = m_at(u.ux, u.uy)) mnexto(mtmp);	/* riv05!a3 */
 		}
 		seemons();
@@ -405,10 +405,10 @@ not_recovered:
 }
 
 glo(foo)
-register foo;
+foo;
 {
 	/* construct the string  xlock.n  */
-	register char *tf;
+	char *tf;
 
 	tf = lock;
 	while(*tf && *tf != '.') tf++;
@@ -421,7 +421,7 @@ register foo;
  * It may still contain a suffix denoting pl_character.
  */
 askname(){
-register int c,ct;
+int c,ct;
 	printf("\nWho are you? ");
 	(void) fflush(stdout);
 	ct = 0;
@@ -442,7 +442,7 @@ register int c,ct;
 
 /*VARARGS1*/
 impossible(s,x1,x2)
-register char *s;
+char *s;
 {
 	pline(s,x1,x2);
 	pline("Program in disorder - perhaps you'd better Quit.");
@@ -480,7 +480,7 @@ boolean wr;
 	/* perhaps we should also test whether . is writable */
 	/* unfortunately the access systemcall is worthless */
 	if(wr) {
-	    register fd;
+	    fd;
 
 	    if(dir == NULL)
 		dir = ".";

@@ -124,7 +124,7 @@ writeboard()
  */
 makeboard()
 	{
-	register int i;
+	int i;
 	for (i=0; i<SCORESIZE; i++)
 		{
 		winr[i].taxes = winr[i].score = sco[i].score = 0;
@@ -145,7 +145,7 @@ makeboard()
  */
 hashewon()
 	{
-	register int i;
+	int i;
 	c[HARDGAME] = 0;
 	if (readboard() < 0) return(0);	/* can't find scoreboard */
 	for (i=0; i<SCORESIZE; i++)	/* search through winners scoreboard */
@@ -167,8 +167,8 @@ hashewon()
 long paytaxes(x)
 	long x;
 	{
-	register int i;
-	register long amt;
+	int i;
+	long amt;
 	if (x<0) return(0L);
 	if (readboard()<0) return(0L);
 	for (i=0; i<SCORESIZE; i++)
@@ -192,8 +192,8 @@ long paytaxes(x)
  */
 winshou()
 	{
-	register struct wscofmt *p;
-	register int i,j,count;
+	struct wscofmt *p;
+	int i,j,count;
 	for (count=j=i=0; i<SCORESIZE; i++) /* is there anyone on the scoreboard? */
 		if (winr[i].score != 0)
 			{ j++; break; }
@@ -230,7 +230,7 @@ winshou()
 shou(x)
 	int x;
 	{
-	register int i,j,n,k;
+	int i,j,n,k;
 	int count;
 	for (count=j=i=0; i<SCORESIZE; i++)	/* is the scoreboard empty? */
 		if (sco[i].score!= 0)
@@ -274,7 +274,7 @@ shou(x)
 static char esb[] = "The scoreboard is empty.\n";
 showscores()
 	{
-	register int i,j;
+	int i,j;
 	lflush();  lcreat((char*)0);  if (readboard()<0) return;
 	i=winshou();	j=shou(0);
 	if (i+j == 0) lprcat(esb); else lprc('\n');
@@ -288,7 +288,7 @@ showscores()
  */
 showallscores()
 	{
-	register int i,j;
+	int i,j;
 	lflush();  lcreat((char*)0);  if (readboard()<0) return;
 	c[WEAR] = c[WIELD] = c[SHIELD] = -1;  /* not wielding or wearing anything */
 	for (i=0; i<MAXPOTION; i++) potionname[i][0]=' ';
@@ -305,7 +305,7 @@ showallscores()
  */
 sortboard()
 	{
-	register int i,j,pos;
+	int i,j,pos;
 	long jdat;
 	for (i=0; i<SCORESIZE; i++) sco[i].order = winr[i].order = -1;
 	pos=0;  while (pos < SCORESIZE)
@@ -341,7 +341,7 @@ newscore(score, whoo, whyded, winner)
 	int winner, whyded;
 	char *whoo;
 	{
-	register int i;
+	int i;
 	long taxes;
 	if (readboard() < 0) return; 	/*	do the scoreboard	*/
 	/* if a winner then delete all non-winning scores */
@@ -384,7 +384,7 @@ new1sub(score,i,whoo,taxes)
 	int i;
 	char *whoo;
 	{
-	register struct wscofmt *p;
+	struct wscofmt *p;
 	p = &winr[i];
 	p->taxes += taxes;
 	if ((score >= p->score) || (c[HARDGAME] > p->hardlev))
@@ -409,8 +409,8 @@ new2sub(score,i,whoo,whyded)
 	int i,whyded;
 	char *whoo;
 	{
-	register int j;
-	register struct scofmt *p;
+	int j;
+	struct scofmt *p;
 	p = &sco[i];
 	if ((score >= p->score) || (c[HARDGAME] > p->hardlev))
 		{
@@ -467,7 +467,7 @@ static int scorerror;
 died(x)
 	int x;
 	{
-	register int f,win;
+	int f,win;
 	char ch,*mod;
 	time_t zzz;
 	long i;
@@ -555,7 +555,7 @@ invalid:
 diedsub(x)
 int x;
 	{
-	register char ch,*mod;
+	char ch,*mod;
 	lprintf("Score: %d, Diff: %d,  %s ",(long)c[GOLD],(long)c[HARDGAME],logname);
 	if (x < 256)
 		{
@@ -573,8 +573,8 @@ int x;
  */
 diedlog()
 	{
-	register int n;
-	register char *p;
+	int n;
+	char *p;
 	struct stat stbuf;
 	lcreat((char*)0);
 	if (lopen(logfile)<0)
@@ -620,7 +620,7 @@ getplid(nam)
 	char *nam;
 	{
 	int fd7,high=999,no;
-	register char *p,*p2;
+	char *p,*p2;
 	char name[80];
 	if (havepid != -1) return(havepid);	/* already did it */
 	lflush();	/* flush any pending I/O */

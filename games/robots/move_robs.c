@@ -48,9 +48,9 @@ void
 move_robots(was_sig)
 bool	was_sig;
 {
-	register COORD	*rp;
-	register int	y, x;
-	register int	mindist, d;
+	COORD	*rp;
+	int	y, x;
+	int	mindist, d;
 	static COORD	newpos;
 
 	if (Real_time)

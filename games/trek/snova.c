@@ -64,11 +64,11 @@ snova(x, y)
 int	x, y;
 {
 	int			qx, qy;
-	register int		ix, iy;
+	int		ix, iy;
 	int			f;
 	int			dx, dy;
 	int			n;
-	register struct quad	*q;
+	struct quad	*q;
 
 	f = 0;
 	ix = x;

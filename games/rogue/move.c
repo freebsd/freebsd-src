@@ -226,7 +226,7 @@ short dirch;
 }
 
 is_passable(row, col)
-register row, col;
+row, col;
 {
 	if ((row < MIN_ROW) || (row > (DROWS - 2)) || (col < 0) ||
 		(col > (DCOLS-1))) {
@@ -239,7 +239,7 @@ register row, col;
 }
 
 next_to_something(drow, dcol)
-register drow, dcol;
+drow, dcol;
 {
 	short i, j, i_end, j_end, row, col;
 	short pass_count = 0;
@@ -375,7 +375,7 @@ boolean
 check_hunger(msg_only)
 boolean msg_only;
 {
-	register short i, n;
+	short i, n;
 	boolean fainted = 0;
 
 	if (rogue.moves_left == HUNGRY) {
