@@ -208,9 +208,6 @@ modules-tags:
 modules-install modules-reinstall:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} install
 
-modules-tags:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
-
 config.o:
 	${NORMAL_C}
 
