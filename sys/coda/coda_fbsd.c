@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.6 1998/09/28 20:52:57 rvb Exp $
+ *  $Id: coda_fbsd.c,v 1.7 1998/09/29 20:19:45 rvb Exp $
  * 
  */
 
@@ -84,59 +84,62 @@ static struct cdevsw codadevsw =
   vc_nb_poll,      nommap,         NULL,              "Coda", NULL, -1 
 };
 
-void vcattach __P((void));
-static dev_t codadev;
-
 int     vcdebug = 1;
 #define VCDEBUG if (vcdebug) printf
 
-void
-vcattach(void)
-{
-  /*
-   * In case we are an LKM, set up device switch.
-   */
-  if (0 == (codadev = makedev(VC_DEV_NO, 0)))
-    VCDEBUG("makedev returned null\n");
-  else 
-    VCDEBUG("makedev OK.\n");
-    
-  cdevsw_add(&codadev, &codadevsw, NULL);
-  VCDEBUG("coda: codadevsw entry installed at %d.\n", major(codadev));
-}
+#if !defined(VFS_LKM) || defined(VFS_KLD)
 
-static vc_devsw_installed = 0;
-static void 	vc_drvinit __P((void *unused));
-
-static void
-vc_drvinit(void *unused)
+static int
+codadev_modevent(module_t mod, modeventtype_t type, void *data)
 {
 	dev_t dev;
 #ifdef DEVFS
 	int i;
 #endif
+	static struct cdevsw *oldcdevsw;
 
-	if( ! vc_devsw_installed ) {
+	switch (type) {
+	case MOD_LOAD:
 		dev = makedev(VC_DEV_NO, 0);
-		cdevsw_add(&dev,&codadevsw, NULL);
-		vc_devsw_installed = 1;
-    	}
+		cdevsw_add(&dev,&codadevsw, &oldcdevsw);
 #ifdef DEVFS
-	/* tmp */
+		/* tmp */
 #undef	NVCODA
 #define	NVCODA 1
-	for (i = 0; i < NVCODA; i++) {
-		cfs_devfs_token[i] =
-			devfs_add_devswf(&codadevsw, i,
-				DV_CHR, UID_ROOT, GID_WHEEL, 0666,
-				"cfs%d", i);
-		coda_devfs_token[i] =
-			devfs_add_devswf(&codadevsw, i,
-				DV_CHR, UID_ROOT, GID_WHEEL, 0666,
-				"coda%d", i);
-	}
+		for (i = 0; i < NVCODA; i++) {
+			cfs_devfs_token[i] =
+				devfs_add_devswf(&codadevsw, i,
+					DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+					"cfs%d", i);
+			coda_devfs_token[i] =
+				devfs_add_devswf(&codadevsw, i,
+					DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+					"coda%d", i);
+		}
 #endif
+		break;
+	case MOD_UNLOAD:
+#ifdef DEVFS
+		for (i = 0; i < NVCODA; i++) {
+			devfs_remove_dev(cfs_devfs_token[i]);
+			devfs_remove_dev(coda_devfs_token[i]);
+		}
+#endif
+		cdevsw_add(&dev, oldcdevsw, NULL);
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
+static moduledata_t codadev_mod = {
+	"codadev",
+	codadev_modevent,
+	NULL
+};
+DECLARE_MODULE(codadev, codadev_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+VC_DEV_NO);
+
+#endif
 
 int
 coda_fbsd_getpages(v)
@@ -220,13 +223,25 @@ coda_fbsd_putpages(v)
 		ap->a_sync, ap->a_rtvals);
 }
 
-
-SYSINIT(codadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,vc_drvinit,NULL)
-
-#ifdef	VFS_LKM
+#if defined(VFS_LKM) && !defined(VFS_KLD)
 
 #include <sys/mount.h>
 #include <sys/lkm.h>
+
+void vcattach __P((void));
+static dev_t codadev;
+
+void
+vcattach(void)
+{
+  if (0 == (codadev = makedev(VC_DEV_NO, 0)))
+    VCDEBUG("makedev returned null\n");
+  else 
+    VCDEBUG("makedev OK.\n");
+    
+  cdevsw_add(&codadev, &codadevsw, NULL);
+  VCDEBUG("coda: codadevsw entry installed at %d.\n", major(codadev));
+}
 
 extern struct vfsops coda_vfsops;
 
