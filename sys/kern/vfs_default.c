@@ -657,11 +657,11 @@ vop_stddestroyvobject(ap)
 		else
 			VM_OBJECT_UNLOCK(obj);
 	} else {
-		VM_OBJECT_UNLOCK(obj);
 		/*
 		 * Woe to the process that tries to page now :-).
 		 */
 		vm_pager_deallocate(obj);
+		VM_OBJECT_UNLOCK(obj);
 	}
 	return (0);
 }

@@ -600,12 +600,12 @@ vm_object_terminate(vm_object_t object)
 	}
 	vm_page_unlock_queues();
 	splx(s);
-	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * Let the pager know object is dead.
 	 */
 	vm_pager_deallocate(object);
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * Remove the object from the global object list.
