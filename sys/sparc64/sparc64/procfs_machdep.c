@@ -111,14 +111,14 @@ int
 procfs_read_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 
-	PROCFS_ACTION(fill_dbregs(td, dbregs));
+	return (EIO);
 }
 
 int
 procfs_write_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 
-	PROCFS_ACTION(set_dbregs(td, dbregs));
+	return (EIO);
 }
 
 /*
