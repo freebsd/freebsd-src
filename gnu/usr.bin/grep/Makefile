@@ -3,7 +3,9 @@
 GREP_LIBZ=YES
 
 PROG=	grep
-SRCS=	dfa.c grep.c grepmat.c kwset.c obstack.c savedir.c search.c
+SRCS=	closeout.c dfa.c error.c exclude.c grep.c grepmat.c hard-locale.c \
+	isdir.c kwset.c obstack.c quotearg.c savedir.c search.c xmalloc.c \
+	xstrtoumax.c
 
 CFLAGS+=-I${.CURDIR} -I${DESTDIR}/usr/include/gnu -DHAVE_CONFIG_H
 
@@ -50,6 +52,6 @@ check:	all
 	fi
 
 TESTS=	warning.sh khadafy.sh spencer1.sh bre.sh ere.sh status.sh empty.sh \
-	options.sh
+	options.sh backref.sh file.sh
 
 .include <bsd.prog.mk>
