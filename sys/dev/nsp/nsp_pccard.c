@@ -88,10 +88,10 @@ extern struct nsp_softc *nspdata[];
 static int nspprobe(DEVPORT_PDEVICE devi);
 static int nspattach(DEVPORT_PDEVICE devi);
 
-static	int	nsp_card_intr	__P((DEVPORT_PDEVICE));
 static	void	nsp_card_unload	__P((DEVPORT_PDEVICE));
 #if defined(__FreeBSD__) && __FreeBSD_version < 400001
 static	int	nsp_card_init	__P((DEVPORT_PDEVICE));
+static	int	nsp_card_intr	__P((DEVPORT_PDEVICE));
 #endif
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 400001
@@ -300,6 +300,13 @@ nsp_card_init(DEVPORT_PDEVICE devi)
 	
 	return (0);
 }
+
+static	int
+nsp_card_intr(DEVPORT_PDEVICE devi)
+{
+	nspintr(DEVPORT_PDEVGET_SOFTC(devi));
+	return 1;
+}
 #endif
 
 static	void
@@ -310,13 +317,6 @@ nsp_card_unload(DEVPORT_PDEVICE devi)
 	printf("%s: unload\n",sc->sc_sclow.sl_xname);
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
-}
-
-static	int
-nsp_card_intr(DEVPORT_PDEVICE devi)
-{
-	nspintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
 }
 
 static	int
