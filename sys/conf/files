@@ -371,6 +371,9 @@ dev/mii/tlphy.c		optional miibus
 dev/mii/ukphy.c		optional miibus
 dev/mii/ukphy_subr.c	optional miibus
 dev/mii/xmphy.c		optional miibus
+dev/mii/lxtphy.c	optional miibus
+dev/mii/qsphy.c		optional miibus
+dev/mii/acphy.c		optional miibus
 dev/mii/miibus_if.m	optional miibus
 dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
