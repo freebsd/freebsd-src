@@ -155,7 +155,7 @@ union_unlock_other(struct vnode *vp, struct thread *td)
  *
  *	udvp	must be exclusively locked on call and will remain 
  *		exclusively locked on return.  This is the mount point 
- *		for out filesystem.
+ *		for our filesystem.
  *
  *	dvp	Our base directory, locked and referenced.
  *		The passed dvp will be dereferenced and unlocked on return
@@ -211,8 +211,8 @@ union_lookup1(udvp, pdvp, vpp, cnp)
 	*pdvp = dvp;
 
 	/*
-	 * If the VOP_LOOKUP call generates an error, tdvp is invalid and no
-	 * changes will have been made to dvp, so we are set to return.
+	 * If the VOP_LOOKUP() call generates an error, tdvp is invalid and
+	 * no changes will have been made to dvp, so we are set to return.
 	 */
 
         error = VOP_LOOKUP(dvp, &tdvp, cnp);
@@ -301,7 +301,7 @@ union_lookup(ap)
 	*ap->a_vpp = NULLVP;
 
 	/*
-	 * Disallow write attemps to the filesystem mounted read-only.
+	 * Disallow write attempts to the filesystem mounted read-only.
 	 */
 	if ((cnp->cn_flags & ISLASTCN) && 
 	    (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
@@ -310,7 +310,7 @@ union_lookup(ap)
 	}
 
 	/*
-	 * For any lookup's we do, always return with the parent locked
+	 * For any lookups we do, always return with the parent locked.
 	 */
 	cnp->cn_flags |= LOCKPARENT;
 
@@ -332,8 +332,8 @@ union_lookup(ap)
 	upperdvp = union_lock_upper(dun, td);
 
 	/*
-	 * do the lookup in the upper level.
-	 * if that level comsumes additional pathnames,
+	 * Do the lookup in the upper level.
+	 * If that level consumes additional pathnames,
 	 * then assume that something special is going
 	 * on and just return that vnode.
 	 */
@@ -347,12 +347,12 @@ union_lookup(ap)
 		/*
 		 * Do the lookup.   We must supply a locked and referenced
 		 * upperdvp to the function and will get a new locked and
-		 * referenced upperdvp back with the old having been 
+		 * referenced upperdvp back, with the old having been 
 		 * dereferenced.
 		 *
 		 * If an error is returned, uppervp will be NULLVP.  If no
-		 * error occurs, uppervp will be the locked and referenced
-		 * return vnode or possibly NULL, depending on what is being
+		 * error occurs, uppervp will be the locked and referenced.
+		 * Return vnode, or possibly NULL, depending on what is being
 		 * requested.  It is possible that the returned uppervp
 		 * will be the same as upperdvp.
 		 */
@@ -369,7 +369,7 @@ union_lookup(ap)
 		));
 
 		/*
-		 * Disallow write attemps to the filesystem mounted read-only.
+		 * Disallow write attempts to the filesystem mounted read-only.
 		 */
 		if (uerror == EJUSTRETURN && (cnp->cn_flags & ISLASTCN) &&
 		    (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
@@ -379,7 +379,7 @@ union_lookup(ap)
 		}
 
 		/*
-		 * Special case.  If cn_consume != 0 skip out.  The result
+		 * Special case: If cn_consume != 0 then skip out.  The result
 		 * of the lookup is transfered to our return variable.  If
 		 * an error occured we have to throw away the results.
 		 */
@@ -393,7 +393,7 @@ union_lookup(ap)
 		}
 
 		/*
-		 * Calculate whiteout, fall through
+		 * Calculate whiteout, fall through.
 		 */
 
 		if (uerror == ENOENT || uerror == EJUSTRETURN) {
@@ -411,8 +411,8 @@ union_lookup(ap)
 	}
 
 	/*
-	 * in a similar way to the upper layer, do the lookup
-	 * in the lower layer.   this time, if there is some
+	 * In a similar way to the upper layer, do the lookup
+	 * in the lower layer.   This time, if there is some
 	 * component magic going on, then vput whatever we got
 	 * back from the upper layer and return the lower vnode
 	 * instead.
@@ -481,18 +481,18 @@ union_lookup(ap)
 	 *
 	 * 1. If both layers returned an error, select the upper layer.
 	 *
-	 * 2. If the upper layer faile and the bottom layer succeeded,
+	 * 2. If the upper layer failed and the bottom layer succeeded,
 	 *    two subcases occur:
 	 *
 	 *	a.  The bottom vnode is not a directory, in which case
 	 *	    just return a new union vnode referencing an
 	 *	    empty top layer and the existing bottom layer.
 	 *
-	 *	b.  The button vnode is a directory, in which case
+	 *	b.  The bottom vnode is a directory, in which case
 	 *	    create a new directory in the top layer and
 	 *	    and fall through to case 3.
 	 *
-	 * 3. If the top layer succeeded then return a new union
+	 * 3. If the top layer succeeded, then return a new union
 	 *    vnode referencing whatever the new top layer and
 	 *    whatever the bottom layer returned.
 	 */
@@ -508,7 +508,7 @@ union_lookup(ap)
 		if (lowervp->v_type == VDIR) { /* case 2b. */
 			KASSERT(uppervp == NULL, ("uppervp unexpectedly non-NULL"));
 			/*
-			 * oops, uppervp has a problem, we may have to shadow.
+			 * Oops, uppervp has a problem, we may have to shadow.
 			 */
 			uerror = union_mkshadow(um, upperdvp, cnp, &uppervp);
 			if (uerror) {
@@ -519,7 +519,7 @@ union_lookup(ap)
 	}
 
 	/*
-	 * Must call union_allocvp with both the upper and lower vnodes
+	 * Must call union_allocvp() with both the upper and lower vnodes
 	 * referenced and the upper vnode locked.   ap->a_vpp is returned 
 	 * referenced and locked.  lowervp, uppervp, and upperdvp are 
 	 * absorbed by union_allocvp() whether it succeeds or fails.
@@ -711,7 +711,7 @@ union_mknod(ap)
  *	union_open:
  *
  *	run open VOP.  When opening the underlying vnode we have to mimic
- *	vn_open.  What we *really* need to do to avoid screwups if the
+ *	vn_open().  What we *really* need to do to avoid screwups if the
  *	open semantics change is to call vn_open().  For example, ufs blows
  *	up if you open a file but do not vmio it prior to writing.
  */
@@ -762,21 +762,21 @@ union_open(ap)
 	}
 
 	/*
-	 * We are holding the correct vnode, open it
+	 * We are holding the correct vnode, open it.
 	 */
 
 	if (error == 0)
 		error = VOP_OPEN(tvp, mode, cred, td);
 
 	/*
-	 * Absolutely necessary or UFS will blowup
+	 * This is absolutely necessary or UFS will blow up.
 	 */
         if (error == 0 && vn_canvmio(tvp) == TRUE) {
                 error = vfs_object_create(tvp, td, cred);
         }
 
 	/*
-	 * Release any locks held
+	 * Release any locks held.
 	 */
 	if (tvpisupper) {
 		if (tvp)
@@ -896,7 +896,7 @@ union_access(ap)
  *
  * It's not clear whether VOP_GETATTR is to be
  * called with the vnode locked or not.  stat() calls
- * it with (vp) locked, and fstat calls it with
+ * it with (vp) locked, and fstat() calls it with
  * (vp) unlocked. 
  *
  * Because of this we cannot use our normal locking functions
@@ -936,7 +936,7 @@ union_getattr(ap)
 		error = VOP_GETATTR(vp, vap, ap->a_cred, ap->a_td);
 		if (error)
 			return (error);
-		/* XXX isn't this dangerouso without a lock? */
+		/* XXX isn't this dangerous without a lock? */
 		union_newsize(ap->a_vp, vap->va_size, VNOVAL);
 	}
 
@@ -989,7 +989,7 @@ union_setattr(ap)
 	}
 
 	/*
-	 * Handle case of truncating lower object to zero size,
+	 * Handle case of truncating lower object to zero size
 	 * by creating a zero length upper object.  This is to
 	 * handle the case of open with O_TRUNC and O_CREAT.
 	 */
@@ -1037,8 +1037,8 @@ union_read(ap)
 
 	/*
 	 * XXX
-	 * perhaps the size of the underlying object has changed under
-	 * our feet.  take advantage of the offset information present
+	 * Perhaps the size of the underlying object has changed under
+	 * our feet.  Take advantage of the offset information present
 	 * in the uio structure.
 	 */
 	if (error == 0) {
@@ -1076,7 +1076,7 @@ union_write(ap)
 	error = VOP_WRITE(uppervp, ap->a_uio, ap->a_ioflag, ap->a_cred);
 
 	/*
-	 * the size of the underlying object may be changed by the
+	 * The size of the underlying object may be changed by the
 	 * write.
 	 */
 	if (error == 0) {
@@ -1226,7 +1226,6 @@ union_remove(ap)
  *
  *	tdvp and vp will be locked on entry.
  *	tdvp and vp should remain locked on return.
- *	on return.
  */
 
 static int
@@ -1275,7 +1274,7 @@ union_link(ap)
 
 	/*
 	 * Make sure upper is locked, then unlock the union directory we were 
-	 * called with to avoid a deadlock while we are calling VOP_LINK on 
+	 * called with to avoid a deadlock while we are calling VOP_LINK() on 
 	 * the upper (with tdvp locked and vp not locked).  Our ap->a_tdvp
 	 * is expected to be locked on return.
 	 */
@@ -1402,7 +1401,7 @@ union_rename(ap)
 	 * Figure out what tdvp (destination directory) to pass to the
 	 * lower level.  If we replace it with uppervp, we need to vput the 
 	 * old one.  The exclusive lock is transfered to what we will pass
-	 * down in the VOP_RENAME and we replace uppervp with a simple
+	 * down in the VOP_RENAME() and we replace uppervp with a simple
 	 * reference.
 	 */
 
@@ -1411,7 +1410,7 @@ union_rename(ap)
 
 		if (un->un_uppervp == NULLVP) {
 			/*
-			 * this should never happen in normal
+			 * This should never happen in normal
 			 * operation but might if there was
 			 * a problem creating the top-level shadow
 			 * directory.
@@ -1421,8 +1420,8 @@ union_rename(ap)
 		}
 
 		/*
-		 * new tdvp is a lock and reference on uppervp, put away
-		 * the old tdvp.
+		 * New tdvp is a lock and reference on uppervp.
+		 * Put away the old tdvp.
 		 */
 		tdvp = union_lock_upper(un, ap->a_tcnp->cn_thread);
 		vput(ap->a_tdvp);
@@ -1432,7 +1431,7 @@ union_rename(ap)
 	 * Figure out what tvp (destination file) to pass to the
 	 * lower level.
 	 *
-	 * If the uppervp file does not exist put away the (wrong)
+	 * If the uppervp file does not exist, put away the (wrong)
 	 * file and change tvp to NULL.
 	 */
 
@@ -1445,7 +1444,7 @@ union_rename(ap)
 	}
 
 	/*
-	 * VOP_RENAME releases/vputs prior to returning, so we have no
+	 * VOP_RENAME() releases/vputs prior to returning, so we have no
 	 * cleanup to do.
 	 */
 
@@ -1566,9 +1565,9 @@ union_symlink(ap)
 }
 
 /*
- * union_readdir works in concert with getdirentries and
+ * union_readdir ()works in concert with getdirentries() and
  * readdir(3) to provide a list of entries in the unioned
- * directories.  getdirentries is responsible for walking
+ * directories.  getdirentries()  is responsible for walking
  * down the union stack.  readdir(3) is responsible for
  * eliminating duplicate names from the returned data stream.
  */
