@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.102 1996/09/20 02:26:35 dyson Exp $
+ * $Id: vfs_bio.c,v 1.103 1996/10/06 07:50:05 dyson Exp $
  */
 
 /*
@@ -655,15 +655,15 @@ vfs_vmio_release(bp)
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-		if ((bp->b_flags & B_ASYNC) == 0) {
-			while ((m->flags & PG_BUSY) || (m->busy != 0)) {
-				m->flags |= PG_WANTED;
-				tsleep(m, PVM, "vmiorl", 0);
-			}
-		}
-
 		vm_page_unwire(m);
-
+		/*
+		 * We don't mess with busy pages, it is
+		 * the responsibility of the process that
+		 * busied the pages to deal with them.
+		 */
+		if ((m->flags & PG_BUSY) || (m->busy != 0))
+			continue;
+			
 		if (m->wire_count == 0) {
 
 			if (m->flags & PG_WANTED) {
@@ -671,47 +671,43 @@ vfs_vmio_release(bp)
 				wakeup(m);
 			}
 
-			if (bp->b_flags & B_ASYNC) {
-				if (m->hold_count == 0) {
-					if ((m->flags & PG_BUSY) == 0 &&
-						(m->busy == 0) &&
-						(m->valid == 0)) {
-						if(m->dirty == 0)
-							vm_page_test_dirty(m);
-						if (m->dirty == 0) {
-							vm_page_protect(m, VM_PROT_NONE);
-							vm_page_free(m);
-						} else {
-							pagedaemon_wakeup();
-						}
-					/*
-					 * This is likely at interrupt time,
-					 * and we cannot block here.
-					 */
-					} else if (cnt.v_free_count < cnt.v_free_min) {
-						pagedaemon_wakeup();
-					}
-				}
-				continue;
-			}
+			/*
+			 * If this is an async free -- we cannot place
+			 * pages onto the cache queue, so our policy for
+			 * such buffers is to avoid the cache queue, and
+			 * only modify the active queue or free queue.
+			 */
+			if ((bp->b_flags & B_ASYNC) == 0) {
 
-			if (m->valid) {
-				if(m->dirty == 0)
-					vm_page_test_dirty(m);
-				/*
-				 * this keeps pressure off of the process memory
-				 */
-				if ((vm_swap_size == 0) ||
-					(cnt.v_free_count < cnt.v_free_min)) {
-					if ((m->dirty == 0) &&
-						(m->hold_count == 0)) 
-						vm_page_cache(m);
-					else
-						vm_page_deactivate(m);
+			/*
+			 * In the case of sync buffer frees, we can do pretty much
+			 * anything to any of the memory queues.  Specifically,
+			 * the cache queue is free to be modified.
+			 */
+				if (m->valid) {
+					if(m->dirty == 0)
+						vm_page_test_dirty(m);
+					/*
+					 * this keeps pressure off of the process memory
+					 */
+					if ((vm_swap_size == 0) ||
+						(cnt.v_free_count < cnt.v_free_min)) {
+						if ((m->dirty == 0) &&
+							(m->hold_count == 0)) 
+							vm_page_cache(m);
+						else
+							vm_page_deactivate(m);
+					}
+				} else if (m->hold_count == 0) {
+					vm_page_protect(m, VM_PROT_NONE);
+					vm_page_free(m);
 				}
-			} else if (m->hold_count == 0) {
-				vm_page_protect(m, VM_PROT_NONE);
-				vm_page_free(m);
+			} else {
+				/*
+				 * If async, then at least we clear the
+				 * act_count.
+				 */
+				m->act_count = 0;
 			}
 		}
 	}
