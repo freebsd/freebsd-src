@@ -41,7 +41,7 @@ or
 .Xr recvfrom 2 .
 In the latter case, the address returned will have its port set to
 the divert port and the IP address set to the (first) address of
-the interface on which the packet was recieved (if the packet
+the interface on which the packet was received (if the packet
 was incoming) or
 .Dv INADDR_ANY
 (if the packet was outgoing).
@@ -103,7 +103,7 @@ packet to get diverted.
 If different fragments divert to different ports,
 then which port ultimately gets chosen is unpredictable.
 .Pp
-Packets are recieved and sent unchanged, with two exceptions:
+Packets are received and sent unchanged, with two exceptions:
 read as incoming will have their IP header checksum zeroed,
 and packets written as outgoing have their IP header checksums overwritten
 with the correct value.
