@@ -248,7 +248,7 @@ static int _files_getaddrinfo __P((void *, void *, va_list));
 #ifdef YP
 static struct addrinfo *_yphostent __P((char *, const struct addrinfo *));
 static int _yp_getaddrinfo __P((void *, void *, va_list));
-extern int _yp_check __P(char **));
+extern int _yp_check __P((char **));
 #endif
 
 static int res_queryN __P((const char *, struct res_target *));
