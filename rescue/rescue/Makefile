@@ -2,7 +2,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
 PROG=	rescue
-BINDIR?= /rescue
+BINDIR?=/rescue
 
 # Uncomment to exclude tcsh
 #NO_TCSH=1
@@ -66,17 +66,17 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 # WARNING: Changing this list may require adjusting
 # /usr/include/paths.h as well!  You were warned!
 #
-CRUNCH_SRCDIRS+=bin
-CRUNCH_PROGS_bin=cat chflags chio chmod cp date dd df domainname echo 	\
+CRUNCH_SRCDIRS+= bin
+CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df domainname echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
 	 realpath rm rmdir setfacl sh sleep stty sync test
-CRUNCH_LIBS+=-lcrypt -lcrypto -ledit -lkvm -ll -lm -ltermcap -lutil
+CRUNCH_LIBS+= -lcrypt -lcrypto -ledit -lkvm -ll -lm -ltermcap -lutil
 
 # Additional options for specific programs
 CRUNCH_ALIAS_test= [
 CRUNCH_ALIAS_sh= -sh
 # The -sh alias shouldn't appear in /rescue as a hard link
-CRUNCH_SUPPRESS_LINK_-sh=1
+CRUNCH_SUPPRESS_LINK_-sh= 1
 CRUNCH_ALIAS_ln= link
 CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
@@ -88,8 +88,8 @@ CRUNCH_PROGS_bin+= rcp
 .if !defined(NO_TCSH)
 CRUNCH_PROGS_bin+= csh
 CRUNCH_ALIAS_csh= -csh tcsh -tcsh
-CRUNCH_SUPPRESS_LINK_-csh=1
-CRUNCH_SUPPRESS_LINK_-tcsh=1
+CRUNCH_SUPPRESS_LINK_-csh= 1
+CRUNCH_SUPPRESS_LINK_-tcsh= 1
 .endif
 
 ###################################################################
@@ -101,8 +101,8 @@ CRUNCH_SUPPRESS_LINK_-tcsh=1
 # Note that mdmfs and shutdown have their own private 'pathnames.h'
 # headers in addition to the standard 'paths.h' header.
 #
-CRUNCH_SRCDIRS+=sbin
-CRUNCH_PROGS_sbin=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
+CRUNCH_SRCDIRS+= sbin
+CRUNCH_PROGS_sbin= atm adjkerntz atacontrol badsect bsdlabel camcontrol \
 	ccdconfig clri comcontrol conscontrol devfs dmesg dump		\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde growfs ifconfig ilmid init ip6fw ipf ipfs ipfstat	\
@@ -117,7 +117,7 @@ CRUNCH_PROGS_sbin=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+=-lalias -latm -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
+CRUNCH_LIBS+= -lalias -latm -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
 	-lgeom -lmd -lreadline -lsbuf -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
@@ -128,7 +128,7 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE} == "pc98"
-CRUNCH_SRCDIR_fdisk=$(.CURDIR)/../../sbin/fdisk_pc98
+CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
@@ -148,38 +148,38 @@ CRUNCH_PROGS_sbin+= fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_atm=$(.CURDIR)/../../sbin/atm/atm
-CRUNCH_SRCDIR_fore_dnld=$(.CURDIR)/../../sbin/atm/fore_dnld
-CRUNCH_SRCDIR_ilmid=$(.CURDIR)/../../sbin/atm/ilmid
-CRUNCH_SRCDIR_rtquery=$(.CURDIR)/../../sbin/routed/rtquery
+CRUNCH_SRCDIR_atm= $(.CURDIR)/../../sbin/atm/atm
+CRUNCH_SRCDIR_fore_dnld= $(.CURDIR)/../../sbin/atm/fore_dnld
+CRUNCH_SRCDIR_ilmid= $(.CURDIR)/../../sbin/atm/ilmid
+CRUNCH_SRCDIR_rtquery= $(.CURDIR)/../../sbin/routed/rtquery
 CRUNCH_ALIAS_reboot= fastboot halt fasthalt
-CRUNCH_ALIAS_restore=rrestore
+CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
-CRUNCH_ALIAS_fsck_ffs=fsck_4.2bsd fsck_ufs
+CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_mount_std= mount_devfs mount_fdescfs mount_linprocfs mount_procfs
 
 # dhclient has historically been troublesome...
-CRUNCH_PROGS_sbin+=dhclient
-CRUNCH_BUILDOPTS_dhclient=-DRELEASE_CRUNCH -Dlint
+CRUNCH_PROGS_sbin+= dhclient
+CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 
 ##################################################################
 # Programs from stock /usr/bin
 # 
-CRUNCH_SRCDIRS+=usr.bin
-CRUNCH_SRCDIRS+=gnu/usr.bin
+CRUNCH_SRCDIRS+= usr.bin
+CRUNCH_SRCDIRS+= gnu/usr.bin
 
-CRUNCH_PROGS_usr.bin+=wall
+CRUNCH_PROGS_usr.bin+= wall
 
-CRUNCH_PROGS_gnu/usr.bin+=gzip
-CRUNCH_ALIAS_gzip=gunzip gzcat zcat
+CRUNCH_PROGS_gnu/usr.bin+= gzip
+CRUNCH_ALIAS_gzip= gunzip gzcat zcat
 
-CRUNCH_PROGS_usr.bin+=bzip2
-CRUNCH_ALIAS_bzip2=bunzip2 bzcat
-CRUNCH_LIBS+=-lbz2
+CRUNCH_PROGS_usr.bin+= bzip2
+CRUNCH_ALIAS_bzip2= bunzip2 bzcat
+CRUNCH_LIBS+= -lbz2
 
-CRUNCH_PROGS_gnu/usr.bin+=tar
-CRUNCH_PROGS_usr.bin+=vi
-CRUNCH_ALIAS_vi=ex
+CRUNCH_PROGS_gnu/usr.bin+= tar
+CRUNCH_PROGS_usr.bin+= vi
+CRUNCH_ALIAS_vi= ex
 
 ##################################################################
 #  The following is pretty nearly a generic crunchgen-handling makefile
@@ -188,12 +188,12 @@ CRUNCH_ALIAS_vi=ex
 CONF=	$(PROG).conf
 OUTMK=	$(PROG).mk
 OUTC=   $(PROG).c
-OUTPUTS= $(OUTMK) $(OUTC) $(PROG).cache
+OUTPUTS=$(OUTMK) $(OUTC) $(PROG).cache
 CRUNCHOBJS= ${.OBJDIR}
 .if defined(MAKEOBJDIRPREFIX)
-CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
+CANONICALOBJDIR:= ${MAKEOBJDIRPREFIX}${.CURDIR}
 .else
-CANONICALOBJDIR:=/usr/obj${.CURDIR}
+CANONICALOBJDIR:= /usr/obj${.CURDIR}
 .endif
 
 NOMAN=	true
@@ -204,11 +204,11 @@ CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 .for D in $(CRUNCH_SRCDIRS)
 .for P in $(CRUNCH_PROGS_$(D))
 .ifndef CRUNCH_SUPPRESS_LINK_${P}
-LINKS += $(BINDIR)/$(PROG) $(BINDIR)/$(P)
+LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
 .endif
 .for A in $(CRUNCH_ALIAS_$(P))
 .ifndef CRUNCH_SUPPRESS_LINK_${A}
-LINKS += $(BINDIR)/$(PROG) $(BINDIR)/$(A)
+LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(A)
 .endif
 .endfor
 .endfor
@@ -245,7 +245,8 @@ $(CONF): Makefile
 
 
 $(OUTPUTS): $(CONF)
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) -c $(OUTC) $(CONF)
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) -c $(OUTC) \
+	    $(CONF)
 
 $(PROG): $(OUTPUTS)
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) 
@@ -270,27 +271,27 @@ cleandepend cleandir obj objlink:
 .for P in $(CRUNCH_PROGS_$(D))
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
-	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
-	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
 .endif
 .endfor
 .endfor
 
 clean:
 	rm -f ${CLEANFILES}
-	if [ -e ${.OBJDIR}/$(OUTMK) ]; then		\
+	if [ -e ${.OBJDIR}/$(OUTMK) ]; then				\
 		MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) clean;	\
 	fi
 .for D in $(CRUNCH_SRCDIRS)
 .for P in $(CRUNCH_PROGS_$(D))
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
-	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
-	MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} make ${.TARGET}
 .endif
 .endfor
 .endfor
