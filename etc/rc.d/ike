@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ike
-# REQUIRE: root beforenetlkm mountcritlocal
+# REQUIRE: root mountcritlocal
 # BEFORE:  DAEMON
 # KEYWORD: nojail
 

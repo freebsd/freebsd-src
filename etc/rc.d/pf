@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pf
-# REQUIRE: root beforenetlkm mountcritlocal netif pflog
+# REQUIRE: root mountcritlocal netif pflog
 # BEFORE:  DAEMON LOGIN
 # KEYWORD: nojail
 
