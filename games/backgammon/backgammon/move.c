@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "back.h"
 
 #ifdef DEBUG
