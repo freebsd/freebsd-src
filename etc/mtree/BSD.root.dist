@@ -1,18 +1,14 @@
-#	fs: /
-#	by: bostic
+#	  fs: /
+#	  by: rgrimes
+#	date: Fri Jul 16 22:24:17 1993
 #
-#	%W% (Berkeley) %G%
 
 # top-level files are owned by root.wheel
 # (else too easy to get root by compromising these)
 
-/set owner=root group=wheel mode=0755 type=file
+/set type=file owner=root group=wheel mode=0775
 
-sys	type=link size=11 link=usr/src/sys
-a	type=dir
-..
-b	type=dir
-..
+sys	type=link size=18 link=usr/src/sys.386bsd
 
 dev	type=dir
 	fd	type=dir
@@ -20,70 +16,24 @@ dev	type=dir
 ..
 
 etc	type=dir
-	disklabels	type=dir
-	..
-# what is the following for?
-/set nlink=1
-	kerberosIV	type=dir
-	..
 	mtree	type=dir
 	..
 	namedb	type=dir
 	..
-	passwd	mode=0644
-	master.passwd mode=0600
-	spwd.db	mode=0600
-	pwd.db	mode=0644
-	group	mode=0644
-	crontab	mode=0644
-	dumpdates	group=operator mode=0664
-
-	# config files, writeable by root
-	/set mode=0644 type=file
-	daily
-	weekly
-	monthly
-	exports
-	fstab
-	hosts.equiv
-	hosts.lpd
-	inetd.conf
-	printcap
-	rc
-	rc.local
-	netstart	mode=0755
-	remote
-	security
-	sendmail.cf
-	sendmail.cw
-	syslog.conf
-	ttys
-
-	# prototype files, not normally written by root
-	/set mode=0444
-	ftpusers
-	shells
-	gettytab
-	named.boot
-	hosts
-	networks
-	protocols
-	services
-	localtime	owner=bin group=bin
-	man.conf	owner=bin group=bin
-
 ..
 
 mnt	type=dir
 ..
+
 root	type=dir
 ..
-stand	type=dir
-..
+
 tmp	type=dir owner=bin group=bin mode=01777
 ..
+
 usr	type=dir
 ..
+
 var	type=dir
 ..
 
