@@ -26,6 +26,7 @@
  */
 
 #include "opt_cpu.h"
+#include "opt_upages.h"
 
 #ifdef SMP
 #include <machine/smptests.h>
@@ -70,6 +71,7 @@
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 #include <machine/globaldata.h>
+#include <machine/privatespace.h>
 
 #if defined(APIC_IO)
 #include <machine/md_var.h>		/* setidt() */

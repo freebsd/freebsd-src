@@ -71,6 +71,7 @@
 #include "opt_disable_pse.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
+#include "opt_upages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
