@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.22 1995/04/23 22:04:57 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.23 1995/04/27 17:47:16 gibbs Exp $
  */
 /*
  * TODO:
@@ -1024,23 +1024,31 @@ ahcintr(unit)
 
   			  scb_index = inb(SCBPTR + iobase);
                           scb = ahc->scbarray[scb_index];
+
+			  /*
+			   * Set the default return value to 0 (don't 
+			   * send sense).  The sense code with change
+			   * this if needed and this reduces code 
+			   * duplication.
+			   */
+			  outb(HA_RETURN_1 + iobase, 0);
 		 	  if (!scb || !(scb->flags & SCB_ACTIVE)) {
                               printf("ahc%d: ahcintr - referenced scb not "
-				   "valid during seqint 0x%x scb(%d)\n", 
-				   unit, intstat, scb_index);
+				     "valid during seqint 0x%x scb(%d)\n", 
+				     unit, intstat, scb_index);
 			      goto clear;
-			}
+			  }
 
-			xs = scb->xs;
+			  xs = scb->xs;
 
-			ahc_getscb(iobase, scb);
+			  ahc_getscb(iobase, scb);
 
 #ifdef AHC_DEBUG
-			if(xs->sc_link->target == DEBUGTARG)
+			  if(xs->sc_link->target == DEBUGTARG)
 				ahc_print_scb(scb);
 #endif
-			xs->status = scb->target_status;
-			switch(scb->target_status){
+			  xs->status = scb->target_status;
+			  switch(scb->target_status){
 			    case SCSI_OK:
 				printf("ahc%d: Interrupted for staus of"
 					" 0???\n", unit);
@@ -1131,7 +1139,6 @@ ahcintr(unit)
 				 * we already had.
 				 */
 				scb->flags &= ~SCB_SENSE;
-				outb(HA_RETURN_1 + iobase, 0);
 				if(xs->error == XS_NOERROR)
 					xs->error = XS_DRIVER_STUFFUP;
 				break;
