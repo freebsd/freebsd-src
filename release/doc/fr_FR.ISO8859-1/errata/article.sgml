@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.53
+     Original revision: 1.1.2.55
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -223,6 +223,18 @@ se référeront a &os; &release.current; et les version suivantes.</para>
         <filename role="package">net/samba</filename> de la collection 
         des ports &os; soit en téléchargeant et en installant le
         package binaire d'un des serveurs FTP &os;.</para>
+
+
+    <para>Un problème a été résolu dans les "soft updates" qui pouvait
+    occasionellement corrompre les systèmes de fichiers, si le système
+    était arrété juste après d'énormes activités de transfert de fichiers, 
+    comme l'installation d'un nouveau noyau ou d'autres logiciels. Le programme
+    d'arret du système n'etait pas capable de vider tous les tampons
+    et le rapportait. Le problème peut etre résolu en effectuant plusieurs &man.sync.8;
+    avant de redémarrer, ou en mettant a jour avec une version plus récente
+    de &os; &release.current;.</para>
+
+
 ]]>
 
   </sect1>
