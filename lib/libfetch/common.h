@@ -36,22 +36,58 @@
 #define FTP_DEFAULT_PROXY_PORT	21
 #define HTTP_DEFAULT_PROXY_PORT	3128
 
-/* Structure used for error message lists */
-struct fetcherr {  
-    const int num, cat;
-    const char *string;
+#ifdef WITH_SSL
+#include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
+/* Connection */
+typedef struct fetchconn conn_t;
+struct fetchconn {
+	int		 sd;		/* socket descriptor */
+	char		*buf;		/* buffer */
+	size_t		 bufsize;	/* buffer size */
+	size_t		 buflen;	/* length of buffer contents */
+	int		 err;		/* last protocol reply code */
+#ifdef WITH_SSL
+	SSL		*ssl;		/* SSL handle */
+	SSL_CTX		*ssl_ctx;	/* SSL context */
+	X509		*ssl_cert;	/* server certificate */
+	SSL_METHOD	*ssl_meth;	/* SSL method */
+#endif
+	int		 ref;		/* reference count */
 };
+
+/* Structure used for error message lists */
+struct fetcherr {
+	const int	 num;
+	const int	 cat;
+	const char	*string;
+};
+
+/* for _fetch_writev */
+struct iovec;
 
 void		 _fetch_seterr(struct fetcherr *, int);
 void		 _fetch_syserr(void);
 void		 _fetch_info(const char *, ...);
 int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
-int		 _fetch_connect(const char *, int, int, int);
-int		 _fetch_getln(int, char **, size_t *, size_t *);
-int		 _fetch_putln(int, const char *, size_t);
+conn_t		*_fetch_connect(const char *, int, int, int);
+conn_t		*_fetch_reopen(int);
+conn_t		*_fetch_ref(conn_t *);
+int		 _fetch_ssl(conn_t *, int);
+ssize_t		 _fetch_read(conn_t *, char *, size_t);
+int		 _fetch_getln(conn_t *);
+ssize_t		 _fetch_write(conn_t *, const char *, size_t);
+ssize_t		 _fetch_writev(conn_t *, struct iovec *, int);
+int		 _fetch_putln(conn_t *, const char *, size_t);
+int		 _fetch_close(conn_t *);
 int		 _fetch_add_entry(struct url_ent **, int *, int *,
-				  const char *, struct url_stat *);
+		     const char *, struct url_stat *);
 
 #define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
 #define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)
@@ -74,11 +110,9 @@ int		 _fetch_add_entry(struct url_ent **, int *, int *,
  * whole lot of trouble.
  */
 FILE		*_http_request(struct url *, const char *,
-			       struct url_stat *, struct url *,
-			       const char *);
+		     struct url_stat *, struct url *, const char *);
 FILE		*_ftp_request(struct url *, const char *,
-			      struct url_stat *, struct url *,
-			      const char *);
+		     struct url_stat *, struct url *, const char *);
 
 /*
  * Check whether a particular flag is set
