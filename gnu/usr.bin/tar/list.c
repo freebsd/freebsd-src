@@ -323,7 +323,7 @@ recurse:
 
   recsum = from_oct (8, header->header.chksum);
 
-  sum = 0;
+  signed_sum = sum = 0;
   p = header->charptr;
   for (i = sizeof (*header); --i >= 0;)
     {
@@ -504,7 +504,7 @@ decode_header (header, st, stdp, wantug)
 long
 from_oct (digs, where)
      register int digs;
-     register char *where;
+     register unsigned char *where;
 {
   register long value;
 
