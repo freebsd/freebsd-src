@@ -55,44 +55,53 @@ family of functions
 is used to manage
 .Vt uidinfo
 structures.
-The
+Each
 .Vt uidinfo
-structure maintains the process count and socket buffer space usage
-for a given UID.
+structure maintains per uid resource consumption counts, including the
+process count and socket buffer space usage.
 .Pp
 The
 .Fn uihashinit
 function initializes the
 .Vt uidinfo
-hash table.
+hash table and its mutex.
 This function should only be called during system initialization.
 .Pp
 The
 .Fn uifind
 function looks up and returns the
 .Vt uidinfo
-structure for the
+structure for
 .Fa uid .
-If the
+If the no
 .Vt uidinfo
-is not found, a new structure is allocated.
+structure exists for
+.Fa uid ,
+a new structure will be allocated and initialized.
+The uidinfo hash mutex is acquired and released.
 .Pp
 The
 .Fn uihold
-function increases the reference count on the
-.Vt uidinfo
-structure.
+function increases the reference count on
+.Fa uip .
+.Fa uip's
+lock is acquired and released.
 .Pp
 The
 .Fn uifree
-function decreases the reference count on the
-.Vt uidinfo
-structure.
-If the count reaches 0, the storage for the structure is freed.
+function decreases the reference count on
+.Fa uip ,
+and if the count reaches 0
+.Fa uip
+is freed.
+.Fa uip's
+lock is acquired and release and the uidinfo hash mutex may be
+acquired and released.
 .Sh RETURN VALUES
-The functions that return values all return a pointer to a
+.Fn uifind
+returns a pointer to an initialized
 .Vt uidinfo
-structure.
+structure, and should not fail.
 .Sh AUTHORS
 This man page was written by
 .An Chad David Aq davidc@acns.ab.ca .
