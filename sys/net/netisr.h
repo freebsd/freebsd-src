@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id: netisr.h,v 1.12 1997/05/09 12:19:05 kjc Exp $
+ * $Id: netisr.h,v 1.13 1997/09/16 11:43:44 bde Exp $
  */
 
 #ifndef _NET_NETISR_H_
@@ -83,7 +83,7 @@ struct netisrtab {
 
 #define NETISR_SET(num, isr) \
 	static struct netisrtab mod_nit = { num, isr }; \
-	DATA_SET(netisr_set, mod_nit);
+	DATA_SET(netisr_set, mod_nit)
 
 int register_netisr __P((int, netisr_t *));
 
