@@ -48,6 +48,8 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #endif
 
+#include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -300,48 +302,57 @@ mf_fgets(sp, spflag)
 	size_t len;
 	char *p;
 	int c;
+	static int firstfile;
 
-	if (f == NULL)
-		/* Advance to first non-empty file */
-		for (;;) {
-			if (files == NULL) {
-				lastline = 1;
-				return (0);
-			}
-			if (files->fname == NULL) {
-				if (inplace != NULL)
-					errx(1, "-i may not be used with stdin");
-				f = stdin;
-				fname = "stdin";
-			} else {
-				if (inplace != NULL) {
-					if (inplace_edit(&files->fname) == -1)
-						continue;
-				}
-				fname = files->fname;
-				if ((f = fopen(fname, "r")) == NULL) {
-					warn("%s", fname);
-					rval = 1;
-					files = files->next;
-					continue;
-				}
-				if (inplace != NULL && *inplace == '\0')
-					unlink(fname);
-			}
-			if ((c = getc(f)) != EOF) {
-				(void)ungetc(c, f);
-				break;
-			}
-			(void)fclose(f);
-			files = files->next;
+	if (f == NULL) {
+		/* stdin? */
+		if (files->fname == NULL) {
+			if (inplace != NULL)
+				errx(1, "-i may not be used with stdin");
+			f = stdin;
+			fname = "stdin";
 		}
-
-	if (lastline) {
-		sp->len = 0;
-		return (0);
+		firstfile = 1;
 	}
 
+	sp->len = 0;
+	for (;;) {
+		if (f != NULL && (c = getc(f)) != EOF) {
+			(void)ungetc(c, f);
+			break;
+		}
+		/* If we are here then either eof or no files are open yet */
+		if (f == stdin) {
+			lastline = 1;
+			return (0);
+		}
+		if (f != NULL) {
+			fclose(f);
+		}
+		if (firstfile == 0) {
+			files = files->next;
+		} else
+			firstfile = 0;
+		if (files == NULL) {
+			lastline = 1;
+			return (0);
+		}
+		if (inplace != NULL) {
+			if (inplace_edit(&files->fname) == -1)
+				continue;
+		}
+		fname = files->fname;
+		if ((f = fopen(fname, "r")) == NULL) {
+			warn("%s", fname);
+			continue;
+		}
+		if (inplace != NULL && *inplace == '\0')
+			unlink(fname);
+	}
 	/*
+	 * We are here only when f is open and we still have something to
+	 * read from it.
+	 *
 	 * Use fgetln so that we can handle essentially infinite input data.
 	 * Can't use the pointer into the stdio buffer as the process space
 	 * because the ungetc() can cause it to move.
@@ -352,35 +363,14 @@ mf_fgets(sp, spflag)
 	cspace(sp, p, len, spflag);
 
 	linenum++;
-	/* Advance to next non-empty file */
-	while ((c = getc(f)) == EOF) {
-		(void)fclose(f);
-next:		files = files->next;
-		if (files == NULL) {
-			lastline = 1;
-			return (1);
-		}
-		if (files->fname == NULL) {
-			if (inplace != NULL)
-				errx(1, "-i may not be used with stdin");
-			f = stdin;
-			fname = "stdin";
+	if (files->next == NULL) {
+		if ((c = getc(f)) != EOF) {
+			(void)ungetc(c, f);
 		} else {
-			if (inplace != NULL) {
-				if (inplace_edit(&files->fname) == -1)
-					continue;
-			}
-			fname = files->fname;
-			if ((f = fopen(fname, "r")) == NULL) {
-				warn("%s", fname);
-				rval = 1;
-				goto next;
-			}
-			if (inplace != NULL && *inplace == '\0')
-				unlink(fname);
+			lastline = 1;
 		}
 	}
-	(void)ungetc(c, f);
+
 	return (1);
 }
 
@@ -449,7 +439,7 @@ inplace_edit(filename)
 	} else {
 		strlcpy(backup, *filename, MAXPATHLEN);
 		strlcat(backup, inplace, MAXPATHLEN);
-		output = open(backup, O_WRONLY | O_CREAT | O_EXCL);
+		output = open(backup, O_WRONLY | O_CREAT | O_TRUNC);
 		if (output == -1)
 			err(1, "open(%s)", backup);
 	}
@@ -459,13 +449,13 @@ inplace_edit(filename)
 		err(1, "open(%s)", *filename);
 	if (fchmod(output, orig.st_mode & ~S_IFMT) == -1)
 		err(1, "chmod");
-	buffer = malloc(orig.st_size);
-	if (buffer == NULL)
-		errx(1, "malloc failed");
-	if (read(input, buffer, orig.st_size) == -1)
-		err(1, "read");
+	buffer = (char *)mmap(0, orig.st_size, PROT_READ, MAP_SHARED, input, 0);
+	if (buffer == MAP_FAILED)
+		err(1, "mmap(%s)", *filename);
 	if (write(output, buffer, orig.st_size) == -1)
-		err(1, "write");
+		err(1, "write(%s)", backup);
+	if (munmap(buffer, orig.st_size) == -1)
+		err(1, "munmap(%s)", *filename);
 	close(input);
 	close(output);
 	freopen(*filename, "w", stdout);
