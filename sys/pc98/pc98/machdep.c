@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.70 1998/01/24 03:15:37 kato Exp $
+ *	$Id: machdep.c,v 1.71 1998/01/24 06:53:32 kato Exp $
  */
 
 #include "apm.h"
@@ -1249,6 +1249,7 @@ init386(first)
 
 	finishidentcpu();	/* Final stage of CPU initialization */
 	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
 
 #ifdef PC98
