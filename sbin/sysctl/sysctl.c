@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: sysctl.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.15 1997/10/20 12:53:54 charnier Exp $";
+	"$Id: sysctl.c,v 1.16 1997/11/18 03:37:45 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -245,13 +245,15 @@ static int
 S_timeval(int l2, void *p)
 {
 	struct timeval *tv = (struct timeval*)p;
+	time_t tv_sec;
 	char *p1, *p2;
 
 	if (l2 != sizeof *tv)
 		err(1, "S_timeval %d != %d", l2, sizeof *tv);
 	printf("{ sec = %ld, usec = %ld } ",
 		tv->tv_sec, tv->tv_usec);
-	p1 = strdup(ctime(&tv->tv_sec));
+	tv_sec = tv->tv_sec;
+	p1 = strdup(ctime(&tv_sec));
 	for (p2=p1; *p2 ; p2++)
 		if (*p2 == '\n')
 			*p2 = '\0';
