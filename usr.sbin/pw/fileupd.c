@@ -76,7 +76,7 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 	if (pfxlen <= 1)
 		rc = EINVAL;
 	else {
-		int    infd = open(filename, O_RDWR | O_CREAT, fmode);
+		int    infd = open(filename, O_RDWR | O_CREAT | O_EXLOCK, fmode);
 
 		if (infd == -1)
 			rc = errno;
@@ -92,7 +92,7 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 
 				strcpy(file, filename);
 				strcat(file, ".new");
-				outfd = open(file, O_RDWR | O_CREAT | O_TRUNC | O_EXLOCK, fmode);
+				outfd = open(file, O_RDWR | O_CREAT | O_TRUNC, fmode);
 				if (outfd == -1)
 					rc = errno;
 				else {
@@ -183,8 +183,6 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 								 * to 'file'.
 								 * This is a gross hack, but we may have
 								 * corrupted the original file
-								 * Unfortunately, it will lose the inode
-								 * and hence the lock.
 								 */
 								if (fflush(infp) == EOF || ferror(infp))
 									rename(file, filename);
