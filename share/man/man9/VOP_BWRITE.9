@@ -37,19 +37,17 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
-.Fd #include <sys/buf.h>
 .Ft int
-.Fn VOP_BWRITE "struct buf *bp"
+.Fn VOP_BWRITE "struct vnode *vp" "struct buf *bp"
 .Sh DESCRIPTION
 .Pp
 The arguments are:
-.Bl -tag -width bp
+.Bl -tag -width vp
+.It Ar vp
+the vnode of the file being written to
 .It Ar bp
 the buffer to be written
 .El
-.Pp
-Most filesystems use the default implementation of this,
-.Fn vn_bwrite .
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
