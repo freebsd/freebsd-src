@@ -732,20 +732,18 @@ cbb_detach(device_t brdev)
 	sc->flags |= CBB_KTHREAD_DONE;
 	if (sc->flags & CBB_KTHREAD_RUNNING) {
 		cv_broadcast(&sc->cv);
-		mtx_unlock(&sc->mtx);
-		DEVPRINTF((brdev, "waiting for kthread exit..."));
-		error = tsleep(sc, PWAIT, "cbb-detach-wait", 60 * hz);
-		if (error)
-			DPRINTF(("timeout\n"));
-		else
-			DPRINTF(("done\n"));
-	} else {
-		mtx_unlock(&sc->mtx);
+		msleep(sc->event_thread, &sc->mtx, PWAIT, "cbbun", 0);
 	}
+	mtx_unlock(&sc->mtx);
 
 	bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->irq_res);
-	bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
-	    sc->base_res);
+	if (sc->flags & CBB_KLUDGE_ALLOC)
+		bus_generic_release_resource(device_get_parent(brdev),
+		    brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
+		    sc->base_res);
+	else
+		bus_release_resource(brdev, SYS_RES_MEMORY,
+		    CBBR_SOCKBASE, sc->base_res);
 	mtx_destroy(&sc->mtx);
 	cv_destroy(&sc->cv);
 	return (0);
@@ -898,10 +896,11 @@ cbb_event_thread(void *arg)
 	int err;
 
 	/*
-	 * We take out Giant here because we drop it in tsleep
-	 * and need it for kthread_exit, which drops it.
+	 * We take out Giant here because we need it deep, down in
+	 * the bowels of the vm system for mapping the memory we need
+	 * to read the CIS.  We also need it for kthread_exit, which
+	 * drops it.
 	 */
-	mtx_lock(&Giant);
 	sc->flags |= CBB_KTHREAD_RUNNING;
 	while (1) {
 		/*
@@ -913,10 +912,13 @@ cbb_event_thread(void *arg)
 			break;
 
 		status = cbb_get(sc, CBB_SOCKET_STATE);
+		mtx_lock(&Giant);
 		if ((status & CBB_SOCKET_STAT_CD) == 0)
 			cbb_insert(sc);
 		else
 			cbb_removal(sc);
+		mtx_unlock(&Giant);
+
 		/*
 		 * Wait until it has been 1s since the last time we
 		 * get an interrupt.  We handle the rest of the interrupt
@@ -931,14 +933,7 @@ cbb_event_thread(void *arg)
 		mtx_unlock(&sc->mtx);
 	}
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
-	/*
-	 * XXX I think there's a race here.  If we wakeup in the other
-	 * thread before kthread_exit is called and this routine returns,
-	 * and that thread causes us to be unmapped, then we are setting
-	 * ourselves up for a panic.  Make sure that I check out
-	 * jhb's crash.c for a fix.
-	 */
-	wakeup(sc);
+	mtx_lock(&Giant);
 	kthread_exit(0);
 }
 
