@@ -89,6 +89,7 @@ SRCS+= \
 	thr_setschedparam.c \
 	thr_sig.c \
 	thr_sigaction.c \
+	thr_sigaltstack.c \
 	thr_sigmask.c \
 	thr_sigpending.c \
 	thr_sigprocmask.c \
