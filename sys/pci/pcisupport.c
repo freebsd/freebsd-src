@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.92 1999/02/13 17:51:46 nsouch Exp $
+**  $Id: pcisupport.c,v 1.93 1999/02/18 18:48:01 n_hibma Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -204,6 +204,16 @@ fixbushigh_450nx(pcici_t tag)
 	tag->secondarybus = tag->subordinatebus = subordinatebus;
 }
 
+static void
+fixbushigh_Ross(pcici_t tag)
+{
+	int secondarybus;
+
+	/* just guessing the secondary bus register number ... */
+	secondarybus = pci_cfgread(tag, 0x45, 1);
+	if (secondarybus != 0)
+		tag->secondarybus = tag->subordinatebus = secondarybus + 1;
+}
 
 static void
 fixwsc_natoma(pcici_t tag)
@@ -386,6 +396,11 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("NEC 002C PCI to PC-98 C-bus bridge");
 	case 0x003b1033:
 		return ("NEC 003B PCI to PC-98 C-bus bridge");
+
+	/* Ross (?) -- vendor 0x1166 */
+	case 0x00051166:
+		fixbushigh_Ross(tag);
+		return ("Ross (?) host to PCI bridge");
 	};
 
 	if ((descr = generic_pci_bridge(tag)) != NULL)
