@@ -62,7 +62,6 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/socket.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>
