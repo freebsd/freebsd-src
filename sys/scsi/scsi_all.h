@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.6 1993/11/18 05:02:49 rgrimes Exp $
+ *	$Id: scsi_all.h,v 1.7 1994/08/02 07:52:32 davidg Exp $
  */
 
 /*
@@ -268,6 +268,28 @@ struct	scsi_sense_data
 		} extended;
 	}ext;
 };	/* total of 32 bytes */
+
+struct scsi_sense_extended
+{
+/* 2*/		u_char	segment;
+/* 3*/		u_char	flags;
+#define	SSD_KEY		0x0F
+#define	SSD_ILI		0x20
+#define	SSD_EOM		0x40
+#define	SSD_FILEMARK	0x80
+/* 7*/		u_char	info[4];
+/* 8*/		u_char	extra_len;
+/*12*/		u_char	cmd_spec_info[4];
+/*13*/		u_char	add_sense_code;
+/*14*/		u_char	add_sense_code_qual;
+/*15*/		u_char	fru;
+/*16*/		u_char	sense_key_spec_1;
+#define	SSD_SCS_VALID		0x80
+/*17*/		u_char	sense_key_spec_2;
+/*18*/		u_char	sense_key_spec_3;
+/*32*/		u_char	extra_bytes[14];
+} extended;
+
 struct	scsi_sense_data_new
 {
 /* 1*/	u_char	error_code;
@@ -281,27 +303,9 @@ struct	scsi_sense_data_new
 /* 3*/			u_char	blockmed;
 /* 4*/			u_char	blocklow;
 		} unextended;
-		struct
-		{
-/* 2*/			u_char	segment;
-/* 3*/			u_char	flags;
-#define	SSD_KEY		0x0F
-#define	SSD_ILI		0x20
-#define	SSD_EOM		0x40
-#define	SSD_FILEMARK	0x80
-/* 7*/			u_char	info[4];
-/* 8*/			u_char	extra_len;
-/*12*/			u_char	cmd_spec_info[4];
-/*13*/			u_char	add_sense_code;
-/*14*/			u_char	add_sense_code_qual;
-/*15*/			u_char	fru;
-/*16*/			u_char	sense_key_spec_1;
-#define	SSD_SCS_VALID		0x80
-/*17*/			u_char	sense_key_spec_2;
-/*18*/			u_char	sense_key_spec_3;
-/*32*/			u_char	extra_bytes[14];
-		} extended;
-	}ext;
+
+		struct scsi_sense_extended extended;
+	} ext;
 }; /* total of 32 bytes */
 
 struct	blk_desc

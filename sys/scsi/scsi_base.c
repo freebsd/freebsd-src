@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.14 1994/10/08 22:26:36 phk Exp $
+ *      $Id: scsi_base.c,v 1.15 1994/11/15 14:49:56 bde Exp $
  */
 
 #define SPLSD splbio
@@ -331,11 +331,11 @@ scsi_done(xs)
  	 */
 	if (xs->flags & SCSI_USER) {
 		biodone(xs->bp);
-#ifdef	NOTNOW
+
 		SC_DEBUG(sc_link, SDEV_DB3, ("calling user done()\n"));
 		scsi_user_done(xs); /* to take a copy of the sense etc. */
 		SC_DEBUG(sc_link, SDEV_DB3, ("returned from user done()\n "));
-#endif
+
 		free_xs(xs, sc_link, SCSI_NOSLEEP); /* restarts queue too */
 		SC_DEBUG(sc_link, SDEV_DB3, ("returning to adapter\n"));
 		return;
@@ -353,6 +353,9 @@ scsi_done(xs)
 			free_xs(xs, sc_link, SCSI_NOSLEEP);	/*XXX */
 			return;	/* it did it all, finish up */
 		}
+		/* BUG: This isn't used anywhere. Do you have plans for it,
+		 * Julian? (dufault@hda.com).
+		 */
 		if (retval == -2) {
 			return;	/* it did it all, finish up */
 		}
@@ -405,7 +408,7 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 	errval  retval;
 	u_int32 s;
 
-	if (bp) flags |= SCSI_NOSLEEP;
+	if (bp && !(flags & SCSI_USER)) flags |= SCSI_NOSLEEP;
 	SC_DEBUG(sc_link, SDEV_DB2, ("scsi_cmd\n"));
 
 	xs = get_xs(sc_link, flags);	/* should wait unless booting */
@@ -567,10 +570,20 @@ sc_err1(xs)
 		break;
 
 	case XS_SENSE:
+		retval = scsi_interpret_sense(xs);
+		if (retval == SCSIRET_DO_RETRY) {
+			if (xs->retries--) {
+				xs->error = XS_NOERROR;
+				xs->flags &= ~ITSDONE;
+				goto retry;
+			}
+		}
+		retval = EIO;	/* Too many retries */
+
 		if (bp) {
 			bp->b_error = 0;
 			bp->b_resid = 0;
-			if (retval = (scsi_interpret_sense(xs))) {
+			if (retval) {
 				bp->b_flags |= B_ERROR;
 				bp->b_error = retval;
 				bp->b_resid = bp->b_bcount;
@@ -578,7 +591,6 @@ sc_err1(xs)
 			SC_DEBUG(xs->sc_link, SDEV_DB3,
 			    ("scsi_interpret_sense (bp) returned %d\n", retval));
 		} else {
-			retval = (scsi_interpret_sense(xs));
 			SC_DEBUG(xs->sc_link, SDEV_DB3,
 			    ("scsi_interpret_sense (no bp) returned %d\n", retval));
 		}
@@ -616,10 +628,124 @@ retry:
 }
 
 /*
+ * scsi_sense_print will decode the sense data into human
+ * readable form.  Sense handlers can use this to generate
+ * a report.  This DOES NOT send the closing "\n".
+ */
+void scsi_sense_print(xs)
+	struct scsi_xfer *xs;
+{
+	struct scsi_sense_data_new *sense;
+	struct scsi_sense_extended *ext;
+	u_int32 key;
+	u_int32 info;
+	errval  errcode;
+
+	/* This sense key text now matches what is in the SCSI spec
+	 * (Yes, even the capitals)
+	 * so that it is easier to look through the spec to find the
+	 * appropriate place.
+	 */
+	static char *sense_key_text[] =
+	{
+		"RECOVERED ERROR",
+	    "NOT READY", "MEDIUM ERROR",
+	    "HARDWARE FAILURE", "ILLEGAL REQUEST",
+	    "UNIT ATTENTION", "DATA PROTECT",
+	    "BLANK CHECK", "Vendor Specific",
+	    "COPY ABORTED", "ABORTED COMMAND",
+	    "EQUAL", "VOLUME OVERFLOW",
+	    "MISCOMPARE", "RESERVED"
+	};
+
+	sc_print_addr(xs->sc_link);
+
+	sense = (struct scsi_sense_data_new *)&(xs->sense);
+	ext = &(sense->ext.extended);
+
+	key = ext->flags & SSD_KEY;
+
+	switch (sense->error_code & SSD_ERRCODE) {
+	case 0x71:		/* deferred error */
+		printf("Deferred Error: ");
+
+		/* DROP THROUGH */
+
+	case 0x70:
+
+		printf("%s", sense_key_text[key - 1]);
+		info = ntohl(*((long *) ext->info));
+
+		if (sense->error_code & SSD_ERRCODE_VALID) {
+
+			switch ((int)key) {
+			case 0x2:	/* NOT READY */
+			case 0x5:	/* ILLEGAL REQUEST */
+			case 0x6:	/* UNIT ATTENTION */
+			case 0x7:	/* DATA PROTECT */
+				break;
+			case 0x8:	/* BLANK CHECK */
+				printf(" requested size: %ld (decimal)",
+				    info);
+				break;
+			default:
+				if (info)
+					printf(" info:%08lx", info);
+			}
+		}
+		else if (info)
+			printf(" info(inval):%08lx", info);
+
+		if (ext->extra_len >= 4) {
+			if (memcmp(ext->cmd_spec_info, "\0\0\0\0", 4)) {
+				printf(" csi:%02x,%02x,%02x,%02x",
+				ext->cmd_spec_info[0],
+				ext->cmd_spec_info[1],
+				ext->cmd_spec_info[2],
+				ext->cmd_spec_info[3]);
+			}
+		}
+
+		if (ext->extra_len >= 5 && ext->add_sense_code) {
+			printf(" asc:%02x", ext->add_sense_code);
+		}
+
+		if (ext->extra_len >= 6 && ext->add_sense_code_qual) {
+			printf(" ascq:%02x", ext->add_sense_code_qual);
+		}
+
+		if (ext->extra_len >= 7 && ext->fru) {
+			printf(" fru:%02x", ext->fru);
+		}
+
+		if (ext->extra_len >= 10 && 
+		(ext->sense_key_spec_1 & SSD_SCS_VALID)) {
+			printf(" sks:%02x,%04x", ext->sense_key_spec_1,
+			(ext->sense_key_spec_2 |
+			ext->sense_key_spec_3));
+		}
+		break;
+
+	/*
+	 * Not code 70, just report it
+	 */
+	default:
+		printf("error code %d",
+		    sense->error_code & SSD_ERRCODE);
+		if (sense->error_code & SSD_ERRCODE_VALID) {
+			printf(" at block no. %ld (decimal)",
+			    (((unsigned long)sense->ext.unextended.blockhi) << 16) +
+			    (((unsigned long)sense->ext.unextended.blockmed) << 8) +
+			    ((unsigned long)sense->ext.unextended.blocklow));
+		}
+	}
+}
+
+/*
  * Look at the returned sense and act on the error, determining
  * the unix error number to pass back.  (0 = report no error)
  *
- * THIS IS THE DEFAULT ERROR HANDLER
+ * THIS IS THE DEFAULT SENSE HANDLER
  */
 static errval 
 scsi_interpret_sense(xs)
@@ -629,22 +755,11 @@ scsi_interpret_sense(xs)
 	struct scsi_link *sc_link = xs->sc_link;
 	u_int32 key;
 	u_int32 silent;
-	u_int32 info;
 	errval  errcode;
-
-	static char *error_mes[] =
-	{"soft error (corrected)",
-	    "not ready", "medium error",
-	    "non-media hardware failure", "illegal request",
-	    "unit attention", "readonly device",
-	    "no data found", "vendor unique",
-	    "copy aborted", "command aborted",
-	    "search returned equal", "volume overflow",
-	    "verify miscompare", "unknown error key"
-	};
 
 	/*
 	 * If the flags say errs are ok, then always return ok.
+	 * BUG: What if it is a deferred error?
 	 */
 	if (xs->flags & SCSI_ERR_OK)
 		return (ESUCCESS);
@@ -652,6 +767,7 @@ scsi_interpret_sense(xs)
 	sense = &(xs->sense);
 #ifdef	SCSIDEBUG
 	if (sc_link->flags & SDEV_DB1) {
+
 		u_int32 count = 0;
 		printf("code%x valid%x ",
 		    sense->error_code & SSD_ERRCODE,
@@ -674,56 +790,80 @@ scsi_interpret_sense(xs)
 		}
 		printf("\n");
 	}
-#endif	/*SCSIDEBUG */
+  #endif	/*SCSIDEBUG */
 	/*
-	 * If the device has it's own error handler, call it first.
-	 * If it returns a legit error value, return that, otherwise
-	 * it wants us to continue with normal error processing.
+	 * If the device has it's own sense handler, call it first.
+	 * If it returns a legit errno value, return that, otherwise
+	 * it should return either DO_RETRY or CONTINUE to either
+	 * request a retry or continue with default sense handling.
 	 */
 	if (sc_link->device->err_handler) {
 		SC_DEBUG(sc_link, SDEV_DB2, ("calling private err_handler()\n"));
 		errcode = (*sc_link->device->err_handler) (xs);
-		if (errcode != -1)
-			return errcode;		/* errcode >= 0  better ? */
+
+		if (errcode >= 0)
+			return errcode;			/* valid errno value */
+
+		switch(errcode) {
+			case SCSIRET_DO_RETRY:	/* Requested a retry */
+			return errcode;
+
+			case SCSIRET_CONTINUE:	/* Continue with default sense processing */
+			break;
+
+			default:
+			sc_print_addr(xs->sc_link);
+			printf("unknown return code %d from sense handler.\n",
+			errcode);
+
+			return errcode;
+		}
 	}
 	/* otherwise use the default */
 	silent = (xs->flags & SCSI_SILENT);
+	key = sense->ext.extended.flags & SSD_KEY;
+
+	if (!silent) {
+		scsi_sense_print(xs);
+		printf("\n");
+	}
+
 	switch (sense->error_code & SSD_ERRCODE) {
+	case 0x71:		/* deferred error */
+		/* Print even if silent (not silent was already done)
+		 */
+		if (silent) {
+			scsi_sense_print(xs);
+			printf("\n");
+		}
+
+		/* BUG:
+		 * This error doesn't relate to the command associated
+		 * with this request sense.  A deferred error is an error
+		 * for a command that has already returned GOOD status (see 7.2.14.2).
+		 *
+		 * By my reading of that section, it looks like the current command
+		 * has been cancelled, we should now clean things up (hopefully
+		 * recovering any lost data) and then
+		 * retry the current command.  There are two easy choices, both
+		 * wrong:
+		 * 1. Drop through (like we had been doing), thus treating this as
+		 * if the error were for the current command and return and stop
+		 * the current command.
+		 * 2. Issue a retry (like I made it do) thus hopefully recovering
+		 * the current transfer, and ignoring the fact that we've dropped
+		 * a command.
+		 *
+		 * These should probably be handled in a device specific
+		 * sense handler or punted back up to a user mode daemon
+		 */
+		return SCSIRET_DO_RETRY;
+
 		/*
 		 * If it's code 70, use the extended stuff and interpret the key
 		 */
-	case 0x71:		/* delayed error */
-		sc_print_addr(sc_link);
-		key = sense->ext.extended.flags & SSD_KEY;
-		printf(" DELAYED ERROR, key = 0x%lx\n", (u_long)key);
 	case 0x70:
-		if (sense->error_code & SSD_ERRCODE_VALID) {
-			info = ntohl(*((long *) sense->ext.extended.info));
-		} else {
-			info = 0;
-		}
-		key = sense->ext.extended.flags & SSD_KEY;
 
-		if (key && !silent) {
-			sc_print_addr(sc_link);
-			printf("%s", error_mes[key - 1]);
-			if (sense->error_code & SSD_ERRCODE_VALID) {
-				switch ((int)key) {
-				case 0x2:	/* NOT READY */
-				case 0x5:	/* ILLEGAL REQUEST */
-				case 0x6:	/* UNIT ATTENTION */
-				case 0x7:	/* DATA PROTECT */
-					break;
-				case 0x8:	/* BLANK CHECK */
-					printf(", requested size: %ld (decimal)",
-					    info);
-					break;
-				default:
-					printf(", info = %ld (decimal)", info);
-				}
-			}
-			printf("\n");
-		}
 		switch ((int)key) {
 		case 0x0:	/* NO SENSE */
 		case 0x1:	/* RECOVERED ERROR */
@@ -753,21 +893,9 @@ scsi_interpret_sense(xs)
 			return (EIO);
 		}
 	/*
-	 * Not code 70, just report it
+	 * Not code 70, return EIO
 	 */
 	default:
-		if (!silent) {
-			sc_print_addr(sc_link);
-			printf("error code %d",
-			    sense->error_code & SSD_ERRCODE);
-			if (sense->error_code & SSD_ERRCODE_VALID) {
-				printf(" at block no. %d (decimal)",
-				    (sense->ext.unextended.blockhi << 16) +
-				    (sense->ext.unextended.blockmed << 8) +
-				    (sense->ext.unextended.blocklow));
-			}
-			printf("\n");
-		}
 		return (EIO);
 	}
 }

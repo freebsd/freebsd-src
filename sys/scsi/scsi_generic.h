@@ -1,5 +1,5 @@
 /* 
- * Contributed by HD Associates (hd@world.std.com).
+ * Contributed by HD Associates (contact: dufault@hda.com)
  * Copyright (c) 1992, 1993 HD Associates
  *
  * Berkeley style copyright.  I've just snarfed it out of stdio.h:
@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stdio.h	5.17 (Berkeley) 6/3/91
- *	$Id$
+ *	$Id: scsi_generic.h,v 1.2 1993/10/16 17:21:05 rgrimes Exp $
  */
 
 /* generic SCSI header file.  We use the same minor number format

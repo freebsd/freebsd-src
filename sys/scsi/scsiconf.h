@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.13 1994/10/23 21:27:56 wollman Exp $
+ *	$Id: scsiconf.h,v 1.14 1994/11/14 23:39:33 ats Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -28,6 +28,47 @@ typedef	unsigned short int	u_int16;
 typedef	unsigned char 		u_int8;
 
 #include <scsi/scsi_debug.h>
+#include <scsi/scsi_all.h>
+
+/* Minor number fields:
+ *
+ * OLD STYLE SCSI devices:
+ *
+ * ???? ???? ???? ???N MMMMMMMM mmmmmmmm
+ *
+ * ?: Don't know; those bits didn't use to exist, currently always 0.
+ * N: New style device: must be zero.
+ * M: Major device number.
+ * m: old style minor device number.
+ *
+ * NEW (FIXED) SCSI devices:
+ *
+ * ???? SBBB LLLI IIIN MMMMMMMM mmmmmmmm
+ *
+ * ?: Not used yet.
+ * S: "Super" device; reserved for things like resetting the SCSI bus.
+ * B: Scsi bus
+ * L: Logical unit
+ * I: Scsi target  (XXX: Why 16?  Why that many in scsiconf.h?)
+ * N: New style device; must be one.
+ * M: Major device number
+ * m: Old style minor device number.
+ */
+
+#define SCSI_SUPER(DEV)    (((DEV) & 0x08000000) >> 27)
+#define SCSI_MKSUPER(DEV)    ((DEV) | 0x08000000)
+
+#define SCSI_BUS(DEV)      (((DEV) & 0x07000000) >> 24)
+#define SCSI_LUN(DEV)      (((DEV) & 0x00E00000) >> 21)
+#define SCSI_ID(DEV)       (((DEV) & 0x001E0000) >> 17)
+#define SCSI_NEW(DEV)      (((DEV) & 0x00010000) >> 16)
+
+
+#define SCSI_MKDEV(B, L, I) ( \
+         ((B) << 24) | \
+         ((L) << 21) | \
+         ((I) << 17) | \
+         ( 1  << 16) )
 
 /*
  * The following documentation tries to describe the relationship between the
@@ -83,6 +124,14 @@ struct scsi_adapter
 #define	COMPLETE		2
 #define	HAD_ERROR		3 /* do not use this, use COMPLETE */
 #define	ESCAPE_NOT_SUPPORTED	4
+
+/*
+ * Return value from sense handler.  IMHO, These ought to be merged
+ * in with the return codes above, all made negative to distinguish
+ * from valid errno values, and replace "try again later" with "do retry"
+ */
+#define SCSIRET_CONTINUE -1	/* Continue with standard sense processing */
+#define SCSIRET_DO_RETRY -2	/* Retry the command that got this sense */
 
 /*
  * Format of adapter_info() response data
@@ -172,6 +221,8 @@ struct scsi_link
 /* 24*/	struct	scsi_xfer *active_xs;	/* operations under way */
 /* 28*/	void *	fordriver;		/* for private use by the driver */
 /* 32*/	void *  devmodes;		/* device specific mode tables */
+/* 36*/ dev_t	dev;			/* Device major number (character) */
+/* 40+*/struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
 };
 #define	SDEV_MEDIA_LOADED 	0x01	/* device figures are still valid */
 #define	SDEV_WAITING	 	0x02	/* a process is waiting for this */
@@ -259,6 +310,7 @@ struct scsi_xfer
 #define XS_TIMEOUT	0x03	/* The device timed out.. turned off?	  */
 #define XS_SWTIMEOUT	0x04	/* The Timeout reported was caught by SW  */
 #define XS_BUSY		0x08	/* The device busy, try again later?	  */
+#define	XS_LENGTH 0x09	/* Illegal length (over/under run)	*/
 
 #ifdef KERNEL
 void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
@@ -277,8 +329,15 @@ errval scsi_scsi_cmd( struct scsi_link *sc_link, struct scsi_generic *scsi_cmd,
 			u_int32 datalen, u_int32 retries,
 			u_int32 timeout, struct buf *bp,
 			u_int32 flags);
-errval	scsi_do_ioctl __P((struct scsi_link *sc_link, int cmd, caddr_t addr, int f));
+errval	scsi_do_ioctl __P((dev_t dev, struct scsi_link *sc_link, int cmd, caddr_t addr, int f));
 
+struct scsi_link *scsi_link_get __P((int bus, int targ, int lun));
+
+dev_t scsi_dev_lookup __P((int (*opener)(dev_t dev)));
+
+int scsi_opened_ok __P((dev_t dev, int flag, int type, struct scsi_link *sc_link));
+
+void scsi_sense_print(struct scsi_xfer *xs);
 void show_scsi_xs(struct scsi_xfer *xs);
 void show_scsi_cmd(struct scsi_xfer *xs);
 void show_mem(unsigned char * , u_int32);
@@ -358,6 +417,48 @@ extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 #define DDS		0x13
 #define DAT_1		0x13
 #endif /* NEW_SCSICONF */
+
+/* Macros for getting and setting the unit numbers in the original
+ * (not fixed device name) device numbers.
+ */
+#define SH0_UNIT(DEV)      (minor(DEV)&0xFF)           /* 8 bit unit */
+#define SH0SETUNIT(DEV, U) makedev(major(DEV), (U))
+
+#define SH3_UNIT(DEV)      ((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
+#define SH3SETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))
+
+#define SH4_UNIT(DEV)      ((minor(DEV)&0xF0) >> 4)    /* 4 bit unit.  */
+#define SH4SETUNIT(DEV, U) makedev(major(DEV), ((U) << 4))
+
+#define CDUNITSHIFT          3
+#define CDUNIT(DEV)         SH3_UNIT(DEV)
+#define CDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
+
+#define SDUNITSHIFT          3
+#define SDUNIT(DEV)         SH3_UNIT(DEV)
+#define SDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
+
+#define CHUNIT(DEV)         SH4_UNIT(DEV)
+#define CHSETUNIT(DEV, U)   SH4SETUNIT((DEV), (U))
+
+#define STUNIT(DEV)         SH4_UNIT(DEV)
+#define STSETUNIT(DEV, U)   SH4SETUNIT((DEV), (U))
+
+#define UKUNIT(DEV)         SH0_UNIT(DEV)
+#define UKSETUNIT(DEV, U)   SH0SETUNIT((DEV), (U))
+
+/* Build an old style device number (unit encoded in the minor number)
+ * from a base old one (no flag bits) and a full new one
+ * (BUS, LUN, TARG in the minor number, and flag bits).
+ *
+ * OLDDEV has the major number and device unit only.  It was constructed
+ * at attach time and is stored in the scsi_link structure.
+ *
+ * NEWDEV can have whatever in it, but only the old control flags and the
+ * super bit are present.  IT CAN'T HAVE ANY UNIT INFORMATION or you'll
+ * wind up with the wrong unit.
+ */
+#define OLD_DEV(NEWDEV, OLDDEV) ((OLDDEV) | ((NEWDEV) & 0x080000FF))
 
 #endif /*SCSI_SCSICONF_H*/
 /* END OF FILE */

@@ -2,7 +2,7 @@
  * Dummy driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.4 1994/08/13 03:50:31 wollman Exp $
+ *      $Id: uk.c,v 1.5 1994/12/16 06:03:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@ struct uk_driver {
 
 static u_int32 next_uk_unit = 0;
 
+errval ukopen();
 /*
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
@@ -107,6 +108,7 @@ ukattach(sc_link)
 	uk->sc_link = sc_link;
 	sc_link->device = &uk_switch;
 	sc_link->dev_unit = unit;
+	sc_link->dev = UKSETUNIT(scsi_dev_lookup(ukopen), unit);
 
 	printf("uk%d: unknown device\n", unit);
 	uk->flags = UK_KNOWN;
@@ -125,7 +127,7 @@ ukopen(dev)
 	u_int32 unit, mode;
 	struct uk_data *uk;
 	struct scsi_link *sc_link;
-	unit = minor(dev);
+	unit = UKUNIT(dev);
 
 	/*
 	 * Check the unit is legal 
@@ -200,9 +202,9 @@ ukioctl(dev, cmd, arg, mode)
 	/*
 	 * Find the device that the user is talking about
 	 */
-	unit = minor(dev);
+ 	unit = UKUNIT(dev);
 	uk = uk_driver.uk_data[unit];
 	sc_link = uk->sc_link;
-	return(scsi_do_ioctl(sc_link,cmd,arg,mode));
+	return(scsi_do_ioctl(dev,sc_link,cmd,arg,mode));
 }
 

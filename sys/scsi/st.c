@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.22 1994/10/28 13:19:36 jkh Exp $
+ * $Id: st.c,v 1.23 1994/12/16 06:03:26 phk Exp $
  */
 
 /*
@@ -56,8 +56,9 @@ u_int32 ststrats, stqueues;
 
 #define MODE(z)		(  (minor(z)       & 0x03) )
 #define DSTY(z)         ( ((minor(z) >> 2) & 0x03) )
-#define UNIT(z)		(  (minor(z) >> 4) )
 #define CTLMODE	3
+
+#define IS_CTLMODE(DEV) (MODE(DEV) == CTLMODE || SCSI_SUPER(DEV))
 
 #define SCSI_2_MAX_DENSITY_CODE	0x17	/* maximum density code specified
 					 * in SCSI II spec. */
@@ -299,6 +300,7 @@ st_registerdev(int unit)
 	dev_attach(kdc);
 }
 
+errval stopen();
 /*
  * The routine called by the low level scsi routine when it discovers
  * A device suitable for this driver
@@ -366,6 +368,7 @@ stattach(sc_link)
 	st->sc_link = sc_link;
 	sc_link->device = &st_switch;
 	sc_link->dev_unit = unit;
+ 	sc_link->dev = STSETUNIT(scsi_dev_lookup(stopen), unit);
 
 	/*
 	 * Check if the drive is a known criminal and take
@@ -416,23 +419,23 @@ st_identify_drive(unit)
 	u_int32 unit;
 {
 	struct st_data *st = st_driver.st_data[unit];
-	struct scsi_inquiry_data inqbuf;
 	struct rogues *finger;
 	char    manu[32];
 	char    model[32];
 	char    model2[32];
 	char    version[32];
 	u_int32 model_len;
+ 	struct scsi_inquiry_data *inqbuf = &st->sc_link->inqbuf;
 
 	/*
 	 * Get the device type information
 	 */
-	if (scsi_inquire(st->sc_link, &inqbuf,
+	if (scsi_inquire(st->sc_link, inqbuf,
 		SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT) != 0) {
 		printf("st%d: couldn't get device type, using default\n", unit);
 		return;
 	}
-	if ((inqbuf.version & SID_ANSII) == 0) {
+	if ((inqbuf->version & SID_ANSII) == 0) {
 		/*
 		 * If not advanced enough, use default values
 		 */
@@ -443,11 +446,11 @@ st_identify_drive(unit)
 		strncpy(version, "????", 4);
 		version[4] = 0;
 	} else {
-		strncpy(manu, inqbuf.vendor, 8);
+		strncpy(manu, inqbuf->vendor, 8);
 		manu[8] = 0;
-		strncpy(model, inqbuf.product, 16);
+		strncpy(model, inqbuf->product, 16);
 		model[16] = 0;
-		strncpy(version, inqbuf.revision, 4);
+		strncpy(version, inqbuf->revision, 4);
 		version[4] = 0;
 	}
 
@@ -551,7 +554,7 @@ stopen(dev, flags)
 	errval  errno = 0;
 	struct st_data *st;
 	struct scsi_link *sc_link;
-	unit = UNIT(dev);
+	unit = STUNIT(dev);
 	mode = MODE(dev);
 	dsty = DSTY(dev);
 
@@ -588,9 +591,10 @@ stopen(dev, flags)
 	/*
 	 * If the mode is 3 (e.g. minor = 3,7,11,15)
 	 * then the device has been openned to set defaults
-	 * This mode does NOT ALLOW I/O, only ioctls
+	 * This mode does NOT ALLOW I/O, only ioctls.
+	 * XXX: Where do we lock out I/O?
 	 */
-	if (mode == CTLMODE)
+	if (IS_CTLMODE(dev))
 		return 0;
 
 	/*
@@ -630,7 +634,7 @@ stopen(dev, flags)
 	SC_DEBUG(sc_link, SDEV_DB2, ("Open complete\n"));
 
 	st->flags |= ST_OPEN;
-	return (0);
+	return 0;
 }
 
 /*
@@ -645,7 +649,7 @@ stclose(dev)
 	struct st_data *st;
 	struct scsi_link *sc_link;
 
-	unit = UNIT(dev);
+	unit = STUNIT(dev);
 	mode = MODE(dev);
 	st = st_driver.st_data[unit];
 	sc_link = st->sc_link;
@@ -687,7 +691,7 @@ st_mount_tape(dev, flags)
 	struct scsi_link *sc_link;
 	errval  errno = 0;
 
-	unit = UNIT(dev);
+	unit = STUNIT(dev);
 	mode = MODE(dev);
 	dsty = DSTY(dev);
 	st = st_driver.st_data[unit];
@@ -949,7 +953,7 @@ void
 stminphys(bp)
 	struct buf *bp;
 {
-	(*(st_driver.st_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
+	(*(st_driver.st_data[STUNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
 }
 
 /*
@@ -968,7 +972,7 @@ ststrategy(bp)
 	struct st_data *st;
 
 	ststrats++;
-	unit = UNIT((bp->b_dev));
+	unit = STUNIT((bp->b_dev));
 	st = st_driver.st_data[unit];
 	SC_DEBUG(st->sc_link, SDEV_DB1,
 	    (" strategy: %d bytes @ blk%d\n", bp->b_bcount, bp->b_blkno));
@@ -1203,7 +1207,7 @@ stioctl(dev, cmd, arg, flag)
 	 * Find the device that the user is talking about
 	 */
 	flags = 0;		/* give error messages, act on errors etc. */
-	unit = UNIT(dev);
+	unit = STUNIT(dev);
 	dsty = DSTY(dev);
 	st = st_driver.st_data[unit];
 	hold_blksiz = st->blksiz;
@@ -1310,8 +1314,8 @@ stioctl(dev, cmd, arg, flag)
 	case MTIOCEEOT:
 		break;
 	default:
-		if(MODE(dev) == CTLMODE)
-			errcode = scsi_do_ioctl(st->sc_link,cmd,arg,flag);
+		if(IS_CTLMODE(dev))
+			errcode = scsi_do_ioctl(dev, st->sc_link,cmd,arg,flag);
 		else
 			errcode = ENOTTY;
 		break;
@@ -1340,7 +1344,7 @@ try_new_value:
 	 * 
 	 * The means for deciding this are not finalised yet
 	 */
-	if (MODE(dev) == 0x03) {
+	if (IS_CTLMODE(dev)) {
 		/* special mode */
 		/* XXX */
 		switch ((short) (mt->mt_op)) {
@@ -1879,7 +1883,7 @@ st_erase(unit, immed, flags)
 /*
  * Look at the returned sense and act on the error and detirmine
  * The unix error number to pass back... (0 = report no error)
- *                            (-1 = continue processing)
+ *                            (SCSIRET_CONTINUE = continue processing)
  */
 errval 
 st_interpret_sense(xs)
@@ -1903,7 +1907,7 @@ st_interpret_sense(xs)
 		info = xs->datalen;	/* bad choice if fixed blocks */
 	}
 	if ((sense->error_code & SSD_ERRCODE) != 0x70) {
-		return (-1);	/* let the generic code handle it */
+		return SCSIRET_CONTINUE;	/* let the generic code handle it */
 	}
 	if (st->flags & ST_FIXEDBLOCKS) {
 		xs->resid = info * st->blksiz;
@@ -2010,7 +2014,7 @@ st_interpret_sense(xs)
 			return (ESUCCESS);
 		}
 	}
-	return (-1);		/* let the default/generic handler handle it */
+	return SCSIRET_CONTINUE;	/* let the default/generic handler handle it */
 }
 
 /*
