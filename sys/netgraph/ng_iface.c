@@ -471,7 +471,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 static void
 ng_iface_start(struct ifnet *ifp)
 {
-	printf("%s%d: %s called?", ifp->if_name, ifp->if_unit, __func__);
+	if_printf(ifp, "%s called?", __func__);
 }
 
 /*

@@ -280,8 +280,7 @@ fddi_output(ifp, m, dst, rt0)
 		goto queue_it;
 	}
 	default:
-		printf("%s%d: can't handle af%d\n", ifp->if_name, ifp->if_unit,
-			dst->sa_family);
+		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
 		senderr(EAFNOSUPPORT);
 	}
 
