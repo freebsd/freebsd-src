@@ -92,7 +92,7 @@ void vmspace_unshare __P((struct proc *));
 void vmspace_free __P((struct vmspace *));
 void vnode_pager_setsize __P((struct vnode *, vm_ooffset_t));
 void vslock __P((caddr_t, u_int));
-void vsunlock __P((caddr_t, u_int, int));
+void vsunlock __P((caddr_t, u_int));
 void vm_object_print __P((/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *));
 int vm_fault_quick __P((caddr_t v, int prot));

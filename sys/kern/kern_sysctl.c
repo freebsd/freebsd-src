@@ -628,7 +628,7 @@ kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldle
 	error = sysctl_root(0, name, namelen, &req);
 
 	if (req.lock == 2)
-		vsunlock(req.oldptr, req.oldlen, B_WRITE);
+		vsunlock(req.oldptr, req.oldlen);
 
 	memlock.sl_lock = 0;
 
@@ -873,7 +873,7 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 
 	req = req2;
 	if (req.lock == 2)
-		vsunlock(req.oldptr, req.oldlen, B_WRITE);
+		vsunlock(req.oldptr, req.oldlen);
 
 	memlock.sl_lock = 0;
 
