@@ -1461,10 +1461,13 @@ sf_buf_alloc()
 		sf_buf_alloc_want++;
 		error = msleep(&sf_freelist, &sf_freelist.sf_lock, PVM|PCATCH,
 		    "sfbufa", 0);
-		if (error != 0) {
-			sf_buf_alloc_want--;
+		sf_buf_alloc_want--;
+
+		/*
+		 * If we got a signal, don't risk going back to sleep. 
+		 */
+		if (error)
 			break;
-		}
 	}
 	SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 	mtx_unlock(&sf_freelist.sf_lock);
@@ -1499,10 +1502,8 @@ sf_buf_free(caddr_t addr, void *args)
 	sf->m = NULL;
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
-	if (sf_buf_alloc_want) {
-		sf_buf_alloc_want--;
+	if (sf_buf_alloc_want > 0)
 		wakeup_one(&sf_freelist);
-	}
 	mtx_unlock(&sf_freelist.sf_lock);
 }
 
