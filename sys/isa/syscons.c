@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.164 1996/09/04 22:24:19 sos Exp $
+ *  $Id: syscons.c,v 1.165 1996/09/06 23:08:09 phk Exp $
  */
 
 #include "sc.h"
 #include "apm.h"
 #include "opt_ddb.h"
+#include "opt_syscons.h"
 
 #if NSC > 0
 #include <sys/param.h>
@@ -276,9 +277,12 @@ scprobe(struct isa_device *dev)
 	}
     }
 gotres:
-    if (retries < 0)
+    if (retries < 0) {
 	printf("scprobe: keyboard won't accept RESET command\n");
-    else {
+#ifdef	SC_KBD_PROBE_WORKS
+	return (0);
+#endif
+    } else {
 	i = 10;			/* At most 10 retries. */
 gotack:
 	DELAY(100);
@@ -288,8 +292,12 @@ gotack:
 	val = inb(KB_DATA);
 	if (val == KB_ACK && --i > 0)
 	    goto gotack;
-	if (val != KB_RESET_DONE)
+	if (val != KB_RESET_DONE) {
 	    printf("scprobe: keyboard RESET failed (result = 0x%02x)\n", val);
+#ifdef	SC_KBD_PROBE_WORKS
+	    return (0);
+#endif
+	}
     }
 #ifdef XT_KEYBOARD
     kbd_wait();
