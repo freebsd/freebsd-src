@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id$
+ *		$Id: adjkerntz.c,v 1.18.2.1 1997/06/11 06:55:53 charnier Exp $
  */
 
 #ifndef lint
@@ -86,7 +86,7 @@ int main(argc, argv)
 	    init = Unknown;
 	sigset_t mask, emask;
 
-	while ((ch = getopt(argc, argv, "ais")) != EOF)
+	while ((ch = getopt(argc, argv, "ais")) != -1)
 		switch((char)ch) {
 		case 'i':               /* initial call, save offset */
 			if (init != Unknown)
