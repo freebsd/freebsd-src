@@ -202,11 +202,13 @@ int main(int argc, char **argv)
 	if (redial_on_startup)
 		sighup_handler();
 	else if (!(modem_control & CLOCAL)) {
-		ioctl(fd, TIOCMGET, &comstate);
+		if (ioctl(fd, TIOCMGET, &comstate) < 0)
+			syslog(LOG_NOTICE,"cannot get carrier state: %m");
 		if (!(comstate & TIOCM_CD)) { /* check for carrier */
 			/* force a redial if no carrier */
 			kill (getpid(), SIGHUP);
-		}
+		} else
+			configure_network();
 	}
 	else
 		configure_network(); /* configure the network if needed. */
