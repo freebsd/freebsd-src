@@ -28,7 +28,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	pccard pcvt pf pflog \
 	power_profile ppp-user pppoed preseedrandom pwcheck \
 	quota \
-	random rarpd rcconf.sh resolv root \
+	ramdisk ramdisk-own random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore securelevel sendmail \
 	serial sppp sshd swap1 \
