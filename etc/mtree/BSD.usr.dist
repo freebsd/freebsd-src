@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.103 1997/10/18 10:40:02 joerg Exp $
+#	$Id: BSD.usr.dist,v 1.104 1997/11/07 15:38:24 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -186,6 +186,8 @@
 	    mdoc
             ..
 	    perfmon
+	    ..
+	    ppi
 	    ..
 	    printing
 	    ..
