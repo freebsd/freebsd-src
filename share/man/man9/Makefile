@@ -410,7 +410,8 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copystr.9
 MLINKS+=critical_enter.9 cpu_critical_enter.9 \
 	critical_enter.9 cpu_critical_exit.9 \
-	critical_enter.9 critical_exit.9
+	critical_enter.9 critical_exit.9 \
+	critical_enter.9 critical.9
 MLINKS+=devclass_add_driver.9 devclass_delete_driver.9 \
 	devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=device_add_child.9 device_add_child_ordered.9
