@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  *
  *	From BSDI: daemon.c,v 1.2 1996/08/15 01:11:09 jch Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
