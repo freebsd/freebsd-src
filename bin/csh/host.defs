@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.28 2000/11/11 23:03:35 christos Exp $ */
+/* $Header: /src/pub/tcsh/host.defs,v 1.31 2001/06/10 02:19:11 christos Exp $ */
 /* $FreeBSD$ */
 /*
  * host.defs: Hosttype/Machtype etc.
@@ -38,7 +38,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.28 2000/11/11 23:03:35 christos Exp $")
+RCSID("$Id: host.defs,v 1.31 2001/06/10 02:19:11 christos Exp $")
 
 endcode	:
 
@@ -478,8 +478,8 @@ vendor	: defined(M_intel)				: "intel"
 vendor	: defined(m68k)					: "motorola"
 vendor	: defined(mac68k)				: "apple"
 vendor	: defined(pc532)				: "national-semi"
-vendor	: defined(pmax)	|| defined(mips)		: "dec"
-vendor	: defined(M_mipsel)				: "dec"
+vendor	: defined(pmax)					: "dec"
+vendor	: defined(mips)					: "mips"
 vendor	: defined(sparc)				: "sun"
 vendor	: defined(sun3)					: "sun"
 vendor	: defined(vax)					: "digital"
@@ -540,6 +540,14 @@ hosttype:						: "coh386"
 hosttype:						: "coherent"
 ostype	:						: "coherent"
 machtype: defined(_I386)				: "i386"
+enddef	:
+
+newdef	: defined(concurrent)
+comment	: Concurrent PowerHawk
+vendor	:						: "concurrent"
+hosttype:						: "powerhawk"
+ostype	:						: "powermax_os"
+machtype:						: "powerhawk"
 enddef	:
 
 newdef	: defined(SCO)
