@@ -96,8 +96,6 @@
 #error "The lnc device requires the old isa compatibility shims"
 #endif
 
-lnc_softc_t lnc_softc[NLNC];
-
 static char const * const nic_ident[] = {
 	"Unknown",
 	"BICC",
