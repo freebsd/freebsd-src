@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.149 1997/10/05 09:34:41 jkh Exp $
+#	$Id: Makefile,v 1.150 1997/10/05 15:39:47 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -218,7 +218,7 @@ buildworld:
 		${IBMAKE} -I${.CURDIR}/share/mk -B ${CLEANDIR} ${OBJDIR} depend && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} \
-			-B all install clean cleandepend
+			-B install clean cleandepend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
@@ -333,7 +333,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo "Updating /usr/src from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && cvs -q update -P -d -r RELENG_2_2
+	cd ${.CURDIR} && cvs -q update -P -d
 .endif
 
 #
