@@ -379,7 +379,7 @@ taskqueue_define_fast(void *arg)
 	STAILQ_INIT(&taskqueue_fast->tq_queue);
 	taskqueue_fast->tq_name = "fast";
 	taskqueue_fast->tq_enqueue = taskqueue_fast_schedule;
-	mtx_init(&taskqueue_fast->tq_mutex, "taskqueue", NULL, MTX_SPIN);
+	mtx_init(&taskqueue_fast->tq_mutex, "taskqueue_fast", NULL, MTX_SPIN);
 
 	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_INSERT_TAIL(&taskqueue_queues, taskqueue_fast, tq_link);
