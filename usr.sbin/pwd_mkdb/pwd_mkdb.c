@@ -75,6 +75,7 @@ HASHINFO openinfo = {
 static enum state { FILE_INSECURE, FILE_SECURE, FILE_ORIG } clean;
 static struct passwd pwd;			/* password structure */
 static char *pname;				/* password file name */
+static char prefix[MAXPATHLEN];
 
 void	cleanup __P((void));
 void	error __P((char *));
@@ -94,14 +95,19 @@ main(argc, argv)
 	int ch, cnt, len, makeold, tfd;
 	char *p, *t;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
+	char buf2[MAXPATHLEN];
 
+	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
-	while ((ch = getopt(argc, argv, "pv")) != EOF)
+	while ((ch = getopt(argc, argv, "d:pv")) != EOF)
 		switch(ch) {
+		case 'd':
+			strcpy(prefix, optarg);
+			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
 			break;
-		case 'v':			/* backward compatible */
+		case 'v':                       /* backward compatible */
 			break;
 		case '?':
 		default:
@@ -134,7 +140,7 @@ main(argc, argv)
 		error(pname);
 
 	/* Open the temporary insecure password database. */
-	(void)snprintf(buf, sizeof(buf), "%s.tmp", _PATH_MP_DB);
+	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
 	dp = dbopen(buf,
 	    O_RDWR|O_CREAT|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
 	if (dp == NULL)
@@ -226,7 +232,7 @@ main(argc, argv)
 	}
 
 	/* Open the temporary encrypted password database. */
-	(void)snprintf(buf, sizeof(buf), "%s.tmp", _PATH_SMP_DB);
+	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _SMP_DB);
 	edp = dbopen(buf,
 	    O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
 	if (!edp)
@@ -284,13 +290,16 @@ main(argc, argv)
 	(void)fclose(fp);
 
 	/* Install as the real password files. */
-	(void)snprintf(buf, sizeof(buf), "%s.tmp", _PATH_MP_DB);
-	mv(buf, _PATH_MP_DB);
-	(void)snprintf(buf, sizeof(buf), "%s.tmp", _PATH_SMP_DB);
-	mv(buf, _PATH_SMP_DB);
+	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
+	(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _MP_DB);
+	mv(buf, buf2);
+	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _SMP_DB);
+	(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _SMP_DB);
+	mv(buf, buf2);
 	if (makeold) {
+		(void)snprintf(buf2, sizeof(buf2), "%s/%s", prefix, _PASSWD);
 		(void)snprintf(buf, sizeof(buf), "%s.orig", pname);
-		mv(buf, _PATH_PASSWD);
+		mv(buf, buf2); 
 	}
 	/*
 	 * Move the master password LAST -- chpass(1), passwd(1) and vipw(8)
@@ -298,7 +307,8 @@ main(argc, argv)
 	 * The rename means that everything is unlocked, as the original file
 	 * can no longer be accessed.
 	 */
-	mv(pname, _PATH_MASTERPASSWD);
+	(void)snprintf(buf, sizeof(buf), "%s/%s", prefix, _MASTERPASSWD);
+	mv(pname, buf); 
 	exit(0);
 }
 
@@ -369,11 +379,11 @@ cleanup()
 		(void)unlink(buf);
 		/* FALLTHROUGH */
 	case FILE_SECURE:
-		(void)snprintf(buf, sizeof(buf), "%s.tmp", _PATH_SMP_DB);
+		(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _SMP_DB);
 		(void)unlink(buf);
 		/* FALLTHROUGH */
 	case FILE_INSECURE:
-		(void)snprintf(buf, sizeof(buf), "%s.tmp", _PATH_MP_DB);
+		(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
 		(void)unlink(buf);
 	}
 }
@@ -382,6 +392,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: pwd_mkdb [-p] file\n");
+	(void)fprintf(stderr, "usage: pwd_mkdb [-p] [-d <dest dir>] file\n");
 	exit(1);
 }
