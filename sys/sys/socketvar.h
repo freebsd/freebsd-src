@@ -324,7 +324,7 @@ int	soo_stat __P((struct file *fp, struct stat *ub, struct proc *p));
  * From uipc_socket and friends
  */
 struct	sockaddr *dup_sockaddr __P((struct sockaddr *sa, int canwait));
-int	getsock __P((struct filedesc *fdp, int fdes, struct file **fpp));
+int	holdsock __P((struct filedesc *fdp, int fdes, struct file **fpp));
 int	sockargs __P((struct mbuf **mp, caddr_t buf, int buflen, int type));
 int	getsockaddr __P((struct sockaddr **namp, caddr_t uaddr, size_t len));
 void	sbappend __P((struct sockbuf *sb, struct mbuf *m));
