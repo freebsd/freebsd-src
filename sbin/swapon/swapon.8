@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
-.\"	$Id: swapon.8,v 1.8 1998/01/25 17:28:52 steve Exp $
+.\"	$Id: swapon.8,v 1.9 1998/02/01 06:46:37 steve Exp $
 .\"
 .Dd June 5, 1993
 .Dt SWAPON 8
@@ -50,14 +50,14 @@ are to take place.
 The system begins by swapping and paging on only a single device
 so that only one disk is required at bootstrap time.
 Calls to
-.Nm swapon
+.Nm
 normally occur in the system multi-user initialization file
 .Pa /etc/rc
 making all swap devices available, so that the paging and swapping
 activity is interleaved across several devices.
 .Pp
 Normally, the first form is used:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 All devices marked as ``sw''
 swap devices in
