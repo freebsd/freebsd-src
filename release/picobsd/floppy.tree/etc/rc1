@@ -2,8 +2,6 @@
 # $FreeBSD$
 ### rc1, next stage 'rc' for PicoBSD -- THIS IS NOT THE NORMAL /etc/rc 
 
-pwd_mkdb -p ./master.passwd
-
 . /etc/rc.conf.defaults		# Load default procedures
 rc_conf_set_defaults		# Assign default values to variables.
 find_system_id			# Set $main_eth $main_if
@@ -15,6 +13,13 @@ set_all_interfaces		# Set ${ifconfig_${if}} for other interfaces.
 
 [ -f /etc/rc.conf ] && . /etc/rc.conf
 [ -f /etc/rc.conf.local ] && . /etc/rc.conf.local
+
+### Now use some variables to override files in /etc ###
+( IFS=''
+[ -n ${host_conf} ] && echo ${host_conf} > /etc/host.conf
+[ -n ${resolv_conf} ] && echo ${resolv_conf} > /etc/resolv.conf
+unset IFS
+)
 
 rm -f /var/run/*
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
@@ -45,6 +50,7 @@ chmod 666 /dev/tty[pqrsPQRS]*
 [ "${sshd_enable}" = "YES" -a -f /stand/sshd ] && \
 	{ echo "Starting sshd..." ; sshd -f /etc/sshd_config ; }
 
+pwd_mkdb -p ./master.passwd
 dev_mkdb
 
 echo ''
