@@ -22,14 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
@@ -206,10 +206,10 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 	u_int16_t v;
 
 	switch(which) {
-	case AC97_REGEXT_FDACRATE:
+	case AC97_REGEXT_FDACRATE: 
 	case AC97_REGEXT_SDACRATE:
 	case AC97_REGEXT_LDACRATE:
-	case AC97_REGEXT_LADCRATE:
+	case AC97_REGEXT_LADCRATE: 
 	case AC97_REGEXT_MADCRATE:
 		break;
 
@@ -498,7 +498,7 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 		return NULL;
 
 	snprintf(codec->name, AC97_NAMELEN, "%s:ac97", device_get_nameunit(dev));
-	codec->lock = snd_mtxcreate(codec->name);
+	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");
 	codec->methods = kobj_create(cls, M_AC97, M_WAITOK);
 	if (codec->methods == NULL) {
 		snd_mtxlock(codec->lock);

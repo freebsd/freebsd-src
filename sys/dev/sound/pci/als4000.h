@@ -30,7 +30,6 @@
 #define ALS_PCI_POWERREG	0xe0
 
 #define ALS_CONFIG_SPACE_BYTES	128
-#define ALS_BUFFER_SIZE		8192
 
 #define ALS_GCR_DATA		0x08
 #define ALS_GCR_INDEX		0x0c

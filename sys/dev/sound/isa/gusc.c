@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1999 Seigo Tanimura
  * Copyright (c) 1999 Ville-Pertti Keinonen
  * All rights reserved.
@@ -23,8 +23,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -46,6 +44,8 @@
 #ifdef __alpha__		/* XXX workaround a stupid warning */
 #include <alpha/isa/isavar.h>
 #endif
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define LOGICALID_NOPNP 0
 #define LOGICALID_PCM   0x0000561e

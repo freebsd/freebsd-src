@@ -22,14 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define PCI_VENDOR_FORTEMEDIA	0x1319
 #define PCI_DEVICE_FORTEMEDIA1	0x08011319
@@ -96,7 +96,7 @@
 #define  FM_INTSTATUS_VOL               0x4000
 #define  FM_INTSTATUS_MPU               0x8000
 
-#define FM801_BUFFSIZE 1024*4	/* Other values do not work!!! */
+#define FM801_DEFAULT_BUFSZ	4096	/* Other values do not work!!! */
 
 /* debug purposes */
 #define DPRINT	 if(0) printf
@@ -157,6 +157,8 @@ struct fm801_info {
 				rec_fmt,
 				rec_shift,
 				rec_size;
+
+	unsigned int 		bufsz;
 
 	struct fm801_chinfo 	pch, rch;
 };
@@ -328,7 +330,7 @@ fm801ch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, fm801->parent_dmat, FM801_BUFFSIZE) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, fm801->parent_dmat, fm801->bufsz) == -1) return NULL;
 	return (void *)ch;
 }
 
@@ -604,6 +606,8 @@ fm801_pci_attach(device_t dev)
 		goto oops;
 	}
 
+	fm801->bufsz = pcm_getbuffersize(dev, 4096, FM801_DEFAULT_BUFSZ, 65536);
+
 	fm801_init(fm801);
 
 	codec = AC97_CREATE(dev, fm801, fm801_ac97);
@@ -623,7 +627,7 @@ fm801_pci_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/FM801_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/fm801->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &fm801->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto oops;
@@ -700,7 +704,10 @@ static device_method_t fm801_methods[] = {
 static driver_t fm801_driver = {
 	"pcm",
 	fm801_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(fm801, pci, fm801_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_fm801, pci, fm801_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_fm801, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_fm801, 1);
+

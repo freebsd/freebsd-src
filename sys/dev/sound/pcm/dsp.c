@@ -22,14 +22,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 
 #include <dev/sound/pcm/sound.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define OLDPCM_IOCTL
 
@@ -75,6 +75,34 @@ dsp_get_info(dev_t dev)
 	return d;
 }
 
+static u_int32_t
+dsp_get_flags(dev_t dev)
+{
+	device_t bdev;
+	int unit;
+
+	unit = PCMUNIT(dev);
+	if (unit >= devclass_get_maxunit(pcm_devclass))
+		return 0xffffffff;
+	bdev = devclass_get_device(pcm_devclass, unit);
+
+	return pcm_getflags(bdev);
+}
+
+static void
+dsp_set_flags(dev_t dev, u_int32_t flags)
+{
+	device_t bdev;
+	int unit;
+
+	unit = PCMUNIT(dev);
+	if (unit >= devclass_get_maxunit(pcm_devclass))
+		return;
+	bdev = devclass_get_device(pcm_devclass, unit);
+
+	pcm_setflags(bdev, flags);
+}
+
 /*
  * return the channels channels associated with an open device instance.
  * set the priority if the device is simplex and one direction (only) is
@@ -85,37 +113,41 @@ static int
 getchns(dev_t dev, struct pcm_channel **rdch, struct pcm_channel **wrch, u_int32_t prio)
 {
 	struct snddev_info *d;
+	u_int32_t flags;
 
+	flags = dsp_get_flags(dev);
 	d = dsp_get_info(dev);
-	snd_mtxlock(d->lock);
-	d->inprog++;
-	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
+	pcm_lock(d);
+	pcm_inprog(d, 1);
+	KASSERT((flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 
-	if ((d->flags & SD_F_PRIO_SET) == 0 && (prio != (SD_F_PRIO_RD | SD_F_PRIO_WR)))
-		d->flags |= prio & (SD_F_PRIO_RD | SD_F_PRIO_WR);
+	if ((flags & SD_F_PRIO_SET) == 0 && (prio != (SD_F_PRIO_RD | SD_F_PRIO_WR))) {
+		flags |= prio & (SD_F_PRIO_RD | SD_F_PRIO_WR);
+		dsp_set_flags(dev, flags);
+	}
 
 	*rdch = dev->si_drv1;
 	*wrch = dev->si_drv2;
-	if ((d->flags & SD_F_SIMPLEX) && (d->flags & SD_F_PRIO_SET)) {
+	if ((flags & SD_F_SIMPLEX) && (flags & SD_F_PRIO_SET)) {
 		if (prio) {
-			if (*rdch && d->flags & SD_F_PRIO_WR) {
+			if (*rdch && flags & SD_F_PRIO_WR) {
 				dev->si_drv1 = NULL;
-				*rdch = d->fakechan;
-			} else if (*wrch && d->flags & SD_F_PRIO_RD) {
+				*rdch = pcm_getfakechan(d);
+			} else if (*wrch && flags & SD_F_PRIO_RD) {
 				dev->si_drv2 = NULL;
-				*wrch = d->fakechan;
+				*wrch = pcm_getfakechan(d);
 			}
 		}
 
-		d->fakechan->flags |= CHN_F_BUSY;
+		pcm_getfakechan(d)->flags |= CHN_F_BUSY;
 	}
+	pcm_unlock(d);
 
-	if (*rdch && *rdch != d->fakechan && (prio & SD_F_PRIO_RD))
+	if (*rdch && *rdch != pcm_getfakechan(d) && (prio & SD_F_PRIO_RD))
 		CHN_LOCK(*rdch);
-	if (*wrch && *wrch != d->fakechan && (prio & SD_F_PRIO_WR))
+	if (*wrch && *wrch != pcm_getfakechan(d) && (prio & SD_F_PRIO_WR))
 		CHN_LOCK(*wrch);
-	snd_mtxunlock(d->lock);
 
 	return 0;
 }
@@ -127,13 +159,13 @@ relchns(dev_t dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_int32_t
 	struct snddev_info *d;
 
 	d = dsp_get_info(dev);
-	if (wrch && wrch != d->fakechan && (prio & SD_F_PRIO_WR))
+	if (wrch && wrch != pcm_getfakechan(d) && (prio & SD_F_PRIO_WR))
 		CHN_UNLOCK(wrch);
-	if (rdch && rdch != d->fakechan && (prio & SD_F_PRIO_RD))
+	if (rdch && rdch != pcm_getfakechan(d) && (prio & SD_F_PRIO_RD))
 		CHN_UNLOCK(rdch);
-	snd_mtxlock(d->lock);
-	d->inprog--;
-	snd_mtxunlock(d->lock);
+	pcm_lock(d);
+	pcm_inprog(d, -1);
+	pcm_unlock(d);
 }
 
 static int
@@ -167,15 +199,23 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		fmt = 0;
 		break;
 
+	case SND_DEV_DSPREC:
+		fmt = AFMT_U8;
+		if (mode & FWRITE) {
+			splx(s);
+			return EINVAL;
+		}
+		break;
+
 	default:
 		panic("impossible devtype %d", devtype);
 	}
 
 	/* lock snddev so nobody else can monkey with it */
-	snd_mtxlock(d->lock);
-	if ((d->flags & SD_F_SIMPLEX) && (i_dev->si_drv1 || i_dev->si_drv2)) {
+	pcm_lock(d);
+	if ((dsp_get_flags(i_dev) & SD_F_SIMPLEX) && (i_dev->si_drv1 || i_dev->si_drv2)) {
 		/* simplex device, already open, exit */
-		snd_mtxunlock(d->lock);
+		pcm_unlock(d);
 		splx(s);
 		return EBUSY;
 	}
@@ -188,17 +228,20 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		/* open for read */
 		if (rdch == NULL) {
 			/* not already open, try to get a channel */
-			rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid);
+			if (devtype == SND_DEV_DSPREC)
+				rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid, PCMCHAN(i_dev));
+			else
+				rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid, -1);
 			if (!rdch) {
 				/* no channel available, exit */
-				snd_mtxunlock(d->lock);
+				pcm_unlock(d);
 				splx(s);
 				return EBUSY;
 			}
 			/* got a channel, already locked for us */
 		} else {
 			/* already open for read, exit */
-			snd_mtxunlock(d->lock);
+			pcm_unlock(d);
 			splx(s);
 			return EBUSY;
 		}
@@ -208,7 +251,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		/* open for write */
 		if (wrch == NULL) {
 			/* not already open, try to get a channel */
-			wrch = pcm_chnalloc(d, PCMDIR_PLAY, p->p_pid);
+			wrch = pcm_chnalloc(d, PCMDIR_PLAY, p->p_pid, -1);
 			if (!wrch) {
 				/* no channel available */
 				if (rdch && (flags & FREAD)) {
@@ -216,7 +259,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 					pcm_chnrelease(rdch);
 				}
 				/* exit */
-				snd_mtxunlock(d->lock);
+				pcm_unlock(d);
 				splx(s);
 				return EBUSY;
 			}
@@ -228,7 +271,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 				pcm_chnrelease(rdch);
 			}
 			/* exit */
-			snd_mtxunlock(d->lock);
+			pcm_unlock(d);
 			splx(s);
 			return EBUSY;
 		}
@@ -236,30 +279,46 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 
 	i_dev->si_drv1 = rdch;
 	i_dev->si_drv2 = wrch;
-	snd_mtxunlock(d->lock);
+	pcm_unlock(d);
 	/* finished with snddev, new channels still locked */
 
 	/* bump refcounts, reset and unlock any channels that we just opened */
 	if (rdch) {
 		if (flags & FREAD) {
-	        	chn_reset(rdch, fmt);
+	        	if (chn_reset(rdch, fmt)) {
+				pcm_lock(d);
+				pcm_chnrelease(rdch);
+				if (wrch && (flags & FWRITE))
+					pcm_chnrelease(wrch);
+				pcm_unlock(d);
+				splx(s);
+				return ENODEV;
+			}
 			if (flags & O_NONBLOCK)
 				rdch->flags |= CHN_F_NBIO;
-		} else {
+		} else
 			CHN_LOCK(rdch);
-			pcm_chnref(rdch, 1);
-		}
+
+		pcm_chnref(rdch, 1);
 	 	CHN_UNLOCK(rdch);
 	}
 	if (wrch) {
 		if (flags & FWRITE) {
-	        	chn_reset(wrch, fmt);
+	        	if (chn_reset(wrch, fmt)) {
+				pcm_lock(d);
+				pcm_chnrelease(wrch);
+				if (rdch && (flags & FREAD))
+					pcm_chnrelease(rdch);
+				pcm_unlock(d);
+				splx(s);
+				return ENODEV;
+			}
 			if (flags & O_NONBLOCK)
 				wrch->flags |= CHN_F_NBIO;
-		} else {
+		} else
 			CHN_LOCK(wrch);
-			pcm_chnref(wrch, 1);
-		}
+
+		pcm_chnref(wrch, 1);
 	 	CHN_UNLOCK(wrch);
 	}
 	splx(s);
@@ -276,7 +335,7 @@ dsp_close(dev_t i_dev, int flags, int mode, struct proc *p)
 
 	s = spltty();
 	d = dsp_get_info(i_dev);
-	snd_mtxlock(d->lock);
+	pcm_lock(d);
 	rdch = i_dev->si_drv1;
 	wrch = i_dev->si_drv2;
 
@@ -298,21 +357,21 @@ dsp_close(dev_t i_dev, int flags, int mode, struct proc *p)
 		}
 	}
 	if (exit) {
-		snd_mtxunlock(d->lock);
+		pcm_unlock(d);
 		splx(s);
 		return 0;
 	}
 
 	/* both refcounts are zero, abort and release */
 
-	if (d->fakechan)
-		d->fakechan->flags = 0;
+	if (pcm_getfakechan(d))
+		pcm_getfakechan(d)->flags = 0;
 
 	i_dev->si_drv1 = NULL;
 	i_dev->si_drv2 = NULL;
 
-	d->flags &= ~SD_F_TRANSIENT;
-	snd_mtxunlock(d->lock);
+	dsp_set_flags(i_dev, dsp_get_flags(i_dev) & ~SD_F_TRANSIENT);
+	pcm_unlock(d);
 
 	if (rdch) {
 		chn_abort(rdch); /* won't sleep */
@@ -425,10 +484,6 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	if (kill & 2)
 		rdch = NULL;
 
-    	/*
-     	 * all routines are called with int. blocked. Make sure that
-     	 * ints are re-enabled when calling slow or blocking functions!
-     	 */
     	switch(cmd) {
 #ifdef OLDPCM_IOCTL
     	/*
@@ -527,8 +582,8 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	    		p->formats = (rdch? chn_getformats(rdch) : 0xffffffff) &
 			 	     (wrch? chn_getformats(wrch) : 0xffffffff);
 			if (rdch && wrch)
-				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
-			pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(device_get_unit(d->dev), SND_DEV_CTL, 0));
+				p->formats |= (dsp_get_flags(i_dev) & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
+			pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(PCMUNIT(i_dev), SND_DEV_CTL, 0));
 	    		p->mixers = 1; /* default: one mixer */
 	    		p->inputs = pdev->si_drv1? mix_getdevs(pdev->si_drv1) : 0;
 	    		p->left = p->right = 100;
@@ -769,7 +824,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		}
 		break;
 
-    	case SNDCTL_DSP_GETISPACE: /* XXX Space for reading? Makes no sense... */
+    	case SNDCTL_DSP_GETISPACE:
 		/* return the size of data available in the input queue */
 		{
 	    		audio_buf_info *a = (audio_buf_info *)arg;
@@ -777,7 +832,6 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	        		struct snd_dbuf *bs = rdch->bufsoft;
 
 				CHN_LOCK(rdch);
-				/* chn_rdupdate(rdch); */
 				a->bytes = sndbuf_getready(bs);
 	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
 	        		a->fragstotal = sndbuf_getblkcnt(bs);
@@ -843,7 +897,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
     	case SNDCTL_DSP_GETCAPS:
 		*arg_i = DSP_CAP_REALTIME | DSP_CAP_MMAP | DSP_CAP_TRIGGER;
-		if (rdch && wrch && !(d->flags & SD_F_SIMPLEX))
+		if (rdch && wrch && !(dsp_get_flags(i_dev) & SD_F_SIMPLEX))
 			*arg_i |= DSP_CAP_DUPLEX;
 		break;
 
@@ -912,7 +966,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */
     	default:
-		DEB(printf("default ioctl chan%d fn 0x%08lx fail\n", chan, cmd));
+		DEB(printf("default ioctl fn 0x%08lx fail\n", cmd));
 		ret = EINVAL;
 		break;
     	}
@@ -984,8 +1038,16 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
 		return -1;
 	}
 
-	c->flags |= CHN_F_MAPPED;
-	ret = atop(vtophys(((char *)sndbuf_getbuf(c->bufsoft)) + offset));
+	if (offset >= sndbuf_getsize(c->bufsoft)) {
+		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
+		splx(s);
+		return -1;
+	}
+
+	if (!(c->flags & CHN_F_MAPPED))
+		c->flags |= CHN_F_MAPPED;
+
+	ret = atop(vtophys(sndbuf_getbufofs(c->bufsoft, offset)));
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
 	splx(s);
@@ -1006,6 +1068,15 @@ dsp_register(int unit, int channel)
 }
 
 int
+dsp_registerrec(int unit, int channel)
+{
+	make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSPREC, channel),
+		 UID_ROOT, GID_WHEEL, 0666, "dspr%d.%d", unit, channel);
+
+	return 0;
+}
+
+int
 dsp_unregister(int unit, int channel)
 {
 	dev_t pdev;
@@ -1020,42 +1091,42 @@ dsp_unregister(int unit, int channel)
 	return 0;
 }
 
+int
+dsp_unregisterrec(int unit, int channel)
+{
+	dev_t pdev;
+
+	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSPREC, channel));
+	destroy_dev(pdev);
+
+	return 0;
+}
+
 #ifdef USING_DEVFS
 static void
 dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
 	dev_t pdev;
 	int i, cont, unit, devtype;
+	int devtypes[3] = {SND_DEV_DSP, SND_DEV_DSP16, SND_DEV_AUDIO};
+	char *devnames[3] = {"dsp", "dspW", "audio"};
 
 	if (*dev != NODEV)
 		return;
 	if (pcm_devclass == NULL)
 		return;
+
+	devtype = 0;
 	unit = -1;
-
-	devtype = SND_DEV_DSP;
-	if (strcmp(name, "dsp") == 0) {
-		unit = snd_unit;
-		goto gotit;
-	} else if (dev_stdclone(name, NULL, "dsp", &unit) == 1)
-		goto gotit;
-
-	devtype = SND_DEV_DSP16;
-	if (strcmp(name, "dspW") == 0) {
-		unit = snd_unit;
-		goto gotit;
-	} else if (dev_stdclone(name, NULL, "dspW", &unit) == 1)
-		goto gotit;
-
-	devtype = SND_DEV_AUDIO;
-	if (strcmp(name, "audio") == 0) {
-		unit = snd_unit;
-		goto gotit;
-	} else if (dev_stdclone(name, NULL, "audio", &unit) == 1)
-		goto gotit;
-
-	return;
-gotit:
+	for (i = 0; (i < 3) && (unit == -1); i++) {
+		devtype = devtypes[i];
+		if (strcmp(name, devnames[i]) == 0) {
+			unit = snd_unit;
+		} else {
+			if (dev_stdclone(name, NULL, devnames[i], &unit) != 1)
+				unit = -1;
+		}
+	}
 	if (unit == -1 || unit >= devclass_get_maxunit(pcm_devclass))
 		return;
 

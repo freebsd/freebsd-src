@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -38,7 +36,9 @@
 
 #include "mixer_if.h"
 
-#define SB_BUFFSIZE	4096
+SND_DECLARE_FILE("$FreeBSD$");
+
+#define SB_DEFAULT_BUFSZ	4096
 
 static u_int32_t sb_fmt[] = {
 	AFMT_U8,
@@ -75,6 +75,7 @@ struct sb_info {
     	void *ih;
     	bus_dma_tag_t parent_dmat;
 
+	unsigned int bufsize;
     	int bd_id;
     	u_long bd_flags;       /* board-specific flags */
     	struct sb_chinfo pch, rch;
@@ -245,7 +246,7 @@ sb_reset_dsp(struct sb_info *sb)
     	sb_wr(sb, SBDSP_RST, 0);
     	if (sb_get_byte(sb) != 0xAA) {
         	DEB(printf("sb_reset_dsp 0x%lx failed\n",
-			   rman_get_start(d->io_base)));
+			   rman_get_start(sb->io_base)));
 		return ENXIO;	/* Sorry */
     	}
     	return 0;
@@ -261,6 +262,7 @@ sb_release_resources(struct sb_info *sb, device_t dev)
 		sb->irq = 0;
     	}
     	if (sb->drq) {
+		isa_dma_release(rman_get_start(sb->drq));
 		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq);
 		sb->drq = 0;
     	}
@@ -291,10 +293,8 @@ sb_alloc_resources(struct sb_info *sb, device_t dev)
     		sb->drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid, 0, ~0, 1, RF_ACTIVE);
 
 	if (sb->io_base && sb->drq && sb->irq) {
-		int bs = SB_BUFFSIZE;
-
 		isa_dma_acquire(rman_get_start(sb->drq));
-		isa_dmainit(rman_get_start(sb->drq), bs);
+		isa_dmainit(rman_get_start(sb->drq), sb->bufsize);
 
 		return 0;
 	} else return ENXIO;
@@ -326,28 +326,28 @@ sbpromix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 	max = 7;
 	switch (dev) {
-	case SOUND_MASK_PCM:
+	case SOUND_MIXER_PCM:
 		reg = 0x04;
 		break;
 
-	case SOUND_MASK_MIC:
+	case SOUND_MIXER_MIC:
 		reg = 0x0a;
 		max = 3;
 		break;
 
-	case SOUND_MASK_VOLUME:
+	case SOUND_MIXER_VOLUME:
 		reg = 0x22;
 		break;
 
-	case SOUND_MASK_SYNTH:
+	case SOUND_MIXER_SYNTH:
 		reg = 0x26;
 		break;
 
-	case SOUND_MASK_CD:
+	case SOUND_MIXER_CD:
 		reg = 0x28;
 		break;
 
-	case SOUND_MASK_LINE:
+	case SOUND_MIXER_LINE:
 		reg = 0x2e;
 		break;
 
@@ -418,19 +418,19 @@ sbmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 	max = 7;
 	switch (dev) {
-	case SOUND_MASK_VOLUME:
+	case SOUND_MIXER_VOLUME:
 		reg = 0x2;
 		break;
 
-	case SOUND_MASK_SYNTH:
+	case SOUND_MIXER_SYNTH:
 		reg = 0x6;
 		break;
 
-	case SOUND_MASK_CD:
+	case SOUND_MIXER_CD:
 		reg = 0x8;
 		break;
 
-	case SOUND_MASK_PCM:
+	case SOUND_MIXER_PCM:
 		reg = 0x0a;
 		max = 3;
 		break;
@@ -580,7 +580,7 @@ sbchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->channel = c;
 	ch->dir = dir;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, SB_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) == -1)
 		return NULL;
 	sndbuf_isadmasetup(ch->buffer, sb->drq);
 	return ch;
@@ -693,7 +693,6 @@ sb_attach(device_t dev)
 {
     	struct sb_info *sb;
     	char status[SND_STATUSLEN];
-	int bs = SB_BUFFSIZE;
 	uintptr_t ver;
 
     	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -704,6 +703,7 @@ sb_attach(device_t dev)
 	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
 	sb->bd_id = ver & 0x0000ffff;
 	sb->bd_flags = (ver & 0xffff0000) >> 16;
+	sb->bufsize = pcm_getbuffersize(dev, 4096, SB_DEFAULT_BUFSZ, 65536);
 
     	if (sb_alloc_resources(sb, dev))
 		goto no;
@@ -720,15 +720,15 @@ sb_attach(device_t dev)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/bs, /*nsegments*/1,
+			/*maxsize*/sb->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &sb->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
-    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq), rman_get_start(sb->drq));
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld bufsz %u",
+    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq), rman_get_start(sb->drq), sb->bufsize);
 
     	if (pcm_register(dev, sb, 1, 1))
 		goto no;
@@ -771,7 +771,7 @@ static device_method_t sb_methods[] = {
 static driver_t sb_driver = {
 	"pcm",
 	sb_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_sb8, sbc, sb_driver, pcm_devclass, 0, 0);

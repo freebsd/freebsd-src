@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -40,6 +38,8 @@
 
 #include <dev/sound/pci/via82c686.h>
 
+SND_DECLARE_FILE("$FreeBSD$");
+
 #define VIA686A_PCI_ID 0x30581106
 #define VIA8233_PCI_ID 0x30591106
 
@@ -48,7 +48,7 @@
 #define SEGS_PER_CHAN	(NSEGS/2)
 
 #define TIMEOUT	50
-#define	VIA_BUFFSIZE	0x1000
+#define	VIA_DEFAULT_BUFSZ	0x1000
 
 #undef DEB
 #define DEB(x)
@@ -86,6 +86,8 @@ struct via_info {
 	int regid, irqid;
 	void *ih;
 	struct ac97_info *codec;
+
+	unsigned int bufsz;
 
 	struct via_chinfo pch, rch;
 	struct via_dma_op *sgd_table;
@@ -260,7 +262,7 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		ch->rbase = VIA_REC_BASE;
 	}
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, VIA_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
 		return NULL;
 	return ch;
 }
@@ -565,6 +567,8 @@ via_attach(device_t dev)
 	via->st = rman_get_bustag(via->reg);
 	via->sh = rman_get_bushandle(via->reg);
 
+	via->bufsz = pcm_getbuffersize(dev, 4096, VIA_DEFAULT_BUFSZ, 65536);
+
 	via->irqid = 0;
 	via->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &via->irqid, 0, ~0, 1,
 				      RF_ACTIVE | RF_SHAREABLE);
@@ -596,7 +600,7 @@ via_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/VIA_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/via->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &via->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
@@ -688,11 +692,9 @@ static device_method_t via_methods[] = {
 static driver_t via_driver = {
 	"pcm",
 	via_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(via, pci, via_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(via, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
-MODULE_VERSION(via, 1);
-
-
+DRIVER_MODULE(snd_via82c686, pci, via_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_via82c686, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_via82c686, 1);

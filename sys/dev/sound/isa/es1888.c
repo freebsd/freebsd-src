@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1999 Doug Rabson
  * All rights reserved.
  *
@@ -22,12 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/sb.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #ifdef __alpha__
 static int

@@ -23,8 +23,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -34,6 +32,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
 
@@ -443,9 +442,8 @@ static int
 ich_initsys(struct sc_info* sc)
 {
 #ifdef SND_DYNSYSCTL
-	struct snddev_info *d = device_get_softc(sc->dev);
-	SYSCTL_ADD_INT(&d->sysctl_tree, 
-		       SYSCTL_CHILDREN(d->sysctl_tree_top),
+	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev), 
+		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
 		       OID_AUTO, "ac97rate", CTLFLAG_RW, 
 		       &sc->ac97rate, 48000, 
 		       "AC97 link rate (default = 48000)");
@@ -608,6 +606,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "SiS 7012");
 		return 0;
 
+	case 0x01b110de:
+		device_set_desc(dev, "Nvidia nForce AC97 controller");
+		return 0;
+
 	default:
 		return ENXIO;
 	}
@@ -661,7 +663,7 @@ ich_pci_attach(device_t dev)
 	sc->nabmbart = rman_get_bustag(sc->nabmbar);
 	sc->nabmbarh = rman_get_bushandle(sc->nabmbar);
 
-	sc->bufsz = ICH_DEFAULT_BUFSZ;
+	sc->bufsz = pcm_getbuffersize(dev, 4096, ICH_DEFAULT_BUFSZ, ICH_MAX_BUFSZ);
 	if (bus_dma_tag_create(NULL, 8, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			       NULL, NULL, sc->bufsz, 1, 0x3ffff, 0, &sc->dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
@@ -687,7 +689,6 @@ ich_pci_attach(device_t dev)
 
 	/* check and set VRA function */
 	extcaps = ac97_getextcaps(sc->codec);
-
 	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
 	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
 	sc->hasmic = ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL;
@@ -810,7 +811,7 @@ static device_method_t ich_methods[] = {
 static driver_t ich_driver = {
 	"pcm",
 	ich_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_ich, pci, ich_driver, pcm_devclass, 0, 0);

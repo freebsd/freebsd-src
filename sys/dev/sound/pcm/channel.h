@@ -41,6 +41,7 @@ struct pcmchan_caps {
 struct pcm_channel {
 	kobj_t methods;
 
+	int num;
 	pid_t pid;
 	int refcount;
 	struct pcm_feeder *feeder;
@@ -54,10 +55,12 @@ struct pcm_channel {
 	u_int32_t blocks;
 
 	int direction;
+	unsigned int interrupts, xruns;
 	struct snd_dbuf *bufhard, *bufsoft;
 	struct snddev_info *parentsnddev;
 	struct pcm_channel *parentchannel;
 	void *devinfo;
+	device_t dev;
 	char name[CHN_NAMELEN];
 	void *lock;
 	SLIST_HEAD(, pcmchan_children) children;
@@ -152,7 +155,5 @@ int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 #define CHN_2NDBUFBLKNUM	(32)
 /* The size of a whole secondary bufhard. */
 #define CHN_2NDBUFMAXSIZE	(131072)
-
-#define	CHN_DEFAULT_HZ		50
 
 #define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))

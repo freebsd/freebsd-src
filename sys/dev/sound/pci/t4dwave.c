@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -33,6 +31,8 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+SND_DECLARE_FILE("$FreeBSD$");
+
 /* -------------------------------------------------------------------- */
 
 #define TDX_PCI_ID 	0x20001023
@@ -40,7 +40,7 @@
 #define ALI_PCI_ID	0x545110b9
 #define SPA_PCI_ID	0x70181039
 
-#define TR_BUFFSIZE 	0x1000
+#define TR_DEFAULT_BUFSZ 	0x1000
 #define TR_TIMEOUT_CDC	0xffff
 #define TR_MAXPLAYCH	4
 
@@ -77,12 +77,14 @@ struct tr_info {
 	bus_dma_tag_t parent_dmat;
 
 	struct resource *reg, *irq;
-	int		regtype, regid, irqid;
-	void		*ih;
+	int regtype, regid, irqid;
+	void *ih;
 
 	void *lock;
 
 	u_int32_t playchns;
+	unsigned int bufsz;
+
 	struct tr_chinfo chinfo[TR_MAXPLAYCH];
 	struct tr_rchinfo recchinfo;
 };
@@ -437,7 +439,7 @@ trpchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->parent = tr;
 	ch->channel = c;
-	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) == -1)
 		return NULL;
 
 	return ch;
@@ -545,7 +547,7 @@ trrchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->parent = tr;
 	ch->channel = c;
-	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) == -1)
 		return NULL;
 
 	return ch;
@@ -763,7 +765,7 @@ tr_pci_attach(device_t dev)
 	}
 
 	tr->type = pci_get_devid(dev);
-	tr->lock = snd_mtxcreate(device_get_nameunit(dev));
+	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
@@ -780,6 +782,8 @@ tr_pci_attach(device_t dev)
 		device_printf(dev, "unable to map register space\n");
 		goto bad;
 	}
+
+	tr->bufsz = pcm_getbuffersize(dev, 4096, TR_DEFAULT_BUFSZ, 65536);
 
 	if (tr_init(tr) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
@@ -803,7 +807,7 @@ tr_pci_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/TR_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/tr->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &tr->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
@@ -919,7 +923,7 @@ static device_method_t tr_methods[] = {
 static driver_t tr_driver = {
 	"pcm",
 	tr_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_t4dwave, pci, tr_driver, pcm_devclass, 0, 0);

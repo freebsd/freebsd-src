@@ -23,8 +23,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * The order of pokes in the initiation sequence is based on Linux
  * driver by Thomas Sailer, gw boynton (wesb@crystal.cirrus.com), tom
  * woller (twoller@crystal.cirrus.com).  Shingo Watanabe (nabe@nabechan.org)
@@ -39,7 +37,9 @@
 
 #include <dev/sound/pci/cs4281.h>
 
-#define CS4281_BUFFER_SIZE 16384
+SND_DECLARE_FILE("$FreeBSD$");
+
+#define CS4281_DEFAULT_BUFSZ 16384
 
 /* Max fifo size for full duplex is 64 */
 #define CS4281_FIFO_SIZE 15
@@ -90,6 +90,7 @@ struct sc_info {
     void *ih;
 
     int power;
+    unsigned long bufsz;
     struct sc_chinfo pch;
     struct sc_chinfo rch;
 };
@@ -316,7 +317,7 @@ cs4281chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
     struct sc_chinfo *ch = (dir == PCMDIR_PLAY) ? &sc->pch : &sc->rch;
 
     ch->buffer = b;
-    if (sndbuf_alloc(ch->buffer, sc->parent_dmat, CS4281_BUFFER_SIZE) != 0) {
+    if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 	return NULL;
     }
     ch->parent = sc;
@@ -340,19 +341,20 @@ static int
 cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
     struct sc_chinfo *ch = data;
+    struct sc_info *sc = ch->parent;
     u_int32_t go;
 
     go = adcdac_go(ch, 0);
 
     /* 2 interrupts are possible and used in buffer (half-empty,empty),
      * hence factor of 2. */
-    ch->blksz = MIN(blocksize, CS4281_BUFFER_SIZE / 2);
+    ch->blksz = MIN(blocksize, sc->bufsz / 2);
     sndbuf_resize(ch->buffer, 2, ch->blksz);
     ch->dma_setup = 0;
     adcdac_prog(ch);
     adcdac_go(ch, go);
 
-    DEB(printf("cs4281chan_setblocksize: bufsz %d Setting %d\n", blocksize, ch->blksz));
+    DEB(printf("cs4281chan_setblocksize: blksz %d Setting %d\n", blocksize, ch->blksz));
 
     return ch->blksz;
 }
@@ -823,11 +825,13 @@ cs4281_pci_attach(device_t dev)
 	goto bad;
     }
 
+    sc->bufsz = pcm_getbuffersize(dev, 4096, CS4281_DEFAULT_BUFSZ, 65536);
+
     if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			   /*highaddr*/BUS_SPACE_MAXADDR,
 			   /*filter*/NULL, /*filterarg*/NULL,
-			   /*maxsize*/CS4281_BUFFER_SIZE, /*nsegments*/1,
+			   /*maxsize*/sc->bufsz, /*nsegments*/1,
 			   /*maxsegz*/0x3ffff,
 			   /*flags*/0, &sc->parent_dmat) != 0) {
 	device_printf(dev, "unable to create dma tag\n");
@@ -970,7 +974,7 @@ static device_method_t cs4281_methods[] = {
 static driver_t cs4281_driver = {
     "pcm",
     cs4281_methods,
-    sizeof(struct snddev_info),
+    PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_cs4281, pci, cs4281_driver, pcm_devclass, 0, 0);
