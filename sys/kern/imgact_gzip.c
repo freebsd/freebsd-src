@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.1 1994/10/03 05:23:01 phk Exp $
+ * $Id: imgact_gzip.c,v 1.2 1994/10/03 23:14:48 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -51,7 +51,7 @@ struct gzip {
 	u_long	output;
 	u_long	len;
 	int	idx;
-	u_long	virtual_offset, file_offset, bss_size;
+	u_long	virtual_offset, file_offset, file_end, bss_size;
         unsigned gz_wp;
 	u_char	gz_slide[WSIZE];
 };
@@ -70,39 +70,71 @@ exec_gzip_imgact(iparams)
 	int error,error2=0;
 	u_char *p = (u_char *) iparams->image_header;
 	struct gzip *gz;
-	struct vattr vattr;
 
+	/* If these four are not OK, it isn't a gzip file */
+	if (p[0] != 0x1f)   return -1;      /* 0    Simply magic	*/
+	if (p[1] != 0x8b)   return -1;      /* 1    Simply magic	*/
+	if (p[2] != 0x08)   return -1;      /* 2    Compression method	*/
+	if (p[9] != 0x03)   return -1;      /* 9    OS compressed on	*/
 
-	if(p[0]  != 0x1f) return -1; /* Simply magic */
-	if(p[1]  != 0x8b) return -1; /* Simply magic */
-	if(p[2]  != 0x08) return -1; /* Compression method */
-	if(p[3]  != 0x00) return -1; /* Flags */
-				     /* 4 bytes timestamp */
-	if(p[8]  != 0x02) return -1; /* Extra flags */
-	if(p[9]  != 0x03) return -1; /* OS compressed on */
+	/* If this one contains anything but a comment or a filename
+	 * marker, we don't want to chew on it
+	 */
+	if (p[3] & ~(0x18)) return ENOEXEC; /* 3    Flags		*/
+
+	/* These are of no use to us */
+					    /* 4-7  Timestamp		*/
+					    /* 8    Extra flags		*/
 
 	gz = malloc(sizeof *gz,M_TEMP,M_NOWAIT);
-	if(!gz)
+	if (!gz)
 		return ENOMEM;
-	bzero(gz,sizeof *gz);
+	bzero(gz,sizeof *gz); /* waste of time ? */
 
 	gz->ip = iparams;
-	gz->error = 0;
-	gz->idx = 10;
+	gz->error = ENOEXEC;
+	gz->idx = 10; 
+
+	if (p[3] & 0x08) {  /* skip a filename */
+	    while (p[gz->idx++]) 
+		if (gz->idx >= PAGE_SIZE)
+		    goto done;
+	}
+
+	if (p[3] & 0x10) {  /* skip a comment */
+	    while (p[gz->idx++]) 
+		if (gz->idx >= PAGE_SIZE)
+		    goto done;
+	}
 	
 	gz->len = gz->ip->attr->va_size;
 
+	gz->error = 0;
+
 	error = inflate(gz);
+
 	if (gz->inbuf) {
 	    error2 = 
 		vm_deallocate(kernel_map, (vm_offset_t)gz->inbuf, PAGE_SIZE);
 	}
-	printf("Output=%lu\n",gz->output);
-	printf("Inflate_error=%d gz->error=%d error2=%d where=%d\n",
-		error,gz->error,error2,gz->where);
-	if(error)
-		return ENOEXEC;
 
+	if (gz->error || error || error2) {
+	    printf("Output=%lu ",gz->output);
+	    printf("Inflate_error=%d gz->error=%d error2=%d where=%d\n",
+		error,gz->error,error2,gz->where);
+	    if (gz->error)  
+		goto done;
+	    if (error) {
+		gz->error = ENOEXEC;
+		goto done;
+	    }
+	    if (error2) {
+		gz->error = error2;
+		goto done;
+	    }
+	}
+
+    done:
 	error = gz->error;
 	free(gz,M_TEMP);
 	return error;
@@ -164,7 +196,6 @@ do_aout_hdr(struct gzip *gz)
 	    return (-1);
     }
 
-
     /*
      * text/data/bss must not exceed limits
      */
@@ -180,6 +211,9 @@ do_aout_hdr(struct gzip *gz)
 		    gz->where = __LINE__;
 		    return (ENOMEM);
     }
+
+    /* Find out how far we should go */
+    gz->file_end = gz->file_offset + gz->a_out.a_text + gz->a_out.a_data;
 
     /* copy in arguments and/or environment from old process */
     error = exec_extract_strings(gz->ip);
@@ -252,7 +286,7 @@ do_aout_hdr(struct gzip *gz)
     gz->ip->entry_addr = gz->a_out.a_entry;
 
     gz->ip->proc->p_sysent = &aout_sysvec;
-printf("a.out ok, entry=%08x\n",gz->ip->entry_addr);
+
     return 0;
 }
 
@@ -279,8 +313,10 @@ NextByte(struct gzip *gz)
 {
 	int error;
 
-	if(gz->idx >= gz->len)
+	if(gz->idx >= gz->len) {
+	    gz->where = __LINE__;
 	    return EOF;
+	}
 
 	if((!gz->inbuf) || gz->idx >= (gz->offset+PAGE_SIZE)) {
 		if(gz->inbuf) {
@@ -289,7 +325,6 @@ NextByte(struct gzip *gz)
 		    if(error) {
 			gz->where = __LINE__;
 			gz->error = error;
-			printf("exec_gzip: Error %d in vm)deallocate",error);
 			return EOF;
 		    }
 		}
@@ -307,7 +342,6 @@ NextByte(struct gzip *gz)
 		if(error) {
 		    gz->where = __LINE__;
 		    gz->error = error;
-		    printf("exec_gzip: Error %d in vm_mmap",error);
 		    return EOF;
 		}
 
@@ -323,16 +357,6 @@ Flush(struct gzip *gz,u_long siz)
     u_char *p = slide,*q;
     int i;
 
-#if 0
-    int i;
-    printf("<");
-    for(i=0;i<siz;i++) 
-	printf("%02x",slide[i]);
-    printf(">\n");
-#endif
-
-    printf("<%lu>",siz);
-
     /* First, find a a.out-header */
     if(gz->output < sizeof gz->a_out) {
 	q = (u_char*) &gz->a_out;
@@ -342,40 +366,30 @@ Flush(struct gzip *gz,u_long siz)
 	p += i;
 	siz -= i;
 	if(gz->output == sizeof gz->a_out) {
-	    for(i=0;i<sizeof gz->a_out;i+=4)
-		printf("%02x%02x%02x%02x ",
-		    q[i+0],q[i+1],q[i+2],q[i+3]);
-	    printf("\n");
 	    i = do_aout_hdr(gz);
-	    printf("file_offset=%lx virtual_offset=%lx",
-		gz->file_offset,gz->virtual_offset);
-	    if(i) {
+	    if (i == -1) {
+		gz->where = __LINE__;
+		gz->error = ENOEXEC;
+		return ENOEXEC;
+	    } else if (i) {
+		gz->where = __LINE__;
 		gz->error = i;
-		return i;
+		return ENOEXEC;
 	    }
 	    if(gz->file_offset < sizeof gz->a_out) {
 		q = (u_char*) gz->virtual_offset + gz->output - gz->file_offset;
-		bcopy(&gz->a_out,q,sizeof gz->a_out);
+		bcopy(&gz->a_out,q,sizeof gz->a_out - gz->file_offset);
 	    }
 	}
     }
-    if(gz->output >= gz->file_offset && 
-		gz->output < (gz->file_offset+
-			gz->a_out.a_text+
-			gz->a_out.a_data)) {
-
-	i = min(siz,
-	    (gz->file_offset+
-		gz->a_out.a_text+
-		gz->a_out.a_data)
-		-gz->output);
+    if(gz->output >= gz->file_offset && gz->output < gz->file_end) {
+	i = min(siz, gz->file_end - gz->output);
 	q = (u_char*) gz->virtual_offset + gz->output - gz->file_offset;
 	bcopy(p,q,i);
 	gz->output += i;
 	p += i;
 	siz -= i;
     }
-    if(!siz) return 0;
     gz->output += siz;
     return 0;
 }
