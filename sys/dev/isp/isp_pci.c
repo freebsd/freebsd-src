@@ -1009,14 +1009,25 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		return;
 	}
 
-	if (nseg < 1) {
-		printf("%s: bad segment count (%d)\n", mp->isp->isp_name, nseg);
-		mp->error = EFAULT;
-		return;
-	}
-
 	csio = mp->cmd_token;
 	cto = mp->rq;
+
+	cto->ct_xfrlen = 0;
+	cto->ct_resid = 0;
+	cto->ct_seg_count = 0;
+	bzero(cto->ct_dataseg, sizeof (cto->ct_dataseg));
+	if (nseg == 0) {
+	 	cto->ct_header.rqs_entry_count = 1;
+		ISP_TDQE(mp->isp, "dma2_tgt[no data]", *mp->iptrp, cto);
+		if (isp_tdebug) {
+			printf("%s:CTIO lun %d->iid%d flgs 0x%x sts 0x%x ssts "
+			    "0x%x res %u\n", mp->isp->isp_name,
+			    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags,
+			    cto->ct_status, cto->ct_scsi_status, cto->ct_resid);
+		}
+		ISP_SWIZ_CTIO(isp, cto, cto);
+		return;
+	}
 
 	/*
 	 * Save handle, and potentially any SCSI status, which
@@ -1029,6 +1040,11 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	send_status = cto->ct_flags & CT_SENDSTATUS;
 	cto->ct_flags &= ~CT_SENDSTATUS;
 
+	nctios = nseg / ISP_RQDSEG;
+	if (nseg % ISP_RQDSEG) {
+		nctios++;
+	}
+
 	pci = (struct isp_pcisoftc *)mp->isp;
 	dp = &pci->dmaps[handle - 1];
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
@@ -1037,15 +1053,6 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bus_dmamap_sync(pci->parent_dmat, *dp, BUS_DMASYNC_PREWRITE);
 	}
 
-	nctios = nseg / ISP_RQDSEG;
-	if (nseg % ISP_RQDSEG) {
-		nctios++;
-	}
-
-	cto->ct_xfrlen = 0;
-	cto->ct_resid = 0;
-	cto->ct_seg_count = 0;
-	bzero(cto->ct_dataseg, sizeof (cto->ct_dataseg));
 
 	while (nctios--) {
 		int seg, seglim;
@@ -1062,6 +1069,7 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		}
 
 		cto->ct_seg_count = seg;
+		cto->ct_flags &= CT_DATAMASK;
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 			cto->ct_flags |= CT_DATA_IN;
 		} else {
@@ -1088,6 +1096,7 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				    cto->ct_iid, cto->ct_flags, cto->ct_status,
 				    cto->ct_scsi_status, cto->ct_resid);
 			}
+			ISP_SWIZ_CTIO(isp, cto, cto);
 		} else {
 			ct_entry_t *octo = cto;
 			cto->ct_reserved = 0;
@@ -1130,6 +1139,7 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_timeout = octo->ct_timeout;
 			cto->ct_seg_count = 0;
 			bzero(cto->ct_dataseg, sizeof (cto->ct_dataseg));
+			ISP_SWIZ_CTIO(isp, octo, octo);
 		}
 	}
 }
@@ -1142,9 +1152,11 @@ dma2_tgt_fc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct isp_pcisoftc *pci;
 	bus_dmamap_t *dp;
 	ct2_entry_t *cto;
-	u_int16_t scsi_status, send_status;
-	u_int32_t handle, reloff;
+	u_int16_t scsi_status, send_status, send_sense;
+	u_int32_t handle, totxfr;
+	u_int8_t sense[QLTM_SENSELEN];
 	int nctios;
+	int32_t resid;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1152,24 +1164,100 @@ dma2_tgt_fc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		return;
 	}
 
-	if (nseg < 1) {
-		printf("%s: bad segment count (%d)\n", mp->isp->isp_name, nseg);
-		mp->error = EFAULT;
+	csio = mp->cmd_token;
+	cto = mp->rq;
+
+	if (nseg == 0) {
+		if ((cto->ct_flags & CT2_FLAG_MMASK) != CT2_FLAG_MODE1) {
+			printf("%s: dma2_tgt_fc, a status CTIO2 without MODE1 "
+			    "set (0x%x)\n", mp->isp->isp_name, cto->ct_flags);
+			mp->error = EINVAL;
+			return;
+		}
+	 	cto->ct_header.rqs_entry_count = 1;
+		/* ct_reserved contains the handle set by caller */
+		/*
+		 * We preserve ct_lun, ct_iid, ct_rxid. We set the data
+		 * flags to NO DATA and clear relative offset flags.
+		 * We preserve the ct_resid and the response area.
+		 */
+		cto->ct_flags |= CT2_NO_DATA;
+		cto->ct_seg_count = 0;
+		cto->ct_reloff = 0;
+		ISP_TDQE(mp->isp, "dma2_tgt_fc[no data]", *mp->iptrp, cto);
+		if (isp_tdebug) {
+			scsi_status = cto->rsp.m1.ct_scsi_status;
+			printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x "
+			    "sts 0x%x ssts 0x%x res %u\n", mp->isp->isp_name,
+			    cto->ct_rxid, csio->ccb_h.target_lun, cto->ct_iid,
+			    cto->ct_flags, cto->ct_status,
+			    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
+		}
+		ISP_SWIZ_CTIO2(isp, cto, cto);
 		return;
 	}
 
-	csio = mp->cmd_token;
-	cto = mp->rq;
+	if ((cto->ct_flags & CT2_FLAG_MMASK) != CT2_FLAG_MODE0) {
+		printf("%s: dma2_tgt_fc, a data CTIO2 without MODE0 set "
+		    "(0x%x)\n\n", mp->isp->isp_name, cto->ct_flags);
+		mp->error = EINVAL;
+		return;
+	}
+
+
+	nctios = nseg / ISP_RQDSEG_T2;
+	if (nseg % ISP_RQDSEG_T2) {
+		nctios++;
+	}
+
 	/*
-	 * Save handle, and potentially any SCSI status, which
-	 * we'll reinsert on the last CTIO we're going to send.
+	 * Save the handle, status, reloff, and residual. We'll reinsert the
+	 * handle into the last CTIO2 we're going to send, and reinsert status
+	 * and residual (and possibly sense data) if that's to be sent as well.
+	 *
+	 * We preserve ct_reloff and adjust it for each data CTIO2 we send past
+	 * the first one. This is needed so that the FCP DATA IUs being sent
+	 * out have the correct offset (they can arrive at the other end out
+	 * of order).
 	 */
+
 	handle = cto->ct_reserved;
 	cto->ct_reserved = 0;
-	scsi_status = cto->rsp.m0.ct_scsi_status;
+
+	if ((send_status = (cto->ct_flags & CT2_SENDSTATUS)) != 0) {
+		cto->ct_flags &= ~CT2_SENDSTATUS;
+
+		/*
+		 * Preserve residual.
+		 */
+		resid = cto->ct_resid;
+
+		/*
+		 * Save actual SCSI status. We'll reinsert the
+		 * CT2_SNSLEN_VALID later if appropriate.
+		 */
+		scsi_status = cto->rsp.m0.ct_scsi_status & 0xff;
+		send_sense = cto->rsp.m0.ct_scsi_status & CT2_SNSLEN_VALID;
+
+		/*
+		 * If we're sending status and have a CHECK CONDTION and
+		 * have sense data,  we send one more CTIO2 with just the
+		 * status and sense data. The upper layers have stashed
+		 * the sense data in the dataseg structure for us.
+		 */
+
+		if ((scsi_status & 0xf) == SCSI_STATUS_CHECK_COND &&
+		    send_sense) {
+			bcopy(cto->rsp.m0.ct_dataseg, sense, QLTM_SENSELEN);
+			nctios++;
+		}
+	} else {
+		scsi_status = send_sense = resid = 0;
+	}
+
+	totxfr = cto->ct_resid = 0;
 	cto->rsp.m0.ct_scsi_status = 0;
-	send_status = cto->ct_flags & CT2_SENDSTATUS;
-	cto->ct_flags &= ~CT2_SENDSTATUS;
+	bzero(&cto->rsp, sizeof (cto->rsp));
 
 	pci = (struct isp_pcisoftc *)mp->isp;
 	dp = &pci->dmaps[handle - 1];
@@ -1179,74 +1267,113 @@ dma2_tgt_fc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bus_dmamap_sync(pci->parent_dmat, *dp, BUS_DMASYNC_PREWRITE);
 	}
 
-	nctios = nseg / ISP_RQDSEG_T2;
-	if (nseg % ISP_RQDSEG_T2) {
-		nctios++;
-	}
-
-	cto->ct_reloff = 0;
-	cto->ct_resid = 0;
-	cto->ct_seg_count = 0;
-	cto->ct_reloff = reloff = 0;
-	bzero(&cto->rsp, sizeof (cto->rsp));
-
 	while (nctios--) {
 		int seg, seglim;
 
 		seglim = nseg;
-		if (seglim > ISP_RQDSEG_T2)
-			seglim = ISP_RQDSEG_T2;
+		if (seglim) {
+			if (seglim > ISP_RQDSEG_T2)
+				seglim = ISP_RQDSEG_T2;
 
-		for (seg = 0; seg < seglim; seg++) {
-			cto->rsp.m0.ct_dataseg[seg].ds_base = dm_segs->ds_addr;
-			cto->rsp.m0.ct_dataseg[seg].ds_count = dm_segs->ds_len;
-			cto->rsp.m0.ct_xfrlen += dm_segs->ds_len;
-			reloff += dm_segs->ds_len;
-			dm_segs++;
-		}
-
-		cto->ct_seg_count = seg;
-		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			cto->ct_flags |= CT2_DATA_IN;
+			for (seg = 0; seg < seglim; seg++) {
+				cto->rsp.m0.ct_dataseg[seg].ds_base =
+				    dm_segs->ds_addr;
+				cto->rsp.m0.ct_dataseg[seg].ds_count =
+				    dm_segs->ds_len;
+				cto->rsp.m0.ct_xfrlen += dm_segs->ds_len;
+				totxfr += dm_segs->ds_len;
+				dm_segs++;
+			}
+			cto->ct_seg_count = seg;
 		} else {
-			cto->ct_flags |= CT2_DATA_OUT;
+			/*
+			 * This case should only happen when we're sending a
+			 * synthesized MODE1 final status with sense data.
+			 */
+			if (send_sense == 0) {
+				printf("%s: dma2_tgt_fc ran out of segments, "
+				    "no SENSE DATA\n", mp->isp->isp_name);
+				mp->error = EINVAL;
+				return;
+			}
 		}
+
+		/*
+		 * At this point, the fields ct_lun, ct_iid, ct_rxid,
+		 * ct_timeout have been carried over unchanged from what
+		 * our caller had set.
+		 *
+		 * The field ct_reloff is either what the caller set, or
+		 * what we've added to below.
+		 *
+		 * The dataseg fields and the seg_count fields we just got
+		 * through setting. The data direction we've preserved all
+		 * along and only clear it if we're sending a MODE1 status
+		 * as the last CTIO.
+		 *
+		 */
 
 		if (nctios == 0) {
+
 			/*
-			 * We're the last in a sequence of CTIOs, so mark this
-			 * CTIO and save the handle to the CCB such that when
-			 * this CTIO completes we can free dma resources and
+			 * We're the last in a sequence of CTIO2s, so mark this
+			 * CTIO2 and save the handle to the CCB such that when
+			 * this CTIO2 completes we can free dma resources and
 			 * do whatever else we need to do to finish the rest
 			 * of the command.
 			 */
-			cto->ct_header.rqs_seqno = 1;
+
 			cto->ct_reserved = handle;
-			cto->rsp.m0.ct_scsi_status = scsi_status;
-			cto->ct_flags |= send_status;
+			cto->ct_header.rqs_seqno = 1;
+
+			if (send_status) {
+				if (send_sense) {
+					bcopy(sense, cto->rsp.m1.ct_resp,
+					    QLTM_SENSELEN);
+					cto->rsp.m1.ct_senselen =
+					    QLTM_SENSELEN;
+					scsi_status |= CT2_SNSLEN_VALID;
+					cto->rsp.m1.ct_scsi_status =
+					    scsi_status;
+					cto->ct_flags &= CT2_FLAG_MMASK;
+					cto->ct_flags |= CT2_FLAG_MODE1 |
+					    CT2_NO_DATA| CT2_SENDSTATUS;
+				} else {
+					cto->rsp.m0.ct_scsi_status =
+					    scsi_status;
+					cto->ct_flags |= CT2_SENDSTATUS;
+				}
+				cto->ct_resid = resid - totxfr;
+			}
 			ISP_TDQE(mp->isp, "last dma2_tgt_fc", *mp->iptrp, cto);
 			if (isp_tdebug) {
-				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs "
-				    "0x%x sts 0x%x ssts 0x%x roff %u res "
-				    "%u\n", mp->isp->isp_name, cto->ct_rxid,
-				    csio->ccb_h.target_lun, cto->ct_iid,
+				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs"
+				    "0x%x sts 0x%x ssts 0x%x res %u\n",
+				    mp->isp->isp_name, cto->ct_rxid,
+				    csio->ccb_h.target_lun, (int) cto->ct_iid,
 				    cto->ct_flags, cto->ct_status,
-				    cto->rsp.m0.ct_scsi_status,
-				    cto->ct_reloff, cto->ct_resid);
+				    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
 			}
+			ISP_SWIZ_CTIO2(isp, cto, cto);
 		} else {
 			ct2_entry_t *octo = cto;
+
+			/*
+			 * Make sure handle fields are clean
+			 */
 			cto->ct_reserved = 0;
 			cto->ct_header.rqs_seqno = 0;
+
 			ISP_TDQE(mp->isp, "dma2_tgt_fc", *mp->iptrp, cto);
 			if (isp_tdebug) {
-				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs "
-				    "0x%x ro %u res %u\n",
-				    mp->isp->isp_name,
-				    cto->ct_rxid, csio->ccb_h.target_lun,
-				    cto->ct_iid, cto->ct_flags, cto->ct_reloff,
-				    cto->ct_resid);
+				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs"
+				    "0x%x\n", mp->isp->isp_name, cto->ct_rxid,
+				    csio->ccb_h.target_lun, (int) cto->ct_iid,
+				    cto->ct_flags);
 			}
+			/*
+			 * Get a new CTIO2
+			 */
 			cto = (ct2_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 			*mp->iptrp =
@@ -1257,23 +1384,30 @@ dma2_tgt_fc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
 			}
+
 			/*
-			 * Fill in the new CTIO with info from the old one.
+			 * Fill in the new CTIO2 with info from the old one.
 			 */
 			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 			cto->ct_header.rqs_entry_count = 1;
 			cto->ct_header.rqs_flags = 0;
-			/* ct_header.rqs_seqno && ct_reserved filled in later */
+			/* ct_header.rqs_seqno && ct_reserved done later */
 			cto->ct_lun = octo->ct_lun;
 			cto->ct_iid = octo->ct_iid;
 			cto->ct_rxid = octo->ct_rxid;
-			cto->ct_flags = octo->ct_flags & ~CT2_DATAMASK;
+			cto->ct_flags = octo->ct_flags;
 			cto->ct_status = 0;
 			cto->ct_resid = 0;
 			cto->ct_timeout = octo->ct_timeout;
 			cto->ct_seg_count = 0;
-			cto->ct_reloff = reloff;
+			/*
+			 * Adjust the new relative offset by the amount which
+			 * is recorded in the data segment of the old CTIO2 we
+			 * just finished filling out.
+			 */
+			cto->ct_reloff += octo->rsp.m0.ct_xfrlen;
 			bzero(&cto->rsp, sizeof (cto->rsp));
+			ISP_SWIZ_CTIO2(isp, cto, cto);
 		}
 	}
 }
@@ -1424,6 +1558,29 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 	mush_t mush, *mp;
 	void (*eptr) __P((void *, bus_dma_segment_t *, int, int));
 
+#ifdef	ISP_TARGET_MODE
+	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
+		if (IS_FC(isp)) {
+			eptr = dma2_tgt_fc;
+		} else {
+			eptr = dma2_tgt;
+		}
+		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
+			rq->req_seg_count = 1;
+			mp = &mush;
+			mp->isp = isp;
+			mp->cmd_token = csio;
+			mp->rq = rq;
+			mp->iptrp = iptrp;
+			mp->optr = optr;
+			mp->error = 0;
+			(*eptr)(mp, NULL, 0, 0);
+			goto exit;
+		}
+	} else
+#endif
+	eptr = dma2;
+
 	/*
 	 * NB: if we need to do request queue entry swizzling,
 	 * NB: this is where it would need to be done for cmds
@@ -1432,41 +1589,8 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 	 */
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
 		rq->req_seg_count = 1;
-#ifdef	ISP_TARGET_MODE
-		if (isp_tdebug && csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
-			if (IS_FC(isp)) {
-				ct2_entry_t *cto = (ct2_entry_t *) rq;
-				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs "
-				    "0x%x sts 0x%x ssts 0x%x res %u\n",
-				    isp->isp_name, cto->ct_rxid,
-				    csio->ccb_h.target_lun, cto->ct_iid,
-				    cto->ct_flags, cto->ct_status,
-				    cto->rsp.m0.ct_scsi_status,
-				    cto->ct_resid);
-			} else {
-				ct_entry_t *cto = (ct_entry_t *) rq;
-				printf("%s:CTIO lun %d->iid%d flgs 0x%x sts "
-				    "0x%x ssts 0x%x res %u\n",
-				    isp->isp_name, csio->ccb_h.target_lun,
-				    cto->ct_iid, cto->ct_flags, cto->ct_status,
-				    cto->ct_scsi_status, cto->ct_resid);
-			}
-		}
-#endif
 		return (CMD_QUEUED);
 	}
-
-#ifdef	ISP_TARGET_MODE
-	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
-		if (IS_FC(isp)) {
-			eptr = dma2_tgt_fc;
-		} else {
-			eptr = dma2_tgt;
-		}
-	} else
-#endif
-	eptr = dma2;
-
 
 	/*
 	 * Do a virtual grapevine step to collect info for
@@ -1524,6 +1648,7 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 			(*eptr)(mp, segs, csio->sglist_cnt, 0);
 		}
 	}
+exit:
 	if (mp->error) {
 		int retval = CMD_COMPLETE;
 		if (mp->error == MUSHERR_NOQENTRIES) {
