@@ -187,7 +187,7 @@ static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ng_worklist_remove(node_p node);
 static void	ngintr(void);
-static int	ng_apply_item(item_p item);
+static int	ng_apply_item(node_p node, item_p item);
 static void	ng_flush_input_queue(struct ng_queue * ngq);
 static void	ng_setisr(node_p node);
 static node_p	ng_ID2noderef(ng_ID_t ID);
@@ -740,23 +740,32 @@ ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3)
 	NG_NODE_UNREF(node);
 }
 
-/*
- * Remove a reference to the node, possibly the last
- */
+#ifdef	NETGRAPH_DEBUG
 void
+ng_ref_node(node_p node)
+{
+	_NG_NODE_REF(node);
+}
+#endif
+
+/*
+ * Remove a reference to the node, possibly the last.
+ * deadnode always acts as it it were the last.
+ */
+int
 ng_unref_node(node_p node)
 {
 	int     v;
 
 	if (node == &ng_deadnode) {
-		return;
+		return (0);
 	}
 
 	do {
-		v = node->nd_refs;
-	} while (! atomic_cmpset_int(&node->nd_refs, v, v - 1));
+		v = node->nd_refs - 1;
+	} while (! atomic_cmpset_int(&node->nd_refs, v + 1, v));
 
-	if (v == 1) { /* we were the last */
+	if (v == 0) { /* we were the last */
 
 		mtx_lock(&ng_nodelist_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
@@ -770,6 +779,7 @@ ng_unref_node(node_p node)
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
 	}
+	return (v);
 }
 
 /************************************************************************
@@ -1265,7 +1275,7 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 	
 	/*
 	 * We now have a symetrical situation, where both hooks have been
-	 * linked to theur nodes, the newhook methods have been called
+	 * linked to their nodes, the newhook methods have been called
 	 * And the references are all correct. The hooks are still marked
 	 * as invalid, as we have not called the 'connect' methods
 	 * yet.
@@ -2214,11 +2224,26 @@ ng_snd_item(item_p item, int queue)
 #ifdef	NETGRAPH_DEBUG
         _ngi_check(item, __FILE__, __LINE__);
 #endif
-	ierror = ng_apply_item(item); /* drops r/w lock when done */
+	/*
+	 * Take over the reference frm the item.
+	 * Hold it until the called function returns.
+	 */
+	NGI_GET_NODE(item, node); /* zaps stored node */
+
+	ierror = ng_apply_item(node, item); /* drops r/w lock when done */
 
 	/* only return an error if it was our initial item.. (compat hack) */
 	if (oitem == item) {
 		error = ierror;
+	}
+
+	/*
+	 * If the node goes away when we remove the reference, 
+	 * whatever we just did caused it.. hwatever we do, DO NOT
+	 * access the node again!
+	 */
+	if (NG_NODE_UNREF(node) == 0) {
+		return (error);
 	}
 
 	/*
@@ -2244,10 +2269,17 @@ ng_snd_item(item_p item, int queue)
 		mtx_unlock_spin(&ngq->q_mtx);
 
 		/*
+		 * Take over the reference frm the item.
+		 * Hold it until the called function returns.
+		 */
+
+		NGI_GET_NODE(item, node); /* zaps stored node */
+
+		/*
 		 * We have the appropriate lock, so run the item.
 		 * When finished it will drop the lock accordingly
 		 */
-		ierror = ng_apply_item(item);
+		ierror = ng_apply_item(node, item);
 
 		/*
 		 * only return an error if it was our initial
@@ -2255,6 +2287,15 @@ ng_snd_item(item_p item, int queue)
 		 */
 		if (oitem == item) {
 			error = ierror;
+		}
+
+		/*
+		 * If the node goes away when we remove the reference, 
+		 * whatever we just did caused it.. hwatever we do, DO NOT
+		 * access the node again!
+		 */
+		if (NG_NODE_UNREF(node) == 0) {
+			break;
 		}
 	}
 	return (error);
@@ -2266,9 +2307,8 @@ ng_snd_item(item_p item, int queue)
  * to run it on the appropriate node/hook.
  */
 static int
-ng_apply_item(item_p item)
+ng_apply_item(node_p node, item_p item)
 {
-	node_p	node;
 	hook_p  hook;
 	int	was_reader = ((item->el_flags & NGQF_RW));
 	int	error = 0;
@@ -2276,7 +2316,6 @@ ng_apply_item(item_p item)
 	ng_rcvmsg_t *rcvmsg;
 
 	NGI_GET_HOOK(item, hook); /* clears stored hook */
-	NGI_GET_NODE(item, node); /* clears stored node */
 #ifdef	NETGRAPH_DEBUG
         _ngi_check(item, __FILE__, __LINE__);
 #endif
@@ -2394,7 +2433,6 @@ ng_apply_item(item_p item)
 	} else {
 		ng_leave_write(&node->nd_input_queue);
 	}
-	NG_NODE_UNREF(node);
 	return (error);
 }
 
@@ -3272,7 +3310,9 @@ ngintr(void)
 				break; /* go look for another node */
 			} else {
 				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
-				ng_apply_item(item);
+				NGI_GET_NODE(item, node); /* zaps stored node */
+				ng_apply_item(node, item);
+				NG_NODE_UNREF(node);
 			}
 		}
 		NG_NODE_UNREF(node);
@@ -3544,7 +3584,6 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
 		return (ENOMEM);
 	}
 	item->el_flags = NGQF_FN | NGQF_WRITER;
-	NG_NODE_REF(node); /* One for us */
 	NG_NODE_REF(node); /* and one for the item */
 	NGI_SET_NODE(item, node);
 	if (hook) {
@@ -3554,8 +3593,7 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return (ng_snd_item(item, 0));
-	NG_NODE_UNREF(node);
+	return(ng_snd_item(item, 0));
 }
 
 /*

@@ -869,8 +869,8 @@ ng_pptpgre_send_ack_timeout(void *arg)
 		splx(s);
 		return;
 	}
-	NG_NODE_UNREF(node);
 	if (a->sackTimerPtr != arg) {	/* timer stopped race condition */
+		NG_NODE_UNREF(node);
 		splx(s);
 		return;
 	}
@@ -878,6 +878,7 @@ ng_pptpgre_send_ack_timeout(void *arg)
 
 	/* Send a frame with an ack but no payload */
   	ng_pptpgre_xmit(node, NULL);
+	NG_NODE_UNREF(node);
 	splx(s);
 }
 
