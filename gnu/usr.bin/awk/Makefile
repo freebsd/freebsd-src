@@ -1,6 +1,6 @@
 # Makefile copyright James Raynard (jraynard@freebsd.org) 1997
 #
-# $Id: Makefile,v 1.7 1997/10/14 18:32:33 jraynard Exp $
+# $Id: Makefile,v 1.8 1997/10/15 14:01:31 ache Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -12,6 +12,9 @@ SRCS=	array.c awktab.c builtin.c eval.c field.c gawkmisc.c io.c main.c \
 MAN1=	doc/awk.1
 
 YACC = bison -y
+
+# Important for ctype macros!
+CFLAGS+=        -funsigned-char
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../../contrib/awk
 CFLAGS+=	-DHAVE_CONFIG_H -DGAWK -DDEFPATH=\".\"
