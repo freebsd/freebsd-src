@@ -82,7 +82,7 @@ static void
 ppsidentify(driver_t *driver, device_t parent)
 {
 
-	BUS_ADD_CHILD(parent, 0, PPS_NAME, 0);
+	BUS_ADD_CHILD(parent, 0, PPS_NAME, -1);
 }
 
 static int
