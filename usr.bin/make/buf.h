@@ -76,5 +76,6 @@ void Buf_Discard __P((Buffer, int));
 int Buf_Size __P((Buffer));
 Buffer Buf_Init __P((int));
 void Buf_Destroy __P((Buffer, Boolean));
+void Buf_ReplaceLastByte __P((Buffer, Byte));
 
 #endif /* _BUF_H */
