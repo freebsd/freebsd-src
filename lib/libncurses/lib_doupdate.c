@@ -12,9 +12,13 @@
  *-----------------------------------------------------------------*/
  
 #include <stdlib.h>
+#include <sys/time.h>
+#ifdef SYS_SELECT
+#include <sys/select.h>
+#endif
 #include <string.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 #ifdef SVR4_ACTION
 #define _POSIX_SOURCE
 #endif
@@ -30,9 +34,12 @@ static void DelChar( int count );
 
 static inline void PutAttrChar(chtype ch)
 {
+	TR(TRACE_CHARPUT, ("PutAttrChar(%s, %s)",
+			  _tracechar(ch & A_CHARTEXT),
+			  _traceattr((ch & (chtype)A_ATTRIBUTES))));
 	if (curscr->_attrs != (ch & (chtype)A_ATTRIBUTES)) {
 		curscr->_attrs = ch & (chtype)A_ATTRIBUTES;
-		vidputs(curscr->_attrs, _outc);
+		vidputs(curscr->_attrs, _outch);
 	}
 	putc(ch & A_CHARTEXT, SP->_ofp);
 }
@@ -41,9 +48,8 @@ static int LRCORNER = FALSE;
 
 static inline void PutChar(chtype ch)
 {
-	T(("puttin %x", ch));
 	if (LRCORNER == TRUE && SP->_curscol == columns-1) {
-		int i = lines;
+		int i = lines -1;
 		int j = columns -1;
 
 		LRCORNER = FALSE;
@@ -52,21 +58,21 @@ static inline void PutChar(chtype ch)
 		   )
 			return;
 		if (cursor_left)
-			tputs(cursor_left, 1, _outc);
+			putp(cursor_left);
 		else
-			mvcur(-1, -1, i-1, j);
+			mvcur(-1, -1, i, j);
 		PutAttrChar(ch);
 		if (cursor_left)
-			tputs(cursor_left, 1, _outc);
+			putp(cursor_left);
 		else
-			mvcur(-1, -1, i-1, j);
+			mvcur(-1, -1, i, j);
 		if (enter_insert_mode && exit_insert_mode) {
-			tputs(enter_insert_mode, 1, _outc);
-			PutAttrChar(newscr->_line[i-1][columns-2]);
-			tputs(exit_insert_mode, 1, _outc);
+			putp(enter_insert_mode);
+			PutAttrChar(newscr->_line[i][j-1]);
+			putp(exit_insert_mode);
 		} else if (insert_character) {
-			tputs(insert_character, 1, _outc);
-			PutAttrChar(newscr->_line[i-1][columns-2]);
+			putp(insert_character);
+			PutAttrChar(newscr->_line[i][j-1]);
 		}
 		return;
 	}
@@ -89,9 +95,12 @@ static inline void GoTo(int row, int col)
 	SP->_curscol = col; 
 }
 
-int _outc(char ch)
+int _outch(char ch)
 {
-	putc(ch, SP->_ofp);
+	if (SP != NULL)
+  		putc(ch, SP->_ofp);
+	else
+		putc(ch, stdout);
 	return OK;
 }
 
@@ -107,15 +116,28 @@ sigaction_t act, oact;
 	act.sa_flags = 0;
 	sigaction(SIGTSTP, &act, &oact);
 
-	if (_isendwin == 1) {
+	if (SP->_endwin == TRUE) {
 		T(("coming back from shell mode"));
 		reset_prog_mode();
 		/* is this necessary? */
 		if (enter_alt_charset_mode)
 			init_acs();  
 		newscr->_clear = TRUE;
-		_isendwin = 0;
+		SP->_endwin = FALSE;
 	}
+
+	/* check for pending input */
+	{
+	fd_set fdset;
+	struct timeval timeout = {0,0};
+
+		FD_ZERO(&fdset);
+		FD_SET(SP->_checkfd, &fdset);
+		if (select(SP->_checkfd+1, &fdset, NULL, NULL, &timeout) != 0) {
+			fflush(SP->_ofp);
+			return OK;
+		}
+  	}
 
 	if (curscr->_clear) {		/* force refresh ? */
 		T(("clearing and updating curscr"));
@@ -194,10 +216,8 @@ int	lastNonBlank;
 	for (i = 0; i < lines; i++) {
 		lastNonBlank = columns - 1;
 		
-		while (scr->_line[i][lastNonBlank] == BLANK )
+		while (lastNonBlank >= 0 && scr->_line[i][lastNonBlank] == BLANK)
 			lastNonBlank--;
-
-		T(("updating line %d upto %d", i, lastNonBlank));
 
 		/* check if we are at the lr corner */
 		if (i == lines-1)
@@ -221,7 +241,8 @@ int	lastNonBlank;
 						for (; inspace > 0; inspace--)
 							PutChar(scr->_line[i][j-1]);
 					} else {
-						tputs(tparm(parm_right_cursor, inspace), 1, _outc);
+						putp(tparm(parm_right_cursor, inspace));
+						SP->_curscol += inspace;
 					}
 					inspace = 0;
 				}
@@ -312,7 +333,7 @@ int	attrchanged = 0;
 				T(("back_color_erase, turning attributes off"));
 				vidattr(curscr->_attrs = A_NORMAL);
 			}
-			tputs(clr_eol, 1, _outc);		
+			putp(clr_eol);
 		}
 	} else {
 		lastChar = columns - 1;
@@ -382,7 +403,7 @@ int	attrchanged = 0;
 			T(("back_color_erase, turning attributes off"));
 			vidattr(curscr->_attrs = A_NORMAL);
 		}
-		tputs(clr_eol, 1, _outc);		
+		putp(clr_eol);
 
 		/* check if we are at the lr corner */
 		if (lineno == lines-1)
@@ -403,11 +424,11 @@ int	attrchanged = 0;
 			return;
 
 		oLastChar = columns - 1;
-		while (oLastChar > firstChar  &&  oldLine[oLastChar] == ' ')
+		while (oLastChar > firstChar  &&  oldLine[oLastChar] == BLANK)
 			oLastChar--;
 	
 		nLastChar = columns - 1;
-		while (nLastChar > firstChar  &&  newLine[nLastChar] == ' ')
+		while (nLastChar > firstChar  &&  newLine[nLastChar] == BLANK)
 			nLastChar--;
 
 		if((nLastChar == firstChar) && clr_eol) {
@@ -416,9 +437,9 @@ int	attrchanged = 0;
 				T(("back_color_erase, turning attributes off"));
 				vidattr(curscr->_attrs = A_NORMAL);
 			}
-			tputs(clr_eol,1,_outc);
+			putp(clr_eol);
 
-			if(newLine[firstChar] != ' ' ) {
+			if(newLine[firstChar] != BLANK ) {
 				/* check if we are at the lr corner */
 				if (lineno == lines-1)
 					if ((auto_right_margin) && !(eat_newline_glitch) &&
@@ -491,19 +512,19 @@ static void ClearScreen()
 	T(("ClearScreen() called"));
 
 	if (clear_screen) {
-		tputs(clear_screen, 1, _outc);
+		putp(clear_screen);
 		SP->_cursrow = SP->_curscol = 0;
 	} else if (clr_eos) {
 		SP->_cursrow = SP->_curscol = -1;
 		GoTo(0,0);
 
-		tputs(clr_eos, 1, _outc);
+		putp(clr_eos);
 	} else if (clr_eol) {
 		SP->_cursrow = SP->_curscol = -1;
 
 		while (SP->_cursrow < lines) {
 			GoTo(SP->_cursrow, 0);
-			tputs(clr_eol, 1, _outc);
+			putp(clr_eol);
 		}
 		GoTo(0,0);
 	}
@@ -523,15 +544,15 @@ static void InsStr(chtype *line, int count)
 	T(("InsStr(%x,%d) called", line, count));
 
 	if (enter_insert_mode  &&  exit_insert_mode) {
-		tputs(enter_insert_mode, 1, _outc);
+		putp(enter_insert_mode);
 		while (count) {
 			PutChar(*line);
 			line++;
 			count--;
 		}
-		tputs(exit_insert_mode, 1, _outc);
+		putp(exit_insert_mode);
 	} else if (parm_ich) {
-		tputs(tparm(parm_ich, count), 1, _outc);
+		putp(tparm(parm_ich, count));
 		while (count) {
 			PutChar(*line);
 			line++;
@@ -539,7 +560,7 @@ static void InsStr(chtype *line, int count)
 		}
 	} else {
 		while (count) {
-			tputs(insert_character, 1, _outc);
+			putp(insert_character);
 			PutChar(*line);
 			line++;
 			count--;
@@ -563,10 +584,10 @@ static void DelChar(int count)
 		vidattr(curscr->_attrs = A_NORMAL);
 	}
 	if (parm_dch) {
-		tputs(tparm(parm_dch, count), 1, _outc);
+		putp(tparm(parm_dch, count));
 	} else {
 		while (count--)
-			tputs(delete_character, 1, _outc);
+			putp(delete_character);
 	}
 }
 

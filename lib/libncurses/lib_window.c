@@ -14,7 +14,7 @@
 
 int mvder(WINDOW *win, int y, int x)
 {
-
+    return(ERR);
 }
 
 void wsyncup(WINDOW *win)
@@ -24,7 +24,7 @@ void wsyncup(WINDOW *win)
 
 int syncok(WINDOW *win, bool bf)
 {
-
+    return(ERR);
 }
 
 void wcursyncup(WINDOW *win)
@@ -40,12 +40,11 @@ void wsyncdown(WINDOW *win)
 WINDOW *dupwin(WINDOW *win)
 {
 WINDOW *nwin;
-#ifdef TRACE
-	if (_tracing)
-		_tracef("dupwin(%x) called", win);
-#endif
+int linesize, i;
 
-	if ((nwin = newwin(win->_maxy, win->_maxx, win->_bey, win->_begx)) == NULL)
+	T(("dupwin(%x) called", win));
+
+	if ((nwin = newwin(win->_maxy + 1, win->_maxx + 1, win->_begy, win->_begx)) == NULL)
 		return NULL;
 
 	nwin->_curx       = win->_curx;
@@ -57,6 +56,7 @@ WINDOW *nwin;
 
 	nwin->_flags      = win->_flags;
 	nwin->_attrs      = win->_attrs;
+	nwin->_bkgd	  = win->_bkgd; 
 
 	nwin->_clear      = win->_clear; 
 	nwin->_scroll     = win->_scroll;
@@ -73,8 +73,9 @@ WINDOW *nwin;
 	nwin->_regtop     = win->_regtop;
 	nwin->_regbottom  = win->_regbottom;
 
-	for (i = 0; i < nwin->_cury; i++) {
-		memcpy(nwin->_line[i], win->_line[i], win->_maxx * sizeof(chtype));
+	linesize = (win->_maxx + 1) * sizeof(chtype);
+	for (i = 0; i <= nwin->_maxy; i++) {
+		memcpy(nwin->_line[i], win->_line[i], linesize);
 		nwin->_firstchar[i]  = win->_firstchar[i];
 		nwin->_lastchar[i] = win->_lastchar[i];
 	}

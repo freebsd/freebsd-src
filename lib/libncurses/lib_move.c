@@ -15,10 +15,7 @@
 int
 wmove(WINDOW *win, int y, int x)
 {
-#ifdef TRACE
-	if (_tracing)
-	    _tracef("wmove(%x,%d,%d) called", win, y, x);
-#endif
+	T(("wmove(%x,%d,%d) called", win, y, x));
 
 	if (x >= 0  &&  x <= win->_maxx  &&
 		y >= 0  &&  y <= win->_maxy)

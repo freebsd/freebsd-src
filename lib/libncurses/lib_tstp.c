@@ -11,7 +11,7 @@
 */
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 #ifdef SVR4_ACTION
 #define _POSIX_SOURCE
 #endif
@@ -41,7 +41,7 @@ sigset_t mask;
 	reset_prog_mode();
 	flushinp();
 	if (enter_ca_mode)
-		tputs(enter_ca_mode, 1, _outc);
+		putp(enter_ca_mode);
 	doupdate();
 }
 

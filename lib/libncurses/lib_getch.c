@@ -14,7 +14,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
-#ifdef BRAINDEAD
+#if defined(BRAINDEAD)
 extern int errno;
 #endif
 #include "curses.priv.h"
@@ -79,6 +79,7 @@ again:
 	n = read(fileno(SP->_ifp), &ch, 1);
 	if (n == -1 && errno == EINTR)
 		goto again;
+	T(("read %d characters", n));
 	SP->_fifo[tail] = ch;
 	if (head == -1) head = tail;
 	t_inc();
@@ -139,7 +140,8 @@ int	ch;
 	if (win->_use_keypad)
 		ch = kgetch(win);
 	else {
-		fifo_push();
+		if (head == -1)
+			fifo_push();
 		ch = fifo_pull();
 	}
 
@@ -182,7 +184,7 @@ kgetch(WINDOW *win)
 {
 struct try  *ptr;
 int ch = 0;
-int     timeleft = 2000;
+int timeleft = 1000;
 
     T(("kgetch(%x) called", win));
 
@@ -204,8 +206,7 @@ int     timeleft = 2000;
 		    } else {			/* go back for another character */
 				ptr = ptr->child;
 				T(("going back for more"));
-		    }
-			else
+		    } else
 				break;
 
 		    T(("waiting for rest of sequence"));

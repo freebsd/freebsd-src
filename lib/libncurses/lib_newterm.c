@@ -12,7 +12,7 @@
 
 #include <stdlib.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 #ifdef SVR4_ACTION
 #define _POSIX_SOURCE
 #endif
@@ -52,7 +52,7 @@ char   *use_it = _ncurses_copyright;
 	use_it = use_it;        /* shut up compiler */
 #ifdef TRACE
 	_init_trace();
-	T(("newterm(%s,%x,%x) called", term, ofp, ifp));
+	T(("newterm(\"%s\",%x,%x) called", term, ofp, ifp));
 #endif
 
 #ifdef MYTINFO
@@ -87,6 +87,9 @@ char   *use_it = _ncurses_copyright;
 	SP->_fifohead	= -1;
 	SP->_fifotail 	= 0;
 	SP->_fifopeek	= 0;
+	SP->_endwin     = FALSE;
+	SP->_checkfd    = fileno(ifp);
+	typeahead(fileno(ifp));
 
 	if (enter_ca_mode)
 	    	putp(enter_ca_mode);
@@ -108,8 +111,7 @@ char   *use_it = _ncurses_copyright;
 	curscr->_clear = FALSE;
 
 	stolen = topstolen = 0;
-	for (rsp = rippedoff; rsp->line; rsp++)
-	{
+	for (rsp = rippedoff; rsp->line; rsp++) {
 		if (rsp->hook)
 			if (rsp->line < 0)
 				rsp->hook(newwin(1,COLS, LINES-1,0), COLS);
@@ -131,10 +133,14 @@ char   *use_it = _ncurses_copyright;
 #if 0
 	sigaction(SIGSEGV, &act, NULL);
 #endif
-	if (stdscr == NULL)
-	    	if ((stdscr = newwin(lines - stolen, columns, topstolen, 0)) == NULL)
-			return(NULL);
+      	if ((stdscr = newwin(lines - stolen, columns, topstolen, 0)) == NULL)
+  		return(NULL);
 
+	SP->_stdscr = stdscr;
+
+	def_shell_mode();
+	def_prog_mode();
+  
 	T(("newterm returns %x", SP));
 
 	return(SP);

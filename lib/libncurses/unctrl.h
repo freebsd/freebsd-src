@@ -14,8 +14,6 @@
 #ifndef _UNCTRL_H
 #define _UNCTRL_H	1
 
-#include <sys/cdefs.h>
-
-extern char *unctrl __P((unsigned char));
+extern char *unctrl(unsigned char);
 
 #endif /* _UNCTRL_H */

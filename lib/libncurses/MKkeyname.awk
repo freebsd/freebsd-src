@@ -2,7 +2,7 @@
 BEGIN {
 	print ""
 	print "#include <stdlib.h>"
-	print "#include <ncurses.h>"
+	print "#include \"curses.h\""
 	print ""
 	print "struct kn {"
 	print "\tchar *name;"

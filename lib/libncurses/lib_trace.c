@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 #if defined(BRAINDEAD)
 extern int errno;
@@ -43,18 +43,11 @@ static int	been_here = 0;
 }
 
 
-void traceon()
+void trace(const unsigned int tracelevel)
 {
-
-   	_tracing = 1;
+   	_tracing = tracelevel;
 }
 
-
-void traceoff()
-{
-
-   	_tracing = 0;
-}
 
 char *_traceattr(int newmode)
 {
@@ -98,8 +91,8 @@ colors[] =
 	    (void) sprintf(buf + strlen(buf),
 					"COLOR_PAIR(%d) = (%s, %s), ",
 					pairnum,
-			   		colors[BG(color_pairs[pairnum])].name,
-					colors[FG(color_pairs[pairnum])].name
+			   		colors[FG(color_pairs[pairnum])].name,
+					colors[BG(color_pairs[pairnum])].name
 			   );
 	}
 	if ((newmode & A_ATTRIBUTES) == 0)
@@ -109,7 +102,7 @@ colors[] =
 	return(strcat(buf,"}"));
 }
 
-static char *visbuf(const char *buf)
+char *visbuf(const char *buf)
 /* visibilize a given string */
 {
     static char vbuf[BUFSIZ];
@@ -154,17 +147,33 @@ static char *visbuf(const char *buf)
     return(vbuf);
 }
 
+char *_tracechar(const unsigned char ch)
+{
+    static char crep[20];
+    /* 
+     * We can show the actual character if it's either an ordinary printable
+     * or one of the high-half characters.
+     */
+    if (isprint(ch) || (ch & 0x80))
+    {
+	crep[0] = '\'';
+	crep[1] = ch;	/* necessary; printf tries too hard on metachars */
+	(void) sprintf(crep + 2, "' = 0x%02x", ch);
+    }
+    else
+	(void) sprintf(crep, "0x%02x", ch);
+    return(crep);
+}
+
 void
 _tracef(char *fmt, ...)
 {
 va_list ap;
 char buffer[256];
-char *vp;
 
 	va_start(ap, fmt);
 	vsprintf(buffer, fmt, ap);
-	vp = visbuf(buffer);
-	write(tracefd, vp, strlen(vp));
+	write(tracefd, buffer, strlen(buffer));
 	write(tracefd, "\n", 1);
 }
 

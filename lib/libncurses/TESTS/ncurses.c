@@ -19,6 +19,7 @@ library source.
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <assert.h>
 #include <ncurses.h>
@@ -37,13 +38,27 @@ library source.
 static void getch_test(void)
 /* test the keypad feature */
 {
-    unsigned int c;
-    int firsttime = 0;
-
-    refresh();
-
-    c = '?';
-    do {
+char buf[BUFSIZ];
+unsigned int c;
+int incount = 0, firsttime = 0;
+bool blocking = TRUE;
+  
+      refresh();
+  
+     (void) printw("Delay in 10ths of a second (<CR> for blocking input)? ");
+     echo();
+     getstr(buf);
+     noecho();
+ 
+     if (isdigit(buf[0]))
+     {
+ 	timeout(atoi(buf) * 100);
+ 	blocking = FALSE;
+     }
+ 
+      c = '?';
+     for (;;)
+     {
 	if (firsttime++)
 	{
 	    printw("Key pressed: %04o ", c);
@@ -72,15 +87,19 @@ static void getch_test(void)
 	    break;
 	if (c == '?')
 	    addstr("Type any key to see its keypad value, `q' to quit, `?' for help.\n");
-    } while
-	((c = getch()) != EOF);
 
+	while ((c = getch()) == ERR)
+	    if (!blocking)
+		(void) printw("%05d: input timed out\n", incount++);
+    }
+
+    timeout(-1);
     erase();
     endwin();
 }
 
 static void attr_test(void)
-/* test text attrivutes */
+/* test text attributes */
 {
     refresh();
 
@@ -455,14 +474,15 @@ static void slk_test(void)
 static void acs_display()
 /* display the ACS character set */
 {
-traceon();
+    int	i, j;
+
     erase();
     attron(A_BOLD);
     mvaddstr(0, 20, "Display of the ACS Character Set");
     attroff(A_BOLD);
     refresh();
 
-#define ACSY	5
+#define ACSY	2
     mvaddstr(ACSY + 0, 0, "ACS_ULCORNER: "); addch(ACS_ULCORNER);
     mvaddstr(ACSY + 1, 0, "ACS_LLCORNER: "); addch(ACS_LLCORNER);
     mvaddstr(ACSY + 2, 0, "ACS_URCORNER: "); addch(ACS_URCORNER);
@@ -489,6 +509,15 @@ traceon();
     mvaddstr(ACSY + 9, 40, "ACS_BOARD: "); addch(ACS_BOARD);
     mvaddstr(ACSY + 10,40, "ACS_LANTERN: "); addch(ACS_LANTERN);
     mvaddstr(ACSY + 11,40, "ACS_BLOCK: "); addch(ACS_BLOCK);
+
+#define HYBASE 	(ACSY + 13)    
+    mvprintw(HYBASE + 1, 0, "High-half characters via echochar:\n");
+    for (i = 0; i < 4; i++)
+    {
+	move(HYBASE + i + 3, 24);
+	for (j = 0; j < 32; j++)
+	    echochar(128 + 32 * i + j);
+    }
 
     move(LINES - 1, 0);
     addstr("Press any key to continue... ");
@@ -542,6 +571,7 @@ int	uli, ulj, lri, lrj;	/* co-ordinates of corners */
 	case KEY_DOWN:	i++; break;
 	case KEY_LEFT:	j += sj - 1; break;
 	case KEY_RIGHT:	j++; break;
+	case '\004':	return((pair *)NULL);
 	default:	res.y = uli + i; res.x = ulj + j; return(&res);
 	}
 	i %= si;
@@ -553,17 +583,21 @@ static WINDOW *getwindow(void)
 /* Ask user for a window definition */
 {
     WINDOW	*rwindow, *bwindow;
-    pair	ul, lr;
+    pair	ul, lr, *tmp;
 
     move(0, 0); clrtoeol();
     addstr("Use arrows to move cursor, anything else to mark corner 1");
     refresh();
-    memcpy(&ul, selectcell(1,    0,    LINES-1, COLS-1), sizeof(pair));
+    if ((tmp = selectcell(1,    0,    LINES-1, COLS-1)) == (pair *)NULL)
+	return((WINDOW *)NULL);
+    memcpy(&ul, tmp, sizeof(pair));
     addch(ACS_ULCORNER);
     move(0, 0); clrtoeol();
     addstr("Use arrows to move cursor, anything else to mark corner 2");
     refresh();
-    memcpy(&lr, selectcell(ul.y, ul.x, LINES-1, COLS-1), sizeof(pair));
+    if ((tmp = selectcell(ul.y, ul.x, LINES-1, COLS-1)) == (pair *)NULL)
+	return((WINDOW *)NULL);
+    memcpy(&lr, tmp, sizeof(pair));
 
     rwindow = newwin(lr.y - ul.y + 1, lr.x - ul.x + 1, ul.y, ul.x);
 
@@ -593,7 +627,7 @@ static void acs_and_scroll()
 
     refresh();
     mvaddstr(LINES - 2, 0,
-	     "F1 = make new window, F2 = next window, F3 = previous window");
+	     "F1 = make new window, F2 = next window, F3 = previous window, Ctrl-D = exit");
     mvaddstr(LINES - 1, 0,
 	     "All other characters are echoed, windows should scroll.");
 
@@ -607,7 +641,8 @@ static void acs_and_scroll()
 	{
 	case KEY_F(1):
 	    neww = (struct frame *) malloc(sizeof(struct frame));
-	    neww->wind = getwindow();
+	    if ((neww->wind = getwindow()) == (WINDOW *)NULL)
+		goto breakout;
 	    if (oldw == NULL)	/* First element,  */
 	    {
 		neww->next = neww; /*   so point it at itself */
@@ -650,8 +685,208 @@ static void acs_and_scroll()
     } while
 	((c = wgetch(current->wind)) != '\004');
 
+ breakout:
     erase();
     endwin();
+}
+
+#define GRIDSIZE	5
+
+static void panner(WINDOW *pad, int iy, int ix, int (*pgetc)(void))
+{
+    static int porty, portx, basex = 0, basey = 0;
+    int pxmax, pymax, c;
+    WINDOW *vscroll = (WINDOW *)NULL, *hscroll = (WINDOW *)NULL;
+
+    porty = iy; portx = ix;
+
+    getmaxyx(pad, pymax, pxmax);
+
+    if (pymax > porty)
+	vscroll = newwin(porty - (pxmax > ix), 1,  0, portx - (pymax > iy));
+    if (pxmax > portx)
+	hscroll = newwin(1, portx - (pymax > iy),  porty - (pxmax > ix), 0);
+
+    c = KEY_REFRESH;
+    do {
+	switch(c)
+	{
+	case KEY_REFRESH:
+	    /* do nothing */
+	    break;
+
+	case KEY_IC:
+	    if (portx >= pxmax || portx >= ix)
+		beep();
+	    else
+	    {
+		mvwin(vscroll, 0, ++portx - 1);
+		delwin(hscroll);
+		hscroll = newwin(1, portx - (pymax > porty),
+				 porty - (pxmax > portx), 0);
+	    }
+	    break;
+
+	case KEY_IL:
+	    if (porty >= pymax || porty >= iy)
+		beep();
+	    else
+	    {
+		mvwin(hscroll, ++porty - 1, 0);
+		delwin(vscroll);
+		vscroll = newwin(porty - (pxmax > portx), 1,
+				 0, portx - (pymax > porty));
+	    }
+	    break;
+
+	case KEY_DC:
+	    if (portx <= 0)
+		beep();
+	    else
+	    {
+		mvwin(vscroll, 0, --portx - 1);
+		delwin(hscroll);
+		hscroll = newwin(1, portx - (pymax > porty),
+				 porty - (pxmax > portx), 0);
+	    }
+	    break;
+
+	case KEY_DL:
+	    if (porty <= 0)
+		beep();
+	    else
+	    {
+		mvwin(hscroll, --porty - 1, 0);
+		delwin(vscroll);
+		vscroll = newwin(porty - (pxmax > portx), 1,
+				 0, portx - (pymax > porty));
+	    }
+	    break;
+
+	case KEY_LEFT:
+	    if (basex > 0)
+		basex--;
+	    else
+		beep();
+	    break;
+
+	case KEY_RIGHT:
+	    if (basex + portx < pxmax)
+		basex++;
+	    else
+		beep();
+	    break;
+
+	case KEY_UP:
+	    if (basey > 0)
+		basey--;
+	    else
+		beep();
+	    break;
+
+	case KEY_DOWN:
+	    if (basey + porty < pymax)
+		basey++;
+	    else
+		beep();
+	    break;
+	}
+
+	prefresh(pad,
+		 basey, basex,
+		 0, 0,
+		 porty - (hscroll != (WINDOW *)NULL) - 1,
+		 portx - (vscroll != (WINDOW *)NULL) - 1); 
+	if (vscroll)
+        {
+	    int lowend, i, highend;
+
+	    lowend = basey * ((float)porty / (float)pymax);
+	    highend = (basey + porty) * ((float)porty / (float)pymax);
+
+	    touchwin(vscroll);
+	    for (i = 0; i < lowend; i++)
+		mvwaddch(vscroll, i, 0, ACS_VLINE);
+	    wattron(vscroll, A_REVERSE);
+	    for (i = lowend; i <= highend; i++)
+		mvwaddch(vscroll, i, 0, ' ');
+	    wattroff(vscroll, A_REVERSE);
+	    for (i = highend + 1; i < porty; i++)
+		mvwaddch(vscroll, i, 0, ACS_VLINE);
+	    wrefresh(vscroll);
+        }
+	if (hscroll)
+        {
+	    int lowend, j, highend;
+
+	    lowend = basex * ((float)portx / (float)pxmax);
+	    highend = (basex + portx) * ((float)portx / (float)pxmax);
+
+	    touchwin(hscroll);
+	    for (j = 0; j < lowend; j++)
+		mvwaddch(hscroll, 0, j, ACS_HLINE);
+	    wattron(hscroll, A_REVERSE);
+	    for (j = lowend; j <= highend; j++)
+		mvwaddch(hscroll, 0, j, ' ');
+	    wattroff(hscroll, A_REVERSE);
+	    for (j = highend + 1; j < portx; j++)
+		mvwaddch(hscroll, 0, j, ACS_HLINE);
+	    wrefresh(hscroll);
+        }
+	mvaddch(porty - 1, portx - 1, ACS_LRCORNER);
+
+    } while
+	((c = pgetc()) != KEY_EXIT);
+}
+
+int padgetch(void)
+{
+    int	c;
+
+    switch(c = getch())
+    {
+    case 'u': return(KEY_UP);
+    case 'd': return(KEY_DOWN);
+    case 'r': return(KEY_RIGHT);
+    case 'l': return(KEY_LEFT);
+    case '+': return(KEY_IL);
+    case '-': return(KEY_DL);
+    case '>': return(KEY_IC);
+    case '<': return(KEY_DC);
+    default: return(c);
+    }
+}
+
+static void demo_pad(void)
+/* Demonstrate pads. */
+{
+    int i, j, gridcount = 0;
+    WINDOW *panpad = newpad(200, 200);
+
+    for (i = 0; i < 200; i++)
+    {
+	for (j = 0; j < 200; j++)
+	    if (i % GRIDSIZE == 0 && j % GRIDSIZE == 0)
+	    {
+		if (i == 0 || j == 0)
+		    waddch(panpad, '+');
+		else
+		    waddch(panpad, 'A' + (gridcount++ % 26));
+	    }
+    	    else if (i % GRIDSIZE == 0)
+		waddch(panpad, '-');
+    	    else if (j % GRIDSIZE == 0)
+		waddch(panpad, '|');
+	    else
+		waddch(panpad, ' ');
+    }
+    mvprintw(LINES - 3, 0, "Use arrow keys to pan over the test pattern");
+    mvprintw(LINES - 2, 0, "Use +,- to grow/shrink the panner vertically.");
+    mvprintw(LINES - 1, 0, "Use <,> to grow/shrink the panner horizontally.");
+    panner(panpad, LINES - 4, COLS, padgetch);
+
+    endwin();
+    erase();
 }
 
 /****************************************************************************
@@ -659,31 +894,6 @@ static void acs_and_scroll()
  * Tests from John Burnell's PDCurses tester
  *
  ****************************************************************************/
-
-static void demo_pad(void)
-/* Demonstrate pads. */
-{
-    WINDOW *pad;
-
-    pad = newpad(50,100);
-    mvwaddstr(pad, 5, 2, "This is a new pad");
-    mvwaddstr(pad, 8, 0, "The end of this line should be truncated here:abcd");
-    mvwaddstr(pad,11, 1, "This line should not appear.");
-    wmove(pad, 10, 1);
-    wclrtoeol(pad);
-    mvwaddstr(pad, 10, 1, " Press any key to continue");
-    prefresh(pad,0,0,0,0,10,45);
-    keypad(pad, TRUE);
-    wgetch(pad);
-
-    mvwaddstr(pad, 35, 2, "This is displayed at line 35 in the pad");
-    mvwaddstr(pad, 40, 1, " Press any key to continue");
-    prefresh(pad,30,0,0,0,10,45);
-    keypad(pad, TRUE);
-    wgetch(pad);
-
-    delwin(pad);
-}
 
 static void Continue (WINDOW *win)
 {
@@ -696,10 +906,13 @@ static void Continue (WINDOW *win)
 static void input_test(WINDOW *win)
 /* Input test, adapted from John Burnell's PDCurses tester */
 {
-    int w, h, bx, by, sw, sh, i, c,num;
-    char buffer [80];
+    int w, h, bx, by, sw, sh, i;
     WINDOW *subWin;
     wclear (win);
+#ifdef FOO
+    char buffer [80];
+    int num;
+#endif /* FOO */
 
     w  = win->_maxx;
     h  = win->_maxy;
@@ -722,16 +935,19 @@ static void input_test(WINDOW *win)
     wattrset(subWin, A_BOLD);
 #endif
     box(subWin, ACS_VLINE, ACS_HLINE);
+#ifdef FOO
+    mvwaddstr(subWin, 2, 1, "This is a subwindow");
+#endif /* FOO */
     wrefresh(win);
 
     nocbreak();
-    mvwaddstr(win, 2, 1, "Press some keys for 5 seconds");
-    mvwaddstr(win, 1, 1, "Pressing ^C should do nothing");
+    mvwaddstr(win, 1, 1, "Type random keys for 5 seconds.");
+    mvwaddstr(win, 2, 1,
+      "These should be discarded (not echoed) after the subwindow goes away.");
     wrefresh(win);
 
-    for (i = 0; i < 5; i++) {
-	werase (subWin);
-	box(subWin, ACS_VLINE, ACS_HLINE);
+    for (i = 0; i < 5; i++)
+    {
 	mvwprintw (subWin, 1, 1, "Time = %d", i);
 	wrefresh(subWin);
 	sleep(1);
@@ -750,27 +966,18 @@ static void input_test(WINDOW *win)
     echo();
     wgetch(win);
     flushinp();
+    mvwaddstr(win, 12, 0,
+	      "If you see any key other than what you typed, flushinp() is broken.");
+    Continue(win);
 
     wmove(win, 9, 10);
     wdelch(win);
-    mvwaddstr(win, 4, 1, "The character should now have been deleted");
-    Continue(win);
-
-    wclear (win);
-    mvwaddstr(win, 2, 1, "Press a function key or an arrow key");
     wrefresh(win);
-    keypad(win, TRUE);
-    c = wgetch(win);
-
-    nodelay(win, TRUE);
-    wgetch(win);
-    nodelay(win, FALSE);
-
-    refresh();
-    wclear (win);
-    mvwaddstr(win, 3, 2, "The window should have moved");
-    mvwaddstr(win, 4, 2, "This text should have appeared without you pressing a key");
-    mvwprintw(win, 2, 2, "Keycode = %d", c);
+    wmove(win, 12, 0);
+    clrtoeol();
+    waddstr(win,
+	    "What you typed should now have been deleted; if not, wdelch() failed.");
+    Continue(win);
 
 #ifdef FOO
     /*
@@ -782,126 +989,6 @@ static void input_test(WINDOW *win)
     mvwprintw(win, 8, 6, "String: %s Number: %d", buffer,num);
 #endif /* FOO */
 
-    Continue(win);
-}
-
-static void output_test (WINDOW *win)
-{
-    WINDOW *win1;
-    char Buffer [80];
-    chtype ch;
-
-    wclear (win);
-    mvwaddstr(win, 1, 1, "You should now have a screen in the upper left corner, and this text should have wrapped");
-    mvwin(win, 2, 1);
-    Continue(win);
-
-	nl();
-    wclear(win);
-    mvwaddstr(win, 1, 1, "A new window will appear with this text in it");
-    mvwaddstr(win, 8, 1, "Press any key to continue");
-    wrefresh(win);
-    wgetch(win);
-
-    win1 = newwin(10, 50, 15, 25);
-    if(win1 == NULL)
-    {   endwin();
-        return;
-    }
-#ifdef A_COLOR
-    if (has_colors())
-    {
-	init_pair(3,COLOR_BLUE,COLOR_WHITE);
-	wattrset(win1, COLOR_PAIR(3));
-    }
-    else
-	wattrset(win1, A_NORMAL);
-#else
-    wattrset(win1, A_NORMAL);
-#endif
-    wclear (win1);
-    mvwaddstr(win1, 5, 1, "This text should appear; using overlay option");
-    copywin(win, win1,0,0,0,0,10,50,TRUE);
-
-    box(win1,ACS_VLINE,ACS_HLINE);
-    wmove(win1, 8, 26);
-    wrefresh(win1);
-    wgetch(win1);
-
-    wclear(win1);
-    wattron(win1, A_BLINK);
-    mvwaddstr(win1, 4, 1, "This blinking text should appear in only the second window");
-    wattroff(win1, A_BLINK);
-    wrefresh(win1);
-    wgetch(win1);
-    delwin(win1);
-
-    wclear(win);
-    wrefresh(win);
-    mvwaddstr(win, 6, 2, "This line shouldn't appear");
-    mvwaddstr(win, 4, 2, "Only half of the next line is visible");
-    mvwaddstr(win, 5, 2, "Only half of the next line is visible");
-    wmove(win, 6, 1);
-    wclrtobot (win);
-    wmove(win, 5, 20);
-    wclrtoeol (win);
-    mvwaddstr(win, 8, 2, "This line also shouldn't appear");
-    wmove(win, 8, 1);
-    wdeleteln(win);
-    Continue(win);
-    traceoff();
-
-    wmove (win, 5, 9);
-    ch = winch (win);
-
-    wclear(win);
-    wmove (win, 6, 2);
-    waddstr (win, "The next char should be l:  ");
-    winsch (win, ch);
-    Continue(win);
-
-    wmove(win, 5, 1);
-    winsertln (win);
-    mvwaddstr(win, 5, 2, "The lines below should have moved down");
-    Continue(win);
-
-#ifdef FOO
-    /*
-     * This test won't be portable until vsscanf() is
-     */
-    wclear(win);
-    wmove(win, 2, 2);
-    wprintw(win, "This is a formatted string in a window: %d %s\n", 42, "is it");
-    mvwaddstr(win, 10, 1, "Enter a string: ");
-    wrefresh(win);
-    echo();
-    wscanw (win, "%s", Buffer);
-
-    wclear(win);
-    mvwaddstr(win, 10, 1, "Enter a string");
-    wrefresh(win);
-    clear();
-    move(0,0);
-    printw("This is a formatted string in stdscr: %d %s\n", 42, "is it");
-    mvaddstr(10, 1, "Enter a string: ");
-    refresh();
-    echo();
-    scanw ("%s", Buffer);
-#endif /* FOO */
-
-    wclear(win);
-    curs_set(2);
-    mvwaddstr(win, 1, 1, "The cursor should appear as a block");
-    Continue(win);
-
-    wclear(win);
-    curs_set(0);
-    mvwaddstr(win, 1, 1, "The cursor should have disappeared");
-    Continue(win);
-
-    wclear(win);
-    curs_set(1);
-    mvwaddstr(win, 1, 1, "The cursor should be an underline");
     Continue(win);
 }
 
@@ -963,10 +1050,6 @@ bool do_single_test(const char c)
 	input_test(stdscr);
 	return(TRUE);
 
-    case 'o':
-	output_test(stdscr);
-	return(TRUE);
-
     case '?':
 	(void) puts("This is the ncurses capability tester.");
 	(void) puts("You may select a test from the main menu by typing the");
@@ -983,7 +1066,7 @@ int main(const int argc, const char *argv[])
     char	buf[BUFSIZ];
 
     /* enable debugging */
-    traceon();
+    trace(TRACE_ORDINARY);
 
     /* tell it we're going to play with soft keys */
     slk_init(1);
@@ -1017,10 +1100,10 @@ int main(const int argc, const char *argv[])
 	(void) puts("g = display windows and scrolling");
 	(void) puts("p = exercise pad features");
 	(void) puts("i = subwindow input test");
-	(void) puts("o = output test");
 	(void) puts("? = get help");
 
 	(void) fputs("> ", stdout);
+	(void) fflush(stdout);		/* necessary under SVr4 curses */
 	(void) fgets(buf, BUFSIZ, stdin);
 
 	if (do_single_test(buf[0])) {

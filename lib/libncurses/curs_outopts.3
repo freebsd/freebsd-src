@@ -96,7 +96,8 @@ linefeed capability, resulting in faster cursor motion.
 All other routines that return an integer always return \fBOK\fR.
 .SH BUGS
 The entry points \fBidcok\fR, \fBimmedok\fR are not yet implemented in
-ncurses 1.8.1.
+ncurses 1.8.6.  Setting \fIidlok\fR has unfortunate effects on scrolling
+windows.
 .SH NOTES
 Note that \fBclearok\fR, \fBleaveok\fR, \fBscrollok\fR, \fBidcok\fR, \fBnl\fR,
 \fBnonl\fR and \fBsetscrreg\fR may be macros.

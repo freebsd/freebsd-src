@@ -19,7 +19,7 @@
  */
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 int raw()
 {
