@@ -350,3 +350,9 @@ acpi_machdep_quirks(int *quirks)
 
     return (0);
 }
+
+void
+acpi_cpu_c1()
+{
+	__asm __volatile("sti; hlt");
+}
