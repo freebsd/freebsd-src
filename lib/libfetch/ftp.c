@@ -74,8 +74,7 @@
 #include "common.h"
 #include "ftperr.h"
 
-#define FTP_ANONYMOUS_USER	"ftp"
-#define FTP_ANONYMOUS_PASSWORD	"ftp"
+#define FTP_ANONYMOUS_USER	"anonymous"
 
 #define FTP_CONNECTION_ALREADY_OPEN	125
 #define FTP_OPEN_DATA_CONNECTION	150
@@ -779,7 +778,7 @@ _ftp_connect(struct url *url, struct url *purl, char *flags)
 	    pwd = getenv("FTP_PASSWORD");
 	if (!pwd || !*pwd) {
 	    if ((logname = getlogin()) == 0)
-		logname = FTP_ANONYMOUS_PASSWORD;
+		logname = FTP_ANONYMOUS_USER;
 	    gethostname(localhost, sizeof localhost);
 	    snprintf(pbuf, sizeof pbuf, "%s@%s", logname, localhost);
 	    pwd = pbuf;
