@@ -15,5 +15,6 @@ load_rc_config $name
 
 # Setup DEVFS, ie permissions, links etc.
 #
-ln -fs /dev/ttyv0 /dev/vga
-
+if [ -r /etc/rc.devfs ]; then
+	sh /etc/rc.devfs
+fi
