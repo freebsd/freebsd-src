@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.21 1997/08/26 00:15:04 bde Exp $
+ * $Id: kern_physio.c,v 1.22 1997/09/02 20:05:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -28,6 +28,7 @@
 #include <vm/vm_extern.h>
 
 static void	physwakeup __P((struct buf *bp));
+static struct buf * phygetvpbuf(dev_t dev, int resid);
 
 int
 physio(strategy, bp, dev, rw, minp, uio)
@@ -52,7 +53,7 @@ physio(strategy, bp, dev, rw, minp, uio)
 	curproc->p_flag |= P_PHYSIO;
 
 	/* create and build a buffer header for a transfer */
-	bpa = (struct buf *)getpbuf();
+	bpa = (struct buf *)phygetvpbuf(dev, uio->uio_resid);
 	if (!bp_alloc) {
 		spl = splbio();
 		while (bp->b_flags & B_BUSY) {
@@ -70,12 +71,12 @@ physio(strategy, bp, dev, rw, minp, uio)
 	 */
 	sa = bpa->b_data;
 	bp->b_proc = curproc;
-	bp->b_dev = dev;
 	error = bp->b_error = 0;
 
 	for(i=0;i<uio->uio_iovcnt;i++) {
 		while( uio->uio_iov[i].iov_len) {
 
+			bp->b_dev = dev;
 			bp->b_bcount = uio->uio_iov[i].iov_len;
 			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
 			bp->b_iodone = physwakeup;
@@ -168,16 +169,44 @@ u_int
 minphys(bp)
 	struct buf *bp;
 {
-	u_int maxphys = MAXPHYS;
+	u_int maxphys = DFLTPHYS;
+	struct bdevsw *bdsw;
+	int offset;
 
-	if( ((vm_offset_t) bp->b_data) & PAGE_MASK) {
-		maxphys = MAXPHYS - PAGE_SIZE;
+	bdsw = cdevsw[major(bp->b_dev)]->d_bdev;
+
+	if (bdsw && bdsw->d_maxio) {
+		maxphys = bdsw->d_maxio;
+	}
+	if (bp->b_kvasize < maxphys)
+		maxphys = bp->b_kvasize;
+
+	if(((vm_offset_t) bp->b_data) & PAGE_MASK) {
+		maxphys -= PAGE_SIZE;
 	}
 
 	if( bp->b_bcount > maxphys) {
 		bp->b_bcount = maxphys;
 	}
+
 	return bp->b_bcount;
+}
+
+struct buf *
+phygetvpbuf(dev_t dev, int resid)
+{
+	struct bdevsw *bdsw;
+	int maxio;
+
+	bdsw = cdevsw[major(dev)]->d_bdev;
+	if (bdsw == NULL)
+		return getpbuf();
+
+	maxio = bdsw->d_maxio;
+	if (resid > maxio)
+		resid = maxio;
+
+	return getpbuf();
 }
 
 int
