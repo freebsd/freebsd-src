@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1047 2004/07/14 21:54:23 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1052 2004/12/15 22:45:55 ca Exp $")
 
 #include <sendmail/pathnames.h>
 #if NEWDB
@@ -36,6 +36,12 @@ static void	setupmaps __P((void));
 static void	setupmailers __P((void));
 static void	setupqueues __P((void));
 static int	get_num_procs_online __P((void));
+static int	add_hostnames __P((SOCKADDR *));
+
+#if NETINET6 && NEEDSGETIPNODE
+static struct hostent *getipnodebyname __P((char *, int, int, int *));
+static struct hostent *getipnodebyaddr __P((char *, int, int, int *));
+#endif /* NETINET6 && NEEDSGETIPNODE */
 
 
 /*
@@ -145,6 +151,9 @@ struct prival PrivacyValues[] =
 	{ "noreceipts",		PRIV_NORECEIPTS		},
 	{ "nobodyreturn",	PRIV_NOBODYRETN		},
 	{ "goaway",		PRIV_GOAWAY		},
+#if _FFR_PRIV_NOACTUALRECIPIENT
+	{ "noactualrecipient",	PRIV_NOACTUALRECIPIENT	},
+#endif /* _FFR_PRIV_NOACTUALRECIPIENT */
 	{ NULL,			0			}
 };
 
@@ -6023,10 +6032,6 @@ char	*FFRCompileOptions[] =
 	/* Allow local (not just TCP) socket connection to server. */
 	"_FFR_DAEMON_NETUNIX",
 #endif /* _FFR_DAEMON_NETUNIX */
-#if _FFR_DEAL_WITH_ERROR_SSL
-	/* Deal with SSL errors by recognizing them as EOF. */
-	"_FFR_DEAL_WITH_ERROR_SSL",
-#endif /* _FFR_DEAL_WITH_ERROR_SSL */
 #if _FFR_DEPRECATE_MAILER_FLAG_I
 	/* What it says :-) */
 	"_FFR_DEPRECATE_MAILER_FLAG_I",
@@ -6131,7 +6136,7 @@ char	*FFRCompileOptions[] =
 	**  Gurusamy Sarathy of ActiveState
 	*/
 
-	"_FFR_MAXDATASIZE"
+	"_FFR_MAXDATASIZE",
 #endif /* _FFR_MAXDATASIZE */
 #if _FFR_MAX_FORWARD_ENTRIES
 	/* Try to limit number of .forward entries */
@@ -6166,6 +6171,15 @@ char	*FFRCompileOptions[] =
 	/* Disable PIPELINING, delay client if used. */
 	"_FFR_NO_PIPE",
 #endif /* _FFR_NO_PIPE */
+#if _FFR_PRIV_NOACTUALRECIPIENT
+	/*
+	** PrivacyOptions=noactualrecipient stops sendmail from putting 
+	** X-Actual-Recipient lines in DSNs revealing the actual 
+	** account that addresses map to.  Patch from Dan Harkless.
+	*/
+
+	"_FFR_PRIV_NOACTUALRECIPIENT"
+#endif /* _FFR_PRIV_NOACTUALRECIPIENT */
 #if _FFR_QUEUEDELAY
 	/* Exponential queue delay; disabled in 8.13 since it isn't used. */
 	"_FFR_QUEUEDELAY",
@@ -6214,7 +6228,7 @@ char	*FFRCompileOptions[] =
 #endif /* _FFR_SHM_STATUS */
 #if _FFR_SKIP_DOMAINS
 	/* process every N'th domain instead of every N'th message */
-	"_FFR_SKIP_DOMAINS"
+	"_FFR_SKIP_DOMAINS",
 #endif /* _FFR_SKIP_DOMAINS */
 #if _FFR_SLEEP_USE_SELECT
 	/* Use select(2) in libsm/clock.c to emulate sleep(2) */
