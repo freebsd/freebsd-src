@@ -59,7 +59,6 @@ And "command" can be one or more of:
 addUser                 Add a new user to the system
 addGroup                Add a new group to the system
 configAnonFTP           Configure system for anonymous FTP
-configApache            Configure and install the Apache WEB server
 configGated             Configure and install gated
 configNFSServer         Configure host as an NFS server
 configSamba             Configure and install Samba
