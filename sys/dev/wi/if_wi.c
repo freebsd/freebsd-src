@@ -1471,8 +1471,15 @@ static void wi_stop(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	CSR_WRITE_2(sc, WI_INT_EN, 0);
-	wi_cmd(sc, WI_CMD_DISABLE|sc->wi_portnum, 0);
+	/*
+	 * If the card is gone and the memory port isn't mapped, we will
+	 * (hopefully) get 0xffff back from the status read, which is not
+	 * a valid status value.
+	 */
+	if (CSR_READ_2(sc, WI_STATUS) != 0xffff) {
+		CSR_WRITE_2(sc, WI_INT_EN, 0);
+		wi_cmd(sc, WI_CMD_DISABLE|sc->wi_portnum, 0);
+	}
 
 	untimeout(wi_inquire, sc, sc->wi_stat_ch);
 
