@@ -1,0 +1,4 @@
+# $Id$
+# This file lists options provided to the NFS I/O daemon `nfsiod', when
+# started at boot time.
+4
