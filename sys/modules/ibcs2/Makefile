@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.17 1998/02/06 23:54:20 eivind Exp $
+#	$Id: Makefile,v 1.18 1998/10/16 04:30:43 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/ibcs2
 KMOD=	ibcs2
@@ -17,8 +17,8 @@ EXPORT_SYMS= _ibcs2_mod _ibcs2_emul_path _ibcs2_svr3_sysvec
 opt_spx_hack.h:
 	touch	opt_spx_hack.h
 
-afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	${.CURDIR}/ibcs2 ${DESTDIR}/usr/bin
+#afterinstall:
+#	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+#		${.CURDIR}/ibcs2 ${DESTDIR}/usr/bin
 
 .include <bsd.kmod.mk>
