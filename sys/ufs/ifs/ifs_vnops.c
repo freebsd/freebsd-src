@@ -166,9 +166,9 @@ ifs_getattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct inode *ip = VTOI(vp);
-	register struct vattr *vap = ap->a_vap;
+	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+	struct vattr *vap = ap->a_vap;
 
 	ufs_itimes(vp);
 	/*
@@ -233,7 +233,7 @@ ifs_makeinode(mode, dvp, vpp, cnp)
 	struct vnode **vpp;
 	struct componentname *cnp;
 {
-	register struct inode *ip, *pdir;
+	struct inode *ip, *pdir;
 	struct vnode *tvp;
 	int error;
 
