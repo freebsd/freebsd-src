@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.47 1996/08/28 17:54:17 bde Exp $
+ *	$Id: apm.c,v 1.48 1996/09/06 23:06:50 phk Exp $
  */
 
 #include "apm.h"
@@ -661,18 +661,6 @@ apmattach(struct isa_device *dvp)
 {
 #define APM_KERNBASE	KERNBASE
 	struct apm_softc	*sc = &apm_softc;
-#ifdef APM_DSVALUE_BUG
-	caddr_t apm_bios_work;
-
-	/*
-	 * XXX - Malloc enough space for the APM DS, and then copy the
-	 * current DS into the new space since the DS setup by the
-	 * APM bios is going to get wiped out.
-	 */
-	apm_bios_work = (caddr_t)malloc(apm_ds_limit, M_DEVBUF, M_NOWAIT);
-	bcopy((caddr_t)((apm_ds_base << 4) + APM_KERNBASE), apm_bios_work,
-		apm_ds_limit);
-#endif /* APM_DSVALUE_BUG */
 
 	sc->initialized = 0;
 
@@ -686,11 +674,6 @@ apmattach(struct isa_device *dvp)
 	sc->cs_limit = apm_cs_limit;
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
-
-#ifdef APM_DSVALUE_BUG
-	/* Set the DS base to point to the newly made copy of the APM DS */
-	sc->ds_base = (u_int)apm_bios_work;
-#endif /* APM_DSVALUE_BUG */
 
 	/* Always call HLT in idle loop */
 	sc->always_halt_cpu = 1;
