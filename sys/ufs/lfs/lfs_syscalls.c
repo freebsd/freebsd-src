@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.3 1994/08/02 07:54:38 davidg Exp $
+ * $Id: lfs_syscalls.c,v 1.4 1994/11/17 01:30:52 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -475,7 +475,7 @@ lfs_fastvget(mp, ino, daddr, vpp, dinp)
 			++ump->um_lfs->lfs_uinodes;
 			ip->i_flag |= IN_MODIFIED;
 		}
-		ip->i_flag |= IN_MODIFIED;
+		ip->i_flag |= IN_MODIFIED; /* XXX why is this here? it's redundant */
 		return (0);
 	}
 

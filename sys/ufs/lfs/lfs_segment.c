@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.4 1994/08/20 03:49:02 davidg Exp $
+ * $Id: lfs_segment.c,v 1.5 1994/11/17 01:30:49 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -96,9 +96,11 @@ lfs_reclaim_buffers() {
 	s = splhigh();
 	for(i=0;i<lfs_total_free_count;i++) {
 		reclaimed = 1;
-		splx(s);
-		free(lfs_freebufs[i].address, M_SEGMENT); 
-		s = splhigh();
+		if( lfs_freebufs[i].address ){
+                	splx(s);
+                	free(lfs_freebufs[i].address, M_SEGMENT); 
+                	s = splhigh();
+		}
 		lfs_total_io_size -= lfs_freebufs[i].size;
 		lfs_total_io_count -= 1;
 	}
@@ -116,7 +118,7 @@ lfs_alloc_buffer(int size) {
 	caddr_t rtval;
 	if( lfs_total_free_count)
 		lfs_reclaim_buffers();
-	s = splhigh();
+	s = splhigh(); /* XXX can't this just be splbio?? */
 	while( ((lfs_total_io_count+1) >= MAX_IO_BUFS) ||
 			(lfs_total_io_size >= MAX_IO_SIZE)) {
 		lfs_free_needed = 1;
@@ -180,21 +182,37 @@ struct lfs_stats lfs_stats;
  */
 
 int
+
 lfs_vflush(vp)
 	struct vnode *vp;
 {
 	struct inode *ip;
 	struct lfs *fs;
 	struct segment *sp;
+	int error;
 
 	fs = VFSTOUFS(vp->v_mount)->um_lfs;
-	if (fs->lfs_nactive > MAX_ACTIVE)
-		return(lfs_segwrite(vp->v_mount, SEGM_SYNC|SEGM_CKP));
+	/* XXX 
+	 * lfs_segwrite uses lfs_writevnodes to flush dirty vnodes.  
+	 * lfs_writevnodes (by way of a check with lfs_vref) passes over 
+	 * locked vnodes.  Since we usually come here with vp locked, anytime
+	 * we just happen to call lfs_vflush and we are past the "MAX_ACTIVE"
+	 * threshold, we used to call lfs_seqwrite and assume it would take
+	 * care of the problem... but of course it didn't.  Now the question 
+	 * remains, is this the right thing to do, or should lfs_seqwrite or 
+	 * lfs_writevnodes be fixed to handle locked vnodes??
+	 */
+	if (fs->lfs_nactive > MAX_ACTIVE){
+		error = lfs_segwrite(vp->v_mount, SEGM_SYNC|SEGM_CKP);
+		if(error)
+		  return(error);
+        }
+
 	lfs_seglock(fs, SEGM_SYNC);
 	sp = fs->lfs_sp;
 
-
 	ip = VTOI(vp);
+
 	if (vp->v_dirtyblkhd.lh_first == NULL)
 		lfs_writevnodes(fs, vp->v_mount, sp, VN_EMPTY);
 
@@ -205,6 +223,9 @@ lfs_vflush(vp)
 		} while (lfs_writeinode(fs, sp, ip));
 
 	} while (lfs_writeseg(fs, sp) && ip->i_number == LFS_IFILE_INUM);
+
+	if (vp->v_dirtyblkhd.lh_first != NULL)
+		panic("lfs_vflush: dirty bufs!!!\n");
 
 #ifdef DOSTATS
 	++lfs_stats.nwrites;
@@ -267,7 +288,7 @@ loop:
 			(void) lfs_writeinode(fs, sp, ip);
 		}
 		vp->v_flag &= ~VDIROP;
-		lfs_vunref(vp);
+		lfs_vunref(vp); 
 	}
 }
 
@@ -297,7 +318,7 @@ lfs_segwrite(mp, flags)
 		clean = cip->clean;
 		brelse(bp);
 		if (clean <= 2) {
-			printf("segs clean: %d\n", clean);
+			printf("lfs_segwrite: ran out of clean segments, waiting for cleaner\n");
 			wakeup(&lfs_allclean_wakeup);
 			if (error = tsleep(&fs->lfs_avail, PRIBIO + 1,
 			    "lfs writer", 0))
@@ -922,18 +943,14 @@ lfs_writeseg(fs, sp)
 			} else
 				bcopy(bp->b_data, p, bp->b_bcount);
 			p += bp->b_bcount;
-			if (bp->b_flags & B_LOCKED)
+                       if (bp->b_flags & B_LOCKED)
 				--locked_queue_count;
 			bp->b_flags &= ~(B_ERROR | B_READ | B_DELWRI |
-			     B_LOCKED | B_GATHERED);
+				B_LOCKED | B_GATHERED);
 			if (bp->b_flags & B_CALL) {
 				/* if B_CALL, it was created with newbuf */
 				if (!(bp->b_flags & B_INVAL))
-/*
-					free(bp->b_data, M_SEGMENT);
-*/
 					lfs_free_buffer( bp->b_data, roundup( bp->b_bufsize, DEV_BSIZE));
-/*				free(bp, M_SEGMENT); */
 				relpbuf(bp);
 			} else {
 				bremfree(bp);
@@ -942,9 +959,9 @@ lfs_writeseg(fs, sp)
 				brelse(bp);
 			}
 		}
+		cbp->b_bcount = p - (char *)cbp->b_data;
 		++cbp->b_vp->v_numoutput;
 		splx(s);
-		cbp->b_bcount = p - (char *)cbp->b_data;
 		/*
 		 * XXXX This is a gross and disgusting hack.  Since these
 		 * buffers are physically addressed, they hang off the
@@ -1071,11 +1088,8 @@ lfs_newbuf(vp, daddr, size)
 	size_t nbytes;
 
 	nbytes = roundup(size, DEV_BSIZE);
-/*	bp = malloc(sizeof(struct buf), M_SEGMENT, M_WAITOK); */
 	bp = getpbuf();
-/*	bzero(bp, sizeof(struct buf)); */
 	if (nbytes)
-/*		bp->b_data = malloc(nbytes, M_SEGMENT, M_WAITOK); */
 		bp->b_data = lfs_alloc_buffer( nbytes);
 	bgetvp(vp, bp);
 	bp->b_bufsize = size;
@@ -1095,7 +1109,7 @@ lfs_callback(bp)
 {
 	struct lfs *fs;
 
-	fs = (struct lfs *)bp->b_saveaddr;
+       fs = (struct lfs *)bp->b_saveaddr;
 #ifdef DIAGNOSTIC
 	if (fs->lfs_iocount == 0)
 		panic("lfs_callback: zero iocount\n");
@@ -1103,12 +1117,9 @@ lfs_callback(bp)
 	if (--fs->lfs_iocount == 0)
 		wakeup(&fs->lfs_iocount);
 
-/*
-	free(bp->b_data, M_SEGMENT);
-	free(bp, M_SEGMENT);
-*/
 	lfs_free_buffer( bp->b_data, roundup( bp->b_bufsize, DEV_BSIZE));
 	relpbuf(bp);
+
 }
 
 void
@@ -1118,10 +1129,6 @@ lfs_supercallback(bp)
 	if( bp->b_data)
 		lfs_free_buffer( bp->b_data, roundup( bp->b_bufsize, DEV_BSIZE));
 	relpbuf(bp);
-/*
-	free(bp->b_data, M_SEGMENT);
-	free(bp, M_SEGMENT);
-*/
 }
 
 /*
@@ -1170,26 +1177,24 @@ int
 lfs_vref(vp)
 	register struct vnode *vp;
 {
-
-	if (vp->v_flag & VXLOCK)
-		return(1);
-	return (vget(vp, 0));
+    if ((vp->v_flag & VXLOCK) || 
+	(vp->v_usecount == 0 &&
+	 vp->v_freelist.tqe_prev == (struct vnode **)0xdeadb))
+      return(1);
+    return (vget(vp, 0));
 }
 
 void
 lfs_vunref(vp)
 	register struct vnode *vp;
 {
-	extern int lfs_no_inactive;
-
-	/*
-	 * This is vrele except that we do not want to VOP_INACTIVE
-	 * this vnode. Rather than inline vrele here, we use a global
-	 * flag to tell lfs_inactive not to run. Yes, its gross.
-	 */
-	lfs_no_inactive = 1;
-	vrele(vp);
-	lfs_no_inactive = 0;
+    /*
+     * This is vrele except that we do not want to VOP_INACTIVE
+     * this vnode. Rather than inline vrele here, we flag the vnode
+     * to tell lfs_inactive not to run on this vnode. Not as gross as
+     * a global.
+     */
+    vp->v_flag |= VNINACT;
+    vrele(vp);
+    vp->v_flag &= ~VNINACT;
 }
-
-

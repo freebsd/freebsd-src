@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.4 1994/09/21 03:47:40 wollman Exp $
+ * $Id: lfs_vnops.c,v 1.5 1994/09/22 19:38:39 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -229,10 +229,13 @@ lfs_fsync(ap)
 	} */ *ap;
 {
 	struct timeval tv;
-
+	int error;
 	tv = time;
-	return (VOP_UPDATE(ap->a_vp, &tv, &tv,
+	error = (VOP_UPDATE(ap->a_vp, &tv, &tv,
 	    ap->a_waitfor == MNT_WAIT ? LFS_SYNC : 0));
+	if(ap->a_waitfor == MNT_WAIT && ap->a_vp->v_dirtyblkhd.lh_first != NULL)
+	       panic("lfs_fsync: dirty bufs");
+	return( error );
 }
 
 /*
@@ -474,9 +477,8 @@ lfs_close(ap)
 }
 
 /*
- * Stub inactive routine that avoid calling ufs_inactive in some cases.
+ * Stub inactive routine that avoids calling ufs_inactive in some cases.
  */
-int lfs_no_inactive = 0;
 
 int
 lfs_inactive(ap)
@@ -485,7 +487,8 @@ lfs_inactive(ap)
 	} */ *ap;
 {
 	
-	if (lfs_no_inactive)
-		return (0);
+        if (ap->a_vp->v_flag & VNINACT) {
+	  return(0);
+        }
 	return (ufs_inactive(ap));
 }
