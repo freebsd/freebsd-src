@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.10 1995/08/11 11:47:30 davidg Exp $
+#	$Id: sys.mk,v 1.11 1995/10/21 12:46:02 bde Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -17,12 +17,7 @@ AS		?=	as
 AFLAGS		?=
 
 CC		?=	cc
-
-.if ${MACHINE} == "sparc"
-CFLAGS		?=	-O4
-.else
 CFLAGS		?=	-O
-.endif
 
 CXX		?=	c++
 CXXFLAGS	?=	${CXXINCLUDES} ${CFLAGS}
