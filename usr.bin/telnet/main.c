@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -49,8 +49,8 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 12/15/93";
 
 /* These values need to be the same as defined in libtelnet/kerberos5.c */
 /* Either define them in both places, or put in some common header file. */
-#define OPTS_FORWARD_CREDS           0x00000002
-#define OPTS_FORWARDABLE_CREDS       0x00000001
+#define OPTS_FORWARD_CREDS	0x00000002
+#define OPTS_FORWARDABLE_CREDS	0x00000001
 
 #if 0
 #define FORWARD
@@ -65,7 +65,7 @@ tninit()
     init_terminal();
 
     init_network();
-    
+
     init_telnet();
 
     init_sys();
@@ -192,7 +192,7 @@ main(argc, argv)
 		case 'f':
 #if defined(AUTHENTICATION) && defined(KRB5) && defined(FORWARD)
 			if (forward_flags & OPTS_FORWARD_CREDS) {
-			    fprintf(stderr, 
+			    fprintf(stderr,
 				    "%s: Only one of -f and -F allowed.\n",
 				    prompt);
 			    usage();
@@ -200,14 +200,14 @@ main(argc, argv)
 			forward_flags |= OPTS_FORWARD_CREDS;
 #else
 			fprintf(stderr,
-			 "%s: Warning: -f ignored, no Kerberos V5 support.\n", 
+			 "%s: Warning: -f ignored, no Kerberos V5 support.\n",
 				prompt);
 #endif
 			break;
 		case 'F':
 #if defined(AUTHENTICATION) && defined(KRB5) && defined(FORWARD)
 			if (forward_flags & OPTS_FORWARD_CREDS) {
-			    fprintf(stderr, 
+			    fprintf(stderr,
 				    "%s: Only one of -f and -F allowed.\n",
 				    prompt);
 			    usage();
@@ -216,7 +216,7 @@ main(argc, argv)
 			forward_flags |= OPTS_FORWARDABLE_CREDS;
 #else
 			fprintf(stderr,
-			 "%s: Warning: -F ignored, no Kerberos V5 support.\n", 
+			 "%s: Warning: -F ignored, no Kerberos V5 support.\n",
 				prompt);
 #endif
 			break;
