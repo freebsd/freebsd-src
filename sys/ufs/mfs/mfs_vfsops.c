@@ -36,6 +36,7 @@
 
 
 #include "opt_mfs.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -111,7 +112,11 @@ static struct vfsops mfs_vfsops = {
 	ffs_vptofh,
 	mfs_init,
 	vfs_stduninit,
+#ifdef UFS_EXTATTR
+	ufs_extattrctl,
+#else
 	vfs_stdextattrctl,
+#endif
 };
 
 VFS_SET(mfs_vfsops, mfs, 0);
