@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: ports.sgml,v 1.6 1997/02/22 13:01:40 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.21 -->
+<!-- Original revision: 1.23 -->
 
 <sect><heading>ports コレクション <label id="ports"></heading>
 
@@ -250,11 +250,14 @@ ports make メカニズムは, データベースディレクトリのすべての ports を
 <p>
 <em>XFree86</em> の配布に含まれる <tt>lndir(1)</tt> コマンドを使用して
 「リンクツリー」を作ります. ディスクの空き領域を見つけてディレクトリを作成し, 
-<tt>/usr/ports</tt> からそのディレクトリへシンボリックリンクを張ります. 
-そして CD-ROM 上の ``ports'' ディレクトリのフルパス名を引数として 
-<tt>lndir(1)</tt> コマンドを実行します. 
- (例えば <tt>lndir /cdrom/ports</tt> のように:) 
-そして, 作成したリンクツリーの中で ports を構築することで, CD-ROM から
+そこにカレントディレクトリを移します. そして CD-ROM 上の ``ports'' 
+ディレクトリのフルパス名を最初の引数とし, . (カレントディレクトリ) を 
+2 番目の引数として <tt>lndir(1)</tt> コマンドを実行します. 
+これは例えば以下のようになるでしょう: 
+<verb>
+	lndir /cdrom/ports .
+</verb>
+<p>そして, 作成したリンクツリーの中で ports を構築することで, CD-ROM から
 直接 ports を構築することができます. 
 <p>
 ライセンスの制限により, いくつかの ports でオリジナルのソースコードを 
