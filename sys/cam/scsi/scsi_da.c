@@ -1558,9 +1558,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			dasetgeom(periph, block_size, maxsector);
 			dp = &softc->params;
 			snprintf(announce_buf, sizeof(announce_buf),
-			        "%quMB (%qu %u byte sectors: %dH %dS/T %dC)",
-				(uint64_t) (((u_int64_t)dp->secsize *
-				dp->sectors) / (1024*1024)), dp->sectors,
+			        "%juMB (%ju %u byte sectors: %dH %dS/T %dC)",
+				(uintmax_t) (((uintmax_t)dp->secsize *
+				dp->sectors) / (1024*1024)),
+			        (uintmax_t)dp->sectors,
 				dp->secsize, dp->heads, dp->secs_per_track,
 				dp->cylinders);
 		} else {
