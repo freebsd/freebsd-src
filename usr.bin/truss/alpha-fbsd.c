@@ -291,11 +291,12 @@ alpha_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  * the sytem call number instead of, say, an error status).
  */
 
-int
-alpha_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
+long
+alpha_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
+{
   char buf[32];
   struct reg regs;
-  int retval;
+  long retval;
   int i;
   int errorp;
   struct syscall *sc;
@@ -325,10 +326,8 @@ alpha_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
 
   sc = fsc.sc;
   if (!sc) {
-    for (i = 0; i < fsc.nargs; i++) {
-      fsc.s_args[i] = malloc(12);
-      sprintf(fsc.s_args[i], "0x%lx", fsc.args[i]);
-    }
+    for (i = 0; i < fsc.nargs; i++)
+      asprintf(&fsc.s_args[i], "0x%lx", fsc.args[i]);
   } else {
     /*
      * Here, we only look for arguments that have OUT masked in --
@@ -341,12 +340,10 @@ alpha_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
 	 * If an error occurred, than don't bothe getting the data;
 	 * it may not be valid.
 	 */
-	if (errorp) {
-	  temp = malloc(12);
-	  sprintf(temp, "0x%lx", fsc.args[sc->args[i].offset]);
-	} else {
+	if (errorp)
+	  asprintf(&temp, "0x%lx", fsc.args[sc->args[i].offset]);
+	else
 	  temp = print_arg(Procfd, &sc->args[i], fsc.args);
-	}
 	fsc.s_args[i] = temp;
       }
     }
