@@ -127,7 +127,7 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 
-char		pcpu0[PAGE_SIZE];
+struct		pcpu __pcpu[MAXCPU];
 struct		trapframe frame0;
 
 vm_offset_t	kstack0;
@@ -290,12 +290,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * Set up per-cpu data.
 	 */
-	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
+	pc = &__pcpu[0];
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
 	pc->pc_cpuid = 0;
-	/* pc->pc_mid = mid; */
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
