@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.14 1995/07/13 08:48:25 davidg Exp $
+ * $Id: vm_kern.c,v 1.15 1995/07/29 11:44:20 bde Exp $
  */
 
 /*
@@ -178,11 +178,12 @@ kmem_alloc(map, size)
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
-		while ((mem = vm_page_alloc(kernel_object, offset + i, VM_ALLOC_NORMAL)) == NULL) {
+		while ((mem = vm_page_alloc(kernel_object, offset + i, (VM_ALLOC_NORMAL|VM_ALLOC_ZERO))) == NULL) {
 			VM_WAIT;
 		}
-		vm_page_zero_fill(mem);
-		mem->flags &= ~PG_BUSY;
+		if ((mem->flags & PG_ZERO) == 0)
+			vm_page_zero_fill(mem);
+		mem->flags &= ~(PG_BUSY|PG_ZERO);
 		mem->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -346,10 +347,7 @@ kmem_malloc(map, size, waitflag)
 			vm_map_unlock(map);
 			return (0);
 		}
-#if 0
-		vm_page_zero_fill(m);
-#endif
-		m->flags &= ~PG_BUSY;
+		m->flags &= ~(PG_BUSY|PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
