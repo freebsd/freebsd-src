@@ -235,7 +235,6 @@ sbp_targ_probe(device_t dev)
 	return (0);
 }
 
-
 static void
 sbp_targ_dealloc_login(struct sbp_targ_login *login)
 {
@@ -1295,8 +1294,6 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 			orbi->status.dead = 1;
 			orbi->status.status = STATUS_ACCESS_DENY;
 			orbi->status.len = 1;
-			sbp_targ_status_FIFO(orbi, orb[6], orb[7],
-			    /*dequeue*/0);
 			break;
 		}
 
@@ -1308,8 +1305,6 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 			orbi->status.dead = 1;
 			orbi->status.status = STATUS_RES_UNAVAIL;
 			orbi->status.len = 1;
-			sbp_targ_status_FIFO(orbi, orb[6], orb[7],
-			    /*dequeue*/0);
 			break;
 		}
 
@@ -1325,6 +1320,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 		    sizeof(struct sbp_login_res), (void *)&login->loginres,
 		    fw_asy_callback_free);
 		STAILQ_INSERT_TAIL(&lstate->logins, login, link);
+		/* XXX return status after loginres is successfully written */
 		break;
 	}
 	case ORB_FUN_RCN:
@@ -1338,7 +1334,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 			orbi->status.dead = 1;
 			orbi->status.status = STATUS_ACCESS_DENY;
 			printf("%s: reconnection faild id=%d\n",
-			    __FUNCTION__, login->id);
+			    __FUNCTION__, orb4->id);
 		}
 		break;
 	case ORB_FUN_LGO:
