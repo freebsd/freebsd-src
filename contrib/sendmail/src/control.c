@@ -9,10 +9,32 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: control.c,v 8.44.14.15 2001/01/22 19:00:22 gshapiro Exp $";
+static char id[] = "@(#)$Id: control.c,v 8.44.14.20 2001/05/03 17:24:03 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
+
+/* values for cmd_code */
+# define CMDERROR	0	/* bad command */
+# define CMDRESTART	1	/* restart daemon */
+# define CMDSHUTDOWN	2	/* end daemon */
+# define CMDHELP	3	/* help */
+# define CMDSTATUS	4	/* daemon status */
+
+struct cmd
+{
+	char	*cmd_name;	/* command name */
+	int	cmd_code;	/* internal code, see below */
+};
+
+static struct cmd	CmdTab[] =
+{
+	{ "help",	CMDHELP		},
+	{ "restart",	CMDRESTART	},
+	{ "shutdown",	CMDSHUTDOWN	},
+	{ "status",	CMDSTATUS	},
+	{ NULL,		CMDERROR	}
+};
 
 
 int ControlSocket = -1;
@@ -208,34 +230,19 @@ clrcontrol()
 **		none.
 */
 
-struct cmd
-{
-	char	*cmd_name;	/* command name */
-	int	cmd_code;	/* internal code, see below */
-};
-
-/* values for cmd_code */
-# define CMDERROR	0	/* bad command */
-# define CMDRESTART	1	/* restart daemon */
-# define CMDSHUTDOWN	2	/* end daemon */
-# define CMDHELP	3	/* help */
-# define CMDSTATUS	4	/* daemon status */
-
-static struct cmd	CmdTab[] =
-{
-	{ "help",	CMDHELP		},
-	{ "restart",	CMDRESTART	},
-	{ "shutdown",	CMDSHUTDOWN	},
-	{ "status",	CMDSTATUS	},
-	{ NULL,		CMDERROR	}
-};
-
 static jmp_buf	CtxControlTimeout;
 
 static void
 controltimeout(timeout)
 	time_t timeout;
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(CtxControlTimeout, 1);
 }
 

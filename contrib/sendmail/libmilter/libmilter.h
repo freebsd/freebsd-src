@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -17,7 +17,7 @@
 # define EXTERN
 # define INIT(x)	= x
 # ifndef lint
-static char MilterlId[] = "@(#)$Id: libmilter.h,v 8.3.6.10 2000/11/20 21:15:36 ca Exp $";
+static char MilterlId[] = "@(#)$Id: libmilter.h,v 8.3.6.14 2001/05/27 14:31:12 ca Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -58,7 +58,7 @@ typedef pthread_mutex_t smutex_t;
 #define MILTER_VERSION		100
 
 /* some defaults */
-#define MI_TIMEOUT	1800		/* default timeout for read/write */
+#define MI_TIMEOUT	7210		/* default timeout for read/write */
 #define MI_CHK_TIME	5		/* checking whether to terminate */
 
 #if SOMAXCONN > 20
@@ -70,6 +70,7 @@ typedef pthread_mutex_t smutex_t;
 /* maximum number of repeated failures in mi_listener() */
 #define MAX_FAILS_M	16	/* malloc() */
 #define MAX_FAILS_T	16	/* thread creation */
+#define MAX_FAILS_A	16	/* accept() */
 
 /* internal "commands", i.e., error codes */
 #define SMFIC_TIMEOUT	((char) 1)	/* timeout */

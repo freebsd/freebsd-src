@@ -3113,6 +3113,7 @@ that all domains in the envelope are fully qualified if the message is
 relayed to another MTA.  It will also enforce the normal address syntax
 rules and log error messages.  Additionally, by using the M=a modifier
 you can require authentication before messages are accepted by the MSA.
+Notice: Do NOT use the 'a' modifier on a public accessible MTA!
 Finally, the M=E modifier shown above disables ETRN as required by RFC
 2476.
 
@@ -3277,4 +3278,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.42 $, Last updated $Date: 2001/02/15 23:40:10 $
+$Revision: 8.383.2.1.2.43 $, Last updated $Date: 2001/05/24 16:41:53 $

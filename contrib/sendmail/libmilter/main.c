@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.34.4.9 2000/09/09 02:23:03 gshapiro Exp $";
+static char id[] = "@(#)$Id: main.c,v 8.34.4.11 2001/05/07 22:06:37 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -131,9 +131,11 @@ smfi_setbacklog(obacklog)
 	return MI_SUCCESS;
 }
 
+
 int
 smfi_main()
 {
+
 	signal(SIGPIPE, SIG_IGN);
 	if (conn == NULL)
 	{
@@ -150,6 +152,7 @@ smfi_main()
 			smfi->xxfi_name);
 		return MI_FAILURE;
 	}
+
 
 	/* Startup the listener */
 	if (mi_listener(conn, dbg, smfi, timeout, backlog) != MI_SUCCESS)
