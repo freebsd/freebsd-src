@@ -66,6 +66,16 @@ doreti_next:
 	je	doreti_exit		/* no, defer */
 
 doreti_ast:
+	/*
+	 * Check for ASTs atomically with returning.  Disabling CPU
+	 * interrupts provides sufficient locking evein the SMP case,
+	 * since we will be informed of any new ASTs by an IPI.
+	 */
+	cli
+	movl	PCPU(CURPROC),%eax
+	testl	$PS_ASTPENDING | PS_NEEDRESCHED,P_SFLAG(%eax)
+	je	doreti_exit
+	sti
 	pushl	%esp			/* pass a pointer to the trapframe */
 	call	ast
 	add	$4,%esp
