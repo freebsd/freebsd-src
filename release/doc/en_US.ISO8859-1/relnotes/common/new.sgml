@@ -331,7 +331,7 @@
     corrected.  Formerly, <literal>me</literal> filter rules would
     match the remote IP address of a point-to-point interface in
     addition to the intended local IP address (see security advisory
-    FreeBSD-SA-01:53). &merged;</para>
+    FreeBSD-SA-01:53).</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
