@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.5 1994/08/10 03:09:37 davidg Exp $
+ *	$Id: vm_page.c,v 1.6 1994/09/27 18:00:27 davidg Exp $
  */
 
 /*
@@ -592,8 +592,8 @@ vm_page_alloc_contig(size, low, high, alignment)
 	vm_offset_t	alignment;
 {
 	int i, s, start = 0;
-	vm_offset_t addr, phys;
-	vm_page_t *pga = (vm_page_t *)vm_page_array;
+	vm_offset_t addr, phys, tmp_addr;
+	vm_page_t pga = vm_page_array;
 	extern vm_map_t kernel_map;
 
 	if ((alignment & (alignment - 1)) != 0)
@@ -605,8 +605,8 @@ again:
 	 * Find first page in array that is free, within range, and aligned.
 	 */
 	for (i = start; i < cnt.v_page_count; i++) {
-		phys = VM_PAGE_TO_PHYS(pga[i]);
-		if ((pga[i]->flags & PG_FREE == PG_FREE) &&
+		phys = pga[i].phys_addr;
+		if (((pga[i].flags & PG_FREE) == PG_FREE) &&
 		    (phys >= low) && (phys < high) &&
 		    ((phys & (alignment - 1)) == 0))
 			break;
@@ -615,7 +615,7 @@ again:
 	/*
 	 * If the above failed or we will exceed the upper bound, fail.
 	 */
-	if ((i == cnt.v_page_count) || ((VM_PAGE_TO_PHYS(pga[i]) + size) > high)) {
+	if ((i == cnt.v_page_count) || ((pga[i].phys_addr + size) > high)) {
 		splx(s);
 		return (NULL);
 	}
@@ -626,9 +626,9 @@ again:
 	 * Check successive pages for contiguous and free.
 	 */
 	for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
-		if ((VM_PAGE_TO_PHYS(pga[i]) !=
-		    (VM_PAGE_TO_PHYS(pga[i - 1]) + PAGE_SIZE)) ||
-		    ((pga[i]->flags & PG_FREE) != PG_FREE)) {
+		if ((pga[i].phys_addr !=
+		    (pga[i - 1].phys_addr + PAGE_SIZE)) ||
+		    ((pga[i].flags & PG_FREE) != PG_FREE)) {
 			start++;
 			goto again;
 		}
@@ -639,15 +639,16 @@ again:
 	 * Allocate kernel VM, unfree and assign the physical pages to it
 	 * and return kernel VM pointer.
 	 */
-	addr = kmem_alloc_pageable(kernel_map, size);
+	tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
 
 	for (i = start; i < (start + size / PAGE_SIZE); i++) {
-		TAILQ_REMOVE(&vm_page_queue_free, pga[i], pageq);
+		TAILQ_REMOVE(&vm_page_queue_free, &pga[i], pageq);
 		cnt.v_free_count--;
-		vm_page_wire(pga[i]);
-		pga[i]->flags = PG_CLEAN; /* shut off PG_FREE and any other flags */
+		vm_page_wire(&pga[i]);
+		pga[i].flags = PG_CLEAN; /* shut off PG_FREE and any other flags */
+		pmap_kenter(tmp_addr, pga[start].phys_addr);
+		tmp_addr += PAGE_SIZE;
 	}
-	pmap_qenter(addr, &pga[start], size / PAGE_SIZE);
 	
 	splx(s);
 	return (addr);
