@@ -293,6 +293,6 @@ For_Run(int lineno)
     Lst_ForEach(arg.lst, ForExec, (void *) &arg);
 
     free(arg.var);
-    Lst_Destroy(arg.lst, (void (*)(void *)) free);
+    Lst_Destroy(arg.lst, free);
     Buf_Destroy(arg.buf, TRUE);
 }

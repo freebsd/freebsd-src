@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 Lst
-Lst_Duplicate(Lst list, void *(*copyProc)(void *))
+Lst_Duplicate(Lst list, DuplicateProc *copyProc)
 {
     Lst 	nl;
     LstNode  	ln;
