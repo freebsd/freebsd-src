@@ -1493,7 +1493,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	(ACPI), a multi-vendor standard for configuration and power
 	management, has been added.  This functionality has been
 	provided by the <application>Intel ACPI Component
-	Architecture</application> project, as of the ACPI CA 20020611
+	Architecture</application> project, as of the ACPI CA 20020725
 	snapshot.  Some backward compatability for applications using
 	the older APM standard has been provided.</para>
 
@@ -3763,7 +3763,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been updated to
-	  0.9.6c.</para>
+	  0.9.6e. &merged;</para>
 
 	<para role="historic"><application>OpenSSL</application> now has support for
 	  machine-dependent ASM optimizations, activated by the new
