@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.22 2003/04/28 06:19:06 grog Exp $
+ * $Id: commands.c,v 1.23 2003/05/04 05:23:59 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -153,16 +153,13 @@ vinum_read(int argc, char *argv[], char *arg0[])
     int i;
 
     reply = (struct _ioctl_reply *) &buffer;
-  buffer [0] = '\0';					    /* make sure we don't pass anything*/
-  if (argc > 0)						    /* args specified, */
-    {
-    for (i = 0; i < argc; i++)				    /* each drive name */
-      {
-      strcat (buffer, argv [i]);
-      strcat (buffer, " ");
-      }
+    buffer[0] = '\0';					    /* make sure we don't pass anything */
+    if (argc > 0) {					    /* args specified, */
+	for (i = 0; i < argc; i++) {			    /* each drive name */
+	    strcat(buffer, argv[i]);
+	    strcat(buffer, " ");
+	}
     }
-
     if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
 	fprintf(stderr, "Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
@@ -2183,20 +2180,20 @@ vinum_readpol(int argc, char *argv[], char *argv0[])
     struct _volume vol;
     int plexno;
 
-    if (argc == 0) {					    /* start everything */
-	fprintf(stderr, "usage: readpol <volume> <plex>|round\n");
+    if (argc != 2) {
+	fprintf(stderr, "usage: readpol <volume> <plex> | round\n");
 	return;
     }
-    object = find_object(argv[1], &type);		    /* look for it */
+    object = find_object(argv[0], &type);		    /* look for it */
     if (type != volume_object) {
-	fprintf(stderr, "%s is not a volume\n", argv[1]);
+	fprintf(stderr, "%s is not a volume\n", argv[0]);
 	return;
     }
     get_volume_info(&vol, object);
-    if (strcmp(argv[2], "round")) {			    /* not 'round' */
-	object = find_object(argv[2], &type);		    /* look for it */
+    if (strcmp(argv[1], "round")) {			    /* not 'round' */
+	object = find_object(argv[1], &type);		    /* look for it */
 	if (type != plex_object) {
-	    fprintf(stderr, "%s is not a plex\n", argv[2]);
+	    fprintf(stderr, "%s is not a plex\n", argv[1]);
 	    return;
 	}
 	get_plex_info(&plex, object);
@@ -2207,8 +2204,12 @@ vinum_readpol(int argc, char *argv[], char *argv0[])
     /* Set the value */
     message->index = vol.volno;
     message->otherobject = plexno;
-    if (ioctl(superdev, VINUM_READPOL, message) < 0)
-	fprintf(stderr, "Can't set read policy: %s (%d)\n", strerror(errno), errno);
+    ioctl(superdev, VINUM_READPOL, message);
+    if (reply.error)
+	fprintf(stderr,
+	    "Can't set read policy: %s (%d)\n",
+	    reply.msg[0] ? reply.msg : strerror(reply.error),
+	    reply.error);
     if (vflag)
 	vinum_lpi(plexno, recurse);
 }
