@@ -50,7 +50,7 @@ struct __kvm {
 #define ISALIVE(kd) ((kd)->vmfd >= 0)
 	int	pmfd;		/* physical memory file (or crashdump) */
 	int	vmfd;		/* virtual memory file (-1 if crashdump) */
-	int	swfd;		/* swap file (e.g., /dev/drum) */
+	int	unused;		/* was: swap file (e.g., /dev/drum) */
 	int	nlfd;		/* namelist file (e.g., /kernel) */
 	struct kinfo_proc *procbase;
 	char	*argspc;	/* (dynamic) storage for argv strings */
