@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.24.2.3 1997/10/09 07:10:00 charnier Exp $";
+	"$Id: file.c,v 1.24.2.4 1997/10/18 05:55:12 jkh Exp $";
 #endif
 
 /*
@@ -247,14 +247,12 @@ fileGetURL(char *base, char *spec)
 	gethostname(me, HOSTNAME_MAX);
 	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, me);
     }
-    if (Verbose)
-	printf("Trying to fetch %s.\n", fname);
     ftp = ftpGetURL(fname, uname, pword, &status);
     if (ftp) {
+	if (isatty(0) || Verbose)
+	    printf("Fetching %s...", fname), fflush(stdout);
 	pen[0] = '\0';
 	if ((rp = make_playpen(pen, 0)) != NULL) {
-	    if (Verbose)
-		printf("Extracting from FTP connection into %s\n", pen);
 	    tpid = fork();
 	    if (!tpid) {
 		dup2(fileno(ftp), 0);
@@ -273,6 +271,8 @@ fileGetURL(char *base, char *spec)
 	else
 	    printf("Error: Unable to construct a new playpen for FTP!\n");
 	fclose(ftp);
+	if (rp && (isatty(0) || Verbose))
+	    printf(" Done.\n");
     }
     else
 	printf("Error: FTP Unable to get %s: %s\n",
