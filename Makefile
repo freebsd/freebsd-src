@@ -84,7 +84,7 @@
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-TGTS=	afterdistribute all buildkernel buildworld checkdpadd clean \
+TGTS=	afterdistribute all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distribworld everything \
 	hierarchy includes install installkernel kernel reinstallkernel \
 	installmost installworld libraries lint maninstall mk most obj \
