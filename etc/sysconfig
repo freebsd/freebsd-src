@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.35 1996/02/09 12:20:40 jkh Exp $
+#	$Id: sysconfig,v 1.36 1996/02/09 12:45:38 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -96,15 +96,16 @@ ifconfig_lo0="inet localhost"
 #
 # Set to the list of route add lines for this host.  You must have a
 # route_${static_routes} line for each static route listed here (unless
-# static_routes is set to NO).
+# static_routes is set to "" - do NOT use ``NO'' to denote a lack of static
+# routes!).
 #
 #static_routes="foo multicast"
 #route_foo="woofo woofo-gw"
 #route_multicast="224.0.0.0 -netmask 0xf0000000 -interface 10.0.0.1"
-static_routes=NO
+static_routes=""
 
 # Set to the host you'd like set as your default router, or NO for none.
-# Note:  If set, this option *overrides* the static_routes variable.
+# This is the same as adding a ``default'' entry to static_routes.
 defaultrouter=NO
 
 # This is the routing daemon you want to use.  Possible options are
