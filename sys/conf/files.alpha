@@ -83,6 +83,7 @@ alpha/alpha/swtch.s		standard
 alpha/alpha/sys_machdep.c	standard
 alpha/alpha/trap.c		standard
 alpha/alpha/uio_machdep.c	standard
+alpha/alpha/uma_machdep.c	standard
 alpha/alpha/vm_machdep.c	standard
 alpha/isa/isa.c			optional	isa
 alpha/isa/isa_dma.c		optional	isa
