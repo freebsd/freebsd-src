@@ -94,7 +94,7 @@ definition didn't exist prior to perl5.
 .Pp
 In most cases globals should be defined at the top of the code
 using a
-.Fa var
+.Fa vars
 definition block:
 .Bd -literal -offset 0i
  use vars qw($globalscalar @globalarray %globalhash);
@@ -105,7 +105,7 @@ In some cases it may be appropriate to use
 .Va $variable =
 .Li "value";
 statements at the top of the script as an alternative to using
-.Fa var
+.Fa vars
 declarations.
 .Pp
 Whenever possible code should be run through the code checker
