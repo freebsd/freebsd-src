@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.36 1995/03/22 08:08:44 davidg Exp $
+ * $Id: vm_object.c,v 1.37 1995/03/22 12:24:10 davidg Exp $
  */
 
 /*
@@ -345,7 +345,7 @@ vm_object_deallocate(object)
 		 * Make sure no one can look us up now.
 		 */
 		object->flags |= OBJ_DEAD;
-		if (pager != NULL && (object->flags & OBJ_INTERNAL) == 0)
+		if ((object->flags & OBJ_INTERNAL) == 0)
 			vm_object_remove(pager);
 		vm_object_cache_unlock();
 
@@ -503,7 +503,7 @@ vm_object_page_clean(object, start, end, syncio)
 	int s;
 
 	if (object->pager == NULL)
-		return 1;
+		return;
 
 	if (start != end) {
 		start = trunc_page(start);
