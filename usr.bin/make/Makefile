@@ -1,4 +1,5 @@
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
+#	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
 # $FreeBSD$
 
 PROG=	make

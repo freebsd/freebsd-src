@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
+ *	@(#)nonints.h	8.4 (Berkeley) 4/28/95
  * $FreeBSD$
  */
 
