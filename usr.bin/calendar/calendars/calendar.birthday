@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $Id: calendar.birthday,v 1.8 1998/10/22 07:40:05 torstenb Exp $
+ * $Id: calendar.birthday,v 1.9 1998/10/22 07:56:22 torstenb Exp $
  */
 
 #ifndef _calendar_birthday_
@@ -271,4 +271,5 @@
 12/25	Isaac Newton (Sir) born in Grantham, England, 1642
 12/26	Chas. Babbage born, 1791
 12/28	John von Neumann born, 1903
+
 #endif /* !_calendar_birthday_ */
