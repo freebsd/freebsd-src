@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
-#include <sys/mbuf.h>	/* XXX WITNESS_WARN() hack */
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -225,6 +224,9 @@ void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
 static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 
+static int nosleepwithlocks = 0;
+SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
+    0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
 SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
@@ -1603,7 +1605,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	uma_cache_t cache;
 	uma_bucket_t bucket;
 	int cpu;
-	int badness = 0;
+	int badness;
 
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
@@ -1613,16 +1615,12 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	if (!(flags & M_NOWAIT)) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
-		if ((zone_mbuf != NULL && zone == zone_mbuf) ||
-		    (zone_clust != NULL && zone == zone_clust) ||
-		    (zone_pack != NULL && zone == zone_pack))
+		badness = nosleepwithlocks;
 #ifdef WITNESS
-			badness = WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
-			    NULL,
-			    "malloc(M_WAITOK) of \"%s\", forcing M_NOWAIT",
-			    zone->uz_name);
-#else
-			badness = 1;
+		badness = WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
+		    NULL,
+		    "malloc(M_WAITOK) of \"%s\", forcing M_NOWAIT",
+		    zone->uz_name);
 #endif
 		if (badness) {
 			flags &= ~M_WAITOK;
