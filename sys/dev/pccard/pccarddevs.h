@@ -4,10 +4,10 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.32 2002/04/11 21:18:17 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.33 2002/07/17 04:01:57 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.163 2002/03/04 16:41:50 martin Exp $ */
-/* $OpenBSD: pcmciadevs,v 1.85 2002/03/29 18:54:07 millert Exp $ */
+/* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -50,6 +50,7 @@
  */
 
 #define	PCMCIA_VENDOR_FUJITSU	0x0004	/* Fujitsu Corporation */
+#define	PCMCIA_VENDOR_NETGEAR2	0x000b	/* Netgear */
 #define	PCMCIA_VENDOR_PANASONIC	0x0032	/* Matsushita Electric Industrial Co. */
 #define	PCMCIA_VENDOR_SANDISK	0x0045	/* Sandisk Corporation */
 #define	PCMCIA_VENDOR_NEWMEDIA	0x0057	/* New Media Corporation */
@@ -76,6 +77,7 @@
 #define	PCMCIA_VENDOR_SIMPLETECH	0x014d	/* Simple Technology */
 #define	PCMCIA_VENDOR_SYMBOL2	0x014d	/* Symbol */
 #define	PCMCIA_VENDOR_LUCENT	0x0156	/* Lucent Technologies */
+#define	PCMCIA_VENDOR_GEMPLUS	0x0157	/* Gemplus */
 #define	PCMCIA_VENDOR_AIRONET	0x015f	/* Aironet Wireless Communications */
 #define	PCMCIA_VENDOR_ERICSSON	0x016b	/* Ericsson */
 #define	PCMCIA_VENDOR_PSION	0x016c	/* Psion */
@@ -282,6 +284,9 @@
 #define	PCMCIA_CIS_ELSA_XI800_IEEE	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_ELSA_XI800_IEEE	0x0004
 #define	PCMCIA_STR_ELSA_XI800_IEEE	"XI800 CF Wireless LAN"
+#define	PCMCIA_CIS_ELSA_XI325_IEEE	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_ELSA_XI325_IEEE	0x0005
+#define	PCMCIA_STR_ELSA_XI325_IEEE	"XI325 Wireless LAN"
 
 /* EMTAC */
 #define	PCMCIA_CIS_EMTAC_WLAN	{ NULL, NULL, NULL, NULL }
@@ -308,6 +313,11 @@
 #define	PCMCIA_CIS_FUJITSU_LA501	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_FUJITSU_LA501	0x2000
 #define	PCMCIA_STR_FUJITSU_LA501	"Fujitsu Towa LA501 Ethernet"
+
+/* Gemplus */
+#define	PCMCIA_CIS_GEMPLUS_GPR400	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_GEMPLUS_GPR400	0x3004
+#define	PCMCIA_STR_GEMPLUS_GPR400	"GPR400 Smartcard Reader"
 
 /* Home Wireless Networks */
 #define	PCMCIA_CIS_HWN_AIRWAY80211	{ NULL, NULL, NULL, NULL }
@@ -476,6 +486,9 @@
 #define	PCMCIA_CIS_NETGEAR_FA411	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NETGEAR_FA411	0x0411
 #define	PCMCIA_STR_NETGEAR_FA411	"Netgear FA411"
+#define	PCMCIA_CIS_NETGEAR2_MA401RA	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_NETGEAR2_MA401RA	0x7300
+#define	PCMCIA_STR_NETGEAR2_MA401RA	"Netgear MA401RA"
 
 /* National Instruments */
 #define	PCMCIA_CIS_NI_PCMCIA_GPIB	{ NULL, NULL, NULL, NULL }
@@ -483,6 +496,9 @@
 #define	PCMCIA_STR_NI_PCMCIA_GPIB	"National Instruments PCMCIA-GPIB"
 
 /* Nokia Products */
+#define	PCMCIA_CIS_NOKIA_C110_WLAN	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_NOKIA_C110_WLAN	0x1110
+#define	PCMCIA_STR_NOKIA_C110_WLAN	"Nokia C110/C111"
 #define	PCMCIA_CIS_NOKIA_C020_WLAN	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NOKIA_C020_WLAN	0x20c0
 #define	PCMCIA_STR_NOKIA_C020_WLAN	"Nokia C020 WLAN Card"
