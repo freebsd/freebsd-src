@@ -43,7 +43,7 @@ initfrm(struct form *form)
 	cbreak();
 	noecho();
 
-	form->window = newwin(form->nlines, form->ncols, form->y, form->x);
+	form->window = newwin(form->height, form->width, form->y, form->x);
 	if (!form->window) {
 		print_status("Couldn't open window, closing form");
 		return (ERR);
