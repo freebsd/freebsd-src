@@ -9,7 +9,7 @@ MAN4=	adv.4 adw.4 aha.4 ahb.4 aic.4 alpm.4 apm.4 ar.4 asc.4 \
 	rdp.4 sb.4 scd.4 \
 	spkr.4 sr.4 tw.4 \
 	tx.4 vx.4 \
-	wd.4 wfd.4 wi.4 wl.4 wt.4
+	wd.4 wi.4 wl.4 wt.4
 
 MLINKS=		adv.4 ../adv.4
 MLINKS+=	adw.4 ../adw.4
@@ -58,7 +58,6 @@ MLINKS+=	tw.4 ../tw.4
 MLINKS+=	tx.4 ../tx.4
 MLINKS+=	vx.4 ../vx.4
 MLINKS+=	wd.4 ../wd.4
-MLINKS+=	wfd.4 ../wfd.4
 MLINKS+=	wi.4 ../wi.4
 MLINKS+=	wl.4 ../wl.4
 MLINKS+=	wt.4 ../wt.4
