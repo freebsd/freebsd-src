@@ -94,6 +94,10 @@ macro 0 d	'eval ${com_sethalfscroll}; forw_scroll ${half_scroll}'
 macro 0 ""	'eval ${com_sethalfscroll}; forw_scroll ${half_scroll}'
 macro 0 u	'eval ${com_sethalfscroll}; back_scroll ${half_scroll}'
 macro 0 ""	'eval ${com_sethalfscroll}; back_scroll ${half_scroll}'
+# An argument can be made that we should move by whatever tab was set to
+# using the -x argument to more(1)
+macro 1 "\t"	'rscroll (${number} * 8)'
+macro 1 '[Z'	'lscroll (${number} * 8)'
 set com_rscroll	'condition (${number} != 0);  \
          	   set lsthscr ${number};     \
          	 condition true;              \
