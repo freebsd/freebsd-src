@@ -1302,8 +1302,8 @@ suser_xxx(cred, proc, flag)
 
 /*
  * Test securelevel values against passed required securelevel.
- * _gt implements (securelevel > level), and _ge implements
- * (securelevel >= level).  Returns 0 oer EPERM.
+ * _gt implements (level > securelevel), and _ge implements
+ * (level >= securelevel).  Returns 0 oer EPERM.
  *
  * cr is permitted to be NULL for the time being, as there were some
  * existing securelevel checks that occurred without a process/credential
@@ -1320,12 +1320,12 @@ securelevel_gt(struct ucred *cr, int level)
 
 	if (cr == NULL) {
 		printf("securelevel_gt: cr is NULL\n");
-		if (securelevel > level)
+		if (level > securelevel)
 			return (0);
 		else
 			return (EPERM);
 	} else {
-		if (securelevel > level)
+		if (level > securelevel)
 			return (0);
 		else
 			return (EPERM);
@@ -1338,12 +1338,12 @@ securelevel_ge(struct ucred *cr, int level)
 
 	if (cr == NULL) {
 		printf("securelevel_ge: cr is NULL\n");
-		if (securelevel >= level)
+		if (level >= securelevel)
 			return (0);
 		else
 			return (EPERM);
 	} else {
-		if (securelevel >= level)
+		if (level >= securelevel)
 			return (0);
 		else
 			return (EPERM);
