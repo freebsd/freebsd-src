@@ -381,15 +381,13 @@ dispatch_load_file(dialogMenuItem *self)
 int
 dispatch_load_floppy(dialogMenuItem *self)
 {
-    int             what = DITEM_RESTORE | DITEM_SUCCESS;
+    int             what = DITEM_SUCCESS;
     extern char    *distWanted;
     char           *cp;
     FILE           *fp;
     qelement	   *list;
 
     mediaClose();
-    dialog_clear_norefresh();
-
     cp = variable_get_value(VAR_INSTALL_CFG,
 			    "Specify the name of a configuration file\n"
 			    "residing on a MSDOS or UFS floppy.", 0);
@@ -430,7 +428,6 @@ dispatch_load_floppy(dialogMenuItem *self)
 	what |= DITEM_FAILURE;
 	mediaClose();
     }
-
     return what;
 }
 

@@ -358,7 +358,6 @@ diskPartition(Device *dev)
 		char *val, tmp[20];
 		int subtype;
 		chunk_e partitiontype;
-		WINDOW *save = savescr();
 
 		strcpy(tmp, "165");
 		val = msgGetInput(tmp, "New partition type:\n\n"
@@ -380,7 +379,6 @@ diskPartition(Device *dev)
 		    chunk_info[current_chunk]->type = partitiontype;
 		    chunk_info[current_chunk]->subtype = subtype;
 		}
-		restorescr(save);
 	    }
 	    break;
 	    
@@ -504,7 +502,6 @@ diskPartition(Device *dev)
     if (p) {
 	char buf[FILENAME_MAX];
 	
-	dialog_clear_norefresh();
         use_helpline("Press F1 to read more about disk slices.");
 	use_helpfile(systemHelpFile("partition", buf));
 	if (!variable_get(VAR_NO_WARN))
@@ -562,7 +559,7 @@ partitionHook(dialogMenuItem *selected)
     }
     else
 	devs[0]->enabled = FALSE;
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }
 
 static int
@@ -626,7 +623,7 @@ diskPartitionEditor(dialogMenuItem *self)
 		i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
 		free(menu);
 	    }
-	    return i | DITEM_RESTORE;
+	    return i;
 	}
     }
     return DITEM_SUCCESS;
@@ -716,7 +713,6 @@ diskPartitionNonInteractive(Device *dev)
 		}
 	    }
 	    if (!chunk_info[i]) {
-		dialog_clear();
 		msgConfirm("Unable to find any free space on this disk!");
 		return;
 	    }
@@ -746,7 +742,6 @@ diskPartitionNonInteractive(Device *dev)
 		}
 	    }
 	    if (!chunk_info[i]) {
-		dialog_clear();
 		msgConfirm("Unable to find %d free blocks on this disk!", sz);
 		return;
 	    }
@@ -758,13 +753,11 @@ diskPartitionNonInteractive(Device *dev)
 		    break;
 	    }
 	    if (!chunk_info[i]) {
-		dialog_clear();
 		msgConfirm("Unable to find any existing FreeBSD partitions on this disk!");
 		return;
 	    }
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_PARTITION);
 	    return;
 	}

@@ -479,5 +479,5 @@ tcpMenuSelect(dialogMenuItem *self)
     if (tmp && tmp->private && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 	if (!tmp->init(tmp))
 	    msgConfirm("Initialization of %s device failed.", tmp->name);
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }

@@ -45,14 +45,13 @@ int
 dmenuDisplayFile(dialogMenuItem *tmp)
 {
     systemDisplayHelp((char *)tmp->data);
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }
 
 int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
-    return (dmenuOpenSimple((DMenu *)(tmp->data), FALSE) ? DITEM_SUCCESS : DITEM_FAILURE) |
-	DITEM_RESTORE;
+    return (dmenuOpenSimple((DMenu *)(tmp->data), FALSE) ? DITEM_SUCCESS : DITEM_FAILURE);
 }
 
 int
@@ -72,10 +71,13 @@ dmenuSystemCommand(dialogMenuItem *self)
 int
 dmenuSystemCommandBox(dialogMenuItem *tmp)
 {
+    WINDOW *w = savescr();
+    
     use_helpfile(NULL);
     use_helpline("Select OK to dismiss this dialog");
     dialog_prgbox(tmp->title, (char *)tmp->data, 22, 76, 1, 1);
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
@@ -147,15 +149,12 @@ int
 dmenuISetVariable(dialogMenuItem *tmp)
 {
     char *ans, *var;
-    WINDOW *w = NULL;	/* Keep lint happy */
 
     if (!(var = (char *)tmp->data)) {
 	msgConfirm("Incorrect data field for `%s'!", tmp->title);
 	return DITEM_FAILURE;
     }
-    w = savescr();
     ans = msgGetInput(variable_get(var), tmp->title, 1);
-    restorescr(w);
     if (!ans)
 	return DITEM_FAILURE;
     else if (!*ans)
@@ -275,13 +274,13 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean bu
 
     while (1) {
 	char buf[FILENAME_MAX];
+	WINDOW *w = savescr();
 
 	/* Any helpful hints, put 'em up! */
 	use_helpline(menu->helpline);
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
-
-	/* Pop up that dialog! */
 	dialog_clear_norefresh();
+	/* Pop up that dialog! */
 	if (menu->type & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
 			       menu_height(menu, n), -n, items, (char *)buttons, choice, scroll);
@@ -295,14 +294,18 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean bu
 				    menu_height(menu, n), -n, items, (char *)buttons);
 	else
 	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
-	clearok(stdscr, TRUE);
 	if (exited) {
 	    exited = FALSE;
+	    restorescr(w);
 	    return TRUE;
 	}
-	else if (rval)
+	else if (rval) {
+	    restorescr(w);
 	    return FALSE;
-	else if (menu->type & DMENU_SELECTION_RETURNS)
+	}
+	else if (menu->type & DMENU_SELECTION_RETURNS) {
+	    restorescr(w);
 	    return TRUE;
+	}
     }
 }
