@@ -95,6 +95,10 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para>&man.acct.2; has been changed to open the accounting file in
+      append mode, so that &man.accton.8; can be used to enable
+      accounting to an append-only file.</para>
+
     <para arch="i386" role="historic">The &man.amdpm.4; driver has been added to
       provide access to the system monitoring functions of the AMD 756
       chipset. &merged;</para>
@@ -672,8 +676,10 @@
 	module.</para>
 
       <para arch="i386,pc98" role="historic">The &man.em.4; driver has been added to
-	support NICs based on the Intel 82542, 82543, and 82544
-	Gigabit Ethernet controller chips.  The driver supports
+	support NICs based on the Intel 82542, 82543, 82544, 82545EM,
+	and 82546EB
+	Gigabit Ethernet controller chips.  The driver has VLAN
+	support, and also supports
 	transmit/receive checksum offload and jumbo frames on 82543
 	and 82544-based adapters. &merged;</para>
 
@@ -1471,7 +1477,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	(ACPI), a multi-vendor standard for configuration and power
 	management, has been added.  This functionality has been
 	provided by the <application>Intel ACPI Component
-	Architecture</application> project, as of the ACPI CA 20020404
+	Architecture</application> project, as of the ACPI CA 20020611
 	snapshot.  Some backward compatability for applications using
 	the older APM standard has been provided.</para>
 
@@ -1937,6 +1943,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The system &man.awk.1; now refers to
       <application>BWK awk</application>.</para>
 
+    <para>&man.basename.1; now accept <option>-a</option> and
+      <option>-s</option> flags, which allow it to perform the
+      &man.basename.3; function on multiple files.</para>
+
+    <para>&man.biff.1; now accepts a <option>b</option> argument to
+      enable <quote>bell notification</quote> of new mail (which does
+      not disturb the terminal contents as <command>biff y</command>
+      would).</para>
+
     <para arch="pc98" role="historic">&man.boot98cfg.8;, a PC-98 boot manager
       installation and configuration utility, has been
       added. &merged;</para>
@@ -2083,7 +2098,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       backups. &merged;</para>
 
     <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
-      it to just print out the dump size estimates and exit.</para>
+      it to just print out the dump size estimates and exit. &merged;</para>
 
     <para role="historic">&man.edquota.8; now takes a <option>-f</option> option to
       allow limiting the prototype quota distribution (specified with
@@ -2572,6 +2587,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">mk_cmds(1) and the associated
       <filename>libss</filename> have been removed; they have been
       unused for quite some time. &merged;</para>
+
+    <para>&man.mountd.8; and &man.nfsd.8; have moved from
+      <filename>/sbin</filename> to <filename>/usr/sbin</filename>.</para>
 
     <para role="historic">&man.moused.8; now takes a <option>-a</option> option to
       control mouse acceleration. &merged;</para>
@@ -3141,6 +3159,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-h</option> option to set the size of the history
       buffer. &merged;</para>
 
+    <para>&man.vidcontrol.1; now accepts a <option>-S</option> to
+      allow the user to disable VTY switching.</para>
+
     <para>The default stripe size in &man.vinum.8; has been changed
       from 256KB to 279KB, to spread out superblocks more evenly
       between stripes.</para>
@@ -3283,6 +3304,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">&man.gcc.1; now supports the environment variable
 	<envar>GCC_OPTIONS</envar>, which can hold a set of default
 	options for <application>GCC</application>. &merged;</para>
+
+      <para><application>gdb</application> has been updated to a
+	snapshot of <application>gdb</application> 5.2 from 27 June
+	2002.</para>
 
       <para role="historic"><application>GNATS</application> has been updated to
 	3.113. &merged;</para>
