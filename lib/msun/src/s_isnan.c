@@ -10,6 +10,8 @@
  * ====================================================
  */
 
+/* For binary compat; to be removed in FreeBSD 6.0. */
+
 #ifndef lint
 static char rcsid[] = "$FreeBSD$";
 #endif
@@ -21,6 +23,8 @@ static char rcsid[] = "$FreeBSD$";
 
 #include "math.h"
 #include "math_private.h"
+
+#undef isnan
 
 	int isnan(double x)
 {
