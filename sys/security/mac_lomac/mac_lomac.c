@@ -240,8 +240,6 @@ mac_lomac_auxsingle_in_range(struct mac_lomac *single, struct mac_lomac *range)
 	    &single->ml_auxsingle) &&
 	    mac_lomac_dominate_element(&single->ml_auxsingle,
 	    &range->ml_rangelow));
-
-	return (1);
 }
 
 static int
