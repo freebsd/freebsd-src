@@ -332,7 +332,7 @@ noreplaycheck:
 	taillen = esptail.esp_padlen + sizeof(esptail);
 
 	if (m->m_pkthdr.len < taillen ||
-	    m->m_pkthdr.len - taillen < hlen) {	/* ? */
+	    m->m_pkthdr.len - taillen < off + esplen + ivlen + sizeof(esptail)) {
 		ipseclog((LOG_WARNING,
 		    "bad pad length in IPv4 ESP input: %s %s\n",
 		    ipsec4_logpacketstr(ip, spi), ipsec_logsastr(sav)));
