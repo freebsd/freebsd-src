@@ -1964,12 +1964,12 @@ cpu	EV5</programlisting>
     <sect3>
       <title>AlphaPC 264DP / UP2000</title>
 
-      <para>UP2000 is built by Alpha Processor Inc.</para>
+      <para>UP2000 was built by Alpha Processor Inc.</para>
 
       <para>Features:</para>
         <itemizedlist>
 	  <listitem>
-	    <para>21264 EV6 CPU at 670 MHz</para>
+	    <para>21264 EV6 CPU at 670 or 750 MHz</para>
 	  </listitem>
 	  <listitem>
 	    <para>dual CPU capable</para>
@@ -1988,7 +1988,7 @@ cpu	EV5</programlisting>
 	    <para>21272 core logic chip set (<quote>Tsunami</quote>)</para>
 	  </listitem>
 	  <listitem>
-	    <para>embedded Adaptec AIC7890/91 Wide Ultra SCSI</para>
+	    <para>2 embedded Adaptec AIC7890/91 Wide Ultra2 SCSI chips</para>
 	  </listitem>
 	  <listitem>
 	    <para>2 embedded IDE based on Cypress 82C693 chips</para>
@@ -2019,7 +2019,8 @@ cpu	EV5</programlisting>
       4.0 and later as a datadisk-only SCSI bus.</para>
 
       <para>Busmaster DMA is supported on the first IDE interface
-      only.</para>
+      only. The system can boot from it's IDE hard drives and cdrom 
+      drives.</para>
 
       <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
