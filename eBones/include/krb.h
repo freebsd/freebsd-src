@@ -6,7 +6,7 @@
  * Include file for the Kerberos library.
  *
  *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
- *	$Id: krb.h,v 1.6 1995/09/13 17:23:47 markm Exp $
+ *	$Id: krb.h,v 1.7 1995/10/05 21:29:26 gibbs Exp $
  */
 
 /* Only one time, please */
@@ -447,6 +447,8 @@ int tf_get_cred __P((CREDENTIALS *c));
 void tf_close __P((void));
 
 /* Internal routines */
+int des_set_key_krb __P((des_cblock *inkey, des_key_schedule insched));
+void des_clear_key_krb __P((void));
 int des_read __P((int fd, char *buf, int len));
 int des_write __P((int fd, char *buf, int len));
 int krb_get_tf_realm __P((char *ticket_file, char *realm));
