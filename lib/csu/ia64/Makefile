@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../common
 
-SRCS=		crt1.c crti.S crtn.S
+SRCS=		crt1.S crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 CFLAGS+=	-Wall -Wno-unused \
@@ -13,7 +13,7 @@ all: ${OBJS}
 
 CLEANFILES=	${OBJS}
 
-gcrt1.o: crt1.c
+gcrt1.o: crt1.S
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
 realinstall:
