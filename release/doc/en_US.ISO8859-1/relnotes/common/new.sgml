@@ -325,6 +325,13 @@
       break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
 
+    <para>&man.ftp.1; now supports the <command>epsv4</command> command
+      to switch between using the new EPSV/EPRT and plain old PASV/PORT
+      requests when talking over IPv4.  This command is intended to remedy
+      the problem arising when running &man.ftp.1; through
+      <application>IPFilter</application> or another
+      firewall not supporting the newer FTP requests.</para>
+
     <para>&man.ifconfig.8; now supports a <option>eui64</option>
       command to fill in the lowermost 64 bits of an IPv6 address
       automatically.  This makes &man.prefix.8; obsolete.</para>
