@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.54 1997/04/04 01:30:33 davidg Exp $
+ *	$Id: kern_exec.c,v 1.55 1997/04/04 04:17:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -345,9 +345,10 @@ exec_fail_dealloc:
 		brelse(bp);
 	else if (imgp->image_header != NULL)
 		free((void *)imgp->image_header, M_TEMP);
-	if (ndp->ni_vp)
+	if (ndp->ni_vp) {
 		vrele(ndp->ni_vp);
-	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+		FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+	}
 
 exec_fail:
 	if (imgp->vmspace_destroyed) {
