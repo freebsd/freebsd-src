@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.247 1999/06/15 22:15:10 mckusick Exp $
+ *	$Id: sio.c,v 1.248 1999/06/19 08:14:56 grog Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -69,7 +69,6 @@
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/bus_private.h>
 #include <sys/rman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -640,7 +639,7 @@ sioprobe(dev)
 		devclass_get_devices(sio_devclass, &devs, &count);
 		for (i = 0; i < count; i++) {
 			xdev = devs[i];
-			if (xdev->flags & DF_ENABLED)
+			if (device_is_enabled(xdev))
 				outb(isa_get_port(xdev) + com_mcr, 0);
 		}
 		free(devs, M_TEMP);
