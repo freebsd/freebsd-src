@@ -539,7 +539,7 @@ struct inpcb *
 	 tcp_quench(struct inpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
-int	 tcp_twrespond(struct tcptw *, struct socket *, struct mbuf *, int);
+int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
