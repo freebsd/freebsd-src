@@ -32,14 +32,17 @@
 >>>>>44		lelong		!-1
 # Vorbis RC2 has a bug which puts -1000 in the min/max bitrate fields
 # instead of -1.
+# Vorbis 1.0 uses 0 instead of -1.
 >>>>>>44	lelong		!-1000
->>>>>>>44	lelong		x		>%lu
+>>>>>>>44	lelong		!0
+>>>>>>>>44	lelong		x		>%lu
 >>>>>48		lelong		!-1
 >>>>>>48	lelong		x		~%lu
 >>>>>52		lelong		!-1
->>>>>>52	lelong		!-1000
->>>>>>>52	lelong		x		<%lu
->>>>>48		string		<\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	kbps
+>>>>>>52	lelong		!0
+>>>>>>>52	lelong		!-1000
+>>>>>>>>52	lelong		x		<%lu
+>>>>>48		string		<\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	bps
 # -- Second vorbis header packet - the comments
 # A kludge to read the vendor string.  It's a counted string, not a
 # zero-terminated one, so file(1) can't read it in a generic way.
@@ -67,10 +70,10 @@
 >>>>>>(84.b+120)	string		20011014	(RC2 - Garf tuned v2)
 >>>>>>(84.b+120)	string		20011217	(pre-RC3 CVS)
 >>>>>>(84.b+120)	string		20011231	(RC3)
-# The string has not changed from beta1 to 2 - they are indistinguishable.
-# Then come the comments, again length-counted (and number-counted).
-# Some looping constructs and registers would allow reading them but now
-# it's impossible.  However we can print the number of comments present
-# (skipping by the vendor string length):
-##>>>>(109.l.113)	lelong		0		\b, no comments
-##>>>>(109.l+113)	lelong		>0		\b, %lu comments
+# Some pre-1.0 CVS snapshots still had "Xiphphorus"...
+>>>>>>(84.b+120)	string		>20011231	(pre-1.0 CVS)
+# For the 1.0 release, Xiphophorus is replaced by Xiph.Org
+>>>>(84.b+96)		string/c	Xiph.Org\ libVorbis\ I	\b, created by: Xiph.Org libVorbis I
+>>>>>(84.b+117)		string		>00000000	%.8s
+>>>>>>(84.b+117)	string		<20020717	(pre-1.0 CVS)
+>>>>>>(84.b+117)	string		20020717	(1.0)

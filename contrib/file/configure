@@ -699,7 +699,7 @@ fi
 
 PACKAGE=file
 
-VERSION=3.39
+VERSION=3.40
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -2740,7 +2740,7 @@ EOF
 
 
 
-for ac_func in mmap strerror strtoul mkstemp
+for ac_func in mmap strerror strtoul mkstemp getopt_long
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
 echo "configure:2747: checking for $ac_func" >&5
