@@ -105,6 +105,7 @@ MAN=	aac.4 \
 	nge.4 \
 	null.4 \
 	ohci.4 \
+	orm.4 \
 	pass.4 \
 	pci.4 \
 	pcm.4 \
