@@ -40,14 +40,14 @@
 .Os FreeBSD
 .Sh NAME
 .Nm ng_vjc
-.Nd Van Jacobsen compression netgraph node type
+.Nd Van Jacobson compression netgraph node type
 .Sh SYNOPSIS
 .Fd #include <net/slcompress.h>
 .Fd #include <netgraph/ng_vjc.h>
 .Sh DESCRIPTION
 The
 .Nm vjc
-node type performs Van Jacobsen compression, which is used
+node type performs Van Jacobson compression, which is used
 over PPP, SLIP, and other point-to-point IP connections to
 compress TCP packet headers.  The
 .Dv ip
@@ -64,7 +64,7 @@ This node also supports
 .Dq always pass through
 mode in either direction.
 .Pp
-Van Jacobsen compression only applies to TCP packets.
+Van Jacobson compression only applies to TCP packets.
 Only
 .Dq normal
 (i.e., common case) TCP packets are actually compressed.
@@ -185,7 +185,7 @@ This node shuts down upon receipt of a
 control message, or when all hooks have been disconnected.
 .Sh BUGS
 Because the initialization routine in the kernel implementation of
-Van Jacobsen compression initializes both compression and decompression
+Van Jacobson compression initializes both compression and decompression
 at once, this node does not allow compression and decompression to
 be enabled in separate operations.  In order to enable one when
 the other is already enabled, first both must be disabled, then
@@ -205,7 +205,7 @@ However, this may change in the future.
 .Xr ng_iface 4 ,
 .Xr ngctl 8
 .Rs
-.%A V. Jacobsen
+.%A V. Jacobson
 .%T "Compressing TCP/IP Headers"
 .%O RFC 1144
 .Re
