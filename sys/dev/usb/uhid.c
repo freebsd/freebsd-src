@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.40 2000/10/10 12:37:01 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.43 2001/08/15 00:06:49 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -74,9 +74,13 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
+#include <dev/usb/usbdevs.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/hid.h>
+
+/* Report descriptor for broken Wacom Graphire */
+#include <dev/usb/ugraphire_rdesc.h>
 
 #ifdef UHID_DEBUG
 #define DPRINTF(x)	if (uhiddebug) logprintf x
@@ -180,6 +184,8 @@ USB_MATCH(uhid)
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == NULL || id->bInterfaceClass != UICLASS_HID)
 		return (UMATCH_NONE);
+	if (uaa->matchlvl)
+		return (uaa->matchlvl);
 	return (UMATCH_IFACECLASS_GENERIC);
 }
 
@@ -228,8 +234,23 @@ USB_ATTACH(uhid)
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
 
-	desc = NULL;
-	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_USBDEV);
+	if (uaa->vendor == USB_VENDOR_WACOM &&
+	    uaa->product == USB_PRODUCT_WACOM_GRAPHIRE /* &&
+	    uaa->revision == 0x???? */) { /* XXX should use revision */
+		/* The report descriptor for the Wacom Graphire is broken. */
+		size = sizeof uhid_graphire_report_descr;
+		desc = malloc(size, M_USBDEV, M_NOWAIT);
+		if (desc == NULL)
+			err = USBD_NOMEM;
+		else {
+			err = USBD_NORMAL_COMPLETION;
+			memcpy(desc, uhid_graphire_report_descr, size);
+		}
+	} else {
+		desc = NULL;
+		err = usbd_alloc_report_desc(uaa->iface, &desc, &size,M_USBDEV);
+	}
+
 	if (err) {
 		printf("%s: no report descriptor\n", USBDEVNAME(sc->sc_dev));
 		sc->sc_dying = 1;
