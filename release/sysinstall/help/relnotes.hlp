@@ -25,167 +25,171 @@ Many many bugs fixed and security enhancements made.
 
 KERNEL CHANGES:
 
-The code from 4.4BSD-Lite2 has been (finally) merged.
+o The code from 4.4BSD-Lite2 has been (finally) merged.
 
-The SMP (Symmetric MultiProcessing) branch has been merged.
-The kernel is mostly non-reentrant as yet, but work is under way.
+o The SMP (Symmetric MultiProcessing) branch has been merged.
+  The kernel is mostly non-reentrant as yet, but work is under way.
 
-Secure RPC is now supported (and usable with NFS et al).
+o Secure RPC is now supported (and usable with NFS et al).
 
-Sun's WEBNFS standard is now supported.
+o Sun's WEBNFS standard is now supported.
 
-Use the new if_multiaddrs list for multicast addresses rather than the
-previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
-abominable multi_kludge.
+o Use the new if_multiaddrs list for multicast addresses rather than the
+  previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
+  abominable multi_kludge.
 
-The new if_media selection method for ethernet drivers has been brought
-in, obtained from Jason Thorpe's implementation for NetBSD.
+o The new if_media selection method for ethernet drivers has been brought
+  in, obtained from Jason Thorpe's implementation for NetBSD.
 
-Multi-session ISO-9660 CD-ROMs are now fully supported.  By default, the
-last session will be mounted (including for root mounts).  For non-root
-mounts, mount_cd9660(8) can take an argument to mount a particular
-session instead of the default one.
+o Multi-session ISO-9660 CD-ROMs are now fully supported.  By default, the
+  last session will be mounted (including for root mounts).  For non-root
+  mounts, mount_cd9660(8) can take an argument to mount a particular
+  session instead of the default one.
 
-The UPAGES are gone from the per-process address space which allows
-complete address space and page table sharing by reference count.
+o The UPAGES are gone from the per-process address space which allows
+  complete address space and page table sharing by reference count.
 
-Newly forked child processes return directly to user mode rather than
-return up through the fork() syscall tree.  This eliminates the kernel
-stack copy at fork time and simplifies certain other internal operations. 
-It is also needed to support the removal of the UPAGES.  (The idea for
-this originally came from NetBSD, but we did it for different reasons.)
+o Newly forked child processes return directly to user mode rather than
+  return up through the fork() syscall tree.  This eliminates the kernel
+  stack copy at fork time and simplifies certain other internal operations. 
+  It is also needed to support the removal of the UPAGES.  (The idea for
+  this originally came from NetBSD, but we did it for different reasons.)
 
-vfork() is now fully functional by taking advantage of the new sharing
-semantics and a significant speedup has been measured.  This can be
-disabled via the kern.fast_vfork sysctl variable in case of problems.
-Statically linked binaries from older releases and other BSD platforms
-are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
-popen() implementation.  rfork() also has access to these facilities,
-intended for supporting kernel assisted threads.
+o vfork() is now fully functional by taking advantage of the new sharing
+  semantics and a significant speedup has been measured.  This can be
+  disabled via the kern.fast_vfork sysctl variable in case of problems.
+  Statically linked binaries from older releases and other BSD platforms
+  are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
+  popen() implementation.  rfork() also has access to these facilities,
+  intended for supporting kernel assisted threads.
 
-With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
-Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
-to the kernel, and BSD/OS's contributed dosemu has been ported.
+o With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
+  Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
+  to the kernel, and BSD/OS's contributed dosemu has been ported.
 
-The SA_NOCLDWAIT flags has been implemented, featuring the System V
-option where a process can express its wish to never get zombies or
-SIGCHLD for dead children.
+o The SA_NOCLDWAIT flags has been implemented, featuring the System V
+  option where a process can express its wish to never get zombies or
+  SIGCHLD for dead children.
 
-An implementation of poll(2) is in place, the core of which is derived
-from the NetBSD implementation.  Both the select() and poll() syscalls
-use the poll device, file and vnode ops routines.
+o An implementation of poll(2) is in place, the core of which is derived
+  from the NetBSD implementation.  Both the select() and poll() syscalls
+  use the poll device, file and vnode ops routines.
 
-An implementation of issetugid(2) that is similar to the OpenBSD call
-of the same name.  We set the flag in more cases than OpenBSD - our
-implementation is slightly more paranoid.
+o An implementation of issetugid(2) that is similar to the OpenBSD call
+  of the same name.  We set the flag in more cases than OpenBSD - our
+  implementation is slightly more paranoid.
 
-Async IO is implemented (under non-SMP at this stage) with additional
-support for kernel assisted threads.
+o Async IO is implemented (under non-SMP at this stage) with additional
+  support for kernel assisted threads.
 
-Some other misc syscalls for compatability with other systems: getsid(2),
-setpgid(2), nanosleep(2).
+o Some other misc syscalls for compatability with other systems: getsid(2),
+  setpgid(2), nanosleep(2).
 
-A new syscall signanosleep(2) which is like nanosleep(2), but a specific
-signal mask is used to determine which signals will wake the sleep.  In
-a nutshell this is 'wait for a given set of signals for up to a certain
-amount of time'.
+o A new syscall signanosleep(2) which is like nanosleep(2), but a specific
+  signal mask is used to determine which signals will wake the sleep.  In
+  a nutshell this is 'wait for a given set of signals for up to a certain
+  amount of time'.
 
-sleep(3) and usleep(3) are now implemented in terms of signanosleep(2)
-and now have correct SIGALRM interaction semantics and sleep(3) correctly
-returns the time remaining.  Some programs (notably apache httpd) bogusly
-depend on a sleep() "absorbing" a SIGALRM from a timer that expires during
-the life of the sleep.
+o sleep(3) and usleep(3) are now implemented in terms of signanosleep(2)
+  and now have correct SIGALRM interaction semantics and sleep(3) correctly
+  returns the time remaining.  Some programs (notably apache httpd) bogusly
+  depend on a sleep() "absorbing" a SIGALRM from a timer that expires during
+  the life of the sleep.
 
-An in-kernel linker is implemented and intended to replace the lkm system
-with the bogosity that goes with it.
+o An in-kernel linker is implemented and intended to replace the lkm system
+  with the bogosity that goes with it.
 
-All supported network protocols have been updated to avoid the ``big
-switch'' pr_usrreq(), and to pass a process pointer down to each user
-request that might need process credentials or want to sleep,
-replacing the previous hodgepodge of inspecting curproc (which only
-occasionally did the right thing) and the SS_PRIV socket state flag.
-The latter has now been eliminated, along with the SO_PRIVSTATE socket
-option which cleared it.  Protocols are now also given the opportunity
-to override the generic send, receive, and poll routines, which will
-make it possible for a more efficient, protocol-specific
-implementation of these entry points in later releases.  Finally, many
-parts of the network code have been modified to cease storing socket
-addresses and other metainformation in mbufs, in preparation for the
-eventual elimination thereof.  The mechanism by which socket addresses
-are now returned is still highly subject to change as we experiment to
-discover the most efficient method.
+o All supported network protocols have been updated to avoid the ``big
+  switch'' pr_usrreq(), and to pass a process pointer down to each user
+  request that might need process credentials or want to sleep,
+  replacing the previous hodgepodge of inspecting curproc (which only
+  occasionally did the right thing) and the SS_PRIV socket state flag.
+  The latter has now been eliminated, along with the SO_PRIVSTATE socket
+  option which cleared it.  Protocols are now also given the opportunity
+  to override the generic send, receive, and poll routines, which will
+  make it possible for a more efficient, protocol-specific
+  implementation of these entry points in later releases.  Finally, many
+  parts of the network code have been modified to cease storing socket
+  addresses and other metainformation in mbufs, in preparation for the
+  eventual elimination thereof.  The mechanism by which socket addresses
+  are now returned is still highly subject to change as we experiment to
+  discover the most efficient method.
 
-Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
-REQUEST packets can now be disabled via sysctl.  The netstat program
-will print out statistics on how many times this happens.
+o Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
+  REQUEST packets can now be disabled via sysctl.  The netstat program
+  will print out statistics on how many times this happens.
 
-It is possible to compile in a font for syscons.
+o It is possible to compile in a font for syscons.
 
-The bootblocks can set VESA videomode 0x102 (800x600x16) before loading
-the kernel, this allows XFree86 to work in this resolution on most 
-moderately recent graphics hardware, including many laptops.
-A set of patches are making their way to -current that allows syscons
-to operate in this mode too;  contact phk@FreeBSD.org.
+o The bootblocks can set VESA videomode 0x102 (800x600x16) before loading
+  the kernel, this allows XFree86 to work in this resolution on most 
+  moderately recent graphics hardware, including many laptops.
+  A set of patches are making their way to -current that allows syscons
+  to operate in this mode too;  contact phk@FreeBSD.org.
 
-A subtle and seldom bug in ffs has been fixed.
+o A subtle and seldom bug in ffs has been fixed.
 
-The VFS name cache has been reworked to be more accountable and efficient.
+o The VFS name cache has been reworked to be more accountable and efficient.
 
-The generic part of VOP_LOOKUP() has been put it in system-wide function
-which filesystems can rely on for the canonical stuff.
+o The generic part of VOP_LOOKUP() has been put it in system-wide function
+  which filesystems can rely on for the canonical stuff.
 
-Vnode freelist handling has been hauled over.  Vnodes are only on the
-freelist if nobody care about them.
+o Vnode freelist handling has been hauled over.  Vnodes are only on the
+  freelist if nobody care about them.
 
-The kernel provides assistance to getcwd() from data stored in the name
-cache if possible.
+o The kernel provides assistance to getcwd() from data stored in the name
+  cache if possible.
 
-An interrupt driven configuration hook mechanism has been implemented.
-This allows drivers to postpone part of their configuration until after
-interrupts are fully enabled.  This speeds booting because busy-waiting
-is avoided for things like sub device probing (eg: SCSI bus probes).
+o An interrupt driven configuration hook mechanism has been implemented.
+  This allows drivers to postpone part of their configuration until after
+  interrupts are fully enabled.  This speeds booting because busy-waiting
+  is avoided for things like sub device probing (eg: SCSI bus probes).
 
-The timeout(9) system in the kernel has been overhauled.  This gives
-O(1) insertion and removal of callouts and an O(hash chain length)
-amount of work to be performed in softclock.  The original paper is at:
+o The timeout(9) system in the kernel has been overhauled.  This gives
+  O(1) insertion and removal of callouts and an O(hash chain length)
+  amount of work to be performed in softclock.  The original paper is at:
 	http://www.cs.berkeley.edu/~amc/research/timer/ 
 
-Changes in driver buffer queuing to deal with ordered transactions.  This
-is intended for sequencing data and metadata writes in the filesystem code
-once fully supported.
+o Changes in driver buffer queuing to deal with ordered transactions.  This
+  is intended for sequencing data and metadata writes in the filesystem code
+  once fully supported.
 
-EISA Shared interrupts are now supported, working with the framework
-originally for supporting PCI shared interrupts.
+o EISA Shared interrupts are now supported, working with the framework
+  originally for supporting PCI shared interrupts.
 
-Support for the Comtrol Rocketport card.
+o Support for the Comtrol Rocketport card.
 
-New Plug and Play (PnP) support that allows you to (re)configure PnP
-devcies.  Also support for modems being detected by the PnP part and
-automaticly attached.
+o New Plug and Play (PnP) support that allows you to (re)configure PnP
+  devcies.  Also support for modems being detected by the PnP part and
+  automaticly attached.
 
-Import of new sound code from Luigi Rizzo.  This code is still being
-developed, but has support for a number of different cards.
+o Import of new sound code from Luigi Rizzo.  This code is still being
+  developed, but has support for a number of different cards.
 
-The psm, mse and sysmouse drivers are improved to provide better mouse
-support.  In particular, the psm driver now supports various ``wheeled''
-mice.
+o The psm, mse and sysmouse drivers are improved to provide better mouse
+  support.  In particular, the psm driver now supports various ``wheeled''
+  mice.
+
+o Added support for SMC EtherPower II 10/100 Fast Ethernet card
+  (aka SMC9432TX based on SMC83c170 EPIC chip).
 
 
 SECURITY CHANGES:
 
-7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
-8/22	buffer overflows in tip corrected (benign since tip isn't
+97/7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
+97/8/22	buffer overflows in tip corrected (benign since tip isn't
 	set[ug]id)
-8/26	buffer overflow in glob fixed, no know exploits
-8/27	vacation security problem with sendmail corrected (SNI)
-8/29	inetd sleeps less when children exit, making DoS attacks much
+97/8/26	buffer overflow in glob fixed, no know exploits
+97/8/27	vacation security problem with sendmail corrected (SNI)
+97/8/29	inetd sleeps less when children exit, making DoS attacks much
 	harder.
-8/29	fts now race-proof and find -execdir added (-current only)
-8/31	games setuid -> setgid.  Makes any games exploits benign (only
+97/8/29	fts now race-proof and find -execdir added (-current only)
+97/8/31	games setuid -> setgid.  Makes any games exploits benign (only
 	score files vulnerable).  Please report any problems to
 	eivind@FreeBSD.org (score-file ownership problems are known)
-12/3	Add Intel's suggested fix for the F00F bug.  If you don't have
+97/12/3	Add Intel's suggested fix for the F00F bug.  If you don't have
 	a Pentium, the NO_F00F_HACK kernel option will disable it.
+98/1/20 More robust protection against LAND attacks now incorporated.
 
 The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
 also believed to be fixed.
@@ -348,7 +352,7 @@ AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
-based clones.  SMC Elite Ultra is also supported.
+based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
