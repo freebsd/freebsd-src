@@ -41,17 +41,10 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#ifdef sunos
-#include <sys/vnode.h>
 
-#include <ufs/fs.h>
-#include <ufs/fsdir.h>
-#include <ufs/inode.h>
-#else
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#endif
 
 #include <protocols/dumprestore.h>
 
@@ -89,7 +82,7 @@ static	int searchdir __P((ino_t ino, daddr_t blkno, long size, long filesize,
  */
 long
 blockest(dp)
-	register struct dinode *dp;
+	struct dinode *dp;
 {
 	long blkest, sizeest;
 
@@ -145,9 +138,9 @@ mapfiles(maxino, tapesize)
 	ino_t maxino;
 	long *tapesize;
 {
-	register int mode;
-	register ino_t ino;
-	register struct dinode *dp;
+	int mode;
+	ino_t ino;
+	struct dinode *dp;
 	int anydirskipped = 0;
 
 	for (ino = ROOTINO; ino < maxino; ino++) {
@@ -202,10 +195,10 @@ mapdirs(maxino, tapesize)
 	ino_t maxino;
 	long *tapesize;
 {
-	register struct	dinode *dp;
-	register int i, isdir, nodump;
-	register char *map;
-	register ino_t ino;
+	struct	dinode *dp;
+	int i, isdir, nodump;
+	char *map;
+	ino_t ino;
 	struct dinode di;
 	long filesize;
 	int ret, change = 0;
@@ -279,7 +272,7 @@ dirindir(ino, blkno, ind_level, filesize, tapesize, nodump)
 	int nodump;
 {
 	int ret = 0;
-	register int i;
+	int i;
 	daddr_t	idblk[MAXNINDIR];
 
 	bread(fsbtodb(sblock, blkno), (char *)idblk, (int)sblock->fs_bsize);
@@ -315,14 +308,14 @@ static int
 searchdir(ino, blkno, size, filesize, tapesize, nodump)
 	ino_t ino;
 	daddr_t blkno;
-	register long size;
+	long size;
 	long filesize;
 	long *tapesize;
 	int nodump;
 {
-	register struct direct *dp;
-	register struct dinode *ip;
-	register long loc, ret = 0;
+	struct direct *dp;
+	struct dinode *ip;
+	long loc, ret = 0;
 	char dblk[MAXBSIZE];
 
 	bread(fsbtodb(sblock, blkno), dblk, (int)size);
@@ -378,7 +371,7 @@ searchdir(ino, blkno, size, filesize, tapesize, nodump)
  */
 void
 dumpino(dp, ino)
-	register struct dinode *dp;
+	struct dinode *dp;
 	ino_t ino;
 {
 	int ind_level, cnt;
@@ -493,7 +486,7 @@ blksout(blkp, frags, ino)
 	int frags;
 	ino_t ino;
 {
-	register daddr_t *bp;
+	daddr_t *bp;
 	int i, j, count, blks, tbperdb;
 
 	blks = howmany(frags * sblock->fs_fsize, TP_BSIZE);
@@ -531,7 +524,7 @@ dumpmap(map, type, ino)
 	int type;
 	ino_t ino;
 {
-	register int i;
+	int i;
 	char *cp;
 
 	spcl.c_type = type;
@@ -548,7 +541,7 @@ void
 writeheader(ino)
 	ino_t ino;
 {
-	register int32_t sum, cnt, *lp;
+	int32_t sum, cnt, *lp;
 
 	spcl.c_inumber = ino;
 	spcl.c_magic = NFS_MAGIC;

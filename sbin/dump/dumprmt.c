@@ -43,13 +43,8 @@ static const char rcsid[] =
 #include <sys/mtio.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#ifdef sunos
-#include <sys/vnode.h>
 
-#include <ufs/inode.h>
-#else
 #include <ufs/ufs/dinode.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -141,8 +136,8 @@ rmtconnaborted()
 void
 rmtgetconn()
 {
-	register char *cp;
-	register const char *rmt;
+	char *cp;
+	const char *rmt;
 	static struct servent *sp = NULL;
 	static struct passwd *pwd = NULL;
 	char *tuser;
@@ -209,8 +204,8 @@ static int
 okname(cp0)
 	char *cp0;
 {
-	register char *cp;
-	register int c;
+	char *cp;
+	int c;
 
 	for (cp = cp0; *cp; cp++) {
 		c = *cp;
@@ -319,8 +314,8 @@ struct	mtget mts;
 struct mtget *
 rmtstatus()
 {
-	register int i;
-	register char *cp;
+	int i;
+	char *cp;
 
 	if (rmtstate != TS_OPEN)
 		return (NULL);
@@ -356,7 +351,7 @@ static int
 rmtreply(cmd)
 	char *cmd;
 {
-	register char *cp;
+	char *cp;
 	char code[30], emsg[BUFSIZ];
 
 	rmtgets(code, sizeof (code));
@@ -397,7 +392,7 @@ rmtgets(line, len)
 	char *line;
 	int len;
 {
-	register char *cp = line;
+	char *cp = line;
 
 	while (len > 1) {
 		*cp = rmtgetb();
