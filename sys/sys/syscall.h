@@ -303,4 +303,5 @@
 #define	SYS_kse_new	381
 #define	SYS_thread_wakeup	382
 #define	SYS_kse_yield	383
-#define	SYS_MAXSYSCALL	390
+#define	SYS_kenv	390
+#define	SYS_MAXSYSCALL	391

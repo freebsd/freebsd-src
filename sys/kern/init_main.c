@@ -528,9 +528,12 @@ start_init(void *dummy)
 	if ((var = getenv("init_path")) != NULL) {
 		strncpy(init_path, var, sizeof init_path);
 		init_path[sizeof init_path - 1] = 0;
+		freeenv(var);
 	}
-	if ((var = getenv("kern.fallback_elf_brand")) != NULL)
+	if ((var = getenv("kern.fallback_elf_brand")) != NULL) {
 		fallback_elf_brand = strtol(var, NULL, 0);
+		freeenv(var);
+	}
 	
 	for (path = init_path; *path != '\0'; path = next) {
 		while (*path == ':')

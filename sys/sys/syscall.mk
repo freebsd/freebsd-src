@@ -252,4 +252,5 @@ MIASM =  \
 	kse_wakeup.o \
 	kse_new.o \
 	thread_wakeup.o \
-	kse_yield.o
+	kse_yield.o \
+	kenv.o
