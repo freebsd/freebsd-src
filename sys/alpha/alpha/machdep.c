@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.47 1999/07/06 17:48:16 peter Exp $
+ *	$Id: machdep.c,v 1.48 1999/07/08 06:05:38 mckusick Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1148,109 +1148,6 @@ DELAY(int n)
 	while (N > 0)				/* XXX */
 		N -= 3;				/* XXX */
 #endif
-}
-
-/*
- * The following primitives manipulate the run queues.  _whichqs tells which
- * of the 32 queues _qs have processes in them.  Setrunqueue puts processes
- * into queues, Remrunqueue removes them from queues.  The running process is
- * on no queue, other processes are on a queue related to p->p_priority,
- * divided by 4 actually to shrink the 0-127 range of priorities into the 32
- * available queues.
- */
-
-#define P_FORW(p)	((struct proc*) (p)->p_procq.tqe_next)
-#define P_BACK(p)	((struct proc*) (p)->p_procq.tqe_prev)
-
-#define INSRQ(qs, whichqs, pri, p)		\
-do {						\
-	whichqs |= (1 << pri);			\
-	P_FORW(p) = (struct proc *)&qs[pri];	\
-	P_BACK(p) = qs[pri].ph_rlink;		\
-	P_FORW(P_BACK(p)) = p;			\
-	qs[pri].ph_rlink = p;			\
-} while(0)
-
-#define REMRQ(qs, whichqs, pri, p)			\
-do {							\
-	if (!(whichqs & (1 << pri)))			\
-		panic(#whichqs);			\
-	P_FORW(P_BACK(p)) = P_FORW(p);			\
-	P_BACK(P_FORW(p)) = P_BACK(p);			\
-	P_BACK(p) = NULL;				\
-	if ((struct proc *)&qs[pri] == qs[pri].ph_link)	\
-		whichqs &= ~(1 << pri);			\
-} while(0)
-
-/*
- * setrunqueue(p)
- *	proc *p;
- *
- * Call should be made at splclock(), and p->p_stat should be SRUN.
- */
-void
-setrunqueue(p)
-	struct proc *p;
-{
-	int pri;
-
-#if 0
-	/* firewall: p->p_back must be NULL */
-	if (p->p_procq.tqe_prev != NULL)
-		panic("setrunqueue");
-#endif
-
-	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
-		/* normal priority */
-		pri = p->p_priority >> 2;
-		INSRQ(qs, whichqs, pri, p);
-	} else {
-		/* realtime or idle */
-		pri = p->p_rtprio.prio;
-		if (p->p_rtprio.type == RTP_PRIO_REALTIME
-#ifdef P1003_1B
-		    || p->p_rtprio.type == RTP_PRIO_FIFO
-#endif
-		    ) {
-			/* realtime priority */
-			INSRQ(rtqs, whichrtqs, pri, p);
-		} else {
-			/* idle priority */
-			INSRQ(idqs, whichidqs, pri, p);
-		}
-	}
-}
-
-/*
- * remrq(p)
- *
- * Call should be made at splclock().
- */
-void
-remrq(p)
-	struct proc *p;
-{
-	int pri;
-
-	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
-		/* normal priority */
-		pri = p->p_priority >> 2;
-		REMRQ(qs, whichqs, pri, p);
-	} else {
-		/* realtime or idle */
-		pri = p->p_rtprio.prio;
-		if (p->p_rtprio.type == RTP_PRIO_REALTIME
-#ifdef P1003_1B
-		    || p->p_rtprio.type == RTP_PRIO_FIFO
-#endif
-		    ) {
-			/* realtime priority */
-			REMRQ(rtqs, whichrtqs, pri, p);
-		} else {
-			/* idle priority */
-			REMRQ(idqs, whichidqs, pri, p);
-		}
-	}
 }
 
 /*
