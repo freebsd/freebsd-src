@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.198 1999/05/30 16:52:29 phk Exp $
+ *	$Id: wd.c,v 1.199 1999/05/31 11:26:36 phk Exp $
  */
 
 /* TODO:
@@ -79,12 +79,12 @@
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/malloc.h>
+#include <sys/cons.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
-#include <machine/cons.h>
 #include <machine/md_var.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

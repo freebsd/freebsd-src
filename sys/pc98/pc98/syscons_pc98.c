@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: syscons_pc98.c,v 1.2 1999/06/24 12:13:08 kato Exp $
+ * $Id: syscons_pc98.c,v 1.3 1999/07/03 08:50:45 kato Exp $
  */
 
 #include "sc.h"
@@ -37,7 +37,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/cons.h>
+#include <sys/cons.h>
 #include <machine/console.h>
 #include <machine/clock.h>
 

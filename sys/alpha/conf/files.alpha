@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.22 1999/06/22 14:13:18 yokota Exp $
+#	$Id: files.alpha,v 1.23 1999/07/03 19:19:30 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -36,7 +36,6 @@ alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
 alpha/alpha/busdma_machdep.c	standard
 alpha/alpha/sgmap.c		standard
-alpha/alpha/cons.c		standard
 alpha/alpha/prom.c		standard
 alpha/alpha/promcons.c		standard
 alpha/alpha/prom_disp.s		standard

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.356 1999/07/19 23:36:30 peter Exp $
+ *	$Id: machdep.c,v 1.357 1999/07/29 01:49:18 msmith Exp $
  */
 
 #include "apm.h"
@@ -97,6 +97,7 @@
 
 #include <sys/user.h>
 #include <sys/exec.h>
+#include <sys/cons.h>
 
 #include <ddb/ddb.h>
 
@@ -106,7 +107,6 @@
 #include <machine/reg.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
-#include <machine/cons.h>
 #include <machine/bootinfo.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>

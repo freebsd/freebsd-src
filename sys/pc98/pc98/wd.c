@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.83 1999/05/30 16:53:26 phk Exp $
+ *	$Id: wd.c,v 1.84 1999/05/31 11:28:44 phk Exp $
  */
 
 /* TODO:
@@ -84,7 +84,7 @@
 #endif /*DEVFS*/
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
-#include <machine/cons.h>
+#include <sys/cons.h>
 #include <machine/md_var.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>

@@ -42,12 +42,11 @@
 #include <vm/vm_map.h>
 #include <sys/proc.h>
 #include <sys/user.h>
+#include <sys/cons.h>
 
 #include <machine/rpb.h>
 #include <machine/prom.h>
 #include <machine/vmparam.h>
-
-#include <machine/cons.h>
 
 /* XXX this is to fake out the console routines, while booting. */
 struct consdev promcons = { NULL, NULL, promcngetc, promcncheckc, promcnputc,
