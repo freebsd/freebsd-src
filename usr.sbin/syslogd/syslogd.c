@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.38 1998/07/06 20:28:08 bde Exp $";
+	"$Id: syslogd.c,v 1.39 1998/07/22 06:15:19 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -863,10 +863,10 @@ fprintlog(f, flags, msg)
 			l = snprintf(line, sizeof line - 1,
 			    "<%d>%.15s Forwarded from %s: %s",
 			    f->f_prevpri, iov[0].iov_base, f->f_prevhost,
-			    iov[4].iov_base);
+			    iov[5].iov_base);
 		else
 			l = snprintf(line, sizeof line - 1, "<%d>%.15s %s",
-			     f->f_prevpri, iov[0].iov_base, iov[4].iov_base);
+			     f->f_prevpri, iov[0].iov_base, iov[5].iov_base);
 		if (l > MAXLINE)
 			l = MAXLINE;
 		if ((finet >= 0) &&
