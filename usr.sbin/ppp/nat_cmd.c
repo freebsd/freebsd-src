@@ -543,11 +543,17 @@ nat_LayerPull(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
 
     case PKT_ALIAS_UNRESOLVED_FRAGMENT:
       /* Save the data for later */
-      fptr = malloc(bp->m_len);
-      bp = mbuf_Read(bp, fptr, bp->m_len);
-      PacketAliasSaveFragment(fptr);
-      log_Printf(LogDEBUG, "Store another frag (%lu) - now %d\n",
-                 (unsigned long)((struct ip *)fptr)->ip_id, ++gfrags);
+      if ((fptr = malloc(bp->m_len)) == NULL) {
+	log_Printf(LogWARN, "nat_LayerPull: Dropped unresolved fragment -"
+		   " out of memory!\n");
+	m_freem(bp);
+	bp = NULL;
+      } else {
+	bp = mbuf_Read(bp, fptr, bp->m_len);
+	PacketAliasSaveFragment(fptr);
+	log_Printf(LogDEBUG, "Store another frag (%lu) - now %d\n",
+		   (unsigned long)((struct ip *)fptr)->ip_id, ++gfrags);
+      }
       break;
 
     case PKT_ALIAS_FOUND_HEADER_FRAGMENT:
