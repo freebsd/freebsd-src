@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.39 1997/06/13 03:59:35 brian Exp $
+.\" $Id: ppp.8,v 1.40 1997/06/16 13:52:10 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1146,29 +1146,39 @@ set ifaddr 10.10.10.10/0 10.10.11.11/0 255.255.255.0
 .It
 In most cases, your ISP will also be your default router.  If this is
 the case, add the lines
+
 .Bd -literal -offset indent
 delete ALL
 add 0 0 10.10.11.11
 .Ed
+
 .Pp
 to
 .Pa ppp.conf .
 .Pp
 This tells
 .Nm
-to delete all routing entries already made by
-.Nm ,
-then to add a default route to HISADDR.  HISADDR is a macro meaning the
-"other side"s IP number.
+to delete all non-direct routing entries for the tun interface that
+.Nm
+is running on, then to add a default route to 10.10.11.11.
 .Pp
 If you're using dynamic IP numbers, you must also put these two lines
 in the
 .Pa ppp.linkup
-file.  Then, once the link has been established and
+file:
+
+.Bd -literal -offset indent
+delete ALL
+add 0 0 HISADDR
+.Ed
+
+HISADDR is a macro meaning the "other side"s IP number, and is
+available once an IP number has been agreed (using LCP).
+Now, once a connection is established,
 .Nm ppp
-knows the actual IP numbers in use, all previous (and probably incorrect)
-entries are deleted and a default to the correct IP number is added.  Use
-the same label as the one used in
+will delete all non-direct interface routes, and add a default route
+pointing at the peers IP number.  You should use the same label as the
+one used in
 .Pa ppp.conf .
 .Pp
 If commands are being typed interactively, the only requirement is
@@ -1385,9 +1395,13 @@ Close the current connection (but don't quit).
 .It delete ALL | dest [gateway [mask]]
 If
 .Dq ALL
-is specified, all entries in the routing table created by
+is specified, all non-direct entries in the routing for the interface
+that
 .Nm
-are deleted.  Otherwise, any existing route with the given
+is using are deleted.  This means all entries for tunX, except the entry
+representing the actual link.  When
+.Dq ALL
+is not used, any existing route with the given
 .Dq dest ,
 destination network
 .Dq mask
