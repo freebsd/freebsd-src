@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: kdump.c,v 1.13 1999/06/16 18:46:40 dt Exp $";
+	"$Id: kdump.c,v 1.14 1999/06/26 07:31:13 bde Exp $";
 #endif /* not lint */
 
 #define KERNEL
@@ -289,6 +289,14 @@ ktrsyscall(ktr)
 #ifdef PT_SETFPREGS
 				else if (*ip == PT_SETFPREGS)
 					(void)printf("(%s", "PT_SETFPREGS");
+#endif
+#ifdef PT_GETDBREGS
+				else if (*ip == PT_GETDBREGS)
+					(void)printf("(%s", "PT_GETDBREGS");
+#endif
+#ifdef PT_SETDBREGS
+				else if (*ip == PT_SETDBREGS)
+					(void)printf("(%s", "PT_SETDBREGS");
 #endif
 				else
 					(void)printf("(%ld", (long)*ip);
