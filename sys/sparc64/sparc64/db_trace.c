@@ -65,8 +65,6 @@ static db_varfcn_t db_show_local7;
 
 static int db_print_trap(struct trapframe *);
 
-extern char tl1_trap[];
-extern char tl0_trap[];
 extern char _start[];
 extern char _end[];
 
@@ -148,8 +146,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 			db_symbol_values(sym, &name, &value);
 		if (name == NULL)
 			name = "(null)";
-		if (value == (u_long)tl1_trap ||
-		    value == (u_long)tl0_trap) {
+		if (bcmp(name, "tl0_", 4) == 0 ||
+		    bcmp(name, "tl1_", 4) == 0) {
 			nfp = db_get_value((db_addr_t)&fp->f_fp,
 			    sizeof(u_long), FALSE) + SPOFF;
 			tf = (struct trapframe *)(nfp + sizeof(*fp));
