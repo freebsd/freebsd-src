@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.83 1996/08/28 18:45:09 bde Exp $
+ * $Id: tty.c,v 1.84 1996/08/31 16:52:26 bde Exp $
  */
 
 /*-
@@ -273,9 +273,10 @@ ttyclose(tp)
 }
 
 /* Is 'c' a line delimiter ("break" character)? */
-#define	TTBREAKC(c)							\
+#define	TTBREAKC(c, lflag)							\
 	((c) == '\n' || (((c) == cc[VEOF] ||				\
-	(c) == cc[VEOL] || (c) == cc[VEOL2]) && (c) != _POSIX_VDISABLE))
+	  (c) == cc[VEOL] || ((c) == cc[VEOL2] && lflag & IEXTEN)) &&	\
+	 (c) != _POSIX_VDISABLE))
 
 /*
  * Process input of a single character received on a tty.
@@ -325,14 +326,15 @@ ttyinput(c, tp)
 	err = (ISSET(c, TTY_ERRORMASK));
 	if (err) {
 		CLR(c, TTY_ERRORMASK);
-		if (ISSET(err, TTY_BI)) { /* Break. */
+		if (ISSET(err, TTY_BI)) {
 			if (ISSET(iflag, IGNBRK))
 				return (0);
-			else if (ISSET(iflag, BRKINT) &&
-			    ISSET(lflag, ISIG) &&
-			    (cc[VINTR] != _POSIX_VDISABLE))
-				c = cc[VINTR];
-			else if (ISSET(iflag, PARMRK))
+			if (ISSET(iflag, BRKINT)) {
+				ttyflush(tp, FREAD | FWRITE);
+				pgsignal(tp->t_pgrp, SIGINT, 1);
+				goto endcase;
+			}
+			if (ISSET(iflag, PARMRK))
 				goto parmrk;
 		} else if ((ISSET(err, TTY_PE) && ISSET(iflag, INPCK))
 			|| ISSET(err, TTY_FE)) {
@@ -491,7 +493,7 @@ parmrk:
 		/*
 		 * word erase (^W)
 		 */
-		if (CCEQ(cc[VWERASE], c)) {
+		if (CCEQ(cc[VWERASE], c) && ISSET(lflag, IEXTEN)) {
 			int ctype;
 
 			/*
@@ -530,14 +532,14 @@ parmrk:
 		/*
 		 * reprint line (^R)
 		 */
-		if (CCEQ(cc[VREPRINT], c)) {
+		if (CCEQ(cc[VREPRINT], c) && ISSET(lflag, IEXTEN)) {
 			ttyretype(tp);
 			goto endcase;
 		}
 		/*
 		 * ^T - kernel info and generate SIGINFO
 		 */
-		if (CCEQ(cc[VSTATUS], c)) {
+		if (CCEQ(cc[VSTATUS], c) && ISSET(lflag, IEXTEN)) {
 			if (ISSET(lflag, ISIG))
 				pgsignal(tp->t_pgrp, SIGINFO, 1);
 			if (!ISSET(lflag, NOKERNINFO))
@@ -571,7 +573,7 @@ input_overflow:
 			ttyecho(c, tp);
 			goto endcase;
 		}
-		if (TTBREAKC(c)) {
+		if (TTBREAKC(c, lflag)) {
 			tp->t_rocount = 0;
 			catq(&tp->t_rawq, &tp->t_canq);
 			ttwakeup(tp);
@@ -736,10 +738,12 @@ ttioctl(tp, cmd, data, flag)
 	case  TIOCSETP:
 	case  TIOCSLTC:
 #endif
-		while (isbackground(curproc, tp) &&
-		    p->p_pgrp->pg_jobc && (p->p_flag & P_PPWAIT) == 0 &&
+		while (isbackground(p, tp) &&
+		    (p->p_flag & P_PPWAIT) == 0 &&
 		    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
 		    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
+			if (p->p_pgrp->pg_jobc == 0)
+				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
 			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, "ttybg1",
 					 0);
@@ -1154,8 +1158,10 @@ ttyflush(tp, rw)
 #if 0
 again:
 #endif
-	if (rw & FWRITE)
+	if (rw & FWRITE) {
+		FLUSHQ(&tp->t_outq);
 		CLR(tp->t_state, TS_TTSTOP);
+	}
 #ifdef sun4c						/* XXX */
 	(*tp->t_stop)(tp, rw);
 #else
@@ -1627,7 +1633,8 @@ slowcase:
 		/*
 		 * delayed suspend (^Y)
 		 */
-		if (CCEQ(cc[VDSUSP], c) && ISSET(lflag, ISIG)) {
+		if (CCEQ(cc[VDSUSP], c) &&
+		    ISSET(lflag, IEXTEN | ISIG) == (IEXTEN | ISIG)) {
 			pgsignal(tp->t_pgrp, SIGTSTP, 1);
 			if (first) {
 				error = ttysleep(tp, &lbolt, TTIPRI | PCATCH,
@@ -1665,7 +1672,7 @@ slowcase:
 		 * In canonical mode check for a "break character"
 		 * marking the end of a "line of input".
 		 */
-		if (ISSET(lflag, ICANON) && TTBREAKC(c))
+		if (ISSET(lflag, ICANON) && TTBREAKC(c, lflag))
 			break;
 		first = 0;
 	}
@@ -1765,8 +1772,11 @@ loop:
 	if (isbackground(p, tp) &&
 	    ISSET(tp->t_lflag, TOSTOP) && (p->p_flag & P_PPWAIT) == 0 &&
 	    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
-	    (p->p_sigmask & sigmask(SIGTTOU)) == 0 &&
-	     p->p_pgrp->pg_jobc) {
+	    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
+		if (p->p_pgrp->pg_jobc == 0) {
+			error = EIO;
+			goto out;
+		}
 		pgsignal(p->p_pgrp, SIGTTOU, 1);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg4", 0);
 		if (error)
