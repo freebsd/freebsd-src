@@ -1,8 +1,0 @@
-#	@(#)BSD-OS	8.8	(Berkeley)	6/3/1998
-define(`confMAPDEF', `-DNEWDB -DMAP_REGEX')
-define(`confENVDEF', `-DNETISO')
-define(`confLIBS', `-lutil -lkvm')
-define(`confOPTIMIZE', `-O2')
-define(`confMAN1EXT', `0')   
-define(`confMAN5EXT', `0') 
-define(`confMAN8EXT', `0')  
