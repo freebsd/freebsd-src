@@ -416,7 +416,7 @@ char **argv;
 		else if (strcmp("-s", argv[i]) == 0)
 		        ypsecuremode++;
 		else if (strcmp("-S", argv[i]) == 0 && argc > i)
-			yp_restricted_mode(argv[i+1]);
+			yp_restricted_mode(argv[++i]);
 		else if (strcmp("-m", argv[i]) == 0)
 			yp_manycast++;
 		else
