@@ -20,6 +20,7 @@ PRECIOUSLIB=	yes
 .include "${.CURDIR}/gmon/Makefile.inc"
 .include "${.CURDIR}/locale/Makefile.inc"
 .include "${.CURDIR}/net/Makefile.inc"
+.include "${.CURDIR}/nls/Makefile.inc"
 .include "${.CURDIR}/quad/Makefile.inc"
 .include "${.CURDIR}/regex/Makefile.inc"
 .include "${.CURDIR}/stdio/Makefile.inc"
