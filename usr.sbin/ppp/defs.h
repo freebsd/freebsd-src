@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.16 1997/06/13 02:07:29 brian Exp $
+ * $Id: defs.h,v 1.17 1997/06/23 23:10:09 brian Exp $
  *
  *	TODO:
  */
@@ -37,14 +37,14 @@
  *  Check follwiing definitions for your machine envirinment
  */
 #ifdef __FreeBSD__
-#define	MODEM_DEV	"/dev/cuaa1"		/* name of tty device */
-#define	BASE_MODEM_DEV	"cuaa1"			/* name of base tty device */
+#define	MODEM_DEV	"/dev/cuaa1"	/* name of tty device */
+#define	BASE_MODEM_DEV	"cuaa1"	/* name of base tty device */
 #else
-#define	MODEM_DEV	"/dev/tty01"		/* name of tty device */
-#define	BASE_MODEM_DEV	"tty01"			/* name of base tty device */
+#define	MODEM_DEV	"/dev/tty01"	/* name of tty device */
+#define	BASE_MODEM_DEV	"tty01"	/* name of base tty device */
 #endif
-#define MODEM_SPEED	B38400			/* tty speed */
-#define	SERVER_PORT	3000			/* Base server port no. */
+#define MODEM_SPEED	B38400	/* tty speed */
+#define	SERVER_PORT	3000	/* Base server port no. */
 
 #define	MODEM_CTSRTS	TRUE	/* Default (true): use CTS/RTS signals */
 #define	RECONNECT_TIMER	3	/* Default timer for carrier loss */
@@ -99,4 +99,4 @@ char *dstsystem;
 #define	FALSE 	(0)
 #endif
 
-#endif	/* _DEFS_H_ */
+#endif				/* _DEFS_H_ */

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.23 1997/08/20 23:47:53 brian Exp $
+ * $Id: vars.h,v 1.24 1997/08/21 16:21:39 brian Exp $
  *
  *	TODO:
  */
@@ -27,7 +27,7 @@
 
 struct confdesc {
   char *name;
-  int  myside, hisside;
+  int myside, hisside;
 };
 
 #define	CONF_DISABLE	0
@@ -51,44 +51,44 @@ struct confdesc {
 #define	Enabled(x)	(pppConfs[x].myside & CONF_ENABLE)
 #define	Acceptable(x)	(pppConfs[x].hisside & CONF_ACCEPT)
 
-extern struct confdesc pppConfs[MAXCONFS+1];
+extern struct confdesc pppConfs[MAXCONFS + 1];
 
 struct pppvars {
   u_long var_mru;		/* Initial MRU value */
   u_long pref_mtu;		/* Preferred MTU value */
-  int    var_accmap;		/* Initial ACCMAP value */
-  int    modem_speed;		/* Current modem speed */
-  int    modem_parity;		/* Parity setting */
-  int    modem_ctsrts;		/* Use CTS/RTS on modem port? (boolean) */
-  int    idle_timeout;		/* Idle timeout value */
-  int	 lqr_timeout;		/* LQR timeout value */
-  int    retry_timeout;		/* Retry timeout value */
-  int    reconnect_timer;	/* Timeout before reconnect on carrier loss */
-  int    reconnect_tries;	/* Attempt reconnect on carrier loss */
-  int    redial_timeout;	/* Redial timeout value */
-  int    redial_next_timeout;	/* Redial next timeout value */
-  int    dial_tries;		/* Dial attempts before giving up, 0 == inf */
-  int    loopback;		/* Turn around packets addressed to me */
-  char   modem_dev[40];		/* Name of device / host:port */
-  char  *base_modem_dev;        /* Pointer to base of modem_dev */
-  int	 open_mode;		/* LCP open mode */
+  int var_accmap;		/* Initial ACCMAP value */
+  int modem_speed;		/* Current modem speed */
+  int modem_parity;		/* Parity setting */
+  int modem_ctsrts;		/* Use CTS/RTS on modem port? (boolean) */
+  int idle_timeout;		/* Idle timeout value */
+  int lqr_timeout;		/* LQR timeout value */
+  int retry_timeout;		/* Retry timeout value */
+  int reconnect_timer;		/* Timeout before reconnect on carrier loss */
+  int reconnect_tries;		/* Attempt reconnect on carrier loss */
+  int redial_timeout;		/* Redial timeout value */
+  int redial_next_timeout;	/* Redial next timeout value */
+  int dial_tries;		/* Dial attempts before giving up, 0 == inf */
+  int loopback;			/* Turn around packets addressed to me */
+  char modem_dev[40];		/* Name of device / host:port */
+  char *base_modem_dev;		/* Pointer to base of modem_dev */
+  int open_mode;		/* LCP open mode */
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
   u_char lauth;			/* Local Authorized status */
   FILE *termfp;			/* The terminal */
 #define DIALUP_REQ	0x01
 #define DIALUP_DONE	0x02
-  char   dial_script[200];	/* Dial script */
-  char   login_script[200];	/* Login script */
-  char   auth_key[50];		/* PAP/CHAP key */
-  char	 auth_name[50];		/* PAP/CHAP system name */
-  char   phone_numbers[200];    /* Telephone Numbers */
-  char   phone_copy[200];       /* copy for strsep() */
-  char   *next_phone;           /* Next phone from the list */
-  char   *alt_phone;           /* Next phone from the list */
-  char   shostname[MAXHOSTNAMELEN];/* Local short Host Name */
-  char hangup_script[200];      /* Hangup script before modem is closed */
-  struct aliasHandlers handler; /* Alias function pointers */
+  char dial_script[200];	/* Dial script */
+  char login_script[200];	/* Login script */
+  char auth_key[50];		/* PAP/CHAP key */
+  char auth_name[50];		/* PAP/CHAP system name */
+  char phone_numbers[200];	/* Telephone Numbers */
+  char phone_copy[200];		/* copy for strsep() */
+  char *next_phone;		/* Next phone from the list */
+  char *alt_phone;		/* Next phone from the list */
+  char shostname[MAXHOSTNAMELEN];	/* Local short Host Name */
+  char hangup_script[200];	/* Hangup script before modem is closed */
+  struct aliasHandlers handler;	/* Alias function pointers */
 };
 
 #define VarAccmap	pppVars.var_accmap
@@ -123,17 +123,17 @@ struct pppvars {
 #define VarTerm		pppVars.termfp
 
 #define VarAliasHandlers	   pppVars.handler
-#define VarGetNextFragmentPtr	   (*pppVars.handler.GetNextFragmentPtr)
-#define VarGetNextFragmentPtr	   (*pppVars.handler.GetNextFragmentPtr)
-#define VarInitPacketAlias	   (*pppVars.handler.InitPacketAlias)
+#define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
+#define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
+#define VarPacketAliasInit	   (*pppVars.handler.PacketAliasInit)
 #define VarPacketAliasIn	   (*pppVars.handler.PacketAliasIn)
 #define VarPacketAliasOut	   (*pppVars.handler.PacketAliasOut)
 #define VarPacketAliasRedirectAddr (*pppVars.handler.PacketAliasRedirectAddr)
 #define VarPacketAliasRedirectPort (*pppVars.handler.PacketAliasRedirectPort)
-#define VarSaveFragmentPtr	   (*pppVars.handler.SaveFragmentPtr)
-#define VarSetPacketAliasAddress   (*pppVars.handler.SetPacketAliasAddress)
-#define VarSetPacketAliasMode	   (*pppVars.handler.SetPacketAliasMode)
-#define VarFragmentAliasIn	   (*pppVars.handler.FragmentAliasIn)
+#define VarPacketAliasSaveFragment (*pppVars.handler.PacketAliasSaveFragment)
+#define VarPacketAliasSetAddress   (*pppVars.handler.PacketAliasSetAddress)
+#define VarPacketAliasSetMode	   (*pppVars.handler.PacketAliasSetMode)
+#define VarPacketAliasFragmentIn   (*pppVars.handler.PacketAliasFragmentIn)
 
 #define	DEV_IS_SYNC	(VarSpeed == 0)
 
@@ -156,6 +156,7 @@ int ipConnectSecs, ipIdleSecs;
   while(0)
 
 int reconnectState, reconnectCount;
+
 /*
  * This is the logic behind the reconnect variables:
  * We have four reconnect "states".  We start off not requiring anything

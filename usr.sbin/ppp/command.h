@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: command.h,v 1.4 1997/02/22 16:10:09 peter Exp $
  *
  *	TODO:
  */
@@ -23,8 +23,8 @@
 struct cmdtab {
   char *name;
   char *alias;
-  int  (*func)();
-  u_char  lauth;
+  int (*func) ();
+  u_char lauth;
   char *helpmes;
   char *syntax;
   void *args;

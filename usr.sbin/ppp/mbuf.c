@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.7 1997/06/09 03:27:29 brian Exp $
+ * $Id: mbuf.c,v 1.8 1997/06/25 19:30:02 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -31,40 +31,37 @@
 
 struct memmap {
   struct mbuf *queue;
-  int    count;
-} MemMap[MB_MAX+2];
+  int count;
+}      MemMap[MB_MAX + 2];
 
 static int totalalloced;
 
 int
-plength(bp)
-struct mbuf *bp;
+plength(struct mbuf * bp)
 {
   int len;
 
   for (len = 0; bp; bp = bp->next)
     len += bp->cnt;
-  return(len);
+  return (len);
 }
 
 struct mbuf *
-mballoc(cnt, type)
-int cnt;
-int type;
+mballoc(int cnt, int type)
 {
   u_char *p;
   struct mbuf *bp;
 
   if (type > MB_MAX)
     LogPrintf(LogERROR, "Bad mbuf type %d\n", type);
-  bp = (struct mbuf *)malloc(sizeof(struct mbuf));
+  bp = (struct mbuf *) malloc(sizeof(struct mbuf));
   if (bp == NULL) {
     LogPrintf(LogALERT, "failed to allocate memory: %u\n", sizeof(struct mbuf));
     ServerClose();
     exit(1);
   }
   bzero(bp, sizeof(struct mbuf));
-  p = (u_char *)malloc(cnt);
+  p = (u_char *) malloc(cnt);
   if (p == NULL) {
     LogPrintf(LogALERT, "failed to allocate memory: %d\n", cnt);
     ServerClose();
@@ -75,11 +72,11 @@ int type;
   bp->base = p;
   bp->size = bp->cnt = cnt;
   bp->type = type;
-  return(bp);
+  return (bp);
 }
 
 struct mbuf *
-mbfree(struct mbuf *bp)
+mbfree(struct mbuf * bp)
 {
   struct mbuf *nbp;
 
@@ -89,23 +86,20 @@ mbfree(struct mbuf *bp)
     totalalloced -= bp->size;
     free(bp->base);
     free(bp);
-    return(nbp);
+    return (nbp);
   }
-  return(bp);
+  return (bp);
 }
 
 void
-pfree(struct mbuf *bp)
+pfree(struct mbuf * bp)
 {
   while (bp)
     bp = mbfree(bp);
 }
 
 struct mbuf *
-mbread(bp, ptr, len)
-struct mbuf *bp;
-u_char *ptr;
-int len;
+mbread(struct mbuf * bp, u_char * ptr, int len)
 {
   int nb;
 
@@ -127,14 +121,11 @@ int len;
 #endif
     }
   }
-  return(bp);
+  return (bp);
 }
 
 void
-mbwrite(bp, ptr, cnt)
-struct mbuf *bp;
-u_char *ptr;
-int cnt;
+mbwrite(struct mbuf * bp, u_char * ptr, int cnt)
 {
   int plen;
   int nb;
@@ -144,7 +135,7 @@ int cnt;
     cnt = plen;
 
   while (cnt > 0) {
-    nb = (cnt < bp->cnt)? cnt : bp->cnt;
+    nb = (cnt < bp->cnt) ? cnt : bp->cnt;
     bcopy(ptr, MBUF_CTOP(bp), nb);
     cnt -= bp->cnt;
     bp = bp->next;
@@ -161,7 +152,7 @@ ShowMemMap()
 
   for (i = 0; i <= MB_MAX; i += 2)
     fprintf(VarTerm, "%d: %d   %d: %d\n",
-	i, MemMap[i].count, i+1, MemMap[i+1].count);
+	    i, MemMap[i].count, i + 1, MemMap[i + 1].count);
 
   return 0;
 }

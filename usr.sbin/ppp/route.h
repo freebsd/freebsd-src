@@ -17,11 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.h,v 1.3 1997/02/22 16:10:50 peter Exp $
+ * $Id: route.h,v 1.4 1997/06/09 03:27:36 brian Exp $
  *
  */
 
 #ifndef _ROUTE_H_
 #define	_ROUTE_H_
 int GetIfIndex(char *);
+
 #endif
