@@ -34,7 +34,7 @@
  * Alteon Networks Tigon PCI gigabit ethernet driver for FreeBSD.
  * Manuals, sample driver and firmware source kits are available
  * from http://www.alteon.com/support/openkits.
- * 
+ *
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Electrical Engineering Department
  * Columbia University, New York City
@@ -711,7 +711,7 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 			 * When you compile the firmware without
 			 * optimization, which is necessary sometimes in
 			 * order to properly step through it, you sometimes
-			 * read out a bogus value of 0xc0017c instead of 
+			 * read out a bogus value of 0xc0017c instead of
 			 * whatever was supposed to be in that scratchpad
 			 * location.  That value is on the stack somewhere,
 			 * but I've never been able to figure out what was
@@ -1019,7 +1019,7 @@ ti_alloc_jumbo_mem(sc)
 	for (i = 0; i < TI_JSLOTS; i++) {
 		sc->ti_cdata.ti_jslots[i] = ptr;
 		ptr += TI_JLEN;
-		entry = malloc(sizeof(struct ti_jpool_entry), 
+		entry = malloc(sizeof(struct ti_jpool_entry),
 			       M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
 			contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM,
@@ -1043,9 +1043,9 @@ static void *ti_jalloc(sc)
 	struct ti_softc		*sc;
 {
 	struct ti_jpool_entry   *entry;
-	
+
 	entry = SLIST_FIRST(&sc->ti_jfree_listhead);
-	
+
 	if (entry == NULL) {
 		printf("ti%d: no free jumbo buffers\n", sc->ti_unit);
 		return(NULL);
@@ -1241,7 +1241,7 @@ ti_newbuf_jumbo(sc, i, m)
 #define NPAYLOAD 2
 #else
 #define NPAYLOAD 1
-#endif  
+#endif
 
 #define TCP_HDR_LEN (52 + sizeof(struct ether_header))
 #define UDP_HDR_LEN (28 + sizeof(struct ether_header))
@@ -1363,7 +1363,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 	/*
 	 * Warning! :
 	 * This can only be called before the mbufs are strung together.
-	 * If the mbufs are strung together, m_freem() will free the chain, 
+	 * If the mbufs are strung together, m_freem() will free the chain,
 	 * so that the later mbufs will be freed multiple times.
 	 */
         if (m_new)
@@ -1793,9 +1793,9 @@ ti_chipinit(sc)
 	/*
 	 * From the Alteon sample driver:
 	 * Must insure that we do not cross an 8K (bytes) boundary
-	 * for DMA reads.  Our highest limit is 1K bytes.  This is a 
-	 * restriction on some ALPHA platforms with early revision 
-	 * 21174 PCI chipsets, such as the AlphaPC 164lx 
+	 * for DMA reads.  Our highest limit is 1K bytes.  This is a
+	 * restriction on some ALPHA platforms with early revision
+	 * 21174 PCI chipsets, such as the AlphaPC 164lx
 	 */
 	TI_SETBIT(sc, TI_PCI_STATE, pci_writemax|TI_PCI_READMAX_1024);
 #else
@@ -2081,7 +2081,7 @@ ti_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	
+
 	sc->ti_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
@@ -2313,7 +2313,7 @@ ti_detach(dev)
  * The header length, if it is non-zero, will always be the length of
  * the headers on the packet, but that length could be longer than the
  * first mbuf.  So we take the minimum of the two as the actual
- * length.  
+ * length.
  */
 static __inline void
 ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
@@ -2340,7 +2340,7 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
 		printf("got split packet: ");
 	else
 		printf("got non-split packet: ");
-	
+
 	printf("%d,%d,%d,%d = %d\n", lengths[0],
 	    lengths[1], lengths[2], lengths[3],
 	    lengths[0] + lengths[1] + lengths[2] +
@@ -2349,7 +2349,7 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
 
 	if (pkt_len)
 		panic("header splitting didn't");
-	
+
 	if (m) {
 		m_freem(m);
 		mp->m_next = NULL;
@@ -2637,9 +2637,9 @@ ti_encap(sc, m_head, txidx)
 	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
 
 	/*
- 	 * Start packing the mbufs in this chain into
+	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
- 	 * of fragments or hit the end of the mbuf chain.
+	 * of fragments or hit the end of the mbuf chain.
 	 */
 	for (m = m_head; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
@@ -2915,7 +2915,7 @@ ti_ifmedia_upd(ifp)
 		 */
 #if 0
 		if (sc->ti_hwrev != TI_HWREV_TIGON)
-			flowctl |= TI_GLNK_TX_FLOWCTL_Y; 
+			flowctl |= TI_GLNK_TX_FLOWCTL_Y;
 #endif
 
 		CSR_WRITE_4(sc, TI_GCR_GLINK, TI_GLNK_PREF|TI_GLNK_1000MB|
@@ -2939,7 +2939,7 @@ ti_ifmedia_upd(ifp)
 		flowctl = TI_GLNK_RX_FLOWCTL_Y;
 #if 0
 		if (sc->ti_hwrev != TI_HWREV_TIGON)
-			flowctl |= TI_GLNK_TX_FLOWCTL_Y; 
+			flowctl |= TI_GLNK_TX_FLOWCTL_Y;
 #endif
 
 		CSR_WRITE_4(sc, TI_GCR_GLINK, TI_GLNK_PREF|TI_GLNK_1000MB|
@@ -3031,7 +3031,7 @@ ti_ifmedia_sts(ifp, ifmr)
 		if (media & TI_LNK_HALF_DUPLEX)
 			ifmr->ifm_active |= IFM_HDX;
 	}
-	
+
 	return;
 }
 
@@ -3155,7 +3155,7 @@ ti_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 /*
  * This ioctl routine goes along with the Tigon character device.
  */
-static int 
+static int
 ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int error;
@@ -3291,7 +3291,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		} else
 			trace_buf->fill_len = 0;
 
-		
+
 		break;
 	}
 
@@ -3305,7 +3305,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	 */
 	case ALT_ATTACH:
 		/*
-		 * From what I can tell, Alteon's Solaris Tigon driver 
+		 * From what I can tell, Alteon's Solaris Tigon driver
 		 * only has one character device, so you have to attach
 		 * to the Tigon board you're interested in.  This seems
 		 * like a not-so-good way to do things, since unless you
@@ -3360,7 +3360,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 				error = EINVAL;
 				break;
 			}
-			error = ti_copy_scratch(sc, mem_param->tgAddr - 
+			error = ti_copy_scratch(sc, mem_param->tgAddr -
 						TI_SCRATCH_DEBUG_OFF,
 						mem_param->len,
 						mem_param->userAddr, 1,
