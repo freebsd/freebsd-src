@@ -93,6 +93,13 @@
     <option>-p</option> flag to force the kernel to pause after each
     line of output during the probing phase. &merged;</para>
 
+    <para arch="i386">The &os; boot loader is now capable of
+    booting from filesystems with 16K disk blocks (the old limit was
+    8K).</para>
+
+    <para arch="alpha">The &os; boot loader is now capable of
+    booting from filesystems with block sizes larger than 8K.</para>
+
     <para>Support for USB devices was added to the
     <filename>GENERIC</filename> kernel and to the installation
     programs to support USB devices out of the box.  Note that SRM
@@ -573,8 +580,10 @@
       these devices. &merged;</para>
 
       <para>Added support for PCI Ethernet adapters based on the
-      National Semiconductor DP83815 chipset, including the NetGear
-      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.
+      SiS 900 and SiS 7016 Fast Ethernet controller chips (for
+      example, as seen on the SiS 635 and 735 motherboard chipsets), as well as the
+      National Semiconductor DP83815 chipset (including the NetGear
+      FA311-TX and FA312-TX) in the form of the &man.sis.4; driver.
       This device has support for VLANs. &merged;</para>
 
       <para arch="i386">The snc driver for the National Semiconductor
@@ -2486,6 +2495,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       although it can still be run as <command>csh</command>.
       <application>tcsh</application> has been updated to version
       6.11. &merged;</para>
+
+      <para>The contributed version of
+      <application>tcp_wrappers</application> now includes the
+      &man.tcpd.8; helper daemon.  While not strictly necessary in a
+      standard &os; installation (because &man.inetd.8; already
+      incorporates this functionality), this may be useful for
+      &man.inetd.8; replacements such as
+      <application>xinetd</application>.</para>
 
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
