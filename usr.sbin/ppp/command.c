@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.15 1998/02/10 03:23:09 brian Exp $
+ * $Id: command.c,v 1.131.2.16 1998/02/13 05:10:13 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -78,6 +78,7 @@
 #include "server.h"
 #include "prompt.h"
 #include "chat.h"
+#include "datalink.h"
 
 struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
@@ -166,13 +167,7 @@ IsInteractive(int Display)
 static int
 DialCommand(struct cmdargs const *arg)
 {
-  int tries;
   int res;
-
-  if (dialing) {
-    prompt_Printf(&prompt, "A dial is already in progress\n");
-    return 0;
-  }
 
   if (LcpInfo.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
@@ -189,7 +184,7 @@ DialCommand(struct cmdargs const *arg)
   if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
     return res;
 
-  dial_up = 1;
+  bundle_Open(arg->bundle, NULL);
 
   return 0;
 }
@@ -787,7 +782,7 @@ TerminalCommand(struct cmdargs const *arg)
   }
   if (!IsInteractive(1))
     return (1);
-  if (modem_Open(arg->bundle->physical, arg->bundle) < 0) {
+  if (modem_Open(bundle2physical(arg->bundle, NULL), arg->bundle) < 0) {
     prompt_Printf(&prompt, "Failed to open modem.\n");
     return (1);
   }
@@ -814,17 +809,14 @@ QuitCommand(struct cmdargs const *arg)
 static int
 CloseCommand(struct cmdargs const *arg)
 {
-  reconnect(RECON_FALSE);
-  bundle_Close(LcpInfo.fsm.bundle, &LcpInfo.fsm);
+  bundle_Close(LcpInfo.fsm.bundle, NULL, 1);
   return 0;
 }
 
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  reconnectState = RECON_FALSE;
-  reconnectCount = 0;
-  link_Close(&arg->bundle->physical->link, arg->bundle, 0);
+  link_Close(&arg->bundle->links->physical->link, arg->bundle, 0, 1);
   return 0;
 }
 
@@ -840,7 +832,7 @@ SetModemSpeed(struct cmdargs const *arg)
       return -1;
     }
     if (strcasecmp(*arg->argv, "sync") == 0) {
-      Physical_SetSync(arg->bundle->physical);
+      Physical_SetSync(arg->bundle->links->physical);
       return 0;
     }
     end = NULL;
@@ -849,7 +841,7 @@ SetModemSpeed(struct cmdargs const *arg)
       LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
       return -1;
     }
-    if (Physical_SetSpeed(arg->bundle->physical, speed))
+    if (Physical_SetSpeed(arg->bundle->links->physical, speed))
       return 0;
     LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
   } else
@@ -983,8 +975,6 @@ SetServer(struct cmdargs const *arg)
     LocalAuthInit();
 
     if (strcasecmp(port, "none") == 0) {
-      int oserver;
-
       if (mask != NULL || passwd != NULL)
         return -1;
 
@@ -1030,7 +1020,7 @@ SetServer(struct cmdargs const *arg)
 static int
 SetModemParity(struct cmdargs const *arg)
 {
-  return arg->argc > 0 ? modem_SetParity(arg->bundle->physical, *arg->argv) : -1;
+  return arg->argc > 0 ? modem_SetParity(arg->bundle->links->physical, *arg->argv) : -1;
 }
 
 static int
@@ -1311,14 +1301,12 @@ SetVariable(struct cmdargs const *arg)
     VarLoginScript[sizeof VarLoginScript - 1] = '\0';
     break;
   case VAR_DEVICE:
-    if (mode & MODE_INTER)
-      link_Close(physical2link(arg->bundle->physical), arg->bundle, 0);
-    if (link_IsActive(physical2link(arg->bundle->physical)))
+    if (link_IsActive(&arg->bundle->links->physical->link))
       LogPrintf(LogWARN,
 		"Cannot change device to \"%s\" when \"%s\" is open\n",
-                argp, Physical_GetDevice(arg->bundle->physical));
+                argp, Physical_GetDevice(bundle2physical(arg->bundle, NULL)));
     else {
-      Physical_SetDevice(arg->bundle->physical, argp);
+      Physical_SetDevice(bundle2physical(arg->bundle, NULL), argp);
     }
     break;
   case VAR_ACCMAP:
@@ -1356,9 +1344,9 @@ SetCtsRts(struct cmdargs const *arg)
 	}
 
     if (strcmp(*arg->argv, "on") == 0)
-      Physical_SetRtsCts(arg->bundle->physical, 1);
+      Physical_SetRtsCts(bundle2physical(arg->bundle, NULL), 1);
     else if (strcmp(*arg->argv, "off") == 0)
-      Physical_SetRtsCts(arg->bundle->physical, 0);
+      Physical_SetRtsCts(bundle2physical(arg->bundle, NULL), 0);
     else
       return -1;
     return 0;

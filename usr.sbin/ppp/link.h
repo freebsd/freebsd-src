@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.2 1998/02/06 02:22:44 brian Exp $
+ *  $Id: link.h,v 1.1.2.3 1998/02/07 20:49:48 brian Exp $
  *
  */
 
@@ -70,5 +70,5 @@ extern void link_ProtocolRecord(struct link *, u_short, int);
 extern void link_ReportProtocolStatus(struct link *);
 
 extern int link_IsActive(struct link *);
-extern void link_Close(struct link *, struct bundle *, int);
+extern void link_Close(struct link *, struct bundle *, int, int);
 extern void link_Destroy(struct link *);

@@ -23,26 +23,44 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.1.2.5 1998/02/13 05:10:15 brian Exp $
+ *	$Id$
  */
 
-#define PHYSICAL_DESCRIPTOR (1)
-#define SERVER_DESCRIPTOR (2)
-#define PROMPT_DESCRIPTOR (3)
-#define CHAT_DESCRIPTOR (4)
-#define DATALINK_DESCRIPTOR (5)
+#define DATALINK_CLOSED  (0)
+#define DATALINK_OPENING (1)
+#define DATALINK_HANGUP  (2)
+#define DATALINK_DIAL    (3)
+#define DATALINK_LOGIN   (4)
+#define DATALINK_OPEN    (5)
 
-struct descriptor {
-  int type;
-  struct descriptor *next;
+struct datalink {
+  struct descriptor desc;       /* We play either a physical or a chat */
+  int state;			/* Our DATALINK_* state */
+  struct physical *physical;	/* Our link */
+  struct chat chat;		/* For bringing the link up & down */
+  struct pppTimer dial_timer;	/* For timing between opens & scripts */
+  int dial_tries;		/* try again this number of times */
+  unsigned reconnect_tries;	/* try again this number of times */
 
-  int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
-  int (*IsSet)(struct descriptor *, fd_set *);
-  void (*Read)(struct descriptor *, struct bundle *, const fd_set *);
-  void (*Write)(struct descriptor *, const fd_set *);
+  char *name;			/* Our name */
+
+#ifdef soon
+  struct lcp lcp;		/* Our line control FSM */
+  struct ccp ccp;		/* Our compression FSM */
+#endif
+
+  struct bundle *bundle;	/* for the moment */
+
+  struct datalink *next;	/* Next in the list */
 };
 
-#define descriptor_UpdateSet(d, r, w, e, n) ((*(d)->UpdateSet)(d, r, w, e, n))
-#define descriptor_IsSet(d, s) ((*(d)->IsSet)(d, s))
-#define descriptor_Read(d, b, f) ((*(d)->Read)(d, b, f))
-#define descriptor_Write(d, f) ((*(d)->Write)(d, f))
+#define datalink2descriptor(dl) (&(dl)->desc)
+#define descriptor2datalink(d) \
+  ((d)->type == DATALINK_DESCRIPTOR ? (struct datalink *)(d) : NULL)
+
+extern struct datalink *datalink_Create(const char *name, struct bundle *);
+extern struct datalink *datalink_Destroy(struct datalink *);
+extern void datalink_Up(struct datalink *);
+extern void datalink_Close(struct datalink *, int);
+extern void datalink_Down(struct datalink *, int);
+extern void datalink_StayDown(struct datalink *);

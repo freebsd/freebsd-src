@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.4 1998/02/07 20:49:47 brian Exp $
+ *  $Id: link.c,v 1.1.2.5 1998/02/10 03:23:24 brian Exp $
  *
  */
 
@@ -143,10 +143,10 @@ link_IsActive(struct link *l)
 }
 
 void
-link_Close(struct link *l, struct bundle *bundle, int dedicated_force)
+link_Close(struct link *l, struct bundle *bundle, int dedicated_force, int stay)
 {
   (*l->Close)(l, dedicated_force);
-  bundle_LinkLost(bundle, l);
+  bundle_LinkLost(bundle, l, stay);
 }
 
 void

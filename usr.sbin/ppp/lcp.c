@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.13 1998/02/09 19:20:54 brian Exp $
+ * $Id: lcp.c,v 1.55.2.14 1998/02/10 03:23:22 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -396,6 +396,7 @@ LcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
   LogPrintf(LogLCP, "LcpLayerStart\n");
+  LcpInfo.LcpFailedMagic = 0;
 }
 
 static void
@@ -448,14 +449,6 @@ LcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
   LogPrintf(LogLCP, "LcpLayerDown\n");
-}
-
-void
-LcpUp()
-{
-  /* Lower layers are ready.... go */
-  LcpInfo.LcpFailedMagic = 0;
-  FsmUp(&LcpInfo.fsm);
 }
 
 void

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.2 1998/02/06 02:23:48 brian Exp $
+ * $Id: vars.h,v 1.42.2.3 1998/02/10 03:23:50 brian Exp $
  *
  *	TODO:
  */
@@ -159,6 +159,7 @@ extern char VarLocalVersion[];
 
 extern int Utmp;		/* Are we in /etc/utmp ? */
 extern int ipKeepAlive;
+#if 0
 extern int reconnectState;
 extern int reconnectCount;
 
@@ -198,6 +199,7 @@ extern int reconnectCount;
  * connection, we set reconnectCount back to zero.
  *
  */
+#endif
 
 extern int EnableCommand(struct cmdargs const *);
 extern int DisableCommand(struct cmdargs const *);

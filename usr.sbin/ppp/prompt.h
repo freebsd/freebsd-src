@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: prompt.h,v 1.1.2.1 1998/02/10 03:23:39 brian Exp $
  */
 
 struct prompt {
@@ -46,7 +46,7 @@ extern struct prompt prompt;
 #define PROMPT_NONE -2
 #define PROMPT_STD  -1
 extern int  prompt_Init(struct prompt *, int);
-extern int  prompt_Display(struct prompt *, struct bundle *);
+extern void prompt_Display(struct prompt *, struct bundle *);
 extern void prompt_Drop(struct prompt *, int);
 extern void prompt_Printf(struct prompt *, const char *, ...);
 extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);

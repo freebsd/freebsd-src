@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.1 1998/02/10 03:23:38 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.2 1998/02/13 05:10:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,11 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "hdlc.h"
+#include "async.h"
+#include "mbuf.h"
+#include "link.h"
+#include "physical.h"
 
 static int prompt_nonewline = 1;
 
@@ -146,7 +151,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	ttystate++;
       else
 	/* XXX missing return value check */
-	Physical_Write(bundle->physical, &ch, n);
+	Physical_Write(bundle2physical(bundle, NULL), &ch, n);
       break;
     case 1:
       switch (ch) {
@@ -178,7 +183,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	  break;
 	}
       default:
-	if (Physical_Write(bundle->physical, &ch, n) < 0)
+	if (Physical_Write(bundle2physical(bundle, NULL), &ch, n) < 0)
 	  LogPrintf(LogERROR, "error writing to modem.\n");
 	break;
       }
@@ -231,7 +236,7 @@ prompt_Init(struct prompt *p, int fd)
   return 1;
 }
 
-int
+void
 prompt_Display(struct prompt *p, struct bundle *bundle)
 {
   const char *pconnect, *pauth;

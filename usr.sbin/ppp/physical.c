@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.7 1998/02/10 03:22:02 brian Exp $
+ *  $Id: physical.c,v 1.1.2.8 1998/02/13 05:10:22 brian Exp $
  *
  */
 
@@ -173,7 +173,7 @@ Physical_Write(struct physical *phys, const void *buf, size_t nbytes) {
 int
 Physical_ReportProtocolStatus(struct cmdargs const *arg)
 {
-  link_ReportProtocolStatus(&arg->bundle->physical->link);
+  link_ReportProtocolStatus(bundle2link(arg->bundle, NULL));
   return 0;
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.14 1998/02/10 03:23:35 brian Exp $
+ * $Id: modem.c,v 1.77.2.15 1998/02/13 05:10:19 brian Exp $
  *
  *  TODO:
  */
@@ -246,13 +246,12 @@ modem_Timeout(void *data)
   if (to->modem->abort) {
     /* Something went horribly wrong */
     to->modem->abort = 0;
-    link_Close(&to->modem->link, to->bundle, 0);
+    link_Close(&to->modem->link, to->bundle, 0, 0);
   } else if (to->modem->dev_is_modem) {
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-	reconnect(RECON_TRUE);
-        link_Close(&to->modem->link, to->bundle, 0);
+        link_Close(&to->modem->link, to->bundle, 0, 0);
 	return;
       }
     } else
@@ -274,8 +273,7 @@ modem_Timeout(void *data)
 #endif
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
-	reconnect(RECON_TRUE);
-        link_Close(&to->modem->link, to->bundle, 0);
+        link_Close(&to->modem->link, to->bundle, 0, 0);
       }
     }
     else
@@ -666,8 +664,9 @@ modem_Speed(struct physical *modem)
  * Put modem tty line into raw mode which is necessary in packet mode operation
  */
 int
-modem_Raw(struct physical *modem)
+modem_Raw(struct physical *modem, struct bundle *bundle)
 {
+  struct timeoutArg to;
   struct termios rstio;
   int oldflag;
 
@@ -703,7 +702,12 @@ modem_Raw(struct physical *modem)
   if (oldflag < 0)
     return (-1);
   (void) fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
-  return (0);
+
+  to.modem = modem;
+  to.bundle = bundle;
+  modem_Timeout(&to);
+
+  return Online(modem) ? 0 : -1;
 }
 
 static void
@@ -734,47 +738,51 @@ static int force_hack;
 static void
 modem_Hangup(struct link *l, int dedicated_force)
 {
+  /* We're about to close (pre hangup script) */
   struct physical *modem = (struct physical *)l;
 
   force_hack = dedicated_force;
-  if (modem->fd >= 0 && dialing != -1) {
+  if (modem->fd >= 0) {
     StopTimer(&modem->link.Timer);
     throughput_stop(&modem->link.throughput);
 
     if (prompt_IsTermMode(&prompt))
       prompt_TtyCommandMode(&prompt);
+  }
+}
 
-    dialing = -1;
-    dial_up = 0;
-    chat_Init(&chat, modem, VarHangupScript, 1);
+void
+modem_Offline(struct physical *modem)
+{
+  if (modem->fd >= 0) {
+    struct termios tio;
+
+    modem->mbits &= ~TIOCM_DTR;
+    if (isatty(modem->fd) && Online(modem)) {
+      tcgetattr(modem->fd, &tio);
+      if (cfsetspeed(&tio, B0) == -1)
+        LogPrintf(LogWARN, "Unable to set modem to speed 0\n");
+      else
+        tcsetattr(modem->fd, TCSANOW, &tio);
+      /* nointr_sleep(1); */
+    }
   }
 }
 
 void
 modem_Close(struct physical *modem)
 {
-  struct termios tio;
-
-  LogPrintf(LogDEBUG, "Hangup modem (%s)\n",
+  LogPrintf(LogDEBUG, "Close modem (%s)\n",
             modem->fd >= 0 ? "open" : "closed");
 
   if (modem->fd < 0)
     return;
 
+  modem_Offline(modem);
+
   if (!isatty(modem->fd)) {
-    modem->mbits &= ~TIOCM_DTR;
     modem_PhysicalClose(modem);
     return;
-  }
-
-  if (modem->fd >= 0 && Online(modem)) {
-    modem->mbits &= ~TIOCM_DTR;
-    tcgetattr(modem->fd, &tio);
-    if (cfsetspeed(&tio, B0) == -1) {
-      LogPrintf(LogWARN, "Unable to set modem to speed 0\n");
-    }
-    tcsetattr(modem->fd, TCSANOW, &tio);
-    nointr_sleep(1);
   }
 
   if (modem->fd >= 0) {
@@ -806,7 +814,7 @@ modem_Destroy(struct link *l)
 
   p = link2physical(l);
   if (p->fd != -1)
-    modem_Hangup(l, 1);
+    modem_Close(p);
   free(l->name);
   free(p);
 }
@@ -863,7 +871,6 @@ modem_StartOutput(struct link *l)
       if (errno != EAGAIN) {
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
-        reconnect(RECON_TRUE);
         modem->abort = 1;
       }
     }
@@ -880,7 +887,7 @@ int
 modem_ShowStatus(struct cmdargs const *arg)
 {
   const char *dev;
-  struct physical *modem = arg->bundle->physical;
+  struct physical *modem = bundle2physical(arg->bundle, NULL);
 #ifdef TIOCOUTQ
   int nb;
 #endif
@@ -963,10 +970,9 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     nointr_usleep(10000);
 
   n = Physical_Read(p, rbuff, sizeof rbuff);
-  if ((mode & MODE_DIRECT) && n <= 0) {
-    reconnect(RECON_TRUE);
-    link_Close(&p->link, bundle, 0);
-  } else
+  if ((mode & MODE_DIRECT) && n <= 0)
+    link_Close(&p->link, bundle, 0, 1);
+  else
     LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
   if (LcpInfo.fsm.state <= ST_CLOSED) {

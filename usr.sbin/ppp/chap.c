@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.7 1998/02/07 20:49:30 brian Exp $
+ * $Id: chap.c,v 1.28.2.8 1998/02/09 19:20:34 brian Exp $
  *
  *	TODO:
  */
@@ -268,8 +268,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
      * Peer is not registerd, or response digest is wrong.
      */
     ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9);
-    reconnect(RECON_FALSE);
-    bundle_Close(bundle, &LcpInfo.fsm);
+    link_Close(&physical->link, bundle, 1, 1);
     break;
   }
 }
@@ -293,11 +292,9 @@ RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
          */
 	bundle_NewPhase(bundle, physical, PHASE_NETWORK);
     }
-  } else {
+  } else
     /* CHAP failed - it's not going to get any better */
-    reconnect(RECON_FALSE);
-    bundle_Close(bundle, &LcpInfo.fsm);
-  }
+    link_Close(&physical->link, bundle, 1, 1);
 }
 
 void

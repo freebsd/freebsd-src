@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.4 1998/02/10 03:23:41 brian Exp $
+ *	$Id: server.c,v 1.16.2.5 1998/02/13 05:10:24 brian Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,8 @@
 #include "server.h"
 #include "id.h"
 #include "prompt.h"
+#include "timer.h"
+#include "auth.h"
 
 static int
 server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
