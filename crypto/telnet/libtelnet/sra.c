@@ -93,6 +93,11 @@ int server;
 	xuser = (char *)malloc(512);
 	pass = (char *)malloc(256);
 	xpass = (char *)malloc(512);
+
+	if (user == NULL || xuser == NULL || pass == NULL || xpass ==
+	NULL)
+		return 0; /* malloc failed */
+
 	passwd_sent = 0;
 	
 	genkeys(pka,ska);
@@ -533,6 +538,9 @@ auth_conv(int num_msg, const struct pam_message **msg,
 	cred_t *cred = (cred_t *) appdata;
 	struct pam_response *reply =
 		malloc(sizeof(struct pam_response) * num_msg);
+
+	if (reply == NULL)
+		return PAM_BUF_ERR;
 
 	for (i = 0; i < num_msg; i++) {
 		switch (msg[i]->msg_style) {
