@@ -8,8 +8,6 @@ SRCS=		commands.c main.c network.c ring.c sys_bsd.c \
 CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
 		-I${.CURDIR}/../../lib -I${.CURDIR}/../../lib/libtelnet/
 
-WARNS?=		2
-
 .if exists(${.OBJDIR}/../../lib/libtelnet)
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 .else
