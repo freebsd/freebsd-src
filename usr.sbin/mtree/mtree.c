@@ -32,21 +32,26 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <fts.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -64,8 +69,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
-	extern char *optarg;
 	int ch;
 	char *dir, *p;
 	int status;
@@ -85,7 +88,7 @@ main(argc, argv)
 			break;
 		case 'f':
 			if (!(freopen(optarg, "r", stdin)))
-				err("%s: %s", optarg, strerror(errno));
+				err(1, "%s", optarg);
 			break;
 		case 'i':
 			iflag = 1;
@@ -114,7 +117,7 @@ main(argc, argv)
 			sflag = 1;
 			crc_total = ~strtol(optarg, &p, 0);
 			if (*p)
-				err("illegal seed value -- %s", optarg);
+				errx(1, "illegal seed value -- %s", optarg);
 		case 'U':
 			Uflag = 1;
 			uflag = 1;
@@ -136,10 +139,10 @@ main(argc, argv)
 		usage();
 
 	if (dir && chdir(dir))
-		err("%s: %s", dir, strerror(errno));
+		err(1, "%s", dir);
 
 	if ((cflag || sflag) && !getwd(fullpath))
-		err("%s", fullpath);
+		errx(1, "%s", fullpath);
 
 	if (cflag) {
 		cwalk();

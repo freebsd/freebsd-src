@@ -32,18 +32,23 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)spec.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fts.h>
-#include <pwd.h>
-#include <grp.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fts.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -72,7 +77,7 @@ spec()
 
 		/* Find end of line. */
 		if ((p = index(buf, '\n')) == NULL)
-			err("line %d too long", lineno);
+			errx(1, "line %d too long", lineno);
 
 		/* See if next line is continuation line. */
 		if (p[-1] == '\\') {
@@ -100,7 +105,7 @@ spec()
 
 		/* Grab file name, "$", "set", or "unset". */
 		if ((p = strtok(p, "\n\t ")) == NULL)
-			err("missing field");
+			errx(1, "line %d: missing field", lineno);
 
 		if (p[0] == '/')
 			switch(p[1]) {
@@ -117,7 +122,8 @@ spec()
 			}
 
 		if (index(p, '/'))
-			err("slash character in file name");
+			errx(1, "line %d: slash character in file name",
+			lineno);
 
 		if (!strcmp(p, "..")) {
 			/* Don't go up, if haven't gone down. */
@@ -131,11 +137,11 @@ spec()
 			last->flags |= F_DONE;
 			continue;
 
-noparent:		err("no parent node");
+noparent:		errx(1, "line %d: no parent node", lineno);
 		}
 
 		if ((centry = calloc(1, sizeof(NODE) + strlen(p))) == NULL)
-			err("%s", strerror(errno));
+			errx(1, "calloc");
 		*centry = ginfo;
 		(void)strcpy(centry->name, p);
 #define	MAGIC	"?*["
@@ -174,27 +180,28 @@ set(t, ip)
 	for (; (kw = strtok(t, "= \t\n")); t = NULL) {
 		ip->flags |= type = parsekey(kw, &value);
 		if (value && (val = strtok(NULL, " \t\n")) == NULL)
-			err("missing value");
+			errx(1, "line %d: missing value", lineno);
 		switch(type) {
 		case F_CKSUM:
 			ip->cksum = strtoul(val, &ep, 10);
 			if (*ep)
-				err("invalid checksum %s", val);
+				errx(1, "line %d: invalid checksum %s",
+				lineno, val);
 			break;
 		case F_MD5:
 			ip->md5digest = strdup(val);
 			if(!ip->md5digest) {
-				err("%s", strerror(errno));
+				errx(1, "strdup");
 			}
 			break;
 		case F_GID:
 			ip->st_gid = strtoul(val, &ep, 10);
 			if (*ep)
-				err("invalid gid %s", val);
+				errx(1, "line %d: invalid gid %s", lineno, val);
 			break;
 		case F_GNAME:
 			if ((gr = getgrnam(val)) == NULL)
-			    err("unknown group %s", val);
+			    errx(1, "line %d: unknown group %s", lineno, val);
 			ip->st_gid = gr->gr_gid;
 			break;
 		case F_IGN:
@@ -202,31 +209,36 @@ set(t, ip)
 			break;
 		case F_MODE:
 			if ((m = setmode(val)) == NULL)
-				err("invalid file mode %s", val);
+				errx(1, "line %d: invalid file mode %s",
+				lineno, val);
 			ip->st_mode = getmode(m, 0);
 			break;
 		case F_NLINK:
 			ip->st_nlink = strtoul(val, &ep, 10);
 			if (*ep)
-				err("invalid link count %s", val);
+				errx(1, "line %d: invalid link count %s",
+				lineno,  val);
 			break;
 		case F_SIZE:
 			ip->st_size = strtoq(val, &ep, 10);
 			if (*ep)
-				err("invalid size %s", val);
+				errx(1, "line %d: invalid size %s",
+				lineno, val);
 			break;
 		case F_SLINK:
 			if ((ip->slink = strdup(val)) == NULL)
-				err("%s", strerror(errno));
+				errx(1, "strdup");
 			break;
 		case F_TIME:
 			ip->st_mtimespec.tv_sec = strtoul(val, &ep, 10);
 			if (*ep != '.')
-				err("invalid time %s", val);
+				errx(1, "line %d: invalid time %s",
+				lineno, val);
 			val = ep + 1;
 			ip->st_mtimespec.tv_nsec = strtoul(val, &ep, 10);
 			if (*ep)
-				err("invalid time %s", val);
+				errx(1, "line %d: invalid time %s",
+				lineno, val);
 			break;
 		case F_TYPE:
 			switch(*val) {
@@ -257,17 +269,18 @@ set(t, ip)
 					ip->type = F_SOCK;
 				break;
 			default:
-				err("unknown file type %s", val);
+				errx(1, "line %d: unknown file type %s",
+				lineno, val);
 			}
 			break;
 		case F_UID:
 			ip->st_uid = strtoul(val, &ep, 10);
 			if (*ep)
-				err("invalid uid %s", val);
+				errx(1, "line %d: invalid uid %s", lineno, val);
 			break;
 		case F_UNAME:
 			if ((pw = getpwnam(val)) == NULL)
-			    err("unknown user %s", val);
+			    errx(1, "line %d: unknown user %s", lineno, val);
 			ip->st_uid = pw->pw_uid;
 			break;
 		}

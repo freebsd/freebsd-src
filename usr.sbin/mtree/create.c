@@ -32,21 +32,26 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <time.h>
+#include <dirent.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
-#include <dirent.h>
 #include <grp.h>
-#include <pwd.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <md5.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -58,6 +63,7 @@ extern int ftsoptions;
 extern int dflag, iflag, nflag, sflag;
 extern u_short keys;
 extern char fullpath[MAXPATHLEN];
+extern int lineno;
 
 static gid_t gid;
 static uid_t uid;
@@ -86,7 +92,7 @@ cwalk()
 	argv[0] = ".";
 	argv[1] = NULL;
 	if ((t = fts_open(argv, ftsoptions, dsort)) == NULL)
-		err("fts_open: %s", strerror(errno));
+		err(1, "line %d: fts_open", lineno);
 	while ((p = fts_read(t))) {
 		if (iflag)
 			indent = p->fts_level * 4;
@@ -109,8 +115,7 @@ cwalk()
 		case FTS_DNR:
 		case FTS_ERR:
 		case FTS_NS:
-			(void)fprintf(stderr, "mtree: %s: %s\n",
-			    p->fts_path, strerror(p->fts_errno));
+			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			break;
 		default:
 			if (!dflag)
@@ -121,8 +126,7 @@ cwalk()
 	}
 	(void)fts_close(t);
 	if (sflag && keys & F_CKSUM)
-		(void)fprintf(stderr,
-		    "mtree: %s checksum: %lu\n", fullpath, crc_total);
+		warnx("%s checksum: %lu", fullpath, crc_total);
 }
 
 static void
@@ -152,8 +156,9 @@ statf(indent, p)
 			if ((pw = getpwuid(p->fts_statp->st_uid)) != NULL) {
 				output(indent, &offset, "uname=%s", pw->pw_name);
 			} else {
-				err("could not get uname for uid=%u",
-				    p->fts_statp->st_uid);
+				errx(1,
+				"line %d: could not get uname for uid=%u",
+				lineno, p->fts_statp->st_uid);
 			}
 		}
 		if (keys & F_UID)
@@ -164,8 +169,9 @@ statf(indent, p)
 			if ((gr = getgrgid(p->fts_statp->st_gid)) != NULL) {
 				output(indent, &offset, "gname=%s", gr->gr_name);
 			} else {
-				err("could not get gname for gid=%u",
-				    p->fts_statp->st_gid);
+				errx(1,
+				"line %d: could not get gname for gid=%u",
+				lineno, p->fts_statp->st_gid);
 			}
 		}
 		if (keys & F_GID)
@@ -184,7 +190,7 @@ statf(indent, p)
 	if (keys & F_CKSUM && S_ISREG(p->fts_statp->st_mode)) {
 		if ((fd = open(p->fts_accpath, O_RDONLY, 0)) < 0 ||
 		    crc(fd, &val, &len))
-			err("%s: %s", p->fts_accpath, strerror(errno));
+			err(1, "line %d: %s", lineno, p->fts_accpath);
 		(void)close(fd);
 		output(indent, &offset, "cksum=%lu", val);
 	}
@@ -193,7 +199,7 @@ statf(indent, p)
 
 		md5digest = MD5File(p->fts_accpath,buf);
 		if (!md5digest) {
-			err("%s: %s", p->fts_accpath, strerror(errno));
+			err(1, "line %d: %s", lineno, p->fts_accpath);
 		} else {
 			output(indent, &offset, "md5digest=%s", md5digest);
 		}
@@ -230,7 +236,7 @@ statd(t, parent, puid, pgid, pmode)
 
 	if ((p = fts_children(t, 0)) == NULL) {
 		if (errno)
-			err("%s: %s", RP(parent), strerror(errno));
+			err(1, "line %d: %s", lineno, RP(parent));
 		return (1);
 	}
 
@@ -275,14 +281,18 @@ statd(t, parent, puid, pgid, pmode)
 			if ((pw = getpwuid(saveuid)) != NULL)
 				(void)printf(" uname=%s", pw->pw_name);
 			else
-				err("could not get uname for uid=%u", saveuid);
+				errx(1,
+				"line %d: could not get uname for uid=%u",
+				lineno, saveuid);
 		if (keys & F_UID)
 			(void)printf(" uid=%lu", saveuid);
 		if (keys & F_GNAME)
 			if ((gr = getgrgid(savegid)) != NULL)
 				(void)printf(" gname=%s", gr->gr_name);
 			else
-				err("could not get gname for gid=%u", savegid);
+				errx(1,
+				"line %d: could not get gname for gid=%u",
+				lineno, savegid);
 		if (keys & F_GID)
 			(void)printf(" gid=%lu", savegid);
 		if (keys & F_MODE)

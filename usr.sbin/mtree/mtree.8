@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: mtree.8,v 1.10 1997/02/22 16:07:52 peter Exp $
+.\"	$Id: mtree.8,v 1.7.2.1 1997/03/06 07:59:45 mpp Exp $
 .\"
 .Dd February 9, 1995
 .Dt MTREE 8
@@ -64,38 +64,40 @@ Ignore everything except directory type files.
 .It Fl e
 Don't complain about files that are in the file hierarchy, but not in the
 specification.
-.It Fl f
+.It Fl f Ar file
 Read the specification from
 .Ar file  ,
 instead of from the standard input.
 .It Fl i
-Indents the output 4 spaces each time a directory level is descended when
+Indent the output 4 spaces each time a directory level is descended when
 create a specification with the
 .Fl c
 option.
 This does not effect either the /set statements or the comment before each
 directory.
 It does however effect the comment before the close of each directory.
-.It Fl K
-Add the specified (whitespace or comma separated) keywords to the current
-set of keywords.
-.It Fl k
+.It Fl K Ar keywords
+Add the specified (whitespace or comma separated)
+.Ar keywords
+to the current set of keywords.
+.It Fl k Ar keywords
 Use the ``type'' keyword plus the specified (whitespace or comma separated)
-keywords instead of the current set of keywords.
+.Ar keywords
+instead of the current set of keywords.
 .It Fl n
 Do not emit pathname comments when creating a specification.  Normally 
 a comment is emitted before each directory and before the close of that
 directory when using the 
 .Fl c
 option.
-.It Fl p
+.It Fl p Ar path
 Use the file hierarchy rooted in
 .Ar path  ,
 instead of the current directory.
 .It Fl r
 Remove any files in the file hierarchy that are not described in the
 specification.
-.It Fl s
+.It Fl s Ar seed
 Display a single checksum to the standard error output that represents all
 of the files for which the keyword
 .Cm cksum
@@ -225,7 +227,7 @@ Empty lines and lines whose first non-whitespace character is a hash
 mark (``#'') are ignored.
 .Pp
 The
-.Nm mtree
+.Nm
 utility exits with a status of 0 on success, 1 if any error occurred,
 and 2 if the file hierarchy did not match the specification.
 A status of 2 is converted to a status of 0 if the
@@ -234,7 +236,7 @@ option is used.
 .Sh EXAMPLES
 To detect system binaries that have been ``trojan horsed'', it is recommended
 that
-.Nm mtree
+.Nm
 .Fl K
 .Cm md5digest
 be run on the file systems, and a copy of the results stored on a different
@@ -243,7 +245,7 @@ The output file itself should be digested using the
 .Xr md5 1
 utility.
 Then, periodically,
-.Nm mtree
+.Nm
 and
 .Xr md5 1
 should be run against the on-line specifications.
@@ -278,11 +280,11 @@ system specification directory
 .Xr chown 8
 .Sh HISTORY
 The
-.Nm mtree
+.Nm
 utility appeared in
 .Bx 4.3 Reno .
 The MD5 digest capability was added in
-.Tn FreeBSD
-2.1, in response to the widespread use of programs which can spoof
+.Fx 2.1 ,
+in response to the widespread use of programs which can spoof
 .Xr cksum 1 .
 
