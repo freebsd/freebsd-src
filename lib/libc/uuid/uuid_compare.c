@@ -72,5 +72,8 @@ uuid_compare(uuid_t *a, uuid_t *b, uint32_t *status)
 	res = (int)a->clock_seq_low - (int)b->clock_seq_low;
 	if (res)
 		return ((res < 0) ? -1 : 1);
-	return (memcmp(a->node, b->node, sizeof(uuid_t)));
+	res = memcmp(a->node, b->node, sizeof(a->node));
+	if (res)
+		return ((res < 0) ? -1 : 1);
+	return (0);
 }
