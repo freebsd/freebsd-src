@@ -131,9 +131,14 @@ TARGET_CPUTYPE?=${CPUTYPE}
 TARGET?=	${TARGET_ARCH}
 TARGET_CPUTYPE?=
 .endif
+.if !empty(TARGET_CPUTYPE)
+_TARGET_CPUTYPE=${TARGET_CPUTYPE}
+.else
+_TARGET_CPUTYPE=dummy
+.endif
 _CPUTYPE!=	${MAKE} -f /dev/null -m ${.CURDIR}/share/mk \
-		CPUTYPE=X${TARGET_CPUTYPE} -V CPUTYPE
-.if ${_CPUTYPE} != X${TARGET_CPUTYPE}
+		CPUTYPE=${_TARGET_CPUTYPE} -V CPUTYPE
+.if ${_CPUTYPE} != ${_TARGET_CPUTYPE}
 .error CPUTYPE global should be set with ?=.
 .endif
 .if make(buildworld)
