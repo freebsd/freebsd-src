@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.88 1997/02/22 09:32:55 peter Exp $
+ *	$Id: trap.c,v 1.89 1997/04/06 02:29:19 dyson Exp $
  */
 
 /*
@@ -763,9 +763,9 @@ dblfault_handler()
 
 	if (pcb != NULL) {
 		printf("\nFatal double fault:\n");
-		printf("eip = 0x%x\n", pcb->pcb_tss.tss_eip);
-		printf("esp = 0x%x\n", pcb->pcb_tss.tss_esp);
-		printf("ebp = 0x%x\n", pcb->pcb_tss.tss_ebp);
+		printf("eip = 0x%x\n", pcb->pcb_eip);
+		printf("esp = 0x%x\n", pcb->pcb_esp);
+		printf("ebp = 0x%x\n", pcb->pcb_ebp);
 	}
 
 	panic("double fault");
