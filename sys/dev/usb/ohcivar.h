@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.29 2001/11/21 02:41:18 augustss Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.30 2001/12/31 12:20:35 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -111,6 +111,7 @@ typedef struct ohci_softc {
 	int sc_noport;
 	u_int8_t sc_addr;		/* device address */
 	u_int8_t sc_conf;		/* device configuration */
+	char sc_softwake;
 
 	ohci_soft_ed_t *sc_freeeds;
 	ohci_soft_td_t *sc_freetds;
