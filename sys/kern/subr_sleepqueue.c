@@ -667,7 +667,6 @@ sleepq_timeout(void *arg)
 	 * synchronize with this function.
 	 */
 	if (TD_ON_SLEEPQ(td)) {
-		MPASS(TD_IS_SLEEPING(td));
 		MPASS(td->td_wchan == wchan);
 		MPASS(sq != NULL);
 		td->td_flags |= TDF_TIMEOUT;
@@ -688,6 +687,7 @@ sleepq_timeout(void *arg)
 	 * need to be canceled.
 	 */
 	if (td->td_flags & TDF_TIMEOUT) {
+		MPASS(TD_IS_SLEEPING(td));
 		td->td_flags &= ~TDF_TIMEOUT;
 		TD_CLR_SLEEPING(td);
 		setrunnable(td);
