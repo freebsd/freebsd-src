@@ -954,7 +954,7 @@ doMFSKERN:
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "set hint.acpi.0.disable=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "set module_path=\"/stand/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
