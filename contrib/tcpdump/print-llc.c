@@ -25,21 +25,16 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.43 2001/10/08 21:25:22 fenner Exp $";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-llc.c,v 1.53.2.3 2003/12/29 22:33:18 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <tcpdump-stdinc.h>
 
-#include <netinet/in.h>
-
-#include <ctype.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -49,6 +44,23 @@ static const char rcsid[] =
 
 #include "llc.h"
 #include "ethertype.h"
+
+static struct tok llc_values[] = {
+        { LLCSAP_NULL,     "Null" },
+        { LLCSAP_GLOBAL,   "Global" },
+        { LLCSAP_8021B_I,  "802.1B I" },
+        { LLCSAP_8021B_G,  "802.1B G" },
+        { LLCSAP_IP,       "IP" },
+        { LLCSAP_PROWAYNM, "ProWay NM" },
+        { LLCSAP_8021D,    "STP" },
+        { LLCSAP_RS511,    "RS511" },
+        { LLCSAP_ISO8208,  "ISO8208" },
+        { LLCSAP_PROWAY,   "ProWay" },
+        { LLCSAP_SNAP,     "SNAP" },
+        { LLCSAP_IPX,      "IPX" },
+        { LLCSAP_NETBEUI,  "NetBeui" },
+        { LLCSAP_ISONS,    "OSI" },
+};
 
 static struct tok cmd2str[] = {
 	{ LLC_UI,	"ui" },
@@ -83,6 +95,14 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 	/* Watch out for possible alignment problems */
 	memcpy((char *)&llc, (char *)p, min(caplen, sizeof(llc)));
 
+	if (eflag)
+	  printf("LLC, dsap %s (0x%02x), ssap %s (0x%02x), cmd 0x%02x, ",
+                 tok2str(llc_values,"Unknown",llc.dsap),
+		 llc.dsap,
+                 tok2str(llc_values,"Unknown",llc.ssap),
+		 llc.ssap,
+		 llc.llcu);
+
 	if (llc.ssap == LLCSAP_GLOBAL && llc.dsap == LLCSAP_GLOBAL) {
 		/*
 		 * This is an Ethernet_802.3 IPX frame; it has an
@@ -98,12 +118,18 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		 * such as an 802.11 network; this has appeared in at
 		 * least one capture file.)
 		 */
+		printf("(NOV-802.3) ");
 		ipx_print(p, length);
 		return (1);
 	}
 
 	if (llc.ssap == LLCSAP_8021D && llc.dsap == LLCSAP_8021D) {
 		stp_print(p, length);
+		return (1);
+	}
+
+	if (llc.ssap == LLCSAP_IP && llc.dsap == LLCSAP_IP) {
+		ip_print(p+4, length-4);
 		return (1);
 	}
 
@@ -116,6 +142,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		 *
 		 * Skip DSAP, LSAP, and control field.
 		 */
+		printf("(NOV-802.2) ");
 		p += 3;
 		length -= 3;
 		caplen -= 3;
@@ -171,7 +198,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 #endif
 	if (llc.ssap == LLCSAP_ISONS && llc.dsap == LLCSAP_ISONS
 	    && llc.llcui == LLC_UI) {
-		isoclns_print(p + 3, length - 3, caplen - 3, esrc, edst);
+		isoclns_print(p + 3, length - 3, caplen - 3);
 		return (1);
 	}
 
@@ -184,8 +211,6 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 			default_print((u_char *)p, caplen);
 			return (0);
 		}
-		if (vflag)
-			(void)printf("snap %s ", protoid_string(llc.llcpi));
 
 		caplen -= sizeof(llc);
 		length -= sizeof(llc);
@@ -193,45 +218,15 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 
 		orgcode = EXTRACT_24BITS(&llc.llc_orgcode[0]);
 		et = EXTRACT_16BITS(&llc.llc_ethertype[0]);
-		switch (orgcode) {
-		case OUI_ENCAP_ETHER:
-		case OUI_CISCO_90:
-			/*
-			 * This is an encapsulated Ethernet packet,
-			 * or a packet bridged by some piece of
-			 * Cisco hardware; the protocol ID is
-			 * an Ethernet protocol type.
-			 */
-			ret = ether_encap_print(et, p, length, caplen,
-			    extracted_ethertype);
-			if (ret)
-				return (ret);
-			break;
-
-		case OUI_APPLETALK:
-			if (et == ETHERTYPE_ATALK) {
-				/*
-				 * No, I have no idea why Apple used one
-				 * of their own OUIs, rather than
-				 * 0x000000, and an Ethernet packet
-				 * type, for Appletalk data packets,
-				 * but used 0x000000 and an Ethernet
-				 * packet type for AARP packets.
-				 */
-				ret = ether_encap_print(et, p, length, caplen,
-				    extracted_ethertype);
-				if (ret)
-					return (ret);
-			}
-			break;
-
-		case OUI_CISCO:
-			if (et == ETHERTYPE_CISCO_CDP) {
-				cdp_print(p, length, caplen, esrc, edst);
-				return 1;
-			}
-			break;
-		}
+		/*
+		 * XXX - what *is* the right bridge pad value here?
+		 * Does anybody ever bridge one form of LAN traffic
+		 * over a networking type that uses 802.2 LLC?
+		 */
+		ret = snap_print(p, length, caplen, extracted_ethertype,
+		    orgcode, et, 2);
+		if (ret)
+			return (ret);
 	}
 
 	if ((llc.ssap & ~LLC_GSAP) == llc.dsap) {
@@ -300,7 +295,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		}
 
 		if ((control & LLC_S_FMT) == LLC_S_FMT) {
-			static char *llc_s[] = { "rr", "rej", "rnr", "03" };
+			static const char *llc_s[] = { "rr", "rej", "rnr", "03" };
 			(void)printf("%s (r=%d,%c)",
 				llc_s[LLC_S_CMD(control)],
 				LLC_IS_NR(control),
@@ -316,8 +311,121 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		caplen -= 4;
 	}
 	(void)printf(" len=%d", length);
-	if (caplen > 0 && !qflag) {
-		default_print_unaligned(p, caplen);
-	}
 	return(1);
+}
+
+int
+snap_print(const u_char *p, u_int length, u_int caplen,
+    u_short *extracted_ethertype, u_int32_t orgcode, u_short et,
+    u_int bridge_pad)
+{
+	register int ret;
+
+	switch (orgcode) {
+	case OUI_ENCAP_ETHER:
+	case OUI_CISCO_90:
+		/*
+		 * This is an encapsulated Ethernet packet,
+		 * or a packet bridged by some piece of
+		 * Cisco hardware; the protocol ID is
+		 * an Ethernet protocol type.
+		 */
+		ret = ether_encap_print(et, p, length, caplen,
+		    extracted_ethertype);
+		if (ret)
+			return (ret);
+		break;
+
+	case OUI_APPLETALK:
+		if (et == ETHERTYPE_ATALK) {
+			/*
+			 * No, I have no idea why Apple used one
+			 * of their own OUIs, rather than
+			 * 0x000000, and an Ethernet packet
+			 * type, for Appletalk data packets,
+			 * but used 0x000000 and an Ethernet
+			 * packet type for AARP packets.
+			 */
+			ret = ether_encap_print(et, p, length, caplen,
+			    extracted_ethertype);
+			if (ret)
+				return (ret);
+		}
+		break;
+
+	case OUI_CISCO:
+		if (et == PID_CISCO_CDP) {
+			cdp_print(p, length, caplen);
+			return (1);
+		}
+		break;
+
+	case OUI_RFC2684:
+		switch (et) {
+
+		case PID_RFC2684_ETH_FCS:
+		case PID_RFC2684_ETH_NOFCS:
+			/*
+			 * XXX - remove the last two bytes for
+			 * PID_RFC2684_ETH_FCS?
+			 */
+			/*
+			 * Skip the padding.
+			 */
+			caplen -= bridge_pad;
+			length -= bridge_pad;
+			p += bridge_pad;
+
+			/*
+			 * What remains is an Ethernet packet.
+			 */
+			ether_print(p, length, caplen);
+			return (1);
+
+		case PID_RFC2684_802_5_FCS:
+		case PID_RFC2684_802_5_NOFCS:
+			/*
+			 * XXX - remove the last two bytes for
+			 * PID_RFC2684_ETH_FCS?
+			 */
+			/*
+			 * Skip the padding, but not the Access
+			 * Control field.
+			 */
+			caplen -= bridge_pad;
+			length -= bridge_pad;
+			p += bridge_pad;
+
+			/*
+			 * What remains is an 802.5 Token Ring
+			 * packet.
+			 */
+			token_print(p, length, caplen);
+			return (1);
+
+		case PID_RFC2684_FDDI_FCS:
+		case PID_RFC2684_FDDI_NOFCS:
+			/*
+			 * XXX - remove the last two bytes for
+			 * PID_RFC2684_ETH_FCS?
+			 */
+			/*
+			 * Skip the padding.
+			 */
+			caplen -= bridge_pad + 1;
+			length -= bridge_pad + 1;
+			p += bridge_pad + 1;
+
+			/*
+			 * What remains is an FDDI packet.
+			 */
+			fddi_print(p, length, caplen);
+			return (1);
+
+		case PID_RFC2684_BPDU:
+			stp_print(p, length);
+			return (1);
+		}
+	}
+	return (0);
 }
