@@ -530,7 +530,14 @@
 /* #undef USE_AS_TRADITIONAL_FORMAT */
 
 /* Define if your assembler supports marking sections with SHF_MERGE flag. */
-#define HAVE_GAS_SHF_MERGE 1	/* XXX:DEO new, caused Peter IA-64 trouble until he adjusted sys/boot/efi/libefi/arch/ia64/ldscript.ia64 */
+/* XXX:DEO new; caused Peter IA-64 trouble until he adjusted
+   sys/boot/efi/libefi/arch/ia64/ldscript.ia64.  */
+#define HAVE_GAS_SHF_MERGE 1
+
+/* XXX HAVE_GAS_SHF_MERGE is target-dependent so it shouldn't be put in
+   this target-independent config file.  Defining it breaks aout support
+   on i386's.  */
+#undef HAVE_GAS_SHF_MERGE
 
 /* Define if your assembler supports explicit relocations. */
 /* #undef HAVE_AS_EXPLICIT_RELOCS */
