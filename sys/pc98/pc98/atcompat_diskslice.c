@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.8 1997/12/02 21:06:49 phk Exp $
+ *	$Id: atcompat_diskslice.c,v 1.9 1998/07/11 17:01:24 kato Exp $
  */
 
 /*
@@ -44,7 +44,6 @@
  * for FreeBSD(98).
  */
 
-#include <stddef.h>
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
@@ -187,21 +186,6 @@ atcompat_dsinit(dname, dev, strat, lp, sspp)
 	struct diskslice *sp;
 	struct diskslices *ssp;
 
-	/*
-	 * Allocate a dummy slices "struct" and initialize it to contain
-	 * only an empty compatibility slice (pointing to itself) and a
-	 * whole disk slice (covering the disk as described by the label).
-	 * If there is an error, then the dummy struct becomes final.
-	 */
-	ssp = malloc(offsetof(struct diskslices, dss_slices)
-		     + BASE_SLICE * sizeof *sp, M_DEVBUF, M_WAITOK);
-	*sspp = ssp;
-	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
-	ssp->dss_nslices = BASE_SLICE;
-	sp = &ssp->dss_slices[0];
-	bzero(sp, BASE_SLICE * sizeof *sp);
-	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
-
 	mbr_offset = DOSBBSECTOR;
 reread_mbr:
 	/* Read master boot record. */
@@ -328,21 +312,18 @@ reread_mbr:
 	}
 
 	/*
-	 * Free the dummy slices "struct" and allocate a real new one.
-	 * Initialize special slices as above.
+	 * We are passed a pointer to a suitably initialized minimal
+	 * slices "struct" with no dangling pointers in it.  Replace it
+	 * by a maximal one.  This usually oversizes the "struct", but
+	 * enlarging it while searching for logical drives would be
+	 * inconvenient.
 	 */
-	free(ssp, M_DEVBUF);
-	ssp = malloc(offsetof(struct diskslices, dss_slices)
-#define	MAX_SLICES_SUPPORTED	MAX_SLICES  /* was (BASE_SLICE + NDOSPART) */
-		     + MAX_SLICES_SUPPORTED * sizeof *sp, M_DEVBUF, M_WAITOK);
+	free(*sspp, M_DEVBUF);
+	ssp = dsmakeslicestruct(MAX_SLICES, lp);
 	*sspp = ssp;
-	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
-	sp = &ssp->dss_slices[0];
-	bzero(sp, MAX_SLICES_SUPPORTED * sizeof *sp);
-	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
 
 	/* Initialize normal slices. */
-	sp += BASE_SLICE;
+	sp = &ssp->dss_slices[BASE_SLICE];
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++, sp++) {
 		sp->ds_offset = mbr_offset + dp->dp_start;
 		sp->ds_size = dp->dp_size;
