@@ -135,7 +135,7 @@ static	bios_values_t	bios_value;
 
 static	int		enable_panic_key;
 SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
-	   0, "");
+	   0, "Enable panic via keypress specified in kbdmap(5)");
 
 #define SC_CONSOLECTL	255
 
