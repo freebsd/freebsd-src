@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.1 1997/02/02 18:55:33 joerg Exp $
+ *	$Id: ip_divert.c,v 1.1 1997/05/09 17:46:44 archie Exp $
  */
 
 #include <sys/param.h>
@@ -123,13 +123,20 @@ div_init(void)
 void
 div_input(struct mbuf *m, int hlen)
 {
-	register struct ip *ip = mtod(m, struct ip *);
-	register struct inpcb *inp;
-	register struct socket *sa;
+	struct ip *ip;
+	struct inpcb *inp;
+	struct socket *sa;
 
 	/* Sanity check */
 	if (ip_divert_port == 0)
-		panic("div_input");
+		panic("div_input: port is 0");
+
+	/* Assure header */
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = m_pullup(m, sizeof(struct ip))) == 0) {
+		return;
+	}
+	ip = mtod(m, struct ip *);
 
 	/* Record divert port */
 	divsrc.sin_port = htons(ip_divert_port);
@@ -143,6 +150,12 @@ div_input(struct mbuf *m, int hlen)
 	divsrc.sin_addr.s_addr = 0;
 	if (hlen) {
 		struct ifaddr *ifa;
+
+#ifdef DIAGNOSTIC
+		/* Sanity check */
+		if (!(m->m_flags & M_PKTHDR))
+			panic("div_input: no pkt hdr");
+#endif
 
 		/* More fields affected by ip_input() */
 		HTONS(ip->ip_id);

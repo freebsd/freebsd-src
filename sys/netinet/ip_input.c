@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.4 1997/02/06 11:33:38 brian Exp $
+ * $Id: ip_input.c,v 1.50.2.5 1997/05/11 18:01:24 tegge Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -313,25 +313,24 @@ tooshort:
 
 #ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
-		int action;
+#ifdef IPDIVERT
+		u_short port;
 
-#ifdef IPDIVERT
-		action = (*ip_fw_chk_ptr)(&ip, hlen,
-				m->m_pkthdr.rcvif, ip_divert_ignore, &m);
+		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, ip_divert_ignore, &m);
 		ip_divert_ignore = 0;
-#else
-		action = (*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m);
-#endif
-		if (action == -1)
-			return;
-		if (action != 0) {
-#ifdef IPDIVERT
-			frag_divert_port = action;
+		if (port) {			/* Divert packet */
+			frag_divert_port = port;
 			goto ours;
-#else
-			goto bad;	/* ipfw said divert but we can't */
-#endif
 		}
+#else
+		/* If ipfw says divert, we have to just drop packet */
+		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, 0, &m)) {
+			m_freem(m);
+			m = NULL;
+		}
+#endif
+		if (!m)
+			return;
 	}
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
@@ -500,9 +499,10 @@ found:
 
 #ifdef IPDIVERT
 	/*
-	 * Divert packets here to the divert protocol if required
+	 * Divert reassembled packets to the divert protocol if required
 	 */
 	if (frag_divert_port) {
+		ipstat.ips_delivered++;
 		ip_divert_port = frag_divert_port;
 		frag_divert_port = 0;
 		(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, hlen);
