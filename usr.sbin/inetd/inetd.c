@@ -264,10 +264,10 @@ struct	servent *sp;
 struct	rpcent *rpc;
 char	*hostname = NULL;
 struct	sockaddr_in *bind_sa4;
-int	no_v4bind = 1;
+int	v4bind_ok = 0;
 #ifdef INET6
 struct	sockaddr_in6 *bind_sa6;
-int	no_v6bind = 1;
+int	v6bind_ok = 0;
 #endif
 int	signalpipe[2];
 #ifdef SANITY_CHECK
@@ -408,34 +408,34 @@ main(int argc, char **argv)
 		}
 		switch (res->ai_addr->sa_family) {
 		case AF_INET:
-			if (no_v4bind == 0)
+			if (v4bind_ok)
 				continue;
 			bind_sa4 = (struct sockaddr_in *)res->ai_addr;
 			/* init port num in case servname is dummy */
 			bind_sa4->sin_port = 0;
-			no_v4bind = 0;
+			v4bind_ok = 1;
 			continue;
 #ifdef INET6
 		case AF_INET6:
-			if (no_v6bind == 0)
+			if (v6bind_ok)
 				continue;
 			bind_sa6 = (struct sockaddr_in6 *)res->ai_addr;
 			/* init port num in case servname is dummy */
 			bind_sa6->sin6_port = 0;
-			no_v6bind = 0;
+			v6bind_ok = 1;
 			continue;
 #endif
 		}
-		if (no_v4bind == 0
+		if (v4bind_ok
 #ifdef INET6
-		    && no_v6bind == 0
+		    && v6bind_ok
 #endif
 		    )
 			break;
 	} while ((res = res->ai_next) != NULL);
-	if (no_v4bind != 0
+	if (!v4bind_ok
 #ifdef INET6
-	    && no_v6bind != 0
+	    && !v6bind_ok
 #endif
 	    ) {
 		syslog(LOG_ERR, "-a %s: unknown address family", hostname);
@@ -481,7 +481,7 @@ main(int argc, char **argv)
 	for (i = 0; i < PERIPSIZE; ++i)
 		LIST_INIT(&proctable[i]);
 
-	if (!no_v4bind) {
+	if (v4bind_ok) {
 		udpconf = getnetconfigent("udp");
 		tcpconf = getnetconfigent("tcp");
 		if (udpconf == NULL || tcpconf == NULL) {	
@@ -490,7 +490,7 @@ main(int argc, char **argv)
 		}
 	}
 #ifdef INET6
-	if (!no_v6bind) {
+	if (v6bind_ok) {
 		udp6conf = getnetconfigent("udp6");
 		tcp6conf = getnetconfigent("tcp6");
 		if (udp6conf == NULL || tcp6conf == NULL) {	
@@ -1053,14 +1053,14 @@ config(void)
 		}
 		switch (sep->se_family) {
 		case AF_INET:
-			if (no_v4bind != 0) {
+			if (!v4bind_ok) {
 				sep->se_fd = -1;
 				continue;
 			}
 			break;
 #ifdef INET6
 		case AF_INET6:
-			if (no_v6bind != 0) {
+			if (!v6bind_ok) {
 				sep->se_fd = -1;
 				continue;
 			}
@@ -1770,24 +1770,24 @@ more:
 			goto more;
 		}
 #ifdef INET6
-		if (v6bind != 0 && no_v6bind != 0) {
+		if (v6bind && !v6bind_ok) {
 			syslog(LOG_INFO, "IPv6 bind is ignored for %s",
 			       sep->se_service);
-			if (v4bind && no_v4bind == 0)
+			if (v4bind && v4bind_ok)
 				v6bind = 0;
 			else {
 				freeconfig(sep);
 				goto more;
 			}
 		}
-		if (v6bind != 0) {
+		if (v6bind) {
 			sep->se_family = AF_INET6;
-			if (v4bind == 0 || no_v4bind != 0)
+			if (!v4bind || !v4bind_ok)
 				sep->se_nomapped = 1;
 		} else
 #endif
 		{ /* default to v4 bind if not v6 bind */
-			if (no_v4bind != 0) {
+			if (!v4bind_ok) {
 				syslog(LOG_NOTICE, "IPv4 bind is ignored for %s",
 				       sep->se_service);
 				freeconfig(sep);
