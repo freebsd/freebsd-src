@@ -61,7 +61,7 @@ char *out_file = "LC_COLLATE";
 %}
 %union {
 	u_char ch;
-	u_char str[STR_LEN];
+	u_char str[BUFSIZE];
 }
 %token SUBSTITUTE WITH ORDER RANGE
 %token <str> STRING
@@ -90,6 +90,8 @@ substitute : SUBSTITUTE CHAR WITH STRING {
 		yyerror("NUL character can't be substituted");
 	if (strchr($4, $2) != NULL)
 		yyerror("Char 0x%02x substitution is recursive", $2);
+	if (strlen($4) + 1 > STR_LEN)
+		yyerror("Char 0x%02x substitution is too long", $2);
 	strcpy(__collate_substitute_table[$2], $4);
 }
 ;
@@ -138,6 +140,8 @@ item :  CHAR {
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
+	if (strlen($1) + 1 > STR_LEN)
+		yyerror("Chain %d is too long", chain_index);
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri++;
 }
@@ -188,6 +192,8 @@ prim_sub_item : CHAR {
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
+	if (strlen($1) + 1 > STR_LEN)
+		yyerror("Chain %d is too long", chain_index);
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri;
 }
@@ -215,6 +221,8 @@ sec_sub_item : CHAR {
 	| CHAIN {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
+	if (strlen($1) + 1 > STR_LEN)
+		yyerror("Chain %d is too long", chain_index);
 	strcpy(__collate_chain_pri_table[chain_index].str, $1);
 	__collate_chain_pri_table[chain_index].prim = prim_pri;
 	__collate_chain_pri_table[chain_index++].sec = sec_pri++;
