@@ -305,7 +305,7 @@ loop:
 	}
 	VI_UNLOCK(vp);
 	splx(s);
-	return (UFS_UPDATE(vp, wait));
+	return (ffs_update(vp, wait));
 }
 
 /*
@@ -729,14 +729,14 @@ ffs_write(ap)
 		VN_KNOTE_UNLOCKED(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			(void)UFS_TRUNCATE(vp, osize,
+			(void)ffs_truncate(vp, osize,
 			    IO_NORMAL | (ioflag & IO_SYNC),
 			    ap->a_cred, uio->uio_td);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
-		error = UFS_UPDATE(vp, 1);
+		error = ffs_update(vp, 1);
 	return (error);
 }
 
@@ -1052,13 +1052,13 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	}
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			(void)UFS_TRUNCATE(vp, osize,
+			(void)ffs_truncate(vp, osize,
 			    IO_EXT | (ioflag&IO_SYNC), ucred, uio->uio_td);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
-		error = UFS_UPDATE(vp, 1);
+		error = ffs_update(vp, 1);
 	return (error);
 }
 

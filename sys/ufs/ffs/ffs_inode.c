@@ -236,13 +236,13 @@ ffs_truncate(vp, length, flags, cred, td)
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
 			softdep_setup_freeblocks(oip, length, IO_EXT);
-		return (UFS_UPDATE(ovp, 1));
+		return (ffs_update(ovp, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
 			softdep_setup_freeblocks(oip, length, IO_EXT);
-		return (UFS_UPDATE(ovp, 0));
+		return (ffs_update(ovp, 0));
 	}
 	if (fs->fs_ronly)
 		panic("ffs_truncate: read-only filesystem");
@@ -303,7 +303,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 1));
+		return (ffs_update(ovp, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -381,7 +381,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			DIP_SET(oip, i_db[i], 0);
 	}
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, 1);
+	allerror = ffs_update(ovp, 1);
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration

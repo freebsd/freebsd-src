@@ -606,7 +606,7 @@ ffs_reallocblks_ufs1(ap)
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree)
-			UFS_UPDATE(vp, 1);
+			ffs_update(vp, 1);
 	}
 	if (ssize < len) {
 		if (doasyncfree)
@@ -813,7 +813,7 @@ ffs_reallocblks_ufs2(ap)
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree)
-			UFS_UPDATE(vp, 1);
+			ffs_update(vp, 1);
 	}
 	if (ssize < len) {
 		if (doasyncfree)
@@ -921,9 +921,9 @@ ffs_valloc(pvp, mode, cred, vpp)
 					(allocfcn_t *)ffs_nodealloccg);
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
+	error = ffs_vget(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
-		UFS_VFREE(pvp, ino, mode);
+		ffs_vfree(pvp, ino, mode);
 		return (error);
 	}
 	ip = VTOI(*vpp);
@@ -2368,7 +2368,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    (intmax_t)cmd.size);
 		}
 #endif /* DEBUG */
-		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
+		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
 		ip->i_nlink += cmd.size;
@@ -2388,7 +2388,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    (intmax_t)cmd.size);
 		}
 #endif /* DEBUG */
-		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
+		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
