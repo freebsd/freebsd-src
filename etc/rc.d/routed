@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: routed
-# REQUIRE: network1 network2
+# REQUIRE: netif network2
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr

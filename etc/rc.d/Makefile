@@ -5,12 +5,12 @@
 
 FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz amd \
 	apm apmd atm1 atm2.sh atm3.sh archdep bgfsck bootparams ccd cleanvar \
-	cleartmp cron devd devdb devfs diskless dmesg dumpon fsck inetd \
-	initdiskless initrandom ip6fw ipfilter ipfw ipmon ipnat ipsec \
-	ipxrouted isdnd jail kadmind kerberos keyserv kldxref ldconfig local \
-	localdaemons lomac lpd motd mountcritlocal mountcritremote \
-	mountd moused mroute6d mrouted msgs named network1 network2 \
-	network3 network_ipv6 nfsclient nfsd nfslocking nfsserver ntpd \
+	cleartmp cron devd devdb devfs dhclient diskless dmesg dumpon fsck \
+	hostname inetd initdiskless initrandom ip6fw ipfilter ipfw ipmon ipnat \
+	ipsec ipxrouted isdnd jail kadmind kerberos keyserv kldxref ldconfig \
+	local localdaemons lomac lpd motd mountcritlocal mountcritremote \
+	mountd moused mroute6d mrouted msgs named netif network2 network3 \
+	network_ipv6 nfsclient nfsd nfslocking nfsserver nisdomain ntpd \
 	ntpdate othermta pccard pcvt ppp-user pppoed pwcheck quota random \
 	rarpd rcconf.sh root route6d routed rpcbind rtadvd rwho savecore \
 	securelevel sendmail serial sppp sshd swap1 syscons sysctl \
