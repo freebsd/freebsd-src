@@ -43,7 +43,9 @@ The
 function marks a mount point as busy.
 The purpose of this
 function is to synchronize access to a mount point.
-It also delays unmounting by sleeping on mp if the
+It also delays unmounting by sleeping on
+.Fa mp
+if the
 .Dv MNTK_UNMOUNT
 flag is set in
 .Fa mp->mnt_kern_flag
@@ -58,8 +60,9 @@ Its arguments are:
 .It Fa mp
 The mount point to busy.
 .It Fa flags
-Flags controlling the operation of
-.Fn vfs_busy .
+Flags controlling how
+.Fn vfs_busy
+should act.
 .Bl -tag -xwidth ".Dv LK_NOWAIT"
 .It Dv LK_NOWAIT
 do not sleep if
@@ -81,7 +84,7 @@ The process responsible for this call.
 If
 .Fa interlkp
 is a valid pointer it must be locked on entry,
-and it will not be unlocked even on error.
+and it will not be unlocked even in the case of an error.
 .Sh RETURN VALUES
 A 0 value is returned on success.
 If the mount point is being
@@ -97,4 +100,4 @@ is set).
 .El
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .
