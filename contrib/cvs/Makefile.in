@@ -1,0 +1,264 @@
+# Master Makefile for the GNU Concurrent Versions System.
+# Copyright (C) 1986, 1988-1992, 1994 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# $CVSid: @(#)Makefile.in 1.30 94/10/22 $
+
+SHELL = /bin/sh
+
+#### Start of system configuration section. ####
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+
+# If you use gcc, you should either run the fixincludes script that
+# comes with it or else use gcc with the -traditional option.  Otherwise
+# ioctl calls will be compiled incorrectly on some systems.
+CC = @CC@
+AR = ar
+
+@SET_MAKE@
+
+# Set RANLIB = echo if your system doesn't have or need ranlib.
+RANLIB = @RANLIB@
+# Set YACC = bison or yacc, depending on which you have on your system
+YACC = @YACC@
+# Use cp if you don't have install.
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+DEFS = @DEFS@
+LIBS = @LIBS@
+
+INCLUDES = -I. -I../lib @includeopt@
+CFLAGS = @CFLAGS@
+LDFLAGS = @LDFLAGS@
+
+MAKEINFO = makeinfo
+TEXI2DVI = texi2dvi
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+# Where to install the executables.
+bindir = $(exec_prefix)/bin
+
+# Where to put the system-wide .cvsrc file
+libdir = $(prefix)/lib
+
+# Where to put the Info files
+infodir = $(prefix)/info
+
+# Where to put the manual pages.
+mandir = $(prefix)/man
+
+#### End of system configuration section. ####
+
+FLAGS_TO_PASS = \
+	AR='$(AR)' \
+	CC='$(CC)' \
+	CFLAGS='$(CFLAGS)' \
+	LDFLAGS='$(LDFLAGS)' \
+	LIBPROGS='$(LIBPROGS)' \
+	LIBS='$(LIBS)' \
+	MAKE='$(MAKE)' \
+	MAKEINFO='$(MAKEINFO)' \
+	RANLIB='$(RANLIB)' \
+	TEXI2DVI='$(TEXI2DVI)' \
+	YACC='$(YACC)' \
+	bindir='$(bindir)' \
+	infodir='$(infodir)' \
+	libdir='$(libdir)' \
+	mandir='$(mandir)' \
+	prefix='$(prefix)' \
+	exec_prefix='$(exec_prefix)'
+
+DISTFILES = \
+	COPYING COPYING.LIB INSTALL README TODO PROJECTS \
+	BUGS MINOR-BUGS FAQ HACKING \
+	ChangeLog NEWS ChangeLog.zoo \
+	configure configure.in stamp-h.in config.h.in Makefile.in acconfig.h \
+	cvs-format.el mkinstalldirs install-sh \
+	cvsnt.mak \
+	.cvsignore
+
+### Subdirectories to run make in for the primary targets.
+# Unix source subdirs, where we'll want to run lint and etags:
+USOURCE_SUBDIRS = lib src
+# All other subdirs:
+SUBDIRS = ${USOURCE_SUBDIRS} man doc contrib tools windows-NT os2 macintosh
+# Only make TAGS/tags files in these directories, in this order
+#    [Why in this order?  If we didn't have to stick to this order, we
+#    could make "TSUBDIRS = ${USOURCE_SUBDIRS}".  -Karl]
+TSUBDIRS= src lib
+
+# Set default target.
+all:
+
+.PHONY: all install uninstall
+all install uninstall: config.h Makefile all-local
+	@for subdir in $(SUBDIRS); do \
+	  echo "making $@ in $$subdir"; \
+	  ( cd $$subdir && $(MAKE) $(FLAGS_TO_PASS) $@ ) || exit 1; \
+	done
+
+install: all install-local install-info
+
+.PHONY: all-local
+all-local:
+
+.PHONY: info dvi clean-info install-info
+info dvi clean-info install-info:
+	cd doc && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1
+
+.PHONY: install-local
+install-local: all-local
+	@: nothing to do locally
+
+.PHONY: tags
+tags:
+	@for dir in $(TSUBDIRS); do echo making $@ in $$dir; cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1; cd ..; done
+	@echo making $@ in .
+	@ctags `for i in \`$(MAKE) SUBDIRS="$(TSUBDIRS)" ls\` ; do echo $(srcdir)/$$i ; done`
+
+.PHONY: TAGS
+TAGS:
+	@for dir in $(TSUBDIRS); do echo making $@ in $$dir; cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1; cd ..; done
+	@echo making $@ in .
+	@etags `for i in \`$(MAKE) SUBDIRS="$(TSUBDIRS)" ls | grep -v 'make\[[0-9]\]'\` ; do echo $(srcdir)/$$i ; done`
+
+.PHONY: ls
+ls:
+	@echo $(DISTFILES)
+	@for dir in $(SUBDIRS); do \
+		for i in `cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ | grep -v 'make\[[0-9]\]'` ; do \
+			echo $$dir/$$i ; \
+		done ; \
+	done
+
+.PHONY: clean
+clean: clean-local
+	@for dir in $(SUBDIRS); do echo making $@ in $$dir; cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1; cd ..; done
+
+.PHONY: distclean
+distclean: distclean-local
+	@for dir in $(SUBDIRS); do echo making $@ in $$dir; cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1; cd ..; done
+	rm -f config.status
+
+.PHONY: realclean
+realclean: realclean-local
+	@for dir in $(SUBDIRS); do echo making $@ in $$dir; cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1; cd ..; done
+	rm -f config.status
+
+.PHONY: mostlyclean-local
+mostlyclean-local:
+	rm -f *~
+
+.PHONY: clean-local
+clean-local: mostlyclean-local
+
+.PHONY: distclean-local
+distclean-local: clean-local
+	rm -f Makefile config.cache config.h config.log stamp-h
+	rm -f tags TAGS
+
+.PHONY: realclean-local
+realclean-local: distclean-local
+
+.PHONY: saber
+saber:
+	@for dir in $(SUBDIRS); do cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $@ || exit 1; cd ..; done
+
+.PHONY: check
+check:
+	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd src ; $(MAKE) $(FLAGS_TO_PASS) check
+
+.PHONY: remotecheck
+remotecheck:
+	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd src ; $(MAKE) $(FLAGS_TO_PASS) remotecheck
+
+.PHONY: installcheck
+installcheck:
+	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd src ; $(MAKE) $(FLAGS_TO_PASS) installcheck
+
+.PHONY: lint
+lint:
+	@for dir in $(USOURCE_SUBDIRS); do cd $$dir && $(MAKE) $(FLAGS_TO_PASS) xlint || exit 1; cd ..; done
+
+.PHONY: dist
+GZIP=gzip --best
+GZIP_EXT=.gz
+TAR_VERBOSE=
+dist:
+	echo > .fname \
+	  cvs-`sed < $(srcdir)/src/version.c \
+		    -e '/version_string/!d' \
+		    -e 's/[^0-9.]*\([0-9.]*\).*/\1/' \
+		    -e q`
+	rm -rf `cat .fname`
+	${MAKE} dist-dir DISTDIR="`cat .fname`"
+	for dir in ${SUBDIRS}; do \
+	  ( DISTDIR="../`cat .fname`/$${dir}"; \
+            cd $${dir} && \
+	    ${MAKE} dist-dir DISTDIR="$${DISTDIR}" \
+	  ); \
+	done
+	tar chf${TAR_VERBOSE} - `cat .fname` | ${GZIP} > "`cat .fname`.tar${GZIP_EXT}"
+	rm -rf `cat .fname` .fname
+
+.PHONY: dist-dir
+dist-dir:
+	mkdir ${DISTDIR}
+	for i in ${DISTFILES}; do \
+	  ln $(srcdir)/$${i} ${DISTDIR}; \
+	done
+
+# For the justification of the following Makefile rules, see node
+# `Automatic Remaking' in GNU Autoconf documentation.
+Makefile: Makefile.in config.status
+	CONFIG_FILES=$@ CONFIG_HEADERS= ./config.status
+config.status: configure
+	./config.status --recheck
+# The rules to run autoconf and autoheader are commented out.  This is because
+# when the user unpacks a tarfile, configure.in might end up newer than 
+# configure, but the user might not have (and does not need to have) autoconf
+# installed.
+#configure: configure.in #aclocal.m4
+#	cd $(srcdir); autoconf
+
+config.h: stamp-h
+
+# This used to do a ./config.status --recheck, to update config.status with
+# any new #defines from config.h.in.  The problem was that the rule itself
+# depends on config.status, so that the --recheck would get run several
+# times, which is bad if the user was trying to specify CFLAGS manually.
+# It was a big pain in the neck.
+stamp-h: config.h.in config.status
+	CONFIG_FILES=$@ CONFIG_HEADERS=config.h ./config.status
+
+#config.h.in: stamp-h.in
+#stamp-h.in: configure.in #aclocal.m4 acconfig.h
+#	cd $(srcdir); autoheader
+#	date > $(srcdir)/stamp-h.in
+
+# Tell versions [3.59,3.63) of GNU make not to export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

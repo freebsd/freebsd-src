@@ -1,0 +1,60 @@
+wishlist - Tue Nov  2 15:22:58 PST 1993
+
+* bcopy -> memcpy & friends.
+  ** done 12/18/93
+  
+* remove static buffers.
+* replace list & node cache with recursive obstacks, (xmalloc,
+  getnode, getlist)
+* check all io functions for error return codes.  also check all
+  system calls.
+* error check mkdir.
+
+---
+Old notes...
+
+* All sizing limits are gone.  The rest of these items were incidental
+  in that effort.
+
+* login name from history was duplicated.  taught existing routine to
+  cache and use that instead.  Also add routines to cache uid, pid,
+  etc.
+
+* ign strings were never freed.  Now they are.
+
+* there was a printf("... %s ...", cp) vs *cp bug in history.c.  Now
+  fixed.
+
+* The environment variables TMPDIR, HOME, and LOGNAME were not
+  honored.  Now they are.
+
+* extra line inserted by do_editor() is gone.  Then obviated.  Editor
+  is now called exactly once per checkin.
+
+* revised editor behaviour.  Never use /dev/tty.  If the editor
+  session fails, we haven't yet done anything.  Therefor the user can
+  safely rerun cvs and we should just fail.  Also use the editor for
+  initial log messages on added files.  Also omit the confirmation
+  when adding directories.  Adding directories will require an
+  explicit "commit" step soon.  Make it possible to prevent null login
+  messages using #define REQUIRE_LOG_MESSAGES
+
+* prototypes for all callbacks.
+
+* all callbacks get ref pointers.
+
+* do_recursion/start_recursion now use recusion_frame's rather than a
+  list of a lot of pointers and global variables.
+
+* corrected types on status_dirproc().
+
+* CONFIRM_DIRECTORY_ADDS
+
+* re_comp was innappropriate in a few places.  I've eliminated it.
+
+* FORCE_MESSAGE_ON_ADD
+
+* So I built a regression test.  Let's call it a sanity check to be
+  less ambitious.  It exposed that cvs is difficult to call from
+  scripts.
+

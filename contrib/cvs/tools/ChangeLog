@@ -1,0 +1,7 @@
+Sun Apr 14 11:07:43 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * .cvsignore: new file.
+
+        * Makefile.in (subdir): `tools', not `contrib'.
+
+        * Added ChangeLog (this file), and subdir `pcl-cvs'.
