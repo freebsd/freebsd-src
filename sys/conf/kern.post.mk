@@ -116,12 +116,12 @@ GEN_M_CFILES=	${MFILES:T:S/.m$/.c/}
 # pass it to mkdep.
 _kernel-depend: assym.s vnode_if.h miidevs.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${GEN_M_CFILES} \
-	    ${SFILES} ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
+	    ${SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
 	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES -V GEN_M_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V SFILES -V SYSTEM_SFILES | \
+	${MAKE} -V SFILES | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
