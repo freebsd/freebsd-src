@@ -100,7 +100,6 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	pid_t pid;
 	int s, aport, lport, timo, error;
 	char c;
-	int refused;
 	char num[8];
 	static char canonnamebuf[MAXDNAME];	/* is it proper here? */
 
@@ -128,7 +127,6 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 		*ahost = canonnamebuf;
 	}
 	ai = res;
-	refused = 0;
 	oldmask = sigblock(sigmask(SIGURG));
 	for (timo = 1, lport = IPPORT_RESERVED - 1;;) {
 		s = rresvport_af(&lport, ai->ai_family);
@@ -155,8 +153,14 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			lport--;
 			continue;
 		}
-		if (errno == ECONNREFUSED)
-			refused = 1;
+		if (errno == ECONNREFUSED && timo <= 16) {
+			struct timespec time_to_sleep, time_remaining;
+
+			time_to_sleep.tv_sec = timo;
+			time_to_sleep.tv_nsec = 0;
+			(void)_nanosleep(&time_to_sleep, &time_remaining);
+			timo *= 2;
+		}
 		if (ai->ai_next != NULL) {
 			int oerrno = errno;
 
@@ -174,18 +178,6 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				    NULL, 0,
 				    NI_NUMERICHOST|NI_WITHSCOPEID);
 			fprintf(stderr, "Trying %s...\n", paddr);
-			continue;
-		}
-		if (refused && timo <= 16) {
-			struct timespec time_to_sleep, time_remaining;
-
-			time_to_sleep.tv_sec = timo;
-			time_to_sleep.tv_nsec = 0;
-			(void)_nanosleep(&time_to_sleep, &time_remaining);
-			
-			timo *= 2;
-			ai = res;
-			refused = 0;
 			continue;
 		}
 		(void)fprintf(stderr, "%s: %s\n", *ahost, strerror(errno));
