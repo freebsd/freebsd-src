@@ -176,7 +176,7 @@ state(k, ve)
 
 	v = ve->var;
 	flag = k->ki_p->ki_flag;
-	sflag = k->ki_p->ki_flag;
+	sflag = k->ki_p->ki_sflag;
 	cp = buf;
 
 	switch (k->ki_p->ki_stat) {
