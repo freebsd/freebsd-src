@@ -358,7 +358,7 @@ installcheck:
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
-	    ln make makewhatis mkdir mtree mv pwd_mkdb rm sed sh sysctl \
+	    ln make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
@@ -576,9 +576,13 @@ _strfile=	games/fortune/strfile
 _cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
 .endif
 
+.if !defined(NOMAN)
+_makewhatis=	usr.bin/makewhatis 
+.endif
+
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
-    usr.bin/rpcgen usr.bin/xargs usr.bin/xinstall \
+    ${_makewhatis} usr.bin/rpcgen usr.bin/xargs usr.bin/xinstall \
     usr.sbin/config usr.sbin/kbdcontrol \
     ${_cxx_consumers} gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
