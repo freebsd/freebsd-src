@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.35 1998/03/07 15:36:27 bde Exp $";
+	"$Id: pstat.c,v 1.36 1998/07/06 20:28:05 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -476,8 +476,8 @@ vnode_print(avnode, vp)
 	if (flag == 0)
 		*fp++ = '-';
 	*fp = '\0';
-	(void)printf("%p %s %5s %4d %4d",
-	    (void *)avnode, type, flags, vp->v_usecount, vp->v_holdcnt);
+	(void)printf("%8lx %s %5s %4d %4d",
+	    (u_long)(void *)avnode, type, flags, vp->v_usecount, vp->v_holdcnt);
 }
 
 void
@@ -593,7 +593,8 @@ union_print(vp)
 
 	KGETRET(VTOUNION(vp), &unode, sizeof(unode), "vnode's unode");
 
-	(void)printf(" %p %p", (void *)up->un_uppervp, (void *)up->un_lowervp);
+	(void)printf(" %8lx %8lx", (u_long)(void *)up->un_uppervp,
+	    (u_long)(void *)up->un_lowervp);
 	return (0);
 }
 	
@@ -728,7 +729,7 @@ kinfo_vnodes(avnodes)
 }
 
 char hdr[] =
-"  LINE RAW CAN OUT IHWT LWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
+"  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
 int ttyspace = 128;
 
 void
@@ -895,7 +896,7 @@ ttyprt(tp, line)
 	else
 		(void)printf("%7s ", name);
 	(void)printf("%2d %3d ", tp->t_rawq.c_cc, tp->t_canq.c_cc);
-	(void)printf("%3d %4d %3d %4d %3d %7d ", tp->t_outq.c_cc,
+	(void)printf("%3d %5d %5d %4d %3d %7d ", tp->t_outq.c_cc,
 		tp->t_ihiwat, tp->t_ilowat, tp->t_ohiwat, tp->t_olowat,
 		tp->t_column);
 	for (i = j = 0; ttystates[i].flag; i++)
@@ -904,7 +905,7 @@ ttyprt(tp, line)
 	if (j == 0)
 		state[j++] = '-';
 	state[j] = '\0';
-	(void)printf("%-6s %p", state, (void *)tp->t_session);
+	(void)printf("%-6s %8lx", state, (u_long)(void *)tp->t_session);
 	pgid = 0;
 	if (tp->t_pgrp != NULL)
 		KGET2(&tp->t_pgrp->pg_id, &pgid, sizeof(pid_t), "pgid");
@@ -962,7 +963,7 @@ filemode()
 	for (; (char *)fp < buf + len; addr = fp->f_list.le_next, fp++) {
 		if ((unsigned)fp->f_type > DTYPE_SOCKET)
 			continue;
-		(void)printf("%p ", (void *)addr);
+		(void)printf("%8lx ", (u_long)(void *)addr);
 		(void)printf("%-8.8s", dtypes[fp->f_type]);
 		fbp = flagbuf;
 		if (fp->f_flag & FREAD)
@@ -982,7 +983,7 @@ filemode()
 		*fbp = '\0';
 		(void)printf("%6s  %3d", flagbuf, fp->f_count);
 		(void)printf("  %3d", fp->f_msgcount);
-		(void)printf("  %8p", (void *)fp->f_data);
+		(void)printf("  %8lx", (u_long)(void *)fp->f_data);
 		if (fp->f_offset < 0)
 			(void)printf("  %qx\n", fp->f_offset);
 		else
