@@ -23,12 +23,71 @@ This file contains sparc64-specific installation instructions.
   <sect2>
     <title>Preparation</title>
 
+    <para>Currently, there are two ways to install &os;/&arch; on a
+      new machine.  By far the easier of the two is to install from
+      CDROM; this method allows you to install &os; without any
+      dependencies on any other computers.</para>
+
+    <para>If installing from CDROM is impossible or undesirable, the
+      alternative is to install over the network.  This requires
+      another machine, suitably configured, to serve the boot loader,
+      kernel, and root file system to the new machine, via a
+      combination of RARP, TFTP, and either BOOTP or DHCP.  This
+      netboot server can be another &os; machine, but is not required
+      to be.</para>
+
+    <para>You will need to decide which of these methods you want to
+      use for installation, as this will determine the set of files
+      you need to download (if any), as well as the steps required to
+      do the installation.</para>
+
     <sect3>
       <title>Downloading Required Files</title>
-      <para>If you are not installing from a CDROM, you will need to
-        download some files via FTP (the URLs are given below).  The
-        links in this document point to the main &os; FTP server.
-        Please use a mirror site instead if possible.</para>
+
+      <para>This section describes the files you will need for a
+	&os;/&arch; installation.  The links in this document point to
+	the main &os; FTP server.  Please use a mirror site instead if
+	possible.
+
+      <sect4>
+        <title>Required Files for CDROM Installation</title>
+
+	<para>If you want to do a CDROM installation, an ISO
+	  image with a snapshot of &os;/&arch; can be found at
+	  <ulink url="&release.url;"></ulink>.  This file can be used to
+	  create a bootable CDROM which contains everything necessary to
+	  boot and load at least a minimal &os; installation.</para>
+
+<!-- XXX ISO location?-->
+      </sect4>
+
+      <sect4>
+
+	<title>Required Files for Network Installation</title>
+	<para>For a network installation, you will need several files.
+	  First, you will need to download a &os;/&arch; loader for
+	  &man.tftpd.8; to serve to your &arch; client.  There are
+	  currently three ways for a loader to load a kernel; TFTP, NFS,
+	  or a local disk.  There is a separate loader for each of these
+	  methods; you should download one of the following files:</para>
+
+	  <itemizedlist>
+	    <listitem><para><ulink url="&release.url;loader-tftp.gz"></ulink></para></listitem>
+	    <listitem><para><ulink url="&release.url;loader-nfs.gz"></ulink></para></listitem>
+	    <listitem><para><ulink url="&release.url;loader-ufs.gz"></ulink></para></listitem>
+	  </itemizedlist>
+
+	<para>A network installation also requires a kernel to be served
+	  to the netboot client.  A suitable kernel can be found at
+	  <ulink url="&release.url;"></ulink>.</para>
+
+<!-- XXX kernel filename?-->
+
+	<para>Finally, you will need a &man.tar.1; archive which
+	  contains the binaries and configuration files from the base
+	  system.  This file is available from <ulink
+	  url="&release.url;distrib.tar.gz"></ulink>.</para>
+      </sect4>
    </sect3>
    <sect3 id="getting-to-prom-prompt">
      <title>Getting to the PROM Prompt</title>
@@ -121,19 +180,6 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 	  <filename>/etc/inetd.conf</filename>:</para>
 
 	<programlisting>tftp dgram udp  wait nobody /usr/libexec/tftpd tftpd /tftpboot</programlisting>
-
-
-	<para>You will then need to download a &os;/&arch; loader for
-	  &man.tftpd.8; to serve to your &arch;
-	  client.  There are currently two loaders to choose from:</para>
-
-	<itemizedlist>
-	  <listitem><para><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-tftp.gz"></ulink> -
-          (<emphasis>for loading the kernel over
-          TFTP</emphasis>).</para></listitem>
-          <listitem><para><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-nfs.gz"></ulink> -
-          (<emphasis>for loading the kernel via NFS</emphasis>).</para></listitem>
-        </itemizedlist>
 
         <para>Copy the unpacked loader to your
           <filename>/tftpboot</filename> directory, and name it with the &os;/&arch; host's IP address in
