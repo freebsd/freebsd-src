@@ -1076,6 +1076,6 @@ rn_init()
 	addmask_key = cplim = rn_ones + max_keylen;
 	while (cp < cplim)
 		*cp++ = -1;
-	if (rn_inithead((void **)&mask_rnhead, 0) == 0)
+	if (rn_inithead((void **)(void *)&mask_rnhead, 0) == 0)
 		panic("rn_init 2");
 }
