@@ -139,8 +139,6 @@ FILE                        *AcpiGbl_DebugFile = NULL;
 #endif
 
 
-ACPI_TABLE_HEADER           *AcpiGbl_DbTablePtr = NULL;
-
 
 /*******************************************************************************
  *
