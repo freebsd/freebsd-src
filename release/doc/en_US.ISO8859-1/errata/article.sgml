@@ -115,14 +115,14 @@
 <![ %release.type.snapshot [
 
     <para>A race condition existed whereby a file could be removed
-    between a &man.fstatfs.2; call and the point where the file is
-    accessed, causing a kernel panic.  Only the &man.procfs.5;
-    filesystem was known to be vulnerable to this attack.  This bug
-    was fixed in &os; &release.prev;, but the security advisory
-    describing the bug was issued after the release.  For more
-    information, including a workaround and bug fix, see security
-    advisory <ulink 
-    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
+      between a &man.fstatfs.2; call and the point where the file is
+      accessed, causing a kernel panic.  Only the &man.procfs.5;
+      filesystem was known to be vulnerable to this attack.  This bug
+      was fixed in &os; &release.prev;, but the security advisory
+      describing the bug was issued after the release.  For more
+      information, including a workaround and bug fix, see security
+      advisory <ulink 
+        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
 
 ]]>
   </sect1>
@@ -136,36 +136,35 @@
 
 <![ %release.type.snapshot [
 
-    <para>Certain SSH
-    clients, when attempting to connect to a &os; &release.prev;
-    server, will unexpectedly present an
-    <application>S/Key</application> prompt, even if &man.sshd.8; on
-    the server has not been later explicitly configured for
-    <application>S/Key</application> authentication.  This is due to the
-    default settings of clients having changed (e.g. use of SSH
-    protocol version 2 where it was not used before), or from a change from the client's
-    old default authentication sequence.  There are a number of ways
-    to disable this behavior:
+    <para>Certain SSH clients, when attempting to connect to a &os;
+      &release.prev; server, will unexpectedly present an
+      <application>S/Key</application> prompt, even if &man.sshd.8; on
+      the server has not been later explicitly configured for
+      <application>S/Key</application> authentication.  This is due to
+      the default settings of clients having changed (e.g. use of SSH
+      protocol version 2 where it was not used before), or from a
+      change from the client's old default authentication sequence.
+      There are a number of ways to disable this behavior:
 
       <itemizedlist>
         <listitem>
 	  <para>On newer <application>OpenSSH</application> clients,
-	    add the following line to your 
-	    <filename>~/.ssh/config</filename> file:
+	      add the following line to your 
+	      <filename>~/.ssh/config</filename> file:
 <programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
 	  </para>
 	</listitem>
         <listitem>
 	  <para>For <application>PuTTY</application> clients, the
-	    authentication sequence order cannot be changed, but
-	    keyboard-interactive authentication can be disabled in the
-	    settings.</para>
+	      authentication sequence order cannot be changed, but
+	      keyboard-interactive authentication can be disabled in the
+	      settings.</para>
 	</listitem>
         <listitem>
 	  <para>To disable keyboard-interactive authentication in the
-	    server, uncomment the following line
-	    in the <filename>/etc/ssh/sshd_config</filename> file
-	    (on the server host):
+	      server, uncomment the following line in the
+	      <filename>/etc/ssh/sshd_config</filename> file (on the
+	      server host):
 <programlisting>ChallengeResponseAuthentication no</programlisting> 
 	  </para>
 	</listitem>
@@ -173,13 +172,13 @@
     </para>
 
     <para>The release notes mentioned the new sbni device driver, but
-    gave an incorrect reference to the program in the &os; Ports
-    Collection used to configure the driver.  The correct filename for
-    the port is <port>sysutils/sbniconfig</port>.</para>
+      gave an incorrect reference to the program in the &os; Ports
+      Collection used to configure the driver.  The correct filename for
+      the port is <port>sysutils/sbniconfig</port>.</para>
 
     <para>Linux emulation now requires <literal>options
-    SYSVSEM</literal> in the kernel configuration.  This dependency
-    was introduced into &os; before &release.prev;.</para>
+      SYSVSEM</literal> in the kernel configuration.  This dependency
+      was introduced into &os; before &release.prev;.</para>
 
     <para>Packages containing some optional components of 
       <application>KDE</application> were accidentally omitted from
