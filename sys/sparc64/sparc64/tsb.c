@@ -183,8 +183,7 @@ enter:
 
 	tp->tte_vpn = TV_VPN(va, sz);
 	tp->tte_data = data;
-	STAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
-	tp->tte_pmap = pm;
+	TAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
 
 	return (tp);
 }

@@ -55,16 +55,17 @@
 
 #define	PMAP_CONTEXT_MAX	8192
 
-#define	pmap_page_is_mapped(m)	(!STAILQ_EMPTY(&(m)->md.tte_list))
+#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.tte_list))
 #define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
 typedef	struct pmap *pmap_t;
 
 struct md_page {
-	STAILQ_HEAD(, tte) tte_list;
-	int	colors[DCACHE_COLORS];
-	int	color;
-	int	flags;
+	TAILQ_HEAD(, tte) tte_list;
+	struct	pmap *pmap;
+	uint32_t colors[DCACHE_COLORS];
+	int32_t	color;
+	uint32_t flags;
 };
 
 struct pmap {
