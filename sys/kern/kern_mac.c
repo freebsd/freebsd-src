@@ -162,7 +162,7 @@ SYSCTL_INT(_security_mac, OID_AUTO, vnode_label_cache_hits, CTLFLAG_RD,
 static int	mac_vnode_label_cache_misses = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, vnode_label_cache_misses, CTLFLAG_RD,
     &mac_vnode_label_cache_misses, 0, "Cache misses on vnode labels");
-static int	mac_mmap_revocation_via_cow = 1;
+static int	mac_mmap_revocation_via_cow = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
     "copy-on-write semantics, or by removing all write access");
