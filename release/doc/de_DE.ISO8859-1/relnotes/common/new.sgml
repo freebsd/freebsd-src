@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.146 2002/11/01 22:22:55 ue Exp $
-  basiert auf: 1.446
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.147 2002/11/03 12:09:03 ue Exp $
+  basiert auf: 1.448
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -3107,7 +3107,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       den Suchpfad f&uuml;r Kernel-Module zu &auml;ndern.
       &merged;</para>
 
-    <para>Mit dem neuen Programm ktrdump kann der KTR Trace Buffer von
+    <para>Mit dem neuen Programm &man.ktrdump.8; kann der KTR Trace Buffer von
       Benutzern ausgelesen werden.</para>
 
     <para role="historic">&man.last.1; unterst&uuml;tzt jetzt die Option
@@ -3471,18 +3471,17 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Das von NetBSD verwendete Konzept
       <application>nsswitch</application> wurde &uuml;bernommen.
-      Sobald die Datei &man.nsswitch.conf.5; angelegt wurde, kann &os;
-      so konfiguriert werden, da&szlig; es f&uuml;r Zugriffe auf Daten
-      wie &man.passwd.5; und &man.group.5; einfache Dateien, NIS oder
-      Hesiod nutzt.  Wenn beim Start des Systems die Datei
-      <filename>/etc/nsswitch.conf</filename> noch nicht existiert,
-      wird sie automatisch aus der vorhandenen
-      <filename>/etc/hosts.conf</filename> erzeugt.  Da einige alte
-      Programme immer noch <filename>/etc/hosts.conf</filename>
-      ben&ouml;tigen, wird eine bestehende
-      <filename>/etc/hosts.conf</filename> beim Start des Systems
-      automatisch mit den Daten aus
-      <filename>/etc/nsswitch.conf</filename> aktualisiert.</para>
+      Sobald die Datei &man.nsswitch.conf.5; angelegt wurde, kann
+      &os; so konfiguriert werden, da&szlig; es f&uuml;r Zugriffe
+      auf Daten wie &man.passwd.5; und &man.group.5; einfache
+      Dateien, NIS oder Hesiod nutzt.  Wenn beim Start des Systems
+      die Datei <filename>/etc/nsswitch.conf</filename> noch nicht
+      existiert, wird sie automatisch aus der vorhandenen
+      <filename>/etc/host.conf</filename> erzeugt.  Da einige alte
+      Programme immer noch <filename>/etc/host.conf</filename>
+      ben&ouml;tigen, wird diese Datei ebenfalls beim beim Start
+      des Systems automatisch aus den Daten in der
+      <filename>/etc/nsswitch.conf</filename> erzeugt.</para>
 
     <para>&man.od.1; unterst&uuml;tzt jetzt die Optionen
       <option>-A</option> zur Angabe der Basisadresse der Eingabe,
