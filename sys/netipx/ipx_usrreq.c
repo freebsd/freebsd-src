@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.4 1995/11/04 09:03:24 julian Exp $
+ * $Id: ipx_usrreq.c,v 1.5 1996/03/11 15:13:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@ ipx_input(m, ipxp)
 {
 	register struct ipx *ipx = mtod(m, struct ipx *);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct sockaddr_ipx ipx_ipx = { sizeof(ipx_ipx), AF_IPX };
+	struct sockaddr_ipx ipx_ipx;
 
 	if (ipxp==0)
 		panic("No ipxpcb");
@@ -83,7 +83,11 @@ ipx_input(m, ipxp)
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
 	 */
+	ipx_ipx.sipx_len = sizeof(ipx_ipx);
+	ipx_ipx.sipx_family = AF_IPX;
 	ipx_ipx.sipx_addr = ipx->ipx_sna;
+	ipx_ipx.sipx_zero[0] = '\0';
+	ipx_ipx.sipx_zero[1] = '\0';
 	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp) {
 		register struct ifaddr *ifa;
 
