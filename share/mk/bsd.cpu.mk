@@ -49,7 +49,7 @@ _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "i586"
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "i486"
-_CPUCFLAGS = -m486
+_CPUCFLAGS = -march=i486
 .  endif
 . elif ${MACHINE_ARCH} == "alpha"
 .  if ${CPUTYPE} == "ev6"
