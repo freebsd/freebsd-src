@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.22 1995/10/18 05:02:01 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.23 1995/10/19 15:55:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,6 +108,8 @@
 #define USR_SIZE		"usrSize"
 #define VAR_SIZE		"varSize"
 #define SWAP_SIZE		"swapSize"
+#define NFS_PATH		"nfsPath"
+#define FTP_PATH		"ftpPath"
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
 #define VAR_NAMESERVER		"nameserver"
@@ -503,7 +505,7 @@ extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
 extern int	mediaSetFtpUserPass(char *str);
 extern int	mediaSetCPIOVerbosity(char *str);
-extern Boolean	mediaGetType(void);
+extern int	mediaGetType(void);
 extern Boolean	mediaExtractDist(char *dir, int fd);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);

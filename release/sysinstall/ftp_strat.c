@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.12 1995/10/17 02:56:51 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.13 1995/10/18 00:12:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,7 +104,7 @@ mediaInitFTP(Device *dev)
     if (isDebug())
 	msgDebug("Initialized FTP library.\n");
 
-    cp = variable_get("ftp");
+    cp = variable_get(FTP_PATH);
     if (!cp)
 	goto punt;
     if (isDebug())
@@ -181,6 +181,9 @@ retry:
 	    goto retry;
 	}
     }
+
+    /* Give it a shot - can't hurt to try and zoom in if we can */
+    FtpChdir(ftp, getenv(RELNAME));
 
     msgDebug("mediaInitFTP was successful\n");
     ftpInitted = TRUE;

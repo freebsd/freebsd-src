@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.38 1995/10/18 05:01:55 jkh Exp $
+ * $Id: install.c,v 1.71.2.39 1995/10/19 15:55:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -273,21 +273,12 @@ installFixit(char *str)
 	create_termcap();
     if (!(child = fork())) {
 	int i, fd;
-	extern int login_tty(int);
 	struct termios foo;
 
-	for (i = 0; i < 64; i++)
-	    close(i);
-	DebugFD = fd = open("/dev/ttyv0", O_RDWR);
-	ioctl(0, TIOCSCTTY, &fd);
-	dup2(0, 1);
-	dup2(0, 2);
-	if (login_tty(fd) == -1)
-	    msgDebug("fixit shell: Couldn't set controlling terminal!\n");
 	signal(SIGTTOU, SIG_IGN);
-	if (tcgetattr(fd, &foo) != -1) {
+	if (tcgetattr(0, &foo) != -1) {
 	    foo.c_cc[VERASE] = '\010';
-	    if (tcsetattr(fd, TCSANOW, &foo) == -1)
+	    if (tcsetattr(0, TCSANOW, &foo) == -1)
 		msgDebug("fixit shell: Unable to set erase character.\n");
 	}
 	else
@@ -646,6 +637,8 @@ installPreconfig(char *str)
 		    continue;
 	    }
 	}
+
+    fnord:
 	cp = variable_get(CONFIG_FILE);
 	if (!cp)
 	    break;
@@ -658,6 +651,8 @@ installPreconfig(char *str)
 		unmount("/mnt2", MNT_FORCE);
 		break;
 	    }
+	    else
+		goto fnord;
 	}
 	else {
 	    Attribs *cattr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
