@@ -33,11 +33,13 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)lexi.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
+#endif
 
 /*
  * Here we have the token scanner for indent.  It scans off one token and puts
@@ -55,6 +57,8 @@ static const char rcsid[] =
 #define alphanum 1
 #define opchar 3
 
+void fill_buffer(void);
+
 struct templ {
     char       *rwd;
     int         rwcode;
@@ -62,37 +66,37 @@ struct templ {
 
 struct templ specials[1000] =
 {
-    "switch", 1,
-    "case", 2,
-    "break", 0,
-    "struct", 3,
-    "union", 3,
-    "enum", 3,
-    "default", 2,
-    "int", 4,
-    "char", 4,
-    "float", 4,
-    "double", 4,
-    "long", 4,
-    "short", 4,
-    "typdef", 4,
-    "unsigned", 4,
-    "register", 4,
-    "static", 4,
-    "global", 4,
-    "extern", 4,
-    "void", 4,
-    "goto", 0,
-    "return", 0,
-    "if", 5,
-    "while", 5,
-    "for", 5,
-    "else", 6,
-    "do", 6,
-    "sizeof", 7,
-    "const", 9,
-    "volatile", 9,
-    0, 0
+    {"switch", 1},
+    {"case", 2},
+    {"break", 0},
+    {"struct", 3},
+    {"union", 3},
+    {"enum", 3},
+    {"default", 2},
+    {"int", 4},
+    {"char", 4},
+    {"float", 4},
+    {"double", 4},
+    {"long", 4},
+    {"short", 4},
+    {"typdef", 4},
+    {"unsigned", 4},
+    {"register", 4},
+    {"static", 4},
+    {"global", 4},
+    {"extern", 4},
+    {"void", 4},
+    {"goto", 0},
+    {"return", 0},
+    {"if", 5},
+    {"while", 5},
+    {"for", 5},
+    {"else", 6},
+    {"do", 6},
+    {"sizeof", 7},
+    {"const", 9},
+    {"volatile", 9},
+    {0, 0}
 };
 
 char        chartype[128] =
@@ -117,14 +121,10 @@ char        chartype[128] =
     1, 1, 1, 0, 3, 0, 3, 0
 };
 
-
-
-
 int
-lexi()
+lexi(void)
 {
     int         unary_delim;	/* this is set to 1 if the current token
-				 *
 				 * forces a following operator to be unary */
     static int  last_code;	/* the last token type returned */
     static int  l_struct;	/* set to 1 if the last token was 'struct' */
@@ -145,7 +145,7 @@ lexi()
     }
 
     /* Scan an alphanumeric token */
-    if (chartype[*buf_ptr] == alphanum || buf_ptr[0] == '.' && isdigit(buf_ptr[1])) {
+    if (chartype[(int)*buf_ptr] == alphanum || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
 	/*
 	 * we have a character or number
 	 */
@@ -154,7 +154,7 @@ lexi()
 				 * reserved words */
 	register struct templ *p;
 
-	if (isdigit(*buf_ptr) || buf_ptr[0] == '.' && isdigit(buf_ptr[1])) {
+	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
 	    int         seendot = 0,
 	                seenexp = 0,
 			seensfx = 0;
@@ -169,14 +169,15 @@ lexi()
 	    }
 	    else
 		while (1) {
-		    if (*buf_ptr == '.')
+		    if (*buf_ptr == '.') {
 			if (seendot)
 			    break;
 			else
 			    seendot++;
+		    }
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
-		    if (!isdigit(*buf_ptr) && *buf_ptr != '.')
+		    if (!isdigit(*buf_ptr) && *buf_ptr != '.') {
 			if ((*buf_ptr != 'E' && *buf_ptr != 'e') || seenexp)
 			    break;
 			else {
@@ -187,6 +188,7 @@ lexi()
 			    if (*buf_ptr == '+' || *buf_ptr == '-')
 				*e_token++ = *buf_ptr++;
 			}
+		    }
 		}
 	    while (1) {
 		if (!(seensfx & 1) &&
@@ -209,7 +211,7 @@ lexi()
 	    }
 	}
 	else
-	    while (chartype[*buf_ptr] == alphanum || *buf_ptr == BACKSLASH) {
+	    while (chartype[(int)*buf_ptr] == alphanum || *buf_ptr == BACKSLASH) {
 		/* fill_buffer() terminates buffer with newline */
 		if (*buf_ptr == BACKSLASH) {
 		    if (*(buf_ptr + 1) == '\n') {
@@ -582,8 +584,8 @@ stop_lit:
 /*
  * Add the given keyword to the keyword table, using val as the keyword type
  */
-addkey(key, val)
-    char       *key;
+void
+addkey(char *key, int val)
 {
     register struct templ *p = specials;
     while (p->rwd)
@@ -598,5 +600,4 @@ addkey(key, val)
     p->rwcode = val;
     p[1].rwd = 0;
     p[1].rwcode = 0;
-    return;
 }
