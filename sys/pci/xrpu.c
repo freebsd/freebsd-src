@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.2 1998/08/18 00:32:48 bde Exp $
+ * $Id: xrpu.c,v 1.3 1998/10/24 19:47:42 phk Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -146,7 +146,7 @@ xrpu_close(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 static int
-xrpu_mmap(dev_t dev, int offset, int nprot)
+xrpu_mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
 	struct softc *sc = softc[dev2unit(dev)];
 	if (offset >= 0x1000000) 

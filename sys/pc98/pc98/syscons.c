@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.101 1998/09/14 11:37:58 kato Exp $
+ *  $Id: syscons.c,v 1.102 1998/10/22 05:58:45 bde Exp $
  */
 
 #include "sc.h"
@@ -5232,7 +5232,7 @@ next_code:
 }
 
 int
-scmmap(dev_t dev, int offset, int nprot)
+scmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
 #ifdef PC98
     if (offset > 0x48000 - PAGE_SIZE)

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.1 1998/06/10 10:52:54 dfr Exp $
+ *	$Id: mem.c,v 1.2 1998/07/29 18:36:29 dfr Exp $
  */
 
 /*
@@ -271,7 +271,7 @@ kmemphys:
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, int offset, int prot)
+memmmap(dev_t dev, vm_offset_t offset, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this

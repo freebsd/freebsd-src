@@ -770,7 +770,7 @@ do_standard:
 }
 
 int
-pcmmap(Dev_t dev, int offset, int nprot)
+pcmmap(Dev_t dev, vm_offset_t offset, int nprot)
 {
 	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;
