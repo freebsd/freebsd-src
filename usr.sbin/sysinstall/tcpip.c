@@ -92,7 +92,7 @@ static Layout layout[] = {
       netmask, STRINGOBJ, NULL },
 #define LAYOUT_EXTRAS		6
     { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
-      "Extra options to ifconfig:",
+      "Extra options to ifconfig (usually empty):",
       "Any interface-specific options to ifconfig you would like to add",
       extras, STRINGOBJ, NULL },
 #define LAYOUT_OKBUTTON		7
