@@ -19,6 +19,8 @@
              Very minor changes to conform with
              local/global/function naming conventions
              withing the packet alising module.
+
+    $FreeBSD$
 */
 
 /* Includes */
