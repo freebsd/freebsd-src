@@ -93,7 +93,7 @@ main(argc, argv)
 {
 	SVCXPRT *transp;
 	int ch, i, maxindex, s;
-	struct sigaction sigchild, sigalarm;
+	struct sigaction sigalarm;
 	int grace_period = 30;
 	struct netconfig *nconf;
 
@@ -188,14 +188,6 @@ main(argc, argv)
 	else
 		syslog(LOG_INFO, "Starting");
 
-	sigchild.sa_handler = sigchild_handler;
-	sigemptyset(&sigchild.sa_mask);
-	sigchild.sa_flags = SA_RESTART;
-	if (sigaction(SIGCHLD, &sigchild, NULL) != 0) {
-		syslog(LOG_WARNING, "sigaction(SIGCHLD) failed: %s",
-		    strerror(errno));
-		exit(1);
-	}
 	sigalarm.sa_handler = (sig_t) sigalarm_handler;
 	sigemptyset(&sigalarm.sa_mask);
 	sigalarm.sa_flags = SA_RESETHAND; /* should only happen once */
