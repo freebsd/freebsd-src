@@ -230,9 +230,9 @@ repquota(fs, type, qfpathname)
 		fup->fu_dqblk = dqbuf;
 	}
 	fclose(qf);
-	printf("%*s                Block  limits                    File  limits\n",
+	printf("%*s                 Block  limits                    File  limits\n",
 		max(UT_NAMESIZE,10), " ");
-	printf("User%*s   used     soft     hard  grace     used    soft    hard  grace\n",
+	printf("User%*s    used     soft     hard  grace     used    soft    hard  grace\n",
 		max(UT_NAMESIZE,10), " ");
 	for (id = 0; id <= highid[type]; id++) {
 		fup = lookup(id, type);
@@ -241,7 +241,7 @@ repquota(fs, type, qfpathname)
 		if (fup->fu_dqblk.dqb_curinodes == 0 &&
 		    fup->fu_dqblk.dqb_curblocks == 0)
 			continue;
-		printf("%-*s", max(UT_NAMESIZE,10), fup->fu_name);
+		printf("%-*s ", max(UT_NAMESIZE,10), fup->fu_name);
 		printf("%c%c %8lu %8lu %8lu %6s",
 			fup->fu_dqblk.dqb_bsoftlimit &&
 			    fup->fu_dqblk.dqb_curblocks >=
