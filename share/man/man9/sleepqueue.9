@@ -221,7 +221,7 @@ If so,
 .Fn sleepq_calc_signal_retval
 returns
 .Er ERESTART
-if the interrupting signal is restarable and
+if the interrupting signal is restartable and
 .Er EINTR
 otherwise.
 If the sleep was not interrupted by a signal,
@@ -237,7 +237,7 @@ The
 .Fn sleepq_signal
 function awakens the highest priority thread sleeping on a wait channel while
 .Fn sleepq_broadcast
-awakends all of the threads sleeping on a wait channel.
+awakens all of the threads sleeping on a wait channel.
 The
 .Fa wchan
 argument specifics which wait channel to awaken.
