@@ -39,7 +39,11 @@ open CONFIG, "< $config" or die "Cannot open $config.\n";
 while (<CONFIG>) {
     s/#.*$//;
     if (/^(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+\"(.*)\"\s*$/) {
-	$drivers{$1} = 1;
+	if ($4 eq "options") {
+	    $options{$1} = 1;
+	} else {
+	    $drivers{$1} = 1;
+	}
     }
 }
 close CONFIG;
@@ -47,6 +51,7 @@ close CONFIG;
 open BOOTMFS, "< $bootmfs" or die "Cannot open $bootmfs.\n";
 while (<BOOTMFS>) {
     next if (/^device\s+(\w+)/ && $drivers{$1});
+    next if (/^options\s+(\w+)/ && $options{$1});
     push @bootmfs, $_;
 }
 close BOOTMFS;
