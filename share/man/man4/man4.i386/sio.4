@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.9 1994/03/18 13:40:01 ache Exp $
+.\"	$Id: sio.4,v 1.10 1994/05/07 01:15:10 ache Exp $
 .\"
 .Dd February 9, 1994
 .Dt SIO 4 i386
@@ -56,12 +56,6 @@ For multiport cards:
 .Cd "device sio5 at isa? port 0x2a8 tty flags 0x701 vector siointr"
 .Cd "device sio6 at isa? port 0x2b0 tty flags 0x701 vector siointr"
 .Cd "device sio7 at isa? port 0x2b8 tty flags 0x701 vector siointr"
-.sp
-For bidirectional use of ports:
-.Cd "options" \&"COM_BIDIR\&"
-.sp
-For control FIFO trigger:
-.Cd "options" \&"FIFO_TRIGGER=FIFO_TRIGGER_14\&"
 .sp
 Use 0x02 bit in flags field to disable FIFO on specified port.
 .Sh DESCRIPTION
@@ -134,11 +128,8 @@ the hardware documentation of your card.
 .Pp
 Serial ports controlled by the 
 .Nm sio
-driver can be used for both dialin and dialout. Use 
-.Xr comcontrol 8
-to enable/disable bidirectional use of the 
-.Nm sio
-ports. The minor number of the dialout
+driver can be used for both dialin and dialout.
+The minor number of the dialout
 port is 128 higher than that of the corresponding dialin port. Use 
 .Xr stty 1
 to enable or disable modem control as required by your setup.
@@ -149,12 +140,6 @@ settings, to avoid coms. failure from lack of full modem DC level
 settings on ports,
 you are recommended to temporarily use syntax such as:
 .Nm stty -f /dev/tty03 clocal
-or open
-.Nm /dev/cua03
-if you have bidirectional mode active
-to force serial port to open without
-.Nm O_NONBLOCK
-flag.
 .Sh FILES
 .Bl -tag -width /dev/tty0? -compact
 .It Pa /dev/tty0?
@@ -163,9 +148,9 @@ for hardwired terminals
 or
 .Bl -tag -width /dev/tty0? -compact
 .It Pa /dev/ttyd?
-for dialin ports (and dialout when bidirectional usage disabled)
+for dialin ports
 .It Pa /dev/cua0?
-for dialout ports when bidirectional usage enabled
+for dialout ports
 .El
 .Pp
 The devices numbers are made from the set [0-9a-z] so that more than
