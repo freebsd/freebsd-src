@@ -4025,37 +4025,20 @@ static void forget(FICL_VM *pVM)
  *
  * grabbed out of testmain.c example and frobbed to fit.
  *
- * Usage:
- *    fload test.ficl
+ * fload  ( addr count -- )
  */
 #define nLINEBUF 256
 static void fload(FICL_VM *pVM)
 {
-    char    *p, cp[nLINEBUF];
     FICL_STRING *pFilename;
+    char    cp[nLINEBUF];
     int     i, fd, nLine = 0;
     char    ch;
     CELL    id;
-    FICL_DICT *dp = ficlGetDict();
 
-    if (pVM->state == COMPILE)
-    {
-        dictAppendCell(dp, LVALUEtoCELL(pStringLit));
-        dp->here = PTRtoCELL vmGetString(pVM, (FICL_STRING *)dp->here, '\"');
-        dictAlign(dp);
-	return;
-    }
-
-    pFilename = (FICL_STRING *)dp->here;
-    vmGetString(pVM, pFilename, '\"');
-    if (pFilename->count <= 1)
-    {
-        vmTextOut(pVM, "fload: no filename specified", 1);
-        return;
-    }
-
-    p = (*pFilename->text == '\"') ? pFilename->text + 1 : pFilename->text;
-    fd = open(p, O_RDONLY);
+    pFilename->count = stackPopINT32(pVM->pStack);
+    pFilename->text = stackPopPtr(pVM->pStack);
+    fd = open(pFilename->text, O_RDONLY);
     if (fd == -1)
     {
         vmTextOut(pVM, "fload: Unable to open file: ", 0);
@@ -4105,25 +4088,10 @@ static void fexists(FICL_VM *pVM)
     char    *p;
     FICL_STRING *pFilename;
     int     fd;
-    FICL_DICT *dp = ficlGetDict();
 
-    if (pVM->state == COMPILE)
-    {
-        dictAppendCell(dp, LVALUEtoCELL(pStringLit));
-        dp->here = PTRtoCELL vmGetString(pVM, (FICL_STRING *)dp->here, '\"');
-        dictAlign(dp);
-	return;
-    }
-
-    pFilename = (FICL_STRING *)dp->here;
-    vmGetString(pVM, pFilename, '\"');
-    if (pFilename->count <= 1)
-    {
-        vmTextOut(pVM, "fexists: no filename specified", 1);
-        return;
-    }
-    p = (*pFilename->text == '\"') ? pFilename->text + 1 : pFilename->text;
-    fd = open(p, O_RDONLY);
+    pFilename->count = stackPopINT32(pVM->pStack);
+    pFilename->text = stackPopPtr(pVM->pStack);
+    fd = open(pFilename->text, O_RDONLY);
     if (fd > 0) {
 	stackPushINT32(pVM->pStack, TRUE);
 	close(fd);
