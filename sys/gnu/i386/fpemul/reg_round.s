@@ -385,7 +385,7 @@ LRound_nearest_64:
 	jne	LDo_64_round_up
 
 	/* Now test for round-to-even */
-	testb	$1,%ebx
+	test	$1,%ebx
 	jz	LCheck_truncate_64
 
 LDo_64_round_up:
