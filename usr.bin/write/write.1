@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)write.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: write.1,v 1.5 1997/03/22 17:19:32 mpp Exp $
+.\"	$Id: write.1,v 1.2.2.1 1997/03/22 17:20:33 mpp Exp $
 .\"
 .Dd June 6, 1993
 .Dt WRITE 1
@@ -51,7 +51,7 @@ allows you to communicate with other users, by copying lines from
 your terminal to theirs.
 .Pp
 When you run the
-.Nm write
+.Nm
 command, the user you are writing to gets a message of the form:
 .Pp
 .Dl Message from yourname@yourhost on yourtty at hh:mm ...
@@ -59,7 +59,7 @@ command, the user you are writing to gets a message of the form:
 Any further lines you enter will be copied to the specified user's
 terminal.
 If the other user wants to reply, they must run
-.Nm write
+.Nm
 as well.
 .Pp
 When you are done, type an end-of-file or interrupt character.
@@ -76,10 +76,10 @@ command.
 If the user you want to write to is logged in on more than one terminal,
 you can specify which terminal to write to by specifying the terminal
 name as the second operand to the
-.Nm write
+.Nm
 command.
 Alternatively, you can let
-.Nm write
+.Nm
 select one of the terminals \- it will pick the one with the shortest
 idle time.
 This is so that if the user is logged in at work and also dialed up from
