@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ns.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ipx.c,v 1.7 1997/02/22 19:56:22 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,7 +52,9 @@ static const char rcsid[] =
 #include <netipx/ipx.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
+#ifdef IPXERRORMSGS
 #include <netipx/ipx_error.h>
+#endif
 #include <netipx/spx.h>
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
@@ -150,8 +152,8 @@ ipxprotopr(off, name)
 		prev = next;
 	}
 }
-#define ANY(x,y,z) \
-	((x) ? printf("\t%ld %s%s%s -- %s\n",(long)x,y,plural(x),z,"x") : 0)
+
+#define ANY(x,y,z) (printf("\t%u %s%s%s\n",x,y,plural(x),z))
 
 /*
  * Dump SPX statistics structure.
@@ -228,8 +230,9 @@ spx_stats(off, name)
 	ANY(spxstat.spxs_rcvackbyte, "byte", " acked by rcvd acks");
 	ANY(spxstat.spxs_rcvwinupd, "rcvd window update packet", "");
 }
+
 #undef ANY
-#define ANY(x,y,z)  ((x) ? printf("\t%d %s%s%s\n",x,y,plural(x),z) : 0)
+#define ANY(x,y,z)  (printf("\t%u %s%s%s\n",x,y,plural(x),z))
 
 /*
  * Dump IPX statistics structure.
@@ -245,9 +248,17 @@ ipx_stats(off, name)
 		return;
 	kread(off, (char *)&ipxstat, sizeof (ipxstat));
 	printf("%s:\n", name);
-	ANY(ipxstat.ipxs_toosmall, "packet", " smaller than a header");
-	ANY(ipxstat.ipxs_tooshort, "packet", " smaller than advertised");
+	ANY(ipxstat.ipxs_total, "total packet", " received");
 	ANY(ipxstat.ipxs_badsum, "packet", " with bad checksums");
+	ANY(ipxstat.ipxs_tooshort, "packet", " smaller than advertised");
+	ANY(ipxstat.ipxs_toosmall, "packet", " smaller than a header");
+	ANY(ipxstat.ipxs_forward, "packet", " forwarded");
+	ANY(ipxstat.ipxs_cantforward, "packet", " not forwardable");
+	ANY(ipxstat.ipxs_delivered, "packet", " for this host");
+	ANY(ipxstat.ipxs_localout, "packet", " sent from this host");
+	ANY(ipxstat.ipxs_odropped, "packet", " dropped due to no bufs, etc.");
+	ANY(ipxstat.ipxs_noroute, "packet", " discarded due to no route");
+	ANY(ipxstat.ipxs_mtutoosmall, "packet", " too big");
 }
 
 static	struct {
@@ -266,6 +277,7 @@ static	struct {
 	{-1, 0, 0},
 };
 
+#ifdef IPXERRORMSGS
 /*
  * Dump IPX Error statistics structure.
  */
@@ -337,6 +349,7 @@ ipx_erputil(z, c)
 		where =  ipx_errnames[j].where;
 	ANY(z, name, where);
 }
+#endif /* IPXERRORMSGS */
 
 static struct sockaddr_ipx ssipx = {AF_IPX};
 

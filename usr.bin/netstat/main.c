@@ -131,15 +131,13 @@ struct nlist nl[] = {
 	{ "_ipxstat"},
 #define N_SPXSTAT	33
 	{ "_spx_istat"},
-#define N_IPXERR	34
-	{ "_ipx_errstat"},
-#define N_DDPSTAT	35
+#define N_DDPSTAT	34
 	{ "_ddpstat"},
-#define N_DDPCB		36
+#define N_DDPCB		35
 	{ "_ddpcb"},
-#define N_DIVPCB	37
+#define N_DIVPCB	36
 	{ "_divcb"},
-#define N_DIVSTAT	38
+#define N_DIVSTAT	37
 	{ "_divstat"},
 	{ "" },
 };
@@ -180,8 +178,6 @@ struct protox ipxprotox[] = {
 	  ipx_stats,	"ipx" },
 	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
 	  spx_stats,	"spx" },
-	{ -1,		N_IPXERR,	1,	0,
-	  ipxerr_stats,	"ipx_err" },
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
