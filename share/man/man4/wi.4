@@ -216,23 +216,33 @@ Several vendors sell PCI adapters built around the PLX Technology 9050
 or 9052 chip.
 The following such adapters are supported or expected to work:
 .Pp
-.Bl -tag -compact
-.It 3Com AirConnect 3CRWE777A (3.3V)
-.It Belkin F5D6000 (a rebadged WL11000P)
-.It Eumitcom WL11000P
-.It Global Sun Technology GL24110P (untested)
-.It Global Sun Technology GL24110P02
-.It LinkSys WDT11 (a rebadged GL24110P02)
-.It Netgear MA301
-.It US Robotics 2415 (rebadged WL11000P)
-.It Wisecom Wireless LAN PCI Adapter
+.Bl -item -compact
+.It
+3Com AirConnect 3CRWE777A (3.3V)
+.It
+Belkin F5D6000 (a rebadged WL11000P)
+.It
+Eumitcom WL11000P
+.It
+Global Sun Technology GL24110P (untested)
+.It
+Global Sun Technology GL24110P02
+.It
+LinkSys WDT11 (a rebadged GL24110P02)
+.It
+Netgear MA301
+.It
+US Robotics 2415 (rebadged WL11000P)
+.It
+Wisecom Wireless LAN PCI Adapter
 .El
 .Pp
 The following addapters have the same model numbers as those listed
 above, but might not work if the actual card is after the change away
-from the Prism Family.
-.Bl -tag -compact
-.It DLink DWL520
+from the Prism family.
+.Bl -item -compact
+.It
+DLink DWL520
 .El
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
@@ -337,7 +347,7 @@ for information on different regulatory domains.
 .Pp
 The Intersil Prism family of chips' host-based access point mode has
 bugs for station firmware versions prior to 0.8.3.
-The driver currently precludes hostap functionality older station
+The driver currently precludes hostap functionality with older station
 firmware.
 The best version of the station firmware for the Prism family of chips
 seems to be 1.4.9.
@@ -358,7 +368,7 @@ which does not interoperate with stations in IBSS mode.
 .Pp
 Prism cards prior to version 0.8.0 do not support IBSS mode.
 .Pp
-Symbol cards prior to version 2.50.00 don't support IBSS mode.
+Symbol cards prior to version 2.50.00 do not support IBSS mode.
 .Sh BUGS
 Not all the new messages are documented here, and many of them are
 indications of transient errors that are not indications of serious
