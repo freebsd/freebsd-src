@@ -36,6 +36,9 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <sys/fbio.h>
 
@@ -47,11 +50,11 @@
 
 #include <dev/fb/fbreg.h>
 
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
 #include <isa/isavar.h>
 
-#define TEXT_GDC	IO_GDC1	/* 0x60 */
+#define	TEXT_GDC	0x60
+#define	GRAPHIC_GDC	0xa0
 #define	ROW		25
 #define	COL		80
 
@@ -64,32 +67,22 @@
 
 typedef struct gdc_softc {
 	video_adapter_t	*adp;
+	struct resource *res_tgdc, *res_ggdc;
+	struct resource *res_egc, *res_pegc, *res_grcg, *res_kcg;
+	struct resource *res_tmem, *res_gmem1, *res_gmem2;
 } gdc_softc_t;
 
 #define GDC_SOFTC(unit)	\
 	((gdc_softc_t *)devclass_get_softc(gdc_devclass, unit))
 
+static bus_addr_t	gdc_iat[] = {0, 2, 4, 6, 8, 10, 12, 14};
+
 static devclass_t	gdc_devclass;
-
-static int		gdcprobe(device_t dev);
-static int		gdc_attach(device_t dev);
-
-static device_method_t gdc_methods[] = {
-	DEVMETHOD(device_probe,		gdcprobe),
-	DEVMETHOD(device_attach,	gdc_attach),
-	{ 0, 0 }
-};
-
-static driver_t gdcdriver = {
-	DRIVER_NAME,
-	gdc_methods,
-	sizeof(gdc_softc_t),
-};
-
-DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
 
 static int		gdc_probe_unit(int unit, gdc_softc_t *sc, int flags);
 static int		gdc_attach_unit(int unit, gdc_softc_t *sc, int flags);
+static int		gdc_alloc_resource(device_t dev);
+static int		gdc_release_resource(device_t dev);
 
 #if FB_INSTALL_CDEV
 
@@ -122,15 +115,25 @@ static struct cdevsw gdc_cdevsw = {
 static int
 gdcprobe(device_t dev)
 {
-	gdc_softc_t *sc;
+	int error;
 
 	/* Check isapnp ids */
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
 	device_set_desc(dev, "Generic GDC");
-	sc = device_get_softc(dev);
-	return gdc_probe_unit(device_get_unit(dev), sc, device_get_flags(dev));
+
+	error = gdc_alloc_resource(dev);
+	if (error)
+		return (error);
+
+	error = gdc_probe_unit(device_get_unit(dev),
+			       device_get_softc(dev),
+			       device_get_flags(dev));
+
+	gdc_release_resource(dev);
+
+	return (error);
 }
 
 static int
@@ -139,16 +142,26 @@ gdc_attach(device_t dev)
 	gdc_softc_t *sc;
 	int error;
 
-	sc = device_get_softc(dev);
-	error = gdc_attach_unit(device_get_unit(dev), sc, device_get_flags(dev));
+	error = gdc_alloc_resource(dev);
 	if (error)
+		return (error);
+
+	sc = device_get_softc(dev);
+	error = gdc_attach_unit(device_get_unit(dev),
+				sc,
+				device_get_flags(dev));
+	if (error) {
+		gdc_release_resource(dev);
 		return error;
+	}
 
 #ifdef FB_INSTALL_CDEV
 	/* attach a virtual frame buffer device */
 	error = fb_attach(makedev(0, GDC_MKMINOR(unit)), sc->adp, &gdc_cdevsw);
-	if (error)
+	if (error) {
+		gdc_release_resource(dev);
 		return error;
+	}
 #endif /* FB_INSTALL_CDEV */
 
 	if (bootverbose)
@@ -162,7 +175,6 @@ gdc_probe_unit(int unit, gdc_softc_t *sc, int flags)
 {
 	video_switch_t *sw;
 
-	bzero(sc, sizeof(*sc));
 	sw = vid_get_switch(DRIVER_NAME);
 	if (sw == NULL)
 		return ENXIO;
@@ -178,6 +190,142 @@ gdc_attach_unit(int unit, gdc_softc_t *sc, int flags)
 	if (sw == NULL)
 		return ENXIO;
 	return (*sw->init)(unit, sc->adp, flags);
+}
+
+
+static int
+gdc_alloc_resource(device_t dev)
+{
+	int rid;
+	gdc_softc_t *sc;
+
+	sc = device_get_softc(dev);
+
+	/* TEXT GDC */
+	rid = 0;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, TEXT_GDC, 1);
+	sc->res_tgdc = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   gdc_iat, 8, RF_ACTIVE);
+	if (sc->res_tgdc == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	isa_load_resourcev(sc->res_tgdc, gdc_iat, 8);
+
+	/* GRAPHIC GDC */
+	rid = 8;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, GRAPHIC_GDC, 1);
+	sc->res_ggdc = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   gdc_iat, 8, RF_ACTIVE);
+	if (sc->res_ggdc == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	isa_load_resourcev(sc->res_ggdc, gdc_iat, 8);
+
+	/* EGC */
+	rid = 16;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, 0x4a0, 1);
+	sc->res_egc = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   gdc_iat, 8, RF_ACTIVE);
+	if (sc->res_egc == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	isa_load_resourcev(sc->res_egc, gdc_iat, 8);
+
+	/* PEGC */
+	rid = 24;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, 0x9a0, 1);
+	sc->res_pegc = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   gdc_iat, 8, RF_ACTIVE);
+	if (sc->res_pegc == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	isa_load_resourcev(sc->res_pegc, gdc_iat, 8);
+
+	/* CRTC/GRCG */
+	rid = 32;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, 0x70, 1);
+	sc->res_grcg = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   gdc_iat, 8, RF_ACTIVE);
+	if (sc->res_grcg == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	isa_load_resourcev(sc->res_grcg, gdc_iat, 8);
+
+	/* KCG */
+	rid = 40;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, 0xa1, 1);
+	sc->res_kcg = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					  gdc_iat, 8, RF_ACTIVE);
+	if (sc->res_kcg == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	isa_load_resourcev(sc->res_kcg, gdc_iat, 8);
+
+
+	/* TEXT Memory */
+	rid = 0;
+	sc->res_tmem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+					  0xa0000, 0xa4fff, 0x5000, RF_ACTIVE);
+	if (sc->res_tmem == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+
+	/* GRAPHIC Memory */
+	rid = 1;
+	sc->res_gmem1 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+					   0xa8000, 0xbffff, 0x18000,
+					   RF_ACTIVE);
+	if (sc->res_gmem1 == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+	rid = 2;
+	sc->res_gmem2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+					   0xe0000, 0xe7fff, 0x8000,
+					   RF_ACTIVE);
+	if (sc->res_gmem2 == NULL) {
+		gdc_release_resource(dev);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+gdc_release_resource(device_t dev)
+{
+	gdc_softc_t *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->res_tgdc)
+		bus_release_resource(dev, SYS_RES_IOPORT,  0, sc->res_tgdc);
+	if (sc->res_ggdc)
+		bus_release_resource(dev, SYS_RES_IOPORT,  8, sc->res_ggdc);
+	if (sc->res_egc)
+		bus_release_resource(dev, SYS_RES_IOPORT, 16, sc->res_egc);
+	if (sc->res_pegc)
+		bus_release_resource(dev, SYS_RES_IOPORT, 24, sc->res_pegc);
+	if (sc->res_grcg)
+		bus_release_resource(dev, SYS_RES_IOPORT, 32, sc->res_grcg);
+	if (sc->res_kcg)
+		bus_release_resource(dev, SYS_RES_IOPORT, 40, sc->res_kcg);
+
+	if (sc->res_tmem)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res_tmem);
+	if (sc->res_gmem1)
+		bus_release_resource(dev, SYS_RES_MEMORY, 1, sc->res_gmem1);
+	if (sc->res_gmem2)
+		bus_release_resource(dev, SYS_RES_MEMORY, 2, sc->res_gmem2);
+
+	return (0);
 }
 
 /* cdev driver functions */
@@ -245,6 +393,20 @@ gdcmmap(dev_t dev, vm_offset_t offset, int prot)
 
 #endif /* FB_INSTALL_CDEV */
 
+static device_method_t gdc_methods[] = {
+	DEVMETHOD(device_probe,		gdcprobe),
+	DEVMETHOD(device_attach,	gdc_attach),
+	{ 0, 0 }
+};
+
+static driver_t gdcdriver = {
+	DRIVER_NAME,
+	gdc_methods,
+	sizeof(gdc_softc_t),
+};
+
+DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
+
 /* LOW-LEVEL */
 
 #include <machine/clock.h>
@@ -272,7 +434,7 @@ static video_adapter_t adapter_init_value[] = {
       KD_PC98, "gdc",			/* va_type, va_name */
       0, 0, 				/* va_unit, va_minor */
       V_ADP_COLOR | V_ADP_MODECHANGE | V_ADP_BORDER, 
-      IO_GDC1, 16, TEXT_GDC,		/* va_io*, XXX */
+      TEXT_GDC, 16, TEXT_GDC,		/* va_io*, XXX */
       VIDEO_BUF_BASE, VIDEO_BUF_SIZE,	/* va_mem* */
       TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, /* va_window* */
       0, 0, 				/* va_buffer, va_buffer_size */
@@ -494,14 +656,14 @@ probe_adapters(void)
 
 static void master_gdc_cmd(unsigned int cmd)
 {
-    while ( (inb(IO_GDC1) & 2) != 0);
-    outb(IO_GDC1+2, cmd);
+    while ( (inb(TEXT_GDC) & 2) != 0);
+    outb(TEXT_GDC+2, cmd);
 }
 
 static void master_gdc_prm(unsigned int pmtr)
 {
-    while ( (inb(IO_GDC1) & 2) != 0);
-    outb(IO_GDC1, pmtr);
+    while ( (inb(TEXT_GDC) & 2) != 0);
+    outb(TEXT_GDC, pmtr);
 }
 
 static void master_gdc_word_prm(unsigned int wpmtr)
@@ -513,27 +675,27 @@ static void master_gdc_word_prm(unsigned int wpmtr)
 #ifdef LINE30
 static void master_gdc_fifo_empty(void)
 {
-    while ( (inb(IO_GDC1) & 4) == 0);     
+    while ( (inb(TEXT_GDC) & 4) == 0);     
 }
 #endif
 
 static void master_gdc_wait_vsync(void)
 {
-    while ( (inb(IO_GDC1) & 0x20) != 0);          
-    while ( (inb(IO_GDC1) & 0x20) == 0);          
+    while ( (inb(TEXT_GDC) & 0x20) != 0);          
+    while ( (inb(TEXT_GDC) & 0x20) == 0);          
 }
 
 static void gdc_cmd(unsigned int cmd)
 {
-    while ( (inb(IO_GDC2) & 2) != 0);
-    outb( IO_GDC2+2, cmd);
+    while ( (inb(GRAPHIC_GDC) & 2) != 0);
+    outb( GRAPHIC_GDC+2, cmd);
 }
 
 #ifdef LINE30
 static void gdc_prm(unsigned int pmtr)
 {
-    while ( (inb(IO_GDC2) & 2) != 0);
-    outb( IO_GDC2, pmtr);
+    while ( (inb(GRAPHIC_GDC) & 2) != 0);
+    outb( GRAPHIC_GDC, pmtr);
 }
 
 static void gdc_word_prm(unsigned int wpmtr)
@@ -544,14 +706,14 @@ static void gdc_word_prm(unsigned int wpmtr)
 
 static void gdc_fifo_empty(void)
 {
-    while ( (inb(IO_GDC2) & 0x04) == 0);          
+    while ( (inb(GRAPHIC_GDC) & 0x04) == 0);          
 }
 #endif
 
 static void gdc_wait_vsync(void)
 {
-    while ( (inb(IO_GDC2) & 0x20) != 0);          
-    while ( (inb(IO_GDC2) & 0x20) == 0);          
+    while ( (inb(GRAPHIC_GDC) & 0x20) != 0);          
+    while ( (inb(GRAPHIC_GDC) & 0x20) == 0);          
 }
 
 #ifdef LINE30
