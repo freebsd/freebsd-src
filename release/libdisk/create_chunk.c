@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.7 1995/05/03 06:30:50 phk Exp $
+ * $Id: create_chunk.c,v 1.8 1995/05/03 22:36:50 phk Exp $
  *
  */
 
@@ -59,14 +59,16 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	for (c1 = c->part; c1 ; c1 = c1->next) {
 		for(c3 = c->part; c3 ; c3 = c3->next) 
 			if (c1 != c3 && !strcmp(c3->name, c1->oname)) {
-				strcpy(c1->name,c1->oname);
-				break;
+				goto newname;
 			}
+		strcpy(c1->name,c1->oname);
+	    newname:
 	}
+
 
 	/* Allocate the rest sequentially */
 	for (c1 = c->part; c1 ; c1 = c1->next) {
-		const char order[] = "defghab";
+		const char order[] = "efghabd";
 		if (c1->type == unused) continue;
 		if (c1->type == reserved) continue;
 		if (strcmp("X",c1->name)) continue;

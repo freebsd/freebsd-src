@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.4 1995/04/30 06:09:27 phk Exp $
+ * $Id: rules.c,v 1.5 1995/05/03 06:30:59 phk Exp $
  *
  */
 
@@ -75,32 +75,35 @@ Next_Cyl_Aligned(struct disk *d, u_long offset)
 /*
  *  Rule#0:
  *	Chunks of type 'whole' can have max NDOSPART children.
+ *	Only one of them can have the "active" flag
  */
 void
 Rule_000(struct disk *d, struct chunk *c, char *msg)
 {
-	int i;
+	int i=0,j=0;
 	struct chunk *c1;
 
 	if (c->type != whole)
 		return;
-	for (i=0, c1=c->part; c1; c1=c1->next) {
-		if (c1->type != reserved)
-			continue;
-		if (c1->type != reserved)
-			continue;
+	for (c1=c->part; c1; c1=c1->next) {
+		if (c1->type != unused) continue;
+		if (c1->type != reserved) continue;
+		if (c1->flags & CHUNK_ACTIVE)
+			j++;
 		i++;
 	}
-	if (i <= NDOSPART)
-		return;
-	sprintf(msg+strlen(msg),
-		"%d is too many children of the 'whole' chunk.  Max is %d\n",
-		i, NDOSPART);
+	if (i > NDOSPART)
+		sprintf(msg+strlen(msg),
+	"%d is too many children of the 'whole' chunk.  Max is %d\n",
+			i, NDOSPART);
+	if (j > 1)
+		sprintf(msg+strlen(msg),
+	"Too many active children of 'whole'");
 }
 
 /* 
  * Rule#1:
- *	All children of 'whole' must be track-aligned.
+ *	All children of 'whole' and 'extended'  must be track-aligned.
  *	Exception: the end can be unaligned if it matches the end of 'whole'
  */
 void
@@ -109,18 +112,22 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 	int i;
 	struct chunk *c1;
 
-	if (c->type != whole)
+	if (c->type != whole && c->type != extended)
 		return;
 	for (i=0, c1=c->part; c1; c1=c1->next) {
 		if (c1->type == reserved)
 			continue;
 		if (c1->type == unused)
 			continue;
+		c1->flags |= CHUNK_ALIGN;
 		if (!Track_Aligned(d,c1->offset))
 			sprintf(msg+strlen(msg),
 		    "chunk '%s' [%ld..%ld] does not start on a track boundary\n",
 				c1->name,c1->offset,c1->end);
-		if (c->end != c1->end && !Cyl_Aligned(d,c1->end+1))
+		if ((c->type == whole || c->end == c1->end)
+		    || Cyl_Aligned(d,c1->end+1))
+			;
+		else
 			sprintf(msg+strlen(msg),
 		    "chunk '%s' [%ld..%ld] does not end on a cylinder boundary\n",
 				c1->name,c1->offset,c1->end);
@@ -176,6 +183,8 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 /* 
  * Rule#4:
  *	Max seven 'part' as children of 'freebsd'
+ *	Max one FS_SWAP child per 'freebsd'
+ *	Max one CHUNK_IS_ROOT child per 'freebsd'
  */
 void
 Rule_004(struct disk *d, struct chunk *c, char *msg)
@@ -220,7 +229,11 @@ Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 		Check_Chunk(d,c->part,msg);
 	if (c->next)
 		Check_Chunk(d,c->next,msg);
-	return;
+
+	if (c->end >= 1024*d->bios_hd*d->bios_sect)
+		c->flags |= CHUNK_PAST_1024;
+	else
+		c->flags &= ~CHUNK_PAST_1024;
 }
 
 char *
