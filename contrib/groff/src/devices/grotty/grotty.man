@@ -27,7 +27,7 @@ grotty \- groff driver for typewriter-like devices
 .SH SYNOPSIS
 .B grotty
 [
-.B \-bBcdfhiouUv
+.B \-bBcdfhioruUv
 ] [
 .BI \-F dir
 ] [
@@ -261,6 +261,14 @@ is active.
 Suppress overstriking (other than for bold or underlined characters in
 case the old output format has been activated with
 .BR \-c ).
+.
+.TP
+.B \-r
+Use escape sequences to set the reverse text attribute instead of the
+underline attribute for italic fonts (`I' and `BI').
+Ignored if
+.B \-c
+is active.
 .
 .TP
 .B \-u
