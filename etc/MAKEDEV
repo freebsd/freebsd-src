@@ -138,6 +138,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
+#	3dfx*	3dfx voodoo device for glide (tdfx), links 3dfx to 3dfx#
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -1541,6 +1542,12 @@ i4btrc*)
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
 	mknod mlx$unit c 130 $unit
+	;;
+
+3dfx*)
+	unit=`expr $i : '3dfx\(.*\)'`
+	mknod 3dfx$unit c 107 $unit
+	ln -s 3dfx$unit 3dfx
 	;;
 
 twe*)
