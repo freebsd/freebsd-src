@@ -246,9 +246,6 @@ single_block_read:
 #endif
 		if ((bp->b_flags & B_CLUSTER) == 0) {
 			vfs_busy_pages(bp, 0);
-		} else {
-			bp->b_runningbufspace = bp->b_bufsize;
-			runningbufspace += bp->b_runningbufspace;
 		}
 		bp->b_flags &= ~(B_ERROR|B_INVAL);
 		if (bp->b_flags & (B_ASYNC|B_CALL))
@@ -285,9 +282,6 @@ single_block_read:
 
 			if ((rbp->b_flags & B_CLUSTER) == 0) {
 				vfs_busy_pages(rbp, 0);
-			} else {
-				rbp->b_runningbufspace = rbp->b_bufsize;
-				runningbufspace += rbp->b_runningbufspace;
 			}
 			rbp->b_flags &= ~(B_ERROR|B_INVAL);
 			if (rbp->b_flags & (B_ASYNC|B_CALL))
