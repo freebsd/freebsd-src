@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.13 1994/09/14 23:56:08 wollman Exp $
+ *	$Id: icu.s,v 1.14 1994/09/19 22:24:31 wollman Exp $
  */
 
 /*
@@ -283,20 +283,6 @@ vec/**/irq_num: ; \
 	BUILD_VEC(15)
 
 	ALIGN_TEXT
-swi_clock:
-	MCOUNT
-	subl	%eax,%eax
-	cmpl	$_splz,(%esp)		/* XXX call from splz()? */
-	jae	1f			/* yes, usermode = 0 */
-	movl	4+4+TRAPF_CS_OFF(%esp),%eax	/* no, check trap frame */
-	andl	$SEL_RPL_MASK,%eax
-1:
-	pushl	%eax
-	call	_softclock
-	addl	$4,%esp
-	ret
-
-	ALIGN_TEXT
 	.globl _dummynetisr
 _dummynetisr:
 	MCOUNT
@@ -335,6 +321,10 @@ swi_net:
 	DONET(30) ; DONET(31)
 	ret
 
+/*
+ * XXX there should be a registration function to put the handler for the
+ * attached driver directly in ihandlers.  Then this function will go away.
+ */
 	ALIGN_TEXT
 swi_tty:
 	MCOUNT
