@@ -270,7 +270,7 @@ ext2_mount(mp, ndp, td)
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
-	 * and verify that it refers to a sensible block device.
+	 * and verify that it refers to a sensible disk device.
 	 */
 	if (fspec == NULL)
 		return (EINVAL);
@@ -541,8 +541,11 @@ ext2_reload(mp, cred, td)
 	 * Step 1: invalidate all cached meta-data.
 	 */
 	devvp = VFSTOEXT2(mp)->um_devvp;
-	if (vinvalbuf(devvp, 0, cred, td, 0, 0))
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (vinvalbuf(devvp, 0, cred, td, 0, 0) != 0)
 		panic("ext2_reload: dirty1");
+	VOP_UNLOCK(devvp, 0, td);
+
 	/*
 	 * Step 2: re-read superblock from disk.
 	 * constants have been adjusted for ext2
@@ -646,15 +649,18 @@ ext2_mountfs(devvp, mp, td)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if ((error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0)) != 0)
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
+	if (error) {
+		VOP_UNLOCK(devvp, 0, td);
 		return (error);
+	}
 #ifdef READONLY
 /* turn on this to force it to be read-only */
 	mp->mnt_flag |= MNT_RDONLY;
 #endif
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
 	 * XXX: open the device with read and write access even if only
 	 * read access is needed now.  Write access is needed if the
