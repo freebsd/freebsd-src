@@ -32,18 +32,22 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
+#include <sys/devicestat.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/conf.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <sys/devicestat.h>
+#include <machine/atomic.h>
 
 static int devstat_num_devs;
-static long devstat_generation;
+static u_int devstat_generation;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
+static struct mtx devstat_mutex;
 
 static struct devstatlist device_statq;
 static struct devstat *devstat_alloc(void);
@@ -65,10 +69,20 @@ devstat_new_entry(const void *dev_name,
 		  devstat_priority priority)
 {
 	struct devstat *ds;
+	static int once;
+
+	if (!once) {
+		STAILQ_INIT(&device_statq);
+		mtx_init(&devstat_mutex, "devstat", NULL, MTX_DEF);
+		once = 1;
+	}
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	ds = devstat_alloc();
+	mtx_lock(&devstat_mutex);
 	devstat_add_entry(ds, dev_name, unit_number, block_size,
 			  flags, device_type, priority);
+	mtx_unlock(&devstat_mutex);
 	return (ds);
 }
 
@@ -86,13 +100,7 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 	struct devstatlist *devstat_head;
 	struct devstat *ds_tmp;
 
-	if (ds == NULL)
-		return;
-
-	if (devstat_num_devs == 0)
-		STAILQ_INIT(&device_statq);
-
-	devstat_generation++;
+	mtx_assert(&devstat_mutex, MA_OWNED);
 	devstat_num_devs++;
 
 	devstat_head = &device_statq;
@@ -157,6 +165,7 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 	ds->device_type = device_type;
 	ds->priority = priority;
 	binuptime(&ds->creation_time);
+	devstat_generation++;
 }
 
 /*
@@ -167,18 +176,21 @@ devstat_remove_entry(struct devstat *ds)
 {
 	struct devstatlist *devstat_head;
 
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (ds == NULL)
 		return;
 
-	devstat_generation++;
-	devstat_num_devs--;
+	mtx_lock(&devstat_mutex);
 
 	devstat_head = &device_statq;
 
 	/* Remove this entry from the devstat queue */
+	atomic_add_acq_int(&ds->sequence1, 1);
+	devstat_num_devs--;
 	STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
-	if (ds->allocated)
-		devstat_free(ds);
+	devstat_free(ds);
+	devstat_generation++;
+	mtx_unlock(&devstat_mutex);
 }
 
 /*
@@ -190,10 +202,14 @@ devstat_remove_entry(struct devstat *ds)
 void
 devstat_start_transaction(struct devstat *ds, struct bintime *now)
 {
+
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
+
 	/* sanity check */
 	if (ds == NULL)
 		return;
 
+	atomic_add_acq_int(&ds->sequence1, 1);
 	/*
 	 * We only want to set the start time when we are going from idle
 	 * to busy.  The start time is really the start of the latest busy
@@ -206,11 +222,18 @@ devstat_start_transaction(struct devstat *ds, struct bintime *now)
 			binuptime(&ds->busy_from);
 	}
 	ds->start_count++;
+	atomic_add_rel_int(&ds->sequence0, 1);
 }
 
 void
 devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 {
+
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
+
+	/* sanity check */
+	if (ds == NULL)
+		return;
 
 	binuptime(&bp->bio_t0);
 	devstat_start_transaction(ds, &bp->bio_t0);
@@ -227,6 +250,20 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
  * devstat_start_transaction() when there are no outstanding transactions,
  * and thus it can't be modified in devstat_end_transaction()
  * simultaneously.
+ *
+ * The sequence0 and sequence1 fields are provided to enable an application
+ * spying on the structures with mmap(2) to tell when a structure is in a
+ * consistent state or not.
+ *
+ * For this to work 100% reliably, it is important that the two fields
+ * are at opposite ends of the structure and that they are incremented
+ * in the opposite order of how a memcpy(3) in userland would copy them.
+ * We assume that the copying happens front to back, but there is actually
+ * no way short of writing your own memcpy(3) replacement to guarantee
+ * this will be the case.
+ *
+ * In addition to this, being a kind of locks, they must be updated with
+ * atomic instructions using appropriate memory barriers.
  */
 void
 devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
@@ -234,6 +271,8 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 			struct bintime *now, struct bintime *then)
 {
 	struct bintime dt, lnow;
+
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	/* sanity check */
 	if (ds == NULL)
@@ -244,6 +283,7 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 		binuptime(now);
 	}
 
+	atomic_add_acq_int(&ds->sequence1, 1);
 	/* Update byte and operations counts */
 	ds->bytes[flags] += bytes;
 	ds->operations[flags]++;
@@ -269,6 +309,7 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 	ds->busy_from = *now;
 
 	ds->end_count++;
+	atomic_add_rel_int(&ds->sequence0, 1);
 }
 
 void
@@ -276,12 +317,20 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 {
 	devstat_trans_flags flg;
 
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
+
+	/* sanity check */
+	if (ds == NULL)
+		return;
+
 	if (bp->bio_cmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
 	else if (bp->bio_cmd == BIO_READ)
 		flg = DEVSTAT_READ;
-	else
+	else if (bp->bio_cmd == BIO_WRITE)
 		flg = DEVSTAT_WRITE;
+	else 
+		flg = DEVSTAT_NO_DATA;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
 				DEVSTAT_TAG_SIMPLE, flg, NULL, &bp->bio_t0);
@@ -293,41 +342,59 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
  * generation number, and then an array of devstat structures, one for each
  * device in the system.
  *
- * I'm really not too fond of this method of doing things, but there really
- * aren't that many alternatives.  We must have some method of making sure
- * that the generation number the user gets corresponds with the data the
- * user gets.  If the user makes a separate sysctl call to get the
- * generation, and then a sysctl call to get the device statistics, the
- * device list could have changed in that brief period of time.  By
- * supplying the generation number along with the statistics output, we can
- * guarantee that the generation number and the statistics match up.
+ * This is more cryptic that obvious, but basically we neither can nor
+ * want to hold the devstat_mutex for any amount of time, so we grab it
+ * only when we need to and keep an eye on devstat_generation all the time.
  */
 static int
 sysctl_devstat(SYSCTL_HANDLER_ARGS)
 {
-	int error, i;
+	int error;
+	u_int mygen;
 	struct devstat *nds;
-	struct devstatlist *devstat_head;
+
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	if (devstat_num_devs == 0)
 		return(EINVAL);
 
-	error = 0;
-	devstat_head = &device_statq;
-
 	/*
-	 * First push out the generation number.
+	 * XXX devstat_generation should really be "volatile" but that
+	 * XXX freaks out the sysctl macro below.  The places where we
+	 * XXX change it and inspect it are bracketed in the mutex which
+	 * XXX guarantees us proper write barriers.  I don't belive the
+	 * XXX compiler is allowed to optimize mygen away across calls
+	 * XXX to other functions, so the following is belived to be safe.
 	 */
-	error = SYSCTL_OUT(req, &devstat_generation, sizeof(long));
+	mygen = devstat_generation;
 
-	/*
-	 * Now push out all the devices.
-	 */
-	for (i = 0, nds = STAILQ_FIRST(devstat_head); 
-	    (nds != NULL) && (i < devstat_num_devs) && (error == 0); 
-	     nds = STAILQ_NEXT(nds, dev_links), i++)
+	error = SYSCTL_OUT(req, &mygen, sizeof(mygen));
+
+	if (error != 0)
+		return (error);
+
+	mtx_lock(&devstat_mutex);
+	nds = STAILQ_FIRST(&device_statq); 
+	if (mygen != devstat_generation)
+		error = EBUSY;
+	mtx_unlock(&devstat_mutex);
+
+	if (error != 0)
+		return (error);
+
+	for (;nds != NULL;) {
 		error = SYSCTL_OUT(req, nds, sizeof(struct devstat));
-
+		if (error != 0)
+			return (error);
+		mtx_lock(&devstat_mutex);
+		if (mygen != devstat_generation)
+			error = EBUSY;
+		else
+			nds = STAILQ_NEXT(nds, dev_links);
+		mtx_unlock(&devstat_mutex);
+		if (error != 0)
+			return (error);
+	}
 	return(error);
 }
 
@@ -349,6 +416,12 @@ SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
     &devstat_generation, 0, "Devstat list generation");
 SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, 
     &devstat_version, 0, "Devstat list version number");
+
+/*
+ * Allocator for struct devstat structures.  We sub-allocate these from pages
+ * which we get from malloc.  These pages are exported for mmap(2)'ing through
+ * a miniature device driver
+ */
 
 #define statsperpage (PAGE_SIZE / sizeof(struct devstat))
 
@@ -395,20 +468,38 @@ devstat_alloc(void)
 	u_int u;
 	static int once;
 
+	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (!once) {
 		make_dev(&devstat_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
-		once++;
+		once = 1;
 	}
-	TAILQ_FOREACH(spp, &pagelist, list) {
-		if (spp->nfree > 0)
+	mtx_lock(&devstat_mutex);
+	for (;;) {
+		TAILQ_FOREACH(spp, &pagelist, list) {
+			if (spp->nfree > 0)
+				break;
+		}
+		if (spp != NULL)
 			break;
-	}
-	if (spp == NULL) {
+		/*
+		 * We had no free slot in any of our pages, drop the mutex
+		 * and get another page.  In theory we could have more than
+		 * one process doing this at the same time and consequently
+		 * we may allocate more pages than we will need.  That is
+		 * Just Too Bad[tm], we can live with that.
+		 */
+		mtx_unlock(&devstat_mutex);
 		spp = malloc(sizeof *spp, M_DEVSTAT, M_ZERO | M_WAITOK);
-		TAILQ_INSERT_TAIL(&pagelist, spp, list);
 		spp->stat = malloc(PAGE_SIZE, M_DEVSTAT, M_ZERO | M_WAITOK);
 		spp->nfree = statsperpage;
+		mtx_lock(&devstat_mutex);
+		/*
+		 * It would make more sense to add the new page at the head
+		 * but the order on the list determine the sequence of the
+		 * mapping so we can't do that.
+		 */
+		TAILQ_INSERT_TAIL(&pagelist, spp, list);
 	}
 	dsp = spp->stat;
 	for (u = 0; u < statsperpage; u++) {
@@ -418,6 +509,7 @@ devstat_alloc(void)
 	}
 	spp->nfree--;
 	dsp->allocated = 1;
+	mtx_unlock(&devstat_mutex);
 	return (dsp);
 }
 
@@ -426,6 +518,7 @@ devstat_free(struct devstat *dsp)
 {
 	struct statspage *spp;
 
+	mtx_assert(&devstat_mutex, MA_OWNED);
 	bzero(dsp, sizeof *dsp);
 	TAILQ_FOREACH(spp, &pagelist, list) {
 		if (dsp >= spp->stat && dsp < (spp->stat + statsperpage)) {
