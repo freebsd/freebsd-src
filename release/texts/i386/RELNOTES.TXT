@@ -115,7 +115,7 @@ The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
 Ethernet and Netgear GA620T 1000baseT Gigabit cards. [MERGED]
 
 The mly(4) driver, for Mylex PCI to SCSI AccelRAID and eXtremeRAID
-controllers with firmware 6.x and later, has been added.
+controllers with firmware 6.x and later, has been added. [MERGED]
 
 The asr(4) driver, which provides support for the Adaptec SCSI RAID
 controller family, as well as the DPT SmartRAID V and VI families, has
