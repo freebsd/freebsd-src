@@ -574,8 +574,8 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 		 * is to coerce this to undefined, and let it get cleaned
 		 * up by the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr: inode number inconsistency (%d, %d)\n",
-		    ueh.ueh_i_gen, ip->i_gen);
+		printf("ufs_extattr_get: inode %lu inconsistency (%d, %d)\n",
+		    (u_long)ip->i_number, ueh.ueh_i_gen, ip->i_gen);
 		error = ENOENT;
 		goto vopunlock_exit;
 	}
@@ -825,6 +825,20 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 
 	/* defined? */
 	if ((ueh.ueh_flags & UFS_EXTATTR_ATTR_FLAG_INUSE) == 0) {
+		error = ENOENT;
+		goto vopunlock_exit;
+	}
+
+	/* Valid for the current inode generation? */
+	if (ueh.ueh_i_gen != ip->i_gen) {
+		/*
+		 * The inode itself has a different generation number than
+		 * the attribute data.  For now, the best solution is to 
+		 * coerce this to undefined, and let it get cleaned up by
+		 * the next write or extattrctl clean.
+		 */
+		printf("ufs_extattr_rm: inode %lu inconsistency (%d, %d)\n",
+		    (u_long)ip->i_number, ueh.ueh_i_gen, ip->i_gen);
 		error = ENOENT;
 		goto vopunlock_exit;
 	}
