@@ -649,7 +649,9 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
     int i;
 
     switch((i = test_aux_port(kbdc))) {
-    case 1:	/* ignore this error */
+    case 1:	/* ignore these errors */
+    case 2:
+    case 3:
     case PSM_ACK:
 	if (verbose)
 	    log(LOG_DEBUG, "psm%d: strange result for test aux port (%d).\n",
@@ -994,14 +996,16 @@ psmprobe(device_t dev)
      * case, we have to continue probing the port even when the controller
      * passes this test.
      *
-     * XXX: some controllers erroneously return the error code 1 when
-     * it has the perfectly functional aux port. We have to ignore this
-     * error code. Even if the controller HAS error with the aux port,
-     * it will be detected later...
+     * XXX: some controllers erroneously return the error code 1, 2 or 3
+     * when it has the perfectly functional aux port. We have to ignore
+     * this error code. Even if the controller HAS error with the aux
+     * port, it will be detected later...
      * XXX: another incompatible controller returns PSM_ACK (0xfa)...
      */
     switch ((i = test_aux_port(sc->kbdc))) {
-    case 1:	   /* ignore this error */
+    case 1:	   /* ignore these errors */
+    case 2:
+    case 3:
     case PSM_ACK:
         if (verbose)
 	    printf("psm%d: strange result for test aux port (%d).\n",
