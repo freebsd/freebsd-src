@@ -35,11 +35,17 @@
 .Tn I/O
 driver
 .Sh SYNOPSIS
-.Cd "device pbio0 at isa? port 0x360"
+.Cd "device pbio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.pbio.0.at="isa"
+.Cd hint.pbio.0.port="0x360"
+.Pp
 .In machine/pbioio.h
 .Sh DESCRIPTION
 The
-.Xr pbio 4
+.Nm
 driver supports direct access to the Intel 8255A programmable
 peripheral interface (PPI) chip running in mode 0 (simple
 .Tn I/O ) .
@@ -77,7 +83,7 @@ The device driver provides four character devices that
 correspond to the peripheral's
 .Tn I/O
 ports.
-Opening a device for read or write, automatically configures
+Opening a device for read or write automatically configures
 the corresponding hardware port for input or output.
 At boot time all ports are set configured for input to avoid damaging
 external circuitry.
@@ -90,7 +96,7 @@ user/kernel context switching.
 The driver can perform
 .Tn I/O
 in three different ways:
-.Bl -tag -width Differential
+.Bl -tag -width ".No Differential"
 .It Basic
 The read or write operation returns immediately after reading
 or writing the data to the port at bus speed.
@@ -108,19 +114,19 @@ The pacing interval is specified in
 .Em Hz
 unit increments.
 Setting a pace of
-.Sy n
+.Ar n
 seconds
 will result in no more than one value being read or written every
-.Sy n
+.Ar n
 seconds.
 Single byte read/write opeations will take at least
-.Sy n
+.Ar n
 seconds to complete.
 .Pp
 The following
 .Xr ioctl 2
 calls are supported:
-.Bl -tag -width "PBIO_SETIPACE"
+.Bl -tag -width ".Dv PBIO_SETIPACE"
 .It Dv PBIO_SETDIFF
 accepts a pointer to an integer as the third argument,
 and sets the driver for differential input if the integer is non-zero.
@@ -143,7 +149,7 @@ accepts a pointer to an integer as the third argument,
 and sets the integer to the last set value for the output pace.
 .El
 .Sh FILES
-.Bl -tag -width "/dev/pbioxxx"
+.Bl -tag -width ".Pa /dev/pbio0ch" -compact
 .It Pa /dev/pbio0a
 Port A (8 bit
 .Tn I/O ) .
@@ -172,7 +178,7 @@ The
 .Nm
 device was first used under
 .Fx 4.1 .
-.Sh AUTHOR
+.Sh AUTHORS
 .An "Diomidis D. Spinellis" Aq dds@aueb.gr
 .Sh BUGS
 One of the
