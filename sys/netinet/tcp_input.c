@@ -574,11 +574,14 @@ findpcb:
 	}
 #endif
 #ifdef FAST_IPSEC
+#ifdef INET6
 	if (isipv6) {
 		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 			goto drop;
 		}
-	} else if (inp != NULL && ipsec4_in_reject(m, inp)) {
+	} else
+#endif
+	if (inp != NULL && ipsec4_in_reject(m, inp)) {
 		goto drop;
 	}
 #endif /*FAST_IPSEC*/
