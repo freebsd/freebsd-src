@@ -33,7 +33,7 @@
 36	lkm		assigned to Loadable Kernel Modules
 37	lkm		assigned to Loadable Kernel Modules
 38	lkm		assigned to Loadable Kernel Modules
-42	*cx		Cronyx/Sigma serial adapter
+42	*cx		Cronyx Sigma-ISA serial adapters
 43	vn		vnode "disk" device (retired)
 46	-		-
 54	OLDnic		ISDN system
@@ -59,7 +59,7 @@
 93	*coda		CODA filesystem.
 96	altq		alternate queueing (including cbq, red, wfq)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
-99	ct		Cronyx/Tau serial adaptor
+99	*ct		Cronyx Tau-ISA serial adapters (driver name "ctau")
 115	dag		University of Waikato DAG network capture boards
 117	*acd		ATAPI CDROM
 119	*ast		ATAPI tape
