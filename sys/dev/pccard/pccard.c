@@ -77,12 +77,13 @@ int pccard_card_intr(void *);
 int pccard_card_intrdebug(void *);
 #endif
 
+/* XXX Shouldn't be touching hardware, that's a layering violation */
+/* XXX imp */
 int
 pccard_ccr_read(pf, ccr)
 	struct pccard_function *pf;
 	int ccr;
 {
-
 	return (bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh,
 	    pf->pf_ccr_offset + ccr));
 }
@@ -839,7 +840,6 @@ pccard_card_intrdebug(arg)
 static int
 pccard_add_children(device_t dev, int busno)
 {
-	device_add_child(dev, NULL, -1);
 	return 0;
 }
 
