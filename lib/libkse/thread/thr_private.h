@@ -215,6 +215,7 @@ struct kse_group {
 	struct sched_queue	kg_schedq;	/* scheduling queue */
 	struct lock		kg_lock;
 	int			kg_threadcount;	/* # of assigned threads */
+	int			kg_ksecount;	/* # of assigned KSEs */
 	int			kg_idle_kses;
 	int			kg_flags;
 #define	KGF_SINGLE_THREAD		0x0001	/* scope system kse group */
@@ -1023,6 +1024,7 @@ void	_kse_single_thread(struct pthread *);
 void	_kse_start(struct kse *);
 int	_kse_setthreaded(int);
 int	_kse_isthreaded(void);
+void	_kseg_free(struct kse_group *);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
 void	_mutex_lock_backout(struct pthread *);
@@ -1060,7 +1062,7 @@ void	_thr_lock_wait(struct lock *lock, struct lockuser *lu);
 void	_thr_lock_wakeup(struct lock *lock, struct lockuser *lu);
 int	_thr_ref_add(struct pthread *, struct pthread *, int);
 void	_thr_ref_delete(struct pthread *, struct pthread *);
-void	_thr_schedule_add(struct pthread *, struct pthread *);
+int	_thr_schedule_add(struct pthread *, struct pthread *);
 void	_thr_schedule_remove(struct pthread *, struct pthread *);
 void	_thr_setrunnable(struct pthread *curthread, struct pthread *thread);
 void	_thr_setrunnable_unlocked(struct pthread *thread);

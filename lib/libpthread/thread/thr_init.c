@@ -264,6 +264,9 @@ _libpthread_init(struct pthread *curthread)
 		PANIC("Can't allocate initial kseg.");
 	_kse_initial->k_schedq = &_kse_initial->k_kseg->kg_schedq;
 
+	TAILQ_INSERT_TAIL(&_kse_initial->k_kseg->kg_kseq, _kse_initial, k_kgqe);
+	_kse_initial->k_kseg->kg_ksecount = 1;
+
 	/* Set the initial thread. */
 	if (curthread == NULL) {
 		/* Create and initialize the initial thread. */
