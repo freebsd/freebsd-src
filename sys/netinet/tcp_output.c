@@ -292,7 +292,7 @@ again:
 		len = tp->t_maxseg;
 		sendalot = 1;
 	}
-	if (SEQ_LT(tp->snd_nxt + len, tp->snd_una + so->so_snd.sb_cc))
+	if (off + len < so->so_snd.sb_cc)
 		flags &= ~TH_FIN;
 
 	recwin = sbspace(&so->so_rcv);
