@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.11 1995/06/24 10:12:59 asami Exp $";
+static const char *rcsid = "$Id: file.c,v 1.12 1995/07/30 01:44:44 ache Exp $";
 #endif
 
 /*
@@ -23,7 +23,7 @@ static const char *rcsid = "$Id: file.c,v 1.11 1995/06/24 10:12:59 asami Exp $";
  */
 
 #include "lib.h"
-#include <FtpLibrary.h>
+#include "ftp.h"
 #include <pwd.h>
 
 /* Quick check to see if a file exists */
@@ -161,52 +161,26 @@ fileURLFilename(char *fname, char *where, int max)
     return fname;
 }
 
-/*
- * Callback functions for fileGetURL - GetIO is called on I/O requests
- * and GetAbort when the transfer aborts.
- */
-
-/* Something they can use to keep track of the action */
-Boolean connectionAborted = FALSE;
-
-static int
-_fileGetIO(FTP *ftp, int n, char *s )
-{
-    printf("In IO: %s\n", s);
-    return 0;
-}
-
-static int
-_fileGetAbort(FTP *ftp, int n, char *s )
-{
-    /* No access or not found, exclude network or host unreachable */
-    if (abs(n) == 550 && FtpBadReply550(s)) {
-	connectionAborted = TRUE;
-	return 1;
-    }
-    return 0;
-}
-
 #define HOSTNAME_MAX	64
-
 /*
- * Try and fetch a file by URL, returning the name of the local
- * copy if fetched successfully.
+ * Try and fetch a file by URL, returning the fd of open
+ * file if fetched successfully.
  */
 char *
 fileGetURL(char *fname)
 {
-    static char out[FILENAME_MAX];
-    char *cp;
     char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname;
+    char pword[HOSTNAME_MAX + 40], *uname, *cp;
+    static char tmpl[40];
     struct passwd *pw;
-    FTP *ftp;
-    int i;
+    FTP_t ftp;
+    int fd, fd2, i;
+    char ch;
 
     if (!isURL(fname))
 	return NULL;
 
+    ftp = FtpInit();
     cp = fileURLHost(fname, host, HOSTNAME_MAX);
     if (!*cp) {
 	whinge("URL `%s' has bad host part!", fname);
@@ -218,10 +192,6 @@ fileGetURL(char *fname)
 	whinge("URL `%s' has bad filename part!", fname);
 	return NULL;
     }
-
-    FtpSetErrorHandler(&FtpInit, _fileGetAbort);
-    FtpSetFlag(&FtpInit, FTP_REST);
-    FtpSetTimeout(&FtpInit, 60);  /* XXX this may be too short */
 
     /* Maybe change to ftp if this doesn't work */
     uname = "anonymous";
@@ -237,7 +207,10 @@ fileGetURL(char *fname)
     if (Verbose)
 	printf("Trying to fetch %s from %s.\n", file, host);
 
-    FtpLogin(&ftp, host, uname, pword, NULL);
+    FtpOpen(ftp, host, uname, pword);
+    /* XXX - Currently undocumented - XXX */
+    if (getenv("FTP_PASSIVE"))
+	FtpPassive(ftp, TRUE);
 
     strcpy(dir, file);
     for (i = strlen(dir); i && dir[i] != '/'; i--);
@@ -245,18 +218,31 @@ fileGetURL(char *fname)
 
     if (dir[0])
 	FtpChdir(ftp, dir);
-    FtpBinary(ftp);
-
-    if ((cp = getenv("PKG_TMPDIR")) != NULL)
-	sprintf(out, "%s/instpkg-XXXXXX.tgz", cp);
-    else
-	strcpy(out, "/var/tmp/instpkg-XXXXXX.tgz");
-
-    FtpGet(ftp, basename_of(file), out);
-    FtpBye(ftp);
-    if (connectionAborted)
+    FtpBinary(ftp, TRUE);
+    fd = FtpGet(ftp, basename_of(file));
+    if (fd < 0) {
+	whinge("Unable to get `%s' over ftp!", file);
 	return NULL;
-    return out;
+    }
+    if ((cp = getenv("PKG_TMPDIR")) != NULL)
+	sprintf(tmpl, "%s/instpkg-XXXXXX.tgz", cp);
+    else
+	strcpy(tmpl, "/var/tmp/instpkg-XXXXXX.tgz");
+    cp = mktemp(tmpl);
+    if (!cp) {
+	whinge("Unable to make temporary filename from template: %s!", tmpl);
+	return NULL;
+    }
+    fd2 = open(cp, O_CREAT | O_WRONLY);
+    if (fd2 < 0) {
+	whinge("Unable to create a temporary file for ftp: %s", tmpl);
+	return NULL;
+    }
+    while (read(fd, &ch, 1) == 1)
+	write(fd, &ch, 1);
+    FtpEof(ftp);
+    FtpClose(ftp);
+    return tmpl;
 }
 
 char *
