@@ -48,6 +48,8 @@ ARCH_SRCS = s_copysign.S s_copysignf.S
 # handling is broken (doesn't exist!) on the Alpha port.
 # Stock gcc 2.7.2.1 doesn't understand these options.
 #CFLAGS += -mtrap-precision=i -mfp-trap-mode=su
+.elif ${MACHINE_ARCH} == "amd64"
+ARCH_SRCS = e_sqrt.S s_lrint.S s_llrint.S
 .elif ${MACHINE_ARCH} == "i386"
 ARCH_SUBDIR= i387
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
