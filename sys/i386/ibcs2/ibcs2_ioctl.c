@@ -169,6 +169,8 @@ stios2btios(st, bt)
 	if (l & IBCS2_CLOCAL)	r |= CLOCAL;
 	bt->c_cflag = r;
 
+	bt->c_ispeed = bt->c_ospeed = s2btab[l & 0x0000000f];
+
 	l = st->c_lflag;	r = 0;
 	if (l & IBCS2_ISIG)	r |= ISIG;
 	if (l & IBCS2_ICANON)	r |= ICANON;
@@ -179,8 +181,6 @@ stios2btios(st, bt)
 	if (l & IBCS2_NOFLSH)	r |= NOFLSH;
 	if (l & IBCS2_TOSTOP)	r |= TOSTOP;
 	bt->c_lflag = r;
-
-	bt->c_ispeed = bt->c_ospeed = s2btab[l & 0x0000000f];
 
 	bt->c_cc[VINTR]	=
 	    st->c_cc[IBCS2_VINTR]  ? st->c_cc[IBCS2_VINTR]  : _POSIX_VDISABLE;
