@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.12 1993/11/17 23:25:20 wollman Exp $
+ *	$Id: wd.c,v 1.13 1993/11/18 05:02:22 rgrimes Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -446,6 +446,8 @@ RETRY:
 
 		/* controller idle? */
 		timeout = 0;
+		/* must delay 5us to conform to ATA spec */
+		DELAY(5);
 		while (inb(wdc+wd_status) & WDCS_BUSY)
 		{
 			if (++timeout > WDCTIMEOUT)
@@ -573,7 +575,8 @@ wdintr(struct intrframe wdif)
 #ifdef	WDDEBUG
 	printf("I ");
 #endif
-
+	/* must delay 5us to conform to ATA spec */
+	DELAY(5);
 	while ((status = inb(wdc+wd_status)) & WDCS_BUSY) ;
 
 	/* is it not a transfer, but a control operation? */
@@ -834,6 +837,8 @@ wdcontrol(register struct buf *bp)
 		outb(wdc+wd_sdh, WDSD_IBM | (unit << 4));
 		wdtab.b_active = 1;
 
+		/* must delay 5us to conform to ATA spec */
+		DELAY(5);
 		/* wait for drive and controller to become ready */
 		for (i = WDCTIMEOUT; (inb(wdc+wd_status) & (WDCS_READY|WDCS_BUSY))
 				  != WDCS_READY && i-- != 0; )
@@ -891,6 +896,8 @@ wdcommand(struct disk *du, int cmd) {
 
 	/* controller ready for command? */
 	wdc = du->dk_port;
+	/* must delay 5us to conform to ATA spec */
+	DELAY(5);
 	while (((stat = inb(wdc + wd_status)) & WDCS_BUSY) && timeout > 0)
 		timeout--;
 	if (timeout <= 0)
@@ -898,6 +905,8 @@ wdcommand(struct disk *du, int cmd) {
 
 	/* send command, await results */
 	outb(wdc+wd_command, cmd);
+	/* must delay 5us to conform to ATA spec */
+	DELAY(5);
 	while (((stat = inb(wdc+wd_status)) & WDCS_BUSY) && timeout > 0)
 		timeout--;
 	if (timeout <= 0)
@@ -1238,9 +1247,13 @@ wddump(dev_t dev)			/* dump core after a system crash */
 	/*wdtab.b_active = 1;*/		/* mark controller active for if we
 					   panic during the dump */
 	wddoingadump = 1  ;  i = 100000 ;
+	/* must delay 5us to conform to ATA spec */
+	DELAY(5);
 	while ((inb(wdc+wd_status) & WDCS_BUSY) && (i-- > 0)) ;
 	outb(wdc+wd_sdh, WDSD_IBM | (unit << 4));
 	outb(wdc+wd_command, WDCC_RESTORE | WD_STEP);
+	/* must delay 5us to conform to ATA spec */
+	DELAY(5);
 	while (inb(wdc+wd_status) & WDCS_BUSY) ;
 
 	/* some compaq controllers require this ... */
@@ -1320,6 +1333,8 @@ wddump(dev_t dev)			/* dump core after a system crash */
 		if (inb(wdc+wd_status) & WDCS_DRQ) return(EIO) ;
 
 		/* wait for completion */
+		/* must delay 5us to conform to ATA spec */
+		DELAY(5);
 		for ( i = WDCTIMEOUT ; inb(wdc+wd_status) & WDCS_BUSY ; i--) {
 				if (i < 0) return (EIO) ;
 		}
