@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.65 1999/05/07 10:11:40 phk Exp $
+ * $Id: vm_swap.c,v 1.66 1999/05/08 06:40:31 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -81,7 +81,6 @@ static struct cdevsw sw_cdevsw =
 	  NULL,		-1,		nodump,		nopsize,
 	  0,		0,		-1};
 
-static dev_t	swapdev = makedev(BDEV_MAJOR, 0);
 
 /*
  * Indirect driver for multi-controller paging.
@@ -264,6 +263,7 @@ swaponvp(p, vp, dev, nblks)
 	register long blk;
 	swblk_t dvbase;
 	int error;
+	dev_t swapdev = makedev(BDEV_MAJOR, 0);
 
 	ASSERT_VOP_UNLOCKED(vp, "swaponvp");
 	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
