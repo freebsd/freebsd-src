@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.55 1998/05/17 18:53:11 tegge Exp $
+ *	$Id: genassym.c,v 1.56 1998/05/17 22:12:07 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -218,7 +218,7 @@ main()
 	printf("#define\tGD_CPU_LOCKID %d\n", &globaldata->cpu_lockid);
 	printf("#define\tGD_OTHER_CPUS %d\n", &globaldata->other_cpus);
 	printf("#define\tGD_MY_IDLEPTD %d\n", &globaldata->my_idlePTD);
-	printf("#define\tGD_SS_TPR %d\n", &globaldata->ss_tpr);
+	printf("#define\tGD_SS_EFLAGS %d\n", &globaldata->ss_eflags);
 	printf("#define\tGD_PRV_CMAP1 %d\n", &globaldata->prv_CMAP1);
 	printf("#define\tGD_PRV_CMAP2 %d\n", &globaldata->prv_CMAP2);
 	printf("#define\tGD_PRV_CMAP3 %d\n", &globaldata->prv_CMAP3);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.2 1998/04/06 18:59:14 peter Exp $
+ * $Id: globals.s,v 1.3 1998/05/17 18:53:19 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -86,7 +86,7 @@ globaldata:
 	 * The BSP version of these get setup in locore.s and pmap.c, while
 	 * the AP versions are setup in mp_machdep.c.
 	 */
-	.globl	_cpuid,_cpu_lockid,_other_cpus,_my_idlePTD,_ss_tpr
+	.globl	_cpuid,_cpu_lockid,_other_cpus,_my_idlePTD,_ss_eflags
 	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3,_prv_PMAP1
 	.globl	_inside_intr
 
@@ -94,7 +94,7 @@ globaldata:
 	.set	_cpu_lockid,globaldata + GD_CPU_LOCKID
 	.set	_other_cpus,globaldata + GD_OTHER_CPUS
 	.set	_my_idlePTD,globaldata + GD_MY_IDLEPTD
-	.set	_ss_tpr,globaldata + GD_SS_TPR
+	.set	_ss_eflags,globaldata + GD_SS_EFLAGS
 	.set	_prv_CMAP1,globaldata + GD_PRV_CMAP1
 	.set	_prv_CMAP2,globaldata + GD_PRV_CMAP2
 	.set	_prv_CMAP3,globaldata + GD_PRV_CMAP3
