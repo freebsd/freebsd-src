@@ -873,6 +873,7 @@ geom/bde/g_bde_crypt.c		optional geom_bde
 geom/bde/g_bde_lock.c		optional geom_bde
 geom/bde/g_bde_work.c		optional geom_bde
 geom/geom_aes.c		optional geom_aes
+geom/geom_apple.c	optional geom_apple
 geom/geom_bsd.c		optional geom_bsd
 geom/geom_ctl.c		standard
 geom/geom_dev.c		standard
