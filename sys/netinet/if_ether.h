@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
- *	$Id: if_ether.h,v 1.12 1995/12/05 02:01:42 davidg Exp $
+ *	$Id: if_ether.h,v 1.13 1995/12/09 16:06:54 phk Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -120,7 +120,6 @@ struct	arpcom {
 	 */
 	struct 	ifnet ac_if;		/* network-visible interface */
 	u_char	ac_enaddr[6];		/* ethernet hardware address */
-	struct	in_addr ac_ipaddr;	/* copy of ip address- XXX */
 	struct	ether_multi *ac_multiaddrs; /* list of ether multicast addrs */
 	int	ac_multicnt;		/* length of ac_multiaddrs list */
 };
