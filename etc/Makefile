@@ -12,7 +12,7 @@ BIN1=   aliases amd.map auth.conf crontab csh.cshrc csh.login csh.logout \
 	rc.diskless2 rc.firewall rc.isdn rc.network rc.pccard  rc.serial \
 	rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} remote security \
 	services shells syslog.conf etc.${MACHINE_ARCH}/ttys \
-	etc.${MACHINE_ARCH}/disktab rpc make.conf \
+	etc.${MACHINE_ARCH}/disktab rpc \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
@@ -47,6 +47,7 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/make.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
@@ -146,6 +147,8 @@ etc-examples:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
 	    ${DESTDIR}/usr/share/examples/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/rc.conf \
+	    ${DESTDIR}/usr/share/examples/etc/defaults; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/make.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults)
 
 .include <bsd.prog.mk>
