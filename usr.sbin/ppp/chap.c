@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.13 1997/03/24 16:01:42 ache Exp $
+ * $Id: chap.c,v 1.14 1997/05/10 01:22:06 brian Exp $
  *
  *	TODO:
  */
@@ -212,6 +212,7 @@ struct mbuf *bp;
      */
     ChapOutput(CHAP_FAILURE, chp->id, "Invalid!!", 9);
     LcpClose();
+    reconnectCount = 0;
     break;
   }
 }

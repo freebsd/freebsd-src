@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.45 1997/05/10 23:46:29 ache Exp $
+ * $Id: command.c,v 1.46 1997/05/14 01:18:50 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -108,6 +108,8 @@ IsInteractive()
 
   if (mode & MODE_DDIAL)
     mes = "Working in dedicated dial mode.";
+  else if (mode & MODE_BACKGROUND)
+    mes = "Working in background mode.";
   else if (mode & MODE_AUTO)
     mes = "Working in auto mode.";
   else if (mode & MODE_DIRECT)
@@ -630,7 +632,9 @@ static int
 CloseCommand()
 {
   LcpClose();
-  lostCarrier = 0;
+  reconnectCount = 0;
+  if (mode & MODE_BACKGROUND)
+      Cleanup(EX_NORMAL);
   return(1);
 }
 
