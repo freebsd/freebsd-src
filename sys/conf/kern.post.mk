@@ -9,6 +9,11 @@
 # $FreeBSD$
 #
 
+# In case the config had a makeoptions DESTDIR...
+.if defined(DESTDIR)
+MKMODULESENV+=	DESTDIR="${DESTDIR}"
+.endif
+
 .MAIN: all
 
 .for target in all clean cleandepend cleandir clobber depend install \
