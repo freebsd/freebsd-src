@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l1.c - isdn4bsd layer 1 handler
  *	-----------------------------------
  *
- *	$Id: i4b_l1.c,v 1.7 2000/06/02 16:14:36 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jun  2 18:09:53 2000]
+ *      last edit-date: [Wed Jan 24 09:12:03 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 

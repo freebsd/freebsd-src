@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- *	$Id: i4b_isic.c,v 1.6 2000/05/29 15:41:41 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:45:24 2000]
+ *      last edit-date: [Wed Jan 24 09:29:42 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -44,7 +42,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
@@ -377,37 +374,37 @@ isic_attach_common(device_t dev)
 
 	/* announce manufacturer and card type for ISA cards */
 	
-	switch(sc->sc_flags)
+	switch(sc->sc_cardtyp)
 	{
-		case FLAG_TELES_S0_8:
+		case CARD_TYPEP_8:
 			drvid = "Teles S0/8 (or compatible)";
 			break;
 
-		case FLAG_TELES_S0_16:
+		case CARD_TYPEP_16:
 			drvid = "Teles S0/16 (or compatible)";
 			break;
 
-		case FLAG_TELES_S0_163:
+		case CARD_TYPEP_16_3:
 			drvid = "Teles S0/16.3";
 			break;
 
-		case FLAG_AVM_A1:
+		case CARD_TYPEP_AVMA1:
 			drvid = "AVM A1 or Fritz!Card Classic";
 			break;
 
-		case FLAG_AVM_A1_PCMCIA:
+		case CARD_TYPEP_PCFRITZ:
 			drvid = "AVM Fritz!Card PCMCIA";
 			break;
 
-		case FLAG_USR_ISDN_TA_INT:
+		case CARD_TYPEP_USRTA:
 			drvid = "USRobotics Sportster ISDN TA intern";
 			break;
 
-		case FLAG_ITK_IX1:
+		case CARD_TYPEP_ITKIX1:
 			drvid = "ITK ix1 micro";
 			break;
 
-		case FLAG_ELSA_PCC16:
+		case CARD_TYPEP_PCC16:
 			drvid = "ELSA MicroLink ISDN/PCC-16";
 			break;
 
@@ -454,7 +451,7 @@ isic_detach_common(device_t dev)
 	struct l1_softc *sc = &l1_sc[device_get_unit(dev)];
 	int i;
 
-	sc->sc_flags = 0;
+	sc->sc_cardtyp = CARD_TYPEP_UNK;
 
 	/* free interrupt resources */
 	

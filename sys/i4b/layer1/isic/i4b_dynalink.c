@@ -33,11 +33,9 @@
  *	isdn4bsd layer1 driver for Dynalink IS64PH isdn TA
  *	==================================================
  *
- *      $Id: i4b_dynalink.c,v 1.1 2000/09/04 09:17:26 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Sep  4 09:47:18 2000]
+ *      last edit-date: [Wed Jan 24 09:08:03 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -77,12 +75,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
-
 #include <net/if.h>
 
 #include <machine/i4b_ioctl.h>
+#include <machine/i4b_trace.h>
 
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 

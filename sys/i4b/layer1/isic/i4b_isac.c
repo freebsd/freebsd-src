@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_isac.c - i4b siemens isdn chipset driver ISAC handler
  *	---------------------------------------------------------
  *
- *	$Id: i4b_isac.c,v 1.7 2000/05/29 15:41:41 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:45:08 2000]
+ *      last edit-date: [Wed Jan 24 09:10:36 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -45,7 +43,6 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 

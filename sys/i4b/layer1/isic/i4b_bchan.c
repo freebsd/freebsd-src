@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jan 12 16:52:15 2001]
+ *      last edit-date: [Wed Jan 24 09:07:12 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,8 +40,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-
-
 #include <sys/socket.h>
 #include <net/if.h>
 

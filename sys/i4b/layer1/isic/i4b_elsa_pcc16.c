@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,16 +24,12 @@
  *
  *---------------------------------------------------------------------------
  *
- *	isic - I4B Siemens ISDN Chipset Driver for ELSA MicroLink ISDN/PCC-16
- *	=====================================================================
- *
- *	This should now also work for an ELSA PCFpro.
- *
- *	$Id: i4b_elsa_pcc16.c,v 1.4 2000/07/19 07:51:22 hm Exp $
+ *	isic - I4B driver for ELSA MicroLink ISDN/PCC-16 and ELSA PCFpro
+ *	================================================================
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 16:00:01 2000]
+ *      last edit-date: [Wed Jan 24 09:26:33 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +42,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
 
 #include <machine/i4b_ioctl.h>
 
@@ -238,10 +233,7 @@ isic_probe_Epcc16(device_t dev)
 	}
 
 	sc = &l1_sc[unit];		/* get pointer to softc */
-
 	sc->sc_unit = unit;		/* set unit */
-
-	sc->sc_flags = FLAG_ELSA_PCC16;	/* set flags */
 
 	/* see if an io base was supplied */
 	

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA MicroLink ISDN/PCI
  *	==================================================================
  *
- *	$Id: i4b_elsa_qs1p.c,v 1.4 2000/06/02 11:58:56 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Dec  3 17:18:59 2000]
+ *      last edit-date: [Wed Jan 24 09:09:28 2001]
  *
  *	Note: ELSA Quickstep 1000pro PCI = ELSA MicroLink ISDN/PCI
  *
@@ -47,8 +45,8 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-#include <net/if.h>
 
+#include <net/if.h>
 
 #include <machine/bus.h>
 #include <sys/bus.h>

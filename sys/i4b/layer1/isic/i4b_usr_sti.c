@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,48 +27,32 @@
  *	i4b_usr_sti.c - USRobotics Sportster ISDN TA intern (Tina-pp)
  *	-------------------------------------------------------------
  *
- *	$Id: i4b_usr_sti.c,v 1.3 2000/05/29 15:41:42 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:47:26 2000]
+ *      last edit-date: [Wed Jan 24 09:28:12 2001]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__)
 #include "isic.h"
 #include "opt_i4b.h"
-#else
-#define NISIC 1
-#endif
 
 #if (NISIC > 0) && defined(USR_STI)
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
-#ifdef __FreeBSD__
-#include <machine/bus.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
-#else
 #include <machine/bus.h>
-#include <sys/device.h>
-#endif
+#include <sys/rman.h>
 
 #include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
+#include <machine/i4b_trace.h>
 
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
-
 
 /*---------------------------------------------------------------------------*
  *	USR Sportster TA intern special registers
@@ -83,8 +67,6 @@
 #define USR_IL_MASK	0x07	/* IRQ level config			*/
 
 static u_char intr_no[] = { 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 3, 4, 5, 0, 6, 7 };
-
-#ifdef __FreeBSD__
 
 #define ADDR(reg)	\
 	(((reg/4) * 1024) + ((reg%4) * 2))
@@ -340,7 +322,6 @@ isic_probe_usrtai(device_t dev)
 
 	sc = &l1_sc[unit];			/* get pointer to softc */
 	sc->sc_unit = unit;			/* set unit */
-	sc->sc_flags = FLAG_USR_ISDN_TA_INT;	/* set flags */
 
 	/* see if an io base was supplied */
 	
@@ -513,158 +494,5 @@ isic_attach_usrtai(device_t dev)
 
 	return (0);
 }
-
-#else /* end of FreeBSD, start NetBSD */
-
-/*
- * Use of sc->sc_maps:
- *       0 : config register
- *  1 - 16 : HSCX A registers
- * 17 - 32 : HSCX B registers
- * 33 - 48 : ISAC registers
- */
-
-#define USR_REG_OFFS(reg)	((reg % 4) * 2)
-#define USR_HSCXA_MAP(reg)	((reg / 4) + 1)
-#define USR_HSCXB_MAP(reg)	((reg / 4) + 17)
-#define USR_ISAC_MAP(reg)	((reg / 4) + 33)
-
-static int map_base[] = { 33, 1, 17, 0 };	/* ISAC, HSCX A, HSCX B */
-
-/*---------------------------------------------------------------------------*
- *	USRobotics read fifo routine
- *---------------------------------------------------------------------------*/
-static void
-usrtai_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size)
-{
-	int map, off, offset;
-	u_char * p = buf;
-	bus_space_tag_t t;
-	bus_space_handle_t h;
-
-	for (offset = 0; size > 0; size--, offset++) {
-		map = map_base[what] + (offset / 4);
-		t = sc->sc_maps[map].t;
-		h = sc->sc_maps[map].h;
-		off = USR_REG_OFFS(offset);
-
-		*p++ = bus_space_read_1(t, h, off);
-	}
-}
-
-/*---------------------------------------------------------------------------*
- *	USRobotics write fifo routine
- *---------------------------------------------------------------------------*/
-static void
-usrtai_write_fifo(struct isic_softc *sc, int what, const void *buf, size_t size)
-{
-	int map, off, offset;
-	const u_char * p = buf;
-	bus_space_tag_t t;
-	bus_space_handle_t h;
-	u_char v;
-
-	for (offset = 0; size > 0; size--, offset++) {
-		map = map_base[what] + (offset / 4);
-		t = sc->sc_maps[map].t;
-		h = sc->sc_maps[map].h;
-		off = USR_REG_OFFS(offset);
-
-		v = *p++;
-		bus_space_write_1(t, h, off, v);
-	}
-}
-
-/*---------------------------------------------------------------------------*
- *	USRobotics write register routine
- *---------------------------------------------------------------------------*/
-static void
-usrtai_write_reg(struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data)
-{
-	int map = map_base[what] + (offs / 4), 
-	    off = USR_REG_OFFS(offs);
-	bus_space_tag_t t = sc->sc_maps[map].t;
-	bus_space_handle_t h = sc->sc_maps[map].h;
-
-	bus_space_write_1(t, h, off, data);
-}
-
-/*---------------------------------------------------------------------------*
- *	USRobotics read register routine
- *---------------------------------------------------------------------------*/
-static u_char
-usrtai_read_reg(struct isic_softc *sc, int what, bus_size_t offs)
-{
-	int map = map_base[what] + (offs / 4), 
-	    off = USR_REG_OFFS(offs);
-	bus_space_tag_t t = sc->sc_maps[map].t;
-	bus_space_handle_t h = sc->sc_maps[map].h;
-
-	return bus_space_read_1(t, h, off);
-}
-
-/*---------------------------------------------------------------------------*
- *	isic_probe_usrtai - probe for USR
- *---------------------------------------------------------------------------*/
-int
-isic_probe_usrtai(struct isic_attach_args *ia)
-{
-	/* 
-	 * Read HSCX A/B VSTR.  Expected value for IOM2 based
-	 * boards is 0x05 in the least significant bits.
-	 */
-
-	if(((bus_space_read_1(ia->ia_maps[USR_HSCXA_MAP(H_VSTR)].t, ia->ia_maps[USR_HSCXA_MAP(H_VSTR)].h, USR_REG_OFFS(H_VSTR)) & 0x0f) != 0x05) ||
-	   ((bus_space_read_1(ia->ia_maps[USR_HSCXB_MAP(H_VSTR)].t, ia->ia_maps[USR_HSCXB_MAP(H_VSTR)].h, USR_REG_OFFS(H_VSTR)) & 0x0f) != 0x05))
-	    	return 0;
-	
-	return (1);
-}
-
-/*---------------------------------------------------------------------------*
- *	isic_attach_usrtai - attach USR
- *---------------------------------------------------------------------------*/
-int
-isic_attach_usrtai(struct isic_softc *sc)
-{
-	bus_space_tag_t t = sc->sc_maps[0].t;
-	bus_space_handle_t h = sc->sc_maps[0].h;
-	u_char irq = intr_no[sc->sc_irq];	
-
-	sc->clearirq = NULL;
-	sc->readreg = usrtai_read_reg;
-	sc->writereg = usrtai_write_reg;
-
-	sc->readfifo = usrtai_read_fifo;
-	sc->writefifo = usrtai_write_fifo;
-
-	/* setup card type */
-
-	sc->sc_cardtyp = CARD_TYPEP_USRTA;
-
-	/* setup IOM bus type */
-	
-	sc->sc_bustyp = BUS_TYPE_IOM2;
-
-	sc->sc_ipac = 0;
-	sc->sc_bfifolen = HSCX_FIFO_LEN;	
-
-	/* reset the HSCX and ISAC chips */
-	
-	bus_space_write_1(t, h, 0, USR_RES_BIT);
-	DELAY(SEC_DELAY / 10);
-
-	bus_space_write_1(t, h, 0, 0x00);
-	DELAY(SEC_DELAY / 10);
-
-	/* setup IRQ */
-
-	bus_space_write_1(t, h, 0, irq | USR_INTE_BIT);
-	DELAY(SEC_DELAY / 10);
-
-	return (1);
-}
-
-#endif /* __FreeBSD__ */
 
 #endif /* ISIC > 0 */

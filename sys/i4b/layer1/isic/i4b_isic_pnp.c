@@ -3,7 +3,7 @@
  *
  *   Copyright (c) 1998, 1999 German Tischler. All rights reserved.
  *
- *   Copyright (c) 1998, 2000 Hellmuth Michaelis. All rights reserved. 
+ *   Copyright (c) 1998, 2001 Hellmuth Michaelis. All rights reserved. 
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -37,11 +37,9 @@
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------
  *
- *	$Id: i4b_isic_pnp.c,v 1.2 2000/03/09 16:12:51 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Mar  9 16:04:10 2000]
+ *      last edit-date: [Wed Jan 24 09:31:38 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -55,7 +53,6 @@
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
 
 #include <machine/i4b_ioctl.h>
 #include <i4b/layer1/isic/i4b_isic.h>
@@ -222,60 +219,54 @@ isic_pnp_attach(device_t dev)
 	{
 #if defined(TEL_S0_16_3_P) || defined(CRTX_S0_P)
 		case VID_TEL163PNP:
-			sc->sc_flags = FLAG_TELES_S0_163_PnP;
+			sc->sc_cardtyp = CARD_TYPEP_163P;
 			ret = isic_attach_Cs0P(dev);
 			break;
 
 		case VID_CREATIXPP:
-			sc->sc_flags = FLAG_CREATIX_S0_PnP;
+			sc->sc_cardtyp = CARD_TYPEP_CS0P;
 			ret = isic_attach_Cs0P(dev);
 			break;
 #endif
 #ifdef DYNALINK
 		case VID_DYNALINK:
-			sc->sc_flags = FLAG_DYNALINK;
+			sc->sc_cardtyp = CARD_TYPEP_DYNALINK;
 			ret = isic_attach_Dyn(dev);
 			break;
 #endif
 #ifdef SEDLBAUER
 		case VID_SEDLBAUER:
-			sc->sc_flags = FLAG_SWS;
+			sc->sc_cardtyp = CARD_TYPEP_SWS;
 			ret = isic_attach_sws(dev);
 			break;
 #endif
 #ifdef DRN_NGO
 		case VID_NICCYGO:
-			sc->sc_flags = FLAG_DRN_NGO;
+			sc->sc_cardtyp = CARD_TYPEP_DRNNGO;
 			ret = isic_attach_drnngo(dev);
 			break;
 #endif
 #ifdef ELSA_QS1ISA
 		case VID_ELSAQS1P:
-			sc->sc_flags = FLAG_ELSA_QS1P_ISA;
+			sc->sc_cardtyp = CARD_TYPEP_ELSAQS1ISA;
 			ret = isic_attach_Eqs1pi(dev);
 			break;
 #endif
 #ifdef ITKIX1
 		case VID_ITK0025:
-			sc->sc_flags = FLAG_ITK_IX1;
+			sc->sc_cardtyp = CARD_TYPEP_ITKIX1;
 			ret = isic_attach_itkix1(dev);
 			break;
 #endif			
-#ifdef AVM_PNP
-		case VID_AVMPNP:
-			sc->sc_flags = FLAG_AVM_PNP;
-			ret = isic_attach_avm_pnp(dev);
-			break;
-#endif
 #ifdef SIEMENS_ISURF2
 		case VID_SIESURF2:
-			sc->sc_flags = FLAG_SIEMENS_ISURF2;
+			sc->sc_cardtyp = CARD_TYPEP_SIE_ISURF2;
 			ret = isic_attach_siemens_isurf(dev);
 			break;
 #endif
 #ifdef ASUSCOM_IPAC
 		case VID_ASUSCOM_IPAC:
-			sc->sc_flags = FLAG_ASUSCOM_IPAC;
+			sc->sc_cardtyp = CARD_TYPEP_ASUSCOMIPAC;
 			ret = isic_attach_asi(dev);
 			break;
 #endif
@@ -294,7 +285,7 @@ isic_pnp_attach(device_t dev)
 	if(isic_attach_common(dev))
 	{
 		/* unset flag */
-		sc->sc_flags = 0;
+		sc->sc_cardtyp = CARD_TYPEP_UNK;
 
 		/* free irq here, it hasn't been attached yet */
 		bus_release_resource(dev,SYS_RES_IRQ,sc->sc_resources.irq_rid,
