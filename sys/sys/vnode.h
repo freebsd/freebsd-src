@@ -110,7 +110,6 @@ struct vnode {
 	struct	mtx v_interlock;		/* lock for "i" things */
 	u_long	v_iflag;			/* i vnode flags (see below) */
 	int	v_usecount;			/* i ref count of users */
-	long	v_numoutput;			/* i writes in progress */
 	struct thread *v_vxthread;		/* i thread owning VXLOCK */
 	int	v_holdcnt;			/* i page & buffer references */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
@@ -171,6 +170,7 @@ struct vnode {
 #define v_dirtyblkhd	v_bufobj.bo_dirty.bv_hd
 #define v_dirtyblkroot	v_bufobj.bo_dirty.bv_root
 #define v_dirtybufcnt	v_bufobj.bo_dirty.bv_cnt
+#define v_numoutput	v_bufobj.bo_numoutput
 
 /*
  * Userland version of struct vnode, for sysctl.
