@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.10 1996/03/19 12:23:54 jkh Exp $
+ * $Id: ftp_strat.c,v 1.11 1996/03/21 09:30:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -21,13 +21,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -76,7 +69,7 @@ get_new_host(Device *dev, Boolean probe)
 	MenuMediaFTP.title = "Request failed - please select another site";
 	j = mediaSetFTP(NULL);
 	MenuMediaFTP.title = oldTitle;
-	if (j == RET_SUCCESS) {
+	if (j == DITEM_SUCCESS) {
 	    /* Bounce the link if necessary */
 	    if (ftpInitted) {
 		msgDebug("Bouncing FTP connection before reselecting new host.\n");

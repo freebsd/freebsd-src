@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.48 1996/03/23 07:21:31 jkh Exp $
+ * $Id: sysinstall.h,v 1.49 1996/04/07 03:52:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -66,10 +59,6 @@
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 #define MAX_FTP_RETRIES		"4"	/* How many times to beat our heads against the wall */
-
-#define RET_FAIL		-1
-#define RET_SUCCESS		0
-#define RET_DONE		1
 
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
@@ -145,10 +134,14 @@ typedef unsigned int Boolean;
 typedef struct disk Disk;
 typedef struct chunk Chunk;
 
-typedef enum { DMENU_NORMAL_TYPE, DMENU_RADIO_TYPE, DMENU_CHECKLIST_TYPE } dmenuType;
+/* Bitfields for menu options */
+#define DMENU_NORMAL_TYPE	0x1     /* Normal dialog menu           */
+#define DMENU_RADIO_TYPE	0x2     /* Radio dialog menu            */
+#define DMENU_CHECKLIST_TYPE	0x4     /* Multiple choice menu         */
+#define DMENU_SELECTION_RETURNS 0x8     /* Immediate return on item selection */
 
 typedef struct _dmenu {
-    dmenuType type;			/* What sort of menu we are	*/
+    int type;				/* What sort of menu we are	*/
     char *title;			/* Our title			*/
     char *prompt;			/* Our prompt			*/
     char *helpline;			/* Line of help at bottom	*/
@@ -292,6 +285,7 @@ extern int		BootMgr;		/* Which boot manager to use 			*/
 
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
+extern DMenu		MenuFixit;		/* Fixit repair menu				*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
 extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
@@ -366,7 +360,8 @@ extern int	configRoutedFlags(dialogMenuItem *self);
 extern int	crc(int, unsigned long *, unsigned long *);
 
 /* devices.c */
-extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
+extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d),
+				  int (*check)(dialogMenuItem *d));
 extern void	deviceGetAll(void);
 extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
@@ -383,6 +378,7 @@ extern void	dummyShutdown(Device *dev);
 /* disks.c */
 extern int	diskPartitionEditor(dialogMenuItem *self);
 extern int	diskPartitionWrite(dialogMenuItem *self);
+extern void	diskPartition(Device *dev, Disk *d);
 
 /* dist.c */
 extern int	distSetCustom(char *str);
@@ -452,7 +448,8 @@ int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
 extern int	installCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
 extern int	installNovice(dialogMenuItem *self);
-extern int	installFixit(dialogMenuItem *self);
+extern int	installFixitCDROM(dialogMenuItem *self);
+extern int	installFixitFloppy(dialogMenuItem *self);
 extern int	installFixup(dialogMenuItem *self);
 extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
@@ -520,12 +517,16 @@ extern char	*pathBaseName(const char *path);
 extern void	safe_free(void *ptr);
 extern void	*safe_malloc(size_t size);
 extern void	*safe_realloc(void *orig, size_t size);
-extern char	**item_add(char **list, char *item, int *curr, int *max);
-extern char	**item_add_pair(char **list, char *item1, char *item2,
-				int *curr, int *max);
-extern void	items_free(char **list, int *curr, int *max);
+extern dialogMenuItem *item_add(dialogMenuItem *list, char *prompt, char *title, 
+				int (*checked)(dialogMenuItem *self),
+				int (*fire)(dialogMenuItem *self),
+				void (*selected)(dialogMenuItem *self, int is_selected),
+				void *data, int aux, int *curr, int *max);
+extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *, void *data);
 extern int	Mount(char *, void *data);
+extern WINDOW	*savescr(void);
+extern void	restorescr(WINDOW *w);
 
 /* msg.c */
 extern Boolean	isDebug(void);
