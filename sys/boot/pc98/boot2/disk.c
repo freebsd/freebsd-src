@@ -58,8 +58,8 @@
 #ifdef DO_BAD144
 static struct dkbad dkb;
 static int do_bad144;
-#endif DO_BAD144
 static int bsize;
+#endif DO_BAD144
 
 static int spt, spc;
 

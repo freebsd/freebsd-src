@@ -165,11 +165,12 @@ extract_currdev(void)
 	 * (ie. SCSI when IDE also exists).
 	 */
 #ifdef PC98 
-	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
+	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2)) {	/* biosdev doesn't match major */
 	    if (B_TYPE(initial_bootdev) == 6)
 		biosdev = 0x30 + B_UNIT(initial_bootdev);
 	    else
 		biosdev = (major << 3) + 0x80 + B_UNIT(initial_bootdev);
+	}
 #else
 	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
 	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
