@@ -166,7 +166,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	struct buf *bp;
 	struct inode *dp;
 	off_t diroffset;
-	long newinum;
+	ino_t newinum;
 	struct buf *newdirbp;
 	int isnewblk;
 {
@@ -202,7 +202,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	struct buf *bp;
 	struct inode *dp;
 	struct inode *ip;
-	long newinum;
+	ino_t newinum;
 	int isrmdir;
 {
 
