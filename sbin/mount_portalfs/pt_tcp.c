@@ -36,7 +36,7 @@
  *
  *	@(#)pt_tcp.c	8.3 (Berkeley) 3/27/94
  *
- * $Id: pt_tcp.c,v 1.1 1992/05/25 21:43:09 jsp Exp jsp $
+ * $Id: pt_tcp.c,v 1.1.1.1 1994/05/26 06:34:34 rgrimes Exp $
  */
 
 #include <stdio.h>
@@ -77,7 +77,7 @@ int *fdp;
 	struct in_addr **ipp;
 	struct in_addr *ip[2];
 	struct in_addr ina;
-	int s_port;
+	u_short s_port;
 	int priv = 0;
 	struct sockaddr_in sain;
 
@@ -117,15 +117,21 @@ int *fdp;
 		ip[1] = 0;
 		ipp = ip;
 	}
+#ifdef DEBUG
+	printf ("inet address for %s is %s\n", host, inet_ntoa(*ipp[0]));
+#endif
 
 	sp = getservbyname(port, "tcp");
-	if (sp != 0)
-		s_port = sp->s_port;
+	if (sp != NULL)
+		s_port = (u_short)sp->s_port;
 	else {
-		s_port = atoi(port);
+		s_port = htons ((u_short)strtol (port, (char**)NULL, 10));
 		if (s_port == 0)
 			return (EINVAL);
 	}
+#ifdef DEBUG
+	printf ("port number for %s is %d\n", port, s_port);
+#endif
 
 	bzero(&sain, sizeof(sain));
 	sain.sin_len = sizeof(sain);

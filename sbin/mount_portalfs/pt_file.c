@@ -36,7 +36,7 @@
  *
  *	@(#)pt_file.c	8.2 (Berkeley) 3/27/94
  *
- * $Id: pt_file.c,v 1.1.1.1 1994/05/26 06:34:34 rgrimes Exp $
+ * $Id: pt_file.c,v 1.2 1994/09/19 13:52:38 ache Exp $
  */
 
 #include <stdio.h>
@@ -69,6 +69,7 @@ int *fdp;
 
 #ifdef DEBUG
 	printf("path = %s, uid = %d, gid = %d\n", pbuf, pcr->pcr_uid, pcr->pcr_groups[0]);
+	printf ("fflag = %x, oflag = %x\n", pcr->pcr_flag, (pcr->pcr_flag)-1);
 #endif
 
 	for (i = 0; i < pcr->pcr_ngroups; i++)
@@ -80,7 +81,8 @@ int *fdp;
 	if (seteuid(pcr->pcr_uid) < 0)
 		return (errno);
 
-	fd = open(pbuf, O_RDWR|O_CREAT, 0666);
+	/* dmb convert kernel flags to oflags, see <fcntl.h> */
+	fd = open(pbuf, (pcr->pcr_flag)-1, 0777);
 	if (fd < 0)
 		error = errno;
 	else
