@@ -38,8 +38,8 @@
 #define _MACHINE_FLOAT_H_ 1
 
 #define FLT_RADIX	2		/* b */
-#define FLT_ROUNDS	1		/* FP addition rounds to nearest */
-#define	FLT_EVAL_METHOD	(-1)		/* i387 semantics are...interesting */
+#define FLT_ROUNDS	(-1)		/* indeterminate */
+#define	FLT_EVAL_METHOD	(-1)		/* XXX */
 #define	DECIMAL_DIG	21		/* max precision in decimal digits */
 
 #define FLT_MANT_DIG	24		/* p */
