@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.32 1998/02/20 16:35:27 phk Exp $
+ *	$Id: clock.h,v 1.33 1998/02/25 02:20:30 bde Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -21,6 +21,9 @@ extern u_int	timer_freq;
 extern int	timer0_max_count;
 extern u_int	tsc_freq;
 extern int	wall_cmos_clock;
+#ifdef APIC_IO
+extern int	apic_8254_intr;
+#endif
 
 /*
  * Driver to clock driver interface.
