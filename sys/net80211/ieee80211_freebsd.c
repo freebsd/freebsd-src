@@ -258,9 +258,9 @@ ieee80211_notify_replay_failure(struct ieee80211com *ic,
 	struct ifnet *ifp = ic->ic_ifp;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] %s replay detected <rsc %llu, csc %llu>\n",
+		"[%s] %s replay detected <rsc %ju, csc %ju>\n",
 		ether_sprintf(wh->i_addr2), k->wk_cipher->ic_name,
-		rsc, k->wk_keyrsc);
+		(intmax_t) rsc, (intmax_t) k->wk_keyrsc);
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
 		struct ieee80211_replay_event iev;

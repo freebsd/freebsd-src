@@ -614,7 +614,7 @@ wep_encrypt(u8 *key, struct mbuf *m0, u_int off, size_t data_len,
 		m = m->m_next;
 		if (m == NULL) {
 			KASSERT(data_len == 0,
-			    ("out of buffers with data_len %u\n", data_len));
+			    ("out of buffers with data_len %zu\n", data_len));
 			break;
 		}
 		pos = mtod(m, uint8_t *);
@@ -672,7 +672,7 @@ wep_decrypt(u8 *key, struct mbuf *m, u_int off, size_t data_len)
 		m = m->m_next;
 		if (m == NULL) {
 			KASSERT(data_len == 0,
-			    ("out of buffers with data_len %u\n", data_len));
+			    ("out of buffers with data_len %zu\n", data_len));
 			break;
 		}
 		pos = mtod(m, uint8_t *);
@@ -824,7 +824,7 @@ michael_mic(struct tkip_ctx *ctx, const u8 *key,
 			break;
 		m = m->m_next;
 		if (m == NULL) {
-			KASSERT(0, ("out of data, data_len %u\n", data_len));
+			KASSERT(0, ("out of data, data_len %zu\n", data_len));
 			break;
 		}
 		if (space != 0) {
@@ -835,7 +835,7 @@ michael_mic(struct tkip_ctx *ctx, const u8 *key,
 			data_next = mtod(m, const uint8_t *);
 			KASSERT(m->m_len >= sizeof(uint32_t) - space,
 				("not enough data in following buffer, "
-				"m_len %u need %u\n", m->m_len,
+				"m_len %u need %zu\n", m->m_len,
 				sizeof(uint32_t) - space));
 			switch (space) {
 			case 1:
