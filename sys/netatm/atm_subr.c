@@ -92,8 +92,8 @@ struct sp_info	atm_attributes_pool = {
 /*
  * Local functions
  */
-static void	atm_compact __P((struct atm_time *));
-static KTimeout_ret	atm_timexp __P((void *));
+static void	atm_compact(struct atm_time *);
+static KTimeout_ret	atm_timexp(void *);
 
 /*
  * Local variables
@@ -541,7 +541,7 @@ atm_timexp(arg)
 	 * Dispatch expired timers
 	 */
 	while (((tip = atm_timeq) != NULL) && (tip->ti_ticks == 0)) {
-		void	(*func)__P((struct atm_time *));
+		void	(*func)(struct atm_time *);
 
 		/*
 		 * Remove expired block from queue
@@ -600,7 +600,7 @@ void
 atm_timeout(tip, t, func)
 	struct atm_time	*tip;
 	int		t;
-	void		(*func)__P((struct atm_time *));
+	void		(*func)(struct atm_time *);
 {
 	struct atm_time	*tip1, *tip2;
 	int		s;
@@ -735,7 +735,7 @@ atm_untimeout(tip)
 int
 atm_stack_enq(cmd, func, token, cvp, arg1, arg2)
 	int		cmd;
-	void		(*func)__P((int, void *, int, int));
+	void		(*func)(int, void *, int, int);
 	void		*token;
 	Atm_connvc	*cvp;
 	int		arg1;

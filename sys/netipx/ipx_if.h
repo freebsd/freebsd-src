@@ -91,7 +91,7 @@ struct ipxip_req {
 extern struct	ifqueue	ipxintrq;	/* IPX input packet queue */
 extern struct	ipx_ifaddr *ipx_ifaddr;
 
-struct ipx_ifaddr *ipx_iaonnetof __P((struct ipx_addr *dst));
+struct ipx_ifaddr *ipx_iaonnetof(struct ipx_addr *dst);
 #endif
 
 #endif /* !_NETIPX_IPX_IF_H_ */

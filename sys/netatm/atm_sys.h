@@ -161,7 +161,7 @@ struct atm_time {
 	u_short		ti_ticks;	/* Delta of ticks until timeout */
 	u_char		ti_flag;	/* Timer flag bits (see below) */
 	void 		(*ti_func)	/* Call at timeout expiration */
-				__P((struct atm_time *));
+				(struct atm_time *);
 	struct atm_time	*ti_next;	/* Next on queue */
 };
 

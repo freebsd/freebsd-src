@@ -72,18 +72,18 @@ extern int		ifqmaxlen;
 /*
  * Local functions
  */
-static int	atm_physif_ioctl __P((int, caddr_t, caddr_t));
+static int	atm_physif_ioctl(int, caddr_t, caddr_t);
 #if (defined(BSD) && (BSD >= 199306))
-static int	atm_netif_rtdel __P((struct radix_node *, void *));
+static int	atm_netif_rtdel(struct radix_node *, void *);
 #endif
-static int	atm_if_ioctl __P((struct ifnet *, u_long, caddr_t));
-static int	atm_ifparse __P((char *, char *, int, int *));
+static int	atm_if_ioctl(struct ifnet *, u_long, caddr_t);
+static int	atm_ifparse(char *, char *, int, int *);
 
 /*
  * Local variables
  */
 static int	(*atm_ifouttbl[AF_MAX+1])
-			__P((struct ifnet *, KBuffer *, struct sockaddr *))
+			(struct ifnet *, KBuffer *, struct sockaddr *)
 				= {NULL};
 
 
@@ -1018,8 +1018,8 @@ atm_ifoutput(ifp, m, dst)
 #endif
 {
 	u_short		fam = dst->sa_family;
-	int		(*func)__P((struct ifnet *, KBuffer *,
-					struct sockaddr *));
+	int		(*func)(struct ifnet *, KBuffer *,
+					struct sockaddr *);
 
 	/*
 	 * Validate address family

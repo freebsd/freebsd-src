@@ -68,28 +68,28 @@ u_long		atm_aal5_recvspace = 64 * 1024;	/* XXX */
 /*
  * Local functions
  */
-static int	atm_aal5_attach __P((struct socket *, int, struct thread *td));
-static int	atm_aal5_detach __P((struct socket *));
-static int	atm_aal5_bind __P((struct socket *, struct sockaddr *, 
-			struct thread *td));
-static int	atm_aal5_listen __P((struct socket *, struct thread *td));
-static int	atm_aal5_connect __P((struct socket *, struct sockaddr *,
-			struct thread *td));
-static int	atm_aal5_accept __P((struct socket *, struct sockaddr **));
-static int	atm_aal5_disconnect __P((struct socket *));
-static int	atm_aal5_shutdown __P((struct socket *));
-static int	atm_aal5_send __P((struct socket *, int, KBuffer *,
-			struct sockaddr *, KBuffer *, struct thread *td));
-static int	atm_aal5_abort __P((struct socket *));
-static int	atm_aal5_control __P((struct socket *, u_long, caddr_t, 
-			struct ifnet *, struct thread *td));
-static int	atm_aal5_sense __P((struct socket *, struct stat *));
-static int	atm_aal5_sockaddr __P((struct socket *, struct sockaddr **));
-static int	atm_aal5_peeraddr __P((struct socket *, struct sockaddr **));
-static int	atm_aal5_incoming __P((void *, Atm_connection *,
-			Atm_attributes *, void **));
-static void	atm_aal5_cpcs_data __P((void *, KBuffer *));
-static caddr_t	atm_aal5_getname __P((void *));
+static int	atm_aal5_attach(struct socket *, int, struct thread *td);
+static int	atm_aal5_detach(struct socket *);
+static int	atm_aal5_bind(struct socket *, struct sockaddr *, 
+			struct thread *td);
+static int	atm_aal5_listen(struct socket *, struct thread *td);
+static int	atm_aal5_connect(struct socket *, struct sockaddr *,
+			struct thread *td);
+static int	atm_aal5_accept(struct socket *, struct sockaddr **);
+static int	atm_aal5_disconnect(struct socket *);
+static int	atm_aal5_shutdown(struct socket *);
+static int	atm_aal5_send(struct socket *, int, KBuffer *,
+			struct sockaddr *, KBuffer *, struct thread *td);
+static int	atm_aal5_abort(struct socket *);
+static int	atm_aal5_control(struct socket *, u_long, caddr_t, 
+			struct ifnet *, struct thread *td);
+static int	atm_aal5_sense(struct socket *, struct stat *);
+static int	atm_aal5_sockaddr(struct socket *, struct sockaddr **);
+static int	atm_aal5_peeraddr(struct socket *, struct sockaddr **);
+static int	atm_aal5_incoming(void *, Atm_connection *,
+			Atm_attributes *, void **);
+static void	atm_aal5_cpcs_data(void *, KBuffer *);
+static caddr_t	atm_aal5_getname(void *);
 
 
 #if (defined(__FreeBSD__) && (BSD >= 199506))

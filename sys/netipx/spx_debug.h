@@ -72,8 +72,8 @@ extern char *prurequests[];
 extern char *sanames[];
 extern char *tcpstates[];
 
-void	spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si,
-		       int req));
+void	spx_trace(int act, int ostate, struct spxpcb *sp, struct spx *si,
+		       int req);
 #endif
 
 #endif /* !_NETIPX_SPX_DEBUG_H_ */

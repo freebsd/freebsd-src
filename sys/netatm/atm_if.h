@@ -162,7 +162,7 @@ struct	atm_pif {
 
 /* Exported functions */
 	int		(*pif_ioctl)	/* Interface ioctl handler */
-				__P((int, caddr_t, caddr_t));
+				(int, caddr_t, caddr_t);
 
 /* Interface statistics */
 	long		pif_ipdus;	/* PDUs received from interface */
@@ -216,7 +216,7 @@ struct cmn_vcc {
 	struct cmn_vcc	*cv_next;	/* Next in list */
 	void		*cv_toku;	/* Upper layer's token */
 	void		(*cv_upper)	/* Upper layer's interface */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	Atm_connvc	*cv_connvc;	/* Associated connection VCC */
 	u_char		cv_state;	/* VCC state (see below) */
 	u_char		cv_flags;	/* VCC flags (see below) */
@@ -260,15 +260,15 @@ struct cmn_unit {
 	struct sp_info	*cu_nif_pool;	/* Device NIF pool */
 
 	int		(*cu_ioctl)	/* Interface ioctl handler */
-				__P((int, caddr_t, caddr_t));
+				(int, caddr_t, caddr_t);
 	int		(*cu_instvcc)	/* VCC stack instantion handler */
-				__P((struct cmn_unit *, Cmn_vcc *));
+				(struct cmn_unit *, Cmn_vcc *);
 	int		(*cu_openvcc)	/* Open VCC handler */
-				__P((struct cmn_unit *, Cmn_vcc *));
+				(struct cmn_unit *, Cmn_vcc *);
 	int		(*cu_closevcc)	/* Close VCC handler */
-				__P((struct cmn_unit *, Cmn_vcc *));
+				(struct cmn_unit *, Cmn_vcc *);
 	void		(*cu_output)	/* Data output handler */
-				__P((struct cmn_unit *, Cmn_vcc *, KBuffer *));
+				(struct cmn_unit *, Cmn_vcc *, KBuffer *);
 
 	Atm_config	cu_config;	/* Device configuration data */
 };
@@ -293,10 +293,9 @@ struct atm_ncm {
 	u_short		ncm_family;	/* Protocol family */
 /* Exported functions */
 	int		(*ncm_ifoutput)	/* Interface if_output handler */
-				__P((struct ifnet *, KBuffer *,
-				     struct sockaddr *));
+				(struct ifnet *, KBuffer *, struct sockaddr *);
 	int		(*ncm_stat)	/* Network i/f status handler */
-				__P((int, struct atm_nif *, int));
+				(int, struct atm_nif *, int);
 };
 
 /*
@@ -346,7 +345,7 @@ struct atm_ncm {
 /*
  * Macro to schedule the ATM interrupt queue handler
  */
-typedef	void (atm_intr_t) __P((void *, KBuffer *)); /* Callback function type */
+typedef	void (atm_intr_t)(void *, KBuffer *); /* Callback function type */
 typedef	atm_intr_t	*atm_intr_func_t; /* Pointer to callback function */
 
 #define	SCHED_ATM	schednetisr(NETISR_ATM) 
