@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.24 1998/11/12 00:37:39 jkh Exp $
+#	$Id: Makefile,v 1.25 1999/01/26 21:29:01 julian Exp $
 
 .PATH:	${.CURDIR}/../../i386/linux
 KMOD=	linux
 SRCS=	linux_file.c linux_ioctl.c linux_misc.c linux_signal.c \
-	linux_ipc.c linux_socket.c linux_stats.c \
+	linux_ipc.c linux_socket.c linux_stats.c linux_mib.c \
 	linux_dummy.c linux_sysent.c linux_sysvec.c linux_util.c \
 	imgact_linux.c opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
 OBJS=	linux_locore.o
