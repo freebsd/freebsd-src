@@ -79,11 +79,13 @@ int     atcompat_dsinit(dev_t dev,
 #endif
 
 static int
-check_part(sname, dp, nsectors, ntracks )
+check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	char	*sname;
 	struct dos_partition *dp;
+	u_long	offset;
 	int	nsectors;
 	int	ntracks;
+	u_long	mbr_offset;
 {
 	int	chs_ecyl;
 	int	chs_esect;
@@ -102,11 +104,11 @@ check_part(sname, dp, nsectors, ntracks )
 	chs_scyl = dp->dp_scyl;
 	chs_ssect = dp->dp_ssect;
 	ssector = chs_ssect + dp->dp_shd * nsectors + 
-		chs_scyl * secpercyl;
+		chs_scyl * secpercyl + mbr_offset;
 	pc98_start = dp->dp_scyl * secpercyl;
 	pc98_size = dp->dp_ecyl ?
 		(dp->dp_ecyl + 1) * secpercyl - pc98_start : 0;
-	ssector1 = pc98_start;
+	ssector1 = offset + pc98_start;
 
 	/*
 	 * If ssector1 is on a cylinder >= 1024, then ssector can't be right.
@@ -129,7 +131,7 @@ check_part(sname, dp, nsectors, ntracks )
 	chs_ecyl = dp->dp_ecyl;
 	chs_esect = nsectors - 1;
 	esector = chs_esect + (ntracks - 1) * nsectors +
-		chs_ecyl * secpercyl;
+		chs_ecyl * secpercyl + mbr_offset;
 	esector1 = ssector1 + pc98_size - 1;
 
 	/* Allow certain bogus C/H/S values for esector, as above. */
@@ -176,21 +178,21 @@ dsinit(dev, lp, sspp)
 	int	max_ncyls;
 	int	max_nsectors;
 	int	max_ntracks;
-	u_long	0;
+	u_long	mbr_offset;
 	char	partname[2];
 	u_long	secpercyl;
 	char	*sname;
 	struct diskslice *sp;
 	struct diskslices *ssp;
 
-	0 = DOSBBSECTOR;
+	mbr_offset = DOSBBSECTOR;
 	/* Read master boot record. */
 	if ((int)lp->d_secsize < 1024)
 		bp = geteblk((int)1024);
 	else
 		bp = geteblk((int)lp->d_secsize);
 	bp->b_dev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
-	bp->b_blkno = 0;
+	bp->b_blkno = mbr_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_iocmd = BIO_READ;
 	if (bp->b_bcount < 1024)
@@ -277,11 +279,35 @@ dsinit(dev, lp, sspp)
 	dp0 = (struct dos_partition *)(cp + 512);
 
 	/* Guess the geometry. */
-	 
-	max_ncyls = lp->d_nscylinders;
-	max_nsectors = lp->d_nsectors;
-	max_ntracks = lp->d_ntracks;
+	/*
+	 * TODO:
+	 * Perhaps skip entries with 0 size.
+	 * Perhaps only look at entries of type DOSPTYP_386BSD.
+	 */
+	max_ncyls = 0;
+	max_nsectors = 0;
+	max_ntracks = 0;
+	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
+		int	ncyls;
+		int	nsectors;
+		int	ntracks;
 
+
+		ncyls = lp->d_ncylinders;
+		if (max_ncyls < ncyls)
+			max_ncyls = ncyls;
+		nsectors = lp->d_nsectors;
+		if (max_nsectors < nsectors)
+			max_nsectors = nsectors;
+		ntracks = lp->d_ntracks;
+		if (max_ntracks < ntracks)
+			max_ntracks = ntracks;
+	}
+
+	/*
+	 * Check that we have guessed the geometry right by checking the
+	 * partition entries.
+	 */
 	/*
 	 * TODO:
 	 * As above.
@@ -301,7 +327,8 @@ dsinit(dev, lp, sspp)
 		 * accept the table if the magic is right but not let
 		 * bad entries affect the geometry.
 		 */
-		check_part(sname, dp, max_nsectors, max_ntracks);
+		check_part(sname, dp, mbr_offset, max_nsectors, max_ntracks,
+			   mbr_offset);
 	}
 	if (error != 0)
 		goto done;
@@ -335,7 +362,7 @@ dsinit(dev, lp, sspp)
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++, sp++) {
 		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 			       RAW_PART, partname);
-		(void)mbr_setslice(sname, lp, sp, dp, 0);
+		(void)mbr_setslice(sname, lp, sp, dp, mbr_offset);
 	}
 	ssp->dss_nslices = BASE_SLICE + NDOSPART;
 
