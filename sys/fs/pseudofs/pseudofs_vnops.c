@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/dirent.h>
+#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
