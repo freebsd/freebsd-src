@@ -480,14 +480,10 @@ getnpty()
  *
  * Returns the file descriptor of the opened pty.
  */
-#ifndef	__GNUC__
-char *line = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-#else
-static char Xline[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-char *line = Xline;
-#endif
 #ifdef	CRAY
-char *myline = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+char myline[16];
+#else
+char line[16];
 #endif	/* CRAY */
 
 	int
