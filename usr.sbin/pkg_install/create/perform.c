@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.27.4.1 1995/10/14 19:11:22 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.27.4.2 1996/05/27 23:59:01 jkh Exp $";
 #endif
 
 /*
@@ -28,6 +28,7 @@ static const char *rcsid = "$Id: perform.c,v 1.27.4.1 1995/10/14 19:11:22 jkh Ex
 #include <errno.h>
 #include <signal.h>
 #include <sys/syslimits.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static void sanity_check(void);
@@ -155,11 +156,6 @@ pkg_perform(char **pkgs)
 	add_plist(&plist, PLIST_MTREE, MTREE_FNAME);
     }
 
-    /* Run through the list again, picking up extra "local" items */
-    /* check_list(".", &plist); */
-    /* copy_plist(".", &plist); */
-    /* mark_plist(&plist); */
-
     /* Finally, write out the packing list */
     fp = fopen(CONTENTS_FNAME, "w");
     if (!fp)
@@ -184,7 +180,7 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
     PackingList p;
-    int ret, max, len;
+    int ret;
     char *args[50];	/* Much more than enough. */
     int nargs = 0;
     int pipefds[2];

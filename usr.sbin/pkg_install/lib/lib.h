@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.20 1996/06/08 00:46:32 alex Exp $ */
+/* $Id: lib.h,v 1.16.4.4 1996/06/08 00:55:25 alex Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -62,25 +62,25 @@
 #define PKG_DBDIR		"PKG_DBDIR"
 
 /* The names of our "special" files */
-#define CONTENTS_FNAME	"+CONTENTS"
-#define COMMENT_FNAME	"+COMMENT"
-#define DESC_FNAME	"+DESC"
-#define INSTALL_FNAME	"+INSTALL"
-#define DEINSTALL_FNAME	"+DEINSTALL"
-#define REQUIRE_FNAME	"+REQUIRE"
+#define CONTENTS_FNAME		"+CONTENTS"
+#define COMMENT_FNAME		"+COMMENT"
+#define DESC_FNAME		"+DESC"
+#define INSTALL_FNAME		"+INSTALL"
+#define DEINSTALL_FNAME		"+DEINSTALL"
+#define REQUIRE_FNAME		"+REQUIRE"
 #define REQUIRED_BY_FNAME	"+REQUIRED_BY"
-#define DISPLAY_FNAME	"+DISPLAY"
-#define MTREE_FNAME	"+MTREE_DIRS"
+#define DISPLAY_FNAME		"+DISPLAY"
+#define MTREE_FNAME		"+MTREE_DIRS"
 
-#define CMD_CHAR	'@'	/* prefix for extended PLIST cmd */
+#define CMD_CHAR		'@'	/* prefix for extended PLIST cmd */
 
 /* The name of the "prefix" environment variable given to scripts */
 #define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
 enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
-    PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT,
-    PLIST_IGNORE, PLIST_NAME, PLIST_UNEXEC, PLIST_SRC, PLIST_DISPLAY,
+    PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT, PLIST_IGNORE,
+    PLIST_NAME, PLIST_UNEXEC, PLIST_SRC, PLIST_DISPLAY,
     PLIST_PKGDEP, PLIST_MTREE, PLIST_DIR_RM, PLIST_IGNORE_INST,
     PLIST_OPTION
 };
@@ -123,6 +123,8 @@ char		*strconcat(char *, char *);
 /* File */
 Boolean		fexists(char *);
 Boolean		isdir(char *);
+Boolean		isemptydir(char *fname);
+Boolean		isemptyfile(char *fname);
 Boolean         isfile(char *);
 Boolean		isempty(char *);
 Boolean		isURL(char *);
@@ -156,6 +158,7 @@ void		mark_plist(Package *);
 void		csum_plist_entry(char *, PackingList);
 void		add_plist(Package *, plist_t, char *);
 void		add_plist_top(Package *, plist_t, char *);
+void		delete_plist(Package *pkg, Boolean all, plist_t type, char *name);
 void		write_plist(Package *, FILE *);
 void		read_plist(Package *, FILE *);
 int		plist_cmd(char *, char **);
@@ -168,6 +171,7 @@ int		pkg_perform(char **);
 /* Externs */
 extern Boolean	Verbose;
 extern Boolean	Fake;
+extern Boolean  Force;
 extern int	AutoAnswer;
 
 #endif /* _INST_LIB_LIB_H_ */
