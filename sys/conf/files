@@ -526,6 +526,7 @@ dev/ray/if_ray.c	optional ray pccard
 dev/rp/rp.c		optional rp
 dev/rp/rp_isa.c		optional rp isa
 dev/rp/rp_pci.c		optional rp pci
+dev/sab/sab.c		optional sab ebus
 dev/si/si.c		optional si
 dev/si/si2_z280.c	optional si
 dev/si/si3_t225.c	optional si
