@@ -43,26 +43,28 @@ This section provides an overview of the C
 library functions, their error returns and other
 common definitions and concepts.
 Most of these functions are available from the C library,
-.Em libc
-(see
-.Xr libc 3 ) .
+.Em libc .
+.\" (see
+.\" .Xr libc 3 ) .
 Other libraries, such as the math library,
 .Em libm ,
 must be indicated at compile time with the
 .Fl l
 option of the compiler.
-.Pp
-A subset of the
-.Xr libc functions
-are available from Fortran;
-they are described separately in
-.Xr intro 3f .
+.\" .Pp
+.\" A subset of the
+.\" .Xr libc functions
+.\" are available from Fortran;
+.\" they are described separately in
+.\" .Xr intro 3f .
 .Pp
 The various libraries (followed by the loader flag):
 .Bl -tag -width "libc (-lc)"
 .It Xr libc Pq Fl l Ns Ar c
-Standard C library functions. (See
-.Xr libc 3 . ) When using the C compiler
+Standard C library functions.
+.\" (See
+.\" .Xr libc 3 . )
+When using the C compiler
 .Xr cc 1 ,
 it is not necessary
 to supply the loader flag
@@ -97,7 +99,10 @@ have been included for source code compatibility.
 Use of these routines should, for the most part, be avoided.
 The manual page entry for each compatibility routine
 indicates the proper interface to use. 
-.\" .It Xr libkvm
+.It Xr libkvm Pq Fl l Ns Ar kvm
+Fuctions used to access kernel memory are in this library.  They can be used
+against both a running system and a crash dump.
+.Pq See Xr kvm 3 . )
 .It Xr libl Pq Fl l Ns Ar l
 The library for
 .Xr lex 1 .
@@ -105,8 +110,8 @@ The library for
 .It Xr libm Pq Fl l Ns Ar m
 The math library,
 .Em libm .
-The math library is loaded as needed by the Pascal compiler
-.Xr pc 1 ,
+The math library is loaded as needed by the Pascal compiler,
+.\" .Xr pc 1 ,
 but not by the C compiler which requires the
 .Fl l Ns Ar m
 flag.
@@ -115,17 +120,17 @@ flag.
 .It Xr libmp Pq Fl l Ns Ar mp
 .\" .It Xr libom
 .\" Old math library.
-.It Xr libplot Pq Fl l Ns Ar plot
-Device independent plotting functions. 
-(See
-.Xr plot 3 . )
-.It Xr libplotf77 Pq Fl l Ns Ar plotf77
-The device independent plotting functions for fortran. 
-(See
-.Xr plot 3 . )
+.\" .It Xr libplot Pq Fl l Ns Ar plot
+.\" Device independent plotting functions. 
+.\" (See
+.\" .Xr plot 3 . )
+.\" .It Xr libplotf77 Pq Fl l Ns Ar plotf77
+.\" The device independent plotting functions for fortran. 
+.\" (See
+.\" .Xr plot 3 . )
 .\" .It Xr libresolv Pq Fl l Ns Ar resolv
 .\" Routines for network address resolution.
-.It Xr libtermcap Fl l Ns Ar termcap
+.It Xr libtermcap Pq Fl l Ns Ar termcap
 The terminal independent operation library package. (See
 .Xr termcap 3 . )
 .\" .It libvt0.a
@@ -137,10 +142,10 @@ The library for
 .Bl -tag -width /usr/lib/libm_p.a -compact
 .It Pa /usr/lib/libc.a
 the C library
-.It Pa /usr/lib/libm.a
-the math library
 .It Pa /usr/lib/libc_p.a
 the C library compiled for profiling
+.It Pa /usr/lib/libm.a
+the math library
 .It Pa /usr/lib/libm_p.a
 the math library compiled for profiling
 .El
