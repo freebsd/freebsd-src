@@ -14,12 +14,9 @@ MAN=	vgrind.1 vgrindefs.5
 BINDIR=	/usr/libexec
 SCRIPTSDIR=/usr/bin
 
-EXTRA=	vgrindefs.src.db
-CLEANFILES+=	${EXTRA}
+CLEANFILES= vgrindefs.src.db
 
-all: ${EXTRA}
-
-${EXTRA}: ${.CURDIR}/vgrindefs.src
-	cap_mkdb -f vgrindefs.src ${.CURDIR}/vgrindefs.src
+vgrindefs.src.db: vgrindefs.src
+	cap_mkdb -f vgrindefs.src ${.ALLSRC}
 
 .include <bsd.prog.mk>
