@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1998/03/20 17:48:03 markm Exp $
 
 LIB=		krb
 CFLAGS+=	-I${KRB4DIR}/include \
@@ -6,6 +6,8 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/krb \
 		-I${KRBOBJDIR}
+DPADD+=		${LIBCRYPT}
+LDADD+=		-lcrypt
 SRCS=		cr_err_reply.c create_auth_reply.c create_ciph.c \
          	create_death_packet.c create_ticket.c dest_tkt.c get_in_tkt.c \
           	get_svc_in_tkt.c getrealm.c k_localtime.c krb_err_txt.c \
