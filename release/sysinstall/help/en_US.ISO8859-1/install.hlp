@@ -53,7 +53,7 @@ last 1% of the work involved.
 1.4	Can I run DOS binaries under FreeBSD?
 
 Not yet!  We'd like to add support for this someday, but are still
-lacking anyone to actually do the work..
+lacking anyone to actually do the work.
 
 
 
@@ -154,7 +154,7 @@ interested in, simply tar them onto the tape with a command like:
 	tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 
 When you go to do the installation, you should make sure that you
-leave enough room in the /usr/tmp directory to accomdate the FULL
+leave enough room in the /usr/tmp directory to accommodate the FULL
 contents of the tape you've created.  Due to the non-random access
 nature of tapes, this method of installation requires quite a bit of
 temporary storage!  You should expect to require as much temporary
@@ -201,14 +201,14 @@ cards, also be sure that it's plugged in _before_ the laptop is
 powered on!  FreeBSD does not, unfortunately, currently support "hot
 insertion" of PCMCIA cards.
 
-You will also need to know your IP address on the network, the the
+You will also need to know your IP address on the network, the
 "netmask" value for your address class and the name of your machine.
 Your system administrator can tell you which values to use for your
 particular network setup.  If you will be referring to other hosts by
 name rather than IP address, you'll also need a name server and
 possibly the address of a gateway (if you're using PPP, it's your
 provider's IP address) to use in talking to it.  If you do not know
-the answers to all or or most of these questions, then you should
+the answers to all or most of these questions, then you should
 really probably talk to your system administrator _first_ before
 trying this type of installation!
 
@@ -222,7 +222,7 @@ point the NFS media selection at it.  If this server supports only
 "privileged port" access, or you have a poor quality ethernet card
 which suffers from very slow transfer rates, you may wish to
 investigate the ``Ftp Options'' menu for special flags to set in these
-case.
+cases.
 
 FTP installation may be done from any mirror site containing a
 reasonably up-to-date version of FreeBSD 2.0.5.  A full menu of
