@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.19.2.1 1999/05/07 00:43:24 ken Exp $
+ *      $Id: aha.c,v 1.19.2.2 1999/05/13 07:00:34 imp Exp $
  */
 
 #include "pnp.h"
@@ -1772,10 +1772,12 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 	targ_offset = (target & 0x7);
 
 	/*
-	 * Inquire Setup Information.  This command retreives the
-	 * Wide negotiation status for recent adapters as well as
-	 * the sync info for older models.
+	 * Inquire Setup Information.  This command retreives
+	 * the sync info for older models.  We put a small delay here
+	 * because that seems to help the stability.  10mS is known
+	 * to work, but other values might also work.
 	 */
+	DELAY(10000);
 	param = sizeof(setup_info);
 	error = aha_cmd(aha, AOP_INQUIRE_SETUP_INFO, &param, /*paramlen*/1,
 		       (u_int8_t*)&setup_info, sizeof(setup_info),
