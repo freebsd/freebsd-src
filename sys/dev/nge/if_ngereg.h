@@ -472,49 +472,51 @@
  */
 struct nge_desc_64 {
 	/* Hardware descriptor section */
-	u_int32_t		nge_next_lo;
-	u_int32_t		nge_next_hi;
-	u_int32_t		nge_ptr_lo;
-	u_int32_t		nge_ptr_hi;
-	u_int32_t		nge_cmdsts;
+	volatile u_int32_t	nge_next_lo;
+	volatile u_int32_t	nge_next_hi;
+	volatile u_int32_t	nge_ptr_lo;
+	volatile u_int32_t	nge_ptr_hi;
+	volatile u_int32_t	nge_cmdsts;
 #define nge_rxstat		nge_cmdsts
 #define nge_txstat		nge_cmdsts
 #define nge_ctl			nge_cmdsts
-	u_int32_t		nge_extsts;
-	/* Driver software section */
-	union {
-		struct mbuf		*nge_mbuf;
-		u_int64_t		nge_dummy;
-	} nge_mb_u;
-	union {
-		struct nge_desc_64	*nge_nextdesc;
-		u_int64_t		nge_dummy;
-	} nge_nd_u;
+	volatile u_int32_t	nge_extsts;
+        /* Driver software section */
+        union {
+                struct mbuf             *nge_mbuf;
+                u_int64_t               nge_dummy;
+        } nge_mb_u;
+        union {
+                struct nge_desc_32      *nge_nextdesc;
+                u_int64_t               nge_dummy;
+        } nge_nd_u;
 };
 
 struct nge_desc_32 {
 	/* Hardware descriptor section */
-	u_int32_t		nge_next;
-	u_int32_t		nge_ptr;
-	u_int32_t		nge_cmdsts;
+	volatile u_int32_t	nge_next;
+	volatile u_int32_t	nge_ptr;
+	volatile u_int32_t	nge_cmdsts;
 #define nge_rxstat		nge_cmdsts
 #define nge_txstat		nge_cmdsts
 #define nge_ctl			nge_cmdsts
-	u_int32_t		nge_extsts;
-	/* Driver software section */
-	union {
-		struct mbuf		*nge_mbuf;
-		u_int64_t		nge_dummy;
-	} nge_mb_u;
-	union {
-		struct nge_desc_32	*nge_nextdesc;
-		u_int64_t		nge_dummy;
-	} nge_nd_u;
+	volatile u_int32_t	nge_extsts;
+        /* Driver software section */
+        union {
+                struct mbuf             *nge_mbuf;
+                u_int64_t               nge_dummy;
+        } nge_mb_u;
+        union {
+                struct nge_desc_32      *nge_nextdesc;
+                u_int64_t               nge_dummy;
+        } nge_nd_u;
 };
 
+#define nge_mbuf        nge_mb_u.nge_mbuf
+#define nge_nextdesc    nge_nd_u.nge_nextdesc
+
+
 #define nge_desc	nge_desc_32
-#define nge_mbuf	nge_mb_u.nge_mbuf
-#define nge_nextdesc	nge_nd_u.nge_nextdesc
 
 #define NGE_CMDSTS_BUFLEN	0x0000FFFF
 #define NGE_CMDSTS_PKT_OK	0x08000000
@@ -524,6 +526,7 @@ struct nge_desc_32 {
 #define NGE_CMDSTS_OWN		0x80000000
 
 #define NGE_LASTDESC(x)		(!((x)->nge_ctl & NGE_CMDSTS_MORE)))
+#define NGE_MORE(x)		((x)->nge_ctl & NGE_CMDSTS_MORE))
 #define NGE_OWNDESC(x)		((x)->nge_ctl & NGE_CMDSTS_OWN)
 #define NGE_INC(x, y)		(x) = (x + 1) % y
 #define NGE_RXBYTES(x)		((x)->nge_ctl & NGE_CMDSTS_BUFLEN)
@@ -574,6 +577,26 @@ struct nge_desc_32 {
 struct nge_list_data {
 	struct nge_desc		nge_rx_list[NGE_RX_LIST_CNT];
 	struct nge_desc		nge_tx_list[NGE_TX_LIST_CNT];
+#ifdef notyet
+	int			vge_tx_prodidx;
+	int			vge_rx_prodidx;
+	int			vge_tx_considx;
+	int			vge_tx_free;
+
+	struct nge_desc		*nge_tx_list;
+	struct mbuf		*nge_tx_mbuf[NGE_TX_DESC_CNT]
+	bus_dmamap_t		nge_tx_dmamap[NGE_TX_DESC_CNT];
+	bus_dma_tag_t		nge_tx_list_tag;
+	bus_dmamap_t		nge_tx_list_map[NGE_TX_DESC_CNT];
+	bus_addr_t		nge_tx_list_add[NGE_TX_DESC_CNT];
+
+	struct nge_desc		*nge_rx_list;
+	struct mbuf		*nge_rx_mbuf[NGE_RX_DESC_CNT]
+	bus_dmamap_t		nge_rx_dmamap[NGE_RX_DESC_CNT];
+	bus_dma_tag_t		nge_rx_list_tag;
+	bus_dmamap_t		nge_rx_list_map[NGE_RX_DESC_CNT];
+	bus_addr_t		nge_rx_list_addr[NGE_RX_DESC_CNT];
+#endif
 };
 
 
@@ -612,28 +635,16 @@ struct nge_mii_frame {
 
 #define NGE_JUMBO_FRAMELEN	9018
 #define NGE_JUMBO_MTU		(NGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define NGE_JSLOTS		384
 
-#define NGE_JRAWLEN (NGE_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define NGE_JLEN (NGE_JRAWLEN + (sizeof(u_int64_t) - \
-	(NGE_JRAWLEN % sizeof(u_int64_t))))
-#define NGE_JPAGESZ PAGE_SIZE
-#define NGE_RESID (NGE_JPAGESZ - (NGE_JLEN * NGE_JSLOTS) % NGE_JPAGESZ)
-#define NGE_JMEM ((NGE_JLEN * NGE_JSLOTS) + NGE_RESID)
-
-struct nge_jpool_entry {
-	int				slot;
-	SLIST_ENTRY(nge_jpool_entry)	jpool_entries;
-};
+#if !defined(__i386__)
+#define VGE_FIXUP_RX
+#endif
 
 struct nge_ring_data {
 	int			nge_rx_prod;
 	int			nge_tx_prod;
 	int			nge_tx_cons;
 	int			nge_tx_cnt;
-	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			nge_jslots[NGE_JSLOTS];
-	void			*nge_jumbo_buf;
 };
 
 struct nge_softc {
@@ -653,16 +664,23 @@ struct nge_softc {
 #define NGE_WIDTH_64BITS	1
 	struct nge_list_data	*nge_ldata;
 	struct nge_ring_data	nge_cdata;
-	struct callout_handle	nge_stat_ch;
-	SLIST_HEAD(__nge_jfreehead, nge_jpool_entry)	nge_jfree_listhead;
-	SLIST_HEAD(__nge_jinusehead, nge_jpool_entry)	nge_jinuse_listhead;
+	struct callout		nge_stat_ch;
 	struct mtx		nge_mtx;
 	u_int8_t		nge_tbi;
 	struct ifmedia		nge_ifmedia;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+	struct mbuf		*nge_head;
+	struct mbuf		*nge_tail;
 };
+
+#define	NGE_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->nge_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	NGE_LOCK(_sc)		mtx_lock(&(_sc)->nge_mtx)
+#define	NGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->nge_mtx, MA_OWNED)
+#define	NGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->nge_mtx)
+#define	NGE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->nge_mtx)
 
 /*
  * register space access macros
