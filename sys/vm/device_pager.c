@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.7 1995/03/11 22:25:00 davidg Exp $
+ * $Id: device_pager.c,v 1.8 1995/04/16 12:56:11 davidg Exp $
  */
 
 /*
@@ -67,7 +67,7 @@ int dpagerdebug;
 #define DDB_FAIL	0x08
 #endif
 
-static vm_pager_t dev_pager_alloc __P((caddr_t, vm_size_t, vm_prot_t, vm_offset_t));
+static vm_pager_t dev_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_offset_t));
 static void dev_pager_dealloc __P((vm_pager_t));
 static int dev_pager_getpage __P((vm_pager_t, vm_page_t, boolean_t));
 static boolean_t dev_pager_haspage __P((vm_pager_t, vm_offset_t));
@@ -100,7 +100,7 @@ dev_pager_init()
 
 static vm_pager_t
 dev_pager_alloc(handle, size, prot, foff)
-	caddr_t handle;
+	void *handle;
 	vm_size_t size;
 	vm_prot_t prot;
 	vm_offset_t foff;

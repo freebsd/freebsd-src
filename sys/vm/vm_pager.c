@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.13 1995/03/11 22:25:20 davidg Exp $
+ * $Id: vm_pager.c,v 1.14 1995/04/25 06:22:47 davidg Exp $
  */
 
 /*
@@ -157,7 +157,7 @@ vm_pager_bufferinit()
 vm_pager_t
 vm_pager_allocate(type, handle, size, prot, off)
 	int type;
-	caddr_t handle;
+	void *handle;
 	vm_size_t size;
 	vm_prot_t prot;
 	vm_offset_t off;
