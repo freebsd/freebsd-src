@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.23 1995/07/05 12:04:51 davidg Exp $
+ * $Id: systm.h,v 1.24 1995/08/28 09:19:07 julian Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -214,9 +214,6 @@ struct wait_args {
 	int	*status;
 	int	options;
 	struct	rusage *rusage;
-#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
-	int	compat;		/* pseudo */
-#endif
 };
 int	wait1 __P((struct proc *, struct wait_args *, int retval[]));
 
