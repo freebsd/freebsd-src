@@ -98,6 +98,10 @@ static u_char host_addr[16];	/* IPv4 or IPv6 */
 static void addrsort __P((char **, int));
 #endif
 
+#ifdef DEBUG
+static void dprintf(char *, int) __printflike(1, 0);
+#endif
+
 #if PACKETSZ > 1024
 #define	MAXPACKET	PACKETSZ
 #else
