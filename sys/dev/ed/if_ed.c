@@ -912,9 +912,10 @@ ed_probe_3Com(dev, port_rid, flags)
  * conditionally.
  */
 int
-ed_get_Linksys(sc)
-	struct ed_softc *sc;
+ed_get_Linksys(dev)
+	device_t dev;
 {
+	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	int i;
 
