@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.7 1995/05/19 22:40:54 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7.4.1 1997/02/14 01:54:12 jkh Exp $";
 #endif
 
 /*
@@ -56,10 +56,10 @@ extract_plist(char *home, Package *pkg)
     maxargs = sysconf(_SC_ARG_MAX);
     maxargs -= 64;			/* some slop for the tar cmd text,
 					   and sh -c */
-    where_args = malloc(maxargs);
+    where_args = alloca(maxargs);
     if (!where_args)
 	barf("can't get argument list space");
-    perm_args = malloc(maxargs);
+    perm_args = alloca(maxargs);
     if (!perm_args)
 	barf("can't get argument list space");
 
@@ -99,19 +99,18 @@ extract_plist(char *home, Package *pkg)
 		if (rename(p->name, try) == 0) {
 		    /* try to add to list of perms to be changed,
 		       and run in bulk. */
+		    if (p->name[0] == '/' || TOOBIG(p->name))
+			PUSHOUT(Directory);
 		    add_count = snprintf(&perm_args[perm_count],
 					 maxargs - perm_count,
 					 "%s ", p->name);
 		    if (add_count > maxargs - perm_count)
 			barf("oops, miscounted strings!");
 		    perm_count += add_count;
-		    if (p->name[0] == '/') {
-			PUSHOUT(Directory);
-		    }
-		} else {
+		}
+		else {
 		    /* rename failed, try copying with a big tar command */
-		    if (p->name[0] == '/' ||
-			TOOBIG(p->name) ||
+		    if (p->name[0] == '/' || TOOBIG(p->name) ||
 			last_chdir != Directory) {
 			PUSHOUT(last_chdir);
 			last_chdir = Directory;
