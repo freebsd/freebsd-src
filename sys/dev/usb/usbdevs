@@ -363,6 +363,7 @@ vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	Japan Radio Company
+vendor DELORME		0x1163	Delorme Publishing
 vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
 vendor BELKIN2		0x1293	Belkin Components
 vendor MOBILITY		0x1342	Mobility
@@ -600,6 +601,9 @@ product DALLAS J6502		0x4201	J-6502 speakers
 
 /* Dell products */
 product DELL BC02		0x8000	Dell BC02 Bluetooth USB Adapter
+
+/* Delorme Paublishing products */
+product DELORME EARTHMATE	0x0100	Earthmate GPS
 
 /* Diamond products */
 product DIAMOND RIO500USB	0x0001	Rio 500 USB
@@ -1078,6 +1082,7 @@ product PHILIPS HUB		0x0201	hub
 product PHILIPS PCA646VC	0x0303	PCA646VC PC Camera
 product PHILIPS PCVC680K	0x0308	PCVC680K Vesta Pro PC Camera
 product PHILIPS DSS150		0x0471	DSS 150 Digital Speaker System
+product PHILIPS UM10016		0x1552	ISP 1581 Hi-Speed USB MPEG2 Encoder Reference Kit
 product PHILIPS DIVAUSB		0x1801	DIVA USB mp3 player
 
 /* Philips Semiconductor products */
