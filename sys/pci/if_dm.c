@@ -1350,7 +1350,7 @@ static int dm_encap(sc, m_head, txidx)
 
 	for (m = m_new; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
-			if ((DM_RX_LIST_CNT -
+			if ((DM_TX_LIST_CNT -
 			    (sc->dm_cdata.dm_tx_cnt + cnt)) < 2)
 				return(ENOBUFS);
 			f = &sc->dm_ldata->dm_tx_list[frag];

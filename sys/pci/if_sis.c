@@ -1105,7 +1105,7 @@ static int sis_encap(sc, m_head, txidx)
 
 	for (m = m_head; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
-			if ((SIS_RX_LIST_CNT -
+			if ((SIS_TX_LIST_CNT -
 			    (sc->sis_cdata.sis_tx_cnt + cnt)) < 2)
 				return(ENOBUFS);
 			f = &sc->sis_ldata->sis_tx_list[frag];
