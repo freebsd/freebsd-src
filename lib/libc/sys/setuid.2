@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: setuid.2,v 1.2 1996/08/29 21:24:16 wosch Exp $
 .\"
 .Dd June 4, 1993
 .Dt SETUID 2
@@ -59,9 +59,13 @@ function
 sets the real and effective
 user IDs and the saved set-user-ID of the current process
 to the specified value.
+.\" Comment out next line for !_POSIX_SAVED_IDS
+The real user ID and the saved set-user-ID are changed only if the effective user ID is that of the super user.
 The
 .Fn setuid
 function is permitted if the specified ID is equal to the real user ID
+.\" Comment out next line for !_POSIX_SAVED_IDS
+or the saved set-user-ID
 of the process, or if the effective user ID is that of the super user.
 .Pp
 The
@@ -70,9 +74,13 @@ function
 sets the real and effective
 group IDs and the saved set-group-ID of the current process
 to the specified value.
+.\" Comment out next line for !_POSIX_SAVED_IDS
+The real group ID and the saved set-group-ID are changed only if the effective user ID is that of the super user.
 The
 .Fn setgid
 function is permitted if the specified ID is equal to the real group ID
+.\" Comment out next line for !_POSIX_SAVED_IDS
+or the saved set-groupd-ID
 of the process, or if the effective user ID is that of the super user.
 .Pp
 The
@@ -111,7 +119,9 @@ functions are compliant with the
 .St -p1003.1-88
 specification with
 .Li _POSIX_SAVED_IDS
-not defined.
+.\" Uncomment next line for !_POSIX_SAVED_IDS
+.\" not
+defined.
 The
 .Fn seteuid
 and
