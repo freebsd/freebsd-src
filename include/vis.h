@@ -64,6 +64,7 @@ typedef	_BSD_SIZE_T_	size_t;
  * other
  */
 #define	VIS_NOSLASH	0x40	/* inhibit printing '\' */
+#define	VIS_HTTPSTYLE	0x80	/* http-style escape % HEX HEX */
 
 /*
  * unvis return codes
