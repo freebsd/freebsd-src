@@ -49,7 +49,7 @@ extern int	debug;
 extern enum ypstat	yp_errno;
 extern void	yp_error(const char *, ...);
 extern int	_yp_check(char **);
-extern char	*ypxfrerr_string(ypxfrstat);
+extern const char *ypxfrerr_string(ypxfrstat);
 extern DB	*yp_open_db_rw(const char *, const char *, const int);
 extern void	yp_init_dbs(void);
 extern int	yp_put_record(DB *, DBT *, DBT *, int);

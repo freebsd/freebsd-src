@@ -46,7 +46,7 @@ struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include "ypxfr_extern.h"
 
-char *
+const char *
 ypxfrerr_string(ypxfrstat code)
 {
 	switch (code) {
