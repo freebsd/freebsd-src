@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.58 1998/04/06 15:50:29 peter Exp $
+ *	$Id: npx.c,v 1.59 1998/04/15 18:58:09 bde Exp $
  */
 
 #include "npx.h"
@@ -163,37 +163,33 @@ static	volatile u_int		npx_traps_while_probing;
  * latch stuff in probeintr() can be moved to npxprobe().
  */
 inthand_t probeintr;
-
-__asm
-("
-	.text
-	.p2align 2,0x90
-" __XSTRING(CNAME(probeintr)) ":
-	ss
-	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "
-	pushl	%eax
-	movb	$0x20,%al	# EOI (asm in strings loses cpp features)
-	outb	%al,$0xa0	# IO_ICU2
-	outb	%al,$0x20	# IO_ICU1
-	movb	$0,%al
-	outb	%al,$0xf0	# clear BUSY# latch
-	popl	%eax
-	iret
+__asm("								\n\
+	.text							\n\
+	.p2align 2,0x90						\n\
+" __XSTRING(CNAME(probeintr)) ":				\n\
+	ss							\n\
+	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "	\n\
+	pushl	%eax						\n\
+	movb	$0x20,%al	# EOI (asm in strings loses cpp features) \n\
+	outb	%al,$0xa0	# IO_ICU2			\n\
+	outb	%al,$0x20	# IO_ICU1			\n\
+	movb	$0,%al						\n\
+	outb	%al,$0xf0	# clear BUSY# latch		\n\
+	popl	%eax						\n\
+	iret							\n\
 ");
 
 inthand_t probetrap;
-__asm
-("
-	.text
-	.p2align 2,0x90
-" __XSTRING(CNAME(probetrap)) ":
-	ss
-	incl	" __XSTRING(CNAME(npx_traps_while_probing)) "
-	fnclex
-	iret
+__asm("								\n\
+	.text							\n\
+	.p2align 2,0x90						\n\
+" __XSTRING(CNAME(probetrap)) ":				\n\
+	ss							\n\
+	incl	" __XSTRING(CNAME(npx_traps_while_probing)) "	\n\
+	fnclex							\n\
+	iret							\n\
 ");
 #endif /* SMP */
-
 
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
@@ -687,7 +683,7 @@ timezero(funcname, func)
 		usec = 1;
 	if (bootverbose)
 		printf("%s bandwidth = %ld bytes/sec\n",
-		    funcname, (long)(BUFSIZE * 1000000ll / usec));
+		    funcname, (long)(BUFSIZE * (int64_t)1000000 / usec));
 	free(buf, M_TEMP);
 	return (usec);
 }
