@@ -60,10 +60,10 @@ yppasswd_private_clnt.c: ${RPCSRC_PRIV}
 beforeinstall:
 .for i in chpass chfn chsh ypchpass ypchfn ypchsh
 	[ ! -e ${DESTDIR}${BINDIR}/$i ] || \
-		chflags noschg ${DESTDIR}${BINDIR}/$i
+		chflags noschg ${DESTDIR}${BINDIR}/$i || true
 .endfor
 
 afterinstall:
-	chflags schg ${DESTDIR}${BINDIR}/chpass
+	-chflags schg ${DESTDIR}${BINDIR}/chpass
 
 .include <bsd.prog.mk>

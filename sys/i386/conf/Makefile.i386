@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.136.2.1 1999/01/25 04:10:58 peter Exp $
+#	$Id: Makefile.i386,v 1.136.2.2 1999/01/27 20:51:40 julian Exp $
 #
 # Makefile for FreeBSD
 #
@@ -220,7 +220,7 @@ install:
 	fi
 .endif
 .if exists(${DESTDIR}/kernel)
-	chflags noschg ${DESTDIR}/kernel
+	-chflags noschg ${DESTDIR}/kernel
 	mv ${DESTDIR}/kernel ${DESTDIR}/kernel.old
 .endif
 	PATH=$${PATH}:/sbin:/usr/sbin; \
