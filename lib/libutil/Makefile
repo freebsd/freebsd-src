@@ -10,8 +10,11 @@ SRCS=	login.c login_tty.c logout.c logwtmp.c pty.c setproctitle.c \
 	_secure_path.c uucplock.c property.c auth.c
 MAN3+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	setproctitle.3 login_cap.3 login_class.3 login_times.3 login_ok.3 \
-	_secure_path.3 uucplock.3
-MAN5+=	login.conf.5
+	_secure_path.3 uucplock.3 property.3 auth.3
+MAN5+=	login.conf.5 auth.conf.5
+MLINKS+= property.3 properties_read.3  property.3 properties_free.3
+MLINKS+= property.3 property_find.3
+MLINKS+= auth.3 auth_getval.3
 MLINKS+= pty.3 openpty.3  pty.3 forkpty.3
 MLINKS+=login_cap.3 login_getclassbyname.3 login_cap.3 login_close.3 \
 	login_cap.3 login_getclass.3 login_cap.3 login_getuserclass.3 \
