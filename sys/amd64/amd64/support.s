@@ -48,8 +48,8 @@
 	.globl	bcopy_vector
 bcopy_vector:
 	.long	generic_bcopy
-	.globl	bzero
-bzero:
+	.globl	bzero_vector
+bzero_vector:
 	.long	generic_bzero
 	.globl	copyin_vector
 copyin_vector:
@@ -57,9 +57,6 @@ copyin_vector:
 	.globl	copyout_vector
 copyout_vector:
 	.long	generic_copyout
-	.globl	ovbcopy_vector
-ovbcopy_vector:
-	.long	generic_bcopy
 #if defined(I586_CPU) && defined(DEV_NPX)
 kernel_fpu_lock:
 	.byte	0xfe
@@ -72,6 +69,10 @@ kernel_fpu_lock:
  * bcopy family
  * void bzero(void *buf, u_int len)
  */
+
+ENTRY(bzero)
+	MEXITCOUNT
+	jmp	*bzero_vector
 
 ENTRY(generic_bzero)
 	pushl	%edi
@@ -361,7 +362,7 @@ ENTRY(i686_pagezero)
 1:
 	xorl	%eax, %eax
 	repe
-	scasl	
+	scasl
 	jnz	2f
 
 	popl	%ebx
@@ -445,10 +446,6 @@ ENTRY(bcopyb)
 ENTRY(bcopy)
 	MEXITCOUNT
 	jmp	*bcopy_vector
-
-ENTRY(ovbcopy)
-	MEXITCOUNT
-	jmp	*ovbcopy_vector
 
 /*
  * generic_bcopy(src, dst, cnt)

@@ -169,14 +169,9 @@ quad_t	strtoq(const char *, char **, int);
 u_quad_t strtouq(const char *, char **, int);
 void	tprintf(struct proc *p, int pri, const char *, ...) __printflike(3, 4);
 
+#define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void *from, void *to, size_t len);
-void	ovbcopy(const void *from, void *to, size_t len);
-
-#ifdef __i386__
-extern void	(*bzero)(void *buf, size_t len);
-#else
 void	bzero(void *buf, size_t len);
-#endif
 
 void	*memcpy(void *to, const void *from, size_t len);
 
