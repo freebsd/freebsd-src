@@ -376,7 +376,7 @@ g_md_start(struct bio *bp)
 	bp->bio_pblkno = bp->bio_offset / sc->secsize;
 	bp->bio_bcount = bp->bio_length;
 	mtx_lock(&sc->queue_mtx);
-	bioqdisksort(&sc->bio_queue, bp);
+	bioq_disksort(&sc->bio_queue, bp);
 	mtx_unlock(&sc->queue_mtx);
 
 	wakeup(sc);

@@ -68,7 +68,6 @@
 #include <dev/amr/amr_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 
 #include <machine/bus.h>
 #include <sys/rman.h>

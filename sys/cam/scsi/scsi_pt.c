@@ -353,7 +353,6 @@ ptoninvalidate(struct cam_periph *periph)
 {
 	int s;
 	struct pt_softc *softc;
-	struct bio *q_bp;
 	struct ccb_setasync csa;
 
 	softc = (struct pt_softc *)periph->softc;
@@ -383,11 +382,7 @@ ptoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
-		bioq_remove(&softc->bio_queue, q_bp);
-		q_bp->bio_resid = q_bp->bio_bcount;
-		biofinish(q_bp, NULL, ENXIO);
-	}
+	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 
 	splx(s);
 
@@ -574,8 +569,6 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
-				struct bio *q_bp;
-
 				s = splbio();
 
 				if (error == ENXIO) {
@@ -593,12 +586,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * the client can retry these I/Os in the
 				 * proper order should it attempt to recover.
 				 */
-				while ((q_bp = bioq_first(&softc->bio_queue))
-					!= NULL) {
-					bioq_remove(&softc->bio_queue, q_bp);
-					q_bp->bio_resid = q_bp->bio_bcount;
-					biofinish(q_bp, NULL, EIO);
-				}
+				bioq_flush(&softc->bio_queue, NULL, EIO);
 				splx(s);
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;

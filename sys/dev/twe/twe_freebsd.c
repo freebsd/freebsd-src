@@ -39,6 +39,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <dev/twe/twe_compat.h>
+#include <geom/geom_disk.h>
 #include <dev/twe/twereg.h>
 #include <dev/twe/tweio.h>
 #include <dev/twe/twevar.h>

@@ -67,6 +67,7 @@
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
+#include <geom/geom_disk.h>
 
 #include <sys/ccdvar.h>
 
