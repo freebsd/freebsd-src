@@ -55,8 +55,8 @@ number of records with each I/O operation.
 These
 .Dq blocks
 are always a multiple of the record size.
-The most common block size---and the maximum supported by historical
-implementations---is 10240 bytes or 20 records.
+The most common block size\(emand the maximum supported by historic
+implementations\(emis 10240 bytes or 20 records.
 (Note: the terms
 .Dq block
 and
@@ -69,33 +69,36 @@ The original tar archive format has been extended many times to
 include additional information that various implementors found
 necessary.
 This section describes the variant implemented by the tar command
-included in Seventh Edition Unix.
+included in
+.At v7 ,
+which is one of the earliest widely-used versions of the tar program.
 .Pp
 The header record for an old-style
 .Nm
 archive consists of the following:
 .Bd -literal -offset indent
-struct tarfile_header_old {
-char name[100];
-char mode[8];
-char uid[8];
-char gid[8];
-char size[12];
-char mtime[12];
-char checksum[8];
-char linkflag[1];
-char linkname[100];
+struct header_old_tar {
+	char name[100];
+	char mode[8];
+	char uid[8];
+	char gid[8];
+	char size[12];
+	char mtime[12];
+	char checksum[8];
+	char linkflag[1];
+	char linkname[100];
+	char pad[255];
 };
 .Ed
 All unused bytes in the header record are filled with nulls.
 .Bl -tag -width indent
 .It Va name
 Pathname, stored as a null-terminated string.
-The Unix V7 tar command only stored regular files (including
+Early tar implementations only stored regular files (including
 hardlinks to those files).
-One common early convention added
-a trailing "/" character to indicate a directory name, allowing
-directory permissions and owner information to be archived and restored.
+One common early convention used a trailing "/" character to indicate
+a directory name, allowing directory permissions and owner information
+to be archived and restored.
 .It Va mode
 File mode, stored as an octal number in ASCII.
 .It Va uid , Va gid
@@ -140,53 +143,75 @@ field holds the first name under which this file appears.
 field.)
 .El
 .Pp
-Early implementations of
-.Nm
-varied in how they terminated these fields.
-The
-.Nm
-command in Seventh Edition Unix used the following conventions
-(this is also documented in early BSD manpages):
+Early tar implementations varied in how they terminated these fields.
+The tar command in
+.At v7
+used the following conventions (this is also documented in early BSD manpages):
 the pathname must be null-terminated;
 the mode, uid, and gid fields must end in a space and a null byte;
 the size and mtime fields must end in a space;
 the checksum is terminated by a null and a space.
-For best portability, writers of
-.Nm
-archives should fill the numeric fields with leading zeros.
-.Ss POSIX Standard Archives
-POSIX 1003.1 defines a standard
-.Nm
-file format that is read and written
-by POSIX-compliant implementations
-of
+Early implementations filled the numeric fields with leading spaces.
+This seems to have been common practice until the
+.St -p1003.1
+standard was released.
+For best portability, modern implementations should fill the numeric
+fields with leading zeros.
+.Ss Pre-POSIX Archives
+An early draft of
+.St -p1003.1-88
+served as the basis for John Gilmore's
+.Nm pdtar
+program and many system implementations from the late 1980s
+and early 1990s.
+These archives generally follow the POSIX ustar
+format described below with the following variations:
+.Bl -bullet -compact -width indent
+.It
+The magic value is
+.Dq ustar\ \&
+(note the following space).
+The version field contains a space character followed by a null.
+.It
+The numeric fields are generally filled with leading spaces
+(not leading zeros as recommended in the final standard).
+.It
+The prefix field is often not used, limiting pathnames to
+the 100 characters of old-style archives.
+.El
+.Ss POSIX ustar Archives
+.St -p1003.1-88
+defined a standard tar file format to be read and written
+by compliant implementations of
+.Xr tar 1
+and
 .Xr pax 1 .
 This format is often called the
 .Dq ustar
 format, after the magic value used
 in the header.
 (The name is an acronym for
-.Dq Unix Standard TAR . )
-It extends the format above
-with new fields:
+.Dq Unix Standard TAR. )
+It extends the historic format with new fields:
 .Bd -literal -offset indent
-struct tarfile_entry_posix {
-char name[100];
-char mode[8];
-char uid[8];
-char gid[8];
-char size[12];
-char mtime[12];
-char checksum[8];
-char typeflag[1];
-char linkname[100];
-char magic[6];
-char version[2];
-char uname[32];
-char gname[32];
-char devmajor[8];
-char devminor[8];
-char prefix[155];
+struct header_posix_ustar {
+	char name[100];
+	char mode[8];
+	char uid[8];
+	char gid[8];
+	char size[12];
+	char mtime[12];
+	char checksum[8];
+	char typeflag[1];
+	char linkname[100];
+	char magic[6];
+	char version[2];
+	char uname[32];
+	char gname[32];
+	char devmajor[8];
+	char devminor[8];
+	char prefix[155];
+	char pad[12];
 };
 .Ed
 .Bl -tag -width indent
@@ -236,13 +261,10 @@ Contains the magic value
 .Dq ustar
 followed by a NULL byte to indicate that this is a POSIX standard archive.
 Full compliance requires the uname and gname fields be properly set.
-(Note that GNU tar archives uses a trailing space rather than a trailing
-NULL here and are therefore not POSIX standard archives.)
 .It Va version
 Version.  This should be
 .Dq 00
 (two copies of the ASCII digit zero) for POSIX standard archives.
-(Note that GNU tar archives fill this with a space and a null.)
 .It Va uname , Va gname
 User and group names, as null-terminated ASCII strings.
 These should be used in preference to the uid/gid values
@@ -290,10 +312,15 @@ POSIX requires numeric fields to be zero-padded in the front, and allows
 them to be terminated with either space or
 .Dv NULL
 characters.
+.Pp
+Currently, most tar implementations comply with the ustar
+format, occasionally extending it by adding new fields to the
+blank area at the end of the header record.
 .Ss Pax Interchange Format
 There are many attributes that cannot be portably stored in a
 POSIX ustar archive.
-POSIX defined a
+.St -p1003.1-2001
+defined a
 .Dq pax interchange format
 that uses two new types of entries to hold text-formatted
 metadata that applies to following entries.
@@ -309,9 +336,9 @@ extensions will extract the metadata into regular files, where the
 metadata can be examined as necessary.
 .Pp
 An entry in a pax interchange format archive consists of one or
-two standard entries, each with its own header and data.
+two standard ustar entries, each with its own header and data.
 The first optional entry stores the extended attributes
-for the second entry.
+for the following entry.
 This optional first entry has an "x" typeflag and a size field that
 indicates the total size of the extended attributes.
 The extended attributes themselves are stored as a series of text-format
@@ -320,32 +347,34 @@ Each line consists of a decimal number, a space, a key string, an equals
 sign, a value string, and a new line.
 The decimal number indicates the length of the entire line, including the
 initial length field and the trailing newline.
-Keys are always encoded in portable 7-bit ASCII.
-Keys in all lowercase are reserved for future standardization.
+An example of such a field is:
+.Dl 25 ctime=1084839148.1212\en
+Keys in all lowercase are standard keys.
 Vendors can add their own keys by prefixing them with an all uppercase
 vendor name and a period.
 Note that, unlike the historic header, numeric values are stored using
 decimal, not octal.
+A description of some common keys follows:
 .Bl -tag -width indent
 .It Cm atime , Cm ctime , Cm mtime
 File access, inode change, and modification times.
 These fields can be negative or include a decimal point and a fractional value.
 .It Cm uname , Cm uid , Cm gname , Cm gid
-User name, group name, and numeric UID and GID values.  The user name
-and group name stored here are encoded in UTF8 and can thus include
-non-ASCII characters.  The UID and GID fields can be of arbitrary length.
+User name, group name, and numeric UID and GID values.
+The user name and group name stored here are encoded in UTF8
+and can thus include non-ASCII characters.
+The UID and GID fields can be of arbitrary length.
 .It Cm linkpath
-The full path of the linked-to file.  Note that this is encoded in UTF8
-and can thus include non-ASCII characters.
+The full path of the linked-to file.
+Note that this is encoded in UTF8 and can thus include non-ASCII characters.
 .It Cm path
-The full pathname of the entry.  Note that this is encoded in UTF8
-and can thus include non-ASCII characters.
+The full pathname of the entry.
+Note that this is encoded in UTF8 and can thus include non-ASCII characters.
 .It Cm realtime.* , Cm security.*
-These keys are reserved by SUSv3 and may be used for future standardization.
+These keys are reserved and may be used for future standardization.
 .It Cm size
-The size of the file.  Note that there is no length limit on this field,
-allowing
-.Nm
+The size of the file.
+Note that there is no length limit on this field, allowing conforming
 archives to store files much larger than the historic 8GB limit.
 .It Cm SCHILY.*
 Vendor-specific attributes used by Joerg Schilling's
@@ -353,16 +382,21 @@ Vendor-specific attributes used by Joerg Schilling's
 implementation.
 .It Cm SCHILY.acl.access , Cm SCHILY.acl.default
 Stores the access and default ACLs as textual strings in a format
-that's an extension of the format specified by POSIX XXXX draft 17.
+that's an extension of the format specified by POSIX.1e draft 17.
 In particular, each user or group access specification can include a fourth
-field with the integer UID or GID.
+colon-separated field with the numeric UID or GID.
 This allows ACLs to be restored on systems that may not have complete
 user or group information available (such as when NIS/YP or LDAP services
 are temporarily unavailable).
 .It Cm SCHILY.devminor , Cm SCHILY.devmajor
 The full minor and major numbers for device nodes.
-.It Cm SCHILY.ino
-The inode number for the entry.
+.It Cm SCHILY.dev, Cm SCHILY.ino , Cm SCHILY.nlinks
+The device number, inode number, and link count for the entry.
+In particular, note that a pax interchange format archive using Joerg
+Schilling's
+Cm SCHILY.*
+extensions can store all of the data from
+.Va struct stat .
 .It Cm VENDOR.*
 XXX document other vendor-specific extensions XXX
 .El
@@ -404,16 +438,15 @@ The most troubling one is that hardlinks are permitted to have
 data following them.
 This allows readers to restore any hardlink to a file without
 having to rewind the archive to find an earlier entry.
-However, it creates complications for robust readers, as it is
-no longer clear whether or not they should ignore the size
-field for hardlink entries.
+However, it creates complications for robust readers, as it is no longer
+clear whether or not they should ignore the size field for hardlink entries.
 .Ss GNU Tar Archives
-The GNU tar program has used a variety of different extension
-mechanisms over the years:
-They added new fields to the empty space in the header (some of which was later
+The GNU tar program started with a pre-POSIX format similar to that
+described earlier and has extended it using several different mechanisms:
+It added new fields to the empty space in the header (some of which was later
 used by POSIX for conflicting purposes);
-they allowed the header to be continued over multiple records;
-and they defined new entries that modify following entries
+it allowed the header to be continued over multiple records;
+and it defined new entries that modify following entries
 (similar in principle to the
 .Cm x
 entry described above, but each GNU special entry is single-purpose,
@@ -424,33 +457,34 @@ As a result, GNU tar archives are not POSIX compatible, although
 more lenient POSIX-compliant readers can successfully extract most
 GNU tar archives.
 .Bd -literal -offset indent
-struct tarfile_entry_gnu {
-char name[100];
-char mode[8];
-char uid[8];
-char gid[8];
-char size[12];
-char mtime[12];
-char checksum[8];
-char typeflag[1];
-char linkname[100];
-char magic[6];
-char version[2];
-char uname[32];
-char gname[32];
-char devmajor[8];
-char devminor[8];
-char atime[12];
-char ctime[12];
-char offset[12];
-char longnames[4];
-char unused[1];
-struct {
-char offset[12];
-char numbytes[12];
-} sparse[4];
-char isextended[1];
-char realsize[12];
+struct header_gnu_tar {
+	char name[100];
+	char mode[8];
+	char uid[8];
+	char gid[8];
+	char size[12];
+	char mtime[12];
+	char checksum[8];
+	char typeflag[1];
+	char linkname[100];
+	char magic[6];
+	char version[2];
+	char uname[32];
+	char gname[32];
+	char devmajor[8];
+	char devminor[8];
+	char atime[12];
+	char ctime[12];
+	char offset[12];
+	char longnames[4];
+	char unused[1];
+	struct {
+		char offset[12];
+		char numbytes[12];
+	} sparse[4];
+	char isextended[1];
+	char realsize[12];
+	char pad[17];
 };
 .Ed
 .Bl -tag -width indent
@@ -487,8 +521,7 @@ GNU multi-volume archives gaurantee that each volume begins with a valid
 entry header.
 To ensure this, a file may be split, with part stored at the end of one volume,
 and part stored at the beginning of the next volume.
-The "M" typeflag indicates that this entry continues
-an existing file.
+The "M" typeflag indicates that this entry continues an existing file.
 Such entries can only occur as the first or second entry
 in an archive (the latter only if the first entry is a volume label).
 The
@@ -582,7 +615,7 @@ field will indicate the total size of the file.
 .Ss Solaris Tar
 XXX More Details Needed XXX
 .Pp
-Solaris tar supports an
+Solaris tar (beginning with SunOS XXX 5.7 ?? XXX) supports an
 .Dq extended
 format that is fundamentally similar to pax interchange format,
 with the following differences:
@@ -636,13 +669,10 @@ The
 .Nm tar
 utility is no longer a part of POSIX or the Single Unix Standard.
 It last appeared in
-.St -p 1003.1-1997
-(SUSv2).
+.St -susv2 .
 It has been supplanted in subsequent standards by
 .Xr pax 1 .
-The ustar format is defined in
-.St -p1003.1
-as part of the specification for the
+The ustar format is currently part of the specification for the
 .Xr pax 1
 utility.
 The pax interchange file format is new with
