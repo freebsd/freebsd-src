@@ -390,6 +390,7 @@ diff (argc, argv)
 	    option_with_arg ("-r", diff_rev2);
 	if (diff_date2)
 	    client_senddate (diff_date2);
+	send_arg ("--");
 
 	/* Send the current files unless diffing two revs from the archive */
 	if (diff_rev2 == NULL && diff_date2 == NULL)
@@ -421,7 +422,7 @@ diff (argc, argv)
     /* start the recursion processor */
     err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
 			   diff_dirleaveproc, NULL, argc, argv, local,
-			   which, 0, 1, (char *) NULL, 1);
+			   which, 0, LOCK_READ, (char *) NULL, 1);
 
     /* clean up */
     free (options);

@@ -33,7 +33,7 @@ struct recursion_frame {
     Dtype flags;
     int which;
     int aflag;
-    int readlock;
+    int locktype;
     int dosrcs;
 };
 
@@ -66,7 +66,7 @@ struct frame_and_entries {
    default to ".".  */
 int
 start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
-		 argc, argv, local, which, aflag, readlock,
+		 argc, argv, local, which, aflag, locktype,
 		 update_preload, dosrcs)
     FILEPROC fileproc;
     FILESDONEPROC filesdoneproc;
@@ -102,7 +102,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
     int which;
 
     int aflag;
-    int readlock;
+    int locktype;
     char *update_preload;
     int dosrcs;
 {
@@ -121,7 +121,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
     frame.flags = local ? R_SKIP_DIRS : R_PROCESS;
     frame.which = which;
     frame.aflag = aflag;
-    frame.readlock = readlock;
+    frame.locktype = locktype;
     frame.dosrcs = dosrcs;
 
     expand_wild (argc, argv, &argc, &argv);
@@ -504,14 +504,14 @@ do_recursion (frame)
     int dodoneproc = 1;
     char *srepository;
     List *entries = NULL;
-    int should_readlock;
+    int locktype;
     int process_this_directory = 1;
 
     /* do nothing if told */
     if (frame->flags == R_SKIP_ALL)
 	return (0);
 
-    should_readlock = noexec ? 0 : frame->readlock;
+    locktype = noexec ? LOCK_NONE : frame->locktype;
 
     /* The fact that locks are not active here is what makes us fail to have
        the
@@ -549,11 +549,9 @@ do_recursion (frame)
     /*
      * Now would be a good time to check to see if we need to stop
      * generating data, to give the buffers a chance to drain to the
-     * remote client.  We should not have locks active at this point.
-     */
-    if (server_active
-	/* If there are writelocks around, we cannot pause here.  */
-	&& (should_readlock || noexec))
+     * remote client.  We should not have locks active at this point,
+     * but if there are writelocks around, we cannot pause here.  */
+    if (server_active && locktype != LOCK_NONE)
 	server_pause_check();
 #endif
 
@@ -706,8 +704,16 @@ do_recursion (frame)
 	struct frame_and_file frfile;
 
 	/* read lock it if necessary */
-	if (should_readlock && repository && Reader_Lock (repository) != 0)
-	    error (1, 0, "read lock failed - giving up");
+	if (repository)
+	{
+	    if (locktype == LOCK_READ)
+	    {
+		if (Reader_Lock (repository) != 0)
+		    error (1, 0, "read lock failed - giving up");
+	    }
+	    else if (locktype == LOCK_WRITE)
+		lock_dir_for_write (repository);
+	}
 
 #ifdef CLIENT_SUPPORT
 	/* For the server, we handle notifications in a completely different
@@ -730,7 +736,7 @@ do_recursion (frame)
 	err += walklist (filelist, do_file_proc, &frfile);
 
 	/* unlock it */
-	if (should_readlock)
+	if (locktype != LOCK_NONE)
 	    Lock_Cleanup ();
 
 	/* clean up */

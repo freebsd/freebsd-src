@@ -1,3 +1,76 @@
+2002-11-04  Derek Price  <derek@ximbiot.com>
+
+	* getdate.y (Convert): Add comment as to the effectiveness of
+	descriptive error messages.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-09-15  Larry Jones  <lawrence.jones@eds.com>
+
+	* system.h: Add FOPEN_BINARY_READWRITE.
+	(Patch submitted by Josh Lehan <cvs@krellan.com>.)
+
+2002-08-12  Derek Price  <oberon@umich.edu>
+
+	* Makefile.am: Remove obsolete reference to `ftruncate.c'.
+	(Symptoms reported by
+	Andrey Aristarkhov <Aristarkhov@bitechnology.ru>.)
+	* Makefile.in: Regenerated.
+
+2002-08-08  Derek Price  <oberon@umich.edu>
+
+	* regex.c: Removed unused `compile_range' declaration.
+	(Patch from John Tytgat <John.Tytgat@aaug.net>.)
+	
+2002-05-09  Larry Jones  <lawrence.jones@eds.com>
+
+	* getline.c (getstr): Make terminator int instead of char to avoid
+	promotion problems.
+	* getline.h (getstr): Change to match.
+
+2002-05-08  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated.
+	* fnmatch.h: Move this file...
+	* fnmatch.h.in: here.
+
+2002-05-08  Derek Price  <oberon@umich.edu>
+
+	* strerror.c: Use HAVE_CONFIG_H and put config.h in brackets rather
+	than quotes.
+
+2002-05-02  Derek Price  <oberon@umich.edu>
+
+	* fnmatch.h: More #defines to avoid Mac OS X namespace conflicts.
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* hostname.c: Rename to...
+	* gethostname.c: this.
+	* Makefile.am: Change comment to reflect above.
+
+	* Makefile.in: Regenerated with automake 1.6.
+
+2002-04-28  Derek Price  <oberon@umich.edu>
+
+	* getopt.h: #define new names for functions and variables when they
+	might conflict with system definitions (namely on Mac OS X 10.1 with
+	the most recent dev packages - This should be removable after the Mac
+	dev packages are fixed.).
+	* regex.h: Ditto.
+	* Makefile.am (libcvs_a_SOURCES): Remove fnmatch.h.
+
+2002-04-20  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.am (libcvs_a_SOURCES): Add getpagesize.h.
+	* Makefile.in: Regenerated.
+
 2001-09-18  Derek Price  <dprice@collab.net>
 
 	* fnmatch.c: The header file for a system function we're replacing with
