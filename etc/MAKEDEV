@@ -89,6 +89,7 @@
 #
 # USB devices:
 #	usb*	USB bus control device
+#	uhid*	Human Interface Device (HID)
 #	ums*	mouse
 #	ulpt*	printer
 #	ugen*	generic USB device
@@ -247,7 +248,7 @@ all)
 	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
-	sh MAKEDEV usb usb0 ums0 ulpt0 ugen0		# cdev, USB devices
+	sh MAKEDEV usb usb0 uhid0 ums0 ulpt0 ugen0	# cdev, USB devices
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0 card1 card2 card3	# cdev, laptop
@@ -905,6 +906,11 @@ usb*)
 	unit=`expr $i : 'usb\(.*\)'`
 	mknod usb$unit c 108 $unit root:operator
 	chmod 0660 usb$unit
+	;;
+
+uhid*)
+	unit=`expr $i : 'uhid\(.*\)'`
+	mknod uhid$unit c 122 $unit
 	;;
 
 ums*)
