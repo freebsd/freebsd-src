@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
-.\"	$Id$
+.\"	$Id: ln.1,v 1.5 1997/02/22 14:03:48 peter Exp $
 .\"
 .Dd December 30, 1993
 .Dt LN 1
@@ -52,7 +52,7 @@
 .Op target_dir
 .Sh DESCRIPTION
 The
-.Nm ln
+.Nm
 utility creates a new directory entry (linked file) which has the
 same modes as the original file.
 It is useful for maintaining multiple copies of a file in many places
@@ -75,7 +75,7 @@ Create a symbolic link.
 .El
 .Pp
 By default
-.Nm ln
+.Nm
 makes
 .Em hard
 links.
@@ -99,7 +99,7 @@ call may be used to read the contents of a symbolic link.
 Symbolic links may span file systems and may refer to directories.
 .Pp
 Given one or two arguments,
-.Nm ln
+.Nm
 creates a link to an existing file
 .Ar source_file  .
 If
@@ -113,7 +113,7 @@ to the last component of
 .Ar source_file  .
 .Pp
 Given more than two arguments,
-.Nm ln
+.Nm
 makes links in
 .Ar target_dir
 to all the named source files.
@@ -127,6 +127,6 @@ The links made will have the same name as the files being linked to.
 .Xr symlink 7
 .Sh HISTORY
 A
-.Nm ln
+.Nm
 command appeared in
 .At v1 .
