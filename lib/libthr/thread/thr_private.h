@@ -763,6 +763,8 @@ void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
 void	_thread_sigblock();
 void	_thread_sigunblock();
+void	init_td_common(struct pthread *, struct pthread_attr *, int);
+void	init_tdlist(struct pthread *, int);
 void	proc_sigact_copyin(int, const struct sigaction *);
 void	proc_sigact_copyout(int, struct sigaction *);
 struct sigaction *proc_sigact_sigaction(int);
