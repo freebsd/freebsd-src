@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.19 1997/04/13 01:48:21 dyson Exp $
+ *	$Id: imgact_elf.c,v 1.20 1997/09/21 03:13:21 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -69,7 +69,7 @@ static int elf_check_header __P((const Elf32_Ehdr *hdr, int type));
 static int elf_load_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 static int elf_load_file __P((struct proc *p, char *file, u_long *addr, u_long *entry));
 static int elf_freebsd_fixup __P((int **stack_base, struct image_params *imgp));
-int exec_elf_imgact __P((struct image_params *imgp));
+static int exec_elf_imgact __P((struct image_params *imgp));
 
 static int elf_trace = 0;
 SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
@@ -463,7 +463,7 @@ fail:
 	return error;
 }
 
-int
+static int
 exec_elf_imgact(struct image_params *imgp)
 {
 	const Elf32_Ehdr *hdr = (const Elf32_Ehdr *) imgp->image_header;

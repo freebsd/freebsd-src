@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.111 1998/02/05 03:32:44 dyson Exp $
+ * $Id: vm_object.c,v 1.112 1998/02/06 12:14:26 eivind Exp $
  */
 
 /*
@@ -120,7 +120,7 @@ static void vm_object_dispose __P((vm_object_t));
  */
 
 struct object_q vm_object_list;
-struct simplelock vm_object_list_lock;
+static struct simplelock vm_object_list_lock;
 static long vm_object_count;		/* count of all objects */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
@@ -134,7 +134,7 @@ static int next_index;
 static vm_zone_t obj_zone;
 static struct vm_zone obj_zone_store;
 #define VM_OBJECTS_INIT 256
-struct vm_object vm_objects_init[VM_OBJECTS_INIT];
+static struct vm_object vm_objects_init[VM_OBJECTS_INIT];
 
 void
 _vm_object_allocate(type, size, object)

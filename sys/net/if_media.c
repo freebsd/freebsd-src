@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/*	$Id: if_media.c,v 1.4 1998/02/04 22:33:03 eivind Exp $ */
+/*	$Id: if_media.c,v 1.5 1998/02/06 12:13:48 eivind Exp $ */
 
 /*
  * Copyright (c) 1997
@@ -62,7 +62,7 @@
  * 	Useful for debugging newly-ported  drivers.
  */
 
-struct ifmedia_entry *ifmedia_match __P((struct ifmedia *ifm,
+static struct ifmedia_entry *ifmedia_match __P((struct ifmedia *ifm,
     int flags, int mask));
 
 #ifdef IFMEDIA_DEBUG
@@ -327,7 +327,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
  * Find media entry matching a given ifm word.
  *
  */
-struct ifmedia_entry *
+static struct ifmedia_entry *
 ifmedia_match(ifm, target, mask)
 	struct ifmedia *ifm; 
 	int target;

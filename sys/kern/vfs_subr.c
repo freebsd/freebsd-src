@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.130 1998/02/06 12:13:31 eivind Exp $
+ * $Id: vfs_subr.c,v 1.131 1998/02/07 08:44:31 kato Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ int vttoif_tab[9] = {
 	(bp)->b_vnbufs.le_next = NOLIST;				\
 }
 
-TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
+static TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
 struct tobefreelist vnode_tobefree_list;	/* vnode free list */
 
 static u_long wantfreevnodes = 25;
@@ -118,7 +118,7 @@ struct mntlist mountlist;	/* mounted filesystem list */
 struct simplelock mountlist_slock;
 static struct simplelock mntid_slock;
 struct simplelock mntvnode_slock;
-struct simplelock vnode_free_list_slock;
+static struct simplelock vnode_free_list_slock;
 static struct simplelock spechash_slock;
 struct nfs_public nfs_pub;	/* publicly exported FS */
 static vm_zone_t vnode_zone;

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.46 1997/10/28 15:59:21 bde Exp $
+ *	$Id: if_fxp.c,v 1.47 1998/01/08 23:42:29 eivind Exp $
  */
 
 /*
@@ -176,7 +176,7 @@ struct fxp_supported_media {
 	const int	fsm_defmedia;	/* default media for this PHY */
 };
 
-const int fxp_media_standard[] = {
+static const int fxp_media_standard[] = {
 	IFM_ETHER|IFM_10_T,
 	IFM_ETHER|IFM_10_T|IFM_FDX,
 	IFM_ETHER|IFM_100_TX,
@@ -185,12 +185,12 @@ const int fxp_media_standard[] = {
 };
 #define	FXP_MEDIA_STANDARD_DEFMEDIA	(IFM_ETHER|IFM_AUTO)
 
-const int fxp_media_default[] = {
+static const int fxp_media_default[] = {
 	IFM_ETHER|IFM_MANUAL,		/* XXX IFM_AUTO ? */
 };
 #define	FXP_MEDIA_DEFAULT_DEFMEDIA	(IFM_ETHER|IFM_MANUAL)
 
-const struct fxp_supported_media fxp_media[] = {
+static const struct fxp_supported_media fxp_media[] = {
 	{ FXP_PHY_DP83840, fxp_media_standard,
 	  sizeof(fxp_media_standard) / sizeof(fxp_media_standard[0]),
 	  FXP_MEDIA_STANDARD_DEFMEDIA },
@@ -208,7 +208,7 @@ const struct fxp_supported_media fxp_media[] = {
 
 static int fxp_mediachange	__P((struct ifnet *));
 static void fxp_mediastatus	__P((struct ifnet *, struct ifmediareq *));
-void fxp_set_media		__P((struct fxp_softc *, int));
+static void fxp_set_media		__P((struct fxp_softc *, int));
 static inline void fxp_scb_wait	__P((struct fxp_softc *));
 static FXP_INTR_TYPE fxp_intr	__P((void *));
 static void fxp_start		__P((struct ifnet *));
@@ -223,7 +223,7 @@ static void fxp_mdi_write	__P((struct fxp_softc *, int, int, int));
 static void fxp_read_eeprom	__P((struct fxp_softc *, u_int16_t *,
 				    int, int));
 static int fxp_attach_common	__P((struct fxp_softc *, u_int8_t *));
-void fxp_stats_update		__P((void *));
+static void fxp_stats_update	__P((void *));
 static void fxp_mc_setup	__P((struct fxp_softc *));
 
 /*
@@ -1044,7 +1044,7 @@ rcvloop:
  * the DMA immediately, we don't wait - we just prepare to read
  * them again next time.
  */
-void
+static void
 fxp_stats_update(arg)
 	void *arg;
 {
@@ -1361,7 +1361,7 @@ fxp_init(xsc)
 	sc->stat_ch = timeout(fxp_stats_update, sc, hz);
 }
 
-void
+static void
 fxp_set_media(sc, media)
 	struct fxp_softc *sc;
 	int media;

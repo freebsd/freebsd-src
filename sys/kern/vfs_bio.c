@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.148 1998/02/04 22:32:39 eivind Exp $
+ * $Id: vfs_bio.c,v 1.149 1998/02/06 12:13:29 eivind Exp $
  */
 
 /*
@@ -65,7 +65,7 @@ SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 
-int count_lock_queue __P((void));
+static int count_lock_queue __P((void));
 static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
@@ -105,7 +105,8 @@ static vm_offset_t bogus_offset;
 
 static int bufspace, maxbufspace, vmiospace, maxvmiobufspace,
 	bufmallocspace, maxbufmallocspace;
-int numdirtybuffers, lodirtybuffers, hidirtybuffers;
+int numdirtybuffers;
+static int lodirtybuffers, hidirtybuffers;
 static int numfreebuffers, lofreebuffers, hifreebuffers;
 static int kvafreespace;
 
@@ -1972,7 +1973,7 @@ biodone(register struct buf * bp)
 	splx(s);
 }
 
-int
+static int
 count_lock_queue()
 {
 	int count;
@@ -1986,7 +1987,7 @@ count_lock_queue()
 	return (count);
 }
 
-int vfs_update_interval = 30;
+static int vfs_update_interval = 30;
 
 static void
 vfs_update()

@@ -351,7 +351,7 @@ opl3_set_instr(int dev, int voice, int instr_no)
  * volume -8 it was implemented as a table because it is only 128 bytes and
  * it saves a lot of log() calculations. (RH)
  */
-char            fm_volume_table[128] =
+static char         fm_volume_table[128] =
 {
 	-64, -48, -40, -35, -32, -29, -27, -26,
 	-24, -23, -21, -20, -19, -18, -18, -17,

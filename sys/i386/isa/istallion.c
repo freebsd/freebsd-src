@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.14 1997/12/06 13:22:33 bde Exp $
+ * $Id: istallion.c,v 1.15 1997/12/16 17:40:00 eivind Exp $
  */
 
 /*****************************************************************************/
@@ -520,8 +520,8 @@ static char	*stli_brdnames[] = {
  *	Declare all those functions in this driver!  First up is the set of
  *	externally visible functions.
  */
-int	stliprobe(struct isa_device *idp);
-int	stliattach(struct isa_device *idp);
+static int	stliprobe(struct isa_device *idp);
+static int	stliattach(struct isa_device *idp);
 
 STATIC	d_open_t	stliopen;
 STATIC	d_close_t	stliclose;
@@ -816,7 +816,7 @@ static int stli_mcaprobe(struct isa_device *idp)
  *	shared memory region to see if the board is really there or not...
  */
 
-int stliprobe(struct isa_device *idp)
+static int stliprobe(struct isa_device *idp)
 {
 	stlibrd_t	*brdp;
 	int		btype, bclass;
@@ -904,7 +904,7 @@ int stliprobe(struct isa_device *idp)
  *	Allocate resources for and initialize a board.
  */
 
-int stliattach(struct isa_device *idp)
+static int stliattach(struct isa_device *idp)
 {
 	stlibrd_t	*brdp;
 	int		brdnr;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.3 1997/09/19 15:20:24 jmg Exp $
+ *      $Id: pnp.c,v 1.4 1997/11/18 11:45:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -38,7 +38,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
 
-int num_pnp_cards = 0;
+static int num_pnp_cards = 0;
 pnp_id pnp_devices[MAX_PNP_CARDS];
 struct pnp_dlist_node *pnp_device_list;
 static struct pnp_dlist_node **pnp_device_list_last_ptr;
@@ -100,10 +100,10 @@ nullpnp_attach(u_long csn, u_long vend_id, char *name,
 /* The READ_DATA port that we are using currently */
 static int pnp_rd_port;
 
-void pnp_send_Initiation_LFSR (void);
-int pnp_get_serial (pnp_id *p);
-void config_pnp_device (pnp_id *p, int csn);
-int pnp_isolation_protocol (void);
+static void pnp_send_Initiation_LFSR (void);
+static int pnp_get_serial (pnp_id *p);
+static void config_pnp_device (pnp_id *p, int csn);
+static int pnp_isolation_protocol (void);
 void pnp_write(int d, u_char r);
 u_char pnp_read(int d);
 
@@ -125,7 +125,7 @@ pnp_read(int d)
  * Send Initiation LFSR as described in "Plug and Play ISA Specification",
  * Intel May 94.
  */
-void
+static void
 pnp_send_Initiation_LFSR()
 {
     int cur, i;
@@ -147,7 +147,7 @@ pnp_send_Initiation_LFSR()
 /*
  * Get the device's serial number.  Returns 1 if the serial is valid.
  */
-int
+static int
 pnp_get_serial(pnp_id *p)
 {
     int i, bit, valid = 0, sum = 0x6a;
@@ -329,7 +329,7 @@ enable_pnp_card()
  *	4 bytes: board serial number (often 0 or -1 ?)
  */
 
-void
+static void
 config_pnp_device(pnp_id *p, int csn)
 {
     static struct pnp_dlist_node *nod = NULL;
@@ -478,7 +478,7 @@ config_pnp_device(pnp_id *p, int csn)
  * are saved to an array, pnp_devices. In the second pass, each
  * card is woken up and the device configuration is called.
  */
-int
+static int
 pnp_isolation_protocol()
 {
     int csn;

@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.21 1998/02/04 22:32:38 eivind Exp $
+ * $Id: vfs_aio.c,v 1.22 1998/02/06 12:13:29 eivind Exp $
  */
 
 /*
@@ -92,20 +92,20 @@ static	int jobrefid;
 #define AIOD_LIFETIME_DEFAULT (30 * hz)
 #endif
 
-int max_aio_procs = MAX_AIO_PROCS;
-int num_aio_procs = 0;
-int target_aio_procs = TARGET_AIO_PROCS;
-int max_queue_count = MAX_AIO_QUEUE;
-int num_queue_count = 0;
-int num_buf_aio = 0;
-int num_aio_resv_start = 0;
-int aiod_timeout;
-int aiod_lifetime;
+static int max_aio_procs = MAX_AIO_PROCS;
+static int num_aio_procs = 0;
+static int target_aio_procs = TARGET_AIO_PROCS;
+static int max_queue_count = MAX_AIO_QUEUE;
+static int num_queue_count = 0;
+static int num_buf_aio = 0;
+static int num_aio_resv_start = 0;
+static int aiod_timeout;
+static int aiod_lifetime;
 
-int max_aio_per_proc = MAX_AIO_PER_PROC,
+static int max_aio_per_proc = MAX_AIO_PER_PROC,
 	max_aio_queue_per_proc=MAX_AIO_QUEUE_PER_PROC;
 
-int max_buf_aio = MAX_BUF_AIO;
+static int max_buf_aio = MAX_BUF_AIO;
 
 SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "AIO mgmt");
 
@@ -222,10 +222,10 @@ struct kaioinfo {
 								   event */
 
 
-TAILQ_HEAD (,aioproclist) aio_freeproc, aio_activeproc;
-TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
-TAILQ_HEAD(,aiocblist) aio_bufjobs;			/* Phys I/O job list */
-TAILQ_HEAD(,aiocblist) aio_freejobs;		/* Pool of free jobs */
+static TAILQ_HEAD (,aioproclist) aio_freeproc, aio_activeproc;
+static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
+static TAILQ_HEAD(,aiocblist) aio_bufjobs;		/* Phys I/O job list */
+static TAILQ_HEAD(,aiocblist) aio_freejobs;		/* Pool of free jobs */
 
 static void aio_init_aioinfo(struct proc *p) ;
 static void aio_onceonly(void *) ;

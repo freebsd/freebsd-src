@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.48 1997/12/15 20:30:49 eivind Exp $
+ *	$Id: if_ie.c,v 1.49 1998/01/08 23:40:56 eivind Exp $
  */
 
 /*
@@ -165,7 +165,7 @@ iomem and and with 0xffff.
 #define IED_RNR		0x04
 #define IED_CNA		0x08
 #define IED_READFRAME	0x10
-int	ie_debug = IED_RNR;
+static int	ie_debug = IED_RNR;
 
 #endif
 
@@ -224,10 +224,10 @@ static int	mc_setup(int, caddr_t, volatile struct ie_sys_ctl_block *);
 static void	ie_mc_reset(int unit);
 
 #ifdef DEBUG
-void	print_rbd(volatile struct ie_recv_buf_desc * rbd);
+static void	print_rbd(volatile struct ie_recv_buf_desc * rbd);
 
-int	in_ierint = 0;
-int	in_ietint = 0;
+static int	in_ierint = 0;
+static int	in_ietint = 0;
 
 #endif
 
@@ -2413,7 +2413,7 @@ setflag:
 
 
 #ifdef DEBUG
-void
+static void
 print_rbd(volatile struct ie_recv_buf_desc * rbd)
 {
 	printf("RBD at %08lx:\n"

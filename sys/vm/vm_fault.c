@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.78 1998/02/04 22:33:43 eivind Exp $
+ * $Id: vm_fault.c,v 1.79 1998/02/06 12:14:22 eivind Exp $
  */
 
 /*
@@ -94,7 +94,8 @@
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
-int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
+static int vm_fault_additional_pages __P((vm_page_t, int,
+					  int, vm_page_t *, int *));
 
 #define VM_FAULT_READ_AHEAD 8
 #define VM_FAULT_READ_BEHIND 7
@@ -1003,7 +1004,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
  * Return value:
  *  number of pages in marray
  */
-int
+static int
 vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t m;
 	int rbehind;

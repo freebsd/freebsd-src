@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.64 1997/12/19 19:39:01 ache Exp $
+ * $Id: if_sl.c,v 1.65 1998/01/08 23:41:29 eivind Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ PSEUDO_SET(slattach, if_sl);
 #define	ABT_COUNT	3	/* count of escapes for abort */
 #define	ABT_WINDOW	(ABT_COUNT*2+2)	/* in seconds - time to count */
 
-struct sl_softc sl_softc[NSL];
+static struct sl_softc sl_softc[NSL];
 
 #define FRAME_END	 	0xc0		/* Frame End */
 #define FRAME_ESCAPE		0xdb		/* Frame Esc */

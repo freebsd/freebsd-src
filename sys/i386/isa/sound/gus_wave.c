@@ -53,7 +53,7 @@
 
 #if defined(CONFIG_GUS)
 
-IWAVE           iw;
+static IWAVE iw;
 #define 	ENTER_CRITICAL
 
 #define 	LEAVE_CRITICAL
@@ -62,7 +62,7 @@ IWAVE           iw;
 #define MAX_PATCH	256
 
 
-u_int    gus_pnp_found[MAX_GUS_PNP] =
+static u_int gus_pnp_found[MAX_GUS_PNP] =
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 struct voice_info {
@@ -118,7 +118,7 @@ static int      only_read_access = 0;
 static int      only_8_bits = 0;
 
 int             gus_wave_volume = 60;
-int             gus_pcm_volume = 80;
+static int      gus_pcm_volume = 80;
 int             have_gus_max = 0;
 static int      gus_line_vol = 100, gus_mic_vol = 0;
 static u_char mix_image = 0x00;
@@ -161,7 +161,7 @@ static int      pcm_current_intrflag;
 
 extern sound_os_info *gus_osp;
 
-struct voice_info voices[32];
+static struct voice_info voices[32];
 
 static int      freq_div_table[] =
 {
@@ -187,8 +187,8 @@ static int      freq_div_table[] =
 };
 
 static struct patch_info *samples;
-struct patch_info *dbg_samples;
-int             dbg_samplep;
+static struct patch_info *dbg_samples;
+static int                dbg_samplep;
 
 static long     sample_ptrs[MAX_SAMPLE + 1];
 static int      sample_map[32];
@@ -204,20 +204,20 @@ static struct synth_info gus_info =
 
 static void     gus_default_mixer_init(void);
 
-int             guswave_start_note2(int dev, int voice, int note_num, int volume);
+static int      guswave_start_note2(int dev, int voice, int note_num, int volume);
 static void     gus_poke(long addr, u_char data);
-void            compute_and_set_volume(int voice, int volume, int ramp_time);
+static void     compute_and_set_volume(int voice, int volume, int ramp_time);
 extern u_short gus_adagio_vol(int vel, int mainv, int xpn, int voicev);
 extern u_short gus_linear_vol(int vol, int mainvol);
-void            compute_volume(int voice, int volume);
+static void     compute_volume(int voice, int volume);
 void            do_volume_irq(int voice);
 static void     set_input_volumes(void);
 static void     gus_tmr_install(int io_base);
 
-void            SEND(int d, int r);
-int             get_serial(int rd_port, u_char *data);
-void            send_Initiation_LFSR(void);
-int             isolation_protocol(int rd_port);
+static void     SEND(int d, int r);
+static int      get_serial(int rd_port, u_char *data);
+static void     send_Initiation_LFSR(void);
+static int      isolation_protocol(int rd_port);
 
 
 #define	INSTANT_RAMP		-1	/* Instant change. No ramping */
@@ -295,48 +295,49 @@ int             isolation_protocol(int rd_port);
     { outb(iwl_codec_base, reg); val = inb(iwl_codec_data); }
 
 
-u_char   gus_look8(int reg);
+static u_char   gus_look8(int reg);
 
-void            gus_write16(int reg, u_int data);
+static void     gus_write16(int reg, u_int data);
 
-u_short  gus_read16(int reg);
+static u_short  gus_read16(int reg);
 
-void            gus_write_addr(int reg, u_long address, int is16bit);
-void            IwaveLineLevel(char level, char index);
-void            IwaveInputSource(BYTE index, BYTE source);
-void            IwaveDelay(WORD count);
-void            IwaveStopDma(BYTE path);
-void            IwavePnpGetCfg(void);
-void            IwavePnpDevice(BYTE dev);
-void            IwavePnpSetCfg(void);
-void            IwavePnpKey(void);
-BYTE            IwavePnpIsol(PORT * pnpread);
-void            IwaveCfgIOSpace(void);
+static void     gus_write_addr(int reg, u_long address, int is16bit);
+static void     IwaveLineLevel(char level, char index);
+static void     IwaveInputSource(BYTE index, BYTE source);
+static void     IwaveDelay(WORD count);
+static void     IwaveStopDma(BYTE path);
+static void     IwavePnpGetCfg(void);
+static void     IwavePnpDevice(BYTE dev);
+static void     IwavePnpSetCfg(void);
+static void     IwavePnpKey(void);
+static BYTE     IwavePnpIsol(PORT * pnpread);
+static void     IwaveCfgIOSpace(void);
 
-void IwavePnpSerial(PORT pnprdp, BYTE csn, BYTE * vendor, DWORD * serial);
+static void     IwavePnpSerial(PORT pnprdp, BYTE csn,
+							   BYTE * vendor, DWORD * serial);
 
 
-void            IwavePnpPeek(PORT pnprdp, WORD bytes, BYTE * data);
-void            IwavePnpEeprom(BYTE ctrl);
-void            IwavePnpActivate(BYTE dev, BYTE bool);
-
-void            IwavePnpPower(BYTE mode);
-void            IwavePnpWake(BYTE csn);
-PORT            IwavePnpIOcheck(PORT base, BYTE no_ports);
-
-BYTE            IwavePnpGetCSN(DWORD VendorID, BYTE csn_max);
-BYTE            IwavePnpPing(DWORD VendorID);
-WORD            IwaveMemSize(void);
-BYTE            IwaveMemPeek(ADDRESS addr);
-void            IwaveMemPoke(ADDRESS addr, BYTE datum);
-void            IwaveMemCfg(DWORD * lpbanks);
-void            IwaveCodecIrq(BYTE mode);
-WORD            IwaveRegPeek(DWORD reg_mnem);
-
-void            IwaveRegPoke(DWORD reg_mnem, WORD datum);
-void            IwaveCodecMode(char mode);
-void            IwaveLineMute(BYTE mute, BYTE inx);
-void            Iwaveinitcodec(void);
+static void     IwavePnpPeek(PORT pnprdp, WORD bytes, BYTE * data);
+static void     IwavePnpEeprom(BYTE ctrl);
+static void     IwavePnpActivate(BYTE dev, BYTE bool);
+				
+static void     IwavePnpPower(BYTE mode);
+static void     IwavePnpWake(BYTE csn);
+static PORT     IwavePnpIOcheck(PORT base, BYTE no_ports);
+				
+static BYTE     IwavePnpGetCSN(DWORD VendorID, BYTE csn_max);
+static BYTE     IwavePnpPing(DWORD VendorID);
+static WORD     IwaveMemSize(void);
+static BYTE     IwaveMemPeek(ADDRESS addr);
+static void     IwaveMemPoke(ADDRESS addr, BYTE datum);
+static void     IwaveMemCfg(DWORD * lpbanks);
+static void     IwaveCodecIrq(BYTE mode);
+static WORD     IwaveRegPeek(DWORD reg_mnem);
+				
+static void     IwaveRegPoke(DWORD reg_mnem, WORD datum);
+static void     IwaveCodecMode(char mode);
+static void     IwaveLineMute(BYTE mute, BYTE inx);
+static void     Iwaveinitcodec(void);
 int             IwaveOpen(char voices, char mode, struct address_info * hw);
 
 
@@ -431,7 +432,7 @@ gus_read8(int reg)
     return val;
 }
 
-u_char
+static u_char
 gus_look8(int reg)
 {	/* Reads from an indirect register (8 bit). No additional offset. */
     u_long   flags;
@@ -445,7 +446,7 @@ gus_look8(int reg)
     return val;
 }
 
-void
+static void
 gus_write16(int reg, u_int data)
 {			/* Writes to an indirect register (16 bit) */
     u_long   flags;
@@ -460,7 +461,7 @@ gus_write16(int reg, u_int data)
     splx(flags);
 }
 
-u_short
+static u_short
 gus_read16(int reg)
 {		/* Reads from an indirect register (16 bit). Offset 0x80. */
     u_long   flags;
@@ -478,7 +479,7 @@ gus_read16(int reg)
     return ((hi << 8) & 0xff00) | lo;
 }
 
-void
+static void
 gus_write_addr(int reg, u_long address, int is16bit)
 {				/* Writes an 24 bit memory address */
     u_long   hold_address;
@@ -1103,7 +1104,7 @@ guswave_volume_method(int dev, int mode)
 	volume_method = mode;
 }
 
-void
+static void
 compute_volume(int voice, int volume)
 {
     if (volume < 128)
@@ -1130,7 +1131,7 @@ compute_volume(int voice, int volume)
 	voices[voice].initial_volume = 4030;
 }
 
-void
+static void
 compute_and_set_volume(int voice, int volume, int ramp_time)
 {
     int             curr, target, rate;
@@ -1276,7 +1277,7 @@ guswave_controller(int dev, int voice, int ctrl_num, int value)
 	}
 }
 
-int
+static int
 guswave_start_note2(int dev, int voice, int note_num, int volume)
 {
     int             sample, best_sample, best_delta, delta_freq;
@@ -2905,7 +2906,7 @@ if (have_gus_max) {
 
 /* start of pnp code */
 
-void 
+static void 
 SEND(int d, int r)
 {
 outb(PADDRESS, d);
@@ -2918,7 +2919,7 @@ outb(PWRITE_DATA, r);
 /*
  * Get the device's serial number.  Returns 1 if the serial is valid.
  */
-int
+static int
 get_serial(int rd_port, u_char *data)
 {
 	int             i, bit, valid = 0, sum = 0x6a;
@@ -2946,7 +2947,7 @@ get_serial(int rd_port, u_char *data)
 	return valid;
 }
 
-void
+static void
 send_Initiation_LFSR()
 {
 	int             cur, i;
@@ -2966,7 +2967,7 @@ send_Initiation_LFSR()
 
 
 
-int 
+static int 
 isolation_protocol(int rd_port)
 {
 	int             csn;
@@ -3006,7 +3007,7 @@ isolation_protocol(int rd_port)
 
 
 
-void 
+static void 
 IwaveDelay(WORD count)
 {
 	WORD            cur_cnt = 0, last_cnt;
@@ -3041,7 +3042,7 @@ IwaveDelay(WORD count)
  * ########################################################################
  */
 
-void 
+static void 
 IwaveStopDma(BYTE path)
 {
 	BYTE            reg;
@@ -3068,7 +3069,7 @@ IwaveStopDma(BYTE path)
  * 
  * ########################################################################
  */
-void 
+static void 
 IwaveInputSource(BYTE index, BYTE source)
 {
 	BYTE            reg;
@@ -3081,7 +3082,7 @@ IwaveInputSource(BYTE index, BYTE source)
 	outb(iw.cdatap, (BYTE) (reg | source));
 	LEAVE_CRITICAL;
 }
-void 
+static void 
 IwavePnpGetCfg(void)
 {
 	WORD            val;
@@ -3159,7 +3160,7 @@ IwavePnpGetCfg(void)
 	LEAVE_CRITICAL;
 }
 
-void 
+static void 
 IwavePnpSetCfg(void)
 {
 	ENTER_CRITICAL;
@@ -3232,7 +3233,7 @@ IwavePnpSetCfg(void)
 	LEAVE_CRITICAL;
 }
 
-void 
+static void 
 IwaveCfgIOSpace(void)
 {
 	ENTER_CRITICAL;
@@ -3304,7 +3305,7 @@ IwaveCfgIOSpace(void)
 /* write cycles of 0x00 to PIDXR before issuing the key. */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpKey(void)
 {
 	/* send_Initiation_LFSR(); */
@@ -3329,7 +3330,7 @@ IwavePnpKey(void)
 
 }
 
-BYTE 
+static BYTE 
 IwavePnpIsol(PORT * pnpread)
 {
 	int             num_pnp_devs;
@@ -3374,7 +3375,7 @@ IwavePnpIsol(PORT * pnpread)
 /* will be obtained. */
 /* */
 /* ######################################################################## */
-void
+static void
 IwavePnpSerial(PORT pnprdp,
 	       BYTE csn,
 	       BYTE * vendor,
@@ -3438,7 +3439,7 @@ IwavePnpSerial(PORT pnprdp,
 /* should issue a WAKE[CSN] command */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpPeek(PORT pnprdp, WORD bytes, BYTE * data)
 {
 	WORD            i;
@@ -3467,7 +3468,7 @@ IwavePnpPeek(PORT pnprdp, WORD bytes, BYTE * data)
 /* IwavePnpActivate(AUDIO,OFF). */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpEeprom(BYTE ctrl)
 {
 	ENTER_CRITICAL;
@@ -3487,7 +3488,7 @@ IwavePnpEeprom(BYTE ctrl)
 /* activated. */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpActivate(BYTE dev, BYTE bool)
 {
 	IwavePnpDevice(dev);	/* select audio device */
@@ -3506,7 +3507,7 @@ IwavePnpActivate(BYTE dev, BYTE bool)
 /* that the PNP state machine is in configuration mode. */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpDevice(BYTE dev)
 {
 	ENTER_CRITICAL;
@@ -3526,7 +3527,7 @@ IwavePnpDevice(BYTE dev)
 /* mode. */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpPower(BYTE mode)
 {
 	ENTER_CRITICAL;
@@ -3546,7 +3547,7 @@ IwavePnpPower(BYTE mode)
 /* "wait for key" state. */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwavePnpWake(BYTE csn)
 {
 	ENTER_CRITICAL;
@@ -3569,7 +3570,7 @@ IwavePnpWake(BYTE csn)
 /* activated and that the PNP state machine is in config mode. */
 /* */
 /* ######################################################################## */
-PORT 
+static PORT 
 IwavePnpIOcheck(PORT base, BYTE no_ports)
 {
 	BYTE            i;
@@ -3606,7 +3607,7 @@ IwavePnpIOcheck(PORT base, BYTE no_ports)
 /* InterWave IC it will return FALSE. */
 /* */
 /* ######################################################################## */
-BYTE 
+static BYTE 
 IwavePnpGetCSN(DWORD VendorID, BYTE csn_max)
 {
 	BYTE            csn;
@@ -3650,7 +3651,7 @@ IwavePnpGetCSN(DWORD VendorID, BYTE csn_max)
 /* sure they are compatible with the board. */
 /* */
 /* ######################################################################## */
-BYTE 
+static BYTE 
 IwavePnpPing(DWORD VendorID)
 {
 	BYTE            csn;
@@ -3681,7 +3682,7 @@ IwavePnpPing(DWORD VendorID)
 
 /* end of pnp code */
 
-WORD 
+static WORD 
 IwaveMemSize(void)
 {
 	BYTE            datum = 0x55;
@@ -3701,7 +3702,7 @@ IwaveMemSize(void)
 	return ((WORD) (local >> 10));
 }
 
-BYTE 
+static BYTE 
 IwaveMemPeek(ADDRESS addr)
 {
 	PORT            p3xr;
@@ -3717,7 +3718,7 @@ IwaveMemPeek(ADDRESS addr)
 }
 
 
-void 
+static void 
 IwaveMemPoke(ADDRESS addr, BYTE datum)
 {
 	PORT            p3xr;
@@ -3751,7 +3752,7 @@ IwaveMemPoke(ADDRESS addr, BYTE datum)
 /* full addressing span (LMCFI[3:0]=0xC). */
 /* */
 /* ######################################################################## */
-void 
+static void 
 IwaveMemCfg(DWORD * lpbanks)
 {
 	DWORD           bank[4] = {0L, 0L, 0L, 0L};
@@ -3850,7 +3851,7 @@ IwaveMemCfg(DWORD * lpbanks)
 /* IwaveCodeIrq(~CODEC_IRQ_ENABLE). */
 /**/
 /* ######################################################################## */
-void 
+static void 
 IwaveCodecIrq(BYTE mode)
 {
 	BYTE            reg;
@@ -3886,7 +3887,7 @@ IwaveCodecIrq(BYTE mode)
 /* meaningless data. */
 /**/
 /* ######################################################################### */
-WORD 
+static WORD 
 IwaveRegPeek(DWORD reg_mnem)
 {
 	BYTE            index, val;
@@ -4016,7 +4017,7 @@ IwaveRegPeek(DWORD reg_mnem)
 /* that the writes are to valid registers. */
 /**/
 /* ######################################################################### */
-void 
+static void 
 IwaveRegPoke(DWORD reg_mnem, WORD datum)
 {
 	BYTE            index;
@@ -4131,7 +4132,7 @@ IwaveRegPoke(DWORD reg_mnem, WORD datum)
 }
 
 
-void 
+static void 
 IwaveLineLevel(char level, char index)
 {
 	char            reg;
@@ -4145,7 +4146,7 @@ IwaveLineLevel(char level, char index)
 	LEAVE_CRITICAL;
 }
 
-void 
+static void 
 IwaveCodecMode(char mode)
 {
     char            reg;
@@ -4158,7 +4159,7 @@ IwaveCodecMode(char mode)
     iw.cmode = mode;
 }
 
-void 
+static void 
 IwaveLineMute(BYTE mute, BYTE inx)
 {
     BYTE            reg;
@@ -4173,7 +4174,7 @@ IwaveLineMute(BYTE mute, BYTE inx)
     LEAVE_CRITICAL;
 }
 
-void 
+static void 
 Iwaveinitcodec()
 {
 
@@ -4654,7 +4655,7 @@ do_loop_irq(int voice)
 	splx(flags);
 }
 
-void
+static void
 do_volume_irq(int voice)
 {
 	u_char   tmp;

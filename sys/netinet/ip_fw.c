@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.75 1998/02/06 02:45:54 alex Exp $
+ *	$Id: ip_fw.c,v 1.76 1998/02/06 12:13:51 eivind Exp $
  */
 
 /*
@@ -60,7 +60,7 @@ static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 static int fw_verbose_limit = 0;
 #endif
 
-LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
+static LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 
 static MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 

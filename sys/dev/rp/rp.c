@@ -61,7 +61,7 @@
 #define FALSE 0
 #endif
 
-Byte_t RData[RDATASIZE] =
+static Byte_t RData[RDATASIZE] =
 {
    0x00, 0x09, 0xf6, 0x82,
    0x02, 0x09, 0x86, 0xfb,
@@ -83,7 +83,7 @@ Byte_t RData[RDATASIZE] =
    0x22, 0x09, 0x0a, 0x0a
 };
 
-Byte_t RRegData[RREGDATASIZE]=
+static Byte_t RRegData[RREGDATASIZE]=
 {
    0x00, 0x09, 0xf6, 0x82,	       /* 00: Stop Rx processor */
    0x08, 0x09, 0x8a, 0x13,	       /* 04: Tx software flow control */
@@ -100,7 +100,7 @@ Byte_t RRegData[RREGDATASIZE]=
    0x22, 0x09, 0x0a, 0x0a	       /* 30: Rx FIFO Enable */
 };
 
-CONTROLLER_T sController[CTL_SIZE] =
+static CONTROLLER_T sController[CTL_SIZE] =
 {
    {-1,-1,0,0,0,0,0,0,0,0,0,{0,0,0,0},{0,0,0,0},{-1,-1,-1,-1},{0,0,0,0}},
    {-1,-1,0,0,0,0,0,0,0,0,0,{0,0,0,0},{0,0,0,0},{-1,-1,-1,-1},{0,0,0,0}},
@@ -116,12 +116,12 @@ Byte_t sIRQMap[16] =
 };
 #endif
 
-Byte_t sBitMapClrTbl[8] =
+static Byte_t sBitMapClrTbl[8] =
 {
    0xfe,0xfd,0xfb,0xf7,0xef,0xdf,0xbf,0x7f
 };
 
-Byte_t sBitMapSetTbl[8] =
+static Byte_t sBitMapSetTbl[8] =
 {
    0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
 };
@@ -772,7 +772,7 @@ static char* rp_pciprobe(pcici_t tag, pcidi_t type);
 static void rp_pciattach(pcici_t tag, int unit);
 static u_long	rp_pcicount;
 
-struct pci_device rp_pcidevice = {
+static struct pci_device rp_pcidevice = {
 	"rp",
 	rp_pciprobe,
 	rp_pciattach,

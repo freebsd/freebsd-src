@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.52 1997/12/06 14:27:08 bde Exp $
+ *	$Id: vn.c,v 1.53 1998/01/24 02:54:05 eivind Exp $
  */
 
 /*
@@ -108,8 +108,8 @@ static struct bdevsw vn_bdevsw =
 
 
 #ifdef DEBUG
-int dovncluster = 1;
-int vndebug = 0x00;
+static int dovncluster = 1;
+static int vndebug = 0x00;
 #define VDB_FOLLOW	0x01
 #define VDB_INIT	0x02
 #define VDB_IO		0x04

@@ -55,7 +55,7 @@ static u_short pcm_bitsok = 8;	/* mask of OK bits */
 static int      my_devnum = 0;
 static int	open_mode = 0;
 
-int
+static int
 pcm_set_speed(int arg)
 {
 	int             foo, tmp;
@@ -114,7 +114,7 @@ pcm_set_speed(int arg)
 	return pcm_speed;
 }
 
-int
+static int
 pcm_set_channels(int arg)
 {
 
@@ -131,7 +131,7 @@ pcm_set_channels(int arg)
 	return pcm_channels;
 }
 
-int
+static int
 pcm_set_bits(int arg)
 {
 	if ((arg & pcm_bitsok) != arg)
