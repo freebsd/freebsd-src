@@ -307,6 +307,7 @@ getgr(int (*fn)(union key, struct group *, char *, size_t, struct group **),
 			free(grp_storage);
 			if ((grp_storage_size << 1) > GRP_STORAGE_MAX) {
 				grp_storage = NULL;
+				errno = ERANGE;
 				return (NULL);
 			}
 			grp_storage_size <<= 1;
@@ -315,6 +316,8 @@ getgr(int (*fn)(union key, struct group *, char *, size_t, struct group **),
 				return (NULL);
 		}
 	} while (res == NULL && rv == ERANGE);
+	if (rv != 0)
+		errno = rv;
 	return (res);
 }
 
