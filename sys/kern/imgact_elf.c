@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.10 1996/10/16 17:51:05 sos Exp $
+ *	$Id: imgact_elf.c,v 1.11 1996/10/16 20:59:08 sos Exp $
  */
 
 #include <sys/param.h>
@@ -655,6 +655,7 @@ exec_elf_imgact(struct image_params *imgp)
 						elf_brand_list[i]->interp_path,
 						elf_brand_list[i]->emul_path);
 					}
+					break;
 				}
 			}
 		}
