@@ -223,7 +223,7 @@ ddp_clean(void)
 {
     struct ddpcb	*ddp;
 
-    for (ddp = ddpcb; ddp; ddp = ddp->ddp_next) {
+    for (ddp = ddpcb_list; ddp != NULL; ddp = ddp->ddp_next) {
 	at_pcbdetach(ddp->ddp_socket, ddp);
     }
 }
