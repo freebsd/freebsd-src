@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id$
+ * $Id: ufs_vnops.c,v 1.46 1997/02/22 09:47:53 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -577,7 +577,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	return (error);
 good:
 	if (getinoquota(ip))
-		panic("chown: lost quota");
+		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	if (ouid != uid || ogid != gid)
 		ip->i_flag |= IN_CHANGE;
@@ -1061,7 +1061,7 @@ abortit:
 	 */
 	if (xp == NULL) {
 		if (dp->i_dev != ip->i_dev)
-			panic("rename: EXDEV");
+			panic("ufs_rename: EXDEV");
 		/*
 		 * Account for ".." in new directory.
 		 * When source and destination have the same
@@ -1098,12 +1098,12 @@ abortit:
 		vput(tdvp);
 	} else {
 		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
-			panic("rename: EXDEV");
+			panic("ufs_rename: EXDEV");
 		/*
 		 * Short circuit rename(foo, foo).
 		 */
 		if (xp->i_number == ip->i_number)
-			panic("rename: same file");
+			panic("ufs_rename: same file");
 		/*
 		 * If the parent directory is "sticky", then the user must
 		 * own the parent directory, or the destination of the rename,
@@ -1177,7 +1177,7 @@ abortit:
 		xp->i_nlink--;
 		if (doingdirectory) {
 			if (--xp->i_nlink != 0)
-				panic("rename: linked directory");
+				panic("ufs_rename: linked directory");
 			error = VOP_TRUNCATE(tvp, (off_t)0, IO_SYNC,
 			    tcnp->cn_cred, tcnp->cn_proc);
 		}
@@ -1205,7 +1205,7 @@ abortit:
 		 * From name has disappeared.
 		 */
 		if (doingdirectory)
-			panic("rename: lost dir entry");
+			panic("ufs_rename: lost dir entry");
 		vrele(ap->a_fvp);
 		return (0);
 	}
@@ -1221,7 +1221,7 @@ abortit:
 	 */
 	if (xp != ip) {
 		if (doingdirectory)
-			panic("rename: lost dir entry");
+			panic("ufs_rename: lost dir entry");
 	} else {
 		/*
 		 * If the source is a directory with a

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id$
+ * $Id: ufs_bmap.c,v 1.14 1997/02/22 09:47:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -195,7 +195,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
 			if (!daddr)
-				panic("ufs_bmaparry: indirect block not in cache");
+				panic("ufs_bmaparray: indirect block not in cache");
 #endif
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_flags |= B_READ;
