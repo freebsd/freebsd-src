@@ -160,6 +160,24 @@ is included in this rule, while the command
 is not.
 (The latter is described in the third area, below.)
 .Pp
+If it is explicitly intended that the command operate on the symbolic
+link instead of following the symbolic link, e.g., it is desired that
+.Dq Li "chown slink"
+change the ownership of the file that
+.Dq Li slink
+is, whether it is a symbolic link or not, the
+.Fl h
+option should be used.
+In the above example,
+.Dq Li "chown root slink"
+would change the ownership of the file referenced by
+.Dq Li slink ,
+while
+.Dq Li "chown -h root slink"
+would change the ownership of
+.Dq Li slink
+itself.
+.Pp
 There are four exceptions to this rule.
 The
 .Xr mv 1
