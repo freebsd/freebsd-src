@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 /*
  * MAINTAINER = Roger Hardiman <roger@freebsd.org>
+ * Newsflash: Roger is temorararily out of touch and unable 
+ * to maintain this..
  */
 
 /*
@@ -518,4 +520,5 @@
                   support for audio on Hauppauge cards without the audio mux.
                   The MSP is used for audio selection. (the 44xxx models)
 
-
+[see http://www.freebsd.org/cgi/cvsweb.cgi/src/sys/dev/bktr/
+for newer change logs ]
