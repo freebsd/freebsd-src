@@ -10,14 +10,18 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 1999121:
 	Vinum has changed.  The "vinum read" command has changed.  For
 	updates, please see
+
 http://www.freebsd.org/cgi/getmsg.cgi?fetch=800363+0+current/freebsd-current
+
 	for details.  
 
 	Matt Dillon committed a boatload of VM changes, for
 	information please see
+
 http://www.freebsd.org/cgi/getmsg.cgi?fetch=886676+0+current/freebsd-current
 	or
 http://www.freebsd.org/cgi/getmsg.cgi?fetch=827400+0+current/freebsd-current
+
 	for details.  These changes will likely not impact anybody,
 	but large chagnes to the VM need at least a heads up.
 
@@ -103,4 +107,4 @@ http://www.freebsd.org/cgi/getmsg.cgi?fetch=827400+0+current/freebsd-current
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
 
-$Id: UPDATING,v 1.14 1999/01/19 21:04:22 imp Exp $
+$Id: UPDATING,v 1.15 1999/01/21 20:13:41 imp Exp $
