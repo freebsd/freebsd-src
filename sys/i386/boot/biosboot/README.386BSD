@@ -16,8 +16,9 @@ following operations occur:
 or MBR) and if it has the correct magic numbers, jumps into it:
 
 2/ The  MBR code, looks at the Partition table that is embedded within it,
-to detirmine which is the partition to boot from. If you are using the os-bs
-bootblocks (highly recommended) then it will give you a menu to choose from.
+to determine which is the partition to boot from.  If you install the
+boot manager when FreeBSD is first installed, it will also give you a nice
+menu for switching between operating systems.
 
 3/ The MBR will load  the first record of the selected partition and
 if it has (the same) magic numbers, jumps into it. In 386bsd this is the
@@ -148,4 +149,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id$
+$Id: README.386BSD,v 1.2 1993/10/16 19:11:25 rgrimes Exp $
