@@ -48,6 +48,7 @@ static const char rcsid[] =
 
 #include <net/route.h>
 
+#include <netgraph.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_socket.h>
 #include <netgraph/ng_socketvar.h>

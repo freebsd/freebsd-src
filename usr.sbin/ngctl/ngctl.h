@@ -52,6 +52,7 @@
 #include <errno.h>
 #include <err.h>
 
+#include <netgraph.h>
 #include <netgraph/ng_socket.h>
 #include <netgraph/ng_message.h>
 
