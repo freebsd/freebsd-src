@@ -42,7 +42,6 @@
 .Nd locate programs
 .Sh SYNOPSIS
 .Nm
-.Op Fl p
 .Ar program
 .Op Ar program ...
 .Sh DESCRIPTION
@@ -56,12 +55,6 @@ The default path searched is the string returned by the
 utility for the
 .Dq user.cs_path
 string.
-If the
-.Op Fl p
-option is specified, then the value of the environment
-variable
-.Ev PATH
-is used instead.
 .Sh SEE ALSO
 .Xr which 1 ,
 .Xr sysctl 8
