@@ -1635,8 +1635,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (nva > eva)
 			nva = eva;
 
-		pte = pmap_pte(pmap, sva);
-		for (; sva < nva; sva += PAGE_SIZE, pte++) {
+		for (; sva < nva; sva += PAGE_SIZE) {
+			pte = pmap_pte(pmap, sva);
 			if ((*pte & PG_V) == 0)
 				continue;
 			
