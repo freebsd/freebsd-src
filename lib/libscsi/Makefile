@@ -14,8 +14,7 @@ MLINKS+=scsi.3 scsireq_buff_decode.3 scsi.3 scsireq_build.3 \
 	scsi.3 scsi_debug_output.3
 
 beforeinstall:
-	-cd ${.CURDIR}; cmp -s scsi.h ${DESTDIR}/usr/include/scsi.h || \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 scsi.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/scsi.h \
 	    ${DESTDIR}/usr/include
 
 

@@ -1,4 +1,4 @@
-# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.16 1996/08/12 18:03:53 ache Exp $
+# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.17 1996/08/12 19:04:23 ache Exp $
 
 
 LIB=	gnuregex
@@ -9,8 +9,7 @@ NOMAN=	noman
 SUBDIR+= doc
 
 beforeinstall:
-	cmp -s ${.CURDIR}/regex.h ${DESTDIR}/usr/include/gnuregex.h || \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/regex.h ${DESTDIR}/usr/include/gnuregex.h
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/regex.h \
+		${DESTDIR}/usr/include/gnuregex.h
 
 .include <bsd.lib.mk>

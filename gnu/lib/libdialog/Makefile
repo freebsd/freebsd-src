@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.16 1996/02/09 16:19:16 mpp Exp $
+# $Id: Makefile,v 1.18 1996/08/13 12:46:10 jkh Exp $
 
 LIB=    dialog
 MAN3=	dialog.3
@@ -16,8 +16,7 @@ LDADD+= -lncurses -lmytinfo
 DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
 
 beforeinstall:
-	-cd ${.CURDIR}; cmp -s dialog.h ${DESTDIR}/usr/include/dialog.h || \
-	      ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 dialog.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
 	      ${DESTDIR}/usr/include
 
 MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \

@@ -1,7 +1,7 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.8 1994/11/16 11:54:09 ache Exp $
+# $Id: Makefile,v 1.9 1995/08/06 12:37:26 bde Exp $
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
@@ -17,15 +17,12 @@ CAPS=   1000
 
 # ${.CURDIR}/term.h: ${.CURDIR}/term.head ${.CURDIR}/term.tail
 update_term_h: ${.CURDIR}/term.head ${.CURDIR}/term.tail
-	 cat ${.CURDIR}/term.head ${.CURDIR}/term.tail > ${.CURDIR}/term.h
+	cat ${.CURDIR}/term.head ${.CURDIR}/term.tail > ${.CURDIR}/term.h
 
 beforeinstall:
-	-cmp -s ${.CURDIR}/term.h ${DESTDIR}/usr/include/term.h && \
-	 cmp -s ${.CURDIR}/term.h ${DESTDIR}/usr/include/nterm.h || \
-	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/term.h ${DESTDIR}/usr/include; \
-	    rm -f ${DESTDIR}/usr/include/nterm.h; \
-	    ln -s term.h ${DESTDIR}/usr/include/nterm.h )
+	$(INSTALL) -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/term.h \
+		${DESTDIR}/usr/include
+	ln -sf term.h ${DESTDIR}/usr/include/nterm.h
 
 capsort.c: mkcapsort
 	./mkcapsort > capsort.c

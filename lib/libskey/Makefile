@@ -8,8 +8,7 @@ MAN5=	skey.access.5
 CFLAGS+=-DPERMIT_CONSOLE -I${.CURDIR}
 
 beforeinstall:
-	-cd ${.CURDIR}; cmp -s skey.h ${DESTDIR}/usr/include/skey.h || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 skey.h \
-	  ${DESTDIR}/usr/include
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/skey.h \
+		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
