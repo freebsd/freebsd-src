@@ -634,7 +634,9 @@ asr_drvinit (
 } /* asr_drvinit */
 
 /* Must initialize before CAM layer picks up our HBA driver */
+#ifdef ASR_VERY_BROKEN
 SYSINIT(asrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asr_drvinit,NULL)
+#endif
 
 /* I2O support routines */
 #define defAlignLong(STRUCT,NAME) char NAME[sizeof(STRUCT)]
