@@ -573,7 +573,9 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926, etc.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+3Com 3C509, 3C579, 
+3C589/589B/589C/589D/589E/XE589ET/574TX/574B (PC-card/PCMCIA), 
+3C590/592/595/900/905/905B/905C PCI 
 and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c980/3c980B Fast Etherlink XL server adapter
@@ -582,7 +584,33 @@ and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards
 
-SMC 91xx based ethernet cards
+NE2000 compatible PC-Card (PCMCIA) Ethernet/FastEthernet cards,
+including the following:
+  AR-P500 Ethernet card
+  Accton EN2212/EN2216/UE2216(OEM)
+  Allied Telesis CentreCOM LA100-PCM_V2
+  AmbiCom 10BaseT card
+  BayNetworks NETGEAR FA410TXC Fast Ethernet
+  CNet BC40 adapter
+  COREGA Ether PCC-T/EtherII PCC-T
+  Compex Net-A adapter
+  CyQ've ELA-010
+  D-Link DE-650/660
+  Danpex EN-6200P2
+  IO DATA PCLATE
+  IBM Creditcard Ethernet I/II
+  IC-CARD Ethernet/IC-CARD+ Ethernet
+  Linksys EC2T/PCMPC100
+  Melco LPC-T
+  NDC Ethernet Instant-Link
+  National Semiconductor InfoMover NE4100
+  Network Everywhere Ethernet 10BaseT PC Card
+  Planex FNW-3600-T
+  Socket LP-E
+  Surecom EtherPerfect EP-427
+  Telecom Device SuperSocket RE450T
+
+Megahertz X-Jack Ethernet PC-Card CC-10BT
 
 
 4.3.    USB
