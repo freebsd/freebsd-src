@@ -39,6 +39,12 @@ static const char rcsid[] =
  * I'm afraid.
  */
 
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/pioctl.h>
+#include <sys/proc.h>
+#include <sys/wait.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -47,10 +53,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/pioctl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 static int evflags = 0;
 
