@@ -377,15 +377,13 @@ void
 if_up(ifp)
 	register struct ifnet *ifp;
 {
+	register struct ifaddr *ifa;
 
 	ifp->if_flags |= IFF_UP;
 	microtime(&ifp->if_lastchange);
-#ifdef notyet
-	register struct ifaddr *ifa;
-	/* this has no effect on IP, and will kill all iso connections XXX */
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next)
 		pfctlinput(PRC_IFUP, ifa->ifa_addr);
-#endif
 	rt_ifmsg(ifp);
 }
 

@@ -224,6 +224,7 @@ extern	struct pr_usrreqs pru_oldstyle;
  */
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
+#define	PRC_IFUP		2 	/* interface has come back up */
 #define	PRC_QUENCH2		3	/* DEC congestion bit says slow down */
 #define	PRC_QUENCH		4	/* some one said to slow down */
 #define	PRC_MSGSIZE		5	/* message size forced drop */
@@ -250,7 +251,7 @@ extern	struct pr_usrreqs pru_oldstyle;
 
 #ifdef PRCREQUESTS
 char	*prcrequests[] = {
-	"IFDOWN", "ROUTEDEAD", "#2", "DEC-BIT-QUENCH2",
+	"IFDOWN", "ROUTEDEAD", "IFUP", "DEC-BIT-QUENCH2",
 	"QUENCH", "MSGSIZE", "HOSTDEAD", "#7",
 	"NET-UNREACH", "HOST-UNREACH", "PROTO-UNREACH", "PORT-UNREACH",
 	"#12", "SRCFAIL-UNREACH", "NET-REDIRECT", "HOST-REDIRECT",
