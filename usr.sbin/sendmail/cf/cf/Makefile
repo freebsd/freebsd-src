@@ -20,9 +20,9 @@ RM=	rm -f
 .SUFFIXES:  .mc .cf
 
 .mc.cf:
-	$(RM) $@
-	(cd ${.CURDIR} && $(M4) ${CFDIR}/m4/cf.m4 ${@:R}.mc) > $@
-	$(CHMOD) $(ROMODE) $@
+	$(RM) ${.TARGET}
+	(cd ${.CURDIR} && $(M4) ${CFDIR}/m4/cf.m4 ${@:R}.mc) > ${.TARGET}
+	$(CHMOD) $(ROMODE) ${.TARGET}
 
 ALL=	freebsd.cf
 
@@ -55,7 +55,6 @@ install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${SENDMAIL_CF} \
 		${DESTDIR}/etc/sendmail.cf
 .endif
-	
 
 # Helper for src/etc/Makefile
 etc-sendmail.cf: freebsd.cf
