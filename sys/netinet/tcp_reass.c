@@ -31,14 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.62 1997/09/30 16:38:09 fenner Exp $
+ *	$Id: tcp_input.c,v 1.63 1997/10/02 02:10:40 davidg Exp $
  */
 
 #include "opt_tcpdebug.h"
 
 #ifndef TUBA_INCLUDE
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -48,7 +47,6 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
 #include <sys/syslog.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */

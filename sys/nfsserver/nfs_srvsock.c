@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.28 1997/09/02 01:19:37 bde Exp $
+ * $Id: nfs_socket.c,v 1.29 1997/10/12 20:25:44 phk Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/vnode.h>
-#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.4 1997/06/12 14:08:20 tegge Exp $	*/
+/*	$Id: bootp_subr.c,v 1.5 1997/08/16 19:15:51 wollman Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -45,12 +45,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
 #include <sys/sockio.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/mbuf.h>
-#include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 
@@ -60,7 +58,6 @@
 #include <netinet/in.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
-#include <netinet/if_ether.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
