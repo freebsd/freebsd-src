@@ -468,7 +468,7 @@ extern DMenu		MenuXOrgSelect;		/* X.Org distribution selection menu		*/
 extern DMenu		MenuXOrgSelectCore;	/* X.Org core distribution menu			*/
 extern DMenu		MenuXOrgSelectServer;	/* X.Org server distribution menu		*/
 extern DMenu		MenuXOrgSelectFonts;	/* X.Org font selection menu			*/
-extern DMenu		MenuXDesktops;		/* Disk devices menu				*/
+extern DMenu		MenuXDesktops;		/* X Desktops menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
