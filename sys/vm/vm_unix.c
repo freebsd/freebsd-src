@@ -78,10 +78,10 @@ obreak(td, uap)
 	int rv;
 	int error = 0;
 
-	mtx_lock(&Giant);	/* syscall marked mp-safe but isn't */
+	new = round_page((vm_offset_t)uap->nsize);
+	vm_map_lock(&vm->vm_map);
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
-	new = round_page((vm_offset_t)uap->nsize);
 	old = base + ctob(vm->vm_dsize);
 	if (new > base) {
 		/*
@@ -106,20 +106,16 @@ obreak(td, uap)
 		error = EINVAL;
 		goto done;
 	}
-
 	if (new > old) {
-		vm_size_t diff;
-
-		diff = new - old;
-		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
-			VM_PROT_ALL, VM_PROT_ALL, 0);
+		rv = vm_map_insert(&vm->vm_map, NULL, 0, old, new,
+		    VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			error = ENOMEM;
 			goto done;
 		}
-		vm->vm_dsize += btoc(diff);
+		vm->vm_dsize += btoc(new - old);
 	} else if (new < old) {
-		rv = vm_map_remove(&vm->vm_map, new, old);
+		rv = vm_map_delete(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
 			error = ENOMEM;
 			goto done;
@@ -127,7 +123,7 @@ obreak(td, uap)
 		vm->vm_dsize -= btoc(old - new);
 	}
 done:
-	mtx_unlock(&Giant);
+	vm_map_unlock(&vm->vm_map);
 	return (error);
 }
 
