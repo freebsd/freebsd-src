@@ -1,4 +1,4 @@
-/*	$Id: util.c,v 1.4 1997/12/16 08:17:26 ache Exp $	*/
+/*	$Id: util.c,v 1.5 1998/02/03 20:53:25 pst Exp $	*/
 /*	$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $	*/
 
 /*
@@ -36,7 +36,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id: util.c,v 1.4 1997/12/16 08:17:26 ache Exp $");
+__RCSID("$Id: util.c,v 1.5 1998/02/03 20:53:25 pst Exp $");
 __RCSID_SOURCE("$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $");
 #endif /* not lint */
 
@@ -589,7 +589,8 @@ progressmeter(flag)
 	struct timeval now, td, wait;
 	off_t cursize, abbrevsize;
 	double elapsed;
-	int ratio, barlength, i, len, remaining;
+	int ratio, barlength, i, len;
+	off_t remaining;
 	char buf[256];
 
 	len = 0;
@@ -650,7 +651,7 @@ progressmeter(flag)
 		len += snprintf(buf + len, sizeof(buf) - len,
 		    " - stalled -");
 	} else {
-		remaining = (int)
+		remaining = 
 		    ((filesize - restart_point) / (bytes / elapsed) - elapsed);
 		if (remaining >= 100 * SECSPERHOUR)
 			len += snprintf(buf + len, sizeof(buf) - len,
