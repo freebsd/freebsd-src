@@ -662,15 +662,13 @@ fill_kinfo_proc(p, kp)
 
 		kp->ki_size = vm->vm_map.size;
 		kp->ki_rssize = vmspace_resident_count(vm); /*XXX*/
-		if (p->p_sflag & PS_INMEM) {
+		if (p->p_sflag & PS_INMEM)
 			kp->ki_rssize += UAREA_PAGES;
-			FOREACH_THREAD_IN_PROC(p, td0) {
-				if (!TD_IS_SWAPPED(td0))
-					kp->ki_rssize += td0->td_kstack_pages;
-				if (td0->td_altkstack_obj != NULL)
-					kp->ki_rssize +=
-					    td0->td_altkstack_pages;
-			}
+		FOREACH_THREAD_IN_PROC(p, td0) {
+			if (!TD_IS_SWAPPED(td0))
+				kp->ki_rssize += td0->td_kstack_pages;
+			if (td0->td_altkstack_obj != NULL)
+				kp->ki_rssize += td0->td_altkstack_pages;
 		}
 		kp->ki_swrss = vm->vm_swrss;
 		kp->ki_tsize = vm->vm_tsize;
