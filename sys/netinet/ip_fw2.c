@@ -492,7 +492,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 				inet_ntoa(sa->sa.sin_addr));
 			if (sa->sa.sin_port)
 				snprintf(SNPARGS(action2, len), ":%d",
-					ntohs(sa->sa.sin_port));
+				    sa->sa.sin_port);
 			}
 			break;
 		default:
