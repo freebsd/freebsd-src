@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.2 1998/09/02 08:47:31 sos Exp sos $
+ *	$Id: atapi-cd.c,v 1.1 1998/09/08 20:57:47 sos Exp $
  */
 
 #include "wdc.h"
@@ -1146,7 +1146,7 @@ acd_read_toc(struct acd *cdp)
     cdp->info.blksize = ntohl(cdp->info.blksize);
 
     if (cdp->info.volsize && cdp->toc.hdr.ending_track
-        /* && (cdp->flags & F_DEBUG) */) {
+        && (cdp->flags & F_DEBUG)) {
         printf("acd%d: ", cdp->lun);
         if (cdp->toc.tab[0].control & 4)
             printf("%ldMB ", cdp->info.volsize / 512);
