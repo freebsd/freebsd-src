@@ -40,6 +40,11 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
     draw_shadow(stdscr, y, x, height, width);
 #endif
   dialog = newwin(height, width, y, x);
+  if (dialog == NULL) {
+    endwin();
+    fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
+    exit(1);
+  }
   keypad(dialog, TRUE);
 
   draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
