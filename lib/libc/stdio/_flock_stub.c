@@ -73,7 +73,9 @@ _flockfile(FILE *fp)
 {
 	pthread_t curthread = _pthread_self();
 
-	if (fp->_lock->fl_owner == curthread)
+	if (fp->_lock == NULL) {
+	}
+	else if (fp->_lock->fl_owner == curthread)
 		fp->_lock->fl_count++;
 	else {
 		/*
@@ -101,7 +103,9 @@ _ftrylockfile(FILE *fp)
 	pthread_t curthread = _pthread_self();
 	int	ret = 0;
 
-	if (fp->_lock->fl_owner == curthread)
+	if (fp->_lock == NULL) {
+	}
+	else if (fp->_lock->fl_owner == curthread)
 		fp->_lock->fl_count++;
 	/*
 	 * Make sure this mutex is treated as a private
@@ -121,10 +125,12 @@ _funlockfile(FILE *fp)
 {
 	pthread_t	curthread = _pthread_self();
 
+	if (fp->_lock == NULL) {
+	}
 	/*
 	 * Check if this file is owned by the current thread:
 	 */
-	if (fp->_lock->fl_owner == curthread) {
+	else if (fp->_lock->fl_owner == curthread) {
 		/*
 		 * Check if this thread has locked the FILE
 		 * more than once:
