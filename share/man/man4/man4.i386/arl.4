@@ -42,7 +42,7 @@
 The
 .Nm
 driver provides support for Aironet Arlan 655 
-wireless network adapter.
+wireless network adapters.
 The Arlan 655 series adapters operate at 354kbps, 512kbps, 1Mbps and 2Mbps.
 .Pp
 The Aironet Arlan 655 devices support Aironet TMA, Aironet Non-TMA 
@@ -50,9 +50,9 @@ and PSP operating modes.
 .Pp
 By default, the
 .Nm
-driver configures the Aironet Aironet 655 card for TMA operation.
+driver configures the Aironet Arlan 655 card for TMA operation.
 .Pp
-For setup Radio Network parameters use 
+To set up Radio Network parameters, use 
 .Xr arlconfig 8 .
 .Sh SEE ALSO
 .Xr arp 4 ,
@@ -68,12 +68,12 @@ device driver first appeared in
 .An -nosplit
 The
 .Nm
-driver initally was written by
+driver was initially written by
 .An Ivan Sharov Aq ivan.sharov@iname.com .
 .Aq ran@styx.aic.net 
-wrote arlconfig utility and added ioctl support to the driver.
+wrote the arlconfig utility and added ioctl support to the driver.
 .An Stanislav Svirid Aq count@riss-telecom.ru
-ported this driver to new ISA architechture, merged some al driver changes, 
+ported this driver to the new ISA architecture, merged some al driver changes, 
 fixed some bugs and made it a module.
 .An Yuri Kurenkov Aq y.kurenkov@init.ru
 wrote this manpage.
