@@ -873,12 +873,14 @@ kse_sched_single(struct kse_mailbox *kmbx)
 		THR_DEACTIVATE_LAST_LOCK(curthread);
 		kse_wait(curkse, curthread, sigseqno);
 		THR_ACTIVATE_LAST_LOCK(curthread);
-		KSE_GET_TOD(curkse, &ts);
-		if (thr_timedout(curthread, &ts)) {
-			/* Indicate the thread timedout: */
-			curthread->timeout = 1;
-			/* Make the thread runnable. */
-			THR_SET_STATE(curthread, PS_RUNNING);
+		if (curthread->wakeup_time.tv_sec >= 0) {
+			KSE_GET_TOD(curkse, &ts);
+			if (thr_timedout(curthread, &ts)) {
+				/* Indicate the thread timedout: */
+				curthread->timeout = 1;
+				/* Make the thread runnable. */
+				THR_SET_STATE(curthread, PS_RUNNING);
+			}
 		}
 	}
 
@@ -1811,13 +1813,12 @@ kse_wait(struct kse *kse, struct pthread *td_wait, int sigseqno)
 	struct timespec ts, ts_sleep;
 	int saved_flags;
 
-	KSE_GET_TOD(kse, &ts);
-
 	if ((td_wait == NULL) || (td_wait->wakeup_time.tv_sec < 0)) {
 		/* Limit sleep to no more than 1 minute. */
 		ts_sleep.tv_sec = 60;
 		ts_sleep.tv_nsec = 0;
 	} else {
+		KSE_GET_TOD(kse, &ts);
 		TIMESPEC_SUB(&ts_sleep, &td_wait->wakeup_time, &ts);
 		if (ts_sleep.tv_sec > 60) {
 			ts_sleep.tv_sec = 60;
