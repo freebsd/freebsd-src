@@ -168,6 +168,8 @@ The ahc(4) driver has been updated.  [MERGED]
 
 ACPI support has been merged in from the FreeBSD-ACPI project.
 
+isdn4bsd has been updated to version 0.96.00
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -826,6 +828,32 @@ Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,
 PCI and ISA adapters are all supported.
 Cisco Systems Aironet 340 Series (includes 340, 341, and 342 models)
 11Mbps 802.11 wireless NIC
+
+AcerISDN P10 ISA PnP (experimental)
+Asuscom ISDNlink 128K ISA
+AVM A1
+AVM Fritz!Card classic
+AVM Fritz!Card PnP
+AVM Fritz!Card PCI
+Creatix ISDN-S0
+Creatix ISDN-S0 P&P 
+Dr. Neuhaus Niccy Go@ and compatibles
+Dynalink IS64PH
+ELSA PCC-16
+ELSA QuickStep 1000pro ISA
+ELSA MicroLink ISDN/PCI
+ELSA QuickStep 1000pro PCI
+ITK ix1 Micro ( < V.3, non-PnP version )
+Sedlbauer Win Speed
+Siemens I-Surf 2.0
+TELEINT ISDN SPEED No.1 (experimental)
+Teles S0/8
+Teles S0/16
+Teles S0/16.3
+Teles S0/16.3 PnP
+Teles 16.3c ISA PnP (experimental)
+USRobotics Sportster ISDN TA intern
+Winbond W6692 based PCI cards
 
 
 3. Obtaining FreeBSD
