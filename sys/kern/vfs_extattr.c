@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.13 1994/10/11 20:40:12 sos Exp $
+ * $Id: vfs_syscalls.c,v 1.14 1994/10/15 02:53:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -337,10 +337,6 @@ sync(p, uap, retval)
 			vfs_unbusy(mp);
 		}
 	}
-#ifdef DIAGNOSTIC
-	if (syncprt)
-		vfs_bufstats();
-#endif /* DIAGNOSTIC */
 	return (0);
 }
 
