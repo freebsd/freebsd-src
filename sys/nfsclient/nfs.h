@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfs.h,v 1.2 1994/08/02 07:52:04 davidg Exp $
  */
 
 /*
@@ -51,8 +51,12 @@
 #define	NFS_MAXWINDOW	1024		/* Max number of outstanding requests */
 #define	NFS_RETRANS	10		/* Num of retrans for soft mounts */
 #define	NFS_MAXGRPS	16		/* Max. size of groups list */
+#ifndef NFS_MINATTRTIMO
 #define	NFS_MINATTRTIMO 5		/* Attribute cache timeout in sec */
+#endif
+#ifndef NFS_MAXATTRTIMO
 #define	NFS_MAXATTRTIMO 60
+#endif
 #define	NFS_WSIZE	8192		/* Def. write data size <= 8192 */
 #define	NFS_RSIZE	8192		/* Def. read data size <= 8192 */
 #define	NFS_DEFRAHEAD	1		/* Def. read ahead # blocks */
