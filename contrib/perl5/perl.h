@@ -1,6 +1,6 @@
 /*    perl.h
  *
- *    Copyright (c) 1987-1997, Larry Wall
+ *    Copyright (c) 1987-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -209,6 +209,12 @@ register struct op *op asm(stringify(OP_IN_REGISTER));
 #   define LIBERAL 1
 #endif
 
+#if 'A' == 65 && 'I' == 73 && 'J' == 74 && 'Z' == 90
+#define ASCIIish
+#else
+#undef  ASCIIish
+#endif
+
 /*
  * The following contortions are brought to you on behalf of all the
  * standards, semi-standards, de facto standards, not-so-de-facto standards
@@ -244,7 +250,7 @@ register struct op *op asm(stringify(OP_IN_REGISTER));
 #define TAINT_NOT	(PL_tainted = FALSE)
 #define TAINT_IF(c)	if (c) { PL_tainted = TRUE; }
 #define TAINT_ENV()	if (PL_tainting) { taint_env(); }
-#define TAINT_PROPER(s)	if (PL_tainting) { taint_proper(no_security, s); }
+#define TAINT_PROPER(s)	if (PL_tainting) { taint_proper(Nullch, s); }
 
 /* XXX All process group stuff is handled in pp_sys.c.  Should these 
    defines move there?  If so, I could simplify this a lot. --AD  9/96.
@@ -594,7 +600,7 @@ Free_t   Perl_free _((Malloc_t where));
 	    set_vaxc_errno(vmserrcode);	\
 	} STMT_END
 #else
-#   define SETERRNO(errcode,vmserrcode) errno = (errcode)
+#   define SETERRNO(errcode,vmserrcode) (errno = (errcode))
 #endif
 
 #ifdef USE_THREADS
@@ -1118,7 +1124,11 @@ typedef I32 (*filter_t) _((int, SV *, int));
 #     if defined(MPE)
 #       include "mpeix/mpeixish.h"
 #     else
-#       include "unixish.h"
+#       if defined(__VOS__)
+#         include "vosish.h"
+#       else
+#         include "unixish.h"
+#       endif
 #     endif
 #   endif
 # endif
@@ -1149,11 +1159,22 @@ typedef I32 (*filter_t) _((int, SV *, int));
 #      ifdef OS2
 #        include "os2thread.h"
 #      else
-#        include <pthread.h>
-typedef pthread_t perl_os_thread;
-typedef pthread_mutex_t perl_mutex;
-typedef pthread_cond_t perl_cond;
-typedef pthread_key_t perl_key;
+#        ifdef I_MACH_CTHREADS
+#          include <mach/cthreads.h>
+#          ifdef NeXT
+#            define MUTEX_INIT_CALLS_MALLOC
+#          endif
+typedef cthread_t	perl_os_thread;
+typedef mutex_t		perl_mutex;
+typedef condition_t	perl_cond;
+typedef void *		perl_key;
+#        else /* Posix threads */
+#          include <pthread.h>
+typedef pthread_t	perl_os_thread;
+typedef pthread_mutex_t	perl_mutex;
+typedef pthread_cond_t	perl_cond;
+typedef pthread_key_t	perl_key;
+#        endif /* I_MACH_CTHREADS */
 #      endif /* OS2 */
 #    endif /* WIN32 */
 #  endif /* FAKE_THREADS */
@@ -1369,7 +1390,7 @@ EXT char Error[1];
 # define HAS_VTOHS
 # define HAS_HTOVL
 # define HAS_HTOVS
-# if BYTEORDER == 0x4321
+# if BYTEORDER == 0x4321 || BYTEORDER == 0x87654321
 #  define vtohl(x)	((((x)&0xFF)<<24)	\
 			+(((x)>>24)&0xFF)	\
 			+(((x)&0x0000FF00)<<8)	\
@@ -1554,7 +1575,7 @@ char *getlogin _((void));
 #define UNLINK unlnk
 I32 unlnk _((char*));
 #else
-#define UNLINK unlink
+#define UNLINK PerlLIO_unlink
 #endif
 
 #ifndef HAS_SETREUID
@@ -1594,8 +1615,22 @@ typedef Sighandler_t Sigsave_t;
 #endif
 
 #ifdef MYMALLOC
-#  define MALLOC_INIT MUTEX_INIT(&PL_malloc_mutex)
-#  define MALLOC_TERM MUTEX_DESTROY(&PL_malloc_mutex)
+#  ifdef MUTEX_INIT_CALLS_MALLOC
+#    define MALLOC_INIT					\
+	STMT_START {					\
+		PL_malloc_mutex = NULL;			\
+		MUTEX_INIT(&PL_malloc_mutex);		\
+	} STMT_END
+#    define MALLOC_TERM					\
+	STMT_START {					\
+		perl_mutex tmp = PL_malloc_mutex;	\
+		PL_malloc_mutex = NULL;			\
+		MUTEX_DESTROY(&tmp);			\
+	} STMT_END
+#  else
+#    define MALLOC_INIT MUTEX_INIT(&PL_malloc_mutex)
+#    define MALLOC_TERM MUTEX_DESTROY(&PL_malloc_mutex)
+#  endif
 #else
 #  define MALLOC_INIT
 #  define MALLOC_TERM
@@ -1912,6 +1947,39 @@ typedef enum {
     XTERMBLOCK
 } expectation;
 
+enum {		/* pass one of these to get_vtbl */
+    want_vtbl_sv,
+    want_vtbl_env,
+    want_vtbl_envelem,
+    want_vtbl_sig,
+    want_vtbl_sigelem,
+    want_vtbl_pack,
+    want_vtbl_packelem,
+    want_vtbl_dbline,
+    want_vtbl_isa,
+    want_vtbl_isaelem,
+    want_vtbl_arylen,
+    want_vtbl_glob,
+    want_vtbl_mglob,
+    want_vtbl_nkeys,
+    want_vtbl_taint,
+    want_vtbl_substr,
+    want_vtbl_vec,
+    want_vtbl_pos,
+    want_vtbl_bm,
+    want_vtbl_fm,
+    want_vtbl_uvar,
+    want_vtbl_defelem,
+    want_vtbl_regexp,
+    want_vtbl_collxfrm,
+    want_vtbl_amagic,
+    want_vtbl_amagicelem
+#ifdef USE_THREADS
+    ,
+    want_vtbl_mutex
+#endif
+};
+
 
 				/* Note: the lowest 8 bits are reserved for
 				   stuffing into op->op_private */
@@ -2084,6 +2152,50 @@ typedef void *Thread;
 #endif
 
 #ifdef PERL_OBJECT
+/* from perly.c */
+#undef  yydebug
+#undef  yynerrs
+#undef  yyerrflag
+#undef  yychar
+#undef  yyssp
+#undef  yyvsp
+#undef  yyval
+#undef  yylval
+#define yydebug	    PL_yydebug
+#define yynerrs	    PL_yynerrs
+#define yyerrflag   PL_yyerrflag
+#define yychar	    PL_yychar
+#define yyssp	    PL_yyssp
+#define yyvsp	    PL_yyvsp
+#define yyval	    PL_yyval
+#define yylval	    PL_yylval
+PERLVAR(yydebug,		int)
+PERLVAR(yynerrs,		int)
+PERLVAR(yyerrflag,		int)
+PERLVAR(yychar,			int)
+PERLVAR(yyssp,			short*)
+PERLVAR(yyvsp,			YYSTYPE*)
+PERLVAR(yyval,			YYSTYPE)
+PERLVAR(yylval,			YYSTYPE)
+
+#define efloatbuf		PL_efloatbuf
+#define efloatsize		PL_efloatsize
+PERLVAR(efloatbuf,		char *)
+PERLVAR(efloatsize,		STRLEN)
+
+#define glob_index		PL_glob_index
+#define srand_called	PL_srand_called
+#define uudmap			PL_uudmap
+#define bitcount		PL_bitcount
+#define filter_debug	PL_filter_debug
+PERLVAR(glob_index,		int)
+PERLVAR(srand_called,	bool)
+PERLVAR(uudmap[256],	char)
+PERLVAR(bitcount,		char*)
+PERLVAR(filter_debug,	int)
+PERLVAR(super_bufptr,	char*)	/* PL_bufptr that was */
+PERLVAR(super_bufend,	char*)	/* PL_bufend that was */
+
 /*
  * The following is a buffer where new variables must
  * be defined to maintain binary compatibility with PERL_OBJECT
@@ -2457,5 +2569,19 @@ enum {
 #       define Semctl(id, num, cmd, semun) semctl(id, num, cmd, semun)
 #   endif
 #endif
+
+#ifdef IAMSUID
+
+#ifdef I_SYS_STATVFS
+#   include <sys/statvfs.h>     /* for f?statvfs() */
+#endif
+#ifdef I_SYS_MOUNT
+#   include <sys/mount.h>       /* for *BSD f?statfs() */
+#endif
+#ifdef I_MNTENT
+#   include <mntent.h>          /* for getmntent() */
+#endif
+
+#endif /* IAMSUID */
 
 #endif /* Include guard */
