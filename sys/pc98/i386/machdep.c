@@ -145,8 +145,6 @@ extern void initializecpu(void);
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
-
 #ifdef PC98
 int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
@@ -413,18 +411,9 @@ again:
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
 
 	/*
-	 * Finally, allocate mbuf pool.
+	 * XXX: Mbuf system machine-specific initializations should
+	 *      go here, if anywhere. 
 	 */
-	{
-		vm_offset_t mb_map_size;
-
-		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES +
-		    (nmbclusters + nmbufs / 4) * sizeof(union mext_refcnt);
-		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
-		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl,
-		    &maxaddr, mb_map_size);
-		mb_map->system_map = 1;
-	}
 
 	/*
 	 * Initialize callouts
