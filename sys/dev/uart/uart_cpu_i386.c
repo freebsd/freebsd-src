@@ -83,7 +83,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		 */
 		di->ops = uart_ns8250_ops;
 		di->bas.bst = I386_BUS_SPACE_IO;
-		di->bas.bsh = ivar;
+		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
+			return (ENXIO);
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)

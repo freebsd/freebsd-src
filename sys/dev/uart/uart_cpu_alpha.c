@@ -66,7 +66,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		boothowto |= RB_SERIAL;
 		di->ops = uart_ns8250_ops;
 		di->bas.bst = busspace_isa_io;
-		di->bas.bsh = 0x3f8;
+		if (bus_space_map(di->bas.bst, 0x3f8, 8, 0, &di->bas.bsh) != 0)
+			return (ENXIO);
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		di->baudrate = 9600;
@@ -102,7 +103,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		 */
 		di->ops = uart_ns8250_ops;
 		di->bas.bst = busspace_isa_io;
-		di->bas.bsh = ivar;
+		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
+			return (ENXIO);
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
