@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.11 1999/05/10 23:30:01 ken Exp $
+ * $FreeBSD$
  */
 
 #include <sys/ioctl.h>

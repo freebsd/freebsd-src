@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
-.\"	$Id: fsinterface.ms,v 1.5 1997/02/22 13:03:06 peter Exp $
+.\" $FreeBSD$
 .\"
 .if \nv .rm CM
 .de UX

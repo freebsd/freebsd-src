@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG =	rpc.rquotad
 SRCS =	rquotad.c

@@ -7,7 +7,7 @@
     This software is placed into the public domain with no restrictions
     on its distribution.
 
-    $Id: alias.h,v 1.9 1999/02/27 02:16:01 brian Exp $
+ $FreeBSD$
 */
 
 

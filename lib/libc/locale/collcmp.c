@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collcmp.c,v 1.10 1997/02/22 14:59:54 peter Exp $
+ * $FreeBSD$
  */
 
 #define ASCII_COMPATIBLE_COLLATE        /* see usr.bin/colldef/data */

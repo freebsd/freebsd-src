@@ -1,4 +1,4 @@
-# $Id: secure-cvs-supfile,v 1.7 1997/10/02 00:01:33 jkh Exp $
+# $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the CVS
 # development tree of the FreeBSD international secure distribution.  If

@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile.inc,v 1.5 1998/07/10 16:01:58 jpt Exp $
+#	@(#) $FreeBSD$
 #
 #
 

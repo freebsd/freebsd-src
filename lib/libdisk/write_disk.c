@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.26 1999/01/29 11:39:24 jkh Exp $
+ * $FreeBSD$
  *
  */
 

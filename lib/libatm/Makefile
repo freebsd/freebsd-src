@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:22:33 phk Exp $
+#	@(#) $FreeBSD$
 #
 #
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zipfs.c,v 1.2 1998/09/18 22:58:01 msmith Exp $
+ * $FreeBSD$
  *
  */
 

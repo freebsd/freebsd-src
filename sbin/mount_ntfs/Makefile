@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.2 1999/01/30 05:06:53 semen Exp $
+# $FreeBSD$
 #
 
 PROG=	mount_ntfs

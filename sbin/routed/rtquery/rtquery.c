@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 char copyright[] =
@@ -62,7 +62,7 @@ static char sccsid[] __attribute__((unused))= "@(#)query.c	8.1 (Berkeley) 6/5/93
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD: rtquery.c,v 1.10 1999/02/23 10:47:41 christos Exp $");
 #endif
-#ident "$Revision$"
+#ident "$Revision: 1.12 $"
 
 #ifndef sgi
 #define _HAVE_SIN_LEN

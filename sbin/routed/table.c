@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #include "defs.h"
@@ -40,7 +40,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)tables.c	8.1 (Berkeley) 6/5/
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 1.7 $"
 
 static struct rt_spare *rts_better(struct rt_entry *);
 static struct rt_spare rts_empty = {0,0,0,HOPCNT_INFINITY,0,0,0};

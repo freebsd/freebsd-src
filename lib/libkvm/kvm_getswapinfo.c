@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.6 1999/02/14 21:42:05 dt Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

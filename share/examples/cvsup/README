@@ -1,4 +1,4 @@
-# $Id: README,v 1.13 1998/06/26 01:48:04 jkh Exp $
+# $FreeBSD$
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work

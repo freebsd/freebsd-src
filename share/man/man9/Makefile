@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.47 1999/03/17 20:17:31 ghelmer Exp $
+# $FreeBSD$
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \

@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.10 1998/07/29 14:05:01 ache Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

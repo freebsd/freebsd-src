@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crtend.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+ * $FreeBSD$
  */
 
 typedef void (*fptr)(void);

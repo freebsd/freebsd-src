@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.c,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
+ * $FreeBSD$
  */
 
 #include "calendar.h"

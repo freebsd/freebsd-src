@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1998/12/18 14:32:47 des Exp $
+# $FreeBSD$
 
 MAINTAINER=	des@freebsd.org
 LIB=		fetch

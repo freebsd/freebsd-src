@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: readfile.c,v 1.4 1997/02/22 14:21:09 peter Exp $
+ $FreeBSD$
 
 ************************************************************************/
 

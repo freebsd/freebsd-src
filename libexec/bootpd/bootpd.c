@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.11 1999/04/07 08:27:39 brian Exp $
+ $FreeBSD$
 
 ************************************************************************/
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc_mem.h,v 1.1 1998/09/26 01:42:39 msmith Exp $
+ * $FreeBSD$
  */
 
 /*
