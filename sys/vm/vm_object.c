@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.119 1998/03/16 01:55:52 dyson Exp $
+ * $Id: vm_object.c,v 1.120 1998/04/29 04:28:09 dyson Exp $
  */
 
 /*
@@ -74,6 +74,7 @@
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -651,13 +652,20 @@ rescan:
 			ma[index]->flags &= ~PG_CLEANCHK;
 		}
 		runlen = maxb + maxf + 1;
+
 		splx(s);
 		vm_pageout_flush(ma, runlen, pagerflags);
+		for (i = 0; i<runlen; i++) {
+			if (ma[i]->valid & ma[i]->dirty) {
+				vm_page_protect(ma[i], VM_PROT_READ);
+				ma[i]->flags |= PG_CLEANCHK;
+			}
+		}
 		if (object->generation != curgeneration)
 			goto rescan;
 	}
 
-	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?1:0, curproc);
+	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
 
 	object->flags &= ~OBJ_CLEANING;
 	return;
