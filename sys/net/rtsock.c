@@ -1031,19 +1031,19 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	case NET_RT_FLAGS:
 		if (af != 0) {
 			if ((rnh = rt_tables[af]) != NULL) {
-				RADIX_NODE_HEAD_LOCK(rnh);
+				/* RADIX_NODE_HEAD_LOCK(rnh); */
 			    	error = rnh->rnh_walktree(rnh,
-				    sysctl_dumpentry, &w);
-				RADIX_NODE_HEAD_UNLOCK(rnh);
+				    sysctl_dumpentry, &w);/* could sleep XXX */
+				/* RADIX_NODE_HEAD_UNLOCK(rnh); */
 			} else
 				error = EAFNOSUPPORT;
 		} else {
 			for (i = 1; i <= AF_MAX; i++)
 				if ((rnh = rt_tables[i]) != NULL) {
-					RADIX_NODE_HEAD_LOCK(rnh);
+					/* RADIX_NODE_HEAD_LOCK(rnh); */
 					error = rnh->rnh_walktree(rnh,
 					    sysctl_dumpentry, &w);
-					RADIX_NODE_HEAD_UNLOCK(rnh);
+					/* RADIX_NODE_HEAD_UNLOCK(rnh); */
 					if (error)
 						break;
 				}
