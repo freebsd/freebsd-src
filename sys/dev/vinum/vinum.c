@@ -85,9 +85,7 @@ static eventhandler_tag dev_clone_tag;
 void
 vinumattach(void *dummy)
 {
-    int i, rv;
-    char *cp, *cp1, *cp2, **drives, *drivep;
-    size_t alloclen;
+    char *envp;
 /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
@@ -150,52 +148,13 @@ vinumattach(void *dummy)
      * See if the loader has passed us any of the autostart
      * options.
      */
-    cp = drivep = NULL;
-#ifndef VINUM_AUTOSTART
-    if ((cp = getenv("vinum.autostart")) != NULL) {
-	freeenv(cp);
-	cp = NULL;
-#endif
-
-	rv = kernel_sysctlbyname(&thread0, "kern.disks", NULL,
-	    NULL, NULL, 0, &alloclen);
-	if (rv)
-	    log(LOG_NOTICE,
-		"sysctlbyname (\"kern.disks\") failed, rv = %d\n",
-		rv);
-	else {
-	    drivep = malloc(alloclen, M_TEMP, M_WAITOK);
-	    kernel_sysctlbyname(&thread0, "kern.disks", drivep,
-		&alloclen, NULL, 0, NULL);
-	    goto start;
-	}
-#ifndef VINUM_AUTOSTART
-    } else
-#endif
-    if ((cp = getenv("vinum.drives")) != NULL) {
-      start:
-	for (cp1 = cp ? cp : drivep, i = 0, drives = 0;
-	    *cp1 != '\0';
-	    i++) {
-	    cp2 = cp1;
-	    while (*cp1 != '\0' && *cp1 != ',' && *cp1 != ' ')
-		cp1++;
-	    if (*cp1 != '\0')
-		*cp1++ = '\0';
-
-	    drives = realloc(drives,
-		(unsigned long) ((i + 1) * sizeof(char *)),
-		M_TEMP, M_WAITOK);
-	    drives[i] = cp2;
-	}
-	if (i != 0) {
-	    rv = vinum_scandisk(drives, i);
-	    if (rv)
-		log(LOG_NOTICE, "vinum_scandisk() returned %d\n", rv);
-	}
-	freeenv(cp);
-	free(drives, M_TEMP);
-	free(drivep, M_TEMP);
+    envp = NULL;
+    if ((envp = getenv("vinum.autostart")) != NULL) {	    /* start all drives now */
+	vinum_scandisk(NULL);
+	freeenv(envp);
+    } else if ((envp = getenv("vinum.drives")) != NULL) {
+	vinum_scandisk(envp);
+	freeenv(envp);
     }
 }
 
