@@ -183,6 +183,13 @@ This
 .Xr sysctl 8
 variable is read-only and can only be set as a tunable in
 .Xr loader.conf 5 .
+.It Va kern.geom.stripe.fast_failed
+How many times
+.Dq "fast mode"
+failed because of insufficient amount of memory.
+If this value is big, you should considern increasing
+.Va kern.geom.stripe.maxmem
+value.
 .El
 .Sh EXAMPLES
 The following example shows how to set up striped device from four disks
