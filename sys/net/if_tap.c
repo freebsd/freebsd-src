@@ -794,7 +794,7 @@ tapread(dev, uio, flag)
 		if (len == 0)
 			break;
 
-		error = uiomove(mtod(m, caddr_t), len, uio);
+		error = uiomove(mtod(m, void *), len, uio);
 		m = m_free(m);
 	}
 
@@ -848,7 +848,7 @@ tapwrite(dev, uio, flag)
 	mp = &top;
 	while ((error == 0) && (uio->uio_resid > 0)) {
 		m->m_len = min(mlen, uio->uio_resid);
-		error = uiomove(mtod(m, caddr_t), m->m_len, uio);
+		error = uiomove(mtod(m, void *), m->m_len, uio);
 		*mp = m;
 		mp = &m->m_next;
 		if (uio->uio_resid > 0) {

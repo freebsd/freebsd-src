@@ -1545,8 +1545,7 @@ msdosfs_readdir(ap)
 				dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
 				if (uio->uio_resid < dirbuf.d_reclen)
 					goto out;
-				error = uiomove((caddr_t) &dirbuf,
-						dirbuf.d_reclen, uio);
+				error = uiomove(&dirbuf, dirbuf.d_reclen, uio);
 				if (error)
 					goto out;
 				offset += sizeof(struct direntry);
@@ -1668,8 +1667,7 @@ msdosfs_readdir(ap)
 				brelse(bp);
 				goto out;
 			}
-			error = uiomove((caddr_t) &dirbuf,
-					dirbuf.d_reclen, uio);
+			error = uiomove(&dirbuf, dirbuf.d_reclen, uio);
 			if (error) {
 				brelse(bp);
 				goto out;

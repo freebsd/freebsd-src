@@ -599,7 +599,7 @@ devfs_readdir(ap)
 		dp->d_fileno = de->de_inode;
 		if (off >= uio->uio_offset) {
 			ncookies++;
-			error = uiomove((caddr_t)dp, dp->d_reclen, uio);
+			error = uiomove(dp, dp->d_reclen, uio);
 			if (error)
 				break;
 		}

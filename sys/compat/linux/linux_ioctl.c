@@ -2024,8 +2024,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 				memcpy(ifr.ifr_addr.sa_data, sa->sa_data,
 				    sizeof(ifr.ifr_addr.sa_data));
 
-				error = uiomove((caddr_t)&ifr, sizeof ifr,
-				    &uio);
+				error = uiomove(&ifr, sizeof ifr, &uio);
 				if (error != 0) {
 					IFNET_RUNLOCK();
 					return (error);

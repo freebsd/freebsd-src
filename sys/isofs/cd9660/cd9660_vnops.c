@@ -361,7 +361,7 @@ iso_uiodir(idp,dp,off)
 		--idp->ncookies;
 	}
 
-	if ((error = uiomove((caddr_t) dp,dp->d_reclen,idp->uio)) != 0)
+	if ((error = uiomove(dp, dp->d_reclen, idp->uio)) != 0)
 		return (error);
 	idp->uio_off = off;
 	return (0);
