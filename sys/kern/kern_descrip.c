@@ -295,7 +295,7 @@ fcntl(td, uap)
 
 	case F_SETFD:
 		*pop = (*pop &~ UF_EXCLOSE) |
-			    (uap->arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
+		    (uap->arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_UNLOCK(fdp);
 		break;
 
