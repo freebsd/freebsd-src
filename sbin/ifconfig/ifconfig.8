@@ -133,6 +133,8 @@ The following parameters may be set with
 Establish an additional network address for this interface.
 This is sometimes useful when changing network numbers, and
 one wishes to accept packets addressed to the old interface.
+If the alias is on the same subnet as the first network adress
+for this interface, a netmask of 0xffffffff has to be specified.
 .It Cm arp
 Enable the use of the Address Resolution Protocol in mapping
 between network level addresses and link level addresses (default).
