@@ -251,7 +251,7 @@ ng_btsocket_hci_raw_node_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			error = ENOBUFS;
 		} else {
 			NG_BT_ITEMQ_ENQUEUE(&ng_btsocket_hci_raw_queue, item);
-			error = taskqueue_enqueue(taskqueue_swi,
+			error = taskqueue_enqueue(taskqueue_swi_giant,
 						&ng_btsocket_hci_raw_task);
 		}
 		mtx_unlock(&ng_btsocket_hci_raw_queue_mtx);
@@ -300,7 +300,7 @@ ng_btsocket_hci_raw_node_rcvdata(hook_p hook, item_p item)
 			error = ENOBUFS;
 		} else {
 			NG_BT_ITEMQ_ENQUEUE(&ng_btsocket_hci_raw_queue, item);
-			error = taskqueue_enqueue(taskqueue_swi,
+			error = taskqueue_enqueue(taskqueue_swi_giant,
 						&ng_btsocket_hci_raw_task);
 		}
 		mtx_unlock(&ng_btsocket_hci_raw_queue_mtx);

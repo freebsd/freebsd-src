@@ -41,6 +41,7 @@ static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 
 static void	*taskqueue_ih;
+static void	*taskqueue_giant_ih;
 static struct mtx taskqueue_queues_mutex;
 
 struct taskqueue {
@@ -219,6 +220,22 @@ taskqueue_swi_run(void *dummy)
 	taskqueue_run(taskqueue_swi);
 }
 
+static void
+taskqueue_swi_giant_enqueue(void *context)
+{
+	swi_sched(taskqueue_giant_ih, 0);
+}
+
+static void
+taskqueue_swi_giant_run(void *dummy)
+{
+	taskqueue_run(taskqueue_swi_giant);
+}
+
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
-		 swi_add(NULL, "task queue", taskqueue_swi_run, NULL, SWI_TQ, 0,
-		     &taskqueue_ih)); 
+		 swi_add(NULL, "task queue", taskqueue_swi_run, NULL, SWI_TQ,
+		     INTR_MPSAFE, &taskqueue_ih)); 
+
+TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, 0,
+		 swi_add(NULL, "Giant task queue", taskqueue_swi_giant_run,
+		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih)); 
