@@ -943,12 +943,6 @@
     <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl 
     variable.&merged;</para>
 
-    <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
-    and <varname>net.inet.ip6.maxfragpackets</varname> sysctl
-    variables limit the amount of memory that can be consumed by IPv4
-    and IPv6 packet fragments, which defends against some denial of service
-    attacks. &merged;</para>
-
     <para>A vulnerability in the &man.fts.3; routines (used by
     applications for recursively traversing a filesystem) could
     allow a program to operate on files outside the intended directory
@@ -974,6 +968,12 @@
 
     <para>A remote buffer overflow in &man.telnetd.8; has been
     fixed (see security advisory FreeBSD-SA-01:49). &merged;</para>
+
+    <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
+    and <varname>net.inet.ip6.maxfragpackets</varname> sysctl
+    variables limit the amount of memory that can be consumed by IPv4
+    and IPv6 packet fragments, which defends against some denial of service
+    attacks (see security advisory FreeBSD-SA-01:52). &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
