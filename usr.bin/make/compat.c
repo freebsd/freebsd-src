@@ -90,10 +90,6 @@ static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
 static sig_atomic_t interrupted;
 
-static void CompatInterrupt(int);
-static int CompatMake(void *, void *);
-static int shellneed(char *);
-
 static const char *const sh_builtin[] = {
 	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit",
 	"unalias", "umask", "unset", "wait", ":", NULL};
