@@ -34,12 +34,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)sinix.m4	8.1 (Berkeley) 12/14/96')
-define(`QUEUE_DIR', /usr/ucblib/mqueue)dnl
-define(`ALIAS_FILE', /usr/ucblib/aliases)dnl
-ifdef(`HELP_FILE',,`define(`HELP_FILE', /usr/ucblib/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /usr/ucblib/sendmail.st)')dnl
-define(`LOCAL_MAILER_PATH', `/usr/ucblib/mail.local')dnl
-define(`LOCAL_MAILER_FLAGS', `rmn9')dnl
-define(`LOCAL_SHELL_FLAGS', `ehuP')dnl
-define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gmedium $h!rmail ($u)')dnl
+VERSIONID(`@(#)sinix.m4	8.2 (Berkeley) 9/13/97')
+ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
+define(`ALIAS_FILE', /etc/aliases)dnl
+define(`LOCAL_MAILER_PATH', `/bin/mail.local')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/sendmail.st)')dnl
+ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/sendmail.hf)')dnl

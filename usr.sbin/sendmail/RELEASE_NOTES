@@ -1,10 +1,149 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.8.7.7 (Berkeley) 8/3/97
+	     @(#)RELEASE_NOTES	8.8.8.4 (Berkeley) 10/24/97
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.8.8/8.8.8	97/10/24
+	If the check_relay ruleset failed, the relay= field was logged
+		incorrectly.  Problem noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	If /usr/tmp/dead.letter already existed, sendmail could not
+		add additional bounces to it.  Problem noted by Thomas J.
+		Arseneault of SRI International.
+	If an SMTP mailer used a non-standard port number for the outgoing
+		connection, it would be displayed incorrectly in verbose mode.
+		Problem noted by John Kennedy of Cal State University, Chico.
+	Log the ETRN parameter specified by the client before altering them
+		to internal form.  Suggested by Bob Kupiec of GES-Verio.
+	EXPN and VRFY SMTP commands on malformed addresses were logging as
+		User unknown with bogus delay= values.  Change them to log
+		the same as compliant addresses.  Problem noted by Kari E.
+		Hurtta of the Finnish Meteorological Institute.
+	Ignore the debug resolver option unless using sendmail debug trace
+		option for resolver.  Problem noted by Greg Nichols of Wind
+		River Systems.
+	If SingleThreadDelivery was enabled and the remote server returned a
+		protocol error on the DATA command, the connection would be
+		closed but the persistent host status file would not be
+		unlocked so other sendmail processes could not deliver to
+		that host.  Problem noted by Peter Wemm of DIALix.
+	If queueing up a message due to an expensive mailer, don't increment
+		the number of delivery attempts or set the last delivery
+		attempt time so the message will be delivered on the next
+		queue run regardless of MinQueueAge.  Problem noted by
+		Brian J. Coan of the Institute for Global Communications.
+	Authentication warnings of "Processed from queue _directory_" and
+		"Processed by _username_ with -C _filename_" would be logged
+		with the incorrect timestamp.  Problem noted by Kari E. Hurtta
+		of the Finnish Meteorological Institute.
+	Use a better heuristic for detecting GDBM.
+	Log null connections on dropped connections.  Problem noted by
+		Jon Lewis of Florida Digital Turnpike.
+	If class dbm maps are rebuilt, sendmail will now detect this and
+		reopen the map.  Previously, they could give stale
+		results during a single message processing (but would
+		recover when the next message was received).  Fix from
+		Joe Pruett of Q7 Enterprises.
+	Do not log failures such as "User unknown" on -bv or SMTP VRFY
+		requests.  Problem noted by Kari E. Hurtta of the
+		Finnish Meteorological Institute.
+	Do not send a bounce message back to the sender regarding bad
+		recipients if the SMTP connection is dropped before the
+		message is accepted.  Problem noted by Kari E. Hurtta of the
+		Finnish Meteorological Institute.
+	Use "localhost" instead of "[UNIX: localhost]" when connecting to
+		sendmail via a UNIX pipe.  This will allow rulesets using
+		$&{client_name} to process without sending the string through
+		dequote.  Problem noted by Alan Barrett of Internet Africa.
+	A combination of deferred delivery mode, a double bounce situation,
+		and the inability to save a bounce message to
+		/var/tmp/dead.letter would cause sendmail to send a bounce
+		to postmaster but not remove the offending envelope from the
+		queue causing it to create a new bounce message each time the
+		queue was run.  Problem noted by Brad Doctor of Net Daemons
+		Associates.
+	Remove newlines from hostname information returned via DNS.  There are
+		no known security implications of newlines in hostnames as
+		sendmail filters newlines in all vital areas; however, this
+		could cause confusing error messages.
+	Starting with sendmail 8.8.6, mail sent with the '-t' option would be
+		rejected if any of the specified addresses were bad.  This
+		behavior was modified to only reject the bad addresses and not
+		the entire message.  Problem noted by Jozsef Hollosi of
+		SuperNet, Inc.
+	Use Timeout.fileopen when delivering mail to a file.  Suggested by
+		Bryan Costales of InfoBeat, Inc.
+	Display the proper Final-Recipient on DSN messages for non-SMTP
+		mailers.  Problem noted by Kari E. Hurtta of the
+		Finnish Meteorological Institute.
+	An error in calculating the available space in the list of addresses
+		for logging deliveries could cause an address to be silently
+		dropped.
+	Include the initial user environment if sendmail is restarted via
+		a HUP signal.  This will give room for the process title.
+		Problem noted by Jon Lewis of Florida Digital Turnpike.
+	Mail could be delivered without a body if the machine does not
+		support flock locking and runs out of processes during
+		delivery.  Fix from Chuck Lever of the University of Michigan.
+	Drop recipient address from 251 and 551 SMTP responses per RFC 821.
+		Problem noted by Kari E. Hurtta of the Finnish Meteorological
+		Institute.
+	Make sure non-rebuildable database maps are opened before the
+		rebuildable maps (i.e. alias files) in case the database maps
+		are needed for verifying the left hand side of the aliases.
+		Problem noted by Lloyd Parkes of Victoria University.
+	Make sure sender RFC822 source route addresses are alias expanded for
+		bounce messages.  Problem noted by Juergen Georgi of
+		RUS University of Stuttgart.
+	Minor lint fixes.
+	Return a temporary error instead of a permanent error if an LDAP map
+		search returns an error.  This will allow sequenced maps which
+		use other LDAP servers to be checked.  Fix from Booker Bense
+		of Stanford University.
+	When automatically converting from quoted printable to 8bit text do
+		not pad bare linefeeds with a space.  Problem noted by Theo
+		Nolte of the University of Technology Aachen, Germany.
+	Portability:
+		Non-standard C compilers may have had a problem compiling
+			conf.c due to a standard C external declaration of
+			setproctitle().  Problem noted by Ted Roberts of
+			Electronic Data Systems.
+		AUX: has a broken O_EXCL implementation.  Reported by Jim
+			Jagielski of jaguNET Access Services.
+		BSD/OS: didn't compile if HASSETUSERCONTEXT was defined.
+		Digital UNIX: Digital UNIX (and possibly others) moves
+			loader environment variables into the loader memory
+			area.  If one of these environment variables (such as
+			LD_LIBRARY_PATH) was the last environment variable,
+			an invalid memory address would be used by the process
+			title routine causing memory corruption.  Problem
+			noted by Sam Hartman of Mesa Internet Systems.
+		GNU libc: uses an enum for _PC_CHOWN_RESTRICTED which caused
+			chownsafe() to always return 0 even if the OS does
+			not permit file giveaways.  Problem noted by
+			Yasutaka Sumi of The University of Tokyo.
+		IRIX6: Syslog buffer size set to 512 bytes.  Reported by 
+			Gerald Rinske of Siemens Business Services VAS.
+		Linux: Pad process title with NULLs.  Problem noted by
+			Jon Lewis of Florida Digital Turnpike.
+		SCO OpenServer 5.0: SIOCGIFCONF ioctl call returns an
+			incorrect value for the number of interfaces.
+			Problem noted by Chris Loelke of JetStream Internet
+			Services.
+		SINIX: Update for Makefile and syslog buffer size from Gerald
+			Rinske of Siemens Business Services VAS.
+		Solaris: Make sure HASGETUSERSHELL setting for SunOS is not
+			used on a Solaris machine.  Problem noted by
+			Stephen Ma of Jtec Pty Limited.
+		CONFIG: SINIX: Update from Gerald Rinske of Siemens Business
+			Services VAS.
+	MAKEMAP: Use a better heuristic for detecting GDBM.
+	CONTRIB: expn.pl: Updated version from the author, David Muir Sharnoff.
+	OP.ME: Document the F=i mailer flag.  Problem noted by Per Hedeland of
+			Ericsson.
 
 8.8.7/8.8.7	97/08/03
 	If using Berkeley DB on systems without O_EXLOCK (open a file with
