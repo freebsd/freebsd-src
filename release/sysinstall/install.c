@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.35 1995/05/20 11:13:56 jkh Exp $
+ * $Id: install.c,v 1.36 1995/05/20 13:24:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -263,8 +263,7 @@ copy_self(void)
     int i;
 
     msgNotify("Copying the boot floppy to /stand on root filesystem");
-    chdir("/");
-    i = vsystem("find -x . | cpio -pdmv /mnt/stand");
+    i = vsystem("find -x / | cpio -pdmv /mnt/stand");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
 }
@@ -274,16 +273,16 @@ cpio_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
 
-    tryagain:
+ tryagain:
+    while (CpioFD == -1) {
+	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
+	CpioFD = open("/dev/rfd0", O_RDONLY);
+	if (CpioFD >= 0)
+	    break;
+	msgDebug("Error on open of cpio floppy: %s (%d)\n", strerror(errno), errno);
+    }
     j = fork();
     if (!j) {
-	while (CpioFD == -1) {
-	    msgConfirm("Please Insert CPIO floppy in floppy drive 0");
-	    CpioFD = open("/dev/rfd0", O_RDONLY);
-	    if (CpioFD >= 0)
-		break;
-	    msgDebug("Error on open of cpio floppy: %s (%d)\n", strerror(errno), errno);
-	}
 	chroot("/mnt");	chdir("/");
 	msgNotify("Extracting contents of CPIO floppy...");
 	pipe(pfd);
@@ -333,6 +332,8 @@ cpio_extract(void)
 	i = wait(&j);
     if (i < 0 || j || access("/mnt/OK", R_OK) == -1) {
 	msgConfirm("CPIO floppy did not extract properly!  Please verify\n\that your media is correct and try again");
+	close(CpioFD);
+	CpioFD = -1;
 	goto tryagain;
     }
     unlink("/mnt/OK");
