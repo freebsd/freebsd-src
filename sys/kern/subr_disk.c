@@ -62,6 +62,49 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 }
 
 /*
+ * BIO queue implementation
+ */
+
+void
+bioq_init(struct bio_queue_head *head)
+{
+	TAILQ_INIT(&head->queue);
+	head->last_pblkno = 0;
+	head->insert_point = NULL;
+	head->switch_point = NULL;
+}
+
+void
+bioq_remove(struct bio_queue_head *head, struct bio *bp)
+{
+	if (bp == head->switch_point)
+		head->switch_point = TAILQ_NEXT(bp, bio_queue);
+	if (bp == head->insert_point) {
+		head->insert_point = TAILQ_PREV(bp, bio_queue, bio_queue);
+		if (head->insert_point == NULL)
+			head->last_pblkno = 0;
+	} else if (bp == TAILQ_FIRST(&head->queue))
+		head->last_pblkno = bp->bio_pblkno;
+	TAILQ_REMOVE(&head->queue, bp, bio_queue);
+	if (TAILQ_FIRST(&head->queue) == head->switch_point)
+		head->switch_point = NULL;
+}
+void
+bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
+{
+
+	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
+}
+
+struct bio *
+bioq_first(struct bio_queue_head *head)
+{
+
+	return (TAILQ_FIRST(&head->queue));
+}
+
+
+/*
  * Seek sort for disks.
  *
  * The buf_queue keep two queues, sorted in ascending block order.  The first

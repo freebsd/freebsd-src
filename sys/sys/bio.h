@@ -114,30 +114,15 @@ struct bio_queue_head {
 	int busy;
 };
 
-static __inline void bioq_insert_tail(struct bio_queue_head *head,
-				      struct bio *bp);
-static __inline struct bio *bioq_first(struct bio_queue_head *head);
-
-static __inline void
-bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
-{
-
-	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
-}
-
-static __inline struct bio *
-bioq_first(struct bio_queue_head *head)
-{
-
-	return (TAILQ_FIRST(&head->queue));
-}
-
 void biodone(struct bio *bp);
 void biofinish(struct bio *bp, struct devstat *stat, int error);
 int biowait(struct bio *bp, const char *wchan);
+
 void bioq_disksort(struct bio_queue_head *ap, struct bio *bp);
 #define bioqdisksort(foo, bar) bioq_disksort(foo, bar)
+struct bio *bioq_first(struct bio_queue_head *head);
 void bioq_init(struct bio_queue_head *head);
+void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
 void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
