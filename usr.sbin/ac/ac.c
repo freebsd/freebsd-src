@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ac.c,v 1.9 1998/05/25 05:21:29 steve Exp $";
+	"$Id: ac.c,v 1.10 1998/07/02 05:34:08 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -106,12 +106,20 @@ file(name)
 {
 	FILE *fp;
 
-	if ((fp = fopen(name, "r")) == NULL)
-		err(1, "%s", name);
-	/* in case we want to discriminate */
-	if (strcmp(_PATH_WTMP, name))
+	/*
+	 * Added by GAW...
+	 */
+	if (strcmp("-", name) == 0) {
 		Flags |= AC_W;
-	return fp;
+		return (stdin);
+	} else {
+		if ((fp = fopen(name, "r")) == NULL)
+			err(1, "%s", name);
+		/* in case we want to discriminate */
+		if (strcmp(_PATH_WTMP, name))
+			Flags |= AC_W;
+		return fp;
+	}
 }
 
 struct tty_list *
