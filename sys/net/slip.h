@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $Id: slip.h,v 1.3 1994/08/21 05:11:48 paul Exp $
+ * $Id: slip.h,v 1.4 1995/03/30 20:43:32 ache Exp $
  */
 
 #ifndef _NET_SLIP_H_
@@ -43,6 +43,7 @@
 #define	SLIOCSOUTFILL	_IOW('t', 83, int)	/* set out fill	time */
 #define	SLIOCGKEEPAL	_IOR('t', 82, int)	/* get keepalive time */
 #define	SLIOCGOUTFILL	_IOR('t', 81, int)	/* get out fill	time */
+#define	SLIOCSUNIT	_IOW('t', 80, int)	/* set slip unit number	*/
 
 /*
  * Definitions of the pseudo-link-level header attached to slip

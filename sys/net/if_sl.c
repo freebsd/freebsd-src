@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.17 1995/04/01 22:11:10 ache Exp $
+ * $Id: if_sl.c,v 1.18 1995/04/02 00:11:48 bde Exp $
  */
 
 /*
@@ -364,6 +364,10 @@ sltioctl(tp, cmd, data, flag, p)
 	switch (cmd) {
 	case SLIOCGUNIT:
 		*(int *)data = sc->sc_if.if_unit;
+		break;
+
+	case SLIOCSUNIT:
+		sc->sc_if.if_unit = *(u_int *)data;
 		break;
 
 	case SLIOCSKEEPAL:
