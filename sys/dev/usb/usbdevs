@@ -1118,6 +1118,7 @@ product NETGEAR FA120		0x1040	USB 2.0 Ethernet adapter
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
+product NIKON LS40		0x4000	CoolScan LS40 ED
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
@@ -1143,7 +1144,6 @@ product PALM TUNGSTEN_T		0x0060	Palm Tungsten T
 product PALM ZIRE31		0x0061	Palm Zire 31
 product PALM ZIRE		0x0070	Palm Zire
 
-/* Panasonic products */
 product	PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product	PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product	PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
