@@ -56,7 +56,7 @@
  * SUCH DAMAGE.
  */
 
-#define SYM_DRIVER_NAME	"sym-0.10.0-19991111"
+#define SYM_DRIVER_NAME	"sym-0.11.0-19991120"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -1223,7 +1223,8 @@ struct sym_hcb {
 	 *  be used to probe adapter implementation differences.
 	 */
 	u_char	sv_scntl0, sv_scntl3, sv_dmode, sv_dcntl, sv_ctest3, sv_ctest4,
-		sv_ctest5, sv_gpcntl, sv_stest2, sv_stest4, sv_scntl4;
+		sv_ctest5, sv_gpcntl, sv_stest2, sv_stest4, sv_scntl4,
+		sv_stest1;
 
 	/*
 	 *  Actual initial value of IO register bits used by the 
@@ -1601,9 +1602,11 @@ struct sym_scrh {
  */
 static void sym_fill_scripts (script_p scr, scripth_p scrh);
 static void sym_bind_script (hcb_p np, u32 *src, u32 *dst, int len);
+static void sym_save_initial_setting (hcb_p np);
 static int  sym_prepare_setting (hcb_p np, struct sym_nvram *nvram);
 static int  sym_prepare_nego (hcb_p np, ccb_p cp, int nego, u_char *msgptr);
 static void sym_put_start_queue (hcb_p np, ccb_p cp);
+static void sym_chip_reset (hcb_p np);
 static void sym_soft_reset (hcb_p np);
 static void sym_start_reset (hcb_p np);
 static int  sym_reset_scsi_bus (hcb_p np, int enab_int);
@@ -3928,6 +3931,35 @@ static void sym_print_targets_flag(hcb_p np, int mask, char *msg)
 }
 
 /*
+ *  Save initial settings of some IO registers.
+ *  Assumed to have been set by BIOS.
+ *  We cannot reset the chip prior to reading the 
+ *  IO registers, since informations will be lost.
+ *  Since the SCRIPTS processor may be running, this 
+ *  is not safe on paper, but it seems to work quite 
+ *  well. :)
+ */
+static void sym_save_initial_setting (hcb_p np)
+{
+	np->sv_scntl0	= INB(nc_scntl0) & 0x0a;
+	np->sv_scntl3	= INB(nc_scntl3) & 0x07;
+	np->sv_dmode	= INB(nc_dmode)  & 0xce;
+	np->sv_dcntl	= INB(nc_dcntl)  & 0xa8;
+	np->sv_ctest3	= INB(nc_ctest3) & 0x01;
+	np->sv_ctest4	= INB(nc_ctest4) & 0x80;
+	np->sv_gpcntl	= INB(nc_gpcntl);
+	np->sv_stest1	= INB(nc_stest1);
+	np->sv_stest2	= INB(nc_stest2) & 0x20;
+	np->sv_stest4	= INB(nc_stest4);
+	if (np->features & FE_C10) {	/* Always large DMA fifo + ultra3 */
+		np->sv_scntl4	= INB(nc_scntl4);
+		np->sv_ctest5	= INB(nc_ctest5) & 0x04;
+	}
+	else
+		np->sv_ctest5	= INB(nc_ctest5) & 0x24;
+}
+
+/*
  *  Prepare io register values used by sym_init() according 
  *  to selected and supported features.
  */
@@ -3937,24 +3969,6 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	u_long	period;
 	int i;
 
-	/*
-	 *  Save assumed BIOS setting
-	 */
-	np->sv_scntl0	= INB(nc_scntl0) & 0x0a;
-	np->sv_scntl3	= INB(nc_scntl3) & 0x07;
-	np->sv_dmode	= INB(nc_dmode)  & 0xce;
-	np->sv_dcntl	= INB(nc_dcntl)  & 0xa8;
-	np->sv_ctest3	= INB(nc_ctest3) & 0x01;
-	np->sv_ctest4	= INB(nc_ctest4) & 0x80;
-	np->sv_gpcntl	= INB(nc_gpcntl);
-	np->sv_stest2	= INB(nc_stest2) & 0x20;
-	np->sv_stest4	= INB(nc_stest4);
-	if (np->features & FE_C10) {	/* Always large DMA fifo + ultra3 */
-		np->sv_scntl4	= INB(nc_scntl4);
-		np->sv_ctest5	= INB(nc_ctest5) & 0x04;
-	}
-	else
-		np->sv_ctest5	= INB(nc_ctest5) & 0x24;
 	/*
 	 *  Wide ?
 	 */
@@ -4056,18 +4070,6 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
-	 *  Prepare initial value of other IO registers
-	 */
-#if defined SYMCONF_TRUST_BIOS_SETTING
-	np->rv_scntl0	= np->sv_scntl0;
-	np->rv_dmode	= np->sv_dmode;
-	np->rv_dcntl	= np->sv_dcntl;
-	np->rv_ctest3	= np->sv_ctest3;
-	np->rv_ctest4	= np->sv_ctest4;
-	np->rv_ctest5	= np->sv_ctest5;
-	burst_max	= burst_code(np->sv_dmode, np->sv_ctest4,np->sv_ctest5);
-#else
-	/*
 	 *  Select burst length (dwords)
 	 */
 	burst_max	= SYMSETUP_BURST_ORDER;
@@ -4140,8 +4142,6 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 		if (!np->myaddr)
 			np->myaddr = SYMSETUP_HOST_ID;
 	}
-
-#endif /* SYMCONF_TRUST_BIOS_SETTING */
 
 	/*
 	 *  Prepare initial io register bits for burst length
@@ -4281,12 +4281,13 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 	/*
 	 *  For now, only use PPR with DT option if period factor = 9.
 	 */
-	if (tp->tinfo.goal.period == 9) {
-		nego = NS_PPR;
+	if (tp->tinfo.goal.period == 9)
 		tp->tinfo.goal.options = PPR_OPT_DT;
-	}
 #endif
-
+	/*
+	 *  Early C1010 chips need a work-around for DT 
+	 *  data transfer to work.
+	 */
 #ifndef	SYMCONF_BROKEN_U3EN_SUPPORT
 	if (!(np->features & FE_U3EN))
 		tp->tinfo.goal.options = 0;
@@ -4399,6 +4400,19 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
 /*
  *  Soft reset the chip.
  *
+ *  Raising SRST when the chip is running may cause 
+ *  problems on dual function chips (see below). 
+ */
+static void sym_chip_reset (hcb_p np)
+{
+	OUTB (nc_istat, SRST);
+	UDELAY (10);
+	OUTB (nc_istat, 0);
+}
+
+/*
+ *  Soft reset the chip.
+ *
  *  Some 896 and 876 chip revisions may hang-up if we set 
  *  the SRST (soft reset) bit at the wrong time when SCRIPTS 
  *  are running.
@@ -4426,9 +4440,7 @@ static void sym_soft_reset (hcb_p np)
 	if (!i)
 		printf("%s: unable to abort current chip operation.\n",
 			sym_name(np));
-	OUTB (nc_istat, SRST);
-	UDELAY(10);
-	OUTB (nc_istat, 0);
+	sym_chip_reset (np);
 }
 
 /*
@@ -4788,13 +4800,14 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 	 *  to 5 Mega-transfers per second and may result in
 	 *  using higher clock divisors.
 	 */
-#ifdef	SYMCONF_BROKEN_U3EN_SUPPORT
+#if 1
 	if ((np->features & (FE_C10|FE_U3EN)) == FE_C10) {
 		/*
 		 *  Look for the lowest clock divisor that allows an 
 		 *  output speed not faster than the period.
 		 */
-		while (--div >= 0) {
+		while (div > 0) {
+			--div;
 			if (kpc > (div_10M[div] << 2)) {
 				++div;
 				break;
@@ -4806,7 +4819,6 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 		}
 		*divp = div;
 		*fakp = fak;
-
 		return ret;
 	}
 #endif
@@ -4815,7 +4827,7 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 	 *  Look for the greatest clock divisor that allows an 
 	 *  input speed faster than the period.
 	 */
-	while (--div >= 0)
+	while (div-- > 0)
 		if (kpc >= (div_10M[div] << 2)) break;
 
 	/*
@@ -4864,9 +4876,11 @@ static void sym_setwide(hcb_p np, ccb_p cp, u_char wide)
 	 *  Tell the SCSI layer about the new transfer parameters.
 	 */
 	tp->tinfo.goal.width = tp->tinfo.current.width = wide;
+	tp->tinfo.current.offset = 0;
+	tp->tinfo.current.period = 0;
 	neg.bus_width = wide ? BUS_16_BIT : BUS_8_BIT;
-	neg.sync_period = 0;
-	neg.sync_offset = 0;
+	neg.sync_period = tp->tinfo.current.period;
+	neg.sync_offset = tp->tinfo.current.offset;
 	neg.valid = CCB_TRANS_BUS_WIDTH_VALID
 		  | CCB_TRANS_SYNC_RATE_VALID
 		  | CCB_TRANS_SYNC_OFFSET_VALID;
@@ -6777,7 +6791,9 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 	 *  end of the data.
 	 */
 	tmp = scr_to_cpu(cp->phys.goalp);
-	dp_sg = SYMCONF_MAX_SG - (tmp - 8 - (int)dp_scr) / (2*4);
+	dp_sg = SYMCONF_MAX_SG;
+	if (dp_sg != tmp)
+		dp_sg -= (tmp - 8 - (int)dp_scr) / (2*4);
 	dp_sgmin = SYMCONF_MAX_SG - cp->segments;
 
 	/*
@@ -6858,6 +6874,7 @@ static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
 	int dp_ofs	= ofs;
 	u32	dp_scr	= INL (nc_temp);
 	u32	dp_ret;
+	u32	tmp;
 	u_char	hflags;
 	int	dp_sg;
 	struct	sym_pmc *pm;
@@ -6921,8 +6938,10 @@ static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
 	 *  to the main data script.
 	 */
 	pm->ret = cpu_to_scr(dp_ret);
-	pm->sg.addr = cp->phys.data[dp_sg-1].addr + dp_ofs;
-	pm->sg.size = cp->phys.data[dp_sg-1].size - dp_ofs;
+	tmp  = scr_to_cpu(cp->phys.data[dp_sg-1].addr);
+	tmp += scr_to_cpu(cp->phys.data[dp_sg-1].size) + dp_ofs;
+	pm->sg.addr = cpu_to_scr(tmp);
+	pm->sg.size = cpu_to_scr(-dp_ofs);
 
 out_ok:
 	OUTL (nc_temp, dp_scr);
@@ -8332,8 +8351,8 @@ static unsigned sym_getfreq (hcb_p np)
  */
 static void sym_getclock (hcb_p np, int mult)
 {
-	unsigned char scntl3 = INB(nc_scntl3);
-	unsigned char stest1 = INB(nc_stest1);
+	unsigned char scntl3 = np->sv_scntl3;
+	unsigned char stest1 = np->sv_stest1;
 	unsigned f1;
 
 	/*
@@ -9841,6 +9860,19 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	}
 
 	/*
+	 *  Save setting of some IO registers, so we will 
+	 *  be able to probe specific implementations.
+	 */
+	sym_save_initial_setting (np);
+
+	/*
+	 *  Reset the chip now, since it has been reported 
+	 *  that SCSI clock calibration may not work properly 
+	 *  if the chip is currently active.
+	 */
+	sym_chip_reset (np);
+
+	/*
 	 *  Try to read the user set-up.
 	 */
 	(void) sym_read_nvram(np, &nvram);
@@ -10058,9 +10090,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  so, since we may not be safe if ABRT interrupt occurs due 
 	 *  to the BIOS or previous O/S having enable this interrupt.
 	 */
-	OUTB (nc_istat, SRST);
-	UDELAY(10);
-	OUTB (nc_istat, 0);
+	sym_chip_reset (np);
 
 	/*
 	 *  Now check the cache handling of the pci chipset.
@@ -10243,12 +10273,14 @@ int sym_cam_attach(hcb_p np)
 	 *  Hmmm... This should be useful, but I donnot want to 
 	 *  know about.
 	 */
+#if 	__FreeBSD_version < 400000
 #ifdef	__alpha__
 #ifdef	FreeBSD_4_Bus
 	alpha_register_pci_scsi(pci_get_bus(np->device),
 				pci_get_slot(np->device), np->sim);
-#else /*__i386__*/
+#else
 	alpha_register_pci_scsi(pci_tag->bus, pci_tag->slot, np->sim);
+#endif
 #endif
 #endif
 
@@ -10752,7 +10784,7 @@ static int sym_read_Symbios_nvram (hcb_p np, Symbios_nvram *nvram)
 
 	/* check valid NVRAM signature, verify byte count and checksum */
 	if (nvram->type != 0 ||
-	    memcmp(nvram->trailer, Symbios_trailer, 6) ||
+	    bcmp(nvram->trailer, Symbios_trailer, 6) ||
 	    nvram->byte_count != len - 12)
 		return 1;
 
