@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.5 1995/11/29 10:49:03 julian Exp $
+ * $Id: ssc.c,v 1.6 1995/11/29 14:41:03 julian Exp $
  */
 
 #include <sys/types.h>
@@ -116,21 +116,17 @@ int sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	return ENXIO;
 }
 
-/* I've elected not to support any of these other entries.  There
- * really is no good reason other than I'm not sure how you would use
- * them.
+/*
+ * I've elected not to support any other entries.  There really is no
+ * good reason other than I'm not sure how you would use them.
  */
-void sscstrategy(struct buf *bp) { }
-int sscread(dev_t dev, struct uio *uio, int ioflag) { return ENXIO; }
-int sscwrite(dev_t dev, struct uio *uio, int ioflag) { return ENXIO; }
-int sscselect(dev_t dev, int which, struct proc *p) { return ENXIO; }
 
 
 #ifdef JREMOD
 struct cdevsw ssc_cdevsw = 
-	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
+	{ sscopen,	sscclose,	noread,		nowrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
-	  sscselect,	nxmmap,		sscstrategy };
+	  noselect,	nommap,		nostrategy };
 
 static ssc_devsw_installed = 0;
 
