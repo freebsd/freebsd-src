@@ -866,8 +866,10 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	case VFIFO:
 		vp->v_op = cd9660_fifoop_p;
 		break;
-	case VCHR:
 	case VBLK:
+		vp->v_op = cd9660_specop_p;
+		break;
+	case VCHR:
 		vp->v_op = cd9660_specop_p;
 		vp = addaliasu(vp, ip->inode.iso_rdev);
 		ip->i_vnode = vp;

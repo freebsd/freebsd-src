@@ -366,7 +366,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	 * ustat in that case.
 	 */
 	dev = udev2dev(makeudev(args->dev >> 8, args->dev & 0xFF));
-	if (dev != NODEV && vfinddev(dev, VCHR, &vp)) {
+	if (dev != NODEV && vfinddev(dev, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
 #ifdef MAC

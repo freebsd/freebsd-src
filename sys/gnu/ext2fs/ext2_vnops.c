@@ -1750,8 +1750,10 @@ ext2_vinit(mntp, specops, fifoops, vpp)
 	vp = *vpp;
 	ip = VTOI(vp);
 	switch(vp->v_type = IFTOVT(ip->i_mode)) {
-	case VCHR:
 	case VBLK:
+		vp->v_op = specops;
+		break;
+	case VCHR:
 		vp->v_op = specops;
 		vp = addaliasu(vp, ip->i_rdev);
 		ip->i_vnode = vp;

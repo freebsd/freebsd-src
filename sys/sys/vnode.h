@@ -629,7 +629,7 @@ void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
-int	vfinddev(dev_t dev, enum vtype type, struct vnode **vpp);
+int	vfinddev(dev_t dev, struct vnode **vpp);
 void	vfs_add_vnodeops(const void *);
 void	vfs_rm_vnodeops(const void *);
 int	vflush(struct mount *mp, int rootrefs, int flags);
