@@ -107,7 +107,6 @@
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
-#	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
 #	pass*	CAM Passthrough device
 #	ses*	SES (SCSI Environmental Services) and
