@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#55 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#56 $
  *
  * $FreeBSD$
  */
@@ -838,7 +838,8 @@ static __inline void
 ahd_sync_qoutfifo(struct ahd_softc *ahd, int op)
 {
 	aic_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
-			/*offset*/0, /*len*/AHD_SCB_MAX * sizeof(uint16_t), op);
+			/*offset*/0,
+			/*len*/AHD_SCB_MAX * sizeof(struct ahd_completion), op);
 }
 
 static __inline void
@@ -868,10 +869,10 @@ ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 
 	retval = 0;
 	aic_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
-			/*offset*/ahd->qoutfifonext, /*len*/2,
-			BUS_DMASYNC_POSTREAD);
-	if ((ahd->qoutfifo[ahd->qoutfifonext]
-	     & QOUTFIFO_ENTRY_VALID_LE) == ahd->qoutfifonext_valid_tag)
+			/*offset*/ahd->qoutfifonext * sizeof(*ahd->qoutfifo),
+			/*len*/sizeof(*ahd->qoutfifo), BUS_DMASYNC_POSTREAD);
+	if (ahd->qoutfifo[ahd->qoutfifonext].valid_tag
+	  == ahd->qoutfifonext_valid_tag)
 		retval |= AHD_RUN_QOUTFIFO;
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0
