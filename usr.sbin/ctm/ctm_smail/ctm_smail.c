@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -35,7 +36,7 @@ void apologise(char *delta, off_t ctm_size, long max_ctm_size,
 FILE *open_sendmail(void);
 int close_sendmail(FILE *fp);
 
-
+int
 main(int argc, char **argv)
     {
     char *delta_file;
