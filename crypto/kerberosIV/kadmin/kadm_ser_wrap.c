@@ -117,16 +117,25 @@ kadm_ser_in(u_char **dat, int *dat_len, u_char *errdat)
     u_char *retdat, *tmpdat;
     int retval, retlen;
 
-    if (strncmp(KADM_VERSTR, (char *)*dat, KADM_VERSIZE)) {
+    if (*dat_len < (KADM_VERSIZE + sizeof(u_int32_t))
+	|| strncmp(KADM_VERSTR, (char *)*dat, KADM_VERSIZE) != 0) {
 	errpkt(errdat, dat, dat_len, KADM_BAD_VER);
 	return KADM_BAD_VER;
     }
     in_len = KADM_VERSIZE;
     /* get the length */
-    if ((retc = stv_long(*dat, &r_len, in_len, *dat_len)) < 0)
+    if ((retc = stv_long(*dat, &r_len, in_len, *dat_len)) < 0 ||
+	(r_len > *dat_len - KADM_VERSIZE - sizeof(u_int32_t))) {
+	errpkt(errdat, dat, dat_len, KADM_LENGTH_ERROR);
 	return KADM_LENGTH_ERROR;
+    }
+    
     in_len += retc;
     authent.length = *dat_len - r_len - KADM_VERSIZE - sizeof(u_int32_t);
+    if (authent.length > MAX_KTXT_LEN) {
+	errpkt(errdat, dat, dat_len, KADM_LENGTH_ERROR);
+	return KADM_LENGTH_ERROR;
+    }
     memcpy(authent.dat, (char *)(*dat) + in_len, authent.length);
     authent.mbz = 0;
     /* service key should be set before here */
