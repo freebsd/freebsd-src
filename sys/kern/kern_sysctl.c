@@ -1390,7 +1390,7 @@ ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 
 	case KINFO_METER:
 		name[0] = CTL_VM;
-		name[1] = VM_METER;
+		name[1] = VM_TOTAL;
 		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
