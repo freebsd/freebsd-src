@@ -140,7 +140,7 @@ Fixup_Names(struct disk *d)
 	struct chunk *c1, *c2;
 #if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
 	struct chunk *c3;
-	int j;
+	int j, max;
 #endif
 
 	c1 = d->chunks;
@@ -153,8 +153,14 @@ Fixup_Names(struct disk *d)
 		c2->oname = malloc(12);
 		if (!c2->oname)
 			return -1;
-		for (j = 1; j <= NDOSPART; j++) {
-			sprintf(c2->oname, "%ss%d", c1->name, j);
+#ifdef __ia64__
+		max = d->gpt_size;
+#else
+		max = NDOSPART;
+#endif
+		for (j = 1; j <= max; j++) {
+			sprintf(c2->oname, "%s%c%d", c1->name,
+			    (c1->type == whole) ? 'p' : 's', j);
 			for (c3 = c1->part; c3; c3 = c3->next)
 				if (c3 != c2 && !strcmp(c3->name, c2->oname))
 					goto match;
@@ -188,9 +194,10 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type,
 	     int subtype, u_long flags, const char *sname)
 {
 	int i;
-	u_long l;
-	
+
+#ifndef __ia64__
 	if (!(flags & CHUNK_FORCE_ALL)) {
+		u_long l;
 #ifdef PC98
 		/* Never use the first cylinder */
 		if (!offset) {
@@ -209,6 +216,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type,
 		l = (offset+size) % (d->bios_sect * d->bios_hd);
 		size -= l;
 	}
+#endif
 	
 	i = Add_Chunk(d, offset, size, "X", type, subtype, flags, sname);
 	Fixup_Names(d);
