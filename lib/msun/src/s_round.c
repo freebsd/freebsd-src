@@ -34,7 +34,7 @@ round(double x)
 {
 	double t;
 
-	if (!isnormal(x))
+	if (!isfinite(x))
 		return (x);
 
 	if (x >= 0.0) {
