@@ -386,6 +386,7 @@ bpfclose(dev, flags, fmt, td)
 	if (d->bd_bif)
 		bpf_detachd(d);
 	mtx_unlock(&bpf_mtx);
+	selwakeuppri(&d->bd_sel, PRINET);
 #ifdef MAC
 	mac_destroy_bpfdesc(d);
 #endif /* MAC */
