@@ -270,10 +270,10 @@ manpage for a description of the command line options available.
 .Pq Vt bool
 Set to
 .Dq Li YES
-to start dhcp client in background.
-Setting this to
-.Dq Li NO
-can block dhclient during startup if no cable is plugged in.
+to start the dhcp client in background.
+This can cause trouble with applications depending on
+a working network, but it will provide a faster startup
+in many cases.
 .It Va firewall_enable
 .Pq Vt bool
 Set to
