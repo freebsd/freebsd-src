@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.56 1999/08/13 10:29:20 phk Exp $
+ * $Id: kern_conf.c,v 1.57 1999/08/15 09:32:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -307,5 +307,12 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	va_end(ap);
 	dev->si_devsw = devsw;
 	return (dev);
+}
+
+char *
+devtoname(dev_t dev)
+{
+
+	return (dev->si_name);
 }
 
