@@ -315,7 +315,7 @@ int dialog_treemenu(unsigned char *title, unsigned char *prompt,
         else
           i = choice - 1;
       }
-      else if (key == KEY_DOWN || key == '+')
+      else if (key == KEY_DOWN || key == '+') {
         if (choice == max_choice - 1) {
           if (scroll+choice < item_no-1) {
 #ifdef BROKEN_WSCRL
@@ -352,6 +352,7 @@ int dialog_treemenu(unsigned char *title, unsigned char *prompt,
         }
         else
           i = choice + 1;
+      }
 
       if (i != choice) {
         /* De-highlight current item */
@@ -987,7 +988,7 @@ mk_tree(unsigned char **names, int size, unsigned char FS,
 		in_string = name = names[i];
 		while(*in_string)
 		{
-			if (*in_string == FS)
+			if (*in_string == FS) {
 				if (!i && !*(in_string + 1))
 					name = in_string;
 				else
@@ -995,6 +996,7 @@ mk_tree(unsigned char **names, int size, unsigned char FS,
 					shift++;
 					name = in_string + 1;
 				}
+			}
 			in_string++;
 		}
 		array[i].name = name;
