@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.15 1997/09/21 21:43:54 gibbs Exp $
+ *      $Id: bt.c,v 1.16 1998/02/20 13:37:37 bde Exp $
  */
 
 /*
@@ -659,7 +659,8 @@ bt_intr(arg)
 		}
 		if (!found) {
 #ifdef DEBUG
-			printf("bt%d: mbi at 0x%08x should be found, stat=%02x..resync\n",
+			printf(
+			"bt%d: mbi at %p should be found, stat=%02x..resync\n",
 			    bt->unit, wmbi, stat);
 #endif
 		} else {

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.43 1998/06/07 17:10:36 dfr Exp $
+ * $Id: if_lnc.c,v 1.44 1998/07/20 17:32:56 msmith Exp $
  */
 
 /*
@@ -1869,21 +1869,23 @@ lnc_dump_state(struct lnc_softc *sc)
 	printf("Host memory\n");
 	printf("-----------\n");
 
-	printf("Receive ring: base = %x, next = %x\n",
-	    sc->recv_ring, (sc->recv_ring + sc->recv_next));
+	printf("Receive ring: base = %p, next = %p\n",
+	    (void *)sc->recv_ring, (void *)(sc->recv_ring + sc->recv_next));
 	for (i = 0; i < NDESC(sc->nrdre); i++)
-		printf("\t%d:%x md = %x buff = %x\n",
-		  i, sc->recv_ring + i, (sc->recv_ring + i)->md,
-		    (sc->recv_ring + i)->buff);
+		printf("\t%d:%p md = %p buff = %p\n",
+		    i, (void *)(sc->recv_ring + i),
+		    (void *)(sc->recv_ring + i)->md,
+		    (void *)(sc->recv_ring + i)->buff.data);
 
-	printf("Transmit ring: base = %x, next = %x\n",
-	    sc->trans_ring, (sc->trans_ring + sc->trans_next));
+	printf("Transmit ring: base = %p, next = %p\n",
+	    (void *)sc->trans_ring, (void *)(sc->trans_ring + sc->trans_next));
 	for (i = 0; i < NDESC(sc->ntdre); i++)
-		printf("\t%d:%x md = %x buff = %x\n",
-		i, sc->trans_ring + i, (sc->trans_ring + i)->md,
-		    (sc->trans_ring + i)->buff);
+		printf("\t%d:%p md = %p buff = %p\n",
+		    i, (void *)(sc->trans_ring + i),
+		    (void *)(sc->trans_ring + i)->md,
+		    (void *)(sc->trans_ring + i)->buff.data);
 	printf("Lance memory (may be on host(DMA) or card(SHMEM))\n");
-	printf("Init block = %x\n", sc->init_block);
+	printf("Init block = %p\n", (void *)sc->init_block);
 	printf("\tmode = %b rlen:rdra = %x:%x tlen:tdra = %x:%x\n",
 	    sc->init_block->mode, INIT_MODE, sc->init_block->rlen,
 	  sc->init_block->rdra, sc->init_block->tlen, sc->init_block->tdra);
@@ -1904,7 +1906,9 @@ lnc_dump_state(struct lnc_softc *sc)
 		    ((sc->trans_ring + i)->md->md1 >> 8), TRANS_MD1,
 		    ((sc->trans_ring + i)->md->md3 >> 10), TRANS_MD3);
 	printf("\nnext_to_send = %x\n", sc->next_to_send);
-	printf("\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n", read_csr(sc, CSR0), CSR0_FLAGS, read_csr(sc, CSR1), read_csr(sc, CSR2), read_csr(sc, CSR3));
+	printf("\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n",
+	    read_csr(sc, CSR0), CSR0_FLAGS, read_csr(sc, CSR1),
+	    read_csr(sc, CSR2), read_csr(sc, CSR3));
 	/* Set RAP back to CSR0 */
 	outw(sc->rap, CSR0);
 }
@@ -1919,26 +1923,42 @@ mbuf_dump_chain(struct mbuf * m)
 	if (!m)
 		log(LOG_DEBUG, "m == NULL\n");
 	do {
-		log(LOG_DEBUG, "m = %x\n", m);
-		log(LOG_DEBUG, "m_hdr.mh_next = %x\n", m->m_hdr.mh_next);
-		log(LOG_DEBUG, "m_hdr.mh_nextpkt = %x\n", m->m_hdr.mh_nextpkt);
+		log(LOG_DEBUG, "m = %p\n", (void *)m);
+		log(LOG_DEBUG, "m_hdr.mh_next = %p\n",
+		    (void *)m->m_hdr.mh_next);
+		log(LOG_DEBUG, "m_hdr.mh_nextpkt = %p\n",
+		    (void *)m->m_hdr.mh_nextpkt);
 		log(LOG_DEBUG, "m_hdr.mh_len = %d\n", m->m_hdr.mh_len);
-		log(LOG_DEBUG, "m_hdr.mh_data = %x\n", m->m_hdr.mh_data);
+		log(LOG_DEBUG, "m_hdr.mh_data = %p\n",
+		    (void *)m->m_hdr.mh_data);
 		log(LOG_DEBUG, "m_hdr.mh_type = %d\n", m->m_hdr.mh_type);
-		log(LOG_DEBUG, "m_hdr.mh_flags = %b\n", m->m_hdr.mh_flags, MBUF_FLAGS);
+		log(LOG_DEBUG, "m_hdr.mh_flags = %b\n", m->m_hdr.mh_flags,
+		    MBUF_FLAGS);
 		if (!(m->m_hdr.mh_flags & (M_PKTHDR | M_EXT)))
-			log(LOG_DEBUG, "M_dat.M_databuf = %x\n", m->M_dat.M_databuf);
+			log(LOG_DEBUG, "M_dat.M_databuf = %p\n",
+			    (void *)m->M_dat.M_databuf);
 		else {
 			if (m->m_hdr.mh_flags & M_PKTHDR) {
-				log(LOG_DEBUG, "M_dat.MH.MH_pkthdr.len = %d\n", m->M_dat.MH.MH_pkthdr.len);
-				log(LOG_DEBUG, "M_dat.MH.MH_pkthdr.rcvif = %x\n", m->M_dat.MH.MH_pkthdr.rcvif);
+				log(LOG_DEBUG, "M_dat.MH.MH_pkthdr.len = %d\n",
+				    m->M_dat.MH.MH_pkthdr.len);
+				log(LOG_DEBUG,
+				    "M_dat.MH.MH_pkthdr.rcvif = %p\n",
+				    (void *)m->M_dat.MH.MH_pkthdr.rcvif);
 				if (!(m->m_hdr.mh_flags & M_EXT))
-					log(LOG_DEBUG, "M_dat.MH.MH_dat.MH_databuf = %x\n", m->M_dat.MH.MH_dat.MH_databuf);
+					log(LOG_DEBUG,
+					    "M_dat.MH.MH_dat.MH_databuf = %p\n",
+					(void *)m->M_dat.MH.MH_dat.MH_databuf);
 			}
 			if (m->m_hdr.mh_flags & M_EXT) {
-				log(LOG_DEBUG, "M_dat.MH.MH_dat.MH_ext.ext_buff %x\n", m->M_dat.MH.MH_dat.MH_ext.ext_buf);
-				log(LOG_DEBUG, "M_dat.MH.MH_dat.MH_ext.ext_free %x\n", m->M_dat.MH.MH_dat.MH_ext.ext_free);
-				log(LOG_DEBUG, "M_dat.MH.MH_dat.MH_ext.ext_size %d\n", m->M_dat.MH.MH_dat.MH_ext.ext_size);
+				log(LOG_DEBUG,
+				    "M_dat.MH.MH_dat.MH_ext.ext_buff %p\n",
+				    (void *)m->M_dat.MH.MH_dat.MH_ext.ext_buf);
+				log(LOG_DEBUG,
+				    "M_dat.MH.MH_dat.MH_ext.ext_free %p\n",
+				    (void *)m->M_dat.MH.MH_dat.MH_ext.ext_free);
+				log(LOG_DEBUG,
+				    "M_dat.MH.MH_dat.MH_ext.ext_size %d\n",
+				    m->M_dat.MH.MH_dat.MH_ext.ext_size);
 			}
 		}
 	} while (m = m->m_next);

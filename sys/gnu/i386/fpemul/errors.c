@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: errors.c,v 1.7 1997/02/22 09:29:01 peter Exp $
+ *    $Id: errors.c,v 1.8 1997/06/14 15:11:03 bde Exp $
  *
  */
 
@@ -98,7 +98,7 @@ Un_impl(void)
 	byte1 = fubyte((unsigned char *) FPU_ORIG_EIP);
 	FPU_modrm = fubyte(1 + (unsigned char *) FPU_ORIG_EIP);
 
-	printf("Unimplemented FPU Opcode at eip=%p : %02x ",
+	printf("Unimplemented FPU Opcode at eip=%#08x : %02x ",
 	    FPU_ORIG_EIP, byte1);
 
 	if (FPU_modrm >= 0300)
@@ -158,7 +158,7 @@ emu_printall()
 	status_word = status_word & ~SW_Top;
 	status_word |= (top & 7) << SW_Top_Shift;
 
-	printf("At %p: %02x ", FPU_ORIG_EIP, byte1);
+	printf("At %#08x: %02x ", FPU_ORIG_EIP, byte1);
 	if (FPU_modrm >= 0300)
 		printf("%02x (%02x+%d)\n", FPU_modrm, FPU_modrm & 0xf8, FPU_modrm & 7);
 	else
@@ -167,7 +167,7 @@ emu_printall()
 
 	printf(" SW: b=%d st=%d es=%d sf=%d cc=%d%d%d%d ef=%d%d%d%d%d%d\n",
 	    status_word & 0x8000 ? 1 : 0,	/* busy */
-	    (status_word & 0x3800) >> 11,	/* stack top pointer */
+	    (int)((status_word & 0x3800) >> 11),	/* stack top pointer */
 	    status_word & 0x80 ? 1 : 0,	/* Error summary status */
 	    status_word & 0x40 ? 1 : 0,	/* Stack flag */
 	    status_word & SW_C3 ? 1 : 0, status_word & SW_C2 ? 1 : 0,	/* cc */
@@ -178,8 +178,10 @@ emu_printall()
 
 	printf(" CW: ic=%d rc=%d%d pc=%d%d iem=%d     ef=%d%d%d%d%d%d\n",
 	    control_word & 0x1000 ? 1 : 0,
-	    (control_word & 0x800) >> 11, (control_word & 0x400) >> 10,
-	    (control_word & 0x200) >> 9, (control_word & 0x100) >> 8,
+	    (int)((control_word & 0x800) >> 11),
+	    (int)((control_word & 0x400) >> 10),
+	    (int)((control_word & 0x200) >> 9),
+	    (int)((control_word & 0x100) >> 8),
 	    control_word & 0x80 ? 1 : 0,
 	    control_word & SW_Precision ? 1 : 0, control_word & SW_Underflow ? 1 : 0,
 	    control_word & SW_Overflow ? 1 : 0, control_word & SW_Zero_Div ? 1 : 0,
@@ -199,12 +201,9 @@ emu_printall()
 		case TW_NaN:
 		case TW_Denormal:
 		case TW_Infinity:
-			printf("st(%d)  %c .%04x %04x %04x %04x e%+-6d ", i,
-			    r->sign ? '-' : '+',
-			    (long) (r->sigh >> 16),
-			    (long) (r->sigh & 0xFFFF),
-			    (long) (r->sigl >> 16),
-			    (long) (r->sigl & 0xFFFF),
+			printf("st(%d)  %c .%04lx %04lx %04lx %04lx e%+-6ld ",
+			    i, r->sign ? '-' : '+', r->sigh >> 16,
+			    r->sigh & 0xFFFF, r->sigl >> 16, r->sigl & 0xFFFF,
 			    r->exp - EXP_BIAS + 1);
 			break;
 		default:
@@ -214,13 +213,10 @@ emu_printall()
 		printf("%s\n", tag_desc[(int) (unsigned) r->tag]);
 	}
 
-	printf("[data] %c .%04x %04x %04x %04x e%+-6d ",
-	    FPU_loaded_data.sign ? '-' : '+',
-	    (long) (FPU_loaded_data.sigh >> 16),
-	    (long) (FPU_loaded_data.sigh & 0xFFFF),
-	    (long) (FPU_loaded_data.sigl >> 16),
-	    (long) (FPU_loaded_data.sigl & 0xFFFF),
-	    FPU_loaded_data.exp - EXP_BIAS + 1);
+	printf("[data] %c .%04lx %04lx %04lx %04lx e%+-6ld ",
+	    FPU_loaded_data.sign ? '-' : '+', FPU_loaded_data.sigh >> 16,
+	    FPU_loaded_data.sigh & 0xFFFF, FPU_loaded_data.sigl >> 16,
+	    FPU_loaded_data.sigl & 0xFFFF, FPU_loaded_data.exp - EXP_BIAS + 1);
 	printf("%s\n", tag_desc[(int) (unsigned) FPU_loaded_data.tag]);
 	REENTRANT_CHECK(ON);
 

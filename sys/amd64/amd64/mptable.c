@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.77 1998/08/16 00:41:40 bde Exp $
+ *	$Id: mp_machdep.c,v 1.78 1998/08/18 07:46:58 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -2113,7 +2113,7 @@ ap_init()
 	if (cpuid != apic_id) {
 		printf("SMP: cpuid = %d\n", cpuid);
 		printf("SMP: apic_id = %d\n", apic_id);
-		printf("PTD[MPPTDI] = %08x\n", PTD[MPPTDI]);
+		printf("PTD[MPPTDI] = %p\n", (void *)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
 	}
 

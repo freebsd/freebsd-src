@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.20 1998/06/17 13:54:56 bde Exp $
+ * $Id: if_ar.c,v 1.21 1998/06/21 14:53:10 bde Exp $
  */
 
 /*
@@ -1240,12 +1240,12 @@ ar_eat_packet(struct ar_softc *sc, int single)
 	while(rxdesc != cda) {
 		loopcnt++;
 		if(loopcnt > sc->rxmax) {
-			printf("ar%d: eat pkt %d loop, cda %x, "
-			       "rxdesc %x, stat %x.\n",
+			printf("ar%d: eat pkt %d loop, cda %p, "
+			       "rxdesc %p, stat %x.\n",
 			       sc->unit,
 			       loopcnt,
-			       cda,
-			       rxdesc,
+			       (void *)cda,
+			       (void *)rxdesc,
 			       rxdesc->stat);
 			break;
 		}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.35 1998/07/28 03:29:32 jlemon Exp $
+ *	$Id: sys_machdep.c,v 1.36 1998/08/18 07:46:58 msmith Exp $
  *
  */
 
@@ -290,8 +290,8 @@ i386_get_ldt(p, args)
 		return(error);
 
 #ifdef	DEBUG
-	printf("i386_get_ldt: start=%d num=%d descs=%x\n", uap->start,
-		uap->num, uap->desc);
+	printf("i386_get_ldt: start=%d num=%d descs=%p\n",
+	    uap->start, uap->num, (void *)uap->desc);
 #endif
 
 	/* verify range of LDTs exist */
@@ -345,7 +345,8 @@ i386_set_ldt(p, args)
 	uap = &ua;
 
 #ifdef	DEBUG
-	printf("i386_set_ldt: start=%d num=%d descs=%x\n", uap->start, uap->num, uap->desc);
+	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
+	    uap->start, uap->num, (void *)uap->desc);
 #endif
 
  	/* verify range of descriptors to modify */

@@ -641,8 +641,8 @@ static void ad_intr(struct ctlr *ctlr)
 		{
 			struct buf *bp = ctlr->start_queue.b_actf;
 
-			printf("ad_intr: error: bp %0p, data %0p, status %x",
-			bp, ctlr->data, status);
+			printf("ad_intr: error: bp %p, data %p, status %x",
+			    (void *)bp, (void *)ctlr->data, status);
 
 			if (status & OVERRUN)
 				printf(" Conversion overrun (multiple A-D trigger)");
@@ -682,8 +682,8 @@ static void ad_intr(struct ctlr *ctlr)
 				printf("ad_intr: (should not happen) dropped input.\n");
 				(void)inb(ADFIFO(ctlr));
 
-				printf("bp %0p, status %x, cr3 %x\n", bp, status,
-				ctlr->cr_image[2]);
+				printf("bp %p, status %x, cr3 %x\n",
+				    (void *)bp, status, ctlr->cr_image[2]);
 
 				ctlr->err = DROPPED_INPUT;
 				return;

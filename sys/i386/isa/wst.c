@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.8 1998/07/04 22:30:19 julian Exp $
+ *	$Id: wst.c,v 1.9 1998/08/14 15:54:57 sos Exp $
  */
 
 #include "wdc.h"
@@ -353,8 +353,8 @@ wstopen(dev_t dev, int flags, int fmt, struct proc *p)
 
     /* Check that the device number and that the ATAPI driver is loaded. */
     if (lun >= wstnlun || !atapi_request_immediate) {
-        printf("ENXIO lun=%d, wstnlun=%d, im=%d\n",
-               lun, wstnlun, atapi_request_immediate);
+        printf("ENXIO lun=%d, wstnlun=%d, im=%p\n",
+               lun, wstnlun, (void *)atapi_request_immediate);
         return(ENXIO);
     }
     t = wsttab[lun];
@@ -428,7 +428,7 @@ wststrategy(struct buf *bp)
     }
 
     if (bp->b_bcount > t->blksize*t->cap.ctl) {  
-        printf("wst%d: WARNING: CTL exceeded %d>%d\n", 
+        printf("wst%d: WARNING: CTL exceeded %ld>%d\n", 
 		lun, bp->b_bcount, t->blksize*t->cap.ctl);
     }
 
@@ -585,8 +585,8 @@ wst_error(struct wst *t, struct atapires result)
         printf("wst%d: i/o error, status=%b, error=%b\n", t->lun,
         	result.status, ARS_BITS, result.error, AER_BITS);
     }
-    printf("total=%ud ERR=%x len=%d ASC=%x ASCQ=%x\n", 
-	   wst_total, sense.error_code, ntohl(sense.info), 
+    printf("total=%u ERR=%x len=%ld ASC=%x ASCQ=%x\n", 
+	   wst_total, sense.error_code, (long)ntohl(sense.info), 
 	   sense.asc, sense.ascq);
     return 1;
 }
