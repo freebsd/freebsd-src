@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1986, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,17 +61,18 @@ static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 
 #include <vm/vm_param.h>
 
-#include <time.h>
-#include <nlist.h>
-#include <kvm.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <kvm.h>
+#include <limits.h>
+#include <nlist.h>
+#include <paths.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <paths.h>
-#include <limits.h>
+#include <time.h>
+#include <unistd.h>
 
 struct nlist namelist[] = {
 #define	X_CPTIME	0
@@ -169,13 +174,13 @@ void	dovmstat(), kread(), usage();
 #ifdef notdef
 void	dotimes(), doforkst();
 #endif
+void printhdr __P((void));
 
+int
 main(argc, argv)
 	register int argc;
 	register char **argv;
 {
-	extern int optind;
-	extern char *optarg;
 	register int c, todo;
 	u_int interval;
 	int reps;
@@ -235,17 +240,13 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-        kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	if (kd == 0) {
-		(void)fprintf(stderr,
-		    "vmstat: kvm_openfiles: %s\n", errbuf);
-		exit(1);
-	}
+	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
+	if (kd == 0) 
+		errx(1, "kvm_openfiles: %s", errbuf);
 
 	if ((c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
-			(void)fprintf(stderr,
-			    "vmstat: undefined symbols:");
+			warnx("undefined symbols:");
 			for (c = 0;
 			    c < sizeof(namelist)/sizeof(namelist[0]); c++)
 				if (namelist[c].n_type == 0)
@@ -253,8 +254,7 @@ main(argc, argv)
 					    namelist[c].n_name);
 			(void)fputc('\n', stderr);
 		} else
-			(void)fprintf(stderr, "vmstat: kvm_nlist: %s\n",
-			    kvm_geterr(kd));
+			warnx("kvm_nlist: %s", kvm_geterr(kd));
 		exit(1);
 	}
 
@@ -313,10 +313,8 @@ getdrivedata(argv)
 	char buf[30];
 
 	kread(X_DK_NDRIVE, &dk_ndrive, sizeof(dk_ndrive));
-	if (dk_ndrive < 0) {
-		(void)fprintf(stderr, "vmstat: dk_ndrive %d\n", dk_ndrive);
-		exit(1);
-	}
+	if (dk_ndrive < 0)
+		errx(1, "dk_ndrive %d", dk_ndrive);
 	dr_select = calloc((size_t)dk_ndrive, sizeof(int));
 	dr_name = calloc((size_t)dk_ndrive, sizeof(char *));
 	for (i = 0; i < dk_ndrive; i++)
@@ -380,11 +378,8 @@ getuptime()
 		kread(X_BOOTTIME, &boottime, sizeof(boottime));
 	(void)time(&now);
 	uptime = now - boottime;
-	if (uptime <= 0 || uptime > 60*60*24*365*10) {
-		(void)fprintf(stderr,
-		    "vmstat: time makes no sense; namelist must be wrong.\n");
-		exit(1);
-	}
+	if (uptime <= 0 || uptime > 60*60*24*365*10)
+		errx(1, "time makes no sense; namelist must be wrong");
 	return(uptime);
 }
 
@@ -427,7 +422,7 @@ dovmstat(interval, reps)
 #define pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf("%6ld%6ld ",
-		    pgtok(total.t_avm), pgtok(total.t_free));
+		    (long)pgtok(total.t_avm), (long)pgtok(total.t_free));
 		(void)printf("%4lu ", rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
 		    rate(sum.v_reactivated - osum.v_reactivated));
@@ -461,6 +456,7 @@ dovmstat(interval, reps)
 	}
 }
 
+void
 printhdr()
 {
 	register int i;
@@ -510,6 +506,7 @@ dotimes()
 }
 #endif
 
+long
 pct(top, bot)
 	long top, bot;
 {
@@ -575,11 +572,11 @@ dosum()
 	    nchstats.ncs_miss + nchstats.ncs_long;
 	(void)printf("%9ld total name lookups\n", nchtotal);
 	(void)printf(
-	    "%9s cache hits (%d%% pos + %d%% neg) system %d%% per-directory\n",
+	    "%9s cache hits (%ld%% pos + %ld%% neg) system %ld%% per-directory\n",
 	    "", PCT(nchstats.ncs_goodhits, nchtotal),
 	    PCT(nchstats.ncs_neghits, nchtotal),
 	    PCT(nchstats.ncs_pass2, nchtotal));
-	(void)printf("%9s deletions %d%%, falsehits %d%%, toolong %d%%\n", "",
+	(void)printf("%9s deletions %ld%%, falsehits %ld%%, toolong %ld%%\n", "",
 	    PCT(nchstats.ncs_badhits, nchtotal),
 	    PCT(nchstats.ncs_falsehits, nchtotal),
 	    PCT(nchstats.ncs_long, nchtotal));
@@ -675,10 +672,8 @@ dointr()
 	    namelist[X_EINTRNAMES].n_value - namelist[X_INTRNAMES].n_value;
 	intrcnt = malloc((size_t)nintr);
 	intrname = malloc((size_t)inamlen);
-	if (intrcnt == NULL || intrname == NULL) {
-		(void)fprintf(stderr, "vmstat: %s.\n", strerror(errno));
-		exit(1);
-	}
+	if (intrcnt == NULL || intrname == NULL)
+		errx(1, "malloc");
 	kread(X_INTRCNT, intrcnt, (size_t)nintr);
 	kread(X_INTRNAMES, intrname, (size_t)inamlen);
 	(void)printf("interrupt      total      rate\n");
@@ -814,16 +809,13 @@ kread(nlx, addr, size)
 		sym = namelist[nlx].n_name;
 		if (*sym == '_')
 			++sym;
-		(void)fprintf(stderr,
-		    "vmstat: symbol %s not defined\n", sym);
-		exit(1);
+		errx(1, "symbol %s not defined", sym);
 	}
 	if (kvm_read(kd, namelist[nlx].n_value, addr, size) != size) {
 		sym = namelist[nlx].n_name;
 		if (*sym == '_')
 			++sym;
-		(void)fprintf(stderr, "vmstat: %s: %s\n", sym, kvm_geterr(kd));
-		exit(1);
+		errx(1, "%s: %s", sym, kvm_geterr(kd));
 	}
 }
 
@@ -831,7 +823,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: vmstat [-ims] [-c count] [-M core] \
-[-N system] [-w wait] [disks]\n");
+"usage: vmstat [-ims] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
 	exit(1);
 }
