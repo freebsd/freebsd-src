@@ -11,7 +11,7 @@
 .\" nor does the author assume any responsibility for damages incurred with
 .\" its use.
 .\"
-.\" $Id: dialog.3,v 1.7 1998/06/06 05:50:46 jkoshy Exp $
+.\" $Id: dialog.3,v 1.8 1998/10/02 11:23:47 jkh Exp $
 .\"
 .Dd October 2, 1998
 .Dt dialog 3
@@ -384,9 +384,7 @@ Initialize the dialog library (call this routine before any other dialog API cal
 Shut down the dialog library (call this if you need to get back to sanity).
 
 .Ft "int"
-.Fn dialog_ftree "unsigned char *filename" "unsigned char FS" \
-"unsigned char *title" "unsigned char *prompt" "int height" "int width" \
-"int menu_height" "unsigned char **result"
+.Fn dialog_ftree "unsigned char *filename" "unsigned char FS" "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int menu_height" "unsigned char **result"
 
 \fBdialog_ftree\fR shows a tree described by the data from the file
 \fBfilename\fR.  The data in the file should look like \fBfind(1)\fR output.
