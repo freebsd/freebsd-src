@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.162 1996/08/28 18:20:22 bde Exp $
+ *  $Id: syscons.c,v 1.163 1996/09/01 18:16:05 sos Exp $
  */
 
 #include "sc.h"
@@ -1488,6 +1488,7 @@ static void
 clear_screen(scr_stat *scp)
 {
     move_crsr(scp, 0, 0);
+    scp->cursor_oldpos = scp->cursor_pos;
     fillw(scp->term.cur_color | scr_map[0x20], scp->scr_buf,
 	  scp->xsize * scp->ysize);
     mark_all(scp);
