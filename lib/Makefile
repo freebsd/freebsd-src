@@ -93,7 +93,7 @@ _libncp=	libncp
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} != "powerpc" && !defined(NOLIBPTHREAD)
+.if !defined(NOLIBPTHREAD)
 _libpthread=	libpthread
 .endif
 
