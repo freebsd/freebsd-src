@@ -357,7 +357,7 @@ kseq_load_add(struct kseq *kseq, struct kse *ke)
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare++;
 	kseq->ksq_load++;
-	if (class != PRI_ITHD)
+	if (class != PRI_ITHD && (ke->ke_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
 		kseq->ksq_group->ksg_load++;
 #else
@@ -380,7 +380,7 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare--;
-	if (class != PRI_ITHD)
+	if (class != PRI_ITHD  && (ke->ke_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
 		kseq->ksq_group->ksg_load--;
 #else
