@@ -322,10 +322,10 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 #ifdef MUTEX_PROFILING
 	/* don't reset the timer when/if recursing */
-	if (m->acqtime == 0) {
-		m->file = file;
-		m->line = line;
-		m->acqtime = mutex_prof_enable ? nanoseconds() : 0;
+	if (m->mtx_acqtime == 0) {
+		m->mtx_filename = file;
+		m->mtx_lineno = line;
+		m->mtx_acqtime = mutex_prof_enable ? nanoseconds() : 0;
 		++mutex_prof_acquisitions;
 	}
 #endif
@@ -338,7 +338,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	MPASS(curthread != NULL);
 	mtx_assert(m, MA_OWNED);
 #ifdef MUTEX_PROFILING
-	if (m->acqtime != 0) {
+	if (m->mtx_acqtime != 0) {
 		static const char *unknown = "(unknown)";
 		struct mutex_prof *mpp;
 		u_int64_t acqtime, now;
@@ -346,19 +346,20 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		volatile u_int hash;
 
 		now = nanoseconds();
-		acqtime = m->acqtime;
-		m->acqtime = 0;
+		acqtime = m->mtx_acqtime;
+		m->mtx_acqtime = 0;
 		if (now <= acqtime)
 			goto out;
-		for (p = file; strncmp(p, "../", 3) == 0; p += 3)
+		for (p = m->mtx_filename; strncmp(p, "../", 3) == 0; p += 3)
 			/* nothing */ ;
 		if (p == NULL || *p == '\0')
 			p = unknown;
-		for (hash = line, q = p; *q != '\0'; ++q)
+		for (hash = m->mtx_lineno, q = p; *q != '\0'; ++q)
 			hash = (hash * 2 + *q) % MPROF_HASH_SIZE;
 		mtx_lock_spin(&mprof_mtx);
 		for (mpp = mprof_hash[hash]; mpp != NULL; mpp = mpp->next)
-			if (mpp->line == line && strcmp(mpp->file, p) == 0)
+			if (mpp->line == m->mtx_lineno &&
+			    strcmp(mpp->file, p) == 0)
 				break;
 		if (mpp == NULL) {
 			/* Just exit if we cannot get a trace buffer */
@@ -369,7 +370,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 			mpp = &mprof_buf[first_free_mprof_buf++];
 			mpp->name = mtx_name(m);
 			mpp->file = p;
-			mpp->line = line;
+			mpp->line = m->mtx_lineno;
 			mpp->next = mprof_hash[hash];
 			if (mprof_hash[hash] != NULL)
 				++mutex_prof_collisions;
