@@ -78,6 +78,31 @@ __FBSDID("$FreeBSD$");
 #include <dev/hatm/if_hatmreg.h>
 #include <dev/hatm/if_hatmvar.h>
 
+
+/*
+ * These macros are used to trace the flow of transmit mbufs and to
+ * detect transmit mbuf leaks in the driver.
+ */
+#ifdef HATM_DEBUG
+#define	hatm_free_txmbuf(SC)						\
+	do {								\
+		if (--sc->txmbuf < 0)					\
+			DBG(sc, TX, ("txmbuf below 0!"));		\
+		else if (sc->txmbuf == 0)				\
+			DBG(sc, TX, ("txmbuf now 0"));			\
+	} while (0)
+#define	hatm_get_txmbuf(SC)						\
+	do {								\
+		if (++sc->txmbuf > 20000)				\
+			DBG(sc,	TX ("txmbuf %u", sc->txmbuf));		\
+		else if (sc->txmbuf == 1)				\
+			DBG(sc, TX, ("txmbuf leaves 0"));		\
+	} while (0)
+#else
+#define	hatm_free_txmbuf(SC)	do { } while (0)
+#define	hatm_get_txmbuf(SC)	do { } while (0)
+#endif
+
 /*
  * Allocate a new TPD, zero the TPD part. Cannot return NULL if
  * flag is 0. The TPD is removed from the free list and its used
@@ -124,6 +149,7 @@ hatm_free_tpd(struct hatm_softc *sc, struct tpd *tpd)
 {
 	if (tpd->mbuf != NULL) {
 		bus_dmamap_unload(sc->tx_tag, tpd->map);
+		hatm_free_txmbuf(sc);
 		m_freem(tpd->mbuf);
 		tpd->mbuf = NULL;
 	}
@@ -344,9 +370,13 @@ hatm_start(struct ifnet *ifp)
 		if (m == NULL)
 			break;
 
+		hatm_get_txmbuf(sc);
+
 		if (m->m_len < sizeof(*aph))
-			if ((m = m_pullup(m, sizeof(*aph))) == NULL)
+			if ((m = m_pullup(m, sizeof(*aph))) == NULL) {
+				hatm_free_txmbuf(sc);
 				continue;
+			}
 
 		aph = mtod(m, struct atm_pseudohdr *);
 		arg.vci = ATM_PH_VCI(aph);
@@ -354,12 +384,14 @@ hatm_start(struct ifnet *ifp)
 		m_adj(m, sizeof(*aph));
 
 		if ((len = m->m_pkthdr.len) == 0) {
+			hatm_free_txmbuf(sc);
 			m_freem(m);
 			continue;
 		}
 
 		if ((arg.vpi & ~HE_VPI_MASK) || (arg.vci & ~HE_VCI_MASK) ||
 		    (arg.vci == 0)) {
+			hatm_free_txmbuf(sc);
 			m_freem(m);
 			continue;
 		}
@@ -367,10 +399,12 @@ hatm_start(struct ifnet *ifp)
 		arg.vcc = sc->vccs[cid];
 
 		if (arg.vcc == NULL || !(arg.vcc->vflags & HE_VCC_OPEN)) {
+			hatm_free_txmbuf(sc);
 			m_freem(m);
 			continue;
 		}
 		if (arg.vcc->vflags & HE_VCC_FLOW_CTRL) {
+			hatm_free_txmbuf(sc);
 			m_freem(m);
 			sc->istats.flow_drop++;
 			continue;
@@ -380,6 +414,7 @@ hatm_start(struct ifnet *ifp)
 		if (arg.vcc->param.aal == ATMIO_AAL_RAW) {
 			if (len < 52) {
 				/* too short */
+				hatm_free_txmbuf(sc);
 				m_freem(m);
 				continue;
 			}
@@ -388,8 +423,10 @@ hatm_start(struct ifnet *ifp)
 			 * Get the header and ignore except
 			 * payload type and CLP.
 			 */
-			if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
+			if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
+				hatm_free_txmbuf(sc);
 				continue;
+			}
 			arg.pti = mtod(m, u_char *)[3] & 0xf;
 			arg.pti = ((arg.pti & 0xe) << 2) | ((arg.pti & 1) << 1);
 			m_adj(m, 4);
@@ -412,6 +449,7 @@ hatm_start(struct ifnet *ifp)
 		 * TPD to get a map. Additional TPDs may be allocated by the
 		 * callback. */
 		if ((tpd = hatm_alloc_tpd(sc, M_NOWAIT)) == NULL) {
+			hatm_free_txmbuf(sc);
 			m_freem(m);
 			sc->ifatm.ifnet.if_oerrors++;
 			continue;
@@ -430,6 +468,9 @@ hatm_start(struct ifnet *ifp)
 			sc->istats.defrag++;
 			m = m_defrag(m, M_DONTWAIT);
 			if (m == NULL) {
+				tpd->mbuf = NULL;
+				hatm_free_txmbuf(sc);
+				hatm_free_tpd(sc, tpd);
 				sc->ifatm.ifnet.if_oerrors++;
 				continue;
 			}

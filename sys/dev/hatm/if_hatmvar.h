@@ -461,6 +461,9 @@ struct hatm_softc {
 #ifdef HATM_DEBUG
 	/* debugging */
 	u_int			debug;
+
+	/* transmit mbuf count */
+	int			txmbuf;
 #endif
 };
 
