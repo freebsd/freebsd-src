@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: ping.c,v 1.40 1998/08/26 01:58:39 dillon Exp $";
+	"$Id: ping.c,v 1.41 1998/08/26 18:51:37 des Exp $";
 #endif /* not lint */
 
 /*
@@ -141,6 +141,7 @@ u_char outpack[MAXPACKET];
 char BSPACE = '\b';		/* characters written for flood */
 char DOT = '.';
 char *hostname;
+char *shostname;
 int ident;			/* process id to identify our packets */
 int uid;			/* cached uid for micro-optimization */
 
@@ -184,14 +185,15 @@ main(argc, argv)
 {
 	struct timeval last, intvl;
 	struct hostent *hp;
-	struct sockaddr_in *to;
+	struct sockaddr_in *to, sin;
 	struct termios ts;
 	register int i;
 	int ch, hold, packlen, preload, sockerrno, almost_done = 0;
 	struct in_addr ifaddr;
 	unsigned char ttl, loop;
 	u_char *datap, *packet;
-	char *target, hnamebuf[MAXHOSTNAMELEN];
+	char *source = NULL, *target, hnamebuf[MAXHOSTNAMELEN];
+	char snamebuf[MAXHOSTNAMELEN];
 	char *ep;
 	u_long ultmp;
 #ifdef IP_OPTIONS
@@ -217,7 +219,7 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + PHDR_LEN];
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1) {
+	while ((ch = getopt(argc, argv, "I:LQRS:T:c:adfi:l:np:qrs:v")) != -1) {
 		switch(ch) {
 		case 'a':
 			options |= F_AUDIBLE;
@@ -316,6 +318,9 @@ main(argc, argv)
 				     optarg);
 			datalen = ultmp;
 			break;
+		case 'S':
+			source = optarg;
+			break;
 		case 'T':		/* multicast TTL */
 			ultmp = strtoul(optarg, &ep, 0);
 			if (*ep || ep == optarg || ultmp > 255)
@@ -335,6 +340,31 @@ main(argc, argv)
 	if (argc - optind != 1)
 		usage();
 	target = argv[optind];
+
+	if (source) {
+		bzero((char *)&sin, sizeof(sin));
+		sin.sin_family = AF_INET;
+		if (inet_aton(source, &sin.sin_addr) != 0) {
+			shostname = source;
+		} else {
+			hp = gethostbyname2(source, AF_INET);
+			if (!hp)
+				errx(EX_NOHOST, "cannot resolve %s: %s",
+				     source, hstrerror(h_errno));
+
+			sin.sin_len = sizeof sin;
+			if (hp->h_length > sizeof(sin.sin_addr))
+				errx(1,"gethostbyname2: illegal address");
+			memcpy(&sin.sin_addr, hp->h_addr_list[0], 
+				sizeof (sin.sin_addr));
+			(void)strncpy(snamebuf, hp->h_name, 
+				sizeof(snamebuf) - 1);
+			snamebuf[sizeof(snamebuf) - 1] = '\0';
+			shostname = snamebuf;
+		}
+		if (bind(s, (struct sockaddr *)&sin, sizeof sin) == -1)
+			err(1, "bind");
+	}
 
 	bzero((char *)&whereto, sizeof(struct sockaddr));
 	to = (struct sockaddr_in *)&whereto;
@@ -444,11 +474,13 @@ main(argc, argv)
 	(void)setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
 	    sizeof(hold));
 
-	if (to->sin_family == AF_INET)
-		(void)printf("PING %s (%s): %d data bytes\n", hostname,
-		    inet_ntoa(to->sin_addr),
-		    datalen);
-	else
+	if (to->sin_family == AF_INET) {
+		(void)printf("PING %s (%s)", hostname,
+		    inet_ntoa(to->sin_addr));
+		if (source)
+			(void)printf(" from %s", shostname);
+		(void)printf(": %d data bytes\n", datalen);
+	} else
 		(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 
 	/*
@@ -1284,8 +1316,9 @@ fill(bp, patp)
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-p pattern]",
-"            [-s packetsize] [host | [-L] [-I iface] [-T ttl] mcast-group]");
+"            [-s packetsize] [-S src_addr]",
+"            [host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }
