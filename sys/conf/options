@@ -56,7 +56,6 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
 # Miscellaneous options.
-BLEED
 COMPAT_43	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
 COMPILING_LINT	opt_global.h
@@ -363,7 +362,6 @@ VP0_DEBUG		opt_vpo.h
 LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
-LOUTB			opt_debug_outb.h
 NPX_DEBUG		opt_debug_npx.h
 NETATALKDEBUG		opt_atalk.h
 SI_DEBUG		opt_debug_si.h
@@ -390,7 +388,6 @@ INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 REGRESSION		opt_global.h
 RESTARTABLE_PANICS	opt_global.h
-SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
 
 # These are VM related options
@@ -408,14 +405,10 @@ PQ_CACHESIZE		opt_vmpage.h
 # Standard SMP options
 SMP			opt_global.h
 
-# sys/netkey
-KEY
-
 # Size of the kernel message buffer
 MSGBUF_SIZE		opt_msgbuf.h
 
 # PCI related options
-PCI_QUIET		opt_pci.h
 PCI_ENABLE_IO_MODES	opt_pci.h
 PCI_ALLOW_UNSUPPORTED_IO_RANGE	opt_pci.h
 
@@ -425,9 +418,7 @@ NFS_MAXATTRTIMO		opt_nfs.h
 NFS_MINDIRATTRTIMO	opt_nfs.h
 NFS_MAXDIRATTRTIMO	opt_nfs.h
 NFS_GATHERDELAY		opt_nfs.h
-NFS_UIDHASHSIZ		opt_nfs.h
 NFS_WDELAYHASHSIZ	opt_nfs.h
-NFS_MUIDHASHSIZ		opt_nfs.h
 NFS_DEBUG		opt_nfs.h
 
 # For the Bt848/Bt848A/Bt849/Bt878/Bt879 driver
@@ -468,7 +459,6 @@ SIMOS			opt_simos.h
 
 # options for bus/device framework
 BUS_DEBUG		opt_bus.h
-DEVICE_SYSCTLS		opt_bus.h
 
 # options for USB support
 UHCI_DEBUG		opt_usb.h
@@ -512,8 +502,6 @@ WITNESS_SKIPSPIN	opt_witness.h
 
 # options for ACPI support
 ACPI_DEBUG		opt_acpi.h
-AML_DEBUG		opt_acpi.h
-ACPI_NO_ENABLE_ON_BOOT	opt_acpi.h
 ACPI_NO_SEMAPHORES	opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
 

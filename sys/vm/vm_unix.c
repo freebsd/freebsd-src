@@ -44,7 +44,6 @@
 /*
  * Traditional sbrk/grow interface to VM
  */
-#include "opt_bleed.h"
 
 #include <sys/param.h>
 #include <sys/lock.h>
