@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.35 1994/01/04 20:10:33 nate Exp $
+#	$Id: LINT,v 1.36 1994/01/05 14:56:48 rgrimes Exp $
 #
 
 machine		"i386"
@@ -42,7 +42,6 @@ options		TROLL			#CLNP network error simulator
 options		ICMPPRINTFS		#ICMP packet dump by printf()
 options		NSERRPRINTFS		#ditto for XNS Error protocol
 					#^^above three NOT RECOMMENTED
-options		SCSIDUMP		#support for crash dumps on sd disks
 options		FASTLINKS		#support for fast symbolic links
 options		MACHVMCOMPAT		#support for Mach-style vm calls
 options		IPBROADCASTECHO=1	#send reply to broadcast pings
