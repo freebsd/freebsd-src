@@ -154,6 +154,8 @@ int	 cgetustr __P((char *, char *, char **));
 int	 daemon __P((int, int));
 char	*devname __P((int, int));
 int	 getloadavg __P((double [], int));
+const char *
+	getprogname __P((void));
 
 char	*group_from_gid __P((unsigned long, int));
 int	 heapsort __P((void *, size_t, size_t,
@@ -169,6 +171,7 @@ int	 rand_r __P((unsigned *));
 long	 random __P((void));
 void    *reallocf __P((void *, size_t));
 char	*realpath __P((const char *, char resolved_path[]));
+void	 setprogname __P((const char *));
 char	*setstate __P((char *));
 void	 srandom __P((unsigned long));
 void	 srandomdev __P((void));
