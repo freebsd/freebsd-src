@@ -1126,6 +1126,11 @@ riprecv()
 	if (idx && IN6_IS_ADDR_LINKLOCAL(&fsock.sin6_addr))
 		SET_IN6_LINKLOCAL_IFINDEX(fsock.sin6_addr, idx);
 
+	if (len < sizeof(struct rip6)) {
+		trace(1, "Packet too short\n");
+		return;
+	}
+
 	nh = fsock.sin6_addr;
 	nn = (len - sizeof(struct rip6) + sizeof(struct netinfo6)) /
 		sizeof(struct netinfo6);
