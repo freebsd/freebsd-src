@@ -72,6 +72,12 @@ static void	ithread_update(struct ithd *);
 static void	ithread_loop(void *);
 static void	start_softintr(void *);
 
+static int intr_storm_threshold = 500;
+TUNABLE_INT("hw.intr_storm_threshold", &intr_storm_threshold);
+SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RW,
+    &intr_storm_threshold, 0,
+    "Number of consecutive interrupts before storm protection is enabled.");
+
 u_char
 ithread_priority(enum intr_type flags)
 {
@@ -488,12 +494,15 @@ ithread_loop(void *arg)
 	struct intrhand *ih;		/* and our interrupt handler chain */
 	struct thread *td;
 	struct proc *p;
+	int count, warned;
 	
 	td = curthread;
 	p = td->td_proc;
 	ithd = (struct ithd *)arg;	/* point to myself */
 	KASSERT(ithd->it_td == td && td->td_ithd == ithd,
 	    ("%s: ithread and proc linkage out of sync", __func__));
+	count = 0;
+	warned = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -522,6 +531,24 @@ ithread_loop(void *arg)
 			 * another pass.
 			 */
 			atomic_store_rel_int(&ithd->it_need, 0);
+
+			/*
+			 * If we detect an interrupt storm, pause with
+			 * the source masked for 1/10th of a second.
+			 */
+			if (intr_storm_threshold != 0 && count >=
+			    intr_storm_threshold) {
+				if (!warned) {
+					printf(
+	"Interrupt storm detected on \"%s\", throttling interrupt source\n",
+					    p->p_comm);
+					warned = 1;
+				}
+				tsleep(&count, td->td_priority, "throttle",
+				    hz / 10);
+				count = 0;
+			} else
+				count++;
 restart:
 			TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
@@ -547,23 +574,21 @@ restart:
 				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_unlock(&Giant);
 			}
+			if (ithd->it_enable != NULL)
+				ithd->it_enable(ithd->it_vector);
 		}
+		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
+		mtx_assert(&Giant, MA_NOTOWNED);
 
 		/*
 		 * Processed all our interrupts.  Now get the sched
 		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
-		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
-		mtx_assert(&Giant, MA_NOTOWNED);
 		mtx_lock_spin(&sched_lock);
 		if (!ithd->it_need) {
-			/*
-			 * Should we call this earlier in the loop above?
-			 */
-			if (ithd->it_enable != NULL)
-				ithd->it_enable(ithd->it_vector);
-			TD_SET_IWAIT(td); /* we're idle */
+			TD_SET_IWAIT(td);
+			count = 0;
 			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
 			mi_switch(SW_VOL);
 			CTR2(KTR_INTR, "%s: pid %d: resumed", __func__, p->p_pid);
