@@ -206,6 +206,8 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
+
+	/* Below a list of quirks for USB devices supported by umass. */
 	{
 		/*
 		 * This USB floppy drive uses the UFI command set. This
@@ -220,8 +222,11 @@ static struct da_quirk_entry da_quirk_table[] =
 		/* Another USB floppy */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MATSHITA", "FDD CF-VFDU*","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
-
 };
 
 static	d_open_t	daopen;
