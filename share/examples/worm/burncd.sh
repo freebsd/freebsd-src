@@ -34,6 +34,6 @@ else
 	wormcontrol select HP 4020i
 	wormcontrol prepdisk double
 	wormcontrol track data
-	rtprio 5 team -v 1m 5 < $1 | dd of=/dev/rworm0 obs=20k
+	rtprio 5 team -v 1m 5 < $1 | rtprio 5 dd of=/dev/rworm0 obs=20k
 	wormcontrol fixate 1
 fi
