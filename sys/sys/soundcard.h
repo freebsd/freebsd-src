@@ -91,6 +91,8 @@
 #define SNDCARD_PSEUDO_MSS     24
 #define SNDCARD_AWE32           25
 #define SNDCARD_NSS            26
+#define SNDCARD_UART16550      27
+#define SNDCARD_OPL            28
 
 #include <sys/types.h>
 #ifndef _IOWR
@@ -704,6 +706,8 @@ typedef struct {
 #define SNDCTL_MIDI_PRETIME	_IOWR('m', 0, int)
 #define SNDCTL_MIDI_MPUMODE	_IOWR('m', 1, int)
 #define SNDCTL_MIDI_MPUCMD	_IOWR('m', 2, mpu_command_rec)
+#define MIOSPASSTHRU		_IOWR('m', 3, int)
+#define MIOGPASSTHRU		_IOWR('m', 4, int)
 
 /*
  * IOCTL commands for /dev/dsp and /dev/audio
