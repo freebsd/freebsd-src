@@ -969,8 +969,8 @@ m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		if (n == NULL)
 			break;
 		n->m_len = min(MLEN, remainder);
-		bcopy(cp, mtod(m, caddr_t), m->m_len);
-		cp += m->m_len, remainder -= m->m_len;
+		bcopy(cp, mtod(n, caddr_t), n->m_len);
+		cp += n->m_len, remainder -= n->m_len;
 		m->m_next = n;
 		m = n;
 	}
