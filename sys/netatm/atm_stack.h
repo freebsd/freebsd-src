@@ -38,7 +38,7 @@
 #ifndef _NETATM_ATM_STACK_H
 #define _NETATM_ATM_STACK_H
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure used to define a kernel-provided ATM stack service and its
  * associated entry points.  Each stack service provider must register
@@ -282,6 +282,6 @@ struct stackq_entry {
 	if (atm_stackq_head)						\
 		atm_stack_drain();					\
 }
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_STACK_H */

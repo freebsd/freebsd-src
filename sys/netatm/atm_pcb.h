@@ -39,7 +39,7 @@
 #define _NETATM_ATM_PCB_H
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * ATM Socket PCB
  *
@@ -87,6 +87,6 @@ struct atm_sock_stat {
 	u_long	as_indrop[ATPT_NUM];	/* Input packets dropped */
 	u_long	as_outdrop[ATPT_NUM];	/* Output packets dropped */
 };
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_PCB_H */

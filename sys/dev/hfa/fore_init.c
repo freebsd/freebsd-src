@@ -45,9 +45,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-#ifdef FORE_PCI
 static void	fore_get_prom __P((Fore_unit *));
-#endif
 
 
 /*
@@ -241,14 +239,11 @@ fore_initialize_complete(fup)
 	 */
 	fup->fu_flags |= CUF_INITED;
 
-#ifdef FORE_PCI
 	fore_get_prom(fup);
-#endif
 	return;
 }
 
 
-#ifdef FORE_PCI
 /*
  * Get device PROM values from CP
  * 
@@ -311,5 +306,4 @@ fore_get_prom(fup)
 
 	return;
 }
-#endif	/* FORE_PCI */
 

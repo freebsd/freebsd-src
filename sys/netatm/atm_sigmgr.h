@@ -38,7 +38,7 @@
 #ifndef _NETATM_ATM_SIGMGR_H
 #define _NETATM_ATM_SIGMGR_H
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure common to all ATM Signalling Managers.  Each Signalling 
  * Manager must create one of these and use it to register itself 
@@ -66,7 +66,7 @@ struct	sigmgr {
 	int		(*sm_ioctl)	/* Ioctl handler */
 				__P((int, caddr_t, caddr_t));
 };
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /* 
  * ATM Signalling Protocols
@@ -78,7 +78,7 @@ struct	sigmgr {
 #define	ATM_SIG_UNI40	5		/* ATM Forum UNI 4.0 */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Signalling Protocol Instance control block header.  Common header for
  * every signalling protocol instance control block.
@@ -104,6 +104,6 @@ struct	siginst {
 #define	CALL_CONNECTED	3		/* Connection setup successful */
 #define	CALL_CLEARED	4		/* Connection has been terminated */
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_SIGMGR_H */

@@ -38,7 +38,7 @@
 #ifndef _UNI_UNIIP_VAR_H
 #define _UNI_UNIIP_VAR_H
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * UNI IP network interface structure.  There will be one such structure for 
  * each IP network interface attached via a UNI signalling instance.
@@ -59,7 +59,7 @@ struct uniip {
 #define	uip_arpsvrip	uip_arpsvrmap.am_dstip
 #define	uip_arpsvratm	uip_arpsvrmap.am_dstatm
 #define	uip_arpsvrsub	uip_arpsvrmap.am_dstatmsub
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * UNI Interface Flags
@@ -77,7 +77,7 @@ struct uniip {
 #define	UIAS_CLIENT_ACTIVE	6	/* Client - active */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure for allowable IP prefixes for ATMARP server registration
  */
@@ -126,7 +126,7 @@ struct uniarp {
 #define	ua_dstip	ua_arpmap.am_dstip
 #define	ua_dstatm	ua_arpmap.am_dstatm
 #define	ua_dstatmsub	ua_arpmap.am_dstatmsub
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * UNIARP Entry Flags
@@ -197,7 +197,7 @@ struct atmarp_hdr {
 #define ARP_TL_LMASK	0x3f		/* Length mask */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Timer macros
  */
@@ -313,6 +313,6 @@ int		uniip_start __P((void));
 int		uniip_stop __P((void));
 
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _UNI_UNIIP_VAR_H */

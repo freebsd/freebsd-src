@@ -151,7 +151,7 @@ typedef u_char	Encaps_t;
 #define	ATM_ENC_LLC	2		/* LLC encapsulation */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * ATM timer control block.  Used to schedule a timeout via atm_timeout().
  * This control block will typically be embedded in a processing-specific
@@ -270,6 +270,6 @@ struct sp_link {
 #define	ATM_DEBUGN5(f,a1,a2,a3,a4,a5)
 #endif
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_SYS_H */
