@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2000
+.Dd January 25, 2005
 .Dt FSYNC 1
 .Os
 .Sh NAME
@@ -45,6 +45,11 @@ The
 utility uses the
 .Xr fsync 2
 function call.
+.Sh EXIT STATUS
+If an error occurs, the
+.Nm
+utility proceeds to the next file, and exits >0.
+Otherwise, it exits 0.
 .Sh SEE ALSO
 .Xr fsync 2 ,
 .Xr sync 2 ,
