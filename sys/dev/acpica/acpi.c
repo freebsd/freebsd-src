@@ -1010,6 +1010,7 @@ acpi_shutdown_final(void *arg, int howto)
 		   AcpiFormatException(status));
 	    return;
 	}
+	ACPI_DISABLE_IRQS();
 	status = AcpiEnterSleepState(acpi_off_state);
 	if (ACPI_FAILURE(status)) {
 	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
