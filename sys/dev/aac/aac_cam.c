@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <dev/aac/aacreg.h>
-#include <dev/aac/aac_ioctl.h>
+#include <sys/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
 struct aac_cam {
