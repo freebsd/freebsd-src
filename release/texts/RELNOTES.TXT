@@ -77,6 +77,9 @@ Support has been added for the Rise mP6 processor. [MERGED]
 Driver support has been added for SysKonnect SK-984x PCI gigabit
 ethernet adapters.
 
+Driver support has been added for Adaptec Duralink PCI ethernet adapters
+based on the Adaptec AIC-6915 fast ethernet controller.
+
 1.2. SECURITY FIXES
 -------------------
 A new jail(2) system call and admin command (jail(8)) have been added for
@@ -220,6 +223,15 @@ Unmaintained drivers, they might or might not work for your hardware:
 
 2.2. Ethernet cards
 -------------------
+
+Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
+AIC-6915 fast ethernet controller chip, including the following:
+  ANA-62011 64-bit single port 10/100baseTX adapter
+  ANA-62022 64-bit dual port 10/100baseTX adapter
+  ANA-62044 64-bit quad port 10/100baseTX adapter
+  ANA-69011 32-bit single port 10/100baseTX adapter
+  ANA-62020 64-bit single port 100baseFX adapter
+
 Allied-Telesis AT1700 and RE2000 cards
 
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2

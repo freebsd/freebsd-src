@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.616 1999/07/06 19:22:40 des Exp $
+#	$Id: LINT,v 1.617 1999/07/09 04:29:56 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1552,6 +1552,12 @@ options EISA_SLOTS=12
 # the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
 # workalike.
 #
+# The 'sf' device provides support for Adaptec Duralink PCI fast
+# ethernet adapters based on the Adaptec AIC-6915 "starfire" controller.
+# This includes dual and quad port cards, as well as one 100baseFX card.
+# Most of these are 64-bit PCI devices, except for one single port
+# card which is 32-bit.
+#
 # The 'sk' device provides support for the SysKonnect SK-984x series
 # PCI gigabit ethernet NICs. This includes the SK-9841 and SK-9842
 # single port cards (single mode and multimode fiber) and the
@@ -1702,6 +1708,7 @@ device		fxp0
 device		mx0
 device		pn0
 device		rl0
+device		sf0
 device		sk0
 device		ti0
 device		tl0
