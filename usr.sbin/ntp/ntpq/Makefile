@@ -13,7 +13,7 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 DPADD=	${LIBNTP} ${LIBMD}
 LDADD=	${LIBNTP} -lmd
 
-+ .if !defined(NO_GNU)
+.if !defined(NO_GNU)
 DPADD+=		${LIBREADLINE} ${LIBTERMCAP}
 LDADD+=		-lreadline -ltermcap
 CFLAGS+=	-DHAVE_LIBREADLINE -DHAVE_READLINE_HISTORY_H \
