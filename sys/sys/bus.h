@@ -29,6 +29,28 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
+/*
+ * Interface information structure.
+ */
+struct u_businfo {
+    int	ub_version;		/* interface version */
+#define BUS_USER_VERSION	1
+    int	ub_generation;		/* generation count */
+};
+
+/*
+ * Device information exported to userspace.
+ */
+struct u_device {
+    uintptr_t	dv_handle;
+    uintptr_t	dv_parent;
+
+    char	dv_name[32];
+    char	dv_desc[32];
+    char	dv_drivername[32];
+    /* XXX more driver info? */
+};
+
 #ifdef _KERNEL
 
 #include <sys/queue.h>
@@ -310,6 +332,13 @@ int	resource_set_long(const char *name, int unit, const char *resname,
 int	resource_set_string(const char *name, int unit, const char *resname,
 			    const char *value);
 int	resource_count(void);
+
+/*
+ * Functions for maintaining and checking consistency of
+ * bus information exported to userspace.
+ */
+extern int	bus_data_generation_check(int generation);
+extern void	bus_data_generation_update(void);
 
 /*
  * Shorthand for constructing method tables.
