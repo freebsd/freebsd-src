@@ -25,6 +25,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	have to be reconfigured, upgraded or replaced.
 
 20040225:
+	The ABIs defined in <resolv.h> and <netdb.h> have been updated
+	to support improved reentrancy.  Multi-threaded programs that
+	reference the "_res" or "h_errno" symbols may experience some
+	problems if they are not recompiled.  Single-threaded programs
+	should remain unaffected.
+
+20040225:
 	routed has been updated in the base system from the vendor
 	sources, routed v2.27, from rhyolite.com. This change means that
 	for users who use RIP's MD5 authentication feature, FreeBSD
