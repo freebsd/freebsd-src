@@ -496,10 +496,10 @@ vn_read(fp, uio, active_cred, flags, td)
 	 * Once this field has it's own lock we can acquire this shared.
 	 */
 	if ((flags & FOF_OFFSET) == 0) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		uio->uio_offset = fp->f_offset;
 	} else
-		vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
+		vn_lock(vp, LK_SHARED | LK_RETRY, td);
 
 	ioflag |= sequential_heuristic(uio, fp);
 
@@ -811,7 +811,7 @@ debug_vn_lock(vp, flags, td, filename, line)
 		 * lockmgr drops interlock before it will return for
 		 * any reason.  So force the code above to relock it.
 		 */
-		error = VOP_LOCK(vp, flags | LK_NOPAUSE | LK_INTERLOCK, td);
+		error = VOP_LOCK(vp, flags | LK_INTERLOCK, td);
 		flags &= ~LK_INTERLOCK;
 		/*
 		 * Callers specify LK_RETRY if they wish to get dead vnodes.

@@ -352,7 +352,7 @@ vfs_busy(mp, flags, interlkp, td)
 	}
 	if (interlkp)
 		mtx_unlock(interlkp);
-	lkflags = LK_SHARED | LK_NOPAUSE | LK_INTERLOCK;
+	lkflags = LK_SHARED | LK_INTERLOCK;
 	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
 		panic("vfs_busy: unexpected lock failure");
 	return (0);
@@ -831,7 +831,7 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 	vp->v_vnlock = &vp->v_lock;
 	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
-	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
+	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, 0);
 	/*
 	 * Initialize bufobj.
 	 */
