@@ -170,11 +170,11 @@ static void *dlhandle;
 #define _PATH_USRLIB "/usr/lib"
 #endif
 
-#ifndef LIBDES
+#ifndef LIBCRYPTO
 #ifdef OBJFORMAT_ELF
-#define LIBDES "libdes.so.3"
+#define LIBCRYPTO "libcrypto.so.1"
 #else
-#define LIBDES "libdes.so.3."
+#define LIBCRYPTO "libcrypto.so.1."
 #endif /* OBJFORMAT_ELF */
 #endif
 
@@ -190,9 +190,9 @@ void load_des(warn, libpath)
 
 	if (libpath == NULL) {
 #ifdef OBJFORMAT_ELF
-		snprintf(dlpath, sizeof(dlpath), "%s/%s", _PATH_USRLIB, LIBDES);
+		snprintf(dlpath, sizeof(dlpath), "%s/%s", _PATH_USRLIB, LIBCRYPTO);
 #else
-		len = strlen(LIBDES);
+		len = strlen(LIBCRYPTO);
 		if ((dird = opendir(_PATH_USRLIB)) == NULL)
 			err(1, "opendir(/usr/lib) failed");
 
@@ -200,7 +200,7 @@ void load_des(warn, libpath)
 			/* must have a minor number */
 			if (strlen(dirp->d_name) <= len)
 				continue;
-			if (!strncmp(dirp->d_name, LIBDES, len)) {
+			if (!strncmp(dirp->d_name, LIBCRYPTO, len)) {
 				if (atoi((dirp->d_name + len + 1)) > minor) {
 					minor = atoi((dirp->d_name + len + 1));
 					snprintf(dlpath,sizeof(dlpath),"%s/%s",
