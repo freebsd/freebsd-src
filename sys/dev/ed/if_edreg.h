@@ -1,7 +1,7 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 1.10 1994/01/11 21:28:29 ats Exp $
+ * $Id: if_edreg.h,v 1.11 1994/01/25 22:52:09 ats Exp $
  *
  * Modification history
  *
@@ -697,13 +697,14 @@ struct ed_ring	{
 #define ED_TYPE_TOSHIBA2	0x12 /* named PCETA2 */
 #define ED_TYPE_TOSHIBA3	0x13 /* named PCETB  */
 #define ED_TYPE_TOSHIBA4	0x14 /* named PCETC  */
+#define ED_TYPE_WD8003W		0x24
 #define ED_TYPE_WD8013W		0x26
 #define ED_TYPE_WD8013EP	0x27
 #define ED_TYPE_WD8013WC	0x28
-#define ED_TYPE_WD8013EBP	0x2c
 #define ED_TYPE_WD8013EPC	0x29
 #define ED_TYPE_SMC8216T	0x2a
 #define ED_TYPE_SMC8216C	0x2b
+#define ED_TYPE_WD8013EBP	0x2c
 
 /* Bit definitions in card ID */
 #define	ED_WD_REV_MASK		0x1f		/* Revision mask */
