@@ -67,6 +67,7 @@ _gethostbynis(name, map, af)
 	static struct hostent h;
 	static char *domain = (char *)NULL;
 	static char ypbuf[YPMAXRECORD + 2];
+	in_addr_t addr;
 
 	switch(af) {
 	case AF_INET:
@@ -104,7 +105,8 @@ _gethostbynis(name, map, af)
 	*cp++ = '\0';
 	h.h_addr_list = host_addrs;
 	h.h_addr = hostaddr;
-	*((u_long *)h.h_addr) = inet_addr(result);
+	addr = inet_addr(result);
+	bcopy((char *)&addr, h.h_addr, size);
 	h.h_length = size;
 	h.h_addrtype = AF_INET;
 	while (*cp == ' ' || *cp == '\t')
