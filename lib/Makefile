@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile,v 1.66 1998/03/21 08:18:57 markm Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -13,7 +13,7 @@
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	libcom_err ${_libcrypt} ${_libm} libmytinfo libtermcap \
-	compat ${_csu} libalias libc ${_libc_r} libcalendar \
+	compat ${_csu} libalias libbind libc ${_libc_r} libcalendar \
 	libcompat libcurses ${_libdisk} libedit libf2c libftpio \
 	libgnumalloc libipx ${_libkvm} libmd libncurses libopie \
 	libpcap libresolv librpcsvc ${_libscsi} libskey libss \
