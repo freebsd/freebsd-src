@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.151 1999/02/25 12:00:04 brian Exp $
+.\" $Id: ppp.8,v 1.152 1999/02/26 21:28:14 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -127,10 +127,9 @@ will use it to make
 .Em RADIUS
 requests when configured to do so.
 .It Supports Proxy Arp.
-When
 .Nm
-is set up as server, it can be configured to make one or more proxy arp
-entries on behalf of the client.  This allows routing to the LAN without
+can be configured to make one or more proxy arp entries on behalf of
+the peer.  This allows routing from the peer to the LAN without
 configuring each machine on that LAN.
 .It Supports packet filtering.
 User can define four kinds of filters: the
@@ -2376,12 +2375,30 @@ as the client password in
 .It proxy
 Default: Disabled.  Enabling this option will tell
 .Nm
-to proxy ARP for the peer.
+to proxy ARP for the peer.  This means that
+.Nm
+will make an entry in the ARP table using
+.Dv HISADDR
+and the
+.Dv MAC
+address of the local network in which
+.Dv HISADDR
+appears.  The proxy entry cannot be made unless
+.Dv HISADDR
+is an address from a LAN.
 .It proxyall
 Default: Disabled.  Enabling this will tell
 .Nm
 to add proxy arp entries for every IP address in all class C or
 smaller subnets routed via the tun interface.
+.Pp
+Proxy arp entries are only made for sticky routes that are added
+using the
+.Dq add
+command.  No proxy arp entries are made for the interface address itself
+(as created by the
+.Dq set ifaddr
+command).
 .It sroutes
 Default: Enabled.  When the
 .Dq add
