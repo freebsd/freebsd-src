@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "find.h"
 
@@ -72,8 +71,8 @@ printlong(name, accpath, sb)
 
 	(void)printf("%6lu %4"PRId64" ", (u_long) sb->st_ino, sb->st_blocks);
 	(void)strmode(sb->st_mode, modep);
-	(void)printf("%s %3u %-*s %-*s ", modep, sb->st_nlink, UT_NAMESIZE,
-	    user_from_uid(sb->st_uid, 0), UT_NAMESIZE,
+	(void)printf("%s %3u %-*s %-*s ", modep, sb->st_nlink, MAXLOGNAME - 1,
+	    user_from_uid(sb->st_uid, 0), MAXLOGNAME - 1,
 	    group_from_gid(sb->st_gid, 0));
 
 	if (S_ISCHR(sb->st_mode) || S_ISBLK(sb->st_mode))
