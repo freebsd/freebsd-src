@@ -1,6 +1,0 @@
-set append ask autoprint 
-set indentprefix="> "
-set PAGER=more
-set EDITOR=vi
-set VISUAL=vi
-retain bcc cc date from subject to

@@ -1,9 +1,0 @@
-#!/bin/sh
-# call from the source root as 'mklinks ../sun4 ../src'
-find . -type d -print | sort | sed "s-^\.-mkdir $1-" | sh
-root=`echo $2 | sed "s-^\.\./--"`
-find . ! -type d -a ! -name Config -print | sed "s-^\./--" | while read file
-	do
-		down=`echo $file | sed -e "s-[^/]*-..-g"`
-		ln -s $down/$root/$file $1/$file
-	done

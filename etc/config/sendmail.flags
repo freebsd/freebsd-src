@@ -1,3 +1,0 @@
-# $Id$
-# This file gives the flags passed to sendmail on system startup if enabled.
--bd -q30m
