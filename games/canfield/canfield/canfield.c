@@ -58,6 +58,8 @@ static char sccsid[] = "@(#)canfield.c	8.1 (Berkeley) 5/31/93";
 #include <ctype.h>
 #include <signal.h>
 #include <termios.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include "pathnames.h"
 
@@ -1567,9 +1569,10 @@ initall()
 {
 	int i;
 
-	srandom(getpid());
+	srandomdev();
 	time(&acctstart);
 	initdeck(deck);
+	uid = getuid();
 	if (uid < 0)
 		uid = 0;
 	dbfd = open(_PATH_SCORE, 2);
@@ -1691,10 +1694,6 @@ main(argc, argv)
 	raw();
 	noecho();
 	initall();
-
-	/* revoke privs */
-	setegid(getgid());
-	setgid(getgid());
 
 	instruct();
 	makeboard();
