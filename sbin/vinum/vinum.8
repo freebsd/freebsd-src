@@ -34,7 +34,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.8,v 1.12 1999/10/13 02:58:57 grog Exp grog $
+.\" $Id: vinum.8,v 1.13 2000/01/03 03:12:56 grog Exp grog $
 .\" $FreeBSD$
 .\"
 .Dd 13 October 1999
@@ -179,6 +179,12 @@ Remake the device nodes in
 .in +1i
 Create a mirrored volume from the specified drives.
 .in
+.Cd mv Fl f Ar drive Ar object ...
+.br
+.Cd move Fl f Ar drive Ar object ...
+.in +1i
+Move the object(s) to the specified drive.
+.in
 .Cd printconfig
 .Op Pa file
 .in +1i
@@ -206,16 +212,16 @@ configuration from the specified disks.
 .Ar newname
 .in +1i
 Change the name of the specified object.
+.in
 .ig
 XXX
-.in
 .Cd replace
-.Ar [ subdisk | plex ]
-.Ar newobject
-.in +1i
-Replace the object with an identical other object.  XXX not implemented yet.
-..
+.Ar drive
+.Ar newdrive
+.in +1i 
+Move all the subdisks from the specified drive onto the new drive.
 .in
+..
 .Cd rebuildparity Ar plex
 .in +1i
 Rebuild the parity blocks of a RAID-5 plex.
@@ -564,7 +570,7 @@ Show the value of
 .It DEBUG_RESID (4)
 .br
 Go into debugger in
-.Fd complete_rqe.
+.Fn complete_rqe.
 .It DEBUG_LASTREQS (8)
 .br
 Keep a circular buffer of last requests.
@@ -944,6 +950,18 @@ is used to specify verbose output.
 .Pp
 See the section SIMPLIFIED CONFIGURATION below for some examples of this
 command.
+.It Nm mv Fl f Ar drive Ar object ...
+.It Nm move Fl f Ar drive Ar object ...
+.Pp
+Move all the subdisks from the specified objects onto the new drive.  The
+objects may be subdisks, drives or plexes.  When drives or plexes are specified,
+all subdisks associated with the object are moved.
+.Pp
+The
+.Fl f
+option is required for this function, since it currently does not preserve the
+data in the subdisk.  This functionality will be added at a later date.  In this
+form, however, it is suited to recovering a failed disk drive.
 .It Nm printconfig Op Pa file
 Write a copy of the current configuration to
 .Pa file
@@ -1010,12 +1028,17 @@ Change the name of the specified object.  If the
 option is specified, subordinate objects will be named by the default rules:
 plex names will be formed by appending .p\f(BInumber\fP to the volume name, and
 subdisk names will be formed by appending .s\f(BInumber\fP to the plex name.
+.ig
 .It Nm replace
-.Ar [ subdisk | plex ]
-.Ar newobject
+.Ar drive
+.Ar newdrive
 .Pp
-Replace the object with an identical other object.  This command has not yet
-been implemented.
+Move all the subdisks from the specified drive onto the new drive.  This will
+attempt to recover those subdisks that can be recovered, and create the others
+from scratch.  If the new drive lacks the space for this operation, as many
+subdisks as possible will be fitted onto the drive, and the rest will be left on
+the original drive.
+..
 .It Nm resetconfig
 .Pp
 The
@@ -2318,7 +2341,7 @@ enter the following command:
 Note the name
 .Pa rmirror ,
 indicating the raw device.
-.Sh Other considerations
+.Ss Other considerations
 A number of other considerations apply to
 .Nm
 configuration:
@@ -2334,6 +2357,48 @@ plex, but currently the size of striped and RAID-5 plexes cannot be increased.
 Currently the size of an existing UFS file system also cannot be increased, but
 it is planned to make both plexes and file systems extensible.
 .El
+.Sh STATE MANAGEMENT
+Vinum objects have the concept of
+.Em state .
+See
+.Xr vinum 4
+for more details.  They are only completely accessible if their state is
+.Em up .
+To change an object state to
+.Em up ,
+use the
+.Nm start
+command.  To change an object state to
+.Em down ,
+use the
+.Nm stop
+command.  Normally other states are created automatically by the relationship
+between objects.  For example, if you add a plex to a volume, the subdisks of
+the plex will be set in the
+.Em stale
+state, indicating that, though the hardware is accessible, the data on the
+subdisk is invalid.  As a result of this state, the plex will be set in the
+.Em faulty
+state.
+.Ss The 'reviving' state
+In many cases, when you start a subdisk the system must copy data to the
+subdisk.  Depending on the size of the subdisk, this can take a long time.
+During this time, the subdisk is set in the
+.Em reviving 
+state.  On successful completion of the copy operation, it is automatically set
+to the
+.Em up
+state.  It is possible for the process performing the revive to be stopped and
+restarted.  The system keeps track of how far the subdisk has been revived, and
+when the
+.Nm start
+command is reissued, the copying continues from this point.
+.Pp
+In order to maintain the consistency of a volume while one or more of its plexes
+is being revived,
+.Nm
+writes to subdisks which have been revived up to the point of the write.  It may
+also read from the plex if the area being read has already been revived.
 .Sh GOTCHAS
 The following points are not bugs, and they have good reasons for existing, but
 they have shown to cause confusion.  Each is discussed in the appropriate
