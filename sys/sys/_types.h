@@ -41,9 +41,11 @@ typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
 typedef	__uint32_t	__gid_t;
 typedef	__int64_t	__id_t;		/* can hold a gid_t, pid_t, or uid_t */
+typedef	__uint32_t	__ino_t;	/* inode number */
 typedef	long		__key_t;	/* IPC key (for Sys V IPC) */
 typedef	__uint16_t	__mode_t;	/* permissions */
 typedef	int		__nl_item;
+typedef	__uint16_t	__nlink_t;	/* link count */
 typedef	__int64_t	__off_t;	/* file offset */
 typedef	__int32_t	__pid_t;	/* process [group] */
 typedef	__int64_t	__rlim_t;	/* resource limit (XXX not unsigned) */

@@ -165,7 +165,10 @@ typedef	__id_t		id_t;		/* can hold a uid_t or pid_t */
 #define	_ID_T_DECLARED
 #endif
 
-typedef	__uint32_t	ino_t;		/* inode number */
+#ifndef _INO_T_DECLARED
+typedef	__ino_t		ino_t;		/* inode number */
+#define	_INO_T_DECLARED
+#endif
 
 #ifndef _KEY_T_DECLARED
 typedef	__key_t		key_t;		/* IPC key (for Sys V IPC) */
@@ -177,7 +180,10 @@ typedef	__mode_t	mode_t;		/* permissions */
 #define	_MODE_T_DECLARED
 #endif
 
-typedef	__uint16_t	nlink_t;	/* link count */
+#ifndef _NLINK_T_DECLARED
+typedef	__nlink_t	nlink_t;	/* link count */
+#define	_NLINK_T_DECLARED
+#endif
 
 #ifndef _OFF_T_DECLARED
 typedef	__off_t		off_t;		/* file offset */
