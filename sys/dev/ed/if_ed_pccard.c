@@ -79,7 +79,7 @@ static driver_t ed_pccard_driver = {
 
 static devclass_t ed_pccard_devclass;
 
-DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_pccard_devclass, 0, 0);
+DRIVER_MODULE(if_ed, pccard, ed_pccard_driver, ed_pccard_devclass, 0, 0);
 
 /*
  *      ed_pccard_detach - unload the driver and clear the table.
