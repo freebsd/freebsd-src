@@ -31,66 +31,177 @@
 #include "assym.s"
 
 /*
- * savectx: save process context, i.e. callee-saved registers
+ * pcb_save: save process context, i.e. callee-saved registers. This
+ * function is called by savectx() and cpu_switch().
  *
  * Arguments:
- *	in0	'struct pcb *' of the process that needs its context saved
- *
- * Return:
- *	ret0	0.  (note that for child processes, it seems
- *		like savectx() returns 1, because the return address
- *		in the PCB is set to the return address from savectx().)
+ *	in0	'struct pcb *' of the process that needs its context saved.
+ *	in1	return address.
  */
 
-ENTRY(savectx, 1)
+ENTRY(pcb_save,2)
+{	.mmi
 	flushrs				// push out caller's dirty regs
-	mov	r3=ar.unat		// caller's value for ar.unat
+	mov	r22=ar.unat		// caller's value for ar.unat
+	mov	r16=in0
 	;;
+}
+{	.mmi
 	mov	ar.rsc=0		// stop the RSE after the flush
 	;;
-	mov	r16=ar.rnat		// read RSE's NaT collection
-	mov	r17=in0
-	mov	r18=ar.bspstore
-	mov	r19=b0
-	mov	r20=b1
-	mov	r21=b2
-	mov	r22=b3
-	mov	r23=b4
-	mov	r24=b5
-	;;	
-	st8.spill [r17]=r4,8 ;;		// save r4..r6 
-	st8.spill [r17]=r5,8 ;;		// and accumulate NaT bits
-	st8.spill [r17]=r6,8 ;;
-	st8.spill [r17]=r7,8 ;;
-	
-	stf.spill [r17]=f2,16 ;;	// save f2..f5 with NaTVals
-	stf.spill [r17]=f3,16 ;;
-	stf.spill [r17]=f4,16 ;;
-	stf.spill [r17]=f5,16 ;;
-
-	st8	[r17]=r19,8 ;;		// save b0..b5
-	st8	[r17]=r20,8 ;;
-	st8	[r17]=r21,8 ;;
-	st8	[r17]=r22,8 ;;
-	st8	[r17]=r23,8 ;;
-	st8	[r17]=r24,8 ;;
-	
-	mov	r19=ar.unat		// NaT bits for r4..r6
-	mov	r20=pr
-	mov	ret0=r0			// return zero
-
-	st8	[r17]=r3,8 ;;		// save caller's ar.unat
-	st8	[r17]=sp,8 ;;		// stack pointer
-	st8	[r17]=r2,8 ;;		// ar.pfs
-	st8	[r17]=r18,8 ;;		// ar.bspstore
-	st8	[r17]=r19,8 ;;		// our NaT bits
-	st8	[r17]=r16,8 ;;		// ar.rnat
-	st8	[r17]=r20,8 ;;		// pr
-
+	mov	r22=ar.rnat		// read RSE's NaT collection
+	add	r17=8,r16
+	;;
+}
+{	.mmi
+	.mem.offset	0,0
+	st8.spill [r16]=r4,16		// save r4, ofs=&r6
+	.mem.offset	8,0
+	st8.spill [r17]=r5,16		// save r5, ofs=&r7
+	mov	r18=b0
+	;;
+}
+{	.mmi
+	.mem.offset	16,0
+	st8.spill [r16]=r6,16		// save r6, ofs=&f2	
+	.mem.offset	24,0
+	st8.spill [r17]=r7,24		// save r7, ofs=&f3
+	mov	r19=b1
+	;;
+}
+{	.mmi
+	stf.spill [r16]=f2,32		// save f2, ofs=&f4
+	stf.spill [r17]=f3,32		// save f3, ofs=&f5
+	mov	r20=b2
+	;;
+}
+{	.mmi
+	stf.spill [r16]=f4,32		// save f4, ofs=&b0
+	stf.spill [r17]=f5,24		// save f5, ofs=&b1
+	mov	r21=b3
+	;;
+}
+{	.mmi
+	st8	[r16]=r18,16		// save b0, ofs=&b2
+	st8	[r17]=r19,16		// save b1, ofs=&b3
+	mov	r18=b4
+	;;
+}
+{	.mmi
+	st8	[r16]=r20,16		// save b2, ofs=&b4
+	st8	[r17]=r21,16		// save b3, ofs=&b5
+	mov	r19=b5
+	;;
+}
+{	.mmi
+	st8	[r16]=r18,16		// save b4, ofs=&old_unat
+	st8	[r17]=r19,16		// save b5, ofs=&sp
+	mov	r18=ar.pfs
+	;;
+}
+{	.mmi
+	st8	[r16]=r22,16		// save old_unat, ofs=&pfs
+	st8	[r17]=sp,16		// save sp, ofs=&bspstore
+	mov	r19=ar.lc
+	;;
+}
+{	.mmi
+	mov	r20=ar.bspstore
+	mov	r21=ar.unat
+	add	r23=PC_CURRENT_PMAP,r13
+	;;
+}
+{	.mmi
+	st8	[r16]=r18,16		// save pfs, ofs=&lc
+	st8	[r17]=r20,16		// save bspstore, ofs=&unat
+	mov	r18=pr
+	;;
+}
+{	.mmi
+	st8	[r16]=r19,16		// save lc, ofs=&rnat
+	st8	[r17]=r21,16		// save unat, ofs=&pr
+	mov	b6=in1
+	;;
+}
+{	.mmi
+	st8	[r16]=r22,16		// save rnat, ofs=&pmap
+	st8	[r17]=r18,16		// save pr, ofs=&ar.fsr
+	nop	1
+	;;
+}
+{	.mmb
+	ld8	r19=[r23]
+	mov	r18=ar.fsr
+	nop	2
+	;;
+}
+{	.mmi
+	st8	[r16]=r19,16		// save pmap, ofs=&ar.fcr
+	st8	[r17]=r18,16		// save ar.fsr, ofs=&ar.fir
+	nop	3
+	;;
+}
+{	.mmb
+	mov	r19=ar.fcr
+	mov	r18=ar.fir
+	nop	4
+	;;
+}
+{	.mmi
+	st8	[r16]=r19,16		// save ar.fcr, ofs=&ar.fdr
+	st8	[r17]=r18,16		// save ar.fir, ofs=&ar.eflag
+	nop	5
+	;;
+}
+{	.mmb
+	mov	r19=ar.fdr
+	mov	r18=ar.eflag
+	nop	6
+	;;
+}
+{	.mmi
+	st8	[r16]=r19,16		// save ar.fdr, ofs=&ar.csd
+	st8	[r17]=r18,16		// save ar.eflag, ofs=&ssd
+	nop	7
+	;;
+}
+{	.mmb
+	mov	r19=ar.csd
+	mov	r18=ar.ssd
+	nop	8
+	;;
+}
+{	.mmi
+	st8	[r16]=r19		// save ar.csd
+	st8	[r17]=r18		// save ar.ssd
+	nop	9
+}
+{	.mib
 	mov	ar.rsc=3		// turn RSE back on
+	mov	ret0=r0
+	br.sptk.few	b6
+	;;
+}
+END(pcb_save)
 
-	br.ret.sptk.few rp
-	END(savectx)
+ENTRY(savectx,1)
+{	.mii
+1:	alloc	r16=ar.pfs,0,0,2,0
+	mov	r17=ip
+	;;
+	add	r33=2f-1b,r17
+}
+{	.mfb
+	nop	1
+	nop	2
+	br.sptk.few	pcb_save
+}
+{	.mfb
+2:	nop	3
+	nop	4
+	br.ret.sptk	rp
+}
+END(savectx)
 
 /*
  * restorectx: restore process context, i.e. callee-saved registers
@@ -117,85 +228,23 @@ ENTRY(cpu_throw, 0)
 END(cpu_throw)
 
 ENTRY(cpu_switch, 0)
-
-	add	r16=PC_CURTHREAD,r13 ;;
-	ld8	r17=[r16] ;; 
-	add	r17=TD_PCB,r17 ;;
+{	.mmi
+1:	alloc	r16=ar.pfs,0,0,2,0
+	mov	r17=ip
+	;;
+}
+	add	r33=1f-1b,r17
+	add	r17=PC_CURTHREAD,r13
+	;;
 	ld8	r17=[r17]
-
-	flushrs				// push out caller's dirty regs
-	mov	r2=ar.pfs
-	mov	r3=ar.unat		// caller's value for ar.unat
 	;;
-	mov	ar.rsc=0		// stop the RSE after the flush
+	add	r17=TD_PCB,r17
 	;;
-	mov	r16=ar.rnat		// read RSE's NaT collection
-	mov	r18=ar.bspstore
-	mov	r19=b0
-	mov	r20=b1
-	mov	r21=b2
-	mov	r22=b3
-	mov	r23=b4
-	mov	r24=b5
-	;;	
-	st8.spill [r17]=r4,8 ;;		// save r4..r6 
-	st8.spill [r17]=r5,8 ;;		// and accumulate NaT bits
-	st8.spill [r17]=r6,8 ;;
-	st8.spill [r17]=r7,8 ;;
-	
-	stf.spill [r17]=f2,16 ;;	// save f2..f5 with NaTVals
-	stf.spill [r17]=f3,16 ;;
-	stf.spill [r17]=f4,16 ;;
-	stf.spill [r17]=f5,16 ;;
+	ld8	r32=[r17]
+	br.sptk.few	pcb_save
 
-	st8	[r17]=r19,8 ;;		// save b0..b5
-	st8	[r17]=r20,8 ;;
-	st8	[r17]=r21,8 ;;
-	st8	[r17]=r22,8 ;;
-	st8	[r17]=r23,8 ;;
-	st8	[r17]=r24,8 ;;
-	
-	mov	r19=ar.unat		// NaT bits for r4..r6
-	mov	r20=pr
-	mov	ret0=r0			// return zero
-
-	st8	[r17]=r3,8 ;;		// save caller's ar.unat
-	st8	[r17]=sp,8 ;;		// stack pointer
-	st8	[r17]=r2,8 ;;		// ar.pfs
-	st8	[r17]=r18,8 ;;		// ar.bspstore
-	st8	[r17]=r19,8 ;;		// our NaT bits
-	add	r3=PC_CURRENT_PMAP,r13
-	st8	[r17]=r16,8 ;;		// ar.rnat
-	ld8	r3=[r3]
-	st8	[r17]=r20,8 ;;		// pr
-	st8	[r17]=r3,8		// current pmap
-
-	mov	r18=ar.fsr
-	;;
-	st8	[r17]=r18,8		// ar.fsr
-	mov	r19=ar.fcr
-	;; 
-	st8	[r17]=r19,8		// ar.fcr
-	mov	r18=ar.fir
-	;; 
-	st8	[r17]=r18,8		// ar.fir
-	mov	r19=ar.fdr
-	;; 
-	st8	[r17]=r19,8		// ar.fdr
-	mov	r18=ar.eflag
-	;; 
-	st8	[r17]=r18,8		// ar.eflag
-	mov	r19=ar.csd
-	;; 
-	st8	[r17]=r19,8		// ar.csd
-	mov	r18=ar.ssd
-	;; 
-	st8	[r17]=r18,8		// ar.ssd
-
-	mov	ar.rsc=3		// turn RSE back on
-
+1:
 #ifdef SMP
-	;;
 	add	r17 = PC_CPUID, r13
 	movl	r16 = smp_active
 	;;
@@ -203,28 +252,24 @@ ENTRY(cpu_switch, 0)
 	ld4	r17 = [r17]
 	;;
 	cmp.ne	p1, p0 = 0, r16
-(p1)	br.dptk	1f
+(p1)	br.dptk	2f
 	;;
 	cmp.eq	p1, p0 = 0, r17
-(p1)	br.dptk	1f
+(p1)	br.dptk	2f
 	;;
 	add	r16 = PC_IDLETHREAD, r13
 	;;
-	ld8	ret0 = [r16]
+	ld8	r4 = [r16]
 	br.sptk	3f
-1:
 #endif
-	
-2:	
-	srlz.i
+
+2:	srlz.i
 	mf
 	;; 
 	br.call.sptk.few rp=choosethread
-
-3:	
-	alloc	r15=ar.pfs,0,0,2,0	// create temporary output frame
 	mov	r4=ret0			// save from call
 
+3:
 #ifdef SMP
 	add	r14=PC_CURTHREAD,r13
 	;;
@@ -233,8 +278,8 @@ ENTRY(cpu_switch, 0)
 	br.call.sptk.few rp=ia64_fpstate_save // clear fpcurthread
 #endif
 
-	add	r14=PC_CURTHREAD,r13 ;;
-
+	add	r14=PC_CURTHREAD,r13
+	;;
 	st8	[r14]=r4		// set r13->pc_curthread
 	mov	ar.k7=r4
 	;;
@@ -248,11 +293,14 @@ ENTRY(cpu_switch, 0)
 	br.call.sptk.few rp=pmap_install // install RIDs etc.
 
 	add	r15=TD_PCB,r4
-	add	r16=TD_KSTACK,r4 ;;
+	add	r16=TD_KSTACK,r4
+	;;
 	ld8	r15=[r15]
-	ld8	r16=[r16] ;;
+	ld8	r16=[r16]
+	;;
 	mov	ar.k5=r16
 
+	// pcb_restore
 4:	
 	add	r3=PCB_UNAT,r15		// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
@@ -287,7 +335,8 @@ ENTRY(cpu_switch, 0)
 	ld8	r16=[r15],8 ;;		// caller's ar.unat
 	ld8	sp=[r15],8 ;;		// stack pointer
 	ld8	r17=[r15],8 ;;		// ar.pfs
-	ld8	r18=[r15],16 ;;		// ar.bspstore, skip ar.unat
+	ld8	r18=[r15],8 ;;		// ar.bspstore
+	ld8	r21=[r15],16 ;;		// ar.lc, skip ar.unat
 	ld8	r19=[r15],8 ;;		// ar.rnat
 	ld8	r20=[r15],16 ;;		// pr, skip pmap
 
@@ -295,6 +344,7 @@ ENTRY(cpu_switch, 0)
 	;;
 	mov	ar.unat=r16
 	mov	ar.pfs=r17
+	mov	ar.lc=r21
 	mov	ar.bspstore=r18 ;;
 	mov	ar.rnat=r19
 	mov	pr=r20,0x1ffff
