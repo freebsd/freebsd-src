@@ -138,7 +138,7 @@ CompatCatchSig(int signo)
  *-----------------------------------------------------------------------
  */
 static void
-CompatInterrupt (int signo)
+CompatInterrupt(int signo)
 {
     GNode   *gn;
     sigset_t nmask, omask;
@@ -269,7 +269,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     } else {
 	cmd = cmdStart;
     }
-    Lst_Replace (cmdNode, cmdStart);
+    Lst_Replace(cmdNode, cmdStart);
 
     if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
 	Lst_AtEnd(&ENDNode->commands, cmdStart);
@@ -374,7 +374,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     }
     if (cpid == 0) {
 	execvp(av[0], av);
-	write(STDERR_FILENO, av[0], strlen (av[0]));
+	write(STDERR_FILENO, av[0], strlen(av[0]));
 	write(STDERR_FILENO, ":", 1);
 	write(STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
 	write(STDERR_FILENO, "\n", 1);

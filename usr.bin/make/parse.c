@@ -682,7 +682,7 @@ ParseClearPath(void *path, void *dummy __unused)
  *---------------------------------------------------------------------
  */
 static void
-ParseDoDependency (char *line)
+ParseDoDependency(char *line)
 {
     char  	   *cp;		/* our current position */
     GNode 	   *gn;		/* a general purpose temporary node */
@@ -1129,7 +1129,7 @@ ParseDoDependency (char *line)
 
     } else {
         Lst curSrcs = Lst_Initializer(curSrc);	/* list of sources in order */
- 
+
 	while (*line) {
 	    /*
 	     * The targets take real sources, so we must beware of archive
@@ -1611,7 +1611,7 @@ ParseDoWarning(char *warnmsg)
  *---------------------------------------------------------------------
  */
 static void
-ParseDoInclude (char *file)
+ParseDoInclude(char *file)
 {
     char          *fullname;	/* full pathname of file */
     IFile         *oldFile;	/* state associated with current file */
@@ -1743,7 +1743,7 @@ ParseDoInclude (char *file)
      * is placed on a list with other IFile structures. The list makes
      * a very nice stack to track how we got here...
      */
-    oldFile = emalloc(sizeof (IFile));
+    oldFile = emalloc(sizeof(IFile));
     memcpy(oldFile, &curFile, sizeof(IFile));
 
     Lst_AtFront(&includes, oldFile);
@@ -1796,7 +1796,7 @@ Parse_FromString(char *str, int lineno)
     Lst_AtFront(&includes, oldFile);
 
     curFile.F = NULL;
-    curFile.p = emalloc(sizeof (PTR));
+    curFile.p = emalloc(sizeof(PTR));
     curFile.p->str = curFile.p->ptr = str;
     curFile.lineno = lineno;
     curFile.fname = estrdup(curFile.fname);
@@ -1820,7 +1820,7 @@ Parse_FromString(char *str, int lineno)
  *---------------------------------------------------------------------
  */
 static void
-ParseTraditionalInclude (char *file)
+ParseTraditionalInclude(char *file)
 {
     char          *fullname;	/* full pathname of file */
     IFile         *oldFile;	/* state associated with current file */
@@ -2395,7 +2395,7 @@ Parse_File(char *name, FILE *stream)
 		    continue;
 		}
 		if (strncmp(cp, "include", 7) == 0) {
-		    ParseDoInclude (cp + 7);
+		    ParseDoInclude(cp + 7);
 		    goto nextLine;
 		} else if (strncmp(cp, "error", 5) == 0) {
 		    ParseDoError(cp + 5);
@@ -2495,7 +2495,7 @@ Parse_File(char *name, FILE *stream)
 		Lst_Destroy(&targets, NOFREE);
 		inLine = TRUE;
 
-		ParseDoDependency (line);
+		ParseDoDependency(line);
 	    }
 
 	    nextLine:
