@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.7 1994/01/16 02:21:56 martin Exp $
+ *	$Id: autoconf.c,v 1.8 1994/01/31 23:47:24 davidg Exp $
  */
 
 /*
@@ -134,6 +134,7 @@ u_long	bootdev = 0;		/* should be dev_t, but not until 32 bits */
 static	char devname[][2] = {
 	'w','d',	/* 0 = wd */
 	's','w',	/* 1 = sw */
+#define FDMAJOR 2
 	'f','d',	/* 2 = fd */
 	'w','t',	/* 3 = wt */
 	's','d',	/* 4 = sd -- new SCSI system */
@@ -164,7 +165,10 @@ setroot()
 	adaptor = (bootdev >> B_ADAPTORSHIFT) & B_ADAPTORMASK;
 	part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
 	unit = (bootdev >> B_UNITSHIFT) & B_UNITMASK;
-	mindev = (unit << PARTITIONSHIFT) + part;
+	if (majdev == FDMAJOR)
+		mindev = unit << 6;
+	else
+		mindev = (unit << PARTITIONSHIFT) + part;
 	orootdev = rootdev;
 	rootdev = makedev(majdev, mindev);
 	/*
