@@ -372,6 +372,7 @@ struct ispsoftc {
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
 #define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
+#define	ISP_CFG_NPORT		0x04	/* try to force N- instead of L-Port */
 
 #define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
 #define	ISP_FW_REVX(xp)	((xp[0]<<24) | (xp[1] << 16) | xp[2])
@@ -396,6 +397,7 @@ struct ispsoftc {
 #define	ISP_HA_SCSI_1240	0x8
 #define	ISP_HA_SCSI_1080	0x9
 #define	ISP_HA_SCSI_1280	0xa
+#define	ISP_HA_SCSI_12160	0xb
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 #define	ISP_HA_FC_2200		0x20
@@ -404,12 +406,17 @@ struct ispsoftc {
 #define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
 #define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
 #define	IS_1280(isp)	(isp->isp_type == ISP_HA_SCSI_1280)
-#define	IS_12X0(isp)	\
-	(isp->isp_type == ISP_HA_SCSI_1240 || isp->isp_type == ISP_HA_SCSI_1280)
-#define	IS_DUALBUS(isp)	IS_12X0(isp)
-#define	IS_ULTRA2(isp)	\
-	(isp->isp_type == ISP_HA_SCSI_1080 || isp->isp_type == ISP_HA_SCSI_1280)
+#define	IS_12160(isp)	(isp->isp_type == ISP_HA_SCSI_12160)
+
+#define	IS_12X0(isp)	(IS_1240(isp) || IS_1280(isp))
+#define	IS_DUALBUS(isp)	(IS_12X0(isp) || IS_12160(isp))
+#define	IS_ULTRA2(isp)	(IS_1080(isp) || IS_1280(isp) || IS_12160(isp))
+#define	IS_ULTRA3(isp)	(IS_12160(isp))
+
 #define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
+#define	IS_2100(isp)	(isp->isp_type == ISP_HA_FC_2100)
+#define	IS_2200(isp)	(isp->isp_type == ISP_HA_FC_2200)
+
 
 /*
  * Function Prototypes
