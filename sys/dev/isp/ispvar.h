@@ -54,7 +54,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	0
+#define	ISP_CORE_VERSION_MINOR	1
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -67,7 +67,7 @@ struct ispmdvec {
 	int		(*dv_dmaset) __P((struct ispsoftc *,
 		XS_T *, ispreq_t *, u_int16_t *, u_int16_t));
 	void		(*dv_dmaclr)
-		__P((struct ispsoftc *, XS_T *, u_int32_t));
+		__P((struct ispsoftc *, XS_T *, u_int16_t));
 	void		(*dv_reset0) __P((struct ispsoftc *));
 	void		(*dv_reset1) __P((struct ispsoftc *));
 	void		(*dv_dregs) __P((struct ispsoftc *, const char *));
