@@ -34,7 +34,7 @@ DPADD+= ${LIBALIAS}
 .endif
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
-DISTRIBUTION=des
+DISTRIBUTION=crypto
 CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c
 LDADD+= -lcrypto
