@@ -709,12 +709,18 @@ essmix_setrecsrc(snd_mixer *m, u_int32_t src)
 static int
 ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir)
 {
+
+/*
+ * XXX -- the constants written to register 8 and b in the playback case
+ * are certainly not 0x00. But I don't know what they really are
+ */
 	KASSERT(ch == 1 || ch == 2, ("bad ch"));
 	sc->dmasz[ch - 1] = cnt;
 	if (ch == 1) {
-		port_wr(sc->vc, 0x8, 0x50 | (dir == PCMDIR_PLAY)? 0x04 : 0x02, 1); /* command */
+		port_wr(sc->vc, 0x8, dir == PCMDIR_PLAY? 0x00 : 0xc4, 1); /* command */
 		port_wr(sc->vc, 0xd, 0xff, 1); /* reset */
 		port_wr(sc->vc, 0xf, 0x01, 1); /* mask */
+		port_wr(sc->vc, 0xb, dir == PCMDIR_PLAY? 0x00 : 0x54, 1); /* mode */
 		port_wr(sc->vc, 0x0, base, 4);
 		port_wr(sc->vc, 0x4, cnt, 2);
 
@@ -744,7 +750,7 @@ ess_dmatrigger(struct ess_info *sc, int ch, int go)
 {
 	KASSERT(ch == 1 || ch == 2, ("bad ch"));
 	if (ch == 1)
-		port_wr(sc->vc, 0xf, go? 0x01 : 0x00, 1); /* mask */
+		port_wr(sc->vc, 0xf, go? 0x00 : 0x01, 1); /* mask */
 	else if (ch == 2)
 		port_wr(sc->io, 0x6, 0x08 | (go? 0x02 : 0x00), 1); /* autoinit */
 	return 0;
