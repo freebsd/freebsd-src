@@ -44,20 +44,22 @@ SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
 SRCS+=	opt_acpi.h opt_bus.h opt_ddb.h
 SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
+
+# Debugging support
+DBSRC=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
+DBSRC+=	dbinput.c dbstats.c dbutils.c dbxface.c
+DBSRC+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
+DBSRC+=	dmresrcs.c dmutils.c dmwalk.c
+
 .if ACPI_MAX_THREADS
 CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 .endif
 .if ACPI_NO_SEMAPHORES
 CFLAGS+=-DACPI_NO_SEMAPHORES
 .endif
-
-# Debugging support
 .if ACPI_DEBUG
 CFLAGS+=-DACPI_DEBUG
-SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
-SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
-SRCS+=	dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	${DBSRC}
 opt_ddb.h: Makefile
 	echo "#define DDB 1" > ${.TARGET}
 .else
@@ -70,7 +72,7 @@ SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 .if ${MACHINE} == "i386"
 SRCS+=	madt.c
 .endif
-CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin
+CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin ${DBSRC}
 
 acpi_wakecode.h: acpi_wakecode.S
 	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
