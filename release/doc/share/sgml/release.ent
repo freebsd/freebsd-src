@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "5.2.1-RC">
+<!ENTITY release.current "5.2.1-RELEASE">
 
 <!-- The previous minor release, used as a base for this point release. -->
 <!ENTITY release.base "5.2-RELEASE">
@@ -45,7 +45,7 @@
 <!ENTITY release.manpath.xfree86       "4.3.0">
 <!ENTITY release.manpath.netbsd        "1.6.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "5.2-RELEASE">
+<!ENTITY release.manpath.freebsd       "5.2.1-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
