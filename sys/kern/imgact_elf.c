@@ -44,12 +44,12 @@
 #include <sys/proc.h>
 #include <sys/procfs.h>
 #include <sys/resourcevar.h>
+#include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
