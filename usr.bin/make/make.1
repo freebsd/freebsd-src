@@ -139,7 +139,9 @@ macro assignments within makefiles.
 Specify that environment values override macro assignments within
 makefiles for all variables.
 .It Fl f Ar makefile
-Specify a makefile to read instead of the default
+Specify a
+.Ar makefile
+to read instead of the default
 .Ql Pa makefile
 and
 .Ql Pa Makefile .
@@ -170,8 +172,9 @@ flag is also specified.
 Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
-Specify a directory in which to search for sys.mk and makefiles included
-via the <...> style.
+Specify a directory in which to search for
+.Pa sys.mk
+and makefiles included via the <...> style.
 Multiple directories can be added to form a search path.
 This path will override the default system include path:
 .Pa /usr/share/mk .
@@ -465,7 +468,7 @@ was executed with
 A path to the directory where
 .Nm
 was executed.
-.Nm
+.Nm Make
 sets
 .Va .CURDIR
 to the canonical path given by
@@ -510,7 +513,7 @@ If they are undefined and
 is unable to change into any of the remaining three directories,
 then the current directory is used.
 .Pp
-.Nm
+.Nm Make
 sets
 .Va .OBJDIR
 to the canonical path given by
@@ -569,9 +572,7 @@ Makefiles may assign a colon-delimited list of directories to
 .Va VPATH .
 These directories will be searched for source files by
 .Nm
-after
-.Nm
-has finished parsing all input makefiles.
+after it has finished parsing all input makefiles.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
@@ -643,7 +644,7 @@ the rest of the modifier.
 .It Cm Q
 Quotes every shell meta-character in the variable, so that it can be passed
 safely through recursive invocations of
-.Nm .
+.Nm Ns .
 .It Cm R
 Replaces each word in the variable with everything but its suffix.
 .Sm off
@@ -719,7 +720,7 @@ Converts variable to upper-case letters.
 .Sh DIRECTIVES, CONDITIONALS, AND FOR LOOPS
 Directives, conditionals, and for loops reminiscent
 of the C programming language are provided in
-.Nm .
+.Nm Ns .
 All such structures are identified by a line beginning with a single
 dot
 .Pq Ql \&.
@@ -844,7 +845,8 @@ The
 may be any one of the following:
 .Bl -tag -width "Cm XX"
 .It Cm \&|\&|
-logical OR
+logical
+.Tn OR
 .It Cm \&&&
 Logical
 .Tn AND ;
@@ -1097,7 +1099,9 @@ no effect.
 .It Ic .NOTPARALLEL
 Disable parallel mode.
 .It Ic .NO_PARALLEL
-Same as above, for compatibility with other pmake variants.
+Same as above, for compatibility with other
+.Nm pmake
+variants.
 .It Ic .ORDER
 The named targets are made in sequence.
 .\" XXX: NOT YET!!!!
@@ -1149,7 +1153,7 @@ attribute is applied to every
 command in the file.
 .It Ic .SUFFIXES
 Each source specifies a suffix to
-.Nm .
+.Nm Ns .
 If no sources are specified, any previous specified suffices are deleted.
 .El
 .Sh COMPATIBILITY

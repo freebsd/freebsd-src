@@ -273,9 +273,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		}
 		case 'E':
-			p = malloc(strlen(optarg) + 1);
-			if (!p)
-				Punt("make: cannot allocate memory.");
+			p = emalloc(strlen(optarg) + 1);
 			(void)strcpy(p, optarg);
 			(void)Lst_AtEnd(envFirstVars, (void *)p);
 			Var_Append(MAKEFLAGS, "-E", VAR_GLOBAL);
@@ -529,10 +527,8 @@ main(argc, argv)
 #ifndef MACHINE
 	    struct utsname utsname;
 
-	    if (uname(&utsname) == -1) {
-		    perror("make: uname");
-		    exit(2);
-	    }
+	    if (uname(&utsname) == -1)
+		    err(2, "uname");
 	    machine = utsname.machine;
 #else
 	    machine = MACHINE;
@@ -817,9 +813,7 @@ main(argc, argv)
 		    ln = Lst_Succ(ln)) {
 			char *value;
 			if (expandVars) {
-				p1 = malloc(strlen((char *)Lst_Datum(ln)) + 1 + 3);
-				if (!p1)
-					Punt("make: cannot allocate memory.");
+				p1 = emalloc(strlen((char *)Lst_Datum(ln)) + 1 + 3);
 				/* This sprintf is safe, because of the malloc above */
 				(void)sprintf(p1, "${%s}", (char *)Lst_Datum(ln));
 				value = Var_Subst(NULL, p1, VAR_GLOBAL, FALSE);
