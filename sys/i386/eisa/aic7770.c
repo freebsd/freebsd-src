@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.10 1995/01/16 16:31:34 gibbs Exp $
+ *	$Id: aic7770.c,v 1.11 1995/03/07 08:58:22 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,7 @@ int	aic7770_attach __P((struct isa_device *dev));
 #define CHAR2(B1,B2) (((B1<<3) & 0x18) | ((B2>>5) & 0x7)|'@')
 #define CHAR3(B1,B2) ((B2 & 0x1F) | '@')
 
-#define	MAX_SLOTS	16	/* max slots on the EISA bus */
+#define	EISA_MAX_SLOTS	16	/* XXX should be defined in a common header */
 static	ahc_slot = 0;		/* slot last board was found in */
 
 struct isa_driver ahcdriver = {aic7770probe, aic7770_attach, "ahc"};
@@ -88,15 +88,15 @@ aic7770probe(struct isa_device *dev)
 
 	aic7770_sig valid_ids[] = {
 	/* Entries of other tested adaptors should be added here */
-		{ AHC_274, 0x71 }, /*274x, Card*/
-		{ AHC_274, 0x70 }, /*274x, Motherboard*/
+		{ AHC_274, 0x71 }, /*274x*/
+		{ AHC_274, 0x70 }, /*aic7770 on Motherboard*/
 		{ AHC_284, 0x56 }, /*284x, BIOS enabled*/
 		{ AHC_284, 0x57 }  /*284x, BIOS disabled*/
 	};
 
 
         ahc_slot++;
-        while (ahc_slot <= MAX_SLOTS) {
+        while (ahc_slot < EISA_MAX_SLOTS) {
                 port = 0x1000 * ahc_slot;
 		for( i = 0; i < sizeof(sig_id); i++ )
 		{
