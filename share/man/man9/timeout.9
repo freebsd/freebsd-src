@@ -45,6 +45,7 @@
 .Nm callout_handle_init ,
 .Nm callout_init ,
 .Nm callout_stop ,
+.Nm callout_drain ,
 .Nm callout_reset
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
@@ -68,6 +69,8 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn callout_init "struct callout *c" "int mpsafe"
 .Ft int
 .Fn callout_stop "struct callout *c"
+.Ft int
+.Fn callout_drain "struct callout *c"
 .Ft void
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
 .Sh DESCRIPTION
@@ -162,7 +165,8 @@ Thus they are protected from re-entrancy.
 .Pp
 The functions
 .Fn callout_init ,
-.Fn callout_stop
+.Fn callout_stop ,
+.Fn callout_drain
 and
 .Fn callout_reset
 are low-level routines for clients who wish to allocate their own
@@ -171,7 +175,8 @@ callout structures.
 The function
 .Fn callout_init
 initializes a callout so it can be passed to
-.Fn callout_stop
+.Fn callout_stop ,
+.Fn callout_drain 
 or
 .Fn callout_reset
 without any side effects.
@@ -194,6 +199,14 @@ If the callout has already been serviced or is currently being serviced,
 then zero will be returned.
 .Pp
 The function
+.Fn callout_drain
+is identical to
+.Fn callout_stop
+except that it will wait for the callout to be completed if it is
+already in progress.  This MUST NOT be called while holding any
+locks on which the callout might block, or deadlock will result.
+.Pp
+The function
 .Fn callout_reset
 first calls
 .Fn callout_stop
@@ -209,16 +222,10 @@ that can be passed to
 .Fn untimeout .
 The
 .Fn callout_stop
-function returns non-zero if the callout was still pending when it was
+and
+.Fn callout_drain
+functions return non-zero if the callout was still pending when it was
 called or zero otherwise.
-.Sh BUGS
-This API has no way to cancel a callout and ensure that if it was
-canceled too late that the callout has actually finished.
-.Fn callout_stop 
-only guarantees that the callout has started when it returns 0.
-It does not guarantee that the callout has finished.
-This can create a race when one wishes to ensure that no threads are
-executing before returning from a driver detach routine.
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
 .An Adam M. Costello

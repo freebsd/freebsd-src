@@ -81,6 +81,9 @@ void	callout_init(struct callout *, int);
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 void	callout_reset(struct callout *, int, void (*)(void *), void *);
 int	callout_stop(struct callout *);
+#define	callout_stop(c)		_callout_stop_safe(c, 0)
+#define	callout_drain(c)	_callout_stop_safe(c, 1)
+int	_callout_stop_safe(struct callout *, int);
 
 #endif
 
