@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.3 1995/09/10 01:55:38 davidg Exp $
+#	$Id: LINT,v 1.184.4.4 1995/09/14 23:47:07 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -679,7 +679,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # labpc: National Instrument's Lab-PC and Lab-PC+
 # rc: RISCom/8 multiport card
 # tw: TW-523 power line interface for use with X-10 home control products
-# si: Specialix SI/XIO 4-32 port terminal multiplexor (PRE ALPHA QUALITY!)
+# si: Specialix SI/XIO 4-32 port terminal multiplexor
 
 #
 # Notes on the spigot:
@@ -694,15 +694,13 @@ device pca0 at isa? port IO_TIMER1 tty
 # The following flag values have special meanings:
 #	0x01 - alternate layout of pins
 #	0x02 - use the windowed PC/Xe in 64K mode
-#
-# Notes on the *PRE-ALPHA* Specialix SI/XIO driver:
+
+# Notes on the Specialix SI/XIO driver:
 #  **This is NOT a Specialix supported Driver!**
 #  The host card is memory, not IO mapped.
 #  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
 #  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
 #  The cards can use an IRQ of 11, 12 or 15.
-#  *Do* be ready for trouble if you try to use it.
-#  It currently works for me (very well) but no guarantees yet.
 
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
