@@ -26,10 +26,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.7 2004/08/06 08:47:14 brandt Exp $
+.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.8 2005/02/25 11:56:01 brandt_h Exp $
 .\"
 .Dd August 16, 2002
-.Dt snmpmod 3
+.Dt SNMPMOD 3
 .Os
 .Sh NAME
 .Nm INSERT_OBJECT_OID_LINK_INDEX ,
@@ -161,18 +161,26 @@ Begemot SNMP library
 .Ft size_t
 .Fn buf_size "int tx"
 .Ft enum snmpd_input_err
-.Fn snmp_input_start "const u_char *buf" "size_t len" "const char *source" \
-    "struct snmp_pdu *pdu" "int32_t *ip" "size_t *pdulen"
+.Fo snmp_input_start
+.Fa "const u_char *buf" "size_t len" "const char *source"
+.Fa "struct snmp_pdu *pdu" "int32_t *ip" "size_t *pdulen"
+.Fc
 .Ft enum snmpd_input_err
-.Fn snmp_input_finish "struct snmp_pdu *pdu" "const u_char *rcvbuf" \
-    "size_t rcvlen" "u_char *sndbuf" "size_t *sndlen" "const char *source" \
-    "enum snmpd_input_err ierr" "int32_t ip" "void *data"
+.Fo snmp_input_finish
+.Fa "struct snmp_pdu *pdu" "const u_char *rcvbuf"
+.Fa "size_t rcvlen" "u_char *sndbuf" "size_t *sndlen" "const char *source"
+.Fa "enum snmpd_input_err ierr" "int32_t ip" "void *data"
+.Fc
 .Ft void
-.Fn snmp_output "struct snmp_pdu *pdu" "u_char *sndbuf" "size_t *sndlen" \
-    "const char *dest"
+.Fo snmp_output
+.Fa "struct snmp_pdu *pdu" "u_char *sndbuf" "size_t *sndlen"
+.Fa "const char *dest"
+.Fc
 .Ft void
-.Fn snmp_send_port "void *trans" "const struct asn_oid *port" \
-    "struct snmp_pdu *pdu" "const struct sockaddr *addr" "socklen_t addrlen"
+.Fo snmp_send_port
+.Fa "void *trans" "const struct asn_oid *port"
+.Fa "struct snmp_pdu *pdu" "const struct sockaddr *addr" "socklen_t addrlen"
+.Fc
 .Ft void
 .Fn snmp_send_trap "const struct asn_oid *oid" "..."
 .Ft int
@@ -227,7 +235,7 @@ a string, that identfies the module to the daemon. This identifier is used
 to select the correct configuration section from the configuration files and
 to identify resources allocated to this module. A row in the module table is
 created by writing a string of non-zero length to the
-.Va begemotSnmpdModulePath	
+.Va begemotSnmpdModulePath
 column. This string must be the complete path to the file containing the module.
 A module can be unloaded by writing a zero length string to the path column
 of an existing row.
@@ -340,7 +348,7 @@ the global one and the module is unloaded. If initialisation is successful,
 the modules
 .Fn start
 function is called.
-After it returns the 
+After it returns the
 .Fn loaded
 functions of all modules (including the loaded one) are called.
 .Pp
@@ -436,7 +444,7 @@ argument to the node operation callback.
 The variable
 .Va this_tick
 contains the tick (there are 100 SNMP ticks in a second) when
-the current PDU processing was started. 
+the current PDU processing was started.
 The variable
 .Va start_tick
 contains the tick when the daemon was started.
@@ -483,7 +491,7 @@ while the assignments in the configuration file are processed. To
 or
 .Li COMM_WRITE
 when the community strings for the read-write or read-only community are found
-in the incoming PDU. 
+in the incoming PDU.
 .Pp
 Modules can define additional communities. This may be necessary to provide
 transport proxying (a PDU received on one communication link is proxied to
@@ -851,11 +859,11 @@ beginning at position
 .Fa off .
 .El
 .Sh SEE ALSO
-.Xr snmpd 1 ,
 .Xr gensnmptree 1 ,
-.Xr bsnmplib 3
+.Xr snmpd 1 ,
+.Xr bsnmpagent 3 ,
 .Xr bsnmpclient 3 ,
-.Xr bsnmpagent 3
+.Xr bsnmplib 3
 .Sh STANDARDS
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.
