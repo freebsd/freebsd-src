@@ -12,12 +12,12 @@ if [ "$first_two_chars" = "%!" ]; then
    #
    #  PostScript job, print it.
    #
-   echo $first_line && cat && printf "\004" && exit 0
+   echo "$first_line" && cat && printf "\004" && exit 0
    exit 2
 else
    #
    #  Plain text, convert it, then print it.
    #
-   ( echo $first_line; cat ) | /usr/local/bin/textps && printf "\004" && exit 0
+   ( echo "$first_line"; cat ) | /usr/local/bin/textps && printf "\004" && exit 0
    exit 2
 fi
