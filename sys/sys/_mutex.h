@@ -41,10 +41,15 @@ struct mtx {
 	TAILQ_HEAD(, thread)	mtx_blocked;	/* Threads blocked on us. */
 	LIST_ENTRY(mtx)		mtx_contested;	/* Next contested mtx. */
 
-	/* Fields used only if MUTEX_PROFILING is configured: */
+#ifdef MUTEX_PROFILING
+	/*
+	 * This does not result in variant structure sizes because
+	 * MUTEX_PROFILING is in opt_global.h
+	 */
 	u_int64_t		mtx_acqtime;
 	const char		*mtx_filename;
 	int			mtx_lineno;
+#endif
 };
 
 #endif /* !_SYS__MUTEX_H_ */
