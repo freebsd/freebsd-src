@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: scvidctl.c,v 1.6 1999/01/11 03:18:26 yokota Exp $
  */
 
 #include "sc.h"
@@ -37,7 +37,9 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 
+#ifdef __i386__
 #include <machine/apm_bios.h>
+#endif
 #include <machine/console.h>
 
 #include <dev/fb/fbreg.h>

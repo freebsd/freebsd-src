@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.217 1999/01/01 08:09:58 peter Exp $
+#	$Id: files.i386,v 1.218 1999/01/11 03:18:35 yokota Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -245,6 +245,7 @@ i386/isa/sound/cs4232.c		optional	css	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
+i386/isa/syscons_isa.c		optional	sc	device-driver
 i386/isa/vesa.c			optional	vga	device-driver
 i386/isa/vga_isa.c		optional	vga	device-driver
 i386/isa/tw.c			optional	tw	device-driver

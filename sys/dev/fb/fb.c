@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fb.c,v 1.1 1999/01/09 02:44:49 yokota Exp $
+ * $Id: fb.c,v 1.2 1999/01/12 10:35:50 yokota Exp $
  */
 
 #include "fb.h"
@@ -394,8 +394,9 @@ fb_dump_adp_info(char *driver, video_adapter_t *adp, int level)
 	   adp->va_initial_mode, adp->va_initial_bios_mode, adp->va_mode);
     printf("%s%d: window:0x%x size:%dk gran:%dk, buf:0x%x size:%dk\n",
 	   DRIVER_NAME, adp->va_index, 
-	   adp->va_window, adp->va_window_size/1024, adp->va_window_gran/1024,
-	   adp->va_buffer, adp->va_buffer_size/1024);
+	   adp->va_window, (int)adp->va_window_size/1024,
+	   (int)adp->va_window_gran/1024, adp->va_buffer,
+	   (int)adp->va_buffer_size/1024);
 }
 
 void
