@@ -1,0 +1,112 @@
+#
+#  This Makefile is designed to work on the old "make" program.  It does
+#  not use the obj subdirectory.  It also does not install documentation
+#  automatically -- think of it as a quick start for sites that have the
+#  old make program (I recommend that you get and port the new make if you
+#  are going to be doing any signficant work on sendmail).
+#
+#  This has been tested on KSR OS 1.2.2.  Contributed by Todd C. Miller
+#	<Todd.Miller@cs.colorado.edu>
+#
+#	@(#)Makefile.KSR	8.2 (Berkeley) 9/13/95
+#
+
+# use O=-O (usual) or O=-g (debugging)
+O=	-O
+
+# define the database mechanism used for alias lookups:
+#	-DNDBM -- use new DBM
+#	-DNEWDB -- use new Berkeley DB
+#	-DNIS -- include NIS support
+# The really old (V7) DBM library is no longer supported.
+# See READ_ME for a description of how these flags interact.
+#
+DBMDEF=	-DNDBM -DNEWDB -DNIS
+
+# environment definitions (e.g., -D_AIX3)
+ENVDEF=
+
+# see also conf.h for additional compilation flags
+
+# include directories
+INCDIRS=-I/usr/sww/include
+
+# library directories
+LIBDIRS=-L/usr/sww/lib -L/usr/shlib -L/usr/lib
+
+# libraries required on your system
+#  delete -lresolv if you are not running BIND 4.9.x
+LIBS=	-ldbm -ldb -lresolv
+
+# location of sendmail binary (usually /usr/sbin or /usr/lib)
+BINDIR=	${DESTDIR}/usr/sbin
+
+# location of sendmail.st file (usually /var/log or /usr/lib)
+STDIR=	${DESTDIR}/var/adm/sendmail
+
+# location of sendmail.hf file (usually /usr/share/misc or /usr/lib)
+HFDIR=	${DESTDIR}/usr/share/lib
+
+# additional .o files needed
+OBJADD=
+
+
+###################  end of user configuration flags  ######################
+
+CFLAGS=	-I. $O ${INCDIRS} ${DBMDEF} ${ENVDEF}
+
+OBJS=	alias.o arpadate.o clock.o collect.o conf.o convtime.o daemon.o \
+	deliver.o domain.o envelope.o err.o headers.o macro.o main.o \
+	map.o mci.o mime.o parseaddr.o queue.o readcf.o recipient.o \
+	savemail.o srvrsmtp.o stab.o stats.o sysexits.o \
+	trace.o udb.o usersmtp.o util.o version.o ${OBJADD}
+
+LINKS=	${BINDIR}/newaliases ${BINDIR}/mailq
+INSTALL=installbsd
+BINOWN=	root
+BINGRP=	kmem
+BINMODE=6555
+
+ALL=	sendmail aliases.0 mailq.0 newaliases.0 sendmail.0
+
+all: ${ALL}
+
+sendmail: ${BEFORE} ${OBJS}
+	${CC} -o sendmail ${LDADD} ${OBJS} ${LIBDIRS} ${LIBS}
+
+#NROFF=	nroff -h
+NROFF=	groff -Tascii
+MANDOC=	-mandoc
+
+aliases.0: aliases.5
+	${NROFF} ${MANDOC} aliases.5 > aliases.0
+
+mailq.0: mailq.1
+	${NROFF} ${MANDOC} mailq.1 > mailq.0
+
+newaliases.0: newaliases.1
+	${NROFF} ${MANDOC} newaliases.1 > newaliases.0
+
+sendmail.0: sendmail.8
+	${NROFF} ${MANDOC} sendmail.8 > sendmail.0
+
+install: install-sendmail install-docs
+
+install-sendmail: sendmail
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} sendmail ${BINDIR}
+	for i in ${LINKS}; do rm -f $$i; ln -s ${BINDIR}/sendmail $$i; done
+	cp /dev/null ${STDIR}/sendmail.st
+	chmod 644 ${STDIR}/sendmail.st
+	chown ${BINOWN}.${BINGRP} ${STDIR}/sendmail.st
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 sendmail.hf ${HFDIR}
+	rm -f /usr/sbin/smtpd
+
+# doesn't actually install them -- you may want to install pre-nroff versions
+install-docs: aliases.0 mailq.0 newaliases.0 sendmail.0
+
+clean:
+	rm -f ${OBJS} sendmail aliases.0 mailq.0 newaliases.0 sendmail.0
+
+# dependencies
+#   gross overkill, and yet still not quite enough....
+${OBJS}: sendmail.h conf.h

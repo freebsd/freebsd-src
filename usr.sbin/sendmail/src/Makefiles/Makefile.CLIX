@@ -1,0 +1,119 @@
+#
+#  This makefile is for clipper-based Intergraph systems running CLIX.
+#  It and the defines supporting it in the source tree should be considered
+#  alpha-quality and used at own risk.
+#
+#  Porting done for CICNet, Inc., on behalf the Michigan State Department
+#  of Natural Resources.
+#
+#  --Paul Southworth <pauls@cic.net>
+#
+#	@(#)Makefile.CLIX	8.5 (Berkeley) 9/13/95
+#
+
+# make sure the shell constructs below use the right shell
+SHELL=	/bin/sh
+
+# use O=-O (usual) or O=-g (debugging)
+O=	-O
+
+CC=	gcc
+
+# define the database mechanism used for alias lookups:
+#	-DNDBM -- use new DBM
+#	-DNEWDB -- use new Berkeley DB
+#	-DNIS -- include NIS support
+# The really old (V7) DBM library is no longer supported.
+# See READ_ME for a description of how these flags interact.
+#
+DBMDEF=	-DNDBM
+
+# environment definitions (e.g., -D_AIX3)
+ENVDEF=	-DCLIX
+
+# see also conf.h for additional compilation flags
+
+# include directories
+INCDIRS= -I/usr/include
+
+# library directories
+LIBDIRS=
+
+# libraries required on your system
+LIBS=	-lnsl -lbsd
+
+# location of sendmail binary (usually /usr/sbin or /usr/lib)
+BINDIR=	${DESTDIR}/usr/lib
+
+# location of sendmail.st file (usually /var/log or /usr/lib)
+STDIR=	${DESTDIR}/usr/lib
+
+# location of sendmail.hf file (usually /usr/share/misc or /usr/lib)
+HFDIR=	${DESTDIR}/usr/lib
+
+# additional .o files needed
+OBJADD= getusershell.o
+
+###################  end of user configuration flags  ######################
+
+CFLAGS=	-I. $O ${INCDIRS} ${DBMDEF} ${ENVDEF}
+
+OBJS=	alias.o arpadate.o clock.o collect.o conf.o convtime.o daemon.o \
+	deliver.o domain.o envelope.o err.o headers.o macro.o main.o \
+	map.o mci.o mime.o parseaddr.o queue.o readcf.o recipient.o \
+	savemail.o srvrsmtp.o stab.o stats.o sysexits.o \
+	trace.o udb.o usersmtp.o util.o version.o ${OBJADD}
+
+LINKS=	${DESTDIR}/usr/bin/newaliases ${DESTDIR}/usr/bin/mailq
+INSTALL=cp
+BINOWN=	root
+BINGRP=	mail
+BINMODE=6555
+
+ALL=	sendmail # aliases.0 mailq.0 newaliases.0 sendmail.0
+
+all: ${ALL}
+
+sendmail: ${BEFORE} ${OBJS}
+	${CC} -o sendmail ${OBJS} ${LIBDIRS} ${LIBS}
+
+#NROFF=	nroff -h
+NROFF=	groff -Tascii
+MANDOC=	-mandoc
+
+aliases.0: aliases.5
+	${NROFF} ${MANDOC} aliases.5 > aliases.0
+
+mailq.0: mailq.1
+	${NROFF} ${MANDOC} mailq.1 > mailq.0
+
+newaliases.0: newaliases.1
+	${NROFF} ${MANDOC} newaliases.1 > newaliases.0
+
+sendmail.0: sendmail.8
+	${NROFF} ${MANDOC} sendmail.8 > sendmail.0
+
+install: install-sendmail #install-docs
+
+install-sendmail: sendmail
+	#${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} sendmail ${BINDIR}
+	${INSTALL} sendmail ${BINDIR}
+	chmod ${BINMODE} ${BINDIR}/sendmail
+	for i in ${LINKS}; do rm -f $$i; ln -s ${BINDIR}/sendmail $$i; done
+	#${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	#    ${STDIR}/sendmail.st
+	${INSTALL} /dev/null ${STDIR}/sendmail.st
+	#${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 sendmail.hf ${HFDIR}
+	${INSTALL} sendmail.hf ${HFDIR}
+
+# doesn't actually install them -- you may want to install pre-nroff versions
+install-docs: aliases.0 mailq.0 newaliases.0 sendmail.0
+
+clean:
+	rm -f ${OBJS} sendmail #aliases.0 mailq.0 newaliases.0 sendmail.0
+
+# dependencies
+#   gross overkill, and yet still not quite enough....
+${OBJS}: sendmail.h conf.h
+
+depend:
