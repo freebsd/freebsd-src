@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.6 1998/12/17 00:03:14 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.7 1999/01/14 05:57:32 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -1332,6 +1332,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * to the initator.
 				 */
 				atio->ccb_h.flags &= ~CAM_DIR_MASK;
+				descr->data_resid = scsi_3btoul(sr->xfer_len);
+				descr->timeout = 5 * 1000;
+				descr->status = SCSI_STATUS_OK;
 				if (cdb[0] == SEND) {
 					atio->ccb_h.flags |= CAM_DIR_OUT;
 					CAM_DEBUG(periph->path,
@@ -1352,9 +1355,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 							  periph_links.tqe);
 					selwakeup(&softc->rcv_select);
 				}
-				descr->data_resid = scsi_3btoul(sr->xfer_len);
-				descr->timeout = 5 * 1000;
-				descr->status = SCSI_STATUS_OK;
 				/*
 				 * Attempt to satisfy this request with
 				 * a user buffer.
