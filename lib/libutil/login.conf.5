@@ -152,23 +152,23 @@ notation may be used.
 .Sh RESOURCE LIMITS
 .Bl -column coredumpsize indent indent
 .It Sy "Name	Type	Notes	Description
-.It "cputime	time		CPU usage limit.
-.It "filesize	size		Maximum file size limit.
-.It "datasize	size		Maximum data size limit.
-.It "stacksize	size		Maximum stack size limit.
 .It "coredumpsize	size		Maximum coredump size limit.
-.It "memoryuse	size		Maximum of core memory use size limit.
-.It "memorylocked	size		Maximum locked in core memory size limit.
+.It "cputime	time		CPU usage limit.
+.It "datasize	size		Maximum data size limit.
+.It "filesize	size		Maximum file size limit.
 .It "maxproc	number		Maximum number of processes.
+.It "memorylocked	size		Maximum locked in core memory size limit.
+.It "memoryuse	size		Maximum of core memory use size limit.
 .It "openfiles	number		Maximum number of open files per process.
 .It "sbsize	size		Maximum permitted socketbuffer size.
+.It "stacksize	size		Maximum stack size limit.
 .El
 .Pp
 These resource limit entries actually specify both the maximum
 and current limits (see
 .Xr getrlimit 2 ) .
-The current (soft) limit is the one normally used, although the user is permitted
-to increase the current limit to the maximum (hard) limit.
+The current (soft) limit is the one normally used, although the user is
+permitted to increase the current limit to the maximum (hard) limit.
 The maximum and current limits may be specified individually by appending a
 -max or -cur to the capability name.
 .Pp
@@ -192,8 +192,8 @@ values to which they are to be set.
 shell specified in the passwd file.
 The SHELL environment variable will
 contain the shell specified in the password file.
-.It "term	string		Default terminal type if not able to determine from
-other means.
+.It "term	string		Default terminal type if not able to determine
+from other means.
 .It "timezone	string		Default value of $TZ environment variable.
 .It "umask	number	022	Initial umask. Should always have a leading 0 to
 ensure octal interpretation.
@@ -203,24 +203,27 @@ ensure octal interpretation.
 .Sh AUTHENTICATION
 .Bl -column minpasswordlen indent indent
 .It Sy "Name	Type	Notes	Description
-.It "minpasswordlen	number	6	The minimum length a local password may be.
-.It "passwd_format	string	md5	The encryption format that new or
-changed passwords will use.
-Valid values include "md5" and "des".
-NIS clients using a
-.No non- Ns Fx
-NIS server should probably use "des".
 .\" .It "approve	program 	Program to approve login.
+.It "copyright	file		File containing additional copyright information
+.It "host.allow	list		List of remote host wildcards from which users in
+the class may access.
+.It "host.deny	list		List of remote host wildcards from which users
+in the class may not access.
+.It "login_prompt	string		The login prompt given by
+.Xr login 1
+.It "minpasswordlen	number	6	The minimum length a local password
+may be.
 .It "mixpasswordcase	bool	true	Whether
 .Xr passwd 1
 will warn the user if an all lower case password is entered.
-.It "copyright	file		File containing additional copyright information
-.\".It "widepasswords	bool	false	Use the wide password format. The wide password
-.\" format allows up to 128 significant characters in the password.
-.It "host.allow	list		List of remote host wildcards from which users in
-the class may access.
-.It "host.deny	list		List of remote host wildcards from which users in
-the class may not access.
+.It "passwd_format	string	md5	The encryption format that new or
+changed passwords will use.
+Valid values include "des", "md5" and "blf".
+NIS clients using a
+.No non- Ns Fx
+NIS server should probably use "des".
+.It "passwd_prompt	string		The password prompt presented by
+.Xr login 1
 .It "times.allow 	list		List of time periods during which
 logins are allowed.
 .It "times.deny	list		List of time periods during which logins are
@@ -229,6 +232,8 @@ disallowed.
 in the class may use for access.
 .It "ttys.deny	list		List of ttys and ttygroups which users
 in the class may not use for access.
+.\".It "widepasswords	bool	false	Use the wide password format. The wide password
+.\" format allows up to 128 significant characters in the password.
 .El
 .Pp
 These fields are intended to be used by
