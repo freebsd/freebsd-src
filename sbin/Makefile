@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.52 1998/08/30 20:27:37 gpalmer Exp $
+#	$Id: Makefile,v 1.53 1998/09/05 07:35:19 jb Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -59,8 +59,8 @@ SUBDIR= badsect \
 	tunefs \
 	umount
 
-.if exists(${.CURDIR}/${MACHINE})
-SUBDIR+= ${MACHINE}
+.if exists(${.CURDIR}/${MACHINE_ARCH})
+SUBDIR+= ${MACHINE_ARCH}
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
