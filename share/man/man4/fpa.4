@@ -26,7 +26,6 @@ and
 device driver provides support for the DEC DEFPA PCI FDDI Controller and
 the DEC DEFEA EISA FDDI Controller, respectively.  All variants of either
 controller are supported including the DAS and SAS configurations.
-.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "fea%d: error: desired IRQ of %d does not match device's actual IRQ (%d)"
@@ -43,7 +42,6 @@ Normally, the device driver will not enable the reception of SMT frames.
 However if the IFF_LINK1 flag is set, the device driver will enable the
 reception of SMT frames and pass them up to the Berkeley Packet Filter for
 processing.
-.Pp
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,

@@ -142,7 +142,6 @@ The component devices need to name partitions of type
 as shown by
 .Xr disklabel 8 ) .
 .Sh EXAMPLES
-.Pp
 A number of ccdconfig examples are shown below.  The arguments passed
 to ccdconfig are exactly the same as you might place in the
 .Pa /etc/ccd.conf 
@@ -186,9 +185,7 @@ Beware that changing any ccd parameters: interleave, flags, or the
 device list making up the ccd disk, will usually destroy any prior
 data on that ccd disk.  If this occurs it is usually a good idea to
 reinitialize the label before [re]constructing your ccd disk.
-.Pp
 .Sh RECOVERY
-.Pp
 An error on a ccd disk is usually unrecoverable unless you are using the 
 mirroring option.  But mirroring has its own perils:  It assumes that
 both copies of the data at any given sector are the same.  This holds true
@@ -202,7 +199,6 @@ RAID controllers such as the
 .Nm dpt
 controller, or software RAID systems such as
 .Nm vinum .
-.Pp
 .Sh FILES
 .Bl -tag -width /etc/ccd.conf -compact
 .It Pa /etc/ccd.conf

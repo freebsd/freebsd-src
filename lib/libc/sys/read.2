@@ -116,9 +116,7 @@ return the number of bytes actually read and placed in the buffer.
 The system guarantees to read the number of bytes requested if
 the descriptor references a normal file that has that many bytes left
 before the end-of-file, but in no other case.
-.Pp
 .Sh IMPLEMENTATION NOTES
-.Pp
 In the non-threaded library
 .Fn read
 is implemented as the
