@@ -114,13 +114,11 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 	 * 100 to leave space for pre-assigned oid numbers.
 	 */
 	if (oidp->oid_number == OID_AUTO) {
-		/* First, find the highest oid in the parent list >99 */
-		n = 99;
-		SLIST_FOREACH(p, parent, oid_link) {
-			if (p->oid_number > n)
-				n = p->oid_number;
-		}
-		oidp->oid_number = n + 1;
+		static int newoid = 100;
+
+		oidp->oid_number = newoid++;
+		if (newoid == 0x7fffffff)
+			panic("out of oids");
 	}
 
 	/*
