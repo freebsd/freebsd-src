@@ -170,5 +170,5 @@ acpi_pcib_pci_route_interrupt(device_t pcib, device_t dev, int pin)
     if (sc->ap_prt.Pointer == NULL)
 	return (pcib_route_interrupt(pcib, dev, pin));
     else
-	return (acpi_pcib_route_interrupt(pcib, dev, pin));
+	return (acpi_pcib_route_interrupt(pcib, dev, pin, &sc->ap_prt));
 }

@@ -297,8 +297,9 @@ acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg,
 static int
 acpi_pcib_acpi_route_interrupt(device_t pcib, device_t dev, int pin)
 {
+    struct acpi_hpcib_softc *sc = device_get_softc(pcib);
 
-    return (acpi_pcib_route_interrupt(pcib, dev, pin));
+    return (acpi_pcib_route_interrupt(pcib, dev, pin, &sc->ap_prt));
 }
 
 static u_long acpi_host_mem_start = 0x80000000;
