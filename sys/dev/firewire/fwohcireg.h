@@ -287,7 +287,7 @@ struct ohci_registers {
 		fwohcireg_t	dummy1;
 		fwohcireg_t	dummy2;
 		fwohcireg_t	dummy3;
-	};
+	} dummy8;
 	/*       0x180, 0x184, 0x188, 0x18c */
 	/*       0x190, 0x194, 0x198, 0x19c */
 	/*       0x1a0, 0x1a4, 0x1a8, 0x1ac */
@@ -305,7 +305,7 @@ struct ohci_registers {
 		fwohcireg_t	cntl_clr;
 		fwohcireg_t	dummy0;
 		fwohcireg_t	cmd;
-	};
+	} dummy9;
 	struct ohci_itdma dma_itch[0x20];
 
 	/*       0x400, 0x404, 0x408, 0x40c */
