@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.5 1994/10/17 17:47:38 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.6 1995/05/30 08:12:45 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -74,16 +74,20 @@ void	nfsrv_zapsock	__P((struct nfssvc_sock *));
 
 /* Global defs. */
 extern u_long nfs_prog, nfs_vers;
+#ifdef NFS_SERVER
 extern int (*nfsrv_procs[NFS_NPROCS])();
+#endif
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 extern time_t nqnfsstarttime;
 extern int nqsrv_writeslack;
 extern int nfsrtton;
+#ifdef NFS_SERVER
 struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 int nuidhash_max = NFS_MAXUIDHASH;
-static int nfs_numnfsd = 0;
 int nfsd_waiting = 0;
+#endif /* NFS_SERVER */
+static int nfs_numnfsd = 0;
 static int notstarted = 1;
 static int modify_flag = 0;
 static struct nfsdrt nfsdrt;
@@ -178,9 +182,12 @@ nfssvc(p, uap, retval)
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
 		(void) tsleep((caddr_t)&nfssvc_sockhead, PSOCK, "nfsd init", 0);
 	}
-	if (uap->flag & NFSSVC_BIOD)
+	if (0) {
+		;
+#ifdef NFS_CLIENT
+	} else if (uap->flag & NFSSVC_BIOD) {
 		error = nfssvc_iod(p);
-	else if (uap->flag & NFSSVC_MNTD) {
+	} else if (uap->flag & NFSSVC_MNTD) {
 		error = copyin(uap->argp, (caddr_t)&ncd, sizeof (ncd));
 		if (error)
 			return (error);
@@ -201,6 +208,8 @@ nfssvc(p, uap, retval)
 		nmp->nm_flag |= NFSMNT_MNTD;
 		error = nqnfs_clientd(nmp, p->p_ucred, &ncd, uap->flag,
 			uap->argp, p);
+#endif /* NFS_CLIENT */
+#ifdef NFS_SERVER
 	} else if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
@@ -274,12 +283,14 @@ nfssvc(p, uap, retval)
 		if ((uap->flag & NFSSVC_AUTHINFAIL) && (nfsd = nsd->nsd_nfsd))
 			nfsd->nd_flag |= NFSD_AUTHFAIL;
 		error = nfssvc_nfsd(nsd, uap->argp, p);
+#endif /* NFS_SERVER */
 	}
 	if (error == EINTR || error == ERESTART)
 		error = 0;
 	return (error);
 }
 
+#ifdef NFS_SERVER
 /*
  * Adds a socket to the list for servicing by nfsds.
  */
@@ -631,7 +642,9 @@ done:
 		nfsrv_init(TRUE);	/* Reinitialize everything */
 	return (error);
 }
+#endif /* NFS_SERVER */
 
+#ifdef NFS_CLIENT
 /*
  * Asynchronous I/O daemons for client nfs.
  * They do read-ahead and write-behind operations on the block I/O cache.
@@ -683,6 +696,9 @@ nfssvc_iod(p)
 	}
 }
 
+#endif /* NFS_CLIENT */
+
+#ifdef NFS_SERVER
 /*
  * Shut down a socket associated with an nfssvc_sock structure.
  * Should be called with the send lock set, if required.
@@ -720,6 +736,8 @@ nfsrv_zapsock(slp)
 		}
 	}
 }
+
+#endif /* NFS_SERVER */
 
 /*
  * Get an authorization string for the uid by having the mount_nfs sitting
@@ -777,6 +795,8 @@ nfs_getauth(nmp, rep, cred, auth_type, auth_str, auth_len)
 	}
 	return (error);
 }
+
+#ifdef NFS_SERVER
 
 /*
  * Derefence a server socket structure. If it has no more references and
@@ -843,6 +863,7 @@ nfsrv_init(terminating)
 	TAILQ_INIT(&nfs_cltpsock->ns_uidlruhead);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, nfs_cltpsock, ns_chain);
 }
+#endif /* NFS_SERVER */
 
 /*
  * Add entries to the server monitor log.

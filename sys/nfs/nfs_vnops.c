@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.15.4.1 1995/07/25 07:47:54 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.15.4.2 1995/10/26 09:17:36 davidg Exp $
  */
 
 /*
@@ -69,6 +69,53 @@
 #include <nfs/nfsm_subs.h>
 #include <nfs/nqnfs.h>
 
+/*
+ * Prototypes for NFS vnode operations
+ */
+static int	nfs_lookup __P((struct vop_lookup_args *));
+static int	nfs_create __P((struct vop_create_args *));
+static int	nfs_mknod __P((struct vop_mknod_args *));
+static int	nfs_open __P((struct vop_open_args *));
+static int	nfs_close __P((struct vop_close_args *));
+static int	nfsspec_close __P((struct vop_close_args *));
+static int	nfsfifo_close __P((struct vop_close_args *));
+static int	nfs_access __P((struct vop_access_args *));
+static int	nfsspec_access __P((struct vop_access_args *));
+static int	nfs_getattr __P((struct vop_getattr_args *));
+static int	nfs_setattr __P((struct vop_setattr_args *));
+static int	nfs_read __P((struct vop_read_args *));
+static int	nfsspec_read __P((struct vop_read_args *));
+static int	nfsspec_write __P((struct vop_write_args *));
+static int	nfsfifo_read __P((struct vop_read_args *));
+static int	nfsfifo_write __P((struct vop_write_args *));
+#define nfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))enoioctl)
+#define nfs_select ((int (*) __P((struct  vop_select_args *)))seltrue)
+static int	nfs_mmap __P((struct vop_mmap_args *));
+static int	nfs_fsync __P((struct vop_fsync_args *));
+#define nfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
+static int	nfs_remove __P((struct vop_remove_args *));
+static int	nfs_link __P((struct vop_link_args *));
+static int	nfs_rename __P((struct vop_rename_args *));
+static int	nfs_mkdir __P((struct vop_mkdir_args *));
+static int	nfs_rmdir __P((struct vop_rmdir_args *));
+static int	nfs_symlink __P((struct vop_symlink_args *));
+static int	nfs_readdir __P((struct vop_readdir_args *));
+static int	nfs_readlink __P((struct vop_readlink_args *));
+static int	nfs_bmap __P((struct vop_bmap_args *));
+static int	nfs_strategy __P((struct vop_strategy_args *));
+static int	nfs_print __P((struct vop_print_args *));
+static int	nfs_pathconf __P((struct vop_pathconf_args *));
+static int	nfs_advlock __P((struct vop_advlock_args *));
+static int	nfs_blkatoff __P((struct vop_blkatoff_args *));
+static int	nfs_valloc __P((struct vop_valloc_args *));
+#define nfs_reallocblks \
+	((int (*) __P((struct  vop_reallocblks_args *)))eopnotsupp)
+static int	nfs_vfree __P((struct vop_vfree_args *));
+static int	nfs_truncate __P((struct vop_truncate_args *));
+static int	nfs_update __P((struct vop_update_args *));
+static int	nfs_bwrite __P((struct vop_bwrite_args *));
+
+
 /* Defs */
 #define	TRUE	1
 #define	FALSE	0
@@ -77,7 +124,7 @@
  * Global vfs data structures for nfs
  */
 int (**nfsv2_vnodeop_p)();
-struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, nfs_lookup },	/* lookup */
 	{ &vop_create_desc, nfs_create },	/* create */
@@ -122,7 +169,7 @@ struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
+static struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
 	{ &nfsv2_vnodeop_p, nfsv2_vnodeop_entries };
 VNODEOP_SET(nfsv2_vnodeop_opv_desc);
 
@@ -130,7 +177,7 @@ VNODEOP_SET(nfsv2_vnodeop_opv_desc);
  * Special device vnode ops
  */
 int (**spec_nfsv2nodeop_p)();
-struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
+static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, spec_lookup },	/* lookup */
 	{ &vop_create_desc, spec_create },	/* create */
@@ -175,12 +222,12 @@ struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
+static struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
 	{ &spec_nfsv2nodeop_p, spec_nfsv2nodeop_entries };
 VNODEOP_SET(spec_nfsv2nodeop_opv_desc);
 
 int (**fifo_nfsv2nodeop_p)();
-struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
+static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, fifo_lookup },	/* lookup */
 	{ &vop_create_desc, fifo_create },	/* create */
@@ -225,7 +272,7 @@ struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
+static struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
 	{ &fifo_nfsv2nodeop_p, fifo_nfsv2nodeop_entries };
 VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
 
@@ -243,7 +290,7 @@ int nfs_numasync = 0;
 /*
  * nfs null call from vfs.
  */
-int
+static int
 nfs_null(vp, cred, procp)
 	struct vnode *vp;
 	struct ucred *cred;
@@ -265,7 +312,7 @@ nfs_null(vp, cred, procp)
  * For nqnfs, use the access rpc to check accessibility. If file modes are
  * changed on the server, accesses might still fail later.
  */
-int
+static int
 nfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
@@ -332,7 +379,7 @@ nfs_access(ap)
  * if consistency is lost.
  */
 /* ARGSUSED */
-int
+static int
 nfs_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -401,7 +448,7 @@ nfs_open(ap)
  * For reg files, invalidate any buffer cache entries.
  */
 /* ARGSUSED */
-int
+static int
 nfs_close(ap)
 	struct vop_close_args /* {
 		struct vnodeop_desc *a_desc;
@@ -432,7 +479,7 @@ nfs_close(ap)
 /*
  * nfs getattr call from vfs.
  */
-int
+static int
 nfs_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -470,7 +517,7 @@ nfs_getattr(ap)
 /*
  * nfs setattr call.
  */
-int
+static int
 nfs_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnodeop_desc *a_desc;
@@ -588,7 +635,7 @@ nfs_setattr(ap)
  * First look in cache
  * If not found, unlock the directory nfsnode and do the rpc
  */
-int
+static int
 nfs_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnodeop_desc *a_desc;
@@ -796,7 +843,7 @@ nfsmout:
  * nfs read call.
  * Just call nfs_bioread() to do the work.
  */
-int
+static int
 nfs_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -815,7 +862,7 @@ nfs_read(ap)
 /*
  * nfs readlink call
  */
-int
+static int
 nfs_readlink(ap)
 	struct vop_readlink_args /* {
 		struct vnode *a_vp;
@@ -984,7 +1031,7 @@ nfsmout:
  * set to specify the file type and the size field for rdev.
  */
 /* ARGSUSED */
-int
+static int
 nfs_mknod(ap)
 	struct vop_mknod_args /* {
 		struct vnode *a_dvp;
@@ -1061,7 +1108,7 @@ nfs_mknod(ap)
 /*
  * nfs file create call
  */
-int
+static int
 nfs_create(ap)
 	struct vop_create_args /* {
 		struct vnode *a_dvp;
@@ -1134,7 +1181,7 @@ nfs_create(ap)
  *     else
  *	  do the remove rpc
  */
-int
+static int
 nfs_remove(ap)
 	struct vop_remove_args /* {
 		struct vnodeop_desc *a_desc;
@@ -1240,7 +1287,7 @@ nfs_removeit(sp)
 /*
  * nfs file rename call
  */
-int
+static int
 nfs_rename(ap)
 	struct vop_rename_args  /* {
 		struct vnode *a_fdvp;
@@ -1311,7 +1358,7 @@ out:
 /*
  * nfs file rename rpc called from nfs_remove() above
  */
-int
+static int
 nfs_renameit(sdvp, scnp, sp)
 	struct vnode *sdvp;
 	struct componentname *scnp;
@@ -1343,7 +1390,7 @@ nfs_renameit(sdvp, scnp, sp)
 /*
  * nfs hard link create call
  */
-int
+static int
 nfs_link(ap)
 	struct vop_link_args /* {
 		struct vnode *a_vp;
@@ -1402,7 +1449,7 @@ nfs_link(ap)
  * nfs symbolic link create call
  */
 /* start here */
-int
+static int
 nfs_symlink(ap)
 	struct vop_symlink_args /* {
 		struct vnode *a_dvp;
@@ -1464,7 +1511,7 @@ nfs_symlink(ap)
 /*
  * nfs make dir call
  */
-int
+static int
 nfs_mkdir(ap)
 	struct vop_mkdir_args /* {
 		struct vnode *a_dvp;
@@ -1552,7 +1599,7 @@ nfs_mkdir(ap)
 /*
  * nfs remove directory call
  */
-int
+static int
 nfs_rmdir(ap)
 	struct vop_rmdir_args /* {
 		struct vnode *a_dvp;
@@ -1604,7 +1651,7 @@ nfs_rmdir(ap)
  * order so that it looks more sensible. This appears consistent with the
  * Ultrix implementation of NFS.
  */
-int
+static int
 nfs_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -1977,7 +2024,7 @@ static char hextoasc[] = "0123456789abcdef";
  * to create the same funny name between the nfs_lookitup() fails and the
  * nfs_rename() completes, but...
  */
-int
+static int
 nfs_sillyrename(dvp, vp, cnp)
 	struct vnode *dvp, *vp;
 	struct componentname *cnp;
@@ -2037,7 +2084,7 @@ bad:
  * into the nfsnode table.
  * If fhp != NULL it copies the returned file handle out
  */
-int
+static int
 nfs_lookitup(sp, fhp, procp)
 	register struct sillyrename *sp;
 	nfsv2fh_t *fhp;
@@ -2084,7 +2131,7 @@ nfs_lookitup(sp, fhp, procp)
  *    a lot more work than bcopy() and also it currently happens in the
  *    context of the swapper process (2).
  */
-int
+static int
 nfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -2111,7 +2158,7 @@ nfs_bmap(ap)
  * calling nfs_asyncio(), otherwise just all nfs_doio() to do the
  * request.
  */
-int
+static int
 nfs_strategy(ap)
 	struct vop_strategy_args *ap;
 {
@@ -2147,7 +2194,7 @@ nfs_strategy(ap)
  * NB Currently unsupported.
  */
 /* ARGSUSED */
-int
+static int
 nfs_mmap(ap)
 	struct vop_mmap_args /* {
 		struct vnode *a_vp;
@@ -2166,7 +2213,7 @@ nfs_mmap(ap)
  *	associated with the vnode.
  */
 /* ARGSUSED */
-int
+static int
 nfs_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnodeop_desc *a_desc;
@@ -2249,7 +2296,7 @@ loop:
  * information from the remote server.
  */
 /* ARGSUSED */
-int
+static int
 nfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -2265,7 +2312,7 @@ nfs_pathconf(ap)
  * NFS advisory byte-level locks.
  * Currently unsupported.
  */
-int
+static int
 nfs_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -2288,7 +2335,7 @@ nfs_advlock(ap)
 /*
  * Print out the contents of an nfsnode.
  */
-int
+static int
 nfs_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -2309,7 +2356,7 @@ nfs_print(ap)
  * NFS directory offset lookup.
  * Currently unsupported.
  */
-int
+static int
 nfs_blkatoff(ap)
 	struct vop_blkatoff_args /* {
 		struct vnode *a_vp;
@@ -2326,7 +2373,7 @@ nfs_blkatoff(ap)
  * NFS flat namespace allocation.
  * Currently unsupported.
  */
-int
+static int
 nfs_valloc(ap)
 	struct vop_valloc_args /* {
 		struct vnode *a_pvp;
@@ -2343,7 +2390,7 @@ nfs_valloc(ap)
  * NFS flat namespace free.
  * Currently unsupported.
  */
-int
+static int
 nfs_vfree(ap)
 	struct vop_vfree_args /* {
 		struct vnode *a_pvp;
@@ -2358,7 +2405,7 @@ nfs_vfree(ap)
 /*
  * NFS file truncation.
  */
-int
+static int
 nfs_truncate(ap)
 	struct vop_truncate_args /* {
 		struct vnode *a_vp;
@@ -2377,7 +2424,7 @@ nfs_truncate(ap)
 /*
  * NFS update.
  */
-int
+static int
 nfs_update(ap)
 	struct vop_update_args /* {
 		struct vnode *a_vp;
@@ -2399,7 +2446,7 @@ nfs_update(ap)
  * Essentially just get vattr and then imitate iaccess() since the device is
  * local to the client.
  */
-int
+static int
 nfsspec_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
@@ -2459,7 +2506,7 @@ found:
 /*
  * Read wrapper for special devices.
  */
-int
+static int
 nfsspec_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -2481,7 +2528,7 @@ nfsspec_read(ap)
 /*
  * Write wrapper for special devices.
  */
-int
+static int
 nfsspec_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -2505,7 +2552,7 @@ nfsspec_write(ap)
  *
  * Update the times on the nfsnode then do device close.
  */
-int
+static int
 nfsspec_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -2542,7 +2589,7 @@ nfsspec_close(ap)
 /*
  * Read wrapper for fifos.
  */
-int
+static int
 nfsfifo_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -2564,7 +2611,7 @@ nfsfifo_read(ap)
 /*
  * Write wrapper for fifos.
  */
-int
+static int
 nfsfifo_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -2588,7 +2635,7 @@ nfsfifo_write(ap)
  *
  * Update the times on the nfsnode then do fifo close.
  */
-int
+static int
 nfsfifo_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.18 1995/05/21 21:39:24 davidg Exp $
+ *	$Id: mount.h,v 1.19 1995/05/30 08:14:28 rgrimes Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -401,7 +401,7 @@ struct iso_args {
 #define ISOFSMNT_EXTATT		0x00000004 /* enable extended attributes */
 #endif /* CD9660 */
 
-#ifdef NFS
+#if defined(NFS) || defined(NFS_SERVER) || defined(NFS_CLIENT)
 /*
  * File Handle (32 bytes for version 2), variable up to 1024 for version 3
  */

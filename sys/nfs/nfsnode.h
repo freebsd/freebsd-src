@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.8 1994/10/17 17:47:44 phk Exp $
+ * $Id: nfsnode.h,v 1.9 1995/03/16 18:15:42 bde Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -112,59 +112,13 @@ extern	int	(**fifo_nfsv2nodeop_p)();
 extern	int	(**nfsv2_vnodeop_p)();
 extern	int	(**spec_nfsv2nodeop_p)();
 
-/*
- * Prototypes for NFS vnode operations
- */
-int	nfs_lookup __P((struct vop_lookup_args *));
-int	nfs_create __P((struct vop_create_args *));
-int	nfs_mknod __P((struct vop_mknod_args *));
-int	nfs_open __P((struct vop_open_args *));
-int	nfs_close __P((struct vop_close_args *));
-int	nfsspec_close __P((struct vop_close_args *));
-int	nfsfifo_close __P((struct vop_close_args *));
-int	nfs_access __P((struct vop_access_args *));
-int	nfsspec_access __P((struct vop_access_args *));
-int	nfs_getattr __P((struct vop_getattr_args *));
-int	nfs_setattr __P((struct vop_setattr_args *));
-int	nfs_read __P((struct vop_read_args *));
 int	nfs_write __P((struct vop_write_args *));
-int	nfsspec_read __P((struct vop_read_args *));
-int	nfsspec_write __P((struct vop_write_args *));
-int	nfsfifo_read __P((struct vop_read_args *));
-int	nfsfifo_write __P((struct vop_write_args *));
-#define nfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))enoioctl)
-#define nfs_select ((int (*) __P((struct  vop_select_args *)))seltrue)
-int	nfs_mmap __P((struct vop_mmap_args *));
-int	nfs_fsync __P((struct vop_fsync_args *));
-#define nfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
-int	nfs_remove __P((struct vop_remove_args *));
-int	nfs_link __P((struct vop_link_args *));
-int	nfs_rename __P((struct vop_rename_args *));
-int	nfs_mkdir __P((struct vop_mkdir_args *));
-int	nfs_rmdir __P((struct vop_rmdir_args *));
-int	nfs_symlink __P((struct vop_symlink_args *));
-int	nfs_readdir __P((struct vop_readdir_args *));
-int	nfs_readlink __P((struct vop_readlink_args *));
 int	nfs_abortop __P((struct vop_abortop_args *));
 int	nfs_inactive __P((struct vop_inactive_args *));
 int	nfs_reclaim __P((struct vop_reclaim_args *));
 int	nfs_lock __P((struct vop_lock_args *));
 int	nfs_unlock __P((struct vop_unlock_args *));
-int	nfs_bmap __P((struct vop_bmap_args *));
-int	nfs_strategy __P((struct vop_strategy_args *));
-int	nfs_print __P((struct vop_print_args *));
 int	nfs_islocked __P((struct vop_islocked_args *));
-int	nfs_pathconf __P((struct vop_pathconf_args *));
-int	nfs_advlock __P((struct vop_advlock_args *));
-int	nfs_blkatoff __P((struct vop_blkatoff_args *));
-int	nfs_vget __P((struct mount *, ino_t, struct vnode **));
-int	nfs_valloc __P((struct vop_valloc_args *));
-#define nfs_reallocblks \
-	((int (*) __P((struct  vop_reallocblks_args *)))eopnotsupp)
-int	nfs_vfree __P((struct vop_vfree_args *));
-int	nfs_truncate __P((struct vop_truncate_args *));
-int	nfs_update __P((struct vop_update_args *));
-int	nfs_bwrite __P((struct vop_bwrite_args *));
 
 /* other stuff */
 int	nfs_removeit __P((struct sillyrename *));

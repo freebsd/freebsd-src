@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.15.4.2 1995/07/20 07:52:09 davidg Exp $
+ * $Id: nfs_subs.c,v 1.15.4.3 1995/07/20 10:34:12 davidg Exp $
  */
 
 /*
@@ -627,6 +627,7 @@ nfs_init()
 		nfs_iodwant[i] = (struct proc *)0;
 	TAILQ_INIT(&nfs_bufq);
 	nfs_nhinit();			/* Init the nfsnode table */
+#ifdef NFS_SERVER
 	nfsrv_init(0);			/* Init server data structures */
 	nfsrv_initcache();		/* Init the server request cache */
 
@@ -655,6 +656,7 @@ nfs_init()
 	 */
 	lease_check = nfs_lease_check;
 	lease_updatetime = nfs_lease_updatetime;
+#endif /* NFS_SERVER */
 	vfsconf[MOUNT_NFS]->vfc_refcount++; /* make us non-unloadable */
 #ifdef VFS_LKM
 	sysent[SYS_nfssvc].sy_narg = 2;
@@ -908,6 +910,7 @@ nfs_getattrcache(vp, vaper)
 	return (0);
 }
 
+#ifdef NFS_SERVER 
 /*
  * Set up nameidata for a lookup() call and do it
  */
@@ -1024,6 +1027,8 @@ out:
 	return (error);
 }
 
+#endif /* NFS_SERVER */
+
 /*
  * A fiddled version of m_adj() that ensures null fill to a long
  * boundary and only trims off the back end
@@ -1086,6 +1091,7 @@ nfsm_adj(mp, len, nul)
 		m->m_len = 0;
 }
 
+#ifdef NFS_SERVER
 /*
  * nfsrv_fhtovp() - convert a fh to a vnode ptr (optionally locked)
  * 	- look up fsid in mount list (if not found ret error)
@@ -1151,6 +1157,8 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
 	return (0);
 }
 
+#endif /* NFS_SERVER */
+
 /*
  * This function compares two net addresses by family and returns TRUE
  * if they are the same host.
@@ -1193,6 +1201,8 @@ netaddr_match(family, haddr, nam)
 	};
 	return (0);
 }
+
+#ifdef NFS_SERVER
 
 int
 nfsrv_vmio( struct vnode *vp) {
@@ -1248,3 +1258,5 @@ nfsrv_vrele( struct vnode *vp) {
 	}
 	return 0;
 }
+
+#endif /* NFS_SERVER */

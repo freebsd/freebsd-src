@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.14.2.1 1995/06/02 11:13:15 davidg Exp $
+ * $Id: nfs_vfsops.c,v 1.15 1995/06/11 19:31:46 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -71,6 +71,54 @@
 struct nfsstats nfsstats;
 static int nfs_sysctl(int *, u_int, void *, size_t *, void *, size_t,
 		      struct proc *);
+
+/*
+ * Prototypes for NFS mount operations
+ */
+static int	nfs_mount __P((
+		struct mount *mp,
+		char *path,
+		caddr_t data,
+		struct nameidata *ndp,
+		struct proc *p));
+static int	nfs_start __P((
+		struct mount *mp,
+		int flags,
+		struct proc *p));
+static int	nfs_unmount __P((
+		struct mount *mp,
+		int mntflags,
+		struct proc *p));
+static int	nfs_root __P((
+		struct mount *mp,
+		struct vnode **vpp));
+static int	nfs_quotactl __P((
+		struct mount *mp,
+		int cmds,
+		uid_t uid,
+		caddr_t arg,
+		struct proc *p));
+static int	nfs_statfs __P((
+		struct mount *mp,
+		struct statfs *sbp,
+		struct proc *p));
+static int	nfs_sync __P((
+		struct mount *mp,
+		int waitfor,
+		struct ucred *cred,
+		struct proc *p));
+static int	nfs_fhtovp __P((
+		struct mount *mp,
+		struct fid *fhp,
+		struct mbuf *nam,
+		struct vnode **vpp,
+		int *exflagsp,
+		struct ucred **credanonp));
+static int	nfs_vptofh __P((
+		struct vnode *vp,
+		struct fid *fhp));
+
+static int	nfs_vget __P((struct mount *, ino_t, struct vnode **));
 
 /*
  * nfs vfs operations.

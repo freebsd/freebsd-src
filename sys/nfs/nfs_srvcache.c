@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id: nfs_srvcache.c,v 1.4 1994/10/02 17:27:00 phk Exp $
+ * $Id: nfs_srvcache.c,v 1.5 1994/10/17 17:47:36 phk Exp $
  */
 
 /*
@@ -64,6 +64,7 @@
 #include <nfs/nfsrvcache.h>
 #include <nfs/nqnfs.h>
 
+#ifdef NFS_SERVER
 long numnfsrvcache, desirednfsrvcache = NFSRVCACHESIZ;
 
 #define	NFSRCHASH(xid) \
@@ -331,3 +332,4 @@ nfsrv_cleancache()
 	}
 	numnfsrvcache = 0;
 }
+#endif /* NFS_SERVER */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsmount.h,v 1.3 1994/08/21 06:50:10 paul Exp $
+ * $Id: nfsmount.h,v 1.4 1994/10/17 17:47:43 phk Exp $
  */
 
 #ifndef _NFS_NFSMOUNT_H_
@@ -81,52 +81,5 @@ struct	nfsmount {
  */
 #define VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
 #endif /* KERNEL */
-
-/*
- * Prototypes for NFS mount operations
- */
-int	nfs_mount __P((
-		struct mount *mp,
-		char *path,
-		caddr_t data,
-		struct nameidata *ndp,
-		struct proc *p));
-int	nfs_start __P((
-		struct mount *mp,
-		int flags,
-		struct proc *p));
-int	nfs_unmount __P((
-		struct mount *mp,
-		int mntflags,
-		struct proc *p));
-int	nfs_root __P((
-		struct mount *mp,
-		struct vnode **vpp));
-int	nfs_quotactl __P((
-		struct mount *mp,
-		int cmds,
-		uid_t uid,
-		caddr_t arg,
-		struct proc *p));
-int	nfs_statfs __P((
-		struct mount *mp,
-		struct statfs *sbp,
-		struct proc *p));
-int	nfs_sync __P((
-		struct mount *mp,
-		int waitfor,
-		struct ucred *cred,
-		struct proc *p));
-int	nfs_fhtovp __P((
-		struct mount *mp,
-		struct fid *fhp,
-		struct mbuf *nam,
-		struct vnode **vpp,
-		int *exflagsp,
-		struct ucred **credanonp));
-int	nfs_vptofh __P((
-		struct vnode *vp,
-		struct fid *fhp));
 int	nfs_init __P(());
-
 #endif

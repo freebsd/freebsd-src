@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.18 1995/08/24 12:54:11 davidg Exp $
+ * $Id: subr_prf.c,v 1.13.4.2 1995/09/12 08:09:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,10 +56,6 @@
  * ANSI and traditional C compilers.
  */
 #include <machine/stdarg.h>
-
-#ifdef KADB
-#include <machine/kdbparam.h>
-#endif
 
 
 #define TOCONS	0x01
@@ -113,10 +109,6 @@ panic(fmt, va_alist)
 
 #ifdef KGDB
 	kgdb_panic();
-#endif
-#ifdef KADB
-	if (boothowto & RB_KDB)
-		kdbpanic();
 #endif
 #ifdef DDB
 	Debugger ("panic");
