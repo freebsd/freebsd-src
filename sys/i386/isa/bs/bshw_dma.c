@@ -173,7 +173,7 @@ bs_dma_xfer_end(ti)
 /**********************************************
  * GENERIC DMA FUNCS
  **********************************************/
-static u_int8_t dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
+static bus_addr_t dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 
 /* common dma settings */
 #undef	DMA1_SMSK
