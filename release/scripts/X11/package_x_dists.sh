@@ -47,6 +47,16 @@ if ! ${work_dir}/scripts/build_x.sh ${work_dir}/tmp; then
 	exit 1
 fi
 
+if ! mkdir -p ${plist_dir}; then
+	echo "Could not create plist dir [${plist_dir}]!"
+	echo
+	usage
+fi
+if ! mkdir -p ${tarball_dir}; then
+	echo "Could not create tarball dir [${tarball_dir}]!"
+	echo
+	usage
+fi
 # now package it up into tarballs
 if ! ${work_dir}/scripts/generate_tarballs.sh \
 		 ${work_dir}/tmp/usr/X11R6 ${plist_dir} ${tarball_dir}; then
