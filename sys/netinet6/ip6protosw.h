@@ -95,7 +95,7 @@ struct ip6ctlparam {
 };
 
 struct ip6protosw {
-	int	pr_type;		/* socket type used for */
+	short	pr_type;		/* socket type used for */
 	struct	domain *pr_domain;	/* domain protocol a member of */
 	short	pr_protocol;		/* protocol number */
 	short	pr_flags;		/* see below */
