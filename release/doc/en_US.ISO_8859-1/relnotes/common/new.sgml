@@ -955,7 +955,7 @@
 
     <para>Catching up with most other network utilities in the base
     system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
-    &man.logger.1; are now all IPv6-capable. [MERGED]</para>
+    &man.logger.1; are now all IPv6-capable. &merged;</para>
 
     <para arch="i386"><filename>libdisk</filename> can now do
     install-time configuration of the &arch; <filename>boot0</filename>
