@@ -570,23 +570,17 @@ in_arpinput(m)
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
-	if (!BRIDGE_TEST ||
-	    (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL) {
-		m_freem(m);
-		return;
-	}
+	if (!BRIDGE_TEST || (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL)
+		goto drop;
 match:
 	myaddr = ia->ia_addr.sin_addr;
-	if (!bcmp(ar_sha(ah), IF_LLADDR(ifp), ifp->if_addrlen)) {
-		m_freem(m);	/* it's from me, ignore it. */
-		return;
-	}
+	if (!bcmp(ar_sha(ah), IF_LLADDR(ifp), ifp->if_addrlen))
+		goto drop;	/* it's from me, ignore it. */
 	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
 		log(LOG_ERR,
 		    "arp: link address is broadcast for IP address %s!\n",
 		    inet_ntoa(isaddr));
-		m_freem(m);
-		return;
+		goto drop;
 	}
 	if (isaddr.s_addr == myaddr.s_addr) {
 		log(LOG_ERR,
@@ -692,10 +686,8 @@ match:
 		}
 	}
 reply:
-	if (op != ARPOP_REQUEST) {
-		m_freem(m);
-		return;
-	}
+	if (op != ARPOP_REQUEST)
+		goto drop;
 	if (itaddr.s_addr == myaddr.s_addr) {
 		/* I am the target */
 		(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
@@ -705,10 +697,8 @@ reply:
 		if (la == NULL) {
 			struct sockaddr_in sin;
 
-			if (!arp_proxyall) {
-				m_freem(m);
-				return;
-			}
+			if (!arp_proxyall)
+				goto drop;
 
 			bzero(&sin, sizeof sin);
 			sin.sin_family = AF_INET;
@@ -716,10 +706,8 @@ reply:
 			sin.sin_addr = itaddr;
 
 			rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
-			if (!rt) {
-				m_freem(m);
-				return;
-			}
+			if (!rt)
+				goto drop;
 			/*
 			 * Don't send proxies for nodes on the same interface
 			 * as this one came out of, or we'll get into a fight
@@ -727,8 +715,7 @@ reply:
 			 */
 			if (rt->rt_ifp == ifp) {
 				rtfree(rt);
-				m_freem(m);
-				return;
+				goto drop;
 			}
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 			(void)memcpy(ar_sha(ah), IF_LLADDR(ifp), ah->ar_hln);
@@ -743,18 +730,15 @@ reply:
 			sin.sin_addr = isaddr;
 
 			rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
-			if (!rt) {
-				m_freem(m);
-				return;
-			}
+			if (!rt)
+				goto drop;
 			if (rt->rt_ifp != ifp) {
 				log(LOG_INFO, "arp_proxy: ignoring request"
 				    " from %s via %s, expecting %s\n",
 				    inet_ntoa(isaddr), ifp->if_xname,
 				    rt->rt_ifp->if_xname);
 				rtfree(rt);
-				m_freem(m);
-				return;
+				goto drop;
 			}
 			rtfree(rt);
 
@@ -781,6 +765,9 @@ reply:
 	sa.sa_len = 2;
 	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
 	return;
+
+drop:
+	m_freem(m);
 }
 #endif
 
