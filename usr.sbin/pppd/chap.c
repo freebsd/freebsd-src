@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chap.c,v 1.8 1995/07/04 12:32:26 paulus Exp $";
+static char rcsid[] = "$Id: chap.c,v 1.4 1995/10/31 21:20:55 peter Exp $";
 #endif
 
 /*
@@ -31,10 +31,10 @@ static char rcsid[] = "$Id: chap.c,v 1.8 1995/07/04 12:32:26 paulus Exp $";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <syslog.h>
+#include <md5.h>
 
 #include "pppd.h"
 #include "chap.h"
-#include "md5.h"
 
 chap_state chap[NUM_PPP];		/* CHAP state; one for each unit */
 
@@ -342,6 +342,7 @@ ChapReceiveChallenge(cstate, inp, id, len)
     char secret[MAXSECRETLEN];
     char rhostname[256];
     MD5_CTX mdContext;
+    unsigned char digest[16];
  
     CHAPDEBUG((LOG_INFO, "ChapReceiveChallenge: Rcvd id %d.", id));
     if (cstate->clientstate == CHAPCS_CLOSED ||
@@ -396,8 +397,8 @@ ChapReceiveChallenge(cstate, inp, id, len)
 	MD5Update(&mdContext, &cstate->resp_id, 1);
 	MD5Update(&mdContext, secret, secret_len);
 	MD5Update(&mdContext, rchallenge, rchallenge_len);
-	MD5Final(&mdContext);
-	BCOPY(mdContext.digest, cstate->response, MD5_SIGNATURE_SIZE);
+	MD5Final(digest, &mdContext);
+	BCOPY(digest, cstate->response, MD5_SIGNATURE_SIZE);
 	cstate->resp_length = MD5_SIGNATURE_SIZE;
 	break;
 
@@ -426,6 +427,7 @@ ChapReceiveResponse(cstate, inp, id, len)
     char rhostname[256];
     u_char buf[256];
     MD5_CTX mdContext;
+    unsigned char digest[16];
     u_char msg[256];
     char secret[MAXSECRETLEN];
 
@@ -500,10 +502,10 @@ ChapReceiveResponse(cstate, inp, id, len)
 	    MD5Update(&mdContext, &cstate->chal_id, 1);
 	    MD5Update(&mdContext, secret, secret_len);
 	    MD5Update(&mdContext, cstate->challenge, cstate->chal_len);
-	    MD5Final(&mdContext); 
+	    MD5Final(digest, &mdContext); 
 
 	    /* compare local and remote MDs and send the appropriate status */
-	    if (memcmp (mdContext.digest, remmd, MD5_SIGNATURE_SIZE) == 0)
+	    if (memcmp (digest, remmd, MD5_SIGNATURE_SIZE) == 0)
 		code = CHAP_SUCCESS;	/* they are the same! */
 	    break;
 

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.8 1995/04/26 06:46:31 paulus Exp $
+ * $Id: pppd.h,v 1.4 1995/10/31 21:21:42 peter Exp $
  */
 
 /*
@@ -67,6 +67,8 @@ extern int	crtscts;	/* Use hardware flow control */
 extern int	modem;		/* Use modem control lines */
 extern int	inspeed;	/* Input/Output speed requested */
 extern u_int32_t netmask;	/* IP netmask to set on interface */
+extern u_int32_t dns1;		/* Primary DNS server */
+extern u_int32_t dns2;		/* Secondary DNS server */
 extern int	lockflag;	/* Create lock file to lock the serial dev */
 extern int	nodetach;	/* Don't detach from controlling tty */
 extern char	*connector;	/* Script to establish physical link */
