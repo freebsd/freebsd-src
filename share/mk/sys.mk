@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.37 1998/06/05 18:38:55 dt Exp $
+#	$Id: sys.mk,v 1.38 1998/06/12 10:52:52 peter Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -102,14 +102,7 @@ YFLAGS		?=	-d
 # architectures, assume that the version of make being used has an
 # explicit MACHINE_ARCH setting and treat a missing MACHINE_ARCH
 # as an i386 architecture.
-MACHINE_ARCH?=	i386
-
-# Default executable format
-.if ${MACHINE_ARCH} == "alpha"
-BINFORMAT	?=	elf
-.else
-BINFORMAT	?=	aout
-.endif
+MACHINE_ARCH	?=	i386
 
 # For tags rule.
 GTAGSFLAGS=	-o
