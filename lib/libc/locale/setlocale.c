@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.8.2.1 1996/11/28 21:47:18 phk Exp $
+ * $Id: setlocale.c,v 1.8.2.2 1997/02/05 09:56:14 davidg Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: setlocale.c,v 1.8.2.1 1996/11/28 21:47:18 phk Exp $";
+	"$Id: setlocale.c,v 1.8.2.2 1997/02/05 09:56:14 davidg Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -302,6 +302,7 @@ const char *encoding;
 		return(0);
 	if (!_PathLocale)
 		return(1);
+	/* Range checking not needed, encoding has fixed size */
 	strcpy(name, _PathLocale);
 	strcat(name, "/");
 	strcat(name, encoding);

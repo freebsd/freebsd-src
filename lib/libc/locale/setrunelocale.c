@@ -84,8 +84,8 @@ _xpg4_setrunelocale(encoding)
 	}
 
 	if (!_PathLocale)
-		return(EFAULT);
-	/* Range checking already done at upper level caller */
+		_PathLocale = _PATH_LOCALE;
+	/* Range checking not needed, encoding has fixed size */
 	(void) strcpy(name, _PathLocale);
 	(void) strcat(name, "/");
 	(void) strcat(name, encoding);
