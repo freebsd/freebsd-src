@@ -1,6 +1,7 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.o_init.c - version 1.0.3 */
 
+#include <string.h>
 #include	"config.h"		/* for typedefs */
 #include	"def.objects.h"
 #include	"hack.onames.h"		/* for LAST_GEM */
