@@ -117,6 +117,7 @@ main(argc, argv)
 	if (doall)
 		while ((pw = getpwent()) != NULL) {
 			(void)setegid(pw->pw_gid);
+			(void)initgroups(pw->pw_name, pw->pw_gid);
 			(void)seteuid(pw->pw_uid);
 			if (!chdir(pw->pw_dir))
 				cal();
