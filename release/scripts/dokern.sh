@@ -33,7 +33,6 @@ sed	-e '/pty/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
-	-e '/NFS/d' \
 	-e '/maxusers/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 fi
