@@ -293,8 +293,13 @@ __hashpw(key)
 	if ((_pw_db->get)(_pw_db, key, &data, 0))
 		return(0);
 	p = (char *)data.data;
-	if (data.size > max && !(line = realloc(line, max += 1024)))
-		return(0);
+
+	/* increase buffer size for long lines if necessary */
+	if (data.size > max) {
+		max = data.size + 1024;
+                if (!(line = realloc(line, max)))
+                        return(0);
+        }
 
 	/* THIS CODE MUST MATCH THAT IN pwd_mkdb. */
 	t = line;
