@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id$
+ * $Id: ffs_extern.h,v 1.3 1994/08/02 07:54:19 davidg Exp $
  */
 
 struct buf;
@@ -84,8 +84,6 @@ int	ffs_vfree __P((struct vop_vfree_args *));
 int	ffs_vget __P((struct mount *, ino_t, struct vnode **));
 int	ffs_vptofh __P((struct vnode *, struct fid *));
 int	ffs_write __P((struct vop_write_args *));
-
-int	bwrite();		/* FFS needs a bwrite routine.  XXX */
 
 #ifdef DIAGNOSTIC
 void	ffs_checkoverlap __P((struct buf *, struct inode *));

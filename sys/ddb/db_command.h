@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.h,v 1.3 1993/11/07 17:39:22 wollman Exp $
+ *	$Id: db_command.h,v 1.4 1994/08/13 03:49:16 wollman Exp $
  */
 
 #ifndef _DDB_DB_COMMAND_H_
@@ -42,9 +42,6 @@
 #include <machine/db_machdep.h>
 
 extern void	db_command_loop();
-extern void	db_skip_to_eol();
-
-extern void	db_error(/* char * */);	/* report error */
 
 extern db_addr_t	db_dot;		/* current location */
 extern db_addr_t	db_last_addr;	/* last explicit address typed */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.51 1994/08/13 03:49:42 wollman Exp $
+ *	$Id: machdep.c,v 1.52 1994/08/13 14:21:42 davidg Exp $
  */
 
 #include "npx.h"
@@ -95,7 +95,6 @@ static void identifycpu(void);
 static void initcpu(void);
 static int test_page(int *, int);
 
-extern int grow(struct proc *,u_int);
 char machine[] = "i386";
 char cpu_model[sizeof("Pentium") + 1];
 
@@ -1073,7 +1072,7 @@ void
 init386(first)
 	int first;
 {
-	extern ssdtosd(), lgdt(), lidt(), lldt(), etext; 
+	extern lgdt(), lidt(), lldt(), etext; 
 	int x, *pi;
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;

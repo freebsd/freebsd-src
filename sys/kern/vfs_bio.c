@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.7 1994/08/07 14:53:20 davidg Exp $
+ * $Id: vfs_bio.c,v 1.8 1994/08/08 15:40:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -35,6 +35,8 @@
 
 struct	buf *buf;		/* buffer header pool */
 int	nbuf;			/* number of buffer headers calculated elsewhere */
+struct swqueue bswlist;
+struct	buf *bclnlist;		/* Head of cleaned page list. */
 
 extern	vm_map_t buffer_map, io_map;
 

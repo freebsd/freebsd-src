@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id$
+ * $Id: init_main.c,v 1.4 1994/08/02 07:41:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -304,7 +304,6 @@ main(framep)
 	/*
 	 * Start update daemon (process 3).
 	 */
-#ifndef LAPTOP
 	if (fork(p, (void *) NULL, rval))
 		panic("failed fork update daemon");
 	if (rval[1]) {
@@ -315,7 +314,6 @@ main(framep)
 		vfs_update();
 		/*NOTREACHED*/
 	}
-#endif
 
 	/* The scheduler is an infinite loop. */
 	scheduler();

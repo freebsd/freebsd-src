@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.2 1994/05/25 09:03:03 rgrimes Exp $
+ *	$Id: kern_exec.c,v 1.3 1994/08/06 09:06:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -52,8 +52,9 @@
 
 #include <machine/reg.h>
 
-int exec_extract_strings __P((struct image_params *));
 int *exec_copyout_strings __P((struct image_params *));
+
+static int exec_check_permissions(struct image_params *);
 
 /*
  * execsw_set is constructed for us by the linker.  Each of the items
@@ -479,7 +480,7 @@ exec_copyout_strings(iparams)
  * Check permissions of file to execute.
  *	Return 0 for success or error code on failure.
  */
-int
+static int
 exec_check_permissions(iparams)
 	struct image_params *iparams;
 {

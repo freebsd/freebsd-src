@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.3 1994/08/02 07:42:00 davidg Exp $
+ * $Id: kern_fork.c,v 1.4 1994/08/06 07:15:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,8 @@
 #include <sys/file.h>
 #include <sys/acct.h>
 #include <sys/ktrace.h>
+
+static int fork1(struct proc *, int, int *);
 
 struct fork_args {
 	int	dummy;
@@ -79,7 +81,7 @@ vfork(p, uap, retval)
 
 int	nprocs = 1;		/* process 0 */
 
-int
+static int
 fork1(p1, isvfork, retval)
 	register struct proc *p1;
 	int isvfork, retval[];

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id$
+ * $Id: ffs_vfsops.c,v 1.3 1994/08/02 07:54:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -88,7 +88,6 @@ extern u_long nextgennumber;
 int
 ffs_mountroot()
 {
-	extern struct vnode *rootvp;
 	register struct fs *fs;
 	register struct mount *mp;
 	struct proc *p = curproc;	/* XXX */
@@ -350,7 +349,6 @@ ffs_mountfs(devvp, mp, p)
 	int havepart = 0, blks;
 	int error, i, size;
 	int ronly;
-	extern struct vnode *rootvp;
 
 	/*
 	 * Disallow multiple mounts of the same device.

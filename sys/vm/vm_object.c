@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.3 1994/08/02 07:55:29 davidg Exp $
+ * $Id: vm_object.c,v 1.4 1994/08/07 13:10:40 davidg Exp $
  */
 
 /*
@@ -70,6 +70,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>		/* for curproc, pageproc */
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
@@ -77,9 +79,6 @@
 #include <vm/vm_pageout.h>
 
 static void _vm_object_allocate(vm_size_t, vm_object_t);
-void vm_object_deactivate_pages(vm_object_t);
-void vm_object_cache_trim(void);
-void vm_object_remove(vm_pager_t);
 
 /*
  *	Virtual memory objects maintain the actual data

@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.12 1994/03/24 23:12:48 davidg Exp $
+ * 	$Id: pmap.h,v 1.14 1994/05/25 08:56:24 rgrimes Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -194,23 +194,9 @@ pv_entry_t	pv_table;		/* array of entries, one per page */
 
 #define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
 
-extern pmap_t pmap_create(vm_size_t);
-extern void pmap_pinit(struct pmap *);
-extern void pmap_destroy(pmap_t);
-extern void pmap_release(struct pmap *);
-extern void pmap_reference(pmap_t);
-extern void pmap_remove(struct pmap *, vm_offset_t, vm_offset_t);
-extern void pmap_protect(struct pmap *, vm_offset_t, vm_offset_t, vm_prot_t);
-extern void pmap_enter(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
-extern void pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
 extern inline pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
-extern vm_offset_t pmap_extract(pmap_t, vm_offset_t);
-extern void pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
-extern void pmap_collect(pmap_t);
 struct pcb; extern void pmap_activate(pmap_t, struct pcb *);
 extern pmap_t pmap_kernel(void);
-extern void pmap_pageable(pmap_t, vm_offset_t, vm_offset_t, boolean_t);
-
 
 #endif /* KERNEL */
 

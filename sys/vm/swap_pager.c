@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.5 1994/08/06 09:15:36 davidg Exp $
+ * $Id: swap_pager.c,v 1.6 1994/08/07 13:10:37 davidg Exp $
  */
 
 /*
@@ -69,16 +69,13 @@
 #define NPENDINGIO	16
 #endif
 
-extern int nswbuf;
 int nswiodone;
 extern int vm_pageout_rate_limit;
 static int cleandone;
 extern int hz;
 int swap_pager_full;
 extern vm_map_t pager_map;
-extern int vm_pageout_pages_needed;
 extern int vm_swap_size;
-extern struct vnode *swapdev_vp;
 
 #define MAX_PAGEOUT_CLUSTER 8
 
@@ -104,19 +101,6 @@ extern vm_map_t kernel_map;
 #define SPC_ERROR	0x01
 
 #define SWB_EMPTY (-1)
-
-void		swap_pager_init(void);
-vm_pager_t	swap_pager_alloc(caddr_t, vm_size_t, vm_prot_t, vm_offset_t);
-void		swap_pager_dealloc(vm_pager_t);
-boolean_t	swap_pager_getpage(vm_pager_t, vm_page_t, boolean_t);
-boolean_t	swap_pager_putpage(vm_pager_t, vm_page_t, boolean_t);
-boolean_t	swap_pager_getmulti(vm_pager_t, vm_page_t *, int, int, boolean_t);
-boolean_t	swap_pager_haspage(vm_pager_t, vm_offset_t);
-int		swap_pager_io(sw_pager_t, vm_page_t *, int, int, int);
-void		swap_pager_iodone(struct buf *);
-boolean_t	swap_pager_clean();
-
-extern struct pagerops swappagerops;
 
 struct swpclean swap_pager_done;	/* list of compileted page cleans */
 struct swpclean swap_pager_inuse;	/* list of pending page cleans */
@@ -145,8 +129,6 @@ struct pagerops swappagerops = {
 	swap_pager_haspage
 };
 
-extern int nswbuf;
-
 int npendingio = NPENDINGIO;
 int pendingiowait;
 int require_swap_init;
@@ -169,8 +151,6 @@ static inline void swapsizecheck() {
 void
 swap_pager_init()
 {
-	extern int dmmin, dmmax;
-
 	dfltpagerops = &swappagerops;
 
 	TAILQ_INIT(&swap_pager_list);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id$
+ * $Id: if_sl.c,v 1.3 1994/08/02 07:46:20 davidg Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #include "bpfilter.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/buf.h>
@@ -176,8 +177,6 @@ struct sl_softc sl_softc[NSL];
 #define FRAME_ESCAPE		0xdb		/* Frame Esc */
 #define TRANS_FRAME_END	 	0xdc		/* transposed frame end */
 #define TRANS_FRAME_ESCAPE 	0xdd		/* transposed frame esc */
-
-extern struct timeval time;
 
 static int slinit __P((struct sl_softc *));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.3 1994/08/02 07:42:23 davidg Exp $
+ * $Id: kern_xxx.c,v 1.4 1994/08/08 00:30:04 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -42,9 +42,6 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
-
-extern char domainname[MAXHOSTNAMELEN];
-extern int domainnamelen;
 
 struct reboot_args {
 	int	opt;
@@ -102,8 +99,6 @@ osethostname(p, uap, retval)
 	name = KERN_HOSTNAME;
 	return (kern_sysctl(&name, 1, 0, 0, uap->hostname, uap->len));
 }
-
-extern long hostid;
 
 struct gethostid_args {
 	int	dummy;

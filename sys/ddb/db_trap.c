@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trap.c,v 1.3 1993/11/25 01:30:12 wollman Exp $
+ *	$Id: db_trap.c,v 1.4 1994/08/13 03:49:24 wollman Exp $
  */
 
 /*
@@ -41,12 +41,6 @@
 #include <ddb/db_command.h>
 #include <ddb/db_break.h>
 
-extern void		db_restart_at_pc();
-extern boolean_t	db_stop_at_pc();
-
-extern int		db_inst_count;
-extern int		db_load_count;
-extern int		db_store_count;
 
 void
 db_trap(type, code)

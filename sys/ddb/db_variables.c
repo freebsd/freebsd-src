@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.3 1993/11/25 01:30:13 wollman Exp $
+ *	$Id: db_variables.c,v 1.4 1994/08/13 03:49:25 wollman Exp $
  */
 
 /*
@@ -39,7 +39,6 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 
-void db_read_variable(struct db_variable *, db_expr_t *);
 static void db_write_variable(struct db_variable *, db_expr_t *);
 
 struct db_variable db_vars[] = {

@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: vfs_init.c,v 1.3 1994/08/02 07:43:22 davidg Exp $
  */
 
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/vnode.h>

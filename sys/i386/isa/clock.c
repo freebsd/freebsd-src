@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.14 1994/08/15 03:15:18 wollman Exp $
+ *	$Id: clock.c,v 1.15 1994/08/18 05:09:21 davidg Exp $
  */
 
 /*
@@ -59,8 +59,6 @@
 #endif
 #define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
 
-void hardclock();
-void statclock();
 static 	int beeping;
 int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
 u_int 	timer0_prescale;

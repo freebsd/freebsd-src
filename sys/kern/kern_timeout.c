@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_clock.c,v 1.3 1994/08/02 07:41:54 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,26 @@
 #ifdef GPROF
 #include <sys/gmon.h>
 #endif
+
+/* Does anybody else really care about these? */
+struct callout *callfree, *callout, calltodo;
+int ncallout;
+
+/* Some of these don't belong here, but it's easiest to concentrate them. */
+long cp_time[CPUSTATES];
+long dk_seek[DK_NDRIVE];
+long dk_time[DK_NDRIVE];
+long dk_wds[DK_NDRIVE];
+long dk_wpms[DK_NDRIVE];
+long dk_xfer[DK_NDRIVE];
+
+int dk_busy;
+int dk_ndrive = DK_NDRIVE;
+
+long tk_cancc;
+long tk_nin;
+long tk_nout;
+long tk_rawcc;
 
 /*
  * Clock handling routines.
@@ -257,7 +277,7 @@ softclock()
  */
 void
 timeout(ftn, arg, ticks)
-	void (*ftn) __P((void *));
+	timeout_t ftn;
 	void *arg;
 	register int ticks;
 {
@@ -302,7 +322,7 @@ timeout(ftn, arg, ticks)
 
 void
 untimeout(ftn, arg)
-	void (*ftn) __P((void *));
+	timeout_t ftn;
 	void *arg;
 {
 	register struct callout *p, *t;
@@ -399,8 +419,6 @@ stopprofclock(p)
 		}
 	}
 }
-
-int	dk_ndrive = DK_NDRIVE;
 
 /*
  * Statistics clock.  Grab profile sample, and if divider reaches 0,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ucred.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ucred.h,v 1.2 1994/08/02 07:54:00 davidg Exp $
  */
 
 #ifndef _SYS_UCRED_H_
@@ -52,9 +52,11 @@ struct ucred {
 
 #ifdef KERNEL
 #define	crhold(cr)	(cr)->cr_ref++
-struct ucred *crget();
-struct ucred *crcopy();
-struct ucred *crdup();
+struct ucred *crget(void);
+struct ucred *crcopy(struct ucred *);
+struct ucred *crdup(struct ucred *);
+extern void crfree(struct ucred *);
+extern int suser(struct ucred *, short *);
 #endif /* KERNEL */
 
 #endif /* !_SYS_UCRED_H_ */

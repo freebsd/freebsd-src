@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id$
+ * $Id: vfs_subr.c,v 1.3 1994/08/02 07:43:27 davidg Exp $
  */
 
 /*
@@ -240,7 +240,6 @@ vattr_null(vap)
 extern int (**dead_vnodeop_p)();
 extern void vclean();
 long numvnodes;
-extern struct vattr va_null;
 
 /*
  * Return the next vnode from the free list.
