@@ -72,7 +72,7 @@ ep_pccard_probe(device_t dev)
 	struct ep_softc *sc = device_get_softc(dev);
 	struct ep_board *epb = &sc->epb;
 	const char *desc;
-	u_int16_t result;
+	uint16_t result;
 	int error;
 
 	error = ep_alloc(dev);
@@ -180,7 +180,7 @@ static int
 ep_pccard_attach(device_t dev)
 {
 	struct ep_softc *sc = device_get_softc(dev);
-	u_int16_t result;
+	uint16_t result;
 	int error = 0;
 
 	if ((error = ep_alloc(dev))) {
