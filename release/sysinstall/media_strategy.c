@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.22 1995/05/25 18:48:27 jkh Exp $
+ * $Id: media_strategy.c,v 1.23 1995/05/26 08:41:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -228,8 +228,10 @@ genericGetDist(char *path, void *attrs, Boolean prompt)
     Device *devp;
     struct attribs *dist_attrib = (struct attribs *)attrs;
 
+  top:
+    fd = -1;
     /* Floppy is always last-ditch device */
-    while (prompt && floppyDev == NULL) {
+    while (!mediaDevice && (prompt && floppyDev == NULL)) {
 	Device **devs;
 	int cnt;
 		    
@@ -251,9 +253,11 @@ genericGetDist(char *path, void *attrs, Boolean prompt)
 	if (!floppyDev)
 	    continue;
 	fd = open(floppyDev->devname, O_RDONLY);
-	return fd;
+	if (fd != -1)
+	    return fd;
+	else
+	    floppyDev = NULL;
     }
-    
     if (stat(path, &sb) == 0)
     {
 	fd = open(path, O_RDONLY, 0);
@@ -268,10 +272,21 @@ genericGetDist(char *path, void *attrs, Boolean prompt)
     }
 
     snprintf(buf, 512, "%s.aa", path);
-    if (stat(buf, &sb) != 0)
+    if (stat(buf, &sb) != 0 && !prompt)
     {
 	msgConfirm("Cannot find file(s) for distribution in ``%s''!\n", path);
 	return -1;
+    }
+
+    if (fd == -1 && prompt) {
+	if (mediaDevice->shutdown)
+	    (*mediaDevice->shutdown)(mediaDevice);
+
+	if (mediaDevice->init)
+	    if (!(*mediaDevice->init)(mediaDevice))
+		return -1;
+	msgConfirm("Please put distribution files for %s\nin %s and press return", path, mediaDevice->description);
+	goto top;
     }
 
     if (dist_attrib) {
@@ -438,6 +453,7 @@ mediaGetCDROM(char *dist, char *path)
 void
 mediaShutdownCDROM(Device *dev)
 {
+    
     msgDebug("In mediaShutdownCDROM\n");
     if (getDistpid) {
 	int i, j;
@@ -456,12 +472,30 @@ mediaShutdownCDROM(Device *dev)
     return;
 }
 
+static Boolean floppyMounted;
+
 Boolean
 mediaInitFloppy(Device *dev)
 {
-    if (Mkdir("/mnt", NULL))
-	return FALSE;
+    struct ufs_args ufsargs;
+    char mountpoint[FILENAME_MAX];
 
+    if (floppyMounted)
+	return TRUE;
+    memset(&ufsargs,0,sizeof ufsargs);
+
+    if (Mkdir("/mnt", NULL)) {
+	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
+	return FALSE;
+    }
+    msgDebug("initFloppy:  mount floppy %s on /mnt\n", dev->devname); 
+    ufsargs.fspec = dev->devname;
+    if (mount(MOUNT_MSDOS, "/mnt", 0, (caddr_t)&ufsargs) == -1) {
+	msgConfirm("Error mounting floppy %s (%s) on /mnt : %s\n", dev->name,
+		   dev->devname, mountpoint, strerror(errno));
+	return FALSE;
+    }
+    floppyMounted = TRUE;
     return TRUE;
 }
 
@@ -493,7 +527,12 @@ mediaGetFloppy(char *dist, char *path)
 void
 mediaShutdownFloppy(Device *dev)
 {
-    return;
+    if (floppyMounted) {
+	if (vsystem("umount /mnt") != 0)
+	    msgDebug("Umount of floppy on /mnt failed: %s (%d)\n", strerror(errno), errno);
+	else
+	    floppyMounted = FALSE;
+    }
 }
 
 Boolean
@@ -616,8 +655,10 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     if (!strcmp(url, "other")) {
 	url = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nA URL looks like this:  ftp://<hostname>/<path>");
-	if (!url)
+	if (!url || strncmp("ftp://", url, 6))
 	    return FALSE;
+	else
+	    variable_set2("ftp", url);
     }
 
     my_name = getenv(VAR_HOSTNAME);
@@ -630,10 +671,9 @@ mediaInitFTP(Device *dev)
     hostname = url + 6;
     if ((dir = index(hostname, '/')) != NULL)
 	*(dir++) = '\0';
-    else
-	dir = "/";
+    strcpy(dev->name, hostname);
     msgDebug("hostname = `%s'\n", hostname);
-    msgDebug("dir = `%s'\n", dir);
+    msgDebug("dir = `%s'\n", dir ? dir : "/");
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure your name server\nand/or gateway values are set properly?", hostname);
