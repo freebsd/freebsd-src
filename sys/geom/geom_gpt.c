@@ -49,7 +49,6 @@
 #endif
 
 #include <sys/endian.h>
-#include <sys/errno.h>
 #include <sys/sbuf.h>
 #include <sys/uuid.h>
 #include <sys/gpt.h>
@@ -161,22 +160,24 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	g_topology_unlock();
 	gp->dumpconf = g_gpt_dumpconf;
 
-	npart = 0;
-	mbr = NULL;
+	do {
 
-	if (gp->rank != 2 && insist == 0)
-		goto out;
+		npart = 0;
+		mbr = NULL;
 
-	error = g_getattr("GEOM::sectorsize", cp, &secsz);
-	if (error)
-		goto out;
+		if (gp->rank != 2 && insist == 0)
+			break;
 
-	/* XXX: we need to get the media size as well. */
+		error = g_getattr("GEOM::sectorsize", cp, &secsz);
+		if (error)
+			break;
 
-	/* Read both the MBR sector and the GPT sector. */
-	mbr = g_read_data(cp, 0, 2 * secsz, &error);
-	if (mbr == NULL || error != 0)
-		goto out;
+		/* XXX: we need to get the media size as well. */
+
+		/* Read both the MBR sector and the GPT sector. */
+		mbr = g_read_data(cp, 0, 2 * secsz, &error);
+		if (mbr == NULL || error != 0)
+			break;
 #if 0
 	/*
 	 * XXX: we should ignore the GPT if there's a MBR and the MBR is
@@ -191,46 +192,49 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		goto out;
 #endif
 
-	hdr = (void*)(mbr + secsz);
+		hdr = (void*)(mbr + secsz);
 
 	/*
 	 * XXX: if we don't have a GPT header at LBA 1, we should check if
 	 * there's a backup GPT at the end of the medium. If we have a valid
 	 * backup GPT, we should restore the primary GPT and claim this lunch.
 	 */
-	if (!is_gpt_hdr(hdr))
-		goto out;
-
-	tblsz = (hdr->hdr_entries * hdr->hdr_entsz + secsz - 1) & ~(secsz - 1);
-	buf = g_read_data(cp, hdr->hdr_lba_table * secsz, tblsz, &error);
-
-	gsp->frontstuff = hdr->hdr_lba_start * secsz;
-
-	for (i = 0; i < hdr->hdr_entries; i++) {
-		struct uuid unused = GPT_ENT_TYPE_UNUSED;
-		struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
-		if (i >= GPT_MAX_SLICES)
+		if (!is_gpt_hdr(hdr))
 			break;
-		ent = (void*)(buf + i * hdr->hdr_entsz);
-		if (!memcmp(&ent->ent_type, &unused, sizeof(unused)))
-			continue;
-		gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
-		if (gs->part[i] == NULL)
-			break;
-		bcopy(ent, gs->part[i], hdr->hdr_entsz);
-		ps = (!memcmp(&ent->ent_type, &freebsd, sizeof(freebsd)))
-		    ? 's' : 'p';
-		g_topology_lock();
-		(void)g_slice_addslice(gp, i, ent->ent_lba_start * secsz,
-		    (ent->ent_lba_end - ent->ent_lba_start + 1ULL) * secsz,
-		    "%s%c%d", gp->name, ps, i + 1);
-		g_topology_unlock();
-		npart++;
-	}
 
-	g_free(buf);
+		tblsz = (hdr->hdr_entries * hdr->hdr_entsz + secsz - 1) &
+		    ~(secsz - 1);
+		buf = g_read_data(cp, hdr->hdr_lba_table * secsz, tblsz, &error);
 
- out:
+		gsp->frontstuff = hdr->hdr_lba_start * secsz;
+
+		for (i = 0; i < hdr->hdr_entries; i++) {
+			struct uuid unused = GPT_ENT_TYPE_UNUSED;
+			struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
+			if (i >= GPT_MAX_SLICES)
+				break;
+			ent = (void*)(buf + i * hdr->hdr_entsz);
+			if (!memcmp(&ent->ent_type, &unused, sizeof(unused)))
+				continue;
+			gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
+			if (gs->part[i] == NULL)
+				break;
+			bcopy(ent, gs->part[i], hdr->hdr_entsz);
+			ps = (!memcmp(&ent->ent_type, &freebsd, sizeof(freebsd)))
+			    ? 's' : 'p';
+			g_topology_lock();
+			(void)g_slice_addslice(gp, i, 
+			    ent->ent_lba_start * secsz,
+			    (1 + ent->ent_lba_end - ent->ent_lba_start) * secsz,
+			    "%s%c%d", gp->name, ps, i + 1);
+			g_topology_unlock();
+			npart++;
+		}
+		g_free(buf);
+
+	} while (0);
+
+
 	if (mbr != NULL)
 		g_free(mbr);
 
