@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shutdown.c,v 1.7 1997/06/19 14:28:32 charnier Exp $
+ *	$Id: shutdown.c,v 1.8 1997/08/23 14:10:34 joerg Exp $
  */
 
 #ifndef lint
@@ -350,6 +350,7 @@ getoffset(timearg)
 	register struct tm *lt;
 	register char *p;
 	time_t now;
+	int this_year;
 
 	if (!strcasecmp(timearg, "now")) {		/* now */
 		offset = 0;
@@ -381,7 +382,17 @@ getoffset(timearg)
 
 	switch(strlen(timearg)) {
 	case 10:
+		this_year = lt->tm_year;
 		lt->tm_year = ATOI2(timearg);
+		/*
+		 * check if the specified year is in the next century.
+		 * allow for one year of user error as many people will
+		 * enter n - 1 at the start of year n.
+		 */
+		if (lt->tm_year < (this_year % 100) - 1)
+			lt->tm_year += 100;
+		/* adjust for centuries beyond 2000 */
+		lt->tm_year += (this_year - (this_year % 100));
 		/* FALLTHROUGH */
 	case 8:
 		lt->tm_mon = ATOI2(timearg);
