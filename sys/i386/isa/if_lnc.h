@@ -108,6 +108,7 @@
 #define PCnet_FAST      9        /* Am79C971 */
 #define PCnet_FASTplus  10       /* Am79C972 */
 #define PCnet_Home	11	 /* Am79C978 */
+#define PCnet_FAST_III  12       /* Am79C973, Am79C975 */
 
 
 /* CSR88-89: Chip ID masks */
@@ -123,6 +124,7 @@
 #define Am79C972  0x2624
 #define Am79C973  0x2625
 #define Am79C978  0x2626
+#define Am79C975  0x2627
 
 /* Board types */
 #define UNKNOWN         0
