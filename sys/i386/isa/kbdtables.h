@@ -25,10 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.19 1994/12/31 11:38:39 ache Exp $
+ *	$Id: kbdtables.h,v 1.24 1995/01/28 22:16:05 sos Exp $
  */
 
-#define SET8 0x80       	/* eight bit for emacs SET8-key */
+#define SET8 0x80       	/* set eight bit on */
 
 #ifdef DKKEYMAP
 keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
@@ -120,7 +120,7 @@ keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
-/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   '.',  0x02, 0x02,
+/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
 /* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  '<',   '>',  0x1C,  0x1C,   '\\',  '>',  0x1C,  0x1C,  0x00, 0x00,
@@ -140,7 +140,7 @@ keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,  0x7F,  0x02, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61), F(61), F(61), F(61), F(61), 0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
@@ -238,7 +238,7 @@ keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
-/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   '.',  0x02, 0x02,
+/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
 /* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  '\\',  '|',  0x1C,  0x1C,   '\\',  '|',  0x1C,  0x1C,  0x00, 0x00,
@@ -258,7 +258,7 @@ keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,  0x7F,  0x02, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61), F(61), F(61), F(61), F(61), 0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
@@ -356,7 +356,7 @@ keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
-/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   '.',  0x02, 0x02,
+/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
 /* sc=54 */ 0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x00, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
@@ -376,7 +376,7 @@ keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,  0x7F,  0x02, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61), F(61), F(61), F(61), F(61), 0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
@@ -474,7 +474,7 @@ keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
-/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   '.',  0x02, 0x02,
+/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
 /* sc=54 */ 0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x00, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  '<',   '>',   NOP,   NOP,   '|',   NOP,   NOP,   NOP,  0x37, 0x00,
@@ -494,7 +494,7 @@ keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,  0x7F,  0x02, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61), F(61), F(61), F(61), F(61), 0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
@@ -612,7 +612,7 @@ keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=64 */ F(58), F(58), F(58), F(58),   F(58),     F(58),     F(58),     F(58),   0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0xC2, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0x02, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61),   F(61),     F(61),     F(61),     F(61),   0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62),   F(62),     F(62),     F(62),     F(62),   0xFF, 0x00,
@@ -741,7 +741,7 @@ keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=64 */ F(58), F(58), F(58), F(58),   F(58),     F(58),     F(58),     F(58),   0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0xC2, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0x02, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61),   F(61),     F(61),     F(61),     F(61),   0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62),   F(62),     F(62),     F(62),     F(62),   0xFF, 0x00,
@@ -840,7 +840,7 @@ keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
-/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   '.',  0x02, 0x02,
+/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
 /* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
@@ -860,7 +860,7 @@ keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x00,
+/* sc=67 */ 0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,   RBT,   RBT,  0x03, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=69 */ F(61), F(61), F(61), F(61), F(61), F(61), F(61), F(61), 0xFF, 0x00,
 /* sc=6a */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
