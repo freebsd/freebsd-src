@@ -1,3 +1,4 @@
+.\" t
 .\"
 .\" vidcontrol - a utility for manipulating the syscons video driver
 .\"
@@ -11,7 +12,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"     @(#)vidcontrol.1
-.\"	$Id: vidcontrol.1,v 1.14 1998/09/23 10:00:15 yokota Exp $
+.\"	$Id: vidcontrol.1,v 1.15 1999/04/08 13:51:54 ghelmer Exp $
 .\"
 .Dd May 22, 1994
 .Dt VIDCONTROL 1
@@ -69,15 +70,15 @@ Select a new video mode. The modes currently recognized are:
 .Ar VESA_132x43 ,
 .Ar VESA_132x50 ,
 .Ar VESA_132x60 .
-The graphic mode
-.Ar VGA_320x200
-and
+.\"The graphic mode
+.\".Ar VGA_320x200
+.\"and
+The raster text mode
 .Ar VESA_800x600
 can also be chosen.
-Note that not all modes listed above may be supported by the video
-hardware, and that the VESA BIOS support must be linked to the kernel
-or loaded as a KLD if you wish to use VESA video modes or 
-132 column modes.
+See
+.Sx Video Mode Support
+below.
 .It fgcol Op bgcol
 Change colors when displaying text. Specify the foreground color
 (e.g. "vidcontrol white"), or both a foreground & background color
@@ -133,6 +134,51 @@ seconds, or turns it
 .It Fl x
 Use hexadecimal digits for output.
 .El
+.Ss Video Mode Support
+Note that not all modes listed above may be supported by the video
+hardware.
+You can verify which mode is supported by the video hardware, using the
+.Fl i Ar mode
+option.
+.Pp
+The VESA BIOS support must be linked to the kernel
+or loaded as a KLD module if you wish to use VESA video modes
+or 132 column modes
+.Pq see Xr vga 4 .
+.Pp
+Video modes other than 25 and 30 line modes may require specific size of font.
+Use
+.Fl f
+option above to load a font file to the kernel.
+If the required size of font has not been loaded to the kernel,
+.Nm
+will fail if the user attempts to set a new video mode.
+.Pp
+.TS
+c s
+c c
+l c.
+Video modes and font size
+Modes	Font size
+25 line modes	8x16 (VGA), 8x14 (EGA)
+30 line modes	8x16
+43 line modes	8x8
+50 line modes	8x8
+60 line modes	8x8
+.TE
+.Pp
+It is better to always load all three sizes (8x8, 8x14 and 8x16)
+of the same font.
+.Pp
+You may set
+.Ar font8x8 ,
+.Ar font8x14 
+and
+.Ar font8x16
+variables in
+.Pa /etc/rc.conf.local
+to the desired font files so that they will be automatically loaded
+when the system starts up.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/scrnmaps -compact
 .It Pa /usr/share/syscons/fonts
@@ -142,6 +188,9 @@ Use hexadecimal digits for output.
 .Xr kbdcontrol 1 ,
 .Xr keyboard 4 ,
 .Xr screen 4 ,
+.Xr syscons 4 ,
+.Xr vga 4 ,
+.Xr rc.conf 5 ,
 .Xr moused 8
 .Sh AUTHORS
 .An Søren Schmidt Aq sos@FreeBSD.org
