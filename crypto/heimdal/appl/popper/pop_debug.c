@@ -34,7 +34,7 @@
 /* Tiny program to help debug popper */
 
 #include "popper.h"
-RCSID("$Id: pop_debug.c,v 1.22 2002/02/07 17:27:12 joda Exp $");
+RCSID("$Id: pop_debug.c,v 1.23 2002/05/02 16:27:16 joda Exp $");
 
 static void
 loop(int s)
@@ -108,7 +108,7 @@ doit_v4 (char *host, int port)
     ret = krb_sendauth(0,
 		       s,
 		       &ticket, 
-		       POP_TICKET_NAME,
+		       "pop",
 		       host,
 		       krb_realmofhost(host),
 		       getpid(),
@@ -143,7 +143,7 @@ doit_v5 (char *host, int port)
     
     ret = krb5_sname_to_principal (context,
 				   host,
-				   POP_TICKET_NAME,
+				   "pop",
 				   KRB5_NT_SRV_HST,
 				   &server);
     if (ret) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_file.c,v 1.8 2001/05/14 06:14:48 assar Exp $");
+RCSID("$Id: keytab_file.c,v 1.11 2002/05/28 12:57:27 joda Exp $");
 
 #define KRB5_KT_VNO_1 1
 #define KRB5_KT_VNO_2 2
@@ -61,7 +61,7 @@ krb5_kt_ret_data(krb5_context context,
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
-    ret = sp->fetch(sp, data->data, size);
+    ret = krb5_storage_read(sp, data->data, size);
     if(ret != size)
 	return (ret < 0)? errno : KRB5_KT_END;
     return 0;
@@ -82,7 +82,7 @@ krb5_kt_ret_string(krb5_context context,
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
-    ret = sp->fetch(sp, *data, size);
+    ret = krb5_storage_read(sp, *data, size);
     (*data)[size] = '\0';
     if(ret != size)
 	return (ret < 0)? errno : KRB5_KT_END;
@@ -98,7 +98,7 @@ krb5_kt_store_data(krb5_context context,
     ret = krb5_store_int16(sp, data.length);
     if(ret < 0)
 	return ret;
-    ret = sp->store(sp, data.data, data.length);
+    ret = krb5_storage_write(sp, data.data, data.length);
     if(ret != data.length){
 	if(ret < 0)
 	    return errno;
@@ -116,7 +116,7 @@ krb5_kt_store_string(krb5_storage *sp,
     ret = krb5_store_int16(sp, len);
     if(ret < 0)
 	return ret;
-    ret = sp->store(sp, data, len);
+    ret = krb5_storage_write(sp, data, len);
     if(ret != len){
 	if(ret < 0)
 	    return errno;
@@ -171,7 +171,7 @@ krb5_kt_ret_principal(krb5_context context,
     ret = krb5_ret_int16(sp, &tmp);
     if(ret)
 	return ret;
-    if (sp->flags & KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS)
+    if(krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS))
 	tmp--;
     p->name.name_string.len = tmp;
     ret = krb5_kt_ret_string(context, sp, &p->realm);
@@ -284,8 +284,8 @@ storage_set_flags(krb5_context context, krb5_storage *sp, int vno)
     case KRB5_KT_VNO_2:
 	break;
     default:
-	krb5_abortx(context, 
-		    "storage_set_flags called with bad vno (%x)", vno);
+	krb5_warnx(context, 
+		   "storage_set_flags called with bad vno (%d)", vno);
     }
     krb5_storage_set_flags(sp, flags);
 }
@@ -308,6 +308,7 @@ fkt_start_seq_get_int(krb5_context context,
 	return ret;
     }
     c->sp = krb5_storage_from_fd(c->fd);
+    krb5_storage_set_eof_code(c->sp, KRB5_KT_END);
     ret = krb5_ret_int8(c->sp, &pvno);
     if(ret) {
 	krb5_storage_free(c->sp);
@@ -351,15 +352,15 @@ fkt_next_entry_int(krb5_context context,
     int ret;
     int8_t tmp8;
     int32_t tmp32;
-    off_t pos;
+    off_t pos, curpos;
 
-    pos = cursor->sp->seek(cursor->sp, 0, SEEK_CUR);
+    pos = krb5_storage_seek(cursor->sp, 0, SEEK_CUR);
 loop:
     ret = krb5_ret_int32(cursor->sp, &len);
     if (ret)
 	return ret;
     if(len < 0) {
-	pos = cursor->sp->seek(cursor->sp, -len, SEEK_CUR);
+	pos = krb5_storage_seek(cursor->sp, -len, SEEK_CUR);
 	goto loop;
     }
     ret = krb5_kt_ret_principal (context, cursor->sp, &entry->principal);
@@ -376,10 +377,20 @@ loop:
     ret = krb5_kt_ret_keyblock (context, cursor->sp, &entry->keyblock);
     if (ret)
 	goto out;
+    /* there might be a 32 bit kvno here
+     * if it's zero, assume that the 8bit one was right,
+     * otherwise trust the new value */
+    curpos = krb5_storage_seek(cursor->sp, 0, SEEK_CUR);
+    if(len + 4 + pos - curpos == 4) {
+	ret = krb5_ret_int32(cursor->sp, &tmp32);
+	if (ret == 0 && tmp32 != 0) {
+	    entry->vno = tmp32;
+	}
+    }
     if(start) *start = pos;
     if(end) *end = *start + 4 + len;
  out:
-    cursor->sp->seek(cursor->sp, pos + 4 + len, SEEK_SET);
+    krb5_storage_seek(cursor->sp, pos + 4 + len, SEEK_SET);
     return ret;
 }
 
@@ -403,6 +414,20 @@ fkt_end_seq_get(krb5_context context,
 }
 
 static krb5_error_code
+fkt_setup_keytab(krb5_context context,
+		 krb5_keytab id,
+		 krb5_storage *sp)
+{
+    krb5_error_code ret;
+    ret = krb5_store_int8(sp, 5);
+    if(ret)
+	return ret;
+    if(id->version == 0)
+	id->version = KRB5_KT_VNO;
+    return krb5_store_int8 (sp, id->version);
+}
+		 
+static krb5_error_code
 fkt_add_entry(krb5_context context,
 	      krb5_keytab id,
 	      krb5_keytab_entry *entry)
@@ -424,16 +449,9 @@ fkt_add_entry(krb5_context context,
 	    return ret;
 	}
 	sp = krb5_storage_from_fd(fd);
-	ret = krb5_store_int8(sp, 5);
+	krb5_storage_set_eof_code(sp, KRB5_KT_END);
+	ret = fkt_setup_keytab(context, id, sp);
 	if(ret) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    return ret;
-	}
-	if(id->version == 0)
-	    id->version = KRB5_KT_VNO;
-	ret = krb5_store_int8 (sp, id->version);
-	if (ret) {
 	    krb5_storage_free(sp);
 	    close(fd);
 	    return ret;
@@ -442,26 +460,41 @@ fkt_add_entry(krb5_context context,
     } else {
 	int8_t pvno, tag;
 	sp = krb5_storage_from_fd(fd);
+	krb5_storage_set_eof_code(sp, KRB5_KT_END);
 	ret = krb5_ret_int8(sp, &pvno);
 	if(ret) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    return ret;
+	    /* we probably have a zero byte file, so try to set it up
+               properly */
+	    ret = fkt_setup_keytab(context, id, sp);
+	    if(ret) {
+		krb5_set_error_string(context, "%s: keytab is corrupted: %s", 
+				      d->filename, strerror(ret));
+		krb5_storage_free(sp);
+		close(fd);
+		return ret;
+	    }
+	    storage_set_flags(context, sp, id->version);
+	} else {
+	    if(pvno != 5) {
+		krb5_storage_free(sp);
+		close(fd);
+		krb5_clear_error_string (context);
+		ret = KRB5_KEYTAB_BADVNO;
+		krb5_set_error_string(context, "%s: %s", 
+				      d->filename, strerror(ret));
+		return ret;
+	    }
+	    ret = krb5_ret_int8 (sp, &tag);
+	    if (ret) {
+		krb5_set_error_string(context, "%s: reading tag: %s", 
+				      d->filename, strerror(ret));
+		krb5_storage_free(sp);
+		close(fd);
+		return ret;
+	    }
+	    id->version = tag;
+	    storage_set_flags(context, sp, id->version);
 	}
-	if(pvno != 5) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    krb5_clear_error_string (context);
-	    return KRB5_KEYTAB_BADVNO;
-	}
-	ret = krb5_ret_int8 (sp, &tag);
-	if (ret) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    return ret;
-	}
-	id->version = tag;
-	storage_set_flags(context, sp, id->version);
     }
 
     {
@@ -482,7 +515,7 @@ fkt_add_entry(krb5_context context,
 	    krb5_storage_free(emem);
 	    goto out;
 	}
-	ret = krb5_store_int8 (emem, entry->vno);
+	ret = krb5_store_int8 (emem, entry->vno % 256);
 	if(ret) {
 	    krb5_storage_free(emem);
 	    goto out;
@@ -492,6 +525,12 @@ fkt_add_entry(krb5_context context,
 	    krb5_storage_free(emem);
 	    goto out;
 	}
+	ret = krb5_store_int32 (emem, entry->vno);
+	if (ret) {
+	    krb5_storage_free(emem);
+	    goto out;
+	}
+
 	ret = krb5_storage_to_data(emem, &keytab);
 	krb5_storage_free(emem);
 	if(ret)
@@ -500,25 +539,25 @@ fkt_add_entry(krb5_context context,
     
     while(1) {
 	ret = krb5_ret_int32(sp, &len);
-	if(ret == KRB5_CC_END) {
+	if(ret == KRB5_KT_END) {
 	    len = keytab.length;
 	    break;
 	}
 	if(len < 0) {
 	    len = -len;
 	    if(len >= keytab.length) {
-		sp->seek(sp, -4, SEEK_CUR);
+		krb5_storage_seek(sp, -4, SEEK_CUR);
 		break;
 	    }
 	}
-	sp->seek(sp, len, SEEK_CUR);
+	krb5_storage_seek(sp, len, SEEK_CUR);
     }
     ret = krb5_store_int32(sp, len);
-    if(sp->store(sp, keytab.data, keytab.length) < 0)
+    if(krb5_storage_write(sp, keytab.data, keytab.length) < 0)
 	ret = errno;
     memset(keytab.data, 0, keytab.length);
     krb5_data_free(&keytab);
- out:
+  out:
     krb5_storage_free(sp);
     close(fd);
     return ret;
@@ -542,12 +581,12 @@ fkt_remove_entry(krb5_context context,
 	    int32_t len;
 	    unsigned char buf[128];
 	    found = 1;
-	    cursor.sp->seek(cursor.sp, pos_start, SEEK_SET);
+	    krb5_storage_seek(cursor.sp, pos_start, SEEK_SET);
 	    len = pos_end - pos_start - 4;
 	    krb5_store_int32(cursor.sp, -len);
 	    memset(buf, 0, sizeof(buf));
 	    while(len > 0) {
-		cursor.sp->store(cursor.sp, buf, min(len, sizeof(buf)));
+		krb5_storage_write(cursor.sp, buf, min(len, sizeof(buf)));
 		len -= min(len, sizeof(buf));
 	    }
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getarg.c,v 1.44 2001/09/10 13:22:43 assar Exp $");
+RCSID("$Id: getarg.c,v 1.46 2002/08/20 16:23:07 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -158,7 +158,7 @@ mandoc_template(struct getargs *args,
 	    print_arg(buf, sizeof(buf), 1, 0, args + i);
 	    printf("%s", buf);
 	    if(args[i].long_name)
-		printf(" Ns ,");
+		printf(" ,");
 	    printf("\n");
 	}
 	if(args[i].long_name){
@@ -317,16 +317,17 @@ add_string(getarg_strings *s, char *value)
 
 static int
 arg_match_long(struct getargs *args, size_t num_args,
-	       char *argv, int argc, char **rargv, int *optind)
+	       char *argv, int argc, char **rargv, int *goptind)
 {
     int i;
-    char *optarg = NULL;
+    char *goptarg = NULL;
     int negate = 0;
     int partial_match = 0;
     struct getargs *partial = NULL;
     struct getargs *current = NULL;
     int argv_len;
     char *p;
+    int p_len;
 
     argv_len = strlen(argv);
     p = strchr (argv, '=');
@@ -336,8 +337,8 @@ arg_match_long(struct getargs *args, size_t num_args,
     for (i = 0; i < num_args; ++i) {
 	if(args[i].long_name) {
 	    int len = strlen(args[i].long_name);
-	    char *p = argv;
-	    int p_len = argv_len;
+	    p = argv;
+	    p_len = argv_len;
 	    negate = 0;
 
 	    for (;;) {
@@ -348,7 +349,7 @@ arg_match_long(struct getargs *args, size_t num_args,
 			++partial_match;
 			partial = &args[i];
 		    }
-		    optarg  = p + p_len;
+		    goptarg  = p + p_len;
 		} else if (ISFLAG(args[i]) && strncmp (p, "no-", 3) == 0) {
 		    negate = !negate;
 		    p += 3;
@@ -368,7 +369,7 @@ arg_match_long(struct getargs *args, size_t num_args,
 	    return ARG_ERR_NO_MATCH;
     }
     
-    if(*optarg == '\0'
+    if(*goptarg == '\0'
        && !ISFLAG(*current)
        && current->type != arg_collect
        && current->type != arg_counter)
@@ -377,31 +378,31 @@ arg_match_long(struct getargs *args, size_t num_args,
     case arg_integer:
     {
 	int tmp;
-	if(sscanf(optarg + 1, "%d", &tmp) != 1)
+	if(sscanf(goptarg + 1, "%d", &tmp) != 1)
 	    return ARG_ERR_BAD_ARG;
 	*(int*)current->value = tmp;
 	return 0;
     }
     case arg_string:
     {
-	*(char**)current->value = optarg + 1;
+	*(char**)current->value = goptarg + 1;
 	return 0;
     }
     case arg_strings:
     {
-	add_string((getarg_strings*)current->value, optarg + 1);
+	add_string((getarg_strings*)current->value, goptarg + 1);
 	return 0;
     }
     case arg_flag:
     case arg_negative_flag:
     {
 	int *flag = current->value;
-	if(*optarg == '\0' ||
-	   strcmp(optarg + 1, "yes") == 0 || 
-	   strcmp(optarg + 1, "true") == 0){
+	if(*goptarg == '\0' ||
+	   strcmp(goptarg + 1, "yes") == 0 || 
+	   strcmp(goptarg + 1, "true") == 0){
 	    *flag = !negate;
 	    return 0;
-	} else if (*optarg && strcmp(optarg + 1, "maybe") == 0) {
+	} else if (*goptarg && strcmp(goptarg + 1, "maybe") == 0) {
 #ifdef HAVE_RANDOM
 	    *flag = random() & 1;
 #else
@@ -417,9 +418,9 @@ arg_match_long(struct getargs *args, size_t num_args,
     {
 	int val;
 
-	if (*optarg == '\0')
+	if (*goptarg == '\0')
 	    val = 1;
-	else if(sscanf(optarg + 1, "%d", &val) != 1)
+	else if(sscanf(goptarg + 1, "%d", &val) != 1)
 	    return ARG_ERR_BAD_ARG;
 	*(int *)current->value += val;
 	return 0;
@@ -427,15 +428,15 @@ arg_match_long(struct getargs *args, size_t num_args,
     case arg_double:
     {
 	double tmp;
-	if(sscanf(optarg + 1, "%lf", &tmp) != 1)
+	if(sscanf(goptarg + 1, "%lf", &tmp) != 1)
 	    return ARG_ERR_BAD_ARG;
 	*(double*)current->value = tmp;
 	return 0;
     }
     case arg_collect:{
 	struct getarg_collect_info *c = current->value;
-	int o = argv - rargv[*optind];
-	return (*c->func)(FALSE, argc, rargv, optind, &o, c->data);
+	int o = argv - rargv[*goptind];
+	return (*c->func)(FALSE, argc, rargv, goptind, &o, c->data);
     }
 
     default:
@@ -445,13 +446,13 @@ arg_match_long(struct getargs *args, size_t num_args,
 
 static int
 arg_match_short (struct getargs *args, size_t num_args,
-		 char *argv, int argc, char **rargv, int *optind)
+		 char *argv, int argc, char **rargv, int *goptind)
 {
     int j, k;
 
-    for(j = 1; j > 0 && j < strlen(rargv[*optind]); j++) {
+    for(j = 1; j > 0 && j < strlen(rargv[*goptind]); j++) {
 	for(k = 0; k < num_args; k++) {
-	    char *optarg;
+	    char *goptarg;
 
 	    if(args[k].short_name == 0)
 		continue;
@@ -471,36 +472,36 @@ arg_match_short (struct getargs *args, size_t num_args,
 		if(args[k].type == arg_collect) {
 		    struct getarg_collect_info *c = args[k].value;
 
-		    if((*c->func)(TRUE, argc, rargv, optind, &j, c->data))
+		    if((*c->func)(TRUE, argc, rargv, goptind, &j, c->data))
 			return ARG_ERR_BAD_ARG;
 		    break;
 		}
 
 		if(argv[j + 1])
-		    optarg = &argv[j + 1];
+		    goptarg = &argv[j + 1];
 		else {
-		    ++*optind;
-		    optarg = rargv[*optind];
+		    ++*goptind;
+		    goptarg = rargv[*goptind];
 		}
-		if(optarg == NULL) {
-		    --*optind;
+		if(goptarg == NULL) {
+		    --*goptind;
 		    return ARG_ERR_NO_ARG;
 		}
 		if(args[k].type == arg_integer) {
 		    int tmp;
-		    if(sscanf(optarg, "%d", &tmp) != 1)
+		    if(sscanf(goptarg, "%d", &tmp) != 1)
 			return ARG_ERR_BAD_ARG;
 		    *(int*)args[k].value = tmp;
 		    return 0;
 		} else if(args[k].type == arg_string) {
-		    *(char**)args[k].value = optarg;
+		    *(char**)args[k].value = goptarg;
 		    return 0;
 		} else if(args[k].type == arg_strings) {
-		    add_string((getarg_strings*)args[k].value, optarg);
+		    add_string((getarg_strings*)args[k].value, goptarg);
 		    return 0;
 		} else if(args[k].type == arg_double) {
 		    double tmp;
-		    if(sscanf(optarg, "%lf", &tmp) != 1)
+		    if(sscanf(goptarg, "%lf", &tmp) != 1)
 			return ARG_ERR_BAD_ARG;
 		    *(double*)args[k].value = tmp;
 		    return 0;
@@ -516,7 +517,7 @@ arg_match_short (struct getargs *args, size_t num_args,
 
 int
 getarg(struct getargs *args, size_t num_args, 
-       int argc, char **argv, int *optind)
+       int argc, char **argv, int *goptind)
 {
     int i;
     int ret = 0;
@@ -528,8 +529,8 @@ getarg(struct getargs *args, size_t num_args,
 #else
     srand (time(NULL));
 #endif
-    (*optind)++;
-    for(i = *optind; i < argc; i++) {
+    (*goptind)++;
+    for(i = *goptind; i < argc; i++) {
 	if(argv[i][0] != '-')
 	    break;
 	if(argv[i][1] == '-'){
@@ -546,7 +547,7 @@ getarg(struct getargs *args, size_t num_args,
 	if(ret)
 	    break;
     }
-    *optind = i;
+    *goptind = i;
     return ret;
 }
 
@@ -573,9 +574,9 @@ struct getargs args[] = {
 
 int main(int argc, char **argv)
 {
-    int optind = 0;
-    while(getarg(args, 5, argc, argv, &optind))
-	printf("Bad arg: %s\n", argv[optind]);
+    int goptind = 0;
+    while(getarg(args, 5, argc, argv, &goptind))
+	printf("Bad arg: %s\n", argv[goptind]);
     printf("flag1 = %d\n", flag1);  
     printf("flag2 = %d\n", flag2);  
     printf("foo_flag = %d\n", foo_flag);  

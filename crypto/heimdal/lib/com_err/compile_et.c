@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,7 +35,7 @@
 #include "compile_et.h"
 #include <getarg.h>
 
-RCSID("$Id: compile_et.c,v 1.14 2001/02/20 01:44:53 assar Exp $");
+RCSID("$Id: compile_et.c,v 1.16 2002/08/20 12:44:51 joda Exp $");
 
 #include <roken.h>
 #include <err.h>
@@ -83,7 +83,7 @@ generate_c(void)
     fprintf(c_file, "#include \"%s\"\n", hfn);
     fprintf(c_file, "\n");
 
-    fprintf(c_file, "static const char *text[] = {\n");
+    fprintf(c_file, "static const char *%s_error_strings[] = {\n", name);
 
     for(ec = codes, n = 0; ec; ec = ec->next, n++) {
 	while(n < ec->number) {
@@ -98,20 +98,22 @@ generate_c(void)
     fprintf(c_file, "\tNULL\n");
     fprintf(c_file, "};\n");
     fprintf(c_file, "\n");
+    fprintf(c_file, "#define num_errors %d\n", number);
+    fprintf(c_file, "\n");
     fprintf(c_file, 
 	    "void initialize_%s_error_table_r(struct et_list **list)\n", 
 	    name);
     fprintf(c_file, "{\n");
     fprintf(c_file, 
-	    "    initialize_error_table_r(list, text, "
-	    "%s_num_errors, ERROR_TABLE_BASE_%s);\n", name, name);
+	    "    initialize_error_table_r(list, %s_error_strings, "
+	    "num_errors, ERROR_TABLE_BASE_%s);\n", name, name);
     fprintf(c_file, "}\n");
     fprintf(c_file, "\n");
     fprintf(c_file, "void initialize_%s_error_table(void)\n", name);
     fprintf(c_file, "{\n");
     fprintf(c_file,
-	    "    init_error_table(text, ERROR_TABLE_BASE_%s, "
-	    "%s_num_errors);\n", name, name);
+	    "    init_error_table(%s_error_strings, ERROR_TABLE_BASE_%s, "
+	    "num_errors);\n", name, name);
     fprintf(c_file, "}\n");
 
     fclose(c_file);
@@ -141,7 +143,7 @@ generate_h(void)
     fprintf(h_file, "#ifndef %s\n", fn);
     fprintf(h_file, "#define %s\n", fn);
     fprintf(h_file, "\n");
-    fprintf(h_file, "#include <com_right.h>\n");
+    fprintf(h_file, "struct et_list;\n");
     fprintf(h_file, "\n");
     fprintf(h_file, 
 	    "void initialize_%s_error_table_r(struct et_list **);\n",
@@ -152,15 +154,15 @@ generate_h(void)
 	    name, name);
     fprintf(h_file, "\n");
     fprintf(h_file, "typedef enum %s_error_number{\n", name);
-    fprintf(h_file, "\tERROR_TABLE_BASE_%s = %ld,\n", name, base);
-    fprintf(h_file, "\t%s_err_base = %ld,\n", name, base);
 
     for(ec = codes; ec; ec = ec->next) {
-	fprintf(h_file, "\t%s = %ld,\n", ec->name, base + ec->number);
+	fprintf(h_file, "\t%s = %ld%s\n", ec->name, base + ec->number, 
+		(ec->next != NULL) ? "," : "");
     }
 
-    fprintf(h_file, "\t%s_num_errors = %d\n", name, number);
     fprintf(h_file, "} %s_error_number;\n", name);
+    fprintf(h_file, "\n");
+    fprintf(h_file, "#define ERROR_TABLE_BASE_%s %ld\n", name, base);
     fprintf(h_file, "\n");
     fprintf(h_file, "#endif /* %s */\n", fn);
 

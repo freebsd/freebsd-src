@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.19 2000/11/15 22:51:08 assar Exp $
+# $Id: Makefile.am,v 1.20 2002/08/19 17:00:36 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -32,6 +32,6 @@ LDADD = $(LIB_otp) \
 	$(DBLIB)
 
 $(srcdir)/login_protos.h:
-	cd $(srcdir); perl ../../cf/make-proto.pl -o login_protos.h $(login_SOURCES) || rm -f login_protos.h
+	cd $(srcdir); perl ../../cf/make-proto.pl -o login_protos.h -q -P comment $(login_SOURCES) || rm -f login_protos.h
 
 $(login_OBJECTS): $(srcdir)/login_protos.h

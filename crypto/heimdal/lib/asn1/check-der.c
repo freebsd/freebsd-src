@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -39,9 +39,11 @@
 #include <err.h>
 #include <roken.h>
 
-#include <libasn1.h>
+#include <asn1-common.h>
+#include <asn1_err.h>
+#include <der.h>
 
-RCSID("$Id: check-der.c,v 1.7 1999/12/02 17:05:01 joda Exp $");
+RCSID("$Id: check-der.c,v 1.8 2002/08/23 03:17:34 assar Exp $");
 
 static void
 print_bytes (unsigned const char *buf, size_t len)

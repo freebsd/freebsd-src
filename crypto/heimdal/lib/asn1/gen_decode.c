@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_decode.c,v 1.17 2001/09/25 13:39:26 assar Exp $");
+RCSID("$Id: gen_decode.c,v 1.18 2002/08/09 15:37:34 joda Exp $");
 
 static void
 decode_primitive (const char *typename, const char *name)
@@ -314,9 +314,8 @@ generate_type_decode (const Symbol *s)
     fprintf (codefile,
 	     "size_t ret = 0, reallen;\n"
 	     "size_t l;\n"
-	     "int i, e;\n\n");
+	     "int e;\n\n");
     fprintf (codefile, "memset(data, 0, sizeof(*data));\n");
-    fprintf (codefile, "i = 0;\n"); /* hack to avoid `unused variable' */
     fprintf (codefile, "reallen = 0;\n"); /* hack to avoid `unused variable' */
 
     decode_type ("data", s->type);

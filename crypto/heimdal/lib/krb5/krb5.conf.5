@@ -1,4 +1,4 @@
-.\" $Id: krb5.conf.5,v 1.22 2001/08/30 18:54:01 joda Exp $
+.\" $Id: krb5.conf.5,v 1.25 2002/08/28 15:33:59 nectar Exp $
 .\"
 .Dd April 11, 1999
 .Dt KRB5.CONF 5
@@ -7,7 +7,7 @@
 .Nm /etc/krb5.conf
 .Nd configuration file for Kerberos 5
 .Sh DESCRIPTION
-The 
+The
 .Nm
 file specifies several configuration parameters for the Kerberos 5
 library, as well as for some programs.
@@ -78,7 +78,7 @@ Default renewable ticket lifetime.
 .It Li [libdefaults]
 .Bl -tag -width "xxx" -offset indent
 .It Li default_realm = Va REALM
-Default realm to use, this is also known as your 
+Default realm to use, this is also known as your
 .Dq local realm .
 The default is the result of
 .Fn krb5_get_host_realm "local hostname" .
@@ -89,7 +89,7 @@ times. Default is 300 seconds (five minutes).
 Maximum time to wait for a reply from the kdc, default is 3 seconds.
 .It v4_name_convert
 .It v4_instance_resolve
-These are decribed in the 
+These are decribed in the
 .Xr krb5_425_conv_principal  3
 manual page.
 .It Li capath = {
@@ -117,6 +117,10 @@ A list of default etypes to use when requesting a DES credential.
 .It Li default_keytab_name = Va keytab
 The keytab to use if none other is specified, default is
 .Dq FILE:/etc/krb5.keytab .
+.It Li dns_lookup_kdc = Va boolean
+Use DNS SRV records to lookup KDC services location.
+.It Li dns_lookup_realm = Va boolean
+Use DNS TXT records to lookup domain to realm mappings.
 .It Li kdc_timesync = Va boolean
 Try to keep track of the time differential between the local machine
 and the KDC, and then compensate for that when issuing requests.
@@ -133,8 +137,11 @@ This option is also valid in the [realms] section.
 When obtaining initial credentials, make the credentials proxiable.
 This option is also valid in the [realms] section.
 .It Li verify_ap_req_nofail = Va boolean
-Enable to make a failure to verify obtained credentials
-non-fatal. This can be useful if there is no keytab on a host.
+If enabled, failure to verify credentials against a local key is a
+fatal error. The application has to be able to read the corresponding
+service key for this to work. Some applications, like
+.Xr su 8 ,
+enable this option unconditionally.
 .It Li warn_pwexpire = Va time
 How soon to warn for expiring password. Default is seven days.
 .It Li http_proxy = Va proxy-spec
@@ -151,8 +158,6 @@ How to print date strings in logs, this string is passed to
 .Xr strftime 3 .
 .It Li log_utc = Va boolean
 Write log-entries using UTC instead of your local time zone.
-.It Li srv_lookup = Va boolean
-Use DNS SRV records to lookup realm configuration information.
 .It Li scan_interfaces = Va boolean
 Scan all network interfaces for addresses, as opposed to simply using
 the address associated with the system's host name.
@@ -174,6 +179,9 @@ binding in this section looks like:
 The domain can be either a full name of a host or a trailing
 component, in the latter case the domain-string should start with a
 perid.
+The realm may be the token `dns_locate', in which case the actual
+realm will be determined using DNS (independently of the setting
+of the `dns_lookup_realm' option).
 .It Li [realms]
 .Bl -tag -width "xxx" -offset indent
 .It Va REALM Li = {
@@ -260,12 +268,12 @@ verify the addresses in the tickets used in tgs requests.
 .\" XXX
 .It allow-null-ticket-addresses = Va BOOL
 allow addresses-less tickets.
-.\" XXX 
+.\" XXX
 .It allow-anonymous = Va BOOL
 if the kdc is allowed to hand out anonymous tickets.
 .It encode_as_rep_as_tgs_rep = Va BOOL
 encode as-rep as tgs-rep tobe compatible with mistakes older DCE secd did.
-.\" XXX 
+.\" XXX
 .It kdc_warn_pwexpire = Va TIME
 the time before expiration that the user should be warned that her
 password is about to expire.
@@ -289,7 +297,7 @@ if
 .Ar etype
 is omitted it means everything, and if string is omitted is means the default string (for that principal). Additional special values of keyttypes are:
 .Bl -tag -width "xxx" -offset indent
-.It v5 
+.It v5
 The kerberos 5 salt
 .Va pw-salt
 .It v4

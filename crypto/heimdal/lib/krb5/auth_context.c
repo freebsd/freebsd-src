@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: auth_context.c,v 1.57 2001/06/17 23:12:34 assar Exp $");
+RCSID("$Id: auth_context.c,v 1.58 2002/08/15 08:23:07 joda Exp $");
 
 krb5_error_code
 krb5_auth_con_init(krb5_context context,
@@ -153,7 +153,8 @@ krb5_auth_con_genaddrs(krb5_context context,
 				       strerror(ret));
 		goto out;
 	    }
-	    krb5_sockaddr2address (context, local, &local_k_address);
+	    ret = krb5_sockaddr2address (context, local, &local_k_address);
+	    if(ret) goto out;
 	    if(flags & KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR) {
 		krb5_sockaddr2port (context, local, &auth_context->local_port);
 	    } else
@@ -168,7 +169,8 @@ krb5_auth_con_genaddrs(krb5_context context,
 	    krb5_set_error_string (context, "getpeername: %s", strerror(ret));
 	    goto out;
 	}
-	krb5_sockaddr2address (context, remote, &remote_k_address);
+	ret = krb5_sockaddr2address (context, remote, &remote_k_address);
+	if(ret) goto out;
 	if(flags & KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR) {
 	    krb5_sockaddr2port (context, remote, &auth_context->remote_port);
 	} else

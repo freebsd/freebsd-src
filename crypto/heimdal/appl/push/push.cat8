@@ -1,18 +1,17 @@
-
-PUSH(8)                  UNIX System Manager's Manual                  PUSH(8)
+PUSH(8)                 FreeBSD System Manager's Manual                PUSH(8)
 
 NNAAMMEE
      ppuusshh - fetch mail via POP
 
 SSYYNNOOPPSSIISS
-     ppuusshh [--44 | ----kkrrbb44] [--55 | ----kkrrbb55] [--vv | ----vveerrbboossee] [--ff | ----ffoorrkk] [--ll |
-     ----lleeaavvee] [----ffrroomm] [--cc | ----ccoouunntt] [----hheeaaddeerrss=_h_e_a_d_e_r_s] [--pp _p_o_r_t_-_s_p_e_c |
-     ----ppoorrtt=_p_o_r_t_-_s_p_e_c] _p_o_-_b_o_x _f_i_l_e_n_a_m_e
+     ppuusshh [--44 | ----kkrrbb44] [--55 | ----kkrrbb55] [--vv | ----vveerrbboossee] [--ff | ----ffoorrkk]
+          [--ll | ----lleeaavvee] [----ffrroomm] [--cc | ----ccoouunntt] [----hheeaaddeerrss=_h_e_a_d_e_r_s] [--pp
+          _p_o_r_t_-_s_p_e_c | ----ppoorrtt=_p_o_r_t_-_s_p_e_c] _p_o_-_b_o_x _f_i_l_e_n_a_m_e
 
 DDEESSCCRRIIPPTTIIOONN
      ppuusshh retrieves mail from the post office box _p_o_-_b_o_x, and stores the mail
-     in mbox format in _f_i_l_e_n_a_m_e. The _p_o_-_b_o_x can have any of the following for-
-     mats:
+     in mbox format in _f_i_l_e_n_a_m_e.  The _p_o_-_b_o_x can have any of the following
+     formats:
            `hostname:username'
            `po:hostname:username'
            `username@hostname'
@@ -69,9 +68,9 @@ EEXXAAMMPPLLEESS
      using Kerberos 5.
 
 SSEEEE AALLSSOO
-     movemail(8),  popper(8),  from(1),  pfrom(1)
+     from(1), pfrom(1), movemail(8), popper(8)
 
 HHIISSTTOORRYY
      ppuusshh was written while waiting for mmoovveemmaaiill to finish getting the mail.
 
- HEIMDAL                         May 31, 1998                                2
+HEIMDAL                          May 31, 1998                          HEIMDAL

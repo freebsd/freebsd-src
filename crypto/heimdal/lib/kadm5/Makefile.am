@@ -1,10 +1,10 @@
-# $Id: Makefile.am,v 1.49 2001/09/05 14:14:56 joda Exp $
+# $Id: Makefile.am,v 1.51 2002/08/16 20:57:09 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 lib_LTLIBRARIES = libkadm5srv.la libkadm5clnt.la
-libkadm5srv_la_LDFLAGS = -version-info 7:4:0
-libkadm5clnt_la_LDFLAGS = -version-info 6:2:2
+libkadm5srv_la_LDFLAGS = -version-info 7:5:0
+libkadm5clnt_la_LDFLAGS = -version-info 6:3:2
 sbin_PROGRAMS = dump_log replay_log truncate_log
 
 libkadm5srv_la_LIBADD = ../krb5/libkrb5.la ../hdb/libhdb.la ../roken/libroken.la
@@ -31,7 +31,7 @@ install-build-headers:: $(kadm5include_HEADERS)
 		fi ; \
 	done
 
-SOURCES_client =					\
+SOURCES_client =				\
 	admin.h					\
 	chpass_c.c				\
 	common_glue.c				\
@@ -118,3 +118,18 @@ client_glue.lo server_glue.lo: $(srcdir)/common_glue.c
 # to help stupid solaris make
 
 kadm5_err.h: kadm5_err.et
+
+$(libkadm5clnt_la_OBJECTS) $(libkadm5srv_la_OBJECTS): $(srcdir)/kadm5-protos.h $(srcdir)/kadm5-private.h
+
+proto_opts = -q -R '^(_|kadm5_c_|kadm5_s_|kadm5_log)' -P comment
+$(srcdir)/kadm5-protos.h:
+	cd $(srcdir); perl ../../cf/make-proto.pl $(proto_opts) \
+		-o kadm5-protos.h \
+		$(libkadm5clnt_la_SOURCES) $(libkadm5srv_la_SOURCES) \
+		|| rm -f kadm5-protos.h
+
+$(srcdir)/kadm5-private.h:
+	cd $(srcdir); perl ../../cf/make-proto.pl $(proto_opts) \
+		-p kadm5-private.h \
+		$(libkadm5clnt_la_SOURCES) $(libkadm5srv_la_SOURCES) \
+		|| rm -f kadm5-private.h

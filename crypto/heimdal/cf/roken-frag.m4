@@ -1,4 +1,4 @@
-dnl $Id: roken-frag.m4,v 1.34 2001/11/30 03:29:47 assar Exp $
+dnl $Id: roken-frag.m4,v 1.42 2002/08/26 13:26:52 assar Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -33,7 +33,7 @@ AC_REQUIRE([rk_DB])
 dnl C types
 
 AC_REQUIRE([AC_TYPE_SIZE_T])
-AC_CHECK_TYPE_EXTRA(ssize_t, int, [#include <unistd.h>])
+AC_HAVE_TYPE([ssize_t],[#include <unistd.h>])
 AC_REQUIRE([AC_TYPE_PID_T])
 AC_REQUIRE([AC_TYPE_UID_T])
 AC_HAVE_TYPE([long long])
@@ -144,12 +144,28 @@ AC_FIND_FUNC(dn_expand, resolv,
 ],
 [0,0,0,0,0])
 
+rk_CHECK_VAR(_res, 
+[#include <stdio.h>
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#include <arpa/nameser.h>
+#endif
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif])
+
+
 AC_BROKEN_SNPRINTF
 AC_BROKEN_VSNPRINTF
 
 AC_BROKEN_GLOB
 if test "$ac_cv_func_glob_working" != yes; then
-	LIBOBJS="$LIBOBJS glob.o"
+	AC_LIBOBJ(glob)
 fi
 AM_CONDITIONAL(have_glob_h, test "$ac_cv_func_glob_working" = yes)
 
@@ -184,7 +200,7 @@ AC_CHECK_FUNCS([				\
 ])
 
 if test "$ac_cv_func_cgetent" = no; then
-	LIBOBJS="$LIBOBJS getcap.o"
+	AC_LIBOBJ(getcap)
 fi
 
 AC_REQUIRE([AC_FUNC_GETLOGIN])
@@ -211,39 +227,17 @@ AC_FIND_IF_NOT_BROKEN(hstrerror, resolv,
 #include <netdb.h>
 #endif],
 17)
-if test "$ac_cv_func_hstrerror" = yes; then
 AC_NEED_PROTO([
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif],
 hstrerror)
-fi
 
-dnl sigh, wish this could be done in a loop
-if test "$ac_cv_func_asprintf" = yes; then
-AC_NEED_PROTO([
-#include <stdio.h>
-#include <string.h>],
-asprintf)dnl
-fi
-if test "$ac_cv_func_vasprintf" = yes; then
-AC_NEED_PROTO([
-#include <stdio.h>
-#include <string.h>],
-vasprintf)dnl
-fi
-if test "$ac_cv_func_asnprintf" = yes; then
-AC_NEED_PROTO([
-#include <stdio.h>
-#include <string.h>],
-asnprintf)dnl
-fi
-if test "$ac_cv_func_vasnprintf" = yes; then
-AC_NEED_PROTO([
-#include <stdio.h>
-#include <string.h>],
-vasnprintf)dnl
-fi
+AC_FOREACH([rk_func], [asprintf vasprintf asnprintf vasnprintf],
+	[AC_NEED_PROTO([
+	#include <stdio.h>
+	#include <string.h>],
+	rk_func)])
 
 AC_FIND_FUNC_NO_LIBS(bswap16,,
 [#ifdef HAVE_SYS_BSWAP_H
@@ -349,6 +343,14 @@ AC_BROKEN([					\
 	writev					\
 ])
 
+AC_FOREACH([rk_func], [strndup strsep strtok_r],
+	[AC_NEED_PROTO([#include <string.h>], rk_func)])
+
+AC_FOREACH([rk_func], [strsvis strunvis strvis strvisx svis unvis vis],
+[AC_NEED_PROTO([#ifdef HAVE_VIS_H
+#include <vis.h>
+#endif], rk_func)])
+
 AC_BROKEN2(inet_aton,
 [#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -404,14 +406,15 @@ AC_HAVE_STRUCT_FIELD(struct sockaddr, sa_len, [#include <sys/types.h>
 if test "$ac_cv_func_getnameinfo" = "yes"; then
   rk_BROKEN_GETNAMEINFO
   if test "$ac_cv_func_getnameinfo_broken" = yes; then
-    LIBOBJS="$LIBOBJS getnameinfo.o"
+	AC_LIBOBJ(getnameinfo)
   fi
 fi
 
 if test "$ac_cv_func_getaddrinfo" = "yes"; then
   rk_BROKEN_GETADDRINFO
   if test "$ac_cv_func_getaddrinfo_numserv" = no; then
-    LIBOBJS="$LIBOBJS getaddrinfo.o freeaddrinfo.o"
+	AC_LIBOBJ(getaddrinfo)
+	AC_LIBOBJ(freeaddrinfo)
   fi
 fi
 
@@ -530,16 +533,6 @@ AC_NEED_PROTO([
 ],
 crypt)
 
-AC_NEED_PROTO([
-#include <string.h>
-],
-strtok_r)
-
-AC_NEED_PROTO([
-#include <string.h>
-],
-strsep)
-
 dnl variables
 
 rk_CHECK_VAR(h_errno, 
@@ -596,6 +589,7 @@ dnl or do we have a variable `timezone' ?
 dnl
 
 rk_CHECK_VAR(timezone,[#include <time.h>])
+rk_CHECK_VAR(altzone,[#include <time.h>])
 
 AC_HAVE_TYPE([sa_family_t],[#include <sys/socket.h>])
 AC_HAVE_TYPE([socklen_t],[#include <sys/socket.h>])
@@ -603,6 +597,14 @@ AC_HAVE_TYPE([struct sockaddr], [#include <sys/socket.h>])
 AC_HAVE_TYPE([struct sockaddr_storage], [#include <sys/socket.h>])
 AC_HAVE_TYPE([struct addrinfo], [#include <netdb.h>])
 AC_HAVE_TYPE([struct ifaddrs], [#include <ifaddrs.h>])
+AC_HAVE_TYPE([struct iovec],[
+#include <sys/types.h>
+#include <sys/uio.h>
+])
+AC_HAVE_TYPE([struct msghdr],[
+#include <sys/types.h>
+#include <sys/socket.h>
+])
 
 dnl
 dnl Check for struct winsize

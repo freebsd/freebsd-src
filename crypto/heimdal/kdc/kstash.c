@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,18 +33,18 @@
 
 #include "headers.h"
 
-RCSID("$Id: kstash.c,v 1.14 2001/01/30 17:08:35 assar Exp $");
+RCSID("$Id: kstash.c,v 1.15 2002/04/18 09:47:25 joda Exp $");
 
 krb5_context context;
 
-char *keyfile = HDB_DB_DIR "/m-key";
+const char *keyfile = HDB_DB_DIR "/m-key";
 int convert_flag;
 int help_flag;
 int version_flag;
 
 int master_key_fd = -1;
 
-char *enctype_str = "des3-cbc-sha1";
+const char *enctype_str = "des3-cbc-sha1";
 
 struct getargs args[] = {
     { "enctype", 'e', arg_string, &enctype_str, "encryption type" },

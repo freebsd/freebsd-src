@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_any.c,v 1.5 2002/02/11 14:05:37 joda Exp $");
+RCSID("$Id: keytab_any.c,v 1.6 2002/04/18 14:02:11 joda Exp $");
 
 struct any_data {
     krb5_keytab kt;
@@ -160,7 +160,7 @@ any_next_entry (krb5_context context,
 	ret = krb5_kt_next_entry(context, ed->a->kt, entry, &ed->cursor);
 	if (ret == 0)
 	    return 0;
-	else if (ret == KRB5_CC_END) {
+	else if (ret == KRB5_KT_END) {
 	    ret2 = krb5_kt_end_seq_get (context, ed->a->kt, &ed->cursor);
 	    if (ret2)
 		return ret2;
@@ -171,11 +171,11 @@ any_next_entry (krb5_context context,
 	    }
 	    if (ed->a == NULL) {
 		krb5_clear_error_string (context);
-		return KRB5_CC_END;
+		return KRB5_KT_END;
 	    }
 	} else
 	    return ret;
-    } while (ret == KRB5_CC_END);
+    } while (ret == KRB5_KT_END);
     return ret;
 }
 

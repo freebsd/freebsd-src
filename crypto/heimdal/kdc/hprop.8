@@ -1,4 +1,4 @@
-.\" $Id: hprop.8,v 1.13 2001/07/19 16:33:26 assar Exp $
+.\" $Id: hprop.8,v 1.16 2002/08/20 17:18:38 joda Exp $
 .\"
 .Dd June 19, 2000
 .Dt HPROP 8
@@ -58,20 +58,20 @@ specified on the command by opening a TCP connection to port 754
 Supported options:
 .Bl -tag -width Ds
 .It Xo
-.Fl m Ar file Ns ,
+.Fl m Ar file ,
 .Fl -master-key= Ns Pa file
 .Xc
 Where to find the master key to encrypt or decrypt keys with.
 .It Xo
-.Fl d Ar file Ns ,
+.Fl d Ar file ,
 .Fl -database= Ns Pa file
 .Xc
 The database to be propagated.
 .It Xo
 .Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
 .Xc
-Specifies the type of the source database. Alternatives include: 
-
+Specifies the type of the source database. Alternatives include:
+.Pp
 .Bl -tag -width krb4-dump -compact -offset indent
 .It heimdal
 a Heimdal database
@@ -85,7 +85,7 @@ a Kerberos 4 dump file
 an AFS kaserver database
 .El
 .It Xo
-.Fl k Ar keytab Ns ,
+.Fl k Ar keytab ,
 .Fl -keytab= Ns Ar keytab
 .Xc
 The keytab to use for fetching the key to be used for authenticating
@@ -94,24 +94,24 @@ to the propagation daemon(s). The key
 is used from this keytab.  The default is to fetch the key from the
 KDC database.
 .It Xo
-.Fl R Ar string Ns ,
+.Fl R Ar string ,
 .Fl -v5-realm= Ns Ar string
 .Xc
 Local realm override.
 .It Xo
-.Fl D Ns ,
+.Fl D ,
 .Fl -decrypt
 .Xc
 The encryption keys in the database can either be in clear, or
 encrypted with a master key. This option transmits the database with
 unencrypted keys.
 .It Xo
-.Fl E Ns ,
+.Fl E ,
 .Fl -encrypt
 .Xc
 This option transmits the database with encrypted keys.
 .It Xo
-.Fl n Ns ,
+.Fl n ,
 .Fl -stdout
 .Xc
 Dump the database on stdout, in a format that can be fed to hpropd.
@@ -122,31 +122,31 @@ The following options are only valid if
 is compiled with support for Kerberos 4 (kaserver).
 .Bl -tag -width Ds
 .It Xo
-.Fl r Ar string Ns ,
+.Fl r Ar string ,
 .Fl -v4-realm= Ns Ar string
 .Xc
 v4 realm to use
 .It Xo
-.Fl c Ar cell Ns ,
+.Fl c Ar cell ,
 .Fl -cell= Ns Ar cell
 .Xc
 The AFS cell name, used if reading a kaserver database.
 .It Xo
-.Fl S Ns ,
+.Fl S ,
 .Fl -kaspecials
 .Xc
 Also dump the principals marked as special in the kaserver database.
 .It Xo
-.Fl 4 Ns ,
+.Fl 4 ,
 .Fl -v4-db
 .Xc
-Deprecated, identical to 
+Deprecated, identical to
 .Sq --source=krb4-db .
 .It Xo
-.Fl K Ns ,
+.Fl K ,
 .Fl -ka-db
 .Xc
-Deprecated, identical to 
+Deprecated, identical to
 .Sq --source=kaserver .
 .El
 .Sh EXAMPLES

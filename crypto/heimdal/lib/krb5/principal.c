@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -41,7 +41,7 @@
 #include <fnmatch.h>
 #include "resolve.h"
 
-RCSID("$Id: principal.c,v 1.78 2001/09/20 09:46:20 joda Exp $");
+RCSID("$Id: principal.c,v 1.81 2002/08/26 13:31:40 assar Exp $");
 
 #define princ_num_comp(P) ((P)->name.name_string.len)
 #define princ_type(P) ((P)->name.name_type)
@@ -93,7 +93,7 @@ krb5_parse_name(krb5_context context,
     general_string realm;
     int ncomp;
 
-    char *p;
+    const char *p;
     char *q;
     char *s;
     char *start;
@@ -104,7 +104,7 @@ krb5_parse_name(krb5_context context,
   
     /* count number of component */
     ncomp = 1;
-    for(p = (char*)name; *p; p++){
+    for(p = name; *p; p++){
 	if(*p=='\\'){
 	    if(!p[1]) {
 		krb5_set_error_string (context,
@@ -122,7 +122,7 @@ krb5_parse_name(krb5_context context,
     }
   
     n = 0;
-    start = q = p = s = strdup(name);
+    p = start = q = s = strdup(name);
     if (start == NULL) {
 	free (comp);
 	krb5_set_error_string (context, "malloc: out of memory");
@@ -725,45 +725,60 @@ krb5_425_conv_principal_ext(krb5_context context,
 	return HEIM_ERR_V4_PRINC_NO_CONV;
     }
     if(resolve){
-	const char *inst = NULL;
+	krb5_boolean passed = FALSE;
+	char *inst = NULL;
 #ifdef USE_RESOLVER
 	struct dns_reply *r;
-	r = dns_lookup(instance, "a");
-	if(r && r->head && r->head->type == T_A)
-	    inst = r->head->domain;
-#else
-	struct hostent *hp = roken_gethostbyname(instance);
-	if(hp)
-	    inst = hp->h_name;
-#endif
-	if(inst) {
-	    char *low_inst = strdup(inst);
 
-	    if (low_inst == NULL) {
-#ifdef USE_RESOLVER
+	r = dns_lookup(instance, "aaaa");
+	if (r && r->head && r->head->type == T_AAAA) {
+	    inst = strdup(r->head->domain);
+	    dns_free_data(r);
+	    passed = TRUE;
+	} else {
+	    r = dns_lookup(instance, "a");
+	    if(r && r->head && r->head->type == T_A) {
+		inst = strdup(r->head->domain);
 		dns_free_data(r);
+		passed = TRUE;
+	    }
+	}
+#else
+	struct addrinfo hints, *ai;
+	int ret;
+	
+	memset (&hints, 0, sizeof(hints));
+	hints.ai_flags = AI_CANONNAME;
+	ret = getaddrinfo(instance, NULL, &hints, &ai);
+	if (ret == 0) {
+	    const struct addrinfo *a;
+	    for (a = ai; a != NULL; a = a->ai_next) {
+		if (a->ai_canonname != NULL) {
+		    inst = strdup (a->ai_canonname);
+		    passed = TRUE;
+		    break;
+		}
+	    }
+	    freeaddrinfo (ai);
+	}
 #endif
+	if (passed) {
+	    if (inst == NULL) {
 		krb5_set_error_string (context, "malloc: out of memory");
 		return ENOMEM;
 	    }
-	    ret = krb5_make_principal(context, &pr, realm, name, low_inst,
+	    strlwr(inst);
+	    ret = krb5_make_principal(context, &pr, realm, name, inst,
 				      NULL);
-	    free (low_inst);
+	    free (inst);
 	    if(ret == 0) {
 		if(func == NULL || (*func)(context, pr)){
 		    *princ = pr;
-#ifdef USE_RESOLVER
-		    dns_free_data(r);
-#endif
 		    return 0;
 		}
 		krb5_free_principal(context, pr);
 	    }
 	}
-#ifdef USE_RESOLVER
-	if(r) 
-	    dns_free_data(r);
-#endif
     }
     if(func != NULL) {
 	snprintf(host, sizeof(host), "%s.%s", instance, realm);

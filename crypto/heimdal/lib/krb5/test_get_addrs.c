@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,8 +32,9 @@
 
 #include "krb5_locl.h"
 #include <err.h>
+#include <getarg.h>
 
-RCSID("$Id: test_get_addrs.c,v 1.3 2001/01/25 12:45:15 assar Exp $");
+RCSID("$Id: test_get_addrs.c,v 1.4 2002/08/23 03:42:54 assar Exp $");
 
 /* print all addresses that we find */
 
@@ -50,12 +51,49 @@ print_addresses (krb5_context context, const krb5_addresses *addrs)
     }
 }
 
+static int version_flag = 0;
+static int help_flag	= 0;
+
+static struct getargs args[] = {
+    {"version",	0,	arg_flag,	&version_flag,
+     "print version", NULL },
+    {"help",	0,	arg_flag,	&help_flag,
+     NULL, NULL }
+};
+
+static void
+usage (int ret)
+{
+    arg_printusage (args,
+		    sizeof(args)/sizeof(*args),
+		    NULL,
+		    "");
+    exit (ret);
+}
+
 int
 main(int argc, char **argv)
 {
     krb5_context context;
     krb5_error_code ret;
     krb5_addresses addrs;
+    int optind = 0;
+
+    setprogname (argv[0]);
+
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
+	usage(1);
+    
+    if (help_flag)
+	usage (0);
+
+    if(version_flag){
+	print_version(NULL);
+	exit(0);
+    }
+
+    argc -= optind;
+    argv += optind;
 
     ret = krb5_init_context(&context);
     if (ret)

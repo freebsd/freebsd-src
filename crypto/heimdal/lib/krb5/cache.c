@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: cache.c,v 1.47 2001/05/14 06:14:45 assar Exp $");
+RCSID("$Id: cache.c,v 1.49 2002/05/29 16:08:23 joda Exp $");
 
 /*
  * Add a new ccache type with operations `ops', overwriting any
@@ -46,25 +46,18 @@ krb5_cc_register(krb5_context context,
 		 const krb5_cc_ops *ops, 
 		 krb5_boolean override)
 {
-    char *prefix_copy;
     int i;
 
     for(i = 0; i < context->num_cc_ops && context->cc_ops[i].prefix; i++) {
 	if(strcmp(context->cc_ops[i].prefix, ops->prefix) == 0) {
-	    if(override)
-		free(context->cc_ops[i].prefix);
-	    else {
+	    if(!override) {
 		krb5_set_error_string(context,
 				      "ccache type %s already exists",
 				      ops->prefix);
 		return KRB5_CC_TYPE_EXISTS;
 	    }
+	    break;
 	}
-    }
-    prefix_copy = strdup(ops->prefix);
-    if (prefix_copy == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
-	return KRB5_CC_NOMEM;
     }
     if(i == context->num_cc_ops) {
 	krb5_cc_ops *o = realloc(context->cc_ops,
@@ -72,7 +65,6 @@ krb5_cc_register(krb5_context context,
 				 sizeof(*context->cc_ops));
 	if(o == NULL) {
 	    krb5_set_error_string(context, "malloc: out of memory");
-	    free(prefix_copy);
 	    return KRB5_CC_NOMEM;
 	}
 	context->num_cc_ops++;
@@ -81,7 +73,6 @@ krb5_cc_register(krb5_context context,
 	       (context->num_cc_ops - i) * sizeof(*context->cc_ops));
     }
     memcpy(&context->cc_ops[i], ops, sizeof(context->cc_ops[i]));
-    context->cc_ops[i].prefix = prefix_copy;
     return 0;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: context_s.c,v 1.16 2001/08/13 14:42:13 joda Exp $");
+RCSID("$Id: context_s.c,v 1.17 2002/08/26 13:28:36 assar Exp $");
 
 static void
 set_funcs(kadm5_server_context *c)
@@ -124,14 +124,15 @@ set_config(kadm5_server_context *ctx,
 static kadm5_ret_t
 find_db_spec(kadm5_server_context *ctx)
 {
-    krb5_config_binding *top_binding = NULL;
+    const krb5_config_binding *top_binding = NULL;
     krb5_config_binding *db_binding;
     krb5_config_binding *default_binding = NULL;
     krb5_context context = ctx->context;
 
     while((db_binding = (krb5_config_binding *)
 	   krb5_config_get_next(context,
-				NULL, &top_binding, 
+				NULL,
+				&top_binding, 
 				krb5_config_list, 
 				"kdc", 
 				"database",

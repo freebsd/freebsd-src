@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: rxtelnet.in,v 1.28 2001/07/12 09:28:11 assar Exp $
+# $Id: rxtelnet.in,v 1.29 2002/03/18 17:37:34 joda Exp $
 #
-usage="Usage: $0 [-l username] [-k] [-t args_to_telnet] [-x args_to_xterm] [-K args_to_kx] [-w term_emulator] [-b telnet_binary] [-n] [-v] [-h | --help] [--version] host [port]"
+usage="Usage: $0 [-l username] [-k] [-f] [-t args_to_telnet] [-x args_to_xterm] [-K args_to_kx] [-w term_emulator] [-b telnet_binary] [-n] [-v] [-h | --help] [--version] host [port]"
 binary=telnet
 term=
 kx_args=-P
@@ -11,6 +11,7 @@ do
   -l) telnet_args="${telnet_args} -l $2 "; kx_args="${kx_args} -l $2"; title="${2}@"; shift 2;;
   -t) telnet_args="${telnet_args} $2 "; shift 2;;
   -x) xterm_args="${xterm_args} $2 "; shift 2;;
+  -f) telnet_args="${telnet_args} -f"; shift;;
   -k) kx_args="${kx_args} -k"; shift;;
   -K) kx_args="${kx_args} $2 "; shift 2;;
   -n) term=none; shift;;

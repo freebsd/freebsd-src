@@ -1,4 +1,4 @@
-dnl $Id: krb-func-getcwd-broken.m4,v 1.2 1999/03/01 13:03:32 joda Exp $
+dnl $Id: krb-func-getcwd-broken.m4,v 1.3 2002/05/19 19:17:35 joda Exp $
 dnl
 dnl
 dnl test for broken getcwd in (SunOS braindamage)
@@ -32,8 +32,7 @@ int main()
 ])
 if test "$ac_cv_func_getcwd_broken" = yes; then
 	AC_DEFINE(BROKEN_GETCWD, 1, [Define if getcwd is broken (like in SunOS 4).])dnl
-	LIBOBJS="$LIBOBJS getcwd.o"
-	AC_SUBST(LIBOBJS)dnl
+	AC_LIBOBJ(getcwd)
 	AC_MSG_RESULT($ac_cv_func_getcwd_broken)
 else
 	AC_MSG_RESULT([seems ok])
