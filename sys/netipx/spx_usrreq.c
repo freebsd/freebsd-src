@@ -81,15 +81,15 @@ static struct	spx_istat spx_istat;
 static const int spx_backoff[SPX_MAXRXTSHIFT+1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
 
-static	struct spxpcb *spx_close(struct spxpcb *cb);
-static	struct spxpcb *spx_disconnect(struct spxpcb *cb);
-static	struct spxpcb *spx_drop(struct spxpcb *cb, int errno);
+static	void spx_close(struct spxpcb *cb);
+static	void spx_disconnect(struct spxpcb *cb);
+static	void spx_drop(struct spxpcb *cb, int errno);
 static	int spx_output(struct spxpcb *cb, struct mbuf *m0);
 static	int spx_reass(struct spxpcb *cb, struct spx *si);
 static	void spx_setpersist(struct spxpcb *cb);
 static	void spx_template(struct spxpcb *cb);
 static	struct spxpcb *spx_timers(struct spxpcb *cb, int timer);
-static	struct spxpcb *spx_usrclosed(struct spxpcb *cb);
+static	void spx_usrclosed(struct spxpcb *cb);
 
 static	int spx_usr_abort(struct socket *so);
 static	int spx_accept(struct socket *so, struct sockaddr **nam);
@@ -324,12 +324,14 @@ dropwithreset:
 		so->so_head = NULL;
 		ACCEPT_UNLOCK();
 		soabort(so);
+		cb = NULL;
 	}
 	si->si_seq = ntohs(si->si_seq);
 	si->si_ack = ntohs(si->si_ack);
 	si->si_alo = ntohs(si->si_alo);
 	m_freem(dtom(si));
-	if (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG || traceallspxs)
+	if (cb == NULL || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
+	    traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	return;
 
@@ -1570,22 +1572,18 @@ static int
 spx_shutdown(so)
 	struct socket *so;
 {
-	int error;
 	int s;
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
 
-	error = 0;
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
 	s = splnet();
 	socantsendmore(so);
-	cb = spx_usrclosed(cb);
-	if (cb != NULL)
-		error = spx_output(cb, NULL);
+	spx_usrclosed(cb);
 	splx(s);
-	return (error);
+	return (0);
 }
 
 static int
@@ -1639,8 +1637,9 @@ spx_template(cb)
  *	discard spx control block itself
  *	discard ipx protocol control block
  *	wake up any sleepers
+ * cb will always be invalid after this call.
  */
-static struct spxpcb *
+void
 spx_close(cb)
 	register struct spxpcb *cb;
 {
@@ -1662,33 +1661,39 @@ spx_close(cb)
 	soisdisconnected(so);
 	ipx_pcbdetach(ipxp);
 	spxstat.spxs_closed++;
-	return (NULL);
 }
 
 /*
  *	Someday we may do level 3 handshaking
  *	to close a connection or send a xerox style error.
  *	For now, just close.
+ * cb will always be invalid after this call.
  */
-static struct spxpcb *
+static void
 spx_usrclosed(cb)
 	register struct spxpcb *cb;
 {
-	return (spx_close(cb));
+
+	spx_close(cb);
 }
 
-static struct spxpcb *
+/*
+ * cb will always be invalid after this call.
+ */
+static void
 spx_disconnect(cb)
 	register struct spxpcb *cb;
 {
-	return (spx_close(cb));
+
+	spx_close(cb);
 }
 
 /*
  * Drop connection, reporting
  * the specified error.
+ * cb will always be invalid after this call.
  */
-static struct spxpcb *
+static void
 spx_drop(cb, errno)
 	register struct spxpcb *cb;
 	int errno;
@@ -1707,7 +1712,7 @@ spx_drop(cb, errno)
 	} else
 		spxstat.spxs_conndrops++;
 	so->so_error = errno;
-	return (spx_close(cb));
+	spx_close(cb);
 }
 
 /*
@@ -1807,7 +1812,8 @@ spx_timers(cb, timer)
 		if (++cb->s_rxtshift > SPX_MAXRXTSHIFT) {
 			cb->s_rxtshift = SPX_MAXRXTSHIFT;
 			spxstat.spxs_timeoutdrop++;
-			cb = spx_drop(cb, ETIMEDOUT);
+			spx_drop(cb, ETIMEDOUT);
+			cb = NULL;
 			break;
 		}
 		spxstat.spxs_rexmttimeo++;
@@ -1872,7 +1878,8 @@ spx_timers(cb, timer)
 		break;
 	dropit:
 		spxstat.spxs_keepdrops++;
-		cb = spx_drop(cb, ETIMEDOUT);
+		spx_drop(cb, ETIMEDOUT);
+		cb = NULL;
 		break;
 	}
 	return (cb);
