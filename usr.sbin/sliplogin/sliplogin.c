@@ -88,6 +88,13 @@ static char sccsid[] = "@(#)sliplogin.c	8.2 (Berkeley) 2/1/94";
 #include <signal.h>
 #include "pathnames.h"
 
+extern char **environ;
+
+static char *restricted_environ[] = {
+	"PATH=" _PATH_STDPATH,
+	NULL
+};
+
 int	unit;
 int	slip_mode;
 speed_t speed;
@@ -123,6 +130,8 @@ findid(name)
 	char user[16];
 	char buf[128];
 	int i, j, n;
+
+	environ = restricted_environ; /* minimal protection for system() */
 
 	(void)strcpy(loginname, name);
 	if ((fp = fopen(_PATH_ACCESS, "r")) == NULL) {
