@@ -1462,9 +1462,11 @@ skip:
 	 * c) expand it to the absolute pathname if necessary.
 	 */
 	if (dochroot && residue &&
-	    (chrootdir = strtok(residue, " \t")) != NULL &&
-	    chrootdir[0] != '/') {
-		asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
+	    (chrootdir = strtok(residue, " \t")) != NULL) {
+		if (chrootdir[0] != '/')
+			asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
+		else
+			chrootdir = strdup(chrootdir); /* so it can be freed */
 		if (chrootdir == NULL)
 			fatalerror("Ran out of memory.");
 	}
