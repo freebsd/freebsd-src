@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dbwrite.c,v 1.1.1.1 1995/12/25 03:07:13 wpaul Exp $
+ *	$Id: yp_dbwrite.c,v 1.9 1996/02/04 04:08:11 wpaul Exp wpaul $
  *
  */
 #include <stdio.h>
@@ -42,11 +42,11 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <paths.h>
-#include "yp.h"
+#include <rpcsvc/yp.h>
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.1.1.1 1995/12/25 03:07:13 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.9 1996/02/04 04:08:11 wpaul Exp wpaul $";
 #endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
@@ -95,10 +95,19 @@ int yp_put_record(dbp,key,data)
 	DBT *key;
 	DBT *data;
 {
+	int rval;
 
-	if ((dbp->put)(dbp,key,data,0)) {
-		(void)(dbp->close)(dbp);
-		return(YP_BADDB);
+	if ((rval = (dbp->put)(dbp,key,data,R_NOOVERWRITE))) {
+		switch(rval) {
+		case 1:
+			return(YP_FALSE);
+			break;
+		case -1:
+		default:
+			(void)(dbp->close)(dbp);
+			return(YP_BADDB);
+			break;
+		}
 	}
 
 	return(YP_TRUE);
