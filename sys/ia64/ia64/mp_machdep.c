@@ -47,15 +47,15 @@
 #include <vm/vm_kern.h>
 
 #include <machine/atomic.h>
-#include <machine/cpu.h>
+#include <machine/clock.h>
+#include <machine/fpu.h>
+#include <machine/mca.h>
+#include <machine/md_var.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
-#include <machine/clock.h>
-#include <machine/mca.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
-#include <machine/fpu.h>
 #include <i386/include/specialreg.h>
 
 MALLOC_DECLARE(M_PMAP);

@@ -92,8 +92,13 @@ get_cyclecount(void)
 
 #define	cpu_getstack(td)	((td)->td_frame->fixreg[1])
 
-void	savectx(struct pcb *);
+void	cpu_halt(void);
+void	cpu_reset(void);
 void	fork_trampoline(void);
+void	swi_vm(void *);
+
+/* XXX the following should not be here. */
+void	savectx(struct pcb *);
 int	kcopy(const void *, void *, size_t);
 
 #endif	/* _MACHINE_CPU_H_ */

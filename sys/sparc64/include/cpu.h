@@ -77,7 +77,10 @@
 extern	char btext[];
 extern	char etext[];
 
+void	cpu_halt(void);
+void	cpu_reset(void);
 void	fork_trampoline(void);
+void	swi_vm(void *v);
 
 static __inline u_int64_t
 get_cyclecount(void)

@@ -307,23 +307,3 @@ swi_vm(void *dummy)
 		busdma_swi();
 #endif
 }
-
-/*
- * Tell whether this address is in some physical memory region.
- * Currently used by the kernel coredump code in order to avoid
- * dumping the ``ISA memory hole'' which could cause indefinite hangs,
- * or other unpredictable behaviour.
- */
-
-
-int
-is_physical_memory(addr)
-	vm_offset_t addr;
-{
-	/*
-	 * stuff other tests for known memory-mapped devices (PCI?)
-	 * here
-	 */
-
-	return 1;
-}

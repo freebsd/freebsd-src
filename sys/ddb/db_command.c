@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
 
-#include <machine/md_var.h>
+#include <machine/cpu.h>
 #include <machine/setjmp.h>
 
 /*
