@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/07/11 05:52:34 joerg Exp $
+#	$Id: Makefile,v 1.2 1997/07/12 10:23:27 joerg Exp $
 #
 
 PROG=	boot
@@ -18,21 +18,6 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I${.CURDIR}/../biosboot
 CFLAGS+=	-DCDBOOT
 CFLAGS+=	${CWARNFLAGS}
 #CFLAGS+=	-DDEBUG
-
-# Probe the keyboard and use the serial console if the keyboard isn't found.
-.if defined(BOOT_PROBE_KEYBOARD)
-CFLAGS+=	-DPROBE_KEYBOARD
-.endif
-
-# Probe the keyboard lock and use the serial console if the keyboard is locked.
-.if defined(BOOT_PROBE_KEYBOARD_LOCK)
-CFLAGS+=	-DPROBE_KEYBOARD_LOCK
-.endif
-
-# Force use of the serial console.
-.if defined(BOOT_FORCE_COMCONSOLE)
-CFLAGS+=	-DFORCE_COMCONSOLE
-.endif
 
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
@@ -60,7 +45,7 @@ CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 # SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
-CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
+CLEANFILES+=	boot.img boot.nohdr boot.strip
 LDFLAGS+=	-N -T 0 -nostdlib
 #LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
 #		${BINDIR}/sdboot ${BINDIR}/fdboot\
@@ -90,19 +75,7 @@ boot.nohdr:	boot.strip
 	dd if=boot.strip of=boot.nohdr ibs=32 skip=1 obs=1024b
 	ls -l boot.nohdr
 
-boot1:		boot.nohdr
-	dd if=boot.nohdr of=boot1 bs=512 count=1
-
-boot2:		boot.nohdr
-	dd if=boot.nohdr of=boot2 bs=512 skip=1
-	@dd if=boot2 skip=14 of=sizetest 2> /dev/null
-	@if [ -s sizetest ] ; then \
-		echo "boot2 is too big" >&2 ; \
-		rm boot2 ; \
-		exit 2 ; \
-	fi
-
-boot.img: boot.nohdr
+boot.img:	boot.nohdr
 	dd if=boot.nohdr of=boot.img bs=1440k count=1 conv=sync
 
 all:		boot.img
