@@ -294,6 +294,15 @@ and
 .Ar arguments
 are not subject to the further expansion of shell patterns
 and constructs.
+.It Ic -exec Ar utility Oo Ar argument ... Oc {} +
+Same as
+.Ic -exec ,
+except that
+.Dq Li {}
+is replaced with as many pathnames as possible for each invocation of
+.Ar utility .
+This behaviour is similar to that of
+.Xr xargs 1 .
 .It Ic -execdir Ar utility Op Ar argument ... ;
 The
 .Ic -execdir
