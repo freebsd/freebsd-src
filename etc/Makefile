@@ -335,7 +335,7 @@ distrib-dirs:
 .if defined(CDROMDIST)
 	mtree -u -f mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
-	cd ${DESTDIR}; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
+	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
 floppies: kcopy-ah-floppy kcopy-bt-floppy filesystem-floppy \
 	  cpio-floppy
