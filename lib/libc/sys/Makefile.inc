@@ -1,5 +1,5 @@
-#	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id$
+#	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
+#	$Id: Makefile.inc,v 1.22 1997/02/22 15:03:35 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
@@ -34,7 +34,7 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
 	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
 	swapon.o symlink.o sync.o sysarch.o \
-	umask.o unlink.o unmount.o utimes.o utrace.o \
+	umask.o undelete.o unlink.o unmount.o utimes.o utrace.o \
 	vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
 
 PSEUDO=	_exit.o _getlogin.o
@@ -105,7 +105,7 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/sigaltstack.2 sys/sigstack.2 sys/sigsuspend.2 sys/socket.2 \
 	sys/socketpair.2 sys/stat.2 sys/statfs.2 sys/swapon.2 sys/symlink.2 \
 	sys/sync.2 sys/syscall.2 sys/truncate.2 sys/umask.2 sys/unlink.2 \
-	sys/utimes.2 sys/vfork.2 sys/wait.2 sys/write.2
+	sys/undelete.2 sys/utimes.2 sys/vfork.2 sys/wait.2 sys/write.2
 
 MLINKS+=brk.2 sbrk.2
 MLINKS+=dup.2 dup2.2

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)mmap.2	8.1 (Berkeley) 6/4/93
+.\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\"
-.Dd "June 4, 1993"
+.Dd "May 11, 1995"
 .Dt MMAP 2
 .Os BSD 4
 .Sh NAME
@@ -54,11 +54,10 @@ bytes to be mapped from the object described by
 starting at byte offset
 .Fa offset .
 If
-.Fa offset
-or
 .Fa len
 is not a multiple of the pagesize, the mapped region may extend past the
 specified range.
+Any such extension beyond the end of the mapped object will be zero-filled.
 .Pp
 If
 .Fa addr
@@ -104,9 +103,10 @@ the following values:
 Map anonymous memory not associated with any specific file.
 The file descriptor used for creating
 .Dv MAP_ANON
-regions is used only for
-naming, and may be specified as \-1 if no name is associated with the
-region.
+must be \-1.
+The
+.Fa offset
+parameter is ignored.
 .\".It Dv MAP_FILE
 .\"Mapped from a regular file or character-special device memory.
 .It Dv MAP_FIXED
@@ -165,12 +165,10 @@ parameter and
 .Fa fd
 was not open for reading.
 The flags
-.Dv PROT_WRITE ,
 .Dv MAP_SHARED
 and
-.Dv MAP_WRITE
-were specified as part
-of the
+.Dv PROT_WRITE
+were specified as part of the
 .Fa flags
 and
 .Fa prot
@@ -183,7 +181,6 @@ is not a valid open file descriptor.
 .It Bq Er EINVAL
 .Dv MAP_FIXED
 was specified and the
-.Fa addr
 parameter was not page aligned, or part of the desired address space
 resides out of the valid address space for a user process.
 .It Bq Er EINVAL
