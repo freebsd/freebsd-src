@@ -1008,12 +1008,11 @@ cpu_halt(void)
  * XXX we need to have a cpu mask of idle cpus and generate an IPI or
  * otherwise generate some sort of interrupt to wake up cpus sitting in HLT.
  * Then we can have our cake and eat it too.
+ *
+ * XXX I'm turning it on for SMP as well by default for now.  It seems to
+ * help lock contention somewhat, and this is critical for HTT. -Peter
  */
-#ifdef SMP
-static int	cpu_idle_hlt = 0;
-#else
 static int	cpu_idle_hlt = 1;
-#endif
 SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
     &cpu_idle_hlt, 0, "Idle loop HLT enable");
 
