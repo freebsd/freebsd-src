@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.2 1999/01/12 10:35:58 yokota Exp $
+ * $Id$
  */
 
 #include "kbd.h"
@@ -59,48 +59,73 @@ static keyboard_switch_t *kbdsw_ini;
        keyboard_switch_t **kbdsw = &kbdsw_ini;
 
 #ifdef KBD_INSTALL_CDEV
+static struct cdevsw	*kbdcdevsw_ini;
+static struct cdevsw	**kbdcdevsw = &kbdcdevsw_ini;
+#endif
 
 #define ARRAY_DELTA	4
 
-static struct cdevsw	*kbdcdevsw_ini;
-static struct cdevsw	**kbdcdevsw = &kbdcdevsw_ini;
-
-static void
+static int
 kbd_realloc_array(void)
 {
 	keyboard_t **new_kbd;
 	keyboard_switch_t **new_kbdsw;
+#ifdef KBD_INSTALL_CDEV
 	struct cdevsw **new_cdevsw;
+#endif
 	int newsize;
 	int s;
 
 	s = spltty();
 	newsize = ((keyboards + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
 	new_kbd = malloc(sizeof(*new_kbd)*newsize, M_DEVBUF, M_NOWAIT);
+	if (new_kbd == NULL) {
+		splx(s);
+		return ENOMEM;
+	}
 	new_kbdsw = malloc(sizeof(*new_kbdsw)*newsize, M_DEVBUF, M_NOWAIT);
+	if (new_kbdsw == NULL) {
+		free(new_kbd, M_DEVBUF);
+		splx(s);
+		return ENOMEM;
+	}
+#ifdef KBD_INSTALL_CDEV
 	new_cdevsw = malloc(sizeof(*new_cdevsw)*newsize, M_DEVBUF, M_NOWAIT);
+	if (new_cdevsw == NULL) {
+		free(new_kbd, M_DEVBUF);
+		free(new_kbdsw, M_DEVBUF);
+		splx(s);
+		return ENOMEM;
+	}
+#endif
 	bzero(new_kbd, sizeof(*new_kbd)*newsize);
 	bzero(new_kbdsw, sizeof(*new_kbdsw)*newsize);
-	bzero(new_cdevsw, sizeof(*new_cdevsw)*newsize);
 	bcopy(keyboard, new_kbd, sizeof(*keyboard)*keyboards);
 	bcopy(kbdsw, new_kbdsw, sizeof(*kbdsw)*keyboards);
+#ifdef KBD_INSTALL_CDEV
+	bzero(new_cdevsw, sizeof(*new_cdevsw)*newsize);
 	bcopy(kbdcdevsw, new_cdevsw, sizeof(*kbdcdevsw)*keyboards);
+#endif
 	if (keyboards > 1) {
 		free(keyboard, M_DEVBUF);
 		free(kbdsw, M_DEVBUF);
+#ifdef KBD_INSTALL_CDEV
 		free(kbdcdevsw, M_DEVBUF);
+#endif
 	}
 	keyboard = new_kbd;
 	kbdsw = new_kbdsw;
+#ifdef KBD_INSTALL_CDEV
 	kbdcdevsw = new_cdevsw;
+#endif
 	keyboards = newsize;
 	splx(s);
 
 	if (bootverbose)
 		printf("kbd: new array size %d\n", keyboards);
-}
 
-#endif /* KBD_INSTALL_CDEV */
+	return 0;
+}
 
 /*
  * Low-level keyboard driver functions
@@ -118,7 +143,7 @@ kbd_init_struct(keyboard_t *kbd, char *name, int type, int unit, int config,
 	kbd->kb_name = name;
 	kbd->kb_type = type;
 	kbd->kb_unit = unit;
-	kbd->kb_config = config;
+	kbd->kb_config = config & ~KB_CONF_PROBE_ONLY;
 	kbd->kb_led = 0;		/* unknown */
 	kbd->kb_io_base = port;
 	kbd->kb_io_size = port_size;
@@ -127,6 +152,8 @@ kbd_init_struct(keyboard_t *kbd, char *name, int type, int unit, int config,
 	kbd->kb_accentmap = NULL;
 	kbd->kb_fkeytab = NULL;
 	kbd->kb_fkeytab_size = 0;
+	kbd->kb_delay1 = KB_DELAY1;	/* these values are advisory only */
+	kbd->kb_delay2 = KB_DELAY2;
 }
 
 void
@@ -151,8 +178,10 @@ kbd_register(keyboard_t *kbd)
 		if (keyboard[index] == NULL)
 			break;
 	}
-	if (index >= keyboards)
-		return -1;
+	if (index >= keyboards) {
+		if (kbd_realloc_array())
+			return -1;
+	}
 
 	kbd->kb_index = index;
 	KBD_UNBUSY(kbd);
@@ -415,9 +444,6 @@ kbd_attach(dev_t dev, keyboard_t *kbd, struct cdevsw *cdevsw)
 	splx(s);
 
 	/* XXX: DEVFS? */
-
-	if (kbd->kb_index + 1 >= keyboards)
-		kbd_realloc_array();
 
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);
 	return 0;
@@ -845,9 +871,14 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		bcopy(kbd->kb_keymap, arg, sizeof(*kbd->kb_keymap));
 		break;
 	case PIO_KEYMAP:	/* set keyboard translation table */
+#ifndef KBD_DISABLE_KEYMAP_LOAD
 		bzero(kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
 		bcopy(arg, kbd->kb_keymap, sizeof(*kbd->kb_keymap));
 		break;
+#else
+		splx(s);
+		return ENODEV;
+#endif
 
 	case GIO_KEYMAPENT:	/* get keyboard translation table entry */
 		keyp = (keyarg_t *)arg;
@@ -860,6 +891,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		      sizeof(keyp->key));
 		break;
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
+#ifndef KBD_DISABLE_KEYMAP_LOAD
 		keyp = (keyarg_t *)arg;
 		if (keyp->keynum >= sizeof(kbd->kb_keymap->key)
 					/sizeof(kbd->kb_keymap->key[0])) {
@@ -869,13 +901,22 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		bcopy(&keyp->key, &kbd->kb_keymap->key[keyp->keynum],
 		      sizeof(keyp->key));
 		break;
+#else
+		splx(s);
+		return ENODEV;
+#endif
 
 	case GIO_DEADKEYMAP:	/* get accent key translation table */
 		bcopy(kbd->kb_accentmap, arg, sizeof(*kbd->kb_accentmap));
 		break;
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
+#ifndef KBD_DISABLE_KEYMAP_LOAD
 		bcopy(arg, kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
 		break;
+#else
+		splx(s);
+		return ENODEV;
+#endif
 
 	case GETFKEY:		/* get functionkey string */
 		fkeyp = (fkeyarg_t *)arg;
@@ -888,6 +929,7 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		fkeyp->flen = kbd->kb_fkeytab[fkeyp->keynum].len;
 		break;
 	case SETFKEY:		/* set functionkey string */
+#ifndef KBD_DISABLE_KEYMAP_LOAD
 		fkeyp = (fkeyarg_t *)arg;
 		if (fkeyp->keynum >= kbd->kb_fkeytab_size) {
 			splx(s);
@@ -897,6 +939,10 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		bcopy(fkeyp->keydef, kbd->kb_fkeytab[fkeyp->keynum].str,
 		      kbd->kb_fkeytab[fkeyp->keynum].len);
 		break;
+#else
+		splx(s);
+		return ENODEV;
+#endif
 
 	default:
 		splx(s);

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.15 1999/04/30 19:32:35 wpaul Exp $
+#	$Id$
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -862,6 +862,14 @@ controller	atkbdc0	at isa? port IO_KBD tty
 # The AT keyboard
 device		atkbd0	at isa? tty irq 1
 
+# Options for atkbd:
+options		ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP="jp.106"
+
+# These options are valid for other keyboard drivers as well.
+options		KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
+options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
 #       0x02    Don't reset keyboard, useful for some newer ThinkPads
@@ -892,6 +900,9 @@ options		VGA_NO_MODE_CHANGE	# don't change video modes
 # Older video cards may require this option for proper operation.
 options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
 
+# To include support for VESA video modes
+options		VESA			# needs VM86 defined too!!
+
 # Splash screen at start up!  Screen savers require this too.
 pseudo-device	splash
 
@@ -909,10 +920,6 @@ options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
-
-# To include support for VESA video modes
-# Dont use together with SMP!!
-options		VESA			# needs VM86 defined too!!
 
 #
 # `flags' for sc0:

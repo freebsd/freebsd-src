@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id$
  */
 
 #ifndef _DEV_KBD_ATKBDREG_H_
@@ -52,9 +52,9 @@ typedef struct atkbd_softc {
 #ifdef __i386__
 atkbd_softc_t	*atkbd_get_softc(int unit);
 #endif
-int		atkbd_probe_unit(int unit, atkbd_softc_t *sc,
+int		atkbd_probe_unit(int unit, int port, int irq, int flags);
+int		atkbd_attach_unit(int unit, atkbd_softc_t *sc,
 				 int port, int irq, int flags);
-int		atkbd_attach_unit(int unit, atkbd_softc_t *sc);
 
 #endif /* KERNEL */
 

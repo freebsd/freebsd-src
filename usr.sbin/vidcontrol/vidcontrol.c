@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.25 1999/01/11 03:20:32 yokota Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -431,11 +431,7 @@ static char
 void
 show_adapter_info(void)
 {
-#ifdef __i386__
 	struct video_adapter_info ad;
-#else
-	struct video_adapter ad;
-#endif
 
 	ad.va_index = 0;
 	if (ioctl(0, CONS_ADPINFO, &ad)) {
@@ -444,12 +440,8 @@ show_adapter_info(void)
 	}
 
 	printf("fb%d:\n", ad.va_index);
-#ifdef __i386__
 	printf("    %.*s%d, type:%s%s (%d), flags:0x%x\n",
 	       (int)sizeof(ad.va_name), ad.va_name, ad.va_unit,
-#else
-	printf("    type:%s%s (%d), flags:0x%x\n",
-#endif
 	       (ad.va_flags & V_ADP_VESA) ? "VESA " : "",
 	       adapter_name(ad.va_type), ad.va_type, ad.va_flags);
 	printf("    initial mode:%d, current mode:%d, BIOS mode:%d\n",
@@ -490,10 +482,10 @@ show_mode_info(void)
 			 info.vi_cwidth, info.vi_cheight); 
 		printf(" %-5s", buf);
     		printf(" 0x%05x %2dk %2dk", 
-		       info.vi_window, info.vi_window_size/1024, 
-		       info.vi_window_gran/1024);
+		       info.vi_window, (int)info.vi_window_size/1024, 
+		       (int)info.vi_window_gran/1024);
     		printf(" 0x%08x %2dk\n",
-		       info.vi_buffer, info.vi_buffer_size/1024);
+		       info.vi_buffer, (int)info.vi_buffer_size/1024);
 	}
 }
 

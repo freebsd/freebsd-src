@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.293.2.1 1999/01/31 12:52:18 yokota Exp $
+ *	$Id$
  */
 
 #include "sc.h"
@@ -172,7 +172,9 @@ static  long		scrn_time_stamp;
 static	int		saver_mode = CONS_LKM_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	int		scrn_idle = FALSE;	/* about to run the saver */
+#if NSPLASH > 0
 static	int		scrn_saver_failed;
+#endif
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 static	int		initial_video_mode;	/* initial video mode # */
@@ -261,6 +263,8 @@ static const int	nsccons = MAXCONS+2;
 		(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
 #define kbd_get_fkeystr(kbd, fkey, len)					\
 		(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
+#define kbd_poll(kbd, on)						\
+		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 
 /* prototypes */
 static kbd_callback_func_t sckbdevent;
@@ -438,7 +442,7 @@ draw_cursor_image(scr_stat *scp)
 	    cursor_image |= DEAD_CHAR;
 	}
     } else {
-	cursor_image = (readw(ptr) & 0x00ff) | *(scp->cursor_pos) & 0xff00;
+	cursor_image = (readw(ptr) & 0x00ff) | (*(scp->cursor_pos) & 0xff00);
 	scp->cursor_saveunder = cursor_image;
 	if (!(sc_flags & BLINK_CURSOR)||((sc_flags & BLINK_CURSOR)&&(blinkrate & 4))){
 	    if ((cursor_image & 0x7000) == 0x7000) {
@@ -1564,10 +1568,16 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	*(int *)data = scp->status & LOCK_MASK;
 	return 0;
 
-    case KDSETRAD:      	/* set keyboard repeat & delay rates */
+    case KDSETREPEAT:      	/* set keyboard repeat & delay rates (new) */
+	error = kbd_ioctl(kbd, cmd, data);
+	if (error == ENOIOCTL)
+	    error = ENODEV;
+	return error;
+
+    case KDSETRAD:      	/* set keyboard repeat & delay rates (old) */
 	if (*(int *)data & ~0x7f)
 	    return EINVAL;
-	error = kbd_ioctl(kbd, KDSETRAD, data);
+	error = kbd_ioctl(kbd, cmd, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1994,7 +2004,9 @@ sccngetch(int flags)
     cur_console->kbd_mode = K_XLATE;
     kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&cur_console->kbd_mode);
 
+    kbd_poll(kbd, TRUE);
     c = scgetc(kbd, SCGETC_CN | flags);
+    kbd_poll(kbd, FALSE);
 
     cur_console->kbd_mode = cur_mode;
     kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&cur_console->kbd_mode);

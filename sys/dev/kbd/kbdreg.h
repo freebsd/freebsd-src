@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbdreg.h,v 1.1 1999/01/09 02:44:50 yokota Exp $
+ * $Id$
  */
 
 #ifndef _DEV_KBD_KBDREG_H_
@@ -83,6 +83,10 @@ struct keyboard {
 	struct fkeytab	*kb_fkeytab;	/* function key strings */
 	int		kb_fkeytab_size;/* # of function key strings */
 	void		*kb_data;	/* the driver's private data */
+	int		kb_delay1;
+	int		kb_delay2;
+#define KB_DELAY1	500
+#define KB_DELAY2	100
 };
 
 #define KBD_IS_VALID(k)		((k)->kb_flags & KB_VALID)
@@ -105,11 +109,11 @@ struct keyboard {
 #define KBD_LED_VAL(k)		((k)->kb_led)
 
 /* keyboard function table */
-typedef int		kbd_probe_t(int unit, keyboard_t **kbdp, void *arg,
-				    int flags);
-typedef int		kbd_init_t(keyboard_t *kbd);
+typedef int		kbd_probe_t(int unit, void *arg, int flags);
+typedef int		kbd_init_t(int unit, keyboard_t **kbdp, void *arg,
+				   int flags);
 typedef int		kbd_term_t(keyboard_t *kbd);
-typedef int		kbd_intr_t(keyboard_t *kbd);
+typedef int		kbd_intr_t(keyboard_t *kbd, void *arg);
 typedef int		kbd_test_if_t(keyboard_t *kbd);
 typedef int		kbd_enable_t(keyboard_t *kbd);
 typedef int		kbd_disable_t(keyboard_t *kbd);
@@ -124,6 +128,7 @@ typedef int		kbd_get_state_t(keyboard_t *kbd, void *buf, size_t len);
 typedef int		kbd_set_state_t(keyboard_t *kbd, void *buf, size_t len);
 typedef u_char		*kbd_get_fkeystr_t(keyboard_t *kbd, int fkey,
 					   size_t *len);
+typedef int		kbd_poll_mode_t(keyboard_t *kbd, int on);
 typedef void		kbd_diag_t(keyboard_t *kbd, int level);
 
 typedef struct keyboard_switch {
@@ -144,6 +149,7 @@ typedef struct keyboard_switch {
 	kbd_get_state_t	*get_state;
 	kbd_set_state_t	*set_state;
 	kbd_get_fkeystr_t *get_fkeystr;
+	kbd_poll_mode_t *poll;
 	kbd_diag_t	*diag;
 } keyboard_switch_t;
 
@@ -157,10 +163,10 @@ typedef struct keyboard_driver {
 #ifdef KERNEL
 
 #define KEYBOARD_DRIVER(name, sw, config)		\
-	static struct keyboard_driver name##_driver = {	\
+	static struct keyboard_driver name##_kbd_driver = { \
 		#name, &sw, config			\
 	};						\
-	DATA_SET(kbddriver_set, name##_driver);
+	DATA_SET(kbddriver_set, name##_kbd_driver);
 
 /* global variables */
 extern keyboard_switch_t **kbdsw;

@@ -635,7 +635,7 @@ r_entry:
 
 	if (kbd == NULL)
 		return;		/* shouldn't happen */
-	(*kbdsw[kbd->kb_index]->init)(kbd);
+	kbd_configure(0);
 
 	ledstate = LEDSTATE_UPDATE_PENDING;
 
@@ -1889,7 +1889,7 @@ kbdioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 			break;
 
 		case KBDSLEDS:
-			update_led();	/* ??? */
+			update_led();	/* ? */
 			break;
 
 		case KBDGLOCK:
@@ -2254,7 +2254,7 @@ fkey8(void)
 	{
 		if(vsp->vt_pure_mode == M_PUREVT
 		   || (vsp->which_fkl == USR_FKL))
-			more_chars = (u_char *)"\033[35~";	/* F21 ??!! */
+			more_chars = (u_char *)"\033[35~";	/* F21 ? !! */
 	}
 }
 
