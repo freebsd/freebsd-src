@@ -1,6 +1,6 @@
-#
 # $FreeBSD$
-#
+
+.PATH: ${.CURDIR}/../common
 
 SRCS=		crt1.c crtbegin.c crtend.c
 OBJS=		crt1.o crtbegin.o crtend.o
@@ -14,7 +14,7 @@ INTERNALLIB=	true
 
 all: ${OBJS} ${SOBJS}
 
-gcrt1.o:	crt1.c
+gcrt1.o:  crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
 realinstall:
