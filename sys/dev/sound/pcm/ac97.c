@@ -75,7 +75,7 @@ struct ac97_codecid {
 static const struct ac97mixtable_entry ac97mixtable_default[32] = {
     /*	[offset]			reg	     bits of st mu re mk en */
 	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER, 	5, 0, 1, 1, 6, 0, 1 },
-	[SOUND_MIXER_MONITOR]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
+	[SOUND_MIXER_OGAIN]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
 	[SOUND_MIXER_PHONEOUT]	= { AC97_MIX_MONO, 	5, 0, 0, 1, 7, 0, 0 },
 	[SOUND_MIXER_BASS]	= { AC97_MIX_TONE, 	4, 8, 0, 0, 0, 1, 0 },
 	[SOUND_MIXER_TREBLE]	= { AC97_MIX_TONE, 	4, 0, 0, 0, 0, 1, 0 },
@@ -124,15 +124,15 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x41445361, 0x00, 0, "AD1886", 	ad1886_patch },
 	{ 0x41445362, 0x00, 0, "AD1887", 	0 },
 	{ 0x41445363, 0x00, 0, "AD1886A", 	0 },
-	{ 0x41445370, 0x00, 0, "AD1980",	0 },
+	{ 0x41445370, 0x00, 0, "AD1980",	ad198x_patch },
 	{ 0x41445372, 0x00, 0, "AD1981A",	0 },
 	{ 0x41445374, 0x00, 0, "AD1981B",	0 },
-	{ 0x41445375, 0x00, 0, "AD1985",	0 },
+	{ 0x41445375, 0x00, 0, "AD1985",	ad198x_patch },
 	{ 0x414b4d00, 0x00, 1, "AK4540", 	0 },
 	{ 0x414b4d01, 0x00, 1, "AK4542", 	0 },
 	{ 0x414b4d02, 0x00, 1, "AK4543", 	0 },
 	{ 0x414c4320, 0x0f, 0, "ALC100",	0 },
-	{ 0x414c4730, 0x0f, 0, "ALC101",	0 },	
+	{ 0x414c4730, 0x0f, 0, "ALC101",	0 },
 	{ 0x414c4710, 0x0f, 0, "ALC200", 	0 },
 	{ 0x414c4740, 0x0f, 0, "ALC202", 	0 },
 	{ 0x414c4720, 0x0f, 0, "ALC650", 	0 },
@@ -404,7 +404,7 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 
 		/*
 		 * For mono controls, trim val and mask, also taking
-		 * care of e->ofs (offset of control field).  
+		 * care of e->ofs (offset of control field).
 		 */
 		if (e->ofs) {
 			val &= max;
@@ -440,34 +440,22 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 	}
 }
 
-#if 0
-static int
-ac97_getmixer(struct ac97_info *codec, int channel)
-{
-	struct ac97mixtable_entry *e = &codec->mix[channel];
-	if (channel < SOUND_MIXER_NRDEVICES && e->reg != 0) {
-		int max, val, volume;
-
-		max = (1 << e->bits) - 1;
-		val = ac97_rdcd(code, e->reg);
-		if (val == AC97_MUTE && e->mute == 1)
-			volume = 0;
-		else {
-			if (e->stereo == 0) val >>= e->ofs;
-			val &= max;
-			volume = (val * 100) / max;
-			if (e->reg > 0) volume = 100 - volume;
-		}
-		return volume;
-	} else
-		return -1;
-}
-#endif
-
 static void
 ac97_fix_auxout(struct ac97_info *codec)
 {
-	/* Determine what AUXOUT really means, it can be:
+	/*
+	 * Determine if AUX_OUT is a valid control.
+	 *
+	 * Control will read zero if not valid after a reset, other gain
+	 * controls read muted (0x8000).
+	 */
+	if (ac97_rdcd(codec, AC97_MIX_AUXOUT) == 0) {
+		bzero(&codec->mix[SOUND_MIXER_OGAIN],
+		      sizeof(codec->mix[SOUND_MIXER_OGAIN]));
+	}
+
+	/*
+	 * Determine what AUX_OUT really means, it can be:
 	 *
 	 * 1. Headphone out.
 	 * 2. 4-Channel Out
@@ -475,22 +463,28 @@ ac97_fix_auxout(struct ac97_info *codec)
 	 *
 	 * See Sections 5.2.1 and 5.27 for AUX_OUT Options in AC97r2.{2,3}.
 	 */
-	if (codec->caps & AC97_CAP_HEADPHONE) {
-		/* XXX We should probably check the AUX_OUT initial value.
-		 * Leave AC97_MIX_AUXOUT - SOUND_MIXER_MONITOR relationship */
-		return;
-	} else if (codec->extcaps & AC97_EXTCAP_SDAC &&
-		   ac97_rdcd(codec, AC97_MIXEXT_SURROUND) == 0x8080) {
-		/* 4-Channel Out, add an additional gain setting. */
-		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
-	} else {
-		/* Master volume is/maybe fixed in h/w, not sufficiently
-		 * clear in spec to blat SOUND_MIXER_MASTER. */
-		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
+	if (codec->extcaps & AC97_EXTCAP_SDAC &&
+	    ac97_rdcd(codec, AC97_MIXEXT_SURROUND) == 0x8080) {
+		codec->mix[SOUND_MIXER_VOLUME].reg = AC97_MIXEXT_SURROUND;
+	} else if (codec->caps & AC97_CAP_HEADPHONE) {
+		/* Headphone out present/selected AUX_OUT is effectively
+		 * master volume control. */
+		struct ac97mixtable_entry tmp = codec->mix[SOUND_MIXER_VOLUME];
+		codec->mix[SOUND_MIXER_VOLUME] = codec->mix[SOUND_MIXER_OGAIN];
+		codec->mix[SOUND_MIXER_OGAIN] = tmp;
 	}
-	/* Blat monitor, inappropriate label if we get here */
-	bzero(&codec->mix[SOUND_MIXER_MONITOR],
-	      sizeof(codec->mix[SOUND_MIXER_MONITOR]));
+}
+
+static void
+ac97_fix_tone(struct ac97_info *codec)
+{
+	/* Hide treble and bass if they don't exist */
+	if ((codec->caps & AC97_CAP_TONE) == 0) {
+		bzero(&codec->mix[SOUND_MIXER_BASS],
+		      sizeof(codec->mix[SOUND_MIXER_BASS]));
+		bzero(&codec->mix[SOUND_MIXER_TREBLE],
+		      sizeof(codec->mix[SOUND_MIXER_TREBLE]));
+	}
 }
 
 static const char*
@@ -502,7 +496,7 @@ ac97_hw_desc(u_int32_t id, const char* vname, const char* cname, char* buf)
 	}
 
 	if (vname == NULL) vname = "Unknown";
-	
+
 	if (bootverbose) {
 		sprintf(buf, "%s %s AC97 Codec (id = 0x%08x)", vname, cname, id);
 	} else {
@@ -586,6 +580,7 @@ ac97_initmixer(struct ac97_info *codec)
 		codec->mix[i] = ac97mixtable_default[i];
 	}
 	ac97_fix_auxout(codec);
+	ac97_fix_tone(codec);
 	if (codec_patch)
 		codec_patch(codec);
 
