@@ -20,7 +20,7 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc(struct frame_info *fr);
 #undef  FRAME_SAVED_PC
 #define FRAME_SAVED_PC(FRAME) \
   (kernel_debugging \
-    ? fbsd_kern_frame_saved_pc(FRAME) : \
+    ? fbsd_kern_frame_saved_pc (FRAME) : \
     (FRAME)->signal_handler_caller \
       ? sigtramp_saved_pc (FRAME) \
       : read_memory_integer ((FRAME)->frame + 4, 4))
