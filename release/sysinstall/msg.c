@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.13 1996/05/24 06:08:58 jkh Exp $
+ * $Id: msg.c,v 1.29.2.14 1996/06/08 12:06:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,7 +99,7 @@ msgInfo(char *fmt, ...)
 	    break;
     }
     line[80] = '\0';
-    attrset(title_attr);
+    attrset(ATTR_TITLE);
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, line);
     attrset(attrs);
     move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 79);
@@ -121,7 +121,7 @@ msgWarn(char *fmt, ...)
     va_end(args);
     attrs = getattrs(stdscr);
     beep();
-    attrset(title_attr);
+    attrset(ATTR_TITLE);
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
@@ -144,7 +144,7 @@ msgError(char *fmt, ...)
     va_end(args);
     beep();
     attrs = getattrs(stdscr);
-    attrset(title_attr);
+    attrset(ATTR_TITLE);
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
@@ -167,7 +167,7 @@ msgFatal(char *fmt, ...)
     va_end(args);
     beep();
     attrs = getattrs(stdscr);
-    attrset(title_attr);
+    attrset(ATTR_TITLE);
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.12 1996/04/28 20:54:04 jkh Exp $
+ * $Id: network.c,v 1.7.2.21 1996/05/24 06:08:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,7 +51,6 @@ mediaInitNetwork(Device *dev)
     int i;
     char *rp;
     char *cp, ifconfig[64];
-    char ifname[255];
 
     if (!RunningAsInit || networkInitialized)
 	return TRUE;
@@ -65,58 +64,52 @@ mediaInitNetwork(Device *dev)
 	kill((pid_t)dev->private, SIGTERM);
 	dev->private = NULL;
     }
-    if (!strncmp("cuaa", dev->name, 4)) {
-	if (!msgYesNo("You have selected a serial-line network interface.\n"
-		      "Do you want to use PPP with it?")) {
-	    if (!(dev->private = (void *)startPPP(dev))) {
-		msgConfirm("Unable to start PPP!  This installation method cannot be used.");
-		return FALSE;
-	    }
-	    networkInitialized = TRUE;
-	    return TRUE;
+    if (!strncmp("ppp", dev->name, 3)) {	/* PPP? */
+	if (!(dev->private = (void *)startPPP(dev))) {
+	    msgConfirm("Unable to start PPP!  This installation method cannot be used.");
+	    return FALSE;
 	}
-	else {
-	    char *val;
-	    char attach[256];
-
-	    /* Cheesy slip attach */
-	    snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
-	    val = msgGetInput(attach,
-			      "Warning:  SLIP is rather poorly supported in this revision\n"
-			      "of the installation due to the lack of a dialing utility.\n"
-			      "If you can use PPP for this instead then you're much better\n"
-			      "off doing so, otherwise SLIP works fairly well for *hardwired*\n"
-			      "links.  Please edit the following slattach command for\n"
-			      "correctness (default here is: VJ compression, Hardware flow-\n"
-			      "control, ignore carrier and 9600 baud data rate).  When you're\n"
-			      "ready, press [ENTER] to execute it.");
-	    if (!val)
-		return FALSE;
-	    else
-		strcpy(attach, val);
-	    if (vsystem(attach)) {
-		msgConfirm("slattach returned a bad status!  Please verify that\n"
-			   "the command is correct and try again.");
-		return FALSE;
-	    }
-	}
-	strcpy(ifname, "sl0");
+	networkInitialized = TRUE;
+	return TRUE;
     }
-    else
-	strcpy(ifname, dev->name);
+    else if (!strncmp("sl", dev->name, 2)) {	/* SLIP? */
+	char *val;
+	char attach[256];
+
+	/* Cheesy slip attach */
+	snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
+	val = msgGetInput(attach,
+			  "Warning:  SLIP is rather poorly supported in this revision\n"
+			  "of the installation due to the lack of a dialing utility.\n"
+			  "If you can use PPP for this instead then you're much better\n"
+			  "off doing so, otherwise SLIP works fairly well for *hardwired*\n"
+			  "links.  Please edit the following slattach command for\n"
+			  "correctness (default here is: VJ compression, Hardware flow-\n"
+			  "control, ignore carrier and 9600 baud data rate).  When you're\n"
+			  "ready, press [ENTER] to execute it.");
+	if (!val)
+	    return FALSE;
+	else
+	    strcpy(attach, val);
+	if (vsystem(attach)) {
+	    msgConfirm("slattach returned a bad status!  Please verify that\n"
+		       "the command is correct and try again.");
+	    return FALSE;
+	}
+    }
 
     snprintf(ifconfig, 255, "%s%s", VAR_IFCONFIG, dev->name);
     cp = variable_get(ifconfig);
     if (!cp) {
 	msgConfirm("The %s device is not configured.  You will need to do so\n"
-		   "in the Networking configuration menu before proceeding.", ifname);
+		   "in the Networking configuration menu before proceeding.", dev->name);
 	return FALSE;
     }
-    msgNotify("Configuring network device %s.", ifname);
-    i = vsystem("ifconfig %s %s", ifname, cp);
+    msgNotify("Configuring network device %s.", dev->name);
+    i = vsystem("ifconfig %s %s", dev->name, cp);
     if (i) {
 	msgConfirm("Unable to configure the %s interface!\n"
-		   "This installation method cannot be used.", ifname);
+		   "This installation method cannot be used.", dev->name);
 	return FALSE;
     }
 
@@ -143,7 +136,8 @@ mediaShutdownNetwork(Device *dev)
 	return;
 
     msgDebug("Shutdown called for network device %s\n", dev->name);
-    if (strncmp("cuaa", dev->name, 4)) {
+    /* Not a serial device? */
+    if (strncmp("sl", dev->name, 2) && strncmp("ppp", dev->name, 3)) {
 	int i;
 	char ifconfig[255];
 
@@ -162,7 +156,7 @@ mediaShutdownNetwork(Device *dev)
 	}
 	networkInitialized = FALSE;
     }
-    else if (dev->private) {
+    else if (dev->private) {	/* ppp sticks its PID there */
 	msgNotify("Killing PPP process %d.", (int)dev->private);
 	kill((pid_t)dev->private, SIGTERM);
 	dev->private = NULL;

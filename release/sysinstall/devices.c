@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.45 1996/04/23 01:29:12 jkh Exp $
+ * $Id: devices.c,v 1.36.2.17 1996/05/24 06:08:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,10 +70,10 @@ static struct {
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
-    { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP/SLIP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP/SLIP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa2",	"Serial port (COM3) - possible PPP/SLIP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa3",	"Serial port (COM4) - possible PPP/SLIP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa0",	"%s on serial port 0 (COM1)"				},
+    { DEVICE_TYPE_NETWORK,	"cuaa1",	"%s on serial port 1 (COM2)"				},
+    { DEVICE_TYPE_NETWORK,	"cuaa2",	"%s on serial port 2 (COM3)"				},
+    { DEVICE_TYPE_NETWORK,	"cuaa3",	"%s on serial port 3 (COM4)"				},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
@@ -154,22 +154,24 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
 	       Boolean (*init)(Device *), int (*get)(Device *, char *, Boolean),
 	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
 {
-    Device *newdev;
+    Device *newdev = NULL;
 
     if (numDevs == DEV_MAX)
 	msgFatal("Too many devices found!");
-    newdev = new_device(name);
-    newdev->description = desc;
-    newdev->devname = devname;
-    newdev->type = type;
-    newdev->enabled = enabled;
-    newdev->init = init ? init : dummyInit;
-    newdev->get = get ? get : dummyGet;
-    newdev->close = close ? close : dummyClose;
-    newdev->shutdown = shutdown ? shutdown : dummyShutdown;
-    newdev->private = private;
-    Devices[numDevs] = newdev;
-    Devices[++numDevs] = NULL;
+    else {
+	newdev = new_device(name);
+	newdev->description = desc;
+	newdev->devname = devname;
+	newdev->type = type;
+	newdev->enabled = enabled;
+	newdev->init = init ? init : dummyInit;
+	newdev->get = get ? get : dummyGet;
+	newdev->close = close ? close : dummyClose;
+	newdev->shutdown = shutdown ? shutdown : dummyShutdown;
+	newdev->private = private;
+	Devices[numDevs] = newdev;
+	Devices[++numDevs] = NULL;
+    }
     return newdev;
 }
 
@@ -259,11 +261,23 @@ deviceGetAll(void)
 
 	case DEVICE_TYPE_NETWORK:
 	    fd = deviceTry(device_names[i].name, try);
+	    /* The only network devices that you can open this way are serial ones */
 	    if (fd >= 0) {
-		if (fd) close(fd);
-		/* The only network devices that have fds associated are serial ones */
-		deviceRegister(device_names[i].name, device_names[i].description, strdup(try), DEVICE_TYPE_NETWORK,
-			       TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
+		char *newdesc, *cp;
+
+		if (fd)
+		    close(fd);
+
+		/* Serial devices get a slip and ppp device each */
+		cp = device_names[i].description;
+		newdesc = safe_malloc(strlen(cp) + 40);
+		sprintf(newdesc, cp, "SLIP interface");
+		deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
+			       NULL, NULL, mediaShutdownNetwork, NULL);
+		newdesc = safe_malloc(strlen(cp) + 50);
+		sprintf(newdesc, cp, "PPP interface");
+		deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
+			       NULL, NULL, mediaShutdownNetwork, NULL);
 		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -289,6 +303,8 @@ deviceGetAll(void)
     ifflags = ifc.ifc_req->ifr_flags;
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
     for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
+	char *descr;
+
 	/* If it's not a link entry, forget it */
 	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
 	    continue;
@@ -296,7 +312,18 @@ deviceGetAll(void)
 	if (!strncmp(ifptr->ifr_name, "tun", 3)
 	    || !strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
-	deviceRegister(ifptr->ifr_name, ifptr->ifr_name, ifptr->ifr_name, DEVICE_TYPE_NETWORK, TRUE,
+	descr = NULL;
+	for (i = 0; device_names[i].name; i++) {
+	    int len = strlen(device_names[i].name);
+
+	    if (!strncmp(ifptr->ifr_name, device_names[i].name, len)) {
+		descr = device_names[i].description;
+		break;
+	    }
+	}
+	if (!descr)
+	    descr = "<unknown network interface type>";
+	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
 		       mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
@@ -354,21 +381,20 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d), i
     int i, j;
 
     devs = deviceFind(NULL, type);
-    if (!devs)
+    numdevs = deviceCount(devs);
+    if (!numdevs)
 	return NULL;
-
-    for (numdevs = 0; devs[numdevs]; numdevs++);
     tmp = (DMenu *)safe_malloc(sizeof(DMenu) + (sizeof(dialogMenuItem) * (numdevs + 1)));
     bcopy(menu, tmp, sizeof(DMenu));
     for (i = 0; devs[i]; i++) {
 	tmp->items[i].prompt = devs[i]->name;
-	for (j = 0; device_names[j].name; j++) {
-	    if (!strncmp(devs[i]->name, device_names[j].name, strlen(device_names[j].name))) {
-		tmp->items[i].title = device_names[j].description;
+	for (j = 0; j < numDevs; j++) {
+	    if (devs[i] == Devices[j]) {
+		tmp->items[i].title = Devices[j]->description;
 		break;
 	    }
 	}
-	if (!device_names[j].name)
+	if (j == numDevs)
 	    tmp->items[i].title = "<unknown device type>";
 	tmp->items[i].fire = hook;
 	tmp->items[i].checked = check;
