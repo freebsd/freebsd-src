@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.15 1995/05/18 15:29:46 jkh Exp $
+ * $Id: system.c,v 1.16 1995/05/18 15:58:32 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -220,7 +220,7 @@ systemHelpFile(char *file, char *buf)
 void
 systemChangeFont(const u_char font[])
 {
-    if (OnVTY) {
+    if (OnVTY && ColorDisplay) {
 	if (ioctl(0, PIO_FONT8x16, font) < 0)
 	    msgConfirm("Sorry!  Unable to load font for %s", getenv("LANG"));
     }
