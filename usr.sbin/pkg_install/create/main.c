@@ -49,7 +49,6 @@ main(int argc, char **argv)
     int ch;
     char **pkgs, **start, *tmp;
 
-    /*{int barrier = 1; while (barrier); }*/
     pkgs = start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1)
 	switch(ch) {
