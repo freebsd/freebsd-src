@@ -40,12 +40,12 @@ acl_get_file(const char *path_p, acl_type_t type)
 	struct acl	*aclp;
 	int	error;
 
-	aclp = acl_init(MAX_ACL_ENTRIES);
+	aclp = acl_init(ACL_MAX_ENTRIES);
 	if (!aclp) {
 		return (0);
 	}
 
-	error = acl_syscall_get_file(path_p, type, aclp);
+	error = __acl_get_file(path_p, type, aclp);
 	if (error) {
 		acl_free(aclp);
 		return (0);
@@ -61,12 +61,12 @@ acl_get_fd(int fd, acl_type_t type)
 	struct acl	*aclp;
 	int	error;
 
-	aclp = acl_init(MAX_ACL_ENTRIES);
+	aclp = acl_init(ACL_MAX_ENTRIES);
 	if (!aclp) {
 		return (0);
 	}
 
-	error = acl_syscall_get_fd(fd, type, aclp);
+	error = __acl_get_fd(fd, type, aclp);
 	if (error) {
 		acl_free(aclp);
 		return (0);
