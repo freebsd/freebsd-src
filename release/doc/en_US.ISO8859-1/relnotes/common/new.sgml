@@ -267,6 +267,9 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
+      <para arch="i386">The &man.arl.4; driver, which supports
+	Aironet Arlan 655 wireless adapters has been added.</para>
+
       <para arch="sparc64">The &man.dc.4; driver now supports sparc64
 	Davicom cards that store their MAC address in
 	OpenFirmware.</para>
