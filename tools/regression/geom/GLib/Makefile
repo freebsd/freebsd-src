@@ -2,7 +2,7 @@
 
 LIB=	G
 SRCS= geom.c geom_bsd.c geom_simdev.c geom_dump.c geom_event.c geom_io.c \
-	geom_kernsim.c geom_mbr.c geom_mbrext.c geom_simdisk.c \
+	geom_kernsim.c geom_mbr.c geom_simdisk.c geom_enc.c \
 	geom_simdisk_xml.c geom_slice.c geom_subr.c subr_sbuf.c \
 	geom_sunlabel.c
 
