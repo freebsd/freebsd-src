@@ -648,9 +648,9 @@ ext2_mountfs(devvp, mp, p)
 	ump->um_seqinc = EXT2_FRAGS_PER_BLOCK(fs);
 	for (i = 0; i < MAXQUOTAS; i++)
 		ump->um_quotas[i] = NULLVP; 
-		devvp->v_specflags |= SI_MOUNTEDON; 
-		if (ronly == 0) 
-			ext2_sbupdate(ump, MNT_WAIT);
+	devvp->v_specmountpoint = mp;
+	if (ronly == 0) 
+		ext2_sbupdate(ump, MNT_WAIT);
 	return (0);
 out:
 	if (bp)
@@ -706,7 +706,7 @@ ext2_unmount(mp, mntflags, p)
                 if (fs->s_block_bitmap[i])
 			ULCK_BUF(fs->s_block_bitmap[i])
 
-	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
+	ump->um_devvp->v_specmountpoint = NULL;
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);
 	vrele(ump->um_devvp);
