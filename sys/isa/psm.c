@@ -1499,7 +1499,7 @@ tame_mouse(struct psm_softc *sc, mousestatus_t *status, unsigned char *buf)
         buf[7] = (~status->button >> 3) & 0x7f;
 	return MOUSE_SYS_PACKETSIZE;
     }
-    return sc->inputbytes;;
+    return sc->inputbytes;
 }
 
 static int
