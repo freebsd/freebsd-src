@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.44 1997/06/22 16:04:13 peter Exp $
+ * $Id: kern_fork.c,v 1.45 1997/07/06 02:40:41 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -151,8 +151,11 @@ fork1(p1, flags, retval)
 	 * area for SMP mode.  Both cases require seperate management of
 	 * the per-process-even-if-PTmap-is-shared PTD.
 	 */
-	if (flags & RFMEM)
+	if (flags & RFMEM) {
+		printf("shared address space fork attempted: pid: %d\n",
+		    p1->p_pid);
 		return (EOPNOTSUPP);
+	}
 #endif
 
 	/*
