@@ -995,7 +995,7 @@ plogin(user, passwd, msg, msglen)
 #endif
 
     memset((void *)&utmp, 0, sizeof(utmp));
-    (void)time(&utmp.ut_time);
+    utmp.ut_time = time(NULL);
     (void)strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
     (void)strncpy(utmp.ut_host, ":PPP", sizeof(utmp.ut_host));
     (void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
