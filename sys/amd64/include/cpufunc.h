@@ -50,10 +50,6 @@
 
 #ifdef	__GNUC__
 
-#ifdef SMP
-#include <machine/lock.h>		/* XXX */
-#endif
-
 #ifdef SWTCH_OPTIM_STATS
 extern	int	tlb_flush_count;	/* XXX */
 #endif
