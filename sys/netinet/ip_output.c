@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.24 1995/10/16 18:21:09 wollman Exp $
+ *	$Id: ip_output.c,v 1.25 1995/11/14 20:34:19 phk Exp $
  */
 
 #include <sys/param.h>
@@ -337,7 +337,7 @@ sendit:
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = EMSGSIZE;
-#ifdef MTUDISC
+#if 1
 		/*
 		 * This case can happen if the user changed the MTU
 		 * of an interface after enabling IP on it.  Because
@@ -350,7 +350,7 @@ sendit:
 		    && (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
 			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
 		}
-#endif /* MTUDISC */
+#endif
 		ipstat.ips_cantfrag++;
 		goto bad;
 	}

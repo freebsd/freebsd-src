@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.21 1995/11/09 20:23:05 phk Exp $
+ *	$Id: tcp_subr.c,v 1.22 1995/11/14 20:34:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -454,10 +454,10 @@ tcp_ctlinput(cmd, sa, ip)
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
-#ifdef MTUDISC
+#if 1
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
-#endif /* MTUDISC */
+#endif
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
 		return;
@@ -484,7 +484,7 @@ tcp_quench(inp, errno)
 		tp->snd_cwnd = tp->t_maxseg;
 }
 
-#ifdef MTUDISC
+#if 1
 /*
  * When `need fragmentation' ICMP is received, update our idea of the MSS
  * based on the new value in the route.  Also nudge TCP to send something,
@@ -541,7 +541,7 @@ tcp_mtudisc(inp, errno)
 		tcp_output(tp);
 	}
 }
-#endif /* MTUDISC */
+#endif
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route

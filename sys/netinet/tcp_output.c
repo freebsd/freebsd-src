@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.15 1995/10/16 18:21:12 wollman Exp $
+ *	$Id: tcp_output.c,v 1.16 1995/11/03 22:08:08 olah Exp $
  */
 
 #include <sys/param.h>
@@ -653,13 +653,13 @@ send:
 	else
 #endif
     {
-#ifdef MTUDISC
+#if 1
 	struct rtentry *rt;
 #endif
 	((struct ip *)ti)->ip_len = m->m_pkthdr.len;
 	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip.ip_ttl;	/* XXX */
 	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip.ip_tos;	/* XXX */
-#ifdef MTUDISC
+#if 1
 	/*
 	 * See if we should do MTU discovery.  We do it only if the following
 	 * are true:
@@ -672,7 +672,7 @@ send:
 	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
 		((struct ip *)ti)->ip_off |= IP_DF;
 	}
-#endif /* MTUDISC */
+#endif
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
 	    so->so_options & SO_DONTROUTE, 0);
     }
@@ -682,7 +682,7 @@ out:
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}
-#ifdef MTUDISC
+#if 1
 		if (error == EMSGSIZE) {
 			/*
 			 * ip_output() will have already fixed the route
@@ -693,7 +693,7 @@ out:
 			tcp_mtudisc(tp->t_inpcb, 0);
 			return 0;
 		}
-#endif /* MTUDISC */.
+#endif
 		if ((error == EHOSTUNREACH || error == ENETDOWN)
 		    && TCPS_HAVERCVDSYN(tp->t_state)) {
 			tp->t_softerror = error;
