@@ -1,0 +1,208 @@
+This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.18.
+
+   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Miscellaneous
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: String Index,  Next: Glyph Name Index,  Prev: Macro Index,  Up: Top
+
+String Index
+************
+
+   The macro package or program a specific string belongs to is
+appended in brackets.
+
+   A string name `x' consisting of exactly one character can be
+accessed as `\*x'.  A string name `xx' consisting of exactly two
+characters can be accessed as `\*(xx'.  String names `xxx' of any
+length can be accessed as `\*[xxx]'.
+
+* Menu:
+
+* ! [ms]:                                ms Strings and Special Characters.
+* ' [ms]:                                ms Strings and Special Characters.
+* * [ms]:                                ms Footnotes.
+* *Q [ms]:                               ms Strings and Special Characters.
+* *U [ms]:                               ms Strings and Special Characters.
+* , [ms]:                                ms Strings and Special Characters.
+* - [ms]:                                ms Strings and Special Characters.
+* . [ms]:                                ms Strings and Special Characters.
+* .T:                                    Built-in Registers.
+* 3 [ms]:                                ms Strings and Special Characters.
+* 8 [ms]:                                ms Strings and Special Characters.
+* <colon> [ms]:                          ms Strings and Special Characters.
+* ? [ms]:                                ms Strings and Special Characters.
+* ^ [ms]:                                ms Strings and Special Characters.
+* _ [ms]:                                ms Strings and Special Characters.
+* ` [ms]:                                ms Strings and Special Characters.
+* ABSTRACT [ms]:                         ms Strings and Special Characters.
+* Ae [ms]:                               ms Strings and Special Characters.
+* ae [ms]:                               ms Strings and Special Characters.
+* CF [ms]:                               ms Headers and Footers.
+* CH [ms]:                               ms Headers and Footers.
+* d- [ms]:                               ms Strings and Special Characters.
+* D- [ms]:                               ms Strings and Special Characters.
+* LF [ms]:                               ms Headers and Footers.
+* LH [ms]:                               ms Headers and Footers.
+* lq [man]:                              Predefined man strings.
+* MONTH1 [ms]:                           ms Strings and Special Characters.
+* MONTH10 [ms]:                          ms Strings and Special Characters.
+* MONTH11 [ms]:                          ms Strings and Special Characters.
+* MONTH12 [ms]:                          ms Strings and Special Characters.
+* MONTH2 [ms]:                           ms Strings and Special Characters.
+* MONTH3 [ms]:                           ms Strings and Special Characters.
+* MONTH4 [ms]:                           ms Strings and Special Characters.
+* MONTH5 [ms]:                           ms Strings and Special Characters.
+* MONTH6 [ms]:                           ms Strings and Special Characters.
+* MONTH7 [ms]:                           ms Strings and Special Characters.
+* MONTH8 [ms]:                           ms Strings and Special Characters.
+* MONTH9 [ms]:                           ms Strings and Special Characters.
+* o [ms]:                                ms Strings and Special Characters.
+* q [ms]:                                ms Strings and Special Characters.
+* R [man]:                               Predefined man strings.
+* REFERENCES [ms]:                       ms Strings and Special Characters.
+* RF [ms]:                               ms Headers and Footers.
+* RH [ms]:                               ms Headers and Footers.
+* rq [man]:                              Predefined man strings.
+* S [man]:                               Predefined man strings.
+* th [ms]:                               ms Strings and Special Characters.
+* Th [ms]:                               ms Strings and Special Characters.
+* Tm [man]:                              Predefined man strings.
+* TOC [ms]:                              ms Strings and Special Characters.
+* v [ms]:                                ms Strings and Special Characters.
+* www-image-template [grohtml]:          grohtml specific registers and strings.
+* ~ [ms]:                                ms Strings and Special Characters.
+
+
+File: groff,  Node: Glyph Name Index,  Next: Font File Keyword Index,  Prev: String Index,  Up: Top
+
+Glyph Name Index
+****************
+
+   A glyph name `xx' consisting of exactly two characters can be
+accessed as `\(xx'.  Glyph names `xxx' of any length can be accessed as
+`\[xxx]'.
+
+
+File: groff,  Node: Font File Keyword Index,  Next: Program and File Index,  Prev: Glyph Name Index,  Up: Top
+
+Font File Keyword Index
+***********************
+
+* Menu:
+
+* #:                                     Font File Format.
+* ---:                                   Font File Format.
+* biggestfont:                           DESC File Format.
+* charset <1>:                           Font File Format.
+* charset:                               DESC File Format.
+* family <1>:                            DESC File Format.
+* family <2>:                            Font Positions.
+* family:                                Changing Fonts.
+* fonts <1>:                             DESC File Format.
+* fonts <2>:                             Special Fonts.
+* fonts:                                 Using Symbols.
+* hor:                                   DESC File Format.
+* kernpairs:                             Font File Format.
+* ligatures:                             Font File Format.
+* name:                                  Font File Format.
+* papersize:                             DESC File Format.
+* pass_filenames:                        DESC File Format.
+* postpro:                               DESC File Format.
+* prepro:                                DESC File Format.
+* print:                                 DESC File Format.
+* res:                                   DESC File Format.
+* sizes:                                 DESC File Format.
+* sizescale:                             DESC File Format.
+* slant:                                 Font File Format.
+* spacewidth:                            Font File Format.
+* spare1:                                DESC File Format.
+* spare2:                                DESC File Format.
+* special <1>:                           Font File Format.
+* special:                               Artificial Fonts.
+* styles <1>:                            DESC File Format.
+* styles <2>:                            Font Positions.
+* styles <3>:                            Font Families.
+* styles:                                Changing Fonts.
+* tcommand:                              DESC File Format.
+* unitwidth:                             DESC File Format.
+* use_charnames_in_special <1>:          DESC File Format.
+* use_charnames_in_special:              Postprocessor Access.
+* vert:                                  DESC File Format.
+
+
+File: groff,  Node: Program and File Index,  Next: Concept Index,  Prev: Font File Keyword Index,  Up: Top
+
+Program and File Index
+**********************
+
+* Menu:
+
+* an.tmac:                               man.
+* changebar:                             Miscellaneous.
+* DESC <1>:                              Special Fonts.
+* DESC <2>:                              Using Symbols.
+* DESC <3>:                              Font Positions.
+* DESC <4>:                              Font Families.
+* DESC:                                  Changing Fonts.
+* DESC file format:                      DESC File Format.
+* DESC, and font mounting:               Font Positions.
+* DESC, and use_charnames_in_special:    Postprocessor Access.
+* ditroff:                               History.
+* eqn:                                   ms Insertions.
+* geqn:                                  Groff Options.
+* geqn, invocation in manual pages:      Preprocessors in man pages.
+* ggrn:                                  Groff Options.
+* gpic:                                  Groff Options.
+* grap:                                  Groff Options.
+* grefer:                                Groff Options.
+* grefer, invocation in manual pages:    Preprocessors in man pages.
+* groff:                                 Groff Options.
+* grog:                                  grog.
+* grohtml:                               Miscellaneous man macros.
+* gsoelim:                               Groff Options.
+* gtbl:                                  Groff Options.
+* gtbl, invocation in manual pages:      Preprocessors in man pages.
+* gtroff:                                Groff Options.
+* hyphen.us:                             Manipulating Hyphenation.
+* makeindex:                             Indices.
+* man, invocation of preprocessors:      Preprocessors in man pages.
+* man-old.tmac:                          man.
+* man.local:                             Man usage.
+* man.tmac:                              man.
+* nrchbar:                               Miscellaneous.
+* perl:                                  I/O.
+* pic:                                   ms Insertions.
+* post-grohtml:                          Groff Options.
+* pre-grohtml:                           Groff Options.
+* refer:                                 ms Insertions.
+* soelim:                                Debugging.
+* tbl:                                   ms Insertions.
+* trace.tmac:                            Writing Macros.
+* troffrc <1>:                           Line Layout.
+* troffrc <2>:                           Troff and Nroff Mode.
+* troffrc <3>:                           Manipulating Hyphenation.
+* troffrc:                               Groff Options.
+* troffrc-end <1>:                       Troff and Nroff Mode.
+* troffrc-end <2>:                       Manipulating Hyphenation.
+* troffrc-end:                           Groff Options.
+* tty.tmac:                              Troff and Nroff Mode.
+
