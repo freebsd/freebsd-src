@@ -47,6 +47,7 @@
 #	wcd*	"IDE CD-ROM disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
+#	fla*	"M-Systems DiskOnChip"
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -107,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.165 1998/07/03 15:43:20 des Exp $
+#	$Id: MAKEDEV,v 1.166 1998/08/04 21:45:20 brian Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -266,7 +267,7 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
+od*s*|sd*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
 	od*s*) name=od; blk=20; chr=70;;
@@ -274,6 +275,7 @@ od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	wd*s*) name=wd; blk=0;  chr=3;;
 	vn*s*) name=vn; blk=15; chr=43;;
 	wfd*s*) name=wfd; blk=1; chr=87;;
+	fla*s*) name=fla; blk=28; chr=101;;
 	esac
 	case $i in
 	wfd*s*)
@@ -435,7 +437,7 @@ ft*)
 	umask 77
 	;;
 
-od*|sd*|vn*|wd*|wfd*)
+od*|sd*|vn*|wd*|wfd*|fla*)
 	umask $disk_umask
 	case $i in
 	od*) name=od; blk=20; chr=70;;
@@ -443,6 +445,7 @@ od*|sd*|vn*|wd*|wfd*)
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
 	wfd*) name=wfd; blk=1; chr=87;;
+	fla*) name=fla; blk=28; chr=101;;
 	esac
 	case $i in
 	wfd*)
