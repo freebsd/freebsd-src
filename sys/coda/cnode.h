@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/cnode.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: cnode.h,v 1.3 1998/09/11 18:50:17 rvb Exp $
+ *  $Id: cnode.h,v 1.4 1998/09/13 13:57:59 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /* 
  * HISTORY
  * $Log: cnode.h,v $
+ * Revision 1.4  1998/09/13 13:57:59  rvb
+ * Finish conversion of cfs -> coda
+ *
  * Revision 1.3  1998/09/11 18:50:17  rvb
  * All the references to cfs, in symbols, structs, and strings
  * have been changed to coda.  (Same for CFS.)
@@ -294,19 +297,20 @@ enum dc_status {
 };
 
 /* cfs_psdev.h */
-int coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize, caddr_t buffer);
+extern int coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize, caddr_t buffer);
+extern int coda_kernel_version;
 
 /* cfs_subr.h */
-int  handleDownCall(int opcode, union outputArgs *out);
-void coda_unmounting(struct mount *whoIam);
-int  coda_vmflush(struct cnode *cp);
+extern int  handleDownCall(int opcode, union outputArgs *out);
+extern void coda_unmounting(struct mount *whoIam);
+extern int  coda_vmflush(struct cnode *cp);
 
 /* cfs_vnodeops.h */
-struct cnode *make_coda_node(ViceFid *fid, struct mount *vfsp, short type);
-int coda_vnodeopstats_init(void);
+extern struct cnode *make_coda_node(ViceFid *fid, struct mount *vfsp, short type);
+extern int coda_vnodeopstats_init(void);
 
 /* coda_vfsops.h */
-struct mount *devtomp(dev_t dev);
+extern struct mount *devtomp(dev_t dev);
 
 /* sigh */
 #define CODA_RDWR ((u_long) 31)
