@@ -127,7 +127,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			db_printf("(threaded)  %s\n", p->p_comm);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			if (p->p_flag & P_KSES) 
-				db_printf( "       thread %p ", td);
+				db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
 			if (TD_ON_SLEEPQ(td)) {
 				if (td->td_flags & TDF_CVWAITQ)
 					db_printf("[CVQ ");
@@ -155,6 +155,9 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 				if (TD_AWAITING_INTR(td)) {
 					db_printf("[IWAIT]");
 				}
+				if (TD_LENT(td)) {
+					db_printf("[LOAN]");
+				}
 				break;
 			case TDS_CAN_RUN:
 				db_printf("[Can run]");
@@ -168,9 +171,11 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			default:
 				panic("unknown thread state");
 			}
-			if (p->p_flag & P_KSES)
+			if (p->p_flag & P_KSES) {
+				if (td->td_kse)
+					db_printf("[kse %p]", td->td_kse);
 				db_printf("\n");
-			else
+			} else
 				db_printf(" %s\n", p->p_comm);
 					
 		}

@@ -561,9 +561,10 @@ wait1(td, uap, compat)
 	int compat;
 {
 	struct rusage ru;
-	register int nfound;
-	register struct proc *p, *q, *t;
+	int nfound;
+	struct proc *p, *q, *t;
 	int status, error;
+	struct thread *td2;
 	struct kse *ke;
 	struct ksegrp *kg;
 
@@ -718,8 +719,8 @@ loop:
 			}
 
 			/*
-			 * There should only be one KSE/KSEGRP but
-			 * do it right anyhow.
+			 * There should only be one 
+			 * but do it right anyhow.
 			 */
 			FOREACH_KSEGRP_IN_PROC(p, kg) {
 				FOREACH_KSE_IN_GROUP(kg, ke) {
@@ -728,6 +729,12 @@ loop:
 						thread_free(ke->ke_tdspare);
 						ke->ke_tdspare = NULL;
 					}
+				}
+			}
+			FOREACH_THREAD_IN_PROC(p, td2) {
+				if (td2->td_standin != NULL) {
+					thread_free(td2->td_standin);
+					td2->td_standin = NULL;
 				}
 			}
 			thread_reap();	/* check for zombie threads */

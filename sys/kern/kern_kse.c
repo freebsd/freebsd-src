@@ -67,7 +67,7 @@ static int oiks_debug = 1;	/* 0 disable, 1 printf, 2 enter debugger */
 SYSCTL_INT(_kern_threads, OID_AUTO, oiks, CTLFLAG_RW,
 	&oiks_debug, 0, "OIKS thread debug");
 
-static int max_threads_per_proc = 6;
+static int max_threads_per_proc = 10;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_per_proc, CTLFLAG_RW,
 	&max_threads_per_proc, 0, "Limit on threads per proc");
 
@@ -470,6 +470,11 @@ thread_exit(void)
 		thread_stash(ke->ke_tdspare);
 		ke->ke_tdspare = NULL;
 	}
+	if (td->td_standin != NULL) {
+		thread_stash(td->td_standin);
+		td->td_standin = NULL;
+	}
+
 	cpu_thread_exit(td);	/* XXXSMP */
 
 	/*
@@ -478,14 +483,6 @@ thread_exit(void)
 	 * all this stuff.
 	 */
 	if (p->p_numthreads > 1) {
-		/* Reassign this thread's KSE. */
-		ke->ke_thread = NULL;
-		td->td_kse = NULL;
-		ke->ke_state = KES_UNQUEUED;
-		if (ke->ke_bound == td)
-			ke->ke_bound = NULL;
-		kse_reassign(ke);
-
 		/* Unlink this thread from its proc. and the kseg */
 		TAILQ_REMOVE(&p->p_threads, td, td_plist);
 		p->p_numthreads--;
@@ -501,12 +498,41 @@ thread_exit(void)
 				thread_unsuspend_one(p->p_singlethread);
 			}
 		}
+
+		/* Reassign this thread's KSE. */
+		ke->ke_thread = NULL;
+		td->td_kse = NULL;
+		ke->ke_state = KES_UNQUEUED;
+		if (ke->ke_bound == td) {
+			printf("thread_exit: entered with ke_bound set\n");
+			ke->ke_bound = NULL; /* should never happen */
+		}
+
+		kse_reassign(ke);
 		PROC_UNLOCK(p);
 		td->td_state	= TDS_INACTIVE;
 		td->td_proc	= NULL;
 		td->td_ksegrp	= NULL;
 		td->td_last_kse	= NULL;
-		ke->ke_tdspare = td;
+		/* 
+		 * For now stash this here, however
+		 * it's not a permanent solution.
+		 *  When we want to make KSEs exit as well
+		 * we'll have to face this one again.
+		 * Where will we hide it then?
+		 *
+		 * In borrower threads, stash it in the lender
+		 * Where it won't be needed until
+		 * this thread is long gone.
+		 */
+		if (ke->ke_bound) {
+			if (ke->ke_bound->td_standin) {
+				thread_stash(ke->ke_bound->td_standin);
+			}
+			ke->ke_bound->td_standin = td;
+		} else {
+			ke->ke_tdspare = td;
+		}
 	} else {
 		PROC_UNLOCK(p);
 	}
@@ -555,40 +581,85 @@ struct thread *
 thread_schedule_upcall(struct thread *td, struct kse *ke)
 {
 	struct thread *td2;
+	int newkse;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	if (ke->ke_tdspare != NULL) {
-		td2 = ke->ke_tdspare;
-		ke->ke_tdspare = NULL;
+	newkse = (ke != td->td_kse);
+
+	/* 
+	 * If the kse is already owned by another thread then we can't
+	 * schedule an upcall because the other thread must be BOUND
+	 * which means it is not in a position to take an upcall.
+	 * We must be borrowing the KSE to allow us to complete some in-kernel
+	 * work. When we complete, the Bound thread will have teh chance to 
+	 * complete. This thread will sleep as planned. Hopefully there will
+	 * eventually be un unbound thread that can be converted to an
+	 * upcall to report the completion of this thread.
+	 */
+	if (ke->ke_bound && ((ke->ke_bound->td_flags & TDF_UNBOUND) == 0)) {
+		return (NULL);
+	}
+	KASSERT((ke->ke_bound == NULL), ("kse already bound"));
+
+	if ((td2 = td->td_standin) != NULL) {
+		td->td_standin = NULL;
 	} else {
-		mtx_unlock_spin(&sched_lock);
-		td2 = thread_alloc();
-		mtx_lock_spin(&sched_lock);
+		if (newkse)
+			panic("no reserve thread when called with a new kse");
+		/*
+		 * If called from (e.g.) sleep and we do not have
+		 * a reserve thread, then we've used it, so do not
+		 * create an upcall.
+		 */
+		return(NULL);
 	}
 	CTR3(KTR_PROC, "thread_schedule_upcall: thread %p (pid %d, %s)",
-	     td, td->td_proc->p_pid, td->td_proc->p_comm);
+	     td2, td->td_proc->p_pid, td->td_proc->p_comm);
 	bzero(&td2->td_startzero,
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ke->ke_ksegrp);
 	cpu_set_upcall(td2, td->td_pcb);
-	bcopy(td->td_frame, td2->td_frame, sizeof(struct trapframe));
+
 	/*
-	 * The user context for this thread is selected when we choose
-	 * a KSE and return to userland on it. All we need do here is
-	 * note that the thread exists in order to perform an upcall.
-	 *
-	 * Since selecting a KSE to perform the upcall involves locking
-	 * that KSE's context to our upcall, its best to wait until the
-	 * last possible moment before grabbing a KSE. We do this in
-	 * userret().
+	 * XXXKSE do we really need this? (default values for the
+	 * frame).
+	 */
+	bcopy(td->td_frame, td2->td_frame, sizeof(struct trapframe));
+
+	/*
+	 * Bind the new thread to the KSE,
+	 * and if it's our KSE, lend it back to ourself
+	 * so we can continue running.
 	 */
 	td2->td_ucred = crhold(td->td_ucred);
-	td2->td_flags = TDF_UNBOUND|TDF_UPCALLING;
-	TD_SET_CAN_RUN(td2);
-	setrunqueue(td2);
-	return (td2);
+	td2->td_flags = TDF_UPCALLING; /* note: BOUND */
+	td2->td_kse = ke;
+	td2->td_state = TDS_CAN_RUN;
+	td2->td_inhibitors = 0;
+	/*
+	 * If called from msleep(), we are working on the current
+	 * KSE so fake that we borrowed it. If called from
+	 * kse_create(), don't, as we have a new kse too.
+	 */
+	if (!newkse) {
+		/*
+		 * This thread will be scheduled when the current thread
+		 * blocks, exits or tries to enter userspace, (which ever
+		 * happens first). When that happens the KSe will "revert"
+		 * to this thread in a BOUND manner. Since we are called
+		 * from msleep() this is going to be "very soon" in nearly
+		 * all cases.
+		 */
+		ke->ke_bound = td2;
+		TD_SET_LOAN(td2);
+	} else {
+		ke->ke_bound = NULL;
+		ke->ke_thread = td2;
+		setrunqueue(td2);
+	}
+	return (td2);	/* bogus.. should be a void function */
 }
 
 /*
@@ -605,6 +676,7 @@ signal_upcall(struct proc *p, int sig)
 	int error;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+return (NULL);
 
 	td = FIRST_THREAD_IN_PROC(p);
 	ke = td->td_kse;
@@ -619,91 +691,12 @@ signal_upcall(struct proc *p, int sig)
 	PROC_LOCK(p);
 	if (error)
 		return (NULL);
+	if (td->td_standin == NULL)
+		td->td_standin = thread_alloc();
 	mtx_lock_spin(&sched_lock);
-	td2 = thread_schedule_upcall(td, ke);
+	td2 = thread_schedule_upcall(td, ke); /* Bogus JRE */
 	mtx_unlock_spin(&sched_lock);
 	return (td2);
-}
-
-/*
- * Consider whether or not an upcall should be made, and update the
- * TDF_UPCALLING flag appropriately.
- *
- * This function is called when the current thread had been bound to a user
- * thread that performed a syscall that blocked, and is now returning.
- * Got that? syscall -> msleep -> wakeup -> syscall_return -> us.
- *
- * This thread will be returned to the UTS in its mailbox as a completed
- * thread.  We need to decide whether or not to perform an upcall now,
- * or simply queue the thread for later.
- *
- * XXXKSE Future enhancement: We could also return back to
- * the thread if we haven't had to do an upcall since then.
- * If the KSE's copy is == the thread's copy, and there are
- * no other completed threads.
- */
-static int
-thread_consider_upcalling(struct thread *td)
-{
-	struct proc *p;
-	struct ksegrp *kg;
-	int error;
-
-	/*
-	 * Save the thread's context, and link it
-	 * into the KSEGRP's list of completed threads.
-	 */
-	error = thread_export_context(td);
-	td->td_flags &= ~TDF_UNBOUND;
-	td->td_mailbox = NULL;
-	if (error)
-		/*
-		 * Failing to do the KSE operation just defaults
-		 * back to synchonous operation, so just return from
-		 * the syscall.
-		 */
-		return (error);
-
-	/*
-	 * Decide whether to perform an upcall now.
-	 */
-	/* Make sure there are no other threads waiting to run. */
-	p = td->td_proc;
-	kg = td->td_ksegrp;
-	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
-	/* bogus test, ok for testing though */
-	if (TAILQ_FIRST(&kg->kg_runq) && 
-	    (TAILQ_LAST(&kg->kg_runq, threadqueue) 
-		!= kg->kg_last_assigned)) {
-		/*
-		 * Another thread in this KSEG needs to run.
-		 * Switch to it instead of performing an upcall,
-		 * abondoning this thread.  Perform the upcall
-		 * later; discard this thread for now.
-		 *
-		 * XXXKSE - As for the other threads to run;
-		 * we COULD rush through all the threads
-		 * in this KSEG at this priority, or we
-		 * could throw the ball back into the court
-		 * and just run the highest prio kse available.
-		 * What is OUR priority?  The priority of the highest
-		 * sycall waiting to be returned?
-		 * For now, just let another KSE run (easiest).
-		 */
-		thread_exit(); /* Abandon current thread. */
-		/* NOTREACHED */
-	} 
-	/*
-	 * Perform an upcall now.
-	 *
-	 * XXXKSE - Assumes we are going to userland, and not
-	 * nested in the kernel.
-	 */
-	td->td_flags |= TDF_UPCALLING;
-	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(p);
-	return (0);
 }
 
 /*
@@ -724,86 +717,188 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	int error;
 	int unbound;
 	struct kse *ke;
+	struct ksegrp *kg;
+	struct thread *td2;
+	struct proc *p;
 
-	if (td->td_kse->ke_bound) {
-		thread_export_context(td);
-		PROC_LOCK(td->td_proc);
-		mtx_lock_spin(&sched_lock);
-		thread_exit();
-	}
+	error = 0;
 
-	/* Make the thread bound from now on, but remember what it was. */
 	unbound = td->td_flags & TDF_UNBOUND;
-	td->td_flags &= ~TDF_UNBOUND;
+
+	kg = td->td_ksegrp;
+	p = td->td_proc;
+
 	/*
-	 * Ensure that we have a spare thread available.
+	 * Originally bound threads never upcall but they may 
+	 * loan out their KSE at this point.
+	 * Upcalls imply bound.. They also may want to do some Philantropy.
+	 * Unbound threads on the other hand either yield to other work
+	 * or transform into an upcall.
+	 * (having saved their context to user space in both cases)
+	 */
+	if (unbound ) {
+		/*
+		 * We are an unbound thread, looking to return to 
+		 * user space.
+		 * THere are several possibilities:
+		 * 1) we are using a borrowed KSE. save state and exit.
+		 *    kse_reassign() will recycle the kse as needed,
+		 * 2) we are not.. save state, and then convert ourself
+		 *    to be an upcall, bound to the KSE.
+		 *    if there are others that need the kse,
+		 *    give them a chance by doing an mi_switch().
+		 *    Because we are bound, control will eventually return
+		 *    to us here.
+		 * ***
+		 * Save the thread's context, and link it
+		 * into the KSEGRP's list of completed threads.
+		 */
+		error = thread_export_context(td);
+		td->td_mailbox = NULL;
+		if (error) {
+			/*
+			 * If we are not running on a borrowed KSE, then
+			 * failing to do the KSE operation just defaults
+			 * back to synchonous operation, so just return from
+			 * the syscall. If it IS borrowed, there is nothing
+			 * we can do. We just lose that context. We
+			 * probably should note this somewhere and send
+			 * the process a signal.
+			 */
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGSEGV);
+			mtx_lock_spin(&sched_lock);
+			if (td->td_kse->ke_bound == NULL) {
+				td->td_flags &= ~TDF_UNBOUND;
+				PROC_UNLOCK(td->td_proc);
+				mtx_unlock_spin(&sched_lock);
+				return (error);	/* go sync */
+			}
+			thread_exit();
+		}
+
+		/*
+		 * if the KSE is owned and we are borrowing it,
+		 * don't make an upcall, just exit so that the owner
+		 * can get its KSE if it wants it.
+		 * Our context is already safely stored for later
+		 * use by the UTS.
+		 */
+		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
+		if (td->td_kse->ke_bound) {
+			thread_exit();
+		}
+		PROC_UNLOCK(p);
+				
+		/*
+		 * Turn ourself into a bound upcall.
+		 * We will rely on kse_reassign()
+		 * to make us run at a later time.
+		 * We should look just like a sheduled upcall
+		 * from msleep() or cv_wait().
+		 */
+		td->td_flags &= ~TDF_UNBOUND;
+		td->td_flags |= TDF_UPCALLING;
+		/* Only get here if we have become an upcall */
+
+	} else {
+		mtx_lock_spin(&sched_lock);
+	}
+	/* 
+	 * We ARE going back to userland with this KSE.
+	 * Check for threads that need to borrow it.
+	 * Optimisation: don't call mi_switch if no-one wants the KSE.
+	 * Any other thread that comes ready after this missed the boat.
 	 */
 	ke = td->td_kse;
-	if (ke->ke_tdspare == NULL) {
-		mtx_lock(&Giant);
-		ke->ke_tdspare = thread_alloc();
-		mtx_unlock(&Giant);
+	if ((td2 = kg->kg_last_assigned)) 
+		td2 = TAILQ_NEXT(td2, td_runq);
+	else
+		td2 = TAILQ_FIRST(&kg->kg_runq);
+	if (td2)  {
+		/* 
+		 * force a switch to more urgent 'in kernel'
+		 * work. Control will return to this thread
+		 * when there is no more work to do.
+		 * kse_reassign() will do tha for us.
+		 */
+		TD_SET_LOAN(td);
+		ke->ke_bound = td;
+		ke->ke_thread = NULL;
+		mi_switch(); /* kse_reassign() will (re)find td2 */
 	}
+	mtx_unlock_spin(&sched_lock);
+
 	/*
-	 * Originally bound threads need no additional work.
+	 * Optimisation:
+	 * Ensure that we have a spare thread available,
+	 * for when we re-enter the kernel.
 	 */
-	if (unbound == 0)
+	if (td->td_standin == NULL) {
+		if (ke->ke_tdspare) {
+			td->td_standin = ke->ke_tdspare;
+			ke->ke_tdspare = NULL;
+		} else {
+			td->td_standin = thread_alloc();
+		}
+	}
+
+	/* 
+	 * To get here, we know there is no other need for our
+	 * KSE so we can proceed. If not upcalling, go back to 
+	 * userspace. If we are, get the upcall set up.
+	 */
+	if ((td->td_flags & TDF_UPCALLING) == 0)
 		return (0);
-	error = 0;
-	/*
-	 * Decide whether or not we should perform an upcall now.
+
+	/* 
+	 * We must be an upcall to get this far.
+	 * There is no more work to do and we are going to ride
+	 * this thead/KSE up to userland as an upcall.
+	 * Do the last parts of the setup needed for the upcall.
 	 */
-	if (((td->td_flags & TDF_UPCALLING) == 0) && unbound) {
-		/* if we have other threads to run we will not return */
-		if ((error = thread_consider_upcalling(td)))
-			return (error); /* coundn't go async , just go sync. */
-	}
-	if (td->td_flags & TDF_UPCALLING) {
-		/*
-		 * There is no more work to do and we are going to ride
-		 * this thead/KSE up to userland as an upcall.
-		 */
-		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
-		    td, td->td_proc->p_pid, td->td_proc->p_comm);
+	CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
+	    td, td->td_proc->p_pid, td->td_proc->p_comm);
 
-		/*
-		 * Set user context to the UTS.
-		 */
-		cpu_set_upcall_kse(td, ke);
+	/*
+	 * Set user context to the UTS.
+	 */
+	cpu_set_upcall_kse(td, ke);
 
-		/*
-		 * Put any completed mailboxes on this KSE's list.
-		 */
-		error = thread_link_mboxes(td->td_ksegrp, ke);
-		if (error)
-			goto bad;
+	/*
+	 * Put any completed mailboxes on this KSE's list.
+	 */
+	error = thread_link_mboxes(kg, ke);
+	if (error)
+		goto bad;
 
-		/*
-		 * Set state and mailbox.
-		 */
-		td->td_flags &= ~TDF_UPCALLING;
+	/*
+	 * Set state and mailbox.
+	 * From now on we are just a bound outgoing process.
+	 * **Problem** userret is often called several times.
+	 * it would be nice if this all happenned only on the first time 
+	 * through. (the scan for extra work etc.)
+	 */
+	td->td_flags &= ~TDF_UPCALLING;
 #if 0
-		error = suword((caddr_t)ke->ke_mailbox +
-		    offsetof(struct kse_mailbox, km_curthread),
-		    0);
+	error = suword((caddr_t)ke->ke_mailbox +
+	    offsetof(struct kse_mailbox, km_curthread), 0);
 #else	/* if user pointer arithmetic is ok in the kernel */
-		error = suword((caddr_t)&ke->ke_mailbox->km_curthread, 0);
+	error = suword((caddr_t)&ke->ke_mailbox->km_curthread, 0);
 #endif
-		if (error)
-			goto bad;
-	}
-	/*
-	 * Stop any chance that we may be separated from
-	 * the KSE we are currently on. This is "biting the bullet",
-	 * we are committing to go to user space as as this KSE here.
-	 */
-	return (error);
+	if (!error)
+		return (0);
+
 bad:
 	/*
 	 * Things are going to be so screwed we should just kill the process.
  	 * how do we do that?
 	 */
-	 panic ("thread_userret.. need to kill proc..... how?");
+	PROC_LOCK(td->td_proc);
+	psignal(td->td_proc, SIGSEGV);
+	PROC_UNLOCK(td->td_proc);
+	return (error);	/* go sync */
 }
 
 /*

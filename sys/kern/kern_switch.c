@@ -107,7 +107,11 @@ CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
 static struct runq runq;
 SYSINIT(runq, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, runq_init, &runq)
 
+void panc(char *string1, char *string2);
+
+#if 0
 static void runq_readjust(struct runq *rq, struct kse *ke);
+#endif
 /************************************************************************
  * Functions that manipulate runnability from a thread perspective.	*
  ************************************************************************/
@@ -169,9 +173,10 @@ retry:
 }
 
 /*
- * Given a KSE (now surplus), either assign a new runable thread to it
+ * Given a KSE (now surplus or at least loanable), either assign a new
+ * runable thread to it
  * (and put it in the run queue) or put it in the ksegrp's idle KSE list.
- * Assumes the kse is not linked to any threads any more. (has been cleaned).
+ * Or aybe give it back to its owner if it's been loaned.
  */
 void
 kse_reassign(struct kse *ke)
@@ -179,23 +184,15 @@ kse_reassign(struct kse *ke)
 	struct ksegrp *kg;
 	struct thread *td;
 	struct thread *owner;
+	struct thread *original;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	kg = ke->ke_ksegrp;
 	owner = ke->ke_bound;
+	original = ke->ke_thread;
 	KASSERT(!(owner && ((owner->td_kse != ke) || 
 		    (owner->td_flags & TDF_UNBOUND))), 
 		("kse_reassign: bad thread bound state"));
-	if (owner && (owner->td_inhibitors == TDI_LOAN)) {
-		TD_CLR_LOAN(owner);
-		ke->ke_bound = NULL;
-		ke->ke_thread = owner;
-		owner->td_kse = ke;
-		setrunqueue(owner);
-		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p (give back)",
-			 ke, owner);
-		return;
-	}
 
 	/*
 	 * Find the first unassigned thread
@@ -212,29 +209,77 @@ kse_reassign(struct kse *ke)
 	 * If we found one assign it the kse, otherwise idle the kse.
 	 */
 	if (td) {
+		/*
+		 * If the original is bound to us we can only be lent out so
+		 * make a loan, otherwise we just drop the 
+		 * original thread.
+		 */
+		if (original) {
+			if (((original->td_flags & TDF_UNBOUND) == 0)) {
+				/*
+				 * Put the owner on the side
+				 */
+				ke->ke_bound = original;
+				TD_SET_LOAN(original);
+			} else {
+				original->td_kse = NULL;
+			}
+		}
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
 		runq_add(&runq, ke);
-		if (owner) 
-			TD_SET_LOAN(owner);
+		/*
+		 * if we have already borrowed this,
+		 * just pass it to the new thread,
+		 * otherwise, enact the loan.
+		 */
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
-	} else if (!owner) {
-		ke->ke_state = KES_IDLE;
-		ke->ke_thread = NULL;
-		TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
-		kg->kg_idle_kses++;
-		CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
-	} else {
-		TD_CLR_LOAN(owner);
-		ke->ke_state = KES_THREAD;
-		ke->ke_thread = owner;
-		owner->td_kse = ke;
-		ke->ke_flags |= KEF_ONLOANQ;
-		TAILQ_INSERT_HEAD(&kg->kg_lq, ke, ke_kgrlist);
-		kg->kg_loan_kses++;
-		CTR1(KTR_RUNQ, "kse_reassign: ke%p is on loan queue", ke);
+		return;
 	}
+	if (owner) { /* already loaned out */
+		/* effectivly unloan it */
+		TD_CLR_LOAN(owner);
+		ke->ke_thread = owner;
+		ke->ke_bound = NULL;
+		if (original)
+			original->td_kse = NULL;
+		original = owner;
+
+		if (TD_CAN_RUN(owner)) {
+			/*
+			 * If the owner thread is now runnable,  run it..
+			 * Let it have its KSE back.
+			 */
+			setrunqueue(owner);
+			CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p (give back)",
+			    ke, owner);
+			return;
+		}
+	}
+	/*
+	 * Presetly NOT loaned out.
+	 * If we are bound, we go on the loanable queue
+	 * otherwise onto the free queue.
+	 */
+	if (original) {
+		if (((original->td_flags & TDF_UNBOUND) == 0)) {
+			ke->ke_state = KES_THREAD;
+			ke->ke_flags |= KEF_ONLOANQ;
+			ke->ke_bound = NULL;
+			TAILQ_INSERT_HEAD(&kg->kg_lq, ke, ke_kgrlist);
+			kg->kg_loan_kses++;
+			CTR1(KTR_RUNQ, "kse_reassign: ke%p on loan queue", ke);
+			return;
+		} else {
+			original->td_kse = NULL;
+		}
+	}
+	ke->ke_state = KES_IDLE;
+	ke->ke_thread = NULL;
+	TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
+	kg->kg_idle_kses++;
+	CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
 }
 
 int
@@ -252,7 +297,7 @@ kserunnable(void)
 void
 remrunqueue(struct thread *td)
 {
-	struct thread *td2, *td3, *owner;
+	struct thread *td2, *td3;
 	struct ksegrp *kg;
 	struct kse *ke;
 
@@ -273,6 +318,8 @@ remrunqueue(struct thread *td)
 		ke->ke_state = KES_THREAD; 
 		return;
 	}
+   	td3 = TAILQ_PREV(td, threadqueue, td_runq);
+	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	if (ke) {
 		/*
 		 * This thread has been assigned to a KSE.
@@ -282,62 +329,12 @@ remrunqueue(struct thread *td)
 		 */
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value "));
-		td->td_kse = NULL;
-		if ((td3 = TAILQ_NEXT(td2, td_runq))) {
-			KASSERT(td3 != td, ("td3 somehow matched td"));
-			/*
-			 * Give the next unassigned thread to the KSE
-			 * so the number of runnable KSEs remains
-			 * constant.
-			 */
-			td3->td_kse = ke;
-			ke->ke_thread = td3;
+		if (td2 == td) 
 			kg->kg_last_assigned = td3;
-			runq_readjust(&runq, ke);
-		} else {
-			/*
-			 * There is no unassigned thread.
-			 * If we were the last assigned one,
-			 * adjust the last assigned pointer back
-			 * one, which may result in NULL.
-			 */
-			if (td == td2) {
-				kg->kg_last_assigned =
-				    TAILQ_PREV(td, threadqueue, td_runq);
-			}
-			runq_remove(&runq, ke);
-			KASSERT((ke->ke_state != KES_IDLE),
-			    ("kse already idle"));
-			if (ke->ke_bound) {
-				owner = ke->ke_bound;
-				if (owner->td_inhibitors == TDI_LOAN) {
-					TD_CLR_LOAN(owner);
-					ke->ke_bound = NULL;
-					ke->ke_thread = owner;
-					owner->td_kse = ke;
-					setrunqueue(owner);
-					CTR2(KTR_RUNQ, 
-					"remrunqueue: ke%p -> td%p (give back)",
-			 			ke, owner);
-				} else {
-					TD_CLR_LOAN(owner);
-					ke->ke_state = KES_THREAD;
-					ke->ke_thread = owner;
-					owner->td_kse = ke;
-					ke->ke_flags |= KEF_ONLOANQ;
-					TAILQ_INSERT_HEAD(&kg->kg_lq, ke, 
-						ke_kgrlist);
-					kg->kg_loan_kses++;
-				}
-			} else {
-				ke->ke_state = KES_IDLE;
-				ke->ke_thread = NULL;
-				TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
-				kg->kg_idle_kses++;
-			}
-		}
+		td->td_kse = NULL;
+		ke->ke_thread = NULL;
+		kse_reassign(ke);
 	}
-	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 }
 
 void
@@ -355,6 +352,15 @@ setrunqueue(struct thread *td)
 	TD_SET_RUNQ(td);
 	kg = td->td_ksegrp;
 	kg->kg_runnable++;
+	if ((td->td_proc->p_flag & P_KSES) == 0) {
+		/*
+		 * Common path optimisation: Only one of everything
+		 * and the KSE is always already attached.
+		 * Totally ignore the ksegrp run queue.
+		 */
+		runq_add(&runq, td->td_kse);
+		return;
+	}
 	if ((td->td_flags & TDF_UNBOUND) == 0) {
 		KASSERT((td->td_kse != NULL),
 		    ("queueing BAD thread to run queue"));
@@ -365,14 +371,10 @@ setrunqueue(struct thread *td)
 			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
 			kg->kg_loan_kses--;
 		}
-		/*
-		 * Common path optimisation: Only one of everything
-		 * and the KSE is always already attached.
-		 * Totally ignore the ksegrp run queue.
-		 */
 		runq_add(&runq, td->td_kse);
 		return;
 	}
+
 	/* 
 	 * Ok, so we are threading with this thread.
 	 * We don't have a KSE, see if we can get one..
@@ -394,11 +396,16 @@ setrunqueue(struct thread *td)
 			ke->ke_state = KES_THREAD;
 			kg->kg_idle_kses--;
 		} else if (kg->kg_loan_kses) {
+			/*
+			 * Failing that see if we can borrow one.
+			 */
 			ke = TAILQ_FIRST(&kg->kg_lq);
 			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
 			ke->ke_flags &= ~KEF_ONLOANQ;
 			ke->ke_state = KES_THREAD;
-			TD_SET_LOAN(ke->ke_bound);
+			TD_SET_LOAN(ke->ke_thread);
+			ke->ke_bound = ke->ke_thread;
+			ke->ke_thread  = NULL;
 			kg->kg_loan_kses--;
 		} else if (tda && (tda->td_priority > td->td_priority)) {
 			/*
@@ -697,6 +704,7 @@ runq_remove(struct runq *rq, struct kse *ke)
 	ke->ke_ksegrp->kg_runq_kses--;
 }
 
+#if 0
 static void 
 runq_readjust(struct runq *rq, struct kse *ke)
 {
@@ -706,19 +714,27 @@ runq_readjust(struct runq *rq, struct kse *ke)
 		runq_add(rq, ke);
 	}
 }
+#endif
 
 #if 0
 void
-thread_sanity_check(struct thread *td)
+panc(char *string1, char *string2)
+{
+	printf("%s", string1);
+	Debugger(string2);
+}
+
+void
+thread_sanity_check(struct thread *td, char *string)
 {
 	struct proc *p;
 	struct ksegrp *kg;
 	struct kse *ke;
-	struct thread *td2;
+	struct thread *td2 = NULL;
 	unsigned int prevpri;
-	int	saw_lastassigned;
-	int unassigned;
-	int assigned;
+	int	saw_lastassigned = 0;
+	int unassigned = 0;
+	int assigned = 0;
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
@@ -727,16 +743,16 @@ thread_sanity_check(struct thread *td)
 
 	if (ke) {
 		if (p != ke->ke_proc) {
-			panic("wrong proc");
+			panc(string, "wrong proc");
 		}
 		if (ke->ke_thread != td) {
-			panic("wrong thread");
+			panc(string, "wrong thread");
 		}
 	}
 	
 	if ((p->p_flag & P_KSES) == 0) {
 		if (ke == NULL) {
-			panic("non KSE thread lost kse");
+			panc(string, "non KSE thread lost kse");
 		}
 	} else {
 		prevpri = 0;
@@ -745,22 +761,27 @@ thread_sanity_check(struct thread *td)
 		assigned = 0;
 		TAILQ_FOREACH(td2, &kg->kg_runq, td_runq) {
 			if (td2->td_priority < prevpri) {
-				panic("thread runqueue unosorted");
+				panc(string, "thread runqueue unosorted");
+			}
+			if ((td2->td_state == TDS_RUNQ) &&
+			    td2->td_kse &&
+			    (td2->td_kse->ke_state != KES_ONRUNQ)) {
+				panc(string, "KSE wrong state");
 			}
 			prevpri = td2->td_priority;
 			if (td2->td_kse) {
 				assigned++;
 				if (unassigned) {
-					panic("unassigned before assigned");
+					panc(string, "unassigned before assigned");
 				}
  				if  (kg->kg_last_assigned == NULL) {
-					panic("lastassigned corrupt");
+					panc(string, "lastassigned corrupt");
 				}
 				if (saw_lastassigned) {
-					panic("last assigned not last");
+					panc(string, "last assigned not last");
 				}
 				if (td2->td_kse->ke_thread != td2) {
-					panic("mismatched kse/thread");
+					panc(string, "mismatched kse/thread");
 				}
 			} else {
 				unassigned++;
@@ -768,27 +789,31 @@ thread_sanity_check(struct thread *td)
 			if (td2 == kg->kg_last_assigned) {
 				saw_lastassigned = 1;
 				if (td2->td_kse == NULL) {
-					panic("last assigned not assigned");
+					panc(string, "last assigned not assigned");
 				}
 			}
 		}
 		if (kg->kg_last_assigned && (saw_lastassigned == 0)) {
-			panic("where on earth does lastassigned point?");
+			panc(string, "where on earth does lastassigned point?");
 		}
 		FOREACH_THREAD_IN_GROUP(kg, td2) {
 			if (((td2->td_flags & TDF_UNBOUND) == 0) && 
 			    (TD_ON_RUNQ(td2))) {
 				assigned++;
 				if (td2->td_kse == NULL) {
-					panic ("BOUND thread with no KSE");
+					panc(string, "BOUND thread with no KSE");
 				}
 			}
 		}
 #if 0
 		if ((unassigned + assigned) != kg->kg_runnable) {
-			panic("wrong number in runnable");
+			panc(string, "wrong number in runnable");
 		}
 #endif
+	}
+	if (assigned == 12345) {
+		printf("%p %p %p %p %p %d, %d",
+		    td, td2, ke, kg, p, assigned, saw_lastassigned);
 	}
 }
 #endif
