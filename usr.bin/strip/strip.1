@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm strip
 .Op Fl d
+.Op Fl x
 .Ar file ...
 .Sh DESCRIPTION
 The
@@ -54,6 +55,8 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl d
 Delete only debugging and empty symbols.
+.It Fl x
+Delete only debugging, compiler identification, and local symbols.
 .El
 .Pp
 .Nm Strip
