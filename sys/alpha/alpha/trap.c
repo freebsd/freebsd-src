@@ -298,9 +298,8 @@ trap(a0, a1, a2, entry, framep)
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = framep;
 		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-		PROC_LOCK(p);
-		td->td_ucred = crhold(p->p_ucred);
-		PROC_UNLOCK(p);
+		if (td->td_ucred != p->p_ucred)
+			cred_update_thread(td);
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 		KASSERT(cold || td->td_ucred != NULL,
@@ -626,10 +625,12 @@ out:
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 		userret(td, framep, sticks);
 		mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef	INVARIANTS
 		mtx_lock(&Giant);
 		crfree(td->td_ucred);
 		mtx_unlock(&Giant);
 		td->td_ucred = NULL;
+#endif
 	}
 	return;
 
@@ -699,9 +700,8 @@ syscall(code, framep)
 	opc = framep->tf_regs[FRAME_PC] - 4;
 	sticks = td->td_kse->ke_sticks;
 	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-	PROC_LOCK(p);
-	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);
+	if (td->td_ucred != p->p_ucred)
+		cred_update_thread(td);
 
 #ifdef DIAGNOSTIC
 	alpha_fpstate_check(td);
@@ -822,10 +822,12 @@ syscall(code, framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
