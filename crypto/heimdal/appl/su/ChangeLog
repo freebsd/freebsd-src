@@ -1,3 +1,13 @@
+2003-05-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* su.c: remove accidentally committed code that prints the command
+	being executed
+
+2003-03-18  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* su.c (krb5_start_session): krb5_afslog doesn't depend on KRB4
+	any more
+
 2002-02-19  Johan Danielsson  <joda@pdc.kth.se>
 
 	* su.c: make this build without krb5

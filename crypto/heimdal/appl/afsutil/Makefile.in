@@ -14,11 +14,11 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am,v 1.12 2000/11/15 22:51:07 assar Exp $
+# $Id: Makefile.am,v 1.15 2003/03/18 13:13:06 lha Exp $
 
 # $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
 
-# $Id: Makefile.am.common,v 1.36 2002/08/19 16:10:25 joda Exp $
+# $Id: Makefile.am.common,v 1.37.2.1 2003/05/08 17:08:09 joda Exp $
 SHELL = @SHELL@
 
 srcdir = @srcdir@
@@ -114,6 +114,7 @@ LIB_roken = @LIB_roken@
 LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+MAINT = @MAINT@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
 NROFF = @NROFF@
@@ -192,7 +193,7 @@ LIB_readline = @LIB_readline@
 
 NROFF_MAN = groff -mandoc -Tascii
 
-@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
 
 @KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
@@ -201,12 +202,13 @@ NROFF_MAN = groff -mandoc -Tascii
 
 @DCE_TRUE@LIB_kdfs = $(top_builddir)/lib/kdfs/libkdfs.la
 
-@KRB4_TRUE@AFSPROGS = afslog pagsh
-bin_PROGRAMS = $(AFSPROGS)
+bin_PROGRAMS = afslog pagsh
 
 afslog_SOURCES = afslog.c
 
 pagsh_SOURCES = pagsh.c
+
+man_MANS = afslog.1
 
 LDADD = $(LIB_kafs) \
 	$(LIB_krb4) \
@@ -219,27 +221,22 @@ subdir = appl/afsutil
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES =
-@KRB4_TRUE@bin_PROGRAMS = afslog$(EXEEXT) pagsh$(EXEEXT)
-@KRB4_FALSE@bin_PROGRAMS =
+bin_PROGRAMS = afslog$(EXEEXT) pagsh$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS)
 
 am_afslog_OBJECTS = afslog.$(OBJEXT)
 afslog_OBJECTS = $(am_afslog_OBJECTS)
 afslog_LDADD = $(LDADD)
-@KRB4_TRUE@afslog_DEPENDENCIES = $(top_builddir)/lib/kafs/libkafs.la \
-@KRB4_TRUE@	$(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_FALSE@afslog_DEPENDENCIES = $(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_FALSE@	$(top_builddir)/lib/asn1/libasn1.la
+afslog_DEPENDENCIES = $(top_builddir)/lib/kafs/libkafs.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
 afslog_LDFLAGS =
 am_pagsh_OBJECTS = pagsh.$(OBJEXT)
 pagsh_OBJECTS = $(am_pagsh_OBJECTS)
 pagsh_LDADD = $(LDADD)
-@KRB4_TRUE@pagsh_DEPENDENCIES = $(top_builddir)/lib/kafs/libkafs.la \
-@KRB4_TRUE@	$(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
-@KRB4_FALSE@pagsh_DEPENDENCIES = $(top_builddir)/lib/krb5/libkrb5.la \
-@KRB4_FALSE@	$(top_builddir)/lib/asn1/libasn1.la
+pagsh_DEPENDENCIES = $(top_builddir)/lib/kafs/libkafs.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
 pagsh_LDFLAGS =
 
 DEFS = @DEFS@
@@ -258,6 +255,7 @@ LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 CFLAGS = @CFLAGS@
 DIST_SOURCES = $(afslog_SOURCES) $(pagsh_SOURCES)
+MANS = $(man_MANS)
 DIST_COMMON = ChangeLog Makefile.am Makefile.in
 SOURCES = $(afslog_SOURCES) $(pagsh_SOURCES)
 
@@ -265,10 +263,10 @@ all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .et .h .x .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .c .lo .o .obj
-$(srcdir)/Makefile.in:  Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --foreign  appl/afsutil/Makefile
-Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 install-binPROGRAMS: $(bin_PROGRAMS)
@@ -328,6 +326,45 @@ clean-libtool:
 distclean-libtool:
 	-rm -f libtool
 uninstall-info-am:
+
+man1dir = $(mandir)/man1
+install-man1: $(man1_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(man1dir)
+	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst; \
+	done
+uninstall-man1:
+	@$(NORMAL_UNINSTALL)
+	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man1dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man1dir)/$$inst; \
+	done
 
 ETAGS = etags
 ETAGSFLAGS =
@@ -396,10 +433,10 @@ distdir: $(DISTFILES)
 check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-am
-all-am: Makefile $(PROGRAMS) all-local
+all-am: Makefile $(PROGRAMS) $(MANS) all-local
 
 installdirs:
-	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	$(mkinstalldirs) $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir)
 
 install: install-am
 install-exec: install-exec-am
@@ -442,7 +479,9 @@ info: info-am
 
 info-am:
 
-install-data-am: install-data-local
+install-data-am: install-man
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
 
 install-exec-am: install-binPROGRAMS
 	@$(NORMAL_INSTALL)
@@ -450,7 +489,7 @@ install-exec-am: install-binPROGRAMS
 
 install-info: install-info-am
 
-install-man:
+install-man: install-man1
 
 installcheck-am:
 
@@ -463,19 +502,22 @@ mostlyclean: mostlyclean-am
 mostlyclean-am: mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool
 
-uninstall-am: uninstall-binPROGRAMS uninstall-info-am
+uninstall-am: uninstall-binPROGRAMS uninstall-info-am uninstall-man
+
+uninstall-man: uninstall-man1
 
 .PHONY: GTAGS all all-am all-local check check-am check-local clean \
 	clean-binPROGRAMS clean-generic clean-libtool distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am info info-am install \
 	install-am install-binPROGRAMS install-data install-data-am \
-	install-data-local install-exec install-exec-am install-info \
-	install-info-am install-man install-strip installcheck \
+	install-exec install-exec-am install-info install-info-am \
+	install-man install-man1 install-strip installcheck \
 	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool tags uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-info-am
+	uninstall-am uninstall-binPROGRAMS uninstall-info-am \
+	uninstall-man uninstall-man1
 
 
 install-suid-programs:
@@ -601,7 +643,7 @@ dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
 install-cat-mans:
 	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
 
-install-data-local: install-cat-mans
+install-data-hook: install-cat-mans
 
 .et.h:
 	$(COMPILE_ET) $<

@@ -1,4 +1,4 @@
-@c $Id: ack.texi,v 1.15 2002/09/04 01:03:35 assar Exp $
+@c $Id: ack.texi,v 1.16 2003/03/15 14:21:41 lha Exp $
 
 @node  Acknowledgments, , Migration, Top
 @comment  node-name,  next,  previous,  up
@@ -60,6 +60,8 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @email{rnyberg@@it.su.se}
 @item Frank van der Linden
 @email{fvdl@@netbsd.org}
+@item Cizzi Storm
+@email{cizzi@@it.su.se}
 @item and we hope that those not mentioned here will forgive us.
 @end table
 

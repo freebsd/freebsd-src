@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.14 2001/09/18 13:04:15 joda Exp $
+# $Id: Makefile.am,v 1.15.2.1 2003/05/08 10:31:48 lha Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -12,10 +12,8 @@ DEFS = @DEFS@
 ## unconditionally build shared libraries, and it does not allow us to
 ## link with non-installed libraries
 
-if KRB4
 KAFS=$(top_builddir)/lib/kafs/.libs/libkafs.a
 KAFS_S=$(top_builddir)/lib/kafs/.libs/libkafs.so
-endif
 
 if KRB5
 L = \
@@ -106,5 +104,9 @@ CLEANFILES = $(MOD) $(OBJS) so_locations
 
 SUFFIXES += .c .o
 
+# XXX inline COMPILE since automake wont add it
+
 .c.o:
-	$(COMPILE) -c $<
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) \
+	-c `test -f '$<' || echo '$(srcdir)/'`$<

@@ -1,5 +1,5 @@
 .\" Copyright (c) 1997 Kungliga Tekniska Högskolan
-.\" $Id: krb5_warn.3,v 1.5 2002/08/28 15:30:59 joda Exp $
+.\" $Id: krb5_warn.3,v 1.7 2003/04/16 19:31:49 lha Exp $
 .Dd August 8, 1997
 .Dt KRB5_WARN 3
 .Os HEIMDAL
@@ -17,7 +17,7 @@
 .Sh LIBRARY
 Kerberos 5 Library (libkrb5, -lkrb5)
 .Sh SYNOPSIS
-.Fd #include <krb5.h>
+.In krb5.h
 .Ft krb5_error_code
 .Fn krb5_err "krb5_context context" "int eval" "krb5_error_code code" "const char *format" "..."
 .Ft krb5_error_code
@@ -36,6 +36,8 @@ Kerberos 5 Library (libkrb5, -lkrb5)
 .Fn krb5_warnx "krb5_context context" "const char *format" "..."
 .Ft krb5_error_code
 .Fn krb5_set_warn_dest "krb5_context context" "krb5_log_facility *facility"
+.Ft "char *"
+.Fn krb5_get_err_text "krb5_context context" "krb5_error_code code"
 .Sh DESCRIPTION
 These functions prints a warning message to some destination.
 .Fa format
@@ -59,5 +61,8 @@ Messages logged with the
 functions have a log level of 1, while the
 .Dq err
 functions logs with level 0.
+.Pp
+.Fn krb5_get_err_text
+fetches the human readable strings describing the error-code.
 .Sh SEE ALSO
 .Xr krb5_openlog 3

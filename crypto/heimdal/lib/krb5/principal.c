@@ -41,7 +41,7 @@
 #include <fnmatch.h>
 #include "resolve.h"
 
-RCSID("$Id: principal.c,v 1.81.2.1 2002/10/21 16:08:25 joda Exp $");
+RCSID("$Id: principal.c,v 1.82 2002/10/21 15:30:53 joda Exp $");
 
 #define princ_num_comp(P) ((P)->name.name_string.len)
 #define princ_type(P) ((P)->name.name_type)

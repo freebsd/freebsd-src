@@ -1,3 +1,119 @@
+2003-04-23  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* common.c, kafs.h: drop the int argument (the error code) from
+	the logging function
+
+2003-04-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* afskrb5.c (v5_convert): better match what other functions do
+	with values from krb5.conf, like case insensitivity
+
+2003-04-16  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: Change .Fd #include <header.h> to .In header.h
+	from Thomas Klausner <wiz@netbsd.org>
+
+2003-04-14  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: (libkafs_la_LDFLAGS): update version
+	
+	* Makefile.am (ROKEN_SRCS): drop strupr.c
+	
+	* kafs.3: document kafs_set_verbose
+	
+	* common.c (kafs_set_verbose): add function that (re)sets the
+	logging function
+	(_kafs_try_get_cred): add function that does (krb_data->get_cred) to
+	make logging easier (that is now done in this function)
+	(*): use _kafs_try_get_cred
+
+	* afskrb5.c (get_cred): handle that inst can be the empty string too
+	(v5_convert): use _kafs_foldup
+	(krb5_afslog_uid_home): set name
+	(krb5_afslog_uid_home): ditto
+
+	* afskrb.c (krb_afslog_uid_home): set name
+	(krb_afslog_uid_home): ditto
+
+	* kafs_locl.h (kafs_data): add name
+	(_kafs_foldup): internally export
+
+2003-04-11  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: tell that cell-name is uppercased
+	
+	* Makefile.am: add INCLUDE_krb4 when using krb4, add INCLUDE_des
+	when using krb5, add strupr.c
+	
+	* afskrb5.c: Check the cell part of the name, not the realm part
+	when checking if 2b should be used. The reson is afs@REALM might
+	have updated their servers but not afs/cell@REALM. Add constant
+	KAFS_RXKAD_2B_KVNO.
+
+2003-04-06  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: s/kerberos/Kerberos/
+	
+2003-03-19  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* kafs.3: spelling, from <jmc@prioris.mini.pw.edu.pl>
+	
+	* kafs.3: document the kafs_settoken functions write about the
+	krb5_appdefault option for kerberos 5 afs tokens fix prototypes
+	
+2003-03-18  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* afskrb5.c (kafs_settoken5): change signature to include a
+	krb5_context, use v5_convert
+	(v5_convert): new function, converts a krb5_ccreds to a kafs_token in
+	three diffrent ways, not at all, local 524/2b, and using 524
+	(v5_to_kt): add code to do local 524/2b
+	(get_cred): use v5_convert
+
+
+	* kafs.h (kafs_settoken5): change signature to include a
+	krb5_context
+
+	* Makefile.am: always build the libkafs library now that the
+	kerberos 5 can stand on their own
+	
+	* kafs.3: expose the krb5 functions
+	
+	* common.c (kafs_settoken_rxkad): move all content kerberos
+	version from kafs_settoken to kafs_settoken_rxkad
+	(_kafs_fixup_viceid): move the fixup the timestamp to make client
+	happy code here.
+	(_kafs_v4_to_kt): move all the kerberos 4 dependant parts from
+	kafs_settoken here.
+	(*): adapt to kafs_token
+
+	* afskrb5.c (kafs_settoken5): new function, inserts a krb5_creds
+	into kernel
+	(v5_to_kt): new function, stores a krb5_creds in struct kafs_token
+	(get_cred): add a appdefault boolean ("libkafs", realm, "afs-use-524")
+	that can used to toggle if there should v5 token should be used
+	directly or converted via 524 first.
+
+	* afskrb.c: move kafs_settoken here, use struct kafs_token
+	
+	* kafs_locl.h: include krb5-v4compat.h if needed, define an
+	internal structure struct kafs_token that carries around for rxkad
+	data that is independant of kerberos version
+	
+2003-02-18  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* dlfcn.h: s/intialize/initialize, from
+	<jmc@prioris.mini.pw.edu.pl>
+
+2003-02-08  Assar Westerlund  <assar@kth.se>
+
+	* afssysdefs.h: fix FreeBSD section
+
+2003-02-06  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* afssysdefs.h: use syscall 208 on openbsd (all version) use
+	syscall 339 on freebsd 5.0 and later, use 210 on 4.x and earlier
+	
 2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
 
 	* kafs.3: move around sections (from NetBSD)

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_any.c,v 1.6.4.1 2002/10/21 16:07:00 joda Exp $");
+RCSID("$Id: keytab_any.c,v 1.7 2002/10/21 13:36:59 joda Exp $");
 
 struct any_data {
     krb5_keytab kt;

@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.30 2001/09/02 17:12:23 joda Exp $
+# $Id: Makefile.am,v 1.31 2003/03/18 13:15:27 lha Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4)
+INCLUDES += $(INCLUDE_krb4) $(INCLUDE_des) -I$(srcdir)/../lib/krb5
 
 man_MANS = kinit.1 klist.1 kdestroy.1 kgetcred.1
 

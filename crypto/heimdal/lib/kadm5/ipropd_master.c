@@ -34,9 +34,11 @@
 #include "iprop.h"
 #include <rtbl.h>
 
-RCSID("$Id: ipropd_master.c,v 1.28 2002/08/16 18:27:53 joda Exp $");
+RCSID("$Id: ipropd_master.c,v 1.29 2003/03/19 11:56:38 lha Exp $");
 
 static krb5_log_facility *log_facility;
+
+const char *slave_stats_file = KADM5_SLAVE_STATS;
 
 static int
 make_signal_socket (krb5_context context)
@@ -123,6 +125,10 @@ slave_seen(slave *s)
 static void
 slave_dead(slave *s)
 {
+    if (s->fd >= 0) {
+	close (s->fd);
+	s->fd = -1;
+    }
     s->flags |= SLAVE_F_DEAD;
     slave_seen(s);
 }
@@ -406,12 +412,12 @@ process_msg (krb5_context context, slave *s, int log_fd,
 static void
 write_stats(krb5_context context, slave *slaves, u_int32_t current_version)
 {
-    char str[30];
+    char str[100];
     rtbl_t tbl;
     time_t t = time(NULL);
     FILE *fp;
 
-    fp = fopen(KADM5_SLAVE_STATS, "w");
+    fp = fopen(slave_stats_file, "w");
     if (fp == NULL)
 	return;
 
@@ -457,8 +463,9 @@ write_stats(krb5_context context, slave *slaves, u_int32_t current_version)
 	else
 	    rtbl_add_column_entry(tbl, SLAVE_STATUS, "Up");
 
-	strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", 
-		 localtime(&slaves->seen));
+	if (strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S %Z", 
+		     localtime(&slaves->seen)) == 0)
+	    strlcpy(str, "Unknown time", sizeof(str));
 	rtbl_add_column_entry(tbl, SLAVE_SEEN, str);
 
 	slaves = slaves->next;
@@ -482,6 +489,7 @@ static struct getargs args[] = {
     { "keytab", 'k', arg_string, &keytab_str,
       "keytab to get authentication from", "kspec" },
     { "database", 'd', arg_string, &database, "database", "file"},
+    { "slave-stats-file", 0, arg_string, &slave_stats_file, "file"},
     { "version", 0, arg_flag, &version_flag },
     { "help", 0, arg_flag, &help_flag }
 };
@@ -566,6 +574,8 @@ main(int argc, char **argv)
 	max_fd = max(max_fd, listen_fd);
 
 	for (p = slaves; p != NULL; p = p->next) {
+	    if (p->flags & SLAVE_F_DEAD)
+		continue;
 	    FD_SET(p->fd, &readset);
 	    max_fd = max(max_fd, p->fd);
 	}
@@ -584,8 +594,11 @@ main(int argc, char **argv)
 	    kadm5_log_get_version_fd (log_fd, &current_version);
 
 	    if (current_version > old_version)
-		for (p = slaves; p != NULL; p = p->next)
+		for (p = slaves; p != NULL; p = p->next) {
+		    if (p->flags & SLAVE_F_DEAD)
+			continue;
 		    send_diffs (context, p, log_fd, database, current_version);
+		}
 	}
 
 	if (ret && FD_ISSET(signal_fd, &readset)) {
@@ -604,12 +617,15 @@ main(int argc, char **argv)
 		send_diffs (context, p, log_fd, database, current_version);
 	}
 
-	for(p = slaves; ret && p != NULL; p = p->next)
+	for(p = slaves; ret && p != NULL; p = p->next) {
+	    if (p->flags & SLAVE_F_DEAD)
+		continue;
 	    if (FD_ISSET(p->fd, &readset)) {
 		--ret;
 		if(process_msg (context, p, log_fd, database, current_version))
 		    slave_dead(p);
 	    }
+	}
 
 	if (ret && FD_ISSET(listen_fd, &readset)) {
 	    add_slave (context, keytab, &slaves, listen_fd);

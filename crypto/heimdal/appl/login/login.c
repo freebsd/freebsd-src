@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -39,7 +39,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.56 2002/08/23 12:11:09 joda Exp $");
+RCSID("$Id: login.c,v 1.59 2003/03/24 15:57:10 joda Exp $");
 
 static int login_timeout = 60;
 
@@ -142,9 +142,7 @@ otp_verify(struct passwd *pwd, const char *password)
 #endif /* OTP */
 
 
-#ifdef KRB4
 static int pag_set = 0;
-#endif
 
 #ifdef KRB5
 static krb5_context context;
@@ -269,8 +267,6 @@ krb5_finish (void)
     krb5_free_context(context);
 }
 
-#ifdef KRB4
-
 static void
 krb5_get_afs_tokens (const struct passwd *pwd)
 {
@@ -299,8 +295,6 @@ krb5_get_afs_tokens (const struct passwd *pwd)
 	krb5_cc_close (context, id2);
     }
 }
-
-#endif /* KRB4 */
 
 #endif /* KRB5 */
 
@@ -598,9 +592,10 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 	    krb5_cc_close (context, id);
 	}
     }
+#endif /* KRB4 */
 
     krb5_get_afs_tokens (pwd);
-#endif /* KRB4 */
+
     krb5_finish ();
 #endif /* KRB5 */
 
@@ -634,6 +629,10 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 		    continue;
 		show_file(buf);
 	    }
+	} else {
+	    str = login_conf_get_string("welcome");
+	    if(str != NULL)
+		show_file(str);
 	}
     }
     add_env("HOME", home_dir);

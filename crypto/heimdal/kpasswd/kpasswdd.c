@@ -32,7 +32,7 @@
  */
 
 #include "kpasswd_locl.h"
-RCSID("$Id: kpasswdd.c,v 1.53 2002/08/19 15:07:31 joda Exp $");
+RCSID("$Id: kpasswdd.c,v 1.54 2002/12/02 14:31:52 joda Exp $");
 
 #include <kadm5/admin.h>
 #ifdef HAVE_SYS_UN_H
@@ -448,7 +448,7 @@ doit (krb5_keytab keytab, int port)
     maxfd = -1;
     FD_ZERO(&real_fdset);
     for (i = 0; i < n; ++i) {
-	int sa_size;
+	int sa_size = sizeof(__ss);
 
 	krb5_addr2sockaddr (context, &addrs.val[i], sa, &sa_size, port);
 	

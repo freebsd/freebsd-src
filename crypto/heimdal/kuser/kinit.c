@@ -32,7 +32,7 @@
  */
 
 #include "kuser_locl.h"
-RCSID("$Id: kinit.c,v 1.90 2002/09/09 22:17:53 joda Exp $");
+RCSID("$Id: kinit.c,v 1.90.4.1 2003/05/08 18:58:37 lha Exp $");
 
 int forwardable_flag	= -1;
 int proxiable_flag	= -1;
@@ -52,9 +52,9 @@ char *start_str		= NULL;
 struct getarg_strings etype_str;
 int use_keytab		= 0;
 char *keytab_str	= NULL;
+int do_afslog		= -1;
 #ifdef KRB4
 int get_v4_tgt		= -1;
-int do_afslog		= -1;
 int convert_524;
 #endif
 int fcache_version;
@@ -66,10 +66,10 @@ static struct getargs args[] = {
     
     { "524convert", 	'9', arg_flag, &convert_524,
       "only convert ticket to version 4" },
-    
+#endif
     { "afslog", 	0  , arg_flag, &do_afslog,
       "obtain afs tokens"  },
-#endif
+
     { "cache", 		'c', arg_string, &cred_cache,
       "credentials cache", "cachename" },
 
@@ -370,16 +370,15 @@ renew_validate(krb5_context context,
     }
     ret = krb5_cc_store_cred(context, cache, out);
 
-#ifdef KRB4
     if(ret == 0 && server == NULL) {
+#ifdef KRB4
 	/* only do this if it's a general renew-my-tgt request */
 	if(get_v4_tgt)
 	    do_524init(context, cache, out, NULL);
-
+#endif
 	if(do_afslog && k_hasafs())
 	    krb5_afslog(context, cache, NULL, NULL);
     }
-#endif
 
     krb5_free_creds (context, out);
     if(ret) {
@@ -648,11 +647,11 @@ main (int argc, char **argv)
 	krb5_appdefault_boolean(context, "kinit", 
 				krb5_principal_get_realm(context, principal), 
 				"krb4_get_tickets", TRUE, &get_v4_tgt);
+#endif
     if(do_afslog == -1)
 	krb5_appdefault_boolean(context, "kinit", 
 				krb5_principal_get_realm(context, principal), 
 				"afslog", TRUE, &do_afslog);
-#endif
 
     if(!addrs_flag && extra_addresses.num_strings > 0)
 	krb5_errx(context, 1, "specifying both extra addresses and "
@@ -687,17 +686,17 @@ main (int argc, char **argv)
 #ifdef KRB4
     if(get_v4_tgt)
 	do_524init(context, ccache, NULL, server);
+#endif
     if(do_afslog && k_hasafs())
 	krb5_afslog(context, ccache, NULL, NULL);
-#endif
     if(argc > 1) {
 	simple_execvp(argv[1], argv+1);
 	krb5_cc_destroy(context, ccache);
 #ifdef KRB4
 	dest_tkt();
+#endif
 	if(k_hasafs())
 	    k_unlog();
-#endif
     } else 
 	krb5_cc_close (context, ccache);
     krb5_free_principal(context, principal);

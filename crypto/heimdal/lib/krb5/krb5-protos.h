@@ -48,6 +48,16 @@ krb5_524_conv_principal (
 	char */*realm*/);
 
 krb5_error_code
+krb5_PKCS5_PBKDF2 (
+	krb5_context /*context*/,
+	krb5_cksumtype /*cktype*/,
+	krb5_data /*password*/,
+	krb5_salt /*salt*/,
+	u_int32_t /*iter*/,
+	krb5_keytype /*type*/,
+	krb5_keyblock */*key*/);
+
+krb5_error_code
 krb5_abort (
 	krb5_context /*context*/,
 	krb5_error_code /*code*/,
@@ -437,6 +447,11 @@ krb5_cc_get_name (
 	krb5_context /*context*/,
 	krb5_ccache /*id*/);
 
+const krb5_cc_ops *
+krb5_cc_get_ops (
+	krb5_context /*context*/,
+	krb5_ccache /*id*/);
+
 krb5_error_code
 krb5_cc_get_principal (
 	krb5_context /*context*/,
@@ -492,6 +507,11 @@ krb5_cc_retrieve_cred (
 	krb5_flags /*whichfields*/,
 	const krb5_creds */*mcreds*/,
 	krb5_creds */*creds*/);
+
+krb5_error_code
+krb5_cc_set_default_name (
+	krb5_context /*context*/,
+	const char */*name*/);
 
 krb5_error_code
 krb5_cc_set_flags (
@@ -1058,6 +1078,12 @@ krb5_encrypt_ivec (
 	void */*ivec*/);
 
 krb5_error_code
+krb5_enctype_keysize (
+	krb5_context /*context*/,
+	krb5_enctype /*type*/,
+	size_t */*keysize*/);
+
+krb5_error_code
 krb5_enctype_to_keytype (
 	krb5_context /*context*/,
 	krb5_enctype /*etype*/,
@@ -1176,6 +1202,11 @@ void
 krb5_free_data (
 	krb5_context /*context*/,
 	krb5_data */*p*/);
+
+void
+krb5_free_data_contents (
+	krb5_context /*context*/,
+	krb5_data */*data*/);
 
 void
 krb5_free_error (
@@ -1774,6 +1805,13 @@ krb5_kt_get_name (
 	krb5_keytab /*keytab*/,
 	char */*name*/,
 	size_t /*namesize*/);
+
+krb5_error_code
+krb5_kt_get_type (
+	krb5_context /*context*/,
+	krb5_keytab /*keytab*/,
+	char */*prefix*/,
+	size_t /*prefixsize*/);
 
 krb5_error_code
 krb5_kt_next_entry (
@@ -2603,6 +2641,15 @@ krb5_string_to_key_data_salt (
 	krb5_enctype /*enctype*/,
 	krb5_data /*password*/,
 	krb5_salt /*salt*/,
+	krb5_keyblock */*key*/);
+
+krb5_error_code
+krb5_string_to_key_data_salt_opaque (
+	krb5_context /*context*/,
+	krb5_enctype /*enctype*/,
+	krb5_data /*password*/,
+	krb5_salt /*salt*/,
+	krb5_data /*opaque*/,
 	krb5_keyblock */*key*/);
 
 krb5_error_code

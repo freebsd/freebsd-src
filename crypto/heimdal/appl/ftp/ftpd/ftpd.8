@@ -269,7 +269,7 @@ interprets file names according to the
 .Dq globbing
 conventions used by
 .Xr csh 1 .
-This allows users to utilize the metacharacters
+This allows users to use the metacharacters
 .Dq Li \&*?[]{}~ .
 .Pp
 .Nm Ftpd
@@ -281,7 +281,7 @@ If Kerberos authentication is used, the user must pass valid tickets
 and the principal must be allowed to login as the remote user.
 .It
 The login name must be in the password data base, and not have a null
-password (if kerberos is used the password field is not checked).  In
+password (if Kerberos is used the password field is not checked).  In
 this case a password must be provided by the client before any file
 operations may be performed.  If the user has an OTP key, the response
 from a successful USER command will include an OTP challenge. The

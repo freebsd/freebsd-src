@@ -1,3 +1,54 @@
+2003-05-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am.common: change install-data-local to
+	install-data-hook
+
+2003-05-05  Assar Westerlund  <assar@kth.se>
+
+	* crypto.m4: define OPENSSL_DES_LIBDES_COMPATIBILITY
+
+2003-04-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* crypto.m4: check if libcrypto needs -lnsl or -lsocket
+	
+2003-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* crypto.m4: in the case where se don't link with kerberos 4, use
+	${with_openssl_include} if its are set (not
+	${with_openssl}/include) same for with_openssl_lib
+	
+2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am.common: always define LIB_kafs
+	
+2003-03-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* check-compile-et.m4: check if the output of compile_et needs
+	initialize_error_table_r
+
+2003-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* check-var.m4: add a check if the variable is avaible when we
+	include the headerfiles
+
+2002-12-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: res_nsearch takes 6 parameters; spotted by Howard
+	Chu
+
+2002-10-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* crypto.m4: do a better job at matching headers to libraries
+
+2002-10-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* sunos.m4: more quoting
+
+2002-09-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* make-proto.pl: check the processed string for closing ), not the
+	source
+
 2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
 
 	* crypto.m4: use m4 macros for test cases, also test for older

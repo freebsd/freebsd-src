@@ -18,7 +18,7 @@
 
 # $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
 
-# $Id: Makefile.am.common,v 1.36 2002/08/19 16:10:25 joda Exp $
+# $Id: Makefile.am.common,v 1.37.2.1 2003/05/08 17:08:09 joda Exp $
 SHELL = @SHELL@
 
 srcdir = @srcdir@
@@ -114,6 +114,7 @@ LIB_roken = @LIB_roken@
 LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+MAINT = @MAINT@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
 NROFF = @NROFF@
@@ -192,7 +193,7 @@ LIB_readline = @LIB_readline@
 
 NROFF_MAN = groff -mandoc -Tascii
 
-@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
 
 @KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
@@ -297,10 +298,10 @@ all: config.h
 
 .SUFFIXES:
 .SUFFIXES: .et .h .x .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .c .lo .o .obj
-$(srcdir)/Makefile.in:  Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --foreign  include/Makefile
-Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)
 
 config.h: stamp-h1
@@ -313,7 +314,7 @@ stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
 	@rm -f stamp-h1
 	cd $(top_builddir) && $(SHELL) ./config.status include/config.h
 
-$(srcdir)/config.h.in:  $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+$(srcdir)/config.h.in: @MAINTAINER_MODE_TRUE@ $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOHEADER)
 	touch $(srcdir)/config.h.in
 
@@ -560,7 +561,9 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-data-local install-includeHEADERS
+install-data-am: install-includeHEADERS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
 
 install-exec-am:
 	@$(NORMAL_INSTALL)
@@ -591,17 +594,16 @@ uninstall-info: uninstall-info-recursive
 	distclean-compile distclean-generic distclean-hdr \
 	distclean-libtool distclean-recursive distclean-tags distdir \
 	dvi dvi-am dvi-recursive info info-am info-recursive install \
-	install-am install-data install-data-am install-data-local \
-	install-data-recursive install-exec install-exec-am \
-	install-exec-recursive install-includeHEADERS install-info \
-	install-info-am install-info-recursive install-man \
-	install-recursive install-strip installcheck installcheck-am \
-	installdirs installdirs-am installdirs-recursive \
-	maintainer-clean maintainer-clean-generic \
-	maintainer-clean-recursive mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool mostlyclean-recursive \
-	tags tags-recursive uninstall uninstall-am \
-	uninstall-includeHEADERS uninstall-info-am \
+	install-am install-data install-data-am install-data-recursive \
+	install-exec install-exec-am install-exec-recursive \
+	install-includeHEADERS install-info install-info-am \
+	install-info-recursive install-man install-recursive \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am installdirs-recursive maintainer-clean \
+	maintainer-clean-generic maintainer-clean-recursive mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	mostlyclean-recursive tags tags-recursive uninstall \
+	uninstall-am uninstall-includeHEADERS uninstall-info-am \
 	uninstall-info-recursive uninstall-recursive
 
 
@@ -728,7 +730,7 @@ dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
 install-cat-mans:
 	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
 
-install-data-local: install-cat-mans
+install-data-hook: install-cat-mans
 
 .et.h:
 	$(COMPILE_ET) $<

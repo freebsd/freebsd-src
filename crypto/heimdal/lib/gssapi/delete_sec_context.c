@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: delete_sec_context.c,v 1.9 2001/05/10 15:23:04 assar Exp $");
+RCSID("$Id: delete_sec_context.c,v 1.11 2003/03/16 17:46:40 lha Exp $");
 
 OM_uint32 gss_delete_sec_context
            (OM_uint32 * minor_status,
@@ -41,28 +41,29 @@ OM_uint32 gss_delete_sec_context
             gss_buffer_t output_token
            )
 {
-  gssapi_krb5_init ();
+    GSSAPI_KRB5_INIT ();
 
-  if (output_token) {
-      output_token->length = 0;
-      output_token->value  = NULL;
-  }
+    if (output_token) {
+	output_token->length = 0;
+	output_token->value  = NULL;
+    }
 
-  krb5_auth_con_free (gssapi_krb5_context,
-		      (*context_handle)->auth_context);
-  if((*context_handle)->source)
-    krb5_free_principal (gssapi_krb5_context,
-			 (*context_handle)->source);
-  if((*context_handle)->target)
-    krb5_free_principal (gssapi_krb5_context,
-			 (*context_handle)->target);
-  if ((*context_handle)->ticket) {
-    krb5_free_ticket (gssapi_krb5_context,
-		      (*context_handle)->ticket);
-    free((*context_handle)->ticket);
-  }
+    krb5_auth_con_free (gssapi_krb5_context,
+			(*context_handle)->auth_context);
+    if((*context_handle)->source)
+	krb5_free_principal (gssapi_krb5_context,
+			     (*context_handle)->source);
+    if((*context_handle)->target)
+	krb5_free_principal (gssapi_krb5_context,
+			     (*context_handle)->target);
+    if ((*context_handle)->ticket) {
+	krb5_free_ticket (gssapi_krb5_context,
+			  (*context_handle)->ticket);
+	free((*context_handle)->ticket);
+    }
 
-  free (*context_handle);
-  *context_handle = GSS_C_NO_CONTEXT;
-  return GSS_S_COMPLETE;
+    free (*context_handle);
+    *context_handle = GSS_C_NO_CONTEXT;
+    *minor_status = 0;
+    return GSS_S_COMPLETE;
 }

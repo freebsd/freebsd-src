@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.143 2002/09/09 14:03:02 nectar Exp $");
+RCSID("$Id: kerberos5.c,v 1.145 2003/04/15 11:07:39 lha Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -716,9 +716,10 @@ as_rep(KDC_REQ *req,
 	    if (ret == 0) {
 		kdc_log(5, "Using %s/%s", cet, set);
 		free(set);
-	    } else
-		free(cet);
-	} else
+	    }
+	    free(cet);
+	}
+	if (ret != 0)
 	    kdc_log(5, "Using e-types %d/%d", cetype, setype);
     }
     
@@ -914,8 +915,8 @@ as_rep(KDC_REQ *req,
 		       client->kvno, &ckey->key, &e_text, reply);
     free_EncTicketPart(&et);
     free_EncKDCRepPart(&ek);
-    free_AS_REP(&rep);
   out:
+    free_AS_REP(&rep);
     if(ret){
 	krb5_mk_error(context,
 		      ret,
@@ -1172,18 +1173,15 @@ tgs_make_reply(KDC_REQ_BODY *b,
     
     ret = check_tgs_flags(b, tgt, &et);
     if(ret)
-	return ret;
+	goto out;
 
     copy_TransitedEncoding(&tgt->transited, &et.transited);
     ret = fix_transited_encoding(&et.transited,
 				 *krb5_princ_realm(context, client_principal),
 				 *krb5_princ_realm(context, server->principal),
 				 *krb5_princ_realm(context, krbtgt->principal));
-    if(ret){
-	free_TransitedEncoding(&et.transited);
-	return ret;
-    }
-
+    if(ret)
+	goto out;
 
     copy_Realm(krb5_princ_realm(context, server->principal), 
 	       &rep.ticket.realm);
@@ -1457,6 +1455,7 @@ tgs_rep2(KDC_REQ_BODY *b,
     if(ret) {
 	char *p;
 	krb5_unparse_name(context, princ, &p);
+	krb5_free_principal(context, princ);
 	kdc_log(0, "Ticket-granting ticket not found in database: %s: %s",
 		p, krb5_get_err_text(context, ret));
 	free(p);
@@ -1469,6 +1468,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 	char *p;
 
 	krb5_unparse_name (context, princ, &p);
+	krb5_free_principal(context, princ);
 	kdc_log(0, "Ticket kvno = %d, DB kvno = %d (%s)", 
 		*ap_req.ticket.enc_part.kvno,
 		krbtgt->kvno,

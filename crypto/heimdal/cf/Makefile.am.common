@@ -1,4 +1,4 @@
-# $Id: Makefile.am.common,v 1.36 2002/08/19 16:10:25 joda Exp $
+# $Id: Makefile.am.common,v 1.37.2.1 2003/05/08 17:08:09 joda Exp $
 
 AUTOMAKE_OPTIONS = foreign no-dependencies 1.6
 
@@ -190,7 +190,7 @@ dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
 install-cat-mans:
 	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
 
-install-data-local: install-cat-mans
+install-data-hook: install-cat-mans
 
 
 .et.h:
@@ -198,9 +198,7 @@ install-data-local: install-cat-mans
 .et.c:
 	$(COMPILE_ET) $<
 
-if KRB4
 LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
-endif
 
 if KRB5
 LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \

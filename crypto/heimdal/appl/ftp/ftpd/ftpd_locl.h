@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: ftpd_locl.h,v 1.12 2000/09/19 13:16:44 assar Exp $ */
+/* $Id: ftpd_locl.h,v 1.13 2003/03/18 13:37:13 lha Exp $ */
 
 #ifndef __ftpd_locl_h__
 #define __ftpd_locl_h__
@@ -148,6 +148,9 @@
 
 #ifdef KRB4
 #include <krb.h>
+#endif
+
+#if defined(KRB4) || defined(KRB5)
 #include <kafs.h>
 #endif
  

@@ -5,6 +5,15 @@
 #include <stdarg.h>
 
 void
+_krb5_aes_cts_encrypt (
+	const unsigned char */*in*/,
+	unsigned char */*out*/,
+	size_t /*len*/,
+	const void */*aes_key*/,
+	unsigned char */*ivec*/,
+	const int /*enc*/);
+
+void
 _krb5_crc_init_table (void);
 
 u_int32_t
@@ -33,6 +42,16 @@ _krb5_get_int (
 	void */*buffer*/,
 	unsigned long */*value*/,
 	size_t /*size*/);
+
+time_t
+_krb5_krb_life_to_time (
+	int /*start*/,
+	int /*life_*/);
+
+int
+_krb5_krb_time_to_life (
+	time_t /*start*/,
+	time_t /*end*/);
 
 void
 _krb5_n_fold (
