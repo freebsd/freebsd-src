@@ -67,16 +67,19 @@ struct isa_ident {
 };
 const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
 
+#define ISA_ID_3C509_XXX   0x0506d509
 #define ISA_ID_3C509_TP    0x506d5090
 #define ISA_ID_3C509_BNC   0x506d5091
 #define ISA_ID_3C509_COMBO 0x506d5094
 #define ISA_ID_3C509_TPO   0x506d5095
+#define ISA_ID_3C509_TPC   0x506d5098
 
 static struct isa_ident ep_isa_devs[] = {
 	{ ISA_ID_3C509_TP,	"3Com 3C509-TP EtherLink III" },
 	{ ISA_ID_3C509_BNC,	"3Com 3C509-BNC EtherLink III" },
 	{ ISA_ID_3C509_COMBO,	"3Com 3C509-Combo EtherLink III" },
 	{ ISA_ID_3C509_TPO,	"3Com 3C509-TPO EtherLink III" },
+	{ ISA_ID_3C509_TPC,	"3Com 3C509-TPC EtherLink III" },
 	{ 0,			NULL },
 };
 
@@ -85,6 +88,7 @@ static struct isa_pnp_id ep_ids[] = {
 	{ 0x91506d50,	"3Com 3C509B-BNC EtherLink III (PnP)" },/* TCM5091 */
 	{ 0x94506d50,	"3Com 3C509B-Combo EtherLink III (PnP)" },/* TCM5094 */
 	{ 0x95506d50,	"3Com 3C509B-TPO EtherLink III (PnP)" },/* TCM5095 */
+	{ 0x98506d50,	"3Com 3C509B-TPC EtherLink III (PnP)" },/* TCM5098 */
 	{ 0xf780d041,	NULL }, /* PNP80f7 */
 	{ 0,		NULL },
 };
@@ -129,6 +133,14 @@ ep_isa_match_id (id, isa_devs)
 	       if (id == i->id)
 		      return (i->name);
 	       i++;
+	}
+	/*
+	 * If we see a card that is likely to be a 3c509
+	 * return something so that it will work; be annoying
+	 * so that the user will tell us about it though.
+	 */
+	if ((id >> 8) == ISA_ID_3C509_XXX) {
+		return ("Unknown 3c509; notify maintainer!");
 	}
 	return (NULL);
 }
