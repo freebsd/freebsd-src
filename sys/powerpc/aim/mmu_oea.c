@@ -1237,12 +1237,14 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 
 void
 pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
-		    vm_pindex_t pindex, vm_size_t size, int limit)
+		    vm_pindex_t pindex, vm_size_t size)
 {
 
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->type == OBJT_DEVICE,
+	    ("pmap_object_init_pt: non-device object"));
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_remove_pages: non current pmap"));
-	/* XXX */
+	    ("pmap_object_init_pt: non current pmap"));
 }
 
 /*

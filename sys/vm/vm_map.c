@@ -1270,6 +1270,11 @@ vm_map_submap(
 }
 
 /*
+ * The maximum number of pages to map
+ */
+#define	MAX_INIT_PT	96
+
+/*
  *	vm_map_pmap_enter:
  *
  *	Preload the mappings for the given object into the specified
@@ -1280,9 +1285,77 @@ void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
 {
+	vm_offset_t tmpidx;
+	int psize;
+	vm_page_t p, mpte;
 
+	if (object == NULL)
+		return;
 	mtx_lock(&Giant);
-	pmap_object_init_pt(map->pmap, addr, object, pindex, size, flags);
+	VM_OBJECT_LOCK(object);
+	if (object->type == OBJT_DEVICE) {
+		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
+		goto unlock_return;
+	}
+
+	psize = atop(size);
+
+	if (object->type != OBJT_VNODE ||
+	    ((flags & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
+	     (object->resident_page_count > MAX_INIT_PT))) {
+		goto unlock_return;
+	}
+
+	if (psize + pindex > object->size) {
+		if (object->size < pindex)
+			goto unlock_return;
+		psize = object->size - pindex;
+	}
+
+	mpte = NULL;
+
+	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+		if (p->pindex < pindex) {
+			p = vm_page_splay(pindex, object->root);
+			if ((object->root = p)->pindex < pindex)
+				p = TAILQ_NEXT(p, listq);
+		}
+	}
+	/*
+	 * Assert: the variable p is either (1) the page with the
+	 * least pindex greater than or equal to the parameter pindex
+	 * or (2) NULL.
+	 */
+	for (;
+	     p != NULL && (tmpidx = p->pindex - pindex) < psize;
+	     p = TAILQ_NEXT(p, listq)) {
+		/*
+		 * don't allow an madvise to blow away our really
+		 * free pages allocating pv entries.
+		 */
+		if ((flags & MAP_PREFAULT_MADVISE) &&
+		    cnt.v_free_count < cnt.v_free_reserved) {
+			break;
+		}
+		vm_page_lock_queues();
+		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
+		    (p->busy == 0) &&
+		    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+			if ((p->queue - p->pc) == PQ_CACHE)
+				vm_page_deactivate(p);
+			vm_page_busy(p);
+			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(object);
+			mpte = pmap_enter_quick(map->pmap, 
+				addr + ptoa(tmpidx), p, mpte);
+			VM_OBJECT_LOCK(object);
+			vm_page_lock_queues();
+			vm_page_wakeup(p);
+		}
+		vm_page_unlock_queues();
+	}
+unlock_return:
+	VM_OBJECT_UNLOCK(object);
 	mtx_unlock(&Giant);
 }
 
