@@ -2882,7 +2882,8 @@ allocbuf(struct buf *bp, int size)
 					 * process we are.
 					 */
 					m = vm_page_alloc(obj, pi,
-					    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+					    VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM |
+					    VM_ALLOC_WIRED);
 					if (m == NULL) {
 						atomic_add_int(&vm_pageout_deficit,
 						    desiredpages - bp->b_npages);
@@ -2890,9 +2891,6 @@ allocbuf(struct buf *bp, int size)
 						VM_WAIT;
 						VM_OBJECT_LOCK(obj);
 					} else {
-						vm_page_lock_queues();
-						vm_page_wakeup(m);
-						vm_page_unlock_queues();
 						bp->b_flags &= ~B_CACHE;
 						bp->b_pages[bp->b_npages] = m;
 						++bp->b_npages;
@@ -3623,7 +3621,7 @@ tryagain:
 		 */
 		p = vm_page_alloc(kernel_object,
 			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
-		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		    VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!p) {
 			atomic_add_int(&vm_pageout_deficit,
 			    (to - pg) >> PAGE_SHIFT);
@@ -3635,9 +3633,6 @@ tryagain:
 		p->valid = VM_PAGE_BITS_ALL;
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
-		vm_page_lock_queues();
-		vm_page_wakeup(p);
-		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(kernel_object);
 	bp->b_npages = index;
@@ -3650,8 +3645,6 @@ vm_hold_free_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 	vm_offset_t pg;
 	vm_page_t p;
 	int index, newnpages;
-
-	GIANT_REQUIRED;
 
 	from = round_page(from);
 	to = round_page(to);
