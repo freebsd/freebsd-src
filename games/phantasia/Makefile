@@ -7,6 +7,7 @@ LDADD=	-lm -lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 MAN6=	phantasia.6
 CLEANFILES+=map setup setup.o
+CLEANFILES+= characs gold lastdead mess monsters motd scoreboard void
 
 all: setup phantasia ${MAN6}
 
