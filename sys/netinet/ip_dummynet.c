@@ -1122,7 +1122,7 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
  *
  */
 static int
-dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
+dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 {
     struct dn_pkt_tag *pkt;
     struct m_tag *mtag;
@@ -1146,13 +1146,11 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     is_pipe = (fwa->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE;
 #endif
 
-    pipe_nr &= 0xffff ;
-
     DUMMYNET_LOCK();
     /*
      * This is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
      */
-    fs = locate_flowset(pipe_nr, fwa->rule);
+    fs = locate_flowset(fwa->cookie, fwa->rule);
     if (fs == NULL)
 	goto dropit ;	/* this queue/pipe does not exist! */
     pipe = fs->pipe ;
