@@ -48,6 +48,8 @@ static char rcsid[] = "$FreeBSD$";
 #define	MAXALIASES	35
 #define	MAXADDRS	35
 
+extern int h_errno;
+
 #ifdef YP
 static char *host_aliases[MAXALIASES];
 static char hostaddr[MAXADDRS];
@@ -76,15 +78,20 @@ _gethostbynis(name, map, af)
 	case AF_INET6:
 		size = NS_IN6ADDRSZ;
 		errno = EAFNOSUPPORT;
+		h_errno = NETDB_INTERNAL;
 		return NULL;
 	}
 
 	if (domain == (char *)NULL)
-		if (yp_get_default_domain (&domain))
+		if (yp_get_default_domain (&domain)) {
+			h_errno = NETDB_INTERNAL;
 			return ((struct hostent *)NULL);
+		}
 
-	if (yp_match(domain, map, name, strlen(name), &result, &resultlen))
+	if (yp_match(domain, map, name, strlen(name), &result, &resultlen)) {
+		h_errno = HOST_NOT_FOUND;
 		return ((struct hostent *)NULL);
+	}
 
 	/* avoid potential memory leak */
 	bcopy((char *)result, (char *)&ypbuf, resultlen);
