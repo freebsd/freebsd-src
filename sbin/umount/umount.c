@@ -128,8 +128,7 @@ main(argc, argv)
 		errs = umountall();
 	} else
 		for (errs = 0; *argv != NULL; ++argv)
-			if (umountfs(*argv) == 0)
-				errs = 1;
+			errs += umountfs(*argv);
 	exit(errs);
 }
 
@@ -174,6 +173,7 @@ umountall()
 	return (0);
 }
 
+/* Returns 1 on failure, 0 on success */
 int
 umountfs(name)
 	char *name;
@@ -188,8 +188,8 @@ umountfs(name)
 	char *delimp, *hostp, *mntpt, rname[MAXPATHLEN];
 
 	if (realpath(name, rname) == NULL) {
-		warn("%s", rname);
-		return (0);
+		/* Continue and let the system call check it... */
+		strcpy(rname, name);
 	}
 
 	name = rname;
