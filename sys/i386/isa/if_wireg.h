@@ -66,6 +66,14 @@ struct wi_counters {
 #define WI_RID_DEFLT_CRYPT_KEYS	0xFCB0
 #define WI_RID_TX_CRYPT_KEY	0xFCB1
 #define WI_RID_WEP_AVAIL	0xFD4F
+#define WI_RID_P2_TX_CRYPT_KEY	0xFC23
+#define WI_RID_P2_CRYPT_KEY0	0xFC24
+#define WI_RID_P2_CRYPT_KEY1	0xFC25
+#define WI_RID_P2_CRYPT_KEY2	0xFC26
+#define WI_RID_P2_CRYPT_KEY3	0xFC27
+#define WI_RID_P2_ENCRYPTION	0xFC28
+#define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
+
 struct wi_key {
 	u_int16_t		wi_keylen;
 	u_int8_t		wi_keydat[14];
@@ -83,9 +91,15 @@ struct wi_softc	{
 	device_t		dev;
 	int			wi_unit;
 	struct resource *	iobase;
+	int					iobase_rid;
 	struct resource *	irq;
+	int					irq_rid;
+	struct resource *	mem;
+	int					mem_rid;
 	bus_space_handle_t	wi_bhandle;
 	bus_space_tag_t		wi_btag;
+	bus_space_handle_t	wi_bmemhandle;
+	bus_space_tag_t		wi_bmemtag;
 	void *			wi_intrhand;
 	int			wi_io_addr;    
 	int			wi_tx_data_id;
@@ -117,6 +131,7 @@ struct wi_softc	{
 	int			wi_nextitem;
 #endif
 	struct callout_handle	wi_stat_ch;
+	int			wi_prism2;	/* set to 1 if it uses a Prism II chip */
 };
 
 #define WI_TIMEOUT	65536
@@ -127,6 +142,14 @@ struct wi_softc	{
 #define WI_PORT3	3
 #define WI_PORT4	4
 #define WI_PORT5	5
+
+#define WI_PCI_MEMRES	0x18
+#define WI_PCI_IORES	0x1C
+
+#define WI_PCI_VENDOR_EUMITCOM		0x1638
+#define WI_PCI_DEVICE_PRISM2STA		0x1100
+#define WI_HFA384X_SWSUPPORT0_OFF	0x28
+#define WI_PRISM2STA_MAGIC		0x4A2D
 
 /* Default port: 0 (only 0 exists on stations) */
 #define WI_DEFAULT_PORT	(WI_PORT0 << 8)
@@ -171,6 +194,13 @@ struct wi_softc	{
 	bus_space_read_2(sc->wi_btag, sc->wi_bhandle, reg)
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->wi_btag, sc->wi_bhandle, reg)
+
+#define CSM_WRITE_1(sc, off, val)	\
+	bus_space_write_1(sc->wi_bmemtag, sc->wi_bmemhandle, off, val)
+
+#define CSM_READ_1(sc, off)		\
+	bus_space_read_1(sc->wi_bmemtag, sc->wi_bmemhandle, off)
+
 
 /*
  * The WaveLAN/IEEE cards contain an 802.11 MAC controller which Lucent
@@ -336,6 +366,9 @@ struct wi_softc	{
 #define WI_AUX_PAGE		0x3A
 #define WI_AUX_OFFSET		0x3C
 #define WI_AUX_DATA		0x3E
+
+#define WI_COR_OFFSET	0x3e0
+#define WI_COR_VALUE	0x41
 
 /*
  * One form of communication with the Hermes is with what Lucent calls
