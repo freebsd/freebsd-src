@@ -102,7 +102,7 @@ ata_iobus_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "PSIM ATA Controller");
-	return (0);	
+	return (0);
 }
 
 
@@ -113,7 +113,7 @@ ata_iobus_attach(device_t dev)
 	 * Add a single child per controller. Should be able
 	 * to add two
 	 */
-	device_add_child(dev, "ata", 
+	device_add_child(dev, "ata",
 			 devclass_find_free_unit(ata_devclass, 0));
 
 	return (bus_generic_attach(dev));
@@ -123,14 +123,13 @@ ata_iobus_attach(device_t dev)
 static int
 ata_iobus_print_child(device_t dev, device_t child)
 {
-    struct ata_channel *ch = device_get_softc(child);
-    int retval = 0;
+	int retval = 0;
 
-    retval += bus_print_child_header(dev, child);
-    /* irq ? */
-    retval += bus_print_child_footer(dev, child);
+	retval += bus_print_child_header(dev, child);
+	/* irq ? */
+	retval += bus_print_child_footer(dev, child);
 
-    return (retval);
+	return (retval);
 }
 
 
@@ -168,7 +167,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 						 start, end, count, flags);
 			break;
 
-		case ATA_ALTADDR_RID:		
+		case ATA_ALTADDR_RID:
 			myrid = 0;
 			start = ofw_regs[10];
 			end = start + ATA_ALTIOSIZE - 1;
@@ -191,7 +190,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 					   SYS_RES_IRQ, rid, 0, ~0, 1, flags));
 
-	} else {	
+	} else {
 		return (NULL);
 	}
 }
@@ -219,7 +218,7 @@ static device_method_t ata_iobus_sub_methods[] = {
 	DEVMETHOD(device_attach,    ata_attach),
 	DEVMETHOD(device_detach,    ata_detach),
 	DEVMETHOD(device_resume,    ata_resume),
-	
+
 	{ 0, 0 }
 };
 
