@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.44 1995/09/04 04:44:24 dyson Exp $
+ * $Id: swap_pager.c,v 1.45 1995/09/06 07:08:45 dyson Exp $
  */
 
 /*
@@ -1039,6 +1039,7 @@ swap_pager_getpages(object, m, count, reqpage)
 			for (i = 0; i < count; i++) {
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 				m[i]->dirty = 0;
+				m[i]->flags &= ~PG_ZERO;
 				if (i != reqpage) {
 					/*
 					 * whether or not to leave the page
