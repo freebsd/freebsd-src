@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.25 1995/12/20 21:53:51 wollman Exp $
+ * $Id: if_ether.c,v 1.26 1996/01/24 21:09:58 phk Exp $
  */
 
 /*
@@ -209,6 +209,22 @@ arp_rtrequest(req, rt, sa)
 		la->la_rt = rt;
 		rt->rt_flags |= RTF_LLINFO;
 		LIST_INSERT_HEAD(&llinfo_arp, la, la_le);
+
+		/*
+		 * This keeps the multicast addresses from showing up
+		 * in `arp -a' listings as unresolved.  It's not actually
+		 * functional.  Then the same for broadcast.
+		 */
+		if (IN_MULTICAST(ntohl(SIN(rt_key(rt))->sin_addr.s_addr))) {
+			ETHER_MAP_IP_MULTICAST(&SIN(rt_key(rt))->sin_addr,
+					       LLADDR(SDL(gate)));
+			SDL(gate)->sdl_alen = 6;
+		}
+		if (in_broadcast(SIN(rt_key(rt))->sin_addr, rt->rt_ifp)) {
+			memcpy(LLADDR(SDL(gate)), etherbroadcastaddr, 6);
+			SDL(gate)->sdl_alen = 6;
+		}
+
 		if (SIN(rt_key(rt))->sin_addr.s_addr ==
 		    (IA_SIN(rt->rt_ifa))->sin_addr.s_addr) {
 		    /*
