@@ -77,17 +77,19 @@ struct uio {
  * IOV_MAX.
  */
 #define UIO_MAXIOV	1024		/* max 1K of iov's */
-#define UIO_SMALLIOV	8		/* 8 on stack, else malloc */
 
 struct vm_object;
 struct vm_page;
 
+struct uio *cloneuio(struct uio *uiop);
 int	copyinfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, int seg);
+int	copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov,
+	    int error);
 int	copyinstrfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, size_t * __restrict copied, int seg);
+int	copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop);
 void	uio_yield(void);
-int	uiofromiov(struct iovec *iovp, u_int iovcnt, struct uio *auio);
 int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,

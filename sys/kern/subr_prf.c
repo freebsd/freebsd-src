@@ -243,9 +243,7 @@ log(int level, const char *fmt, ...)
 void
 log_console(struct uio *uio)
 {
-	int c, i, error, iovlen, nl;
-	struct uio muio;
-	struct iovec *miov = NULL;
+	int c, i, error, nl;
 	char *consbuffer;
 	int pri;
 
@@ -253,13 +251,8 @@ log_console(struct uio *uio)
 		return;
 
 	pri = LOG_INFO | LOG_CONSOLE;
-	muio = *uio;
-	iovlen = uio->uio_iovcnt * sizeof (struct iovec);
-	MALLOC(miov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
-	MALLOC(consbuffer, char *, CONSCHUNK, M_TEMP, M_WAITOK);
-	bcopy(muio.uio_iov, miov, iovlen);
-	muio.uio_iov = miov;
-	uio = &muio;
+	uio = cloneuio(uio);
+	consbuffer = malloc(CONSCHUNK, M_TEMP, M_WAITOK);
 
 	nl = 0;
 	while (uio->uio_resid > 0) {
@@ -278,8 +271,8 @@ log_console(struct uio *uio)
 	if (!nl)
 		msglogchar('\n', pri);
 	msgbuftrigger = 1;
-	FREE(miov, M_TEMP);
-	FREE(consbuffer, M_TEMP);
+	free(uio, M_IOV);
+	free(consbuffer, M_TEMP);
 	return;
 }
 
