@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)pwd.c	8.3 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pwd.c,v 1.7 1998/05/15 06:30:58 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -82,7 +82,7 @@ main(argc, argv)
 		usage();
 
 	if ((p = getcwd(NULL, 0)) == NULL)
-		err(1, NULL);
+		err(1, ".");
 	(void)printf("%s\n", p);
 	exit(0);
 }
