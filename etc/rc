@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.141 1997/12/09 10:06:49 danny Exp $
+#	$Id: rc,v 1.142 1997/12/27 19:46:53 steve Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -154,15 +154,6 @@ if [ "X${clear_tmp_enable}" = X"YES" ]; then
 	rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 fi
 
-# enable dumpdev so that savecore can see it
-# /var/crash should be a directory or a symbolic link
-# to the crash directory if core dumps are to be saved.
-if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} -a -d /var/crash ]; then
-	dumpon ${dumpdev}
-	echo -n checking for core dump...
-	savecore /var/crash
-fi
-
 # snapshot any kernel -c changes back to disk
 echo 'recording kernel -c changes'
 dset -q
@@ -187,6 +178,15 @@ if [ "X${tickadj_enable}" = X"YES" ]; then
 	echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
 fi
 echo '.'
+
+# enable dumpdev so that savecore can see it
+# /var/crash should be a directory or a symbolic link
+# to the crash directory if core dumps are to be saved.
+if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} -a -d /var/crash ]; then
+	dumpon ${dumpdev}
+	echo -n checking for core dump...
+	savecore /var/crash
+fi
 
 if [ -n "$network_pass1_done" ]; then
     network_pass2
