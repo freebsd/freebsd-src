@@ -65,7 +65,7 @@ static u_int g_raid3_reqs_per_sync = 5;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, reqs_per_sync, CTLFLAG_RW,
     &g_raid3_reqs_per_sync, 0,
     "Number of regular I/O requests per synchronization request");
-static u_int g_raid3_syncs_per_sec = 100;
+static u_int g_raid3_syncs_per_sec = 1000;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, syncs_per_sec, CTLFLAG_RW,
     &g_raid3_syncs_per_sec, 0,
     "Number of synchronizations requests per second");
