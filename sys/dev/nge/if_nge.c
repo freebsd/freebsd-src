@@ -1558,7 +1558,7 @@ static void nge_intr(arg)
 			nge_init(sc);
 		}
 
-		if (status & NGE_IMR_PHY_INTR) {
+		if (status & NGE_ISR_PHY_INTR) {
 			sc->nge_link = 0;
 			nge_tick(sc);
 		}
