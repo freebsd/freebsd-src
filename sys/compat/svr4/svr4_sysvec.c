@@ -172,7 +172,7 @@ struct sysentvec svr4_sysvec = {
   bsd_to_svr4_sig,
   ELAST,  /* ELAST */
   bsd_to_svr4_errno,
-  0,
+  NULL,
   svr4_fixup,
   svr4_sendsig,
   svr4_sigcode,
@@ -181,7 +181,15 @@ struct sysentvec svr4_sysvec = {
   "SVR4",
   elf32_coredump,
   NULL,
-  SVR4_MINSIGSTKSZ
+  SVR4_MINSIGSTKSZ,
+  PAGE_SIZE,
+  VM_MIN_ADDRESS,
+  VM_MAXUSER_ADDRESS,
+  USRSTACK,
+  PS_STRINGS,
+  VM_PROT_ALL,
+  exec_copyout_strings,
+  exec_setregs
 };
 
 Elf32_Brandinfo svr4_brand = {

@@ -64,21 +64,29 @@ static int osf1_freebsd_fixup(long **stack_base, struct image_params *imgp);
 struct sysentvec osf1_sysvec = {
 	OSF1_SYS_MAXSYSCALL,
 	osf1_sysent,
-        0x0,
 	0,
 	0,
+	NULL,
 	0,
-	0,
-	0,			/* trap-to-signal translation function */
+	NULL,
+	NULL,			/* trap-to-signal translation function */
         osf1_freebsd_fixup,	/* fixup */
 	osf1_sendsig,
         sigcode,		/* use generic trampoline */
         &osf1_szsigcode,	/* use generic trampoline size */
-        0,			/* prepsyscall */
+        NULL,			/* prepsyscall */
 	"OSF/1 ECOFF",
 	NULL,			/* we don't have an ECOFF coredump function */
 	NULL,
-	OSF1_MINSIGSTKSZ
+	OSF1_MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 };
 
 /*

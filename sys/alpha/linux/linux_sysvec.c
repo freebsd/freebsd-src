@@ -179,19 +179,27 @@ struct sysentvec elf_linux_sysvec = {
 	linux_sysent,
 	0,
 	0,
+	NULL,
 	0,
-	0,
-	0,
-	0,
+	NULL,
+	NULL,
 	elf_linux_fixup,
 	osendsig,
 	linux_sigcode,
 	&linux_szsigcode,
-	0,
+	NULL,
 	"Linux ELF",
 	elf64_coredump,
 	exec_linux_imgact_try,
-	LINUX_MINSIGSTKSZ
+	LINUX_MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 };
 
 static Elf64_Brandinfo linux_brand = {

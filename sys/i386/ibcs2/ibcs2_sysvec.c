@@ -32,12 +32,19 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/exec.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <i386/ibcs2/ibcs2_syscall.h>
 #include <i386/ibcs2/ibcs2_signal.h>
@@ -48,6 +55,7 @@ extern int bsd_to_ibcs2_errno[];
 extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
 extern int szsigcode;
 extern char sigcode[];
+static int ibcs2_fixup(register_t **, struct image_params *);
 
 struct sysentvec ibcs2_svr3_sysvec = {
         sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
@@ -57,17 +65,32 @@ struct sysentvec ibcs2_svr3_sysvec = {
         bsd_to_ibcs2_sig,
         ELAST + 1,
         bsd_to_ibcs2_errno,
-	0,              /* trap-to-signal translation function */
-	0,		/* fixup */
+	NULL,		/* trap-to-signal translation function */
+	ibcs2_fixup,	/* fixup */
 	sendsig,
 	sigcode,	/* use generic trampoline */
 	&szsigcode,	/* use generic trampoline size */
-	0,		/* prepsyscall */
+	NULL,		/* prepsyscall */
 	"IBCS2 COFF",
 	NULL,		/* we don't have a COFF coredump function */
 	NULL,
-	IBCS2_MINSIGSTKSZ
+	IBCS2_MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 };
+
+static int
+ibcs2_fixup(register_t **stack_base, struct image_params *imgp)
+{
+
+	return (suword(--(*stack_base), imgp->argc));
+}
 
 /*
  * Create an "ibcs2" module that does nothing but allow checking for

@@ -774,7 +774,15 @@ struct sysentvec linux_sysvec = {
 	"Linux a.out",
 	aout_coredump,
 	exec_linux_imgact_try,
-	LINUX_MINSIGSTKSZ
+	LINUX_MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -794,7 +802,15 @@ struct sysentvec elf_linux_sysvec = {
 	"Linux ELF",
 	elf32_coredump,
 	exec_linux_imgact_try,
-	LINUX_MINSIGSTKSZ
+	LINUX_MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 };
 
 static Elf32_Brandinfo linux_brand = {
