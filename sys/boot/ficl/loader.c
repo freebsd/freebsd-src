@@ -371,22 +371,37 @@ static void displayCellNoPad(FICL_VM *pVM)
 
 /*          fopen - open a file and return new fd on stack.
  *
- * fopen ( count ptr  -- fd )
+ * fopen ( ptr count mode -- fd )
  */
 static void pfopen(FICL_VM *pVM)
 {
-    int     fd;
-    char    *p;
+    int     mode, fd, count;
+    char    *ptr, *name;
 
 #if FICL_ROBUST > 1
-    vmCheckStack(pVM, 2, 1);
+    vmCheckStack(pVM, 3, 1);
 #endif
-    (void)stackPopINT(pVM->pStack); /* don't need count value */
-    p = stackPopPtr(pVM->pStack);
-    fd = open(p, O_RDONLY);
+
+    mode = stackPopINT(pVM->pStack);    /* get mode */
+    count = stackPopINT(pVM->pStack);   /* get count */
+    ptr = stackPopPtr(pVM->pStack);     /* get ptr */
+
+    if ((count < 0) || (ptr == NULL)) {
+        stackPushINT(pVM->pStack, -1);
+        return;
+    }
+
+    /* ensure that the string is null terminated */
+    name = (char *)malloc(count+1);
+    bcopy(ptr,name,count);
+    name[count] = 0;
+
+    /* open the file */
+    fd = open(name, mode);
+    free(name);
     stackPushINT(pVM->pStack, fd);
     return;
- }
+}
  
 /*          fclose - close a file who's fd is on stack.
  *
@@ -441,6 +456,46 @@ static void pfload(FICL_VM *pVM)
     fd = stackPopINT(pVM->pStack); /* get fd */
     if (fd != -1)
 	ficlExecFD(pVM, fd);
+    return;
+}
+
+/*          fwrite - write file contents
+ *
+ * fwrite  ( fd buf nbytes  -- nwritten )
+ */
+static void pfwrite(FICL_VM *pVM)
+{
+    int     fd, len;
+    char *buf;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 3, 1);
+#endif
+    len = stackPopINT(pVM->pStack); /* get number of bytes to read */
+    buf = stackPopPtr(pVM->pStack); /* get buffer */
+    fd = stackPopINT(pVM->pStack); /* get fd */
+    if (len > 0 && buf && fd != -1)
+	stackPushINT(pVM->pStack, write(fd, buf, len));
+    else
+	stackPushINT(pVM->pStack, -1);
+    return;
+}
+
+/*          fseek - seek to a new position in a file
+ *
+ * fseek  ( fd ofs whence  -- pos )
+ */
+static void pfseek(FICL_VM *pVM)
+{
+    int     fd, pos, whence;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 3, 1);
+#endif
+    whence = stackPopINT(pVM->pStack);
+    pos = stackPopINT(pVM->pStack);
+    fd = stackPopINT(pVM->pStack);
+    stackPushINT(pVM->pStack, lseek(fd, pos, whence));
     return;
 }
 
@@ -568,6 +623,8 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
     dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
     dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
+    dictAppendWord(dp, "fseek",     pfseek,	    FW_DEFAULT);
+    dictAppendWord(dp, "fwrite",    pfwrite,	    FW_DEFAULT);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
     dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
