@@ -67,25 +67,47 @@ static const char rcsid[] =
 #include "show.h"
 #include "cd.h"
 
-STATIC int docd(char *, int);
+STATIC int cdlogical(char *);
+STATIC int cdphysical(char *);
+STATIC int docd(char *, int, int);
 STATIC char *getcomponent(void);
-STATIC void updatepwd(char *);
+STATIC int updatepwd(char *);
 
 char *curdir = NULL;		/* current working directory */
 char *prevdir;			/* previous working directory */
 STATIC char *cdcomppath;
 
 int
-cdcmd(int argc __unused, char **argv __unused)
+cdcmd(int argc, char **argv)
 {
 	char *dest;
 	char *path;
 	char *p;
 	struct stat statb;
-	int print = 0;
+	int ch, phys, print = 0;
 
-	nextopt(nullstr);
-	if ((dest = *argptr) == NULL && (dest = bltinlookup("HOME", 1)) == NULL)
+	optreset = 1; optind = 1; /* initialize getopt */
+	phys = 0;
+	while ((ch = getopt(argc, argv, "LP")) != -1) {
+		switch (ch) {
+		case 'L':
+			phys = 0;
+			break;
+		case 'P':
+			phys = 1;
+			break;
+		default:
+			error("unknown option: -%c", optopt);
+			break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 1)
+		error("too many arguments");
+
+	if ((dest = *argv) == NULL && (dest = bltinlookup("HOME", 1)) == NULL)
 		error("HOME not set");
 	if (*dest == '\0')
 		dest = ".";
@@ -108,9 +130,8 @@ cdcmd(int argc __unused, char **argv __unused)
 					p += 2;
 				print = strcmp(p, dest);
 			}
-			if (docd(p, print) >= 0)
+			if (docd(p, print, phys) >= 0)
 				return 0;
-
 		}
 	}
 	error("can't cd to %s", dest);
@@ -120,11 +141,27 @@ cdcmd(int argc __unused, char **argv __unused)
 
 
 /*
- * Actually do the chdir.  In an interactive shell, print the
+ * Actually change the directory.  In an interactive shell, print the
  * directory name if "print" is nonzero.
  */
 STATIC int
-docd(char *dest, int print)
+docd(char *dest, int print, int phys)
+{
+
+	TRACE(("docd(\"%s\", %d, %d) called\n", dest, print, phys));
+
+	/* If logical cd fails, fall back to physical. */
+	if ((phys || cdlogical(dest) < 0) && cdphysical(dest) < 0)
+		return (-1);
+
+	if (print && iflag && curdir)
+		out1fmt("%s\n", curdir);
+
+	return 0;
+}
+
+STATIC int
+cdlogical(char *dest)
 {
 	char *p;
 	char *q;
@@ -132,8 +169,6 @@ docd(char *dest, int print)
 	struct stat statb;
 	int first;
 	int badstat;
-
-	TRACE(("docd(\"%s\", %d) called\n", dest, print));
 
 	/*
 	 *  Check each component of the path. If we find a symlink or
@@ -161,26 +196,33 @@ docd(char *dest, int print)
 		if (equal(component, ".."))
 			continue;
 		STACKSTRNUL(p);
-		if ((lstat(stackblock(), &statb) < 0)
-		    || (S_ISLNK(statb.st_mode)))  {
-			/* print = 1; */
+		if (lstat(stackblock(), &statb) < 0) {
 			badstat = 1;
 			break;
 		}
 	}
 
 	INTOFF;
-	if (chdir(dest) < 0) {
+	if (updatepwd(badstat ? NULL : dest) < 0 || chdir(curdir) < 0) {
 		INTON;
-		return -1;
+		return (-1);
 	}
-	updatepwd(badstat ? NULL : dest);
 	INTON;
-	if (print && iflag && curdir)
-		out1fmt("%s\n", curdir);
-	return 0;
+	return (0);
 }
 
+STATIC int
+cdphysical(char *dest)
+{
+
+	INTOFF;
+	if (chdir(dest) < 0 || updatepwd(NULL) < 0) {
+		INTON;
+		return (-1);
+	}
+	INTON;
+	return (0);
+}
 
 /*
  * Get the next component of the path name pointed to by cdcomppath.
@@ -212,7 +254,7 @@ getcomponent(void)
  * cd command.  We also call hashcd to let the routines in exec.c know
  * that the current directory has changed.
  */
-STATIC void
+STATIC int
 updatepwd(char *dir)
 {
 	char *new;
@@ -231,12 +273,14 @@ updatepwd(char *dir)
 		INTOFF;
 		prevdir = curdir;
 		curdir = NULL;
-		if (getpwd() == NULL)
-			error("getcwd() failed: %s", strerror(errno));
+		if (getpwd() == NULL) {
+			INTON;
+			return (-1);
+		}
 		setvar("PWD", curdir, VEXPORT);
 		setvar("OLDPWD", prevdir, VEXPORT);
 		INTON;
-		return;
+		return (0);
 	}
 	cdcomppath = stalloc(strlen(dir) + 1);
 	scopy(dir, cdcomppath);
@@ -268,23 +312,51 @@ updatepwd(char *dir)
 	setvar("PWD", curdir, VEXPORT);
 	setvar("OLDPWD", prevdir, VEXPORT);
 	INTON;
+
+	return (0);
 }
 
+#define MAXPWD 256
 
 int
 pwdcmd(int argc __unused, char **argv __unused)
 {
-	if (!getpwd())
-		error("getcwd() failed: %s", strerror(errno));
-	out1str(curdir);
-	out1c('\n');
+	char buf[MAXPWD];
+	int ch, phys;
+
+	optreset = 1; optind = 1; /* initialize getopt */
+	phys = 0;
+	while ((ch = getopt(argc, argv, "LP")) != -1) {
+		switch (ch) {
+		case 'L':
+			phys = 0;
+			break;
+		case 'P':
+			phys = 1;
+			break;
+		default:
+			error("unknown option: -%c", optopt);
+			break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 0)
+		error("too many arguments");
+
+	if (!phys && getpwd()) {
+		out1str(curdir);
+		out1c('\n');
+	} else {
+		if (getcwd(buf, sizeof(buf)) == NULL)
+			error(".: %s", strerror(errno));
+		out1str(buf);
+		out1c('\n');
+	}
+
 	return 0;
 }
-
-
-
-
-#define MAXPWD 256
 
 /*
  * Find out what the current directory is. If we already know the current
