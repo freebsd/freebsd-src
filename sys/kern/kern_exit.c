@@ -732,7 +732,8 @@ loop:
 			mtx_unlock(&Giant);
 			return (0);
 		}
-		if (P_SHOULDSTOP(p) && ((p->p_flag & P_WAITED) == 0) &&
+		if (P_SHOULDSTOP(p) && (p->p_suspcount == p->p_numthreads) &&
+		    ((p->p_flag & P_WAITED) == 0) &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
