@@ -9,6 +9,7 @@ SRCS+=	ifmedia.c
 CFLAGS+=-DUSE_IF_MEDIA
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DINET6
+WARNS=	0
 
 #comment out to exclude SIOC[GS]ETVLAN support
 SRCS+=	ifvlan.c

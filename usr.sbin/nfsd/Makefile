@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	nfsd
+WARNS=	0
 MAN=	nfsd.8
 
 .include <bsd.prog.mk>

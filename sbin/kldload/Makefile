@@ -27,7 +27,6 @@
 #
 
 PROG=	kldload
-WARNS?=	2
 MAN=	kldload.8
 
 .include <bsd.prog.mk>

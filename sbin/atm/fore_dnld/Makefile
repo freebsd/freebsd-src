@@ -32,6 +32,7 @@ MAN=	fore_dnld.8
 SRCS=	fore_dnld.c pca200e.c
 
 CFLAGS+=	-I${.CURDIR}/../../../sys
+WARNS=	0
 LDADD+=		-latm
 DPADD+=		${LIBATM}
 

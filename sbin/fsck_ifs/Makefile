@@ -5,7 +5,8 @@ PROG=	fsck_ifs
 NOMAN=	true
 SRCS=	dir.c fsutil.c inode.c main.c pass1.c pass1b.c pass2.c pass3.c pass4.c \
 	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c
-CFLAGS+=-W
+WARNS=	0
+
 .PATH:	${.CURDIR}/../../sys/ufs/ffs
 
 .include <bsd.prog.mk>

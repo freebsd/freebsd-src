@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	nextboot
+WARNS=	0
 MAN=	nextboot.8
 
 .include <bsd.prog.mk>

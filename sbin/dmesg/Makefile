@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	dmesg
+WARNS=	0
 MAN=	dmesg.8
 LDADD=	-lkvm
 DPADD=	${LIBKVM}
