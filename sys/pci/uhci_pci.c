@@ -155,7 +155,6 @@ uhci_pci_attach(device_t self)
 	void *ih;
 	struct resource *res;
 	device_t usbus;
-	char *typestr;
 	int intr;
 	int legsup;
 	int err;
@@ -208,20 +207,16 @@ uhci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(self));
 	}
 
-	if (bootverbose) {
-		switch(pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
-		case PCI_USBREV_PRE_1_0:
-			typestr = "pre 1.0";
-			break;
-		case PCI_USBREV_1_0:
-			typestr = "1.0";
-			break;
-		default:
-			typestr = "unknown";
-			break;
-		}
-		device_printf(self, "USB version %s, chip rev. %d\n",
-			      typestr, pci_get_revid(self));
+	switch(pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
+	case PCI_USBREV_PRE_1_0:
+		sc->sc_bus.usbrev = USBREV_PRE_1_0;
+		break;
+	case PCI_USBREV_1_0:
+		sc->sc_bus.usbrev = USBREV_1_0;
+		break;
+	default:
+		sc->sc_bus.usbrev = USBREV_UNKNOWN;
+		break;
 	}
 
 	intr = pci_read_config(self, PCIR_INTLINE, 1);

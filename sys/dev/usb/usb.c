@@ -211,9 +211,7 @@ USB_ATTACH(usb)
 	printf(": USB revision %s", usbrev_str[usbrev]);
 	if (usbrev != USBREV_1_0 && usbrev != USBREV_1_1) {
 		printf(", not supported\n");
-#if BROKEN
 		USB_ATTACH_ERROR_RETURN;
-#endif
 	}
 	printf("\n");
 
