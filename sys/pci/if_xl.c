@@ -139,7 +139,21 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 
 #include <pci/if_xlreg.h>
 
+/* 
+ * TX Checksumming is disabled by default for two reasons:
+ * - TX Checksumming will occasionally produce corrupt packets
+ * - TX Checksumming seems to reduce performance
+ *
+ * Only 905B/C cards were reported to have this problem, it is possible
+ * that later chips _may_ be immune.
+ */
+#define	XL905B_TXCSUM_BROKEN	1
+
+#ifdef XL905B_TXCSUM_BROKEN
+#define XL905B_CSUM_FEATURES	0
+#else
 #define XL905B_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#endif
 
 /*
  * Various supported device vendors/types and their names.
@@ -1597,7 +1611,11 @@ xl_attach(dev)
 	if (sc->xl_type == XL_TYPE_905B) {
 		ifp->if_start = xl_start_90xB;
 		ifp->if_hwassist = XL905B_CSUM_FEATURES;
+#ifdef XL905B_TXCSUM_BROKEN
+		ifp->if_capabilities |= IFCAP_RXCSUM;
+#else
 		ifp->if_capabilities |= IFCAP_HWCSUM;
+#endif
 	} else
 		ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
@@ -2506,6 +2524,7 @@ xl_encap(sc, c, m_head)
 	if (sc->xl_type == XL_TYPE_905B) {
 		status = XL_TXSTAT_RND_DEFEAT;
 
+#ifndef XL905B_TXCSUM_BROKEN
 		if (m_head->m_pkthdr.csum_flags) {
 			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
 				status |= XL_TXSTAT_IPCKSUM;
@@ -2514,6 +2533,7 @@ xl_encap(sc, c, m_head)
 			if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
 				status |= XL_TXSTAT_UDPCKSUM;
 		}
+#endif
 		c->xl_ptr->xl_status = htole32(status);
 	}
 
