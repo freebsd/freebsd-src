@@ -147,6 +147,7 @@ typedef struct init_session {
 	time_t	se_started;		/* used to avoid thrashing */
 	int	se_flags;		/* status of session */
 #define	SE_SHUTDOWN	0x1		/* session won't be restarted */
+#define	SE_PRESENT	0x2		/* session is in /etc/ttys */
 	int     se_nspace;              /* spacing count */
 	char	*se_device;		/* filename of port */
 	char	*se_getty;		/* what to run on that port */
@@ -964,6 +965,7 @@ free_session(sp)
 
 /*
  * Allocate a new session descriptor.
+ * Mark it SE_PRESENT.
  */
 session_t *
 new_session(sprev, session_index, typ)
@@ -982,6 +984,7 @@ new_session(sprev, session_index, typ)
 	sp = (session_t *) calloc(1, sizeof (session_t));
 
 	sp->se_index = session_index;
+	sp->se_flags |= SE_PRESENT;
 
 	sp->se_device = malloc(sizeof(_PATH_DEV) + strlen(typ->ty_name));
 	(void) sprintf(sp->se_device, "%s%s", _PATH_DEV, typ->ty_name);
@@ -1330,7 +1333,7 @@ multi_user()
 }
 
 /*
- * This is an n-squared algorithm.  We hope it isn't run often...
+ * This is an (n*2)+(n^2) algorithm.  We hope it isn't run often...
  */
 state_func_t
 clean_ttys()
@@ -1344,6 +1347,14 @@ clean_ttys()
 	if (! sessions)
 		return (state_func_t) multi_user;
 
+	/* 
+	 * mark all sessions for death, (!SE_PRESENT) 
+	 * as we find or create new ones they'll be marked as keepers,
+	 * we'll later nuke all the ones not found in /etc/ttys
+	 */
+	for (sp = sessions; sp != NULL; sp = sp->se_next)
+		sp->se_flags &= ~SE_PRESENT;
+
 	devlen = sizeof(_PATH_DEV) - 1;
 	while ((typ = getttyent()) != NULL) {
 		++session_index;
@@ -1353,6 +1364,8 @@ clean_ttys()
 				break;
 
 		if (sp) {
+			/* we want this one to live */
+			sp->se_flags |= SE_PRESENT;
 			if (sp->se_index != session_index) {
 				warning("port %s changed utmp index from %d to %d",
 				       sp->se_device, sp->se_index,
@@ -1402,6 +1415,17 @@ clean_ttys()
 	}
 
 	endttyent();
+
+	/*
+	 * sweep through and kill all deleted sessions
+	 * ones who's /etc/ttys line was deleted (SE_PRESENT unset)
+	 */
+	for (sp = sessions; sp != NULL; sp = sp->se_next) {
+		if ((sp->se_flags & SE_PRESENT) == 0) {
+			sp->se_flags |= SE_SHUTDOWN;
+			kill(sp->se_process, SIGHUP);
+		}
+	}
 
 	return (state_func_t) multi_user;
 }
