@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.119 1995/08/06 12:22:27 bde Exp $
+#	$Id: Makefile,v 1.120 1995/10/10 09:47:51 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -131,6 +131,7 @@ CRYPT_SRCS+=	secure
 .endif
 CRYPT_DIRS=	bin sbin usr usr/bin usr/lib
 
+# Compatibility stuff, remove those links
 LATIN1LINKS = \
 	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
@@ -442,6 +443,14 @@ des-tarball:
 distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+# Compatibility stuff, remove obsoleted links, if exists
+	if [ -d	${DESTDIR}/usr/share/locale ] ;	\
+	then \
+		cd ${DESTDIR}/usr/share/locale;	\
+		for l in ${LATIN1LINKS}	; do \
+			[ -d $$l.ISO_8859-1 ] || rm -f $$l.ISO_8859-1; \
+		done; \
+	fi
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
@@ -450,10 +459,35 @@ distrib-dirs:
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/locale; \
-	for l in ${LATIN1LINKS} ; do \
-		rm -f $$l.ISO_8859-1; \
-		ln -s lt_LN.ISO_8859-1 $$l.ISO_8859-1; \
+	set - `cat ${.CURDIR}/locale.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
 	done
+	cd ${DESTDIR}/usr/share/nls; \
+	set - `cat ${.CURDIR}/locale.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
+	done; \
+	rm -rf POSIX; \
+	ln -s C POSIX
+.if defined(MAKE_LOCAL)
+	cd ${DESTDIR}/usr/local/share/nls; \
+	set - `cat ${.CURDIR}/locale.alias`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		rm -rf "$$1"; \
+		ln -s "$$2" "$$1"; \
+		shift; shift; \
+	done; \
+	rm -rf POSIX; \
+	ln -s C POSIX
+.endif
 
 floppies:	kcopy.flp filesyst.flp cpio.flp cdins.flp
 
