@@ -487,30 +487,18 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	vm_page_t m;
 	int error;
 
-	mtx_lock(&sc->as_lock);
-
-	if (mem->am_is_bound) {
-		device_printf(dev, "memory already bound\n");
-		mtx_unlock(&sc->as_lock);
-		return EINVAL;
-	}
-	
-	if (offset < 0
-	    || (offset & (AGP_PAGE_SIZE - 1)) != 0
-	    || offset + mem->am_size > AGP_GET_APERTURE(dev)) {
+	/* Do some sanity checks first. */
+	if (offset < 0 || (offset & (AGP_PAGE_SIZE - 1)) != 0 ||
+	    offset + mem->am_size > AGP_GET_APERTURE(dev)) {
 		device_printf(dev, "binding memory at bad offset %#x\n",
-			      (int) offset);
-		mtx_unlock(&sc->as_lock);
+		    (int)offset);
 		return EINVAL;
 	}
 
 	/*
-	 * Bind the individual pages and flush the chipset's
-	 * TLB.
-	 *
-	 * XXX Presumably, this needs to be the pci address on alpha
-	 * (i.e. use alpha_XXX_dmamap()). I don't have access to any
-	 * alpha AGP hardware to check.
+	 * Allocate the pages early, before acquiring the lock,
+	 * because vm_page_grab() used with VM_ALLOC_RETRY may
+	 * block and we can't hold a mutex while blocking.
 	 */
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		/*
@@ -525,6 +513,28 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		VM_OBJECT_UNLOCK(mem->am_obj);
 		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
+	}
+
+	mtx_lock(&sc->as_lock);
+
+	if (mem->am_is_bound) {
+		device_printf(dev, "memory already bound\n");
+		error = EINVAL;
+		goto bad;
+	}
+	
+	/*
+	 * Bind the individual pages and flush the chipset's
+	 * TLB.
+	 *
+	 * XXX Presumably, this needs to be the pci address on alpha
+	 * (i.e. use alpha_XXX_dmamap()). I don't have access to any
+	 * alpha AGP hardware to check.
+	 */
+	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
+		VM_OBJECT_LOCK(mem->am_obj);
+		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
+		VM_OBJECT_UNLOCK(mem->am_obj);
 
 		/*
 		 * Install entries in the GATT, making sure that if
@@ -548,17 +558,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				vm_page_unlock_queues();
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
-				VM_OBJECT_LOCK(mem->am_obj);
-				for (k = 0; k <= i; k += PAGE_SIZE) {
-					m = vm_page_lookup(mem->am_obj,
-							   OFF_TO_IDX(k));
-					vm_page_lock_queues();
-					vm_page_unwire(m, 0);
-					vm_page_unlock_queues();
-				}
-				VM_OBJECT_UNLOCK(mem->am_obj);
-				mtx_unlock(&sc->as_lock);
-				return error;
+				goto bad;
 			}
 		}
 		vm_page_lock_queues();
@@ -583,6 +583,18 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	mtx_unlock(&sc->as_lock);
 
 	return 0;
+bad:
+	mtx_unlock(&sc->as_lock);
+	VM_OBJECT_LOCK(mem->am_obj);
+	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
+		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
+		vm_page_lock_queues();
+		vm_page_unwire(m, 0);
+		vm_page_unlock_queues();
+	}
+	VM_OBJECT_UNLOCK(mem->am_obj);
+
+	return error;
 }
 
 int
