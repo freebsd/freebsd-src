@@ -215,7 +215,8 @@ ata_detach(device_t dev)
     struct ata_channel *ch;
     int s;
  
-    if (!dev || !(ch = device_get_softc(dev)))
+    if (!dev || !(ch = device_get_softc(dev)) ||
+	!ch->r_io || !ch->r_altio || !ch->r_irq)
 	return ENXIO;
 
     /* make sure channel is not busy */
