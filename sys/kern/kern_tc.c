@@ -96,6 +96,7 @@ TC_STATS(nbinuptime);    TC_STATS(nnanouptime);    TC_STATS(nmicrouptime);
 TC_STATS(nbintime);      TC_STATS(nnanotime);      TC_STATS(nmicrotime);
 TC_STATS(ngetbinuptime); TC_STATS(ngetnanouptime); TC_STATS(ngetmicrouptime);
 TC_STATS(ngetbintime);   TC_STATS(ngetnanotime);   TC_STATS(ngetmicrotime);
+TC_STATS(nsetclock);
 
 #undef TC_STATS
 
@@ -314,6 +315,7 @@ tc_setclock(struct timespec *ts)
 {
 	struct timespec ts2;
 
+	nsetclock++;
 	nanouptime(&ts2);
 	boottime.tv_sec = ts->tv_sec - ts2.tv_sec;
 	/* XXX boottime should probably be a timespec. */
