@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: passwd.5,v 1.11 1997/02/22 13:26:05 peter Exp $
+.\"	$Id: passwd.5,v 1.6.2.3 1997/02/28 03:27:25 mpp Exp $
 .\"
 .Dd September 29, 1994
 .Dt PASSWD 5
@@ -166,6 +166,17 @@ If there is nothing in the
 field, the Bourne shell
 .Pq Pa /bin/sh
 is assumed.
+For security reasons, if the shell is set to a script that disallows 
+access to the system (the
+.Xr nologin 8
+script, for example), care should be taken not to import any environment 
+variables.  With
+.Xr sh 1 ,
+this can be done by specifying the
+.Fl p
+flag.
+Check the specific shell documentation to determine how this is 
+done with other shells.
 .Sh YP/NIS INTERACTION
 .Ss Enabling access to NIS passwd data
 The system administrator can configure FreeBSD to use NIS/YP for
@@ -216,7 +227,7 @@ file):
 +@rejected-users::32767:32767::::::/bin/false
 
 .Ed
-Specific usernames are listed explicitly while netgroups are signfied
+Specific usernames are listed explicitly while netgroups are signified
 by a preceding `@'. In the above example, users in the ``staff'' and
 ``permitted-users'' netgroups will have their password information
 read from NIS and used unaltered. In other words, they will be allowed
@@ -291,6 +302,8 @@ that prints a message telling the user that he is not allowed access
 to the system. This technique is sometimes useful when it is
 desirable to have the system be able to recognize all users in a
 particular NIS domain without necessarily granting them login access.
+See the above text on the shell field regarding security concerns when using
+a shell script as the login shell.
 .Pp
 The primary use of this
 .Pa override
