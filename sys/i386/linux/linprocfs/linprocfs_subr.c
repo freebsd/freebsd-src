@@ -44,7 +44,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <miscfs/linprocfs/linprocfs.h>
+#include <i386/linux/linprocfs/linprocfs.h>
 
 static struct pfsnode *pfshead;
 static int pfsvplock;

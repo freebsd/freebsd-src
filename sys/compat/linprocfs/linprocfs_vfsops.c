@@ -50,7 +50,7 @@
 #include <sys/syslog.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <miscfs/linprocfs/linprocfs.h>
+#include <i386/linux/linprocfs/linprocfs.h>
 
 static int	linprocfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
