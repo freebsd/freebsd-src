@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.c,v 1.4 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: ppb_1284.c,v 1.5 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 
@@ -60,39 +60,6 @@ do_1284_wait(struct ppb_device *dev, char mask, char status)
 }
 
 #define nibble2char(s) (((s & ~nACK) >> 3) | (~s & nBUSY) >> 4)
-
-/*
- * byte_1284_inbyte()
- *
- * Read 1 byte in BYTE mode
- */
-int
-byte_1284_inbyte(struct ppb_device *dev, char *buffer)
-{
-	int error;
-
-	/* notify the peripherial to put data on the lines */
-	ppb_wctr(dev, PCD |  AUTOFEED | nSTROBE | nINIT | nSELECTIN);
-
-	/* wait for valid byte signal */
-	if ((error = do_1284_wait(dev, nACK, 0)))
-		return (error);
-
-	/* fetch data */
-	*buffer = ppb_rdtr(dev);
-
-	/* indicate that data has been received, not ready for another */
-	ppb_wctr(dev, PCD | nAUTOFEED | nSTROBE | nINIT | nSELECTIN);
-
-	/* wait peripherial's acknowledgement */
-	if ((error = do_1284_wait(dev, nACK, nACK)))
-		return (error);
-
-	/* acknowledge the peripherial */
-	ppb_wctr(dev, PCD | nAUTOFEED |  STROBE | nINIT | nSELECTIN);
-
-	return (0);
-}
 
 /*
  * nibble_1284_inbyte()
