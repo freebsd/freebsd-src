@@ -477,6 +477,7 @@ product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
 product DLINK DE660		{ "D-Link", "DE-660", NULL, NULL } D-Link DE-660
 product DLINK DE660PLUS		{ "D-Link", "DE-660+", NULL, NULL } D-Link DE-660+
 product DLINK DFE670TXD		{ "D-Link", "DFE-670TXD", NULL, NULL } D-Link DFE-670TXD
+product DLINK DWL650H		{ "D-Link&spCorporation", "D-Link&spDWL-650H&sp11Mbps&spWLAN&spAdapter", NULL, NULL } D-Link DWL-650H
 product	DYNALINK L10C		{ "DYNALINK", "L10C", NULL, NULL } Dynalink L10C
 /*
  * vendor ID of EPX_AA2000 is Fujitsu (0x0004) and product ID is 0x2000, but
