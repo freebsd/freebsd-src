@@ -238,14 +238,6 @@ sw1b:
 	pushl	PCB_PSL(%edx)
 	popfl
 
-#if defined(SMP) && defined(GRAB_LOPRIO)
-	/* Hold LOPRIO for interrupts. */
-#ifdef CHEAP_TPR
-	movl	$0, lapic+LA_TPR
-#else
-	andl	$~APIC_TPR_PRIO, lapic+LA_TPR
-#endif
-#endif
 	movl	%edx, PCPU(CURPCB)
 	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
 
