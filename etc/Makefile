@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.82 1994/09/15 04:44:03 rgrimes Exp $
+#	$Id: Makefile,v 1.84 1994/09/23 06:15:19 rgrimes Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -550,11 +550,14 @@ distrib-dirs:
 	# XXX The mtree commands need to be redone so that a status of 0 or
 	# 2 is okay, but a status of 1 causes the make to abort.
 	#
-	mtree -d -u -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -d -u -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -d -u -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
-.if defined(CDROMDIST)
-	mtree -d -u -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
+	# XXX This will currently error out if you have a procfs mounted,
+	# unmount it to get past this problem until procfs is fixed.
+	#
+	mtree -deu -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
+	mtree -deu -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+	mtree -deu -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+.if defined(MAKE_LOCAL)
+	mtree -deu -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
