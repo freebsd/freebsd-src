@@ -304,9 +304,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
 	sysctl_ctx_init(&d->sysctl_tree);
 	d->sysctl_tree_top = SYSCTL_ADD_NODE(&d->sysctl_tree,
-				 &sysctl__hw_snd_children, OID_AUTO,
+				 SYSCTL_STATIC_CHILDREN(_hw_snd), OID_AUTO,
 				 device_get_nameunit(dev), CTLFLAG_RD, 0, "");
-	if (!d->sysctl_tree_top) {
+	if (d->sysctl_tree_top == NULL) {
 		sysctl_ctx_free(&d->sysctl_tree);
 		goto no;
 	}
