@@ -214,6 +214,7 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ISA Ethernet NICs.
 #
 # DP8390 NIC
+#device		aue0		# ADMtek USB ethernet
 #
 # ed0: generic driver
 # ed1: LANEED LD-BDN
