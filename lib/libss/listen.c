@@ -4,7 +4,6 @@
  * Listener loop for subsystem library libss.a.
  *
  *	Header: /afs/rel-eng.athena.mit.edu/project/release/current/source/athena/athena.lib/ss/RCS/listen.c,v 1.2 90/07/12 12:28:58 epeisach Exp
- *	$Locker:  $
  *
  * Copyright 1987, 1988 by MIT Student Information Processing Board
  *
