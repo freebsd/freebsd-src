@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.17 1996/11/01 20:30:37 wollman Exp $";
+	"$Id: route.c,v 1.18 1996/12/10 17:07:30 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1244,6 +1244,8 @@ char *msgtypes[] = {
 	"RTM_NEWADDR: address being added to iface",
 	"RTM_DELADDR: address being removed from iface",
 	"RTM_IFINFO: iface status change",
+	"RTM_NEWMADDR: new multicast group membership on iface",
+	"RTM_DELMADDR: multicast group membership removed from iface",
 	0,
 };
 
@@ -1269,6 +1271,9 @@ print_rtmsg(rtm, msglen)
 {
 	struct if_msghdr *ifm;
 	struct ifa_msghdr *ifam;
+#ifdef RTM_NEWMADDR
+	struct ifma_msghdr *ifmam;
+#endif
 
 	if (verbose == 0)
 		return;
@@ -1292,6 +1297,13 @@ print_rtmsg(rtm, msglen)
 		bprintf(stdout, ifam->ifam_flags, routeflags);
 		pmsg_addrs((char *)(ifam + 1), ifam->ifam_addrs);
 		break;
+#ifdef RTM_NEWMADDR
+	case RTM_NEWMADDR:
+	case RTM_DELMADDR:
+		ifmam = (struct ifma_msghdr *)rtm;
+		pmsg_addrs((char *)(ifmam + 1), ifmam->ifmam_addrs);
+		break;
+#endif
 	default:
 		(void) printf("pid: %ld, seq %d, errno %d, flags:",
 			(long)rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);
