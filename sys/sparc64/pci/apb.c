@@ -48,6 +48,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -101,8 +102,10 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_gen_route_interrupt),
 
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),
+
 	/* ofw_pci interface */
-	DEVMETHOD(ofw_pci_get_node,	ofw_pcib_gen_get_node),
 	DEVMETHOD(ofw_pci_adjust_busrange,	ofw_pcib_gen_adjust_busrange),
 
 	{ 0, 0 }

@@ -35,11 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
+
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-#include <dev/ofw/openfirm.h>
-#include <machine/ofw_machdep.h>
 #include <sparc64/sbus/sbusvar.h>
 
 #include <dev/isp/isp_freebsd.h>
@@ -110,7 +111,7 @@ static int
 isp_sbus_probe(device_t dev)
 {
 	int found = 0;
-	char *name = sbus_get_name(dev);
+	const char *name = ofw_bus_get_name(dev);
 	if (strcmp(name, "SUNW,isp") == 0 ||
 	    strcmp(name, "QLGC,isp") == 0 ||
 	    strcmp(name, "ptisp") == 0 ||
@@ -240,8 +241,8 @@ isp_sbus_attach(device_t dev)
 	 * would fail in trying to download (via poking)
 	 * FW. We give up on them.
 	 */
-	if (strcmp("PTI,ptisp", sbus_get_name(dev)) == 0 ||
-	    strcmp("ptisp", sbus_get_name(dev)) == 0) {
+	if (strcmp("PTI,ptisp", ofw_bus_get_name(dev)) == 0 ||
+	    strcmp("ptisp", ofw_bus_get_name(dev)) == 0) {
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
 	}
 

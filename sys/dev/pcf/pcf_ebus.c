@@ -70,14 +70,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
-
-#include <dev/ofw/openfirm.h>
-
-#include <sparc64/ebus/ebusvar.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/pcf/pcfvar.h>
@@ -117,15 +116,15 @@ static driver_t pcf_ebus_driver = {
 static int
 pcf_ebus_probe(device_t dev)
 {
-	char *compat;
+	const char *compat;
 
 	/*
 	 * We must not attach to this i2c device if this is a system with
 	 * a boot-bus controller. Additionally testing the compatibility
 	 * property will hopefully take care of this.
 	 */
-	if (strcmp("i2c", ebus_get_name(dev)) == 0) {
-		compat = ebus_get_compat(dev);
+	if (strcmp("i2c", ofw_bus_get_name(dev)) == 0) {
+		compat = ofw_bus_get_compat(dev);
 		if (compat != NULL && strcmp("i2cpcf,8584", compat) == 0) {
 			device_set_desc(dev, "PCF8584 I2C bus controller");
 			return (0);
@@ -146,7 +145,7 @@ pcf_ebus_attach(device_t dev)
 	bzero(sc, sizeof(struct pcf_softc));
 
 	/* get OFW node of the pcf */
-	if ((node = ebus_get_node(dev)) <= 0) {
+	if ((node = ofw_bus_get_node(dev)) <= 0) {
 		device_printf(dev, "cannot get OFW node\n");
 		goto error;
 	}

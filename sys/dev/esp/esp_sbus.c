@@ -76,8 +76,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <machine/bus.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
+#include <machine/bus.h>
 #include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -168,9 +169,9 @@ static struct ncr53c9x_glue esp_sbus_glue = {
 static int
 esp_sbus_probe(device_t dev)
 {
-	char *name;
+	const char *name;
 
-	name = sbus_get_name(dev);
+	name = ofw_bus_get_name(dev);
 	if (strcmp("SUNW,fas", name) == 0) {
 		device_set_desc(dev, "Sun FAS366 Fast-Wide SCSI");
 	        return (-10);
@@ -189,7 +190,7 @@ esp_sbus_attach(device_t dev)
 	int burst;
 
 	esc->sc_dev = dev;
-	node = sbus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 	if (OF_getprop(node, "initiator-id", &sc->sc_id,
 		       sizeof(sc->sc_id)) == -1)
 		sc->sc_id = 7;;

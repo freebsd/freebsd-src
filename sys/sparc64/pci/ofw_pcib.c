@@ -40,6 +40,7 @@
 #include <sys/bus.h>
 #include <sys/module.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -82,8 +83,10 @@ static device_method_t ofw_pcib_methods[] = {
 	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_gen_route_interrupt),
 
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),
+
 	/* ofw_pci interface */
-	DEVMETHOD(ofw_pci_get_node,	ofw_pcib_gen_get_node),
 	DEVMETHOD(ofw_pci_adjust_busrange,	ofw_pcib_gen_adjust_busrange),
 
 	{ 0, 0 }
@@ -102,7 +105,7 @@ ofw_pcib_probe(device_t dev)
 {
 	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
 	    (pci_get_subclass(dev) == PCIS_BRIDGE_PCI) &&
-	    ofw_pci_get_node(dev) != 0) {
+	    ofw_bus_get_node(dev) != 0) {
 		device_set_desc(dev, "OFW PCI-PCI bridge");
 		return (0);
 	}

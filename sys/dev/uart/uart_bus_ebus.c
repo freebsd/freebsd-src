@@ -32,12 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+
+#include <dev/ofw/ofw_bus.h>
+
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
-#include <dev/ofw/openfirm.h>
-#include <sparc64/ebus/ebusvar.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
@@ -69,8 +69,8 @@ uart_ebus_probe(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_class = NULL;
 
-	nm = ebus_get_name(dev);
-	cmpt = ebus_get_compat(dev);
+	nm = ofw_bus_get_name(dev);
+	cmpt = ofw_bus_get_compat(dev);
 	if (!strcmp(nm, "su") || !strcmp(nm, "su_pnp") || (cmpt != NULL &&
 	    (!strcmp(cmpt, "su") || !strcmp(cmpt, "su16550")))) {
 		sc->sc_class = &uart_ns8250_class;

@@ -59,6 +59,7 @@ struct eeprom_softc {
 
 extern devclass_t eeprom_devclass;
 
-int eeprom_attach(device_t, phandle_t, bus_space_tag_t, bus_space_handle_t);
+int eeprom_probe(device_t);
+int eeprom_attach(device_t, bus_space_tag_t, bus_space_handle_t);
 
 #endif /* _MACHINE_EEPROM_H_ */
