@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -370,8 +371,10 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		 * This is just a hint to vm_map_find() about where to
 		 * put it.
 		 */
-		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_taddr
-		    + maxtsiz + maxdsiz);
+		PROC_LOCK(p);
+		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
+		    lim_max(p, RLIMIT_DATA));
+		PROC_UNLOCK(p);
 	}
 
 	shm_handle = shmseg->shm_internal;
