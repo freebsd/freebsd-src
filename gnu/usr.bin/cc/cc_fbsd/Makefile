@@ -9,6 +9,8 @@ NOPROFILE=	YES
 NOPIC=		YES
 
 SRCS=	getobjformat.c mktemp.c
+
+CFLAGS+= -D_libc_open=open
 	
 install:
 	@true
