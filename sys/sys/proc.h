@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.69 1999/02/03 08:21:44 bde Exp $
+ * $Id: proc.h,v 1.70 1999/02/22 16:57:48 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -222,6 +222,7 @@ struct	proc {
 	struct proc *p_peers;	
 	struct proc *p_leader;
 	struct	pasleep p_asleep;	/* Used by asleep()/await(). */
+	void	*p_emuldata;	/* process-specific emulator state data */
 };
 
 #define	p_session	p_pgrp->pg_session
