@@ -1424,11 +1424,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
 	PROC_UNLOCK(p);
 
-#ifdef DEBUG
-	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
-		       sig, &sf, sfp);
-#endif
 	/* save the floating-point state, if necessary, then copy it. */
 	alpha_fpstate_save(td, 1);
 	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDTD_FPUSED;
@@ -1447,11 +1442,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * copy the frame out to userland.
 	 */
 	if (copyout((caddr_t)&sf, (caddr_t)sfp, sizeof(sf)) != 0) {
-#ifdef DEBUG
-		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-			printf("sendsig(%d): copyout failed on sig %d\n",
-			       p->p_pid, sig);
-#endif
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -1464,11 +1454,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		psignal(p, SIGILL);
 		return;
 	}
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-		printf("sendsig(%d): sig %d sfp %p code %lx\n", p->p_pid, sig,
-		    sfp, code);
-#endif
 
 	/*
 	 * Set up the registers to return to sigcode.
@@ -1491,15 +1476,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
 	frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 	alpha_pal_wrusp((unsigned long)sfp);
-
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-		printf("sendsig(%d): pc %lx, catcher %lx\n", p->p_pid,
-		    frame->tf_regs[FRAME_PC], frame->tf_regs[FRAME_A3]);
-	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-		printf("sendsig(%d): sig %d returns\n",
-		    p->p_pid, sig);
-#endif
 }
 
 /*
@@ -1670,10 +1646,6 @@ sigreturn(struct thread *td,
 	pcb = td->td_pcb;
 	p = td->td_proc;
 
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, ucp);
-#endif
 	/*
 	 * Fetch the entire context structure at once for speed.
 	 * Note that struct osigcontext is smaller than a ucontext_t,
@@ -1725,10 +1697,6 @@ sigreturn(struct thread *td,
 	      &td->td_pcb->pcb_fp, sizeof(struct fpreg));
 	td->td_pcb->pcb_fp_control = uc.uc_mcontext.mc_fp_control;
 
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-		printf("sigreturn(%d): returns\n", p->p_pid);
-#endif
 	return (EJUSTRETURN);
 }
 
