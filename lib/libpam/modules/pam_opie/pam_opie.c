@@ -52,23 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum {
-	PAM_OPT_AUTH_AS_SELF = PAM_OPT_STD_MAX,
-	PAM_OPT_NO_FAKE_PROMPTS
-};
-
-static struct opttab other_options[] = {
-	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
-	{ "no_fake_prompts",	PAM_OPT_NO_FAKE_PROMPTS },
-	{ NULL, 0 }
-};
+#define PAM_OPT_NO_FAKE_PROMPTS	"no_fake_prompts"
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
 	struct opie opie;
-	struct options options;
 	struct passwd *pwd;
 	int retval, i;
 	const char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
@@ -77,12 +67,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	char *response;
 	int style;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	user = NULL;
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
+	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF)) {
 		if ((pwd = getpwnam(getlogin())) == NULL)
 			return (PAM_AUTH_ERR);
 		user = pwd->pw_name;
@@ -108,7 +94,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	 */
 	/* XXX generates a const warning because of incorrect prototype */
 	if (opiechallenge(&opie, (char *)user, challenge) != 0 &&
-	    pam_test_option(&options, PAM_OPT_NO_FAKE_PROMPTS, NULL))
+	    openpam_get_option(pamh, PAM_OPT_NO_FAKE_PROMPTS))
 		return (PAM_AUTH_ERR);
 
 	/*
