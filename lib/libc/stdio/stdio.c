@@ -95,16 +95,12 @@ __sseek(cookie, offset, whence)
 	register FILE *fp = cookie;
 	register off_t ret;
 
+	ret = lseek(fp->_file, (off_t)offset, whence);
 	/*
 	 * Disallow negative seeks per POSIX.
 	 * It is needed here to help upper level caller
 	 * (fseek) in the cases it can't detect.
 	 */
-	if (whence == SEEK_SET && (off_t)offset < 0) {
-		errno = EINVAL;
-		return (-1);
-	}
-	ret = lseek(fp->_file, (off_t)offset, whence);
 	if (ret < 0) {
 		if (ret != -1) {
 			/* Resulting seek is negative! */
