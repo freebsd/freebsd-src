@@ -245,7 +245,7 @@ uninorth_attach(device_t dev)
 	}
 
 	/*
-	 * Write out the correct PIC interrupt values to config space 
+	 * Write out the correct PIC interrupt values to config space
 	 * of all devices on the bus. This has to be done after the GEM
 	 * cell is enabled above.
 	 */
@@ -441,7 +441,14 @@ static int
 uninorth_enable_config(struct uninorth_softc *sc, u_int bus, u_int slot,
     u_int func, u_int reg)
 {
-	u_int32_t	cfgval;
+	uint32_t	cfgval;
+	uint32_t	pass;
+
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	        device_get_unit(sc->sc_dev), "skipslot", &pass) == 0) {
+		if (pass == slot)
+			return (0);
+	}
 
 	if (sc->sc_bus == bus) {
 		/*
@@ -455,7 +462,7 @@ uninorth_enable_config(struct uninorth_softc *sc, u_int bus, u_int slot,
 		cfgval = (bus << 16) | (slot << 11) | (func << 8) |
 		    (reg & 0xfc) | 1;
 	}
-        
+
 	do {
 		out32rb(sc->sc_addr, cfgval);
 	} while (in32rb(sc->sc_addr) != cfgval);
@@ -540,7 +547,7 @@ unin_chip_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Apple UniNorth System Controller");
-	return (0);	
+	return (0);
 }
 
 static int
@@ -566,7 +573,7 @@ unin_chip_attach(device_t dev)
 
 	uncsc->sc_version = *(u_int *)uncsc->sc_addr;
 	device_printf(dev, "Version %d\n", uncsc->sc_version);
-	
+
 	return (0);
 }
 
