@@ -403,7 +403,10 @@ block the output at a positive decimal integer number of
 bytes per write to the archive file.
 The
 .Ar blocksize
-must be a multiple of 512 bytes with a maximum of 32256 bytes.
+must be a multiple of 512 bytes with a maximum of 64512 bytes.
+Archives larger than 32256 bytes violate the
+.Tn POSIX
+standard and will not be portable to all systems.
 A
 .Ar blocksize
 can end with
@@ -1130,6 +1133,9 @@ and
 operations are extensions to the
 .Tn POSIX
 standard.
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr cpio 1
 .Sh AUTHORS
 .An Keith Muller
 at the University of California, San Diego

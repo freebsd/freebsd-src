@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 #ifdef NET2_REGEX
 #include <regexp.h>
 #else
@@ -228,11 +229,12 @@ rep_add(str)
 
 #ifdef __STDC__
 int
-pat_add(char *str)
+pat_add(char *str, char *chdname)
 #else
 int
-pat_add(str)
+pat_add(str, chdname)
 	char *str;
+	char *chdname;
 #endif
 {
 	register PATTERN *pt;
@@ -260,6 +262,8 @@ pat_add(str)
 	pt->plen = strlen(str);
 	pt->fow = NULL;
 	pt->flgs = 0;
+	pt->chdname = chdname;
+
 	if (pathead == NULL) {
 		pattail = pathead = pt;
 		return(0);
@@ -616,7 +620,7 @@ range_match(pattern, test)
 	int negate;
 	int ok = 0;
 
-	if ((negate = (*pattern == '!')))
+	if ((negate = (*pattern == '!')) != 0)
 		++pattern;
 
 	while ((c = *pattern++) != ']') {
@@ -663,6 +667,38 @@ mod_name(arcn)
 	register int res = 0;
 
 	/*
+	 * Strip off leading '/' if appropriate.
+	 * Currently, this option is only set for the tar format.
+	 */
+	if (rmleadslash && arcn->name[0] == '/') {
+		if (arcn->name[1] == '\0') {
+			arcn->name[0] = '.';
+		} else {
+			(void)memmove(arcn->name, &arcn->name[1],
+			    strlen(arcn->name));
+			arcn->nlen--;
+		}
+		if (rmleadslash < 2) {
+			rmleadslash = 2;
+			paxwarn(0, "Removing leading / from absolute path names in the archive");
+		}
+	}
+	if (rmleadslash && arcn->ln_name[0] == '/' &&
+	    (arcn->type == PAX_HLK || arcn->type == PAX_HRG)) {
+		if (arcn->ln_name[1] == '\0') {
+			arcn->ln_name[0] = '.';
+		} else {
+			(void)memmove(arcn->ln_name, &arcn->ln_name[1],
+			    strlen(arcn->ln_name));
+			arcn->ln_nlen--;
+		}
+		if (rmleadslash < 2) {
+			rmleadslash = 2;
+			paxwarn(0, "Removing leading / from absolute path names in the archive");
+		}
+	}
+
+	/*
 	 * IMPORTANT: We have a problem. what do we do with symlinks?
 	 * Modifying a hard link name makes sense, as we know the file it
 	 * points at should have been seen already in the archive (and if it
@@ -703,7 +739,7 @@ mod_name(arcn)
 			return(res);
 		if ((arcn->type == PAX_SLK) || (arcn->type == PAX_HLK) ||
 		    (arcn->type == PAX_HRG))
-			sub_name(arcn->ln_name, &(arcn->ln_nlen));
+			sub_name(arcn->ln_name, &(arcn->ln_nlen), sizeof(arcn->ln_name));
 	}
 	return(res);
 }
@@ -775,8 +811,8 @@ tty_rename(arcn)
 	 */
 	tty_prnt("Processing continues, name changed to: %s\n", tmpname);
 	res = add_name(arcn->name, arcn->nlen, tmpname);
-	arcn->nlen = l_strncpy(arcn->name, tmpname, PAXPATHLEN+1);
-	arcn->name[PAXPATHLEN] = '\0';
+	arcn->nlen = l_strncpy(arcn->name, tmpname, sizeof(arcn->name) - 1);
+	arcn->name[arcn->nlen] = '\0';
 	if (res < 0)
 		return(-1);
 	return(0);

@@ -152,11 +152,12 @@ ftree_start()
 
 #ifdef __STDC__
 int
-ftree_add(register char *str)
+ftree_add(register char *str, int chflg)
 #else
 int
-ftree_add(str)
+ftree_add(str, chflg)
 	register char *str;
+	int chflg;
 #endif
 {
 	register FTREE *ft;
@@ -184,6 +185,7 @@ ftree_add(str)
 		str[len] = '\0';
 	ft->fname = str;
 	ft->refcnt = 0;
+	ft->chflg = chflg;
 	ft->fow = NULL;
 	if (fthead == NULL) {
 		fttail = fthead = ft;
@@ -261,7 +263,7 @@ ftree_chk()
 	 * that never had a match
 	 */
 	for (ft = fthead; ft != NULL; ft = ft->fow) {
-		if (ft->refcnt > 0)
+		if ((ft->refcnt > 0) || ft->chflg)
 			continue;
 		if (wban == 0) {
 			paxwarn(1,"WARNING! These file names were not selected:");
@@ -321,7 +323,21 @@ ftree_arg()
 				ftcur = fthead;
 			else if ((ftcur = ftcur->fow) == NULL)
 				return(-1);
-			farray[0] = ftcur->fname;
+			if (ftcur->chflg) {
+				/* First fchdir() back... */
+				if (fchdir(cwdfd) < 0) {
+					syswarn(1, errno,
+					  "Can't fchdir to starting directory");
+					return(-1);
+				}
+				if (chdir(ftcur->fname) < 0) {
+					syswarn(1, errno, "Can't chdir to %s",
+					    ftcur->fname);
+					return(-1);
+				}
+				continue;
+			} else
+				farray[0] = ftcur->fname;
 		}
 
 		/*
@@ -538,7 +554,7 @@ next_file(arcn)
 	/*
 	 * copy file name, set file name length
 	 */
-	arcn->nlen = l_strncpy(arcn->name, ftent->fts_path, PAXPATHLEN+1);
+	arcn->nlen = l_strncpy(arcn->name, ftent->fts_path, sizeof(arcn->name) - 1);
 	arcn->name[arcn->nlen] = '\0';
 	arcn->org_name = ftent->fts_path;
 	return(0);

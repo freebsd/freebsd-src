@@ -47,5 +47,6 @@
 typedef struct ftree {
 	char		*fname;		/* file tree name */
 	int		refcnt;		/* has tree had a selected file? */
+	int		chflg;		/* change directory flag */
 	struct ftree	*fow;		/* pointer to next entry on list */
 } FTREE;
