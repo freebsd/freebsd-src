@@ -34,13 +34,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)sig.h	8.1 (Berkeley) 6/4/93
+ *	$NetBSD: sig.h,v 1.2 1997/01/11 06:48:11 lukem Exp $
+ * $FreeBSD$
  */
 
 /*
  * el.sig.h: Signal handling functions
  */
 #ifndef _h_el_sig
-#define _h_el_sig
+#define	_h_el_sig
 
 #include <signal.h>
 
@@ -50,21 +52,21 @@
  * Define here all the signals we are going to handle
  * The _DO macro is used to iterate in the source code
  */
-#define ALLSIGS 	\
-    _DO(SIGINT)		\
-    _DO(SIGTSTP)	\
-    _DO(SIGSTOP)	\
-    _DO(SIGQUIT)	\
-    _DO(SIGHUP)		\
-    _DO(SIGTERM)	\
-    _DO(SIGCONT)	\
-    _DO(SIGWINCH)
+#define	ALLSIGS		\
+	_DO(SIGINT)	\
+	_DO(SIGTSTP)	\
+	_DO(SIGSTOP)	\
+	_DO(SIGQUIT)	\
+	_DO(SIGHUP)	\
+	_DO(SIGTERM)	\
+	_DO(SIGCONT)	\
+	_DO(SIGWINCH)
 
-typedef sig_t *el_signal_t;
+typedef sig_t	*el_signal_t;
 
-protected void	sig_end		__P((EditLine*));
-protected int	sig_init	__P((EditLine*));
-protected void	sig_set		__P((EditLine*));
-protected void	sig_clr		__P((EditLine*));
+protected void	sig_end(EditLine*);
+protected int	sig_init(EditLine*);
+protected void	sig_set(EditLine*);
+protected void	sig_clr(EditLine*);
 
 #endif /* _h_el_sig */
