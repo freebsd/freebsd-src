@@ -1495,26 +1495,18 @@ psignal(p, sig)
 		if (prop & SA_STOP) {
 			if (p->p_flag & P_PPWAIT)
 				goto out;
+			p->p_flag |= P_STOPPED_SIG;
+			p->p_xstat = sig;
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td) {
 				if (TD_IS_SLEEPING(td) &&
 					(td->td_flags & TDF_SINTR))
 					thread_suspend_one(td);
 			}
-			if (p->p_suspcount == p->p_numthreads) {
-				mtx_unlock_spin(&sched_lock);
-				stop(p);
-				p->p_xstat = sig;
-				SIGDELSET(p->p_siglist, sig);
-				PROC_LOCK(p->p_pptr);
-				if ((p->p_pptr->p_procsig->ps_flag &
-					PS_NOCLDSTOP) == 0) {
-					psignal(p->p_pptr, SIGCHLD);
-				}
-				PROC_UNLOCK(p->p_pptr);
-			} else {
-				mtx_unlock_spin(&sched_lock);
-			}
+			thread_stopped(p);
+			if (p->p_numthreads == p->p_suspcount)
+				SIGDELSET(p->p_siglist, p->p_xstat);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		} 
 		else
@@ -1754,19 +1746,10 @@ issignal(td)
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
+				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
 				mtx_lock_spin(&sched_lock);
-				if (p->p_suspcount+1 == p->p_numthreads) { 
-					mtx_unlock_spin(&sched_lock);
-					PROC_LOCK(p->p_pptr);
-					if ((p->p_pptr->p_procsig->ps_flag &
-				    		PS_NOCLDSTOP) == 0) {
-						psignal(p->p_pptr, SIGCHLD);
-					}
-					PROC_UNLOCK(p->p_pptr);
-					mtx_lock_spin(&sched_lock);
-				}
-				stop(p);
+				thread_stopped(p);
 				thread_suspend_one(td);
 				PROC_UNLOCK(p);
 				DROP_GIANT();
@@ -1816,8 +1799,7 @@ issignal(td)
  * lock held.
  */
 static void
-stop(p)
-	register struct proc *p;
+stop(struct proc *p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -1826,6 +1808,30 @@ stop(p)
 	wakeup(p->p_pptr);
 }
 
+void
+thread_stopped(struct proc *p)
+{
+	struct proc *p1 = curthread->td_proc;
+	int n;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
+	n = p->p_suspcount;
+	if (p == p1)
+		n++;
+	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
+		mtx_unlock_spin(&sched_lock);
+		stop(p);
+		PROC_LOCK(p->p_pptr);
+		if ((p->p_pptr->p_procsig->ps_flag &
+			PS_NOCLDSTOP) == 0) {
+			psignal(p->p_pptr, SIGCHLD);
+		}
+		PROC_UNLOCK(p->p_pptr);
+		mtx_lock_spin(&sched_lock);
+	}
+}
+ 
 /*
  * Take the action for the specified signal
  * from the current set of pending signals.
