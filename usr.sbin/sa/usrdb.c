@@ -40,6 +40,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -238,8 +239,8 @@ usracct_print()
 	while (rv == 0) {
 		memcpy(ui, data.data, sizeof(struct userinfo));
 
-		printf("%-*s %9qu ", MAXLOGNAME - 1,
-		    user_from_uid(ui->ui_uid, 0), ui->ui_calls);
+		printf("%-*s %9ju ", MAXLOGNAME - 1,
+		    user_from_uid(ui->ui_uid, 0), (uintmax_t)ui->ui_calls);
 
 		t = (double) (ui->ui_utime + ui->ui_stime) /
 		    (double) AHZ;
@@ -250,15 +251,16 @@ usracct_print()
 
 		/* ui->ui_calls is always != 0 */
 		if (dflag)
-			printf("%12qu%s", ui->ui_io / ui->ui_calls, "avio");
+			printf("%12ju%s",
+			    (uintmax_t)(ui->ui_io / ui->ui_calls), "avio");
 		else
-			printf("%12qu%s", ui->ui_io, "tio");
+			printf("%12ju%s", (uintmax_t)ui->ui_io, "tio");
 
 		/* t is always >= 0.0001; see above */
 		if (kflag)
 			printf("%12.0f%s", ui->ui_mem / t, "k");
 		else
-			printf("%12qu%s", ui->ui_mem, "k*sec");
+			printf("%12ju%s", (uintmax_t)ui->ui_mem, "k*sec");
 
 		printf("\n");
 
