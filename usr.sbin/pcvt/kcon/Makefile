@@ -1,3 +1,4 @@
+# $FreeBSD$
 PROG=		kcon
 DEVICE=		/dev/ttyv0
 CFLAGS+= 	-I${.CURDIR}/../keycap -DKEYB_DEVICE=\"${DEVICE}\"
