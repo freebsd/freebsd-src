@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bwx.c,v 1.1 1998/12/12 18:05:06 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -70,21 +70,26 @@ bwx_init()
 static int
 bwx_ioperm(u_int32_t from, u_int32_t num, int on)
 {
+    u_int32_t start, end;
+
     if (!bwx_int1_ports)
 	bwx_init();
 
     if (!on)
 	return -1;		/* XXX can't unmap yet */
-
-    munmap(bwx_int1_ports + from, num);
-    munmap(bwx_int2_ports + from, num);
-    munmap(bwx_int4_ports + from, num);
-    mmap(bwx_int1_ports + from, num, PROT_READ|PROT_WRITE, MAP_SHARED,
-	 mem_fd, bwx_io_base + BWX_EV56_INT1 + from);
-    mmap(bwx_int2_ports + from, num, PROT_READ|PROT_WRITE, MAP_SHARED,
-	 mem_fd, bwx_io_base + BWX_EV56_INT2 + from);
-    mmap(bwx_int4_ports + from, num, PROT_READ|PROT_WRITE, MAP_SHARED,
-	 mem_fd, bwx_io_base + BWX_EV56_INT4 + from);
+   
+    start = trunc_page(from);
+    end = round_page(from + num);
+    
+    munmap(bwx_int1_ports + start, end-start);
+    munmap(bwx_int2_ports + start, end-start);
+    munmap(bwx_int4_ports + start, end-start);
+    mmap(bwx_int1_ports + start, end-start, PROT_READ|PROT_WRITE, MAP_SHARED,
+	 mem_fd, bwx_io_base + BWX_EV56_INT1 + start);
+    mmap(bwx_int2_ports + start, end-start, PROT_READ|PROT_WRITE, MAP_SHARED,
+	 mem_fd, bwx_io_base + BWX_EV56_INT2 + start);
+    mmap(bwx_int4_ports + start, end-start, PROT_READ|PROT_WRITE, MAP_SHARED,
+	 mem_fd, bwx_io_base + BWX_EV56_INT4 + start);
     return 0;
 }
 
