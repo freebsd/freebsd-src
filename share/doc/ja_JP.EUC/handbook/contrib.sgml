@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.4 1996/12/01 11:39:07 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.5 1996/12/01 21:11:27 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.159 -->
+<!-- Original revision: 1.160 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -226,6 +226,7 @@
 	  <item>Frank Bartels &lt;knarf@camelot.de&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
+	  <item>FURUSAWA Kazuhisa &lt;furusawa@com.cs.osakafu-u.ac.jp&gt;
 	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
 	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
 	  <item>Greg Ungerer &lt;gerg@stallion.oz.au&gt;
