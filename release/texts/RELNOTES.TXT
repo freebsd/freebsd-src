@@ -155,7 +155,8 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Tyan S1365
 
 
-QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
+QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
+QLogic 2100 Fibre Channel Adapters (private loop only).
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
