@@ -130,6 +130,9 @@ int check_patch = FALSE;
 /* or PATCH_INDEX_FIRST env. variable is set */
 int index_first;
 
+/* TRUE if -S was specified on command line. */
+int skip_flag_specified = FALSE;
+
 /* Apply a set of diffs as appropriate. */
 
 int
@@ -313,7 +316,8 @@ char **argv;
 	    newwhere = pch_newfirst() + last_offset;
 	    if (skip_rest_of_patch) {
 		abort_hunk();
-		failed++;
+		if (! skip_flag_specified)
+		    failed++;
 		if (verbose)
 		    say3("Hunk #%d ignored at %ld.\n", hunk, newwhere);
 	    }
@@ -438,6 +442,7 @@ reinitialize_almost_everything()
 
     reverse = reverse_flag_specified;
     skip_rest_of_patch = FALSE;
+    skip_flag_specified = FALSE;
 
     get_some_switches();
 
@@ -568,6 +573,7 @@ get_some_switches()
 		break;
 	    case 'S':
 		skip_rest_of_patch = TRUE;
+		skip_flag_specified = TRUE;
 		break;
 	    case 't':
 		batch = TRUE;
