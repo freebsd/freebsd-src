@@ -568,42 +568,81 @@ pci_clear_command_bit(device_t dev, device_t child, u_int16_t bit)
 	PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
 }
 
-void
+int
 pci_enable_busmaster_method(device_t dev, device_t child)
 {
 	pci_set_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
+	return (0);
 }
 
-void
+int
 pci_disable_busmaster_method(device_t dev, device_t child)
 {
 	pci_clear_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
+	return (0);
 }
 
-void
+int
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
+	u_int16_t command;
+	u_int16_t bit;
+	char *error;
+
+	bit = 0;
+	error = NULL;
+
 	switch(space) {
 	case SYS_RES_IOPORT:
-		pci_set_command_bit(dev, child, PCIM_CMD_PORTEN);
+		bit = PCIM_CMD_PORTEN;
+		error = "port";
 		break;
 	case SYS_RES_MEMORY:
-		pci_set_command_bit(dev, child, PCIM_CMD_MEMEN);
+		bit = PCIM_CMD_MEMEN;
+		error = "memory";
+		break;
+	default:
+		return (EINVAL);
 		break;
 	}
+	pci_set_command_bit(dev, child, bit);
+	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+	if (command & bit)
+		return (0);
+	device_printf(child, "failed to enable %s mapping!\n", error);
+	return (ENXIO);
 }
 
-void
+int
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
+	u_int16_t command;
+	u_int16_t bit;
+	char *error;
+
+	bit = 0;
+	error = NULL;
+
 	switch(space) {
 	case SYS_RES_IOPORT:
-		pci_clear_command_bit(dev, child, PCIM_CMD_PORTEN);
+		bit = PCIM_CMD_PORTEN;
+		error = "port";
 		break;
 	case SYS_RES_MEMORY:
-		pci_clear_command_bit(dev, child, PCIM_CMD_MEMEN);
+		bit = PCIM_CMD_MEMEN;
+		error = "memory";
+		break;
+	default:
+		return (EINVAL);
 		break;
 	}
+	pci_clear_command_bit(dev, child, bit);
+	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+	if (command & bit) {
+		device_printf(child, "failed to disable %s mapping!\n", error);
+		return (ENXIO);
+	}
+	return (0);
 }
 
 /*
@@ -1326,7 +1365,8 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			 * Enable the I/O mode.  We should also be allocating
 			 * resources too. XXX
 			 */
-			PCI_ENABLE_IO(dev, child, type);
+			if (PCI_ENABLE_IO(dev, child, type))
+				return (NULL);
 			break;
 		}
 	}
