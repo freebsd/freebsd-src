@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: des_rw.c,v 1.7 1997/02/22 14:37:07 peter Exp $
+ * $Id: des_rw.c,v 1.8 1997/03/24 14:52:51 ache Exp $
  */
 
 /*
@@ -230,8 +230,7 @@ des_write(fd, buf, len)
 		 */
 		if(!seeded) {
 			seeded = 1;
-			if (srandomdev() < 0)
-				srandom((unsigned long)(time(NULL) ^ getpid()));
+			srandomdev();
 		}
 
 		for(i = 0 ; i < 8 ; i+= sizeof(long)) {
