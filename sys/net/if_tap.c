@@ -163,10 +163,13 @@ tapmodevent(mod, type, data)
 		 */
 		mtx_lock(&tapmtx);
 		SLIST_FOREACH(tp, &taphead, tap_next) {
+			mtx_lock(&tp->tap_mtx);
 			if (tp->tap_flags & TAP_OPEN) {
+				mtx_unlock(&tp->tap_mtx);
 				mtx_unlock(&tapmtx);
 				return (EBUSY);
 			}
+			mtx_unlock(&tp->tap_mtx);
 		}
 		mtx_unlock(&tapmtx);
 
@@ -181,6 +184,7 @@ tapmodevent(mod, type, data)
 
 			TAPDEBUG("detaching %s\n", ifp->if_xname);
 
+			/* Unlocked read. */
 			KASSERT(!(tp->tap_flags & TAP_OPEN), 
 				("%s flags is out of sync", ifp->if_xname));
 
@@ -189,6 +193,7 @@ tapmodevent(mod, type, data)
 			ether_ifdetach(ifp);
 			splx(s);
 
+			mtx_destroy(&tp->tap_mtx);
 			free(tp, M_TAP);
 			mtx_lock(&tapmtx);
 		}
@@ -269,6 +274,7 @@ tapcreate(dev)
 
 	/* allocate driver storage and create device */
 	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
+	mtx_init(&tp->tap_mtx, "tap_mtx", NULL, MTX_DEF);
 	mtx_lock(&tapmtx);
 	SLIST_INSERT_HEAD(&taphead, tp, tap_next);
 	mtx_unlock(&tapmtx);
@@ -310,7 +316,9 @@ tapcreate(dev)
 	ether_ifattach(ifp, tp->arpcom.ac_enaddr);
 	splx(s);
 
+	mtx_lock(&tp->tap_mtx);
 	tp->tap_flags |= TAP_INITED;
+	mtx_unlock(&tp->tap_mtx);
 
 	TAPDEBUG("interface %s is created. minor = %#x\n", 
 		ifp->if_xname, minor(dev));
@@ -344,13 +352,16 @@ tapopen(dev, flag, mode, td)
 		tp = dev->si_drv1;
 	}
 
+	/* Unlocked read. */
 	KASSERT(!(tp->tap_flags & TAP_OPEN), 
 		("%s flags is out of sync", tp->tap_if.if_xname));
 
 	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
 
+	mtx_lock(&tp->tap_mtx);
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
+	mtx_unlock(&tp->tap_mtx);
 
 	TAPDEBUG("%s is open. minor = %#x\n", 
 		tp->tap_if.if_xname, minor(dev));
@@ -383,13 +394,16 @@ tapclose(dev, foo, bar, td)
 	 * interface, if we are in VMnet mode. just close the device.
 	 */
 
+	mtx_lock(&tp->tap_mtx);
 	if (((tp->tap_flags & TAP_VMNET) == 0) && (ifp->if_flags & IFF_UP)) {
+		mtx_unlock(&tp->tap_mtx);
 		s = splimp();
 		if_down(ifp);
 		if (ifp->if_flags & IFF_RUNNING) {
 			/* find internet addresses and delete routes */
 			struct ifaddr	*ifa = NULL;
 
+			/* In desparate need of ifaddr locking. */
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family == AF_INET) {
 					rtinit(ifa, (int)RTM_DELETE, 0);
@@ -407,13 +421,16 @@ tapclose(dev, foo, bar, td)
 			ifp->if_flags &= ~IFF_RUNNING;
 		}
 		splx(s);
-	}
+	} else
+		mtx_unlock(&tp->tap_mtx);
 
 	funsetown(&tp->tap_sigio);
 	selwakeuppri(&tp->tap_rsel, PZERO+1);
 
+	mtx_lock(&tp->tap_mtx);
 	tp->tap_flags &= ~TAP_OPEN;
 	tp->tap_pid = 0;
+	mtx_unlock(&tp->tap_mtx);
 
 	TAPDEBUG("%s is closed. minor = %#x\n", 
 		ifp->if_xname, minor(dev));
@@ -469,10 +486,12 @@ tapifioctl(ifp, cmd, data)
 			s = splimp();
 			ifs = (struct ifstat *)data;
 			dummy = strlen(ifs->ascii);
+			mtx_lock(&tp->tap_mtx);
 			if (tp->tap_pid != 0 && dummy < sizeof(ifs->ascii))
 				snprintf(ifs->ascii + dummy,
 					sizeof(ifs->ascii) - dummy,
 					"\tOpened by PID %d\n", tp->tap_pid);
+			mtx_unlock(&tp->tap_mtx);
 			splx(s);
 			break;
 
@@ -506,10 +525,14 @@ tapifstart(ifp)
 	 * XXX: can this do any harm because of queue overflow?
 	 */
 
+	mtx_lock(&tp->tap_mtx);
 	if (((tp->tap_flags & TAP_VMNET) == 0) &&
 	    ((tp->tap_flags & TAP_READY) != TAP_READY)) {
 		struct mbuf	*m = NULL;
 
+		mtx_unlock(&tp->tap_mtx);
+
+		/* Unlocked read. */
 		TAPDEBUG("%s not ready, tap_flags = 0x%x\n", ifp->if_xname, 
 		    tp->tap_flags);
 
@@ -524,18 +547,23 @@ tapifstart(ifp)
 
 		return;
 	}
+	mtx_unlock(&tp->tap_mtx);
 
 	s = splimp();
 	ifp->if_flags |= IFF_OACTIVE;
 
 	if (ifp->if_snd.ifq_len != 0) {
+		mtx_lock(&tp->tap_mtx);
 		if (tp->tap_flags & TAP_RWAIT) {
 			tp->tap_flags &= ~TAP_RWAIT;
 			wakeup(tp);
 		}
 
-		if ((tp->tap_flags & TAP_ASYNC) && (tp->tap_sigio != NULL))
+		if ((tp->tap_flags & TAP_ASYNC) && (tp->tap_sigio != NULL)) {
+			mtx_unlock(&tp->tap_mtx);
 			pgsigio(&tp->tap_sigio, SIGIO, 0);
+		} else
+			mtx_unlock(&tp->tap_mtx);
 
 		selwakeuppri(&tp->tap_rsel, PZERO+1);
 		ifp->if_opackets ++; /* obytes are counted in ether_output */
@@ -595,10 +623,12 @@ tapioctl(dev, cmd, data, flag, td)
 
 		case FIOASYNC:
 			s = splimp();
+			mtx_lock(&tp->tap_mtx);
 			if (*(int *)data)
 				tp->tap_flags |= TAP_ASYNC;
 			else
 				tp->tap_flags &= ~TAP_ASYNC;
+			mtx_unlock(&tp->tap_mtx);
 			splx(s);
 			break;
 
@@ -682,7 +712,11 @@ tapread(dev, uio, flag)
 
 	TAPDEBUG("%s reading, minor = %#x\n", ifp->if_xname, minor(dev));
 
+	mtx_lock(&tp->tap_mtx);
 	if ((tp->tap_flags & TAP_READY) != TAP_READY) {
+		mtx_unlock(&tp->tap_mtx);
+
+		/* Unlocked read. */
 		TAPDEBUG("%s not ready. minor = %#x, tap_flags = 0x%x\n",
 			ifp->if_xname, minor(dev), tp->tap_flags);
 
@@ -690,6 +724,7 @@ tapread(dev, uio, flag)
 	}
 
 	tp->tap_flags &= ~TAP_RWAIT;
+	mtx_unlock(&tp->tap_mtx);
 
 	/* sleep until we get a packet */
 	do {
@@ -701,7 +736,9 @@ tapread(dev, uio, flag)
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
 
+			mtx_lock(&tp->tap_mtx);
 			tp->tap_flags |= TAP_RWAIT;
+			mtx_unlock(&tp->tap_mtx);
 			error = tsleep(tp,PCATCH|(PZERO+1),"taprd",0);
 			if (error)
 				return (error);
