@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.83 1999/07/19 10:06:18 jkh Exp $
+ * $Id: tcpip.c,v 1.84 1999/07/19 10:18:52 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -221,13 +221,18 @@ tcpOpenDialog(Device *devp)
 
 	/* First try a DHCP scan if such behavior is desired */
 	if (!variable_cmp(VAR_TRY_DHCP, "YES") || !msgYesNo("Do you want to try DHCP configuration of the interface?")) {
+	    int k;
+
 	    Mkdir("/var/db");
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
-	    if (!vsystem("dhclient %s", devp->name)) {
-		dhcpGetInfo(devp);
-		use_dhcp = TRUE;
+	    for (k = 3; k; --k) {
+		if (0 == vsystem("dhclient -1 %s", devp->name)) {
+		    dhcpGetInfo(devp);
+		    use_dhcp = TRUE;
+		    break;
+		}
 	    }
 	}
 
