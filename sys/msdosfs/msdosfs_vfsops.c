@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.7 1995/05/30 08:07:43 rgrimes Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.8 1995/11/07 14:06:44 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -709,7 +709,7 @@ msdosfs_vget(mp, ino, vpp)
 	return EOPNOTSUPP;
 }
 
-struct vfsops msdosfs_vfsops = {
+static struct vfsops msdosfs_vfsops = {
 	msdosfs_mount,
 	msdosfs_start,
 	msdosfs_unmount,
