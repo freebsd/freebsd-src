@@ -27,28 +27,27 @@ __FBSDID("$FreeBSD$");
 
 
 #define STARTSTRING "tar cf - "
-#define TOOBIG(str) (((int)strlen(str) + FILENAME_MAX + where_count > maxargs) \
-		|| ((int)strlen(str) + FILENAME_MAX + perm_count > maxargs))
+#define TOOBIG(str) \
+    (((int)strlen(str) + FILENAME_MAX + where_count > maxargs) ||\
+	((int)strlen(str) + FILENAME_MAX + perm_count > maxargs))
 
 #define PUSHOUT(todir) /* push out string */ \
-        if (where_count > (int)sizeof(STARTSTRING)-1) { \
-		    strcat(where_args, "|tar --unlink -xpf - -C "); \
-		    strcat(where_args, todir); \
-		    if (system(where_args)) { \
-	                cleanup(0); \
-		        errx(2, \
-			    "%s: can not invoke %ld byte tar pipeline: %s", \
-			     __func__, \
-			     (long)strlen(where_args), where_args); \
-		    } \
-		    strcpy(where_args, STARTSTRING); \
-		    where_count = sizeof(STARTSTRING)-1; \
+    if (where_count > (int)sizeof(STARTSTRING)-1) { \
+	strcat(where_args, "|tar --unlink -xpf - -C "); \
+	strcat(where_args, todir); \
+	if (system(where_args)) { \
+	    cleanup(0); \
+	    errx(2, "%s: can not invoke %ld byte tar pipeline: %s", \
+		 __func__, (long)strlen(where_args), where_args); \
 	} \
-	if (perm_count) { \
-		    apply_perms(todir, perm_args); \
-		    perm_args[0] = 0;\
-		    perm_count = 0; \
-	}
+	strcpy(where_args, STARTSTRING); \
+	where_count = sizeof(STARTSTRING)-1; \
+    } \
+    if (perm_count) { \
+	apply_perms(todir, perm_args); \
+	perm_args[0] = 0;\
+	perm_count = 0; \
+    }
 
 static void
 rollback(const char *name, const char *home, PackingList start, PackingList stop)
@@ -134,7 +133,7 @@ extract_plist(const char *home, Package *pkg)
 		  cleanup(0);
 		  errx(2, "%s: Bogus filename \"%s\"", __func__, p->name);
 		}
-		
+
 		/* first try to rename it into place */
 		snprintf(try, FILENAME_MAX, "%s/%s", Directory, p->name);
 		if (fexists(try)) {
