@@ -320,9 +320,10 @@ void	DELAY(int usec);
  * Unit number allocation API. (kern/subr_unit.c)
  */
 struct unrhdr;
-struct unrhdr *new_unrhdr(u_int low, u_int high, struct mtx *mutex);
+struct unrhdr *new_unrhdr(int low, int high, struct mtx *mutex);
 void delete_unrhdr(struct unrhdr *uh);
-u_int alloc_unr(struct unrhdr *uh);
+int alloc_unr(struct unrhdr *uh);
+int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
 #endif /* !_SYS_SYSTM_H_ */
