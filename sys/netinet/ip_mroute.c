@@ -1307,10 +1307,13 @@ static int
 socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in *src)
 {
     if (s) {
-	if (sbappendaddr(&s->so_rcv, (struct sockaddr *)src, mm, NULL) != 0) {
-	    sorwakeup(s);
+	SOCKBUF_LOCK(&s->so_rcv);
+	if (sbappendaddr_locked(&s->so_rcv, (struct sockaddr *)src, mm,
+	    NULL) != 0) {
+	    sorwakeup_locked(s);
 	    return 0;
 	}
+	SOCKBUF_UNLOCK(&s->so_rcv);
     }
     m_freem(mm);
     return -1;

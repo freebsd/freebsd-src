@@ -294,8 +294,7 @@ uipc_rcvd(struct socket *so, int flags)
 		    newhiwat, RLIM_INFINITY);
 		unp->unp_cc = so->so_rcv.sb_cc;
 		SOCKBUF_UNLOCK(&so->so_rcv);
-		SOCKBUF_UNLOCK(&so2->so_snd);
-		sowwakeup(so2);
+		sowwakeup_locked(so2);
 		break;
 
 	default:
@@ -355,8 +354,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			from = &sun_noname;
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (sbappendaddr_locked(&so2->so_rcv, from, m, control)) {
-			SOCKBUF_UNLOCK(&so2->so_rcv);
-			sorwakeup(so2);
+			sorwakeup_locked(so2);
 			m = NULL;
 			control = NULL;
 		} else {
@@ -412,8 +410,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
-		SOCKBUF_UNLOCK(&so2->so_rcv);
-		sorwakeup(so2);
+		sorwakeup_locked(so2);
 		m = NULL;
 		break;
 
