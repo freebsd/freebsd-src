@@ -85,6 +85,7 @@ ncp_at_exit(void *arg, struct proc *p)
 	struct ncp_conn *ncp, *nncp;
 	struct thread *td;
 
+	mtx_lock(&Giant);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (ncp_conn_putprochandles(td) == 0)
 			continue;
@@ -100,6 +101,7 @@ ncp_at_exit(void *arg, struct proc *p)
 		}
 		ncp_conn_unlocklist(td);
 	}
+	mtx_unlock(&Giant);
 }
 
 int

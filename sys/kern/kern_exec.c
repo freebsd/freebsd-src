@@ -843,6 +843,7 @@ exec_new_vmspace(imgp, sv)
 
 	imgp->vmspace_destroyed = 1;
 
+	/* Called with Giant held, do not depend on it! */
 	EVENTHANDLER_INVOKE(process_exec, p);
 
 	/*

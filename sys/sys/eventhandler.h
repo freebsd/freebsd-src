@@ -158,8 +158,8 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
 /*
  * Process events
- * process_fork handlers are called without Giant.
- * exit/exec handlers are called with Giant.
+ * process_fork and exit handlers are called without Giant.
+ * exec handlers are called with Giant, but that is by accident.
  */
 struct proc;
 

@@ -695,8 +695,6 @@ again:
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
 	 *   What if they have an error? XXX
-	 *
-	 * Handlers must be MPSAFE, or aquire Giant themselves if not.
 	 */
 	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
 
