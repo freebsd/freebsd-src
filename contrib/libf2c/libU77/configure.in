@@ -19,6 +19,7 @@
 #to Software Foundation, 59 Temple Place - Suite 330, Boston, MA  02111-1307,
 #USA.
 
+AC_PREREQ(2.12.1)
 AC_INIT(access_.c)
 AC_CONFIG_HEADER(config.h:config.hin)
 
@@ -93,6 +94,7 @@ test $ac_cv_func_gethostname = yes && MAYBES="$MAYBES hostnm_.o"
 test $ac_cv_func_clock = yes && MAYBES="$MAYBES mclock_.o"
 AC_SUBST(MAYBES)
 
+LIBU77_HAVE_STRUCT_TIMEZONE
 
 AC_SUBST(CROSS)
 AC_SUBST(RANLIB)

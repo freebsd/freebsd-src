@@ -16,7 +16,7 @@ License along with GNU Fortran; see the file COPYING.LIB.  If
 not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-
+#include <math.h>		/* for j0 et al */
 #include <f2c.h>
 typedef void *sig_proc;	/* For now, this will have to do. */
 
@@ -203,10 +203,23 @@ void ctime_ (char *chtime, const ftnlen Lchtime, longint *xstime) {
 }
 #endif
 
-#ifdef Ldate
+#ifdef Ldate_y2kbuggy
 int date_ (char *buf, ftnlen buf_len) {
-    extern int G77_date_0 (char *buf, ftnlen buf_len);
-    return G77_date_0 (buf, buf_len);
+  /* Fail to link, so user sees attempt to invoke non-Y2K-compliant
+     routine.  */
+    extern int G77_date_y2kbuggy_0 (char *buf, ftnlen buf_len);
+    return G77_date_y2kbuggy_0 (buf, buf_len);
+}
+#endif
+
+#ifdef Ldate_y2kbug
+int date_y2kbug__ (char *buf, ftnlen buf_len) {
+  /* If user wants to invoke the non-Y2K-compliant routine via
+     an `EXTERNAL' interface, avoiding the warning via g77's
+     `INTRINSIC' interface, force coding of "y2kbug" string in
+     user's program.  */
+    extern int G77_date_y2kbug_0 (char *buf, ftnlen buf_len);
+    return G77_date_y2kbug_0 (buf, buf_len);
 }
 #endif
 
@@ -540,10 +553,23 @@ integer unlink_ (const char *str, const ftnlen Lstr) {
 }
 #endif
 
-#ifdef Lvxtidt
+#ifdef Lvxtidt_y2kbuggy
 int vxtidate_ (integer *m, integer *d, integer *y) {
-    extern int G77_vxtidate_0 (integer *m, integer *d, integer *y);
-    return G77_vxtidate_0 (m, d, y);
+  /* Fail to link, so user sees attempt to invoke non-Y2K-compliant
+     routine.  */
+    extern int G77_vxtidate_y2kbuggy_0 (integer *m, integer *d, integer *y);
+    return G77_vxtidate_y2kbuggy_0 (m, d, y);
+}
+#endif
+
+#ifdef Lvxtidt_y2kbug
+int vxtidate_y2kbug__ (integer *m, integer *d, integer *y) {
+  /* If user wants to invoke the non-Y2K-compliant routine via
+     an `EXTERNAL' interface, avoiding the warning via g77's
+     `INTRINSIC' interface, force coding of "y2kbug" string in
+     user's program.  */
+    extern int G77_vxtidate_y2kbug_0 (integer *m, integer *d, integer *y);
+    return G77_vxtidate_y2kbug_0 (m, d, y);
 }
 #endif
 

@@ -34,6 +34,14 @@ gcc_version_trigger = @gcc_version_trigger@
 libdir = $(exec_prefix)/lib
 libsubdir = $(libdir)/gcc-lib/$(target_alias)/$(gcc_version)
 
+# Multilib support variables.
+MULTISRCTOP =
+MULTIBUILDTOP =
+MULTIDIRS =
+MULTISUBDIR =
+MULTIDO = true
+MULTICLEAN = true
+
 # Not configured per top-level version, since that doesn't get passed
 # down at configure time, but overrridden by the top-level install
 # target.
@@ -59,7 +67,12 @@ FLAGS_TO_PASS= \
 	AR='$(AR)' \
 	RANLIB='$(RANLIB)' \
 	PICFLAG='$(PICFLAG)' \
-	RUNTESTFLAGS='$(RUNTESTFLAGS)'
+	RUNTESTFLAGS='$(RUNTESTFLAGS)' \
+	prefix='$(prefix)' \
+	exec_prefix='$(exec_prefix)' \
+	libdir='$(libdir)' \
+	libsubdir='$(libsubdir)' \
+	tooldir='$(tooldir)'
 
 LIBG2C = libg2c.a
 
@@ -67,20 +80,59 @@ SUBDIRS = libI77 libF77 libU77
 
 F2CEXT = abort derf derfc ef1asc ef1cmc erf erfc exit getarg getenv iargc \
 	signal system flush ftell fseek access besj0 besj1 besjn besy0 besy1 \
-	besyn chdir chmod ctime date dbesj0 dbesj1 dbesjn dbesy0 dbesy1 dbesyn \
+	besyn chdir chmod ctime dbesj0 dbesj1 dbesjn dbesy0 dbesy1 dbesyn \
 	dtime etime fdate fgetc fget flush1 fnum fputc fput fstat gerror \
 	getcwd getgid getlog getpid getuid gmtime hostnm idate ierrno irand \
 	isatty itime kill link lnblnk lstat ltime mclock perror rand rename \
 	secnds second sleep srand stat symlnk time ttynam umask unlink \
-	vxtidt vxttim alarm
+	vxttim alarm \
+	date_y2kbuggy date_y2kbug vxtidt_y2kbuggy vxtidt_y2kbug
 
-# These dependencies can be satisfied in parallel.  The [fiu]77
-# targets update stamp files which the $(LIBG2C) target checks in the
-# sub-make.  (Probably only one stamp file is really needed.)
-all: i77 f77 u77 s-libe77
+.SUFFIXES:
+
+# The logic here is partly dictated by the desire to keep the lib?77
+# subdirs for compatibility with the Netlib version and because libU77
+# has a different copyright; then the libe77 bit (EXTERNALly-callable
+# versions) is funny.  Given that, as well as keeping things as simple
+# as possible we want (at least) the following:
+#  * Allow make to be run at the top level (all-target-libf2c), at this
+#    level, or the subdirs of this level.  In the latter case we only
+#    compile, rather than updating libg2c.a;
+#  * A robust set of dependencies, so that we rebuild (as little as
+#    possible) if a configuration file, g2c.h or any lib?77/*.c file
+#    changes;
+#  * Avoid unnecessary running of ar and ranlib;
+#  * Expose parallelism where reasonable, but not as a priority.
+
+# The intended top-level target here does a non-multilib build (via
+# the dependency) and then (perhaps) builds multilibs.
+
+all: all-unilib
+	$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO="all-unilib"
+
+# `all-unilib' is the overall target in the absence of multilibs,
+# meant to be invoked via multi-do for multilibs.
+
+# Its dependencies can be satisfied in parallel.  The [fiu]77 targets
+# update stamp files (see the subdir makefiles) which the $(LIBG2C)
+# target checks in the sub make to decide whether to run ar/ranlib.
+# (Probably only one stamp file is really needed.)  The stamp files
+# s-lib[fiu]77 are intentionally not targets, since we're only meant
+# to come in at the level of this target.  The [fiu]77 targets always
+# invoke sub makes to check dependencies in the subdirs, else we'd
+# have to maintain them at this level; we live with the overhead of
+# some recursive makes which may do nothing.
+
+all-unilib: i77 f77 u77 s-libe77
 	$(MAKE) $(FLAGS_TO_PASS) $(LIBG2C)
 
 i77 f77 u77: g2c.h
+
+# This target should normally only get invoked via `all-unilib' --
+# after all's well in the subdirs -- actually to assemble the library.
+# The stamp file dependencies are just to check whether libg2c.a is
+# up-to-date (to avoid running ar regardless) -- the files should
+# always have been created by a successful `all-unilib'.
 
 $(LIBG2C): s-libi77 s-libf77 s-libu77 s-libe77
 	rm -f $(LIBG2C)
@@ -113,6 +165,8 @@ s-libe77: f2cext.c
 	done
 	echo timestamp >s-libe77
 
+f2cext.c: g2c.h
+
 ${srcdir}/configure: configure.in
 	rm -f config.cache
 	cd $(srcdir) && autoconf
@@ -128,7 +182,7 @@ g2c.h: g2c.hin config.status Makefile
 #	$(srcdir)/../move-if-change g2c.h g2c.x && mv g2c.x g2c.h
 
 Makefile: Makefile.in config.status
-# Autoconf doc uses `./config.status'.  Is there a good reason to use 
+# Autoconf doc uses `./config.status'.  Is there a good reason to use $(SHELL)?
 	  $(SHELL) config.status
 
 config.status: configure $(gcc_version_trigger)
@@ -143,9 +197,9 @@ check:
 	cd libU77; $(MAKE) G77DIR=../../../gcc/ check
 
 install: all
-	$(INSTALL_DATA) $(LIBG2C) $(libsubdir)/$(LIBG2C).n
-	( cd $(libsubdir) ; $(RANLIB) $(LIBG2C).n )
-	mv -f $(libsubdir)/$(LIBG2C).n $(libsubdir)/$(LIBG2C)
+	$(INSTALL_DATA) $(LIBG2C) $(libsubdir)/$(MULTISUBDIR)/$(LIBG2C).n
+	( cd $(libsubdir)/$(MULTISUBDIR) ; $(RANLIB) $(LIBG2C).n )
+	mv -f $(libsubdir)/$(MULTISUBDIR)/$(LIBG2C).n $(libsubdir)/$(MULTISUBDIR)/$(LIBG2C)
 	$(INSTALL_DATA) g2c.h $(libsubdir)/include/g2c.h
 	@if [ -f f2c-install-ok -o -f $(srcdir)/f2c-install-ok ]; then \
 	  echo ''; \
@@ -156,25 +210,31 @@ install: all
 	  echo '         f2c-install-ok in the source or build directory.)'; \
 	  echo ''; \
 	else true; fi
+	$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO="$@"
 
 install-strip:
 	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' install
 
 uninstall:
-	rm -f $(libsubdir)/include/g2c.h $(libsubdir)/$(LIBG2C)
+	rm -f $(libsubdir)/$(MULTISUBDIR)/include/g2c.h $(libsubdir)/$(MULTISUBDIR)/$(LIBG2C)
+	$(MULTIDO) $(FLAGS_TO_PASS) multi-do DO="$@"
 
 mostlyclean:
 	rm -f $(LIBG2C)
-	for i in $(SUBDIRS); do (cd $$i && $(MAKE) mostlyclean); done
-	rm -fr libE77
+	$(MAKE) DO=$@ DODIRS="$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do; \
+	$(MULTICLEAN) multi-clean DO=$@
+	rm -fr libE77 s-libe77
 
 clean: mostlyclean
 	rm -f config.log
-	for i in $(SUBDIRS); do (cd $$i && $(MAKE) clean); done
+	$(MAKE) DO=$@ DODIRS="$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do; \
+	$(MULTICLEAN) multi-clean DO=$@
 
 distclean: clean
-	rm -f Makefile config.cache config.status g2c.h s-libe77
-	for i in $(SUBDIRS); do (cd $$i && $(MAKE) distclean); done
+	rm -f g2c.h s-libe77
+	$(MAKE) DO=$@ DODIRS="$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do; \
+	$(MULTICLEAN) multi-clean DO=distclean
+	rm -f config.cache config.status Makefile
 
 maintainer-clean:
 
@@ -182,4 +242,21 @@ rebuilt: configure
 
 .PHONY: rebuilt mostlyclean clean distclean maintainer-clean all \
         i77 f77 u77 check uninstall install-strip dist \
-        installcheck installdirs
+        installcheck installdirs all-unilib
+
+subdir_do:
+	@rootpre=`pwd`/; export rootpre; \
+	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
+	for i in .. $(DODIRS); do \
+	  if [ x$$i != x.. ]; then \
+	    if [ -f ./$$i/Makefile ]; then \
+	      if (cd ./$$i; $(MAKE) $(FLAGS_TO_PASS) $(DO)); then \
+		true; \
+	      else \
+		exit 1; \
+	      fi; \
+	    else true; fi; \
+	  else true; fi; \
+	done
+
+# multidoings may be added here by configure.
