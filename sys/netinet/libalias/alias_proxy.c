@@ -520,6 +520,7 @@ PacketAliasProxyRule(const char *cmd)
     char buffer[256];
     char str_port[sizeof(buffer)];
     char str_server_port[sizeof(buffer)];
+    char *res = buffer;
 
     int rule_index;
     int proto;
@@ -540,7 +541,7 @@ PacketAliasProxyRule(const char *cmd)
 /* Convert to lower case */
     len = strlen(buffer);
     for (i=0; i<len; i++)
-        buffer[i] = tolower(buffer[i]);
+	buffer[i] = tolower((unsigned char)buffer[i]);
 
 /* Set default proxy type */
 
@@ -570,7 +571,7 @@ PacketAliasProxyRule(const char *cmd)
 #define STATE_READ_SRC        7
 #define STATE_READ_DST        8
     state = STATE_READ_KEYWORD;
-    token = strtok(buffer, " \t");
+    token = strsep(&res, " \t");
     token_count = 0;
     while (token != NULL)
     {
@@ -739,7 +740,9 @@ PacketAliasProxyRule(const char *cmd)
             break;
         }
 
-        token = strtok(NULL, " \t");
+	do {
+		token = strsep(&res, " \t");
+	} while (token != NULL && !*token);
     }
 #undef STATE_READ_KEYWORD
 #undef STATE_READ_TYPE
