@@ -209,7 +209,7 @@ struct statics *statics;
 
     modelen = sizeof(smpmode);
     if ((sysctlbyname("machdep.smp_active", &smpmode, &modelen, NULL, 0) < 0 &&
-         sysctlbyname("smp.smp_active", &smpmode, &modelen, NULL, 0) < 0) ||
+         sysctlbyname("kern.smp.active", &smpmode, &modelen, NULL, 0) < 0) ||
 	modelen != sizeof(smpmode))
 	    smpmode = 0;
 
