@@ -107,8 +107,10 @@ acpi_lid_attach(device_t dev)
      */
     AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY,
 			     acpi_lid_notify_handler, sc);
-    acpi_device_enable_wake_capability(sc->lid_handle, 1);
-    acpi_device_enable_wake_event(sc->lid_handle);
+
+    /* Enable the GPE for wake/runtime. */
+    acpi_wake_init(dev, ACPI_GPE_TYPE_WAKE_RUN);
+    acpi_wake_set_enable(dev, 1);
 
     return_VALUE (0);
 }
@@ -116,11 +118,10 @@ acpi_lid_attach(device_t dev)
 static int
 acpi_lid_suspend(device_t dev)
 {
-#if 0
-    struct acpi_lid_softc	*sc;
+    struct acpi_softc		*acpi_sc;
 
-    sc = device_get_softc(dev);
-#endif
+    acpi_sc = acpi_device_get_parent_softc(dev);
+    acpi_wake_sleep_prep(dev, acpi_sc->acpi_sstate);
     return (0);
 }
 
