@@ -120,5 +120,6 @@ const struct cmd cmdtab[] = {
 	{ "core",	core,		M|NOLIST,	0,	0 	},
 	{ "#",		null,		M|NOLIST,	0,	0 	},
 	{ "clobber",	clobber,	M|RAWLIST,	0,	1 	},
+	{ "inc",	inc,		T|NOLIST,	0,	0 	},
 	{ 0,		0,		0,		0,	0 	}
 };

@@ -80,14 +80,19 @@ collect(hp, printheaders)
 	FILE *fbuf;
 	int lc, cc, escape, eofcount, fd, c, t;
 	char linebuf[LINESIZE], tempname[PATHSIZE], *cp, getsub;
-	int omask;
+	sigset_t nset;
+	int longline, lastlong, rc;	/* So we don't make 2 or more lines
+					   out of a long input line. */
 
 	collf = NULL;
 	/*
 	 * Start catching signals from here, but we're still die on interrupts
 	 * until we're in the main loop.
 	 */
-	omask = sigblock(sigmask(SIGINT) | sigmask(SIGHUP));
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, SIGINT);
+	(void)sigaddset(&nset, SIGHUP);
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	if ((saveint = signal(SIGINT, SIG_IGN)) != SIG_IGN)
 		(void)signal(SIGINT, collint);
 	if ((savehup = signal(SIGHUP, SIG_IGN)) != SIG_IGN)
@@ -99,7 +104,7 @@ collect(hp, printheaders)
 		(void)rm(tempname);
 		goto err;
 	}
-	sigsetmask(omask & ~(sigmask(SIGINT) | sigmask(SIGHUP)));
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 
 	noreset++;
 	(void)snprintf(tempname, sizeof(tempname),
@@ -131,6 +136,8 @@ collect(hp, printheaders)
 		escape = ESCAPE;
 	eofcount = 0;
 	hadintr = 0;
+	lastlong = 0;
+	longline = 0;
 
 	if (!setjmp(colljmp)) {
 		if (getsub)
@@ -163,14 +170,17 @@ cont:
 			}
 			break;
 		}
+		lastlong = longline;
+		longline = c == LINESIZE - 1;
 		eofcount = 0;
 		hadintr = 0;
 		if (linebuf[0] == '.' && linebuf[1] == '\0' &&
-		    value("interactive") != NULL &&
+		    value("interactive") != NULL && !lastlong &&
 		    (value("dot") != NULL || value("ignoreeof") != NULL))
 			break;
-		if (linebuf[0] != escape || value("interactive") == NULL) {
-			if (putline(collf, linebuf) < 0)
+		if (linebuf[0] != escape || value("interactive") == NULL ||
+		    lastlong) {
+			if (putline(collf, linebuf, !longline) < 0)
 				goto err;
 			continue;
 		}
@@ -182,7 +192,7 @@ cont:
 			 * Otherwise, it's an error.
 			 */
 			if (c == escape) {
-				if (putline(collf, &linebuf[1]) < 0)
+				if (putline(collf, &linebuf[1], !longline) < 0)
 					goto err;
 				else
 					break;
@@ -298,9 +308,11 @@ cont:
 			(void)fflush(stdout);
 			lc = 0;
 			cc = 0;
-			while (readline(fbuf, linebuf, LINESIZE) >= 0) {
-				lc++;
-				if ((t = putline(collf, linebuf)) < 0) {
+			while ((rc = readline(fbuf, linebuf, LINESIZE)) >= 0) {
+				if (rc != LINESIZE - 1)
+					lc++;
+				if ((t = putline(collf, linebuf,
+					 rc != LINESIZE - 1)) < 0) {
 					(void)Fclose(fbuf);
 					goto err;
 				}
@@ -388,13 +400,13 @@ out:
 	if (collf != NULL)
 		rewind(collf);
 	noreset--;
-	(void)sigblock(sigmask(SIGINT) | sigmask(SIGHUP));
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	(void)signal(SIGINT, saveint);
 	(void)signal(SIGHUP, savehup);
 	(void)signal(SIGTSTP, savetstp);
 	(void)signal(SIGTTOU, savettou);
 	(void)signal(SIGTTIN, savettin);
-	(void)sigsetmask(omask);
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 	return (collf);
 }
 
@@ -576,10 +588,13 @@ collstop(s)
 	int s;
 {
 	sig_t old_action = signal(s, SIG_DFL);
+	sigset_t nset;
 
-	(void)sigsetmask(sigblock(0) & ~sigmask(s));
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, s);
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 	(void)kill(0, s);
-	(void)sigblock(sigmask(s));
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	(void)signal(s, old_action);
 	if (colljmp_p) {
 		colljmp_p = 0;

@@ -296,6 +296,7 @@ outof(names, fo, hp)
 		if (ispipe) {
 			int pid;
 			char *sh;
+			sigset_t nset;
 
 			/*
 			 * XXX
@@ -306,9 +307,12 @@ outof(names, fo, hp)
 			 */
 			if ((sh = value("SHELL")) == NULL)
 				sh = _PATH_CSHELL;
-			pid = start_command(sh,
-			    sigmask(SIGHUP)|sigmask(SIGINT)|sigmask(SIGQUIT),
-			    image, -1, "-c", fname, NULL);
+			(void)sigemptyset(&nset);
+			(void)sigaddset(&nset, SIGHUP);
+			(void)sigaddset(&nset, SIGINT);
+			(void)sigaddset(&nset, SIGQUIT);
+			pid = start_command(sh, &nset, image, -1, "-c", fname,
+			    NULL);
 			if (pid < 0) {
 				senderr++;
 				goto cant;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ *	@(#)extern.h	8.2 (Berkeley) 4/20/95 
  *
  * $FreeBSD$
  */
@@ -147,6 +147,8 @@ int	 igcomp __P((const void *, const void *));
 int	 igfield __P((char *[]));
 int	 ignore1 __P((char *[], struct ignoretab *, const char *));
 int	 igshow __P((struct ignoretab *, const char *));
+int	 inc __P((void *));
+int	 incfile __P((void));
 void	 intr __P((int));
 int	 isdate __P((char []));
 int	 isdir __P((char []));
@@ -163,7 +165,7 @@ struct var *
 int	 mail __P((struct name *,
 	    struct name *, struct name *, struct name *, char *, char *));
 void	 mail1 __P((struct header *, int));
-void	 makemessage __P((FILE *));
+void	 makemessage __P((FILE *, int));
 void	 mark __P((int));
 int	 markall __P((char [], int));
 int	 matchsender __P((char *, int));
@@ -175,19 +177,19 @@ void	 mespipe __P((FILE *, char []));
 int	 messize __P((int *));
 int	 metamess __P((int, int));
 int	 more __P((int *));
-int	 newfileinfo __P((void));
+int	 newfileinfo __P((int));
 int	 next __P((int *));
 int	 null __P((int));
 void	 parse __P((char [], struct headline *, char []));
 int	 pcmdlist __P((void));
 int	 pdot __P((void));
-void	 prepare_child __P((int, int, int));
+void	 prepare_child __P((sigset_t *, int, int));
 int	 preserve __P((int *));
 void	 prettyprint __P((struct name *));
 void	 printgroup __P((char []));
 void	 printhead __P((int));
 int	 puthead __P((struct header *, FILE *, int));
-int	 putline __P((FILE *, char *));
+int	 putline __P((FILE *, char *, int));
 int	 pversion __P((int));
 void	 quit __P((void));
 int	 quitcmd __P((void));
@@ -199,7 +201,8 @@ int	 respond __P((int *));
 int	 retfield __P((char *[]));
 int	 rexit __P((int));
 int	 rm __P((char *));
-int	 run_command __P((char *, int, int, int, char *, char *, char *));
+int	 run_command __P((char *, sigset_t *, int, int, char *, char *,
+	    char *));
 int	 save __P((char []));
 int	 save1 __P((char [], int, const char *, struct ignoretab *));
 void	 savedeadletter __P((FILE *));
@@ -211,12 +214,13 @@ void	 scaninit __P((void));
 int	 schdir __P((char **));
 int	 screensize __P((void));
 int	 scroll __P((char []));
-int	 sendmessage __P((struct message *, FILE *, struct ignoretab *, char *));
+int	 sendmessage __P((struct message *, FILE *, struct ignoretab *,
+	    char *));
 int	 sendmail __P((char *));
 int	 set __P((char **));
 int	 setfile __P((char *));
 void	 setmsize __P((int));
-void	 setptr __P((FILE *));
+void	 setptr __P((FILE *, off_t));
 void	 setscreensize __P((void));
 int	 shell __P((char *));
 void	 sigchild __P((int));
@@ -224,7 +228,8 @@ void	 sort __P((char **));
 int	 source __P((char **));
 void	 spreserve __P((void));
 void	 sreset __P((void));
-int	 start_command __P((char *, int, int, int, char *, char *, char *));
+int	 start_command __P((char *, sigset_t *, int, int, char *, char *,
+	    char *));
 void	 statusput __P((struct message *, FILE *, char *));
 void	 stop __P((int));
 int	 stouch __P((int []));
