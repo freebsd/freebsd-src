@@ -131,7 +131,7 @@ cttyread(dev, uio, flag)
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
 	/* XXX: Shouldn't the cred below be td->td_ucred not NOCRED? */
-	error = mac_check_vnode_op(td->td_ucred, ttyvp, MAC_OP_VNODE_READ);
+	error = mac_check_vnode_read(td->td_ucred, ttyvp);
 	if (error == 0)
 #endif
 		error = VOP_READ(ttyvp, uio, flag, NOCRED);
@@ -166,7 +166,7 @@ cttywrite(dev, uio, flag)
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
 	/* XXX: shouldn't the cred below be td->td_ucred not NOCRED? */
-	error = mac_check_vnode_op(td->td_ucred, ttyvp, MAC_OP_VNODE_WRITE);
+	error = mac_check_vnode_write(td->td_ucred, ttyvp);
 	if (error == 0)
 #endif
 		error = VOP_WRITE(ttyvp, uio, flag, NOCRED);
@@ -236,7 +236,7 @@ cttypoll(dev, events, td)
 		return (seltrue(dev, events, td));
 #ifdef MAC
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = mac_check_vnode_op(td->td_ucred, ttyvp, MAC_OP_VNODE_POLL);
+	error = mac_check_vnode_poll(td->td_ucred, ttyvp);
 	VOP_UNLOCK(ttyvp, 0, td);
 	if (error)
 		return (error);

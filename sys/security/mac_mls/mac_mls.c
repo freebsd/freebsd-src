@@ -1639,6 +1639,42 @@ mac_mls_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+mac_mls_check_vnode_poll(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_mls_dominate_single(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_mls_check_vnode_read(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_mls_dominate_single(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mac_mls_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
@@ -1906,6 +1942,24 @@ mac_mls_check_vnode_stat(struct ucred *cred, struct vnode *vp,
 	return (0);
 }
 
+static int
+mac_mls_check_vnode_write(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_mls_dominate_single(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
 static vm_prot_t
 mac_mls_check_vnode_mmap_perms(struct ucred *cred, struct vnode *vp,
     struct label *label, int newmapping)
@@ -1924,36 +1978,6 @@ mac_mls_check_vnode_mmap_perms(struct ucred *cred, struct vnode *vp,
 	if (mac_mls_dominate_single(obj, subj))
 		prot |= VM_PROT_WRITE;
 	return (prot);
-}
-
-static int
-mac_mls_check_vnode_op(struct ucred *cred, struct vnode *vp,
-    struct label *label, int op)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mac_mls_enabled || !mac_mls_revocation_enabled)
-		return (0);
-
-	subj = SLOT(&cred->cr_label);
-	obj = SLOT(label);
-
-	switch (op) {
-	case MAC_OP_VNODE_POLL:
-	case MAC_OP_VNODE_READ:
-		if (!mac_mls_dominate_single(subj, obj))
-			return (EACCES);
-		return (0);
-
-	case MAC_OP_VNODE_WRITE:
-		if (!mac_mls_dominate_single(obj, subj))
-			return (EACCES);
-		return (0);
-
-	default:
-		printf("mac_mls_check_vnode_op: unknown operation %d\n", op);
-		return (EINVAL);
-	}
 }
 
 static struct mac_policy_op_entry mac_mls_ops[] =
@@ -2140,6 +2164,10 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_check_vnode_lookup },
 	{ MAC_CHECK_VNODE_OPEN,
 	    (macop_t)mac_mls_check_vnode_open },
+	{ MAC_CHECK_VNODE_POLL,
+	    (macop_t)mac_mls_check_vnode_poll },
+	{ MAC_CHECK_VNODE_READ,
+	    (macop_t)mac_mls_check_vnode_read },
 	{ MAC_CHECK_VNODE_READDIR,
 	    (macop_t)mac_mls_check_vnode_readdir },
 	{ MAC_CHECK_VNODE_READLINK,
@@ -2166,10 +2194,10 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_check_vnode_setutimes },
 	{ MAC_CHECK_VNODE_STAT,
 	    (macop_t)mac_mls_check_vnode_stat },
+	{ MAC_CHECK_VNODE_WRITE,
+	    (macop_t)mac_mls_check_vnode_write },
 	{ MAC_CHECK_VNODE_MMAP_PERMS,
 	    (macop_t)mac_mls_check_vnode_mmap_perms },
-	{ MAC_CHECK_VNODE_OP,
-	    (macop_t)mac_mls_check_vnode_op },
 	{ MAC_OP_LAST, NULL }
 };
 

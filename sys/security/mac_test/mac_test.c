@@ -983,6 +983,22 @@ mac_test_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+mac_test_check_vnode_poll(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_vnode_read(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
 mac_test_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
@@ -1082,6 +1098,14 @@ mac_test_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_test_check_vnode_stat(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_vnode_write(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -1278,6 +1302,10 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_check_vnode_lookup },
 	{ MAC_CHECK_VNODE_OPEN,
 	    (macop_t)mac_test_check_vnode_open },
+	{ MAC_CHECK_VNODE_POLL,
+	    (macop_t)mac_test_check_vnode_poll },
+	{ MAC_CHECK_VNODE_READ,
+	    (macop_t)mac_test_check_vnode_read },
 	{ MAC_CHECK_VNODE_READDIR,
 	    (macop_t)mac_test_check_vnode_readdir },
 	{ MAC_CHECK_VNODE_READLINK,
@@ -1304,6 +1332,8 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_check_vnode_setutimes },
 	{ MAC_CHECK_VNODE_STAT,
 	    (macop_t)mac_test_check_vnode_stat },
+	{ MAC_CHECK_VNODE_WRITE,
+	    (macop_t)mac_test_check_vnode_write },
 	{ MAC_OP_LAST, NULL }
 };
 
