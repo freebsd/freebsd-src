@@ -265,8 +265,10 @@ interpret:
 	    (p->p_flag & P_TRACED) == 0) {
 		/*
 		 * Turn off syscall tracing for set-id programs, except for
-		 * root.
+		 * root.  Record any set-id flags first to make sure that
+		 * we do not regain any tracing during a possible block.
 		 */
+		setsugid(p);
 		if (p->p_tracep && suser(p->p_ucred, &p->p_acflag)) {
 			p->p_traceflag = 0;
 			vrele(p->p_tracep);
@@ -280,7 +282,6 @@ interpret:
 			p->p_ucred->cr_uid = attr.va_uid;
 		if (attr.va_mode & VSGID)
 			p->p_ucred->cr_gid = attr.va_gid;
-		setsugid(p);
 		setugidsafety(p);
 	} else {
 		if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
