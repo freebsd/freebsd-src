@@ -167,6 +167,15 @@ ia64_fc(u_int64_t va)
 }
 
 /*
+ * Sync instruction stream.
+ */
+static __inline void
+ia64_sync_i(void)
+{
+	__asm __volatile("sync.i");
+}
+
+/*
  * Calculate address in VHPT for va.
  */
 static __inline u_int64_t
@@ -464,6 +473,26 @@ ia64_get_lid(void)
 	u_int64_t result;
 	__asm __volatile("mov %0=cr.lid" : "=r" (result));
 	return result;
+}
+
+/*
+ * Read the value of cr.tpr.
+ */
+static __inline u_int64_t
+ia64_get_tpr(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=cr.tpr" : "=r" (result));
+	return result;
+}
+
+/*
+ * Write the value of cr.itv.
+ */
+static __inline void
+ia64_set_tpr(u_int64_t v)
+{
+	__asm __volatile("mov cr.tpr=%0" :: "r" (v));
 }
 
 /*
