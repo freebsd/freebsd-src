@@ -3,15 +3,17 @@
 BASE=		loader
 PROG=		${BASE}
 NEWVERSWHAT=	"bootstrap loader" sparc64
+BINDIR?=	/boot
+INSTALLFLAGS=	-b
 
 CFLAGS=		-mno-app-regs 
 
-LOADER_DISK_SUPPORT?=	no
-LOADER_UFS_SUPPORT?=	no
+LOADER_DISK_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
-LOADER_NET_SUPPORT?=	yes
-LOADER_NFS_SUPPORT?=	yes
-LOADER_TFTP_SUPPORT?=	yes
+LOADER_NET_SUPPORT?=	no
+LOADER_NFS_SUPPORT?=	no
+LOADER_TFTP_SUPPORT?=	no
 
 .if ${LOADER_DISK_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_DISK_SUPPORT
@@ -33,7 +35,7 @@ CFLAGS+=	-DLOADER_TFTP_SUPPORT
 .endif
 
 # Architecture-specific loader code
-SRCS=		locore.s main.c metadata.c
+SRCS=		locore.S main.c metadata.c
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
@@ -41,10 +43,11 @@ SRCS=		locore.s main.c metadata.c
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	${PROG}
+CLEANFILES+=	${PROG}.help
 
 CFLAGS+=	-W -Wall -ffreestanding
-LDFLAGS=	-X -static
+LDFLAGS=	-nostdlib -static
+LDADD=		${LIBSTAND} ${LIBOFW}
 
 # where to get libstand from
 #XXX need a better way to do this
@@ -55,33 +58,25 @@ LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
 LIBSTAND=	-lstand
 .endif
 .endif
-LIBOFW=		${.CURDIR}/../../ofw/libofw/libofw.a
+LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 
-# Debug me!
-#CFLAGS+=	-g
-#LDFLAGS+=	-g
+${BASE}.help: help.common help.sparc64
+	cat ${.ALLSRC} | \
+	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
-${PROG}:	${OBJS}
-	${LD} -o ${.TARGET} ${OBJS} ${LIBOFW} ${LIBSTAND} ${LDFLAGS}
-
-locore.o:	locore.s
-	${CC} ${CFLAGS} -D_LOCORE -xassembler-with-cpp -c locore.s -o locore.o
-main.o:		main.c
-	${CC} ${CFLAGS} -c main.c -o main.o
-
-beforeinstall:
+beforeinstall: ${PROG}.help
 .if exists(${DESTDIR}/boot/loader)
 	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
 .endif
-.if exists(${.OBJDIR}/loader.help)
+#.if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
-.else
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
-.endif
+#.else
+#	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+#		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
+#.endif
 .if !exists(${DESTDIR}/boot/loader.rc)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
