@@ -2461,8 +2461,6 @@ struct proc*	checkstate_curproc[MAXCPU];
 int		checkstate_cpustate[MAXCPU];
 u_long		checkstate_pc[MAXCPU];
 
-extern long	cp_time[CPUSTATES];
-
 #define PC_TO_INDEX(pc, prof)				\
         ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\
             (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
