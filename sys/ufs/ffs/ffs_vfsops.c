@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id$
+ * $Id: ffs_vfsops.c,v 1.45 1997/02/22 09:47:08 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -818,7 +818,7 @@ ffs_sync(mp, waitfor, cred, p)
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
 		printf("fs = %s\n", fs->fs_fsmnt);
-		panic("update: rofs mod");
+		panic("ffs_sync: rofs mod");
 	}
 	/*
 	 * Write back each (modified) inode.

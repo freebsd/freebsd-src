@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id$
+ * $Id: ffs_alloc.c,v 1.30 1997/02/22 09:47:00 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -228,7 +228,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	bno = ffs_fragextend(ip, cg, (long)bprev, osize, nsize);
 	if (bno) {
 		if (bp->b_blkno != fsbtodb(fs, bno))
-			panic("bad blockno");
+			panic("ffs_realloccg: bad blockno");
 		ip->i_blocks += btodb(nsize - osize);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
@@ -1271,7 +1271,7 @@ ffs_blkfree(ip, bno, size)
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		printf("dev = 0x%lx, bsize = %ld, size = %ld, fs = %s\n",
 		    (u_long)ip->i_dev, fs->fs_bsize, size, fs->fs_fsmnt);
-		panic("blkfree: bad size");
+		panic("ffs_blkfree: bad size");
 	}
 	cg = dtog(fs, bno);
 	if ((u_int)bno >= fs->fs_size) {
@@ -1297,7 +1297,7 @@ ffs_blkfree(ip, bno, size)
 		if (ffs_isblock(fs, cg_blksfree(cgp), blkno)) {
 			printf("dev = 0x%lx, block = %ld, fs = %s\n",
 			    (u_long) ip->i_dev, bno, fs->fs_fsmnt);
-			panic("blkfree: freeing free block");
+			panic("ffs_blkfree: freeing free block");
 		}
 		ffs_setblock(fs, cg_blksfree(cgp), blkno);
 		ffs_clusteracct(fs, cgp, blkno, 1);
@@ -1322,7 +1322,7 @@ ffs_blkfree(ip, bno, size)
 			if (isset(cg_blksfree(cgp), bno + i)) {
 				printf("dev = 0x%lx, block = %ld, fs = %s\n",
 				    (u_long) ip->i_dev, bno + i, fs->fs_fsmnt);
-				panic("blkfree: freeing free frag");
+				panic("ffs_blkfree: freeing free frag");
 			}
 			setbit(cg_blksfree(cgp), bno + i);
 		}
@@ -1425,7 +1425,7 @@ ffs_vfree(ap)
 	pip = VTOI(ap->a_pvp);
 	fs = pip->i_fs;
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
-		panic("ifree: range: dev = 0x%x, ino = %d, fs = %s",
+		panic("ffs_vfree: range: dev = 0x%x, ino = %d, fs = %s",
 		    pip->i_dev, ino, fs->fs_fsmnt);
 	cg = ino_to_cg(fs, ino);
 	error = bread(pip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
@@ -1445,7 +1445,7 @@ ffs_vfree(ap)
 		printf("dev = 0x%lx, ino = %ld, fs = %s\n",
 		    (u_long)pip->i_dev, ino, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
-			panic("ifree: freeing free inode");
+			panic("ffs_vfree: freeing free inode");
 	}
 	clrbit(cg_inosused(cgp), ino);
 	if (ino < cgp->cg_irotor)
