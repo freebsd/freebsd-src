@@ -65,11 +65,11 @@ __FBSDID("$FreeBSD$");
 void addcmd(char *);
 void addmac(const char *);
 int binsrch(const char *);
-void checkknown(char *);
-void chkcmd(char *, char *);
+void checkknown(const char *);
+void chkcmd(const char *, const char *);
 void complain(int);
 int eq(const char *, const char *);
-void nomatch(char *);
+void nomatch(const char *);
 void pe(int);
 void process(FILE *);
 void prop(int);
@@ -191,9 +191,7 @@ int	ncmds;		/* size of knowncmds */
 int	slot;		/* slot in knowncmds found by binsrch */
 
 int
-main(argc, argv)
-int argc;
-char **argv;
+main(int argc, char **argv)
 {
 	FILE *f;
 	int i;
@@ -271,7 +269,7 @@ char **argv;
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	"usage: checknr [-a.xx.yy.xx.yy...] [-c.xx.xx.xx...] [-s] [-f] file\n");
@@ -279,8 +277,7 @@ usage()
 }
 
 void
-process(f)
-FILE *f;
+process(FILE *f)
 {
 	int i, n;
 	char mac[5];	/* The current macro or nroff command */
@@ -377,8 +374,7 @@ FILE *f;
 }
 
 void
-complain(i)
-int i;
+complain(int i)
 {
 	pe(stk[i].lno);
 	printf("Unmatched ");
@@ -387,8 +383,7 @@ int i;
 }
 
 void
-prop(i)
-int i;
+prop(int i)
 {
 	if (stk[i].pl == 0)
 		printf(".%s", br[stk[i].opno].opbr);
@@ -406,9 +401,7 @@ int i;
 }
 
 void
-chkcmd(line, mac)
-char *line __unused;
-char *mac;
+chkcmd(const char *line __unused, const char *mac)
 {
 	int i;
 
@@ -444,8 +437,7 @@ char *mac;
 }
 
 void
-nomatch(mac)
-char *mac;
+nomatch(const char *mac)
 {
 	int i, j;
 
@@ -490,16 +482,14 @@ char *mac;
 
 /* eq: are two strings equal? */
 int
-eq(s1, s2)
-const char *s1, *s2;
+eq(const char *s1, const char *s2)
 {
 	return (strcmp(s1, s2) == 0);
 }
 
 /* print the first part of an error message, given the line number */
 void
-pe(linen)
-int linen;
+pe(int linen)
 {
 	if (nfiles > 1)
 		printf("%s: ", cfilename);
@@ -507,8 +497,7 @@ int linen;
 }
 
 void
-checkknown(mac)
-char *mac;
+checkknown(const char *mac)
 {
 
 	if (eq(mac, "."))
@@ -526,8 +515,7 @@ char *mac;
  * We have a .de xx line in "line".  Add xx to the list of known commands.
  */
 void
-addcmd(line)
-char *line;
+addcmd(char *line)
 {
 	char *mac;
 
@@ -558,8 +546,7 @@ char *line;
  * nroff programs, and the register loop below is pretty fast.
  */
 void
-addmac(mac)
-const char *mac;
+addmac(const char *mac)
 {
 	const char **src, **dest, **loc;
 
@@ -590,8 +577,7 @@ printf("after: %s %s %s %s %s, %d cmds\n", knowncmds[slot-2], knowncmds[slot-1],
  * If found, return the index.  If not, return -1.
  */
 int
-binsrch(mac)
-const char *mac;
+binsrch(const char *mac)
 {
 	const char *p;	/* pointer to current cmd in list */
 	int d;		/* difference if any */
