@@ -99,7 +99,7 @@ struct file {
 				 * offset of next expected read or write
 				 */
 	off_t	f_offset;
-	caddr_t	f_data;		/* vnode or socket */
+	void	*f_data;		/* vnode or socket */
 	u_int	f_flag;		/* see fcntl.h */
 	struct mtx	*f_mtxp;	/* mutex to protect data */
 };
