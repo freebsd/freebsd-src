@@ -52,13 +52,14 @@ initialize_server_options(ServerOptions *options)
 	options->rhosts_rsa_authentication = -1;
 	options->rsa_authentication = -1;
 	options->dsa_authentication = -1;
+#if defined(KRB4) || defined(KRB5)
+	options->kerberos_authentication = -1;
+#endif
 #ifdef KRB4
-	options->krb4_authentication = -1;
 	options->krb4_or_local_passwd = -1;
 	options->krb4_ticket_cleanup = -1;
 #endif
 #ifdef KRB5
-	options->krb5_authentication = -1;
 	options->krb5_tgt_passing = -1;
 #endif /* KRB5 */
 #ifdef AFS
@@ -141,17 +142,24 @@ fill_default_server_options(ServerOptions *options)
 		options->rsa_authentication = 1;
 	if (options->dsa_authentication == -1)
 		options->dsa_authentication = 1;
+#if defined(KRB4) && defined(KRB5)
+	if (options->kerberos_authentication == -1)
+		options->kerberos_authentication =
+		  (access(KEYFILE, R_OK) == 0) || (access(krb5_defkeyname, R_OK) == 0);
+#elif defined(KRB4)
+	if (options->kerberos_authentication == -1)
+		options->kerberos_authentication = (access(KEYFILE, R_OK) == 0);
+#elif defined(KRB5)
+	if (options->kerberos_authentication == -1)
+	  	options->kerberos_authentication = (access(krb5_defkeyname, R_OK) == 0);
+#endif
 #ifdef KRB4
-	if (options->krb4_authentication == -1)
-		options->krb4_authentication = (access(KEYFILE, R_OK) == 0);
 	if (options->krb4_or_local_passwd == -1)
 		options->krb4_or_local_passwd = 1;
 	if (options->krb4_ticket_cleanup == -1)
 		options->krb4_ticket_cleanup = 1;
 #endif /* KRB4 */
 #ifdef KRB5
-	if (options->krb5_authentication == -1)
-	  	options->krb5_authentication = 1;
 	if (options->krb5_tgt_passing == -1)
 	  	options->krb5_tgt_passing = 1;
 #endif /* KRB5 */
@@ -193,11 +201,14 @@ typedef enum {
 	sPort, sHostKeyFile, sServerKeyBits, sLoginGraceTime, sKeyRegenerationTime,
 	sPermitRootLogin, sLogFacility, sLogLevel,
 	sRhostsAuthentication, sRhostsRSAAuthentication, sRSAAuthentication,
+#if defined(KRB4) || defined(KRB5)
+	sKerberosAuthentication,
+#endif
 #ifdef KRB4
-	sKrb4Authentication, sKrb4OrLocalPasswd, sKrb4TicketCleanup,
+	sKrb4OrLocalPasswd, sKrb4TicketCleanup,
 #endif
 #ifdef KRB5
-	sKrb5Authentication, sKrb5TgtPassing,
+	sKrb5TgtPassing,
 #endif /* KRB5 */
 #ifdef AFS
 	sKrb4TgtPassing, sAFSTokenPassing,
@@ -234,13 +245,14 @@ static struct {
 	{ "rhostsrsaauthentication", sRhostsRSAAuthentication },
 	{ "rsaauthentication", sRSAAuthentication },
 	{ "dsaauthentication", sDSAAuthentication },
+#if defined(KRB4) || defined(KRB5)
+	{ "kerberosauthentication", sKerberosAuthentication },
+#endif
 #ifdef KRB4
-	{ "kerberos4authentication", sKrb4Authentication },
 	{ "kerberos4orlocalpasswd", sKrb4OrLocalPasswd },
 	{ "kerberos4ticketcleanup", sKrb4TicketCleanup },
 #endif
 #ifdef KRB5
-	{ "kerberos5authentication", sKrb5Authentication },
 	{ "kerberos5tgtpassing", sKrb5TgtPassing },
 #endif /* KRB5 */
 #ifdef AFS
@@ -505,11 +517,13 @@ parse_flag:
 			intptr = &options->dsa_authentication;
 			goto parse_flag;
 
-#ifdef KRB4
-		case sKrb4Authentication:
-			intptr = &options->krb4_authentication;
+#if defined(KRB4) || defined(KRB5)
+		case sKerberosAuthentication:
+			intptr = &options->kerberos_authentication;
 			goto parse_flag;
-
+#endif
+			
+#ifdef KRB4
 		case sKrb4OrLocalPasswd:
 			intptr = &options->krb4_or_local_passwd;
 			goto parse_flag;
@@ -520,10 +534,6 @@ parse_flag:
 #endif
 
 #ifdef KRB5
-		case sKrb5Authentication:
-			intptr = &options->krb5_authentication;
-			goto parse_flag;
-			
 		case sKrb5TgtPassing:
 			intptr = &options->krb5_tgt_passing;
 			goto parse_flag;
