@@ -1,4 +1,4 @@
-#	$Id: options,v 1.144 1999/07/05 20:19:34 mjacob Exp $
+#	$Id: options,v 1.145 1999/08/10 09:42:32 des Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -155,6 +155,7 @@ SHMSEG		opt_param.h
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
 CAMDEBUG		opt_cam.h
+CAM_DEBUG_DELAY		opt_cam.h
 CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
