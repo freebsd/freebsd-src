@@ -31,47 +31,35 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include <stdlib.h>
+#include <err.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
-#else
-static const char rcsid[] =
- "$FreeBSD$";
 #endif
-#endif /* not lint */
 
 /*
  * The following routines try to encapsulate what is system dependent
  * (at least between 4.x and dos) which is used in telnet.c.
  */
 
-
-#include <fcntl.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/socket.h>
-#include <signal.h>
+#include <sys/time.h>
 #include <errno.h>
-#include <arpa/telnet.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <unistd.h>
+#include <arpa/telnet.h>
 
 #include "ring.h"
-
 #include "fdset.h"
-
 #include "defines.h"
 #include "externs.h"
 #include "types.h"
-
-#if	defined(CRAY) || (defined(USE_TERMIO) && !defined(SYSV_TERMIO))
-#define	SIG_FUNC_RET	void
-#else
-#define	SIG_FUNC_RET	int
-#endif
-
-#ifdef	SIGINFO
-extern SIG_FUNC_RET ayt_status();
-#endif
 
 int
 	tout,			/* Output file descriptor */
@@ -88,8 +76,7 @@ int	olmode = 0;
 # define old_tc ottyb
 
 #else	/* USE_TERMIO */
-struct	termio old_tc = { 0 };
-extern struct termio new_tc;
+struct	termio old_tc = { 0, 0, 0, 0, {}, 0, 0 };
 
 # ifndef	TCSANOW
 #  ifdef TCSETS
@@ -123,27 +110,35 @@ extern struct termio new_tc;
 static fd_set *ibitsp, *obitsp, *xbitsp;
 int fdsn;
 
-    void
-init_sys()
+#ifdef	SIGINT
+static SIG_FUNC_RET intr(int);
+#endif	/* SIGINT */
+#ifdef	SIGQUIT
+static SIG_FUNC_RET intr2(int);
+#endif	/* SIGQUIT */
+#ifdef	SIGTSTP
+static SIG_FUNC_RET susp(int);
+#endif	/* SIGTSTP */
+#ifdef	SIGINFO
+static SIG_FUNC_RET ayt(int);
+#endif
+
+void
+init_sys(void)
 {
     tout = fileno(stdout);
     tin = fileno(stdin);
     errno = 0;
 }
 
-
-    int
-TerminalWrite(buf, n)
-    char *buf;
-    int  n;
+int
+TerminalWrite(char *buf, int n)
 {
     return write(tout, buf, n);
 }
 
-    int
-TerminalRead(buf, n)
-    char *buf;
-    int  n;
+int
+TerminalRead(char *buf, int n)
 {
     return read(tin, buf, n);
 }
@@ -152,8 +147,8 @@ TerminalRead(buf, n)
  *
  */
 
-    int
-TerminalAutoFlush()
+int
+TerminalAutoFlush(void)
 {
 #if	defined(LNOFLSH)
     int flush;
@@ -180,11 +175,8 @@ extern int kludgelinemode;
  *	1	Do add this character
  */
 
-extern void xmitAO(), xmitEL(), xmitEC(), intp(), sendbrk();
-
-    int
-TerminalSpecialChars(c)
-    int	c;
+int
+TerminalSpecialChars(int c)
 {
     if (c == termIntChar) {
 	intp();
@@ -226,8 +218,8 @@ TerminalSpecialChars(c)
  * Flush output to the terminal
  */
 
-    void
-TerminalFlushOutput()
+void
+TerminalFlushOutput(void)
 {
 #ifdef	TIOCFLUSH
     (void) ioctl(fileno(stdout), TIOCFLUSH, (char *) 0);
@@ -236,8 +228,8 @@ TerminalFlushOutput()
 #endif
 }
 
-    void
-TerminalSaveState()
+void
+TerminalSaveState(void)
 {
 #ifndef	USE_TERMIO
     ioctl(0, TIOCGETP, (char *)&ottyb);
@@ -278,9 +270,8 @@ TerminalSaveState()
 #endif	/* USE_TERMIO */
 }
 
-    cc_t *
-tcval(func)
-    register int func;
+cc_t *
+tcval(int func)
 {
     switch(func) {
     case SLC_IP:	return(&termIntChar);
@@ -321,8 +312,8 @@ tcval(func)
     }
 }
 
-    void
-TerminalDefaultChars()
+void
+TerminalDefaultChars(void)
 {
 #ifndef	USE_TERMIO
     ntc = otc;
@@ -330,7 +321,7 @@ TerminalDefaultChars()
     nttyb.sg_kill = ottyb.sg_kill;
     nttyb.sg_erase = ottyb.sg_erase;
 #else	/* USE_TERMIO */
-    memmove(new_tc.c_cc, old_tc.c_cc, sizeof(old_tc.c_cc));
+    memcpy(new_tc.c_cc, old_tc.c_cc, sizeof(old_tc.c_cc));
 # ifndef	VDISCARD
     termFlushChar = CONTROL('O');
 # endif
@@ -355,13 +346,6 @@ TerminalDefaultChars()
 #endif	/* USE_TERMIO */
 }
 
-#ifdef notdef
-void
-TerminalRestoreState()
-{
-}
-#endif
-
 /*
  * TerminalNewMode - set up terminal to a specific mode.
  *	MODE_ECHO: do local terminal echo
@@ -384,10 +368,8 @@ TerminalRestoreState()
  *		local/no signal mapping
  */
 
-
-    void
-TerminalNewMode(f)
-    register int f;
+void
+TerminalNewMode(int f)
 {
     static int prevmode = 0;
 #ifndef	USE_TERMIO
@@ -462,10 +444,6 @@ TerminalNewMode(f)
 #else
 	tmp_tc.c_lflag &= ~ECHO;
 	tmp_tc.c_oflag &= ~ONLCR;
-# ifdef notdef
-	if (crlf)
-		tmp_tc.c_iflag &= ~ICRNL;
-# endif
 #endif
     }
 
@@ -612,24 +590,11 @@ TerminalNewMode(f)
     }
 
     if (f != -1) {
-#ifdef	SIGINT
-	SIG_FUNC_RET intr();
-#endif	/* SIGINT */
-#ifdef	SIGQUIT
-	SIG_FUNC_RET intr2();
-#endif	/* SIGQUIT */
-#ifdef	SIGTSTP
-	SIG_FUNC_RET susp();
-#endif	/* SIGTSTP */
-#ifdef	SIGINFO
-	SIG_FUNC_RET ayt();
-#endif
-
 #ifdef  SIGINT
 	(void) signal(SIGINT, intr);
 #endif
 #ifdef  SIGQUIT
-        (void) signal(SIGQUIT, intr2);
+	(void) signal(SIGQUIT, intr2);
 #endif
 #ifdef	SIGTSTP
 	(void) signal(SIGTSTP, susp);
@@ -677,9 +642,7 @@ TerminalNewMode(f)
 #endif
     } else {
 #ifdef	SIGINFO
-	SIG_FUNC_RET ayt_status();
-
-	(void) signal(SIGINFO, ayt_status);
+	(void) signal(SIGINFO, (void (*)(int))ayt_status);
 #endif
 #ifdef  SIGINT
 	(void) signal(SIGINT, SIG_DFL);
@@ -714,17 +677,8 @@ TerminalNewMode(f)
 	tcsetattr(tin, TCSANOW, &tmp_tc);
 #endif
 
-#if	(!defined(TN3270)) || ((!defined(NOT43)) || defined(PUTCHAR))
-# if	!defined(sysV88)
     ioctl(tin, FIONBIO, (char *)&onoff);
     ioctl(tout, FIONBIO, (char *)&onoff);
-# endif
-#endif	/* (!defined(TN3270)) || ((!defined(NOT43)) || defined(PUTCHAR)) */
-#if	defined(TN3270)
-    if (noasynchtty == 0) {
-	ioctl(tin, FIOASYNC, (char *)&onoff);
-    }
-#endif	/* defined(TN3270) */
 
 }
 
@@ -793,15 +747,13 @@ struct termspeeds {
 };
 #endif	/* DECODE_BAUD */
 
-    void
-TerminalSpeeds(ispeed, ospeed)
-    long *ispeed;
-    long *ospeed;
+void
+TerminalSpeeds(long *ispeed, long *ospeed)
 {
 #ifdef	DECODE_BAUD
-    register struct termspeeds *tp;
+    struct termspeeds *tp;
 #endif	/* DECODE_BAUD */
-    register long in, out;
+    long in, out;
 
     out = cfgetospeed(&old_tc);
     in = cfgetispeed(&old_tc);
@@ -824,9 +776,8 @@ TerminalSpeeds(ispeed, ospeed)
 #endif	/* DECODE_BAUD */
 }
 
-    int
-TerminalWindowSize(rows, cols)
-    long *rows, *cols;
+int
+TerminalWindowSize(long *rows, long *cols)
 {
 #ifdef	TIOCGWINSZ
     struct winsize ws;
@@ -840,59 +791,34 @@ TerminalWindowSize(rows, cols)
     return 0;
 }
 
-    int
-NetClose(fd)
-    int	fd;
+int
+NetClose(int fd)
 {
     return close(fd);
 }
 
-
-    void
-NetNonblockingIO(fd, onoff)
-    int fd;
-    int onoff;
+static void
+NetNonblockingIO(int fd, int onoff)
 {
     ioctl(fd, FIONBIO, (char *)&onoff);
 }
 
-#if	defined(TN3270)
-    void
-NetSigIO(fd, onoff)
-    int fd;
-    int onoff;
-{
-    ioctl(fd, FIOASYNC, (char *)&onoff);	/* hear about input */
-}
-
-    void
-NetSetPgrp(fd)
-    int fd;
-{
-    int myPid;
-
-    myPid = getpid();
-    fcntl(fd, F_SETOWN, myPid);
-}
-#endif	/*defined(TN3270)*/
 
 /*
  * Various signal handling routines.
  */
 
-    /* ARGSUSED */
-    SIG_FUNC_RET
-deadpeer(sig)
-    int sig;
+/* ARGSUSED */
+static SIG_FUNC_RET
+deadpeer(int sig __unused)
 {
 	setcommandmode();
 	longjmp(peerdied, -1);
 }
 
-    /* ARGSUSED */
-    SIG_FUNC_RET
-intr(sig)
-    int sig;
+/* ARGSUSED */
+SIG_FUNC_RET
+intr(int sig __unused)
 {
     if (localchars) {
 	intp();
@@ -902,10 +828,9 @@ intr(sig)
     longjmp(toplevel, -1);
 }
 
-    /* ARGSUSED */
-    SIG_FUNC_RET
-intr2(sig)
-    int sig;
+/* ARGSUSED */
+SIG_FUNC_RET
+intr2(int sig __unused)
 {
     if (localchars) {
 #ifdef	KLUDGELINEMODE
@@ -919,10 +844,9 @@ intr2(sig)
 }
 
 #ifdef	SIGTSTP
-    /* ARGSUSED */
-    SIG_FUNC_RET
-susp(sig)
-    int sig;
+/* ARGSUSED */
+SIG_FUNC_RET
+susp(int sig __unused)
 {
     if ((rlogin != _POSIX_VDISABLE) && rlogin_susp())
 	return;
@@ -932,10 +856,9 @@ susp(sig)
 #endif
 
 #ifdef	SIGWINCH
-    /* ARGSUSED */
-    SIG_FUNC_RET
-sendwin(sig)
-    int sig;
+/* ARGSUSED */
+static SIG_FUNC_RET
+sendwin(int sig __unused)
 {
     if (connected) {
 	sendnaws();
@@ -944,10 +867,9 @@ sendwin(sig)
 #endif
 
 #ifdef	SIGINFO
-    /* ARGSUSED */
-    SIG_FUNC_RET
-ayt(sig)
-    int sig;
+/* ARGSUSED */
+SIG_FUNC_RET
+ayt(int sig __unused)
 {
     if (connected)
 	sendayt();
@@ -957,8 +879,8 @@ ayt(sig)
 #endif
 
 
-    void
-sys_telnet_init()
+void
+sys_telnet_init(void)
 {
     (void) signal(SIGINT, intr);
     (void) signal(SIGQUIT, intr2);
@@ -976,13 +898,6 @@ sys_telnet_init()
     setconnmode(0);
 
     NetNonblockingIO(net, 1);
-
-#if	defined(TN3270)
-    if (noasynchnet == 0) {			/* DBX can't handle! */
-	NetSigIO(net, 1);
-	NetSetPgrp(net);
-    }
-#endif	/* defined(TN3270) */
 
 #if	defined(SO_OOBINLINE)
     if (SetSockOpt(net, SOL_SOCKET, SO_OOBINLINE, 1) == -1) {
@@ -1002,24 +917,18 @@ sys_telnet_init()
  *	The return value is 1 if something happened, 0 if not.
  */
 
-    int
-process_rings(netin, netout, netex, ttyin, ttyout, poll)
-    int poll;		/* If 0, then block until something to do */
+int
+process_rings(int netin, int netout, int netex, int ttyin, int ttyout, int poll)
 {
-    register int c;
-		/* One wants to be a bit careful about setting returnValue
-		 * to one, since a one implies we did some useful work,
-		 * and therefore probably won't be called to block next
-		 * time (TN3270 mode only).
-		 */
+    int c;
     int returnValue = 0;
-    static struct timeval TimeValue = { 0 };
+    static struct timeval TimeValue = { 0, 0 };
     int maxfd = -1;
     int tmp;
 
     if ((netout || netin || netex) && net > maxfd)
 	maxfd = net;
-
+    
     if (ttyout && tout > maxfd)
 	maxfd = tout;
     if (ttyin && tin > maxfd)
@@ -1044,7 +953,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 	memset(obitsp, 0, fdsn);
 	memset(xbitsp, 0, fdsn);
     }
-
+    
     if (netout)
 	FD_SET(net, obitsp);
     if (ttyout)
@@ -1066,23 +975,6 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 	    if (errno == EINTR) {
 		return 0;
 	    }
-#	    if defined(TN3270)
-		    /*
-		     * we can get EBADF if we were in transparent
-		     * mode, and the transcom process died.
-		    */
-	    if (errno == EBADF) {
-			/*
-			 * zero the bits (even though kernel does it)
-			 * to make sure we are selecting on the right
-			 * ones.
-			*/
-		memset(ibitsp, 0, fdsn);
-		memset(obitsp, 0, fdsn);
-		memset(xbitsp, 0, fdsn);
-		return 0;
-	    }
-#	    endif /* defined(TN3270) */
 		    /* I don't like this, does it ever happen? */
 	    printf("sleep(5) from telnet, after select: %s\r\n", strerror(errno));
 	    sleep(5);
@@ -1169,7 +1061,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 		    int i;
 		    i = recv(net, netiring.supply + c, canread - c, MSG_OOB);
 		    if (i == c &&
-			 memcmp(netiring.supply, netiring.supply + c, i) == 0) {
+			memcmp(netiring.supply, netiring.supply + c, i) == 0) {
 			bogus_oob = 1;
 			first = 0;
 		    } else if (i < 0) {

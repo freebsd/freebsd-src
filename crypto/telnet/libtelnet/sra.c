@@ -26,27 +26,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifdef	SRA
+#ifdef	ENCRYPTION
 #include <sys/types.h>
 #include <arpa/telnet.h>
+#include <pwd.h>
 #include <stdio.h>
-#ifdef	__STDC__
 #include <stdlib.h>
-#endif
-#ifdef	NO_STRING_H
-#include <strings.h>
-#else
 #include <string.h>
-#endif
-
-#if !defined(NOPAM)
-#include <security/pam_appl.h>
-#endif
-
+#include <syslog.h>
 #include <ttyent.h>
+
+#ifndef NOPAM
+#include <security/pam_appl.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "auth.h"
 #include "misc.h"
@@ -54,15 +55,15 @@
 #include "pk.h"
 
 char pka[HEXKEYBYTES+1], ska[HEXKEYBYTES+1], pkb[HEXKEYBYTES+1];
-char *user,*pass,*xuser,*xpass;
+char *user, *pass, *xuser, *xpass;
 DesData ck;
 IdeaData ik;
 
 extern int auth_debug_mode;
 extern char *line;
 
-static sra_valid = 0;
-static passwd_sent = 0;
+static int sra_valid = 0;
+static int passwd_sent = 0;
 
 static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
 			  		AUTHTYPE_SRA, };
@@ -74,12 +75,11 @@ static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
 #define SRA_ACCEPT 4
 #define SRA_REJECT 5
 
+static int check_user(char *, char *);
+
 /* support routine to send out authentication message */
-static int Data(ap, type, d, c)
-Authenticator *ap;
-int type;
-void *d;
-int c;
+static int
+Data(Authenticator *ap, int type, void *d, int c)
 {
         unsigned char *p = str_data + 4;
 	unsigned char *cd = (unsigned char *)d;
@@ -109,9 +109,8 @@ int c;
         return(net_write(str_data, p - str_data));
 }
 
-int sra_init(ap, server)
-Authenticator *ap;
-int server;
+int
+sra_init(Authenticator *ap __unused, int server)
 {
 	if (server)
 		str_data[3] = TELQUAL_REPLY;
@@ -134,8 +133,8 @@ int server;
 }
 
 /* client received a go-ahead for sra */
-int sra_send(ap)
-Authenticator *ap;
+int
+sra_send(Authenticator *ap)
 {
 	/* send PKA */
 
@@ -152,10 +151,8 @@ Authenticator *ap;
 }
 
 /* server received an IS -- could be SRA KEY, USER, or PASS */
-void sra_is(ap, data, cnt)
-Authenticator *ap;
-unsigned char *data;
-int cnt;
+void
+sra_is(Authenticator *ap, unsigned char *data, int cnt)
 {
 	int valid;
 	Session_Key skey;
@@ -210,12 +207,10 @@ int cnt;
 
 		if(valid) {
 			Data(ap, SRA_ACCEPT, (void *)0, 0);
-#ifdef DES_ENCRYPTION
 			skey.data = ck;
 			skey.type = SK_DES;
 			skey.length = 8;
 			encrypt_session_key(&skey, 1);
-#endif
 
 			sra_valid = 1;
 			auth_finished(ap, AUTH_VALID);
@@ -246,18 +241,13 @@ bad:
 	auth_finished(ap, AUTH_REJECT);
 }
 
-extern char *getpass();
-
 /* client received REPLY -- could be SRA KEY, CONTINUE, ACCEPT, or REJECT */
-void sra_reply(ap, data, cnt)
-Authenticator *ap;
-unsigned char *data;
-int cnt;
+void
+sra_reply(Authenticator *ap, unsigned char *data, int cnt)
 {
-	extern char *telnet_gets();
 	char uprompt[256],tuser[256];
 	Session_Key skey;
-	int i;
+	size_t i;
 
 	if (cnt-- < 1)
 		return;
@@ -335,12 +325,10 @@ int cnt;
 
 	case SRA_ACCEPT:
 		printf("[ SRA accepts you ]\r\n");
-#ifdef DES_ENCRYPTION
 		skey.data = ck;
 		skey.type = SK_DES;
 		skey.length = 8;
 		encrypt_session_key(&skey, 0);
-#endif
 
 		auth_finished(ap, AUTH_VALID);
 		return;
@@ -351,10 +339,8 @@ int cnt;
 	}
 }
 
-int sra_status(ap, name, level)
-Authenticator *ap;
-char *name;
-int level;
+int
+sra_status(Authenticator *ap __unused, char *name, int level)
 {
 	if (level < AUTH_USER)
 		return(level);
@@ -368,12 +354,11 @@ int level;
 #define	BUMP(buf, len)		while (*(buf)) {++(buf), --(len);}
 #define	ADDC(buf, len, c)	if ((len) > 0) {*(buf)++ = (c); --(len);}
 
-void sra_printsub(data, cnt, buf, buflen)
-unsigned char *data, *buf;
-int cnt, buflen;
+void
+sra_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 {
 	char lbuf[32];
-	register int i;
+	int i;
 
 	buf[buflen-1] = '\0';		/* make sure its NULL terminated */
 	buflen -= 1;
@@ -428,85 +413,18 @@ int cnt, buflen;
 	}
 }
 
-struct	passwd *pw;
-
-/*
- * Helper function for sgetpwnam().
- */
-char *
-sgetsave(s)
-	char *s;
-{
-	char *new = malloc((unsigned) strlen(s) + 1);
-
-	if (new == NULL) {
-		return(NULL);
-	}
-	(void) strcpy(new, s);
-	return (new);
-}
-
-#include <pwd.h>
-#include <syslog.h>
-#ifdef USE_SHADOW
-#include <shadow.h>
-#endif
-
-
-struct passwd *
-sgetpwnam(name)
-	char *name;
-{
-	static struct passwd save;
-	register struct passwd *p;
-	char *sgetsave();
-
-	if ((p = getpwnam(name)) == NULL)
-		return (p);
-	if (save.pw_name) {
-		free(save.pw_name);
-		free(save.pw_passwd);
-		free(save.pw_gecos);
-		free(save.pw_dir);
-		free(save.pw_shell);
-	}
-	save = *p;
-	save.pw_name = sgetsave(p->pw_name);
-	save.pw_passwd = sgetsave(p->pw_passwd);
-	save.pw_gecos = sgetsave(p->pw_gecos);
-	save.pw_dir = sgetsave(p->pw_dir);
-	save.pw_shell = sgetsave(p->pw_shell);
-#if 0
-syslog(LOG_WARNING,"%s\n",save.pw_name);
-syslog(LOG_WARNING,"%s\n",save.pw_passwd);
-syslog(LOG_WARNING,"%s\n",save.pw_gecos);
-syslog(LOG_WARNING,"%s\n",save.pw_dir);
-#endif
-#ifdef USE_SHADOW
-        {
-                struct spwd *sp;
-                sp = getspnam(name);
-                free(save.pw_passwd);
-                save.pw_passwd  = sgetsave(sp->sp_pwdp);
-        }
-#endif 
-	return (&save);
-}
-
 static int
-isroot(user)
-char *user;
+isroot(const char *usr)
 {
-	struct passwd *pw;
+	struct passwd *pwd;
 
-	if ((pw=getpwnam(user))==NULL)
+	if ((pwd=getpwnam(usr))==NULL)
 		return 0;
-	return (!pw->pw_uid);
+	return (!pwd->pw_uid);
 }
 
 static int
-rootterm(ttyn)
-char *ttyn;
+rootterm(char *ttyn)
 {
 	struct ttyent *t;
 
@@ -514,13 +432,10 @@ char *ttyn;
 }
 
 #ifdef NOPAM
-char *crypt();
-
-int check_user(name, pass)
-char *name;
-char *pass;
+static int
+check_user(char *name, char *cred)
 {
-	register char *cp;
+	char *cp;
 	char *xpasswd, *salt;
 
 	if (isroot(name) && !rootterm(line))
@@ -536,7 +451,7 @@ char *pass;
 		}
 
 		salt = pw->pw_passwd;
-		xpasswd = crypt(pass, salt);
+		xpasswd = crypt(cred, salt);
 		/* The strcmp does not catch null passwords! */
 		if (pw == NULL || *pw->pw_passwd == '\0' ||
 			strcmp(xpasswd, pw->pw_passwd)) {
@@ -564,8 +479,8 @@ struct cred_t {
 };
 typedef struct cred_t cred_t;
 
-auth_conv(int num_msg, const struct pam_message **msg,
-	struct pam_response **resp, void *appdata)
+static int
+auth_conv(int num_msg, const struct pam_message **msg, struct pam_response **resp, void *appdata)
 {
 	int i;
 	cred_t *cred = (cred_t *) appdata;
@@ -605,14 +520,14 @@ auth_conv(int num_msg, const struct pam_message **msg,
 /*
  * The PAM version as a side effect may put a new username in *name.
  */
-int check_user(const char *name, const char *pass)
+static int
+check_user(char *name, char *cred)
 {
 	pam_handle_t *pamh = NULL;
-	const char *tmpl_user;
 	const void *item;
 	int rval;
 	int e;
-	cred_t auth_cred = { name, pass };
+	cred_t auth_cred = { name, cred };
 	struct pam_conv conv = { &auth_conv, &auth_cred };
 
 	e = pam_start("telnetd", name, &conv, &pamh);
@@ -652,7 +567,7 @@ int check_user(const char *name, const char *pass)
 		 */
 		if ((e = pam_get_item(pamh, PAM_USER, &item)) ==
 		    PAM_SUCCESS) {
-			strcpy(name, (const char *) item);
+			strcpy(name, item);
 		} else
 			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
 			pam_strerror(pamh, e));
@@ -683,5 +598,5 @@ int check_user(const char *name, const char *pass)
 
 #endif
 
-#endif
-
+#endif /* ENCRYPTION */
+#endif /* SRA */

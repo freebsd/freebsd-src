@@ -26,8 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 /* public key routines */
 /* functions:
@@ -40,24 +43,23 @@
 	char secret[HEXKEYBYTES + 1];
  */
 
-#include <stdio.h>
 #include <sys/time.h>
-#include <string.h>
-#include <fcntl.h>
 #include <openssl/des.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "mp.h"
 #include "pk.h"
-#if defined(SOLARIS2) || defined(LINUX)
-#include <stdlib.h>
-#endif
  
+static void adjust(char keyout[HEXKEYBYTES+1], char *keyin);
+
 /*
  * Choose top 128 bits of the common key to use as our idea key.
  */
-static
-extractideakey(ck, ideakey)
-        MINT *ck;
-        IdeaData *ideakey;
+static void
+extractideakey(MINT *ck, IdeaData *ideakey)
 {
         MINT *a;
         MINT *z;
@@ -85,10 +87,8 @@ extractideakey(ck, ideakey)
  * Choose middle 64 bits of the common key to use as our des key, possibly
  * overwriting the lower order bits by setting parity. 
  */
-static
-extractdeskey(ck, deskey)
-        MINT *ck;
-        DesData *deskey;
+static void
+extractdeskey(MINT *ck, DesData *deskey)
 {
         MINT *a;
         MINT *z;
@@ -115,7 +115,8 @@ extractdeskey(ck, deskey)
 /*
  * get common key from my secret key and his public key
  */
-void common_key(char *xsecret, char *xpublic, IdeaData *ideakey, DesData *deskey)
+void
+common_key(char *xsecret, char *xpublic, IdeaData *ideakey, DesData *deskey)
 {
         MINT *public;
         MINT *secret;
@@ -128,68 +129,34 @@ void common_key(char *xsecret, char *xpublic, IdeaData *ideakey, DesData *deskey
         pow(public, secret, modulus, common);
         extractdeskey(common, deskey);
         extractideakey(common, ideakey);
-#if DES_OSTHOLM
-	des_fixup_key_parity(deskey);
-#else
 	des_set_odd_parity(deskey);
-#endif
         mfree(common);
         mfree(secret);
         mfree(public);
 	mfree(modulus);
 }
 
-
 /*
  * Generate a seed
  */
-void getseed(seed, seedsize)
-        char *seed;
-        int seedsize;
+static void
+getseed(char *seed, int seedsize)
 {
-#if 0
-        int i,f;
-        int rseed;
-        struct timeval tv;
-	long devrand;
-
-        (void)gettimeofday(&tv, (struct timezone *)NULL);
-        rseed = tv.tv_sec + tv.tv_usec;
-/* XXX What the hell is this?! */
-        for (i = 0; i < 8; i++) {
-                rseed ^= (rseed << 8);
-        }
-
-	f=open("/dev/random",O_NONBLOCK|O_RDONLY);
-	if (f>=0)
-	{
-		read(f,&devrand,sizeof(devrand));
-		close(f);
-	}
-        srand48((long)rseed^devrand);
-
-        for (i = 0; i < seedsize; i++) {
-                seed[i] = (lrand48() & 0xff);
-        }
-#else
 	int i;
 
 	srandomdev();
 	for (i = 0; i < seedsize; i++) {
 		seed[i] = random() & 0xff;
 	}
-#endif
 }
-
 
 /*
  * Generate a random public/secret key pair
  */
-void genkeys(public, secret)
-        char *public;
-        char *secret;
+void
+genkeys(char *public, char *secret)
 {
-        int i;
+        size_t i;
  
 #       define BASEBITS (8*sizeof(short) - 1)
 #       define BASE (1 << BASEBITS)
@@ -230,9 +197,8 @@ void genkeys(public, secret)
 /*
  * Adjust the input key so that it is 0-filled on the left
  */
-adjust(keyout, keyin)
-        char keyout[HEXKEYBYTES+1];
-        char *keyin;
+static void
+adjust(char keyout[HEXKEYBYTES+1], char *keyin)
 {
         char *p;
         char *s;
@@ -250,9 +216,8 @@ adjust(keyout, keyin)
 static char hextab[17] = "0123456789ABCDEF";
 
 /* given a DES key, cbc encrypt and translate input to terminated hex */
-void pk_encode(in, out, key)
-char *in,*out;
-DesData *key;
+void
+pk_encode(char *in, char *out, DesData *key)
 {
 	char buf[256];
 	DesData i;
@@ -272,14 +237,14 @@ DesData *key;
 }
 
 /* given a DES key, translate input from hex and decrypt */
-void pk_decode(in, out, key)
-char *in,*out;
-DesData *key;
+void
+pk_decode(char *in, char *out, DesData *key)
 {
 	char buf[256];
 	DesData i;
 	des_key_schedule k;
-	int l,n1,n2,op;
+	int n1,n2,op;
+	size_t l;
 
 	memset(&i,0,sizeof(i));
 	memset(buf,0,sizeof(buf));

@@ -56,10 +56,7 @@ extern int	diagnostic;	/* telnet diagnostic capabilities */
 #ifdef BFTPDAEMON
 extern int	bftpd;		/* behave as bftp daemon */
 #endif /* BFTPDAEMON */
-#if	defined(SecurID)
-extern int	require_SecurID;
-#endif
-#if	defined(AUTHENTICATION)
+#ifdef	AUTHENTICATION
 extern int	auth_level;
 #endif
 
@@ -79,122 +76,111 @@ extern char	*neturg;		/* one past last bye of urgent data */
 
 extern int	pcc, ncc;
 
-#if defined(CRAY2) && defined(UNICOS5)
-extern int unpcc;  /* characters left unprocessed by CRAY-2 terminal routine */
-extern char *unptyip;  /* pointer to remaining characters in buffer */
-#endif
-
 extern int	pty, net;
-extern char	*line;
+extern char	line[16];
 extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
 
-#ifndef	P
-# ifdef	__STDC__
-#  define P(x)	x
-# else
-#  define P(x)	()
-# endif
-#endif
-
 extern void
-	_termstat P((void)),
-	add_slc P((int, int, int)),
-	check_slc P((void)),
-	change_slc P((int, int, int)),
-	cleanup P((int)),
-	clientstat P((int, int, int)),
-	copy_termbuf P((char *, int)),
-	deferslc P((void)),
-	defer_terminit P((void)),
-	do_opt_slc P((unsigned char *, int)),
-	doeof P((void)),
-	dooption P((int)),
-	dontoption P((int)),
-	edithost P((char *, char *)),
-	fatal P((int, char *)),
-	fatalperror P((int, char *)),
-	get_slc_defaults P((void)),
-	init_env P((void)),
-	init_termbuf P((void)),
-	interrupt P((void)),
-	localstat P((void)),
-	flowstat P((void)),
-	netclear P((void)),
-	netflush P((void)),
+	_termstat(void),
+	add_slc(char, char, cc_t),
+	check_slc(void),
+	change_slc(char, char, cc_t),
+	cleanup(int),
+	clientstat(int, int, int),
+	copy_termbuf(char *, size_t),
+	deferslc(void),
+	defer_terminit(void),
+	do_opt_slc(unsigned char *, int),
+	doeof(void),
+	dooption(int),
+	dontoption(int),
+	edithost(char *, char *),
+	fatal(int, const char *),
+	fatalperror(int, const char *),
+	get_slc_defaults(void),
+	init_env(void),
+	init_termbuf(void),
+	interrupt(void),
+	localstat(void),
+	flowstat(void),
+	netclear(void),
+	netflush(void),
 #ifdef DIAGNOSTICS
-	printoption P((char *, int)),
-	printdata P((char *, char *, int)),
-	printsub P((int, unsigned char *, int)),
+	printoption(const char *, int),
+	printdata(const char *, char *, int),
+	printsub(char, unsigned char *, int),
 #endif
-	ptyflush P((void)),
-	putchr P((int)),
-	putf P((char *, char *)),
-	recv_ayt P((void)),
-	send_do P((int, int)),
-	send_dont P((int, int)),
-	send_slc P((void)),
-	send_status P((void)),
-	send_will P((int, int)),
-	send_wont P((int, int)),
-	sendbrk P((void)),
-	sendsusp P((void)),
-	set_termbuf P((void)),
-	start_login P((char *, int, char *)),
-	start_slc P((int)),
-#if	defined(AUTHENTICATION)
-	start_slave P((char *)),
+	process_slc(unsigned char, unsigned char, cc_t),
+	ptyflush(void),
+	putchr(int),
+	putf(char *, char *),
+	recv_ayt(void),
+	send_do(int, int),
+	send_dont(int, int),
+	send_slc(void),
+	send_status(void),
+	send_will(int, int),
+	send_wont(int, int),
+	sendbrk(void),
+	sendsusp(void),
+	set_termbuf(void),
+	start_login(char *, int, char *),
+	start_slc(int),
+#ifdef	AUTHENTICATION
+	start_slave(char *),
 #else
-	start_slave P((char *, int, char *)),
+	start_slave(char *, int, char *),
 #endif
-	suboption P((void)),
-	telrcv P((void)),
-	ttloop P((void)),
-	tty_binaryin P((int)),
-	tty_binaryout P((int));
+	suboption(void),
+	telrcv(void),
+	ttloop(void),
+	tty_binaryin(int),
+	tty_binaryout(int);
 
 extern int
-	end_slc P((unsigned char **)),
-	getnpty P((void)),
+	end_slc(unsigned char **),
+	getnpty(void),
 #ifndef convex
-	getpty P((int *)),
+	getpty(int *),
 #endif
-	login_tty P((int)),
-	spcset P((int, cc_t *, cc_t **)),
-	stilloob P((int)),
-	terminit P((void)),
-	termstat P((void)),
-	tty_flowmode P((void)),
-	tty_restartany P((void)),
-	tty_isbinaryin P((void)),
-	tty_isbinaryout P((void)),
-	tty_iscrnl P((void)),
-	tty_isecho P((void)),
-	tty_isediting P((void)),
-	tty_islitecho P((void)),
-	tty_isnewmap P((void)),
-	tty_israw P((void)),
-	tty_issofttab P((void)),
-	tty_istrapsig P((void)),
-	tty_linemode P((void));
+	login_tty(int),
+	spcset(int, cc_t *, cc_t **),
+	stilloob(int),
+	terminit(void),
+	termstat(void),
+	tty_flowmode(void),
+	tty_restartany(void),
+	tty_isbinaryin(void),
+	tty_isbinaryout(void),
+	tty_iscrnl(void),
+	tty_isecho(void),
+	tty_isediting(void),
+	tty_islitecho(void),
+	tty_isnewmap(void),
+	tty_israw(void),
+	tty_issofttab(void),
+	tty_istrapsig(void),
+	tty_linemode(void);
 
 extern void
-	tty_rspeed P((int)),
-	tty_setecho P((int)),
-	tty_setedit P((int)),
-	tty_setlinemode P((int)),
-	tty_setlitecho P((int)),
-	tty_setsig P((int)),
-	tty_setsofttab P((int)),
-	tty_tspeed P((int)),
-	willoption P((int)),
-	wontoption P((int));
+	tty_rspeed(int),
+	tty_setecho(int),
+	tty_setedit(int),
+	tty_setlinemode(int),
+	tty_setlitecho(int),
+	tty_setsig(int),
+	tty_setsofttab(int),
+	tty_tspeed(int),
+	willoption(int),
+	wontoption(int);
 
-int	output_data __P((const char *, ...)) __printflike(1, 2);
-void	output_datalen __P((const char *, int));
+int	output_data(const char *, ...) __printflike(1, 2);
+void	output_datalen(const char *, int);
+void	startslave(char *, int, char *);
 
 #ifdef	ENCRYPTION
-extern void	(*encrypt_output) P((unsigned char *, int));
-extern int	(*decrypt_input) P((int));
+extern void	(*encrypt_output)(unsigned char *, int);
+extern int	(*decrypt_input)(int);
 extern char	*nclearto;
 #endif	/* ENCRYPTION */
 
@@ -219,18 +205,7 @@ extern struct {
 	gotDM;			/* when did we last see a data mark */
 } clocks;
 
-
-#if	defined(CRAY2) && defined(UNICOS5)
-extern int	needtermstat;
-#endif
-
 #ifndef	DEFAULT_IM
-# ifdef CRAY
-#  define DEFAULT_IM	"\r\n\r\nCray UNICOS (%h) (%t)\r\n\r\r\n\r"
-# else
-#  ifdef sun
-#   define DEFAULT_IM	"\r\n\r\nSunOS UNIX (%h) (%t)\r\n\r\r\n\r"
-#  else
 #   ifdef ultrix
 #    define DEFAULT_IM	"\r\n\r\nULTRIX (%h) (%t)\r\n\r\r\n\r"
 #   else
@@ -240,6 +215,4 @@ extern int	needtermstat;
 #    define DEFAULT_IM	"\r\n\r\n4.4 BSD UNIX (%h) (%t)\r\n\r\r\n\r"
 #    endif
 #   endif
-#  endif
-# endif
 #endif

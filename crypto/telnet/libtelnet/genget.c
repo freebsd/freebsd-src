@@ -31,17 +31,20 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static const char sccsid[] = "@(#)genget.c	8.2 (Berkeley) 5/30/95";
-#else
-static const char rcsid[] =
- "$FreeBSD$";
 #endif
 #endif /* not lint */
 
 
 #include <ctype.h>
+
+#include "misc-proto.h"
 
 #define	LOWER(x) (isupper(x) ? tolower(x) : (x))
 /*
@@ -50,12 +53,11 @@ static const char rcsid[] =
  * the length is returned.  If *s1 is a prefix of *s2,
  * the length of *s1 is returned.
  */
-	int
-isprefix(s1, s2)
-	register char *s1, *s2;
+int
+isprefix(char *s1, const char *s2)
 {
 	char *os1;
-	register char c1, c2;
+	char c1, c2;
 
 	if (*s1 == '\0')
 		return(-1);
@@ -73,14 +75,11 @@ isprefix(s1, s2)
 
 static char *ambiguous;		/* special return value for command routines */
 
-	char **
-genget(name, table, stlen)
-	char	*name;		/* name to match */
-	char	**table;	/* name entry in table */
-	int	stlen;
+char **
+genget(char *name, char **table, int stlen)
 {
-	register char **c, **found;
-	register int n;
+	char **c, **found;
+	int n;
 
 	if (name == 0)
 	    return 0;
@@ -101,9 +100,8 @@ genget(name, table, stlen)
 /*
  * Function call version of Ambiguous()
  */
-	int
-Ambiguous(s)
-	char **s;
+int
+Ambiguous(char **s)
 {
 	return(s == &ambiguous);
 }

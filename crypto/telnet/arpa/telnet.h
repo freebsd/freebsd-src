@@ -64,7 +64,7 @@
 #define SYNCH	242		/* for telfunc calls */
 
 #ifdef TELCMDS
-char *telcmds[] = {
+const char *telcmds[] = {
 	"EOF", "SUSP", "ABORT", "EOR",
 	"SE", "NOP", "DMARK", "BRK", "IP", "AO", "AYT", "EC",
 	"EL", "GA", "SB", "WILL", "WONT", "DO", "DONT", "IAC",
@@ -126,7 +126,7 @@ extern char *telcmds[];
 
 #define	NTELOPTS	(1+TELOPT_NEW_ENVIRON)
 #ifdef TELOPTS
-char *telopts[NTELOPTS+1] = {
+const char *telopts[NTELOPTS+1] = {
 	"BINARY", "ECHO", "RCP", "SUPPRESS GO AHEAD", "NAME",
 	"STATUS", "TIMING MARK", "RCTE", "NAOL", "NAOP",
 	"NAOCRD", "NAOHTS", "NAOHTD", "NAOFFD", "NAOVTS",
@@ -217,8 +217,8 @@ char *telopts[NTELOPTS+1] = {
  * For backwards compatibility, we define SLC_NAMES to be the
  * list of names if SLC_NAMES is not defined.
  */
-#define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR", \
-			"ABORT", "EOF", "SUSP", "EC", "EL", "EW", "RP", \
+#define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR",	\
+			"ABORT", "EOF", "SUSP", "EC", "EL", "EW", "RP",	\
 			"LNEXT", "XON", "XOFF", "FORW1", "FORW2",	\
 			"MCL", "MCR", "MCWL", "MCWR", "MCBOL",		\
 			"MCEOL", "INSRT", "OVER", "ECR", "EWR",		\
@@ -226,7 +226,7 @@ char *telopts[NTELOPTS+1] = {
 			0
 
 #ifdef	SLC_NAMES
-char *slc_names[] = {
+const char *slc_names[] = {
 	SLC_NAMELIST
 };
 #else
@@ -281,13 +281,13 @@ extern char *slc_names[];
 #define	AUTHTYPE_KERBEROS_V5	2
 #define	AUTHTYPE_SPX		3
 #define	AUTHTYPE_MINK		4
-#define AUTHTYPE_SRA		6
+#define	AUTHTYPE_SRA		6
 #define	AUTHTYPE_CNT		7
 
 #define	AUTHTYPE_TEST		99
 
 #ifdef	AUTH_NAMES
-char *authtype_names[] = {
+const char *authtype_names[] = {
 	"NULL", "KERBEROS_V4", "KERBEROS_V5", "SPX", "MINK", NULL, "SRA",
 	0
 };
@@ -318,12 +318,12 @@ extern char *authtype_names[];
 #define	ENCTYPE_CNT		3
 
 #ifdef	ENCRYPT_NAMES
-char *encrypt_names[] = {
+const char *encrypt_names[] = {
 	"IS", "SUPPORT", "REPLY", "START", "END",
 	"REQUEST-START", "REQUEST-END", "ENC-KEYID", "DEC-KEYID",
 	0
 };
-char *enctype_names[] = {
+const char *enctype_names[] = {
 	"ANY", "DES_CFB64",  "DES_OFB64",
 	0
 };

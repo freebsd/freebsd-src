@@ -29,9 +29,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
 static const char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
@@ -60,26 +62,20 @@ static const char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
 #ifdef	KRB4
 #include <sys/types.h>
 #include <arpa/telnet.h>
-#include <stdio.h>
 #include <openssl/des.h>	/* BSD wont include this in krb.h, so we do it here */
 #include <krb.h>
-#ifdef	__STDC__
+#include <stdio.h>
 #include <stdlib.h>
-#endif
-#ifdef	NO_STRING_H
-#include <strings.h>
-#else
 #include <string.h>
-#endif
 
 #include "encrypt.h"
 #include "auth.h"
 #include "misc.h"
 
-int kerberos4_cksum P((unsigned char *, int));
-int kuserok P((AUTH_DAT *, char *));
+int kerberos4_cksum(unsigned char *, int);
+int kuserok(AUTH_DAT *, char *);
 
-extern auth_debug_mode;
+extern int auth_debug_mode;
 
 static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
 			  		AUTHTYPE_KERBEROS_V4, };
@@ -90,29 +86,26 @@ static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
 #define	KRB_CHALLENGE	3		/* Challenge for mutual auth. */
 #define	KRB_RESPONSE	4		/* Response for mutual auth. */
 
-#define KRB_SERVICE_NAME   "rcmd"
-
 static	KTEXT_ST auth;
 static	char name[ANAME_SZ];
-static	AUTH_DAT adat = { 0 };
+static	AUTH_DAT adat = { 0, "", "", "", 0, {}, 0, 0, 0, { 0, "", 0 } };
 #ifdef	ENCRYPTION
 static Block	session_key	= { 0 };
 static des_key_schedule sched;
 static Block	challenge	= { 0 };
 #endif	/* ENCRYPTION */
 
-	static int
-Data(ap, type, d, c)
-	Authenticator *ap;
-	int type;
-	void *d;
-	int c;
+static char krb_service_name[] = "rcmd";
+static char empty[] = "";
+
+static int
+Data(Authenticator *ap, int type, const unsigned char *d, int c)
 {
 	unsigned char *p = str_data + 4;
-	unsigned char *cd = (unsigned char *)d;
+	const unsigned char *cd = d;
 
 	if (c == -1)
-		c = strlen((char *)cd);
+		c = strlen(cd);
 
 	if (auth_debug_mode) {
 		printf("%s:%d: [%d] (%d)",
@@ -136,10 +129,8 @@ Data(ap, type, d, c)
 	return(net_write(str_data, p - str_data));
 }
 
-	int
-kerberos4_init(ap, server)
-	Authenticator *ap;
-	int server;
+int
+kerberos4_init(Authenticator *ap __unused, int server)
 {
 	FILE *fp;
 
@@ -157,15 +148,12 @@ kerberos4_init(ap, server)
 char dst_realm_buf[REALM_SZ], *dest_realm = NULL;
 int dst_realm_sz = REALM_SZ;
 
-	int
-kerberos4_send(ap)
-	Authenticator *ap;
+int
+kerberos4_send(Authenticator *ap)
 {
-	KTEXT_ST auth;
+	KTEXT_ST lauth;
 	char instance[INST_SZ];
 	char *realm;
-	char *krb_realmofhost();
-	char *krb_get_phost();
 	CREDENTIALS cred;
 	int r;
 
@@ -190,11 +178,11 @@ kerberos4_send(ap)
 		printf("Kerberos V4: no realm for %s\r\n", RemoteHostName);
 		return(0);
 	}
-	if ((r = krb_mk_req(&auth, KRB_SERVICE_NAME, instance, realm, 0L))) {
+	if ((r = krb_mk_req(&lauth, krb_service_name, instance, realm, 0L))) {
 		printf("mk_req failed: %s\r\n", krb_err_txt[r]);
 		return(0);
 	}
-	if ((r = krb_get_cred(KRB_SERVICE_NAME, instance, realm, &cred))) {
+	if ((r = krb_get_cred(krb_service_name, instance, realm, &cred))) {
 		printf("get_cred failed: %s\r\n", krb_err_txt[r]);
 		return(0);
 	}
@@ -204,8 +192,8 @@ kerberos4_send(ap)
 		return(0);
 	}
 	if (auth_debug_mode)
-		printf("Sent %d bytes of authentication data\r\n", auth.length);
-	if (!Data(ap, KRB_AUTH, (void *)auth.dat, auth.length)) {
+		printf("Sent %d bytes of authentication data\r\n", lauth.length);
+	if (!Data(ap, KRB_AUTH, (void *)lauth.dat, lauth.length)) {
 		if (auth_debug_mode)
 			printf("Not enough room for authentication data\r\n");
 		return(0);
@@ -239,19 +227,16 @@ kerberos4_send(ap)
 #endif	/* ENCRYPTION */
 
 	if (auth_debug_mode) {
-		printf("CK: %d:", kerberos4_cksum(auth.dat, auth.length));
-		printd(auth.dat, auth.length);
+		printf("CK: %d:", kerberos4_cksum(lauth.dat, lauth.length));
+		printd(lauth.dat, lauth.length);
 		printf("\r\n");
 		printf("Sent Kerberos V4 credentials to server\r\n");
 	}
 	return(1);
 }
 
-	void
-kerberos4_is(ap, data, cnt)
-	Authenticator *ap;
-	unsigned char *data;
-	int cnt;
+void
+kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
 {
 #ifdef	ENCRYPTION
 	Session_Key skey;
@@ -266,7 +251,7 @@ kerberos4_is(ap, data, cnt)
 	switch (*data++) {
 	case KRB_AUTH:
 		if (krb_get_lrealm(realm, 1) != KSUCCESS) {
-			Data(ap, KRB_REJECT, (void *)"No local V4 Realm.", -1);
+			Data(ap, KRB_REJECT, "No local V4 Realm.", -1);
 			auth_finished(ap, AUTH_REJECT);
 			if (auth_debug_mode)
 				printf("No local realm\r\n");
@@ -280,11 +265,11 @@ kerberos4_is(ap, data, cnt)
 			printf("\r\n");
 		}
 		instance[0] = '*'; instance[1] = 0;
-		if ((r = krb_rd_req(&auth, KRB_SERVICE_NAME,
-				   instance, 0, &adat, ""))) {
+		if ((r = krb_rd_req(&auth, krb_service_name,
+				   instance, 0, &adat, empty))) {
 			if (auth_debug_mode)
 				printf("Kerberos failed him as %s\r\n", name);
-			Data(ap, KRB_REJECT, (void *)krb_err_txt[r], -1);
+			Data(ap, KRB_REJECT, krb_err_txt[r], -1);
 			auth_finished(ap, AUTH_REJECT);
 			return;
 		}
@@ -294,16 +279,15 @@ kerberos4_is(ap, data, cnt)
 		krb_kntoln(&adat, name);
 
 		if (UserNameRequested && !kuserok(&adat, UserNameRequested))
-			Data(ap, KRB_ACCEPT, (void *)0, 0);
+			Data(ap, KRB_ACCEPT, NULL, 0);
 		else
-			Data(ap, KRB_REJECT,
-				(void *)"user is not authorized", -1);
+			Data(ap, KRB_REJECT, "user is not authorized", -1);
 		auth_finished(ap, AUTH_USER);
 		break;
 
 	case KRB_CHALLENGE:
 #ifndef	ENCRYPTION
-		Data(ap, KRB_RESPONSE, (void *)0, 0);
+		Data(ap, KRB_RESPONSE, NULL, 0);
 #else	/* ENCRYPTION */
 		if (!VALIDKEY(session_key)) {
 			/*
@@ -311,7 +295,7 @@ kerberos4_is(ap, data, cnt)
 			 * send back a response with an empty session
 			 * key.
 			 */
-			Data(ap, KRB_RESPONSE, (void *)0, 0);
+			Data(ap, KRB_RESPONSE, NULL, 0);
 			break;
 		}
 
@@ -345,23 +329,20 @@ kerberos4_is(ap, data, cnt)
 				break;
 		}
 		des_ecb_encrypt(&challenge, &challenge, sched, 1);
-		Data(ap, KRB_RESPONSE, (void *)challenge, sizeof(challenge));
+		Data(ap, KRB_RESPONSE, challenge, sizeof(challenge));
 #endif	/* ENCRYPTION */
 		break;
 
 	default:
 		if (auth_debug_mode)
 			printf("Unknown Kerberos option %d\r\n", data[-1]);
-		Data(ap, KRB_REJECT, 0, 0);
+		Data(ap, KRB_REJECT, NULL, 0);
 		break;
 	}
 }
 
-	void
-kerberos4_reply(ap, data, cnt)
-	Authenticator *ap;
-	unsigned char *data;
-	int cnt;
+void
+kerberos4_reply(Authenticator *ap, unsigned char *data, int cnt)
 {
 #ifdef	ENCRYPTION
 	Session_Key skey;
@@ -385,9 +366,9 @@ kerberos4_reply(ap, data, cnt)
 			 * Send over the encrypted challenge.
 		 	 */
 #ifndef	ENCRYPTION
-			Data(ap, KRB_CHALLENGE, (void *)0, 0);
+			Data(ap, KRB_CHALLENGE, NULL, 0);
 #else	/* ENCRYPTION */
-			Data(ap, KRB_CHALLENGE, (void *)session_key,
+			Data(ap, KRB_CHALLENGE, session_key,
 						sizeof(session_key));
 			des_ecb_encrypt(&session_key, &session_key, sched, 1);
 			skey.type = SK_DES;
@@ -425,17 +406,14 @@ kerberos4_reply(ap, data, cnt)
 	}
 }
 
-	int
-kerberos4_status(ap, name, level)
-	Authenticator *ap;
-	char *name;
-	int level;
+int
+kerberos4_status(Authenticator *ap __unused, char *nam, int level)
 {
 	if (level < AUTH_USER)
 		return(level);
 
 	if (UserNameRequested && !kuserok(&adat, UserNameRequested)) {
-		strcpy(name, UserNameRequested);
+		strcpy(nam, UserNameRequested);
 		return(AUTH_VALID);
 	} else
 		return(AUTH_USER);
@@ -444,10 +422,8 @@ kerberos4_status(ap, name, level)
 #define	BUMP(buf, len)		while (*(buf)) {++(buf), --(len);}
 #define	ADDC(buf, len, c)	if ((len) > 0) {*(buf)++ = (c); --(len);}
 
-	void
-kerberos4_printsub(data, cnt, buf, buflen)
-	unsigned char *data, *buf;
-	int cnt, buflen;
+void
+kerberos4_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 {
 	char lbuf[32];
 	register int i;
@@ -499,10 +475,8 @@ kerberos4_printsub(data, cnt, buf, buflen)
 	}
 }
 
-	int
-kerberos4_cksum(d, n)
-	unsigned char *d;
-	int n;
+int
+kerberos4_cksum(unsigned char *d, int n)
 {
 	int ck = 0;
 
@@ -534,19 +508,5 @@ kerberos4_cksum(d, n)
 		--n;
 	}
 	return(ck);
-}
-#endif
-
-#ifdef notdef
-
-prkey(msg, key)
-	char *msg;
-	unsigned char *key;
-{
-	register int i;
-	printf("%s:", msg);
-	for (i = 0; i < 8; i++)
-		printf(" %3d", key[i]);
-	printf("\r\n");
 }
 #endif

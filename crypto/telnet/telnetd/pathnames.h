@@ -43,7 +43,7 @@
 # endif
 
 #else
- 
+
 # define	_PATH_TTY	"/dev/tty"
 # ifndef _PATH_LOGIN
 #  define	_PATH_LOGIN	"/bin/login"

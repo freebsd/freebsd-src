@@ -31,36 +31,45 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 #if 0
 static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
-#else
-static const char rcsid[] =
- "$FreeBSD$";
 #endif
 #endif /* not lint */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "misc.h"
+#ifdef	AUTHENTICATION
 #include "auth.h"
+#endif
+#ifdef	ENCRYPTION
 #include "encrypt.h"
+#endif	/* ENCRYPTION */
 
 char *RemoteHostName;
 char *LocalHostName;
 char *UserNameRequested = 0;
 int ConnectedCount = 0;
 
-	void
-auth_encrypt_init(local, remote, name, server)
-	char *local;
-	char *remote;
-	char *name;
-	int server;
+#ifndef AUTHENTICATION
+#define undef1 __unused
+#else
+#define undef1
+#endif
+
+void
+auth_encrypt_init(char *local, char *remote, const char *name undef1, int server undef1)
 {
 	RemoteHostName = remote;
 	LocalHostName = local;
-#if	defined(AUTHENTICATION)
+#ifdef	AUTHENTICATION
 	auth_init(name, server);
 #endif
 #ifdef	ENCRYPTION
@@ -72,27 +81,23 @@ auth_encrypt_init(local, remote, name, server)
 	}
 }
 
-	void
-auth_encrypt_user(name)
-	char *name;
+#ifdef	ENCRYPTION
+void
+auth_encrypt_user(char *name)
 {
-	extern char *strdup();
-
 	if (UserNameRequested)
 		free(UserNameRequested);
 	UserNameRequested = name ? strdup(name) : 0;
 }
 
-	void
-auth_encrypt_connect(cnt)
-	int cnt;
+void
+auth_encrypt_connect(int cnt __unused)
 {
 }
+#endif	/* ENCRYPTION */
 
-	void
-printd(data, cnt)
-	unsigned char *data;
-	int cnt;
+void
+printd(const unsigned char *data, int cnt)
 {
 	if (cnt > 16)
 		cnt = 16;

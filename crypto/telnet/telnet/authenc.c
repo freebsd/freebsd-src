@@ -31,18 +31,20 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static const char sccsid[] = "@(#)authenc.c	8.1 (Berkeley) 6/6/93";
-#else
-static const char rcsid[] =
- "$FreeBSD$";
-#endif
-#endif /* not lint */
+#include <sys/cdefs.h>
 
-#if	defined(AUTHENTICATION) || defined(ENCRYPTION)
+__FBSDID("$FreeBSD$");
+
+#ifndef lint
+static const char sccsid[] = "@(#)authenc.c	8.1 (Berkeley) 6/6/93";
+#endif
+
+#ifdef	AUTHENTICATION
+#ifdef	ENCRYPTION
 #include <sys/types.h>
 #include <arpa/telnet.h>
+#include <pwd.h>
+#include <unistd.h>
 #include <libtelnet/encrypt.h>
 #include <libtelnet/misc.h>
 
@@ -52,10 +54,8 @@ static const char rcsid[] =
 #include "defines.h"
 #include "types.h"
 
-	int
-net_write(str, len)
-	unsigned char *str;
-	int len;
+int
+net_write(unsigned char *str, int len)
 {
 	if (NETROOM() > len) {
 		ring_supply_data(&netoring, str, len);
@@ -66,8 +66,8 @@ net_write(str, len)
 	return(0);
 }
 
-	void
-net_encrypt()
+void
+net_encrypt(void)
 {
 #ifdef	ENCRYPTION
 	if (encrypt_output)
@@ -77,40 +77,35 @@ net_encrypt()
 #endif	/* ENCRYPTION */
 }
 
-	int
-telnet_spin()
+int
+telnet_spin(void)
 {
 	return(-1);
 }
 
-	char *
-telnet_getenv(val)
-	char *val;
+char *
+telnet_getenv(char *val)
 {
 	return((char *)env_getvalue((unsigned char *)val));
 }
 
-	char *
-telnet_gets(prompt, result, length, echo)
-	char *prompt;
-	char *result;
-	int length;
-	int echo;
+char *
+telnet_gets(const char *prom, char *result, int length, int echo)
 {
-	extern char *getpass();
 	extern int globalmode;
 	int om = globalmode;
 	char *res;
 
 	TerminalNewMode(-1);
 	if (echo) {
-		printf("%s", prompt);
+		printf("%s", prom);
 		res = fgets(result, length, stdin);
-	} else if ((res = getpass(prompt))) {
+	} else if ((res = getpass(prom))) {
 		strncpy(result, res, length);
 		res = result;
 	}
 	TerminalNewMode(om);
 	return(res);
 }
-#endif	/* defined(AUTHENTICATION) || defined(ENCRYPTION) */
+#endif	/* ENCRYPTION */
+#endif	/* AUTHENTICATION */
