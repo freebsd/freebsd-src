@@ -75,7 +75,8 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
-#include <net/if_ieee80211.h>
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -130,7 +131,10 @@ set80211stationname(const char *val, int d, int s, const struct afswtch *rafp)
 void
 set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 {
-	set80211(s, IEEE80211_IOC_CHANNEL, atoi(val), 0, NULL);
+	if (strcmp(val, "-") == 0)
+		set80211(s, IEEE80211_IOC_CHANNEL, IEEE80211_CHAN_ANY, 0, NULL);
+	else
+		set80211(s, IEEE80211_IOC_CHANNEL, atoi(val), 0, NULL);
 }
 
 void
