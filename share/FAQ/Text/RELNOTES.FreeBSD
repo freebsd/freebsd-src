@@ -171,7 +171,7 @@ Owner:                  phk
 Sources involved:       isa/pas.c
 
 
-Adaptec 2742/2842 SCSI driver
+Adaptec 2742/2842/2940 SCSI driver
 -----------------------------
 The original 274x/284x driver has evolved considerably since the 2.0
 release.  We now offer full support for the 2940 series as well as the
@@ -230,7 +230,6 @@ Sources involved:       isa/cronyx.c
 
 Diskless booting
 ----------------
-
 Diskless booting in 2.0.5 is much improved.  The boot-program is in
 src/sys/i386/boot/netboot, and can be run from an MSDOS system or
 burned into an EPROM.  Local swapping is also possible.  WD, SMC, 3COM
@@ -239,8 +238,8 @@ and Novell ethernet cards are currently supported.
 
 DEC DC21140 Fast Ethernet driver
 --------------------------------
-This driver any of the numerous NICs using the DC21140 chipset including
-the 100Mb DEC DE-500-XA and SMC 9332.
+This driver supports any of the numerous NICs using the DC21140 chipset 
+including the 100Mb DEC DE-500-XA and SMC 9332.
 
 Owner:                  core
 Submitted by:           Matt Thomas (thomas@lkg.dec.com)
@@ -426,6 +425,7 @@ Buslogic 545S & 545c
 Buslogic 445S/445c VLB SCSI controller
 Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
+Buslogic 956c PCI SCSI controller
 
 NCR 53C810 and 53C825 PCI SCSI controller.
 NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
@@ -684,4 +684,4 @@ hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.3 1995/05/28 09:08:53 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.4 1995/05/28 09:10:44 jkh Exp $
