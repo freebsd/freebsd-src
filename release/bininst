@@ -105,13 +105,21 @@ installation tools.  Barring some sort of fatal accident, we do \
 expect it to be in the release.  Please press RETURN to go on." 10 60
 }
 
-network_dialog()
+# Get a string from the user
+input()
 {
-	dialog --title "Network Information" $clear \
+	dialog --title "$title" $clear \
 	--inputbox "$*" 10 60 "$default_value" 2> ${TMP}/inputbox.tmp.$$
-	if ! handle_rval $?; then return 1; fi
+	if ! handle_rval $?; then rm -f ${TMP}/inputbox.tmp.$$; return 1; fi
 	answer=`cat ${TMP}/inputbox.tmp.$$`
 	rm -f ${TMP}/inputbox.tmp.$$
+}
+
+# Ask a networking question
+network_dialog()
+{
+	title="Network Configuration"
+	if ! input "$*"; then return 1; fi
 }
 
 # Print welcome banner.
@@ -167,7 +175,7 @@ finished with installation, select cancel to go on.\n\n\
 		if dmesg > ${TMP}/dmesg.out; then
 			dialog $clear \
 			--title "What do I have in this machine again?" \
-			--textbox ${TMP}/dmesg.out
+			--textbox ${TMP}/dmesg.out 22 76
 		else
 			error "Couldn't get dmesg information! :-("
 		fi
@@ -229,31 +237,32 @@ system?  FreeBSD supports the following types:\n\n\
 
 	FTP)
 		if ! setup_network; then continue; fi
-		dialog --title "FTP Installation Information" $clear \
---inputbox "Please specify the machine and directory location of the
+		title="FTP Installation Information"
+		default_value="$ftp_path"
+		if ! input \
+"Please specify the machine and directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
 specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
 the name of a host to connect to.  If only a host name is specified,
 the installation assumes that you will properly connect and \"mget\"
-the files yourself.\n\n" \ 16 72 "$ftp_path" 2> ${TMP}/inputbox.tmp.$$
-		if ! handle_rval $?; then continue; fi
+the files yourself.\n\n"; then continue; fi
 		media_type=ftp
-		media_device=`cat ${TMP}/inputbox.tmp.$$`
+		media_device=$answer
 		ftp_path=$media_device
-		rm -f ${TMP}/inputbox.tmp.$$
 	;;
 
 	NFS)
 		if ! setup_network; then continue; fi
-		dialog --title "NFS Installation Information" $clear \
---inputbox "Please specify the machine and directory location of the
+		title="NFS Installation Information"
+		default_value="$nfs_path"
+		if ! input \
+"Please specify the machine and directory location of the
 distribution you wish to load.  This must be in machine:dir
 format (e.g. zooey:/a/FreeBSD/bindist).  The remote directory
 must be be exported to your machine (or globally) for this to
-work!\n\n" \ 14 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
-		if ! handle_rval $?; then continue; fi
+work!\n\n"; then continue; fi
 		media_type=nfs
-		nfs_path=`cat ${TMP}/inputbox.tmp.$$`
+		nfs_path=$answer
 		if ! mount_nfs $nfs_path /mnt > /dev/ttyv1 2>&1; then
 			error "Unable to mount $nfs_path"
 		else
@@ -263,7 +272,23 @@ work!\n\n" \ 14 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
 	;;
 
 	UFS)
-		dialog --title "User Intervention Requested"
+		dialog $clear --title "User Intervention Requested" --msgbox "
+Please mount the filesystem you wish to use somewhere convenient and
+exit the shell when you're through.  I'll ask you for the location
+of the distribution when we come back." 12 72
+		dialog --clear
+		/stand/sh
+		title="Please enter directory"
+		default_value="/mnt/bindist"
+		if input "Ok, now give me the full pathname of the directory where you've got the distribution."; then
+			if [ ! -f $answer/extract.sh ]; then
+				error "That's not a valid distribution"
+			else
+				media_type=ufs
+				media_device=$answer
+			fi
+		fi
+	;;
 	esac
 	done
 }
@@ -271,8 +296,10 @@ work!\n\n" \ 14 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
 # Set the location of our temporary unpacking directory.
 set_tmpdir()
 {
-	dialog --title "Chose temporary directory" $clear \
---inputbox "Please specify the name of a directory containing enough
+	title="Chose temporary directory"
+	default_value="/usr/tmp"
+	if input \
+"Please specify the name of a directory containing enough
 free space to hold the temporary files for this distribution.
 At minimum, a binary distribution will require around 21MB of
 temporary space.  At maximum, a srcdist may take 40MB or more.
@@ -280,10 +307,8 @@ If the directory you specify does not exist, it will be created
 for you.  If you do not have enough free space to hold both the
 packed and unpacked distribution files, consider using the NFS
 or CDROM installation methods as they require no temporary
-storage.\n\n" \ 18 72 "/usr/tmp" 2> ${TMP}/inputbox.tmp.$$
-	if ! handle_rval $?; then return 1; fi
-	tmp_dir=`cat ${TMP}/inputbox.tmp.$$`
-	rm -f ${TMP}/inputbox.tmp.$$
+storage.\n\n"; then return 1; fi
+	tmp_dir=$answer
 	mkdir -p $tmp_dir
 	return 0
 }
@@ -429,7 +454,6 @@ setup_network()
 		if [ "$interface" = "sl0" ]; then
 			slattach -a -s $serial_speed $serial_interface
 		fi
-		rm -f ${TMP}/inputbox.tmp.$$
 		echo "$ipaddr $remote_hostip netmask $netmask $ifconfig_flags" > /etc/hostname.$interface
 		default_value=""
 		if network_dialog "If you have a default gateway, enter its IP address"; then
@@ -483,12 +507,10 @@ install_set()
 		if ! mount_cd9660 $media_device /mnt > /dev/ttyv1 2>&1; then
 			error "Unable to mount $media_device on /mnt"
 		else
-			dialog --title "CDROM Information" $clear \
-			--inputbox "Directory on CD containing distribution" \
-			10 60 "$cdrom_path" 2> ${TMP}/inputbox.tmp.$$
-			if ! handle_rval $?; then return; fi
-			cdrom_path=`cat ${TMP}/inputbox.tmp.$$`
-			rm -f ${TMP}/inputbox.tmp.$$
+			title="CDROM Information"
+			default_value="$cdrom_path"
+			if ! input "Directory on CD containing distribution"; then return; fi
+			cdrom_path=$answer
 			cd /mnt/$cdrom_path
 			extract_dist
 		fi
@@ -528,6 +550,13 @@ install_set()
 		cd /
 		umount /mnt > /dev/tty1 2>&1
 		return
+	;;
+
+	ufs)
+		message "Unpacking from prepared UFS directory"
+		cd $media_device
+		extract_dist
+		cd /
 	;;
 	esac
 }
