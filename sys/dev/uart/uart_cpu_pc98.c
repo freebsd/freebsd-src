@@ -79,14 +79,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		if (resource_int_value("uart", i, "port", &ivar) != 0 ||
 		    ivar == 0)
 			continue;
-		/*
-		 * Got it. Fill in the instance and return it. We have
-		 * both i8251 an ns8250 and successors on pc98.
-		 */
-		if (flags & 0x100)
-			di->ops = uart_ns8250_ops;
-		else
-			di->ops = uart_i8251_ops;
+
+		di->ops = uart_ns8250_ops;
 		di->bas.chan = 0;
 		di->bas.bst = uart_bus_space_io;
 		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
