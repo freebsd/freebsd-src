@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.23 1994/11/21 06:44:59 jkh Exp $
+# $Id: instdist.sh,v 1.24 1994/11/21 07:25:27 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -249,7 +249,7 @@ media_install_set()
 		if ! echo $media_device | grep -q -v 'ftp://'; then
 			message "Fetching distribution using ncftp.\nUse ALT-F2 to see output, ALT-F1 to return."
 			if ! ncftp $media_device/${media_distribution}/* < /dev/null > /dev/ttyv1 2>&1; then
-				error "Couldn't fetch ${media_distribution} distribution from ${media_device}!"
+				error "Couldn't fetch ${media_distribution} distribution from\n${media_device}!"
 			else
 				media_extract_dist
 			fi
