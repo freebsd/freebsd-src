@@ -799,6 +799,7 @@ fdc_attach(device_t dev)
 	int	i, error, dunit;
 
 	fdc = device_get_softc(dev);
+	fdc->fdc_dev = dev;
 	error = fdc_alloc_resources(fdc);
 	if (error) {
 		device_printf(dev, "cannot re-acquire resources\n");
