@@ -113,7 +113,7 @@ isp_reset(isp)
 	struct ispsoftc *isp;
 {
 	mbreg_t mbs;
-	int loops, i, dodnld = 1;
+	int loops, i, touched, dodnld = 1;
 	char *revname;
 
 	isp->isp_state = ISP_NILSTATE;
@@ -138,7 +138,7 @@ isp_reset(isp)
 	 * case, we don't really use this yet, but we may in
 	 * the future.
 	 */
-	if (isp->isp_touched == 0) {
+	if ((touched = isp->isp_touched) == 0) {
 		/*
 		 * Just in case it was paused...
 		 */
@@ -576,6 +576,8 @@ again:
 	else
 		mbs.param[1] = 0x1000;
 	isp_mboxcmd(isp, &mbs);
+	/* give it a chance to start */
+	SYS_DELAY(500);
 
 	if (IS_SCSI(isp)) {
 		/*
@@ -636,6 +638,46 @@ again:
 		return;
 	}
 	isp->isp_state = ISP_RESETSTATE;
+
+	/*
+	 * Okay- now that we have new firmware running, we now (re)set our
+	 * notion of how many luns we support. This is somewhat tricky because
+	 * if we haven't loaded firmware, we don't have an easy way of telling
+	 * how many luns we support.
+	 *
+	 * We'll make a simplifying assumption- if we loaded firmware, we
+	 * are running with expanded lun firmware, otherwise not.
+	 *
+	 * Expanded lun firmware gives you 32 luns for SCSI cards and
+	 * 65536 luns for Fibre Channel cards.
+	 *
+	 * Because the lun is in a a different position in the Request Queue
+	 * Entry structure for Fibre Channel with expanded lun firmware, we
+	 * can only support one lun (lun zero) when we don't know what kind
+	 * of firmware we're running.
+	 *
+	 * Note that we only do this once (the first time thru isp_reset)
+	 * because we may be called again after firmware has been loaded once
+	 * and released.
+	 */
+	if (touched == 0) {
+		if (dodnld) {
+			if (IS_SCSI(isp)) {
+				isp->isp_maxluns = 32;
+			} else {
+				isp->isp_maxluns = 65536;
+			}
+		} else {
+			if (IS_SCSI(isp)) {
+				isp->isp_maxluns = 8;
+			} else {
+				PRINTF("%s: WARNING- cannot determine Expanded "
+				    "LUN capability- limiting to one LUN\n",
+				    isp->isp_name);
+				isp->isp_maxluns = 1;
+			}
+		}
+	}
 }
 
 /*
@@ -861,7 +903,7 @@ isp_scsi_channel_init(isp, channel)
 	 * Set current per-target parameters to a safe minimum.
 	 */
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
-		int maxlun, lun;
+		int lun;
 		u_int16_t sdf;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
@@ -952,13 +994,7 @@ isp_scsi_channel_init(isp, channel)
 		 * seen yet.
 		 */
 		sdp->isp_devparam[tgt].cur_dflags &= ~DPARM_TQING;
-		if ((ISP_FW_REV(4, 55, 0) <= ISP_FW_REVX(isp->isp_fwrev) &&
-		    (ISP_FW_REV(5, 0, 0) > ISP_FW_REVX(isp->isp_fwrev))) ||
-		    (ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0)))
-			maxlun = 32;
-		else
-			maxlun = 8;
-		for (lun = 0; lun < maxlun; lun++) {
+		for (lun = 0; lun < isp->isp_maxluns; lun++) {
 			mbs.param[0] = MBOX_SET_DEV_QUEUE_PARAMS;
 			mbs.param[1] = (channel << 15) | (tgt << 8) | lun;
 			mbs.param[2] = sdp->isp_max_queue_depth;
@@ -1434,12 +1470,12 @@ isp_pdb_sync(isp, target)
 	for (lim = loopid = 0; loopid < prange; loopid++) {
 		lp = &tport[loopid];
 		lp->node_wwn = isp_get_portname(isp, loopid, 1);
-		if (fcp->isp_loopstate != LOOP_PDB_RCVD)
+		if (fcp->isp_loopstate < LOOP_PDB_RCVD)
 			return (-1);
 		if (lp->node_wwn == 0)
 			continue;
 		lp->port_wwn = isp_get_portname(isp, loopid, 0);
-		if (fcp->isp_loopstate != LOOP_PDB_RCVD)
+		if (fcp->isp_loopstate < LOOP_PDB_RCVD)
 			return (-1);
 		if (lp->port_wwn == 0) {
 			lp->node_wwn = 0;
@@ -1450,12 +1486,12 @@ isp_pdb_sync(isp, target)
 		 * Get an entry....
 		 */
 		if (isp_getpdb(isp, loopid, &pdb) != 0) {
-			if (fcp->isp_loopstate != LOOP_PDB_RCVD)
+			if (fcp->isp_loopstate < LOOP_PDB_RCVD)
 				return (-1);
 			continue;
 		}
 
-		if (fcp->isp_loopstate != LOOP_PDB_RCVD)
+		if (fcp->isp_loopstate < LOOP_PDB_RCVD)
 			return (-1);
 
 		/*
@@ -2182,11 +2218,10 @@ ispscsicmd(xs)
 		reqp->req_lun_trn = XS_LUN(xs);
 		reqp->req_cdblen = XS_CDBLEN(xs);
 	} else {
-#ifdef	ISP2100_SCCLUN
-		t2reqp->req_scclun = XS_LUN(xs);
-#else
-		t2reqp->req_lun_trn = XS_LUN(xs);
-#endif
+		if (isp->isp_maxluns > 16)
+			t2reqp->req_scclun = XS_LUN(xs);
+		else
+			t2reqp->req_lun_trn = XS_LUN(xs);
 	}
 	MEMCPY(reqp->req_cdb, XS_CDBP(xs), XS_CDBLEN(xs));
 
@@ -2311,14 +2346,14 @@ isp_control(isp, ctl, arg)
 		bus = XS_CHANNEL(xs);
 		mbs.param[0] = MBOX_ABORT;
 		if (IS_FC(isp)) {
-#ifdef	ISP2100_SCCLUN
-			mbs.param[1] = XS_TGT(xs) << 8;
-			mbs.param[4] = 0;
-			mbs.param[5] = 0;
-			mbs.param[6] = XS_LUN(xs);
-#else
-			mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
-#endif
+			if (isp->isp_maxluns > 16) {
+				mbs.param[1] = XS_TGT(xs) << 8;
+				mbs.param[4] = 0;
+				mbs.param[5] = 0;
+				mbs.param[6] = XS_LUN(xs);
+			} else {
+				mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
+			}
 		} else {
 			mbs.param[1] =
 			    (bus << 15) | (XS_TGT(xs) << 8) | XS_LUN(xs);
@@ -2340,10 +2375,16 @@ isp_control(isp, ctl, arg)
 		return (0);
 
 	case ISPCTL_FCLINK_TEST:
-		return (isp_fclink_test(isp, FC_FW_READY_DELAY));
+		if (IS_FC(isp)) {
+			return (isp_fclink_test(isp, FC_FW_READY_DELAY));
+		}
+		break;
 
 	case ISPCTL_PDB_SYNC:
-		return (isp_pdb_sync(isp, -1));
+		if (IS_FC(isp)) {
+			return (isp_pdb_sync(isp, -1));
+		}
+		break;
 
 #ifdef	ISP_TARGET_MODE
 	case ISPCTL_TOGGLE_TMODE:
@@ -2378,39 +2419,74 @@ isp_intr(arg)
 {
 	ISP_SCSI_XFER_T *complist[RESULT_QUEUE_LEN], *xs;
 	struct ispsoftc *isp = arg;
-	u_int16_t iptr, optr;
-	u_int16_t isr, sema;
+	u_int16_t iptr, optr, isr, sema, junk;
 	int i, nlooked = 0, ndone = 0;
 
-	/*
-	 * If we've disabled interrupts, we may get a case where
-	 * isr isn't set, but sema is.
-	 */
-	isr = ISP_READ(isp, BIU_ISR);
-	sema = ISP_READ(isp, BIU_SEMA) & 0x1;
+	if (IS_2100(isp)) {
+		i = 0;
+		do {
+			isr = ISP_READ(isp, BIU_ISR);
+			junk = ISP_READ(isp, BIU_ISR);
+		} while (isr != junk && ++i < 1000);
+		if (isr != junk) {
+			PRINTF("%s: isr unsteady (%x, %x)\n",
+			    isp->isp_name, isr, junk);
+		}
+		i = 0;
+		do {
+			sema = ISP_READ(isp, BIU_SEMA);
+			junk = ISP_READ(isp, BIU_SEMA);
+		} while (sema != junk && ++i < 1000);
+		if (sema != junk) {
+			PRINTF("%s: sema unsteady (%x, %x)\n",
+			    isp->isp_name, sema, junk);
+		}
+	} else {
+		isr = ISP_READ(isp, BIU_ISR);
+		sema = ISP_READ(isp, BIU_SEMA);
+	}
 	IDPRINTF(5, ("%s: isp_intr isr %x sem %x\n", isp->isp_name, isr, sema));
-	if (isr == 0) {
+	isr &= INT_PENDING_MASK(isp);
+	sema &= BIU_SEMA_LOCK;
+	if (isr == 0 && sema == 0) {
 		return (0);
-	}
-	if (!INT_PENDING(isp, isr)) {
-		IDPRINTF(4, ("%s: isp_intr isr=%x\n", isp->isp_name, isr));
-		return (0);
-	}
-	if (isp->isp_state != ISP_RUNSTATE) {
-		IDPRINTF(3, ("%s: interrupt (isr=%x,sema=%x) when not ready\n",
-		    isp->isp_name, isr, sema));
-		ISP_WRITE(isp, INMAILBOX5, ISP_READ(isp, OUTMAILBOX5));
-		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ISP_WRITE(isp, BIU_SEMA, 0);
-		ENABLE_INTS(isp);
-		return (1);
 	}
 
 	if (sema) {
-		u_int16_t mbox = ISP_READ(isp, OUTMAILBOX0);
+		u_int16_t mbox;
+
+		if (IS_2100(isp)) {
+			i = 0;
+			do {
+				mbox = ISP_READ(isp, OUTMAILBOX0);
+				junk = ISP_READ(isp, OUTMAILBOX0);;
+			} while (junk != mbox && ++i < 1000);
+			if (mbox != junk) {
+				PRINTF("%s: mailbox0 unsteady (%x, %x)\n",
+				    isp->isp_name, mbox, junk);
+				ISP_WRITE(isp, BIU_SEMA, 0);
+				ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+				return (1);
+			}
+		} else {
+			mbox = ISP_READ(isp, OUTMAILBOX0);
+		}
 		if (mbox & 0x4000) {
-			IDPRINTF(4, ("%s: Command Mbox 0x%x\n",
-			    isp->isp_name, mbox));
+			int obits, i = 0;
+			if ((obits = isp->isp_mboxbsy) != 0) {
+				isp->isp_mboxtmp[i++] = mbox;
+				for (i = 1; i < 8; i++) {
+					if ((obits & (1 << i)) == 0) {
+						continue;
+					}
+					isp->isp_mboxtmp[i] =
+					    ISP_READ(isp, MBOX_OFF(i));
+				}
+				MBOX_NOTIFY_COMPLETE(isp);
+			} else {
+				PRINTF("%s: Command Mbox 0x%x\n",
+				    isp->isp_name, mbox);
+			}
 		} else {
 			u_int32_t fhandle = isp_parse_async(isp, (int) mbox);
 			IDPRINTF(4, ("%s: Async Mbox 0x%x\n",
@@ -2419,9 +2495,22 @@ isp_intr(arg)
 				isp_fastpost_complete(isp, fhandle);
 			}
 		}
-		ISP_WRITE(isp, BIU_SEMA, 0);
+		if (IS_FC(isp) || isp->isp_state != ISP_RUNSTATE) {
+			ISP_WRITE(isp, BIU_SEMA, 0);
+			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+			return (1);
+		}
+	}
+
+	/*
+	 * We can't be getting this now.
+	 */
+	if (isp->isp_state != ISP_RUNSTATE) {
+		PRINTF("%s: interrupt (isr=%x, sema=%x) when not ready\n",
+		    isp->isp_name, isr, sema);
+		ISP_WRITE(isp, INMAILBOX5, ISP_READ(isp, OUTMAILBOX5));
 		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ENABLE_INTS(isp);
+		ISP_WRITE(isp, BIU_SEMA, 0);
 		return (1);
 	}
 
@@ -2429,11 +2518,41 @@ isp_intr(arg)
 	 * You *must* read OUTMAILBOX5 prior to clearing the RISC interrupt.
 	 */
 	optr = isp->isp_residx;
-	iptr = ISP_READ(isp, OUTMAILBOX5);
+
+	if (IS_2100(isp)) {
+		i = 0;
+		do {
+			iptr = ISP_READ(isp, OUTMAILBOX5);
+			junk = ISP_READ(isp, OUTMAILBOX5);
+		} while (junk != iptr && ++i < 1000);
+
+		if (iptr != junk) {
+			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+			PRINTF("%s: mailbox5 unsteady (%x, %x)\n",
+			    isp->isp_name, iptr, junk);
+			return (1);
+		}
+	} else {
+		iptr = ISP_READ(isp, OUTMAILBOX5);
+	}
+
+	if (sema) {
+		ISP_WRITE(isp, BIU_SEMA, 0);
+	}
 	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-	if (optr == iptr) {
-		IDPRINTF(4, ("why intr? isr %x iptr %x optr %x\n",
-		    isr, optr, iptr));
+
+	if (optr == iptr && sema == 0) {
+		/*
+		 * There are a lot of these- reasons unknown- mostly on
+		 * faster Alpha machines.
+		 *
+		 * I tried delaying after writing HCCR_CMD_CLEAR_RISC_INT to
+		 * make sure the old interrupt went away (to avoid 'ringing'
+		 * effects), but that didn't stop this from occurring.
+		 */
+		junk = ISP_READ(isp, BIU_ISR);
+		IDPRINTF(2, ("%s: null intr- isr %x (%x) iptr %x optr %x\n",
+		    isp->isp_name, isr, junk, iptr, optr));
 	}
 
 	while (optr != iptr) {
@@ -2591,24 +2710,6 @@ isp_intr(arg)
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, sp->req_handle);
 		}
-		/*
-		 * Let the platforms cope.
-		 */
-#if	0
-		/*
-		 * XXX: If we have a check condition, but no Sense Data,
-		 * XXX: mark it as an error (ARQ failed). We need to
-		 * XXX: to do a more distinct job because there may
-		 * XXX: cases where ARQ is disabled.
-		 */
-		if (XS_STS(xs) == SCSI_CHECK && !(XS_IS_SNS_VALID(xs))) {
-			if (XS_NOERR(xs)) {
-				PRINTF("%s: ARQ failure for target %d lun %d\n",
-				    isp->isp_name, XS_TGT(xs), XS_LUN(xs));
-				XS_SETERR(xs, HBA_ARQFAIL);
-			}
-		}
-#endif
 		if ((isp->isp_dblev >= 5) ||
 		    (isp->isp_dblev > 2 && !XS_NOERR(xs))) {
 			PRINTF("%s(%d.%d): FIN dl%d resid%d STS %x",
@@ -2637,6 +2738,7 @@ isp_intr(arg)
 		ISP_WRITE(isp, INMAILBOX5, optr);
 		isp->isp_reqodx = ISP_READ(isp, OUTMAILBOX4);
 	}
+
 	isp->isp_residx = optr;
 	for (i = 0; i < ndone; i++) {
 		xs = complist[i];
@@ -2644,7 +2746,6 @@ isp_intr(arg)
 			XS_CMD_DONE(xs);
 		}
 	}
-	ENABLE_INTS(isp);
 	return (1);
 }
 
@@ -3112,7 +3213,7 @@ isp_parse_status(isp, sp, xs)
 
 	case RQCS_ARQS_FAILED:
 		PRINTF("%s: Auto Request Sense failed for %d.%d.%d\n",
-		    isp->isp_name, XS_TGT(xs), XS_LUN(xs), XS_CHANNEL(xs));
+		    isp->isp_name, XS_CHANNEL(xs), XS_TGT(xs), XS_LUN(xs));
 		return;
 
 	case RQCS_WIDE_FAILED:
@@ -3216,309 +3317,279 @@ isp_fastpost_complete(isp, fph)
 		isp->isp_nactive--;
 }
 
-#define	HINIB(x)			((x) >> 0x4)
-#define	LONIB(x)			((x)  & 0xf)
-#define	MAKNIB(a, b)			(((a) << 4) | (b))
-static u_int8_t mbpcnt[] = {
-	MAKNIB(1, 1),	/* 0x00: MBOX_NO_OP */
-	MAKNIB(5, 5),	/* 0x01: MBOX_LOAD_RAM */
-	MAKNIB(2, 0),	/* 0x02: MBOX_EXEC_FIRMWARE */
-	MAKNIB(5, 5),	/* 0x03: MBOX_DUMP_RAM */
-	MAKNIB(3, 3),	/* 0x04: MBOX_WRITE_RAM_WORD */
-	MAKNIB(2, 3),	/* 0x05: MBOX_READ_RAM_WORD */
-	MAKNIB(6, 6),	/* 0x06: MBOX_MAILBOX_REG_TEST */
-	MAKNIB(2, 3),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
-	MAKNIB(1, 4),	/* 0x08: MBOX_ABOUT_FIRMWARE */
-	MAKNIB(0, 0),	/* 0x09: */
-	MAKNIB(0, 0),	/* 0x0a: */
-	MAKNIB(0, 0),	/* 0x0b: */
-	MAKNIB(0, 0),	/* 0x0c: */
-	MAKNIB(0, 0),	/* 0x0d: */
-	MAKNIB(1, 2),	/* 0x0e: MBOX_CHECK_FIRMWARE */
-	MAKNIB(0, 0),	/* 0x0f: */
-	MAKNIB(5, 5),	/* 0x10: MBOX_INIT_REQ_QUEUE */
-	MAKNIB(6, 6),	/* 0x11: MBOX_INIT_RES_QUEUE */
-	MAKNIB(4, 4),	/* 0x12: MBOX_EXECUTE_IOCB */
-	MAKNIB(2, 2),	/* 0x13: MBOX_WAKE_UP	*/
-	MAKNIB(1, 6),	/* 0x14: MBOX_STOP_FIRMWARE */
-	MAKNIB(4, 4),	/* 0x15: MBOX_ABORT */
-	MAKNIB(2, 2),	/* 0x16: MBOX_ABORT_DEVICE */
-	MAKNIB(3, 3),	/* 0x17: MBOX_ABORT_TARGET */
-	MAKNIB(3, 1),	/* 0x18: MBOX_BUS_RESET */
-	MAKNIB(2, 3),	/* 0x19: MBOX_STOP_QUEUE */
-	MAKNIB(2, 3),	/* 0x1a: MBOX_START_QUEUE */
-	MAKNIB(2, 3),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
-	MAKNIB(2, 3),	/* 0x1c: MBOX_ABORT_QUEUE */
-	MAKNIB(2, 4),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
-	MAKNIB(0, 0),	/* 0x1e: */
-	MAKNIB(1, 3),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
-	MAKNIB(1, 4),	/* 0x20: MBOX_GET_INIT_SCSI_ID, MBOX_GET_LOOP_ID */
-	MAKNIB(1, 3),	/* 0x21: MBOX_GET_SELECT_TIMEOUT */
-	MAKNIB(1, 3),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
-	MAKNIB(1, 2),	/* 0x23: MBOX_GET_TAG_AGE_LIMIT */
-	MAKNIB(1, 2),	/* 0x24: MBOX_GET_CLOCK_RATE */
-	MAKNIB(1, 2),	/* 0x25: MBOX_GET_ACT_NEG_STATE */
-	MAKNIB(1, 2),	/* 0x26: MBOX_GET_ASYNC_DATA_SETUP_TIME */
-	MAKNIB(1, 3),	/* 0x27: MBOX_GET_PCI_PARAMS */
-	MAKNIB(2, 4),	/* 0x28: MBOX_GET_TARGET_PARAMS */
-	MAKNIB(2, 4),	/* 0x29: MBOX_GET_DEV_QUEUE_PARAMS */
-	MAKNIB(1, 2),	/* 0x2a: MBOX_GET_RESET_DELAY_PARAMS */
-	MAKNIB(0, 0),	/* 0x2b: */
-	MAKNIB(0, 0),	/* 0x2c: */
-	MAKNIB(0, 0),	/* 0x2d: */
-	MAKNIB(0, 0),	/* 0x2e: */
-	MAKNIB(0, 0),	/* 0x2f: */
-	MAKNIB(2, 2),	/* 0x30: MBOX_SET_INIT_SCSI_ID */
-	MAKNIB(2, 3),	/* 0x31: MBOX_SET_SELECT_TIMEOUT */
-	MAKNIB(3, 3),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
-	MAKNIB(2, 2),	/* 0x33: MBOX_SET_TAG_AGE_LIMIT */
-	MAKNIB(2, 2),	/* 0x34: MBOX_SET_CLOCK_RATE */
-	MAKNIB(2, 2),	/* 0x35: MBOX_SET_ACT_NEG_STATE */
-	MAKNIB(2, 2),	/* 0x36: MBOX_SET_ASYNC_DATA_SETUP_TIME */
-	MAKNIB(3, 3),	/* 0x37: MBOX_SET_PCI_CONTROL_PARAMS */
-	MAKNIB(4, 4),	/* 0x38: MBOX_SET_TARGET_PARAMS */
-	MAKNIB(4, 4),	/* 0x39: MBOX_SET_DEV_QUEUE_PARAMS */
-	MAKNIB(1, 2),	/* 0x3a: MBOX_SET_RESET_DELAY_PARAMS */
-	MAKNIB(0, 0),	/* 0x3b: */
-	MAKNIB(0, 0),	/* 0x3c: */
-	MAKNIB(0, 0),	/* 0x3d: */
-	MAKNIB(0, 0),	/* 0x3e: */
-	MAKNIB(0, 0),	/* 0x3f: */
-	MAKNIB(1, 2),	/* 0x40: MBOX_RETURN_BIOS_BLOCK_ADDR */
-	MAKNIB(6, 1),	/* 0x41: MBOX_WRITE_FOUR_RAM_WORDS */
-	MAKNIB(2, 3),	/* 0x42: MBOX_EXEC_BIOS_IOCB */
-	MAKNIB(0, 0),	/* 0x43: */
-	MAKNIB(0, 0),	/* 0x44: */
-	MAKNIB(0, 0),	/* 0x45: */
-	MAKNIB(0, 0),	/* 0x46: */
-	MAKNIB(0, 0),	/* 0x47: */
-	MAKNIB(0, 0),	/* 0x48: */
-	MAKNIB(0, 0),	/* 0x49: */
-	MAKNIB(2, 1),	/* 0x4a: MBOX_SET_FIRMWARE_FEATURES */
-	MAKNIB(1, 2),	/* 0x4b: MBOX_GET_FIRMWARE_FEATURES */
-	MAKNIB(0, 0),	/* 0x4c: */
-	MAKNIB(0, 0),	/* 0x4d: */
-	MAKNIB(0, 0),	/* 0x4e: */
-	MAKNIB(0, 0),	/* 0x4f: */
-	MAKNIB(0, 0),	/* 0x50: */
-	MAKNIB(0, 0),	/* 0x51: */
-	MAKNIB(0, 0),	/* 0x52: */
-	MAKNIB(0, 0),	/* 0x53: */
-	MAKNIB(8, 0),	/* 0x54: MBOX_EXEC_COMMAND_IOCB_A64 */
-	MAKNIB(2, 1),	/* 0x55: MBOX_ENABLE_TARGET_MODE */
-	MAKNIB(0, 0),	/* 0x56: */
-	MAKNIB(0, 0),	/* 0x57: */
-	MAKNIB(0, 0),	/* 0x58: */
-	MAKNIB(0, 0),	/* 0x59: */
-	MAKNIB(0, 0),	/* 0x5a: */
-	MAKNIB(0, 0),	/* 0x5b: */
-	MAKNIB(0, 0),	/* 0x5c: */
-	MAKNIB(0, 0),	/* 0x5d: */
-	MAKNIB(0, 0),	/* 0x5e: */
-	MAKNIB(0, 0),	/* 0x5f: */
-	MAKNIB(8, 6),	/* 0x60: MBOX_INIT_FIRMWARE */
-	MAKNIB(0, 0),	/* 0x61: */
-	MAKNIB(2, 1),	/* 0x62: MBOX_INIT_LIP */
-	MAKNIB(8, 1),	/* 0x63: MBOX_GET_FC_AL_POSITION_MAP */
-	MAKNIB(8, 1),	/* 0x64: MBOX_GET_PORT_DB */
-	MAKNIB(3, 1),	/* 0x65: MBOX_CLEAR_ACA */
-	MAKNIB(3, 1),	/* 0x66: MBOX_TARGET_RESET */
-	MAKNIB(3, 1),	/* 0x67: MBOX_CLEAR_TASK_SET */
-	MAKNIB(3, 1),	/* 0x68: MBOX_ABORT_TASK_SET */
-	MAKNIB(1, 2),	/* 0x69: MBOX_GET_FW_STATE */
-	MAKNIB(2, 8),	/* 0x6a: MBOX_GET_PORT_NAME */
-	MAKNIB(8, 1),	/* 0x6b: MBOX_GET_LINK_STATUS */
-	MAKNIB(4, 4),	/* 0x6c: MBOX_INIT_LIP_RESET */
-	MAKNIB(0, 0),	/* 0x6d: */
-	MAKNIB(8, 2),	/* 0x6e: MBOX_SEND_SNS */
-	MAKNIB(4, 3),	/* 0x6f: MBOX_FABRIC_LOGIN */
-	MAKNIB(2, 1),	/* 0x70: MBOX_SEND_CHANGE_REQUEST */
-	MAKNIB(2, 1),	/* 0x71: MBOX_FABRIC_LOGOUT */
-	MAKNIB(4, 1)	/* 0x72: MBOX_INIT_LIP_LOGIN */
+#define	HIBYT(x)			((x) >> 0x8)
+#define	LOBYT(x)			((x)  & 0xff)
+#define	ISPOPMAP(a, b)			(((a) << 8) | (b))
+static u_int16_t mbpscsi[] = {
+	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
+	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
+	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISPOPMAP(0x1f, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
+	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
+	ISPOPMAP(0x3f, 0x3f),	/* 0x06: MBOX_MAILBOX_REG_TEST */
+	ISPOPMAP(0x03, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
+	ISPOPMAP(0x01, 0x0f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
+	ISPOPMAP(0x00, 0x00),	/* 0x09: */
+	ISPOPMAP(0x00, 0x00),	/* 0x0a: */
+	ISPOPMAP(0x00, 0x00),	/* 0x0b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x0d: */
+	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
+	ISPOPMAP(0x00, 0x00),	/* 0x0f: */
+	ISPOPMAP(0x1f, 0x1f),	/* 0x10: MBOX_INIT_REQ_QUEUE */
+	ISPOPMAP(0x3f, 0x3f),	/* 0x11: MBOX_INIT_RES_QUEUE */
+	ISPOPMAP(0x0f, 0x0f),	/* 0x12: MBOX_EXECUTE_IOCB */
+	ISPOPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
+	ISPOPMAP(0x01, 0x3f),	/* 0x14: MBOX_STOP_FIRMWARE */
+	ISPOPMAP(0x0f, 0x0f),	/* 0x15: MBOX_ABORT */
+	ISPOPMAP(0x03, 0x03),	/* 0x16: MBOX_ABORT_DEVICE */
+	ISPOPMAP(0x07, 0x07),	/* 0x17: MBOX_ABORT_TARGET */
+	ISPOPMAP(0x07, 0x07),	/* 0x18: MBOX_BUS_RESET */
+	ISPOPMAP(0x03, 0x07),	/* 0x19: MBOX_STOP_QUEUE */
+	ISPOPMAP(0x03, 0x07),	/* 0x1a: MBOX_START_QUEUE */
+	ISPOPMAP(0x03, 0x07),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
+	ISPOPMAP(0x03, 0x07),	/* 0x1c: MBOX_ABORT_QUEUE */
+	ISPOPMAP(0x03, 0x4f),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
+	ISPOPMAP(0x00, 0x00),	/* 0x1e: */
+	ISPOPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
+	ISPOPMAP(0x01, 0x07),	/* 0x20: MBOX_GET_INIT_SCSI_ID */
+	ISPOPMAP(0x01, 0x07),	/* 0x21: MBOX_GET_SELECT_TIMEOUT */
+	ISPOPMAP(0x01, 0xc7),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
+	ISPOPMAP(0x01, 0x07),	/* 0x23: MBOX_GET_TAG_AGE_LIMIT */
+	ISPOPMAP(0x01, 0x03),	/* 0x24: MBOX_GET_CLOCK_RATE */
+	ISPOPMAP(0x01, 0x07),	/* 0x25: MBOX_GET_ACT_NEG_STATE */
+	ISPOPMAP(0x01, 0x07),	/* 0x26: MBOX_GET_ASYNC_DATA_SETUP_TIME */
+	ISPOPMAP(0x01, 0x07),	/* 0x27: MBOX_GET_PCI_PARAMS */
+	ISPOPMAP(0x03, 0x4f),	/* 0x28: MBOX_GET_TARGET_PARAMS */
+	ISPOPMAP(0x03, 0x0f),	/* 0x29: MBOX_GET_DEV_QUEUE_PARAMS */
+	ISPOPMAP(0x01, 0x07),	/* 0x2a: MBOX_GET_RESET_DELAY_PARAMS */
+	ISPOPMAP(0x00, 0x00),	/* 0x2b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2f: */
+	ISPOPMAP(0x03, 0x03),	/* 0x30: MBOX_SET_INIT_SCSI_ID */
+	ISPOPMAP(0x07, 0x07),	/* 0x31: MBOX_SET_SELECT_TIMEOUT */
+	ISPOPMAP(0xc7, 0xc7),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
+	ISPOPMAP(0x07, 0x07),	/* 0x33: MBOX_SET_TAG_AGE_LIMIT */
+	ISPOPMAP(0x03, 0x03),	/* 0x34: MBOX_SET_CLOCK_RATE */
+	ISPOPMAP(0x07, 0x07),	/* 0x35: MBOX_SET_ACT_NEG_STATE */
+	ISPOPMAP(0x07, 0x07),	/* 0x36: MBOX_SET_ASYNC_DATA_SETUP_TIME */
+	ISPOPMAP(0x07, 0x07),	/* 0x37: MBOX_SET_PCI_CONTROL_PARAMS */
+	ISPOPMAP(0x4f, 0x4f),	/* 0x38: MBOX_SET_TARGET_PARAMS */
+	ISPOPMAP(0x0f, 0x0f),	/* 0x39: MBOX_SET_DEV_QUEUE_PARAMS */
+	ISPOPMAP(0x07, 0x07),	/* 0x3a: MBOX_SET_RESET_DELAY_PARAMS */
+	ISPOPMAP(0x00, 0x00),	/* 0x3b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3f: */
+	ISPOPMAP(0x01, 0x03),	/* 0x40: MBOX_RETURN_BIOS_BLOCK_ADDR */
+	ISPOPMAP(0x3f, 0x01),	/* 0x41: MBOX_WRITE_FOUR_RAM_WORDS */
+	ISPOPMAP(0x03, 0x07),	/* 0x42: MBOX_EXEC_BIOS_IOCB */
+	ISPOPMAP(0x00, 0x00),	/* 0x43: */
+	ISPOPMAP(0x00, 0x00),	/* 0x44: */
+	ISPOPMAP(0x03, 0x03),	/* 0x45: SET SYSTEM PARAMETER */
+	ISPOPMAP(0x01, 0x03),	/* 0x46: GET SYSTEM PARAMETER */
+	ISPOPMAP(0x00, 0x00),	/* 0x47: */
+	ISPOPMAP(0x01, 0xcf),	/* 0x48: GET SCAM CONFIGURATION */
+	ISPOPMAP(0xcf, 0xcf),	/* 0x49: SET SCAM CONFIGURATION */
+	ISPOPMAP(0x03, 0x03),	/* 0x4a: MBOX_SET_FIRMWARE_FEATURES */
+	ISPOPMAP(0x01, 0x03),	/* 0x4b: MBOX_GET_FIRMWARE_FEATURES */
+	ISPOPMAP(0x00, 0x00),	/* 0x4c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4f: */
+	ISPOPMAP(0xdf, 0xdf),	/* 0x50: LOAD RAM A64 */
+	ISPOPMAP(0xdf, 0xdf),	/* 0x51: DUMP RAM A64 */
+	ISPOPMAP(0xdf, 0xdf),	/* 0x52: INITIALIZE REQUEST QUEUE A64 */
+	ISPOPMAP(0xff, 0xff),	/* 0x53: INITIALIZE RESPONSE QUEUE A64 */
+	ISPOPMAP(0xcf, 0xff),	/* 0x54: EXECUTE IOCB A64 */
+	ISPOPMAP(0x03, 0x01),	/* 0x55: ENABLE TARGET MODE */
+	ISPOPMAP(0x00, 0x00),	/* 0x56: */
+	ISPOPMAP(0x00, 0x00),	/* 0x57: */
+	ISPOPMAP(0x00, 0x00),	/* 0x58: */
+	ISPOPMAP(0x00, 0x00),	/* 0x59: */
+	ISPOPMAP(0x03, 0x03),	/* 0x5a: SET DATA OVERRUN RECOVERY MODE */
+	ISPOPMAP(0x01, 0x03),	/* 0x5b: GET DATA OVERRUN RECOVERY MODE */
+	ISPOPMAP(0x0f, 0x0f),	/* 0x5c: SET HOST DATA */
+	ISPOPMAP(0x01, 0x01)	/* 0x5d: GET NOST DATA */
 };
-#define	NMBCOM	(sizeof (mbpcnt) / sizeof (mbpcnt[0]))
+
+static u_int16_t mbpfc[] = {
+	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
+	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
+	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISPOPMAP(0x1f, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
+	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
+	ISPOPMAP(0xff, 0xff),	/* 0x06: MBOX_MAILBOX_REG_TEST */
+	ISPOPMAP(0x03, 0x05),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
+	ISPOPMAP(0x01, 0x0f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
+	ISPOPMAP(0xdf, 0x01),	/* 0x09: LOAD RAM */
+	ISPOPMAP(0xdf, 0x01),	/* 0x0a: DUMP RAM */
+	ISPOPMAP(0x00, 0x00),	/* 0x0b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x0d: */
+	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
+	ISPOPMAP(0x00, 0x00),	/* 0x0f: */
+	ISPOPMAP(0x1f, 0x11),	/* 0x10: MBOX_INIT_REQ_QUEUE */
+	ISPOPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
+	ISPOPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
+	ISPOPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
+	ISPOPMAP(0x01, 0xff),	/* 0x14: MBOX_STOP_FIRMWARE */
+	ISPOPMAP(0x4f, 0x01),	/* 0x15: MBOX_ABORT */
+	ISPOPMAP(0x07, 0x01),	/* 0x16: MBOX_ABORT_DEVICE */
+	ISPOPMAP(0x07, 0x01),	/* 0x17: MBOX_ABORT_TARGET */
+	ISPOPMAP(0x03, 0x03),	/* 0x18: MBOX_BUS_RESET */
+	ISPOPMAP(0x07, 0x05),	/* 0x19: MBOX_STOP_QUEUE */
+	ISPOPMAP(0x07, 0x05),	/* 0x1a: MBOX_START_QUEUE */
+	ISPOPMAP(0x07, 0x05),	/* 0x1b: MBOX_SINGLE_STEP_QUEUE */
+	ISPOPMAP(0x07, 0x05),	/* 0x1c: MBOX_ABORT_QUEUE */
+	ISPOPMAP(0x07, 0x03),	/* 0x1d: MBOX_GET_DEV_QUEUE_STATUS */
+	ISPOPMAP(0x00, 0x00),	/* 0x1e: */
+	ISPOPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
+	ISPOPMAP(0x01, 0x4f),	/* 0x20: MBOX_GET_LOOP_ID */
+	ISPOPMAP(0x00, 0x00),	/* 0x21: */
+	ISPOPMAP(0x01, 0x07),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
+	ISPOPMAP(0x00, 0x00),	/* 0x23: */
+	ISPOPMAP(0x00, 0x00),	/* 0x24: */
+	ISPOPMAP(0x00, 0x00),	/* 0x25: */
+	ISPOPMAP(0x00, 0x00),	/* 0x26: */
+	ISPOPMAP(0x00, 0x00),	/* 0x27: */
+	ISPOPMAP(0x0f, 0x1),	/* 0x28: MBOX_GET_FIRMWARE_OPTIONS */
+	ISPOPMAP(0x03, 0x07),	/* 0x29: MBOX_GET_PORT_QUEUE_PARAMS */
+	ISPOPMAP(0x00, 0x00),	/* 0x2a: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x2f: */
+	ISPOPMAP(0x00, 0x00),	/* 0x30: */
+	ISPOPMAP(0x00, 0x00),	/* 0x31: */
+	ISPOPMAP(0x07, 0x07),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
+	ISPOPMAP(0x00, 0x00),	/* 0x33: */
+	ISPOPMAP(0x00, 0x00),	/* 0x34: */
+	ISPOPMAP(0x00, 0x00),	/* 0x35: */
+	ISPOPMAP(0x00, 0x00),	/* 0x36: */
+	ISPOPMAP(0x00, 0x00),	/* 0x37: */
+	ISPOPMAP(0x0f, 0x01),	/* 0x38: MBOX_SET_FIRMWARE_OPTIONS */
+	ISPOPMAP(0x0f, 0x07),	/* 0x39: MBOX_SET_PORT_QUEUE_PARAMS */
+	ISPOPMAP(0x00, 0x00),	/* 0x3a: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x3f: */
+	ISPOPMAP(0x03, 0x01),	/* 0x40: MBOX_LOOP_PORT_BYPASS */
+	ISPOPMAP(0x03, 0x01),	/* 0x41: MBOX_LOOP_PORT_ENABLE */
+	ISPOPMAP(0x03, 0x07),	/* 0x42: MBOX_GET_RESOURCE_COUNTS */
+	ISPOPMAP(0x01, 0x01),	/* 0x43: MBOX_REQUEST_NON_PARTICIPATING_MODE */
+	ISPOPMAP(0x00, 0x00),	/* 0x44: */
+	ISPOPMAP(0x00, 0x00),	/* 0x45: */
+	ISPOPMAP(0x00, 0x00),	/* 0x46: */
+	ISPOPMAP(0xcf, 0x03),	/* 0x47: GET PORT_DATABASE ENHANCED */
+	ISPOPMAP(0x00, 0x00),	/* 0x48: */
+	ISPOPMAP(0x00, 0x00),	/* 0x49: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4a: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x4f: */
+	ISPOPMAP(0x00, 0x00),	/* 0x50: */
+	ISPOPMAP(0x00, 0x00),	/* 0x51: */
+	ISPOPMAP(0x00, 0x00),	/* 0x52: */
+	ISPOPMAP(0x00, 0x00),	/* 0x53: */
+	ISPOPMAP(0xcf, 0x01),	/* 0x54: EXECUTE IOCB A64 */
+	ISPOPMAP(0x00, 0x00),	/* 0x55: */
+	ISPOPMAP(0x00, 0x00),	/* 0x56: */
+	ISPOPMAP(0x00, 0x00),	/* 0x57: */
+	ISPOPMAP(0x00, 0x00),	/* 0x58: */
+	ISPOPMAP(0x00, 0x00),	/* 0x59: */
+	ISPOPMAP(0x00, 0x00),	/* 0x5a: */
+	ISPOPMAP(0x00, 0x00),	/* 0x5b: */
+	ISPOPMAP(0x00, 0x00),	/* 0x5c: */
+	ISPOPMAP(0x00, 0x00),	/* 0x5d: */
+	ISPOPMAP(0x00, 0x00),	/* 0x5e: */
+	ISPOPMAP(0x00, 0x00),	/* 0x5f: */
+	ISPOPMAP(0xfd, 0x31),	/* 0x60: MBOX_INIT_FIRMWARE */
+	ISPOPMAP(0x00, 0x00),	/* 0x61: */
+	ISPOPMAP(0x01, 0x01),	/* 0x62: MBOX_INIT_LIP */
+	ISPOPMAP(0xcd, 0x03),	/* 0x63: MBOX_GET_FC_AL_POSITION_MAP */
+	ISPOPMAP(0xcf, 0x01),	/* 0x64: MBOX_GET_PORT_DB */
+	ISPOPMAP(0x07, 0x01),	/* 0x65: MBOX_CLEAR_ACA */
+	ISPOPMAP(0x07, 0x01),	/* 0x66: MBOX_TARGET_RESET */
+	ISPOPMAP(0x07, 0x01),	/* 0x67: MBOX_CLEAR_TASK_SET */
+	ISPOPMAP(0x07, 0x01),	/* 0x68: MBOX_ABORT_TASK_SET */
+	ISPOPMAP(0x01, 0x07),	/* 0x69: MBOX_GET_FW_STATE */
+	ISPOPMAP(0x03, 0xcf),	/* 0x6a: MBOX_GET_PORT_NAME */
+	ISPOPMAP(0xcf, 0x01),	/* 0x6b: MBOX_GET_LINK_STATUS */
+	ISPOPMAP(0x0f, 0x01),	/* 0x6c: MBOX_INIT_LIP_RESET */
+	ISPOPMAP(0x00, 0x00),	/* 0x6d: */
+	ISPOPMAP(0xcf, 0x03),	/* 0x6e: MBOX_SEND_SNS */
+	ISPOPMAP(0x0f, 0x07),	/* 0x6f: MBOX_FABRIC_LOGIN */
+	ISPOPMAP(0x03, 0x01),	/* 0x70: MBOX_SEND_CHANGE_REQUEST */
+	ISPOPMAP(0x03, 0x03),	/* 0x71: MBOX_FABRIC_LOGOUT */
+	ISPOPMAP(0x0f, 0x0f),	/* 0x72: MBOX_INIT_LIP_LOGIN */
+	ISPOPMAP(0x00, 0x00),	/* 0x73: */
+	ISPOPMAP(0x07, 0x01),	/* 0x74: LOGIN LOOP PORT */
+	ISPOPMAP(0xcf, 0x03),	/* 0x75: GET PORT/NODE NAME LIST */
+	ISPOPMAP(0x4f, 0x01),	/* 0x76: SET VENDOR ID */
+	ISPOPMAP(0xcd, 0x01),	/* 0x77: INITIALIZE IP MAILBOX */
+	ISPOPMAP(0x00, 0x00),	/* 0x78: */
+	ISPOPMAP(0x00, 0x00),	/* 0x79: */
+	ISPOPMAP(0x00, 0x00),	/* 0x7a: */
+	ISPOPMAP(0x00, 0x00),	/* 0x7b: */
+	ISPOPMAP(0x4f, 0x03),	/* 0x7c: Get ID List */
+	ISPOPMAP(0xcf, 0x01),	/* 0x7d: SEND LFA */
+	ISPOPMAP(0x07, 0x01)	/* 0x7e: Lun RESET */
+};
 
 static void
 isp_mboxcmd(isp, mbp)
 	struct ispsoftc *isp;
 	mbreg_t *mbp;
 {
-	int outparam, inparam;
-	int loops, dld = 0;
-	u_int8_t opcode;
+	unsigned int lim, ibits, obits, box, opcode;
+	u_int16_t *mcp;
 
-	if (mbp->param[0] == ISP2100_SET_PCI_PARAM) {
-		opcode = mbp->param[0] = MBOX_SET_PCI_PARAMETERS;
-		inparam = 4;
-		outparam = 4;
-		goto command_known;
-	} else if (mbp->param[0] > NMBCOM) {
-		PRINTF("%s: bad command %x\n", isp->isp_name, mbp->param[0]);
-		return;
-	}
-
-	opcode = mbp->param[0];
-	inparam = HINIB(mbpcnt[mbp->param[0]]);
-	outparam =  LONIB(mbpcnt[mbp->param[0]]);
-
-	if (inparam == 0 && outparam == 0) {
-		PRINTF("%s: no parameters for %x\n", isp->isp_name,
-			mbp->param[0]);
-		return;
-	}
-
-
-	/*
-	 * Check for variants
-	 */
-#ifdef	ISP2100_SCCLUN
 	if (IS_FC(isp)) {
-		switch (mbp->param[0]) {
-		case MBOX_ABORT:
-			inparam = 7;
-			break;
-		case MBOX_ABORT_DEVICE:
-		case MBOX_START_QUEUE:
-		case MBOX_STOP_QUEUE:
-		case MBOX_SINGLE_STEP_QUEUE:
-		case MBOX_ABORT_QUEUE:
-		case MBOX_GET_DEV_QUEUE_STATUS:
-			inparam = 3;
-			break;
-		case MBOX_BUS_RESET:
-			inparam = 2;
-			break;
-		default:
-			break;
-		}
+		mcp = mbpfc;
+		lim = (sizeof (mbpfc) / sizeof (mbpfc[0]));
+	} else {
+		mcp = mbpscsi;
+		lim = (sizeof (mbpscsi) / sizeof (mbpscsi[0]));
 	}
-#endif
 
-command_known:
+	if ((opcode = mbp->param[0]) >= lim) {
+		mbp->param[0] = MBOX_INVALID_COMMAND;
+		PRINTF("%s: unknown command 0x%x\n", isp->isp_name, opcode);
+		return;
+	}
 
-	/*
-	 * Set semaphore on mailbox registers to win any races to acquire them.
-	 */
-	ISP_WRITE(isp, BIU_SEMA, 1);
+	ibits = HIBYT(mcp[opcode]) & NMBOX_BMASK(isp);
+	obits = LOBYT(mcp[opcode]) & NMBOX_BMASK(isp);
 
-	/*
-	 * Qlogic Errata for the ISP2100 says that there is a necessary
-	 * debounce between between writing the semaphore register
-	 * and reading a mailbox register. I believe we're okay here.
-	 */
+	if (ibits == 0 && obits == 0) {
+		mbp->param[0] = MBOX_COMMAND_PARAM_ERROR;
+		PRINTF("%s: no parameters for opcode 0x%x\n", isp->isp_name,
+			opcode);
+		return;
+	}
 
-	/*
-	 * Make sure we can send some words.
-	 * Check to see if there's an async mbox event pending.
-	 */
-
-	loops = MBOX_DELAY_COUNT;
-	while ((ISP_READ(isp, HCCR) & HCCR_HOST_INT) != 0) {
-		if (ISP_READ(isp, BIU_SEMA) & 1) {
-			int fph;
-			u_int16_t mbox = ISP_READ(isp, OUTMAILBOX0);
-			/*
-			 * We have a pending MBOX async event.
-			 */
-			if (mbox & 0x8000) {
-				fph = isp_parse_async(isp, (int) mbox);
-				IDPRINTF(5, ("%s: line %d, fph %d\n",
-				    isp->isp_name, __LINE__, fph));
-				ISP_WRITE(isp, BIU_SEMA, 0);
-				ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-				if (fph < 0) {
-					return;
-				} else if (fph > 0) {
-					isp_fastpost_complete(isp, fph);
-				}
-				SYS_DELAY(100);
-				goto command_known;
-			}
-			/*
-			 * We have a pending MBOX completion? Might be
-			 * from a previous command. We can't (sometimes)
-			 * just clear HOST INTERRUPT, so we'll just silently
-			 * eat this here.
-			 */
-			if (mbox & 0x4000) {
-				IDPRINTF(5, ("%s: line %d, mbox 0x%x\n",
-				    isp->isp_name, __LINE__, mbox));
-				ISP_WRITE(isp, BIU_SEMA, 0);
-				ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-				SYS_DELAY(100);
-				goto command_known;
-			}
+	for (box = 0; box < MAX_MAILBOX; box++) {
+		if (ibits & (1 << box)) {
+			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
 		}
-		SYS_DELAY(100);
-		if (--loops < 0) {
-			if (dld++ > 10) {
-				PRINTF("%s: isp_mboxcmd could not get command "
-				    "started\n", isp->isp_name);
-				return;
-			}
-			ISP_WRITE(isp, BIU_SEMA, 0);
-			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-			goto command_known;
-		}
+		isp->isp_mboxtmp[box] = mbp->param[box] = 0;
 	}
 
 	/*
-	 * Write input parameters.
-	 *
-	 * Special case some of the setups for the dual port SCSI cards.
-	 * XXX Eventually will be fixed by converting register write/read
-	 * XXX counts to bitmasks.
+	 * We assume that we can't overwrite a previous command.
 	 */
-	if (IS_DUALBUS(isp)) {
-		switch (opcode) {
-		case MBOX_GET_RETRY_COUNT:
-		case MBOX_SET_RETRY_COUNT:
-			ISP_WRITE(isp, INMAILBOX7, mbp->param[7]);
-			mbp->param[7] = 0;
-			ISP_WRITE(isp, INMAILBOX6, mbp->param[6]);
-			mbp->param[6] = 0;
-			break;
-		case MBOX_SET_ASYNC_DATA_SETUP_TIME:
-		case MBOX_SET_ACT_NEG_STATE:
-		case MBOX_SET_TAG_AGE_LIMIT:
-		case MBOX_SET_SELECT_TIMEOUT:
-			ISP_WRITE(isp, INMAILBOX2, mbp->param[2]);
-			mbp->param[2] = 0;
-			break;
-		}
-	}
-
-	switch (inparam) {
-	case 8: ISP_WRITE(isp, INMAILBOX7, mbp->param[7]); mbp->param[7] = 0;
-	case 7: ISP_WRITE(isp, INMAILBOX6, mbp->param[6]); mbp->param[6] = 0;
-	case 6:
-		/*
-		 * The Qlogic 2100 cannot have registers 4 and 5 written to
-		 * after initialization or BAD THINGS HAPPEN (tm).
-		 */
-		if (IS_SCSI(isp) || mbp->param[0] == MBOX_INIT_FIRMWARE)
-			ISP_WRITE(isp, INMAILBOX5, mbp->param[5]);
-		mbp->param[5] = 0;
-	case 5:
-		if (IS_SCSI(isp) || mbp->param[0] == MBOX_INIT_FIRMWARE)
-			ISP_WRITE(isp, INMAILBOX4, mbp->param[4]);
-		mbp->param[4] = 0;
-	case 4: ISP_WRITE(isp, INMAILBOX3, mbp->param[3]); mbp->param[3] = 0;
-	case 3: ISP_WRITE(isp, INMAILBOX2, mbp->param[2]); mbp->param[2] = 0;
-	case 2: ISP_WRITE(isp, INMAILBOX1, mbp->param[1]); mbp->param[1] = 0;
-	case 1: ISP_WRITE(isp, INMAILBOX0, mbp->param[0]); mbp->param[0] = 0;
-	}
-
-	/*
-	 * Clear RISC int condition.
-	 */
-	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-
-	/*
-	 * Clear semaphore on mailbox registers so that the Qlogic
-	 * may update outgoing registers.
-	 */
-	ISP_WRITE(isp, BIU_SEMA, 0);
+	isp->isp_mboxbsy = obits;
 
 	/*
 	 * Set Host Interrupt condition so that RISC will pick up mailbox regs.
@@ -3526,120 +3597,24 @@ command_known:
 	ISP_WRITE(isp, HCCR, HCCR_CMD_SET_HOST_INT);
 
 	/*
-	 * Wait until HOST INT has gone away (meaning that the Qlogic
-	 * has picked up the mailbox command. Wait a long time.
+	 * Give the f/w a chance to pick this up.
 	 */
-	loops = MBOX_DELAY_COUNT * 5;
-	while ((ISP_READ(isp, HCCR) & HCCR_CMD_CLEAR_RISC_INT) != 0) {
-		SYS_DELAY(100);
-		if (--loops < 0) {
-			PRINTF("%s: isp_mboxcmd timeout #2\n", isp->isp_name);
-			return;
-		}
-	}
+	SYS_DELAY(250);
+
 
 	/*
-	 * While the Semaphore registers isn't set, wait for the Qlogic
-	 * to process the mailbox command. Again- wait a long time.
+	 * While we haven't finished the command, spin our wheels here.
 	 */
-	loops = MBOX_DELAY_COUNT * 5;
-	while ((ISP_READ(isp, BIU_SEMA) & 1) == 0) {
-		SYS_DELAY(100);
-		/*
-		 * Wierd- I've seen the case where the semaphore register
-		 * isn't getting set- sort of a violation of the protocol..
-		 */
-		if (ISP_READ(isp, OUTMAILBOX0) & 0x4000)
-			break;
-		if (--loops < 0) {
-			PRINTF("%s: isp_mboxcmd timeout #3\n", isp->isp_name);
-			return;
-		}
-	}
+	MBOX_WAIT_COMPLETE(isp);
 
 	/*
-	 * Make sure that the MBOX_BUSY has gone away
+	 * Copy back output registers.
 	 */
-	loops = MBOX_DELAY_COUNT;
-	for (;;) {
-		u_int16_t mbox = ISP_READ(isp, OUTMAILBOX0);
-		if (mbox == MBOX_BUSY) {
-			if (--loops < 0) {
-				PRINTF("%s: isp_mboxcmd timeout #4\n",
-				    isp->isp_name);
-				return;
-			}
-			SYS_DELAY(100);
-			continue;
-		}
-		/*
-		 * We have a pending MBOX async event.
-		 */
-		if (mbox & 0x8000) {
-			int fph = isp_parse_async(isp, (int) mbox);
-			ISP_WRITE(isp, BIU_SEMA, 0);
-			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-			if (fph < 0) {
-				return;
-			} else if (fph > 0) {
-				isp_fastpost_complete(isp, fph);
-			}
-			SYS_DELAY(100);
-			continue;
-		}
-		break;
-	}
-
-	/*
-	 * Pick up output parameters. Special case some of the readbacks
-	 * for the dual port SCSI cards.
-	 */
-	if (IS_DUALBUS(isp)) {
-		switch (opcode) {
-		case MBOX_GET_RETRY_COUNT:
-		case MBOX_SET_RETRY_COUNT:
-			mbp->param[7] = ISP_READ(isp, OUTMAILBOX7);
-			mbp->param[6] = ISP_READ(isp, OUTMAILBOX6);
-			break;
-		case MBOX_GET_TAG_AGE_LIMIT:
-		case MBOX_SET_TAG_AGE_LIMIT:
-		case MBOX_GET_ACT_NEG_STATE:
-		case MBOX_SET_ACT_NEG_STATE:
-		case MBOX_SET_ASYNC_DATA_SETUP_TIME:
-		case MBOX_GET_ASYNC_DATA_SETUP_TIME:
-		case MBOX_GET_RESET_DELAY_PARAMS:
-		case MBOX_SET_RESET_DELAY_PARAMS:
-			mbp->param[2] = ISP_READ(isp, OUTMAILBOX2);
-			break;
+	for (box = 0; box < MAX_MAILBOX; box++) {
+		if (obits & (1 << box)) {
+			mbp->param[box] = isp->isp_mboxtmp[box];
 		}
 	}
-
-	if (IS_2200(isp)) {
-		if (opcode == MBOX_GET_LOOP_ID) {
-			mbp->param[6] = ISP_READ(isp, OUTMAILBOX6);
-		}
-	}
-
-	switch (outparam) {
-	case 8: mbp->param[7] = ISP_READ(isp, OUTMAILBOX7);
-	case 7: mbp->param[6] = ISP_READ(isp, OUTMAILBOX6);
-	case 6: mbp->param[5] = ISP_READ(isp, OUTMAILBOX5);
-	case 5: mbp->param[4] = ISP_READ(isp, OUTMAILBOX4);
-	case 4: mbp->param[3] = ISP_READ(isp, OUTMAILBOX3);
-	case 3: mbp->param[2] = ISP_READ(isp, OUTMAILBOX2);
-	case 2: mbp->param[1] = ISP_READ(isp, OUTMAILBOX1);
-	case 1: mbp->param[0] = ISP_READ(isp, OUTMAILBOX0);
-	}
-
-	/*
-	 * Clear RISC int.
-	 */
-	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-
-	/*
-	 * Release semaphore on mailbox registers
-	 */
-	ISP_WRITE(isp, BIU_SEMA, 0);
 
 	/*
 	 * Just to be chatty here...
@@ -3679,30 +3654,6 @@ command_known:
 	case MBOX_LOOP_ID_USED:
 	case MBOX_PORT_ID_USED:
 	case MBOX_ALL_IDS_USED:
-		break;
-
-
-	/*
-	 * Be silent about these...
-	 */
-	case ASYNC_PDB_CHANGED:
-		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_PDB_RCVD;
-		break;
-
-	case ASYNC_LIP_OCCURRED:
-		((fcparam *) isp->isp_param)->isp_lipseq = mbp->param[1];
-		/* FALLTHROUGH */
-	case ASYNC_LOOP_UP:
-		((fcparam *) isp->isp_param)->isp_fwstate = FW_CONFIG_WAIT;
-		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_LIP_RCVD;
-		break;
-
-	case ASYNC_LOOP_DOWN:
-	case ASYNC_LOOP_RESET:
-		((fcparam *) isp->isp_param)->isp_fwstate = FW_CONFIG_WAIT;
-		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_NIL;
-		/* FALLTHROUGH */
-	case ASYNC_CHANGE_NOTIFY:
 		break;
 
 	default:
@@ -4175,9 +4126,6 @@ isp_restart(isp)
 	ISP_SCSI_XFER_T *xs;
 	u_int32_t handle;
 
-#if	0
-	isp->isp_gotdparms = 0;
-#endif
 	isp_reset(isp);
 	if (isp->isp_state == ISP_RESETSTATE) {
 		isp_init(isp);
