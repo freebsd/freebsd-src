@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.31 1997/04/26 11:46:15 peter Exp $
+ * $Id: kern_synch.c,v 1.32 1997/06/22 16:04:18 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -51,6 +51,7 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
@@ -69,6 +70,29 @@ int	lbolt;			/* once a second sleep address */
 extern void	endtsleep __P((void *));
 extern void	updatepri __P((struct proc *p));
 
+#define MAXIMUM_SCHEDULE_QUANTUM	(1000000) /* arbitrary limit */
+#ifndef DEFAULT_SCHEDULE_QUANTUM
+#define DEFAULT_SCHEDULE_QUANTUM 10
+#endif
+static int quantum = DEFAULT_SCHEDULE_QUANTUM; /* default value */
+
+static int
+sysctl_kern_quantum SYSCTL_HANDLER_ARGS
+{
+	int error;
+	int new_val = quantum;
+
+	new_val = quantum;
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+	if ((error == 0) && (new_val > 0) && (new_val < MAXIMUM_SCHEDULE_QUANTUM)) {
+		quantum = new_val;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
+	0, sizeof quantum, sysctl_kern_quantum, "I", "");
+
 /*
  * Force switch among equal priority processes every 100ms.
  */
@@ -79,7 +103,7 @@ roundrobin(arg)
 {
 
 	need_resched();
-	timeout(roundrobin, NULL, hz / 10);
+	timeout(roundrobin, NULL, hz / quantum);
 }
 
 /*
