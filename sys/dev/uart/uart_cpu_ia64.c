@@ -104,3 +104,9 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/* Check the environment. */
 	return (uart_getenv(devtype, di));
 }
+
+void
+uart_cpu_identify(driver_t *driver, device_t parent)
+{
+ 
+}
