@@ -1016,7 +1016,8 @@ sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_machdep, OID_AUTO, hlt_cpus, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_hlt_cpus, "IU", "");
+    0, 0, sysctl_hlt_cpus, "IU",
+    "Bitmap of CPUs to halt.  101 (binary) will halt CPUs 0 and 2.");
 
 static int
 sysctl_hlt_logical_cpus(SYSCTL_HANDLER_ARGS)
