@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.3 1995/05/30 03:50:57 rgrimes Exp $
+ * $Id: slcompress.c,v 1.3.4.1 1996/02/05 17:03:20 dfr Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 #ifndef lint
-static char const rcsid[] = "$Id$";
+static char const rcsid[] = "$Id: slcompress.c,v 1.3.4.1 1996/02/05 17:03:20 dfr Exp $";
 #endif
 
 #include "defs.h"
@@ -430,10 +430,17 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		cs = &comp->rstate[comp->last_recv = ip->ip_p];
 		comp->flags &=~ SLF_TOSS;
 		ip->ip_p = IPPROTO_TCP;
-		hlen = ip->ip_hl;
+		/*
+		 * Calculate the size of the TCP/IP header and make sure that
+		 * we don't overflow the space we have available for it.
+		*/
+		hlen = ip->ip_hl << 2;
+		if (hlen + sizeof(struct tcphdr) > len)
+			goto bad;
 		th = (struct tcphdr *)&((int *)ip)[hlen];
-		hlen += THOFFSET(th);
-		hlen <<= 2;
+		hlen += THOFFSET(th) << 2;
+		if (hlen > MAX_HDR)
+			goto bad;
 		BCOPY(ip, &cs->cs_ip, hlen);
 		cs->cs_ip.ip_sum = 0;
 		cs->cs_hlen = hlen;
