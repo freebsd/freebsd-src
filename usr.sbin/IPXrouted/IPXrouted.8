@@ -77,7 +77,7 @@ to supply routing information whether it is acting as an internetwork
 router or not.
 .It Fl S
 Do not supply Service Advertising Protocol
-.Tn SAP
+.Pq Tn SAP
 information.
 The default is to supply
 .Tn SAP
@@ -207,7 +207,9 @@ and networks.
 .Pp
 If
 .Nm
-receives a SIGINFO signal the current contents of the
+receives a
+.Dv SIGINFO
+signal the current contents of the
 .Tn RIP
 and
 .Tn SAP
