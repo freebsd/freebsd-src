@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.7 1995/08/16 16:14:10 bde Exp $
+ * $Id: lfs_extern.h,v 1.8 1995/11/09 08:14:13 bde Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
-#define _UFS_LFS_LFS_EXTERN_H_
+#define	_UFS_LFS_LFS_EXTERN_H_
 
+#ifdef KERNEL
 struct fid;
 struct mount;
 struct nameidata;
@@ -47,8 +48,6 @@ struct inode;
 struct uio;
 struct mbuf;
 
-__BEGIN_DECLS
-u_long	 cksum __P((void *, size_t));				/* XXX */
 int	 lfs_balloc __P((struct vnode *, u_long, daddr_t, struct buf **));
 int	 lfs_blkatoff __P((struct vop_blkatoff_args *));
 int	 lfs_bwrite __P((struct vop_bwrite_args *));
@@ -105,7 +104,6 @@ void	 lfs_writesuper __P((struct lfs *));
 void	lfs_dump_dinode __P((struct dinode *));
 void	lfs_dump_super __P((struct lfs *));
 #endif
-__END_DECLS
 
 extern int lfs_allclean_wakeup;
 extern int locked_queue_count;
@@ -113,5 +111,10 @@ extern vop_t **lfs_vnodeop_p;
 extern vop_t **lfs_specop_p;
 extern vop_t **lfs_fifoop_p;
 #define LFS_FIFOOPS lfs_fifoop_p
+#endif /* KERNEL */
 
-#endif
+__BEGIN_DECLS
+u_long	 cksum __P((void *, size_t));	/* XXX */
+__END_DECLS
+
+#endif /* !_UFS_LFS_LFS_EXTERN_H_ */
