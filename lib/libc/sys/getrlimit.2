@@ -105,7 +105,7 @@ soft limit is exceeded a process may receive a signal (for example, if
 the cpu time or file size is exceeded), but it will be allowed to
 continue execution until it reaches the hard limit (or modifies
 its resource limit).  The
-.Em rlimit
+.Vt rlimit
 structure is used to specify the hard and soft limits on a resource,
 .Bd -literal -offset indent
 struct rlimit {

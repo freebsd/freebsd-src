@@ -54,7 +54,7 @@ The
 .Fn ualarm
 function
 waits a count of
-.Ar microseconds
+.Fa microseconds
 before asserting the terminating signal
 .Dv SIGALRM .
 System activity or time used in processing the call may cause a slight
@@ -74,9 +74,9 @@ microseconds have passed).
 Due to
 .Xr setitimer 2
 restriction the maximum number of
-.Ar microseconds
+.Fa microseconds
 and
-.Ar interval
+.Fa interval
 is limited to 100000000000000
 (in case this value fit in the unsigned integer).
 .Sh RETURN VALUES

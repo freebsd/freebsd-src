@@ -70,9 +70,9 @@ and
 The functions cover all the functionalities provided by the older ones,
 and provide better interface to programmers.
 The functions require additional arguments,
-.Ar af ,
+.Fa af ,
 and
-.Ar flags ,
+.Fa flags ,
 for specifying address family and operation mode.
 The additional arguments allow programmer to get address for a nodename,
 for specific address family
@@ -81,7 +81,7 @@ for specific address family
 or
 .Dv AF_INET6 ) .
 The functions also require an additional pointer argument,
-.Ar error_num
+.Fa error_num
 to return the appropriate error code,
 to support thread safe error code returns.
 .Pp
@@ -93,18 +93,18 @@ is described in
 For
 .Fn getipnodebyname ,
 the
-.Ar name
+.Fa name
 argument can be either a node name or a numeric address
 string
 (i.e., a dotted-decimal IPv4 address or an IPv6 hex address).
 The
-.Ar af
+.Fa af
 argument specifies the address family, either
 .Dv AF_INET
 or
 .Dv AF_INET6 .
 The
-.Ar flags
+.Fa flags
 argument specifies the types of addresses that are searched for,
 and the types of addresses that are returned.
 We note that a special flags value of
@@ -123,22 +123,22 @@ with
 .Pp
 Applications desiring finer control over the types of addresses
 searched for and returned, can specify other combinations of the
-.Ar flags
+.Fa flags
 argument.
 .Pp
 A
-.Ar flags
+.Fa flags
 of
 .Li 0
 implies a strict interpretation of the
-.Ar af
+.Fa af
 argument:
 .Bl -bullet
 .It
 If
-.Ar flags
+.Fa flags
 is 0 and
-.Ar af
+.Fa af
 is
 .Dv AF_INET ,
 then the caller wants only IPv4 addresses.
@@ -154,9 +154,9 @@ structure will be 4, else the function returns a
 pointer.
 .It
 If
-.Ar flags
+.Fa flags
 is 0 and if
-.Ar af
+.Fa af
 is
 .Li AF_INET6 ,
 then the caller wants only IPv6 addresses.
@@ -173,14 +173,14 @@ pointer.
 .El
 .Pp
 Other constants can be logically-ORed into the
-.Ar flags
+.Fa flags
 argument, to modify the behavior of the function.
 .Bl -bullet
 .It
 If the
 .Dv AI_V4MAPPED
 flag is specified along with an
-.Ar af
+.Fa af
 of
 .Dv AF_INET6 ,
 then the caller will accept IPv4-mapped IPv6 addresses.
@@ -194,7 +194,7 @@ will be 16).
 The
 .Dv AI_V4MAPPED
 flag is ignored unless
-.Ar af
+.Fa af
 equals
 .Dv AF_INET6 .
 .It
@@ -246,7 +246,7 @@ configured.
 .Pp
 For example, if the node has no IPv6 source addresses configured,
 and
-.Ar af
+.Fa af
 equals AF_INET6, and the node name being looked up has both
 .Li AAAA
 and
@@ -277,40 +277,40 @@ is defined as
 We noted that the
 .Fn getipnodebyname
 function must allow the
-.Ar name
+.Fa name
 argument to be either a node name or a literal address string
 (i.e., a dotted-decimal IPv4 address or an IPv6 hex address).
 This saves applications from having to call
 .Xr inet_pton 3
 to handle literal address strings.
 When the
-.Ar name
+.Fa name
 argument is a literal address string,
 the
-.Ar flags
+.Fa flags
 argument is always ignored.
 .Pp
 There are four scenarios based on the type of literal address string
 and the value of the
-.Ar af
+.Fa af
 argument.
 The two simple cases are when
-.Ar name
+.Fa name
 is a dotted-decimal IPv4 address and
-.Ar af
+.Fa af
 equals
 .Dv AF_INET ,
 or when
-.Ar name
+.Fa name
 is an IPv6 hex address and
-.Ar af
+.Fa af
 equals
 .Dv AF_INET6 .
 The members of the
 returned hostent structure are:
 .Li h_name
 points to a copy of the
-.Ar name
+.Fa name
 argument,
 .Li h_aliases
 is a
@@ -318,7 +318,7 @@ is a
 pointer,
 .Li h_addrtype
 is a copy of the
-.Ar af
+.Fa af
 argument,
 .Li h_length
 is either 4
@@ -336,9 +336,9 @@ is a
 pointer.
 .Pp
 When
-.Ar name
+.Fa name
 is a dotted-decimal IPv4 address and
-.Ar af
+.Fa af
 equals
 .Dv AF_INET6 ,
 and
@@ -364,15 +364,15 @@ is a
 pointer.
 .Pp
 It is an error when
-.Ar name
+.Fa name
 is an IPv6 hex address and
-.Ar af
+.Fa af
 equals
 .Dv AF_INET .
 The function's return value is a
 .Dv NULL
 pointer and the value pointed to by
-.Ar error_num
+.Fa error_num
 equals
 .Dv HOST_NOT_FOUND .
 .Pp
@@ -416,7 +416,7 @@ returns
 .Dv NULL
 on errors.
 The integer values pointed to by
-.Ar error_num
+.Fa error_num
 may then be checked to see whether this is a temporary failure
 or an invalid or unknown host.
 The meanings of each error code are described in
