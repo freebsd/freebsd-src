@@ -62,9 +62,6 @@
  */
 
 #include "psm.h"
-#ifdef __i386__
-#include "apm.h"
-#endif
 #include "opt_psm.h"
 
 #if NPSM > 0
@@ -83,15 +80,11 @@
 #include <sys/select.h>
 #include <sys/uio.h>
 
-#ifdef __i386__
-#include <machine/apm_bios.h>
-#endif
 #include <machine/clock.h>
 #include <machine/limits.h>
 #include <machine/mouse.h>
 #include <machine/resource.h>
 
-#include <isa/isareg.h>
 #include <isa/isavar.h>
 #include <dev/kbd/atkbdcreg.h>
 
@@ -107,16 +100,17 @@
 
 /* features */
 
-/* #define PSM_HOOKAPM	   	   hook the APM resume event */
+/* #define PSM_HOOKRESUME   	   hook the system resume event */
 /* #define PSM_RESETAFTERSUSPEND   reset the device at the resume event */
 
-#if NAPM <= 0
-#undef PSM_HOOKAPM
-#endif /* NAPM */
-
-#ifndef PSM_HOOKAPM
-#undef PSM_RESETAFTERSUSPEND
+#ifdef PSM_HOOKAPM
+#undef PSM_HOOKRESUME
+#define PSM_HOOKRESUME		1
 #endif /* PSM_HOOKAPM */
+
+#ifndef PSM_HOOKRESUME
+#undef PSM_RESETAFTERSUSPEND
+#endif /* PSM_HOOKRESUME */
 
 /* end of driver specific options */
 
@@ -177,9 +171,6 @@ struct psm_softc {		/* Driver status information */
     int           button;	/* the latest button state */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
-#ifdef PSM_HOOKAPM
-    struct apmhook resumehook;
-#endif
 };
 devclass_t psm_devclass;
 #define PSM_SOFTC(unit)	((struct psm_softc*)devclass_get_softc(psm_devclass, unit))
@@ -235,9 +226,7 @@ typedef int packetfunc_t __P((struct psm_softc *, unsigned char *,
 /* function prototypes */
 static int psmprobe __P((device_t));
 static int psmattach __P((device_t));
-#ifdef PSM_HOOKAPM
-static int psmresume __P((void *));
-#endif
+static int psmresume __P((device_t));
 
 static d_open_t psmopen;
 static d_close_t psmclose;
@@ -309,6 +298,7 @@ static device_method_t psm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		psmprobe),
 	DEVMETHOD(device_attach,	psmattach),
+	DEVMETHOD(device_resume,	psmresume),
 
 	{ 0, 0 }
 };
@@ -1083,16 +1073,6 @@ psmattach(device_t dev)
     /* Done */
     make_dev(&psm_cdevsw, PSM_MKMINOR(unit, FALSE), 0, 0, 0666, "psm%d", unit);
     make_dev(&psm_cdevsw, PSM_MKMINOR(unit, TRUE), 0, 0, 0666, "bpsm%d", unit);
-
-#ifdef PSM_HOOKAPM
-    sc->resumehook.ah_name = "PS/2 mouse";
-    sc->resumehook.ah_fun = psmresume;
-    sc->resumehook.ah_arg = (void *)unit;
-    sc->resumehook.ah_order = APM_MID_ORDER;
-    apm_hook_establish(APM_HOOK_RESUME , &sc->resumehook);
-    if (verbose)
-        printf("psm%d: APM hooks installed.\n", unit);
-#endif /* PSM_HOOKAPM */
 
     if (!verbose) {
         printf("psm%d: model %s, device ID %d\n", 
@@ -2368,18 +2348,18 @@ enable_versapad(struct psm_softc *sc)
     return TRUE;				/* PS/2 absolute mode */
 }
 
-#ifdef PSM_HOOKAPM
 static int
-psmresume(void *dummy)
+psmresume(device_t dev)
 {
-    struct psm_softc *sc = PSM_SOFTC((int)dummy);
-    int unit = (int)dummy;
+#ifdef PSM_HOOKRESUME
+    struct psm_softc *sc = device_get_softc(dev);
+    int unit = device_get_unit(dev);
     int err = 0;
     int s;
     int c;
 
     if (verbose >= 2)
-        log(LOG_NOTICE, "psm%d: APM resume hook called.\n", unit);
+        log(LOG_NOTICE, "psm%d: system resume hook called.\n", unit);
 
     /* don't let anybody mess with the aux device */
     if (!kbdc_lock(sc->kbdc, TRUE))
@@ -2461,11 +2441,13 @@ psmresume(void *dummy)
     }
 
     if (verbose >= 2)
-        log(LOG_DEBUG, "psm%d: APM resume hook exiting.\n", unit);
+        log(LOG_DEBUG, "psm%d: system resume hook exiting.\n", unit);
 
     return (err);
+#else /* !PSM_HOOKRESUME */
+    return (0);
+#endif /* PSM_HOOKRESUME */
 }
-#endif /* PSM_HOOKAPM */
 
 DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
 
