@@ -1034,15 +1034,15 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 
 	if(cfg->hose){
 		if (base & 0x80000000) {
-			printf("base   addr = 0x%x\n", base);
-			printf("hacked addr = 0x%x\n",
-			       base | (cfg->hose << 31));
+			printf("base   addr = 0x%lx\n", base);
+			printf("hacked addr = 0x%lx\n",
+			       base | ((u_int64_t)cfg->hose << 31));
 					
 			panic("hose encoding hack would clobber base addr");
 		}
 		if (cfg->hose > 1)
 			panic("only one hose supported!");
-		base |= (cfg->hose << 31);
+		base |= ((u_int64_t)cfg->hose << 31);
 	}
 #endif
 	if (type == SYS_RES_IOPORT && !pci_porten(cfg))
