@@ -90,6 +90,12 @@
 static void *pcvt_devfs_token[MAXCONS];
 #endif /*DEVFS*/
 
+#if PCVT_FREEBSD >= 200
+#include <machine/stdarg.h>
+#else
+#include "machine/stdarg.h"
+#endif
+
 extern int getchar __P((void));
 
 #if PCVT_NETBSD
