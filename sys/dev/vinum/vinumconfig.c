@@ -107,7 +107,7 @@ throw_rude_remark(int error, char *msg,...)
 
     va_start(ap, msg);
     if ((ioctl_reply != NULL)				    /* we're called from the user */
-    &&(!(vinum_conf.flags & VF_DISKCONFIG))) {		    /* and not reading from disk: return msg */
+    &&(!(vinum_conf.flags & VF_READING_CONFIG))) {	    /* and not reading from disk: return msg */
 	/*
 	 * We can't just format to ioctl_reply, since it
 	 * may contain our input parameters 
@@ -133,7 +133,7 @@ throw_rude_remark(int error, char *msg,...)
     va_end(ap);
 
     if (vinum_conf.flags & VF_READING_CONFIG) {		    /* go through to the bitter end, */
-	if ((vinum_conf.flags & VF_DISKCONFIG)		    /* we're reading from disk, */
+	if ((vinum_conf.flags & VF_READING_CONFIG)	    /* we're reading from disk, */
 	&&((daemon_options & daemon_noupdate) == 0)) {
 	    log(LOG_NOTICE, "Disabling configuration updates\n");
 	    daemon_options |= daemon_noupdate;
@@ -275,7 +275,7 @@ my_sd(int plexno, int sdno)
 void 
 checkdiskconfig(char *op)
 {
-    if ((vinum_conf.flags & VF_DISKCONFIG) == 0)
+    if ((vinum_conf.flags & VF_READING_CONFIG) == 0)
 	throw_rude_remark(EPERM, "Can't perform '%s' from config file", op);
 }
 
@@ -1102,7 +1102,7 @@ config_subdisk(int update)
 	case kw_plexoffset:
 	    size = sizespec(token[++parameter]);
 	    if ((size == -1)				    /* unallocated */
-	    &&(vinum_conf.flags & VF_DISKCONFIG))	    /* reading from disk */
+	    &&(vinum_conf.flags & VF_READING_CONFIG))	    /* reading from disk */
 		break;					    /* invalid sd; just ignore it */
 	    if ((size % DEV_BSIZE) != 0)
 		throw_rude_remark(EINVAL, "sd %s, bad plex offset alignment: %lld", sd->name, size);
@@ -1113,7 +1113,7 @@ config_subdisk(int update)
 	case kw_driveoffset:
 	    size = sizespec(token[++parameter]);
 	    if ((size == -1)				    /* unallocated */
-	    &&(vinum_conf.flags & VF_DISKCONFIG))	    /* reading from disk */
+	    &&(vinum_conf.flags & VF_READING_CONFIG))	    /* reading from disk */
 		break;					    /* invalid sd; just ignore it */
 	    if ((size % DEV_BSIZE) != 0)
 		throw_rude_remark(EINVAL, "sd %s, bad drive offset alignment: %lld", sd->name, size);
@@ -1947,7 +1947,7 @@ start_config(void)
 void 
 finish_config(int update)
 {
-    vinum_conf.flags &= ~VF_CONFIG_INCOMPLETE;		    /* we've finished our config */
+    vinum_conf.flags &= ~(VF_CONFIG_INCOMPLETE | VF_READING_CONFIG); /* we've finished our config */
     if (update)
 	updateconfig(0);				    /* so update things */
     else
