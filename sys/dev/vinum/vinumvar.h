@@ -52,7 +52,6 @@
 enum constants {
     VINUM_HEADER = 512,					    /* size of header on disk */
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
-    /* XXX Do we still need this? */
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
     CDEV_MAJOR = 91,					    /* major number for character device */
@@ -110,6 +109,16 @@ enum constants {
 #define VINUMBDEV(v,p,s,t)  makedev (BDEV_MAJOR, VINUMMINOR (v, p, s, t))
 #define VINUMCDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
+#define VINUM_BLOCK_PLEX(p)	makedev (BDEV_MAJOR,				\
+					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
+					 | (p & 0xff)				\
+					 | ((p & ~0xff) << 8) )
+
+#define VINUM_CHAR_PLEX(p)	makedev (CDEV_MAJOR,				\
+					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
+					 | (p & 0xff)				\
+					 | ((p & ~0xff) << 8) )
+
 #define VINUM_BLOCK_SD(s)	makedev (BDEV_MAJOR,				\
 					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
 					 | (s & 0xff)				\
@@ -166,7 +175,7 @@ enum constants {
     INITIAL_SUBDISKS_IN_DRIVE = 4,			    /* number of subdisks to allocate to a drive */
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
-    INITIAL_LOCKS = 8,					    /* number of locks to allocate to a volume */
+    INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* size of block to transfer in one op */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
@@ -337,19 +346,23 @@ struct vinum_label {
     char name[MAXDRIVENAME];				    /* our name of the drive */
     struct timeval date_of_birth;			    /* the time it was created */
     struct timeval last_update;				    /* and the time of last update */
-    off_t drive_size;					    /* total size in bytes of the drive.
-							    * This value includes the headers */
+    /*
+     * total size in bytes of the drive.  This value
+     * includes the headers.
+     */
+    off_t drive_size;
 };
 
 struct vinum_hdr {
     long long magic;					    /* we're long on magic numbers */
-    /* XXX Get these right for big-endian */
 #define VINUM_MAGIC    22322600044678729LL		    /* should be this */
 #define VINUM_NOMAGIC  22322600044678990LL		    /* becomes this after obliteration */
-    int config_length;					    /* size in bytes of each copy of the
-							    * configuration info.
-							    * This must be a multiple of the sector size. */
-
+    /*
+     * Size in bytes of each copy of the
+     * configuration info.  This must be a multiple
+     * of the sector size.
+     */
+    int config_length;
     struct vinum_label label;				    /* unique label */
 };
 
@@ -421,8 +434,8 @@ struct sd {
     int plexno;						    /* index of plex, if it belongs */
     int driveno;					    /* index of the drive on which it is located */
     int sdno;						    /* our index in vinum_conf */
-    int plexsdno;					    /* and our number in our plex
-							    * (undefined if no plex) */
+    int plexsdno;					    /* and our number in our plex */
+    /* (undefined if no plex) */
     u_int64_t reads;					    /* number of reads on this subdisk */
     u_int64_t writes;					    /* number of writes on this subdisk */
     u_int64_t bytes_read;				    /* number of bytes read */
@@ -448,7 +461,7 @@ enum plexorg {
 struct plex {
     enum plexorg organization;				    /* Plex organization */
     enum plexstate state;				    /* and current state */
-    u_int64_t length;					    /* total length of plex (max offset, in blocks) */
+    u_int64_t length;					    /* total length of plex (sectors) */
     int flags;
     int stripesize;					    /* size of stripe or raid band, in sectors */
     int subdisks;					    /* number of associated subdisks */
@@ -458,8 +471,9 @@ struct plex {
     int volno;						    /* index of volume */
     int volplexno;					    /* number of plex in volume */
     /* Lock information */
-    int locks;						    /* number of locks used */
     int alloclocks;					    /* number of locks allocated */
+    int usedlocks;					    /* number currently in use */
+    int lockwaits;					    /* and number of waits for locks */
     struct rangelock *lock;				    /* ranges of locked addresses */
     /* Statistics */
     u_int64_t reads;					    /* number of reads on this plex */
@@ -479,16 +493,20 @@ struct plex {
 
 /* Address range definitions, for locking volumes */
 struct rangelock {
-    u_int64_t first;
-    u_int64_t last;
+    daddr_t stripe;					    /* address + 1 of the range being locked  */
+    struct buf *bp;					    /* user's buffer pointer */
+    int plexno;						    /* and number of plex it affects */
 };
 
 struct volume {
     enum volumestate state;				    /* current state */
     int plexes;						    /* number of plexes */
     int preferred_plex;					    /* plex to read from, -1 for round-robin */
-    int last_plex_read;					    /* index of plex used for last read,
-							    * for round-robin */
+    /*
+     * index of plex used for last read, for
+     * round-robin.
+     */
+    int last_plex_read;
     int volno;						    /* volume number */
     int flags;						    /* status and configuration flags */
     int openflags;					    /* flags supplied to last open(2) */
@@ -502,7 +520,10 @@ struct volume {
     u_int64_t reads;					    /* number of reads on this volume */
     u_int64_t writes;					    /* number of writes on this volume */
     u_int64_t recovered_reads;				    /* reads recovered from another plex */
-    /* Unlike subdisks in the plex, space for the plex pointers is static */
+    /*
+     * Unlike subdisks in the plex, space for the
+     * plex pointers is static.
+     */
     int plex[MAXPLEX];					    /* index of plexes */
     char name[MAXVOLNAME];				    /* name of volume */
     struct disklabel label;				    /* for DIOCGPART */
@@ -603,3 +624,6 @@ enum debugflags {
 #define longjmp LongJmp					    /* test our longjmps */
 #endif
 #endif
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
