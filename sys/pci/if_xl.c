@@ -2426,6 +2426,10 @@ static void xl_init(xsc)
 	 */
 	xl_stop(sc);
 
+	if (sc->xl_miibus == NULL) {
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
+		xl_wait(sc);
+	}
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
 	DELAY(10000);
