@@ -95,24 +95,30 @@ ENTRY(_setjmp, 1)
     //
     //  save preserved general registers & NaT's
     //
+    .mem.offset 0,0
     st8.spill   [r11] = r4, J_R6-J_R4
+    .mem.offset 8,0
+    st8.spill   [r10] = r5, J_R7-J_R5
     ;;
-    st8.spill   [r10] = r5, J_R7-J_R5 
-    ;;
+    .mem.offset 16,0
     st8.spill   [r11] = r6, J_SP-J_R6
-    ;;
+    .mem.offset 24,0
     st8.spill   [r10] = r7, J_F3-J_R7 
     ;;
     st8.spill   [r11] = sp, J_F2-J_SP
+    mov	    r16 = ar.rsc
     ;;
     //
     // save spilled Unat and pfs registers
     //
     mov     r2 = ar.unat        // save Unat register after spill
+    mov	ar.rsc = r0
     ;;
     st8     [r32] = r2, J_PFS-J_NATS    // save unat for spilled regs
+    mov     r17 = ar.rnat
     ;;
-    st8     [r32] = r15         // save pfs
+    st8     [r32] = r15, J_RNAT-J_PFS	// save pfs
+    mov	    ar.rsc = r16
     //
     //  save floating registers 
     //
@@ -145,6 +151,8 @@ ENTRY(_setjmp, 1)
     ;;
     stf.spill   [r11] = f30, J_FPSR-J_F30
     stf.spill   [r10] = f31, J_B0-J_F31     // size of f31 + fpsr
+    ;;
+    st8     [r32] = r17
     //
     // save FPSR register & branch registers
     //
@@ -192,66 +200,31 @@ END(_setjmp)
 
 	WEAK_ALIAS(_longjmp,___longjmp)
 ENTRY(___longjmp, 2)
-    //
-    // caching the return value as we do invala in the end
-    //
+    mov     r14 = ar.rsc        // get user RSC conf
     mov     r8 = r33            // return value
-
-    //
-    //  get immediate context
-    //
-    mov     r14 = ar.rsc        // get user RSC conf 
     add     r10 = J_PFS, r32    // get address of pfs
+    ;;
+    mov     ar.rsc = r0
     add     r11 = J_NATS, r32
+    add     r17 = J_RNAT, r32
     ;;
     ld8     r15 = [r10], J_BSP-J_PFS    // get pfs
     ld8     r2 = [r11], J_LC-J_NATS     // get unat for spilled regs
+    mov     r31 = r32
     ;;
+    loadrs
     mov     ar.unat = r2
+    cmp.eq  p6,p0=0,r8			// Return value 0?
     ;;
     ld8     r16 = [r10], J_PREDS-J_BSP  // get backing store pointer
-    mov     ar.rsc = r0         // put RSE in enforced lazy 
+    ld8     r17 = [r17]			// ar.rnat
     mov     ar.pfs = r15
     ;;
-    
-    //
-    // while returning from longjmp the BSPSTORE and BSP needs to be
-    // same and discard all the registers allocated after we did
-    // setjmp. Also, we need to generate the RNAT register since we
-    // did not flushed the RSE on setjmp.
-    //
-    mov     r17 = ar.bspstore   // get current BSPSTORE
+    mov     ar.bspstore = r16
+(p6) add    r8 = 1, r0
     ;;
-    cmp.ltu p6,p7 = r17, r16    // is it less than BSP of 
-(p6)    br.spnt.few .flush_rse
-    mov     r19 = ar.rnat       // get current RNAT
-    ;;
-    loadrs                      // invalidate dirty regs
-    br.sptk.many    .restore_rnat       // restore RNAT
-
-.flush_rse:
-    flushrs
-    ;;
-    mov     r19 = ar.rnat       // get current RNAT
-    mov     r17 = r16           // current BSPSTORE
-    ;;
-.restore_rnat:
-    //
-    // check if RNAT is saved between saved BSP and curr BSPSTORE
-    //
-    mov     r18 = 0x3f
-    ;; 
-    dep     r18 = r18,r16,3,6   // get RNAT address
-    ;;
-    cmp.ltu p8,p9 = r18, r17    // RNAT saved on RSE
-    ;;
-(p8)    ld8     r19 = [r18]     // get RNAT from RSE
-    ;;
-    mov     ar.bspstore = r16   // set new BSPSTORE 
-    ;;
-    mov     ar.rnat = r19       // restore RNAT
+    mov     ar.rnat = r17
     mov     ar.rsc = r14        // restore RSC conf
-
 
     ld8     r3 = [r11], J_R4-J_LC       // get lc register
     ld8     r2 = [r10], J_R5-J_PREDS    // get predicates
@@ -316,12 +289,12 @@ ENTRY(___longjmp, 2)
     mov     b1 = r2
     mov     b2 = r3
     ld8     r2 = [r10], J_B5-J_B3
-    ld8     r3 = [r11]
+    ld8     r3 = [r11],
     ;;
     mov     b3 = r2
     mov     b4 = r3 
     ld8     r2 = [r10]
-    ld8     r21 = [r32]         // get user unat
+    ld8     r21 = [r31]         // get user unat
     ;;
     mov     b5 = r2
     mov     ar.unat = r21
