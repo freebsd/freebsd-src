@@ -950,7 +950,7 @@ deliver(e, firstto)
 	}
 	errno = 0;
 
-	CurHostName = m->m_mailer;
+	CurHostName = host;
 
 	/*
 	**  Deal with the special case of mail handled through an IPC
