@@ -1,7 +1,9 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.17 1996/01/19 23:38:07 phk Exp $
+ *	$Id: vector.s,v 1.18 1996/03/31 03:31:29 bde Exp $
  */
+
+#include "opt_auto_eoi.h"
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>

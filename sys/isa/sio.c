@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.137 1996/04/10 04:18:36 scrappy Exp $
+ *	$Id: sio.c,v 1.138 1996/04/10 18:09:58 scrappy Exp $
  */
 
-#include "sio.h"
+#include "opt_comconsole.h"
 #include "opt_ddb.h"
+#include "opt_sio.h"
+#include "sio.h"
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
