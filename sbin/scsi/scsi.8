@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.4 1995/05/01 12:35:04 dufault Exp $
+.\"	$Id: scsi.8,v 1.5 1995/05/05 20:41:58 dufault Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -130,9 +130,13 @@ for a description of the "super scsi" device.
 .Pp
 The
 .Fr -r
-option can be used in FreeBSD 1.1 to reprobe a specific SCSI device at a given
+option can be used in 
+.Tn FreeBSD 
+1.1 to reprobe a specific SCSI device at a given
 Bus, Target and Lun.
-This is not needed in FreeBSD 2.1, since opening a fixed SCSI device
+This is not needed in
+.Fx 2.1 ,
+since opening a fixed SCSI device
 has the side effect of reprobing it, and probing with the bus with the
 -p option should bring on line any newly found devices.
 See
