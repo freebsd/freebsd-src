@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2003
+.Dd August 1, 2003
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -144,6 +144,13 @@ Read-only.
 A list of additional options to pass to the
 .Xr tinderbox 1
 script.
+No default value.
+.It PATCH
+.Pq Vt single
+The file name (either absolute, or relative to the sandbox directory)
+of the patch to apply if the
+.Dq patch
+command is specified.
 No default value.
 .It PLATFORMS
 .Pq Vt multiple
