@@ -1906,6 +1906,7 @@ interactive to avoid problems due to waiting to fill buffers
 flag below).  A non-zero value
 in the macro invocation marks the buffer as interactive, a zero  
 value as non-interactive.  Note that use of this macro overrides
+.B %option interactive ,
 .B %option always-interactive
 or
 .B %option never-interactive
@@ -2312,6 +2313,14 @@ or
 .B \-CF.
 Thus, this option is not really needed; it is on by default for all those
 cases in which it is allowed.
+.IP
+Note that if
+.B isatty()
+returns false for the scanner input, flex will revert to batch mode, even if
+.B \-I
+was specified.  To force interactive mode no matter what, use
+.B %option always-interactive
+(see Options below).
 .IP
 You can force a scanner to
 .I not
