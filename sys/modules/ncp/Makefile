@@ -12,13 +12,4 @@ SRCS+=	ncp_burst.c
 CFLAGS+= -DNCPBURST
 .endif
 
-load: ${KMOD}.ko
-	kldload ./${KMOD}.ko
-
-unload:
-	@(if kldunload ${KMOD}; then true; else true; fi)
-
-deinstall:
-	rm -f /modules/ncp.ko
-
 .include <bsd.kmod.mk>

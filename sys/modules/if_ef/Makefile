@@ -29,10 +29,4 @@ opt_ef.h:
 .endif
 .endfor
 
-load: all
-	/sbin/kldload ./${PROG}
-
-unload:
-	/sbin/kldunload ${PROG}
-
 .include <bsd.kmod.mk>

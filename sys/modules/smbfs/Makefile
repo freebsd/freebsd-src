@@ -60,7 +60,4 @@ opt_netsmb.h:
 	echo "#define NETSMBCRYPTO 1" >> ${.TARGET}
 .endif
 
-unload:
-	@(if kldunload ${KMOD}; then true; else true; fi)
-
 .include <bsd.kmod.mk>
