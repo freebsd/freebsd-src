@@ -163,7 +163,7 @@ get_scsi_info(struct kernel *kp){
 
       sbp=(struct uc_scsibus *)realloc(sbp, sizeof(struct uc_scsibus)*
                                        (nscsibus+1));
-      sbpc=sbp+nscsibus+1;
+      sbpc=sbp+nscsibus;
       bzero(sbpc, sizeof(struct uc_scsibus));
 
       kp->scsi_devp=sp;
