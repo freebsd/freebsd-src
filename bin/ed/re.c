@@ -40,7 +40,7 @@ static char * const rcsid =
 
 extern int patlock;
 
-char errmsg[MAXPATHLEN + 40] = "";
+char errmsg[PATH_MAX + 40] = "";
 
 /* get_compiled_pattern: return pointer to compiled pattern from command
    buffer */
