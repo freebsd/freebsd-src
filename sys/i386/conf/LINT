@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.78 1994/09/11 21:09:49 ats Exp $
+#	$Id: LINT,v 1.79 1994/09/13 03:34:08 phk Exp $
 #
 
 machine		"i386"
@@ -109,8 +109,7 @@ device		sd3
 pseudo-device	sl	2
 device		st0
 device		st1
-# options		SYSVSHM
-# options		"SHMMAXPGS=64"		# 256Kb of sharable memory
+options		SYSVSHM
 options		SYSVSEM
 options		SYSVMSG
 #pseudo-device	tb			#tablet line discipline.
