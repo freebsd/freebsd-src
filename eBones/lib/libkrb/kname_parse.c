@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: kname_parse.c,v 4.4 88/12/01 14:07:29 jtkohl Exp $
- *	$Id: kname_parse.c,v 1.3 1995/07/18 16:38:54 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: kname_parse.c,v 1.3 1995/07/18 16:38:54 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

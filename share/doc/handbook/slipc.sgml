@@ -1,4 +1,4 @@
-<!-- $Id: slipc.sgml,v 1.6 1996/05/16 23:18:18 mpp Exp $ -->
+<!-- $FreeBSD$ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up a SLIP client<label id="slipc"></heading>

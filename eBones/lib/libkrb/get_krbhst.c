@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_krbhst.c,v 4.8 89/01/22 20:00:29 rfrench Exp $
- *	$Id: get_krbhst.c,v 1.3 1995/07/18 16:38:32 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_krbhst.c,v 1.3 1995/07/18 16:38:32 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

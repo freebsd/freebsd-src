@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.23 1996/05/12 07:48:47 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

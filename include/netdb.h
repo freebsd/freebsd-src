@@ -32,7 +32,7 @@
  *
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
  *      From: Id: netdb.h,v 8.7 1996/05/09 05:59:09 vixie Exp
- *	$Id: netdb.h,v 1.5 1996/08/29 20:00:56 peter Exp $
+ *	$FreeBSD$
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *

@@ -1,5 +1,5 @@
 # Makefile for cu
-# $Id: Makefile,v 1.4 1995/08/19 21:24:49 ache Exp $
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

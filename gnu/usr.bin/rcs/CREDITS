@@ -21,4 +21,4 @@ Brendan Kehoe of Cygnus Support suggested rlog's -N option.
 Paul D. Smith of Data General suggested improvements in option
 and error processing.  Adam Hammer of Purdue QAed.
 
-$Id: CREDITS,v 1.1 1993/11/03 17:50:39 eggert Exp $
+$FreeBSD$

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_note.c	8.2 (Berkeley) 1/21/94
  *
- *	$Id: procfs_note.c,v 1.1.1.1 1994/05/24 10:05:09 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

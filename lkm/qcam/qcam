@@ -1,4 +1,4 @@
 #!/bin/sh
-# $Id$
+# $FreeBSD$
 
 modload -q -u -A `sysctl -n kern.bootfile` /lkm/qcam_mod.o

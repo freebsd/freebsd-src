@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_seq.h	8.3 (Berkeley) 6/21/95
- *	$Id: tcp_seq.h,v 1.5 1995/02/14 02:35:17 wollman Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _NETINET_TCP_SEQ_H_

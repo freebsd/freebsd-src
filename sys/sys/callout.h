@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id: callout.h,v 1.3 1994/08/18 22:35:41 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_CALLOUT_H_

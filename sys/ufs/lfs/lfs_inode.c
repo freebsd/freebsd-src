@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.12 1996/01/05 18:31:52 wollman Exp $
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"

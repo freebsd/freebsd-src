@@ -1,7 +1,7 @@
 /*
  * getif.c : get an interface structure
  *
- *	$Id: getif.c,v 1.3 1996/09/22 21:52:12 wosch Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/types.h>

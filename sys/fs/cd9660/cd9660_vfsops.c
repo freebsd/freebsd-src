@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.14 1995/08/11 11:31:01 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

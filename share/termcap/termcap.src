@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.71 1997/01/07 21:12:05 ache Exp $
+#	$FreeBSD$
 
 #	Termcap source file
 #	John Kunze, Berkeley

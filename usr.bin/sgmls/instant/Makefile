@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/09/08 01:55:10 jfieber Exp $
+#	$FreeBSD$
 
 PROG=	instant
 SRCS=	browse.c info.c main.c tables.c traninit.c translate.c 

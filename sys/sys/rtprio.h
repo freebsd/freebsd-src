@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rtprio.h,v 1.1 1994/09/01 05:12:53 davidg Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _SYS_RTPRIO_H_

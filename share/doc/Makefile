@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.9 1996/09/08 21:24:15 jfieber Exp $
+#	$FreeBSD$
 
 SUBDIR=	FAQ handbook psd smm usd papers
 

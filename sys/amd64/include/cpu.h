@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.24 1996/04/07 16:44:28 bde Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _MACHINE_CPU_H_

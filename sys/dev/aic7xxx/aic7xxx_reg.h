@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.17 1996/11/16 01:07:35 gibbs Exp $
+ *	$FreeBSD$
  */
 
 /*

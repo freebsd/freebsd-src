@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.8 1996/09/03 14:24:44 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

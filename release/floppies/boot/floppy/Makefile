@@ -1,5 +1,5 @@
 
-#	$Id: Makefile,v 1.2 1996/06/24 04:23:34 jkh Exp $
+#	$FreeBSD$
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables

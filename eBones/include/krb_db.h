@@ -11,7 +11,7 @@
  * They MUST correspond to those defined in *.rel
  *
  *	from: krb_db.h,v 4.9 89/01/24 17:55:39 jon Exp $
- *	$Id: krb_db.h,v 1.4 1995/08/25 21:25:12 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef KRB_DB_DEFS

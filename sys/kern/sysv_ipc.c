@@ -1,4 +1,4 @@
-/*	$Id: sysv_ipc.c,v 1.3 1996/01/08 04:30:48 peter Exp $ */
+/*	$FreeBSD$ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*

@@ -6,7 +6,7 @@
  * Include file for password server
  *
  *	from: passwd_server.h,v 4.6 89/01/11 15:12:22 steiner Exp $
- *	$Id: passwd_server.h,v 1.3 1995/07/18 16:36:43 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef PASSWD_SERVER_DEFS

@@ -1,4 +1,4 @@
-// $Id$
+// $FreeBSD$
 // ivax
 
 #define FSTYPE_UFS	4.2

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.23 1996/12/11 05:17:23 dyson Exp $
+ * $FreeBSD$
  */
 
 #ifdef LFS_READWRITE

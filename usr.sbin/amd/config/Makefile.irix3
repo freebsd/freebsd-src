@@ -1,6 +1,6 @@
 #	@(#)Makefile.irix3	8.1 (Berkeley) 6/6/93
 #
-# $Id: Makefile.irix3,v 1.1.1.1 1994/05/26 05:22:09 rgrimes Exp $
+# $FreeBSD$
 #
 # Extra Makefile definitions for IRIX
 #

@@ -37,7 +37,7 @@
  *
  *	@(#)os-concentrix.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-concentrix.h,v 5.2.2.1 1992/02/09 15:10:14 jsp beta $
+ * $FreeBSD$
  *
  * Alliant Concentrix 5.0.0 definitions for Amd (automounter)
  */

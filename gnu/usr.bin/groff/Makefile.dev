@@ -2,7 +2,7 @@
 # Client Makefiles define DEV and DEVFILES and provide rules for
 # individual font files
 #
-# $Id: Makefile.dev,v 2.1 1996/09/08 01:27:11 pst Exp $
+# $FreeBSD$
 
 .include "../Makefile.cfg"
 

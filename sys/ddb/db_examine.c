@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.13 1996/01/15 22:39:32 phk Exp $
+ *	$FreeBSD$
  */
 
 /*

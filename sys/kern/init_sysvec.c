@@ -1,7 +1,7 @@
 /*
  * sysentvec for native FreeBSD a.out executable format.
  *
- * $Id: init_sysvec.c,v 1.1 1996/03/02 19:38:08 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

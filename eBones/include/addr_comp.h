@@ -6,7 +6,7 @@
  * Include file for address comparison macros.
  *
  *	from: addr_comp.h,v 4.0 89/01/23 09:57:44 jtkohl Exp $
- *	$Id: addr_comp.h,v 1.3 1995/07/18 16:36:01 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef ADDR_COMP_DEFS

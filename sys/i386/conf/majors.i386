@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.8 1996/10/10 20:41:13 phk Exp $
+$FreeBSD$
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

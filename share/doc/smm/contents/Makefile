@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	smm
 SRCS=	contents.ms

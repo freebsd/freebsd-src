@@ -6,7 +6,7 @@
  * Convert a struct tm * to a UNIX time.
  *
  *	from: maketime.c,v 4.2 90/01/09 15:54:51 raeburn Exp $
- *	$Id: maketime.c,v 1.3 1995/07/18 16:37:29 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0

@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.1 1996/08/29 21:46:46 peter Exp $
+# $FreeBSD$
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"

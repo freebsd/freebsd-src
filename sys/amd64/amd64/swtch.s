@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.40 1996/09/19 08:28:16 phk Exp $
+ *	$FreeBSD$
  */
 
 #include "apm.h"

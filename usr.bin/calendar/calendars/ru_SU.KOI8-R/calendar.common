@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $Id: calendar.common,v 1.1 1996/05/10 21:36:48 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ru_SU_KOI8_R_common_

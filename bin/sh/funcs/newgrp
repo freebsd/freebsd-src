@@ -33,6 +33,6 @@
 # SUCH DAMAGE.
 #
 #	@(#)newgrp	8.2 (Berkeley) 5/4/95
-#	$Id: newgrp,v 1.2 1994/09/24 02:58:40 davidg Exp $
+#	$FreeBSD$
 
 newgrp() exec newgrp "$@"

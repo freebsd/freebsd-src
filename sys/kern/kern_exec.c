@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.47 1996/10/12 21:35:19 dyson Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

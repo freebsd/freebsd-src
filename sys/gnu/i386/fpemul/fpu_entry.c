@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.8 1995/12/14 20:21:49 bde Exp $
+ *  $FreeBSD$
  *
  */
 

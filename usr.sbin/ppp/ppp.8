@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.22 1996/12/22 17:09:15 jkh Exp $
+.\" $FreeBSD$
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8

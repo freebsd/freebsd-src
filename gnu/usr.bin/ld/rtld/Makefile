@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1996/09/12 03:42:54 bde Exp $
+#	$FreeBSD$
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c md.c support.c sbrk.c

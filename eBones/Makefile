@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.22 1996/10/01 14:07:34 jkh Exp $
+#	$FreeBSD$
 
 SUBDIR=	include lib libexec usr.bin usr.sbin man
 

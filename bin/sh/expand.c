@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.12 1996/12/14 06:19:16 steve Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

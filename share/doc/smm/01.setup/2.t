@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.t	8.1 (Berkeley) 7/27/93
-.\"	$Id: 2.t,v 1.3 1996/10/05 18:37:17 wosch Exp $
+.\"	$FreeBSD$
 .\"
 .ds lq ``
 .ds rq ''

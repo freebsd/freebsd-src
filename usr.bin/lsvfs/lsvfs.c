@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.4 1995/03/16 20:29:11 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.10 1995/11/05 23:07:37 dyson Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

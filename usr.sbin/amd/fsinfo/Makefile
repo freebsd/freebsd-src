@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/28/93
-# 	$Id: $
+# 	$FreeBSD$
 
 PROG=	fsinfo
 MAN8=	fsinfo.8

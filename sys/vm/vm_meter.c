@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.15 1996/05/18 03:37:47 dyson Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

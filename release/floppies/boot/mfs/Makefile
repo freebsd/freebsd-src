@@ -1,5 +1,5 @@
 ###
-#	$Id: Makefile,v 1.1 1996/05/21 01:12:36 julian Exp $
+#	$FreeBSD$
 #
 # What are we if we weren't told..
 CRUNCH?= mfs

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.23 1996/06/18 05:16:00 dyson Exp $
+ *	$FreeBSD$
  */
 
 /*

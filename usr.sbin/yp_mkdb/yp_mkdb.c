@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp wpaul $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>
@@ -50,7 +50,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp wpaul $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 char *yp_dir = "";	/* No particular default needed. */

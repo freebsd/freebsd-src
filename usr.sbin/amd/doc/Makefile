@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1995/02/19 09:10:53 jkh Exp $
+# $FreeBSD$
 #
 # Copyright (c) 1990 Jan-Simon Pendry
 # Copyright (c) 1990 Imperial College of Science, Technology & Medicine

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1996/06/06 03:58:06 wpaul Exp $
+# $FreeBSD$
 
 PROG=	ypxfr
 SRCS=	ypxfr_clnt.c yp_clnt.c ypxfr_getmap.c yp_dblookup.c \

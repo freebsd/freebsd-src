@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)parser.h	8.3 (Berkeley) 5/4/95
- *	$Id: parser.h,v 1.3 1996/09/01 10:21:34 peter Exp $
+ *	$FreeBSD$
  */
 
 /* control characters in argument strings */

@@ -37,7 +37,7 @@
  *
  *	@(#)mtab_aix.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mtab_aix.c,v 5.2.2.1 1992/02/09 15:10:07 jsp beta $
+ * $FreeBSD$
  *
  */
 

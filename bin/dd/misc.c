@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.4 1996/11/13 20:00:03 phk Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.8 1996/07/12 05:25:46 bde Exp $
+ *	$FreeBSD$
  */
 
 #include	"asm.h"

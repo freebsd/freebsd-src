@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_log10.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(__ieee754_log10)
 	fldlg2

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.1 1995/01/11 01:52:01 wollman Exp $
+#	$FreeBSD$
 
 VOLUME=	psd/18.gprof
 SRCS=	header.me abstract.me intro.me profiling.me gathering.me \

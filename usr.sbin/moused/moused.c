@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id: moused.c,v 1.3 1996/09/09 18:47:47 sos Exp $
+ **      $FreeBSD$
  **/
 
 /**

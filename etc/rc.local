@@ -1,7 +1,7 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id: rc.local,v 1.20 1996/08/17 07:15:38 peter Exp $
+#	$FreeBSD$
 #
 
 T=/tmp/_motd

@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: obstack.h,v 1.2 1993/11/03 00:52:06 paul Exp $
+ * $FreeBSD$
  */
 
 

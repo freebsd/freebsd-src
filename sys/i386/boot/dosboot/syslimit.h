@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)syslimits.h	7.4 (Berkeley) 2/4/91
- *	$Id: syslimits.h,v 1.4 1994/01/20 22:57:32 davidg Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _SYS_SYSLIMITS_H_

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_time_rcsid[] = "$Id: time.c,v 1.13 1995/06/21 19:24:39 ian Rel $";
+const char _uuconf_time_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

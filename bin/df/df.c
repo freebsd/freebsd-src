@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.9 1996/12/11 10:01:56 jkh Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

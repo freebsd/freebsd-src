@@ -1,6 +1,6 @@
 # koi8-r (backward compatible with ASCII)
 #
-# $Id$
+# $FreeBSD$
 #
 charmap map.KOI8-R
 order \

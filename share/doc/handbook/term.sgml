@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      hardwired terminals with FreeBSD.  By Sean Kelly, (c) 1996.
 
-     $Id: term.sgml,v 1.4 1996/11/03 14:46:16 max Exp $
+     $FreeBSD$
 
      The FreeBSD Documentation Project
 

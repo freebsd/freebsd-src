@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.16 1996/10/21 07:30:24 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

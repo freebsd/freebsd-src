@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-common	5.7 (Berkeley) 8/5/91
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .\"     %beginstrip%
 .nr %A 1

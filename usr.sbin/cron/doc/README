@@ -69,4 +69,4 @@ have to go edit a couple of files... So, here's the checklist:
 	if you like it, change your /etc/{rc,rc.local} to use it instead of
 		the old one.
 
-$Id: README,v 2.3 1993/12/28 08:34:43 vixie Exp $
+$FreeBSD$

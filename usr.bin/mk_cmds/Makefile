@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/01/19 22:27:57 wollman Exp $
+#	$FreeBSD$
 
 PROG=	mk_cmds
 #

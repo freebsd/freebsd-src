@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.16 1996/10/15 03:16:43 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .if \nv .rm CM
 .de UX

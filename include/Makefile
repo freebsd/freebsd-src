@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.47 1996/12/30 07:38:51 jkh Exp $
+#	$FreeBSD$
 #
 # Doing a make install builds /usr/include
 #

@@ -1,7 +1,11 @@
 #!/usr/local/bin/wish -f
-#$Id: tkpkg,v 1.1 1994/01/06 08:16:20 jkh Exp $
+#$FreeBSD$
 #
 #$Log: tkpkg,v $
+#Revision 1.2  1994/12/06 00:51:21  jkh
+#Many of John T. Kohl's patches from NetBSD.  Thanks, John!
+#Submitted by:	jkohl
+#
 # Revision 1.1  1994/01/06  08:16:20  jkh
 # Cleaning house.
 #

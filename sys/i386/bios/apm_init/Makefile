@@ -12,7 +12,7 @@
 #
 # Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
 #
-#	$Id: Makefile,v 1.3 1995/02/17 02:22:30 phk Exp $
+#	$FreeBSD$
 #
 
 OBJS = apm_init.o real_prot.o table.o

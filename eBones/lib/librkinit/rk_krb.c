@@ -1,7 +1,7 @@
 /* 
- * $Id: rk_krb.c,v 1.1 1993/12/10 19:36:09 dglo Exp gibbs $
- * $Source: /usr/src/eBones/librkinit/RCS/rk_krb.c,v $
- * $Author: dglo $
+ * $FreeBSD$
+ * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_krb.c,v $
+ * $Author: gibbs $
  *
  * This file contains the kerberos parts of the rkinit library.
  * See the comment at the top of rk_lib.c for a description of the naming
@@ -9,7 +9,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rk_krb.c,v 1.1 1993/12/10 19:36:09 dglo Exp gibbs $";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 static char rcsid[] =
-	"$Id: rsh.c,v 1.7 1996/02/11 09:14:12 markm Exp $";
+	"$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

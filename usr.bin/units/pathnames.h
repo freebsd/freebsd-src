@@ -1,4 +1,4 @@
-/*	$Id: pathnames.h,v 1.3 1996/04/06 06:01:00 thorpej Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1993 Christopher G. Demetriou

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1996/09/05 19:58:11 jfieber Exp $
+#	$FreeBSD$
 
 FILES=	ISOamsa ISOamsb ISOamsc ISOamsn ISOamso ISOamsr
 FILES+=	ISObox ISOcyr1 ISOcyr2 ISOdia ISOgrk1 ISOgrk2 ISOgrk3

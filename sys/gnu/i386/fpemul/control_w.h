@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *        $Id: control_w.h,v 1.3 1994/06/10 07:44:07 rich Exp $
+ *        $FreeBSD$
  *
  */
 

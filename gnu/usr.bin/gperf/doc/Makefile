@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/09/10 14:03:12 peter Exp $
+# $FreeBSD$
 
 INFO = gperf
 INFOSECTION= "Programming & development tools."

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)csh.a	8.1 (Berkeley) 6/8/93
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .SH
 Appendix \- Special characters

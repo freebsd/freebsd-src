@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.11 1996/03/28 14:33:56 scrappy Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

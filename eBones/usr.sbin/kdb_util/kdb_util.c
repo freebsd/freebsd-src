@@ -12,13 +12,13 @@
  * Written July 9, 1987 by Jeffrey I. Schiller
  *
  *	from: kdb_util.c,v 4.4 90/01/09 15:57:20 raeburn Exp $
- *	$Id: kdb_util.c,v 1.5 1995/08/03 17:15:57 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_util.c,v 1.5 1995/08/03 17:15:57 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

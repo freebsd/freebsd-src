@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utmp.h	8.2 (Berkeley) 1/21/94
- *	$Id: utmp.h,v 1.2 1996/10/27 18:13:35 wosch Exp $
+ *	$FreeBSD$
  */
 
 #ifndef	_UTMP_H_

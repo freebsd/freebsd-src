@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.22 1996/08/30 17:03:45 pst Exp $
+ *	$FreeBSD$
  */
 
 /*

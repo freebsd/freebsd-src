@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.25 1996/09/13 23:51:44 pst Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

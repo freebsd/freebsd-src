@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .sh 2 "X.25 Public Data Network Support"
 .pp

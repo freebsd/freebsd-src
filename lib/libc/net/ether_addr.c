@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.6 1996/12/10 17:19:09 wollman Exp $
+ *	$FreeBSD$
  */
 
 

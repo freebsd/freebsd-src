@@ -1,7 +1,7 @@
 #
 # Internet (IP) protocols
 #
-#	$Id: protocols,v 1.3 1995/08/29 19:29:35 wollman Exp $
+#	$FreeBSD$
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # Updated for FreeBSD based on RFC 1340, Assigned Numbers (July 1992).

@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.80 1997/01/02 20:41:07 mpp Exp $
+#	$FreeBSD$
 #
 
 /set type=dir uname=bin gname=bin mode=0755

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 3.8.1.3 1996/09/06 18:30:00 fenner Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -34,7 +34,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"@(#) $Id: main.c,v 3.8.1.3 1996/09/06 18:30:00 fenner Exp $";
+	"@(#) $FreeBSD$";
 #endif
 
 extern char *configfilename;

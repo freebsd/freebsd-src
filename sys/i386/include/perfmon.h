@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.h,v 1.1 1996/03/26 19:57:56 wollman Exp $
+ *	$FreeBSD$
  */
 
 /*

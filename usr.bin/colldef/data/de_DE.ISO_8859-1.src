@@ -1,6 +1,6 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $Id$
+# $FreeBSD$
 #
 charmap map.ISO_8859-1
 order \

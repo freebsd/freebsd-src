@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.29 1996/09/08 10:44:18 phk Exp $
+ *      $FreeBSD$
  */
 
 /* XXX This is PRELIMINARY.

@@ -35,7 +35,7 @@
  *
  *	@(#)umap.h	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap.h,v 1.3 1995/05/30 08:07:15 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #define MAPFILEENTRIES 64

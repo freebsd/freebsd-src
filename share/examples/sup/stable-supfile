@@ -1,4 +1,4 @@
-# $Id: stable-supfile,v 1.4 1996/05/04 14:08:48 jkh Exp $
+# $FreeBSD$
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # source distribution from the stable (bug-fix only) development branch.

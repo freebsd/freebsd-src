@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 3.8.1.1 1995/12/01 22:20:26 fenner Exp $
+ * $FreeBSD$
  */
 
 

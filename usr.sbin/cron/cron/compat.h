@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: compat.h,v 1.1.1.1 1994/08/27 13:43:04 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef __P

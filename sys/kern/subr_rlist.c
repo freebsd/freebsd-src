@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.18 1996/10/12 21:35:25 dyson Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

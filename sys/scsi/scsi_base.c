@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.39 1996/07/14 10:46:48 joerg Exp $
+ *      $FreeBSD$
  */
 
 #include "opt_bounce.h"

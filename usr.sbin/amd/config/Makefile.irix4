@@ -1,6 +1,6 @@
 #	@(#)Makefile.irix4	8.1 (Berkeley) 6/6/93
 #
-# $Id: Makefile.irix4,v 5.2 1992/05/31 16:40:22 jsp Exp $
+# $FreeBSD$
 #
 # Extra Makefile definitions for IRIX
 #

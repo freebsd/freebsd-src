@@ -46,7 +46,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_disk.h,v 1.8 1995/05/30 08:13:35 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 /*

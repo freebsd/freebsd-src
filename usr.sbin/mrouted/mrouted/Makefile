@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1995/07/08 22:36:06 ats Exp $
+#	$FreeBSD$
 
 PROG=	mrouted
 

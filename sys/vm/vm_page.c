@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.71 1996/11/17 02:38:31 dyson Exp $
+ *	$FreeBSD$
  */
 
 /*

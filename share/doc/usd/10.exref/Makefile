@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.5 1996/11/01 07:57:05 peter Exp $
+#	$FreeBSD$
 
 VOLUME=	usd/10.exref
 SRCS=	ex.rm

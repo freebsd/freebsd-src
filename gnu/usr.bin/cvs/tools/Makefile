@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1995/12/11 01:58:50 peter Exp $
+#	$FreeBSD$
 
 .include "${.CURDIR}/../Makefile.inc"
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eval.c,v 1.8 1996/11/12 18:35:06 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -37,7 +37,7 @@
  *
  *	@(#)os-dgux.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-dgux.h,v 5.2.2.1 1992/02/09 15:10:18 jsp beta $
+ * $FreeBSD$
  *
  * dg/ux definitions for Amd (automounter)
  */

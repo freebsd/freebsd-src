@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.7 1996/11/13 19:59:58 phk Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

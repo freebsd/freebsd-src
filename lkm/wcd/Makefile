@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/09/06 23:32:55 pst Exp $
+#	$FreeBSD$
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod

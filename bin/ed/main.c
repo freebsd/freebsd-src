@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6 1996/08/11 16:48:11 ache Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

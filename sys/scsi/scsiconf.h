@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.45 1996/09/08 10:44:17 phk Exp $
+ *	$FreeBSD$
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.32 1996/11/05 07:57:29 gibbs Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _AIC7XXX_H_

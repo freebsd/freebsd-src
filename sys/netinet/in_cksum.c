@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_cksum.c	8.1 (Berkeley) 6/10/93
- * $Id: in_cksum.c,v 1.2 1994/08/02 07:48:16 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

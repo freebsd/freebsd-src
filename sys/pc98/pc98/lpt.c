@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.6 1996/11/02 10:39:30 asami Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: doboth,v 1.1 1993/10/02 21:01:07 pk Exp $
+# $FreeBSD$
 
 x=$1 ; shift
 y=$1 ; shift

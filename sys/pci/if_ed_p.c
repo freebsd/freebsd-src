@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.5 1996/10/15 19:22:40 bde Exp $
+ *	$FreeBSD$
  */
 
 #include "pci.h"

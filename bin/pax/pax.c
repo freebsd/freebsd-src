@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pax.c,v 1.5 1996/08/11 16:59:27 ache Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsiom.h	8.1 (Berkeley) 6/11/93
- * $Id: mfsiom.h,v 1.3 1994/08/21 07:16:11 paul Exp $
+ * $FreeBSD$
  */
 
 #ifndef _UFS_MFS_MFSIOM_H_

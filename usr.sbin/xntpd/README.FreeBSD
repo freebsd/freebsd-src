@@ -1,4 +1,4 @@
-	$Id: README.FreeBSD,v 1.7 1994/04/21 21:10:20 wollman Exp $
+	$FreeBSD$
 
 This version of NTP was converted to the BSD-style Makefile system by
 Garrett Wollman (wollman@FreeBSD.org); it is based on version

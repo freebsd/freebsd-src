@@ -1,5 +1,5 @@
 # Makefile for uucp
-# $Id: Makefile,v 1.2 1994/05/31 05:37:12 ache Exp $
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.45 1996/11/11 04:56:19 fenner Exp $
+ *	$FreeBSD$
  */
 
 #define _IP_VHL

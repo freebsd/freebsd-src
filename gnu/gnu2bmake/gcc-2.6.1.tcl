@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $FreeBSD$
 #
 # Good for 2.6.1 and 2.6.2
 
@@ -95,7 +95,7 @@ set target [makefile_macro target $sdir]
 sh "rm -rf $ddir"
 sh "mkdir $ddir"
 set f [open $ddir/Makefile.inc w]
-puts $f "#\n# \$Id\$\n#\n"
+puts $f "#\n# \$FreeBSD$\n#\n"
 puts $f "CFLAGS+=\t-I\${.CURDIR} -I\${.CURDIR}/../include"
 puts $f "CFLAGS+=\t-Dbsd4_4"
 puts $f "CFLAGS+=\t-DGCC_INCLUDE_DIR=\\\"FOO\\\""
@@ -124,7 +124,7 @@ puts $f ".endif"
 close $f
 
 set f [open $ddir/Makefile w]
-puts $f "#\n# \$Id\$\n#\n"
+puts $f "#\n# \$FreeBSD$\n#\n"
 puts $f "PGMDIR=\tcc_int cpp cc1 cc cc1plus c++ f77 libgcc"
 puts $f "SUBDIR=\t\$(PGMDIR)"
 puts $f "\n.include <bsd.subdir.mk>"
@@ -135,7 +135,7 @@ sh "mkdir $ddir/legal"
 sh "cp $sdir/gen-*.c $sdir/md $ddir/legal"
 set f [open $ddir/README w]
 puts $f {
-$Id$
+$FreeBSD$
 
 This directory contains gcc in a form that uses "bmake" makefiles.
 This is not the place you want to start, if you want to hack gcc.
@@ -154,7 +154,7 @@ Thankyou.
 # do ~/libgcc
 sh "mkdir $ddir/libgcc"
 set f [open $ddir/libgcc/Makefile w]
-puts $f "#\n# \$Id\$\n#\n"
+puts $f "#\n# \$FreeBSD$\n#\n"
 puts $f "LIB=\tgcc"
 puts $f "INSTALL_PIC_ARCHIVE=\tyes"
 puts $f "SHLIB_MAJOR=\t261"

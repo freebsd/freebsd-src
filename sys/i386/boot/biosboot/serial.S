@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.3 1995/04/21 16:30:18 bde Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $Id: signalvar.h,v 1.12 1996/03/15 08:01:33 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */

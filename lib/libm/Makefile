@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.2 1994/08/05 01:52:05 wollman Exp $
+#	$FreeBSD$
 #
 # ieee		- for most IEEE machines, we hope.
 # mc68881	- the, ahem, mc68881.

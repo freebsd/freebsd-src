@@ -6,13 +6,13 @@
  * This is where a cache would be implemented, if it were necessary.
  *
  *	from: krb_cache.c,v 4.5 89/01/24 18:12:34 jon Exp $
- *	$Id: krb_cache.c,v 1.3 1995/07/18 16:37:12 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_cache.c,v 1.3 1995/07/18 16:37:12 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

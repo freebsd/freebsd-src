@@ -1,6 +1,6 @@
 /*
- * $Source: /usr/cvs/src/eBones/kdb/krb_lib.c,v $
- * $Author: mark $
+ * $Source: /home/ncvs/src/eBones/lib/libkdb/krb_lib.c,v $
+ * $Author: markm $
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *
@@ -11,7 +11,7 @@
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_lib.c,v 1.3 1995/07/18 16:37:17 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

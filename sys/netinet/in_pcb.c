@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.23 1996/10/30 06:13:09 peter Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
 #
 # TEST.sh - check if test(1) or builtin test works
 #
-# $Id: TEST.sh,v 1.2 1996/08/27 20:03:30 wosch Exp $
+# $FreeBSD$
 
 # force a specified test program, e.g. `env test=/bin/test sh TEST.sh'
 : ${test=test}		

@@ -1,7 +1,7 @@
 #
 #	pccardc Makefile
 #
-#	$Id: Makefile,v 1.3 1996/09/04 22:25:28 bde Exp $
+#	$FreeBSD$
 #
 PROG=	pccardc
 NOMAN=	noman

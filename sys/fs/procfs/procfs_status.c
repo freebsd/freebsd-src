@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_status.c,v 1.4 1995/05/30 08:07:10 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

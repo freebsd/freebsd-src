@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
- * $Id: specdev.h,v 1.7 1995/12/11 04:56:43 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

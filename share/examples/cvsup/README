@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work

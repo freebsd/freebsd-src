@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.10 1996/11/12 08:43:32 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

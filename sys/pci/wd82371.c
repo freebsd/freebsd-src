@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: wd82371.c,v 1.5 1996/06/14 11:02:09 asami Exp $
+ *	$FreeBSD$
  */
 
 #include "pci.h"

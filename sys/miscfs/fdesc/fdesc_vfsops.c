@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.6 1995/11/07 13:39:18 phk Exp $
+ * $FreeBSD$
  */
 
 /*

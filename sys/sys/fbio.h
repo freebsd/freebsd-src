@@ -36,7 +36,7 @@
  *
  *	@(#)fbio.h	8.2 (Berkeley) 10/30/93
  *
- * $Id: fbio.h,v 1.2 1994/08/02 07:52:56 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_FBIO_H_

@@ -1,7 +1,7 @@
 #
 # Bmakefile for sgmls
 #
-# $Id$
+# $FreeBSD$
 #
 
 PROG=	sgmls

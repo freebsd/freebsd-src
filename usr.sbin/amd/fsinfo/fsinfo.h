@@ -37,7 +37,7 @@
  *
  *	@(#)fsinfo.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: fsinfo.h,v 1.2 1996/12/10 17:00:31 wollman Exp $
+ * $FreeBSD$
  *
  */
 

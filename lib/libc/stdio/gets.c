@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)gets.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tzsetup.c,v 1.1 1996/11/19 18:09:40 wollman Exp $
+ *	$FreeBSD$
  */
 
 /*

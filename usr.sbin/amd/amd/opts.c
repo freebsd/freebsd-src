@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: opts.c,v 5.2.2.3 1992/05/31 16:34:13 jsp Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_write_cmd.c,v 1.6 1995/12/07 12:45:07 davidg Exp $
+ *	$FreeBSD$
  */
 
 /*

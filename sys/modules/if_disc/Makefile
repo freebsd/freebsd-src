@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 1994/09/22 22:12:59 wollman Exp $
+#       $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_disc_mod

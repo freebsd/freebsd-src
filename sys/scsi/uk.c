@@ -2,7 +2,7 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.13 1995/12/08 23:22:30 phk Exp $
+ *      $FreeBSD$
  *
  * If you find that you are adding any code to this file look closely
  * at putting it in "scsi_driver.c" instead.

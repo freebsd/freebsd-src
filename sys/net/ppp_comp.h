@@ -25,7 +25,7 @@
  * OR MODIFICATIONS.
  *
  * From: Id: ppp-comp.h,v 1.7 1995/05/01 01:43:37 paulus Exp
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef _NET_PPP_COMP_H

@@ -6,7 +6,7 @@
  * Machine-type definitions: Pyramid
  *
  *	from: conf-pyr.h,v 4.0 89/12/19 13:27:16 jtkohl Exp $
- *	$Id: conf-pyr.h,v 1.3 1995/07/18 16:36:20 mark Exp $
+ *	$FreeBSD$
  */
 
 #define BITS32

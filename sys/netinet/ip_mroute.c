@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.35 1996/11/23 19:07:02 fenner Exp $
+ * $FreeBSD$
  */
 
 #include "opt_mrouting.h"

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tftpd.c,v 1.4 1996/09/22 21:56:07 wosch Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.7 1996/11/07 12:38:44 asami Exp $
+# $FreeBSD$
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # cvs development tree.  SUP (Software Update Protocol) allows you to

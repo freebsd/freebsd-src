@@ -37,7 +37,7 @@
  *
  *	@(#)nlist.h	8.2 (Berkeley) 1/21/94
  *
- *	$Id: nlist.h,v 1.2 1994/12/23 22:32:48 nate Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _NLIST_H_

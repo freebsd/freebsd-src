@@ -12,7 +12,7 @@
 static char rcsid_kadm_supp_c[] =
 "Header: /afs/athena.mit.edu/astaff/project/kerberos/src/lib/kadm/RCS/kadm_supp.c,v 4.1 89/09/26 09:21:07 jtkohl Exp ";
 static const char rcsid[] =
-	"$Id: kadm_supp.c,v 1.1 1995/07/18 16:40:28 mark Exp $";
+	"$FreeBSD$";
 #endif	lint
 #endif
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.11 1996/12/23 22:29:03 steve Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

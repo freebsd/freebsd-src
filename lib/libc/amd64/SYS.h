@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.6 1996/08/22 04:25:00 julian Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/syscall.h>

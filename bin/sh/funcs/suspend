@@ -33,7 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)suspend	8.2 (Berkeley) 5/4/95
-#	$Id: suspend,v 1.2 1994/09/24 02:58:44 davidg Exp $
+#	$FreeBSD$
 
 suspend() {
 	local -
