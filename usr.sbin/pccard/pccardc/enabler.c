@@ -99,7 +99,7 @@ enabler_main(argc, argv)
 	}
 	if (argc)
 		usage("no parameter for argument");
-	printf("drv %s%d, mem 0x%lx, size %d, io %d, irq 0x%x, flags 0x%x\n",
+	printf("drv %s%d, mem 0x%lx, size %d, io 0x%x, irq 0x%x, flags 0x%x\n",
 		drv.name, drv.unit, drv.mem, drv.memsize, drv.iobase,
 		drv.irqmask, drv.flags);
 	sprintf(name, CARD_DEVICE, slot);
