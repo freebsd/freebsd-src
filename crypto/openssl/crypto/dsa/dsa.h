@@ -65,14 +65,13 @@
 #ifndef HEADER_DSA_H
 #define HEADER_DSA_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #ifdef NO_DSA
 #error DSA is disabled.
 #endif
 
+#ifndef NO_BIO
+#include <openssl/bio.h>
+#endif
 #include <openssl/bn.h>
 #include <openssl/crypto.h>
 #ifndef NO_DH
@@ -80,6 +79,10 @@ extern "C" {
 #endif
 
 #define DSA_FLAG_CACHE_MONT_P	0x01
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 typedef struct dsa_st DSA;
 
@@ -188,7 +191,7 @@ int	i2d_DSAPublicKey(DSA *a, unsigned char **pp);
 int 	i2d_DSAPrivateKey(DSA *a, unsigned char **pp);
 int	i2d_DSAparams(DSA *a,unsigned char **pp);
 
-#ifdef HEADER_BIO_H
+#ifndef NO_BIO
 int	DSAparams_print(BIO *bp, DSA *x);
 int	DSA_print(BIO *bp, DSA *x, int off);
 #endif

@@ -71,88 +71,28 @@ ASN1_ENUMERATED *ASN1_ENUMERATED_new(void)
 void ASN1_ENUMERATED_free(ASN1_ENUMERATED *x)
 { M_ASN1_ENUMERATED_free(x); }
 
+
 int i2d_ASN1_ENUMERATED(ASN1_ENUMERATED *a, unsigned char **pp)
-	{
-	int pad=0,ret,r,i,t;
-	unsigned char *p,*n,pb=0;
-
-	if ((a == NULL) || (a->data == NULL)) return(0);
-	t=a->type;
-	if (a->length == 0)
-		ret=1;
-	else
-		{
-		ret=a->length;
-		i=a->data[0];
-		if ((t == V_ASN1_ENUMERATED) && (i > 127)) {
-			pad=1;
-			pb=0;
-		} else if(t == V_ASN1_NEG_ENUMERATED) {
-			if(i>128) {
-				pad=1;
-				pb=0xFF;
-			} else if(i == 128) {
-				for(i = 1; i < a->length; i++) if(a->data[i]) {
-						pad=1;
-						pb=0xFF;
-						break;
-				}
-			}
-		}
-		ret+=pad;
-		}
-	r=ASN1_object_size(0,ret,V_ASN1_ENUMERATED);
-	if (pp == NULL) return(r);
-	p= *pp;
-
-	ASN1_put_object(&p,0,ret,V_ASN1_ENUMERATED,V_ASN1_UNIVERSAL);
-	if (pad) *(p++)=pb;
-	if (a->length == 0)
-		*(p++)=0;
-	else if (t == V_ASN1_ENUMERATED)
-		{
-		memcpy(p,a->data,(unsigned int)a->length);
-		p+=a->length;
-		}
-	else {
-		/* Begin at the end of the encoding */
-		n=a->data + a->length - 1;
-		p += a->length - 1;
-		i = a->length;
-		/* Copy zeros to destination as long as source is zero */
-		while(!*n) {
-			*(p--) = 0;
-			n--;
-			i--;
-		}
-		/* Complement and increment next octet */
-		*(p--) = ((*(n--)) ^ 0xff) + 1;
-		i--;
-		/* Complement any octets left */
-		for(;i > 0; i--) *(p--) = *(n--) ^ 0xff;
-		p += a->length;
+{
+	int len, ret;
+	if(!a) return 0;
+	len = i2c_ASN1_INTEGER(a, NULL);	
+	ret=ASN1_object_size(0,len,V_ASN1_ENUMERATED);
+	if(pp) {
+		ASN1_put_object(pp,0,len,V_ASN1_ENUMERATED,V_ASN1_UNIVERSAL);
+		i2c_ASN1_INTEGER(a, pp);	
 	}
-
-	*pp=p;
-	return(r);
-	}
+	return ret;
+}
 
 ASN1_ENUMERATED *d2i_ASN1_ENUMERATED(ASN1_ENUMERATED **a, unsigned char **pp,
 	     long length)
-	{
-	ASN1_ENUMERATED *ret=NULL;
-	unsigned char *p,*to,*s;
+{
+	unsigned char *p;
 	long len;
-	int inf,tag,xclass;
 	int i;
-
-	if ((a == NULL) || ((*a) == NULL))
-		{
-		if ((ret=M_ASN1_ENUMERATED_new()) == NULL) return(NULL);
-		ret->type=V_ASN1_ENUMERATED;
-		}
-	else
-		ret=(*a);
+	int inf,tag,xclass;
+	ASN1_ENUMERATED *ret;
 
 	p= *pp;
 	inf=ASN1_get_object(&p,&len,&tag,&xclass,length);
@@ -167,70 +107,17 @@ ASN1_ENUMERATED *d2i_ASN1_ENUMERATED(ASN1_ENUMERATED **a, unsigned char **pp,
 		i=ASN1_R_EXPECTING_AN_ENUMERATED;
 		goto err;
 		}
-
-	/* We must Malloc stuff, even for 0 bytes otherwise it
-	 * signifies a missing NULL parameter. */
-	s=(unsigned char *)Malloc((int)len+1);
-	if (s == NULL)
-		{
-		i=ERR_R_MALLOC_FAILURE;
-		goto err;
-		}
-	to=s;
-	if(!len) {
-		/* Strictly speaking this is an illegal ENUMERATED but we
-		 * tolerate it.
-		 */
-		ret->type=V_ASN1_ENUMERATED;
-	} else if (*p & 0x80) /* a negative number */
-		{
-		ret->type=V_ASN1_NEG_ENUMERATED;
-		if ((*p == 0xff) && (len != 1)) {
-			p++;
-			len--;
-		}
-		i = len;
-		p += i - 1;
-		to += i - 1;
-		while((!*p) && i) {
-			*(to--) = 0;
-			i--;
-			p--;
-		}
-		if(!i) {
-			*s = 1;
-			s[len] = 0;
-			p += len;
-			len++;
-		} else {
-			*(to--) = (*(p--) ^ 0xff) + 1;
-			i--;
-			for(;i > 0; i--) *(to--) = *(p--) ^ 0xff;
-			p += len;
-		}
-	} else {
-		ret->type=V_ASN1_ENUMERATED;
-		if ((*p == 0) && (len != 1))
-			{
-			p++;
-			len--;
-			}
-		memcpy(s,p,(int)len);
-		p+=len;
+	ret = c2i_ASN1_INTEGER(a, &p, len);
+	if(ret) {
+		ret->type = (V_ASN1_NEG & ret->type) | V_ASN1_ENUMERATED;
+		*pp = p;
 	}
-
-	if (ret->data != NULL) Free(ret->data);
-	ret->data=s;
-	ret->length=(int)len;
-	if (a != NULL) (*a)=ret;
-	*pp=p;
-	return(ret);
+	return ret;
 err:
 	ASN1err(ASN1_F_D2I_ASN1_ENUMERATED,i);
-	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
-		M_ASN1_ENUMERATED_free(ret);
 	return(NULL);
-	}
+
+}
 
 int ASN1_ENUMERATED_set(ASN1_ENUMERATED *a, long v)
 	{
@@ -242,8 +129,8 @@ int ASN1_ENUMERATED_set(ASN1_ENUMERATED *a, long v)
 	if (a->length < (sizeof(long)+1))
 		{
 		if (a->data != NULL)
-			Free(a->data);
-		if ((a->data=(unsigned char *)Malloc(sizeof(long)+1)) != NULL)
+			OPENSSL_free(a->data);
+		if ((a->data=(unsigned char *)OPENSSL_malloc(sizeof(long)+1)) != NULL)
 			memset((char *)a->data,0,sizeof(long)+1);
 		}
 	if (a->data == NULL)
@@ -318,7 +205,7 @@ ASN1_ENUMERATED *BN_to_ASN1_ENUMERATED(BIGNUM *bn, ASN1_ENUMERATED *ai)
 	else ret->type=V_ASN1_ENUMERATED;
 	j=BN_num_bits(bn);
 	len=((j == 0)?0:((j/8)+1));
-	ret->data=(unsigned char *)Malloc(len+4);
+	ret->data=(unsigned char *)OPENSSL_malloc(len+4);
 	ret->length=BN_bn2bin(bn,ret->data);
 	return(ret);
 err:
@@ -332,6 +219,6 @@ BIGNUM *ASN1_ENUMERATED_to_BN(ASN1_ENUMERATED *ai, BIGNUM *bn)
 
 	if ((ret=BN_bin2bn(ai->data,ai->length,bn)) == NULL)
 		ASN1err(ASN1_F_ASN1_ENUMERATED_TO_BN,ASN1_R_BN_LIB);
-	if(ai->type == V_ASN1_NEG_ENUMERATED) bn->neg = 1;
+	else if(ai->type == V_ASN1_NEG_ENUMERATED) ret->neg = 1;
 	return(ret);
 	}

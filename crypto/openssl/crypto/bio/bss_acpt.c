@@ -92,10 +92,10 @@ typedef struct bio_accept_st
 	BIO *bio_chain;
 	} BIO_ACCEPT;
 
-static int acpt_write(BIO *h,char *buf,int num);
-static int acpt_read(BIO *h,char *buf,int size);
-static int acpt_puts(BIO *h,char *str);
-static long acpt_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int acpt_write(BIO *h, const char *buf, int num);
+static int acpt_read(BIO *h, char *buf, int size);
+static int acpt_puts(BIO *h, const char *str);
+static long acpt_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int acpt_new(BIO *h);
 static int acpt_free(BIO *data);
 static int acpt_state(BIO *b, BIO_ACCEPT *c);
@@ -145,7 +145,7 @@ BIO_ACCEPT *BIO_ACCEPT_new(void)
 	{
 	BIO_ACCEPT *ret;
 
-	if ((ret=(BIO_ACCEPT *)Malloc(sizeof(BIO_ACCEPT))) == NULL)
+	if ((ret=(BIO_ACCEPT *)OPENSSL_malloc(sizeof(BIO_ACCEPT))) == NULL)
 		return(NULL);
 
 	memset(ret,0,sizeof(BIO_ACCEPT));
@@ -159,10 +159,10 @@ void BIO_ACCEPT_free(BIO_ACCEPT *a)
 	if(a == NULL)
 	    return;
 
-	if (a->param_addr != NULL) Free(a->param_addr);
-	if (a->addr != NULL) Free(a->addr);
+	if (a->param_addr != NULL) OPENSSL_free(a->param_addr);
+	if (a->addr != NULL) OPENSSL_free(a->addr);
 	if (a->bio_chain != NULL) BIO_free(a->bio_chain);
-	Free(a);
+	OPENSSL_free(a);
 	}
 
 static void acpt_close_socket(BIO *bio)
@@ -307,7 +307,7 @@ static int acpt_read(BIO *b, char *out, int outl)
 	return(ret);
 	}
 
-static int acpt_write(BIO *b, char *in, int inl)
+static int acpt_write(BIO *b, const char *in, int inl)
 	{
 	int ret;
 	BIO_ACCEPT *data;
@@ -326,7 +326,7 @@ static int acpt_write(BIO *b, char *in, int inl)
 	return(ret);
 	}
 
-static long acpt_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	BIO *dbio;
 	int *ip;
@@ -355,7 +355,7 @@ static long acpt_ctrl(BIO *b, int cmd, long num, char *ptr)
 				{
 				b->init=1;
 				if (data->param_addr != NULL)
-					Free(data->param_addr);
+					OPENSSL_free(data->param_addr);
 				data->param_addr=BUF_strdup(ptr);
 				}
 			else if (num == 1)
@@ -440,7 +440,7 @@ static long acpt_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(ret);
 	}
 
-static int acpt_puts(BIO *bp, char *str)
+static int acpt_puts(BIO *bp, const char *str)
 	{
 	int n,ret;
 

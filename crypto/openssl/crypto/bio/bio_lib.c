@@ -70,7 +70,7 @@ BIO *BIO_new(BIO_METHOD *method)
 	{
 	BIO *ret=NULL;
 
-	ret=(BIO *)Malloc(sizeof(BIO));
+	ret=(BIO *)OPENSSL_malloc(sizeof(BIO));
 	if (ret == NULL)
 		{
 		BIOerr(BIO_F_BIO_NEW,ERR_R_MALLOC_FAILURE);
@@ -78,7 +78,7 @@ BIO *BIO_new(BIO_METHOD *method)
 		}
 	if (!BIO_set(ret,method))
 		{
-		Free(ret);
+		OPENSSL_free(ret);
 		ret=NULL;
 		}
 	return(ret);
@@ -133,9 +133,12 @@ int BIO_free(BIO *a)
 
 	if ((a->method == NULL) || (a->method->destroy == NULL)) return(1);
 	ret=a->method->destroy(a);
-	Free(a);
+	OPENSSL_free(a);
 	return(1);
 	}
+
+void BIO_vfree(BIO *a)
+    { BIO_free(a); }
 
 int BIO_read(BIO *b, void *out, int outl)
 	{
@@ -198,13 +201,7 @@ int BIO_write(BIO *b, const void *in, int inl)
 
 	if (i > 0) b->num_write+=(unsigned long)i;
 
-	/* This is evil and not thread safe.  If the BIO has been freed,
-	 * we must not call the callback.  The only way to be able to
-	 * determine this is the reference count which is now invalid since
-	 * the memory has been free()ed.
-	 */
-	if (b->references <= 0) abort();
-	if (cb != NULL) /* && (b->references >= 1)) */
+	if (cb != NULL)
 		i=(int)cb(b,BIO_CB_WRITE|BIO_CB_RETURN,in,inl,
 			0L,(long)i);
 	return(i);
@@ -234,6 +231,8 @@ int BIO_puts(BIO *b, const char *in)
 		}
 
 	i=b->method->bputs(b,in);
+
+	if (i > 0) b->num_write+=(unsigned long)i;
 
 	if (cb != NULL)
 		i=(int)cb(b,BIO_CB_PUTS|BIO_CB_RETURN,in,0,
@@ -317,7 +316,7 @@ long BIO_ctrl(BIO *b, int cmd, long larg, void *parg)
 	return(ret);
 	}
 
-long BIO_callback_ctrl(BIO *b, int cmd, void (*fp)())
+long BIO_callback_ctrl(BIO *b, int cmd, void (*fp)(struct bio_st *, int, const char *, int, long, long))
 	{
 	long ret;
 	long (*cb)();
@@ -419,6 +418,7 @@ BIO *BIO_find_type(BIO *bio, int type)
 	{
 	int mt,mask;
 
+	if(!bio) return NULL;
 	mask=type&0xff;
 	do	{
 		if (bio->method != NULL)
@@ -435,6 +435,12 @@ BIO *BIO_find_type(BIO *bio, int type)
 		bio=bio->next_bio;
 		} while (bio != NULL);
 	return(NULL);
+	}
+
+BIO *BIO_next(BIO *b)
+	{
+	if(!b) return NULL;
+	return b->next_bio;
 	}
 
 void BIO_free_all(BIO *bio)
@@ -532,3 +538,5 @@ unsigned long BIO_number_written(BIO *bio)
 	if(bio) return bio->num_write;
 	return 0;
 }
+
+IMPLEMENT_STACK_OF(BIO)

@@ -98,13 +98,13 @@ typedef struct bio_connect_st
 	int (*info_callback)();
 	} BIO_CONNECT;
 
-static int conn_write(BIO *h,char *buf,int num);
-static int conn_read(BIO *h,char *buf,int size);
-static int conn_puts(BIO *h,char *str);
-static long conn_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int conn_write(BIO *h, const char *buf, int num);
+static int conn_read(BIO *h, char *buf, int size);
+static int conn_puts(BIO *h, const char *str);
+static long conn_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int conn_new(BIO *h);
 static int conn_free(BIO *data);
-static long conn_callback_ctrl(BIO *h,int cmd,void *(*fp)());
+static long conn_callback_ctrl(BIO *h, int cmd, bio_info_cb *);
 
 static int conn_state(BIO *b, BIO_CONNECT *c);
 static void conn_close_socket(BIO *data);
@@ -165,7 +165,7 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 							break;
 							}
 					if (c->param_port != NULL)
-						Free(c->param_port);
+						OPENSSL_free(c->param_port);
 					c->param_port=BUF_strdup(p);
 					}
 				}
@@ -188,7 +188,7 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 		case BIO_CONN_S_GET_PORT:
 			if (c->param_port == NULL)
 				{
-				abort();
+				/* abort(); */
 				goto exit_loop;
 				}
 			else if (BIO_get_port(c->param_port,&c->port) <= 0)
@@ -236,7 +236,7 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 				}
 			c->state=BIO_CONN_S_CONNECT;
 
-#ifdef SO_KEEPALIVE
+#if defined(SO_KEEPALIVE) && !defined(MPE)
 			i=1;
 			i=setsockopt(b->num,SOL_SOCKET,SO_KEEPALIVE,(char *)&i,sizeof(i));
 			if (i < 0)
@@ -299,7 +299,7 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 			ret=1;
 			goto exit_loop;
 		default:
-			abort();
+			/* abort(); */
 			goto exit_loop;
 			}
 
@@ -322,7 +322,7 @@ BIO_CONNECT *BIO_CONNECT_new(void)
 	{
 	BIO_CONNECT *ret;
 
-	if ((ret=(BIO_CONNECT *)Malloc(sizeof(BIO_CONNECT))) == NULL)
+	if ((ret=(BIO_CONNECT *)OPENSSL_malloc(sizeof(BIO_CONNECT))) == NULL)
 		return(NULL);
 	ret->state=BIO_CONN_S_BEFORE;
 	ret->param_hostname=NULL;
@@ -344,10 +344,10 @@ void BIO_CONNECT_free(BIO_CONNECT *a)
 	    return;
 
 	if (a->param_hostname != NULL)
-		Free(a->param_hostname);
+		OPENSSL_free(a->param_hostname);
 	if (a->param_port != NULL)
-		Free(a->param_port);
-	Free(a);
+		OPENSSL_free(a->param_port);
+	OPENSSL_free(a);
 	}
 
 BIO_METHOD *BIO_s_connect(void)
@@ -426,7 +426,7 @@ static int conn_read(BIO *b, char *out, int outl)
 	return(ret);
 	}
 
-static int conn_write(BIO *b, char *in, int inl)
+static int conn_write(BIO *b, const char *in, int inl)
 	{
 	int ret;
 	BIO_CONNECT *data;
@@ -449,7 +449,7 @@ static int conn_write(BIO *b, char *in, int inl)
 	return(ret);
 	}
 
-static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	BIO *dbio;
 	int *ip;
@@ -507,23 +507,24 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 			if (num == 0)
 				{
 				if (data->param_hostname != NULL)
-					Free(data->param_hostname);
+					OPENSSL_free(data->param_hostname);
 				data->param_hostname=BUF_strdup(ptr);
 				}
 			else if (num == 1)
 				{
 				if (data->param_port != NULL)
-					Free(data->param_port);
+					OPENSSL_free(data->param_port);
 				data->param_port=BUF_strdup(ptr);
 				}
 			else if (num == 2)
 				{
 				char buf[16];
+				char *p = ptr;
 
 				sprintf(buf,"%d.%d.%d.%d",
-					ptr[0],ptr[1],ptr[2],ptr[3]);
+					p[0],p[1],p[2],p[3]);
 				if (data->param_hostname != NULL)
-					Free(data->param_hostname);
+					OPENSSL_free(data->param_hostname);
 				data->param_hostname=BUF_strdup(buf);
 				memcpy(&(data->ip[0]),ptr,4);
 				}
@@ -533,7 +534,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 
 				sprintf(buf,"%d",*(int *)ptr);
 				if (data->param_port != NULL)
-					Free(data->param_port);
+					OPENSSL_free(data->param_port);
 				data->param_port=BUF_strdup(buf);
 				data->port= *(int *)ptr;
 				}
@@ -573,7 +574,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 		if (data->param_hostname)
 			BIO_set_conn_hostname(dbio,data->param_hostname);
 		BIO_set_nbio(dbio,data->nbio);
-		(void)BIO_set_info_callback(dbio,(void *(*)())(data->info_callback));
+                (void)BIO_set_info_callback(dbio,data->info_callback);
 		}
 		break;
 	case BIO_CTRL_SET_CALLBACK:
@@ -601,7 +602,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(ret);
 	}
 
-static long conn_callback_ctrl(BIO *b, int cmd, void *(*fp)())
+static long conn_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 	{
 	long ret=1;
 	BIO_CONNECT *data;
@@ -622,7 +623,7 @@ static long conn_callback_ctrl(BIO *b, int cmd, void *(*fp)())
 	return(ret);
 	}
 
-static int conn_puts(BIO *bp, char *str)
+static int conn_puts(BIO *bp, const char *str)
 	{
 	int n,ret;
 

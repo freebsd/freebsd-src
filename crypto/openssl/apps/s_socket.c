@@ -209,9 +209,11 @@ static int init_client_ip(int *sock, unsigned char ip[4], int port)
 	s=socket(AF_INET,SOCK_STREAM,SOCKET_PROTOCOL);
 	if (s == INVALID_SOCKET) { perror("socket"); return(0); }
 
+#ifndef MPE
 	i=0;
 	i=setsockopt(s,SOL_SOCKET,SO_KEEPALIVE,(char *)&i,sizeof(i));
 	if (i < 0) { perror("keepalive"); return(0); }
+#endif
 
 	if (connect(s,(struct sockaddr *)&them,sizeof(them)) == -1)
 		{ close(s); perror("connect"); return(0); }
@@ -241,7 +243,7 @@ int do_server(int port, int *ret, int (*cb)(), char *context)
 			return(0);
 			}
 		i=(*cb)(name,sock, context);
-		if (name != NULL) Free(name);
+		if (name != NULL) OPENSSL_free(name);
 		SHUTDOWN2(sock);
 		if (i < 0)
 			{
@@ -372,9 +374,9 @@ redoit:
 		}
 	else
 		{
-		if ((*host=(char *)Malloc(strlen(h1->h_name)+1)) == NULL)
+		if ((*host=(char *)OPENSSL_malloc(strlen(h1->h_name)+1)) == NULL)
 			{
-			perror("Malloc");
+			perror("OPENSSL_malloc");
 			return(0);
 			}
 		strcpy(*host,h1->h_name);

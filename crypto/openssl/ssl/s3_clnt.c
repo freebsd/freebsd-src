@@ -69,7 +69,7 @@ static SSL_METHOD *ssl3_get_client_method(int ver);
 static int ssl3_client_hello(SSL *s);
 static int ssl3_get_server_hello(SSL *s);
 static int ssl3_get_certificate_request(SSL *s);
-static int ca_dn_cmp(X509_NAME **a,X509_NAME **b);
+static int ca_dn_cmp(const X509_NAME * const *a,const X509_NAME * const *b);
 static int ssl3_get_server_done(SSL *s);
 static int ssl3_send_client_verify(SSL *s);
 static int ssl3_send_client_certificate(SSL *s);
@@ -142,7 +142,12 @@ int ssl3_connect(SSL *s)
 			if (cb != NULL) cb(s,SSL_CB_HANDSHAKE_START,1);
 
 			if ((s->version & 0xff00 ) != 0x0300)
-				abort();
+				{
+				SSLerr(SSL_F_SSL3_CONNECT, SSL_R_INTERNAL_ERROR);
+				ret = -1;
+				goto end;
+				}
+				
 			/* s->version=SSL3_VERSION; */
 			s->type=SSL_ST_CONNECT;
 
@@ -764,6 +769,7 @@ static int ssl3_get_server_certificate(SSL *s)
 		SSLerr(SSL_F_SSL3_GET_SERVER_CERTIFICATE,SSL_R_CERTIFICATE_VERIFY_FAILED);
 		goto f_err; 
 		}
+	ERR_clear_error(); /* but we keep s->verify_result */
 
 	sc=ssl_sess_cert_new();
 	if (sc == NULL) goto err;
@@ -934,10 +940,12 @@ static int ssl3_get_key_exchange(SSL *s)
 		s->session->sess_cert->peer_rsa_tmp=rsa;
 		rsa=NULL;
 		}
-	else
+#else /* NO_RSA */
+	if (0)
+		;
 #endif
 #ifndef NO_DH
-		if (alg & SSL_kEDH)
+	else if (alg & SSL_kEDH)
 		{
 		if ((dh=DH_new()) == NULL)
 			{
@@ -993,10 +1001,12 @@ static int ssl3_get_key_exchange(SSL *s)
 #ifndef NO_RSA
 		if (alg & SSL_aRSA)
 			pkey=X509_get_pubkey(s->session->sess_cert->peer_pkeys[SSL_PKEY_RSA_ENC].x509);
-		else
+#else
+		if (0)
+			;
 #endif
 #ifndef NO_DSA
-		if (alg & SSL_aDSS)
+		else if (alg & SSL_aDSS)
 			pkey=X509_get_pubkey(s->session->sess_cert->peer_pkeys[SSL_PKEY_DSA_SIGN].x509);
 #endif
 		/* else anonymous DH, so no certificate or pkey. */
@@ -1010,7 +1020,7 @@ static int ssl3_get_key_exchange(SSL *s)
 		SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,SSL_R_TRIED_TO_USE_UNSUPPORTED_CIPHER);
 		goto f_err;
 		}
-#endif
+#endif /* !NO_DH */
 	if (alg & SSL_aFZA)
 		{
 		al=SSL_AD_HANDSHAKE_FAILURE;
@@ -1274,7 +1284,7 @@ err:
 	return(ret);
 	}
 
-static int ca_dn_cmp(X509_NAME **a, X509_NAME **b)
+static int ca_dn_cmp(const X509_NAME * const *a, const X509_NAME * const *b)
 	{
 	return(X509_NAME_cmp(*a,*b));
 	}

@@ -81,6 +81,11 @@ static NETSCAPE_PKEY *NETSCAPE_PKEY_new(void);
 static void NETSCAPE_PKEY_free(NETSCAPE_PKEY *);
 
 int i2d_Netscape_RSA(RSA *a, unsigned char **pp, int (*cb)())
+{
+	return i2d_RSA_NET(a, pp, cb, 0);
+}
+
+int i2d_RSA_NET(RSA *a, unsigned char **pp, int (*cb)(), int sgckey)
 	{
 	int i,j,l[6];
 	NETSCAPE_PKEY *pkey;
@@ -139,8 +144,8 @@ int i2d_Netscape_RSA(RSA *a, unsigned char **pp, int (*cb)())
 		}
 
 	if (pkey->private_key->data != NULL)
-		Free(pkey->private_key->data);
-	if ((pkey->private_key->data=(unsigned char *)Malloc(l[0])) == NULL)
+		OPENSSL_free(pkey->private_key->data);
+	if ((pkey->private_key->data=(unsigned char *)OPENSSL_malloc(l[0])) == NULL)
 		{
 		ASN1err(ASN1_F_I2D_NETSCAPE_RSA,ERR_R_MALLOC_FAILURE);
 		goto err;
@@ -148,7 +153,7 @@ int i2d_Netscape_RSA(RSA *a, unsigned char **pp, int (*cb)())
 	zz=pkey->private_key->data;
 	i2d_RSAPrivateKey(a,&zz);
 
-	if ((os2.data=(unsigned char *)Malloc(os2.length)) == NULL)
+	if ((os2.data=(unsigned char *)OPENSSL_malloc(os2.length)) == NULL)
 		{
 		ASN1err(ASN1_F_I2D_NETSCAPE_RSA,ERR_R_MALLOC_FAILURE);
 		goto err;
@@ -164,8 +169,18 @@ int i2d_Netscape_RSA(RSA *a, unsigned char **pp, int (*cb)())
 		ASN1err(ASN1_F_I2D_NETSCAPE_RSA,ASN1_R_BAD_PASSWORD_READ);
 		goto err;
 		}
-	EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,
-		strlen((char *)buf),1,key,NULL);
+	i = strlen((char *)buf);
+	/* If the key is used for SGC the algorithm is modified a little. */
+	if(sgckey){
+		EVP_MD_CTX mctx;
+		EVP_DigestInit(&mctx, EVP_md5());
+		EVP_DigestUpdate(&mctx, buf, i);
+		EVP_DigestFinal(&mctx, buf, NULL);
+		memcpy(buf + 16, "SGCKEYSALT", 10);
+		i = 26;
+	}
+		
+	EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,i,1,key,NULL);
 	memset(buf,0,256);
 
 	EVP_CIPHER_CTX_init(&ctx);
@@ -182,14 +197,20 @@ int i2d_Netscape_RSA(RSA *a, unsigned char **pp, int (*cb)())
 	i2d_ASN1_OCTET_STRING(&os2,&p);
 	ret=l[5];
 err:
-	if (os2.data != NULL) Free(os2.data);
+	if (os2.data != NULL) OPENSSL_free(os2.data);
 	if (alg != NULL) X509_ALGOR_free(alg);
 	if (pkey != NULL) NETSCAPE_PKEY_free(pkey);
 	r=r;
 	return(ret);
 	}
 
+
 RSA *d2i_Netscape_RSA(RSA **a, unsigned char **pp, long length, int (*cb)())
+{
+	return d2i_RSA_NET(a, pp, length, cb, 0);
+}
+
+RSA *d2i_RSA_NET(RSA **a, unsigned char **pp, long length, int (*cb)(), int sgckey)
 	{
 	RSA *ret=NULL;
 	ASN1_OCTET_STRING *os=NULL;
@@ -210,14 +231,24 @@ RSA *d2i_Netscape_RSA(RSA **a, unsigned char **pp, long length, int (*cb)())
 		}
 	M_ASN1_BIT_STRING_free(os);
 	c.q=c.p;
-	if ((ret=d2i_Netscape_RSA_2(a,&c.p,c.slen,cb)) == NULL) goto err;
-	c.slen-=(c.p-c.q);
+	if ((ret=d2i_RSA_NET_2(a,&c.p,c.slen,cb, sgckey)) == NULL) goto err;
+	/* Note: some versions of IIS key files use length values that are
+	 * too small for the surrounding SEQUENCEs. This following line
+	 * effectively disable length checking.
+	 */
+	c.slen = 0;
 
 	M_ASN1_D2I_Finish(a,RSA_free,ASN1_F_D2I_NETSCAPE_RSA);
 	}
 
 RSA *d2i_Netscape_RSA_2(RSA **a, unsigned char **pp, long length,
 	     int (*cb)())
+{
+	return d2i_RSA_NET_2(a, pp, length, cb, 0);
+}
+
+RSA *d2i_RSA_NET_2(RSA **a, unsigned char **pp, long length,
+	     int (*cb)(), int sgckey)
 	{
 	NETSCAPE_PKEY *pkey=NULL;
 	RSA *ret=NULL;
@@ -250,8 +281,17 @@ RSA *d2i_Netscape_RSA_2(RSA **a, unsigned char **pp, long length,
 		goto err;
 		}
 
-	EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,
-		strlen((char *)buf),1,key,NULL);
+	i = strlen((char *)buf);
+	if(sgckey){
+		EVP_MD_CTX mctx;
+		EVP_DigestInit(&mctx, EVP_md5());
+		EVP_DigestUpdate(&mctx, buf, i);
+		EVP_DigestFinal(&mctx, buf, NULL);
+		memcpy(buf + 16, "SGCKEYSALT", 10);
+		i = 26;
+	}
+		
+	EVP_BytesToKey(EVP_rc4(),EVP_md5(),NULL,buf,i,1,key,NULL);
 	memset(buf,0,256);
 
 	EVP_CIPHER_CTX_init(&ctx);
@@ -334,7 +374,7 @@ static void NETSCAPE_PKEY_free(NETSCAPE_PKEY *a)
 	M_ASN1_INTEGER_free(a->version);
 	X509_ALGOR_free(a->algor);
 	M_ASN1_OCTET_STRING_free(a->private_key);
-	Free(a);
+	OPENSSL_free(a);
 	}
 
 #endif /* NO_RC4 */

@@ -114,7 +114,7 @@ int MAIN(int argc, char **argv)
 			}
 		else if (strcmp(*argv,"-3") == 0)
 			f4=3;
-		else if (strcmp(*argv,"-F4") == 0)
+		else if (strcmp(*argv,"-F4") == 0 || strcmp(*argv,"-f4") == 0)
 			f4=RSA_F4;
 		else if (strcmp(*argv,"-rand") == 0)
 			{
@@ -168,7 +168,15 @@ bad:
 	}
 
 	if (outfile == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outfile) <= 0)
@@ -212,8 +220,8 @@ bad:
 	ret=0;
 err:
 	if (rsa != NULL) RSA_free(rsa);
-	if (out != NULL) BIO_free(out);
-	if(passout) Free(passout);
+	if (out != NULL) BIO_free_all(out);
+	if(passout) OPENSSL_free(passout);
 	if (ret != 0)
 		ERR_print_errors(bio_err);
 	EXIT(ret);

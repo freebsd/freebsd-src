@@ -104,6 +104,7 @@ int MAIN(int argc, char **argv)
 	int informat,outformat;
 	char *infile=NULL,*outfile=NULL;
 	int hash=0,issuer=0,lastupdate=0,nextupdate=0,noout=0,text=0;
+	int fingerprint = 0;
 	char **pp,buf[256];
 	X509_STORE *store = NULL;
 	X509_STORE_CTX ctx;
@@ -111,6 +112,7 @@ int MAIN(int argc, char **argv)
 	X509_OBJECT xobj;
 	EVP_PKEY *pkey;
 	int do_ver = 0;
+	const EVP_MD *md_alg,*digest=EVP_md5();
 
 	apps_startup();
 
@@ -120,7 +122,15 @@ int MAIN(int argc, char **argv)
 
 	if (bio_out == NULL)
 		if ((bio_out=BIO_new(BIO_s_file())) != NULL)
+			{
 			BIO_set_fp(bio_out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+			{
+			BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+			bio_out = BIO_push(tmpbio, bio_out);
+			}
+#endif
+			}
 
 	informat=FORMAT_PEM;
 	outformat=FORMAT_PEM;
@@ -183,6 +193,13 @@ int MAIN(int argc, char **argv)
 			nextupdate= ++num;
 		else if (strcmp(*argv,"-noout") == 0)
 			noout= ++num;
+		else if (strcmp(*argv,"-fingerprint") == 0)
+			fingerprint= ++num;
+		else if ((md_alg=EVP_get_digestbyname(*argv + 1)))
+			{
+			/* ok */
+			digest=md_alg;
+			}
 		else
 			{
 			BIO_printf(bio_err,"unknown option %s\n",*argv);
@@ -274,6 +291,26 @@ bad:
 					BIO_printf(bio_out,"NONE");
 				BIO_printf(bio_out,"\n");
 				}
+			if (fingerprint == i)
+				{
+				int j;
+				unsigned int n;
+				unsigned char md[EVP_MAX_MD_SIZE];
+
+				if (!X509_CRL_digest(x,digest,md,&n))
+					{
+					BIO_printf(bio_err,"out of memory\n");
+					goto end;
+					}
+				BIO_printf(bio_out,"%s Fingerprint=",
+						OBJ_nid2sn(EVP_MD_type(digest)));
+				for (j=0; j<(int)n; j++)
+					{
+					BIO_printf(bio_out,"%02X%c",md[j],
+						(j+1 == (int)n)
+						?'\n':':');
+					}
+				}
 			}
 		}
 
@@ -285,7 +322,15 @@ bad:
 		}
 
 	if (outfile == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outfile) <= 0)
@@ -311,8 +356,8 @@ bad:
 	if (!i) { BIO_printf(bio_err,"unable to write CRL\n"); goto end; }
 	ret=0;
 end:
-	BIO_free(out);
-	BIO_free(bio_out);
+	BIO_free_all(out);
+	BIO_free_all(bio_out);
 	bio_out=NULL;
 	X509_CRL_free(x);
 	if(store) {
