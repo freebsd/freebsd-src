@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.6 1995/07/29 11:40:14 bde Exp $ */
+/*	$Id: sysv_sem.c,v 1.7 1995/08/28 09:18:47 julian Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -15,11 +15,7 @@
 #include <sys/sem.h>
 #include <sys/malloc.h>
 
-/*
- * System initialization
- */
-
-extern void seminit();				/* should be static*/
+static void seminit __P((caddr_t));
 SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
 static int	semctl(), semget(), semop(), semconfig();
@@ -34,7 +30,8 @@ int	*semu;			/* undo structure pool */
 static struct proc *semlock_holder = NULL;
 
 void
-seminit()
+seminit(udata)
+	caddr_t udata;
 {
 	register int i;
 
