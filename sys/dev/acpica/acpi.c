@@ -42,6 +42,7 @@
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
+#include <sys/power.h>
 
 #include <machine/clock.h>
 #include <machine/resource.h>
@@ -126,6 +127,8 @@ static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 
+static int	acpi_pm_func(u_long cmd, void *arg, ...);
+
 static device_method_t acpi_methods[] = {
     /* Device interface */
     DEVMETHOD(device_identify,		acpi_identify),
@@ -185,7 +188,9 @@ acpi_modevent(struct module *mod, int event, void *junk)
 	    return(EPERM);
 	break;
     case MOD_UNLOAD:
-	return(EBUSY);
+	if (!cold && power_pm_get_type() == POWER_PM_TYPE_ACPI)
+	    return(EBUSY);
+	break;
     default:
 	break;
     }
@@ -268,6 +273,13 @@ acpi_probe(device_t dev)
     int			error;
 
     FUNCTION_TRACE(__func__);
+
+    if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
+        power_pm_get_type() != POWER_PM_TYPE_ACPI) {
+	device_printf(dev, "Other PM system enabled.\n");
+	return_VALUE(ENXIO);
+    }
+
     ACPI_LOCK;
 
     if ((status = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th)) != AE_OK) {
@@ -440,6 +452,9 @@ acpi_attach(device_t dev)
     if ((error = acpi_machdep_init(dev))) {
 	goto out;
     }
+
+    /* Register ACPI again to pass the correct argument of pm_func. */
+    power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc);
 
     error = 0;
 
@@ -1863,3 +1878,61 @@ acpi_set_debugging(void *junk)
 }
 SYSINIT(acpi_debugging, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_set_debugging, NULL);
 #endif
+
+static int
+acpi_pm_func(u_long cmd, void *arg, ...)
+{
+	int	state, acpi_state;
+	int	error;
+	struct	acpi_softc *sc;
+	va_list	ap;
+
+	error = 0;
+	switch (cmd) {
+	case POWER_CMD_SUSPEND:
+		sc = (struct acpi_softc *)arg;
+		if (sc == NULL) {
+			error = EINVAL;
+			goto out;
+		}
+
+		va_start(ap, arg);
+		state = va_arg(ap, int);
+		va_end(ap);	
+
+		switch (state) {
+		case POWER_SLEEP_STATE_STANDBY:
+			acpi_state = sc->acpi_standby_sx;
+			break;
+		case POWER_SLEEP_STATE_SUSPEND:
+			acpi_state = sc->acpi_suspend_sx;
+			break;
+		case POWER_SLEEP_STATE_HIBERNATE:
+			acpi_state = ACPI_STATE_S4;
+			break;
+		default:
+			error = EINVAL;
+			goto out;
+		}
+
+		acpi_SetSleepState(sc, acpi_state);
+		break;
+
+	default:
+		error = EINVAL;
+		goto out;
+	}
+
+out:
+	return (error);
+}
+
+static void
+acpi_pm_register(void *arg)
+{
+
+	power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
+}
+
+SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, 0);
+
