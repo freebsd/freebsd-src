@@ -30,13 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sysent.h,v 1.14 1997/02/22 09:46:03 peter Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
 #define	_SYS_SYSENT_H_
 
-typedef	int	sy_call_t __P((struct proc *, void *, int *));
+typedef	int	sy_call_t __P((struct proc *, void *));
 
 struct sysent {		/* system call table */
 	int	sy_narg;	/* number of arguments */

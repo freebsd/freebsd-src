@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.15 1997/02/22 09:39:22 peter Exp $ */
+/*	$Id: sysv_msg.c,v 1.16 1997/08/02 14:31:37 bde Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -35,13 +35,13 @@ SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 
 #ifndef _SYS_SYSPROTO_H_
 struct msgctl_args;
-int msgctl __P((struct proc *p, struct msgctl_args *uap, int *retval));
+int msgctl __P((struct proc *p, struct msgctl_args *uap));
 struct msgget_args;
-int msgget __P((struct proc *p, struct msgget_args *uap, int *retval));
+int msgget __P((struct proc *p, struct msgget_args *uap));
 struct msgsnd_args;
-int msgsnd __P((struct proc *p, struct msgsnd_args *uap, int *retval));
+int msgsnd __P((struct proc *p, struct msgsnd_args *uap));
 struct msgrcv_args;
-int msgrcv __P((struct proc *p, struct msgrcv_args *uap, int *retval));
+int msgrcv __P((struct proc *p, struct msgrcv_args *uap));
 #endif
 static void msg_freehdr __P((struct msg *msghdr));
 
@@ -120,7 +120,7 @@ msginit(dummy)
  * Entry point for all MSG calls
  */
 int
-msgsys(p, uap, retval)
+msgsys(p, uap)
 	struct proc *p;
 	/* XXX actually varargs. */
 	struct msgsys_args /* {
@@ -131,12 +131,11 @@ msgsys(p, uap, retval)
 		int	a5;
 		int	a6;
 	} */ *uap;
-	int *retval;
 {
 
 	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
 		return (EINVAL);
-	return ((*msgcalls[uap->which])(p, &uap->a2, retval));
+	return ((*msgcalls[uap->which])(p, &uap->a2));
 }
 
 static void
@@ -172,10 +171,9 @@ struct msgctl_args {
 #endif
 
 int
-msgctl(p, uap, retval)
+msgctl(p, uap)
 	struct proc *p;
 	register struct msgctl_args *uap;
-	int *retval;
 {
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
@@ -296,7 +294,7 @@ msgctl(p, uap, retval)
 	}
 
 	if (eval == 0)
-		*retval = rval;
+		p->p_retval[0] = rval;
 	return(eval);
 }
 
@@ -308,10 +306,9 @@ struct msgget_args {
 #endif
 
 int
-msgget(p, uap, retval)
+msgget(p, uap)
 	struct proc *p;
 	register struct msgget_args *uap;
-	int *retval;
 {
 	int msqid, eval;
 	int key = uap->key;
@@ -403,7 +400,7 @@ msgget(p, uap, retval)
 
 found:
 	/* Construct the unique msqid */
-	*retval = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
+	p->p_retval[0] = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
 	return(0);
 }
 
@@ -417,10 +414,9 @@ struct msgsnd_args {
 #endif
 
 int
-msgsnd(p, uap, retval)
+msgsnd(p, uap)
 	struct proc *p;
 	register struct msgsnd_args *uap;
-	int *retval;
 {
 	int msqid = uap->msqid;
 	void *user_msgp = uap->msgp;
@@ -739,7 +735,7 @@ msgsnd(p, uap, retval)
 	msqptr->msg_stime = time.tv_sec;
 
 	wakeup((caddr_t)msqptr);
-	*retval = 0;
+	p->p_retval[0] = 0;
 	return(0);
 }
 
@@ -754,10 +750,9 @@ struct msgrcv_args {
 #endif
 
 int
-msgrcv(p, uap, retval)
+msgrcv(p, uap)
 	struct proc *p;
 	register struct msgrcv_args *uap;
-	int *retval;
 {
 	int msqid = uap->msqid;
 	void *user_msgp = uap->msgp;
@@ -1027,6 +1022,6 @@ msgrcv(p, uap, retval)
 
 	msg_freehdr(msghdr);
 	wakeup((caddr_t)msqptr);
-	*retval = msgsz;
+	p->p_retval[0] = msgsz;
 	return(0);
 }

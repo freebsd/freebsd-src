@@ -121,6 +121,6 @@ struct ibcs2_socksys_args {
 	caddr_t argsp;
 };
 
-int ibcs2_socksys __P((struct proc *, struct ibcs2_socksys_args *, int *));
+int ibcs2_socksys __P((struct proc *, struct ibcs2_socksys_args *));
 
 #endif /* !_I386_IBCS2_IBCS2_SOCKSYS_H_ */

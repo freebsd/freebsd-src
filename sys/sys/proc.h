@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.44 1997/09/21 22:09:18 gibbs Exp $
+ * $Id: proc.h,v 1.45 1997/10/12 20:26:03 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -151,6 +151,7 @@ struct	proc {
 
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
 	short	p_simple_locks;		/* DEBUG: count of held simple locks */
+	register_t p_retval[2];		/* syscall aux returns */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy

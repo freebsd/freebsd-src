@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.27 1997/10/26 20:55:20 phk Exp $
+ * $Id: portal_vnops.c,v 1.28 1997/10/27 13:33:41 bde Exp $
  */
 
 /*
@@ -84,10 +84,9 @@ portal_closefd(p, fd)
 {
 	int error;
 	struct close_args ua;
-	int rc;
 
 	ua.fd = fd;
-	error = close(p, &ua, &rc);
+	error = close(p, &ua);
 	/*
 	 * We should never get an error, and there isn't anything
 	 * we could do if we got one, so just print a message.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id$
+ * $Id: kern_xxx.c,v 1.25 1997/02/22 09:39:13 peter Exp $
  */
 
 #include <sys/param.h>
@@ -53,10 +53,9 @@ struct gethostname_args {
 #endif
 /* ARGSUSED */
 int
-ogethostname(p, uap, retval)
+ogethostname(p, uap)
 	struct proc *p;
 	struct gethostname_args *uap;
-	int *retval;
 {
 	int name[2];
 
@@ -74,10 +73,9 @@ struct sethostname_args {
 #endif
 /* ARGSUSED */
 int
-osethostname(p, uap, retval)
+osethostname(p, uap)
 	struct proc *p;
 	register struct sethostname_args *uap;
-	int *retval;
 {
 	int name[2];
 	int error;
@@ -97,13 +95,12 @@ struct ogethostid_args {
 #endif
 /* ARGSUSED */
 int
-ogethostid(p, uap, retval)
+ogethostid(p, uap)
 	struct proc *p;
 	struct ogethostid_args *uap;
-	int *retval;
 {
 
-	*(long *)retval = hostid;
+	*(long *)(p->p_retval) = hostid;
 	return (0);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -116,10 +113,9 @@ struct osethostid_args {
 #endif
 /* ARGSUSED */
 int
-osethostid(p, uap, retval)
+osethostid(p, uap)
 	struct proc *p;
 	struct osethostid_args *uap;
-	int *retval;
 {
 	int error;
 
@@ -130,10 +126,9 @@ osethostid(p, uap, retval)
 }
 
 int
-oquota(p, uap, retval)
+oquota(p, uap)
 	struct proc *p;
 	struct oquota_args *uap;
-	int *retval;
 {
 
 	return (ENOSYS);
@@ -148,10 +143,9 @@ struct uname_args {
 
 /* ARGSUSED */
 int
-uname(p, uap, retval)
+uname(p, uap)
 	struct proc *p;
 	struct uname_args *uap;
-	int *retval;
 {
 	int name[2], len, rtval;
 	char *s, *us;
@@ -220,10 +214,9 @@ struct getdomainname_args {
 
 /* ARGSUSED */
 int
-getdomainname(p, uap, retval)
+getdomainname(p, uap)
         struct proc *p;
         struct getdomainname_args *uap;
-        int *retval;
 {
 	int domainnamelen = strlen(domainname) + 1;
 	if ((u_int)uap->len > domainnamelen + 1)
@@ -240,10 +233,9 @@ struct setdomainname_args {
 
 /* ARGSUSED */
 int
-setdomainname(p, uap, retval)
+setdomainname(p, uap)
         struct proc *p;
         struct setdomainname_args *uap;
-        int *retval;
 {
         int error, domainnamelen;
 

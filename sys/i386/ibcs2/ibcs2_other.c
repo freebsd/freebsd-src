@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_other.c,v 1.6 1997/07/20 09:39:45 bde Exp $
+ * $Id: ibcs2_other.c,v 1.7 1997/08/25 21:57:55 bde Exp $
  */
 
 /*
@@ -41,12 +41,12 @@
 #define IBCS2_SECURE_SETLUID 2
 
 int
-ibcs2_secure(struct proc *p, struct ibcs2_secure_args *uap, int *retval)
+ibcs2_secure(struct proc *p, struct ibcs2_secure_args *uap)
 {
 	switch (uap->cmd) {
 
 	case IBCS2_SECURE_GETLUID:		/* get login uid */
-		*retval = p->p_ucred->cr_uid;
+		p->p_retval[0] = p->p_ucred->cr_uid;
 		return 0;
 
 	case IBCS2_SECURE_SETLUID:		/* set login uid */
@@ -60,17 +60,15 @@ ibcs2_secure(struct proc *p, struct ibcs2_secure_args *uap, int *retval)
 }
 
 int
-ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap, int *retval)
+ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap)
 {
 	struct lseek_args largs;
-	off_t lret;
 	int error;
 
 	largs.fd = uap->fd;
 	largs.offset = uap->offset;
 	largs.whence = uap->whence;
-	error = lseek(p, &largs, (int *)&lret);
-	*(long *)retval = lret;
+	error = lseek(p, &largs);
 	return (error);
 }
 
@@ -79,7 +77,7 @@ ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap, int *retval)
 #include <sys/un.h>     
 
 int
-spx_open(struct proc *p, void *uap, int *retval)
+spx_open(struct proc *p, void *uap)
 {
 	struct socket_args sock;
 	struct connect_args conn;
@@ -92,7 +90,7 @@ spx_open(struct proc *p, void *uap, int *retval)
 	sock.domain = AF_UNIX;
 	sock.type = SOCK_STREAM;
 	sock.protocol = 0;
-	error = socket(p, &sock, retval);
+	error = socket(p, &sock);
 	if (error)
 		return error;
 
@@ -104,17 +102,17 @@ spx_open(struct proc *p, void *uap, int *retval)
 	  strlen(Xaddr->sun_path) + 1;
 	copyout("/tmp/.X11-unix/X0", Xaddr->sun_path, 18);
 
-	conn.s = fd = *retval;
+	conn.s = fd = p->p_retval[0];
 	conn.name = (caddr_t)Xaddr;
 	conn.namelen = sizeof(struct sockaddr_un);
-	error = connect(p, &conn, retval);
+	error = connect(p, &conn);
 	if (error) {
 		struct close_args cl;
 		cl.fd = fd;
-		close(p, &cl, retval);
+		close(p, &cl);
 		return error;
 	}
-	*retval = fd;
+	p->p_retval[0] = fd;
 	return 0;
 }
 #endif /* SPX_HACK */

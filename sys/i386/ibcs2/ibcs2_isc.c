@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_isc.c,v 1.9 1997/05/07 20:05:44 peter Exp $
+ *	$Id: ibcs2_isc.c,v 1.10 1997/07/20 09:39:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,7 @@
 extern struct sysent isc_sysent[];
 
 int
-ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap, int *retval)
+ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap)
 {
 	struct trapframe *tf = p->p_md.md_regs;
         struct sysent *callp;
@@ -54,7 +54,7 @@ ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap, int *retval)
 	callp = &isc_sysent[code];
 
 	if(code < IBCS2_ISC_MAXSYSCALL)
-	  return((*callp->sy_call)(p, (void *)uap, retval));
+	  return((*callp->sy_call)(p, (void *)uap));
 	else
 	  return ENOSYS;
 }

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.71 1997/09/02 20:05:35 bde Exp $
+ * $Id: init_main.c,v 1.72 1997/09/21 22:00:03 gibbs Exp $
  */
 
 #include "opt_devfs.h"
@@ -150,7 +150,6 @@ main(framep)
 	register struct sysinit **sipp;		/* system initialization*/
 	register struct sysinit **xipp;		/* interior loop of sort*/
 	register struct sysinit *save;		/* bubble*/
-	int			rval[2];	/* SI_TYPE_KTHREAD support*/
 
 	/*
 	 * Copy the locore.s frame pointer for proc0, this is forked into
@@ -207,9 +206,10 @@ main(framep)
 
 		case SI_TYPE_KTHREAD:
 			/* kernel thread*/
-			if (fork(&proc0, NULL, rval))
+			if (fork(&proc0, NULL))
 				panic("fork kernel process");
-			cpu_set_fork_handler(pfind(rval[0]), (*sipp)->func, (*sipp)->udata);
+			cpu_set_fork_handler(pfind(proc0.p_retval[0]),
+			    (*sipp)->func, (*sipp)->udata);
 			break;
 
 		default:
@@ -663,7 +663,7 @@ start_init(p)
 		 * Otherwise return to main() which returns to btext
 		 * which completes the system startup.
 		 */
-		if ((error = execve(p, &args, &retval[0])) == 0)
+		if ((error = execve(p, &args)) == 0)
 			return;
 		if (error != ENOENT)
 			printf("exec %s: error %d\n", path, error);

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.67 1997/08/30 18:50:06 peter Exp $
+ * $Id: vm_mmap.c,v 1.68 1997/09/01 03:17:20 bde Exp $
  */
 
 /*
@@ -82,10 +82,9 @@ struct sbrk_args {
 
 /* ARGSUSED */
 int
-sbrk(p, uap, retval)
+sbrk(p, uap)
 	struct proc *p;
 	struct sbrk_args *uap;
-	int *retval;
 {
 
 	/* Not yet implemented */
@@ -100,10 +99,9 @@ struct sstk_args {
 
 /* ARGSUSED */
 int
-sstk(p, uap, retval)
+sstk(p, uap)
 	struct proc *p;
 	struct sstk_args *uap;
-	int *retval;
 {
 
 	/* Not yet implemented */
@@ -119,13 +117,12 @@ struct getpagesize_args {
 
 /* ARGSUSED */
 int
-ogetpagesize(p, uap, retval)
+ogetpagesize(p, uap)
 	struct proc *p;
 	struct getpagesize_args *uap;
-	int *retval;
 {
 
-	*retval = PAGE_SIZE;
+	p->p_retval[0] = PAGE_SIZE;
 	return (0);
 }
 #endif				/* COMPAT_43 || COMPAT_SUNOS */
@@ -152,10 +149,9 @@ struct mmap_args {
 #endif
 
 int
-mmap(p, uap, retval)
+mmap(p, uap)
 	struct proc *p;
 	register struct mmap_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
@@ -281,7 +277,7 @@ mmap(p, uap, retval)
 	error = vm_mmap(&p->p_vmspace->vm_map, &addr, size, prot, maxprot,
 	    flags, handle, pos);
 	if (error == 0)
-		*retval = (int) (addr + pageoff);
+		p->p_retval[0] = (int) (addr + pageoff);
 	return (error);
 }
 
@@ -297,10 +293,9 @@ struct ommap_args {
 };
 #endif
 int
-ommap(p, uap, retval)
+ommap(p, uap)
 	struct proc *p;
 	register struct ommap_args *uap;
-	int *retval;
 {
 	struct mmap_args nargs;
 	static const char cvtbsdprot[8] = {
@@ -338,7 +333,7 @@ ommap(p, uap, retval)
 		nargs.flags |= MAP_INHERIT;
 	nargs.fd = uap->fd;
 	nargs.pos = uap->pos;
-	return (mmap(p, &nargs, retval));
+	return (mmap(p, &nargs));
 }
 #endif				/* COMPAT_43 */
 
@@ -351,10 +346,9 @@ struct msync_args {
 };
 #endif
 int
-msync(p, uap, retval)
+msync(p, uap)
 	struct proc *p;
 	struct msync_args *uap;
-	int *retval;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -424,10 +418,9 @@ struct munmap_args {
 };
 #endif
 int
-munmap(p, uap, retval)
+munmap(p, uap)
 	register struct proc *p;
 	register struct munmap_args *uap;
-	int *retval;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -486,10 +479,9 @@ struct mprotect_args {
 };
 #endif
 int
-mprotect(p, uap, retval)
+mprotect(p, uap)
 	struct proc *p;
 	struct mprotect_args *uap;
-	int *retval;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -528,10 +520,9 @@ struct minherit_args {
 };
 #endif
 int
-minherit(p, uap, retval)
+minherit(p, uap)
 	struct proc *p;
 	struct minherit_args *uap;
-	int *retval;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -568,10 +559,9 @@ struct madvise_args {
 
 /* ARGSUSED */
 int
-madvise(p, uap, retval)
+madvise(p, uap)
 	struct proc *p;
 	struct madvise_args *uap;
-	int *retval;
 {
 	vm_map_t map;
 	pmap_t pmap;
@@ -615,10 +605,9 @@ struct mincore_args {
 
 /* ARGSUSED */
 int
-mincore(p, uap, retval)
+mincore(p, uap)
 	struct proc *p;
 	struct mincore_args *uap;
-	int *retval;
 {
 	vm_offset_t addr, first_addr;
 	vm_offset_t end, cend;
@@ -782,10 +771,9 @@ struct mlock_args {
 };
 #endif
 int
-mlock(p, uap, retval)
+mlock(p, uap)
 	struct proc *p;
 	struct mlock_args *uap;
-	int *retval;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -827,10 +815,9 @@ struct mlockall_args {
 #endif
 
 int
-mlockall(p, uap, retval)
+mlockall(p, uap)
 	struct proc *p;
 	struct mlockall_args *uap;
-	int *retval;
 {
 	return 0;
 }
@@ -842,10 +829,9 @@ struct mlockall_args {
 #endif
 
 int
-munlockall(p, uap, retval)
+munlockall(p, uap)
 	struct proc *p;
 	struct munlockall_args *uap;
-	int *retval;
 {
 	return 0;
 }
@@ -857,10 +843,9 @@ struct munlock_args {
 };
 #endif
 int
-munlock(p, uap, retval)
+munlock(p, uap)
 	struct proc *p;
 	struct munlock_args *uap;
-	int *retval;
 {
 	vm_offset_t addr;
 	vm_size_t size, pageoff;

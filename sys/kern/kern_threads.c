@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.2 1997/07/06 02:40:42 dyson Exp $
+ * $Id: kern_threads.c,v 1.3 1997/09/02 20:05:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@
  *	returns time waiting in ticks.
  */
 int
-thr_sleep(struct proc *p, struct thr_sleep_args *uap, int *retval) {
+thr_sleep(struct proc *p, struct thr_sleep_args *uap) {
 	int sleepstart;
 	struct timespec ts;
 	struct timeval atv, utv;
@@ -104,7 +104,7 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap, int *retval) {
 			timo = 1;
 	}
 
-	retval[0] = 0;
+	p->p_retval[0] = 0;
 	if (p->p_wakeup == 0) {
 		sleepstart = ticks;
 		p->p_flag |= P_SINTR;
@@ -112,25 +112,25 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap, int *retval) {
 		p->p_flag &= ~P_SINTR;
 		if (error == EWOULDBLOCK) {
 			p->p_wakeup = 0;
-			retval[0] = EAGAIN;
+			p->p_retval[0] = EAGAIN;
 			return 0;
 		}
 		if (uap->timeout == 0)
-			retval[0] = ticks - sleepstart;
+			p->p_retval[0] = ticks - sleepstart;
 	}
 	p->p_wakeup = 0;
 	return (0);
 }
 
 int
-thr_wakeup(struct proc *p, struct thr_wakeup_args *uap, int *retval) {
+thr_wakeup(struct proc *p, struct thr_wakeup_args *uap) {
 	struct proc *pSlave = p->p_leader;
 
 	while(pSlave && (pSlave->p_pid != uap->pid))
 		pSlave = pSlave->p_peers;
 
 	if(pSlave == 0) {
-		retval[0] = ESRCH;
+		p->p_retval[0] = ESRCH;
 		return(0);
 	}
 
@@ -140,7 +140,7 @@ thr_wakeup(struct proc *p, struct thr_wakeup_args *uap, int *retval) {
 		return(0);
 	}
 
-	retval[0] = EAGAIN;
+	p->p_retval[0] = EAGAIN;
 	return 0;
 }
 
@@ -148,10 +148,10 @@ thr_wakeup(struct proc *p, struct thr_wakeup_args *uap, int *retval) {
  * General purpose yield system call
  */
 int
-yield(struct proc *p, struct yield_args *uap, int *retval) {
+yield(struct proc *p, struct yield_args *uap) {
 	int s;
 
-	retval[0] = 0;
+	p->p_retval[0] = 0;
 
 	s = splhigh();
 	p->p_priority = MAXPRI;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.29 1997/10/12 20:25:47 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.30 1997/10/28 15:59:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -129,10 +129,9 @@ struct getfh_args {
 };
 #endif
 int
-getfh(p, uap, retval)
+getfh(p, uap)
 	struct proc *p;
 	register struct getfh_args *uap;
-	int *retval;
 {
 	register struct vnode *vp;
 	fhandle_t fh;
@@ -175,10 +174,9 @@ struct nfssvc_args {
 };
 #endif
 int
-nfssvc(p, uap, retval)
+nfssvc(p, uap)
 	struct proc *p;
 	register struct nfssvc_args *uap;
-	int *retval;
 {
 #ifndef NFS_NOSERVER
 	struct nameidata nd;

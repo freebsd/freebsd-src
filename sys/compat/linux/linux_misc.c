@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.31 1997/10/29 08:17:12 kato Exp $
+ *  $Id: linux_misc.c,v 1.32 1997/10/30 10:53:30 kato Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,7 @@
 #include <i386/linux/linux_util.h>
 
 int
-linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
+linux_alarm(struct proc *p, struct linux_alarm_args *args)
 {
     struct itimerval it, old_it;
     struct timeval tv;
@@ -96,12 +96,12 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
     splx(s);
     if (old_it.it_value.tv_usec)
 	old_it.it_value.tv_sec++;
-    *retval = old_it.it_value.tv_sec;
+    p->p_retval[0] = old_it.it_value.tv_sec;
     return 0;
 }
 
 int
-linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
+linux_brk(struct proc *p, struct linux_brk_args *args)
 {
 #if 0
     struct vmspace *vm = p->p_vmspace;
@@ -116,7 +116,7 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
 
     old = round_page((vm_offset_t)vm->vm_daddr) + ctob(vm->vm_dsize);
     new = round_page((vm_offset_t)args->dsend);
-    *retval = old;
+    p->p_retval[0] = old;
     if ((new-old) > 0) {
 	if (swap_pager_full)
 	    return ENOMEM;
@@ -125,7 +125,7 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
 	if (error)
 	    return error;
 	vm->vm_dsize += btoc((new-old));
-	*retval = (int)(vm->vm_daddr + ctob(vm->vm_dsize));
+	p->p_retval[0] = (int)(vm->vm_daddr + ctob(vm->vm_dsize));
     }
     return 0;
 #else
@@ -141,17 +141,17 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
     old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
     new = (vm_offset_t)args->dsend;
     tmp.nsize = (char *) new;
-    if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp, retval))
-	retval[0] = (int)new;
+    if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp))
+	p->p_retval[0] = (int)new;
     else
-	retval[0] = (int)old;
+	p->p_retval[0] = (int)old;
 
     return 0;
 #endif
 }
 
 int
-linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
+linux_uselib(struct proc *p, struct linux_uselib_args *args)
 {
     struct nameidata ni;
     struct vnode *vp;
@@ -408,7 +408,7 @@ struct linux_select_argv {
 };
 
 int
-linux_select(struct proc *p, struct linux_select_args *args, int *retval)
+linux_select(struct proc *p, struct linux_select_args *args)
 {
     struct linux_select_argv linux_args;
     struct linux_newselect_args newsel;
@@ -428,11 +428,11 @@ linux_select(struct proc *p, struct linux_select_args *args, int *retval)
     newsel.exceptfds = linux_args.exceptfds;
     newsel.timeout = linux_args.timeout;
 
-    return linux_newselect(p, &newsel, retval);
+    return linux_newselect(p, &newsel);
 }
 
 int
-linux_newselect(struct proc *p, struct linux_newselect_args *args, int *retval)
+linux_newselect(struct proc *p, struct linux_newselect_args *args)
 {
     struct select_args bsa;
     struct timeval tv0, tv1, utv, *tvp;
@@ -484,7 +484,7 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args, int *retval)
 	microtime(&tv0);
     }
 
-    error = select(p, &bsa, retval);
+    error = select(p, &bsa);
 #ifdef DEBUG
     printf("Linux-emul(%d): real select returns %d\n",
 	       p->p_pid, error);
@@ -501,7 +501,7 @@ linux_newselect(struct proc *p, struct linux_newselect_args *args, int *retval)
     }
 
     if (args->timeout) {
-	if (*retval) {
+	if (p->p_retval[0]) {
 	    /*
 	     * Compute how much time was left of the timeout,
 	     * by subtracting the current time and the time
@@ -532,7 +532,7 @@ select_out:
 }
 
 int
-linux_getpgid(struct proc *p, struct linux_getpgid_args *args, int *retval)
+linux_getpgid(struct proc *p, struct linux_getpgid_args *args)
 {
     struct proc *curproc;
 
@@ -545,22 +545,22 @@ linux_getpgid(struct proc *p, struct linux_getpgid_args *args, int *retval)
     }
     else
 	curproc = p;
-    *retval = curproc->p_pgid;
+    p->p_retval[0] = curproc->p_pgid;
     return 0;
 }
 
 int
-linux_fork(struct proc *p, struct linux_fork_args *args, int *retval)
+linux_fork(struct proc *p, struct linux_fork_args *args)
 {
     int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): fork()\n", p->p_pid);
 #endif
-    if (error = fork(p, (struct fork_args *)args, retval))
+    if (error = fork(p, (struct fork_args *)args))
 	return error;
-    if (retval[1] == 1)
-	retval[0] = 0;
+    if (p->p_retval[1] == 1)
+	p->p_retval[0] = 0;
     return 0;
 }
 
@@ -575,7 +575,7 @@ struct linux_mmap_argv {
 };
 
 int
-linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
+linux_mmap(struct proc *p, struct linux_mmap_args *args)
 {
     struct mmap_args /* {
 	caddr_t addr;
@@ -612,11 +612,11 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
     bsd_args.fd = linux_args.fd;
     bsd_args.pos = linux_args.pos;
     bsd_args.pad = 0;
-    return mmap(p, &bsd_args, retval);
+    return mmap(p, &bsd_args);
 }
 
 int
-linux_msync(struct proc *p, struct linux_msync_args *args, int *retval)
+linux_msync(struct proc *p, struct linux_msync_args *args)
 {
 	struct msync_args bsd_args;
 
@@ -624,27 +624,27 @@ linux_msync(struct proc *p, struct linux_msync_args *args, int *retval)
 	bsd_args.len = args->len;
 	bsd_args.flags = 0;	/* XXX ignore */
 
-	return msync(p, &bsd_args, retval);
+	return msync(p, &bsd_args);
 }
 
 int
-linux_pipe(struct proc *p, struct linux_pipe_args *args, int *retval)
+linux_pipe(struct proc *p, struct linux_pipe_args *args)
 {
     int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): pipe(*)\n", p->p_pid);
 #endif
-    if (error = pipe(p, 0, retval))
+    if (error = pipe(p, 0))
 	return error;
-    if (error = copyout(retval, args->pipefds, 2*sizeof(int)))
+    if (error = copyout(p->p_retval, args->pipefds, 2*sizeof(int)))
 	return error;
-    *retval = 0;
+    p->p_retval[0] = 0;
     return 0;
 }
 
 int
-linux_time(struct proc *p, struct linux_time_args *args, int *retval)
+linux_time(struct proc *p, struct linux_time_args *args)
 {
     struct timeval tv;
     linux_time_t tm;
@@ -657,7 +657,7 @@ linux_time(struct proc *p, struct linux_time_args *args, int *retval)
     tm = tv.tv_sec;
     if (args->tm && (error = copyout(&tm, args->tm, sizeof(linux_time_t))))
 	return error;
-    *retval = tm;
+    p->p_retval[0] = tm;
     return 0;
 }
 
@@ -672,7 +672,7 @@ struct linux_times_argv {
 #define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
 
 int
-linux_times(struct proc *p, struct linux_times_args *args, int *retval)
+linux_times(struct proc *p, struct linux_times_args *args)
 {
     struct timeval tv;
     struct linux_times_argv tms;
@@ -696,7 +696,7 @@ linux_times(struct proc *p, struct linux_times_args *args, int *retval)
 
     microtime(&tv);
     timevalsub(&tv, &boottime);
-    *retval = (int)CONVTCK(tv);
+    p->p_retval[0] = (int)CONVTCK(tv);
     return 0;
 }
 
@@ -711,7 +711,7 @@ struct linux_newuname_t {
 };
 
 int
-linux_newuname(struct proc *p, struct linux_newuname_args *args, int *retval)
+linux_newuname(struct proc *p, struct linux_newuname_args *args)
 {
     struct linux_newuname_t linux_newuname;
 
@@ -735,7 +735,7 @@ struct linux_utimbuf {
 };
 
 int
-linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
+linux_utime(struct proc *p, struct linux_utime_args *args)
 {
     struct utimes_args /* {
 	char	*path;
@@ -768,11 +768,11 @@ linux_utime(struct proc *p, struct linux_utime_args *args, int *retval)
 	bsdutimes.tptr = NULL;
 
     bsdutimes.path = args->fname;
-    return utimes(p, &bsdutimes, retval);
+    return utimes(p, &bsdutimes);
 }
 
 int
-linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
+linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 {
     struct wait_args /* {
 	int pid;
@@ -791,7 +791,7 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
     tmp.options = args->options;
     tmp.rusage = NULL;
 
-    if (error = wait4(p, &tmp, retval))
+    if (error = wait4(p, &tmp))
 	return error;
     if (args->status) {
 	if (error = copyin(args->status, &tmpstat, sizeof(int)))
@@ -808,7 +808,7 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args, int *retval)
 }
 
 int
-linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
+linux_wait4(struct proc *p, struct linux_wait4_args *args)
 {
     struct wait_args /* {
 	int pid;
@@ -827,7 +827,7 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
     tmp.options = args->options;
     tmp.rusage = args->rusage;
 
-    if (error = wait4(p, &tmp, retval))
+    if (error = wait4(p, &tmp))
 	return error;
 
     p->p_siglist &= ~sigmask(SIGCHLD);
@@ -847,7 +847,7 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args, int *retval)
 }
 
 int
-linux_mknod(struct proc *p, struct linux_mknod_args *args, int *retval)
+linux_mknod(struct proc *p, struct linux_mknod_args *args)
 {
 	caddr_t sg;
 	struct mknod_args bsd_mknod;
@@ -865,12 +865,12 @@ linux_mknod(struct proc *p, struct linux_mknod_args *args, int *retval)
 	if (args->mode & S_IFIFO) {
 		bsd_mkfifo.path = args->path;
 		bsd_mkfifo.mode = args->mode;
-		return mkfifo(p, &bsd_mkfifo, retval);
+		return mkfifo(p, &bsd_mkfifo);
 	} else {
 		bsd_mknod.path = args->path;
 		bsd_mknod.mode = args->mode;
 		bsd_mknod.dev = args->dev;
-		return mknod(p, &bsd_mknod, retval);
+		return mknod(p, &bsd_mknod);
 	}
 }
 
@@ -878,8 +878,7 @@ linux_mknod(struct proc *p, struct linux_mknod_args *args, int *retval)
  * UGH! This is just about the dumbest idea I've ever heard!!
  */
 int
-linux_personality(struct proc *p, struct linux_personality_args *args,
-		  int *retval)
+linux_personality(struct proc *p, struct linux_personality_args *args)
 {
 #ifdef DEBUG
 	printf("Linux-emul(%d): personality(%d)\n",
@@ -889,7 +888,7 @@ linux_personality(struct proc *p, struct linux_personality_args *args,
 		return EINVAL;
 
 	/* Yes Jim, it's still a Linux... */
-	retval[0] = 0;
+	p->p_retval[0] = 0;
 	return 0;
 }
 
@@ -897,7 +896,7 @@ linux_personality(struct proc *p, struct linux_personality_args *args,
  * Wrappers for get/setitimer for debugging..
  */
 int
-linux_setitimer(struct proc *p, struct linux_setitimer_args *args, int *retval)
+linux_setitimer(struct proc *p, struct linux_setitimer_args *args)
 {
 	struct setitimer_args bsa;
 	struct itimerval foo;
@@ -919,11 +918,11 @@ linux_setitimer(struct proc *p, struct linux_setitimer_args *args, int *retval)
 	    printf("setitimer: interval: sec: %d, usec: %d\n", foo.it_interval.tv_sec, foo.it_interval.tv_usec);
 #endif
 	}
-	return setitimer(p, &bsa, retval);
+	return setitimer(p, &bsa);
 }
 
 int
-linux_getitimer(struct proc *p, struct linux_getitimer_args *args, int *retval)
+linux_getitimer(struct proc *p, struct linux_getitimer_args *args)
 {
 	struct getitimer_args bsa;
 #ifdef DEBUG
@@ -932,11 +931,11 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args, int *retval)
 #endif
 	bsa.which = args->which;
 	bsa.itv = args->itv;
-	return getitimer(p, &bsa, retval);
+	return getitimer(p, &bsa);
 }
 
 int
-linux_iopl(struct proc *p, struct linux_iopl_args *args, int *retval)
+linux_iopl(struct proc *p, struct linux_iopl_args *args)
 {
 	int error;
 
@@ -950,13 +949,13 @@ linux_iopl(struct proc *p, struct linux_iopl_args *args, int *retval)
 }
 
 int
-linux_nice(struct proc *p, struct linux_nice_args *args, int *retval)
+linux_nice(struct proc *p, struct linux_nice_args *args)
 {
 	struct setpriority_args	bsd_args;
 
 	bsd_args.which = PRIO_PROCESS;
 	bsd_args.who = 0;	/* current process */
 	bsd_args.prio = args->inc;
-	return setpriority(p, &bsd_args, retval);
+	return setpriority(p, &bsd_args);
 }
 

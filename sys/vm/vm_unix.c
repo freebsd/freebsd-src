@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.14 1997/02/22 09:48:40 peter Exp $
+ * $Id: vm_unix.c,v 1.15 1997/08/02 14:33:27 bde Exp $
  */
 
 /*
@@ -65,10 +65,9 @@ struct obreak_args {
 
 /* ARGSUSED */
 int
-obreak(p, uap, retval)
+obreak(p, uap)
 	struct proc *p;
 	struct obreak_args *uap;
-	int *retval;
 {
 	register struct vmspace *vm = p->p_vmspace;
 	vm_offset_t new, old, base;
@@ -122,10 +121,9 @@ struct ovadvise_args {
 
 /* ARGSUSED */
 int
-ovadvise(p, uap, retval)
+ovadvise(p, uap)
 	struct proc *p;
 	struct ovadvise_args *uap;
-	int *retval;
 {
 
 	return (EINVAL);

@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_ipc.c,v 1.6 1997/02/22 09:39:21 peter Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -99,53 +99,48 @@ sysv_nosys(p, s)
  */
 
 int
-semsys(p, uap, retval)
+semsys(p, uap)
 	struct proc *p;
 	struct semsys_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-semconfig(p, uap, retval)
+semconfig(p, uap)
 	struct proc *p;
 	struct semconfig_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-__semctl(p, uap, retval)
+__semctl(p, uap)
 	struct proc *p;
 	register struct __semctl_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-semget(p, uap, retval)
+semget(p, uap)
 	struct proc *p;
 	register struct semget_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-semop(p, uap, retval)
+semop(p, uap)
 	struct proc *p;
 	register struct semop_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSEM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 /* called from kern_exit.c */
@@ -166,54 +161,49 @@ semexit(p)
  */
 
 int
-msgsys(p, uap, retval)
+msgsys(p, uap)
 	struct proc *p;
 	/* XXX actually varargs. */
 	struct msgsys_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-msgctl(p, uap, retval)
+msgctl(p, uap)
 	struct proc *p;
 	register struct msgctl_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-msgget(p, uap, retval)
+msgget(p, uap)
 	struct proc *p;
 	register struct msgget_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-msgsnd(p, uap, retval)
+msgsnd(p, uap)
 	struct proc *p;
 	register struct msgsnd_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-msgrcv(p, uap, retval)
+msgrcv(p, uap)
 	struct proc *p;
 	register struct msgrcv_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVMSG");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 #endif /* !defined(SYSVMSG) */
@@ -226,54 +216,49 @@ msgrcv(p, uap, retval)
  */
 
 int
-shmdt(p, uap, retval)
+shmdt(p, uap)
 	struct proc *p;
 	struct shmdt_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-shmat(p, uap, retval)
+shmat(p, uap)
 	struct proc *p;
 	struct shmat_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-shmctl(p, uap, retval)
+shmctl(p, uap)
 	struct proc *p;
 	struct shmctl_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-shmget(p, uap, retval)
+shmget(p, uap)
 	struct proc *p;
 	struct shmget_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 int
-shmsys(p, uap, retval)
+shmsys(p, uap)
 	struct proc *p;
 	/* XXX actually varargs. */
 	struct shmsys_args *uap;
-	int *retval;
 {
 	sysv_nosys(p, "SYSVSHM");
-	return nosys(p, (struct nosys_args *)uap, retval);
+	return nosys(p, (struct nosys_args *)uap);
 };
 
 /* called from kern_fork.c */
