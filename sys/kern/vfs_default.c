@@ -406,7 +406,7 @@ retry:
 			if ((error = VOP_GETATTR(vp, &vat, cred, td)) != 0)
 				goto retn;
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
-		} else if (vn_isdisk(vp)) {
+		} else if (vn_isdisk(vp, NULL)) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a disk vnode.  This should be fixed, but doesn't
