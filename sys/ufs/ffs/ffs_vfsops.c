@@ -172,7 +172,7 @@ ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	/*
 	 * Use NULL path to indicate we are mounting the root filesystem.
 	 */
-	if (path == NULL) {
+	if ((mp->mnt_flag & MNT_ROOTFS) && mp->mnt_data == NULL) {
 		if ((error = bdevvp(rootdev, &rootvp))) {
 			printf("ffs_mountroot: can't find rootvp\n");
 			return (error);
