@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.2 1997/07/24 18:23:57 pst Exp $
+#	$Id: bsd.man.mk,v 1.23 1997/07/24 18:39:46 pst Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -65,7 +65,6 @@ CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
 MROFF_CMD?=	groff -Tascii -man
 
-.if defined(COMPRESS_CMD)
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
