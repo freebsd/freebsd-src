@@ -36,6 +36,8 @@
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 
+#include <machine/cpu.h>
+
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>
 #include <compat/svr4/svr4_signal.h>
