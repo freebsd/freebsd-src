@@ -324,10 +324,22 @@ void	 rt_ifmsg(struct ifnet *);
 void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
 void	 rt_newaddrmsg(int, struct ifaddr *, int, struct rtentry *);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
-void	 rtalloc(struct route *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
-void	 rtalloc_ign(struct route *, u_long);
-/* NB: the rtentry is returned locked */
+
+/*
+ * Note the following locking behavior:
+ *
+ *    rtalloc_ign() and rtalloc() return ro->ro_rt unlocked
+ *
+ *    rtalloc1() returns a locked rtentry
+ *
+ *    rtfree() and RTFREE_LOCKED() require a locked rtentry
+ *
+ *    RTFREE() uses an unlocked entry.
+ */
+
+void	 rtalloc_ign(struct route *ro, u_long ignflags);
+void	 rtalloc(struct route *ro); /* XXX deprecated, use rtalloc_ign(ro, 0) */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtexpunge(struct rtentry *);
 void	 rtfree(struct rtentry *);
