@@ -6,6 +6,39 @@
 # .BAT files (Daniel Quinlan, quinlan@yggdrasil.com)
 0	string	@echo\ off	MS-DOS batch file text
 
+# WinNT/WinCE PE files (Warner Losh, imp@village.org)
+#
+# XXX Missing powerpc from the WinNT world and Hitatchi SH-3 from the CE world.
+128	string	PE\000\000	Microsoft Portable Executable
+>132	leshort	0x0000		\b, Unknown CPU
+>132	leshort 0x14c		\b, Intel 386
+>132	leshort 0x14d		\b, Intel 486
+>132	leshort 0x14e		\b, Intel 586
+>132	leshort 0x162		\b, MIPS ISA I
+>132	leshort 0x163		\b, MIPS ISA II
+>132	leshort 0x166		\b, MIPS ISA III
+>132	leshort 0x184		\b, Digital Alpha
+0	string	PE\000\000	Microsoft Portable Executable (no dos header)
+>4	leshort	0x0000		\b, Unknown CPU
+>4	leshort 0x14c		\b, Intel 386
+>4	leshort 0x14d		\b, Intel 486
+>4	leshort 0x14e		\b, Intel 586
+>4	leshort 0x162		\b, MIPS ISA I
+>4	leshort 0x163		\b, MIPS ISA II
+>4	leshort 0x166		\b, MIPS ISA III
+>4	leshort 0x184		\b, Digital Alpha
+# It would appear that the debugger information is in basically the same 
+# format as what binutils calls PEI files.
+0	string	DI\000\000	Microsoft PE Debugger Information
+>4	leshort	0x0000		\b, Unknown CPU
+>4	leshort 0x14c		\b, Intel 386
+>4	leshort 0x14d		\b, Intel 486
+>4	leshort 0x14e		\b, Intel 586
+>4	leshort 0x162		\b, MIPS ISA I
+>4	leshort 0x163		\b, MIPS ISA II
+>4	leshort 0x166		\b, MIPS ISA III
+>4	leshort 0x184		\b, Digital Alpha
+
 # .EXE formats (Greg Roelofs, newt@uchicago.edu)
 #
 0	string	MZ		MS-DOS executable (EXE)
@@ -39,7 +72,6 @@
 >49801	string	\x79\xff\x80\xff\x76\xff	\b, CODEC archive v3.21
 >>49824	leshort		=1			\b, 1 file
 >>49824	leshort		>1			\b, %u files
-
 # .COM formats (Daniel Quinlan, quinlan@yggdrasil.com)
 # Uncommenting only the first two lines will cover about 2/3 of COM files,
 # but it isn't feasible to match all COM files since there must be at least
