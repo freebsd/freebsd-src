@@ -10,6 +10,3 @@ auth		required	pam_rhosts.so	no_warn
 
 # account
 account		required	pam_unix.so
-
-# session
-session		required	pam_permit.so
