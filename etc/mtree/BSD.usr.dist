@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.87 1997/02/27 12:22:25 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.88 1997/02/28 17:27:07 wosch Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -70,6 +70,8 @@
                 ..
                 12.make
                 ..
+                13.rcs
+                ..
                 18.gprof
                 ..
                 19.curses
@@ -89,6 +91,8 @@
                 26.rpcrfc
                 ..
                 27.nfsrfc
+                ..
+                28.cvs
                 ..
             ..
             smm
