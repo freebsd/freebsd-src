@@ -106,6 +106,7 @@ MAN=	aac.4 \
 	ipsec.4 \
 	isp.4 \
 	ispfw.4 \
+	ixgb.4 \
 	joy.4 \
 	kame.4 \
 	keyboard.4 \
