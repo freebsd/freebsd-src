@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.5.2.5 1997/11/21 22:37:46 jlemon Exp $
+ *		$Id: initcpu.c,v 1.5.2.6 1998/01/03 05:38:03 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -54,6 +54,7 @@ static void init_6x86(void);
 
 #ifdef I686_CPU
 static void	init_6x86MX(void);
+static void	init_ppro(void);
 #endif
 
 #ifdef I486_CPU
@@ -433,6 +434,19 @@ init_6x86MX(void)
 
 	write_eflags(eflags);
 }
+
+static void
+init_ppro(void)
+{
+	quad_t	apicbase;
+
+	/*
+	 * Local APIC should be diabled in UP kernel.
+	 */
+	apicbase = rdmsr(0x1b);
+	apicbase &= ~0x800LL;
+	wrmsr(0x1b, apicbase);
+}
 #endif /* I686_CPU */
 
 void
@@ -465,6 +479,11 @@ initializecpu(void)
 #ifdef I686_CPU
 	case CPU_M2:
 		init_6x86MX();
+		break;
+	case CPU_686:
+		if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+			(cpu_id & 0xff0) == 0x610)
+			init_ppro();
 		break;
 #endif
 	default:
