@@ -987,10 +987,12 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 Features:
 - 21264 EV6 at 500 MHz
-  21264 EV67 at 500 or 667 MHz
-- L2 / Bcache: 4MB 
+  21264 EV67 at 500 or 667 MHz (XP1000G, codenamed Brisbane)
+  CPU is mounted on a daughtercard which is field-upgradable
+- L2 / Bcache: 4MB, ECC protected
 - memory bus: 256 bit 
-- memory: 128 or 256 Mbytes 100 MHz (PC100) registered ECC SDRAM DIMMs
+- memory: 128 or 256 Mbytes 100 MHz (PC100) 168 pin JEDEC standard,
+	  registered ECC SDRAM DIMMs
 - 21271 Core Logic chip-set ("Tsunami")
 - 1 on-board 21143 Ethernet controller
 - Cypress 82C693 USB controller       
@@ -1001,10 +1003,11 @@ Features:
              2 64-bit PCI slots    
              1 32-bit PCI slot     
         hose 1: (the bottom 2 slots)
-             2 32-bit PCI slots (behind a PCI-PCI bridge)
+             2 32-bit PCI slots (behind a 21154 PCI-PCI bridge)
 	2 of the 64-bit PCI slots are for full-length cards
 	all of the 32-bit PCI slots are for short cards
 	1 of the 32-bit PCI slots is physically shared with an ISA slot
+   	all PCI slots run at 33MHz
 - 1x Ultra-Wide SCSI port based on a Qlogic 1040 chip
 - 2x 16550A serial port        
 - 1x parallel port        
@@ -1018,20 +1021,35 @@ Case:
 Monet is housed in a mini-tower like enclosure quite similar to the Miata
 box.
 
+SCSI:
+The onboard Qlogic UW-SCSI chip supports up to 4 internal devices. There is
+no external connector for the onboard SCSI.
+
 Memory:
-For 500 MHz CPUs 83 MHz DIMMs will do. DIMMs are installed in sets of 4,
-starting with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
+For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 DIMMs for
+all CPU speeds. DIMMs are installed in sets of 4, starting with the 
+DIMM slots marked '0'. Memory capacity is max 4 Gb. 
 DIMMs are installed 'physically interleaved', note the markings of the
-slots. Memory bandwidth of Monet is twice that of Webbrick.
+slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs live
+on the CPU daughtercard. Note that the system uses ECC RAM so you need DIMMs
+with 72 bits (not the PC-class 64 bit DIMMs)
 
 EIDE:
 Is usable / bootable for system disk so FreeBSD can be rooted on an EIDE
-disk.
+disk. Although the Cypress chip has potential for 2 EIDE channels Monet uses
+only one of them.
+
+USB:
+If you experience problems trying to use the USB interface please check if
+the SRM variable "usb_enable" is set to "on". You can change this by
+performing: "set usb_enable on" at the SRM >>> prompt.
 
 Expansion:
 Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
 connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
-from working correctly.
+from working correctly. Not all VGA cards will work behind the PCI-PCI
+bridge (so in slots 4 & 5). Only cards that implement VGA-legacy adressing
+correctly will work. Workaround is to put the VGA card 'before' the bridge.
 
 Sound:
 The sound chip is not currently supported with FreeBSD. There is work in
@@ -1288,10 +1306,11 @@ People who kindly helped me with creating this document:
 - Andrew Gallatin <gallatin@cs.duke.edu>
 - Christian Weisgerber <naddy@mips.rhein-neckar.de>
 - David O'Brien <obrien@NUXI.com>
-- Wim Lemmers <wim.lemmers@compaq.com>
+- Wim Lemmers
 - Matthew Jacob <mjacob@feral.com>
 - Eric Schnoebelen <eric@cirr.com>
 - Chuck Robey <chuckr@picnic.mat.net>
 - Mike Smith <msmith@FreeBSD.ORG>
 - Peter Jeremy <peter.jeremy@alcatel.com.au>
 - Dolf de Waal <l.j.de.waal@kader.hobby.nl>
+- Wouter Brackman, Compaq
