@@ -282,6 +282,7 @@ globaldata_init(struct globaldata *globaldata, int cpuno, size_t sz)
 	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuno);
 	globaldata->gd_next_asn = 0;
 	globaldata->gd_current_asngen = 1;
+	globaldata->gd_cpuid = cpuno;
 	cpuno_to_globaldata[cpuno] = globaldata;
 }
 
@@ -369,10 +370,14 @@ s_lock_try(struct simplelock *lkp)
 /* lock around the MP rendezvous */
 static struct simplelock smp_rv_lock;
 
+/* only 1 CPU can panic at a time :) */
+struct simplelock	panic_lock;
+
 static void
 init_locks(void)
 {
 	s_lock_init(&smp_rv_lock);
+	s_lock_init(&panic_lock);
 }
 
 void
