@@ -29,7 +29,6 @@
  */
 
 #include "opt_ata.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ata.h>

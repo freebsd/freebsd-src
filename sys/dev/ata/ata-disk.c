@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "opt_global.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -617,6 +616,7 @@ ad_interrupt(struct ad_request *request)
 	    ata_dmainit(adp->device->channel, adp->device->unit,
 			ata_pmode(adp->device->param), -1, -1);
 	    request->flags |= ADR_F_FORCE_PIO;
+	    printf(" trying PIO mode\n");
 	    TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
 	    return ATA_OP_FINISHED;
 	}
@@ -627,7 +627,7 @@ ad_interrupt(struct ad_request *request)
     }
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
-    if (request->flags & ADR_F_FORCE_PIO)
+    if (request->flags & ADR_F_FORCE_PIO && !(request->flags & ADR_F_ERROR))
 	ata_prtdev(adp->device, "DMA problem fallback to PIO mode\n");
 
     /* if this was a PIO read operation, get the data */
@@ -890,7 +890,7 @@ ad_reinit(struct ata_device *atadev)
     /* reinit disk parameters */
     ad_invalidatequeue(atadev->driver, NULL);
     ata_command(atadev, ATA_C_SET_MULTI, 0,
-		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_INTR);
+		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
     if (adp->device->mode >= ATA_DMA)
 	ata_dmainit(atadev->channel, atadev->unit,
 		    ata_pmode(adp->device->param),

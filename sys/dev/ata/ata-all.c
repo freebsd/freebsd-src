@@ -421,17 +421,9 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
     struct ata_params *ata_parm;
     int retry = 0;
 
-    /* select drive */
-    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);
-    DELAY(1);
-
-    /* enable interrupt */
-    ATA_OUTB(atadev->channel->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
-    DELAY(1);
-
     /* apparently some devices needs this repeated */
     do {
-	if (ata_command(atadev, command, 0, 0, 0, ATA_WAIT_INTR)) {
+	if (ata_command(atadev, command, 0, 0, 0, ATA_WAIT_READY)) {
 	    ata_prtdev(atadev, "%s identify failed\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    return -1;
