@@ -1100,19 +1100,14 @@ pmap_dispose_thread(td)
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
 	ptek = vtopte(ks);
-#ifdef KSTACK_GUARD
-	ks -= PAGE_SIZE;
-	for (i = 1; i < (KSTACK_PAGES + 1); i++) {
-#else
 	for (i = 0; i < KSTACK_PAGES; i++) {
-#endif
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
 		vm_page_busy(m);
 		ptek[i] = 0;
 #ifndef I386_CPU
-		invlpg(ks + i * PAGE_SIZE);
+		invlpg(ks + (i * PAGE_SIZE));
 #endif
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
@@ -1125,7 +1120,7 @@ pmap_dispose_thread(td)
 	 * address map.
 	 */
 #ifdef KSTACK_GUARD
-	kmem_free(kernel_map, ks, (KSTACK_PAGES + 1) * PAGE_SIZE);
+	kmem_free(kernel_map, ks - PAGE_SIZE, (KSTACK_PAGES + 1) * PAGE_SIZE);
 #else
 	kmem_free(kernel_map, ks, KSTACK_PAGES * PAGE_SIZE);
 #endif
