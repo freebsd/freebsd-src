@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.22 1997/07/28 03:39:06 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.23 1997/07/30 22:51:11 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -1420,7 +1420,7 @@ init_locks(void)
 	mp_lock = 0x00000001;
 
 	/* locks the IO APIC and apic_imen accesses */
-	s_lock_init(&imen_lock);
+	s_lock_init((struct simplelock*)&imen_lock);
 }
 
 
