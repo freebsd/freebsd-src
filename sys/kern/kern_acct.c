@@ -114,7 +114,6 @@ acct(a1, uap)
 	} */ *uap;
 {
 	struct proc *p = curproc;	/* XXX */
-	struct ucred *uc;
 	struct nameidata nd;
 	int error, flags;
 
@@ -137,12 +136,7 @@ acct(a1, uap)
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, p);
 		if (nd.ni_vp->v_type != VREG) {
-			PROC_LOCK(p);
-			uc = p->p_ucred;
-			crhold(uc);
-			PROC_UNLOCK(p);
-			vn_close(nd.ni_vp, FWRITE, uc, p);
-			crfree(uc);
+			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);
 			return (EACCES);
 		}
 	}
@@ -153,13 +147,8 @@ acct(a1, uap)
 	 */
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
-		PROC_LOCK(p);
-		uc = p->p_ucred;
-		crhold(uc);
-		PROC_UNLOCK(p);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
-		    uc, p);
-		crfree(uc);
+		    p->p_ucred, p);
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
@@ -187,10 +176,9 @@ acct_process(p)
 	struct proc *p;
 {
 	struct acct acct;
-	struct ucred *uc;
 	struct rusage *r;
 	struct timeval ut, st, tmp;
-	int t, error;
+	int t;
 	struct vnode *vp;
 
 	/* If accounting isn't enabled, don't bother */
@@ -231,7 +219,6 @@ acct_process(p)
 	/* (5) The number of disk I/O operations done */
 	acct.ac_io = encode_comp_t(r->ru_inblock + r->ru_oublock, 0);
 
-	PROC_LOCK(p);
 	/* (6) The UID and GID of the process */
 	acct.ac_uid = p->p_cred->p_ruid;
 	acct.ac_gid = p->p_cred->p_rgid;
@@ -248,7 +235,6 @@ acct_process(p)
 	/*
 	 * Eliminate any file size rlimit.
 	 */
-	mtx_assert(&Giant, MA_OWNED);
 	if (p->p_limit->p_refcnt > 1 &&
 	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
 		p->p_limit->p_refcnt--;
@@ -259,14 +245,10 @@ acct_process(p)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	VOP_LEASE(vp, p, uc, LEASE_WRITE);
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, (int *)0, p);
-	crfree(uc);
-	return (error);
+	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, p->p_ucred,
+	    (int *)0, p));
 }
 
 /*

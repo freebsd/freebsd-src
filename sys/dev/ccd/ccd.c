@@ -380,7 +380,6 @@ ccdinit(ccd, cpaths, p)
 	size_t size;
 	int ix;
 	struct vnode *vp;
-	struct ucred *uc;
 	size_t minsize;
 	int maxsecsize;
 	struct partinfo dpart;
@@ -407,10 +406,6 @@ ccdinit(ccd, cpaths, p)
 	 */
 	maxsecsize = 0;
 	minsize = 0;
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
 	for (ix = 0; ix < cs->sc_nccdisks; ix++) {
 		vp = ccd->ccd_vpp[ix];
 		ci = &cs->sc_cinfo[ix];
@@ -438,7 +433,7 @@ ccdinit(ccd, cpaths, p)
 		 * Get partition information for the component.
 		 */
 		if ((error = VOP_IOCTL(vp, DIOCGPART, (caddr_t)&dpart,
-		    FREAD, uc, p)) != 0) {
+		    FREAD, p->p_ucred, p)) != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
@@ -484,7 +479,6 @@ ccdinit(ccd, cpaths, p)
 		ci->ci_size = size;
 		cs->sc_size += size;
 	}
-	crfree(uc);
 
 	/*
 	 * Don't allow the interleave to be smaller than
@@ -572,7 +566,6 @@ ccdinit(ccd, cpaths, p)
 	cs->sc_unit = ccd->ccd_unit;
 	return (0);
 fail:
-	crfree(uc);
 	while (ci > cs->sc_cinfo) {
 		ci--;
 		free(ci->ci_path, M_DEVBUF);
@@ -1272,7 +1265,6 @@ ccdioctl(dev, cmd, data, flag, p)
 	struct ccddevice ccd;
 	char **cpp;
 	struct vnode **vpp;
-	struct ucred *uc;
 
 	if (unit >= numccd)
 		return (ENXIO);
@@ -1344,17 +1336,12 @@ ccdioctl(dev, cmd, data, flag, p)
 				printf("ccdioctl: lookedup = %d\n", lookedup);
 #endif
 			if ((error = ccdlookup(cpp[i], p, &vpp[i])) != 0) {
-				PROC_LOCK(p);
-				uc = p->p_ucred;
-				crhold(uc);
-				PROC_UNLOCK(p);
 				for (j = 0; j < lookedup; ++j)
 					(void)vn_close(vpp[j], FREAD|FWRITE,
-					    uc, p);
+					    p->p_ucred, p);
 				free(vpp, M_DEVBUF);
 				free(cpp, M_DEVBUF);
 				ccdunlock(cs);
-				crfree(uc);
 				return (error);
 			}
 			++lookedup;
@@ -1367,17 +1354,13 @@ ccdioctl(dev, cmd, data, flag, p)
 		 * Initialize the ccd.  Fills in the softc for us.
 		 */
 		if ((error = ccdinit(&ccd, cpp, p)) != 0) {
-			PROC_LOCK(p);
-			uc = p->p_ucred;
-			crhold(uc);
-			PROC_UNLOCK(p);
 			for (j = 0; j < lookedup; ++j)
-				(void)vn_close(vpp[j], FREAD|FWRITE, uc, p);
+				(void)vn_close(vpp[j], FREAD|FWRITE,
+				    p->p_ucred, p);
 			bzero(&ccd_softc[unit], sizeof(struct ccd_softc));
 			free(vpp, M_DEVBUF);
 			free(cpp, M_DEVBUF);
 			ccdunlock(cs);
-			crfree(uc);
 			return (error);
 		}
 
@@ -1417,10 +1400,6 @@ ccdioctl(dev, cmd, data, flag, p)
 		 */
 
 		/* Close the components and free their pathnames. */
-		PROC_LOCK(p);
-		uc = p->p_ucred;
-		crhold(uc);
-		PROC_UNLOCK(p);
 		for (i = 0; i < cs->sc_nccdisks; ++i) {
 			/*
 			 * XXX: this close could potentially fail and
@@ -1433,10 +1412,9 @@ ccdioctl(dev, cmd, data, flag, p)
 				    cs->sc_cinfo[i].ci_vp);
 #endif
 			(void)vn_close(cs->sc_cinfo[i].ci_vp, FREAD|FWRITE,
-			    uc, p);
+			    p->p_ucred, p);
 			free(cs->sc_cinfo[i].ci_path, M_DEVBUF);
 		}
-		crfree(uc);
 
 		/* Free interleave index. */
 		for (i = 0; cs->sc_itable[i].ii_ndisk; ++i)
@@ -1581,7 +1559,6 @@ ccdlookup(path, p, vpp)
 {
 	struct nameidata nd;
 	struct vnode *vp;
-	struct ucred *uc;
 	int error, flags;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, p);
@@ -1616,12 +1593,7 @@ bad:
 	VOP_UNLOCK(vp, 0, p);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	/* vn_close does vrele() for vp */
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	(void)vn_close(vp, FREAD|FWRITE, uc, p);
-	crfree(uc);
+	(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
 	return (error);
 }
 

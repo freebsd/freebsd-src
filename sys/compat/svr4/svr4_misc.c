@@ -250,7 +250,6 @@ svr4_sys_getdents64(p, uap)
 	struct uio auio;
 	struct iovec aiov;
 	struct vattr va;
-	struct ucred *uc;
 	off_t off;
 	struct svr4_dirent64 svr4_dirent;
 	int buflen, error, eofflag, nbytes, justone;
@@ -271,13 +270,7 @@ svr4_sys_getdents64(p, uap)
 	if (vp->v_type != VDIR)
 		return (EINVAL);
 
-	PROC_LOCK(p);
-	uc = p->p_ucred;
-	crhold(uc);
-	PROC_UNLOCK(p);
-	error = VOP_GETATTR(vp, &va, uc, p);
-	crfree(uc);
-	if (error != 0) {
+	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p))) {
 		return error;
 	}
 
@@ -599,7 +592,6 @@ svr4_sys_fchroot(p, uap)
 	struct filedesc	*fdp = p->p_fd;
 	struct vnode	*vp;
 	struct file	*fp;
-	struct ucred	*uc;
 	int		 error;
 
 	if ((error = suser(p)) != 0)
@@ -610,14 +602,8 @@ svr4_sys_fchroot(p, uap)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
-	else {
-		PROC_LOCK(p);
-		uc = p->p_ucred;
-		crhold(uc);
-		PROC_UNLOCK(p);
+	else
 		error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
-		crfree(uc);
-	}
 	VOP_UNLOCK(vp, 0, p);
 	if (error)
 		return error;
