@@ -6,7 +6,8 @@ SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 CFLAGS+=	-Wall -Wno-unused \
-		-I${.CURDIR}/../common
+		-I${.CURDIR}/../common \
+		-I${.CURDIR}/../../libc/include
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true

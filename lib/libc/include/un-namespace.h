@@ -52,6 +52,7 @@
 #undef		getdirentries
 #undef		getlogin
 #undef		getpeername
+#undef		getprogname
 #undef		getsockname
 #undef		getsockopt
 #undef		ioctl

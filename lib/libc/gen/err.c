@@ -39,15 +39,14 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <err.h>
-#include "un-namespace.h"
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "un-namespace.h"
 
-#include <stdarg.h>
-
-extern char *__progname;		/* Program name, from crt0. */
+#include "libc_private.h"
 
 static FILE *err_file; /* file to use for error output */
 static void (*err_exit)(int);
@@ -110,7 +109,7 @@ verrc(eval, code, fmt, ap)
 {
 	if (err_file == 0)
 		err_set_file((FILE *)0);
-	fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL) {
 		vfprintf(err_file, fmt, ap);
 		fprintf(err_file, ": ");
@@ -138,7 +137,7 @@ verrx(eval, fmt, ap)
 {
 	if (err_file == 0)
 		err_set_file((FILE *)0);
-	fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL)
 		vfprintf(err_file, fmt, ap);
 	fprintf(err_file, "\n");
@@ -183,7 +182,7 @@ vwarnc(code, fmt, ap)
 {
 	if (err_file == 0)
 		err_set_file((FILE *)0);
-	fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL) {
 		vfprintf(err_file, fmt, ap);
 		fprintf(err_file, ": ");
@@ -207,7 +206,7 @@ vwarnx(fmt, ap)
 {
 	if (err_file == 0)
 		err_set_file((FILE *)0);
-	fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", _getprogname());
 	if (fmt != NULL)
 		vfprintf(err_file, fmt, ap);
 	fprintf(err_file, "\n");

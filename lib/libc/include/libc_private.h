@@ -63,4 +63,10 @@ extern int	__isthreaded;
 #define	FLOCKFILE(fp)		if (__isthreaded) _FLOCKFILE(fp)
 #define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
 
+/*
+ * This is a pointer in the C run-time startup code. It is used
+ * by getprogname() and setprogname().
+ */
+extern const char *__progname;
+
 #endif /* _LIBC_PRIVATE_H_ */

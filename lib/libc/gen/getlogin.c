@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include "un-namespace.h"
 
-#include <libc_private.h>
+#include "libc_private.h"
 
 #define	THREAD_LOCK()	if (__isthreaded) _pthread_mutex_lock(&logname_mutex)
 #define	THREAD_UNLOCK()	if (__isthreaded) _pthread_mutex_unlock(&logname_mutex)
