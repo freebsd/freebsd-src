@@ -563,7 +563,7 @@ cbcp_CheckResponse(struct cbcp *cbcp, struct cbcp_data *data)
         }
         return CBCP_ACTION_DOWN;
     }
-    log_Printf(LogPHASE, "Internal CBCP error - agreed on %d ??!?\n",
+    log_Printf(LogPHASE, "Internal CBCP error - agreed on %d !\n",
                (int)cbcp->fsm.type);
     return CBCP_ACTION_DOWN;
   } else if (data->type == CBCP_NONUM && cbcp->fsm.type == CBCP_CLIENTNUM) {
