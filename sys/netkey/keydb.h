@@ -63,7 +63,11 @@ struct secashead {
 					/* SA chain */
 					/* The first of this list is newer SA */
 
-	struct route sa_route;		/* route cache */
+	union {
+		struct route sau_route;
+		struct route_in6 sau_route6;
+	} sa_u;
+#define sa_route sa_u.sau_route
 };
 
 /* Security Association */
