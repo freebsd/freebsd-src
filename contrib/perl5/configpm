@@ -1,4 +1,5 @@
 #!./miniperl -w
+# $FreeBSD$
 
 my $config_pm = $ARGV[0] || 'lib/Config.pm';
 my $glossary = $ARGV[1] || 'Porting/Glossary';
@@ -17,7 +18,7 @@ my $glossary = $ARGV[1] || 'Porting/Glossary';
 
 
 open CONFIG, ">$config_pm" or die "Can't open $config_pm: $!\n";
-$myver = sprintf "v%vd", $^V;
+$myver = "v5.6.0"; # XXX - Yuck - allow bootstrapping. MarkM
 
 print CONFIG <<'ENDOFBEG_NOQ', <<"ENDOFBEG";
 package Config;
