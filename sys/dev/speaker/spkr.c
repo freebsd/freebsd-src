@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.11 1995/02/03 10:19:38 ache Exp $
+ *    $Id: spkr.c,v 1.12 1995/03/16 18:12:05 bde Exp $
  */
 
 #include "speaker.h"
@@ -66,8 +66,13 @@ static void tone(thz, ticks)
 /* emit tone of frequency thz for given number of ticks */
 unsigned int thz, ticks;
 {
-    unsigned int divisor = TIMER_CLK / thz;
+    unsigned int divisor;
     int sps;
+
+    if (thz <= 0)
+	return;
+
+    divisor = TIMER_CLK / thz;
 
 #ifdef DEBUG
     (void) printf("tone: thz=%d ticks=%d\n", thz, ticks);
@@ -200,6 +205,9 @@ int	pitch, value, sustain;
 	snum *= NUM_MULT;
 	sdenom *= DENOM_MULT;
     }
+
+    if (value == 0 || sdenom == 0)
+	return;
 
     if (pitch == -1)
 	rest(whole * snum / (value * sdenom));
