@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.27 1997/08/02 14:32:53 bde Exp $
+ *	$Id: ip_icmp.c,v 1.28 1997/08/25 01:25:31 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -384,6 +384,12 @@ icmp_input(m, hlen)
 		goto reflect;
 
 	case ICMP_TSTAMP:
+		if (!icmpbmcastecho
+		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0
+		    && IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+			icmpstat.icps_bmcasttstamp++;
+			break;
+		}
 		if (icmplen < ICMP_TSLEN) {
 			icmpstat.icps_badlen++;
 			break;
