@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.3 1994/08/21 04:41:36 paul Exp $
+ * $Id: conf.h,v 1.4 1994/10/08 22:22:56 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -128,7 +128,7 @@ extern struct swdevt swdevt[];
 int	iskmemdev __P((dev_t));
 int	iszerodev __P((dev_t));
 int	isdisk __P((dev_t, int));
-int	chrtoblk __P((dev_t));
+dev_t	chrtoblk __P((dev_t));
 #endif
 
 #endif
