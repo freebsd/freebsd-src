@@ -9,7 +9,15 @@
 .Nd controlling utility for IPv6 firewall
 .Sh SYNOPSIS
 .Nm
-.Ar file
+.Op Fl q
+.Oo
+.Fl p Ar preproc
+.Oo Fl D
+.Ar macro Ns Op = Ns Ar value
+.Oc
+.Op Fl U Ar macro
+.Oc
+.Ar pathname
 .Nm
 .Op Fl f | Fl q
 flush
@@ -42,11 +50,48 @@ to
 .Op via Ar name | ipv6no
 .Op Ar options
 .Sh DESCRIPTION
-If used as shown in the first synopsis line, the
-.Ar file
+To ease configuration, rules can be put into a file which is
+processed using
+.Nm
+as shown in the first synopsis line.
+An absolute
+.Ar pathname
+must be used.
+The file
 will be read line by line and applied as arguments to the
 .Nm
-command.
+utility.
+.Pp
+Optionally, a preprocessor can be specified using
+.Fl p Ar preproc
+where
+.Ar pathname
+is to be piped through.
+Useful preprocessors include
+.Xr cpp 1
+and
+.Xr m4 1 .
+If
+.Ar preproc
+doesn't start with a slash
+.Pq Ql /
+as its first character, the usual
+.Ev PATH
+name search is performed.
+Care should be taken with this in environments where not all
+filesystems are mounted (yet) by the time
+.Nm
+is being run (e.g. when they are mounted over NFS).
+Once
+.Fl p
+has been specified, optional
+.Fl D
+and
+.Fl U
+specifications can follow and will be passed on to the preprocessor.
+This allows for flexible configuration files (like conditionalizing
+them on the local hostname) and the use of macros to centralize
+frequently required arguments like IP addresses.
 .Pp
 The
 .Nm
