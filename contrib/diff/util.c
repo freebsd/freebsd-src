@@ -207,8 +207,11 @@ begin_output ()
 		pfatal_with_name ("dup2");
 	      close (pipes[0]);
 	    }
-
+#ifdef __FreeBSD__
+	  execl (PR_PROGRAM, PR_PROGRAM, "-F", "-h", name, 0);
+#else
 	  execl (PR_PROGRAM, PR_PROGRAM, "-f", "-h", name, 0);
+#endif
 	  pfatal_with_name (PR_PROGRAM);
 	}
       else
