@@ -56,7 +56,7 @@
 int
 ffs_balloc(ap)
 	struct vop_balloc_args /* {
-		struct inode *a_ip;
+		struct vnode *a_vp;
 		ufs_daddr_t a_lbn;
 		int a_size;
 		struct ucred *a_cred;
@@ -64,8 +64,8 @@ ffs_balloc(ap)
 		struct buf *a_bpp;
 	} */ *ap;
 {
-	register struct inode *ip;
-	register ufs_daddr_t lbn;
+	struct inode *ip;
+	ufs_daddr_t lbn;
 	int size;
 	struct ucred *cred;
 	int flags;
@@ -77,6 +77,7 @@ ffs_balloc(ap)
 	ufs_daddr_t newb, *bap, pref;
 	int deallocated, osize, nsize, num, i, error;
 	ufs_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
+	struct proc *p = curproc;	/* XXX */
 
 	vp = ap->a_vp;
 	ip = VTOI(vp);
@@ -335,7 +336,15 @@ fail:
 	/*
 	 * If we have failed part way through block allocation, we
 	 * have to deallocate any indirect blocks that we have allocated.
+	 * We have to fsync the file before we start to get rid of all
+	 * of its dependencies so that we do not leave them dangling.
+	 * We have to sync it at the end so that the soft updates code
+	 * does not find any untracked changes. Although this is really
+	 * slow, running out of disk space is not expected to be a common
+	 * occurence. The error return from fsync is ignored as we already
+	 * have an error to return to the user.
 	 */
+	(void) VOP_FSYNC(vp, cred, MNT_WAIT, p);
 	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
 		ffs_blkfree(ip, *blkp, fs->fs_bsize);
 		deallocated += fs->fs_bsize;
@@ -352,5 +361,6 @@ fail:
 		ip->i_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
+	(void) VOP_FSYNC(vp, cred, MNT_WAIT, p);
 	return (error);
 }
