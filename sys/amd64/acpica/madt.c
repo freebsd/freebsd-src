@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/madt.h>
 #include <dev/pci/pcivar.h>
 
-#define	NIOAPICS		16	/* Max number of I/O APICs */
-#define	NLAPICS			16	/* Max number of local APICs */
+#define	NIOAPICS		32	/* Max number of I/O APICs */
+#define	NLAPICS			32	/* Max number of local APICs */
 
 typedef	void madt_entry_handler(APIC_HEADER *entry, void *arg);
 
