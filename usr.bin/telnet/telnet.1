@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
+.\"	@(#)telnet.1	8.6 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
 .Dd January 27, 2000
@@ -42,7 +42,7 @@
 protocol
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468EFKLNacdfrux
+.Op Fl 468EFKLNacdfruxy
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl e Ar escapechar
@@ -209,6 +209,8 @@ addresses only (e.g.,
 domain sockets, accessed with a file path).
 .It Fl x
 Turns on encryption of the data stream if possible.
+.It Fl y
+Suppresses encryption of the data stream.
 .It Ar host
 Indicates the official name, an alias, or the Internet address
 of a remote host.
@@ -435,7 +437,7 @@ commands.
 The
 .Ic environ
 command is used to manipulate the
-variables that my be sent through the
+variables that may be sent through the
 .Dv TELNET ENVIRON
 option.
 The initial set of variables is taken from the users
@@ -1046,10 +1048,10 @@ Displays the legal
 .Pq Ic unset
 commands.
 .El
-.It Ic skey Ar sequence challenge
+.It Ic opie Ar sequence challenge
 The
-.Ic skey
-command computes a response to the S/Key challenge.
+.Ic opie
+command computes a response to the OPIE challenge.
 .It Ic slc Ar state
 The
 .Ic slc

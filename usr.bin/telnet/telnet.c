@@ -34,7 +34,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)telnet.c	8.2 (Berkeley) 12/15/93";
+#if 0
+static const char sccsid[] = "@(#)telnet.c	8.4 (Berkeley) 5/30/95";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -48,9 +53,9 @@ static char sccsid[] = "@(#)telnet.c	8.2 (Berkeley) 12/15/93";
 #endif	/* defined(unix) */
 
 #include <arpa/telnet.h>
-
-#include <stdlib.h>
 #include <ctype.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "ring.h"
 
@@ -60,7 +65,7 @@ static char sccsid[] = "@(#)telnet.c	8.2 (Berkeley) 12/15/93";
 #include "general.h"
 
 
-#define	strip(x)	((my_want_state_is_wont(TELOPT_BINARY)) ? ((x)&0x7f) : (x))
+#define	strip(x) ((my_want_state_is_wont(TELOPT_BINARY)) ? ((x)&0x7f) : (x))
 
 static unsigned char	subbuffer[SUBBUFSIZE],
 			*subpointer, *subend;	 /* buffer for sub-options */
@@ -182,9 +187,6 @@ init_telnet()
     ClearArray(options);
 
     connected = In3270 = ISend = localflow = donebinarytoggle = 0;
-#if	defined(AUTHENTICATION)
-    auth_encrypt_connect(connected);
-#endif	/* defined(AUTHENTICATION)  */
     restartany = -1;
 
     SYNCHing = 0;
@@ -371,9 +373,6 @@ willoption(option)
 		settimer(modenegotiated);
 		/* FALL THROUGH */
 	    case TELOPT_STATUS:
-#if	defined(AUTHENTICATION)
-	    case TELOPT_AUTHENTICATION:
-#endif
 		new_state_ok = 1;
 		break;
 
@@ -507,12 +506,6 @@ dooption(option)
 		new_state_ok = 1;
 		break;
 
-#if	defined(AUTHENTICATION)
-	    case TELOPT_AUTHENTICATION:
-		if (autologin)
-			new_state_ok = 1;
-		break;
-#endif
 
 	    case TELOPT_XDISPLOC:	/* X Display location */
 		if (env_getvalue((unsigned char *)"DISPLAY"))
@@ -969,37 +962,6 @@ suboption()
 	}
 	break;
 
-#if	defined(AUTHENTICATION)
-	case TELOPT_AUTHENTICATION: {
-		if (!autologin)
-			break;
-		if (SB_EOF())
-			return;
-		switch(SB_GET()) {
-		case TELQUAL_IS:
-			if (my_want_state_is_dont(TELOPT_AUTHENTICATION))
-				return;
-			auth_is(subpointer, SB_LEN());
-			break;
-		case TELQUAL_SEND:
-			if (my_want_state_is_wont(TELOPT_AUTHENTICATION))
-				return;
-			auth_send(subpointer, SB_LEN());
-			break;
-		case TELQUAL_REPLY:
-			if (my_want_state_is_wont(TELOPT_AUTHENTICATION))
-				return;
-			auth_reply(subpointer, SB_LEN());
-			break;
-		case TELQUAL_NAME:
-			if (my_want_state_is_dont(TELOPT_AUTHENTICATION))
-				return;
-			auth_name(subpointer, SB_LEN());
-			break;
-		}
-	}
-	break;
-#endif
     default:
 	break;
     }
@@ -1147,7 +1109,7 @@ slc_init()
 
 #define	initfunc(func, flags) { \
 					spcp = &spc_data[func]; \
-					if (spcp->valp = tcval(func)) { \
+					if ((spcp->valp = tcval(func))) { \
 					    spcp->val = *spcp->valp; \
 					    spcp->mylevel = SLC_VARIABLE|flags; \
 					} else { \
@@ -1555,12 +1517,12 @@ env_opt_add(ep)
 	if (ep == NULL || *ep == '\0') {
 		/* Send user defined variables first. */
 		env_default(1, 0);
-		while (ep = env_default(0, 0))
+		while ((ep = env_default(0, 0)))
 			env_opt_add(ep);
 
 		/* Now add the list of well know variables.  */
 		env_default(1, 1);
-		while (ep = env_default(0, 1))
+		while ((ep = env_default(0, 1)))
 			env_opt_add(ep);
 		return;
 	}
@@ -1590,7 +1552,7 @@ env_opt_add(ep)
 	else
 		*opt_replyp++ = ENV_USERVAR;
 	for (;;) {
-		while (c = *ep++) {
+		while ((c = *ep++)) {
 			switch(c&0xff) {
 			case IAC:
 				*opt_replyp++ = IAC;
@@ -1604,7 +1566,7 @@ env_opt_add(ep)
 			}
 			*opt_replyp++ = c;
 		}
-		if (ep = vp) {
+		if ((ep = vp)) {
 #ifdef	OLD_ENVIRON
 			if (telopt_environ == TELOPT_OLD_ENVIRON)
 				*opt_replyp++ = old_env_value;
@@ -2139,7 +2101,7 @@ Scheduler(block)
 					ring_full_consecutive(&ttyiring));
 	    if (c) {
 		returnValue = 1;
-	        ring_consumed(&ttyiring, c);
+		ring_consumed(&ttyiring, c);
 	    }
 	} else {
 #   endif /* defined(TN3270) */
@@ -2168,24 +2130,8 @@ telnet(user)
 {
     sys_telnet_init();
 
-#if	defined(AUTHENTICATION)
-    {
-	static char local_host[256] = { 0 };
-
-	if (!local_host[0]) {
-		gethostname(local_host, sizeof(local_host));
-		local_host[sizeof(local_host)-1] = 0;
-	}
-	auth_encrypt_init(local_host, hostname, "TELNET", 0);
-	auth_encrypt_user(user);
-    }
-#endif	/* defined(AUTHENTICATION)  */
 #   if !defined(TN3270)
     if (telnetport) {
-#if	defined(AUTHENTICATION)
-	if (autologin)
-		send_will(TELOPT_AUTHENTICATION, 1);
-#endif
 	send_do(TELOPT_SGA, 1);
 	send_will(TELOPT_TTYPE, 1);
 	send_will(TELOPT_NAWS, 1);

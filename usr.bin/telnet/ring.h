@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ring.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #if defined(P)
@@ -92,5 +93,5 @@ extern int
 
 
 extern void
-    ring_clear_mark(),
-    ring_mark();
+    ring_clear_mark P((Ring *)),
+    ring_mark P((Ring *));
