@@ -15,7 +15,6 @@ DEBUG_LINUX		opt_linux.h
 PPC_DEBUG		opt_ppc.h
 
 SHOW_BUSYBUFS
-TUNE_1542
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
