@@ -191,6 +191,21 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	object = vp->v_object;
 	error = 0;
 
+	/*
+	 * It's necessary to fail if the filsz + offset taken from the
+	 * header is greater than the actual file pager object's size.
+	 * If we were to allow this, then the vm_map_find() below would
+	 * walk right off the end of the file object and into the ether.
+	 *
+	 * While I'm here, might as well check for something else that
+	 * is invalid: filsz cannot be greater than memsz.
+	 */
+	if ((off_t)filsz + offset > object->un_pager.vnp.vnp_size ||
+	    filsz > memsz) {
+		uprintf("elf_load_section: truncated ELF file\n");
+		return (ENOEXEC);
+	}
+
 	map_addr = trunc_page((vm_offset_t)vmaddr);
 	file_addr = trunc_page(offset);
 
@@ -342,6 +357,12 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	}
 
 	error = exec_map_first_page(imgp);
+	/*
+	 * Also make certain that the interpreter stays the same, so set
+	 * its VTEXT flag, too.
+	 */
+	if (error == 0)
+		nd.ni_vp->v_flag |= VTEXT;
 	VOP_UNLOCK(nd.ni_vp, 0, p);
 	if (error)
                 goto fail;
@@ -450,6 +471,17 @@ exec_elf_imgact(struct image_params *imgp)
 	/*
 	 * From this point on, we may have resources that need to be freed.
 	 */
+
+	/*
+	 * Yeah, I'm paranoid.  There is every reason in the world to get
+	 * VTEXT now since from here on out, there are places we can have
+	 * a context switch.  Better safe than sorry; I really don't want
+	 * the file to change while it's being loaded.
+	 */
+	simple_lock(&imgp->vp->v_interlock);
+	imgp->vp->v_flag |= VTEXT;
+	simple_unlock(&imgp->vp->v_interlock);
+
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
 
@@ -615,9 +647,6 @@ exec_elf_imgact(struct image_params *imgp)
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
 
-	/* don't allow modifying the file while we run it */
-	imgp->vp->v_flag |= VTEXT;
-	
 fail:
 	return error;
 }
