@@ -147,6 +147,7 @@ struct atapi_softc {
     int				unit;		/* ATA_MASTER or ATA_SLAVE */
     void			*driver;	/* ptr to subdriver softc */
     u_int8_t			cmd;		/* last cmd executed */
+    struct atapi_reqsense	sense;		/* last cmd sense if error */
     int				flags;		/* drive flags */
 #define		ATAPI_F_MEDIA_CHANGED	0x0001
 #define		ATAPI_F_DETACHING	0x0002
@@ -166,7 +167,7 @@ struct atapi_request {
     int				result;		/* result of this cmd */
     int				error;		/* result translated to errno */
     struct atapi_reqsense	sense;		/* sense data if error */
-    int				flags;		
+    int				flags;
 #define		ATPR_F_READ		0x0001
 #define		ATPR_F_DMA_USED		0x0002
 #define		ATPR_F_AT_HEAD		0x0004
