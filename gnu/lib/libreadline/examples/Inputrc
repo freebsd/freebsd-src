@@ -19,6 +19,12 @@ $if TERM=xterm
 "\e[C": forward-char
 "\e[D": backward-char
 
+# alternate arrow key prefix
+"\eOA": previous-history
+"\eOB": next-history
+"\eOC": forward-char
+"\eOD": backward-char
+
 # Under Xterm in Bash, we bind local Function keys to do something useful.
 $if Bash
 "\e[11~": "Function Key 1"
@@ -53,6 +59,7 @@ $endif
 $if Ftp
 "\C-xg": "get \M-?"
 "\C-xt": "put \M-?"
+"\M-.": yank-last-arg
 $endif
 
 " ": self-insert

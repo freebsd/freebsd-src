@@ -48,8 +48,8 @@ information on using the GNU History Library in your own programs,
 @cindex expansion
 
 The History library provides a history expansion feature that is similar
-to the history expansion in @code{csh}.  The following text describes
-the syntax used to manipulate the history information.
+to the history expansion provided by @code{csh}.  The following text
+describes the syntax used to manipulate the history information.
 
 History expansion takes place in two parts.  The first is to determine
 which line from the previous history should be used during substitution.
@@ -72,6 +72,7 @@ surrounded by quotes are considered as one word.
 
 An event designator is a reference to a command line entry in the
 history list.
+@cindex history events
 
 @table @asis
 
@@ -86,7 +87,7 @@ Refer to the previous command.  This is a synonym for @code{!-1}.
 Refer to command line @var{n}.
 
 @item @code{!-n}
-Refer to the command line @var{n} lines back.
+Refer to the command @var{n} lines back.
 
 @item @code{!string}
 Refer to the most recent command starting with @var{string}.

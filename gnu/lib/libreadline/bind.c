@@ -19,6 +19,7 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -50,8 +51,8 @@ extern int errno;
 #include "rldefs.h"
 
 /* Some standard library routines. */
-#include <readline/readline.h>
-#include <readline/history.h>
+#include "readline.h"
+#include "history.h"
 
 #if !defined (strchr) && !defined (__STDC__)
 extern char *strchr (), *strrchr ();
@@ -61,10 +62,12 @@ extern int _rl_horizontal_scroll_mode;
 extern int _rl_mark_modified_lines;
 extern int _rl_bell_preference;
 extern int _rl_meta_flag;
-extern int rl_blink_matching_paren;
 extern int _rl_convert_meta_chars_to_ascii;
 extern int _rl_output_meta_chars;
 extern int _rl_complete_show_all;
+#if defined (PAREN_MATCHING)
+extern int rl_blink_matching_paren;
+#endif /* PAREN_MATCHING */
 #if defined (VISIBLE_STATS)
 extern int rl_visible_stats;
 #endif /* VISIBLE_STATS */
@@ -87,12 +90,12 @@ extern char **rl_funmap_names ();
 void rl_set_keymap_from_edit_mode ();
 
 static int glean_key_from_name ();
-#if !defined (BSD386) && !defined (NetBSD) && \
-    !defined (FreeBSD) && !defined (_386BSD)
-static int stricmp (), strnicmp ();
-#else
+
+#if defined (HAVE_STRCASECMP)
 #define stricmp strcasecmp
 #define strnicmp strncasecmp
+#else
+static int stricmp (), strnicmp ();
 #endif
 
 #if defined (STATIC_MALLOC)
@@ -468,6 +471,9 @@ rl_read_init_file (filename)
 	filename = DEFAULT_INPUTRC;
     }
 
+  if (!*filename)
+    filename = DEFAULT_INPUTRC;
+
   openname = tilde_expand (filename);
 
   if ((stat (openname, &finfo) < 0) ||
@@ -509,7 +515,10 @@ rl_read_init_file (filename)
 
       /* Skip leading whitespace. */
       while (*line && whitespace (*line))
-	line++;
+        {
+	  line++;
+	  i--;
+        }
 
       /* If the line is not a comment, then parse it. */
       if (*line && *line != '#')
@@ -950,7 +959,9 @@ static struct {
   { "horizontal-scroll-mode",	&_rl_horizontal_scroll_mode },
   { "mark-modified-lines",	&_rl_mark_modified_lines },
   { "meta-flag",		&_rl_meta_flag },
+#if defined (PAREN_MATCHING)
   { "blink-matching-paren",	&rl_blink_matching_paren },
+#endif
   { "convert-meta",		&_rl_convert_meta_chars_to_ascii },
   { "show-all-if-ambiguous",	&_rl_complete_show_all },
   { "output-meta",		&_rl_output_meta_chars },
@@ -1163,8 +1174,8 @@ rl_set_keymap_from_edit_mode ()
 
 /* Print the names of functions known to Readline. */
 void
-rl_list_funmap_names (ignore)
-     int ignore;
+rl_list_funmap_names (count, ignore)
+     int count, ignore;
 {
   register int i;
   char **funmap_names;
@@ -1208,7 +1219,7 @@ rl_invoking_keyseqs_in_map (function, map)
 	    {
 	      char *keyname = (char *)xmalloc (5);
 
-	      if (CTRL_P (key))
+	      if (CTRL_CHAR (key))
 		sprintf (keyname, "\\C-%c", to_lower (UNCTRL (key)));
 	      else if (key == RUBOUT)
 		sprintf (keyname, "\\C-?");
@@ -1253,7 +1264,7 @@ rl_invoking_keyseqs_in_map (function, map)
 
 		    if (key == ESC)
 		      sprintf (keyname, "\\e");
-		    else if (CTRL_P (key))
+		    else if (CTRL_CHAR (key))
 		      sprintf (keyname, "\\C-%c", to_lower (UNCTRL (key)));
 		    else if (key == RUBOUT)
 		      sprintf (keyname, "\\C-?");
@@ -1418,8 +1429,7 @@ substring_member_of_array (string, array)
   return (0);
 }
 
-#if !defined (BSD386) && !defined (NetBSD) && \
-    !defined (FreeBSD) && !defined (_386BSD)
+#if !defined (HAVE_STRCASECMP)
 /* Whoops, Unix doesn't have strnicmp. */
 
 /* Compare at most COUNT characters from string1 to string2.  Case
@@ -1437,7 +1447,8 @@ strnicmp (string1, string2, count)
       ch2 = *string2++;
       if (to_upper(ch1) == to_upper(ch2))
 	count--;
-      else break;
+      else
+        break;
     }
   return (count);
 }
@@ -1456,9 +1467,9 @@ stricmp (string1, string2)
       if (to_upper(ch1) != to_upper(ch2))
 	return (1);
     }
-  return (*string1 | *string2);
+  return (*string1 - *string2);
 }
-#endif
+#endif /* !HAVE_STRCASECMP */
 
 /* Determine if s2 occurs in s1.  If so, return a pointer to the
    match in s1.  The compare is case insensitive. */
@@ -1470,7 +1481,7 @@ strindex (s1, s2)
   register int len = strlen (s1);
 
   for (i = 0; (len - i) >= l; i++)
-    if (strnicmp (&s1[i], s2, l) == 0)
+    if (strnicmp (s1 + i, s2, l) == 0)
       return (s1 + i);
   return ((char *)NULL);
 }

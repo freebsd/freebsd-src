@@ -20,12 +20,19 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
+#include <sys/types.h>
 #include <stdio.h>
 
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
+
 #include "memalloc.h"
-#include <readline/readline.h>
-#include <readline/history.h>
+#include "rldefs.h"
+#include "readline.h"
+#include "history.h"
 
 #define STREQ(a, b)	(((a)[0] == (b)[0]) && (strcmp ((a), (b)) == 0))
 #define STREQN(a, b, n)	(((a)[0] == (b)[0]) && (strncmp ((a), (b), (n)) == 0))

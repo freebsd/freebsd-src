@@ -19,6 +19,7 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -63,7 +64,7 @@ extern struct passwd *getpwent ();
 #include "rldefs.h"
 
 /* Some standard library routines. */
-#include <readline/readline.h>
+#include "readline.h"
 
 /* Possible values for do_replace in rl_complete_internal. */
 #define NO_MATCH	0
@@ -225,6 +226,13 @@ int rl_ignore_completion_duplicates = 1;
    within a completion entry finder function. */
 int rl_filename_completion_desired = 0;
 
+/* Non-zero means that the results of the matches are to be quoted using
+   double quotes (or an application-specific quoting mechanism) if the
+   filename contains any characters in rl_word_break_chars.  This is
+   ALWAYS non-zero on entry, and can only be changed within a completion
+   entry finder function. */
+int rl_filename_quoting_desired = 1;
+
 /* This function, if defined, is called by the completer when real
    filename completion is done, after all the matching names have been
    generated. It is passed a (char**) known as matches in the code below.
@@ -367,9 +375,7 @@ rl_complete_internal (what_to_do)
   char *text, *saved_line_buffer;
   char *replacement;
   char quote_char = '\0';
-#if defined (SHELL)
   int found_quote = 0;
-#endif
 
   if (rl_line_buffer)
     saved_line_buffer = savestring (rl_line_buffer);
@@ -381,8 +387,9 @@ rl_complete_internal (what_to_do)
   else
     our_func = (Function *)filename_completion_function;
 
-  /* Only the completion entry function can change this. */
+  /* Only the completion entry function can change these. */
   rl_filename_completion_desired = 0;
+  rl_filename_quoting_desired = 1;
 
   /* We now look backwards for the start of a filename/variable word. */
   end = rl_point;
@@ -406,6 +413,7 @@ rl_complete_internal (what_to_do)
 	      if (rl_line_buffer[scan] == '\\')
 		{
 		  pass_next = 1;
+		  found_quote |= 4;
 		  continue;
 		}
 
@@ -424,12 +432,11 @@ rl_complete_internal (what_to_do)
 		  /* Found start of a quoted substring. */
 		  quote_char = rl_line_buffer[scan];
 		  rl_point = scan + 1;
-#if defined (SHELL)
+		  /* Shell-like quoting conventions. */
 		  if (quote_char == '\'')
 		    found_quote |= 1;
 		  else if (quote_char == '"')
 		    found_quote |= 2;
-#endif
 		}
 	    }
 	}
@@ -437,34 +444,37 @@ rl_complete_internal (what_to_do)
       if (rl_point == end)
 	{
 	  int quoted = 0;
-	  /* We didn't find an unclosed quoted substring up which to do
+	  /* We didn't find an unclosed quoted substring upon which to do
 	     completion, so use the word break characters to find the
 	     substring on which to complete. */
 	  while (--rl_point)
 	    {
 	      scan = rl_line_buffer[rl_point];
+
+	      if (strchr (rl_completer_word_break_characters, scan) == 0)
+		continue;
+
 #if defined (SHELL)
 	      /* Don't let word break characters in quoted substrings break
 		 words for the completer. */
-	      if (found_quote)
-		{
-		  if (strchr (rl_completer_quote_characters, scan))
-		    {
-		      quoted = !quoted;
-		      continue;
-		    }
-		  if (quoted)
-		    continue;
-		}
+	      if (found_quote && char_is_quoted (rl_line_buffer, rl_point))
+		continue;
 #endif /* SHELL */
-	      if (strchr (rl_completer_word_break_characters, scan))
-	        break;
+
+	      /* Convoluted code, but it avoids an n^2 algorithm with calls
+	      	 to char_is_quoted. */
+	      break;
 	    }
 	}
 
-      /* If we are at a word break, then advance past it. */
+      /* If we are at an unquoted word break, then advance past it. */
       scan = rl_line_buffer[rl_point];
+#if defined (SHELL)
+      if ((found_quote == 0 || char_is_quoted (rl_line_buffer, rl_point) == 0) &&
+          strchr (rl_completer_word_break_characters, scan))
+#else
       if (strchr (rl_completer_word_break_characters, scan))
+#endif
 	{
 	  /* If the character that caused the word break was a quoting
 	     character, then remember it as the delimiter. */
@@ -521,6 +531,7 @@ rl_complete_internal (what_to_do)
   else
     {
       register int i;
+      int should_quote;
 
       /* It seems to me that in all the cases we handle we would like
 	 to ignore duplicate possiblilities.  Scan for the text to
@@ -603,8 +614,18 @@ rl_complete_internal (what_to_do)
 	     matches don't require a quoted substring. */
 	  replacement = matches[0];
 
-	  if (matches[0] && rl_completer_quote_characters && !quote_char &&
-	      rl_filename_completion_desired)
+	  should_quote = matches[0] && rl_completer_quote_characters &&
+			 rl_filename_completion_desired &&
+			 rl_filename_quoting_desired;
+
+	  if (should_quote)
+#if defined (SHELL)
+	    should_quote = should_quote && (!quote_char || quote_char == '"');
+#else
+	    should_quote = should_quote && !quote_char;
+#endif
+
+	  if (should_quote)
 	    {
 	      int do_replace;
 
@@ -614,17 +635,17 @@ rl_complete_internal (what_to_do)
 		 This also checks whether the common prefix of several
 		 matches needs to be quoted.  If the common prefix should
 		 not be checked, add !matches[1] to the if clause. */
-	      if (rl_strpbrk (matches[0], rl_completer_word_break_characters)
+	      should_quote = rl_strpbrk (matches[0], rl_completer_word_break_characters) != 0;
 #if defined (SHELL)
-	          || rl_strpbrk (matches[0], "$`")
+	      should_quote = should_quote || rl_strpbrk (matches[0], "#$`") != 0;
 #endif
-		 )
+
+	      if (should_quote)
 		do_replace = matches[1] ? MULT_MATCH : SINGLE_MATCH;
 
 	      if (do_replace != NO_MATCH)
 		{
 #if defined (SHELL)
-		  /* XXX - experimental */
 		  /* Quote the replacement, since we found an
 		     embedded word break character in a potential
 		     match. */
@@ -648,7 +669,18 @@ rl_complete_internal (what_to_do)
 
 		  rlen = strlen (rtext);
 		  replacement = xmalloc (rlen + 1);
-		  strcpy (replacement, rtext);
+		  /* If we're completing on a quoted string where the user
+		     has already supplied the opening quote, we don't want
+		     the quote in the replacement text, and we reset
+		     QUOTE_CHAR to 0 to avoid an extra closing quote. */
+		  if (quote_char == '"')
+		    {
+		      strcpy (replacement, rtext + 1);
+		      rlen--;
+		      quote_char = 0;
+		    }
+		  else
+		    strcpy (replacement, rtext);
 		  if (do_replace == MULT_MATCH)
 		    replacement[rlen - 1] = '\0';
 		  free (rtext);
@@ -927,7 +959,13 @@ static int
 compare_strings (s1, s2)
   char **s1, **s2;
 {
-  return (strcmp (*s1, *s2));
+  int result;
+
+  result = **s1 - **s2;
+  if (result == 0)
+    result = strcmp (*s1, *s2);
+
+  return result;
 }
 
 /* A completion function for usernames.
@@ -976,7 +1014,7 @@ username_completion_function (text, state)
     }
   else
     {
-      char *value = (char *)xmalloc (2 + strlen (entry->pw_name));
+      char *value = xmalloc (2 + strlen (entry->pw_name));
 
       *value = *text;
 
@@ -1083,7 +1121,7 @@ completion_matches (text, entry_function)
 	      if (low > si) low = si;
 	      i++;
 	    }
-	  match_list[0] = (char *)xmalloc (low + 1);
+	  match_list[0] = xmalloc (low + 1);
 	  strncpy (match_list[0], match_list[1], low);
 	  match_list[0][low] = '\0';
 	}
@@ -1111,7 +1149,7 @@ filename_completion_function (text, state)
   static char *users_dirname = (char *)NULL;
   static int filename_len;
 
-  struct direct *entry = (struct direct *)NULL;
+  struct dirent *entry = (struct dirent *)NULL;
 
   /* If we don't have any state, then do some initialization. */
   if (!state)
@@ -1185,8 +1223,8 @@ filename_completion_function (text, state)
 	{
 	  /* Otherwise, if these match up to the length of filename, then
 	     it is a match. */
-	    if (((int)D_NAMLEN (entry)) >= filename_len &&
-		(entry->d_name[0] == filename[0]) &&
+	    if ((entry->d_name[0] == filename[0]) &&
+		(((int)D_NAMLEN (entry)) >= filename_len) &&
 		(strncmp (filename, entry->d_name, filename_len) == 0))
 	      break;
 	}
@@ -1199,7 +1237,6 @@ filename_completion_function (text, state)
 	  closedir (directory);
 	  directory = (DIR *)NULL;
 	}
-
       if (dirname)
 	{
 	  free (dirname);
@@ -1228,7 +1265,7 @@ filename_completion_function (text, state)
 	  if (rl_complete_with_tilde_expansion && *users_dirname == '~')
 	    {
 	      int dirlen = strlen (dirname);
-	      temp = (char *)xmalloc (2 + dirlen + D_NAMLEN (entry));
+	      temp = xmalloc (2 + dirlen + D_NAMLEN (entry));
 	      strcpy (temp, dirname);
 	      /* Canonicalization cuts off any final slash present.  We need
 		 to add it back. */
@@ -1240,8 +1277,7 @@ filename_completion_function (text, state)
 	    }
 	  else
 	    {
-	      temp = (char *)
-		xmalloc (1 + strlen (users_dirname) + D_NAMLEN (entry));
+	      temp = xmalloc (1 + strlen (users_dirname) + D_NAMLEN (entry));
 	      strcpy (temp, users_dirname);
 	    }
 

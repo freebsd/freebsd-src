@@ -26,6 +26,14 @@
 #if !defined (_RLDEFS_H)
 #define _RLDEFS_H
 
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
+
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>           /* for _POSIX_VERSION */
+#endif /* HAVE_UNISTD_H */
+
 #if !defined (PRAGMA_ALLOCA)
 #  include "memalloc.h"
 #endif
@@ -34,9 +42,9 @@
 #define HAVE_BSD_SIGNALS
 /* #define USE_XON_XOFF */
 
-#if defined (__linux__)
+#if defined (__linux__) || defined (HAVE_TERMCAP_H)
 #  include <termcap.h>
-#endif /* __linux__ */
+#endif /* __linux__ || HAVE_TERMCAP_H */
 
 /* Some USG machines have BSD signal handling (sigblock, sigsetmask, etc.) */
 #if defined (USG) && !defined (hpux)
@@ -45,14 +53,15 @@
 
 /* System V machines use termio. */
 #if !defined (_POSIX_VERSION)
-#  if defined (USG) || defined (hpux) || defined (Xenix) || defined (sgi) || defined (DGUX)
+#  if defined (USG) || defined (hpux) || defined (Xenix) || defined (sgi) || \
+      defined (DGUX) || defined (HAVE_TERMIO_H)
 #    undef NEW_TTY_DRIVER
 #    define TERMIO_TTY_DRIVER
 #    include <termio.h>
 #    if !defined (TCOON)
 #      define TCOON 1
 #    endif
-#  endif /* USG || hpux || Xenix || sgi || DUGX */
+#  endif /* USG || hpux || Xenix || sgi || DUGX || HAVE_TERMIO_H */
 #endif /* !_POSIX_VERSION */
 
 /* Posix systems use termios and the Posix signal functions. */
@@ -102,9 +111,6 @@
 
 #if defined (HAVE_DIRENT_H)
 #  include <dirent.h>
-#  if !defined (direct)
-#    define direct dirent
-#  endif /* !direct */
 #  define D_NAMLEN(d) strlen ((d)->d_name)
 #else /* !HAVE_DIRENT_H */
 #  define D_NAMLEN(d) ((d)->d_namlen)
@@ -117,6 +123,9 @@
 #  else /* !USG */
 #    include <sys/dir.h>
 #  endif /* !USG */
+#  if !defined (dirent)
+#    define dirent direct
+#  endif /* !dirent */
 #endif /* !HAVE_DIRENT_H */
 
 #if defined (USG) && defined (TIOCGWINSZ) && !defined (Linux)
@@ -160,6 +169,13 @@ extern char *strchr (), *strrchr ();
 #  include <varargs.h>
 #endif /* HAVE_VARARGS_H */
 
+/* This is needed to include support for TIOCGWINSZ and window resizing. */
+#if defined (OSF1) || defined (BSD386) || defined (NetBSD) || \
+    defined (__BSD_4_4__) || defined (FreeBSD) || defined (_386BSD) || \
+    defined (AIX)
+#  define GWINSZ_IN_SYS_IOCTL
+#endif
+
 #if !defined (emacs_mode)
 #  define no_mode -1
 #  define vi_mode 0
@@ -177,6 +193,11 @@ extern char *strchr (), *strrchr ();
 #else
 #  define FUNCTION_TO_KEYMAP(map, key)	(Keymap)(map[key].function)
 #  define KEYMAP_TO_FUNCTION(data)	(Function *)(data)
+#endif
+
+#ifndef savestring
+extern char *xmalloc ();
+#define savestring(x) strcpy (xmalloc (1 + strlen (x)), (x))
 #endif
 
 /* Possible values for _rl_bell_preference. */
