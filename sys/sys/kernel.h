@@ -188,7 +188,7 @@ enum sysinit_elem_order {
  * to discern SYSINIT's which take non-constant data pointers and
  * SYSINIT's which take constant data pointers,
  *
- * The C_* macros take functions expecting const void * arguments 
+ * The C_* macros take functions expecting const void * arguments
  * while the non-C_* macros take functions expecting just void * arguments.
  *
  * With -Wcast-qual on, the compiler issues warnings:
