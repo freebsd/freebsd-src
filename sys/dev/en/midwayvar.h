@@ -142,7 +142,7 @@ struct en_rxslot {
  */
 struct en_softc {
 	/* bsd glue */
-	struct ifnet enif;		/* network ifnet handle */
+	struct ifatm	ifatm;		/* ATM network ifnet handle */
 	device_t dev;
 
 	/* bus glue */
@@ -210,10 +210,6 @@ struct en_softc {
 
 	/* memory zones */
 	uma_zone_t map_zone;
-
-	/* board info */
-	uint8_t macaddr[6];
-	uint32_t serial;
 
 #ifdef EN_DEBUG
 	/* debugging */
