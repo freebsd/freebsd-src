@@ -487,6 +487,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_socket = 0;
 		vp->v_writecount = 0;	/* XXX */
 		vp->v_maxio = 0;
+		vp->v_cache_dst_count = 0;
 	} else {
 		simple_unlock(&vnode_free_list_slock);
 		vp = (struct vnode *) zalloc(vnode_zone);

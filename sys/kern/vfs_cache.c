@@ -105,6 +105,12 @@ static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
 static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
 static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
+/*
+ * Max aliases to a name, avoids DoS of the system via hardlinks
+ */
+static int ncmaxaliases = 4;
+SYSCTL_INT(_vfs_cache, OID_AUTO, maxaliases, CTLFLAG_RW, &ncmaxaliases, 4,
+	"Maximum amount of cache entries that can point to a particular file");
 
 static void cache_zap __P((struct namecache *ncp));
 
@@ -126,6 +132,7 @@ cache_zap(ncp)
 		vdrop(ncp->nc_dvp);
 	if (ncp->nc_vp) {
 		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
+		ncp->nc_vp->v_cache_dst_count--;
 	} else {
 		TAILQ_REMOVE(&ncneg, ncp, nc_dst);
 		numneg--;
@@ -296,6 +303,9 @@ cache_enter(dvp, vp, cnp)
 		vhold(dvp);
 	LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	if (vp) {
+		while (vp->v_cache_dst_count > ncmaxaliases)
+			cache_zap(TAILQ_LAST(&vp->v_cache_dst, cdst));
+		vp->v_cache_dst_count++;
 		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
 	} else {
 		TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
