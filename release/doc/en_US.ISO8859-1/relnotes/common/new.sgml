@@ -223,6 +223,10 @@
     the cache size in kilobytes.  The old options are still supported
     for backwards compatibility. &merged;</para>
 
+    <para arch="i386">The &man.puc.4; (PCI <quote>Universal</quote>
+    Communications) driver has been added, to help connect PCI-based
+    serial ports to the &man.sio.4; driver.</para>
+
     <para>The &man.random.4; device has been rewritten to use the
     <application>Yarrow</application> algorithm.  It harvests entropy
     from a variety of interrupt sources, including the console
@@ -496,7 +500,7 @@
       utilities are now supported under emulation. &merged;</para>
 
       <para arch="i386">Generic support for ARCNET token-based
-      networks has been added.</para>
+      networks has been added. &merged;</para>
 
       <para arch="i386">The &man.bge.4; driver has been added to
       support the Broadcom BCM570x family of Gigabit Ethernet
@@ -507,7 +511,7 @@
       interrupt moderation. &merged;</para>
 
       <para arch="i386">The cm driver has been added to support SMC
-      COM90cx6 ARCNET network adapters.</para>
+      COM90cx6 ARCNET network adapters. &merged;</para>
 
       <para>The &man.dc.4; driver now supports NICs based on the Xircom
       3201 and Conexant LANfinity RS7112 chips.</para>
@@ -672,7 +676,7 @@
       <varname>SIOCGIFCONF</varname> ioctl may be performed on the
       special <filename>/dev/network</filename> node.</para>
 
-      <para arch="i386">Selected network drivers now implement a
+      <para>Selected network drivers now implement a
       semi-polling mode, which makes systems much more resilient to
       attacks and overloads.  To enable polling, the following options
       are required in a kernel configuration file:
@@ -685,7 +689,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <varname>kern.polling.user_frac</varname> sysctl indicating the
       percentage of CPU time to be reserved for userland.  The devices
       initially supporting polling are &man.dc.4;, &man.fxp.4;, and
-      &man.sis.4;.</para>
+      &man.sis.4;.  More details can be found in the &man.polling.4;
+      manual page. &merged;</para>
 
       <para arch="i386">The packet-forwarding performance of certain
       network drivers (specifically &man.dc.4; and &man.sis.4;) has
@@ -2379,8 +2384,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
 
     <para>&man.uudecode.1; now accepts a <option>-o</option> option to
-    set its output file.  The <option>-p</option> option to send
-    output to stdout is now deprecated.</para>
+    set its output file.</para>
 
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
     parameter to select custom text geometry in the
