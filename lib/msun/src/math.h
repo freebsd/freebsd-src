@@ -32,19 +32,19 @@ extern const union __nan_un {
 	float		__uf;
 } __nan;
 
+#define	HUGE_VAL	(__infinity.__ud)
+
+#if __ISO_C_VISIBLE >= 1999
 #define	FP_ILOGB0	(-0x7fffffff - 1)	/* INT_MIN */
 #define	FP_ILOGBNAN	0x7fffffff		/* INT_MAX */
-#define HUGE_VAL	(__infinity.__ud)
 #define	HUGE_VALF	(float)HUGE_VAL
 #define	HUGE_VALL	(long double)HUGE_VAL
 #define	INFINITY	HUGE_VALF
 #define	NAN		(__nan.__uf)
 
-#if __ISO_C_VISIBLE >= 1999
 #define	MATH_ERRNO	1
 #define	MATH_ERREXCEPT	2
 #define	math_errhandling	0
-#endif
 
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
@@ -60,7 +60,6 @@ extern const union __nan_un {
 #define	isfinite(x)	((fpclassify(x) & (FP_INFINITE|FP_NAN)) == 0)
 #define	isinf(x)	(fpclassify(x) == FP_INFINITE)
 #define	isnan(x)	(fpclassify(x) == FP_NAN)
-#define	isnanf(x)      	isnan(x)
 #define	isnormal(x)	(fpclassify(x) == FP_NORMAL)
 
 #define	isgreater(x, y)		(!isunordered((x), (y)) && (x) > (y))
@@ -75,11 +74,12 @@ extern const union __nan_un {
 
 typedef	__double_t	double_t;
 typedef	__float_t	float_t;
+#endif /* __ISO_C_VISIBLE >= 1999 */
 
 /*
  * XOPEN/SVID
  */
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#if __BSD_VISIBLE || __XSI_VISIBLE
 #define	M_E		2.7182818284590452354	/* e */
 #define	M_LOG2E		1.4426950408889634074	/* log 2e */
 #define	M_LOG10E	0.43429448190325182765	/* log 10e */
@@ -96,8 +96,9 @@ typedef	__float_t	float_t;
 
 #define	MAXFLOAT	((float)3.40282346638528860e+38)
 extern int signgam;
+#endif /* __BSD_VISIBLE || __XSI_VISIBLE */
 
-#if !defined(_XOPEN_SOURCE)
+#if __BSD_VISIBLE
 enum fdversion {fdlibm_ieee = -1, fdlibm_svid, fdlibm_xopen, fdlibm_posix};
 
 #define _LIB_VERSION_TYPE enum fdversion
@@ -129,6 +130,8 @@ struct exception {
 };
 #endif
 
+#define	isnanf(x)      	isnan(x)
+
 #if 0
 /* Old value from 4.4BSD-Lite math.h; this is probably better. */
 #define	HUGE		HUGE_VAL
@@ -145,8 +148,7 @@ struct exception {
 #define	TLOSS		5
 #define	PLOSS		6
 
-#endif /* !_XOPEN_SOURCE */
-#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 #include <sys/cdefs.h>
 
@@ -197,65 +199,70 @@ double	fmod(double, double);
  * These functions are not in C90 so they can be "right".  The ones that
  * never set errno in lib/msun are declared as __pure2.
  */
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-double	erf(double);
-double	erfc(double) __pure2;
-int	finite(double) __pure2;
-double	gamma(double);
-double	hypot(double, double);
-double	j0(double);
-double	j1(double);
-double	jn(int, double);
-double	lgamma(double);
-double	y0(double);
-double	y1(double);
-double	yn(int, double);
-
-#if !defined(_XOPEN_SOURCE)
+#if __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE
 double	acosh(double);
 double	asinh(double);
 double	atanh(double);
 double	cbrt(double) __pure2;
+double	erf(double);
+double	erfc(double) __pure2;
+double	expm1(double) __pure2;
+double	hypot(double, double);
+int	ilogb(double);
+double	lgamma(double);
+double	log1p(double) __pure2;
 double	logb(double) __pure2;
 double	nextafter(double, double);
 double	remainder(double, double);
-double	scalb(double, double);
-double	tgamma(double);
+double	rint(double) __pure2;
+#endif /* __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE */
 
-#ifndef __cplusplus
-int	matherr(struct exception *);
+#if __BSD_VISIBLE || __XSI_VISIBLE
+double	j0(double);
+double	j1(double);
+double	jn(int, double);
+double	scalb(double, double);
+double	y0(double);
+double	y1(double);
+double	yn(int, double);
+
+#if __XSI_VISIBLE <= 500 || __BSD_VISIBLE
+double	gamma(double);
 #endif
+#endif /* __BSD_VISIBLE || __XSI_VISIBLE */
+
+#if __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999
+double	copysign(double, double) __pure2;
+double	scalbn(double, int);
+double	tgamma(double);
+#endif
+
+/*
+ * BSD math library entry points
+ */
+#if __BSD_VISIBLE
+double	drem(double, double);
+int	finite(double) __pure2;
+
+/*
+ * Reentrant version of gamma & lgamma; passes signgam back by reference
+ * as the second argument; user must allocate space for signgam.
+ */
+double	gamma_r(double, int *);
+double	lgamma_r(double, int *);
 
 /*
  * IEEE Test Vector
  */
 double	significand(double);
 
-/*
- * Functions callable from C, intended to support IEEE arithmetic.
- */
-double	copysign(double, double) __pure2;
-int	ilogb(double);
-double	rint(double) __pure2;
-double	scalbn(double, int);
-
-/*
- * BSD math library entry points
- */
-double	drem(double, double);
-double	expm1(double) __pure2;
-double	log1p(double) __pure2;
-
-/*
- * Reentrant version of gamma & lgamma; passes signgam back by reference
- * as the second argument; user must allocate space for signgam.
- */
-#if __BSD_VISIBLE
-double	gamma_r(double, int *);
-double	lgamma_r(double, int *);
+#ifndef __cplusplus
+int	matherr(struct exception *);
+#endif
 #endif /* __BSD_VISIBLE */
 
 /* float versions of ANSI/POSIX functions */
+#if __ISO_C_VISIBLE >= 1999
 float	acosf(float);
 float	asinf(float);
 float	atanf(float);
@@ -269,10 +276,13 @@ float	sinhf(float);
 float	tanhf(float);
 
 float	expf(float);
+float	expm1f(float) __pure2;
 float	frexpf(float, int *);	/* fundamentally !__pure2 */
+int	ilogbf(float);
 float	ldexpf(float, int);
-float	logf(float);
 float	log10f(float);
+float	log1pf(float) __pure2;
+float	logf(float);
 float	modff(float, float *);	/* fundamentally !__pure2 */
 
 float	powf(float, float);
@@ -285,60 +295,54 @@ float	fmodf(float, float);
 
 float	erff(float);
 float	erfcf(float) __pure2;
-int	finitef(float) __pure2;
-float	gammaf(float);
 float	hypotf(float, float) __pure2;
-float	j0f(float);
-float	j1f(float);
-float	jnf(int, float);
 float	lgammaf(float);
-float	y0f(float);
-float	y1f(float);
-float	ynf(int, float);
 
 float	acoshf(float);
 float	asinhf(float);
 float	atanhf(float);
 float	cbrtf(float) __pure2;
 float	logbf(float) __pure2;
+float	copysignf(float, float) __pure2;
 float	nextafterf(float, float);
 float	remainderf(float, float);
-float	scalbf(float, float);
-
-/*
- * float version of IEEE Test Vector
- */
-float	significandf(float);
-
-/*
- * Float versions of functions callable from C, intended to support
- * IEEE arithmetic.
- */
-float	copysignf(float, float) __pure2;
-int	ilogbf(float);
 float	rintf(float);
 float	scalbnf(float, int);
+#endif
 
 /*
  * float versions of BSD math library entry points
  */
+#if __BSD_VISIBLE
 float	dremf(float, float);
-float	expm1f(float) __pure2;
-float	log1pf(float) __pure2;
+int	finitef(float) __pure2;
+float	gammaf(float);
+float	j0f(float);
+float	j1f(float);
+float	jnf(int, float);
+float	scalbf(float, float);
+float	y0f(float);
+float	y1f(float);
+float	ynf(int, float);
 
 /*
  * Float versions of reentrant version of gamma & lgamma; passes
  * signgam back by reference as the second argument; user must
  * allocate space for signgam.
  */
-#if __BSD_VISIBLE
 float	gammaf_r(float, int *);
 float	lgammaf_r(float, int *);
+
+/*
+ * float version of IEEE Test Vector
+ */
+float	significandf(float);
 #endif	/* __BSD_VISIBLE */
 
 /*
  * long double versions of ISO/POSIX math functions
  */
+#if __ISO_C_VISIBLE >= 1999
 #if 0
 long double	acoshl(long double);
 long double	acosl(long double);
@@ -403,8 +407,7 @@ long double	tgammal(long double);
 long double	truncl(long double);
 #endif
 
-#endif /* !_XOPEN_SOURCE */
-#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+#endif /* __ISO_C_VISIBLE >= 1999 */
 __END_DECLS
 
 #endif /* !_MATH_H_ */
