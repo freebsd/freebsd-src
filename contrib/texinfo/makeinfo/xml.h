@@ -1,7 +1,7 @@
 /* xml.h -- xml output declarations.
-   $Id: xml.h,v 1.7 2002/03/23 20:41:21 karl Exp $
+   $Id: xml.h,v 1.6 2002/11/11 12:37:34 feloy Exp $
 
-   Copyright (C) 2001, 02 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,11 @@ extern int xml_node_open;
 extern int xml_no_para;
 extern char *xml_node_id;
 extern int xml_last_section_output_position;
+
+extern int xml_in_xref_token;
+extern int xml_in_bookinfo;
+extern int xml_in_book_title;
+extern int xml_in_abstract;
 
 enum xml_element
 {
@@ -71,7 +76,7 @@ enum xml_element
     IMAGEDATA, TEXTOBJECT,  
   INDEXENTRY, PRIMARYIE, SECONDARYIE, INDEXDIV,
   MULTITABLE, TGROUP, COLSPEC, TBODY, ENTRY, ROW,
-  BOOKINFO, ABSTRACT, REPLACEABLE,
+  BOOKINFO, ABSTRACT, REPLACEABLE, ENVAR, COMMENT, FUNCTION, LEGALNOTICE,
   PARA
 };
 

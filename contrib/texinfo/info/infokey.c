@@ -1,7 +1,7 @@
 /* infokey.c -- compile ~/.infokey to ~/.info.
-   $Id: infokey.c,v 1.10 2002/03/19 14:36:49 karl Exp $
+   $Id: infokey.c,v 1.3 2003/01/19 18:46:27 karl Exp $
 
-   Copyright (C) 1999, 2001, 02 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ main (argc, argv)
 There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the files named COPYING.\n"),
-	      "1999");
+	      "2003");
       xexit (0);
     }
 

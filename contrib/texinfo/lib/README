@@ -1,4 +1,13 @@
-Common routines for the Texinfo package.
+$Id: README,v 1.2 2002/09/11 16:32:09 karl Exp $
+texinfo/lib/README
+
+  Copyright (C) 2002 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Common routines for the Texinfo programs.
 
 Many are common to other GNU packages as well.
-(On the FSF machines, check /home/gd/gnu/lib for the latest.)
+See the gnulib project at savannah: http://savannah.gnu.org/projects/gnulib
