@@ -126,7 +126,7 @@ Static struct cdevsw urio_cdevsw = {
 	.d_name =	"urio",
 	.d_maj =	URIO_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
- 	-1
+ 	.d_bmaj =	-1
 #endif
 };
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
