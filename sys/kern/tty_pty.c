@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.60 1999/05/30 16:52:57 phk Exp $
+ * $Id: tty_pty.c,v 1.61 1999/05/31 11:27:38 phk Exp $
  */
 
 /*
@@ -40,7 +40,6 @@
  */
 #include "pty.h"		/* XXX */
 #include "opt_compat.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,16 +54,13 @@
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
+#include <sys/malloc.h>
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
+MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
-#ifdef notyet
-static void ptyattach __P((int n));
-#endif
 static void ptsstart __P((struct tty *tp));
 static void ptcwakeup __P((struct tty *tp, int flag));
+static void ptyinit __P((int n));
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -125,38 +121,15 @@ static struct cdevsw ptc_cdevsw = {
 	/* bmaj */	-1
 };
 
-#if NPTY == 1
-#undef NPTY
-#define	NPTY	32		/* crude XXX */
-#warning	You have only one pty defined, redefining to 32.
-#endif
-
-#ifdef DEVFS
-#define MAXUNITS (8 * 32)
-static	void	*devfs_token_pts[MAXUNITS];
-static	void	*devfs_token_ptc[MAXUNITS];
-static  const	char jnames[] = "pqrsPQRS";
-#if NPTY > MAXUNITS
-#undef NPTY
-#define NPTY MAXUNITS
-#warning	Can't have more than 256 pty's with DEVFS defined.
-#endif
-#endif
-
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */
 
-/*
- * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
- * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
- */
-static struct	tty pt_tty[NPTY];	/* XXX */
-static struct	pt_ioctl {
+struct	pt_ioctl {
 	int	pt_flags;
 	struct	selinfo pt_selr, pt_selw;
 	u_char	pt_send;
 	u_char	pt_ucntl;
-} pt_ioctl[NPTY];		/* XXX */
-static int	npty = NPTY;		/* for pstat -t */
+	struct tty pt_tty;
+};
 
 #define	PF_PKT		0x08		/* packet mode */
 #define	PF_STOPPED	0x10		/* user told stopped */
@@ -164,32 +137,37 @@ static int	npty = NPTY;		/* for pstat -t */
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
 
-#ifdef notyet
 /*
- * Establish n (or default if n is 1) ptys in the system.
+ * This function creates and initializes a pts/ptc pair
  *
- * XXX cdevsw & pstat require the array `pty[]' to be an array
+ * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
+ * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
+ *
+ * XXX: define and add mapping of upper minor bits to allow more 
+ *      than 256 ptys.
  */
 static void
-ptyattach(n)
+ptyinit(n)
 	int n;
 {
-	char *mem;
-	register u_long ntb;
-#define	DEFAULT_NPTY	32
+	dev_t devs, devc;
+	char *names = "pqrsPQRS";
+	struct pt_ioctl *pt;
 
-	/* maybe should allow 0 => none? */
-	if (n <= 1)
-		n = DEFAULT_NPTY;
-	ntb = n * sizeof(struct tty);
-	mem = malloc(ntb + ALIGNBYTES + n * sizeof(struct pt_ioctl),
-	    M_DEVBUF, M_WAITOK);
-	pt_tty = (struct tty *)mem;
-	mem = (char *)ALIGN(mem + ntb);
-	pt_ioctl = (struct pt_ioctl *)mem;
-	npty = n;
+	/* For now we only map the lower 8 bits of the minor */
+	if (n & ~0xff)
+		return;
+
+	devs = make_dev(&pts_cdevsw, n,
+	    0, 0, 0666, "tty%c%r", names[n / 32], n % 32);
+	devc = make_dev(&ptc_cdevsw, n,
+	    0, 0, 0666, "pty%c%r", names[n / 32], n % 32);
+
+	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK);
+	bzero(pt, sizeof(*pt));
+	devs->si_drv1 = devc->si_drv1 = pt;
+	devs->si_tty_tty = devc->si_tty_tty = &pt->pt_tty;
 }
-#endif
 
 /*ARGSUSED*/
 static	int
@@ -201,9 +179,11 @@ ptsopen(dev, flag, devtype, p)
 	register struct tty *tp;
 	int error;
 
-	if (minor(dev) >= npty)
-		return (ENXIO);
-	tp = &pt_tty[minor(dev)];
+	if (!dev->si_drv1)
+		ptyinit(minor(dev));
+	if (!dev->si_drv1)
+		return(ENXIO);	
+	tp = dev->si_tty_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttychars(tp);		/* Set up default chars */
 		tp->t_iflag = TTYDEF_IFLAG;
@@ -238,7 +218,7 @@ ptsclose(dev, flag, mode, p)
 	register struct tty *tp;
 	int err;
 
-	tp = &pt_tty[minor(dev)];
+	tp = dev->si_tty_tty;
 	err = (*linesw[tp->t_line].l_close)(tp, flag);
 	ptsstop(tp, FREAD|FWRITE);
 	(void) ttyclose(tp);
@@ -252,8 +232,8 @@ ptsread(dev, uio, flag)
 	int flag;
 {
 	struct proc *p = curproc;
-	register struct tty *tp = &pt_tty[minor(dev)];
-	register struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
+	register struct tty *tp = dev->si_tty_tty;
+	register struct pt_ioctl *pti = dev->si_drv1;
 	int error = 0;
 
 again:
@@ -308,7 +288,7 @@ ptswrite(dev, uio, flag)
 {
 	register struct tty *tp;
 
-	tp = &pt_tty[minor(dev)];
+	tp = dev->si_tty_tty;
 	if (tp->t_oproc == 0)
 		return (EIO);
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
@@ -322,7 +302,7 @@ static void
 ptsstart(tp)
 	struct tty *tp;
 {
-	register struct pt_ioctl *pti = &pt_ioctl[minor(tp->t_dev)];
+	register struct pt_ioctl *pti = tp->t_dev->si_drv1;
 
 	if (tp->t_state & TS_TTSTOP)
 		return;
@@ -338,7 +318,7 @@ ptcwakeup(tp, flag)
 	struct tty *tp;
 	int flag;
 {
-	struct pt_ioctl *pti = &pt_ioctl[minor(tp->t_dev)];
+	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 
 	if (flag & FREAD) {
 		selwakeup(&pti->pt_selr);
@@ -359,18 +339,17 @@ ptcopen(dev, flag, devtype, p)
 	register struct tty *tp;
 	struct pt_ioctl *pti;
 
-	if (minor(dev) >= npty)
-		return (ENXIO);
-	tp = &pt_tty[minor(dev)];
+	if (!dev->si_drv1)
+		ptyinit(minor(dev));
+	if (!dev->si_drv1)
+		return(ENXIO);	
+	tp = dev->si_tty_tty;
 	if (tp->t_oproc)
 		return (EIO);
 	tp->t_oproc = ptsstart;
-#ifdef sun4c
-	tp->t_stop = ptsstop;
-#endif
 	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
-	pti = &pt_ioctl[minor(dev)];
+	pti = dev->si_drv1;
 	pti->pt_flags = 0;
 	pti->pt_send = 0;
 	pti->pt_ucntl = 0;
@@ -386,7 +365,7 @@ ptcclose(dev, flags, fmt, p)
 {
 	register struct tty *tp;
 
-	tp = &pt_tty[minor(dev)];
+	tp = dev->si_tty_tty;
 	(void)(*linesw[tp->t_line].l_modem)(tp, 0);
 
 	/*
@@ -413,8 +392,8 @@ ptcread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	register struct tty *tp = &pt_tty[minor(dev)];
-	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
+	register struct tty *tp = dev->si_tty_tty;
+	struct pt_ioctl *pti = dev->si_drv1;
 	char buf[BUFSIZ];
 	int error = 0, cc;
 
@@ -474,7 +453,7 @@ ptsstop(tp, flush)
 	register struct tty *tp;
 	int flush;
 {
-	struct pt_ioctl *pti = &pt_ioctl[minor(tp->t_dev)];
+	struct pt_ioctl *pti = tp->t_dev->si_drv1;
 	int flag;
 
 	/* note: FLUSHREAD and FLUSHWRITE already ok */
@@ -499,8 +478,8 @@ ptcpoll(dev, events, p)
 	int events;
 	struct proc *p;
 {
-	register struct tty *tp = &pt_tty[minor(dev)];
-	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
+	register struct tty *tp = dev->si_tty_tty;
+	struct pt_ioctl *pti = dev->si_drv1;
 	int revents = 0;
 	int s;
 
@@ -549,12 +528,12 @@ ptcwrite(dev, uio, flag)
 	register struct uio *uio;
 	int flag;
 {
-	register struct tty *tp = &pt_tty[minor(dev)];
+	register struct tty *tp = dev->si_tty_tty;
 	register u_char *cp = 0;
 	register int cc = 0;
 	u_char locbuf[BUFSIZ];
 	int cnt = 0;
-	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
+	struct pt_ioctl *pti = dev->si_drv1;
 	int error = 0;
 
 again:
@@ -657,10 +636,10 @@ static	struct tty *
 ptydevtotty(dev)
 	dev_t		dev;
 {
-	if (minor(dev) >= npty)
+	if (minor(dev) & ~0xff)
 		return (NULL);
 
-	return &pt_tty[minor(dev)];
+	return dev->si_tty_tty;
 }
 
 /*ARGSUSED*/
@@ -672,8 +651,8 @@ ptyioctl(dev, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-	register struct tty *tp = &pt_tty[minor(dev)];
-	register struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
+	register struct tty *tp = dev->si_tty_tty;
+	register struct pt_ioctl *pti = dev->si_drv1;
 	register u_char *cc = tp->t_cc;
 	int stop, error;
 
@@ -833,35 +812,19 @@ ptyioctl(dev, cmd, data, flag, p)
 	return (error);
 }
 
-static int ptc_devsw_installed;
 
 static void ptc_drvinit __P((void *unused));
+
 static void
 ptc_drvinit(unused)
 	void *unused;
 {
-#ifdef DEVFS
-	int i,j,k;
-#endif
+	static int ptc_devsw_installed;
 
 	if( ! ptc_devsw_installed ) {
 		cdevsw_add(&pts_cdevsw);
 		cdevsw_add(&ptc_cdevsw);
 		ptc_devsw_installed = 1;
-#ifdef DEVFS
-		for ( i = 0 ; i<NPTY ; i++ ) {
-			j = i / 32;
-			k = i % 32;
-			devfs_token_pts[i] = 
-				devfs_add_devswf(&pts_cdevsw,i,
-						DV_CHR,0,0,0666,
-						"tty%c%r",jnames[j],k);
-			devfs_token_ptc[i] =
-				devfs_add_devswf(&ptc_cdevsw,i,
-						DV_CHR,0,0,0666,
-						"pty%c%r",jnames[j],k);
-		}
-#endif
     	}
 }
 

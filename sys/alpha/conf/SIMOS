@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SIMOS,v 1.3 1998/09/26 14:49:26 dfr Exp $
+#	$Id: SIMOS,v 1.4 1999/06/15 13:14:29 des Exp $
 
 machine		"alpha"
 cpu		"EV5"
@@ -64,7 +64,7 @@ pseudo-device	ether
 pseudo-device	sl	1
 pseudo-device	ppp	1
 pseudo-device	tun	1
-pseudo-device	pty	16
+pseudo-device	pty
 pseudo-device	gzip		# Exec gzipped a.out's
 
 # KTRACE enables the system-call tracing facility ktrace(2).
