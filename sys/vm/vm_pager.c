@@ -194,12 +194,14 @@ vm_map_t pager_map;
 static int bswneeded;
 static vm_offset_t swapbkva;		/* swap buffers kva */
 struct mtx pbuf_mtx;
+static TAILQ_HEAD(swqueue, buf) bswlist;
 
 void
 vm_pager_init()
 {
 	struct pagerops **pgops;
 
+	TAILQ_INIT(&bswlist);
 	/*
 	 * Initialize known pagers
 	 */
@@ -347,12 +349,15 @@ vm_pager_object_lookup(pg_list, handle)
  * initialize a physical buffer
  */
 
+/*
+ * XXX This probably belongs in vfs_bio.c
+ */
 static void
 initpbuf(struct buf *bp)
 {
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
-	bp->b_qindex = QUEUE_NONE;
+	bp->b_qindex = 0;	/* On no queue (QUEUE_NONE) */
 	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_kvabase = bp->b_data;
 	bp->b_kvasize = MAXPHYS;

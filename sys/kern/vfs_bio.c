@@ -68,7 +68,6 @@ struct	buf_ops buf_ops_bio = {
  * carnal knowledge of buffers.  This knowledge should be moved to vfs_bio.c.
  */
 struct buf *buf;		/* buffer header pool */
-struct swqueue bswlist;
 struct mtx buftimelock;		/* Interlock on setting prio and timo */
 
 static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
@@ -207,13 +206,26 @@ static LIST_HEAD(bufhashhdr, buf) *bufhashtbl;
  * on them.)
  */
 static struct bufhashhdr invalhash;
+
+/*
+ * Definitions for the buffer free lists.
+ */
+#define BUFFER_QUEUES	6	/* number of free buffer queues */
+
+#define QUEUE_NONE	0	/* on no queue */
+#define QUEUE_LOCKED	1	/* locked buffers */
+#define QUEUE_CLEAN	2	/* non-B_DELWRI buffers */
+#define QUEUE_DIRTY	3	/* B_DELWRI buffers */
+#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
+#define QUEUE_EMPTY	5	/* empty buffer headers */
+
 /* Queues for free buffers with various properties */
-static struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
+static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES] = { { 0 } };
 /*
  * Single global constant for BUF_WMESG, to avoid getting multiple references.
  * buf_wmesg is referred from macros.
  */
-char *buf_wmesg = BUF_WMESG;
+const char *buf_wmesg = BUF_WMESG;
 
 #define VFS_BIO_NEED_ANY	0x01	/* any freeable buffer */
 #define VFS_BIO_NEED_DIRTYFLUSH	0x02	/* waiting for dirty buffer flush */
@@ -471,7 +483,6 @@ bufinit(void)
 
 	GIANT_REQUIRED;
 
-	TAILQ_INIT(&bswlist);
 	LIST_INIT(&invalhash);
 	mtx_init(&buftimelock, "buftime lock", MTX_DEF);
 
