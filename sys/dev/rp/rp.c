@@ -1632,7 +1632,7 @@ rpstart(tp)
 	qp = &tp->t_outq;
 	if(xmit_fifo_room > 0 && qp->c_cc > 0) {
 		tp->t_state |= TS_BUSY;
-		count = q_to_b( qp, rp->TxBuf, xmit_fifo_room );
+		count = q_to_b( qp, (char *)rp->TxBuf, xmit_fifo_room );
 		wcount = count >> 1;
 		if ( wcount ) {
 			rp_writemultich2(cp, sGetTxRxDataIO(cp), (u_int16_t *)rp->TxBuf, wcount);

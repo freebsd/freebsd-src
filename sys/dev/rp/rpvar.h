@@ -77,8 +77,8 @@ struct rp_port {
 	int			rp_xmit_stopped:1;
 	CONTROLLER_t *		rp_ctlp;
 	CHANNEL_t		rp_channel;
-	unsigned char		TxBuf[TXFIFO_SIZE];
-	unsigned char		RxBuf[RXFIFO_SIZE];
+	unsigned short		TxBuf[TXFIFO_SIZE/2 +1];
+	unsigned short		RxBuf[RXFIFO_SIZE/2 +1];
 };
 
 /* Actually not used */
