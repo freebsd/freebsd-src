@@ -26,6 +26,13 @@ extern FILE *output_file;
 extern FILE *yyin, *yyout;
 extern int yylineno;
 
+static void
+usage(void)
+{
+	fprintf(stderr, "usage: mk_cmds cmdtbl.ct\n");
+	exit(1);
+}
+
 int
 main(argc, argv)
     int argc;
@@ -35,12 +42,8 @@ main(argc, argv)
     int result;
     char *path, *p;
 
-    if (argc != 2) {
-	fputs("Usage: ", stderr);
-	fputs(argv[0], stderr);
-	fputs(" cmdtbl.ct\n", stderr);
-	exit(1);
-    }
+    if (argc != 2)
+		usage();
 
     path = malloc(strlen(argv[1])+4); /* extra space to add ".ct" */
     strcpy(path, argv[1]);
