@@ -1354,7 +1354,7 @@ ttyR?)
 			esac
 		done
 	)
-	rm -f /dev/ttyR* /dev/ttyiR* /dev/ttylR*
+	rm -f ttyR* ttyiR* ttylR*
 	for i in $controllers; do
 	   ndevices=$(
 		dmesg | while read first bar ports rest; do
@@ -1368,9 +1368,9 @@ ttyR?)
 	   echo -n "Creating $ndevices devices for $i: "
 	   dev=0
 	   while [ $dev -lt $ndevices ]; do
-		   mknod /dev/ttyR$Rnum c $major $MINOR
-		   mknod /dev/ttyiR$Rnum c $major $(($MINOR + 32))
-		   mknod /dev/ttylR$Rnum c $major $(($MINOR + 64))
+		   mknod ttyR$Rnum c $major $MINOR
+		   mknod ttyiR$Rnum c $major $(($MINOR + 32))
+		   mknod ttylR$Rnum c $major $(($MINOR + 64))
 		   Rnum=$(($Rnum + 1))
 		   MINOR=$(($MINOR + 1))
 		   dev=$(($dev + 1))
@@ -1394,7 +1394,7 @@ cuaR?)
 			esac
 		done
 	)
-	rm -f /dev/cuaR* /dev/cuaiR* /dev/cualR*
+	rm -f cuaR* cuaiR* cualR*
 	for i in $controllers; do
 	   ndevices=$(
 		dmesg | while read first bar ports rest; do
@@ -1408,10 +1408,10 @@ cuaR?)
 	   echo -n "Creating $ndevices devices for $i: "
 	   dev=0
 	   while [ $dev -lt $ndevices ]; do
-		   mknod /dev/cuaR$Rnum c  $major $(($MINOR + 128)) uucp:dialer
-		   mknod /dev/cuaiR$Rnum c $major $(($MINOR + 128 + 32)) \
+		   mknod cuaR$Rnum c  $major $(($MINOR + 128)) uucp:dialer
+		   mknod cuaiR$Rnum c $major $(($MINOR + 128 + 32)) \
 		       uucp:dialer
-		   mknod /dev/cualR$Rnum c $major $(($MINOR + 128 + 64)) \
+		   mknod cualR$Rnum c $major $(($MINOR + 128 + 64)) \
 		       uucp:dialer
 		   Rnum=$(($Rnum + 1))
 		   MINOR=$(($MINOR + 1))
