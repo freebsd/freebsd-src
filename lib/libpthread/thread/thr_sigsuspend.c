@@ -69,12 +69,18 @@ _sigsuspend(const sigset_t *set)
 			/* Wait for a signal: */
 			_thr_sched_switch_unlocked(curthread);
 		} else {
+			curthread->check_pending = 1;
 			THR_UNLOCK_SWITCH(curthread);
 			/* check pending signal I can handle: */
 			_thr_sig_check_pending(curthread);
 		}
-		THR_ASSERT(curthread->oldsigmask == NULL,
-		           "oldsigmask is not cleared");
+		if ((curthread->cancelflags & THR_CANCELLING) != 0)
+			curthread->oldsigmask = NULL;
+		else {
+			THR_ASSERT(curthread->oldsigmask == NULL,
+		 	          "oldsigmask is not cleared");
+		}
+
 		/* Always return an interrupted error: */
 		errno = EINTR;
 	} else {

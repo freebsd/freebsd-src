@@ -416,7 +416,23 @@ struct pthread_cleanup {
 	struct pthread_cleanup	*next;
 	void			(*routine) ();
 	void			*routine_arg;
+	int			onstack;
 };
+
+#define	THR_CLEANUP_PUSH(td, func, arg) {		\
+	struct pthread_cleanup __cup;			\
+							\
+	__cup.routine = func;				\
+	__cup.routine_arg = arg;			\
+	__cup.onstack = 1;				\
+	__cup.next = (td)->cleanup;			\
+	(td)->cleanup = &__cup;
+
+#define	THR_CLEANUP_POP(td, exec)			\
+	(td)->cleanup = __cup.next;			\
+	if ((exec) != 0)				\
+		__cup.routine(__cup.routine_arg);	\
+}
 
 struct pthread_atfork {
 	TAILQ_ENTRY(pthread_atfork) qe;
@@ -563,6 +579,7 @@ typedef void	(*thread_continuation_t) (void *);
 struct pthread_sigframe {
 	int			psf_valid;
 	int			psf_flags;
+	int			psf_cancelflags;
 	int			psf_interrupted;
 	int			psf_timeout;
 	int			psf_signo;
@@ -572,6 +589,7 @@ struct pthread_sigframe {
 	sigset_t		psf_sigset;
 	sigset_t		psf_sigmask;
 	int			psf_seqno;
+	thread_continuation_t	psf_continuation;
 };
 
 struct join_status {
@@ -644,8 +662,8 @@ struct pthread {
 	/*
 	 * Used for tracking delivery of signal handlers.
 	 */
-	struct pthread_sigframe	*curframe;
 	siginfo_t		*siginfo;
+	thread_continuation_t	sigbackout;
 
  	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
@@ -1069,7 +1087,6 @@ SCLASS int		_thr_debug_flags	SCLASS_PRESET(0);
  */
 __BEGIN_DECLS
 int	_cond_reinit(pthread_cond_t *);
-void	_cond_wait_backout(struct pthread *);
 struct kse *_kse_alloc(struct pthread *, int sys_scope);
 kse_critical_t _kse_critical_enter(void);
 void	_kse_critical_leave(kse_critical_t);
@@ -1084,7 +1101,6 @@ int	_kse_setthreaded(int);
 void	_kseg_free(struct kse_group *);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
-void	_mutex_lock_backout(struct pthread *);
 void	_mutex_notify_priochange(struct pthread *, struct pthread *, int);
 int	_mutex_reinit(struct pthread_mutex *);
 void	_mutex_unlock_private(struct pthread *);
@@ -1147,8 +1163,7 @@ void    _thr_set_timeout(const struct timespec *);
 void	_thr_seterrno(struct pthread *, int);
 void    _thr_sig_handler(int, siginfo_t *, ucontext_t *);
 void    _thr_sig_check_pending(struct pthread *);
-void	_thr_sig_rundown(struct pthread *, ucontext_t *,
-	    struct pthread_sigframe *);
+void	_thr_sig_rundown(struct pthread *, ucontext_t *);
 void	_thr_sig_send(struct pthread *pthread, int sig);
 void	_thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf);
 void	_thr_spinlock_init(void);

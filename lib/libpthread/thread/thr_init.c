@@ -73,6 +73,7 @@ int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
 int	__pthread_mutex_trylock(pthread_mutex_t *);
 void	_thread_init_hack(void);
+extern int _thread_state_running;
 
 static void init_private(void);
 static void init_main_thread(struct pthread *thread);
@@ -223,6 +224,9 @@ _libpthread_init(struct pthread *curthread)
 	 */
 	if ((references[0] == NULL) || (libgcc_references[0] == NULL))
 		PANIC("Failed loading mandatory references in _thread_init");
+
+	/* Pull debug symbols in for static binary */
+	_thread_state_running = PS_RUNNING;
 
 	/*
 	 * Check the size of the jump table to make sure it is preset
@@ -387,6 +391,7 @@ init_main_thread(struct pthread *thread)
 	thread->specific = NULL;
 	thread->cleanup = NULL;
 	thread->flags = 0;
+	thread->sigbackout = NULL;
 	thread->continuation = NULL;
 
 	thread->state = PS_RUNNING;

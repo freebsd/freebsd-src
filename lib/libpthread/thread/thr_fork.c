@@ -43,12 +43,6 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-/*
- * For a while, allow libpthread to work with a libc that doesn't
- * export the malloc lock.
- */
-#pragma weak __malloc_lock
-
 __weak_reference(_fork, fork);
 
 pid_t
@@ -60,10 +54,20 @@ _fork(void)
 	pid_t ret;
 	int errsave;
 
-	if (!_kse_isthreaded())
-		return (__sys_fork());
-
 	curthread = _get_curthread();
+
+	if (!_kse_isthreaded()) {
+		SIGFILLSET(sigset);
+		__sys_sigprocmask(SIG_SETMASK, &sigset, &oldset);
+		ret = __sys_fork();
+		if (ret == 0)
+			/* Child */
+			__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask,
+			    NULL);
+		else
+			__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+		return (ret);
+	}
 
 	/*
 	 * Masks all signals until we reach a safe point in
@@ -86,7 +90,7 @@ _fork(void)
 	}
 
 	/* Fork a new process: */
-	if ((_kse_isthreaded() != 0) && (__malloc_lock != NULL)) {
+	if (_kse_isthreaded() != 0) {
 		_spinlock(__malloc_lock);
 	}
 	if ((ret = __sys_fork()) == 0) {

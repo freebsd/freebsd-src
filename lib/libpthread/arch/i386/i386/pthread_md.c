@@ -76,7 +76,9 @@ _tcb_dtor(struct tcb *tcb)
 struct kcb *
 _kcb_ctor(struct kse *kse)
 {
+#ifndef COMPAT_32BIT
 	union descriptor ldt;
+#endif
 	struct kcb *kcb;
 
 	kcb = malloc(sizeof(struct kcb));
@@ -84,6 +86,7 @@ _kcb_ctor(struct kse *kse)
 		bzero(kcb, sizeof(struct kcb));
 		kcb->kcb_self = kcb;
 		kcb->kcb_kse = kse;
+#ifndef COMPAT_32BIT
 		ldt.sd.sd_hibase = (unsigned int)kcb >> 24;
 		ldt.sd.sd_lobase = (unsigned int)kcb & 0xFFFFFF;
 		ldt.sd.sd_hilimit = (sizeof(struct kcb) >> 16) & 0xF;
@@ -99,6 +102,7 @@ _kcb_ctor(struct kse *kse)
 			free(kcb);
 			return (NULL);
 		}
+#endif
 	}
 	return (kcb);
 }
@@ -106,9 +110,11 @@ _kcb_ctor(struct kse *kse)
 void
 _kcb_dtor(struct kcb *kcb)
 {
+#ifndef COMPAT_32BIT
 	if (kcb->kcb_ldt >= 0) {
 		i386_set_ldt(kcb->kcb_ldt, NULL, 1);
 		kcb->kcb_ldt = -1;	/* just in case */
 	}
+#endif
 	free(kcb);
 }

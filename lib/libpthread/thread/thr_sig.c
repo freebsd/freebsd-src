@@ -43,17 +43,15 @@
 #include "thr_private.h"
 
 /* Prototypes: */
-static void	build_siginfo(siginfo_t *info, int signo);
+static inline void build_siginfo(siginfo_t *info, int signo);
 #ifndef SYSTEM_SCOPE_ONLY
 static struct pthread *thr_sig_find(struct kse *curkse, int sig,
 		    siginfo_t *info);
-static void	handle_special_signals(struct kse *curkse, int sig);
 #endif
-static void	thr_sigframe_add(struct pthread *thread);
-static void	thr_sigframe_restore(struct pthread *thread,
-		    struct pthread_sigframe *psf);
-static void	thr_sigframe_save(struct pthread *thread,
-		    struct pthread_sigframe *psf);
+static inline void thr_sigframe_restore(struct pthread *thread,
+	struct pthread_sigframe *psf);
+static inline void thr_sigframe_save(struct pthread *thread,
+	struct pthread_sigframe *psf);
 
 #define SA_KILL         0x01            /* terminates process by default */
 #define	SA_STOP		0x02
@@ -254,9 +252,6 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 
 	DBG_MSG(">>> _thr_sig_dispatch(%d)\n", sig);
 
-	/* Some signals need special handling: */
-	handle_special_signals(curkse, sig);
-
 	/* Check if the signal requires a dump of thread information: */
 	if (sig == SIGINFO) {
 		/* Dump thread information to file: */
@@ -306,11 +301,14 @@ typedef void (*ohandler)(int sig, int code,
 void
 _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
+	struct pthread_sigframe psf;
 	__siginfohandler_t *sigfunc;
 	struct pthread *curthread;
 	struct kse *curkse;
 	struct sigaction act;
-	int sa_flags, err_save, intr_save, timeout_save;
+	int sa_flags, err_save;
+
+	err_save = errno;
 
 	DBG_MSG(">>> _thr_sig_handler(%d)\n", sig);
 
@@ -319,15 +317,18 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		PANIC("No current thread.\n");
 	if (!(curthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
 		PANIC("Thread is not system scope.\n");
-	if (curthread->flags & THR_FLAGS_EXITING)
+	if (curthread->flags & THR_FLAGS_EXITING) {
+		errno = err_save;
 		return;
+	}
+
 	curkse = _get_curkse();
 	/*
 	 * If thread is in critical region or if thread is on
 	 * the way of state transition, then latch signal into buffer.
 	 */
 	if (_kse_in_critical() || THR_IN_CRITICAL(curthread) ||
-	    (curthread->state != PS_RUNNING && curthread->curframe == NULL)) {
+	    curthread->state != PS_RUNNING) {
 		DBG_MSG(">>> _thr_sig_handler(%d) in critical\n", sig);
 		curthread->siginfo[sig-1] = *info;
 		curthread->check_pending = 1;
@@ -341,18 +342,24 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 */
 		if (KSE_IS_IDLE(curkse))
 			kse_wakeup(&curkse->k_kcb->kcb_kmbx);
+		errno = err_save;
 		return;
 	}
 
-	/* It is now safe to invoke signal handler */
-	err_save = errno;
-	timeout_save = curthread->timeout;
-	intr_save = curthread->interrupted;
 	/* Check if the signal requires a dump of thread information: */
 	if (sig == SIGINFO) {
 		/* Dump thread information to file: */
 		_thread_dump_info();
 	}
+
+	/* Check the threads previous state: */
+	curthread->critical_count++;
+	if (curthread->sigbackout != NULL)
+		curthread->sigbackout((void *)curthread);
+	curthread->critical_count--;
+	thr_sigframe_save(curthread, &psf);
+	THR_ASSERT(!(curthread->sigbackout), "sigbackout was not cleared.");
+
 	_kse_critical_enter();
 	/* Get a fresh copy of signal mask */
 	__sys_sigprocmask(SIG_BLOCK, NULL, &curthread->sigmask);
@@ -395,14 +402,16 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 #endif
 		}
 	}
-	errno = err_save;
-	curthread->timeout = timeout_save;
-	curthread->interrupted = intr_save;
 	_kse_critical_enter();
 	curthread->sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(curthread->sigmask);
 	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
+
+	thr_sigframe_restore(curthread, &psf);
+
 	DBG_MSG("<<< _thr_sig_handler(%d)\n", sig);
+
+	errno = err_save;
 }
 
 struct sighandle_info {
@@ -439,7 +448,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 
 	if (!_kse_in_critical())
 		PANIC("thr_sig_invoke_handler without in critical\n");
-	curkse = _get_curkse();
+	curkse = curthread->kse;
 	/*
 	 * Check that a custom handler is installed and if
 	 * the signal is not blocked:
@@ -491,7 +500,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 
 	_kse_critical_enter();
 	/* Don't trust after critical leave/enter */
-	curkse = _get_curkse();
+	curkse = curthread->kse;
 
 	/*
 	 * Restore the thread's signal mask.
@@ -705,6 +714,10 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 			if (kmbx != NULL)
 				kse_wakeup(kmbx);
+			if (suspended_thread != NULL)
+				_thr_ref_delete(NULL, suspended_thread);
+			if (signaled_thread != NULL)
+				_thr_ref_delete(NULL, signaled_thread);
 			return (NULL);
 		} else if (!SIGISMEMBER(pthread->sigmask, sig)) {
 			/*
@@ -748,7 +761,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 }
 #endif /* ! SYSTEM_SCOPE_ONLY */
 
-static void
+static inline void
 build_siginfo(siginfo_t *info, int signo)
 {
 	bzero(info, sizeof(*info));
@@ -761,54 +774,35 @@ build_siginfo(siginfo_t *info, int signo)
  * It should only be called from the context of the thread.
  */
 void
-_thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
-    struct pthread_sigframe *psf)
+_thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp)
 {
-	int interrupted = curthread->interrupted;
-	int timeout = curthread->timeout;
+	struct pthread_sigframe psf;
 	siginfo_t siginfo;
-	int i;
+	int i, err_save;
 	kse_critical_t crit;
 	struct kse *curkse;
 	sigset_t sigmask;
 
+	err_save = errno;
+
 	DBG_MSG(">>> thr_sig_rundown (%p)\n", curthread);
+
 	/* Check the threads previous state: */
-	if ((psf != NULL) && (psf->psf_valid != 0)) {
-		/*
-		 * Do a little cleanup handling for those threads in
-		 * queues before calling the signal handler.  Signals
-		 * for these threads are temporarily blocked until
-		 * after cleanup handling.
-		 */
-		switch (psf->psf_state) {
-		case PS_COND_WAIT:
-			_cond_wait_backout(curthread);
-			psf->psf_state = PS_RUNNING;
-			break;
-	
-		case PS_MUTEX_WAIT:
-			_mutex_lock_backout(curthread);
-			psf->psf_state = PS_RUNNING;
-			break;
-	
-		case PS_RUNNING:
-			break;
+	curthread->critical_count++;
+	if (curthread->sigbackout != NULL)
+		curthread->sigbackout((void *)curthread);
+	curthread->critical_count--;
 
-		default:
-			psf->psf_state = PS_RUNNING;
-			break;
-		}
-		/* XXX see comment in thr_sched_switch_unlocked */
-		curthread->critical_count--;
-	}
+	THR_ASSERT(!(curthread->sigbackout), "sigbackout was not cleared.");
+	THR_ASSERT((curthread->state == PS_RUNNING), "state is not PS_RUNNING");
 
+	thr_sigframe_save(curthread, &psf);
 	/*
 	 * Lower the priority before calling the handler in case
 	 * it never returns (longjmps back):
 	 */
 	crit = _kse_critical_enter();
-	curkse = _get_curkse();
+	curkse = curthread->kse;
 	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	curthread->active_priority &= ~THR_SIGNAL_PRIORITY;
@@ -847,9 +841,8 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 		}
 	}
 
-	if (psf != NULL && psf->psf_valid != 0)
-		thr_sigframe_restore(curthread, psf);
-	curkse = _get_curkse();
+	/* Don't trust after signal handling */
+	curkse = curthread->kse;
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
@@ -871,10 +864,10 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 		}
 		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	}
-	curthread->interrupted = interrupted;
-	curthread->timeout = timeout;
-
 	DBG_MSG("<<< thr_sig_rundown (%p)\n", curthread);
+
+	thr_sigframe_restore(curthread, &psf);
+	errno = err_save;
 }
 
 /*
@@ -893,7 +886,15 @@ _thr_sig_check_pending(struct pthread *curthread)
 	volatile int once;
 	int errsave;
 
-	if (THR_IN_CRITICAL(curthread))
+	/*
+	 * If the thread is in critical region, delay processing signals.
+	 * If the thread state is not PS_RUNNING, it might be switching
+	 * into UTS and but a THR_LOCK_RELEASE saw check_pending, and it
+	 * goes here, in the case we delay processing signals, lets UTS
+	 * process complicated things, normally UTS will call _thr_sig_add
+	 * to resume the thread, so we needn't repeat doing it here.
+	 */
+	if (THR_IN_CRITICAL(curthread) || curthread->state != PS_RUNNING)
 		return;
 
 	errsave = errno;
@@ -902,41 +903,10 @@ _thr_sig_check_pending(struct pthread *curthread)
 	if (once == 0) {
 		once = 1;
 		curthread->check_pending = 0;
-		_thr_sig_rundown(curthread, &uc, NULL);
+		_thr_sig_rundown(curthread, &uc);
 	}
 	errno = errsave;
 }
-
-#ifndef SYSTEM_SCOPE_ONLY
-/*
- * This must be called with upcalls disabled.
- */
-static void
-handle_special_signals(struct kse *curkse, int sig)
-{
-	switch (sig) {
-	/*
-	 * POSIX says that pending SIGCONT signals are
-	 * discarded when one of these signals occurs.
-	 */
-	case SIGTSTP:
-	case SIGTTIN:
-	case SIGTTOU:
-		KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
-		SIGDELSET(_thr_proc_sigpending, SIGCONT);
-		KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
-		break;
-	case SIGCONT:
-		KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
-		SIGDELSET(_thr_proc_sigpending, SIGTSTP);
-		SIGDELSET(_thr_proc_sigpending, SIGTTIN);
-		SIGDELSET(_thr_proc_sigpending, SIGTTOU);
-		KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
-	default:
-		break;
-	}
-}
-#endif /* ! SYSTEM_SCOPE_ONLY */
 
 /*
  * Perform thread specific actions in response to a signal.
@@ -975,11 +945,9 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 		return (NULL);
 	}
 
-	if (pthread->curframe == NULL ||
-	    (pthread->state != PS_SIGWAIT &&
-	    SIGISMEMBER(pthread->sigmask, sig)) ||
-	    THR_IN_CRITICAL(pthread)) {
-		/* thread is running or signal was being masked */
+	if (pthread->state != PS_SIGWAIT &&
+	    SIGISMEMBER(pthread->sigmask, sig)) {
+		/* signal is masked, just add signal to thread. */
 		if (!fromproc) {
 			SIGADDSET(pthread->sigpend, sig);
 			if (info == NULL)
@@ -991,19 +959,6 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			if (!_thr_getprocsig(sig, &pthread->siginfo[sig-1]))
 				return (NULL);
 			SIGADDSET(pthread->sigpend, sig);
-		}
-		if (!SIGISMEMBER(pthread->sigmask, sig)) {
-			/* A quick path to exit process */
-			if (sigfunc == SIG_DFL && sigprop(sig) & SA_KILL) {
-				kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
-				/* Never reach */
-			}
-			pthread->check_pending = 1;
-			if (!(pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
-			    (pthread->blocked != 0) && 
-			    !THR_IN_CRITICAL(pthread))
-				kse_thr_interrupt(&pthread->tcb->tcb_tmbx,
-				    restart ? KSE_INTR_RESTART : KSE_INTR_INTERRUPT, 0);
 		}
 	}
 	else {
@@ -1045,7 +1000,6 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 				/* Possible not in RUNQ and has curframe ? */
 				pthread->active_priority |= THR_SIGNAL_PRIORITY;
 			}
-			suppress_handler = 1;
 			break;
 		/*
 		 * States which cannot be interrupted but still require the
@@ -1111,19 +1065,22 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			build_siginfo(&pthread->siginfo[sig-1], sig);
 		else if (info != &pthread->siginfo[sig-1])
 			memcpy(&pthread->siginfo[sig-1], info, sizeof(*info));
-
+		pthread->check_pending = 1;
+		if (!(pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
+		    (pthread->blocked != 0) && !THR_IN_CRITICAL(pthread))
+			kse_thr_interrupt(&pthread->tcb->tcb_tmbx,
+			    restart ? KSE_INTR_RESTART : KSE_INTR_INTERRUPT, 0);
 		if (suppress_handler == 0) {
 			/*
 			 * Setup a signal frame and save the current threads
 			 * state:
 			 */
-			thr_sigframe_add(pthread);
-			if (pthread->flags & THR_FLAGS_IN_RUNQ)
-				THR_RUNQ_REMOVE(pthread);
-			pthread->active_priority |= THR_SIGNAL_PRIORITY;
-			kmbx = _thr_setrunnable_unlocked(pthread);
-		} else {
-			pthread->check_pending = 1;
+			if (pthread->state != PS_RUNNING) {
+				if (pthread->flags & THR_FLAGS_IN_RUNQ)
+					THR_RUNQ_REMOVE(pthread);
+				pthread->active_priority |= THR_SIGNAL_PRIORITY;
+				kmbx = _thr_setrunnable_unlocked(pthread);
+			}
 		}
 	}
 	return (kmbx);
@@ -1147,6 +1104,10 @@ _thr_sig_send(struct pthread *pthread, int sig)
 	THR_SCHED_LOCK(curthread, pthread);
 	if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
 		kmbx = _thr_sig_add(pthread, sig, NULL);
+		/* Add a preemption point. */
+		if (kmbx == NULL && (curthread->kseg == pthread->kseg) &&
+		    (pthread->active_priority > curthread->active_priority))
+			curthread->critical_yield = 1;
 		THR_SCHED_UNLOCK(curthread, pthread);
 		if (kmbx != NULL)
 			kse_wakeup(kmbx);
@@ -1157,50 +1118,55 @@ _thr_sig_send(struct pthread *pthread, int sig)
 		 */
 		if (pthread == curthread && curthread->check_pending)
 			_thr_sig_check_pending(curthread);
+
 	} else  {
 		THR_SCHED_UNLOCK(curthread, pthread);
 	}
 }
 
-static void
-thr_sigframe_add(struct pthread *thread)
+static inline void
+thr_sigframe_restore(struct pthread *curthread, struct pthread_sigframe *psf)
 {
-	if (thread->curframe == NULL)
-		PANIC("Thread doesn't have signal frame ");
+	kse_critical_t crit;
+	struct kse *curkse;
 
-	if (thread->curframe->psf_valid == 0) {
-		thread->curframe->psf_valid = 1;
-		/*
-		 * Multiple signals can be added to the same signal
-		 * frame.  Only save the thread's state the first time.
-		 */
-		thr_sigframe_save(thread, thread->curframe);
-	}
+	THR_THREAD_LOCK(curthread, curthread);
+	curthread->cancelflags = psf->psf_cancelflags;
+	crit = _kse_critical_enter();
+	curkse = curthread->kse;
+	KSE_SCHED_LOCK(curkse, curthread->kseg);
+	curthread->flags = psf->psf_flags;
+	curthread->interrupted = psf->psf_interrupted;
+	curthread->timeout = psf->psf_timeout;
+	curthread->data = psf->psf_wait_data;
+	curthread->wakeup_time = psf->psf_wakeup_time;
+	curthread->continuation = psf->psf_continuation;
+	KSE_SCHED_UNLOCK(curkse, curthread->kseg);
+	_kse_critical_leave(crit);
+	THR_THREAD_UNLOCK(curthread, curthread);
 }
 
-static void
-thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf)
+static inline void
+thr_sigframe_save(struct pthread *curthread, struct pthread_sigframe *psf)
 {
-	if (psf->psf_valid == 0)
-		PANIC("invalid pthread_sigframe\n");
-	thread->flags = psf->psf_flags;
-	thread->interrupted = psf->psf_interrupted;
-	thread->timeout = psf->psf_timeout;
-	thread->state = psf->psf_state;
-	thread->data = psf->psf_wait_data;
-	thread->wakeup_time = psf->psf_wakeup_time;
-}
+	kse_critical_t crit;
+	struct kse *curkse;
 
-static void
-thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
-{
+	THR_THREAD_LOCK(curthread, curthread);
+	psf->psf_cancelflags = curthread->cancelflags;
+	crit = _kse_critical_enter();
+	curkse = curthread->kse;
+	KSE_SCHED_LOCK(curkse, curthread->kseg);
 	/* This has to initialize all members of the sigframe. */
-	psf->psf_flags = thread->flags & THR_FLAGS_PRIVATE;
-	psf->psf_interrupted = thread->interrupted;
-	psf->psf_timeout = thread->timeout;
-	psf->psf_state = thread->state;
-	psf->psf_wait_data = thread->data;
-	psf->psf_wakeup_time = thread->wakeup_time;
+	psf->psf_flags = (curthread->flags & (THR_FLAGS_PRIVATE | THR_FLAGS_EXITING));
+	psf->psf_interrupted = curthread->interrupted;
+	psf->psf_timeout = curthread->timeout;
+	psf->psf_wait_data = curthread->data;
+	psf->psf_wakeup_time = curthread->wakeup_time;
+	psf->psf_continuation = curthread->continuation;
+	KSE_SCHED_UNLOCK(curkse, curthread->kseg);
+	_kse_critical_leave(crit);
+	THR_THREAD_UNLOCK(curthread, curthread);
 }
 
 void
@@ -1259,6 +1225,9 @@ _thr_signal_deinit(void)
 {
 	int i;
 	struct pthread *curthread = _get_curthread();
+
+	/* Clear process pending signals. */
+	sigemptyset(&_thr_proc_sigpending);
 
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {

@@ -14,18 +14,26 @@ __weak_reference(_pthread_testcancel, pthread_testcancel);
 static inline int
 checkcancel(struct pthread *curthread)
 {
-	if (((curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
-	    ((curthread->cancelflags & THR_CANCELLING) != 0)) {
+	if ((curthread->cancelflags & THR_CANCELLING) != 0) {
 		/*
 		 * It is possible for this thread to be swapped out
 		 * while performing cancellation; do not allow it
 		 * to be cancelled again.
 		 */
-		curthread->cancelflags &= ~THR_CANCELLING;
-		return (1);
+		if ((curthread->flags & THR_FLAGS_EXITING) != 0) {
+			/*
+			 * This may happen once, but after this, it
+			 * shouldn't happen again.
+			 */
+			curthread->cancelflags &= ~THR_CANCELLING;
+			return (0);
+		}
+		if ((curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) {
+			curthread->cancelflags &= ~THR_CANCELLING;
+			return (1);
+		}
 	}
-	else
-		return (0);
+	return (0);
 }
 
 static inline void

@@ -66,10 +66,11 @@ _kcb_ctor(struct kse *kse)
 {
 	struct kcb *kcb;
 
-	if ((kcb = malloc(sizeof(struct kcb))) != NULL) {
+	kcb = malloc(sizeof(struct kcb));
+	if (kcb != NULL) {
 		bzero(kcb, sizeof(struct kcb));
-		kcb->kcb_kse = kse;
 		kcb->kcb_self = kcb;
+		kcb->kcb_kse = kse;
 	}
 	return (kcb);
 }

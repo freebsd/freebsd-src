@@ -85,26 +85,26 @@ static void		mutex_rescan_owned (struct pthread *, struct pthread *,
 static inline pthread_t	mutex_queue_deq(pthread_mutex_t);
 static inline void	mutex_queue_remove(pthread_mutex_t, pthread_t);
 static inline void	mutex_queue_enq(pthread_mutex_t, pthread_t);
-
+static void		mutex_lock_backout(void *arg);
 
 static struct pthread_mutex_attr	static_mutex_attr =
     PTHREAD_MUTEXATTR_STATIC_INITIALIZER;
 static pthread_mutexattr_t		static_mattr = &static_mutex_attr;
 
 /* Single underscore versions provided for libc internal usage: */
+__weak_reference(__pthread_mutex_init, pthread_mutex_init);
 __weak_reference(__pthread_mutex_lock, pthread_mutex_lock);
 __weak_reference(__pthread_mutex_timedlock, pthread_mutex_timedlock);
 __weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
 
 /* No difference between libc and application usage of these: */
-__weak_reference(_pthread_mutex_init, pthread_mutex_init);
 __weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
 __weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
 
 
 
 int
-_pthread_mutex_init(pthread_mutex_t *mutex,
+__pthread_mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr)
 {
 	struct pthread_mutex *pmutex;
@@ -206,6 +206,22 @@ _pthread_mutex_init(pthread_mutex_t *mutex,
 	return (ret);
 }
 
+int
+_pthread_mutex_init(pthread_mutex_t *mutex,
+    const pthread_mutexattr_t *mutex_attr)
+{
+	struct pthread_mutex_attr mattr, *mattrp;
+
+	if ((mutex_attr == NULL) || (*mutex_attr == NULL))
+		return (__pthread_mutex_init(mutex, &static_mattr));
+	else {
+		mattr = **mutex_attr;
+		mattr.m_flags |= MUTEX_FLAGS_PRIVATE;
+		mattrp = &mattr;
+		return (__pthread_mutex_init(mutex, &mattrp));
+	}
+}
+
 void
 _thr_mutex_reinit(pthread_mutex_t *mutex)
 {
@@ -303,6 +319,7 @@ init_static_private(struct pthread *thread, pthread_mutex_t *mutex)
 static int
 mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 {
+	int private;
 	int ret = 0;
 
 	THR_ASSERT((mutex != NULL) && (*mutex != NULL),
@@ -310,6 +327,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 
 	/* Lock the mutex structure: */
 	THR_LOCK_ACQUIRE(curthread, &(*mutex)->m_lock);
+	private = (*mutex)->m_flags & MUTEX_FLAGS_PRIVATE;
 
 	/*
 	 * If the mutex was statically allocated, properly
@@ -417,6 +435,9 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 		break;
 	}
 
+	if (ret == 0 && private)
+		THR_CRITICAL_ENTER(curthread);
+
 	/* Unlock the mutex structure: */
 	THR_LOCK_RELEASE(curthread, &(*mutex)->m_lock);
 
@@ -468,6 +489,7 @@ static int
 mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 	const struct timespec * abstime)
 {
+	int	private;
 	int	ret = 0;
 
 	THR_ASSERT((m != NULL) && (*m != NULL),
@@ -481,6 +503,8 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 	curthread->interrupted = 0;
 	curthread->timeout = 0;
 	curthread->wakeup_time.tv_sec = -1;
+
+	private = (*m)->m_flags & MUTEX_FLAGS_PRIVATE;
 
 	/*
 	 * Enter a loop waiting to become the mutex owner.  We need a
@@ -516,6 +540,8 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				MUTEX_ASSERT_NOT_OWNED(*m);
 				TAILQ_INSERT_TAIL(&curthread->mutexq,
 				    (*m), m_qe);
+				if (private)
+					THR_CRITICAL_ENTER(curthread);
 
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
@@ -539,6 +565,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				 */
 				mutex_queue_enq(*m, curthread);
 				curthread->data.mutex = *m;
+				curthread->sigbackout = mutex_lock_backout;
 				/*
 				 * This thread is active and is in a critical
 				 * region (holding the mutex lock); we should
@@ -554,12 +581,17 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 
-				curthread->data.mutex = NULL;
 				if (THR_IN_MUTEXQ(curthread)) {
 					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 					mutex_queue_remove(*m, curthread);
 					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 				}
+				/*
+				 * Only clear these after assuring the
+				 * thread is dequeued.
+				 */
+				curthread->data.mutex = NULL;
+				curthread->sigbackout = NULL;
 			}
 			break;
 
@@ -590,6 +622,8 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				MUTEX_ASSERT_NOT_OWNED(*m);
 				TAILQ_INSERT_TAIL(&curthread->mutexq,
 				    (*m), m_qe);
+				if (private)
+					THR_CRITICAL_ENTER(curthread);
 
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
@@ -613,6 +647,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				 */
 				mutex_queue_enq(*m, curthread);
 				curthread->data.mutex = *m;
+				curthread->sigbackout = mutex_lock_backout;
 
 				/*
 				 * This thread is active and is in a critical
@@ -633,12 +668,17 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 
-				curthread->data.mutex = NULL;
 				if (THR_IN_MUTEXQ(curthread)) {
 					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 					mutex_queue_remove(*m, curthread);
 					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 				}
+				/*
+				 * Only clear these after assuring the
+				 * thread is dequeued.
+				 */
+				curthread->data.mutex = NULL;
+				curthread->sigbackout = NULL;
 			}
 			break;
 
@@ -679,6 +719,8 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				MUTEX_ASSERT_NOT_OWNED(*m);
 				TAILQ_INSERT_TAIL(&curthread->mutexq,
 				    (*m), m_qe);
+				if (private)
+					THR_CRITICAL_ENTER(curthread);
 
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
@@ -702,6 +744,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				 */
 				mutex_queue_enq(*m, curthread);
 				curthread->data.mutex = *m;
+				curthread->sigbackout = mutex_lock_backout;
 
 				/* Clear any previous error: */
 				curthread->error = 0;
@@ -722,12 +765,17 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 
-				curthread->data.mutex = NULL;
 				if (THR_IN_MUTEXQ(curthread)) {
 					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 					mutex_queue_remove(*m, curthread);
 					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 				}
+				/*
+				 * Only clear these after assuring the
+				 * thread is dequeued.
+				 */
+				curthread->data.mutex = NULL;
+				curthread->sigbackout = NULL;
 
 				/*
 				 * The threads priority may have changed while
@@ -911,14 +959,7 @@ mutex_self_trylock(struct pthread *curthread, pthread_mutex_t m)
 	/* case PTHREAD_MUTEX_DEFAULT: */
 	case PTHREAD_MUTEX_ERRORCHECK:
 	case PTHREAD_MUTEX_NORMAL:
-		/*
-		 * POSIX specifies that mutexes should return EDEADLK if a
-		 * recursive lock is detected.
-		 */
-		if (m->m_owner == curthread)
-			ret = EDEADLK;
-		else
-			ret = EBUSY; 
+		ret = EBUSY; 
 		break;
 
 	case PTHREAD_MUTEX_RECURSIVE:
@@ -938,6 +979,13 @@ static inline int
 mutex_self_lock(struct pthread *curthread, pthread_mutex_t m)
 {
 	int ret = 0;
+
+	/*
+	 * Don't allow evil recursive mutexes for private use
+	 * in libc and libpthread.
+	 */
+	if (m->m_flags & MUTEX_FLAGS_PRIVATE)
+		PANIC("Recurse on a private mutex.");
 
 	switch (m->m_type) {
 	/* case PTHREAD_MUTEX_DEFAULT: */
@@ -1142,8 +1190,13 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 			/* Increment the reference count: */
 			(*m)->m_refcount++;
 
+		/* Leave the critical region if this is a private mutex. */
+		if ((ret == 0) && ((*m)->m_flags & MUTEX_FLAGS_PRIVATE))
+			THR_CRITICAL_LEAVE(curthread);
+
 		/* Unlock the mutex structure: */
 		THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
+
 		if (kmbx != NULL)
 			kse_wakeup(kmbx);
 	}
@@ -1518,9 +1571,10 @@ _mutex_unlock_private(pthread_t pthread)
  * This is called by the current thread when it wants to back out of a
  * mutex_lock in order to run a signal handler.
  */
-void
-_mutex_lock_backout(struct pthread *curthread)
+static void
+mutex_lock_backout(void *arg)
 {
+	struct pthread *curthread = (struct pthread *)arg;
 	struct pthread_mutex *m;
 
 	if ((curthread->sflags & THR_FLAGS_IN_SYNCQ) != 0) {
@@ -1561,6 +1615,8 @@ _mutex_lock_backout(struct pthread *curthread)
 			THR_LOCK_RELEASE(curthread, &m->m_lock);
 		}
 	}
+	/* No need to call this again. */
+	curthread->sigbackout = NULL;
 }
 
 /*
@@ -1681,13 +1737,16 @@ mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 		    (pthread->active_priority > curthread->active_priority))
 			curthread->critical_yield = 1;
 
-		THR_SCHED_UNLOCK(curthread, pthread);
-		if (mutex->m_owner == pthread)
+		if (mutex->m_owner == pthread) {
 			/* We're done; a valid owner was found. */
+			if (mutex->m_flags & MUTEX_FLAGS_PRIVATE)
+				THR_CRITICAL_ENTER(pthread);
+			THR_SCHED_UNLOCK(curthread, pthread);
 			break;
-		else
-			/* Get the next thread from the waiting queue: */
-			pthread = TAILQ_NEXT(pthread, sqe);
+		}
+		THR_SCHED_UNLOCK(curthread, pthread);
+		/* Get the next thread from the waiting queue: */
+		pthread = TAILQ_NEXT(pthread, sqe);
 	}
 
 	if ((pthread == NULL) && (mutex->m_protocol == PTHREAD_PRIO_INHERIT))

@@ -84,6 +84,13 @@ _thr_setconcurrency(int new_level)
 	int i;
 	int ret;
 
+	/*
+	 * Turn on threaded mode, if failed, it is unnecessary to
+	 * do further work.
+	 */
+	if (_kse_isthreaded() == 0 && _kse_setthreaded(1))
+		return (EAGAIN);
+
 	ret = 0;
 	curthread = _get_curthread();
 	/* Race condition, but so what. */

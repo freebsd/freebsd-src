@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "thr_private.h"
 #include "libc_private.h"
 
-/*#define DEBUG_THREAD_KERN */
+/* #define DEBUG_THREAD_KERN */
 #ifdef DEBUG_THREAD_KERN
 #define DBG_MSG		stdout_debug
 #else
@@ -165,8 +165,7 @@ static struct kse_mailbox *kse_wakeup_one(struct pthread *thread);
 static void	thr_cleanup(struct kse *kse, struct pthread *curthread);
 static void	thr_link(struct pthread *thread);
 static void	thr_resume_wrapper(int sig, siginfo_t *, ucontext_t *);
-static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
-		    struct pthread_sigframe *psf);
+static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp);
 static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
 static void	thr_unlink(struct pthread *thread);
 static void	thr_destroy(struct pthread *curthread, struct pthread *thread);
@@ -352,6 +351,9 @@ _kse_single_thread(struct pthread *curthread)
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
 	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
 
+	/* After a fork(), there child should have no pending signals. */
+	sigemptyset(&curthread->sigpend);
+
 	/*
 	 * Restore signal mask early, so any memory problems could
 	 * dump core.
@@ -443,6 +445,7 @@ _kse_setthreaded(int threaded)
 			_kse_initial->k_kcb->kcb_kmbx.km_lwp;
 		_thread_activated = 1;
 
+#ifndef SYSTEM_SCOPE_ONLY
 		if (_thread_scope_system <= 0) {
 			/* Set current thread to initial thread */
 			_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
@@ -450,10 +453,10 @@ _kse_setthreaded(int threaded)
 			_thr_start_sig_daemon();
 			_thr_setmaxconcurrency();
 		}
-		else {
+		else
+#endif
 			__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask,
 			    NULL);
-		}
 	}
 	return (0);
 }
@@ -614,27 +617,18 @@ _thr_sched_switch(struct pthread *curthread)
 void
 _thr_sched_switch_unlocked(struct pthread *curthread)
 {
-	struct pthread_sigframe psf;
 	struct kse *curkse;
 	volatile int resume_once = 0;
 	ucontext_t *uc;
 
 	/* We're in the scheduler, 5 by 5: */
-	curkse = _get_curkse();
+	curkse = curthread->kse;
 
 	curthread->need_switchout = 1;	/* The thread yielded on its own. */
 	curthread->critical_yield = 0;	/* No need to yield anymore. */
 
 	/* Thread can unlock the scheduler lock. */
 	curthread->lock_switch = 1;
-
-	/*
-	 * The signal frame is allocated off the stack because
-	 * a thread can be interrupted by other signals while
-	 * it is running down pending signals.
-	 */
-	psf.psf_valid = 0;
-	curthread->curframe = &psf;
 
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		kse_sched_single(&curkse->k_kcb->kcb_kmbx);
@@ -657,18 +651,11 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	}
 	
 	/*
-	 * It is ugly we must increase critical count, because we
-	 * have a frame saved, we must backout state in psf
-	 * before we can process signals.
- 	 */
-	curthread->critical_count += psf.psf_valid;
-
-	/*
 	 * Unlock the scheduling queue and leave the
 	 * critical region.
 	 */
 	/* Don't trust this after a switch! */
-	curkse = _get_curkse();
+	curkse = curthread->kse;
 
 	curthread->lock_switch = 0;
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
@@ -677,16 +664,14 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	/*
 	 * This thread is being resumed; check for cancellations.
 	 */
-	if ((psf.psf_valid ||
-	    ((curthread->check_pending || THR_NEED_ASYNC_CANCEL(curthread))
-	    && !THR_IN_CRITICAL(curthread)))) {
+	if (THR_NEED_ASYNC_CANCEL(curthread) && !THR_IN_CRITICAL(curthread)) {
 		uc = alloca(sizeof(ucontext_t));
 		resume_once = 0;
 		THR_GETCONTEXT(uc);
 		if (resume_once == 0) {
 			resume_once = 1;
 			curthread->check_pending = 0;
-			thr_resume_check(curthread, uc, &psf);
+			thr_resume_check(curthread, uc);
 		}
 	}
 	THR_ACTIVATE_LAST_LOCK(curthread);
@@ -876,17 +861,16 @@ kse_sched_single(struct kse_mailbox *kmbx)
 		THR_DEACTIVATE_LAST_LOCK(curthread);
 		kse_wait(curkse, curthread, sigseqno);
 		THR_ACTIVATE_LAST_LOCK(curthread);
-		KSE_GET_TOD(curkse, &ts);
-		if (thr_timedout(curthread, &ts)) {
-			/* Indicate the thread timedout: */
-			curthread->timeout = 1;
-			/* Make the thread runnable. */
-			THR_SET_STATE(curthread, PS_RUNNING);
+		if (curthread->wakeup_time.tv_sec >= 0) {
+			KSE_GET_TOD(curkse, &ts);
+			if (thr_timedout(curthread, &ts)) {
+				/* Indicate the thread timedout: */
+				curthread->timeout = 1;
+				/* Make the thread runnable. */
+				THR_SET_STATE(curthread, PS_RUNNING);
+			}
 		}
 	}
-
-	/* Remove the frame reference. */
-	curthread->curframe = NULL;
 
 	if (curthread->lock_switch == 0) {
 		/* Unlock the scheduling queue. */
@@ -922,7 +906,6 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 {
 	struct kse *curkse;
 	struct pthread *curthread, *td_wait;
-	struct pthread_sigframe *curframe;
 	int ret;
 
 	curkse = (struct kse *)kmbx->km_udata;
@@ -977,6 +960,8 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		 * will be cleared.
 		 */
 		curthread->blocked = 1;
+		DBG_MSG("Running thread %p is now blocked in kernel.\n",
+		    curthread);
 	}
 
 	/* Check for any unblocked threads in the kernel. */
@@ -1082,10 +1067,6 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	/* Mark the thread active. */
 	curthread->active = 1;
 
-	/* Remove the frame reference. */
-	curframe = curthread->curframe;
-	curthread->curframe = NULL;
-
 	/*
 	 * The thread's current signal frame will only be NULL if it
 	 * is being resumed after being blocked in the kernel.  In
@@ -1093,7 +1074,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	 * signals or needs a cancellation check, we need to add a
 	 * signal frame to the thread's context.
 	 */
-	if ((curframe == NULL) && (curthread->state == PS_RUNNING) &&
+	if (curthread->lock_switch == 0 && curthread->state == PS_RUNNING &&
 	    (curthread->check_pending != 0 ||
 	     THR_NEED_ASYNC_CANCEL(curthread)) &&
 	    !THR_IN_CRITICAL(curthread)) {
@@ -1133,10 +1114,10 @@ thr_resume_wrapper(int sig, siginfo_t *siginfo, ucontext_t *ucp)
 	DBG_MSG(">>> sig wrapper\n");
 	if (curthread->lock_switch)
 		PANIC("thr_resume_wrapper, lock_switch != 0\n");
-	thr_resume_check(curthread, ucp, NULL);
+	thr_resume_check(curthread, ucp);
 	errno = err_save;
 	_kse_critical_enter();
-	curkse = _get_curkse();
+	curkse = curthread->kse;
 	curthread->tcb->tcb_tmbx.tm_context = *ucp;
 	ret = _thread_switch(curkse->k_kcb, curthread->tcb, 1);
 	if (ret != 0)
@@ -1146,10 +1127,9 @@ thr_resume_wrapper(int sig, siginfo_t *siginfo, ucontext_t *ucp)
 }
 
 static void
-thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
-    struct pthread_sigframe *psf)
+thr_resume_check(struct pthread *curthread, ucontext_t *ucp)
 {
-	_thr_sig_rundown(curthread, ucp, psf);
+	_thr_sig_rundown(curthread, ucp);
 
 	if (THR_NEED_ASYNC_CANCEL(curthread))
 		pthread_testcancel();
@@ -1814,13 +1794,12 @@ kse_wait(struct kse *kse, struct pthread *td_wait, int sigseqno)
 	struct timespec ts, ts_sleep;
 	int saved_flags;
 
-	KSE_GET_TOD(kse, &ts);
-
 	if ((td_wait == NULL) || (td_wait->wakeup_time.tv_sec < 0)) {
 		/* Limit sleep to no more than 1 minute. */
 		ts_sleep.tv_sec = 60;
 		ts_sleep.tv_nsec = 0;
 	} else {
+		KSE_GET_TOD(kse, &ts);
 		TIMESPEC_SUB(&ts_sleep, &td_wait->wakeup_time, &ts);
 		if (ts_sleep.tv_sec > 60) {
 			ts_sleep.tv_sec = 60;

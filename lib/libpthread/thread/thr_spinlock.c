@@ -49,6 +49,10 @@ struct spinlock_extra {
 
 static void	init_spinlock(spinlock_t *lck);
 
+static struct pthread_mutex_attr static_mutex_attr =
+    PTHREAD_MUTEXATTR_STATIC_INITIALIZER;
+static pthread_mutexattr_t	static_mattr = &static_mutex_attr;
+
 static pthread_mutex_t		spinlock_static_lock;
 static struct spinlock_extra	extra[MAX_SPINLOCKS];
 static int			spinlock_count = 0;
@@ -65,7 +69,7 @@ _spinunlock(spinlock_t *lck)
 	struct spinlock_extra *extra;
 
 	extra = (struct spinlock_extra *)lck->fname;
-	pthread_mutex_unlock(&extra->lock);
+	_pthread_mutex_unlock(&extra->lock);
 }
 
 /*
@@ -90,7 +94,7 @@ _spinlock(spinlock_t *lck)
 	if (lck->fname == NULL)
 		init_spinlock(lck);
 	extra = (struct spinlock_extra *)lck->fname;
-	pthread_mutex_lock(&extra->lock);
+	_pthread_mutex_lock(&extra->lock);
 }
 
 /*
@@ -112,13 +116,13 @@ _spinlock_debug(spinlock_t *lck, char *fname, int lineno)
 static void
 init_spinlock(spinlock_t *lck)
 {
-	pthread_mutex_lock(&spinlock_static_lock);
+	_pthread_mutex_lock(&spinlock_static_lock);
 	if ((lck->fname == NULL) && (spinlock_count < MAX_SPINLOCKS)) {
 		lck->fname = (char *)&extra[spinlock_count];
 		extra[spinlock_count].owner = lck;
 		spinlock_count++;
 	}
-	pthread_mutex_unlock(&spinlock_static_lock);
+	_pthread_mutex_unlock(&spinlock_static_lock);
 	if (lck->fname == NULL)
 		PANIC("Exceeded max spinlocks");
 }
@@ -133,10 +137,10 @@ _thr_spinlock_init(void)
 		for (i = 0; i < spinlock_count; i++)
 			_thr_mutex_reinit(&extra[i].lock);
 	} else {
-		if (pthread_mutex_init(&spinlock_static_lock, NULL))
+		if (_pthread_mutex_init(&spinlock_static_lock, &static_mattr))
 			PANIC("Cannot initialize spinlock_static_lock");
 		for (i = 0; i < MAX_SPINLOCKS; i++) {
-			if (pthread_mutex_init(&extra[i].lock, NULL))
+			if (_pthread_mutex_init(&extra[i].lock, &static_mattr))
 				PANIC("Cannot initialize spinlock extra");
 		}
 		initialized = 1;

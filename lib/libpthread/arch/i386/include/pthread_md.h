@@ -32,7 +32,9 @@
 #define	_PTHREAD_MD_H_
 
 #include <stddef.h>
+#include <sys/types.h>
 #include <sys/kse.h>
+#include <machine/sysarch.h>
 #include <ucontext.h>
 
 extern int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
@@ -89,7 +91,7 @@ struct tcb {
 	__asm __volatile("movl %%gs:%1, %0"			\
 	    : "=r" (__i)					\
 	    : "m" (*(u_int *)(__kcb_offset(name))));		\
-	__result = *(__kcb_type(name) *)&__i;			\
+	__result = (__kcb_type(name))__i;			\
 								\
 	__result;						\
 })
@@ -101,7 +103,7 @@ struct tcb {
 	__kcb_type(name) __val = (val);				\
 								\
 	u_int __i;						\
-	__i = *(u_int *)&__val;					\
+	__i = (u_int)__val;					\
 	__asm __volatile("movl %1,%%gs:%0"			\
 	    : "=m" (*(u_int *)(__kcb_offset(name)))		\
 	    : "r" (__i));					\
@@ -150,10 +152,15 @@ void		_kcb_dtor(struct kcb *);
 static __inline void
 _kcb_set(struct kcb *kcb)
 {
+#ifndef COMPAT_32BIT
 	int val;
 
 	val = (kcb->kcb_ldt << 3) | 7;
 	__asm __volatile("movl %0, %%gs" : : "r" (val));
+#else
+	_amd64_set_gsbase(kcb);
+#endif
+
 }
 
 /* Get the current kcb. */
