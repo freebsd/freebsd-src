@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.54 1998/05/15 23:58:24 brian Exp $
+ * $Id: lcp.c,v 1.57 1998/05/21 21:46:00 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -120,7 +120,7 @@ static const char *cftypes[] = {
   "NDE",	/* 16: Nominal-Data-Encapsulation */
   "MRRU",	/* 17: Multilink-MRRU */
   "SHORTSEQ",	/* 18: Multilink-Short-Sequence-Number-Header */
-  "ENDDISC",	/* 19: Multilink-Endpoint-Descriminator */
+  "ENDDISC",	/* 19: Multilink-Endpoint-Discriminator */
   "PROPRIETRY",	/* 20: Proprietary */
   "DCEID",	/* 21: DCE-Identifier */
   "MULTIPP",	/* 22: Multi-Link-Plus-Procedure */
