@@ -93,17 +93,17 @@
 			    size_t offset, u_int scale); }
 45	STD	BSD	{ int ktrace(const char *fname, int ops, int facs, \
 			    int pid); }
-46	STD	POSIX	{ int osigaction(int signum, struct osigaction *nsa, \
+46	COMPAT	POSIX	{ int sigaction(int signum, struct osigaction *nsa, \
 			    struct osigaction *osa); }
 47	STD	POSIX	{ gid_t getgid(void); }
-48	STD	POSIX	{ int osigprocmask(int how, osigset_t mask); }
+48	COMPAT	POSIX	{ int sigprocmask(int how, osigset_t mask); }
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it, and we return the old mask as the
 ; (int) return value.
 49	STD	BSD	{ int getlogin(char *namebuf, u_int namelen); }
 50	STD	BSD	{ int setlogin(char *namebuf); }
 51	STD	BSD	{ int acct(char *path); }
-52	STD	POSIX	{ int osigpending(void); }
+52	COMPAT	POSIX	{ int sigpending(void); }
 53	STD	BSD	{ int sigaltstack(stack_t *ss, stack_t *oss); }
 54	STD	POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
 55	STD	BSD	{ int reboot(int opt); }
@@ -166,7 +166,7 @@
 100	STD	BSD	{ int getpriority(int which, int who); }
 101	COMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
 102	COMPAT	BSD	{ int recv(int s, caddr_t buf, int len, int flags); }
-103	STD	BSD	{ int osigreturn(struct osigcontext *sigcntxp); }
+103	COMPAT	BSD	{ int sigreturn(struct osigcontext *sigcntxp); }
 104	STD	BSD	{ int bind(int s, caddr_t name, int namelen); }
 105	STD	BSD	{ int setsockopt(int s, int level, int name, \
 			    caddr_t val, int valsize); }
@@ -176,7 +176,7 @@
 			    struct sigvec *osv); }
 109	COMPAT	BSD	{ int sigblock(int mask); }
 110	COMPAT	BSD	{ int sigsetmask(int mask); }
-111	STD	POSIX	{ int osigsuspend(osigset_t mask); }
+111	COMPAT	POSIX	{ int sigsuspend(osigset_t mask); }
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it.
 112	COMPAT	BSD	{ int sigstack(struct sigstack *nss, \
