@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.11 1995/11/05 01:00:27 jkh Exp $
+ * $Id: anonFTP.c,v 1.1 1995/11/09 02:31:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -59,11 +59,12 @@
 /* This doesn't change until FTP itself changes */
 
 #define FTP_NAME	"ftp"
+#define MOTD_FILE	"ftpmotd"
 
 /* These change if we want to use different defaults */
 
 #define FTP_UID		14
-#define FTP_GID		6
+#define FTP_GID		5
 #define FTP_GROUP	"operator"
 #define FTP_UPLOAD	"incoming"
 #define FTP_COMMENT	"Anonymous FTP Admin"
@@ -480,6 +481,12 @@ configAnonFTP(char *unused)
       dialog_clear();
       msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
       i = RET_FAIL;
+     }
+
+    if (! msgYesNo("Create a welcome message file for anonymous FTP users?"))
+     {
+      vsystem("echo 'Your welcome message here.' > %s/etc/%s", tconf.homedir, MOTD_FILE);
+      vsystem("ee %s/etc/%s", tconf.homedir, MOTD_FILE);
      }
    }
   else {
