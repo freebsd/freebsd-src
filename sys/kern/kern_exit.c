@@ -458,6 +458,7 @@ exit1(struct thread *td, int rv)
 		pp = p->p_pptr;
 		PROC_UNLOCK(pp);
 		proc_reparent(p, initproc);
+		p->p_sigparent = SIGCHLD;
 		PROC_LOCK(p->p_pptr);
 		/*
 		 * If this was the last child of our parent, notify
