@@ -53,7 +53,7 @@
  */
 
 #include "opt_clock.h"
-#include "apm.h"
+#include "opt_apm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -988,7 +988,7 @@ startrtclock()
 	 * Curse Intel for leaving the counter out of the I/O APIC.
 	 */
 
-#if NAPM > 0
+#ifdef DEV_APM
 	/*
 	 * We can not use the TSC if we support APM. Precise timekeeping
 	 * on an APM'ed machine is at best a fools pursuit, since 
@@ -1005,7 +1005,7 @@ startrtclock()
 	if (disabled == 0)
 		return;
 	}
-#endif /* NAPM > 0 */
+#endif /* DEV_APM */
 
 	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;

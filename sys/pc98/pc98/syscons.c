@@ -32,7 +32,7 @@
 #include "opt_syscons.h"
 #include "opt_ddb.h"
 #ifdef __i386__
-#include "apm.h"
+#include "opt_apm.h"
 #endif
 
 #include <sys/param.h>
@@ -3134,7 +3134,7 @@ next_code:
 #endif
 		break;
 
-#if NAPM > 0
+#ifdef DEV_APM
 	    case SUSP:
 		apm_suspend(PMST_SUSPEND);
 		break;
