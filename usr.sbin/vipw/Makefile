@@ -3,7 +3,8 @@
 
 PROG=	vipw
 MAN=	vipw.8
-SRCS=	pw_util.c vipw.c
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 WARNS?=	4
 
 .include <bsd.prog.mk>

@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "chpass.h"
-#include "pathnames.h"
 
 /* ARGSUSED */
 int
@@ -62,15 +69,15 @@ p_login(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!*p) {
 		warnx("empty login field");
-		return (1);
+		return (-1);
 	}
 	if (*p == '-') {
 		warnx("login names may not begin with a hyphen");
-		return (1);
+		return (-1);
 	}
 	if (!(pw->pw_name = strdup(p))) {
 		warnx("can't save entry");
-		return (1);
+		return (-1);
 	}
 	if (strchr(p, '.'))
 		warnx("\'.\' is dangerous in a login name");
@@ -88,7 +95,7 @@ p_passwd(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!(pw->pw_passwd = strdup(p))) {
 		warnx("can't save password entry");
-		return (1);
+		return (-1);
 	}
 
 	return (0);
@@ -103,17 +110,17 @@ p_uid(char *p, struct passwd *pw, ENTRY *ep __unused)
 
 	if (!*p) {
 		warnx("empty uid field");
-		return (1);
+		return (-1);
 	}
 	if (!isdigit(*p)) {
 		warnx("illegal uid");
-		return (1);
+		return (-1);
 	}
 	errno = 0;
 	id = strtoul(p, &np, 10);
 	if (*np || (id == ULONG_MAX && errno == ERANGE)) {
 		warnx("illegal uid");
-		return (1);
+		return (-1);
 	}
 	pw->pw_uid = id;
 	return (0);
@@ -129,12 +136,12 @@ p_gid(char *p, struct passwd *pw, ENTRY *ep __unused)
 
 	if (!*p) {
 		warnx("empty gid field");
-		return (1);
+		return (-1);
 	}
 	if (!isdigit(*p)) {
 		if (!(gr = getgrnam(p))) {
 			warnx("unknown group %s", p);
-			return (1);
+			return (-1);
 		}
 		pw->pw_gid = gr->gr_gid;
 		return (0);
@@ -143,7 +150,7 @@ p_gid(char *p, struct passwd *pw, ENTRY *ep __unused)
 	id = strtoul(p, &np, 10);
 	if (*np || (id == ULONG_MAX && errno == ERANGE)) {
 		warnx("illegal gid");
-		return (1);
+		return (-1);
 	}
 	pw->pw_gid = id;
 	return (0);
@@ -155,7 +162,7 @@ p_class(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!(pw->pw_class = strdup(p))) {
 		warnx("can't save entry");
-		return (1);
+		return (-1);
 	}
 
 	return (0);
@@ -168,7 +175,7 @@ p_change(char *p, struct passwd *pw, ENTRY *ep __unused)
 	if (!atot(p, &pw->pw_change))
 		return (0);
 	warnx("illegal date for change field");
-	return (1);
+	return (-1);
 }
 
 /* ARGSUSED */
@@ -178,16 +185,16 @@ p_expire(char *p, struct passwd *pw, ENTRY *ep __unused)
 	if (!atot(p, &pw->pw_expire))
 		return (0);
 	warnx("illegal date for expire field");
-	return (1);
+	return (-1);
 }
 
 /* ARGSUSED */
 int
-p_gecos(char *p, struct passwd *pw __unused, ENTRY *ep __unused)
+p_gecos(char *p, struct passwd *pw __unused, ENTRY *ep)
 {
 	if (!(ep->save = strdup(p))) {
 		warnx("can't save entry");
-		return (1);
+		return (-1);
 	}
 	return (0);
 }
@@ -198,11 +205,11 @@ p_hdir(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!*p) {
 		warnx("empty home directory field");
-		return (1);
+		return (-1);
 	}
 	if (!(pw->pw_dir = strdup(p))) {
 		warnx("can't save entry");
-		return (1);
+		return (-1);
 	}
 	return (0);
 }
@@ -219,21 +226,21 @@ p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 		return (0);
 	}
 	/* only admin can change from or to "restricted" shells */
-	if (uid && pw->pw_shell && !ok_shell(pw->pw_shell)) {
+	if (!master_mode && pw->pw_shell && !ok_shell(pw->pw_shell)) {
 		warnx("%s: current shell non-standard", pw->pw_shell);
-		return (1);
+		return (-1);
 	}
 	if (!(t = ok_shell(p))) {
-		if (uid) {
+		if (!master_mode) {
 			warnx("%s: non-standard shell", p);
-			return (1);
+			return (-1);
 		}
 	}
 	else
 		p = t;
 	if (!(pw->pw_shell = strdup(p))) {
 		warnx("can't save entry");
-		return (1);
+		return (-1);
 	}
 	if (stat(pw->pw_shell, &sbuf) < 0) {
 		if (errno == ENOENT)
@@ -244,7 +251,7 @@ p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 		return (0);
 	}
 	if (!S_ISREG(sbuf.st_mode)) {
-		warnx("WARNING: shell '%s' is not a regular file", 
+		warnx("WARNING: shell '%s' is not a regular file",
 			pw->pw_shell);
 		return (0);
 	}

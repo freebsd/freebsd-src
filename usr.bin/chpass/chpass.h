@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,7 +46,8 @@ struct passwd;
 typedef struct _entry {
 	const char *prompt;
 	int (*func)(char *, struct passwd *, struct _entry *);
-	int restricted, len;
+	int restricted;
+	size_t len;
 	char *except, *save;
 } ENTRY;
 
@@ -52,11 +60,10 @@ typedef struct _entry {
 #define	E_SHELL		13
 
 extern ENTRY list[];
-extern uid_t uid;
+extern int master_mode;
 
 int	 atot(char *, time_t *);
-void	 display(int, struct passwd *);
-void	 edit(struct passwd *);
+struct passwd *edit(const char *, struct passwd *);
 char    *ok_shell(char *);
 int	 p_change(char *, struct passwd *, ENTRY *);
 int	 p_class(char *, struct passwd *, ENTRY *);
@@ -70,4 +77,3 @@ int	 p_passwd(char *, struct passwd *, ENTRY *);
 int	 p_shell(char *, struct passwd *, ENTRY *);
 int	 p_uid(char *, struct passwd *, ENTRY *);
 char    *ttoa(time_t);
-int	 verify(struct passwd *);
