@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: shlib.c,v 1.18 1997/02/22 15:46:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
  * Standard directories to search for files specified by -l.
  */
 #ifndef STANDARD_SEARCH_DIRS
-#define STANDARD_SEARCH_DIRS    "/usr/lib"
+#define STANDARD_SEARCH_DIRS    "/usr/lib/aout"
 #endif
 
 /*

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.35 1998/02/09 06:05:07 jdp Exp $
+#	$Id: Makefile,v 1.36 1998/02/11 04:57:10 jdp Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
@@ -35,7 +35,7 @@ sgcrt0.o: scrt0.o
 
 realinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
-		${DESTDIR}/usr/lib
+		${DESTDIR}/${LIBDIR}
 
 depend:	.depend
 

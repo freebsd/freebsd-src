@@ -17,13 +17,13 @@ install:
 	chown ${BINOWN} ${DESTDIR}/usr/bin/objformat
 	chgrp ${BINGRP} ${DESTDIR}/usr/bin/objformat
 	chmod ${BINMODE} ${DESTDIR}/usr/bin/objformat
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ar
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/as
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ld
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/nm
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ranlib
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/size
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/strings
-	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/strip
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ar
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/as
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ld
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/nm
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ranlib
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/size
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/strings
+	ln -sf ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/strip
 
 .include <bsd.prog.mk>
