@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: name6.c,v 1.22 2000/05/01 08:19:08 itojun Exp $	*/
+/*	$KAME: name6.c,v 1.25 2000/06/26 16:44:40 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -1051,21 +1051,23 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 		} \
 	} while (0)
 
+/* XXX do {} while (0) cannot be put here */
 #define DNS_ASSERT(x) \
-	do {				\
+	{				\
 		if (!(x)) {		\
 			cp += n;	\
 			continue;	\
 		}			\
-	} while (0)
+	}
 
+/* XXX do {} while (0) cannot be put here */
 #define DNS_FATAL(x) \
-	do {				\
+	{				\
 		if (!(x)) {		\
 			had_error++;	\
 			continue;	\
 		}			\
-	} while (0)
+	}
 
 	tname = qname;
 	template->h_name = NULL;
@@ -1326,6 +1328,8 @@ _res_search_multi(name, rtl, errp)
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
 				hp = getanswer(&buf, ret, name, rtl->rtl_type,
 						    &hpbuf, errp);
+				if (!hp)
+					continue;
 				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
@@ -1349,6 +1353,8 @@ _res_search_multi(name, rtl, errp)
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
 				hp = getanswer(&buf, ret, name, rtl->rtl_type,
 						    &hpbuf, errp);
+				if (!hp)
+					continue;
 				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
@@ -1384,6 +1390,8 @@ _res_search_multi(name, rtl, errp)
 					hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
 					hp = getanswer(&buf, ret, name,
 					    rtl->rtl_type, &hpbuf, errp);
+					if (!hp)
+						continue;
 					hp = _hpcopy(&hpbuf, errp);
 					hp0 = _hpmerge(hp0, hp, errp);
 				}
@@ -1452,6 +1460,8 @@ _res_search_multi(name, rtl, errp)
 				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
 				hp = getanswer(&buf, ret, name, rtl->rtl_type,
 				    &hpbuf, errp);
+				if (!hp)
+					continue;
 				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
@@ -1578,6 +1588,8 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 		return NULL;
 	}
 	hp = getanswer(&buf, n, qbuf, T_PTR, &hbuf, errp);
+	if (!hp)
+		return NULL;
 	hbuf.h_addrtype = af;
 	hbuf.h_length = addrlen;
 	hbuf.h_addr_list = hlist;
