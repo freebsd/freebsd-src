@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.33 1996/07/11 16:32:26 wollman Exp $
+ * $Id: if.c,v 1.34 1996/07/24 19:59:53 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -90,8 +90,8 @@ ifinit(dummy)
 	if_slowtimo(0);
 }
 
-static int if_index = 0;
-static struct ifaddr **ifnet_addrs;
+int if_index = 0;
+struct ifaddr **ifnet_addrs;
 
 
 /*
