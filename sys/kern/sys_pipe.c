@@ -789,10 +789,15 @@ pipe_write(fp, uio, cred, flags)
 				wpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(wpipe);
 			}
-			error = tsleep(wpipe,
-					PRIBIO|PCATCH, "pipbww", 0);
+			error = tsleep(wpipe, PRIBIO|PCATCH, "pipbww", 0);
+			if (wpipe->pipe_state & PIPE_EOF)
+				break;
 			if (error)
 				break;
+		}
+		if (wpipe->pipe_state & PIPE_EOF) {
+			error = EPIPE;
+			break;
 		}
 
 		space = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
