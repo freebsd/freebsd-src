@@ -1127,7 +1127,7 @@ init_mapfile()
      */
     if (mmap((caddr_t)ems_frame_addr, 64 * 1024,
               PROT_EXEC | PROT_READ | PROT_WRITE,
-              MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
+              MAP_ANON | MAP_FIXED | MAP_SHARED,
 	      -1, 0) < 0) {
 	debug(D_ALWAYS, "Could not map EMS page frame, ");
 	goto fail;
@@ -1175,14 +1175,14 @@ map_page(u_long pagenum, u_char position, short handle, int unmaponly)
          */
     	if (mmap((caddr_t)ems_frame_addr, 64 * 1024,
               PROT_EXEC | PROT_READ | PROT_WRITE,
-              MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
+              MAP_ANON | MAP_FIXED | MAP_SHARED,
 	      -1, 0) < 0)
 	    fatal("Could not map EMS page frame during unmap only\n");
 	return;
     }
     if (mmap(map_addr, len,
               PROT_EXEC | PROT_READ | PROT_WRITE,
-              MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
+              MAP_FILE | MAP_FIXED | MAP_SHARED,
               mapfile_fd, file_offs) < 0) {
         fatal("EMS mapping error: %s\nCannot recover\n", strerror(errno));
     }
