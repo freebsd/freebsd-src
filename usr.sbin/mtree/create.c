@@ -153,6 +153,7 @@ statf(indent, p)
 	struct passwd *pw;
 	u_long len, val;
 	int fd, offset;
+	char *fflags;
 	char *escaped_name;
 
 	escaped_name = calloc(1, p->fts_namelen * 4  +  1);
@@ -256,9 +257,11 @@ statf(indent, p)
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
 		output(indent, &offset, "link=%s", rlink(p->fts_accpath));
-	if (keys & F_FLAGS && p->fts_statp->st_flags != flags)
-		output(indent, &offset, "flags=%s",
-		    getflags(p->fts_statp->st_flags, "none"));
+	if (keys & F_FLAGS && p->fts_statp->st_flags != flags) {
+		fflags = flags_to_string(p->fts_statp->st_flags);
+		output(indent, &offset, "flags=%s", fflags);
+		free(fflags);
+	}
 	(void)putchar('\n');
 }
 
@@ -290,6 +293,7 @@ statd(t, parent, puid, pgid, pmode, pflags)
 	u_long saveflags = 0;
 	u_short maxgid, maxuid, maxmode, maxflags;
 	u_short g[MAXGID], u[MAXUID], m[MAXMODE], f[MAXFLAGS];
+	char *fflags;
 	static int first = 1;
 
 	if ((p = fts_children(t, 0)) == NULL) {
@@ -374,9 +378,11 @@ statd(t, parent, puid, pgid, pmode, pflags)
 			(void)printf(" mode=%#o", savemode);
 		if (keys & F_NLINK)
 			(void)printf(" nlink=1");
-		if (keys & F_FLAGS && saveflags)
-			(void)printf(" flags=%s",
-			    getflags(saveflags, "none"));
+		if (keys & F_FLAGS && saveflags) {
+			fflags = flags_to_string(saveflags);
+			(void)printf(" flags=%s", fflags);
+			free(fflags);
+		}
 		(void)printf("\n");
 		*puid = saveuid;
 		*pgid = savegid;

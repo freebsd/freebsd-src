@@ -56,8 +56,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int	setflags __P((char **, u_long *, u_long *));
-
 void	usage __P((void));
 
 int
@@ -123,7 +121,7 @@ main(argc, argv)
 		set = val;
                 oct = 1;
 	} else {
-		if (setflags(&flags, &set, &clear))
+		if (strtofflags(&flags, &set, &clear))
                         errx(1, "invalid flag: %s", flags);
 		clear = ~clear;
 		oct = 0;

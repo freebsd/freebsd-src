@@ -214,7 +214,7 @@ set(t, ip)
 		case F_FLAGS:
 			if (strcmp("none", val) == 0)
 				ip->st_flags = 0;
-			else if (setflags(&val, &ip->st_flags, NULL) != 0)
+			else if (strtofflags(&val, &ip->st_flags, NULL) != 0)
 				errx(1, "line %d: invalid flag %s",lineno, val);
  			break;
 		case F_GID:
