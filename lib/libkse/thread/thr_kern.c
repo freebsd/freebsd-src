@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.5 1997/04/01 22:51:48 jb Exp $
+ * $Id: uthread_kern.c,v 1.6 1998/02/13 01:27:33 julian Exp $
  *
  */
 #include <errno.h>
@@ -62,7 +62,7 @@ _thread_signal(pthread_t pthread, int sig);
 void
 _thread_kern_sched(struct sigcontext * scp)
 {
-#ifndef	__alpha
+#ifndef	__alpha__
 	char           *fdata;
 #endif
 	int             i;
@@ -89,7 +89,7 @@ _thread_kern_sched(struct sigcontext * scp)
 		 */
 		memcpy(&_thread_run->saved_sigcontext, scp, sizeof(_thread_run->saved_sigcontext));
 
-#ifndef	__alpha
+#ifndef	__alpha__
 		/* Point to the floating point data in the running thread: */
 		fdata = _thread_run->saved_fp;
 
@@ -788,7 +788,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 			}
 			/* Check if a signal context was saved: */
 			if (_thread_run->sig_saved == 1) {
-#ifndef	__alpha
+#ifndef	__alpha__
 				/*
 				 * Point to the floating point data in the
 				 * running thread: 
